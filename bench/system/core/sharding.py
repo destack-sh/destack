@@ -16,39 +16,39 @@ if TYPE_CHECKING:
 
 
 @dataclass(slots=True)
-class PostgresInfo:
+class StoreInfo:
     pg_url: str
 
     def render(self) -> str:
         return self.pg_url
 
     @staticmethod
-    def parse(region_url: str) -> "PostgresInfo":
+    def parse(region_url: str) -> "StoreInfo":
         """Parses a region URL like 'postgresql://user:pass@host/db'."""
-        return PostgresInfo(pg_url=region_url)
+        return StoreInfo(pg_url=region_url)
 
 
-class PostgresMap:
+class StoreMap:
     """
     Maps Regions to regional DBs.
     """
 
-    def __init__(self, store_map: dict[Region | Literal["*"], "PostgresInfo | Store"]):
-        self._store_info_by_region: dict[Region | Literal["*"], PostgresInfo] = {}
+    def __init__(self, store_map: dict[Region | Literal["*"], "StoreInfo | Store"]):
+        self._store_info_by_region: dict[Region | Literal["*"], StoreInfo] = {}
         self._store_by_region: dict[Region | Literal["*"], Store] = {}
         for region, store_or_info in store_map.items():
-            if isinstance(store_or_info, PostgresInfo):
+            if isinstance(store_or_info, StoreInfo):
                 self._store_info_by_region[region] = store_or_info
             else:
                 self._store_by_region[region] = store_or_info
 
     def __str__(self) -> str:
-        return postgres_map_to_string(self)
+        return store_map_to_string(self)
 
     def __repr__(self) -> str:
-        return f"<{self.__class__.__name__} {postgres_map_to_string(self) or '<empty>'}>"
+        return f"<{self.__class__.__name__} {store_map_to_string(self) or '<empty>'}>"
 
-    def get_info(self, region: Region) -> PostgresInfo:
+    def get_info(self, region: Region) -> StoreInfo:
         """Gets the region info for the given region (error if none)."""
         store_info = self._store_info_by_region.get(region)
         if store_info is None:
@@ -58,7 +58,7 @@ class PostgresMap:
         return store_info
 
     def get(self, region: Region) -> "Store":
-        """Gets the store for the given region (error if none)."""
+        """Gets the Store for the given region (error if none)."""
         store = self._store_by_region.get(region)
         if store is None:
             store = self._store_by_region.get("*")
@@ -71,7 +71,7 @@ class PostgresMap:
         return store
 
 
-def get_postgres_map_from_string(map_str: str) -> "PostgresMap":
+def get_store_map_from_string(map_str: str) -> "StoreMap":
     """
     Parses a map string like:
         '*=postgresql://user:pass@host/db'
@@ -81,12 +81,12 @@ def get_postgres_map_from_string(map_str: str) -> "PostgresMap":
     for mapping_str in map_str.split(";"):
         store_str, store_info_str = mapping_str.split("=", 1)
         region = Region.get_by_slug(store_str) if store_str != "*" else store_str
-        store_info = PostgresInfo.parse(store_info_str.strip())
+        store_info = StoreInfo.parse(store_info_str.strip())
         store_map[region] = store_info
-    return PostgresMap(store_map=store_map)
+    return StoreMap(store_map=store_map)
 
 
-def postgres_map_to_string(region_map: "PostgresMap") -> str:
+def store_map_to_string(region_map: "StoreMap") -> str:
     """Renders a region map back into a string."""
     return ";".join(
         f"{k.slug if isinstance(k, Region) else k}={v.render()}"
@@ -94,13 +94,13 @@ def postgres_map_to_string(region_map: "PostgresMap") -> str:
     )
 
 
-def get_postgres_map_from_env() -> "PostgresMap":
+def get_store_map_from_env() -> "StoreMap":
     """Parses the REGIONAL_PG_MAP from the environment."""
     region_map_str = get_from_env("REGIONAL_PG_MAP", description="Region map for postgres sharding")
-    return get_postgres_map_from_string(region_map_str)
+    return get_store_map_from_string(region_map_str)
 
 
-STORE_MAP = get_postgres_map_from_env()
+STORE_MAP = get_store_map_from_env()
 
 #
 # Hosts (by Region/Shard)

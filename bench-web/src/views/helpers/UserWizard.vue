@@ -36,8 +36,8 @@ const email: Ref<string> = ref("");
 const password: Ref<string> = ref("");
 const region: Ref<Region> = ref(Region.FRANKFURT);
 watchEffect(() => {
-  if (GEOLOCATION.value?.area != null) {
-    const defaultRegion = DEFAULT_REGION_BY_AREA[GEOLOCATION.value.area];
+  if (GEOLOCATION.value?.continent != null) {
+    const defaultRegion = DEFAULT_REGION_BY_AREA[GEOLOCATION.value.continent];
     if (defaultRegion != null) {
       region.value = defaultRegion;
     }

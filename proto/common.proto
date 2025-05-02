@@ -1,6 +1,6 @@
 syntax = "proto3";
 
-package symbolx.bench;
+package symbol.bench;
 
 import "proto/lang.proto";
 import "google/protobuf/descriptor.proto";

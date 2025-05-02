@@ -3013,41 +3013,41 @@ export interface UserData {
      */
     region: Region;
     /**
-     * @generated from protobuf field: symbolx.bench.UserStatus status = 36;
+     * @generated from protobuf field: bool is_staff = 39;
+     */
+    isStaff: boolean;
+    /**
+     * @generated from protobuf field: symbolx.bench.UserStatus status = 40;
      */
     status: UserStatus;
     /**
-     * @generated from protobuf field: optional symbolx.bench.NodeReferenceData bench_ptr = 40;
-     */
-    benchPtr?: NodeReferenceData;
-    /**
-     * @generated from protobuf field: optional symbolx.bench.NodeReferenceData handle_ptr = 41;
-     */
-    handlePtr?: NodeReferenceData;
-    /**
-     * @generated from protobuf field: optional symbolx.bench.NodeReferenceData cursor_ptr = 42;
-     */
-    cursorPtr?: NodeReferenceData;
-    /**
-     * @generated from protobuf field: optional string email = 50;
-     */
-    email?: string;
-    /**
-     * @generated from protobuf field: optional bytes password_salt = 51;
-     */
-    passwordSalt?: Uint8Array;
-    /**
-     * @generated from protobuf field: optional bytes password_hash = 52;
-     */
-    passwordHash?: Uint8Array;
-    /**
-     * @generated from protobuf field: optional google.protobuf.Timestamp last_logged_in_at = 70;
+     * @generated from protobuf field: optional google.protobuf.Timestamp last_logged_in_at = 41;
      */
     lastLoggedInAt?: Timestamp;
     /**
-     * @generated from protobuf field: bool is_staff = 90;
+     * @generated from protobuf field: optional symbolx.bench.NodeReferenceData bench_ptr = 50;
      */
-    isStaff: boolean;
+    benchPtr?: NodeReferenceData;
+    /**
+     * @generated from protobuf field: optional symbolx.bench.NodeReferenceData handle_ptr = 51;
+     */
+    handlePtr?: NodeReferenceData;
+    /**
+     * @generated from protobuf field: optional symbolx.bench.NodeReferenceData cursor_ptr = 52;
+     */
+    cursorPtr?: NodeReferenceData;
+    /**
+     * @generated from protobuf field: optional string email = 60;
+     */
+    email?: string;
+    /**
+     * @generated from protobuf field: optional bytes password_salt = 61;
+     */
+    passwordSalt?: Uint8Array;
+    /**
+     * @generated from protobuf field: optional bytes password_hash = 62;
+     */
+    passwordHash?: Uint8Array;
 }
 /**
  * @generated from protobuf message symbolx.bench.FileData
@@ -6852,17 +6852,13 @@ export enum EnumType {
      */
     REGION = 20052,
     /**
-     * @generated from protobuf enum value: ENUM_TYPE_REGION_ZONE = 20053;
+     * @generated from protobuf enum value: ENUM_TYPE_AREA = 20054;
      */
-    REGION_ZONE = 20053,
+    AREA = 20054,
     /**
-     * @generated from protobuf enum value: ENUM_TYPE_REGION_AREA = 20054;
+     * @generated from protobuf enum value: ENUM_TYPE_CONTINENT = 20055;
      */
-    REGION_AREA = 20054,
-    /**
-     * @generated from protobuf enum value: ENUM_TYPE_REGION_CONTINENT = 20055;
-     */
-    REGION_CONTINENT = 20055,
+    CONTINENT = 20055,
     /**
      * @generated from protobuf enum value: ENUM_TYPE_BENCH_STATUS = 20056;
      */
@@ -8352,17 +8348,13 @@ export enum BenchType {
      */
     REGION = 20052,
     /**
-     * @generated from protobuf enum value: BENCH_TYPE_REGION_ZONE = 20053;
+     * @generated from protobuf enum value: BENCH_TYPE_AREA = 20054;
      */
-    REGION_ZONE = 20053,
+    AREA = 20054,
     /**
-     * @generated from protobuf enum value: BENCH_TYPE_REGION_AREA = 20054;
+     * @generated from protobuf enum value: BENCH_TYPE_CONTINENT = 20055;
      */
-    REGION_AREA = 20054,
-    /**
-     * @generated from protobuf enum value: BENCH_TYPE_REGION_CONTINENT = 20055;
-     */
-    REGION_CONTINENT = 20055,
+    CONTINENT = 20055,
     /**
      * @generated from protobuf enum value: BENCH_TYPE_BENCH_STATUS = 20056;
      */
@@ -8717,6 +8709,14 @@ export enum NodeMode {
      */
     UNSPECIFIED = 0,
     /**
+     * @generated from protobuf enum value: NODE_MODE_KERNEL = 3;
+     */
+    KERNEL = 3,
+    /**
+     * @generated from protobuf enum value: NODE_MODE_SYSTEM = 6;
+     */
+    SYSTEM = 6,
+    /**
      * @generated from protobuf enum value: NODE_MODE_BUILTIN = 10;
      */
     BUILTIN = 10,
@@ -8912,10 +8912,6 @@ export enum Region {
      */
     VIRGINIA = 2000,
     /**
-     * @generated from protobuf enum value: REGION_OHIO = 2010;
-     */
-    OHIO = 2010,
-    /**
      * @generated from protobuf enum value: REGION_OREGON = 2200;
      */
     OREGON = 2200,
@@ -8945,111 +8941,100 @@ export enum Region {
     SYDNEY = 7000
 }
 /**
- * An available region within a specific Region.
+ * A larger Area of Regions within a Continent.
  *
- * @generated from protobuf enum symbolx.bench.RegionZone
+ * @generated from protobuf enum symbolx.bench.Area
  */
-export enum RegionZone {
+export enum Area {
     /**
-     * @generated from protobuf enum value: REGION_ZONE_UNSPECIFIED = 0;
-     */
-    UNSPECIFIED = 0
-}
-/**
- * A larger RegionArea of Regions within a RegionContinent.
- *
- * @generated from protobuf enum symbolx.bench.RegionArea
- */
-export enum RegionArea {
-    /**
-     * @generated from protobuf enum value: REGION_AREA_UNSPECIFIED = 0;
+     * @generated from protobuf enum value: AREA_UNSPECIFIED = 0;
      */
     UNSPECIFIED = 0,
     /**
-     * @generated from protobuf enum value: REGION_AREA_EUROPE_CENTRAL = 1000;
+     * @generated from protobuf enum value: AREA_EUROPE_CENTRAL = 1000;
      */
     EUROPE_CENTRAL = 1000,
     /**
-     * @generated from protobuf enum value: REGION_AREA_NORTH_AMERICA_EAST = 2000;
+     * @generated from protobuf enum value: AREA_NORTH_AMERICA_EAST = 2000;
      */
     NORTH_AMERICA_EAST = 2000,
     /**
-     * @generated from protobuf enum value: REGION_AREA_NORTH_AMERICA_WEST = 2200;
+     * @generated from protobuf enum value: AREA_NORTH_AMERICA_WEST = 2200;
      */
     NORTH_AMERICA_WEST = 2200,
     /**
-     * @generated from protobuf enum value: REGION_AREA_SOUTH_AMERICA_EAST = 3000;
+     * @generated from protobuf enum value: AREA_SOUTH_AMERICA_EAST = 3000;
      */
     SOUTH_AMERICA_EAST = 3000,
     /**
-     * @generated from protobuf enum value: REGION_AREA_MIDDLE_EAST_CENTRAL = 4000;
+     * @generated from protobuf enum value: AREA_MIDDLE_EAST_CENTRAL = 4000;
      */
     MIDDLE_EAST_CENTRAL = 4000,
     /**
-     * @generated from protobuf enum value: REGION_AREA_MIDDLE_EAST_WEST = 4200;
+     * @generated from protobuf enum value: AREA_MIDDLE_EAST_WEST = 4200;
      */
     MIDDLE_EAST_WEST = 4200,
     /**
-     * @generated from protobuf enum value: REGION_AREA_AFRICA_SOUTH = 5000;
+     * @generated from protobuf enum value: AREA_AFRICA_SOUTH = 5000;
      */
     AFRICA_SOUTH = 5000,
     /**
-     * @generated from protobuf enum value: REGION_AREA_ASIA_WEST = 6000;
+     * @generated from protobuf enum value: AREA_ASIA_WEST = 6000;
      */
     ASIA_WEST = 6000,
     /**
-     * @generated from protobuf enum value: REGION_AREA_ASIA_SOUTH = 6200;
+     * @generated from protobuf enum value: AREA_ASIA_SOUTH = 6200;
      */
     ASIA_SOUTH = 6200,
     /**
-     * @generated from protobuf enum value: REGION_AREA_ASIA_EAST = 6400;
+     * @generated from protobuf enum value: AREA_ASIA_EAST = 6400;
      */
     ASIA_EAST = 6400,
     /**
-     * @generated from protobuf enum value: REGION_AREA_AUSTRALIA_SOUTH = 7000;
+     * @generated from protobuf enum value: AREA_AUSTRALIA_SOUTH = 7000;
      */
     AUSTRALIA_SOUTH = 7000
 }
 /**
  * 'Continents' of Regions.
  *
- * @generated from protobuf enum symbolx.bench.RegionContinent
+ * @generated from protobuf enum symbolx.bench.Continent
  */
-export enum RegionContinent {
+export enum Continent {
     /**
-     * @generated from protobuf enum value: REGION_CONTINENT_UNSPECIFIED = 0;
+     * @generated from protobuf enum value: CONTINENT_UNSPECIFIED = 0;
      */
     UNSPECIFIED = 0,
     /**
-     * @generated from protobuf enum value: REGION_CONTINENT_EUROPE = 1000;
+     * @generated from protobuf enum value: CONTINENT_EUROPE = 1000;
      */
     EUROPE = 1000,
     /**
-     * @generated from protobuf enum value: REGION_CONTINENT_NORTH_AMERICA = 2000;
+     * @generated from protobuf enum value: CONTINENT_NORTH_AMERICA = 2000;
      */
     NORTH_AMERICA = 2000,
     /**
-     * @generated from protobuf enum value: REGION_CONTINENT_SOUTH_AMERICA = 3000;
+     * @generated from protobuf enum value: CONTINENT_SOUTH_AMERICA = 3000;
      */
     SOUTH_AMERICA = 3000,
     /**
-     * @generated from protobuf enum value: REGION_CONTINENT_MIDDLE_EAST = 4000;
+     * @generated from protobuf enum value: CONTINENT_MIDDLE_EAST = 4000;
      */
     MIDDLE_EAST = 4000,
     /**
-     * @generated from protobuf enum value: REGION_CONTINENT_AFRICA = 5000;
+     * @generated from protobuf enum value: CONTINENT_AFRICA = 5000;
      */
     AFRICA = 5000,
     /**
-     * @generated from protobuf enum value: REGION_CONTINENT_ASIA = 6000;
+     * @generated from protobuf enum value: CONTINENT_ASIA = 6000;
      */
     ASIA = 6000,
     /**
-     * @generated from protobuf enum value: REGION_CONTINENT_AUSTRALIA = 7000;
+     * @generated from protobuf enum value: CONTINENT_AUSTRALIA = 7000;
      */
     AUSTRALIA = 7000,
     /**
-     * @generated from protobuf enum value: REGION_CONTINENT_PRIVATE = 9000;
+     * @generated from protobuf enum value: CONTINENT_PRIVATE = 9000;
      */
     PRIVATE = 9000
 }
@@ -19925,15 +19910,15 @@ class UserData$Type extends MessageType$<UserData> {
             { no: 33, name: "icon", kind: "message", T: () => IconData },
             { no: 34, name: "line", kind: "message", T: () => TextLineData },
             { no: 35, name: "region", kind: "enum", T: () => ["symbolx.bench.Region", Region, "REGION_"] },
-            { no: 36, name: "status", kind: "enum", T: () => ["symbolx.bench.UserStatus", UserStatus, "USER_STATUS_"] },
-            { no: 40, name: "bench_ptr", kind: "message", T: () => NodeReferenceData },
-            { no: 41, name: "handle_ptr", kind: "message", T: () => NodeReferenceData },
-            { no: 42, name: "cursor_ptr", kind: "message", T: () => NodeReferenceData },
-            { no: 50, name: "email", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
-            { no: 51, name: "password_salt", kind: "scalar", opt: true, T: 12 /*ScalarType.BYTES*/ },
-            { no: 52, name: "password_hash", kind: "scalar", opt: true, T: 12 /*ScalarType.BYTES*/ },
-            { no: 70, name: "last_logged_in_at", kind: "message", T: () => Timestamp },
-            { no: 90, name: "is_staff", kind: "scalar", T: 8 /*ScalarType.BOOL*/ }
+            { no: 39, name: "is_staff", kind: "scalar", T: 8 /*ScalarType.BOOL*/ },
+            { no: 40, name: "status", kind: "enum", T: () => ["symbolx.bench.UserStatus", UserStatus, "USER_STATUS_"] },
+            { no: 41, name: "last_logged_in_at", kind: "message", T: () => Timestamp },
+            { no: 50, name: "bench_ptr", kind: "message", T: () => NodeReferenceData },
+            { no: 51, name: "handle_ptr", kind: "message", T: () => NodeReferenceData },
+            { no: 52, name: "cursor_ptr", kind: "message", T: () => NodeReferenceData },
+            { no: 60, name: "email", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
+            { no: 61, name: "password_salt", kind: "scalar", opt: true, T: 12 /*ScalarType.BYTES*/ },
+            { no: 62, name: "password_hash", kind: "scalar", opt: true, T: 12 /*ScalarType.BYTES*/ }
         ]);
     }
     create(value?: PartialMessage<UserData>): UserData {
@@ -19942,8 +19927,8 @@ class UserData$Type extends MessageType$<UserData> {
         message.id = "";
         message.name = "";
         message.region = 0;
-        message.status = 0;
         message.isStaff = false;
+        message.status = 0;
         if (value !== undefined)
             reflectionMergePartial<UserData>(this, message, value);
         return message;
@@ -19995,32 +19980,32 @@ class UserData$Type extends MessageType$<UserData> {
                 case /* symbolx.bench.Region region */ 35:
                     message.region = reader.int32();
                     break;
-                case /* symbolx.bench.UserStatus status */ 36:
+                case /* bool is_staff */ 39:
+                    message.isStaff = reader.bool();
+                    break;
+                case /* symbolx.bench.UserStatus status */ 40:
                     message.status = reader.int32();
                     break;
-                case /* optional symbolx.bench.NodeReferenceData bench_ptr */ 40:
-                    message.benchPtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.benchPtr);
-                    break;
-                case /* optional symbolx.bench.NodeReferenceData handle_ptr */ 41:
-                    message.handlePtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.handlePtr);
-                    break;
-                case /* optional symbolx.bench.NodeReferenceData cursor_ptr */ 42:
-                    message.cursorPtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.cursorPtr);
-                    break;
-                case /* optional string email */ 50:
-                    message.email = reader.string();
-                    break;
-                case /* optional bytes password_salt */ 51:
-                    message.passwordSalt = reader.bytes();
-                    break;
-                case /* optional bytes password_hash */ 52:
-                    message.passwordHash = reader.bytes();
-                    break;
-                case /* optional google.protobuf.Timestamp last_logged_in_at */ 70:
+                case /* optional google.protobuf.Timestamp last_logged_in_at */ 41:
                     message.lastLoggedInAt = Timestamp.internalBinaryRead(reader, reader.uint32(), options, message.lastLoggedInAt);
                     break;
-                case /* bool is_staff */ 90:
-                    message.isStaff = reader.bool();
+                case /* optional symbolx.bench.NodeReferenceData bench_ptr */ 50:
+                    message.benchPtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.benchPtr);
+                    break;
+                case /* optional symbolx.bench.NodeReferenceData handle_ptr */ 51:
+                    message.handlePtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.handlePtr);
+                    break;
+                case /* optional symbolx.bench.NodeReferenceData cursor_ptr */ 52:
+                    message.cursorPtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.cursorPtr);
+                    break;
+                case /* optional string email */ 60:
+                    message.email = reader.string();
+                    break;
+                case /* optional bytes password_salt */ 61:
+                    message.passwordSalt = reader.bytes();
+                    break;
+                case /* optional bytes password_hash */ 62:
+                    message.passwordHash = reader.bytes();
                     break;
                 default:
                     let u = options.readUnknownField;
@@ -20076,33 +20061,33 @@ class UserData$Type extends MessageType$<UserData> {
         /* symbolx.bench.Region region = 35; */
         if (message.region !== 0)
             writer.tag(35, WireType.Varint).int32(message.region);
-        /* symbolx.bench.UserStatus status = 36; */
-        if (message.status !== 0)
-            writer.tag(36, WireType.Varint).int32(message.status);
-        /* optional symbolx.bench.NodeReferenceData bench_ptr = 40; */
-        if (message.benchPtr)
-            NodeReferenceData.internalBinaryWrite(message.benchPtr, writer.tag(40, WireType.LengthDelimited).fork(), options).join();
-        /* optional symbolx.bench.NodeReferenceData handle_ptr = 41; */
-        if (message.handlePtr)
-            NodeReferenceData.internalBinaryWrite(message.handlePtr, writer.tag(41, WireType.LengthDelimited).fork(), options).join();
-        /* optional symbolx.bench.NodeReferenceData cursor_ptr = 42; */
-        if (message.cursorPtr)
-            NodeReferenceData.internalBinaryWrite(message.cursorPtr, writer.tag(42, WireType.LengthDelimited).fork(), options).join();
-        /* optional string email = 50; */
-        if (message.email !== undefined)
-            writer.tag(50, WireType.LengthDelimited).string(message.email);
-        /* optional bytes password_salt = 51; */
-        if (message.passwordSalt !== undefined)
-            writer.tag(51, WireType.LengthDelimited).bytes(message.passwordSalt);
-        /* optional bytes password_hash = 52; */
-        if (message.passwordHash !== undefined)
-            writer.tag(52, WireType.LengthDelimited).bytes(message.passwordHash);
-        /* optional google.protobuf.Timestamp last_logged_in_at = 70; */
-        if (message.lastLoggedInAt)
-            Timestamp.internalBinaryWrite(message.lastLoggedInAt, writer.tag(70, WireType.LengthDelimited).fork(), options).join();
-        /* bool is_staff = 90; */
+        /* bool is_staff = 39; */
         if (message.isStaff !== false)
-            writer.tag(90, WireType.Varint).bool(message.isStaff);
+            writer.tag(39, WireType.Varint).bool(message.isStaff);
+        /* symbolx.bench.UserStatus status = 40; */
+        if (message.status !== 0)
+            writer.tag(40, WireType.Varint).int32(message.status);
+        /* optional google.protobuf.Timestamp last_logged_in_at = 41; */
+        if (message.lastLoggedInAt)
+            Timestamp.internalBinaryWrite(message.lastLoggedInAt, writer.tag(41, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbolx.bench.NodeReferenceData bench_ptr = 50; */
+        if (message.benchPtr)
+            NodeReferenceData.internalBinaryWrite(message.benchPtr, writer.tag(50, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbolx.bench.NodeReferenceData handle_ptr = 51; */
+        if (message.handlePtr)
+            NodeReferenceData.internalBinaryWrite(message.handlePtr, writer.tag(51, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbolx.bench.NodeReferenceData cursor_ptr = 52; */
+        if (message.cursorPtr)
+            NodeReferenceData.internalBinaryWrite(message.cursorPtr, writer.tag(52, WireType.LengthDelimited).fork(), options).join();
+        /* optional string email = 60; */
+        if (message.email !== undefined)
+            writer.tag(60, WireType.LengthDelimited).string(message.email);
+        /* optional bytes password_salt = 61; */
+        if (message.passwordSalt !== undefined)
+            writer.tag(61, WireType.LengthDelimited).bytes(message.passwordSalt);
+        /* optional bytes password_hash = 62; */
+        if (message.passwordHash !== undefined)
+            writer.tag(62, WireType.LengthDelimited).bytes(message.passwordHash);
         let u = options.writeUnknownFields;
         if (u !== false)
             (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
@@ -28178,7 +28163,7 @@ export const PARENT_NODE_TYPES: Record<NodeType, NodeType[]> = {
   [NodeType.PLAN]: [NodeType.PLAN, NodeType.PAGE, NodeType.THREAD],
   [NodeType.TASK]: [NodeType.PLAN, NodeType.PAGE, NodeType.TASK],
   [NodeType.CLAIM]: [NodeType.KIT, NodeType.ACTION, NodeType.THREAD, NodeType.AGENT, NodeType.FLOW, NodeType.RUN, NodeType.ROLE],
-  [NodeType.CURSOR]: [NodeType.CURSOR, NodeType.THREAD, NodeType.PACKAGE, NodeType.AGENT, NodeType.RUN, NodeType.SPACE],
+  [NodeType.CURSOR]: [NodeType.AGENT, NodeType.RUN, NodeType.SPACE, NodeType.THREAD],
   [NodeType.VIEW]: [NodeType.VIEW, NodeType.PAGE, NodeType.SPACE],
   [NodeType.SPACE]: [NodeType.PACKAGE],
   [NodeType.RECORD]: [NodeType.RECORD, NodeType.DATABASE],
@@ -28198,7 +28183,7 @@ export const CHILD_NODE_TYPES: Record<NodeType, NodeType[]> = {
   [NodeType.COMPUTER]: [NodeType.SKIP, NodeType.EMPTY],
   [NodeType.FILE]: [NodeType.SKIP, NodeType.EMPTY],
   [NodeType.LINK]: [NodeType.LINK, NodeType.SKIP, NodeType.EMPTY],
-  [NodeType.PACKAGE]: [NodeType.TEAM, NodeType.CURSOR, NodeType.NOTIFICATION, NodeType.SPACE, NodeType.THREAD, NodeType.PAGE, NodeType.LINK, NodeType.MEMBERSHIP, NodeType.SKIP, NodeType.EMPTY, NodeType.SCALER, NodeType.DEPENDENCY, NodeType.COMPUTER, NodeType.INVITE, NodeType.FILE, NodeType.STORE, NodeType.CHANNEL],
+  [NodeType.PACKAGE]: [NodeType.TEAM, NodeType.SPACE, NodeType.NOTIFICATION, NodeType.THREAD, NodeType.PAGE, NodeType.LINK, NodeType.MEMBERSHIP, NodeType.SKIP, NodeType.EMPTY, NodeType.SCALER, NodeType.DEPENDENCY, NodeType.COMPUTER, NodeType.INVITE, NodeType.FILE, NodeType.STORE, NodeType.CHANNEL],
   [NodeType.DEPENDENCY]: [NodeType.SKIP, NodeType.EMPTY],
   [NodeType.PAGE]: [NodeType.THREAD, NodeType.AGENT, NodeType.SKIP, NodeType.EMPTY, NodeType.FILE, NodeType.PAGE, NodeType.BLOCK, NodeType.CHOICE, NodeType.CLASS, NodeType.COMPUTER, NodeType.FLOW, NodeType.KIT, NodeType.LINK, NodeType.SCALER, NodeType.PLAN, NodeType.VIEW, NodeType.STORE, NodeType.TASK, NodeType.TEAM, NodeType.DATABASE, NodeType.CHANNEL, NodeType.ROLE],
   [NodeType.BLOCK]: [NodeType.BLOCK, NodeType.SKIP, NodeType.EMPTY],
@@ -28228,7 +28213,7 @@ export const CHILD_NODE_TYPES: Record<NodeType, NodeType[]> = {
   [NodeType.PLAN]: [NodeType.SKIP, NodeType.EMPTY, NodeType.PLAN, NodeType.TRIGGER, NodeType.TASK],
   [NodeType.TASK]: [NodeType.TRIGGER, NodeType.TASK, NodeType.SKIP, NodeType.EMPTY],
   [NodeType.CLAIM]: [NodeType.SKIP, NodeType.EMPTY],
-  [NodeType.CURSOR]: [NodeType.CURSOR, NodeType.SKIP, NodeType.EMPTY],
+  [NodeType.CURSOR]: [NodeType.SKIP, NodeType.EMPTY],
   [NodeType.VIEW]: [NodeType.VIEW, NodeType.SKIP, NodeType.EMPTY],
   [NodeType.SPACE]: [NodeType.VIEW, NodeType.CURSOR, NodeType.SKIP, NodeType.EMPTY],
   [NodeType.RECORD]: [NodeType.RECORD, NodeType.SKIP, NodeType.EMPTY],
@@ -28278,7 +28263,7 @@ export const ANCESTOR_NODE_TYPES: Record<NodeType, NodeType[]> = {
   [NodeType.PLAN]: [NodeType.BENCH, NodeType.PLAN, NodeType.THREAD, NodeType.PACKAGE, NodeType.PAGE, NodeType.CHANNEL],
   [NodeType.TASK]: [NodeType.BENCH, NodeType.THREAD, NodeType.PACKAGE, NodeType.PLAN, NodeType.CHANNEL, NodeType.PAGE, NodeType.TASK],
   [NodeType.CLAIM]: [NodeType.FLOW, NodeType.BENCH, NodeType.KIT, NodeType.ACTION, NodeType.THREAD, NodeType.PACKAGE, NodeType.AGENT, NodeType.CHANNEL, NodeType.RUN, NodeType.PAGE, NodeType.ROLE],
-  [NodeType.CURSOR]: [NodeType.BENCH, NodeType.CURSOR, NodeType.THREAD, NodeType.PACKAGE, NodeType.AGENT, NodeType.PAGE, NodeType.CHANNEL, NodeType.RUN, NodeType.SPACE],
+  [NodeType.CURSOR]: [NodeType.BENCH, NodeType.THREAD, NodeType.PACKAGE, NodeType.PAGE, NodeType.AGENT, NodeType.CHANNEL, NodeType.RUN, NodeType.SPACE],
   [NodeType.VIEW]: [NodeType.BENCH, NodeType.SPACE, NodeType.VIEW, NodeType.PACKAGE, NodeType.PAGE],
   [NodeType.SPACE]: [NodeType.PACKAGE, NodeType.BENCH],
   [NodeType.RECORD]: [NodeType.RECORD, NodeType.BENCH, NodeType.DATABASE, NodeType.PACKAGE, NodeType.PAGE],
@@ -28328,7 +28313,7 @@ export const DESCENDANT_NODE_TYPES: Record<NodeType, NodeType[]> = {
   [NodeType.PLAN]: [NodeType.PLAN, NodeType.TASK, NodeType.TRIGGER, NodeType.SKIP, NodeType.EMPTY],
   [NodeType.TASK]: [NodeType.EMPTY, NodeType.TRIGGER, NodeType.TASK, NodeType.SKIP],
   [NodeType.CLAIM]: [NodeType.SKIP, NodeType.EMPTY],
-  [NodeType.CURSOR]: [NodeType.CURSOR, NodeType.SKIP, NodeType.EMPTY],
+  [NodeType.CURSOR]: [NodeType.SKIP, NodeType.EMPTY],
   [NodeType.VIEW]: [NodeType.VIEW, NodeType.SKIP, NodeType.EMPTY],
   [NodeType.SPACE]: [NodeType.VIEW, NodeType.CURSOR, NodeType.SKIP, NodeType.EMPTY],
   [NodeType.RECORD]: [NodeType.RECORD, NodeType.SKIP, NodeType.EMPTY],
@@ -28535,9 +28520,8 @@ export const ENUM_BY_TYPE: Record<EnumType, Record<number | string, number | str
   [EnumType.PACKAGE_TYPE]: PackageType,
   [EnumType.CLOUD]: Cloud,
   [EnumType.REGION]: Region,
-  [EnumType.REGION_ZONE]: RegionZone,
-  [EnumType.REGION_AREA]: RegionArea,
-  [EnumType.REGION_CONTINENT]: RegionContinent,
+  [EnumType.AREA]: Area,
+  [EnumType.CONTINENT]: Continent,
   [EnumType.BENCH_STATUS]: BenchStatus,
   [EnumType.ACCESS_MODE]: AccessMode,
   [EnumType.ACCESS_KIND]: AccessKind,
@@ -28828,9 +28812,8 @@ export interface EnumTypeMapping extends Record<EnumType, any> {
   [EnumType.PACKAGE_TYPE]: PackageType,
   [EnumType.CLOUD]: Cloud,
   [EnumType.REGION]: Region,
-  [EnumType.REGION_ZONE]: RegionZone,
-  [EnumType.REGION_AREA]: RegionArea,
-  [EnumType.REGION_CONTINENT]: RegionContinent,
+  [EnumType.AREA]: Area,
+  [EnumType.CONTINENT]: Continent,
   [EnumType.BENCH_STATUS]: BenchStatus,
   [EnumType.ACCESS_MODE]: AccessMode,
   [EnumType.ACCESS_KIND]: AccessKind,
@@ -28973,15 +28956,15 @@ export enum UserProperty {
   icon = 33,
   line = 34,
   region = 35,
-  status = 36,
-  benchPtr = 40,
-  handlePtr = 41,
-  cursorPtr = 42,
-  email = 50,
-  passwordSalt = 51,
-  passwordHash = 52,
-  lastLoggedInAt = 70,
-  isStaff = 90,
+  isStaff = 39,
+  status = 40,
+  lastLoggedInAt = 41,
+  benchPtr = 50,
+  handlePtr = 51,
+  cursorPtr = 52,
+  email = 60,
+  passwordSalt = 61,
+  passwordHash = 62,
 }
 
 export enum OrganizationProperty {
@@ -30975,15 +30958,15 @@ export const UserDataInfo: Record<UserProperty, PropertyInfo> = {
   [UserProperty.icon]: { id: 33, name: 'icon', component: ObjectType.USER, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.ICON },
   [UserProperty.line]: { id: 34, name: 'line', component: ObjectType.USER, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.TEXT_LINE },
   [UserProperty.region]: { id: 35, name: 'region', component: ObjectType.USER, enumType: EnumType.REGION, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
-  [UserProperty.status]: { id: 36, name: 'status', component: ObjectType.USER, enumType: EnumType.USER_STATUS, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
-  [UserProperty.benchPtr]: { id: 40, name: 'bench_ptr', component: ObjectType.USER, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.BENCH], referenceStruct: StructType.NODE_REFERENCE },
-  [UserProperty.handlePtr]: { id: 41, name: 'handle_ptr', component: ObjectType.USER, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.HANDLE], referenceStruct: StructType.NODE_REFERENCE },
-  [UserProperty.cursorPtr]: { id: 42, name: 'cursor_ptr', component: ObjectType.USER, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.CURSOR], referenceStruct: StructType.NODE_REFERENCE },
-  [UserProperty.email]: { id: 50, name: 'email', component: ObjectType.USER, kind: 'primitive', primitiveType: PrimitiveType.STRING, constraint: { regex: "^[a-zA-Z0-9_.+\\-]+@[a-zA-Z0-9\\-]+\\.[a-zA-Z0-9\\-.]+$", nodeTypes: [] }, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true, isUnique: true, isDeferred: true, isSensitive: true },
-  [UserProperty.passwordSalt]: { id: 51, name: 'password_salt', component: ObjectType.USER, kind: 'primitive', primitiveType: PrimitiveType.BYTES, isInternal: true, isSystem: true, isKernel: true, isRuntime: true, isWired: true, isStored: true, isDeferred: true, isSensitive: true },
-  [UserProperty.passwordHash]: { id: 52, name: 'password_hash', component: ObjectType.USER, kind: 'primitive', primitiveType: PrimitiveType.BYTES, isInternal: true, isSystem: true, isKernel: true, isRuntime: true, isWired: true, isStored: true, isDeferred: true, isSensitive: true },
-  [UserProperty.lastLoggedInAt]: { id: 70, name: 'last_logged_in_at', component: ObjectType.USER, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
-  [UserProperty.isStaff]: { id: 90, name: 'is_staff', component: ObjectType.USER, kind: 'primitive', primitiveType: PrimitiveType.BOOLEAN, default: false, isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
+  [UserProperty.isStaff]: { id: 39, name: 'is_staff', component: ObjectType.USER, kind: 'primitive', primitiveType: PrimitiveType.BOOLEAN, default: false, isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
+  [UserProperty.status]: { id: 40, name: 'status', component: ObjectType.USER, enumType: EnumType.USER_STATUS, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
+  [UserProperty.lastLoggedInAt]: { id: 41, name: 'last_logged_in_at', component: ObjectType.USER, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
+  [UserProperty.benchPtr]: { id: 50, name: 'bench_ptr', component: ObjectType.USER, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.BENCH], referenceStruct: StructType.NODE_REFERENCE },
+  [UserProperty.handlePtr]: { id: 51, name: 'handle_ptr', component: ObjectType.USER, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.HANDLE], referenceStruct: StructType.NODE_REFERENCE },
+  [UserProperty.cursorPtr]: { id: 52, name: 'cursor_ptr', component: ObjectType.USER, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.CURSOR], referenceStruct: StructType.NODE_REFERENCE },
+  [UserProperty.email]: { id: 60, name: 'email', component: ObjectType.USER, kind: 'primitive', primitiveType: PrimitiveType.STRING, constraint: { regex: "^[a-zA-Z0-9_.+\\-]+@[a-zA-Z0-9\\-]+\\.[a-zA-Z0-9\\-.]+$", nodeTypes: [] }, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true, isUnique: true, isDeferred: true, isSensitive: true },
+  [UserProperty.passwordSalt]: { id: 61, name: 'password_salt', component: ObjectType.USER, kind: 'primitive', primitiveType: PrimitiveType.BYTES, isInternal: true, isSystem: true, isKernel: true, isRuntime: true, isWired: true, isStored: true, isDeferred: true, isSensitive: true },
+  [UserProperty.passwordHash]: { id: 62, name: 'password_hash', component: ObjectType.USER, kind: 'primitive', primitiveType: PrimitiveType.BYTES, isInternal: true, isSystem: true, isKernel: true, isRuntime: true, isWired: true, isStored: true, isDeferred: true, isSensitive: true },
 }
 export const OrganizationDataInfo: Record<OrganizationProperty, PropertyInfo> = {
   [OrganizationProperty.metatype]: { id: 1, name: 'metatype', component: ObjectType.ORGANIZATION, enumType: EnumType.OBJECT_TYPE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isInternal: true, isComputed: true, isWired: true },
@@ -31102,7 +31085,7 @@ export const StoreDataInfo: Record<StoreProperty, PropertyInfo> = {
   [StoreProperty.failedAt]: { id: 47, name: 'failed_at', component: ObjectType.STORE, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
   [StoreProperty.failedAttempts]: { id: 48, name: 'failed_attempts', component: ObjectType.STORE, kind: 'primitive', primitiveType: PrimitiveType.INT32, default: 0, isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
   [StoreProperty.scalerPtr]: { id: 49, name: 'scaler_ptr', component: ObjectType.STORE, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.SCALER], referenceStruct: StructType.NODE_REFERENCE },
-  [StoreProperty.version]: { id: 60, name: 'version', component: ObjectType.STORE, kind: 'primitive', primitiveType: PrimitiveType.STRING, default: "2025.04.29.0", isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
+  [StoreProperty.version]: { id: 60, name: 'version', component: ObjectType.STORE, kind: 'primitive', primitiveType: PrimitiveType.STRING, default: "2025.05.02.0", isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
   [StoreProperty.externalName]: { id: 62, name: 'external_name', component: ObjectType.STORE, kind: 'primitive', primitiveType: PrimitiveType.STRING, isInternal: true, isSystem: true, isKernel: true, isRuntime: true, isWired: true, isStored: true, isSensitive: true },
   [StoreProperty.externalId]: { id: 63, name: 'external_id', component: ObjectType.STORE, kind: 'primitive', primitiveType: PrimitiveType.STRING, isInternal: true, isSystem: true, isKernel: true, isRuntime: true, isWired: true, isStored: true, isSensitive: true },
   [StoreProperty.sqlUrl]: { id: 64, name: 'sql_url', component: ObjectType.STORE, kind: 'primitive', primitiveType: PrimitiveType.STRING, isInternal: true, isSystem: true, isKernel: true, isRuntime: true, isWired: true, isStored: true, isDeferred: true, isSensitive: true },
@@ -31140,7 +31123,7 @@ export const ComputerDataInfo: Record<ComputerProperty, PropertyInfo> = {
   [ComputerProperty.failedAt]: { id: 47, name: 'failed_at', component: ObjectType.COMPUTER, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
   [ComputerProperty.failedAttempts]: { id: 48, name: 'failed_attempts', component: ObjectType.COMPUTER, kind: 'primitive', primitiveType: PrimitiveType.INT32, default: 0, isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
   [ComputerProperty.scalerPtr]: { id: 49, name: 'scaler_ptr', component: ObjectType.COMPUTER, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.SCALER], referenceStruct: StructType.NODE_REFERENCE },
-  [ComputerProperty.version]: { id: 60, name: 'version', component: ObjectType.COMPUTER, kind: 'primitive', primitiveType: PrimitiveType.STRING, default: "2025.04.29.0", isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
+  [ComputerProperty.version]: { id: 60, name: 'version', component: ObjectType.COMPUTER, kind: 'primitive', primitiveType: PrimitiveType.STRING, default: "2025.05.02.0", isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
   [ComputerProperty.externalName]: { id: 62, name: 'external_name', component: ObjectType.COMPUTER, kind: 'primitive', primitiveType: PrimitiveType.STRING, isInternal: true, isSystem: true, isKernel: true, isRuntime: true, isWired: true, isStored: true, isSensitive: true },
   [ComputerProperty.externalId]: { id: 63, name: 'external_id', component: ObjectType.COMPUTER, kind: 'primitive', primitiveType: PrimitiveType.STRING, isInternal: true, isSystem: true, isKernel: true, isRuntime: true, isWired: true, isStored: true, isSensitive: true },
   [ComputerProperty.imageId]: { id: 64, name: 'image_id', component: ObjectType.COMPUTER, kind: 'primitive', primitiveType: PrimitiveType.STRING, isInternal: true, isSystem: true, isKernel: true, isRuntime: true, isWired: true, isStored: true, isSensitive: true },
@@ -32079,7 +32062,7 @@ export const ClaimDataInfo: Record<ClaimProperty, PropertyInfo> = {
 export const CursorDataInfo: Record<CursorProperty, PropertyInfo> = {
   [CursorProperty.metatype]: { id: 1, name: 'metatype', component: ObjectType.CURSOR, enumType: EnumType.OBJECT_TYPE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isInternal: true, isComputed: true, isWired: true },
   [CursorProperty.id]: { id: 2, name: 'id', component: ObjectType.CURSOR, kind: 'primitive', primitiveType: PrimitiveType.UUID, isRequired: true, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
-  [CursorProperty.parentPtr]: { id: 4, name: 'parent_ptr', component: ObjectType.CURSOR, kind: 'reference', isInternal: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_PARENT, referenceNodes: [NodeType.PACKAGE, NodeType.SPACE, NodeType.AGENT, NodeType.THREAD, NodeType.RUN, NodeType.CURSOR], referenceStruct: StructType.NODE_REFERENCE },
+  [CursorProperty.parentPtr]: { id: 4, name: 'parent_ptr', component: ObjectType.CURSOR, kind: 'reference', isInternal: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_PARENT, referenceNodes: [NodeType.SPACE, NodeType.AGENT, NodeType.THREAD, NodeType.RUN], referenceStruct: StructType.NODE_REFERENCE },
   [CursorProperty.benchPtr]: { id: 5, name: 'bench_ptr', component: ObjectType.CURSOR, kind: 'reference', isInternal: true, isComputed: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_ANCESTOR_OR_SELF, referenceNodes: [NodeType.BENCH], referenceStruct: StructType.NODE_REFERENCE },
   [CursorProperty.packagePtr]: { id: 9, name: 'package_ptr', component: ObjectType.CURSOR, kind: 'reference', isInternal: true, isComputed: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_ANCESTOR_OR_SELF, referenceNodes: [NodeType.PACKAGE], referenceStruct: StructType.NODE_REFERENCE },
   [CursorProperty.createdAt]: { id: 10, name: 'created_at', component: ObjectType.CURSOR, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isRequired: true, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
@@ -32745,9 +32728,9 @@ export const NodeTypeOptionInfo: Partial<Record<NodeType, EnumOptionInfo>> = {
   [NodeType.SPAN]: { id: 6011, name: 'SPAN', text: 'Span', title: 'Span', icon: 'fas fa-ruler-horizontal' },
   [NodeType.INTERRUPTION]: { id: 6020, name: 'INTERRUPTION', text: 'Interruption', title: 'Interruption', icon: 'fas fa-hand' },
   [NodeType.PLAN]: { id: 6100, name: 'PLAN', text: 'Plan with Tasks', title: 'Plan', icon: 'fas fa-list-check' },
-  [NodeType.TASK]: { id: 6110, name: 'TASK', text: 'Task', title: 'Task', icon: 'far fa-square-check' },
-  [NodeType.CLAIM]: { id: 6150, name: 'CLAIM', text: 'Claim', title: 'Claim', icon: 'fas fa-stamp' },
-  [NodeType.CURSOR]: { id: 6170, name: 'CURSOR', text: 'Cursor', title: 'Cursor', icon: 'fas fa-mouse' },
+  [NodeType.TASK]: { id: 6110, name: 'TASK', text: 'To-do item', title: 'Task', icon: 'far fa-square-check' },
+  [NodeType.CLAIM]: { id: 6150, name: 'CLAIM', text: 'Control over something', title: 'Claim', icon: 'fas fa-stamp' },
+  [NodeType.CURSOR]: { id: 6170, name: 'CURSOR', text: 'Position in something', title: 'Cursor', icon: 'fas fa-mouse' },
   [NodeType.VIEW]: { id: 7000, name: 'VIEW', text: 'View', title: 'View', icon: 'fas fa-window-frame' },
   [NodeType.SPACE]: { id: 7900, name: 'SPACE', text: 'Space', title: 'Space', icon: 'fas fa-space-between' },
   [NodeType.RECORD]: { id: 8000, name: 'RECORD', text: 'Record in a Database', title: 'Record', icon: 'fas fa-database' },
@@ -32771,6 +32754,8 @@ export const StructTypeOptionInfo: Partial<Record<StructType, EnumOptionInfo>> =
 }
 
 export const NodeModeOptionInfo: Partial<Record<NodeMode, EnumOptionInfo>> = {
+  [NodeMode.KERNEL]: { id: 3, name: 'KERNEL', text: 'Managed by Bench (hidden)', title: 'Kernel', color: ColorType.YELLOW, icon: 'fas fa-cog' },
+  [NodeMode.SYSTEM]: { id: 6, name: 'SYSTEM', text: 'Managed by Bench', title: 'System', color: ColorType.YELLOW, icon: 'fas fa-cog' },
   [NodeMode.BUILTIN]: { id: 10, name: 'BUILTIN', text: 'Provided by Bench', title: 'Builtin', color: ColorType.YELLOW, icon: 'fas fa-cog' },
   [NodeMode.MAIN]: { id: 20, name: 'MAIN', text: 'Active and available', title: 'Main', color: ColorType.GREEN, icon: 'fas fa-globe' },
   [NodeMode.TEST]: { id: 30, name: 'TEST', text: 'Active in test', title: 'Test', color: ColorType.BLUE, icon: 'fas fa-flask' },
@@ -32788,7 +32773,6 @@ export const RegionOptionInfo: Partial<Record<Region, EnumOptionInfo>> = {
   [Region.ZURICH]: { id: 1000, name: 'ZURICH', icon: '🇨🇭' },
   [Region.FRANKFURT]: { id: 1010, name: 'FRANKFURT', icon: '🇩🇪' },
   [Region.VIRGINIA]: { id: 2000, name: 'VIRGINIA', icon: '🇺🇸' },
-  [Region.OHIO]: { id: 2010, name: 'OHIO', icon: '🇺🇸' },
   [Region.OREGON]: { id: 2200, name: 'OREGON', icon: '🇺🇸' },
   [Region.SAO_PAULO]: { id: 3000, name: 'SAO_PAULO', icon: '🇧🇷' },
   [Region.CAPE_TOWN]: { id: 5000, name: 'CAPE_TOWN', icon: '🇿🇦' },
@@ -32798,15 +32782,25 @@ export const RegionOptionInfo: Partial<Record<Region, EnumOptionInfo>> = {
   [Region.SYDNEY]: { id: 7000, name: 'SYDNEY', icon: '🇦🇺' },
 }
 
-export const RegionAreaOptionInfo: Partial<Record<RegionArea, EnumOptionInfo>> = {
-  [RegionArea.EUROPE_CENTRAL]: { id: 1000, name: 'EUROPE_CENTRAL', icon: '🇪🇺' },
-  [RegionArea.NORTH_AMERICA_EAST]: { id: 2000, name: 'NORTH_AMERICA_EAST', icon: '🇺🇸' },
-  [RegionArea.NORTH_AMERICA_WEST]: { id: 2200, name: 'NORTH_AMERICA_WEST', icon: '🇺🇸' },
-  [RegionArea.SOUTH_AMERICA_EAST]: { id: 3000, name: 'SOUTH_AMERICA_EAST', icon: '🇧🇷' },
-  [RegionArea.MIDDLE_EAST_CENTRAL]: { id: 4000, name: 'MIDDLE_EAST_CENTRAL', icon: '🇸🇦' },
-  [RegionArea.MIDDLE_EAST_WEST]: { id: 4200, name: 'MIDDLE_EAST_WEST', icon: '🇸🇦' },
-  [RegionArea.AFRICA_SOUTH]: { id: 5000, name: 'AFRICA_SOUTH', icon: '🇿🇦' },
-  [RegionArea.AUSTRALIA_SOUTH]: { id: 7000, name: 'AUSTRALIA_SOUTH', icon: '🇦🇺' },
+export const AreaOptionInfo: Partial<Record<Area, EnumOptionInfo>> = {
+  [Area.EUROPE_CENTRAL]: { id: 1000, name: 'EUROPE_CENTRAL', icon: '🇪🇺' },
+  [Area.NORTH_AMERICA_EAST]: { id: 2000, name: 'NORTH_AMERICA_EAST', icon: '🇺🇸' },
+  [Area.NORTH_AMERICA_WEST]: { id: 2200, name: 'NORTH_AMERICA_WEST', icon: '🇺🇸' },
+  [Area.SOUTH_AMERICA_EAST]: { id: 3000, name: 'SOUTH_AMERICA_EAST', icon: '🇧🇷' },
+  [Area.MIDDLE_EAST_CENTRAL]: { id: 4000, name: 'MIDDLE_EAST_CENTRAL', icon: '🇸🇦' },
+  [Area.MIDDLE_EAST_WEST]: { id: 4200, name: 'MIDDLE_EAST_WEST', icon: '🇸🇦' },
+  [Area.AFRICA_SOUTH]: { id: 5000, name: 'AFRICA_SOUTH', icon: '🇿🇦' },
+  [Area.AUSTRALIA_SOUTH]: { id: 7000, name: 'AUSTRALIA_SOUTH', icon: '🇦🇺' },
+}
+
+export const ContinentOptionInfo: Partial<Record<Continent, EnumOptionInfo>> = {
+  [Continent.EUROPE]: { id: 1000, name: 'EUROPE', title: 'Europe', icon: '🇪🇺' },
+  [Continent.NORTH_AMERICA]: { id: 2000, name: 'NORTH_AMERICA', title: 'North America', icon: '🇺🇸' },
+  [Continent.SOUTH_AMERICA]: { id: 3000, name: 'SOUTH_AMERICA', title: 'South America', icon: '🇧🇷' },
+  [Continent.MIDDLE_EAST]: { id: 4000, name: 'MIDDLE_EAST', title: 'Middle East', icon: '🇸🇦' },
+  [Continent.AFRICA]: { id: 5000, name: 'AFRICA', title: 'Africa', icon: '🇿🇦' },
+  [Continent.ASIA]: { id: 6000, name: 'ASIA', title: 'Asia', icon: '🇮🇳' },
+  [Continent.AUSTRALIA]: { id: 7000, name: 'AUSTRALIA', title: 'Australia', icon: '🇦🇺' },
 }
 
 export const ResourceStatusOptionInfo: Partial<Record<ResourceStatus, EnumOptionInfo>> = {
@@ -32886,7 +32880,7 @@ export const BlockTypeOptionInfo: Partial<Record<BlockType, EnumOptionInfo>> = {
   [BlockType.KIT]: { id: 5060, name: 'KIT', text: 'Kit of stuff', title: 'Kit', icon: 'fas fa-screwdriver-wrench' },
   [BlockType.DATABASE]: { id: 5090, name: 'DATABASE', text: 'Database of Records', title: 'Database', icon: 'fas fa-database' },
   [BlockType.AGENT]: { id: 5640, name: 'AGENT', text: 'Identity for an AI', title: 'Agent', icon: 'fas fa-robot' },
-  [BlockType.TASK]: { id: 6110, name: 'TASK', text: 'Task', title: 'Task', icon: 'far fa-square-check' },
+  [BlockType.TASK]: { id: 6110, name: 'TASK', text: 'To-do item', title: 'Task', icon: 'far fa-square-check' },
   [BlockType.THREAD]: { id: 5510, name: 'THREAD', text: 'Thread', title: 'Thread', icon: 'fas fa-reel' },
   [BlockType.PARAGRAPH]: { id: 10001, name: 'PARAGRAPH', text: 'Plain paragraph', title: 'Paragraph', icon: 'fas fa-align-left' },
   [BlockType.HEADING_1]: { id: 10010, name: 'HEADING_1', text: 'Very big heading', title: 'Heading 1', icon: 'fas fa-heading' },
@@ -33072,7 +33066,7 @@ export const ViewTypeOptionInfo: Partial<Record<ViewType, EnumOptionInfo>> = {
   [ViewType.AGENT]: { id: 5640, name: 'AGENT', text: 'Identity for an AI', title: 'Agent', icon: 'fas fa-robot' },
   [ViewType.RUN]: { id: 6010, name: 'RUN', text: 'Run', title: 'Run', icon: 'fas fa-play' },
   [ViewType.PLAN]: { id: 6100, name: 'PLAN', text: 'Plan with Tasks', title: 'Plan', icon: 'fas fa-list-check' },
-  [ViewType.TASK]: { id: 6110, name: 'TASK', text: 'Task', title: 'Task', icon: 'far fa-square-check' },
+  [ViewType.TASK]: { id: 6110, name: 'TASK', text: 'To-do item', title: 'Task', icon: 'far fa-square-check' },
   [ViewType.USER_WIZARD]: { id: 20001, name: 'USER_WIZARD', text: 'Sign up, login, etc.', title: 'User wizard', icon: 'fas fa-user' },
   [ViewType.EMPTY]: { id: 20100, name: 'EMPTY', text: 'For debugging', title: 'Empty view', icon: 'fas fa-bug' },
   [ViewType.CREATE]: { id: 20201, name: 'CREATE', icon: 'fas fa-plus' },
@@ -33121,7 +33115,8 @@ export const ENUM_OPTION_INFO_BY_TYPE: Partial<Record<EnumType, Record<any, Enum
   [EnumType.NODE_MODE]: NodeModeOptionInfo,
   [EnumType.PACKAGE_TYPE]: PackageTypeOptionInfo,
   [EnumType.REGION]: RegionOptionInfo,
-  [EnumType.REGION_AREA]: RegionAreaOptionInfo,
+  [EnumType.AREA]: AreaOptionInfo,
+  [EnumType.CONTINENT]: ContinentOptionInfo,
   [EnumType.RESOURCE_STATUS]: ResourceStatusOptionInfo,
   [EnumType.COMPUTER_TYPE]: ComputerTypeOptionInfo,
   [EnumType.FILE_TYPE]: FileTypeOptionInfo,

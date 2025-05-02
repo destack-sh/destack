@@ -97,7 +97,9 @@ USER_TABLE = Table(
         Column("icon", PrimitiveType.JSON, is_nullable=True),
         Column("line", PrimitiveType.JSON, is_nullable=True),
         Column("region", PrimitiveType.INT16),
+        Column("is_staff", PrimitiveType.BOOLEAN, default="false"),
         Column("status", PrimitiveType.INT16),
+        Column("last_logged_in_at", PrimitiveType.DATETIME, is_nullable=True),
         Column(
             "bench_id",
             PrimitiveType.UUID,
@@ -118,8 +120,6 @@ USER_TABLE = Table(
         Column("email", PrimitiveType.STRING, is_unique=True, is_nullable=True),
         Column("password_salt", PrimitiveType.BYTES, is_nullable=True),
         Column("password_hash", PrimitiveType.BYTES, is_nullable=True),
-        Column("last_logged_in_at", PrimitiveType.DATETIME, is_nullable=True),
-        Column("is_staff", PrimitiveType.BOOLEAN, default="false"),
     ),
     indexes=(
         Index("bench_idx_slug", IndexType.BTREE, ("slug",), is_unique=True),

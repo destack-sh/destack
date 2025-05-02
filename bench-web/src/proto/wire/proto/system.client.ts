@@ -145,7 +145,9 @@ export class GraphClient implements IGraphClient, ServiceInfo {
  */
 export interface ISupervisorClient {
     // 
-    // Global IO for non-source nodes outside Benches :Graph
+    // Global IO for non-source nodes outside Benches :Graph :RichGraph
+    // NOTE :Architecture: should Supervisor really have subscription methods? 
+    //  (how to handle inevitable? overlap between Supervisor and Hosts in :RichGraph?)
     // 
 
     /**
@@ -225,7 +227,9 @@ export class SupervisorClient implements ISupervisorClient, ServiceInfo {
     constructor(private readonly _transport: RpcTransport) {
     }
     // 
-    // Global IO for non-source nodes outside Benches :Graph
+    // Global IO for non-source nodes outside Benches :Graph :RichGraph
+    // NOTE :Architecture: should Supervisor really have subscription methods? 
+    //  (how to handle inevitable? overlap between Supervisor and Hosts in :RichGraph?)
     // 
 
     /**
