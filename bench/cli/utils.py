@@ -57,14 +57,17 @@ def run_shell_sync(cmd: str, check=True, **kwargs):
 
 def parse_region(region: "str | Region") -> "Region":
     """Parse a Region from a string."""
-    from bench.language.core.const import Region
+    from bench.language.core.const import REGION_BY_SLUG, Region
 
     if isinstance(region, Region):
         return region
 
     region = region.upper()
     try:
-        if region in Region.__members__:
+        if region in REGION_BY_SLUG:
+            # try by slug
+            return REGION_BY_SLUG[region]
+        elif region in Region.__members__:
             # try by name
             return Region[region]
         else:
@@ -72,7 +75,7 @@ def parse_region(region: "str | Region") -> "Region":
             return Region(int(region))
     except (TypeError, ValueError) as e:
         raise typer.BadParameter(
-            f"invalid region: '{region.lower()}' (expected: {'|'.join(r.name.lower() for r in Region)})"
+            f"invalid region: '{region.lower()}' (expected: {'|'.join(r.slug for r in Region)})"
         ) from e
 
 

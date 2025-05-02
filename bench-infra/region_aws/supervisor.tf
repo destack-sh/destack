@@ -118,7 +118,7 @@ resource "kubernetes_deployment" "supervisor" {
           name    = "supervisor-migrate"
           image   = "ghcr.io/symbolx/bench-system:${var.bench_version}"
           command = ["/bin/sh", "-c"]
-          args    = ["python bench.py migrate apply --area global && python bench.py migrate apply --area ${var.region}"]
+          args    = ["python bench.py migrate apply --area global && python bench.py migrate apply --area regional --region ${var.region}"]
 
           dynamic "env" {
             for_each = local.supervisor_env_vars
