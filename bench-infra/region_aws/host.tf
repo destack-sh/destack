@@ -10,19 +10,28 @@ locals {
     CLOUD        = var.cloud
     REGION       = var.region
 
-    OTLP_ENDPOINT = "http://jaeger.monitoring.svc.cluster.local:4317"
-    TRACING       = 1
-    LOG_LEVEL     = "DEBUG"
-    LOG_MODE      = "JSON"
+    OTLP_ENDPOINT                 = "http://jaeger.monitoring.svc.cluster.local:4317"
+    TRACING                       = "1"
+    LOG_LEVEL                     = "DEBUG"
+    LOG_MODE                      = "JSON"
     KUBERNETES_NAMESPACE          = "default"
     KUBERNETES_COMPUTER_APP_LABEL = "bench-computer"
     KUBERNETES_IMAGE_PULL_SECRET  = kubernetes_secret.image_pull_secret.metadata[0].name
 
-    SUPERVISOR_URL                = var.supervisor_url
-    GLOBAL_PG_URL = var.global_pg_url
-    REGIONAL_PG_MAP = {
-      "${var.region}" = "postgresql://${var.regional_pg_username}:${random_password.regional_pg_password.result}@${aws_rds_cluster.regional_pg_primary.endpoint}/${var.regional_pg_name}"
-    }
+    SUPERVISOR_URL = var.supervisor_url
+    HOST_MAP = join(",", flatten([
+      for k, v in var.host_map : [
+        format("%s=%s", k, v)
+      ]
+    ]))
+    GLOBAL_PG_URL  = var.global_pg_url
+    REGIONAL_PG_MAP = join(",", flatten([
+      for k, v in {
+        "${var.region}" = "postgresql://${var.regional_pg_username}:${random_password.regional_pg_password.result}@${aws_rds_cluster.regional_pg_primary.endpoint}/${var.regional_pg_name}"
+        } : [
+        format("%s=%s", k, v)
+      ]
+    ]))
 
     COMPUTER_RUNTIME_IMAGE         = "ghcr.io/symbolx/bench-computer-runtime"
     COMPUTER_UBUNTU_DESKTOP_IMAGE  = "ghcr.io/symbolx/bench-computer-ubuntu-desktop"
@@ -42,10 +51,10 @@ locals {
     POSTHOG_HOST        = var.posthog_host
     GHCR_TOKEN          = var.ghcr_token
 
-    S3_REGION           = aws_s3_bucket.bench_files.region
-    S3_ENDPOINT         = "https://s3.${aws_s3_bucket.bench_files.region}.amazonaws.com"
-    S3_ACCESS_KEY       = aws_iam_access_key.host.id
-    S3_SECRET_KEY       = aws_iam_access_key.host.secret
+    S3_REGION     = aws_s3_bucket.bench_files.region
+    S3_ENDPOINT   = "https://s3.${aws_s3_bucket.bench_files.region}.amazonaws.com"
+    S3_ACCESS_KEY = aws_iam_access_key.host.id
+    S3_SECRET_KEY = aws_iam_access_key.host.secret
   }
 }
 
@@ -484,10 +493,11 @@ output "host_hostname" {
 
 # point 'host' for this region to the host ingress
 resource "cloudflare_record" "host_region" {
-  zone_id = var.web_zone_id
-  name    = "${var.cloud}-${var.region}.host"
-  type    = "CNAME"
-  content = data.kubernetes_service.host_envoy_proxy.status.0.load_balancer.0.ingress.0.hostname
-  ttl     = 300
-  proxied = false
+  zone_id         = var.web_zone_id
+  name            = "${var.cloud}-${var.region}.host"
+  type            = "CNAME"
+  content         = data.kubernetes_service.host_envoy_proxy.status.0.load_balancer.0.ingress.0.hostname
+  ttl             = 300
+  proxied         = false
+  allow_overwrite = true
 }

@@ -175,12 +175,13 @@ resource "aws_cloudfront_distribution" "posthog_proxy" {
 
 # Cloudflare DNS record for PostHog proxy
 resource "cloudflare_record" "posthog_proxy" {
-  zone_id = data.cloudflare_zone.main_website.id
-  name    = var.posthog_subdomain
-  type    = "CNAME"
-  content = aws_cloudfront_distribution.posthog_proxy.domain_name
-  ttl     = 300
-  proxied = false
+  zone_id         = data.cloudflare_zone.main_website.id
+  name            = var.posthog_subdomain
+  type            = "CNAME"
+  content         = aws_cloudfront_distribution.posthog_proxy.domain_name
+  ttl             = 300
+  proxied         = false
+  allow_overwrite = true
 }
 
 # Output the PostHog proxy URL
