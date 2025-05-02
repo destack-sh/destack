@@ -208,82 +208,6 @@ resource "kubernetes_service" "kube_state_metrics" {
   }
 }
 
-#
-# BetterStack
-# (see the old notes from https://github.com/symbolx/bench/blob/b2f6ba5c5697cb492de2bf2090cb34e75557fcf6/infra/index.ts)
-#
-
-resource "helm_release" "betterstack_logs" {
-  name             = "betterstack-logs"
-  repository       = "https://betterstackhq.github.io/logs-helm-chart"
-  chart            = "betterstack-logs"
-  namespace        = kubernetes_namespace.monitoring.metadata[0].name
-  create_namespace = false
-
-  values = [
-    jsonencode({
-      metrics_server = {
-        enabled = false
-      }
-      vector = {
-        customConfig = {
-          sinks = {
-            better_stack_http_sink = {
-              auth = {
-                token = var.betterstack_token
-              }
-            }
-            better_stack_http_metrics_sink = {
-              auth = {
-                token = var.betterstack_token
-              }
-            }
-          }
-          sources = {
-            better_stack_kubernetes_logs = {
-              type = "kubernetes_logs"
-            }
-            better_stack_kubernetes_metrics_nodes = {
-              auth = {
-                strategy = "bearer"
-                token    = "$SERVICE_ACCOUNT_TOKEN"
-              }
-              decoding = {
-                codec = "json"
-              }
-              endpoint = "https://betterstack-logs-metrics-server/apis/metrics.k8s.io/v1beta1/nodes"
-              headers = {
-                accept = ["application/json"]
-              }
-              tls = {
-                verify_certificate = false
-              }
-              type = "http_client"
-            }
-            better_stack_kubernetes_metrics_pods = {
-              auth = {
-                strategy = "bearer"
-                token    = "$SERVICE_ACCOUNT_TOKEN"
-              }
-              decoding = {
-                codec = "json"
-              }
-              endpoint = "https://betterstack-logs-metrics-server/apis/metrics.k8s.io/v1beta1/pods"
-              headers = {
-                accept = ["application/json"]
-              }
-              tls = {
-                verify_certificate = false
-              }
-              type = "http_client"
-            }
-          }
-        }
-      }
-    })
-  ]
-}
-
 # 
 # Jaeger
 # 
@@ -355,6 +279,6 @@ resource "kubernetes_service" "jaeger" {
 }
 
 #
-# TODO :Infra! :Robustness!: proper monitoring with OLTP metrics/spans/logs/alerts (in one place?)
+# nocheckin :Infra! :Robustness!: proper monitoring with OLTP metrics/spans/logs/alerts (in one place?)
 #  (Prometheus/Grafana? Honeycomb? Signoz?)
 # 

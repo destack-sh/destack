@@ -48,7 +48,7 @@ class _Unset:
 
 
 # forever constants
-VERSION = "2025.05.01.1"
+VERSION = "2025.05.02.0"
 UUID_NAMESPACE = uuid5(UUID(int=0), b"bench")
 CK_LENGTH_B64 = 24  # 1.5 * CK_LENGTH_BYTES (must be integer)
 FLOAT_EPSILON = 1e-6
@@ -1014,27 +1014,27 @@ class Region(BuiltinEnum):
     # OHIO = 2010, None, None, "🇺🇸"
 
     # na-west
-    # OREGON = 2200, None, None, "🇺🇸"
+    OREGON = 2200, None, None, "🇺🇸"
 
     # sa-east
-    # SAO_PAULO = 3000, None, None, "🇧🇷"
+    SAO_PAULO = 3000, None, None, "🇧🇷"
 
     ...
 
     # af-south
-    # CAPE_TOWN = 5000, None, None, "🇿🇦"
+    CAPE_TOWN = 5000, None, None, "🇿🇦"
 
     # as-east
-    # MUMBAI = 6000, None, None, "🇮🇳"
+    MUMBAI = 6000, None, None, "🇮🇳"
 
     # as-south
-    # SINGAPORE = 6200, None, None, "🇸🇬"
+    SINGAPORE = 6200, None, None, "🇸🇬"
 
     # as-east
-    # TOKYO = 6400, None, None, "🇯🇵"
+    TOKYO = 6400, None, None, "🇯🇵"
 
     # au-south
-    # SYDNEY = 7000, None, None, "🇦🇺"
+    SYDNEY = 7000, None, None, "🇦🇺"
 
     @property
     def continent(self) -> RegionContinent:

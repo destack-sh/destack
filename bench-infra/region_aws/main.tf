@@ -21,8 +21,9 @@ terraform {
 
 locals {
   aws_region_by_bench_region = {
-    "eu-zurich" : "eu-central-2"
+    "eu-zurich"    = "eu-central-2"
     "eu-frankfurt" = "eu-central-1"
+    "us-east-1"    = "us-east-1"
   }
 }
 
@@ -153,11 +154,11 @@ module "cluster_0" {
 
   eks_managed_node_groups = {
     "bench-${var.env}-${var.region}-nodes" = {
-      instance_types = ["c7g.medium"]
+      instance_types = ["t4g.large"]
       ami_type       = "AL2_ARM_64"
-      min_size       = 3
+      min_size       = 2
       max_size       = 6
-      desired_size   = 4
+      desired_size   = 3
 
       iam_role_use_name_prefix = false
     }
@@ -267,7 +268,7 @@ resource "aws_s3_bucket_cors_configuration" "bench_files_cors" {
 
 #
 # Supervisor (if primary)
-# NOTE :Infra: supervisor should probably be in its own cluster? (or even just a lone EC2 instance)
+# NOTE :Infra: supervisor should probably be in its own cluster? or should we have one supervisor per region?
 #
 
 module "supervisor" {
@@ -298,7 +299,7 @@ module "supervisor" {
   neon_base_url   = var.neon_base_url
 }
 
-# point 'supervisor.' to the supervisor ingress
+# point 'supervisor.<domain>' to the supervisor ingress
 resource "cloudflare_record" "supervisor" {
   count   = var.is_primary ? 1 : 0
   zone_id = var.web_zone_id

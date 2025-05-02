@@ -27,21 +27,26 @@ locals {
     CLOUD        = var.cloud
     REGION       = var.region
 
+    OTLP_ENDPOINT = "http://jaeger.monitoring.svc.cluster.local:4317"
+    TRACING       = 1
+    LOG_LEVEL     = "DEBUG"
+    LOG_MODE      = "JSON"
+    USE_WAITLIST  = 1
+
     SUPERVISOR_URL = "https://supervisor.heybench.com:${var.supervisor_grpc_port}"
     HOST_MAP = join(",", flatten([
       for k, v in var.host_map : [
         format("%s=%s", k, v)
       ]
     ]))
-    COMPUTER_RUNTIME_IMAGE = "ghcr.io/symbolx/bench-runtime"
 
     GLOBAL_PG_URL = var.global_pg_url
 
-    OTLP_ENDPOINT = "http://jaeger.monitoring.svc.cluster.local:4317"
-    TRACING       = 1
-    LOG_LEVEL     = "DEBUG"
-    LOG_MODE      = "JSON"
-    USE_WAITLIST  = 1
+    COMPUTER_RUNTIME_IMAGE         = "ghcr.io/symbolx/bench-computer-runtime"
+    COMPUTER_UBUNTU_DESKTOP_IMAGE  = "ghcr.io/symbolx/bench-computer-ubuntu-desktop"
+    COMPUTER_UBUNTU_TERMINAL_IMAGE = "ghcr.io/symbolx/bench-computer-ubuntu-terminal"
+    COMPUTER_GRPC_PORT             = 5432
+    COMPUTER_VNC_PORT              = 6080
 
     POSTHOG_API_KEY = var.posthog_api_key
     POSTHOG_HOST    = var.posthog_host
