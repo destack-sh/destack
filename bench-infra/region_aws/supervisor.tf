@@ -22,9 +22,13 @@ locals {
       ]
     ]))
     GLOBAL_PG_URL = var.global_pg_url
-    REGIONAL_PG_MAP = {
-      "${var.region}" = "postgresql://${var.regional_pg_username}:${random_password.regional_pg_password.result}@${aws_rds_cluster.regional_pg_primary.endpoint}/${var.regional_pg_name}"
-    }
+    REGIONAL_PG_MAP = join(",", flatten([
+      for k, v in {
+        "${var.region}" = "postgresql://${var.regional_pg_username}:${random_password.regional_pg_password.result}@${aws_rds_cluster.regional_pg_primary.endpoint}/${var.regional_pg_name}"
+        } : [
+        format("%s=%s", k, v)
+      ]
+    ]))
 
     COMPUTER_RUNTIME_IMAGE         = "ghcr.io/symbolx/bench-computer-runtime"
     COMPUTER_UBUNTU_DESKTOP_IMAGE  = "ghcr.io/symbolx/bench-computer-ubuntu-desktop"
@@ -46,10 +50,10 @@ locals {
 
 # s3 access (to everything)
 resource "aws_iam_user" "supervisor" {
-  name = "bench-${var.env}-supervisor"
+  name = "bench-${var.env}-${var.region}-supervisor"
 }
 resource "aws_iam_policy" "supervisor_s3" {
-  name        = "bench-${var.env}-supervisor-s3"
+  name        = "bench-${var.env}-${var.region}-supervisor-s3"
   description = "Allow access to S3 buckets for supervisor"
 
   policy = jsonencode({
@@ -114,7 +118,7 @@ resource "kubernetes_deployment" "supervisor" {
           name    = "supervisor-migrate"
           image   = "ghcr.io/symbolx/bench-system:${var.bench_version}"
           command = ["/bin/sh", "-c"]
-          args    = ["python bench.py migrate apply"]
+          args    = ["python bench.py migrate apply --area global && python bench.py migrate apply --area ${var.region}"]
 
           dynamic "env" {
             for_each = local.supervisor_env_vars
@@ -445,10 +449,11 @@ output "supervisor_hostname" {
 
 # point 'supervisor' for this region to the supervisor ingress
 resource "cloudflare_record" "supervisor" {
-  zone_id = var.web_zone_id
-  name    = "${var.cloud}-${var.region}.supervisor"
-  type    = "CNAME"
-  content = data.kubernetes_service.supervisor_envoy_proxy.status.0.load_balancer.0.ingress.0.hostname
-  ttl     = 300
-  proxied = false
+  zone_id         = var.web_zone_id
+  name            = "${var.cloud}-${var.region}.supervisor"
+  type            = "CNAME"
+  content         = data.kubernetes_service.supervisor_envoy_proxy.status.0.load_balancer.0.ingress.0.hostname
+  ttl             = 300
+  proxied         = false
+  allow_overwrite = true
 }

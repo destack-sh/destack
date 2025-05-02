@@ -196,4 +196,5 @@ resource "cloudflare_record" "supervisor" {
   content = module.region_aws_eu_frankfurt.supervisor_hostname
   ttl     = 300
   proxied = false
+  allow_overwrite = true
 }

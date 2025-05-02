@@ -338,10 +338,17 @@ export class CodeLineView implements PmNodeView {
       "duration-150",
       "text-xs",
       "font-mono",
+      "cursor-pointer",
       "hover:text-gray-700",
     );
     copyButton.addEventListener("click", () => {
       navigator.clipboard.writeText(node.textContent);
+      copyIcon.classList.remove("fa-copy");
+      copyIcon.classList.add("fa-check");
+      setTimeout(() => {
+        copyIcon.classList.remove("fa-check");
+        copyIcon.classList.add("fa-copy");
+      }, 2000);
     });
     const copyIcon = document.createElement("i");
     copyIcon.classList.add("fas", "fa-copy");
