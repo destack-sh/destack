@@ -1,26 +1,8 @@
-terraform {
-  required_providers {
-    aws = {
-      source  = "hashicorp/aws"
-      version = "~> 5.0"
-    }
-    kubernetes = {
-      source  = "hashicorp/kubernetes"
-      version = "~> 2.0"
-    }
-    helm = {
-      source  = "hashicorp/helm"
-      version = ">= 2.14.0"
-    }
-  }
-}
-
 # 
 # Supervisor
 # 
 
 locals {
-  prefix = "bench-${var.env}-${var.cloud}-${var.region}"
   supervisor_env_vars = {
     SERVICE_NAME = "supervisor"
     ENVIRONMENT  = var.env
@@ -33,14 +15,16 @@ locals {
     LOG_MODE      = "JSON"
     USE_WAITLIST  = 1
 
-    SUPERVISOR_URL = "https://supervisor.heybench.com:${var.supervisor_grpc_port}"
+    SUPERVISOR_URL = var.supervisor_url
     HOST_MAP = join(",", flatten([
       for k, v in var.host_map : [
         format("%s=%s", k, v)
       ]
     ]))
-
     GLOBAL_PG_URL = var.global_pg_url
+    REGIONAL_PG_MAP = {
+      "${var.region}" = "postgresql://${var.regional_pg_username}:${random_password.regional_pg_password.result}@${aws_rds_cluster.regional_pg_primary.endpoint}/${var.regional_pg_name}"
+    }
 
     COMPUTER_RUNTIME_IMAGE         = "ghcr.io/symbolx/bench-computer-runtime"
     COMPUTER_UBUNTU_DESKTOP_IMAGE  = "ghcr.io/symbolx/bench-computer-ubuntu-desktop"
@@ -52,8 +36,11 @@ locals {
     POSTHOG_HOST    = var.posthog_host
     NEON_API_KEY    = var.neon_api_key
     NEON_BASE_URL   = var.neon_base_url
-    S3_ACCESS_KEY   = aws_iam_access_key.supervisor.id
-    S3_SECRET_KEY   = aws_iam_access_key.supervisor.secret
+
+    S3_REGION     = aws_s3_bucket.bench_files.region
+    S3_ENDPOINT   = "https://s3.${aws_s3_bucket.bench_files.region}.amazonaws.com"
+    S3_ACCESS_KEY = aws_iam_access_key.supervisor.id
+    S3_SECRET_KEY = aws_iam_access_key.supervisor.secret
   }
 }
 
@@ -167,7 +154,7 @@ resource "kubernetes_deployment" "supervisor" {
         }
 
         image_pull_secrets {
-          name = var.image_pull_secret_name
+          name = kubernetes_secret.image_pull_secret.metadata[0].name
         }
       }
     }
@@ -270,7 +257,7 @@ resource "kubernetes_config_map" "supervisor_envoy_config" {
                           filename: /etc/envoy/tls/tls.key
         - name: grpc_listener
           address:
-            socket_address: { address: 0.0.0.0, port_value: ${var.supervisor_grpc_port} }
+            socket_address: { address: 0.0.0.0, port_value: 60061 }
           filter_chains:
           - filters:
             - name: envoy.filters.network.http_connection_manager
@@ -362,7 +349,7 @@ resource "kubernetes_deployment" "supervisor_envoy_proxy" {
             container_port = 8080
           }
           port {
-            container_port = var.supervisor_grpc_port
+            container_port = 60061
           }
 
           volume_mount {
@@ -388,7 +375,7 @@ resource "kubernetes_deployment" "supervisor_envoy_proxy" {
         volume {
           name = "envoy-cert"
           secret {
-            secret_name = var.web_certificate_secret_name
+            secret_name = kubernetes_secret.web_certificate_secret.metadata[0].name
             items {
               key  = "tls.crt"
               path = "tls.crt"
@@ -435,8 +422,8 @@ resource "kubernetes_service" "supervisor_envoy_proxy" {
 
     port {
       name        = "grpc"
-      port        = var.supervisor_grpc_port
-      target_port = var.supervisor_grpc_port
+      port        = 60061
+      target_port = 60061
     }
 
     type = "LoadBalancer"
@@ -453,5 +440,15 @@ data "kubernetes_service" "supervisor_envoy_proxy" {
 
 output "supervisor_hostname" {
   value       = data.kubernetes_service.supervisor_envoy_proxy.status.0.load_balancer.0.ingress.0.hostname
-  description = "The public hostname of the load balancer"
+  description = "The public hostname of the Supervisor service (ingress)"
+}
+
+# point 'supervisor' for this region to the supervisor ingress
+resource "cloudflare_record" "supervisor" {
+  zone_id = var.web_zone_id
+  name    = "${var.cloud}-${var.region}.supervisor"
+  type    = "CNAME"
+  content = data.kubernetes_service.supervisor_envoy_proxy.status.0.load_balancer.0.ingress.0.hostname
+  ttl     = 300
+  proxied = false
 }

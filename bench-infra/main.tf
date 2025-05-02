@@ -12,6 +12,10 @@ terraform {
       source  = "vancluever/acme"
       version = "~> 2.0"
     }
+    random = {
+      source  = "hashicorp/random"
+      version = "~> 3.0"
+    }
   }
 }
 
@@ -24,7 +28,7 @@ locals {
   host_map = {
     "eu-zurich"    = "aws-eu-zurich.host.${local.main_website}:60061/443s"
     "eu-frankfurt" = "aws-eu-frankfurt.host.${local.main_website}:60061/443s"
-    "us-east-1"    = "aws-us-east-1.host.${local.main_website}:60061/443s"
+    "na-virginia"  = "aws-na-virginia.host.${local.main_website}:60061/443s"
   }
 
   aws_global_vpc_network_cidr = "10.0.0.0/16"
@@ -155,7 +159,7 @@ module "region_aws_eu_frankfurt" {
   system_node_instance_type   = var.system_node_instance_type
 
   # db
-  global_pg_url = "postgresql://${var.global_pg_username}:${var.global_pg_password}@${aws_rds_cluster.global_pg_primary.endpoint}/${var.global_pg_name}"
+  global_pg_url = "postgresql://${var.global_pg_username}:${random_password.global_pg_password.result}@${aws_rds_cluster.global_pg_primary.endpoint}/${var.global_pg_name}"
 
   # web
   web_zone_id                     = data.cloudflare_zone.main_website.id
@@ -178,4 +182,18 @@ module "region_aws_eu_frankfurt" {
   unsplash_access_key = var.unsplash_access_key
   posthog_api_key     = var.posthog_api_key
   posthog_host        = var.posthog_host
+}
+
+# nocheckin: handle multiple supervisor regions/urls? (especially for write access)
+#  (Supervisor only has DB access to global + its own region, so it can't create Benches in other regions!;
+#   therefore we have to select supervisor somewhere in the bench-web client?)
+
+# point 'supervisor.<domain>' to the supervisor ingress
+resource "cloudflare_record" "supervisor" {
+  zone_id = data.cloudflare_zone.main_website.id
+  name    = "supervisor"
+  type    = "CNAME"
+  content = module.region_aws_eu_frankfurt.supervisor_hostname
+  ttl     = 300
+  proxied = false
 }

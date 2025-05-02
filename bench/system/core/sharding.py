@@ -86,11 +86,11 @@ def get_store_map_from_string(map_str: str) -> "StoreMap":
     return StoreMap(store_map=store_map)
 
 
-def store_map_to_string(region_map: "StoreMap") -> str:
+def store_map_to_string(store_map: "StoreMap") -> str:
     """Renders a region map back into a string."""
     return ";".join(
         f"{k.slug if isinstance(k, Region) else k}={v.render()}"
-        for k, v in region_map._store_info_by_region.items()
+        for k, v in store_map._store_info_by_region.items()
     )
 
 

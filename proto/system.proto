@@ -263,12 +263,12 @@ message ResolveHostsResponse {
   repeated HostInfo hosts = 1;
 }
 
-// Global control plane: create & manage the global stuff like Benches, Users, etc..
+// Control plane: create & manage the global stuff like Benches, Users, etc..
 service Supervisor {
   option (kind) = PUBLIC; // :ServiceKind
 
   //
-  // Global IO for non-source nodes outside Benches :Graph :RichGraph
+  // 'Global' IO for non-source nodes outside Benches :Graph :RichGraph
   // NOTE :Architecture: should Supervisor really have subscription methods? 
   //  (how to handle inevitable? overlap between Supervisor and Hosts in :RichGraph?)
   //
@@ -283,13 +283,13 @@ service Supervisor {
   // User management
   //
 
-  // Create user account.
+  // Create User.
   rpc SignupUser(SignupUserRequest) returns (SignupUserResponse);
-  // Change user password.
+  // Change User.password.
   rpc ChangeUserPassword(ChangeUserPasswordRequest) returns (ChangeUserPasswordResponse);
-  // Login user account with a new or existing client.
+  // Login User with a new or existing Client.
   rpc LoginUser(LoginUserRequest) returns (LoginUserResponse);
-  // Logout user account with the current or other owned clients.
+  // Logout User with the current or other owned Clients.
   rpc LogoutUser(LogoutUserRequest) returns (LogoutUserResponse);
 
   //
