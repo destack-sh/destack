@@ -12,7 +12,7 @@ from rich.console import Console
 from bench.language.core.const import REGION, NodeArea, Region
 from bench.utils.oracle import REAL_ORACLE
 
-from .utils import async_to_sync, parse_area, parse_region
+from .utils import async_to_sync, parse_node_area, parse_region
 
 if TYPE_CHECKING:
     from bench.language import NodeArea, Region
@@ -25,7 +25,7 @@ console = Console()
 @app.command(help="generate SQL migrations")
 @async_to_sync
 async def make(
-    area: Annotated[NodeArea | None, typer.Option(parser=parse_area)] = None,
+    area: Annotated[NodeArea | None, typer.Option(parser=parse_node_area)] = None,
     region: Annotated[Region, typer.Option(parser=parse_region)] = REGION,
     bench: str = typer.Option(default="bench", help="the bench to use as local reference"),
     no_downgrade: bool = typer.Option(default=False, help="exclude downgrade operations"),
@@ -178,7 +178,7 @@ async def make(
 @async_to_sync
 async def apply(
     area: "NodeArea" = typer.Option(  # noqa: B008
-        parser=parse_area, help="the area to migrate"
+        parser=parse_node_area, help="the area to migrate"
     ),
     target: Optional[str] = typer.Option(
         default=None, help="the migration to migrate to [default=latest]"

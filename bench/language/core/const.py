@@ -48,7 +48,7 @@ class _Unset:
 
 
 # forever constants
-VERSION = "2025.05.02.5"
+VERSION = "2025.05.02.7"
 UUID_NAMESPACE = uuid5(UUID(int=0), b"bench")
 CK_LENGTH_B64 = 24  # 1.5 * CK_LENGTH_BYTES (must be integer)
 FLOAT_EPSILON = 1e-6
@@ -1054,8 +1054,7 @@ class Region(BuiltinEnum):
         return REGION_BY_SLUG[slug]
 
 
-REGION_SLUGS: dict[Region, str] = {r: r.slug for r in Region}
-REGION_BY_SLUG = {v: k for k, v in REGION_SLUGS.items()}
+REGION_BY_SLUG = {r.slug: r for r in Region}
 
 
 class ReferenceKind(BuiltinEnum):
