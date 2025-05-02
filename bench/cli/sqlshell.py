@@ -9,7 +9,7 @@ from bench.language.core.const import REGION, NodeArea, Region
 from bench.utils.func import sanitize_connection_url
 from bench.utils.oracle import REAL_ORACLE
 
-from .utils import async_to_sync, parse_area, parse_region
+from .utils import async_to_sync, parse_node_area, parse_region
 
 if TYPE_CHECKING:
     from bench.language import NodeArea, Region
@@ -22,7 +22,7 @@ logger = structlog.get_logger(__name__)
 @app.command()
 @async_to_sync
 async def shell(
-    area: Annotated[NodeArea, typer.Option(parser=parse_area)],
+    area: Annotated[NodeArea, typer.Option(parser=parse_node_area)],
     region: Annotated[Region, typer.Option(parser=parse_region)] = REGION,
     bench: Optional[str] = None,
 ):  # type: ignore

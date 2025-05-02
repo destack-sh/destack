@@ -62,7 +62,7 @@ def parse_region(region: "str | Region") -> "Region":
     if isinstance(region, Region):
         return region
 
-    region = region.upper()
+    region = region.lower()
     try:
         if region in REGION_BY_SLUG:
             # try by slug
@@ -75,11 +75,11 @@ def parse_region(region: "str | Region") -> "Region":
             return Region(int(region))
     except (TypeError, ValueError) as e:
         raise typer.BadParameter(
-            f"invalid region: '{region.lower()}' (expected: {'|'.join(r.slug for r in Region)})"
+            f"invalid region: '{region}' (expected: {'|'.join(r.slug for r in Region)})"
         ) from e
 
 
-def parse_area(area: "str | NodeArea") -> "NodeArea":
+def parse_node_area(area: "str | NodeArea") -> "NodeArea":
     """Parse a NodeArea from a string."""
     from bench.language.core.const import NodeArea
 
