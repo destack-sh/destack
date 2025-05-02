@@ -24,7 +24,7 @@ from bench.sql.client import get_pg_pool_by_external_name, pg_connection
 from bench.sql.engine import sqlstr
 from bench.sql.graph import BUILTIN_GLOBAL_SCHEMA, BUILTIN_REGIONAL_SCHEMA
 from bench.system import (
-    StoreMap,
+    PostgresMap,
     create_system_benches,
     global_store_from_env,
     pg_engine_from_store,
@@ -74,7 +74,7 @@ class Simulation:
         spec: SimulationSpec,
         global_store: Store,
         regional_store: Store,
-        store_map: StoreMap,
+        store_map: PostgresMap,
     ):
         self.id = id
         self.spec = spec
@@ -459,7 +459,7 @@ async def run_simulation(spec: SimulationSpec):
     # config
     global_store = make_global_store(f"test-{simulation_id}-global")
     regional_store = make_regional_store(f"test-{simulation_id}-regional")
-    store_map = StoreMap({"*": regional_store})
+    store_map = PostgresMap({"*": regional_store})
     simulation = Simulation(
         id=simulation_id,
         spec=spec,

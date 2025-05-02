@@ -15,40 +15,40 @@ if TYPE_CHECKING:
 #
 
 
-@dataclass
-class StoreInfo:
+@dataclass(slots=True)
+class PostgresInfo:
     pg_url: str
 
     def render(self) -> str:
         return self.pg_url
 
     @staticmethod
-    def parse(region_url: str) -> "StoreInfo":
+    def parse(region_url: str) -> "PostgresInfo":
         """Parses a region URL like 'postgresql://user:pass@host/db'."""
-        return StoreInfo(pg_url=region_url)
+        return PostgresInfo(pg_url=region_url)
 
 
-class StoreMap:
+class PostgresMap:
     """
-    Maps Regions to Stores.
+    Maps Regions to regional DBs.
     """
 
-    def __init__(self, store_map: dict[Region | Literal["*"], "StoreInfo | Store"]):
-        self._store_info_by_region: dict[Region | Literal["*"], StoreInfo] = {}
+    def __init__(self, store_map: dict[Region | Literal["*"], "PostgresInfo | Store"]):
+        self._store_info_by_region: dict[Region | Literal["*"], PostgresInfo] = {}
         self._store_by_region: dict[Region | Literal["*"], Store] = {}
         for region, store_or_info in store_map.items():
-            if isinstance(store_or_info, StoreInfo):
+            if isinstance(store_or_info, PostgresInfo):
                 self._store_info_by_region[region] = store_or_info
             else:
                 self._store_by_region[region] = store_or_info
 
     def __str__(self) -> str:
-        return store_map_to_string(self)
+        return postgres_map_to_string(self)
 
     def __repr__(self) -> str:
-        return f"<{self.__class__.__name__} {store_map_to_string(self) or '<empty>'}>"
+        return f"<{self.__class__.__name__} {postgres_map_to_string(self) or '<empty>'}>"
 
-    def get_info(self, region: Region) -> StoreInfo:
+    def get_info(self, region: Region) -> PostgresInfo:
         """Gets the region info for the given region (error if none)."""
         store_info = self._store_info_by_region.get(region)
         if store_info is None:
@@ -71,22 +71,22 @@ class StoreMap:
         return store
 
 
-def store_map_from_string(region_map_str: str) -> "StoreMap":
+def get_postgres_map_from_string(map_str: str) -> "PostgresMap":
     """
-    Parses a region map string like:
+    Parses a map string like:
         '*=postgresql://user:pass@host/db'
-        'ZURICH=postgresql://user:pass@host/db;FRANKFURT=postgresql://user:pass@host/db'
+        'eu-zurich=postgresql://user:pass@host/db;eu-frankfurt=postgresql://user:pass@host/db'
     """
     store_map = {}
-    for mapping_str in region_map_str.split(";"):
+    for mapping_str in map_str.split(";"):
         store_str, store_info_str = mapping_str.split("=", 1)
         region = Region.get_by_slug(store_str) if store_str != "*" else store_str
-        store_info = StoreInfo.parse(store_info_str.strip())
+        store_info = PostgresInfo.parse(store_info_str.strip())
         store_map[region] = store_info
-    return StoreMap(store_map=store_map)
+    return PostgresMap(store_map=store_map)
 
 
-def store_map_to_string(region_map: "StoreMap") -> str:
+def postgres_map_to_string(region_map: "PostgresMap") -> str:
     """Renders a region map back into a string."""
     return ";".join(
         f"{k.slug if isinstance(k, Region) else k}={v.render()}"
@@ -94,13 +94,13 @@ def store_map_to_string(region_map: "StoreMap") -> str:
     )
 
 
-def store_map_from_env() -> "StoreMap":
+def get_postgres_map_from_env() -> "PostgresMap":
     """Parses the REGIONAL_PG_MAP from the environment."""
     region_map_str = get_from_env("REGIONAL_PG_MAP", description="Region map for postgres sharding")
-    return store_map_from_string(region_map_str)
+    return get_postgres_map_from_string(region_map_str)
 
 
-STORE_MAP = store_map_from_env()
+STORE_MAP = get_postgres_map_from_env()
 
 #
 # Hosts (by Region/Shard)
@@ -170,7 +170,7 @@ class StaticHostMap(HostMap):
         return host_info
 
 
-def host_map_from_string(host_map_str: str) -> StaticHostMap:
+def get_host_map_from_string(host_map_str: str) -> StaticHostMap:
     """
     Parses a host map string like:
         'eu-zurich=localhost:60061/8080,eu-frankfurt=localhost:60061/8081'
@@ -199,10 +199,10 @@ def host_map_to_string(host_map: StaticHostMap) -> str:
     )
 
 
-def host_map_from_env() -> StaticHostMap:
+def get_host_map_from_env() -> StaticHostMap:
     """Parses the HOST_MAP from the environment."""
     host_map_str = get_from_env("HOST_MAP", description="Host map for sharding")
-    return host_map_from_string(host_map_str)
+    return get_host_map_from_string(host_map_str)
 
 
-HOST_MAP = host_map_from_env()
+HOST_MAP = get_host_map_from_env()

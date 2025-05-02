@@ -22,7 +22,9 @@ locals {
   main_website  = "heybench.com"
 
   host_map = {
+    "eu-zurich"    = "aws-eu-zurich.host.${local.main_website}:60061/443s"
     "eu-frankfurt" = "aws-eu-frankfurt.host.${local.main_website}:60061/443s"
+    "us-east-1"    = "aws-us-east-1.host.${local.main_website}:60061/443s"
   }
 
   aws_global_vpc_network_cidr = "10.0.0.0/16"

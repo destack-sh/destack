@@ -10,18 +10,23 @@ locals {
     CLOUD        = var.cloud
     REGION       = var.region
 
+    OTLP_ENDPOINT = "http://jaeger.monitoring.svc.cluster.local:4317"
+    TRACING       = 1
+    LOG_LEVEL     = "DEBUG"
+    LOG_MODE      = "JSON"
+
     SUPERVISOR_URL                = var.supervisor_url
-    COMPUTER_RUNTIME_IMAGE        = "ghcr.io/symbolx/bench-runtime"
     KUBERNETES_NAMESPACE          = "default"
     KUBERNETES_COMPUTER_APP_LABEL = "bench-computer"
     KUBERNETES_IMAGE_PULL_SECRET  = kubernetes_secret.image_pull_secret.metadata[0].name
 
     GLOBAL_PG_URL = var.global_pg_url
 
-    OTLP_ENDPOINT = "http://jaeger.monitoring.svc.cluster.local:4317"
-    TRACING       = 1
-    LOG_LEVEL     = "DEBUG"
-    LOG_MODE      = "JSON"
+    COMPUTER_RUNTIME_IMAGE         = "ghcr.io/symbolx/bench-computer-runtime"
+    COMPUTER_UBUNTU_DESKTOP_IMAGE  = "ghcr.io/symbolx/bench-computer-ubuntu-desktop"
+    COMPUTER_UBUNTU_TERMINAL_IMAGE = "ghcr.io/symbolx/bench-computer-ubuntu-terminal"
+    COMPUTER_GRPC_PORT             = 5432
+    COMPUTER_VNC_PORT              = 6080
 
     NEON_API_KEY        = var.neon_api_key
     NEON_BASE_URL       = var.neon_base_url

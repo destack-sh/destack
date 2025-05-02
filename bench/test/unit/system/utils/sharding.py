@@ -1,6 +1,6 @@
 import pytest
 
-from bench.system import host_map_from_string, host_map_to_string
+from bench.system import get_host_map_from_string, host_map_to_string
 
 
 @pytest.mark.parametrize(
@@ -11,6 +11,6 @@ from bench.system import host_map_from_string, host_map_to_string
     ],
 )
 def test_roundtrip_hostmap(host_map_str: str):
-    host_map = host_map_from_string(host_map_str)
+    host_map = get_host_map_from_string(host_map_str)
     rendered = host_map_to_string(host_map)
     assert rendered == host_map_str
