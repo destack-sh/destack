@@ -109,7 +109,7 @@ def _build_proto_schema() -> str:
     node_classes = list(NODE_CLASSES)
     node_classes.sort(key=lambda cls: cls.metatype.id)
     proto = generate_proto_schema(
-        name="symbolx.bench",
+        name="symbol.bench",
         unions={"SomeNode": ("node", node_classes)},
         extras=[],
         message_postfix="Data",

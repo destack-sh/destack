@@ -48,16 +48,22 @@ class User(IsSubject, Node[UserData]):
         34, default=None, require=False, array=False, struct=StructType.TEXT_LINE
     )
     region: "Region" = p_system(35)
-    status: UserStatus = p_system(36)
+    is_staff: bool = p_system(39, default=False)
+
+    # status
+    status: UserStatus = p_system(40)
+    last_logged_in_at: Optional[datetime] = p_system(41, default=None)
+    # last_active_at: Optional[datetime] = ...
+    # seen_at: Optional[datetime] = ...
 
     bench: Optional["Bench"] = p_system(
-        40, array=False, require=False, references=NodeType.BENCH, fk=True
+        50, array=False, require=False, references=NodeType.BENCH, fk=True
     )
     handle: Optional["Handle"] = p_system(
-        41, require=False, array=False, references=NodeType.HANDLE, fk=True
+        51, require=False, array=False, references=NodeType.HANDLE, fk=True
     )
     cursor: Optional["Cursor"] = p_regular(
-        42, default=None, require=False, references=NodeType.CURSOR, fk=True
+        52, default=None, require=False, references=NodeType.CURSOR, fk=True
     )
     if TYPE_CHECKING:
         bench_id: Optional[UUID] = None
@@ -70,19 +76,11 @@ class User(IsSubject, Node[UserData]):
     # auth
     # TODO :Architecture: refactor out authentication & challenges for Users/Client
     email: str | None = p_system(
-        50, defer=True, unique=True, sensitive=True, constraint=EMAIL_CONSTRAINT
+        60, defer=True, unique=True, sensitive=True, constraint=EMAIL_CONSTRAINT
     )
-    password_salt: Optional[bytes] = p_kernel(51, default=None, defer=True, sensitive=True)
-    password_hash: Optional[bytes] = p_kernel(52, default=None, defer=True, sensitive=True)
+    password_salt: Optional[bytes] = p_kernel(61, default=None, defer=True, sensitive=True)
+    password_hash: Optional[bytes] = p_kernel(62, default=None, defer=True, sensitive=True)
     # challenges?
     # password_reset_token, email_confirmation_token, ...
-
-    # activity
-    last_logged_in_at: Optional[datetime] = p_system(70, default=None)
-    # last_active_at: Optional[datetime] = ...
-    # seen_at: Optional[datetime] = ...
-
-    # flags
-    is_staff: bool = p_system(90, default=False)
 
     handles: LocalNodeList["Handle"] = p_node_children(NodeType.HANDLE)

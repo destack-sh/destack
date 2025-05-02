@@ -1,6 +1,6 @@
 import pytest
 
-from bench.system import get_host_map_from_string, host_map_to_string
+from bench.system.core.sharding import get_host_map_from_string, host_map_to_string
 
 
 @pytest.mark.parametrize(

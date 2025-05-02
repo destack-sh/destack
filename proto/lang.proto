@@ -1,6 +1,6 @@
 syntax = "proto3";
 
-package symbolx.bench;
+package symbol.bench;
 
 import "google/protobuf/timestamp.proto";
 import "google/protobuf/duration.proto";
@@ -24,9 +24,8 @@ enum EnumType {
   ENUM_TYPE_PACKAGE_TYPE = 20050;
   ENUM_TYPE_CLOUD = 20051;
   ENUM_TYPE_REGION = 20052;
-  ENUM_TYPE_REGION_ZONE = 20053;
-  ENUM_TYPE_REGION_AREA = 20054;
-  ENUM_TYPE_REGION_CONTINENT = 20055;
+  ENUM_TYPE_AREA = 20054;
+  ENUM_TYPE_CONTINENT = 20055;
   ENUM_TYPE_BENCH_STATUS = 20056;
   ENUM_TYPE_ACCESS_MODE = 20100;
   ENUM_TYPE_ACCESS_KIND = 20101;
@@ -406,9 +405,8 @@ enum BenchType {
   BENCH_TYPE_PACKAGE_TYPE = 20050;
   BENCH_TYPE_CLOUD = 20051;
   BENCH_TYPE_REGION = 20052;
-  BENCH_TYPE_REGION_ZONE = 20053;
-  BENCH_TYPE_REGION_AREA = 20054;
-  BENCH_TYPE_REGION_CONTINENT = 20055;
+  BENCH_TYPE_AREA = 20054;
+  BENCH_TYPE_CONTINENT = 20055;
   BENCH_TYPE_BENCH_STATUS = 20056;
   BENCH_TYPE_ACCESS_MODE = 20100;
   BENCH_TYPE_ACCESS_KIND = 20101;
@@ -499,6 +497,8 @@ enum BenchType {
 
 enum NodeMode {
   NODE_MODE_UNSPECIFIED = 0;
+  NODE_MODE_KERNEL = 3;
+  NODE_MODE_SYSTEM = 6;
   NODE_MODE_BUILTIN = 10;
   NODE_MODE_MAIN = 20;
   NODE_MODE_TEST = 30;
@@ -562,7 +562,6 @@ enum Region {
   REGION_ZURICH = 1000;
   REGION_FRANKFURT = 1010;
   REGION_VIRGINIA = 2000;
-  REGION_OHIO = 2010;
   REGION_OREGON = 2200;
   REGION_SAO_PAULO = 3000;
   REGION_CAPE_TOWN = 5000;
@@ -572,38 +571,33 @@ enum Region {
   REGION_SYDNEY = 7000;
 }
 
-// An available region within a specific Region.
-enum RegionZone {
-  REGION_ZONE_UNSPECIFIED = 0;
-}
-
-// A larger RegionArea of Regions within a RegionContinent.
-enum RegionArea {
-  REGION_AREA_UNSPECIFIED = 0;
-  REGION_AREA_EUROPE_CENTRAL = 1000;
-  REGION_AREA_NORTH_AMERICA_EAST = 2000;
-  REGION_AREA_NORTH_AMERICA_WEST = 2200;
-  REGION_AREA_SOUTH_AMERICA_EAST = 3000;
-  REGION_AREA_MIDDLE_EAST_CENTRAL = 4000;
-  REGION_AREA_MIDDLE_EAST_WEST = 4200;
-  REGION_AREA_AFRICA_SOUTH = 5000;
-  REGION_AREA_ASIA_WEST = 6000;
-  REGION_AREA_ASIA_SOUTH = 6200;
-  REGION_AREA_ASIA_EAST = 6400;
-  REGION_AREA_AUSTRALIA_SOUTH = 7000;
+// A larger Area of Regions within a Continent.
+enum Area {
+  AREA_UNSPECIFIED = 0;
+  AREA_EUROPE_CENTRAL = 1000;
+  AREA_NORTH_AMERICA_EAST = 2000;
+  AREA_NORTH_AMERICA_WEST = 2200;
+  AREA_SOUTH_AMERICA_EAST = 3000;
+  AREA_MIDDLE_EAST_CENTRAL = 4000;
+  AREA_MIDDLE_EAST_WEST = 4200;
+  AREA_AFRICA_SOUTH = 5000;
+  AREA_ASIA_WEST = 6000;
+  AREA_ASIA_SOUTH = 6200;
+  AREA_ASIA_EAST = 6400;
+  AREA_AUSTRALIA_SOUTH = 7000;
 }
 
 // 'Continents' of Regions.
-enum RegionContinent {
-  REGION_CONTINENT_UNSPECIFIED = 0;
-  REGION_CONTINENT_EUROPE = 1000;
-  REGION_CONTINENT_NORTH_AMERICA = 2000;
-  REGION_CONTINENT_SOUTH_AMERICA = 3000;
-  REGION_CONTINENT_MIDDLE_EAST = 4000;
-  REGION_CONTINENT_AFRICA = 5000;
-  REGION_CONTINENT_ASIA = 6000;
-  REGION_CONTINENT_AUSTRALIA = 7000;
-  REGION_CONTINENT_PRIVATE = 9000;
+enum Continent {
+  CONTINENT_UNSPECIFIED = 0;
+  CONTINENT_EUROPE = 1000;
+  CONTINENT_NORTH_AMERICA = 2000;
+  CONTINENT_SOUTH_AMERICA = 3000;
+  CONTINENT_MIDDLE_EAST = 4000;
+  CONTINENT_AFRICA = 5000;
+  CONTINENT_ASIA = 6000;
+  CONTINENT_AUSTRALIA = 7000;
+  CONTINENT_PRIVATE = 9000;
 }
 
 // The status of a Bench
@@ -2514,15 +2508,15 @@ message UserData {
   optional IconData icon = 33;
   optional TextLineData line = 34;
   Region region = 35;
-  UserStatus status = 36;
-  optional NodeReferenceData bench_ptr = 40;
-  optional NodeReferenceData handle_ptr = 41;
-  optional NodeReferenceData cursor_ptr = 42;
-  optional string email = 50;
-  optional bytes password_salt = 51;
-  optional bytes password_hash = 52;
-  optional google.protobuf.Timestamp last_logged_in_at = 70;
-  bool is_staff = 90;
+  bool is_staff = 39;
+  UserStatus status = 40;
+  optional google.protobuf.Timestamp last_logged_in_at = 41;
+  optional NodeReferenceData bench_ptr = 50;
+  optional NodeReferenceData handle_ptr = 51;
+  optional NodeReferenceData cursor_ptr = 52;
+  optional string email = 60;
+  optional bytes password_salt = 61;
+  optional bytes password_hash = 62;
 }
 
 message FileData {

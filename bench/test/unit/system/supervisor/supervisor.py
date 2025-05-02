@@ -18,7 +18,7 @@ from bench.proto import (
     UserData,
     pack_rpc_headers,
 )
-from bench.system import CreateBenchOptions, PostgresMap, StaticHostMap, SupervisorService
+from bench.system import CreateBenchOptions, StaticHostMap, StoreMap, SupervisorService
 from bench.test.fixtures import raises_grpc_error
 from bench.test.simulation.core import SimulatedChannel
 from bench.utils.oracle import REAL_ORACLE
@@ -36,7 +36,7 @@ async def supervisor_service(global_store: Store, regional_store: Store):
         network=NullNetwork(),
         oracle=REAL_ORACLE,
         host_map=StaticHostMap({}),
-        store_map=PostgresMap({"*": regional_store}),
+        store_map=StoreMap({"*": regional_store}),
         create_bench_options=CreateBenchOptions(create_computer_scaler=False),
     )
     await supervisor_service.start()

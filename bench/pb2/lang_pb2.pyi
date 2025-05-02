@@ -36,9 +36,8 @@ class EnumType(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     ENUM_TYPE_PACKAGE_TYPE: _ClassVar[EnumType]
     ENUM_TYPE_CLOUD: _ClassVar[EnumType]
     ENUM_TYPE_REGION: _ClassVar[EnumType]
-    ENUM_TYPE_REGION_ZONE: _ClassVar[EnumType]
-    ENUM_TYPE_REGION_AREA: _ClassVar[EnumType]
-    ENUM_TYPE_REGION_CONTINENT: _ClassVar[EnumType]
+    ENUM_TYPE_AREA: _ClassVar[EnumType]
+    ENUM_TYPE_CONTINENT: _ClassVar[EnumType]
     ENUM_TYPE_BENCH_STATUS: _ClassVar[EnumType]
     ENUM_TYPE_ACCESS_MODE: _ClassVar[EnumType]
     ENUM_TYPE_ACCESS_KIND: _ClassVar[EnumType]
@@ -418,9 +417,8 @@ class BenchType(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     BENCH_TYPE_PACKAGE_TYPE: _ClassVar[BenchType]
     BENCH_TYPE_CLOUD: _ClassVar[BenchType]
     BENCH_TYPE_REGION: _ClassVar[BenchType]
-    BENCH_TYPE_REGION_ZONE: _ClassVar[BenchType]
-    BENCH_TYPE_REGION_AREA: _ClassVar[BenchType]
-    BENCH_TYPE_REGION_CONTINENT: _ClassVar[BenchType]
+    BENCH_TYPE_AREA: _ClassVar[BenchType]
+    BENCH_TYPE_CONTINENT: _ClassVar[BenchType]
     BENCH_TYPE_BENCH_STATUS: _ClassVar[BenchType]
     BENCH_TYPE_ACCESS_MODE: _ClassVar[BenchType]
     BENCH_TYPE_ACCESS_KIND: _ClassVar[BenchType]
@@ -511,6 +509,8 @@ class BenchType(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
 class NodeMode(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     __slots__ = ()
     NODE_MODE_UNSPECIFIED: _ClassVar[NodeMode]
+    NODE_MODE_KERNEL: _ClassVar[NodeMode]
+    NODE_MODE_SYSTEM: _ClassVar[NodeMode]
     NODE_MODE_BUILTIN: _ClassVar[NodeMode]
     NODE_MODE_MAIN: _ClassVar[NodeMode]
     NODE_MODE_TEST: _ClassVar[NodeMode]
@@ -570,7 +570,6 @@ class Region(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     REGION_ZURICH: _ClassVar[Region]
     REGION_FRANKFURT: _ClassVar[Region]
     REGION_VIRGINIA: _ClassVar[Region]
-    REGION_OHIO: _ClassVar[Region]
     REGION_OREGON: _ClassVar[Region]
     REGION_SAO_PAULO: _ClassVar[Region]
     REGION_CAPE_TOWN: _ClassVar[Region]
@@ -579,36 +578,32 @@ class Region(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     REGION_TOKYO: _ClassVar[Region]
     REGION_SYDNEY: _ClassVar[Region]
 
-class RegionZone(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
+class Area(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     __slots__ = ()
-    REGION_ZONE_UNSPECIFIED: _ClassVar[RegionZone]
+    AREA_UNSPECIFIED: _ClassVar[Area]
+    AREA_EUROPE_CENTRAL: _ClassVar[Area]
+    AREA_NORTH_AMERICA_EAST: _ClassVar[Area]
+    AREA_NORTH_AMERICA_WEST: _ClassVar[Area]
+    AREA_SOUTH_AMERICA_EAST: _ClassVar[Area]
+    AREA_MIDDLE_EAST_CENTRAL: _ClassVar[Area]
+    AREA_MIDDLE_EAST_WEST: _ClassVar[Area]
+    AREA_AFRICA_SOUTH: _ClassVar[Area]
+    AREA_ASIA_WEST: _ClassVar[Area]
+    AREA_ASIA_SOUTH: _ClassVar[Area]
+    AREA_ASIA_EAST: _ClassVar[Area]
+    AREA_AUSTRALIA_SOUTH: _ClassVar[Area]
 
-class RegionArea(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
+class Continent(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     __slots__ = ()
-    REGION_AREA_UNSPECIFIED: _ClassVar[RegionArea]
-    REGION_AREA_EUROPE_CENTRAL: _ClassVar[RegionArea]
-    REGION_AREA_NORTH_AMERICA_EAST: _ClassVar[RegionArea]
-    REGION_AREA_NORTH_AMERICA_WEST: _ClassVar[RegionArea]
-    REGION_AREA_SOUTH_AMERICA_EAST: _ClassVar[RegionArea]
-    REGION_AREA_MIDDLE_EAST_CENTRAL: _ClassVar[RegionArea]
-    REGION_AREA_MIDDLE_EAST_WEST: _ClassVar[RegionArea]
-    REGION_AREA_AFRICA_SOUTH: _ClassVar[RegionArea]
-    REGION_AREA_ASIA_WEST: _ClassVar[RegionArea]
-    REGION_AREA_ASIA_SOUTH: _ClassVar[RegionArea]
-    REGION_AREA_ASIA_EAST: _ClassVar[RegionArea]
-    REGION_AREA_AUSTRALIA_SOUTH: _ClassVar[RegionArea]
-
-class RegionContinent(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
-    __slots__ = ()
-    REGION_CONTINENT_UNSPECIFIED: _ClassVar[RegionContinent]
-    REGION_CONTINENT_EUROPE: _ClassVar[RegionContinent]
-    REGION_CONTINENT_NORTH_AMERICA: _ClassVar[RegionContinent]
-    REGION_CONTINENT_SOUTH_AMERICA: _ClassVar[RegionContinent]
-    REGION_CONTINENT_MIDDLE_EAST: _ClassVar[RegionContinent]
-    REGION_CONTINENT_AFRICA: _ClassVar[RegionContinent]
-    REGION_CONTINENT_ASIA: _ClassVar[RegionContinent]
-    REGION_CONTINENT_AUSTRALIA: _ClassVar[RegionContinent]
-    REGION_CONTINENT_PRIVATE: _ClassVar[RegionContinent]
+    CONTINENT_UNSPECIFIED: _ClassVar[Continent]
+    CONTINENT_EUROPE: _ClassVar[Continent]
+    CONTINENT_NORTH_AMERICA: _ClassVar[Continent]
+    CONTINENT_SOUTH_AMERICA: _ClassVar[Continent]
+    CONTINENT_MIDDLE_EAST: _ClassVar[Continent]
+    CONTINENT_AFRICA: _ClassVar[Continent]
+    CONTINENT_ASIA: _ClassVar[Continent]
+    CONTINENT_AUSTRALIA: _ClassVar[Continent]
+    CONTINENT_PRIVATE: _ClassVar[Continent]
 
 class BenchStatus(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     __slots__ = ()
@@ -1674,9 +1669,8 @@ ENUM_TYPE_CHANGE_CATEGORY: EnumType
 ENUM_TYPE_PACKAGE_TYPE: EnumType
 ENUM_TYPE_CLOUD: EnumType
 ENUM_TYPE_REGION: EnumType
-ENUM_TYPE_REGION_ZONE: EnumType
-ENUM_TYPE_REGION_AREA: EnumType
-ENUM_TYPE_REGION_CONTINENT: EnumType
+ENUM_TYPE_AREA: EnumType
+ENUM_TYPE_CONTINENT: EnumType
 ENUM_TYPE_BENCH_STATUS: EnumType
 ENUM_TYPE_ACCESS_MODE: EnumType
 ENUM_TYPE_ACCESS_KIND: EnumType
@@ -2044,9 +2038,8 @@ BENCH_TYPE_CHANGE_CATEGORY: BenchType
 BENCH_TYPE_PACKAGE_TYPE: BenchType
 BENCH_TYPE_CLOUD: BenchType
 BENCH_TYPE_REGION: BenchType
-BENCH_TYPE_REGION_ZONE: BenchType
-BENCH_TYPE_REGION_AREA: BenchType
-BENCH_TYPE_REGION_CONTINENT: BenchType
+BENCH_TYPE_AREA: BenchType
+BENCH_TYPE_CONTINENT: BenchType
 BENCH_TYPE_BENCH_STATUS: BenchType
 BENCH_TYPE_ACCESS_MODE: BenchType
 BENCH_TYPE_ACCESS_KIND: BenchType
@@ -2134,6 +2127,8 @@ BENCH_TYPE_MESSAGE_TYPE: BenchType
 BENCH_TYPE_NOTIFICATION_TYPE: BenchType
 BENCH_TYPE_NOTIFICATION_STATUS: BenchType
 NODE_MODE_UNSPECIFIED: NodeMode
+NODE_MODE_KERNEL: NodeMode
+NODE_MODE_SYSTEM: NodeMode
 NODE_MODE_BUILTIN: NodeMode
 NODE_MODE_MAIN: NodeMode
 NODE_MODE_TEST: NodeMode
@@ -2172,7 +2167,6 @@ REGION_UNSPECIFIED: Region
 REGION_ZURICH: Region
 REGION_FRANKFURT: Region
 REGION_VIRGINIA: Region
-REGION_OHIO: Region
 REGION_OREGON: Region
 REGION_SAO_PAULO: Region
 REGION_CAPE_TOWN: Region
@@ -2180,28 +2174,27 @@ REGION_MUMBAI: Region
 REGION_SINGAPORE: Region
 REGION_TOKYO: Region
 REGION_SYDNEY: Region
-REGION_ZONE_UNSPECIFIED: RegionZone
-REGION_AREA_UNSPECIFIED: RegionArea
-REGION_AREA_EUROPE_CENTRAL: RegionArea
-REGION_AREA_NORTH_AMERICA_EAST: RegionArea
-REGION_AREA_NORTH_AMERICA_WEST: RegionArea
-REGION_AREA_SOUTH_AMERICA_EAST: RegionArea
-REGION_AREA_MIDDLE_EAST_CENTRAL: RegionArea
-REGION_AREA_MIDDLE_EAST_WEST: RegionArea
-REGION_AREA_AFRICA_SOUTH: RegionArea
-REGION_AREA_ASIA_WEST: RegionArea
-REGION_AREA_ASIA_SOUTH: RegionArea
-REGION_AREA_ASIA_EAST: RegionArea
-REGION_AREA_AUSTRALIA_SOUTH: RegionArea
-REGION_CONTINENT_UNSPECIFIED: RegionContinent
-REGION_CONTINENT_EUROPE: RegionContinent
-REGION_CONTINENT_NORTH_AMERICA: RegionContinent
-REGION_CONTINENT_SOUTH_AMERICA: RegionContinent
-REGION_CONTINENT_MIDDLE_EAST: RegionContinent
-REGION_CONTINENT_AFRICA: RegionContinent
-REGION_CONTINENT_ASIA: RegionContinent
-REGION_CONTINENT_AUSTRALIA: RegionContinent
-REGION_CONTINENT_PRIVATE: RegionContinent
+AREA_UNSPECIFIED: Area
+AREA_EUROPE_CENTRAL: Area
+AREA_NORTH_AMERICA_EAST: Area
+AREA_NORTH_AMERICA_WEST: Area
+AREA_SOUTH_AMERICA_EAST: Area
+AREA_MIDDLE_EAST_CENTRAL: Area
+AREA_MIDDLE_EAST_WEST: Area
+AREA_AFRICA_SOUTH: Area
+AREA_ASIA_WEST: Area
+AREA_ASIA_SOUTH: Area
+AREA_ASIA_EAST: Area
+AREA_AUSTRALIA_SOUTH: Area
+CONTINENT_UNSPECIFIED: Continent
+CONTINENT_EUROPE: Continent
+CONTINENT_NORTH_AMERICA: Continent
+CONTINENT_SOUTH_AMERICA: Continent
+CONTINENT_MIDDLE_EAST: Continent
+CONTINENT_AFRICA: Continent
+CONTINENT_ASIA: Continent
+CONTINENT_AUSTRALIA: Continent
+CONTINENT_PRIVATE: Continent
 BENCH_STATUS_UNSPECIFIED: BenchStatus
 BENCH_STATUS_RESERVED: BenchStatus
 BENCH_STATUS_ACTIVATED: BenchStatus
@@ -4545,7 +4538,7 @@ class OrganizationData(_message.Message):
     def __init__(self, metatype: _Optional[_Union[ObjectType, str]] = ..., id: _Optional[str] = ..., parent_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., created_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., created_by_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., updated_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., updated_by_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., archived_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., deleted_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., slug: _Optional[str] = ..., name: _Optional[str] = ..., line: _Optional[_Union[TextLineData, _Mapping]] = ..., icon: _Optional[_Union[IconData, _Mapping]] = ..., region: _Optional[_Union[Region, str]] = ..., status: _Optional[_Union[OrganizationStatus, str]] = ..., bench_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., handle_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ...) -> None: ...
 
 class UserData(_message.Message):
-    __slots__ = ("metatype", "id", "parent_ptr", "created_at", "created_by_ptr", "updated_at", "updated_by_ptr", "archived_at", "deleted_at", "slug", "name", "icon", "line", "region", "status", "bench_ptr", "handle_ptr", "cursor_ptr", "email", "password_salt", "password_hash", "last_logged_in_at", "is_staff")
+    __slots__ = ("metatype", "id", "parent_ptr", "created_at", "created_by_ptr", "updated_at", "updated_by_ptr", "archived_at", "deleted_at", "slug", "name", "icon", "line", "region", "is_staff", "status", "last_logged_in_at", "bench_ptr", "handle_ptr", "cursor_ptr", "email", "password_salt", "password_hash")
     METATYPE_FIELD_NUMBER: _ClassVar[int]
     ID_FIELD_NUMBER: _ClassVar[int]
     PARENT_PTR_FIELD_NUMBER: _ClassVar[int]
@@ -4560,15 +4553,15 @@ class UserData(_message.Message):
     ICON_FIELD_NUMBER: _ClassVar[int]
     LINE_FIELD_NUMBER: _ClassVar[int]
     REGION_FIELD_NUMBER: _ClassVar[int]
+    IS_STAFF_FIELD_NUMBER: _ClassVar[int]
     STATUS_FIELD_NUMBER: _ClassVar[int]
+    LAST_LOGGED_IN_AT_FIELD_NUMBER: _ClassVar[int]
     BENCH_PTR_FIELD_NUMBER: _ClassVar[int]
     HANDLE_PTR_FIELD_NUMBER: _ClassVar[int]
     CURSOR_PTR_FIELD_NUMBER: _ClassVar[int]
     EMAIL_FIELD_NUMBER: _ClassVar[int]
     PASSWORD_SALT_FIELD_NUMBER: _ClassVar[int]
     PASSWORD_HASH_FIELD_NUMBER: _ClassVar[int]
-    LAST_LOGGED_IN_AT_FIELD_NUMBER: _ClassVar[int]
-    IS_STAFF_FIELD_NUMBER: _ClassVar[int]
     metatype: ObjectType
     id: str
     parent_ptr: NodeReferenceData
@@ -4583,16 +4576,16 @@ class UserData(_message.Message):
     icon: IconData
     line: TextLineData
     region: Region
+    is_staff: bool
     status: UserStatus
+    last_logged_in_at: _timestamp_pb2.Timestamp
     bench_ptr: NodeReferenceData
     handle_ptr: NodeReferenceData
     cursor_ptr: NodeReferenceData
     email: str
     password_salt: bytes
     password_hash: bytes
-    last_logged_in_at: _timestamp_pb2.Timestamp
-    is_staff: bool
-    def __init__(self, metatype: _Optional[_Union[ObjectType, str]] = ..., id: _Optional[str] = ..., parent_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., created_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., created_by_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., updated_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., updated_by_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., archived_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., deleted_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., slug: _Optional[str] = ..., name: _Optional[str] = ..., icon: _Optional[_Union[IconData, _Mapping]] = ..., line: _Optional[_Union[TextLineData, _Mapping]] = ..., region: _Optional[_Union[Region, str]] = ..., status: _Optional[_Union[UserStatus, str]] = ..., bench_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., handle_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., cursor_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., email: _Optional[str] = ..., password_salt: _Optional[bytes] = ..., password_hash: _Optional[bytes] = ..., last_logged_in_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., is_staff: bool = ...) -> None: ...
+    def __init__(self, metatype: _Optional[_Union[ObjectType, str]] = ..., id: _Optional[str] = ..., parent_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., created_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., created_by_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., updated_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., updated_by_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., archived_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., deleted_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., slug: _Optional[str] = ..., name: _Optional[str] = ..., icon: _Optional[_Union[IconData, _Mapping]] = ..., line: _Optional[_Union[TextLineData, _Mapping]] = ..., region: _Optional[_Union[Region, str]] = ..., is_staff: bool = ..., status: _Optional[_Union[UserStatus, str]] = ..., last_logged_in_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., bench_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., handle_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., cursor_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., email: _Optional[str] = ..., password_salt: _Optional[bytes] = ..., password_hash: _Optional[bytes] = ...) -> None: ...
 
 class FileData(_message.Message):
     __slots__ = ("metatype", "id", "ck", "parent_ptr", "bench_ptr", "package_ptr", "created_at", "created_by_ptr", "updated_at", "updated_by_ptr", "archived_at", "deleted_at", "template_ptr", "owned_by_ptr", "claimed_by_ptr", "mode", "type", "name", "order_key", "icon", "definition_ptr", "region", "source", "mime_type", "format", "size", "sha256", "width", "height", "aspect_ratio", "codec", "duration", "url", "content_url", "thumbnail_url", "favicon_url", "thumbnail_width", "thumbnail_height", "content", "retention", "expires_at")

@@ -56,7 +56,7 @@ async function init() {
   }
 
   // dump startup info
-  console.group(`%cbench-web`, "color:yellow");
+  console.group(`%csystem`, "color:yellow");
   console.info(`%cENV: ${ENV ?? "dev"} (is_dev=${IS_DEV})`, "color:yellow");
   console.info(`%cVERSION: ${VERSION}`, "color:yellow");
   console.info(`%cCOMMIT: ${COMMIT ?? "<unknown>"}`, "color:yellow");

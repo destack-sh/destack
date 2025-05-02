@@ -51,7 +51,7 @@ from bench.system.core import (
     ACCESS_TOKEN_LENGTH,
     SALT_LENGTH,
     HostMap,
-    PostgresMap,
+    StoreMap,
     check_password,
     get_client_or_error,
     global_session,
@@ -71,6 +71,9 @@ tracer = trace.get_tracer(__name__)
 SUPERVISOR_NODE_TYPES = USER_NODE_TYPES | bittuple(NodeType.BENCH)
 
 
+# nocheckin: make supervisor per region?
+
+
 class SupervisorService(GraphServiceBase, SupervisorBase):
     kind = ServiceKind.PUBLIC  # :ServiceKind
     name = "supervisor"
@@ -79,7 +82,7 @@ class SupervisorService(GraphServiceBase, SupervisorBase):
         self,
         id: str,
         global_store: Store,
-        store_map: PostgresMap,
+        store_map: StoreMap,
         network: Network,
         oracle: Oracle,
         host_map: HostMap,
