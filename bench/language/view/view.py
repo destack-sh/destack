@@ -69,7 +69,7 @@ class ViewType(BuiltinEnum):
     SELECTION = 10006
 
     # helpers (20000-30000)
-    USER_WIZARD = 20001, "User wizard", "Sign up, login, etc.", "fas fa-user"
+    WIZARD = 20001, "Wizard", "User/Bench wizard", "fas fa-wand-sparkles"
     EMPTY = 20100, "Empty view", "For debugging", "fas fa-bug"
     CREATE = 20201, None, None, "fas fa-plus"
     SIDEBAR = 20205, None, None, "fas fa-object-group"

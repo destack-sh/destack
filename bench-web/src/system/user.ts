@@ -189,7 +189,7 @@ export async function createBench(
 
 function userWizardView(view: { title: string; stage: UserWizardViewStage }): ViewIn {
   return {
-    type: ViewType.USER_WIZARD,
+    type: ViewType.WIZARD,
     icon: makeIcon("fas fa-right-from-bracket"),
     title: view.title,
   };

@@ -14,7 +14,7 @@ import EmptySpace from "@/views/builtin/EmptySpace.vue";
 import Inaccessible from "@/views/builtin/Inaccessible.vue";
 import Omnibar from "@/views/builtin/Omnibar.vue";
 import Split from "@/views/containers/Split.vue";
-import UserWizard from "@/views/helpers/UserWizard.vue";
+import UserWizard from "@/views/helpers/Wizard.vue";
 import DragOverlay from "@/views/overlays/DragOverlay.vue";
 import LightboxOverlay from "@/views/overlays/LightboxOverlay.vue";
 import PopoverOverlay from "@/views/overlays/PopoverOverlay.vue";
@@ -109,11 +109,7 @@ watch(
       <Inaccessible class="h-full w-full" :node="spacePtr" :connection="spaceConnection" />
     </div>
     <!-- Does not have a space (not signed, space empty or disappeared) -->
-    <UserWizard
-      v-else
-      id="wizard"
-      class="absolute flex h-full w-full flex-col justify-center bg-white text-center"
-    />
+    <UserWizard v-else id="wizard" class="" />
 
     <!-- Overlays -->
     <DragOverlay />

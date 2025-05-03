@@ -1432,7 +1432,7 @@ export async function sendRemoteKeepAlives() {
     if (transport == null) continue;
     const healthClient = new HealthClient(transport);
     healthChecks.push(
-      healthClient.check({ service: benchId != null ? "symbolx.bench.Host" : "symbolx.bench.Supervisor" }),
+      healthClient.check({ service: benchId != null ? "symbol.bench.Host" : "symbol.bench.Supervisor" }),
     );
   }
   await Promise.all(healthChecks);

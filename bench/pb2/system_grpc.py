@@ -55,31 +55,31 @@ class GraphBase(abc.ABC):
 
     def __mapping__(self) -> typing.Dict[str, grpclib.const.Handler]:
         return {
-            "/symbolx.bench.Graph/GetNodes": grpclib.const.Handler(
+            "/symbol.bench.Graph/GetNodes": grpclib.const.Handler(
                 self.get_nodes,
                 grpclib.const.Cardinality.UNARY_UNARY,
                 system_pb2.GetNodesRequest,
                 system_pb2.GetNodesResponse,
             ),
-            "/symbolx.bench.Graph/WatchGet": grpclib.const.Handler(
+            "/symbol.bench.Graph/WatchGet": grpclib.const.Handler(
                 self.watch_get,
                 grpclib.const.Cardinality.UNARY_STREAM,
                 system_pb2.WatchGetRequest,
                 system_pb2.WatchGetResponse,
             ),
-            "/symbolx.bench.Graph/SearchNodes": grpclib.const.Handler(
+            "/symbol.bench.Graph/SearchNodes": grpclib.const.Handler(
                 self.search_nodes,
                 grpclib.const.Cardinality.UNARY_UNARY,
                 system_pb2.SearchNodesRequest,
                 system_pb2.SearchNodesResponse,
             ),
-            "/symbolx.bench.Graph/WatchSearch": grpclib.const.Handler(
+            "/symbol.bench.Graph/WatchSearch": grpclib.const.Handler(
                 self.watch_search,
                 grpclib.const.Cardinality.UNARY_STREAM,
                 system_pb2.WatchSearchRequest,
                 system_pb2.WatchSearchResponse,
             ),
-            "/symbolx.bench.Graph/CommitTransaction": grpclib.const.Handler(
+            "/symbol.bench.Graph/CommitTransaction": grpclib.const.Handler(
                 self.commit_transaction,
                 grpclib.const.Cardinality.UNARY_UNARY,
                 system_pb2.CommitTransactionRequest,
@@ -92,31 +92,31 @@ class GraphClient:
     def __init__(self, channel: grpclib.client.Channel) -> None:
         self.get_nodes = grpclib.client.UnaryUnaryMethod(
             channel,
-            "/symbolx.bench.Graph/GetNodes",
+            "/symbol.bench.Graph/GetNodes",
             system_pb2.GetNodesRequest,
             system_pb2.GetNodesResponse,
         )
         self.watch_get = grpclib.client.UnaryStreamMethod(
             channel,
-            "/symbolx.bench.Graph/WatchGet",
+            "/symbol.bench.Graph/WatchGet",
             system_pb2.WatchGetRequest,
             system_pb2.WatchGetResponse,
         )
         self.search_nodes = grpclib.client.UnaryUnaryMethod(
             channel,
-            "/symbolx.bench.Graph/SearchNodes",
+            "/symbol.bench.Graph/SearchNodes",
             system_pb2.SearchNodesRequest,
             system_pb2.SearchNodesResponse,
         )
         self.watch_search = grpclib.client.UnaryStreamMethod(
             channel,
-            "/symbolx.bench.Graph/WatchSearch",
+            "/symbol.bench.Graph/WatchSearch",
             system_pb2.WatchSearchRequest,
             system_pb2.WatchSearchResponse,
         )
         self.commit_transaction = grpclib.client.UnaryUnaryMethod(
             channel,
-            "/symbolx.bench.Graph/CommitTransaction",
+            "/symbol.bench.Graph/CommitTransaction",
             system_pb2.CommitTransactionRequest,
             system_pb2.CommitTransactionResponse,
         )
@@ -191,67 +191,67 @@ class SupervisorBase(abc.ABC):
 
     def __mapping__(self) -> typing.Dict[str, grpclib.const.Handler]:
         return {
-            "/symbolx.bench.Supervisor/GetNodes": grpclib.const.Handler(
+            "/symbol.bench.Supervisor/GetNodes": grpclib.const.Handler(
                 self.get_nodes,
                 grpclib.const.Cardinality.UNARY_UNARY,
                 system_pb2.GetNodesRequest,
                 system_pb2.GetNodesResponse,
             ),
-            "/symbolx.bench.Supervisor/WatchGet": grpclib.const.Handler(
+            "/symbol.bench.Supervisor/WatchGet": grpclib.const.Handler(
                 self.watch_get,
                 grpclib.const.Cardinality.UNARY_STREAM,
                 system_pb2.WatchGetRequest,
                 system_pb2.WatchGetResponse,
             ),
-            "/symbolx.bench.Supervisor/SearchNodes": grpclib.const.Handler(
+            "/symbol.bench.Supervisor/SearchNodes": grpclib.const.Handler(
                 self.search_nodes,
                 grpclib.const.Cardinality.UNARY_UNARY,
                 system_pb2.SearchNodesRequest,
                 system_pb2.SearchNodesResponse,
             ),
-            "/symbolx.bench.Supervisor/WatchSearch": grpclib.const.Handler(
+            "/symbol.bench.Supervisor/WatchSearch": grpclib.const.Handler(
                 self.watch_search,
                 grpclib.const.Cardinality.UNARY_STREAM,
                 system_pb2.WatchSearchRequest,
                 system_pb2.WatchSearchResponse,
             ),
-            "/symbolx.bench.Supervisor/CommitTransaction": grpclib.const.Handler(
+            "/symbol.bench.Supervisor/CommitTransaction": grpclib.const.Handler(
                 self.commit_transaction,
                 grpclib.const.Cardinality.UNARY_UNARY,
                 system_pb2.CommitTransactionRequest,
                 system_pb2.CommitTransactionResponse,
             ),
-            "/symbolx.bench.Supervisor/SignupUser": grpclib.const.Handler(
+            "/symbol.bench.Supervisor/SignupUser": grpclib.const.Handler(
                 self.signup_user,
                 grpclib.const.Cardinality.UNARY_UNARY,
                 system_pb2.SignupUserRequest,
                 system_pb2.SignupUserResponse,
             ),
-            "/symbolx.bench.Supervisor/ChangeUserPassword": grpclib.const.Handler(
+            "/symbol.bench.Supervisor/ChangeUserPassword": grpclib.const.Handler(
                 self.change_user_password,
                 grpclib.const.Cardinality.UNARY_UNARY,
                 system_pb2.ChangeUserPasswordRequest,
                 system_pb2.ChangeUserPasswordResponse,
             ),
-            "/symbolx.bench.Supervisor/LoginUser": grpclib.const.Handler(
+            "/symbol.bench.Supervisor/LoginUser": grpclib.const.Handler(
                 self.login_user,
                 grpclib.const.Cardinality.UNARY_UNARY,
                 system_pb2.LoginUserRequest,
                 system_pb2.LoginUserResponse,
             ),
-            "/symbolx.bench.Supervisor/LogoutUser": grpclib.const.Handler(
+            "/symbol.bench.Supervisor/LogoutUser": grpclib.const.Handler(
                 self.logout_user,
                 grpclib.const.Cardinality.UNARY_UNARY,
                 system_pb2.LogoutUserRequest,
                 system_pb2.LogoutUserResponse,
             ),
-            "/symbolx.bench.Supervisor/CreateBench": grpclib.const.Handler(
+            "/symbol.bench.Supervisor/CreateBench": grpclib.const.Handler(
                 self.create_bench,
                 grpclib.const.Cardinality.UNARY_UNARY,
                 system_pb2.CreateBenchRequest,
                 system_pb2.CreateBenchResponse,
             ),
-            "/symbolx.bench.Supervisor/ResolveHosts": grpclib.const.Handler(
+            "/symbol.bench.Supervisor/ResolveHosts": grpclib.const.Handler(
                 self.resolve_hosts,
                 grpclib.const.Cardinality.UNARY_UNARY,
                 system_pb2.ResolveHostsRequest,
@@ -264,67 +264,67 @@ class SupervisorClient:
     def __init__(self, channel: grpclib.client.Channel) -> None:
         self.get_nodes = grpclib.client.UnaryUnaryMethod(
             channel,
-            "/symbolx.bench.Supervisor/GetNodes",
+            "/symbol.bench.Supervisor/GetNodes",
             system_pb2.GetNodesRequest,
             system_pb2.GetNodesResponse,
         )
         self.watch_get = grpclib.client.UnaryStreamMethod(
             channel,
-            "/symbolx.bench.Supervisor/WatchGet",
+            "/symbol.bench.Supervisor/WatchGet",
             system_pb2.WatchGetRequest,
             system_pb2.WatchGetResponse,
         )
         self.search_nodes = grpclib.client.UnaryUnaryMethod(
             channel,
-            "/symbolx.bench.Supervisor/SearchNodes",
+            "/symbol.bench.Supervisor/SearchNodes",
             system_pb2.SearchNodesRequest,
             system_pb2.SearchNodesResponse,
         )
         self.watch_search = grpclib.client.UnaryStreamMethod(
             channel,
-            "/symbolx.bench.Supervisor/WatchSearch",
+            "/symbol.bench.Supervisor/WatchSearch",
             system_pb2.WatchSearchRequest,
             system_pb2.WatchSearchResponse,
         )
         self.commit_transaction = grpclib.client.UnaryUnaryMethod(
             channel,
-            "/symbolx.bench.Supervisor/CommitTransaction",
+            "/symbol.bench.Supervisor/CommitTransaction",
             system_pb2.CommitTransactionRequest,
             system_pb2.CommitTransactionResponse,
         )
         self.signup_user = grpclib.client.UnaryUnaryMethod(
             channel,
-            "/symbolx.bench.Supervisor/SignupUser",
+            "/symbol.bench.Supervisor/SignupUser",
             system_pb2.SignupUserRequest,
             system_pb2.SignupUserResponse,
         )
         self.change_user_password = grpclib.client.UnaryUnaryMethod(
             channel,
-            "/symbolx.bench.Supervisor/ChangeUserPassword",
+            "/symbol.bench.Supervisor/ChangeUserPassword",
             system_pb2.ChangeUserPasswordRequest,
             system_pb2.ChangeUserPasswordResponse,
         )
         self.login_user = grpclib.client.UnaryUnaryMethod(
             channel,
-            "/symbolx.bench.Supervisor/LoginUser",
+            "/symbol.bench.Supervisor/LoginUser",
             system_pb2.LoginUserRequest,
             system_pb2.LoginUserResponse,
         )
         self.logout_user = grpclib.client.UnaryUnaryMethod(
             channel,
-            "/symbolx.bench.Supervisor/LogoutUser",
+            "/symbol.bench.Supervisor/LogoutUser",
             system_pb2.LogoutUserRequest,
             system_pb2.LogoutUserResponse,
         )
         self.create_bench = grpclib.client.UnaryUnaryMethod(
             channel,
-            "/symbolx.bench.Supervisor/CreateBench",
+            "/symbol.bench.Supervisor/CreateBench",
             system_pb2.CreateBenchRequest,
             system_pb2.CreateBenchResponse,
         )
         self.resolve_hosts = grpclib.client.UnaryUnaryMethod(
             channel,
-            "/symbolx.bench.Supervisor/ResolveHosts",
+            "/symbol.bench.Supervisor/ResolveHosts",
             system_pb2.ResolveHostsRequest,
             system_pb2.ResolveHostsResponse,
         )
@@ -375,43 +375,43 @@ class HostBase(abc.ABC):
 
     def __mapping__(self) -> typing.Dict[str, grpclib.const.Handler]:
         return {
-            "/symbolx.bench.Host/GetNodes": grpclib.const.Handler(
+            "/symbol.bench.Host/GetNodes": grpclib.const.Handler(
                 self.get_nodes,
                 grpclib.const.Cardinality.UNARY_UNARY,
                 system_pb2.GetNodesRequest,
                 system_pb2.GetNodesResponse,
             ),
-            "/symbolx.bench.Host/WatchGet": grpclib.const.Handler(
+            "/symbol.bench.Host/WatchGet": grpclib.const.Handler(
                 self.watch_get,
                 grpclib.const.Cardinality.UNARY_STREAM,
                 system_pb2.WatchGetRequest,
                 system_pb2.WatchGetResponse,
             ),
-            "/symbolx.bench.Host/SearchNodes": grpclib.const.Handler(
+            "/symbol.bench.Host/SearchNodes": grpclib.const.Handler(
                 self.search_nodes,
                 grpclib.const.Cardinality.UNARY_UNARY,
                 system_pb2.SearchNodesRequest,
                 system_pb2.SearchNodesResponse,
             ),
-            "/symbolx.bench.Host/WatchSearch": grpclib.const.Handler(
+            "/symbol.bench.Host/WatchSearch": grpclib.const.Handler(
                 self.watch_search,
                 grpclib.const.Cardinality.UNARY_STREAM,
                 system_pb2.WatchSearchRequest,
                 system_pb2.WatchSearchResponse,
             ),
-            "/symbolx.bench.Host/CommitTransaction": grpclib.const.Handler(
+            "/symbol.bench.Host/CommitTransaction": grpclib.const.Handler(
                 self.commit_transaction,
                 grpclib.const.Cardinality.UNARY_UNARY,
                 system_pb2.CommitTransactionRequest,
                 system_pb2.CommitTransactionResponse,
             ),
-            "/symbolx.bench.Host/UploadFiles": grpclib.const.Handler(
+            "/symbol.bench.Host/UploadFiles": grpclib.const.Handler(
                 self.upload_files,
                 grpclib.const.Cardinality.UNARY_UNARY,
                 system_pb2.UploadFilesRequest,
                 system_pb2.UploadFilesResponse,
             ),
-            "/symbolx.bench.Host/DownloadFiles": grpclib.const.Handler(
+            "/symbol.bench.Host/DownloadFiles": grpclib.const.Handler(
                 self.download_files,
                 grpclib.const.Cardinality.UNARY_UNARY,
                 system_pb2.DownloadFilesRequest,
@@ -424,43 +424,43 @@ class HostClient:
     def __init__(self, channel: grpclib.client.Channel) -> None:
         self.get_nodes = grpclib.client.UnaryUnaryMethod(
             channel,
-            "/symbolx.bench.Host/GetNodes",
+            "/symbol.bench.Host/GetNodes",
             system_pb2.GetNodesRequest,
             system_pb2.GetNodesResponse,
         )
         self.watch_get = grpclib.client.UnaryStreamMethod(
             channel,
-            "/symbolx.bench.Host/WatchGet",
+            "/symbol.bench.Host/WatchGet",
             system_pb2.WatchGetRequest,
             system_pb2.WatchGetResponse,
         )
         self.search_nodes = grpclib.client.UnaryUnaryMethod(
             channel,
-            "/symbolx.bench.Host/SearchNodes",
+            "/symbol.bench.Host/SearchNodes",
             system_pb2.SearchNodesRequest,
             system_pb2.SearchNodesResponse,
         )
         self.watch_search = grpclib.client.UnaryStreamMethod(
             channel,
-            "/symbolx.bench.Host/WatchSearch",
+            "/symbol.bench.Host/WatchSearch",
             system_pb2.WatchSearchRequest,
             system_pb2.WatchSearchResponse,
         )
         self.commit_transaction = grpclib.client.UnaryUnaryMethod(
             channel,
-            "/symbolx.bench.Host/CommitTransaction",
+            "/symbol.bench.Host/CommitTransaction",
             system_pb2.CommitTransactionRequest,
             system_pb2.CommitTransactionResponse,
         )
         self.upload_files = grpclib.client.UnaryUnaryMethod(
             channel,
-            "/symbolx.bench.Host/UploadFiles",
+            "/symbol.bench.Host/UploadFiles",
             system_pb2.UploadFilesRequest,
             system_pb2.UploadFilesResponse,
         )
         self.download_files = grpclib.client.UnaryUnaryMethod(
             channel,
-            "/symbolx.bench.Host/DownloadFiles",
+            "/symbol.bench.Host/DownloadFiles",
             system_pb2.DownloadFilesRequest,
             system_pb2.DownloadFilesResponse,
         )
