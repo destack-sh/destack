@@ -13,7 +13,7 @@ import {
   ThreadProperty,
   ViewData,
 } from "@/proto/wire";
-import { describeNode, propertyReference, TypedNodeReferenceData } from "@/proto/wiring";
+import { describeNode, propertyReference, toNodeRef, TypedNodeReferenceData } from "@/proto/wiring";
 import { CURRENT_BENCH_SCOPE } from "@/system/client";
 import { useSearchConnection } from "@/system/connection";
 import { canvas, threadPtr } from "@/system/space";
@@ -251,7 +251,11 @@ defineExpose<Omit<ViewExpose, "id"> & { total: Ref<number | undefined>; roots: R
             }"
             data-suppress-drag="select"
             role="button"
-            @click.stop="canvas.goToNode(thread)"
+            @click.stop="
+              () => {
+                canvas.tx().update(canvas.space.value!, { threadPtr: toNodeRef(thread) });
+              }
+            "
           >
             <!-- Icon -->
             <IconInline
