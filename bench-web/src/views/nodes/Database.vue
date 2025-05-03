@@ -32,7 +32,7 @@ import {
   TextLineType,
   TypeKind,
   ViewData,
-  ViewType
+  ViewType,
 } from "@/proto/wire";
 import {
   describeNode,
@@ -177,7 +177,7 @@ const {
       first: limit.value,
       count: true,
       baseTypePtr: databasePtr.value,
-      isEnabled: databasePtr.value != null && databaseRaw.value != null,
+      isEnabled: CURRENT_PACKAGE_SCOPE.value?.benchId != null && databasePtr.value != null && databaseRaw.value != null,
       sort: sorts.value.length > 0 ? sorts.value : [DEFAULT_SORT],
       filter: makeAndConditional(filters.value),
       select: { metatype: ObjectType.SELECT_OPTIONS, selectFieldsPtr: fieldsRaw.value.map(toNodeRef) },

@@ -119,7 +119,7 @@ const widths = computed(() => {
 // Messages
 //
 
-const isEnabled = computed(() => nodePtr.value != null);
+const isEnabled = computed(() => nodePtr.value != null && CURRENT_BENCH_SCOPE.value?.benchId != null);
 const filter = computed(() => {
   const filters: ExpressionData[] = [];
   // thread
@@ -149,7 +149,7 @@ const {
   isConnected,
   go,
 } = useInfiniteSearchConnection(
-  { name: "chat", live: true },
+  { name: "thread.messages", live: true },
   computed(
     (): SearchConnectionParams<NodeType.MESSAGE> => ({
       scope: CURRENT_BENCH_SCOPE.value,
