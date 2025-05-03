@@ -1650,16 +1650,6 @@ declareCommands<"space">({
     shortcuts: ["ctrl+t"],
     command: () => {
       const thread = createDefaultThread(benchConnection.tx, benchGraph);
-      canvas.goToNode(thread, { graph: benchGraph });
-    },
-  },
-  "space.create.thread.side": {
-    title: "Create Thread (Side)",
-    icon: "fas fa-reel",
-    text: "Create a new Thread (on the side)",
-    shortcuts: ["ctrl+shift+t"],
-    command: () => {
-      const thread = createDefaultThread(benchConnection.tx, benchGraph);
       canvas.tx().update(canvas.space.value!, { threadPtr: toNodeRef(thread) });
       const contextView = canvas.views.find((v) => v.type == ViewType.CONTEXT);
       if (contextView != null) {
