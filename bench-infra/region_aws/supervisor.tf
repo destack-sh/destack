@@ -21,26 +21,40 @@ locals {
         format("%s=%s", k, v)
       ]
     ]))
-    GLOBAL_PG_URL = var.global_pg_url
-    REGIONAL_PG_MAP = join(",", flatten([
-      for k, v in {
-        "${var.region}" = "postgresql://${var.regional_pg_username}:${random_password.regional_pg_password.result}@${aws_rds_cluster.regional_pg_primary.endpoint}/${var.regional_pg_name}"
-        } : [
-        format("%s=%s", k, v)
-      ]
-    ]))
 
     COMPUTER_RUNTIME_IMAGE         = "ghcr.io/symbolx/bench-computer-runtime"
     COMPUTER_UBUNTU_DESKTOP_IMAGE  = "ghcr.io/symbolx/bench-computer-ubuntu-desktop"
     COMPUTER_UBUNTU_TERMINAL_IMAGE = "ghcr.io/symbolx/bench-computer-ubuntu-terminal"
     COMPUTER_GRPC_PORT             = 5432
     COMPUTER_VNC_PORT              = 6080
+  }
+  supervisor_secret_env_vars = {
+    "${kubernetes_secret.db_secret.metadata[0].name}" = [
+      "GLOBAL_PG_URL",
+      "REGIONAL_PG_MAP"
+    ]
+    "${kubernetes_secret.external_secret.metadata[0].name}" = [
+      "NEON_API_KEY",
+      "NEON_BASE_URL",
+      "POSTHOG_TOKEN",
+      "POSTHOG_HOST",
+    ]
+    "${kubernetes_secret.supervisor_s3_secret.metadata[0].name}" = [
+      "S3_REGION",
+      "S3_ENDPOINT",
+      "S3_ACCESS_KEY",
+      "S3_SECRET_KEY"
+    ]
+  }
+}
 
-    POSTHOG_TOKEN = var.posthog_token
-    POSTHOG_HOST    = var.posthog_host
-    NEON_API_KEY    = var.neon_api_key
-    NEON_BASE_URL   = var.neon_base_url
+# supervisor s3 access
+resource "kubernetes_secret" "supervisor_s3_secret" {
+  metadata {
+    name = "${local.prefix}-supervisor-s3-credentials"
+  }
 
+  data = {
     S3_REGION     = aws_s3_bucket.bench_files.region
     S3_ENDPOINT   = "https://s3.${aws_s3_bucket.bench_files.region}.amazonaws.com"
     S3_ACCESS_KEY = aws_iam_access_key.supervisor.id
@@ -120,11 +134,33 @@ resource "kubernetes_deployment" "supervisor" {
           command = ["/bin/sh", "-c"]
           args    = ["python bench.py migrate apply --area global && python bench.py migrate apply --area regional --region ${var.region}"]
 
+          # Regular environment variables
           dynamic "env" {
             for_each = local.supervisor_env_vars
             content {
               name  = env.key
               value = env.value
+            }
+          }
+
+          # All secret environment variables dynamically loaded
+          dynamic "env" {
+            for_each = flatten([
+              for secret_name, env_vars in local.supervisor_secret_env_vars : [
+                for env_var in env_vars : {
+                  name   = env_var
+                  secret = secret_name
+                }
+              ]
+            ])
+            content {
+              name = env.value.name
+              value_from {
+                secret_key_ref {
+                  name = env.value.secret
+                  key  = env.value.name
+                }
+              }
             }
           }
         }
@@ -139,11 +175,33 @@ resource "kubernetes_deployment" "supervisor" {
             name           = "grpc"
           }
 
+          # Regular environment variables
           dynamic "env" {
             for_each = local.supervisor_env_vars
             content {
               name  = env.key
               value = env.value
+            }
+          }
+
+          # All secret environment variables dynamically loaded
+          dynamic "env" {
+            for_each = flatten([
+              for secret_name, env_vars in local.supervisor_secret_env_vars : [
+                for env_var in env_vars : {
+                  name   = env_var
+                  secret = secret_name
+                }
+              ]
+            ])
+            content {
+              name = env.value.name
+              value_from {
+                secret_key_ref {
+                  name = env.value.secret
+                  key  = env.value.name
+                }
+              }
             }
           }
 
