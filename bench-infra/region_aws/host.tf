@@ -9,6 +9,7 @@ locals {
     ENVIRONMENT  = var.env
     CLOUD        = var.cloud
     REGION       = var.region
+    VERSION      = var.bench_version
 
     OTLP_ENDPOINT                 = "http://jaeger.monitoring.svc.cluster.local:4317"
     TRACING                       = "1"
@@ -33,26 +34,26 @@ locals {
   }
   host_secret_env_vars = {
     "${kubernetes_secret.db_secret.metadata[0].name}" = [
-      "GLOBAL_PG_URL", 
+      "GLOBAL_PG_URL",
       "REGIONAL_PG_MAP"
     ]
     "${kubernetes_secret.external_secret.metadata[0].name}" = [
-      "NEON_API_KEY", 
-      "NEON_BASE_URL", 
+      "NEON_API_KEY",
+      "NEON_BASE_URL",
       "OPENAI_API_KEY",
-      "ANTHROPIC_API_KEY", 
-      "OPENROUTER_API_KEY", 
+      "ANTHROPIC_API_KEY",
+      "OPENROUTER_API_KEY",
       "XAI_API_KEY",
-      "EXA_API_KEY", 
-      "POSTHOG_TOKEN", 
+      "EXA_API_KEY",
+      "POSTHOG_TOKEN",
       "POSTHOG_HOST",
-      "UNSPLASH_ACCESS_KEY", 
+      "UNSPLASH_ACCESS_KEY",
       "GHCR_TOKEN"
     ]
     "${kubernetes_secret.host_s3_secret.metadata[0].name}" = [
-      "S3_REGION", 
-      "S3_ENDPOINT", 
-      "S3_ACCESS_KEY", 
+      "S3_REGION",
+      "S3_ENDPOINT",
+      "S3_ACCESS_KEY",
       "S3_SECRET_KEY"
     ]
   }
@@ -162,7 +163,8 @@ resource "kubernetes_deployment" "host" {
     name      = "${local.prefix}-host"
     namespace = "default"
     labels = {
-      app = "${local.prefix}-host"
+      app     = "${local.prefix}-host"
+      version = var.bench_version
     }
   }
 
@@ -178,7 +180,8 @@ resource "kubernetes_deployment" "host" {
     template {
       metadata {
         labels = {
-          app = "${local.prefix}-host"
+          app     = "${local.prefix}-host"
+          version = var.bench_version
         }
         annotations = {
           "prometheus.io/scrape" = "true"

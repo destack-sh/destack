@@ -87,6 +87,7 @@ def _get_computer_env_vars(
         "ENVIRONMENT": ENV.value,
         "CLOUD": CLOUD.slug,
         "REGION": computer.region.slug,
+        "VERSION": computer.version,
         "SUPERVISOR_URL": supervisor_url,
         "IS_IN_DOCKER": "1" if is_in_docker else None,
         "IS_IN_MINIKUBE": "1" if is_in_minikube else None,

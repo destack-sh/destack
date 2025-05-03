@@ -21,7 +21,7 @@ terraform {
 
 
 locals {
-  bench_version = file("../version")
+  version       = file("../version")
   global_region = "eu-zurich" # global state
   main_website  = "heybench.com"
 
@@ -141,7 +141,7 @@ module "region_aws_eu_frankfurt" {
   source = "./region_aws"
 
   # general
-  bench_version          = local.bench_version
+  bench_version          = local.version
   git_commit             = data.external.git.result.sha
   env                    = var.env
   cloud                  = "aws"
