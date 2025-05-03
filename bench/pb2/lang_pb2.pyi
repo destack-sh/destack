@@ -570,6 +570,7 @@ class Region(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     REGION_ZURICH: _ClassVar[Region]
     REGION_FRANKFURT: _ClassVar[Region]
     REGION_VIRGINIA: _ClassVar[Region]
+    REGION_OHIO: _ClassVar[Region]
     REGION_OREGON: _ClassVar[Region]
     REGION_SAO_PAULO: _ClassVar[Region]
     REGION_CAPE_TOWN: _ClassVar[Region]
@@ -1385,7 +1386,7 @@ class ViewType(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     VIEW_TYPE_OBJECT: _ClassVar[ViewType]
     VIEW_TYPE_TYPE: _ClassVar[ViewType]
     VIEW_TYPE_SELECTION: _ClassVar[ViewType]
-    VIEW_TYPE_USER_WIZARD: _ClassVar[ViewType]
+    VIEW_TYPE_WIZARD: _ClassVar[ViewType]
     VIEW_TYPE_EMPTY: _ClassVar[ViewType]
     VIEW_TYPE_CREATE: _ClassVar[ViewType]
     VIEW_TYPE_SIDEBAR: _ClassVar[ViewType]
@@ -2167,6 +2168,7 @@ REGION_UNSPECIFIED: Region
 REGION_ZURICH: Region
 REGION_FRANKFURT: Region
 REGION_VIRGINIA: Region
+REGION_OHIO: Region
 REGION_OREGON: Region
 REGION_SAO_PAULO: Region
 REGION_CAPE_TOWN: Region
@@ -2778,7 +2780,7 @@ VIEW_TYPE_TASK: ViewType
 VIEW_TYPE_OBJECT: ViewType
 VIEW_TYPE_TYPE: ViewType
 VIEW_TYPE_SELECTION: ViewType
-VIEW_TYPE_USER_WIZARD: ViewType
+VIEW_TYPE_WIZARD: ViewType
 VIEW_TYPE_EMPTY: ViewType
 VIEW_TYPE_CREATE: ViewType
 VIEW_TYPE_SIDEBAR: ViewType

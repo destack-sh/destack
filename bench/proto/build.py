@@ -352,7 +352,7 @@ export type JsonValue = JsonPrimitive | { [key: string]: JsonValue } | JsonValue
     message_type_inv_map_str = (
         "export const OBJECT_TYPE_BY_MESSAGE_TYPE_NAME: Record<string, ObjectType> = {\n"
         + "".join(
-            f'  ["symbolx.bench.{cls.__name__}Data"]: ObjectType.{cls.metatype.name},\n'
+            f'  ["symbol.bench.{cls.__name__}Data"]: ObjectType.{cls.metatype.name},\n'
             for cls in chain(NODE_CLASSES, STRUCT_CLASSES)
         )
         + "}\n"

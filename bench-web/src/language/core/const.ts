@@ -381,6 +381,7 @@ export const FILTERED_ENUMS: Partial<Record<EnumType, number[]>> = {
   [EnumType.BENCH_TYPE]: [...NODE_TYPES, ...EXPOSED_STRUCT_TYPES, ...ENUM_TYPES],
   [EnumType.PRIMITIVE_TYPE]: EXPOSED_PRIMITIVE_TYPES,
   [EnumType.REGION]: EXPOSED_REGIONS,
+  [EnumType.CONTINENT]: EXPOSED_CONTINENTS,
 };
 
 export function getPropertyTitle(property: PropertyInfo | PropertyReferenceData): string {

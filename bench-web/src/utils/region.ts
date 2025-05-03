@@ -213,3 +213,12 @@ function _useGeolocation() {
 
 export const useGeolocation = createSharedComposable(_useGeolocation);
 export const GEOLOCATION = useGeolocation().location;
+
+export const DEFAULT_REGION_BY_CONTINENT: Partial<Record<Continent, Region>> = {
+  [Continent.EUROPE]: Region.FRANKFURT,
+  [Continent.NORTH_AMERICA]: Region.VIRGINIA,
+  [Continent.SOUTH_AMERICA]: Region.SAO_PAULO,
+  [Continent.AFRICA]: Region.CAPE_TOWN,
+  [Continent.ASIA]: Region.SINGAPORE,
+  [Continent.AUSTRALIA]: Region.SYDNEY,
+};

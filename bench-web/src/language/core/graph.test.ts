@@ -64,7 +64,7 @@ const MESSAGE_TYPE_GENERATORS: Record<string, () => any> = {
     const nanos = Math.floor(Math.random() * 1e9);
     return { seconds, nanos };
   },
-  "symbolx.bench.NodeReferenceData": () => ({ metatype: ObjectType.NODE_REFERENCE, id: v4(), nodeType: NodeType.USER }),
+  "symbol.bench.NodeReferenceData": () => ({ metatype: ObjectType.NODE_REFERENCE, id: v4(), nodeType: NodeType.USER }),
 };
 
 const PROP_NAME_GENERATORS: Record<string, () => any> = {
