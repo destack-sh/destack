@@ -125,24 +125,23 @@ function focus(anchor?: FocusAnchor | NodeReferenceData) {
 defineExpose<ViewExpose>({ id, self, focus });
 </script>
 <template>
-  <div class="flex h-full flex-row divide-x divide-gray-200">
+  <div class="flex h-full flex-col divide-x divide-gray-200 lg:flex-row">
     <!-- TODO :UX!: make UserWizard not suck -->
     <!-- Image -->
-    <div class="flex h-full w-[55%] shrink-0 flex-col items-center justify-center bg-yellow-400">
-      <ThreeIcon class="h-[20%] w-[20%]" />
+    <div
+      class="flex h-[30%] w-full shrink-0 flex-col items-center justify-center bg-gradient-to-br from-yellow-400 to-amber-400 lg:h-full lg:w-[40%]"
+    >
+      <ThreeIcon class="h-[50%] w-[50%] lg:h-[40%] lg:w-[40%]" />
     </div>
 
     <!-- Body -->
     <div
-      class="mx-auto flex h-full max-w-lg flex-1 flex-col justify-center overflow-hidden rounded-sm px-9 text-left text-gray-900"
+      class="mx-auto my-12 flex h-full w-full max-w-lg flex-1 flex-col overflow-hidden rounded-sm px-9 text-left text-gray-900 lg:justify-center"
     >
       <!-- Header -->
-      <div>
-        <h2 class="text-4xl font-semibold">Bench</h2>
-        <p v-if="!user" class="mt-2 text-lg">
-          <span v-if="stage == UserWizardViewStage.LOG_IN">Log into an existing Bench account.</span>
-          <span v-else>Create a new Bench account.</span>
-        </p>
+      <div class="mb-4">
+        <h2 class="mb-2 text-3xl font-semibold lg:text-4xl">Bench</h2>
+        <p class="text-gray-700">Personal software at the cost of compute.</p>
       </div>
       <!-- Form -->
       <form v-if="!user" @submit.prevent="">
@@ -237,7 +236,7 @@ defineExpose<ViewExpose>({ id, self, focus });
           />
         </div>
       </form>
-      <!-- Already have User? -->
+      <!-- Already have User? what? -->
       <div v-else>
         <Button
           id="home"

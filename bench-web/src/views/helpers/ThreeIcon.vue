@@ -4,19 +4,17 @@ import { RoomEnvironment } from "three/examples/jsm/environments/RoomEnvironment
 import { RoundedBoxGeometry } from "three/examples/jsm/geometries/RoundedBoxGeometry.js";
 import { onMounted, onBeforeUnmount, ref, reactive } from "vue";
 
-/* ── config ───────────────────────────────────── */
 const NUM_LAYERS = 3;
-const W = 2.0,
-  D = 2.0,
-  H = 0.25,
-  GAP = 0.35;
-const ROUND_RADIUS = 0.1,
-  ROUND_SEGMENTS = 4;
-const FLOAT_AMP = 0.08,
-  FLOAT_SPEED = 0.8;
-const MOUSE_INF = 0.3,
-  CAM_LERP = 0.05;
-/* ─────────────────────────────────────────────── */
+const W = 2.0;
+const D = 2.0;
+const H = 0.25;
+const GAP = 0.35;
+const ROUND_RADIUS = 0.1;
+const ROUND_SEGMENTS = 4;
+const FLOAT_AMP = 0.08;
+const FLOAT_SPEED = 0.8;
+const MOUSE_INF = 0.1;
+const CAM_LERP = 0.05;
 
 const canvasRef = ref<HTMLCanvasElement | null>(null);
 
@@ -42,8 +40,8 @@ function onMove(e: MouseEvent) {
   const r = canvasRef.value.getBoundingClientRect();
   mouse.x = ((e.clientX - r.left) / r.width) * 2 - 1;
   mouse.y = -((e.clientY - r.top) / r.height) * 2 + 1;
-  camTgt.x = mouse.x * MOUSE_INF;
-  camTgt.y = mouse.y * MOUSE_INF;
+  camTgt.x = -mouse.x * MOUSE_INF;
+  camTgt.y = -mouse.y * MOUSE_INF;
 }
 function onResize() {
   if (!canvasRef.value || !ren) return;
@@ -90,11 +88,11 @@ onMounted(() => {
   /* geometry / material */
   const geom = new RoundedBoxGeometry(W, H, D, ROUND_SEGMENTS, ROUND_RADIUS);
   const mat = new THREE.MeshPhysicalMaterial({
-    color: 0x303030,
-    metalness: 1.0,
-    roughness: 0.25,
+    color: 0x101010,
+    metalness: 0.0,
+    roughness: 0.9,
     clearcoat: 0.3,
-    clearcoatRoughness: 0.1,
+    clearcoatRoughness: 0.5,
     envMapIntensity: 1.2,
   });
 
@@ -121,7 +119,7 @@ onMounted(() => {
     const t = clock.getElapsedTime();
 
     layers.forEach((m, i) => {
-      m.position.y = baseY[i] + Math.sin(t * FLOAT_SPEED * (1 + i * 0.15) + i) * FLOAT_AMP;
+      m.position.y = baseY[i] + Math.sin(t * FLOAT_SPEED * (1 + i * 0.2) + i) * FLOAT_AMP;
     });
 
     camCur.x += (camTgt.x - camCur.x) * CAM_LERP;
