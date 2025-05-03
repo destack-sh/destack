@@ -3,11 +3,10 @@ from collections import defaultdict
 from contextvars import ContextVar
 from dataclasses import dataclass
 from datetime import datetime, timedelta
-from typing import Any, Callable, Sequence, cast
+from typing import TYPE_CHECKING, Any, Callable, Sequence, cast
 from uuid import UUID
 
 import structlog
-from git import TYPE_CHECKING
 from opentelemetry import baggage, context, trace
 
 from bench.language import (
