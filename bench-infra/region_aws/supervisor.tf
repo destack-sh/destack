@@ -132,11 +132,12 @@ resource "kubernetes_deployment" "supervisor" {
           name    = "supervisor-init"
           image   = "ghcr.io/symbolx/bench-system:${var.bench_version}"
           command = ["/bin/sh", "-c"]
+          # NOTE: migrating & bootstrapping in supervisor is scary if :MultiRegion
           args = [
             <<-EOT
               set -e
               python bench.py migrate apply --area global
-              python bench.py bootstrap --upsert
+              python bench.py system bootstrap --region ${var.region} --upsert
               python bench.py migrate apply --area regional --region ${var.region}
             EOT
           ]

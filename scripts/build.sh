@@ -15,15 +15,15 @@ VERSION=$(cat version)
 # build bench-web with :BenchWebEnv placeholders (to be substituted in deploy)
 # (we need to 'set' them explicitly or they will be removed by vite during the build)
 VITE_COMMIT="VITE_COMMIT" \
-VITE_ENVIRONMENT="VITE_ENVIRONMENT" \
-VITE_SUPERVISOR_URL="VITE_SUPERVISOR_URL" \
-VITE_IP_API_KEY="VITE_IP_API_KEY" \
-bun run --cwd bench-web build
+  VITE_ENVIRONMENT="VITE_ENVIRONMENT" \
+  VITE_SUPERVISOR_URL="VITE_SUPERVISOR_URL" \
+  VITE_IP_API_KEY="VITE_IP_API_KEY" \
+  bun run --cwd bench-web build
 
 # build all images
 # image names and their corresponding Dockerfiles
-IMAGES=("bench-computer-ubuntu-desktop" "bench-computer-ubuntu-terminal" "bench-system")
-DOCKERFILES=("bench-infra/docker/Dockerfile.computer-ubuntu-desktop" "bench-infra/docker/Dockerfile.computer-ubuntu-terminal" "bench-infra/docker/Dockerfile.system")
+IMAGES=("bench-system" "bench-computer-runtime" "bench-computer-ubuntu-desktop" "bench-computer-ubuntu-terminal")
+DOCKERFILES=("bench-infra/docker/Dockerfile.system" "bench-infra/docker/Dockerfile.computer-runtime" "bench-infra/docker/Dockerfile.computer-ubuntu-desktop" "bench-infra/docker/Dockerfile.computer-ubuntu-terminal")
 
 for i in "${!IMAGES[@]}"; do
   IMAGE="${IMAGES[$i]}"
