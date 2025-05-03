@@ -57,7 +57,7 @@ def set_baggage(**kwargs):
         context.attach(baggage.set_baggage(key, _render_value(value)))
 
 
-def capture_exception(exception: Exception):
+def capture_exception(exception: BaseException):
     if _posthog:
         _posthog.capture_exception(exception)
 

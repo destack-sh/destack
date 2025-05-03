@@ -1,7 +1,7 @@
 import asyncio
 import base64
 import os
-from typing import Mapping
+from typing import Callable, Mapping
 from uuid import UUID
 
 import structlog
@@ -32,7 +32,13 @@ class ComputerService(ServiceBase, ComputerBase):
     kind = ServiceKind.INTERNAL
 
     def __init__(
-        self, id: str, network: Network, oracle: Oracle, computer_id: UUID, display: str | None
+        self,
+        id: str,
+        network: Network,
+        oracle: Oracle,
+        computer_id: UUID,
+        display: str | None,
+        on_error: Callable[[BaseException], None] | None = None,
     ):
         super().__init__(id=id, logger=logger, tracer=tracer, network=network, oracle=oracle)
         self.computer_id = computer_id

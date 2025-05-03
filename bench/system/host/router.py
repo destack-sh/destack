@@ -68,9 +68,22 @@ class HostRouterService(ServiceBase, HostBase):
     name = "host_router"
 
     def __init__(
-        self, id: str, global_store: Store, regional_store: Store, network: Network, oracle: Oracle
+        self,
+        id: str,
+        global_store: Store,
+        regional_store: Store,
+        network: Network,
+        oracle: Oracle,
+        on_error: Callable[[BaseException], None] | None = None,
     ):
-        super().__init__(id=id, logger=logger, tracer=tracer, network=network, oracle=oracle)
+        super().__init__(
+            id=id,
+            logger=logger,
+            tracer=tracer,
+            network=network,
+            oracle=oracle,
+            on_error=on_error,
+        )
         self.hosts: dict[UUID, HostService] = {}
         self.hosts_lock = asyncio.Lock()
         self._global_store = global_store

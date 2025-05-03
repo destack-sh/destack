@@ -12,7 +12,7 @@ from bench.pb2 import SupervisorClient
 from bench.proto import GrpcServer, Network, RealNetwork, ServiceBase
 from bench.utils.env import ENV, IS_DEV
 from bench.utils.oracle import REAL_ORACLE
-from bench.utils.telemetry import setup_telemetry
+from bench.utils.telemetry import capture_exception, setup_telemetry
 from bench.utils.utils import get_from_env, get_from_env_maybe
 from bench.utils.watch import restart_on_file_changes
 
@@ -114,6 +114,7 @@ async def system(
         regional_store=regional_store,
         network=network,
         oracle=REAL_ORACLE,
+        on_error=capture_exception,
     )
     services: list[ServiceBase] = [host_router]
     supervisor = SupervisorService(
@@ -124,6 +125,7 @@ async def system(
         host_map=HOST_MAP,
         store_map=STORE_MAP,
         create_bench_options=CreateBenchOptions(),
+        on_error=capture_exception,
     )
     services.append(supervisor)
     await _do_serve(handlers=services, network=network, host=host, port=port, watch=watch)
@@ -151,6 +153,7 @@ async def supervisor(host: str, port: int, watch: bool = False, no_check: bool =
         host_map=HOST_MAP,
         store_map=STORE_MAP,
         create_bench_options=CreateBenchOptions(),
+        on_error=capture_exception,
     )
     await _do_serve(handlers=[supervisor], network=network, host=host, port=port, watch=watch)
 
@@ -170,6 +173,7 @@ async def host(host: str, port: int, watch: bool = False, no_check: bool = False
         regional_store=regional_store,
         network=network,
         oracle=REAL_ORACLE,
+        on_error=capture_exception,
     )
     await _do_serve(handlers=[host_router], network=network, host=host, port=port, watch=watch)
 
@@ -218,6 +222,7 @@ async def runtime(host: str, port: int, *, process_id: int = -1, watch: bool = F
             computer_id=computer_id,
             max_processs=max_processs,
             mode=mode,
+            on_error=capture_exception,
         )
         await _do_serve(handlers=[runtime], network=network, host=host, port=port, watch=watch)
     else:
@@ -232,6 +237,7 @@ async def runtime(host: str, port: int, *, process_id: int = -1, watch: bool = F
             client_access_token=client_access_token,
             computer_id=computer_id,
             mode=mode,
+            on_error=capture_exception,
         )
         await _do_serve(handlers=[process], network=network, host=host, port=port, watch=watch)
 
@@ -253,5 +259,6 @@ async def computer(host: str, port: int, *, process_id: int = -1, watch: bool = 
         oracle=REAL_ORACLE,
         computer_id=computer_id,
         display=display,
+        on_error=capture_exception,
     )
     await _do_serve(handlers=[computer], network=network, host=host, port=port, watch=watch)
