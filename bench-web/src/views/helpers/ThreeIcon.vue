@@ -11,10 +11,12 @@ const H = 0.25;
 const GAP = 0.35;
 const ROUND_RADIUS = 0.1;
 const ROUND_SEGMENTS = 4;
-const FLOAT_AMP = 0.08;
-const FLOAT_SPEED = 0.8;
+const FLOAT_AMP = 0.04;
+const FLOAT_SPEED = 0.5;
 const MOUSE_INF = 0.1;
 const CAM_LERP = 0.05;
+const HOVER_ROTATION = Math.PI / 6; // Target rotation on hover
+const ROTATION_LERP = 0.1; // Speed of rotation interpolation
 
 const canvasRef = ref<HTMLCanvasElement | null>(null);
 
@@ -23,23 +25,27 @@ let scene: THREE.Scene,
   cam: THREE.PerspectiveCamera,
   ren: THREE.WebGLRenderer | null = null,
   clock: THREE.Clock,
+  raycaster: THREE.Raycaster,
   frame = 0;
 
 const stack = new THREE.Group();
 const layers: THREE.Mesh[] = [];
 const baseY: number[] = [];
 
-/* mouse-parallax state */
-const mouse = reactive({ x: 0, y: 0 });
-const camTgt = reactive({ x: 0, y: 0 });
-const camCur = reactive({ x: 0, y: 0 });
+/* mouse/hover state */
+const mouse = reactive({ x: 0, y: 0 }); // Normalized device coordinates for raycasting/parallax
+const camTgt = reactive({ x: 0, y: 0 }); // Target offset for camera parallax
+const camCur = reactive({ x: 0, y: 0 }); // Current offset for camera parallax
+let hoveredLayer: THREE.Mesh | null = null;
 
 /* ── helpers ───────────────────────────── */
 function onMove(e: MouseEvent) {
   if (!canvasRef.value) return;
   const r = canvasRef.value.getBoundingClientRect();
+  // Update mouse NDC
   mouse.x = ((e.clientX - r.left) / r.width) * 2 - 1;
   mouse.y = -((e.clientY - r.top) / r.height) * 2 + 1;
+  // Update camera parallax target
   camTgt.x = -mouse.x * MOUSE_INF;
   camTgt.y = -mouse.y * MOUSE_INF;
 }
@@ -56,9 +62,10 @@ function onResize() {
 onMounted(() => {
   if (!canvasRef.value) return;
 
-  /* scene / clock */
+  /* scene / clock / raycaster */
   scene = new THREE.Scene();
   clock = new THREE.Clock();
+  raycaster = new THREE.Raycaster();
 
   /* camera */
   const p = canvasRef.value.parentElement!;
@@ -112,21 +119,39 @@ onMounted(() => {
   /* listeners */
   window.addEventListener("mousemove", onMove);
   window.addEventListener("resize", onResize);
-  onResize();
+  onResize(); // Initial size calculation
 
   /* main loop */
   const loop = () => {
+    if (!ren) return; // Exit if renderer is disposed
     const t = clock.getElapsedTime();
 
+    // 1. Raycasting: Find hovered layer
+    raycaster.setFromCamera(new THREE.Vector2(mouse.x, mouse.y), cam);
+    const intersects = raycaster.intersectObjects(layers);
+    // Check if the first intersected object is one of our layers
+    const firstIntersectedLayer = layers.find(l => intersects.length > 0 && l === intersects[0].object);
+    hoveredLayer = firstIntersectedLayer ?? null;
+
+    // 2. Update layers: position (float) and rotation (hover)
     layers.forEach((m, i) => {
+      // Floating position
       m.position.y = baseY[i] + Math.sin(t * FLOAT_SPEED * (1 + i * 0.2) + i) * FLOAT_AMP;
+
+      // Hover rotation (interpolate towards target)
+      const targetRotationY = m === hoveredLayer ? HOVER_ROTATION : 0;
+      // Use lerp for smooth transition in both directions
+      m.rotation.y += (targetRotationY - m.rotation.y) * ROTATION_LERP;
     });
 
+    // 3. Update camera: parallax effect
     camCur.x += (camTgt.x - camCur.x) * CAM_LERP;
     camCur.y += (camTgt.y - camCur.y) * CAM_LERP;
+    // Look towards the center point offset by the interpolated mouse position
     cam.lookAt(camCur.x, 0, camCur.y);
 
-    ren!.render(scene, cam);
+    // 4. Render
+    ren.render(scene, cam);
     frame = window.requestAnimationFrame(loop);
   };
   loop();
@@ -138,9 +163,21 @@ onBeforeUnmount(() => {
   window.removeEventListener("resize", onResize);
   layers.forEach((l) => {
     l.geometry.dispose();
-    (l.material as THREE.Material).dispose();
+    // Material is shared, dispose only once if needed, but safer to check
+    if (l.material instanceof THREE.Material) {
+      // Check if it's the last layer using the material before disposing
+      // Or simply don't dispose shared materials here if they might be used elsewhere
+      // For this component, disposing is likely fine.
+      l.material.dispose();
+    }
   });
+  // Clear arrays
+  layers.length = 0;
+  baseY.length = 0;
+  // Dispose renderer and scene resources
   ren?.dispose();
+  scene?.clear(); // Remove objects, geometries, materials from scene if needed
+  ren = null; // Allow garbage collection
 });
 </script>
 
