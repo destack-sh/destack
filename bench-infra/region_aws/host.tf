@@ -47,7 +47,7 @@ locals {
     XAI_API_KEY         = var.xai_api_key
     EXA_API_KEY         = var.exa_api_key
     UNSPLASH_ACCESS_KEY = var.unsplash_access_key
-    POSTHOG_API_KEY     = var.posthog_api_key
+    POSTHOG_TOKEN     = var.posthog_token
     POSTHOG_HOST        = var.posthog_host
     GHCR_TOKEN          = var.ghcr_token
 

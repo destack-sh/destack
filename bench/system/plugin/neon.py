@@ -145,7 +145,7 @@ class NeonApiRemote(NeonApi):
         assert rep is not None, "no response"
         return NeonCreateProjectRep(
             project_id=rep["project"]["id"],
-            sql_url=rep["sql_urls"][0]["sql_url"],
+            sql_url=rep["connection_uris"][0]["connection_uri"],
         )
 
     async def delete_project(self, *, project_id: str) -> None:

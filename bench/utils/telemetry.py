@@ -22,7 +22,7 @@ from bench.utils.env import ENV, IS_DEBUG, IS_DEV, IS_TEST
 from bench.utils.utils import get_from_env, get_from_env_maybe
 
 VERSION = Path("version").read_text().strip()
-POSTHOG_API_KEY = get_from_env("POSTHOG_API_KEY", description="PostHog API key")
+POSTHOG_TOKEN = get_from_env("POSTHOG_TOKEN", description="PostHog public API key")
 POSTHOG_HOST = get_from_env_maybe("POSTHOG_HOST", description="Full URL to send PostHog events to")
 OTLP_ENDPOINT = get_from_env_maybe("OTLP_ENDPOINT", description="Full URL to send OTLP traces to")
 
@@ -70,7 +70,7 @@ def setup_telemetry():
 
     # errors
     if not (IS_DEBUG or IS_DEV or IS_TEST):
-        _posthog = Posthog(POSTHOG_API_KEY, host=POSTHOG_HOST, enable_exception_autocapture=True)
+        _posthog = Posthog(POSTHOG_TOKEN, host=POSTHOG_HOST, enable_exception_autocapture=True)
 
     # tracing
     TRACING = get_from_env("TRACING", typ=bool, description="Enable tracing")

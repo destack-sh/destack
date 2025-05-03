@@ -23,7 +23,7 @@ from bench.proto import dockerify_url, minikubeify_url
 from bench.system.core.access import ACCESS_TOKEN_LENGTH
 from bench.utils.env import ENV, IS_DEV, IS_TEST
 from bench.utils.func import generate_access_token
-from bench.utils.telemetry import OTLP_ENDPOINT, POSTHOG_API_KEY
+from bench.utils.telemetry import OTLP_ENDPOINT, POSTHOG_TOKEN
 from bench.utils.utils import get_from_env
 
 from .kubernetes import KUBERNETES_COMPUTER_APP_LABEL, KUBERNETES_NAMESPACE, KubernetesApi
@@ -101,7 +101,7 @@ def _get_computer_env_vars(
         "TRACING": "1",
         "LOG_LEVEL": "DEBUG",
         "LOG_MODE": "JSON",
-        "POSTHOG_API_KEY": POSTHOG_API_KEY,
+        "POSTHOG_TOKEN": POSTHOG_TOKEN,
         "POSTHOG_HOST": "https://eu.i.posthog.com",
         "DISPLAY_SIZE": f"{computer.width}x{computer.height}x24",
     }
