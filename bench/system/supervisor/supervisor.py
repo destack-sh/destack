@@ -243,7 +243,7 @@ class SupervisorService(GraphServiceBase, SupervisorBase):
             # immediately create User's main Bench
             if request.activate:
                 bench = await create_default_bench(
-                    main_handle=user.handle,
+                    handle=user.handle,
                     owned_by=user,
                     region=user.region,
                     session=session,
@@ -439,7 +439,7 @@ class SupervisorService(GraphServiceBase, SupervisorBase):
                 raise GRPCError(GRPCStatus.INVALID_ARGUMENT, "slug mismatch")
             assert owner.handle is not None, f"{owner!r} has no main handle"
             bench = await create_default_bench(
-                main_handle=owner.handle,
+                handle=owner.handle,
                 owned_by=owner,
                 region=region,
                 session=session,

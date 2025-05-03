@@ -28,7 +28,7 @@ class CreateBenchOptions(NamedTuple):
 
 async def create_default_bench(  # noqa: RUF029
     *,
-    main_handle: Handle,
+    handle: Handle,
     owned_by: User | Organization,
     region: Region,
     session: Session,
@@ -39,9 +39,9 @@ async def create_default_bench(  # noqa: RUF029
     # Bench
     bench = Bench(
         id=options.bench_id or Bench.__id_factory__(),
-        handle=main_handle,
-        slug=main_handle.slug,
-        name=main_handle.slug,
+        handle=handle,
+        slug=handle.slug,
+        name=handle.slug,
         owned_by=owned_by,
         region=region,
         _is_new=True,

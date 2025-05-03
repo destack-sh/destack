@@ -22,9 +22,11 @@ app = typer.Typer(short_help="some language-level utilities")
 logger = structlog.get_logger(__name__)
 
 
-@app.command(help="create 'bench' and 'system' Benches (owned by 'system' User)")
+@app.command(help="create builtin stuff (User, Benches, etc.)")
 @async_to_sync
-async def bootstrap(region: Annotated[Region, typer.Option(parser=parse_region)]):
+async def bootstrap(
+    region: Annotated[Region, typer.Option(parser=parse_region)], upsert: bool = False
+):
     from bench.language import NodeArea
     from bench.system import (
         create_system_benches,
@@ -46,6 +48,7 @@ async def bootstrap(region: Annotated[Region, typer.Option(parser=parse_region)]
         global_pg_engine=global_pg_engine,
         regional_store=regional_store,
         regional_pg_engine=regional_pg_engine,
+        upsert=upsert,
     )
 
 
