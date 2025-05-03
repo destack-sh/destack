@@ -4,11 +4,11 @@
 
 locals {
   supervisor_env_vars = {
-    SERVICE_NAME = "supervisor"
-    ENVIRONMENT  = var.env
-    CLOUD        = var.cloud
-    REGION       = var.region
-
+    SERVICE_NAME  = "supervisor"
+    ENVIRONMENT   = var.env
+    CLOUD         = var.cloud
+    REGION        = var.region
+    VERSION       = var.bench_version
     OTLP_ENDPOINT = "http://jaeger.monitoring.svc.cluster.local:4317"
     TRACING       = 1
     LOG_LEVEL     = "DEBUG"
@@ -103,7 +103,8 @@ resource "kubernetes_deployment" "supervisor" {
     name      = "${local.prefix}-supervisor"
     namespace = "default"
     labels = {
-      app = "${local.prefix}-supervisor"
+      app     = "${local.prefix}-supervisor"
+      version = var.bench_version
     }
   }
 
@@ -119,7 +120,8 @@ resource "kubernetes_deployment" "supervisor" {
     template {
       metadata {
         labels = {
-          app = "${local.prefix}-supervisor"
+          app     = "${local.prefix}-supervisor"
+          version = var.bench_version
         }
         annotations = {
           "prometheus.io/scrape" = "true"
