@@ -136,7 +136,7 @@ variable "web_certificate_private_key_pem" {
 # 3rd party secrets
 # 
 
-variable "posthog_api_key" {
+variable "posthog_token" {
   type        = string
   description = "PostHog API key"
   sensitive   = true
@@ -203,12 +203,6 @@ variable "ghcr_username" {
 variable "ghcr_token" {
   type        = string
   description = "GitHub Container Registry token"
-  sensitive   = true
-}
-
-variable "betterstack_token" {
-  type        = string
-  description = "BetterStack source token"
   sensitive   = true
 }
 

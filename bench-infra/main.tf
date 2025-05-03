@@ -178,9 +178,8 @@ module "region_aws_eu_frankfurt" {
   ip_api_key          = var.ip_api_key
   ghcr_username       = var.ghcr_username
   ghcr_token          = var.ghcr_token
-  betterstack_token   = var.betterstack_token
   unsplash_access_key = var.unsplash_access_key
-  posthog_api_key     = var.posthog_api_key
+  posthog_token       = var.posthog_token
   posthog_host        = var.posthog_host
 }
 
@@ -190,11 +189,11 @@ module "region_aws_eu_frankfurt" {
 
 # point 'supervisor.<domain>' to the supervisor ingress
 resource "cloudflare_record" "supervisor" {
-  zone_id = data.cloudflare_zone.main_website.id
-  name    = "supervisor"
-  type    = "CNAME"
-  content = module.region_aws_eu_frankfurt.supervisor_hostname
-  ttl     = 300
-  proxied = false
+  zone_id         = data.cloudflare_zone.main_website.id
+  name            = "supervisor"
+  type            = "CNAME"
+  content         = module.region_aws_eu_frankfurt.supervisor_hostname
+  ttl             = 300
+  proxied         = false
   allow_overwrite = true
 }
