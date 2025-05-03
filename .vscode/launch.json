@@ -66,6 +66,21 @@
       "justMyCode": true
     },
     {
+      "name": "bench.bootstrap",
+      "type": "debugpy",
+      "request": "launch",
+      "program": "${workspaceFolder}/bench.py",
+      "args": ["system", "bootstrap", "--region", "eu-zurich", "--upsert"],
+      "env": {
+        "ENVIRONMENT": "dev",
+        "PYTHONUNBUFFERED": "1",
+        "SERVICE_NAME": "system",
+      },
+      "console": "integratedTerminal",
+      "cwd": "${workspaceFolder}",
+      "justMyCode": true
+    }, 
+     {
       "name": "bench.system",
       "type": "debugpy",
       "request": "launch",
