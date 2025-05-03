@@ -23,7 +23,7 @@ logger = structlog.get_logger(__name__)
 
 
 @contextmanager
-def graceful_exit(
+def _guard_server(
     server: GrpcServer,
     *,
     signals: Collection[int] = (signal.SIGINT, signal.SIGTERM),
@@ -80,7 +80,7 @@ async def _do_serve(
     if IS_DEV and watch:
         _ = asyncio.create_task(restart_on_file_changes())  # noqa: RUF006
     try:
-        with graceful_exit(server):
+        with _guard_server(server):
             await server.start(host=host, port=port)
             await server.wait_closed()
     finally:
@@ -93,8 +93,8 @@ async def system(
     host: str,
     port: int,
     watch: bool = False,
-    no_supervisor: bool = False,
 ):
+    """Serve both the HostRouter and the Supervisor."""
     from bench.system import (
         HOST_MAP,
         STORE_MAP,
@@ -116,23 +116,23 @@ async def system(
         oracle=REAL_ORACLE,
     )
     services: list[ServiceBase] = [host_router]
-    if not no_supervisor:
-        supervisor = SupervisorService(
-            id="supervisor",
-            global_store=global_store,
-            network=network,
-            oracle=REAL_ORACLE,
-            host_map=HOST_MAP,
-            store_map=STORE_MAP,
-            create_bench_options=CreateBenchOptions(),
-        )
-        services.append(supervisor)
+    supervisor = SupervisorService(
+        id="supervisor",
+        global_store=global_store,
+        network=network,
+        oracle=REAL_ORACLE,
+        host_map=HOST_MAP,
+        store_map=STORE_MAP,
+        create_bench_options=CreateBenchOptions(),
+    )
+    services.append(supervisor)
     await _do_serve(handlers=services, network=network, host=host, port=port, watch=watch)
 
 
 @app.command()
 @async_to_sync
 async def supervisor(host: str, port: int, watch: bool = False, no_check: bool = False):
+    """Serve the Supervisor."""
     from bench.system import (
         HOST_MAP,
         STORE_MAP,
@@ -158,6 +158,7 @@ async def supervisor(host: str, port: int, watch: bool = False, no_check: bool =
 @app.command()
 @async_to_sync
 async def host(host: str, port: int, watch: bool = False, no_check: bool = False):
+    """Serve the HostRouter."""
     from bench.system import HostRouterService, global_store_from_env, regional_store_from_env
 
     global_store = global_store_from_env()
@@ -176,6 +177,7 @@ async def host(host: str, port: int, watch: bool = False, no_check: bool = False
 @app.command()
 @async_to_sync
 async def runtime(host: str, port: int, *, process_id: int = -1, watch: bool = False):
+    """Serve the Runtime."""
     from bench.language import ClientType
     from bench.runtime import RuntimeProcess, RuntimeProcessMode, RuntimeService
 
@@ -237,6 +239,7 @@ async def runtime(host: str, port: int, *, process_id: int = -1, watch: bool = F
 @app.command()
 @async_to_sync
 async def computer(host: str, port: int, *, process_id: int = -1, watch: bool = False):
+    """Serve the Computer."""
     from bench.computer import ComputerService
 
     logger.info("serve.computer", host=host, port=port, env=ENV)
