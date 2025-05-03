@@ -19,7 +19,7 @@ const buttonRef: Ref<HTMLButtonElement | null> = ref(null);
 const classByVariant: Ref<Partial<Record<ButtonVariant, string[]>>> = computed(() => ({
   // prominent filled button
   [ButtonVariant.PRIMARY]: [
-    "rounded-sm border border-gray-200",
+    "rounded-sm border cursor-pointer border-gray-200",
     props.title ? "px-2 py-1" : "px-1 py-0.5",
     props.isDisabled
       ? "text-gray-400 bg-gray-200 hover:cursor-not-allowed"
@@ -27,13 +27,13 @@ const classByVariant: Ref<Partial<Record<ButtonVariant, string[]>>> = computed((
   ],
   // outline button
   [ButtonVariant.SECONDARY]: [
-    "rounded-sm",
+    "rounded-sm cursor-pointer",
     props.title ? "px-2 py-1" : "px-1 py-0.5",
     props.isDisabled ? "text-gray-400 bg-gray-50 hover:cursor-not-allowed" : "text-gray-700 bg-white hover:bg-gray-100",
   ],
   // 'link' button
   [ButtonVariant.LINK]: [
-    "rounded-sm",
+    "rounded-sm cursor-pointer",
     props.isDisabled ? "text-gray-400 hover:cursor-not-allowed" : "text-gray-700 hover:text-gray-900",
   ],
 }));

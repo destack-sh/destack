@@ -50,7 +50,6 @@ def _render_value(value: Any):
 
 
 def set_baggage(**kwargs):
-    """Sets the baggage."""
     for key, value in kwargs.items():
         if value is None:
             continue
