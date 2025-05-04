@@ -144,7 +144,6 @@ resource "kubernetes_deployment" "supervisor" {
             EOT
           ]
 
-          # Regular environment variables
           dynamic "env" {
             for_each = local.supervisor_env_vars
             content {
@@ -152,8 +151,6 @@ resource "kubernetes_deployment" "supervisor" {
               value = env.value
             }
           }
-
-          # All secret environment variables dynamically loaded
           dynamic "env" {
             for_each = flatten([
               for secret_name, env_vars in local.supervisor_secret_env_vars : [
@@ -185,7 +182,6 @@ resource "kubernetes_deployment" "supervisor" {
             name           = "grpc"
           }
 
-          # Regular environment variables
           dynamic "env" {
             for_each = local.supervisor_env_vars
             content {
@@ -193,8 +189,6 @@ resource "kubernetes_deployment" "supervisor" {
               value = env.value
             }
           }
-
-          # All secret environment variables dynamically loaded
           dynamic "env" {
             for_each = flatten([
               for secret_name, env_vars in local.supervisor_secret_env_vars : [

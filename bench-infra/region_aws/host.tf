@@ -199,7 +199,6 @@ resource "kubernetes_deployment" "host" {
             name           = "grpc"
           }
 
-          # Regular environment variables
           dynamic "env" {
             for_each = local.host_env_vars
             content {
@@ -207,8 +206,6 @@ resource "kubernetes_deployment" "host" {
               value = env.value
             }
           }
-
-          # All secret environment variables dynamically loaded
           dynamic "env" {
             for_each = flatten([
               for secret_name, env_vars in local.host_secret_env_vars : [

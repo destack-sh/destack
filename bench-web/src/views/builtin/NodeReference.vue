@@ -1,8 +1,8 @@
 <script lang="ts" setup>
 import { autoloader, canvas, supergraph } from "@/globals";
 import { toCamelName } from "@/language/core/const";
-import { NAME_TYPE, TITLE_TYPE } from "@/language/core/type";
 import { Transaction } from "@/language/core/transaction";
+import { NAME_TYPE } from "@/language/core/type";
 import {
   AnyNodeData,
   NodeReferenceData,
@@ -21,10 +21,10 @@ import { TooltipInfo } from "@/ui/tooltip";
 import { focusInElement } from "@/ui/view";
 import { IS_DEVELOPER_MODE } from "@/utils/globals";
 import NodeMetadata from "@/views/builtin/NodeMetadata.vue";
-import TextLine from "@/views/content/TextLine.vue";
 import { FocusAnchor, NavigationDirection, ViewEmits } from "@/views/common";
 import Icon from "@/views/content/Icon.vue";
 import NativeInput from "@/views/content/NativeInput.vue";
+import TextLine from "@/views/content/TextLine.vue";
 import { MaybeElement } from "@vueuse/core";
 import { computed, inject, provide, Ref, ref, toRef } from "vue";
 
