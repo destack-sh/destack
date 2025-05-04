@@ -232,7 +232,7 @@ class RuntimeService(RuntimeServiceBase, RuntimeBase):
         computer_id: UUID | None,
         max_processs: int,
         mode: RuntimeProcessMode,
-        on_error: Callable[[BaseException], None] | None = None,
+        on_error: Callable[[BaseException], None] | None,
     ):
         super().__init__(
             id=id,

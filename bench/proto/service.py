@@ -82,13 +82,13 @@ class ServiceBase(abc.ABC):
         tracer: trace.Tracer,
         network: "Network",
         oracle: Oracle,
-        on_error: Callable[[BaseException], None] | None = None,
+        on_error: Callable[[BaseException], None] | None,
     ):
         self.id = id
         self.logger = logger.bind(service=self)
         self.tracer = tracer
         self.network = network
-        self.tasks = TaskManager(owner=self, logger=logger, oracle=oracle)
+        self.tasks = TaskManager(owner=self, logger=logger, oracle=oracle, on_error=on_error)
         self.oracle = oracle
         self.active_unary_requests_count = 0
         self._on_error = on_error
@@ -105,8 +105,11 @@ class ServiceBase(abc.ABC):
             return f"<{self.__class__.__name__}>"
 
     def on_error(self, exc: BaseException) -> None:
+        """Handle an error."""
         if self._on_error:
             self._on_error(exc)
+        else:
+            logger.debug(f"{self.name}.on_error", service=self, exc_info=exc)
 
     def get_service_baggage(self) -> dict[str, Any]:
         return {}
@@ -122,7 +125,7 @@ class ServiceBase(abc.ABC):
         pass
 
     def stop(self) -> None:
-        """Stop the service.."""
+        """Stop the service."""
         self.tasks.close()
         logger.debug(f"{self.name}.stopping", service=self)
 

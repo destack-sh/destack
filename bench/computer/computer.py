@@ -38,9 +38,16 @@ class ComputerService(ServiceBase, ComputerBase):
         oracle: Oracle,
         computer_id: UUID,
         display: str | None,
-        on_error: Callable[[BaseException], None] | None = None,
+        on_error: Callable[[BaseException], None] | None,
     ):
-        super().__init__(id=id, logger=logger, tracer=tracer, network=network, oracle=oracle)
+        super().__init__(
+            id=id,
+            logger=logger,
+            tracer=tracer,
+            network=network,
+            oracle=oracle,
+            on_error=on_error,
+        )
         self.computer_id = computer_id
         self.display = display
 

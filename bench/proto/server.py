@@ -26,7 +26,11 @@ class GrpcServer(grpclib.server.Server):
         ), f"unexpected handlers: {handlers!r}"
         self._services: tuple[ServiceBase, ...] = cast(tuple[ServiceBase, ...], tuple(handlers))
         self._health_service = HealthService(
-            id="health", services=self._services, network=network, oracle=oracle
+            id="health",
+            services=self._services,
+            network=network,
+            oracle=oracle,
+            on_error=None,
         )
         super().__init__((*handlers, self._health_service))
         self._host: str | None = None

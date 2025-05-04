@@ -74,7 +74,7 @@ class HostRouterService(ServiceBase, HostBase):
         regional_store: Store,
         network: Network,
         oracle: Oracle,
-        on_error: Callable[[BaseException], None] | None = None,
+        on_error: Callable[[BaseException], None] | None,
     ):
         super().__init__(
             id=id,
@@ -122,6 +122,7 @@ class HostRouterService(ServiceBase, HostBase):
             regional_store=self._regional_store,
             network=self.network,
             oracle=self.oracle,
+            on_error=self.on_error,
         )
         await host.start()
         self.hosts[bench_id] = host

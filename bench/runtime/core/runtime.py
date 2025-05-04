@@ -150,7 +150,9 @@ class Runtime:
         self.on_error = on_error
         assert session._runtime is None, f"{session!r} already in runtime {session._runtime!r}"
         self.session._runtime = self
-        self.tasks = TaskManager(owner=self, logger=logger, oracle=self.oracle)
+        self.tasks = TaskManager(
+            owner=self, logger=logger, oracle=self.oracle, on_error=self.on_error
+        )
 
         self._locks_by_run_id: dict[UUID, asyncio.Lock] = {}
         self._locks_by_thread_id: dict[UUID, asyncio.Lock] = {}
