@@ -19,6 +19,9 @@ VITE_COMMIT="VITE_COMMIT" \
   VITE_SUPERVISOR_URL="VITE_SUPERVISOR_URL" \
   VITE_IP_API_KEY="VITE_IP_API_KEY" \
   bun run --cwd bench-web build
+# posthog sourcemaps
+posthog-cli --host https://eu.posthog.com sourcemap inject --directory bench-web/dist/assets
+posthog-cli --host https://eu.posthog.com sourcemap upload --directory bench-web/dist/assets
 
 # build all images
 # image names and their corresponding Dockerfiles
