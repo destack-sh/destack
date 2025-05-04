@@ -9,7 +9,7 @@ locals {
     CLOUD         = var.cloud
     REGION        = var.region
     VERSION       = var.bench_version
-    OTLP_ENDPOINT = "http://jaeger.monitoring.svc.cluster.local:4317"
+    OTLP_ENDPOINT = "http://otel-collector.monitoring.svc.cluster.local:4317"
     TRACING       = 1
     LOG_LEVEL     = "DEBUG"
     LOG_MODE      = "JSON"

@@ -220,9 +220,10 @@ resource "kubernetes_secret" "grafana_cloud_secret" {
   }
 
   data = {
-    "url"      = "https://logs-prod-039.grafana.net/loki/api/v1/push"
-    "username" = "1203865"
-    "password" = var.grafana_cloud_token
+    "logs_url"   = "https://logs-prod-039.grafana.net/loki/api/v1/push"
+    "otlp_host"  = "otlp-gateway-prod-eu-central-0.grafana.net:443"
+    "username"   = "1203865"
+    "password"   = var.grafana_cloud_token
   }
 }
 
@@ -285,7 +286,7 @@ resource "kubernetes_config_map" "promtail_config" {
         filename: /run/promtail/positions.yaml
 
       clients:
-        - url: ${kubernetes_secret.grafana_cloud_secret.data.url}
+        - url: ${kubernetes_secret.grafana_cloud_secret.data.logs_url}
           basic_auth:
             username: ${kubernetes_secret.grafana_cloud_secret.data.username}
             password: ${kubernetes_secret.grafana_cloud_secret.data.password}
@@ -495,6 +496,319 @@ resource "kubernetes_daemonset" "promtail" {
 }
 
 #
-# nocheckin :Infra! :Robustness!: proper monitoring with OLTP metrics/spans/logs/alerts (in one place?)
-#  (Prometheus/Grafana? Honeycomb? Signoz?)
-# 
+# OpenTelemetry Collector
+#
+
+# OpenTelemetry Collector service account
+resource "kubernetes_service_account" "otel_collector" {
+  metadata {
+    name      = "otel-collector"
+    namespace = kubernetes_namespace.monitoring.metadata[0].name
+  }
+}
+
+# OpenTelemetry Collector cluster role
+resource "kubernetes_cluster_role" "otel_collector" {
+  metadata {
+    name = "otel-collector"
+  }
+
+  rule {
+    api_groups = [""]
+    resources  = ["pods", "namespaces", "nodes", "nodes/metrics"]
+    verbs      = ["get", "list", "watch"]
+  }
+
+  rule {
+    api_groups = ["apps"]
+    resources  = ["deployments", "replicasets", "statefulsets", "daemonsets"]
+    verbs      = ["get", "list", "watch"]
+  }
+
+  rule {
+    api_groups = ["extensions"]
+    resources  = ["deployments", "replicasets", "daemonsets"]
+    verbs      = ["get", "list", "watch"]
+  }
+}
+
+# OpenTelemetry Collector cluster role binding
+resource "kubernetes_cluster_role_binding" "otel_collector" {
+  metadata {
+    name = "otel-collector"
+  }
+  role_ref {
+    api_group = "rbac.authorization.k8s.io"
+    kind      = "ClusterRole"
+    name      = kubernetes_cluster_role.otel_collector.metadata[0].name
+  }
+  subject {
+    kind      = "ServiceAccount"
+    name      = kubernetes_service_account.otel_collector.metadata[0].name
+    namespace = kubernetes_namespace.monitoring.metadata[0].name
+  }
+}
+
+# OpenTelemetry Collector config map
+resource "kubernetes_config_map" "otel_collector_config" {
+  metadata {
+    name      = "otel-collector-config"
+    namespace = kubernetes_namespace.monitoring.metadata[0].name
+  }
+
+  data = {
+    "otel-collector-config.yaml" = <<-EOT
+      receivers:
+        otlp:
+          protocols:
+            grpc:
+              endpoint: 0.0.0.0:4317
+            http:
+              endpoint: 0.0.0.0:4318
+        
+        # Collect Kubernetes cluster metrics
+        k8s_cluster:
+          collection_interval: 10s
+        
+        # Host metrics
+        hostmetrics:
+          collection_interval: 30s
+          scrapers:
+            cpu: {}
+            memory: {}
+            disk: {}
+            filesystem: {}
+            network: {}
+
+      processors:
+        batch:
+          timeout: 1s
+          send_batch_size: 1024
+        
+        resource:
+          attributes:
+            - key: service.name
+              value: "k8s-cluster"
+              action: upsert
+            - key: deployment.environment
+              value: "${var.env}"
+              action: upsert
+            - key: k8s.cluster.name
+              value: "bench-${var.env}-${var.cloud}-${var.region}-0"
+              action: upsert
+
+        k8sattributes:
+          extract:
+            metadata:
+              - k8s.pod.name
+              - k8s.pod.uid
+              - k8s.deployment.name
+              - k8s.namespace.name
+              - k8s.node.name
+              - k8s.container.name
+            labels:
+              - tag_name: app
+                key: app
+              - tag_name: version
+                key: version
+              - tag_name: env
+                key: env
+              - tag_name: cloud
+                key: cloud
+              - tag_name: region
+                key: region
+
+      exporters:
+        otlp:
+          endpoint: ${kubernetes_secret.grafana_cloud_secret.data.otlp_host}
+          tls:
+            insecure: false
+          headers:
+            Authorization: "Basic ${base64encode("${kubernetes_secret.grafana_cloud_secret.data.username}:${kubernetes_secret.grafana_cloud_secret.data.password}")}"
+        
+        debug:
+          verbosity: detailed
+
+      extensions:
+        health_check:
+          endpoint: 0.0.0.0:13133
+        pprof:
+          endpoint: 0.0.0.0:1777
+        zpages:
+          endpoint: 0.0.0.0:55679
+
+      service:
+        extensions: [health_check, pprof, zpages]
+        telemetry:
+          logs:
+            level: info
+        
+        pipelines:
+          traces:
+            receivers: [otlp]
+            processors: [batch, resource, k8sattributes]
+            exporters: [otlp, debug]
+          
+          metrics:
+            receivers: [otlp, k8s_cluster, hostmetrics]
+            processors: [batch, resource, k8sattributes]
+            exporters: [otlp, debug]
+          
+          logs:
+            receivers: [otlp]
+            processors: [batch, resource, k8sattributes]
+            exporters: [otlp, debug]
+    EOT
+  }
+}
+
+# OpenTelemetry Collector service
+resource "kubernetes_service" "otel_collector" {
+  metadata {
+    name      = "otel-collector"
+    namespace = kubernetes_namespace.monitoring.metadata[0].name
+    labels = {
+      app = "otel-collector"
+    }
+  }
+
+  spec {
+    selector = {
+      app = "otel-collector"
+    }
+
+    port {
+      name        = "otlp-grpc"
+      port        = 4317
+      target_port = 4317
+    }
+
+    port {
+      name        = "otlp-http"
+      port        = 4318
+      target_port = 4318
+    }
+  }
+}
+
+# OpenTelemetry Collector deployment
+resource "kubernetes_deployment" "otel_collector" {
+  metadata {
+    name      = "otel-collector"
+    namespace = kubernetes_namespace.monitoring.metadata[0].name
+    labels = {
+      app = "otel-collector"
+    }
+  }
+
+  spec {
+    replicas = 1
+
+    selector {
+      match_labels = {
+        app = "otel-collector"
+      }
+    }
+
+    template {
+      metadata {
+        labels = {
+          app = "otel-collector"
+        }
+        annotations = {
+          "prometheus.io/scrape" = "true"
+          "prometheus.io/port"   = "8888"
+        }
+      }
+
+      spec {
+        service_account_name = kubernetes_service_account.otel_collector.metadata[0].name
+
+        container {
+          name  = "otel-collector"
+          image = "otel/opentelemetry-collector-contrib:0.123.0"
+
+          args = [
+            "--config=/conf/otel-collector-config.yaml",
+          ]
+
+          port {
+            container_port = 4317
+            name           = "otlp-grpc"
+          }
+
+          port {
+            container_port = 4318
+            name           = "otlp-http"
+          }
+
+          port {
+            container_port = 8888
+            name           = "metrics"
+          }
+
+          env {
+            name = "NODE_NAME"
+            value_from {
+              field_ref {
+                field_path = "spec.nodeName"
+              }
+            }
+          }
+          
+          env {
+            name = "POD_NAME"
+            value_from {
+              field_ref {
+                field_path = "metadata.name"
+              }
+            }
+          }
+
+          volume_mount {
+            name       = "config"
+            mount_path = "/conf"
+          }
+
+          liveness_probe {
+            http_get {
+              path = "/"
+              port = 13133
+            }
+            initial_delay_seconds = 10
+            period_seconds        = 20
+          }
+
+          readiness_probe {
+            http_get {
+              path = "/"
+              port = 13133
+            }
+            initial_delay_seconds = 10
+            period_seconds        = 20
+          }
+
+          resources {
+            limits = {
+              cpu    = "500m"
+              memory = "500Mi"
+            }
+            requests = {
+              cpu    = "100m"
+              memory = "100Mi"
+            }
+          }
+        }
+
+        volume {
+          name = "config"
+          config_map {
+            name = kubernetes_config_map.otel_collector_config.metadata[0].name
+          }
+        }
+      }
+    }
+  }
+}
+
+
