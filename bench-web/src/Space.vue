@@ -1,8 +1,7 @@
 <script lang="ts" setup>
 import { supergraph } from "@/globals";
-import { renderTextLine } from "@/language/core/text";
 import { NodeType, Orientation, ViewType } from "@/proto/wire";
-import { isNode, toNodeRef } from "@/proto/wiring";
+import { toNodeRef } from "@/proto/wiring";
 import { spacePtr } from "@/system/client";
 import { bench, containerPtr, inspectionPtr, pagePtr, spaceConnection, spaceGraph } from "@/system/space";
 import { IS_IN_ALT_MODE } from "@/ui/command";
@@ -10,7 +9,6 @@ import { getNodeTitle } from "@/ui/icon";
 import { keytrap } from "@/ui/keymap";
 import { IS_DRAGGING, IS_DRAGGING_OR_SELECTING } from "@/ui/layout";
 import { hasActivePopover, pushDefaultContextMenu } from "@/ui/popover";
-import EmptySpace from "@/views/builtin/EmptySpace.vue";
 import Inaccessible from "@/views/builtin/Inaccessible.vue";
 import Omnibar from "@/views/builtin/Omnibar.vue";
 import Split from "@/views/containers/Split.vue";

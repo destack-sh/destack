@@ -18,6 +18,7 @@ const defaultConfig = defineConfig(({ mode }) => ({
     outDir: "dist",
     emptyOutDir: true,
     chunkSizeWarningLimit: 8 * 1024,
+    sourcemap: true,
     minify: mode !== "unminified",
     rollupOptions: {
       output: {
