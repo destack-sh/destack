@@ -120,7 +120,7 @@ class HostService(GraphServiceBase, HostBase):
         regional_store: Store,
         network: Network,
         oracle: Oracle,
-        on_error: Callable[[BaseException], None] | None = None,
+        on_error: Callable[[BaseException], None] | None,
     ):
         GraphServiceBase.__init__(
             self,

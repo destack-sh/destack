@@ -1,5 +1,6 @@
 from typing import (
     AsyncIterator,
+    Callable,
     Collection,
     Mapping,
     override,
@@ -27,9 +28,21 @@ class HealthService(ServiceBase, HealthBase):
     name = "health"
 
     def __init__(
-        self, id: str, services: Collection[ServiceBase], network: Network, oracle: Oracle
+        self,
+        id: str,
+        services: Collection[ServiceBase],
+        network: Network,
+        oracle: Oracle,
+        on_error: Callable[[BaseException], None] | None,
     ):
-        super().__init__(id=id, logger=logger, tracer=tracer, network=network, oracle=oracle)
+        super().__init__(
+            id=id,
+            logger=logger,
+            tracer=tracer,
+            network=network,
+            oracle=oracle,
+            on_error=on_error,
+        )
         self._services = services
 
     @override
