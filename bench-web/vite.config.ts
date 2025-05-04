@@ -19,7 +19,6 @@ const defaultConfig = defineConfig(({ mode }) => ({
     emptyOutDir: true,
     chunkSizeWarningLimit: 8 * 1024,
     sourcemap: true,
-    minify: mode !== "unminified",
     rollupOptions: {
       output: {
         // bundle everything into one file

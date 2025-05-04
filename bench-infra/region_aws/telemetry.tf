@@ -279,6 +279,6 @@ resource "kubernetes_service" "jaeger" {
 }
 
 #
-# nocheckin :Infra! :Robustness!: proper monitoring with OLTP metrics/spans/logs/alerts (in one place?)
+# TODO :Infra! :Robustness!: proper monitoring with OLTP metrics/spans/logs/alerts (in one place?)
 #  (Prometheus/Grafana? Honeycomb? Signoz?)
 # 

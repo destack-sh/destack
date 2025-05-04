@@ -1,7 +1,7 @@
 import { pretendReadonly } from "@/utils/ref";
 import { ref } from "vue";
 
-export const VERSION = "2025.05.04.5";
+export const VERSION = "2025.05.04.6";
 
 // global environment variables :BenchWebEnv
 export const COMMIT = import.meta.env.VITE_COMMIT;
