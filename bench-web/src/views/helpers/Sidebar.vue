@@ -1,7 +1,7 @@
 <script lang="ts" setup>
-import { NodeReferenceData, NodeType, NodeTypeOptionInfo, Orientation, ViewData } from "@/proto/wire";
+import { NodeType, NodeTypeOptionInfo, Orientation, ViewData } from "@/proto/wire";
 import { TypedNodeReferenceData } from "@/proto/wiring";
-import { bench, benchConnection, canvas, hasLocalBench } from "@/system/space";
+import { bench, canvas, hasLocalBench } from "@/system/space";
 import { isAuthenticated, user, userConnection } from "@/system/user";
 import { CommandBuiltinId, fireCommand, fireCommandById, getCommand } from "@/ui/command";
 import { startSelectingIfAllowed, useSelectionZone } from "@/ui/drag";

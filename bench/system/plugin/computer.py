@@ -24,8 +24,8 @@ from bench.proto import dockerify_url, minikubeify_url
 from bench.system.core.access import ACCESS_TOKEN_LENGTH
 from bench.utils.env import ENV, IS_DEV, IS_TEST
 from bench.utils.func import generate_access_token
-from bench.utils.telemetry import OTLP_ENDPOINT, POSTHOG_TOKEN
-from bench.utils.utils import get_from_env
+from bench.utils.telemetry import OTLP_ENDPOINT
+from bench.utils.utils import get_from_env, get_from_env_maybe
 
 from .kubernetes import KUBERNETES_COMPUTER_APP_LABEL, KUBERNETES_NAMESPACE, KubernetesApi
 from .provisioner import Provisioner
@@ -63,12 +63,24 @@ COMPUTER_VNC_PORT = get_from_env(
     description="Port to expose for the computer's VNC service (ws)",
 )
 
+# TODO :Security: review which keys to pass to semi-trusted computers and how
+COMPUTER_SECRET_ENV_KEYS = (
+    "ANTHROPIC_API_KEY",
+    "OPENAI_API_KEY",
+    "GEMINI_API_KEY",
+    "XAI_API_KEY",
+    "OPENROUTER_API_KEY",
+    "EXA_API_KEY",
+    "UNSPLASH_ACCESS_KEY",
+    "POSTHOG_HOST",
+    "POSTHOG_TOKEN",
+)
+
 
 def _get_computer_env_vars(
     computer: Computer,
     client: Client,
     *,
-    is_trusted: bool,
     is_in_docker: bool = False,
     is_in_minikube: bool = False,
 ) -> dict[str, str]:
@@ -103,17 +115,12 @@ def _get_computer_env_vars(
         "TRACING": "1",
         "LOG_LEVEL": "DEBUG",
         "LOG_MODE": "JSON",
-        "POSTHOG_TOKEN": POSTHOG_TOKEN,
-        "POSTHOG_HOST": "https://eu.i.posthog.com",
         "DISPLAY_SIZE": f"{computer.width}x{computer.height}x24",
     }
 
-    # add secret api keys directly (for testing/development)
-    if is_trusted:
-        env_vars["OPENAI_API_KEY"] = get_from_env("OPENAI_API_KEY", description="OpenAI API key")
-        env_vars["ANTHROPIC_API_KEY"] = get_from_env(
-            "ANTHROPIC_API_KEY", description="Anthropic API key"
-        )
+    # add secret keys
+    for key in COMPUTER_SECRET_ENV_KEYS:
+        env_vars[key] = get_from_env_maybe(key)
 
     return {k: v for k, v in env_vars.items() if v}
 
@@ -191,12 +198,7 @@ class DockerComputerProvisioner(ComputerProvisioner):
         client = await self._get_or_create_client(resource)
         grpc_port = random.randint(60100, 65000)
         vnc_port = random.randint(60100, 65000)
-        env_vars = _get_computer_env_vars(
-            computer=resource,
-            client=client,
-            is_trusted=resource.type == ComputerType.RUNTIME,
-            is_in_docker=True,
-        )
+        env_vars = _get_computer_env_vars(computer=resource, client=client, is_in_docker=True)
         computer_id_prefix = str(resource.id).split("-")[0]
         external_name = f"bench-{ENV.value}-{CLOUD.slug}-{resource.region.slug}-{resource.type.name.lower()}-computer-{computer_id_prefix}"
         image = _get_computer_image(resource)
@@ -314,10 +316,7 @@ class KubernetesComputerProvisioner(ComputerProvisioner):
         }
         # TODO :Security!: kubernetes-deployed runtime computers should not be trusted
         env_vars = _get_computer_env_vars(
-            computer=computer,
-            client=client,
-            is_trusted=computer.type == ComputerType.RUNTIME,
-            is_in_minikube=IS_DEV or IS_TEST,
+            computer=computer, client=client, is_in_minikube=IS_DEV or IS_TEST
         )
 
         # pod
