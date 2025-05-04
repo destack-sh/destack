@@ -10,6 +10,7 @@ aiohttp==3.11.11
     # via
     #   -r bench/requirements/base.in
     #   aiodocker
+    #   discord-py
     #   kubernetes-asyncio
     #   livekit-agents
     #   livekit-api
@@ -32,6 +33,8 @@ attrs==25.3.0
     #   aiohttp
     #   jsonschema
     #   referencing
+audioop-lts==0.2.1
+    # via discord-py
 backoff==2.2.1
     # via posthog
 bitarray==2.9.2
@@ -81,6 +84,8 @@ deprecated==1.2.18
     #   opentelemetry-api
     #   opentelemetry-exporter-otlp-proto-grpc
     #   opentelemetry-semantic-conventions
+discord-py==2.5.2
+    # via -r bench/requirements/base.in
 distro==1.9.0
     # via
     #   anthropic

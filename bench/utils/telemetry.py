@@ -1,7 +1,7 @@
 from pathlib import Path
 from time import time_ns
 from typing import Any, Mapping, Optional, cast
-from uuid import UUID
+from uuid import UUID, uuid4
 
 import structlog
 from opentelemetry import baggage, context, metrics, trace
@@ -10,6 +10,7 @@ from opentelemetry.sdk.metrics import MeterProvider
 from opentelemetry.sdk.metrics.export import PeriodicExportingMetricReader
 from opentelemetry.sdk.resources import (
     DEPLOYMENT_ENVIRONMENT,
+    SERVICE_INSTANCE_ID,
     SERVICE_NAME,
     SERVICE_VERSION,
     Resource,
@@ -101,6 +102,7 @@ def setup_telemetry():
                 SERVICE_NAME: get_from_env(
                     "SERVICE_NAME", default="cli" if IS_DEV else None, description="Service name"
                 ),
+                SERVICE_INSTANCE_ID: str(uuid4()),
                 SERVICE_VERSION: VERSION,
                 DEPLOYMENT_ENVIRONMENT: ENV,
             }
@@ -112,10 +114,10 @@ def setup_telemetry():
         tracer_provider.add_span_processor(_processor)
         trace.set_tracer_provider(tracer_provider)
 
-        reader = PeriodicExportingMetricReader(
+        _reader = PeriodicExportingMetricReader(
             OTLPMetricExporter(endpoint=OTLP_ENDPOINT, insecure=True),
         )
-        meter_provider = MeterProvider(resource=resource, metric_readers=[reader])
+        meter_provider = MeterProvider(resource=resource, metric_readers=[_reader])
         metrics.set_meter_provider(meter_provider)
         logger.debug("telemetry.otlp.setup", endpoint=OTLP_ENDPOINT)
     else:

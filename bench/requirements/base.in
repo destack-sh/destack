@@ -10,6 +10,7 @@ browserbase==1.0.0
 cachetools==5.2.0
 certifi==2024.7.4
 croniter==1.4.1
+discord.py==2.5.2
 duckdb==1.1.1
 exa-py==1.12.0
 googleapis-common-protos==1.66.0
