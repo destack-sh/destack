@@ -220,10 +220,10 @@ resource "kubernetes_secret" "grafana_cloud_secret" {
   }
 
   data = {
-    "logs_url"   = "https://logs-prod-039.grafana.net/loki/api/v1/push"
-    "otlp_host"  = "otlp-gateway-prod-eu-central-0.grafana.net:443"
-    "username"   = "1203865"
-    "password"   = var.grafana_cloud_token
+    "logs_url" = "https://logs-prod-039.grafana.net/loki/api/v1/push"
+    "otlp_url" = "https://otlp-gateway-prod-eu-central-0.grafana.net/otlp"
+    "username" = "1203865"
+    "password" = var.grafana_cloud_token
   }
 }
 
@@ -515,7 +515,7 @@ resource "kubernetes_cluster_role" "otel_collector" {
 
   rule {
     api_groups = [""]
-    resources  = ["pods", "namespaces", "nodes", "nodes/metrics"]
+    resources  = ["pods", "namespaces", "nodes", "nodes/metrics", "services", "endpoints", "replicationcontrollers", "resourcequotas", "limitranges", "persistentvolumeclaims", "persistentvolumes", "configmaps", "secrets"]
     verbs      = ["get", "list", "watch"]
   }
 
@@ -528,6 +528,18 @@ resource "kubernetes_cluster_role" "otel_collector" {
   rule {
     api_groups = ["extensions"]
     resources  = ["deployments", "replicasets", "daemonsets"]
+    verbs      = ["get", "list", "watch"]
+  }
+
+  rule {
+    api_groups = ["batch"]
+    resources  = ["jobs", "cronjobs"]
+    verbs      = ["get", "list", "watch"]
+  }
+
+  rule {
+    api_groups = ["autoscaling"]
+    resources  = ["horizontalpodautoscalers"]
     verbs      = ["get", "list", "watch"]
   }
 }
@@ -566,10 +578,6 @@ resource "kubernetes_config_map" "otel_collector_config" {
             http:
               endpoint: 0.0.0.0:4318
         
-        # Collect Kubernetes cluster metrics
-        k8s_cluster:
-          collection_interval: 10s
-        
         # Host metrics
         hostmetrics:
           collection_interval: 30s
@@ -582,7 +590,7 @@ resource "kubernetes_config_map" "otel_collector_config" {
 
       processors:
         batch:
-          timeout: 1s
+          timeout: 5s
           send_batch_size: 1024
         
         resource:
@@ -611,25 +619,12 @@ resource "kubernetes_config_map" "otel_collector_config" {
                 key: app
               - tag_name: version
                 key: version
-              - tag_name: env
-                key: env
-              - tag_name: cloud
-                key: cloud
-              - tag_name: region
-                key: region
-
-      exporters:
-        otlp:
-          endpoint: ${kubernetes_secret.grafana_cloud_secret.data.otlp_host}
-          tls:
-            insecure: false
-          headers:
-            Authorization: "Basic ${base64encode("${kubernetes_secret.grafana_cloud_secret.data.username}:${kubernetes_secret.grafana_cloud_secret.data.password}")}"
-        
-        debug:
-          verbosity: detailed
 
       extensions:
+        basicauth:
+          client_auth:
+            username: "${kubernetes_secret.grafana_cloud_secret.data.username}"
+            password: ${kubernetes_secret.grafana_cloud_secret.data.password}
         health_check:
           endpoint: 0.0.0.0:13133
         pprof:
@@ -637,8 +632,18 @@ resource "kubernetes_config_map" "otel_collector_config" {
         zpages:
           endpoint: 0.0.0.0:55679
 
+      exporters:
+        otlphttp:
+          endpoint: ${kubernetes_secret.grafana_cloud_secret.data.otlp_url}
+          auth:
+            authenticator: basicauth
+          compression: gzip
+        
+        debug:
+          verbosity: detailed
+
       service:
-        extensions: [health_check, pprof, zpages]
+        extensions: [basicauth, health_check, pprof, zpages]
         telemetry:
           logs:
             level: info
@@ -647,17 +652,17 @@ resource "kubernetes_config_map" "otel_collector_config" {
           traces:
             receivers: [otlp]
             processors: [batch, resource, k8sattributes]
-            exporters: [otlp, debug]
+            exporters: [otlphttp, debug]
           
           metrics:
-            receivers: [otlp, k8s_cluster, hostmetrics]
+            receivers: [otlp, hostmetrics]
             processors: [batch, resource, k8sattributes]
-            exporters: [otlp, debug]
+            exporters: [otlphttp, debug]
           
           logs:
             receivers: [otlp]
             processors: [batch, resource, k8sattributes]
-            exporters: [otlp, debug]
+            exporters: [debug]
     EOT
   }
 }
@@ -726,7 +731,7 @@ resource "kubernetes_deployment" "otel_collector" {
 
         container {
           name  = "otel-collector"
-          image = "otel/opentelemetry-collector-contrib:0.123.0"
+          image = "otel/opentelemetry-collector-contrib:0.121.0"
 
           args = [
             "--config=/conf/otel-collector-config.yaml",
@@ -755,7 +760,7 @@ resource "kubernetes_deployment" "otel_collector" {
               }
             }
           }
-          
+
           env {
             name = "POD_NAME"
             value_from {
