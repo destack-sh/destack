@@ -222,7 +222,7 @@ resource "kubernetes_secret" "grafana_cloud_secret" {
   data = {
     "logs_url" = "https://logs-prod-039.grafana.net/loki/api/v1/push"
     "otlp_url" = "https://otlp-gateway-prod-eu-central-0.grafana.net/otlp"
-    "username" = "1203865"
+    "username" = "1246070"
     "password" = var.grafana_cloud_token
   }
 }
@@ -620,11 +620,16 @@ resource "kubernetes_config_map" "otel_collector_config" {
               - tag_name: version
                 key: version
 
+      exporters:
+        otlphttp:
+          endpoint: ${kubernetes_secret.grafana_cloud_secret.data.otlp_url}
+          headers:
+            Authorization: "Basic ${base64encode("${kubernetes_secret.grafana_cloud_secret.data.username}:${kubernetes_secret.grafana_cloud_secret.data.password}")}"
+
+        debug:
+          verbosity: detailed
+
       extensions:
-        basicauth:
-          client_auth:
-            username: "${kubernetes_secret.grafana_cloud_secret.data.username}"
-            password: ${kubernetes_secret.grafana_cloud_secret.data.password}
         health_check:
           endpoint: 0.0.0.0:13133
         pprof:
@@ -632,18 +637,8 @@ resource "kubernetes_config_map" "otel_collector_config" {
         zpages:
           endpoint: 0.0.0.0:55679
 
-      exporters:
-        otlphttp:
-          endpoint: ${kubernetes_secret.grafana_cloud_secret.data.otlp_url}
-          auth:
-            authenticator: basicauth
-          compression: gzip
-        
-        debug:
-          verbosity: detailed
-
       service:
-        extensions: [basicauth, health_check, pprof, zpages]
+        extensions: [health_check, pprof, zpages]
         telemetry:
           logs:
             level: info
