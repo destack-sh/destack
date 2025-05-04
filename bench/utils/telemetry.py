@@ -66,7 +66,12 @@ def set_baggage(**kwargs):
 def capture_exception(exception: BaseException):
     if _posthog is not None:
         _posthog.capture_exception(exception)
-    logger.debug("telemetry.capture_exception", exc_info=exception)
+    logger.debug(
+        "telemetry.capture_exception",
+        exc_info=exception,
+        posthog_token=POSTHOG_TOKEN[:10] + "..." if POSTHOG_TOKEN else None,
+        posthog_host=POSTHOG_HOST,
+    )
 
 
 def setup_telemetry():
@@ -77,7 +82,11 @@ def setup_telemetry():
     # errors
     if not (IS_DEBUG or IS_DEV or IS_TEST):
         _posthog = Posthog(POSTHOG_TOKEN, host=POSTHOG_HOST, enable_exception_autocapture=True)
-        logger.debug("telemetry.posthog.setup", posthog=_posthog)
+        logger.debug(
+            "telemetry.posthog.setup",
+            posthog_token=POSTHOG_TOKEN[:10] + "..." if POSTHOG_TOKEN else None,
+            posthog_host=POSTHOG_HOST,
+        )
     else:
         logger.debug("telemetry.posthog.disabled")
 

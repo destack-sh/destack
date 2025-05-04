@@ -10,6 +10,7 @@ from opentelemetry import trace
 
 from bench.language import (
     CLOUD,
+    VERSION,
     Bench,
     Client,
     ClientType,
@@ -473,41 +474,10 @@ class KubernetesComputerProvisioner(ComputerProvisioner):
 
     @override
     async def _do_update(self, resource: Computer):
-        target_diff = resource._get_target_diff("cpu", "ram", "version")
-        if (
-            resource.status.is_extant
-            and resource.requested_reset_at is not None
-            and resource.requested_activate_at is not None
-            and resource.requested_reset_at > resource.requested_activate_at
-        ):
+        if resource.should_reset or resource.version != VERSION:
             # 'restart' by deleting it (to be recreated)
             assert resource.external_name is not None, f"{resource!r} has no external name"
             await self.kubernetes_api.delete_pod(resource.external_name)
-        elif target_diff:
-            assert resource.external_name is not None, f"{resource!r} has no external name"
-            client = await self._get_or_create_client(resource)
-            pod = self._make_pod_from_computer(resource, client)
-            if "version" in target_diff:
-                # replace full pod (to be recreated)
-                await self.kubernetes_api.delete_pod(resource.external_name)
-            else:
-                # patch pod in place
-                pod_patch = {
-                    "spec": {
-                        "containers": [
-                            {
-                                "name": "main",
-                                "resources": {
-                                    "requests": self._get_pod_resources_requests(resource),
-                                    "limits": self._get_pod_resources_limits(resource),
-                                },
-                            }
-                        ]
-                    }
-                }
-                await self.kubernetes_api.patch_pod(resource.external_name, pod_patch)
-                async with self.host.session(commit=True):
-                    self._update_computer_from_pod(resource, pod)
 
     @override
     async def _do_decommission(self, resource: Computer):

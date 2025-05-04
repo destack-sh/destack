@@ -70,7 +70,7 @@ watch(
   bench,
   () => {
     if (bench.value != null) {
-      globalThis.history.replaceState({}, "", `/${bench.value.slug}`);
+      globalThis.history.replaceState({}, "", `/@${bench.value.slug}`);
     } else {
       globalThis.history.replaceState({}, "", "/");
     }
