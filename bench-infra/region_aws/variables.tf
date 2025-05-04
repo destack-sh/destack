@@ -211,3 +211,9 @@ variable "ip_api_key" {
   description = "IP Geolocation API key"
   sensitive   = true
 }
+
+variable "grafana_cloud_token" {
+  type        = string
+  description = "Grafana Cloud API token"
+  sensitive   = true
+}

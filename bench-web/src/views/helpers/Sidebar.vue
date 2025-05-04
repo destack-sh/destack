@@ -60,7 +60,7 @@ defineExpose<ViewExpose>({ self });
     >
       <!-- Bench button -->
       <div
-        class="mx-2.5 my-1.5 flex cursor-pointer flex-row items-center truncate rounded-sm px-2 transition-colors duration-75 hover:bg-gray-100"
+        class="my-1.5 mr-2.5 ml-2 flex cursor-pointer flex-row items-center truncate rounded-sm px-2 transition-colors duration-75 hover:bg-gray-100"
         :data-node-id="bench?.id"
         :data-node-type="bench?.metatype"
         :style="{
@@ -69,22 +69,7 @@ defineExpose<ViewExpose>({ self });
         :disabled="bench == null"
         @click="bench != null && canvas.inspect({ node: bench! })"
       >
-        <IconInline
-          v-tooltip="{ title: 'Change icon', small: true }"
-          v-menu="
-            (): PopoverInfoIn => ({
-              kind: 'view',
-              component: Icon,
-              placement: 'bottom-right',
-              offset: '-referenceWidth',
-              props: { modelValue: (bench as any)!.icon, isInput: true },
-              onApply: (newIcon) => benchConnection.tx.update(bench!, { icon: newIcon }),
-            })
-          "
-          v-bind="bench != null ? getNodeIcon(bench) : makeIcon(NodeTypeOptionInfo[NodeType.BENCH]!.icon!)"
-          role="button"
-          class="mr-1 w-5 text-center"
-        />
+        <img class="mr-1 h-6 w-6" src="/favicon.ico" />
         <span v-if="bench" class="truncate font-medium">{{ bench.name }}</span>
         <span v-else class="italic"> Bench </span>
       </div>

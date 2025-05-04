@@ -8,16 +8,6 @@ variable "env" {
   description = "Environment name"
 }
 
-#
-# Cloudflare
-# 
-
-variable "cloudflare_api_token" {
-  type        = string
-  description = "Cloudflare API key"
-  sensitive   = true
-}
-
 # 
 # AWS
 # 
@@ -62,6 +52,18 @@ variable "global_pg_username" {
 # 
 # 3rd party secrets
 # 
+
+variable "cloudflare_api_token" {
+  type        = string
+  description = "Cloudflare API key"
+  sensitive   = true
+}
+
+variable "grafana_cloud_token" {
+  type        = string
+  description = "Grafana Cloud API key"
+  sensitive   = true
+}
 
 variable "posthog_token" {
   type        = string

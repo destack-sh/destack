@@ -181,6 +181,7 @@ module "region_aws_eu_frankfurt" {
   unsplash_access_key = var.unsplash_access_key
   posthog_token       = var.posthog_token
   posthog_host        = var.posthog_host
+  grafana_cloud_token = var.grafana_cloud_token
 }
 
 # TODO :Infra!: handle multiple supervisor regions/urls? (especially for write access) :MultiRegion
