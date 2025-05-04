@@ -12,7 +12,7 @@ from bench.pb2 import SupervisorClient
 from bench.proto import GrpcServer, Network, RealNetwork, ServiceBase
 from bench.utils.env import ENV, IS_DEV
 from bench.utils.oracle import REAL_ORACLE
-from bench.utils.telemetry import capture_exception, setup_telemetry
+from bench.utils.telemetry import capture_exception
 from bench.utils.utils import get_from_env, get_from_env_maybe
 from bench.utils.watch import restart_on_file_changes
 
@@ -73,7 +73,6 @@ async def _do_serve(
     handlers: list[ServiceBase], *, network: Network, host: str, port: int, watch: bool
 ):
     """Serves the given handlers."""
-    setup_telemetry()
     logger.info("serve", handlers=handlers, host=host, port=port, env=ENV)
     start = time_ns()
     server = GrpcServer(handlers=handlers, network=network, oracle=REAL_ORACLE)

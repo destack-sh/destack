@@ -3,6 +3,7 @@ from time import time_ns
 from typing import Any, Mapping, Optional, cast
 from uuid import UUID
 
+import structlog
 from opentelemetry import baggage, context, metrics, trace
 from opentelemetry.baggage.propagation import W3CBaggagePropagator
 from opentelemetry.sdk.metrics import MeterProvider
@@ -18,13 +19,18 @@ from opentelemetry.sdk.trace.export import BatchSpanProcessor
 from opentelemetry.trace.propagation.tracecontext import TraceContextTextMapPropagator
 from posthog import Posthog
 
-from bench.utils.env import ENV, IS_DEBUG, IS_DEV, IS_TEST
-from bench.utils.utils import get_from_env, get_from_env_maybe
+from .env import ENV, IS_DEBUG, IS_DEV, IS_TEST
+from .logging import setup_logging
+from .utils import get_from_env, get_from_env_maybe
+
+setup_logging()  # ensure logging is setup first
 
 VERSION = Path("version").read_text().strip()
 POSTHOG_TOKEN = get_from_env("POSTHOG_TOKEN", description="PostHog public API key")
 POSTHOG_HOST = get_from_env_maybe("POSTHOG_HOST", description="Full URL to send PostHog events to")
 OTLP_ENDPOINT = get_from_env_maybe("OTLP_ENDPOINT", description="Full URL to send OTLP traces to")
+
+logger = structlog.get_logger(__name__)
 
 _did_setup_telemetry = False
 _processor: BatchSpanProcessor | None = None
@@ -58,8 +64,9 @@ def set_baggage(**kwargs):
 
 
 def capture_exception(exception: BaseException):
-    if _posthog:
+    if _posthog is not None:
         _posthog.capture_exception(exception)
+    logger.debug("telemetry.capture_exception", exc_info=exception)
 
 
 def setup_telemetry():
@@ -70,6 +77,9 @@ def setup_telemetry():
     # errors
     if not (IS_DEBUG or IS_DEV or IS_TEST):
         _posthog = Posthog(POSTHOG_TOKEN, host=POSTHOG_HOST, enable_exception_autocapture=True)
+        logger.debug("telemetry.posthog.setup", posthog=_posthog)
+    else:
+        logger.debug("telemetry.posthog.disabled")
 
     # tracing
     TRACING = get_from_env("TRACING", typ=bool, description="Enable tracing")
@@ -98,6 +108,9 @@ def setup_telemetry():
         )
         meter_provider = MeterProvider(resource=resource, metric_readers=[reader])
         metrics.set_meter_provider(meter_provider)
+        logger.debug("telemetry.otlp.setup", endpoint=OTLP_ENDPOINT)
+    else:
+        logger.debug("telemetry.oltp.disabled")
 
     _did_setup_telemetry = True
 
