@@ -1,5 +1,5 @@
 from datetime import datetime, timedelta
-from typing import TYPE_CHECKING, Any, Optional, Union
+from typing import TYPE_CHECKING, Optional, Union
 from uuid import UUID
 
 from bench.pb2 import AnyNodeData
@@ -117,8 +117,6 @@ class Resource[NodeDataT: AnyNodeData](
 ):
     """
     A Resource in a Bench.
-    Resources generally work on the 'desired state' principle.
-    Where applicable, the target state is stored in target_* properties.
     """
 
     # meta
@@ -155,26 +153,21 @@ class ProvisionableResource[NodeDataT: AnyNodeData](Resource[NodeDataT]):
     def __content_str__(self):
         return Node.__default_content_str__(self)
 
-    def _get_target_diff(self, *keys: str) -> dict[str, Any]:
-        """
-        Checks whether specific properties <key> differ from their target_<key> values.
-        Returns the target values of differing properties.
-        """
-        target_diff: dict[str, Any] = {}
-        for key in keys:
-            prop = self.__properties__.get(key)
-            assert prop is not None, f"no property '{key}' in {self.__class__.__name__}"
-            current_value = getattr(self, key)
-            target_value = getattr(self, f"target_{key}")
-            if current_value != target_value:
-                target_diff[key] = target_value
-        return target_diff
-
     @property
     def should_retry(self) -> bool:
         """Whether this Resource should be retried."""
         return self.failed_at is None or (
             self.requested_reset_at is not None and self.requested_reset_at > self.failed_at
+        )
+
+    @property
+    def should_reset(self) -> bool:
+        """Whether this Resource should be reset."""
+        return (
+            self.status.is_extant
+            and self.requested_reset_at is not None
+            and self.requested_activate_at is not None
+            and self.requested_reset_at > self.requested_activate_at
         )
 
     @property
