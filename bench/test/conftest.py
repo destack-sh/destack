@@ -40,8 +40,10 @@ def _setup_test_env():
     setup_env()
 
     from bench.utils.logging import setup_logging
+    from bench.utils.telemetry import setup_telemetry
 
     setup_logging()
+    setup_telemetry()
 
     from bench.language import _complete_bench_setup
 
