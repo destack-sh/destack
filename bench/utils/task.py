@@ -32,7 +32,7 @@ class TaskManager:
         owner: Any,
         logger: Any,
         oracle: Oracle,
-        on_error: Callable[[BaseException], None] | None = None,
+        on_error: Callable[[BaseException], None] | None,
         task_id_prefix: str | None = None,
     ):
         self._active_tasks: list[asyncio.Task] = []
@@ -42,6 +42,7 @@ class TaskManager:
         self._oracle = oracle
         self._on_error = on_error
         self._task_id_prefix = task_id_prefix
+        self._is_closed = False
 
     @property
     def healthy(self):
@@ -86,16 +87,16 @@ class TaskManager:
         task_id: str,
         skip_errors: bool,
     ):
-        while True:
+        while not self._is_closed:
             try:
                 await coro()
-            except Exception as e:
+            except BaseException as e:
                 self._logger.exception(
                     f"{task_id}.error", task_id=task_id, owner=self._owner, exc_info=e
                 )
+                if self._on_error is not None:
+                    self._on_error(e)
                 if not skip_errors:
-                    if self._on_error is not None:
-                        self._on_error(e)
                     self._errors.append(e)
                     raise
 
@@ -203,6 +204,7 @@ class TaskManager:
         self._active_tasks.append(task)
 
     def close(self):
+        self._is_closed = True
         for task in self._active_tasks:
             with contextlib.suppress(asyncio.CancelledError, RuntimeError):  # see above
                 task.cancel()
