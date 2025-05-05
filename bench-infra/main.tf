@@ -171,6 +171,7 @@ module "region_aws_eu_frankfurt" {
   neon_api_key        = var.neon_api_key
   neon_base_url       = var.neon_base_url
   openai_api_key      = var.openai_api_key
+  gemini_api_key      = var.gemini_api_key
   anthropic_api_key   = var.anthropic_api_key
   openrouter_api_key  = var.openrouter_api_key
   xai_api_key         = var.xai_api_key
