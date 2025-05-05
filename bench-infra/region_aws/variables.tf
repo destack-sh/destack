@@ -48,11 +48,6 @@ variable "host_grpc_port" {
   default     = 60061
 }
 
-variable "supervisor_url" {
-  type        = string
-  description = "Supervisor URL"
-}
-
 # 
 # DB
 # 

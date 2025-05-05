@@ -149,7 +149,6 @@ module "region_aws_eu_frankfurt" {
   is_primary             = true
   aws_availability_zones = ["eu-central-1a", "eu-central-1b"]
   host_map               = local.host_map
-  supervisor_url         = "https://supervisor.heybench.com:60061"
 
   # aws
   vpc_network_cidr            = "10.1.0.0/16"
