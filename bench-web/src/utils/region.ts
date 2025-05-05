@@ -178,6 +178,40 @@ export const DEFAULT_REGION_BY_AREA: Partial<Record<Continent, Region>> = {
   [Continent.AUSTRALIA]: Region.SYDNEY,
 };
 
+export const DEFAULT_REGION_BY_CONTINENT: Partial<Record<Continent, Region>> = {
+  [Continent.EUROPE]: Region.FRANKFURT,
+  [Continent.NORTH_AMERICA]: Region.VIRGINIA,
+  [Continent.SOUTH_AMERICA]: Region.SAO_PAULO,
+  [Continent.AFRICA]: Region.CAPE_TOWN,
+  [Continent.ASIA]: Region.SINGAPORE,
+  [Continent.AUSTRALIA]: Region.SYDNEY,
+};
+
+export const REGION_CONTINENT_SLUGS: Partial<Record<Continent, string>> = {
+  [Continent.EUROPE]: "eu",
+  [Continent.NORTH_AMERICA]: "na",
+  [Continent.SOUTH_AMERICA]: "sa",
+  [Continent.MIDDLE_EAST]: "me",
+  [Continent.AFRICA]: "af",
+  [Continent.ASIA]: "as",
+  [Continent.AUSTRALIA]: "au",
+};
+
+export const REGION_SLUGS: Partial<Record<Region, string>> = {
+  [Region.ZURICH]: "eu-zurich",
+  [Region.FRANKFURT]: "eu-frankfurt",
+  [Region.VIRGINIA]: "na-virginia",
+  [Region.SAO_PAULO]: "sa-sao-paulo",
+  [Region.CAPE_TOWN]: "af-cape-town",
+  [Region.MUMBAI]: "as-mumbai",
+  [Region.SINGAPORE]: "as-singapore",
+  [Region.SYDNEY]: "au-sydney",
+};
+
+export function getRegionSlug(region: Region): string {
+  return REGION_SLUGS[region] ?? Region[region].toLowerCase().replace("_", "-");
+}
+
 const _geolocation: Ref<Geolocation | null> = shallowRef(null);
 
 function _useGeolocation() {
@@ -213,12 +247,3 @@ function _useGeolocation() {
 
 export const useGeolocation = createSharedComposable(_useGeolocation);
 export const GEOLOCATION = useGeolocation().location;
-
-export const DEFAULT_REGION_BY_CONTINENT: Partial<Record<Continent, Region>> = {
-  [Continent.EUROPE]: Region.FRANKFURT,
-  [Continent.NORTH_AMERICA]: Region.VIRGINIA,
-  [Continent.SOUTH_AMERICA]: Region.SAO_PAULO,
-  [Continent.AFRICA]: Region.CAPE_TOWN,
-  [Continent.ASIA]: Region.SINGAPORE,
-  [Continent.AUSTRALIA]: Region.SYDNEY,
-};
