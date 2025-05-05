@@ -29,7 +29,7 @@ const window = computed(() => windows.value[0]); // assumes :OneRootWindow for n
 const omnibarRef = ref<InstanceType<typeof Omnibar> | null>(null);
 
 // suppress save everywhere
-const unbind = keytrap.bind(["ctrl+s", "mod+s"], () => true);
+const unbind = keytrap.bind(["ctrl+s", "mod+s"], () => true, { replace: true });
 onBeforeUnmount(() => unbind()); // for hot reload
 
 // sync browser title
