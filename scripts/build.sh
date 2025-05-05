@@ -24,6 +24,26 @@ posthog-cli --host https://eu.posthog.com sourcemap inject --directory bench-web
 posthog-cli --host https://eu.posthog.com sourcemap upload --directory bench-web/dist/assets
 rm bench-web/dist/assets/*.map
 
+# push Docker image with retries
+push_with_retry() {
+  local tag=$1
+  local max_attempts=3
+  local attempt=1
+  
+  while [ $attempt -le $max_attempts ]; do
+    if docker push $tag; then
+      return 0
+    else
+      if [ $attempt -lt $max_attempts ]; then
+        sleep 5
+      fi
+      attempt=$((attempt+1))
+    fi
+  done
+  
+  return 1
+}
+
 # build all images
 # image names and their corresponding Dockerfiles
 IMAGES=("bench-system" "bench-computer-runtime" "bench-computer-ubuntu-desktop" "bench-computer-ubuntu-terminal")
@@ -44,8 +64,8 @@ for i in "${!IMAGES[@]}"; do
     --build-arg GIT_COMMIT=$GIT_COMMIT \
     --build-arg VERSION=$VERSION
 
-  # push to GHCR
-  docker push ghcr.io/symbolx/$IMAGE:latest
-  docker push ghcr.io/symbolx/$IMAGE:$GIT_COMMIT
-  docker push ghcr.io/symbolx/$IMAGE:$VERSION
+  # push to GHCR with retry logic
+  push_with_retry "ghcr.io/symbolx/$IMAGE:latest"
+  push_with_retry "ghcr.io/symbolx/$IMAGE:$GIT_COMMIT"
+  push_with_retry "ghcr.io/symbolx/$IMAGE:$VERSION"
 done
