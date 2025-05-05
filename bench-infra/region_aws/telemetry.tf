@@ -657,6 +657,7 @@ resource "kubernetes_cluster_role_binding" "otel_collector" {
 }
 
 # OpenTelemetry Collector config map
+# NOTE :Infra :Robustness: the otel_collector 'kubelet' job errors but the collector overall seems to work fine?
 resource "kubernetes_config_map" "otel_collector_config" {
   metadata {
     name      = "otel-collector-config"
@@ -731,28 +732,28 @@ resource "kubernetes_config_map" "otel_collector_config" {
                   - source_labels: [__meta_kubernetes_service_name]
                     target_label: service
 
-              - job_name: 'kubelet'
-                scheme: https
-                tls_config:
-                  insecure_skip_verify: true
-                authorization:
-                  type: "Bearer"
-                  credentials_file: "/var/run/secrets/kubernetes.io/serviceaccount/token"
-                kubernetes_sd_configs:
-                  - role: node
-                relabel_configs:
-                  - action: labelmap
-                    regex: __meta_kubernetes_node_label_(.+)
-                  - target_label: __address__
-                    replacement: kubernetes.default.svc:443
-                  - source_labels: [__meta_kubernetes_node_name]
-                    regex: (.+)
-                    target_label: __metrics_path__
-                    replacement: /api/v1/nodes/${1}/proxy/metrics
-                metric_relabel_configs:
-                  - action: keep
-                    regex: 'kubelet_(.+)|container_(.+)|machine_(.+)|node_(.+)'
-                    source_labels: [__name__]
+              # - job_name: 'kubelet'
+              #   scheme: https
+              #   tls_config:
+              #     insecure_skip_verify: true
+              #   authorization:
+              #     type: "Bearer"
+              #     credentials_file: "/var/run/secrets/kubernetes.io/serviceaccount/token"
+              #   kubernetes_sd_configs:
+              #     - role: node
+              #   relabel_configs:
+              #     - action: labelmap
+              #       regex: __meta_kubernetes_node_label_(.+)
+              #     - target_label: __address__
+              #       replacement: kubernetes.default.svc:443
+              #     - source_labels: [__meta_kubernetes_node_name]
+              #       regex: (.+)
+              #       target_label: __metrics_path__
+              #       replacement: /api/v1/nodes/${1}/proxy/metrics
+              #   metric_relabel_configs:
+              #     - action: keep
+              #       regex: 'kubelet_(.+)|container_(.+)|machine_(.+)|node_(.+)'
+              #       source_labels: [__name__]
 
               - job_name: 'kubernetes-cadvisor'
                 scheme: https
@@ -805,6 +806,7 @@ resource "kubernetes_config_map" "otel_collector_config" {
         batch:
           timeout: 5s
           send_batch_size: 1024
+          send_batch_max_size: 20000
         
         resource:
           attributes:
