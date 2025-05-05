@@ -221,6 +221,8 @@ class DockerComputerProvisioner(ComputerProvisioner):
             resource.grpc_url = f"http://localhost:{grpc_port}"
             if not resource.is_headless:
                 resource.vnc_url = f"ws://localhost:{vnc_port}"
+            else:
+                resource.vnc_url = None
             self._set_resource_status(resource, ResourceStatus.AVAILABLE)
 
     @override
@@ -401,8 +403,10 @@ class KubernetesComputerProvisioner(ComputerProvisioner):
                 computer.grpc_url = grpc_url
             if not computer.is_headless:
                 vnc_url = f"ws://{pod.status.pod_ip}:{COMPUTER_VNC_PORT}"
-                if computer.vnc_url != vnc_url:
-                    computer.vnc_url = vnc_url
+            else:
+                vnc_url = None
+            if computer.vnc_url != vnc_url:
+                computer.vnc_url = vnc_url
 
     async def _do_watch_pods(self, *, label_selector: str, resource_version: str | None) -> None:
         """Watches for changes to these Pods, update corresponding Computers."""

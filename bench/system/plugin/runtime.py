@@ -119,6 +119,7 @@ class RuntimePlugin[N: Node, O: RuntimeOp = RuntimeOp](HostPlugin[N], abc.ABC):
                     exc_info=e,
                 )
                 op.retry.on_error(e)
+                self.host.on_error(e)
                 continue
 
         # failed to send run
