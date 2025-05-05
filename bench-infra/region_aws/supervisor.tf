@@ -9,13 +9,13 @@ locals {
     CLOUD         = var.cloud
     REGION        = var.region
     VERSION       = var.bench_version
-    OTLP_ENDPOINT = "http://otel-collector.monitoring.svc.cluster.local:4317"
+    OTLP_ENDPOINT = local.otlp_endpoint
     TRACING       = 1
     LOG_LEVEL     = "DEBUG"
     LOG_MODE      = "JSON"
     USE_WAITLIST  = 1
 
-    SUPERVISOR_URL = var.supervisor_url
+    SUPERVISOR_URL = local.supervisor_url
     HOST_MAP = join(",", flatten([
       for k, v in var.host_map : [
         format("%s=%s", k, v)

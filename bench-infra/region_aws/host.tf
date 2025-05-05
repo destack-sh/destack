@@ -11,7 +11,7 @@ locals {
     REGION       = var.region
     VERSION      = var.bench_version
 
-    OTLP_ENDPOINT                 = "http://otel-collector.monitoring.svc.cluster.local:4317"
+    OTLP_ENDPOINT                 = local.otlp_endpoint
     TRACING                       = "1"
     LOG_LEVEL                     = "DEBUG"
     LOG_MODE                      = "JSON"
@@ -19,7 +19,7 @@ locals {
     KUBERNETES_COMPUTER_APP_LABEL = "bench-computer"
     KUBERNETES_IMAGE_PULL_SECRET  = kubernetes_secret.image_pull_secret.metadata[0].name
 
-    SUPERVISOR_URL = var.supervisor_url
+    SUPERVISOR_URL = local.supervisor_url
     HOST_MAP = join(",", flatten([
       for k, v in var.host_map : [
         format("%s=%s", k, v)
