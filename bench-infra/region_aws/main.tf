@@ -26,7 +26,7 @@ terraform {
 locals {
   prefix         = "bench-${var.env}-${var.cloud}-${var.region}"
   otlp_endpoint  = "http://otel-collector.monitoring.svc.cluster.local:4317"
-  supervisor_url = "https://${local.prefix}-supervisor.default.svc.cluster.local:60061"
+  supervisor_url = "http://${local.prefix}-supervisor.default.svc.cluster.local:60061"
   aws_region_by_bench_region = {
     "eu-zurich"    = "eu-central-2"
     "eu-frankfurt" = "eu-central-1"
