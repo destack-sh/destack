@@ -264,6 +264,11 @@ resource "kubernetes_service" "kube_state_metrics" {
     labels = {
       app = "kube-state-metrics"
     }
+    annotations = {
+      "prometheus.io/scrape" = "true"
+      "prometheus.io/port"   = "8080"
+      "prometheus.io/path"   = "/metrics"
+    }
   }
   spec {
     selector = {
@@ -296,10 +301,17 @@ resource "kubernetes_secret" "grafana_cloud_secret" {
   }
 
   data = {
-    "logs_url" = "https://logs-prod-039.grafana.net/loki/api/v1/push"
-    "otlp_url" = "https://otlp-gateway-prod-eu-central-0.grafana.net/otlp"
-    "username" = "1246070"
-    "password" = var.grafana_cloud_token
+    "logs_url"      = "https://logs-prod-039.grafana.net/loki/api/v1/push"
+    "logs_username" = "1203865"
+    "logs_password" = var.grafana_cloud_token
+
+    "otlp_url"      = "https://otlp-gateway-prod-eu-central-0.grafana.net/otlp"
+    "otlp_username" = "1246070"
+    "otlp_password" = var.grafana_cloud_token
+
+    "prometheus_url"      = "https://prometheus-prod-58-prod-eu-central-0.grafana.net/api/prom/push"
+    "prometheus_username" = "2416377"
+    "prometheus_password" = var.grafana_cloud_token
   }
 }
 
@@ -364,8 +376,8 @@ resource "kubernetes_config_map" "promtail_config" {
       clients:
         - url: ${kubernetes_secret.grafana_cloud_secret.data.logs_url}
           basic_auth:
-            username: ${kubernetes_secret.grafana_cloud_secret.data.username}
-            password: ${kubernetes_secret.grafana_cloud_secret.data.password}
+            username: ${kubernetes_secret.grafana_cloud_secret.data.logs_username}
+            password: ${kubernetes_secret.grafana_cloud_secret.data.logs_password}
 
       scrape_configs:
         - job_name: kubernetes-pods
@@ -612,6 +624,17 @@ resource "kubernetes_cluster_role" "otel_collector" {
     resources  = ["horizontalpodautoscalers"]
     verbs      = ["get", "list", "watch"]
   }
+
+  rule {
+    api_groups = [""]
+    resources  = ["nodes/proxy"]
+    verbs      = ["get", "list", "watch"]
+  }
+
+  rule {
+    non_resource_urls = ["/metrics", "/metrics/*"]
+    verbs             = ["get"]
+  }
 }
 
 # OpenTelemetry Collector cluster role binding
@@ -648,7 +671,6 @@ resource "kubernetes_config_map" "otel_collector_config" {
             http:
               endpoint: 0.0.0.0:4318
         
-        # Host metrics
         hostmetrics:
           collection_interval: 30s
           scrapers:
@@ -657,6 +679,125 @@ resource "kubernetes_config_map" "otel_collector_config" {
             disk: {}
             filesystem: {}
             network: {}
+        
+        prometheus:
+          config:
+            scrape_configs:
+              - job_name: 'kubernetes-services'
+                kubernetes_sd_configs:
+                  - role: service
+                relabel_configs:
+                  - source_labels: [__meta_kubernetes_service_annotation_prometheus_io_scrape]
+                    action: keep
+                    regex: true
+                  - source_labels: [__meta_kubernetes_service_annotation_prometheus_io_scheme]
+                    action: replace
+                    target_label: __scheme__
+                    regex: (https?)
+                  - source_labels: [__meta_kubernetes_service_annotation_prometheus_io_path]
+                    action: replace
+                    target_label: __metrics_path__
+                    regex: (.+)
+                  - source_labels: [__address__, __meta_kubernetes_service_annotation_prometheus_io_port]
+                    action: replace
+                    target_label: __address__
+                    regex: ([^:]+)(?::\d+)?;(\d+)
+                    replacement: $1:$2
+                  - action: labelmap
+                    regex: __meta_kubernetes_service_label_(.+)
+                  - source_labels: [__meta_kubernetes_namespace]
+                    action: replace
+                    target_label: namespace
+                  - source_labels: [__meta_kubernetes_service_name]
+                    action: replace
+                    target_label: service
+                
+              - job_name: 'kube-state-metrics'
+                kubernetes_sd_configs:
+                  - role: service
+                    namespaces:
+                      names: ['kube-system']
+                relabel_configs:
+                  - source_labels: [__meta_kubernetes_service_name]
+                    regex: 'kube-state-metrics'
+                    action: keep
+                  - source_labels: [__meta_kubernetes_service_port_name]
+                    regex: 'http-metrics'
+                    action: keep
+                  - source_labels: [__meta_kubernetes_namespace]
+                    target_label: namespace
+                  - source_labels: [__meta_kubernetes_service_name]
+                    target_label: service
+
+              - job_name: 'kubelet'
+                scheme: https
+                tls_config:
+                  insecure_skip_verify: true
+                authorization:
+                  type: "Bearer"
+                  credentials_file: "/var/run/secrets/kubernetes.io/serviceaccount/token"
+                kubernetes_sd_configs:
+                  - role: node
+                relabel_configs:
+                  - action: labelmap
+                    regex: __meta_kubernetes_node_label_(.+)
+                  - target_label: __address__
+                    replacement: kubernetes.default.svc:443
+                  - source_labels: [__meta_kubernetes_node_name]
+                    regex: (.+)
+                    target_label: __metrics_path__
+                    replacement: /api/v1/nodes/${1}/proxy/metrics
+                metric_relabel_configs:
+                  - action: keep
+                    regex: 'kubelet_(.+)|container_(.+)|machine_(.+)|node_(.+)'
+                    source_labels: [__name__]
+
+              - job_name: 'kubernetes-cadvisor'
+                scheme: https
+                tls_config:
+                  insecure_skip_verify: true
+                authorization:
+                  type: Bearer
+                  credentials_file: /var/run/secrets/kubernetes.io/serviceaccount/token
+                kubernetes_sd_configs:
+                  - role: node
+                relabel_configs:
+                  - action: labelmap
+                    regex: __meta_kubernetes_node_label_(.+)
+                  - source_labels: [__address__]
+                    regex: ([^:]+)(?::\d+)?
+                    target_label: __address__
+                    replacement: $1:10250
+                  - source_labels: [__metrics_path__]
+                    target_label: __metrics_path__
+                    replacement: /metrics/cadvisor
+                metric_relabel_configs:
+                  - action: replace
+                    source_labels: [id]
+                    regex: '^/machine\.slice/machine-rkt\\\\x2d([^\\\\]+)\\\\.+/([^/]+)\.service$'
+                    target_label: rkt_container_name
+                    replacement: '${2}'
+                  - action: replace
+                    source_labels: [id]
+                    regex: '^/system\.slice/(.+)\.service$'
+                    target_label: systemd_service_name
+                    replacement: '${1}'
+
+              - job_name: 'kubernetes-apiserver'
+                kubernetes_sd_configs:
+                  - role: endpoints
+                    namespaces:
+                      names: ['default']
+                scheme: https
+                tls_config:
+                  insecure_skip_verify: true
+                authorization:
+                  type: "Bearer"
+                  credentials_file: "/var/run/secrets/kubernetes.io/serviceaccount/token"
+                relabel_configs:
+                  - source_labels: [__meta_kubernetes_service_name, __meta_kubernetes_endpoint_port_name]
+                    action: keep
+                    regex: kubernetes;https
 
       processors:
         batch:
@@ -687,11 +828,29 @@ resource "kubernetes_config_map" "otel_collector_config" {
               - tag_name: version
                 key: version
 
+        metricstransform:
+          transforms:
+            - include: .+
+              action: update
+              operations:
+                - action: add_label
+                  new_label: cluster
+                  new_value: "bench-${var.env}-${var.cloud}-${var.region}-0"
+
       exporters:
         otlphttp:
           endpoint: ${kubernetes_secret.grafana_cloud_secret.data.otlp_url}
           headers:
-            Authorization: "Basic ${base64encode("${kubernetes_secret.grafana_cloud_secret.data.username}:${kubernetes_secret.grafana_cloud_secret.data.password}")}"
+            Authorization: "Basic ${base64encode("${kubernetes_secret.grafana_cloud_secret.data.otlp_username}:${kubernetes_secret.grafana_cloud_secret.data.otlp_password}")}"
+
+        prometheusremotewrite:
+          endpoint: ${kubernetes_secret.grafana_cloud_secret.data.prometheus_url}
+          headers:
+            Authorization: "Basic ${base64encode("${kubernetes_secret.grafana_cloud_secret.data.prometheus_username}:${kubernetes_secret.grafana_cloud_secret.data.prometheus_password}")}"
+          namespace: "k8s"
+          external_labels:
+            cluster: "bench-${var.env}-${var.cloud}-${var.region}-0"
+            env: "${var.env}"
 
         debug:
           verbosity: detailed
@@ -717,9 +876,9 @@ resource "kubernetes_config_map" "otel_collector_config" {
             exporters: [otlphttp, debug]
           
           metrics:
-            receivers: [otlp, hostmetrics]
-            processors: [batch, resource, k8sattributes]
-            exporters: [otlphttp, debug]
+            receivers: [otlp, hostmetrics, prometheus]
+            processors: [batch, resource, k8sattributes, metricstransform]
+            exporters: [otlphttp, prometheusremotewrite, debug]
           
           logs:
             receivers: [otlp]
@@ -789,7 +948,8 @@ resource "kubernetes_deployment" "otel_collector" {
       }
 
       spec {
-        service_account_name = kubernetes_service_account.otel_collector.metadata[0].name
+        service_account_name            = kubernetes_service_account.otel_collector.metadata[0].name
+        automount_service_account_token = true
 
         container {
           name  = "otel-collector"
