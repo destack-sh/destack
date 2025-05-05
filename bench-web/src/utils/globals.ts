@@ -1,7 +1,7 @@
 import { pretendReadonly } from "@/utils/ref";
 import { ref } from "vue";
 
-export const VERSION = "2025.05.05.2";
+export const VERSION = "2025.05.05.3";
 
 // global environment variables :BenchWebEnv
 export const COMMIT = import.meta.env.VITE_COMMIT;
@@ -15,3 +15,4 @@ export const GRPC_KEEPALIVE_INTERVAL_SECONDS = 60;
 export const IP_API_KEY = IP_API_KEY_B64 ? atob(IP_API_KEY_B64) : null;
 export const IS_DEV = ENV == null || ENV == "dev";
 export const IS_DEVELOPER_MODE = pretendReadonly(ref(IS_DEV)); // hoisted for safe importing
+export const TELEMETRY = !IS_DEV;
