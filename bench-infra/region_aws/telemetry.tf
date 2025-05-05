@@ -595,9 +595,6 @@ resource "kubernetes_config_map" "otel_collector_config" {
         
         resource:
           attributes:
-            - key: service.name
-              value: "k8s-cluster"
-              action: upsert
             - key: deployment.environment
               value: "${var.env}"
               action: upsert
