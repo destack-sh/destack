@@ -135,6 +135,7 @@ class WatchGetUpdateData:
     added_nodes: list[AnyNodeData]
     removed_nodes_ptr: list[NodeReferenceData]
     epoch: int
+    is_keepalive: bool
 
 
 @dataclass(slots=True)
@@ -180,6 +181,7 @@ class WatchSearchUpdateData:
     roots_ptr: list[NodeReferenceData]
     total: int | None
     epoch: int
+    is_keepalive: bool
 
 
 @dataclass(slots=True)

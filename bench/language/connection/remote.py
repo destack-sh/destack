@@ -227,6 +227,7 @@ class RemoteGetConnection[T: Node](GetConnection[RemoteConnector, T]):
                 added_nodes=[wiring.unwrap_some_node(n) for n in rep.added_nodes],
                 removed_nodes_ptr=list(rep.removed_nodes_ptr),
                 epoch=rep.epoch,
+                is_keepalive=rep.is_keepalive,
             )
             yield update
 
@@ -292,5 +293,6 @@ class RemoteSearchConnection[T: Node](SearchConnection[RemoteConnector, T]):
                 roots_ptr=list(rep.roots_ptr),
                 total=rep.total,
                 epoch=rep.epoch,
+                is_keepalive=rep.is_keepalive,
             )
             yield update

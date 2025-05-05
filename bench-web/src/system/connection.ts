@@ -640,6 +640,7 @@ export class RemoteGetConnection<T extends NodeType> extends ConnectionBase<"get
       editStream.responses.onNext((rep) => {
         if (rep == null) return;
         if (rep.epoch < epoch.value) throw new Error(`epoch regression: ${epoch.value} -> ${rep.epoch}`); // sanity check
+        if (rep.isKeepalive) return; // ignore keepalives
         epoch.value = rep.epoch;
         // apply edits from stream
         // NOTE :Robustness: RemoteGetConnection ignoreMissing is wonky :RichGraph
@@ -719,6 +720,7 @@ export class RemoteSearchConnection<T extends NodeType> extends ConnectionBase<"
       editStream.responses.onNext((rep) => {
         if (rep == null) return;
         if (rep.epoch < epoch.value) throw new Error(`epoch regression: ${epoch.value} -> ${rep.epoch}`); // sanity check
+        if (rep.isKeepalive) return; // ignore keepalives
         epoch.value = rep.epoch;
         // apply other added/removed nodes
         for (const node of rep.addedNodes) {

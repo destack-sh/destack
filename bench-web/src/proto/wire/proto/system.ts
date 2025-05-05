@@ -177,6 +177,12 @@ export interface WatchGetResponse {
      * @generated from protobuf field: uint64 epoch = 10;
      */
     epoch: bigint;
+    /**
+     * Whether this is a keepalive stub.
+     *
+     * @generated from protobuf field: optional bool is_keepalive = 11;
+     */
+    isKeepalive?: boolean;
 }
 /**
  * @generated from protobuf message symbol.bench.SearchNodesRequest
@@ -350,6 +356,12 @@ export interface WatchSearchResponse {
      * @generated from protobuf field: uint64 epoch = 10;
      */
     epoch: bigint;
+    /**
+     * Whether this is a keepalive stub.
+     *
+     * @generated from protobuf field: optional bool is_keepalive = 11;
+     */
+    isKeepalive?: boolean;
 }
 /**
  * @generated from protobuf message symbol.bench.CommitTransactionRequest
@@ -1090,7 +1102,8 @@ class WatchGetResponse$Type extends MessageType<WatchGetResponse> {
             { no: 2, name: "cascaded_edits", kind: "message", repeat: 1 /*RepeatType.PACKED*/, T: () => EditData },
             { no: 3, name: "added_nodes", kind: "message", repeat: 1 /*RepeatType.PACKED*/, T: () => SomeNodeData },
             { no: 4, name: "removed_nodes_ptr", kind: "message", repeat: 1 /*RepeatType.PACKED*/, T: () => NodeReferenceData },
-            { no: 10, name: "epoch", kind: "scalar", T: 4 /*ScalarType.UINT64*/, L: 0 /*LongType.BIGINT*/ }
+            { no: 10, name: "epoch", kind: "scalar", T: 4 /*ScalarType.UINT64*/, L: 0 /*LongType.BIGINT*/ },
+            { no: 11, name: "is_keepalive", kind: "scalar", opt: true, T: 8 /*ScalarType.BOOL*/ }
         ]);
     }
     create(value?: PartialMessage<WatchGetResponse>): WatchGetResponse {
@@ -1124,6 +1137,9 @@ class WatchGetResponse$Type extends MessageType<WatchGetResponse> {
                 case /* uint64 epoch */ 10:
                     message.epoch = reader.uint64().toBigInt();
                     break;
+                case /* optional bool is_keepalive */ 11:
+                    message.isKeepalive = reader.bool();
+                    break;
                 default:
                     let u = options.readUnknownField;
                     if (u === "throw")
@@ -1151,6 +1167,9 @@ class WatchGetResponse$Type extends MessageType<WatchGetResponse> {
         /* uint64 epoch = 10; */
         if (message.epoch !== 0n)
             writer.tag(10, WireType.Varint).uint64(message.epoch);
+        /* optional bool is_keepalive = 11; */
+        if (message.isKeepalive !== undefined)
+            writer.tag(11, WireType.Varint).bool(message.isKeepalive);
         let u = options.writeUnknownFields;
         if (u !== false)
             (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
@@ -1447,7 +1466,8 @@ class WatchSearchResponse$Type extends MessageType<WatchSearchResponse> {
             { no: 4, name: "removed_nodes_ptr", kind: "message", repeat: 1 /*RepeatType.PACKED*/, T: () => NodeReferenceData },
             { no: 5, name: "roots_ptr", kind: "message", repeat: 1 /*RepeatType.PACKED*/, T: () => NodeReferenceData },
             { no: 7, name: "total", kind: "scalar", opt: true, T: 5 /*ScalarType.INT32*/ },
-            { no: 10, name: "epoch", kind: "scalar", T: 4 /*ScalarType.UINT64*/, L: 0 /*LongType.BIGINT*/ }
+            { no: 10, name: "epoch", kind: "scalar", T: 4 /*ScalarType.UINT64*/, L: 0 /*LongType.BIGINT*/ },
+            { no: 11, name: "is_keepalive", kind: "scalar", opt: true, T: 8 /*ScalarType.BOOL*/ }
         ]);
     }
     create(value?: PartialMessage<WatchSearchResponse>): WatchSearchResponse {
@@ -1488,6 +1508,9 @@ class WatchSearchResponse$Type extends MessageType<WatchSearchResponse> {
                 case /* uint64 epoch */ 10:
                     message.epoch = reader.uint64().toBigInt();
                     break;
+                case /* optional bool is_keepalive */ 11:
+                    message.isKeepalive = reader.bool();
+                    break;
                 default:
                     let u = options.readUnknownField;
                     if (u === "throw")
@@ -1521,6 +1544,9 @@ class WatchSearchResponse$Type extends MessageType<WatchSearchResponse> {
         /* uint64 epoch = 10; */
         if (message.epoch !== 0n)
             writer.tag(10, WireType.Varint).uint64(message.epoch);
+        /* optional bool is_keepalive = 11; */
+        if (message.isKeepalive !== undefined)
+            writer.tag(11, WireType.Varint).bool(message.isKeepalive);
         let u = options.writeUnknownFields;
         if (u !== false)
             (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);

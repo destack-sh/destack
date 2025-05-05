@@ -256,6 +256,9 @@ class Connection[
                     async for update_data in self._do_subscribe(
                         self.query, token=result_data.connection_token, epoch=result_data.epoch
                     ):
+                        if update_data.is_keepalive:
+                            log.trace(f"connect.{self.type_name}.keepalive")
+                            continue  # ignore keepalives
                         self._epoch = update_data.epoch
                         log.trace(f"connect.{self.type_name}.update")
                         update = self._apply_update(
