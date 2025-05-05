@@ -28,6 +28,7 @@ resource "kubernetes_secret" "external_secret" {
     NEON_API_KEY        = var.neon_api_key
     NEON_BASE_URL       = var.neon_base_url
     OPENAI_API_KEY      = var.openai_api_key
+    GEMINI_API_KEY      = var.gemini_api_key
     ANTHROPIC_API_KEY   = var.anthropic_api_key
     OPENROUTER_API_KEY  = var.openrouter_api_key
     XAI_API_KEY         = var.xai_api_key
