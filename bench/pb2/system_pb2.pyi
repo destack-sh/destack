@@ -71,18 +71,20 @@ class WatchGetRequest(_message.Message):
     def __init__(self, scope: _Optional[_Union[_lang_pb2.GraphScopeData, _Mapping]] = ..., connection_token: _Optional[str] = ..., since_epoch: _Optional[int] = ...) -> None: ...
 
 class WatchGetResponse(_message.Message):
-    __slots__ = ("edits", "cascaded_edits", "added_nodes", "removed_nodes_ptr", "epoch")
+    __slots__ = ("edits", "cascaded_edits", "added_nodes", "removed_nodes_ptr", "epoch", "is_keepalive")
     EDITS_FIELD_NUMBER: _ClassVar[int]
     CASCADED_EDITS_FIELD_NUMBER: _ClassVar[int]
     ADDED_NODES_FIELD_NUMBER: _ClassVar[int]
     REMOVED_NODES_PTR_FIELD_NUMBER: _ClassVar[int]
     EPOCH_FIELD_NUMBER: _ClassVar[int]
+    IS_KEEPALIVE_FIELD_NUMBER: _ClassVar[int]
     edits: _containers.RepeatedCompositeFieldContainer[_lang_pb2.EditData]
     cascaded_edits: _containers.RepeatedCompositeFieldContainer[_lang_pb2.EditData]
     added_nodes: _containers.RepeatedCompositeFieldContainer[_lang_pb2.SomeNodeData]
     removed_nodes_ptr: _containers.RepeatedCompositeFieldContainer[_lang_pb2.NodeReferenceData]
     epoch: int
-    def __init__(self, edits: _Optional[_Iterable[_Union[_lang_pb2.EditData, _Mapping]]] = ..., cascaded_edits: _Optional[_Iterable[_Union[_lang_pb2.EditData, _Mapping]]] = ..., added_nodes: _Optional[_Iterable[_Union[_lang_pb2.SomeNodeData, _Mapping]]] = ..., removed_nodes_ptr: _Optional[_Iterable[_Union[_lang_pb2.NodeReferenceData, _Mapping]]] = ..., epoch: _Optional[int] = ...) -> None: ...
+    is_keepalive: bool
+    def __init__(self, edits: _Optional[_Iterable[_Union[_lang_pb2.EditData, _Mapping]]] = ..., cascaded_edits: _Optional[_Iterable[_Union[_lang_pb2.EditData, _Mapping]]] = ..., added_nodes: _Optional[_Iterable[_Union[_lang_pb2.SomeNodeData, _Mapping]]] = ..., removed_nodes_ptr: _Optional[_Iterable[_Union[_lang_pb2.NodeReferenceData, _Mapping]]] = ..., epoch: _Optional[int] = ..., is_keepalive: bool = ...) -> None: ...
 
 class SearchNodesRequest(_message.Message):
     __slots__ = ("scope", "node_type", "base_type_ptr", "filter", "sort", "ancestor_types", "descendant_types", "first", "count", "select", "no_cache")
@@ -135,7 +137,7 @@ class WatchSearchRequest(_message.Message):
     def __init__(self, scope: _Optional[_Union[_lang_pb2.GraphScopeData, _Mapping]] = ..., connection_token: _Optional[str] = ..., since_epoch: _Optional[int] = ...) -> None: ...
 
 class WatchSearchResponse(_message.Message):
-    __slots__ = ("edits", "cascaded_edits", "added_nodes", "removed_nodes_ptr", "roots_ptr", "total", "epoch")
+    __slots__ = ("edits", "cascaded_edits", "added_nodes", "removed_nodes_ptr", "roots_ptr", "total", "epoch", "is_keepalive")
     EDITS_FIELD_NUMBER: _ClassVar[int]
     CASCADED_EDITS_FIELD_NUMBER: _ClassVar[int]
     ADDED_NODES_FIELD_NUMBER: _ClassVar[int]
@@ -143,6 +145,7 @@ class WatchSearchResponse(_message.Message):
     ROOTS_PTR_FIELD_NUMBER: _ClassVar[int]
     TOTAL_FIELD_NUMBER: _ClassVar[int]
     EPOCH_FIELD_NUMBER: _ClassVar[int]
+    IS_KEEPALIVE_FIELD_NUMBER: _ClassVar[int]
     edits: _containers.RepeatedCompositeFieldContainer[_lang_pb2.EditData]
     cascaded_edits: _containers.RepeatedCompositeFieldContainer[_lang_pb2.EditData]
     added_nodes: _containers.RepeatedCompositeFieldContainer[_lang_pb2.SomeNodeData]
@@ -150,7 +153,8 @@ class WatchSearchResponse(_message.Message):
     roots_ptr: _containers.RepeatedCompositeFieldContainer[_lang_pb2.NodeReferenceData]
     total: int
     epoch: int
-    def __init__(self, edits: _Optional[_Iterable[_Union[_lang_pb2.EditData, _Mapping]]] = ..., cascaded_edits: _Optional[_Iterable[_Union[_lang_pb2.EditData, _Mapping]]] = ..., added_nodes: _Optional[_Iterable[_Union[_lang_pb2.SomeNodeData, _Mapping]]] = ..., removed_nodes_ptr: _Optional[_Iterable[_Union[_lang_pb2.NodeReferenceData, _Mapping]]] = ..., roots_ptr: _Optional[_Iterable[_Union[_lang_pb2.NodeReferenceData, _Mapping]]] = ..., total: _Optional[int] = ..., epoch: _Optional[int] = ...) -> None: ...
+    is_keepalive: bool
+    def __init__(self, edits: _Optional[_Iterable[_Union[_lang_pb2.EditData, _Mapping]]] = ..., cascaded_edits: _Optional[_Iterable[_Union[_lang_pb2.EditData, _Mapping]]] = ..., added_nodes: _Optional[_Iterable[_Union[_lang_pb2.SomeNodeData, _Mapping]]] = ..., removed_nodes_ptr: _Optional[_Iterable[_Union[_lang_pb2.NodeReferenceData, _Mapping]]] = ..., roots_ptr: _Optional[_Iterable[_Union[_lang_pb2.NodeReferenceData, _Mapping]]] = ..., total: _Optional[int] = ..., epoch: _Optional[int] = ..., is_keepalive: bool = ...) -> None: ...
 
 class CommitTransactionRequest(_message.Message):
     __slots__ = ("scope", "id", "edits", "context")

@@ -1,7 +1,7 @@
 import abc
 import asyncio
 from itertools import chain
-from typing import Any, ClassVar, Sequence, final, override
+from typing import TYPE_CHECKING, Any, Callable, ClassVar, Sequence, final, override
 
 import structlog
 from opentelemetry import trace
@@ -39,6 +39,10 @@ from bench.utils.func import generate_access_token
 from bench.utils.oracle import Oracle
 from bench.utils.utils import get_from_env
 
+if TYPE_CHECKING:
+    from bench.system.graph.graph import GraphServiceBase
+
+
 logger = structlog.get_logger(__name__)
 tracer = trace.get_tracer(__name__)
 
@@ -68,7 +72,10 @@ class Connection[
 
     read_type: ClassVar[QueryType]
 
-    def __init__(self, scope: GraphScopeData, query: LegacyQuery, oracle: Oracle):
+    def __init__(
+        self, index: "ConnectionIndex", scope: GraphScopeData, query: LegacyQuery, oracle: Oracle
+    ):
+        self.index = index
         self.scope = scope
         self.hash = query._stable_hash()
         self.token: str = generate_access_token(length=8)
@@ -176,6 +183,7 @@ class ConnectionSubscription[UpdateT: Any]:
         self._subscribed_at_ns = connection.oracle.time_ns()
         self._closed_at_ns: int | None = None
         self._update_queue: asyncio.Queue[UpdateT] = asyncio.Queue()
+        self._keepalive_task: asyncio.Task | None = None
 
     def __str__(self):
         return f"{self.subject!r} on {self.connection!r}"
@@ -191,10 +199,25 @@ class ConnectionSubscription[UpdateT: Any]:
     def queue(self) -> asyncio.Queue[UpdateT]:
         return self._update_queue
 
+    def start_keepalive(self, update: Callable[[], UpdateT], interval: float):
+        service = self.connection.index.owner
+        self._keepalive_task = service.tasks.run(
+            self._send_keepalive_forever(update, interval),
+            task_id=f"connection.{self.connection.token}.keepalive",
+        )
+
+    async def _send_keepalive_forever(self, make_update: Callable[[], UpdateT], interval: float):
+        while self._closed_at_ns is None:
+            await asyncio.sleep(interval)
+            await self.queue.put(make_update())
+
     def cancel(self):
         if self._closed_at_ns is not None:
             raise RuntimeError(f"{self!r} is already closed")
         self._closed_at_ns = self.connection.oracle.time_ns()
+        if self._keepalive_task is not None:
+            self._keepalive_task.cancel()
+            self._keepalive_task = None
         self.connection.unsubscribe(self)
 
 
@@ -251,8 +274,10 @@ class GetConnection(Connection[GetResultData, WatchGetUpdateData]):
 
     read_type: ClassVar[QueryType] = QueryType.GET
 
-    def __init__(self, scope: GraphScopeData, query: "LegacyQuery", oracle: Oracle):
-        super().__init__(scope, query, oracle)
+    def __init__(
+        self, index: "ConnectionIndex", scope: GraphScopeData, query: "LegacyQuery", oracle: Oracle
+    ):
+        super().__init__(index, scope, query, oracle)
         self._root_ids: set[str] = {str(r.id) for r in query._roots or () if r.id}
 
     def __result_str__(self, result: GetResultData) -> str:
@@ -379,6 +404,7 @@ class GetConnection(Connection[GetResultData, WatchGetUpdateData]):
                 added_nodes=added_nodes,
                 removed_nodes_ptr=removed_nodes_ptr,
                 epoch=epoch,
+                is_keepalive=False,
             )
             self.notify_update(update)
 
@@ -390,8 +416,10 @@ class SearchConnection(Connection[SearchResultData, WatchSearchUpdateData]):
     In its final form, this should be a proper incremental materialized view.
     """
 
-    def __init__(self, scope: GraphScopeData, query: LegacyQuery, oracle: Oracle):
-        super().__init__(scope, query, oracle)
+    def __init__(
+        self, index: "ConnectionIndex", scope: GraphScopeData, query: "LegacyQuery", oracle: Oracle
+    ):
+        super().__init__(index, scope, query, oracle)
         self._filter = query._filter
         self._database_id = (
             str(query._base_type.id) if isinstance(query._base_type, Database) else None
@@ -532,6 +560,7 @@ class SearchConnection(Connection[SearchResultData, WatchSearchUpdateData]):
                 removed_nodes_ptr=removed_nodes_ptr,
                 total=self._result_data.total,
                 epoch=epoch,
+                is_keepalive=False,
             )
             self.notify_update(update)
 
@@ -539,7 +568,7 @@ class SearchConnection(Connection[SearchResultData, WatchSearchUpdateData]):
 class ConnectionIndex:
     """Connect and cache queries to the graph."""
 
-    def __init__(self, owner: Any, scope: GraphScopeData, oracle: Oracle):
+    def __init__(self, owner: "GraphServiceBase", scope: GraphScopeData, oracle: Oracle):
         self.owner = owner
         self.scope = scope
         self.oracle = oracle
@@ -588,7 +617,7 @@ class ConnectionIndex:
         """Creates or reuses a connection to the graph."""
         assert query._type == connection_t.read_type, f"unexpected {query!r} (want {connection_t})"
         if not cache:
-            connection = connection_t(self.scope, query, self.oracle)
+            connection = connection_t(self, self.scope, query, self.oracle)
             await connection.connect(session)
             self._log.debug(
                 f"connect.{query._type.name.lower()}",
@@ -608,7 +637,7 @@ class ConnectionIndex:
                 connection = self._connections_by_hash.get(query_hash)
                 was_cached = connection is not None
                 if connection is None:
-                    connection = connection_t(self.scope, query, self.oracle)
+                    connection = connection_t(self, self.scope, query, self.oracle)
                     await connection.connect(session)
                     self._add_connection(connection)
                 else:

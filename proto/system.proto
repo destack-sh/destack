@@ -61,6 +61,8 @@ message WatchGetResponse {
   repeated NodeReferenceData removed_nodes_ptr = 4;
   // Current epoch.
   uint64 epoch = 10;
+  // Whether this is a keepalive stub.
+  optional bool is_keepalive = 11;
 }
 
 message SearchNodesRequest {
@@ -122,6 +124,8 @@ message WatchSearchResponse {
   optional int32 total = 7;
   // Current epoch.
   uint64 epoch = 10;
+  // Whether this is a keepalive stub.
+  optional bool is_keepalive = 11;
 }
 
 message CommitTransactionRequest {

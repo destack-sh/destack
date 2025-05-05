@@ -75,11 +75,12 @@ class TaskManager:
                 self._on_error(e)
             raise
 
-    def run(self, coro: Coroutine, task_id: str | None = None) -> None:
+    def run(self, coro: Coroutine, task_id: str | None = None) -> asyncio.Task:
         """Run a coroutine asynchronously (once)."""
         task_id = self._make_task_id(task_id, coro.__name__)
         task = asyncio.create_task(coro=self._run_task(coro, task_id=task_id), name=task_id)
         self._active_tasks.append(task)
+        return task
 
     async def _run_forever_task(
         self,
@@ -105,7 +106,7 @@ class TaskManager:
         coro: Callable[[], Awaitable[None]],
         task_id: str | None = None,
         skip_errors: bool = False,
-    ) -> None:
+    ) -> asyncio.Task:
         """Run a coroutine asynchronously (restart on failure or termination)"""
         task_id = self._make_task_id(task_id, coro.__name__)
         task = asyncio.create_task(
@@ -113,6 +114,7 @@ class TaskManager:
             name=task_id,
         )
         self._active_tasks.append(task)
+        return task
 
     async def _run_queue_task(
         self,
@@ -149,7 +151,7 @@ class TaskManager:
         task_id: str | None = None,
         *,
         skip_errors: bool,
-    ) -> None:
+    ) -> asyncio.Task:
         task_id = self._make_task_id(task_id, process.__name__)
         task = asyncio.create_task(
             coro=self._run_queue_task(
@@ -158,6 +160,7 @@ class TaskManager:
             name=task_id,
         )
         self._active_tasks.append(task)
+        return task
 
     async def _run_scheduled_tasks(
         self,

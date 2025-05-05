@@ -103,6 +103,12 @@ MAX_TIME_DRIFT_SECONDS = get_from_env(
     description="Maximum allowable delta between our time and client transaction time",
 )
 COMMIT_RETRY = RetryOptions(max_attempts=3, retry_on=(EngineUnavailableError,))
+SUBSCRIPTION_KEEPALIVE_INTERVAL = get_from_env(
+    "SUBSCRIPTION_KEEPALIVE_INTERVAL",
+    typ=int,
+    default=60,  # 1 minute
+    description="Interval to send keepalive messages to active subscriptions",
+)
 
 
 @dataclass(slots=True)
@@ -648,6 +654,17 @@ class GraphServiceBase(ServiceBase, GraphBase, abc.ABC):
             since_epoch=request.since_epoch,
         )
         try:
+            subscription.start_keepalive(
+                update=lambda: WatchGetUpdateData(
+                    edits=[],
+                    cascaded_edits=[],
+                    added_nodes=[],
+                    removed_nodes_ptr=[],
+                    epoch=self._local_epoch,
+                    is_keepalive=True,
+                ),
+                interval=SUBSCRIPTION_KEEPALIVE_INTERVAL,
+            )
             self.logger.info(
                 f"{self.name}.watch_get",
                 subject=subject,
@@ -664,6 +681,7 @@ class GraphServiceBase(ServiceBase, GraphBase, abc.ABC):
                     added_nodes=[wiring.wrap_some_node(n) for n in update.added_nodes],
                     removed_nodes_ptr=update.removed_nodes_ptr,
                     epoch=update.epoch,
+                    is_keepalive=update.is_keepalive,
                 )
         finally:
             subscription.cancel()
@@ -773,6 +791,19 @@ class GraphServiceBase(ServiceBase, GraphBase, abc.ABC):
             since_epoch=request.since_epoch,
         )
         try:
+            subscription.start_keepalive(
+                update=lambda: WatchSearchUpdateData(
+                    edits=[],
+                    cascaded_edits=[],
+                    added_nodes=[],
+                    removed_nodes_ptr=[],
+                    roots_ptr=[],
+                    total=None,
+                    epoch=self._local_epoch,
+                    is_keepalive=True,
+                ),
+                interval=SUBSCRIPTION_KEEPALIVE_INTERVAL,
+            )
             self.logger.info(
                 f"{self.name}.watch_search",
                 subject=subject,
@@ -791,6 +822,7 @@ class GraphServiceBase(ServiceBase, GraphBase, abc.ABC):
                     roots_ptr=update.roots_ptr,
                     total=update.total,
                     epoch=update.epoch,
+                    is_keepalive=update.is_keepalive,
                 )
         finally:
             subscription.cancel()
