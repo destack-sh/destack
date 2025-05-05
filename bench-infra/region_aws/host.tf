@@ -5,7 +5,7 @@
 locals {
   prefix = "bench-${var.env}-${var.cloud}-${var.region}"
   host_env_vars = {
-    SERVICE_NAME = "host"
+    SERVICE_NAME = "bench-host"
     ENVIRONMENT  = var.env
     CLOUD        = var.cloud
     REGION       = var.region
@@ -41,6 +41,7 @@ locals {
       "NEON_API_KEY",
       "NEON_BASE_URL",
       "OPENAI_API_KEY",
+      "GEMINI_API_KEY",
       "ANTHROPIC_API_KEY",
       "OPENROUTER_API_KEY",
       "XAI_API_KEY",
@@ -163,7 +164,10 @@ resource "kubernetes_deployment" "host" {
     name      = "${local.prefix}-host"
     namespace = "default"
     labels = {
-      app     = "${local.prefix}-host"
+      app     = "bench-host"
+      env     = var.env
+      cloud   = var.cloud
+      region  = var.region
       version = var.bench_version
     }
   }
@@ -173,14 +177,21 @@ resource "kubernetes_deployment" "host" {
 
     selector {
       match_labels = {
-        app = "${local.prefix}-host"
+        app     = "bench-host"
+        env     = var.env
+        cloud   = var.cloud
+        region  = var.region
+        version = var.bench_version
       }
     }
 
     template {
       metadata {
         labels = {
-          app     = "${local.prefix}-host"
+          app     = "bench-host"
+          env     = var.env
+          cloud   = var.cloud
+          region  = var.region
           version = var.bench_version
         }
         annotations = {

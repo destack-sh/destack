@@ -4,7 +4,7 @@
 
 locals {
   supervisor_env_vars = {
-    SERVICE_NAME  = "supervisor"
+    SERVICE_NAME  = "bench-supervisor"
     ENVIRONMENT   = var.env
     CLOUD         = var.cloud
     REGION        = var.region
@@ -103,7 +103,10 @@ resource "kubernetes_deployment" "supervisor" {
     name      = "${local.prefix}-supervisor"
     namespace = "default"
     labels = {
-      app     = "${local.prefix}-supervisor"
+      app     = "bench-supervisor"
+      env     = var.env
+      cloud   = var.cloud
+      region  = var.region
       version = var.bench_version
     }
   }
@@ -113,14 +116,21 @@ resource "kubernetes_deployment" "supervisor" {
 
     selector {
       match_labels = {
-        app = "${local.prefix}-supervisor"
+        app     = "bench-supervisor"
+        env     = var.env
+        cloud   = var.cloud
+        region  = var.region
+        version = var.bench_version
       }
     }
 
     template {
       metadata {
         labels = {
-          app     = "${local.prefix}-supervisor"
+          app     = "bench-supervisor"
+          env     = var.env
+          cloud   = var.cloud
+          region  = var.region
           version = var.bench_version
         }
         annotations = {
