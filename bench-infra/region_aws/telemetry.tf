@@ -384,6 +384,9 @@ resource "kubernetes_config_map" "promtail_config" {
           kubernetes_sd_configs:
             - role: pod
           relabel_configs:
+            - source_labels: [__meta_kubernetes_pod_label_app]
+              regex: otel-collector
+              action: drop
             - source_labels: [__meta_kubernetes_pod_controller_name]
               regex: ([0-9a-z-.]+?)(-[0-9a-f]{8,10})?
               action: replace
@@ -443,7 +446,6 @@ resource "kubernetes_config_map" "promtail_config" {
               - __meta_kubernetes_pod_label_version
               target_label: version
           pipeline_stages:
-            - json: {}
             - labels:
                 level:
                 logger:
