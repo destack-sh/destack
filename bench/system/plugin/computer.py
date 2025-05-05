@@ -477,7 +477,11 @@ class KubernetesComputerProvisioner(ComputerProvisioner):
         if resource.should_reset or resource.version != VERSION:
             # 'restart' by deleting it (to be recreated)
             assert resource.external_name is not None, f"{resource!r} has no external name"
-            await self.kubernetes_api.delete_pod(resource.external_name)
+            try:
+                await self.kubernetes_api.delete_pod(resource.external_name)
+            except k8.ApiException as e:
+                # probably already gone
+                logger.warn("computer.delete.error", resource=resource, exc_info=e)
 
     @override
     async def _do_decommission(self, resource: Computer):
