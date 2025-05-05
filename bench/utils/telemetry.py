@@ -25,13 +25,13 @@ from .logging import setup_logging
 from .utils import get_from_env, get_from_env_maybe
 
 setup_logging()  # ensure logging is setup first
+logger = structlog.get_logger(__name__)
 
 VERSION = Path("version").read_text().strip()
 POSTHOG_TOKEN = get_from_env("POSTHOG_TOKEN", description="PostHog public API key")
 POSTHOG_HOST = get_from_env_maybe("POSTHOG_HOST", description="Full URL to send PostHog events to")
 OTLP_ENDPOINT = get_from_env_maybe("OTLP_ENDPOINT", description="Full URL to send OTLP traces to")
-
-logger = structlog.get_logger(__name__)
+TELEMETRY = not (IS_DEV or IS_TEST)
 
 _did_setup_telemetry = False
 _processor: BatchSpanProcessor | None = None
@@ -81,7 +81,7 @@ def setup_telemetry():
         return
 
     # errors
-    if not (IS_DEBUG or IS_DEV or IS_TEST):
+    if TELEMETRY and not IS_DEBUG:
         _posthog = Posthog(POSTHOG_TOKEN, host=POSTHOG_HOST, enable_exception_autocapture=True)
         logger.debug(
             "telemetry.posthog.setup",

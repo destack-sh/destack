@@ -27,6 +27,7 @@ from bench.pb2.common_pb2 import RpcMetadata
 from bench.pb2.lang_pb2 import EditData, ExpressionData, GraphScopeData
 from bench.pb2.system_grpc import GraphClient, HostClient, SupervisorClient
 from bench.pb2.system_pb2 import WatchGetRequest, WatchSearchRequest
+from bench.utils.telemetry import TELEMETRY, capture_exception
 from bench.utils.tenacity import RETRY_GRPC, RETRY_GRPC_FOREVER, RetryOptions
 
 from .connection import Connection, GetConnection, SearchConnection
@@ -138,6 +139,8 @@ class RemoteConnector(WritableConnector[RemoteEngine]):
                     return await func(self, *args, **kwargs)
                 except Exception as e:
                     logger.error(f"remote.{method_name}.error", connector=self, exc_info=True)
+                    if TELEMETRY:
+                        capture_exception(e)
                     retry.on_error(e)
                     if not isinstance(e, self.read_retry.retry_on):
                         raise
