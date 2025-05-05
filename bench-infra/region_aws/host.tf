@@ -3,7 +3,6 @@
 # 
 
 locals {
-  prefix = "bench-${var.env}-${var.cloud}-${var.region}"
   host_env_vars = {
     SERVICE_NAME = "bench-host"
     ENVIRONMENT  = var.env

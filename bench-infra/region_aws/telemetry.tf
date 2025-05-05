@@ -43,6 +43,39 @@ resource "kubernetes_cluster_role_binding" "metrics_server" {
   }
 }
 
+resource "kubernetes_cluster_role_binding" "metrics_server_auth_delegator" {
+  metadata {
+    name = "metrics-server:system:auth-delegator"
+  }
+  role_ref {
+    api_group = "rbac.authorization.k8s.io"
+    kind      = "ClusterRole"
+    name      = "system:auth-delegator"
+  }
+  subject {
+    kind      = "ServiceAccount"
+    name      = kubernetes_service_account.metrics_server.metadata[0].name
+    namespace = "kube-system"
+  }
+}
+
+resource "kubernetes_role_binding" "metrics_server_auth_reader" {
+  metadata {
+    name      = "metrics-server-auth-reader"
+    namespace = "kube-system"
+  }
+  role_ref {
+    api_group = "rbac.authorization.k8s.io"
+    kind      = "Role"
+    name      = "extension-apiserver-authentication-reader"
+  }
+  subject {
+    kind      = "ServiceAccount"
+    name      = kubernetes_service_account.metrics_server.metadata[0].name
+    namespace = "kube-system"
+  }
+}
+
 resource "kubernetes_deployment" "metrics_server" {
   metadata {
     name      = "metrics-server"
@@ -63,6 +96,8 @@ resource "kubernetes_deployment" "metrics_server" {
       }
       spec {
         service_account_name = kubernetes_service_account.metrics_server.metadata[0].name
+        host_network         = true
+
         container {
           name  = "metrics-server"
           image = "bitnami/metrics-server:0.7.1"
@@ -72,6 +107,7 @@ resource "kubernetes_deployment" "metrics_server" {
             "--secure-port=4443",
             "--kubelet-preferred-address-types=InternalIP,Hostname,InternalDNS,ExternalDNS,ExternalIP",
             "--kubelet-use-node-status-port",
+            "--kubelet-insecure-tls",
             "--metric-resolution=15s",
           ]
 
@@ -102,6 +138,46 @@ resource "kubernetes_deployment" "metrics_server" {
     }
   }
 }
+
+resource "kubernetes_service" "metrics_server" {
+  metadata {
+    name      = "metrics-server"
+    namespace = "kube-system"
+  }
+
+  spec {
+    selector = {
+      k8s-app = "metrics-server"
+    }
+    port {
+      name        = "https"
+      port        = 443
+      target_port = 4443
+      protocol    = "TCP"
+    }
+  }
+}
+
+resource "kubernetes_manifest" "metrics_api_service" {
+  manifest = {
+    apiVersion = "apiregistration.k8s.io/v1"
+    kind       = "APIService"
+    metadata   = { name = "v1beta1.metrics.k8s.io" }
+
+    spec = {
+      group   = "metrics.k8s.io"
+      version = "v1beta1"
+      service = {
+        name      = kubernetes_service.metrics_server.metadata[0].name
+        namespace = "kube-system"
+      }
+      insecureSkipTLSVerify = true
+      groupPriorityMinimum  = 100
+      versionPriority       = 100
+    }
+  }
+}
+
 
 #
 # kube-state-metrics
