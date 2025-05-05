@@ -244,7 +244,7 @@ resource "kubernetes_service" "supervisor" {
 
   spec {
     selector = {
-      app = "${local.prefix}-supervisor"
+      app = "bench-supervisor"
     }
 
     port {
@@ -497,7 +497,7 @@ resource "kubernetes_service" "supervisor_proxy" {
 
   spec {
     selector = {
-      app = "${local.prefix}-supervisor-proxy"
+      app = "bench-supervisor-proxy"
     }
 
     port {

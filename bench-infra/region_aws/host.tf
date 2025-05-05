@@ -261,7 +261,7 @@ resource "kubernetes_service" "host" {
 
   spec {
     selector = {
-      app = "${local.prefix}-host"
+      app = "bench-host"
     }
 
     port {
@@ -350,7 +350,7 @@ resource "kubernetes_config_map" "host_envoy_config" {
                           filename: /etc/envoy/tls/tls.key
         - name: grpc_listener
           address:
-            socket_address: { address: 0.0.0.0, port_value: ${var.host_grpc_port} }
+            socket_address: { address: 0.0.0.0, port_value: 60061 }
           filter_chains:
           - filters:
             - name: envoy.filters.network.http_connection_manager
@@ -453,7 +453,7 @@ resource "kubernetes_deployment" "host_proxy" {
             container_port = 8080
           }
           port {
-            container_port = var.host_grpc_port
+            container_port = 60061
           }
 
           volume_mount {
@@ -515,7 +515,7 @@ resource "kubernetes_service" "host_proxy" {
 
   spec {
     selector = {
-      app = "${local.prefix}-host-proxy"
+      app = "bench-host-proxy"
     }
 
     port {
@@ -526,8 +526,8 @@ resource "kubernetes_service" "host_proxy" {
 
     port {
       name        = "grpc"
-      port        = var.host_grpc_port
-      target_port = var.host_grpc_port
+      port        = 60061
+      target_port = 60061
     }
 
     type = "LoadBalancer"
