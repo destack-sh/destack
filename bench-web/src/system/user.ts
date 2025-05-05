@@ -27,6 +27,7 @@ import type { ViewIn } from "@/ui/space";
 import { toaster } from "@/ui/toast";
 import { TELEMETRY } from "@/utils/globals";
 import { log } from "@/utils/log";
+import { getRegionSlug } from "@/utils/region";
 import type { RpcError } from "@protobuf-ts/runtime-rpc";
 import { whenever } from "@vueuse/core";
 import posthog from "posthog-js";
@@ -61,18 +62,22 @@ export const clients = userGraph.getChildrenRef(
 );
 
 // identify user for telemetry
-whenever(user, () => {
-  if (user.value == null) return;
-  if (TELEMETRY) {
-    posthog.identify(user.value.id, {
-      name: user.value.name,
-      email: user.value.email,
-      region: Region[user.value.region].replace("_", "-").toLowerCase(),
-      slug: user.value.slug,
-      is_staff: user.value.isStaff,
-    });
-  }
-});
+whenever(
+  user,
+  () => {
+    if (user.value == null) return;
+    if (TELEMETRY) {
+      posthog.identify(user.value.id, {
+        name: user.value.name,
+        email: user.value.email,
+        region: getRegionSlug(user.value.region),
+        slug: user.value.slug,
+        is_staff: user.value.isStaff,
+      });
+    }
+  },
+  { immediate: true },
+);
 
 function makeCurrentClient(): ClientData {
   return makeNode(
