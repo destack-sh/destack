@@ -404,7 +404,7 @@ class KubernetesComputerProvisioner(ComputerProvisioner):
                 if computer.vnc_url != vnc_url:
                     computer.vnc_url = vnc_url
 
-    async def _do_watch_pods(self, *, label_selector: str, resource_version: str) -> None:
+    async def _do_watch_pods(self, *, label_selector: str, resource_version: str | None) -> None:
         """Watches for changes to these Pods, update corresponding Computers."""
         async for event_type, pod in self.kubernetes_api.watch_pods(
             label_selector=label_selector, resource_version=resource_version
@@ -437,7 +437,7 @@ class KubernetesComputerProvisioner(ComputerProvisioner):
 
         # sync computers with current pods
         pod_selector = f"app={KUBERNETES_COMPUTER_APP_LABEL},bench_id={self.bench.id}"
-        pods, pod_marker = await self._kubernetes_api.get_pods(label_selector=pod_selector)
+        pods, _ = await self._kubernetes_api.get_pods(label_selector=pod_selector)
         for pod in pods:
             assert pod.metadata is not None, f"missing metadata for pod {pod!r}"
             self._kubernetes_pods_by_name[pod.metadata.name] = pod
@@ -456,10 +456,11 @@ class KubernetesComputerProvisioner(ComputerProvisioner):
                 ):
                     computer.update_status(ResourceStatus.PENDING)
 
-        # and keep watching for pod changes
-        self.tasks.run(
-            self._do_watch_pods(label_selector=pod_selector, resource_version=pod_marker),
+        # and keep watching for pod changes (we don't pass resource_version as it may be too old)
+        self.tasks.run_forever(
+            lambda: self._do_watch_pods(label_selector=pod_selector, resource_version=None),
             task_id=f"{self.bench.slug}.kubernetes.watch_pods",
+            skip_errors=True,
         )
 
     @override
