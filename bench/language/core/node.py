@@ -307,7 +307,7 @@ class Node[NodeDataT: AnyNodeData](BuiltinObject[NodeDataT]):
     # IsTemplatable.template: 16
     # IsOwnable.owned_by: 17
     # IsClaimable.claimed_by: 18
-    # ...managed_by?
+    # ...managed_by/controlled_by?
     if TYPE_CHECKING:
         created_by_id: Optional[UUID] = None
         created_by_type: NodeType | None = None

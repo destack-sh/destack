@@ -5,6 +5,7 @@ import {
   ButtonVariant,
   Continent,
   NodeType,
+  PrimitiveType,
   TypeKind,
   UserWizardViewStage,
   ViewData,
@@ -17,13 +18,14 @@ import { logIn, signUp, user } from "@/system/user";
 import { fireCommandById } from "@/ui/command";
 import { makeIcon } from "@/ui/icon";
 import { DEFAULT_REGION_BY_CONTINENT } from "@/utils/region";
+import { getNow, TimeUpdateInterval } from "@/utils/time";
 import { type FocusAnchor, type ViewEmits, type ViewExpose } from "@/views/common";
 import NativeInput from "@/views/content/NativeInput.vue";
 import Picker from "@/views/content/Picker.vue";
 import Button from "@/views/controls/Button.vue";
 import ThreeIcon from "@/views/helpers/ThreeIcon.vue";
 import { whenever } from "@vueuse/core";
-import { nextTick, ref, toRef, type Ref } from "vue";
+import { computed, nextTick, ref, toRef, type Ref } from "vue";
 
 const props = defineProps<{ self?: TypedNodeReferenceData<NodeType.VIEW>; id: string } & Pick<ViewData, "title">>();
 const emit = defineEmits<ViewEmits>();
@@ -37,7 +39,8 @@ const slug: Ref<string> = ref("");
 const email: Ref<string> = ref("");
 const password: Ref<string> = ref("");
 const continent: Ref<Continent> = ref(Continent.EUROPE);
-// NOTE: auto-set geolocation once we have more than once region
+const inviteCode: Ref<number | null> = ref(null);
+// NOTE: auto-set geolocation once we have more than once region :MultiRegion
 // watchEffect(() => {
 //   if (GEOLOCATION.value?.continent != null) {
 //     const defaultRegion = DEFAULT_REGION_BY_AREA[GEOLOCATION.value.continent];
@@ -50,11 +53,25 @@ const isActive = ref(false);
 const lastError: Ref<string | null> = ref(null);
 const isCreating = ref(false);
 
+// invite codes
+const now = getNow(TimeUpdateInterval.SECOND);
+const isInviteCodeValid = computed(() => {
+  // invite code must be <time>*<factor> -> last 4 digits
+  if (inviteCode.value == null) return false;
+  const factor = 1733;
+  const timeAsStr = now.value.toFormat("HHmm");
+  const expectedNum = parseInt(timeAsStr) * factor;
+  const expected = expectedNum.toString().slice(-4);
+  const isValid = inviteCode.value.toString() === expected;
+  return isValid;
+});
+
 function clear() {
   name.value = "";
   slug.value = "";
   email.value = "";
   password.value = "";
+  inviteCode.value = null;
 }
 
 function switchStage() {
@@ -147,7 +164,7 @@ defineExpose<ViewExpose>({ id, self, focus });
       <form v-if="!user" @submit.prevent="">
         <div class="mt-5 space-y-2">
           <div v-if="stage == UserWizardViewStage.SIGN_UP">
-            <span class="block pb-0.5 font-medium">Name</span>
+            <div class="mb-1 block text-gray-700">Name</div>
             <NativeInput
               id="name"
               ref="nameRef"
@@ -160,7 +177,7 @@ defineExpose<ViewExpose>({ id, self, focus });
             />
           </div>
           <div>
-            <span class="block pb-0.5 font-medium">Username</span>
+            <div class="mb-1 block text-gray-700">Username</div>
             <NativeInput
               id="slug"
               ref="slugRef"
@@ -173,7 +190,7 @@ defineExpose<ViewExpose>({ id, self, focus });
             />
           </div>
           <div v-if="stage == UserWizardViewStage.SIGN_UP">
-            <span class="block pb-0.5 font-medium">Email</span>
+            <div class="mb-1 block text-gray-700">Email</div>
             <NativeInput
               id="email"
               v-model="email"
@@ -186,7 +203,7 @@ defineExpose<ViewExpose>({ id, self, focus });
           </div>
           <!-- NOTE :UX: add passowrd feedback (see https://zxcvbn-ts.github.io/zxcvbn/)? -->
           <div>
-            <span class="block pb-0.5 font-medium">Password</span>
+            <div class="mb-1 block text-gray-700">Password</div>
             <NativeInput
               id="password"
               v-model="password"
@@ -199,7 +216,7 @@ defineExpose<ViewExpose>({ id, self, focus });
             />
           </div>
           <div v-if="stage == UserWizardViewStage.SIGN_UP">
-            <span class="block pb-0.5 font-medium">Region</span>
+            <div class="mb-1 block text-gray-700">Region</div>
             <Picker
               id="region"
               v-model="continent"
@@ -212,6 +229,20 @@ defineExpose<ViewExpose>({ id, self, focus });
               "
             />
           </div>
+          <div v-if="stage == UserWizardViewStage.SIGN_UP">
+            <div class="mb-1 block text-gray-700">Invite Code</div>
+            <NativeInput
+              id="inviteCode"
+              name="Invite Code"
+              title="Invite Code"
+              placeholder="1234567890"
+              is-input
+              :icon="makeIcon({ faName: 'fas fa-user' })"
+              :value-type="makeType({ kind: TypeKind.PRIMITIVE, primitiveType: PrimitiveType.INT32 })"
+              :model-value="inviteCode ?? undefined"
+              @update:model-value="inviteCode = $event"
+            />
+          </div>
         </div>
         <!-- Commands -->
         <div class="mt-7 flex flex-col gap-y-1">
@@ -221,7 +252,7 @@ defineExpose<ViewExpose>({ id, self, focus });
             :icon="makeIcon({ faName: 'fas fa-arrow-right-from-bracket' })"
             :title="stage === UserWizardViewStage.LOG_IN ? 'Log in' : 'Sign up'"
             class="w-full"
-            :is-disabled="isActive"
+            :is-disabled="isActive || (stage == UserWizardViewStage.SIGN_UP && !isInviteCodeValid)"
             :is-loading="isActive"
             @click="submit"
           />
