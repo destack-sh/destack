@@ -1,17 +1,14 @@
 import { makeNode } from "@/language/core/node";
 import { supervisor, type OperationOptions } from "@/proto/services";
 import {
-  BenchData,
   ClientData,
-  NodeReferenceData,
   NodeType,
   ObjectType,
   Region,
   UserData,
   UserProperty,
-  UserStatus,
   UserWizardViewStage,
-  ViewType,
+  ViewType
 } from "@/proto/wire";
 import {
   EMPTY_SCOPE,
@@ -21,15 +18,18 @@ import {
   wrapProtoOneOf,
   type TypedNodeReferenceData,
 } from "@/proto/wiring";
-import local, { benchPtr, persistentInfo } from "@/system/client";
+import local from "@/system/client";
 import { clearConnections, useGetConnection } from "@/system/connection";
 import { bench, canvas, goToBench } from "@/system/space";
 import { provideCommands } from "@/ui/command";
 import { makeIcon } from "@/ui/icon";
 import type { ViewIn } from "@/ui/space";
 import { toaster } from "@/ui/toast";
+import { TELEMETRY } from "@/utils/globals";
 import { log } from "@/utils/log";
 import type { RpcError } from "@protobuf-ts/runtime-rpc";
+import { whenever } from "@vueuse/core";
+import posthog from "posthog-js";
 import { computed } from "vue";
 
 export const isAuthenticated = computed(() => local.clientInfo.value?.accessToken != null);
@@ -59,6 +59,20 @@ export const clients = userGraph.getChildrenRef(
   computed(() => (user.value != null ? toNodeRef(user.value) : null)),
   NodeType.CLIENT,
 );
+
+// identify user for telemetry
+whenever(user, () => {
+  if (user.value == null) return;
+  if (TELEMETRY) {
+    posthog.identify(user.value.id, {
+      name: user.value.name,
+      email: user.value.email,
+      region: Region[user.value.region],
+      slug: user.value.slug,
+      is_staff: user.value.isStaff,
+    });
+  }
+});
 
 function makeCurrentClient(): ClientData {
   return makeNode(
@@ -121,6 +135,7 @@ export async function signUp(
   if (user == null || client == null) throw new Error("unexpected null user or client");
   onLogIn({ user, client, accessToken });
   toaster.success({ icon: "fas fa-right-from-bracket", title: "Signed up", text: `Welcome, ${user.slug}.` });
+  posthog.capture("user_signup");
   return { user, client };
 }
 
@@ -139,6 +154,7 @@ export async function logIn(
   if (user == null || client == null) throw new Error("unexpected null user or client");
   onLogIn({ user, client, accessToken });
   toaster.success({ icon: "fas fa-right-from-bracket", title: "Logged in", text: `Welcome back, ${user.slug}.` });
+  posthog.capture("user_login");
   return { user, client };
 }
 
@@ -158,6 +174,7 @@ export async function logOut(logOut?: { all?: boolean; clients?: { id: string }[
     // logged out current client
     log.info("user.logout", logOut);
     onLogout();
+    posthog.capture("user_logout");
     toaster.success({ icon: "fas fa-right-to-bracket", title: "Logged out", text: "Thanks for all the fish." });
   }
 }
@@ -168,23 +185,6 @@ export function onAuthenticationError(error: RpcError) {
   log.error("user.unauthenticated");
   local.clearUser();
   local.clearBench();
-}
-
-export async function createBench(
-  benchIn: {
-    owner: NodeReferenceData;
-    slug: string;
-    region: Region;
-    isMain: boolean;
-  },
-  options?: OperationOptions,
-): Promise<{ bench: BenchData }> {
-  if (local.clientInfo.value == null) throw new Error("not logged in");
-  const {
-    response: { bench },
-  } = await supervisor.createBench({ ...benchIn }, options);
-  if (bench == null) throw new Error("failed to create bench");
-  return { bench };
 }
 
 function userWizardView(view: { title: string; stage: UserWizardViewStage }): ViewIn {

@@ -15,7 +15,7 @@ import { keytrap } from "@/ui/keymap";
 import { HOVER_MENU_DIRECTIVE, MENU_DIRECTIVE } from "@/ui/popover";
 import { toaster } from "@/ui/toast";
 import { EVENT_OUTSIDE_DIRECTIVE, HOVER_DIRECTIVE, TOOLTIP_DIRECTIVE } from "@/ui/tooltip";
-import { COMMIT, ENV, GRPC_KEEPALIVE_INTERVAL_SECONDS, IS_DEV, SUPERVISOR_URL, VERSION } from "@/utils/globals";
+import { COMMIT, ENV, GRPC_KEEPALIVE_INTERVAL_SECONDS, IS_DEV, SUPERVISOR_URL, TELEMETRY, VERSION } from "@/utils/globals";
 import { log } from "@/utils/log";
 import { registerViewComponents } from "@/views/registry";
 import "highlight.js/styles/github.min.css";
@@ -43,7 +43,7 @@ async function init() {
   const app = createApp(Space);
 
   // telemetry
-  if (!IS_DEV) {
+  if (TELEMETRY) {
     posthog.init("phc_d8mi3OMdtKSVA8kzHbBoKtYU3ZsMQakAiLpuOn3W9ma", {
       api_host: "https://e.heybench.com",
       ui_host: "https://eu.posthog.com",
