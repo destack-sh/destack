@@ -62,14 +62,14 @@ class TaskManager:
             task_id = f"{self._task_id_prefix}_{task_id}"
         return task_id
 
-    async def _run_task(self, coro: Coroutine, logger, task_id: str, owner: Any) -> None:
+    async def _run_task(self, coro: Coroutine, task_id: str) -> None:
         try:
             return await coro
         except asyncio.CancelledError:
-            logger.trace(f"{task_id}.cancel", task_id=task_id, owner=owner)
+            self._logger.trace(f"{task_id}.cancel", task_id=task_id)
             pass
         except BaseException as e:
-            logger.exception(f"{task_id}.error", task_id=task_id, owner=owner, exc_info=e)
+            self._logger.exception(f"{task_id}.error", task_id=task_id, exc_info=e)
             if self._on_error is not None:
                 self._on_error(e)
             raise
@@ -77,8 +77,39 @@ class TaskManager:
     def run(self, coro: Coroutine, task_id: str | None = None) -> None:
         """Run a coroutine asynchronously (once)."""
         task_id = self._make_task_id(task_id, coro.__name__)
+        task = asyncio.create_task(coro=self._run_task(coro, task_id=task_id), name=task_id)
+        self._active_tasks.append(task)
+
+    async def _run_forever_task(
+        self,
+        coro: Callable[[], Awaitable[None]],
+        task_id: str,
+        skip_errors: bool,
+    ):
+        while True:
+            try:
+                await coro()
+            except Exception as e:
+                self._logger.exception(
+                    f"{task_id}.error", task_id=task_id, owner=self._owner, exc_info=e
+                )
+                if not skip_errors:
+                    if self._on_error is not None:
+                        self._on_error(e)
+                    self._errors.append(e)
+                    raise
+
+    def run_forever(
+        self,
+        coro: Callable[[], Awaitable[None]],
+        task_id: str | None = None,
+        skip_errors: bool = False,
+    ) -> None:
+        """Run a coroutine asynchronously (restart on failure or termination)"""
+        task_id = self._make_task_id(task_id, coro.__name__)
         task = asyncio.create_task(
-            coro=self._run_task(coro, self._logger, task_id, self._owner), name=task_id
+            coro=self._run_forever_task(coro, task_id=task_id, skip_errors=skip_errors),
+            name=task_id,
         )
         self._active_tasks.append(task)
 

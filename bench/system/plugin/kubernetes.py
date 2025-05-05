@@ -95,7 +95,7 @@ class KubernetesApi:
         )
         return pods.items, pods.metadata.resource_version
 
-    async def watch_pods(self, *, label_selector: str, resource_version: str):
+    async def watch_pods(self, *, label_selector: str, resource_version: str | None):
         """Watch for Pod changes with the given label selector."""
         from kubernetes_asyncio.watch import Watch as KubernetesWatch
 
