@@ -116,11 +116,10 @@ resource "kubernetes_deployment" "supervisor" {
 
     selector {
       match_labels = {
-        app     = "bench-supervisor"
-        env     = var.env
-        cloud   = var.cloud
-        region  = var.region
-        version = var.bench_version
+        app    = "bench-supervisor"
+        env    = var.env
+        cloud  = var.cloud
+        region = var.region
       }
     }
 
@@ -392,11 +391,15 @@ resource "kubernetes_config_map" "supervisor_envoy_config" {
 }
 
 # Envoy Deployment
-resource "kubernetes_deployment" "supervisor_envoy_proxy" {
+resource "kubernetes_deployment" "supervisor_proxy" {
   metadata {
-    name = "${local.prefix}-supervisor-envoy-proxy"
+    name = "${local.prefix}-supervisor-proxy"
     labels = {
-      app = "${local.prefix}-supervisor-envoy-proxy"
+      app     = "bench-supervisor-proxy"
+      env     = var.env
+      cloud   = var.cloud
+      region  = var.region
+      version = var.bench_version
     }
   }
 
@@ -405,14 +408,21 @@ resource "kubernetes_deployment" "supervisor_envoy_proxy" {
 
     selector {
       match_labels = {
-        app = "${local.prefix}-supervisor-envoy-proxy"
+        app    = "bench-supervisor-proxy"
+        env    = var.env
+        cloud  = var.cloud
+        region = var.region
       }
     }
 
     template {
       metadata {
         labels = {
-          app = "${local.prefix}-supervisor-envoy-proxy"
+          app     = "bench-supervisor-proxy"
+          env     = var.env
+          cloud   = var.cloud
+          region  = var.region
+          version = var.bench_version
         }
       }
 
@@ -468,9 +478,9 @@ resource "kubernetes_deployment" "supervisor_envoy_proxy" {
 }
 
 # Envoy Service
-resource "kubernetes_service" "supervisor_envoy_proxy" {
+resource "kubernetes_service" "supervisor_proxy" {
   metadata {
-    name = "${local.prefix}-supervisor-envoy-proxy"
+    name = "${local.prefix}-supervisor-proxy"
     annotations = {
       "service.beta.kubernetes.io/aws-load-balancer-type"                            = "nlb"
       "service.beta.kubernetes.io/aws-load-balancer-nlb-target-type"                 = "ip"
@@ -487,7 +497,7 @@ resource "kubernetes_service" "supervisor_envoy_proxy" {
 
   spec {
     selector = {
-      app = "${local.prefix}-supervisor-envoy-proxy"
+      app = "${local.prefix}-supervisor-proxy"
     }
 
     port {
@@ -506,16 +516,16 @@ resource "kubernetes_service" "supervisor_envoy_proxy" {
   }
 }
 
-data "kubernetes_service" "supervisor_envoy_proxy" {
+data "kubernetes_service" "supervisor_proxy" {
   metadata {
-    name = kubernetes_service.supervisor_envoy_proxy.metadata[0].name
+    name = kubernetes_service.supervisor_proxy.metadata[0].name
   }
 
-  depends_on = [kubernetes_service.supervisor_envoy_proxy]
+  depends_on = [kubernetes_service.supervisor_proxy]
 }
 
 output "supervisor_hostname" {
-  value       = data.kubernetes_service.supervisor_envoy_proxy.status.0.load_balancer.0.ingress.0.hostname
+  value       = data.kubernetes_service.supervisor_proxy.status.0.load_balancer.0.ingress.0.hostname
   description = "The public hostname of the Supervisor service (ingress)"
 }
 
@@ -524,7 +534,7 @@ resource "cloudflare_record" "supervisor" {
   zone_id         = var.web_zone_id
   name            = "${var.cloud}-${var.region}.supervisor"
   type            = "CNAME"
-  content         = data.kubernetes_service.supervisor_envoy_proxy.status.0.load_balancer.0.ingress.0.hostname
+  content         = data.kubernetes_service.supervisor_proxy.status.0.load_balancer.0.ingress.0.hostname
   ttl             = 300
   proxied         = false
   allow_overwrite = true

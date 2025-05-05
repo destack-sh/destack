@@ -15,29 +15,22 @@ import { keytrap } from "@/ui/keymap";
 import { HOVER_MENU_DIRECTIVE, MENU_DIRECTIVE } from "@/ui/popover";
 import { toaster } from "@/ui/toast";
 import { EVENT_OUTSIDE_DIRECTIVE, HOVER_DIRECTIVE, TOOLTIP_DIRECTIVE } from "@/ui/tooltip";
-import { COMMIT, ENV, GRPC_KEEPALIVE_INTERVAL_SECONDS, IS_DEV, SUPERVISOR_URL, TELEMETRY, VERSION } from "@/utils/globals";
+import {
+  COMMIT,
+  ENV,
+  GRPC_KEEPALIVE_INTERVAL_SECONDS,
+  IS_DEV,
+  SUPERVISOR_URL,
+  TELEMETRY,
+  VERSION,
+} from "@/utils/globals";
 import { log } from "@/utils/log";
 import { registerViewComponents } from "@/views/registry";
 import "highlight.js/styles/github.min.css";
 import posthog from "posthog-js";
 import { createApp } from "vue";
 import Space from "./Space.vue";
-
-function onUnhandledError(err: unknown) {
-  if (typeof err === "string" && err.includes("ResizeObserver")) {
-    return; // TODO :Robustness: don't just suppress ResizeObserver errors
-  }
-  log.error("error.internal", err);
-  if (IS_DEV) {
-    toaster.error({ title: "Internal client error", text: (err as any).message });
-  }
-  captureException(err);
-}
-
-function captureException(err: unknown) {
-  posthog.captureException(err);
-  resetTransactionBuffers(); // NOTE: shouldn't we only do this if really needed?
-}
+import { onUnhandledError } from "@/utils/telemetry";
 
 async function init() {
   const app = createApp(Space);
