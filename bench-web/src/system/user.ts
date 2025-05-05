@@ -8,7 +8,7 @@ import {
   UserData,
   UserProperty,
   UserWizardViewStage,
-  ViewType
+  ViewType,
 } from "@/proto/wire";
 import {
   EMPTY_SCOPE,
@@ -67,7 +67,7 @@ whenever(user, () => {
     posthog.identify(user.value.id, {
       name: user.value.name,
       email: user.value.email,
-      region: Region[user.value.region],
+      region: Region[user.value.region].replace("_", "-").toLowerCase(),
       slug: user.value.slug,
       is_staff: user.value.isStaff,
     });

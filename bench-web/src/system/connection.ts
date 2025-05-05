@@ -57,6 +57,7 @@ import { AsyncEvent, assertNever } from "@/utils/functools";
 import { IS_DEV } from "@/utils/globals";
 import { log } from "@/utils/log";
 import { immediateStopWatch, pretendReadonly, toValueRef } from "@/utils/ref";
+import { captureException } from "@/utils/telemetry";
 import type { RpcError } from "@protobuf-ts/runtime-rpc";
 import { useNetwork, whenever } from "@vueuse/core";
 import { DateTime } from "luxon";
@@ -462,6 +463,7 @@ export abstract class ConnectionBase<K extends GraphConnectionKind, T extends No
 
     const onError = (error: Error) => {
       // notify
+      captureException(error);
       this.lastError.value = error as RpcError;
       log.error(`graph.${this.kind}.error`, { name: this.meta.name, error });
       const errorCode = (error as RpcError).code ?? "UNKNOWN";

@@ -355,13 +355,7 @@ resource "kubernetes_config_map" "promtail_config" {
               - __meta_kubernetes_pod_label_version
               target_label: version
           pipeline_stages:
-            - json:
-                expressions:
-                  timestamp: timestamp
-                  level: level
-                  message: message
-                  logger: logger
-                  traceID: trace_id
+            - json: {}
             - labels:
                 level:
                 logger:

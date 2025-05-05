@@ -181,7 +181,6 @@ resource "kubernetes_deployment" "host" {
         env     = var.env
         cloud   = var.cloud
         region  = var.region
-        version = var.bench_version
       }
     }
 
@@ -411,11 +410,15 @@ resource "kubernetes_config_map" "host_envoy_config" {
 }
 
 # Envoy Deployment
-resource "kubernetes_deployment" "host_envoy_proxy" {
+resource "kubernetes_deployment" "host_proxy" {
   metadata {
-    name = "${local.prefix}-host-envoy-proxy"
+    name = "${local.prefix}-host-proxy"
     labels = {
-      app = "${local.prefix}-host-envoy-proxy"
+      app = "bench-host-proxy"
+      env = var.env
+      cloud = var.cloud
+      region = var.region
+      version = var.bench_version
     }
   }
 
@@ -424,14 +427,21 @@ resource "kubernetes_deployment" "host_envoy_proxy" {
 
     selector {
       match_labels = {
-        app = "${local.prefix}-host-envoy-proxy"
+        app = "bench-host-proxy"
+        env = var.env
+        cloud = var.cloud
+        region = var.region
       }
     }
 
     template {
       metadata {
         labels = {
-          app = "${local.prefix}-host-envoy-proxy"
+          app = "bench-host-proxy"
+          env = var.env
+          cloud = var.cloud
+          region = var.region
+          version = var.bench_version
         }
       }
 
@@ -487,9 +497,9 @@ resource "kubernetes_deployment" "host_envoy_proxy" {
 }
 
 # Envoy Service
-resource "kubernetes_service" "host_envoy_proxy" {
+resource "kubernetes_service" "host_proxy" {
   metadata {
-    name = "${local.prefix}-host-envoy-proxy"
+    name = "${local.prefix}-host-proxy"
     annotations = {
       "service.beta.kubernetes.io/aws-load-balancer-type"                            = "nlb"
       "service.beta.kubernetes.io/aws-load-balancer-nlb-target-type"                 = "ip"
@@ -506,7 +516,7 @@ resource "kubernetes_service" "host_envoy_proxy" {
 
   spec {
     selector = {
-      app = "${local.prefix}-host-envoy-proxy"
+      app = "${local.prefix}-host-proxy"
     }
 
     port {
@@ -525,16 +535,16 @@ resource "kubernetes_service" "host_envoy_proxy" {
   }
 }
 
-data "kubernetes_service" "host_envoy_proxy" {
+data "kubernetes_service" "host_proxy" {
   metadata {
-    name = kubernetes_service.host_envoy_proxy.metadata[0].name
+    name = kubernetes_service.host_proxy.metadata[0].name
   }
 
-  depends_on = [kubernetes_service.host_envoy_proxy]
+  depends_on = [kubernetes_service.host_proxy]
 }
 
 output "host_hostname" {
-  value       = data.kubernetes_service.host_envoy_proxy.status.0.load_balancer.0.ingress.0.hostname
+  value       = data.kubernetes_service.host_proxy.status.0.load_balancer.0.ingress.0.hostname
   description = "The public hostname of the Host service (ingress)"
 }
 
@@ -543,7 +553,7 @@ resource "cloudflare_record" "host_region" {
   zone_id         = var.web_zone_id
   name            = "${var.cloud}-${var.region}.host"
   type            = "CNAME"
-  content         = data.kubernetes_service.host_envoy_proxy.status.0.load_balancer.0.ingress.0.hostname
+  content         = data.kubernetes_service.host_proxy.status.0.load_balancer.0.ingress.0.hostname
   ttl             = 300
   proxied         = false
   allow_overwrite = true
