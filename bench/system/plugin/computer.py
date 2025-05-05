@@ -27,7 +27,7 @@ from bench.utils.func import generate_access_token
 from bench.utils.telemetry import OTLP_ENDPOINT
 from bench.utils.utils import get_from_env, get_from_env_maybe
 
-from .kubernetes import KUBERNETES_COMPUTER_APP_LABEL, KUBERNETES_NAMESPACE, KubernetesApi
+from .kubernetes import KUBERNETES_NAMESPACE, KubernetesApi
 from .provisioner import Provisioner
 
 if TYPE_CHECKING:
@@ -265,7 +265,7 @@ class KubernetesComputerProvisioner(ComputerProvisioner):
         """Gets the external name of the given Computer."""
         computer_id_prefix = str(computer.id).split("-")[0]
         # NOTE: kubernetes resource names must be valid DNS labels (<= 63 chars)
-        external_name = f"bench-{ENV.value}-{CLOUD.slug}-{computer.region.slug}-{computer.type.name.lower()}-computer-{computer_id_prefix}"
+        external_name = f"bench-{ENV.value}-{CLOUD.slug}-{computer.region.slug}-computer-{computer.type.name.lower()}-{computer_id_prefix}"
         assert len(external_name) <= 63, f"external name too long: {external_name!r}"
         return external_name
 
@@ -307,7 +307,7 @@ class KubernetesComputerProvisioner(ComputerProvisioner):
 
         # context
         labels = {
-            "app": KUBERNETES_COMPUTER_APP_LABEL,
+            "app": f"bench-computer-{computer.type.name.lower()}",
             "bench_id": str(self.bench.id),
             "computer_id": str(computer.id),
             "version": computer.version,
@@ -436,7 +436,8 @@ class KubernetesComputerProvisioner(ComputerProvisioner):
         await self._kubernetes_api.start()
 
         # sync computers with current pods
-        pod_selector = f"app={KUBERNETES_COMPUTER_APP_LABEL},bench_id={self.bench.id}"
+        computer_labels = [f"bench-computer-{computer.type.name.lower()}" for computer in computers]
+        pod_selector = f"app in ({','.join(computer_labels)}),bench_id={self.bench.id}"
         pods, _ = await self._kubernetes_api.get_pods(label_selector=pod_selector)
         for pod in pods:
             assert pod.metadata is not None, f"missing metadata for pod {pod!r}"

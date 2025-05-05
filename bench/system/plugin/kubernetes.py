@@ -27,11 +27,6 @@ KUBERNETES_NAMESPACE = get_from_env(
     default="default",
     description="Namespace to use for Kubernetes resources",
 )
-KUBERNETES_COMPUTER_APP_LABEL = get_from_env_maybe(
-    "KUBERNETES_COMPUTER_APP_LABEL",
-    default="bench-computer",
-    description="Label to use for Kubernetes resources",
-)
 
 
 async def get_kubernetes_client() -> KubernetesApiClient:
