@@ -53,11 +53,11 @@ async def bootstrap(
 
 
 @app.command(
-    name="make-local-runtime-computer",
+    name="make-local-computer-runtime",
     help="gets or creates a local runtime Computer (and Client) for a Bench",
 )
 @async_to_sync
-async def make_local_runtime_computer(
+async def make_local_computer_runtime(
     bench_slug: str,
     title: str = "Local Runtime Computer",
     region: Annotated[Region, typer.Option(parser=parse_region)] = REGION,
