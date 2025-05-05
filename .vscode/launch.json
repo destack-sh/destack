@@ -74,7 +74,7 @@
       "env": {
         "ENVIRONMENT": "dev",
         "PYTHONUNBUFFERED": "1",
-        "SERVICE_NAME": "system",
+        "SERVICE_NAME": "bench-system",
       },
       "console": "integratedTerminal",
       "cwd": "${workspaceFolder}",
@@ -89,7 +89,7 @@
       "env": {
         "ENVIRONMENT": "dev",
         "PYTHONUNBUFFERED": "1",
-        "SERVICE_NAME": "system",
+        "SERVICE_NAME": "bench-system",
       },
       "console": "integratedTerminal",
       "cwd": "${workspaceFolder}",
@@ -104,7 +104,7 @@
       "env": {
         "ENVIRONMENT": "dev",
         "PYTHONUNBUFFERED": "1",
-        "SERVICE_NAME": "runtime",
+        "SERVICE_NAME": "bench-computer-runtime",
         "SUPERVISOR_URL": "http://localhost:60061",
       },
       "console": "integratedTerminal",
@@ -121,7 +121,7 @@
       "env": {
         "ENVIRONMENT": "dev",
         "PYTHONUNBUFFERED": "1",
-        "SERVICE_NAME": "computer",
+        "SERVICE_NAME": "bench-computer-desktop",
         "SUPERVISOR_URL": "http://localhost:60061",
       },
       "console": "integratedTerminal",

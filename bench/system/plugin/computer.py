@@ -63,7 +63,8 @@ COMPUTER_VNC_PORT = get_from_env(
     description="Port to expose for the computer's VNC service (ws)",
 )
 
-# TODO :Security: review which keys to pass to semi-trusted computers and how
+# TODO :Security!: review keys to pass to semi-trusted computers (proxy/sidecar?)
+#  (also should if anything pass them as k8 secret key refs?)
 COMPUTER_SECRET_ENV_KEYS = (
     "ANTHROPIC_API_KEY",
     "OPENAI_API_KEY",
@@ -96,7 +97,7 @@ def _get_computer_env_vars(
     # env vars
     env_vars: dict[str, str | None] = {
         # hosting
-        "SERVICE_NAME": "computer",
+        "SERVICE_NAME": "bench-computer",
         "ENVIRONMENT": ENV.value,
         "CLOUD": CLOUD.slug,
         "REGION": computer.region.slug,
@@ -310,11 +311,10 @@ class KubernetesComputerProvisioner(ComputerProvisioner):
             "bench_id": str(self.bench.id),
             "computer_id": str(computer.id),
             "version": computer.version,
-            "environment": ENV.value,
+            "env": ENV.value,
             "cloud": CLOUD.slug,
             "region": computer.region.slug,
         }
-        # TODO :Security!: kubernetes-deployed runtime computers should not be trusted
         env_vars = _get_computer_env_vars(
             computer=computer, client=client, is_in_minikube=IS_DEV or IS_TEST
         )
