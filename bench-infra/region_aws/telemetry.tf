@@ -657,7 +657,7 @@ resource "kubernetes_cluster_role_binding" "otel_collector" {
 }
 
 # OpenTelemetry Collector config map
-# NOTE :Infra :Robustness: the otel_collector 'kubelet' job errors but the collector overall seems to work fine?
+# NOTE :Infra :Robustness: the otel_collector 'kubelet' job errors when enabled but the collector overall seems to work fine?
 resource "kubernetes_config_map" "otel_collector_config" {
   metadata {
     name      = "otel-collector-config"

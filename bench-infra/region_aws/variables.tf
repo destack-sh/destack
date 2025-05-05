@@ -42,12 +42,6 @@ variable "aws_availability_zones" {
   description = "AWS availability zones"
 }
 
-variable "host_grpc_port" {
-  type        = number
-  description = "Host GRPC port"
-  default     = 60061
-}
-
 # 
 # DB
 # 
