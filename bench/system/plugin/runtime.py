@@ -103,6 +103,8 @@ class RuntimePlugin[N: Node, O: RuntimeOp = RuntimeOp](HostPlugin[N], abc.ABC):
         ]
 
         # contact computers
+        # NOTE :Broken :RuntimeRouting :RichGraph: sometimes available_computers is out of sync
+        #  (so we try to reach a dead Computer, which obviously doesn't work)
         for computer in available_computers:
             try:
                 assert computer.grpc_url, f"missing GRPC URL for {computer!r}"

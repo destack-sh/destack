@@ -148,7 +148,7 @@ export const IconInline: FunctionalComponent<IconInlineProps> = (props) => {
     if (download?.getUrl.value != null) {
       return (
         <div class="relative inline-block h-3 min-w-[1em]">
-          <img src={download.getUrl.value} class="absolute -bottom-[2px] rounded-full" />
+          <img src={download.getUrl.value} class="absolute -bottom-[3px] rounded-full" />
         </div>
       );
     } else {
@@ -161,7 +161,7 @@ export const IconInline: FunctionalComponent<IconInlineProps> = (props) => {
     // file url
     return (
       <div class="relative inline-block h-3 min-w-[1em]">
-        <img src={props.fileUrl} class="absolute -bottom-[2px] rounded-full" />
+        <img src={props.fileUrl} class="absolute -bottom-[3px] rounded-full" />
       </div>
     );
   }
