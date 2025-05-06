@@ -12,7 +12,7 @@ import { hasActivePopover, pushDefaultContextMenu } from "@/ui/popover";
 import Inaccessible from "@/views/builtin/Inaccessible.vue";
 import Omnibar from "@/views/builtin/Omnibar.vue";
 import Split from "@/views/containers/Split.vue";
-import UserWizard from "@/views/helpers/Wizard.vue";
+import Wizard from "@/views/helpers/Wizard.vue";
 import DragOverlay from "@/views/overlays/DragOverlay.vue";
 import LightboxOverlay from "@/views/overlays/LightboxOverlay.vue";
 import PopoverOverlay from "@/views/overlays/PopoverOverlay.vue";
@@ -103,11 +103,14 @@ watch(
       is-root
     />
     <!-- Loading... -->
-    <div v-else-if="!spaceConnection.isConnected.value" class="absolute h-full w-full bg-white">
-      <Inaccessible class="h-full w-full" :node="spacePtr" :connection="spaceConnection" />
-    </div>
-    <!-- Does not have a space (not signed, space empty or disappeared) -->
-    <UserWizard v-else id="wizard" class="" />
+    <Inaccessible
+      v-else-if="spaceConnection.isConnecting.value"
+      class="h-full w-full"
+      :node="spacePtr"
+      :connection="spaceConnection"
+    />
+    <!-- Show setup wizard / home page -->
+    <Wizard v-else id="wizard" class="" />
 
     <!-- Overlays -->
     <DragOverlay />
