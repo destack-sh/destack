@@ -207,7 +207,7 @@ defineExpose<Omit<ViewExpose, "id"> & { total: Ref<number | undefined>; roots: R
               shortcuts: getCommand('space.create.thread').shortcuts,
             }"
             class="ml-auto cursor-pointer rounded-sm text-gray-400 opacity-0 transition-colors duration-75 group-hover/thread-group:opacity-100 hover:bg-gray-100 hover:text-gray-700"
-            @click="fireCommandById('space.create.thread')"
+            @mousedown="fireCommandById('space.create.thread')"
           >
             <span class="fas fa-plus w-5 text-center" />
           </button>
@@ -221,7 +221,7 @@ defineExpose<Omit<ViewExpose, "id"> & { total: Ref<number | undefined>; roots: R
           :style="{
             height: `${ITEM_HEIGHT}px`,
           }"
-          @click="fireCommandById('space.create.thread')"
+          @mousedown="fireCommandById('space.create.thread')"
         >
           <span class="fas fa-plus mr-1 w-5 text-center" />
           <span>Thread</span>
@@ -251,7 +251,7 @@ defineExpose<Omit<ViewExpose, "id"> & { total: Ref<number | undefined>; roots: R
             }"
             data-suppress-drag="select"
             role="button"
-            @click.stop="
+            @mousedown.stop="
               () => {
                 canvas.tx().update(canvas.space.value!, { threadPtr: toNodeRef(thread) });
               }

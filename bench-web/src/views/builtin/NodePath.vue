@@ -42,7 +42,7 @@ const selfIndex = computed(() => path.value.findIndex((node) => node.id == props
         :data-node-type="node.metatype"
         :data-node-bench-id="(node as PackageData).benchPtr?.id"
         :draggable="true"
-        @click.stop="canvas.goToNode(node)"
+        @mousedown.stop="canvas.goToNode(node)"
         @dragstart.stop="(e: DragEvent) => startDragging(e, node)"
       >
         <NodeReference

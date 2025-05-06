@@ -21,7 +21,7 @@ import Button from "@/views/controls/Button.vue";
         name="Create"
         :icon="makeIcon('fas fa-redo-alt')"
         title="Restore Default"
-        @click="() => createDesktopDefaultSpace(canvas.tx(), space!)"
+        @mousedown="() => createDesktopDefaultSpace(canvas.tx(), space!)"
       />
     </div>
     <div v-else-if="bench" class="flex w-fit flex-col self-center">
@@ -45,7 +45,7 @@ import Button from "@/views/controls/Button.vue";
         name="CreateSpace"
         :icon="makeIcon('fas fa-plus')"
         title="Create Space"
-        @click="() => pkg && assignSpaceInPackage(pkg)"
+        @mousedown="() => pkg && assignSpaceInPackage(pkg)"
       />
       <Button
         v-else
@@ -54,7 +54,7 @@ import Button from "@/views/controls/Button.vue";
         name="LogIn"
         :icon="makeIcon('fas fa-arrow-right-to-bracket')"
         title="Log In"
-        @click="fireCommandById('user.auth.login')"
+        @mousedown="fireCommandById('user.auth.login')"
       />
     </div>
     <div v-else-if="user && user.status == UserStatus.WAITLISTED" class="flex flex-col gap-y-2 self-center">
@@ -79,7 +79,7 @@ import Button from "@/views/controls/Button.vue";
         name="GoHome"
         :icon="makeIcon('fas fa-home')"
         title="Go Home"
-        @click="fireCommandById('user.navigate.goToHome')"
+        @mousedown="fireCommandById('user.navigate.goToHome')"
       />
       <Button
         v-else
@@ -87,7 +87,7 @@ import Button from "@/views/controls/Button.vue";
         name="Activate"
         :icon="makeIcon('fas fa-plus')"
         title="Create Bench"
-        @click="fireCommandById('user.navigate.activate')"
+        @mousedown="fireCommandById('user.navigate.activate')"
       />
     </div>
     <div v-else class="flex flex-col gap-y-2 self-center">
@@ -98,7 +98,7 @@ import Button from "@/views/controls/Button.vue";
         name="LogIn"
         :icon="makeIcon('fas fa-arrow-right-to-bracket')"
         title="Log In"
-        @click="fireCommandById('user.auth.login')"
+        @mousedown="fireCommandById('user.auth.login')"
       />
     </div>
   </div>
