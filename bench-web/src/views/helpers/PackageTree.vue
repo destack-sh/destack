@@ -13,8 +13,9 @@ import {
   TextLineType,
   ViewData,
   type AnyNodeData,
+  BlockType,
 } from "@/proto/wire";
-import { toNodeRef } from "@/proto/wiring";
+import { isNode, toNodeRef } from "@/proto/wiring";
 import { packagePtr } from "@/system/client";
 import { useAutoConnection } from "@/system/connection";
 import { canvas, pagePtr } from "@/system/space";
@@ -36,7 +37,9 @@ import { type FocusAnchor, type ViewExpose } from "@/views/common";
 import Scroll from "@/views/containers/Scroll.vue";
 import SelectionOverlay from "@/views/overlays/SelectionOverlay.vue";
 import { useElementSize } from "@vueuse/core";
-import { computed, ref, type Ref } from "vue";
+import { computed, nextTick, ref, type Ref } from "vue";
+import { createPage } from "@/language/source/page";
+import { createBlock } from "@/language/source/block";
 
 const DEPTH_OFFSET = 16;
 const ITEM_HEIGHT = 30;
@@ -70,6 +73,13 @@ function toggleExpanded(node: AnyNodeData | NodeReferenceData) {
     expandedNodesPtr.value = expandedNodesPtr.value.filter((ptr) => ptr.id != node.id);
   } else {
     expandedNodesPtr.value = [...expandedNodesPtr.value, toNodeRef(node)];
+  }
+}
+function setExpanded(node: AnyNodeData | NodeReferenceData, expanded: boolean) {
+  if (expanded) {
+    expandedNodesPtr.value = [...expandedNodesPtr.value, toNodeRef(node)];
+  } else {
+    expandedNodesPtr.value = expandedNodesPtr.value.filter((ptr) => ptr.id != node.id);
   }
 }
 
@@ -262,7 +272,7 @@ defineExpose<Omit<ViewExpose, "id" | "self">>({ commands, focus });
           />
           <!-- Icon/Expand button -->
           <button
-            class="group/icon relative mr-1 shrink-0 cursor-pointer"
+            class="group/icon relative mr-1 shrink-0 cursor-pointer rounded-sm transition-colors duration-75 hover:bg-gray-200"
             aria-hidden
             @click.stop="() => toggleExpanded(node)"
           >
@@ -271,8 +281,8 @@ defineExpose<Omit<ViewExpose, "id" | "self">>({ commands, focus });
               class="w-5 text-center transition-colors duration-75 group-hover/node:opacity-0"
             />
             <span
-              class="absolute left-0 w-5 rounded-sm bg-gray-100 text-gray-400 opacity-0 transition-all duration-75 group-hover/node:opacity-100"
-              :class="isExpanded(node) ? 'rotate-90' : 'rotate-9'"
+              class="absolute left-0 w-5 rounded-sm text-gray-400 opacity-0 transition-all duration-75 group-hover/node:opacity-100"
+              :class="isExpanded(node) ? 'rotate-90' : 'rotate-0'"
             >
               <i class="fas fa-chevron-right" />
             </span>
@@ -300,8 +310,25 @@ defineExpose<Omit<ViewExpose, "id" | "self">>({ commands, focus });
           <!-- Metadata -->
           <NodeMetadata class="ml-1.5" size="sm" :node="node" />
           <!-- Meta -->
-          <div class="ml-auto flex flex-row gap-x-1 pr-[7px] pl-3">
-            <!-- ... -->
+          <div class="ml-auto flex flex-row gap-x-1 pl-3">
+            <!-- Add -->
+            <button
+              v-if="isNode(node, NodeType.PAGE)"
+              class="cursor-pointer rounded-sm px-1 text-gray-400 opacity-0 transition-colors duration-75 group-hover/node:opacity-100 hover:bg-gray-200 hover:text-gray-700"
+              @click.stop="
+                () => {
+                  setExpanded(node, true);
+                  const { block, node: page } = createBlock(connection.tx, graph, {
+                    block: { parentPtr: toNodeRef(node), type: BlockType.PAGE },
+                    anchor: 'inside',
+                    target: node,
+                  });
+                  nextTick(() => canvas.goToNode(page!));
+                }
+              "
+            >
+              <i class="fas fa-plus" />
+            </button>
           </div>
           <!-- ... -->
         </li>

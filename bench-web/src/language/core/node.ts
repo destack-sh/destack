@@ -625,7 +625,7 @@ export function moveNode(
     } else if (PARENT_NODE_TYPES[NodeType.BLOCK].includes(parentPtr.nodeType)) {
       // create a new block to 'define' the inline source node
       const parent = supergraph.getOrError(parentPtr) as PageData | BlockData;
-      const block = createBlock(tx, graph, {
+      const { block } = createBlock(tx, graph, {
         block: {
           metatype: NodeType.BLOCK,
           packagePtr: node.packagePtr,
