@@ -257,7 +257,7 @@ defineExpose<Omit<ViewExpose, "id" | "self">>({ commands, focus });
           role="treeitem"
           data-suppress-drag="select"
           :draggable="true"
-          @click.stop="fire(node)"
+          @mousedown.stop="fire(node)"
           @dragstart.stop="(e: DragEvent) => startDraggingIfAllowed(e, node)"
         >
           <!-- Drop indicator -->
@@ -274,7 +274,7 @@ defineExpose<Omit<ViewExpose, "id" | "self">>({ commands, focus });
           <button
             class="group/icon relative mr-1 shrink-0 cursor-pointer rounded-sm transition-colors duration-75 hover:bg-gray-200"
             aria-hidden
-            @click.stop="() => toggleExpanded(node)"
+            @mousedown.stop="() => toggleExpanded(node)"
           >
             <IconInline
               v-bind="getNodeIcon(node)"
@@ -315,7 +315,7 @@ defineExpose<Omit<ViewExpose, "id" | "self">>({ commands, focus });
             <button
               v-if="isNode(node, NodeType.PAGE)"
               class="cursor-pointer rounded-sm px-1 text-gray-400 opacity-0 transition-colors duration-75 group-hover/node:opacity-100 hover:bg-gray-200 hover:text-gray-700"
-              @click.stop="
+              @mousedown.stop="
                 () => {
                   setExpanded(node, true);
                   const { block, node: page } = createBlock(connection.tx, graph, {

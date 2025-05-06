@@ -391,7 +391,7 @@ defineExpose<ViewExpose>({ self, commands, focus });
       <template #meta>
         <button
           class="cursor-pointer text-gray-400 hover:bg-gray-100 hover:text-gray-700"
-          @click="(e) => pushDefaultMenu('main', page!, e)"
+          @mousedown="(e) => pushDefaultMenu('main', page!, e)"
         >
           <i class="fas fa-ellipsis-vertical w-5 text-center" />
         </button>
@@ -457,7 +457,7 @@ defineExpose<ViewExpose>({ self, commands, focus });
           class="transform transition-all duration-300"
           :class="!isEmpty ? 'pt-auto' : 'pt-0'"
           :style="{ height: MIN_FOOTER_PADDING / 2 + 'px' }"
-          @click="focusText()"
+          @mousedown="focusText()"
         />
 
         <!-- Footer -->
@@ -466,7 +466,7 @@ defineExpose<ViewExpose>({ self, commands, focus });
           :style="{
             width: widths.body + 'px',
           }"
-          @click.stop="focusText()"
+          @click.stop="nextTick(() => focusText())"
         >
           <!-- Add blocks -->
           <button
@@ -490,7 +490,7 @@ defineExpose<ViewExpose>({ self, commands, focus });
         </div>
 
         <!-- Padding -->
-        <div class="" :style="{ height: MIN_FOOTER_PADDING / 2 + 'px' }" @click="focusText()" />
+        <div class="" :style="{ height: MIN_FOOTER_PADDING / 2 + 'px' }" @click.stop="nextTick(() => focusText())" />
 
         <!-- Selection -->
         <SelectionOverlay ref="selectionOverlayRef" :zone="selectionZone" />

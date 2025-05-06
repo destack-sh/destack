@@ -423,7 +423,7 @@ REMEMBER:
  - This is ONE turn. You will turn again *automatically* after calls and on new Messages
  - Check if there are any Tasks you should be doing (do those and update them)
  - Double check where to write/put what (Messages/Pages/...)
- - Split SENDs into lines/paragraphs (the smaller, the more responsive, except continuous lists)
+ - Split SENDs into lines/paragraphs (except continuous lists/code/equations/...)
  - Put citations at the end of SEND with full URLs, put Links in `nodes` ONLY (ONCE per turn)
  - Citations should be source abbreviations (like `[NZZ]` or `[Wikipedia]`, NO numbers)
  - Avoid repeating the same Message.nodes close to each other
