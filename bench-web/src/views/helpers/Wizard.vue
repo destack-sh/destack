@@ -158,23 +158,23 @@ defineExpose<ViewExpose>({ id, self, focus });
     <!-- TODO :UX!: make UserWizard not suck -->
     <!-- Image -->
     <div
-      class="flex h-[30%] w-full shrink-0 flex-col items-center justify-center bg-gradient-to-br from-yellow-400 to-amber-400 lg:h-full lg:w-[40%]"
+      class="flex h-[20%] w-full shrink-0 flex-col items-center justify-center bg-gradient-to-br from-yellow-400 to-amber-400 lg:h-full lg:w-[40%]"
     >
-      <ThreeIcon class="h-[50%] w-[50%] lg:h-[40%] lg:w-[40%]" />
+      <ThreeIcon class="h-full w-full" />
     </div>
 
     <!-- Body -->
     <div
-      class="mx-auto my-12 flex h-full w-full max-w-lg flex-1 flex-col overflow-hidden rounded-sm px-9 text-left text-gray-900 lg:justify-center"
+      class="mx-auto my-5 flex h-full w-full max-w-lg flex-1 flex-col rounded-sm px-5 text-left text-gray-900 lg:my-12 lg:justify-center lg:px-9"
     >
       <!-- Header -->
       <div class="mb-3">
         <h2 class="mb-2 text-3xl font-semibold lg:text-4xl">Bench</h2>
-        <div class="flex lg:flex-row">
+        <div class="flex flex-col gap-y-1 lg:flex-row lg:justify-between">
           <p class="text-gray-700">Personal software at the cost of compute.</p>
           <a
             :href="DISCORD_URL"
-            class="ml-auto text-gray-400 underline decoration-dashed underline-offset-3 transition-colors duration-150 hover:text-gray-700 hover:decoration-solid"
+            class="text-gray-400 underline decoration-dashed underline-offset-3 transition-colors duration-150 hover:text-gray-700 hover:decoration-solid"
             target="_blank"
           >
             Join the Discord
