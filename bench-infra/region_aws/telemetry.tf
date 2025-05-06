@@ -657,7 +657,6 @@ resource "kubernetes_cluster_role_binding" "otel_collector" {
 }
 
 # OpenTelemetry Collector config map
-# NOTE :Infra :Robustness: the otel_collector 'kubelet' job errors when enabled but the collector overall seems to work fine?
 resource "kubernetes_config_map" "otel_collector_config" {
   metadata {
     name      = "otel-collector-config"
@@ -732,29 +731,6 @@ resource "kubernetes_config_map" "otel_collector_config" {
                   - source_labels: [__meta_kubernetes_service_name]
                     target_label: service
 
-              # - job_name: 'kubelet'
-              #   scheme: https
-              #   tls_config:
-              #     insecure_skip_verify: true
-              #   authorization:
-              #     type: "Bearer"
-              #     credentials_file: "/var/run/secrets/kubernetes.io/serviceaccount/token"
-              #   kubernetes_sd_configs:
-              #     - role: node
-              #   relabel_configs:
-              #     - action: labelmap
-              #       regex: __meta_kubernetes_node_label_(.+)
-              #     - target_label: __address__
-              #       replacement: kubernetes.default.svc:443
-              #     - source_labels: [__meta_kubernetes_node_name]
-              #       regex: (.+)
-              #       target_label: __metrics_path__
-              #       replacement: /api/v1/nodes/${1}/proxy/metrics
-              #   metric_relabel_configs:
-              #     - action: keep
-              #       regex: 'kubelet_(.+)|container_(.+)|machine_(.+)|node_(.+)'
-              #       source_labels: [__name__]
-
               - job_name: 'kubernetes-cadvisor'
                 scheme: https
                 tls_config:
@@ -785,22 +761,6 @@ resource "kubernetes_config_map" "otel_collector_config" {
                     regex: '^/system\.slice/(.+)\.service$'
                     target_label: systemd_service_name
                     replacement: '${1}'
-
-              - job_name: 'kubernetes-apiserver'
-                kubernetes_sd_configs:
-                  - role: endpoints
-                    namespaces:
-                      names: ['default']
-                scheme: https
-                tls_config:
-                  insecure_skip_verify: true
-                authorization:
-                  type: "Bearer"
-                  credentials_file: "/var/run/secrets/kubernetes.io/serviceaccount/token"
-                relabel_configs:
-                  - source_labels: [__meta_kubernetes_service_name, __meta_kubernetes_endpoint_port_name]
-                    action: keep
-                    regex: kubernetes;https
 
       processors:
         batch:
