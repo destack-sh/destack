@@ -1,4 +1,5 @@
 import { makeNode } from "@/language/core/node";
+import { commitTransactionBuffers } from "@/language/core/transaction";
 import { supervisor, type OperationOptions } from "@/proto/services";
 import {
   ClientData,
@@ -168,6 +169,7 @@ export async function logIn(
  */
 export async function logOut(logOut?: { all?: boolean; clients?: { id: string }[] }, options?: OperationOptions) {
   if (local.clientInfo.value == null) throw new Error("not logged in");
+  await commitTransactionBuffers();
   await supervisor.logoutUser(
     {
       clients: logOut?.clients?.map((c) => nodeReference(NodeType.CLIENT, c.id!)) ?? [],

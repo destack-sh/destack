@@ -24,7 +24,6 @@ import {
   PrimitiveType,
   PROPERTY_ENUM_BY_TYPE,
   PROPERTY_INFOS_BY_TYPE,
-  PropertyInfo,
   TextData,
   Timestamp,
   type AnyNodeData,
@@ -47,7 +46,7 @@ import {
 } from "@/proto/wiring";
 import { nonce, origin, userOrNullPtr, userPtr } from "@/system/client";
 import { toaster } from "@/ui/toast";
-import { IS_DEV, IS_DEVELOPER_MODE } from "@/utils/globals";
+import { IS_DEVELOPER_MODE } from "@/utils/globals";
 import { log } from "@/utils/log";
 import { toValueRef } from "@/utils/ref";
 import { uuidt } from "@/utils/uuidt";
@@ -1121,7 +1120,13 @@ function watchTransactionBuffer(buffer: TransactionBuffer) {
       scheduledDebouncedCommitLevel = null;
       if (!buffer.isCommitting && !buffer.isPaused.value) {
         // commit if there is something to commit
-        if (buffer.isDirty) buffer.commit();
+        if (buffer.isDirty) {
+          if (userPtr.value == null) {
+            log.warn("transaction.commit.discard");
+          } else {
+            buffer.commit();
+          }
+        }
       } else {
         // can't commit right now, try again in a bit
         setTimeout(() => nextTick(scheduleCommit), 50);
@@ -1136,7 +1141,7 @@ function watchTransactionBuffer(buffer: TransactionBuffer) {
 }
 
 /** Commits any pending transactions in the current buffers. */
-async function commitTransactionBuffers() {
+export async function commitTransactionBuffers() {
   const buffers = [globalTxBuffer, ...Object.values(txBuffersByBenchId.value)];
   const commitPromises = [];
   for (const tx of buffers) {
