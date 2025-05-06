@@ -104,7 +104,7 @@ watch(
     />
     <!-- Loading... -->
     <Inaccessible
-      v-else-if="spaceConnection.isConnecting.value"
+      v-else-if="!spaceConnection.isConnected.value"
       class="h-full w-full"
       :node="spacePtr"
       :connection="spaceConnection"
