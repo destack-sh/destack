@@ -7,6 +7,7 @@ import {
   NodeType,
   PrimitiveType,
   TypeKind,
+  UserData,
   UserWizardViewStage,
   ViewData,
   type NodeReferenceData,
@@ -38,6 +39,7 @@ const stage = ref<UserWizardViewStage>(UserWizardViewStage.LOG_IN);
 const name: Ref<string> = ref("");
 const slug: Ref<string> = ref("");
 const email: Ref<string> = ref("");
+const slugOrEmail: Ref<string> = ref("");
 const password: Ref<string> = ref("");
 const continent: Ref<Continent> = ref(Continent.EUROPE);
 const inviteCode: Ref<number | null> = ref(null);
@@ -60,7 +62,6 @@ const isInviteCodeValid = computed(() => {
   // invite code must be <time>*<factor> -> last 4 digits
   if (inviteCode.value == null) return false;
   const factor = 1733;
-  // use Zurich time
   const zurichTime = now.value.setZone("Europe/Zurich");
   const timeAsStr = zurichTime.toFormat("HHmm");
   const expectedNum = parseInt(timeAsStr) * factor;
@@ -72,6 +73,7 @@ const isInviteCodeValid = computed(() => {
 function clear() {
   name.value = "";
   slug.value = "";
+  slugOrEmail.value = "";
   email.value = "";
   password.value = "";
   inviteCode.value = null;
@@ -109,7 +111,14 @@ async function submit() {
         isCreating.value = false;
       }
     } else if (stage.value == UserWizardViewStage.LOG_IN) {
-      const { user } = await logIn({ slug: slug.value }, password.value);
+      let user: UserData;
+      if (slugOrEmail.value.includes("@")) {
+        const { user: userData } = await logIn({ email: slugOrEmail.value }, password.value);
+        user = userData;
+      } else {
+        const { user: userData } = await logIn({ slug: slugOrEmail.value }, password.value);
+        user = userData;
+      }
       // if we're outside a Bench and have a Bench, go home
       if (user.benchPtr != null && benchPtr.value == null) {
         await goToBench({ bench: user.benchPtr as TypedNodeReferenceData<NodeType.BENCH> });
@@ -168,7 +177,7 @@ defineExpose<ViewExpose>({ id, self, focus });
             class="ml-auto text-gray-400 underline decoration-dashed underline-offset-3 transition-colors duration-150 hover:text-gray-700 hover:decoration-solid"
             target="_blank"
           >
-            Join the  Discord
+            Join the Discord
           </a>
         </div>
       </div>
@@ -188,7 +197,7 @@ defineExpose<ViewExpose>({ id, self, focus });
               is-input
             />
           </div>
-          <div>
+          <div v-if="stage == UserWizardViewStage.SIGN_UP">
             <div class="mb-1 block text-gray-700">Username</div>
             <NativeInput
               id="slug"
@@ -198,6 +207,18 @@ defineExpose<ViewExpose>({ id, self, focus });
               name="slug"
               title="Username"
               placeholder="florian"
+              is-input
+            />
+          </div>
+          <div v-else-if="stage == UserWizardViewStage.LOG_IN">
+            <div class="mb-1 block text-gray-700">Username or Email</div>
+            <NativeInput
+              id="slugOrEmail"
+              v-model="slugOrEmail"
+              :icon="makeIcon({ faName: 'fas fa-at' })"
+              name="Identifier"
+              title="Username or Email"
+              placeholder="florian / florian@symbolx.com"
               is-input
             />
           </div>
