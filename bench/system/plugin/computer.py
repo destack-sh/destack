@@ -172,7 +172,10 @@ class ComputerProvisioner(Provisioner[Computer, Computer]):
 
 
 class DockerComputerProvisioner(ComputerProvisioner):
-    """Provision Computers as containers in a Docker installation."""
+    """
+    Provision Computers as containers in a Docker installation.
+    TODO :Dev: use Kubernetes locally too (drop Docker compose & Docker provisioning)
+    """
 
     watch_types = bittuple(NodeType.COMPUTER)
     provision_type = NodeType.COMPUTER
@@ -248,7 +251,10 @@ class DockerComputerProvisioner(ComputerProvisioner):
 
 
 class KubernetesComputerProvisioner(ComputerProvisioner):
-    """Provision Computers as Pods on Kubernetes."""
+    """
+    Provision Computers as Pods on Kubernetes.
+    NOTE :Architecture :RichComputing: Computers should really be in k8 Deployments/Services?
+    """
 
     watch_types = bittuple(NodeType.COMPUTER)
     provision_type = NodeType.COMPUTER

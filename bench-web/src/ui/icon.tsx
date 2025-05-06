@@ -1,6 +1,7 @@
 import _AVAILABLE_EMOJI_ICONS from "@/assets/emoji-icons.json";
 import _AVAILABLE_FA_ICONS from "@/assets/fa-icons.json";
 import { supergraph } from "@/globals";
+import { BENCH_BENCH_AGENT_ID } from "@/language/core/builtin";
 import { getBaseFromNode } from "@/language/core/const";
 import { renderTextLine } from "@/language/core/text";
 import type { TypeIdentity } from "@/language/core/type";

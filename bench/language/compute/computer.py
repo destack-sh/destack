@@ -38,6 +38,7 @@ class ComputerType(BuiltinEnum):
 class Computer(IsSubject, ProvisionableResource[ComputerData]):
     """
     A Computer provides physical compute.
+    NOTE :Architecture :RichComputing: Computers also need Deployments/Services/Endpoints/...
     """
 
     type: ComputerType = p_regular(30, default=ComputerType.RUNTIME)
