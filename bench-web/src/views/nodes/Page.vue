@@ -76,7 +76,7 @@ const pageContext: PageContext = {
   gutterWidth: computed(() => widths.value.gutter),
   focus(nodePtr: NodeReferenceData) {
     focusInText(nodePtr);
-  }
+  },
 };
 providePageContext(pageContext);
 
@@ -337,12 +337,10 @@ function createAndFocusBlock(
 ) {
   const block = createBlock(connection.tx, graph, { block: blockIn, anchor, target });
   canvas.inspect({ node: block });
-  if (block.type >= BlockType.PARAGRAPH) {
-    nextTick(() => focus(block));
-  } else if (block.type != BlockType.PAGE) {
-    canvas.select([block]);
-  } else {
+  if (block.type == BlockType.PAGE) {
     canvas.goToNode(block);
+  } else {
+    nextTick(() => focus(block));
   }
   return block;
 }
