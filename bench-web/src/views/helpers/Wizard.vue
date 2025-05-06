@@ -17,6 +17,7 @@ import { canvas, goToBench } from "@/system/space";
 import { logIn, signUp, user } from "@/system/user";
 import { fireCommandById } from "@/ui/command";
 import { makeIcon } from "@/ui/icon";
+import { DISCORD_URL } from "@/utils/globals";
 import { DEFAULT_REGION_BY_CONTINENT } from "@/utils/region";
 import { getNow, TimeUpdateInterval } from "@/utils/time";
 import { type FocusAnchor, type ViewEmits, type ViewExpose } from "@/views/common";
@@ -156,9 +157,18 @@ defineExpose<ViewExpose>({ id, self, focus });
       class="mx-auto my-12 flex h-full w-full max-w-lg flex-1 flex-col overflow-hidden rounded-sm px-9 text-left text-gray-900 lg:justify-center"
     >
       <!-- Header -->
-      <div class="mb-4">
+      <div class="mb-3">
         <h2 class="mb-2 text-3xl font-semibold lg:text-4xl">Bench</h2>
-        <p class="text-gray-700">Personal software at the cost of compute.</p>
+        <div class="flex lg:flex-row">
+          <p class="text-gray-700">Personal software at the cost of compute.</p>
+          <a
+            :href="DISCORD_URL"
+            class="ml-auto text-gray-400 underline decoration-dashed underline-offset-3 transition-colors duration-150 hover:text-gray-700 hover:decoration-solid"
+            target="_blank"
+          >
+            Join the  Discord
+          </a>
+        </div>
       </div>
       <!-- Form -->
       <form v-if="!user" @submit.prevent="">
@@ -230,7 +240,19 @@ defineExpose<ViewExpose>({ id, self, focus });
             />
           </div>
           <div v-if="stage == UserWizardViewStage.SIGN_UP">
-            <div class="mb-1 block text-gray-700">Invite Code</div>
+            <div class="mb-1 block text-gray-700">
+              <span>Invite Code</span>
+              <span class="text-gray-400">
+                (get yours
+                <a
+                  :href="DISCORD_URL"
+                  class="text-gray-400 underline decoration-dashed underline-offset-3 transition-colors duration-150 hover:text-gray-700 hover:decoration-solid"
+                  target="_blank"
+                >
+                  on Discord</a
+                >)
+              </span>
+            </div>
             <NativeInput
               id="inviteCode"
               name="Invite Code"
