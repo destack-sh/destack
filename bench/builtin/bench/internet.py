@@ -40,7 +40,8 @@ class IInternet(ABC):
         """
         Extract the content of the given URL.
         Only works for web URLs with HTML content (no PDFs, local Files, etc.).
-        ICON: fas fa-globe
+        To read PDFs or other media types, add them as Files to the relevant context.
+        ICON: fas fa-book-open
         """
         pass
 

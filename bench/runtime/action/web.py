@@ -29,6 +29,7 @@ def _make_link(result: ExaResult | _ExaResult) -> Link:
     published_at = datetime.fromisoformat(result.published_date) if result.published_date else None
     domain = urlparse(result.url).netloc
     icon = Icon(type=IconType.FILE_URL, file_url=result.favicon) if result.favicon else None
+    image_urls = [url for url in (result.extras or {}).get("image_links", ()) if url]
     link = Link(
         type=LinkType.WEB,
         icon=icon,
@@ -41,7 +42,7 @@ def _make_link(result: ExaResult | _ExaResult) -> Link:
         content_url=result.url,
         favicon_url=result.favicon,
         published_at=published_at,
-        image_urls=(result.extras or {}).get("image_links", ()),
+        image_urls=image_urls,
     )
     return link
 

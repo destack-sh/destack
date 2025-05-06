@@ -360,7 +360,7 @@ class KubernetesComputerProvisioner(ComputerProvisioner):
         else:
             raise NotImplementedError(f"cannot provision {computer!r}")
         main_container = k8.V1Container(
-            name="main",
+            name=f"computer-{computer.type.name.lower()}",
             image=image,
             env=env,
             ports=ports,
