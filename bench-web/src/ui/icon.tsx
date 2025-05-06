@@ -135,6 +135,7 @@ export const IconInline: FunctionalComponent<IconInlineProps> = (props) => {
   } else {
     colorHex = undefined;
   }
+  // NOTE :Cleanup: why does it take this terrible inline-block/absolute hack to get IconInline images to align with the text?
   if (props.faName) {
     // font awesome
     return <span class={`${props.faName} text-center`} style={{ color: colorHex }} />;
@@ -145,7 +146,6 @@ export const IconInline: FunctionalComponent<IconInlineProps> = (props) => {
     // file
     const download = getSilentFileDownload(props.filePtr);
     if (download?.getUrl.value != null) {
-      // NOTE :Cleanup: why does it take this terrible inline-block/absolute hack to get IconInline images to align with the text?
       return (
         <div class="relative inline-block h-3 min-w-[1em]">
           <img src={download.getUrl.value} class="absolute -bottom-[2px] rounded-full" />
@@ -159,7 +159,11 @@ export const IconInline: FunctionalComponent<IconInlineProps> = (props) => {
     }
   } else if (props.fileUrl) {
     // file url
-    return <img src={props.fileUrl} class="rounded-full" />;
+    return (
+      <div class="relative inline-block h-3 min-w-[1em]">
+        <img src={props.fileUrl} class="absolute -bottom-[2px] rounded-full" />
+      </div>
+    );
   }
 
   // invalid icon
