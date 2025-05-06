@@ -1296,7 +1296,7 @@ export function createDesktopDefaultSpace(tx: Transaction, space: SpaceData): { 
       type: ViewType.CONTEXT,
       name: "Alternate",
       orientation: Orientation.VERTICAL,
-      size: makeStruct({ metatype: StructType.RECTANGLE, width: 700 }),
+      size: makeStruct({ metatype: StructType.RECTANGLE, widthRelative: 1000 }),
       constraint: makeStruct({ metatype: StructType.RECTANGLE_CONSTRAINT, minWidth: 600 }),
     },
   ]);
