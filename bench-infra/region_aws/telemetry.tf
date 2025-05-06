@@ -655,7 +655,6 @@ resource "kubernetes_cluster_role_binding" "otel_collector" {
     namespace = kubernetes_namespace.monitoring.metadata[0].name
   }
 }
-
 # OpenTelemetry Collector config map
 resource "kubernetes_config_map" "otel_collector_config" {
   metadata {
@@ -668,10 +667,8 @@ resource "kubernetes_config_map" "otel_collector_config" {
       receivers:
         otlp:
           protocols:
-            grpc:
-              endpoint: 0.0.0.0:4317
-            http:
-              endpoint: 0.0.0.0:4318
+            grpc: { endpoint: 0.0.0.0:4317 }
+            http: { endpoint: 0.0.0.0:4318 }
         
         hostmetrics:
           collection_interval: 30s
@@ -703,7 +700,7 @@ resource "kubernetes_config_map" "otel_collector_config" {
                   - source_labels: [__address__, __meta_kubernetes_service_annotation_prometheus_io_port]
                     action: replace
                     target_label: __address__
-                    regex: ([^:]+)(?::\d+)?;(\d+)
+                    regex: ([^:]+)(?::\\d+)?;(\\d+)
                     replacement: $1:$2
                   - action: labelmap
                     regex: __meta_kubernetes_service_label_(.+)
@@ -713,7 +710,7 @@ resource "kubernetes_config_map" "otel_collector_config" {
                   - source_labels: [__meta_kubernetes_service_name]
                     action: replace
                     target_label: service
-                
+
               - job_name: 'kube-state-metrics'
                 kubernetes_sd_configs:
                   - role: service
@@ -733,34 +730,24 @@ resource "kubernetes_config_map" "otel_collector_config" {
 
               - job_name: 'kubernetes-cadvisor'
                 scheme: https
-                tls_config:
-                  insecure_skip_verify: true
+                metrics_path: /metrics/cadvisor
                 authorization:
                   type: Bearer
                   credentials_file: /var/run/secrets/kubernetes.io/serviceaccount/token
-                kubernetes_sd_configs:
-                  - role: node
+                tls_config: { insecure_skip_verify: true }
+                kubernetes_sd_configs: [{ role: node }]
                 relabel_configs:
-                  - action: labelmap
-                    regex: __meta_kubernetes_node_label_(.+)
-                  - source_labels: [__address__]
-                    regex: ([^:]+)(?::\d+)?
-                    target_label: __address__
-                    replacement: $1:10250
-                  - source_labels: [__metrics_path__]
-                    target_label: __metrics_path__
-                    replacement: /metrics/cadvisor
+                  - { action: labelmap, regex: __meta_kubernetes_node_label_(.+) }
+                  - { source_labels: [__address__], regex: '([^:]+)(?::\\d+)?', target_label: __address__, replacement: '$1:10250' }
                 metric_relabel_configs:
-                  - action: replace
-                    source_labels: [id]
-                    regex: '^/machine\.slice/machine-rkt\\\\x2d([^\\\\]+)\\\\.+/([^/]+)\.service$'
-                    target_label: rkt_container_name
-                    replacement: '${2}'
-                  - action: replace
-                    source_labels: [id]
-                    regex: '^/system\.slice/(.+)\.service$'
-                    target_label: systemd_service_name
-                    replacement: '${1}'
+                  - { source_labels: [__name__], regex: 'container_cpu_.*', action: keep }
+                  - { source_labels: [__name__], regex: 'container_memory_.*', action: keep }
+                  - { source_labels: [__name__], regex: 'container_fs_usage_bytes', action: keep }
+                  - { source_labels: [__name__], regex: 'container_fs_reads_bytes_total', action: keep }
+                  - { source_labels: [__name__], regex: 'container_fs_writes_bytes_total', action: keep }
+                  - { source_labels: [__name__], regex: 'container_network_(receive|transmit)_bytes_total', action: keep }
+                  - { source_labels: [__name__], regex: 'container_.*', action: drop }
+                  - { action: labeldrop, regex: '^(id|name|image)$' }
 
       processors:
         batch:
@@ -820,12 +807,9 @@ resource "kubernetes_config_map" "otel_collector_config" {
           verbosity: detailed
 
       extensions:
-        health_check:
-          endpoint: 0.0.0.0:13133
-        pprof:
-          endpoint: 0.0.0.0:1777
-        zpages:
-          endpoint: 0.0.0.0:55679
+        health_check: { endpoint: 0.0.0.0:13133 }
+        pprof:        { endpoint: 0.0.0.0:1777 }
+        zpages:       { endpoint: 0.0.0.0:55679 }
 
       service:
         extensions: [health_check, pprof, zpages]
