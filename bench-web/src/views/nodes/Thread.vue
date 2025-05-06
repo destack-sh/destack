@@ -1292,7 +1292,7 @@ defineExpose<ViewExpose>({ self, id, commands, focus });
                 });
               }
             "
-            @dblclick="
+            @click="
               () => {
                 if (computer != null) {
                   canvas.goToNode(computer);
