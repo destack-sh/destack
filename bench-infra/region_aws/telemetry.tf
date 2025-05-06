@@ -655,6 +655,7 @@ resource "kubernetes_cluster_role_binding" "otel_collector" {
     namespace = kubernetes_namespace.monitoring.metadata[0].name
   }
 }
+
 # OpenTelemetry Collector config map
 resource "kubernetes_config_map" "otel_collector_config" {
   metadata {
@@ -794,15 +795,6 @@ resource "kubernetes_config_map" "otel_collector_config" {
           headers:
             Authorization: "Basic ${base64encode("${kubernetes_secret.grafana_cloud_secret.data.otlp_username}:${kubernetes_secret.grafana_cloud_secret.data.otlp_password}")}"
 
-        prometheusremotewrite:
-          endpoint: ${kubernetes_secret.grafana_cloud_secret.data.prometheus_url}
-          headers:
-            Authorization: "Basic ${base64encode("${kubernetes_secret.grafana_cloud_secret.data.prometheus_username}:${kubernetes_secret.grafana_cloud_secret.data.prometheus_password}")}"
-          namespace: "k8s"
-          external_labels:
-            cluster: "bench-${var.env}-${var.cloud}-${var.region}-0"
-            env: "${var.env}"
-
         debug:
           verbosity: detailed
 
@@ -826,7 +818,7 @@ resource "kubernetes_config_map" "otel_collector_config" {
           metrics:
             receivers: [otlp, hostmetrics, prometheus]
             processors: [batch, resource, k8sattributes, metricstransform]
-            exporters: [otlphttp, prometheusremotewrite, debug]
+            exporters: [otlphttp, debug]
           
           logs:
             receivers: [otlp]
