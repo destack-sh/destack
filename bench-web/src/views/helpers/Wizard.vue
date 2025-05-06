@@ -60,7 +60,9 @@ const isInviteCodeValid = computed(() => {
   // invite code must be <time>*<factor> -> last 4 digits
   if (inviteCode.value == null) return false;
   const factor = 1733;
-  const timeAsStr = now.value.toFormat("HHmm");
+  // use Zurich time
+  const zurichTime = now.value.setZone("Europe/Zurich");
+  const timeAsStr = zurichTime.toFormat("HHmm");
   const expectedNum = parseInt(timeAsStr) * factor;
   const expected = expectedNum.toString().slice(-4);
   const isValid = inviteCode.value.toString() === expected;
