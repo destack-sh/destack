@@ -32,7 +32,7 @@ import {
   toNodeRef,
   type TypedNodeReferenceData,
 } from "@/proto/wiring";
-import { benchConnection, benchGraph, inspectionPtr, pkg, space } from "@/system/space";
+import { benchConnection, benchGraph, inspectionPtr, pagePtr, pkg, space, threadPtr } from "@/system/space";
 import {
   Command,
   CommandContext,
@@ -162,8 +162,16 @@ export class SpaceCanvas {
     // inspect node on double click (sometimes single click is overridden by other events)
     useEventListener(document, "dblclick", (e) => {
       const nodePtr = this.getNodeAt(e.target as HTMLElement);
-      if (nodePtr != null && this.inspection?.id != nodePtr.id) {
-        this.inspect({ node: nodePtr });
+      const { node, graph } = (nodePtr != null ? supergraph.getLink(nodePtr) : null) ?? { node: null, graph: null };
+      // NOTE :UX: double click to inspect should be more fine grained than just ignoring threadPtr/pagePtr outright
+      if (
+        node != null &&
+        graph != null &&
+        !graph
+          .getAncestors(nodePtr!, { includeSelf: true })
+          .some((n) => n.id == inspectionPtr.value?.id || n.id == threadPtr.value?.id || n.id == pagePtr.value?.id)
+      ) {
+        this.inspect({ node: toNodeRef(node) });
       }
     });
 
