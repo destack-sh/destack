@@ -1,5 +1,5 @@
 <script lang="tsx" setup>
-import { PAGE_NODE_TYPES, ObjectType, Orientation } from "@/proto/wire";
+import { PAGE_NODE_TYPES, ObjectType, Orientation, NodeType } from "@/proto/wire";
 import { packagePtr } from "@/system/client";
 import { benchGraph, canvas, hasLocalPkg } from "@/system/space";
 import { OMNIBAR_MODES, addCommand, fireCommand, type CommandBuiltinId, type OmnibarMode } from "@/ui/command";
@@ -51,7 +51,7 @@ const indices = computed(() => {
     indices["Bench"] = graphIndex({
       id: "bench",
       graph: benchGraph,
-      metatypes: [...PAGE_NODE_TYPES],
+      metatypes: [NodeType.PAGE, NodeType.DATABASE, NodeType.FLOW, NodeType.AGENT],
       roots: [benchGraph.getOrError(packagePtr.value)],
       skipDepth: 1,
       // only search deeply if in bench search specifically
@@ -269,7 +269,13 @@ defineExpose({ isActive, open });
             }"
           >
             <!-- Results -->
-            <ul v-if="results.length > 0" class="flex w-full flex-col px-2 py-1 text-gray-900 select-none">
+            <ul
+              v-if="results.length > 0"
+              class="flex flex-col px-2 py-1 text-gray-900 select-none"
+              :style="{
+                width: PANEL_WIDTH + 'px',
+              }"
+            >
               <template v-for="(item, i) in results" :key="i">
                 <!-- Category -->
                 <div
@@ -286,7 +292,7 @@ defineExpose({ isActive, open });
                   :ref="(ref: any | undefined) => (ref != null ? (resultsRefs[item.itemId] = ref) : delete resultsRefs[item.itemId])"
                   role="button"
                   :data-selected="item.itemId === activeResultLocalId"
-                  class="my-0.5 flex w-full cursor-pointer flex-row items-center rounded-sm border border-transparent px-2 py-1 transition-colors duration-75 hover:bg-gray-100 data-[selected=true]:bg-gray-100"
+                  class="my-0.5 flex w-full max-w-full cursor-pointer flex-row items-center truncate rounded-sm border border-transparent px-2 py-1 transition-colors duration-75 hover:bg-gray-100 data-[selected=true]:bg-gray-100"
                   @click.stop.prevent="() => fire(item.itemId)"
                 >
                   <!-- Content -->
