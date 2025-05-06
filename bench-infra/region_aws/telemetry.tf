@@ -741,14 +741,11 @@ resource "kubernetes_config_map" "otel_collector_config" {
                   - { action: labelmap, regex: __meta_kubernetes_node_label_(.+) }
                   - { source_labels: [__address__], regex: '([^:]+)(?::\\d+)?', target_label: __address__, replacement: '$1:10250' }
                 metric_relabel_configs:
-                  - { source_labels: [__name__], regex: 'container_cpu_.*', action: keep }
-                  - { source_labels: [__name__], regex: 'container_memory_.*', action: keep }
-                  - { source_labels: [__name__], regex: 'container_fs_usage_bytes', action: keep }
-                  - { source_labels: [__name__], regex: 'container_fs_reads_bytes_total', action: keep }
-                  - { source_labels: [__name__], regex: 'container_fs_writes_bytes_total', action: keep }
-                  - { source_labels: [__name__], regex: 'container_network_(receive|transmit)_bytes_total', action: keep }
-                  - { source_labels: [__name__], regex: 'container_.*', action: drop }
-                  - { action: labeldrop, regex: '^(id|name|image)$' }
+                  - action: keep
+                    source_labels: [__name__]
+                    regex: 'container_(cpu_.*|memory_.*|fs_usage_bytes|fs_(reads|writes)_bytes_total|network_(receive|transmit)_bytes_total)'
+                  - action: labeldrop
+                    regex: '^(id|name|image)$'
 
       processors:
         batch:
