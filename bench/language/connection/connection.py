@@ -53,7 +53,7 @@ class Connection[
     UpdateDataT: UpdateData,
     UpdateT: Update,
 ](abc.ABC):
-    """A Connection to a Graph for some Query."""
+    """A Connection to a Graph for some LEGACY Query. :RichGraph"""
 
     def __init__(
         self,

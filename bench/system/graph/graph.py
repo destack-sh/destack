@@ -135,7 +135,7 @@ class GraphLock:
     """
     Locks for synchronizing graph operations.
 
-    TODO :Performance!: obviously, putting broad locks around graph access is not ideal,
+    TODO :Performance!: obviously, putting broad locks around graph access is not ideal, :RichGraph
      but we have to guarantee absolute order and integrity of any loaded graphs (esp. in Host).
     We must prevent sync failures with non-repeatable reads where a node is edited while being read,
      whether that's in a loaded graph or in a Postgres transaction or whatever.
@@ -146,7 +146,7 @@ class GraphLock:
     We can probably optimize this by only locking some tighter critical sections
      if we rollback somehow on failure. Maybe we can even 'cache' apply some edits only in memory.
     We'll also eventually need to thread/shard the Host (maybe lock only on overlapping edits?).
-    See :ConcurrentHost.
+    See :ConcurrentHost :RichGraph
     """
 
     def __init__(self) -> None:

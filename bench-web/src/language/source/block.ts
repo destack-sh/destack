@@ -38,7 +38,8 @@ export function createBlock(
     anchor: "before" | "after" | "inside";
     target: BlockData | PageData;
   },
-): BlockData {
+): { block: BlockData; node?: PageNodeData } {
+  let node: PageNodeData | undefined;
   const { target, anchor } = options;
   if (tx.change?.key == null) {
     tx = tx.with({ change: { key: newChangeId(), title: "Create" } });
@@ -88,7 +89,7 @@ export function createBlock(
       block.nodePtr = toNodeRef(options.node as AnyNodeData);
     } else {
       // new inline node
-      const node = createPageNode(tx, graph, {
+      node = createPageNode(tx, graph, {
         node: {
           metatype: block.type,
           ...options.node,
@@ -101,7 +102,7 @@ export function createBlock(
     }
   }
   tx.create(block);
-  return block;
+  return { block, node: node ?? undefined };
 }
 
 /** Create an PageNode for a Block. */

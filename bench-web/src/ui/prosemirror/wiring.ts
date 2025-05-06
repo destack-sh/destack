@@ -235,7 +235,7 @@ export function differenceUpdateBlocks(
       throw new Error(`cannot create block: no target`);
     }
     // create
-    const block = createBlock(tx, graph, {
+    const { block } = createBlock(tx, graph, {
       block: {
         type: (line.type === "text" ? line.text.type + 10_000 : undefined) as any,
         line: line.type === "text" ? line.text : undefined,

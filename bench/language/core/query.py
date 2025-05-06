@@ -212,7 +212,10 @@ class MultipleNodesFoundError(QueryError):
 
 class LegacyQuery[NodeT: Node, NodeDataT: AnyNodeData]:
     """
-    Build a Query.
+    Build a (LEGACY) Query.
+    Legacy because these queries are pretty bad and limited (together with Connections) :RichGraph.
+    New Queries should look more like Query -> QueryResult
+     (see ConvexDB, InstantDB, SpacetimeDB, Prisma, Firebase, ...)
     """
 
     __slots__ = (
