@@ -374,6 +374,10 @@ export class CodeLineView implements PmNodeView {
     this.updateHighlighting();
   }
 
+  setSelection(anchor: number, head: number, root: Document | ShadowRoot) {
+    // nothing to do
+  }
+
   update(node: PmNode) {
     this.node = node;
     if (node.type !== this.node.type) {

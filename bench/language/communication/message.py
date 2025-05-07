@@ -138,9 +138,9 @@ class Message(
 
     def __content_str__(self) -> str:
         if self.title:
-            return self.title.to_plain()
+            return self.title.to_plain(max_characters=100)
         elif self.text:
-            return self.text.to_plain()
+            return self.text.to_plain(max_characters=100)
         else:
             return "<empty>"
 

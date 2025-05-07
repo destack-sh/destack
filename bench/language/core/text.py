@@ -154,12 +154,27 @@ class TextLine(TextOptionsBase, Struct):
         """Render the TextLine as markdown."""
         return text_line_to_markdown(self)
 
-    def to_plain(self) -> str:
+    def to_plain(self, max_characters: Optional[int] = None) -> str:
         """Render the TextLine as plain text without any formatting or markdown."""
         text_parts: list[str] = []
-        for span in self.spans:
-            if span.type == TextSpanType.TEXT:
-                text_parts.append(span.content or "")
+        if max_characters is not None:
+            current_length = 0
+            for span in self.spans:
+                if span.type == TextSpanType.TEXT and span.content:
+                    content = span.content
+                    remaining = max_characters - current_length
+                    if remaining <= 0:
+                        break
+                    elif len(content) > remaining:
+                        text_parts.append(content[:remaining] + "...")
+                        break
+                    else:
+                        text_parts.append(content)
+                        current_length += len(content)
+        else:
+            for span in self.spans:
+                if span.type == TextSpanType.TEXT:
+                    text_parts.append(span.content or "")
         return "".join(text_parts)
 
     @property
@@ -258,12 +273,21 @@ class Text(Struct):
         """Render the Text as markdown."""
         return text_to_markdown(self)
 
-    def to_plain(self) -> str:
+    def to_plain(self, max_characters: Optional[int] = None) -> str:
         """Render the Text as plain text without any formatting or markdown."""
-        text_parts: list[str] = []
-        for line in self.lines:
-            text_parts.append(line.to_plain())
-        return "\n".join(text_parts)
+        if max_characters is not None:
+            current_length = 0
+            text_parts: list[str] = []
+            for line in self.lines:
+                text_parts.append(line.to_plain(max_characters - current_length))
+                current_length += len(text_parts[-1])
+                if current_length >= max_characters:
+                    break
+        else:
+            text_parts: list[str] = []
+            for line in self.lines:
+                text_parts.append(line.to_plain())
+        return "".join(text_parts)
 
     @staticmethod
     def from_markdown(markdown: str) -> "Text":

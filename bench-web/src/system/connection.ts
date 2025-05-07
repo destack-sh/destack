@@ -394,7 +394,6 @@ export abstract class ConnectionBase<K extends GraphConnectionKind, T extends No
   async close(): Promise<void> {
     this.isClosed.value = true;
     log.trace(`graph.${this.kind}.close`, { name: this.meta.name, id: this.id });
-    console.trace(`graph.${this.kind}.close`, { name: this.meta.name, id: this.id });
     this.abortController?.abort();
   }
 
