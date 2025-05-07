@@ -2,10 +2,7 @@
 import "./assets/index.css";
 import "./assets/prosemirror.css";
 
-import {
-  resetTransactionBuffers,
-  startTransactionRotation as startTransactionBuffers,
-} from "@/language/core/transaction";
+import { startTransactionRotation as startTransactionBuffers } from "@/language/core/transaction";
 import { RESOURCE_COMMANDS } from "@/language/resource/resource";
 import { sendRemoteKeepAlives } from "@/system/connection";
 import { DEBUG_COMMANDS } from "@/system/debug";
@@ -24,13 +21,12 @@ import {
   TELEMETRY,
   VERSION,
 } from "@/utils/globals";
-import { log } from "@/utils/log";
+import { onUnhandledError } from "@/utils/telemetry";
 import { registerViewComponents } from "@/views/registry";
 import "highlight.js/styles/github.min.css";
 import posthog from "posthog-js";
 import { createApp } from "vue";
 import Space from "./Space.vue";
-import { onUnhandledError } from "@/utils/telemetry";
 
 async function init() {
   const app = createApp(Space);
@@ -42,6 +38,16 @@ async function init() {
       ui_host: "https://eu.posthog.com",
       enable_recording_console_log: true,
       autocapture: true,
+      session_recording: {
+        maskAllInputs: false,
+        maskInputOptions: {
+          password: true,
+          email: false,
+          text: false,
+          number: false,
+          tel: false,
+        },
+      },
     });
     posthog.opt_in_capturing();
   } else {
