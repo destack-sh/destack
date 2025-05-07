@@ -257,7 +257,7 @@ defineExpose<Omit<ViewExpose, "id" | "self">>({ commands, focus });
           role="treeitem"
           data-suppress-drag="select"
           :draggable="true"
-          @mousedown.stop="fire(node)"
+          @click.stop="fire(node)"
           @dragstart.stop="(e: DragEvent) => startDraggingIfAllowed(e, node)"
         >
           <!-- Drop indicator -->

@@ -33,7 +33,7 @@ export class NodeAutoloader {
   private nodeSubsById: Record<string, Array<any>> = {};
   /** All currently 'missing' nodes (reference without a node, again, in the supergraph) with reference count */
   private missingNodeById: Record<string, { node: NodeReferenceData; count: number }> = {};
-  /** Nodes we're waiting/trying to load */
+  /** Nodes we're currently waiting/trying to load */
   private pendingNodesById: Ref<Record<string, NodeReferenceData>> = shallowRef({});
   /** Nodes we'll load next */
   private nextNodesToLoad: Array<NodeReferenceData> = [];
@@ -50,23 +50,34 @@ export class NodeAutoloader {
     this.supergraph = supergraph;
   }
 
+  /** Reset the autoloader */
+  reset() {
+    this.nodeSubsById = {};
+    this.missingNodeById = {};
+    this.pendingNodesById.value = {};
+    this.nextNodesToLoad = [];
+    this.loadedBatches = [];
+    this.loadedNodesById = {};
+    this.batchId = 0;
+  }
+
   /** Handle a subscription event from the supergraph */
   onEvent(event: "miss" | "hit" | "sub" | "unsub", key: NodeReferenceData, callback: any) {
     if (event == "sub") {
       // add to subscriptions
-      if (this.nodeSubsById[key.id!] == null) {
-        this.nodeSubsById[key.id!] = [];
+      if (this.nodeSubsById[key.id] == null) {
+        this.nodeSubsById[key.id] = [];
       }
-      this.nodeSubsById[key.id!].push(callback);
+      this.nodeSubsById[key.id].push(callback);
     } else if (event == "unsub") {
       // remove from subscriptions
-      const subs = this.nodeSubsById[key.id!];
+      const subs = this.nodeSubsById[key.id];
       if (subs != null) {
         const index = subs.indexOf(callback);
         if (index >= 0) {
           subs.splice(index, 1);
           if (subs.length == 0) {
-            delete this.nodeSubsById[key.id!];
+            delete this.nodeSubsById[key.id];
           }
         }
       }
@@ -83,13 +94,15 @@ export class NodeAutoloader {
   addMissing(...keys: NodeReferenceData[]) {
     const newPending: NodeReferenceData[] = [];
     for (const key of keys) {
-      if (this.missingNodeById[key.id!] == null) {
-        this.missingNodeById[key.id!] = { node: key, count: 1 };
-        if (isUnloadedNodeType(key.nodeType) && !this.failedNodesById[key.id!] && !this.loadedNodesById[key.id!]) {
+      if (this.missingNodeById[key.id] == null) {
+        this.missingNodeById[key.id] = { node: key, count: 1 };
+        // NOTE: putting `newPending.push` in this clause instead of for every key is a hack that seems to work
+        //  (Autoloader is broken because it never removes nodes from loadedNodesById, so first to add 'missing' gets to decide)
+        if (isUnloadedNodeType(key.nodeType) && !this.failedNodesById[key.id] && !this.loadedNodesById[key.id]) {
           newPending.push(key);
         }
       } else {
-        this.missingNodeById[key.id!].count++;
+        this.missingNodeById[key.id].count++;
       }
     }
     this.addPending(...newPending);
@@ -101,7 +114,7 @@ export class NodeAutoloader {
       if ([NodeType.RECORD].includes(key.nodeType) && key.baseId == null) {
         throw new Error(`missing base in ${describeNode(key)}`);
       }
-      this.pendingNodesById.value[key.id!] = key;
+      this.pendingNodesById.value[key.id] = key;
       this.nextNodesToLoad.push(key);
     }
     triggerRef(this.pendingNodesById);
@@ -110,18 +123,18 @@ export class NodeAutoloader {
   /** Remove 'missing' nodes from the list of pending nodes to load */
   removeMissing(...keys: NodeReferenceData[]) {
     for (const key of keys) {
-      const missing = this.missingNodeById[key.id!];
+      const missing = this.missingNodeById[key.id];
       if (missing != null) {
         missing.count--;
         if (missing.count <= 0) {
-          delete this.missingNodeById[key.id!];
+          delete this.missingNodeById[key.id];
           const index = this.nextNodesToLoad.findIndex((p) => p.id == key.id);
           if (index >= 0) {
             this.nextNodesToLoad.splice(index, 1);
           }
         }
       }
-      delete this.pendingNodesById.value[key.id!];
+      delete this.pendingNodesById.value[key.id];
     }
     triggerRef(this.pendingNodesById);
   }
@@ -129,8 +142,8 @@ export class NodeAutoloader {
   /** On 'successful' loading of nodes (doesn't mean they're no longer missing!) */
   private onLoaded(...keys: NodeReferenceData[]) {
     for (const key of keys) {
-      this.loadedNodesById[key.id!] = key;
-      delete this.pendingNodesById.value[key.id!];
+      this.loadedNodesById[key.id] = key;
+      delete this.pendingNodesById.value[key.id];
     }
     triggerRef(this.pendingNodesById);
   }
@@ -138,15 +151,15 @@ export class NodeAutoloader {
   /** On failed loading of nodes */
   private onFailed(...keys: NodeReferenceData[]) {
     for (const key of keys) {
-      this.failedNodesById[key.id!] = key;
-      delete this.pendingNodesById.value[key.id!];
+      this.failedNodesById[key.id] = key;
+      delete this.pendingNodesById.value[key.id];
     }
     triggerRef(this.pendingNodesById);
   }
 
   /** Whether the node is currently pending loading */
   isPending(key: NodeReferenceData): boolean {
-    return this.pendingNodesById.value[key.id!] != null;
+    return this.pendingNodesById.value[key.id] != null;
   }
 
   /** Load any missing nodes with new connections (as feasible) */
@@ -178,9 +191,9 @@ export class NodeAutoloader {
       //  (it _should_ stop when none of the missing nodes are subscribed to anymore)
       this.supergraph.subscribeUntilFound(basePtr, () => {
         // remove from failed
-        nodeRefs.forEach((ptr) => delete this.failedNodesById[ptr.id!]);
+        nodeRefs.forEach((ptr) => delete this.failedNodesById[ptr.id]);
         // add to pending again (if still missing)
-        nodeRefs = nodeRefs.filter((ptr) => this.missingNodeById[ptr.id!] != null);
+        nodeRefs = nodeRefs.filter((ptr) => this.missingNodeById[ptr.id] != null);
         if (nodeRefs.length > 0) {
           this.addPending(...nodeRefs);
         }
@@ -197,7 +210,7 @@ export class NodeAutoloader {
       scope,
       baseTypePtr: blockPtr as NodeReferenceData | undefined,
       descendantTypes: AUTOLOAD_DESCENDANT_TYPES[nodeType],
-      // NOTE :Architecture: bypass memory cache for autoloaded nodes
+      // NOTE :Architecture: bypass memory cache for autoloaded nodes :RichGraph
       //  (since if we're autoloading, they key shouldn't be from the loaded Bench/Packages)
       noMemory: true,
       isOptional: true,
@@ -206,7 +219,7 @@ export class NodeAutoloader {
       const connection = await acquireConnection("get", { name: `autoload.${batchId}`, live: true }, params);
       const batch: AutoloadedBatch = {
         id: batchId,
-        nodesById: groupByScalar(nodeRefs, (ptr) => ptr.id!),
+        nodesById: groupByScalar(nodeRefs, (ptr) => ptr.id, { ignoreDuplicates: true }),
         connection: connection as RemoteGetConnection<any>,
       };
       this.loadedBatches.push(batch);
@@ -214,7 +227,7 @@ export class NodeAutoloader {
       log.trace("autoload.load.complete", { batchId, nodeRefs, nodes, connection });
       this.onLoaded(...nodeRefs);
     } catch (e) {
-      log.trace("autoload.load.fail", { e, batchId, nodeRefs });
+      log.warn("autoload.load.fail", { e, batchId, nodeRefs });
       this.onFailed(...nodeRefs);
     }
   }

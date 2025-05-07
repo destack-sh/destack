@@ -200,12 +200,20 @@ export function groupByList<T, K extends string | number>(items: T[], keyFn: (it
 }
 
 /** Groups items by the given key function uniquely. */
-export function groupByScalar<T, K extends string | number>(items: T[], keyFn: (item: T) => K): Record<K, T> {
+export function groupByScalar<T, K extends string | number>(
+  items: T[],
+  keyFn: (item: T) => K,
+  options?: { ignoreDuplicates?: boolean },
+): Record<K, T> {
   const result = {} as Record<K, T>;
   for (const item of items) {
     const key = keyFn(item);
     if (result[key] != null) {
-      throw new Error(`duplicate key ${key}`);
+      if (options?.ignoreDuplicates) {
+        continue;
+      } else {
+        throw new Error(`duplicate key ${key}`);
+      }
     }
     result[key] = item;
   }

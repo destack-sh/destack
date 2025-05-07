@@ -12,6 +12,7 @@ import {
   ThreadData,
   ThreadProperty,
   ViewData,
+  ViewType,
 } from "@/proto/wire";
 import { describeNode, propertyReference, toNodeRef, TypedNodeReferenceData } from "@/proto/wiring";
 import { CURRENT_BENCH_SCOPE } from "@/system/client";
@@ -27,7 +28,7 @@ import TextLine from "@/views/content/TextLine.vue";
 import { type ViewEmits, type ViewExpose } from "@/views/common";
 import SelectionOverlay from "@/views/overlays/SelectionOverlay.vue";
 import { DateTime } from "luxon";
-import { computed, Ref, ref, toRef } from "vue";
+import { computed, nextTick, Ref, ref, toRef } from "vue";
 
 const HEADER_HEIGHT = VIEW_DEFAULT_HEADER_HEIGHT;
 const ITEM_HEIGHT = 30;
@@ -251,9 +252,13 @@ defineExpose<Omit<ViewExpose, "id"> & { total: Ref<number | undefined>; roots: R
             }"
             data-suppress-drag="select"
             role="button"
-            @mousedown.stop="
+            @click.stop="
               () => {
                 canvas.tx().update(canvas.space.value!, { threadPtr: toNodeRef(thread) });
+                const contextView = canvas.views.find((v) => v.type == ViewType.CONTEXT);
+                if (contextView != null) {
+                  nextTick(() => canvas.focusInComponent(contextView));
+                }
               }
             "
           >
