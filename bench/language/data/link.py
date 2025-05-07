@@ -65,17 +65,36 @@ class Link(IsTitled, Resource[LinkData]):
     type: LinkType = p_regular(30, require=True)
 
     # content
-    url: str | None = p_regular(50, default=None)
-    domain: str | None = p_regular(51, default=None)
+    url: str | None = p_regular(
+        50,
+        default=None,
+        description="The URL of the link (e.g., https://www.srf.ch/meteo/meteo-stories/meatball-rain)",
+    )
+    domain: str | None = p_regular(
+        51,
+        default=None,
+        description="The domain of the link (e.g, srf.ch)",
+    )
     content_url: str | None = p_regular(52, default=None)
     thumbnail_url: str | None = p_regular(53, default=None)
     favicon_url: str | None = p_regular(54, default=None)
     thumbnail_width: int | None = p_regular(55, default=None)
     thumbnail_height: int | None = p_regular(56, default=None)
-    content: str | None = p_regular(60, default=None)
-    attribution: str | None = p_regular(62, default=None)
-    published_at: Optional[datetime] = p_system(63)
-    expires_at: Optional[datetime] = p_system(64)
+    content: str | None = p_regular(
+        60,
+        default=None,
+        description='The text content of the link (e.g., "The meatballs are expected to ...")',
+    )
+    attribution: str | None = p_regular(
+        62,
+        default=None,
+        description="The attribution of the link (e.g., 'Max Mustermann')",
+    )
+    attribution_tag: str | None = p_regular(
+        63, default=None, description="The attribution tag of the link (e.g., 'SRF')"
+    )
+    published_at: Optional[datetime] = p_system(64)
+    expires_at: Optional[datetime] = p_system(65)
     image_urls: list[str] = p_regular(70, array=True)
 
     def __content_str__(self):
