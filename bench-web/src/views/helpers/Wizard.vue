@@ -308,7 +308,7 @@ defineExpose<ViewExpose>({ id, self, focus });
             :icon="makeIcon({ faName: 'fas fa-shuffle' })"
             :title="stage === UserWizardViewStage.LOG_IN ? 'Sign up instead' : 'Log in instead'"
             class="mt-2 w-full"
-            @click="() => switchStage()"
+            @click="switchStage"
           />
         </div>
       </form>

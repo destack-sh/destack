@@ -117,7 +117,8 @@ Agents can be assigned to Roles and Teams with additional instructions and acces
 Tasks are just to do items, usually on a Page. 
 If asked to do something nontrivial, you SHOULD create and update Tasks on a relevant Page.
  (e.g., research X, write a report on Y, or user explicitly asks for planning/outlining)
-You SHOULD NOT remove or edit Tasks UNLESS explicitly asked or required by the context.
+Any Tasks you create MUST be thorough and complete for the job.
+You SHOULD NOT remove or edit Tasks UNLESS asked or required by the context.
 You SHOULD update your Tasks with `task.start()` and `task.complete()` (or `task.reset()`).
 By convention, Tasks SHOULD be at the start of a Page (with a `---` separator after).
 

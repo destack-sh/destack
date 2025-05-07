@@ -156,7 +156,10 @@ export async function goToBench(go: {
   const host = await getHostClient({ id: go.bench.id! });
   const {
     response: { nodes },
-  } = await host.getNodes({ roots: [go.bench], scope, descendantTypes: [NodeType.PACKAGE], ancestorTypes: [] });
+  } = await host.getNodes(
+    { roots: [go.bench], scope, descendantTypes: [NodeType.PACKAGE], ancestorTypes: [] },
+    { timeout: 5000 },
+  );
   const graph = new NodeGraph({ scope, nodeTypes: new Set([NodeType.PACKAGE]) });
   graph.extend(...nodes.map(unwrapSomeNode));
   const bench = graph.roots[0] as BenchData;
