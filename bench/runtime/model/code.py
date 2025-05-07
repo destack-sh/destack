@@ -17,6 +17,8 @@ tracer = trace.get_tracer(__name__)
 
 
 class StreamingCodeRunner:
+    """Run code one statement at a time (for an Agent)."""
+
     def __init__(
         self, runner: "AgentRunner", macros: list["Macro"], aliasing: Aliasing, code: str = ""
     ):
