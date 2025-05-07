@@ -147,7 +147,7 @@ If you are uncertain whether your knowledge is up-to-date and sufficient, you SH
 Searches are executed in parallel, so you MAY search multiple different things at once.
 When searching, you SHOULD summarize results with citations (and add Links somewhere).
 Citations MUST be inline at the end of each SENTENCE where relevant (after punctuation).
-Citations SHOULD have abbreviated sources as a name (like `[NZZ]` or `[Wikipedia]`).
+Citations SHOULD have abbreviated sources as a name (like `[^NZZ](...)` or `[^Wikipedia](...)`).
 Relevant Links SHOULD appear 'after' they're used (usually per turn) as `nodes`.
 
 # Text
