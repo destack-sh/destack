@@ -54,6 +54,7 @@ const { focus, commands: textCommands } = useTextEditor({
   suppressDrop: toRef(props, "suppressDrop"),
   navigate: (direction: NavigationDirection) => emit("navigate", direction),
   deleteSelf: () => emit("deleteSelf"),
+  enter: () => emit("enter"),
   parentComponent: vueInstance,
   plugins,
   history: true,
