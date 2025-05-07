@@ -1,12 +1,10 @@
 import { setAutoloader, setSupergraph } from "@/globals";
-import { LOADED_PACKAGE_NODE_TYPES } from "@/language/core/const";
 import { makeAndConditional, makeExpression } from "@/language/core/expression";
 import {
   DEFAULT_NODE_FILTER,
   LayerNodeGraph,
   NodeGraph,
   NodeSuperGraph,
-  NodeSuperGraphGetOptions,
   ProxyNodeGraph,
   type ReadNodeGraph,
   type WriteNodeGraph,
@@ -396,6 +394,7 @@ export abstract class ConnectionBase<K extends GraphConnectionKind, T extends No
   async close(): Promise<void> {
     this.isClosed.value = true;
     log.trace(`graph.${this.kind}.close`, { name: this.meta.name, id: this.id });
+    console.trace(`graph.${this.kind}.close`, { name: this.meta.name, id: this.id });
     this.abortController?.abort();
   }
 
@@ -951,11 +950,13 @@ async function gcInactiveConnections() {
 
 // periodically load missing nodes
 setInterval(autoloader.loadAll.bind(autoloader), CONNECTION_AUTOLOAD_INTERVAL);
+// TODO :Performance :Robustness: periodically clean up inactive autoloads / connections :RichGraph
+//  (but we'll have a new query system for :RichGraph soon so this is hopefully moot)
 // periodically clean up inactive connections
-setInterval(() => {
-  autoloader.gc();
-  gcInactiveConnections();
-}, CONNECTION_INACTIVE_TIMEOUT / 10);
+// setInterval(() => {
+//   autoloader.gc();
+//   gcInactiveConnections();
+// }, CONNECTION_INACTIVE_TIMEOUT / 10);
 
 type ConnectionMatchOptions<K extends GraphConnectionKind, T extends NodeType> = {
   predicate?: (c: ConnectionBase<K, T>) => boolean;

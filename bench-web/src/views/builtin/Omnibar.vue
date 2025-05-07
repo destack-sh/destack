@@ -51,7 +51,7 @@ const indices = computed(() => {
     indices["Bench"] = graphIndex({
       id: "bench",
       graph: benchGraph,
-      metatypes: [NodeType.PAGE, NodeType.DATABASE, NodeType.FLOW, NodeType.AGENT],
+      metatypes: [NodeType.PAGE, NodeType.THREAD, NodeType.DATABASE, NodeType.FLOW, NodeType.AGENT],
       roots: [benchGraph.getOrError(packagePtr.value)],
       skipDepth: 1,
       // only search deeply if in bench search specifically

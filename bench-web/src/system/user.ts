@@ -1,3 +1,4 @@
+import { autoloader } from "@/globals";
 import { makeNode } from "@/language/core/node";
 import { commitTransactionBuffers } from "@/language/core/transaction";
 import { supervisor, type OperationOptions } from "@/proto/services";
@@ -113,6 +114,7 @@ function onLogout() {
   local.clearBench();
   local.clearSpace();
   clearConnections();
+  autoloader.reset();
 }
 
 /**
