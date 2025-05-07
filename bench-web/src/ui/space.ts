@@ -581,7 +581,6 @@ export class SpaceCanvas {
 
   /** Restores component focus to the currently absolutely focused element (if possible). */
   restoreComponentFocus(): boolean {
-    if (this.space.value == null) throw new Error("no current space");
     if (this.space.value?.focusPtr != null) {
       const view = this.getViewData(this.space.value!.focusPtr!);
       if (view != null) {

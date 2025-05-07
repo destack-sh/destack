@@ -94,17 +94,17 @@ class RuntimePlugin[N: Node, O: RuntimeOp = RuntimeOp](HostPlugin[N], abc.ABC):
 
         # select computers to send run on :RuntimeRouting
         assert NodeType.COMPUTER in self.bench._graph.node_types, f"not loaded in {self.bench!r}"
-        available_computers = [
-            computer
-            for computer in self.bench._graph.nodes_of_type(Computer)
-            if computer.type == ComputerType.RUNTIME
-            and computer.status == ResourceStatus.AVAILABLE
-            and computer.is_active
-        ]
+        # TODO :Broken :RuntimeRouting :RichGraph: sometimes available_computers is locally out of sync?
+        #  (we try to reach a dead Computer, which obviously doesn't work;
+        #   so instead we just load it all from the DB, which is slower but more reliable)
+        computer_query = Computer.where(
+            Computer.get_property("type").eq(ComputerType.RUNTIME)
+            & Computer.get_property("status").eq(ResourceStatus.AVAILABLE)
+        )
+        computer_query._include_memory = False
+        available_computers = await computer_query.to_list()
 
         # contact computers
-        # NOTE :Broken :RuntimeRouting :RichGraph: sometimes available_computers is out of sync
-        #  (so we try to reach a dead Computer, which obviously doesn't work)
         for computer in available_computers:
             try:
                 assert computer.grpc_url, f"missing GRPC URL for {computer!r}"
