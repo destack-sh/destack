@@ -3351,11 +3351,15 @@ export interface LinkData {
      */
     attribution?: string;
     /**
-     * @generated from protobuf field: optional google.protobuf.Timestamp published_at = 63;
+     * @generated from protobuf field: optional string attribution_tag = 63;
+     */
+    attributionTag?: string;
+    /**
+     * @generated from protobuf field: optional google.protobuf.Timestamp published_at = 64;
      */
     publishedAt?: Timestamp;
     /**
-     * @generated from protobuf field: optional google.protobuf.Timestamp expires_at = 64;
+     * @generated from protobuf field: optional google.protobuf.Timestamp expires_at = 65;
      */
     expiresAt?: Timestamp;
     /**
@@ -20472,8 +20476,9 @@ class LinkData$Type extends MessageType$<LinkData> {
             { no: 56, name: "thumbnail_height", kind: "scalar", opt: true, T: 5 /*ScalarType.INT32*/ },
             { no: 60, name: "content", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
             { no: 62, name: "attribution", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
-            { no: 63, name: "published_at", kind: "message", T: () => Timestamp },
-            { no: 64, name: "expires_at", kind: "message", T: () => Timestamp },
+            { no: 63, name: "attribution_tag", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
+            { no: 64, name: "published_at", kind: "message", T: () => Timestamp },
+            { no: 65, name: "expires_at", kind: "message", T: () => Timestamp },
             { no: 70, name: "image_urls", kind: "scalar", repeat: 2 /*RepeatType.UNPACKED*/, T: 9 /*ScalarType.STRING*/ }
         ]);
     }
@@ -20591,10 +20596,13 @@ class LinkData$Type extends MessageType$<LinkData> {
                 case /* optional string attribution */ 62:
                     message.attribution = reader.string();
                     break;
-                case /* optional google.protobuf.Timestamp published_at */ 63:
+                case /* optional string attribution_tag */ 63:
+                    message.attributionTag = reader.string();
+                    break;
+                case /* optional google.protobuf.Timestamp published_at */ 64:
                     message.publishedAt = Timestamp.internalBinaryRead(reader, reader.uint32(), options, message.publishedAt);
                     break;
-                case /* optional google.protobuf.Timestamp expires_at */ 64:
+                case /* optional google.protobuf.Timestamp expires_at */ 65:
                     message.expiresAt = Timestamp.internalBinaryRead(reader, reader.uint32(), options, message.expiresAt);
                     break;
                 case /* repeated string image_urls */ 70:
@@ -20708,12 +20716,15 @@ class LinkData$Type extends MessageType$<LinkData> {
         /* optional string attribution = 62; */
         if (message.attribution !== undefined)
             writer.tag(62, WireType.LengthDelimited).string(message.attribution);
-        /* optional google.protobuf.Timestamp published_at = 63; */
+        /* optional string attribution_tag = 63; */
+        if (message.attributionTag !== undefined)
+            writer.tag(63, WireType.LengthDelimited).string(message.attributionTag);
+        /* optional google.protobuf.Timestamp published_at = 64; */
         if (message.publishedAt)
-            Timestamp.internalBinaryWrite(message.publishedAt, writer.tag(63, WireType.LengthDelimited).fork(), options).join();
-        /* optional google.protobuf.Timestamp expires_at = 64; */
+            Timestamp.internalBinaryWrite(message.publishedAt, writer.tag(64, WireType.LengthDelimited).fork(), options).join();
+        /* optional google.protobuf.Timestamp expires_at = 65; */
         if (message.expiresAt)
-            Timestamp.internalBinaryWrite(message.expiresAt, writer.tag(64, WireType.LengthDelimited).fork(), options).join();
+            Timestamp.internalBinaryWrite(message.expiresAt, writer.tag(65, WireType.LengthDelimited).fork(), options).join();
         /* repeated string image_urls = 70; */
         for (let i = 0; i < message.imageUrls.length; i++)
             writer.tag(70, WireType.LengthDelimited).string(message.imageUrls[i]);
@@ -29221,8 +29232,9 @@ export enum LinkProperty {
   thumbnailHeight = 56,
   content = 60,
   attribution = 62,
-  publishedAt = 63,
-  expiresAt = 64,
+  attributionTag = 63,
+  publishedAt = 64,
+  expiresAt = 65,
   imageUrls = 70,
 }
 
@@ -31089,7 +31101,7 @@ export const StoreDataInfo: Record<StoreProperty, PropertyInfo> = {
   [StoreProperty.failedAt]: { id: 47, name: 'failed_at', component: ObjectType.STORE, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
   [StoreProperty.failedAttempts]: { id: 48, name: 'failed_attempts', component: ObjectType.STORE, kind: 'primitive', primitiveType: PrimitiveType.INT32, default: 0, isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
   [StoreProperty.scalerPtr]: { id: 49, name: 'scaler_ptr', component: ObjectType.STORE, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.SCALER], referenceStruct: StructType.NODE_REFERENCE },
-  [StoreProperty.version]: { id: 60, name: 'version', component: ObjectType.STORE, kind: 'primitive', primitiveType: PrimitiveType.STRING, default: "2025.05.05.9", isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
+  [StoreProperty.version]: { id: 60, name: 'version', component: ObjectType.STORE, kind: 'primitive', primitiveType: PrimitiveType.STRING, default: "2025.05.07.4", isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
   [StoreProperty.externalName]: { id: 62, name: 'external_name', component: ObjectType.STORE, kind: 'primitive', primitiveType: PrimitiveType.STRING, isInternal: true, isSystem: true, isKernel: true, isRuntime: true, isWired: true, isStored: true, isSensitive: true },
   [StoreProperty.externalId]: { id: 63, name: 'external_id', component: ObjectType.STORE, kind: 'primitive', primitiveType: PrimitiveType.STRING, isInternal: true, isSystem: true, isKernel: true, isRuntime: true, isWired: true, isStored: true, isSensitive: true },
   [StoreProperty.sqlUrl]: { id: 64, name: 'sql_url', component: ObjectType.STORE, kind: 'primitive', primitiveType: PrimitiveType.STRING, isInternal: true, isSystem: true, isKernel: true, isRuntime: true, isWired: true, isStored: true, isDeferred: true, isSensitive: true },
@@ -31127,7 +31139,7 @@ export const ComputerDataInfo: Record<ComputerProperty, PropertyInfo> = {
   [ComputerProperty.failedAt]: { id: 47, name: 'failed_at', component: ObjectType.COMPUTER, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
   [ComputerProperty.failedAttempts]: { id: 48, name: 'failed_attempts', component: ObjectType.COMPUTER, kind: 'primitive', primitiveType: PrimitiveType.INT32, default: 0, isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
   [ComputerProperty.scalerPtr]: { id: 49, name: 'scaler_ptr', component: ObjectType.COMPUTER, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.SCALER], referenceStruct: StructType.NODE_REFERENCE },
-  [ComputerProperty.version]: { id: 60, name: 'version', component: ObjectType.COMPUTER, kind: 'primitive', primitiveType: PrimitiveType.STRING, default: "2025.05.05.9", isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
+  [ComputerProperty.version]: { id: 60, name: 'version', component: ObjectType.COMPUTER, kind: 'primitive', primitiveType: PrimitiveType.STRING, default: "2025.05.07.4", isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
   [ComputerProperty.externalName]: { id: 62, name: 'external_name', component: ObjectType.COMPUTER, kind: 'primitive', primitiveType: PrimitiveType.STRING, isInternal: true, isSystem: true, isKernel: true, isRuntime: true, isWired: true, isStored: true, isSensitive: true },
   [ComputerProperty.externalId]: { id: 63, name: 'external_id', component: ObjectType.COMPUTER, kind: 'primitive', primitiveType: PrimitiveType.STRING, isInternal: true, isSystem: true, isKernel: true, isRuntime: true, isWired: true, isStored: true, isSensitive: true },
   [ComputerProperty.imageId]: { id: 64, name: 'image_id', component: ObjectType.COMPUTER, kind: 'primitive', primitiveType: PrimitiveType.STRING, isInternal: true, isSystem: true, isKernel: true, isRuntime: true, isWired: true, isStored: true, isSensitive: true },
@@ -31216,8 +31228,9 @@ export const LinkDataInfo: Record<LinkProperty, PropertyInfo> = {
   [LinkProperty.thumbnailHeight]: { id: 56, name: 'thumbnail_height', component: ObjectType.LINK, kind: 'primitive', primitiveType: PrimitiveType.INT32, isRuntime: true, isWired: true, isStored: true },
   [LinkProperty.content]: { id: 60, name: 'content', component: ObjectType.LINK, kind: 'primitive', primitiveType: PrimitiveType.STRING, isRuntime: true, isWired: true, isStored: true },
   [LinkProperty.attribution]: { id: 62, name: 'attribution', component: ObjectType.LINK, kind: 'primitive', primitiveType: PrimitiveType.STRING, isRuntime: true, isWired: true, isStored: true },
-  [LinkProperty.publishedAt]: { id: 63, name: 'published_at', component: ObjectType.LINK, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
-  [LinkProperty.expiresAt]: { id: 64, name: 'expires_at', component: ObjectType.LINK, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
+  [LinkProperty.attributionTag]: { id: 63, name: 'attribution_tag', component: ObjectType.LINK, kind: 'primitive', primitiveType: PrimitiveType.STRING, isRuntime: true, isWired: true, isStored: true },
+  [LinkProperty.publishedAt]: { id: 64, name: 'published_at', component: ObjectType.LINK, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
+  [LinkProperty.expiresAt]: { id: 65, name: 'expires_at', component: ObjectType.LINK, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
   [LinkProperty.imageUrls]: { id: 70, name: 'image_urls', component: ObjectType.LINK, kind: 'primitive', primitiveType: PrimitiveType.STRING, isList: true, isRequired: true, isRuntime: true, isWired: true, isStored: true },
 }
 export const PackageDataInfo: Record<PackageProperty, PropertyInfo> = {

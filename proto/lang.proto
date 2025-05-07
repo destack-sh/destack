@@ -2597,8 +2597,9 @@ message LinkData {
   optional int32 thumbnail_height = 56;
   optional string content = 60;
   optional string attribution = 62;
-  optional google.protobuf.Timestamp published_at = 63;
-  optional google.protobuf.Timestamp expires_at = 64;
+  optional string attribution_tag = 63;
+  optional google.protobuf.Timestamp published_at = 64;
+  optional google.protobuf.Timestamp expires_at = 65;
   repeated string image_urls = 70;
 }
 

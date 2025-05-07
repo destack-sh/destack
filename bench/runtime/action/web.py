@@ -21,13 +21,39 @@ if TYPE_CHECKING:
 EXA_API_KEY = get_from_env("EXA_API_KEY")
 UNSPLASH_ACCESS_KEY = get_from_env("UNSPLASH_ACCESS_KEY")
 
+IGNORE_DOMAIN_PREFIXES = (
+    "www.",
+    "api.",
+    "app.",
+    "blog.",
+    "dev.",
+    "docs.",
+    "help.",
+    "info.",
+    "support.",
+    "www.",
+    "www2.",
+    "www3.",
+    "www4.",
+    "www5.",
+    "www6.",
+    "www7.",
+    "www8.",
+    "www9.",
+)
+
 exa = AsyncExa(api_key=EXA_API_KEY)
 
 
 def _make_link(result: ExaResult | _ExaResult) -> Link:
     """Make a Link from an ExaResult."""
+    url_parsed = urlparse(result.url)
+    domain = url_parsed.netloc
+    for prefix in IGNORE_DOMAIN_PREFIXES:
+        if domain.startswith(prefix):
+            domain = domain[len(prefix) :]
+    attribution_tag = domain.split(".")[0]
     published_at = datetime.fromisoformat(result.published_date) if result.published_date else None
-    domain = urlparse(result.url).netloc
     icon = Icon(type=IconType.FILE_URL, file_url=result.favicon) if result.favicon else None
     image_urls = [url for url in (result.extras or {}).get("image_links", ()) if url]
     link = Link(
@@ -39,6 +65,7 @@ def _make_link(result: ExaResult | _ExaResult) -> Link:
         title=TextLine.plain(title) if (title := result.title) else None,
         content=getattr(result, "text", None),
         attribution=result.author,
+        attribution_tag=attribution_tag,
         content_url=result.url,
         favicon_url=result.favicon,
         published_at=published_at,

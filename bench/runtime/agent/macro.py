@@ -293,11 +293,11 @@ def CALL(
     """\
 Add context to the current Thread for future reference (noop if already present).
 """,
-    signature="(*nodes: Page) -> Sequence[Claim]",
+    signature="(*nodes: Page | File) -> Sequence[Claim]",
     is_edit=True,
 )
 def ADD_CONTEXT(
-    *nodes: Page,
+    *nodes: Page | File,
     runner: "AgentRunner" = _INJECTED_RUNNER,
 ) -> Sequence[Claim]:
     thread = runner.thread.thread
@@ -321,10 +321,10 @@ def ADD_CONTEXT(
 Remove context from the current Thread if you're sure it's no longer relevant.
 You SHOULD ONLY remove context if there is a lot and it's not needed anymore (or if you're asked).
 """,
-    signature="(*nodes: Page) -> None",
+    signature="(*nodes: Page | File) -> None",
     is_edit=True,
 )
-def REMOVE_CONTEXT(*nodes: Page, runner: "AgentRunner" = _INJECTED_RUNNER) -> None:
+def REMOVE_CONTEXT(*nodes: Page | File, runner: "AgentRunner" = _INJECTED_RUNNER) -> None:
     thread = runner.thread.thread
     existing_claims = thread.claims.tolist()
     for node in nodes:
