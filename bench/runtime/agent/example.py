@@ -305,14 +305,17 @@ def example_edit_a_text_line_on_a_page(NotesPage1: Page, Block7: Block):
 
 
 @example_(ExampleType.SNIPPET, title="Create a simple Database")
-def example_create_simple_database(Page1: Page):
+def example_create_simple_database(Page1: Page, Link2: Link):
     # basic Person database (Record.title is builtin)
     Database1 = Database.new("Person", Field.member("Age", int))
     Page1.append(Database1)
     Record1 = Database1.records.create(name="Florian", Age=27)
     Record2 = Database1.records.create(name="John", Age=30)
     # reference directly by alias
-    SEND("I've created [@Database1] and added [@Record1] and [@Record2].")
+    SEND(
+        "I've created [@Database1] and added [@Record1] and [@Record2] from that article. [^NZZ](...)",
+        nodes=[Link2],
+    )
 
 
 @example_(ExampleType.SNIPPET, title="Cite Links in Messages")
@@ -359,7 +362,7 @@ def example_draft_report_for_confirmation(Page1: Page):
 - Be concise and and only state facts, little commentary
 - No introduction or conclusion
 - Add any new tasks that come to mind
-- Cite sources inline with links, add any other Links to bottom
+- Cite sources inline with citations, add any other Links to bottom
 ---
 
 # Companies
