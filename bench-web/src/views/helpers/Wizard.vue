@@ -195,6 +195,7 @@ defineExpose<ViewExpose>({ id, self, focus });
               title="Name"
               placeholder="Florian Cäsar"
               is-input
+              autocomplete-attribute="name"
             />
           </div>
           <div v-if="stage == UserWizardViewStage.SIGN_UP">
@@ -208,6 +209,7 @@ defineExpose<ViewExpose>({ id, self, focus });
               title="Username"
               placeholder="florian"
               is-input
+              autocomplete-attribute="username"
             />
           </div>
           <div v-else-if="stage == UserWizardViewStage.LOG_IN">
@@ -220,6 +222,7 @@ defineExpose<ViewExpose>({ id, self, focus });
               title="Username or Email"
               placeholder="florian / florian@symbolx.com"
               is-input
+              autocomplete-attribute="username"
             />
           </div>
           <div v-if="stage == UserWizardViewStage.SIGN_UP">
@@ -232,6 +235,7 @@ defineExpose<ViewExpose>({ id, self, focus });
               title="Email"
               placeholder="florian@symbolx.com"
               is-input
+              autocomplete-attribute="email"
             />
           </div>
           <!-- NOTE :UX: add passowrd feedback (see https://zxcvbn-ts.github.io/zxcvbn/)? -->
@@ -245,6 +249,7 @@ defineExpose<ViewExpose>({ id, self, focus });
               title="Password"
               placeholder="correct horse battery staple"
               is-input
+              autocomplete-attribute="current-password"
               :value-type="makeType({ isSecret: true })"
             />
           </div>

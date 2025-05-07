@@ -11,7 +11,13 @@ import { useElementSize } from "@vueuse/core";
 import { computed, Ref, ref, toRef, watch } from "vue";
 
 const props = defineProps<
-  { self?: TypedNodeReferenceData<NodeType.VIEW>; id: string; placeholder?: string; ariaHidden?: boolean } & Partial<
+  {
+    self?: TypedNodeReferenceData<NodeType.VIEW>;
+    id: string;
+    placeholder?: string;
+    ariaHidden?: boolean;
+    autocompleteAttribute?: string;
+  } & Partial<
     Partial<
       Pick<
         ViewData,
@@ -171,6 +177,7 @@ defineExpose<ViewExpose & { select: () => void }>({
         v-bind="getNativeConstraintProps(valueType?.constraint)"
         :disabled="isDisabled"
         :aria-hidden="ariaHidden"
+        :autocomplete="autocompleteAttribute"
         @keydown.left.stop="
           () => {
             // only if we're at the start of the input
@@ -234,6 +241,7 @@ defineExpose<ViewExpose & { select: () => void }>({
         :size="isMinimal ? size : undefined"
         :disabled="isDisabled"
         :aria-hidden="ariaHidden"
+        :autocomplete="autocompleteAttribute"
         @keydown.enter.stop.prevent="(addCurrentValue(), $nextTick(() => inputRef?.focus()))"
         @input="currentValue = ($event.target as HTMLInputElement).value"
       />
