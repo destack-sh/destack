@@ -232,7 +232,8 @@ def SEND(
     for node in new_nodes:
         if node.parent_ptr is None:
             message.append(node)
-    runner.thread.thread.append(message)
+    runner.thread.thread.messages.append(message)
+    runner.thread.add_optimistic_message(message)
     # cursor
     if (
         cursor := runner.thread.thread.get_cursor(type=CursorType.THREAD, owned_by=runner.agent)
