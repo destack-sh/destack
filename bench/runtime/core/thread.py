@@ -1,5 +1,6 @@
 from datetime import datetime
 from typing import TYPE_CHECKING, Collection
+from uuid import UUID
 
 import structlog
 from opentelemetry import trace
@@ -35,7 +36,9 @@ class ThreadHandle:
 
     __slots__ = (
         "_computer_clients_by_uri",
+        "_messages",
         "_messages_connection",
+        "_optimistic_messages",
         "_thread_connection",
         "capture",
         "id",
@@ -57,8 +60,11 @@ class ThreadHandle:
         self.capture = capture
         self.thread_ptr = thread_ptr
         self._computer_clients_by_uri: dict[str, ComputerClient] = {}
-        self._thread_connection: GetConnection | SearchConnection | None = thread_connection
-        self._messages_connection: SearchConnection | None = messages_connection
+        self._thread_connection: GetConnection | SearchConnection = thread_connection
+        self._messages_connection = messages_connection
+        self._messages: list[Message] | None = None
+        self._optimistic_messages: list[Message] = []
+        self._messages_connection.on_update(lambda *args: self._on_messages_update())
 
     def __str__(self) -> str:
         content_parts: list[str] = []
@@ -85,8 +91,25 @@ class ThreadHandle:
     @property
     def messages(self) -> list[Message]:
         """The Messages in this Thread (sorted by created_at)."""
-        assert self._messages_connection is not None, f"{self!r} is not ready"
-        return self._messages_connection.result.roots
+        if self._messages is None:
+            self._on_messages_update()
+            assert self._messages is not None
+        return self._messages
+
+    def add_optimistic_message(self, message: Message):
+        # NOTE: obviously optimistic Messages like this are awful :RichGraph
+        self._optimistic_messages.append(message)
+        self._on_messages_update()
+
+    def _on_messages_update(self):
+        # messages = all messages from connection + optimistic messages (deduped, sorted)
+        messages_by_id: dict[UUID, Message] = {}
+        for message in self._messages_connection.result.roots:
+            messages_by_id[message.id] = message
+        for message in self._optimistic_messages:
+            messages_by_id[message.id] = message
+        self._messages = list(messages_by_id.values())
+        self._messages.sort(key=lambda m: m.created_at)
 
     @property
     def last_message(self) -> Message | None:
