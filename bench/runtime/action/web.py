@@ -47,12 +47,19 @@ exa = AsyncExa(api_key=EXA_API_KEY)
 
 def _make_link(result: ExaResult | _ExaResult) -> Link:
     """Make a Link from an ExaResult."""
+    # domain
     url_parsed = urlparse(result.url)
     domain = url_parsed.netloc
     for prefix in IGNORE_DOMAIN_PREFIXES:
         if domain.startswith(prefix):
             domain = domain[len(prefix) :]
-    attribution_tag = domain.split(".")[0]
+    domain_parts = domain.split(".")
+    if len(domain_parts) > 2:
+        domain_parts = domain_parts[1:]  # strip any other subdomains
+    attribution_tag = domain_parts[0]
+    domain = ".".join(domain_parts)
+
+    # link
     published_at = datetime.fromisoformat(result.published_date) if result.published_date else None
     icon = Icon(type=IconType.FILE_URL, file_url=result.favicon) if result.favicon else None
     image_urls = [url for url in (result.extras or {}).get("image_links", ()) if url]
