@@ -3,25 +3,24 @@ import { isPageNode, toCamelName } from "@/language/core/const";
 import { type ReadNodeGraph } from "@/language/core/graph";
 import { NodeIn } from "@/language/core/node";
 import { getOrderKey } from "@/language/core/order";
+import { newChangeId, type Transaction } from "@/language/core/transaction";
 import { createAgent } from "@/language/runtime/agent";
 import { createTask } from "@/language/runtime/task";
-import { newChangeId, type Transaction } from "@/language/core/transaction";
 import { choiceToType, createChoice } from "@/language/source/choice";
 import { classToType, createClass } from "@/language/source/class";
 import { createDatabase, databaseToType } from "@/language/source/database";
 import { createFlow, flowToType } from "@/language/source/flow";
-import { createKit } from "@/language/source/kit";
 import { createPage } from "@/language/source/page";
 import {
   AnyNodeData,
   BlockData,
   BlockType,
   FieldType,
-  PAGE_NODE_TYPES,
-  PageNodeData,
   NodeReferenceData,
   NodeType,
+  PAGE_NODE_TYPES,
   PageData,
+  PageNodeData,
   StructType,
   TypeData,
 } from "@/proto/wire";
@@ -129,8 +128,6 @@ export function createPageNode(
     return createClass(tx, graph, { class: options.node });
   } else if (options.node.metatype == NodeType.CHOICE) {
     return createChoice(tx, graph, { choice: options.node });
-  } else if (options.node.metatype == NodeType.KIT) {
-    return createKit(tx, graph, { kit: options.node });
   } else if (options.node.metatype == NodeType.TASK) {
     return createTask(tx, graph, { task: options.node });
   } else if (options.node.metatype == NodeType.AGENT) {
