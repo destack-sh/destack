@@ -1,4 +1,5 @@
 <script lang="ts" setup>
+import { log } from "@/utils/log";
 import * as THREE from "three";
 import { RoomEnvironment } from "three/examples/jsm/environments/RoomEnvironment";
 import { RoundedBoxGeometry } from "three/examples/jsm/geometries/RoundedBoxGeometry.js";
@@ -38,7 +39,6 @@ const camTgt = reactive({ x: 0, y: 0 }); // Target offset for camera parallax
 const camCur = reactive({ x: 0, y: 0 }); // Current offset for camera parallax
 let hoveredLayer: THREE.Mesh | null = null;
 
-/* ── helpers ───────────────────────────── */
 function onMove(e: MouseEvent) {
   if (!canvasRef.value) return;
   const r = canvasRef.value.getBoundingClientRect();
@@ -57,10 +57,9 @@ function onResize() {
   ren.setSize(p.clientWidth, p.clientHeight);
   ren.setPixelRatio(Math.min(window.devicePixelRatio, 2));
 }
-/* ───────────────────────────────────────── */
 
-onMounted(() => {
-  if (!canvasRef.value) return;
+function setup() {
+  if (!canvasRef.value) throw new Error("no canvas");
 
   /* scene / clock / raycaster */
   scene = new THREE.Scene();
@@ -130,7 +129,7 @@ onMounted(() => {
     raycaster.setFromCamera(new THREE.Vector2(mouse.x, mouse.y), cam);
     const intersects = raycaster.intersectObjects(layers);
     // Check if the first intersected object is one of our layers
-    const firstIntersectedLayer = layers.find(l => intersects.length > 0 && l === intersects[0].object);
+    const firstIntersectedLayer = layers.find((l) => intersects.length > 0 && l === intersects[0].object);
     hoveredLayer = firstIntersectedLayer ?? null;
 
     // 2. Update layers: position (float) and rotation (hover)
@@ -155,6 +154,15 @@ onMounted(() => {
     frame = window.requestAnimationFrame(loop);
   };
   loop();
+}
+
+onMounted(() => {
+  if (!canvasRef.value) return;
+  try {
+    setup();
+  } catch (e) {
+    log.warn("threeicon.setup.failed", e);
+  }
 });
 
 onBeforeUnmount(() => {

@@ -380,26 +380,3 @@ def ADD_PAGE_TEXT(
     blocks = page.add_text(text, after, before)
     runner.session.stage()
     return tuple(blocks)
-
-
-@function_macro_(
-    "REPLACE_PAGE_TEXT",
-    """\
-REPLACE text on a current Page.
-After and before are *exclusive* (if unspecified, they refer to Page start/end).
-Returns the *new* Blocks in order.
-""",
-    signature="(text: str, page: Page, after: Block | None = None, before: Block | None = None) -> tuple[Block, ...]",
-    is_edit=True,
-)
-def REPLACE_PAGE_TEXT(
-    text: str,
-    page: Page,
-    after: Block | None = None,
-    before: Block | None = None,
-    runner: "AgentRunner" = _INJECTED_RUNNER,
-) -> tuple[Block, ...]:
-    _ = page.remove_range(after, before)
-    blocks = page.add_text(text, after, before)
-    runner.session.stage()
-    return tuple(blocks)
