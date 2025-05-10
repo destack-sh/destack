@@ -138,10 +138,14 @@ export const IconInline: FunctionalComponent<IconInlineProps> = (props) => {
   // NOTE :Cleanup: why does it take this terrible inline-block/absolute hack to get IconInline images to align with the text?
   if (props.faName) {
     // font awesome
-    return <span class={`${props.faName} text-center`} style={{ color: colorHex }} />;
+    return <span class={`${props.faName} inline-block text-center`} style={{ color: colorHex }} />;
   } else if (props.emoji) {
     // emoji
-    return <span style={{ color: colorHex }}>{props.emoji}</span>;
+    return (
+      <span class="inline-block text-center" style={{ color: colorHex }}>
+        {props.emoji}
+      </span>
+    );
   } else if (props.filePtr) {
     // file
     const download = getSilentFileDownload(props.filePtr);
@@ -154,7 +158,10 @@ export const IconInline: FunctionalComponent<IconInlineProps> = (props) => {
     } else {
       // downloading (skeleton)
       return (
-        <span class="fas fa-circle animate-pulse" style={{ color: getColorHex(ColorType.GRAY, ColorShade.S200) }} />
+        <span
+          class="fas fa-circle inline-block animate-pulse text-center"
+          style={{ color: getColorHex(ColorType.GRAY, ColorShade.S200) }}
+        />
       );
     }
   } else if (props.fileUrl) {
