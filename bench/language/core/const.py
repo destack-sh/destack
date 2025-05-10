@@ -560,7 +560,7 @@ class NodeType(BuiltinEnum):
     OPTION = 5036, "Option", "Option", "far fa-square-check"
     # TAG?
     FLOW = 5050, "Flow", "Link Actions together", "fas fa-diagram-project"
-    KIT = 5060, "Kit", "Kit of stuff", "fas fa-screwdriver-wrench"
+    SERVICE = 5060, "Service", "Service", "fas fa-screwdriver-wrench"
     ACTION = 5061, "Action", "Action", "fas fa-step-forward"
     TRANSITION = 5070, "Transition", "Transition between Nodes", "fas fa-link"
     TRIGGER = 5080, "Trigger", "Trigger to do something", "fas fa-bolt"
@@ -725,7 +725,7 @@ PAGE_NODE_TYPES = bittuple(
     NodeType.CLASS,
     NodeType.DATABASE,
     NodeType.FLOW,
-    NodeType.KIT,
+    NodeType.SERVICE,
     NodeType.PAGE,
     NodeType.ROLE,
     NodeType.VIEW,

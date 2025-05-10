@@ -775,8 +775,8 @@ FLOW_TABLE = Table(
     indexes=(Index("bench_idx_parent_id", IndexType.BTREE, ("parent_id",), cover=("id",)),),
 )
 
-KIT_TABLE = Table(
-    "bench_kit",
+SERVICE_TABLE = Table(
+    "bench_service",
     (
         Column("id", PrimitiveType.UUID, is_primary_key=True),
         Column("parent_id", PrimitiveType.UUID, is_nullable=True),
@@ -1387,7 +1387,7 @@ RUN_TABLE = Table(
         Column("agent_id", PrimitiveType.UUID, is_nullable=True),
         Column("agent_ck", PrimitiveType.UUID, is_nullable=True),
         Column("flow_id", PrimitiveType.UUID, is_nullable=True),
-        Column("kit_id", PrimitiveType.UUID, is_nullable=True),
+        Column("service_id", PrimitiveType.UUID, is_nullable=True),
         Column("action_id", PrimitiveType.UUID, is_nullable=True),
         Column("action_ck", PrimitiveType.UUID, is_nullable=True),
         Column("transition_id", PrimitiveType.UUID, is_nullable=True),
@@ -1457,7 +1457,7 @@ SPAN_TABLE = Table(
         Column("agent_id", PrimitiveType.UUID, is_nullable=True),
         Column("agent_ck", PrimitiveType.UUID, is_nullable=True),
         Column("flow_id", PrimitiveType.UUID, is_nullable=True),
-        Column("kit_id", PrimitiveType.UUID, is_nullable=True),
+        Column("service_id", PrimitiveType.UUID, is_nullable=True),
         Column("action_id", PrimitiveType.UUID, is_nullable=True),
         Column("action_ck", PrimitiveType.UUID, is_nullable=True),
         Column("transition_id", PrimitiveType.UUID, is_nullable=True),

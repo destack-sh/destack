@@ -12,19 +12,17 @@ from bench.language import (
 )
 
 from .bench import (
-    ActionPage,
     AgentPage,
     BenchAgent,
     BenchAgentPage,
-    CommonKit,
-    ComputerDesktopKit,
+    ComputerDesktopService,
     ComputerPage,
-    ComputerTerminalKit,
+    ComputerTerminalService,
     IComputerDesktop,
     IComputerTerminal,
     IInternet,
-    InternetKit,
     InternetPage,
+    InternetService,
     ThreadPage,
     UbuntuComputerTemplate,
     UbuntuHeadlessComputerTemplate,
@@ -37,7 +35,7 @@ BenchPackage = Package(
     slug=BENCH_BENCH_PACKAGE_SLUG,
     _is_new=True,
 )
-BenchPackage.extend(ActionPage, ComputerPage, ThreadPage, AgentPage, InternetPage)
+BenchPackage.extend(ComputerPage, ThreadPage, AgentPage, InternetPage)
 
 # finalize
 supergraph = NodeSuperGraph(
@@ -52,18 +50,16 @@ for node in BenchPackage._graph.nodes:
 assign_builtin_ids(BenchPackage._graph, ignore=(BenchPackage,))
 
 __all__ = [
-    "ActionPage",
     "BenchAgent",
     "BenchAgentPage",
     "BenchPackage",
-    "CommonKit",
-    "ComputerDesktopKit",
+    "ComputerDesktopService",
     "ComputerPage",
-    "ComputerTerminalKit",
+    "ComputerTerminalService",
     "IComputerDesktop",
     "IComputerTerminal",
     "IInternet",
-    "InternetKit",
+    "InternetService",
     "UbuntuComputerTemplate",
     "UbuntuHeadlessComputerTemplate",
     "assign_builtin_ids",

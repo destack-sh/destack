@@ -32,7 +32,6 @@ from bench.language import (
     InterruptionStatus,
     InterruptionType,
     IsType,
-    Kit,
     Message,
     Node,
     NodeGraph,
@@ -43,6 +42,7 @@ from bench.language import (
     Run,
     Runnable,
     RunType,
+    Service,
     Session,
     Span,
     SpanType,
@@ -551,7 +551,7 @@ def create_run(
 
     # context
     flow: Flow | None = None
-    kit: Kit | None = None
+    service: Service | None = None
     action: Action | None = None
     link: Transition | None = None
     typ: RunType | None = None
@@ -565,7 +565,7 @@ def create_run(
         typ = RunType.ACTION
         action = node
         flow = node.flow
-        kit = node.kit
+        service = node.service
     elif isinstance(node, Transition):
         typ = RunType.TRANSITION
         link = node
@@ -631,7 +631,7 @@ def create_run(
         type=typ,
         title=title,
         flow=flow,
-        kit=kit,
+        service=service,
         action=action,
         transition=link,
         mode=mode,

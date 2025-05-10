@@ -14,7 +14,6 @@ import File from "@/views/content/File.vue";
 import Agent from "@/views/nodes/Agent.vue";
 import Choice from "@/views/nodes/Choice.vue";
 import Database from "@/views/nodes/Database.vue";
-import Kit from "@/views/nodes/Kit.vue";
 import Task from "@/views/nodes/Task.vue";
 import { computed, getCurrentInstance, nextTick, onBeforeUnmount, ref, toRef, triggerRef, type Ref } from "vue";
 
@@ -181,19 +180,6 @@ defineExpose<ViewExpose>({ self, id, commands, focus });
       ref="nodeRef"
       :node-ptr="nodePtr"
       :container-gutter-width="pageContext.gutterWidth.value"
-      is-minimal
-      is-inline
-      is-input
-      @navigate="(direction: NavigationDirection) => emit('navigate', direction)"
-      @enter="onEnter"
-      @deleteSelf="onDeleteSelf"
-    />
-    <Kit
-      v-else-if="block.type == BlockType.KIT"
-      id="kit"
-      ref="nodeRef"
-      :node-ptr="nodePtr"
-      :prepared-connection="preparedConnection"
       is-minimal
       is-inline
       is-input

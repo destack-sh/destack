@@ -1,32 +1,29 @@
-from .action import ActionPage, CommonKit
 from .agent import AgentPage, BenchAgent, BenchAgentPage
 from .computer import (
-    ComputerDesktopKit,
+    ComputerDesktopService,
     ComputerPage,
-    ComputerTerminalKit,
+    ComputerTerminalService,
     IComputerDesktop,
     IComputerTerminal,
     UbuntuComputerTemplate,
     UbuntuHeadlessComputerTemplate,
 )
-from .internet import IInternet, InternetKit, InternetPage
+from .internet import IInternet, InternetPage, InternetService
 from .thread import BlankThread, ThreadPage
 
 __all__ = [
-    "ActionPage",
     "AgentPage",
     "BenchAgent",
     "BenchAgentPage",
     "BlankThread",
-    "CommonKit",
-    "ComputerDesktopKit",
+    "ComputerDesktopService",
     "ComputerPage",
-    "ComputerTerminalKit",
+    "ComputerTerminalService",
     "IComputerDesktop",
     "IComputerTerminal",
     "IInternet",
-    "InternetKit",
     "InternetPage",
+    "InternetService",
     "ThreadPage",
     "UbuntuComputerTemplate",
     "UbuntuHeadlessComputerTemplate",

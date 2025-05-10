@@ -20,9 +20,9 @@ def _register_builtin_action(action: Action, runner: Callable):
 def _register_builtins():
     """Registers all builtin Actions."""
     global _registered
-    from bench.builtin import InternetKit
+    from bench.builtin import InternetService
 
-    for kit, impl_cls in ((InternetKit, Internet),):
+    for kit, impl_cls in ((InternetService, Internet),):
         impl = impl_cls()
         for action in kit.actions:
             assert action.name is not None, f"{action!r} has no name"

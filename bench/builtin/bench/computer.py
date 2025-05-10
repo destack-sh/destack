@@ -1,7 +1,7 @@
 from abc import ABC, abstractmethod
 from typing import TYPE_CHECKING, Annotated, Mapping
 
-from bench.builtin.core import class_to_kit
+from bench.builtin.core import class_to_service
 from bench.language import Computer, ComputerType, File, NodeMode, NodeType, Page
 
 if TYPE_CHECKING:
@@ -82,11 +82,11 @@ class IComputerDesktop(ABC):
         pass
 
 
-ComputerTerminalKit = class_to_kit(
-    IComputerTerminal, "Computer Terminal Kit", icon=NodeType.COMPUTER.icon
+ComputerTerminalService = class_to_service(
+    IComputerTerminal, "Computer Terminal Service", icon=NodeType.COMPUTER.icon
 )
-ComputerDesktopKit = class_to_kit(
-    IComputerDesktop, "Computer Desktop Kit", icon=NodeType.COMPUTER.icon
+ComputerDesktopService = class_to_service(
+    IComputerDesktop, "Computer Desktop Service", icon=NodeType.COMPUTER.icon
 )
 UbuntuComputerTemplate = Computer(
     name="Ubuntu Desktop", type=ComputerType.UBUNTU, mode=NodeMode.TEMPLATE
@@ -98,5 +98,5 @@ UbuntuHeadlessComputerTemplate = Computer(
     is_headless=True,
 )
 ComputerPage = Page.new(
-    "Computer", UbuntuComputerTemplate, UbuntuHeadlessComputerTemplate, ComputerTerminalKit
+    "Computer", UbuntuComputerTemplate, UbuntuHeadlessComputerTemplate, ComputerTerminalService
 )

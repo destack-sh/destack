@@ -39,8 +39,8 @@ if TYPE_CHECKING:
         Field,
         Flow,
         Icon,
-        Kit,
         NodeReference,
+        Service,
         Text,
         Transition,
         TransitionType,
@@ -86,7 +86,7 @@ class Action(
     May defer to a builtin or some other service in a separate system.
     """
 
-    parent: Union["Flow", "Kit", None] = p_node_parent(4, NodeType.FLOW, NodeType.KIT)
+    parent: Union["Flow", "Service", None] = p_node_parent(4, NodeType.FLOW, NodeType.SERVICE)
 
     # common
     type: ActionType = p_regular(30, description="Type of this Action. Only dynamic for tools.")
@@ -142,13 +142,13 @@ class Action(
         return None
 
     @property
-    def kit(self) -> "Kit | None":
-        """Gets the containing ancestor Kit (if any)"""
-        from bench.language import Kit
+    def service(self) -> "Service | None":
+        """Gets the containing ancestor Service (if any)"""
+        from bench.language import Service
 
         parent = self.parent
         while parent is not None:
-            if isinstance(parent, Kit):
+            if isinstance(parent, Service):
                 return parent
             parent = parent.parent
         return None
@@ -162,7 +162,7 @@ class Action(
         target: "Action",
         name: str | None = None,
         *,
-        parent: Union["Flow", "Kit", None] = None,
+        parent: Union["Flow", "Service", None] = None,
     ) -> "Transition":
         """Connects a target Action to this Action."""
         from bench.language import Flow, Transition
@@ -196,7 +196,7 @@ class Action(
         field_types: list[FieldType] | None = None,
     ) -> "IsType | None":
         """Gets a type represented by this Action (if any)"""
-        from bench.language import Kit, Type
+        from bench.language import Service, Type
 
         if of == "instance":
             return Type(kind=TypeKind.BASED_NODE, base_type=self, bench_type=NodeType.RUN)
@@ -205,7 +205,7 @@ class Action(
                 if field_types and FieldType.INPUT not in field_types:
                     return None
                 base = self.parent
-                assert not isinstance(base, Kit), f"{self!r} is invalid inside {base!r}"
+                assert not isinstance(base, Service), f"{self!r} is invalid inside {base!r}"
                 field_types = [FieldType.OUTPUT]  # remap to only output fields from Flow
             elif self.type == ActionType.TOOL:
                 base = self.tool

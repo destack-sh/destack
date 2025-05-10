@@ -20,12 +20,12 @@ if TYPE_CHECKING:
         Action,
         Agent,
         Flow,
-        Kit,
         Message,
         NodeReference,
         Page,
         Plan,
         Run,
+        Service,
         Session,
         Span,
         Task,
@@ -60,13 +60,13 @@ class IsRun(BuiltinObject):
         same_bench=True,
         description="The Flow the Action is in.",
     )
-    kit: Optional["Kit"] = p_internal(
+    service: Optional["Service"] = p_internal(
         72,
         require=False,
         array=False,
-        references=NodeType.KIT,
+        references=NodeType.SERVICE,
         same_bench=True,
-        description="The Kit the Action is in.",
+        description="The Service the Action is in.",
     )
     action: Optional["Action"] = p_internal(
         73,
@@ -121,8 +121,8 @@ class IsRun(BuiltinObject):
         agent_id: Optional[UUID] = None
         flow_ptr: Optional[NodeReference] = None
         flow_id: Optional[UUID] = None
-        kit_ptr: Optional[NodeReference] = None
-        kit_id: Optional[UUID] = None
+        service_ptr: Optional[NodeReference] = None
+        service_id: Optional[UUID] = None
         action_ptr: Optional[NodeReference] = None
         action_id: Optional[UUID] = None
         action_ck: Optional[UUID] = None
