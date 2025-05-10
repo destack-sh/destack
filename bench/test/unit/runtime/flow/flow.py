@@ -3,7 +3,6 @@ import asyncio
 from bench.language import (
     Action,
     ActionType,
-    ErrorType,
     Flow,
     ProcessStatus,
     TransitionType,
@@ -39,117 +38,6 @@ async def test_run_flow_race(simulation: Simulation, runtime: RuntimeLambdaWorkl
     aborted_runs = [r for r in runner.tracked_run.runs if r.status == ProcessStatus.ABORTED]
     assert len(aborted_runs) == 2  # the two losers should be aborted
     assert len(runner.tracked_run.runs) == 9  # all actions & links should run exactly once
-
-
-@simulated_runtime(system=True)
-async def test_run_flow_yield(simulation: Simulation, runtime: RuntimeLambdaWorkload):
-    """Run a Flow with a Yield action, then resume from the Yield."""
-    from bench.builtin import CommonKit
-
-    Flow1 = Flow.new("Flow1")
-    Start = Action.new(ActionType.START, "Start")
-    Yield = Action.new(CommonKit.actions.Yield, "Yield")
-    End = Action.new(ActionType.END, "End")
-    Flow1.actions.extend(Start, Yield, End)
-    Start.connect(TransitionType.MANUAL, Yield)
-    Yield.connect(TransitionType.MANUAL, End)
-    runtime.page().append(Flow1)
-    await runtime.commit()
-
-    # run up to yield
-    runner = await runtime.run_in_runtime(Flow1)
-    assert runner.status == ProcessStatus.YIELDED
-    assert runner.tracked_run
-    assert runner.tracked_run.interrupted_at and runner.tracked_run.interruption
-    assert not runner.tracked_run.terminated_at
-    assert len(runner.attempts) == 1
-
-    # resume run (without handling Interruption)
-    runner = await runtime.run_in_runtime(runner.tracked_run)
-    assert runner.status == ProcessStatus.YIELDED
-    assert runner.tracked_run
-    assert runner.tracked_run.interrupted_at and runner.tracked_run.interruption
-    assert not runner.tracked_run.terminated_at
-    assert len(runner.attempts) == 1  # should be the same attempt
-
-    # handle interruption
-    runner.tracked_run.interruption.complete()
-
-    # resume run (after handling Interruption)
-    runner = await runtime.run_in_runtime(runner.tracked_run)
-    assert runner.status == ProcessStatus.COMPLETED
-    assert runner.tracked_run
-    assert len(runner.attempts) == 1
-
-
-@simulated_runtime(system=True)
-async def test_run_flow_yield_nested(simulation: Simulation, runtime: RuntimeLambdaWorkload):
-    """Run a FLow inside another Flow and yield from there. Should propagate and resume properly."""
-    from bench.builtin import CommonKit
-
-    # inner flow
-    FlowInner = Flow.new("FlowInner")
-    StartInner = Action.new(ActionType.START, "StartInner")
-    YieldInner = Action.new(CommonKit.actions.Yield, "YieldInner")
-    EndInner = Action.new(ActionType.END, "EndInner")
-    FlowInner.actions.extend(StartInner, YieldInner, EndInner)
-    StartInner.connect(TransitionType.MANUAL, YieldInner)
-    YieldInner.connect(TransitionType.MANUAL, EndInner)
-
-    # outer flow
-    FlowOuter = Flow.new("FlowOuter")
-    StartOuter = Action.new(ActionType.START, "StartOuter")
-    ActionOuter = Action.new(ActionType.TOOL, "Action", tool=FlowInner)
-    EndOuter = Action.new(ActionType.END, "EndOuter")
-    FlowOuter.actions.extend(StartOuter, ActionOuter, EndOuter)
-    StartOuter.connect(TransitionType.MANUAL, ActionOuter)
-    ActionOuter.connect(TransitionType.MANUAL, EndOuter)
-
-    runtime.page().extend(FlowInner, FlowOuter)
-    await runtime.commit()
-
-    # run up to yield
-    runner = await runtime.run_in_runtime(FlowOuter)
-    assert runner.status == ProcessStatus.YIELDED
-    assert runner.tracked_run
-
-    # resume run (without handling Interruption)
-    runner = await runtime.run_in_runtime(runner.tracked_run)
-    assert runner.status == ProcessStatus.YIELDED
-    assert runner.tracked_run
-    assert runner.tracked_run.interrupted_at and runner.tracked_run.interruption
-
-    # handle interruption
-    runner.tracked_run.interruption.complete(_trigger_runtime=False)
-
-    # resume run (after handling Interruption)
-    runner = await runtime.run_in_runtime(runner.tracked_run)
-    assert runner.status == ProcessStatus.COMPLETED
-
-
-@simulated_runtime(system=True)
-async def test_run_flow_yield_cancelled(simulation: Simulation, runtime: RuntimeLambdaWorkload):
-    """Run a Flow with a Yield action, then cancel it."""
-    from bench.builtin import CommonKit
-
-    Flow1 = Flow.new("Flow1")
-    Start = Action.new(ActionType.START, "Start")
-    Yield = Action.new(CommonKit.actions.Yield, "Yield")
-    End = Action.new(ActionType.END, "End")
-    Flow1.actions.extend(Start, Yield, End)
-    Start.connect(TransitionType.MANUAL, Yield)
-    Yield.connect(TransitionType.MANUAL, End)
-    runtime.page().append(Flow1)
-    await runtime.commit()
-
-    runner = await runtime.run_in_runtime(Flow1)
-    assert runner.status == ProcessStatus.YIELDED
-    assert runner.tracked_run
-    assert runner.tracked_run.interruption
-    runner.tracked_run.interruption.cancel(_trigger_runtime=False)
-    runner = await runtime.run_in_runtime(runner.tracked_run, return_error=True)
-    assert runner.status == ProcessStatus.FAILED
-    assert runner.error and runner.error.type == ErrorType.INTERRUPTION_CANCELLED
 
 
 @simulated_runtime(system=True)

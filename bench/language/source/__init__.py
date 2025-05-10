@@ -6,7 +6,6 @@ from .database import Database
 from .dependency import Dependency
 from .field import Field
 from .flow import Flow
-from .kit import Kit
 from .option import Option
 from .package import Package, PackageType
 from .page import Page
@@ -23,6 +22,7 @@ from .render import (
     render_value,
 )
 from .schedule import Schedule, ScheduleFrequency
+from .service import Service
 from .transition import PortSide, Transition, TransitionType
 from .trigger import Trigger, TriggerEffect, TriggerStatus, TriggerType
 
@@ -42,7 +42,6 @@ __all__ = [
     "Dependency",
     "Field",
     "Flow",
-    "Kit",
     "Option",
     "Package",
     "PackageType",
@@ -52,6 +51,7 @@ __all__ = [
     "Renderer",
     "Schedule",
     "ScheduleFrequency",
+    "Service",
     "Transition",
     "TransitionType",
     "Trigger",

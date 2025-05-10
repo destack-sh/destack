@@ -1,7 +1,7 @@
 from abc import ABC, abstractmethod
 from typing import TYPE_CHECKING, Annotated, Any, Mapping
 
-from bench.builtin.core import class_to_kit
+from bench.builtin.core import class_to_service
 from bench.language import File, Link, Page, to_icon
 
 if TYPE_CHECKING:
@@ -11,7 +11,7 @@ if TYPE_CHECKING:
 
 
 class IInternet(ABC):
-    """The Internet :InternetKit."""
+    """The Internet :InternetService."""
 
     @abstractmethod
     async def Search(
@@ -46,6 +46,6 @@ class IInternet(ABC):
         pass
 
 
-InternetKit = class_to_kit(IInternet, "Internet Kit", icon=to_icon("fas fa-globe"))
+InternetService = class_to_service(IInternet, "Internet Service", icon=to_icon("fas fa-globe"))
 InternetPage = Page.new("Internet")
-InternetPage.append(InternetKit)
+InternetPage.append(InternetService)

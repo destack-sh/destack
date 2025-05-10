@@ -259,14 +259,14 @@ def CALL(
     runner: "AgentRunner" = _INJECTED_RUNNER,
     **inputs,
 ):
-    from bench.builtin import InternetKit
+    from bench.builtin import InternetService
 
     # title
     object_title = text_line(object_title) if object_title is not None else None
     if action.mode == NodeMode.BUILTIN:  # use known good title for builtin actions
-        if action.id == InternetKit.actions.Search.id and "Query" in inputs:
+        if action.id == InternetService.actions.Search.id and "Query" in inputs:
             object_title = text_line(inputs["Query"])
-        elif action.id == InternetKit.actions.Read.id and "URL" in inputs:
+        elif action.id == InternetService.actions.Read.id and "URL" in inputs:
             object_title = text_line(inputs["URL"])
 
     # create run

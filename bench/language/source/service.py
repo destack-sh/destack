@@ -15,7 +15,7 @@ from bench.language.core import (
     p_node_children,
     p_regular,
 )
-from bench.pb2 import KitData
+from bench.pb2 import ServiceData
 
 if typing.TYPE_CHECKING:
     from bench.language import Action, Claim
@@ -24,14 +24,14 @@ if typing.TYPE_CHECKING:
 # pyright: reportIncompatibleVariableOverride=false, reportIncompatibleMethodOverride=false
 
 
-@node_(NodeType.KIT)
-class Kit(
+@node_(NodeType.SERVICE)
+class Service(
     IsTemplatable,
     IsOwnable,
     IsClaimable,
     IsModal,
     IsNamed,
-    PageNode[KitData],
+    PageNode[ServiceData],
 ):
     """
     A Kit of Actions for a Node.
@@ -45,5 +45,5 @@ class Kit(
     claims: LocalNodeList["Claim"] = p_node_children(NodeType.CLAIM)
 
     @staticmethod
-    def new(name: str, **kwargs) -> "Kit":
-        return Kit(name=name, **kwargs)
+    def new(name: str, **kwargs) -> "Service":
+        return Service(name=name, **kwargs)

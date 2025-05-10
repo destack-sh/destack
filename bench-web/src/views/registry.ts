@@ -24,7 +24,6 @@ const COMPONENT_BY_VIEW_TYPE_LAZY = {
   [ViewType.TRANSITION]: () => import("@/views/nodes/Transition.vue"),
   [ViewType.DATABASE]: () => import("@/views/nodes/Database.vue"),
   [ViewType.FLOW]: () => import("@/views/nodes/Flow.vue"),
-  [ViewType.KIT]: () => import("@/views/nodes/Kit.vue"),
   [ViewType.THREAD]: () => import("@/views/nodes/Thread.vue"),
   [ViewType.TASK]: () => import("@/views/nodes/Task.vue"),
   [ViewType.AGENT]: () => import("@/views/nodes/Agent.vue"),

@@ -246,7 +246,7 @@ async def build_agent_prompt(  # noqa: RUF029
 ) -> Prompt:
     """Build the Agent's 'thinking' Prompt."""
 
-    from bench.builtin.bench import InternetKit
+    from bench.builtin.bench import InternetService
 
     from .example import EXAMPLES
 
@@ -297,7 +297,7 @@ async def build_agent_prompt(  # noqa: RUF029
     )
 
     # actions
-    builtin_actions: list[Action] = [*InternetKit.actions]
+    builtin_actions: list[Action] = [*InternetService.actions]
     custom_actions: list[Action] = []  # ?
     prompt.region(
         "Actions",

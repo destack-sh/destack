@@ -54,7 +54,7 @@ class ViewType(BuiltinEnum):
     ACTION = 5061
     TRANSITION = 5070
     TRIGGER = 5080
-    KIT = 5060
+    SERVICE = 5060
     DATABASE = 5090
     CHANNEL = 5500
     THREAD = 5510

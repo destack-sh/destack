@@ -135,7 +135,7 @@ enum NodeType {
   NODE_TYPE_FIELD = 5035;
   NODE_TYPE_OPTION = 5036;
   NODE_TYPE_FLOW = 5050;
-  NODE_TYPE_KIT = 5060;
+  NODE_TYPE_SERVICE = 5060;
   NODE_TYPE_ACTION = 5061;
   NODE_TYPE_TRANSITION = 5070;
   NODE_TYPE_TRIGGER = 5080;
@@ -231,7 +231,7 @@ enum ObjectType {
   OBJECT_TYPE_FIELD = 5035;
   OBJECT_TYPE_OPTION = 5036;
   OBJECT_TYPE_FLOW = 5050;
-  OBJECT_TYPE_KIT = 5060;
+  OBJECT_TYPE_SERVICE = 5060;
   OBJECT_TYPE_ACTION = 5061;
   OBJECT_TYPE_TRANSITION = 5070;
   OBJECT_TYPE_TRIGGER = 5080;
@@ -323,7 +323,7 @@ enum BenchType {
   BENCH_TYPE_FIELD = 5035;
   BENCH_TYPE_OPTION = 5036;
   BENCH_TYPE_FLOW = 5050;
-  BENCH_TYPE_KIT = 5060;
+  BENCH_TYPE_SERVICE = 5060;
   BENCH_TYPE_ACTION = 5061;
   BENCH_TYPE_TRANSITION = 5070;
   BENCH_TYPE_TRIGGER = 5080;
@@ -924,7 +924,7 @@ enum BlockType {
   BLOCK_TYPE_CHOICE = 5030;
   BLOCK_TYPE_CLASS = 5031;
   BLOCK_TYPE_FLOW = 5050;
-  BLOCK_TYPE_KIT = 5060;
+  BLOCK_TYPE_SERVICE = 5060;
   BLOCK_TYPE_DATABASE = 5090;
   BLOCK_TYPE_AGENT = 5640;
   BLOCK_TYPE_TASK = 6110;
@@ -1386,7 +1386,7 @@ enum ViewType {
   VIEW_TYPE_ACTION = 5061;
   VIEW_TYPE_TRANSITION = 5070;
   VIEW_TYPE_TRIGGER = 5080;
-  VIEW_TYPE_KIT = 5060;
+  VIEW_TYPE_SERVICE = 5060;
   VIEW_TYPE_DATABASE = 5090;
   VIEW_TYPE_CHANNEL = 5500;
   VIEW_TYPE_THREAD = 5510;
@@ -2929,7 +2929,7 @@ message RunData {
   optional CodeData code = 66;
   optional NodeReferenceData agent_ptr = 70;
   optional NodeReferenceData flow_ptr = 71;
-  optional NodeReferenceData kit_ptr = 72;
+  optional NodeReferenceData service_ptr = 72;
   optional NodeReferenceData action_ptr = 73;
   optional NodeReferenceData transition_ptr = 74;
   optional NodeReferenceData trigger_ptr = 75;
@@ -3000,7 +3000,7 @@ message SpanData {
   repeated NodeReferenceData nodes_ptr = 65;
   optional NodeReferenceData agent_ptr = 70;
   optional NodeReferenceData flow_ptr = 71;
-  optional NodeReferenceData kit_ptr = 72;
+  optional NodeReferenceData service_ptr = 72;
   optional NodeReferenceData action_ptr = 73;
   optional NodeReferenceData transition_ptr = 74;
   optional NodeReferenceData trigger_ptr = 75;
@@ -3224,29 +3224,6 @@ message FlowData {
   optional float backoff = 112;
 }
 
-message KitData {
-  ObjectType metatype = 1;
-  string id = 2;
-  optional NodeReferenceData parent_ptr = 4;
-  optional NodeReferenceData bench_ptr = 5;
-  optional NodeReferenceData package_ptr = 9;
-  google.protobuf.Timestamp created_at = 10;
-  optional NodeReferenceData created_by_ptr = 11;
-  google.protobuf.Timestamp updated_at = 12;
-  optional NodeReferenceData updated_by_ptr = 13;
-  optional google.protobuf.Timestamp archived_at = 14;
-  optional google.protobuf.Timestamp deleted_at = 15;
-  optional NodeReferenceData template_ptr = 16;
-  optional NodeReferenceData owned_by_ptr = 17;
-  optional NodeReferenceData claimed_by_ptr = 18;
-  NodeMode mode = 20;
-  optional string name = 31;
-  optional string order_key = 33;
-  optional IconData icon = 34;
-  optional NodeReferenceData definition_ptr = 35;
-  optional NodeReferenceData target_ptr = 40;
-}
-
 message OptionData {
   ObjectType metatype = 1;
   string id = 2;
@@ -3341,6 +3318,29 @@ message TransitionData {
   optional int32 max_attempts = 110;
   optional google.protobuf.Duration retry_interval = 111;
   optional float backoff = 112;
+}
+
+message ServiceData {
+  ObjectType metatype = 1;
+  string id = 2;
+  optional NodeReferenceData parent_ptr = 4;
+  optional NodeReferenceData bench_ptr = 5;
+  optional NodeReferenceData package_ptr = 9;
+  google.protobuf.Timestamp created_at = 10;
+  optional NodeReferenceData created_by_ptr = 11;
+  google.protobuf.Timestamp updated_at = 12;
+  optional NodeReferenceData updated_by_ptr = 13;
+  optional google.protobuf.Timestamp archived_at = 14;
+  optional google.protobuf.Timestamp deleted_at = 15;
+  optional NodeReferenceData template_ptr = 16;
+  optional NodeReferenceData owned_by_ptr = 17;
+  optional NodeReferenceData claimed_by_ptr = 18;
+  NodeMode mode = 20;
+  optional string name = 31;
+  optional string order_key = 33;
+  optional IconData icon = 34;
+  optional NodeReferenceData definition_ptr = 35;
+  optional NodeReferenceData target_ptr = 40;
 }
 
 message TriggerData {
@@ -3478,7 +3478,7 @@ message SomeNodeData {
     FieldData field = 17;
     OptionData option = 18;
     FlowData flow = 19;
-    KitData kit = 20;
+    ServiceData service = 20;
     ActionData action = 21;
     TransitionData transition = 22;
     TriggerData trigger = 23;

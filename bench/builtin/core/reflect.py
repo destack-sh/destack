@@ -3,35 +3,35 @@ import re
 from typing import Annotated, Any, cast, get_args, get_origin
 
 from bench.language import (
+    BENCH_CLASS_BY_NAME,
     Action,
     ActionType,
     Field,
     Icon,
     IconIn,
-    Kit,
     NodeMode,
+    Service,
     TypeIn,
     code,
     text,
     to_icon,
 )
-from bench.language.registry import BENCH_CLASS_BY_NAME
 from bench.utils.func import parse_py_annotation
 
 
-def class_to_kit(
+def class_to_service(
     cls: type[Any],
     name: str,
     mode: NodeMode = NodeMode.BUILTIN,
     icon: IconIn | None = None,
-    template: Kit | None = None,
-) -> Kit:
+    template: Service | None = None,
+) -> Service:
     """
-    Turn a class into a Kit. Methods become Actions, their signature become Fields.
+    Turn a class into a Service. Methods become Actions, their signature become Fields.
     Also parses out special metadata like ICON=...
     """
 
-    kit = Kit.new(name, mode=mode, icon=to_icon(icon) if icon else None, template=template)
+    service = Service.new(name, mode=mode, icon=to_icon(icon) if icon else None, template=template)
 
     for method_name, method in inspect.getmembers(cls, predicate=inspect.isfunction):
         action = Action.new(ActionType.BUILTIN, name=method_name.replace("_", " "))
@@ -130,6 +130,6 @@ def class_to_kit(
                 if field is not None:
                     field.ck = template_field.ck
 
-        kit.actions.append(action)
+        service.actions.append(action)
 
-    return kit
+    return service
