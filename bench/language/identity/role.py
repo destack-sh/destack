@@ -14,7 +14,7 @@ from bench.language.core import (
 from bench.pb2 import RoleData
 
 if TYPE_CHECKING:
-    from bench.language import Page
+    from bench.language import Page, Team
 
 # pyright: reportIncompatibleVariableOverride=false
 
@@ -23,6 +23,6 @@ if TYPE_CHECKING:
 class Role(IsTemplatable, IsModal, IsNamed, PageNode[RoleData]):
     """A Role to assign to something."""
 
-    parent: Union["Page", None] = p_node_parent(4, NodeType.PAGE)
+    parent: Union["Team", "Page", None] = p_node_parent(4, NodeType.TEAM, NodeType.PAGE)
 
     color: ColorType | None = p_regular(45)

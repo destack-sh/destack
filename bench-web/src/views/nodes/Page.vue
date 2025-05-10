@@ -457,7 +457,7 @@ defineExpose<ViewExpose>({ self, commands, focus });
           class="transform transition-all duration-300"
           :class="!isEmpty ? 'pt-auto' : 'pt-0'"
           :style="{ height: MIN_FOOTER_PADDING / 2 + 'px' }"
-          @mousedown="focusText()"
+          @click.stop="focusText()"
         />
 
         <!-- Footer -->
@@ -466,7 +466,7 @@ defineExpose<ViewExpose>({ self, commands, focus });
           :style="{
             width: widths.body + 'px',
           }"
-          @click.stop="nextTick(() => focusText())"
+          @click.stop="focusText()"
         >
           <!-- Add blocks -->
           <button

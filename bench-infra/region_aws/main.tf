@@ -164,8 +164,8 @@ module "cluster_0" {
       instance_types = ["t4g.large"]
       ami_type       = "AL2_ARM_64"
       min_size       = 2
-      max_size       = 6
-      desired_size   = 3
+      max_size       = 10
+      desired_size   = 2
 
       iam_role_use_name_prefix = false
     }
