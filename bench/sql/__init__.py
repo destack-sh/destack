@@ -1,4 +1,3 @@
-from .build import _build_sql_schema
 from .client import PostgresConnection, PostgresConnectionPool, get_pg_pool, pg_connection
 from .core import (
     ALL_EXTENSIONS,
@@ -38,6 +37,7 @@ from .engine import (
     sql_to_str,
     sqlstr,
 )
+from .gen import _gen_sql_schema
 from .graph import (
     BENCH_RECORD_TABLE_PREFIX,
     BENCH_RECORD_VALUE_PREFIX,
@@ -137,7 +137,7 @@ __all__ = [
     "SqlUndefinedObjectError",
     "SqlViolationError",
     "Table",
-    "_build_sql_schema",
+    "_gen_sql_schema",
     "add_migration_to_fs",
     "apply_sql_migration_ops",
     "force_create_schema",

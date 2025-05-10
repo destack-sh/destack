@@ -4,7 +4,7 @@ from bench.utils.utils import format_python
 from .graph import map_builtin_object_to_table
 
 
-def _build_sql_schema():
+def _gen_sql_schema():
     """Generate the .py custom SQL schema describing the current Bench types."""
     chunks: list[str] = [
         # standardized generated notice
