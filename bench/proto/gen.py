@@ -104,7 +104,7 @@ def run_shell_sync(cmd: str, check=True, **kwargs):
     subprocess.run(cmd, shell=True, check=check, **kwargs)
 
 
-def _build_proto_schema() -> str:
+def _gen_proto_schema() -> str:
     """Generate the .proto schema (as a string) describing the current Bench types."""
     node_classes = list(NODE_CLASSES)
     node_classes.sort(key=lambda cls: cls.metatype.id)
@@ -150,7 +150,7 @@ def _render_js_constraint(constraint: TypeConstraint | TypeConstraintIn) -> str:
     return constraint_js
 
 
-def _build_proto(schema_str: str) -> None:
+def _gen_proto(schema_str: str) -> None:
     """Regenerate external artifacts from the proto schema."""
 
     on_apply = []
