@@ -20,7 +20,6 @@ from bench.language import (
     Bench,
     BenchStatus,
     Block,
-    Database,
     Field,
     File,
     Link,
@@ -36,6 +35,7 @@ from bench.language import (
     Record,
     Region,
     Session,
+    Table,
     Task,
     Thread,
     User,
@@ -304,16 +304,16 @@ def example_edit_a_text_line_on_a_page(NotesPage1: Page, Block7: Block):
     Block7.line = text_line("## New Subtitle")
 
 
-@example_(ExampleType.SNIPPET, title="Create a simple Database")
-def example_create_simple_database(Page1: Page, Link2: Link):
-    # basic Person database (Record.title is builtin)
-    Database1 = Database.new("Person", Field.member("Age", int))
-    Page1.append(Database1)
-    Record1 = Database1.records.create(name="Florian", Age=27)
-    Record2 = Database1.records.create(name="John", Age=30)
+@example_(ExampleType.SNIPPET, title="Create a simple Table")
+def example_create_simple_table(Page1: Page, Link2: Link):
+    # basic Person table (Record.title is builtin)
+    Table1 = Table.new("Person", Field.member("Age", int))
+    Page1.append(Table1)
+    Record1 = Table1.records.create(name="Florian", Age=27)
+    Record2 = Table1.records.create(name="John", Age=30)
     # reference directly by alias
     SEND(
-        "I've created [@Database1] and added [@Record1] and [@Record2] from that article. [^NZZ](...)",
+        "I've created [@Table1] and added [@Record1] and [@Record2] from that article. [^NZZ](...)",
         nodes=[Link2],
     )
 

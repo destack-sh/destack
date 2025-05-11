@@ -5,19 +5,19 @@ from uuid import UUID
 import structlog
 from opentelemetry import trace
 
-from bench.language import Bench, Database, Field, NodeType, Package, Session, bittuple
+from bench.language import Bench, Field, NodeType, Package, Session, Table, bittuple
 from bench.sql import (
     BENCH_RECORD_TABLE_PREFIX,
     BenchSqlContext,
     MigrationOpType,
-    Schema,
-    Table,
+    SqlSchema,
     apply_sql_migration_ops,
     generate_sql_migration_ops,
     get_record_table_name,
     introspect_sql_schema,
-    map_database_to_table,
 )
+from bench.sql import SqlTable as SqlTable
+from bench.sql.graph import map_table_to_sql_table
 from bench.system.graph import PostgresConnector
 from bench.system.host import Commit, HostPlugin
 
@@ -31,58 +31,58 @@ tracer = trace.get_tracer(__name__)
 @dataclass(slots=True)
 class HostSqlContext(BenchSqlContext):
     """
-    Host context for SQL operations (with custom databases).
+    Host context for SQL operations (with custom tables).
     NOTE :Architecture: ideally context like this should be per-branch (and even per-tx)
      (the same applies for other plugins where we need per-version state :IsolatedHostContext)
     """
 
-    custom_tables_by_name: dict[str, Table]  # may include tables for deleted databases
-    custom_tables_by_database: dict[Database, Table]
-    databases_by_id: dict[UUID, Database]
+    sql_tables_by_name: dict[str, SqlTable]  # may include tables for deleted tables
+    sql_tables_by_table: dict[Table, SqlTable]
+    tables_by_id: dict[UUID, Table]
 
-    def get_custom_table(self, database: UUID | Database) -> tuple[Table, Database]:
-        if isinstance(database, UUID):
-            if database not in self.databases_by_id:
-                raise RuntimeError(f"no database for {database!r} in {self.bench!r}")
-            database = self.databases_by_id[database]
+    def get_sql_table(self, table: UUID | Table) -> tuple[SqlTable, Table]:
+        if isinstance(table, UUID):
+            if table not in self.tables_by_id:
+                raise RuntimeError(f"no table for {table!r} in {self.bench!r}")
+            table = self.tables_by_id[table]
 
-        table = self.custom_tables_by_database.get(database)
-        assert table is not None, f"no table for {database!r}"
-        return table, database
-
-
-# NOTE :Architecture: automatically cleanup no longer used custom database tables/coumns
+        sql_table = self.sql_tables_by_table.get(table)
+        assert sql_table is not None, f"no sql_table for {table!r}"
+        return sql_table, table
 
 
-class DatabasePlugin(HostPlugin[Database | Field]):
-    """Create and maintain custom Postgres tables for Databases."""
+# NOTE :Architecture: automatically cleanup no longer used custom table tables/coumns
 
-    watch_types = bittuple(NodeType.DATABASE, NodeType.FIELD)
+
+class TablePlugin(HostPlugin[Table | Field]):
+    """Create and maintain custom Postgres Tables."""
+
+    watch_types = bittuple(NodeType.TABLE, NodeType.FIELD)
 
     def __init__(self, host: "HostService", bench: Bench, package: Package):
         super().__init__(host, bench)
         self.package = package
         self.context = HostSqlContext(
             bench=bench,
-            custom_tables_by_name={},
-            custom_tables_by_database={},
-            databases_by_id={},
+            sql_tables_by_name={},
+            sql_tables_by_table={},
+            tables_by_id={},
         )
 
-    def _init_context_from_databases(self) -> None:
+    def _init_context_from_tables(self) -> None:
         """Initialize the SQL context from the current package."""
-        for database in self.package._graph.nodes_of_type(Database):
-            old_table = self.context.custom_tables_by_database.get(database)
-            new_table = map_database_to_table(database, old_table=old_table)
-            self.context.custom_tables_by_database[database] = new_table
-            self.context.databases_by_id[database.id] = database
+        for table in self.package._graph.nodes_of_type(Table):
+            old_sql_table = self.context.sql_tables_by_table.get(table)
+            new_sql_table = map_table_to_sql_table(table, prev_sql_table=old_sql_table)
+            self.context.sql_tables_by_table[table] = new_sql_table
+            self.context.tables_by_id[table.id] = table
 
     async def start(self) -> None:
         # synchronize schemas
         # get target schema
-        self._init_context_from_databases()
-        new_schema = Schema(
-            extensions=(), tables=tuple(self.context.custom_tables_by_database.values())
+        self._init_context_from_tables()
+        new_schema = SqlSchema(
+            extensions=(), tables=tuple(self.context.sql_tables_by_table.values())
         )
 
         # migrate from current to target schema
@@ -97,8 +97,8 @@ class DatabasePlugin(HostPlugin[Database | Field]):
                 exclude_table_prefixes=(),
                 include_extensions=False,
             )
-            for table in old_schema.tables:
-                self.context.custom_tables_by_name[table.name] = table
+            for sql_table in old_schema.tables:
+                self.context.sql_tables_by_name[sql_table.name] = sql_table
             migration_ops = generate_sql_migration_ops(
                 old_schema=old_schema,
                 new_schema=new_schema,
@@ -109,61 +109,59 @@ class DatabasePlugin(HostPlugin[Database | Field]):
                 session._touch_connector(connector)
                 await session.commit()
                 logger.debug(
-                    "database.migrate",
+                    "table.migrate",
                     host=self,
                     connector=connector,
                     migration_ops=migration_ops,
                 )
 
     @override
-    async def pre_commit(self, session: Session, commit: Commit[Database | Field]) -> None:
-        # check if any databases were touched
-        touched_databases_by_id: dict[UUID, Database] = {}
+    async def pre_commit(self, session: Session, commit: Commit[Table | Field]) -> None:
+        # check if any tables were touched
+        touched_tables_by_id: dict[UUID, Table] = {}
         for node in commit.edited:
-            if isinstance(node, Database):
-                touched_databases_by_id[node.id] = node
+            if isinstance(node, Table):
+                touched_tables_by_id[node.id] = node
             elif isinstance(node, Field):
                 parent = node.parent
-                if isinstance(parent, Database):
-                    touched_databases_by_id[parent.id] = parent
-        if not touched_databases_by_id:
+                if isinstance(parent, Table):
+                    touched_tables_by_id[parent.id] = parent
+        if not touched_tables_by_id:
             return  # nothing to do
 
-        # migrate schema for touched databases (and only those)
+        # migrate schema for touched tables (and only those)
         connector = await session._get_connector_for(
             self.host.scope, NodeType.RECORD, expect=PostgresConnector
         )
 
-        # load missing databases' current schema (in case they were restored)
-        old_tables = []
-        restored_databases: list[Database] = []
-        for database in touched_databases_by_id.values():
-            if database in self.context.custom_tables_by_database:
-                old_tables.append(self.context.custom_tables_by_database[database])
+        # load missing tables' current schema (in case they were restored)
+        old_sql_tables = []
+        restored_tables: list[Table] = []
+        for table in touched_tables_by_id.values():
+            if table in self.context.sql_tables_by_table:
+                old_sql_tables.append(self.context.sql_tables_by_table[table])
             else:
-                restored_databases.append(database)
-        if restored_databases:
-            table_prefixes = tuple(
-                get_record_table_name(database) for database in restored_databases
-            )
+                restored_tables.append(table)
+        if restored_tables:
+            table_prefixes = tuple(get_record_table_name(table) for table in restored_tables)
             old_schema = await introspect_sql_schema(
                 connector.cur,
                 include_table_prefixes=table_prefixes,
                 exclude_table_prefixes=(),
                 include_extensions=False,
             )
-            for table in old_schema.tables:
-                old_tables.append(table)
-        old_schema = Schema(extensions=(), tables=tuple(old_tables))
+            for sql_table in old_schema.tables:
+                old_sql_tables.append(sql_table)
+        old_schema = SqlSchema(extensions=(), tables=tuple(old_sql_tables))
 
         # get new schema and migrate
-        new_tables_by_database: dict[Database, Table] = {}
-        for database in touched_databases_by_id.values():
-            table_name = get_record_table_name(database)
-            old_table = old_schema._tables_by_name.get(table_name)
-            new_table = map_database_to_table(database, old_table=old_table)
-            new_tables_by_database[database] = new_table
-        new_schema = Schema(extensions=(), tables=tuple(new_tables_by_database.values()))
+        new_sql_tables_by_table: dict[Table, SqlTable] = {}
+        for table in touched_tables_by_id.values():
+            table_name = get_record_table_name(table)
+            old_sql_table = old_schema._tables_by_name.get(table_name)
+            new_sql_table = map_table_to_sql_table(table, prev_sql_table=old_sql_table)
+            new_sql_tables_by_table[table] = new_sql_table
+        new_schema = SqlSchema(extensions=(), tables=tuple(new_sql_tables_by_table.values()))
         migration_ops = generate_sql_migration_ops(
             old_schema=old_schema,
             new_schema=new_schema,
@@ -174,19 +172,19 @@ class DatabasePlugin(HostPlugin[Database | Field]):
             session._touch_connector(connector)
 
         # patch context optimistically
-        self.context.custom_tables_by_database.update(new_tables_by_database)
-        self.context.databases_by_id.update(touched_databases_by_id)
-        logger.info("database.migrate", host=self, connector=connector, migration_ops=migration_ops)
+        self.context.sql_tables_by_table.update(new_sql_tables_by_table)
+        self.context.tables_by_id.update(touched_tables_by_id)
+        logger.info("table.migrate", host=self, connector=connector, migration_ops=migration_ops)
 
     @override
-    async def post_commit(self, session: Session, commit: Commit[Database | Field]) -> None:
-        # actually remove tables for removed databases
+    async def post_commit(self, session: Session, commit: Commit[Table | Field]) -> None:
+        # actually remove tables for removed tables
         for node in commit.removed:
-            if node.id in self.context.databases_by_id:
-                del self.context.databases_by_id[node.id]
-                del self.context.custom_tables_by_database[cast(Database, node)]
+            if node.id in self.context.tables_by_id:
+                del self.context.tables_by_id[node.id]
+                del self.context.sql_tables_by_table[cast(Table, node)]
 
     @override
     async def post_commit_failed(self, session: Session, error: BaseException) -> None:
         # reset context
-        self._init_context_from_databases()
+        self._init_context_from_tables()

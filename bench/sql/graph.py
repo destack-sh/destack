@@ -40,7 +40,6 @@ from bench.language import (
     Bench,
     C,
     ConditionalType,
-    Database,
     EditOperationType,
     EditType,
     EngineIncapableError,
@@ -65,6 +64,7 @@ from bench.language import (
     ReferenceKind,
     SelectOptions,
     SortType,
+    Table,
     TypeKind,
     bittuple,
     get_default_query_filter,
@@ -109,16 +109,18 @@ from .core import (
     PG_CONDITIONAL_OP_BY_BENCH,
     POSTGRES_SORT_OP_BY_BENCH,
     REGIONAL_EXTENSIONS,
-    CascadeAction,
-    Column,
-    Constraint,
-    ConstraintType,
-    Index,
-    IndexType,
     PostgresConditionalOp,
-    Schema,
+    SqlCascadeAction,
+    SqlColumn,
+    SqlConstraint,
+    SqlConstraintType,
+    SqlIndex,
+    SqlIndexType,
     SqlPrimitive,
-    Table,
+    SqlSchema,
+)
+from .core import (
+    SqlTable as SqlTable,
 )
 from .engine import (
     RowIn,
@@ -160,7 +162,7 @@ CASCADING_CHILD_NODE_TYPES = NODE_TYPES - RUNTIME_NODE_TYPES - bittuple(NodeType
 
 @dataclass(slots=True)
 class BenchSqlContext(SqlContext):
-    """Host context for SQL operations (with custom databases)."""
+    """Host context for SQL operations (with custom tables)."""
 
     bench: Bench
 
@@ -174,8 +176,8 @@ def get_node_table_name(node_type: NodeType) -> str:
     return f"{BENCH_TABLE_PREFIX}{node_type.name.lower()}"
 
 
-def get_record_table_name(database: Database) -> str:
-    ck_str = base58_encode(database.ck.bytes)
+def get_record_table_name(table: Table) -> str:
+    ck_str = base58_encode(table.ck.bytes)
     return f"{BENCH_RECORD_TABLE_PREFIX}{ck_str}"
 
 
@@ -184,14 +186,14 @@ def get_record_field_name(field: Field) -> str:
     return f"{BENCH_RECORD_VALUE_PREFIX}{ck_str}{field.identity_key}"
 
 
-def map_builtin_object_to_table(
+def map_builtin_object_to_sql_table(
     node: type[Node], properties: list[Property] | None = None
-) -> Table:
+) -> SqlTable:
     """Maps a node type into its builtin Table schema."""
     table_name = get_node_table_name(node.metatype)
-    columns: list[Column] = []
-    constraints: list[Constraint] = []
-    indexes: list[Index] = []
+    columns: list[SqlColumn] = []
+    constraints: list[SqlConstraint] = []
+    indexes: list[SqlIndex] = []
     properties = properties or list(node.__properties__.values())
     properties.sort(key=lambda p: p.id or -1)
 
@@ -201,7 +203,7 @@ def map_builtin_object_to_table(
             continue
         assert prop.primitive_type is not None, f"no primitive type for {prop!r}"
         assert not prop.is_encrypted, f"encryption not supported: {prop!r}"  # :RealSecrets
-        column = Column(
+        column = SqlColumn(
             name=prop.name,
             type=prop.primitive_type,
             is_array=prop.is_list,
@@ -234,23 +236,23 @@ def map_builtin_object_to_table(
             assert len(reference_nodes) == 1, f"stored prop {prop!r} has multiple references"
             column.is_foreign_key_to = get_node_table_name(reference_nodes[0])
             if prop.reference_kind in (ReferenceKind.NODE_PARENT, ReferenceKind.NODE_ANCESTOR):
-                column.on_delete = CascadeAction.CASCADE
+                column.on_delete = SqlCascadeAction.CASCADE
             else:
-                column.on_delete = CascadeAction.SET_NULL
+                column.on_delete = SqlCascadeAction.SET_NULL
 
         if prop.is_indexed or prop.is_unique:
-            index = Index(
+            index = SqlIndex(
                 f"bench_idx_{prop.name}",
-                type=IndexType.BTREE,
+                type=SqlIndexType.BTREE,
                 columns=(column.name,),
                 is_unique=prop.is_unique,
                 _source=prop.id,
             )
             indexes.append(index)
             if prop.is_unique:
-                constraint = Constraint(
+                constraint = SqlConstraint(
                     index.inner_name,  # must be the same as the index name (postgres will rename otherwise)
-                    type=ConstraintType.UNIQUE,
+                    type=SqlConstraintType.UNIQUE,
                     columns=(column.name,),
                     index=index.inner_name,
                     _source=prop.id,
@@ -263,12 +265,12 @@ def map_builtin_object_to_table(
         assert not index.name or not index.name.startswith(
             "bench_"
         ), f"index shouldn't include prefix: {index!r}"
-        extra_index = Index.from_index_in(
+        extra_index = SqlIndex.from_index_in(
             f"bench_idx_{index.name or '_'.join(index.columns)}", index
         )
         indexes.append(extra_index)
 
-    table = Table(
+    table = SqlTable(
         name=table_name,
         columns=tuple(columns),
         constraints=tuple(constraints),
@@ -277,24 +279,26 @@ def map_builtin_object_to_table(
     return table
 
 
-def map_database_to_table(database: Database, old_table: Table | None) -> Table:
+def map_table_to_sql_table(table: Table, prev_sql_table: SqlTable | None) -> SqlTable:
     """
-    Maps a Database to its corresponding custom Record Table.
+    Maps a table to its corresponding custom Record Table.
     If a previous table is passed in, all its constructs will exist in the new table
      (if they are not already present in the new table).
     """
-    base_table = map_builtin_object_to_table(
+    base_sql_table = map_builtin_object_to_sql_table(
         Record,
         # all stored Record properties except value, which we unfurl into columns
         properties=[p for p in Record.__stored_properties__.values() if not p.is_value_packed],
     )
-    table_name = get_record_table_name(database)
-    columns: list[Column] = [column.clone() for column in base_table.columns]
-    constraints: list[Constraint] = [constraint.clone() for constraint in base_table.constraints]
-    indexes: list[Index] = [index.clone() for index in base_table.indexes]
+    table_name = get_record_table_name(table)
+    columns: list[SqlColumn] = [column.clone() for column in base_sql_table.columns]
+    constraints: list[SqlConstraint] = [
+        constraint.clone() for constraint in base_sql_table.constraints
+    ]
+    indexes: list[SqlIndex] = [index.clone() for index in base_sql_table.indexes]
 
     # map fields into columns
-    for field in database.fields:
+    for field in table.fields:
         if field.kind == TypeKind.PRIMITIVE:
             assert field.primitive_type is not None, f"no primitive type for {field!r}"
             primitive_type = field.primitive_type
@@ -308,27 +312,27 @@ def map_database_to_table(database: Database, old_table: Table | None) -> Table:
         elif field.kind == TypeKind.BASED_NODE:
             primitive_type = PrimitiveType.JSON
         else:
-            raise TypeError(f"cannot store field in {database!r}: {field!r}")
+            raise TypeError(f"cannot store field in {table!r}: {field!r}")
 
-        column = Column(
+        column = SqlColumn(
             name=get_record_field_name(field),
             type=primitive_type,
             is_array=field.is_list,
-            is_nullable=True,  # NOTE :Incomplete: support field constraints in database
+            is_nullable=True,  # NOTE :Incomplete: support field constraints in table
             is_primary_key=False,
             _field=field,
         )
         columns.append(column)
 
     # keep old columns
-    if old_table is not None:
-        columns_by_name: dict[str, Column] = {c.name: c for c in columns}
-        for old_column in old_table.columns:
+    if prev_sql_table is not None:
+        columns_by_name: dict[str, SqlColumn] = {c.name: c for c in columns}
+        for old_column in prev_sql_table.columns:
             if old_column.name not in columns_by_name:
                 columns.append(old_column.clone())
 
-    return Table(
-        _database=database,
+    return SqlTable(
+        _table=table,
         name=table_name,
         columns=tuple(columns),
         constraints=tuple(constraints),
@@ -344,7 +348,7 @@ def map_database_to_table(database: Database, old_table: Table | None) -> Table:
 def _compile_expression_ref(
     node_type: NodeType,
     node_cls: type[Node],
-    node_table: Table,
+    node_table: SqlTable,
     base_type: Node | None,
     expr: Expression,
 ) -> SqlNode:
@@ -363,7 +367,7 @@ def _compile_expression_ref(
 def _pg_lower_conditional(
     node_type: NodeType,
     node_cls: type[Node],
-    node_table: Table,
+    node_table: SqlTable,
     base_type: Node | None,
     cond: Expression,
 ) -> Expression:
@@ -398,7 +402,7 @@ def _pg_lower_conditional(
 def _pg_compile_conditional(
     node_type: NodeType,
     node_cls: type[Node],
-    node_table: Table,
+    node_table: SqlTable,
     base_type: Node | None,
     cond: Expression,
 ) -> SqlNode:
@@ -474,7 +478,7 @@ def _pg_compile_conditional(
 def _pg_compile_sort(
     node_type: NodeType,
     node_cls: type[Node],
-    node_table: Table,
+    node_table: SqlTable,
     base_type: Node | None,
     sort: Expression,
 ) -> SqlNode:
@@ -486,7 +490,7 @@ def _pg_compile_sort(
 def _pg_compile_sorts(
     node_type: NodeType,
     node_cls: type[Node],
-    node_table: Table,
+    node_table: SqlTable,
     base_type: Node | None,
     sorts: list[Expression],
 ) -> sql.Composed:
@@ -767,8 +771,8 @@ def _pg_unpack_node_reference_from_row(prop: Property, row: RowOut, node: AnyNod
 def _pg_pack_node_data_row(
     node_type: NodeType,
     node_cls: type[Node],
-    node_table: Table,
-    database: Database | None,
+    node_sql_table: SqlTable,
+    table: Table | None,
     node: AnyNodeData,
 ) -> dict[str, SqlPrimitive]:
     """Packs a node's data into a row for the respective table."""
@@ -796,7 +800,7 @@ def _pg_pack_node_data_row(
                 _pg_pack_node_reference_into_row(prop.reference_source, row, value)
 
         # unravel value-packed fields
-        if node_cls.__is_stored_value_unraveled__ and database is not None:
+        if node_cls.__is_stored_value_unraveled__ and table is not None:
             value_runtime_prop = first(node_cls.__value_runtime_properties__.values())
             value_packed_prop = value_runtime_prop.value_packed_ptr
             assert type(value_packed_prop) is Property, f"unexpected packed: {value_packed_prop!r}"
@@ -806,10 +810,10 @@ def _pg_pack_node_data_row(
                 if value_packed_any is not None
                 else None
             )
-            for field in database.fields:
+            for field in table.fields:
                 if field.type != FieldType.MEMBER:
                     continue
-                column = node_table.get_column(field)
+                column = node_sql_table.get_column(field)
                 if value_packed is not None:
                     field_value = value_packed.get(field.storage_key)
                 else:
@@ -824,7 +828,7 @@ def _pg_pack_node_data_row(
 def _pg_unpack_node_data_row(
     node_type: NodeType,
     node_cls: type[Node],
-    node_table: Table,
+    node_table: SqlTable,
     base_type: Node | None,
     selected_fields: Sequence[Field],
     row: Mapping[str, Any],
@@ -923,7 +927,7 @@ async def pg_graph_select(
         columns = [node_table.get_column(prop.name) for prop in selected_properties]
         selected_fields: Sequence[Field] = []
     else:
-        node_table, base_type = ctx.get_custom_table(query.database)
+        node_table, base_type = ctx.get_custom_table(query.table)
         columns = [
             node_table.get_column(prop.name)
             for prop in selected_properties
@@ -981,7 +985,7 @@ async def pg_graph_count(*, cur: psycopg.AsyncCursor, ctx: SqlContext, query: Le
     if node_type in BUILTIN_TABLE_BY_NODE_TYPE:
         node_table = BUILTIN_TABLE_BY_NODE_TYPE[node_type]
     else:
-        node_table, _ = ctx.get_custom_table(query.database)
+        node_table, _ = ctx.get_custom_table(query.table)
     filter = _combine_filter(include_removed=query._include_removed, filter=query._filter)
     where = (
         _pg_compile_conditional(node_type, node_cls, node_table, query._base_type, filter)
@@ -1003,7 +1007,7 @@ async def pg_graph_exists(*, cur: psycopg.AsyncCursor, ctx: SqlContext, query: L
     if node_type in BUILTIN_TABLE_BY_NODE_TYPE:
         node_table = BUILTIN_TABLE_BY_NODE_TYPE[node_type]
     else:
-        node_table, _ = ctx.get_custom_table(query.database)
+        node_table, _ = ctx.get_custom_table(query.table)
     filter = _combine_filter(include_removed=query._include_removed, filter=query._filter)
     where = (
         _pg_compile_conditional(node_type, node_cls, node_table, query._base_type, filter)
@@ -1289,7 +1293,7 @@ async def pg_graph_edit(
     batch_node_cls = NODE_CLASS_BY_TYPE[wiring.unpack_enum(NodeType, edits[0].node_ptr.node_type)]
     batch_updated_properties: bitarray = bitarray(batch_node_cls.__max_property_ord__ + 1)
     batch: list[EditData] = []
-    batch_node_table, batch_database = _get_node_table(edits[0])
+    batch_node_table, batch_table = _get_node_table(edits[0])
     all_cascaded_edits: list[EditData] = []
 
     # batch operations by table and edit type
@@ -1306,9 +1310,7 @@ async def pg_graph_edit(
 
         # continue batch if same edit + node types
         next_node_table, next_block = (
-            _get_node_table(next_edit)
-            if next_edit is not None
-            else (batch_node_table, batch_database)
+            _get_node_table(next_edit) if next_edit is not None else (batch_node_table, batch_table)
         )
         if (
             next_edit is not None
@@ -1340,8 +1342,8 @@ async def pg_graph_edit(
             ctx=ctx,
             edit_type=edit_type,
             node_type=cast(NodeType, node_type),
-            node_table=batch_node_table,
-            database=batch_database,
+            node_sql_table=batch_node_table,
+            table=batch_table,
             batch=batch,
             updated_properties=updated_properties,
         )
@@ -1352,7 +1354,7 @@ async def pg_graph_edit(
                 wiring.unpack_enum(NodeType, next_edit.node_ptr.node_type)
             ]
             batch_updated_properties = bitarray(batch_node_cls.__max_property_ord__ + 1)
-            batch_node_table, batch_database = next_node_table, next_block
+            batch_node_table, batch_table = next_node_table, next_block
             batch.clear()
 
     return all_cascaded_edits
@@ -1450,8 +1452,8 @@ async def _pg_edit_cascade(
             ctx=ctx,
             edit_type=edit_type,
             node_type=cast(NodeType, descendant_node_type),
-            node_table=node_table,
-            database=None,
+            node_sql_table=node_table,
+            table=None,
             batch=cascaded_edits,
             updated_properties=(),
         )
@@ -1480,8 +1482,8 @@ async def _pg_edit_batch(
     ctx: SqlContext,
     edit_type: EditType,
     node_type: NodeType,
-    node_table: Table,
-    database: Database | None,
+    node_sql_table: SqlTable,
+    table: Table | None,
     batch: list[EditData],
     updated_properties: tuple[Property, ...],  # across batch
 ) -> None:
@@ -1491,7 +1493,9 @@ async def _pg_edit_batch(
     )
 
     node_cls = NODE_CLASS_BY_TYPE[node_type]
-    assert node_table._primary_key is not None, f"no primary key for {node_cls!r}: {node_table!r}"
+    assert (
+        node_sql_table._primary_key is not None
+    ), f"no primary key for {node_cls!r}: {node_sql_table!r}"
 
     if edit_type in (EditType.CREATE, EditType.UPSERT):
         nodes = []
@@ -1504,8 +1508,8 @@ async def _pg_edit_batch(
             row: dict[str, SqlPrimitive] = _pg_pack_node_data_row(
                 node_type=node_type,
                 node_cls=node_cls,
-                node_table=node_table,
-                database=node_table._database,
+                node_sql_table=node_sql_table,
+                table=table,
                 node=node,
             )
             row["created_at"] = row["updated_at"] = edit.edited_at.ToDatetime(tzinfo=pytz.utc)
@@ -1515,15 +1519,17 @@ async def _pg_edit_batch(
             rows.append(row)
 
         if edit_type == EditType.CREATE:
-            _ = await pg_insert(cur=cur, ctx=ctx, table=node_table, rows=rows)
+            _ = await pg_insert(cur=cur, ctx=ctx, table=node_sql_table, rows=rows)
         else:
             rows = await pg_upsert(
                 cur=cur,
                 ctx=ctx,
-                table=node_table,
+                table=node_sql_table,
                 rows=rows,
-                conflict_columns=(node_table._primary_key,),
-                static_columns=tuple(c for c in node_table.columns if c != node_table._primary_key),
+                conflict_columns=(node_sql_table._primary_key,),
+                static_columns=tuple(
+                    c for c in node_sql_table.columns if c != node_sql_table._primary_key
+                ),
             )
     elif edit_type in (
         EditType.UPDATE,
@@ -1542,23 +1548,22 @@ async def _pg_edit_batch(
             implicit_properties.append(node_cls.archived_at)
         elif edit_type in (EditType.DELETE, EditType.RESTORE):
             implicit_properties.append(node_cls.deleted_at)
-        dynamic_columns: list[Column] = [node_table._primary_key]
+        dynamic_columns: list[SqlColumn] = [node_sql_table._primary_key]
         dynamic_fields: list[Field] = (
-            [f for f in database.fields if f.type == FieldType.MEMBER]
-            if database is not None
-            else []
+            [f for f in table.fields if f.type == FieldType.MEMBER] if table is not None else []
         )
         for prop in chain(implicit_properties, updated_properties):
             if prop.is_value_packed and node_cls.__is_stored_value_unraveled__:  # unravel value
-                assert database is not None, f"no block for {prop!r}"
+                assert table is not None, f"no block for {prop!r}"
                 for field in dynamic_fields:
-                    dynamic_columns.append(node_table.get_column(field))
+                    dynamic_columns.append(node_sql_table.get_column(field))
             elif prop.is_node_reference:
                 dynamic_columns.extend(
-                    node_table._columns_by_name[p.name] for p in prop.reference_stored_props or ()
+                    node_sql_table._columns_by_name[p.name]
+                    for p in prop.reference_stored_props or ()
                 )
             else:
-                dynamic_columns.append(node_table._columns_by_name[prop.name])
+                dynamic_columns.append(node_sql_table._columns_by_name[prop.name])
 
         # collect dynamic values
         dynamic_values: list[RowIn] = []
@@ -1594,7 +1599,7 @@ async def _pg_edit_batch(
                     # unravel value
                     for field in dynamic_fields:
                         field_value = new_value_packed.get(field.key)
-                        column = node_table.get_column(field)
+                        column = node_sql_table.get_column(field)
                         row[column.name] = _pack_field_value(field, field_value)
                 elif not prop.is_node_reference:
                     # regular non-ref property
@@ -1627,7 +1632,7 @@ async def _pg_edit_batch(
         _ = await pg_update_variable(
             cur=cur,
             ctx=ctx,
-            table=node_table,
+            table=node_sql_table,
             dynamic_columns=dynamic_columns,
             dynamic_values=dynamic_values,
         )
@@ -1638,7 +1643,7 @@ async def _pg_edit_batch(
             op=PostgresConditionalOp.EQ,
             right=sqlstr("ANY({})").format(sql.Literal(nodes_ids)),
         )
-        _ = await pg_delete(cur=cur, ctx=ctx, table=node_table, where=where)
+        _ = await pg_delete(cur=cur, ctx=ctx, table=node_sql_table, where=where)
     else:
         assert_never(edit_type)
 
@@ -1647,7 +1652,7 @@ async def _pg_edit_batch(
 # Builtin table registry
 #
 
-BUILTIN_TABLE_BY_NODE_TYPE: dict[NodeType, Table] = {
+BUILTIN_TABLE_BY_NODE_TYPE: dict[NodeType, SqlTable] = {
     # read previously generated tables in schema.py
     node_type: getattr(schema, f"{to_casing(node_type.name, Casing.ALL_CAPS)}_TABLE")
     for node_type in NODE_TYPES
@@ -1656,33 +1661,33 @@ BUILTIN_TABLE_BY_NODE_TYPE: dict[NodeType, Table] = {
 BUILTIN_NODE_BY_TABLE_NAME: dict[str, NodeType] = {
     table.name: node_type for node_type, table in BUILTIN_TABLE_BY_NODE_TYPE.items()
 }
-BUILTIN_NODE_TABLES: tuple[Table, ...] = tuple(BUILTIN_TABLE_BY_NODE_TYPE.values())
+BUILTIN_NODE_TABLES: tuple[SqlTable, ...] = tuple(BUILTIN_TABLE_BY_NODE_TYPE.values())
 
-BUILTIN_GLOBAL_TABLES: tuple[Table, ...] = DEFAULT_GLOBAL_TABLES + tuple(
+BUILTIN_GLOBAL_TABLES: tuple[SqlTable, ...] = DEFAULT_GLOBAL_TABLES + tuple(
     BUILTIN_TABLE_BY_NODE_TYPE[node.metatype]
     for node in NODE_CLASSES
     if node.__area__ == NodeArea.GLOBAL and node.metatype in BUILTIN_TABLE_BY_NODE_TYPE
 )
-BUILTIN_REGIONAL_TABLES: tuple[Table, ...] = DEFAULT_REGIONAL_TABLES + tuple(
+BUILTIN_REGIONAL_TABLES: tuple[SqlTable, ...] = DEFAULT_REGIONAL_TABLES + tuple(
     BUILTIN_TABLE_BY_NODE_TYPE[node.metatype]
     for node in NODE_CLASSES
     if node.__area__ == NodeArea.REGIONAL and node.metatype in BUILTIN_TABLE_BY_NODE_TYPE
 )
-BUILTIN_LOCAL_TABLES: tuple[Table, ...] = DEFAULT_LOCAL_TABLES + tuple(
+BUILTIN_LOCAL_TABLES: tuple[SqlTable, ...] = DEFAULT_LOCAL_TABLES + tuple(
     BUILTIN_TABLE_BY_NODE_TYPE[node.metatype]
     for node in NODE_CLASSES
     if node.__area__ == NodeArea.LOCAL and node.metatype in BUILTIN_TABLE_BY_NODE_TYPE
 )
-BUILTIN_TABLES_BY_AREA: dict[NodeArea, tuple[Table, ...]] = {
+BUILTIN_TABLES_BY_AREA: dict[NodeArea, tuple[SqlTable, ...]] = {
     NodeArea.GLOBAL: BUILTIN_GLOBAL_TABLES,
     NodeArea.REGIONAL: BUILTIN_REGIONAL_TABLES,
     NodeArea.LOCAL: BUILTIN_LOCAL_TABLES,
 }
 
-BUILTIN_GLOBAL_SCHEMA = Schema(GLOBAL_EXTENSIONS, BUILTIN_GLOBAL_TABLES)
-BUILTIN_REGIONAL_SCHEMA = Schema(REGIONAL_EXTENSIONS, BUILTIN_REGIONAL_TABLES)
-BUILTIN_LOCAL_SCHEMA = Schema(LOCAL_EXTENSIONS, BUILTIN_LOCAL_TABLES)
-BUILTIN_SCHEMA_BY_AREA: dict[NodeArea, Schema] = {
+BUILTIN_GLOBAL_SCHEMA = SqlSchema(GLOBAL_EXTENSIONS, BUILTIN_GLOBAL_TABLES)
+BUILTIN_REGIONAL_SCHEMA = SqlSchema(REGIONAL_EXTENSIONS, BUILTIN_REGIONAL_TABLES)
+BUILTIN_LOCAL_SCHEMA = SqlSchema(LOCAL_EXTENSIONS, BUILTIN_LOCAL_TABLES)
+BUILTIN_SCHEMA_BY_AREA: dict[NodeArea, SqlSchema] = {
     NodeArea.GLOBAL: BUILTIN_GLOBAL_SCHEMA,
     NodeArea.REGIONAL: BUILTIN_REGIONAL_SCHEMA,
     NodeArea.LOCAL: BUILTIN_LOCAL_SCHEMA,

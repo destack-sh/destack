@@ -29,7 +29,7 @@ from bench.pb2 import FieldData
 from bench.utils.fractional import INTEGER_ZERO
 
 if TYPE_CHECKING:
-    from bench.language import Action, Agent, Class, Database, Flow, Icon, Thread
+    from bench.language import Action, Agent, Class, Flow, Icon, Table, Thread
 
 
 # pyright: reportIncompatibleVariableOverride=false, reportIncompatibleMethodOverride=false
@@ -51,14 +51,14 @@ class Field(
     A Field is a user-defined attribute.
     """
 
-    parent: Union["Thread", "Agent", "Action", "Class", "Flow", "Database", None] = p_node_parent(
+    parent: Union["Thread", "Agent", "Action", "Class", "Flow", "Table", None] = p_node_parent(
         4,
         NodeType.THREAD,
         NodeType.AGENT,
         NodeType.ACTION,
         NodeType.CLASS,
         NodeType.FLOW,
-        NodeType.DATABASE,
+        NodeType.TABLE,
     )
     type: FieldType = p_internal(30)
     order_key: str = p_internal(33, default=INTEGER_ZERO)

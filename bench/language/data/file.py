@@ -58,13 +58,13 @@ if TYPE_CHECKING:
 
     from bench.language import (
         Channel,
-        Database,
         File,
         Message,
         Package,
         Page,
         Run,
         Session,
+        Table,
         Thread,
     )
 
@@ -795,7 +795,7 @@ class File(Resource[FileData], FileBase):
     parent: Union[
         "Package",
         "Page",
-        "Database",
+        "Table",
         "Channel",
         "Thread",
         "Message",
@@ -805,7 +805,7 @@ class File(Resource[FileData], FileBase):
         4,
         NodeType.PACKAGE,
         NodeType.PAGE,
-        NodeType.DATABASE,
+        NodeType.TABLE,
         NodeType.CHANNEL,
         NodeType.THREAD,
         NodeType.MESSAGE,
@@ -1144,7 +1144,7 @@ async def upload_file(
     mime_type: str | None = None,
     type: FileType | None = None,
     format: FileFormat | str | None = None,
-    parent: Union["Package", "Page", "Database", "Channel", "Thread", "Run", None] = None,
+    parent: Union["Package", "Page", "Table", "Channel", "Thread", "Run", None] = None,
     session: "Session | None" = None,
 ) -> "File":
     """Uploads the given file to the given (or current) session."""

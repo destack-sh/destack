@@ -18,7 +18,6 @@ from bench.language import (
     ClientType,
     Code,
     Computer,
-    Database,
     Field,
     Flow,
     Message,
@@ -30,6 +29,7 @@ from bench.language import (
     Page,
     Property,
     Session,
+    Table,
     Text,
     TextLine,
     Thread,
@@ -214,11 +214,11 @@ async def test_clone_with_cross_references(simulation: Simulation, runtime: Runt
         fields=[Field.input("Text", Text), Field.output("Choice", choice)],
     )
     flow.append(action)
-    database = Database.new("Database", fields=[Field.member("Text", Text)])
+    table = Table.new("Table", fields=[Field.member("Text", Text)])
     page = runtime.page()
     choice_block = page.append(choice)
     flow_block = page.append(flow)
-    _ = page.append(database)
+    _ = page.append(table)
     await runtime.commit()
 
     # cloning an inline node should be consistent with its definition counterpart
@@ -240,8 +240,8 @@ async def test_clone_with_cross_references(simulation: Simulation, runtime: Runt
     action_clone = flow_clone.actions.Action
     assert action_clone is not None
     assert action_clone.fields.Choice.base_type == choice_clone
-    database_clone = page_clone.blocks.Database.get_node_as(Database)
-    assert database_clone is not None
+    table_clone = page_clone.blocks.Table.get_node_as(Table)
+    assert table_clone is not None
     await runtime.commit()
 
 
@@ -280,11 +280,11 @@ async def test_instance_with_cross_references(
         fields=[Field.input("Text", Text), Field.output("Choice", choice)],
     )
     flow.append(action)
-    database = Database.new("Database", fields=[Field.member("Text", Text)])
+    table = Table.new("Table", fields=[Field.member("Text", Text)])
     page = runtime.page()
     _ = page.append(choice)
     _ = page.append(flow)
-    _ = page.append(database)
+    _ = page.append(table)
     await runtime.commit()
 
     # references should be consistent within new subtree
@@ -302,10 +302,10 @@ async def test_instance_with_cross_references(
     assert action_instance is not action
     assert action_instance.template is action
     assert action_instance.fields.Choice.base_type == choice_instance
-    database_instance = page_instance.blocks.Database.get_node_as(Database)
-    assert database_instance is not None
-    assert database_instance is not database
-    assert database_instance.template is database
+    table_instance = page_instance.blocks.Table.get_node_as(Table)
+    assert table_instance is not None
+    assert table_instance is not table
+    assert table_instance.template is table
     await runtime.commit()
 
 
@@ -318,7 +318,7 @@ async def test_move_subtree(simulation: Simulation, runtime: RuntimeLambdaWorklo
     Block2 = Page1.append(
         Flow.new("Block2", fields=[Field.input("Text", Text), Field.output("Choice", Block1)])
     )
-    Block3 = Page1.append(Database.new("Block3", fields=[Field.member("Text", Text)]))
+    Block3 = Page1.append(Table.new("Block3", fields=[Field.member("Text", Text)]))
     await runtime.commit()
 
     # can't just append directly

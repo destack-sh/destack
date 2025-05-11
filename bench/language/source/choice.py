@@ -18,7 +18,7 @@ from bench.language.core import (
 from bench.pb2.lang_pb2 import ChoiceData
 
 if TYPE_CHECKING:
-    from bench.language import Database, Option, Page
+    from bench.language import Option, Page, Table
 
 # pyright: reportIncompatibleVariableOverride=false
 
@@ -32,7 +32,7 @@ class Choice(
 ):
     """A Choice of Options."""
 
-    parent: Union["Page", "Database", None] = p_node_parent(4, NodeType.PAGE, NodeType.DATABASE)
+    parent: Union["Page", "Table", None] = p_node_parent(4, NodeType.PAGE, NodeType.TABLE)
 
     options: LocalNodeList["Option"] = p_node_children(NodeType.OPTION)
 

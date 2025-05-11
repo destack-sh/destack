@@ -56,7 +56,7 @@ from .action import Action
 from .block import Block
 from .choice import Choice
 from .clazz import Class
-from .database import Database
+from .database import Table
 from .field import Field
 from .flow import Flow
 from .option import Option
@@ -855,17 +855,17 @@ class ClassRenderer(PackageNodeRenderer[Class]):
         return f"Class.new({renderer.render_args(*args)})"
 
 
-@_renderer(NodeType.DATABASE)
-class DatabaseRenderer(PackageNodeRenderer[Database]):
+@_renderer(NodeType.TABLE)
+class TableRenderer(PackageNodeRenderer[Table]):
     @override
     def _render_constructor(
         self,
         renderer: "Renderer",
-        obj: Database,
+        obj: Table,
         kwargs: dict[Property, Any],
         rendered_kwargs: dict[str, str],
     ) -> str:
-        # inline name and fields (like Database.new(name, *fields))
+        # inline name and fields (like Table.new(name, *fields))
         fields_refs = [renderer.render_builtin_object(field) for field in obj.fields]
         rendered_kwargs.pop("fields", None)
         args = (
@@ -873,7 +873,7 @@ class DatabaseRenderer(PackageNodeRenderer[Database]):
             *fields_refs,
             renderer.render_kwargs(**rendered_kwargs) or None,
         )
-        return f"Database.new({renderer.render_args(*args)})"
+        return f"Table.new({renderer.render_args(*args)})"
 
 
 @_renderer(NodeType.PAGE)

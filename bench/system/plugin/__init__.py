@@ -1,6 +1,6 @@
 from .claim import ClaimPlugin
 from .computer import DockerComputerProvisioner, KubernetesComputerProvisioner
-from .database import DatabasePlugin
+from .database import TablePlugin
 from .message import MessagePlugin
 from .provisioner import Provisioner
 from .runtime import RunPlugin, WakePlugin
@@ -9,7 +9,6 @@ from .store import LocalhostStoreProvisioner, NeonStoreProvisioner, StoreProvisi
 
 __all__ = [
     "ClaimPlugin",
-    "DatabasePlugin",
     "DockerComputerProvisioner",
     "KubernetesComputerProvisioner",
     "LocalhostStoreProvisioner",
@@ -19,5 +18,6 @@ __all__ = [
     "RunPlugin",
     "ScalerProvisioner",
     "StoreProvisioner",
+    "TablePlugin",
     "WakePlugin",
 ]

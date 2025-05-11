@@ -28,7 +28,7 @@ class HostPlugin[T: Node]:
      Maybe this could work a bit like in ProseMirror where (some) state is isolated outside
      of the individual plugins - that would also make it easier to reset on error.
      We probably also want to load in/out Packages at some point (?)
-     Also consider plugins that affect 'external' state like the DatabasePlugin.
+     Also consider plugins that affect 'external' state like the TablePlugin.
      Host needs to be more 'multithreaded' in general, see :ConcurrentHost.
     """
 

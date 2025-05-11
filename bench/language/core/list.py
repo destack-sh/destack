@@ -132,7 +132,7 @@ def attach_node[N: "Node"](
 class NodeList[V: Node](abc.ABC):
     """
     A list of Node 'children' for a parent's child property.
-    The children may not be descendants of the parent (e.g. for Records in Databases).
+    The children may not be descendants of the parent (e.g. for Records in Tables).
     """
 
     __slots__ = (
@@ -429,9 +429,9 @@ class RemoteNodeList[V: Node, VD: AnyNodeData](NodeList[V]):
     #
 
     def _query(self) -> "LegacyQuery[V, VD]":
-        from bench.language import Database, Expression, LegacyQuery, SelectOptions
+        from bench.language import Expression, LegacyQuery, SelectOptions, Table
 
-        assert isinstance(self._node, Database), f"cannot query from: {self._node!r}"
+        assert isinstance(self._node, Table), f"cannot query from: {self._node!r}"
         created_at = self._child_node_cls.get_property("created_at")
         query = LegacyQuery(
             type=QueryType.SEARCH,
@@ -498,18 +498,18 @@ class RemoteNodeList[V: Node, VD: AnyNodeData](NodeList[V]):
 
 class RecordNodeList(RemoteNodeList["Record", RecordData]):
     """
-    A RemoteNodeList that is backed by a Database.
-    Automatically sets 'database' as needed.
+    A RemoteNodeList that is backed by a Table.
+    Automatically sets 'table' as needed.
     """
 
     @override
     def create(self, **kwargs) -> "Record":
-        from bench.language import Database, Record
+        from bench.language import Record, Table
 
-        if "database" not in kwargs:
-            kwargs["database"] = self._node
+        if "table" not in kwargs:
+            kwargs["table"] = self._node
         parent = self._get_parent()
-        assert isinstance(parent, Database), f"cannot create Record in: {parent!r}"
+        assert isinstance(parent, Table), f"cannot create Record in: {parent!r}"
         graph = self._get_child_graph(parent)
         node = Record(**kwargs, parent=parent)
         attach_node(node, parent=parent, graph=graph, move=False)
@@ -520,8 +520,8 @@ class RecordNodeList(RemoteNodeList["Record", RecordData]):
         parent = self._get_parent()
         graph = self._get_child_graph(parent)
         attach_node(node, parent=parent, graph=graph, move=move)
-        if getattr(node, "database_id") != self._node.id:
-            node._do_set("database", self._node)
+        if getattr(node, "table_id") != self._node.id:
+            node._do_set("table", self._node)
         return node
 
     @override
@@ -530,8 +530,8 @@ class RecordNodeList(RemoteNodeList["Record", RecordData]):
         graph = self._get_child_graph(parent)
         for node in nodes:
             attach_node(node, parent=parent, graph=graph, move=move)
-            if getattr(node, "database_id") != self._node.id:
-                node._do_set("database", self._node)
+            if getattr(node, "table_id") != self._node.id:
+                node._do_set("table", self._node)
 
 
 ValueParentT = TypeVar("ValueParentT", bound=Union["CustomObject", "Struct", "Node"])

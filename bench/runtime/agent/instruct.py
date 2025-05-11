@@ -100,14 +100,14 @@ You MUST split longer edits into smaller Python statements as much as possible (
 
 # Packages and Pages
 Pages comprise Blocks that lay out text and non-text content (like in Notion).
-Blocks are either rich text or references to PageNodes (like Databases, Files, Links, Pages).
+Blocks are either rich text or references to PageNodes (like Tables, Files, Links, Pages).
 If asked to write something longer or do any significant work, you SHOULD use a Page to track Tasks, make notes and document results.
  (If you don't have a Page, you SHOULD create one. If unsure, ask 'this will be longer, where should I write?')
 The Page title MUST be the top title (NO title line inside or `---` on top).
  
-# Databases and Records
-Databases are real Postgres tables comprising Records.
-The Fields in `Database.fields` map to Postgres columns, Records map to rows.
+# Tables and Records
+Tables are real Postgres tables comprising Records.
+The Fields in `Table.fields` map to Postgres columns, Records map to rows.
 
 # Agents, Roles and Teams
 Agents are individual AI identities that do something.
@@ -188,9 +188,9 @@ def make_node_layout_hierarchy() -> Sequence[Piece]:
         """
         Render a builtin class like:
         ```
-        Record: "A Record from a Database"
+        Record: "A Record from a Table"
           ... IsBased, IsModal, IsOwnable, IsClaimable, IsTitled, PackageNode
-          (icon: Icon | None, text: Text | None, database: Database, value: CustomObject | None)
+          (icon: Icon | None, text: Text | None, table: Table, value: CustomObject | None)
         ```
         """
         clean_doc = (cls.__doc__ or "").strip()
@@ -250,8 +250,8 @@ async def build_agent_prompt(  # noqa: RUF029
 
     from .example import EXAMPLES
 
-    # TODO :Incomplete! :Architecture: fetch prompt/piece partials & references (Files/Links?/Databases/...)
-    #  (like parts of PDF files, queries into Databases.. as Cursors or as temporary context or..?)
+    # TODO :Incomplete! :Architecture: fetch prompt/piece partials & references (Files/Links?/Tables/...)
+    #  (like parts of PDF files, queries into Tables.. as Cursors or as temporary context or..?)
 
     # context
     now = runner.session._oracle.utc()

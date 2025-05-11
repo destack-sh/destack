@@ -31,7 +31,6 @@ from bench.language import (
     AccessError,
     Bench,
     Context,
-    Database,
     EditType,
     Engine,
     EngineUnavailableError,
@@ -51,6 +50,7 @@ from bench.language import (
     QueryType,
     SelectOptions,
     Session,
+    Table,
     ValidationError,
     bittuple,
     edit_data_graph,
@@ -266,7 +266,7 @@ class GraphServiceBase(ServiceBase, GraphBase, abc.ABC):
 
     @abc.abstractmethod
     async def resolve_request_base(self, node_ptr: UUID | NodeReference) -> Node | None:
-        """Resolve a database pointer from a request message."""
+        """Resolve a table pointer from a request message."""
         ...
 
     @property
@@ -396,16 +396,16 @@ class GraphServiceBase(ServiceBase, GraphBase, abc.ABC):
             with self.tracer.start_as_current_span(f"{self.name}.commit.read"):
                 for (base_id, node_type), node_references in area.scopes_by_base_and_type.items():
                     node_type = wiring.unpack_enum(NodeType, node_type)
-                    database = await self.resolve_request_base(base_id) if base_id else None
+                    table = await self.resolve_request_base(base_id) if base_id else None
                     select = (
-                        SelectOptions(select_fields=list(database.fields))
-                        if isinstance(database, Database)
+                        SelectOptions(select_fields=list(table.fields))
+                        if isinstance(table, Table)
                         else None
                     )
                     query = LegacyQuery(
                         type=QueryType.GET,
                         node_type=node_type,
-                        base_type=database,
+                        base_type=table,
                         roots=node_references,
                         include_removed=include_removed,
                         select=select,
@@ -567,11 +567,11 @@ class GraphServiceBase(ServiceBase, GraphBase, abc.ABC):
                     base_type_ptr = wiring.unpack_builtin_object(
                         request.base_type_ptr, supergraph=None, expect=NodeReference
                     )
-                    database = await self.resolve_request_base(base_type_ptr)
-                    if database is None:
+                    table = await self.resolve_request_base(base_type_ptr)
+                    if table is None:
                         raise NodeNotFoundError(base_type_ptr)
                 else:
-                    database = None
+                    table = None
                 ancestor_types = [wiring.unpack_enum(NodeType, t) for t in request.ancestor_types]
                 descendant_types = [
                     wiring.unpack_enum(NodeType, t) for t in request.descendant_types
@@ -592,7 +592,7 @@ class GraphServiceBase(ServiceBase, GraphBase, abc.ABC):
                     type=QueryType.GET,
                     node_type=wiring.unpack_enum(NodeType, node_type),
                     roots=roots,
-                    base_type=database,
+                    base_type=table,
                     ancestor_types=ancestor_types,
                     descendant_types=descendant_types,
                     include_removed=request.include_removed,
@@ -702,11 +702,11 @@ class GraphServiceBase(ServiceBase, GraphBase, abc.ABC):
                     base_type_ptr = wiring.unpack_builtin_object(
                         request.base_type_ptr, supergraph=None, expect=NodeReference
                     )
-                    database = await self.resolve_request_base(base_type_ptr)
-                    if database is None:  # raising here is not great.. :SearchWithMissingBlock
+                    table = await self.resolve_request_base(base_type_ptr)
+                    if table is None:  # raising here is not great.. :SearchWithMissingBlock
                         raise NodeNotFoundError(base_type_ptr)
                 else:
-                    database = None
+                    table = None
                 filter = wiring.unpack_builtin_object_validate_maybe(
                     request.filter, supergraph=session._supergraph, expect=Expression
                 )
@@ -729,7 +729,7 @@ class GraphServiceBase(ServiceBase, GraphBase, abc.ABC):
                 query = LegacyQuery(
                     type=QueryType.SEARCH,
                     node_type=node_type,
-                    base_type=database,
+                    base_type=table,
                     filter=filter,
                     sort=sort,
                     ancestor_types=ancestor_types,

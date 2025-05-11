@@ -8,7 +8,6 @@ from opentelemetry import trace
 
 from bench.language import (
     ROOT_NODE_TYPES,
-    Database,
     EditType,
     GetOptions,
     GetResultData,
@@ -21,6 +20,7 @@ from bench.language import (
     SearchOptions,
     SearchResultData,
     Session,
+    Table,
     WatchGetUpdateData,
     WatchSearchUpdateData,
     apply_sort,
@@ -421,9 +421,7 @@ class SearchConnection(Connection[SearchResultData, WatchSearchUpdateData]):
     ):
         super().__init__(index, scope, query, oracle)
         self._filter = query._filter
-        self._database_id = (
-            str(query._base_type.id) if isinstance(query._base_type, Database) else None
-        )
+        self._table_id = str(query._base_type.id) if isinstance(query._base_type, Table) else None
         self._result_roots_ids: set[str] | None = None
 
     read_type: ClassVar[QueryType] = QueryType.SEARCH
@@ -482,7 +480,7 @@ class SearchConnection(Connection[SearchResultData, WatchSearchUpdateData]):
                     continue  # ignore irrelevant remove
                 node = self._result_data.graph[node_id]
             is_relevant = (
-                self._database_id is None or self._database_id == getattr(node, "database_ptr").id
+                self._table_id is None or self._table_id == getattr(node, "table_ptr").id
             ) and (self.query._filter is None or evaluate_conditional(self.query._filter, node))
             if not (is_relevant or is_extant):
                 continue  # ignore irrelevant edit

@@ -364,9 +364,9 @@ class HostService(GraphServiceBase, HostBase):
     async def start(self) -> None:
         from bench.system.plugin import (
             ClaimPlugin,
-            DatabasePlugin,
             MessagePlugin,
             RunPlugin,
+            TablePlugin,
             WakePlugin,
         )
 
@@ -399,7 +399,7 @@ class HostService(GraphServiceBase, HostBase):
 
         # setup main engines
         # (overwrite global pg engine now that we have t he full bench as context)
-        database_plugin = DatabasePlugin(self, self._bench, self._main_package)
+        database_plugin = TablePlugin(self, self._bench, self._main_package)
         self._global_pg_engine = PostgresEngine(
             name="pg-global",
             store=self.global_store,

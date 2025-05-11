@@ -35,19 +35,19 @@ from .core import (
     MIGRATION_TABLE,
     POSTGRES_TYPE_BY_UDT,
     PRIMITIVE_TYPE_BY_POSTGRES_TYPE,
-    CascadeAction,
-    Column,
-    Constraint,
-    ConstraintType,
-    Extension,
-    Index,
-    IndexType,
-    Object,
-    ObjectKind,
-    PostgresColumnType,
-    Schema,
-    Table,
-    TableObject,
+    SqlCascadeAction,
+    SqlColumn,
+    SqlColumnType,
+    SqlConstraint,
+    SqlConstraintType,
+    SqlExtension,
+    SqlIndex,
+    SqlIndexType,
+    SqlObject,
+    SqlObjectKind,
+    SqlSchema,
+    SqlTable,
+    SqlTableObject,
 )
 from .engine import (
     SqlUndefinedObjectError,
@@ -368,8 +368,8 @@ class MigrationOpType(enum.Enum):
 @dataclass
 class MigrationOp:
     type: MigrationOpType
-    new_object: Optional[Object]
-    old_object: Optional[Object]
+    new_object: Optional[SqlObject]
+    old_object: Optional[SqlObject]
     diff_keys: Optional[tuple[str, ...]] = None
 
     def __str__(self) -> str:
@@ -399,7 +399,7 @@ class MigrationOp:
         return f"<MigrationOp {self}>"
 
     @property
-    def object_kind(self) -> ObjectKind:
+    def object_kind(self) -> SqlObjectKind:
         if self.new_object is not None:
             return self.new_object.kind
         elif self.old_object is not None:
@@ -408,11 +408,11 @@ class MigrationOp:
             raise RuntimeError(f"no object set for {self!r}")
 
     @property
-    def table(self) -> "Table":
+    def table(self) -> "SqlTable":
         if self.new_object is not None:
-            return cast("TableObject", self.new_object).table
+            return cast("SqlTableObject", self.new_object).table
         elif self.old_object is not None:
-            return cast("TableObject", self.old_object).table
+            return cast("SqlTableObject", self.old_object).table
         else:
             raise RuntimeError(f"no object set for {self!r}")
 
@@ -488,8 +488,8 @@ def generate_sql_migration_code(
 @tracer.start_as_current_span("sql.generate_migration_ops")
 def generate_sql_migration_ops(
     *,
-    old_schema: Schema,
-    new_schema: Schema,
+    old_schema: SqlSchema,
+    new_schema: SqlSchema,
     include_types: tuple[MigrationOpType, ...] = tuple(MigrationOpType),
 ) -> list[MigrationOp]:
     """Generates the migration operations to go from the old tables to the new tables."""
@@ -499,10 +499,10 @@ def generate_sql_migration_ops(
     old_extensions = {ext.name for ext in old_schema.extensions}
     new_extensions = {ext.name for ext in new_schema.extensions}
     for ext_name in new_extensions - old_extensions:
-        extension_ops.append(MigrationOp(MigrationOpType.CREATE, Extension(ext_name), None))
+        extension_ops.append(MigrationOp(MigrationOpType.CREATE, SqlExtension(ext_name), None))
     # NOTE: we don't remove extensions for now
 
-    def _to_id(obj: TableObject) -> str:
+    def _to_id(obj: SqlTableObject) -> str:
         return obj.qualified_name
 
     # order of walk is table -> column -> index -> constraint
@@ -523,10 +523,10 @@ def generate_sql_migration_ops(
         if new_object is None:
             if _to_id(old_object.table) in deleted_ids:
                 continue  # skip, table deleted
-            if old_object.kind == ObjectKind.INDEX:
+            if old_object.kind == SqlObjectKind.INDEX:
                 # skip if owning constraint is also deleted
                 if any(
-                    obj.kind == ObjectKind.CONSTRAINT and obj.name == old_object.qualified_name
+                    obj.kind == SqlObjectKind.CONSTRAINT and obj.name == old_object.qualified_name
                     for obj in deleted_table_objects
                 ):
                     continue
@@ -540,7 +540,7 @@ def generate_sql_migration_ops(
         if old_object is None:
             # create columns only if parent table isn't new
             if (
-                new_object.kind == ObjectKind.COLUMN
+                new_object.kind == SqlObjectKind.COLUMN
                 and _to_id(new_object.table) in new_table_objects_by_id
                 and _to_id(new_object.table) not in old_table_objects_by_id
             ):
@@ -564,8 +564,8 @@ def generate_sql_migration_ops(
             patch_table_cru_ops.append(op)
             continue
 
-        if op.object_kind == ObjectKind.TABLE:
-            assert isinstance(op.new_object, Table)
+        if op.object_kind == SqlObjectKind.TABLE:
+            assert isinstance(op.new_object, SqlTable)
             # only columns are created implicitly in migration ops
             first_columns, deferred_columns = partition(
                 lambda col: bool(col.is_foreign_key_to),
@@ -576,8 +576,8 @@ def generate_sql_migration_ops(
             for col in deferred_columns:
                 col._table = first_table
                 patch_table_cru_ops.append(MigrationOp(MigrationOpType.CREATE, col, None))
-        elif op.object_kind == ObjectKind.COLUMN:
-            assert isinstance(op.new_object, Column)
+        elif op.object_kind == SqlObjectKind.COLUMN:
+            assert isinstance(op.new_object, SqlColumn)
             if op.new_object.is_foreign_key_to:
                 patch_table_cru_ops.append(op)
             else:
@@ -600,14 +600,14 @@ def _render_migration_body(ops: list[MigrationOp] | None) -> str:
         return "raise NotImplementedError"
 
     lines: list[str] = []
-    current_table: Optional[Table] = None
+    current_table: Optional[SqlTable] = None
     current_table_stmts: list[str] = []
 
-    def _emit_alter(table: Table, statements: list[str]) -> None:
+    def _emit_alter(table: SqlTable, statements: list[str]) -> None:
         alter_content = ",\n    ".join(statements)
         lines.append(f'"""\n    ALTER TABLE "{table.name}"    \n    {alter_content}\n"""')
 
-    def _emit(table: Table, statements: list[str]) -> None:
+    def _emit(table: SqlTable, statements: list[str]) -> None:
         # batch successive ALTER TABLE statements, otherwise leave them as-is
         lines.append(f"\n# {table.name}")
         current_alter_statements: list[str] = []
@@ -647,7 +647,7 @@ def _render_migration_body(ops: list[MigrationOp] | None) -> str:
         stmt = _wrap_statement(stmt)
 
         # extensions are not table objects
-        if op.object_kind == ObjectKind.EXTENSION:
+        if op.object_kind == SqlObjectKind.EXTENSION:
             lines.append(stmt)
         else:
             if current_table is None or op.table.table_name != current_table.table_name:
@@ -712,10 +712,10 @@ async def apply_sql_migration_ops(cur: psycopg.AsyncCursor, ops: list[MigrationO
         raise
 
 
-async def force_create_schema(cur: psycopg.AsyncCursor, schema: Schema) -> None:
+async def force_create_schema(cur: psycopg.AsyncCursor, schema: SqlSchema) -> None:
     """Creates and applies the migrations to create the given objects in the database."""
     # ignore existing tables
-    ops = generate_sql_migration_ops(old_schema=Schema.blank(), new_schema=schema)
+    ops = generate_sql_migration_ops(old_schema=SqlSchema.blank(), new_schema=schema)
     await apply_sql_migration_ops(cur, ops)
 
 
@@ -736,38 +736,38 @@ def _render_migration_op(op: MigrationOp) -> str | None:
     Generally 'flat' - ops do not include nested objects - except for CREATE TABLE.
     """
     if op.type == MigrationOpType.CREATE:
-        if isinstance(op.new_object, Extension):
+        if isinstance(op.new_object, SqlExtension):
             return f'CREATE EXTENSION IF NOT EXISTS "{op.new_object.name}"'
-        elif isinstance(op.new_object, Table):
+        elif isinstance(op.new_object, SqlTable):
             table_contents = ",\n".join(f"    {col.sql()}" for col in op.new_object.columns)
             return f'CREATE TABLE "{op.new_object.name}" (\n{table_contents}\n)'
-        elif isinstance(op.new_object, Column):
+        elif isinstance(op.new_object, SqlColumn):
             return f'ALTER TABLE "{op.new_object.table.name}" ADD COLUMN {op.new_object.sql()}'
-        elif isinstance(op.new_object, Index):
+        elif isinstance(op.new_object, SqlIndex):
             if op.new_object.is_unique:
                 return f"CREATE UNIQUE INDEX {op.new_object.sql()}"
             else:
                 return f"CREATE INDEX {op.new_object.sql()}"
-        elif isinstance(op.new_object, Constraint):
+        elif isinstance(op.new_object, SqlConstraint):
             return f'ALTER TABLE "{op.new_object.table.name}" ADD CONSTRAINT {op.new_object.sql()}'
 
     elif op.type == MigrationOpType.RENAME:
         assert op.new_object is not None, f"expected a new object: {op!r}"
-        if isinstance(op.old_object, Table):
+        if isinstance(op.old_object, SqlTable):
             return f'ALTER TABLE "{op.old_object.name}" RENAME TO "{op.new_object.name}"'
-        elif isinstance(op.old_object, Column):
+        elif isinstance(op.old_object, SqlColumn):
             return f'ALTER TABLE "{op.old_object.table.name}" RENAME COLUMN "{op.old_object.name}" TO "{op.new_object.name}"'
-        elif isinstance(op.old_object, Index):
+        elif isinstance(op.old_object, SqlIndex):
             return f'ALTER INDEX "{op.old_object.name}" RENAME TO "{op.new_object.name}"'
-        elif isinstance(op.old_object, Constraint):
+        elif isinstance(op.old_object, SqlConstraint):
             return f'ALTER TABLE "{op.old_object.table.name}" RENAME CONSTRAINT "{op.old_object.name}" TO "{op.new_object.name}"'
 
     elif op.type == MigrationOpType.UPDATE:
-        if isinstance(op.old_object, Table):
+        if isinstance(op.old_object, SqlTable):
             # there are no table properties we can update (outside name, which is handled by rename)
             raise NotImplementedError(f"cannot render {op!r}")
-        elif isinstance(op.old_object, Column):
-            assert isinstance(op.new_object, Column), f"expected a column: {op.new_object!r}"
+        elif isinstance(op.old_object, SqlColumn):
+            assert isinstance(op.new_object, SqlColumn), f"expected a column: {op.new_object!r}"
             updates: list[str] = []
             diff_keys = op.diff_keys or ()
             if "is_unique" in diff_keys:
@@ -827,16 +827,16 @@ def _render_migration_op(op: MigrationOp) -> str | None:
             if not updates:
                 return None
             return f'ALTER TABLE "{op.old_object.table.name}" ' + ",\n".join(updates)
-        elif isinstance(op.old_object, Index):
+        elif isinstance(op.old_object, SqlIndex):
             # drop and recreate
-            assert isinstance(op.new_object, Index), f"expected an index: {op.new_object!r}"
+            assert isinstance(op.new_object, SqlIndex), f"expected an index: {op.new_object!r}"
             drop = f'DROP INDEX "{op.old_object.name}"'
             if op.new_object.is_unique:
                 create = f"CREATE UNIQUE INDEX {op.new_object.sql()}"
             else:
                 create = f"CREATE INDEX {op.new_object.sql()}"
             return "\n".join([drop, create])
-        elif isinstance(op.old_object, Constraint):
+        elif isinstance(op.old_object, SqlConstraint):
             # drop and recreate
             assert op.new_object is not None, f"expected a new object: {op!r}"
             return (
@@ -846,15 +846,15 @@ def _render_migration_op(op: MigrationOp) -> str | None:
             )
 
     elif op.type == MigrationOpType.DELETE:
-        if isinstance(op.old_object, Extension):
+        if isinstance(op.old_object, SqlExtension):
             return f'DROP EXTENSION IF EXISTS "{op.old_object.name}"'
-        elif isinstance(op.old_object, Table):
+        elif isinstance(op.old_object, SqlTable):
             return f'DROP TABLE "{op.old_object.name}"'
-        elif isinstance(op.old_object, Column):
+        elif isinstance(op.old_object, SqlColumn):
             return f'ALTER TABLE "{op.old_object.table.name}" DROP COLUMN "{op.old_object.name}"'
-        elif isinstance(op.old_object, Index):
+        elif isinstance(op.old_object, SqlIndex):
             return f'DROP INDEX "{op.old_object.name}"'
-        elif isinstance(op.old_object, Constraint):
+        elif isinstance(op.old_object, SqlConstraint):
             return (
                 f'ALTER TABLE "{op.old_object.table.name}" DROP CONSTRAINT "{op.old_object.name}"'
             )
@@ -877,7 +877,7 @@ async def introspect_sql_schema(
     include_extensions: bool = True,
     include_table_prefixes: tuple[str, ...],
     exclude_table_prefixes: tuple[str, ...],
-) -> Schema:
+) -> SqlSchema:
     # extensions
     extensions_query = """
     SELECT
@@ -887,7 +887,7 @@ async def introspect_sql_schema(
     """
     if include_extensions:
         extensions_rows = await pg_select_raw(cur=cur, query=extensions_query)
-        extensions = tuple(Extension(name=row["extname"]) for row in extensions_rows)
+        extensions = tuple(SqlExtension(name=row["extname"]) for row in extensions_rows)
     else:
         extensions = ()
 
@@ -954,7 +954,7 @@ GROUP BY
                """
         columns_query = sql.SQL(columns_query).format(sql.Literal(tables_names))
         columns_rows = await pg_select_raw(cur=cur, query=columns_query)
-        columns_by_table: dict[str, list[Column]] = defaultdict(list)
+        columns_by_table: dict[str, list[SqlColumn]] = defaultdict(list)
         for row in columns_rows:
             udt_name = row["udt_name"]
             if udt_name.startswith("_"):
@@ -963,8 +963,8 @@ GROUP BY
             else:
                 is_array = False
             postgres_type = POSTGRES_TYPE_BY_UDT[udt_name]
-            if postgres_type == PostgresColumnType.TEXT:
-                postgres_type = PostgresColumnType.CHARACTER_VARYING  # we don't do TEXT
+            if postgres_type == SqlColumnType.TEXT:
+                postgres_type = SqlColumnType.CHARACTER_VARYING  # we don't do TEXT
             primitive_type = PRIMITIVE_TYPE_BY_POSTGRES_TYPE[postgres_type]
             is_foreign_key_to = (
                 row["target_table_names"]
@@ -972,7 +972,7 @@ GROUP BY
                 else None
             )
             cascade_action = (
-                CascadeAction(row["delete_rules"].split(",")[0])
+                SqlCascadeAction(row["delete_rules"].split(",")[0])
                 if row.get("delete_rules")
                 else None
             )
@@ -996,7 +996,7 @@ GROUP BY
                 is_foreign_key_to = None
                 scalar_constraint_types = ()
 
-            column = Column(
+            column = SqlColumn(
                 name=row["column_name"],
                 type=primitive_type,
                 is_primary_key="PRIMARY KEY" in constraint_types,
@@ -1041,7 +1041,7 @@ GROUP BY
         constraints_rows: list[dict[str, str]] = await pg_select_raw(
             cur=cur, query=constraints_query
         )
-        constraints_by_table: dict[str, list[Constraint]] = defaultdict(list)
+        constraints_by_table: dict[str, list[SqlConstraint]] = defaultdict(list)
         for row in constraints_rows:
             columns = tuple(row["column_names"].split(", ")) if row["column_names"] else ()
             if not columns:
@@ -1050,9 +1050,9 @@ GROUP BY
             condition = row.get("condition")
             if condition:
                 condition = _strip_condition(condition)
-            constraint = Constraint(
+            constraint = SqlConstraint(
                 inner_name=constraint_name,
-                type=ConstraintType(row["constraint_type"]),
+                type=SqlConstraintType(row["constraint_type"]),
                 columns=columns,
                 condition=condition,
             )
@@ -1062,7 +1062,7 @@ GROUP BY
 
     # indexes
     if include_indexes:
-        indexes_by_table: dict[str, list[Index]] = defaultdict(list)
+        indexes_by_table: dict[str, list[SqlIndex]] = defaultdict(list)
         indexes_query = """\
 SELECT 
     idx.tablename AS table_name,
@@ -1100,10 +1100,10 @@ WHERE
             )
             table_name = row["table_name"]
             index_name = row["index_name"][len(table_name) + 1 :]
-            index = Index(
+            index = SqlIndex(
                 inner_name=index_name,
                 _full_name=row["index_name"],
-                type=IndexType(index_type.upper()),
+                type=SqlIndexType(index_type.upper()),
                 columns=tuple(columns),
                 cover=cover,
                 is_unique="UNIQUE" in definition,
@@ -1111,7 +1111,7 @@ WHERE
             )
             # ignore simple primary/foreign key index
             if (
-                index.type == IndexType.BTREE
+                index.type == SqlIndexType.BTREE
                 and len(index.columns) == 1
                 and (index.columns[0].endswith("_id") or index.columns[0] == "id")
                 and (index.name.endswith("_pkey") or index.name.endswith("_fkey"))
@@ -1127,9 +1127,9 @@ WHERE
         indexes_by_table = {}
 
     # assemble the tables
-    tables: list[Table] = []
+    tables: list[SqlTable] = []
     for table_name in tables_names:
-        table = Table(
+        table = SqlTable(
             name=table_name,
             columns=tuple(columns_by_table.get(table_name, [])),
             indexes=tuple(indexes_by_table.get(table_name, [])),
@@ -1139,4 +1139,4 @@ WHERE
 
     logger.trace("sql.introspect", cur=cur, tables=tables, span="current")
 
-    return Schema(extensions=extensions, tables=tuple(tables))
+    return SqlSchema(extensions=extensions, tables=tuple(tables))
