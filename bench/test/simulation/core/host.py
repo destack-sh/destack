@@ -31,8 +31,8 @@ class HostHandle(ServiceHandle[HostSpec, HostService, HostClient]):
         self._service = HostService(
             id=self.id,
             bench_id=self.simulation.get_bench_id(self.spec.bench),
-            global_store=self.simulation.global_store,
-            regional_store=self.simulation.regional_store,
+            global_database=self.simulation.global_database,
+            regional_database=self.simulation.regional_database,
             network=self.simulation.network.network,
             oracle=self.oracle,
             on_error=self.simulation.on_error,
@@ -47,8 +47,10 @@ class HostHandle(ServiceHandle[HostSpec, HostService, HostClient]):
     @override
     async def close(self):
         await super().close()
-        # manually decommission stores (bootstrapping problem since the Host session uses the store)
-        async with pg_connection(self.simulation.global_store, owner=self, autocommit=True) as conn:
-            for store in self.service.main_package.stores:
-                if store.external_name:
-                    await conn.execute(sqlstr(f'DROP DATABASE "{store.external_name}"'))
+        # manually decommission databases (bootstrapping problem since the Host session uses the database)
+        async with pg_connection(
+            self.simulation.global_database, owner=self, autocommit=True
+        ) as conn:
+            for database in self.service.main_package.databases:
+                if database.external_name:
+                    await conn.execute(sqlstr(f'DROP DATABASE "{database.external_name}"'))

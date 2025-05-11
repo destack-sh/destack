@@ -9,7 +9,7 @@ from psycopg.rows import dict_row
 from psycopg.sql import SQL
 from psycopg_pool import AsyncConnectionPool, PoolTimeout
 
-from bench.language import Store
+from bench.language import Database
 from bench.utils.func import sanitize_connection_url
 from bench.utils.utils import get_from_env
 
@@ -47,10 +47,10 @@ PG_POOL_AUTOCLOSE = get_from_env(
 )
 
 # NOTE :Cleanup: we should probably gc unused pools after some time
-_pools_by_store: dict[Store, "PostgresConnectionPool"] = {}
+_pools_by_store: dict[Database, "PostgresConnectionPool"] = {}
 
 
-def get_pg_pool(store: Store) -> "PostgresConnectionPool":
+def get_pg_pool(store: Database) -> "PostgresConnectionPool":
     """Gets the connection pool for the given store."""
     if store not in _pools_by_store:
         _pools_by_store[store] = PostgresConnectionPool(
@@ -68,7 +68,7 @@ def get_pg_pool_by_external_name(external_name: str) -> "PostgresConnectionPool 
 
 
 @asynccontextmanager
-async def pg_connection(store: Store, *, owner: Any | None = None, autocommit: bool = False):
+async def pg_connection(store: Database, *, owner: Any | None = None, autocommit: bool = False):
     """Opens a connection to the given store."""
     pool = get_pg_pool(store)
     if not pool.is_open:
@@ -90,7 +90,7 @@ class PostgresConnectionPool:
 
     _pool_id: ClassVar[int] = 0
 
-    def __init__(self, store: Store, min_size: int, max_size: int):
+    def __init__(self, store: Database, min_size: int, max_size: int):
         self.store = store
         self.min_size = min_size
         self.max_size = max_size

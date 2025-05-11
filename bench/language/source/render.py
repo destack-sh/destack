@@ -56,11 +56,11 @@ from .action import Action
 from .block import Block
 from .choice import Choice
 from .clazz import Class
-from .database import Table
 from .field import Field
 from .flow import Flow
 from .option import Option
 from .page import Page
+from .table import Table
 from .transition import Transition
 
 if TYPE_CHECKING:

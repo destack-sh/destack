@@ -12,9 +12,9 @@ from opentelemetry import trace
 
 from bench.language import (
     Bench,
+    Database,
     NodeArea,
     PolicySubject,
-    Store,
 )
 from bench.proto import (
     CommitTransactionRequest,
@@ -38,7 +38,7 @@ from bench.proto import (
     WatchSearchRequest,
     WatchSearchResponse,
 )
-from bench.system.core import global_session, pg_engine_from_store
+from bench.system.core import global_session, pg_engine_from_database
 from bench.utils.func import to_uuid
 from bench.utils.oracle import Oracle
 from bench.utils.telemetry import set_baggage
@@ -70,8 +70,8 @@ class HostRouterService(ServiceBase, HostBase):
     def __init__(
         self,
         id: str,
-        global_store: Store,
-        regional_store: Store,
+        global_database: Database,
+        regional_database: Database,
         network: Network,
         oracle: Oracle,
         on_error: Callable[[BaseException], None] | None,
@@ -86,12 +86,14 @@ class HostRouterService(ServiceBase, HostBase):
         )
         self.hosts: dict[UUID, HostService] = {}
         self.hosts_lock = asyncio.Lock()
-        self._global_store = global_store
-        self._global_pg_engine = pg_engine_from_store("pg-global", global_store, NodeArea.GLOBAL)
-        self._regional_store = regional_store
-        self._regional_pg_engine = pg_engine_from_store(
-            f"pg-regional-{regional_store.region.name.lower()}",
-            regional_store,
+        self._global_database = global_database
+        self._global_pg_engine = pg_engine_from_database(
+            "pg-global", global_database, NodeArea.GLOBAL
+        )
+        self._regional_database = regional_database
+        self._regional_pg_engine = pg_engine_from_database(
+            f"pg-regional-{regional_database.region.name.lower()}",
+            regional_database,
             NodeArea.REGIONAL,
         )
 
@@ -100,7 +102,7 @@ class HostRouterService(ServiceBase, HostBase):
 
     async def start(self) -> None:
         await super().start()
-        async with global_session(self._global_store, (self._global_pg_engine,), self.oracle):
+        async with global_session(self._global_database, (self._global_pg_engine,), self.oracle):
             benches: list[Bench] = await Bench.search()
         await asyncio.gather(*(self._start_host(bench.id) for bench in benches))
 
@@ -118,8 +120,8 @@ class HostRouterService(ServiceBase, HostBase):
         host = HostService(
             id=f"host-{bench_id}",
             bench_id=bench_id,
-            global_store=self._global_store,
-            regional_store=self._regional_store,
+            global_database=self._global_database,
+            regional_database=self._regional_database,
             network=self.network,
             oracle=self.oracle,
             on_error=self.on_error,

@@ -29,11 +29,11 @@ async def make(
     region: Annotated[Region, typer.Option(parser=parse_region)] = REGION,
     bench: str = typer.Option(default="bench", help="the bench to use as local reference"),
     no_downgrade: bool = typer.Option(default=False, help="exclude downgrade operations"),
-    dry_run: bool = typer.Option(default=False, help="only print, don't store"),
+    dry_run: bool = typer.Option(default=False, help="only print, don't database"),
     overwrite: bool = typer.Option(default=False, help="overwrite existing migration for version"),
     from_scratch: bool = typer.Option(default=False, help="generate migration from scratch"),
 ):
-    from bench.language import VERSION, Bench, NodeArea, Package, Store
+    from bench.language import VERSION, Bench, Database, NodeArea, Package
     from bench.sql import (
         BENCH_RECORD_TABLE_PREFIX,
         BENCH_TABLE_PREFIX,
@@ -52,20 +52,20 @@ async def make(
         read_migrations_from_pg,
     )
     from bench.system import (
+        global_database_from_env,
         global_session,
-        global_store_from_env,
-        pg_engine_from_store,
-        regional_store_from_env,
+        pg_engine_from_database,
+        regional_database_from_env,
     )
 
-    BENCH_QUERY = Bench.include_descendants(Package, Store).select_all()
+    BENCH_QUERY = Bench.include_descendants(Package, Database).select_all()
 
     start = time.time()
-    global_store = global_store_from_env()
-    global_pg_engine = pg_engine_from_store("pg-global", global_store, NodeArea.GLOBAL)
-    regional_store = regional_store_from_env(region)
-    regional_pg_engine = pg_engine_from_store(
-        f"pg-regional-{regional_store.region.name.lower()}", regional_store, NodeArea.REGIONAL
+    global_database = global_database_from_env()
+    global_pg_engine = pg_engine_from_database("pg-global", global_database, NodeArea.GLOBAL)
+    regional_database = regional_database_from_env(region)
+    regional_pg_engine = pg_engine_from_database(
+        f"pg-regional-{regional_database.region.name.lower()}", regional_database, NodeArea.REGIONAL
     )
 
     # check existing migrations for inconsistencies
@@ -81,13 +81,13 @@ async def make(
             raise RuntimeError(
                 f"existing migration for version {VERSION}: {conflicting_migration!r}"
             )
-    async with pg_connection(global_store) as conn:
-        stored_migrations = await read_migrations_from_pg(conn.cursor)
+    async with pg_connection(global_database) as conn:
+        databased_migrations = await read_migrations_from_pg(conn.cursor)
     max_file_id = max(m.id for m in file_migrations) if file_migrations else 0
-    max_stored_id = max(m.id for m in stored_migrations) if stored_migrations else 0
-    if max_stored_id > max_file_id:
+    max_databased_id = max(m.id for m in databased_migrations) if databased_migrations else 0
+    if max_databased_id > max_file_id:
         raise RuntimeError(
-            f"stored migrations are ahead of file migrations:\nstored={stored_migrations!r}\nfile={file_migrations!r}"
+            f"databased migrations are ahead of file migrations:\ndatabased={databased_migrations!r}\nfile={file_migrations!r}"
         )
 
     # diff local
@@ -95,11 +95,11 @@ async def make(
         if not from_scratch:
             try:
                 async with global_session(
-                    global_store, (global_pg_engine, regional_pg_engine), REAL_ORACLE
+                    global_database, (global_pg_engine, regional_pg_engine), REAL_ORACLE
                 ):
                     bench_node = await BENCH_QUERY.get(slug=bench)
-                    assert bench_node.store, f"{bench!r} has no main store"
-                    async with pg_connection(bench_node.store) as conn:
+                    assert bench_node.database, f"{bench!r} has no main database"
+                    async with pg_connection(bench_node.database) as conn:
                         old_local_schema = await introspect_sql_schema(
                             conn.cursor,
                             include_table_prefixes=(BENCH_TABLE_PREFIX,),
@@ -119,7 +119,7 @@ async def make(
 
     # diff regional
     if area in (None, NodeArea.REGIONAL):
-        async with pg_connection(regional_store) as conn:
+        async with pg_connection(regional_database) as conn:
             old_regional_schema = await introspect_sql_schema(
                 conn.cursor,
                 include_table_prefixes=(BENCH_TABLE_PREFIX,),
@@ -133,7 +133,7 @@ async def make(
 
     # diff global
     if area in (None, NodeArea.GLOBAL):
-        async with pg_connection(global_store) as conn:
+        async with pg_connection(global_database) as conn:
             old_global_schema = await introspect_sql_schema(
                 conn.cursor,
                 include_table_prefixes=(BENCH_TABLE_PREFIX,),
@@ -191,51 +191,51 @@ async def apply(
     ),
     dry_run: bool = typer.Option(default=False, help="only try, don't commit"),
 ):
-    from bench.language import REGION, Bench, NodeArea, Package, Store
+    from bench.language import REGION, Bench, Database, NodeArea, Package
     from bench.sql import pg_connection
     from bench.sql import sql_migrate as _migrate
     from bench.system import (
+        global_database_from_env,
         global_session,
-        global_store_from_env,
-        pg_engine_from_store,
-        regional_store_from_env,
+        pg_engine_from_database,
+        regional_database_from_env,
     )
 
-    BENCH_QUERY = Bench.include_descendants(Package, Store).select_all()
+    BENCH_QUERY = Bench.include_descendants(Package, Database).select_all()
 
     start = time.time()
-    global_store = global_store_from_env()
-    global_pg_engine = pg_engine_from_store("pg-global", global_store, NodeArea.GLOBAL)
-    regional_store = regional_store_from_env(region or REGION)
-    regional_pg_engine = pg_engine_from_store(
-        f"pg-regional-{regional_store.region.name.lower()}", regional_store, NodeArea.REGIONAL
+    global_database = global_database_from_env()
+    global_pg_engine = pg_engine_from_database("pg-global", global_database, NodeArea.GLOBAL)
+    regional_database = regional_database_from_env(region or REGION)
+    regional_pg_engine = pg_engine_from_database(
+        f"pg-regional-{regional_database.region.name.lower()}", regional_database, NodeArea.REGIONAL
     )
 
-    # resolve stores to migrate
+    # resolve databases to migrate
     if area == NodeArea.LOCAL:
         assert bench is not None, "bench is required for local area"
         async with global_session(
-            global_store, (global_pg_engine, regional_pg_engine), REAL_ORACLE
+            global_database, (global_pg_engine, regional_pg_engine), REAL_ORACLE
         ):
             if bench != "*":
                 bench_node = await BENCH_QUERY.get(slug=bench)
                 assert bench_node.package, f"{bench!r} has no main package"
-                stores = list(bench_node.package.stores)
+                databases = list(bench_node.package.databases)
             else:
                 benches = await BENCH_QUERY.tolist()
-                stores: list[Store] = []
+                databases: list[Database] = []
                 for bench_node in benches:
                     assert bench_node.package, f"{bench_node!r} has no main package"
-                    stores.extend(bench_node.package.stores)
+                    databases.extend(bench_node.package.databases)
     elif area == NodeArea.REGIONAL:
-        stores = [regional_store]
+        databases = [regional_database]
     elif area == NodeArea.GLOBAL:
-        stores = [global_store]
+        databases = [global_database]
     else:
         raise RuntimeError(f"invalid area: {area!r}")
 
-    for store in stores:
-        async with pg_connection(store) as conn:
+    for database in databases:
+        async with pg_connection(database) as conn:
             await _migrate(cur=conn.cursor, target=target, area=area, oracle=REAL_ORACLE)
             if not dry_run:
                 await conn.commit()

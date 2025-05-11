@@ -13,6 +13,7 @@ from bench.language import (
     Bench,
     Client,
     ClientType,
+    Database,
     Handle,
     Node,
     NodeArea,
@@ -22,7 +23,6 @@ from bench.language import (
     OrganizationStatus,
     PolicySubject,
     Region,
-    Store,
     User,
     UserStatus,
     bittuple,
@@ -50,13 +50,13 @@ from bench.proto import (
 from bench.system.core import (
     ACCESS_TOKEN_LENGTH,
     SALT_LENGTH,
+    DatabaseMap,
     HostMap,
-    StoreMap,
     check_password,
     get_client_or_error,
     global_session,
     hash_password,
-    pg_engine_from_store,
+    pg_engine_from_database,
     purge_client_caches,
 )
 from bench.system.graph import GraphServiceBase
@@ -78,8 +78,8 @@ class SupervisorService(GraphServiceBase, SupervisorBase):
     def __init__(
         self,
         id: str,
-        global_store: Store,
-        store_map: StoreMap,
+        global_database: Database,
+        database_map: DatabaseMap,
         network: Network,
         oracle: Oracle,
         host_map: HostMap,
@@ -97,9 +97,11 @@ class SupervisorService(GraphServiceBase, SupervisorBase):
             oracle=oracle,
             scope=EMPTY_SCOPE_DATA,
         )
-        self._global_store = global_store
-        self._global_pg_engine = pg_engine_from_store("pg-global", global_store, NodeArea.GLOBAL)
-        self._store_map = store_map
+        self._global_database = global_database
+        self._global_pg_engine = pg_engine_from_database(
+            "pg-global", global_database, NodeArea.GLOBAL
+        )
+        self._database_map = database_map
         self._host_map = host_map
         self._create_bench_options = create_bench_options
         self._on_error = on_error
@@ -127,7 +129,7 @@ class SupervisorService(GraphServiceBase, SupervisorBase):
         # NOTE :Architecture: for simplicity we don't get the full Subject auth in Supervisor
         #  (like we do in Host, since we have the entire Bench cached and ready there,
         #   and we don't expect to need Bench-level auth in the Supervisor for now).
-        async with global_session(self._global_store, self.get_engines(), self.oracle):
+        async with global_session(self._global_database, self.get_engines(), self.oracle):
             # request will use the subject's supergraph, so ensure all subjects are created in session
             if not metadata.client_id or not metadata.client_access_token:
                 return PolicySubject(is_authenticated=False)
@@ -200,12 +202,12 @@ class SupervisorService(GraphServiceBase, SupervisorBase):
         if subject.is_authenticated:
             raise GRPCError(GRPCStatus.ALREADY_EXISTS, "already logged in")
 
-        # get regional Store
+        # get regional Database
         region = Region(request.region)
-        regional_store = self._store_map.get(region=region)
-        regional_pg_engine = pg_engine_from_store(
-            name=f"pg-regional-{regional_store.region.name.lower()}",
-            store=regional_store,
+        regional_database = self._database_map.get(region=region)
+        regional_pg_engine = pg_engine_from_database(
+            name=f"pg-regional-{regional_database.region.name.lower()}",
+            database=regional_database,
             area=NodeArea.REGIONAL,
         )
 
@@ -397,11 +399,11 @@ class SupervisorService(GraphServiceBase, SupervisorBase):
             raise GRPCError(GRPCStatus.PERMISSION_DENIED, "cannot create bench for waitlisted user")
         region = wiring.unpack_enum(Region, request.region)
 
-        # get regional store
-        regional_store = self._store_map.get(region=region)
-        regional_pg_engine = pg_engine_from_store(
-            name=f"pg-regional-{regional_store.region.name.lower()}",
-            store=regional_store,
+        # get regional database
+        regional_database = self._database_map.get(region=region)
+        regional_pg_engine = pg_engine_from_database(
+            name=f"pg-regional-{regional_database.region.name.lower()}",
+            database=regional_database,
             area=NodeArea.REGIONAL,
         )
 

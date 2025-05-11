@@ -10,6 +10,7 @@ from bench.language import (
     CommitResultData,
     Connection,
     ConnectionOptions,
+    Database,
     Engine,
     EngineUnavailableError,
     FlushResultData,
@@ -24,7 +25,6 @@ from bench.language import (
     SearchConnection,
     SearchResultData,
     Session,
-    Store,
     WritableConnector,
     bittuple,
     repr_enums,
@@ -48,28 +48,28 @@ tracer = trace.get_tracer(__name__)
 
 
 class PostgresEngine(Engine):
-    """An engine that talks directly to a Postgres store."""
+    """An engine that talks directly to a Postgres database."""
 
     def __init__(
         self,
         name: str,
-        store: "Store",
+        database: "Database",
         bench: "Bench",
         scope: GraphScopeData,
         node_types: bittuple[NodeType],
         context: SqlContext,
     ):
         super().__init__(name, scope, node_types)
-        self.store = store
+        self.database = database
         self.bench = bench
         self.context = context
 
     def __str__(self):
-        return f"{self.name!r}, [scope={repr_scope(self.scope)}, node_types={repr_enums(self.node_types)}, store={self.store!r}]"
+        return f"{self.name!r}, [scope={repr_scope(self.scope)}, node_types={repr_enums(self.node_types)}, database={self.database!r}]"
 
     @override
     async def connector(self, session: "Session") -> "PostgresConnector":
-        pool = get_pg_pool(self.store)
+        pool = get_pg_pool(self.database)
         channel = PostgresConnector(self, session, connection=None)
         conn = await pool.acquire(owner=channel)
         channel._connection = conn
@@ -103,7 +103,7 @@ def _pg_method(func):
 
 
 class PostgresConnector(WritableConnector[PostgresEngine]):
-    """A channel to a Postgres store (usually maps to a postgres connection)."""
+    """A channel to a Postgres database (usually maps to a postgres connection)."""
 
     def __init__(
         self,

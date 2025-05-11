@@ -27,50 +27,50 @@ async def shell(
     bench: Optional[str] = None,
 ):  # type: ignore
     """Open a psql shell to either the global or a Bench-local database."""
-    from bench.language import Bench, NodeArea, Package, Store
+    from bench.language import Bench, Database, NodeArea, Package
     from bench.system import (
+        global_database_from_env,
         global_session,
-        global_store_from_env,
-        pg_engine_from_store,
-        regional_store_from_env,
+        pg_engine_from_database,
+        regional_database_from_env,
     )
 
-    global_store = global_store_from_env()
-    global_pg_engine = pg_engine_from_store("pg-global", global_store, NodeArea.GLOBAL)
-    regional_store = regional_store_from_env(region)
-    regional_pg_engine = pg_engine_from_store(
-        f"pg-regional-{region.name.lower()}", regional_store, NodeArea.REGIONAL
+    global_database = global_database_from_env()
+    global_pg_engine = pg_engine_from_database("pg-global", global_database, NodeArea.GLOBAL)
+    regional_database = regional_database_from_env(region)
+    regional_pg_engine = pg_engine_from_database(
+        f"pg-regional-{region.name.lower()}", regional_database, NodeArea.REGIONAL
     )
 
     if area == NodeArea.GLOBAL:
-        store = global_store
+        database = global_database
     elif area == NodeArea.REGIONAL:
-        store = regional_store
+        database = regional_database
     elif area == NodeArea.LOCAL:
         assert bench is not None, "bench is required for local area"
         async with global_session(
-            global_store, (global_pg_engine, regional_pg_engine), REAL_ORACLE
+            global_database, (global_pg_engine, regional_pg_engine), REAL_ORACLE
         ):
             bench_node = (
-                await Bench.include_descendants(Package, Store).select_all().get(slug=bench)
+                await Bench.include_descendants(Package, Database).select_all().get(slug=bench)
             )
-            assert bench_node.store is not None, f"{bench!r} has no main store"
-            store = bench_node.store
+            assert bench_node.database is not None, f"{bench!r} has no main database"
+            database = bench_node.database
     else:
         raise ValueError(f"invalid area: {area!r}")
 
-    assert store.sql_url, f"store {store!r} has no connection_uri"
+    assert database.sql_url, f"database {database!r} has no connection_uri"
     logger.info(
         "shell.psql",
         area=area,
         bench=bench,
-        store=store,
-        sql_url=sanitize_connection_url(store.sql_url),
+        database=database,
+        sql_url=sanitize_connection_url(database.sql_url),
     )
     sigint_handler = signal.getsignal(signal.SIGINT)
     try:
         # allow SIGINT to pass to psql to abort queries
         signal.signal(signal.SIGINT, signal.SIG_IGN)
-        subprocess.run(["psql", store.sql_url], check=True)  # noqa: ASYNC221
+        subprocess.run(["psql", database.sql_url], check=True)  # noqa: ASYNC221
     finally:
         signal.signal(signal.SIGINT, sigint_handler)

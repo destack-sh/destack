@@ -2,7 +2,6 @@ from .action import Action, ActionType
 from .block import BLOCK_TYPES, NODE_BLOCK_TYPES, TEXT_BLOCK_TYPES, Block, BlockType
 from .choice import Choice
 from .clazz import Class
-from .database import Table
 from .dependency import Dependency
 from .field import Field
 from .flow import Flow
@@ -23,6 +22,7 @@ from .render import (
 )
 from .schedule import Schedule, ScheduleFrequency
 from .service import Service
+from .table import Table
 from .transition import PortSide, Transition, TransitionType
 
 __all__ = [

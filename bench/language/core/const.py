@@ -48,7 +48,7 @@ class _Unset:
 
 
 # forever constants
-VERSION = "2025.05.11.1"
+VERSION = "2025.05.11.3"
 UUID_NAMESPACE = uuid5(UUID(int=0), b"bench")
 CK_LENGTH_B64 = 24  # 1.5 * CK_LENGTH_BYTES (must be integer)
 FLOAT_EPSILON = 1e-6
@@ -345,7 +345,7 @@ class EnumType(BuiltinEnum):
     SCALER_TYPE = 21010
     SCALER_STRATEGY = 21011
     COMPUTER_TYPE = 21020
-    STORE_TYPE = 21040
+    DATABASE_TYPE = 21040
     CLIENT_TYPE = 21041
 
     # files (21050-21099)
@@ -520,9 +520,8 @@ class NodeType(BuiltinEnum):
     #
 
     # compute
-    # nocheckin: STORE->DATABASE, DATABASE->TABLE
     SCALER = 2000, "Scaler", "Autoscale Resources", "fas fa-scale-unbalanced"
-    STORE = 2010, "Store", "Store custom data", "fas fa-database"
+    DATABASE = 2010, "Store", "Store custom data", "fas fa-database"
     # VAULT?
     # CACHE?
     COMPUTER = 2100, "Computer", "Machine for computing", "fas fa-computer-classic"
@@ -707,7 +706,7 @@ NODE_TYPES_BY_AREA = {
 }
 ROOT_NODE_TYPES = bittuple(NodeType.BENCH, NodeType.USER, NodeType.ORGANIZATION)
 RESOURCE_NODE_TYPES = _get_node_types(2000, 3000)
-PROVISIONABLE_NODE_TYPES = bittuple(NodeType.SCALER, NodeType.STORE, NodeType.COMPUTER)
+PROVISIONABLE_NODE_TYPES = bittuple(NodeType.SCALER, NodeType.DATABASE, NodeType.COMPUTER)
 SOURCE_NODE_TYPES = _get_node_types(5000, 5500)
 COMMUNICATION_NODE_TYPES = _get_node_types(5500, 5600)
 RUNTIME_NODE_TYPES = _get_node_types(6000, 6100)

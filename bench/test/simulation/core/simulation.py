@@ -16,18 +16,18 @@ from bench.language import (
     REGION,
     SYSTEM_ID,
     SYSTEM_SLUG,
+    Database,
     NodeArea,
-    Store,
 )
 from bench.proto import SupervisorClient
 from bench.sql.client import get_pg_pool_by_external_name, pg_connection
 from bench.sql.engine import sqlstr
 from bench.sql.graph import BUILTIN_GLOBAL_SCHEMA, BUILTIN_REGIONAL_SCHEMA
 from bench.system import (
-    StoreMap,
+    DatabaseMap,
     create_system_benches,
-    global_store_from_env,
-    pg_engine_from_store,
+    global_database_from_env,
+    pg_engine_from_database,
 )
 from bench.utils.oracle import REAL_ORACLE
 from bench.utils.task import TaskManager
@@ -72,19 +72,23 @@ class Simulation:
         self,
         id: str,
         spec: SimulationSpec,
-        global_store: Store,
-        regional_store: Store,
-        store_map: StoreMap,
+        global_database: Database,
+        regional_database: Database,
+        database_map: DatabaseMap,
     ):
         self.id = id
         self.spec = spec
-        self.global_store = global_store
-        self.regional_store = regional_store
-        self.global_pg_engine = pg_engine_from_store("pg-global", global_store, NodeArea.GLOBAL)
-        self.regional_pg_engine = pg_engine_from_store(
-            f"pg-regional-{regional_store.region.name.lower()}", regional_store, NodeArea.REGIONAL
+        self.global_database = global_database
+        self.regional_database = regional_database
+        self.global_pg_engine = pg_engine_from_database(
+            "pg-global", global_database, NodeArea.GLOBAL
         )
-        self.store_map = store_map
+        self.regional_pg_engine = pg_engine_from_database(
+            f"pg-regional-{regional_database.region.name.lower()}",
+            regional_database,
+            NodeArea.REGIONAL,
+        )
+        self.database_map = database_map
 
         # system
         self.random = Random(spec.seed)
@@ -374,9 +378,9 @@ class Simulation:
         if self.spec.system:
             await create_system_benches(
                 region=REGION,
-                global_store=self.global_store,
+                global_database=self.global_database,
                 global_pg_engine=self.global_pg_engine,
-                regional_store=self.regional_store,
+                regional_database=self.regional_database,
                 regional_pg_engine=self.regional_pg_engine,
             )
         await self.supervisor.start()
@@ -446,8 +450,8 @@ async def run_simulation(spec: SimulationSpec):
     """Run a Simulation"""
     from bench.test.fixtures import (
         create_test_db,
-        make_global_store,
-        make_regional_store,
+        make_global_database,
+        make_regional_database,
     )
 
     simulation_id = get_simulation_id(spec)
@@ -457,23 +461,23 @@ async def run_simulation(spec: SimulationSpec):
     log = logger.bind(simulation=spec.name)
 
     # config
-    global_store = make_global_store(f"test-{simulation_id}-global")
-    regional_store = make_regional_store(f"test-{simulation_id}-regional")
-    store_map = StoreMap({"*": regional_store})
+    global_database = make_global_database(f"test-{simulation_id}-global")
+    regional_database = make_regional_database(f"test-{simulation_id}-regional")
+    database_map = DatabaseMap({"*": regional_database})
     simulation = Simulation(
         id=simulation_id,
         spec=spec,
-        global_store=global_store,
-        regional_store=regional_store,
-        store_map=store_map,
+        global_database=global_database,
+        regional_database=regional_database,
+        database_map=database_map,
     )
 
     try:
         # setup
         with tracer.start_as_current_span("simulation.prepare"):
             await simulation.prepare()
-            await create_test_db(global_store, BUILTIN_GLOBAL_SCHEMA)
-            await create_test_db(regional_store, BUILTIN_REGIONAL_SCHEMA)
+            await create_test_db(global_database, BUILTIN_GLOBAL_SCHEMA)
+            await create_test_db(regional_database, BUILTIN_REGIONAL_SCHEMA)
             log.info("simulation.prepare", span="current")
         # run
         with tracer.start_as_current_span("simulation.run"):
@@ -482,8 +486,8 @@ async def run_simulation(spec: SimulationSpec):
     finally:
         # teardown
         for database_name in (
-            global_store.external_name,
-            regional_store.external_name,
+            global_database.external_name,
+            regional_database.external_name,
             f"test-{BENCH_ID}",
             f"test-{SYSTEM_ID}",
         ):
@@ -493,15 +497,15 @@ async def run_simulation(spec: SimulationSpec):
             if pool:
                 await pool.close()
             async with pg_connection(
-                global_store_from_env(), owner=global_store, autocommit=True
+                global_database_from_env(), owner=global_database, autocommit=True
             ) as conn:
                 await conn.execute(sqlstr(f'DROP DATABASE IF EXISTS "{database_name}"'))
 
         # cleanup
         del spec
-        del global_store
-        del regional_store
-        del store_map
+        del global_database
+        del regional_database
+        del database_map
         del simulation
         gc.collect()
         log.info("simulation.terminate", span="current")

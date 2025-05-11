@@ -45,7 +45,7 @@ async def shell(
         User,
     )
     from bench.runtime.code import STATIC_CODE_GLOBALS
-    from bench.system import global_session, global_store_from_env, pg_engine_from_store
+    from bench.system import global_database_from_env, global_session, pg_engine_from_database
 
     supervisor_url = get_from_env("SUPERVISOR_URL")
     network = RealNetwork()
@@ -53,9 +53,9 @@ async def shell(
     host = HostClient(await network.get_channel(supervisor_url, source_id="shell"))
 
     # load global Bench
-    global_store = global_store_from_env()
-    global_pg_engine = pg_engine_from_store("pg-global", global_store, NodeArea.GLOBAL)
-    async with global_session(global_store, (global_pg_engine,), REAL_ORACLE) as session:
+    global_database = global_database_from_env()
+    global_pg_engine = pg_engine_from_database("pg-global", global_database, NodeArea.GLOBAL)
+    async with global_session(global_database, (global_pg_engine,), REAL_ORACLE) as session:
         bench_node = await Bench.get(slug=bench)
         if user is not None:
             user_node = await User.get(slug=user)
@@ -112,7 +112,7 @@ async def shell(
             .select_all()
             .get(bench_node.to_ref(), mode="both")
         )
-        assert bench_node.store is not None, f"{bench_node!r} has no main store"
+        assert bench_node.database is not None, f"{bench_node!r} has no main database"
         session.parent = bench_node  # patch in bench for pg context
         session._default_scope = GraphScope(bench_id=bench_node.id)._to_data()
         pkg = await (

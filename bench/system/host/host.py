@@ -24,6 +24,7 @@ from bench.language import (
     C,
     ClientType,
     ConditionalType,
+    Database,
     EditType,
     Engine,
     File,
@@ -46,7 +47,6 @@ from bench.language import (
     PolicySubject,
     QueryType,
     Session,
-    Store,
     User,
     bittuple,
     edit_data_graph,
@@ -74,8 +74,8 @@ from bench.system.core import (
     ClientCache,
     get_s3_client_for_presigning,
     global_session,
-    local_pg_engine_from_store,
-    pg_engine_from_store,
+    local_pg_engine_from_database,
+    pg_engine_from_database,
 )
 from bench.system.graph import GraphServiceBase, PostgresEngine, is_edit_in_scope
 from bench.utils.env import ENV, Env
@@ -116,8 +116,8 @@ class HostService(GraphServiceBase, HostBase):
         self,
         id: str,
         bench_id: UUID,
-        global_store: Store,
-        regional_store: Store,
+        global_database: Database,
+        regional_database: Database,
         network: Network,
         oracle: Oracle,
         on_error: Callable[[BaseException], None] | None,
@@ -139,14 +139,14 @@ class HostService(GraphServiceBase, HostBase):
         self.bench_ptr = NodeReference(
             node_type=NodeType.BENCH, id=bench_id, ck=bench_id, bench_id=bench_id
         )
-        self._global_store = global_store
-        self._global_pg_engine_unscoped = pg_engine_from_store(
-            "pg-global", global_store, NodeArea.GLOBAL
+        self._global_database = global_database
+        self._global_pg_engine_unscoped = pg_engine_from_database(
+            "pg-global", global_database, NodeArea.GLOBAL
         )
-        self._regional_store = regional_store
-        self._regional_pg_engine_unscoped = pg_engine_from_store(
-            f"pg-regional-{regional_store.region.name.lower()}",
-            regional_store,
+        self._regional_database = regional_database
+        self._regional_pg_engine_unscoped = pg_engine_from_database(
+            f"pg-regional-{regional_database.region.name.lower()}",
+            regional_database,
             NodeArea.REGIONAL,
         )
         self._supergraph = NodeSuperGraph(name="Host", root_ptr=self.bench_ptr)
@@ -209,8 +209,8 @@ class HostService(GraphServiceBase, HostBase):
         return True
 
     @property
-    def global_store(self) -> Store:
-        return self._global_store
+    def global_database(self) -> Database:
+        return self._global_database
 
     def global_session(self, readonly: bool = False):
         return global_session(
@@ -307,25 +307,25 @@ class HostService(GraphServiceBase, HostBase):
         if ENV == Env.TEST or ENV == Env.DEV:
             from bench.system.plugin import (
                 DockerComputerProvisioner,
-                LocalhostStoreProvisioner,
+                LocalhostDatabaseProvisioner,
                 ScalerProvisioner,
             )
 
             provisioners = [
                 ScalerProvisioner,
                 DockerComputerProvisioner,
-                LocalhostStoreProvisioner,
+                LocalhostDatabaseProvisioner,
             ]
         elif ENV == Env.STAGE or ENV == Env.PROD:
             from bench.system.plugin import (
                 KubernetesComputerProvisioner,
-                NeonStoreProvisioner,
+                NeonDatabaseProvisioner,
                 ScalerProvisioner,
             )
 
             provisioners = [
                 ScalerProvisioner,
-                NeonStoreProvisioner,
+                NeonDatabaseProvisioner,
                 KubernetesComputerProvisioner,
             ]
         else:
@@ -335,22 +335,22 @@ class HostService(GraphServiceBase, HostBase):
 
     async def _activate(self, session: Session, bench: Bench) -> None:
         """Initializes the given Bench for the first time."""
-        from bench.system.plugin import StoreProvisioner
+        from bench.system.plugin import DatabaseProvisioner
 
         assert bench.status == BenchStatus.RESERVED, f"{bench!r} has unexpected status"
-        assert bench.store is not None, f"{bench!r} has no main store"
+        assert bench.database is not None, f"{bench!r} has no main database"
 
         # use temporary session in HostService during setup
         session.parent = bench
         self._session = session
 
-        # immediately provision local Store
+        # immediately provision local Database
         provisioners = self.get_provisioners(bench)
-        store_provisioner = first(
-            (p for p in provisioners if isinstance(p, StoreProvisioner)), None
+        database_provisioner = first(
+            (p for p in provisioners if isinstance(p, DatabaseProvisioner)), None
         )
-        assert store_provisioner is not None, f"{bench!r} has no store provisioner"
-        await store_provisioner.provision(bench.store)
+        assert database_provisioner is not None, f"{bench!r} has no database provisioner"
+        await database_provisioner.provision(bench.database)
         for provisioner in provisioners:
             provisioner.close()
         await asyncio.gather(*(provisioner.wait_closed() for provisioner in provisioners))
@@ -379,14 +379,14 @@ class HostService(GraphServiceBase, HostBase):
         async with self.global_session() as session:
             # load our bench
             self._bench = await BENCH_QUERY.get(self.bench_ptr, mode="both")
-            assert self._bench.store is not None, f"{self._bench!r} has no main store"
+            assert self._bench.database is not None, f"{self._bench!r} has no main database"
             assert self._bench.package is not None, f"{self._bench!r} has no main package"
             self._main_package = self._bench.package
             session.parent = self._bench  # patch in bench for pg context
             session._default_scope = GraphScope(bench_id=self.bench_id)._to_data()
             session._engines += (
-                local_pg_engine_from_store(
-                    name=f"pg-local-{self._bench.slug}", store=self._bench.store
+                local_pg_engine_from_database(
+                    name=f"pg-local-{self._bench.slug}", database=self._bench.database
                 ),
             )
 
@@ -402,15 +402,15 @@ class HostService(GraphServiceBase, HostBase):
         database_plugin = TablePlugin(self, self._bench, self._main_package)
         self._global_pg_engine = PostgresEngine(
             name="pg-global",
-            store=self.global_store,
+            database=self.global_database,
             bench=self._bench,
             scope=EMPTY_SCOPE_DATA,
             node_types=bittuple(NodeType.BENCH, NodeType.CLIENT, NodeType.USER),
             context=database_plugin.context,
         )
         self._regional_pg_engine = PostgresEngine(
-            name=f"pg-regional-{self._bench.store.region.name.lower()}",
-            store=self._regional_store,
+            name=f"pg-regional-{self._bench.database.region.name.lower()}",
+            database=self._regional_database,
             bench=self._bench,
             scope=self._scope,
             node_types=REGIONAL_NODE_TYPES,
@@ -418,7 +418,7 @@ class HostService(GraphServiceBase, HostBase):
         )
         self._local_pg_engine = PostgresEngine(
             name=f"pg-local-{self._bench.slug}",
-            store=self._bench.store,
+            database=self._bench.database,
             bench=self._bench,
             scope=self._scope,
             node_types=LOCAL_NODE_TYPES,

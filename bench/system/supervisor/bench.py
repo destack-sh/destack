@@ -22,7 +22,7 @@ class CreateBenchOptions(NamedTuple):
     main_package_id: UUID | None = None
     main_package_name: str = "Main"
     main_package_slug: str = "main"
-    local_store_name: str = "Local"
+    local_database_name: str = "Local"
     create_computer_scaler: bool = True
 
 
@@ -63,14 +63,14 @@ async def create_default_bench(  # noqa: RUF029
     session.stage()
     bench.package = main_package
 
-    # main Store
-    store = main_package.stores.create(
+    # main Database
+    database = main_package.databases.create(
         mode=NodeMode.BUILTIN,
         region=bench.region,
-        name=options.local_store_name,
+        name=options.local_database_name,
     )
     session.stage()
-    bench.store = store
+    bench.database = database
     session.stage()
 
     if options.create_computer_scaler:
