@@ -45,14 +45,13 @@ class BlockType(BuiltinEnum):
     COMPUTER = 2100
     FILE = 2200
     PAGE = 5020
-    CHOICE = 5030
-    CLASS = 5031
-    FLOW = 5050
-    SERVICE = 5060
-    DATABASE = 5090
+    CHOICE = 5100
+    FLOW = 5220
+    SERVICE = 5200
+    DATABASE = 5300
     AGENT = 5640
-    TASK = 6110
     THREAD = 5510
+    TASK = 6110
 
     # text
     # NOTE: text BlockTypes should align with :TextLineTypes

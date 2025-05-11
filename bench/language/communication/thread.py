@@ -43,7 +43,6 @@ if TYPE_CHECKING:
         Message,
         Package,
         Page,
-        Plan,
         Run,
     )
 
@@ -113,7 +112,6 @@ class Thread(
     )
     memberships: LocalNodeList["Membership"] = p_node_children(NodeType.MEMBERSHIP)
     fields: LocalNodeList["Field"] = p_node_children(NodeType.FIELD)
-    plans: LocalNodeList["Plan"] = p_node_children(NodeType.PLAN)
     claims: LocalNodeList["Claim"] = p_node_children(NodeType.CLAIM)
     cursors: LocalNodeList["Cursor"] = p_node_children(NodeType.CURSOR)
     files: LocalNodeList["File"] = p_node_children(NodeType.FILE)

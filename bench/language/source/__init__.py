@@ -24,7 +24,6 @@ from .render import (
 from .schedule import Schedule, ScheduleFrequency
 from .service import Service
 from .transition import PortSide, Transition, TransitionType
-from .trigger import Trigger, TriggerEffect, TriggerStatus, TriggerType
 
 __all__ = [
     "ACTIVE_ALIASING",
@@ -54,10 +53,6 @@ __all__ = [
     "Service",
     "Transition",
     "TransitionType",
-    "Trigger",
-    "TriggerEffect",
-    "TriggerStatus",
-    "TriggerType",
     "get_active_aliasing",
     "render",
     "render_expression",

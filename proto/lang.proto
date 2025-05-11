@@ -70,9 +70,6 @@ enum EnumType {
   ENUM_TYPE_SPAN_TYPE = 22002;
   ENUM_TYPE_SESSION_STATUS = 22020;
   ENUM_TYPE_SEVERITY = 22061;
-  ENUM_TYPE_TRIGGER_TYPE = 22030;
-  ENUM_TYPE_TRIGGER_EFFECT = 22031;
-  ENUM_TYPE_TRIGGER_STATUS = 22032;
   ENUM_TYPE_SCHEDULE_FREQUENCY = 22041;
   ENUM_TYPE_CLAIM_TYPE = 22050;
   ENUM_TYPE_CLAIM_STATUS = 22051;
@@ -130,20 +127,19 @@ enum NodeType {
   NODE_TYPE_DEPENDENCY = 5010;
   NODE_TYPE_PAGE = 5020;
   NODE_TYPE_BLOCK = 5021;
-  NODE_TYPE_CHOICE = 5030;
-  NODE_TYPE_CLASS = 5031;
-  NODE_TYPE_FIELD = 5035;
-  NODE_TYPE_OPTION = 5036;
-  NODE_TYPE_FLOW = 5050;
-  NODE_TYPE_SERVICE = 5060;
-  NODE_TYPE_ACTION = 5061;
-  NODE_TYPE_TRANSITION = 5070;
-  NODE_TYPE_TRIGGER = 5080;
-  NODE_TYPE_DATABASE = 5090;
+  NODE_TYPE_CHOICE = 5100;
+  NODE_TYPE_CLASS = 5110;
+  NODE_TYPE_FIELD = 5130;
+  NODE_TYPE_OPTION = 5140;
+  NODE_TYPE_SERVICE = 5200;
+  NODE_TYPE_ACTION = 5210;
+  NODE_TYPE_FLOW = 5220;
+  NODE_TYPE_TRANSITION = 5230;
+  NODE_TYPE_DATABASE = 5300;
   NODE_TYPE_CHANNEL = 5500;
   NODE_TYPE_THREAD = 5510;
   NODE_TYPE_MESSAGE = 5520;
-  NODE_TYPE_NOTIFICATION = 5540;
+  NODE_TYPE_NOTIFICATION = 5550;
   NODE_TYPE_TEAM = 5600;
   NODE_TYPE_MEMBERSHIP = 5610;
   NODE_TYPE_INVITE = 5620;
@@ -153,12 +149,11 @@ enum NodeType {
   NODE_TYPE_RUN = 6010;
   NODE_TYPE_SPAN = 6011;
   NODE_TYPE_INTERRUPTION = 6020;
-  NODE_TYPE_PLAN = 6100;
   NODE_TYPE_TASK = 6110;
   NODE_TYPE_CLAIM = 6150;
   NODE_TYPE_CURSOR = 6170;
-  NODE_TYPE_VIEW = 7000;
-  NODE_TYPE_SPACE = 7900;
+  NODE_TYPE_SPACE = 7000;
+  NODE_TYPE_VIEW = 7900;
   NODE_TYPE_RECORD = 8000;
   NODE_TYPE_SKIP = 9998;
   NODE_TYPE_EMPTY = 9999;
@@ -226,20 +221,19 @@ enum ObjectType {
   OBJECT_TYPE_DEPENDENCY = 5010;
   OBJECT_TYPE_PAGE = 5020;
   OBJECT_TYPE_BLOCK = 5021;
-  OBJECT_TYPE_CHOICE = 5030;
-  OBJECT_TYPE_CLASS = 5031;
-  OBJECT_TYPE_FIELD = 5035;
-  OBJECT_TYPE_OPTION = 5036;
-  OBJECT_TYPE_FLOW = 5050;
-  OBJECT_TYPE_SERVICE = 5060;
-  OBJECT_TYPE_ACTION = 5061;
-  OBJECT_TYPE_TRANSITION = 5070;
-  OBJECT_TYPE_TRIGGER = 5080;
-  OBJECT_TYPE_DATABASE = 5090;
+  OBJECT_TYPE_CHOICE = 5100;
+  OBJECT_TYPE_CLASS = 5110;
+  OBJECT_TYPE_FIELD = 5130;
+  OBJECT_TYPE_OPTION = 5140;
+  OBJECT_TYPE_SERVICE = 5200;
+  OBJECT_TYPE_ACTION = 5210;
+  OBJECT_TYPE_FLOW = 5220;
+  OBJECT_TYPE_TRANSITION = 5230;
+  OBJECT_TYPE_DATABASE = 5300;
   OBJECT_TYPE_CHANNEL = 5500;
   OBJECT_TYPE_THREAD = 5510;
   OBJECT_TYPE_MESSAGE = 5520;
-  OBJECT_TYPE_NOTIFICATION = 5540;
+  OBJECT_TYPE_NOTIFICATION = 5550;
   OBJECT_TYPE_TEAM = 5600;
   OBJECT_TYPE_MEMBERSHIP = 5610;
   OBJECT_TYPE_INVITE = 5620;
@@ -249,12 +243,11 @@ enum ObjectType {
   OBJECT_TYPE_RUN = 6010;
   OBJECT_TYPE_SPAN = 6011;
   OBJECT_TYPE_INTERRUPTION = 6020;
-  OBJECT_TYPE_PLAN = 6100;
   OBJECT_TYPE_TASK = 6110;
   OBJECT_TYPE_CLAIM = 6150;
   OBJECT_TYPE_CURSOR = 6170;
-  OBJECT_TYPE_VIEW = 7000;
-  OBJECT_TYPE_SPACE = 7900;
+  OBJECT_TYPE_SPACE = 7000;
+  OBJECT_TYPE_VIEW = 7900;
   OBJECT_TYPE_RECORD = 8000;
   OBJECT_TYPE_SKIP = 9998;
   OBJECT_TYPE_EMPTY = 9999;
@@ -318,20 +311,19 @@ enum BenchType {
   BENCH_TYPE_DEPENDENCY = 5010;
   BENCH_TYPE_PAGE = 5020;
   BENCH_TYPE_BLOCK = 5021;
-  BENCH_TYPE_CHOICE = 5030;
-  BENCH_TYPE_CLASS = 5031;
-  BENCH_TYPE_FIELD = 5035;
-  BENCH_TYPE_OPTION = 5036;
-  BENCH_TYPE_FLOW = 5050;
-  BENCH_TYPE_SERVICE = 5060;
-  BENCH_TYPE_ACTION = 5061;
-  BENCH_TYPE_TRANSITION = 5070;
-  BENCH_TYPE_TRIGGER = 5080;
-  BENCH_TYPE_DATABASE = 5090;
+  BENCH_TYPE_CHOICE = 5100;
+  BENCH_TYPE_CLASS = 5110;
+  BENCH_TYPE_FIELD = 5130;
+  BENCH_TYPE_OPTION = 5140;
+  BENCH_TYPE_SERVICE = 5200;
+  BENCH_TYPE_ACTION = 5210;
+  BENCH_TYPE_FLOW = 5220;
+  BENCH_TYPE_TRANSITION = 5230;
+  BENCH_TYPE_DATABASE = 5300;
   BENCH_TYPE_CHANNEL = 5500;
   BENCH_TYPE_THREAD = 5510;
   BENCH_TYPE_MESSAGE = 5520;
-  BENCH_TYPE_NOTIFICATION = 5540;
+  BENCH_TYPE_NOTIFICATION = 5550;
   BENCH_TYPE_TEAM = 5600;
   BENCH_TYPE_MEMBERSHIP = 5610;
   BENCH_TYPE_INVITE = 5620;
@@ -341,12 +333,11 @@ enum BenchType {
   BENCH_TYPE_RUN = 6010;
   BENCH_TYPE_SPAN = 6011;
   BENCH_TYPE_INTERRUPTION = 6020;
-  BENCH_TYPE_PLAN = 6100;
   BENCH_TYPE_TASK = 6110;
   BENCH_TYPE_CLAIM = 6150;
   BENCH_TYPE_CURSOR = 6170;
-  BENCH_TYPE_VIEW = 7000;
-  BENCH_TYPE_SPACE = 7900;
+  BENCH_TYPE_SPACE = 7000;
+  BENCH_TYPE_VIEW = 7900;
   BENCH_TYPE_RECORD = 8000;
   BENCH_TYPE_SKIP = 9998;
   BENCH_TYPE_EMPTY = 9999;
@@ -451,9 +442,6 @@ enum BenchType {
   BENCH_TYPE_SPAN_TYPE = 22002;
   BENCH_TYPE_SESSION_STATUS = 22020;
   BENCH_TYPE_SEVERITY = 22061;
-  BENCH_TYPE_TRIGGER_TYPE = 22030;
-  BENCH_TYPE_TRIGGER_EFFECT = 22031;
-  BENCH_TYPE_TRIGGER_STATUS = 22032;
   BENCH_TYPE_SCHEDULE_FREQUENCY = 22041;
   BENCH_TYPE_CLAIM_TYPE = 22050;
   BENCH_TYPE_CLAIM_STATUS = 22051;
@@ -921,14 +909,13 @@ enum BlockType {
   BLOCK_TYPE_COMPUTER = 2100;
   BLOCK_TYPE_FILE = 2200;
   BLOCK_TYPE_PAGE = 5020;
-  BLOCK_TYPE_CHOICE = 5030;
-  BLOCK_TYPE_CLASS = 5031;
-  BLOCK_TYPE_FLOW = 5050;
-  BLOCK_TYPE_SERVICE = 5060;
-  BLOCK_TYPE_DATABASE = 5090;
+  BLOCK_TYPE_CHOICE = 5100;
+  BLOCK_TYPE_FLOW = 5220;
+  BLOCK_TYPE_SERVICE = 5200;
+  BLOCK_TYPE_DATABASE = 5300;
   BLOCK_TYPE_AGENT = 5640;
-  BLOCK_TYPE_TASK = 6110;
   BLOCK_TYPE_THREAD = 5510;
+  BLOCK_TYPE_TASK = 6110;
   BLOCK_TYPE_PARAGRAPH = 10001;
   BLOCK_TYPE_HEADING_1 = 10010;
   BLOCK_TYPE_HEADING_2 = 10011;
@@ -1200,24 +1187,6 @@ enum Severity {
   SEVERITY_PANIC = 6;
 }
 
-enum TriggerType {
-  TRIGGER_TYPE_UNSPECIFIED = 0;
-  TRIGGER_TYPE_SCHEDULE = 10;
-}
-
-enum TriggerEffect {
-  TRIGGER_EFFECT_UNSPECIFIED = 0;
-  TRIGGER_EFFECT_WAKE = 10;
-  TRIGGER_EFFECT_RUN = 20;
-}
-
-enum TriggerStatus {
-  TRIGGER_STATUS_UNSPECIFIED = 0;
-  TRIGGER_STATUS_INACTIVE = 1;
-  TRIGGER_STATUS_OPEN = 10;
-  TRIGGER_STATUS_CLOSED = 20;
-}
-
 enum ScheduleFrequency {
   SCHEDULE_FREQUENCY_UNSPECIFIED = 0;
   SCHEDULE_FREQUENCY_YEAR = 1;
@@ -1379,20 +1348,18 @@ enum ViewType {
   VIEW_TYPE_COMPUTER = 2100;
   VIEW_TYPE_PAGE = 5020;
   VIEW_TYPE_BLOCK = 5021;
-  VIEW_TYPE_CHOICE = 5030;
-  VIEW_TYPE_CLASS = 5031;
-  VIEW_TYPE_FIELD = 5035;
-  VIEW_TYPE_FLOW = 5050;
-  VIEW_TYPE_ACTION = 5061;
-  VIEW_TYPE_TRANSITION = 5070;
-  VIEW_TYPE_TRIGGER = 5080;
-  VIEW_TYPE_SERVICE = 5060;
-  VIEW_TYPE_DATABASE = 5090;
+  VIEW_TYPE_CHOICE = 5100;
+  VIEW_TYPE_CLASS = 5110;
+  VIEW_TYPE_FIELD = 5130;
+  VIEW_TYPE_FLOW = 5220;
+  VIEW_TYPE_ACTION = 5210;
+  VIEW_TYPE_TRANSITION = 5230;
+  VIEW_TYPE_SERVICE = 5200;
+  VIEW_TYPE_DATABASE = 5300;
   VIEW_TYPE_CHANNEL = 5500;
   VIEW_TYPE_THREAD = 5510;
   VIEW_TYPE_AGENT = 5640;
   VIEW_TYPE_RUN = 6010;
-  VIEW_TYPE_PLAN = 6100;
   VIEW_TYPE_TASK = 6110;
   VIEW_TYPE_OBJECT = 10000;
   VIEW_TYPE_TYPE = 10001;
@@ -2795,45 +2762,6 @@ message CursorData {
   optional NodeReferenceData user_ptr = 97;
 }
 
-message PlanData {
-  ObjectType metatype = 1;
-  string id = 2;
-  string ck = 3;
-  optional NodeReferenceData parent_ptr = 4;
-  optional NodeReferenceData bench_ptr = 5;
-  optional NodeReferenceData package_ptr = 9;
-  google.protobuf.Timestamp created_at = 10;
-  optional NodeReferenceData created_by_ptr = 11;
-  google.protobuf.Timestamp updated_at = 12;
-  optional NodeReferenceData updated_by_ptr = 13;
-  optional google.protobuf.Timestamp archived_at = 14;
-  optional google.protobuf.Timestamp deleted_at = 15;
-  optional NodeReferenceData template_ptr = 16;
-  optional NodeReferenceData owned_by_ptr = 17;
-  optional NodeReferenceData claimed_by_ptr = 18;
-  NodeMode mode = 20;
-  optional TextLineData title = 32;
-  optional string order_key = 33;
-  optional IconData icon = 34;
-  optional NodeReferenceData definition_ptr = 35;
-  ProcessStatus status = 80;
-  optional google.protobuf.Duration duration = 81;
-  optional ErrorData error = 82;
-  optional NodeReferenceData interruption_ptr = 83;
-  optional google.protobuf.Timestamp scheduled_at = 85;
-  optional google.protobuf.Timestamp started_at = 86;
-  optional google.protobuf.Timestamp active_at = 87;
-  optional google.protobuf.Timestamp interrupted_at = 88;
-  optional google.protobuf.Timestamp terminated_at = 89;
-  optional google.protobuf.Timestamp requested_stop_at = 90;
-  optional google.protobuf.Timestamp requested_pause_at = 91;
-  optional google.protobuf.Timestamp requested_resume_at = 92;
-  optional NodeReferenceData session_ptr = 94;
-  optional NodeReferenceData client_ptr = 95;
-  optional NodeReferenceData computer_ptr = 96;
-  optional NodeReferenceData user_ptr = 97;
-}
-
 message TaskData {
   ObjectType metatype = 1;
   string id = 2;
@@ -2932,9 +2860,6 @@ message RunData {
   optional NodeReferenceData service_ptr = 72;
   optional NodeReferenceData action_ptr = 73;
   optional NodeReferenceData transition_ptr = 74;
-  optional NodeReferenceData trigger_ptr = 75;
-  optional NodeReferenceData target_ptr = 76;
-  optional NodeReferenceData plan_ptr = 77;
   optional NodeReferenceData task_ptr = 78;
   ProcessStatus status = 80;
   optional google.protobuf.Duration duration = 81;
@@ -3003,9 +2928,6 @@ message SpanData {
   optional NodeReferenceData service_ptr = 72;
   optional NodeReferenceData action_ptr = 73;
   optional NodeReferenceData transition_ptr = 74;
-  optional NodeReferenceData trigger_ptr = 75;
-  optional NodeReferenceData target_ptr = 76;
-  optional NodeReferenceData plan_ptr = 77;
   optional NodeReferenceData task_ptr = 78;
   ProcessStatus status = 80;
   optional google.protobuf.Duration duration = 81;
@@ -3343,33 +3265,6 @@ message ServiceData {
   optional NodeReferenceData target_ptr = 40;
 }
 
-message TriggerData {
-  ObjectType metatype = 1;
-  string id = 2;
-  optional NodeReferenceData parent_ptr = 4;
-  optional NodeReferenceData bench_ptr = 5;
-  optional NodeReferenceData package_ptr = 9;
-  google.protobuf.Timestamp created_at = 10;
-  optional NodeReferenceData created_by_ptr = 11;
-  google.protobuf.Timestamp updated_at = 12;
-  optional NodeReferenceData updated_by_ptr = 13;
-  optional google.protobuf.Timestamp archived_at = 14;
-  optional google.protobuf.Timestamp deleted_at = 15;
-  optional NodeReferenceData template_ptr = 16;
-  NodeMode mode = 20;
-  TriggerType type = 30;
-  optional string name = 32;
-  TriggerEffect effect = 34;
-  optional NodeReferenceData run_root_ptr = 36;
-  optional NodeReferenceData run_ptr = 37;
-  optional NodeReferenceData interruption_ptr = 38;
-  TriggerStatus status = 40;
-  optional google.protobuf.Timestamp processed_at = 41;
-  int32 processed_count = 42;
-  optional string processed_key = 43;
-  optional google.protobuf.Timestamp closed_at = 45;
-}
-
 message SpaceData {
   ObjectType metatype = 1;
   string id = 2;
@@ -3394,7 +3289,6 @@ message SpaceData {
   optional NodeReferenceData container_ptr = 73;
   optional NodeReferenceData page_ptr = 74;
   optional NodeReferenceData thread_ptr = 75;
-  optional NodeReferenceData run_ptr = 76;
 }
 
 message ViewData {
@@ -3477,34 +3371,32 @@ message SomeNodeData {
     ClassData class = 16;
     FieldData field = 17;
     OptionData option = 18;
-    FlowData flow = 19;
-    ServiceData service = 20;
-    ActionData action = 21;
+    ServiceData service = 19;
+    ActionData action = 20;
+    FlowData flow = 21;
     TransitionData transition = 22;
-    TriggerData trigger = 23;
-    DatabaseData database = 24;
-    ChannelData channel = 25;
-    ThreadData thread = 26;
-    MessageData message = 27;
-    NotificationData notification = 28;
-    TeamData team = 29;
-    MembershipData membership = 30;
-    InviteData invite = 31;
-    RoleData role = 32;
-    AgentData agent = 33;
-    SessionData session = 34;
-    RunData run = 35;
-    SpanData span = 36;
-    InterruptionData interruption = 37;
-    PlanData plan = 38;
-    TaskData task = 39;
-    ClaimData claim = 40;
-    CursorData cursor = 41;
-    ViewData view = 42;
-    SpaceData space = 43;
-    RecordData record = 44;
-    SkipData skip = 45;
-    EmptyData empty = 46;
+    DatabaseData database = 23;
+    ChannelData channel = 24;
+    ThreadData thread = 25;
+    MessageData message = 26;
+    NotificationData notification = 27;
+    TeamData team = 28;
+    MembershipData membership = 29;
+    InviteData invite = 30;
+    RoleData role = 31;
+    AgentData agent = 32;
+    SessionData session = 33;
+    RunData run = 34;
+    SpanData span = 35;
+    InterruptionData interruption = 36;
+    TaskData task = 37;
+    ClaimData claim = 38;
+    CursorData cursor = 39;
+    SpaceData space = 40;
+    ViewData view = 41;
+    RecordData record = 42;
+    SkipData skip = 43;
+    EmptyData empty = 44;
   };
 }
 

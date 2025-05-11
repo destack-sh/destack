@@ -48,7 +48,7 @@ class _Unset:
 
 
 # forever constants
-VERSION = "2025.05.10.2"
+VERSION = "2025.05.11.0"
 UUID_NAMESPACE = uuid5(UUID(int=0), b"bench")
 CK_LENGTH_B64 = 24  # 1.5 * CK_LENGTH_BYTES (must be integer)
 FLOAT_EPSILON = 1e-6
@@ -391,9 +391,6 @@ class EnumType(BuiltinEnum):
     SPAN_TYPE = 22002
     SESSION_STATUS = 22020
     SEVERITY = 22061
-    TRIGGER_TYPE = 22030
-    TRIGGER_EFFECT = 22031
-    TRIGGER_STATUS = 22032
     SCHEDULE_FREQUENCY = 22041
     CLAIM_TYPE = 22050
     CLAIM_STATUS = 22051
@@ -510,9 +507,10 @@ class NodeType(BuiltinEnum):
     #
 
     # cosmos
-    BENCH = 1, "Bench", "Universal workbench", "fas fa-layer-group"
+    BENCH = 1, "Bench", "Universal workbench", "https://heybench.com/favicon.ico"
     HANDLE = 2, "Handle", "Unique identifier", "fas fa-at"
     USER = 10, "User", "Human user", "fas fa-user"
+    # PROFILE, CREDENTIAL, ...
     ORGANIZATION = 20, "Organization", "Organization", "fas fa-building"
     CLIENT = 50, "Client", "Client device", "fas fa-desktop"
     # CHALLENGE?
@@ -522,6 +520,7 @@ class NodeType(BuiltinEnum):
     #
 
     # compute
+    # nocheckin: STORE->DATABASE, DATABASE->TABLE
     SCALER = 2000, "Scaler", "Autoscale Resources", "fas fa-scale-unbalanced"
     STORE = 2010, "Store", "Store custom data", "fas fa-database"
     # VAULT?
@@ -548,23 +547,29 @@ class NodeType(BuiltinEnum):
     # model?
     # ...
 
-    # source
+    # package
     PACKAGE = 5000, "Package", "Isolated sub-Bench", "fas fa-box-open"
     DEPENDENCY = 5010, "Dependency", "Dependency to something", "fas fa-turn-down-right"
     PAGE = 5020, "Page", "Page of Blocks", "far fa-file"
     BLOCK = 5021, "Block", "Rich Block on a Page", "fas fa-cube"
-    CHOICE = 5030, "Choice", "Choice between Options", "fas fa-circle-chevron-down"
-    CLASS = 5031, "Class", "Class", "fas fa-shapes"
+
+    # typing
+    CHOICE = 5100, "Choice", "Choice between Options", "fas fa-circle-chevron-down"
+    CLASS = 5110, "Class", "Class", "fas fa-shapes"
     # UNION?
-    FIELD = 5035, "Field", "Field", "fas fa-triangle"
-    OPTION = 5036, "Option", "Option", "far fa-square-check"
+    FIELD = 5130, "Field", "Field", "fas fa-triangle"
+    OPTION = 5140, "Option", "Option", "far fa-square-check"
     # TAG?
-    FLOW = 5050, "Flow", "Link Actions together", "fas fa-diagram-project"
-    SERVICE = 5060, "Service", "Service", "fas fa-screwdriver-wrench"
-    ACTION = 5061, "Action", "Action", "fas fa-step-forward"
-    TRANSITION = 5070, "Transition", "Transition between Nodes", "fas fa-link"
-    TRIGGER = 5080, "Trigger", "Trigger to do something", "fas fa-bolt"
-    DATABASE = 5090, "Database", "Database of Records", "fas fa-database"
+
+    # services
+    SERVICE = 5200, "Service", "Service", "fas fa-screwdriver-wrench"
+    ACTION = 5210, "Action", "Action", "fas fa-step-forward"
+    FLOW = 5220, "Flow", "Link Actions together", "fas fa-diagram-project"
+    TRANSITION = 5230, "Transition", "Transition between Nodes", "fas fa-link"
+    # TRIGGER? TIMER? BREAKPOINT?
+
+    # state?
+    DATABASE = 5300, "Database", "Database of Records", "fas fa-database"
 
     # communication
     CHANNEL = 5500, "Channel", "Channel", "fas fa-hashtag"
@@ -572,7 +577,7 @@ class NodeType(BuiltinEnum):
     MESSAGE = 5520, "Message", "Message", "fas fa-message"
     # POLL?
     # REACTION?
-    NOTIFICATION = 5540, "Notification", "Notification", "fas fa-bell"
+    NOTIFICATION = 5550, "Notification", "Notification", "fas fa-bell"
 
     # identity
     TEAM = 5600, "Team", "Group of Users or Agents", "fas fa-users"
@@ -581,6 +586,8 @@ class NodeType(BuiltinEnum):
     ROLE = 5630, "Role", "Role", "fas fa-user-tag"
     AGENT = 5640, "Agent", "Identity for an AI", "fas fa-robot"
     # PROFILE? (for User)
+
+    # permissioning
     # CHALLENGE?
     # BADGE? POLICY? RULE?
 
@@ -589,19 +596,20 @@ class NodeType(BuiltinEnum):
     RUN = 6010, "Run", "Run", "fas fa-play"
     SPAN = 6011, "Span", "Span", "fas fa-ruler-horizontal"
     INTERRUPTION = 6020, "Interruption", "Interruption", "fas fa-hand"
-    # LOG? BREAKPOINT?
+    # LOG?
 
     # orchestration
-    PLAN = 6100, "Plan", "Plan with Tasks", "fas fa-list-check"
+    # PLAN?
     TASK = 6110, "Task", "To-do item", "far fa-square-check"
     CLAIM = 6150, "Claim", "Control over something", "fas fa-stamp"
     CURSOR = 6170, "Cursor", "Position in something", "fas fa-mouse"
     # ENTITLEMENT, POOL, LOCK, BARRIER, ...?
 
+    # ... all the Views once we have :PolyViews
+    SPACE = 7000, "Space", "Space", "fas fa-space-between"
+
     # view
-    VIEW = 7000, "View", "View", "fas fa-window-frame"  # :PolyViews
-    # ... all the Views once we have :PolcyViews
-    SPACE = 7900, "Space", "Space", "fas fa-space-between"
+    VIEW = 7900, "View", "View", "fas fa-window-frame"  # :PolyViews
 
     #
     # Local (8000-10000)
@@ -730,7 +738,6 @@ PAGE_NODE_TYPES = bittuple(
     NodeType.ROLE,
     NodeType.VIEW,
     NodeType.TASK,
-    NodeType.PLAN,
     NodeType.THREAD,
     NodeType.CHANNEL,
     NodeType.TEAM,
@@ -742,7 +749,6 @@ INSTANTIABLE_NODE_TYPES = bittuple(
     NodeType.FIELD,
     NodeType.OPTION,
     NodeType.DATABASE,
-    NodeType.PLAN,
     NodeType.TASK,
     NodeType.THREAD,
     NodeType.CLAIM,
@@ -772,7 +778,6 @@ LOADED_PACKAGE_NODE_TYPES = bittuple(
     NodeType.MEMBERSHIP,
     NodeType.ROLE,
     NodeType.AGENT,
-    NodeType.PLAN,
     NodeType.TASK,
     NodeType.CLAIM,
     NodeType.SPACE,

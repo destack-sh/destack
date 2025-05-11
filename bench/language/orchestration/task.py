@@ -28,7 +28,7 @@ from bench.language.core import (
 from bench.pb2 import TaskData
 
 if TYPE_CHECKING:
-    from bench.language import Node, NodeReference, Page, Plan, Trigger
+    from bench.language import Node, NodeReference, Page
 
 # pyright: reportIncompatibleVariableOverride=false
 
@@ -47,9 +47,7 @@ class Task(
     """A Task is like a to do item."""
 
     # meta
-    parent: Union["Page", "Plan", "Task", None] = p_node_parent(
-        4, NodeType.PAGE, NodeType.PLAN, NodeType.TASK
-    )
+    parent: Union["Page", "Task", None] = p_node_parent(4, NodeType.PAGE, NodeType.TASK)
     # type?
     # priority?
 
@@ -68,7 +66,6 @@ class Task(
 
     # ...IsProcessable[80-]
 
-    triggers: NodeList["Trigger"] = p_node_children(NodeType.TRIGGER)
     tasks: NodeList["Task"] = p_node_children(NodeType.TASK)
 
     def start(self) -> None:
