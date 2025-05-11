@@ -15,7 +15,6 @@ from bench.language import (
     NodeReference,
     NodeType,
     Page,
-    Plan,
     Run,
     Span,
     Task,
@@ -211,22 +210,6 @@ class AgentPiece(NodePiece[Agent]):
             self_alias = prompt.renderer.aliasing.get_or_add(self.node)
             rendered_node = f"# THIS IS WHO YOU ARE: {self_alias}\n{rendered_node}"
         yield CodePiece(code=rendered_node)
-
-
-@piece_(NodeType.PLAN)
-class PlanPiece(NodePiece[Plan]):
-    @override
-    def compile(self, prompt: "Prompt", tokenizer: Tokenizer) -> Generator[Piece, None, None]:
-        yield SeparatorPiece()
-        # header (plan)
-        rendered_node = prompt.renderer.render_statement(self.node, append=False, format=True)
-        rendered_node = f"# {self.node.absolute_path}\n{rendered_node}"
-        yield CodePiece(code=rendered_node)
-        yield SeparatorPiece()
-        # tasks
-        for task in self.node.tasks:
-            yield TaskPiece(node=task)
-        yield SeparatorPiece()
 
 
 @piece_(NodeType.TASK)

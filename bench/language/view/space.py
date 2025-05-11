@@ -24,7 +24,7 @@ from bench.pb2 import SpaceData
 from bench.utils.fractional import INTEGER_ZERO
 
 if TYPE_CHECKING:
-    from bench.language import Package, Page, Run, Thread, View
+    from bench.language import Package, Page, Thread, View
 
 # pyright: reportIncompatibleVariableOverride=false
 
@@ -91,14 +91,7 @@ class Space(IsOwnable, IsTemplatable, IsModal, PackageNode[SpaceData]):
         require=False,
         array=False,
         references=NodeType.THREAD,
-        description="The current main Thread.",
-    )
-    run: Optional["Run"] = p_regular(
-        76,
-        default=None,
-        require=False,
-        array=False,
-        references=NodeType.RUN,
+        description="The current Thread.",
     )
 
     views: LocalNodeList["View"] = p_node_children(NodeType.VIEW)

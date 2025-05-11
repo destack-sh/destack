@@ -83,7 +83,6 @@ tracer = trace.get_tracer(__name__)
 RUN_QUERY = Run.include_descendants(
     NodeType.RUN,
     NodeType.SPAN,
-    NodeType.PLAN,
     NodeType.TASK,
     NodeType.INTERRUPTION,
 )
@@ -92,7 +91,6 @@ RUN_QUERY = Run.include_descendants(
 THREAD_QUERY = Thread.include_descendants(
     *RESOURCE_NODE_TYPES,
     NodeType.MEMBERSHIP,
-    NodeType.PLAN,
     NodeType.TASK,
     NodeType.CLAIM,
     NodeType.AGENT,

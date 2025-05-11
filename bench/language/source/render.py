@@ -64,7 +64,7 @@ from .page import Page
 from .transition import Transition
 
 if TYPE_CHECKING:
-    from bench.language import Claim, Message, Plan, Task, View
+    from bench.language import Claim, Message, Task, View
 
 logger = structlog.get_logger(__name__)
 tracer = trace.get_tracer(__name__)
@@ -938,28 +938,6 @@ class OptionRenderer(PackageNodeRenderer[Option]):
             renderer.render_kwargs(**rendered_kwargs) or None,
         )
         return f"Option.new({renderer.render_args(*args)})"
-
-
-@_renderer(NodeType.PLAN)
-class PlanRenderer(NodeRenderer["Plan"]):
-    @override
-    def _render_constructor(
-        self,
-        renderer: "Renderer",
-        obj: "Plan",
-        kwargs: dict[Property, Any],
-        rendered_kwargs: dict[str, str],
-    ) -> str:
-        # inline tasks like in Class.new
-        tasks_refs = [renderer.render_builtin_object(task) for task in obj.tasks]
-        rendered_kwargs.pop("type", None)
-        rendered_kwargs.pop("tasks", None)
-        args = (
-            rendered_kwargs.pop("title"),
-            *tasks_refs,
-            renderer.render_kwargs(**rendered_kwargs) or None,
-        )
-        return f"Plan.new({renderer.render_args(*args)})"
 
 
 @_renderer(NodeType.TASK)

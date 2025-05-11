@@ -11,7 +11,6 @@ from bench.language.core import (
     bittuple,
     node_component_,
     p_internal,
-    p_regular,
     struct_,
 )
 
@@ -23,14 +22,12 @@ if TYPE_CHECKING:
         Message,
         NodeReference,
         Page,
-        Plan,
         Run,
         Service,
         Session,
         Span,
         Task,
         Transition,
-        Trigger,
     )
 
 # pyright: reportIncompatibleVariableOverride=false
@@ -84,30 +81,6 @@ class IsRun(BuiltinObject):
         same_bench=True,
         description="The Transition this Run is executing.",
     )
-    trigger: Optional["Trigger"] = p_regular(
-        75,
-        require=False,
-        array=False,
-        references=NodeType.TRIGGER,
-        same_bench=True,
-        description="The Trigger this Run is triggered by.",
-    )
-    target: Optional[RunTarget] = p_internal(
-        76,
-        require=False,
-        array=False,
-        references=RUN_TARGET_TYPES.tuple,
-        same_bench=True,
-        description="The specific target Node this Run is for.",
-    )
-    plan: Optional["Plan"] = p_internal(
-        77,
-        require=False,
-        array=False,
-        references=NodeType.PLAN,
-        same_bench=True,
-        description="The manual Plan this Run is following (leaf).",
-    )
     task: Optional["Task"] = p_internal(
         78,
         require=False,
@@ -128,13 +101,6 @@ class IsRun(BuiltinObject):
         action_ck: Optional[UUID] = None
         transition_ptr: Optional[NodeReference] = None
         transition_id: Optional[UUID] = None
-        incoming_ptr: tuple["NodeReference", ...] = ()
-        trigger_ptr: Optional[NodeReference] = None
-        trigger_id: Optional[UUID] = None
-        message_ptr: Optional[NodeReference] = None
-        message_id: Optional[UUID] = None
-        plan_ptr: Optional[NodeReference] = None
-        plan_id: Optional[UUID] = None
         task_ptr: Optional[NodeReference] = None
         task_id: Optional[UUID] = None
 

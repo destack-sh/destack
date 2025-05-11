@@ -46,7 +46,6 @@ if TYPE_CHECKING:
         Organization,
         Package,
         Page,
-        Plan,
         Record,
         Resource,
         Run,
@@ -74,7 +73,6 @@ Ownable = Union[
     "View",
     "Database",
     "Thread",
-    "Plan",
     "Task",
     "Claim",
     "Agent",
@@ -93,7 +91,6 @@ OWNABLE_NODE_TYPES = bittuple(
     NodeType.VIEW,
     NodeType.DATABASE,
     NodeType.THREAD,
-    NodeType.PLAN,
     NodeType.TASK,
     NodeType.CLAIM,
     NodeType.AGENT,
@@ -110,7 +107,6 @@ Claimable = Union[
     "Service",
     "View",
     "Database",
-    "Plan",
     "Task",
     "Agent",
     "Record",
@@ -123,7 +119,6 @@ CLAIMABLE_NODE_TYPES = bittuple(
     NodeType.SERVICE,
     NodeType.VIEW,
     NodeType.DATABASE,
-    NodeType.PLAN,
     NodeType.TASK,
     NodeType.AGENT,
     NodeType.RECORD,
@@ -148,12 +143,11 @@ SUBJECT_NODE_TYPES = bittuple(
 Runnable = Union["Agent", "Flow", "Action", "Transition"]
 RUNNABLE_NODE_TYPES = bittuple(NodeType.AGENT, NodeType.FLOW, NodeType.ACTION, NodeType.TRANSITION)
 
-Processable = Union["Channel", "Thread", "Agent", "Task", "Plan", "Run", "Span"]
+Processable = Union["Channel", "Thread", "Agent", "Task", "Run", "Span"]
 PROCESSABLE_NODE_TYPES = bittuple(
     NodeType.CHANNEL,
     NodeType.THREAD,
     NodeType.AGENT,
-    NodeType.PLAN,
     NodeType.RUN,
     NodeType.TASK,
     NodeType.SPAN,
@@ -165,7 +159,6 @@ Timed = Union[
     "Notification",
     "Thread",
     "Agent",
-    "Plan",
     "Task",
     "Interruption",
     "Run",
@@ -176,7 +169,6 @@ TIMED_NODE_TYPES = bittuple(
     NodeType.NOTIFICATION,
     NodeType.THREAD,
     NodeType.AGENT,
-    NodeType.PLAN,
     NodeType.TASK,
     NodeType.INTERRUPTION,
     NodeType.RUN,

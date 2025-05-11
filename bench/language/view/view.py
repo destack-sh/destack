@@ -42,25 +42,22 @@ class ViewType(BuiltinEnum):
     #
     # Intrinsics (0-30000)
     #
-
     # nodes (0-10000)
     COMPUTER = 2100
     PAGE = 5020
     BLOCK = 5021
-    CHOICE = 5030
-    CLASS = 5031
-    FIELD = 5035
-    FLOW = 5050
-    ACTION = 5061
-    TRANSITION = 5070
-    TRIGGER = 5080
-    SERVICE = 5060
-    DATABASE = 5090
+    CHOICE = 5100
+    CLASS = 5110
+    FIELD = 5130
+    FLOW = 5220
+    ACTION = 5210
+    TRANSITION = 5230
+    SERVICE = 5200
+    DATABASE = 5300
     CHANNEL = 5500
     THREAD = 5510
     AGENT = 5640
     RUN = 6010
-    PLAN = 6100
     TASK = 6110
 
     # objects (10000-20000)
