@@ -41,7 +41,7 @@ async def make(
         BUILTIN_LOCAL_SCHEMA,
         BUILTIN_REGIONAL_SCHEMA,
         Migration,
-        Schema,
+        SqlSchema,
         SqlUndefinedObjectError,
         add_migration_to_fs,
         generate_sql_migration_code,
@@ -110,7 +110,7 @@ async def make(
                 console.print(f"[red]couldn't make migrations (missing --from-scratch?): {e}[/red]")
                 sys.exit(-1)
         else:
-            old_local_schema = Schema.blank()
+            old_local_schema = SqlSchema.blank()
         local_migration_ops = generate_sql_migration_ops(
             old_schema=old_local_schema, new_schema=BUILTIN_LOCAL_SCHEMA
         )

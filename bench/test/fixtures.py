@@ -39,7 +39,7 @@ from bench.sql import (
     BUILTIN_LOCAL_TABLES,
     BUILTIN_REGIONAL_SCHEMA,
     BUILTIN_REGIONAL_TABLES,
-    Schema,
+    SqlSchema,
     apply_sql_migration_ops,
     generate_sql_migration_ops,
     get_pg_pool,
@@ -146,7 +146,7 @@ async def create_blank_test_db(store: Store):
         await conn.execute(sqlstr(f'CREATE DATABASE "{store.external_name}"'))
 
 
-async def create_test_db(store: Store, schema: Schema):
+async def create_test_db(store: Store, schema: SqlSchema):
     """Creates a postgres DB with one of our schemas"""
     await create_blank_test_db(store)
     async with pg_connection(store, owner=store, autocommit=True) as conn:
@@ -211,7 +211,7 @@ async def omni_store(request: pytest.FixtureRequest):
     for table in (*BUILTIN_GLOBAL_TABLES, *BUILTIN_REGIONAL_TABLES, *BUILTIN_LOCAL_TABLES):
         ALL_TABLES[table.name] = table
     ALL_TABLES = tuple(ALL_TABLES.values())
-    OMNI_SCHEMA = Schema(ALL_EXTENSIONS, ALL_TABLES)
+    OMNI_SCHEMA = SqlSchema(ALL_EXTENSIONS, ALL_TABLES)
 
     store = make_global_store(f"test-{clean_name(request.node.name)[:32]}-omni")
     await create_test_db(store, OMNI_SCHEMA)

@@ -48,7 +48,7 @@ class _Unset:
 
 
 # forever constants
-VERSION = "2025.05.11.0"
+VERSION = "2025.05.11.1"
 UUID_NAMESPACE = uuid5(UUID(int=0), b"bench")
 CK_LENGTH_B64 = 24  # 1.5 * CK_LENGTH_BYTES (must be integer)
 FLOAT_EPSILON = 1e-6
@@ -526,7 +526,7 @@ class NodeType(BuiltinEnum):
     # VAULT?
     # CACHE?
     COMPUTER = 2100, "Computer", "Machine for computing", "fas fa-computer-classic"
-    # APPLICATION, SNAPSHOT, NETWORK, ...
+    # SERVICE, DEPLOYMENT, APPLICATION, SNAPSHOT, NETWORK, ...
 
     # data
     FILE = 2200, "File", "File", "fas fa-file"
@@ -569,7 +569,7 @@ class NodeType(BuiltinEnum):
     # TRIGGER? TIMER? BREAKPOINT?
 
     # state?
-    DATABASE = 5300, "Database", "Database of Records", "fas fa-database"
+    TABLE = 5300, "Table", "Table of Records", "fas fa-table"
 
     # communication
     CHANNEL = 5500, "Channel", "Channel", "fas fa-hashtag"
@@ -731,7 +731,7 @@ PAGE_NODE_TYPES = bittuple(
     *RESOURCE_NODE_TYPES,
     NodeType.CHOICE,
     NodeType.CLASS,
-    NodeType.DATABASE,
+    NodeType.TABLE,
     NodeType.FLOW,
     NodeType.SERVICE,
     NodeType.PAGE,
@@ -748,7 +748,7 @@ INSTANTIABLE_NODE_TYPES = bittuple(
     NodeType.ACTION,
     NodeType.FIELD,
     NodeType.OPTION,
-    NodeType.DATABASE,
+    NodeType.TABLE,
     NodeType.TASK,
     NodeType.THREAD,
     NodeType.CLAIM,

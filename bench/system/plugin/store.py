@@ -60,7 +60,7 @@ class NeonStoreProvisioner(StoreProvisioner):
             assert resource.bench_id, f"{resource!r} has no bench"
             async with self.host.session(commit=True):
                 resource.external_name = f"{ENV}-{resource.bench_id}"
-        # create postgres database ('project')
+        # create postgres table ('project')
         neon_project = await self._neon_api.create_project(
             name=resource.external_name, region=resource.region, pg_version=16
         )
@@ -80,7 +80,7 @@ class NeonStoreProvisioner(StoreProvisioner):
 
 
 class LocalhostStoreProvisioner(StoreProvisioner):
-    """Provision Stores as local Postgres databases (in the existing database)."""
+    """Provision Stores as local Postgres tables (in the existing table)."""
 
     @override
     async def _do_provision(self, resource: Store):
@@ -90,10 +90,10 @@ class LocalhostStoreProvisioner(StoreProvisioner):
             assert resource.bench_id, f"{resource!r} has no bench"
             async with self.host.session(commit=True):
                 resource.external_name = f"{ENV}-{resource.bench_id}"
-        # create database through existing connection
+        # create table through existing connection
         # (use same postgres instance as global store)
         async with pg_connection(self.host.global_store, owner=self, autocommit=True) as conn:
-            await conn.execute(sqlstr(f'CREATE DATABASE "{resource.external_name}"'))
+            await conn.execute(sqlstr(f'CREATE TABLE "{resource.external_name}"'))
         async with self.host.session(commit=True):
             sql_url = self.host.global_store.sql_url
             assert sql_url, f"{self.host.global_store!r} has no SQL URL"
@@ -104,6 +104,6 @@ class LocalhostStoreProvisioner(StoreProvisioner):
 
     @override
     async def _do_decommission(self, resource: Store):
-        # drop database through existing connection
+        # drop table through existing connection
         async with pg_connection(self.host.global_store, owner=self, autocommit=True) as conn:
-            await conn.execute(sqlstr(f'DROP DATABASE "{resource.external_name}"'))
+            await conn.execute(sqlstr(f'DROP TABLE "{resource.external_name}"'))

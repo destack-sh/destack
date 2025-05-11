@@ -36,7 +36,7 @@ class CursorType(BuiltinEnum):
 
     THREAD = 5510, "Thread", None, None, None
     PAGE = 5020, "Page", None, None, None
-    DATABASE = 5090, "Database", None, None, None
+    TABLE = 5090, "Table", None, None, None
     ACTION = 5051, "Action", None, None, None
     WEB = 10000, "Web", None, None, None
     CUSTOM = 9000, "Custom", None, None, None

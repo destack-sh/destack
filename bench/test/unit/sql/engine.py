@@ -27,11 +27,11 @@ from bench.language import (
 )
 from bench.sql import (
     GLOBAL_EXTENSIONS,
-    Column,
     NullContext,
     RowIn,
-    Schema,
-    Table,
+    SqlColumn,
+    SqlSchema,
+    SqlTable,
     force_create_schema,
     pg_connection,
     pg_delete,
@@ -55,26 +55,29 @@ TEST_PRIMITIVE_TYPES = (
     PrimitiveType.JSON,
     PrimitiveType.BYTES,
 )
-MINI_REGULAR_TABLE = Table(
+MINI_REGULAR_TABLE = SqlTable(
     "_test_mini_table",
     columns=(
-        Column("id", PrimitiveType.INT32, is_primary_key=True),
-        Column("foo", PrimitiveType.STRING),
-        Column("foo_n", PrimitiveType.STRING, is_nullable=True),
+        SqlColumn("id", PrimitiveType.INT32, is_primary_key=True),
+        SqlColumn("foo", PrimitiveType.STRING),
+        SqlColumn("foo_n", PrimitiveType.STRING, is_nullable=True),
     ),
 )
-REGULAR_TABLE = Table(
+REGULAR_TABLE = SqlTable(
     "_test_regular_table",
     columns=(
-        Column("id", PrimitiveType.INT32, is_primary_key=True),
-        *(Column(f"regular_{t.name.lower()}", t) for t in TEST_PRIMITIVE_TYPES),
-        *(Column(f"regular_{t.name.lower()}_n", t, is_nullable=True) for t in TEST_PRIMITIVE_TYPES),
-        *(Column(f"regular_{t.name.lower()}_a", t, is_array=True) for t in TEST_PRIMITIVE_TYPES),
+        SqlColumn("id", PrimitiveType.INT32, is_primary_key=True),
+        *(SqlColumn(f"regular_{t.name.lower()}", t) for t in TEST_PRIMITIVE_TYPES),
+        *(
+            SqlColumn(f"regular_{t.name.lower()}_n", t, is_nullable=True)
+            for t in TEST_PRIMITIVE_TYPES
+        ),
+        *(SqlColumn(f"regular_{t.name.lower()}_a", t, is_array=True) for t in TEST_PRIMITIVE_TYPES),
     ),
 )
 
 TEST_TABLES = (MINI_REGULAR_TABLE, REGULAR_TABLE)
-TEST_SCHEMA = Schema(extensions=GLOBAL_EXTENSIONS, tables=TEST_TABLES)
+TEST_SCHEMA = SqlSchema(extensions=GLOBAL_EXTENSIONS, tables=TEST_TABLES)
 
 # NOTE :Test: convert sql test values to hypothesis strategies?
 COLUMN_VALUE_GENERATORS: Mapping[PrimitiveType, Callable[[], Any]] = {
@@ -99,7 +102,7 @@ async def test_cur(blank_store: Store):
 
 
 @pytest.mark.parametrize("table", TEST_TABLES, ids=lambda t: t.name)
-async def test_crud_rows(test_cur: psycopg.AsyncCursor, table: Table):
+async def test_crud_rows(test_cur: psycopg.AsyncCursor, table: SqlTable):
     random.seed(42)
     ctx = NullContext()
 
@@ -312,7 +315,7 @@ async def test_crud_node_pointers(omni_session: Session):
         page1 = package.pages.create()
         view1 = View.new(ViewType.COLOR, "View1")
         page1.append(view1)
-        block1 = page1.blocks.create(type=BlockType.DATABASE)
+        block1 = page1.blocks.create(type=BlockType.TABLE)
         view11 = view1.views.create(type=ViewType.COLOR, name="View1")  # noqa: F841
         await session.commit()
 

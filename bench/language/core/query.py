@@ -39,13 +39,13 @@ if TYPE_CHECKING:
     from bench.language import (
         ConnectMode,
         Connector,
-        Database,
         Field,
         GetConnection,
         NodeReference,
         PropertyReference,
         SearchConnection,
         SelectOptions,
+        Table,
     )
 
 # pyright: reportIncompatibleVariableOverride=false, reportIncompatibleMethodOverride=false
@@ -169,11 +169,11 @@ class SelectOptions(Struct):
                 )
             return properties
 
-    def get_selected_fields(self, database: "Database") -> Sequence["Field"]:
-        """Get the selected (member) fields for a database."""
+    def get_selected_fields(self, table: "Table") -> Sequence["Field"]:
+        """Get the selected (member) fields for a table."""
         fields: list[Field] = []
         for field in self.select_fields:
-            if field.parent_id == database.id and field.type == FieldType.MEMBER:
+            if field.parent_id == table.id and field.type == FieldType.MEMBER:
                 fields.append(field)
         return fields
 
@@ -324,10 +324,10 @@ class LegacyQuery[NodeT: Node, NodeDataT: AnyNodeData]:
         return chain((self._node_type,), self._ancestor_types, self._descendant_types)
 
     @property
-    def database(self) -> "Database":
-        from bench.language import Database
+    def table(self) -> "Table":
+        from bench.language import Table
 
-        assert isinstance(self._base_type, Database), f"{self!r} has Database: {self._base_type!r}"
+        assert isinstance(self._base_type, Table), f"{self!r} has Table: {self._base_type!r}"
         return self._base_type
 
     @property

@@ -13,14 +13,14 @@ from bench.language import ConditionalType, IndexIn, PrimitiveType, SortType
 from bench.utils.func import hash_stable
 
 if TYPE_CHECKING:
-    from bench.language import Database, Field
+    from bench.language import Field, Table
 
 
 @dataclass(slots=True)
-class Schema:
-    extensions: tuple["Extension", ...]
-    tables: tuple["Table", ...]
-    _tables_by_name: dict[str, "Table"] = dataclasses.field(init=False)
+class SqlSchema:
+    extensions: tuple["SqlExtension", ...]
+    tables: tuple["SqlTable", ...]
+    _tables_by_name: dict[str, "SqlTable"] = dataclasses.field(init=False)
 
     def __post_init__(self):
         self._tables_by_name = {table.name: table for table in self.tables}
@@ -31,7 +31,7 @@ class Schema:
     def __repr__(self):
         return f"<Schema {self}>"
 
-    def get_table(self, name: str) -> "Table":
+    def get_table(self, name: str) -> "SqlTable":
         table = self._tables_by_name.get(name)
         if table is None:
             raise KeyError(f"no table {name!r} in {self!r}")
@@ -44,10 +44,10 @@ class Schema:
 
     @staticmethod
     def blank():
-        return Schema(extensions=(), tables=())
+        return SqlSchema(extensions=(), tables=())
 
 
-class ObjectKind(enum.StrEnum):
+class SqlObjectKind(enum.StrEnum):
     EXTENSION = "EXTENSION"
     TABLE = "TABLE"
     COLUMN = "COLUMN"
@@ -56,9 +56,9 @@ class ObjectKind(enum.StrEnum):
 
 
 @dataclass(slots=True)
-class Object:
+class SqlObject:
     FLAT_DATA_FIELDS: ClassVar[tuple[str, ...]]
-    kind: ClassVar[ObjectKind]
+    kind: ClassVar[SqlObjectKind]
 
     if TYPE_CHECKING:
 
@@ -103,10 +103,10 @@ class Object:
         for field_idx, field in enumerate(fields):
             if field.name.startswith("_"):
                 continue
-            if self.kind == ObjectKind.COLUMN and field.name == "type":
+            if self.kind == SqlObjectKind.COLUMN and field.name == "type":
                 # we want to reproduce the original type, not the encrypted type
                 #  (we sneakily change the type in __post_init__)
-                assert isinstance(self, Column)
+                assert isinstance(self, SqlColumn)
                 value = self.type
             else:
                 value = getattr(self, field.name)
@@ -123,7 +123,7 @@ class Object:
         args_str = ", ".join(args)
         return f"{self.__class__.__name__}({args_str})"
 
-    def walk(self) -> tuple["Object", ...]:
+    def walk(self) -> tuple["SqlObject", ...]:
         return (self,)
 
     def hash_flat(self) -> int:
@@ -135,7 +135,7 @@ class Object:
         )
         return hash_stable(*values)
 
-    def diff_flat(self, other: "TableObject") -> dict[str, Any]:
+    def diff_flat(self, other: "SqlTableObject") -> dict[str, Any]:
         """Get a diff of this object's data attributes, ignoring nested objects."""
         assert type(self) is type(other), f"cannot diff {self!r} with {other!r}"
         return {
@@ -144,7 +144,7 @@ class Object:
             if getattr(self, field_name) != getattr(other, field_name)
         }
 
-    def diff_keys(self, other: "TableObject") -> tuple[str, ...]:
+    def diff_keys(self, other: "SqlTableObject") -> tuple[str, ...]:
         """Get the keys (field names) where this object differs from another."""
         assert type(self) is type(other), f"cannot diff {self!r} with {other!r}"
         return tuple(
@@ -155,13 +155,13 @@ class Object:
 
 
 @dataclass(slots=True)
-class Extension(Object):
+class SqlExtension(SqlObject):
     """
     A SQL extension.
     """
 
     FLAT_DATA_FIELDS: ClassVar[tuple[str, ...]] = ("name",)
-    kind: ClassVar[ObjectKind] = ObjectKind.EXTENSION
+    kind: ClassVar[SqlObjectKind] = SqlObjectKind.EXTENSION
 
     name: str  # type: ignore
 
@@ -175,7 +175,7 @@ class Extension(Object):
         return hash_stable(self.kind, self.name)
 
     def __eq__(self, other):
-        return isinstance(other, Extension) and self.name == other.name
+        return isinstance(other, SqlExtension) and self.name == other.name
 
     @property
     def qualified_name(self) -> str:
@@ -186,9 +186,9 @@ class Extension(Object):
 
 
 @dataclass(slots=True)
-class TableObject(Object):
+class SqlTableObject(SqlObject):
     @property
-    def table(self) -> "Table":
+    def table(self) -> "SqlTable":
         assert self._table is not None, f"{self} is not attached to a table"
         return self._table
 
@@ -198,15 +198,15 @@ class TableObject(Object):
 
     @property
     def qualified_name(self) -> str:
-        if self.kind == ObjectKind.TABLE:
-            return cast("Table", self).name
-        elif self.kind == ObjectKind.INDEX:
-            return cast("Index", self).name
+        if self.kind == SqlObjectKind.TABLE:
+            return cast("SqlTable", self).name
+        elif self.kind == SqlObjectKind.INDEX:
+            return cast("SqlIndex", self).name
         else:
             return f"{self.table_name}.{getattr(self, 'name')}"
 
     @property
-    def _table(self) -> Union["Table", None]:
+    def _table(self) -> Union["SqlTable", None]:
         raise NotImplementedError
 
     def clone(self) -> "Self":
@@ -220,7 +220,7 @@ SqlPrimitiveScalar = Union[
 SqlPrimitive = Union[SqlPrimitiveScalar, list["SqlPrimitive"], dict[str, SqlPrimitiveScalar]]
 
 
-class CascadeAction(enum.StrEnum):
+class SqlCascadeAction(enum.StrEnum):
     """
     A SQL cascade action.
     """
@@ -233,7 +233,7 @@ class CascadeAction(enum.StrEnum):
 
 
 @dataclass(slots=True)
-class Column(TableObject):
+class SqlColumn(SqlTableObject):
     """
     A SQL column definition.
     """
@@ -251,14 +251,14 @@ class Column(TableObject):
         "length",
         "default",
     )
-    kind: ClassVar[ObjectKind] = ObjectKind.COLUMN
+    kind: ClassVar[SqlObjectKind] = SqlObjectKind.COLUMN
 
     name: str  # type: ignore
     type: PrimitiveType
     is_array: bool = False
     is_primary_key: bool = False
     is_foreign_key_to: str | None = None
-    on_delete: CascadeAction | None = None
+    on_delete: SqlCascadeAction | None = None
     is_unique: bool = False  # handled via constraints
     is_nullable: bool = False
     length: int | None = None
@@ -266,7 +266,7 @@ class Column(TableObject):
     scale: int | None = None
     default: str | None = None
     _field: Union["Field", None] = None
-    _table: Union["Table", None] = None  # type: ignore
+    _table: Union["SqlTable", None] = None  # type: ignore
 
     def clone(self) -> "Self":
         """Deep copy this Column without the Table / Field reference."""
@@ -335,7 +335,7 @@ class Column(TableObject):
         return " ".join(parts)
 
 
-class ConstraintType(enum.StrEnum):
+class SqlConstraintType(enum.StrEnum):
     """
     A SQL constraint type.
     """
@@ -347,22 +347,22 @@ class ConstraintType(enum.StrEnum):
 
 
 @dataclass(slots=True)
-class Constraint(TableObject):
+class SqlConstraint(SqlTableObject):
     """
     A SQL constraint.
     """
 
     FLAT_DATA_FIELDS: ClassVar[tuple[str, ...]] = ("inner_name", "type", "columns", "condition")
-    kind: ClassVar[ObjectKind] = ObjectKind.CONSTRAINT
+    kind: ClassVar[SqlObjectKind] = SqlObjectKind.CONSTRAINT
 
     inner_name: str
-    type: ConstraintType
+    type: SqlConstraintType
     columns: tuple[str, ...] | None = None
     condition: str | None = None
     index: str | None = None  # existing index to use (name must be relative to same table)
     _full_name: str | None = None  # as introspected from pg (naming can change)
     _source: str | int | None = None
-    _table: Union["Table", None] = None  # type: ignore
+    _table: Union["SqlTable", None] = None  # type: ignore
 
     def __post_init__(self):
         if self.columns is not None:
@@ -386,9 +386,9 @@ class Constraint(TableObject):
 
     def sql(self) -> str:
         parts = [f'"{self.name}"', self.type]
-        if self.type == ConstraintType.CHECK:
+        if self.type == SqlConstraintType.CHECK:
             parts.append(f"({self.condition})")
-        elif self.type == ConstraintType.UNIQUE:
+        elif self.type == SqlConstraintType.UNIQUE:
             if self.index is not None:
                 parts.append(f"USING INDEX {self.table_name}_{self.index}")
             else:
@@ -396,7 +396,7 @@ class Constraint(TableObject):
         return " ".join(parts)
 
 
-class IndexType(enum.StrEnum):
+class SqlIndexType(enum.StrEnum):
     """
     A SQL index type.
     """
@@ -409,7 +409,7 @@ class IndexType(enum.StrEnum):
 
 
 @dataclass(slots=True)
-class Index(TableObject):
+class SqlIndex(SqlTableObject):
     """
     A SQL index.
     """
@@ -421,17 +421,17 @@ class Index(TableObject):
         "is_unique",
         "condition",
     )
-    kind: ClassVar[ObjectKind] = ObjectKind.INDEX
+    kind: ClassVar[SqlObjectKind] = SqlObjectKind.INDEX
 
     inner_name: str
-    type: IndexType
+    type: SqlIndexType
     columns: tuple[str, ...]
     cover: tuple[str, ...] = ()
     is_unique: bool = False
     condition: str | None = None
     _full_name: str | None = None  # as introspected from pg (naming may change)
     _source: str | int | None = None
-    _table: Union["Table", None] = None  # type: ignore
+    _table: Union["SqlTable", None] = None  # type: ignore
 
     def __post_init__(self):
         if self.condition is not None:
@@ -452,7 +452,7 @@ class Index(TableObject):
         return self._full_name or f"{self.table_name}_{self.inner_name}"
 
     def sql(self) -> str:
-        assert isinstance(self._table, Table), f"{self} is not attached to a table"
+        assert isinstance(self._table, SqlTable), f"{self} is not attached to a table"
         parts = [
             f'"{self.name}"',
             f'ON "{self._table.name}"',
@@ -466,10 +466,10 @@ class Index(TableObject):
         return " ".join(parts)
 
     @staticmethod
-    def from_index_in(name: str, index_in: IndexIn) -> "Index":
-        return Index(
+    def from_index_in(name: str, index_in: IndexIn) -> "SqlIndex":
+        return SqlIndex(
             inner_name=name,
-            type=IndexType.BTREE,
+            type=SqlIndexType.BTREE,
             columns=index_in.columns,
             cover=index_in.cover,
             is_unique=index_in.is_unique,
@@ -478,22 +478,22 @@ class Index(TableObject):
 
 
 @dataclass(slots=True)
-class Table(TableObject):
+class SqlTable(SqlTableObject):
     """
     A SQL table.
     """
 
     FLAT_DATA_FIELDS: ClassVar[tuple[str, ...]] = ("name",)
-    kind: ClassVar[ObjectKind] = ObjectKind.TABLE
+    kind: ClassVar[SqlObjectKind] = SqlObjectKind.TABLE
 
     name: str  # type: ignore
-    columns: tuple[Column, ...]
-    indexes: tuple[Index, ...] = ()
-    constraints: tuple[Constraint, ...] = ()
-    _database: Union["Database", None] = None  # type: ignore
-    _columns_by_name: dict[str, Column] = dataclasses.field(init=False)
-    _columns_by_field: dict["Field", Column] = dataclasses.field(init=False)
-    _primary_key: Column | None = dataclasses.field(init=False)
+    columns: tuple[SqlColumn, ...]
+    indexes: tuple[SqlIndex, ...] = ()
+    constraints: tuple[SqlConstraint, ...] = ()
+    _table: Union["Table", None] = None  # type: ignore
+    _columns_by_name: dict[str, SqlColumn] = dataclasses.field(init=False)
+    _columns_by_field: dict["Field", SqlColumn] = dataclasses.field(init=False)
+    _primary_key: SqlColumn | None = dataclasses.field(init=False)
 
     def __post_init__(self):
         for object in chain(self.columns, self.indexes, self.constraints):
@@ -525,18 +525,18 @@ class Table(TableObject):
         return hash_stable(self.kind, self.name, self.columns, self.indexes, self.constraints)
 
     @property
-    def table(self) -> "Table":
+    def table(self) -> "SqlTable":
         return self
 
     @property
-    def _table(self) -> "Table":
+    def _table(self) -> "SqlTable":
         return self
 
-    def walk(self) -> tuple[TableObject, ...]:
+    def walk(self) -> tuple[SqlTableObject, ...]:
         # NOTE: the order here matters and is assumed in the diff logic
         return self, *self.columns, *self.indexes, *self.constraints
 
-    def get_column(self, key: "str | Field") -> Column:
+    def get_column(self, key: "str | Field") -> SqlColumn:
         if isinstance(key, str):
             column = self._columns_by_name.get(key)
             if column is None:
@@ -552,7 +552,7 @@ class Table(TableObject):
                 )
             return column
 
-    def columns_include(self, other: "Table") -> bool:
+    def columns_include(self, other: "SqlTable") -> bool:
         """Returns True if the columns are equal, ignoring order."""
         for column in self._columns_by_name:
             if column not in other._columns_by_name:
@@ -561,7 +561,7 @@ class Table(TableObject):
                 return False
         return True
 
-    def columns_by_name(self, *names: str) -> tuple[Column, ...]:
+    def columns_by_name(self, *names: str) -> tuple[SqlColumn, ...]:
         return tuple(self._columns_by_name[name] for name in names)
 
 
@@ -743,10 +743,10 @@ POSTGRES_SORT_OP_BY_BENCH: dict[SortType, PostgresSortOp] = {
 #
 
 BASE_EXTENSIONS = (
-    Extension("plpgsql"),
-    Extension("uuid-ossp"),
-    Extension("pgcrypto"),
-    Extension("bloom"),
+    SqlExtension("plpgsql"),
+    SqlExtension("uuid-ossp"),
+    SqlExtension("pgcrypto"),
+    SqlExtension("bloom"),
 )
 LOCAL_EXTENSIONS = (*BASE_EXTENSIONS,)
 REGIONAL_EXTENSIONS = (*BASE_EXTENSIONS,)
@@ -757,18 +757,18 @@ ALL_EXTENSIONS = (
 )
 
 
-MIGRATION_TABLE = Table(  # see bench/sql/migration.py
+MIGRATION_TABLE = SqlTable(  # see bench/sql/migration.py
     "bench_migration",
     columns=(
-        Column("id", PrimitiveType.INT32, is_primary_key=True),
-        Column("version", PrimitiveType.STRING, is_unique=True),
-        Column("has_global", PrimitiveType.BOOLEAN),
-        Column("has_regional", PrimitiveType.BOOLEAN),
-        Column("has_local", PrimitiveType.BOOLEAN),
-        Column("applied_at", PrimitiveType.DATETIME, is_nullable=True),
+        SqlColumn("id", PrimitiveType.INT32, is_primary_key=True),
+        SqlColumn("version", PrimitiveType.STRING, is_unique=True),
+        SqlColumn("has_global", PrimitiveType.BOOLEAN),
+        SqlColumn("has_regional", PrimitiveType.BOOLEAN),
+        SqlColumn("has_local", PrimitiveType.BOOLEAN),
+        SqlColumn("applied_at", PrimitiveType.DATETIME, is_nullable=True),
     ),
 )
 
-DEFAULT_LOCAL_TABLES: tuple[Table, ...] = (MIGRATION_TABLE,)
-DEFAULT_REGIONAL_TABLES: tuple[Table, ...] = (MIGRATION_TABLE,)
-DEFAULT_GLOBAL_TABLES: tuple[Table, ...] = (MIGRATION_TABLE,)
+DEFAULT_LOCAL_TABLES: tuple[SqlTable, ...] = (MIGRATION_TABLE,)
+DEFAULT_REGIONAL_TABLES: tuple[SqlTable, ...] = (MIGRATION_TABLE,)
+DEFAULT_GLOBAL_TABLES: tuple[SqlTable, ...] = (MIGRATION_TABLE,)

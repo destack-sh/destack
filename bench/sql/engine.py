@@ -18,16 +18,16 @@ from opentelemetry import trace
 from psycopg import OperationalError, sql
 from psycopg.types.json import Jsonb
 
-from bench.language import TRACING, BenchError, Database, NodeType, PrimitiveType
+from bench.language import TRACING, BenchError, NodeType, PrimitiveType, Table
 from bench.utils.oracle import REAL_ORACLE
 from bench.utils.tenacity import RetryOptions, retry
 
 from .core import (
-    Column,
     PostgresConditionalOp,
     PostgresJoinOp,
+    SqlColumn,
     SqlPrimitive,
-    Table,
+    SqlTable,
 )
 
 # NOTE :Performance: check out asyncpg instead of psycopg (up to 5x faster?)
@@ -38,7 +38,7 @@ tracer = trace.get_tracer(__name__)
 
 
 class SqlContext:
-    def get_custom_table(self, database: "UUID | Database") -> tuple[Table, Database]:
+    def get_custom_table(self, table: "UUID | Table") -> tuple[SqlTable, Table]:
         raise NotImplementedError("context does not support custom tables")
 
 
@@ -68,7 +68,7 @@ def _trace_pg_span[F: Callable](func: F) -> F:
         span.set_attribute("sql_url", get_sanitized_sql_url(cur.connection))
         span.set_attribute("connection_id", id(cur.connection))
         table = kwargs.get("table")
-        if isinstance(table, Table):
+        if isinstance(table, SqlTable):
             span.set_attribute("table", table.name)
         node_type = kwargs.get("node_type")
         if node_type is not None:
@@ -218,12 +218,12 @@ class SqlUnary(SqlExpression):
 @dataclass(frozen=True)
 class SqlJoin(SqlExpression):
     op: PostgresJoinOp
-    foreign_table: Table | SqlNode
+    foreign_table: SqlTable | SqlNode
     condition: SqlNode
 
     def sql(self) -> sql.Composable:
         foreign_table = self.foreign_table
-        if isinstance(foreign_table, Table):
+        if isinstance(foreign_table, SqlTable):
             foreign_table = sqlident(foreign_table.name)
         return sqlstr("{} {} ON {}").format(
             sqlstr(self.op),
@@ -277,15 +277,15 @@ async def _pg_executemany(
     await cur.executemany(statement, params, returning=returning)
 
 
-def _pg_wrap_write_column(column: Column, value: SqlNode) -> SqlNode:
+def _pg_wrap_write_column(column: SqlColumn, value: SqlNode) -> SqlNode:
     return value
 
 
-def _pg_wrap_read_column(ctx: SqlContext, column: Column, value: SqlNode) -> SqlNode:
+def _pg_wrap_read_column(ctx: SqlContext, column: SqlColumn, value: SqlNode) -> SqlNode:
     return value
 
 
-def _pg_adapt_row(table: Table, row: Mapping[str, Any]) -> Mapping[str, Any]:
+def _pg_adapt_row(table: SqlTable, row: Mapping[str, Any]) -> Mapping[str, Any]:
     """Adapts and wraps Any values"""
     wrapped = {}
     for column in table.columns:
@@ -301,7 +301,7 @@ def _pg_adapt_row(table: Table, row: Mapping[str, Any]) -> Mapping[str, Any]:
 
 
 def _pg_adapt_rows(
-    table: Table, rows: Iterable[Mapping[str, Any]]
+    table: SqlTable, rows: Iterable[Mapping[str, Any]]
 ) -> tuple[Mapping[str, Any], ...]:
     return tuple(_pg_adapt_row(table, row) for row in rows)
 
@@ -336,8 +336,8 @@ async def pg_select(
     *,
     cur: psycopg.AsyncCursor,
     ctx: SqlContext,
-    table: Table,
-    columns: Collection[Column] | None = None,
+    table: SqlTable,
+    columns: Collection[SqlColumn] | None = None,
     joins: Collection[SqlJoin] | None = None,
     where: SqlNode | None = None,
     order_by: SqlNode | None = None,
@@ -377,7 +377,7 @@ async def pg_count(
     *,
     cur: psycopg.AsyncCursor,
     ctx: SqlContext,
-    table: Table,
+    table: SqlTable,
     where: SqlNode | None = None,
 ) -> int:
     """Counts rows matching the given query."""
@@ -404,7 +404,7 @@ async def pg_exists(
     *,
     cur: psycopg.AsyncCursor,
     ctx: SqlContext,
-    table: Table,
+    table: SqlTable,
     where: SqlNode | None = None,
     joins: list[SqlJoin] | None = None,
 ) -> bool:
@@ -435,7 +435,7 @@ async def pg_insert(
     *,
     cur: psycopg.AsyncCursor,
     ctx: SqlContext,
-    table: Table,
+    table: SqlTable,
     rows: Collection[RowIn],
 ) -> None:
     """Inserts into the given table. Expects rows to be adapted and wrapped."""
@@ -469,10 +469,10 @@ async def pg_upsert(
     *,
     cur: psycopg.AsyncCursor,
     ctx: SqlContext,
-    table: Table,
+    table: SqlTable,
     rows: Collection[RowIn],
-    conflict_columns: list[Column] | tuple[Column, ...] | None = None,
-    static_columns: list[Column] | tuple[Column, ...] | None = None,
+    conflict_columns: list[SqlColumn] | tuple[SqlColumn, ...] | None = None,
+    static_columns: list[SqlColumn] | tuple[SqlColumn, ...] | None = None,
     static_values: RowIn | None = None,
 ) -> None:
     """Upserts into the given table. Expect rows to be adapted and wrapped."""
@@ -525,7 +525,7 @@ async def pg_update_static(
     *,
     cur: psycopg.AsyncCursor,
     ctx: SqlContext,
-    table: Table,
+    table: SqlTable,
     where: SqlNode | None = None,
     static_value: RowIn,
 ) -> None:
@@ -562,8 +562,8 @@ async def pg_update_variable(
     *,
     cur: psycopg.AsyncCursor,
     ctx: SqlContext,
-    table: Table,
-    dynamic_columns: Collection[Column],
+    table: SqlTable,
+    dynamic_columns: Collection[SqlColumn],
     dynamic_values: Collection[RowIn],
     static_values: RowIn | None = None,
 ) -> None:
@@ -630,7 +630,7 @@ async def pg_update_variable(
 
 @_trace_pg_span
 async def pg_delete(
-    *, cur: psycopg.AsyncCursor, ctx: SqlContext, table: Table, where: SqlNode | None = None
+    *, cur: psycopg.AsyncCursor, ctx: SqlContext, table: SqlTable, where: SqlNode | None = None
 ) -> None:
     """Deletes from the given table."""
     statement = sqlstr("DELETE FROM {table}").format(
@@ -648,6 +648,6 @@ async def pg_delete(
 
 
 @_trace_pg_span
-async def pg_truncate(cur: psycopg.AsyncCursor, table: Table, ctx: SqlContext) -> None:
+async def pg_truncate(cur: psycopg.AsyncCursor, table: SqlTable, ctx: SqlContext) -> None:
     """Truncates the given table."""
     await _pg_execute(cur, sqlstr("TRUNCATE TABLE {}").format(sqlident(table.name)))

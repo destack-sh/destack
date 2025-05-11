@@ -17,7 +17,7 @@ from bench.language.core import (
     node_,
     p_node_children,
 )
-from bench.pb2 import DatabaseData
+from bench.pb2 import TableData
 
 if TYPE_CHECKING:
     from bench.language import Field
@@ -25,17 +25,17 @@ if TYPE_CHECKING:
 # pyright: reportIncompatibleVariableOverride=false
 
 
-@node_(NodeType.DATABASE)
-class Database(
+@node_(NodeType.TABLE)
+class Table(
     IsInstantiable,
     IsTemplatable,
     IsModal,
     IsNamed,
     IsOwnable,
     IsClaimable,
-    PageNode[DatabaseData],
+    PageNode[TableData],
 ):
-    """A Database of Records."""
+    """A Table of Records."""
 
     fields: LocalNodeList["Field"] = p_node_children(NodeType.FIELD)
     records: RecordNodeList = p_node_children(NodeType.RECORD, list=RecordNodeList)
@@ -75,8 +75,8 @@ class Database(
         return typ
 
     @staticmethod
-    def new(name: str, *fields: "Field", **kwargs) -> "Database":
-        db = Database(name=name, **kwargs)
+    def new(name: str, *fields: "Field", **kwargs) -> "Table":
+        table = Table(name=name, **kwargs)
         for field in fields:
-            db.fields.append(field)
-        return db
+            table.fields.append(field)
+        return table

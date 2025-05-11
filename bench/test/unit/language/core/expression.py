@@ -2,7 +2,6 @@ from bench.language import (
     Action,
     ActionType,
     Choice,
-    Database,
     Expression,
     Field,
     FieldType,
@@ -13,6 +12,7 @@ from bench.language import (
     S,
     Session,
     SortType,
+    Table,
     apply_sort,
     code,
     evaluate_conditional,
@@ -102,40 +102,40 @@ def test_evaluate_conditional_field(session: Session, package: Package):
         Option.new("Option3"),
         Option.new("Option4"),
     )
-    Database1 = Database.new(
-        "Database1",
+    Table1 = Table.new(
+        "Table1",
         Field.member("Rating", int),
         Field.member("Name", str),
         Field.member("Choice", Choice1),
     )
-    Record1 = Database1.records.create(Rating=1, Name="Alice", Choice=Choice1.options.Option1)
-    Record2 = Database1.records.create(Rating=2, Name="Bob", Choice=Choice1.options.Option2)
-    Record3 = Database1.records.create(Rating=3, Name="Charlie", Choice=Choice1.options.Option3)
+    Record1 = Table1.records.create(Rating=1, Name="Alice", Choice=Choice1.options.Option1)
+    Record2 = Table1.records.create(Rating=2, Name="Bob", Choice=Choice1.options.Option2)
+    Record3 = Table1.records.create(Rating=3, Name="Charlie", Choice=Choice1.options.Option3)
 
     # basic number
-    cond = Database1.fields.Rating.is_equal(1)
+    cond = Table1.fields.Rating.is_equal(1)
     assert evaluate_conditional(cond, Record1) is True
     assert evaluate_conditional(cond, Record2) is False
     assert evaluate_conditional(cond, Record3) is False
 
     # basic string
-    cond = Database1.fields.Name.matches_regex(".*ob.*")
+    cond = Table1.fields.Name.matches_regex(".*ob.*")
     assert evaluate_conditional(cond, Record1) is False
     assert evaluate_conditional(cond, Record2) is True
     assert evaluate_conditional(cond, Record3) is False
 
     # basic node
-    cond = Database1.fields.Choice.is_equal(Choice1.options.Option1)
+    cond = Table1.fields.Choice.is_equal(Choice1.options.Option1)
     assert evaluate_conditional(cond, Record1) is True
     assert evaluate_conditional(cond, Record2) is False
     assert evaluate_conditional(cond, Record3) is False
 
     # compound
-    cond = Database1.fields.Rating.is_equal(1) & Database1.fields.Name.matches_regex(".*ob.*")
+    cond = Table1.fields.Rating.is_equal(1) & Table1.fields.Name.matches_regex(".*ob.*")
     assert evaluate_conditional(cond, Record1) is False
     assert evaluate_conditional(cond, Record2) is False
     assert evaluate_conditional(cond, Record3) is False
-    cond = Database1.fields.Rating.gte(2) | Database1.fields.Name.matches_regex(".*ob.*")
+    cond = Table1.fields.Rating.gte(2) | Table1.fields.Name.matches_regex(".*ob.*")
     assert evaluate_conditional(cond, Record1) is False
     assert evaluate_conditional(cond, Record2) is True
     assert evaluate_conditional(cond, Record3) is True

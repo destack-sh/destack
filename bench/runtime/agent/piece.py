@@ -6,7 +6,6 @@ from opentelemetry import trace
 from bench.language import (
     Action,
     Agent,
-    Database,
     FieldType,
     File,
     Link,
@@ -17,6 +16,7 @@ from bench.language import (
     Page,
     Run,
     Span,
+    Table,
     Task,
     Thread,
 )
@@ -181,8 +181,8 @@ class PagePiece(NodePiece[Page]):
         yield SeparatorPiece()
 
 
-@piece_(NodeType.DATABASE)
-class DatabasePiece(NodePiece[Database]):
+@piece_(NodeType.TABLE)
+class DatabasePiece(NodePiece[Table]):
     pass
 
 

@@ -788,7 +788,7 @@ class Session(BenchNode[SessionData], IsRuntime, IsModal):
         from bench.proto.wiring import unwrap_some_node
 
         # TODO :Architecture :Cleanup: revamp Session handling across internal, system and remote
-        #  It feels quite clumsy and mixes concerns (why are we talking about DatabasePlugin here?);
+        #  It feels quite clumsy and mixes concerns (why are we talking about TablePlugin here?);
         #   and in general, we should probably pull apart system and runtime Sessions somehow
         #  Maybe Session should remain a Node, but the Session logic goes elsewhere...?
 
@@ -803,7 +803,7 @@ class Session(BenchNode[SessionData], IsRuntime, IsModal):
                 # prepare commit
                 if self._pre_commit is not None:
                     # NOTE :Architecture: we exclude Records from preflush in commit prepare
-                    #  because our DatabasePlugin needs to update schemas before touching any Records.
+                    #  because our TablePlugin needs to update schemas before touching any Records.
                     excluded_node_types = (NodeType.RECORD,)
                     self._preflush(exclude=excluded_node_types)
                     edits, cascaded_edits = await self._tx.flush(

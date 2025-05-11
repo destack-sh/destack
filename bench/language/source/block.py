@@ -48,7 +48,7 @@ class BlockType(BuiltinEnum):
     CHOICE = 5100
     FLOW = 5220
     SERVICE = 5200
-    DATABASE = 5300
+    TABLE = 5300
     AGENT = 5640
     THREAD = 5510
     TASK = 6110

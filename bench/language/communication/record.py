@@ -25,7 +25,7 @@ from bench.pb2 import AnyNodeData, NodeReferenceData, RecordData
 from bench.utils.fractional import INTEGER_ZERO
 
 if TYPE_CHECKING:
-    from bench.language import CustomObject, Database, Icon
+    from bench.language import CustomObject, Icon, Table
 
 # pyright: reportIncompatibleVariableOverride=false
 
@@ -42,19 +42,19 @@ class Record(
     PackageNode[RecordData],
 ):
     """
-    A Record in a Database.
+    A Record in a Table.
     """
 
     # meta
-    parent: Union["Database", "Record", None] = p_node_parent(4, NodeType.DATABASE, NodeType.RECORD)
+    parent: Union["Table", "Record", None] = p_node_parent(4, NodeType.TABLE, NodeType.RECORD)
     # type: RecordType?
     order_key: str | None = p_internal(33, default=INTEGER_ZERO)
     icon: Optional["Icon"] = p_regular(34, default=None, struct=StructType.ICON)
-    database: "Database" = p_system(
-        36, require=True, references=NodeType.BLOCK, description="The Database this Record is from."
+    table: "Table" = p_system(
+        36, require=True, references=NodeType.TABLE, description="The Table this Record is from."
     )
 
-    # target: Page/Task/...? (tie Record to a Page for a Notion-like experience in some Databases)
+    # target: Page/Task/...? (tie Record to a Page for a Notion-like experience in some Tables)
     # ... general Record 'tying'?
 
     # value
@@ -66,7 +66,7 @@ class Record(
     @final
     def __repr__(self):  # type: ignore
         # override the default __repr__ for records
-        block = self.database
+        block = self.table
         type_name = block.code_name if block is not None else "???"
         return f"<{type_name}Record {self!s}>"
 
@@ -78,19 +78,19 @@ class Record(
 
     @property
     def value_type(self) -> "IsType | None":
-        database = self.database
-        return database.to_type_maybe(of="value") if database is not None else None
+        table = self.table
+        return table.to_type_maybe(of="value") if table is not None else None
 
     @property
-    def base(self) -> "Database | None":
-        return self.database
+    def base(self) -> "Table | None":
+        return self.table
 
     @staticmethod
     def get_base_from_data(data: AnyNodeData) -> Optional[NodeReferenceData]:
-        return cast(RecordData, data).database_ptr
+        return cast(RecordData, data).table_ptr
 
     @staticmethod
-    def get_base_from_partial(data: dict[str, Any]) -> Optional["Database"]:
+    def get_base_from_partial(data: dict[str, Any]) -> Optional["Table"]:
         if "database" in data:
             return data["database"]
         else:
