@@ -10,16 +10,16 @@ from bench.language import (
     SYSTEM_SLUG,
     SYSTEM_SYSTEM_PACKAGE_ID,
     SYSTEM_SYSTEM_PACKAGE_SLUG,
+    Bench,
+    Database,
     Engine,
     NodeReference,
     NodeSuperGraph,
     NodeType,
     Region,
-    Store,
     User,
     UserStatus,
 )
-from bench.language.cosmos.bench import Bench
 from bench.system.core import global_session
 from bench.utils.oracle import REAL_ORACLE
 
@@ -32,9 +32,9 @@ logger = structlog.get_logger(__name__)
 
 async def create_system_benches(
     region: Region,
-    global_store: Store,
+    global_database: Database,
     global_pg_engine: Engine,
-    regional_store: Store,
+    regional_database: Database,
     regional_pg_engine: Engine,
     *,
     upsert: bool = False,

@@ -8,99 +8,99 @@ from bench.language import Region
 from bench.utils.utils import get_from_env
 
 if TYPE_CHECKING:
-    from bench.language import Store
+    from bench.language import Database
 
 #
-# Stores (by Region)
+# Databases (by Region)
 #
 
 
 @dataclass(slots=True)
-class StoreInfo:
+class DatabaseInfo:
     pg_url: str
 
     def render(self) -> str:
         return self.pg_url
 
     @staticmethod
-    def parse(region_url: str) -> "StoreInfo":
+    def parse(region_url: str) -> "DatabaseInfo":
         """Parses a region URL like 'postgresql://user:pass@host/db'."""
-        return StoreInfo(pg_url=region_url)
+        return DatabaseInfo(pg_url=region_url)
 
 
-class StoreMap:
+class DatabaseMap:
     """
     Maps Regions to regional DBs.
     """
 
-    def __init__(self, store_map: dict[Region | Literal["*"], "StoreInfo | Store"]):
-        self._store_info_by_region: dict[Region | Literal["*"], StoreInfo] = {}
-        self._store_by_region: dict[Region | Literal["*"], Store] = {}
-        for region, store_or_info in store_map.items():
-            if isinstance(store_or_info, StoreInfo):
-                self._store_info_by_region[region] = store_or_info
+    def __init__(self, database_map: dict[Region | Literal["*"], "DatabaseInfo | Database"]):
+        self._database_info_by_region: dict[Region | Literal["*"], DatabaseInfo] = {}
+        self._database_by_region: dict[Region | Literal["*"], Database] = {}
+        for region, database_or_info in database_map.items():
+            if isinstance(database_or_info, DatabaseInfo):
+                self._database_info_by_region[region] = database_or_info
             else:
-                self._store_by_region[region] = store_or_info
+                self._database_by_region[region] = database_or_info
 
     def __str__(self) -> str:
-        return store_map_to_string(self)
+        return database_map_to_string(self)
 
     def __repr__(self) -> str:
-        return f"<{self.__class__.__name__} {store_map_to_string(self) or '<empty>'}>"
+        return f"<{self.__class__.__name__} {database_map_to_string(self) or '<empty>'}>"
 
-    def get_info(self, region: Region) -> StoreInfo:
+    def get_info(self, region: Region) -> DatabaseInfo:
         """Gets the region info for the given region (error if none)."""
-        store_info = self._store_info_by_region.get(region)
-        if store_info is None:
-            store_info = self._store_info_by_region.get("*")
-        if store_info is None:
-            raise LookupError(f"no store info for {region.bench_name} in {self!r}")
-        return store_info
+        database_info = self._database_info_by_region.get(region)
+        if database_info is None:
+            database_info = self._database_info_by_region.get("*")
+        if database_info is None:
+            raise LookupError(f"no database info for {region.bench_name} in {self!r}")
+        return database_info
 
-    def get(self, region: Region) -> "Store":
-        """Gets the Store for the given region (error if none)."""
-        store = self._store_by_region.get(region)
-        if store is None:
-            store = self._store_by_region.get("*")
-        if store is None:
-            from bench.system.core import make_system_store
+    def get(self, region: Region) -> "Database":
+        """Gets the Database for the given region (error if none)."""
+        database = self._database_by_region.get(region)
+        if database is None:
+            database = self._database_by_region.get("*")
+        if database is None:
+            from bench.system.core import make_system_database
 
-            store_info = self.get_info(region)
-            store = make_system_store(region, store_info.pg_url)
-            self._store_by_region[region] = store
-        return store
+            database_info = self.get_info(region)
+            database = make_system_database(region, database_info.pg_url)
+            self._database_by_region[region] = database
+        return database
 
 
-def get_store_map_from_string(map_str: str) -> "StoreMap":
+def get_database_map_from_string(map_str: str) -> "DatabaseMap":
     """
     Parses a map string like:
         '*=postgresql://user:pass@host/db'
         'eu-zurich=postgresql://user:pass@host/db;eu-frankfurt=postgresql://user:pass@host/db'
     """
-    store_map = {}
+    database_map = {}
     for mapping_str in map_str.split(";"):
-        store_str, store_info_str = mapping_str.split("=", 1)
-        region = Region.get_by_slug(store_str) if store_str != "*" else store_str
-        store_info = StoreInfo.parse(store_info_str.strip())
-        store_map[region] = store_info
-    return StoreMap(store_map=store_map)
+        database_str, database_info_str = mapping_str.split("=", 1)
+        region = Region.get_by_slug(database_str) if database_str != "*" else database_str
+        database_info = DatabaseInfo.parse(database_info_str.strip())
+        database_map[region] = database_info
+    return DatabaseMap(database_map=database_map)
 
 
-def store_map_to_string(store_map: "StoreMap") -> str:
+def database_map_to_string(database_map: "DatabaseMap") -> str:
     """Renders a region map back into a string."""
     return ";".join(
         f"{k.slug if isinstance(k, Region) else k}={v.render()}"
-        for k, v in store_map._store_info_by_region.items()
+        for k, v in database_map._database_info_by_region.items()
     )
 
 
-def get_store_map_from_env() -> "StoreMap":
+def get_database_map_from_env() -> "DatabaseMap":
     """Parses the REGIONAL_PG_MAP from the environment."""
     region_map_str = get_from_env("REGIONAL_PG_MAP", description="Region map for postgres sharding")
-    return get_store_map_from_string(region_map_str)
+    return get_database_map_from_string(region_map_str)
 
 
-STORE_MAP = get_store_map_from_env()
+DATABASE_MAP = get_database_map_from_env()
 
 #
 # Hosts (by Region/Shard)

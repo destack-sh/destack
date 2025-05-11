@@ -95,22 +95,22 @@ async def system(
 ):
     """Serve both the HostRouter and the Supervisor."""
     from bench.system import (
+        DATABASE_MAP,
         HOST_MAP,
-        STORE_MAP,
         CreateBenchOptions,
         HostRouterService,
         SupervisorService,
-        global_store_from_env,
-        regional_store_from_env,
+        global_database_from_env,
+        regional_database_from_env,
     )
 
-    global_store = global_store_from_env()
-    regional_store = regional_store_from_env()
+    global_database = global_database_from_env()
+    regional_database = regional_database_from_env()
     network = RealNetwork()
     host_router = HostRouterService(
         id="host-router",
-        global_store=global_store,
-        regional_store=regional_store,
+        global_database=global_database,
+        regional_database=regional_database,
         network=network,
         oracle=REAL_ORACLE,
         on_error=capture_exception,
@@ -118,11 +118,11 @@ async def system(
     services: list[ServiceBase] = [host_router]
     supervisor = SupervisorService(
         id="supervisor",
-        global_store=global_store,
+        global_database=global_database,
         network=network,
         oracle=REAL_ORACLE,
         host_map=HOST_MAP,
-        store_map=STORE_MAP,
+        database_map=DATABASE_MAP,
         create_bench_options=CreateBenchOptions(),
         on_error=capture_exception,
     )
@@ -135,22 +135,22 @@ async def system(
 async def supervisor(host: str, port: int, watch: bool = False, no_check: bool = False):
     """Serve the Supervisor."""
     from bench.system import (
+        DATABASE_MAP,
         HOST_MAP,
-        STORE_MAP,
         CreateBenchOptions,
         SupervisorService,
-        global_store_from_env,
+        global_database_from_env,
     )
 
-    global_store = global_store_from_env()
+    global_database = global_database_from_env()
     network = RealNetwork()
     supervisor = SupervisorService(
         id="supervisor",
-        global_store=global_store,
+        global_database=global_database,
         network=network,
         oracle=REAL_ORACLE,
         host_map=HOST_MAP,
-        store_map=STORE_MAP,
+        database_map=DATABASE_MAP,
         create_bench_options=CreateBenchOptions(),
         on_error=capture_exception,
     )
@@ -161,15 +161,15 @@ async def supervisor(host: str, port: int, watch: bool = False, no_check: bool =
 @async_to_sync
 async def host(host: str, port: int, watch: bool = False, no_check: bool = False):
     """Serve the HostRouter."""
-    from bench.system import HostRouterService, global_store_from_env, regional_store_from_env
+    from bench.system import HostRouterService, global_database_from_env, regional_database_from_env
 
-    global_store = global_store_from_env()
-    regional_store = regional_store_from_env()
+    global_database = global_database_from_env()
+    regional_database = regional_database_from_env()
     network = RealNetwork()
     host_router = HostRouterService(
         id="host-router",
-        global_store=global_store,
-        regional_store=regional_store,
+        global_database=global_database,
+        regional_database=regional_database,
         network=network,
         oracle=REAL_ORACLE,
         on_error=capture_exception,

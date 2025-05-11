@@ -35,9 +35,9 @@ from .core import (
     MIGRATION_TABLE,
     POSTGRES_TYPE_BY_UDT,
     PRIMITIVE_TYPE_BY_POSTGRES_TYPE,
+    PostgresColumnType,
     SqlCascadeAction,
     SqlColumn,
-    SqlColumnType,
     SqlConstraint,
     SqlConstraintType,
     SqlExtension,
@@ -60,7 +60,7 @@ from .engine import (
 from .graph import GLOBAL_CONTEXT
 
 if TYPE_CHECKING:
-    from bench.language import Store
+    from bench.language import Database
 
 MIGRATIONS_PATH = REPOSITORY_PATH / "bench/migrations"
 MIGRATIONS_TEMPLATE_PATH = REPOSITORY_PATH / "bench/migrations/0000_template.py"
@@ -82,8 +82,8 @@ class Migration:
     has_regional: bool
     has_local: bool
     applied_at: Optional[datetime]
-    path: Optional[Path] = None  # not stored
-    file: Optional["MigrationFile"] = None  # not stored
+    path: Optional[Path] = None  # not databased
+    file: Optional["MigrationFile"] = None  # not databased
 
     def __str__(self) -> str:
         return f"{self.id} {self.version} (has_global={self.has_global}, has_regional={self.has_regional}, has_local={self.has_local})"
@@ -246,7 +246,7 @@ async def sql_migrate(
     oracle: Oracle,
     *,
     area: NodeArea,
-    store: "Store | None" = None,
+    database: "Database | None" = None,
 ) -> list[Migration]:
     """
     Applies missing migrations (up or down) to reach the target migration.
@@ -266,13 +266,13 @@ async def sql_migrate(
             raise ValueError("no migrations found")
         target_migration = MIGRATIONS[-1]
 
-    logger.trace("migrations.load", target_migration=target_migration, area=area, store=store)
-    stored_migrations = await read_migrations_from_pg(cur)
-    is_upgrade = all(target_migration.id > m.id for m in stored_migrations if m.applied_at)
+    logger.trace("migrations.load", target_migration=target_migration, area=area, database=database)
+    databased_migrations = await read_migrations_from_pg(cur)
+    is_upgrade = all(target_migration.id > m.id for m in databased_migrations if m.applied_at)
     log = logger.bind(
-        target_migration=target_migration, is_upgrade=is_upgrade, area=area, store=store
+        target_migration=target_migration, is_upgrade=is_upgrade, area=area, database=database
     )
-    applied_migrations = [m for m in stored_migrations if m.applied_at is not None]
+    applied_migrations = [m for m in databased_migrations if m.applied_at is not None]
     current_migration = max(applied_migrations, key=lambda m: m.id) if applied_migrations else None
     current_migration_id = current_migration.id if current_migration else -1
 
@@ -288,7 +288,7 @@ async def sql_migrate(
 
     # apply the migrations
     if not migrations_to_apply:
-        log.trace("migrations.apply.skip", store=store)
+        log.trace("migrations.apply.skip", database=database)
         return []
     else:
         await _do_sql_migrate(
@@ -297,15 +297,15 @@ async def sql_migrate(
             oracle=oracle,
             is_upgrade=is_upgrade,
             area=area,
-            store=store,
+            database=database,
         )
-        log.debug("migrations.apply", cur=cur, migrations=migrations_to_apply, store=store)
+        log.debug("migrations.apply", cur=cur, migrations=migrations_to_apply, database=database)
 
     # update the migration table (applied + missing)
     missing_migrations = [
         m
         for m in MIGRATIONS
-        if not any(m.id == s.id for s in stored_migrations)
+        if not any(m.id == s.id for s in databased_migrations)
         and not any(m.id == a.id for a in applied_migrations)
     ]
     migrations_to_update = [*migrations_to_apply, *missing_migrations]
@@ -322,7 +322,7 @@ async def _do_sql_migrate(
     *,
     is_upgrade: bool,
     area: NodeArea,
-    store: Optional["Store"] = None,
+    database: Optional["Database"] = None,
 ):
     """Applies the given migrations in the given order."""
     for migration in migrations:
@@ -339,7 +339,7 @@ async def _do_sql_migrate(
                     "migration.apply.error",
                     cur=cur,
                     migration=migration,
-                    store=store,
+                    database=database,
                     error=e,
                     span="current",
                 )
@@ -349,7 +349,7 @@ async def _do_sql_migrate(
             else:
                 migration.applied_at = None
             logger.trace(
-                "migration.apply", cur=cur, migration=migration, store=store, span="current"
+                "migration.apply", cur=cur, migration=migration, database=database, span="current"
             )
 
 
@@ -963,8 +963,8 @@ GROUP BY
             else:
                 is_array = False
             postgres_type = POSTGRES_TYPE_BY_UDT[udt_name]
-            if postgres_type == SqlColumnType.TEXT:
-                postgres_type = SqlColumnType.CHARACTER_VARYING  # we don't do TEXT
+            if postgres_type == PostgresColumnType.TEXT:
+                postgres_type = PostgresColumnType.CHARACTER_VARYING  # we don't do TEXT
             primitive_type = PRIMITIVE_TYPE_BY_POSTGRES_TYPE[postgres_type]
             is_foreign_key_to = (
                 row["target_table_names"]

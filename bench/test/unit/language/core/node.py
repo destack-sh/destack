@@ -86,7 +86,7 @@ def test_node_pointers_consistency(session: "Session"):
         NodeReference(node_type=NodeType.BENCH, id=bench_a.id, ck=bench_a.ck, bench_id=bench_a.id)
     )
     package_a = bench_a.packages.create(type=PackageType.OPEN, name="Main", slug="main")
-    bench_a.store = package_a.stores.create(name="Store")
+    bench_a.database = package_a.databases.create(name="Database")
 
     # sub bench, above package pointers
     assert package_a.bench_id == bench_a.id
@@ -143,7 +143,7 @@ def test_node_pointers_consistency(session: "Session"):
     # refs pointing to different bench
     bench_b = Bench(slug="testb", name="testb")
     package_b = bench_b.packages.create(type=PackageType.OPEN, name="Main B", slug="main-b")
-    bench_b.store = package_b.stores.create(name="Store")
+    bench_b.database = package_b.databases.create(name="Database")
     page_b = package_b.pages.create()
     assert page_b.bench_id == bench_b.id
     thread_b = Thread.new("Thread1")

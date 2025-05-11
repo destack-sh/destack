@@ -10,12 +10,12 @@ app = typer.Typer(short_help="test utilities")
 @async_to_sync
 async def prune(prefix="test"):
     from bench.sql import pg_connection, pg_select_raw, sqlstr
-    from bench.system import global_store_from_env
+    from bench.system import global_database_from_env
 
     """Prune all artifacts with the given prefix"""
     console = Console()
-    global_store = global_store_from_env()
-    async with pg_connection(global_store, autocommit=True) as conn:
+    global_database = global_database_from_env()
+    async with pg_connection(global_database, autocommit=True) as conn:
         # select all databases
         results = await pg_select_raw(
             query=f"SELECT datname FROM pg_database WHERE datname LIKE '{prefix}_%'",

@@ -16,14 +16,16 @@ logger = structlog.get_logger(__name__)
 @async_to_sync
 async def unwaitlist(user_slug: str):
     from bench.system import (
+        global_database_from_env,
         global_session,
-        global_store_from_env,
-        pg_engine_from_store,
+        pg_engine_from_database,
     )
 
-    global_store = global_store_from_env()
-    global_pg_engine = pg_engine_from_store("pg-global", global_store, NodeArea.GLOBAL)
-    async with global_session(global_store, (global_pg_engine,), REAL_ORACLE, epoch=0) as session:
+    global_database = global_database_from_env()
+    global_pg_engine = pg_engine_from_database("pg-global", global_database, NodeArea.GLOBAL)
+    async with global_session(
+        global_database, (global_pg_engine,), REAL_ORACLE, epoch=0
+    ) as session:
         user = await User.get(slug=user_slug)
         if user.status != UserStatus.WAITLISTED:
             raise ValueError(f"{user!r} is not in the waitlist")
@@ -37,15 +39,17 @@ async def unwaitlist(user_slug: str):
 async def set_password(user_slug: str, new_password: str):
     from bench.system import (
         SALT_LENGTH,
+        global_database_from_env,
         global_session,
-        global_store_from_env,
         hash_password,
-        pg_engine_from_store,
+        pg_engine_from_database,
     )
 
-    global_store = global_store_from_env()
-    global_pg_engine = pg_engine_from_store("pg-global", global_store, NodeArea.GLOBAL)
-    async with global_session(global_store, (global_pg_engine,), REAL_ORACLE, epoch=0) as session:
+    global_database = global_database_from_env()
+    global_pg_engine = pg_engine_from_database("pg-global", global_database, NodeArea.GLOBAL)
+    async with global_session(
+        global_database, (global_pg_engine,), REAL_ORACLE, epoch=0
+    ) as session:
         user = await User.get(slug=user_slug)
         session._track(user)
         user.password_salt = generate_salt(SALT_LENGTH)

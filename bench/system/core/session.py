@@ -11,6 +11,7 @@ from bench.language import (
     VERSION,
     Bench,
     BenchStatus,
+    Database,
     Engine,
     GraphScope,
     Node,
@@ -22,7 +23,6 @@ from bench.language import (
     PackageType,
     Region,
     Session,
-    Store,
 )
 from bench.proto import GraphScopeData
 from bench.sql import BenchSqlContext
@@ -33,7 +33,7 @@ from bench.utils.utils import get_from_env
 BEGINNING_OF_TIME = datetime.fromisoformat("1970-01-01T00:00:00+00:00")
 
 
-def make_system_store(region: Region, pg_url: str) -> Store:
+def make_system_database(region: Region, pg_url: str) -> Database:
     system_bench_ptr = NodeReference(node_type=NodeType.BENCH, id=UUID(int=0), ck=UUID(int=0))
     supergraph = NodeSuperGraph(name="Global", root_ptr=system_bench_ptr)
     system_bench_stub = Bench(
@@ -56,46 +56,46 @@ def make_system_store(region: Region, pg_url: str) -> Store:
         created_at=BEGINNING_OF_TIME,
         updated_at=BEGINNING_OF_TIME,
     )
-    store = Store(
+    database = Database(
         parent=system_package_stub,
-        name="Store",
+        name="Database",
         version=VERSION,
         sql_url=pg_url,
         _supergraph=supergraph,
         created_at=BEGINNING_OF_TIME,
         updated_at=BEGINNING_OF_TIME,
     )
-    return store
+    return database
 
 
 @cachetools.cached(cache={})
-def global_store_from_env() -> Store:
-    """Get the default global store configured in the environment"""
+def global_database_from_env() -> Database:
+    """Get the default global database configured in the environment"""
     pg = get_from_env("GLOBAL_PG_URL", description="Global Postgres connection string")
     pg_url = pg.split("|", maxsplit=1)[0]
-    return make_system_store(REGION, pg_url)
+    return make_system_database(REGION, pg_url)
 
 
-def regional_store_from_env(region: Region = REGION) -> Store:
-    """Get the default regional store configured in the environment"""
-    from bench.system.core import STORE_MAP
+def regional_database_from_env(region: Region = REGION) -> Database:
+    """Get the default regional database configured in the environment"""
+    from bench.system.core import DATABASE_MAP
 
-    return STORE_MAP.get(region)
+    return DATABASE_MAP.get(region)
 
 
-def pg_engine_from_store(
+def pg_engine_from_database(
     name: str,
-    store: Store,
+    database: Database,
     area: NodeArea | None,
     *,
     scope: GraphScopeData | None = None,
 ):
-    """Get the postgres engine for a store"""
-    bench = store.bench
-    assert bench is not None, f"missing bench for {store!r}"
+    """Get the postgres engine for a database"""
+    bench = database.bench
+    assert bench is not None, f"missing bench for {database!r}"
     return PostgresEngine(
         name=name,
-        store=store,
+        database=database,
         bench=bench,
         scope=scope or EMPTY_SCOPE_DATA,
         node_types=NODE_TYPES_BY_AREA[area] if area is not None else NODE_TYPES,
@@ -103,14 +103,14 @@ def pg_engine_from_store(
     )
 
 
-def local_pg_engine_from_store(name: str, store: Store):
-    """Get the postgres engine for a local store"""
-    assert store.bench is not None, f"missing bench for {store!r}"
-    return pg_engine_from_store(
+def local_pg_engine_from_database(name: str, database: Database):
+    """Get the postgres engine for a local database"""
+    assert database.bench is not None, f"missing bench for {database!r}"
+    return pg_engine_from_database(
         name=name,
-        store=store,
+        database=database,
         area=NodeArea.LOCAL,
-        scope=GraphScope(bench_id=store.bench.id)._to_data(),
+        scope=GraphScope(bench_id=database.bench.id)._to_data(),
     )
 
 
@@ -124,7 +124,7 @@ def global_session(
     readonly: bool = False,
     split_read: bool = True,
 ):
-    """Create a Session in a global store"""
+    """Create a Session in a global database"""
     if node is None:
         assert supergraph is not None, "must provide supergraph if no node"
     else:

@@ -38,8 +38,8 @@ class SupervisorHandle(ServiceHandle[SupervisorSpec, SupervisorService, Supervis
     async def start(self) -> SupervisorService:
         self._service = SupervisorService(
             id=self.id,
-            global_store=self.simulation.global_store,
-            store_map=self.simulation.store_map,
+            global_database=self.simulation.global_database,
+            database_map=self.simulation.database_map,
             network=self.simulation.network.network,
             oracle=self.oracle,
             host_map=SimulatedHostMap(self.simulation),

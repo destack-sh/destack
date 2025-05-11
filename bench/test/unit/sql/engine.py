@@ -12,6 +12,7 @@ from bench.language import (
     BlockType,
     Client,
     ClientType,
+    Database,
     NodeNotFoundError,
     NodeReference,
     NodeType,
@@ -19,7 +20,6 @@ from bench.language import (
     PrimitiveType,
     Region,
     Session,
-    Store,
     User,
     UserStatus,
     View,
@@ -91,13 +91,13 @@ COLUMN_VALUE_GENERATORS: Mapping[PrimitiveType, Callable[[], Any]] = {
 
 
 @pytest.fixture
-async def test_cur(blank_store: Store):
+async def test_cur(blank_database: Database):
     # creates test schema
-    async with pg_connection(blank_store, owner=blank_store, autocommit=True) as conn:
+    async with pg_connection(blank_database, owner=blank_database, autocommit=True) as conn:
         await force_create_schema(conn.cursor, TEST_SCHEMA)
         await conn.commit()
 
-    async with pg_connection(blank_store, owner=blank_store) as conn:
+    async with pg_connection(blank_database, owner=blank_database) as conn:
         yield conn.cursor
 
 
@@ -234,17 +234,17 @@ async def test_cascade_edits(omni_session: Session):
         with pytest.raises(NodeNotFoundError):
             await Client.get(id=client_1_a.id)
 
-        # restore cascading
+        # redatabase cascading
         session._restore(user_1)
         edits, cascaded_edits = await session.commit()
         assert len(edits) == 1
         assert len(cascaded_edits) == 2
         assert await User.get(id=user_1.id)
         assert await Client.get(id=client_1_a.id)
-        with pytest.raises(NodeNotFoundError):  # should only restore its own deleted children
+        with pytest.raises(NodeNotFoundError):  # should only redatabase its own deleted children
             await Client.get(id=client_1_c.id)
 
-        # restore non-cascading
+        # redatabase non-cascading
         session._restore(client_1_c)
         edits, cascaded_edits = await session.commit()
         assert len(edits) == 1
@@ -297,7 +297,7 @@ async def test_crud_node_pointers(omni_session: Session):
         session._create(bench)
         await session.flush()
         package = bench.packages.create(type=PackageType.OPEN, name="Main", slug="main")
-        store = package.stores.create(name="Production A")
+        database = package.databases.create(name="Production A")
         client = Client(
             parent=bench,
             type=ClientType.MOBILE,
@@ -307,7 +307,7 @@ async def test_crud_node_pointers(omni_session: Session):
         session._create(client)
         await session.flush()
         session.parent = bench  # patch in the session parent
-        bench.store = store
+        bench.database = database
         await session.commit()
         bench._untrack_rec()
 

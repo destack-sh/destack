@@ -30,23 +30,23 @@ async def bootstrap(
     from bench.language import NodeArea
     from bench.system import (
         create_system_benches,
-        global_store_from_env,
-        pg_engine_from_store,
-        regional_store_from_env,
+        global_database_from_env,
+        pg_engine_from_database,
+        regional_database_from_env,
     )
 
-    global_store = global_store_from_env()
-    global_pg_engine = pg_engine_from_store("pg-global", global_store, NodeArea.GLOBAL)
-    regional_store = regional_store_from_env(region=region)
-    regional_pg_engine = pg_engine_from_store(
-        f"pg-regional-{regional_store.region.name.lower()}", regional_store, NodeArea.REGIONAL
+    global_database = global_database_from_env()
+    global_pg_engine = pg_engine_from_database("pg-global", global_database, NodeArea.GLOBAL)
+    regional_database = regional_database_from_env(region=region)
+    regional_pg_engine = pg_engine_from_database(
+        f"pg-regional-{regional_database.region.name.lower()}", regional_database, NodeArea.REGIONAL
     )
 
     await create_system_benches(
         region=region,
-        global_store=global_store,
+        global_database=global_database,
         global_pg_engine=global_pg_engine,
-        regional_store=regional_store,
+        regional_database=regional_database,
         regional_pg_engine=regional_pg_engine,
         upsert=upsert,
     )
@@ -75,20 +75,20 @@ async def make_local_computer_runtime(
     )
     from bench.system import (
         ACCESS_TOKEN_LENGTH,
+        global_database_from_env,
         global_session,
-        global_store_from_env,
-        pg_engine_from_store,
-        regional_store_from_env,
+        pg_engine_from_database,
+        regional_database_from_env,
     )
 
-    global_store = global_store_from_env()
-    global_pg_engine = pg_engine_from_store("pg-global", global_store, NodeArea.GLOBAL)
-    regional_store = regional_store_from_env(region=region)
-    regional_pg_engine = pg_engine_from_store(
-        f"pg-regional-{regional_store.region.name.lower()}", regional_store, NodeArea.REGIONAL
+    global_database = global_database_from_env()
+    global_pg_engine = pg_engine_from_database("pg-global", global_database, NodeArea.GLOBAL)
+    regional_database = regional_database_from_env(region=region)
+    regional_pg_engine = pg_engine_from_database(
+        f"pg-regional-{regional_database.region.name.lower()}", regional_database, NodeArea.REGIONAL
     )
     async with global_session(
-        global_store, (global_pg_engine, regional_pg_engine), REAL_ORACLE, epoch=0
+        global_database, (global_pg_engine, regional_pg_engine), REAL_ORACLE, epoch=0
     ) as session:
         bench = await Bench.include_descendants(NodeType.CLIENT).select_all().get(slug=bench_slug)
         computers = await Computer.where(

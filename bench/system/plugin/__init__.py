@@ -1,23 +1,23 @@
 from .claim import ClaimPlugin
 from .computer import DockerComputerProvisioner, KubernetesComputerProvisioner
-from .database import TablePlugin
+from .database import DatabaseProvisioner, LocalhostDatabaseProvisioner, NeonDatabaseProvisioner
 from .message import MessagePlugin
 from .provisioner import Provisioner
 from .runtime import RunPlugin, WakePlugin
 from .scaler import ScalerProvisioner
-from .store import LocalhostStoreProvisioner, NeonStoreProvisioner, StoreProvisioner
+from .table import TablePlugin
 
 __all__ = [
     "ClaimPlugin",
+    "DatabaseProvisioner",
     "DockerComputerProvisioner",
     "KubernetesComputerProvisioner",
-    "LocalhostStoreProvisioner",
+    "LocalhostDatabaseProvisioner",
     "MessagePlugin",
-    "NeonStoreProvisioner",
+    "NeonDatabaseProvisioner",
     "Provisioner",
     "RunPlugin",
     "ScalerProvisioner",
-    "StoreProvisioner",
     "TablePlugin",
     "WakePlugin",
 ]

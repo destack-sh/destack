@@ -38,7 +38,7 @@ enum EnumType {
   ENUM_TYPE_SCALER_TYPE = 21010;
   ENUM_TYPE_SCALER_STRATEGY = 21011;
   ENUM_TYPE_COMPUTER_TYPE = 21020;
-  ENUM_TYPE_STORE_TYPE = 21040;
+  ENUM_TYPE_DATABASE_TYPE = 21040;
   ENUM_TYPE_CLIENT_TYPE = 21041;
   ENUM_TYPE_FILE_RETENTION_MODE = 21050;
   ENUM_TYPE_FILE_SOURCE = 21051;
@@ -119,7 +119,7 @@ enum NodeType {
   NODE_TYPE_ORGANIZATION = 20;
   NODE_TYPE_CLIENT = 50;
   NODE_TYPE_SCALER = 2000;
-  NODE_TYPE_STORE = 2010;
+  NODE_TYPE_DATABASE = 2010;
   NODE_TYPE_COMPUTER = 2100;
   NODE_TYPE_FILE = 2200;
   NODE_TYPE_LINK = 2250;
@@ -213,7 +213,7 @@ enum ObjectType {
   OBJECT_TYPE_ORGANIZATION = 20;
   OBJECT_TYPE_CLIENT = 50;
   OBJECT_TYPE_SCALER = 2000;
-  OBJECT_TYPE_STORE = 2010;
+  OBJECT_TYPE_DATABASE = 2010;
   OBJECT_TYPE_COMPUTER = 2100;
   OBJECT_TYPE_FILE = 2200;
   OBJECT_TYPE_LINK = 2250;
@@ -303,7 +303,7 @@ enum BenchType {
   BENCH_TYPE_ORGANIZATION = 20;
   BENCH_TYPE_CLIENT = 50;
   BENCH_TYPE_SCALER = 2000;
-  BENCH_TYPE_STORE = 2010;
+  BENCH_TYPE_DATABASE = 2010;
   BENCH_TYPE_COMPUTER = 2100;
   BENCH_TYPE_FILE = 2200;
   BENCH_TYPE_LINK = 2250;
@@ -410,7 +410,7 @@ enum BenchType {
   BENCH_TYPE_SCALER_TYPE = 21010;
   BENCH_TYPE_SCALER_STRATEGY = 21011;
   BENCH_TYPE_COMPUTER_TYPE = 21020;
-  BENCH_TYPE_STORE_TYPE = 21040;
+  BENCH_TYPE_DATABASE_TYPE = 21040;
   BENCH_TYPE_CLIENT_TYPE = 21041;
   BENCH_TYPE_FILE_RETENTION_MODE = 21050;
   BENCH_TYPE_FILE_SOURCE = 21051;
@@ -704,9 +704,9 @@ enum ComputerType {
   COMPUTER_TYPE_CUSTOM = 9000;
 }
 
-enum StoreType {
-  STORE_TYPE_UNSPECIFIED = 0;
-  STORE_TYPE_POSTGRES = 1;
+enum DatabaseType {
+  DATABASE_TYPE_UNSPECIFIED = 0;
+  DATABASE_TYPE_POSTGRES = 1;
 }
 
 enum ClientType {
@@ -2338,7 +2338,7 @@ message ScalerData {
   optional string name_template = 65;
 }
 
-message StoreData {
+message DatabaseData {
   ObjectType metatype = 1;
   string id = 2;
   string ck = 3;
@@ -2355,7 +2355,7 @@ message StoreData {
   optional NodeReferenceData owned_by_ptr = 17;
   optional NodeReferenceData claimed_by_ptr = 18;
   NodeMode mode = 20;
-  StoreType type = 30;
+  DatabaseType type = 30;
   optional string name = 31;
   optional string order_key = 33;
   optional IconData icon = 34;
@@ -2396,7 +2396,7 @@ message BenchData {
   optional IconData icon = 35;
   Region region = 37;
   BenchStatus status = 40;
-  optional NodeReferenceData store_ptr = 50;
+  optional NodeReferenceData database_ptr = 50;
   optional NodeReferenceData package_ptr = 51;
 }
 
@@ -3359,7 +3359,7 @@ message SomeNodeData {
     OrganizationData organization = 4;
     ClientData client = 5;
     ScalerData scaler = 6;
-    StoreData store = 7;
+    DatabaseData database = 7;
     ComputerData computer = 8;
     FileData file = 9;
     LinkData link = 10;

@@ -11,21 +11,21 @@ from bench.language.core import (
     p_kernel,
     p_system,
 )
-from bench.pb2 import StoreData
+from bench.pb2 import DatabaseData
 
 # pyright: reportIncompatibleVariableOverride=false
 
 
-@enum_(EnumType.STORE_TYPE)
-class StoreType(BuiltinEnum):
+@enum_(EnumType.DATABASE_TYPE)
+class DatabaseType(BuiltinEnum):
     POSTGRES = 1
 
 
-@node_(NodeType.STORE)
-class Store(ProvisionableResource[StoreData]):
+@node_(NodeType.DATABASE)
+class Database(ProvisionableResource[DatabaseData]):
     """A trusty Postgres-compatible database."""
 
-    type: StoreType = p_system(30, default=StoreType.POSTGRES)
+    type: DatabaseType = p_system(30, default=DatabaseType.POSTGRES)
 
     version: str = p_system(60, default=VERSION, default_sql=None)
     external_name: Optional[str] = p_kernel(62, require=False, default=None, sensitive=True)

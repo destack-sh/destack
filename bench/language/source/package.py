@@ -27,6 +27,7 @@ if TYPE_CHECKING:
         Agent,
         Bench,
         Channel,
+        Database,
         Dependency,
         Flow,
         Icon,
@@ -34,7 +35,6 @@ if TYPE_CHECKING:
         Page,
         Scaler,
         Space,
-        Store,
     )
 
 # pyright: reportIncompatibleVariableOverride=false
@@ -86,7 +86,7 @@ class Package(IsOwnable, IsJoinable, IsTemplatable, IsModal, IsNamed, PackageNod
         description="The default Identity for Flows.",
     )
 
-    stores: LocalNodeList["Store"] = p_node_children(NodeType.STORE)
+    databases: LocalNodeList["Database"] = p_node_children(NodeType.DATABASE)
     scalers: LocalNodeList["Scaler"] = p_node_children(NodeType.SCALER)
     pages: LocalNodeList["Page"] = p_node_children(NodeType.PAGE)
     channels: LocalNodeList["Channel"] = p_node_children(NodeType.CHANNEL)

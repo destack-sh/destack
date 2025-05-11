@@ -24,6 +24,7 @@ from bench.language import (
     Bench,
     BenchStatus,
     BuiltinObject,
+    Database,
     NodeGraph,
     NodeSuperGraph,
     NullEngine,
@@ -31,11 +32,10 @@ from bench.language import (
     PackageType,
     Region,
     Session,
-    Store,
     User,
     UserStatus,
 )
-from bench.system import pg_engine_from_store
+from bench.system import pg_engine_from_database
 from bench.test.conftest import _setup_test_env
 from bench.test.simulation.core import (
     BenchSpec,
@@ -70,10 +70,10 @@ def event_loop_policy():
     return SimulatedEventLoopPolicy()
 
 
-def create_omni_session(omni_store: Store, oracle: Oracle):
+def create_omni_session(omni_database: Database, oracle: Oracle):
     """Gets direct access to a per test global engine"""
 
-    omni_pg_engine = pg_engine_from_store(name="pg-omni", store=omni_store, area=None)
+    omni_pg_engine = pg_engine_from_database(name="pg-omni", database=omni_database, area=None)
     session = Session(
         _default_scope=EMPTY_SCOPE_DATA,
         _engines=(omni_pg_engine,),
@@ -85,7 +85,7 @@ def create_omni_session(omni_store: Store, oracle: Oracle):
 
 
 @pytest.fixture
-def omni_session(omni_store: Store):
+def omni_session(omni_database: Database):
     """
     Gets the per test function global real session.
     Unfortunately we can't set this session as the active session in context because
@@ -93,7 +93,7 @@ def omni_session(omni_store: Store):
     (see https://github.com/pytest-dev/pytest-asyncio/issues/127#issuecomment-1777004844)
     """
 
-    return create_omni_session(omni_store, REAL_ORACLE)
+    return create_omni_session(omni_database, REAL_ORACLE)
 
 
 def make_session(name: str):
@@ -137,7 +137,7 @@ async def session_async(request):
 def make_package(session: Session):
     bench = Bench(name="test", slug="test", status=BenchStatus.ACTIVATED)
     package = bench.packages.create(type=PackageType.OPEN, name="Main", slug="main")
-    bench.store = package.stores.create(name="Store")
+    bench.database = package.databases.create(name="Database")
     session.parent = bench
     session._graph.update(session, _force_update_parent=True)
     return package

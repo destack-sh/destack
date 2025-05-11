@@ -24,13 +24,13 @@ from bench.pb2 import BenchData
 
 if TYPE_CHECKING:
     from bench.language import (
+        Database,
         Handle,
         Icon,
         Membership,
         NodeReference,
         Package,
         Region,
-        Store,
         TextLine,
     )
 
@@ -74,8 +74,8 @@ class Bench(IsOwnable, BenchNode[BenchData]):
     status: BenchStatus = p_system(40, default=BenchStatus.RESERVED)
 
     # content
-    store: Optional["Store"] = p_system(
-        50, require=False, array=False, references=NodeType.STORE, fk=True, same_bench=True
+    database: Optional["Database"] = p_system(
+        50, require=False, array=False, references=NodeType.DATABASE, fk=True, same_bench=True
     )
     package: Optional["Package"] = p_regular(
         51,
@@ -86,8 +86,8 @@ class Bench(IsOwnable, BenchNode[BenchData]):
         same_bench=True,
     )
     if TYPE_CHECKING:
-        store_ptr: Optional[NodeReference] = None
-        store_id: Optional[UUID] = None
+        database_ptr: Optional[NodeReference] = None
+        database_id: Optional[UUID] = None
         package_ptr: Optional[NodeReference] = None
         package_id: Optional[UUID] = None
 

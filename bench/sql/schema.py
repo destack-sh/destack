@@ -11,7 +11,7 @@ from .core import (
     SqlTable,
 )
 
-VERSION = "2025.05.11.1"
+VERSION = "2025.05.11.3"
 
 BENCH_TABLE = SqlTable(
     "bench_bench",
@@ -41,7 +41,7 @@ BENCH_TABLE = SqlTable(
         SqlColumn("icon", PrimitiveType.JSON, is_nullable=True),
         SqlColumn("region", PrimitiveType.INT16),
         SqlColumn("status", PrimitiveType.INT16, default="20"),
-        SqlColumn("store_id", PrimitiveType.UUID, is_nullable=True),
+        SqlColumn("database_id", PrimitiveType.UUID, is_nullable=True),
         SqlColumn("package_id", PrimitiveType.UUID, is_nullable=True),
     ),
     indexes=(SqlIndex("bench_idx_slug", SqlIndexType.BTREE, ("slug",), is_unique=True),),
@@ -276,8 +276,8 @@ SCALER_TABLE = SqlTable(
     indexes=(SqlIndex("bench_idx_parent_id", SqlIndexType.BTREE, ("parent_id",), cover=("id",)),),
 )
 
-STORE_TABLE = SqlTable(
-    "bench_store",
+DATABASE_TABLE = SqlTable(
+    "bench_database",
     (
         SqlColumn("id", PrimitiveType.UUID, is_primary_key=True),
         SqlColumn("ck", PrimitiveType.UUID),

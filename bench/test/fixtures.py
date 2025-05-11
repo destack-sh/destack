@@ -21,13 +21,13 @@ from bench.language import (
     VERSION,
     Bench,
     BenchStatus,
+    Database,
     NodeReference,
     NodeSuperGraph,
     NodeType,
     Package,
     PackageType,
     Region,
-    Store,
     clean_name,
 )
 from bench.sql import (
@@ -47,15 +47,15 @@ from bench.sql import (
     pg_connection,
     sqlstr,
 )
-from bench.system import BEGINNING_OF_TIME, global_store_from_env
+from bench.system import BEGINNING_OF_TIME, global_database_from_env
 from bench.utils.utils import get_from_env
 
 logger = structlog.get_logger(__name__)
 tracer = trace.get_tracer(__name__)
 
 
-def make_global_store(name: str):
-    """Creates a global store for testing.."""
+def make_global_database(name: str):
+    """Creates a global database for testing.."""
 
     pg = get_from_env("GLOBAL_PG_URL", description="Global Postgres connection string")
     pg_url_parsed = urlparse(pg)
@@ -83,7 +83,7 @@ def make_global_store(name: str):
         created_at=BEGINNING_OF_TIME,
         updated_at=BEGINNING_OF_TIME,
     )
-    store = Store(
+    database = Database(
         parent=system_package_stub,
         name=name,
         version=VERSION,
@@ -93,11 +93,11 @@ def make_global_store(name: str):
         created_at=BEGINNING_OF_TIME,
         updated_at=BEGINNING_OF_TIME,
     )
-    return store
+    return database
 
 
-def make_regional_store(name: str):
-    """Creates a regional store for testing."""
+def make_regional_database(name: str):
+    """Creates a regional database for testing."""
 
     assert len(name) < 64, f"name must be less than 64 characters: {name!r}"
     pg = get_from_env("GLOBAL_PG_URL", description="Regional Postgres connection string")
@@ -126,7 +126,7 @@ def make_regional_store(name: str):
         created_at=BEGINNING_OF_TIME,
         updated_at=BEGINNING_OF_TIME,
     )
-    store = Store(
+    database = Database(
         parent=system_package_stub,
         name=name,
         version=VERSION,
@@ -136,20 +136,20 @@ def make_regional_store(name: str):
         created_at=BEGINNING_OF_TIME,
         updated_at=BEGINNING_OF_TIME,
     )
-    return store
+    return database
 
 
-async def create_blank_test_db(store: Store):
+async def create_blank_test_db(database: Database):
     """Creates a blank postgres database"""
-    async with pg_connection(global_store_from_env(), owner=store, autocommit=True) as conn:
-        await conn.execute(sqlstr(f'DROP DATABASE IF EXISTS "{store.external_name}"'))
-        await conn.execute(sqlstr(f'CREATE DATABASE "{store.external_name}"'))
+    async with pg_connection(global_database_from_env(), owner=database, autocommit=True) as conn:
+        await conn.execute(sqlstr(f'DROP DATABASE IF EXISTS "{database.external_name}"'))
+        await conn.execute(sqlstr(f'CREATE DATABASE "{database.external_name}"'))
 
 
-async def create_test_db(store: Store, schema: SqlSchema):
+async def create_test_db(database: Database, schema: SqlSchema):
     """Creates a postgres DB with one of our schemas"""
-    await create_blank_test_db(store)
-    async with pg_connection(store, owner=store, autocommit=True) as conn:
+    await create_blank_test_db(database)
+    async with pg_connection(database, owner=database, autocommit=True) as conn:
         old_schema = await introspect_sql_schema(
             conn.cursor,
             include_table_prefixes=(BENCH_TABLE_PREFIX,),
@@ -160,52 +160,52 @@ async def create_test_db(store: Store, schema: SqlSchema):
         await conn.commit()
 
 
-async def delete_test_db(store: Store):
+async def delete_test_db(database: Database):
     """Deletes a postgres DB with one of our schemas"""
-    await get_pg_pool(store).close()
-    async with pg_connection(global_store_from_env(), owner=store, autocommit=True) as conn:
-        await conn.execute(sqlstr(f'DROP DATABASE IF EXISTS "{store.external_name}"'))
+    await get_pg_pool(database).close()
+    async with pg_connection(global_database_from_env(), owner=database, autocommit=True) as conn:
+        await conn.execute(sqlstr(f'DROP DATABASE IF EXISTS "{database.external_name}"'))
 
 
 @pytest.fixture
-async def blank_store(request: pytest.FixtureRequest):
-    """Gets the per test function blank store"""
+async def blank_database(request: pytest.FixtureRequest):
+    """Gets the per test function blank database"""
 
-    store = make_global_store(f"test-{clean_name(request.node.name)[:32]}-blank")
-    await create_blank_test_db(store)
+    database = make_global_database(f"test-{clean_name(request.node.name)[:32]}-blank")
+    await create_blank_test_db(database)
     try:
-        yield store
+        yield database
     finally:
-        await delete_test_db(store)
+        await delete_test_db(database)
 
 
 @pytest.fixture
-async def global_store(request: pytest.FixtureRequest):
-    """Gets the per test function global store"""
+async def global_database(request: pytest.FixtureRequest):
+    """Gets the per test function global database"""
 
-    store = make_global_store(f"test-{clean_name(request.node.name)[:32]}-global")
-    await create_test_db(store, BUILTIN_GLOBAL_SCHEMA)
+    database = make_global_database(f"test-{clean_name(request.node.name)[:32]}-global")
+    await create_test_db(database, BUILTIN_GLOBAL_SCHEMA)
     try:
-        yield store
+        yield database
     finally:
-        await delete_test_db(store)
+        await delete_test_db(database)
 
 
 @pytest.fixture
-async def regional_store(request: pytest.FixtureRequest):
-    """Gets the per test function regional store"""
+async def regional_database(request: pytest.FixtureRequest):
+    """Gets the per test function regional database"""
 
-    store = make_regional_store(f"test-{clean_name(request.node.name)[:32]}-regional")
-    await create_test_db(store, BUILTIN_REGIONAL_SCHEMA)
+    database = make_regional_database(f"test-{clean_name(request.node.name)[:32]}-regional")
+    await create_test_db(database, BUILTIN_REGIONAL_SCHEMA)
     try:
-        yield store
+        yield database
     finally:
-        await delete_test_db(store)
+        await delete_test_db(database)
 
 
 @pytest.fixture
-async def omni_store(request: pytest.FixtureRequest):
-    """Gets the per test function global store"""
+async def omni_database(request: pytest.FixtureRequest):
+    """Gets the per test function global database"""
 
     ALL_TABLES = {}
     for table in (*BUILTIN_GLOBAL_TABLES, *BUILTIN_REGIONAL_TABLES, *BUILTIN_LOCAL_TABLES):
@@ -213,12 +213,12 @@ async def omni_store(request: pytest.FixtureRequest):
     ALL_TABLES = tuple(ALL_TABLES.values())
     OMNI_SCHEMA = SqlSchema(ALL_EXTENSIONS, ALL_TABLES)
 
-    store = make_global_store(f"test-{clean_name(request.node.name)[:32]}-omni")
-    await create_test_db(store, OMNI_SCHEMA)
+    database = make_global_database(f"test-{clean_name(request.node.name)[:32]}-omni")
+    await create_test_db(database, OMNI_SCHEMA)
     try:
-        yield store
+        yield database
     finally:
-        await delete_test_db(store)
+        await delete_test_db(database)
 
 
 @contextmanager
