@@ -1467,9 +1467,9 @@ export interface BaseNodeData {
     deletedAt?: Timestamp;
 }
 /**
- * @generated from protobuf message symbol.bench.StubData
+ * @generated from protobuf message symbol.bench.EmptyData
  */
-export interface StubData {
+export interface EmptyData {
     /**
      * @generated from protobuf field: symbol.bench.ObjectType metatype = 1;
      */
@@ -6445,11 +6445,11 @@ export interface SomeNodeData {
          */
         view: ViewData;
     } | {
-        oneofKind: "stub";
+        oneofKind: "empty";
         /**
-         * @generated from protobuf field: symbol.bench.StubData stub = 43;
+         * @generated from protobuf field: symbol.bench.EmptyData empty = 43;
          */
-        stub: StubData;
+        empty: EmptyData;
     } | {
         oneofKind: undefined;
     };
@@ -7032,9 +7032,9 @@ export enum NodeType {
      */
     VIEW = 3010,
     /**
-     * @generated from protobuf enum value: NODE_TYPE_STUB = 9999;
+     * @generated from protobuf enum value: NODE_TYPE_EMPTY = 9999;
      */
-    STUB = 9999
+    EMPTY = 9999
 }
 /**
  * @generated from protobuf enum symbol.bench.StructType
@@ -7390,9 +7390,9 @@ export enum ObjectType {
      */
     VIEW = 3010,
     /**
-     * @generated from protobuf enum value: OBJECT_TYPE_STUB = 9999;
+     * @generated from protobuf enum value: OBJECT_TYPE_EMPTY = 9999;
      */
-    STUB = 9999,
+    EMPTY = 9999,
     /**
      * @generated from protobuf enum value: OBJECT_TYPE_CONTEXT = 10001;
      */
@@ -7739,9 +7739,9 @@ export enum BenchType {
      */
     VIEW = 3010,
     /**
-     * @generated from protobuf enum value: BENCH_TYPE_STUB = 9999;
+     * @generated from protobuf enum value: BENCH_TYPE_EMPTY = 9999;
      */
-    STUB = 9999,
+    EMPTY = 9999,
     /**
      * @generated from protobuf enum value: BENCH_TYPE_CONTEXT = 10001;
      */
@@ -16253,9 +16253,9 @@ class BaseNodeData$Type extends MessageType$<BaseNodeData> {
  */
 export const BaseNodeData = new BaseNodeData$Type();
 // @generated message type with reflection information, may provide speed optimized methods
-class StubData$Type extends MessageType$<StubData> {
+class EmptyData$Type extends MessageType$<EmptyData> {
     constructor() {
-        super("symbol.bench.StubData", [
+        super("symbol.bench.EmptyData", [
             { no: 1, name: "metatype", kind: "enum", T: () => ["symbol.bench.ObjectType", ObjectType, "OBJECT_TYPE_"] },
             { no: 2, name: "id", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
             { no: 4, name: "parent_ptr", kind: "message", T: () => NodeReferenceData },
@@ -16267,15 +16267,15 @@ class StubData$Type extends MessageType$<StubData> {
             { no: 15, name: "deleted_at", kind: "message", T: () => Timestamp }
         ]);
     }
-    create(value?: PartialMessage<StubData>): StubData {
+    create(value?: PartialMessage<EmptyData>): EmptyData {
         const message = globalThis.Object.create((this.messagePrototype!));
         message.metatype = 0;
         message.id = "";
         if (value !== undefined)
-            reflectionMergePartial<StubData>(this, message, value);
+            reflectionMergePartial<EmptyData>(this, message, value);
         return message;
     }
-    internalBinaryRead(reader: IBinaryReader, length: number, options: BinaryReadOptions, target?: StubData): StubData {
+    internalBinaryRead(reader: IBinaryReader, length: number, options: BinaryReadOptions, target?: EmptyData): EmptyData {
         let message = target ?? this.create(), end = reader.pos + length;
         while (reader.pos < end) {
             let [fieldNo, wireType] = reader.tag();
@@ -16318,7 +16318,7 @@ class StubData$Type extends MessageType$<StubData> {
         }
         return message;
     }
-    internalBinaryWrite(message: StubData, writer: IBinaryWriter, options: BinaryWriteOptions): IBinaryWriter {
+    internalBinaryWrite(message: EmptyData, writer: IBinaryWriter, options: BinaryWriteOptions): IBinaryWriter {
         /* symbol.bench.ObjectType metatype = 1; */
         if (message.metatype !== 0)
             writer.tag(1, WireType.Varint).int32(message.metatype);
@@ -16353,9 +16353,9 @@ class StubData$Type extends MessageType$<StubData> {
     }
 }
 /**
- * @generated MessageType for protobuf message symbol.bench.StubData
+ * @generated MessageType for protobuf message symbol.bench.EmptyData
  */
-export const StubData = new StubData$Type();
+export const EmptyData = new EmptyData$Type();
 // @generated message type with reflection information, may provide speed optimized methods
 class ChannelData$Type extends MessageType$<ChannelData> {
     constructor() {
@@ -26105,7 +26105,7 @@ class SomeNodeData$Type extends MessageType$<SomeNodeData> {
             { no: 40, name: "agent", kind: "message", oneof: "node", T: () => AgentData },
             { no: 41, name: "space", kind: "message", oneof: "node", T: () => SpaceData },
             { no: 42, name: "view", kind: "message", oneof: "node", T: () => ViewData },
-            { no: 43, name: "stub", kind: "message", oneof: "node", T: () => StubData }
+            { no: 43, name: "empty", kind: "message", oneof: "node", T: () => EmptyData }
         ]);
     }
     create(value?: PartialMessage<SomeNodeData>): SomeNodeData {
@@ -26372,10 +26372,10 @@ class SomeNodeData$Type extends MessageType$<SomeNodeData> {
                         view: ViewData.internalBinaryRead(reader, reader.uint32(), options, (message.node as any).view)
                     };
                     break;
-                case /* symbol.bench.StubData stub */ 43:
+                case /* symbol.bench.EmptyData empty */ 43:
                     message.node = {
-                        oneofKind: "stub",
-                        stub: StubData.internalBinaryRead(reader, reader.uint32(), options, (message.node as any).stub)
+                        oneofKind: "empty",
+                        empty: EmptyData.internalBinaryRead(reader, reader.uint32(), options, (message.node as any).empty)
                     };
                     break;
                 default:
@@ -26516,9 +26516,9 @@ class SomeNodeData$Type extends MessageType$<SomeNodeData> {
         /* symbol.bench.ViewData view = 42; */
         if (message.node.oneofKind === "view")
             ViewData.internalBinaryWrite(message.node.view, writer.tag(42, WireType.LengthDelimited).fork(), options).join();
-        /* symbol.bench.StubData stub = 43; */
-        if (message.node.oneofKind === "stub")
-            StubData.internalBinaryWrite(message.node.stub, writer.tag(43, WireType.LengthDelimited).fork(), options).join();
+        /* symbol.bench.EmptyData empty = 43; */
+        if (message.node.oneofKind === "empty")
+            EmptyData.internalBinaryWrite(message.node.empty, writer.tag(43, WireType.LengthDelimited).fork(), options).join();
         let u = options.writeUnknownFields;
         if (u !== false)
             (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
@@ -26541,9 +26541,9 @@ export type JsonValue = JsonPrimitive | { [key: string]: JsonValue } | JsonValue
 //
 
 // Any...
-export type AnyNodeData = BenchData | HandleData | UserData | OrganizationData | ClientData | PackageData | DependencyData | PageData | BlockData | DatabaseData | ComputerData | ScalerData | ChoiceData | ClassData | FieldData | OptionData | TableData | RecordData | FileData | LinkData | ChannelData | ThreadData | MessageData | NotificationData | TaskData | ClaimData | CursorData | ServiceData | ActionData | FlowData | TransitionData | SessionData | RunData | SpanData | InterruptionData | TeamData | MembershipData | InviteData | RoleData | AgentData | SpaceData | ViewData | StubData
+export type AnyNodeData = BenchData | HandleData | UserData | OrganizationData | ClientData | PackageData | DependencyData | PageData | BlockData | DatabaseData | ComputerData | ScalerData | ChoiceData | ClassData | FieldData | OptionData | TableData | RecordData | FileData | LinkData | ChannelData | ThreadData | MessageData | NotificationData | TaskData | ClaimData | CursorData | ServiceData | ActionData | FlowData | TransitionData | SessionData | RunData | SpanData | InterruptionData | TeamData | MembershipData | InviteData | RoleData | AgentData | SpaceData | ViewData | EmptyData
 export type AnyStructData = ContextData | EditContextData | EditData | EditOperationData | ChangeData | ChangeVignetteData | GraphScopeData | ClientOriginData | NodeReferenceData | PropertyReferenceData | PolicyData | PolicyRuleData | PolicySubjectData | AccessZoneData | AccessMatrixData | AccessData | TypeData | TypeConstraintData | FileInfoData | IconData | ScheduleData | TextData | TextLineData | TextSpanData | CodeData | ExpressionData | AggregationResultData | SelectionData | SelectOptionsData | ErrorData | RunTraceData | RunFrameData | ColorData | FontData | RectangleData | OffsetData | TransformData | Vector2Data | Vector3Data | Vector4Data | LineData | RectangleConstraintData
-export type AnyNodeDataType = typeof BenchData | typeof HandleData | typeof UserData | typeof OrganizationData | typeof ClientData | typeof PackageData | typeof DependencyData | typeof PageData | typeof BlockData | typeof DatabaseData | typeof ComputerData | typeof ScalerData | typeof ChoiceData | typeof ClassData | typeof FieldData | typeof OptionData | typeof TableData | typeof RecordData | typeof FileData | typeof LinkData | typeof ChannelData | typeof ThreadData | typeof MessageData | typeof NotificationData | typeof TaskData | typeof ClaimData | typeof CursorData | typeof ServiceData | typeof ActionData | typeof FlowData | typeof TransitionData | typeof SessionData | typeof RunData | typeof SpanData | typeof InterruptionData | typeof TeamData | typeof MembershipData | typeof InviteData | typeof RoleData | typeof AgentData | typeof SpaceData | typeof ViewData | typeof StubData
+export type AnyNodeDataType = typeof BenchData | typeof HandleData | typeof UserData | typeof OrganizationData | typeof ClientData | typeof PackageData | typeof DependencyData | typeof PageData | typeof BlockData | typeof DatabaseData | typeof ComputerData | typeof ScalerData | typeof ChoiceData | typeof ClassData | typeof FieldData | typeof OptionData | typeof TableData | typeof RecordData | typeof FileData | typeof LinkData | typeof ChannelData | typeof ThreadData | typeof MessageData | typeof NotificationData | typeof TaskData | typeof ClaimData | typeof CursorData | typeof ServiceData | typeof ActionData | typeof FlowData | typeof TransitionData | typeof SessionData | typeof RunData | typeof SpanData | typeof InterruptionData | typeof TeamData | typeof MembershipData | typeof InviteData | typeof RoleData | typeof AgentData | typeof SpaceData | typeof ViewData | typeof EmptyData
 export type AnyStructDataType = typeof ContextData | typeof EditContextData | typeof EditData | typeof EditOperationData | typeof ChangeData | typeof ChangeVignetteData | typeof GraphScopeData | typeof ClientOriginData | typeof NodeReferenceData | typeof PropertyReferenceData | typeof PolicyData | typeof PolicyRuleData | typeof PolicySubjectData | typeof AccessZoneData | typeof AccessMatrixData | typeof AccessData | typeof TypeData | typeof TypeConstraintData | typeof FileInfoData | typeof IconData | typeof ScheduleData | typeof TextData | typeof TextLineData | typeof TextSpanData | typeof CodeData | typeof ExpressionData | typeof AggregationResultData | typeof SelectionData | typeof SelectOptionsData | typeof ErrorData | typeof RunTraceData | typeof RunFrameData | typeof ColorData | typeof FontData | typeof RectangleData | typeof OffsetData | typeof TransformData | typeof Vector2Data | typeof Vector3Data | typeof Vector4Data | typeof LineData | typeof RectangleConstraintData
 export type BenchNodeData = BenchData | HandleData | PackageData | DependencyData | PageData | BlockData | DatabaseData | ComputerData | ScalerData | ChoiceData | ClassData | FieldData | OptionData | TableData | RecordData | FileData | LinkData | ChannelData | ThreadData | MessageData | NotificationData | TaskData | ClaimData | CursorData | ServiceData | ActionData | FlowData | TransitionData | SessionData | RunData | SpanData | InterruptionData | TeamData | MembershipData | InviteData | RoleData | AgentData | SpaceData | ViewData
 export type ClaimableNodeData = PageData | DatabaseData | ComputerData | ScalerData | TableData | RecordData | FileData | LinkData | TaskData | ServiceData | ActionData | FlowData | AgentData | ViewData
@@ -26605,7 +26605,7 @@ export const BENCH_NODE_TYPES: NodeType[] = [
   NodeType.AGENT,
   NodeType.SPACE,
   NodeType.VIEW,
-  NodeType.STUB,
+  NodeType.EMPTY,
 ];
 export const GLOBAL_NODE_TYPES: NodeType[] = [
   NodeType.BENCH,
@@ -26920,54 +26920,54 @@ export const PARENT_NODE_TYPES: Record<NodeType, NodeType[]> = {
   [NodeType.AGENT]: [NodeType.PAGE],
   [NodeType.SPACE]: [NodeType.PACKAGE],
   [NodeType.VIEW]: [NodeType.SPACE, NodeType.VIEW, NodeType.PAGE],
-  [NodeType.STUB]: [NodeType.BENCH, NodeType.HANDLE, NodeType.CLASS, NodeType.BLOCK, NodeType.CHANNEL, NodeType.USER, NodeType.FIELD, NodeType.STUB, NodeType.THREAD, NodeType.ORGANIZATION, NodeType.OPTION, NodeType.SERVICE, NodeType.MESSAGE, NodeType.ACTION, NodeType.TEAM, NodeType.FLOW, NodeType.DATABASE, NodeType.CLIENT, NodeType.MEMBERSHIP, NodeType.TRANSITION, NodeType.SPACE, NodeType.COMPUTER, NodeType.NOTIFICATION, NodeType.INVITE, NodeType.TABLE, NodeType.VIEW, NodeType.ROLE, NodeType.RECORD, NodeType.TASK, NodeType.FILE, NodeType.CLAIM, NodeType.SESSION, NodeType.SCALER, NodeType.CURSOR, NodeType.PACKAGE, NodeType.RUN, NodeType.AGENT, NodeType.DEPENDENCY, NodeType.LINK, NodeType.SPAN, NodeType.CHOICE, NodeType.PAGE, NodeType.INTERRUPTION],
+  [NodeType.EMPTY]: [NodeType.BENCH, NodeType.HANDLE, NodeType.CLASS, NodeType.BLOCK, NodeType.CHANNEL, NodeType.USER, NodeType.FIELD, NodeType.EMPTY, NodeType.THREAD, NodeType.ORGANIZATION, NodeType.OPTION, NodeType.SERVICE, NodeType.MESSAGE, NodeType.ACTION, NodeType.TEAM, NodeType.FLOW, NodeType.DATABASE, NodeType.CLIENT, NodeType.MEMBERSHIP, NodeType.TRANSITION, NodeType.SPACE, NodeType.COMPUTER, NodeType.NOTIFICATION, NodeType.INVITE, NodeType.TABLE, NodeType.VIEW, NodeType.ROLE, NodeType.RECORD, NodeType.TASK, NodeType.FILE, NodeType.CLAIM, NodeType.SESSION, NodeType.SCALER, NodeType.CURSOR, NodeType.PACKAGE, NodeType.RUN, NodeType.AGENT, NodeType.DEPENDENCY, NodeType.LINK, NodeType.SPAN, NodeType.CHOICE, NodeType.PAGE, NodeType.INTERRUPTION],
 }
 
 export const CHILD_NODE_TYPES: Record<NodeType, NodeType[]> = {
   [NodeType.UNSPECIFIED]: [],
-  [NodeType.BENCH]: [NodeType.SESSION, NodeType.HANDLE, NodeType.PACKAGE, NodeType.STUB, NodeType.CLIENT],
-  [NodeType.HANDLE]: [NodeType.STUB],
-  [NodeType.USER]: [NodeType.CLIENT, NodeType.HANDLE, NodeType.STUB],
-  [NodeType.ORGANIZATION]: [NodeType.HANDLE, NodeType.STUB],
-  [NodeType.CLIENT]: [NodeType.STUB],
-  [NodeType.PACKAGE]: [NodeType.SCALER, NodeType.CHANNEL, NodeType.TEAM, NodeType.COMPUTER, NodeType.PAGE, NodeType.STUB, NodeType.DATABASE, NodeType.THREAD, NodeType.LINK, NodeType.FILE, NodeType.MEMBERSHIP, NodeType.DEPENDENCY, NodeType.SPACE, NodeType.NOTIFICATION, NodeType.INVITE],
-  [NodeType.DEPENDENCY]: [NodeType.STUB],
-  [NodeType.PAGE]: [NodeType.CLASS, NodeType.BLOCK, NodeType.CHANNEL, NodeType.STUB, NodeType.THREAD, NodeType.SERVICE, NodeType.TEAM, NodeType.FLOW, NodeType.DATABASE, NodeType.COMPUTER, NodeType.TABLE, NodeType.VIEW, NodeType.ROLE, NodeType.TASK, NodeType.FILE, NodeType.SCALER, NodeType.AGENT, NodeType.LINK, NodeType.CHOICE, NodeType.PAGE],
-  [NodeType.BLOCK]: [NodeType.BLOCK, NodeType.STUB],
-  [NodeType.DATABASE]: [NodeType.STUB],
-  [NodeType.COMPUTER]: [NodeType.STUB],
-  [NodeType.SCALER]: [NodeType.STUB],
-  [NodeType.CHOICE]: [NodeType.OPTION, NodeType.STUB],
-  [NodeType.CLASS]: [NodeType.FIELD, NodeType.STUB],
-  [NodeType.FIELD]: [NodeType.OPTION, NodeType.STUB],
-  [NodeType.OPTION]: [NodeType.STUB],
-  [NodeType.TABLE]: [NodeType.RECORD, NodeType.FIELD, NodeType.STUB, NodeType.LINK, NodeType.FILE, NodeType.CHOICE],
-  [NodeType.RECORD]: [NodeType.RECORD, NodeType.STUB],
-  [NodeType.FILE]: [NodeType.STUB],
-  [NodeType.LINK]: [NodeType.LINK, NodeType.STUB],
-  [NodeType.CHANNEL]: [NodeType.STUB, NodeType.THREAD, NodeType.MEMBERSHIP, NodeType.FILE, NodeType.MESSAGE, NodeType.INVITE],
-  [NodeType.THREAD]: [NodeType.CLAIM, NodeType.SCALER, NodeType.CURSOR, NodeType.RUN, NodeType.FIELD, NodeType.STUB, NodeType.DATABASE, NodeType.THREAD, NodeType.LINK, NodeType.FILE, NodeType.MEMBERSHIP, NodeType.COMPUTER, NodeType.MESSAGE, NodeType.INVITE],
-  [NodeType.MESSAGE]: [NodeType.FILE, NodeType.STUB],
-  [NodeType.NOTIFICATION]: [NodeType.STUB],
-  [NodeType.TASK]: [NodeType.TASK, NodeType.STUB],
-  [NodeType.CLAIM]: [NodeType.STUB],
-  [NodeType.CURSOR]: [NodeType.STUB],
-  [NodeType.SERVICE]: [NodeType.CLAIM, NodeType.ACTION, NodeType.STUB],
-  [NodeType.ACTION]: [NodeType.CLAIM, NodeType.FIELD, NodeType.STUB],
-  [NodeType.FLOW]: [NodeType.ACTION, NodeType.FIELD, NodeType.STUB, NodeType.TRANSITION, NodeType.CLAIM],
-  [NodeType.TRANSITION]: [NodeType.STUB],
-  [NodeType.SESSION]: [NodeType.STUB],
-  [NodeType.RUN]: [NodeType.CURSOR, NodeType.RUN, NodeType.STUB, NodeType.LINK, NodeType.FILE, NodeType.SPAN, NodeType.CLAIM, NodeType.INTERRUPTION],
-  [NodeType.SPAN]: [NodeType.STUB],
-  [NodeType.INTERRUPTION]: [NodeType.STUB],
-  [NodeType.TEAM]: [NodeType.ROLE, NodeType.TEAM, NodeType.STUB, NodeType.MEMBERSHIP, NodeType.INVITE],
-  [NodeType.MEMBERSHIP]: [NodeType.STUB],
-  [NodeType.INVITE]: [NodeType.STUB],
-  [NodeType.ROLE]: [NodeType.CLAIM, NodeType.STUB],
-  [NodeType.AGENT]: [NodeType.CURSOR, NodeType.RUN, NodeType.FLOW, NodeType.FIELD, NodeType.STUB, NodeType.CLAIM],
-  [NodeType.SPACE]: [NodeType.VIEW, NodeType.CURSOR, NodeType.STUB],
-  [NodeType.VIEW]: [NodeType.VIEW, NodeType.STUB],
-  [NodeType.STUB]: [NodeType.STUB],
+  [NodeType.BENCH]: [NodeType.SESSION, NodeType.HANDLE, NodeType.PACKAGE, NodeType.EMPTY, NodeType.CLIENT],
+  [NodeType.HANDLE]: [NodeType.EMPTY],
+  [NodeType.USER]: [NodeType.CLIENT, NodeType.HANDLE, NodeType.EMPTY],
+  [NodeType.ORGANIZATION]: [NodeType.HANDLE, NodeType.EMPTY],
+  [NodeType.CLIENT]: [NodeType.EMPTY],
+  [NodeType.PACKAGE]: [NodeType.SCALER, NodeType.CHANNEL, NodeType.TEAM, NodeType.COMPUTER, NodeType.PAGE, NodeType.EMPTY, NodeType.DATABASE, NodeType.THREAD, NodeType.LINK, NodeType.FILE, NodeType.MEMBERSHIP, NodeType.DEPENDENCY, NodeType.SPACE, NodeType.NOTIFICATION, NodeType.INVITE],
+  [NodeType.DEPENDENCY]: [NodeType.EMPTY],
+  [NodeType.PAGE]: [NodeType.CLASS, NodeType.BLOCK, NodeType.CHANNEL, NodeType.EMPTY, NodeType.THREAD, NodeType.SERVICE, NodeType.TEAM, NodeType.FLOW, NodeType.DATABASE, NodeType.COMPUTER, NodeType.TABLE, NodeType.VIEW, NodeType.ROLE, NodeType.TASK, NodeType.FILE, NodeType.SCALER, NodeType.AGENT, NodeType.LINK, NodeType.CHOICE, NodeType.PAGE],
+  [NodeType.BLOCK]: [NodeType.BLOCK, NodeType.EMPTY],
+  [NodeType.DATABASE]: [NodeType.EMPTY],
+  [NodeType.COMPUTER]: [NodeType.EMPTY],
+  [NodeType.SCALER]: [NodeType.EMPTY],
+  [NodeType.CHOICE]: [NodeType.OPTION, NodeType.EMPTY],
+  [NodeType.CLASS]: [NodeType.FIELD, NodeType.EMPTY],
+  [NodeType.FIELD]: [NodeType.OPTION, NodeType.EMPTY],
+  [NodeType.OPTION]: [NodeType.EMPTY],
+  [NodeType.TABLE]: [NodeType.RECORD, NodeType.FIELD, NodeType.EMPTY, NodeType.LINK, NodeType.FILE, NodeType.CHOICE],
+  [NodeType.RECORD]: [NodeType.RECORD, NodeType.EMPTY],
+  [NodeType.FILE]: [NodeType.EMPTY],
+  [NodeType.LINK]: [NodeType.LINK, NodeType.EMPTY],
+  [NodeType.CHANNEL]: [NodeType.EMPTY, NodeType.THREAD, NodeType.MEMBERSHIP, NodeType.FILE, NodeType.MESSAGE, NodeType.INVITE],
+  [NodeType.THREAD]: [NodeType.CLAIM, NodeType.SCALER, NodeType.CURSOR, NodeType.RUN, NodeType.FIELD, NodeType.EMPTY, NodeType.DATABASE, NodeType.THREAD, NodeType.LINK, NodeType.FILE, NodeType.MEMBERSHIP, NodeType.COMPUTER, NodeType.MESSAGE, NodeType.INVITE],
+  [NodeType.MESSAGE]: [NodeType.FILE, NodeType.EMPTY],
+  [NodeType.NOTIFICATION]: [NodeType.EMPTY],
+  [NodeType.TASK]: [NodeType.TASK, NodeType.EMPTY],
+  [NodeType.CLAIM]: [NodeType.EMPTY],
+  [NodeType.CURSOR]: [NodeType.EMPTY],
+  [NodeType.SERVICE]: [NodeType.CLAIM, NodeType.ACTION, NodeType.EMPTY],
+  [NodeType.ACTION]: [NodeType.CLAIM, NodeType.FIELD, NodeType.EMPTY],
+  [NodeType.FLOW]: [NodeType.ACTION, NodeType.FIELD, NodeType.EMPTY, NodeType.TRANSITION, NodeType.CLAIM],
+  [NodeType.TRANSITION]: [NodeType.EMPTY],
+  [NodeType.SESSION]: [NodeType.EMPTY],
+  [NodeType.RUN]: [NodeType.CURSOR, NodeType.RUN, NodeType.EMPTY, NodeType.LINK, NodeType.FILE, NodeType.SPAN, NodeType.CLAIM, NodeType.INTERRUPTION],
+  [NodeType.SPAN]: [NodeType.EMPTY],
+  [NodeType.INTERRUPTION]: [NodeType.EMPTY],
+  [NodeType.TEAM]: [NodeType.ROLE, NodeType.TEAM, NodeType.EMPTY, NodeType.MEMBERSHIP, NodeType.INVITE],
+  [NodeType.MEMBERSHIP]: [NodeType.EMPTY],
+  [NodeType.INVITE]: [NodeType.EMPTY],
+  [NodeType.ROLE]: [NodeType.CLAIM, NodeType.EMPTY],
+  [NodeType.AGENT]: [NodeType.CURSOR, NodeType.RUN, NodeType.FLOW, NodeType.FIELD, NodeType.EMPTY, NodeType.CLAIM],
+  [NodeType.SPACE]: [NodeType.VIEW, NodeType.CURSOR, NodeType.EMPTY],
+  [NodeType.VIEW]: [NodeType.VIEW, NodeType.EMPTY],
+  [NodeType.EMPTY]: [NodeType.EMPTY],
 }
 
 export const ANCESTOR_NODE_TYPES: Record<NodeType, NodeType[]> = {
@@ -27014,54 +27014,54 @@ export const ANCESTOR_NODE_TYPES: Record<NodeType, NodeType[]> = {
   [NodeType.AGENT]: [NodeType.PACKAGE, NodeType.BENCH, NodeType.PAGE],
   [NodeType.SPACE]: [NodeType.PACKAGE, NodeType.BENCH],
   [NodeType.VIEW]: [NodeType.BENCH, NodeType.VIEW, NodeType.PACKAGE, NodeType.SPACE, NodeType.PAGE],
-  [NodeType.STUB]: [NodeType.BENCH, NodeType.CLASS, NodeType.HANDLE, NodeType.BLOCK, NodeType.CHANNEL, NodeType.USER, NodeType.FIELD, NodeType.STUB, NodeType.THREAD, NodeType.ORGANIZATION, NodeType.OPTION, NodeType.SERVICE, NodeType.MESSAGE, NodeType.ACTION, NodeType.TEAM, NodeType.FLOW, NodeType.DATABASE, NodeType.MEMBERSHIP, NodeType.CLIENT, NodeType.TRANSITION, NodeType.SPACE, NodeType.COMPUTER, NodeType.NOTIFICATION, NodeType.INVITE, NodeType.TABLE, NodeType.VIEW, NodeType.ROLE, NodeType.RECORD, NodeType.TASK, NodeType.FILE, NodeType.CLAIM, NodeType.SESSION, NodeType.SCALER, NodeType.CURSOR, NodeType.PACKAGE, NodeType.RUN, NodeType.AGENT, NodeType.LINK, NodeType.DEPENDENCY, NodeType.SPAN, NodeType.CHOICE, NodeType.PAGE, NodeType.INTERRUPTION],
+  [NodeType.EMPTY]: [NodeType.BENCH, NodeType.CLASS, NodeType.HANDLE, NodeType.BLOCK, NodeType.CHANNEL, NodeType.USER, NodeType.FIELD, NodeType.EMPTY, NodeType.THREAD, NodeType.ORGANIZATION, NodeType.OPTION, NodeType.SERVICE, NodeType.MESSAGE, NodeType.ACTION, NodeType.TEAM, NodeType.FLOW, NodeType.DATABASE, NodeType.MEMBERSHIP, NodeType.CLIENT, NodeType.TRANSITION, NodeType.SPACE, NodeType.COMPUTER, NodeType.NOTIFICATION, NodeType.INVITE, NodeType.TABLE, NodeType.VIEW, NodeType.ROLE, NodeType.RECORD, NodeType.TASK, NodeType.FILE, NodeType.CLAIM, NodeType.SESSION, NodeType.SCALER, NodeType.CURSOR, NodeType.PACKAGE, NodeType.RUN, NodeType.AGENT, NodeType.LINK, NodeType.DEPENDENCY, NodeType.SPAN, NodeType.CHOICE, NodeType.PAGE, NodeType.INTERRUPTION],
 }
 
 export const DESCENDANT_NODE_TYPES: Record<NodeType, NodeType[]> = {
   [NodeType.UNSPECIFIED]: [],
-  [NodeType.BENCH]: [NodeType.CLASS, NodeType.HANDLE, NodeType.BLOCK, NodeType.CHANNEL, NodeType.FIELD, NodeType.STUB, NodeType.THREAD, NodeType.OPTION, NodeType.SERVICE, NodeType.MESSAGE, NodeType.ACTION, NodeType.TEAM, NodeType.FLOW, NodeType.DATABASE, NodeType.CLIENT, NodeType.MEMBERSHIP, NodeType.TRANSITION, NodeType.SPACE, NodeType.COMPUTER, NodeType.NOTIFICATION, NodeType.INVITE, NodeType.TABLE, NodeType.VIEW, NodeType.ROLE, NodeType.RECORD, NodeType.TASK, NodeType.FILE, NodeType.CLAIM, NodeType.SESSION, NodeType.SCALER, NodeType.CURSOR, NodeType.PACKAGE, NodeType.RUN, NodeType.AGENT, NodeType.LINK, NodeType.DEPENDENCY, NodeType.SPAN, NodeType.CHOICE, NodeType.PAGE, NodeType.INTERRUPTION],
-  [NodeType.HANDLE]: [NodeType.STUB],
-  [NodeType.USER]: [NodeType.HANDLE, NodeType.CLIENT, NodeType.STUB],
-  [NodeType.ORGANIZATION]: [NodeType.HANDLE, NodeType.STUB],
-  [NodeType.CLIENT]: [NodeType.STUB],
-  [NodeType.PACKAGE]: [NodeType.CLASS, NodeType.BLOCK, NodeType.CHANNEL, NodeType.FIELD, NodeType.STUB, NodeType.THREAD, NodeType.OPTION, NodeType.SERVICE, NodeType.MESSAGE, NodeType.ACTION, NodeType.TEAM, NodeType.FLOW, NodeType.DATABASE, NodeType.MEMBERSHIP, NodeType.TRANSITION, NodeType.SPACE, NodeType.NOTIFICATION, NodeType.COMPUTER, NodeType.INVITE, NodeType.TABLE, NodeType.VIEW, NodeType.ROLE, NodeType.RECORD, NodeType.TASK, NodeType.FILE, NodeType.CLAIM, NodeType.SCALER, NodeType.CURSOR, NodeType.RUN, NodeType.AGENT, NodeType.DEPENDENCY, NodeType.LINK, NodeType.SPAN, NodeType.CHOICE, NodeType.PAGE, NodeType.INTERRUPTION],
-  [NodeType.DEPENDENCY]: [NodeType.STUB],
-  [NodeType.PAGE]: [NodeType.CLASS, NodeType.BLOCK, NodeType.CHANNEL, NodeType.FIELD, NodeType.STUB, NodeType.THREAD, NodeType.OPTION, NodeType.SERVICE, NodeType.MESSAGE, NodeType.ACTION, NodeType.TEAM, NodeType.FLOW, NodeType.DATABASE, NodeType.MEMBERSHIP, NodeType.TRANSITION, NodeType.COMPUTER, NodeType.INVITE, NodeType.TABLE, NodeType.VIEW, NodeType.ROLE, NodeType.RECORD, NodeType.TASK, NodeType.FILE, NodeType.CLAIM, NodeType.SCALER, NodeType.CURSOR, NodeType.RUN, NodeType.AGENT, NodeType.LINK, NodeType.SPAN, NodeType.CHOICE, NodeType.PAGE, NodeType.INTERRUPTION],
-  [NodeType.BLOCK]: [NodeType.BLOCK, NodeType.STUB],
-  [NodeType.DATABASE]: [NodeType.STUB],
-  [NodeType.COMPUTER]: [NodeType.STUB],
-  [NodeType.SCALER]: [NodeType.STUB],
-  [NodeType.CHOICE]: [NodeType.OPTION, NodeType.STUB],
-  [NodeType.CLASS]: [NodeType.FIELD, NodeType.OPTION, NodeType.STUB],
-  [NodeType.FIELD]: [NodeType.OPTION, NodeType.STUB],
-  [NodeType.OPTION]: [NodeType.STUB],
-  [NodeType.TABLE]: [NodeType.RECORD, NodeType.FIELD, NodeType.STUB, NodeType.LINK, NodeType.FILE, NodeType.OPTION, NodeType.CHOICE],
-  [NodeType.RECORD]: [NodeType.RECORD, NodeType.STUB],
-  [NodeType.FILE]: [NodeType.STUB],
-  [NodeType.LINK]: [NodeType.LINK, NodeType.STUB],
-  [NodeType.CHANNEL]: [NodeType.INTERRUPTION, NodeType.SCALER, NodeType.CURSOR, NodeType.COMPUTER, NodeType.RUN, NodeType.FIELD, NodeType.STUB, NodeType.DATABASE, NodeType.MEMBERSHIP, NodeType.THREAD, NodeType.FILE, NodeType.LINK, NodeType.OPTION, NodeType.SPAN, NodeType.CLAIM, NodeType.MESSAGE, NodeType.INVITE],
-  [NodeType.THREAD]: [NodeType.FIELD, NodeType.STUB, NodeType.THREAD, NodeType.FILE, NodeType.OPTION, NodeType.CLAIM, NodeType.MESSAGE, NodeType.SCALER, NodeType.CURSOR, NodeType.RUN, NodeType.DATABASE, NodeType.MEMBERSHIP, NodeType.LINK, NodeType.SPAN, NodeType.COMPUTER, NodeType.INVITE, NodeType.INTERRUPTION],
-  [NodeType.MESSAGE]: [NodeType.FILE, NodeType.STUB],
-  [NodeType.NOTIFICATION]: [NodeType.STUB],
-  [NodeType.TASK]: [NodeType.TASK, NodeType.STUB],
-  [NodeType.CLAIM]: [NodeType.STUB],
-  [NodeType.CURSOR]: [NodeType.STUB],
-  [NodeType.SERVICE]: [NodeType.ACTION, NodeType.OPTION, NodeType.CLAIM, NodeType.FIELD, NodeType.STUB],
-  [NodeType.ACTION]: [NodeType.OPTION, NodeType.CLAIM, NodeType.FIELD, NodeType.STUB],
-  [NodeType.FLOW]: [NodeType.ACTION, NodeType.FIELD, NodeType.STUB, NodeType.TRANSITION, NodeType.OPTION, NodeType.CLAIM],
-  [NodeType.TRANSITION]: [NodeType.STUB],
-  [NodeType.SESSION]: [NodeType.STUB],
-  [NodeType.RUN]: [NodeType.CURSOR, NodeType.RUN, NodeType.STUB, NodeType.LINK, NodeType.SPAN, NodeType.FILE, NodeType.CLAIM, NodeType.INTERRUPTION],
-  [NodeType.SPAN]: [NodeType.STUB],
-  [NodeType.INTERRUPTION]: [NodeType.STUB],
-  [NodeType.TEAM]: [NodeType.ROLE, NodeType.TEAM, NodeType.STUB, NodeType.MEMBERSHIP, NodeType.CLAIM, NodeType.INVITE],
-  [NodeType.MEMBERSHIP]: [NodeType.STUB],
-  [NodeType.INVITE]: [NodeType.STUB],
-  [NodeType.ROLE]: [NodeType.CLAIM, NodeType.STUB],
-  [NodeType.AGENT]: [NodeType.ACTION, NodeType.CURSOR, NodeType.RUN, NodeType.FLOW, NodeType.FIELD, NodeType.STUB, NodeType.LINK, NodeType.SPAN, NodeType.FILE, NodeType.OPTION, NodeType.TRANSITION, NodeType.CLAIM, NodeType.INTERRUPTION],
-  [NodeType.SPACE]: [NodeType.VIEW, NodeType.CURSOR, NodeType.STUB],
-  [NodeType.VIEW]: [NodeType.VIEW, NodeType.STUB],
-  [NodeType.STUB]: [NodeType.STUB],
+  [NodeType.BENCH]: [NodeType.CLASS, NodeType.HANDLE, NodeType.BLOCK, NodeType.CHANNEL, NodeType.FIELD, NodeType.EMPTY, NodeType.THREAD, NodeType.OPTION, NodeType.SERVICE, NodeType.MESSAGE, NodeType.ACTION, NodeType.TEAM, NodeType.FLOW, NodeType.DATABASE, NodeType.CLIENT, NodeType.MEMBERSHIP, NodeType.TRANSITION, NodeType.SPACE, NodeType.COMPUTER, NodeType.NOTIFICATION, NodeType.INVITE, NodeType.TABLE, NodeType.VIEW, NodeType.ROLE, NodeType.RECORD, NodeType.TASK, NodeType.FILE, NodeType.CLAIM, NodeType.SESSION, NodeType.SCALER, NodeType.CURSOR, NodeType.PACKAGE, NodeType.RUN, NodeType.AGENT, NodeType.LINK, NodeType.DEPENDENCY, NodeType.SPAN, NodeType.CHOICE, NodeType.PAGE, NodeType.INTERRUPTION],
+  [NodeType.HANDLE]: [NodeType.EMPTY],
+  [NodeType.USER]: [NodeType.HANDLE, NodeType.CLIENT, NodeType.EMPTY],
+  [NodeType.ORGANIZATION]: [NodeType.HANDLE, NodeType.EMPTY],
+  [NodeType.CLIENT]: [NodeType.EMPTY],
+  [NodeType.PACKAGE]: [NodeType.CLASS, NodeType.BLOCK, NodeType.CHANNEL, NodeType.FIELD, NodeType.EMPTY, NodeType.THREAD, NodeType.OPTION, NodeType.SERVICE, NodeType.MESSAGE, NodeType.ACTION, NodeType.TEAM, NodeType.FLOW, NodeType.DATABASE, NodeType.MEMBERSHIP, NodeType.TRANSITION, NodeType.SPACE, NodeType.NOTIFICATION, NodeType.COMPUTER, NodeType.INVITE, NodeType.TABLE, NodeType.VIEW, NodeType.ROLE, NodeType.RECORD, NodeType.TASK, NodeType.FILE, NodeType.CLAIM, NodeType.SCALER, NodeType.CURSOR, NodeType.RUN, NodeType.AGENT, NodeType.DEPENDENCY, NodeType.LINK, NodeType.SPAN, NodeType.CHOICE, NodeType.PAGE, NodeType.INTERRUPTION],
+  [NodeType.DEPENDENCY]: [NodeType.EMPTY],
+  [NodeType.PAGE]: [NodeType.CLASS, NodeType.BLOCK, NodeType.CHANNEL, NodeType.FIELD, NodeType.EMPTY, NodeType.THREAD, NodeType.OPTION, NodeType.SERVICE, NodeType.MESSAGE, NodeType.ACTION, NodeType.TEAM, NodeType.FLOW, NodeType.DATABASE, NodeType.MEMBERSHIP, NodeType.TRANSITION, NodeType.COMPUTER, NodeType.INVITE, NodeType.TABLE, NodeType.VIEW, NodeType.ROLE, NodeType.RECORD, NodeType.TASK, NodeType.FILE, NodeType.CLAIM, NodeType.SCALER, NodeType.CURSOR, NodeType.RUN, NodeType.AGENT, NodeType.LINK, NodeType.SPAN, NodeType.CHOICE, NodeType.PAGE, NodeType.INTERRUPTION],
+  [NodeType.BLOCK]: [NodeType.BLOCK, NodeType.EMPTY],
+  [NodeType.DATABASE]: [NodeType.EMPTY],
+  [NodeType.COMPUTER]: [NodeType.EMPTY],
+  [NodeType.SCALER]: [NodeType.EMPTY],
+  [NodeType.CHOICE]: [NodeType.OPTION, NodeType.EMPTY],
+  [NodeType.CLASS]: [NodeType.FIELD, NodeType.OPTION, NodeType.EMPTY],
+  [NodeType.FIELD]: [NodeType.OPTION, NodeType.EMPTY],
+  [NodeType.OPTION]: [NodeType.EMPTY],
+  [NodeType.TABLE]: [NodeType.RECORD, NodeType.FIELD, NodeType.EMPTY, NodeType.LINK, NodeType.FILE, NodeType.OPTION, NodeType.CHOICE],
+  [NodeType.RECORD]: [NodeType.RECORD, NodeType.EMPTY],
+  [NodeType.FILE]: [NodeType.EMPTY],
+  [NodeType.LINK]: [NodeType.LINK, NodeType.EMPTY],
+  [NodeType.CHANNEL]: [NodeType.INTERRUPTION, NodeType.SCALER, NodeType.CURSOR, NodeType.COMPUTER, NodeType.RUN, NodeType.FIELD, NodeType.EMPTY, NodeType.DATABASE, NodeType.MEMBERSHIP, NodeType.THREAD, NodeType.FILE, NodeType.LINK, NodeType.OPTION, NodeType.SPAN, NodeType.CLAIM, NodeType.MESSAGE, NodeType.INVITE],
+  [NodeType.THREAD]: [NodeType.FIELD, NodeType.EMPTY, NodeType.THREAD, NodeType.FILE, NodeType.OPTION, NodeType.CLAIM, NodeType.MESSAGE, NodeType.SCALER, NodeType.CURSOR, NodeType.RUN, NodeType.DATABASE, NodeType.MEMBERSHIP, NodeType.LINK, NodeType.SPAN, NodeType.COMPUTER, NodeType.INVITE, NodeType.INTERRUPTION],
+  [NodeType.MESSAGE]: [NodeType.FILE, NodeType.EMPTY],
+  [NodeType.NOTIFICATION]: [NodeType.EMPTY],
+  [NodeType.TASK]: [NodeType.TASK, NodeType.EMPTY],
+  [NodeType.CLAIM]: [NodeType.EMPTY],
+  [NodeType.CURSOR]: [NodeType.EMPTY],
+  [NodeType.SERVICE]: [NodeType.ACTION, NodeType.OPTION, NodeType.CLAIM, NodeType.FIELD, NodeType.EMPTY],
+  [NodeType.ACTION]: [NodeType.OPTION, NodeType.CLAIM, NodeType.FIELD, NodeType.EMPTY],
+  [NodeType.FLOW]: [NodeType.ACTION, NodeType.FIELD, NodeType.EMPTY, NodeType.TRANSITION, NodeType.OPTION, NodeType.CLAIM],
+  [NodeType.TRANSITION]: [NodeType.EMPTY],
+  [NodeType.SESSION]: [NodeType.EMPTY],
+  [NodeType.RUN]: [NodeType.CURSOR, NodeType.RUN, NodeType.EMPTY, NodeType.LINK, NodeType.SPAN, NodeType.FILE, NodeType.CLAIM, NodeType.INTERRUPTION],
+  [NodeType.SPAN]: [NodeType.EMPTY],
+  [NodeType.INTERRUPTION]: [NodeType.EMPTY],
+  [NodeType.TEAM]: [NodeType.ROLE, NodeType.TEAM, NodeType.EMPTY, NodeType.MEMBERSHIP, NodeType.CLAIM, NodeType.INVITE],
+  [NodeType.MEMBERSHIP]: [NodeType.EMPTY],
+  [NodeType.INVITE]: [NodeType.EMPTY],
+  [NodeType.ROLE]: [NodeType.CLAIM, NodeType.EMPTY],
+  [NodeType.AGENT]: [NodeType.ACTION, NodeType.CURSOR, NodeType.RUN, NodeType.FLOW, NodeType.FIELD, NodeType.EMPTY, NodeType.LINK, NodeType.SPAN, NodeType.FILE, NodeType.OPTION, NodeType.TRANSITION, NodeType.CLAIM, NodeType.INTERRUPTION],
+  [NodeType.SPACE]: [NodeType.VIEW, NodeType.CURSOR, NodeType.EMPTY],
+  [NodeType.VIEW]: [NodeType.VIEW, NodeType.EMPTY],
+  [NodeType.EMPTY]: [NodeType.EMPTY],
 }
 
 
@@ -27109,7 +27109,7 @@ export const MESSAGE_TYPE_BY_OBJECT_TYPE: Partial<Record<ObjectType, MessageType
   [ObjectType.AGENT]: AgentData,
   [ObjectType.SPACE]: SpaceData,
   [ObjectType.VIEW]: ViewData,
-  [ObjectType.STUB]: StubData,
+  [ObjectType.EMPTY]: EmptyData,
   [ObjectType.CONTEXT]: ContextData,
   [ObjectType.EDIT_CONTEXT]: EditContextData,
   [ObjectType.EDIT]: EditData,
@@ -27197,7 +27197,7 @@ export const OBJECT_TYPE_BY_MESSAGE_TYPE_NAME: Record<string, ObjectType> = {
   ["symbol.bench.AgentData"]: ObjectType.AGENT,
   ["symbol.bench.SpaceData"]: ObjectType.SPACE,
   ["symbol.bench.ViewData"]: ObjectType.VIEW,
-  ["symbol.bench.StubData"]: ObjectType.STUB,
+  ["symbol.bench.EmptyData"]: ObjectType.EMPTY,
   ["symbol.bench.ContextData"]: ObjectType.CONTEXT,
   ["symbol.bench.EditContextData"]: ObjectType.EDIT_CONTEXT,
   ["symbol.bench.EditData"]: ObjectType.EDIT,
@@ -27434,7 +27434,7 @@ export interface NodeTypeMapping extends Record<NodeType, AnyNodeData> {
   [NodeType.AGENT]: AgentData,
   [NodeType.SPACE]: SpaceData,
   [NodeType.VIEW]: ViewData,
-  [NodeType.STUB]: StubData,
+  [NodeType.EMPTY]: EmptyData,
 }
 
 export interface AnyTypeMapping extends Record<ObjectType, AnyStructData | AnyNodeData> {
@@ -27480,7 +27480,7 @@ export interface AnyTypeMapping extends Record<ObjectType, AnyStructData | AnyNo
   [ObjectType.AGENT]: AgentData,
   [ObjectType.SPACE]: SpaceData,
   [ObjectType.VIEW]: ViewData,
-  [ObjectType.STUB]: StubData,
+  [ObjectType.EMPTY]: EmptyData,
   [ObjectType.CONTEXT]: ContextData,
   [ObjectType.EDIT_CONTEXT]: EditContextData,
   [ObjectType.EDIT]: EditData,
@@ -28872,7 +28872,7 @@ export enum ViewProperty {
   isLoading = 85,
 }
 
-export enum StubProperty {
+export enum EmptyProperty {
   metatype = 1,
   id = 2,
   parentPtr = 4,
@@ -29310,12 +29310,12 @@ export enum RectangleConstraintProperty {
   maxHeight = 53,
 }
 
-export type AnyNodeProperty = typeof BenchProperty | typeof HandleProperty | typeof UserProperty | typeof OrganizationProperty | typeof ClientProperty | typeof PackageProperty | typeof DependencyProperty | typeof PageProperty | typeof BlockProperty | typeof DatabaseProperty | typeof ComputerProperty | typeof ScalerProperty | typeof ChoiceProperty | typeof ClassProperty | typeof FieldProperty | typeof OptionProperty | typeof TableProperty | typeof RecordProperty | typeof FileProperty | typeof LinkProperty | typeof ChannelProperty | typeof ThreadProperty | typeof MessageProperty | typeof NotificationProperty | typeof TaskProperty | typeof ClaimProperty | typeof CursorProperty | typeof ServiceProperty | typeof ActionProperty | typeof FlowProperty | typeof TransitionProperty | typeof SessionProperty | typeof RunProperty | typeof SpanProperty | typeof InterruptionProperty | typeof TeamProperty | typeof MembershipProperty | typeof InviteProperty | typeof RoleProperty | typeof AgentProperty | typeof SpaceProperty | typeof ViewProperty | typeof StubProperty
+export type AnyNodeProperty = typeof BenchProperty | typeof HandleProperty | typeof UserProperty | typeof OrganizationProperty | typeof ClientProperty | typeof PackageProperty | typeof DependencyProperty | typeof PageProperty | typeof BlockProperty | typeof DatabaseProperty | typeof ComputerProperty | typeof ScalerProperty | typeof ChoiceProperty | typeof ClassProperty | typeof FieldProperty | typeof OptionProperty | typeof TableProperty | typeof RecordProperty | typeof FileProperty | typeof LinkProperty | typeof ChannelProperty | typeof ThreadProperty | typeof MessageProperty | typeof NotificationProperty | typeof TaskProperty | typeof ClaimProperty | typeof CursorProperty | typeof ServiceProperty | typeof ActionProperty | typeof FlowProperty | typeof TransitionProperty | typeof SessionProperty | typeof RunProperty | typeof SpanProperty | typeof InterruptionProperty | typeof TeamProperty | typeof MembershipProperty | typeof InviteProperty | typeof RoleProperty | typeof AgentProperty | typeof SpaceProperty | typeof ViewProperty | typeof EmptyProperty
 export type AnyStructProperty = typeof ContextProperty | typeof EditContextProperty | typeof EditProperty | typeof EditOperationProperty | typeof ChangeProperty | typeof ChangeVignetteProperty | typeof GraphScopeProperty | typeof ClientOriginProperty | typeof NodeReferenceProperty | typeof PropertyReferenceProperty | typeof PolicyProperty | typeof PolicyRuleProperty | typeof PolicySubjectProperty | typeof AccessZoneProperty | typeof AccessMatrixProperty | typeof AccessProperty | typeof TypeProperty | typeof TypeConstraintProperty | typeof FileInfoProperty | typeof IconProperty | typeof ScheduleProperty | typeof TextProperty | typeof TextLineProperty | typeof TextSpanProperty | typeof CodeProperty | typeof ExpressionProperty | typeof AggregationResultProperty | typeof SelectionProperty | typeof SelectOptionsProperty | typeof ErrorProperty | typeof RunTraceProperty | typeof RunFrameProperty | typeof ColorProperty | typeof FontProperty | typeof RectangleProperty | typeof OffsetProperty | typeof TransformProperty | typeof Vector2Property | typeof Vector3Property | typeof Vector4Property | typeof LineProperty | typeof RectangleConstraintProperty
 export type AnyProperty = AnyNodeProperty | AnyStructProperty
-export type AnyNodePropertyType = typeof BenchProperty | typeof HandleProperty | typeof UserProperty | typeof OrganizationProperty | typeof ClientProperty | typeof PackageProperty | typeof DependencyProperty | typeof PageProperty | typeof BlockProperty | typeof DatabaseProperty | typeof ComputerProperty | typeof ScalerProperty | typeof ChoiceProperty | typeof ClassProperty | typeof FieldProperty | typeof OptionProperty | typeof TableProperty | typeof RecordProperty | typeof FileProperty | typeof LinkProperty | typeof ChannelProperty | typeof ThreadProperty | typeof MessageProperty | typeof NotificationProperty | typeof TaskProperty | typeof ClaimProperty | typeof CursorProperty | typeof ServiceProperty | typeof ActionProperty | typeof FlowProperty | typeof TransitionProperty | typeof SessionProperty | typeof RunProperty | typeof SpanProperty | typeof InterruptionProperty | typeof TeamProperty | typeof MembershipProperty | typeof InviteProperty | typeof RoleProperty | typeof AgentProperty | typeof SpaceProperty | typeof ViewProperty | typeof StubProperty
+export type AnyNodePropertyType = typeof BenchProperty | typeof HandleProperty | typeof UserProperty | typeof OrganizationProperty | typeof ClientProperty | typeof PackageProperty | typeof DependencyProperty | typeof PageProperty | typeof BlockProperty | typeof DatabaseProperty | typeof ComputerProperty | typeof ScalerProperty | typeof ChoiceProperty | typeof ClassProperty | typeof FieldProperty | typeof OptionProperty | typeof TableProperty | typeof RecordProperty | typeof FileProperty | typeof LinkProperty | typeof ChannelProperty | typeof ThreadProperty | typeof MessageProperty | typeof NotificationProperty | typeof TaskProperty | typeof ClaimProperty | typeof CursorProperty | typeof ServiceProperty | typeof ActionProperty | typeof FlowProperty | typeof TransitionProperty | typeof SessionProperty | typeof RunProperty | typeof SpanProperty | typeof InterruptionProperty | typeof TeamProperty | typeof MembershipProperty | typeof InviteProperty | typeof RoleProperty | typeof AgentProperty | typeof SpaceProperty | typeof ViewProperty | typeof EmptyProperty
 export type AnyStructPropertyType = typeof ContextProperty | typeof EditContextProperty | typeof EditProperty | typeof EditOperationProperty | typeof ChangeProperty | typeof ChangeVignetteProperty | typeof GraphScopeProperty | typeof ClientOriginProperty | typeof NodeReferenceProperty | typeof PropertyReferenceProperty | typeof PolicyProperty | typeof PolicyRuleProperty | typeof PolicySubjectProperty | typeof AccessZoneProperty | typeof AccessMatrixProperty | typeof AccessProperty | typeof TypeProperty | typeof TypeConstraintProperty | typeof FileInfoProperty | typeof IconProperty | typeof ScheduleProperty | typeof TextProperty | typeof TextLineProperty | typeof TextSpanProperty | typeof CodeProperty | typeof ExpressionProperty | typeof AggregationResultProperty | typeof SelectionProperty | typeof SelectOptionsProperty | typeof ErrorProperty | typeof RunTraceProperty | typeof RunFrameProperty | typeof ColorProperty | typeof FontProperty | typeof RectangleProperty | typeof OffsetProperty | typeof TransformProperty | typeof Vector2Property | typeof Vector3Property | typeof Vector4Property | typeof LineProperty | typeof RectangleConstraintProperty
-export type AnyPropertyType = typeof BenchProperty | typeof HandleProperty | typeof UserProperty | typeof OrganizationProperty | typeof ClientProperty | typeof PackageProperty | typeof DependencyProperty | typeof PageProperty | typeof BlockProperty | typeof DatabaseProperty | typeof ComputerProperty | typeof ScalerProperty | typeof ChoiceProperty | typeof ClassProperty | typeof FieldProperty | typeof OptionProperty | typeof TableProperty | typeof RecordProperty | typeof FileProperty | typeof LinkProperty | typeof ChannelProperty | typeof ThreadProperty | typeof MessageProperty | typeof NotificationProperty | typeof TaskProperty | typeof ClaimProperty | typeof CursorProperty | typeof ServiceProperty | typeof ActionProperty | typeof FlowProperty | typeof TransitionProperty | typeof SessionProperty | typeof RunProperty | typeof SpanProperty | typeof InterruptionProperty | typeof TeamProperty | typeof MembershipProperty | typeof InviteProperty | typeof RoleProperty | typeof AgentProperty | typeof SpaceProperty | typeof ViewProperty | typeof StubProperty | typeof ContextProperty | typeof EditContextProperty | typeof EditProperty | typeof EditOperationProperty | typeof ChangeProperty | typeof ChangeVignetteProperty | typeof GraphScopeProperty | typeof ClientOriginProperty | typeof NodeReferenceProperty | typeof PropertyReferenceProperty | typeof PolicyProperty | typeof PolicyRuleProperty | typeof PolicySubjectProperty | typeof AccessZoneProperty | typeof AccessMatrixProperty | typeof AccessProperty | typeof TypeProperty | typeof TypeConstraintProperty | typeof FileInfoProperty | typeof IconProperty | typeof ScheduleProperty | typeof TextProperty | typeof TextLineProperty | typeof TextSpanProperty | typeof CodeProperty | typeof ExpressionProperty | typeof AggregationResultProperty | typeof SelectionProperty | typeof SelectOptionsProperty | typeof ErrorProperty | typeof RunTraceProperty | typeof RunFrameProperty | typeof ColorProperty | typeof FontProperty | typeof RectangleProperty | typeof OffsetProperty | typeof TransformProperty | typeof Vector2Property | typeof Vector3Property | typeof Vector4Property | typeof LineProperty | typeof RectangleConstraintProperty
+export type AnyPropertyType = typeof BenchProperty | typeof HandleProperty | typeof UserProperty | typeof OrganizationProperty | typeof ClientProperty | typeof PackageProperty | typeof DependencyProperty | typeof PageProperty | typeof BlockProperty | typeof DatabaseProperty | typeof ComputerProperty | typeof ScalerProperty | typeof ChoiceProperty | typeof ClassProperty | typeof FieldProperty | typeof OptionProperty | typeof TableProperty | typeof RecordProperty | typeof FileProperty | typeof LinkProperty | typeof ChannelProperty | typeof ThreadProperty | typeof MessageProperty | typeof NotificationProperty | typeof TaskProperty | typeof ClaimProperty | typeof CursorProperty | typeof ServiceProperty | typeof ActionProperty | typeof FlowProperty | typeof TransitionProperty | typeof SessionProperty | typeof RunProperty | typeof SpanProperty | typeof InterruptionProperty | typeof TeamProperty | typeof MembershipProperty | typeof InviteProperty | typeof RoleProperty | typeof AgentProperty | typeof SpaceProperty | typeof ViewProperty | typeof EmptyProperty | typeof ContextProperty | typeof EditContextProperty | typeof EditProperty | typeof EditOperationProperty | typeof ChangeProperty | typeof ChangeVignetteProperty | typeof GraphScopeProperty | typeof ClientOriginProperty | typeof NodeReferenceProperty | typeof PropertyReferenceProperty | typeof PolicyProperty | typeof PolicyRuleProperty | typeof PolicySubjectProperty | typeof AccessZoneProperty | typeof AccessMatrixProperty | typeof AccessProperty | typeof TypeProperty | typeof TypeConstraintProperty | typeof FileInfoProperty | typeof IconProperty | typeof ScheduleProperty | typeof TextProperty | typeof TextLineProperty | typeof TextSpanProperty | typeof CodeProperty | typeof ExpressionProperty | typeof AggregationResultProperty | typeof SelectionProperty | typeof SelectOptionsProperty | typeof ErrorProperty | typeof RunTraceProperty | typeof RunFrameProperty | typeof ColorProperty | typeof FontProperty | typeof RectangleProperty | typeof OffsetProperty | typeof TransformProperty | typeof Vector2Property | typeof Vector3Property | typeof Vector4Property | typeof LineProperty | typeof RectangleConstraintProperty
 export const NODE_PROPERTY_ENUM_BY_TYPE: Partial<Record<ObjectType, AnyNodePropertyType>> = {
   [ObjectType.BENCH]: BenchProperty,
   [ObjectType.HANDLE]: HandleProperty,
@@ -29359,7 +29359,7 @@ export const NODE_PROPERTY_ENUM_BY_TYPE: Partial<Record<ObjectType, AnyNodePrope
   [ObjectType.AGENT]: AgentProperty,
   [ObjectType.SPACE]: SpaceProperty,
   [ObjectType.VIEW]: ViewProperty,
-  [ObjectType.STUB]: StubProperty,
+  [ObjectType.EMPTY]: EmptyProperty,
 }
 
 export const STRUCT_PROPERTY_ENUM_BY_TYPE: Partial<Record<ObjectType, AnyStructPropertyType>> = {
@@ -29450,7 +29450,7 @@ export const PROPERTY_ENUM_BY_TYPE: Partial<Record<ObjectType, AnyPropertyType>>
   [ObjectType.AGENT]: AgentProperty,
   [ObjectType.SPACE]: SpaceProperty,
   [ObjectType.VIEW]: ViewProperty,
-  [ObjectType.STUB]: StubProperty,
+  [ObjectType.EMPTY]: EmptyProperty,
   [ObjectType.CONTEXT]: ContextProperty,
   [ObjectType.EDIT_CONTEXT]: EditContextProperty,
   [ObjectType.EDIT]: EditProperty,
@@ -30743,16 +30743,16 @@ export const ViewDataInfo: Record<ViewProperty, PropertyInfo> = {
   [ViewProperty.isMinimal]: { id: 84, name: 'is_minimal', component: ObjectType.VIEW, kind: 'primitive', primitiveType: PrimitiveType.BOOLEAN, default: false, isRequired: true, isRuntime: true, isWired: true, isStored: true },
   [ViewProperty.isLoading]: { id: 85, name: 'is_loading', component: ObjectType.VIEW, kind: 'primitive', primitiveType: PrimitiveType.BOOLEAN, default: false, isRequired: true, isRuntime: true, isWired: true, isStored: true },
 }
-export const StubDataInfo: Record<StubProperty, PropertyInfo> = {
-  [StubProperty.metatype]: { id: 1, name: 'metatype', component: ObjectType.STUB, enumType: EnumType.OBJECT_TYPE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isInternal: true, isComputed: true, isWired: true },
-  [StubProperty.id]: { id: 2, name: 'id', component: ObjectType.STUB, kind: 'primitive', primitiveType: PrimitiveType.UUID, isRequired: true, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
-  [StubProperty.parentPtr]: { id: 4, name: 'parent_ptr', component: ObjectType.STUB, kind: 'reference', isInternal: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_PARENT, referenceNodes: [NodeType.BENCH, NodeType.HANDLE, NodeType.USER, NodeType.ORGANIZATION, NodeType.CLIENT, NodeType.PACKAGE, NodeType.DEPENDENCY, NodeType.PAGE, NodeType.BLOCK, NodeType.DATABASE, NodeType.COMPUTER, NodeType.SCALER, NodeType.CHOICE, NodeType.CLASS, NodeType.FIELD, NodeType.OPTION, NodeType.TABLE, NodeType.RECORD, NodeType.FILE, NodeType.LINK, NodeType.CHANNEL, NodeType.THREAD, NodeType.MESSAGE, NodeType.NOTIFICATION, NodeType.TASK, NodeType.CLAIM, NodeType.CURSOR, NodeType.SERVICE, NodeType.ACTION, NodeType.FLOW, NodeType.TRANSITION, NodeType.SESSION, NodeType.RUN, NodeType.SPAN, NodeType.INTERRUPTION, NodeType.TEAM, NodeType.MEMBERSHIP, NodeType.INVITE, NodeType.ROLE, NodeType.AGENT, NodeType.SPACE, NodeType.VIEW, NodeType.STUB], referenceStruct: StructType.NODE_REFERENCE },
-  [StubProperty.createdAt]: { id: 10, name: 'created_at', component: ObjectType.STUB, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isRequired: true, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
-  [StubProperty.createdByPtr]: { id: 11, name: 'created_by_ptr', component: ObjectType.STUB, kind: 'reference', isAutoset: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.USER, NodeType.ORGANIZATION, NodeType.COMPUTER, NodeType.AGENT], referenceStruct: StructType.NODE_REFERENCE },
-  [StubProperty.updatedAt]: { id: 12, name: 'updated_at', component: ObjectType.STUB, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isRequired: true, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
-  [StubProperty.updatedByPtr]: { id: 13, name: 'updated_by_ptr', component: ObjectType.STUB, kind: 'reference', isAutoset: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.USER, NodeType.ORGANIZATION, NodeType.COMPUTER, NodeType.AGENT], referenceStruct: StructType.NODE_REFERENCE },
-  [StubProperty.archivedAt]: { id: 14, name: 'archived_at', component: ObjectType.STUB, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
-  [StubProperty.deletedAt]: { id: 15, name: 'deleted_at', component: ObjectType.STUB, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
+export const EmptyDataInfo: Record<EmptyProperty, PropertyInfo> = {
+  [EmptyProperty.metatype]: { id: 1, name: 'metatype', component: ObjectType.EMPTY, enumType: EnumType.OBJECT_TYPE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isInternal: true, isComputed: true, isWired: true },
+  [EmptyProperty.id]: { id: 2, name: 'id', component: ObjectType.EMPTY, kind: 'primitive', primitiveType: PrimitiveType.UUID, isRequired: true, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
+  [EmptyProperty.parentPtr]: { id: 4, name: 'parent_ptr', component: ObjectType.EMPTY, kind: 'reference', isInternal: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_PARENT, referenceNodes: [NodeType.BENCH, NodeType.HANDLE, NodeType.USER, NodeType.ORGANIZATION, NodeType.CLIENT, NodeType.PACKAGE, NodeType.DEPENDENCY, NodeType.PAGE, NodeType.BLOCK, NodeType.DATABASE, NodeType.COMPUTER, NodeType.SCALER, NodeType.CHOICE, NodeType.CLASS, NodeType.FIELD, NodeType.OPTION, NodeType.TABLE, NodeType.RECORD, NodeType.FILE, NodeType.LINK, NodeType.CHANNEL, NodeType.THREAD, NodeType.MESSAGE, NodeType.NOTIFICATION, NodeType.TASK, NodeType.CLAIM, NodeType.CURSOR, NodeType.SERVICE, NodeType.ACTION, NodeType.FLOW, NodeType.TRANSITION, NodeType.SESSION, NodeType.RUN, NodeType.SPAN, NodeType.INTERRUPTION, NodeType.TEAM, NodeType.MEMBERSHIP, NodeType.INVITE, NodeType.ROLE, NodeType.AGENT, NodeType.SPACE, NodeType.VIEW, NodeType.EMPTY], referenceStruct: StructType.NODE_REFERENCE },
+  [EmptyProperty.createdAt]: { id: 10, name: 'created_at', component: ObjectType.EMPTY, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isRequired: true, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
+  [EmptyProperty.createdByPtr]: { id: 11, name: 'created_by_ptr', component: ObjectType.EMPTY, kind: 'reference', isAutoset: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.USER, NodeType.ORGANIZATION, NodeType.COMPUTER, NodeType.AGENT], referenceStruct: StructType.NODE_REFERENCE },
+  [EmptyProperty.updatedAt]: { id: 12, name: 'updated_at', component: ObjectType.EMPTY, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isRequired: true, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
+  [EmptyProperty.updatedByPtr]: { id: 13, name: 'updated_by_ptr', component: ObjectType.EMPTY, kind: 'reference', isAutoset: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.USER, NodeType.ORGANIZATION, NodeType.COMPUTER, NodeType.AGENT], referenceStruct: StructType.NODE_REFERENCE },
+  [EmptyProperty.archivedAt]: { id: 14, name: 'archived_at', component: ObjectType.EMPTY, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
+  [EmptyProperty.deletedAt]: { id: 15, name: 'deleted_at', component: ObjectType.EMPTY, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
 }
 export const ContextDataInfo: Record<ContextProperty, PropertyInfo> = {
   [ContextProperty.metatype]: { id: 1, name: 'metatype', component: ObjectType.CONTEXT, enumType: EnumType.OBJECT_TYPE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isInternal: true, isComputed: true, isWired: true },
@@ -31182,7 +31182,7 @@ export const PROPERTY_INFOS_BY_TYPE: Record<ObjectType, Record<any, PropertyInfo
   [ObjectType.AGENT]: AgentDataInfo,
   [ObjectType.SPACE]: SpaceDataInfo,
   [ObjectType.VIEW]: ViewDataInfo,
-  [ObjectType.STUB]: StubDataInfo,
+  [ObjectType.EMPTY]: EmptyDataInfo,
   [ObjectType.CONTEXT]: ContextDataInfo,
   [ObjectType.EDIT_CONTEXT]: EditContextDataInfo,
   [ObjectType.EDIT]: EditDataInfo,

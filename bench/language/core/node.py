@@ -1300,8 +1300,8 @@ class NodeReference(Struct[NodeReferenceData]):
         return reference
 
 
-@node_(NodeType.STUB, stored=False)
-class Stub(Node):
+@node_(NodeType.EMPTY, stored=False)
+class Empty(Node):
     """An empty node."""
 
     parent: Node = p_node_parent(4, *NODE_TYPES.tuple)
