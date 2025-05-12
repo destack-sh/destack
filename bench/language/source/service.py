@@ -1,5 +1,4 @@
-import typing
-from typing import Optional
+from typing import TYPE_CHECKING, Optional
 
 from bench.language.core import (
     PAGE_NODE_TYPES,
@@ -17,7 +16,7 @@ from bench.language.core import (
 )
 from bench.pb2 import ServiceData
 
-if typing.TYPE_CHECKING:
+if TYPE_CHECKING:
     from bench.language import Action, Claim
 
 

@@ -68,7 +68,6 @@ class ViewType(BuiltinEnum):
     # helpers (20000-30000)
     WIZARD = 20001, "Wizard", "User/Bench wizard", "fas fa-wand-sparkles"
     EMPTY = 20100, "Empty view", "For debugging", "fas fa-bug"
-    CREATE = 20201, None, None, "fas fa-plus"
     SIDEBAR = 20205, None, None, "fas fa-object-group"
     CONTEXT = 20206, None, None, "fas fa-question"
     # ACTIVITY = 20207, None, None, "fas fa-list-timeline"
@@ -84,8 +83,8 @@ class ViewType(BuiltinEnum):
     TAB = 30002, "Tab", "Tabbed interface", "fas fa-sidebar"
     HISTORY = 30003, "History", "History of views", "fas fa-clock-rotate-left"
     SPLIT = 30004, "Split", "Split view", "fas fa-split"
-    STACK = 30006, "Stack", "Stacked views", "fas fa-layer-group"
-    DRAWER = 30007, "Drawer", "Drawer view", "fas fa-square-minus"
+    # STACK = 30006, "Stack", "Stacked views", "fas fa-layer-group"
+    # DRAWER = 30007, "Drawer", "Drawer view", "fas fa-square-minus"
     SCROLL = 30008, "Scroll", "Scrollable view", "fas fa-arrows-alt-v"
     # SPLIT_DRAWER, GRID
 

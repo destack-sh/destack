@@ -178,7 +178,7 @@ def node_component_(
 def node_(
     node_type: NodeType,
     stored: bool = True,
-    stored_value_unraveled: bool = False,
+    is_local: bool = False,
     roots: tuple[NodeType, ...] = (NodeType.BENCH,),
     index: tuple[IndexIn, ...] = (),
 ):
@@ -199,7 +199,7 @@ def node_(
             is_final=True,
         )(cls)
         cls.__is_stored__ = stored
-        cls.__is_stored_value_unraveled__ = stored_value_unraveled
+        cls.__is_is_local__ = is_local
 
         if node_type.is_global:
             cls.__area__ = NodeArea.GLOBAL
@@ -259,7 +259,7 @@ class Node[NodeDataT: AnyNodeData](BuiltinObject[NodeDataT]):
     __is_in_bench__: ClassVar[bool] = UNSET  # part of a Bench
     __is_in_package__: ClassVar[bool] = UNSET  # part of a Package
     __is_stored__: ClassVar[bool] = False  # stored in primary store (runtime or local)
-    __is_stored_value_unraveled__: ClassVar[bool] = False  # custom storage logic (for records)
+    __is_is_local__: ClassVar[bool] = False  # custom storage logic (for records)
     __area__: ClassVar[NodeArea]
     __indexes__: ClassVar[tuple[IndexIn, ...]] = ()
 

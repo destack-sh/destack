@@ -10,7 +10,7 @@ if TYPE_CHECKING:
 # ruff: noqa: N802,N803
 
 
-class IInternet(ABC):
+class IInternetService(ABC):
     """The Internet :InternetService."""
 
     @abstractmethod
@@ -46,6 +46,8 @@ class IInternet(ABC):
         pass
 
 
-InternetService = class_to_service(IInternet, "Internet Service", icon=to_icon("fas fa-globe"))
+InternetService = class_to_service(
+    IInternetService, "Internet Service", icon=to_icon("fas fa-globe")
+)
 InternetPage = Page.new("Internet")
 InternetPage.append(InternetService)
