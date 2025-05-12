@@ -8,7 +8,7 @@ from .computer import (
     UbuntuComputerTemplate,
     UbuntuHeadlessComputerTemplate,
 )
-from .internet import IInternet, InternetPage, InternetService
+from .internet import IInternetService, InternetPage, InternetService
 from .thread import BlankThread, ThreadPage
 
 __all__ = [
@@ -21,7 +21,7 @@ __all__ = [
     "ComputerTerminalService",
     "IComputerDesktop",
     "IComputerTerminal",
-    "IInternet",
+    "IInternetService",
     "InternetPage",
     "InternetService",
     "ThreadPage",

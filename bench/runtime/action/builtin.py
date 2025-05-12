@@ -4,7 +4,7 @@ from uuid import UUID
 from bench.language import Action
 from bench.runtime.core import NotSupportedError
 
-from .web import Internet
+from .web import InternetService as InternetServiceImpl
 
 _registered = False
 _builtin_action_runners_by_id: dict[UUID, Callable] = {}
@@ -22,7 +22,7 @@ def _register_builtins():
     global _registered
     from bench.builtin import InternetService
 
-    for kit, impl_cls in ((InternetService, Internet),):
+    for kit, impl_cls in ((InternetService, InternetServiceImpl),):
         impl = impl_cls()
         for action in kit.actions:
             assert action.name is not None, f"{action!r} has no name"

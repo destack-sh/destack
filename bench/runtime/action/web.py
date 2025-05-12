@@ -12,7 +12,7 @@ from bench.language import File, FileType, Icon, IconType, Link, LinkType, TextL
 from bench.utils.utils import get_from_env
 
 if TYPE_CHECKING:
-    from bench.builtin import IInternet
+    from bench.builtin import IInternetService
 
     from .action import ActionRunner
 
@@ -103,7 +103,7 @@ async def _do_search(
 _INJECTED_RUNNER = cast("ActionRunner", None)
 
 
-class Internet(IInternet if TYPE_CHECKING else object):
+class InternetService(IInternetService if TYPE_CHECKING else object):
     @override
     async def Search(
         self,

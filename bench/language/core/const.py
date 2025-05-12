@@ -458,17 +458,6 @@ ENUM_TYPES_SET: frozenset[EnumType] = frozenset(ENUM_TYPES)
 class ColorType(BuiltinEnum):
     """Built-in color types a la SwiftUI or Tailwind."""
 
-    # surface
-    PRIMARY = 1
-    SECONDARY = 2
-    ACCENT = 3
-    CANVAS = 4
-    # semantic
-    SUCCESS = 10
-    HINT = 11
-    WARNING = 12
-    DANGER = 13
-    # actual
     GRAY = 30
     RED = 31
     ORANGE = 32
@@ -502,73 +491,57 @@ class NodeMode(BuiltinEnum):
 
 @enum_(EnumType.NODE_TYPE)
 class NodeType(BuiltinEnum):
-    #
-    # Global (1-2000)
-    #
-
-    # cosmos
+    # global
     BENCH = 1, "Bench", "Universal workbench", "https://heybench.com/favicon.ico"
     HANDLE = 2, "Handle", "Unique identifier", "fas fa-at"
-    USER = 10, "User", "Human user", "fas fa-user"
+    USER = 10, "User", "User", "fas fa-user"
     # PROFILE, CREDENTIAL, ...
     ORGANIZATION = 20, "Organization", "Organization", "fas fa-building"
-    CLIENT = 50, "Client", "Client device", "fas fa-desktop"
-    # CHALLENGE?
+    CLIENT = 50, "Client", "Client to a Bench", "fas fa-desktop"
 
-    #
-    # Regional (2000-8000)
-    #
+    # package
+    PACKAGE = 1000, "Package", "Isolated sub-Bench", "fas fa-box-open"
+    DEPENDENCY = 1010, "Dependency", "Dependency to something", "fas fa-turn-down-right"
+    PAGE = 1020, "Page", "Page of Blocks", "far fa-file"
+    BLOCK = 1030, "Block", "Rich Block on a Page", "fas fa-cube"
 
-    # compute
+    # infra
     SCALER = 2000, "Scaler", "Autoscale Resources", "fas fa-scale-unbalanced"
     DATABASE = 2010, "Store", "Store custom data", "fas fa-database"
     # VAULT?
     # CACHE?
     COMPUTER = 2100, "Computer", "Machine for computing", "fas fa-computer-classic"
-    # SERVICE, DEPLOYMENT, APPLICATION, SNAPSHOT, NETWORK, ...
+    # ENDPOINT, DEPLOYMENT, NETWORK, ...
 
-    # data
-    FILE = 2200, "File", "File", "fas fa-file"
-    # STREAM?
-    # SECRET?
-    LINK = 2250, "Link", "Link to some Resource", "fas fa-link"
-    # REPOSITORY, SCHEMA, CONNECTION/API, ...?
-
-    # finance
-    # BALANCE, BUDGET, TRANSFER, GRANT, INVOICE, ...
-
-    # web
-    # ACCOUNT, APPLICATION, DOMAIN, EMAIL, ...
-
-    # world?
-    # PHONE, ADDRESS, ...
-
-    # model?
+    # model
+    AGENT = 5640, "Agent", "Identity for an AI", "fas fa-robot"
     # ...
 
-    # package
-    PACKAGE = 5000, "Package", "Isolated sub-Bench", "fas fa-box-open"
-    DEPENDENCY = 5010, "Dependency", "Dependency to something", "fas fa-turn-down-right"
-    PAGE = 5020, "Page", "Page of Blocks", "far fa-file"
-    BLOCK = 5021, "Block", "Rich Block on a Page", "fas fa-cube"
+    # identity
+    TEAM = 5600, "Team", "Group of Users or Agents", "fas fa-users"
+    MEMBERSHIP = 5610, "Membership", "Membership to something", "fas fa-users"
+    INVITE = 5620, "Invite", "Invite to something", "fas fa-user-plus"
+    ROLE = 5630, "Role", "Role", "fas fa-user-tag"
+    # PROFILE? (for User)
 
-    # typing
+    # type
     CHOICE = 5100, "Choice", "Choice between Options", "fas fa-circle-chevron-down"
     CLASS = 5110, "Class", "Class", "fas fa-shapes"
+    # SCHEMA?
     # UNION?
     FIELD = 5130, "Field", "Field", "fas fa-triangle"
     OPTION = 5140, "Option", "Option", "far fa-square-check"
     # TAG?
 
-    # services
-    SERVICE = 5200, "Service", "Service", "fas fa-screwdriver-wrench"
-    ACTION = 5210, "Action", "Action", "fas fa-step-forward"
-    FLOW = 5220, "Flow", "Link Actions together", "fas fa-diagram-project"
-    TRANSITION = 5230, "Transition", "Transition between Nodes", "fas fa-link"
-    # TRIGGER? TIMER? BREAKPOINT?
-
-    # state?
+    # data
     TABLE = 5300, "Table", "Table of Records", "fas fa-table"
+    RECORD = 8000, "Record", "Record in a Database", "fas fa-database"
+    FILE = 2200, "File", "File", "fas fa-file"
+    # STREAM?
+    # SECRET?
+    LINK = 2250, "Link", "Link to something", "fas fa-link"
+    # REPOSITORY, CONNECTION/API, ...?
+    # INDEX?
 
     # communication
     CHANNEL = 5500, "Channel", "Channel", "fas fa-hashtag"
@@ -578,25 +551,6 @@ class NodeType(BuiltinEnum):
     # REACTION?
     NOTIFICATION = 5550, "Notification", "Notification", "fas fa-bell"
 
-    # identity
-    TEAM = 5600, "Team", "Group of Users or Agents", "fas fa-users"
-    MEMBERSHIP = 5610, "Membership", "Membership to something", "fas fa-users"
-    INVITE = 5620, "Invite", "Invite to something", "fas fa-user-plus"
-    ROLE = 5630, "Role", "Role", "fas fa-user-tag"
-    AGENT = 5640, "Agent", "Identity for an AI", "fas fa-robot"
-    # PROFILE? (for User)
-
-    # permissioning
-    # CHALLENGE?
-    # BADGE? POLICY? RULE?
-
-    # runtime
-    SESSION = 6000, "Session", "Session", "fas fa-circle-play"
-    RUN = 6010, "Run", "Run", "fas fa-play"
-    SPAN = 6011, "Span", "Span", "fas fa-ruler-horizontal"
-    INTERRUPTION = 6020, "Interruption", "Interruption", "fas fa-hand"
-    # LOG?
-
     # orchestration
     # PLAN?
     TASK = 6110, "Task", "To-do item", "far fa-square-check"
@@ -604,21 +558,45 @@ class NodeType(BuiltinEnum):
     CURSOR = 6170, "Cursor", "Position in something", "fas fa-mouse"
     # ENTITLEMENT, POOL, LOCK, BARRIER, ...?
 
-    # ... all the Views once we have :PolyViews
-    SPACE = 7000, "Space", "Space", "fas fa-space-between"
+    # logic
+    SERVICE = 5200, "Service", "Service", "fas fa-screwdriver-wrench"
+    ACTION = 5210, "Action", "Action", "fas fa-step-forward"
+    FLOW = 5220, "Flow", "Link Actions together", "fas fa-diagram-project"
+    TRANSITION = 5230, "Transition", "Transition between Nodes", "fas fa-link"
+    # APP?
+    # TRIGGER? TIMER? BREAKPOINT?
+
+    # run
+    SESSION = 6000, "Session", "Session", "fas fa-circle-play"
+    RUN = 6010, "Run", "Run", "fas fa-play"
+    SPAN = 6011, "Span", "Span", "fas fa-ruler-horizontal"
+    INTERRUPTION = 6020, "Interruption", "Interruption", "fas fa-hand"
+    # LOG, SIGNAL, ...?
 
     # view
+    # ... all the Views once we have :PolyViews
+    SPACE = 7000, "Space", "Space", "fas fa-space-between"
     VIEW = 7900, "View", "View", "fas fa-window-frame"  # :PolyViews
 
-    #
-    # Local (8000-10000)
-    #
+    # theme
+    # THEME, PALETTE, VARIANT, ANIMATION, EFFECT, ...?
+    # COLOR_STYLE, BORDER_STYLE, ...?
 
-    RECORD = 8000, "Record", "Record in a Database", "fas fa-database"
+    # locale
+    # LOCALE, TRANSLATION, ...?
 
-    #
-    # Misc
-    #
+    # policy
+    # CHALLENGE?
+    # BADGE? POLICY? RULE?
+
+    # accounting
+    # BALANCE, BUDGET, TRANSFER, CREDIT, GRANT, INVOICE, ...
+
+    # web
+    # ACCOUNT, APPLICATION, DOMAIN, EMAIL, ...
+
+    # world?
+    # PHONE, ADDRESS, ...
 
     SKIP = 9998
     EMPTY = 9999  # STUB?

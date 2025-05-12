@@ -12,6 +12,7 @@ class Color(Struct):
     type: Optional[ColorType] = p_regular(31, default=None)
     shade: Optional[ColorShade] = p_regular(32, default=None)
     hex: Optional[str] = p_regular(33, default=None)
+    opacity: Optional[float] = p_regular(34, default=None)
 
     @staticmethod
     def new(color: "ColorIn") -> "Color":

@@ -32,7 +32,7 @@ if TYPE_CHECKING:
 logger = structlog.get_logger(__name__)
 
 
-@node_(NodeType.RECORD, stored_value_unraveled=True)
+@node_(NodeType.RECORD, is_local=True)
 class Record(
     IsBased,
     IsModal,
@@ -66,8 +66,8 @@ class Record(
     @final
     def __repr__(self):  # type: ignore
         # override the default __repr__ for records
-        block = self.table
-        type_name = block.code_name if block is not None else "???"
+        table = self.table
+        type_name = table.code_name if table is not None else "???"
         return f"<{type_name}Record {self!s}>"
 
     def __content_str__(self):

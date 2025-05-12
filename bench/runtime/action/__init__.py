@@ -6,13 +6,13 @@ from .action import (
     ToolActionRunner,
     get_action_runner,
 )
-from .web import Internet
+from .web import InternetService
 
 __all__ = [
     "ActionRunner",
     "CodeActionRunner",
     "EndActionRunner",
-    "Internet",
+    "InternetService",
     "StartActionRunner",
     "ToolActionRunner",
     "get_action_runner",
