@@ -30,9 +30,9 @@ async def shell(
     from bench.language import (
         BENCH_NODE_TYPES,
         EMPTY_SCOPE_DATA,
+        LOADED_PACKAGE_NODE_TYPES,
         PUBLIC_NODE_TYPES,
         RESOURCE_NODE_TYPES,
-        SOURCE_NODE_TYPES,
         Bench,
         Client,
         Context,
@@ -116,7 +116,9 @@ async def shell(
         session.parent = bench_node  # patch in bench for pg context
         session._default_scope = GraphScope(bench_id=bench_node.id)._to_data()
         pkg = await (
-            Package.include_ancestors(Bench).include_descendants(*SOURCE_NODE_TYPES).select_all()
+            Package.include_ancestors(Bench)
+            .include_descendants(*LOADED_PACKAGE_NODE_TYPES)
+            .select_all()
         ).get(bench_node.package_ptr, mode="both")
         # reload User in session
         session.user = await User.get(id=user_node.id)

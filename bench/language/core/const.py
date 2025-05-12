@@ -48,7 +48,7 @@ class _Unset:
 
 
 # forever constants
-VERSION = "2025.05.11.3"
+VERSION = "2025.05.12.0"
 UUID_NAMESPACE = uuid5(UUID(int=0), b"bench")
 CK_LENGTH_B64 = 24  # 1.5 * CK_LENGTH_BYTES (must be integer)
 FLOAT_EPSILON = 1e-6
@@ -497,7 +497,11 @@ class NodeType(BuiltinEnum):
     USER = 10, "User", "User", "fas fa-user"
     ORGANIZATION = 20, "Organization", "Organization", "fas fa-building"
     CLIENT = 50, "Client", "Client to a Bench", "fas fa-desktop"
-    # PROFILE, CREDENTIAL, ...
+    # PROFILE, CREDENTIAL, FRIENDSHIP, ...
+
+    #
+    # Bench
+    #
 
     # package
     PACKAGE = 1000, "Package", "Isolated sub-Bench", "fas fa-box-open"
@@ -507,9 +511,9 @@ class NodeType(BuiltinEnum):
     # APP?
 
     # infra
-    SCALER = 1200, "Scaler", "Autoscale Resources", "fas fa-scale-unbalanced"
-    DATABASE = 1210, "Store", "Store custom data", "fas fa-database"
-    COMPUTER = 1250, "Computer", "Machine for computing", "fas fa-computer-classic"
+    DATABASE = 1200, "Store", "Store custom data", "fas fa-database"
+    COMPUTER = 1210, "Computer", "Machine for computing", "fas fa-computer-classic"
+    SCALER = 1250, "Scaler", "Autoscale Resources", "fas fa-scale-unbalanced"
     # VAULT, CACHE, ENDPOINT, DEPLOYMENT, NETWORK, ...
 
     # typing
@@ -531,7 +535,7 @@ class NodeType(BuiltinEnum):
     THREAD = 1810, "Thread", "Thread", "fas fa-reel"
     MESSAGE = 1820, "Message", "Message", "fas fa-message"
     NOTIFICATION = 1850, "Notification", "Notification", "fas fa-bell"
-    # POLL, REACTION, ...?
+    # POLL, VOTE, REACTION, ...?
 
     # sync
     TASK = 2000, "Task", "To-do item", "far fa-square-check"
@@ -558,7 +562,7 @@ class NodeType(BuiltinEnum):
     MEMBERSHIP = 2610, "Membership", "Membership to something", "fas fa-users"
     INVITE = 2620, "Invite", "Invite to something", "fas fa-user-plus"
     ROLE = 2630, "Role", "Role", "fas fa-user-tag"
-    # PROFILE? (for User)
+    # PROFILE? (for User, or maybe global?)
 
     # agent
     AGENT = 2800, "Agent", "Identity for an AI", "fas fa-robot"
@@ -568,26 +572,27 @@ class NodeType(BuiltinEnum):
     # ... all the Views once we have :PolyViews
     SPACE = 3000, "Space", "Space", "fas fa-space-between"
     VIEW = 3010, "View", "View", "fas fa-window-frame"  # :PolyViews
+    # WIDGET, ...?
+    # CANVAS/DRAWING, SHAPE, ...?
 
-    # history
+    # versioning
     # EVENT, LOG, HISTORY, BRANCH, ...?
 
     # publish
     # PUBLICATION, ...?
 
     # analytics
-    # SURVEY, REPLAY, ...
+    # METRIC, SURVEY, REPLAY, ...
 
     # theme
     # THEME, PALETTE, VARIANT, ANIMATION, EFFECT, ...?
     # COLOR_STYLE, BORDER_STYLE, ...?
 
-    # locale
+    # localization
     # LOCALE, TRANSLATION, ...?
 
-    # policy
-    # CHALLENGE?
-    # BADGE? POLICY? RULE?
+    # access
+    # CHALLENGE, BADGE, POLICY, RULE?
 
     # model
     # MODEL, FINETUNE, ...?
@@ -601,8 +606,7 @@ class NodeType(BuiltinEnum):
     # world?
     # PHONE, ADDRESS, ...
 
-    SKIP = 9998
-    EMPTY = 9999  # STUB?
+    STUB = 9999
 
     @property
     def is_global(self) -> bool:
@@ -655,10 +659,9 @@ def _get_node_types(
     return node_types
 
 
-COSMOS_NODE_TYPES = _get_node_types(None, 100)
-GLOBAL_NODE_TYPES = _get_node_types(None, 2000)
-REGIONAL_NODE_TYPES = _get_node_types(2000, 8000)
-LOCAL_NODE_TYPES = _get_node_types(8000, None)
+GLOBAL_NODE_TYPES = _get_node_types(None, 1000)
+LOCAL_NODE_TYPES = bittuple(NodeType.RECORD)
+REGIONAL_NODE_TYPES = _get_node_types(1000, 9000) - LOCAL_NODE_TYPES
 AREA_BY_NODE_TYPE = {
     **dict.fromkeys(GLOBAL_NODE_TYPES, NodeArea.GLOBAL),
     **dict.fromkeys(REGIONAL_NODE_TYPES, NodeArea.REGIONAL),
@@ -670,14 +673,15 @@ NODE_TYPES_BY_AREA = {
     NodeArea.LOCAL: LOCAL_NODE_TYPES,
 }
 ROOT_NODE_TYPES = bittuple(NodeType.BENCH, NodeType.USER, NodeType.ORGANIZATION)
-RESOURCE_NODE_TYPES = _get_node_types(2000, 3000)
+RESOURCE_NODE_TYPES = bittuple(
+    NodeType.DATABASE, NodeType.COMPUTER, NodeType.SCALER, NodeType.FILE, NodeType.LINK
+)
 PROVISIONABLE_NODE_TYPES = bittuple(NodeType.SCALER, NodeType.DATABASE, NodeType.COMPUTER)
-SOURCE_NODE_TYPES = _get_node_types(5000, 5500)
 COMMUNICATION_NODE_TYPES = _get_node_types(5500, 5600)
-RUNTIME_NODE_TYPES = _get_node_types(6000, 6100)
-PACKAGE_NODE_TYPES = _get_node_types(5000, 900, NodeType.SKIP, NodeType.EMPTY)
+RUNTIME_NODE_TYPES = _get_node_types(2400, 2500)
+PACKAGE_NODE_TYPES = _get_node_types(1000, 9000)
 BENCH_NODE_TYPES = _get_node_types(
-    2000,
+    1000,
     10000,
     NodeType.BENCH,
     NodeType.PACKAGE,
@@ -687,7 +691,6 @@ BENCH_NODE_TYPES = _get_node_types(
     NodeType.CLIENT,
 )
 PUBLIC_NODE_TYPES = bittuple(NodeType.USER, NodeType.ORGANIZATION, NodeType.BENCH)
-USER_NODE_TYPES = bittuple(NodeType.USER, NodeType.ORGANIZATION, NodeType.CLIENT, NodeType.HANDLE)
 # NOTE: these traits should also be in trait.py but we need the constants in property.py
 #  (which also depends on trait.py, and we can't have a circular dependency)
 BASED_NODE_TYPES = bittuple(NodeType.RECORD, NodeType.MESSAGE, NodeType.RUN)
@@ -722,9 +725,21 @@ INSTANTIABLE_NODE_TYPES = bittuple(
     NodeType.MEMBERSHIP,
 )
 TEMPLATABLE_NODE_TYPES = bittuple(
-    *SOURCE_NODE_TYPES,
     *RESOURCE_NODE_TYPES,
     *INSTANTIABLE_NODE_TYPES,
+    NodeType.PACKAGE,
+    NodeType.DEPENDENCY,
+    NodeType.PAGE,
+    NodeType.BLOCK,
+    NodeType.CHOICE,
+    NodeType.CLASS,
+    NodeType.FIELD,
+    NodeType.OPTION,
+    NodeType.SERVICE,
+    NodeType.ACTION,
+    NodeType.FLOW,
+    NodeType.TRANSITION,
+    NodeType.TABLE,
     NodeType.CHANNEL,
     NodeType.ROLE,
     NodeType.SPACE,
@@ -732,11 +747,23 @@ TEMPLATABLE_NODE_TYPES = bittuple(
 )
 
 
-# NOTE :Performance: we load too much and too coarsely :NodeOverload :RichGraph
+# TODO :Broken: :Performance: we load too much and too coarsely :NodeOverload :RichGraph
 UNLOADED_RESOURCE_NODE_TYPES = bittuple(NodeType.FILE)
 LOADED_PACKAGE_NODE_TYPES = bittuple(
-    *SOURCE_NODE_TYPES,
     *(RESOURCE_NODE_TYPES - UNLOADED_RESOURCE_NODE_TYPES),
+    NodeType.PACKAGE,
+    NodeType.DEPENDENCY,
+    NodeType.PAGE,
+    NodeType.BLOCK,
+    NodeType.CHOICE,
+    NodeType.CLASS,
+    NodeType.FIELD,
+    NodeType.OPTION,
+    NodeType.SERVICE,
+    NodeType.ACTION,
+    NodeType.FLOW,
+    NodeType.TRANSITION,
+    NodeType.TABLE,
     NodeType.CHANNEL,
     NodeType.TEAM,
     NodeType.MEMBERSHIP,

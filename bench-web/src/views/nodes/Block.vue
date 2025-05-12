@@ -175,7 +175,7 @@ defineExpose<ViewExpose>({ self, id, commands, focus });
       @deleteSelf="onDeleteSelf"
     />
     <Database
-      v-else-if="block.type == BlockType.DATABASE"
+      v-else-if="block.type == BlockType.TABLE"
       id="database"
       ref="nodeRef"
       :node-ptr="nodePtr"

@@ -184,7 +184,7 @@ def generate_proto_schema(
     name: str,
     unions: dict[str, tuple[str, Collection[type[Union["BuiltinObject", BuiltinEnum]]]]],
     extras: list[Enum | Message],
-    message_postfix: str = "",
+    message_postfix: str,
 ) -> ProtoSchema:
     from bench.language import Node
 

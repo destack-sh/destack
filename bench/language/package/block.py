@@ -28,7 +28,6 @@ from bench.language.core import (
     text_line,
 )
 from bench.pb2 import BlockData
-from bench.utils.env import IS_DEV, IS_TEST
 from bench.utils.fractional import INTEGER_ZERO
 
 if TYPE_CHECKING:
@@ -41,96 +40,38 @@ _type = type
 
 @enum_(EnumType.BLOCK_TYPE)
 class BlockType(BuiltinEnum):
-    # NOTE: see NodeType
-    COMPUTER = 1250
-    FILE = 1620
-    PAGE = 1020
-    CHOICE = 1400
-    FLOW = 2220
-    SERVICE = 2200
-    TABLE = 1600
-    AGENT = 2800
-    THREAD = 1810
-    TASK = 2000
-
     # text
     # NOTE: text BlockTypes should align with :TextLineTypes
-    PARAGRAPH = 10001
-    # heading
-    HEADING_1 = 10010
-    HEADING_2 = 10011
-    HEADING_3 = 10012
-    HEADING_4 = 10013
-    # callout
-    CALLOUT = 10020
-    QUOTE = 10021
-    # list
-    LIST_UNORDERED = 10030
-    LIST_ORDERED = 10031
-    # presentation
-    DIVIDER = 10040
-    # code
-    CODE = 10060
-
-    # layout?
-    # ROW
-
-    @property
-    def is_node(self) -> bool:
-        return self.id < 10000
-
-    @property
-    def is_text(self) -> bool:
-        return self.id >= 10000
+    PARAGRAPH = 1
+    HEADING_1 = 10
+    HEADING_2 = 11
+    HEADING_3 = 12
+    HEADING_4 = 13
+    CALLOUT = 20
+    QUOTE = 21
+    LIST_UNORDERED = 30
+    LIST_ORDERED = 31
+    DIVIDER = 40
+    CODE = 50
+    NODE = 1000
 
 
 # copy NodeType properties to BlockType
 for block_type in BlockType:
-    if block_type.id < 10000:
-        node_type = NodeType(block_type.id)
-        block_type.title = node_type.title
-        block_type.color = node_type.color
-        block_type.icon = node_type.icon
-        block_type.text = node_type.text
-    else:
-        text_line_type = TextLineType(block_type.id - 10000)
-        block_type.title = text_line_type.title
-        block_type.color = text_line_type.color
-        block_type.icon = text_line_type.icon
-        block_type.text = text_line_type.text
+    text_line_type = TextLineType(block_type.id)
+    block_type.title = text_line_type.title
+    block_type.color = text_line_type.color
+    block_type.icon = text_line_type.icon
+    block_type.text = text_line_type.text
 
 
 BLOCK_TYPES: tuple[BlockType, ...] = tuple(BlockType)
-NODE_BLOCK_TYPES: tuple[BlockType, ...] = tuple(t for t in BLOCK_TYPES if t.id < 10000)
-TEXT_BLOCK_TYPES: tuple[BlockType, ...] = tuple(t for t in BLOCK_TYPES if t.id >= 10000)
-
-# cross-check BlockType
-if IS_DEV or IS_TEST:
-    # check that every NodeType is a real NodeType
-    for block_type in NODE_BLOCK_TYPES:
-        try:
-            node_type = NodeType(block_type.id)
-        except ValueError as e:
-            raise ValueError(f"no NodeType with id {block_type.id}") from e
-        if node_type.name != block_type.name:
-            raise ValueError(f"BlockType {block_type.name} != NodeType {node_type.name}")
-
-    # check that every TextLineType has a BlockType
-    for text_line_type in TextLineType:
-        block_type_id = text_line_type.id + 10000
-        try:
-            block_type = BlockType(block_type_id)
-        except ValueError as e:
-            raise ValueError(f"no BlockType with id {block_type_id}") from e
-        if block_type.name != text_line_type.name:
-            raise ValueError(f"TextLineType {text_line_type.name} != BlockType {block_type.name}")
 
 
 @node_(NodeType.BLOCK)
 class Block(IsTemplatable, IsModal, IsNamed, PackageNode[BlockData]):
     """
     A Block on a Page.
-    NOTE :Architecture: Block should be IsView (or some subtrait)? Also Page, Flow, Action, ..?
     """
 
     parent: Union["Page", "Block", None] = p_node_parent(4, NodeType.PAGE, NodeType.BLOCK)
@@ -144,8 +85,10 @@ class Block(IsTemplatable, IsModal, IsNamed, PackageNode[BlockData]):
         40, default=None, require=False, array=False, struct=StructType.TEXT_LINE
     )
     node: Optional["Node"] = p_regular(
-        41, references="any", default=None, require=False, array=False, baseless=True
+        41, references="any", default=None, require=False, array=False, baseless=False
     )
+    # view? (specific view of that node, e.g. TableView for a Table)
+    # size?
     if TYPE_CHECKING:
         node_id: Optional[UUID] = None
         node_ck: Optional[UUID] = None
@@ -266,6 +209,6 @@ class Block(IsTemplatable, IsModal, IsNamed, PackageNode[BlockData]):
         """Create a list of Blocks for each line of Text."""
         blocks: list[Block] = []
         for line in text.lines:
-            block_type = BlockType(line.type + 10_000)
+            block_type = BlockType(line.type)
             blocks.append(Block.new(block_type, line=line))
         return blocks

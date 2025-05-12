@@ -6,6 +6,7 @@ from opentelemetry import trace
 from bench.language import (
     Action,
     Agent,
+    BlockType,
     FieldType,
     File,
     Link,
@@ -129,7 +130,7 @@ class PagePiece(NodePiece[Page]):
     def prefetch(self, prompt: "Prompt") -> Sequence[Node | NodeReference]:
         missing_nodes: list[NodeReference] = []
         for block in self.node.blocks:
-            if block.type.is_node and (node_ptr := block.node_ptr) is not None:
+            if block.type == BlockType.NODE and (node_ptr := block.node_ptr) is not None:
                 missing_nodes.append(node_ptr)
         return missing_nodes
 
@@ -159,11 +160,7 @@ class PagePiece(NodePiece[Page]):
 
         for block in self.node.blocks:
             block_alias = prompt.renderer.aliasing.get_or_add(block)
-            if block.type.is_text:
-                # text block
-                line_str = block.line.to_markdown() if block.line is not None else ""
-                text_block_parts.append(f"[@{block_alias}] {line_str}")
-            else:
+            if block.type == BlockType.NODE:
                 # node block
                 if text_block_parts:
                     yield _flush_text_block_parts()
@@ -174,6 +171,10 @@ class PagePiece(NodePiece[Page]):
                     yield TextPiece(
                         text=f"[@{block_alias}] <UNLOADED {node_ptr.node_type.name} NODE: {node_alias}>"
                     )
+            else:
+                # text block
+                line_str = block.line.to_markdown() if block.line is not None else ""
+                text_block_parts.append(f"[@{block_alias}] {line_str}")
         if text_block_parts:
             yield _flush_text_block_parts()
 

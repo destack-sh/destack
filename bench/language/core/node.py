@@ -266,7 +266,7 @@ class Node[NodeDataT: AnyNodeData](BuiltinObject[NodeDataT]):
     # 1-9: node identity
     # Node.metatype: 1
     id: UUID = p_system(2, default=None, require=True, autoset=True)
-    # SourceNode.ck: 3
+    # IsTemplatable.ck: 3
     parent: Optional["Node"] = p_node_parent(4)  # type: ignore
     if TYPE_CHECKING:
         parent_type: NodeType | None = None
@@ -1122,7 +1122,7 @@ class PackageNode[NodeDataT: AnyNodeData](BenchNode[NodeDataT]):
 
 @node_component_()
 class PageNode[NodeDataT: AnyNodeData](PackageNode[NodeDataT]):
-    """A Node that can be defined 'inline' on a Page."""
+    """A Node that can (but may not be) be inline on a Page."""
 
     parent: Union["Page", None] = p_node_parent(4, NodeType.PAGE)
     # name: 31
@@ -1300,17 +1300,8 @@ class NodeReference(Struct[NodeReferenceData]):
         return reference
 
 
-@node_(NodeType.SKIP, stored=False)
-class Skip(Node):
-    """A reference to another node in some graph that wasn't available for some reason (usually permissions)."""
-
-    parent: Node = p_node_parent(4, *NODE_TYPES.tuple)
-    reference: Optional[Node] = p_regular(30, array=False, references="any", require=True)
-    order_key: str | None = p_internal(31, default=None)
-
-
-@node_(NodeType.EMPTY, stored=False)
-class Empty(Node):
+@node_(NodeType.STUB, stored=False)
+class Stub(Node):
     """An empty node."""
 
     parent: Node = p_node_parent(4, *NODE_TYPES.tuple)

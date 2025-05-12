@@ -79,6 +79,7 @@ def _complete_bench_setup():
         IsTimed,
         Node,
         PageNode,
+        Resource,
         Struct,
     )
     from bench.language.core import (
@@ -229,6 +230,7 @@ def _complete_bench_setup():
         # check that node type collections are consistent with their respective base classes
         for base_cls, node_types_tuple in [
             (PageNode, const.PAGE_NODE_TYPES.tuple),
+            (Resource, const.RESOURCE_NODE_TYPES.tuple),
             (IsTemplatable, const.TEMPLATABLE_NODE_TYPES.tuple),
             (IsInstantiable, const.INSTANTIABLE_NODE_TYPES.tuple),
             (IsTemplatable, const.TEMPLATABLE_NODE_TYPES.tuple),
