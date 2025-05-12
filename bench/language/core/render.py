@@ -52,19 +52,23 @@ from bench.language.core import (
 from bench.language.registry import ENUM_CLASS_BY_TYPE, NODE_CLASS_BY_TYPE
 from bench.utils.time import timedelta_to_isoformat
 
-from .action import Action
-from .block import Block
-from .choice import Choice
-from .clazz import Class
-from .field import Field
-from .flow import Flow
-from .option import Option
-from .page import Page
-from .table import Table
-from .transition import Transition
-
 if TYPE_CHECKING:
-    from bench.language import Claim, Message, Task, View
+    from bench.language import (
+        Action,
+        Block,
+        Choice,
+        Claim,
+        Class,
+        Field,
+        Flow,
+        Message,
+        Option,
+        Page,
+        Table,
+        Task,
+        Transition,
+        View,
+    )
 
 logger = structlog.get_logger(__name__)
 tracer = trace.get_tracer(__name__)

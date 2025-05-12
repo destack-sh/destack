@@ -19,7 +19,7 @@ from bench.language.core import (
     text_line,
     to_text,
 )
-from bench.language.source.block import Block
+from bench.language.package.block import Block
 from bench.pb2 import BlockData
 
 if TYPE_CHECKING:
@@ -46,6 +46,7 @@ class Page(
     thread: Optional["Thread"] = p_regular(
         38, default=None, require=False, array=False, references=NodeType.THREAD
     )
+    # app? Page/Record/... tying?
 
     pages: LocalNodeList["Page"] = p_node_children(NodeType.PAGE)
     blocks: LocalNodeList["Block"] = p_node_children(NodeType.BLOCK)

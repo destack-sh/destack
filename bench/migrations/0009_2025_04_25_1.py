@@ -27,7 +27,6 @@ async def downgrade_global(cur: psycopg.AsyncCursor):
 
 
 async def upgrade_regional(cur: psycopg.AsyncCursor):
-
     # bench_link
     await cur.execute(
         """
