@@ -55,12 +55,13 @@ class TextLineType(BuiltinEnum):  # :TextLineType
     LIST_ORDERED = 31, "Numbered list", "Numbered list", "fas fa-list-ol"
     # divider
     DIVIDER = 40, "Horizontal line", "Horizontal line", "fas fa-horizontal-rule"
+    # code
+    CODE = 50, "Code", "Code", "fas fa-code"
     # table
     # ...
-    # code
-    CODE = 60, "Code", "Code", "fas fa-code"
     # reference
     # LINK, EMBED, ...
+    NODE = 1000
 
 
 @enum_(EnumType.TEXT_SPAN_TYPE)

@@ -9,7 +9,6 @@ from opentelemetry import trace
 
 from bench.language import (
     EMPTY_SCOPE_DATA,
-    USER_NODE_TYPES,
     Bench,
     Client,
     ClientType,
@@ -68,7 +67,13 @@ from .bench import CreateBenchOptions, create_default_bench
 logger = structlog.get_logger(__name__)
 tracer = trace.get_tracer(__name__)
 
-SUPERVISOR_NODE_TYPES = USER_NODE_TYPES | bittuple(NodeType.BENCH)
+SUPERVISOR_NODE_TYPES = bittuple(
+    NodeType.USER,
+    NodeType.ORGANIZATION,
+    NodeType.CLIENT,
+    NodeType.HANDLE,
+    NodeType.BENCH,
+)
 
 
 class SupervisorService(GraphServiceBase, SupervisorBase):

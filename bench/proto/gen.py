@@ -17,8 +17,6 @@ from bench.language import (
     BENCH_NODE_TYPES,
     CHILD_NODE_TYPES,
     CLAIMABLE_NODE_TYPES,
-    COMMUNICATION_NODE_TYPES,
-    COSMOS_NODE_TYPES,
     DESCENDANT_NODE_TYPES,
     ENUM_CLASS_BY_TYPE,
     ENUM_TYPES,
@@ -43,7 +41,6 @@ from bench.language import (
     ROOT_NODE_TYPES,
     RUNNABLE_NODE_TYPES,
     RUNTIME_NODE_TYPES,
-    SOURCE_NODE_TYPES,
     STRUCT_CLASS_BY_TYPE,
     STRUCT_CLASSES,
     STRUCT_TYPES,
@@ -52,7 +49,6 @@ from bench.language import (
     TIMED_NODE_TYPES,
     TYPE_CONSTRAINT_BY_FORMAT,
     UNSET,
-    USER_NODE_TYPES,
     VERSION,
     BenchNode,
     EnumType,
@@ -251,7 +247,6 @@ AnyStructData = Union[{', '.join([cls.__name__ + 'Data' for cls in STRUCT_CLASSE
 AnyObjectData = AnyNodeData | AnyStructData
 BenchNodeData = Union[{', '.join([cls.__name__ + 'Data' for cls in NODE_CLASSES if issubclass(cls, BenchNode)])}]
 ResourceNodeData = Union[{', '.join([cls.__name__ + 'Data' for cls in NODE_CLASSES if issubclass(cls, Resource)])}]
-SourceNodeData = Union[{', '.join([cls.__name__ + 'Data' for cls in NODE_CLASSES if cls.metatype.is_source])}]
 PageNodeData = Union[{', '.join([cls.__name__ + 'Data' for cls in NODE_CLASSES if issubclass(cls, PageNode)])}]
 SubjectNodeData = Union[{', '.join([cls.__name__ + 'Data' for cls in NODE_CLASSES if cls.metatype in SUBJECT_NODE_TYPES])}]
 JoinableNodeData = Union[{', '.join([cls.__name__ + 'Data' for cls in NODE_CLASSES if cls.metatype in JOINABLE_NODE_TYPES])}]
@@ -679,8 +674,6 @@ export const TYPE_CONSTRAINT_BY_FORMAT: Partial<Record<TypeFormat, TypeConstrain
     for name, node_types in (
         ("BASED_NODE_TYPES", BASED_NODE_TYPES),
         ("BENCH_NODE_TYPES", BENCH_NODE_TYPES),
-        ("COMMUNICATION_NODE_TYPES", COMMUNICATION_NODE_TYPES),
-        ("COSMOS_NODE_TYPES", COSMOS_NODE_TYPES),
         ("GLOBAL_NODE_TYPES", GLOBAL_NODE_TYPES),
         ("PAGE_NODE_TYPES", PAGE_NODE_TYPES),
         ("INSTANTIABLE_NODE_TYPES", INSTANTIABLE_NODE_TYPES),
@@ -691,7 +684,6 @@ export const TYPE_CONSTRAINT_BY_FORMAT: Partial<Record<TypeFormat, TypeConstrain
         ("ROOT_NODE_TYPES", ROOT_NODE_TYPES),
         ("RUNTIME_NODE_TYPES", RUNTIME_NODE_TYPES),
         ("RUNNABLE_NODE_TYPES", RUNNABLE_NODE_TYPES),
-        ("SOURCE_NODE_TYPES", SOURCE_NODE_TYPES),
         ("SUBJECT_NODE_TYPES", SUBJECT_NODE_TYPES),
         ("JOINABLE_NODE_TYPES", JOINABLE_NODE_TYPES),
         ("CLAIMABLE_NODE_TYPES", CLAIMABLE_NODE_TYPES),
@@ -701,7 +693,6 @@ export const TYPE_CONSTRAINT_BY_FORMAT: Partial<Record<TypeFormat, TypeConstrain
         ("PROVISIONABLE_NODE_TYPES", PROVISIONABLE_NODE_TYPES),
         ("TEMPLATABLE_NODE_TYPES", TEMPLATABLE_NODE_TYPES),
         ("TIMED_NODE_TYPES", TIMED_NODE_TYPES),
-        ("USER_NODE_TYPES", USER_NODE_TYPES),
     ):
         node_types_str_parts.append(f"export const {name}: NodeType[] = [")
         for node_type in node_types:
@@ -730,7 +721,6 @@ export type ProcessableNodeData = {' | '.join(cls.__name__ + 'Data' for cls in N
 export type ResourceNodeData = {' | '.join(cls.__name__ + 'Data' for cls in NODE_CLASSES if issubclass(cls, Resource))}
 export type ProvisionableNodeData = {' | '.join(cls.__name__ + 'Data' for cls in NODE_CLASSES if issubclass(cls, ProvisionableResource))}
 export type RunnableNodeData = {' | '.join(cls.__name__ + 'Data' for cls in NODE_CLASSES if cls.metatype in RUNNABLE_NODE_TYPES)}
-export type SourceNodeData = {' | '.join(cls.__name__ + 'Data' for cls in NODE_CLASSES if cls.metatype.is_source)}
 export type SubjectNodeData = {' | '.join(cls.__name__ + 'Data' for cls in NODE_CLASSES if cls.metatype in SUBJECT_NODE_TYPES)}
 
 // Node types

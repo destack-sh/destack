@@ -1,11 +1,8 @@
 import {
   ActionType,
-  Anchor,
   BlockType,
-  EmptyProperty,
+  Continent,
   EnumType,
-  PAGE_NODE_TYPES,
-  PageNodeData,
   INSTANTIABLE_NODE_TYPES,
   InstantiableNodeData,
   JOINABLE_NODE_TYPES,
@@ -14,6 +11,8 @@ import {
   NodeReferenceData,
   NodeType,
   ObjectType,
+  PAGE_NODE_TYPES,
+  PageNodeData,
   PrimitiveType,
   PROCESSABLE_NODE_TYPES,
   ProcessableNodeData,
@@ -21,13 +20,12 @@ import {
   PROPERTY_ENUM_BY_TYPE,
   PropertyInfo,
   PropertyReferenceData,
+  PROVISIONABLE_NODE_TYPES,
+  ProvisionableNodeData,
   Region,
   RESOURCE_NODE_TYPES,
-  ResourceNodeData,
   RUNNABLE_NODE_TYPES,
   RunnableNodeData,
-  SOURCE_NODE_TYPES,
-  SourceNodeData,
   StructType,
   SUBJECT_NODE_TYPES,
   SubjectNodeData,
@@ -37,9 +35,6 @@ import {
   ViewProperty,
   ViewType,
   type AnyNodeData,
-  PROVISIONABLE_NODE_TYPES,
-  ProvisionableNodeData,
-  Continent,
 } from "@/proto/wire";
 import { describeNode, isNode, isStruct, propertyInfo } from "@/proto/wiring";
 import { Casing, toCasing } from "@/utils/string";
@@ -71,10 +66,6 @@ export function isEnumType(object: any): object is EnumType {
   return typeof object == "number" && ENUM_TYPES_SET.has(object);
 }
 
-export function isSourceNodeType(nodeType: NodeType): boolean {
-  return nodeType >= 5000 && nodeType < 5500;
-}
-
 export function isPageNodeType(nodeType: NodeType): boolean {
   return PAGE_NODE_TYPES.includes(nodeType);
 }
@@ -101,11 +92,6 @@ export function isInstantiableNodeType(nodeType: NodeType): boolean {
 
 export function isRunnableNodeType(nodeType: NodeType): boolean {
   return RUNNABLE_NODE_TYPES.includes(nodeType);
-}
-
-export function isSourceNode(node: any): node is SourceNodeData {
-  if (node == null || typeof node != "object") return false;
-  else return isSourceNodeType(node.metatype as unknown as NodeType);
 }
 
 export function isSubjectNode(node: any): node is SubjectNodeData {
@@ -141,15 +127,6 @@ export function isInstantiableNode(node: any): node is InstantiableNodeData {
 export function isRunnableNode(node: any): node is RunnableNodeData {
   if (node == null || typeof node != "object") return false;
   else return isRunnableNodeType(node.metatype as unknown as NodeType);
-}
-
-export function isResourceNodeType(nodeType: any): boolean {
-  return typeof nodeType == "number" && nodeType >= 2000 && nodeType < 3000;
-}
-
-export function isResourceNode(node: any): node is ResourceNodeData {
-  if (node == null || typeof node != "object") return false;
-  else return isResourceNodeType(node.metatype as unknown as NodeType);
 }
 
 export function isStaticResourceNodeType(nodeType: any): boolean {
@@ -192,7 +169,7 @@ export function isBenchNodeType(nodeType: any): boolean {
 
 /** Whether the node type isn't loaded by default */
 export function isUnloadedNodeType(nodeType: any): boolean {
-  return typeof nodeType == "number" && !isSourceNodeType(nodeType) && !isStaticResourceNodeType(nodeType);
+  return typeof nodeType == "number" && !isStaticResourceNodeType(nodeType);
 }
 
 /** Whether the Node is 'active' (not a template/archived/...) */
@@ -212,11 +189,22 @@ export function isNodeInstance(node: AnyNodeData): boolean {
 // node types
 export const UNLOADED_RESOURCE_NODE_TYPES = [NodeType.FILE];
 export const LOADED_PACKAGE_NODE_TYPES = [
-  ...SOURCE_NODE_TYPES,
+  NodeType.PACKAGE,
+  NodeType.DEPENDENCY,
+  NodeType.PAGE,
+  NodeType.BLOCK,
+  NodeType.CHOICE,
+  NodeType.CLASS,
+  NodeType.FIELD,
+  NodeType.OPTION,
+  NodeType.SERVICE,
+  NodeType.ACTION,
+  NodeType.FLOW,
+  NodeType.TRANSITION,
+  NodeType.TABLE,
   ...RESOURCE_NODE_TYPES.filter((t) => !UNLOADED_RESOURCE_NODE_TYPES.includes(t)),
   NodeType.CHANNEL,
   NodeType.CLAIM,
-  NodeType.PLAN,
   NodeType.TASK,
   NodeType.ROLE,
   NodeType.AGENT,
@@ -229,7 +217,7 @@ export const TYPE_NODE_TYPES = [NodeType.AGENT, NodeType.CLASS, NodeType.CHOICE,
 
 // block types
 export const BLOCK_TYPES = Object.values(BlockType).filter((v) => typeof v == "number" && v > 0) as BlockType[];
-export const CANVAS_BLOCK_TYPES = [BlockType.PAGE, BlockType.KIT, BlockType.DATABASE];
+export const CANVAS_BLOCK_TYPES = [BlockType.PAGE, BlockType.TABLE];
 export const TEXT_BLOCK_TYPES = BLOCK_TYPES.filter((bt) => bt >= BlockType.PARAGRAPH);
 
 // action
@@ -281,7 +269,7 @@ export const BASE_TYPE_BY_NODE_TYPE: Partial<Record<NodeType, NodeType>> = {
  */
 export function getBaseFromNode(node: Partial<AnyNodeData>): NodeReferenceData | null {
   if (isNode(node, NodeType.RECORD)) {
-    return node.databasePtr ?? null;
+    return node.tablePtr ?? null;
   } else if (isNode(node, NodeType.MESSAGE)) {
     return node.threadPtr ?? null;
   } else if (isNode(node, NodeType.RUN)) {
@@ -334,14 +322,7 @@ export function toCamelName<T extends object>(cls: T, key: any) {
 // Enums
 //
 
-export const EXPOSED_NODE_TYPES = NODE_TYPES.filter((t) => t != NodeType.SKIP);
-export const EXPOSED_BLOCK_TYPES = [
-  BlockType.DATABASE,
-  BlockType.PAGE,
-  BlockType.TASK,
-  BlockType.AGENT,
-  ...TEXT_BLOCK_TYPES,
-];
+export const EXPOSED_NODE_TYPES = NODE_TYPES.filter((t) => t != NodeType.STUB);
 export const EXPOSED_STRUCT_TYPES = [
   // core
   StructType.TYPE,

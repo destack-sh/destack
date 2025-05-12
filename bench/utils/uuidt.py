@@ -50,7 +50,7 @@ class UUIDT(uuid.UUID):
     def get_series(cls, unix_time_ms: int) -> int:
         """Get per-millisecond series integer in range [0-65536)."""
         series = cls.current_series_per_ms[unix_time_ms]
-        if len(cls.current_series_per_ms) > 10_000:  # Clear class dict periodically
+        if len(cls.current_series_per_ms) > 10_000:  # clear class dict periodically
             cls.current_series_per_ms.clear()
             cls.current_series_per_ms[unix_time_ms] = series
         cls.current_series_per_ms[unix_time_ms] += 1

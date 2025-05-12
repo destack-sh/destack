@@ -38,7 +38,10 @@ class SpaceType(BuiltinEnum):
 
 @node_(NodeType.SPACE)
 class Space(IsOwnable, IsTemplatable, IsModal, PackageNode[SpaceData]):
-    """A Space for a User to interact with a Bench."""
+    """
+    A Space for a User to interact with a Bench.
+    Spaces to any Bench are centralized in the owning User's Bench.
+    """
 
     parent: Optional["Package"] = p_node_parent(4, NodeType.PACKAGE)
 

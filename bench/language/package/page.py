@@ -92,15 +92,6 @@ class Page(
         self.blocks.extend(*blocks, after=after, before=before)
         return blocks
 
-    def remove_text(self, after: Optional["Block"] = None, before: Optional["Block"] = None):
-        """Remove text from the Page (between Blocks, exclusive)."""
-        blocks = self.blocks.between(after, before)
-        if any(not b.type.is_text for b in blocks):
-            bad_blocks = [b for b in blocks if not b.type.is_text]
-            raise ValueError(f"cannot remove non-text blocks with Page.remove_text: {bad_blocks}")
-        for block in blocks:
-            self.blocks.remove(block)
-
     def remove_range(self, start: Optional["Block"] = None, end: Optional["Block"] = None):
         """Remove a range of Blocks."""
         blocks = self.blocks.between(start, end)

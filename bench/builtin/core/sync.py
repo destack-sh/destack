@@ -6,6 +6,7 @@ from bench.language import (
     BENCH_ID,
     UUID_NAMESPACE,
     Block,
+    BlockType,
     IsInstantiable,
     IsTemplatable,
     Membership,
@@ -29,7 +30,7 @@ def get_stable_builtin_path(node: Node) -> str:
                 inline_node = current.node
                 if inline_node is None:
                     # NOTE: this is a horrible way to assign ids to text blocks
-                    assert current.type.is_text, f"block {current!r} has no inline node"
+                    assert current.type != BlockType.NODE, f"block {current!r} has no inline node"
                     assert current.line is not None, f"block {current!r} has no line"
                     path_key = f"Block[{current.line.to_markdown()}]"
                 else:
