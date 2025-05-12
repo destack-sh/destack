@@ -504,73 +504,73 @@ class NodeType(BuiltinEnum):
     DEPENDENCY = 1010, "Dependency", "Dependency to something", "fas fa-turn-down-right"
     PAGE = 1020, "Page", "Page of Blocks", "far fa-file"
     BLOCK = 1030, "Block", "Rich Block on a Page", "fas fa-cube"
+    # APP?
 
     # infra
-    SCALER = 2000, "Scaler", "Autoscale Resources", "fas fa-scale-unbalanced"
-    DATABASE = 2010, "Store", "Store custom data", "fas fa-database"
+    SCALER = 1200, "Scaler", "Autoscale Resources", "fas fa-scale-unbalanced"
+    DATABASE = 1210, "Store", "Store custom data", "fas fa-database"
     # VAULT?
     # CACHE?
-    COMPUTER = 2100, "Computer", "Machine for computing", "fas fa-computer-classic"
+    COMPUTER = 1250, "Computer", "Machine for computing", "fas fa-computer-classic"
     # ENDPOINT, DEPLOYMENT, NETWORK, ...
 
-    # model
-    AGENT = 5640, "Agent", "Identity for an AI", "fas fa-robot"
+    # agent
+    AGENT = 1400, "Agent", "Identity for an AI", "fas fa-robot"
     # ...
 
     # identity
-    TEAM = 5600, "Team", "Group of Users or Agents", "fas fa-users"
-    MEMBERSHIP = 5610, "Membership", "Membership to something", "fas fa-users"
-    INVITE = 5620, "Invite", "Invite to something", "fas fa-user-plus"
-    ROLE = 5630, "Role", "Role", "fas fa-user-tag"
+    TEAM = 1600, "Team", "Group of Users or Agents", "fas fa-users"
+    MEMBERSHIP = 1610, "Membership", "Membership to something", "fas fa-users"
+    INVITE = 1620, "Invite", "Invite to something", "fas fa-user-plus"
+    ROLE = 1630, "Role", "Role", "fas fa-user-tag"
     # PROFILE? (for User)
 
-    # type
-    CHOICE = 5100, "Choice", "Choice between Options", "fas fa-circle-chevron-down"
-    CLASS = 5110, "Class", "Class", "fas fa-shapes"
+    # typing
+    CHOICE = 1800, "Choice", "Choice between Options", "fas fa-circle-chevron-down"
+    CLASS = 1810, "Class", "Class", "fas fa-shapes"
     # SCHEMA?
     # UNION?
-    FIELD = 5130, "Field", "Field", "fas fa-triangle"
-    OPTION = 5140, "Option", "Option", "far fa-square-check"
+    FIELD = 1830, "Field", "Field", "fas fa-triangle"
+    OPTION = 1840, "Option", "Option", "far fa-square-check"
     # TAG?
 
     # data
-    TABLE = 5300, "Table", "Table of Records", "fas fa-table"
-    RECORD = 8000, "Record", "Record in a Database", "fas fa-database"
-    FILE = 2200, "File", "File", "fas fa-file"
+    TABLE = 2000, "Table", "Table of Records", "fas fa-table"
+    RECORD = 2010, "Record", "Record in a Database", "fas fa-database"
+    FILE = 2020, "File", "File", "fas fa-file"
     # STREAM?
     # SECRET?
-    LINK = 2250, "Link", "Link to something", "fas fa-link"
+    LINK = 2050, "Link", "Link to something", "fas fa-link"
     # REPOSITORY, CONNECTION/API, ...?
     # INDEX?
 
-    # communication
-    CHANNEL = 5500, "Channel", "Channel", "fas fa-hashtag"
-    THREAD = 5510, "Thread", "Thread", "fas fa-reel"
-    MESSAGE = 5520, "Message", "Message", "fas fa-message"
+    # chat
+    CHANNEL = 2200, "Channel", "Channel", "fas fa-hashtag"
+    THREAD = 2210, "Thread", "Thread", "fas fa-reel"
+    MESSAGE = 2220, "Message", "Message", "fas fa-message"
     # POLL?
     # REACTION?
-    NOTIFICATION = 5550, "Notification", "Notification", "fas fa-bell"
+    NOTIFICATION = 2250, "Notification", "Notification", "fas fa-bell"
 
-    # orchestration
+    # sync
     # PLAN?
-    TASK = 6110, "Task", "To-do item", "far fa-square-check"
-    CLAIM = 6150, "Claim", "Control over something", "fas fa-stamp"
-    CURSOR = 6170, "Cursor", "Position in something", "fas fa-mouse"
+    TASK = 2600, "Task", "To-do item", "far fa-square-check"
+    CLAIM = 2610, "Claim", "Control over something", "fas fa-stamp"
+    CURSOR = 2620, "Cursor", "Position in something", "fas fa-mouse"
     # ENTITLEMENT, POOL, LOCK, BARRIER, ...?
 
     # logic
-    SERVICE = 5200, "Service", "Service", "fas fa-screwdriver-wrench"
-    ACTION = 5210, "Action", "Action", "fas fa-step-forward"
-    FLOW = 5220, "Flow", "Link Actions together", "fas fa-diagram-project"
-    TRANSITION = 5230, "Transition", "Transition between Nodes", "fas fa-link"
-    # APP?
+    SERVICE = 2800, "Service", "Service", "fas fa-screwdriver-wrench"
+    ACTION = 2810, "Action", "Action", "fas fa-step-forward"
+    FLOW = 2820, "Flow", "Link Actions together", "fas fa-diagram-project"
+    TRANSITION = 2830, "Transition", "Transition between Nodes", "fas fa-link"
     # TRIGGER? TIMER? BREAKPOINT?
 
-    # run
-    SESSION = 6000, "Session", "Session", "fas fa-circle-play"
-    RUN = 6010, "Run", "Run", "fas fa-play"
-    SPAN = 6011, "Span", "Span", "fas fa-ruler-horizontal"
-    INTERRUPTION = 6020, "Interruption", "Interruption", "fas fa-hand"
+    # runtime
+    SESSION = 3000, "Session", "Session", "fas fa-circle-play"
+    RUN = 3010, "Run", "Run", "fas fa-play"
+    SPAN = 3011, "Span", "Span", "fas fa-ruler-horizontal"
+    INTERRUPTION = 3020, "Interruption", "Interruption", "fas fa-hand"
     # LOG, SIGNAL, ...?
 
     # view
@@ -588,6 +588,9 @@ class NodeType(BuiltinEnum):
     # policy
     # CHALLENGE?
     # BADGE? POLICY? RULE?
+
+    # model
+    # MODEL, FINETUNE, ...?
 
     # accounting
     # BALANCE, BUDGET, TRANSFER, CREDIT, GRANT, INVOICE, ...

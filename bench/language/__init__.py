@@ -1,14 +1,15 @@
 # ruff: noqa: F405
 
-from .communication import *  # noqa: F403
-from .compute import *  # noqa: F403
+from .chat import *  # noqa: F403
 from .connection import *  # noqa: F403
 from .core import *  # noqa: F403
 from .cosmos import *  # noqa: F403
 from .data import *  # noqa: F403
 from .finance import *  # noqa: F403
 from .identity import *  # noqa: F403
-from .orchestration import *  # noqa: F403
+from .infra import *  # noqa: F403
+from .logic import *  # noqa: F403
+from .package import *  # noqa: F403
 from .registry import (
     ANCESTOR_NODE_TYPES,  # noqa: F401
     BENCH_CLASS_BY_NAME,  # noqa: F401
@@ -31,7 +32,8 @@ from .registry import (
     _complete_bench_setup,
 )
 from .runtime import *  # noqa: F403
-from .source import *  # noqa: F403
+from .sync import *  # noqa: F403
+from .typing import *  # noqa: F403
 from .view import *  # noqa: F403
 
 # after all the imports, we can finalize

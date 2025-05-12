@@ -194,6 +194,18 @@ from .query import (
     SelectOptions,
     get_default_query_filter,
 )
+from .render import (
+    ACTIVE_ALIASING,
+    Aliasing,
+    Renderer,
+    RenderOptions,
+    get_active_aliasing,
+    render,
+    render_expression,
+    render_expressions,
+    render_statement,
+    render_value,
+)
 from .resource import ProvisionableResource, Resource, ResourceStatus
 from .struct import Struct, struct_
 from .text import (
@@ -314,6 +326,7 @@ from .value import (
 __all__ = [
     "ACCESS_KINDS",
     "ACCESS_TYPES",
+    "ACTIVE_ALIASING",
     "ACTIVE_PROCESS_STATUSES",
     "ACTIVE_SESSION",
     "BASED_NODE_TYPES",
@@ -397,6 +410,7 @@ __all__ = [
     "AccessType",
     "AggregationResult",
     "AggregationType",
+    "Aliasing",
     "Area",
     "BenchError",
     "BenchNode",
@@ -487,6 +501,8 @@ __all__ = [
     "ReferenceKind",
     "Region",
     "RemoteNodeList",
+    "RenderOptions",
+    "Renderer",
     "Resource",
     "ResourceStatus",
     "RunType",
@@ -549,6 +565,7 @@ __all__ = [
     "format_code",
     "generate_access_matrix",
     "generate_node_name",
+    "get_active_aliasing",
     "get_active_session",
     "get_active_tx",
     "get_custom_object_properties",
@@ -591,6 +608,11 @@ __all__ = [
     "patch_graph",
     "patch_node_from_partial",
     "register_coercion",
+    "render",
+    "render_expression",
+    "render_expressions",
+    "render_statement",
+    "render_value",
     "repr_enums",
     "repr_scope",
     "reverse_icon",

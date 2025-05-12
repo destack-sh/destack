@@ -14,7 +14,7 @@ from .struct import Struct, struct_
 
 if TYPE_CHECKING:
     from bench.language import ColorType
-    from bench.language.source.render import Aliasing
+    from bench.language.core.render import Aliasing
 
 
 @object_()
