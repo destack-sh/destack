@@ -5,52 +5,49 @@ import json
 from dataclasses import dataclass
 from datetime import date, datetime, time, timedelta
 from enum import Enum
-from typing import TYPE_CHECKING, Any, Collection, Mapping, assert_never, cast, overload, override
+from typing import (
+    TYPE_CHECKING,
+    Any,
+    Collection,
+    Mapping,
+    Union,
+    assert_never,
+    cast,
+    overload,
+    override,
+)
 from uuid import UUID
 
 import regex
 import structlog
 from opentelemetry import trace
 
-from bench.language.core import (
-    NODE_TYPES_SET,
-    BuiltinObject,
-    Code,
-    CustomObject,
-    EnumType,
-    FieldType,
-    Icon,
-    IsType,
-    Node,
-    NodeReference,
-    NodeSuperGraph,
-    NodeType,
-    ObjectType,
-    PackageNode,
-    PrimitiveType,
-    Property,
-    PropertyReference,
-    ReferenceKind,
-    Resource,
-    ScalarValue,
-    SomeValue,
-    Struct,
-    StructType,
-    Text,
-    TextLine,
-    TypeConstraint,
-    TypeFormat,
-    TypeKind,
-    format_code,
-    get_custom_object_properties,
-    is_node_type,
-    reverse_icon,
-    reverse_type_scalar,
-    text_line_to_markdown,
-    text_to_markdown,
-)
 from bench.language.registry import ENUM_CLASS_BY_TYPE, NODE_CLASS_BY_TYPE
 from bench.utils.time import timedelta_to_isoformat
+
+from .code import Code, format_code
+from .const import (
+    NODE_TYPES_SET,
+    EnumType,
+    FieldType,
+    NodeType,
+    ObjectType,
+    PrimitiveType,
+    StructType,
+    TypeFormat,
+    TypeKind,
+    is_node_type,
+)
+from .graph import NodeSuperGraph
+from .icon import Icon, reverse_icon
+from .node import Node, NodeReference, PackageNode
+from .object import BuiltinObject, PropertyReference
+from .property import Property, ReferenceKind
+from .resource import Resource
+from .struct import Struct
+from .text import Text, TextLine, text_line_to_markdown, text_to_markdown
+from .type import IsType, TypeConstraint, reverse_type_scalar
+from .value import CustomObject, ScalarValue, SomeValue, get_custom_object_properties
 
 if TYPE_CHECKING:
     from bench.language import (
@@ -513,9 +510,9 @@ def _render_builtin_object_kwargs(
     return rendered_kwargs
 
 
-def _deconstruct_custom_object(obj: CustomObject) -> dict[Property | Field, Any]:
+def _deconstruct_custom_object(obj: CustomObject) -> dict[Union[Property, "Field"], Any]:
     """Gets the 'content' values for a CustomObject."""
-    kwargs: dict[Property | Field, Any] = {}
+    kwargs: dict[Union[Property, Field], Any] = {}
     # properties
     for prop in get_custom_object_properties(obj._type, obj._value):
         storage_key = prop.key
@@ -533,7 +530,7 @@ def _deconstruct_custom_object(obj: CustomObject) -> dict[Property | Field, Any]
 
 
 def _render_custom_object_kwargs(
-    renderer: "Renderer", obj: CustomObject, kwargs: dict[Property | Field, Any]
+    renderer: "Renderer", obj: CustomObject, kwargs: dict[Union[Property, "Field"], Any]
 ) -> dict[str, str]:
     rendered_kwargs: dict[str, str] = {}
     for prop, value in kwargs.items():
@@ -709,12 +706,12 @@ BUILTIN_OBJECT_RENDERER = BuiltinObjectRenderer[BuiltinObject]()
 
 
 @_renderer(NodeType.BLOCK)
-class BlockRenderer(PackageNodeRenderer[Block]):
+class BlockRenderer(PackageNodeRenderer["Block"]):
     @override
     def _render_constructor(
         self,
         renderer: "Renderer",
-        obj: Block,
+        obj: "Block",
         kwargs: dict[Property, Any],
         rendered_kwargs: dict[str, str],
     ) -> str:
@@ -745,12 +742,12 @@ class ViewRenderer(PackageNodeRenderer["View"]):
 
 
 @_renderer(NodeType.FLOW)
-class FlowRenderer(PackageNodeRenderer[Flow]):
+class FlowRenderer(PackageNodeRenderer["Flow"]):
     @override
     def _render_constructor(
         self,
         renderer: "Renderer",
-        obj: Flow,
+        obj: "Flow",
         kwargs: dict[Property, Any],
         rendered_kwargs: dict[str, str],
     ) -> str:
@@ -763,12 +760,12 @@ class FlowRenderer(PackageNodeRenderer[Flow]):
 
 
 @_renderer(NodeType.ACTION)
-class ActionRenderer(PackageNodeRenderer[Action]):
+class ActionRenderer(PackageNodeRenderer["Action"]):
     @override
     def _render_constructor(
         self,
         renderer: "Renderer",
-        obj: Action,
+        obj: "Action",
         kwargs: dict[Property, Any],
         rendered_kwargs: dict[str, str],
     ) -> str:
@@ -781,12 +778,12 @@ class ActionRenderer(PackageNodeRenderer[Action]):
 
 
 @_renderer(NodeType.TRANSITION)
-class TransitionRenderer(PackageNodeRenderer[Transition]):
+class TransitionRenderer(PackageNodeRenderer["Transition"]):
     @override
     def _render_constructor(
         self,
         renderer: "Renderer",
-        obj: Transition,
+        obj: "Transition",
         kwargs: dict[Property, Any],
         rendered_kwargs: dict[str, str],
     ) -> str:
@@ -818,12 +815,12 @@ class TransitionRenderer(PackageNodeRenderer[Transition]):
 
 
 @_renderer(NodeType.CHOICE)
-class ChoiceRenderer(PackageNodeRenderer[Choice]):
+class ChoiceRenderer(PackageNodeRenderer["Choice"]):
     @override
     def _render_constructor(
         self,
         renderer: "Renderer",
-        obj: Choice,
+        obj: "Choice",
         kwargs: dict[Property, Any],
         rendered_kwargs: dict[str, str],
     ) -> str:
@@ -839,12 +836,12 @@ class ChoiceRenderer(PackageNodeRenderer[Choice]):
 
 
 @_renderer(NodeType.CLASS)
-class ClassRenderer(PackageNodeRenderer[Class]):
+class ClassRenderer(PackageNodeRenderer["Class"]):
     @override
     def _render_constructor(
         self,
         renderer: "Renderer",
-        obj: Class,
+        obj: "Class",
         kwargs: dict[Property, Any],
         rendered_kwargs: dict[str, str],
     ) -> str:
@@ -860,12 +857,12 @@ class ClassRenderer(PackageNodeRenderer[Class]):
 
 
 @_renderer(NodeType.TABLE)
-class TableRenderer(PackageNodeRenderer[Table]):
+class TableRenderer(PackageNodeRenderer["Table"]):
     @override
     def _render_constructor(
         self,
         renderer: "Renderer",
-        obj: Table,
+        obj: "Table",
         kwargs: dict[Property, Any],
         rendered_kwargs: dict[str, str],
     ) -> str:
@@ -881,12 +878,12 @@ class TableRenderer(PackageNodeRenderer[Table]):
 
 
 @_renderer(NodeType.PAGE)
-class PageRenderer(PackageNodeRenderer[Page]):
+class PageRenderer(PackageNodeRenderer["Page"]):
     @override
     def _render_constructor(
         self,
         renderer: "Renderer",
-        obj: Page,
+        obj: "Page",
         kwargs: dict[Property, Any],
         rendered_kwargs: dict[str, str],
     ) -> str:
@@ -899,12 +896,12 @@ class PageRenderer(PackageNodeRenderer[Page]):
 
 
 @_renderer(NodeType.FIELD)
-class FieldRenderer(PackageNodeRenderer[Field]):
+class FieldRenderer(PackageNodeRenderer["Field"]):
     @override
     def _render_constructor(
         self,
         renderer: "Renderer",
-        obj: Field,
+        obj: "Field",
         kwargs: dict[Property, Any],
         rendered_kwargs: dict[str, str],
     ) -> str:
@@ -927,12 +924,12 @@ class FieldRenderer(PackageNodeRenderer[Field]):
 
 
 @_renderer(NodeType.OPTION)
-class OptionRenderer(PackageNodeRenderer[Option]):
+class OptionRenderer(PackageNodeRenderer["Option"]):
     @override
     def _render_constructor(
         self,
         renderer: "Renderer",
-        obj: Option,
+        obj: "Option",
         kwargs: dict[Property, Any],
         rendered_kwargs: dict[str, str],
     ) -> str:

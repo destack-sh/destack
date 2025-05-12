@@ -15,7 +15,7 @@ def _gen_sql_schema():
     ]
     for node_t in NodeType:
         node_cls = NODE_CLASS_BY_TYPE[node_t]
-        if node_cls.__is_stored__ and not node_cls.__is_is_local__:
+        if node_cls.__is_stored__ and not node_cls.__unravel_value__:
             table = map_builtin_object_to_sql_table(node_cls)
             const_name = f"{node_cls.metatype.name}_TABLE"
             table_def = f"{const_name} = {table.source_repr()}"

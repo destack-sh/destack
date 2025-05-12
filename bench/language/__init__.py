@@ -3,12 +3,12 @@
 from .chat import *  # noqa: F403
 from .connection import *  # noqa: F403
 from .core import *  # noqa: F403
-from .cosmos import *  # noqa: F403
 from .data import *  # noqa: F403
 from .finance import *  # noqa: F403
 from .identity import *  # noqa: F403
 from .infra import *  # noqa: F403
 from .logic import *  # noqa: F403
+from .meta import *  # noqa: F403
 from .package import *  # noqa: F403
 from .registry import (
     ANCESTOR_NODE_TYPES,  # noqa: F401

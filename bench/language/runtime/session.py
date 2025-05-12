@@ -72,10 +72,7 @@ from bench.utils.uuidt import UUIDT
 from .transaction import Transaction
 
 if TYPE_CHECKING:
-    from bench.language import (
-        Bench,
-        LegacyQuery,
-    )
+    from bench.language import Bench, LegacyQuery
     from bench.runtime.core import Runtime
 
 # pyright: reportIncompatibleVariableOverride=false

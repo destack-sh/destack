@@ -32,7 +32,7 @@ if TYPE_CHECKING:
 logger = structlog.get_logger(__name__)
 
 
-@node_(NodeType.RECORD, is_local=True)
+@node_(NodeType.RECORD, unravel_value=True)
 class Record(
     IsBased,
     IsModal,
