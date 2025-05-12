@@ -499,6 +499,8 @@ class NodeType(BuiltinEnum):
     CLIENT = 50, "Client", "Client to a Bench", "fas fa-desktop"
     # PROFILE, CREDENTIAL, FRIENDSHIP, ...
 
+    # ...materialized global stuff?
+
     #
     # Bench
     #
@@ -537,7 +539,7 @@ class NodeType(BuiltinEnum):
     NOTIFICATION = 1850, "Notification", "Notification", "fas fa-bell"
     # POLL, VOTE, REACTION, ...?
 
-    # sync
+    # sync # nocheckin split/reorganize
     TASK = 2000, "Task", "To-do item", "far fa-square-check"
     CLAIM = 2010, "Claim", "Control over something", "fas fa-stamp"
     CURSOR = 2020, "Cursor", "Position in something", "fas fa-mouse"
@@ -606,7 +608,7 @@ class NodeType(BuiltinEnum):
     # world?
     # PHONE, ADDRESS, ...
 
-    STUB = 9999
+    EMPTY = 9999
 
     @property
     def is_global(self) -> bool:

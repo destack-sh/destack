@@ -217,8 +217,6 @@ export const TYPE_NODE_TYPES = [NodeType.AGENT, NodeType.CLASS, NodeType.CHOICE,
 
 // block types
 export const BLOCK_TYPES = Object.values(BlockType).filter((v) => typeof v == "number" && v > 0) as BlockType[];
-export const CANVAS_BLOCK_TYPES = [BlockType.PAGE, BlockType.TABLE];
-export const TEXT_BLOCK_TYPES = BLOCK_TYPES.filter((bt) => bt >= BlockType.PARAGRAPH);
 
 // action
 export const ACTION_TYPES = Object.values(ActionType).filter((v) => typeof v == "number" && v > 0) as ActionType[];
@@ -322,7 +320,7 @@ export function toCamelName<T extends object>(cls: T, key: any) {
 // Enums
 //
 
-export const EXPOSED_NODE_TYPES = NODE_TYPES.filter((t) => t != NodeType.STUB);
+export const EXPOSED_NODE_TYPES = NODE_TYPES.filter((t) => t != NodeType.EMPTY);
 export const EXPOSED_STRUCT_TYPES = [
   // core
   StructType.TYPE,
@@ -356,7 +354,6 @@ export const EXPOSED_REGIONS = [Region.FRANKFURT];
 export const EXPOSED_CONTINENTS = [Continent.EUROPE];
 export const FILTERED_ENUMS: Partial<Record<EnumType, number[]>> = {
   [EnumType.NODE_TYPE]: EXPOSED_NODE_TYPES,
-  [EnumType.BLOCK_TYPE]: EXPOSED_BLOCK_TYPES,
   [EnumType.STRUCT_TYPE]: EXPOSED_STRUCT_TYPES,
   [EnumType.OBJECT_TYPE]: [...NODE_TYPES, ...EXPOSED_STRUCT_TYPES],
   [EnumType.BENCH_TYPE]: [...NODE_TYPES, ...EXPOSED_STRUCT_TYPES, ...ENUM_TYPES],

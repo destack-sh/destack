@@ -39,11 +39,11 @@
       "justMyCode": true
     },
     {
-      "name": "bench.build",
+      "name": "bench.gen",
       "type": "debugpy",
       "request": "launch",
       "program": "${workspaceFolder}/bench.py",
-      "args": ["build"],
+      "args": ["gen"],
       "cwd": "${workspaceFolder}",
       "justMyCode": true
     },

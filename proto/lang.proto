@@ -155,7 +155,7 @@ enum NodeType {
   NODE_TYPE_AGENT = 2800;
   NODE_TYPE_SPACE = 3000;
   NODE_TYPE_VIEW = 3010;
-  NODE_TYPE_STUB = 9999;
+  NODE_TYPE_EMPTY = 9999;
 }
 
 enum StructType {
@@ -248,7 +248,7 @@ enum ObjectType {
   OBJECT_TYPE_AGENT = 2800;
   OBJECT_TYPE_SPACE = 3000;
   OBJECT_TYPE_VIEW = 3010;
-  OBJECT_TYPE_STUB = 9999;
+  OBJECT_TYPE_EMPTY = 9999;
   OBJECT_TYPE_CONTEXT = 10001;
   OBJECT_TYPE_EDIT_CONTEXT = 10002;
   OBJECT_TYPE_EDIT = 10003;
@@ -337,7 +337,7 @@ enum BenchType {
   BENCH_TYPE_AGENT = 2800;
   BENCH_TYPE_SPACE = 3000;
   BENCH_TYPE_VIEW = 3010;
-  BENCH_TYPE_STUB = 9999;
+  BENCH_TYPE_EMPTY = 9999;
   BENCH_TYPE_CONTEXT = 10001;
   BENCH_TYPE_EDIT_CONTEXT = 10002;
   BENCH_TYPE_EDIT = 10003;
@@ -2042,7 +2042,7 @@ message BaseNodeData {
   optional google.protobuf.Timestamp deleted_at = 15;
 }
 
-message StubData {
+message EmptyData {
   ObjectType metatype = 1;
   string id = 2;
   optional NodeReferenceData parent_ptr = 4;
@@ -3359,7 +3359,7 @@ message SomeNodeData {
     AgentData agent = 40;
     SpaceData space = 41;
     ViewData view = 42;
-    StubData stub = 43;
+    EmptyData empty = 43;
   };
 }
 
