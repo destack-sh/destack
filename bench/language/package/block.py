@@ -42,16 +42,16 @@ _type = type
 @enum_(EnumType.BLOCK_TYPE)
 class BlockType(BuiltinEnum):
     # NOTE: see NodeType
-    COMPUTER = 2100
-    FILE = 2200
-    PAGE = 5020
-    CHOICE = 5100
-    FLOW = 5220
-    SERVICE = 5200
-    TABLE = 5300
-    AGENT = 5640
-    THREAD = 5510
-    TASK = 6110
+    COMPUTER = 1250
+    FILE = 1620
+    PAGE = 1020
+    CHOICE = 1400
+    FLOW = 2220
+    SERVICE = 2200
+    TABLE = 1600
+    AGENT = 2800
+    THREAD = 1810
+    TASK = 2000
 
     # text
     # NOTE: text BlockTypes should align with :TextLineTypes

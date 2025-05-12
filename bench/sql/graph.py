@@ -781,7 +781,7 @@ def _pg_pack_node_data_row(
 
         # wired properties
         for name, prop in node_cls.__wired_properties__.items():
-            if prop.is_value_packed and node_cls.__is_is_local__:
+            if prop.is_value_packed and node_cls.__unravel_value__:
                 continue  # value is stored in unraveled columns
             elif prop.reference_source is None or not prop.is_node_reference:
                 # regular non-ref property
@@ -800,7 +800,7 @@ def _pg_pack_node_data_row(
                 _pg_pack_node_reference_into_row(prop.reference_source, row, value)
 
         # unravel value-packed fields
-        if node_cls.__is_is_local__ and table is not None:
+        if node_cls.__unravel_value__ and table is not None:
             value_runtime_prop = first(node_cls.__value_runtime_properties__.values())
             value_packed_prop = value_runtime_prop.value_packed_ptr
             assert type(value_packed_prop) is Property, f"unexpected packed: {value_packed_prop!r}"
@@ -842,7 +842,7 @@ def _pg_unpack_node_data_row(
 
         # wired properties
         for name, prop in node_cls.__wired_properties__.items():
-            if prop.is_value_packed and node_cls.__is_is_local__:
+            if prop.is_value_packed and node_cls.__unravel_value__:
                 continue  # value is stored in unraveled columns
             if prop.reference_source is not None and prop.is_node_reference:
                 # ravel stored node reference :StoredPointers
@@ -875,7 +875,7 @@ def _pg_unpack_node_data_row(
                         packed_value.append(packed_item)
 
         # ravel value-packed fields
-        if node_cls.__is_is_local__ and base_type is not None:
+        if node_cls.__unravel_value__ and base_type is not None:
             value_runtime_prop = first(node_cls.__value_runtime_properties__.values())
             value_packed_prop = value_runtime_prop.value_packed_ptr
             assert type(value_packed_prop) is Property, f"unexpected packed: {value_packed_prop!r}"
@@ -1553,7 +1553,7 @@ async def _pg_edit_batch(
             [f for f in table.fields if f.type == FieldType.MEMBER] if table is not None else []
         )
         for prop in chain(implicit_properties, updated_properties):
-            if prop.is_value_packed and node_cls.__is_is_local__:  # unravel value
+            if prop.is_value_packed and node_cls.__unravel_value__:  # unravel value
                 assert table is not None, f"no block for {prop!r}"
                 for field in dynamic_fields:
                     dynamic_columns.append(node_sql_table.get_column(field))
@@ -1592,7 +1592,7 @@ async def _pg_edit_batch(
                     new_value_packed = [] if prop.is_list else None
                 else:
                     new_value_packed = unpack_proto_json(op.new_value_packed)
-                if prop.is_value_packed and node_cls.__is_is_local__:
+                if prop.is_value_packed and node_cls.__unravel_value__:
                     assert (
                         type(new_value_packed) is dict
                     ), f"unexpected packed: {new_value_packed!r} in {op!r}"

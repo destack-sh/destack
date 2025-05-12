@@ -491,13 +491,13 @@ class NodeMode(BuiltinEnum):
 
 @enum_(EnumType.NODE_TYPE)
 class NodeType(BuiltinEnum):
-    # global
+    # meta
     BENCH = 1, "Bench", "Universal workbench", "https://heybench.com/favicon.ico"
     HANDLE = 2, "Handle", "Unique identifier", "fas fa-at"
     USER = 10, "User", "User", "fas fa-user"
-    # PROFILE, CREDENTIAL, ...
     ORGANIZATION = 20, "Organization", "Organization", "fas fa-building"
     CLIENT = 50, "Client", "Client to a Bench", "fas fa-desktop"
+    # PROFILE, CREDENTIAL, ...
 
     # package
     PACKAGE = 1000, "Package", "Isolated sub-Bench", "fas fa-box-open"
@@ -509,74 +509,74 @@ class NodeType(BuiltinEnum):
     # infra
     SCALER = 1200, "Scaler", "Autoscale Resources", "fas fa-scale-unbalanced"
     DATABASE = 1210, "Store", "Store custom data", "fas fa-database"
-    # VAULT?
-    # CACHE?
     COMPUTER = 1250, "Computer", "Machine for computing", "fas fa-computer-classic"
-    # ENDPOINT, DEPLOYMENT, NETWORK, ...
-
-    # agent
-    AGENT = 1400, "Agent", "Identity for an AI", "fas fa-robot"
-    # ...
-
-    # identity
-    TEAM = 1600, "Team", "Group of Users or Agents", "fas fa-users"
-    MEMBERSHIP = 1610, "Membership", "Membership to something", "fas fa-users"
-    INVITE = 1620, "Invite", "Invite to something", "fas fa-user-plus"
-    ROLE = 1630, "Role", "Role", "fas fa-user-tag"
-    # PROFILE? (for User)
+    # VAULT, CACHE, ENDPOINT, DEPLOYMENT, NETWORK, ...
 
     # typing
-    CHOICE = 1800, "Choice", "Choice between Options", "fas fa-circle-chevron-down"
-    CLASS = 1810, "Class", "Class", "fas fa-shapes"
-    # SCHEMA?
-    # UNION?
-    FIELD = 1830, "Field", "Field", "fas fa-triangle"
-    OPTION = 1840, "Option", "Option", "far fa-square-check"
-    # TAG?
+    CHOICE = 1400, "Choice", "Choice between Options", "fas fa-circle-chevron-down"
+    CLASS = 1410, "Class", "Class", "fas fa-shapes"
+    FIELD = 1420, "Field", "Field", "fas fa-triangle"
+    OPTION = 1430, "Option", "Option", "far fa-square-check"
+    # SCHEMA, UNION, TAG, ...?
 
     # data
-    TABLE = 2000, "Table", "Table of Records", "fas fa-table"
-    RECORD = 2010, "Record", "Record in a Database", "fas fa-database"
-    FILE = 2020, "File", "File", "fas fa-file"
-    # STREAM?
-    # SECRET?
-    LINK = 2050, "Link", "Link to something", "fas fa-link"
-    # REPOSITORY, CONNECTION/API, ...?
-    # INDEX?
+    TABLE = 1600, "Table", "Table of Records", "fas fa-table"
+    RECORD = 1610, "Record", "Record in a Database", "fas fa-database"
+    FILE = 1620, "File", "File", "fas fa-file"
+    LINK = 1650, "Link", "Link to something", "fas fa-link"
+    # STREAM, SECRET, INDEX, ...?
 
     # chat
-    CHANNEL = 2200, "Channel", "Channel", "fas fa-hashtag"
-    THREAD = 2210, "Thread", "Thread", "fas fa-reel"
-    MESSAGE = 2220, "Message", "Message", "fas fa-message"
-    # POLL?
-    # REACTION?
-    NOTIFICATION = 2250, "Notification", "Notification", "fas fa-bell"
+    CHANNEL = 1800, "Channel", "Channel", "fas fa-hashtag"
+    THREAD = 1810, "Thread", "Thread", "fas fa-reel"
+    MESSAGE = 1820, "Message", "Message", "fas fa-message"
+    NOTIFICATION = 1850, "Notification", "Notification", "fas fa-bell"
+    # POLL, REACTION, ...?
 
     # sync
-    # PLAN?
-    TASK = 2600, "Task", "To-do item", "far fa-square-check"
-    CLAIM = 2610, "Claim", "Control over something", "fas fa-stamp"
-    CURSOR = 2620, "Cursor", "Position in something", "fas fa-mouse"
-    # ENTITLEMENT, POOL, LOCK, BARRIER, ...?
+    TASK = 2000, "Task", "To-do item", "far fa-square-check"
+    CLAIM = 2010, "Claim", "Control over something", "fas fa-stamp"
+    CURSOR = 2020, "Cursor", "Position in something", "fas fa-mouse"
+    # JOB, PLAN, ENTITLEMENT, POOL, LOCK, BARRIER, ...?
 
     # logic
-    SERVICE = 2800, "Service", "Service", "fas fa-screwdriver-wrench"
-    ACTION = 2810, "Action", "Action", "fas fa-step-forward"
-    FLOW = 2820, "Flow", "Link Actions together", "fas fa-diagram-project"
-    TRANSITION = 2830, "Transition", "Transition between Nodes", "fas fa-link"
-    # TRIGGER? TIMER? BREAKPOINT?
+    SERVICE = 2200, "Service", "Service", "fas fa-screwdriver-wrench"
+    ACTION = 2210, "Action", "Action", "fas fa-step-forward"
+    FLOW = 2220, "Flow", "Sequence Actions", "fas fa-diagram-project"
+    TRANSITION = 2230, "Transition", "Transition Actions", "fas fa-link"
+    # TRIGGER, TIMER, BREAKPOINT, ...?
 
     # runtime
-    SESSION = 3000, "Session", "Session", "fas fa-circle-play"
-    RUN = 3010, "Run", "Run", "fas fa-play"
-    SPAN = 3011, "Span", "Span", "fas fa-ruler-horizontal"
-    INTERRUPTION = 3020, "Interruption", "Interruption", "fas fa-hand"
-    # LOG, SIGNAL, ...?
+    SESSION = 2400, "Session", "Session", "fas fa-circle-play"
+    RUN = 2410, "Run", "Run", "fas fa-play"
+    SPAN = 2420, "Span", "Span", "fas fa-ruler-horizontal"
+    INTERRUPTION = 2430, "Interruption", "Interruption", "fas fa-hand"
+    # SIGNAL, ...?
+
+    # identity
+    TEAM = 2600, "Team", "Group of Users or Agents", "fas fa-users"
+    MEMBERSHIP = 2610, "Membership", "Membership to something", "fas fa-users"
+    INVITE = 2620, "Invite", "Invite to something", "fas fa-user-plus"
+    ROLE = 2630, "Role", "Role", "fas fa-user-tag"
+    # PROFILE? (for User)
+
+    # agent
+    AGENT = 2800, "Agent", "Identity for an AI", "fas fa-robot"
+    # ...
 
     # view
     # ... all the Views once we have :PolyViews
-    SPACE = 7000, "Space", "Space", "fas fa-space-between"
-    VIEW = 7900, "View", "View", "fas fa-window-frame"  # :PolyViews
+    SPACE = 3000, "Space", "Space", "fas fa-space-between"
+    VIEW = 3010, "View", "View", "fas fa-window-frame"  # :PolyViews
+
+    # history
+    # EVENT, LOG, HISTORY, BRANCH, ...?
+
+    # publish
+    # PUBLICATION, ...?
+
+    # analytics
+    # SURVEY, REPLAY, ...
 
     # theme
     # THEME, PALETTE, VARIANT, ANIMATION, EFFECT, ...?
@@ -621,28 +621,12 @@ class NodeType(BuiltinEnum):
         return AREA_BY_NODE_TYPE[self]
 
     @property
-    def is_cosmos(self) -> bool:
-        return self.id < 100
-
-    @property
-    def is_auth(self) -> bool:
-        return self.id >= 100 and self.id < 200
-
-    @property
-    def is_finance(self) -> bool:
-        return self.id >= 200 and self.id < 300
-
-    @property
     def is_resource(self) -> bool:
         return self.id >= 2000 and self.id < 3000
 
     @property
     def is_source(self) -> bool:
         return self.id >= 5000 and self.id < 5500
-
-    @property
-    def is_state(self) -> bool:
-        return self.id >= 5500 and self.id < 6000
 
 
 @enum_(EnumType.NODE_AREA)
