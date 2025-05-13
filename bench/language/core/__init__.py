@@ -9,7 +9,6 @@ from .access import (
     generate_access_matrix,
 )
 from .code import Code, CodeType, code, format_code
-from .color import Color, ColorIn, to_color
 from .const import (
     ACCESS_KINDS,
     ACCESS_TYPES,
@@ -45,7 +44,7 @@ from .const import (
     PACKAGE_NODE_TYPES,
     PAGE_NODE_TYPES,
     PRIMITIVE_TYPE_BY_PY_TYPE,
-    PROVISIONABLE_NODE_TYPES,
+    PROVISIONABLE_RESOURCE_NODE_TYPES,
     PUBLIC_NODE_TYPES,
     PY_TYPE_BY_PRIMITIVE_TYPE,
     REGION,
@@ -54,6 +53,7 @@ from .const import (
     ROOT_NODE_TYPES,
     RUNTIME_NODE_TYPES,
     STRUCT_TYPES,
+    STYLE_NODE_TYPES,
     SYSTEM_ID,
     SYSTEM_SLUG,
     SYSTEM_SYSTEM_PACKAGE_ID,
@@ -64,6 +64,7 @@ from .const import (
     UNSET,
     UUID_NAMESPACE,
     VERSION,
+    VIEW_NODE_TYPES,
     AccessType,
     AggregationType,
     Area,
@@ -74,8 +75,6 @@ from .const import (
     ChangeCategory,
     ClientType,
     Cloud,
-    ColorShade,
-    ColorType,
     ConditionalType,
     Continent,
     Day,
@@ -204,7 +203,7 @@ from .render import (
     render_statement,
     render_value,
 )
-from .resource import ProvisionableResource, Resource, ResourceStatus
+from .resource import ProvisionableResourceBase, ResourceBase, ResourceStatus
 from .struct import Struct, struct_
 from .text import (
     Text,
@@ -371,7 +370,7 @@ __all__ = [
     "PRIMITIVE_TYPE_BY_PY_TYPE",
     "PROCESSABLE_NODE_TYPES",
     "PROPERTY_META_KEY_BY_TYPE",
-    "PROVISIONABLE_NODE_TYPES",
+    "PROVISIONABLE_RESOURCE_NODE_TYPES",
     "PUBLIC_NODE_TYPES",
     "PY_TYPE_BY_PRIMITIVE_TYPE",
     "RAM_CONSTRAINT",
@@ -384,6 +383,7 @@ __all__ = [
     "SLUG_CONSTRAINT",
     "STORAGE_KEY_PREFIX_LENGTH",
     "STRUCT_TYPES",
+    "STYLE_NODE_TYPES",
     "SUBJECT_NODE_TYPES",
     "SUBJECT_NODE_TYPES",
     "SYSTEM_ID",
@@ -399,6 +399,7 @@ __all__ = [
     "UNSET",
     "UUID_NAMESPACE",
     "VERSION",
+    "VIEW_NODE_TYPES",
     "A",
     "Access",
     "AccessError",
@@ -421,10 +422,6 @@ __all__ = [
     "Cloud",
     "Code",
     "CodeType",
-    "Color",
-    "ColorIn",
-    "ColorShade",
-    "ColorType",
     "ConditionalType",
     "Continent",
     "CustomObject",
@@ -491,7 +488,7 @@ __all__ = [
     "Property",
     "PropertyReference",
     "PropertyReferenceType",
-    "ProvisionableResource",
+    "ProvisionableResourceBase",
     "QueryType",
     "RecordNodeList",
     "ReferenceKind",
@@ -499,7 +496,7 @@ __all__ = [
     "RemoteNodeList",
     "RenderOptions",
     "Renderer",
-    "Resource",
+    "ResourceBase",
     "ResourceStatus",
     "RunType",
     "Runnable",
@@ -619,7 +616,6 @@ __all__ = [
     "text_line_to_markdown",
     "text_to_markdown",
     "timed_node_",
-    "to_color",
     "to_icon",
     "to_text",
     "to_text_line",

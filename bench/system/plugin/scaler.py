@@ -9,7 +9,7 @@ from bench.language import (
     Bench,
     NodeMode,
     NodeType,
-    ProvisionableResource,
+    ProvisionableResourceBase,
     ResourceStatus,
     Scaler,
     Session,
@@ -29,7 +29,7 @@ logger = structlog.get_logger(__name__)
 tracer = trace.get_tracer(__name__)
 
 
-class ScalerProvisioner[WT: ProvisionableResource](Provisioner[Scaler, Scaler | WT]):
+class ScalerProvisioner[WT: ProvisionableResourceBase](Provisioner[Scaler, Scaler | WT]):
     """
     A Provisioner that scales a dynamic Resource for all the Scalers of its type.
     NOTE :Incomplete: ScalerProvisioner should probably be closer to the kubernetes cluster?

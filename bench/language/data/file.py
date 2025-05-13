@@ -25,12 +25,11 @@ from bench.language.core import (
     NAME_CONSTRAINT,
     BuiltinEnum,
     BuiltinObject,
-    ColorType,
     EnumType,
     NodeReference,
     NodeType,
     PrimitiveType,
-    Resource,
+    ResourceBase,
     Severity,
     SpanType,
     Struct,
@@ -98,16 +97,16 @@ class FileRetentionMode(BuiltinEnum):
 
 @enum_(EnumType.FILE_TYPE)
 class FileType(BuiltinEnum):
-    TEXT = 1, None, None, "fas fa-file-lines", ColorType.GRAY
-    CODE = 2, None, None, "fas fa-file-code", ColorType.GRAY
-    IMAGE = 3, None, None, "fas fa-image", ColorType.BLUE
-    AUDIO = 4, None, None, "fas fa-volume", ColorType.BLUE
-    VIDEO = 5, None, None, "fas fa-video", ColorType.BLUE
-    DOCUMENT = 6, None, None, "fas fa-file-invoice", ColorType.ROSE
-    DATA = 7, None, None, "fas fa-database", ColorType.PURPLE
-    ARCHIVE = 8, None, None, "fas fa-file-zipper", ColorType.PURPLE
-    EXECUTABLE = 9, None, None, "fas fa-file-binary", ColorType.GRAY
-    GENERIC = 99, None, None, "fas fa-file", ColorType.GRAY
+    TEXT = 1, None, None, "fas fa-file-lines"
+    CODE = 2, None, None, "fas fa-file-code"
+    IMAGE = 3, None, None, "fas fa-image"
+    AUDIO = 4, None, None, "fas fa-volume"
+    VIDEO = 5, None, None, "fas fa-video"
+    DOCUMENT = 6, None, None, "fas fa-file-invoice"
+    DATA = 7, None, None, "fas fa-database"
+    ARCHIVE = 8, None, None, "fas fa-file-zipper"
+    EXECUTABLE = 9, None, None, "fas fa-file-binary"
+    GENERIC = 99, None, None, "fas fa-file"
 
 
 @enum_(EnumType.FILE_FORMAT)
@@ -786,7 +785,7 @@ class FileInfo(Struct[FileInfoData], FileBase):
 
 
 @node_(NodeType.FILE)
-class File(Resource[FileData], FileBase):
+class File(ResourceBase[FileData], FileBase):
     """
     A File stored somewhere.
     """

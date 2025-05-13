@@ -1,7 +1,6 @@
 from typing import TYPE_CHECKING, Union
 
 from bench.language.core import (
-    ColorType,
     IsModal,
     IsNamed,
     IsTemplatable,
@@ -9,7 +8,6 @@ from bench.language.core import (
     PageNode,
     node_,
     p_node_parent,
-    p_regular,
 )
 from bench.pb2 import RoleData
 
@@ -24,5 +22,3 @@ class Role(IsTemplatable, IsModal, IsNamed, PageNode[RoleData]):
     """A Role to assign to something."""
 
     parent: Union["Team", "Page", None] = p_node_parent(4, NodeType.TEAM, NodeType.PAGE)
-
-    color: ColorType | None = p_regular(45)

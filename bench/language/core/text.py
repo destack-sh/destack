@@ -13,8 +13,7 @@ from .property import p_regular
 from .struct import Struct, struct_
 
 if TYPE_CHECKING:
-    from bench.language import ColorType
-    from bench.language.core.render import Aliasing
+    from bench.language import Aliasing, ColorType
 
 
 @object_()

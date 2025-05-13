@@ -42,8 +42,11 @@ from .const import (
     ACTIVE_SESSION,
     BASED_NODE_TYPES,
     BENCH_NODE_TYPES,
+    GLOBAL_NODE_TYPES,
+    LOCAL_NODE_TYPES,
     NODE_TYPES,
     PACKAGE_NODE_TYPES,
+    REGIONAL_NODE_TYPES,
     UNSET,
     BuiltinEnum,
     FieldType,
@@ -201,11 +204,11 @@ def node_(
         cls.__is_stored__ = stored
         cls.__unravel_value__ = unravel_value
 
-        if node_type.is_global:
+        if node_type in GLOBAL_NODE_TYPES:
             cls.__area__ = NodeArea.GLOBAL
-        elif node_type.is_regional:
+        elif node_type in REGIONAL_NODE_TYPES:
             cls.__area__ = NodeArea.REGIONAL
-        elif node_type.is_local:
+        elif node_type in LOCAL_NODE_TYPES:
             cls.__area__ = NodeArea.LOCAL
         else:
             raise ValueError(f"unknown node store for {node_type}")
@@ -1323,7 +1326,7 @@ def generate_node_name(
     metatype: NodeType, type: Optional[Any], siblings: Collection["Node"]
 ) -> str:
     """Generates a new name for the given node based on its siblings. :AutoNaming"""
-    if metatype == NodeType.BLOCK or metatype == NodeType.VIEW or metatype == NodeType.ACTION:
+    if metatype == NodeType.BLOCK or metatype == NodeType.ACTION:
         assert isinstance(type, BuiltinEnum), f"expected type for {metatype!r}, got {type!r}"
         base_name = to_casing(type.name, Casing.CAMEL)
         type_siblings = tuple(n for n in siblings if getattr(n, "type") == type)

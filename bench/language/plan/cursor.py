@@ -3,7 +3,6 @@ from typing import TYPE_CHECKING, Optional, Union, override
 
 from bench.language.core import (
     BuiltinEnum,
-    ColorType,
     EnumType,
     IsModal,
     IsOwnable,
@@ -34,12 +33,12 @@ class CursorType(BuiltinEnum):
     The type of Cursor.
     """
 
-    THREAD = 5510, "Thread", None, None, None
-    PAGE = 5020, "Page", None, None, None
-    TABLE = 5090, "Table", None, None, None
-    ACTION = 5051, "Action", None, None, None
-    WEB = 10000, "Web", None, None, None
-    CUSTOM = 9000, "Custom", None, None, None
+    THREAD = 5510, "Thread", None, None
+    PAGE = 5020, "Page", None, None
+    TABLE = 5090, "Table", None, None
+    ACTION = 5051, "Action", None, None
+    WEB = 10000, "Web", None, None
+    CUSTOM = 9000, "Custom", None, None
 
 
 @enum_(EnumType.CURSOR_STATUS)
@@ -49,18 +48,18 @@ class CursorStatus(BuiltinEnum):
     """
 
     # pre
-    CREATED = 1, "Created", "Created", "fas fa-clock", ColorType.GRAY
+    CREATED = 1, "Created", "Created", "fas fa-clock"
     # active
-    WORKING = 10, "Working", "Working", "fas fa-hammer", ColorType.BLUE
-    READING = 11, "Reading", "Reading", "fas fa-book-open", ColorType.BLUE
-    WRITING = 12, "Writing", "Writing", "fas fa-pencil", ColorType.BLUE
-    THINKING = 13, "Thinking", "Thinking", "fas fa-brain", ColorType.BLUE
-    WAITING = 15, "Waiting", "Waiting", "fas fa-hourglass-half", ColorType.GRAY
+    WORKING = 10, "Working", "Working", "fas fa-hammer"
+    READING = 11, "Reading", "Reading", "fas fa-book-open"
+    WRITING = 12, "Writing", "Writing", "fas fa-pencil"
+    THINKING = 13, "Thinking", "Thinking", "fas fa-brain"
+    WAITING = 15, "Waiting", "Waiting", "fas fa-hourglass-half"
     # inactive
-    IDLE = 30, "Idle", "Idle", "fas fa-snooze", ColorType.GRAY
+    IDLE = 30, "Idle", "Idle", "fas fa-snooze"
     # terminal
-    CANCELLED = 50, "Cancelled", "Cancelled", "fas fa-times", ColorType.RED
-    COMPLETED = 53, "Completed", "Completed", "fas fa-check", ColorType.GREEN
+    CANCELLED = 50, "Cancelled", "Cancelled", "fas fa-times"
+    COMPLETED = 53, "Completed", "Completed", "fas fa-check"
 
 
 @node_(NodeType.CURSOR)

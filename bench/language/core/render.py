@@ -28,6 +28,7 @@ from bench.utils.time import timedelta_to_isoformat
 from .code import Code, format_code
 from .const import (
     NODE_TYPES_SET,
+    PACKAGE_NODE_TYPES,
     EnumType,
     FieldType,
     NodeType,
@@ -43,7 +44,6 @@ from .icon import Icon, reverse_icon
 from .node import Node, NodeReference, PackageNode
 from .object import BuiltinObject, PropertyReference
 from .property import Property, ReferenceKind
-from .resource import Resource
 from .struct import Struct
 from .text import Text, TextLine, text_line_to_markdown, text_to_markdown
 from .type import IsType, TypeConstraint, reverse_type_scalar
@@ -64,7 +64,6 @@ if TYPE_CHECKING:
         Table,
         Task,
         Transition,
-        View,
     )
 
 logger = structlog.get_logger(__name__)
@@ -604,10 +603,8 @@ def _get_renderer(object_type: ObjectType) -> "BuiltinObjectRenderer":
     if renderer is None:
         if is_node_type(object_type):
             node_type = NodeType(object_type)
-            if node_type.is_source:
+            if node_type in PACKAGE_NODE_TYPES:  # noqa: SIM108
                 renderer = PACKAGE_NODE_RENDERER
-            elif node_type.is_resource:
-                renderer = RESOURCE_NODE_RENDERER
             else:
                 renderer = NODE_RENDERER
         else:
@@ -680,28 +677,8 @@ class PackageNodeRenderer[T: PackageNode](NodeRenderer[T]):
         return self._render_constructor(renderer, obj, kwargs, rendered_kwargs)
 
 
-class ResourceNodeRenderer[T: Resource](NodeRenderer[T]):
-    """The base renderer for a ResourceNode."""
-
-    @override
-    def _render_constructor(
-        self,
-        renderer: Renderer,
-        obj: T,
-        kwargs: dict[Property, Any],
-        rendered_kwargs: dict[str, str],
-    ) -> str:
-        view_args = renderer.render_args(
-            rendered_kwargs.pop("type"),
-            rendered_kwargs.pop("name"),
-            renderer.render_kwargs(**rendered_kwargs) or None,
-        )
-        return f"{obj.__class__.__name__}.new({view_args})"
-
-
 NODE_RENDERER = NodeRenderer[Node]()
 PACKAGE_NODE_RENDERER = PackageNodeRenderer[PackageNode]()
-RESOURCE_NODE_RENDERER = ResourceNodeRenderer[Resource]()
 BUILTIN_OBJECT_RENDERER = BuiltinObjectRenderer[BuiltinObject]()
 
 
@@ -721,24 +698,6 @@ class BlockRenderer(PackageNodeRenderer["Block"]):
             renderer.render_kwargs(**rendered_kwargs) or None,
         )
         return f"Block.new({block_args})"
-
-
-@_renderer(NodeType.VIEW)
-class ViewRenderer(PackageNodeRenderer["View"]):
-    @override
-    def _render_constructor(
-        self,
-        renderer: "Renderer",
-        obj: "View",
-        kwargs: dict[Property, Any],
-        rendered_kwargs: dict[str, str],
-    ) -> str:
-        view_args = renderer.render_args(
-            rendered_kwargs.pop("type"),
-            rendered_kwargs.pop("name"),
-            renderer.render_kwargs(**rendered_kwargs) or None,
-        )
-        return f"View.new({view_args})"
 
 
 @_renderer(NodeType.FLOW)

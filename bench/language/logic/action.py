@@ -4,7 +4,6 @@ from uuid import UUID
 
 from bench.language.core import (
     BuiltinEnum,
-    ColorType,
     EnumType,
     FieldType,
     IsClaimable,
@@ -44,7 +43,6 @@ if TYPE_CHECKING:
         Text,
         Transition,
         TransitionType,
-        Vector2,
     )
 
 # pyright: reportIncompatibleVariableOverride=false
@@ -55,14 +53,14 @@ _type = type
 @enum_(EnumType.ACTION_TYPE)
 class ActionType(BuiltinEnum):
     # orchestrate
-    START = 10, "Start", "Begin the Flow", "fas fa-circle-play", ColorType.YELLOW
-    END = 20, "End", "Complete the Flow", "fas fa-flag-checkered", ColorType.YELLOW
+    START = 10, "Start", "Begin the Flow", "fas fa-circle-play"
+    END = 20, "End", "Complete the Flow", "fas fa-flag-checkered"
     # WAIT = 30, "Wait", "Wait for some trigger"
 
     # action
-    TOOL = 100, "Tool", "Delegate to a specific tool", "fas fa-screwdriver-wrench", ColorType.ORANGE
-    CODE = 101, "Code", "Run some Code", "fas fa-code", ColorType.ORANGE
-    BUILTIN = 102, "Builtin", "Run a builtin", "fas fa-cogs", ColorType.ORANGE
+    TOOL = 100, "Tool", "Delegate to a specific tool", "fas fa-screwdriver-wrench"
+    CODE = 101, "Code", "Run some Code", "fas fa-code"
+    BUILTIN = 102, "Builtin", "Run a builtin", "fas fa-cogs"
 
     # containers
     # GROUP, LOOP, ...
@@ -96,11 +94,6 @@ class Action(
     )
     text: Optional["Text"] = p_regular(
         36, default=None, require=False, array=False, struct=StructType.TEXT
-    )
-
-    # meta
-    position: Optional["Vector2"] = p_regular(
-        45, default=None, require=False, array=False, struct=StructType.VECTOR2
     )
 
     # content

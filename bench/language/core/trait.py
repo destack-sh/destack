@@ -46,7 +46,7 @@ if TYPE_CHECKING:
         Package,
         Page,
         Record,
-        Resource,
+        ResourceBase,
         Run,
         Service,
         Session,
@@ -59,18 +59,16 @@ if TYPE_CHECKING:
         Thread,
         Transition,
         User,
-        View,
     )
 
 Ownable = Union[
     "Bench",
-    "Resource",
+    "ResourceBase",
     "Package",
     "Space",
     "Page",
     "Flow",
     "Service",
-    "View",
     "Table",
     "Thread",
     "Task",
@@ -88,7 +86,6 @@ OWNABLE_NODE_TYPES = bittuple(
     NodeType.PAGE,
     NodeType.FLOW,
     NodeType.SERVICE,
-    NodeType.VIEW,
     NodeType.TABLE,
     NodeType.THREAD,
     NodeType.TASK,
@@ -100,12 +97,11 @@ OWNABLE_NODE_TYPES = bittuple(
 )
 
 Claimable = Union[
-    "Resource",
+    "ResourceBase",
     "Page",
     "Flow",
     "Action",
     "Service",
-    "View",
     "Table",
     "Task",
     "Agent",
@@ -117,7 +113,6 @@ CLAIMABLE_NODE_TYPES = bittuple(
     NodeType.FLOW,
     NodeType.ACTION,
     NodeType.SERVICE,
-    NodeType.VIEW,
     NodeType.TABLE,
     NodeType.TASK,
     NodeType.AGENT,
