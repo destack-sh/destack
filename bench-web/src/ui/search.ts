@@ -1,46 +1,27 @@
 import { supergraph } from "@/globals";
-import {
-  isBenchNodeType,
-  isEnumType,
-  isNodeType,
-  isResourceNode,
-  isResourceNodeType,
-  isStructType,
-  isUnloadedNodeType,
-} from "@/language/core/const";
+import { isBenchNodeType, isEnumType, isNodeType, isStructType, isUnloadedNodeType } from "@/language/core/const";
 import { ENUM_OPTIONS_BY_VALUE, EnumOption, getEnumOption, getEnumOptions } from "@/language/core/enum";
 import { makeExpression } from "@/language/core/expression";
 import type { NodeSuperGraph, ReadNodeGraph, TypedNodeKey } from "@/language/core/graph";
-import {
-  getSubtypeEnum,
-  makeType,
-  makeTypeConstraint,
-  nodeToType,
-  typeIdentityEquals,
-  type TypeIdentity,
-} from "@/language/core/type";
+import { nodeToType, typeIdentityEquals, type TypeIdentity } from "@/language/core/type";
 import {
   BenchType,
-  BlockType,
   ColorType,
   EnumType,
   ExpressionData,
   ExpressionType,
   FieldType,
-  FileType,
   NODE_PROPERTY_ENUM_BY_TYPE,
+  NodeMode,
   NodeType,
   PrimitiveType,
   ResourceStatus,
   StructType,
   TypeFormat,
   TypeKind,
-  ViewType,
   type AnyNodeData,
   type IconData,
   type NodeReferenceData,
-  ActionType,
-  NodeMode,
 } from "@/proto/wire";
 import { isNode, makeScope, propertyReference, toNodeRef } from "@/proto/wiring";
 import { CURRENT_BENCH_SCOPE } from "@/system/client";
@@ -395,15 +376,15 @@ export function makeRemoteSearchParams(options: {
       }
     }
   }
-  if (isResourceNodeType(nodeType)) {
-    // exclude decommissioned resources
-    const clause = makeExpression({
-      type: ExpressionType.NOT_EQUALS,
-      propertyPtr: propertyReference(nodeType, nodeProperties["status"]),
-      value: ResourceStatus.OFFLINE,
-    });
-    filterClauses.push(clause);
-  }
+  // if (isResourceNodeType(nodeType)) {
+  //   // exclude decommissioned resources
+  //   const clause = makeExpression({
+  //     type: ExpressionType.NOT_EQUALS,
+  //     propertyPtr: propertyReference(nodeType, nodeProperties["status"]),
+  //     value: ResourceStatus.OFFLINE,
+  //   });
+  //   filterClauses.push(clause);
+  // }
   const filter =
     filterClauses.length > 0 ? makeExpression({ type: ExpressionType.OR, clauses: filterClauses }) : undefined;
   // sort

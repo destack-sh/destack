@@ -317,7 +317,7 @@ class Node[NodeDataT: AnyNodeData](BuiltinObject[NodeDataT]):
         updated_by_ptr: Optional[NodeReference] = None
     # IsModal.mode: 20
 
-    # 30-89 for general node/struct properties
+    # 30+ for general properties
     # ...
 
     _graph: "NodeGraph" = p_runtime(default=None)

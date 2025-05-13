@@ -400,6 +400,8 @@ class RectangleConstraint(Struct):
 #   for a more seamless integration of our components (like in the ProseMirror schema))
 #
 
+# nocheckin
+
 
 @node_(NodeType.VIEW)
 class View(
@@ -442,12 +444,12 @@ class View(
     size: Optional[Rectangle] = p_regular(
         61, default=None, require=False, array=False, struct=StructType.RECTANGLE
     )
-    margin: Optional[Offset] = p_regular(
-        62, default=None, require=False, array=False, struct=StructType.OFFSET
-    )
-    padding: Optional[Offset] = p_regular(
-        63, default=None, require=False, array=False, struct=StructType.OFFSET
-    )
+    # margin: Optional[Offset] = p_regular(
+    #     62, default=None, require=False, array=False, struct=StructType.OFFSET
+    # )
+    # padding: Optional[Offset] = p_regular(
+    #     63, default=None, require=False, array=False, struct=StructType.OFFSET
+    # )
     orientation: Optional[Orientation] = p_regular(64, default=None, require=False)
     alignment: Optional[Alignment] = p_regular(65, default=None, require=False)
     transform: Optional[Transform] = p_regular(
@@ -468,12 +470,10 @@ class View(
     ...  # actions/effects/...
 
     # flags
-    is_hidden: bool = p_regular(80, default=False)
     is_disabled: bool = p_regular(81, default=False)
     is_input: bool = p_regular(82, default=False)
     is_inline: bool = p_regular(83, default=False)
     is_minimal: bool = p_regular(84, default=False)
-    is_loading: bool = p_regular(85, default=False)
 
     views: LocalNodeList["View"] = p_node_children(NodeType.VIEW)
 
