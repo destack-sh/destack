@@ -3,7 +3,7 @@ import { makeExpression } from "@/language/core/expression";
 import type { ReadNodeGraph } from "@/language/core/graph";
 import { makeNode } from "@/language/core/node";
 import { timesortNode } from "@/language/core/order";
-import { newChangeId, type Transaction } from "@/language/core/transaction";
+import { type Transaction } from "@/language/core/transaction";
 import { isProcessActive, isProcessPaused } from "@/language/runtime/process";
 import { getRunType } from "@/language/runtime/run";
 import { actionToType } from "@/language/source/action";
@@ -39,7 +39,6 @@ import {
 } from "@/proto/wiring";
 import { supergraph, useGetConnection, useSearchConnection, type Connection } from "@/system/connection";
 import { benchConnection, benchGraph, space, spaceConnection } from "@/system/space";
-import { declareCommands } from "@/ui/command";
 import { makeIcon } from "@/ui/icon";
 import { log } from "@/utils/log";
 import { computedValue } from "@/utils/ref";
@@ -445,76 +444,3 @@ export function getOutputType(node: RunnableNodeData) {
     return undefined;
   }
 }
-
-// runtime
-declareCommands<"runtime">({
-  // run
-  "runtime.run.start": {
-    icon: "fas fa-play",
-    title: "Run",
-    text: "Start this Run",
-    shortcuts: ["ctrl+r", "meta+enter"],
-  },
-  "runtime.run.pause": {
-    icon: "fas fa-pause",
-    title: "Pause",
-    text: "Pause this Run",
-    isEnabled: (command, context) =>
-      context?.nodes?.every((n) => isNode(n, NodeType.RUN)) &&
-      context?.nodes?.some((n) => isProcessActive(n as RunData)),
-    command: (command, context) => {
-      const tx = runtime.tx.with({ change: { key: newChangeId(), title: "Pause" } });
-      context?.nodes?.filter((n) => isProcessActive(n as RunData)).forEach((n) => runtime.pause(n as RunData, { tx }));
-    },
-  },
-  "runtime.run.resume": {
-    icon: "fas fa-play",
-    title: "Resume",
-    text: "Resume this Run",
-    isEnabled: (command, context) =>
-      context?.nodes?.every((n) => isNode(n, NodeType.RUN)) &&
-      context?.nodes?.some((n) => isProcessPaused(n as RunData)),
-    command: (command, context) => {
-      const tx = runtime.tx.with({ change: { key: newChangeId(), title: "Resume" } });
-      context?.nodes?.filter((n) => isProcessPaused(n as RunData)).forEach((n) => runtime.resume(n as RunData, { tx }));
-    },
-  },
-  "runtime.run.kill": {
-    icon: "fas fa-stop",
-    title: "Kill",
-    text: "Kill this Run",
-    isEnabled: (command, context) =>
-      context?.nodes?.every((n) => isNode(n, NodeType.RUN)) &&
-      context?.nodes?.some((n) => isProcessActive(n as RunData)),
-    command: (command, context) => {
-      const tx = runtime.tx.with({ change: { key: newChangeId(), title: "Kill" } });
-      context?.nodes?.filter((n) => isProcessActive(n as RunData)).forEach((n) => runtime.stop(n as RunData, { tx }));
-    },
-  },
-  // interrupt
-  "runtime.interruption.resume": {
-    icon: "fas fa-check",
-    title: "Resume",
-    text: "Resume this Interruption",
-    isEnabled: (command, context) =>
-      context?.nodes?.every((n) => isNode(n, NodeType.INTERRUPTION)) &&
-      context?.nodes?.some((n) => n.status == InterruptionStatus.OPEN),
-    command: (command, context) => {
-      const tx = runtime.tx.with({ change: { key: newChangeId(), title: "Resume" } });
-      context?.nodes
-        ?.filter((n) => (n as InterruptionData).status == InterruptionStatus.OPEN)
-        .forEach((n) => runtime.resume(n as RunData, { tx }));
-    },
-  },
-  "runtime.interruption.cancel": {
-    icon: "fas fa-xmark",
-    title: "Cancel",
-    text: "Cancel this Interruption",
-    command: (command, context) => {
-      const tx = runtime.tx.with({ change: { key: newChangeId(), title: "Cancel" } });
-      context?.nodes
-        ?.filter((n) => (n as InterruptionData).status == InterruptionStatus.OPEN)
-        .forEach((n) => runtime.cancel(n as InterruptionData, { tx }));
-    },
-  },
-});

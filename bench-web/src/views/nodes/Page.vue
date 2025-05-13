@@ -292,7 +292,7 @@ function addFiles(files: FileList | File[], anchor: "before" | "after" | "inside
     });
     await upload.completion.wait();
     const { block } = createBlock(connection.tx, graph, {
-      block: { type: BlockType.FILE, nodePtr: toNodeRef(upload.file.value!) },
+      block: { type: BlockType.NODE, nodePtr: toNodeRef(upload.file.value!) },
       anchor: anchor,
       target: target,
     });
@@ -337,7 +337,7 @@ function createAndFocusBlock(
 ) {
   const { block } = createBlock(connection.tx, graph, { block: blockIn, anchor, target });
   canvas.inspect({ node: block });
-  if (block.type == BlockType.PAGE) {
+  if (block.nodePtr?.nodeType == NodeType.PAGE) {
     canvas.goToNode(block);
   } else {
     nextTick(() => focus(block));

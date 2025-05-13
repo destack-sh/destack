@@ -1,7 +1,6 @@
 import { canvas, supergraph } from "@/globals";
 import { ReadNodeGraph } from "@/language/core/graph";
 import {
-  COSMOS_NODE_TYPES,
   NodeType,
   NodeTypeMapping,
   NodeTypeOptionInfo,
@@ -89,14 +88,6 @@ export const COMMAND_BUILTIN_IDS = [
   "space.search.replaceInView",
   "space.search.findInSpace",
   "space.search.replaceInSpace",
-  // runtime
-  "runtime.run.start",
-  "runtime.run.pause",
-  "runtime.run.resume",
-  "runtime.run.kill",
-  "runtime.run.replay",
-  "runtime.interruption.resume",
-  "runtime.interruption.cancel",
   // list
   "list.create.above",
   "list.create.below",
@@ -246,7 +237,11 @@ export function addCommand(kind: CommandKind, in_: CommandIn, options?: { overri
     subcategory: idParts[1],
     path: idParts.slice(0, -1).join(" / "),
   };
-  if (DECLARED_COMMANDS_BY_ID.value[in_.id] != null && !options?.override && (!IS_DEV || getCurrentInstance() == null)) {
+  if (
+    DECLARED_COMMANDS_BY_ID.value[in_.id] != null &&
+    !options?.override &&
+    (!IS_DEV || getCurrentInstance() == null)
+  ) {
     // hot-reloading re-registers commands (sometimes)
     throw new Error(`command already exists: ${in_.id} (${in_} != ${DECLARED_COMMANDS_BY_ID.value[in_.id]})`);
   }
@@ -578,7 +573,7 @@ export const NON_DUPLICATABLE_NODE_TYPES = [
   NodeType.MEMBERSHIP,
   ...RUNTIME_NODE_TYPES,
   ...RESOURCE_NODE_TYPES,
-  ...COSMOS_NODE_TYPES,
+  ...ROOT_NODE_TYPES,
 ];
 export const NON_ARCHIVEABLE_NODE_TYPES = [
   ...ROOT_NODE_TYPES,
@@ -599,7 +594,7 @@ export const NON_DELETABLE_NODE_TYPES = [
   NodeType.SPAN,
   NodeType.THREAD, // NOTE :Incomplete: removing Threads causes annoying issues
   ...RESOURCE_NODE_TYPES,
-  ...COSMOS_NODE_TYPES,
+  ...ROOT_NODE_TYPES,
 ];
 
 export const SCALAR_CONTEXT_COMMANDS: CommandBuiltinId[] = ["space.edit.rename"];
@@ -612,11 +607,6 @@ export const FIELD_CONTEXT_COMMANDS: CommandBuiltinId[] = [];
 export const BLOCK_CONTEXT_COMMANDS: CommandBuiltinId[] = [];
 export const RECORD_CONTEXT_COMMANDS: CommandBuiltinId[] = [];
 export const ACTION_CONTEXT_COMMANDS: CommandBuiltinId[] = [];
-export const RUN_CONTEXT_COMMANDS: CommandBuiltinId[] = ["runtime.run.pause", "runtime.run.resume", "runtime.run.kill"];
-export const INTERRUPTION_CONTEXT_COMMANDS: CommandBuiltinId[] = [
-  "runtime.interruption.resume",
-  "runtime.interruption.cancel",
-];
 export const TRANSITION_CONTEXT_COMMANDS: CommandBuiltinId[] = ["flow.edit.splitTransition"];
 export const RESOURCE_CONTEXT_COMMANDS: CommandBuiltinId[] = [
   "resource.status.activate",
@@ -634,8 +624,6 @@ export const CONTEXT_COMMANDS_BY_TYPE: Partial<Record<NodeType, CommandBuiltinId
   [NodeType.RECORD]: RECORD_CONTEXT_COMMANDS,
   [NodeType.ACTION]: ACTION_CONTEXT_COMMANDS,
   [NodeType.TRANSITION]: TRANSITION_CONTEXT_COMMANDS,
-  [NodeType.RUN]: RUN_CONTEXT_COMMANDS,
-  [NodeType.INTERRUPTION]: INTERRUPTION_CONTEXT_COMMANDS,
 };
 for (const nodeType of RESOURCE_NODE_TYPES) {
   CONTEXT_COMMANDS_BY_TYPE[nodeType] = [...(CONTEXT_COMMANDS_BY_TYPE[nodeType] ?? []), ...RESOURCE_CONTEXT_COMMANDS];

@@ -518,7 +518,7 @@ class NodeType(BuiltinEnum):
     SCALER = 1250, "Scaler", "Autoscale Resources", "fas fa-scale-unbalanced"
     # VAULT, CACHE, ENDPOINT, DEPLOYMENT, NETWORK, ...
 
-    # typing
+    # type
     CHOICE = 1400, "Choice", "Choice between Options", "fas fa-circle-chevron-down"
     CLASS = 1410, "Class", "Class", "fas fa-shapes"
     FIELD = 1420, "Field", "Field", "fas fa-triangle"
@@ -539,7 +539,7 @@ class NodeType(BuiltinEnum):
     NOTIFICATION = 1850, "Notification", "Notification", "fas fa-bell"
     # POLL, VOTE, REACTION, ...?
 
-    # sync # nocheckin split/reorganize
+    # plan
     TASK = 2000, "Task", "To-do item", "far fa-square-check"
     CLAIM = 2010, "Claim", "Control over something", "fas fa-stamp"
     CURSOR = 2020, "Cursor", "Position in something", "fas fa-mouse"
@@ -557,7 +557,7 @@ class NodeType(BuiltinEnum):
     RUN = 2410, "Run", "Run", "fas fa-play"
     SPAN = 2420, "Span", "Span", "fas fa-ruler-horizontal"
     INTERRUPTION = 2430, "Interruption", "Interruption", "fas fa-hand"
-    # SIGNAL, ...?
+    # EVENT, SIGNAL, ...?
 
     # identity
     TEAM = 2600, "Team", "Group of Users or Agents", "fas fa-users"
@@ -566,7 +566,7 @@ class NodeType(BuiltinEnum):
     ROLE = 2630, "Role", "Role", "fas fa-user-tag"
     # PROFILE? (for User, or maybe global?)
 
-    # agent
+    # agent # nocheckin
     AGENT = 2800, "Agent", "Identity for an AI", "fas fa-robot"
     # ...
 
@@ -574,33 +574,33 @@ class NodeType(BuiltinEnum):
     # ... all the Views once we have :PolyViews
     SPACE = 3000, "Space", "Space", "fas fa-space-between"
     VIEW = 3010, "View", "View", "fas fa-window-frame"  # :PolyViews
-    # WIDGET, ...?
+    # SCENE, WIDGET, ...?
     # CANVAS/DRAWING, SHAPE, ...?
 
-    # versioning
-    # EVENT, LOG, HISTORY, BRANCH, ...?
+    # style
+    # THEME, PALETTE, VARIANT, ANIMATION, EFFECT, ...?
+    # STYLE, COLOR_STYLE, BORDER_STYLE, ...?
+
+    # version
+    # CHANGE, HISTORY, BRANCH, ...?
 
     # publish
-    # PUBLICATION, ...?
+    # PUBLICATION, RELEASE, ...?
 
     # analytics
-    # METRIC, SURVEY, REPLAY, ...
-
-    # theme
-    # THEME, PALETTE, VARIANT, ANIMATION, EFFECT, ...?
-    # COLOR_STYLE, BORDER_STYLE, ...?
+    # METER, METRIC, SURVEY, REPLAY, ...
 
     # localization
     # LOCALE, TRANSLATION, ...?
 
     # access
-    # CHALLENGE, BADGE, POLICY, RULE?
+    # CHALLENGE, BADGE, POLICY, RULE, ...?
 
     # model
     # MODEL, FINETUNE, ...?
 
-    # accounting
-    # BALANCE, BUDGET, TRANSFER, CREDIT, GRANT, INVOICE, ...
+    # finance (shouldn't this be global?, see https://docs.stripe.com/api)
+    # WALLET, BALANCE, BUDGET, TRANSFER, CREDIT, TIER, PRICE, ORDER, INVOICE, DISCOUNT, DISPUTE, REFUND, ...
 
     # web
     # ACCOUNT, APPLICATION, DOMAIN, EMAIL, ...
