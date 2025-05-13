@@ -20,7 +20,7 @@ import { NODE_REF_CONTEXT_KEY } from "@/ui/space";
 import { TooltipInfo } from "@/ui/tooltip";
 import { focusInElement } from "@/ui/view";
 import { IS_DEVELOPER_MODE } from "@/utils/globals";
-import NodeMetadata from "@/views/builtin/NodeMetadata.vue";
+import NodeMetadata from "@/views/internal/NodeMetadata.vue";
 import { FocusAnchor, NavigationDirection, ViewEmits } from "@/views/common";
 import Icon from "@/views/content/Icon.vue";
 import NativeInput from "@/views/content/NativeInput.vue";

@@ -5,7 +5,7 @@ import { AnyNodeData, NodeType, NodeTypeOptionInfo } from "@/proto/wire";
 import { isNode } from "@/proto/wiring";
 import { _setDragImage, activeDrag } from "@/ui/drag";
 import { IconInline, makeIcon } from "@/ui/icon";
-import NodeReference from "@/views/builtin/NodeReference.vue";
+import NodeReference from "@/views/internal/NodeReference.vue";
 import { computed } from "vue";
 
 type DragInfo = {

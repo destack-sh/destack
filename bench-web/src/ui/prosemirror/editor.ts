@@ -9,8 +9,8 @@ import { ILine, mapLineToPmNode, mapPmNodeToText, mapTextToPmNode, IText } from 
 import { deleteSelection } from "@/ui/space";
 import { log } from "@/utils/log";
 import { deepValueEquals } from "@/utils/ref";
-import NodeReference from "@/views/builtin/NodeReference.vue";
-import TextSpecialInput from "@/views/builtin/TextSpecialInput.vue";
+import NodeReference from "@/views/internal/NodeReference.vue";
+import TextSpecialInput from "@/views/internal/TextSpecialInput.vue";
 import { FocusAnchor, NavigationDirection } from "@/views/common";
 import Block from "@/views/nodes/Block.vue";
 import { whenever } from "@vueuse/core";

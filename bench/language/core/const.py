@@ -570,7 +570,7 @@ class NodeType(BuiltinEnum):
     # CHANGE, HISTORY, BRANCH, ...?
 
     # publish
-    # PUBLICATION, RELEASE, ...?
+    # PUBLICATION, RELEASE, WISHLIST/WATCHLIST, ...?
 
     # analytics
     # METER, METRIC, SURVEY, REPLAY, ...
@@ -594,41 +594,56 @@ class NodeType(BuiltinEnum):
     # PHONE, ADDRESS, ...
 
     # view [8000-9000]
-    # ... all the Views once we have :PolyViews
+
+    # space [8000-8100]
     SPACE = 8000, "Space", "Space", "fas fa-galaxy"
-    # VIEW = 8110, "View", "View", "fas fa-window-frame"  # :PolyViews
+    SPACE_WIZARD_VIEW = 8001, "Space Wizard View", "Space Wizard", "fas fa-wand-sparkles"
+    SPACE_SIDEBAR_VIEW = 8002, "Space Sidebar View", "Space Sidebar", "fas fa-bars"
+    SPACE_CONTEXT_VIEW = 8003, "Space Context View", "Space Context", "fas fa-sitemap"
     # SCENE, WIDGET, ...?
     # CANVAS/DRAWING, SHAPE, ...?
 
-    # style
-    # THEME, PALETTE, VARIANT, ANIMATION, EFFECT, ...?
-    # STYLE?, COLOR_STYLE, BORDER_STYLE, ...?
+    # container views [8100-8200]
+    FRAME_VIEW = 8100, "Frame View", "Custom Frame", "fas fa-frame"
+    SPLIT_CONTAINER_VIEW = 8110, "Split Container View", "Split Container", "fas fa-columns"
+    SPLIT_PANEL_VIEW = 8120, "Split Panel View", "Split Panel", "fas fa-columns"
+    SCROLL_CONTAINER_VIEW = 8130, "Scroll Container View", "Scroll Container", "fas fa-scroll"
+
+    # control views [8200-8300]
+    BUTTON_VIEW = 8200, "Button View", "Button", "fas fa-hand-pointer"
+    LINK_VIEW = 8201, "Link View", "Link", "fas fa-link"
+
+    # content views [8300-8400]
+    NUMBER_VIEW = 8300, "Number View", "Number", "fas fa-hashtag"
+    SLIDER_VIEW = 8301, "Slider View", "Slider", "fas fa-slider"
+    LABEL_VIEW = 8310, "Label View", "Label", "fas fa-font-case"
+    STRING_VIEW = 8311, "String View", "String", "fas fa-font-case"
+    TEXT_VIEW = 8320, "Text View", "Text", "fas fa-text"
+    TEXT_LINE_VIEW = 8321, "Text Line View", "Text Line", "fas fa-text"
+    CODE_VIEW = 8330, "Code View", "Code", "fas fa-code"
+    TOGGLE_VIEW = 8340, "Toggle View", "Toggle", "fas fa-square-check"
+    PICKER_VIEW = 8350, "Picker View", "Picker", "fas fa-caret-circle-down"
+    COLOR_VIEW = 8351, "Color View", "Color", "fas fa-palette"
+    ICON_VIEW = 8352, "Icon View", "Icon", "fas fa-icons"
+    DATETIME_VIEW = 8360, "Datetime View", "Datetime", "fas fa-calendar-days"
+    DURATION_VIEW = 8361, "Duration View", "Duration", "fas fa-stopwatch"
+    FILE_VIEW = 8370, "File View", "File", "fas fa-file"
+    IMAGE_VIEW = 8371, "Image View", "Image", "fas fa-image"
+    AUDIO_VIEW = 8372, "Audio View", "Audio", "fas fa-volume"
+    VIDEO_VIEW = 8373, "Video View", "Video", "fas fa-video"
+    DOCUMENT_VIEW = 8374, "Document View", "Document", "fas fa-file-alt"
+
+    # node views [8400-8500]
+    NODE_VIEW = 8400, "Node View", "Node", "fas fa-hexagon"
+    PAGE_VIEW = 8410, "Page View", "Page", "far fa-file"
+    TABLE_VIEW = 8420, "Table View", "Table", "fas fa-table"
+    THREAD_VIEW = 8430, "Thread View", "Thread", "fas fa-reel"
 
     EMPTY = 9999
 
     @property
-    def is_global(self) -> bool:
-        return self.id < 2000
-
-    @property
-    def is_regional(self) -> bool:
-        return self.id >= 2000 and self.id < 8000
-
-    @property
-    def is_local(self) -> bool:
-        return self.id >= 8000
-
-    @property
     def area(self) -> "NodeArea":
         return AREA_BY_NODE_TYPE[self]
-
-    @property
-    def is_resource(self) -> bool:
-        return self.id >= 2000 and self.id < 3000
-
-    @property
-    def is_source(self) -> bool:
-        return self.id >= 5000 and self.id < 5500
 
 
 @enum_(EnumType.NODE_AREA)

@@ -32,7 +32,7 @@ import { IconInline, getNodeIcon } from "@/ui/icon";
 import { ScrollbarWidth } from "@/ui/layout";
 import { VIEW_DEFAULT_HEADER_HEIGHT } from "@/ui/view";
 import { computedValue } from "@/utils/ref";
-import NodeMetadata from "@/views/builtin/NodeMetadata.vue";
+import NodeMetadata from "@/views/internal/NodeMetadata.vue";
 import { type FocusAnchor, type ViewExpose } from "@/views/common";
 import Scroll from "@/views/containers/Scroll.vue";
 import TextLine from "@/views/content/TextLine.vue";

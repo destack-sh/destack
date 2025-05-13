@@ -4,7 +4,7 @@ import type { NodeReferenceData, PackageData, PageData } from "@/proto/wire";
 import { PAGE_NODE_TYPES, NodeType } from "@/proto/wire";
 import { canvas } from "@/system/space";
 import { startDragging } from "@/ui/drag";
-import NodeReference from "@/views/builtin/NodeReference.vue";
+import NodeReference from "@/views/internal/NodeReference.vue";
 import { computed, toRef } from "vue";
 
 const props = defineProps<{

@@ -1,6 +1,6 @@
 <script lang="ts" setup>
 import { clearLightbox, lightbox, LightboxInfo } from "@/ui/popover";
-import NodeReference from "@/views/builtin/NodeReference.vue";
+import NodeReference from "@/views/internal/NodeReference.vue";
 import { getViewComponent } from "@/views/registry";
 import { useElementSize, useEventListener, useMagicKeys } from "@vueuse/core";
 import { ref, Ref } from "vue";

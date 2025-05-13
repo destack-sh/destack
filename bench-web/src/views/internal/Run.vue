@@ -1,8 +1,8 @@
 <script lang="ts" setup>
 import { ReadNodeGraph } from "@/language/core/graph";
 import { RunData, ViewData } from "@/proto/wire";
-import NodeReference from "@/views/builtin/NodeReference.vue";
-import ProcessStatus from "@/views/builtin/ProcessStatus.vue";
+import NodeReference from "@/views/internal/NodeReference.vue";
+import ProcessStatus from "@/views/internal/ProcessStatus.vue";
 import TextLine from "@/views/content/TextLine.vue";
 import { Ref, toRef } from "vue";
 

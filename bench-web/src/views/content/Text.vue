@@ -6,7 +6,7 @@ import { CommandMapKit } from "@/ui/command";
 import { useTextEditor } from "@/ui/prosemirror/editor";
 import { usePlaceholderPlugin, useTooltipPlugin } from "@/ui/prosemirror/view";
 import { useTextModelValueInterface } from "@/ui/prosemirror/wiring";
-import TextTooltip from "@/views/builtin/TextTooltip.vue";
+import TextTooltip from "@/views/internal/TextTooltip.vue";
 import { NavigationDirection, type ViewEmits, type ViewExpose } from "@/views/common";
 import { Plugin } from "prosemirror-state";
 import { getCurrentInstance, ref, toRef } from "vue";

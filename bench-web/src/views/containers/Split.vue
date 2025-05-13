@@ -5,7 +5,6 @@ import { canvas, spaceGraph } from "@/system/space";
 import type { CommandMapKit } from "@/ui/command";
 import type { SplitLayout } from "@/ui/layout";
 import { DEFAULT_ORIENTATION, MIN_SPLIT_SIZE, useSplitView } from "@/ui/layout";
-import Empty from "@/views/builtin/Empty.vue";
 import type { ViewExpose } from "@/views/common";
 import { type ViewEmits } from "@/views/common";
 import { getViewBinding, getViewComponent } from "@/views/registry";

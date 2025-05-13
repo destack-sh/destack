@@ -9,7 +9,7 @@ import { describeNode, isNode, isNodeRef, toNodeRef } from "@/proto/wiring";
 import { pkg } from "@/system/space";
 import { user } from "@/system/user";
 import { assertNever } from "@/utils/functools";
-import ProcessStatus from "@/views/builtin/ProcessStatus.vue";
+import ProcessStatus from "@/views/internal/ProcessStatus.vue";
 
 /** Create a Thread. */
 export function createThread(

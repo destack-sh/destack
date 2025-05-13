@@ -49,11 +49,11 @@ import { AvatarInline, getNodeIcon, getNodeTitle, IconInline, makeIcon } from "@
 import { getNodeColor } from "@/ui/style";
 import { VIEW_DEFAULT_ROOT_HEADER_HEIGHT } from "@/ui/view";
 import { formatAbsoluteDate, getNow, TimeUpdateInterval, tsToDt } from "@/utils/time";
-import Link from "@/views/builtin/Link.vue";
-import NodeReference from "@/views/builtin/NodeReference.vue";
-import Popover from "@/views/builtin/Popover.vue";
-import RootHeader from "@/views/builtin/RootHeader.vue";
-import Run from "@/views/builtin/Run.vue";
+import Link from "@/views/internal/Link.vue";
+import NodeReference from "@/views/internal/NodeReference.vue";
+import Popover from "@/views/internal/Popover.vue";
+import RootHeader from "@/views/internal/RootHeader.vue";
+import Run from "@/views/internal/Run.vue";
 import { type ViewEmits, type ViewExpose } from "@/views/common";
 import Scroll from "@/views/containers/Scroll.vue";
 import File from "@/views/content/File.vue";
@@ -94,14 +94,6 @@ const { graph: threadGraph, connection: threadConnection } = useAutoConnection(n
 const cursors = threadGraph.getChildrenRef(nodePtr, NodeType.CURSOR);
 const runs = threadGraph.getChildrenRef(nodePtr, NodeType.RUN);
 const claims = threadGraph.getChildrenRef(nodePtr, NodeType.CLAIM);
-const computers = threadGraph.getChildrenRef(nodePtr, NodeType.COMPUTER);
-const hasComputerClaim = computed(() =>
-  claims.value.some(
-    (c) => c.targetPtr?.nodeType == NodeType.COMPUTER || c.targetTemplatePtr?.nodeType == NodeType.COMPUTER,
-  ),
-);
-const computer: Ref<ComputerData | null> = computed(() => computers.value[0] ?? null);
-const hasClaimedComputer = ref(false);
 const CONTEXT_TABS = ["Files", "Pages"];
 const contextTab: Ref<(typeof CONTEXT_TABS)[number]> = ref(CONTEXT_TABS[0]);
 
@@ -1273,39 +1265,6 @@ defineExpose<ViewExpose>({ self, id, commands, focus });
       <div class="flex h-[28px] w-full flex-row flex-nowrap items-center gap-x-3">
         <!-- Context -->
         <div class="flex flex-row items-center gap-x-1.5">
-          <!-- Computer -->
-          <button
-            v-if="17 < 3 /* :Incomplete :ComputerUse */"
-            :disabled="computer != null || hasClaimedComputer"
-            class="group/button cursor-pointer rounded-full px-1 py-0.5 text-xs transition-colors duration-75 enabled:text-gray-400 enabled:hover:bg-gray-100 enabled:hover:text-gray-700"
-            @mousedown.stop="
-              () => {
-                hasClaimedComputer = true;
-                createClaim(threadConnection.tx, threadGraph, {
-                  claim: {
-                    mode: NodeMode.MAIN,
-                    type: ClaimType.WRITE,
-                    packagePtr: (thread as ThreadData)?.packagePtr,
-                    parentPtr: nodePtr,
-                    targetTemplatePtr: BENCH_BENCH_UBUNTU_DESKTOP_PTR,
-                  },
-                });
-              }
-            "
-            @click="
-              () => {
-                if (computer != null) {
-                  canvas.goToNode(computer);
-                }
-              }
-            "
-          >
-            <NodeReference v-if="computer != null" :node="computer" size="xs" is-light class="" />
-            <template v-else>
-              <IconInline v-bind="makeIcon('fa-solid fa-computer-classic')" class="w-5 text-center" />
-              <span class="ml-1.5">Computer</span>
-            </template>
-          </button>
           <!-- Pages / Files / Links / ... -->
           <button
             v-if="claims.filter((c) => c.targetPtr?.nodeType == NodeType.PAGE).length > 0"
