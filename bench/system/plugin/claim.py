@@ -4,12 +4,13 @@ import structlog
 from opentelemetry import trace
 
 from bench.language import (
+    RESOURCE_NODE_TYPES,
     Claim,
     ClaimStatus,
     IsInstantiable,
     NodeMode,
     NodeType,
-    ProvisionableResource,
+    ProvisionableResourceBase,
     bittuple,
 )
 from bench.system.host import Commit, DeferredHostPlugin
@@ -75,7 +76,7 @@ class ClaimPlugin(DeferredHostPlugin[Claim]):
             for claim in commit.removed
             if claim.mode < NodeMode.TEMPLATE
             and claim.target_ptr is not None
-            and claim.target_ptr.node_type.is_resource
+            and claim.target_ptr.node_type in RESOURCE_NODE_TYPES
             and claim.status.is_active
         ]
         if decommissioned_claims:
@@ -86,6 +87,6 @@ class ClaimPlugin(DeferredHostPlugin[Claim]):
                     if target is None:
                         target = await claim.target_ptr.get()
                     claim.status = ClaimStatus.CLOSED
-                    if isinstance(target, ProvisionableResource) and target.status.is_extant:
+                    if isinstance(target, ProvisionableResourceBase) and target.status.is_extant:
                         target.decommission()
                         logger.info("claim.decommission", claim=claim, target=target)

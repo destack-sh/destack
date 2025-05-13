@@ -12,7 +12,7 @@ from bench.language import (
     MessageType,
     NodeMode,
     NodeType,
-    ProvisionableResource,
+    ProvisionableResourceBase,
     ResourceStatus,
     Thread,
 )
@@ -25,7 +25,7 @@ logger = structlog.get_logger(__name__)
 tracer = trace.get_tracer(__name__)
 
 
-class Provisioner[PT: ProvisionableResource, WT: ProvisionableResource](
+class Provisioner[PT: ProvisionableResourceBase, WT: ProvisionableResourceBase](
     DeferredHostPlugin[WT], abc.ABC
 ):
     """

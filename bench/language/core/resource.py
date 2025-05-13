@@ -4,15 +4,7 @@ from uuid import UUID
 
 from bench.pb2 import AnyNodeData
 
-from .const import (
-    REGION,
-    BuiltinEnum,
-    ColorType,
-    EnumType,
-    NodeType,
-    Region,
-    enum_,
-)
+from .const import REGION, BuiltinEnum, EnumType, NodeType, Region, enum_
 from .node import Node, NodeReference, PageNode, node_component_
 from .property import p_internal, p_node_parent, p_system
 from .trait import IsClaimable, IsInstantiable, IsModal, IsNamed, IsOwnable
@@ -28,72 +20,23 @@ class ResourceStatus(BuiltinEnum):
     """Generalized status of a Resource in its lifecycle."""
 
     # pre
-    PENDING = (
-        1,
-        "Pending",
-        "Waiting for provisioning",
-        "fas fa-hourglass-start",
-        ColorType.BLUE,
-    )
-    CREATING = (
-        2,
-        "Creating",
-        "Actively provisioning",
-        "fas fa-hourglass-start",
-        ColorType.BLUE,
-    )
-    RETRYING = (
-        3,
-        "Retrying",
-        "Retrying provisioning",
-        "fas fa-exclamation-triangle",
-        ColorType.YELLOW,
-    )
+    PENDING = (1, "Pending", "Waiting for provisioning", "fas fa-hourglass-start")
+    CREATING = (2, "Creating", "Actively provisioning", "fas fa-hourglass-start")
+    RETRYING = (3, "Retrying", "Retrying provisioning", "fas fa-exclamation-triangle")
 
     # active states
-    AVAILABLE = (
-        10,
-        "Available",
-        "Operational and available",
-        "fas fa-check-circle",
-        ColorType.GREEN,
-    )
-    SLEEPING = (
-        11,
-        "Sleeping",
-        "Available but not running",
-        "fas fa-moon",
-        ColorType.BLUE,
-    )
-    UNAVAILABLE = (
-        15,
-        "Unavailable",
-        "Unavailable or not responding",
-        "fas fa-plug-circle-xmark",
-        ColorType.YELLOW,
-    )
+    AVAILABLE = (10, "Available", "Operational and available", "fas fa-check-circle")
+    SLEEPING = (11, "Sleeping", "Available but not running", "fas fa-moon")
+    UNAVAILABLE = (15, "Unavailable", "Unavailable or not responding", "fas fa-plug-circle-xmark")
     IMPAIRED = (
         16,
         "Impaired",
         "Operational but experiencing issues",
         "fas fa-exclamation-triangle",
-        ColorType.YELLOW,
     )
     # terminal
-    OFFLINE = (
-        30,
-        "Offline",
-        "Decommissioned and unavailable",
-        "fas fa-power-off",
-        ColorType.GRAY,
-    )
-    FAILED = (
-        31,
-        "Failed",
-        "Failed to provision",
-        "fas fa-exclamation-triangle",
-        ColorType.RED,
-    )
+    OFFLINE = (30, "Offline", "Decommissioned and unavailable", "fas fa-power-off")
+    FAILED = (31, "Failed", "Failed to provision", "fas fa-exclamation-triangle")
 
     @property
     def is_pre(self) -> bool:
@@ -112,7 +55,7 @@ class ResourceStatus(BuiltinEnum):
 
 
 @node_component_()
-class Resource[NodeDataT: AnyNodeData](
+class ResourceBase[NodeDataT: AnyNodeData](
     IsModal, IsInstantiable, IsOwnable, IsNamed, IsClaimable, PageNode[NodeDataT]
 ):
     """
@@ -128,7 +71,7 @@ class Resource[NodeDataT: AnyNodeData](
 
 
 @node_component_()
-class ProvisionableResource[NodeDataT: AnyNodeData](Resource[NodeDataT]):
+class ProvisionableResourceBase[NodeDataT: AnyNodeData](ResourceBase[NodeDataT]):
     """
     A Resource that can be provisioned.
     """

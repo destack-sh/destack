@@ -6,7 +6,6 @@ from bench.language.core import (
     CLAIMABLE_NODE_TYPES,
     BuiltinEnum,
     Claimable,
-    ColorType,
     EnumType,
     IsInstantiable,
     IsModal,
@@ -33,22 +32,22 @@ if TYPE_CHECKING:
 
 @enum_(EnumType.CLAIM_TYPE)
 class ClaimType(BuiltinEnum):
-    READ = 20, "Read", "Can read", "fas fa-eye", ColorType.GRAY
+    READ = 20, "Read", "Can read", "fas fa-eye"
     # RESERVED? (read but may promote to write)
-    WRITE = 40, "Write", "Can write", "fas fa-pencil", ColorType.BLUE
+    WRITE = 40, "Write", "Can write", "fas fa-pencil"
     # EXCLUSIVE_WRITE?
 
 
 @enum_(EnumType.CLAIM_STATUS)
 class ClaimStatus(BuiltinEnum):
     # pre
-    REQUESTED = 1, "Pending", "Pending", "fas fa-clock", ColorType.BLUE
+    REQUESTED = 1, "Pending", "Pending", "fas fa-clock"
     # active
-    OPEN = 10, "Active", "Active concurrent access", "fas fa-lock-open", ColorType.GREEN
+    OPEN = 10, "Active", "Active concurrent access", "fas fa-lock-open"
     # inactive
-    PAUSED = 20, "Paused", "Paused", "fas fa-pause", ColorType.PINK
+    PAUSED = 20, "Paused", "Paused", "fas fa-pause"
     # terminal
-    CLOSED = 30, "Closed", "Closed", "fas fa-power-off", ColorType.GRAY
+    CLOSED = 30, "Closed", "Closed", "fas fa-power-off"
 
     @property
     def is_pending(self) -> bool:

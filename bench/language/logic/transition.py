@@ -13,7 +13,6 @@ from bench.language.core import (
     NodeType,
     PackageNode,
     RunType,
-    StructType,
     enum_,
     node_,
     p_internal,
@@ -27,7 +26,6 @@ if TYPE_CHECKING:
     from bench.language import (
         Action,
         Claim,
-        Color,
         Flow,
         NodeReference,
     )
@@ -84,9 +82,6 @@ class Transition(
         target_id: Optional[UUID] = None
 
     # modulation
-    color: Optional["Color"] = p_regular(
-        60, default=None, require=False, array=False, struct=StructType.COLOR
-    )
     # is_automap? (dynamically generate inputs?)
     # is_streaming: bool = p_regular(80, default=False)
 

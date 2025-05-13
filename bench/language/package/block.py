@@ -3,6 +3,7 @@ from typing import TYPE_CHECKING, Optional, Union, override
 from uuid import UUID
 
 from bench.language.core import (
+    VIEW_NODE_TYPES,
     BuiltinEnum,
     EnumType,
     IsModal,
@@ -31,7 +32,7 @@ from bench.pb2 import BlockData
 from bench.utils.fractional import INTEGER_ZERO
 
 if TYPE_CHECKING:
-    from bench.language import Page
+    from bench.language import Page, ViewBase
 
 # pyright: reportIncompatibleVariableOverride=false
 
@@ -60,7 +61,6 @@ class BlockType(BuiltinEnum):
 for block_type in BlockType:
     text_line_type = TextLineType(block_type.id)
     block_type.title = text_line_type.title
-    block_type.color = text_line_type.color
     block_type.icon = text_line_type.icon
     block_type.text = text_line_type.text
 
@@ -86,6 +86,14 @@ class Block(IsTemplatable, IsModal, IsNamed, PackageNode[BlockData]):
     )
     node: Optional["Node"] = p_regular(
         41, references="any", default=None, require=False, array=False, baseless=False
+    )
+    view: Optional["ViewBase"] = p_regular(
+        42,
+        references=VIEW_NODE_TYPES.tuple,
+        default=None,
+        require=False,
+        array=False,
+        baseless=False,
     )
     # view? (specific view of that node, e.g. TableView for a Table)
     # size?

@@ -34,7 +34,7 @@ from bench.language import (
     PAGE_NODE_TYPES,
     PARENT_NODE_TYPES,
     PROCESSABLE_NODE_TYPES,
-    PROVISIONABLE_NODE_TYPES,
+    PROVISIONABLE_RESOURCE_NODE_TYPES,
     PUBLIC_NODE_TYPES,
     REGIONAL_NODE_TYPES,
     RESOURCE_NODE_TYPES,
@@ -54,8 +54,8 @@ from bench.language import (
     EnumType,
     PageNode,
     Property,
-    ProvisionableResource,
-    Resource,
+    ProvisionableResourceBase,
+    ResourceBase,
     TypeConstraint,
     TypeConstraintIn,
     TypeFormat,
@@ -246,7 +246,7 @@ AnyNodeData = Union[{', '.join([cls.__name__ + 'Data' for cls in NODE_CLASSES])}
 AnyStructData = Union[{', '.join([cls.__name__ + 'Data' for cls in STRUCT_CLASSES])}]
 AnyObjectData = AnyNodeData | AnyStructData
 BenchNodeData = Union[{', '.join([cls.__name__ + 'Data' for cls in NODE_CLASSES if issubclass(cls, BenchNode)])}]
-ResourceNodeData = Union[{', '.join([cls.__name__ + 'Data' for cls in NODE_CLASSES if issubclass(cls, Resource)])}]
+ResourceNodeData = Union[{', '.join([cls.__name__ + 'Data' for cls in NODE_CLASSES if issubclass(cls, ResourceBase)])}]
 PageNodeData = Union[{', '.join([cls.__name__ + 'Data' for cls in NODE_CLASSES if issubclass(cls, PageNode)])}]
 SubjectNodeData = Union[{', '.join([cls.__name__ + 'Data' for cls in NODE_CLASSES if cls.metatype in SUBJECT_NODE_TYPES])}]
 JoinableNodeData = Union[{', '.join([cls.__name__ + 'Data' for cls in NODE_CLASSES if cls.metatype in JOINABLE_NODE_TYPES])}]
@@ -580,7 +580,6 @@ export type EnumOptionInfo = {
     name: string;
     title?: string;
     text?: string;
-    color?: ColorType;
     icon?: string;
 }
 """
@@ -589,20 +588,16 @@ export type EnumOptionInfo = {
     for enum_type in EnumType:
         enum_cls = ENUM_CLASS_BY_TYPE[enum_type]
         # only include if one of the options has something
-        if not any(
-            option.text or option.title or option.color or option.icon for option in enum_cls
-        ):
+        if not any(option.text or option.title or option.icon for option in enum_cls):
             continue
         option_info_parts: list[str] = []
         for option in enum_cls:
-            if option.text or option.title or option.color or option.icon:
+            if option.text or option.title or option.icon:
                 option_str_parts = [f"id: {option.value}, name: {option.name!r}"]
                 if option.text:
                     option_str_parts.append(f"text: {option.text!r}")
                 if option.title:
                     option_str_parts.append(f"title: {option.title!r}")
-                if option.color:
-                    option_str_parts.append(f"color: ColorType.{option.color.name}")
                 if option.icon:
                     option_str_parts.append(f"icon: {option.icon!r}")
                 option_info_parts.append(
@@ -690,7 +685,7 @@ export const TYPE_CONSTRAINT_BY_FORMAT: Partial<Record<TypeFormat, TypeConstrain
         ("OWNABLE_NODE_TYPES", OWNABLE_NODE_TYPES),
         ("PACKAGE_NODE_TYPES", PACKAGE_NODE_TYPES),
         ("PROCESSABLE_NODE_TYPES", PROCESSABLE_NODE_TYPES),
-        ("PROVISIONABLE_NODE_TYPES", PROVISIONABLE_NODE_TYPES),
+        ("PROVISIONABLE_RESOURCE_NODE_TYPES", PROVISIONABLE_RESOURCE_NODE_TYPES),
         ("TEMPLATABLE_NODE_TYPES", TEMPLATABLE_NODE_TYPES),
         ("TIMED_NODE_TYPES", TIMED_NODE_TYPES),
     ):
@@ -718,8 +713,8 @@ export type OwnableNodeData = {' | '.join(cls.__name__ + 'Data' for cls in NODE_
 export type TemplatableNodeData = {' | '.join(cls.__name__ + 'Data' for cls in NODE_CLASSES if cls.metatype in TEMPLATABLE_NODE_TYPES)}
 export type InstantiableNodeData = {' | '.join(cls.__name__ + 'Data' for cls in NODE_CLASSES if cls.metatype in INSTANTIABLE_NODE_TYPES)}
 export type ProcessableNodeData = {' | '.join(cls.__name__ + 'Data' for cls in NODE_CLASSES if cls.metatype in PROCESSABLE_NODE_TYPES)}
-export type ResourceNodeData = {' | '.join(cls.__name__ + 'Data' for cls in NODE_CLASSES if issubclass(cls, Resource))}
-export type ProvisionableNodeData = {' | '.join(cls.__name__ + 'Data' for cls in NODE_CLASSES if issubclass(cls, ProvisionableResource))}
+export type ResourceNodeData = {' | '.join(cls.__name__ + 'Data' for cls in NODE_CLASSES if issubclass(cls, ResourceBase))}
+export type ProvisionableNodeData = {' | '.join(cls.__name__ + 'Data' for cls in NODE_CLASSES if issubclass(cls, ProvisionableResourceBase))}
 export type RunnableNodeData = {' | '.join(cls.__name__ + 'Data' for cls in NODE_CLASSES if cls.metatype in RUNNABLE_NODE_TYPES)}
 export type SubjectNodeData = {' | '.join(cls.__name__ + 'Data' for cls in NODE_CLASSES if cls.metatype in SUBJECT_NODE_TYPES)}
 

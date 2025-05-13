@@ -3,7 +3,6 @@ from typing import TYPE_CHECKING, Literal, Optional
 from uuid import UUID
 
 from bench.language.core import (
-    ColorType,
     FieldType,
     IsClaimable,
     IsInstantiable,
@@ -66,7 +65,6 @@ class Agent(
         same_bench=True,
         description="The main Cursor for this Agent.",
     )
-    color: ColorType | None = p_regular(59)
     if TYPE_CHECKING:
         page_ptr: Optional[NodeReference] = None
         page_id: Optional[UUID] = None

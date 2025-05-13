@@ -33,6 +33,7 @@ from .registry import (
     _complete_bench_setup,
 )
 from .runtime import *  # noqa: F403
+from .style import *  # noqa: F403
 from .typing import *  # noqa: F403
 from .view import *  # noqa: F403
 
@@ -51,4 +52,4 @@ SYSTEM_MAIN_PACKAGE_PTR = NodeReference(
     node_type=NodeType.PACKAGE, id=SYSTEM_SYSTEM_PACKAGE_ID, bench_id=SYSTEM_ID
 )
 
-BENCH_ICON = icon("https://heybench.com/favicon.ico", ColorType.YELLOW)
+BENCH_ICON = icon("https://heybench.com/favicon.ico")

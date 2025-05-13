@@ -101,7 +101,6 @@ class BuiltinEnum(enum.IntEnum):
     title: str | None
     text: str | None
     icon: str | None
-    color: "ColorType | None"
 
     def __new__(
         cls,
@@ -109,7 +108,6 @@ class BuiltinEnum(enum.IntEnum):
         title: str | None = None,
         text: str | None = None,
         icon: str | None = None,
-        color: "ColorType | None" = None,
     ):
         obj = int.__new__(cls, id)
         obj._value_ = id
@@ -118,7 +116,6 @@ class BuiltinEnum(enum.IntEnum):
         obj.text = text
         obj.title = title
         obj.icon = icon
-        obj.color = color
         obj.__doc__ = text
 
         # check id
@@ -453,39 +450,15 @@ ENUM_TYPES: bittuple[EnumType] = bittuple(*EnumType)
 ENUM_TYPES_SET: frozenset[EnumType] = frozenset(ENUM_TYPES)
 
 
-@enum_(EnumType.COLOR_TYPE)
-class ColorType(BuiltinEnum):
-    """Built-in color types a la SwiftUI or Tailwind."""
-
-    GRAY = 30
-    RED = 31
-    ORANGE = 32
-    AMBER = 33
-    YELLOW = 34
-    LIME = 35
-    GREEN = 36
-    EMERALD = 37
-    TEAL = 38
-    CYAN = 39
-    SKY = 40
-    BLUE = 41
-    INDIGO = 42
-    VIOLET = 43
-    PURPLE = 44
-    FUCHSIA = 45
-    PINK = 46
-    ROSE = 47
-
-
 @enum_(EnumType.NODE_MODE)
 class NodeMode(BuiltinEnum):
-    KERNEL = 3, "Kernel", "Managed by Bench (hidden)", "fas fa-cog", ColorType.YELLOW
-    SYSTEM = 6, "System", "Managed by Bench", "fas fa-cog", ColorType.YELLOW
-    BUILTIN = 10, "Builtin", "Provided by Bench", "fas fa-cog", ColorType.YELLOW
-    MAIN = 20, "Main", "Active and available", "fas fa-globe", ColorType.GREEN
-    TEST = 30, "Test", "Active in test", "fas fa-flask", ColorType.BLUE
-    TEMPLATE = 40, "Template", "Template to use", "fas fa-puzzle-piece", ColorType.VIOLET
-    ARCHIVE = 50, "Archive", "Inactive and hidden", "fas fa-box-archive", ColorType.GRAY
+    KERNEL = 3, "Kernel", "Managed by Bench (hidden)", "fas fa-cog"
+    SYSTEM = 6, "System", "Managed by Bench", "fas fa-cog"
+    BUILTIN = 10, "Builtin", "Provided by Bench", "fas fa-cog"
+    MAIN = 20, "Main", "Active and available", "fas fa-globe"
+    TEST = 30, "Test", "Active in test", "fas fa-flask"
+    TEMPLATE = 40, "Template", "Template to use", "fas fa-puzzle-piece"
+    ARCHIVE = 50, "Archive", "Inactive and hidden", "fas fa-box-archive"
 
 
 @enum_(EnumType.NODE_TYPE)
@@ -509,7 +482,7 @@ class NodeType(BuiltinEnum):
     DEPENDENCY = 1010, "Dependency", "Dependency to something", "fas fa-turn-down-right"
     PAGE = 1020, "Page", "Page of Blocks", "far fa-file"
     BLOCK = 1030, "Block", "Rich Block on a Page", "fas fa-cube"
-    # APP?
+    # APP, PLUGIN, ...
 
     # infra [1200-1400]
     DATABASE = 1200, "Store", "Store custom data", "fas fa-database"
@@ -522,27 +495,27 @@ class NodeType(BuiltinEnum):
     CLASS = 1410, "Class", "Class", "fas fa-shapes"
     FIELD = 1420, "Field", "Field", "fas fa-triangle"
     OPTION = 1430, "Option", "Option", "far fa-square-check"
-    # SCHEMA, UNION, TAG, ...?
+    # SCHEMA, UNION, TAG, ...
 
     # data [1600-1800]
     TABLE = 1600, "Table", "Table of Records", "fas fa-table"
     RECORD = 1610, "Record", "Record in a Database", "fas fa-database"
     FILE = 1620, "File", "File", "fas fa-file"
     LINK = 1650, "Link", "Link to something", "fas fa-link"
-    # STREAM, SECRET, INDEX, ...?
+    # STREAM, SECRET, INDEX, CONSTRAINT, ...
 
     # chat [1800-2000]
     CHANNEL = 1800, "Channel", "Channel", "fas fa-hashtag"
     THREAD = 1810, "Thread", "Thread", "fas fa-reel"
     MESSAGE = 1820, "Message", "Message", "fas fa-message"
     NOTIFICATION = 1850, "Notification", "Notification", "fas fa-bell"
-    # POLL, VOTE, REACTION, ...?
+    # POLL, VOTE, REACTION, ...
 
     # plan [2000-2200]
     TASK = 2000, "Task", "To-do item", "far fa-square-check"
     CLAIM = 2010, "Claim", "Control over something", "fas fa-stamp"
     CURSOR = 2020, "Cursor", "Position in something", "fas fa-mouse"
-    # JOB, PLAN, ENTITLEMENT, POOL, LOCK, BARRIER, ...?
+    # JOB, PLAN, ENTITLEMENT, POOL, LOCK, BARRIER, ...
 
     # logic [2200-2400]
     SERVICE = 2200, "Service", "Service", "fas fa-screwdriver-wrench"
@@ -550,14 +523,14 @@ class NodeType(BuiltinEnum):
     FLOW = 2220, "Flow", "Sequence Actions", "fas fa-diagram-project"
     TRANSITION = 2230, "Transition", "Transition Actions", "fas fa-link"
     AGENT = 2250, "Agent", "Identity for an AI", "fas fa-robot"
-    # TRIGGER, TIMER, BREAKPOINT, ...?
+    # TRIGGER, TIMER, BREAKPOINT, ...
 
     # runtime [2400-2600]
     SESSION = 2400, "Session", "Session", "fas fa-circle-play"
     RUN = 2410, "Run", "Run", "fas fa-play"
     SPAN = 2420, "Span", "Span", "fas fa-ruler-horizontal"
     INTERRUPTION = 2430, "Interruption", "Interruption", "fas fa-hand"
-    # EVENT, SIGNAL, ...?
+    # EVENT, SIGNAL, ...
 
     # identity [2600-2800]
     MEMBERSHIP = 2600, "Membership", "Membership to something", "fas fa-users"
@@ -567,22 +540,22 @@ class NodeType(BuiltinEnum):
     # PROFILE? (for User, or maybe global?)
 
     # version
-    # CHANGE, HISTORY, BRANCH, ...?
+    # CHANGE, HISTORY, BRANCH, ...
 
     # publish
-    # PUBLICATION, RELEASE, WISHLIST/WATCHLIST, ...?
+    # PUBLICATION, RELEASE, WISHLIST/WATCHLIST, ...
 
     # analytics
     # METER, METRIC, SURVEY, REPLAY, ...
 
     # localization
-    # LOCALE, TRANSLATION, ...?
+    # LOCALE, TRANSLATION, ...
 
     # access
-    # CHALLENGE, BADGE, POLICY, RULE, ...?
+    # CHALLENGE, BADGE, POLICY, RULE, ...
 
     # model
-    # MODEL, FINETUNE, ...?
+    # MODEL, FINETUNE, ...
 
     # finance (shouldn't this be global?, see https://docs.stripe.com/api)
     # WALLET, BALANCE, BUDGET, TRANSFER, CREDIT, TIER, PRICE, ORDER, INVOICE, DISCOUNT, DISPUTE, REFUND, ...
@@ -600,44 +573,53 @@ class NodeType(BuiltinEnum):
     SPACE_WIZARD_VIEW = 8001, "Space Wizard View", "Space Wizard", "fas fa-wand-sparkles"
     SPACE_SIDEBAR_VIEW = 8002, "Space Sidebar View", "Space Sidebar", "fas fa-bars"
     SPACE_CONTEXT_VIEW = 8003, "Space Context View", "Space Context", "fas fa-sitemap"
-    # SCENE, WIDGET, ...?
-    # CANVAS/DRAWING, SHAPE, ...?
+    # SCENE, WIDGET, ...
 
     # container views [8100-8200]
-    FRAME_VIEW = 8100, "Frame View", "Custom Frame", "fas fa-frame"
-    SPLIT_CONTAINER_VIEW = 8110, "Split Container View", "Split Container", "fas fa-columns"
-    SPLIT_PANEL_VIEW = 8120, "Split Panel View", "Split Panel", "fas fa-columns"
-    SCROLL_CONTAINER_VIEW = 8130, "Scroll Container View", "Scroll Container", "fas fa-scroll"
+    SPLIT_VIEW = 8100, "Split Container View", "Split Container", "fas fa-columns"
+    SPLIT_PANEL_VIEW = 8101, "Split Panel View", "Split Panel", "fas fa-columns"
+    SPLIT_HANDLE_VIEW = 8102, "Split Handle View", "Split Handle", "fas fa-columns"
+    SCROLL_VIEW = 8110, "Scroll Container View", "Scroll Container", "fas fa-scroll"
+    TAB_VIEW = 8120, "Tab Container View", "Tab Container", "fas fa-tabs"
+    TAB_PANEL_VIEW = 8121, "Tab Panel View", "Tab Panel", "fas fa-tabs"
+    STACK_VIEW = 8130, "Stack Container View", "Stack Container", "fas fa-stack"
+    # DRAWER, SPLIT_DRAWER, GRID, ...
 
-    # control views [8200-8300]
-    BUTTON_VIEW = 8200, "Button View", "Button", "fas fa-hand-pointer"
-    LINK_VIEW = 8201, "Link View", "Link", "fas fa-link"
-
-    # content views [8300-8400]
-    NUMBER_VIEW = 8300, "Number View", "Number", "fas fa-hashtag"
-    SLIDER_VIEW = 8301, "Slider View", "Slider", "fas fa-slider"
-    LABEL_VIEW = 8310, "Label View", "Label", "fas fa-font-case"
-    STRING_VIEW = 8311, "String View", "String", "fas fa-font-case"
-    TEXT_VIEW = 8320, "Text View", "Text", "fas fa-text"
-    TEXT_LINE_VIEW = 8321, "Text Line View", "Text Line", "fas fa-text"
-    CODE_VIEW = 8330, "Code View", "Code", "fas fa-code"
-    TOGGLE_VIEW = 8340, "Toggle View", "Toggle", "fas fa-square-check"
-    PICKER_VIEW = 8350, "Picker View", "Picker", "fas fa-caret-circle-down"
-    COLOR_VIEW = 8351, "Color View", "Color", "fas fa-palette"
-    ICON_VIEW = 8352, "Icon View", "Icon", "fas fa-icons"
-    DATETIME_VIEW = 8360, "Datetime View", "Datetime", "fas fa-calendar-days"
-    DURATION_VIEW = 8361, "Duration View", "Duration", "fas fa-stopwatch"
-    FILE_VIEW = 8370, "File View", "File", "fas fa-file"
-    IMAGE_VIEW = 8371, "Image View", "Image", "fas fa-image"
-    AUDIO_VIEW = 8372, "Audio View", "Audio", "fas fa-volume"
-    VIDEO_VIEW = 8373, "Video View", "Video", "fas fa-video"
-    DOCUMENT_VIEW = 8374, "Document View", "Document", "fas fa-file-alt"
+    # content views [8200-8400]
+    FRAME_VIEW = 8200, "Frame View", "Custom Frame", "fas fa-frame"
+    NUMBER_VIEW = 8210, "Number View", "Number", "fas fa-hashtag"
+    SLIDER_VIEW = 8211, "Slider View", "Slider", "fas fa-slider"
+    LABEL_VIEW = 8220, "Label View", "Label", "fas fa-font-case"
+    STRING_VIEW = 8221, "String View", "String", "fas fa-font-case"
+    TEXT_VIEW = 8222, "Text View", "Text", "fas fa-text"
+    TEXT_LINE_VIEW = 8223, "Text Line View", "Text Line", "fas fa-text"
+    CODE_VIEW = 8224, "Code View", "Code", "fas fa-code"
+    TOGGLE_VIEW = 8230, "Toggle View", "Toggle", "fas fa-square-check"
+    PICKER_VIEW = 8231, "Picker View", "Picker", "fas fa-caret-circle-down"
+    COLOR_VIEW = 8232, "Color View", "Color", "fas fa-palette"
+    ICON_VIEW = 8233, "Icon View", "Icon", "fas fa-icons"
+    DATETIME_VIEW = 8240, "Datetime View", "Datetime", "fas fa-calendar-days"
+    DURATION_VIEW = 8241, "Duration View", "Duration", "fas fa-stopwatch"
+    FILE_VIEW = 8250, "File View", "File", "fas fa-file"
+    IMAGE_VIEW = 8251, "Image View", "Image", "fas fa-image"
+    AUDIO_VIEW = 8252, "Audio View", "Audio", "fas fa-volume"
+    VIDEO_VIEW = 8253, "Video View", "Video", "fas fa-video"
+    DOCUMENT_VIEW = 8254, "Document View", "Document", "fas fa-file-alt"
+    BUTTON_VIEW = 8360, "Button View", "Button", "fas fa-hand-pointer"
+    LINK_VIEW = 8361, "Link View", "Link", "fas fa-link"
 
     # node views [8400-8500]
     NODE_VIEW = 8400, "Node View", "Node", "fas fa-hexagon"
     PAGE_VIEW = 8410, "Page View", "Page", "far fa-file"
     TABLE_VIEW = 8420, "Table View", "Table", "fas fa-table"
     THREAD_VIEW = 8430, "Thread View", "Thread", "fas fa-reel"
+
+    # style
+    # THEME, COLOR_STYLE, FONT_STYLE, TEXT_STYLE, BORDER_STYLE, SHADOW_STYLE, ...
+    # EFFECT, ANIMATION, ...
+
+    # canvas?
+    # CANVAS/DRAWING, SHAPE, BRUSH, ...
 
     EMPTY = 9999
 
@@ -689,7 +671,7 @@ ROOT_NODE_TYPES = bittuple(NodeType.BENCH, NodeType.USER, NodeType.ORGANIZATION)
 RESOURCE_NODE_TYPES = bittuple(
     NodeType.DATABASE, NodeType.COMPUTER, NodeType.SCALER, NodeType.FILE, NodeType.LINK
 )
-PROVISIONABLE_NODE_TYPES = bittuple(NodeType.SCALER, NodeType.DATABASE, NodeType.COMPUTER)
+PROVISIONABLE_RESOURCE_NODE_TYPES = bittuple(NodeType.SCALER, NodeType.DATABASE, NodeType.COMPUTER)
 COMMUNICATION_NODE_TYPES = _get_node_types(5500, 5600)
 RUNTIME_NODE_TYPES = _get_node_types(2400, 2500)
 PACKAGE_NODE_TYPES = _get_node_types(1000, 9000)
@@ -707,8 +689,11 @@ PUBLIC_NODE_TYPES = bittuple(NodeType.USER, NodeType.ORGANIZATION, NodeType.BENC
 # NOTE: these traits should also be in trait.py but we need the constants in property.py
 #  (which also depends on trait.py, and we can't have a circular dependency)
 BASED_NODE_TYPES = bittuple(NodeType.RECORD, NodeType.MESSAGE, NodeType.RUN)
+VIEW_NODE_TYPES = bittuple(*(n for n in NODE_TYPES if n.name.endswith("VIEW")))
+STYLE_NODE_TYPES = bittuple(*(n for n in NODE_TYPES if n.name.endswith("STYLE")))
 PAGE_NODE_TYPES = bittuple(
     *RESOURCE_NODE_TYPES,
+    *VIEW_NODE_TYPES,
     NodeType.CHOICE,
     NodeType.CLASS,
     NodeType.TABLE,
@@ -716,7 +701,6 @@ PAGE_NODE_TYPES = bittuple(
     NodeType.SERVICE,
     NodeType.PAGE,
     NodeType.ROLE,
-    NodeType.VIEW,
     NodeType.TASK,
     NodeType.THREAD,
     NodeType.CHANNEL,
@@ -740,6 +724,7 @@ INSTANTIABLE_NODE_TYPES = bittuple(
 TEMPLATABLE_NODE_TYPES = bittuple(
     *RESOURCE_NODE_TYPES,
     *INSTANTIABLE_NODE_TYPES,
+    *VIEW_NODE_TYPES,
     NodeType.PACKAGE,
     NodeType.DEPENDENCY,
     NodeType.PAGE,
@@ -756,7 +741,6 @@ TEMPLATABLE_NODE_TYPES = bittuple(
     NodeType.CHANNEL,
     NodeType.ROLE,
     NodeType.SPACE,
-    NodeType.VIEW,
 )
 
 
@@ -764,6 +748,7 @@ TEMPLATABLE_NODE_TYPES = bittuple(
 UNLOADED_RESOURCE_NODE_TYPES = bittuple(NodeType.FILE)
 LOADED_PACKAGE_NODE_TYPES = bittuple(
     *(RESOURCE_NODE_TYPES - UNLOADED_RESOURCE_NODE_TYPES),
+    *VIEW_NODE_TYPES,
     NodeType.PACKAGE,
     NodeType.DEPENDENCY,
     NodeType.PAGE,
@@ -785,11 +770,10 @@ LOADED_PACKAGE_NODE_TYPES = bittuple(
     NodeType.TASK,
     NodeType.CLAIM,
     NodeType.SPACE,
-    NodeType.VIEW,
 )
 
 
-# automatically included descendants :AutoLoading
+# automatically included descendants :AutoLoading :RichGraph
 AUTOLOAD_DESCENDANT_TYPES: dict[NodeType, tuple[NodeType, ...]] = {
     NodeType.THREAD: (
         NodeType.FILE,
@@ -1148,13 +1132,13 @@ class EditOperationType(BuiltinEnum):
     CLEAR = 2
 
     # list
-    # APPEND, REMOVE, ...?
+    # APPEND, REMOVE, ...
 
     # math
-    # ADD, SUBTRACT, ...?
+    # ADD, SUBTRACT, ...
 
     # text
-    # ...?
+    # ...
 
 
 @enum_(EnumType.USE_TYPE)
@@ -1223,34 +1207,14 @@ class AccessMode(BuiltinEnum):
     ATOMIC = 2
 
 
-@enum_(EnumType.COLOR_SHADE)
-class ColorShade(BuiltinEnum):
-    """Built-in color shades a la Tailwind."""
-
-    # surface
-    ...
-    # actual
-    S50 = 50
-    S100 = 100
-    S200 = 200
-    S300 = 300
-    S400 = 400
-    S500 = 500
-    S600 = 600
-    S700 = 700
-    S800 = 800
-    S900 = 900
-    S950 = 950
-
-
 @enum_(EnumType.SEVERITY)
 class Severity(BuiltinEnum):
-    TRACE = 1, None, None, "fas fa-bug", ColorType.GRAY
-    DEBUG = 2, None, None, "fas fa-bug", ColorType.GRAY
-    INFO = 3, None, None, "fas fa-circle-check", ColorType.GRAY
-    WARNING = 4, None, None, "fas fa-circle-exclamation", ColorType.YELLOW
-    ERROR = 5, None, None, "fas fa-circle-exclamation", ColorType.RED
-    PANIC = 6, None, None, "fas fa-skull", ColorType.RED
+    TRACE = 1, None, None, "fas fa-bug"
+    DEBUG = 2, None, None, "fas fa-bug"
+    INFO = 3, None, None, "fas fa-circle-check"
+    WARNING = 4, None, None, "fas fa-circle-exclamation"
+    ERROR = 5, None, None, "fas fa-circle-exclamation"
+    PANIC = 6, None, None, "fas fa-skull"
 
 
 @enum_(EnumType.POLICY_EFFECT)
@@ -1467,32 +1431,26 @@ class ErrorKind(BuiltinEnum):
 @enum_(EnumType.PROCESS_STATUS)
 class ProcessStatus(BuiltinEnum):
     # pre
-    CREATED = 1, "Created", "Created but not yet assigned", "fas fa-circle", ColorType.GRAY
-    ASSIGNED = 2, "Assigned", "Assigned to someone", "fas fa-clock", ColorType.GRAY
-    SCHEDULED = 4, "Scheduled", "Scheduled for sometime", "fas fa-clock", ColorType.GRAY
-    QUEUED = 5, "Queued", "Queued to happen soon", "fas fa-clock", ColorType.GRAY
+    CREATED = 1, "Created", "Created but not yet assigned", "fas fa-circle"
+    ASSIGNED = 2, "Assigned", "Assigned to someone", "fas fa-clock"
+    SCHEDULED = 4, "Scheduled", "Scheduled for sometime", "fas fa-clock"
+    QUEUED = 5, "Queued", "Queued to happen soon", "fas fa-clock"
     # active
-    RUNNING = 10, "Running", "Actively running", "fas fa-circle-notch", ColorType.BLUE
-    FAILING = 11, "Failing", "Experiencing issues", "fas fa-circle-exclamation", ColorType.ORANGE
+    RUNNING = 10, "Running", "Actively running", "fas fa-circle-notch"
+    FAILING = 11, "Failing", "Experiencing issues", "fas fa-circle-exclamation"
     # interrupted
-    PAUSED = 20, "Paused", "Paused manually", "fas fa-circle-pause", ColorType.PINK
-    YIELDED = 21, "Yielded", "Yielded to someone", "fas fa-circle-pause", ColorType.PINK
-    WAITING = 22, "Waiting", "Waiting for a condition", "fas fa-circle-pause", ColorType.PINK
+    PAUSED = 20, "Paused", "Paused manually", "fas fa-circle-pause"
+    YIELDED = 21, "Yielded", "Yielded to someone", "fas fa-circle-pause"
+    WAITING = 22, "Waiting", "Waiting for a condition", "fas fa-circle-pause"
     # inactive
-    IDLE = 30, "Idle", "Waiting for work", "fas fa-zzz", ColorType.GRAY
+    IDLE = 30, "Idle", "Waiting for work", "fas fa-zzz"
     # terminal
-    CANCELLED = 50, "Cancelled", "Cancelled before running", "fas fa-circle-xmark", ColorType.GRAY
-    ABORTED = 51, "Aborted", "Aborted while running", "fas fa-circle-xmark", ColorType.GRAY
-    DIED = 52, "Died", "Unresponsive while running", "fas fa-skull", ColorType.RED
-    FAILED = 53, "Failed", "Failed due to an error", "fas fa-circle-xmark", ColorType.RED
-    COMPLETED = 54, "Completed", "Completed successfully", "fas fa-circle-check", ColorType.GREEN
-    SKIPPED = (
-        55,
-        "Skipped",
-        "Skipped due to a condition",
-        "fas fa-circle-exclamation",
-        ColorType.GRAY,
-    )
+    CANCELLED = 50, "Cancelled", "Cancelled before running", "fas fa-circle-xmark"
+    ABORTED = 51, "Aborted", "Aborted while running", "fas fa-circle-xmark"
+    DIED = 52, "Died", "Unresponsive while running", "fas fa-skull"
+    FAILED = 53, "Failed", "Failed due to an error", "fas fa-circle-xmark"
+    COMPLETED = 54, "Completed", "Completed successfully", "fas fa-circle-check"
+    SKIPPED = 55, "Skipped", "Skipped due to a condition", "fas fa-circle-exclamation"
 
     @property
     def is_pre(self) -> bool:

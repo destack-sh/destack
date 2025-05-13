@@ -31,6 +31,7 @@
     "@protobuf-ts/runtime": "^2.9.4",
     "@protobuf-ts/runtime-rpc": "^2.9.4",
     "@vueuse/core": "^11.3.0",
+    "@vueuse/motion": "^3.0.3",
     "grpc-web": "^1.5.0",
     "highlight.js": "^11.11.1",
     "katex": "^0.16.21",

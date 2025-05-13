@@ -1,6 +1,6 @@
 from typing import TYPE_CHECKING, Optional, Union
 
-from .color import ColorIn, to_color
+from ..style.color import ColorIn, to_color
 from .const import BuiltinEnum, EnumType, NodeType, StructType, enum_
 from .property import p_regular
 from .struct import Struct, struct_
