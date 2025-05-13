@@ -6,7 +6,7 @@ import { TypedNodeReferenceData } from "@/proto/wiring";
 import { PreparedNodeConnection, useAutoConnection } from "@/system/connection";
 import { canvas } from "@/system/space";
 import { getProcessColorHex } from "@/ui/style";
-import Inaccessible from "@/views/builtin/Inaccessible.vue";
+import Inaccessible from "@/views/internal/Inaccessible.vue";
 import { FocusAnchor, type ViewEmits, type ViewExpose } from "@/views/common";
 import NativeInput from "@/views/content/NativeInput.vue";
 import TextLine from "@/views/content/TextLine.vue";

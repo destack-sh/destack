@@ -3,9 +3,9 @@ import { ReadNodeGraph } from "@/language/core/graph";
 import { NodeReferenceData, NodeType, SelectionData } from "@/proto/wire";
 import { TypedNodeReferenceData } from "@/proto/wiring";
 import { VIEW_DEFAULT_ROOT_HEADER_HEIGHT } from "@/ui/view";
-import HistoryNavigator from "@/views/builtin/HistoryNavigator.vue";
-import NodePath from "@/views/builtin/NodePath.vue";
-import NodeReference from "@/views/builtin/NodeReference.vue";
+import HistoryNavigator from "@/views/internal/HistoryNavigator.vue";
+import NodePath from "@/views/internal/NodePath.vue";
+import NodeReference from "@/views/internal/NodeReference.vue";
 
 const HEADER_HEIGHT = VIEW_DEFAULT_ROOT_HEADER_HEIGHT;
 

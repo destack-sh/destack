@@ -15,7 +15,6 @@ from bench.language.core import (
     node_,
     p_node_children,
     p_node_parent,
-    p_regular,
     text_line,
     to_text,
 )
@@ -23,7 +22,7 @@ from bench.language.package.block import Block
 from bench.pb2 import BlockData
 
 if TYPE_CHECKING:
-    from bench.language import Block, Package, Thread
+    from bench.language import Block, Package
 
 # pyright: reportIncompatibleVariableOverride=false
 
@@ -43,10 +42,7 @@ class Page(
 
     # meta
     parent: Union["Package", "Page", None] = p_node_parent(4, NodeType.PACKAGE, NodeType.PAGE)
-    thread: Optional["Thread"] = p_regular(
-        38, default=None, require=False, array=False, references=NodeType.THREAD
-    )
-    # app? Page/Record/... tying?
+    # app? view? Page/Record/View/... tying?
 
     pages: LocalNodeList["Page"] = p_node_children(NodeType.PAGE)
     blocks: LocalNodeList["Block"] = p_node_children(NodeType.BLOCK)

@@ -7,9 +7,9 @@ import { PreparedNodeConnection, useAutoConnection } from "@/system/connection";
 import { canvas } from "@/system/space";
 import { getNodeIcon, IconInline } from "@/ui/icon";
 import { getColorHex } from "@/ui/style";
-import Inaccessible from "@/views/builtin/Inaccessible.vue";
-import NodeReference from "@/views/builtin/NodeReference.vue";
-import Popover from "@/views/builtin/Popover.vue";
+import Inaccessible from "@/views/internal/Inaccessible.vue";
+import NodeReference from "@/views/internal/NodeReference.vue";
+import Popover from "@/views/internal/Popover.vue";
 import { type ViewEmits, type ViewExpose } from "@/views/common";
 import { computed, Ref, toRef } from "vue";
 

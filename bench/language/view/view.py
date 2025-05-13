@@ -29,110 +29,9 @@ from bench.language.core import (
 from bench.pb2 import ViewData
 
 if TYPE_CHECKING:
-    from bench.language import Page, Space, Type
+    from bench.language import Message, Page, Space, Type
 
 # pyright: reportIncompatibleVariableOverride=false
-
-
-@enum_(EnumType.VIEW_TYPE)
-class ViewType(BuiltinEnum):
-    #
-    # Intrinsics (0-30000)
-    #
-
-    # nodes (0-10000)
-    PAGE = 1020
-    BLOCK = 1030
-    FIELD = 1420
-    TABLE = 1600
-    THREAD = 1810
-    RUN = 2410
-    TASK = 2000
-
-    # helpers (20000-30000)
-    SPACE_WIZARD = 20001, "Wizard", "User/Bench wizard", "fas fa-wand-sparkles"
-    SPACE_SIDEBAR = 20205, None, None, "fas fa-object-group"
-    SPACE_CONTEXT = 20206, None, None, "fas fa-question"
-    # ACTIVITY = 20207, None, None, "fas fa-list-timeline"
-    # CATALOG = 20208, None, None, "fas fa-th-large"
-    # INBOX = 20209, None, None, "fas fa-inbox"
-
-    #
-    # Organization (30000-31000)
-    #
-
-    # layout (30000-30100)
-    HISTORY = 30003, "History", "History of views", "fas fa-clock-rotate-left"
-    SPLIT_CONTAINER = 30004, "Split", "Split view", "fas fa-split"
-    SPLIT_PANEL = 30005, "Split", "Split view", "fas fa-split"
-    # SPLIT_HANDLE
-    # STACK = 30006, "Stack", "Stacked views", "fas fa-layer-group"
-    # DRAWER = 30007, "Drawer", "Drawer view", "fas fa-square-minus"
-    SCROLL_CONTAINER = 30008, "Scroll", "Scrollable view", "fas fa-arrows-alt-v"
-    # SPLIT_DRAWER, GRID, ...
-    # SECTION = 30100, "Section", "Sectioned view", "fas fa-xmark-lines"
-    # GROUP, FORM, ...
-
-    # presentation (30200-30300)
-    # DIVIDER = 30200, "Divider", "Divider view", "fas fa-horizontal-rule"
-
-    # collections (30300-30400)
-    # LIST = 30300, "List", "List view", "fas fa-list"
-    # TABLE = 30301, "Table", "Table view", "fas fa-table"
-    # TREE = 30302, "Tree", "Tree view", "fas fa-list-tree"
-    # FEED = 30303, "Feed", "Feed view", "fas fa-list-timeline"
-    # GALLERY = 30304, "Gallery", "Gallery view", "fas fa-th-large"
-    # BOARD = 30305, "Board", "Board view", "fas fa-columns"
-    # ROW, COLUMN, ...?
-    # CALENDAR, MAP, ...?
-
-    #
-    # Style (31000-32000)
-    #
-
-    # navigation (31000-31100)
-    # BREADCRUMB = 31001, "Breadcrumb", "Breadcrumb view", "fas fa-ellipsis-h"
-    # PROGRESS = 31002, "Progress", "Progress view", "fas fa-spinner"
-    # AVATAR = 31003, "Avatar", "Avatar view", "fas fa-user-circle"
-    # BADGE = 31004, "Badge", "Badge view", "fas fa-badge"
-    # illustration (31100-31200)
-    # SHAPE = 31100, "Shape", "Shape view", "fas fa-shapes"
-
-    # graphing (31200-31300)
-    # CHART = 31200, "Chart", "Chart view", "fas fa-chart-pie"
-
-    #
-    # Action (32000-33000)
-    #
-
-    # controls (32000-32100)
-    BUTTON = 32001, "Button", "Button view", "fas fa-hand-pointer"
-
-    # numeric (35000-35100)
-    NUMBER = 35001, "Number", "Number view", "fas fa-hashtag"
-    SLIDER = 35002, "Slider", "Slider view", "fas fa-slider"
-
-    # stringy (35100-35200)
-    LABEL = 35100, "Label", "Label view", "fas fa-font-case"
-    STRING = 35101, "String", "String view", "fas fa-font-case"
-    TEXT = 35102, "Text", "Text view", "fas fa-text"
-    TEXT_LINE = 35103, "Text line", "Text line view", "fas fa-text"
-    CODE = 35110, "Code", "Code view", "fas fa-code"
-
-    # selection (35200-35300)
-    TOGGLE = 35201, "Toggle", "Toggle view", "fas fa-square-check"
-    PICKER = 35202, "Picker", "Picker view", "fas fa-caret-circle-down"
-    COLOR = 35203, "Color", "Color view", "fas fa-palette"
-    ICON = 35204, "Icon", "Icon view", "fas fa-icons"
-    DATETIME = 35205, "Datetime", "Datetime view", "fas fa-calendar-days"
-    DURATION = 35206, "Duration", "Duration view", "fas fa-stopwatch"
-
-    # file (35300-35400)
-    FILE = 35301, "File", "File view", "fas fa-file"
-    IMAGE = 35302, "Image", "Image view", "fas fa-image"
-    AUDIO = 35303, "Audio", "Audio view", "fas fa-volume"
-    VIDEO = 35304, "Video", "Video view", "fas fa-video"
-    DOCUMENT = 35305, "Document", "Document view", "fas fa-file-alt"
 
 
 @enum_(EnumType.FONT_TYPE)
@@ -373,7 +272,7 @@ class View(
     IsClaimable,
     PageNode[ViewData],
 ):
-    """A View is a graphical interface in a Bench."""
+    """A View is a graphical interface."""
 
     parent: Union["Space", "View", "Page", None] = p_node_parent(
         4, NodeType.SPACE, NodeType.VIEW, NodeType.PAGE
@@ -402,6 +301,7 @@ class View(
 
     # flags
     # is_input: bool = p_regular(82, default=False)
+    # is_inline: bool = p_regular(83, default=False)
     # is_minimal: bool = p_regular(84, default=False)
 
 
@@ -438,7 +338,7 @@ class ButtonVariant(BuiltinEnum):
 class ButtonView(View):
     """A Button view."""
 
-    variant: ButtonVariant = p_regular(30, default=ButtonVariant.PRIMARY)
+    variant: ButtonVariant = p_regular(40, default=ButtonVariant.PRIMARY)
 
 
 @enum_(EnumType.PICKER_VARIANT)
@@ -452,7 +352,7 @@ class PickerVariant(BuiltinEnum):
 class NumberView(View):
     """A Number view."""
 
-    value: Optional[float] = p_regular(31, default=None)
+    value: Optional[float] = p_regular(40, default=None)
 
 
 @node_(NodeType.TEXT_VIEW)
@@ -460,7 +360,7 @@ class TextView(View):
     """A Text view."""
 
     value: Optional[Text] = p_regular(
-        31, default=None, array=False, require=False, struct=StructType.TEXT
+        40, default=None, array=False, require=False, struct=StructType.TEXT
     )
 
 
@@ -469,5 +369,23 @@ class CodeView(View):
     """A Code view."""
 
     value: Optional[Code] = p_regular(
-        31, default=None, array=False, require=False, struct=StructType.CODE
+        40, default=None, array=False, require=False, struct=StructType.CODE
+    )
+
+
+@node_(NodeType.TOGGLE_VIEW)
+class ToggleView(View):
+    """A Toggle view."""
+
+    value: Optional[bool] = p_regular(40, default=None)
+
+
+@node_(NodeType.THREAD_VIEW)
+class ThreadView(View):
+    """A Thread view."""
+
+    draft_text: Optional[Text] = p_regular(40, default=None)
+    draft_nodes: list[Node] = p_regular(41, require=False, array=True, references="any")
+    draft_reply_to: Optional["Message"] = p_regular(
+        42, default=None, require=False, array=False, references=NodeType.MESSAGE
     )

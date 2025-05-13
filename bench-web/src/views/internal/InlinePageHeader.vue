@@ -2,9 +2,9 @@
 import { PageNodeData, NodeReferenceData, NodeType, SelectionData } from "@/proto/wire";
 import { TypedNodeReferenceData } from "@/proto/wiring";
 import { PreparedNodeConnection } from "@/system/connection";
-import BlockHeader from "@/views/builtin/BlockHeader.vue";
-import PageHeader from "@/views/builtin/PageHeader.vue";
-import RootHeader from "@/views/builtin/RootHeader.vue";
+import BlockHeader from "@/views/internal/BlockHeader.vue";
+import PageHeader from "@/views/internal/PageHeader.vue";
+import RootHeader from "@/views/internal/RootHeader.vue";
 import { FocusAnchor, NavigationDirection, ViewEmits, ViewExpose } from "@/views/common";
 import { computed, ref, Ref } from "vue";
 

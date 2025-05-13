@@ -33,10 +33,10 @@ import { useHighlightPlugin, useLineHandlePlugin, usePlaceholderPlugin, useToolt
 import { useTextPageInterface } from "@/ui/prosemirror/wiring";
 import { VIEW_DEFAULT_ROOT_HEADER_HEIGHT } from "@/ui/view";
 import { computedValue } from "@/utils/ref";
-import Inaccessible from "@/views/builtin/Inaccessible.vue";
-import PageHeader from "@/views/builtin/PageHeader.vue";
-import RootHeader from "@/views/builtin/RootHeader.vue";
-import TextTooltip from "@/views/builtin/TextTooltip.vue";
+import Inaccessible from "@/views/internal/Inaccessible.vue";
+import PageHeader from "@/views/internal/PageHeader.vue";
+import RootHeader from "@/views/internal/RootHeader.vue";
+import TextTooltip from "@/views/internal/TextTooltip.vue";
 import { NavigationDirection, type FocusAnchor, type ViewEmits, type ViewExpose } from "@/views/common";
 import Scroll from "@/views/containers/Scroll.vue";
 import SelectionOverlay from "@/views/overlays/SelectionOverlay.vue";

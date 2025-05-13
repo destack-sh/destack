@@ -68,9 +68,9 @@ import {
   VIEW_DEFAULT_ROOT_HEADER_HEIGHT,
 } from "@/ui/view";
 import { assertNever } from "@/utils/functools";
-import HistoryNavigator from "@/views/builtin/HistoryNavigator.vue";
-import Inaccessible from "@/views/builtin/Inaccessible.vue";
-import InlinePageHeader from "@/views/builtin/InlinePageHeader.vue";
+import HistoryNavigator from "@/views/internal/HistoryNavigator.vue";
+import Inaccessible from "@/views/internal/Inaccessible.vue";
+import InlinePageHeader from "@/views/internal/InlinePageHeader.vue";
 import { FocusAnchor, NavigationDirection, type ViewEmits, type ViewExpose } from "@/views/common";
 import Scroll from "@/views/containers/Scroll.vue";
 import Icon from "@/views/content/Icon.vue";

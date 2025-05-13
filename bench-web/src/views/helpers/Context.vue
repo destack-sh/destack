@@ -16,7 +16,7 @@ import {
 } from "@/system/space";
 import { startSelectingIfAllowed, useSelectionZone } from "@/ui/drag";
 import { VIEW_DEFAULT_ROOT_HEADER_HEIGHT } from "@/ui/view";
-import NodeReference from "@/views/builtin/NodeReference.vue";
+import NodeReference from "@/views/internal/NodeReference.vue";
 import { type ViewEmits, type ViewExpose } from "@/views/common";
 import Scroll from "@/views/containers/Scroll.vue";
 import Thread from "@/views/nodes/Thread.vue";

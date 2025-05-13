@@ -25,7 +25,7 @@ import { getPmLineType, PM_SCHEMA, SpanSpecialInputType } from "@/ui/prosemirror
 import { SearchItem, useValueSearch } from "@/ui/search";
 import { getColorHex } from "@/ui/style";
 import { useFloating } from "@/utils/floating";
-import NodeMetadata from "@/views/builtin/NodeMetadata.vue";
+import NodeMetadata from "@/views/internal/NodeMetadata.vue";
 import { FocusAnchor, ViewEmits, ViewExpose } from "@/views/common";
 import Scroll from "@/views/containers/Scroll.vue";
 import { Node as PmNode } from "prosemirror-model";
