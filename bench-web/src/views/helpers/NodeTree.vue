@@ -3,17 +3,18 @@ import { toCamelName } from "@/language/core/const";
 import { isDescendantOf, walkDescendantsRef, type NodeTreeItem } from "@/language/core/graph";
 import { cloneNode, getRootNodes, moveNode } from "@/language/core/node";
 import { newChangeId } from "@/language/core/transaction";
+import { createBlock } from "@/language/source/block";
 import {
+  BlockType,
   CHILD_NODE_TYPES,
-  PAGE_NODE_TYPES,
   NodeReferenceData,
   NodeType,
   Orientation,
+  PAGE_NODE_TYPES,
   RESOURCE_NODE_TYPES,
   TextLineType,
   ViewData,
   type AnyNodeData,
-  BlockType,
 } from "@/proto/wire";
 import { isNode, toNodeRef } from "@/proto/wiring";
 import { packagePtr } from "@/system/client";
@@ -32,14 +33,12 @@ import { ScrollbarWidth } from "@/ui/layout";
 import { VIEW_DEFAULT_HEADER_HEIGHT } from "@/ui/view";
 import { computedValue } from "@/utils/ref";
 import NodeMetadata from "@/views/builtin/NodeMetadata.vue";
-import TextLine from "@/views/content/TextLine.vue";
 import { type FocusAnchor, type ViewExpose } from "@/views/common";
 import Scroll from "@/views/containers/Scroll.vue";
+import TextLine from "@/views/content/TextLine.vue";
 import SelectionOverlay from "@/views/overlays/SelectionOverlay.vue";
 import { useElementSize } from "@vueuse/core";
 import { computed, nextTick, ref, type Ref } from "vue";
-import { createPage } from "@/language/source/page";
-import { createBlock } from "@/language/source/block";
 
 const DEPTH_OFFSET = 16;
 const ITEM_HEIGHT = 30;

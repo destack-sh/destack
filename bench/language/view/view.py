@@ -3,24 +3,25 @@ from uuid import UUID
 
 from bench.language.core import (
     BuiltinEnum,
+    BuiltinObject,
+    Code,
     EnumType,
     IsClaimable,
     IsModal,
     IsNamed,
     IsOwnable,
     IsTemplatable,
-    LocalNodeList,
     Node,
     NodeReference,
     NodeType,
     PageNode,
-    PrimitiveType,
     Selection,
     Struct,
     StructType,
+    Text,
     enum_,
     node_,
-    p_node_children,
+    node_component_,
     p_node_parent,
     p_regular,
     struct_,
@@ -32,10 +33,6 @@ if TYPE_CHECKING:
 
 # pyright: reportIncompatibleVariableOverride=false
 
-# TODO :Architecture! :PolyViews: make Views "polymorphic" with their own Nodes & traits
-#  (so each 'type' of View has its own tables & proto types.. also share some traits with
-#   other 'views' like maybe Block/Page/Flow/Action have some view-like traits too)
-
 
 @enum_(EnumType.VIEW_TYPE)
 class ViewType(BuiltinEnum):
@@ -44,32 +41,18 @@ class ViewType(BuiltinEnum):
     #
 
     # nodes (0-10000)
-    COMPUTER = 1250
     PAGE = 1020
     BLOCK = 1030
-    CHOICE = 1400
-    CLASS = 1410
     FIELD = 1420
-    FLOW = 2220
-    ACTION = 2210
-    TRANSITION = 2230
-    SERVICE = 2200
     TABLE = 1600
     THREAD = 1810
-    AGENT = 2800
     RUN = 2410
     TASK = 2000
 
-    # objects (10000-20000)
-    OBJECT = 10000
-    TYPE = 10001
-    SELECTION = 10006
-
     # helpers (20000-30000)
-    WIZARD = 20001, "Wizard", "User/Bench wizard", "fas fa-wand-sparkles"
-    EMPTY = 20100, "Empty view", "For debugging", "fas fa-bug"
-    SIDEBAR = 20205, None, None, "fas fa-object-group"
-    CONTEXT = 20206, None, None, "fas fa-question"
+    SPACE_WIZARD = 20001, "Wizard", "User/Bench wizard", "fas fa-wand-sparkles"
+    SPACE_SIDEBAR = 20205, None, None, "fas fa-object-group"
+    SPACE_CONTEXT = 20206, None, None, "fas fa-question"
     # ACTIVITY = 20207, None, None, "fas fa-list-timeline"
     # CATALOG = 20208, None, None, "fas fa-th-large"
     # INBOX = 20209, None, None, "fas fa-inbox"
@@ -79,16 +62,14 @@ class ViewType(BuiltinEnum):
     #
 
     # layout (30000-30100)
-    WINDOW = 30001, "Window", "Full window", "fas fa-window"
-    TAB = 30002, "Tab", "Tabbed interface", "fas fa-sidebar"
     HISTORY = 30003, "History", "History of views", "fas fa-clock-rotate-left"
-    SPLIT = 30004, "Split", "Split view", "fas fa-split"
+    SPLIT_CONTAINER = 30004, "Split", "Split view", "fas fa-split"
+    SPLIT_PANEL = 30005, "Split", "Split view", "fas fa-split"
+    # SPLIT_HANDLE
     # STACK = 30006, "Stack", "Stacked views", "fas fa-layer-group"
     # DRAWER = 30007, "Drawer", "Drawer view", "fas fa-square-minus"
-    SCROLL = 30008, "Scroll", "Scrollable view", "fas fa-arrows-alt-v"
-    # SPLIT_DRAWER, GRID
-
-    # groups (30100-30200)
+    SCROLL_CONTAINER = 30008, "Scroll", "Scrollable view", "fas fa-arrows-alt-v"
+    # SPLIT_DRAWER, GRID, ...
     # SECTION = 30100, "Section", "Sectioned view", "fas fa-xmark-lines"
     # GROUP, FORM, ...
 
@@ -126,22 +107,17 @@ class ViewType(BuiltinEnum):
 
     # controls (32000-32100)
     BUTTON = 32001, "Button", "Button view", "fas fa-hand-pointer"
-    # MULTI_BUTTON = 32002, "Multi button", "Multi button view", "fas fa-hand-pointer"
-
-    #
-    # Content (35000-)
-    #
 
     # numeric (35000-35100)
     NUMBER = 35001, "Number", "Number view", "fas fa-hashtag"
     SLIDER = 35002, "Slider", "Slider view", "fas fa-slider"
 
     # stringy (35100-35200)
+    LABEL = 35100, "Label", "Label view", "fas fa-font-case"
     STRING = 35101, "String", "String view", "fas fa-font-case"
     TEXT = 35102, "Text", "Text view", "fas fa-text"
     TEXT_LINE = 35103, "Text line", "Text line view", "fas fa-text"
     CODE = 35110, "Code", "Code view", "fas fa-code"
-    # JSON = 35104, "JSON", "JSON view", "fas fa-brackets-curly"
 
     # selection (35200-35300)
     TOGGLE = 35201, "Toggle", "Toggle view", "fas fa-square-check"
@@ -157,19 +133,6 @@ class ViewType(BuiltinEnum):
     AUDIO = 35303, "Audio", "Audio view", "fas fa-volume"
     VIDEO = 35304, "Video", "Video view", "fas fa-video"
     DOCUMENT = 35305, "Document", "Document view", "fas fa-file-alt"
-
-    # expression
-    # ...
-
-
-# copy NodeType properties to ViewType
-for view_type in ViewType:
-    if view_type.id < 10000:
-        node_type = NodeType(view_type.id)
-        view_type.title = node_type.title
-        view_type.color = node_type.color
-        view_type.icon = node_type.icon
-        view_type.text = node_type.text
 
 
 @enum_(EnumType.FONT_TYPE)
@@ -356,13 +319,6 @@ def vector4(x: float, y: float, z: float, w: float) -> "Vector4":
     return Vector4(x=float(x), y=float(y), z=float(z), w=float(w))
 
 
-@struct_(StructType.LINE)
-class Line(Struct):
-    """A line segment."""
-
-    points: list[Vector2] = p_regular(30, array=True, struct=StructType.VECTOR2)
-
-
 @enum_(EnumType.ORIENTATION)
 class Orientation(BuiltinEnum):
     """Which way to orient the contents/subviews of a view."""
@@ -403,6 +359,11 @@ class RectangleConstraint(Struct):
 # nocheckin
 
 
+@node_component_()
+class IsView(BuiltinObject):
+    pass
+
+
 @node_(NodeType.VIEW)
 class View(
     IsTemplatable,
@@ -418,10 +379,6 @@ class View(
         4, NodeType.SPACE, NodeType.VIEW, NodeType.PAGE
     )
 
-    # meta
-    type: ViewType = p_regular(30, require=True, primitive_type=PrimitiveType.INT32)
-    title: Optional[str] = p_regular(32, require=False)
-
     # content
     value_type: Optional["Type"] = p_regular(
         41, default=None, require=False, struct=StructType.TYPE
@@ -434,32 +391,6 @@ class View(
         node_id: Optional[UUID] = None
         node_ptr: Optional["NodeReference"] = None
 
-    # style
-    ...  # font/variant/border/corner/foreground/background/...
-
-    # layout
-    position: Optional[Offset] = p_regular(
-        60, default=None, require=False, array=False, struct=StructType.OFFSET
-    )
-    size: Optional[Rectangle] = p_regular(
-        61, default=None, require=False, array=False, struct=StructType.RECTANGLE
-    )
-    # margin: Optional[Offset] = p_regular(
-    #     62, default=None, require=False, array=False, struct=StructType.OFFSET
-    # )
-    # padding: Optional[Offset] = p_regular(
-    #     63, default=None, require=False, array=False, struct=StructType.OFFSET
-    # )
-    orientation: Optional[Orientation] = p_regular(64, default=None, require=False)
-    alignment: Optional[Alignment] = p_regular(65, default=None, require=False)
-    transform: Optional[Transform] = p_regular(
-        66, default=None, require=False, array=False, struct=StructType.TRANSFORM
-    )
-    constraint: Optional[RectangleConstraint] = p_regular(
-        67, default=None, require=False, array=False, struct=StructType.RECTANGLE_CONSTRAINT
-    )
-    ...  # scroll/...
-
     # behavior
     focus: Optional[Node] = p_regular(
         70, default=None, require=False, array=False, references="any"
@@ -470,16 +401,8 @@ class View(
     ...  # actions/effects/...
 
     # flags
-    is_disabled: bool = p_regular(81, default=False)
-    is_input: bool = p_regular(82, default=False)
-    is_inline: bool = p_regular(83, default=False)
-    is_minimal: bool = p_regular(84, default=False)
-
-    views: LocalNodeList["View"] = p_node_children(NodeType.VIEW)
-
-    @staticmethod
-    def new(typ: ViewType, name: str, **kwargs) -> "View":
-        return View(type=typ, name=name, **kwargs)
+    # is_input: bool = p_regular(82, default=False)
+    # is_minimal: bool = p_regular(84, default=False)
 
 
 #
@@ -511,8 +434,40 @@ class ButtonVariant(BuiltinEnum):
     LINK = 3
 
 
+@node_(NodeType.BUTTON_VIEW)
+class ButtonView(View):
+    """A Button view."""
+
+    variant: ButtonVariant = p_regular(30, default=ButtonVariant.PRIMARY)
+
+
 @enum_(EnumType.PICKER_VARIANT)
 class PickerVariant(BuiltinEnum):
     MULTI_TOGGLE = 1
     DROPDOWN = 2
     DROPDOWN_LARGE = 3
+
+
+@node_(NodeType.NUMBER_VIEW)
+class NumberView(View):
+    """A Number view."""
+
+    value: Optional[float] = p_regular(31, default=None)
+
+
+@node_(NodeType.TEXT_VIEW)
+class TextView(View):
+    """A Text view."""
+
+    value: Optional[Text] = p_regular(
+        31, default=None, array=False, require=False, struct=StructType.TEXT
+    )
+
+
+@node_(NodeType.CODE_VIEW)
+class CodeView(View):
+    """A Code view."""
+
+    value: Optional[Code] = p_regular(
+        31, default=None, array=False, require=False, struct=StructType.CODE
+    )

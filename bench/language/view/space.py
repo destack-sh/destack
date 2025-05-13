@@ -7,7 +7,6 @@ from bench.language.core import (
     IsModal,
     IsOwnable,
     IsTemplatable,
-    LocalNodeList,
     Node,
     NodeType,
     PackageNode,
@@ -16,7 +15,6 @@ from bench.language.core import (
     enum_,
     node_,
     p_internal,
-    p_node_children,
     p_node_parent,
     p_regular,
 )
@@ -24,7 +22,7 @@ from bench.pb2 import SpaceData
 from bench.utils.fractional import INTEGER_ZERO
 
 if TYPE_CHECKING:
-    from bench.language import Package, Page, Thread, View
+    from bench.language import Package, Page, Thread
 
 # pyright: reportIncompatibleVariableOverride=false
 
@@ -40,7 +38,7 @@ class SpaceType(BuiltinEnum):
 class Space(IsOwnable, IsTemplatable, IsModal, PackageNode[SpaceData]):
     """
     A Space for a User to interact with a Bench.
-    Spaces to any Bench are centralized in the owning User's Bench.
+    Spaces to all Benches are stored in the owning User's Bench.
     """
 
     parent: Optional["Package"] = p_node_parent(4, NodeType.PACKAGE)
@@ -78,7 +76,7 @@ class Space(IsOwnable, IsTemplatable, IsModal, PackageNode[SpaceData]):
         require=False,
         array=False,
         references="any",
-        description="The current 'root' container Node (usually a parent of the inspected Node).",
+        description="The current 'root' container Node.",
     )
     page: Optional["Page"] = p_regular(
         74,
@@ -96,5 +94,3 @@ class Space(IsOwnable, IsTemplatable, IsModal, PackageNode[SpaceData]):
         references=NodeType.THREAD,
         description="The current Thread.",
     )
-
-    views: LocalNodeList["View"] = p_node_children(NodeType.VIEW)

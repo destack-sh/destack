@@ -16,19 +16,13 @@ const COMPONENT_BY_VIEW_TYPE_LAZY = {
 
   // system
   // nodes
-  [ViewType.COMPUTER]: () => import("@/views/nodes/Computer.vue"),
   [ViewType.PAGE]: () => import("@/views/nodes/Page.vue"),
   [ViewType.BLOCK]: () => import("@/views/nodes/Block.vue"),
   [ViewType.FIELD]: () => import("@/views/nodes/Field.vue"),
-  [ViewType.ACTION]: () => import("@/views/nodes/Action.vue"),
-  [ViewType.TRANSITION]: () => import("@/views/nodes/Transition.vue"),
-  [ViewType.DATABASE]: () => import("@/views/nodes/Database.vue"),
-  [ViewType.FLOW]: () => import("@/views/nodes/Flow.vue"),
+  [ViewType.TABLE]: () => import("@/views/nodes/Table.vue"),
   [ViewType.THREAD]: () => import("@/views/nodes/Thread.vue"),
   [ViewType.TASK]: () => import("@/views/nodes/Task.vue"),
-  [ViewType.AGENT]: () => import("@/views/nodes/Agent.vue"),
   // structs
-  [ViewType.TYPE]: () => import("@/views/objects/Type.vue"),
   // helpers
   [ViewType.WIZARD]: () => import("@/views/helpers/Wizard.vue"),
   [ViewType.EMPTY]: () => import("@/views/helpers/Empty.vue"),
@@ -41,7 +35,6 @@ const COMPONENT_BY_VIEW_TYPE_LAZY = {
 
   // layout
   [ViewType.WINDOW]: () => import("@/views/containers/Split.vue"), // shared with Split
-  [ViewType.TAB]: () => import("@/views/containers/Tab.vue"),
   [ViewType.HISTORY]: () => import("@/views/containers/History.vue"),
   [ViewType.SPLIT]: () => import("@/views/containers/Split.vue"),
   [ViewType.SCROLL]: () => import("@/views/containers/Scroll.vue"),

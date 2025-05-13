@@ -12,7 +12,7 @@ import { VIEW_DEFAULT_HEADER_HEIGHT, VIEW_DEFAULT_ROOT_HEADER_HEIGHT } from "@/u
 import { type ViewEmits, type ViewExpose } from "@/views/common";
 import Scroll from "@/views/containers/Scroll.vue";
 import Icon from "@/views/content/Icon.vue";
-import PackageTree from "@/views/helpers/PackageTree.vue";
+import PackageTree from "@/views/helpers/NodeTree.vue";
 import ThreadList from "@/views/helpers/ThreadList.vue";
 import SelectionOverlay from "@/views/overlays/SelectionOverlay.vue";
 import { computed, Ref, ref, toRef } from "vue";

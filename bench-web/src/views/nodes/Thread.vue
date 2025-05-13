@@ -1,7 +1,7 @@
 <script lang="ts" setup>
 import { supergraph } from "@/globals";
 import { BENCH_BENCH_AGENT_PTR, BENCH_BENCH_UBUNTU_DESKTOP_PTR } from "@/language/core/builtin";
-import { isProcessableNode, toCamelName } from "@/language/core/const";
+import { toCamelName } from "@/language/core/const";
 import { getEnumOption, getEnumOptions } from "@/language/core/enum";
 import { makeAndConditional, makeExpression } from "@/language/core/expression";
 import { emptyText, isTextEmpty, renderText, trimText } from "@/language/core/text";
@@ -40,7 +40,7 @@ import {
 } from "@/proto/wire";
 import { isNode, propertyReference, toNodeRef, TypedNodeReferenceData } from "@/proto/wiring";
 import { benchPtr, CURRENT_BENCH_SCOPE, packagePtr } from "@/system/client";
-import { autoloader, SearchConnectionParams, useAutoConnection, useInfiniteSearchConnection } from "@/system/connection";
+import { SearchConnectionParams, useAutoConnection, useInfiniteSearchConnection } from "@/system/connection";
 import { bench, benchConnection, benchGraph, canvas, pagePtr, pkg, space } from "@/system/space";
 import { user } from "@/system/user";
 import { CommandMapKit, fireCommand, getCommand, getNodesForCommand, MESSAGE_CONTEXT_COMMANDS } from "@/ui/command";

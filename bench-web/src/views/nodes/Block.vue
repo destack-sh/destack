@@ -1,7 +1,7 @@
 <script lang="ts" setup>
-import { CANVAS_BLOCK_TYPES, toCamelName } from "@/language/core/const";
+import { toCamelName } from "@/language/core/const";
 import { newChangeId } from "@/language/core/transaction";
-import { BlockType, NodeReferenceData, NodeType, ViewData } from "@/proto/wire";
+import { BlockType, NodeReferenceData, NodeType, ObjectType, ViewData } from "@/proto/wire";
 import { toNodeRef, type TypedNodeReferenceData } from "@/proto/wiring";
 import { canvas } from "@/system/space";
 import type { CommandMapKit } from "@/ui/command";
@@ -11,9 +11,8 @@ import Inaccessible from "@/views/builtin/Inaccessible.vue";
 import NodeReference from "@/views/builtin/NodeReference.vue";
 import { type FocusAnchor, type NavigationDirection, type ViewEmits, type ViewExpose } from "@/views/common";
 import File from "@/views/content/File.vue";
-import Agent from "@/views/nodes/Agent.vue";
-import Choice from "@/views/nodes/Choice.vue";
-import Database from "@/views/nodes/Database.vue";
+import Page from "@/views/nodes/Page.vue";
+import Database from "@/views/nodes/Table.vue";
 import Task from "@/views/nodes/Task.vue";
 import { computed, getCurrentInstance, nextTick, onBeforeUnmount, ref, toRef, triggerRef, type Ref } from "vue";
 
@@ -61,12 +60,8 @@ const fields = graph.getChildrenRef(nodePtr, NodeType.FIELD);
 
 // view
 const blockRef = ref<HTMLElement | null>(null);
-const nodeRef: Ref<InstanceType<typeof Choice> | null> = ref(null);
-const isPage = computed(() => block.value?.type == BlockType.PAGE);
-const hasCanvas = computed(() => CANVAS_BLOCK_TYPES.includes(block.value?.type!));
-const isInspected = computed(() => canvas.isInspected(blockPtr.value) || canvas.isInspected(nodePtr.value));
-const isHighlighted = computed(() => canvas.isHighlighted(blockPtr.value) || canvas.isHighlighted(nodePtr.value));
-const isSelected = computed(() => canvas.isSelected(blockPtr.value));
+const nodeRef: Ref<InstanceType<typeof Page> | null> = ref(null);
+const isPage = computed(() => block.value?.nodePtr?.nodeType == NodeType.PAGE);
 
 //
 // Interaction
@@ -128,7 +123,7 @@ defineExpose<ViewExpose>({ self, id, commands, focus });
     @click="() => isPage && canvas.goToNode(node!)"
   >
     <NodeReference
-      v-if="node && block.type == BlockType.PAGE"
+      v-if="node && node.metatype == ObjectType.PAGE"
       ref="nodeRef"
       class="cursor-pointer"
       size="base"
@@ -149,7 +144,7 @@ defineExpose<ViewExpose>({ self, id, commands, focus });
       @deleteSelf="onDeleteSelf"
     />
     <File
-      v-else-if="block.type == BlockType.FILE"
+      v-else-if="block.nodePtr?.nodeType == NodeType.FILE"
       id="file"
       ref="nodeRef"
       class="max-h-[400px]"
@@ -161,21 +156,8 @@ defineExpose<ViewExpose>({ self, id, commands, focus });
       @enter="onEnter"
       @deleteSelf="onDeleteSelf"
     />
-    <Choice
-      v-else-if="block.type == BlockType.CHOICE"
-      id="choice"
-      ref="nodeRef"
-      class=""
-      :prepared-connection="preparedConnection"
-      :node-ptr="nodePtr"
-      is-minimal
-      is-inline
-      @navigate="(direction: NavigationDirection) => emit('navigate', direction)"
-      @enter="onEnter"
-      @deleteSelf="onDeleteSelf"
-    />
     <Database
-      v-else-if="block.type == BlockType.TABLE"
+      v-else-if="block.nodePtr?.nodeType == NodeType.TABLE"
       id="database"
       ref="nodeRef"
       :node-ptr="nodePtr"
@@ -188,21 +170,8 @@ defineExpose<ViewExpose>({ self, id, commands, focus });
       @deleteSelf="onDeleteSelf"
     />
     <Task
-      v-else-if="block.type == BlockType.TASK"
+      v-else-if="block.nodePtr?.nodeType == NodeType.TASK"
       id="task"
-      ref="nodeRef"
-      :node-ptr="nodePtr"
-      :prepared-connection="preparedConnection"
-      is-minimal
-      is-inline
-      is-input
-      @navigate="(direction: NavigationDirection) => emit('navigate', direction)"
-      @enter="onEnter"
-      @deleteSelf="onDeleteSelf"
-    />
-    <Agent
-      v-else-if="block.type == BlockType.AGENT"
-      id="agent"
       ref="nodeRef"
       :node-ptr="nodePtr"
       :prepared-connection="preparedConnection"

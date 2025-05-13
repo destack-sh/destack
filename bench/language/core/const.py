@@ -296,10 +296,10 @@ class bittuple(typing.Generic[EnumT], Collection[EnumT]):  # noqa: N801
 
 #
 # Enums
-# NOTE: enum/struct id 'regions' should be roughly in sync with each other
 #
 
 
+# nocheckin: revisit/reorganize EnumType
 class EnumType(BuiltinEnum):
     #
     # Global (20000-21000)
@@ -421,7 +421,6 @@ class EnumType(BuiltinEnum):
 
     # views (22400-22449)
     SPACE_TYPE = 22400
-    VIEW_TYPE = 22401
     COLOR_TYPE = 22402
     COLOR_SHADE = 22403
     FONT_TYPE = 22404
@@ -491,7 +490,7 @@ class NodeMode(BuiltinEnum):
 
 @enum_(EnumType.NODE_TYPE)
 class NodeType(BuiltinEnum):
-    # meta
+    # meta [1-200]
     BENCH = 1, "Bench", "Universal workbench", "https://heybench.com/favicon.ico"
     HANDLE = 2, "Handle", "Unique identifier", "fas fa-at"
     USER = 10, "User", "User", "fas fa-user"
@@ -505,81 +504,67 @@ class NodeType(BuiltinEnum):
     # Bench
     #
 
-    # package
+    # package [1000-1200]
     PACKAGE = 1000, "Package", "Isolated sub-Bench", "fas fa-box-open"
     DEPENDENCY = 1010, "Dependency", "Dependency to something", "fas fa-turn-down-right"
     PAGE = 1020, "Page", "Page of Blocks", "far fa-file"
     BLOCK = 1030, "Block", "Rich Block on a Page", "fas fa-cube"
     # APP?
 
-    # infra
+    # infra [1200-1400]
     DATABASE = 1200, "Store", "Store custom data", "fas fa-database"
     COMPUTER = 1210, "Computer", "Machine for computing", "fas fa-computer-classic"
     SCALER = 1250, "Scaler", "Autoscale Resources", "fas fa-scale-unbalanced"
     # VAULT, CACHE, ENDPOINT, DEPLOYMENT, NETWORK, ...
 
-    # type
+    # type [1400-1600]
     CHOICE = 1400, "Choice", "Choice between Options", "fas fa-circle-chevron-down"
     CLASS = 1410, "Class", "Class", "fas fa-shapes"
     FIELD = 1420, "Field", "Field", "fas fa-triangle"
     OPTION = 1430, "Option", "Option", "far fa-square-check"
     # SCHEMA, UNION, TAG, ...?
 
-    # data
+    # data [1600-1800]
     TABLE = 1600, "Table", "Table of Records", "fas fa-table"
     RECORD = 1610, "Record", "Record in a Database", "fas fa-database"
     FILE = 1620, "File", "File", "fas fa-file"
     LINK = 1650, "Link", "Link to something", "fas fa-link"
     # STREAM, SECRET, INDEX, ...?
 
-    # chat
+    # chat [1800-2000]
     CHANNEL = 1800, "Channel", "Channel", "fas fa-hashtag"
     THREAD = 1810, "Thread", "Thread", "fas fa-reel"
     MESSAGE = 1820, "Message", "Message", "fas fa-message"
     NOTIFICATION = 1850, "Notification", "Notification", "fas fa-bell"
     # POLL, VOTE, REACTION, ...?
 
-    # plan
+    # plan [2000-2200]
     TASK = 2000, "Task", "To-do item", "far fa-square-check"
     CLAIM = 2010, "Claim", "Control over something", "fas fa-stamp"
     CURSOR = 2020, "Cursor", "Position in something", "fas fa-mouse"
     # JOB, PLAN, ENTITLEMENT, POOL, LOCK, BARRIER, ...?
 
-    # logic
+    # logic [2200-2400]
     SERVICE = 2200, "Service", "Service", "fas fa-screwdriver-wrench"
     ACTION = 2210, "Action", "Action", "fas fa-step-forward"
     FLOW = 2220, "Flow", "Sequence Actions", "fas fa-diagram-project"
     TRANSITION = 2230, "Transition", "Transition Actions", "fas fa-link"
+    AGENT = 2250, "Agent", "Identity for an AI", "fas fa-robot"
     # TRIGGER, TIMER, BREAKPOINT, ...?
 
-    # runtime
+    # runtime [2400-2600]
     SESSION = 2400, "Session", "Session", "fas fa-circle-play"
     RUN = 2410, "Run", "Run", "fas fa-play"
     SPAN = 2420, "Span", "Span", "fas fa-ruler-horizontal"
     INTERRUPTION = 2430, "Interruption", "Interruption", "fas fa-hand"
     # EVENT, SIGNAL, ...?
 
-    # identity
-    TEAM = 2600, "Team", "Group of Users or Agents", "fas fa-users"
-    MEMBERSHIP = 2610, "Membership", "Membership to something", "fas fa-users"
-    INVITE = 2620, "Invite", "Invite to something", "fas fa-user-plus"
-    ROLE = 2630, "Role", "Role", "fas fa-user-tag"
+    # identity [2600-2800]
+    MEMBERSHIP = 2600, "Membership", "Membership to something", "fas fa-users"
+    INVITE = 2610, "Invite", "Invite to something", "fas fa-user-plus"
+    TEAM = 2630, "Team", "Group of Users or Agents", "fas fa-users"
+    ROLE = 2640, "Role", "Role", "fas fa-user-tag"
     # PROFILE? (for User, or maybe global?)
-
-    # agent # nocheckin
-    AGENT = 2800, "Agent", "Identity for an AI", "fas fa-robot"
-    # ...
-
-    # view
-    # ... all the Views once we have :PolyViews
-    SPACE = 3000, "Space", "Space", "fas fa-space-between"
-    VIEW = 3010, "View", "View", "fas fa-window-frame"  # :PolyViews
-    # SCENE, WIDGET, ...?
-    # CANVAS/DRAWING, SHAPE, ...?
-
-    # style
-    # THEME, PALETTE, VARIANT, ANIMATION, EFFECT, ...?
-    # STYLE, COLOR_STYLE, BORDER_STYLE, ...?
 
     # version
     # CHANGE, HISTORY, BRANCH, ...?
@@ -607,6 +592,17 @@ class NodeType(BuiltinEnum):
 
     # world?
     # PHONE, ADDRESS, ...
+
+    # view [8000-9000]
+    # ... all the Views once we have :PolyViews
+    SPACE = 8000, "Space", "Space", "fas fa-galaxy"
+    # VIEW = 8110, "View", "View", "fas fa-window-frame"  # :PolyViews
+    # SCENE, WIDGET, ...?
+    # CANVAS/DRAWING, SHAPE, ...?
+
+    # style
+    # THEME, PALETTE, VARIANT, ANIMATION, EFFECT, ...?
+    # STYLE?, COLOR_STYLE, BORDER_STYLE, ...?
 
     EMPTY = 9999
 

@@ -27,12 +27,7 @@ from bench.language.core import (
 from bench.pb2 import AgentData
 
 if TYPE_CHECKING:
-    from bench.language import (
-        Claim,
-        Cursor,
-        Field,
-        Page,
-    )
+    from bench.language import Claim, Cursor, Field, Page
 
 # pyright: reportIncompatibleVariableOverride=false
 
@@ -51,7 +46,7 @@ class Agent(
     PageNode[AgentData],
 ):
     """
-    An Agent is an autonomous entity that does work on behalf of a User.
+    An Agent is an autonomous entity.
     """
 
     # content
