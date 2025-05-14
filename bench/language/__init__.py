@@ -33,6 +33,7 @@ from .registry import (
     _complete_bench_setup,
 )
 from .runtime import *  # noqa: F403
+from .space import *  # noqa: F403
 from .style import *  # noqa: F403
 from .typing import *  # noqa: F403
 from .view import *  # noqa: F403

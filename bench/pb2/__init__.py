@@ -2,7 +2,7 @@
 
 from typing import TYPE_CHECKING, Union
 
-VERSION = "2025.05.12.0"
+VERSION = "2025.05.14.0"
 
 # import from all generated files
 from .runtime_pb2 import *
@@ -54,17 +54,24 @@ AnyNodeData = Union[
     ActionData,
     FlowData,
     TransitionData,
+    AgentData,
     SessionData,
     RunData,
     SpanData,
     InterruptionData,
-    TeamData,
     MembershipData,
     InviteData,
+    TeamData,
     RoleData,
-    AgentData,
     SpaceData,
-    ViewData,
+    WizardViewData,
+    ThreadViewData,
+    ThemeData,
+    ColorStyleData,
+    TextStyleData,
+    BorderStyleData,
+    ShadowStyleData,
+    GradientStyleData,
     EmptyData,
 ]
 AnyStructData = Union[
@@ -101,15 +108,14 @@ AnyStructData = Union[
     RunTraceData,
     RunFrameData,
     ColorData,
-    FontData,
-    RectangleData,
-    OffsetData,
-    TransformData,
+    ShadowData,
+    BorderData,
     Vector2Data,
     Vector3Data,
     Vector4Data,
-    LineData,
-    RectangleConstraintData,
+    GradientStopData,
+    GradientData,
+    FillData,
 ]
 AnyObjectData = AnyNodeData | AnyStructData
 BenchNodeData = Union[
@@ -141,17 +147,24 @@ BenchNodeData = Union[
     ActionData,
     FlowData,
     TransitionData,
+    AgentData,
     SessionData,
     RunData,
     SpanData,
     InterruptionData,
-    TeamData,
     MembershipData,
     InviteData,
+    TeamData,
     RoleData,
-    AgentData,
     SpaceData,
-    ViewData,
+    WizardViewData,
+    ThreadViewData,
+    ThemeData,
+    ColorStyleData,
+    TextStyleData,
+    BorderStyleData,
+    ShadowStyleData,
+    GradientStyleData,
 ]
 ResourceNodeData = Union[DatabaseData, ComputerData, ScalerData, FileData, LinkData]
 PageNodeData = Union[
@@ -169,10 +182,17 @@ PageNodeData = Union[
     TaskData,
     ServiceData,
     FlowData,
+    AgentData,
     TeamData,
     RoleData,
-    AgentData,
-    ViewData,
+    WizardViewData,
+    ThreadViewData,
+    ThemeData,
+    ColorStyleData,
+    TextStyleData,
+    BorderStyleData,
+    ShadowStyleData,
+    GradientStyleData,
 ]
 SubjectNodeData = Union[UserData, OrganizationData, ComputerData, AgentData]
 JoinableNodeData = Union[PackageData, ChannelData, ThreadData, TeamData]
@@ -190,7 +210,6 @@ ClaimableNodeData = Union[
     ActionData,
     FlowData,
     AgentData,
-    ViewData,
 ]
 OwnableNodeData = Union[
     BenchData,
@@ -212,5 +231,4 @@ OwnableNodeData = Union[
     FlowData,
     AgentData,
     SpaceData,
-    ViewData,
 ]

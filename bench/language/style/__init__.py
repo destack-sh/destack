@@ -12,7 +12,9 @@ from .color import (
     p3_to_rgb,
     rgb_to_hsl,
     rgb_to_p3,
+    to_color,
 )
+from .fill import Fill, FillPosition, FillSize, FillType
 from .gradient import Gradient, GradientStop, GradientStyle, GradientType
 from .shadow import Shadow, ShadowBase, ShadowStyle, ShadowType
 from .style import StyleBase
@@ -30,6 +32,10 @@ __all__ = [
     "ColorShade",
     "ColorStyle",
     "ColorType",
+    "Fill",
+    "FillPosition",
+    "FillSize",
+    "FillType",
     "FontType",
     "FontWeight",
     "Gradient",
@@ -52,4 +58,5 @@ __all__ = [
     "p3_to_rgb",
     "rgb_to_hsl",
     "rgb_to_p3",
+    "to_color",
 ]

@@ -2,9 +2,9 @@ from typing import TYPE_CHECKING
 
 from bench.language.core import (
     BuiltinEnum,
-    BuiltinObject,
     EnumType,
     NodeType,
+    Struct,
     StructType,
     enum_,
     p_regular,
@@ -47,7 +47,7 @@ class FillSize(BuiltinEnum):
 
 
 @struct_(StructType.FILL)
-class Fill(BuiltinObject):
+class Fill(Struct):
     type: FillType = p_regular(30)
     color: Color | None = p_regular(40, array=False, require=False, struct=StructType.COLOR)
     gradient: Gradient | None = p_regular(

@@ -1,4 +1,4 @@
-from typing import Optional, Sequence
+from typing import Optional
 
 from bench.language.core import (
     BuiltinEnum,
@@ -13,6 +13,7 @@ from bench.language.core import (
     p_regular,
     struct_,
 )
+from bench.pb2 import GradientStyleData
 
 from .color import Color
 from .style import StyleBase
@@ -39,7 +40,9 @@ class GradientStop(Struct):
 class GradientBase(BuiltinObject):
     type: GradientType = p_regular(30, default=GradientType.LINEAR)
     angle: Optional[float] = p_regular(40, default=None)  # degrees
-    stops: Sequence[GradientStop] = p_regular(50, array=True, struct=StructType.GRADIENT_STOP)
+    stops: list[GradientStop] = p_regular(
+        50, array=True, require=False, struct=StructType.GRADIENT_STOP
+    )
 
 
 @struct_(StructType.GRADIENT)
@@ -50,7 +53,7 @@ class Gradient(GradientBase, Struct):
 
 
 @node_(NodeType.GRADIENT_STYLE)
-class GradientStyle(GradientBase, StyleBase):
+class GradientStyle(GradientBase, StyleBase[GradientStyleData]):
     """A gradient style."""
 
-    dark: Gradient | None = p_regular(60)
+    dark: Gradient | None = p_regular(60, require=False, array=False, struct=StructType.GRADIENT)

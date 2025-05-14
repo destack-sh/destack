@@ -13,6 +13,7 @@ from bench.language.core import (
     p_regular,
     struct_,
 )
+from bench.pb2 import ColorStyleData
 
 from .style import StyleBase
 
@@ -72,13 +73,17 @@ class ColorShade(BuiltinEnum):
 
 @node_component_()
 class ColorBase(BuiltinObject):
+    """A color value (x, y, z, alpha in 0-1)."""
+
     type: ColorType = p_regular(30)
     hue: Optional[ColorHue] = p_regular(40, default=None)
     shade: Optional[ColorShade] = p_regular(41, default=None)
-    style: Optional["ColorStyle"] = p_regular(42, default=None, references=NodeType.COLOR_STYLE)
-    a: Optional[float] = p_regular(43, default=None)
-    b: Optional[float] = p_regular(44, default=None)
-    c: Optional[float] = p_regular(45, default=None)
+    style: Optional["ColorStyle"] = p_regular(
+        42, default=None, require=False, array=False, references=NodeType.COLOR_STYLE
+    )
+    x: Optional[float] = p_regular(43, default=None)
+    y: Optional[float] = p_regular(44, default=None)
+    z: Optional[float] = p_regular(45, default=None)
     alpha: Optional[float] = p_regular(46, default=None)
 
 
@@ -90,15 +95,56 @@ class Color(ColorBase, Struct):
     def new(color: "ColorIn") -> "Color":
         return to_color(color)
 
+    @staticmethod
+    def from_hex(hex: str) -> "Color":
+        r, g, b, a = hex_to_rgb(hex)
+        return Color(type=ColorType.RGB, x=r, y=g, z=b, alpha=a)
+
+    @staticmethod
+    def from_hue(hue: ColorHue, shade: ColorShade | None = None) -> "Color":
+        return Color(type=ColorType.BUILTIN, hue=hue, shade=shade)
+
 
 @node_(NodeType.COLOR_STYLE)
-class ColorStyle(ColorBase, StyleBase):
+class ColorStyle(ColorBase, StyleBase[ColorStyleData]):
     """A color style, with an optional dark variant."""
 
-    dark: Color | None = p_regular(50)
+    dark: Color | None = p_regular(50, require=False, array=False, struct=StructType.COLOR)
+
+    @staticmethod
+    def from_color(color: Color, dark: Color | None = None) -> "ColorStyle":
+        return ColorStyle(
+            type=color.type,
+            hue=color.hue,
+            shade=color.shade,
+            style=color.style,
+            x=color.x,
+            y=color.y,
+            z=color.z,
+            alpha=color.alpha,
+            dark=dark,
+        )
+
+    @staticmethod
+    def from_hex(hex: str, dark: str | None = None) -> "ColorStyle":
+        return ColorStyle.from_color(
+            Color.from_hex(hex),
+            Color.from_hex(dark) if dark else None,
+        )
+
+    @staticmethod
+    def from_hue(
+        hue: ColorHue,
+        shade: ColorShade | None = None,
+        dark_shade: ColorShade | None = None,
+    ) -> "ColorStyle":
+        return ColorStyle.from_color(
+            Color.from_hue(hue, shade),
+            Color.from_hue(hue, dark_shade) if dark_shade else None,
+        )
 
 
-ColorIn = Color | ColorHue
+ColorIn = Color | ColorHue | ColorStyle | str
 
 
 def to_color(color: ColorIn) -> Color:
@@ -106,6 +152,25 @@ def to_color(color: ColorIn) -> Color:
         return color
     elif isinstance(color, ColorHue):
         return Color(type=ColorType.BUILTIN, hue=color)
+    elif isinstance(color, ColorStyle):
+        return Color(type=ColorType.STYLE, style=color)
+    elif isinstance(color, str):
+        r, g, b, a = hex_to_rgb(color)
+        return Color(type=ColorType.RGB, x=r, y=g, z=b, alpha=a)
+    else:
+        assert_never(color)
+
+
+def to_color_style(color: ColorIn) -> ColorStyle:
+    if isinstance(color, Color):
+        return ColorStyle.from_color(color)
+    elif isinstance(color, ColorHue):
+        return ColorStyle(type=ColorType.BUILTIN, hue=color)
+    elif isinstance(color, ColorStyle):
+        return color
+    elif isinstance(color, str):
+        r, g, b, a = hex_to_rgb(color)
+        return ColorStyle(type=ColorType.RGB, x=r, y=g, z=b, alpha=a)
     else:
         assert_never(color)
 
@@ -152,6 +217,31 @@ _XYZ_TO_P3 = (
     (-0.82948897, 1.76266400, 0.02362468),
     (0.03584583, -0.07617239, 0.95688452),
 )
+
+
+def hex_to_rgb(hex: str) -> tuple[float, float, float, float | None]:
+    """Hex → linear-space floats 0-1 (optional alpha)."""
+    if len(hex) == 6:
+        r = int(hex[0:2], 16) / 255.0
+        g = int(hex[2:4], 16) / 255.0
+        b = int(hex[4:6], 16) / 255.0
+        return (r, g, b, None)
+    elif len(hex) == 8:
+        r = int(hex[0:2], 16) / 255.0
+        g = int(hex[2:4], 16) / 255.0
+        b = int(hex[4:6], 16) / 255.0
+        a = int(hex[6:8], 16) / 255.0
+        return (r, g, b, a)
+    else:
+        raise ValueError(f"invalid hex color: {hex}")
+
+
+def rgb_to_hex(r: int, g: int, b: int, a: int | None = None) -> str:
+    """8-bit sRGB → hex."""
+    if a is None:
+        return f"{r:02x}{g:02x}{b:02x}"
+    else:
+        return f"{r:02x}{g:02x}{b:02x}{a:02x}"
 
 
 def rgb_to_hsl(r: int, g: int, b: int) -> tuple[float, float, float]:

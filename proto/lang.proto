@@ -83,25 +83,27 @@ enum EnumType {
   ENUM_TYPE_MODEL_DEVELOPER = 22250;
   ENUM_TYPE_MODEL_PROVIDER = 22251;
   ENUM_TYPE_CODE_TYPE = 22300;
+  ENUM_TYPE_COLOR_HUE = 22301;
   ENUM_TYPE_ACTION_TYPE = 22350;
   ENUM_TYPE_PORT_SIDE = 22352;
   ENUM_TYPE_TRANSITION_TYPE = 22353;
   ENUM_TYPE_FLOW_TYPE = 22360;
   ENUM_TYPE_SPACE_TYPE = 22400;
-  ENUM_TYPE_VIEW_TYPE = 22401;
   ENUM_TYPE_COLOR_TYPE = 22402;
   ENUM_TYPE_COLOR_SHADE = 22403;
   ENUM_TYPE_FONT_TYPE = 22404;
   ENUM_TYPE_FONT_WEIGHT = 22405;
   ENUM_TYPE_FONT_SIZE = 22406;
-  ENUM_TYPE_SPACING = 22407;
-  ENUM_TYPE_ANCHOR = 22408;
-  ENUM_TYPE_ORIENTATION = 22409;
-  ENUM_TYPE_ALIGNMENT = 22410;
-  ENUM_TYPE_USER_WIZARD_STAGE = 22411;
-  ENUM_TYPE_BUTTON_VARIANT = 22415;
-  ENUM_TYPE_PICKER_VARIANT = 22416;
-  ENUM_TYPE_CONTEXT_MODE = 22417;
+  ENUM_TYPE_SHADOW_TYPE = 22418;
+  ENUM_TYPE_SHADOW_POSITION = 22419;
+  ENUM_TYPE_BORDER_TYPE = 22420;
+  ENUM_TYPE_TEXT_ALIGN = 22421;
+  ENUM_TYPE_TEXT_DECORATION = 22422;
+  ENUM_TYPE_TEXT_TRANSFORM = 22423;
+  ENUM_TYPE_GRADIENT_TYPE = 22424;
+  ENUM_TYPE_FILL_TYPE = 22425;
+  ENUM_TYPE_FILL_POSITION = 22426;
+  ENUM_TYPE_FILL_SIZE = 22427;
   ENUM_TYPE_USER_STATUS = 22450;
   ENUM_TYPE_ORGANIZATION_STATUS = 22451;
   ENUM_TYPE_CHANNEL_STATUS = 22500;
@@ -144,17 +146,24 @@ enum NodeType {
   NODE_TYPE_ACTION = 2210;
   NODE_TYPE_FLOW = 2220;
   NODE_TYPE_TRANSITION = 2230;
+  NODE_TYPE_AGENT = 2250;
   NODE_TYPE_SESSION = 2400;
   NODE_TYPE_RUN = 2410;
   NODE_TYPE_SPAN = 2420;
   NODE_TYPE_INTERRUPTION = 2430;
-  NODE_TYPE_TEAM = 2600;
-  NODE_TYPE_MEMBERSHIP = 2610;
-  NODE_TYPE_INVITE = 2620;
-  NODE_TYPE_ROLE = 2630;
-  NODE_TYPE_AGENT = 2800;
-  NODE_TYPE_SPACE = 3000;
-  NODE_TYPE_VIEW = 3010;
+  NODE_TYPE_MEMBERSHIP = 2600;
+  NODE_TYPE_INVITE = 2610;
+  NODE_TYPE_TEAM = 2630;
+  NODE_TYPE_ROLE = 2640;
+  NODE_TYPE_SPACE = 8000;
+  NODE_TYPE_WIZARD_VIEW = 8010;
+  NODE_TYPE_THREAD_VIEW = 8430;
+  NODE_TYPE_THEME = 8500;
+  NODE_TYPE_COLOR_STYLE = 8510;
+  NODE_TYPE_TEXT_STYLE = 8520;
+  NODE_TYPE_BORDER_STYLE = 8530;
+  NODE_TYPE_SHADOW_STYLE = 8540;
+  NODE_TYPE_GRADIENT_STYLE = 8550;
   NODE_TYPE_EMPTY = 9999;
 }
 
@@ -193,15 +202,14 @@ enum StructType {
   STRUCT_TYPE_RUN_TRACE = 12703;
   STRUCT_TYPE_RUN_FRAME = 12704;
   STRUCT_TYPE_COLOR = 13200;
-  STRUCT_TYPE_FONT = 13201;
-  STRUCT_TYPE_RECTANGLE = 13202;
-  STRUCT_TYPE_OFFSET = 13203;
-  STRUCT_TYPE_TRANSFORM = 13204;
+  STRUCT_TYPE_SHADOW = 13203;
+  STRUCT_TYPE_BORDER = 13204;
   STRUCT_TYPE_VECTOR2 = 13205;
   STRUCT_TYPE_VECTOR3 = 13206;
   STRUCT_TYPE_VECTOR4 = 13207;
-  STRUCT_TYPE_LINE = 13208;
-  STRUCT_TYPE_RECTANGLE_CONSTRAINT = 13209;
+  STRUCT_TYPE_GRADIENT_STOP = 13209;
+  STRUCT_TYPE_GRADIENT = 13210;
+  STRUCT_TYPE_FILL = 13211;
 }
 
 enum ObjectType {
@@ -237,17 +245,24 @@ enum ObjectType {
   OBJECT_TYPE_ACTION = 2210;
   OBJECT_TYPE_FLOW = 2220;
   OBJECT_TYPE_TRANSITION = 2230;
+  OBJECT_TYPE_AGENT = 2250;
   OBJECT_TYPE_SESSION = 2400;
   OBJECT_TYPE_RUN = 2410;
   OBJECT_TYPE_SPAN = 2420;
   OBJECT_TYPE_INTERRUPTION = 2430;
-  OBJECT_TYPE_TEAM = 2600;
-  OBJECT_TYPE_MEMBERSHIP = 2610;
-  OBJECT_TYPE_INVITE = 2620;
-  OBJECT_TYPE_ROLE = 2630;
-  OBJECT_TYPE_AGENT = 2800;
-  OBJECT_TYPE_SPACE = 3000;
-  OBJECT_TYPE_VIEW = 3010;
+  OBJECT_TYPE_MEMBERSHIP = 2600;
+  OBJECT_TYPE_INVITE = 2610;
+  OBJECT_TYPE_TEAM = 2630;
+  OBJECT_TYPE_ROLE = 2640;
+  OBJECT_TYPE_SPACE = 8000;
+  OBJECT_TYPE_WIZARD_VIEW = 8010;
+  OBJECT_TYPE_THREAD_VIEW = 8430;
+  OBJECT_TYPE_THEME = 8500;
+  OBJECT_TYPE_COLOR_STYLE = 8510;
+  OBJECT_TYPE_TEXT_STYLE = 8520;
+  OBJECT_TYPE_BORDER_STYLE = 8530;
+  OBJECT_TYPE_SHADOW_STYLE = 8540;
+  OBJECT_TYPE_GRADIENT_STYLE = 8550;
   OBJECT_TYPE_EMPTY = 9999;
   OBJECT_TYPE_CONTEXT = 10001;
   OBJECT_TYPE_EDIT_CONTEXT = 10002;
@@ -282,15 +297,14 @@ enum ObjectType {
   OBJECT_TYPE_RUN_TRACE = 12703;
   OBJECT_TYPE_RUN_FRAME = 12704;
   OBJECT_TYPE_COLOR = 13200;
-  OBJECT_TYPE_FONT = 13201;
-  OBJECT_TYPE_RECTANGLE = 13202;
-  OBJECT_TYPE_OFFSET = 13203;
-  OBJECT_TYPE_TRANSFORM = 13204;
+  OBJECT_TYPE_SHADOW = 13203;
+  OBJECT_TYPE_BORDER = 13204;
   OBJECT_TYPE_VECTOR2 = 13205;
   OBJECT_TYPE_VECTOR3 = 13206;
   OBJECT_TYPE_VECTOR4 = 13207;
-  OBJECT_TYPE_LINE = 13208;
-  OBJECT_TYPE_RECTANGLE_CONSTRAINT = 13209;
+  OBJECT_TYPE_GRADIENT_STOP = 13209;
+  OBJECT_TYPE_GRADIENT = 13210;
+  OBJECT_TYPE_FILL = 13211;
 }
 
 enum BenchType {
@@ -326,17 +340,24 @@ enum BenchType {
   BENCH_TYPE_ACTION = 2210;
   BENCH_TYPE_FLOW = 2220;
   BENCH_TYPE_TRANSITION = 2230;
+  BENCH_TYPE_AGENT = 2250;
   BENCH_TYPE_SESSION = 2400;
   BENCH_TYPE_RUN = 2410;
   BENCH_TYPE_SPAN = 2420;
   BENCH_TYPE_INTERRUPTION = 2430;
-  BENCH_TYPE_TEAM = 2600;
-  BENCH_TYPE_MEMBERSHIP = 2610;
-  BENCH_TYPE_INVITE = 2620;
-  BENCH_TYPE_ROLE = 2630;
-  BENCH_TYPE_AGENT = 2800;
-  BENCH_TYPE_SPACE = 3000;
-  BENCH_TYPE_VIEW = 3010;
+  BENCH_TYPE_MEMBERSHIP = 2600;
+  BENCH_TYPE_INVITE = 2610;
+  BENCH_TYPE_TEAM = 2630;
+  BENCH_TYPE_ROLE = 2640;
+  BENCH_TYPE_SPACE = 8000;
+  BENCH_TYPE_WIZARD_VIEW = 8010;
+  BENCH_TYPE_THREAD_VIEW = 8430;
+  BENCH_TYPE_THEME = 8500;
+  BENCH_TYPE_COLOR_STYLE = 8510;
+  BENCH_TYPE_TEXT_STYLE = 8520;
+  BENCH_TYPE_BORDER_STYLE = 8530;
+  BENCH_TYPE_SHADOW_STYLE = 8540;
+  BENCH_TYPE_GRADIENT_STYLE = 8550;
   BENCH_TYPE_EMPTY = 9999;
   BENCH_TYPE_CONTEXT = 10001;
   BENCH_TYPE_EDIT_CONTEXT = 10002;
@@ -371,15 +392,14 @@ enum BenchType {
   BENCH_TYPE_RUN_TRACE = 12703;
   BENCH_TYPE_RUN_FRAME = 12704;
   BENCH_TYPE_COLOR = 13200;
-  BENCH_TYPE_FONT = 13201;
-  BENCH_TYPE_RECTANGLE = 13202;
-  BENCH_TYPE_OFFSET = 13203;
-  BENCH_TYPE_TRANSFORM = 13204;
+  BENCH_TYPE_SHADOW = 13203;
+  BENCH_TYPE_BORDER = 13204;
   BENCH_TYPE_VECTOR2 = 13205;
   BENCH_TYPE_VECTOR3 = 13206;
   BENCH_TYPE_VECTOR4 = 13207;
-  BENCH_TYPE_LINE = 13208;
-  BENCH_TYPE_RECTANGLE_CONSTRAINT = 13209;
+  BENCH_TYPE_GRADIENT_STOP = 13209;
+  BENCH_TYPE_GRADIENT = 13210;
+  BENCH_TYPE_FILL = 13211;
   BENCH_TYPE_ENUM_TYPE = 20000;
   BENCH_TYPE_NODE_TYPE = 20001;
   BENCH_TYPE_STRUCT_TYPE = 20002;
@@ -452,25 +472,27 @@ enum BenchType {
   BENCH_TYPE_MODEL_DEVELOPER = 22250;
   BENCH_TYPE_MODEL_PROVIDER = 22251;
   BENCH_TYPE_CODE_TYPE = 22300;
+  BENCH_TYPE_COLOR_HUE = 22301;
   BENCH_TYPE_ACTION_TYPE = 22350;
   BENCH_TYPE_PORT_SIDE = 22352;
   BENCH_TYPE_TRANSITION_TYPE = 22353;
   BENCH_TYPE_FLOW_TYPE = 22360;
   BENCH_TYPE_SPACE_TYPE = 22400;
-  BENCH_TYPE_VIEW_TYPE = 22401;
   BENCH_TYPE_COLOR_TYPE = 22402;
   BENCH_TYPE_COLOR_SHADE = 22403;
   BENCH_TYPE_FONT_TYPE = 22404;
   BENCH_TYPE_FONT_WEIGHT = 22405;
   BENCH_TYPE_FONT_SIZE = 22406;
-  BENCH_TYPE_SPACING = 22407;
-  BENCH_TYPE_ANCHOR = 22408;
-  BENCH_TYPE_ORIENTATION = 22409;
-  BENCH_TYPE_ALIGNMENT = 22410;
-  BENCH_TYPE_USER_WIZARD_STAGE = 22411;
-  BENCH_TYPE_BUTTON_VARIANT = 22415;
-  BENCH_TYPE_PICKER_VARIANT = 22416;
-  BENCH_TYPE_CONTEXT_MODE = 22417;
+  BENCH_TYPE_SHADOW_TYPE = 22418;
+  BENCH_TYPE_SHADOW_POSITION = 22419;
+  BENCH_TYPE_BORDER_TYPE = 22420;
+  BENCH_TYPE_TEXT_ALIGN = 22421;
+  BENCH_TYPE_TEXT_DECORATION = 22422;
+  BENCH_TYPE_TEXT_TRANSFORM = 22423;
+  BENCH_TYPE_GRADIENT_TYPE = 22424;
+  BENCH_TYPE_FILL_TYPE = 22425;
+  BENCH_TYPE_FILL_POSITION = 22426;
+  BENCH_TYPE_FILL_SIZE = 22427;
   BENCH_TYPE_USER_STATUS = 22450;
   BENCH_TYPE_ORGANIZATION_STATUS = 22451;
   BENCH_TYPE_CHANNEL_STATUS = 22500;
@@ -1298,6 +1320,29 @@ enum CodeType {
   CODE_TYPE_FUNCTION = 3;
 }
 
+// Built-in colors a la SwiftUI or Tailwind.
+enum ColorHue {
+  COLOR_HUE_UNSPECIFIED = 0;
+  COLOR_HUE_GRAY = 30;
+  COLOR_HUE_RED = 31;
+  COLOR_HUE_ORANGE = 32;
+  COLOR_HUE_AMBER = 33;
+  COLOR_HUE_YELLOW = 34;
+  COLOR_HUE_LIME = 35;
+  COLOR_HUE_GREEN = 36;
+  COLOR_HUE_EMERALD = 37;
+  COLOR_HUE_TEAL = 38;
+  COLOR_HUE_CYAN = 39;
+  COLOR_HUE_SKY = 40;
+  COLOR_HUE_BLUE = 41;
+  COLOR_HUE_INDIGO = 42;
+  COLOR_HUE_VIOLET = 43;
+  COLOR_HUE_PURPLE = 44;
+  COLOR_HUE_FUCHSIA = 45;
+  COLOR_HUE_PINK = 46;
+  COLOR_HUE_ROSE = 47;
+}
+
 enum ActionType {
   ACTION_TYPE_UNSPECIFIED = 0;
   ACTION_TYPE_START = 10;
@@ -1332,81 +1377,20 @@ enum SpaceType {
   SPACE_TYPE_MOBILE = 30;
 }
 
-enum ViewType {
-  VIEW_TYPE_UNSPECIFIED = 0;
-  VIEW_TYPE_COMPUTER = 1250;
-  VIEW_TYPE_PAGE = 1020;
-  VIEW_TYPE_BLOCK = 1030;
-  VIEW_TYPE_CHOICE = 1400;
-  VIEW_TYPE_CLASS = 1410;
-  VIEW_TYPE_FIELD = 1420;
-  VIEW_TYPE_FLOW = 2220;
-  VIEW_TYPE_ACTION = 2210;
-  VIEW_TYPE_TRANSITION = 2230;
-  VIEW_TYPE_SERVICE = 2200;
-  VIEW_TYPE_TABLE = 1600;
-  VIEW_TYPE_THREAD = 1810;
-  VIEW_TYPE_AGENT = 2800;
-  VIEW_TYPE_RUN = 2410;
-  VIEW_TYPE_TASK = 2000;
-  VIEW_TYPE_OBJECT = 10000;
-  VIEW_TYPE_TYPE = 10001;
-  VIEW_TYPE_SELECTION = 10006;
-  VIEW_TYPE_WIZARD = 20001;
-  VIEW_TYPE_EMPTY = 20100;
-  VIEW_TYPE_SIDEBAR = 20205;
-  VIEW_TYPE_CONTEXT = 20206;
-  VIEW_TYPE_WINDOW = 30001;
-  VIEW_TYPE_TAB = 30002;
-  VIEW_TYPE_HISTORY = 30003;
-  VIEW_TYPE_SPLIT = 30004;
-  VIEW_TYPE_SCROLL = 30008;
-  VIEW_TYPE_BUTTON = 32001;
-  VIEW_TYPE_NUMBER = 35001;
-  VIEW_TYPE_SLIDER = 35002;
-  VIEW_TYPE_STRING = 35101;
-  VIEW_TYPE_TEXT = 35102;
-  VIEW_TYPE_TEXT_LINE = 35103;
-  VIEW_TYPE_CODE = 35110;
-  VIEW_TYPE_TOGGLE = 35201;
-  VIEW_TYPE_PICKER = 35202;
-  VIEW_TYPE_COLOR = 35203;
-  VIEW_TYPE_ICON = 35204;
-  VIEW_TYPE_DATETIME = 35205;
-  VIEW_TYPE_DURATION = 35206;
-  VIEW_TYPE_FILE = 35301;
-  VIEW_TYPE_IMAGE = 35302;
-  VIEW_TYPE_AUDIO = 35303;
-  VIEW_TYPE_VIDEO = 35304;
-  VIEW_TYPE_DOCUMENT = 35305;
-}
-
-// Built-in color types a la SwiftUI or Tailwind.
+// Built-in color formats.
 enum ColorType {
   COLOR_TYPE_UNSPECIFIED = 0;
-  COLOR_TYPE_GRAY = 30;
-  COLOR_TYPE_RED = 31;
-  COLOR_TYPE_ORANGE = 32;
-  COLOR_TYPE_AMBER = 33;
-  COLOR_TYPE_YELLOW = 34;
-  COLOR_TYPE_LIME = 35;
-  COLOR_TYPE_GREEN = 36;
-  COLOR_TYPE_EMERALD = 37;
-  COLOR_TYPE_TEAL = 38;
-  COLOR_TYPE_CYAN = 39;
-  COLOR_TYPE_SKY = 40;
-  COLOR_TYPE_BLUE = 41;
-  COLOR_TYPE_INDIGO = 42;
-  COLOR_TYPE_VIOLET = 43;
-  COLOR_TYPE_PURPLE = 44;
-  COLOR_TYPE_FUCHSIA = 45;
-  COLOR_TYPE_PINK = 46;
-  COLOR_TYPE_ROSE = 47;
+  COLOR_TYPE_BUILTIN = 1;
+  COLOR_TYPE_STYLE = 2;
+  COLOR_TYPE_RGB = 10;
+  COLOR_TYPE_HSL = 11;
+  COLOR_TYPE_P3 = 12;
 }
 
 // Built-in color shades a la Tailwind.
 enum ColorShade {
   COLOR_SHADE_UNSPECIFIED = 0;
+  COLOR_SHADE_S25 = 25;
   COLOR_SHADE_S50 = 50;
   COLOR_SHADE_S100 = 100;
   COLOR_SHADE_S200 = 200;
@@ -1455,102 +1439,87 @@ enum FontSize {
   FONT_SIZE_XL7 = 72;
 }
 
-// The spacing scale for positions, padding, margin, etc. We don't enforce this.
-enum Spacing {
-  SPACING_UNSPECIFIED = 0;
-  SPACING_S1 = 1;
-  SPACING_S2 = 2;
-  SPACING_S3 = 3;
-  SPACING_S4 = 4;
-  SPACING_S6 = 6;
-  SPACING_S8 = 8;
-  SPACING_S10 = 10;
-  SPACING_S12 = 12;
-  SPACING_S14 = 14;
-  SPACING_S16 = 16;
-  SPACING_S20 = 20;
-  SPACING_S24 = 24;
-  SPACING_S28 = 28;
-  SPACING_S32 = 32;
-  SPACING_S36 = 36;
-  SPACING_S40 = 40;
-  SPACING_S44 = 44;
-  SPACING_S48 = 48;
-  SPACING_S52 = 52;
-  SPACING_S56 = 56;
-  SPACING_S60 = 60;
-  SPACING_S64 = 64;
-  SPACING_S72 = 72;
-  SPACING_S80 = 80;
-  SPACING_S96 = 96;
-  SPACING_S128 = 128;
-  SPACING_S160 = 160;
-  SPACING_S192 = 192;
-  SPACING_S224 = 224;
-  SPACING_S256 = 256;
+// Built-in shadow types.
+enum ShadowType {
+  SHADOW_TYPE_UNSPECIFIED = 0;
+  SHADOW_TYPE_BOX = 1;
+  SHADOW_TYPE_REALISTIC = 2;
 }
 
-// An anchor in 2D space.
-enum Anchor {
-  ANCHOR_UNSPECIFIED = 0;
-  ANCHOR_TOP = 1;
-  ANCHOR_TOP_LEFT = 2;
-  ANCHOR_TOP_RIGHT = 3;
-  ANCHOR_RIGHT = 11;
-  ANCHOR_RIGHT_TOP = 12;
-  ANCHOR_RIGHT_BOTTOM = 13;
-  ANCHOR_BOTTOM = 21;
-  ANCHOR_BOTTOM_LEFT = 22;
-  ANCHOR_BOTTOM_RIGHT = 23;
-  ANCHOR_LEFT = 31;
-  ANCHOR_LEFT_TOP = 32;
-  ANCHOR_LEFT_BOTTOM = 33;
+// Built-in shadow positions.
+enum ShadowPosition {
+  SHADOW_POSITION_UNSPECIFIED = 0;
+  SHADOW_POSITION_OUTSIDE = 1;
+  SHADOW_POSITION_INSIDE = 2;
 }
 
-// Which way to orient the contents/subviews of a view.
-enum Orientation {
-  ORIENTATION_UNSPECIFIED = 0;
-  ORIENTATION_HORIZONTAL = 1;
-  ORIENTATION_HORIZONTAL_REVERSED = 2;
-  ORIENTATION_VERTICAL = 11;
-  ORIENTATION_VERTICAL_REVERSED = 12;
+// Built-in border types.
+enum BorderType {
+  BORDER_TYPE_UNSPECIFIED = 0;
+  BORDER_TYPE_NONE = 1;
+  BORDER_TYPE_SOLID = 2;
+  BORDER_TYPE_DASHED = 3;
+  BORDER_TYPE_DOTTED = 4;
+  BORDER_TYPE_DOUBLE = 5;
 }
 
-// How to align the contents/subviews of a view along its orientation.
-enum Alignment {
-  ALIGNMENT_UNSPECIFIED = 0;
-  ALIGNMENT_START = 1;
-  ALIGNMENT_MIDDLE = 2;
-  ALIGNMENT_END = 3;
-  ALIGNMENT_SPACE_BETWEEN = 4;
+enum TextAlign {
+  TEXT_ALIGN_UNSPECIFIED = 0;
+  TEXT_ALIGN_LEFT = 1;
+  TEXT_ALIGN_CENTER = 2;
+  TEXT_ALIGN_RIGHT = 3;
+  TEXT_ALIGN_JUSTIFY = 4;
 }
 
-// The stage of a User view.
-enum UserWizardViewStage {
-  USER_WIZARD_VIEW_STAGE_UNSPECIFIED = 0;
-  USER_WIZARD_VIEW_STAGE_SIGN_UP = 1;
-  USER_WIZARD_VIEW_STAGE_LOG_IN = 2;
+enum TextDecoration {
+  TEXT_DECORATION_UNSPECIFIED = 0;
+  TEXT_DECORATION_NONE = 1;
+  TEXT_DECORATION_UNDERLINE = 2;
+  TEXT_DECORATION_STRIKETHROUGH = 3;
 }
 
-enum ButtonVariant {
-  BUTTON_VARIANT_UNSPECIFIED = 0;
-  BUTTON_VARIANT_PRIMARY = 1;
-  BUTTON_VARIANT_SECONDARY = 2;
-  BUTTON_VARIANT_LINK = 3;
+enum TextTransform {
+  TEXT_TRANSFORM_UNSPECIFIED = 0;
+  TEXT_TRANSFORM_NONE = 1;
+  TEXT_TRANSFORM_UPPERCASE = 2;
+  TEXT_TRANSFORM_LOWERCASE = 3;
+  TEXT_TRANSFORM_CAPITALIZE = 4;
 }
 
-enum PickerVariant {
-  PICKER_VARIANT_UNSPECIFIED = 0;
-  PICKER_VARIANT_MULTI_TOGGLE = 1;
-  PICKER_VARIANT_DROPDOWN = 2;
-  PICKER_VARIANT_DROPDOWN_LARGE = 3;
+// Built-in gradient types.
+enum GradientType {
+  GRADIENT_TYPE_UNSPECIFIED = 0;
+  GRADIENT_TYPE_LINEAR = 1;
+  GRADIENT_TYPE_RADIAL = 2;
+  GRADIENT_TYPE_CONIC = 3;
 }
 
-// The mode of a Context view.
-enum ContextMode {
-  CONTEXT_MODE_UNSPECIFIED = 0;
-  CONTEXT_MODE_DETAIL = 1;
-  CONTEXT_MODE_CHAT = 2;
+enum FillType {
+  FILL_TYPE_UNSPECIFIED = 0;
+  FILL_TYPE_SOLID = 1;
+  FILL_TYPE_GRADIENT = 2;
+  FILL_TYPE_IMAGE = 3;
+}
+
+enum FillPosition {
+  FILL_POSITION_UNSPECIFIED = 0;
+  FILL_POSITION_TOP_LEFT = 1;
+  FILL_POSITION_TOP_CENTER = 2;
+  FILL_POSITION_TOP_RIGHT = 3;
+  FILL_POSITION_LEFT = 10;
+  FILL_POSITION_CENTER = 11;
+  FILL_POSITION_RIGHT = 12;
+  FILL_POSITION_BOTTOM_LEFT = 20;
+  FILL_POSITION_BOTTOM_CENTER = 21;
+  FILL_POSITION_BOTTOM_RIGHT = 22;
+}
+
+enum FillSize {
+  FILL_SIZE_UNSPECIFIED = 0;
+  FILL_SIZE_FILL = 1;
+  FILL_SIZE_STRETCH = 2;
+  FILL_SIZE_FIT = 3;
+  FILL_SIZE_TILE = 4;
 }
 
 enum UserStatus {
@@ -1697,14 +1666,6 @@ message CodeData {
   optional string content = 40;
 }
 
-message ColorData {
-  ObjectType metatype = 1;
-  optional ColorType type = 31;
-  optional ColorShade shade = 32;
-  optional string hex = 33;
-  optional float opacity = 34;
-}
-
 message SelectionData {
   ObjectType metatype = 1;
   SelectionType type = 30;
@@ -1763,8 +1724,8 @@ message TextSpanData {
   optional string content = 33;
   optional NodeReferenceData node_ptr = 34;
   optional string url = 35;
-  optional ColorType color = 50;
-  optional ColorType background_color = 51;
+  optional ColorHue color = 50;
+  optional ColorHue background_color = 51;
   optional bool is_bold = 60;
   optional bool is_italic = 61;
   optional bool is_strikethrough = 62;
@@ -1779,8 +1740,8 @@ message TextLineData {
   TextLineType type = 30;
   repeated TextSpanData spans = 33;
   optional string content = 34;
-  optional ColorType color = 50;
-  optional ColorType background_color = 51;
+  optional ColorHue color = 50;
+  optional ColorHue background_color = 51;
   optional bool is_bold = 60;
   optional bool is_italic = 61;
   optional bool is_strikethrough = 62;
@@ -1958,44 +1919,6 @@ message ChangeData {
   repeated EditData edits = 34;
 }
 
-message FontData {
-  ObjectType metatype = 1;
-  optional FontType type = 31;
-  optional FontWeight weight = 32;
-  optional FontSize size = 33;
-}
-
-message TransformData {
-  ObjectType metatype = 1;
-  optional float translate_x = 30;
-  optional float translate_y = 31;
-  optional float scale_x = 33;
-  optional float scale_y = 34;
-  optional float skew_x = 36;
-  optional float skew_y = 37;
-  optional float rotate_x = 40;
-}
-
-message RectangleData {
-  ObjectType metatype = 1;
-  optional int32 width = 50;
-  optional int32 height = 51;
-  optional float width_relative = 52;
-  optional float height_relative = 53;
-}
-
-message OffsetData {
-  ObjectType metatype = 1;
-  optional int32 top = 40;
-  optional int32 right = 41;
-  optional int32 bottom = 42;
-  optional int32 left = 43;
-  optional float top_relative = 44;
-  optional float right_relative = 45;
-  optional float bottom_relative = 46;
-  optional float left_relative = 47;
-}
-
 message Vector2Data {
   ObjectType metatype = 1;
   float x = 30;
@@ -2017,17 +1940,62 @@ message Vector4Data {
   float w = 33;
 }
 
-message LineData {
+message ColorData {
   ObjectType metatype = 1;
-  repeated Vector2Data points = 30;
+  ColorType type = 30;
+  optional ColorHue hue = 40;
+  optional ColorShade shade = 41;
+  optional NodeReferenceData style_ptr = 42;
+  optional float x = 43;
+  optional float y = 44;
+  optional float z = 45;
+  optional float alpha = 46;
 }
 
-message RectangleConstraintData {
+message BorderData {
   ObjectType metatype = 1;
-  optional int32 min_width = 50;
-  optional int32 max_width = 51;
-  optional int32 min_height = 52;
-  optional int32 max_height = 53;
+  BorderType type = 30;
+  optional int32 width = 40;
+  optional ColorData color = 50;
+  optional int32 radius = 60;
+  optional int32 radius_top_left = 61;
+  optional int32 radius_top_right = 62;
+  optional int32 radius_bottom_right = 63;
+  optional int32 radius_bottom_left = 64;
+}
+
+message GradientStopData {
+  ObjectType metatype = 1;
+  ColorData color = 10;
+  float position = 20;
+}
+
+message GradientData {
+  ObjectType metatype = 1;
+  GradientType type = 30;
+  optional float angle = 40;
+  repeated GradientStopData stops = 50;
+}
+
+message FillData {
+  ObjectType metatype = 1;
+  FillType type = 30;
+  optional ColorData color = 40;
+  optional GradientData gradient = 41;
+  optional NodeReferenceData image_ptr = 50;
+  optional FillPosition position = 60;
+  optional FillSize size = 70;
+}
+
+message ShadowData {
+  ObjectType metatype = 1;
+  ShadowType type = 30;
+  ShadowPosition position = 40;
+  string offset_x = 41;
+  string offset_y = 42;
+  string blur = 43;
+  string spread = 44;
+  optional ColorData color = 45;
 }
 
 message BaseNodeData {
@@ -2321,55 +2289,6 @@ message TableData {
   optional NodeReferenceData definition_ptr = 35;
 }
 
-message AgentData {
-  ObjectType metatype = 1;
-  string id = 2;
-  string ck = 3;
-  optional NodeReferenceData parent_ptr = 4;
-  optional NodeReferenceData bench_ptr = 5;
-  optional NodeReferenceData package_ptr = 9;
-  google.protobuf.Timestamp created_at = 10;
-  optional NodeReferenceData created_by_ptr = 11;
-  google.protobuf.Timestamp updated_at = 12;
-  optional NodeReferenceData updated_by_ptr = 13;
-  optional google.protobuf.Timestamp archived_at = 14;
-  optional google.protobuf.Timestamp deleted_at = 15;
-  optional NodeReferenceData template_ptr = 16;
-  optional NodeReferenceData owned_by_ptr = 17;
-  optional NodeReferenceData claimed_by_ptr = 18;
-  NodeMode mode = 20;
-  optional string name = 31;
-  optional string order_key = 33;
-  optional IconData icon = 34;
-  optional NodeReferenceData definition_ptr = 35;
-  optional NodeReferenceData page_ptr = 54;
-  optional NodeReferenceData cursor_ptr = 55;
-  optional ColorType color = 59;
-  ProcessStatus status = 80;
-  optional google.protobuf.Duration duration = 81;
-  optional ErrorData error = 82;
-  optional NodeReferenceData interruption_ptr = 83;
-  optional google.protobuf.Timestamp scheduled_at = 85;
-  optional google.protobuf.Timestamp started_at = 86;
-  optional google.protobuf.Timestamp active_at = 87;
-  optional google.protobuf.Timestamp interrupted_at = 88;
-  optional google.protobuf.Timestamp terminated_at = 89;
-  optional google.protobuf.Timestamp requested_stop_at = 90;
-  optional google.protobuf.Timestamp requested_pause_at = 91;
-  optional google.protobuf.Timestamp requested_resume_at = 92;
-  optional NodeReferenceData session_ptr = 94;
-  optional NodeReferenceData client_ptr = 95;
-  optional NodeReferenceData computer_ptr = 96;
-  optional NodeReferenceData user_ptr = 97;
-  optional ModelDeveloper model_developer = 100;
-  optional ModelProvider model_provider = 101;
-  optional string model_id = 102;
-  optional string model_name = 103;
-  optional int32 max_attempts = 110;
-  optional google.protobuf.Duration retry_interval = 111;
-  optional float backoff = 112;
-}
-
 message InviteData {
   ObjectType metatype = 1;
   string id = 2;
@@ -2420,7 +2339,6 @@ message RoleData {
   optional string order_key = 33;
   optional IconData icon = 34;
   optional NodeReferenceData definition_ptr = 35;
-  optional ColorType color = 45;
 }
 
 message TeamData {
@@ -2593,9 +2511,56 @@ message ActionData {
   string order_key = 33;
   optional IconData icon = 35;
   optional TextData text = 36;
-  optional Vector2Data position = 45;
   optional CodeData code = 52;
   optional NodeReferenceData tool_ptr = 53;
+  optional ModelDeveloper model_developer = 100;
+  optional ModelProvider model_provider = 101;
+  optional string model_id = 102;
+  optional string model_name = 103;
+  optional int32 max_attempts = 110;
+  optional google.protobuf.Duration retry_interval = 111;
+  optional float backoff = 112;
+}
+
+message AgentData {
+  ObjectType metatype = 1;
+  string id = 2;
+  string ck = 3;
+  optional NodeReferenceData parent_ptr = 4;
+  optional NodeReferenceData bench_ptr = 5;
+  optional NodeReferenceData package_ptr = 9;
+  google.protobuf.Timestamp created_at = 10;
+  optional NodeReferenceData created_by_ptr = 11;
+  google.protobuf.Timestamp updated_at = 12;
+  optional NodeReferenceData updated_by_ptr = 13;
+  optional google.protobuf.Timestamp archived_at = 14;
+  optional google.protobuf.Timestamp deleted_at = 15;
+  optional NodeReferenceData template_ptr = 16;
+  optional NodeReferenceData owned_by_ptr = 17;
+  optional NodeReferenceData claimed_by_ptr = 18;
+  NodeMode mode = 20;
+  optional string name = 31;
+  optional string order_key = 33;
+  optional IconData icon = 34;
+  optional NodeReferenceData definition_ptr = 35;
+  optional NodeReferenceData page_ptr = 54;
+  optional NodeReferenceData cursor_ptr = 55;
+  ProcessStatus status = 80;
+  optional google.protobuf.Duration duration = 81;
+  optional ErrorData error = 82;
+  optional NodeReferenceData interruption_ptr = 83;
+  optional google.protobuf.Timestamp scheduled_at = 85;
+  optional google.protobuf.Timestamp started_at = 86;
+  optional google.protobuf.Timestamp active_at = 87;
+  optional google.protobuf.Timestamp interrupted_at = 88;
+  optional google.protobuf.Timestamp terminated_at = 89;
+  optional google.protobuf.Timestamp requested_stop_at = 90;
+  optional google.protobuf.Timestamp requested_pause_at = 91;
+  optional google.protobuf.Timestamp requested_resume_at = 92;
+  optional NodeReferenceData session_ptr = 94;
+  optional NodeReferenceData client_ptr = 95;
+  optional NodeReferenceData computer_ptr = 96;
+  optional NodeReferenceData user_ptr = 97;
   optional ModelDeveloper model_developer = 100;
   optional ModelProvider model_provider = 101;
   optional string model_id = 102;
@@ -2677,7 +2642,6 @@ message TransitionData {
   string order_key = 33;
   NodeReferenceData source_ptr = 35;
   NodeReferenceData target_ptr = 36;
-  optional ColorData color = 60;
   optional ModelDeveloper model_developer = 100;
   optional ModelProvider model_provider = 101;
   optional string model_id = 102;
@@ -2816,6 +2780,7 @@ message BlockData {
   string order_key = 33;
   optional TextLineData line = 40;
   optional NodeReferenceData node_ptr = 41;
+  optional NodeReferenceData view_ptr = 42;
 }
 
 message DependencyData {
@@ -2879,7 +2844,115 @@ message PageData {
   optional string order_key = 33;
   optional IconData icon = 34;
   optional NodeReferenceData definition_ptr = 35;
-  optional NodeReferenceData thread_ptr = 38;
+}
+
+message ClaimData {
+  ObjectType metatype = 1;
+  string id = 2;
+  string ck = 3;
+  optional NodeReferenceData parent_ptr = 4;
+  optional NodeReferenceData bench_ptr = 5;
+  optional NodeReferenceData package_ptr = 9;
+  google.protobuf.Timestamp created_at = 10;
+  optional NodeReferenceData created_by_ptr = 11;
+  google.protobuf.Timestamp updated_at = 12;
+  optional NodeReferenceData updated_by_ptr = 13;
+  optional google.protobuf.Timestamp archived_at = 14;
+  optional google.protobuf.Timestamp deleted_at = 15;
+  optional NodeReferenceData template_ptr = 16;
+  optional NodeReferenceData owned_by_ptr = 17;
+  NodeMode mode = 20;
+  ClaimType type = 30;
+  optional string name = 31;
+  string order_key = 33;
+  ClaimStatus status = 50;
+  optional google.protobuf.Duration duration = 51;
+  optional google.protobuf.Timestamp opened_at = 52;
+  optional google.protobuf.Timestamp paused_at = 53;
+  optional google.protobuf.Timestamp resumed_at = 54;
+  optional google.protobuf.Timestamp terminated_at = 55;
+  optional NodeReferenceData target_ptr = 60;
+  optional NodeReferenceData target_template_ptr = 61;
+  bool is_hidden = 65;
+  optional NodeReferenceData session_ptr = 94;
+  optional NodeReferenceData client_ptr = 95;
+  optional NodeReferenceData computer_ptr = 96;
+  optional NodeReferenceData user_ptr = 97;
+}
+
+message CursorData {
+  ObjectType metatype = 1;
+  string id = 2;
+  optional NodeReferenceData parent_ptr = 4;
+  optional NodeReferenceData bench_ptr = 5;
+  optional NodeReferenceData package_ptr = 9;
+  google.protobuf.Timestamp created_at = 10;
+  optional NodeReferenceData created_by_ptr = 11;
+  google.protobuf.Timestamp updated_at = 12;
+  optional NodeReferenceData updated_by_ptr = 13;
+  optional google.protobuf.Timestamp archived_at = 14;
+  optional google.protobuf.Timestamp deleted_at = 15;
+  optional NodeReferenceData owned_by_ptr = 17;
+  NodeMode mode = 20;
+  CursorType type = 30;
+  optional TextLineData title = 32;
+  CursorStatus status = 40;
+  optional google.protobuf.Timestamp started_at = 41;
+  optional google.protobuf.Timestamp active_at = 42;
+  optional google.protobuf.Timestamp seen_at = 43;
+  optional google.protobuf.Timestamp terminated_at = 45;
+  optional NodeReferenceData target_ptr = 50;
+  optional SelectionData selection = 51;
+  optional SelectionData focus = 52;
+  optional ExpressionData filter = 53;
+  repeated ExpressionData sort = 54;
+  optional string url = 55;
+  optional NodeReferenceData session_ptr = 94;
+  optional NodeReferenceData client_ptr = 95;
+  optional NodeReferenceData computer_ptr = 96;
+  optional NodeReferenceData user_ptr = 97;
+}
+
+message TaskData {
+  ObjectType metatype = 1;
+  string id = 2;
+  string ck = 3;
+  optional NodeReferenceData parent_ptr = 4;
+  optional NodeReferenceData bench_ptr = 5;
+  optional NodeReferenceData package_ptr = 9;
+  google.protobuf.Timestamp created_at = 10;
+  optional NodeReferenceData created_by_ptr = 11;
+  google.protobuf.Timestamp updated_at = 12;
+  optional NodeReferenceData updated_by_ptr = 13;
+  optional google.protobuf.Timestamp archived_at = 14;
+  optional google.protobuf.Timestamp deleted_at = 15;
+  optional NodeReferenceData template_ptr = 16;
+  optional NodeReferenceData owned_by_ptr = 17;
+  optional NodeReferenceData claimed_by_ptr = 18;
+  NodeMode mode = 20;
+  optional TextLineData title = 32;
+  optional string order_key = 33;
+  optional IconData icon = 34;
+  optional NodeReferenceData definition_ptr = 35;
+  optional google.protobuf.Timestamp due_at = 50;
+  optional NodeReferenceData assigned_to_ptr = 51;
+  repeated NodeReferenceData nodes_ptr = 52;
+  ProcessStatus status = 80;
+  optional google.protobuf.Duration duration = 81;
+  optional ErrorData error = 82;
+  optional NodeReferenceData interruption_ptr = 83;
+  optional google.protobuf.Timestamp scheduled_at = 85;
+  optional google.protobuf.Timestamp started_at = 86;
+  optional google.protobuf.Timestamp active_at = 87;
+  optional google.protobuf.Timestamp interrupted_at = 88;
+  optional google.protobuf.Timestamp terminated_at = 89;
+  optional google.protobuf.Timestamp requested_stop_at = 90;
+  optional google.protobuf.Timestamp requested_pause_at = 91;
+  optional google.protobuf.Timestamp requested_resume_at = 92;
+  optional NodeReferenceData session_ptr = 94;
+  optional NodeReferenceData client_ptr = 95;
+  optional NodeReferenceData computer_ptr = 96;
+  optional NodeReferenceData user_ptr = 97;
 }
 
 message InterruptionData {
@@ -3025,10 +3098,9 @@ message SpanData {
   optional NodeReferenceData user_ptr = 97;
 }
 
-message ClaimData {
+message SpaceData {
   ObjectType metatype = 1;
   string id = 2;
-  string ck = 3;
   optional NodeReferenceData parent_ptr = 4;
   optional NodeReferenceData bench_ptr = 5;
   optional NodeReferenceData package_ptr = 9;
@@ -3041,61 +3113,20 @@ message ClaimData {
   optional NodeReferenceData template_ptr = 16;
   optional NodeReferenceData owned_by_ptr = 17;
   NodeMode mode = 20;
-  ClaimType type = 30;
+  SpaceType type = 30;
   optional string name = 31;
   string order_key = 33;
-  ClaimStatus status = 50;
-  optional google.protobuf.Duration duration = 51;
-  optional google.protobuf.Timestamp opened_at = 52;
-  optional google.protobuf.Timestamp paused_at = 53;
-  optional google.protobuf.Timestamp resumed_at = 54;
-  optional google.protobuf.Timestamp terminated_at = 55;
-  optional NodeReferenceData target_ptr = 60;
-  optional NodeReferenceData target_template_ptr = 61;
-  bool is_hidden = 65;
-  optional NodeReferenceData session_ptr = 94;
-  optional NodeReferenceData client_ptr = 95;
-  optional NodeReferenceData computer_ptr = 96;
-  optional NodeReferenceData user_ptr = 97;
+  optional SelectionData selection = 70;
+  optional NodeReferenceData focus_ptr = 71;
+  optional NodeReferenceData inspection_ptr = 72;
+  optional NodeReferenceData container_ptr = 73;
+  optional NodeReferenceData page_ptr = 74;
+  optional NodeReferenceData thread_ptr = 75;
 }
 
-message CursorData {
+message ThreadViewData {
   ObjectType metatype = 1;
   string id = 2;
-  optional NodeReferenceData parent_ptr = 4;
-  optional NodeReferenceData bench_ptr = 5;
-  optional NodeReferenceData package_ptr = 9;
-  google.protobuf.Timestamp created_at = 10;
-  optional NodeReferenceData created_by_ptr = 11;
-  google.protobuf.Timestamp updated_at = 12;
-  optional NodeReferenceData updated_by_ptr = 13;
-  optional google.protobuf.Timestamp archived_at = 14;
-  optional google.protobuf.Timestamp deleted_at = 15;
-  optional NodeReferenceData owned_by_ptr = 17;
-  NodeMode mode = 20;
-  CursorType type = 30;
-  optional TextLineData title = 32;
-  CursorStatus status = 40;
-  optional google.protobuf.Timestamp started_at = 41;
-  optional google.protobuf.Timestamp active_at = 42;
-  optional google.protobuf.Timestamp seen_at = 43;
-  optional google.protobuf.Timestamp terminated_at = 45;
-  optional NodeReferenceData target_ptr = 50;
-  optional SelectionData selection = 51;
-  optional SelectionData focus = 52;
-  optional ExpressionData filter = 53;
-  repeated ExpressionData sort = 54;
-  optional string url = 55;
-  optional NodeReferenceData session_ptr = 94;
-  optional NodeReferenceData client_ptr = 95;
-  optional NodeReferenceData computer_ptr = 96;
-  optional NodeReferenceData user_ptr = 97;
-}
-
-message TaskData {
-  ObjectType metatype = 1;
-  string id = 2;
-  string ck = 3;
   optional NodeReferenceData parent_ptr = 4;
   optional NodeReferenceData bench_ptr = 5;
   optional NodeReferenceData package_ptr = 9;
@@ -3106,32 +3137,200 @@ message TaskData {
   optional google.protobuf.Timestamp archived_at = 14;
   optional google.protobuf.Timestamp deleted_at = 15;
   optional NodeReferenceData template_ptr = 16;
-  optional NodeReferenceData owned_by_ptr = 17;
-  optional NodeReferenceData claimed_by_ptr = 18;
   NodeMode mode = 20;
-  optional TextLineData title = 32;
+  optional string name = 31;
   optional string order_key = 33;
   optional IconData icon = 34;
   optional NodeReferenceData definition_ptr = 35;
-  optional google.protobuf.Timestamp due_at = 50;
-  optional NodeReferenceData assigned_to_ptr = 51;
-  repeated NodeReferenceData nodes_ptr = 52;
-  ProcessStatus status = 80;
-  optional google.protobuf.Duration duration = 81;
-  optional ErrorData error = 82;
-  optional NodeReferenceData interruption_ptr = 83;
-  optional google.protobuf.Timestamp scheduled_at = 85;
-  optional google.protobuf.Timestamp started_at = 86;
-  optional google.protobuf.Timestamp active_at = 87;
-  optional google.protobuf.Timestamp interrupted_at = 88;
-  optional google.protobuf.Timestamp terminated_at = 89;
-  optional google.protobuf.Timestamp requested_stop_at = 90;
-  optional google.protobuf.Timestamp requested_pause_at = 91;
-  optional google.protobuf.Timestamp requested_resume_at = 92;
-  optional NodeReferenceData session_ptr = 94;
-  optional NodeReferenceData client_ptr = 95;
-  optional NodeReferenceData computer_ptr = 96;
-  optional NodeReferenceData user_ptr = 97;
+  optional TextData draft_text = 40;
+  repeated NodeReferenceData draft_nodes_ptr = 41;
+  optional NodeReferenceData draft_reply_to_ptr = 42;
+  optional NodeReferenceData focus_ptr = 70;
+  optional SelectionData selection = 71;
+}
+
+message WizardViewData {
+  ObjectType metatype = 1;
+  string id = 2;
+  optional NodeReferenceData parent_ptr = 4;
+  optional NodeReferenceData bench_ptr = 5;
+  optional NodeReferenceData package_ptr = 9;
+  google.protobuf.Timestamp created_at = 10;
+  optional NodeReferenceData created_by_ptr = 11;
+  google.protobuf.Timestamp updated_at = 12;
+  optional NodeReferenceData updated_by_ptr = 13;
+  optional google.protobuf.Timestamp archived_at = 14;
+  optional google.protobuf.Timestamp deleted_at = 15;
+  optional NodeReferenceData template_ptr = 16;
+  NodeMode mode = 20;
+  optional string name = 31;
+  optional string order_key = 33;
+  optional IconData icon = 34;
+  optional NodeReferenceData definition_ptr = 35;
+  optional NodeReferenceData focus_ptr = 70;
+  optional SelectionData selection = 71;
+}
+
+message ColorStyleData {
+  ObjectType metatype = 1;
+  string id = 2;
+  optional NodeReferenceData parent_ptr = 4;
+  optional NodeReferenceData bench_ptr = 5;
+  optional NodeReferenceData package_ptr = 9;
+  google.protobuf.Timestamp created_at = 10;
+  optional NodeReferenceData created_by_ptr = 11;
+  google.protobuf.Timestamp updated_at = 12;
+  optional NodeReferenceData updated_by_ptr = 13;
+  optional google.protobuf.Timestamp archived_at = 14;
+  optional google.protobuf.Timestamp deleted_at = 15;
+  optional NodeReferenceData template_ptr = 16;
+  NodeMode mode = 20;
+  ColorType type = 30;
+  optional string name = 31;
+  optional string order_key = 33;
+  optional IconData icon = 34;
+  optional NodeReferenceData definition_ptr = 35;
+  optional ColorHue hue = 40;
+  optional ColorShade shade = 41;
+  optional NodeReferenceData style_ptr = 42;
+  optional float x = 43;
+  optional float y = 44;
+  optional float z = 45;
+  optional float alpha = 46;
+  optional ColorData dark = 50;
+}
+
+message BorderStyleData {
+  ObjectType metatype = 1;
+  string id = 2;
+  optional NodeReferenceData parent_ptr = 4;
+  optional NodeReferenceData bench_ptr = 5;
+  optional NodeReferenceData package_ptr = 9;
+  google.protobuf.Timestamp created_at = 10;
+  optional NodeReferenceData created_by_ptr = 11;
+  google.protobuf.Timestamp updated_at = 12;
+  optional NodeReferenceData updated_by_ptr = 13;
+  optional google.protobuf.Timestamp archived_at = 14;
+  optional google.protobuf.Timestamp deleted_at = 15;
+  optional NodeReferenceData template_ptr = 16;
+  NodeMode mode = 20;
+  BorderType type = 30;
+  optional string name = 31;
+  optional string order_key = 33;
+  optional IconData icon = 34;
+  optional NodeReferenceData definition_ptr = 35;
+  optional int32 width = 40;
+  optional ColorData color = 50;
+  optional int32 radius = 60;
+  optional int32 radius_top_left = 61;
+  optional int32 radius_top_right = 62;
+  optional int32 radius_bottom_right = 63;
+  optional int32 radius_bottom_left = 64;
+}
+
+message GradientStyleData {
+  ObjectType metatype = 1;
+  string id = 2;
+  optional NodeReferenceData parent_ptr = 4;
+  optional NodeReferenceData bench_ptr = 5;
+  optional NodeReferenceData package_ptr = 9;
+  google.protobuf.Timestamp created_at = 10;
+  optional NodeReferenceData created_by_ptr = 11;
+  google.protobuf.Timestamp updated_at = 12;
+  optional NodeReferenceData updated_by_ptr = 13;
+  optional google.protobuf.Timestamp archived_at = 14;
+  optional google.protobuf.Timestamp deleted_at = 15;
+  optional NodeReferenceData template_ptr = 16;
+  NodeMode mode = 20;
+  GradientType type = 30;
+  optional string name = 31;
+  optional string order_key = 33;
+  optional IconData icon = 34;
+  optional NodeReferenceData definition_ptr = 35;
+  optional float angle = 40;
+  repeated GradientStopData stops = 50;
+  optional GradientData dark = 60;
+}
+
+message ShadowStyleData {
+  ObjectType metatype = 1;
+  string id = 2;
+  optional NodeReferenceData parent_ptr = 4;
+  optional NodeReferenceData bench_ptr = 5;
+  optional NodeReferenceData package_ptr = 9;
+  google.protobuf.Timestamp created_at = 10;
+  optional NodeReferenceData created_by_ptr = 11;
+  google.protobuf.Timestamp updated_at = 12;
+  optional NodeReferenceData updated_by_ptr = 13;
+  optional google.protobuf.Timestamp archived_at = 14;
+  optional google.protobuf.Timestamp deleted_at = 15;
+  optional NodeReferenceData template_ptr = 16;
+  NodeMode mode = 20;
+  ShadowType type = 30;
+  optional string name = 31;
+  optional string order_key = 33;
+  optional IconData icon = 34;
+  optional NodeReferenceData definition_ptr = 35;
+  ShadowPosition position = 40;
+  string offset_x = 41;
+  string offset_y = 42;
+  string blur = 43;
+  string spread = 44;
+  optional ColorData color = 45;
+}
+
+message TextStyleData {
+  ObjectType metatype = 1;
+  string id = 2;
+  optional NodeReferenceData parent_ptr = 4;
+  optional NodeReferenceData bench_ptr = 5;
+  optional NodeReferenceData package_ptr = 9;
+  google.protobuf.Timestamp created_at = 10;
+  optional NodeReferenceData created_by_ptr = 11;
+  google.protobuf.Timestamp updated_at = 12;
+  optional NodeReferenceData updated_by_ptr = 13;
+  optional google.protobuf.Timestamp archived_at = 14;
+  optional google.protobuf.Timestamp deleted_at = 15;
+  optional NodeReferenceData template_ptr = 16;
+  NodeMode mode = 20;
+  optional FontType type = 30;
+  optional string name = 31;
+  optional string order_key = 33;
+  optional IconData icon = 34;
+  optional NodeReferenceData definition_ptr = 35;
+  optional FontWeight weight = 41;
+  optional ColorData color = 45;
+  optional FontSize size = 46;
+  optional TextAlign align = 47;
+  optional int32 line_height = 48;
+  optional int32 letter_spacing = 49;
+  optional TextDecoration decoration = 50;
+  optional TextTransform transform = 51;
+}
+
+message ThemeData {
+  ObjectType metatype = 1;
+  string id = 2;
+  optional NodeReferenceData parent_ptr = 4;
+  optional NodeReferenceData bench_ptr = 5;
+  optional NodeReferenceData package_ptr = 9;
+  google.protobuf.Timestamp created_at = 10;
+  optional NodeReferenceData created_by_ptr = 11;
+  google.protobuf.Timestamp updated_at = 12;
+  optional NodeReferenceData updated_by_ptr = 13;
+  optional google.protobuf.Timestamp archived_at = 14;
+  optional google.protobuf.Timestamp deleted_at = 15;
+  optional string order_key = 33;
+  optional IconData icon = 34;
+  optional NodeReferenceData definition_ptr = 35;
+  optional ColorData primary_color = 50;
+  optional ColorData secondary_color = 51;
+  optional ColorData accent_color = 52;
+  optional ColorData muted_color = 53;
+  optional ColorData success_color = 54;
+  optional ColorData warning_color = 55;
+  optional ColorData error_color = 56;
+  optional ColorData info_color = 57;
 }
 
 message ChoiceData {
@@ -3229,74 +3428,6 @@ message OptionData {
   optional IconData icon = 34;
 }
 
-message SpaceData {
-  ObjectType metatype = 1;
-  string id = 2;
-  optional NodeReferenceData parent_ptr = 4;
-  optional NodeReferenceData bench_ptr = 5;
-  optional NodeReferenceData package_ptr = 9;
-  google.protobuf.Timestamp created_at = 10;
-  optional NodeReferenceData created_by_ptr = 11;
-  google.protobuf.Timestamp updated_at = 12;
-  optional NodeReferenceData updated_by_ptr = 13;
-  optional google.protobuf.Timestamp archived_at = 14;
-  optional google.protobuf.Timestamp deleted_at = 15;
-  optional NodeReferenceData template_ptr = 16;
-  optional NodeReferenceData owned_by_ptr = 17;
-  NodeMode mode = 20;
-  SpaceType type = 30;
-  optional string name = 31;
-  string order_key = 33;
-  optional SelectionData selection = 70;
-  optional NodeReferenceData focus_ptr = 71;
-  optional NodeReferenceData inspection_ptr = 72;
-  optional NodeReferenceData container_ptr = 73;
-  optional NodeReferenceData page_ptr = 74;
-  optional NodeReferenceData thread_ptr = 75;
-}
-
-message ViewData {
-  ObjectType metatype = 1;
-  string id = 2;
-  optional NodeReferenceData parent_ptr = 4;
-  optional NodeReferenceData bench_ptr = 5;
-  optional NodeReferenceData package_ptr = 9;
-  google.protobuf.Timestamp created_at = 10;
-  optional NodeReferenceData created_by_ptr = 11;
-  google.protobuf.Timestamp updated_at = 12;
-  optional NodeReferenceData updated_by_ptr = 13;
-  optional google.protobuf.Timestamp archived_at = 14;
-  optional google.protobuf.Timestamp deleted_at = 15;
-  optional NodeReferenceData template_ptr = 16;
-  optional NodeReferenceData owned_by_ptr = 17;
-  optional NodeReferenceData claimed_by_ptr = 18;
-  NodeMode mode = 20;
-  ViewType type = 30;
-  optional string name = 31;
-  optional string title = 32;
-  optional string order_key = 33;
-  optional IconData icon = 34;
-  optional NodeReferenceData definition_ptr = 35;
-  optional TypeData value_type = 41;
-  optional NodeReferenceData node_ptr = 42;
-  optional OffsetData position = 60;
-  optional RectangleData size = 61;
-  optional OffsetData margin = 62;
-  optional OffsetData padding = 63;
-  optional Orientation orientation = 64;
-  optional Alignment alignment = 65;
-  optional TransformData transform = 66;
-  optional RectangleConstraintData constraint = 67;
-  optional NodeReferenceData focus_ptr = 70;
-  optional SelectionData selection = 71;
-  bool is_hidden = 80;
-  bool is_disabled = 81;
-  bool is_input = 82;
-  bool is_inline = 83;
-  bool is_minimal = 84;
-  bool is_loading = 85;
-}
-
 enum BuiltinEnum {
   BUILTIN_ENUM_UNSPECIFIED = 0;
 }
@@ -3348,18 +3479,25 @@ message SomeNodeData {
     ActionData action = 29;
     FlowData flow = 30;
     TransitionData transition = 31;
-    SessionData session = 32;
-    RunData run = 33;
-    SpanData span = 34;
-    InterruptionData interruption = 35;
-    TeamData team = 36;
+    AgentData agent = 32;
+    SessionData session = 33;
+    RunData run = 34;
+    SpanData span = 35;
+    InterruptionData interruption = 36;
     MembershipData membership = 37;
     InviteData invite = 38;
-    RoleData role = 39;
-    AgentData agent = 40;
+    TeamData team = 39;
+    RoleData role = 40;
     SpaceData space = 41;
-    ViewData view = 42;
-    EmptyData empty = 43;
+    WizardViewData wizard_view = 42;
+    ThreadViewData thread_view = 43;
+    ThemeData theme = 44;
+    ColorStyleData color_style = 45;
+    TextStyleData text_style = 46;
+    BorderStyleData border_style = 47;
+    ShadowStyleData shadow_style = 48;
+    GradientStyleData gradient_style = 49;
+    EmptyData empty = 50;
   };
 }
 

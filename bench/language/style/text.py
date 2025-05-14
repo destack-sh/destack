@@ -11,8 +11,10 @@ from bench.language.core import (
     node_component_,
     p_regular,
 )
+from bench.pb2 import TextStyleData
 
 from .color import Color
+from .length import Length
 from .style import StyleBase
 
 
@@ -81,12 +83,12 @@ class TextStyleBase(BuiltinObject):
     color: Optional[Color] = p_regular(45, default=None, struct=StructType.COLOR)
     size: Optional[FontSize] = p_regular(46, default=FontSize.BASE)
     align: Optional[TextAlign] = p_regular(47, default=TextAlign.LEFT)
-    line_height: Optional[int] = p_regular(48, default=None)
-    letter_spacing: Optional[int] = p_regular(49, default=None)
+    line_height: Optional[Length] = p_regular(48, default=None, struct=StructType.LENGTH)
+    letter_spacing: Optional[Length] = p_regular(49, default=None, struct=StructType.LENGTH)
     decoration: Optional[TextDecoration] = p_regular(50, default=TextDecoration.NONE)
     transform: Optional[TextTransform] = p_regular(51, default=TextTransform.NONE)
 
 
 @node_(NodeType.TEXT_STYLE)
-class TextStyle(TextStyleBase, StyleBase):
+class TextStyle(TextStyleBase, StyleBase[TextStyleData]):
     pass

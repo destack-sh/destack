@@ -1,12 +1,11 @@
 from typing import TYPE_CHECKING, Optional, Union
 
-from ..style.color import ColorIn, to_color
 from .const import BuiltinEnum, EnumType, NodeType, StructType, enum_
 from .property import p_regular
 from .struct import Struct, struct_
 
 if TYPE_CHECKING:
-    from bench.language import Color, File
+    from bench.language import Color, ColorIn, File
 
 # pyright: reportIncompatibleVariableOverride=false
 
@@ -40,16 +39,16 @@ class Icon(Struct):
     color: Optional["Color"] = p_regular(40, require=False, array=False, struct=StructType.COLOR)
 
     @staticmethod
-    def new(icon: "IconIn", color: ColorIn | None = None) -> "Icon":
+    def new(icon: "IconIn", color: "ColorIn | None" = None) -> "Icon":
         return to_icon(icon, color)
 
 
 IconIn = Union[Icon, "File", str]
 
 
-def to_icon(icon: IconIn, color: ColorIn | None = None) -> Icon:
+def to_icon(icon: IconIn, color: "ColorIn | None" = None) -> "Icon":
     """Turn something that could be an Icon into an Icon."""
-    from bench.language import File
+    from bench.language import File, to_color
 
     color = to_color(color) if color else None
     if isinstance(icon, str):
