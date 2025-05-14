@@ -11,7 +11,7 @@ from .core import (
     SqlTable,
 )
 
-VERSION = "2025.05.14.0"
+VERSION = "2025.05.14.1"
 
 BENCH_TABLE = SqlTable(
     "bench_bench",
@@ -1865,8 +1865,8 @@ TEXT_STYLE_TABLE = SqlTable(
         SqlColumn("color", PrimitiveType.JSON, is_nullable=True),
         SqlColumn("size", PrimitiveType.INT16, is_nullable=True, default="16"),
         SqlColumn("align", PrimitiveType.INT16, is_nullable=True, default="1"),
-        SqlColumn("line_height", PrimitiveType.INT32, is_nullable=True),
-        SqlColumn("letter_spacing", PrimitiveType.INT32, is_nullable=True),
+        SqlColumn("line_height", PrimitiveType.JSON, is_nullable=True),
+        SqlColumn("letter_spacing", PrimitiveType.JSON, is_nullable=True),
         SqlColumn("decoration", PrimitiveType.INT16, is_nullable=True, default="1"),
         SqlColumn("transform", PrimitiveType.INT16, is_nullable=True, default="1"),
     ),
@@ -1933,10 +1933,10 @@ SHADOW_STYLE_TABLE = SqlTable(
         SqlColumn("icon", PrimitiveType.JSON, is_nullable=True),
         SqlColumn("definition_id", PrimitiveType.UUID, is_nullable=True),
         SqlColumn("position", PrimitiveType.INT16, default="1"),
-        SqlColumn("offset_x", PrimitiveType.STRING),
-        SqlColumn("offset_y", PrimitiveType.STRING),
-        SqlColumn("blur", PrimitiveType.STRING),
-        SqlColumn("spread", PrimitiveType.STRING),
+        SqlColumn("offset_x", PrimitiveType.INT32, default="0"),
+        SqlColumn("offset_y", PrimitiveType.INT32, default="0"),
+        SqlColumn("blur", PrimitiveType.INT32, default="2"),
+        SqlColumn("spread", PrimitiveType.INT32, default="0"),
         SqlColumn("color", PrimitiveType.JSON, is_nullable=True),
     ),
     indexes=(SqlIndex("bench_idx_parent_id", SqlIndexType.BTREE, ("parent_id",), cover=("id",)),),

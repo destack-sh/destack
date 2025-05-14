@@ -2,7 +2,7 @@
 
 from typing import TYPE_CHECKING, Union
 
-VERSION = "2025.05.14.0"
+VERSION = "2025.05.14.1"
 
 # import from all generated files
 from .runtime_pb2 import *
@@ -85,21 +85,15 @@ AnyStructData = Union[
     ClientOriginData,
     NodeReferenceData,
     PropertyReferenceData,
-    PolicyData,
-    PolicyRuleData,
-    PolicySubjectData,
-    AccessZoneData,
-    AccessMatrixData,
-    AccessData,
     TypeData,
     TypeConstraintData,
     FileInfoData,
-    IconData,
     ScheduleData,
     TextData,
     TextLineData,
     TextSpanData,
     CodeData,
+    IconData,
     ExpressionData,
     AggregationResultData,
     SelectionData,
@@ -107,6 +101,12 @@ AnyStructData = Union[
     ErrorData,
     RunTraceData,
     RunFrameData,
+    PolicyData,
+    PolicyRuleData,
+    PolicySubjectData,
+    AccessZoneData,
+    AccessMatrixData,
+    AccessData,
     ColorData,
     ShadowData,
     BorderData,
@@ -116,6 +116,7 @@ AnyStructData = Union[
     GradientStopData,
     GradientData,
     FillData,
+    LengthData,
 ]
 AnyObjectData = AnyNodeData | AnyStructData
 BenchNodeData = Union[
@@ -231,4 +232,8 @@ OwnableNodeData = Union[
     FlowData,
     AgentData,
     SpaceData,
+]
+ViewNodeData = Union[WizardViewData, ThreadViewData]
+StyleNodeData = Union[
+    ColorStyleData, TextStyleData, BorderStyleData, ShadowStyleData, GradientStyleData
 ]
