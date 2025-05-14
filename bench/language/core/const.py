@@ -409,6 +409,7 @@ class EnumType(BuiltinEnum):
 
     # code (22300-22349)
     CODE_TYPE = 22300
+    COLOR_HUE = 22301
 
     # flow (22350-22399)
     ACTION_TYPE = 22350
@@ -431,6 +432,16 @@ class EnumType(BuiltinEnum):
     BUTTON_VARIANT = 22415
     PICKER_VARIANT = 22416
     CONTEXT_MODE = 22417
+    SHADOW_TYPE = 22418
+    SHADOW_POSITION = 22419
+    BORDER_TYPE = 22420
+    TEXT_ALIGN = 22421
+    TEXT_DECORATION = 22422
+    TEXT_TRANSFORM = 22423
+    GRADIENT_TYPE = 22424
+    FILL_TYPE = 22425
+    FILL_POSITION = 22426
+    FILL_SIZE = 22427
     # user (22450-22499)
     USER_STATUS = 22450
     ORGANIZATION_STATUS = 22451
@@ -583,7 +594,7 @@ class NodeType(BuiltinEnum):
     TAB_VIEW = 8120, "Tab Container View", "Tab Container", "fas fa-tabs"
     TAB_PANEL_VIEW = 8121, "Tab Panel View", "Tab Panel", "fas fa-tabs"
     STACK_VIEW = 8130, "Stack Container View", "Stack Container", "fas fa-stack"
-    # DRAWER, SPLIT_DRAWER, GRID, ...
+    # DRAWER, SPLIT_DRAWER, GRID/GRID_ELEMENT, ...
 
     # content views [8200-8400]
     FRAME_VIEW = 8200, "Frame View", "Custom Frame", "fas fa-frame"
@@ -614,8 +625,13 @@ class NodeType(BuiltinEnum):
     TABLE_VIEW = 8420, "Table View", "Table", "fas fa-table"
     THREAD_VIEW = 8430, "Thread View", "Thread", "fas fa-reel"
 
-    # style
-    # THEME, COLOR_STYLE, FONT_STYLE, TEXT_STYLE, BORDER_STYLE, SHADOW_STYLE, ...
+    # style [8500-8600]
+    THEME = 8500, "Theme", "Theme", "fas fa-palette"
+    COLOR_STYLE = 8510, "Color Style", "Color Style", "fas fa-palette"
+    TEXT_STYLE = 8520, "Text Style", "Text Style", "fas fa-text"
+    BORDER_STYLE = 8530, "Border Style", "Border Style", "fas fa-border-all"
+    SHADOW_STYLE = 8540, "Shadow Style", "Shadow Style", "fas fa-shadow"
+    GRADIENT_STYLE = 8550, "Gradient Style", "Gradient Style", "fas fa-gradient"
     # EFFECT, ANIMATION, ...
 
     # canvas?
@@ -844,14 +860,15 @@ class StructType(BuiltinEnum):
     # space/views (13200-13699)
     COLOR = 13200, None, None, "fas fa-palette"
     FONT = 13201, None, None, "fas fa-font"
-    RECTANGLE = 13202, None, None, "fas fa-box"
-    OFFSET = 13203, None, None, "fas fa-arrows-alt"
-    TRANSFORM = 13204, None, None, "fas fa-transform"
+    SHADOW = 13203, None, None, "fas fa-shadow"
+    BORDER = 13204, None, None, "fas fa-border-all"
     VECTOR2 = 13205, None, None, "fas fa-vector-square"
     VECTOR3 = 13206, None, None, "fas fa-vector-square"
     VECTOR4 = 13207, None, None, "fas fa-vector-square"
     LINE = 13208, None, None, "fas fa-bezier-curve"
-    RECTANGLE_CONSTRAINT = 13209, None, None, "fas fa-box-constraint"
+    GRADIENT_STOP = 13209, None, None, "fas fa-gradient"
+    GRADIENT = 13210, None, None, "fas fa-gradient"
+    FILL = 13211, None, None, "fas fa-fill"
 
 
 STRUCT_TYPES: bittuple[StructType] = bittuple(*StructType)

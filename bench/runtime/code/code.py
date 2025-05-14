@@ -14,9 +14,9 @@ from bench.language import (
     Code,
     CodeType,
     CustomObject,
-    IsType,
     Runnable,
     RunType,
+    TypeBase,
     coerce_custom_object_scalar,
 )
 from bench.runtime.core import CodeInvalidError, Interrupted, RunIn, Runner, Runtime
@@ -46,7 +46,7 @@ class CodeRunner(Runner, ABC):
         parent: Runner | None = None,
         agent: Agent | None = None,
         inputs: CustomObject | None = None,
-        outputs: IsType | CustomObject | None = None,
+        outputs: TypeBase | CustomObject | None = None,
         globals: dict[str, Any] | None = None,
     ) -> None:
         super().__init__(

@@ -6,11 +6,11 @@ from bench.language import (
     Agent,
     CustomObject,
     FileType,
-    IsType,
     ModelDeveloper,
     ModelProvider,
     Runnable,
     RunType,
+    TypeBase,
 )
 from bench.runtime.core import RunIn, Runner, Runtime
 
@@ -44,7 +44,7 @@ class ModelRunner[R: Runnable = Runnable](Runner[R], ABC):
         model_id: str,
         parent: Runner | None = None,
         inputs: CustomObject | None = None,
-        outputs: IsType | CustomObject | None = None,
+        outputs: TypeBase | CustomObject | None = None,
         agent: "Agent | None" = None,
     ) -> None:
         super().__init__(

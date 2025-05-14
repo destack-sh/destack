@@ -24,7 +24,6 @@ from bench.language import (
     Error,
     Flow,
     Interruption,
-    IsType,
     ProcessStatus,
     Run,
     Runnable,
@@ -32,6 +31,7 @@ from bench.language import (
     TextLine,
     Transition,
     TransitionType,
+    TypeBase,
     coerce_custom_object_scalar,
 )
 from bench.runtime.core import (
@@ -80,7 +80,7 @@ class FlowRunner[N: Flow = Flow](Runner[N], ABC):
         run: RunIn,
         parent: Runner[Runnable] | None = None,
         inputs: CustomObject | None = None,
-        outputs: IsType | CustomObject | None = None,
+        outputs: TypeBase | CustomObject | None = None,
         agent: Agent | None = None,
     ) -> None:
         super().__init__(

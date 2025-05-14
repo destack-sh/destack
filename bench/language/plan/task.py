@@ -12,13 +12,13 @@ from bench.language.core import (
     IsProcessable,
     IsTimed,
     IsTitled,
-    IsType,
     NodeList,
     NodeType,
     PageNode,
     ProcessStatus,
     Subject,
     TextLineIn,
+    TypeBase,
     p_node_children,
     p_node_parent,
     p_regular,
@@ -88,7 +88,7 @@ class Task(
         self.status = ProcessStatus.FAILED
 
     @cached_property
-    def value_type(self) -> Optional["IsType"]:
+    def value_type(self) -> Optional["TypeBase"]:
         return None
 
     @staticmethod

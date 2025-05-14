@@ -11,10 +11,10 @@ from bench.language import (
     Block,
     Field,
     FileType,
-    IsType,
     PrimitiveType,
     Table,
     Text,
+    TypeBase,
     TypeKind,
     text,
 )
@@ -29,13 +29,13 @@ class SampleGenerator:
     def __init__(self, random: Random):
         self.random = random
 
-    def generate(self, typ: IsType) -> Any:
+    def generate(self, typ: TypeBase) -> Any:
         if not typ.is_list:
             return self.generate_scalar(typ)
         else:
             return [self.generate_scalar(typ) for _ in range(self.random.randint(1, 3))]
 
-    def generate_scalar(self, typ: IsType) -> Any:
+    def generate_scalar(self, typ: TypeBase) -> Any:
         if typ.kind == TypeKind.PRIMITIVE:
             assert typ.primitive_type is not None, f"primitive type is None for {typ!r}"
             if typ.primitive_type == PrimitiveType.STRING:

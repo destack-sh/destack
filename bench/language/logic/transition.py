@@ -9,10 +9,10 @@ from bench.language.core import (
     IsModal,
     IsRunnable,
     IsTemplatable,
-    IsType,
     NodeType,
     PackageNode,
     RunType,
+    TypeBase,
     enum_,
     node_,
     p_internal,
@@ -114,19 +114,19 @@ class Transition(
         self,
         of: Literal["instance", "value"] = "instance",
         field_types: list[FieldType] | None = None,
-    ) -> "IsType | None":
+    ) -> "TypeBase | None":
         return None
 
     @property
-    def resource_type(self) -> "IsType | None":
+    def resource_type(self) -> "TypeBase | None":
         return None  # Links don't have resources (?)
 
     @property
-    def input_type(self) -> "IsType | None":
+    def input_type(self) -> "TypeBase | None":
         return None  # Links don't have inputs (?)
 
     @property
-    def output_type(self) -> "IsType | None":
+    def output_type(self) -> "TypeBase | None":
         return None  # Links don't have outputs (?)
 
     @staticmethod

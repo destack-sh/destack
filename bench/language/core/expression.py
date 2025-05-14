@@ -38,7 +38,7 @@ from .value import unpack_proto_json
 if TYPE_CHECKING:
     from bench.language import (
         Field,
-        IsType,
+        TypeBase,
     )
 
 # pyright: reportIncompatibleVariableOverride=false
@@ -165,7 +165,7 @@ class Expression(Struct):
         return EXPRESSION_KIND_BY_OP[self.type]
 
     @property_
-    def value_type(self) -> "IsType | None":
+    def value_type(self) -> "TypeBase | None":
         prop = self.property
         field = self.field
         if prop is not None:
@@ -463,7 +463,7 @@ def coerce_sort(
     return coerced
 
 
-def _lower_expression_value(typ: "IsType", value: Any) -> Any:
+def _lower_expression_value(typ: "TypeBase", value: Any) -> Any:
     """
     'Lowers' the given value to enable direct comparison.
     This is related to the lower_conditional pass we do in the sql engine backend,
@@ -684,11 +684,11 @@ A = functools.partial(E, _expect_t=ExpressionKind.AGGREGATION)
 
 
 class UnsupportedExpressionError(ValueError):
-    def __init__(self, type: "IsType", thing: Any):
+    def __init__(self, type: "TypeBase", thing: Any):
         super().__init__(f"{type!r} does not support {thing!r}")
 
 
-def type_supports_expression(typ: "IsType", op: ExpressionType) -> bool:
+def type_supports_expression(typ: "TypeBase", op: ExpressionType) -> bool:
     """Checks if the given type supports the given expression operator."""
     if op.kind == ExpressionKind.SORT:
         if typ.primitive_type is not None and (
@@ -719,7 +719,7 @@ def type_supports_expression(typ: "IsType", op: ExpressionType) -> bool:
     return False
 
 
-def _check_type_supports(typ: "IsType", op: ExpressionType):
+def _check_type_supports(typ: "TypeBase", op: ExpressionType):
     """Asserts that the field supports the given expression operator."""
     if not type_supports_expression(typ, op):
         raise UnsupportedExpressionError(typ, op)
@@ -764,7 +764,7 @@ class _IntoQuery:
     """
 
     @property
-    def type_info(self) -> "IsType":
+    def type_info(self) -> "TypeBase":
         raise NotImplementedError(f"{self!r} does not implement type")
 
     #

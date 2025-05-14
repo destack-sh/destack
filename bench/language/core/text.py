@@ -13,13 +13,13 @@ from .property import p_regular
 from .struct import Struct, struct_
 
 if TYPE_CHECKING:
-    from bench.language import Aliasing, ColorType
+    from bench.language import Aliasing, ColorHue
 
 
 @object_()
 class TextOptionsBase(BuiltinObject):
-    color: Optional["ColorType"] = p_regular(50, default=None)
-    background_color: Optional["ColorType"] = p_regular(51, default=None)
+    color: Optional["ColorHue"] = p_regular(50, default=None)
+    background_color: Optional["ColorHue"] = p_regular(51, default=None)
     is_bold: Optional[bool] = p_regular(60, default=None)
     is_italic: Optional[bool] = p_regular(61, default=None)
     is_strikethrough: Optional[bool] = p_regular(62, default=None)
@@ -104,8 +104,8 @@ class TextSpan(TextOptionsBase, Struct):
         is_strikethrough: bool | None = None,
         is_underline: bool | None = None,
         is_spoiler: bool | None = None,
-        color: "ColorType | None" = None,
-        background_color: "ColorType | None" = None,
+        color: "ColorHue | None" = None,
+        background_color: "ColorHue | None" = None,
     ) -> "TextSpan":
         return TextSpan(
             type=type,
@@ -238,7 +238,7 @@ class TextLine(TextOptionsBase, Struct):
         is_strikethrough: bool | None = None,
         is_underline: bool | None = None,
         is_spoiler: bool | None = None,
-        color: "ColorType | None" = None,
+        color: "ColorHue | None" = None,
     ) -> "TextLine":
         if spans is None:
             spans_list = []
@@ -328,17 +328,17 @@ MARKER_TO_FLAG = {
 }
 
 
-def _parse_color(color: str) -> "ColorType":
+def _parse_color(color: str) -> "ColorHue":
     """
     Parse a color from a string.
     """
-    from bench.language import ColorType
+    from bench.language import ColorHue
 
     try:
-        return ColorType[color.upper()]
+        return ColorHue[color.upper()]
     except KeyError as e:
         raise ValueError(
-            f"invalid color: {color} (must be one of {', '.join(ColorType.__members__.keys())})"
+            f"invalid color: {color} (must be one of {', '.join(ColorHue.__members__.keys())})"
         ) from e
 
 
@@ -581,7 +581,7 @@ def markdown_line_to_line(line: str, aliasing: "Aliasing | None" = None) -> Text
     """
     Parse a markdown line into a TextLine.
     """
-    from bench.language import ColorType, get_active_aliasing
+    from bench.language import ColorHue, get_active_aliasing
 
     # aliasing
     if aliasing is None:
@@ -633,7 +633,7 @@ def markdown_line_to_line(line: str, aliasing: "Aliasing | None" = None) -> Text
     spans = _parse_inline(content, aliasing)
     line_obj = TextLine(type=ttype, spans=spans)
     if line_color:
-        line_obj.color = ColorType[line_color]
+        line_obj.color = ColorHue[line_color]
     return line_obj
 
 
@@ -743,7 +743,7 @@ def _get_span_options(span: TextSpan) -> Sequence[str]:
     return tuple(flag for flag in MARKER_ORDER if getattr(span, flag))
 
 
-def _render_color(color: "ColorType") -> str:
+def _render_color(color: "ColorHue") -> str:
     """
     Render a ColorType as a string.
     """
@@ -819,7 +819,7 @@ def _render_inline(spans: Sequence[TextSpan], aliasing: "Aliasing | None" = None
     """
     Group consecutive spans with the same color so that the outer color marker is rendered only once.
     """
-    grouped: list[tuple[ColorType | None, list[TextSpan]]] = []
+    grouped: list[tuple[ColorHue | None, list[TextSpan]]] = []
     current_color = None
     current_group: list[TextSpan] = []
     for span in spans:
