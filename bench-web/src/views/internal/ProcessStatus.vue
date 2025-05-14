@@ -1,13 +1,10 @@
 <script lang="ts" setup>
-import { toCamelName } from "@/language/core/const";
 import { getProcessDurationString, isProcessActive, isProcessInterrupted } from "@/language/runtime/process";
 import {
   ColorShade,
   Orientation,
-  RunData,
-  ProcessStatus,
   ProcessStatusOptionInfo,
-  ProcessableNodeData,
+  ProcessableNodeData
 } from "@/proto/wire";
 import { IconInline, makeIcon } from "@/ui/icon";
 import { getProcessColorHex } from "@/ui/style";
@@ -52,12 +49,5 @@ const props = defineProps<{
     </template>
     <!-- Duration -->
     <span class="text-gray-400">{{ getProcessDurationString(node, { minUnit: "s" }) }}</span>
-    <!-- Highlight -->
-    <IconInline
-      v-if="isProcessInterrupted(node)"
-      v-tooltip="{ title: toCamelName(ProcessStatus, node.status), small: true, group: 'run.status' }"
-      class="text-pink-500 transition-colors duration-75"
-      v-bind="makeIcon(ProcessStatusOptionInfo[node.status]!.icon!)"
-    />
   </div>
 </template>

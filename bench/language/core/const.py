@@ -48,7 +48,7 @@ class _Unset:
 
 
 # forever constants
-VERSION = "2025.05.12.0"
+VERSION = "2025.05.14.0"
 UUID_NAMESPACE = uuid5(UUID(int=0), b"bench")
 CK_LENGTH_B64 = 24  # 1.5 * CK_LENGTH_BYTES (must be integer)
 FLOAT_EPSILON = 1e-6
@@ -424,14 +424,10 @@ class EnumType(BuiltinEnum):
     FONT_TYPE = 22404
     FONT_WEIGHT = 22405
     FONT_SIZE = 22406
-    SPACING = 22407
-    ANCHOR = 22408
-    ORIENTATION = 22409
-    ALIGNMENT = 22410
-    USER_WIZARD_STAGE = 22411
-    BUTTON_VARIANT = 22415
-    PICKER_VARIANT = 22416
-    CONTEXT_MODE = 22417
+    # SPACING = 22407
+    # ANCHOR = 22408
+    # ORIENTATION = 22409
+    # ALIGNMENT = 22410
     SHADOW_TYPE = 22418
     SHADOW_POSITION = 22419
     BORDER_TYPE = 22420
@@ -442,6 +438,7 @@ class EnumType(BuiltinEnum):
     FILL_TYPE = 22425
     FILL_POSITION = 22426
     FILL_SIZE = 22427
+    LENGTH_UNIT = 22428
     # user (22450-22499)
     USER_STATUS = 22450
     ORGANIZATION_STATUS = 22451
@@ -559,7 +556,7 @@ class NodeType(BuiltinEnum):
     # analytics
     # METER, METRIC, SURVEY, REPLAY, ...
 
-    # localization
+    # locale
     # LOCALE, TRANSLATION, ...
 
     # access
@@ -581,58 +578,58 @@ class NodeType(BuiltinEnum):
 
     # space [8000-8100]
     SPACE = 8000, "Space", "Space", "fas fa-galaxy"
-    SPACE_WIZARD_VIEW = 8001, "Space Wizard View", "Space Wizard", "fas fa-wand-sparkles"
-    SPACE_SIDEBAR_VIEW = 8002, "Space Sidebar View", "Space Sidebar", "fas fa-bars"
-    SPACE_CONTEXT_VIEW = 8003, "Space Context View", "Space Context", "fas fa-sitemap"
+    WIZARD_VIEW = 8010, "Wizard View", "Wizard", "fas fa-wand-sparkles"
+    # SIDEBAR_VIEW = 8011, "Sidebar View", "Sidebar", "fas fa-bars"
+    # CONTEXT_VIEW = 8012, "Context View", "Context", "fas fa-sitemap"
     # SCENE, WIDGET, ...
 
     # container views [8100-8200]
-    SPLIT_VIEW = 8100, "Split Container View", "Split Container", "fas fa-columns"
-    SPLIT_PANEL_VIEW = 8101, "Split Panel View", "Split Panel", "fas fa-columns"
-    SPLIT_HANDLE_VIEW = 8102, "Split Handle View", "Split Handle", "fas fa-columns"
-    SCROLL_VIEW = 8110, "Scroll Container View", "Scroll Container", "fas fa-scroll"
-    TAB_VIEW = 8120, "Tab Container View", "Tab Container", "fas fa-tabs"
-    TAB_PANEL_VIEW = 8121, "Tab Panel View", "Tab Panel", "fas fa-tabs"
-    STACK_VIEW = 8130, "Stack Container View", "Stack Container", "fas fa-stack"
+    # FRAME_VIEW = 8100, "Frame View", "Fixed Container", "fas fa-frame"
+    # STACK_VIEW = 8110, "Stack View", "Stack Container", "fas fa-stack"
+    # SPLIT_VIEW = 8120, "Split View", "Split Container", "fas fa-columns"
+    # SPLIT_PANEL_VIEW = 8121, "Split Panel View", "Split Panel", "fas fa-columns"
+    # SPLIT_HANDLE_VIEW = 8122, "Split Handle View", "Split Handle", "fas fa-columns"
+    # SCROLL_VIEW = 8130, "Scroll Container View", "Scroll Container", "fas fa-scroll"
+    # TAB_VIEW = 8140, "Tab Container View", "Tab Container", "fas fa-tabs"
+    # TAB_PANEL_VIEW = 8141, "Tab Panel View", "Tab Panel", "fas fa-tabs"
     # DRAWER, SPLIT_DRAWER, GRID/GRID_ELEMENT, ...
 
     # content views [8200-8400]
-    FRAME_VIEW = 8200, "Frame View", "Custom Frame", "fas fa-frame"
-    NUMBER_VIEW = 8210, "Number View", "Number", "fas fa-hashtag"
-    SLIDER_VIEW = 8211, "Slider View", "Slider", "fas fa-slider"
-    LABEL_VIEW = 8220, "Label View", "Label", "fas fa-font-case"
-    STRING_VIEW = 8221, "String View", "String", "fas fa-font-case"
-    TEXT_VIEW = 8222, "Text View", "Text", "fas fa-text"
-    TEXT_LINE_VIEW = 8223, "Text Line View", "Text Line", "fas fa-text"
-    CODE_VIEW = 8224, "Code View", "Code", "fas fa-code"
-    TOGGLE_VIEW = 8230, "Toggle View", "Toggle", "fas fa-square-check"
-    PICKER_VIEW = 8231, "Picker View", "Picker", "fas fa-caret-circle-down"
-    COLOR_VIEW = 8232, "Color View", "Color", "fas fa-palette"
-    ICON_VIEW = 8233, "Icon View", "Icon", "fas fa-icons"
-    DATETIME_VIEW = 8240, "Datetime View", "Datetime", "fas fa-calendar-days"
-    DURATION_VIEW = 8241, "Duration View", "Duration", "fas fa-stopwatch"
-    FILE_VIEW = 8250, "File View", "File", "fas fa-file"
-    IMAGE_VIEW = 8251, "Image View", "Image", "fas fa-image"
-    AUDIO_VIEW = 8252, "Audio View", "Audio", "fas fa-volume"
-    VIDEO_VIEW = 8253, "Video View", "Video", "fas fa-video"
-    DOCUMENT_VIEW = 8254, "Document View", "Document", "fas fa-file-alt"
-    BUTTON_VIEW = 8360, "Button View", "Button", "fas fa-hand-pointer"
-    LINK_VIEW = 8361, "Link View", "Link", "fas fa-link"
+    # NUMBER_VIEW = 8210, "Number View", "Number", "fas fa-hashtag"
+    # SLIDER_VIEW = 8211, "Slider View", "Slider", "fas fa-slider"
+    # LABEL_VIEW = 8220, "Label View", "Label", "fas fa-font-case"
+    # STRING_VIEW = 8221, "String View", "String", "fas fa-font-case"
+    # TEXT_VIEW = 8222, "Text View", "Text", "fas fa-text"
+    # TEXT_LINE_VIEW = 8223, "Text Line View", "Text Line", "fas fa-text"
+    # CODE_VIEW = 8224, "Code View", "Code", "fas fa-code"
+    # TOGGLE_VIEW = 8230, "Toggle View", "Toggle", "fas fa-square-check"
+    # PICKER_VIEW = 8231, "Picker View", "Picker", "fas fa-caret-circle-down"
+    # COLOR_VIEW = 8232, "Color View", "Color", "fas fa-palette"
+    # ICON_VIEW = 8233, "Icon View", "Icon", "fas fa-icons"
+    # DATETIME_VIEW = 8240, "Datetime View", "Datetime", "fas fa-calendar-days"
+    # DURATION_VIEW = 8241, "Duration View", "Duration", "fas fa-stopwatch"
+    # FILE_VIEW = 8250, "File View", "File", "fas fa-file"
+    # IMAGE_VIEW = 8251, "Image View", "Image", "fas fa-image"
+    # AUDIO_VIEW = 8252, "Audio View", "Audio", "fas fa-volume"
+    # VIDEO_VIEW = 8253, "Video View", "Video", "fas fa-video"
+    # DOCUMENT_VIEW = 8254, "Document View", "Document", "fas fa-file-alt"
+    # BUTTON_VIEW = 8360, "Button View", "Button", "fas fa-hand-pointer"
+    # LINK_VIEW = 8361, "Link View", "Link", "fas fa-link"
 
     # node views [8400-8500]
-    NODE_VIEW = 8400, "Node View", "Node", "fas fa-hexagon"
-    PAGE_VIEW = 8410, "Page View", "Page", "far fa-file"
-    TABLE_VIEW = 8420, "Table View", "Table", "fas fa-table"
+    # NODE_VIEW = 8400, "Node View", "Node", "fas fa-hexagon"
+    # PAGE_VIEW = 8410, "Page View", "Page", "far fa-file"
+    # TABLE_VIEW = 8420, "Table View", "Table", "fas fa-table"
     THREAD_VIEW = 8430, "Thread View", "Thread", "fas fa-reel"
 
     # style [8500-8600]
     THEME = 8500, "Theme", "Theme", "fas fa-palette"
     COLOR_STYLE = 8510, "Color Style", "Color Style", "fas fa-palette"
-    TEXT_STYLE = 8520, "Text Style", "Text Style", "fas fa-text"
-    BORDER_STYLE = 8530, "Border Style", "Border Style", "fas fa-border-all"
-    SHADOW_STYLE = 8540, "Shadow Style", "Shadow Style", "fas fa-shadow"
-    GRADIENT_STYLE = 8550, "Gradient Style", "Gradient Style", "fas fa-gradient"
-    # EFFECT, ANIMATION, ...
+    TEXT_STYLE = 8511, "Text Style", "Text Style", "fas fa-text"
+    BORDER_STYLE = 8512, "Border Style", "Border Style", "fas fa-border-all"
+    SHADOW_STYLE = 8513, "Shadow Style", "Shadow Style", "fas fa-shadow"
+    GRADIENT_STYLE = 8514, "Gradient Style", "Gradient Style", "fas fa-gradient"
+    # EFFECT, TRANSITION, ANIMATION, ...
 
     # canvas?
     # CANVAS/DRAWING, SHAPE, BRUSH, ...
@@ -672,7 +669,7 @@ def _get_node_types(
 
 GLOBAL_NODE_TYPES = _get_node_types(None, 1000)
 LOCAL_NODE_TYPES = bittuple(NodeType.RECORD)
-REGIONAL_NODE_TYPES = _get_node_types(1000, 9000) - LOCAL_NODE_TYPES
+REGIONAL_NODE_TYPES = _get_node_types(1000, 10000) - LOCAL_NODE_TYPES
 AREA_BY_NODE_TYPE = {
     **dict.fromkeys(GLOBAL_NODE_TYPES, NodeArea.GLOBAL),
     **dict.fromkeys(REGIONAL_NODE_TYPES, NodeArea.REGIONAL),
@@ -710,6 +707,7 @@ STYLE_NODE_TYPES = bittuple(*(n for n in NODE_TYPES if n.name.endswith("STYLE"))
 PAGE_NODE_TYPES = bittuple(
     *RESOURCE_NODE_TYPES,
     *VIEW_NODE_TYPES,
+    *STYLE_NODE_TYPES,
     NodeType.CHOICE,
     NodeType.CLASS,
     NodeType.TABLE,
@@ -722,6 +720,7 @@ PAGE_NODE_TYPES = bittuple(
     NodeType.CHANNEL,
     NodeType.TEAM,
     NodeType.AGENT,
+    NodeType.THEME,
 )
 INSTANTIABLE_NODE_TYPES = bittuple(
     *RESOURCE_NODE_TYPES,
@@ -741,6 +740,7 @@ TEMPLATABLE_NODE_TYPES = bittuple(
     *RESOURCE_NODE_TYPES,
     *INSTANTIABLE_NODE_TYPES,
     *VIEW_NODE_TYPES,
+    *STYLE_NODE_TYPES,
     NodeType.PACKAGE,
     NodeType.DEPENDENCY,
     NodeType.PAGE,
@@ -859,16 +859,15 @@ class StructType(BuiltinEnum):
 
     # space/views (13200-13699)
     COLOR = 13200, None, None, "fas fa-palette"
-    FONT = 13201, None, None, "fas fa-font"
     SHADOW = 13203, None, None, "fas fa-shadow"
     BORDER = 13204, None, None, "fas fa-border-all"
     VECTOR2 = 13205, None, None, "fas fa-vector-square"
     VECTOR3 = 13206, None, None, "fas fa-vector-square"
     VECTOR4 = 13207, None, None, "fas fa-vector-square"
-    LINE = 13208, None, None, "fas fa-bezier-curve"
     GRADIENT_STOP = 13209, None, None, "fas fa-gradient"
     GRADIENT = 13210, None, None, "fas fa-gradient"
     FILL = 13211, None, None, "fas fa-fill"
+    LENGTH = 13212, None, None, "fas fa-length"
 
 
 STRUCT_TYPES: bittuple[StructType] = bittuple(*StructType)

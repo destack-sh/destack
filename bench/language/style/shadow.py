@@ -13,6 +13,7 @@ from bench.language.core import (
     p_regular,
     struct_,
 )
+from bench.pb2 import ShadowStyleData
 
 from .color import Color
 from .style import StyleBase
@@ -38,10 +39,10 @@ class ShadowPosition(BuiltinEnum):
 class ShadowBase(BuiltinObject):
     type: ShadowType = p_regular(30, default=ShadowType.BOX)
     position: ShadowPosition = p_regular(40, default=ShadowPosition.OUTSIDE)
-    offset_x: str = p_regular(41)
-    offset_y: str = p_regular(42)
-    blur: str = p_regular(43)
-    spread: str = p_regular(44)
+    offset_x: int = p_regular(41, default=0)
+    offset_y: int = p_regular(42, default=0)
+    blur: int = p_regular(43, default=2)
+    spread: int = p_regular(44, default=0)
     color: Optional["Color"] = p_regular(45, array=False, default=None, struct=StructType.COLOR)
 
 
@@ -53,7 +54,7 @@ class Shadow(ShadowBase, Struct):
 
 
 @node_(NodeType.SHADOW_STYLE)
-class ShadowStyle(ShadowBase, StyleBase):
+class ShadowStyle(ShadowBase, StyleBase[ShadowStyleData]):
     """A shadow style."""
 
     pass

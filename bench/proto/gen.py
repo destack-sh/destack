@@ -44,12 +44,14 @@ from bench.language import (
     STRUCT_CLASS_BY_TYPE,
     STRUCT_CLASSES,
     STRUCT_TYPES,
+    STYLE_NODE_TYPES,
     SUBJECT_NODE_TYPES,
     TEMPLATABLE_NODE_TYPES,
     TIMED_NODE_TYPES,
     TYPE_CONSTRAINT_BY_FORMAT,
     UNSET,
     VERSION,
+    VIEW_NODE_TYPES,
     BenchNode,
     EnumType,
     PageNode,
@@ -252,6 +254,8 @@ SubjectNodeData = Union[{', '.join([cls.__name__ + 'Data' for cls in NODE_CLASSE
 JoinableNodeData = Union[{', '.join([cls.__name__ + 'Data' for cls in NODE_CLASSES if cls.metatype in JOINABLE_NODE_TYPES])}]
 ClaimableNodeData = Union[{', '.join([cls.__name__ + 'Data' for cls in NODE_CLASSES if cls.metatype in CLAIMABLE_NODE_TYPES])}]
 OwnableNodeData = Union[{', '.join([cls.__name__ + 'Data' for cls in NODE_CLASSES if cls.metatype in OWNABLE_NODE_TYPES])}]
+ViewNodeData = Union[{', '.join([cls.__name__ + 'Data' for cls in NODE_CLASSES if cls.metatype in VIEW_NODE_TYPES])}]
+StyleNodeData = Union[{', '.join([cls.__name__ + 'Data' for cls in NODE_CLASSES if cls.metatype in STYLE_NODE_TYPES])}]
 """)
     on_apply.append(lambda: shutil.rmtree(TARGET_PY_DIR, ignore_errors=True))  # noqa: FURB113
     on_apply.append(lambda: shutil.copytree(TEMP_PY_DIR, TARGET_PY_DIR))
@@ -671,6 +675,8 @@ export const TYPE_CONSTRAINT_BY_FORMAT: Partial<Record<TypeFormat, TypeConstrain
         ("BENCH_NODE_TYPES", BENCH_NODE_TYPES),
         ("GLOBAL_NODE_TYPES", GLOBAL_NODE_TYPES),
         ("PAGE_NODE_TYPES", PAGE_NODE_TYPES),
+        ("VIEW_NODE_TYPES", VIEW_NODE_TYPES),
+        ("STYLE_NODE_TYPES", STYLE_NODE_TYPES),
         ("INSTANTIABLE_NODE_TYPES", INSTANTIABLE_NODE_TYPES),
         ("LOCAL_NODE_TYPES", LOCAL_NODE_TYPES),
         ("PUBLIC_NODE_TYPES", PUBLIC_NODE_TYPES),
@@ -715,6 +721,8 @@ export type InstantiableNodeData = {' | '.join(cls.__name__ + 'Data' for cls in 
 export type ProcessableNodeData = {' | '.join(cls.__name__ + 'Data' for cls in NODE_CLASSES if cls.metatype in PROCESSABLE_NODE_TYPES)}
 export type ResourceNodeData = {' | '.join(cls.__name__ + 'Data' for cls in NODE_CLASSES if issubclass(cls, ResourceBase))}
 export type ProvisionableNodeData = {' | '.join(cls.__name__ + 'Data' for cls in NODE_CLASSES if issubclass(cls, ProvisionableResourceBase))}
+export type ViewNodeData = {' | '.join(cls.__name__ + 'Data' for cls in NODE_CLASSES if cls.metatype in VIEW_NODE_TYPES)}
+export type StyleNodeData = {' | '.join(cls.__name__ + 'Data' for cls in NODE_CLASSES if cls.metatype in STYLE_NODE_TYPES)}
 export type RunnableNodeData = {' | '.join(cls.__name__ + 'Data' for cls in NODE_CLASSES if cls.metatype in RUNNABLE_NODE_TYPES)}
 export type SubjectNodeData = {' | '.join(cls.__name__ + 'Data' for cls in NODE_CLASSES if cls.metatype in SUBJECT_NODE_TYPES)}
 

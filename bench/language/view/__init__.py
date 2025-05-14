@@ -1,10 +1,8 @@
-from .space import Space, SpaceType
+from .thread import ThreadView
 from .vector import Vector2, Vector3, Vector4, vector2, vector3, vector4
-from .view import ThreadView, ViewBase
+from .view import ViewBase
 
 __all__ = [
-    "Space",
-    "SpaceType",
     "ThreadView",
     "Vector2",
     "Vector3",
