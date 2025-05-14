@@ -48,7 +48,7 @@ class _Unset:
 
 
 # forever constants
-VERSION = "2025.05.14.1"
+VERSION = "2025.05.14.2"
 UUID_NAMESPACE = uuid5(UUID(int=0), b"bench")
 CK_LENGTH_B64 = 24  # 1.5 * CK_LENGTH_BYTES (must be integer)
 FLOAT_EPSILON = 1e-6
@@ -387,69 +387,72 @@ class EnumType(BuiltinEnum):
     FLOW_TYPE = 22223
     # TRIGGER, TIMER, BREAKPOINT, ...
 
-    # runtime [22400-22600]
-    PROCESS_STATUS = 22400
-    RUN_TYPE = 22401
-    SPAN_TYPE = 22402
-    SESSION_STATUS = 22403
-    SCHEDULE_FREQUENCY = 22410
-    INTERRUPTION_TYPE = 22200
-    INTERRUPTION_STATUS = 22201
-    INTERRUPTION_RESPONSE = 22202
+    # qa [22400-22600]
+    # ...
+
+    # runtime [22600-22800]
+    PROCESS_STATUS = 22600
+    RUN_TYPE = 22601
+    SPAN_TYPE = 22602
+    SESSION_STATUS = 22603
+    SCHEDULE_FREQUENCY = 22610
+    INTERRUPTION_TYPE = 22620
+    INTERRUPTION_STATUS = 22621
+    INTERRUPTION_RESPONSE = 22622
     # EVENT, SIGNAL, ...
 
-    # identity [22600-22800]
-    ACCESS_MODE = 22600
-    ACCESS_KIND = 22601
-    POLICY_EFFECT = 22602
-    ACCESS_TYPE = 22603
-    QUERY_TYPE = 22650
-    EDIT_TYPE = 22651
-    USE_TYPE = 22652
+    # identity [22800-23000]
+    ACCESS_MODE = 22800
+    ACCESS_KIND = 22801
+    POLICY_EFFECT = 22802
+    ACCESS_TYPE = 22803
+    QUERY_TYPE = 22850
+    EDIT_TYPE = 22851
+    USE_TYPE = 22852
     # PROFILE? (for User, or maybe global?)
 
-    # access [22800-23000]
-    # CHALLENGE, BADGE, POLICY, RULE, ...
+    # access [23000-23200]
+    # ...
 
-    # version [23000-23200]
-    # CHANGE, HISTORY, BRANCH, ...
+    # version [23200-23400]
+    # ...
 
-    # publish [23200-23400]
-    # PUBLICATION, RELEASE, WISHLIST/WATCHLIST, ...
+    # publish [23400-23600]
+    # ...
 
-    # analytics [23400-23600]
-    # METER, METRIC, SURVEY, REPLAY, ...
+    # analytics [23600-23800]
+    # ...
 
-    # locale [23600-23800]
-    # LOCALE, TRANSLATION, ...
+    # locale [23800-24000]
+    # ...
 
-    # model [23800-24000]
-    MODEL_DEVELOPER = 22800
-    MODEL_PROVIDER = 22801
+    # model [24000-24200]
+    MODEL_DEVELOPER = 24000
+    MODEL_PROVIDER = 24001
 
-    # finance [24000-24200]
-    # WALLET, BALANCE, BUDGET, TRANSFER, CREDIT, TIER, PRICE, ORDER, INVOICE, DISCOUNT, DISPUTE, REFUND, ...
+    # finance [24200-24400]
+    # ...
 
-    # web [24200-24400]
-    # ACCOUNT, APPLICATION, DOMAIN, EMAIL, ...
+    # web [24400-24600]
+    # ...
 
-    # world [24400-24600]
-    # PHONE, ADDRESS, ...
+    # world [24600-24800]
+    # ...
 
     # view [28000-29000]
     SPACE_TYPE = 28000
 
     # space [28000-28100]
-    # SCENE, WIDGET, ...
+    # ...
 
     # container views [28100-28200]
-    # FRAME_VIEW, STACK_VIEW, SPLIT_VIEW, SCROLL_VIEW, TAB_VIEW, ...
+    # ...
 
     # content views [28200-28400]
-    # NUMBER_VIEW, SLIDER_VIEW, LABEL_VIEW, STRING_VIEW, TEXT_VIEW, ...
+    # ...
 
     # node views [28400-28500]
-    # NODE_VIEW, PAGE_VIEW, TABLE_VIEW, THREAD_VIEW, ...
+    # ...
 
     # style [28500-28600]
     COLOR_TYPE = 28010
@@ -458,9 +461,10 @@ class EnumType(BuiltinEnum):
     FONT_TYPE = 28020
     FONT_WEIGHT = 28021
     FONT_SIZE = 28022
-    TEXT_ALIGN = 28023
-    TEXT_DECORATION = 28024
-    TEXT_TRANSFORM = 28025
+    TEXT_TYPE = 28023
+    TEXT_ALIGN = 28024
+    TEXT_DECORATION = 28025
+    TEXT_TRANSFORM = 28026
     SHADOW_TYPE = 28030
     SHADOW_POSITION = 28031
     BORDER_TYPE = 28040
@@ -533,7 +537,7 @@ class NodeType(BuiltinEnum):
     THREAD = 1810, "Thread", "Thread", "fas fa-reel"
     MESSAGE = 1820, "Message", "Message", "fas fa-message"
     NOTIFICATION = 1850, "Notification", "Notification", "fas fa-bell"
-    # POLL, VOTE, REACTION, ...
+    # POLL, VOTE, RATING, REACTION, ...
 
     # plan [2000-2200]
     TASK = 2000, "Task", "To-do item", "far fa-square-check"
@@ -549,45 +553,48 @@ class NodeType(BuiltinEnum):
     AGENT = 2250, "Agent", "Identity for an AI", "fas fa-robot"
     # TRIGGER, TIMER, BREAKPOINT, ...
 
-    # runtime [2400-2600]
-    SESSION = 2400, "Session", "Session", "fas fa-circle-play"
-    RUN = 2410, "Run", "Run", "fas fa-play"
-    SPAN = 2420, "Span", "Span", "fas fa-ruler-horizontal"
-    INTERRUPTION = 2430, "Interruption", "Interruption", "fas fa-hand"
+    # qa [2400-2600]
+    # ...
+
+    # runtime [2600-2800]
+    SESSION = 2600, "Session", "Session", "fas fa-circle-play"
+    RUN = 2610, "Run", "Run", "fas fa-play"
+    SPAN = 2620, "Span", "Span", "fas fa-ruler-horizontal"
+    INTERRUPTION = 2630, "Interruption", "Interruption", "fas fa-hand"
     # EVENT, SIGNAL, ...
 
-    # identity [2600-2800]
-    MEMBERSHIP = 2600, "Membership", "Membership to something", "fas fa-users"
-    INVITE = 2610, "Invite", "Invite to something", "fas fa-user-plus"
-    TEAM = 2630, "Team", "Group of Users or Agents", "fas fa-users"
-    ROLE = 2640, "Role", "Role", "fas fa-user-tag"
+    # identity [2800-3000]
+    MEMBERSHIP = 2800, "Membership", "Membership to something", "fas fa-users"
+    INVITE = 2810, "Invite", "Invite to something", "fas fa-user-plus"
+    TEAM = 2820, "Team", "Group of Users or Agents", "fas fa-users"
+    ROLE = 2830, "Role", "Role", "fas fa-user-tag"
     # PROFILE? (for User, or maybe global?)
 
-    # access [2800-3000]
+    # access [3000-3200]
     # CHALLENGE, BADGE, POLICY, RULE, ...
 
-    # version [3000-3200]
+    # version [3200-3400]
     # CHANGE, HISTORY, BRANCH, ...
 
-    # publish [3200-3400]
+    # publish [3400-3600]
     # PUBLICATION, RELEASE, WISHLIST/WATCHLIST, ...
 
-    # analytics [3400-3600]
+    # analytics [3600-3800]
     # METER, METRIC, SURVEY, REPLAY, ...
 
-    # locale [3600-3800]
+    # locale [3800-4000]
     # LOCALE, TRANSLATION, ...
 
-    # model [3800-4000]
+    # model [4000-4200]
     # MODEL, FINETUNE, ...
 
-    # finance [4000-4200] (also see Stripe API?)
+    # finance [4200-4400] (also see Stripe API?)
     # WALLET, BALANCE, BUDGET, TRANSFER, CREDIT, TIER, PRICE, ORDER, INVOICE, DISCOUNT, DISPUTE, REFUND, ...
 
-    # web [4200-4400]
+    # web [4400-4600]
     # ACCOUNT, APPLICATION, DOMAIN, EMAIL, ...
 
-    # world [4400-4600]
+    # world [4600-4800]
     # PHONE, ADDRESS, ...
 
     # view [8000-9000]
@@ -597,23 +604,20 @@ class NodeType(BuiltinEnum):
     WIZARD_VIEW = 8010, "Wizard View", "Wizard", "fas fa-wand-sparkles"
     # SIDEBAR_VIEW = 8011, "Sidebar View", "Sidebar", "fas fa-bars"
     # CONTEXT_VIEW = 8012, "Context View", "Context", "fas fa-sitemap"
-    # SCENE, WIDGET, ...
+    # SCENE, OVERLAY, WIDGET, ROUTE, ...
 
     # container views [8100-8200]
-    # FRAME_VIEW = 8100, "Frame View", "Fixed Container", "fas fa-frame"
-    # STACK_VIEW = 8110, "Stack View", "Stack Container", "fas fa-stack"
-    # SPLIT_VIEW = 8120, "Split View", "Split Container", "fas fa-columns"
-    # SPLIT_PANEL_VIEW = 8121, "Split Panel View", "Split Panel", "fas fa-columns"
-    # SPLIT_HANDLE_VIEW = 8122, "Split Handle View", "Split Handle", "fas fa-columns"
-    # SCROLL_VIEW = 8130, "Scroll Container View", "Scroll Container", "fas fa-scroll"
-    # TAB_VIEW = 8140, "Tab Container View", "Tab Container", "fas fa-tabs"
-    # TAB_PANEL_VIEW = 8141, "Tab Panel View", "Tab Panel", "fas fa-tabs"
+    FRAME_VIEW = 8100, "Frame View", "Fixed Container", "fas fa-frame"
+    LABEL_VIEW = 8101, "Label View", "Label Container", "fas fa-font-case"
+    # STACK_VIEW?, SCROLL_VIEW?, CARD_VIEW?, FORM_VIEW, ...
+    SPLIT_VIEW = 8110, "Split View", "Split Container", "fas fa-columns"
+    # TAB_VIEW = 8120, "Tab Container View", "Tab Container", "fas fa-tabs"
+    # TAB_ELEMENT_VIEW = 8121, "Tab Element View", "Tab Element", "fas fa-tabs"
     # DRAWER, SPLIT_DRAWER, GRID/GRID_ELEMENT, ...
 
-    # content views [8200-8400]
-    # NUMBER_VIEW = 8210, "Number View", "Number", "fas fa-hashtag"
-    # SLIDER_VIEW = 8211, "Slider View", "Slider", "fas fa-slider"
-    # LABEL_VIEW = 8220, "Label View", "Label", "fas fa-font-case"
+    # content views [8200-8300]
+    INPUT_VIEW = 8210, "Input View", "Number or String Input", "fas fa-hashtag"
+    SLIDER_VIEW = 8211, "Slider View", "Slider", "fas fa-slider"
     # STRING_VIEW = 8221, "String View", "String", "fas fa-font-case"
     # TEXT_VIEW = 8222, "Text View", "Text", "fas fa-text"
     # TEXT_LINE_VIEW = 8223, "Text Line View", "Text Line", "fas fa-text"
@@ -624,19 +628,23 @@ class NodeType(BuiltinEnum):
     # ICON_VIEW = 8233, "Icon View", "Icon", "fas fa-icons"
     # DATETIME_VIEW = 8240, "Datetime View", "Datetime", "fas fa-calendar-days"
     # DURATION_VIEW = 8241, "Duration View", "Duration", "fas fa-stopwatch"
-    # FILE_VIEW = 8250, "File View", "File", "fas fa-file"
-    # IMAGE_VIEW = 8251, "Image View", "Image", "fas fa-image"
-    # AUDIO_VIEW = 8252, "Audio View", "Audio", "fas fa-volume"
-    # VIDEO_VIEW = 8253, "Video View", "Video", "fas fa-video"
-    # DOCUMENT_VIEW = 8254, "Document View", "Document", "fas fa-file-alt"
-    # BUTTON_VIEW = 8360, "Button View", "Button", "fas fa-hand-pointer"
-    # LINK_VIEW = 8361, "Link View", "Link", "fas fa-link"
+    # BUTTON_VIEW = 8460, "Button View", "Button", "fas fa-hand-pointer"
+    # LINK_VIEW = 8461, "Link View", "Link", "fas fa-link"
 
     # node views [8400-8500]
     # NODE_VIEW = 8400, "Node View", "Node", "fas fa-hexagon"
+    # NODE_CHIP_VIEW = 8401, "Node Chip View", "Node Chip", "fas fa-hexagon"
     # PAGE_VIEW = 8410, "Page View", "Page", "far fa-file"
+    # PAGE_PREVIEW_VIEW, ...
     # TABLE_VIEW = 8420, "Table View", "Table", "fas fa-table"
+    # TABLE_PREVIEW_VIEW, ...
     THREAD_VIEW = 8430, "Thread View", "Thread", "fas fa-reel"
+    # THREAD_PREVIEW_VIEW, ...
+    # FILE_VIEW = 8450, "File View", "File", "fas fa-file"
+    # IMAGE_VIEW = 8451, "Image View", "Image", "fas fa-image"
+    # AUDIO_VIEW = 8452, "Audio View", "Audio", "fas fa-volume"
+    # VIDEO_VIEW = 8453, "Video View", "Video", "fas fa-video"
+    # DOCUMENT_VIEW = 8454, "Document View", "Document", "fas fa-file-alt"
 
     # style [8500-8600]
     THEME = 8500, "Theme", "Theme", "fas fa-palette"
@@ -854,13 +862,13 @@ class StructType(BuiltinEnum):
     TEXT_SPAN = 11602, None, None, "fas fa-text"
     CODE = 11610, None, None, "fas fa-code"
     ICON = 11430
-    # STREAM, SECRET, INDEX, CONSTRAINT, ...
+    # ...
 
     # chat [11800-12000]
-    # POLL, VOTE, REACTION, ...
+    # ...
 
     # plan [12000-12200]
-    # JOB, PLAN, ENTITLEMENT, POOL, LOCK, BARRIER, ...
+    # ...
 
     # logic [12200-12400]
     EXPRESSION = 12200
@@ -869,61 +877,64 @@ class StructType(BuiltinEnum):
     SELECT_OPTIONS = 12220
     # TRIGGER, TIMER, BREAKPOINT, ...
 
-    # runtime [12400-12600]
-    ERROR = 12400
-    RUN_TRACE = 12403
-    RUN_FRAME = 12404
+    # qa [12400-12600]
+    # ...
+
+    # runtime [12600-12800]
+    ERROR = 12600
+    RUN_TRACE = 12603
+    RUN_FRAME = 12604
     # EVENT, SIGNAL, ...
 
-    # identity [12600-12800]
+    # identity [12800-13000]
     # PROFILE? (for User, or maybe global?)
 
-    # access [12800-13000]
-    POLICY = 14000
-    POLICY_RULE = 14001
-    POLICY_SUBJECT = 14002
-    ACCESS_ZONE = 14003
-    ACCESS_MATRIX = 14004
-    ACCESS = 14005
-    # CHALLENGE, BADGE, POLICY, RULE, ...
+    # access [13000-13200]
+    POLICY = 13000
+    POLICY_RULE = 13001
+    POLICY_SUBJECT = 13002
+    ACCESS_ZONE = 13003
+    ACCESS_MATRIX = 13004
+    ACCESS = 13005
+    # ...
 
-    # version [13000-13200]
-    # CHANGE, HISTORY, BRANCH, ...
+    # version [13200-13400]
+    # ...
 
-    # publish [13200-13400]
-    # PUBLICATION, RELEASE, WISHLIST/WATCHLIST, ...
+    # publish [13400-13600]
+    # ...
 
-    # analytics [13400-13600]
-    # METER, METRIC, SURVEY, REPLAY, ...
+    # analytics [13600-13800]
+    # ...
 
-    # locale [13600-13800]
-    # LOCALE, TRANSLATION, ...
+    # locale [13800-14000]
+    # ...
 
-    # model [13800-14000]
-    # MODEL, FINETUNE, ...
+    # model [14000-14200]
+    # ...
 
-    # finance [14000-14200]
-    # WALLET, BALANCE, BUDGET, TRANSFER, CREDIT, TIER, PRICE, ORDER, INVOICE, DISCOUNT, DISPUTE, REFUND, ...
+    # finance [14200-14400]
+    # ...
 
-    # web [14200-14400]
-    # ACCOUNT, APPLICATION, DOMAIN, EMAIL, ...
+    # web [14400-14600]
+    # ...
 
-    # world [14400-14600]
-    # PHONE, ADDRESS, ...
+    # world [14600-14800]
+    # ...
 
     # view [18000-19000]
 
     # space [18000-18100]
-    # SCENE, WIDGET, ...
+    # ...
 
     # container views [18100-18200]
-    # FRAME_VIEW, STACK_VIEW, SPLIT_VIEW, SCROLL_VIEW, TAB_VIEW, ...
+    # ...
 
     # content views [18200-18400]
-    # NUMBER_VIEW, SLIDER_VIEW, LABEL_VIEW, STRING_VIEW, TEXT_VIEW, ...
+    # ...
 
     # node views [18400-18500]
-    # NODE_VIEW, PAGE_VIEW, TABLE_VIEW, THREAD_VIEW, ...
+    # ...
 
     # style [18500-18600]
     COLOR = 18500, None, None, "fas fa-palette"
