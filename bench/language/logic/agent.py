@@ -13,11 +13,11 @@ from bench.language.core import (
     IsRunnable,
     IsSubject,
     IsTimed,
-    IsType,
     LocalNodeList,
     NodeReference,
     NodeType,
     PageNode,
+    TypeBase,
     TypeKind,
     node_,
     p_node_children,
@@ -82,7 +82,7 @@ class Agent(
         *,
         of: Literal["instance", "value"] = "instance",
         field_types: list[FieldType] | None = None,
-    ) -> "IsType":
+    ) -> "TypeBase":
         """Get a type represented by this Block (if any)"""
         from bench.language.core import Type
 
@@ -102,18 +102,18 @@ class Agent(
         *,
         of: Literal["instance", "value"] = "instance",
         field_types: list[FieldType] | None = None,
-    ) -> "IsType":
+    ) -> "TypeBase":
         typ = self.to_type_maybe(of=of, field_types=field_types)
         if typ is None:
             raise ValueError(f"{self!r} does not have a type")
         return typ
 
     @cached_property  # :CachedTypeInfo
-    def input_type(self) -> "IsType | None":
+    def input_type(self) -> "TypeBase | None":
         return self.to_type_maybe(of="value", field_types=[FieldType.INPUT])
 
     @cached_property  # :CachedTypeInfo
-    def output_type(self) -> "IsType | None":
+    def output_type(self) -> "TypeBase | None":
         return self.to_type_maybe(of="value", field_types=[FieldType.OUTPUT])
 
     @staticmethod

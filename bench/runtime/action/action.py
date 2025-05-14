@@ -10,11 +10,11 @@ from bench.language import (
     Agent,
     Aliasing,
     CustomObject,
-    IsType,
     Runnable,
     RunType,
     Span,
     SpanType,
+    TypeBase,
     code,
     coerce_custom_object_scalar,
 )
@@ -46,7 +46,7 @@ class ActionRunner(Runner[Action], ABC):
         agent: Agent | None = None,
         parent: Runner | None = None,
         inputs: CustomObject | None = None,
-        outputs: IsType | CustomObject | None = None,
+        outputs: TypeBase | CustomObject | None = None,
         flow: "FlowRunner | None" = None,
     ) -> None:
         super().__init__(
@@ -64,7 +64,7 @@ class ActionRunner(Runner[Action], ABC):
         self,
         node: Agent | Runnable,
         inputs: CustomObject | None,
-        output_type: IsType | None = None,
+        output_type: TypeBase | None = None,
     ):
         """
         Gets the Runner for the given Node within this Runner.
@@ -186,7 +186,7 @@ def get_action_runner(
     node: Action,
     run: RunIn,
     inputs: CustomObject | None = None,
-    outputs: IsType | CustomObject | None = None,
+    outputs: TypeBase | CustomObject | None = None,
     parent: Runner | None = None,
     agent: Agent | None = None,
 ) -> ActionRunner:

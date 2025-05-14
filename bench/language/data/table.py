@@ -8,11 +8,11 @@ from bench.language.core import (
     IsNamed,
     IsOwnable,
     IsTemplatable,
-    IsType,
     LocalNodeList,
     NodeType,
     PageNode,
     RecordNodeList,
+    TypeBase,
     TypeKind,
     node_,
     p_node_children,
@@ -48,7 +48,7 @@ class Table(
         *,
         of: Literal["instance", "value"] = "instance",
         field_types: list[FieldType] | None = None,
-    ) -> "IsType | None":
+    ) -> "TypeBase | None":
         """Get a type represented by this Block (if any)"""
         from bench.language.core import Type
 
@@ -68,7 +68,7 @@ class Table(
         *,
         of: Literal["instance", "value"] = "instance",
         field_types: list[FieldType] | None = None,
-    ) -> "IsType":
+    ) -> "TypeBase":
         typ = self.to_type_maybe(of=of, field_types=field_types)
         if typ is None:
             raise ValueError(f"{self!r} does not have a type")

@@ -1,0 +1,56 @@
+from typing import Optional, Sequence
+
+from bench.language.core import (
+    BuiltinEnum,
+    BuiltinObject,
+    EnumType,
+    NodeType,
+    Struct,
+    StructType,
+    enum_,
+    node_,
+    node_component_,
+    p_regular,
+    struct_,
+)
+
+from .color import Color
+from .style import StyleBase
+
+
+@enum_(EnumType.GRADIENT_TYPE)
+class GradientType(BuiltinEnum):
+    """Built-in gradient types."""
+
+    LINEAR = 1
+    RADIAL = 2
+    CONIC = 3
+
+
+@struct_(StructType.GRADIENT_STOP)
+class GradientStop(Struct):
+    """A gradient stop with color and position."""
+
+    color: "Color" = p_regular(10, struct=StructType.COLOR)
+    position: float = p_regular(20)  # 0.0 to 1.0
+
+
+@node_component_()
+class GradientBase(BuiltinObject):
+    type: GradientType = p_regular(30, default=GradientType.LINEAR)
+    angle: Optional[float] = p_regular(40, default=None)  # degrees
+    stops: Sequence[GradientStop] = p_regular(50, array=True, struct=StructType.GRADIENT_STOP)
+
+
+@struct_(StructType.GRADIENT)
+class Gradient(GradientBase, Struct):
+    """A gradient value."""
+
+    pass
+
+
+@node_(NodeType.GRADIENT_STYLE)
+class GradientStyle(GradientBase, StyleBase):
+    """A gradient style."""
+
+    dark: Gradient | None = p_regular(60)

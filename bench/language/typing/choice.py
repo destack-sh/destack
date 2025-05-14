@@ -5,11 +5,11 @@ from bench.language.core import (
     IsModal,
     IsNamed,
     IsTemplatable,
-    IsType,
     LocalNodeList,
     NodeType,
     PageNode,
     Type,
+    TypeBase,
     TypeKind,
     node_,
     p_node_children,
@@ -39,17 +39,17 @@ class Choice(
     def __content_str__(self):
         return ""
 
-    def to_type_maybe(self, of: Literal["instance", "value"] = "instance") -> "IsType | None":
+    def to_type_maybe(self, of: Literal["instance", "value"] = "instance") -> "TypeBase | None":
         return Type(kind=TypeKind.BASED_NODE, base_type=self, bench_type=NodeType.OPTION)
 
-    def to_type(self) -> "IsType":
+    def to_type(self) -> "TypeBase":
         typ = self.to_type_maybe()
         if typ is None:
             raise ValueError(f"{self!r} does not have a type")
         return typ
 
     @cached_property  # :CachedTypeInfo
-    def instance_type(self) -> "IsType":
+    def instance_type(self) -> "TypeBase":
         return self.to_type()
 
     @staticmethod

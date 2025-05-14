@@ -40,11 +40,11 @@ if TYPE_CHECKING:
         Code,
         CustomObject,
         Interruption,
-        IsType,
         NodeReference,
         Runnable,
         Span,
         Thread,
+        TypeBase,
     )
 
 
@@ -207,7 +207,7 @@ class Run(
         return self.status not in TERMINAL_PROCESS_STATUSES
 
     @property
-    def input_type(self) -> "IsType | None":
+    def input_type(self) -> "TypeBase | None":
         if (transition := self.transition) is not None:
             return transition.input_type
         elif (action := self.action) is not None:
@@ -218,7 +218,7 @@ class Run(
             return None
 
     @property
-    def output_type(self) -> "IsType | None":
+    def output_type(self) -> "TypeBase | None":
         if (transition := self.transition) is not None:
             return transition.output_type
         elif (action := self.action) is not None:

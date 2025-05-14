@@ -6,10 +6,10 @@ from bench.language.core import (
     IsModal,
     IsNamed,
     IsTemplatable,
-    IsType,
     LocalNodeList,
     NodeType,
     PageNode,
+    TypeBase,
     TypeKind,
     node_,
     p_node_children,
@@ -44,7 +44,7 @@ class Class(
         *,
         of: Literal["instance", "value"] = "value",
         field_types: list[FieldType] | None = None,
-    ) -> "IsType":
+    ) -> "TypeBase":
         """Get a type represented by this Block (if any)"""
         from bench.language.core import Type
 
@@ -63,14 +63,14 @@ class Class(
         self,
         *,
         field_types: list[FieldType] | None = None,
-    ) -> "IsType":
+    ) -> "TypeBase":
         typ = self.to_type_maybe(field_types=field_types)
         if typ is None:
             raise ValueError(f"{self!r} does not have a type")
         return typ
 
     @cached_property  # :CachedTypeInfo
-    def member_type(self) -> "IsType | None":
+    def member_type(self) -> "TypeBase | None":
         return self.to_type_maybe(field_types=[FieldType.MEMBER])
 
     @staticmethod

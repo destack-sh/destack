@@ -1,9 +1,9 @@
-from bench.language import BENCH_ICON, Agent, ColorType, Page
+from bench.language import BENCH_ICON, Agent, ColorHue, Page
 
 # default Agent
 BenchAgent = Agent.new(
     "Bench",
-    color=ColorType.YELLOW,
+    color=ColorHue.YELLOW,
     icon=BENCH_ICON,
 )
 

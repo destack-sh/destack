@@ -252,8 +252,8 @@ from .trait import (
 )
 from .type import (
     STORAGE_KEY_PREFIX_LENGTH,
-    IsType,
     Type,
+    TypeBase,
     TypeConstraint,
     TypeIdentity,
     TypeIn,
@@ -457,7 +457,6 @@ __all__ = [
     "IsTemplatable",
     "IsTimed",
     "IsTitled",
-    "IsType",
     "Joinable",
     "LegacyQuery",
     "LiteralType",
@@ -522,6 +521,7 @@ __all__ = [
     "TextSpanType",
     "TimeInterval",
     "Type",
+    "TypeBase",
     "TypeConstraint",
     "TypeConstraintIn",
     "TypeFormat",

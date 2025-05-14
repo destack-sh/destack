@@ -31,7 +31,6 @@ from bench.language import (
     Interruption,
     InterruptionStatus,
     InterruptionType,
-    IsType,
     Node,
     NodeGraph,
     NodeMode,
@@ -48,6 +47,7 @@ from bench.language import (
     TextLine,
     Thread,
     Transition,
+    TypeBase,
     active_session,
 )
 
@@ -172,7 +172,7 @@ class Runner[N: Runnable = Runnable](abc.ABC):
         run: RunIn,
         parent: "Runner[Any] | None" = None,
         inputs: CustomObject | None = None,
-        outputs: IsType | CustomObject | None = None,
+        outputs: TypeBase | CustomObject | None = None,
         agent: "Agent | None" = None,
     ) -> None:
         self.runtime = runtime
@@ -187,7 +187,7 @@ class Runner[N: Runnable = Runnable](abc.ABC):
         # resources/inputs/outputs
         self.inputs: CustomObject | None = inputs
         self.input_type = node.input_type
-        if isinstance(outputs, IsType):
+        if isinstance(outputs, TypeBase):
             self.outputs: CustomObject | None = None
             self.output_type = outputs or node.output_type
         elif isinstance(outputs, CustomObject):
@@ -677,7 +677,7 @@ def make_runner(
     *,
     type: RunType | None = None,
     inputs: Any | None = None,
-    outputs: IsType | CustomObject | None = None,
+    outputs: TypeBase | CustomObject | None = None,
     agent: "Agent | None" = None,
     parent: "Runner[Any] | None" = None,
 ) -> "Runner":

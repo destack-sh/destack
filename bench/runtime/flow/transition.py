@@ -4,7 +4,7 @@ from typing import TYPE_CHECKING, ClassVar, override
 import structlog
 from opentelemetry import trace
 
-from bench.language import Agent, CustomObject, IsType, RunType, Transition
+from bench.language import Agent, CustomObject, RunType, Transition, TypeBase
 from bench.runtime.core import RunIn, Runner, Runtime
 
 if TYPE_CHECKING:
@@ -27,7 +27,7 @@ class TransitionRunner(Runner[Transition], ABC):
         parent: Runner | None = None,
         agent: Agent | None = None,
         inputs: CustomObject | None = None,
-        outputs: IsType | CustomObject | None = None,
+        outputs: TypeBase | CustomObject | None = None,
     ) -> None:
         super().__init__(
             runtime=runtime,

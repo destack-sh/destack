@@ -13,7 +13,6 @@ from bench.language import (
     CursorType,
     CustomObject,
     FileType,
-    IsType,
     Message,
     MessageType,
     ModelDeveloper,
@@ -22,6 +21,7 @@ from bench.language import (
     Runnable,
     Span,
     SpanType,
+    TypeBase,
 )
 from bench.runtime.core import NotSupportedError, RunIn, Runner, Runtime, restore_runner
 from bench.runtime.model import ModelSettings
@@ -70,7 +70,7 @@ class AgentRunner[N: Agent = Agent](Runner[N]):
         run: RunIn,
         parent: Runner[Runnable] | None = None,
         inputs: CustomObject | None = None,
-        outputs: IsType | CustomObject | None = None,
+        outputs: TypeBase | CustomObject | None = None,
         agent: Agent | None = None,
     ) -> None:
         super().__init__(
