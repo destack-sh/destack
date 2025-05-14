@@ -48,7 +48,7 @@ class _Unset:
 
 
 # forever constants
-VERSION = "2025.05.14.0"
+VERSION = "2025.05.14.1"
 UUID_NAMESPACE = uuid5(UUID(int=0), b"bench")
 CK_LENGTH_B64 = 24  # 1.5 * CK_LENGTH_BYTES (must be integer)
 FLOAT_EPSILON = 1e-6
@@ -296,13 +296,8 @@ class bittuple(typing.Generic[EnumT], Collection[EnumT]):  # noqa: N801
 #
 
 
-# nocheckin: revisit/reorganize EnumType
 class EnumType(BuiltinEnum):
-    #
-    # Global (20000-21000)
-    #
-
-    # core (20000-20049)
+    # meta [20000-20200]
     ENUM_TYPE = 20000
     NODE_TYPE = 20001
     STRUCT_TYPE = 20002
@@ -313,142 +308,167 @@ class EnumType(BuiltinEnum):
     PROPERTY_REFERENCE_TYPE = 20007
     EDIT_OPERATION_TYPE = 20008
     CHANGE_CATEGORY = 20009
+    USER_STATUS = 20010
+    ORGANIZATION_STATUS = 20011
+    BENCH_STATUS = 20056
+    ERROR_KIND = 20100
+    ERROR_TYPE = 20101
+    SEVERITY = 20102
+    # PROFILE, CREDENTIAL, FRIENDSHIP, ...
 
-    # bench (20050-20099)
+    # package [21000-21200]
     PACKAGE_TYPE = 20050
+    RESOURCE_STATUS = 21000
+    BLOCK_TYPE = 21010
+    # APP, PLUGIN, ...
+
+    # infra [21200-21400]
     CLOUD = 20051
     REGION = 20052
     AREA = 20054
     CONTINENT = 20055
-    BENCH_STATUS = 20056
+    SCALER_TYPE = 21200
+    SCALER_STRATEGY = 21201
+    COMPUTER_TYPE = 21210
+    DATABASE_TYPE = 21220
+    CLIENT_TYPE = 21221
+    # VAULT, CACHE, ENDPOINT, DEPLOYMENT, NETWORK, ...
 
-    # auth (20100-20149)
-    ACCESS_MODE = 20100
-    ACCESS_KIND = 20101
-    POLICY_EFFECT = 20102
+    # type [21400-21600]
+    TEXT_LINE_TYPE = 21400
+    TEXT_SPAN_TYPE = 21401
+    CODE_TYPE = 21410
+    FILE_RETENTION_MODE = 21420
+    FILE_SOURCE = 21421
+    FILE_TYPE = 21422
+    FILE_FORMAT = 21423
+    ICON_TYPE = 21430
+    LINK_TYPE = 21440
+    # SCHEMA, UNION, TAG, ...
 
-    # access types (20150-20199)
-    QUERY_TYPE = 20150
-    EDIT_TYPE = 20151
-    USE_TYPE = 20152
-    ACCESS_TYPE = 20153
+    # data [21600-21800]
+    PRIMITIVE_TYPE = 21600
+    FIELD_ZONE = 21601
+    TYPE_KIND = 21602
+    TYPE_FORMAT = 21603
+    DAY = 21610
+    MONTH = 21611
+    TIME_INTERVAL = 21612
+    EXPRESSION_KIND = 21640
+    EXPRESSION_OP = 21641
+    LITERAL_TYPE = 21642
+    FUNCTIONAL_TYPE = 21643
+    CONDITIONAL_TYPE = 21644
+    AGGREGATION_TYPE = 21645
+    SORT_MODE = 21650
+    SORT_TYPE = 21651
+    SELECTION_TYPE = 21652
+    # STREAM, SECRET, INDEX, CONSTRAINT, ...
 
-    #
-    # Regional (21000-22000)
-    #
+    # chat [21800-22000]
+    CHANNEL_STATUS = 21800
+    THREAD_STATUS = 21801
+    MESSAGE_TYPE = 21802
+    NOTIFICATION_TYPE = 21810
+    NOTIFICATION_STATUS = 21811
+    # POLL, VOTE, REACTION, ...
 
-    # resources (21000-21049)
-    RESOURCE_STATUS = 21000
-    SCALER_TYPE = 21010
-    SCALER_STRATEGY = 21011
-    COMPUTER_TYPE = 21020
-    DATABASE_TYPE = 21040
-    CLIENT_TYPE = 21041
+    # plan [22000-22200]
+    CLAIM_TYPE = 22000
+    CLAIM_STATUS = 22001
+    CURSOR_TYPE = 22010
+    CURSOR_STATUS = 22011
+    # JOB, PLAN, ENTITLEMENT, POOL, LOCK, BARRIER, ...
 
-    # files (21050-21099)
-    FILE_RETENTION_MODE = 21050
-    FILE_SOURCE = 21051
-    FILE_TYPE = 21052
-    FILE_FORMAT = 21053
-    ICON_TYPE = 21060
-    LINK_TYPE = 21070
+    # logic [22200-22400]
+    ACTION_TYPE = 22220
+    PORT_SIDE = 22221
+    TRANSITION_TYPE = 22222
+    FLOW_TYPE = 22223
+    # TRIGGER, TIMER, BREAKPOINT, ...
 
-    # type (21150-21199)
-    PRIMITIVE_TYPE = 21150
-    FIELD_ZONE = 21151
-    TYPE_KIND = 21152
-    TYPE_FORMAT = 21153
-    BLOCK_TYPE = 21154
-    DAY = 21155
-    MONTH = 21156
-    TIME_INTERVAL = 21157
+    # runtime [22400-22600]
+    PROCESS_STATUS = 22400
+    RUN_TYPE = 22401
+    SPAN_TYPE = 22402
+    SESSION_STATUS = 22403
+    SCHEDULE_FREQUENCY = 22410
+    INTERRUPTION_TYPE = 22200
+    INTERRUPTION_STATUS = 22201
+    INTERRUPTION_RESPONSE = 22202
+    # EVENT, SIGNAL, ...
 
-    # text (21200-21249)
-    TEXT_LINE_TYPE = 21200
-    TEXT_SPAN_TYPE = 21201
+    # identity [22600-22800]
+    ACCESS_MODE = 22600
+    ACCESS_KIND = 22601
+    POLICY_EFFECT = 22602
+    ACCESS_TYPE = 22603
+    QUERY_TYPE = 22650
+    EDIT_TYPE = 22651
+    USE_TYPE = 22652
+    # PROFILE? (for User, or maybe global?)
 
-    # expressions (21250-21299)
-    EXPRESSION_KIND = 21250
-    EXPRESSION_OP = 21251
-    LITERAL_TYPE = 21252
-    FUNCTIONAL_TYPE = 21253
-    CONDITIONAL_TYPE = 21254
-    AGGREGATION_TYPE = 21255
-    SORT_MODE = 21256
-    SORT_TYPE = 21257
-    SELECTION_TYPE = 21265
+    # access [22800-23000]
+    # CHALLENGE, BADGE, POLICY, RULE, ...
 
-    #
-    # Local (22000-23000)
-    #
+    # version [23000-23200]
+    # CHANGE, HISTORY, BRANCH, ...
 
-    # runtime core (22000-22100)
-    PROCESS_STATUS = 22000
-    RUN_TYPE = 22001
-    SPAN_TYPE = 22002
-    SESSION_STATUS = 22020
-    SEVERITY = 22061
-    SCHEDULE_FREQUENCY = 22041
-    CLAIM_TYPE = 22050
-    CLAIM_STATUS = 22051
-    CURSOR_TYPE = 22070
-    CURSOR_STATUS = 22071
+    # publish [23200-23400]
+    # PUBLICATION, RELEASE, WISHLIST/WATCHLIST, ...
 
-    # error (22100-22149)
-    ERROR_KIND = 22100
-    ERROR_TYPE = 22101
+    # analytics [23400-23600]
+    # METER, METRIC, SURVEY, REPLAY, ...
 
-    # debugging (22200-22249)
-    INTERRUPTION_TYPE = 22210
-    INTERRUPTION_STATUS = 22211
-    INTERRUPTION_RESPONSE = 22212
+    # locale [23600-23800]
+    # LOCALE, TRANSLATION, ...
 
-    # models (22250-22299)
-    MODEL_DEVELOPER = 22250
-    MODEL_PROVIDER = 22251
+    # model [23800-24000]
+    MODEL_DEVELOPER = 22800
+    MODEL_PROVIDER = 22801
 
-    # code (22300-22349)
-    CODE_TYPE = 22300
-    COLOR_HUE = 22301
+    # finance [24000-24200]
+    # WALLET, BALANCE, BUDGET, TRANSFER, CREDIT, TIER, PRICE, ORDER, INVOICE, DISCOUNT, DISPUTE, REFUND, ...
 
-    # flow (22350-22399)
-    ACTION_TYPE = 22350
-    PORT_SIDE = 22352
-    TRANSITION_TYPE = 22353
-    FLOW_TYPE = 22360
+    # web [24200-24400]
+    # ACCOUNT, APPLICATION, DOMAIN, EMAIL, ...
 
-    # views (22400-22449)
-    SPACE_TYPE = 22400
-    COLOR_TYPE = 22402
-    COLOR_SHADE = 22403
-    FONT_TYPE = 22404
-    FONT_WEIGHT = 22405
-    FONT_SIZE = 22406
-    # SPACING = 22407
-    # ANCHOR = 22408
-    # ORIENTATION = 22409
-    # ALIGNMENT = 22410
-    SHADOW_TYPE = 22418
-    SHADOW_POSITION = 22419
-    BORDER_TYPE = 22420
-    TEXT_ALIGN = 22421
-    TEXT_DECORATION = 22422
-    TEXT_TRANSFORM = 22423
-    GRADIENT_TYPE = 22424
-    FILL_TYPE = 22425
-    FILL_POSITION = 22426
-    FILL_SIZE = 22427
-    LENGTH_UNIT = 22428
-    # user (22450-22499)
-    USER_STATUS = 22450
-    ORGANIZATION_STATUS = 22451
+    # world [24400-24600]
+    # PHONE, ADDRESS, ...
 
-    # messaging (22500-22549)
-    CHANNEL_STATUS = 22500
-    THREAD_STATUS = 22502
-    MESSAGE_TYPE = 22503
-    NOTIFICATION_TYPE = 22506
-    NOTIFICATION_STATUS = 22507
+    # view [28000-29000]
+    SPACE_TYPE = 28000
+
+    # space [28000-28100]
+    # SCENE, WIDGET, ...
+
+    # container views [28100-28200]
+    # FRAME_VIEW, STACK_VIEW, SPLIT_VIEW, SCROLL_VIEW, TAB_VIEW, ...
+
+    # content views [28200-28400]
+    # NUMBER_VIEW, SLIDER_VIEW, LABEL_VIEW, STRING_VIEW, TEXT_VIEW, ...
+
+    # node views [28400-28500]
+    # NODE_VIEW, PAGE_VIEW, TABLE_VIEW, THREAD_VIEW, ...
+
+    # style [28500-28600]
+    COLOR_TYPE = 28010
+    COLOR_SHADE = 28011
+    COLOR_HUE = 28012
+    FONT_TYPE = 28020
+    FONT_WEIGHT = 28021
+    FONT_SIZE = 28022
+    TEXT_ALIGN = 28023
+    TEXT_DECORATION = 28024
+    TEXT_TRANSFORM = 28025
+    SHADOW_TYPE = 28030
+    SHADOW_POSITION = 28031
+    BORDER_TYPE = 28040
+    GRADIENT_TYPE = 28050
+    FILL_TYPE = 28060
+    FILL_POSITION = 28061
+    FILL_SIZE = 28062
+    LENGTH_UNIT = 28070
 
 
 enum_(EnumType.ENUM_TYPE)(EnumType)
@@ -480,10 +500,6 @@ class NodeType(BuiltinEnum):
     # PROFILE, CREDENTIAL, FRIENDSHIP, ...
 
     # ...materialized global stuff?
-
-    #
-    # Bench
-    #
 
     # package [1000-1200]
     PACKAGE = 1000, "Package", "Isolated sub-Bench", "fas fa-box-open"
@@ -547,31 +563,31 @@ class NodeType(BuiltinEnum):
     ROLE = 2640, "Role", "Role", "fas fa-user-tag"
     # PROFILE? (for User, or maybe global?)
 
-    # version
-    # CHANGE, HISTORY, BRANCH, ...
-
-    # publish
-    # PUBLICATION, RELEASE, WISHLIST/WATCHLIST, ...
-
-    # analytics
-    # METER, METRIC, SURVEY, REPLAY, ...
-
-    # locale
-    # LOCALE, TRANSLATION, ...
-
-    # access
+    # access [2800-3000]
     # CHALLENGE, BADGE, POLICY, RULE, ...
 
-    # model
+    # version [3000-3200]
+    # CHANGE, HISTORY, BRANCH, ...
+
+    # publish [3200-3400]
+    # PUBLICATION, RELEASE, WISHLIST/WATCHLIST, ...
+
+    # analytics [3400-3600]
+    # METER, METRIC, SURVEY, REPLAY, ...
+
+    # locale [3600-3800]
+    # LOCALE, TRANSLATION, ...
+
+    # model [3800-4000]
     # MODEL, FINETUNE, ...
 
-    # finance (shouldn't this be global?, see https://docs.stripe.com/api)
+    # finance [4000-4200] (also see Stripe API?)
     # WALLET, BALANCE, BUDGET, TRANSFER, CREDIT, TIER, PRICE, ORDER, INVOICE, DISCOUNT, DISPUTE, REFUND, ...
 
-    # web
+    # web [4200-4400]
     # ACCOUNT, APPLICATION, DOMAIN, EMAIL, ...
 
-    # world?
+    # world [4400-4600]
     # PHONE, ADDRESS, ...
 
     # view [8000-9000]
@@ -802,13 +818,12 @@ AUTOLOAD_DESCENDANT_TYPES: dict[NodeType, tuple[NodeType, ...]] = {
 
 #
 # Struct metatypes
-# NOTE: enum/struct id 'regions' should be roughly in sync with each other
 #
 
 
 @enum_(EnumType.STRUCT_TYPE)
 class StructType(BuiltinEnum):
-    # intrinsic (10000-10499)
+    # meta [10000-10200]
     CONTEXT = 10001
     EDIT_CONTEXT = 10002
     EDIT = 10003
@@ -820,54 +835,111 @@ class StructType(BuiltinEnum):
     NODE_REFERENCE = 10010
     PROPERTY_REFERENCE = 10011
 
-    # access (10500-10999)
-    POLICY = 10500
-    POLICY_RULE = 10501
-    POLICY_SUBJECT = 10502
-    ACCESS_ZONE = 10503
-    ACCESS_MATRIX = 10504
-    ACCESS = 10505
+    # package [11000-11200]
+    # APP, PLUGIN, ...
 
-    # bench (11000-11499)
+    # infra [11200-11400]
+    # VAULT, CACHE, ENDPOINT, DEPLOYMENT, NETWORK, ...
 
-    # type (11500-11999)
-    TYPE = 11500
-    TYPE_CONSTRAINT = 11501
-    FILE_INFO = 11520
-    ICON = 11530
-    SCHEDULE = 11540
+    # type [11400-11600]
+    TYPE = 11400
+    TYPE_CONSTRAINT = 11401
+    FILE_INFO = 11420
+    SCHEDULE = 11440
+    # SCHEMA, UNION, TAG, ...
 
-    # text (12000-12099)
-    TEXT = 12000, None, None, "fas fa-text"
-    TEXT_LINE = 12001, None, None, "fas fa-text"
-    TEXT_SPAN = 12002, None, None, "fas fa-text"
+    # data [11600-11800]
+    TEXT = 11600, None, None, "fas fa-text"
+    TEXT_LINE = 11601, None, None, "fas fa-text"
+    TEXT_SPAN = 11602, None, None, "fas fa-text"
+    CODE = 11610, None, None, "fas fa-code"
+    ICON = 11430
+    # STREAM, SECRET, INDEX, CONSTRAINT, ...
 
-    # code (12100-12199)
-    CODE = 12100, None, None, "fas fa-code"
+    # chat [11800-12000]
+    # POLL, VOTE, REACTION, ...
 
-    # expression (12200-12699)
-    EXPRESSION = 12210
-    AGGREGATION_RESULT = 12211
-    SELECTION = 12220
-    SELECT_OPTIONS = 12230
+    # plan [12000-12200]
+    # JOB, PLAN, ENTITLEMENT, POOL, LOCK, BARRIER, ...
 
-    # run (12700-13199)
-    ERROR = 12700
-    RUN_TRACE = 12703
-    RUN_FRAME = 12704
-    # action
+    # logic [12200-12400]
+    EXPRESSION = 12200
+    AGGREGATION_RESULT = 12201
+    SELECTION = 12210
+    SELECT_OPTIONS = 12220
+    # TRIGGER, TIMER, BREAKPOINT, ...
 
-    # space/views (13200-13699)
-    COLOR = 13200, None, None, "fas fa-palette"
-    SHADOW = 13203, None, None, "fas fa-shadow"
-    BORDER = 13204, None, None, "fas fa-border-all"
-    VECTOR2 = 13205, None, None, "fas fa-vector-square"
-    VECTOR3 = 13206, None, None, "fas fa-vector-square"
-    VECTOR4 = 13207, None, None, "fas fa-vector-square"
-    GRADIENT_STOP = 13209, None, None, "fas fa-gradient"
-    GRADIENT = 13210, None, None, "fas fa-gradient"
-    FILL = 13211, None, None, "fas fa-fill"
-    LENGTH = 13212, None, None, "fas fa-length"
+    # runtime [12400-12600]
+    ERROR = 12400
+    RUN_TRACE = 12403
+    RUN_FRAME = 12404
+    # EVENT, SIGNAL, ...
+
+    # identity [12600-12800]
+    # PROFILE? (for User, or maybe global?)
+
+    # access [12800-13000]
+    POLICY = 14000
+    POLICY_RULE = 14001
+    POLICY_SUBJECT = 14002
+    ACCESS_ZONE = 14003
+    ACCESS_MATRIX = 14004
+    ACCESS = 14005
+    # CHALLENGE, BADGE, POLICY, RULE, ...
+
+    # version [13000-13200]
+    # CHANGE, HISTORY, BRANCH, ...
+
+    # publish [13200-13400]
+    # PUBLICATION, RELEASE, WISHLIST/WATCHLIST, ...
+
+    # analytics [13400-13600]
+    # METER, METRIC, SURVEY, REPLAY, ...
+
+    # locale [13600-13800]
+    # LOCALE, TRANSLATION, ...
+
+    # model [13800-14000]
+    # MODEL, FINETUNE, ...
+
+    # finance [14000-14200]
+    # WALLET, BALANCE, BUDGET, TRANSFER, CREDIT, TIER, PRICE, ORDER, INVOICE, DISCOUNT, DISPUTE, REFUND, ...
+
+    # web [14200-14400]
+    # ACCOUNT, APPLICATION, DOMAIN, EMAIL, ...
+
+    # world [14400-14600]
+    # PHONE, ADDRESS, ...
+
+    # view [18000-19000]
+
+    # space [18000-18100]
+    # SCENE, WIDGET, ...
+
+    # container views [18100-18200]
+    # FRAME_VIEW, STACK_VIEW, SPLIT_VIEW, SCROLL_VIEW, TAB_VIEW, ...
+
+    # content views [18200-18400]
+    # NUMBER_VIEW, SLIDER_VIEW, LABEL_VIEW, STRING_VIEW, TEXT_VIEW, ...
+
+    # node views [18400-18500]
+    # NODE_VIEW, PAGE_VIEW, TABLE_VIEW, THREAD_VIEW, ...
+
+    # style [18500-18600]
+    COLOR = 18500, None, None, "fas fa-palette"
+    SHADOW = 18503, None, None, "fas fa-shadow"
+    BORDER = 18504, None, None, "fas fa-border-all"
+    VECTOR2 = 15005, None, None, "fas fa-vector-square"
+    VECTOR3 = 18506, None, None, "fas fa-vector-square"
+    VECTOR4 = 18507, None, None, "fas fa-vector-square"
+    GRADIENT_STOP = 18509, None, None, "fas fa-gradient"
+    GRADIENT = 18510, None, None, "fas fa-gradient"
+    FILL = 18511, None, None, "fas fa-fill"
+    LENGTH = 18512, None, None, "fas fa-length"
+    # EFFECT, TRANSITION, ANIMATION, ...
+
+    # canvas [18600-18800]
+    # CANVAS/DRAWING, SHAPE, BRUSH, ...
 
 
 STRUCT_TYPES: bittuple[StructType] = bittuple(*StructType)

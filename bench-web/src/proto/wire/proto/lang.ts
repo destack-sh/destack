@@ -1408,25 +1408,42 @@ export interface ShadowData {
      */
     position: ShadowPosition;
     /**
-     * @generated from protobuf field: string offset_x = 41;
+     * @generated from protobuf field: int32 offset_x = 41;
      */
-    offsetX: string;
+    offsetX: number;
     /**
-     * @generated from protobuf field: string offset_y = 42;
+     * @generated from protobuf field: int32 offset_y = 42;
      */
-    offsetY: string;
+    offsetY: number;
     /**
-     * @generated from protobuf field: string blur = 43;
+     * @generated from protobuf field: int32 blur = 43;
      */
-    blur: string;
+    blur: number;
     /**
-     * @generated from protobuf field: string spread = 44;
+     * @generated from protobuf field: int32 spread = 44;
      */
-    spread: string;
+    spread: number;
     /**
      * @generated from protobuf field: optional symbol.bench.ColorData color = 45;
      */
     color?: ColorData;
+}
+/**
+ * @generated from protobuf message symbol.bench.LengthData
+ */
+export interface LengthData {
+    /**
+     * @generated from protobuf field: symbol.bench.ObjectType metatype = 1;
+     */
+    metatype: ObjectType;
+    /**
+     * @generated from protobuf field: symbol.bench.LengthUnit unit = 31;
+     */
+    unit: LengthUnit;
+    /**
+     * @generated from protobuf field: float value = 32;
+     */
+    value: number;
 }
 /**
  * @generated from protobuf message symbol.bench.BaseNodeData
@@ -6217,21 +6234,21 @@ export interface ShadowStyleData {
      */
     position: ShadowPosition;
     /**
-     * @generated from protobuf field: string offset_x = 41;
+     * @generated from protobuf field: int32 offset_x = 41;
      */
-    offsetX: string;
+    offsetX: number;
     /**
-     * @generated from protobuf field: string offset_y = 42;
+     * @generated from protobuf field: int32 offset_y = 42;
      */
-    offsetY: string;
+    offsetY: number;
     /**
-     * @generated from protobuf field: string blur = 43;
+     * @generated from protobuf field: int32 blur = 43;
      */
-    blur: string;
+    blur: number;
     /**
-     * @generated from protobuf field: string spread = 44;
+     * @generated from protobuf field: int32 spread = 44;
      */
-    spread: string;
+    spread: number;
     /**
      * @generated from protobuf field: optional symbol.bench.ColorData color = 45;
      */
@@ -6330,13 +6347,13 @@ export interface TextStyleData {
      */
     align?: TextAlign;
     /**
-     * @generated from protobuf field: optional int32 line_height = 48;
+     * @generated from protobuf field: optional symbol.bench.LengthData line_height = 48;
      */
-    lineHeight?: number;
+    lineHeight?: LengthData;
     /**
-     * @generated from protobuf field: optional int32 letter_spacing = 49;
+     * @generated from protobuf field: optional symbol.bench.LengthData letter_spacing = 49;
      */
-    letterSpacing?: number;
+    letterSpacing?: LengthData;
     /**
      * @generated from protobuf field: optional symbol.bench.TextDecoration decoration = 50;
      */
@@ -7151,9 +7168,41 @@ export enum EnumType {
      */
     CHANGE_CATEGORY = 20009,
     /**
+     * @generated from protobuf enum value: ENUM_TYPE_USER_STATUS = 20010;
+     */
+    USER_STATUS = 20010,
+    /**
+     * @generated from protobuf enum value: ENUM_TYPE_ORGANIZATION_STATUS = 20011;
+     */
+    ORGANIZATION_STATUS = 20011,
+    /**
+     * @generated from protobuf enum value: ENUM_TYPE_BENCH_STATUS = 20056;
+     */
+    BENCH_STATUS = 20056,
+    /**
+     * @generated from protobuf enum value: ENUM_TYPE_ERROR_KIND = 20100;
+     */
+    ERROR_KIND = 20100,
+    /**
+     * @generated from protobuf enum value: ENUM_TYPE_ERROR_TYPE = 20101;
+     */
+    ERROR_TYPE = 20101,
+    /**
+     * @generated from protobuf enum value: ENUM_TYPE_SEVERITY = 20102;
+     */
+    SEVERITY = 20102,
+    /**
      * @generated from protobuf enum value: ENUM_TYPE_PACKAGE_TYPE = 20050;
      */
     PACKAGE_TYPE = 20050,
+    /**
+     * @generated from protobuf enum value: ENUM_TYPE_RESOURCE_STATUS = 21000;
+     */
+    RESOURCE_STATUS = 21000,
+    /**
+     * @generated from protobuf enum value: ENUM_TYPE_BLOCK_TYPE = 21010;
+     */
+    BLOCK_TYPE = 21010,
     /**
      * @generated from protobuf enum value: ENUM_TYPE_CLOUD = 20051;
      */
@@ -7171,345 +7220,317 @@ export enum EnumType {
      */
     CONTINENT = 20055,
     /**
-     * @generated from protobuf enum value: ENUM_TYPE_BENCH_STATUS = 20056;
+     * @generated from protobuf enum value: ENUM_TYPE_SCALER_TYPE = 21200;
      */
-    BENCH_STATUS = 20056,
+    SCALER_TYPE = 21200,
     /**
-     * @generated from protobuf enum value: ENUM_TYPE_ACCESS_MODE = 20100;
+     * @generated from protobuf enum value: ENUM_TYPE_SCALER_STRATEGY = 21201;
      */
-    ACCESS_MODE = 20100,
+    SCALER_STRATEGY = 21201,
     /**
-     * @generated from protobuf enum value: ENUM_TYPE_ACCESS_KIND = 20101;
+     * @generated from protobuf enum value: ENUM_TYPE_COMPUTER_TYPE = 21210;
      */
-    ACCESS_KIND = 20101,
+    COMPUTER_TYPE = 21210,
     /**
-     * @generated from protobuf enum value: ENUM_TYPE_POLICY_EFFECT = 20102;
+     * @generated from protobuf enum value: ENUM_TYPE_DATABASE_TYPE = 21220;
      */
-    POLICY_EFFECT = 20102,
+    DATABASE_TYPE = 21220,
     /**
-     * @generated from protobuf enum value: ENUM_TYPE_QUERY_TYPE = 20150;
+     * @generated from protobuf enum value: ENUM_TYPE_CLIENT_TYPE = 21221;
      */
-    QUERY_TYPE = 20150,
+    CLIENT_TYPE = 21221,
     /**
-     * @generated from protobuf enum value: ENUM_TYPE_EDIT_TYPE = 20151;
+     * @generated from protobuf enum value: ENUM_TYPE_TEXT_LINE_TYPE = 21400;
      */
-    EDIT_TYPE = 20151,
+    TEXT_LINE_TYPE = 21400,
     /**
-     * @generated from protobuf enum value: ENUM_TYPE_USE_TYPE = 20152;
+     * @generated from protobuf enum value: ENUM_TYPE_TEXT_SPAN_TYPE = 21401;
      */
-    USE_TYPE = 20152,
+    TEXT_SPAN_TYPE = 21401,
     /**
-     * @generated from protobuf enum value: ENUM_TYPE_ACCESS_TYPE = 20153;
+     * @generated from protobuf enum value: ENUM_TYPE_CODE_TYPE = 21410;
      */
-    ACCESS_TYPE = 20153,
+    CODE_TYPE = 21410,
     /**
-     * @generated from protobuf enum value: ENUM_TYPE_RESOURCE_STATUS = 21000;
+     * @generated from protobuf enum value: ENUM_TYPE_FILE_RETENTION_MODE = 21420;
      */
-    RESOURCE_STATUS = 21000,
+    FILE_RETENTION_MODE = 21420,
     /**
-     * @generated from protobuf enum value: ENUM_TYPE_SCALER_TYPE = 21010;
+     * @generated from protobuf enum value: ENUM_TYPE_FILE_SOURCE = 21421;
      */
-    SCALER_TYPE = 21010,
+    FILE_SOURCE = 21421,
     /**
-     * @generated from protobuf enum value: ENUM_TYPE_SCALER_STRATEGY = 21011;
+     * @generated from protobuf enum value: ENUM_TYPE_FILE_TYPE = 21422;
      */
-    SCALER_STRATEGY = 21011,
+    FILE_TYPE = 21422,
     /**
-     * @generated from protobuf enum value: ENUM_TYPE_COMPUTER_TYPE = 21020;
+     * @generated from protobuf enum value: ENUM_TYPE_FILE_FORMAT = 21423;
      */
-    COMPUTER_TYPE = 21020,
+    FILE_FORMAT = 21423,
     /**
-     * @generated from protobuf enum value: ENUM_TYPE_DATABASE_TYPE = 21040;
+     * @generated from protobuf enum value: ENUM_TYPE_ICON_TYPE = 21430;
      */
-    DATABASE_TYPE = 21040,
+    ICON_TYPE = 21430,
     /**
-     * @generated from protobuf enum value: ENUM_TYPE_CLIENT_TYPE = 21041;
+     * @generated from protobuf enum value: ENUM_TYPE_LINK_TYPE = 21440;
      */
-    CLIENT_TYPE = 21041,
+    LINK_TYPE = 21440,
     /**
-     * @generated from protobuf enum value: ENUM_TYPE_FILE_RETENTION_MODE = 21050;
+     * @generated from protobuf enum value: ENUM_TYPE_PRIMITIVE_TYPE = 21600;
      */
-    FILE_RETENTION_MODE = 21050,
+    PRIMITIVE_TYPE = 21600,
     /**
-     * @generated from protobuf enum value: ENUM_TYPE_FILE_SOURCE = 21051;
+     * @generated from protobuf enum value: ENUM_TYPE_FIELD_ZONE = 21601;
      */
-    FILE_SOURCE = 21051,
+    FIELD_ZONE = 21601,
     /**
-     * @generated from protobuf enum value: ENUM_TYPE_FILE_TYPE = 21052;
+     * @generated from protobuf enum value: ENUM_TYPE_TYPE_KIND = 21602;
      */
-    FILE_TYPE = 21052,
+    TYPE_KIND = 21602,
     /**
-     * @generated from protobuf enum value: ENUM_TYPE_FILE_FORMAT = 21053;
+     * @generated from protobuf enum value: ENUM_TYPE_TYPE_FORMAT = 21603;
      */
-    FILE_FORMAT = 21053,
+    TYPE_FORMAT = 21603,
     /**
-     * @generated from protobuf enum value: ENUM_TYPE_ICON_TYPE = 21060;
+     * @generated from protobuf enum value: ENUM_TYPE_DAY = 21610;
      */
-    ICON_TYPE = 21060,
+    DAY = 21610,
     /**
-     * @generated from protobuf enum value: ENUM_TYPE_LINK_TYPE = 21070;
+     * @generated from protobuf enum value: ENUM_TYPE_MONTH = 21611;
      */
-    LINK_TYPE = 21070,
+    MONTH = 21611,
     /**
-     * @generated from protobuf enum value: ENUM_TYPE_PRIMITIVE_TYPE = 21150;
+     * @generated from protobuf enum value: ENUM_TYPE_TIME_INTERVAL = 21612;
      */
-    PRIMITIVE_TYPE = 21150,
+    TIME_INTERVAL = 21612,
     /**
-     * @generated from protobuf enum value: ENUM_TYPE_FIELD_ZONE = 21151;
+     * @generated from protobuf enum value: ENUM_TYPE_EXPRESSION_KIND = 21640;
      */
-    FIELD_ZONE = 21151,
+    EXPRESSION_KIND = 21640,
     /**
-     * @generated from protobuf enum value: ENUM_TYPE_TYPE_KIND = 21152;
+     * @generated from protobuf enum value: ENUM_TYPE_EXPRESSION_OP = 21641;
      */
-    TYPE_KIND = 21152,
+    EXPRESSION_OP = 21641,
     /**
-     * @generated from protobuf enum value: ENUM_TYPE_TYPE_FORMAT = 21153;
+     * @generated from protobuf enum value: ENUM_TYPE_LITERAL_TYPE = 21642;
      */
-    TYPE_FORMAT = 21153,
+    LITERAL_TYPE = 21642,
     /**
-     * @generated from protobuf enum value: ENUM_TYPE_BLOCK_TYPE = 21154;
+     * @generated from protobuf enum value: ENUM_TYPE_FUNCTIONAL_TYPE = 21643;
      */
-    BLOCK_TYPE = 21154,
+    FUNCTIONAL_TYPE = 21643,
     /**
-     * @generated from protobuf enum value: ENUM_TYPE_DAY = 21155;
+     * @generated from protobuf enum value: ENUM_TYPE_CONDITIONAL_TYPE = 21644;
      */
-    DAY = 21155,
+    CONDITIONAL_TYPE = 21644,
     /**
-     * @generated from protobuf enum value: ENUM_TYPE_MONTH = 21156;
+     * @generated from protobuf enum value: ENUM_TYPE_AGGREGATION_TYPE = 21645;
      */
-    MONTH = 21156,
+    AGGREGATION_TYPE = 21645,
     /**
-     * @generated from protobuf enum value: ENUM_TYPE_TIME_INTERVAL = 21157;
+     * @generated from protobuf enum value: ENUM_TYPE_SORT_MODE = 21650;
      */
-    TIME_INTERVAL = 21157,
+    SORT_MODE = 21650,
     /**
-     * @generated from protobuf enum value: ENUM_TYPE_TEXT_LINE_TYPE = 21200;
+     * @generated from protobuf enum value: ENUM_TYPE_SORT_TYPE = 21651;
      */
-    TEXT_LINE_TYPE = 21200,
+    SORT_TYPE = 21651,
     /**
-     * @generated from protobuf enum value: ENUM_TYPE_TEXT_SPAN_TYPE = 21201;
+     * @generated from protobuf enum value: ENUM_TYPE_SELECTION_TYPE = 21652;
      */
-    TEXT_SPAN_TYPE = 21201,
+    SELECTION_TYPE = 21652,
     /**
-     * @generated from protobuf enum value: ENUM_TYPE_EXPRESSION_KIND = 21250;
+     * @generated from protobuf enum value: ENUM_TYPE_CHANNEL_STATUS = 21800;
      */
-    EXPRESSION_KIND = 21250,
+    CHANNEL_STATUS = 21800,
     /**
-     * @generated from protobuf enum value: ENUM_TYPE_EXPRESSION_OP = 21251;
+     * @generated from protobuf enum value: ENUM_TYPE_THREAD_STATUS = 21801;
      */
-    EXPRESSION_OP = 21251,
+    THREAD_STATUS = 21801,
     /**
-     * @generated from protobuf enum value: ENUM_TYPE_LITERAL_TYPE = 21252;
+     * @generated from protobuf enum value: ENUM_TYPE_MESSAGE_TYPE = 21802;
      */
-    LITERAL_TYPE = 21252,
+    MESSAGE_TYPE = 21802,
     /**
-     * @generated from protobuf enum value: ENUM_TYPE_FUNCTIONAL_TYPE = 21253;
+     * @generated from protobuf enum value: ENUM_TYPE_NOTIFICATION_TYPE = 21810;
      */
-    FUNCTIONAL_TYPE = 21253,
+    NOTIFICATION_TYPE = 21810,
     /**
-     * @generated from protobuf enum value: ENUM_TYPE_CONDITIONAL_TYPE = 21254;
+     * @generated from protobuf enum value: ENUM_TYPE_NOTIFICATION_STATUS = 21811;
      */
-    CONDITIONAL_TYPE = 21254,
+    NOTIFICATION_STATUS = 21811,
     /**
-     * @generated from protobuf enum value: ENUM_TYPE_AGGREGATION_TYPE = 21255;
+     * @generated from protobuf enum value: ENUM_TYPE_CLAIM_TYPE = 22000;
      */
-    AGGREGATION_TYPE = 21255,
+    CLAIM_TYPE = 22000,
     /**
-     * @generated from protobuf enum value: ENUM_TYPE_SORT_MODE = 21256;
+     * @generated from protobuf enum value: ENUM_TYPE_CLAIM_STATUS = 22001;
      */
-    SORT_MODE = 21256,
+    CLAIM_STATUS = 22001,
     /**
-     * @generated from protobuf enum value: ENUM_TYPE_SORT_TYPE = 21257;
+     * @generated from protobuf enum value: ENUM_TYPE_CURSOR_TYPE = 22010;
      */
-    SORT_TYPE = 21257,
+    CURSOR_TYPE = 22010,
     /**
-     * @generated from protobuf enum value: ENUM_TYPE_SELECTION_TYPE = 21265;
+     * @generated from protobuf enum value: ENUM_TYPE_CURSOR_STATUS = 22011;
      */
-    SELECTION_TYPE = 21265,
+    CURSOR_STATUS = 22011,
     /**
-     * @generated from protobuf enum value: ENUM_TYPE_PROCESS_STATUS = 22000;
+     * @generated from protobuf enum value: ENUM_TYPE_ACTION_TYPE = 22220;
      */
-    PROCESS_STATUS = 22000,
+    ACTION_TYPE = 22220,
     /**
-     * @generated from protobuf enum value: ENUM_TYPE_RUN_TYPE = 22001;
+     * @generated from protobuf enum value: ENUM_TYPE_PORT_SIDE = 22221;
      */
-    RUN_TYPE = 22001,
+    PORT_SIDE = 22221,
     /**
-     * @generated from protobuf enum value: ENUM_TYPE_SPAN_TYPE = 22002;
+     * @generated from protobuf enum value: ENUM_TYPE_TRANSITION_TYPE = 22222;
      */
-    SPAN_TYPE = 22002,
+    TRANSITION_TYPE = 22222,
     /**
-     * @generated from protobuf enum value: ENUM_TYPE_SESSION_STATUS = 22020;
+     * @generated from protobuf enum value: ENUM_TYPE_FLOW_TYPE = 22223;
      */
-    SESSION_STATUS = 22020,
+    FLOW_TYPE = 22223,
     /**
-     * @generated from protobuf enum value: ENUM_TYPE_SEVERITY = 22061;
+     * @generated from protobuf enum value: ENUM_TYPE_PROCESS_STATUS = 22400;
      */
-    SEVERITY = 22061,
+    PROCESS_STATUS = 22400,
     /**
-     * @generated from protobuf enum value: ENUM_TYPE_SCHEDULE_FREQUENCY = 22041;
+     * @generated from protobuf enum value: ENUM_TYPE_RUN_TYPE = 22401;
      */
-    SCHEDULE_FREQUENCY = 22041,
+    RUN_TYPE = 22401,
     /**
-     * @generated from protobuf enum value: ENUM_TYPE_CLAIM_TYPE = 22050;
+     * @generated from protobuf enum value: ENUM_TYPE_SPAN_TYPE = 22402;
      */
-    CLAIM_TYPE = 22050,
+    SPAN_TYPE = 22402,
     /**
-     * @generated from protobuf enum value: ENUM_TYPE_CLAIM_STATUS = 22051;
+     * @generated from protobuf enum value: ENUM_TYPE_SESSION_STATUS = 22403;
      */
-    CLAIM_STATUS = 22051,
+    SESSION_STATUS = 22403,
     /**
-     * @generated from protobuf enum value: ENUM_TYPE_CURSOR_TYPE = 22070;
+     * @generated from protobuf enum value: ENUM_TYPE_SCHEDULE_FREQUENCY = 22410;
      */
-    CURSOR_TYPE = 22070,
+    SCHEDULE_FREQUENCY = 22410,
     /**
-     * @generated from protobuf enum value: ENUM_TYPE_CURSOR_STATUS = 22071;
+     * @generated from protobuf enum value: ENUM_TYPE_INTERRUPTION_TYPE = 22200;
      */
-    CURSOR_STATUS = 22071,
+    INTERRUPTION_TYPE = 22200,
     /**
-     * @generated from protobuf enum value: ENUM_TYPE_ERROR_KIND = 22100;
+     * @generated from protobuf enum value: ENUM_TYPE_INTERRUPTION_STATUS = 22201;
      */
-    ERROR_KIND = 22100,
+    INTERRUPTION_STATUS = 22201,
     /**
-     * @generated from protobuf enum value: ENUM_TYPE_ERROR_TYPE = 22101;
+     * @generated from protobuf enum value: ENUM_TYPE_INTERRUPTION_RESPONSE = 22202;
      */
-    ERROR_TYPE = 22101,
+    INTERRUPTION_RESPONSE = 22202,
     /**
-     * @generated from protobuf enum value: ENUM_TYPE_INTERRUPTION_TYPE = 22210;
+     * @generated from protobuf enum value: ENUM_TYPE_ACCESS_MODE = 22600;
      */
-    INTERRUPTION_TYPE = 22210,
+    ACCESS_MODE = 22600,
     /**
-     * @generated from protobuf enum value: ENUM_TYPE_INTERRUPTION_STATUS = 22211;
+     * @generated from protobuf enum value: ENUM_TYPE_ACCESS_KIND = 22601;
      */
-    INTERRUPTION_STATUS = 22211,
+    ACCESS_KIND = 22601,
     /**
-     * @generated from protobuf enum value: ENUM_TYPE_INTERRUPTION_RESPONSE = 22212;
+     * @generated from protobuf enum value: ENUM_TYPE_POLICY_EFFECT = 22602;
      */
-    INTERRUPTION_RESPONSE = 22212,
+    POLICY_EFFECT = 22602,
     /**
-     * @generated from protobuf enum value: ENUM_TYPE_MODEL_DEVELOPER = 22250;
+     * @generated from protobuf enum value: ENUM_TYPE_ACCESS_TYPE = 22603;
      */
-    MODEL_DEVELOPER = 22250,
+    ACCESS_TYPE = 22603,
     /**
-     * @generated from protobuf enum value: ENUM_TYPE_MODEL_PROVIDER = 22251;
+     * @generated from protobuf enum value: ENUM_TYPE_QUERY_TYPE = 22650;
      */
-    MODEL_PROVIDER = 22251,
+    QUERY_TYPE = 22650,
     /**
-     * @generated from protobuf enum value: ENUM_TYPE_CODE_TYPE = 22300;
+     * @generated from protobuf enum value: ENUM_TYPE_EDIT_TYPE = 22651;
      */
-    CODE_TYPE = 22300,
+    EDIT_TYPE = 22651,
     /**
-     * @generated from protobuf enum value: ENUM_TYPE_COLOR_HUE = 22301;
+     * @generated from protobuf enum value: ENUM_TYPE_USE_TYPE = 22652;
      */
-    COLOR_HUE = 22301,
+    USE_TYPE = 22652,
     /**
-     * @generated from protobuf enum value: ENUM_TYPE_ACTION_TYPE = 22350;
+     * @generated from protobuf enum value: ENUM_TYPE_MODEL_DEVELOPER = 22800;
      */
-    ACTION_TYPE = 22350,
+    MODEL_DEVELOPER = 22800,
     /**
-     * @generated from protobuf enum value: ENUM_TYPE_PORT_SIDE = 22352;
+     * @generated from protobuf enum value: ENUM_TYPE_MODEL_PROVIDER = 22801;
      */
-    PORT_SIDE = 22352,
+    MODEL_PROVIDER = 22801,
     /**
-     * @generated from protobuf enum value: ENUM_TYPE_TRANSITION_TYPE = 22353;
+     * @generated from protobuf enum value: ENUM_TYPE_SPACE_TYPE = 28000;
      */
-    TRANSITION_TYPE = 22353,
+    SPACE_TYPE = 28000,
     /**
-     * @generated from protobuf enum value: ENUM_TYPE_FLOW_TYPE = 22360;
+     * @generated from protobuf enum value: ENUM_TYPE_COLOR_TYPE = 28010;
      */
-    FLOW_TYPE = 22360,
+    COLOR_TYPE = 28010,
     /**
-     * @generated from protobuf enum value: ENUM_TYPE_SPACE_TYPE = 22400;
+     * @generated from protobuf enum value: ENUM_TYPE_COLOR_SHADE = 28011;
      */
-    SPACE_TYPE = 22400,
+    COLOR_SHADE = 28011,
     /**
-     * @generated from protobuf enum value: ENUM_TYPE_COLOR_TYPE = 22402;
+     * @generated from protobuf enum value: ENUM_TYPE_COLOR_HUE = 28012;
      */
-    COLOR_TYPE = 22402,
+    COLOR_HUE = 28012,
     /**
-     * @generated from protobuf enum value: ENUM_TYPE_COLOR_SHADE = 22403;
+     * @generated from protobuf enum value: ENUM_TYPE_FONT_TYPE = 28020;
      */
-    COLOR_SHADE = 22403,
+    FONT_TYPE = 28020,
     /**
-     * @generated from protobuf enum value: ENUM_TYPE_FONT_TYPE = 22404;
+     * @generated from protobuf enum value: ENUM_TYPE_FONT_WEIGHT = 28021;
      */
-    FONT_TYPE = 22404,
+    FONT_WEIGHT = 28021,
     /**
-     * @generated from protobuf enum value: ENUM_TYPE_FONT_WEIGHT = 22405;
+     * @generated from protobuf enum value: ENUM_TYPE_FONT_SIZE = 28022;
      */
-    FONT_WEIGHT = 22405,
+    FONT_SIZE = 28022,
     /**
-     * @generated from protobuf enum value: ENUM_TYPE_FONT_SIZE = 22406;
+     * @generated from protobuf enum value: ENUM_TYPE_TEXT_ALIGN = 28023;
      */
-    FONT_SIZE = 22406,
+    TEXT_ALIGN = 28023,
     /**
-     * @generated from protobuf enum value: ENUM_TYPE_SHADOW_TYPE = 22418;
+     * @generated from protobuf enum value: ENUM_TYPE_TEXT_DECORATION = 28024;
      */
-    SHADOW_TYPE = 22418,
+    TEXT_DECORATION = 28024,
     /**
-     * @generated from protobuf enum value: ENUM_TYPE_SHADOW_POSITION = 22419;
+     * @generated from protobuf enum value: ENUM_TYPE_TEXT_TRANSFORM = 28025;
      */
-    SHADOW_POSITION = 22419,
+    TEXT_TRANSFORM = 28025,
     /**
-     * @generated from protobuf enum value: ENUM_TYPE_BORDER_TYPE = 22420;
+     * @generated from protobuf enum value: ENUM_TYPE_SHADOW_TYPE = 28030;
      */
-    BORDER_TYPE = 22420,
+    SHADOW_TYPE = 28030,
     /**
-     * @generated from protobuf enum value: ENUM_TYPE_TEXT_ALIGN = 22421;
+     * @generated from protobuf enum value: ENUM_TYPE_SHADOW_POSITION = 28031;
      */
-    TEXT_ALIGN = 22421,
+    SHADOW_POSITION = 28031,
     /**
-     * @generated from protobuf enum value: ENUM_TYPE_TEXT_DECORATION = 22422;
+     * @generated from protobuf enum value: ENUM_TYPE_BORDER_TYPE = 28040;
      */
-    TEXT_DECORATION = 22422,
+    BORDER_TYPE = 28040,
     /**
-     * @generated from protobuf enum value: ENUM_TYPE_TEXT_TRANSFORM = 22423;
+     * @generated from protobuf enum value: ENUM_TYPE_GRADIENT_TYPE = 28050;
      */
-    TEXT_TRANSFORM = 22423,
+    GRADIENT_TYPE = 28050,
     /**
-     * @generated from protobuf enum value: ENUM_TYPE_GRADIENT_TYPE = 22424;
+     * @generated from protobuf enum value: ENUM_TYPE_FILL_TYPE = 28060;
      */
-    GRADIENT_TYPE = 22424,
+    FILL_TYPE = 28060,
     /**
-     * @generated from protobuf enum value: ENUM_TYPE_FILL_TYPE = 22425;
+     * @generated from protobuf enum value: ENUM_TYPE_FILL_POSITION = 28061;
      */
-    FILL_TYPE = 22425,
+    FILL_POSITION = 28061,
     /**
-     * @generated from protobuf enum value: ENUM_TYPE_FILL_POSITION = 22426;
+     * @generated from protobuf enum value: ENUM_TYPE_FILL_SIZE = 28062;
      */
-    FILL_POSITION = 22426,
+    FILL_SIZE = 28062,
     /**
-     * @generated from protobuf enum value: ENUM_TYPE_FILL_SIZE = 22427;
+     * @generated from protobuf enum value: ENUM_TYPE_LENGTH_UNIT = 28070;
      */
-    FILL_SIZE = 22427,
-    /**
-     * @generated from protobuf enum value: ENUM_TYPE_USER_STATUS = 22450;
-     */
-    USER_STATUS = 22450,
-    /**
-     * @generated from protobuf enum value: ENUM_TYPE_ORGANIZATION_STATUS = 22451;
-     */
-    ORGANIZATION_STATUS = 22451,
-    /**
-     * @generated from protobuf enum value: ENUM_TYPE_CHANNEL_STATUS = 22500;
-     */
-    CHANNEL_STATUS = 22500,
-    /**
-     * @generated from protobuf enum value: ENUM_TYPE_THREAD_STATUS = 22502;
-     */
-    THREAD_STATUS = 22502,
-    /**
-     * @generated from protobuf enum value: ENUM_TYPE_MESSAGE_TYPE = 22503;
-     */
-    MESSAGE_TYPE = 22503,
-    /**
-     * @generated from protobuf enum value: ENUM_TYPE_NOTIFICATION_TYPE = 22506;
-     */
-    NOTIFICATION_TYPE = 22506,
-    /**
-     * @generated from protobuf enum value: ENUM_TYPE_NOTIFICATION_STATUS = 22507;
-     */
-    NOTIFICATION_STATUS = 22507
+    LENGTH_UNIT = 28070
 }
 /**
  * @generated from protobuf enum symbol.bench.NodeType
@@ -7700,21 +7721,21 @@ export enum NodeType {
      */
     COLOR_STYLE = 8510,
     /**
-     * @generated from protobuf enum value: NODE_TYPE_TEXT_STYLE = 8520;
+     * @generated from protobuf enum value: NODE_TYPE_TEXT_STYLE = 8511;
      */
-    TEXT_STYLE = 8520,
+    TEXT_STYLE = 8511,
     /**
-     * @generated from protobuf enum value: NODE_TYPE_BORDER_STYLE = 8530;
+     * @generated from protobuf enum value: NODE_TYPE_BORDER_STYLE = 8512;
      */
-    BORDER_STYLE = 8530,
+    BORDER_STYLE = 8512,
     /**
-     * @generated from protobuf enum value: NODE_TYPE_SHADOW_STYLE = 8540;
+     * @generated from protobuf enum value: NODE_TYPE_SHADOW_STYLE = 8513;
      */
-    SHADOW_STYLE = 8540,
+    SHADOW_STYLE = 8513,
     /**
-     * @generated from protobuf enum value: NODE_TYPE_GRADIENT_STYLE = 8550;
+     * @generated from protobuf enum value: NODE_TYPE_GRADIENT_STYLE = 8514;
      */
-    GRADIENT_STYLE = 8550,
+    GRADIENT_STYLE = 8514,
     /**
      * @generated from protobuf enum value: NODE_TYPE_EMPTY = 9999;
      */
@@ -7769,129 +7790,133 @@ export enum StructType {
      */
     PROPERTY_REFERENCE = 10011,
     /**
-     * @generated from protobuf enum value: STRUCT_TYPE_POLICY = 10500;
+     * @generated from protobuf enum value: STRUCT_TYPE_TYPE = 11400;
      */
-    POLICY = 10500,
+    TYPE = 11400,
     /**
-     * @generated from protobuf enum value: STRUCT_TYPE_POLICY_RULE = 10501;
+     * @generated from protobuf enum value: STRUCT_TYPE_TYPE_CONSTRAINT = 11401;
      */
-    POLICY_RULE = 10501,
+    TYPE_CONSTRAINT = 11401,
     /**
-     * @generated from protobuf enum value: STRUCT_TYPE_POLICY_SUBJECT = 10502;
+     * @generated from protobuf enum value: STRUCT_TYPE_FILE_INFO = 11420;
      */
-    POLICY_SUBJECT = 10502,
+    FILE_INFO = 11420,
     /**
-     * @generated from protobuf enum value: STRUCT_TYPE_ACCESS_ZONE = 10503;
+     * @generated from protobuf enum value: STRUCT_TYPE_SCHEDULE = 11440;
      */
-    ACCESS_ZONE = 10503,
+    SCHEDULE = 11440,
     /**
-     * @generated from protobuf enum value: STRUCT_TYPE_ACCESS_MATRIX = 10504;
+     * @generated from protobuf enum value: STRUCT_TYPE_TEXT = 11600;
      */
-    ACCESS_MATRIX = 10504,
+    TEXT = 11600,
     /**
-     * @generated from protobuf enum value: STRUCT_TYPE_ACCESS = 10505;
+     * @generated from protobuf enum value: STRUCT_TYPE_TEXT_LINE = 11601;
      */
-    ACCESS = 10505,
+    TEXT_LINE = 11601,
     /**
-     * @generated from protobuf enum value: STRUCT_TYPE_TYPE = 11500;
+     * @generated from protobuf enum value: STRUCT_TYPE_TEXT_SPAN = 11602;
      */
-    TYPE = 11500,
+    TEXT_SPAN = 11602,
     /**
-     * @generated from protobuf enum value: STRUCT_TYPE_TYPE_CONSTRAINT = 11501;
+     * @generated from protobuf enum value: STRUCT_TYPE_CODE = 11610;
      */
-    TYPE_CONSTRAINT = 11501,
+    CODE = 11610,
     /**
-     * @generated from protobuf enum value: STRUCT_TYPE_FILE_INFO = 11520;
+     * @generated from protobuf enum value: STRUCT_TYPE_ICON = 11430;
      */
-    FILE_INFO = 11520,
+    ICON = 11430,
     /**
-     * @generated from protobuf enum value: STRUCT_TYPE_ICON = 11530;
+     * @generated from protobuf enum value: STRUCT_TYPE_EXPRESSION = 12200;
      */
-    ICON = 11530,
+    EXPRESSION = 12200,
     /**
-     * @generated from protobuf enum value: STRUCT_TYPE_SCHEDULE = 11540;
+     * @generated from protobuf enum value: STRUCT_TYPE_AGGREGATION_RESULT = 12201;
      */
-    SCHEDULE = 11540,
+    AGGREGATION_RESULT = 12201,
     /**
-     * @generated from protobuf enum value: STRUCT_TYPE_TEXT = 12000;
+     * @generated from protobuf enum value: STRUCT_TYPE_SELECTION = 12210;
      */
-    TEXT = 12000,
+    SELECTION = 12210,
     /**
-     * @generated from protobuf enum value: STRUCT_TYPE_TEXT_LINE = 12001;
+     * @generated from protobuf enum value: STRUCT_TYPE_SELECT_OPTIONS = 12220;
      */
-    TEXT_LINE = 12001,
+    SELECT_OPTIONS = 12220,
     /**
-     * @generated from protobuf enum value: STRUCT_TYPE_TEXT_SPAN = 12002;
+     * @generated from protobuf enum value: STRUCT_TYPE_ERROR = 12400;
      */
-    TEXT_SPAN = 12002,
+    ERROR = 12400,
     /**
-     * @generated from protobuf enum value: STRUCT_TYPE_CODE = 12100;
+     * @generated from protobuf enum value: STRUCT_TYPE_RUN_TRACE = 12403;
      */
-    CODE = 12100,
+    RUN_TRACE = 12403,
     /**
-     * @generated from protobuf enum value: STRUCT_TYPE_EXPRESSION = 12210;
+     * @generated from protobuf enum value: STRUCT_TYPE_RUN_FRAME = 12404;
      */
-    EXPRESSION = 12210,
+    RUN_FRAME = 12404,
     /**
-     * @generated from protobuf enum value: STRUCT_TYPE_AGGREGATION_RESULT = 12211;
+     * @generated from protobuf enum value: STRUCT_TYPE_POLICY = 14000;
      */
-    AGGREGATION_RESULT = 12211,
+    POLICY = 14000,
     /**
-     * @generated from protobuf enum value: STRUCT_TYPE_SELECTION = 12220;
+     * @generated from protobuf enum value: STRUCT_TYPE_POLICY_RULE = 14001;
      */
-    SELECTION = 12220,
+    POLICY_RULE = 14001,
     /**
-     * @generated from protobuf enum value: STRUCT_TYPE_SELECT_OPTIONS = 12230;
+     * @generated from protobuf enum value: STRUCT_TYPE_POLICY_SUBJECT = 14002;
      */
-    SELECT_OPTIONS = 12230,
+    POLICY_SUBJECT = 14002,
     /**
-     * @generated from protobuf enum value: STRUCT_TYPE_ERROR = 12700;
+     * @generated from protobuf enum value: STRUCT_TYPE_ACCESS_ZONE = 14003;
      */
-    ERROR = 12700,
+    ACCESS_ZONE = 14003,
     /**
-     * @generated from protobuf enum value: STRUCT_TYPE_RUN_TRACE = 12703;
+     * @generated from protobuf enum value: STRUCT_TYPE_ACCESS_MATRIX = 14004;
      */
-    RUN_TRACE = 12703,
+    ACCESS_MATRIX = 14004,
     /**
-     * @generated from protobuf enum value: STRUCT_TYPE_RUN_FRAME = 12704;
+     * @generated from protobuf enum value: STRUCT_TYPE_ACCESS = 14005;
      */
-    RUN_FRAME = 12704,
+    ACCESS = 14005,
     /**
-     * @generated from protobuf enum value: STRUCT_TYPE_COLOR = 13200;
+     * @generated from protobuf enum value: STRUCT_TYPE_COLOR = 18500;
      */
-    COLOR = 13200,
+    COLOR = 18500,
     /**
-     * @generated from protobuf enum value: STRUCT_TYPE_SHADOW = 13203;
+     * @generated from protobuf enum value: STRUCT_TYPE_SHADOW = 18503;
      */
-    SHADOW = 13203,
+    SHADOW = 18503,
     /**
-     * @generated from protobuf enum value: STRUCT_TYPE_BORDER = 13204;
+     * @generated from protobuf enum value: STRUCT_TYPE_BORDER = 18504;
      */
-    BORDER = 13204,
+    BORDER = 18504,
     /**
-     * @generated from protobuf enum value: STRUCT_TYPE_VECTOR2 = 13205;
+     * @generated from protobuf enum value: STRUCT_TYPE_VECTOR2 = 15005;
      */
-    VECTOR2 = 13205,
+    VECTOR2 = 15005,
     /**
-     * @generated from protobuf enum value: STRUCT_TYPE_VECTOR3 = 13206;
+     * @generated from protobuf enum value: STRUCT_TYPE_VECTOR3 = 18506;
      */
-    VECTOR3 = 13206,
+    VECTOR3 = 18506,
     /**
-     * @generated from protobuf enum value: STRUCT_TYPE_VECTOR4 = 13207;
+     * @generated from protobuf enum value: STRUCT_TYPE_VECTOR4 = 18507;
      */
-    VECTOR4 = 13207,
+    VECTOR4 = 18507,
     /**
-     * @generated from protobuf enum value: STRUCT_TYPE_GRADIENT_STOP = 13209;
+     * @generated from protobuf enum value: STRUCT_TYPE_GRADIENT_STOP = 18509;
      */
-    GRADIENT_STOP = 13209,
+    GRADIENT_STOP = 18509,
     /**
-     * @generated from protobuf enum value: STRUCT_TYPE_GRADIENT = 13210;
+     * @generated from protobuf enum value: STRUCT_TYPE_GRADIENT = 18510;
      */
-    GRADIENT = 13210,
+    GRADIENT = 18510,
     /**
-     * @generated from protobuf enum value: STRUCT_TYPE_FILL = 13211;
+     * @generated from protobuf enum value: STRUCT_TYPE_FILL = 18511;
      */
-    FILL = 13211
+    FILL = 18511,
+    /**
+     * @generated from protobuf enum value: STRUCT_TYPE_LENGTH = 18512;
+     */
+    LENGTH = 18512
 }
 /**
  * @generated from protobuf enum symbol.bench.ObjectType
@@ -8082,21 +8107,21 @@ export enum ObjectType {
      */
     COLOR_STYLE = 8510,
     /**
-     * @generated from protobuf enum value: OBJECT_TYPE_TEXT_STYLE = 8520;
+     * @generated from protobuf enum value: OBJECT_TYPE_TEXT_STYLE = 8511;
      */
-    TEXT_STYLE = 8520,
+    TEXT_STYLE = 8511,
     /**
-     * @generated from protobuf enum value: OBJECT_TYPE_BORDER_STYLE = 8530;
+     * @generated from protobuf enum value: OBJECT_TYPE_BORDER_STYLE = 8512;
      */
-    BORDER_STYLE = 8530,
+    BORDER_STYLE = 8512,
     /**
-     * @generated from protobuf enum value: OBJECT_TYPE_SHADOW_STYLE = 8540;
+     * @generated from protobuf enum value: OBJECT_TYPE_SHADOW_STYLE = 8513;
      */
-    SHADOW_STYLE = 8540,
+    SHADOW_STYLE = 8513,
     /**
-     * @generated from protobuf enum value: OBJECT_TYPE_GRADIENT_STYLE = 8550;
+     * @generated from protobuf enum value: OBJECT_TYPE_GRADIENT_STYLE = 8514;
      */
-    GRADIENT_STYLE = 8550,
+    GRADIENT_STYLE = 8514,
     /**
      * @generated from protobuf enum value: OBJECT_TYPE_EMPTY = 9999;
      */
@@ -8142,129 +8167,133 @@ export enum ObjectType {
      */
     PROPERTY_REFERENCE = 10011,
     /**
-     * @generated from protobuf enum value: OBJECT_TYPE_POLICY = 10500;
+     * @generated from protobuf enum value: OBJECT_TYPE_TYPE = 11400;
      */
-    POLICY = 10500,
+    TYPE = 11400,
     /**
-     * @generated from protobuf enum value: OBJECT_TYPE_POLICY_RULE = 10501;
+     * @generated from protobuf enum value: OBJECT_TYPE_TYPE_CONSTRAINT = 11401;
      */
-    POLICY_RULE = 10501,
+    TYPE_CONSTRAINT = 11401,
     /**
-     * @generated from protobuf enum value: OBJECT_TYPE_POLICY_SUBJECT = 10502;
+     * @generated from protobuf enum value: OBJECT_TYPE_FILE_INFO = 11420;
      */
-    POLICY_SUBJECT = 10502,
+    FILE_INFO = 11420,
     /**
-     * @generated from protobuf enum value: OBJECT_TYPE_ACCESS_ZONE = 10503;
+     * @generated from protobuf enum value: OBJECT_TYPE_SCHEDULE = 11440;
      */
-    ACCESS_ZONE = 10503,
+    SCHEDULE = 11440,
     /**
-     * @generated from protobuf enum value: OBJECT_TYPE_ACCESS_MATRIX = 10504;
+     * @generated from protobuf enum value: OBJECT_TYPE_TEXT = 11600;
      */
-    ACCESS_MATRIX = 10504,
+    TEXT = 11600,
     /**
-     * @generated from protobuf enum value: OBJECT_TYPE_ACCESS = 10505;
+     * @generated from protobuf enum value: OBJECT_TYPE_TEXT_LINE = 11601;
      */
-    ACCESS = 10505,
+    TEXT_LINE = 11601,
     /**
-     * @generated from protobuf enum value: OBJECT_TYPE_TYPE = 11500;
+     * @generated from protobuf enum value: OBJECT_TYPE_TEXT_SPAN = 11602;
      */
-    TYPE = 11500,
+    TEXT_SPAN = 11602,
     /**
-     * @generated from protobuf enum value: OBJECT_TYPE_TYPE_CONSTRAINT = 11501;
+     * @generated from protobuf enum value: OBJECT_TYPE_CODE = 11610;
      */
-    TYPE_CONSTRAINT = 11501,
+    CODE = 11610,
     /**
-     * @generated from protobuf enum value: OBJECT_TYPE_FILE_INFO = 11520;
+     * @generated from protobuf enum value: OBJECT_TYPE_ICON = 11430;
      */
-    FILE_INFO = 11520,
+    ICON = 11430,
     /**
-     * @generated from protobuf enum value: OBJECT_TYPE_ICON = 11530;
+     * @generated from protobuf enum value: OBJECT_TYPE_EXPRESSION = 12200;
      */
-    ICON = 11530,
+    EXPRESSION = 12200,
     /**
-     * @generated from protobuf enum value: OBJECT_TYPE_SCHEDULE = 11540;
+     * @generated from protobuf enum value: OBJECT_TYPE_AGGREGATION_RESULT = 12201;
      */
-    SCHEDULE = 11540,
+    AGGREGATION_RESULT = 12201,
     /**
-     * @generated from protobuf enum value: OBJECT_TYPE_TEXT = 12000;
+     * @generated from protobuf enum value: OBJECT_TYPE_SELECTION = 12210;
      */
-    TEXT = 12000,
+    SELECTION = 12210,
     /**
-     * @generated from protobuf enum value: OBJECT_TYPE_TEXT_LINE = 12001;
+     * @generated from protobuf enum value: OBJECT_TYPE_SELECT_OPTIONS = 12220;
      */
-    TEXT_LINE = 12001,
+    SELECT_OPTIONS = 12220,
     /**
-     * @generated from protobuf enum value: OBJECT_TYPE_TEXT_SPAN = 12002;
+     * @generated from protobuf enum value: OBJECT_TYPE_ERROR = 12400;
      */
-    TEXT_SPAN = 12002,
+    ERROR = 12400,
     /**
-     * @generated from protobuf enum value: OBJECT_TYPE_CODE = 12100;
+     * @generated from protobuf enum value: OBJECT_TYPE_RUN_TRACE = 12403;
      */
-    CODE = 12100,
+    RUN_TRACE = 12403,
     /**
-     * @generated from protobuf enum value: OBJECT_TYPE_EXPRESSION = 12210;
+     * @generated from protobuf enum value: OBJECT_TYPE_RUN_FRAME = 12404;
      */
-    EXPRESSION = 12210,
+    RUN_FRAME = 12404,
     /**
-     * @generated from protobuf enum value: OBJECT_TYPE_AGGREGATION_RESULT = 12211;
+     * @generated from protobuf enum value: OBJECT_TYPE_POLICY = 14000;
      */
-    AGGREGATION_RESULT = 12211,
+    POLICY = 14000,
     /**
-     * @generated from protobuf enum value: OBJECT_TYPE_SELECTION = 12220;
+     * @generated from protobuf enum value: OBJECT_TYPE_POLICY_RULE = 14001;
      */
-    SELECTION = 12220,
+    POLICY_RULE = 14001,
     /**
-     * @generated from protobuf enum value: OBJECT_TYPE_SELECT_OPTIONS = 12230;
+     * @generated from protobuf enum value: OBJECT_TYPE_POLICY_SUBJECT = 14002;
      */
-    SELECT_OPTIONS = 12230,
+    POLICY_SUBJECT = 14002,
     /**
-     * @generated from protobuf enum value: OBJECT_TYPE_ERROR = 12700;
+     * @generated from protobuf enum value: OBJECT_TYPE_ACCESS_ZONE = 14003;
      */
-    ERROR = 12700,
+    ACCESS_ZONE = 14003,
     /**
-     * @generated from protobuf enum value: OBJECT_TYPE_RUN_TRACE = 12703;
+     * @generated from protobuf enum value: OBJECT_TYPE_ACCESS_MATRIX = 14004;
      */
-    RUN_TRACE = 12703,
+    ACCESS_MATRIX = 14004,
     /**
-     * @generated from protobuf enum value: OBJECT_TYPE_RUN_FRAME = 12704;
+     * @generated from protobuf enum value: OBJECT_TYPE_ACCESS = 14005;
      */
-    RUN_FRAME = 12704,
+    ACCESS = 14005,
     /**
-     * @generated from protobuf enum value: OBJECT_TYPE_COLOR = 13200;
+     * @generated from protobuf enum value: OBJECT_TYPE_COLOR = 18500;
      */
-    COLOR = 13200,
+    COLOR = 18500,
     /**
-     * @generated from protobuf enum value: OBJECT_TYPE_SHADOW = 13203;
+     * @generated from protobuf enum value: OBJECT_TYPE_SHADOW = 18503;
      */
-    SHADOW = 13203,
+    SHADOW = 18503,
     /**
-     * @generated from protobuf enum value: OBJECT_TYPE_BORDER = 13204;
+     * @generated from protobuf enum value: OBJECT_TYPE_BORDER = 18504;
      */
-    BORDER = 13204,
+    BORDER = 18504,
     /**
-     * @generated from protobuf enum value: OBJECT_TYPE_VECTOR2 = 13205;
+     * @generated from protobuf enum value: OBJECT_TYPE_VECTOR2 = 15005;
      */
-    VECTOR2 = 13205,
+    VECTOR2 = 15005,
     /**
-     * @generated from protobuf enum value: OBJECT_TYPE_VECTOR3 = 13206;
+     * @generated from protobuf enum value: OBJECT_TYPE_VECTOR3 = 18506;
      */
-    VECTOR3 = 13206,
+    VECTOR3 = 18506,
     /**
-     * @generated from protobuf enum value: OBJECT_TYPE_VECTOR4 = 13207;
+     * @generated from protobuf enum value: OBJECT_TYPE_VECTOR4 = 18507;
      */
-    VECTOR4 = 13207,
+    VECTOR4 = 18507,
     /**
-     * @generated from protobuf enum value: OBJECT_TYPE_GRADIENT_STOP = 13209;
+     * @generated from protobuf enum value: OBJECT_TYPE_GRADIENT_STOP = 18509;
      */
-    GRADIENT_STOP = 13209,
+    GRADIENT_STOP = 18509,
     /**
-     * @generated from protobuf enum value: OBJECT_TYPE_GRADIENT = 13210;
+     * @generated from protobuf enum value: OBJECT_TYPE_GRADIENT = 18510;
      */
-    GRADIENT = 13210,
+    GRADIENT = 18510,
     /**
-     * @generated from protobuf enum value: OBJECT_TYPE_FILL = 13211;
+     * @generated from protobuf enum value: OBJECT_TYPE_FILL = 18511;
      */
-    FILL = 13211
+    FILL = 18511,
+    /**
+     * @generated from protobuf enum value: OBJECT_TYPE_LENGTH = 18512;
+     */
+    LENGTH = 18512
 }
 /**
  * @generated from protobuf enum symbol.bench.BenchType
@@ -8455,21 +8484,21 @@ export enum BenchType {
      */
     COLOR_STYLE = 8510,
     /**
-     * @generated from protobuf enum value: BENCH_TYPE_TEXT_STYLE = 8520;
+     * @generated from protobuf enum value: BENCH_TYPE_TEXT_STYLE = 8511;
      */
-    TEXT_STYLE = 8520,
+    TEXT_STYLE = 8511,
     /**
-     * @generated from protobuf enum value: BENCH_TYPE_BORDER_STYLE = 8530;
+     * @generated from protobuf enum value: BENCH_TYPE_BORDER_STYLE = 8512;
      */
-    BORDER_STYLE = 8530,
+    BORDER_STYLE = 8512,
     /**
-     * @generated from protobuf enum value: BENCH_TYPE_SHADOW_STYLE = 8540;
+     * @generated from protobuf enum value: BENCH_TYPE_SHADOW_STYLE = 8513;
      */
-    SHADOW_STYLE = 8540,
+    SHADOW_STYLE = 8513,
     /**
-     * @generated from protobuf enum value: BENCH_TYPE_GRADIENT_STYLE = 8550;
+     * @generated from protobuf enum value: BENCH_TYPE_GRADIENT_STYLE = 8514;
      */
-    GRADIENT_STYLE = 8550,
+    GRADIENT_STYLE = 8514,
     /**
      * @generated from protobuf enum value: BENCH_TYPE_EMPTY = 9999;
      */
@@ -8515,129 +8544,133 @@ export enum BenchType {
      */
     PROPERTY_REFERENCE = 10011,
     /**
-     * @generated from protobuf enum value: BENCH_TYPE_POLICY = 10500;
+     * @generated from protobuf enum value: BENCH_TYPE_TYPE = 11400;
      */
-    POLICY = 10500,
+    TYPE = 11400,
     /**
-     * @generated from protobuf enum value: BENCH_TYPE_POLICY_RULE = 10501;
+     * @generated from protobuf enum value: BENCH_TYPE_TYPE_CONSTRAINT = 11401;
      */
-    POLICY_RULE = 10501,
+    TYPE_CONSTRAINT = 11401,
     /**
-     * @generated from protobuf enum value: BENCH_TYPE_POLICY_SUBJECT = 10502;
+     * @generated from protobuf enum value: BENCH_TYPE_FILE_INFO = 11420;
      */
-    POLICY_SUBJECT = 10502,
+    FILE_INFO = 11420,
     /**
-     * @generated from protobuf enum value: BENCH_TYPE_ACCESS_ZONE = 10503;
+     * @generated from protobuf enum value: BENCH_TYPE_SCHEDULE = 11440;
      */
-    ACCESS_ZONE = 10503,
+    SCHEDULE = 11440,
     /**
-     * @generated from protobuf enum value: BENCH_TYPE_ACCESS_MATRIX = 10504;
+     * @generated from protobuf enum value: BENCH_TYPE_TEXT = 11600;
      */
-    ACCESS_MATRIX = 10504,
+    TEXT = 11600,
     /**
-     * @generated from protobuf enum value: BENCH_TYPE_ACCESS = 10505;
+     * @generated from protobuf enum value: BENCH_TYPE_TEXT_LINE = 11601;
      */
-    ACCESS = 10505,
+    TEXT_LINE = 11601,
     /**
-     * @generated from protobuf enum value: BENCH_TYPE_TYPE = 11500;
+     * @generated from protobuf enum value: BENCH_TYPE_TEXT_SPAN = 11602;
      */
-    TYPE = 11500,
+    TEXT_SPAN = 11602,
     /**
-     * @generated from protobuf enum value: BENCH_TYPE_TYPE_CONSTRAINT = 11501;
+     * @generated from protobuf enum value: BENCH_TYPE_CODE = 11610;
      */
-    TYPE_CONSTRAINT = 11501,
+    CODE = 11610,
     /**
-     * @generated from protobuf enum value: BENCH_TYPE_FILE_INFO = 11520;
+     * @generated from protobuf enum value: BENCH_TYPE_ICON = 11430;
      */
-    FILE_INFO = 11520,
+    ICON = 11430,
     /**
-     * @generated from protobuf enum value: BENCH_TYPE_ICON = 11530;
+     * @generated from protobuf enum value: BENCH_TYPE_EXPRESSION = 12200;
      */
-    ICON = 11530,
+    EXPRESSION = 12200,
     /**
-     * @generated from protobuf enum value: BENCH_TYPE_SCHEDULE = 11540;
+     * @generated from protobuf enum value: BENCH_TYPE_AGGREGATION_RESULT = 12201;
      */
-    SCHEDULE = 11540,
+    AGGREGATION_RESULT = 12201,
     /**
-     * @generated from protobuf enum value: BENCH_TYPE_TEXT = 12000;
+     * @generated from protobuf enum value: BENCH_TYPE_SELECTION = 12210;
      */
-    TEXT = 12000,
+    SELECTION = 12210,
     /**
-     * @generated from protobuf enum value: BENCH_TYPE_TEXT_LINE = 12001;
+     * @generated from protobuf enum value: BENCH_TYPE_SELECT_OPTIONS = 12220;
      */
-    TEXT_LINE = 12001,
+    SELECT_OPTIONS = 12220,
     /**
-     * @generated from protobuf enum value: BENCH_TYPE_TEXT_SPAN = 12002;
+     * @generated from protobuf enum value: BENCH_TYPE_ERROR = 12400;
      */
-    TEXT_SPAN = 12002,
+    ERROR = 12400,
     /**
-     * @generated from protobuf enum value: BENCH_TYPE_CODE = 12100;
+     * @generated from protobuf enum value: BENCH_TYPE_RUN_TRACE = 12403;
      */
-    CODE = 12100,
+    RUN_TRACE = 12403,
     /**
-     * @generated from protobuf enum value: BENCH_TYPE_EXPRESSION = 12210;
+     * @generated from protobuf enum value: BENCH_TYPE_RUN_FRAME = 12404;
      */
-    EXPRESSION = 12210,
+    RUN_FRAME = 12404,
     /**
-     * @generated from protobuf enum value: BENCH_TYPE_AGGREGATION_RESULT = 12211;
+     * @generated from protobuf enum value: BENCH_TYPE_POLICY = 14000;
      */
-    AGGREGATION_RESULT = 12211,
+    POLICY = 14000,
     /**
-     * @generated from protobuf enum value: BENCH_TYPE_SELECTION = 12220;
+     * @generated from protobuf enum value: BENCH_TYPE_POLICY_RULE = 14001;
      */
-    SELECTION = 12220,
+    POLICY_RULE = 14001,
     /**
-     * @generated from protobuf enum value: BENCH_TYPE_SELECT_OPTIONS = 12230;
+     * @generated from protobuf enum value: BENCH_TYPE_POLICY_SUBJECT = 14002;
      */
-    SELECT_OPTIONS = 12230,
+    POLICY_SUBJECT = 14002,
     /**
-     * @generated from protobuf enum value: BENCH_TYPE_ERROR = 12700;
+     * @generated from protobuf enum value: BENCH_TYPE_ACCESS_ZONE = 14003;
      */
-    ERROR = 12700,
+    ACCESS_ZONE = 14003,
     /**
-     * @generated from protobuf enum value: BENCH_TYPE_RUN_TRACE = 12703;
+     * @generated from protobuf enum value: BENCH_TYPE_ACCESS_MATRIX = 14004;
      */
-    RUN_TRACE = 12703,
+    ACCESS_MATRIX = 14004,
     /**
-     * @generated from protobuf enum value: BENCH_TYPE_RUN_FRAME = 12704;
+     * @generated from protobuf enum value: BENCH_TYPE_ACCESS = 14005;
      */
-    RUN_FRAME = 12704,
+    ACCESS = 14005,
     /**
-     * @generated from protobuf enum value: BENCH_TYPE_COLOR = 13200;
+     * @generated from protobuf enum value: BENCH_TYPE_COLOR = 18500;
      */
-    COLOR = 13200,
+    COLOR = 18500,
     /**
-     * @generated from protobuf enum value: BENCH_TYPE_SHADOW = 13203;
+     * @generated from protobuf enum value: BENCH_TYPE_SHADOW = 18503;
      */
-    SHADOW = 13203,
+    SHADOW = 18503,
     /**
-     * @generated from protobuf enum value: BENCH_TYPE_BORDER = 13204;
+     * @generated from protobuf enum value: BENCH_TYPE_BORDER = 18504;
      */
-    BORDER = 13204,
+    BORDER = 18504,
     /**
-     * @generated from protobuf enum value: BENCH_TYPE_VECTOR2 = 13205;
+     * @generated from protobuf enum value: BENCH_TYPE_VECTOR2 = 15005;
      */
-    VECTOR2 = 13205,
+    VECTOR2 = 15005,
     /**
-     * @generated from protobuf enum value: BENCH_TYPE_VECTOR3 = 13206;
+     * @generated from protobuf enum value: BENCH_TYPE_VECTOR3 = 18506;
      */
-    VECTOR3 = 13206,
+    VECTOR3 = 18506,
     /**
-     * @generated from protobuf enum value: BENCH_TYPE_VECTOR4 = 13207;
+     * @generated from protobuf enum value: BENCH_TYPE_VECTOR4 = 18507;
      */
-    VECTOR4 = 13207,
+    VECTOR4 = 18507,
     /**
-     * @generated from protobuf enum value: BENCH_TYPE_GRADIENT_STOP = 13209;
+     * @generated from protobuf enum value: BENCH_TYPE_GRADIENT_STOP = 18509;
      */
-    GRADIENT_STOP = 13209,
+    GRADIENT_STOP = 18509,
     /**
-     * @generated from protobuf enum value: BENCH_TYPE_GRADIENT = 13210;
+     * @generated from protobuf enum value: BENCH_TYPE_GRADIENT = 18510;
      */
-    GRADIENT = 13210,
+    GRADIENT = 18510,
     /**
-     * @generated from protobuf enum value: BENCH_TYPE_FILL = 13211;
+     * @generated from protobuf enum value: BENCH_TYPE_FILL = 18511;
      */
-    FILL = 13211,
+    FILL = 18511,
+    /**
+     * @generated from protobuf enum value: BENCH_TYPE_LENGTH = 18512;
+     */
+    LENGTH = 18512,
     /**
      * @generated from protobuf enum value: BENCH_TYPE_ENUM_TYPE = 20000;
      */
@@ -8679,9 +8712,41 @@ export enum BenchType {
      */
     CHANGE_CATEGORY = 20009,
     /**
+     * @generated from protobuf enum value: BENCH_TYPE_USER_STATUS = 20010;
+     */
+    USER_STATUS = 20010,
+    /**
+     * @generated from protobuf enum value: BENCH_TYPE_ORGANIZATION_STATUS = 20011;
+     */
+    ORGANIZATION_STATUS = 20011,
+    /**
+     * @generated from protobuf enum value: BENCH_TYPE_BENCH_STATUS = 20056;
+     */
+    BENCH_STATUS = 20056,
+    /**
+     * @generated from protobuf enum value: BENCH_TYPE_ERROR_KIND = 20100;
+     */
+    ERROR_KIND = 20100,
+    /**
+     * @generated from protobuf enum value: BENCH_TYPE_ERROR_TYPE = 20101;
+     */
+    ERROR_TYPE = 20101,
+    /**
+     * @generated from protobuf enum value: BENCH_TYPE_SEVERITY = 20102;
+     */
+    SEVERITY = 20102,
+    /**
      * @generated from protobuf enum value: BENCH_TYPE_PACKAGE_TYPE = 20050;
      */
     PACKAGE_TYPE = 20050,
+    /**
+     * @generated from protobuf enum value: BENCH_TYPE_RESOURCE_STATUS = 21000;
+     */
+    RESOURCE_STATUS = 21000,
+    /**
+     * @generated from protobuf enum value: BENCH_TYPE_BLOCK_TYPE = 21010;
+     */
+    BLOCK_TYPE = 21010,
     /**
      * @generated from protobuf enum value: BENCH_TYPE_CLOUD = 20051;
      */
@@ -8699,345 +8764,317 @@ export enum BenchType {
      */
     CONTINENT = 20055,
     /**
-     * @generated from protobuf enum value: BENCH_TYPE_BENCH_STATUS = 20056;
+     * @generated from protobuf enum value: BENCH_TYPE_SCALER_TYPE = 21200;
      */
-    BENCH_STATUS = 20056,
+    SCALER_TYPE = 21200,
     /**
-     * @generated from protobuf enum value: BENCH_TYPE_ACCESS_MODE = 20100;
+     * @generated from protobuf enum value: BENCH_TYPE_SCALER_STRATEGY = 21201;
      */
-    ACCESS_MODE = 20100,
+    SCALER_STRATEGY = 21201,
     /**
-     * @generated from protobuf enum value: BENCH_TYPE_ACCESS_KIND = 20101;
+     * @generated from protobuf enum value: BENCH_TYPE_COMPUTER_TYPE = 21210;
      */
-    ACCESS_KIND = 20101,
+    COMPUTER_TYPE = 21210,
     /**
-     * @generated from protobuf enum value: BENCH_TYPE_POLICY_EFFECT = 20102;
+     * @generated from protobuf enum value: BENCH_TYPE_DATABASE_TYPE = 21220;
      */
-    POLICY_EFFECT = 20102,
+    DATABASE_TYPE = 21220,
     /**
-     * @generated from protobuf enum value: BENCH_TYPE_QUERY_TYPE = 20150;
+     * @generated from protobuf enum value: BENCH_TYPE_CLIENT_TYPE = 21221;
      */
-    QUERY_TYPE = 20150,
+    CLIENT_TYPE = 21221,
     /**
-     * @generated from protobuf enum value: BENCH_TYPE_EDIT_TYPE = 20151;
+     * @generated from protobuf enum value: BENCH_TYPE_TEXT_LINE_TYPE = 21400;
      */
-    EDIT_TYPE = 20151,
+    TEXT_LINE_TYPE = 21400,
     /**
-     * @generated from protobuf enum value: BENCH_TYPE_USE_TYPE = 20152;
+     * @generated from protobuf enum value: BENCH_TYPE_TEXT_SPAN_TYPE = 21401;
      */
-    USE_TYPE = 20152,
+    TEXT_SPAN_TYPE = 21401,
     /**
-     * @generated from protobuf enum value: BENCH_TYPE_ACCESS_TYPE = 20153;
+     * @generated from protobuf enum value: BENCH_TYPE_CODE_TYPE = 21410;
      */
-    ACCESS_TYPE = 20153,
+    CODE_TYPE = 21410,
     /**
-     * @generated from protobuf enum value: BENCH_TYPE_RESOURCE_STATUS = 21000;
+     * @generated from protobuf enum value: BENCH_TYPE_FILE_RETENTION_MODE = 21420;
      */
-    RESOURCE_STATUS = 21000,
+    FILE_RETENTION_MODE = 21420,
     /**
-     * @generated from protobuf enum value: BENCH_TYPE_SCALER_TYPE = 21010;
+     * @generated from protobuf enum value: BENCH_TYPE_FILE_SOURCE = 21421;
      */
-    SCALER_TYPE = 21010,
+    FILE_SOURCE = 21421,
     /**
-     * @generated from protobuf enum value: BENCH_TYPE_SCALER_STRATEGY = 21011;
+     * @generated from protobuf enum value: BENCH_TYPE_FILE_TYPE = 21422;
      */
-    SCALER_STRATEGY = 21011,
+    FILE_TYPE = 21422,
     /**
-     * @generated from protobuf enum value: BENCH_TYPE_COMPUTER_TYPE = 21020;
+     * @generated from protobuf enum value: BENCH_TYPE_FILE_FORMAT = 21423;
      */
-    COMPUTER_TYPE = 21020,
+    FILE_FORMAT = 21423,
     /**
-     * @generated from protobuf enum value: BENCH_TYPE_DATABASE_TYPE = 21040;
+     * @generated from protobuf enum value: BENCH_TYPE_ICON_TYPE = 21430;
      */
-    DATABASE_TYPE = 21040,
+    ICON_TYPE = 21430,
     /**
-     * @generated from protobuf enum value: BENCH_TYPE_CLIENT_TYPE = 21041;
+     * @generated from protobuf enum value: BENCH_TYPE_LINK_TYPE = 21440;
      */
-    CLIENT_TYPE = 21041,
+    LINK_TYPE = 21440,
     /**
-     * @generated from protobuf enum value: BENCH_TYPE_FILE_RETENTION_MODE = 21050;
+     * @generated from protobuf enum value: BENCH_TYPE_PRIMITIVE_TYPE = 21600;
      */
-    FILE_RETENTION_MODE = 21050,
+    PRIMITIVE_TYPE = 21600,
     /**
-     * @generated from protobuf enum value: BENCH_TYPE_FILE_SOURCE = 21051;
+     * @generated from protobuf enum value: BENCH_TYPE_FIELD_ZONE = 21601;
      */
-    FILE_SOURCE = 21051,
+    FIELD_ZONE = 21601,
     /**
-     * @generated from protobuf enum value: BENCH_TYPE_FILE_TYPE = 21052;
+     * @generated from protobuf enum value: BENCH_TYPE_TYPE_KIND = 21602;
      */
-    FILE_TYPE = 21052,
+    TYPE_KIND = 21602,
     /**
-     * @generated from protobuf enum value: BENCH_TYPE_FILE_FORMAT = 21053;
+     * @generated from protobuf enum value: BENCH_TYPE_TYPE_FORMAT = 21603;
      */
-    FILE_FORMAT = 21053,
+    TYPE_FORMAT = 21603,
     /**
-     * @generated from protobuf enum value: BENCH_TYPE_ICON_TYPE = 21060;
+     * @generated from protobuf enum value: BENCH_TYPE_DAY = 21610;
      */
-    ICON_TYPE = 21060,
+    DAY = 21610,
     /**
-     * @generated from protobuf enum value: BENCH_TYPE_LINK_TYPE = 21070;
+     * @generated from protobuf enum value: BENCH_TYPE_MONTH = 21611;
      */
-    LINK_TYPE = 21070,
+    MONTH = 21611,
     /**
-     * @generated from protobuf enum value: BENCH_TYPE_PRIMITIVE_TYPE = 21150;
+     * @generated from protobuf enum value: BENCH_TYPE_TIME_INTERVAL = 21612;
      */
-    PRIMITIVE_TYPE = 21150,
+    TIME_INTERVAL = 21612,
     /**
-     * @generated from protobuf enum value: BENCH_TYPE_FIELD_ZONE = 21151;
+     * @generated from protobuf enum value: BENCH_TYPE_EXPRESSION_KIND = 21640;
      */
-    FIELD_ZONE = 21151,
+    EXPRESSION_KIND = 21640,
     /**
-     * @generated from protobuf enum value: BENCH_TYPE_TYPE_KIND = 21152;
+     * @generated from protobuf enum value: BENCH_TYPE_EXPRESSION_OP = 21641;
      */
-    TYPE_KIND = 21152,
+    EXPRESSION_OP = 21641,
     /**
-     * @generated from protobuf enum value: BENCH_TYPE_TYPE_FORMAT = 21153;
+     * @generated from protobuf enum value: BENCH_TYPE_LITERAL_TYPE = 21642;
      */
-    TYPE_FORMAT = 21153,
+    LITERAL_TYPE = 21642,
     /**
-     * @generated from protobuf enum value: BENCH_TYPE_BLOCK_TYPE = 21154;
+     * @generated from protobuf enum value: BENCH_TYPE_FUNCTIONAL_TYPE = 21643;
      */
-    BLOCK_TYPE = 21154,
+    FUNCTIONAL_TYPE = 21643,
     /**
-     * @generated from protobuf enum value: BENCH_TYPE_DAY = 21155;
+     * @generated from protobuf enum value: BENCH_TYPE_CONDITIONAL_TYPE = 21644;
      */
-    DAY = 21155,
+    CONDITIONAL_TYPE = 21644,
     /**
-     * @generated from protobuf enum value: BENCH_TYPE_MONTH = 21156;
+     * @generated from protobuf enum value: BENCH_TYPE_AGGREGATION_TYPE = 21645;
      */
-    MONTH = 21156,
+    AGGREGATION_TYPE = 21645,
     /**
-     * @generated from protobuf enum value: BENCH_TYPE_TIME_INTERVAL = 21157;
+     * @generated from protobuf enum value: BENCH_TYPE_SORT_MODE = 21650;
      */
-    TIME_INTERVAL = 21157,
+    SORT_MODE = 21650,
     /**
-     * @generated from protobuf enum value: BENCH_TYPE_TEXT_LINE_TYPE = 21200;
+     * @generated from protobuf enum value: BENCH_TYPE_SORT_TYPE = 21651;
      */
-    TEXT_LINE_TYPE = 21200,
+    SORT_TYPE = 21651,
     /**
-     * @generated from protobuf enum value: BENCH_TYPE_TEXT_SPAN_TYPE = 21201;
+     * @generated from protobuf enum value: BENCH_TYPE_SELECTION_TYPE = 21652;
      */
-    TEXT_SPAN_TYPE = 21201,
+    SELECTION_TYPE = 21652,
     /**
-     * @generated from protobuf enum value: BENCH_TYPE_EXPRESSION_KIND = 21250;
+     * @generated from protobuf enum value: BENCH_TYPE_CHANNEL_STATUS = 21800;
      */
-    EXPRESSION_KIND = 21250,
+    CHANNEL_STATUS = 21800,
     /**
-     * @generated from protobuf enum value: BENCH_TYPE_EXPRESSION_OP = 21251;
+     * @generated from protobuf enum value: BENCH_TYPE_THREAD_STATUS = 21801;
      */
-    EXPRESSION_OP = 21251,
+    THREAD_STATUS = 21801,
     /**
-     * @generated from protobuf enum value: BENCH_TYPE_LITERAL_TYPE = 21252;
+     * @generated from protobuf enum value: BENCH_TYPE_MESSAGE_TYPE = 21802;
      */
-    LITERAL_TYPE = 21252,
+    MESSAGE_TYPE = 21802,
     /**
-     * @generated from protobuf enum value: BENCH_TYPE_FUNCTIONAL_TYPE = 21253;
+     * @generated from protobuf enum value: BENCH_TYPE_NOTIFICATION_TYPE = 21810;
      */
-    FUNCTIONAL_TYPE = 21253,
+    NOTIFICATION_TYPE = 21810,
     /**
-     * @generated from protobuf enum value: BENCH_TYPE_CONDITIONAL_TYPE = 21254;
+     * @generated from protobuf enum value: BENCH_TYPE_NOTIFICATION_STATUS = 21811;
      */
-    CONDITIONAL_TYPE = 21254,
+    NOTIFICATION_STATUS = 21811,
     /**
-     * @generated from protobuf enum value: BENCH_TYPE_AGGREGATION_TYPE = 21255;
+     * @generated from protobuf enum value: BENCH_TYPE_CLAIM_TYPE = 22000;
      */
-    AGGREGATION_TYPE = 21255,
+    CLAIM_TYPE = 22000,
     /**
-     * @generated from protobuf enum value: BENCH_TYPE_SORT_MODE = 21256;
+     * @generated from protobuf enum value: BENCH_TYPE_CLAIM_STATUS = 22001;
      */
-    SORT_MODE = 21256,
+    CLAIM_STATUS = 22001,
     /**
-     * @generated from protobuf enum value: BENCH_TYPE_SORT_TYPE = 21257;
+     * @generated from protobuf enum value: BENCH_TYPE_CURSOR_TYPE = 22010;
      */
-    SORT_TYPE = 21257,
+    CURSOR_TYPE = 22010,
     /**
-     * @generated from protobuf enum value: BENCH_TYPE_SELECTION_TYPE = 21265;
+     * @generated from protobuf enum value: BENCH_TYPE_CURSOR_STATUS = 22011;
      */
-    SELECTION_TYPE = 21265,
+    CURSOR_STATUS = 22011,
     /**
-     * @generated from protobuf enum value: BENCH_TYPE_PROCESS_STATUS = 22000;
+     * @generated from protobuf enum value: BENCH_TYPE_ACTION_TYPE = 22220;
      */
-    PROCESS_STATUS = 22000,
+    ACTION_TYPE = 22220,
     /**
-     * @generated from protobuf enum value: BENCH_TYPE_RUN_TYPE = 22001;
+     * @generated from protobuf enum value: BENCH_TYPE_PORT_SIDE = 22221;
      */
-    RUN_TYPE = 22001,
+    PORT_SIDE = 22221,
     /**
-     * @generated from protobuf enum value: BENCH_TYPE_SPAN_TYPE = 22002;
+     * @generated from protobuf enum value: BENCH_TYPE_TRANSITION_TYPE = 22222;
      */
-    SPAN_TYPE = 22002,
+    TRANSITION_TYPE = 22222,
     /**
-     * @generated from protobuf enum value: BENCH_TYPE_SESSION_STATUS = 22020;
+     * @generated from protobuf enum value: BENCH_TYPE_FLOW_TYPE = 22223;
      */
-    SESSION_STATUS = 22020,
+    FLOW_TYPE = 22223,
     /**
-     * @generated from protobuf enum value: BENCH_TYPE_SEVERITY = 22061;
+     * @generated from protobuf enum value: BENCH_TYPE_PROCESS_STATUS = 22400;
      */
-    SEVERITY = 22061,
+    PROCESS_STATUS = 22400,
     /**
-     * @generated from protobuf enum value: BENCH_TYPE_SCHEDULE_FREQUENCY = 22041;
+     * @generated from protobuf enum value: BENCH_TYPE_RUN_TYPE = 22401;
      */
-    SCHEDULE_FREQUENCY = 22041,
+    RUN_TYPE = 22401,
     /**
-     * @generated from protobuf enum value: BENCH_TYPE_CLAIM_TYPE = 22050;
+     * @generated from protobuf enum value: BENCH_TYPE_SPAN_TYPE = 22402;
      */
-    CLAIM_TYPE = 22050,
+    SPAN_TYPE = 22402,
     /**
-     * @generated from protobuf enum value: BENCH_TYPE_CLAIM_STATUS = 22051;
+     * @generated from protobuf enum value: BENCH_TYPE_SESSION_STATUS = 22403;
      */
-    CLAIM_STATUS = 22051,
+    SESSION_STATUS = 22403,
     /**
-     * @generated from protobuf enum value: BENCH_TYPE_CURSOR_TYPE = 22070;
+     * @generated from protobuf enum value: BENCH_TYPE_SCHEDULE_FREQUENCY = 22410;
      */
-    CURSOR_TYPE = 22070,
+    SCHEDULE_FREQUENCY = 22410,
     /**
-     * @generated from protobuf enum value: BENCH_TYPE_CURSOR_STATUS = 22071;
+     * @generated from protobuf enum value: BENCH_TYPE_INTERRUPTION_TYPE = 22200;
      */
-    CURSOR_STATUS = 22071,
+    INTERRUPTION_TYPE = 22200,
     /**
-     * @generated from protobuf enum value: BENCH_TYPE_ERROR_KIND = 22100;
+     * @generated from protobuf enum value: BENCH_TYPE_INTERRUPTION_STATUS = 22201;
      */
-    ERROR_KIND = 22100,
+    INTERRUPTION_STATUS = 22201,
     /**
-     * @generated from protobuf enum value: BENCH_TYPE_ERROR_TYPE = 22101;
+     * @generated from protobuf enum value: BENCH_TYPE_INTERRUPTION_RESPONSE = 22202;
      */
-    ERROR_TYPE = 22101,
+    INTERRUPTION_RESPONSE = 22202,
     /**
-     * @generated from protobuf enum value: BENCH_TYPE_INTERRUPTION_TYPE = 22210;
+     * @generated from protobuf enum value: BENCH_TYPE_ACCESS_MODE = 22600;
      */
-    INTERRUPTION_TYPE = 22210,
+    ACCESS_MODE = 22600,
     /**
-     * @generated from protobuf enum value: BENCH_TYPE_INTERRUPTION_STATUS = 22211;
+     * @generated from protobuf enum value: BENCH_TYPE_ACCESS_KIND = 22601;
      */
-    INTERRUPTION_STATUS = 22211,
+    ACCESS_KIND = 22601,
     /**
-     * @generated from protobuf enum value: BENCH_TYPE_INTERRUPTION_RESPONSE = 22212;
+     * @generated from protobuf enum value: BENCH_TYPE_POLICY_EFFECT = 22602;
      */
-    INTERRUPTION_RESPONSE = 22212,
+    POLICY_EFFECT = 22602,
     /**
-     * @generated from protobuf enum value: BENCH_TYPE_MODEL_DEVELOPER = 22250;
+     * @generated from protobuf enum value: BENCH_TYPE_ACCESS_TYPE = 22603;
      */
-    MODEL_DEVELOPER = 22250,
+    ACCESS_TYPE = 22603,
     /**
-     * @generated from protobuf enum value: BENCH_TYPE_MODEL_PROVIDER = 22251;
+     * @generated from protobuf enum value: BENCH_TYPE_QUERY_TYPE = 22650;
      */
-    MODEL_PROVIDER = 22251,
+    QUERY_TYPE = 22650,
     /**
-     * @generated from protobuf enum value: BENCH_TYPE_CODE_TYPE = 22300;
+     * @generated from protobuf enum value: BENCH_TYPE_EDIT_TYPE = 22651;
      */
-    CODE_TYPE = 22300,
+    EDIT_TYPE = 22651,
     /**
-     * @generated from protobuf enum value: BENCH_TYPE_COLOR_HUE = 22301;
+     * @generated from protobuf enum value: BENCH_TYPE_USE_TYPE = 22652;
      */
-    COLOR_HUE = 22301,
+    USE_TYPE = 22652,
     /**
-     * @generated from protobuf enum value: BENCH_TYPE_ACTION_TYPE = 22350;
+     * @generated from protobuf enum value: BENCH_TYPE_MODEL_DEVELOPER = 22800;
      */
-    ACTION_TYPE = 22350,
+    MODEL_DEVELOPER = 22800,
     /**
-     * @generated from protobuf enum value: BENCH_TYPE_PORT_SIDE = 22352;
+     * @generated from protobuf enum value: BENCH_TYPE_MODEL_PROVIDER = 22801;
      */
-    PORT_SIDE = 22352,
+    MODEL_PROVIDER = 22801,
     /**
-     * @generated from protobuf enum value: BENCH_TYPE_TRANSITION_TYPE = 22353;
+     * @generated from protobuf enum value: BENCH_TYPE_SPACE_TYPE = 28000;
      */
-    TRANSITION_TYPE = 22353,
+    SPACE_TYPE = 28000,
     /**
-     * @generated from protobuf enum value: BENCH_TYPE_FLOW_TYPE = 22360;
+     * @generated from protobuf enum value: BENCH_TYPE_COLOR_TYPE = 28010;
      */
-    FLOW_TYPE = 22360,
+    COLOR_TYPE = 28010,
     /**
-     * @generated from protobuf enum value: BENCH_TYPE_SPACE_TYPE = 22400;
+     * @generated from protobuf enum value: BENCH_TYPE_COLOR_SHADE = 28011;
      */
-    SPACE_TYPE = 22400,
+    COLOR_SHADE = 28011,
     /**
-     * @generated from protobuf enum value: BENCH_TYPE_COLOR_TYPE = 22402;
+     * @generated from protobuf enum value: BENCH_TYPE_COLOR_HUE = 28012;
      */
-    COLOR_TYPE = 22402,
+    COLOR_HUE = 28012,
     /**
-     * @generated from protobuf enum value: BENCH_TYPE_COLOR_SHADE = 22403;
+     * @generated from protobuf enum value: BENCH_TYPE_FONT_TYPE = 28020;
      */
-    COLOR_SHADE = 22403,
+    FONT_TYPE = 28020,
     /**
-     * @generated from protobuf enum value: BENCH_TYPE_FONT_TYPE = 22404;
+     * @generated from protobuf enum value: BENCH_TYPE_FONT_WEIGHT = 28021;
      */
-    FONT_TYPE = 22404,
+    FONT_WEIGHT = 28021,
     /**
-     * @generated from protobuf enum value: BENCH_TYPE_FONT_WEIGHT = 22405;
+     * @generated from protobuf enum value: BENCH_TYPE_FONT_SIZE = 28022;
      */
-    FONT_WEIGHT = 22405,
+    FONT_SIZE = 28022,
     /**
-     * @generated from protobuf enum value: BENCH_TYPE_FONT_SIZE = 22406;
+     * @generated from protobuf enum value: BENCH_TYPE_TEXT_ALIGN = 28023;
      */
-    FONT_SIZE = 22406,
+    TEXT_ALIGN = 28023,
     /**
-     * @generated from protobuf enum value: BENCH_TYPE_SHADOW_TYPE = 22418;
+     * @generated from protobuf enum value: BENCH_TYPE_TEXT_DECORATION = 28024;
      */
-    SHADOW_TYPE = 22418,
+    TEXT_DECORATION = 28024,
     /**
-     * @generated from protobuf enum value: BENCH_TYPE_SHADOW_POSITION = 22419;
+     * @generated from protobuf enum value: BENCH_TYPE_TEXT_TRANSFORM = 28025;
      */
-    SHADOW_POSITION = 22419,
+    TEXT_TRANSFORM = 28025,
     /**
-     * @generated from protobuf enum value: BENCH_TYPE_BORDER_TYPE = 22420;
+     * @generated from protobuf enum value: BENCH_TYPE_SHADOW_TYPE = 28030;
      */
-    BORDER_TYPE = 22420,
+    SHADOW_TYPE = 28030,
     /**
-     * @generated from protobuf enum value: BENCH_TYPE_TEXT_ALIGN = 22421;
+     * @generated from protobuf enum value: BENCH_TYPE_SHADOW_POSITION = 28031;
      */
-    TEXT_ALIGN = 22421,
+    SHADOW_POSITION = 28031,
     /**
-     * @generated from protobuf enum value: BENCH_TYPE_TEXT_DECORATION = 22422;
+     * @generated from protobuf enum value: BENCH_TYPE_BORDER_TYPE = 28040;
      */
-    TEXT_DECORATION = 22422,
+    BORDER_TYPE = 28040,
     /**
-     * @generated from protobuf enum value: BENCH_TYPE_TEXT_TRANSFORM = 22423;
+     * @generated from protobuf enum value: BENCH_TYPE_GRADIENT_TYPE = 28050;
      */
-    TEXT_TRANSFORM = 22423,
+    GRADIENT_TYPE = 28050,
     /**
-     * @generated from protobuf enum value: BENCH_TYPE_GRADIENT_TYPE = 22424;
+     * @generated from protobuf enum value: BENCH_TYPE_FILL_TYPE = 28060;
      */
-    GRADIENT_TYPE = 22424,
+    FILL_TYPE = 28060,
     /**
-     * @generated from protobuf enum value: BENCH_TYPE_FILL_TYPE = 22425;
+     * @generated from protobuf enum value: BENCH_TYPE_FILL_POSITION = 28061;
      */
-    FILL_TYPE = 22425,
+    FILL_POSITION = 28061,
     /**
-     * @generated from protobuf enum value: BENCH_TYPE_FILL_POSITION = 22426;
+     * @generated from protobuf enum value: BENCH_TYPE_FILL_SIZE = 28062;
      */
-    FILL_POSITION = 22426,
+    FILL_SIZE = 28062,
     /**
-     * @generated from protobuf enum value: BENCH_TYPE_FILL_SIZE = 22427;
+     * @generated from protobuf enum value: BENCH_TYPE_LENGTH_UNIT = 28070;
      */
-    FILL_SIZE = 22427,
-    /**
-     * @generated from protobuf enum value: BENCH_TYPE_USER_STATUS = 22450;
-     */
-    USER_STATUS = 22450,
-    /**
-     * @generated from protobuf enum value: BENCH_TYPE_ORGANIZATION_STATUS = 22451;
-     */
-    ORGANIZATION_STATUS = 22451,
-    /**
-     * @generated from protobuf enum value: BENCH_TYPE_CHANNEL_STATUS = 22500;
-     */
-    CHANNEL_STATUS = 22500,
-    /**
-     * @generated from protobuf enum value: BENCH_TYPE_THREAD_STATUS = 22502;
-     */
-    THREAD_STATUS = 22502,
-    /**
-     * @generated from protobuf enum value: BENCH_TYPE_MESSAGE_TYPE = 22503;
-     */
-    MESSAGE_TYPE = 22503,
-    /**
-     * @generated from protobuf enum value: BENCH_TYPE_NOTIFICATION_TYPE = 22506;
-     */
-    NOTIFICATION_TYPE = 22506,
-    /**
-     * @generated from protobuf enum value: BENCH_TYPE_NOTIFICATION_STATUS = 22507;
-     */
-    NOTIFICATION_STATUS = 22507
+    LENGTH_UNIT = 28070
 }
 /**
  * @generated from protobuf enum symbol.bench.NodeMode
@@ -9165,6 +9202,198 @@ export enum ChangeCategory {
     RUNTIME = 20
 }
 /**
+ * @generated from protobuf enum symbol.bench.UserStatus
+ */
+export enum UserStatus {
+    /**
+     * @generated from protobuf enum value: USER_STATUS_UNSPECIFIED = 0;
+     */
+    UNSPECIFIED = 0,
+    /**
+     * @generated from protobuf enum value: USER_STATUS_INVITED = 10;
+     */
+    INVITED = 10,
+    /**
+     * @generated from protobuf enum value: USER_STATUS_RESERVED = 20;
+     */
+    RESERVED = 20,
+    /**
+     * @generated from protobuf enum value: USER_STATUS_WAITLISTED = 30;
+     */
+    WAITLISTED = 30,
+    /**
+     * @generated from protobuf enum value: USER_STATUS_REGISTERED = 40;
+     */
+    REGISTERED = 40,
+    /**
+     * @generated from protobuf enum value: USER_STATUS_ACTIVATED = 50;
+     */
+    ACTIVATED = 50
+}
+/**
+ * @generated from protobuf enum symbol.bench.OrganizationStatus
+ */
+export enum OrganizationStatus {
+    /**
+     * @generated from protobuf enum value: ORGANIZATION_STATUS_UNSPECIFIED = 0;
+     */
+    UNSPECIFIED = 0,
+    /**
+     * @generated from protobuf enum value: ORGANIZATION_STATUS_REGISTERED = 20;
+     */
+    REGISTERED = 20,
+    /**
+     * @generated from protobuf enum value: ORGANIZATION_STATUS_ACTIVATED = 50;
+     */
+    ACTIVATED = 50
+}
+/**
+ * The status of a Bench
+ *
+ * @generated from protobuf enum symbol.bench.BenchStatus
+ */
+export enum BenchStatus {
+    /**
+     * @generated from protobuf enum value: BENCH_STATUS_UNSPECIFIED = 0;
+     */
+    UNSPECIFIED = 0,
+    /**
+     * @generated from protobuf enum value: BENCH_STATUS_RESERVED = 20;
+     */
+    RESERVED = 20,
+    /**
+     * @generated from protobuf enum value: BENCH_STATUS_ACTIVATED = 50;
+     */
+    ACTIVATED = 50
+}
+/**
+ * @generated from protobuf enum symbol.bench.ErrorKind
+ */
+export enum ErrorKind {
+    /**
+     * @generated from protobuf enum value: ERROR_KIND_UNSPECIFIED = 0;
+     */
+    UNSPECIFIED = 0,
+    /**
+     * @generated from protobuf enum value: ERROR_KIND_INTERNAL = 1;
+     */
+    INTERNAL = 1,
+    /**
+     * @generated from protobuf enum value: ERROR_KIND_RUNTIME = 5;
+     */
+    RUNTIME = 5
+}
+/**
+ * @generated from protobuf enum symbol.bench.ErrorType
+ */
+export enum ErrorType {
+    /**
+     * @generated from protobuf enum value: ERROR_TYPE_UNSPECIFIED = 0;
+     */
+    UNSPECIFIED = 0,
+    /**
+     * @generated from protobuf enum value: ERROR_TYPE_ABORTED = 2;
+     */
+    ABORTED = 2,
+    /**
+     * @generated from protobuf enum value: ERROR_TYPE_RUNTIME_UNAVAILABLE = 3;
+     */
+    RUNTIME_UNAVAILABLE = 3,
+    /**
+     * @generated from protobuf enum value: ERROR_TYPE_RUN_IMPOSSIBLE = 4;
+     */
+    RUN_IMPOSSIBLE = 4,
+    /**
+     * @generated from protobuf enum value: ERROR_TYPE_NOT_SUPPORTED = 5;
+     */
+    NOT_SUPPORTED = 5,
+    /**
+     * @generated from protobuf enum value: ERROR_TYPE_INVALID_VALUE = 10;
+     */
+    INVALID_VALUE = 10,
+    /**
+     * @generated from protobuf enum value: ERROR_TYPE_INVALID_COMPUTED = 11;
+     */
+    INVALID_COMPUTED = 11,
+    /**
+     * @generated from protobuf enum value: ERROR_TYPE_CODE_INVALID = 20;
+     */
+    CODE_INVALID = 20,
+    /**
+     * @generated from protobuf enum value: ERROR_TYPE_TEXT_INVALID = 21;
+     */
+    TEXT_INVALID = 21,
+    /**
+     * @generated from protobuf enum value: ERROR_TYPE_INCAPABLE = 100;
+     */
+    INCAPABLE = 100,
+    /**
+     * @generated from protobuf enum value: ERROR_TYPE_REFUSED = 101;
+     */
+    REFUSED = 101,
+    /**
+     * @generated from protobuf enum value: ERROR_TYPE_NON_RETRYABLE = 499;
+     */
+    NON_RETRYABLE = 499,
+    /**
+     * @generated from protobuf enum value: ERROR_TYPE_MODEL_FAILED = 500;
+     */
+    MODEL_FAILED = 500,
+    /**
+     * @generated from protobuf enum value: ERROR_TYPE_INVALID_CONTINUATION = 502;
+     */
+    INVALID_CONTINUATION = 502,
+    /**
+     * @generated from protobuf enum value: ERROR_TYPE_INVALID_CALL = 503;
+     */
+    INVALID_CALL = 503,
+    /**
+     * @generated from protobuf enum value: ERROR_TYPE_INVALID_PLAN = 504;
+     */
+    INVALID_PLAN = 504,
+    /**
+     * @generated from protobuf enum value: ERROR_TYPE_INTERRUPTION_CANCELLED = 510;
+     */
+    INTERRUPTION_CANCELLED = 510,
+    /**
+     * @generated from protobuf enum value: ERROR_TYPE_RETRYABLE = 999;
+     */
+    RETRYABLE = 999
+}
+/**
+ * @generated from protobuf enum symbol.bench.Severity
+ */
+export enum Severity {
+    /**
+     * @generated from protobuf enum value: SEVERITY_UNSPECIFIED = 0;
+     */
+    UNSPECIFIED = 0,
+    /**
+     * @generated from protobuf enum value: SEVERITY_TRACE = 1;
+     */
+    TRACE = 1,
+    /**
+     * @generated from protobuf enum value: SEVERITY_DEBUG = 2;
+     */
+    DEBUG = 2,
+    /**
+     * @generated from protobuf enum value: SEVERITY_INFO = 3;
+     */
+    INFO = 3,
+    /**
+     * @generated from protobuf enum value: SEVERITY_WARNING = 4;
+     */
+    WARNING = 4,
+    /**
+     * @generated from protobuf enum value: SEVERITY_ERROR = 5;
+     */
+    ERROR = 5,
+    /**
+     * @generated from protobuf enum value: SEVERITY_PANIC = 6;
+     */
+    PANIC = 6
+}
+/**
  * @generated from protobuf enum symbol.bench.PackageType
  */
 export enum PackageType {
@@ -9184,6 +9413,110 @@ export enum PackageType {
      * @generated from protobuf enum value: PACKAGE_TYPE_PRIVATE = 3;
      */
     PRIVATE = 3
+}
+/**
+ * Generalized status of a Resource in its lifecycle.
+ *
+ * @generated from protobuf enum symbol.bench.ResourceStatus
+ */
+export enum ResourceStatus {
+    /**
+     * @generated from protobuf enum value: RESOURCE_STATUS_UNSPECIFIED = 0;
+     */
+    UNSPECIFIED = 0,
+    /**
+     * @generated from protobuf enum value: RESOURCE_STATUS_PENDING = 1;
+     */
+    PENDING = 1,
+    /**
+     * @generated from protobuf enum value: RESOURCE_STATUS_CREATING = 2;
+     */
+    CREATING = 2,
+    /**
+     * @generated from protobuf enum value: RESOURCE_STATUS_RETRYING = 3;
+     */
+    RETRYING = 3,
+    /**
+     * @generated from protobuf enum value: RESOURCE_STATUS_AVAILABLE = 10;
+     */
+    AVAILABLE = 10,
+    /**
+     * @generated from protobuf enum value: RESOURCE_STATUS_SLEEPING = 11;
+     */
+    SLEEPING = 11,
+    /**
+     * @generated from protobuf enum value: RESOURCE_STATUS_UNAVAILABLE = 15;
+     */
+    UNAVAILABLE = 15,
+    /**
+     * @generated from protobuf enum value: RESOURCE_STATUS_IMPAIRED = 16;
+     */
+    IMPAIRED = 16,
+    /**
+     * @generated from protobuf enum value: RESOURCE_STATUS_OFFLINE = 30;
+     */
+    OFFLINE = 30,
+    /**
+     * @generated from protobuf enum value: RESOURCE_STATUS_FAILED = 31;
+     */
+    FAILED = 31
+}
+/**
+ * @generated from protobuf enum symbol.bench.BlockType
+ */
+export enum BlockType {
+    /**
+     * @generated from protobuf enum value: BLOCK_TYPE_UNSPECIFIED = 0;
+     */
+    UNSPECIFIED = 0,
+    /**
+     * @generated from protobuf enum value: BLOCK_TYPE_PARAGRAPH = 1;
+     */
+    PARAGRAPH = 1,
+    /**
+     * @generated from protobuf enum value: BLOCK_TYPE_HEADING_1 = 10;
+     */
+    HEADING_1 = 10,
+    /**
+     * @generated from protobuf enum value: BLOCK_TYPE_HEADING_2 = 11;
+     */
+    HEADING_2 = 11,
+    /**
+     * @generated from protobuf enum value: BLOCK_TYPE_HEADING_3 = 12;
+     */
+    HEADING_3 = 12,
+    /**
+     * @generated from protobuf enum value: BLOCK_TYPE_HEADING_4 = 13;
+     */
+    HEADING_4 = 13,
+    /**
+     * @generated from protobuf enum value: BLOCK_TYPE_CALLOUT = 20;
+     */
+    CALLOUT = 20,
+    /**
+     * @generated from protobuf enum value: BLOCK_TYPE_QUOTE = 21;
+     */
+    QUOTE = 21,
+    /**
+     * @generated from protobuf enum value: BLOCK_TYPE_LIST_UNORDERED = 30;
+     */
+    LIST_UNORDERED = 30,
+    /**
+     * @generated from protobuf enum value: BLOCK_TYPE_LIST_ORDERED = 31;
+     */
+    LIST_ORDERED = 31,
+    /**
+     * @generated from protobuf enum value: BLOCK_TYPE_DIVIDER = 40;
+     */
+    DIVIDER = 40,
+    /**
+     * @generated from protobuf enum value: BLOCK_TYPE_CODE = 50;
+     */
+    CODE = 50,
+    /**
+     * @generated from protobuf enum value: BLOCK_TYPE_NODE = 1000;
+     */
+    NODE = 1000
 }
 /**
  * The cloud provider.
@@ -9382,313 +9715,6 @@ export enum Continent {
     PRIVATE = 9000
 }
 /**
- * The status of a Bench
- *
- * @generated from protobuf enum symbol.bench.BenchStatus
- */
-export enum BenchStatus {
-    /**
-     * @generated from protobuf enum value: BENCH_STATUS_UNSPECIFIED = 0;
-     */
-    UNSPECIFIED = 0,
-    /**
-     * @generated from protobuf enum value: BENCH_STATUS_RESERVED = 20;
-     */
-    RESERVED = 20,
-    /**
-     * @generated from protobuf enum value: BENCH_STATUS_ACTIVATED = 50;
-     */
-    ACTIVATED = 50
-}
-/**
- * @generated from protobuf enum symbol.bench.AccessMode
- */
-export enum AccessMode {
-    /**
-     * @generated from protobuf enum value: ACCESS_MODE_UNSPECIFIED = 0;
-     */
-    UNSPECIFIED = 0,
-    /**
-     * @generated from protobuf enum value: ACCESS_MODE_ADAPTIVE = 1;
-     */
-    ADAPTIVE = 1,
-    /**
-     * @generated from protobuf enum value: ACCESS_MODE_ATOMIC = 2;
-     */
-    ATOMIC = 2
-}
-/**
- * @generated from protobuf enum symbol.bench.AccessKind
- */
-export enum AccessKind {
-    /**
-     * @generated from protobuf enum value: ACCESS_KIND_UNSPECIFIED = 0;
-     */
-    UNSPECIFIED = 0,
-    /**
-     * @generated from protobuf enum value: ACCESS_KIND_READ = 1;
-     */
-    READ = 1,
-    /**
-     * @generated from protobuf enum value: ACCESS_KIND_EDIT = 20;
-     */
-    EDIT = 20,
-    /**
-     * @generated from protobuf enum value: ACCESS_KIND_USE = 40;
-     */
-    USE = 40
-}
-/**
- * @generated from protobuf enum symbol.bench.PolicyEffect
- */
-export enum PolicyEffect {
-    /**
-     * @generated from protobuf enum value: POLICY_EFFECT_UNSPECIFIED = 0;
-     */
-    UNSPECIFIED = 0,
-    /**
-     * @generated from protobuf enum value: POLICY_EFFECT_ALLOW = 1;
-     */
-    ALLOW = 1,
-    /**
-     * @generated from protobuf enum value: POLICY_EFFECT_DENY = 2;
-     */
-    DENY = 2
-}
-/**
- * Ways to read nodes.
- *
- * @generated from protobuf enum symbol.bench.QueryType
- */
-export enum QueryType {
-    /**
-     * @generated from protobuf enum value: QUERY_TYPE_UNSPECIFIED = 0;
-     */
-    UNSPECIFIED = 0,
-    /**
-     * @generated from protobuf enum value: QUERY_TYPE_GET = 1;
-     */
-    GET = 1,
-    /**
-     * @generated from protobuf enum value: QUERY_TYPE_SEARCH = 2;
-     */
-    SEARCH = 2
-}
-/**
- * Ways to edit nodes.
- *
- * @generated from protobuf enum symbol.bench.EditType
- */
-export enum EditType {
-    /**
-     * @generated from protobuf enum value: EDIT_TYPE_UNSPECIFIED = 0;
-     */
-    UNSPECIFIED = 0,
-    /**
-     * @generated from protobuf enum value: EDIT_TYPE_CREATE = 20;
-     */
-    CREATE = 20,
-    /**
-     * @generated from protobuf enum value: EDIT_TYPE_UPSERT = 21;
-     */
-    UPSERT = 21,
-    /**
-     * @generated from protobuf enum value: EDIT_TYPE_UPDATE = 22;
-     */
-    UPDATE = 22,
-    /**
-     * @generated from protobuf enum value: EDIT_TYPE_MOVE = 23;
-     */
-    MOVE = 23,
-    /**
-     * @generated from protobuf enum value: EDIT_TYPE_ARCHIVE = 24;
-     */
-    ARCHIVE = 24,
-    /**
-     * @generated from protobuf enum value: EDIT_TYPE_UNARCHIVE = 25;
-     */
-    UNARCHIVE = 25,
-    /**
-     * @generated from protobuf enum value: EDIT_TYPE_DELETE = 26;
-     */
-    DELETE = 26,
-    /**
-     * @generated from protobuf enum value: EDIT_TYPE_RESTORE = 27;
-     */
-    RESTORE = 27,
-    /**
-     * @generated from protobuf enum value: EDIT_TYPE_ERASE = 28;
-     */
-    ERASE = 28
-}
-/**
- * Ways to use nodes.
- *
- * @generated from protobuf enum symbol.bench.UseType
- */
-export enum UseType {
-    /**
-     * @generated from protobuf enum value: USE_TYPE_UNSPECIFIED = 0;
-     */
-    UNSPECIFIED = 0,
-    /**
-     * @generated from protobuf enum value: USE_TYPE_START = 40;
-     */
-    START = 40,
-    /**
-     * @generated from protobuf enum value: USE_TYPE_PAUSE = 41;
-     */
-    PAUSE = 41,
-    /**
-     * @generated from protobuf enum value: USE_TYPE_RESUME = 42;
-     */
-    RESUME = 42,
-    /**
-     * @generated from protobuf enum value: USE_TYPE_STOP = 43;
-     */
-    STOP = 43,
-    /**
-     * @generated from protobuf enum value: USE_TYPE_KILL = 44;
-     */
-    KILL = 44,
-    /**
-     * @generated from protobuf enum value: USE_TYPE_SEND = 45;
-     */
-    SEND = 45,
-    /**
-     * @generated from protobuf enum value: USE_TYPE_RECEIVE = 46;
-     */
-    RECEIVE = 46
-}
-/**
- * @generated from protobuf enum symbol.bench.AccessType
- */
-export enum AccessType {
-    /**
-     * @generated from protobuf enum value: ACCESS_TYPE_UNSPECIFIED = 0;
-     */
-    UNSPECIFIED = 0,
-    /**
-     * @generated from protobuf enum value: ACCESS_TYPE_GET = 1;
-     */
-    GET = 1,
-    /**
-     * @generated from protobuf enum value: ACCESS_TYPE_SEARCH = 2;
-     */
-    SEARCH = 2,
-    /**
-     * @generated from protobuf enum value: ACCESS_TYPE_CREATE = 20;
-     */
-    CREATE = 20,
-    /**
-     * @generated from protobuf enum value: ACCESS_TYPE_UPSERT = 21;
-     */
-    UPSERT = 21,
-    /**
-     * @generated from protobuf enum value: ACCESS_TYPE_UPDATE = 22;
-     */
-    UPDATE = 22,
-    /**
-     * @generated from protobuf enum value: ACCESS_TYPE_MOVE = 23;
-     */
-    MOVE = 23,
-    /**
-     * @generated from protobuf enum value: ACCESS_TYPE_ARCHIVE = 24;
-     */
-    ARCHIVE = 24,
-    /**
-     * @generated from protobuf enum value: ACCESS_TYPE_UNARCHIVE = 25;
-     */
-    UNARCHIVE = 25,
-    /**
-     * @generated from protobuf enum value: ACCESS_TYPE_DELETE = 26;
-     */
-    DELETE = 26,
-    /**
-     * @generated from protobuf enum value: ACCESS_TYPE_RESTORE = 27;
-     */
-    RESTORE = 27,
-    /**
-     * @generated from protobuf enum value: ACCESS_TYPE_ERASE = 28;
-     */
-    ERASE = 28,
-    /**
-     * @generated from protobuf enum value: ACCESS_TYPE_START = 40;
-     */
-    START = 40,
-    /**
-     * @generated from protobuf enum value: ACCESS_TYPE_PAUSE = 41;
-     */
-    PAUSE = 41,
-    /**
-     * @generated from protobuf enum value: ACCESS_TYPE_RESUME = 42;
-     */
-    RESUME = 42,
-    /**
-     * @generated from protobuf enum value: ACCESS_TYPE_STOP = 43;
-     */
-    STOP = 43,
-    /**
-     * @generated from protobuf enum value: ACCESS_TYPE_KILL = 44;
-     */
-    KILL = 44,
-    /**
-     * @generated from protobuf enum value: ACCESS_TYPE_SEND = 45;
-     */
-    SEND = 45,
-    /**
-     * @generated from protobuf enum value: ACCESS_TYPE_RECEIVE = 46;
-     */
-    RECEIVE = 46
-}
-/**
- * Generalized status of a Resource in its lifecycle.
- *
- * @generated from protobuf enum symbol.bench.ResourceStatus
- */
-export enum ResourceStatus {
-    /**
-     * @generated from protobuf enum value: RESOURCE_STATUS_UNSPECIFIED = 0;
-     */
-    UNSPECIFIED = 0,
-    /**
-     * @generated from protobuf enum value: RESOURCE_STATUS_PENDING = 1;
-     */
-    PENDING = 1,
-    /**
-     * @generated from protobuf enum value: RESOURCE_STATUS_CREATING = 2;
-     */
-    CREATING = 2,
-    /**
-     * @generated from protobuf enum value: RESOURCE_STATUS_RETRYING = 3;
-     */
-    RETRYING = 3,
-    /**
-     * @generated from protobuf enum value: RESOURCE_STATUS_AVAILABLE = 10;
-     */
-    AVAILABLE = 10,
-    /**
-     * @generated from protobuf enum value: RESOURCE_STATUS_SLEEPING = 11;
-     */
-    SLEEPING = 11,
-    /**
-     * @generated from protobuf enum value: RESOURCE_STATUS_UNAVAILABLE = 15;
-     */
-    UNAVAILABLE = 15,
-    /**
-     * @generated from protobuf enum value: RESOURCE_STATUS_IMPAIRED = 16;
-     */
-    IMPAIRED = 16,
-    /**
-     * @generated from protobuf enum value: RESOURCE_STATUS_OFFLINE = 30;
-     */
-    OFFLINE = 30,
-    /**
-     * @generated from protobuf enum value: RESOURCE_STATUS_FAILED = 31;
-     */
-    FAILED = 31
-}
-/**
  * @generated from protobuf enum symbol.bench.ScalerType
  */
 export enum ScalerType {
@@ -9788,6 +9814,120 @@ export enum ClientType {
      * @generated from protobuf enum value: CLIENT_TYPE_COMPUTER = 10;
      */
     COMPUTER = 10
+}
+/**
+ * @generated from protobuf enum symbol.bench.TextLineType
+ */
+export enum TextLineType {
+    /**
+     * @generated from protobuf enum value: TEXT_LINE_TYPE_UNSPECIFIED = 0;
+     */
+    UNSPECIFIED = 0,
+    /**
+     * @generated from protobuf enum value: TEXT_LINE_TYPE_PARAGRAPH = 1;
+     */
+    PARAGRAPH = 1,
+    /**
+     * @generated from protobuf enum value: TEXT_LINE_TYPE_HEADING_1 = 10;
+     */
+    HEADING_1 = 10,
+    /**
+     * @generated from protobuf enum value: TEXT_LINE_TYPE_HEADING_2 = 11;
+     */
+    HEADING_2 = 11,
+    /**
+     * @generated from protobuf enum value: TEXT_LINE_TYPE_HEADING_3 = 12;
+     */
+    HEADING_3 = 12,
+    /**
+     * @generated from protobuf enum value: TEXT_LINE_TYPE_HEADING_4 = 13;
+     */
+    HEADING_4 = 13,
+    /**
+     * @generated from protobuf enum value: TEXT_LINE_TYPE_CALLOUT = 20;
+     */
+    CALLOUT = 20,
+    /**
+     * @generated from protobuf enum value: TEXT_LINE_TYPE_QUOTE = 21;
+     */
+    QUOTE = 21,
+    /**
+     * @generated from protobuf enum value: TEXT_LINE_TYPE_LIST_UNORDERED = 30;
+     */
+    LIST_UNORDERED = 30,
+    /**
+     * @generated from protobuf enum value: TEXT_LINE_TYPE_LIST_ORDERED = 31;
+     */
+    LIST_ORDERED = 31,
+    /**
+     * @generated from protobuf enum value: TEXT_LINE_TYPE_DIVIDER = 40;
+     */
+    DIVIDER = 40,
+    /**
+     * @generated from protobuf enum value: TEXT_LINE_TYPE_CODE = 50;
+     */
+    CODE = 50,
+    /**
+     * @generated from protobuf enum value: TEXT_LINE_TYPE_NODE = 1000;
+     */
+    NODE = 1000
+}
+/**
+ * @generated from protobuf enum symbol.bench.TextSpanType
+ */
+export enum TextSpanType {
+    /**
+     * @generated from protobuf enum value: TEXT_SPAN_TYPE_UNSPECIFIED = 0;
+     */
+    UNSPECIFIED = 0,
+    /**
+     * @generated from protobuf enum value: TEXT_SPAN_TYPE_TEXT = 1;
+     */
+    TEXT = 1,
+    /**
+     * @generated from protobuf enum value: TEXT_SPAN_TYPE_HARD_BREAK = 2;
+     */
+    HARD_BREAK = 2,
+    /**
+     * @generated from protobuf enum value: TEXT_SPAN_TYPE_MENTION = 10;
+     */
+    MENTION = 10,
+    /**
+     * @generated from protobuf enum value: TEXT_SPAN_TYPE_LINK = 11;
+     */
+    LINK = 11,
+    /**
+     * @generated from protobuf enum value: TEXT_SPAN_TYPE_CITATION = 12;
+     */
+    CITATION = 12,
+    /**
+     * @generated from protobuf enum value: TEXT_SPAN_TYPE_EQUATION = 20;
+     */
+    EQUATION = 20
+}
+/**
+ * The (implicit) 'type' of Code.
+ * We don't set this explicitly in Code because it depends on where the Code is used.
+ *
+ * @generated from protobuf enum symbol.bench.CodeType
+ */
+export enum CodeType {
+    /**
+     * @generated from protobuf enum value: CODE_TYPE_UNSPECIFIED = 0;
+     */
+    UNSPECIFIED = 0,
+    /**
+     * @generated from protobuf enum value: CODE_TYPE_SNIPPET = 1;
+     */
+    SNIPPET = 1,
+    /**
+     * @generated from protobuf enum value: CODE_TYPE_SCRIPT = 2;
+     */
+    SCRIPT = 2,
+    /**
+     * @generated from protobuf enum value: CODE_TYPE_FUNCTION = 3;
+     */
+    FUNCTION = 3
 }
 /**
  * @generated from protobuf enum symbol.bench.FileRetentionMode
@@ -10451,63 +10591,6 @@ export enum TypeFormat {
     SLUG = 2004
 }
 /**
- * @generated from protobuf enum symbol.bench.BlockType
- */
-export enum BlockType {
-    /**
-     * @generated from protobuf enum value: BLOCK_TYPE_UNSPECIFIED = 0;
-     */
-    UNSPECIFIED = 0,
-    /**
-     * @generated from protobuf enum value: BLOCK_TYPE_PARAGRAPH = 1;
-     */
-    PARAGRAPH = 1,
-    /**
-     * @generated from protobuf enum value: BLOCK_TYPE_HEADING_1 = 10;
-     */
-    HEADING_1 = 10,
-    /**
-     * @generated from protobuf enum value: BLOCK_TYPE_HEADING_2 = 11;
-     */
-    HEADING_2 = 11,
-    /**
-     * @generated from protobuf enum value: BLOCK_TYPE_HEADING_3 = 12;
-     */
-    HEADING_3 = 12,
-    /**
-     * @generated from protobuf enum value: BLOCK_TYPE_HEADING_4 = 13;
-     */
-    HEADING_4 = 13,
-    /**
-     * @generated from protobuf enum value: BLOCK_TYPE_CALLOUT = 20;
-     */
-    CALLOUT = 20,
-    /**
-     * @generated from protobuf enum value: BLOCK_TYPE_QUOTE = 21;
-     */
-    QUOTE = 21,
-    /**
-     * @generated from protobuf enum value: BLOCK_TYPE_LIST_UNORDERED = 30;
-     */
-    LIST_UNORDERED = 30,
-    /**
-     * @generated from protobuf enum value: BLOCK_TYPE_LIST_ORDERED = 31;
-     */
-    LIST_ORDERED = 31,
-    /**
-     * @generated from protobuf enum value: BLOCK_TYPE_DIVIDER = 40;
-     */
-    DIVIDER = 40,
-    /**
-     * @generated from protobuf enum value: BLOCK_TYPE_CODE = 50;
-     */
-    CODE = 50,
-    /**
-     * @generated from protobuf enum value: BLOCK_TYPE_NODE = 1000;
-     */
-    NODE = 1000
-}
-/**
  * The day of the week.
  *
  * @generated from protobuf enum symbol.bench.Day
@@ -10641,96 +10724,6 @@ export enum TimeInterval {
      * @generated from protobuf enum value: TIME_INTERVAL_YEAR = 8;
      */
     YEAR = 8
-}
-/**
- * @generated from protobuf enum symbol.bench.TextLineType
- */
-export enum TextLineType {
-    /**
-     * @generated from protobuf enum value: TEXT_LINE_TYPE_UNSPECIFIED = 0;
-     */
-    UNSPECIFIED = 0,
-    /**
-     * @generated from protobuf enum value: TEXT_LINE_TYPE_PARAGRAPH = 1;
-     */
-    PARAGRAPH = 1,
-    /**
-     * @generated from protobuf enum value: TEXT_LINE_TYPE_HEADING_1 = 10;
-     */
-    HEADING_1 = 10,
-    /**
-     * @generated from protobuf enum value: TEXT_LINE_TYPE_HEADING_2 = 11;
-     */
-    HEADING_2 = 11,
-    /**
-     * @generated from protobuf enum value: TEXT_LINE_TYPE_HEADING_3 = 12;
-     */
-    HEADING_3 = 12,
-    /**
-     * @generated from protobuf enum value: TEXT_LINE_TYPE_HEADING_4 = 13;
-     */
-    HEADING_4 = 13,
-    /**
-     * @generated from protobuf enum value: TEXT_LINE_TYPE_CALLOUT = 20;
-     */
-    CALLOUT = 20,
-    /**
-     * @generated from protobuf enum value: TEXT_LINE_TYPE_QUOTE = 21;
-     */
-    QUOTE = 21,
-    /**
-     * @generated from protobuf enum value: TEXT_LINE_TYPE_LIST_UNORDERED = 30;
-     */
-    LIST_UNORDERED = 30,
-    /**
-     * @generated from protobuf enum value: TEXT_LINE_TYPE_LIST_ORDERED = 31;
-     */
-    LIST_ORDERED = 31,
-    /**
-     * @generated from protobuf enum value: TEXT_LINE_TYPE_DIVIDER = 40;
-     */
-    DIVIDER = 40,
-    /**
-     * @generated from protobuf enum value: TEXT_LINE_TYPE_CODE = 50;
-     */
-    CODE = 50,
-    /**
-     * @generated from protobuf enum value: TEXT_LINE_TYPE_NODE = 1000;
-     */
-    NODE = 1000
-}
-/**
- * @generated from protobuf enum symbol.bench.TextSpanType
- */
-export enum TextSpanType {
-    /**
-     * @generated from protobuf enum value: TEXT_SPAN_TYPE_UNSPECIFIED = 0;
-     */
-    UNSPECIFIED = 0,
-    /**
-     * @generated from protobuf enum value: TEXT_SPAN_TYPE_TEXT = 1;
-     */
-    TEXT = 1,
-    /**
-     * @generated from protobuf enum value: TEXT_SPAN_TYPE_HARD_BREAK = 2;
-     */
-    HARD_BREAK = 2,
-    /**
-     * @generated from protobuf enum value: TEXT_SPAN_TYPE_MENTION = 10;
-     */
-    MENTION = 10,
-    /**
-     * @generated from protobuf enum value: TEXT_SPAN_TYPE_LINK = 11;
-     */
-    LINK = 11,
-    /**
-     * @generated from protobuf enum value: TEXT_SPAN_TYPE_CITATION = 12;
-     */
-    CITATION = 12,
-    /**
-     * @generated from protobuf enum value: TEXT_SPAN_TYPE_EQUATION = 20;
-     */
-    EQUATION = 20
 }
 /**
  * @generated from protobuf enum symbol.bench.ExpressionKind
@@ -11194,6 +11187,319 @@ export enum SelectionType {
     COMBINATION = 10
 }
 /**
+ * @generated from protobuf enum symbol.bench.ChannelStatus
+ */
+export enum ChannelStatus {
+    /**
+     * @generated from protobuf enum value: CHANNEL_STATUS_UNSPECIFIED = 0;
+     */
+    UNSPECIFIED = 0,
+    /**
+     * @generated from protobuf enum value: CHANNEL_STATUS_OPEN = 10;
+     */
+    OPEN = 10,
+    /**
+     * @generated from protobuf enum value: CHANNEL_STATUS_CLOSED = 30;
+     */
+    CLOSED = 30
+}
+/**
+ * @generated from protobuf enum symbol.bench.ThreadStatus
+ */
+export enum ThreadStatus {
+    /**
+     * @generated from protobuf enum value: THREAD_STATUS_UNSPECIFIED = 0;
+     */
+    UNSPECIFIED = 0,
+    /**
+     * @generated from protobuf enum value: THREAD_STATUS_OPEN = 10;
+     */
+    OPEN = 10,
+    /**
+     * @generated from protobuf enum value: THREAD_STATUS_CLOSED = 30;
+     */
+    CLOSED = 30
+}
+/**
+ * @generated from protobuf enum symbol.bench.MessageType
+ */
+export enum MessageType {
+    /**
+     * @generated from protobuf enum value: MESSAGE_TYPE_UNSPECIFIED = 0;
+     */
+    UNSPECIFIED = 0,
+    /**
+     * @generated from protobuf enum value: MESSAGE_TYPE_DEFAULT = 1;
+     */
+    DEFAULT = 1,
+    /**
+     * @generated from protobuf enum value: MESSAGE_TYPE_JOIN = 10;
+     */
+    JOIN = 10,
+    /**
+     * @generated from protobuf enum value: MESSAGE_TYPE_LEAVE = 11;
+     */
+    LEAVE = 11,
+    /**
+     * @generated from protobuf enum value: MESSAGE_TYPE_RESOURCE = 20;
+     */
+    RESOURCE = 20,
+    /**
+     * @generated from protobuf enum value: MESSAGE_TYPE_RUN = 100;
+     */
+    RUN = 100,
+    /**
+     * @generated from protobuf enum value: MESSAGE_TYPE_THREAD = 110;
+     */
+    THREAD = 110
+}
+/**
+ * @generated from protobuf enum symbol.bench.NotificationType
+ */
+export enum NotificationType {
+    /**
+     * @generated from protobuf enum value: NOTIFICATION_TYPE_UNSPECIFIED = 0;
+     */
+    UNSPECIFIED = 0,
+    /**
+     * @generated from protobuf enum value: NOTIFICATION_TYPE_MESSAGE = 100;
+     */
+    MESSAGE = 100
+}
+/**
+ * @generated from protobuf enum symbol.bench.NotificationStatus
+ */
+export enum NotificationStatus {
+    /**
+     * @generated from protobuf enum value: NOTIFICATION_STATUS_UNSPECIFIED = 0;
+     */
+    UNSPECIFIED = 0,
+    /**
+     * @generated from protobuf enum value: NOTIFICATION_STATUS_SENDING = 20;
+     */
+    SENDING = 20,
+    /**
+     * @generated from protobuf enum value: NOTIFICATION_STATUS_SENT = 30;
+     */
+    SENT = 30,
+    /**
+     * @generated from protobuf enum value: NOTIFICATION_STATUS_FAILED = 40;
+     */
+    FAILED = 40,
+    /**
+     * @generated from protobuf enum value: NOTIFICATION_STATUS_RECEIVED = 50;
+     */
+    RECEIVED = 50,
+    /**
+     * @generated from protobuf enum value: NOTIFICATION_STATUS_READ = 60;
+     */
+    READ = 60
+}
+/**
+ * @generated from protobuf enum symbol.bench.ClaimType
+ */
+export enum ClaimType {
+    /**
+     * @generated from protobuf enum value: CLAIM_TYPE_UNSPECIFIED = 0;
+     */
+    UNSPECIFIED = 0,
+    /**
+     * @generated from protobuf enum value: CLAIM_TYPE_READ = 20;
+     */
+    READ = 20,
+    /**
+     * @generated from protobuf enum value: CLAIM_TYPE_WRITE = 40;
+     */
+    WRITE = 40
+}
+/**
+ * @generated from protobuf enum symbol.bench.ClaimStatus
+ */
+export enum ClaimStatus {
+    /**
+     * @generated from protobuf enum value: CLAIM_STATUS_UNSPECIFIED = 0;
+     */
+    UNSPECIFIED = 0,
+    /**
+     * @generated from protobuf enum value: CLAIM_STATUS_REQUESTED = 1;
+     */
+    REQUESTED = 1,
+    /**
+     * @generated from protobuf enum value: CLAIM_STATUS_OPEN = 10;
+     */
+    OPEN = 10,
+    /**
+     * @generated from protobuf enum value: CLAIM_STATUS_PAUSED = 20;
+     */
+    PAUSED = 20,
+    /**
+     * @generated from protobuf enum value: CLAIM_STATUS_CLOSED = 30;
+     */
+    CLOSED = 30
+}
+/**
+ * The type of Cursor.
+ *
+ * @generated from protobuf enum symbol.bench.CursorType
+ */
+export enum CursorType {
+    /**
+     * @generated from protobuf enum value: CURSOR_TYPE_UNSPECIFIED = 0;
+     */
+    UNSPECIFIED = 0,
+    /**
+     * @generated from protobuf enum value: CURSOR_TYPE_THREAD = 5510;
+     */
+    THREAD = 5510,
+    /**
+     * @generated from protobuf enum value: CURSOR_TYPE_PAGE = 5020;
+     */
+    PAGE = 5020,
+    /**
+     * @generated from protobuf enum value: CURSOR_TYPE_TABLE = 5090;
+     */
+    TABLE = 5090,
+    /**
+     * @generated from protobuf enum value: CURSOR_TYPE_ACTION = 5051;
+     */
+    ACTION = 5051,
+    /**
+     * @generated from protobuf enum value: CURSOR_TYPE_WEB = 10000;
+     */
+    WEB = 10000,
+    /**
+     * @generated from protobuf enum value: CURSOR_TYPE_CUSTOM = 9000;
+     */
+    CUSTOM = 9000
+}
+/**
+ * The status of a Cursor.
+ *
+ * @generated from protobuf enum symbol.bench.CursorStatus
+ */
+export enum CursorStatus {
+    /**
+     * @generated from protobuf enum value: CURSOR_STATUS_UNSPECIFIED = 0;
+     */
+    UNSPECIFIED = 0,
+    /**
+     * @generated from protobuf enum value: CURSOR_STATUS_CREATED = 1;
+     */
+    CREATED = 1,
+    /**
+     * @generated from protobuf enum value: CURSOR_STATUS_WORKING = 10;
+     */
+    WORKING = 10,
+    /**
+     * @generated from protobuf enum value: CURSOR_STATUS_READING = 11;
+     */
+    READING = 11,
+    /**
+     * @generated from protobuf enum value: CURSOR_STATUS_WRITING = 12;
+     */
+    WRITING = 12,
+    /**
+     * @generated from protobuf enum value: CURSOR_STATUS_THINKING = 13;
+     */
+    THINKING = 13,
+    /**
+     * @generated from protobuf enum value: CURSOR_STATUS_WAITING = 15;
+     */
+    WAITING = 15,
+    /**
+     * @generated from protobuf enum value: CURSOR_STATUS_IDLE = 30;
+     */
+    IDLE = 30,
+    /**
+     * @generated from protobuf enum value: CURSOR_STATUS_CANCELLED = 50;
+     */
+    CANCELLED = 50,
+    /**
+     * @generated from protobuf enum value: CURSOR_STATUS_COMPLETED = 53;
+     */
+    COMPLETED = 53
+}
+/**
+ * @generated from protobuf enum symbol.bench.ActionType
+ */
+export enum ActionType {
+    /**
+     * @generated from protobuf enum value: ACTION_TYPE_UNSPECIFIED = 0;
+     */
+    UNSPECIFIED = 0,
+    /**
+     * @generated from protobuf enum value: ACTION_TYPE_START = 10;
+     */
+    START = 10,
+    /**
+     * @generated from protobuf enum value: ACTION_TYPE_END = 20;
+     */
+    END = 20,
+    /**
+     * @generated from protobuf enum value: ACTION_TYPE_TOOL = 100;
+     */
+    TOOL = 100,
+    /**
+     * @generated from protobuf enum value: ACTION_TYPE_CODE = 101;
+     */
+    CODE = 101,
+    /**
+     * @generated from protobuf enum value: ACTION_TYPE_BUILTIN = 102;
+     */
+    BUILTIN = 102
+}
+/**
+ * @generated from protobuf enum symbol.bench.PortSide
+ */
+export enum PortSide {
+    /**
+     * @generated from protobuf enum value: PORT_SIDE_UNSPECIFIED = 0;
+     */
+    UNSPECIFIED = 0,
+    /**
+     * @generated from protobuf enum value: PORT_SIDE_INCOMING = 1;
+     */
+    INCOMING = 1,
+    /**
+     * @generated from protobuf enum value: PORT_SIDE_OUTGOING = 2;
+     */
+    OUTGOING = 2
+}
+/**
+ * @generated from protobuf enum symbol.bench.TransitionType
+ */
+export enum TransitionType {
+    /**
+     * @generated from protobuf enum value: TRANSITION_TYPE_UNSPECIFIED = 0;
+     */
+    UNSPECIFIED = 0,
+    /**
+     * @generated from protobuf enum value: TRANSITION_TYPE_MANUAL = 10;
+     */
+    MANUAL = 10,
+    /**
+     * @generated from protobuf enum value: TRANSITION_TYPE_DECIDE = 20;
+     */
+    DECIDE = 20,
+    /**
+     * @generated from protobuf enum value: TRANSITION_TYPE_REQUIRE = 30;
+     */
+    REQUIRE = 30
+}
+/**
+ * @generated from protobuf enum symbol.bench.FlowType
+ */
+export enum FlowType {
+    /**
+     * @generated from protobuf enum value: FLOW_TYPE_UNSPECIFIED = 0;
+     */
+    UNSPECIFIED = 0,
+    /**
+     * @generated from protobuf enum value: FLOW_TYPE_ACTION = 10;
+     */
+    ACTION = 10
+}
+/**
  * @generated from protobuf enum symbol.bench.ProcessStatus
  */
 export enum ProcessStatus {
@@ -11374,39 +11680,6 @@ export enum SessionStatus {
     CLOSED = 30
 }
 /**
- * @generated from protobuf enum symbol.bench.Severity
- */
-export enum Severity {
-    /**
-     * @generated from protobuf enum value: SEVERITY_UNSPECIFIED = 0;
-     */
-    UNSPECIFIED = 0,
-    /**
-     * @generated from protobuf enum value: SEVERITY_TRACE = 1;
-     */
-    TRACE = 1,
-    /**
-     * @generated from protobuf enum value: SEVERITY_DEBUG = 2;
-     */
-    DEBUG = 2,
-    /**
-     * @generated from protobuf enum value: SEVERITY_INFO = 3;
-     */
-    INFO = 3,
-    /**
-     * @generated from protobuf enum value: SEVERITY_WARNING = 4;
-     */
-    WARNING = 4,
-    /**
-     * @generated from protobuf enum value: SEVERITY_ERROR = 5;
-     */
-    ERROR = 5,
-    /**
-     * @generated from protobuf enum value: SEVERITY_PANIC = 6;
-     */
-    PANIC = 6
-}
-/**
  * @generated from protobuf enum symbol.bench.ScheduleFrequency
  */
 export enum ScheduleFrequency {
@@ -11438,224 +11711,6 @@ export enum ScheduleFrequency {
      * @generated from protobuf enum value: SCHEDULE_FREQUENCY_MINUTE = 6;
      */
     MINUTE = 6
-}
-/**
- * @generated from protobuf enum symbol.bench.ClaimType
- */
-export enum ClaimType {
-    /**
-     * @generated from protobuf enum value: CLAIM_TYPE_UNSPECIFIED = 0;
-     */
-    UNSPECIFIED = 0,
-    /**
-     * @generated from protobuf enum value: CLAIM_TYPE_READ = 20;
-     */
-    READ = 20,
-    /**
-     * @generated from protobuf enum value: CLAIM_TYPE_WRITE = 40;
-     */
-    WRITE = 40
-}
-/**
- * @generated from protobuf enum symbol.bench.ClaimStatus
- */
-export enum ClaimStatus {
-    /**
-     * @generated from protobuf enum value: CLAIM_STATUS_UNSPECIFIED = 0;
-     */
-    UNSPECIFIED = 0,
-    /**
-     * @generated from protobuf enum value: CLAIM_STATUS_REQUESTED = 1;
-     */
-    REQUESTED = 1,
-    /**
-     * @generated from protobuf enum value: CLAIM_STATUS_OPEN = 10;
-     */
-    OPEN = 10,
-    /**
-     * @generated from protobuf enum value: CLAIM_STATUS_PAUSED = 20;
-     */
-    PAUSED = 20,
-    /**
-     * @generated from protobuf enum value: CLAIM_STATUS_CLOSED = 30;
-     */
-    CLOSED = 30
-}
-/**
- * The type of Cursor.
- *
- * @generated from protobuf enum symbol.bench.CursorType
- */
-export enum CursorType {
-    /**
-     * @generated from protobuf enum value: CURSOR_TYPE_UNSPECIFIED = 0;
-     */
-    UNSPECIFIED = 0,
-    /**
-     * @generated from protobuf enum value: CURSOR_TYPE_THREAD = 5510;
-     */
-    THREAD = 5510,
-    /**
-     * @generated from protobuf enum value: CURSOR_TYPE_PAGE = 5020;
-     */
-    PAGE = 5020,
-    /**
-     * @generated from protobuf enum value: CURSOR_TYPE_TABLE = 5090;
-     */
-    TABLE = 5090,
-    /**
-     * @generated from protobuf enum value: CURSOR_TYPE_ACTION = 5051;
-     */
-    ACTION = 5051,
-    /**
-     * @generated from protobuf enum value: CURSOR_TYPE_WEB = 10000;
-     */
-    WEB = 10000,
-    /**
-     * @generated from protobuf enum value: CURSOR_TYPE_CUSTOM = 9000;
-     */
-    CUSTOM = 9000
-}
-/**
- * The status of a Cursor.
- *
- * @generated from protobuf enum symbol.bench.CursorStatus
- */
-export enum CursorStatus {
-    /**
-     * @generated from protobuf enum value: CURSOR_STATUS_UNSPECIFIED = 0;
-     */
-    UNSPECIFIED = 0,
-    /**
-     * @generated from protobuf enum value: CURSOR_STATUS_CREATED = 1;
-     */
-    CREATED = 1,
-    /**
-     * @generated from protobuf enum value: CURSOR_STATUS_WORKING = 10;
-     */
-    WORKING = 10,
-    /**
-     * @generated from protobuf enum value: CURSOR_STATUS_READING = 11;
-     */
-    READING = 11,
-    /**
-     * @generated from protobuf enum value: CURSOR_STATUS_WRITING = 12;
-     */
-    WRITING = 12,
-    /**
-     * @generated from protobuf enum value: CURSOR_STATUS_THINKING = 13;
-     */
-    THINKING = 13,
-    /**
-     * @generated from protobuf enum value: CURSOR_STATUS_WAITING = 15;
-     */
-    WAITING = 15,
-    /**
-     * @generated from protobuf enum value: CURSOR_STATUS_IDLE = 30;
-     */
-    IDLE = 30,
-    /**
-     * @generated from protobuf enum value: CURSOR_STATUS_CANCELLED = 50;
-     */
-    CANCELLED = 50,
-    /**
-     * @generated from protobuf enum value: CURSOR_STATUS_COMPLETED = 53;
-     */
-    COMPLETED = 53
-}
-/**
- * @generated from protobuf enum symbol.bench.ErrorKind
- */
-export enum ErrorKind {
-    /**
-     * @generated from protobuf enum value: ERROR_KIND_UNSPECIFIED = 0;
-     */
-    UNSPECIFIED = 0,
-    /**
-     * @generated from protobuf enum value: ERROR_KIND_INTERNAL = 1;
-     */
-    INTERNAL = 1,
-    /**
-     * @generated from protobuf enum value: ERROR_KIND_RUNTIME = 5;
-     */
-    RUNTIME = 5
-}
-/**
- * @generated from protobuf enum symbol.bench.ErrorType
- */
-export enum ErrorType {
-    /**
-     * @generated from protobuf enum value: ERROR_TYPE_UNSPECIFIED = 0;
-     */
-    UNSPECIFIED = 0,
-    /**
-     * @generated from protobuf enum value: ERROR_TYPE_ABORTED = 2;
-     */
-    ABORTED = 2,
-    /**
-     * @generated from protobuf enum value: ERROR_TYPE_RUNTIME_UNAVAILABLE = 3;
-     */
-    RUNTIME_UNAVAILABLE = 3,
-    /**
-     * @generated from protobuf enum value: ERROR_TYPE_RUN_IMPOSSIBLE = 4;
-     */
-    RUN_IMPOSSIBLE = 4,
-    /**
-     * @generated from protobuf enum value: ERROR_TYPE_NOT_SUPPORTED = 5;
-     */
-    NOT_SUPPORTED = 5,
-    /**
-     * @generated from protobuf enum value: ERROR_TYPE_INVALID_VALUE = 10;
-     */
-    INVALID_VALUE = 10,
-    /**
-     * @generated from protobuf enum value: ERROR_TYPE_INVALID_COMPUTED = 11;
-     */
-    INVALID_COMPUTED = 11,
-    /**
-     * @generated from protobuf enum value: ERROR_TYPE_CODE_INVALID = 20;
-     */
-    CODE_INVALID = 20,
-    /**
-     * @generated from protobuf enum value: ERROR_TYPE_TEXT_INVALID = 21;
-     */
-    TEXT_INVALID = 21,
-    /**
-     * @generated from protobuf enum value: ERROR_TYPE_INCAPABLE = 100;
-     */
-    INCAPABLE = 100,
-    /**
-     * @generated from protobuf enum value: ERROR_TYPE_REFUSED = 101;
-     */
-    REFUSED = 101,
-    /**
-     * @generated from protobuf enum value: ERROR_TYPE_NON_RETRYABLE = 499;
-     */
-    NON_RETRYABLE = 499,
-    /**
-     * @generated from protobuf enum value: ERROR_TYPE_MODEL_FAILED = 500;
-     */
-    MODEL_FAILED = 500,
-    /**
-     * @generated from protobuf enum value: ERROR_TYPE_INVALID_CONTINUATION = 502;
-     */
-    INVALID_CONTINUATION = 502,
-    /**
-     * @generated from protobuf enum value: ERROR_TYPE_INVALID_CALL = 503;
-     */
-    INVALID_CALL = 503,
-    /**
-     * @generated from protobuf enum value: ERROR_TYPE_INVALID_PLAN = 504;
-     */
-    INVALID_PLAN = 504,
-    /**
-     * @generated from protobuf enum value: ERROR_TYPE_INTERRUPTION_CANCELLED = 510;
-     */
-    INTERRUPTION_CANCELLED = 510,
-    /**
-     * @generated from protobuf enum value: ERROR_TYPE_RETRYABLE = 999;
-     */
-    RETRYABLE = 999
 }
 /**
  * @generated from protobuf enum symbol.bench.InterruptionType
@@ -11717,6 +11772,247 @@ export enum InterruptionResponse {
     REJECT = 20
 }
 /**
+ * @generated from protobuf enum symbol.bench.AccessMode
+ */
+export enum AccessMode {
+    /**
+     * @generated from protobuf enum value: ACCESS_MODE_UNSPECIFIED = 0;
+     */
+    UNSPECIFIED = 0,
+    /**
+     * @generated from protobuf enum value: ACCESS_MODE_ADAPTIVE = 1;
+     */
+    ADAPTIVE = 1,
+    /**
+     * @generated from protobuf enum value: ACCESS_MODE_ATOMIC = 2;
+     */
+    ATOMIC = 2
+}
+/**
+ * @generated from protobuf enum symbol.bench.AccessKind
+ */
+export enum AccessKind {
+    /**
+     * @generated from protobuf enum value: ACCESS_KIND_UNSPECIFIED = 0;
+     */
+    UNSPECIFIED = 0,
+    /**
+     * @generated from protobuf enum value: ACCESS_KIND_READ = 1;
+     */
+    READ = 1,
+    /**
+     * @generated from protobuf enum value: ACCESS_KIND_EDIT = 20;
+     */
+    EDIT = 20,
+    /**
+     * @generated from protobuf enum value: ACCESS_KIND_USE = 40;
+     */
+    USE = 40
+}
+/**
+ * @generated from protobuf enum symbol.bench.PolicyEffect
+ */
+export enum PolicyEffect {
+    /**
+     * @generated from protobuf enum value: POLICY_EFFECT_UNSPECIFIED = 0;
+     */
+    UNSPECIFIED = 0,
+    /**
+     * @generated from protobuf enum value: POLICY_EFFECT_ALLOW = 1;
+     */
+    ALLOW = 1,
+    /**
+     * @generated from protobuf enum value: POLICY_EFFECT_DENY = 2;
+     */
+    DENY = 2
+}
+/**
+ * @generated from protobuf enum symbol.bench.AccessType
+ */
+export enum AccessType {
+    /**
+     * @generated from protobuf enum value: ACCESS_TYPE_UNSPECIFIED = 0;
+     */
+    UNSPECIFIED = 0,
+    /**
+     * @generated from protobuf enum value: ACCESS_TYPE_GET = 1;
+     */
+    GET = 1,
+    /**
+     * @generated from protobuf enum value: ACCESS_TYPE_SEARCH = 2;
+     */
+    SEARCH = 2,
+    /**
+     * @generated from protobuf enum value: ACCESS_TYPE_CREATE = 20;
+     */
+    CREATE = 20,
+    /**
+     * @generated from protobuf enum value: ACCESS_TYPE_UPSERT = 21;
+     */
+    UPSERT = 21,
+    /**
+     * @generated from protobuf enum value: ACCESS_TYPE_UPDATE = 22;
+     */
+    UPDATE = 22,
+    /**
+     * @generated from protobuf enum value: ACCESS_TYPE_MOVE = 23;
+     */
+    MOVE = 23,
+    /**
+     * @generated from protobuf enum value: ACCESS_TYPE_ARCHIVE = 24;
+     */
+    ARCHIVE = 24,
+    /**
+     * @generated from protobuf enum value: ACCESS_TYPE_UNARCHIVE = 25;
+     */
+    UNARCHIVE = 25,
+    /**
+     * @generated from protobuf enum value: ACCESS_TYPE_DELETE = 26;
+     */
+    DELETE = 26,
+    /**
+     * @generated from protobuf enum value: ACCESS_TYPE_RESTORE = 27;
+     */
+    RESTORE = 27,
+    /**
+     * @generated from protobuf enum value: ACCESS_TYPE_ERASE = 28;
+     */
+    ERASE = 28,
+    /**
+     * @generated from protobuf enum value: ACCESS_TYPE_START = 40;
+     */
+    START = 40,
+    /**
+     * @generated from protobuf enum value: ACCESS_TYPE_PAUSE = 41;
+     */
+    PAUSE = 41,
+    /**
+     * @generated from protobuf enum value: ACCESS_TYPE_RESUME = 42;
+     */
+    RESUME = 42,
+    /**
+     * @generated from protobuf enum value: ACCESS_TYPE_STOP = 43;
+     */
+    STOP = 43,
+    /**
+     * @generated from protobuf enum value: ACCESS_TYPE_KILL = 44;
+     */
+    KILL = 44,
+    /**
+     * @generated from protobuf enum value: ACCESS_TYPE_SEND = 45;
+     */
+    SEND = 45,
+    /**
+     * @generated from protobuf enum value: ACCESS_TYPE_RECEIVE = 46;
+     */
+    RECEIVE = 46
+}
+/**
+ * Ways to read nodes.
+ *
+ * @generated from protobuf enum symbol.bench.QueryType
+ */
+export enum QueryType {
+    /**
+     * @generated from protobuf enum value: QUERY_TYPE_UNSPECIFIED = 0;
+     */
+    UNSPECIFIED = 0,
+    /**
+     * @generated from protobuf enum value: QUERY_TYPE_GET = 1;
+     */
+    GET = 1,
+    /**
+     * @generated from protobuf enum value: QUERY_TYPE_SEARCH = 2;
+     */
+    SEARCH = 2
+}
+/**
+ * Ways to edit nodes.
+ *
+ * @generated from protobuf enum symbol.bench.EditType
+ */
+export enum EditType {
+    /**
+     * @generated from protobuf enum value: EDIT_TYPE_UNSPECIFIED = 0;
+     */
+    UNSPECIFIED = 0,
+    /**
+     * @generated from protobuf enum value: EDIT_TYPE_CREATE = 20;
+     */
+    CREATE = 20,
+    /**
+     * @generated from protobuf enum value: EDIT_TYPE_UPSERT = 21;
+     */
+    UPSERT = 21,
+    /**
+     * @generated from protobuf enum value: EDIT_TYPE_UPDATE = 22;
+     */
+    UPDATE = 22,
+    /**
+     * @generated from protobuf enum value: EDIT_TYPE_MOVE = 23;
+     */
+    MOVE = 23,
+    /**
+     * @generated from protobuf enum value: EDIT_TYPE_ARCHIVE = 24;
+     */
+    ARCHIVE = 24,
+    /**
+     * @generated from protobuf enum value: EDIT_TYPE_UNARCHIVE = 25;
+     */
+    UNARCHIVE = 25,
+    /**
+     * @generated from protobuf enum value: EDIT_TYPE_DELETE = 26;
+     */
+    DELETE = 26,
+    /**
+     * @generated from protobuf enum value: EDIT_TYPE_RESTORE = 27;
+     */
+    RESTORE = 27,
+    /**
+     * @generated from protobuf enum value: EDIT_TYPE_ERASE = 28;
+     */
+    ERASE = 28
+}
+/**
+ * Ways to use nodes.
+ *
+ * @generated from protobuf enum symbol.bench.UseType
+ */
+export enum UseType {
+    /**
+     * @generated from protobuf enum value: USE_TYPE_UNSPECIFIED = 0;
+     */
+    UNSPECIFIED = 0,
+    /**
+     * @generated from protobuf enum value: USE_TYPE_START = 40;
+     */
+    START = 40,
+    /**
+     * @generated from protobuf enum value: USE_TYPE_PAUSE = 41;
+     */
+    PAUSE = 41,
+    /**
+     * @generated from protobuf enum value: USE_TYPE_RESUME = 42;
+     */
+    RESUME = 42,
+    /**
+     * @generated from protobuf enum value: USE_TYPE_STOP = 43;
+     */
+    STOP = 43,
+    /**
+     * @generated from protobuf enum value: USE_TYPE_KILL = 44;
+     */
+    KILL = 44,
+    /**
+     * @generated from protobuf enum value: USE_TYPE_SEND = 45;
+     */
+    SEND = 45,
+    /**
+     * @generated from protobuf enum value: USE_TYPE_RECEIVE = 46;
+     */
+    RECEIVE = 46
+}
+/**
  * @generated from protobuf enum symbol.bench.ModelDeveloper
  */
 export enum ModelDeveloper {
@@ -11769,193 +12065,6 @@ export enum ModelProvider {
      * @generated from protobuf enum value: MODEL_PROVIDER_XAI = 1040;
      */
     XAI = 1040
-}
-/**
- * The (implicit) 'type' of Code.
- * We don't set this explicitly in Code because it depends on where the Code is used.
- *
- * @generated from protobuf enum symbol.bench.CodeType
- */
-export enum CodeType {
-    /**
-     * @generated from protobuf enum value: CODE_TYPE_UNSPECIFIED = 0;
-     */
-    UNSPECIFIED = 0,
-    /**
-     * @generated from protobuf enum value: CODE_TYPE_SNIPPET = 1;
-     */
-    SNIPPET = 1,
-    /**
-     * @generated from protobuf enum value: CODE_TYPE_SCRIPT = 2;
-     */
-    SCRIPT = 2,
-    /**
-     * @generated from protobuf enum value: CODE_TYPE_FUNCTION = 3;
-     */
-    FUNCTION = 3
-}
-/**
- * Built-in colors a la SwiftUI or Tailwind.
- *
- * @generated from protobuf enum symbol.bench.ColorHue
- */
-export enum ColorHue {
-    /**
-     * @generated from protobuf enum value: COLOR_HUE_UNSPECIFIED = 0;
-     */
-    UNSPECIFIED = 0,
-    /**
-     * @generated from protobuf enum value: COLOR_HUE_GRAY = 30;
-     */
-    GRAY = 30,
-    /**
-     * @generated from protobuf enum value: COLOR_HUE_RED = 31;
-     */
-    RED = 31,
-    /**
-     * @generated from protobuf enum value: COLOR_HUE_ORANGE = 32;
-     */
-    ORANGE = 32,
-    /**
-     * @generated from protobuf enum value: COLOR_HUE_AMBER = 33;
-     */
-    AMBER = 33,
-    /**
-     * @generated from protobuf enum value: COLOR_HUE_YELLOW = 34;
-     */
-    YELLOW = 34,
-    /**
-     * @generated from protobuf enum value: COLOR_HUE_LIME = 35;
-     */
-    LIME = 35,
-    /**
-     * @generated from protobuf enum value: COLOR_HUE_GREEN = 36;
-     */
-    GREEN = 36,
-    /**
-     * @generated from protobuf enum value: COLOR_HUE_EMERALD = 37;
-     */
-    EMERALD = 37,
-    /**
-     * @generated from protobuf enum value: COLOR_HUE_TEAL = 38;
-     */
-    TEAL = 38,
-    /**
-     * @generated from protobuf enum value: COLOR_HUE_CYAN = 39;
-     */
-    CYAN = 39,
-    /**
-     * @generated from protobuf enum value: COLOR_HUE_SKY = 40;
-     */
-    SKY = 40,
-    /**
-     * @generated from protobuf enum value: COLOR_HUE_BLUE = 41;
-     */
-    BLUE = 41,
-    /**
-     * @generated from protobuf enum value: COLOR_HUE_INDIGO = 42;
-     */
-    INDIGO = 42,
-    /**
-     * @generated from protobuf enum value: COLOR_HUE_VIOLET = 43;
-     */
-    VIOLET = 43,
-    /**
-     * @generated from protobuf enum value: COLOR_HUE_PURPLE = 44;
-     */
-    PURPLE = 44,
-    /**
-     * @generated from protobuf enum value: COLOR_HUE_FUCHSIA = 45;
-     */
-    FUCHSIA = 45,
-    /**
-     * @generated from protobuf enum value: COLOR_HUE_PINK = 46;
-     */
-    PINK = 46,
-    /**
-     * @generated from protobuf enum value: COLOR_HUE_ROSE = 47;
-     */
-    ROSE = 47
-}
-/**
- * @generated from protobuf enum symbol.bench.ActionType
- */
-export enum ActionType {
-    /**
-     * @generated from protobuf enum value: ACTION_TYPE_UNSPECIFIED = 0;
-     */
-    UNSPECIFIED = 0,
-    /**
-     * @generated from protobuf enum value: ACTION_TYPE_START = 10;
-     */
-    START = 10,
-    /**
-     * @generated from protobuf enum value: ACTION_TYPE_END = 20;
-     */
-    END = 20,
-    /**
-     * @generated from protobuf enum value: ACTION_TYPE_TOOL = 100;
-     */
-    TOOL = 100,
-    /**
-     * @generated from protobuf enum value: ACTION_TYPE_CODE = 101;
-     */
-    CODE = 101,
-    /**
-     * @generated from protobuf enum value: ACTION_TYPE_BUILTIN = 102;
-     */
-    BUILTIN = 102
-}
-/**
- * @generated from protobuf enum symbol.bench.PortSide
- */
-export enum PortSide {
-    /**
-     * @generated from protobuf enum value: PORT_SIDE_UNSPECIFIED = 0;
-     */
-    UNSPECIFIED = 0,
-    /**
-     * @generated from protobuf enum value: PORT_SIDE_INCOMING = 1;
-     */
-    INCOMING = 1,
-    /**
-     * @generated from protobuf enum value: PORT_SIDE_OUTGOING = 2;
-     */
-    OUTGOING = 2
-}
-/**
- * @generated from protobuf enum symbol.bench.TransitionType
- */
-export enum TransitionType {
-    /**
-     * @generated from protobuf enum value: TRANSITION_TYPE_UNSPECIFIED = 0;
-     */
-    UNSPECIFIED = 0,
-    /**
-     * @generated from protobuf enum value: TRANSITION_TYPE_MANUAL = 10;
-     */
-    MANUAL = 10,
-    /**
-     * @generated from protobuf enum value: TRANSITION_TYPE_DECIDE = 20;
-     */
-    DECIDE = 20,
-    /**
-     * @generated from protobuf enum value: TRANSITION_TYPE_REQUIRE = 30;
-     */
-    REQUIRE = 30
-}
-/**
- * @generated from protobuf enum symbol.bench.FlowType
- */
-export enum FlowType {
-    /**
-     * @generated from protobuf enum value: FLOW_TYPE_UNSPECIFIED = 0;
-     */
-    UNSPECIFIED = 0,
-    /**
-     * @generated from protobuf enum value: FLOW_TYPE_ACTION = 10;
-     */
-    ACTION = 10
 }
 /**
  * @generated from protobuf enum symbol.bench.SpaceType
@@ -12067,6 +12176,89 @@ export enum ColorShade {
      * @generated from protobuf enum value: COLOR_SHADE_S950 = 950;
      */
     S950 = 950
+}
+/**
+ * Built-in colors a la SwiftUI or Tailwind.
+ *
+ * @generated from protobuf enum symbol.bench.ColorHue
+ */
+export enum ColorHue {
+    /**
+     * @generated from protobuf enum value: COLOR_HUE_UNSPECIFIED = 0;
+     */
+    UNSPECIFIED = 0,
+    /**
+     * @generated from protobuf enum value: COLOR_HUE_GRAY = 30;
+     */
+    GRAY = 30,
+    /**
+     * @generated from protobuf enum value: COLOR_HUE_RED = 31;
+     */
+    RED = 31,
+    /**
+     * @generated from protobuf enum value: COLOR_HUE_ORANGE = 32;
+     */
+    ORANGE = 32,
+    /**
+     * @generated from protobuf enum value: COLOR_HUE_AMBER = 33;
+     */
+    AMBER = 33,
+    /**
+     * @generated from protobuf enum value: COLOR_HUE_YELLOW = 34;
+     */
+    YELLOW = 34,
+    /**
+     * @generated from protobuf enum value: COLOR_HUE_LIME = 35;
+     */
+    LIME = 35,
+    /**
+     * @generated from protobuf enum value: COLOR_HUE_GREEN = 36;
+     */
+    GREEN = 36,
+    /**
+     * @generated from protobuf enum value: COLOR_HUE_EMERALD = 37;
+     */
+    EMERALD = 37,
+    /**
+     * @generated from protobuf enum value: COLOR_HUE_TEAL = 38;
+     */
+    TEAL = 38,
+    /**
+     * @generated from protobuf enum value: COLOR_HUE_CYAN = 39;
+     */
+    CYAN = 39,
+    /**
+     * @generated from protobuf enum value: COLOR_HUE_SKY = 40;
+     */
+    SKY = 40,
+    /**
+     * @generated from protobuf enum value: COLOR_HUE_BLUE = 41;
+     */
+    BLUE = 41,
+    /**
+     * @generated from protobuf enum value: COLOR_HUE_INDIGO = 42;
+     */
+    INDIGO = 42,
+    /**
+     * @generated from protobuf enum value: COLOR_HUE_VIOLET = 43;
+     */
+    VIOLET = 43,
+    /**
+     * @generated from protobuf enum value: COLOR_HUE_PURPLE = 44;
+     */
+    PURPLE = 44,
+    /**
+     * @generated from protobuf enum value: COLOR_HUE_FUCHSIA = 45;
+     */
+    FUCHSIA = 45,
+    /**
+     * @generated from protobuf enum value: COLOR_HUE_PINK = 46;
+     */
+    PINK = 46,
+    /**
+     * @generated from protobuf enum value: COLOR_HUE_ROSE = 47;
+     */
+    ROSE = 47
 }
 /**
  * @generated from protobuf enum symbol.bench.FontType
@@ -12188,75 +12380,6 @@ export enum FontSize {
     XL7 = 72
 }
 /**
- * Built-in shadow types.
- *
- * @generated from protobuf enum symbol.bench.ShadowType
- */
-export enum ShadowType {
-    /**
-     * @generated from protobuf enum value: SHADOW_TYPE_UNSPECIFIED = 0;
-     */
-    UNSPECIFIED = 0,
-    /**
-     * @generated from protobuf enum value: SHADOW_TYPE_BOX = 1;
-     */
-    BOX = 1,
-    /**
-     * @generated from protobuf enum value: SHADOW_TYPE_REALISTIC = 2;
-     */
-    REALISTIC = 2
-}
-/**
- * Built-in shadow positions.
- *
- * @generated from protobuf enum symbol.bench.ShadowPosition
- */
-export enum ShadowPosition {
-    /**
-     * @generated from protobuf enum value: SHADOW_POSITION_UNSPECIFIED = 0;
-     */
-    UNSPECIFIED = 0,
-    /**
-     * @generated from protobuf enum value: SHADOW_POSITION_OUTSIDE = 1;
-     */
-    OUTSIDE = 1,
-    /**
-     * @generated from protobuf enum value: SHADOW_POSITION_INSIDE = 2;
-     */
-    INSIDE = 2
-}
-/**
- * Built-in border types.
- *
- * @generated from protobuf enum symbol.bench.BorderType
- */
-export enum BorderType {
-    /**
-     * @generated from protobuf enum value: BORDER_TYPE_UNSPECIFIED = 0;
-     */
-    UNSPECIFIED = 0,
-    /**
-     * @generated from protobuf enum value: BORDER_TYPE_NONE = 1;
-     */
-    NONE = 1,
-    /**
-     * @generated from protobuf enum value: BORDER_TYPE_SOLID = 2;
-     */
-    SOLID = 2,
-    /**
-     * @generated from protobuf enum value: BORDER_TYPE_DASHED = 3;
-     */
-    DASHED = 3,
-    /**
-     * @generated from protobuf enum value: BORDER_TYPE_DOTTED = 4;
-     */
-    DOTTED = 4,
-    /**
-     * @generated from protobuf enum value: BORDER_TYPE_DOUBLE = 5;
-     */
-    DOUBLE = 5
-}
-/**
  * @generated from protobuf enum symbol.bench.TextAlign
  */
 export enum TextAlign {
@@ -12326,6 +12449,75 @@ export enum TextTransform {
      * @generated from protobuf enum value: TEXT_TRANSFORM_CAPITALIZE = 4;
      */
     CAPITALIZE = 4
+}
+/**
+ * Built-in shadow types.
+ *
+ * @generated from protobuf enum symbol.bench.ShadowType
+ */
+export enum ShadowType {
+    /**
+     * @generated from protobuf enum value: SHADOW_TYPE_UNSPECIFIED = 0;
+     */
+    UNSPECIFIED = 0,
+    /**
+     * @generated from protobuf enum value: SHADOW_TYPE_BOX = 1;
+     */
+    BOX = 1,
+    /**
+     * @generated from protobuf enum value: SHADOW_TYPE_REALISTIC = 2;
+     */
+    REALISTIC = 2
+}
+/**
+ * Built-in shadow positions.
+ *
+ * @generated from protobuf enum symbol.bench.ShadowPosition
+ */
+export enum ShadowPosition {
+    /**
+     * @generated from protobuf enum value: SHADOW_POSITION_UNSPECIFIED = 0;
+     */
+    UNSPECIFIED = 0,
+    /**
+     * @generated from protobuf enum value: SHADOW_POSITION_OUTSIDE = 1;
+     */
+    OUTSIDE = 1,
+    /**
+     * @generated from protobuf enum value: SHADOW_POSITION_INSIDE = 2;
+     */
+    INSIDE = 2
+}
+/**
+ * Built-in border types.
+ *
+ * @generated from protobuf enum symbol.bench.BorderType
+ */
+export enum BorderType {
+    /**
+     * @generated from protobuf enum value: BORDER_TYPE_UNSPECIFIED = 0;
+     */
+    UNSPECIFIED = 0,
+    /**
+     * @generated from protobuf enum value: BORDER_TYPE_NONE = 1;
+     */
+    NONE = 1,
+    /**
+     * @generated from protobuf enum value: BORDER_TYPE_SOLID = 2;
+     */
+    SOLID = 2,
+    /**
+     * @generated from protobuf enum value: BORDER_TYPE_DASHED = 3;
+     */
+    DASHED = 3,
+    /**
+     * @generated from protobuf enum value: BORDER_TYPE_DOTTED = 4;
+     */
+    DOTTED = 4,
+    /**
+     * @generated from protobuf enum value: BORDER_TYPE_DOUBLE = 5;
+     */
+    DOUBLE = 5
 }
 /**
  * Built-in gradient types.
@@ -12442,159 +12634,21 @@ export enum FillSize {
     TILE = 4
 }
 /**
- * @generated from protobuf enum symbol.bench.UserStatus
+ * @generated from protobuf enum symbol.bench.LengthUnit
  */
-export enum UserStatus {
+export enum LengthUnit {
     /**
-     * @generated from protobuf enum value: USER_STATUS_UNSPECIFIED = 0;
+     * @generated from protobuf enum value: LENGTH_UNIT_UNSPECIFIED = 0;
      */
     UNSPECIFIED = 0,
     /**
-     * @generated from protobuf enum value: USER_STATUS_INVITED = 10;
+     * @generated from protobuf enum value: LENGTH_UNIT_PIXEL = 1;
      */
-    INVITED = 10,
+    PIXEL = 1,
     /**
-     * @generated from protobuf enum value: USER_STATUS_RESERVED = 20;
+     * @generated from protobuf enum value: LENGTH_UNIT_REM = 2;
      */
-    RESERVED = 20,
-    /**
-     * @generated from protobuf enum value: USER_STATUS_WAITLISTED = 30;
-     */
-    WAITLISTED = 30,
-    /**
-     * @generated from protobuf enum value: USER_STATUS_REGISTERED = 40;
-     */
-    REGISTERED = 40,
-    /**
-     * @generated from protobuf enum value: USER_STATUS_ACTIVATED = 50;
-     */
-    ACTIVATED = 50
-}
-/**
- * @generated from protobuf enum symbol.bench.OrganizationStatus
- */
-export enum OrganizationStatus {
-    /**
-     * @generated from protobuf enum value: ORGANIZATION_STATUS_UNSPECIFIED = 0;
-     */
-    UNSPECIFIED = 0,
-    /**
-     * @generated from protobuf enum value: ORGANIZATION_STATUS_REGISTERED = 20;
-     */
-    REGISTERED = 20,
-    /**
-     * @generated from protobuf enum value: ORGANIZATION_STATUS_ACTIVATED = 50;
-     */
-    ACTIVATED = 50
-}
-/**
- * @generated from protobuf enum symbol.bench.ChannelStatus
- */
-export enum ChannelStatus {
-    /**
-     * @generated from protobuf enum value: CHANNEL_STATUS_UNSPECIFIED = 0;
-     */
-    UNSPECIFIED = 0,
-    /**
-     * @generated from protobuf enum value: CHANNEL_STATUS_OPEN = 10;
-     */
-    OPEN = 10,
-    /**
-     * @generated from protobuf enum value: CHANNEL_STATUS_CLOSED = 30;
-     */
-    CLOSED = 30
-}
-/**
- * @generated from protobuf enum symbol.bench.ThreadStatus
- */
-export enum ThreadStatus {
-    /**
-     * @generated from protobuf enum value: THREAD_STATUS_UNSPECIFIED = 0;
-     */
-    UNSPECIFIED = 0,
-    /**
-     * @generated from protobuf enum value: THREAD_STATUS_OPEN = 10;
-     */
-    OPEN = 10,
-    /**
-     * @generated from protobuf enum value: THREAD_STATUS_CLOSED = 30;
-     */
-    CLOSED = 30
-}
-/**
- * @generated from protobuf enum symbol.bench.MessageType
- */
-export enum MessageType {
-    /**
-     * @generated from protobuf enum value: MESSAGE_TYPE_UNSPECIFIED = 0;
-     */
-    UNSPECIFIED = 0,
-    /**
-     * @generated from protobuf enum value: MESSAGE_TYPE_DEFAULT = 1;
-     */
-    DEFAULT = 1,
-    /**
-     * @generated from protobuf enum value: MESSAGE_TYPE_JOIN = 10;
-     */
-    JOIN = 10,
-    /**
-     * @generated from protobuf enum value: MESSAGE_TYPE_LEAVE = 11;
-     */
-    LEAVE = 11,
-    /**
-     * @generated from protobuf enum value: MESSAGE_TYPE_RESOURCE = 20;
-     */
-    RESOURCE = 20,
-    /**
-     * @generated from protobuf enum value: MESSAGE_TYPE_RUN = 100;
-     */
-    RUN = 100,
-    /**
-     * @generated from protobuf enum value: MESSAGE_TYPE_THREAD = 110;
-     */
-    THREAD = 110
-}
-/**
- * @generated from protobuf enum symbol.bench.NotificationType
- */
-export enum NotificationType {
-    /**
-     * @generated from protobuf enum value: NOTIFICATION_TYPE_UNSPECIFIED = 0;
-     */
-    UNSPECIFIED = 0,
-    /**
-     * @generated from protobuf enum value: NOTIFICATION_TYPE_MESSAGE = 100;
-     */
-    MESSAGE = 100
-}
-/**
- * @generated from protobuf enum symbol.bench.NotificationStatus
- */
-export enum NotificationStatus {
-    /**
-     * @generated from protobuf enum value: NOTIFICATION_STATUS_UNSPECIFIED = 0;
-     */
-    UNSPECIFIED = 0,
-    /**
-     * @generated from protobuf enum value: NOTIFICATION_STATUS_SENDING = 20;
-     */
-    SENDING = 20,
-    /**
-     * @generated from protobuf enum value: NOTIFICATION_STATUS_SENT = 30;
-     */
-    SENT = 30,
-    /**
-     * @generated from protobuf enum value: NOTIFICATION_STATUS_FAILED = 40;
-     */
-    FAILED = 40,
-    /**
-     * @generated from protobuf enum value: NOTIFICATION_STATUS_RECEIVED = 50;
-     */
-    RECEIVED = 50,
-    /**
-     * @generated from protobuf enum value: NOTIFICATION_STATUS_READ = 60;
-     */
-    READ = 60
+    REM = 2
 }
 /**
  * @generated from protobuf enum symbol.bench.BuiltinEnum
@@ -16550,10 +16604,10 @@ class ShadowData$Type extends MessageType$<ShadowData> {
             { no: 1, name: "metatype", kind: "enum", T: () => ["symbol.bench.ObjectType", ObjectType, "OBJECT_TYPE_"] },
             { no: 30, name: "type", kind: "enum", T: () => ["symbol.bench.ShadowType", ShadowType, "SHADOW_TYPE_"] },
             { no: 40, name: "position", kind: "enum", T: () => ["symbol.bench.ShadowPosition", ShadowPosition, "SHADOW_POSITION_"] },
-            { no: 41, name: "offset_x", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
-            { no: 42, name: "offset_y", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
-            { no: 43, name: "blur", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
-            { no: 44, name: "spread", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
+            { no: 41, name: "offset_x", kind: "scalar", T: 5 /*ScalarType.INT32*/ },
+            { no: 42, name: "offset_y", kind: "scalar", T: 5 /*ScalarType.INT32*/ },
+            { no: 43, name: "blur", kind: "scalar", T: 5 /*ScalarType.INT32*/ },
+            { no: 44, name: "spread", kind: "scalar", T: 5 /*ScalarType.INT32*/ },
             { no: 45, name: "color", kind: "message", T: () => ColorData }
         ]);
     }
@@ -16562,10 +16616,10 @@ class ShadowData$Type extends MessageType$<ShadowData> {
         message.metatype = 0;
         message.type = 0;
         message.position = 0;
-        message.offsetX = "";
-        message.offsetY = "";
-        message.blur = "";
-        message.spread = "";
+        message.offsetX = 0;
+        message.offsetY = 0;
+        message.blur = 0;
+        message.spread = 0;
         if (value !== undefined)
             reflectionMergePartial<ShadowData>(this, message, value);
         return message;
@@ -16584,17 +16638,17 @@ class ShadowData$Type extends MessageType$<ShadowData> {
                 case /* symbol.bench.ShadowPosition position */ 40:
                     message.position = reader.int32();
                     break;
-                case /* string offset_x */ 41:
-                    message.offsetX = reader.string();
+                case /* int32 offset_x */ 41:
+                    message.offsetX = reader.int32();
                     break;
-                case /* string offset_y */ 42:
-                    message.offsetY = reader.string();
+                case /* int32 offset_y */ 42:
+                    message.offsetY = reader.int32();
                     break;
-                case /* string blur */ 43:
-                    message.blur = reader.string();
+                case /* int32 blur */ 43:
+                    message.blur = reader.int32();
                     break;
-                case /* string spread */ 44:
-                    message.spread = reader.string();
+                case /* int32 spread */ 44:
+                    message.spread = reader.int32();
                     break;
                 case /* optional symbol.bench.ColorData color */ 45:
                     message.color = ColorData.internalBinaryRead(reader, reader.uint32(), options, message.color);
@@ -16620,18 +16674,18 @@ class ShadowData$Type extends MessageType$<ShadowData> {
         /* symbol.bench.ShadowPosition position = 40; */
         if (message.position !== 0)
             writer.tag(40, WireType.Varint).int32(message.position);
-        /* string offset_x = 41; */
-        if (message.offsetX !== "")
-            writer.tag(41, WireType.LengthDelimited).string(message.offsetX);
-        /* string offset_y = 42; */
-        if (message.offsetY !== "")
-            writer.tag(42, WireType.LengthDelimited).string(message.offsetY);
-        /* string blur = 43; */
-        if (message.blur !== "")
-            writer.tag(43, WireType.LengthDelimited).string(message.blur);
-        /* string spread = 44; */
-        if (message.spread !== "")
-            writer.tag(44, WireType.LengthDelimited).string(message.spread);
+        /* int32 offset_x = 41; */
+        if (message.offsetX !== 0)
+            writer.tag(41, WireType.Varint).int32(message.offsetX);
+        /* int32 offset_y = 42; */
+        if (message.offsetY !== 0)
+            writer.tag(42, WireType.Varint).int32(message.offsetY);
+        /* int32 blur = 43; */
+        if (message.blur !== 0)
+            writer.tag(43, WireType.Varint).int32(message.blur);
+        /* int32 spread = 44; */
+        if (message.spread !== 0)
+            writer.tag(44, WireType.Varint).int32(message.spread);
         /* optional symbol.bench.ColorData color = 45; */
         if (message.color)
             ColorData.internalBinaryWrite(message.color, writer.tag(45, WireType.LengthDelimited).fork(), options).join();
@@ -16645,6 +16699,69 @@ class ShadowData$Type extends MessageType$<ShadowData> {
  * @generated MessageType for protobuf message symbol.bench.ShadowData
  */
 export const ShadowData = new ShadowData$Type();
+// @generated message type with reflection information, may provide speed optimized methods
+class LengthData$Type extends MessageType$<LengthData> {
+    constructor() {
+        super("symbol.bench.LengthData", [
+            { no: 1, name: "metatype", kind: "enum", T: () => ["symbol.bench.ObjectType", ObjectType, "OBJECT_TYPE_"] },
+            { no: 31, name: "unit", kind: "enum", T: () => ["symbol.bench.LengthUnit", LengthUnit, "LENGTH_UNIT_"] },
+            { no: 32, name: "value", kind: "scalar", T: 2 /*ScalarType.FLOAT*/ }
+        ]);
+    }
+    create(value?: PartialMessage<LengthData>): LengthData {
+        const message = globalThis.Object.create((this.messagePrototype!));
+        message.metatype = 0;
+        message.unit = 0;
+        message.value = 0;
+        if (value !== undefined)
+            reflectionMergePartial<LengthData>(this, message, value);
+        return message;
+    }
+    internalBinaryRead(reader: IBinaryReader, length: number, options: BinaryReadOptions, target?: LengthData): LengthData {
+        let message = target ?? this.create(), end = reader.pos + length;
+        while (reader.pos < end) {
+            let [fieldNo, wireType] = reader.tag();
+            switch (fieldNo) {
+                case /* symbol.bench.ObjectType metatype */ 1:
+                    message.metatype = reader.int32();
+                    break;
+                case /* symbol.bench.LengthUnit unit */ 31:
+                    message.unit = reader.int32();
+                    break;
+                case /* float value */ 32:
+                    message.value = reader.float();
+                    break;
+                default:
+                    let u = options.readUnknownField;
+                    if (u === "throw")
+                        throw new globalThis.Error(`Unknown field ${fieldNo} (wire type ${wireType}) for ${this.typeName}`);
+                    let d = reader.skip(wireType);
+                    if (u !== false)
+                        (u === true ? UnknownFieldHandler.onRead : u)(this.typeName, message, fieldNo, wireType, d);
+            }
+        }
+        return message;
+    }
+    internalBinaryWrite(message: LengthData, writer: IBinaryWriter, options: BinaryWriteOptions): IBinaryWriter {
+        /* symbol.bench.ObjectType metatype = 1; */
+        if (message.metatype !== 0)
+            writer.tag(1, WireType.Varint).int32(message.metatype);
+        /* symbol.bench.LengthUnit unit = 31; */
+        if (message.unit !== 0)
+            writer.tag(31, WireType.Varint).int32(message.unit);
+        /* float value = 32; */
+        if (message.value !== 0)
+            writer.tag(32, WireType.Bit32).float(message.value);
+        let u = options.writeUnknownFields;
+        if (u !== false)
+            (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
+        return writer;
+    }
+}
+/**
+ * @generated MessageType for protobuf message symbol.bench.LengthData
+ */
+export const LengthData = new LengthData$Type();
 // @generated message type with reflection information, may provide speed optimized methods
 class BaseNodeData$Type extends MessageType$<BaseNodeData> {
     constructor() {
@@ -26459,10 +26576,10 @@ class ShadowStyleData$Type extends MessageType$<ShadowStyleData> {
             { no: 34, name: "icon", kind: "message", T: () => IconData },
             { no: 35, name: "definition_ptr", kind: "message", T: () => NodeReferenceData },
             { no: 40, name: "position", kind: "enum", T: () => ["symbol.bench.ShadowPosition", ShadowPosition, "SHADOW_POSITION_"] },
-            { no: 41, name: "offset_x", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
-            { no: 42, name: "offset_y", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
-            { no: 43, name: "blur", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
-            { no: 44, name: "spread", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
+            { no: 41, name: "offset_x", kind: "scalar", T: 5 /*ScalarType.INT32*/ },
+            { no: 42, name: "offset_y", kind: "scalar", T: 5 /*ScalarType.INT32*/ },
+            { no: 43, name: "blur", kind: "scalar", T: 5 /*ScalarType.INT32*/ },
+            { no: 44, name: "spread", kind: "scalar", T: 5 /*ScalarType.INT32*/ },
             { no: 45, name: "color", kind: "message", T: () => ColorData }
         ]);
     }
@@ -26473,10 +26590,10 @@ class ShadowStyleData$Type extends MessageType$<ShadowStyleData> {
         message.mode = 0;
         message.type = 0;
         message.position = 0;
-        message.offsetX = "";
-        message.offsetY = "";
-        message.blur = "";
-        message.spread = "";
+        message.offsetX = 0;
+        message.offsetY = 0;
+        message.blur = 0;
+        message.spread = 0;
         if (value !== undefined)
             reflectionMergePartial<ShadowStyleData>(this, message, value);
         return message;
@@ -26543,17 +26660,17 @@ class ShadowStyleData$Type extends MessageType$<ShadowStyleData> {
                 case /* symbol.bench.ShadowPosition position */ 40:
                     message.position = reader.int32();
                     break;
-                case /* string offset_x */ 41:
-                    message.offsetX = reader.string();
+                case /* int32 offset_x */ 41:
+                    message.offsetX = reader.int32();
                     break;
-                case /* string offset_y */ 42:
-                    message.offsetY = reader.string();
+                case /* int32 offset_y */ 42:
+                    message.offsetY = reader.int32();
                     break;
-                case /* string blur */ 43:
-                    message.blur = reader.string();
+                case /* int32 blur */ 43:
+                    message.blur = reader.int32();
                     break;
-                case /* string spread */ 44:
-                    message.spread = reader.string();
+                case /* int32 spread */ 44:
+                    message.spread = reader.int32();
                     break;
                 case /* optional symbol.bench.ColorData color */ 45:
                     message.color = ColorData.internalBinaryRead(reader, reader.uint32(), options, message.color);
@@ -26627,18 +26744,18 @@ class ShadowStyleData$Type extends MessageType$<ShadowStyleData> {
         /* symbol.bench.ShadowPosition position = 40; */
         if (message.position !== 0)
             writer.tag(40, WireType.Varint).int32(message.position);
-        /* string offset_x = 41; */
-        if (message.offsetX !== "")
-            writer.tag(41, WireType.LengthDelimited).string(message.offsetX);
-        /* string offset_y = 42; */
-        if (message.offsetY !== "")
-            writer.tag(42, WireType.LengthDelimited).string(message.offsetY);
-        /* string blur = 43; */
-        if (message.blur !== "")
-            writer.tag(43, WireType.LengthDelimited).string(message.blur);
-        /* string spread = 44; */
-        if (message.spread !== "")
-            writer.tag(44, WireType.LengthDelimited).string(message.spread);
+        /* int32 offset_x = 41; */
+        if (message.offsetX !== 0)
+            writer.tag(41, WireType.Varint).int32(message.offsetX);
+        /* int32 offset_y = 42; */
+        if (message.offsetY !== 0)
+            writer.tag(42, WireType.Varint).int32(message.offsetY);
+        /* int32 blur = 43; */
+        if (message.blur !== 0)
+            writer.tag(43, WireType.Varint).int32(message.blur);
+        /* int32 spread = 44; */
+        if (message.spread !== 0)
+            writer.tag(44, WireType.Varint).int32(message.spread);
         /* optional symbol.bench.ColorData color = 45; */
         if (message.color)
             ColorData.internalBinaryWrite(message.color, writer.tag(45, WireType.LengthDelimited).fork(), options).join();
@@ -26678,8 +26795,8 @@ class TextStyleData$Type extends MessageType$<TextStyleData> {
             { no: 45, name: "color", kind: "message", T: () => ColorData },
             { no: 46, name: "size", kind: "enum", opt: true, T: () => ["symbol.bench.FontSize", FontSize, "FONT_SIZE_"] },
             { no: 47, name: "align", kind: "enum", opt: true, T: () => ["symbol.bench.TextAlign", TextAlign, "TEXT_ALIGN_"] },
-            { no: 48, name: "line_height", kind: "scalar", opt: true, T: 5 /*ScalarType.INT32*/ },
-            { no: 49, name: "letter_spacing", kind: "scalar", opt: true, T: 5 /*ScalarType.INT32*/ },
+            { no: 48, name: "line_height", kind: "message", T: () => LengthData },
+            { no: 49, name: "letter_spacing", kind: "message", T: () => LengthData },
             { no: 50, name: "decoration", kind: "enum", opt: true, T: () => ["symbol.bench.TextDecoration", TextDecoration, "TEXT_DECORATION_"] },
             { no: 51, name: "transform", kind: "enum", opt: true, T: () => ["symbol.bench.TextTransform", TextTransform, "TEXT_TRANSFORM_"] }
         ]);
@@ -26764,11 +26881,11 @@ class TextStyleData$Type extends MessageType$<TextStyleData> {
                 case /* optional symbol.bench.TextAlign align */ 47:
                     message.align = reader.int32();
                     break;
-                case /* optional int32 line_height */ 48:
-                    message.lineHeight = reader.int32();
+                case /* optional symbol.bench.LengthData line_height */ 48:
+                    message.lineHeight = LengthData.internalBinaryRead(reader, reader.uint32(), options, message.lineHeight);
                     break;
-                case /* optional int32 letter_spacing */ 49:
-                    message.letterSpacing = reader.int32();
+                case /* optional symbol.bench.LengthData letter_spacing */ 49:
+                    message.letterSpacing = LengthData.internalBinaryRead(reader, reader.uint32(), options, message.letterSpacing);
                     break;
                 case /* optional symbol.bench.TextDecoration decoration */ 50:
                     message.decoration = reader.int32();
@@ -26854,12 +26971,12 @@ class TextStyleData$Type extends MessageType$<TextStyleData> {
         /* optional symbol.bench.TextAlign align = 47; */
         if (message.align !== undefined)
             writer.tag(47, WireType.Varint).int32(message.align);
-        /* optional int32 line_height = 48; */
-        if (message.lineHeight !== undefined)
-            writer.tag(48, WireType.Varint).int32(message.lineHeight);
-        /* optional int32 letter_spacing = 49; */
-        if (message.letterSpacing !== undefined)
-            writer.tag(49, WireType.Varint).int32(message.letterSpacing);
+        /* optional symbol.bench.LengthData line_height = 48; */
+        if (message.lineHeight)
+            LengthData.internalBinaryWrite(message.lineHeight, writer.tag(48, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbol.bench.LengthData letter_spacing = 49; */
+        if (message.letterSpacing)
+            LengthData.internalBinaryWrite(message.letterSpacing, writer.tag(49, WireType.LengthDelimited).fork(), options).join();
         /* optional symbol.bench.TextDecoration decoration = 50; */
         if (message.decoration !== undefined)
             writer.tag(50, WireType.Varint).int32(message.decoration);
@@ -28400,9 +28517,9 @@ export type JsonValue = JsonPrimitive | { [key: string]: JsonValue } | JsonValue
 
 // Any...
 export type AnyNodeData = BenchData | HandleData | UserData | OrganizationData | ClientData | PackageData | DependencyData | PageData | BlockData | DatabaseData | ComputerData | ScalerData | ChoiceData | ClassData | FieldData | OptionData | TableData | RecordData | FileData | LinkData | ChannelData | ThreadData | MessageData | NotificationData | TaskData | ClaimData | CursorData | ServiceData | ActionData | FlowData | TransitionData | AgentData | SessionData | RunData | SpanData | InterruptionData | MembershipData | InviteData | TeamData | RoleData | SpaceData | WizardViewData | ThreadViewData | ThemeData | ColorStyleData | TextStyleData | BorderStyleData | ShadowStyleData | GradientStyleData | EmptyData
-export type AnyStructData = ContextData | EditContextData | EditData | EditOperationData | ChangeData | ChangeVignetteData | GraphScopeData | ClientOriginData | NodeReferenceData | PropertyReferenceData | PolicyData | PolicyRuleData | PolicySubjectData | AccessZoneData | AccessMatrixData | AccessData | TypeData | TypeConstraintData | FileInfoData | IconData | ScheduleData | TextData | TextLineData | TextSpanData | CodeData | ExpressionData | AggregationResultData | SelectionData | SelectOptionsData | ErrorData | RunTraceData | RunFrameData | ColorData | ShadowData | BorderData | Vector2Data | Vector3Data | Vector4Data | GradientStopData | GradientData | FillData
+export type AnyStructData = ContextData | EditContextData | EditData | EditOperationData | ChangeData | ChangeVignetteData | GraphScopeData | ClientOriginData | NodeReferenceData | PropertyReferenceData | TypeData | TypeConstraintData | FileInfoData | ScheduleData | TextData | TextLineData | TextSpanData | CodeData | IconData | ExpressionData | AggregationResultData | SelectionData | SelectOptionsData | ErrorData | RunTraceData | RunFrameData | PolicyData | PolicyRuleData | PolicySubjectData | AccessZoneData | AccessMatrixData | AccessData | ColorData | ShadowData | BorderData | Vector2Data | Vector3Data | Vector4Data | GradientStopData | GradientData | FillData | LengthData
 export type AnyNodeDataType = typeof BenchData | typeof HandleData | typeof UserData | typeof OrganizationData | typeof ClientData | typeof PackageData | typeof DependencyData | typeof PageData | typeof BlockData | typeof DatabaseData | typeof ComputerData | typeof ScalerData | typeof ChoiceData | typeof ClassData | typeof FieldData | typeof OptionData | typeof TableData | typeof RecordData | typeof FileData | typeof LinkData | typeof ChannelData | typeof ThreadData | typeof MessageData | typeof NotificationData | typeof TaskData | typeof ClaimData | typeof CursorData | typeof ServiceData | typeof ActionData | typeof FlowData | typeof TransitionData | typeof AgentData | typeof SessionData | typeof RunData | typeof SpanData | typeof InterruptionData | typeof MembershipData | typeof InviteData | typeof TeamData | typeof RoleData | typeof SpaceData | typeof WizardViewData | typeof ThreadViewData | typeof ThemeData | typeof ColorStyleData | typeof TextStyleData | typeof BorderStyleData | typeof ShadowStyleData | typeof GradientStyleData | typeof EmptyData
-export type AnyStructDataType = typeof ContextData | typeof EditContextData | typeof EditData | typeof EditOperationData | typeof ChangeData | typeof ChangeVignetteData | typeof GraphScopeData | typeof ClientOriginData | typeof NodeReferenceData | typeof PropertyReferenceData | typeof PolicyData | typeof PolicyRuleData | typeof PolicySubjectData | typeof AccessZoneData | typeof AccessMatrixData | typeof AccessData | typeof TypeData | typeof TypeConstraintData | typeof FileInfoData | typeof IconData | typeof ScheduleData | typeof TextData | typeof TextLineData | typeof TextSpanData | typeof CodeData | typeof ExpressionData | typeof AggregationResultData | typeof SelectionData | typeof SelectOptionsData | typeof ErrorData | typeof RunTraceData | typeof RunFrameData | typeof ColorData | typeof ShadowData | typeof BorderData | typeof Vector2Data | typeof Vector3Data | typeof Vector4Data | typeof GradientStopData | typeof GradientData | typeof FillData
+export type AnyStructDataType = typeof ContextData | typeof EditContextData | typeof EditData | typeof EditOperationData | typeof ChangeData | typeof ChangeVignetteData | typeof GraphScopeData | typeof ClientOriginData | typeof NodeReferenceData | typeof PropertyReferenceData | typeof TypeData | typeof TypeConstraintData | typeof FileInfoData | typeof ScheduleData | typeof TextData | typeof TextLineData | typeof TextSpanData | typeof CodeData | typeof IconData | typeof ExpressionData | typeof AggregationResultData | typeof SelectionData | typeof SelectOptionsData | typeof ErrorData | typeof RunTraceData | typeof RunFrameData | typeof PolicyData | typeof PolicyRuleData | typeof PolicySubjectData | typeof AccessZoneData | typeof AccessMatrixData | typeof AccessData | typeof ColorData | typeof ShadowData | typeof BorderData | typeof Vector2Data | typeof Vector3Data | typeof Vector4Data | typeof GradientStopData | typeof GradientData | typeof FillData | typeof LengthData
 export type BenchNodeData = BenchData | HandleData | PackageData | DependencyData | PageData | BlockData | DatabaseData | ComputerData | ScalerData | ChoiceData | ClassData | FieldData | OptionData | TableData | RecordData | FileData | LinkData | ChannelData | ThreadData | MessageData | NotificationData | TaskData | ClaimData | CursorData | ServiceData | ActionData | FlowData | TransitionData | AgentData | SessionData | RunData | SpanData | InterruptionData | MembershipData | InviteData | TeamData | RoleData | SpaceData | WizardViewData | ThreadViewData | ThemeData | ColorStyleData | TextStyleData | BorderStyleData | ShadowStyleData | GradientStyleData
 export type ClaimableNodeData = PageData | DatabaseData | ComputerData | ScalerData | TableData | RecordData | FileData | LinkData | TaskData | ServiceData | ActionData | FlowData | AgentData
 export type PageNodeData = PageData | DatabaseData | ComputerData | ScalerData | ChoiceData | ClassData | TableData | FileData | LinkData | ChannelData | ThreadData | TaskData | ServiceData | FlowData | AgentData | TeamData | RoleData | WizardViewData | ThreadViewData | ThemeData | ColorStyleData | TextStyleData | BorderStyleData | ShadowStyleData | GradientStyleData
@@ -28413,6 +28530,8 @@ export type InstantiableNodeData = DatabaseData | ComputerData | ScalerData | Fi
 export type ProcessableNodeData = ChannelData | ThreadData | TaskData | AgentData | RunData | SpanData
 export type ResourceNodeData = DatabaseData | ComputerData | ScalerData | FileData | LinkData
 export type ProvisionableNodeData = DatabaseData | ComputerData | ScalerData
+export type ViewNodeData = WizardViewData | ThreadViewData
+export type StyleNodeData = ColorStyleData | TextStyleData | BorderStyleData | ShadowStyleData | GradientStyleData
 export type RunnableNodeData = ActionData | FlowData | TransitionData | AgentData
 export type SubjectNodeData = UserData | OrganizationData | ComputerData | AgentData
 
@@ -28505,6 +28624,17 @@ export const PAGE_NODE_TYPES: NodeType[] = [
   NodeType.TEAM,
   NodeType.AGENT,
   NodeType.THEME,
+];
+export const VIEW_NODE_TYPES: NodeType[] = [
+  NodeType.WIZARD_VIEW,
+  NodeType.THREAD_VIEW,
+];
+export const STYLE_NODE_TYPES: NodeType[] = [
+  NodeType.COLOR_STYLE,
+  NodeType.TEXT_STYLE,
+  NodeType.BORDER_STYLE,
+  NodeType.SHADOW_STYLE,
+  NodeType.GRADIENT_STYLE,
 ];
 export const INSTANTIABLE_NODE_TYPES: NodeType[] = [
   NodeType.DATABASE,
@@ -28818,7 +28948,7 @@ export const PARENT_NODE_TYPES: Record<NodeType, NodeType[]> = {
   [NodeType.BORDER_STYLE]: [NodeType.SPACE, NodeType.WIZARD_VIEW, NodeType.PAGE, NodeType.THREAD_VIEW],
   [NodeType.SHADOW_STYLE]: [NodeType.SPACE, NodeType.WIZARD_VIEW, NodeType.PAGE, NodeType.THREAD_VIEW],
   [NodeType.GRADIENT_STYLE]: [NodeType.SPACE, NodeType.WIZARD_VIEW, NodeType.PAGE, NodeType.THREAD_VIEW],
-  [NodeType.EMPTY]: [NodeType.BENCH, NodeType.HANDLE, NodeType.CLASS, NodeType.BLOCK, NodeType.CHANNEL, NodeType.USER, NodeType.FIELD, NodeType.EMPTY, NodeType.THREAD, NodeType.ORGANIZATION, NodeType.OPTION, NodeType.SERVICE, NodeType.MESSAGE, NodeType.ACTION, NodeType.MEMBERSHIP, NodeType.FLOW, NodeType.DATABASE, NodeType.CLIENT, NodeType.INVITE, NodeType.THEME, NodeType.TRANSITION, NodeType.COMPUTER, NodeType.NOTIFICATION, NodeType.COLOR_STYLE, NodeType.TABLE, NodeType.SPACE, NodeType.TEAM, NodeType.TEXT_STYLE, NodeType.RECORD, NodeType.AGENT, NodeType.WIZARD_VIEW, NodeType.TASK, NodeType.ROLE, NodeType.BORDER_STYLE, NodeType.FILE, NodeType.CLAIM, NodeType.SHADOW_STYLE, NodeType.SESSION, NodeType.SCALER, NodeType.CURSOR, NodeType.GRADIENT_STYLE, NodeType.PACKAGE, NodeType.RUN, NodeType.THREAD_VIEW, NodeType.DEPENDENCY, NodeType.LINK, NodeType.SPAN, NodeType.CHOICE, NodeType.PAGE, NodeType.INTERRUPTION],
+  [NodeType.EMPTY]: [NodeType.BENCH, NodeType.HANDLE, NodeType.CLASS, NodeType.BLOCK, NodeType.CHANNEL, NodeType.USER, NodeType.FIELD, NodeType.EMPTY, NodeType.THREAD, NodeType.ORGANIZATION, NodeType.OPTION, NodeType.SERVICE, NodeType.MESSAGE, NodeType.ACTION, NodeType.MEMBERSHIP, NodeType.FLOW, NodeType.DATABASE, NodeType.CLIENT, NodeType.INVITE, NodeType.THEME, NodeType.TRANSITION, NodeType.COMPUTER, NodeType.NOTIFICATION, NodeType.COLOR_STYLE, NodeType.TEXT_STYLE, NodeType.TABLE, NodeType.SPACE, NodeType.BORDER_STYLE, NodeType.SHADOW_STYLE, NodeType.GRADIENT_STYLE, NodeType.TEAM, NodeType.RECORD, NodeType.AGENT, NodeType.WIZARD_VIEW, NodeType.TASK, NodeType.ROLE, NodeType.FILE, NodeType.CLAIM, NodeType.SESSION, NodeType.SCALER, NodeType.CURSOR, NodeType.PACKAGE, NodeType.RUN, NodeType.THREAD_VIEW, NodeType.DEPENDENCY, NodeType.LINK, NodeType.SPAN, NodeType.CHOICE, NodeType.PAGE, NodeType.INTERRUPTION],
 }
 
 export const CHILD_NODE_TYPES: Record<NodeType, NodeType[]> = {
@@ -28830,7 +28960,7 @@ export const CHILD_NODE_TYPES: Record<NodeType, NodeType[]> = {
   [NodeType.CLIENT]: [NodeType.EMPTY],
   [NodeType.PACKAGE]: [NodeType.SPACE, NodeType.SCALER, NodeType.TEAM, NodeType.CHANNEL, NodeType.MEMBERSHIP, NodeType.COMPUTER, NodeType.EMPTY, NodeType.DATABASE, NodeType.THREAD, NodeType.LINK, NodeType.FILE, NodeType.INVITE, NodeType.DEPENDENCY, NodeType.NOTIFICATION, NodeType.PAGE],
   [NodeType.DEPENDENCY]: [NodeType.EMPTY],
-  [NodeType.PAGE]: [NodeType.CLASS, NodeType.BLOCK, NodeType.CHANNEL, NodeType.EMPTY, NodeType.THREAD, NodeType.SERVICE, NodeType.FLOW, NodeType.DATABASE, NodeType.THEME, NodeType.COMPUTER, NodeType.COLOR_STYLE, NodeType.TABLE, NodeType.TEAM, NodeType.TEXT_STYLE, NodeType.AGENT, NodeType.WIZARD_VIEW, NodeType.ROLE, NodeType.TASK, NodeType.BORDER_STYLE, NodeType.FILE, NodeType.SHADOW_STYLE, NodeType.SCALER, NodeType.GRADIENT_STYLE, NodeType.THREAD_VIEW, NodeType.LINK, NodeType.CHOICE, NodeType.PAGE],
+  [NodeType.PAGE]: [NodeType.CLASS, NodeType.BLOCK, NodeType.CHANNEL, NodeType.EMPTY, NodeType.THREAD, NodeType.SERVICE, NodeType.FLOW, NodeType.DATABASE, NodeType.THEME, NodeType.COMPUTER, NodeType.COLOR_STYLE, NodeType.TEXT_STYLE, NodeType.TABLE, NodeType.BORDER_STYLE, NodeType.GRADIENT_STYLE, NodeType.SHADOW_STYLE, NodeType.TEAM, NodeType.AGENT, NodeType.WIZARD_VIEW, NodeType.ROLE, NodeType.TASK, NodeType.FILE, NodeType.SCALER, NodeType.THREAD_VIEW, NodeType.LINK, NodeType.CHOICE, NodeType.PAGE],
   [NodeType.BLOCK]: [NodeType.BLOCK, NodeType.EMPTY],
   [NodeType.DATABASE]: [NodeType.EMPTY],
   [NodeType.COMPUTER]: [NodeType.EMPTY],
@@ -28863,9 +28993,9 @@ export const CHILD_NODE_TYPES: Record<NodeType, NodeType[]> = {
   [NodeType.INVITE]: [NodeType.EMPTY],
   [NodeType.TEAM]: [NodeType.TEAM, NodeType.MEMBERSHIP, NodeType.EMPTY, NodeType.ROLE, NodeType.INVITE],
   [NodeType.ROLE]: [NodeType.CLAIM, NodeType.EMPTY],
-  [NodeType.SPACE]: [NodeType.CURSOR, NodeType.GRADIENT_STYLE, NodeType.TEXT_STYLE, NodeType.WIZARD_VIEW, NodeType.THREAD_VIEW, NodeType.EMPTY, NodeType.BORDER_STYLE, NodeType.SHADOW_STYLE, NodeType.COLOR_STYLE],
-  [NodeType.WIZARD_VIEW]: [NodeType.GRADIENT_STYLE, NodeType.TEXT_STYLE, NodeType.WIZARD_VIEW, NodeType.THREAD_VIEW, NodeType.EMPTY, NodeType.BORDER_STYLE, NodeType.SHADOW_STYLE, NodeType.COLOR_STYLE],
-  [NodeType.THREAD_VIEW]: [NodeType.GRADIENT_STYLE, NodeType.TEXT_STYLE, NodeType.WIZARD_VIEW, NodeType.THREAD_VIEW, NodeType.EMPTY, NodeType.BORDER_STYLE, NodeType.SHADOW_STYLE, NodeType.COLOR_STYLE],
+  [NodeType.SPACE]: [NodeType.BORDER_STYLE, NodeType.SHADOW_STYLE, NodeType.GRADIENT_STYLE, NodeType.CURSOR, NodeType.WIZARD_VIEW, NodeType.THREAD_VIEW, NodeType.EMPTY, NodeType.COLOR_STYLE, NodeType.TEXT_STYLE],
+  [NodeType.WIZARD_VIEW]: [NodeType.BORDER_STYLE, NodeType.SHADOW_STYLE, NodeType.GRADIENT_STYLE, NodeType.WIZARD_VIEW, NodeType.THREAD_VIEW, NodeType.EMPTY, NodeType.COLOR_STYLE, NodeType.TEXT_STYLE],
+  [NodeType.THREAD_VIEW]: [NodeType.BORDER_STYLE, NodeType.SHADOW_STYLE, NodeType.GRADIENT_STYLE, NodeType.WIZARD_VIEW, NodeType.THREAD_VIEW, NodeType.EMPTY, NodeType.COLOR_STYLE, NodeType.TEXT_STYLE],
   [NodeType.THEME]: [NodeType.EMPTY],
   [NodeType.COLOR_STYLE]: [NodeType.EMPTY],
   [NodeType.TEXT_STYLE]: [NodeType.EMPTY],
@@ -28926,19 +29056,19 @@ export const ANCESTOR_NODE_TYPES: Record<NodeType, NodeType[]> = {
   [NodeType.BORDER_STYLE]: [NodeType.SPACE, NodeType.BENCH, NodeType.PACKAGE, NodeType.WIZARD_VIEW, NodeType.THREAD_VIEW, NodeType.PAGE],
   [NodeType.SHADOW_STYLE]: [NodeType.SPACE, NodeType.BENCH, NodeType.PACKAGE, NodeType.WIZARD_VIEW, NodeType.THREAD_VIEW, NodeType.PAGE],
   [NodeType.GRADIENT_STYLE]: [NodeType.SPACE, NodeType.BENCH, NodeType.PACKAGE, NodeType.WIZARD_VIEW, NodeType.THREAD_VIEW, NodeType.PAGE],
-  [NodeType.EMPTY]: [NodeType.BENCH, NodeType.CLASS, NodeType.HANDLE, NodeType.BLOCK, NodeType.CHANNEL, NodeType.USER, NodeType.FIELD, NodeType.EMPTY, NodeType.THREAD, NodeType.ORGANIZATION, NodeType.OPTION, NodeType.SERVICE, NodeType.MESSAGE, NodeType.ACTION, NodeType.MEMBERSHIP, NodeType.FLOW, NodeType.DATABASE, NodeType.INVITE, NodeType.CLIENT, NodeType.THEME, NodeType.TRANSITION, NodeType.NOTIFICATION, NodeType.COMPUTER, NodeType.COLOR_STYLE, NodeType.TABLE, NodeType.SPACE, NodeType.TEAM, NodeType.TEXT_STYLE, NodeType.AGENT, NodeType.WIZARD_VIEW, NodeType.RECORD, NodeType.ROLE, NodeType.TASK, NodeType.BORDER_STYLE, NodeType.FILE, NodeType.CLAIM, NodeType.SHADOW_STYLE, NodeType.SESSION, NodeType.SCALER, NodeType.CURSOR, NodeType.GRADIENT_STYLE, NodeType.PACKAGE, NodeType.RUN, NodeType.THREAD_VIEW, NodeType.LINK, NodeType.DEPENDENCY, NodeType.SPAN, NodeType.CHOICE, NodeType.PAGE, NodeType.INTERRUPTION],
+  [NodeType.EMPTY]: [NodeType.BENCH, NodeType.CLASS, NodeType.HANDLE, NodeType.BLOCK, NodeType.CHANNEL, NodeType.USER, NodeType.FIELD, NodeType.EMPTY, NodeType.THREAD, NodeType.ORGANIZATION, NodeType.OPTION, NodeType.SERVICE, NodeType.MESSAGE, NodeType.ACTION, NodeType.MEMBERSHIP, NodeType.FLOW, NodeType.DATABASE, NodeType.INVITE, NodeType.CLIENT, NodeType.THEME, NodeType.TRANSITION, NodeType.NOTIFICATION, NodeType.COMPUTER, NodeType.COLOR_STYLE, NodeType.TEXT_STYLE, NodeType.TABLE, NodeType.SPACE, NodeType.GRADIENT_STYLE, NodeType.SHADOW_STYLE, NodeType.BORDER_STYLE, NodeType.TEAM, NodeType.AGENT, NodeType.WIZARD_VIEW, NodeType.RECORD, NodeType.ROLE, NodeType.TASK, NodeType.FILE, NodeType.CLAIM, NodeType.SESSION, NodeType.SCALER, NodeType.CURSOR, NodeType.PACKAGE, NodeType.RUN, NodeType.THREAD_VIEW, NodeType.LINK, NodeType.DEPENDENCY, NodeType.SPAN, NodeType.CHOICE, NodeType.PAGE, NodeType.INTERRUPTION],
 }
 
 export const DESCENDANT_NODE_TYPES: Record<NodeType, NodeType[]> = {
   [NodeType.UNSPECIFIED]: [],
-  [NodeType.BENCH]: [NodeType.CLASS, NodeType.HANDLE, NodeType.BLOCK, NodeType.CHANNEL, NodeType.FIELD, NodeType.EMPTY, NodeType.THREAD, NodeType.OPTION, NodeType.SERVICE, NodeType.MESSAGE, NodeType.ACTION, NodeType.MEMBERSHIP, NodeType.FLOW, NodeType.DATABASE, NodeType.CLIENT, NodeType.INVITE, NodeType.THEME, NodeType.TRANSITION, NodeType.COMPUTER, NodeType.NOTIFICATION, NodeType.COLOR_STYLE, NodeType.TABLE, NodeType.SPACE, NodeType.TEAM, NodeType.TEXT_STYLE, NodeType.WIZARD_VIEW, NodeType.AGENT, NodeType.RECORD, NodeType.TASK, NodeType.ROLE, NodeType.BORDER_STYLE, NodeType.FILE, NodeType.CLAIM, NodeType.SHADOW_STYLE, NodeType.SESSION, NodeType.SCALER, NodeType.CURSOR, NodeType.GRADIENT_STYLE, NodeType.PACKAGE, NodeType.RUN, NodeType.THREAD_VIEW, NodeType.DEPENDENCY, NodeType.LINK, NodeType.SPAN, NodeType.CHOICE, NodeType.PAGE, NodeType.INTERRUPTION],
+  [NodeType.BENCH]: [NodeType.CLASS, NodeType.HANDLE, NodeType.BLOCK, NodeType.CHANNEL, NodeType.FIELD, NodeType.EMPTY, NodeType.THREAD, NodeType.OPTION, NodeType.SERVICE, NodeType.MESSAGE, NodeType.ACTION, NodeType.MEMBERSHIP, NodeType.FLOW, NodeType.DATABASE, NodeType.CLIENT, NodeType.INVITE, NodeType.THEME, NodeType.TRANSITION, NodeType.COMPUTER, NodeType.NOTIFICATION, NodeType.COLOR_STYLE, NodeType.TEXT_STYLE, NodeType.BORDER_STYLE, NodeType.SHADOW_STYLE, NodeType.GRADIENT_STYLE, NodeType.TABLE, NodeType.SPACE, NodeType.TEAM, NodeType.WIZARD_VIEW, NodeType.AGENT, NodeType.RECORD, NodeType.TASK, NodeType.ROLE, NodeType.FILE, NodeType.CLAIM, NodeType.SESSION, NodeType.SCALER, NodeType.CURSOR, NodeType.PACKAGE, NodeType.RUN, NodeType.THREAD_VIEW, NodeType.DEPENDENCY, NodeType.LINK, NodeType.SPAN, NodeType.CHOICE, NodeType.PAGE, NodeType.INTERRUPTION],
   [NodeType.HANDLE]: [NodeType.EMPTY],
   [NodeType.USER]: [NodeType.HANDLE, NodeType.CLIENT, NodeType.EMPTY],
   [NodeType.ORGANIZATION]: [NodeType.HANDLE, NodeType.EMPTY],
   [NodeType.CLIENT]: [NodeType.EMPTY],
-  [NodeType.PACKAGE]: [NodeType.CLASS, NodeType.BLOCK, NodeType.CHANNEL, NodeType.FIELD, NodeType.EMPTY, NodeType.THREAD, NodeType.OPTION, NodeType.SERVICE, NodeType.MESSAGE, NodeType.ACTION, NodeType.MEMBERSHIP, NodeType.FLOW, NodeType.DATABASE, NodeType.INVITE, NodeType.THEME, NodeType.TRANSITION, NodeType.COMPUTER, NodeType.NOTIFICATION, NodeType.COLOR_STYLE, NodeType.TABLE, NodeType.SPACE, NodeType.TEAM, NodeType.TEXT_STYLE, NodeType.WIZARD_VIEW, NodeType.AGENT, NodeType.RECORD, NodeType.TASK, NodeType.ROLE, NodeType.BORDER_STYLE, NodeType.FILE, NodeType.CLAIM, NodeType.SHADOW_STYLE, NodeType.SCALER, NodeType.CURSOR, NodeType.GRADIENT_STYLE, NodeType.RUN, NodeType.THREAD_VIEW, NodeType.LINK, NodeType.DEPENDENCY, NodeType.SPAN, NodeType.CHOICE, NodeType.PAGE, NodeType.INTERRUPTION],
+  [NodeType.PACKAGE]: [NodeType.CLASS, NodeType.BLOCK, NodeType.CHANNEL, NodeType.FIELD, NodeType.EMPTY, NodeType.THREAD, NodeType.OPTION, NodeType.SERVICE, NodeType.MESSAGE, NodeType.ACTION, NodeType.MEMBERSHIP, NodeType.FLOW, NodeType.DATABASE, NodeType.INVITE, NodeType.THEME, NodeType.TRANSITION, NodeType.COMPUTER, NodeType.NOTIFICATION, NodeType.COLOR_STYLE, NodeType.TEXT_STYLE, NodeType.BORDER_STYLE, NodeType.SHADOW_STYLE, NodeType.GRADIENT_STYLE, NodeType.TABLE, NodeType.SPACE, NodeType.TEAM, NodeType.WIZARD_VIEW, NodeType.AGENT, NodeType.RECORD, NodeType.TASK, NodeType.ROLE, NodeType.FILE, NodeType.CLAIM, NodeType.SCALER, NodeType.CURSOR, NodeType.RUN, NodeType.THREAD_VIEW, NodeType.LINK, NodeType.DEPENDENCY, NodeType.SPAN, NodeType.CHOICE, NodeType.PAGE, NodeType.INTERRUPTION],
   [NodeType.DEPENDENCY]: [NodeType.EMPTY],
-  [NodeType.PAGE]: [NodeType.CLASS, NodeType.BLOCK, NodeType.CHANNEL, NodeType.FIELD, NodeType.EMPTY, NodeType.THREAD, NodeType.OPTION, NodeType.SERVICE, NodeType.MESSAGE, NodeType.ACTION, NodeType.MEMBERSHIP, NodeType.FLOW, NodeType.DATABASE, NodeType.INVITE, NodeType.THEME, NodeType.TRANSITION, NodeType.COMPUTER, NodeType.COLOR_STYLE, NodeType.TABLE, NodeType.TEAM, NodeType.TEXT_STYLE, NodeType.WIZARD_VIEW, NodeType.AGENT, NodeType.RECORD, NodeType.TASK, NodeType.ROLE, NodeType.BORDER_STYLE, NodeType.FILE, NodeType.CLAIM, NodeType.SHADOW_STYLE, NodeType.SCALER, NodeType.CURSOR, NodeType.GRADIENT_STYLE, NodeType.RUN, NodeType.THREAD_VIEW, NodeType.LINK, NodeType.SPAN, NodeType.CHOICE, NodeType.PAGE, NodeType.INTERRUPTION],
+  [NodeType.PAGE]: [NodeType.CLASS, NodeType.BLOCK, NodeType.CHANNEL, NodeType.FIELD, NodeType.EMPTY, NodeType.THREAD, NodeType.OPTION, NodeType.SERVICE, NodeType.MESSAGE, NodeType.ACTION, NodeType.MEMBERSHIP, NodeType.FLOW, NodeType.DATABASE, NodeType.INVITE, NodeType.THEME, NodeType.TRANSITION, NodeType.COMPUTER, NodeType.COLOR_STYLE, NodeType.TEXT_STYLE, NodeType.BORDER_STYLE, NodeType.SHADOW_STYLE, NodeType.GRADIENT_STYLE, NodeType.TABLE, NodeType.TEAM, NodeType.WIZARD_VIEW, NodeType.AGENT, NodeType.RECORD, NodeType.TASK, NodeType.ROLE, NodeType.FILE, NodeType.CLAIM, NodeType.SCALER, NodeType.CURSOR, NodeType.RUN, NodeType.THREAD_VIEW, NodeType.LINK, NodeType.SPAN, NodeType.CHOICE, NodeType.PAGE, NodeType.INTERRUPTION],
   [NodeType.BLOCK]: [NodeType.BLOCK, NodeType.EMPTY],
   [NodeType.DATABASE]: [NodeType.EMPTY],
   [NodeType.COMPUTER]: [NodeType.EMPTY],
@@ -28971,9 +29101,9 @@ export const DESCENDANT_NODE_TYPES: Record<NodeType, NodeType[]> = {
   [NodeType.INVITE]: [NodeType.EMPTY],
   [NodeType.TEAM]: [NodeType.ROLE, NodeType.INVITE, NodeType.TEAM, NodeType.MEMBERSHIP, NodeType.CLAIM, NodeType.EMPTY],
   [NodeType.ROLE]: [NodeType.CLAIM, NodeType.EMPTY],
-  [NodeType.SPACE]: [NodeType.CURSOR, NodeType.GRADIENT_STYLE, NodeType.TEXT_STYLE, NodeType.WIZARD_VIEW, NodeType.THREAD_VIEW, NodeType.EMPTY, NodeType.BORDER_STYLE, NodeType.SHADOW_STYLE, NodeType.COLOR_STYLE],
-  [NodeType.WIZARD_VIEW]: [NodeType.GRADIENT_STYLE, NodeType.TEXT_STYLE, NodeType.WIZARD_VIEW, NodeType.THREAD_VIEW, NodeType.EMPTY, NodeType.BORDER_STYLE, NodeType.SHADOW_STYLE, NodeType.COLOR_STYLE],
-  [NodeType.THREAD_VIEW]: [NodeType.GRADIENT_STYLE, NodeType.TEXT_STYLE, NodeType.WIZARD_VIEW, NodeType.THREAD_VIEW, NodeType.EMPTY, NodeType.BORDER_STYLE, NodeType.SHADOW_STYLE, NodeType.COLOR_STYLE],
+  [NodeType.SPACE]: [NodeType.BORDER_STYLE, NodeType.SHADOW_STYLE, NodeType.GRADIENT_STYLE, NodeType.CURSOR, NodeType.WIZARD_VIEW, NodeType.THREAD_VIEW, NodeType.EMPTY, NodeType.COLOR_STYLE, NodeType.TEXT_STYLE],
+  [NodeType.WIZARD_VIEW]: [NodeType.BORDER_STYLE, NodeType.SHADOW_STYLE, NodeType.GRADIENT_STYLE, NodeType.WIZARD_VIEW, NodeType.THREAD_VIEW, NodeType.EMPTY, NodeType.COLOR_STYLE, NodeType.TEXT_STYLE],
+  [NodeType.THREAD_VIEW]: [NodeType.BORDER_STYLE, NodeType.SHADOW_STYLE, NodeType.GRADIENT_STYLE, NodeType.WIZARD_VIEW, NodeType.THREAD_VIEW, NodeType.EMPTY, NodeType.COLOR_STYLE, NodeType.TEXT_STYLE],
   [NodeType.THEME]: [NodeType.EMPTY],
   [NodeType.COLOR_STYLE]: [NodeType.EMPTY],
   [NodeType.TEXT_STYLE]: [NodeType.EMPTY],
@@ -29046,21 +29176,15 @@ export const MESSAGE_TYPE_BY_OBJECT_TYPE: Partial<Record<ObjectType, MessageType
   [ObjectType.CLIENT_ORIGIN]: ClientOriginData,
   [ObjectType.NODE_REFERENCE]: NodeReferenceData,
   [ObjectType.PROPERTY_REFERENCE]: PropertyReferenceData,
-  [ObjectType.POLICY]: PolicyData,
-  [ObjectType.POLICY_RULE]: PolicyRuleData,
-  [ObjectType.POLICY_SUBJECT]: PolicySubjectData,
-  [ObjectType.ACCESS_ZONE]: AccessZoneData,
-  [ObjectType.ACCESS_MATRIX]: AccessMatrixData,
-  [ObjectType.ACCESS]: AccessData,
   [ObjectType.TYPE]: TypeData,
   [ObjectType.TYPE_CONSTRAINT]: TypeConstraintData,
   [ObjectType.FILE_INFO]: FileInfoData,
-  [ObjectType.ICON]: IconData,
   [ObjectType.SCHEDULE]: ScheduleData,
   [ObjectType.TEXT]: TextData,
   [ObjectType.TEXT_LINE]: TextLineData,
   [ObjectType.TEXT_SPAN]: TextSpanData,
   [ObjectType.CODE]: CodeData,
+  [ObjectType.ICON]: IconData,
   [ObjectType.EXPRESSION]: ExpressionData,
   [ObjectType.AGGREGATION_RESULT]: AggregationResultData,
   [ObjectType.SELECTION]: SelectionData,
@@ -29068,6 +29192,12 @@ export const MESSAGE_TYPE_BY_OBJECT_TYPE: Partial<Record<ObjectType, MessageType
   [ObjectType.ERROR]: ErrorData,
   [ObjectType.RUN_TRACE]: RunTraceData,
   [ObjectType.RUN_FRAME]: RunFrameData,
+  [ObjectType.POLICY]: PolicyData,
+  [ObjectType.POLICY_RULE]: PolicyRuleData,
+  [ObjectType.POLICY_SUBJECT]: PolicySubjectData,
+  [ObjectType.ACCESS_ZONE]: AccessZoneData,
+  [ObjectType.ACCESS_MATRIX]: AccessMatrixData,
+  [ObjectType.ACCESS]: AccessData,
   [ObjectType.COLOR]: ColorData,
   [ObjectType.SHADOW]: ShadowData,
   [ObjectType.BORDER]: BorderData,
@@ -29077,6 +29207,7 @@ export const MESSAGE_TYPE_BY_OBJECT_TYPE: Partial<Record<ObjectType, MessageType
   [ObjectType.GRADIENT_STOP]: GradientStopData,
   [ObjectType.GRADIENT]: GradientData,
   [ObjectType.FILL]: FillData,
+  [ObjectType.LENGTH]: LengthData,
 }
 
 export const OBJECT_TYPE_BY_MESSAGE_TYPE_NAME: Record<string, ObjectType> = {
@@ -29140,21 +29271,15 @@ export const OBJECT_TYPE_BY_MESSAGE_TYPE_NAME: Record<string, ObjectType> = {
   ["symbol.bench.ClientOriginData"]: ObjectType.CLIENT_ORIGIN,
   ["symbol.bench.NodeReferenceData"]: ObjectType.NODE_REFERENCE,
   ["symbol.bench.PropertyReferenceData"]: ObjectType.PROPERTY_REFERENCE,
-  ["symbol.bench.PolicyData"]: ObjectType.POLICY,
-  ["symbol.bench.PolicyRuleData"]: ObjectType.POLICY_RULE,
-  ["symbol.bench.PolicySubjectData"]: ObjectType.POLICY_SUBJECT,
-  ["symbol.bench.AccessZoneData"]: ObjectType.ACCESS_ZONE,
-  ["symbol.bench.AccessMatrixData"]: ObjectType.ACCESS_MATRIX,
-  ["symbol.bench.AccessData"]: ObjectType.ACCESS,
   ["symbol.bench.TypeData"]: ObjectType.TYPE,
   ["symbol.bench.TypeConstraintData"]: ObjectType.TYPE_CONSTRAINT,
   ["symbol.bench.FileInfoData"]: ObjectType.FILE_INFO,
-  ["symbol.bench.IconData"]: ObjectType.ICON,
   ["symbol.bench.ScheduleData"]: ObjectType.SCHEDULE,
   ["symbol.bench.TextData"]: ObjectType.TEXT,
   ["symbol.bench.TextLineData"]: ObjectType.TEXT_LINE,
   ["symbol.bench.TextSpanData"]: ObjectType.TEXT_SPAN,
   ["symbol.bench.CodeData"]: ObjectType.CODE,
+  ["symbol.bench.IconData"]: ObjectType.ICON,
   ["symbol.bench.ExpressionData"]: ObjectType.EXPRESSION,
   ["symbol.bench.AggregationResultData"]: ObjectType.AGGREGATION_RESULT,
   ["symbol.bench.SelectionData"]: ObjectType.SELECTION,
@@ -29162,6 +29287,12 @@ export const OBJECT_TYPE_BY_MESSAGE_TYPE_NAME: Record<string, ObjectType> = {
   ["symbol.bench.ErrorData"]: ObjectType.ERROR,
   ["symbol.bench.RunTraceData"]: ObjectType.RUN_TRACE,
   ["symbol.bench.RunFrameData"]: ObjectType.RUN_FRAME,
+  ["symbol.bench.PolicyData"]: ObjectType.POLICY,
+  ["symbol.bench.PolicyRuleData"]: ObjectType.POLICY_RULE,
+  ["symbol.bench.PolicySubjectData"]: ObjectType.POLICY_SUBJECT,
+  ["symbol.bench.AccessZoneData"]: ObjectType.ACCESS_ZONE,
+  ["symbol.bench.AccessMatrixData"]: ObjectType.ACCESS_MATRIX,
+  ["symbol.bench.AccessData"]: ObjectType.ACCESS,
   ["symbol.bench.ColorData"]: ObjectType.COLOR,
   ["symbol.bench.ShadowData"]: ObjectType.SHADOW,
   ["symbol.bench.BorderData"]: ObjectType.BORDER,
@@ -29171,6 +29302,7 @@ export const OBJECT_TYPE_BY_MESSAGE_TYPE_NAME: Record<string, ObjectType> = {
   ["symbol.bench.GradientStopData"]: ObjectType.GRADIENT_STOP,
   ["symbol.bench.GradientData"]: ObjectType.GRADIENT,
   ["symbol.bench.FillData"]: ObjectType.FILL,
+  ["symbol.bench.LengthData"]: ObjectType.LENGTH,
 }
 
 export const ENUM_BY_TYPE: Record<EnumType, Record<number | string, number | string>> = {
@@ -29185,25 +29317,27 @@ export const ENUM_BY_TYPE: Record<EnumType, Record<number | string, number | str
   [EnumType.PROPERTY_REFERENCE_TYPE]: PropertyReferenceType,
   [EnumType.EDIT_OPERATION_TYPE]: EditOperationType,
   [EnumType.CHANGE_CATEGORY]: ChangeCategory,
+  [EnumType.USER_STATUS]: UserStatus,
+  [EnumType.ORGANIZATION_STATUS]: OrganizationStatus,
+  [EnumType.BENCH_STATUS]: BenchStatus,
+  [EnumType.ERROR_KIND]: ErrorKind,
+  [EnumType.ERROR_TYPE]: ErrorType,
+  [EnumType.SEVERITY]: Severity,
   [EnumType.PACKAGE_TYPE]: PackageType,
+  [EnumType.RESOURCE_STATUS]: ResourceStatus,
+  [EnumType.BLOCK_TYPE]: BlockType,
   [EnumType.CLOUD]: Cloud,
   [EnumType.REGION]: Region,
   [EnumType.AREA]: Area,
   [EnumType.CONTINENT]: Continent,
-  [EnumType.BENCH_STATUS]: BenchStatus,
-  [EnumType.ACCESS_MODE]: AccessMode,
-  [EnumType.ACCESS_KIND]: AccessKind,
-  [EnumType.POLICY_EFFECT]: PolicyEffect,
-  [EnumType.QUERY_TYPE]: QueryType,
-  [EnumType.EDIT_TYPE]: EditType,
-  [EnumType.USE_TYPE]: UseType,
-  [EnumType.ACCESS_TYPE]: AccessType,
-  [EnumType.RESOURCE_STATUS]: ResourceStatus,
   [EnumType.SCALER_TYPE]: ScalerType,
   [EnumType.SCALER_STRATEGY]: ScalerStrategy,
   [EnumType.COMPUTER_TYPE]: ComputerType,
   [EnumType.DATABASE_TYPE]: DatabaseType,
   [EnumType.CLIENT_TYPE]: ClientType,
+  [EnumType.TEXT_LINE_TYPE]: TextLineType,
+  [EnumType.TEXT_SPAN_TYPE]: TextSpanType,
+  [EnumType.CODE_TYPE]: CodeType,
   [EnumType.FILE_RETENTION_MODE]: FileRetentionMode,
   [EnumType.FILE_SOURCE]: FileSource,
   [EnumType.FILE_TYPE]: FileType,
@@ -29214,12 +29348,9 @@ export const ENUM_BY_TYPE: Record<EnumType, Record<number | string, number | str
   [EnumType.FIELD_ZONE]: FieldType,
   [EnumType.TYPE_KIND]: TypeKind,
   [EnumType.TYPE_FORMAT]: TypeFormat,
-  [EnumType.BLOCK_TYPE]: BlockType,
   [EnumType.DAY]: Day,
   [EnumType.MONTH]: Month,
   [EnumType.TIME_INTERVAL]: TimeInterval,
-  [EnumType.TEXT_LINE_TYPE]: TextLineType,
-  [EnumType.TEXT_SPAN_TYPE]: TextSpanType,
   [EnumType.EXPRESSION_KIND]: ExpressionKind,
   [EnumType.EXPRESSION_OP]: ExpressionType,
   [EnumType.LITERAL_TYPE]: LiteralType,
@@ -29229,52 +29360,54 @@ export const ENUM_BY_TYPE: Record<EnumType, Record<number | string, number | str
   [EnumType.SORT_MODE]: SortMode,
   [EnumType.SORT_TYPE]: SortType,
   [EnumType.SELECTION_TYPE]: SelectionType,
-  [EnumType.PROCESS_STATUS]: ProcessStatus,
-  [EnumType.RUN_TYPE]: RunType,
-  [EnumType.SPAN_TYPE]: SpanType,
-  [EnumType.SESSION_STATUS]: SessionStatus,
-  [EnumType.SEVERITY]: Severity,
-  [EnumType.SCHEDULE_FREQUENCY]: ScheduleFrequency,
-  [EnumType.CLAIM_TYPE]: ClaimType,
-  [EnumType.CLAIM_STATUS]: ClaimStatus,
-  [EnumType.CURSOR_TYPE]: CursorType,
-  [EnumType.CURSOR_STATUS]: CursorStatus,
-  [EnumType.ERROR_KIND]: ErrorKind,
-  [EnumType.ERROR_TYPE]: ErrorType,
-  [EnumType.INTERRUPTION_TYPE]: InterruptionType,
-  [EnumType.INTERRUPTION_STATUS]: InterruptionStatus,
-  [EnumType.INTERRUPTION_RESPONSE]: InterruptionResponse,
-  [EnumType.MODEL_DEVELOPER]: ModelDeveloper,
-  [EnumType.MODEL_PROVIDER]: ModelProvider,
-  [EnumType.CODE_TYPE]: CodeType,
-  [EnumType.COLOR_HUE]: ColorHue,
-  [EnumType.ACTION_TYPE]: ActionType,
-  [EnumType.PORT_SIDE]: PortSide,
-  [EnumType.TRANSITION_TYPE]: TransitionType,
-  [EnumType.FLOW_TYPE]: FlowType,
-  [EnumType.SPACE_TYPE]: SpaceType,
-  [EnumType.COLOR_TYPE]: ColorType,
-  [EnumType.COLOR_SHADE]: ColorShade,
-  [EnumType.FONT_TYPE]: FontType,
-  [EnumType.FONT_WEIGHT]: FontWeight,
-  [EnumType.FONT_SIZE]: FontSize,
-  [EnumType.SHADOW_TYPE]: ShadowType,
-  [EnumType.SHADOW_POSITION]: ShadowPosition,
-  [EnumType.BORDER_TYPE]: BorderType,
-  [EnumType.TEXT_ALIGN]: TextAlign,
-  [EnumType.TEXT_DECORATION]: TextDecoration,
-  [EnumType.TEXT_TRANSFORM]: TextTransform,
-  [EnumType.GRADIENT_TYPE]: GradientType,
-  [EnumType.FILL_TYPE]: FillType,
-  [EnumType.FILL_POSITION]: FillPosition,
-  [EnumType.FILL_SIZE]: FillSize,
-  [EnumType.USER_STATUS]: UserStatus,
-  [EnumType.ORGANIZATION_STATUS]: OrganizationStatus,
   [EnumType.CHANNEL_STATUS]: ChannelStatus,
   [EnumType.THREAD_STATUS]: ThreadStatus,
   [EnumType.MESSAGE_TYPE]: MessageType,
   [EnumType.NOTIFICATION_TYPE]: NotificationType,
   [EnumType.NOTIFICATION_STATUS]: NotificationStatus,
+  [EnumType.CLAIM_TYPE]: ClaimType,
+  [EnumType.CLAIM_STATUS]: ClaimStatus,
+  [EnumType.CURSOR_TYPE]: CursorType,
+  [EnumType.CURSOR_STATUS]: CursorStatus,
+  [EnumType.ACTION_TYPE]: ActionType,
+  [EnumType.PORT_SIDE]: PortSide,
+  [EnumType.TRANSITION_TYPE]: TransitionType,
+  [EnumType.FLOW_TYPE]: FlowType,
+  [EnumType.PROCESS_STATUS]: ProcessStatus,
+  [EnumType.RUN_TYPE]: RunType,
+  [EnumType.SPAN_TYPE]: SpanType,
+  [EnumType.SESSION_STATUS]: SessionStatus,
+  [EnumType.SCHEDULE_FREQUENCY]: ScheduleFrequency,
+  [EnumType.INTERRUPTION_TYPE]: InterruptionType,
+  [EnumType.INTERRUPTION_STATUS]: InterruptionStatus,
+  [EnumType.INTERRUPTION_RESPONSE]: InterruptionResponse,
+  [EnumType.ACCESS_MODE]: AccessMode,
+  [EnumType.ACCESS_KIND]: AccessKind,
+  [EnumType.POLICY_EFFECT]: PolicyEffect,
+  [EnumType.ACCESS_TYPE]: AccessType,
+  [EnumType.QUERY_TYPE]: QueryType,
+  [EnumType.EDIT_TYPE]: EditType,
+  [EnumType.USE_TYPE]: UseType,
+  [EnumType.MODEL_DEVELOPER]: ModelDeveloper,
+  [EnumType.MODEL_PROVIDER]: ModelProvider,
+  [EnumType.SPACE_TYPE]: SpaceType,
+  [EnumType.COLOR_TYPE]: ColorType,
+  [EnumType.COLOR_SHADE]: ColorShade,
+  [EnumType.COLOR_HUE]: ColorHue,
+  [EnumType.FONT_TYPE]: FontType,
+  [EnumType.FONT_WEIGHT]: FontWeight,
+  [EnumType.FONT_SIZE]: FontSize,
+  [EnumType.TEXT_ALIGN]: TextAlign,
+  [EnumType.TEXT_DECORATION]: TextDecoration,
+  [EnumType.TEXT_TRANSFORM]: TextTransform,
+  [EnumType.SHADOW_TYPE]: ShadowType,
+  [EnumType.SHADOW_POSITION]: ShadowPosition,
+  [EnumType.BORDER_TYPE]: BorderType,
+  [EnumType.GRADIENT_TYPE]: GradientType,
+  [EnumType.FILL_TYPE]: FillType,
+  [EnumType.FILL_POSITION]: FillPosition,
+  [EnumType.FILL_SIZE]: FillSize,
+  [EnumType.LENGTH_UNIT]: LengthUnit,
 }
 
 
@@ -29290,21 +29423,15 @@ export interface StructTypeMapping extends Record<StructType, AnyStructData> {
   [StructType.CLIENT_ORIGIN]: ClientOriginData,
   [StructType.NODE_REFERENCE]: NodeReferenceData,
   [StructType.PROPERTY_REFERENCE]: PropertyReferenceData,
-  [StructType.POLICY]: PolicyData,
-  [StructType.POLICY_RULE]: PolicyRuleData,
-  [StructType.POLICY_SUBJECT]: PolicySubjectData,
-  [StructType.ACCESS_ZONE]: AccessZoneData,
-  [StructType.ACCESS_MATRIX]: AccessMatrixData,
-  [StructType.ACCESS]: AccessData,
   [StructType.TYPE]: TypeData,
   [StructType.TYPE_CONSTRAINT]: TypeConstraintData,
   [StructType.FILE_INFO]: FileInfoData,
-  [StructType.ICON]: IconData,
   [StructType.SCHEDULE]: ScheduleData,
   [StructType.TEXT]: TextData,
   [StructType.TEXT_LINE]: TextLineData,
   [StructType.TEXT_SPAN]: TextSpanData,
   [StructType.CODE]: CodeData,
+  [StructType.ICON]: IconData,
   [StructType.EXPRESSION]: ExpressionData,
   [StructType.AGGREGATION_RESULT]: AggregationResultData,
   [StructType.SELECTION]: SelectionData,
@@ -29312,6 +29439,12 @@ export interface StructTypeMapping extends Record<StructType, AnyStructData> {
   [StructType.ERROR]: ErrorData,
   [StructType.RUN_TRACE]: RunTraceData,
   [StructType.RUN_FRAME]: RunFrameData,
+  [StructType.POLICY]: PolicyData,
+  [StructType.POLICY_RULE]: PolicyRuleData,
+  [StructType.POLICY_SUBJECT]: PolicySubjectData,
+  [StructType.ACCESS_ZONE]: AccessZoneData,
+  [StructType.ACCESS_MATRIX]: AccessMatrixData,
+  [StructType.ACCESS]: AccessData,
   [StructType.COLOR]: ColorData,
   [StructType.SHADOW]: ShadowData,
   [StructType.BORDER]: BorderData,
@@ -29321,6 +29454,7 @@ export interface StructTypeMapping extends Record<StructType, AnyStructData> {
   [StructType.GRADIENT_STOP]: GradientStopData,
   [StructType.GRADIENT]: GradientData,
   [StructType.FILL]: FillData,
+  [StructType.LENGTH]: LengthData,
 }
 
 export interface NodeTypeMapping extends Record<NodeType, AnyNodeData> {
@@ -29437,21 +29571,15 @@ export interface AnyTypeMapping extends Record<ObjectType, AnyStructData | AnyNo
   [ObjectType.CLIENT_ORIGIN]: ClientOriginData,
   [ObjectType.NODE_REFERENCE]: NodeReferenceData,
   [ObjectType.PROPERTY_REFERENCE]: PropertyReferenceData,
-  [ObjectType.POLICY]: PolicyData,
-  [ObjectType.POLICY_RULE]: PolicyRuleData,
-  [ObjectType.POLICY_SUBJECT]: PolicySubjectData,
-  [ObjectType.ACCESS_ZONE]: AccessZoneData,
-  [ObjectType.ACCESS_MATRIX]: AccessMatrixData,
-  [ObjectType.ACCESS]: AccessData,
   [ObjectType.TYPE]: TypeData,
   [ObjectType.TYPE_CONSTRAINT]: TypeConstraintData,
   [ObjectType.FILE_INFO]: FileInfoData,
-  [ObjectType.ICON]: IconData,
   [ObjectType.SCHEDULE]: ScheduleData,
   [ObjectType.TEXT]: TextData,
   [ObjectType.TEXT_LINE]: TextLineData,
   [ObjectType.TEXT_SPAN]: TextSpanData,
   [ObjectType.CODE]: CodeData,
+  [ObjectType.ICON]: IconData,
   [ObjectType.EXPRESSION]: ExpressionData,
   [ObjectType.AGGREGATION_RESULT]: AggregationResultData,
   [ObjectType.SELECTION]: SelectionData,
@@ -29459,6 +29587,12 @@ export interface AnyTypeMapping extends Record<ObjectType, AnyStructData | AnyNo
   [ObjectType.ERROR]: ErrorData,
   [ObjectType.RUN_TRACE]: RunTraceData,
   [ObjectType.RUN_FRAME]: RunFrameData,
+  [ObjectType.POLICY]: PolicyData,
+  [ObjectType.POLICY_RULE]: PolicyRuleData,
+  [ObjectType.POLICY_SUBJECT]: PolicySubjectData,
+  [ObjectType.ACCESS_ZONE]: AccessZoneData,
+  [ObjectType.ACCESS_MATRIX]: AccessMatrixData,
+  [ObjectType.ACCESS]: AccessData,
   [ObjectType.COLOR]: ColorData,
   [ObjectType.SHADOW]: ShadowData,
   [ObjectType.BORDER]: BorderData,
@@ -29468,6 +29602,7 @@ export interface AnyTypeMapping extends Record<ObjectType, AnyStructData | AnyNo
   [ObjectType.GRADIENT_STOP]: GradientStopData,
   [ObjectType.GRADIENT]: GradientData,
   [ObjectType.FILL]: FillData,
+  [ObjectType.LENGTH]: LengthData,
 }
 
 export interface EnumTypeMapping extends Record<EnumType, any> {
@@ -29482,25 +29617,27 @@ export interface EnumTypeMapping extends Record<EnumType, any> {
   [EnumType.PROPERTY_REFERENCE_TYPE]: PropertyReferenceType,
   [EnumType.EDIT_OPERATION_TYPE]: EditOperationType,
   [EnumType.CHANGE_CATEGORY]: ChangeCategory,
+  [EnumType.USER_STATUS]: UserStatus,
+  [EnumType.ORGANIZATION_STATUS]: OrganizationStatus,
+  [EnumType.BENCH_STATUS]: BenchStatus,
+  [EnumType.ERROR_KIND]: ErrorKind,
+  [EnumType.ERROR_TYPE]: ErrorType,
+  [EnumType.SEVERITY]: Severity,
   [EnumType.PACKAGE_TYPE]: PackageType,
+  [EnumType.RESOURCE_STATUS]: ResourceStatus,
+  [EnumType.BLOCK_TYPE]: BlockType,
   [EnumType.CLOUD]: Cloud,
   [EnumType.REGION]: Region,
   [EnumType.AREA]: Area,
   [EnumType.CONTINENT]: Continent,
-  [EnumType.BENCH_STATUS]: BenchStatus,
-  [EnumType.ACCESS_MODE]: AccessMode,
-  [EnumType.ACCESS_KIND]: AccessKind,
-  [EnumType.POLICY_EFFECT]: PolicyEffect,
-  [EnumType.QUERY_TYPE]: QueryType,
-  [EnumType.EDIT_TYPE]: EditType,
-  [EnumType.USE_TYPE]: UseType,
-  [EnumType.ACCESS_TYPE]: AccessType,
-  [EnumType.RESOURCE_STATUS]: ResourceStatus,
   [EnumType.SCALER_TYPE]: ScalerType,
   [EnumType.SCALER_STRATEGY]: ScalerStrategy,
   [EnumType.COMPUTER_TYPE]: ComputerType,
   [EnumType.DATABASE_TYPE]: DatabaseType,
   [EnumType.CLIENT_TYPE]: ClientType,
+  [EnumType.TEXT_LINE_TYPE]: TextLineType,
+  [EnumType.TEXT_SPAN_TYPE]: TextSpanType,
+  [EnumType.CODE_TYPE]: CodeType,
   [EnumType.FILE_RETENTION_MODE]: FileRetentionMode,
   [EnumType.FILE_SOURCE]: FileSource,
   [EnumType.FILE_TYPE]: FileType,
@@ -29511,12 +29648,9 @@ export interface EnumTypeMapping extends Record<EnumType, any> {
   [EnumType.FIELD_ZONE]: FieldType,
   [EnumType.TYPE_KIND]: TypeKind,
   [EnumType.TYPE_FORMAT]: TypeFormat,
-  [EnumType.BLOCK_TYPE]: BlockType,
   [EnumType.DAY]: Day,
   [EnumType.MONTH]: Month,
   [EnumType.TIME_INTERVAL]: TimeInterval,
-  [EnumType.TEXT_LINE_TYPE]: TextLineType,
-  [EnumType.TEXT_SPAN_TYPE]: TextSpanType,
   [EnumType.EXPRESSION_KIND]: ExpressionKind,
   [EnumType.EXPRESSION_OP]: ExpressionType,
   [EnumType.LITERAL_TYPE]: LiteralType,
@@ -29526,52 +29660,54 @@ export interface EnumTypeMapping extends Record<EnumType, any> {
   [EnumType.SORT_MODE]: SortMode,
   [EnumType.SORT_TYPE]: SortType,
   [EnumType.SELECTION_TYPE]: SelectionType,
-  [EnumType.PROCESS_STATUS]: ProcessStatus,
-  [EnumType.RUN_TYPE]: RunType,
-  [EnumType.SPAN_TYPE]: SpanType,
-  [EnumType.SESSION_STATUS]: SessionStatus,
-  [EnumType.SEVERITY]: Severity,
-  [EnumType.SCHEDULE_FREQUENCY]: ScheduleFrequency,
-  [EnumType.CLAIM_TYPE]: ClaimType,
-  [EnumType.CLAIM_STATUS]: ClaimStatus,
-  [EnumType.CURSOR_TYPE]: CursorType,
-  [EnumType.CURSOR_STATUS]: CursorStatus,
-  [EnumType.ERROR_KIND]: ErrorKind,
-  [EnumType.ERROR_TYPE]: ErrorType,
-  [EnumType.INTERRUPTION_TYPE]: InterruptionType,
-  [EnumType.INTERRUPTION_STATUS]: InterruptionStatus,
-  [EnumType.INTERRUPTION_RESPONSE]: InterruptionResponse,
-  [EnumType.MODEL_DEVELOPER]: ModelDeveloper,
-  [EnumType.MODEL_PROVIDER]: ModelProvider,
-  [EnumType.CODE_TYPE]: CodeType,
-  [EnumType.COLOR_HUE]: ColorHue,
-  [EnumType.ACTION_TYPE]: ActionType,
-  [EnumType.PORT_SIDE]: PortSide,
-  [EnumType.TRANSITION_TYPE]: TransitionType,
-  [EnumType.FLOW_TYPE]: FlowType,
-  [EnumType.SPACE_TYPE]: SpaceType,
-  [EnumType.COLOR_TYPE]: ColorType,
-  [EnumType.COLOR_SHADE]: ColorShade,
-  [EnumType.FONT_TYPE]: FontType,
-  [EnumType.FONT_WEIGHT]: FontWeight,
-  [EnumType.FONT_SIZE]: FontSize,
-  [EnumType.SHADOW_TYPE]: ShadowType,
-  [EnumType.SHADOW_POSITION]: ShadowPosition,
-  [EnumType.BORDER_TYPE]: BorderType,
-  [EnumType.TEXT_ALIGN]: TextAlign,
-  [EnumType.TEXT_DECORATION]: TextDecoration,
-  [EnumType.TEXT_TRANSFORM]: TextTransform,
-  [EnumType.GRADIENT_TYPE]: GradientType,
-  [EnumType.FILL_TYPE]: FillType,
-  [EnumType.FILL_POSITION]: FillPosition,
-  [EnumType.FILL_SIZE]: FillSize,
-  [EnumType.USER_STATUS]: UserStatus,
-  [EnumType.ORGANIZATION_STATUS]: OrganizationStatus,
   [EnumType.CHANNEL_STATUS]: ChannelStatus,
   [EnumType.THREAD_STATUS]: ThreadStatus,
   [EnumType.MESSAGE_TYPE]: MessageType,
   [EnumType.NOTIFICATION_TYPE]: NotificationType,
   [EnumType.NOTIFICATION_STATUS]: NotificationStatus,
+  [EnumType.CLAIM_TYPE]: ClaimType,
+  [EnumType.CLAIM_STATUS]: ClaimStatus,
+  [EnumType.CURSOR_TYPE]: CursorType,
+  [EnumType.CURSOR_STATUS]: CursorStatus,
+  [EnumType.ACTION_TYPE]: ActionType,
+  [EnumType.PORT_SIDE]: PortSide,
+  [EnumType.TRANSITION_TYPE]: TransitionType,
+  [EnumType.FLOW_TYPE]: FlowType,
+  [EnumType.PROCESS_STATUS]: ProcessStatus,
+  [EnumType.RUN_TYPE]: RunType,
+  [EnumType.SPAN_TYPE]: SpanType,
+  [EnumType.SESSION_STATUS]: SessionStatus,
+  [EnumType.SCHEDULE_FREQUENCY]: ScheduleFrequency,
+  [EnumType.INTERRUPTION_TYPE]: InterruptionType,
+  [EnumType.INTERRUPTION_STATUS]: InterruptionStatus,
+  [EnumType.INTERRUPTION_RESPONSE]: InterruptionResponse,
+  [EnumType.ACCESS_MODE]: AccessMode,
+  [EnumType.ACCESS_KIND]: AccessKind,
+  [EnumType.POLICY_EFFECT]: PolicyEffect,
+  [EnumType.ACCESS_TYPE]: AccessType,
+  [EnumType.QUERY_TYPE]: QueryType,
+  [EnumType.EDIT_TYPE]: EditType,
+  [EnumType.USE_TYPE]: UseType,
+  [EnumType.MODEL_DEVELOPER]: ModelDeveloper,
+  [EnumType.MODEL_PROVIDER]: ModelProvider,
+  [EnumType.SPACE_TYPE]: SpaceType,
+  [EnumType.COLOR_TYPE]: ColorType,
+  [EnumType.COLOR_SHADE]: ColorShade,
+  [EnumType.COLOR_HUE]: ColorHue,
+  [EnumType.FONT_TYPE]: FontType,
+  [EnumType.FONT_WEIGHT]: FontWeight,
+  [EnumType.FONT_SIZE]: FontSize,
+  [EnumType.TEXT_ALIGN]: TextAlign,
+  [EnumType.TEXT_DECORATION]: TextDecoration,
+  [EnumType.TEXT_TRANSFORM]: TextTransform,
+  [EnumType.SHADOW_TYPE]: ShadowType,
+  [EnumType.SHADOW_POSITION]: ShadowPosition,
+  [EnumType.BORDER_TYPE]: BorderType,
+  [EnumType.GRADIENT_TYPE]: GradientType,
+  [EnumType.FILL_TYPE]: FillType,
+  [EnumType.FILL_POSITION]: FillPosition,
+  [EnumType.FILL_SIZE]: FillSize,
+  [EnumType.LENGTH_UNIT]: LengthUnit,
 }
 
 
@@ -31085,70 +31221,6 @@ export enum PropertyReferenceProperty {
   referencesMeta = 36,
 }
 
-export enum PolicyProperty {
-  metatype = 1,
-  name = 30,
-  rules = 32,
-  scopesPtr = 33,
-}
-
-export enum PolicyRuleProperty {
-  metatype = 1,
-  name = 30,
-  subjectIsDelegated = 40,
-  subjectIsAuthenticated = 41,
-  subjectIsStaff = 42,
-  subjectIsMember = 43,
-  subjectIsOwner = 44,
-  effect = 60,
-  verbs = 61,
-  verbKinds = 62,
-  objectNodeTypes = 80,
-  objectPropertiesPtr = 81,
-  objectPropertiesIsSystem = 82,
-  objectPropertiesIsSensitive = 83,
-  objectPropertiesIsKernel = 84,
-}
-
-export enum PolicySubjectProperty {
-  metatype = 1,
-  id = 2,
-  isAuthenticated = 30,
-  isStaff = 31,
-  isSystem = 32,
-  clientPtr = 40,
-  userPtr = 41,
-  computerPtr = 43,
-  ownedPtr = 52,
-  membershipsPtr = 53,
-}
-
-export enum AccessZoneProperty {
-  metatype = 1,
-  id = 2,
-  parentId = 4,
-  scopeId = 30,
-  identityId = 31,
-  rules = 32,
-}
-
-export enum AccessMatrixProperty {
-  metatype = 1,
-  subject = 30,
-  identities = 32,
-  scopedZones = 33,
-  baseZones = 34,
-}
-
-export enum AccessProperty {
-  metatype = 1,
-  mode = 30,
-  decision = 31,
-  verb = 32,
-  nodeType = 33,
-  allowedPropertiesPtr = 34,
-}
-
 export enum TypeProperty {
   metatype = 1,
   kind = 40,
@@ -31203,17 +31275,6 @@ export enum FileInfoProperty {
   thumbnailWidth = 74,
   thumbnailHeight = 75,
   content = 76,
-}
-
-export enum IconProperty {
-  metatype = 1,
-  type = 30,
-  emoji = 31,
-  faName = 33,
-  vscName = 34,
-  filePtr = 35,
-  fileUrl = 36,
-  color = 40,
 }
 
 export enum ScheduleProperty {
@@ -31280,6 +31341,17 @@ export enum CodeProperty {
   content = 40,
 }
 
+export enum IconProperty {
+  metatype = 1,
+  type = 30,
+  emoji = 31,
+  faName = 33,
+  vscName = 34,
+  filePtr = 35,
+  fileUrl = 36,
+  color = 40,
+}
+
 export enum ExpressionProperty {
   metatype = 1,
   type = 30,
@@ -31338,6 +31410,70 @@ export enum RunTraceProperty {
 
 export enum RunFrameProperty {
   metatype = 1,
+}
+
+export enum PolicyProperty {
+  metatype = 1,
+  name = 30,
+  rules = 32,
+  scopesPtr = 33,
+}
+
+export enum PolicyRuleProperty {
+  metatype = 1,
+  name = 30,
+  subjectIsDelegated = 40,
+  subjectIsAuthenticated = 41,
+  subjectIsStaff = 42,
+  subjectIsMember = 43,
+  subjectIsOwner = 44,
+  effect = 60,
+  verbs = 61,
+  verbKinds = 62,
+  objectNodeTypes = 80,
+  objectPropertiesPtr = 81,
+  objectPropertiesIsSystem = 82,
+  objectPropertiesIsSensitive = 83,
+  objectPropertiesIsKernel = 84,
+}
+
+export enum PolicySubjectProperty {
+  metatype = 1,
+  id = 2,
+  isAuthenticated = 30,
+  isStaff = 31,
+  isSystem = 32,
+  clientPtr = 40,
+  userPtr = 41,
+  computerPtr = 43,
+  ownedPtr = 52,
+  membershipsPtr = 53,
+}
+
+export enum AccessZoneProperty {
+  metatype = 1,
+  id = 2,
+  parentId = 4,
+  scopeId = 30,
+  identityId = 31,
+  rules = 32,
+}
+
+export enum AccessMatrixProperty {
+  metatype = 1,
+  subject = 30,
+  identities = 32,
+  scopedZones = 33,
+  baseZones = 34,
+}
+
+export enum AccessProperty {
+  metatype = 1,
+  mode = 30,
+  decision = 31,
+  verb = 32,
+  nodeType = 33,
+  allowedPropertiesPtr = 34,
 }
 
 export enum ColorProperty {
@@ -31419,12 +31555,18 @@ export enum FillProperty {
   size = 70,
 }
 
+export enum LengthProperty {
+  metatype = 1,
+  unit = 31,
+  value = 32,
+}
+
 export type AnyNodeProperty = typeof BenchProperty | typeof HandleProperty | typeof UserProperty | typeof OrganizationProperty | typeof ClientProperty | typeof PackageProperty | typeof DependencyProperty | typeof PageProperty | typeof BlockProperty | typeof DatabaseProperty | typeof ComputerProperty | typeof ScalerProperty | typeof ChoiceProperty | typeof ClassProperty | typeof FieldProperty | typeof OptionProperty | typeof TableProperty | typeof RecordProperty | typeof FileProperty | typeof LinkProperty | typeof ChannelProperty | typeof ThreadProperty | typeof MessageProperty | typeof NotificationProperty | typeof TaskProperty | typeof ClaimProperty | typeof CursorProperty | typeof ServiceProperty | typeof ActionProperty | typeof FlowProperty | typeof TransitionProperty | typeof AgentProperty | typeof SessionProperty | typeof RunProperty | typeof SpanProperty | typeof InterruptionProperty | typeof MembershipProperty | typeof InviteProperty | typeof TeamProperty | typeof RoleProperty | typeof SpaceProperty | typeof WizardViewProperty | typeof ThreadViewProperty | typeof ThemeProperty | typeof ColorStyleProperty | typeof TextStyleProperty | typeof BorderStyleProperty | typeof ShadowStyleProperty | typeof GradientStyleProperty | typeof EmptyProperty
-export type AnyStructProperty = typeof ContextProperty | typeof EditContextProperty | typeof EditProperty | typeof EditOperationProperty | typeof ChangeProperty | typeof ChangeVignetteProperty | typeof GraphScopeProperty | typeof ClientOriginProperty | typeof NodeReferenceProperty | typeof PropertyReferenceProperty | typeof PolicyProperty | typeof PolicyRuleProperty | typeof PolicySubjectProperty | typeof AccessZoneProperty | typeof AccessMatrixProperty | typeof AccessProperty | typeof TypeProperty | typeof TypeConstraintProperty | typeof FileInfoProperty | typeof IconProperty | typeof ScheduleProperty | typeof TextProperty | typeof TextLineProperty | typeof TextSpanProperty | typeof CodeProperty | typeof ExpressionProperty | typeof AggregationResultProperty | typeof SelectionProperty | typeof SelectOptionsProperty | typeof ErrorProperty | typeof RunTraceProperty | typeof RunFrameProperty | typeof ColorProperty | typeof ShadowProperty | typeof BorderProperty | typeof Vector2Property | typeof Vector3Property | typeof Vector4Property | typeof GradientStopProperty | typeof GradientProperty | typeof FillProperty
+export type AnyStructProperty = typeof ContextProperty | typeof EditContextProperty | typeof EditProperty | typeof EditOperationProperty | typeof ChangeProperty | typeof ChangeVignetteProperty | typeof GraphScopeProperty | typeof ClientOriginProperty | typeof NodeReferenceProperty | typeof PropertyReferenceProperty | typeof TypeProperty | typeof TypeConstraintProperty | typeof FileInfoProperty | typeof ScheduleProperty | typeof TextProperty | typeof TextLineProperty | typeof TextSpanProperty | typeof CodeProperty | typeof IconProperty | typeof ExpressionProperty | typeof AggregationResultProperty | typeof SelectionProperty | typeof SelectOptionsProperty | typeof ErrorProperty | typeof RunTraceProperty | typeof RunFrameProperty | typeof PolicyProperty | typeof PolicyRuleProperty | typeof PolicySubjectProperty | typeof AccessZoneProperty | typeof AccessMatrixProperty | typeof AccessProperty | typeof ColorProperty | typeof ShadowProperty | typeof BorderProperty | typeof Vector2Property | typeof Vector3Property | typeof Vector4Property | typeof GradientStopProperty | typeof GradientProperty | typeof FillProperty | typeof LengthProperty
 export type AnyProperty = AnyNodeProperty | AnyStructProperty
 export type AnyNodePropertyType = typeof BenchProperty | typeof HandleProperty | typeof UserProperty | typeof OrganizationProperty | typeof ClientProperty | typeof PackageProperty | typeof DependencyProperty | typeof PageProperty | typeof BlockProperty | typeof DatabaseProperty | typeof ComputerProperty | typeof ScalerProperty | typeof ChoiceProperty | typeof ClassProperty | typeof FieldProperty | typeof OptionProperty | typeof TableProperty | typeof RecordProperty | typeof FileProperty | typeof LinkProperty | typeof ChannelProperty | typeof ThreadProperty | typeof MessageProperty | typeof NotificationProperty | typeof TaskProperty | typeof ClaimProperty | typeof CursorProperty | typeof ServiceProperty | typeof ActionProperty | typeof FlowProperty | typeof TransitionProperty | typeof AgentProperty | typeof SessionProperty | typeof RunProperty | typeof SpanProperty | typeof InterruptionProperty | typeof MembershipProperty | typeof InviteProperty | typeof TeamProperty | typeof RoleProperty | typeof SpaceProperty | typeof WizardViewProperty | typeof ThreadViewProperty | typeof ThemeProperty | typeof ColorStyleProperty | typeof TextStyleProperty | typeof BorderStyleProperty | typeof ShadowStyleProperty | typeof GradientStyleProperty | typeof EmptyProperty
-export type AnyStructPropertyType = typeof ContextProperty | typeof EditContextProperty | typeof EditProperty | typeof EditOperationProperty | typeof ChangeProperty | typeof ChangeVignetteProperty | typeof GraphScopeProperty | typeof ClientOriginProperty | typeof NodeReferenceProperty | typeof PropertyReferenceProperty | typeof PolicyProperty | typeof PolicyRuleProperty | typeof PolicySubjectProperty | typeof AccessZoneProperty | typeof AccessMatrixProperty | typeof AccessProperty | typeof TypeProperty | typeof TypeConstraintProperty | typeof FileInfoProperty | typeof IconProperty | typeof ScheduleProperty | typeof TextProperty | typeof TextLineProperty | typeof TextSpanProperty | typeof CodeProperty | typeof ExpressionProperty | typeof AggregationResultProperty | typeof SelectionProperty | typeof SelectOptionsProperty | typeof ErrorProperty | typeof RunTraceProperty | typeof RunFrameProperty | typeof ColorProperty | typeof ShadowProperty | typeof BorderProperty | typeof Vector2Property | typeof Vector3Property | typeof Vector4Property | typeof GradientStopProperty | typeof GradientProperty | typeof FillProperty
-export type AnyPropertyType = typeof BenchProperty | typeof HandleProperty | typeof UserProperty | typeof OrganizationProperty | typeof ClientProperty | typeof PackageProperty | typeof DependencyProperty | typeof PageProperty | typeof BlockProperty | typeof DatabaseProperty | typeof ComputerProperty | typeof ScalerProperty | typeof ChoiceProperty | typeof ClassProperty | typeof FieldProperty | typeof OptionProperty | typeof TableProperty | typeof RecordProperty | typeof FileProperty | typeof LinkProperty | typeof ChannelProperty | typeof ThreadProperty | typeof MessageProperty | typeof NotificationProperty | typeof TaskProperty | typeof ClaimProperty | typeof CursorProperty | typeof ServiceProperty | typeof ActionProperty | typeof FlowProperty | typeof TransitionProperty | typeof AgentProperty | typeof SessionProperty | typeof RunProperty | typeof SpanProperty | typeof InterruptionProperty | typeof MembershipProperty | typeof InviteProperty | typeof TeamProperty | typeof RoleProperty | typeof SpaceProperty | typeof WizardViewProperty | typeof ThreadViewProperty | typeof ThemeProperty | typeof ColorStyleProperty | typeof TextStyleProperty | typeof BorderStyleProperty | typeof ShadowStyleProperty | typeof GradientStyleProperty | typeof EmptyProperty | typeof ContextProperty | typeof EditContextProperty | typeof EditProperty | typeof EditOperationProperty | typeof ChangeProperty | typeof ChangeVignetteProperty | typeof GraphScopeProperty | typeof ClientOriginProperty | typeof NodeReferenceProperty | typeof PropertyReferenceProperty | typeof PolicyProperty | typeof PolicyRuleProperty | typeof PolicySubjectProperty | typeof AccessZoneProperty | typeof AccessMatrixProperty | typeof AccessProperty | typeof TypeProperty | typeof TypeConstraintProperty | typeof FileInfoProperty | typeof IconProperty | typeof ScheduleProperty | typeof TextProperty | typeof TextLineProperty | typeof TextSpanProperty | typeof CodeProperty | typeof ExpressionProperty | typeof AggregationResultProperty | typeof SelectionProperty | typeof SelectOptionsProperty | typeof ErrorProperty | typeof RunTraceProperty | typeof RunFrameProperty | typeof ColorProperty | typeof ShadowProperty | typeof BorderProperty | typeof Vector2Property | typeof Vector3Property | typeof Vector4Property | typeof GradientStopProperty | typeof GradientProperty | typeof FillProperty
+export type AnyStructPropertyType = typeof ContextProperty | typeof EditContextProperty | typeof EditProperty | typeof EditOperationProperty | typeof ChangeProperty | typeof ChangeVignetteProperty | typeof GraphScopeProperty | typeof ClientOriginProperty | typeof NodeReferenceProperty | typeof PropertyReferenceProperty | typeof TypeProperty | typeof TypeConstraintProperty | typeof FileInfoProperty | typeof ScheduleProperty | typeof TextProperty | typeof TextLineProperty | typeof TextSpanProperty | typeof CodeProperty | typeof IconProperty | typeof ExpressionProperty | typeof AggregationResultProperty | typeof SelectionProperty | typeof SelectOptionsProperty | typeof ErrorProperty | typeof RunTraceProperty | typeof RunFrameProperty | typeof PolicyProperty | typeof PolicyRuleProperty | typeof PolicySubjectProperty | typeof AccessZoneProperty | typeof AccessMatrixProperty | typeof AccessProperty | typeof ColorProperty | typeof ShadowProperty | typeof BorderProperty | typeof Vector2Property | typeof Vector3Property | typeof Vector4Property | typeof GradientStopProperty | typeof GradientProperty | typeof FillProperty | typeof LengthProperty
+export type AnyPropertyType = typeof BenchProperty | typeof HandleProperty | typeof UserProperty | typeof OrganizationProperty | typeof ClientProperty | typeof PackageProperty | typeof DependencyProperty | typeof PageProperty | typeof BlockProperty | typeof DatabaseProperty | typeof ComputerProperty | typeof ScalerProperty | typeof ChoiceProperty | typeof ClassProperty | typeof FieldProperty | typeof OptionProperty | typeof TableProperty | typeof RecordProperty | typeof FileProperty | typeof LinkProperty | typeof ChannelProperty | typeof ThreadProperty | typeof MessageProperty | typeof NotificationProperty | typeof TaskProperty | typeof ClaimProperty | typeof CursorProperty | typeof ServiceProperty | typeof ActionProperty | typeof FlowProperty | typeof TransitionProperty | typeof AgentProperty | typeof SessionProperty | typeof RunProperty | typeof SpanProperty | typeof InterruptionProperty | typeof MembershipProperty | typeof InviteProperty | typeof TeamProperty | typeof RoleProperty | typeof SpaceProperty | typeof WizardViewProperty | typeof ThreadViewProperty | typeof ThemeProperty | typeof ColorStyleProperty | typeof TextStyleProperty | typeof BorderStyleProperty | typeof ShadowStyleProperty | typeof GradientStyleProperty | typeof EmptyProperty | typeof ContextProperty | typeof EditContextProperty | typeof EditProperty | typeof EditOperationProperty | typeof ChangeProperty | typeof ChangeVignetteProperty | typeof GraphScopeProperty | typeof ClientOriginProperty | typeof NodeReferenceProperty | typeof PropertyReferenceProperty | typeof TypeProperty | typeof TypeConstraintProperty | typeof FileInfoProperty | typeof ScheduleProperty | typeof TextProperty | typeof TextLineProperty | typeof TextSpanProperty | typeof CodeProperty | typeof IconProperty | typeof ExpressionProperty | typeof AggregationResultProperty | typeof SelectionProperty | typeof SelectOptionsProperty | typeof ErrorProperty | typeof RunTraceProperty | typeof RunFrameProperty | typeof PolicyProperty | typeof PolicyRuleProperty | typeof PolicySubjectProperty | typeof AccessZoneProperty | typeof AccessMatrixProperty | typeof AccessProperty | typeof ColorProperty | typeof ShadowProperty | typeof BorderProperty | typeof Vector2Property | typeof Vector3Property | typeof Vector4Property | typeof GradientStopProperty | typeof GradientProperty | typeof FillProperty | typeof LengthProperty
 export const NODE_PROPERTY_ENUM_BY_TYPE: Partial<Record<ObjectType, AnyNodePropertyType>> = {
   [ObjectType.BENCH]: BenchProperty,
   [ObjectType.HANDLE]: HandleProperty,
@@ -31489,21 +31631,15 @@ export const STRUCT_PROPERTY_ENUM_BY_TYPE: Partial<Record<ObjectType, AnyStructP
   [ObjectType.CLIENT_ORIGIN]: ClientOriginProperty,
   [ObjectType.NODE_REFERENCE]: NodeReferenceProperty,
   [ObjectType.PROPERTY_REFERENCE]: PropertyReferenceProperty,
-  [ObjectType.POLICY]: PolicyProperty,
-  [ObjectType.POLICY_RULE]: PolicyRuleProperty,
-  [ObjectType.POLICY_SUBJECT]: PolicySubjectProperty,
-  [ObjectType.ACCESS_ZONE]: AccessZoneProperty,
-  [ObjectType.ACCESS_MATRIX]: AccessMatrixProperty,
-  [ObjectType.ACCESS]: AccessProperty,
   [ObjectType.TYPE]: TypeProperty,
   [ObjectType.TYPE_CONSTRAINT]: TypeConstraintProperty,
   [ObjectType.FILE_INFO]: FileInfoProperty,
-  [ObjectType.ICON]: IconProperty,
   [ObjectType.SCHEDULE]: ScheduleProperty,
   [ObjectType.TEXT]: TextProperty,
   [ObjectType.TEXT_LINE]: TextLineProperty,
   [ObjectType.TEXT_SPAN]: TextSpanProperty,
   [ObjectType.CODE]: CodeProperty,
+  [ObjectType.ICON]: IconProperty,
   [ObjectType.EXPRESSION]: ExpressionProperty,
   [ObjectType.AGGREGATION_RESULT]: AggregationResultProperty,
   [ObjectType.SELECTION]: SelectionProperty,
@@ -31511,6 +31647,12 @@ export const STRUCT_PROPERTY_ENUM_BY_TYPE: Partial<Record<ObjectType, AnyStructP
   [ObjectType.ERROR]: ErrorProperty,
   [ObjectType.RUN_TRACE]: RunTraceProperty,
   [ObjectType.RUN_FRAME]: RunFrameProperty,
+  [ObjectType.POLICY]: PolicyProperty,
+  [ObjectType.POLICY_RULE]: PolicyRuleProperty,
+  [ObjectType.POLICY_SUBJECT]: PolicySubjectProperty,
+  [ObjectType.ACCESS_ZONE]: AccessZoneProperty,
+  [ObjectType.ACCESS_MATRIX]: AccessMatrixProperty,
+  [ObjectType.ACCESS]: AccessProperty,
   [ObjectType.COLOR]: ColorProperty,
   [ObjectType.SHADOW]: ShadowProperty,
   [ObjectType.BORDER]: BorderProperty,
@@ -31520,6 +31662,7 @@ export const STRUCT_PROPERTY_ENUM_BY_TYPE: Partial<Record<ObjectType, AnyStructP
   [ObjectType.GRADIENT_STOP]: GradientStopProperty,
   [ObjectType.GRADIENT]: GradientProperty,
   [ObjectType.FILL]: FillProperty,
+  [ObjectType.LENGTH]: LengthProperty,
 }
 
 export const PROPERTY_ENUM_BY_TYPE: Partial<Record<ObjectType, AnyPropertyType>> = {
@@ -31583,21 +31726,15 @@ export const PROPERTY_ENUM_BY_TYPE: Partial<Record<ObjectType, AnyPropertyType>>
   [ObjectType.CLIENT_ORIGIN]: ClientOriginProperty,
   [ObjectType.NODE_REFERENCE]: NodeReferenceProperty,
   [ObjectType.PROPERTY_REFERENCE]: PropertyReferenceProperty,
-  [ObjectType.POLICY]: PolicyProperty,
-  [ObjectType.POLICY_RULE]: PolicyRuleProperty,
-  [ObjectType.POLICY_SUBJECT]: PolicySubjectProperty,
-  [ObjectType.ACCESS_ZONE]: AccessZoneProperty,
-  [ObjectType.ACCESS_MATRIX]: AccessMatrixProperty,
-  [ObjectType.ACCESS]: AccessProperty,
   [ObjectType.TYPE]: TypeProperty,
   [ObjectType.TYPE_CONSTRAINT]: TypeConstraintProperty,
   [ObjectType.FILE_INFO]: FileInfoProperty,
-  [ObjectType.ICON]: IconProperty,
   [ObjectType.SCHEDULE]: ScheduleProperty,
   [ObjectType.TEXT]: TextProperty,
   [ObjectType.TEXT_LINE]: TextLineProperty,
   [ObjectType.TEXT_SPAN]: TextSpanProperty,
   [ObjectType.CODE]: CodeProperty,
+  [ObjectType.ICON]: IconProperty,
   [ObjectType.EXPRESSION]: ExpressionProperty,
   [ObjectType.AGGREGATION_RESULT]: AggregationResultProperty,
   [ObjectType.SELECTION]: SelectionProperty,
@@ -31605,6 +31742,12 @@ export const PROPERTY_ENUM_BY_TYPE: Partial<Record<ObjectType, AnyPropertyType>>
   [ObjectType.ERROR]: ErrorProperty,
   [ObjectType.RUN_TRACE]: RunTraceProperty,
   [ObjectType.RUN_FRAME]: RunFrameProperty,
+  [ObjectType.POLICY]: PolicyProperty,
+  [ObjectType.POLICY_RULE]: PolicyRuleProperty,
+  [ObjectType.POLICY_SUBJECT]: PolicySubjectProperty,
+  [ObjectType.ACCESS_ZONE]: AccessZoneProperty,
+  [ObjectType.ACCESS_MATRIX]: AccessMatrixProperty,
+  [ObjectType.ACCESS]: AccessProperty,
   [ObjectType.COLOR]: ColorProperty,
   [ObjectType.SHADOW]: ShadowProperty,
   [ObjectType.BORDER]: BorderProperty,
@@ -31614,6 +31757,7 @@ export const PROPERTY_ENUM_BY_TYPE: Partial<Record<ObjectType, AnyPropertyType>>
   [ObjectType.GRADIENT_STOP]: GradientStopProperty,
   [ObjectType.GRADIENT]: GradientProperty,
   [ObjectType.FILL]: FillProperty,
+  [ObjectType.LENGTH]: LengthProperty,
 }
 
 
@@ -31882,7 +32026,7 @@ export const DatabaseDataInfo: Record<DatabaseProperty, PropertyInfo> = {
   [DatabaseProperty.failedAt]: { id: 47, name: 'failed_at', component: ObjectType.DATABASE, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
   [DatabaseProperty.failedAttempts]: { id: 48, name: 'failed_attempts', component: ObjectType.DATABASE, kind: 'primitive', primitiveType: PrimitiveType.INT32, default: 0, isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
   [DatabaseProperty.scalerPtr]: { id: 49, name: 'scaler_ptr', component: ObjectType.DATABASE, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.SCALER], referenceStruct: StructType.NODE_REFERENCE },
-  [DatabaseProperty.version]: { id: 60, name: 'version', component: ObjectType.DATABASE, kind: 'primitive', primitiveType: PrimitiveType.STRING, default: "2025.05.14.0", isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
+  [DatabaseProperty.version]: { id: 60, name: 'version', component: ObjectType.DATABASE, kind: 'primitive', primitiveType: PrimitiveType.STRING, default: "2025.05.14.1", isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
   [DatabaseProperty.externalName]: { id: 62, name: 'external_name', component: ObjectType.DATABASE, kind: 'primitive', primitiveType: PrimitiveType.STRING, isInternal: true, isSystem: true, isKernel: true, isRuntime: true, isWired: true, isStored: true, isSensitive: true },
   [DatabaseProperty.externalId]: { id: 63, name: 'external_id', component: ObjectType.DATABASE, kind: 'primitive', primitiveType: PrimitiveType.STRING, isInternal: true, isSystem: true, isKernel: true, isRuntime: true, isWired: true, isStored: true, isSensitive: true },
   [DatabaseProperty.sqlUrl]: { id: 64, name: 'sql_url', component: ObjectType.DATABASE, kind: 'primitive', primitiveType: PrimitiveType.STRING, isInternal: true, isSystem: true, isKernel: true, isRuntime: true, isWired: true, isStored: true, isDeferred: true, isSensitive: true },
@@ -31920,7 +32064,7 @@ export const ComputerDataInfo: Record<ComputerProperty, PropertyInfo> = {
   [ComputerProperty.failedAt]: { id: 47, name: 'failed_at', component: ObjectType.COMPUTER, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
   [ComputerProperty.failedAttempts]: { id: 48, name: 'failed_attempts', component: ObjectType.COMPUTER, kind: 'primitive', primitiveType: PrimitiveType.INT32, default: 0, isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
   [ComputerProperty.scalerPtr]: { id: 49, name: 'scaler_ptr', component: ObjectType.COMPUTER, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.SCALER], referenceStruct: StructType.NODE_REFERENCE },
-  [ComputerProperty.version]: { id: 60, name: 'version', component: ObjectType.COMPUTER, kind: 'primitive', primitiveType: PrimitiveType.STRING, default: "2025.05.14.0", isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
+  [ComputerProperty.version]: { id: 60, name: 'version', component: ObjectType.COMPUTER, kind: 'primitive', primitiveType: PrimitiveType.STRING, default: "2025.05.14.1", isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
   [ComputerProperty.externalName]: { id: 62, name: 'external_name', component: ObjectType.COMPUTER, kind: 'primitive', primitiveType: PrimitiveType.STRING, isInternal: true, isSystem: true, isKernel: true, isRuntime: true, isWired: true, isStored: true, isSensitive: true },
   [ComputerProperty.externalId]: { id: 63, name: 'external_id', component: ObjectType.COMPUTER, kind: 'primitive', primitiveType: PrimitiveType.STRING, isInternal: true, isSystem: true, isKernel: true, isRuntime: true, isWired: true, isStored: true, isSensitive: true },
   [ComputerProperty.imageId]: { id: 64, name: 'image_id', component: ObjectType.COMPUTER, kind: 'primitive', primitiveType: PrimitiveType.STRING, isInternal: true, isSystem: true, isKernel: true, isRuntime: true, isWired: true, isStored: true, isSensitive: true },
@@ -32939,8 +33083,8 @@ export const TextStyleDataInfo: Record<TextStyleProperty, PropertyInfo> = {
   [TextStyleProperty.color]: { id: 45, name: 'color', component: ObjectType.TEXT_STYLE, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.COLOR },
   [TextStyleProperty.size]: { id: 46, name: 'size', component: ObjectType.TEXT_STYLE, enumType: EnumType.FONT_SIZE, kind: 'enum', primitiveType: PrimitiveType.INT16, default: 16, isRuntime: true, isWired: true, isStored: true },
   [TextStyleProperty.align]: { id: 47, name: 'align', component: ObjectType.TEXT_STYLE, enumType: EnumType.TEXT_ALIGN, kind: 'enum', primitiveType: PrimitiveType.INT16, default: 1, isRuntime: true, isWired: true, isStored: true },
-  [TextStyleProperty.lineHeight]: { id: 48, name: 'line_height', component: ObjectType.TEXT_STYLE, kind: 'primitive', primitiveType: PrimitiveType.INT32, isRuntime: true, isWired: true, isStored: true },
-  [TextStyleProperty.letterSpacing]: { id: 49, name: 'letter_spacing', component: ObjectType.TEXT_STYLE, kind: 'primitive', primitiveType: PrimitiveType.INT32, isRuntime: true, isWired: true, isStored: true },
+  [TextStyleProperty.lineHeight]: { id: 48, name: 'line_height', component: ObjectType.TEXT_STYLE, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.LENGTH },
+  [TextStyleProperty.letterSpacing]: { id: 49, name: 'letter_spacing', component: ObjectType.TEXT_STYLE, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.LENGTH },
   [TextStyleProperty.decoration]: { id: 50, name: 'decoration', component: ObjectType.TEXT_STYLE, enumType: EnumType.TEXT_DECORATION, kind: 'enum', primitiveType: PrimitiveType.INT16, default: 1, isRuntime: true, isWired: true, isStored: true },
   [TextStyleProperty.transform]: { id: 51, name: 'transform', component: ObjectType.TEXT_STYLE, enumType: EnumType.TEXT_TRANSFORM, kind: 'enum', primitiveType: PrimitiveType.INT16, default: 1, isRuntime: true, isWired: true, isStored: true },
 }
@@ -32991,10 +33135,10 @@ export const ShadowStyleDataInfo: Record<ShadowStyleProperty, PropertyInfo> = {
   [ShadowStyleProperty.icon]: { id: 34, name: 'icon', component: ObjectType.SHADOW_STYLE, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.ICON },
   [ShadowStyleProperty.definitionPtr]: { id: 35, name: 'definition_ptr', component: ObjectType.SHADOW_STYLE, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.BLOCK], referenceStruct: StructType.NODE_REFERENCE },
   [ShadowStyleProperty.position]: { id: 40, name: 'position', component: ObjectType.SHADOW_STYLE, enumType: EnumType.SHADOW_POSITION, kind: 'enum', primitiveType: PrimitiveType.INT16, default: 1, isRequired: true, isRuntime: true, isWired: true, isStored: true },
-  [ShadowStyleProperty.offsetX]: { id: 41, name: 'offset_x', component: ObjectType.SHADOW_STYLE, kind: 'primitive', primitiveType: PrimitiveType.STRING, isRequired: true, isRuntime: true, isWired: true, isStored: true },
-  [ShadowStyleProperty.offsetY]: { id: 42, name: 'offset_y', component: ObjectType.SHADOW_STYLE, kind: 'primitive', primitiveType: PrimitiveType.STRING, isRequired: true, isRuntime: true, isWired: true, isStored: true },
-  [ShadowStyleProperty.blur]: { id: 43, name: 'blur', component: ObjectType.SHADOW_STYLE, kind: 'primitive', primitiveType: PrimitiveType.STRING, isRequired: true, isRuntime: true, isWired: true, isStored: true },
-  [ShadowStyleProperty.spread]: { id: 44, name: 'spread', component: ObjectType.SHADOW_STYLE, kind: 'primitive', primitiveType: PrimitiveType.STRING, isRequired: true, isRuntime: true, isWired: true, isStored: true },
+  [ShadowStyleProperty.offsetX]: { id: 41, name: 'offset_x', component: ObjectType.SHADOW_STYLE, kind: 'primitive', primitiveType: PrimitiveType.INT32, default: 0, isRequired: true, isRuntime: true, isWired: true, isStored: true },
+  [ShadowStyleProperty.offsetY]: { id: 42, name: 'offset_y', component: ObjectType.SHADOW_STYLE, kind: 'primitive', primitiveType: PrimitiveType.INT32, default: 0, isRequired: true, isRuntime: true, isWired: true, isStored: true },
+  [ShadowStyleProperty.blur]: { id: 43, name: 'blur', component: ObjectType.SHADOW_STYLE, kind: 'primitive', primitiveType: PrimitiveType.INT32, default: 2, isRequired: true, isRuntime: true, isWired: true, isStored: true },
+  [ShadowStyleProperty.spread]: { id: 44, name: 'spread', component: ObjectType.SHADOW_STYLE, kind: 'primitive', primitiveType: PrimitiveType.INT32, default: 0, isRequired: true, isRuntime: true, isWired: true, isStored: true },
   [ShadowStyleProperty.color]: { id: 45, name: 'color', component: ObjectType.SHADOW_STYLE, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.COLOR },
 }
 export const GradientStyleDataInfo: Record<GradientStyleProperty, PropertyInfo> = {
@@ -33112,64 +33256,6 @@ export const PropertyReferenceDataInfo: Record<PropertyReferenceProperty, Proper
   [PropertyReferenceProperty.referencesNodeType]: { id: 35, name: 'references_node_type', component: ObjectType.PROPERTY_REFERENCE, enumType: EnumType.NODE_TYPE, kind: 'enum', primitiveType: PrimitiveType.INT16, isInternal: true, isRuntime: true, isWired: true, isStored: true },
   [PropertyReferenceProperty.referencesMeta]: { id: 36, name: 'references_meta', component: ObjectType.PROPERTY_REFERENCE, enumType: EnumType.PROPERTY_REFERENCE_TYPE, kind: 'enum', primitiveType: PrimitiveType.INT16, isInternal: true, isRuntime: true, isWired: true, isStored: true },
 }
-export const PolicyDataInfo: Record<PolicyProperty, PropertyInfo> = {
-  [PolicyProperty.metatype]: { id: 1, name: 'metatype', component: ObjectType.POLICY, enumType: EnumType.OBJECT_TYPE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isInternal: true, isComputed: true, isWired: true },
-  [PolicyProperty.name]: { id: 30, name: 'name', component: ObjectType.POLICY, kind: 'primitive', primitiveType: PrimitiveType.STRING, constraint: { minLength: 0, maxLength: 128, nodeTypes: [] }, isRequired: true, isRuntime: true, isWired: true, isStored: true },
-  [PolicyProperty.rules]: { id: 32, name: 'rules', component: ObjectType.POLICY, kind: 'reference', primitiveType: PrimitiveType.JSON, isList: true, isRequired: true, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.POLICY_RULE },
-  [PolicyProperty.scopesPtr]: { id: 33, name: 'scopes_ptr', component: ObjectType.POLICY, kind: 'reference', isList: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.BLOCK], referenceStruct: StructType.NODE_REFERENCE },
-}
-export const PolicyRuleDataInfo: Record<PolicyRuleProperty, PropertyInfo> = {
-  [PolicyRuleProperty.metatype]: { id: 1, name: 'metatype', component: ObjectType.POLICY_RULE, enumType: EnumType.OBJECT_TYPE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isInternal: true, isComputed: true, isWired: true },
-  [PolicyRuleProperty.name]: { id: 30, name: 'name', component: ObjectType.POLICY_RULE, kind: 'primitive', primitiveType: PrimitiveType.STRING, constraint: { minLength: 0, maxLength: 128, nodeTypes: [] }, isRequired: true, isRuntime: true, isWired: true, isStored: true },
-  [PolicyRuleProperty.subjectIsDelegated]: { id: 40, name: 'subject_is_delegated', component: ObjectType.POLICY_RULE, kind: 'primitive', primitiveType: PrimitiveType.BOOLEAN, isRuntime: true, isWired: true, isStored: true },
-  [PolicyRuleProperty.subjectIsAuthenticated]: { id: 41, name: 'subject_is_authenticated', component: ObjectType.POLICY_RULE, kind: 'primitive', primitiveType: PrimitiveType.BOOLEAN, isRuntime: true, isWired: true, isStored: true },
-  [PolicyRuleProperty.subjectIsStaff]: { id: 42, name: 'subject_is_staff', component: ObjectType.POLICY_RULE, kind: 'primitive', primitiveType: PrimitiveType.BOOLEAN, isRuntime: true, isWired: true, isStored: true },
-  [PolicyRuleProperty.subjectIsMember]: { id: 43, name: 'subject_is_member', component: ObjectType.POLICY_RULE, kind: 'primitive', primitiveType: PrimitiveType.BOOLEAN, isRuntime: true, isWired: true, isStored: true },
-  [PolicyRuleProperty.subjectIsOwner]: { id: 44, name: 'subject_is_owner', component: ObjectType.POLICY_RULE, kind: 'primitive', primitiveType: PrimitiveType.BOOLEAN, isRuntime: true, isWired: true, isStored: true },
-  [PolicyRuleProperty.effect]: { id: 60, name: 'effect', component: ObjectType.POLICY_RULE, enumType: EnumType.POLICY_EFFECT, kind: 'enum', primitiveType: PrimitiveType.INT16, default: 2, isRequired: true, isRuntime: true, isWired: true, isStored: true },
-  [PolicyRuleProperty.verbs]: { id: 61, name: 'verbs', component: ObjectType.POLICY_RULE, enumType: EnumType.ACCESS_TYPE, kind: 'enum', primitiveType: PrimitiveType.INT16, isList: true, isRequired: true, isRuntime: true, isWired: true, isStored: true },
-  [PolicyRuleProperty.verbKinds]: { id: 62, name: 'verb_kinds', component: ObjectType.POLICY_RULE, enumType: EnumType.ACCESS_KIND, kind: 'enum', primitiveType: PrimitiveType.INT16, isList: true, isRequired: true, isRuntime: true, isWired: true, isStored: true },
-  [PolicyRuleProperty.objectNodeTypes]: { id: 80, name: 'object_node_types', component: ObjectType.POLICY_RULE, enumType: EnumType.NODE_TYPE, kind: 'enum', primitiveType: PrimitiveType.INT16, isList: true, isRuntime: true, isWired: true, isStored: true },
-  [PolicyRuleProperty.objectPropertiesPtr]: { id: 81, name: 'object_properties_ptr', component: ObjectType.POLICY_RULE, kind: 'primitive', primitiveType: PrimitiveType.JSON, isList: true, isRuntime: true, isWired: true, isStored: true, referenceStruct: StructType.PROPERTY_REFERENCE },
-  [PolicyRuleProperty.objectPropertiesIsSystem]: { id: 82, name: 'object_properties_is_system', component: ObjectType.POLICY_RULE, kind: 'primitive', primitiveType: PrimitiveType.BOOLEAN, isRuntime: true, isWired: true, isStored: true },
-  [PolicyRuleProperty.objectPropertiesIsSensitive]: { id: 83, name: 'object_properties_is_sensitive', component: ObjectType.POLICY_RULE, kind: 'primitive', primitiveType: PrimitiveType.BOOLEAN, isRuntime: true, isWired: true, isStored: true },
-  [PolicyRuleProperty.objectPropertiesIsKernel]: { id: 84, name: 'object_properties_is_kernel', component: ObjectType.POLICY_RULE, kind: 'primitive', primitiveType: PrimitiveType.BOOLEAN, isRuntime: true, isWired: true, isStored: true },
-}
-export const PolicySubjectDataInfo: Record<PolicySubjectProperty, PropertyInfo> = {
-  [PolicySubjectProperty.metatype]: { id: 1, name: 'metatype', component: ObjectType.POLICY_SUBJECT, enumType: EnumType.OBJECT_TYPE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isInternal: true, isComputed: true, isWired: true },
-  [PolicySubjectProperty.id]: { id: 2, name: 'id', component: ObjectType.POLICY_SUBJECT, kind: 'primitive', primitiveType: PrimitiveType.INT32, isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
-  [PolicySubjectProperty.isAuthenticated]: { id: 30, name: 'is_authenticated', component: ObjectType.POLICY_SUBJECT, kind: 'primitive', primitiveType: PrimitiveType.BOOLEAN, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
-  [PolicySubjectProperty.isStaff]: { id: 31, name: 'is_staff', component: ObjectType.POLICY_SUBJECT, kind: 'primitive', primitiveType: PrimitiveType.BOOLEAN, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
-  [PolicySubjectProperty.isSystem]: { id: 32, name: 'is_system', component: ObjectType.POLICY_SUBJECT, kind: 'primitive', primitiveType: PrimitiveType.BOOLEAN, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
-  [PolicySubjectProperty.clientPtr]: { id: 40, name: 'client_ptr', component: ObjectType.POLICY_SUBJECT, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.CLIENT], referenceStruct: StructType.NODE_REFERENCE },
-  [PolicySubjectProperty.userPtr]: { id: 41, name: 'user_ptr', component: ObjectType.POLICY_SUBJECT, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.USER], referenceStruct: StructType.NODE_REFERENCE },
-  [PolicySubjectProperty.computerPtr]: { id: 43, name: 'computer_ptr', component: ObjectType.POLICY_SUBJECT, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.COMPUTER], referenceStruct: StructType.NODE_REFERENCE },
-  [PolicySubjectProperty.ownedPtr]: { id: 52, name: 'owned_ptr', component: ObjectType.POLICY_SUBJECT, kind: 'reference', isList: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.BENCH, NodeType.DATABASE, NodeType.COMPUTER, NodeType.SCALER, NodeType.FILE, NodeType.LINK, NodeType.PACKAGE, NodeType.SPACE, NodeType.PAGE, NodeType.FLOW, NodeType.SERVICE, NodeType.TABLE, NodeType.THREAD, NodeType.TASK, NodeType.CLAIM, NodeType.AGENT, NodeType.RECORD, NodeType.MESSAGE, NodeType.CURSOR], referenceStruct: StructType.NODE_REFERENCE },
-  [PolicySubjectProperty.membershipsPtr]: { id: 53, name: 'memberships_ptr', component: ObjectType.POLICY_SUBJECT, kind: 'reference', isList: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.MEMBERSHIP], referenceStruct: StructType.NODE_REFERENCE },
-}
-export const AccessZoneDataInfo: Record<AccessZoneProperty, PropertyInfo> = {
-  [AccessZoneProperty.metatype]: { id: 1, name: 'metatype', component: ObjectType.ACCESS_ZONE, enumType: EnumType.OBJECT_TYPE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isInternal: true, isComputed: true, isWired: true },
-  [AccessZoneProperty.id]: { id: 2, name: 'id', component: ObjectType.ACCESS_ZONE, kind: 'primitive', primitiveType: PrimitiveType.INT32, isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
-  [AccessZoneProperty.parentId]: { id: 4, name: 'parent_id', component: ObjectType.ACCESS_ZONE, kind: 'primitive', primitiveType: PrimitiveType.INT32, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
-  [AccessZoneProperty.scopeId]: { id: 30, name: 'scope_id', component: ObjectType.ACCESS_ZONE, kind: 'primitive', primitiveType: PrimitiveType.STRING, isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
-  [AccessZoneProperty.identityId]: { id: 31, name: 'identity_id', component: ObjectType.ACCESS_ZONE, kind: 'primitive', primitiveType: PrimitiveType.INT32, isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
-  [AccessZoneProperty.rules]: { id: 32, name: 'rules', component: ObjectType.ACCESS_ZONE, kind: 'reference', primitiveType: PrimitiveType.JSON, isList: true, isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.POLICY_RULE },
-}
-export const AccessMatrixDataInfo: Record<AccessMatrixProperty, PropertyInfo> = {
-  [AccessMatrixProperty.metatype]: { id: 1, name: 'metatype', component: ObjectType.ACCESS_MATRIX, enumType: EnumType.OBJECT_TYPE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isInternal: true, isComputed: true, isWired: true },
-  [AccessMatrixProperty.subject]: { id: 30, name: 'subject', component: ObjectType.ACCESS_MATRIX, kind: 'reference', primitiveType: PrimitiveType.JSON, isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.POLICY_SUBJECT },
-  [AccessMatrixProperty.identities]: { id: 32, name: 'identities', component: ObjectType.ACCESS_MATRIX, kind: 'reference', primitiveType: PrimitiveType.JSON, isList: true, isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.POLICY_SUBJECT },
-  [AccessMatrixProperty.scopedZones]: { id: 33, name: 'scoped_zones', component: ObjectType.ACCESS_MATRIX, kind: 'reference', primitiveType: PrimitiveType.JSON, isList: true, isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.ACCESS_ZONE },
-  [AccessMatrixProperty.baseZones]: { id: 34, name: 'base_zones', component: ObjectType.ACCESS_MATRIX, kind: 'reference', primitiveType: PrimitiveType.JSON, isList: true, isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.ACCESS_ZONE },
-}
-export const AccessDataInfo: Record<AccessProperty, PropertyInfo> = {
-  [AccessProperty.metatype]: { id: 1, name: 'metatype', component: ObjectType.ACCESS, enumType: EnumType.OBJECT_TYPE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isInternal: true, isComputed: true, isWired: true },
-  [AccessProperty.mode]: { id: 30, name: 'mode', component: ObjectType.ACCESS, enumType: EnumType.ACCESS_MODE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
-  [AccessProperty.decision]: { id: 31, name: 'decision', component: ObjectType.ACCESS, enumType: EnumType.POLICY_EFFECT, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
-  [AccessProperty.verb]: { id: 32, name: 'verb', component: ObjectType.ACCESS, enumType: EnumType.ACCESS_TYPE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
-  [AccessProperty.nodeType]: { id: 33, name: 'node_type', component: ObjectType.ACCESS, enumType: EnumType.NODE_TYPE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
-  [AccessProperty.allowedPropertiesPtr]: { id: 34, name: 'allowed_properties_ptr', component: ObjectType.ACCESS, kind: 'primitive', primitiveType: PrimitiveType.JSON, isList: true, isInternal: true, isRuntime: true, isWired: true, isStored: true, referenceStruct: StructType.PROPERTY_REFERENCE },
-}
 export const TypeDataInfo: Record<TypeProperty, PropertyInfo> = {
   [TypeProperty.metatype]: { id: 1, name: 'metatype', component: ObjectType.TYPE, enumType: EnumType.OBJECT_TYPE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isInternal: true, isComputed: true, isWired: true },
   [TypeProperty.kind]: { id: 40, name: 'kind', component: ObjectType.TYPE, enumType: EnumType.TYPE_KIND, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isInternal: true, isRuntime: true, isWired: true, isStored: true },
@@ -33222,16 +33308,6 @@ export const FileInfoDataInfo: Record<FileInfoProperty, PropertyInfo> = {
   [FileInfoProperty.thumbnailWidth]: { id: 74, name: 'thumbnail_width', component: ObjectType.FILE_INFO, kind: 'primitive', primitiveType: PrimitiveType.INT32, isRuntime: true, isWired: true, isStored: true },
   [FileInfoProperty.thumbnailHeight]: { id: 75, name: 'thumbnail_height', component: ObjectType.FILE_INFO, kind: 'primitive', primitiveType: PrimitiveType.INT32, isRuntime: true, isWired: true, isStored: true },
   [FileInfoProperty.content]: { id: 76, name: 'content', component: ObjectType.FILE_INFO, kind: 'primitive', primitiveType: PrimitiveType.BYTES, isRuntime: true, isWired: true, isStored: true },
-}
-export const IconDataInfo: Record<IconProperty, PropertyInfo> = {
-  [IconProperty.metatype]: { id: 1, name: 'metatype', component: ObjectType.ICON, enumType: EnumType.OBJECT_TYPE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isInternal: true, isComputed: true, isWired: true },
-  [IconProperty.type]: { id: 30, name: 'type', component: ObjectType.ICON, enumType: EnumType.ICON_TYPE, kind: 'enum', primitiveType: PrimitiveType.INT16, default: false, isRequired: true, isRuntime: true, isWired: true, isStored: true },
-  [IconProperty.emoji]: { id: 31, name: 'emoji', component: ObjectType.ICON, kind: 'primitive', primitiveType: PrimitiveType.STRING, isRuntime: true, isWired: true, isStored: true },
-  [IconProperty.faName]: { id: 33, name: 'fa_name', component: ObjectType.ICON, kind: 'primitive', primitiveType: PrimitiveType.STRING, isRuntime: true, isWired: true, isStored: true },
-  [IconProperty.vscName]: { id: 34, name: 'vsc_name', component: ObjectType.ICON, kind: 'primitive', primitiveType: PrimitiveType.STRING, isRuntime: true, isWired: true, isStored: true },
-  [IconProperty.filePtr]: { id: 35, name: 'file_ptr', component: ObjectType.ICON, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.FILE], referenceStruct: StructType.NODE_REFERENCE },
-  [IconProperty.fileUrl]: { id: 36, name: 'file_url', component: ObjectType.ICON, kind: 'primitive', primitiveType: PrimitiveType.STRING, isRuntime: true, isWired: true, isStored: true },
-  [IconProperty.color]: { id: 40, name: 'color', component: ObjectType.ICON, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.COLOR },
 }
 export const ScheduleDataInfo: Record<ScheduleProperty, PropertyInfo> = {
   [ScheduleProperty.metatype]: { id: 1, name: 'metatype', component: ObjectType.SCHEDULE, enumType: EnumType.OBJECT_TYPE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isInternal: true, isComputed: true, isWired: true },
@@ -33292,6 +33368,16 @@ export const CodeDataInfo: Record<CodeProperty, PropertyInfo> = {
   [CodeProperty.language]: { id: 32, name: 'language', component: ObjectType.CODE, kind: 'primitive', primitiveType: PrimitiveType.STRING, isRuntime: true, isWired: true, isStored: true },
   [CodeProperty.content]: { id: 40, name: 'content', component: ObjectType.CODE, kind: 'primitive', primitiveType: PrimitiveType.STRING, isRuntime: true, isWired: true, isStored: true },
 }
+export const IconDataInfo: Record<IconProperty, PropertyInfo> = {
+  [IconProperty.metatype]: { id: 1, name: 'metatype', component: ObjectType.ICON, enumType: EnumType.OBJECT_TYPE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isInternal: true, isComputed: true, isWired: true },
+  [IconProperty.type]: { id: 30, name: 'type', component: ObjectType.ICON, enumType: EnumType.ICON_TYPE, kind: 'enum', primitiveType: PrimitiveType.INT16, default: false, isRequired: true, isRuntime: true, isWired: true, isStored: true },
+  [IconProperty.emoji]: { id: 31, name: 'emoji', component: ObjectType.ICON, kind: 'primitive', primitiveType: PrimitiveType.STRING, isRuntime: true, isWired: true, isStored: true },
+  [IconProperty.faName]: { id: 33, name: 'fa_name', component: ObjectType.ICON, kind: 'primitive', primitiveType: PrimitiveType.STRING, isRuntime: true, isWired: true, isStored: true },
+  [IconProperty.vscName]: { id: 34, name: 'vsc_name', component: ObjectType.ICON, kind: 'primitive', primitiveType: PrimitiveType.STRING, isRuntime: true, isWired: true, isStored: true },
+  [IconProperty.filePtr]: { id: 35, name: 'file_ptr', component: ObjectType.ICON, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.FILE], referenceStruct: StructType.NODE_REFERENCE },
+  [IconProperty.fileUrl]: { id: 36, name: 'file_url', component: ObjectType.ICON, kind: 'primitive', primitiveType: PrimitiveType.STRING, isRuntime: true, isWired: true, isStored: true },
+  [IconProperty.color]: { id: 40, name: 'color', component: ObjectType.ICON, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.COLOR },
+}
 export const ExpressionDataInfo: Record<ExpressionProperty, PropertyInfo> = {
   [ExpressionProperty.metatype]: { id: 1, name: 'metatype', component: ObjectType.EXPRESSION, enumType: EnumType.OBJECT_TYPE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isInternal: true, isComputed: true, isWired: true },
   [ExpressionProperty.type]: { id: 30, name: 'type', component: ObjectType.EXPRESSION, enumType: EnumType.EXPRESSION_OP, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isRuntime: true, isWired: true, isStored: true },
@@ -33345,6 +33431,64 @@ export const RunTraceDataInfo: Record<RunTraceProperty, PropertyInfo> = {
 export const RunFrameDataInfo: Record<RunFrameProperty, PropertyInfo> = {
   [RunFrameProperty.metatype]: { id: 1, name: 'metatype', component: ObjectType.RUN_FRAME, enumType: EnumType.OBJECT_TYPE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isInternal: true, isComputed: true, isWired: true },
 }
+export const PolicyDataInfo: Record<PolicyProperty, PropertyInfo> = {
+  [PolicyProperty.metatype]: { id: 1, name: 'metatype', component: ObjectType.POLICY, enumType: EnumType.OBJECT_TYPE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isInternal: true, isComputed: true, isWired: true },
+  [PolicyProperty.name]: { id: 30, name: 'name', component: ObjectType.POLICY, kind: 'primitive', primitiveType: PrimitiveType.STRING, constraint: { minLength: 0, maxLength: 128, nodeTypes: [] }, isRequired: true, isRuntime: true, isWired: true, isStored: true },
+  [PolicyProperty.rules]: { id: 32, name: 'rules', component: ObjectType.POLICY, kind: 'reference', primitiveType: PrimitiveType.JSON, isList: true, isRequired: true, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.POLICY_RULE },
+  [PolicyProperty.scopesPtr]: { id: 33, name: 'scopes_ptr', component: ObjectType.POLICY, kind: 'reference', isList: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.BLOCK], referenceStruct: StructType.NODE_REFERENCE },
+}
+export const PolicyRuleDataInfo: Record<PolicyRuleProperty, PropertyInfo> = {
+  [PolicyRuleProperty.metatype]: { id: 1, name: 'metatype', component: ObjectType.POLICY_RULE, enumType: EnumType.OBJECT_TYPE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isInternal: true, isComputed: true, isWired: true },
+  [PolicyRuleProperty.name]: { id: 30, name: 'name', component: ObjectType.POLICY_RULE, kind: 'primitive', primitiveType: PrimitiveType.STRING, constraint: { minLength: 0, maxLength: 128, nodeTypes: [] }, isRequired: true, isRuntime: true, isWired: true, isStored: true },
+  [PolicyRuleProperty.subjectIsDelegated]: { id: 40, name: 'subject_is_delegated', component: ObjectType.POLICY_RULE, kind: 'primitive', primitiveType: PrimitiveType.BOOLEAN, isRuntime: true, isWired: true, isStored: true },
+  [PolicyRuleProperty.subjectIsAuthenticated]: { id: 41, name: 'subject_is_authenticated', component: ObjectType.POLICY_RULE, kind: 'primitive', primitiveType: PrimitiveType.BOOLEAN, isRuntime: true, isWired: true, isStored: true },
+  [PolicyRuleProperty.subjectIsStaff]: { id: 42, name: 'subject_is_staff', component: ObjectType.POLICY_RULE, kind: 'primitive', primitiveType: PrimitiveType.BOOLEAN, isRuntime: true, isWired: true, isStored: true },
+  [PolicyRuleProperty.subjectIsMember]: { id: 43, name: 'subject_is_member', component: ObjectType.POLICY_RULE, kind: 'primitive', primitiveType: PrimitiveType.BOOLEAN, isRuntime: true, isWired: true, isStored: true },
+  [PolicyRuleProperty.subjectIsOwner]: { id: 44, name: 'subject_is_owner', component: ObjectType.POLICY_RULE, kind: 'primitive', primitiveType: PrimitiveType.BOOLEAN, isRuntime: true, isWired: true, isStored: true },
+  [PolicyRuleProperty.effect]: { id: 60, name: 'effect', component: ObjectType.POLICY_RULE, enumType: EnumType.POLICY_EFFECT, kind: 'enum', primitiveType: PrimitiveType.INT16, default: 2, isRequired: true, isRuntime: true, isWired: true, isStored: true },
+  [PolicyRuleProperty.verbs]: { id: 61, name: 'verbs', component: ObjectType.POLICY_RULE, enumType: EnumType.ACCESS_TYPE, kind: 'enum', primitiveType: PrimitiveType.INT16, isList: true, isRequired: true, isRuntime: true, isWired: true, isStored: true },
+  [PolicyRuleProperty.verbKinds]: { id: 62, name: 'verb_kinds', component: ObjectType.POLICY_RULE, enumType: EnumType.ACCESS_KIND, kind: 'enum', primitiveType: PrimitiveType.INT16, isList: true, isRequired: true, isRuntime: true, isWired: true, isStored: true },
+  [PolicyRuleProperty.objectNodeTypes]: { id: 80, name: 'object_node_types', component: ObjectType.POLICY_RULE, enumType: EnumType.NODE_TYPE, kind: 'enum', primitiveType: PrimitiveType.INT16, isList: true, isRuntime: true, isWired: true, isStored: true },
+  [PolicyRuleProperty.objectPropertiesPtr]: { id: 81, name: 'object_properties_ptr', component: ObjectType.POLICY_RULE, kind: 'primitive', primitiveType: PrimitiveType.JSON, isList: true, isRuntime: true, isWired: true, isStored: true, referenceStruct: StructType.PROPERTY_REFERENCE },
+  [PolicyRuleProperty.objectPropertiesIsSystem]: { id: 82, name: 'object_properties_is_system', component: ObjectType.POLICY_RULE, kind: 'primitive', primitiveType: PrimitiveType.BOOLEAN, isRuntime: true, isWired: true, isStored: true },
+  [PolicyRuleProperty.objectPropertiesIsSensitive]: { id: 83, name: 'object_properties_is_sensitive', component: ObjectType.POLICY_RULE, kind: 'primitive', primitiveType: PrimitiveType.BOOLEAN, isRuntime: true, isWired: true, isStored: true },
+  [PolicyRuleProperty.objectPropertiesIsKernel]: { id: 84, name: 'object_properties_is_kernel', component: ObjectType.POLICY_RULE, kind: 'primitive', primitiveType: PrimitiveType.BOOLEAN, isRuntime: true, isWired: true, isStored: true },
+}
+export const PolicySubjectDataInfo: Record<PolicySubjectProperty, PropertyInfo> = {
+  [PolicySubjectProperty.metatype]: { id: 1, name: 'metatype', component: ObjectType.POLICY_SUBJECT, enumType: EnumType.OBJECT_TYPE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isInternal: true, isComputed: true, isWired: true },
+  [PolicySubjectProperty.id]: { id: 2, name: 'id', component: ObjectType.POLICY_SUBJECT, kind: 'primitive', primitiveType: PrimitiveType.INT32, isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
+  [PolicySubjectProperty.isAuthenticated]: { id: 30, name: 'is_authenticated', component: ObjectType.POLICY_SUBJECT, kind: 'primitive', primitiveType: PrimitiveType.BOOLEAN, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
+  [PolicySubjectProperty.isStaff]: { id: 31, name: 'is_staff', component: ObjectType.POLICY_SUBJECT, kind: 'primitive', primitiveType: PrimitiveType.BOOLEAN, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
+  [PolicySubjectProperty.isSystem]: { id: 32, name: 'is_system', component: ObjectType.POLICY_SUBJECT, kind: 'primitive', primitiveType: PrimitiveType.BOOLEAN, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
+  [PolicySubjectProperty.clientPtr]: { id: 40, name: 'client_ptr', component: ObjectType.POLICY_SUBJECT, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.CLIENT], referenceStruct: StructType.NODE_REFERENCE },
+  [PolicySubjectProperty.userPtr]: { id: 41, name: 'user_ptr', component: ObjectType.POLICY_SUBJECT, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.USER], referenceStruct: StructType.NODE_REFERENCE },
+  [PolicySubjectProperty.computerPtr]: { id: 43, name: 'computer_ptr', component: ObjectType.POLICY_SUBJECT, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.COMPUTER], referenceStruct: StructType.NODE_REFERENCE },
+  [PolicySubjectProperty.ownedPtr]: { id: 52, name: 'owned_ptr', component: ObjectType.POLICY_SUBJECT, kind: 'reference', isList: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.BENCH, NodeType.DATABASE, NodeType.COMPUTER, NodeType.SCALER, NodeType.FILE, NodeType.LINK, NodeType.PACKAGE, NodeType.SPACE, NodeType.PAGE, NodeType.FLOW, NodeType.SERVICE, NodeType.TABLE, NodeType.THREAD, NodeType.TASK, NodeType.CLAIM, NodeType.AGENT, NodeType.RECORD, NodeType.MESSAGE, NodeType.CURSOR], referenceStruct: StructType.NODE_REFERENCE },
+  [PolicySubjectProperty.membershipsPtr]: { id: 53, name: 'memberships_ptr', component: ObjectType.POLICY_SUBJECT, kind: 'reference', isList: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.MEMBERSHIP], referenceStruct: StructType.NODE_REFERENCE },
+}
+export const AccessZoneDataInfo: Record<AccessZoneProperty, PropertyInfo> = {
+  [AccessZoneProperty.metatype]: { id: 1, name: 'metatype', component: ObjectType.ACCESS_ZONE, enumType: EnumType.OBJECT_TYPE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isInternal: true, isComputed: true, isWired: true },
+  [AccessZoneProperty.id]: { id: 2, name: 'id', component: ObjectType.ACCESS_ZONE, kind: 'primitive', primitiveType: PrimitiveType.INT32, isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
+  [AccessZoneProperty.parentId]: { id: 4, name: 'parent_id', component: ObjectType.ACCESS_ZONE, kind: 'primitive', primitiveType: PrimitiveType.INT32, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
+  [AccessZoneProperty.scopeId]: { id: 30, name: 'scope_id', component: ObjectType.ACCESS_ZONE, kind: 'primitive', primitiveType: PrimitiveType.STRING, isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
+  [AccessZoneProperty.identityId]: { id: 31, name: 'identity_id', component: ObjectType.ACCESS_ZONE, kind: 'primitive', primitiveType: PrimitiveType.INT32, isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
+  [AccessZoneProperty.rules]: { id: 32, name: 'rules', component: ObjectType.ACCESS_ZONE, kind: 'reference', primitiveType: PrimitiveType.JSON, isList: true, isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.POLICY_RULE },
+}
+export const AccessMatrixDataInfo: Record<AccessMatrixProperty, PropertyInfo> = {
+  [AccessMatrixProperty.metatype]: { id: 1, name: 'metatype', component: ObjectType.ACCESS_MATRIX, enumType: EnumType.OBJECT_TYPE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isInternal: true, isComputed: true, isWired: true },
+  [AccessMatrixProperty.subject]: { id: 30, name: 'subject', component: ObjectType.ACCESS_MATRIX, kind: 'reference', primitiveType: PrimitiveType.JSON, isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.POLICY_SUBJECT },
+  [AccessMatrixProperty.identities]: { id: 32, name: 'identities', component: ObjectType.ACCESS_MATRIX, kind: 'reference', primitiveType: PrimitiveType.JSON, isList: true, isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.POLICY_SUBJECT },
+  [AccessMatrixProperty.scopedZones]: { id: 33, name: 'scoped_zones', component: ObjectType.ACCESS_MATRIX, kind: 'reference', primitiveType: PrimitiveType.JSON, isList: true, isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.ACCESS_ZONE },
+  [AccessMatrixProperty.baseZones]: { id: 34, name: 'base_zones', component: ObjectType.ACCESS_MATRIX, kind: 'reference', primitiveType: PrimitiveType.JSON, isList: true, isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.ACCESS_ZONE },
+}
+export const AccessDataInfo: Record<AccessProperty, PropertyInfo> = {
+  [AccessProperty.metatype]: { id: 1, name: 'metatype', component: ObjectType.ACCESS, enumType: EnumType.OBJECT_TYPE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isInternal: true, isComputed: true, isWired: true },
+  [AccessProperty.mode]: { id: 30, name: 'mode', component: ObjectType.ACCESS, enumType: EnumType.ACCESS_MODE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
+  [AccessProperty.decision]: { id: 31, name: 'decision', component: ObjectType.ACCESS, enumType: EnumType.POLICY_EFFECT, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
+  [AccessProperty.verb]: { id: 32, name: 'verb', component: ObjectType.ACCESS, enumType: EnumType.ACCESS_TYPE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
+  [AccessProperty.nodeType]: { id: 33, name: 'node_type', component: ObjectType.ACCESS, enumType: EnumType.NODE_TYPE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
+  [AccessProperty.allowedPropertiesPtr]: { id: 34, name: 'allowed_properties_ptr', component: ObjectType.ACCESS, kind: 'primitive', primitiveType: PrimitiveType.JSON, isList: true, isInternal: true, isRuntime: true, isWired: true, isStored: true, referenceStruct: StructType.PROPERTY_REFERENCE },
+}
 export const ColorDataInfo: Record<ColorProperty, PropertyInfo> = {
   [ColorProperty.metatype]: { id: 1, name: 'metatype', component: ObjectType.COLOR, enumType: EnumType.OBJECT_TYPE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isInternal: true, isComputed: true, isWired: true },
   [ColorProperty.type]: { id: 30, name: 'type', component: ObjectType.COLOR, enumType: EnumType.COLOR_TYPE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isRuntime: true, isWired: true, isStored: true },
@@ -33360,10 +33504,10 @@ export const ShadowDataInfo: Record<ShadowProperty, PropertyInfo> = {
   [ShadowProperty.metatype]: { id: 1, name: 'metatype', component: ObjectType.SHADOW, enumType: EnumType.OBJECT_TYPE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isInternal: true, isComputed: true, isWired: true },
   [ShadowProperty.type]: { id: 30, name: 'type', component: ObjectType.SHADOW, enumType: EnumType.SHADOW_TYPE, kind: 'enum', primitiveType: PrimitiveType.INT16, default: 1, isRequired: true, isRuntime: true, isWired: true, isStored: true },
   [ShadowProperty.position]: { id: 40, name: 'position', component: ObjectType.SHADOW, enumType: EnumType.SHADOW_POSITION, kind: 'enum', primitiveType: PrimitiveType.INT16, default: 1, isRequired: true, isRuntime: true, isWired: true, isStored: true },
-  [ShadowProperty.offsetX]: { id: 41, name: 'offset_x', component: ObjectType.SHADOW, kind: 'primitive', primitiveType: PrimitiveType.STRING, isRequired: true, isRuntime: true, isWired: true, isStored: true },
-  [ShadowProperty.offsetY]: { id: 42, name: 'offset_y', component: ObjectType.SHADOW, kind: 'primitive', primitiveType: PrimitiveType.STRING, isRequired: true, isRuntime: true, isWired: true, isStored: true },
-  [ShadowProperty.blur]: { id: 43, name: 'blur', component: ObjectType.SHADOW, kind: 'primitive', primitiveType: PrimitiveType.STRING, isRequired: true, isRuntime: true, isWired: true, isStored: true },
-  [ShadowProperty.spread]: { id: 44, name: 'spread', component: ObjectType.SHADOW, kind: 'primitive', primitiveType: PrimitiveType.STRING, isRequired: true, isRuntime: true, isWired: true, isStored: true },
+  [ShadowProperty.offsetX]: { id: 41, name: 'offset_x', component: ObjectType.SHADOW, kind: 'primitive', primitiveType: PrimitiveType.INT32, default: 0, isRequired: true, isRuntime: true, isWired: true, isStored: true },
+  [ShadowProperty.offsetY]: { id: 42, name: 'offset_y', component: ObjectType.SHADOW, kind: 'primitive', primitiveType: PrimitiveType.INT32, default: 0, isRequired: true, isRuntime: true, isWired: true, isStored: true },
+  [ShadowProperty.blur]: { id: 43, name: 'blur', component: ObjectType.SHADOW, kind: 'primitive', primitiveType: PrimitiveType.INT32, default: 2, isRequired: true, isRuntime: true, isWired: true, isStored: true },
+  [ShadowProperty.spread]: { id: 44, name: 'spread', component: ObjectType.SHADOW, kind: 'primitive', primitiveType: PrimitiveType.INT32, default: 0, isRequired: true, isRuntime: true, isWired: true, isStored: true },
   [ShadowProperty.color]: { id: 45, name: 'color', component: ObjectType.SHADOW, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.COLOR },
 }
 export const BorderDataInfo: Record<BorderProperty, PropertyInfo> = {
@@ -33414,6 +33558,11 @@ export const FillDataInfo: Record<FillProperty, PropertyInfo> = {
   [FillProperty.imagePtr]: { id: 50, name: 'image_ptr', component: ObjectType.FILL, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.FILE], referenceStruct: StructType.NODE_REFERENCE },
   [FillProperty.position]: { id: 60, name: 'position', component: ObjectType.FILL, enumType: EnumType.FILL_POSITION, kind: 'enum', primitiveType: PrimitiveType.INT16, isRuntime: true, isWired: true, isStored: true },
   [FillProperty.size]: { id: 70, name: 'size', component: ObjectType.FILL, enumType: EnumType.FILL_SIZE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRuntime: true, isWired: true, isStored: true },
+}
+export const LengthDataInfo: Record<LengthProperty, PropertyInfo> = {
+  [LengthProperty.metatype]: { id: 1, name: 'metatype', component: ObjectType.LENGTH, enumType: EnumType.OBJECT_TYPE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isInternal: true, isComputed: true, isWired: true },
+  [LengthProperty.unit]: { id: 31, name: 'unit', component: ObjectType.LENGTH, enumType: EnumType.LENGTH_UNIT, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isRuntime: true, isWired: true, isStored: true },
+  [LengthProperty.value]: { id: 32, name: 'value', component: ObjectType.LENGTH, kind: 'primitive', primitiveType: PrimitiveType.FLOAT32, isRequired: true, isRuntime: true, isWired: true, isStored: true },
 }
 export const PROPERTY_INFOS_BY_TYPE: Record<ObjectType, Record<any, PropertyInfo>> = {
   [ObjectType.UNSPECIFIED]: {},
@@ -33477,21 +33626,15 @@ export const PROPERTY_INFOS_BY_TYPE: Record<ObjectType, Record<any, PropertyInfo
   [ObjectType.CLIENT_ORIGIN]: ClientOriginDataInfo,
   [ObjectType.NODE_REFERENCE]: NodeReferenceDataInfo,
   [ObjectType.PROPERTY_REFERENCE]: PropertyReferenceDataInfo,
-  [ObjectType.POLICY]: PolicyDataInfo,
-  [ObjectType.POLICY_RULE]: PolicyRuleDataInfo,
-  [ObjectType.POLICY_SUBJECT]: PolicySubjectDataInfo,
-  [ObjectType.ACCESS_ZONE]: AccessZoneDataInfo,
-  [ObjectType.ACCESS_MATRIX]: AccessMatrixDataInfo,
-  [ObjectType.ACCESS]: AccessDataInfo,
   [ObjectType.TYPE]: TypeDataInfo,
   [ObjectType.TYPE_CONSTRAINT]: TypeConstraintDataInfo,
   [ObjectType.FILE_INFO]: FileInfoDataInfo,
-  [ObjectType.ICON]: IconDataInfo,
   [ObjectType.SCHEDULE]: ScheduleDataInfo,
   [ObjectType.TEXT]: TextDataInfo,
   [ObjectType.TEXT_LINE]: TextLineDataInfo,
   [ObjectType.TEXT_SPAN]: TextSpanDataInfo,
   [ObjectType.CODE]: CodeDataInfo,
+  [ObjectType.ICON]: IconDataInfo,
   [ObjectType.EXPRESSION]: ExpressionDataInfo,
   [ObjectType.AGGREGATION_RESULT]: AggregationResultDataInfo,
   [ObjectType.SELECTION]: SelectionDataInfo,
@@ -33499,6 +33642,12 @@ export const PROPERTY_INFOS_BY_TYPE: Record<ObjectType, Record<any, PropertyInfo
   [ObjectType.ERROR]: ErrorDataInfo,
   [ObjectType.RUN_TRACE]: RunTraceDataInfo,
   [ObjectType.RUN_FRAME]: RunFrameDataInfo,
+  [ObjectType.POLICY]: PolicyDataInfo,
+  [ObjectType.POLICY_RULE]: PolicyRuleDataInfo,
+  [ObjectType.POLICY_SUBJECT]: PolicySubjectDataInfo,
+  [ObjectType.ACCESS_ZONE]: AccessZoneDataInfo,
+  [ObjectType.ACCESS_MATRIX]: AccessMatrixDataInfo,
+  [ObjectType.ACCESS]: AccessDataInfo,
   [ObjectType.COLOR]: ColorDataInfo,
   [ObjectType.SHADOW]: ShadowDataInfo,
   [ObjectType.BORDER]: BorderDataInfo,
@@ -33508,6 +33657,7 @@ export const PROPERTY_INFOS_BY_TYPE: Record<ObjectType, Record<any, PropertyInfo
   [ObjectType.GRADIENT_STOP]: GradientStopDataInfo,
   [ObjectType.GRADIENT]: GradientDataInfo,
   [ObjectType.FILL]: FillDataInfo,
+  [ObjectType.LENGTH]: LengthDataInfo,
 }
 
 // Enum options
@@ -33566,26 +33716,27 @@ export const NodeTypeOptionInfo: Partial<Record<NodeType, EnumOptionInfo>> = {
   [NodeType.THREAD_VIEW]: { id: 8430, name: 'THREAD_VIEW', text: 'Thread', title: 'Thread View', icon: 'fas fa-reel' },
   [NodeType.THEME]: { id: 8500, name: 'THEME', text: 'Theme', title: 'Theme', icon: 'fas fa-palette' },
   [NodeType.COLOR_STYLE]: { id: 8510, name: 'COLOR_STYLE', text: 'Color Style', title: 'Color Style', icon: 'fas fa-palette' },
-  [NodeType.TEXT_STYLE]: { id: 8520, name: 'TEXT_STYLE', text: 'Text Style', title: 'Text Style', icon: 'fas fa-text' },
-  [NodeType.BORDER_STYLE]: { id: 8530, name: 'BORDER_STYLE', text: 'Border Style', title: 'Border Style', icon: 'fas fa-border-all' },
-  [NodeType.SHADOW_STYLE]: { id: 8540, name: 'SHADOW_STYLE', text: 'Shadow Style', title: 'Shadow Style', icon: 'fas fa-shadow' },
-  [NodeType.GRADIENT_STYLE]: { id: 8550, name: 'GRADIENT_STYLE', text: 'Gradient Style', title: 'Gradient Style', icon: 'fas fa-gradient' },
+  [NodeType.TEXT_STYLE]: { id: 8511, name: 'TEXT_STYLE', text: 'Text Style', title: 'Text Style', icon: 'fas fa-text' },
+  [NodeType.BORDER_STYLE]: { id: 8512, name: 'BORDER_STYLE', text: 'Border Style', title: 'Border Style', icon: 'fas fa-border-all' },
+  [NodeType.SHADOW_STYLE]: { id: 8513, name: 'SHADOW_STYLE', text: 'Shadow Style', title: 'Shadow Style', icon: 'fas fa-shadow' },
+  [NodeType.GRADIENT_STYLE]: { id: 8514, name: 'GRADIENT_STYLE', text: 'Gradient Style', title: 'Gradient Style', icon: 'fas fa-gradient' },
 }
 
 export const StructTypeOptionInfo: Partial<Record<StructType, EnumOptionInfo>> = {
-  [StructType.TEXT]: { id: 12000, name: 'TEXT', icon: 'fas fa-text' },
-  [StructType.TEXT_LINE]: { id: 12001, name: 'TEXT_LINE', icon: 'fas fa-text' },
-  [StructType.TEXT_SPAN]: { id: 12002, name: 'TEXT_SPAN', icon: 'fas fa-text' },
-  [StructType.CODE]: { id: 12100, name: 'CODE', icon: 'fas fa-code' },
-  [StructType.COLOR]: { id: 13200, name: 'COLOR', icon: 'fas fa-palette' },
-  [StructType.SHADOW]: { id: 13203, name: 'SHADOW', icon: 'fas fa-shadow' },
-  [StructType.BORDER]: { id: 13204, name: 'BORDER', icon: 'fas fa-border-all' },
-  [StructType.VECTOR2]: { id: 13205, name: 'VECTOR2', icon: 'fas fa-vector-square' },
-  [StructType.VECTOR3]: { id: 13206, name: 'VECTOR3', icon: 'fas fa-vector-square' },
-  [StructType.VECTOR4]: { id: 13207, name: 'VECTOR4', icon: 'fas fa-vector-square' },
-  [StructType.GRADIENT_STOP]: { id: 13209, name: 'GRADIENT_STOP', icon: 'fas fa-gradient' },
-  [StructType.GRADIENT]: { id: 13210, name: 'GRADIENT', icon: 'fas fa-gradient' },
-  [StructType.FILL]: { id: 13211, name: 'FILL', icon: 'fas fa-fill' },
+  [StructType.TEXT]: { id: 11600, name: 'TEXT', icon: 'fas fa-text' },
+  [StructType.TEXT_LINE]: { id: 11601, name: 'TEXT_LINE', icon: 'fas fa-text' },
+  [StructType.TEXT_SPAN]: { id: 11602, name: 'TEXT_SPAN', icon: 'fas fa-text' },
+  [StructType.CODE]: { id: 11610, name: 'CODE', icon: 'fas fa-code' },
+  [StructType.COLOR]: { id: 18500, name: 'COLOR', icon: 'fas fa-palette' },
+  [StructType.SHADOW]: { id: 18503, name: 'SHADOW', icon: 'fas fa-shadow' },
+  [StructType.BORDER]: { id: 18504, name: 'BORDER', icon: 'fas fa-border-all' },
+  [StructType.VECTOR2]: { id: 15005, name: 'VECTOR2', icon: 'fas fa-vector-square' },
+  [StructType.VECTOR3]: { id: 18506, name: 'VECTOR3', icon: 'fas fa-vector-square' },
+  [StructType.VECTOR4]: { id: 18507, name: 'VECTOR4', icon: 'fas fa-vector-square' },
+  [StructType.GRADIENT_STOP]: { id: 18509, name: 'GRADIENT_STOP', icon: 'fas fa-gradient' },
+  [StructType.GRADIENT]: { id: 18510, name: 'GRADIENT', icon: 'fas fa-gradient' },
+  [StructType.FILL]: { id: 18511, name: 'FILL', icon: 'fas fa-fill' },
+  [StructType.LENGTH]: { id: 18512, name: 'LENGTH', icon: 'fas fa-length' },
 }
 
 export const NodeModeOptionInfo: Partial<Record<NodeMode, EnumOptionInfo>> = {
@@ -33598,10 +33749,45 @@ export const NodeModeOptionInfo: Partial<Record<NodeMode, EnumOptionInfo>> = {
   [NodeMode.ARCHIVE]: { id: 50, name: 'ARCHIVE', text: 'Inactive and hidden', title: 'Archive', icon: 'fas fa-box-archive' },
 }
 
+export const SeverityOptionInfo: Partial<Record<Severity, EnumOptionInfo>> = {
+  [Severity.TRACE]: { id: 1, name: 'TRACE', icon: 'fas fa-bug' },
+  [Severity.DEBUG]: { id: 2, name: 'DEBUG', icon: 'fas fa-bug' },
+  [Severity.INFO]: { id: 3, name: 'INFO', icon: 'fas fa-circle-check' },
+  [Severity.WARNING]: { id: 4, name: 'WARNING', icon: 'fas fa-circle-exclamation' },
+  [Severity.ERROR]: { id: 5, name: 'ERROR', icon: 'fas fa-circle-exclamation' },
+  [Severity.PANIC]: { id: 6, name: 'PANIC', icon: 'fas fa-skull' },
+}
+
 export const PackageTypeOptionInfo: Partial<Record<PackageType, EnumOptionInfo>> = {
   [PackageType.OPEN]: { id: 1, name: 'OPEN', title: 'Open' },
   [PackageType.CLOSED]: { id: 2, name: 'CLOSED', title: 'Closed' },
   [PackageType.PRIVATE]: { id: 3, name: 'PRIVATE', title: 'Private' },
+}
+
+export const ResourceStatusOptionInfo: Partial<Record<ResourceStatus, EnumOptionInfo>> = {
+  [ResourceStatus.PENDING]: { id: 1, name: 'PENDING', text: 'Waiting for provisioning', title: 'Pending', icon: 'fas fa-hourglass-start' },
+  [ResourceStatus.CREATING]: { id: 2, name: 'CREATING', text: 'Actively provisioning', title: 'Creating', icon: 'fas fa-hourglass-start' },
+  [ResourceStatus.RETRYING]: { id: 3, name: 'RETRYING', text: 'Retrying provisioning', title: 'Retrying', icon: 'fas fa-exclamation-triangle' },
+  [ResourceStatus.AVAILABLE]: { id: 10, name: 'AVAILABLE', text: 'Operational and available', title: 'Available', icon: 'fas fa-check-circle' },
+  [ResourceStatus.SLEEPING]: { id: 11, name: 'SLEEPING', text: 'Available but not running', title: 'Sleeping', icon: 'fas fa-moon' },
+  [ResourceStatus.UNAVAILABLE]: { id: 15, name: 'UNAVAILABLE', text: 'Unavailable or not responding', title: 'Unavailable', icon: 'fas fa-plug-circle-xmark' },
+  [ResourceStatus.IMPAIRED]: { id: 16, name: 'IMPAIRED', text: 'Operational but experiencing issues', title: 'Impaired', icon: 'fas fa-exclamation-triangle' },
+  [ResourceStatus.OFFLINE]: { id: 30, name: 'OFFLINE', text: 'Decommissioned and unavailable', title: 'Offline', icon: 'fas fa-power-off' },
+  [ResourceStatus.FAILED]: { id: 31, name: 'FAILED', text: 'Failed to provision', title: 'Failed', icon: 'fas fa-exclamation-triangle' },
+}
+
+export const BlockTypeOptionInfo: Partial<Record<BlockType, EnumOptionInfo>> = {
+  [BlockType.PARAGRAPH]: { id: 1, name: 'PARAGRAPH', text: 'Plain paragraph', title: 'Paragraph', icon: 'fas fa-align-left' },
+  [BlockType.HEADING_1]: { id: 10, name: 'HEADING_1', text: 'Very big heading', title: 'Heading 1', icon: 'fas fa-heading' },
+  [BlockType.HEADING_2]: { id: 11, name: 'HEADING_2', text: 'Big heading', title: 'Heading 2', icon: 'fas fa-heading' },
+  [BlockType.HEADING_3]: { id: 12, name: 'HEADING_3', text: 'Medium heading', title: 'Heading 3', icon: 'fas fa-heading' },
+  [BlockType.HEADING_4]: { id: 13, name: 'HEADING_4', text: 'Small heading', title: 'Heading 4', icon: 'fas fa-heading' },
+  [BlockType.CALLOUT]: { id: 20, name: 'CALLOUT', text: 'Callout', title: 'Callout', icon: 'fas fa-circle-exclamation' },
+  [BlockType.QUOTE]: { id: 21, name: 'QUOTE', text: 'Quote', title: 'Quote', icon: 'fas fa-quote-left' },
+  [BlockType.LIST_UNORDERED]: { id: 30, name: 'LIST_UNORDERED', text: 'Unorderd list', title: 'Unorderd list', icon: 'fas fa-list-ul' },
+  [BlockType.LIST_ORDERED]: { id: 31, name: 'LIST_ORDERED', text: 'Numbered list', title: 'Numbered list', icon: 'fas fa-list-ol' },
+  [BlockType.DIVIDER]: { id: 40, name: 'DIVIDER', text: 'Horizontal line', title: 'Horizontal line', icon: 'fas fa-horizontal-rule' },
+  [BlockType.CODE]: { id: 50, name: 'CODE', text: 'Code', title: 'Code', icon: 'fas fa-code' },
 }
 
 export const RegionOptionInfo: Partial<Record<Region, EnumOptionInfo>> = {
@@ -33639,24 +33825,35 @@ export const ContinentOptionInfo: Partial<Record<Continent, EnumOptionInfo>> = {
   [Continent.AUSTRALIA]: { id: 7000, name: 'AUSTRALIA', title: 'Australia', icon: '🇦🇺' },
 }
 
-export const ResourceStatusOptionInfo: Partial<Record<ResourceStatus, EnumOptionInfo>> = {
-  [ResourceStatus.PENDING]: { id: 1, name: 'PENDING', text: 'Waiting for provisioning', title: 'Pending', icon: 'fas fa-hourglass-start' },
-  [ResourceStatus.CREATING]: { id: 2, name: 'CREATING', text: 'Actively provisioning', title: 'Creating', icon: 'fas fa-hourglass-start' },
-  [ResourceStatus.RETRYING]: { id: 3, name: 'RETRYING', text: 'Retrying provisioning', title: 'Retrying', icon: 'fas fa-exclamation-triangle' },
-  [ResourceStatus.AVAILABLE]: { id: 10, name: 'AVAILABLE', text: 'Operational and available', title: 'Available', icon: 'fas fa-check-circle' },
-  [ResourceStatus.SLEEPING]: { id: 11, name: 'SLEEPING', text: 'Available but not running', title: 'Sleeping', icon: 'fas fa-moon' },
-  [ResourceStatus.UNAVAILABLE]: { id: 15, name: 'UNAVAILABLE', text: 'Unavailable or not responding', title: 'Unavailable', icon: 'fas fa-plug-circle-xmark' },
-  [ResourceStatus.IMPAIRED]: { id: 16, name: 'IMPAIRED', text: 'Operational but experiencing issues', title: 'Impaired', icon: 'fas fa-exclamation-triangle' },
-  [ResourceStatus.OFFLINE]: { id: 30, name: 'OFFLINE', text: 'Decommissioned and unavailable', title: 'Offline', icon: 'fas fa-power-off' },
-  [ResourceStatus.FAILED]: { id: 31, name: 'FAILED', text: 'Failed to provision', title: 'Failed', icon: 'fas fa-exclamation-triangle' },
-}
-
 export const ComputerTypeOptionInfo: Partial<Record<ComputerType, EnumOptionInfo>> = {
   [ComputerType.RUNTIME]: { id: 10, name: 'RUNTIME', text: 'The main Bench runtime', title: 'Runtime', icon: 'fas fa-computer-classic' },
   [ComputerType.UBUNTU]: { id: 1000, name: 'UBUNTU', text: 'A Linux computer running Ubuntu', title: 'Ubuntu', icon: 'fab fa-ubuntu' },
   [ComputerType.MAC]: { id: 1100, name: 'MAC', text: 'A Mac computer', title: 'Mac', icon: 'fab fa-apple' },
   [ComputerType.WINDOWS]: { id: 1200, name: 'WINDOWS', text: 'A Windows computer', title: 'Windows', icon: 'fab fa-windows' },
   [ComputerType.CUSTOM]: { id: 9000, name: 'CUSTOM', text: 'A custom Docker image', title: 'Custom', icon: 'fas fa-whale' },
+}
+
+export const TextLineTypeOptionInfo: Partial<Record<TextLineType, EnumOptionInfo>> = {
+  [TextLineType.PARAGRAPH]: { id: 1, name: 'PARAGRAPH', text: 'Plain paragraph', title: 'Paragraph', icon: 'fas fa-align-left' },
+  [TextLineType.HEADING_1]: { id: 10, name: 'HEADING_1', text: 'Very big heading', title: 'Heading 1', icon: 'fas fa-heading' },
+  [TextLineType.HEADING_2]: { id: 11, name: 'HEADING_2', text: 'Big heading', title: 'Heading 2', icon: 'fas fa-heading' },
+  [TextLineType.HEADING_3]: { id: 12, name: 'HEADING_3', text: 'Medium heading', title: 'Heading 3', icon: 'fas fa-heading' },
+  [TextLineType.HEADING_4]: { id: 13, name: 'HEADING_4', text: 'Small heading', title: 'Heading 4', icon: 'fas fa-heading' },
+  [TextLineType.CALLOUT]: { id: 20, name: 'CALLOUT', text: 'Callout', title: 'Callout', icon: 'fas fa-circle-exclamation' },
+  [TextLineType.QUOTE]: { id: 21, name: 'QUOTE', text: 'Quote', title: 'Quote', icon: 'fas fa-quote-left' },
+  [TextLineType.LIST_UNORDERED]: { id: 30, name: 'LIST_UNORDERED', text: 'Unorderd list', title: 'Unorderd list', icon: 'fas fa-list-ul' },
+  [TextLineType.LIST_ORDERED]: { id: 31, name: 'LIST_ORDERED', text: 'Numbered list', title: 'Numbered list', icon: 'fas fa-list-ol' },
+  [TextLineType.DIVIDER]: { id: 40, name: 'DIVIDER', text: 'Horizontal line', title: 'Horizontal line', icon: 'fas fa-horizontal-rule' },
+  [TextLineType.CODE]: { id: 50, name: 'CODE', text: 'Code', title: 'Code', icon: 'fas fa-code' },
+}
+
+export const TextSpanTypeOptionInfo: Partial<Record<TextSpanType, EnumOptionInfo>> = {
+  [TextSpanType.TEXT]: { id: 1, name: 'TEXT', title: 'Formatted text' },
+  [TextSpanType.HARD_BREAK]: { id: 2, name: 'HARD_BREAK', title: 'Hard break' },
+  [TextSpanType.MENTION]: { id: 10, name: 'MENTION', title: 'Reference to a Node' },
+  [TextSpanType.LINK]: { id: 11, name: 'LINK', title: 'Hyperlink' },
+  [TextSpanType.CITATION]: { id: 12, name: 'CITATION', title: 'Citation' },
+  [TextSpanType.EQUATION]: { id: 20, name: 'EQUATION', title: 'TeX equation' },
 }
 
 export const FileTypeOptionInfo: Partial<Record<FileType, EnumOptionInfo>> = {
@@ -33706,41 +33903,64 @@ export const TypeFormatOptionInfo: Partial<Record<TypeFormat, EnumOptionInfo>> =
   [TypeFormat.SLUG]: { id: 2004, name: 'SLUG', text: 'Slug', title: 'Slug', icon: 'fas fa-at' },
 }
 
-export const BlockTypeOptionInfo: Partial<Record<BlockType, EnumOptionInfo>> = {
-  [BlockType.PARAGRAPH]: { id: 1, name: 'PARAGRAPH', text: 'Plain paragraph', title: 'Paragraph', icon: 'fas fa-align-left' },
-  [BlockType.HEADING_1]: { id: 10, name: 'HEADING_1', text: 'Very big heading', title: 'Heading 1', icon: 'fas fa-heading' },
-  [BlockType.HEADING_2]: { id: 11, name: 'HEADING_2', text: 'Big heading', title: 'Heading 2', icon: 'fas fa-heading' },
-  [BlockType.HEADING_3]: { id: 12, name: 'HEADING_3', text: 'Medium heading', title: 'Heading 3', icon: 'fas fa-heading' },
-  [BlockType.HEADING_4]: { id: 13, name: 'HEADING_4', text: 'Small heading', title: 'Heading 4', icon: 'fas fa-heading' },
-  [BlockType.CALLOUT]: { id: 20, name: 'CALLOUT', text: 'Callout', title: 'Callout', icon: 'fas fa-circle-exclamation' },
-  [BlockType.QUOTE]: { id: 21, name: 'QUOTE', text: 'Quote', title: 'Quote', icon: 'fas fa-quote-left' },
-  [BlockType.LIST_UNORDERED]: { id: 30, name: 'LIST_UNORDERED', text: 'Unorderd list', title: 'Unorderd list', icon: 'fas fa-list-ul' },
-  [BlockType.LIST_ORDERED]: { id: 31, name: 'LIST_ORDERED', text: 'Numbered list', title: 'Numbered list', icon: 'fas fa-list-ol' },
-  [BlockType.DIVIDER]: { id: 40, name: 'DIVIDER', text: 'Horizontal line', title: 'Horizontal line', icon: 'fas fa-horizontal-rule' },
-  [BlockType.CODE]: { id: 50, name: 'CODE', text: 'Code', title: 'Code', icon: 'fas fa-code' },
+export const MessageTypeOptionInfo: Partial<Record<MessageType, EnumOptionInfo>> = {
+  [MessageType.DEFAULT]: { id: 1, name: 'DEFAULT', text: 'Regular text (and nodes)', title: 'Default', icon: 'fas fa-envelope' },
+  [MessageType.JOIN]: { id: 10, name: 'JOIN', text: 'Join a chat', title: 'Join', icon: 'fas fa-arrow-right-to-bracket' },
+  [MessageType.LEAVE]: { id: 11, name: 'LEAVE', text: 'Leave a chat', title: 'Leave', icon: 'fas fa-arrow-left-from-line' },
+  [MessageType.RESOURCE]: { id: 20, name: 'RESOURCE', text: 'Resource update', title: 'Resource', icon: 'fas fa-plug' },
+  [MessageType.RUN]: { id: 100, name: 'RUN', title: 'Run', icon: 'fas fa-play' },
+  [MessageType.THREAD]: { id: 110, name: 'THREAD', text: 'Thread inside a chat', title: 'Thread', icon: 'fas fa-thread' },
 }
 
-export const TextLineTypeOptionInfo: Partial<Record<TextLineType, EnumOptionInfo>> = {
-  [TextLineType.PARAGRAPH]: { id: 1, name: 'PARAGRAPH', text: 'Plain paragraph', title: 'Paragraph', icon: 'fas fa-align-left' },
-  [TextLineType.HEADING_1]: { id: 10, name: 'HEADING_1', text: 'Very big heading', title: 'Heading 1', icon: 'fas fa-heading' },
-  [TextLineType.HEADING_2]: { id: 11, name: 'HEADING_2', text: 'Big heading', title: 'Heading 2', icon: 'fas fa-heading' },
-  [TextLineType.HEADING_3]: { id: 12, name: 'HEADING_3', text: 'Medium heading', title: 'Heading 3', icon: 'fas fa-heading' },
-  [TextLineType.HEADING_4]: { id: 13, name: 'HEADING_4', text: 'Small heading', title: 'Heading 4', icon: 'fas fa-heading' },
-  [TextLineType.CALLOUT]: { id: 20, name: 'CALLOUT', text: 'Callout', title: 'Callout', icon: 'fas fa-circle-exclamation' },
-  [TextLineType.QUOTE]: { id: 21, name: 'QUOTE', text: 'Quote', title: 'Quote', icon: 'fas fa-quote-left' },
-  [TextLineType.LIST_UNORDERED]: { id: 30, name: 'LIST_UNORDERED', text: 'Unorderd list', title: 'Unorderd list', icon: 'fas fa-list-ul' },
-  [TextLineType.LIST_ORDERED]: { id: 31, name: 'LIST_ORDERED', text: 'Numbered list', title: 'Numbered list', icon: 'fas fa-list-ol' },
-  [TextLineType.DIVIDER]: { id: 40, name: 'DIVIDER', text: 'Horizontal line', title: 'Horizontal line', icon: 'fas fa-horizontal-rule' },
-  [TextLineType.CODE]: { id: 50, name: 'CODE', text: 'Code', title: 'Code', icon: 'fas fa-code' },
+export const ClaimTypeOptionInfo: Partial<Record<ClaimType, EnumOptionInfo>> = {
+  [ClaimType.READ]: { id: 20, name: 'READ', text: 'Can read', title: 'Read', icon: 'fas fa-eye' },
+  [ClaimType.WRITE]: { id: 40, name: 'WRITE', text: 'Can write', title: 'Write', icon: 'fas fa-pencil' },
 }
 
-export const TextSpanTypeOptionInfo: Partial<Record<TextSpanType, EnumOptionInfo>> = {
-  [TextSpanType.TEXT]: { id: 1, name: 'TEXT', title: 'Formatted text' },
-  [TextSpanType.HARD_BREAK]: { id: 2, name: 'HARD_BREAK', title: 'Hard break' },
-  [TextSpanType.MENTION]: { id: 10, name: 'MENTION', title: 'Reference to a Node' },
-  [TextSpanType.LINK]: { id: 11, name: 'LINK', title: 'Hyperlink' },
-  [TextSpanType.CITATION]: { id: 12, name: 'CITATION', title: 'Citation' },
-  [TextSpanType.EQUATION]: { id: 20, name: 'EQUATION', title: 'TeX equation' },
+export const ClaimStatusOptionInfo: Partial<Record<ClaimStatus, EnumOptionInfo>> = {
+  [ClaimStatus.REQUESTED]: { id: 1, name: 'REQUESTED', text: 'Pending', title: 'Pending', icon: 'fas fa-clock' },
+  [ClaimStatus.OPEN]: { id: 10, name: 'OPEN', text: 'Active concurrent access', title: 'Active', icon: 'fas fa-lock-open' },
+  [ClaimStatus.PAUSED]: { id: 20, name: 'PAUSED', text: 'Paused', title: 'Paused', icon: 'fas fa-pause' },
+  [ClaimStatus.CLOSED]: { id: 30, name: 'CLOSED', text: 'Closed', title: 'Closed', icon: 'fas fa-power-off' },
+}
+
+export const CursorTypeOptionInfo: Partial<Record<CursorType, EnumOptionInfo>> = {
+  [CursorType.THREAD]: { id: 5510, name: 'THREAD', title: 'Thread' },
+  [CursorType.PAGE]: { id: 5020, name: 'PAGE', title: 'Page' },
+  [CursorType.TABLE]: { id: 5090, name: 'TABLE', title: 'Table' },
+  [CursorType.ACTION]: { id: 5051, name: 'ACTION', title: 'Action' },
+  [CursorType.WEB]: { id: 10000, name: 'WEB', title: 'Web' },
+  [CursorType.CUSTOM]: { id: 9000, name: 'CUSTOM', title: 'Custom' },
+}
+
+export const CursorStatusOptionInfo: Partial<Record<CursorStatus, EnumOptionInfo>> = {
+  [CursorStatus.CREATED]: { id: 1, name: 'CREATED', text: 'Created', title: 'Created', icon: 'fas fa-clock' },
+  [CursorStatus.WORKING]: { id: 10, name: 'WORKING', text: 'Working', title: 'Working', icon: 'fas fa-hammer' },
+  [CursorStatus.READING]: { id: 11, name: 'READING', text: 'Reading', title: 'Reading', icon: 'fas fa-book-open' },
+  [CursorStatus.WRITING]: { id: 12, name: 'WRITING', text: 'Writing', title: 'Writing', icon: 'fas fa-pencil' },
+  [CursorStatus.THINKING]: { id: 13, name: 'THINKING', text: 'Thinking', title: 'Thinking', icon: 'fas fa-brain' },
+  [CursorStatus.WAITING]: { id: 15, name: 'WAITING', text: 'Waiting', title: 'Waiting', icon: 'fas fa-hourglass-half' },
+  [CursorStatus.IDLE]: { id: 30, name: 'IDLE', text: 'Idle', title: 'Idle', icon: 'fas fa-snooze' },
+  [CursorStatus.CANCELLED]: { id: 50, name: 'CANCELLED', text: 'Cancelled', title: 'Cancelled', icon: 'fas fa-times' },
+  [CursorStatus.COMPLETED]: { id: 53, name: 'COMPLETED', text: 'Completed', title: 'Completed', icon: 'fas fa-check' },
+}
+
+export const ActionTypeOptionInfo: Partial<Record<ActionType, EnumOptionInfo>> = {
+  [ActionType.START]: { id: 10, name: 'START', text: 'Begin the Flow', title: 'Start', icon: 'fas fa-circle-play' },
+  [ActionType.END]: { id: 20, name: 'END', text: 'Complete the Flow', title: 'End', icon: 'fas fa-flag-checkered' },
+  [ActionType.TOOL]: { id: 100, name: 'TOOL', text: 'Delegate to a specific tool', title: 'Tool', icon: 'fas fa-screwdriver-wrench' },
+  [ActionType.CODE]: { id: 101, name: 'CODE', text: 'Run some Code', title: 'Code', icon: 'fas fa-code' },
+  [ActionType.BUILTIN]: { id: 102, name: 'BUILTIN', text: 'Run a builtin', title: 'Builtin', icon: 'fas fa-cogs' },
+}
+
+export const TransitionTypeOptionInfo: Partial<Record<TransitionType, EnumOptionInfo>> = {
+  [TransitionType.MANUAL]: { id: 10, name: 'MANUAL', text: 'Manually triggered', title: 'Manual', icon: 'fas fa-link' },
+  [TransitionType.DECIDE]: { id: 20, name: 'DECIDE', text: 'Determine when and how to call', title: 'Decide', icon: 'far fa-shuffle' },
+  [TransitionType.REQUIRE]: { id: 30, name: 'REQUIRE', text: 'Determine how to call', title: 'Require', icon: 'fas fa-arrow-right-long' },
+}
+
+export const FlowTypeOptionInfo: Partial<Record<FlowType, EnumOptionInfo>> = {
+  [FlowType.ACTION]: { id: 10, name: 'ACTION', text: 'Link Actions into a procedural Flow', title: 'Action' },
 }
 
 export const ProcessStatusOptionInfo: Partial<Record<ProcessStatus, EnumOptionInfo>> = {
@@ -33777,48 +33997,6 @@ export const SpanTypeOptionInfo: Partial<Record<SpanType, EnumOptionInfo>> = {
   [SpanType.FILE_PREPARE_DOWNLOAD]: { id: 503, name: 'FILE_PREPARE_DOWNLOAD', icon: 'fas fa-download' },
 }
 
-export const SeverityOptionInfo: Partial<Record<Severity, EnumOptionInfo>> = {
-  [Severity.TRACE]: { id: 1, name: 'TRACE', icon: 'fas fa-bug' },
-  [Severity.DEBUG]: { id: 2, name: 'DEBUG', icon: 'fas fa-bug' },
-  [Severity.INFO]: { id: 3, name: 'INFO', icon: 'fas fa-circle-check' },
-  [Severity.WARNING]: { id: 4, name: 'WARNING', icon: 'fas fa-circle-exclamation' },
-  [Severity.ERROR]: { id: 5, name: 'ERROR', icon: 'fas fa-circle-exclamation' },
-  [Severity.PANIC]: { id: 6, name: 'PANIC', icon: 'fas fa-skull' },
-}
-
-export const ClaimTypeOptionInfo: Partial<Record<ClaimType, EnumOptionInfo>> = {
-  [ClaimType.READ]: { id: 20, name: 'READ', text: 'Can read', title: 'Read', icon: 'fas fa-eye' },
-  [ClaimType.WRITE]: { id: 40, name: 'WRITE', text: 'Can write', title: 'Write', icon: 'fas fa-pencil' },
-}
-
-export const ClaimStatusOptionInfo: Partial<Record<ClaimStatus, EnumOptionInfo>> = {
-  [ClaimStatus.REQUESTED]: { id: 1, name: 'REQUESTED', text: 'Pending', title: 'Pending', icon: 'fas fa-clock' },
-  [ClaimStatus.OPEN]: { id: 10, name: 'OPEN', text: 'Active concurrent access', title: 'Active', icon: 'fas fa-lock-open' },
-  [ClaimStatus.PAUSED]: { id: 20, name: 'PAUSED', text: 'Paused', title: 'Paused', icon: 'fas fa-pause' },
-  [ClaimStatus.CLOSED]: { id: 30, name: 'CLOSED', text: 'Closed', title: 'Closed', icon: 'fas fa-power-off' },
-}
-
-export const CursorTypeOptionInfo: Partial<Record<CursorType, EnumOptionInfo>> = {
-  [CursorType.THREAD]: { id: 5510, name: 'THREAD', title: 'Thread' },
-  [CursorType.PAGE]: { id: 5020, name: 'PAGE', title: 'Page' },
-  [CursorType.TABLE]: { id: 5090, name: 'TABLE', title: 'Table' },
-  [CursorType.ACTION]: { id: 5051, name: 'ACTION', title: 'Action' },
-  [CursorType.WEB]: { id: 10000, name: 'WEB', title: 'Web' },
-  [CursorType.CUSTOM]: { id: 9000, name: 'CUSTOM', title: 'Custom' },
-}
-
-export const CursorStatusOptionInfo: Partial<Record<CursorStatus, EnumOptionInfo>> = {
-  [CursorStatus.CREATED]: { id: 1, name: 'CREATED', text: 'Created', title: 'Created', icon: 'fas fa-clock' },
-  [CursorStatus.WORKING]: { id: 10, name: 'WORKING', text: 'Working', title: 'Working', icon: 'fas fa-hammer' },
-  [CursorStatus.READING]: { id: 11, name: 'READING', text: 'Reading', title: 'Reading', icon: 'fas fa-book-open' },
-  [CursorStatus.WRITING]: { id: 12, name: 'WRITING', text: 'Writing', title: 'Writing', icon: 'fas fa-pencil' },
-  [CursorStatus.THINKING]: { id: 13, name: 'THINKING', text: 'Thinking', title: 'Thinking', icon: 'fas fa-brain' },
-  [CursorStatus.WAITING]: { id: 15, name: 'WAITING', text: 'Waiting', title: 'Waiting', icon: 'fas fa-hourglass-half' },
-  [CursorStatus.IDLE]: { id: 30, name: 'IDLE', text: 'Idle', title: 'Idle', icon: 'fas fa-snooze' },
-  [CursorStatus.CANCELLED]: { id: 50, name: 'CANCELLED', text: 'Cancelled', title: 'Cancelled', icon: 'fas fa-times' },
-  [CursorStatus.COMPLETED]: { id: 53, name: 'COMPLETED', text: 'Completed', title: 'Completed', icon: 'fas fa-check' },
-}
-
 export const InterruptionTypeOptionInfo: Partial<Record<InterruptionType, EnumOptionInfo>> = {
   [InterruptionType.PAUSE]: { id: 10, name: 'PAUSE', text: 'Run is marked as paused', title: 'Pause', icon: 'fas fa-pause' },
   [InterruptionType.YIELD]: { id: 20, name: 'YIELD', text: 'Yield to something', title: 'Yield', icon: 'fas fa-hand' },
@@ -33840,65 +34018,38 @@ export const ModelProviderOptionInfo: Partial<Record<ModelProvider, EnumOptionIn
   [ModelProvider.XAI]: { id: 1040, name: 'XAI', text: 'xAI', title: 'xAI' },
 }
 
-export const ActionTypeOptionInfo: Partial<Record<ActionType, EnumOptionInfo>> = {
-  [ActionType.START]: { id: 10, name: 'START', text: 'Begin the Flow', title: 'Start', icon: 'fas fa-circle-play' },
-  [ActionType.END]: { id: 20, name: 'END', text: 'Complete the Flow', title: 'End', icon: 'fas fa-flag-checkered' },
-  [ActionType.TOOL]: { id: 100, name: 'TOOL', text: 'Delegate to a specific tool', title: 'Tool', icon: 'fas fa-screwdriver-wrench' },
-  [ActionType.CODE]: { id: 101, name: 'CODE', text: 'Run some Code', title: 'Code', icon: 'fas fa-code' },
-  [ActionType.BUILTIN]: { id: 102, name: 'BUILTIN', text: 'Run a builtin', title: 'Builtin', icon: 'fas fa-cogs' },
-}
-
-export const TransitionTypeOptionInfo: Partial<Record<TransitionType, EnumOptionInfo>> = {
-  [TransitionType.MANUAL]: { id: 10, name: 'MANUAL', text: 'Manually triggered', title: 'Manual', icon: 'fas fa-link' },
-  [TransitionType.DECIDE]: { id: 20, name: 'DECIDE', text: 'Determine when and how to call', title: 'Decide', icon: 'far fa-shuffle' },
-  [TransitionType.REQUIRE]: { id: 30, name: 'REQUIRE', text: 'Determine how to call', title: 'Require', icon: 'fas fa-arrow-right-long' },
-}
-
-export const FlowTypeOptionInfo: Partial<Record<FlowType, EnumOptionInfo>> = {
-  [FlowType.ACTION]: { id: 10, name: 'ACTION', text: 'Link Actions into a procedural Flow', title: 'Action' },
-}
-
-export const MessageTypeOptionInfo: Partial<Record<MessageType, EnumOptionInfo>> = {
-  [MessageType.DEFAULT]: { id: 1, name: 'DEFAULT', text: 'Regular text (and nodes)', title: 'Default', icon: 'fas fa-envelope' },
-  [MessageType.JOIN]: { id: 10, name: 'JOIN', text: 'Join a chat', title: 'Join', icon: 'fas fa-arrow-right-to-bracket' },
-  [MessageType.LEAVE]: { id: 11, name: 'LEAVE', text: 'Leave a chat', title: 'Leave', icon: 'fas fa-arrow-left-from-line' },
-  [MessageType.RESOURCE]: { id: 20, name: 'RESOURCE', text: 'Resource update', title: 'Resource', icon: 'fas fa-plug' },
-  [MessageType.RUN]: { id: 100, name: 'RUN', title: 'Run', icon: 'fas fa-play' },
-  [MessageType.THREAD]: { id: 110, name: 'THREAD', text: 'Thread inside a chat', title: 'Thread', icon: 'fas fa-thread' },
-}
-
 
 export const ENUM_OPTION_INFO_BY_TYPE: Partial<Record<EnumType, Record<any, EnumOptionInfo>>> = {
   [EnumType.NODE_TYPE]: NodeTypeOptionInfo,
   [EnumType.STRUCT_TYPE]: StructTypeOptionInfo,
   [EnumType.NODE_MODE]: NodeModeOptionInfo,
+  [EnumType.SEVERITY]: SeverityOptionInfo,
   [EnumType.PACKAGE_TYPE]: PackageTypeOptionInfo,
+  [EnumType.RESOURCE_STATUS]: ResourceStatusOptionInfo,
+  [EnumType.BLOCK_TYPE]: BlockTypeOptionInfo,
   [EnumType.REGION]: RegionOptionInfo,
   [EnumType.AREA]: AreaOptionInfo,
   [EnumType.CONTINENT]: ContinentOptionInfo,
-  [EnumType.RESOURCE_STATUS]: ResourceStatusOptionInfo,
   [EnumType.COMPUTER_TYPE]: ComputerTypeOptionInfo,
+  [EnumType.TEXT_LINE_TYPE]: TextLineTypeOptionInfo,
+  [EnumType.TEXT_SPAN_TYPE]: TextSpanTypeOptionInfo,
   [EnumType.FILE_TYPE]: FileTypeOptionInfo,
   [EnumType.PRIMITIVE_TYPE]: PrimitiveTypeOptionInfo,
   [EnumType.FIELD_ZONE]: FieldTypeOptionInfo,
   [EnumType.TYPE_FORMAT]: TypeFormatOptionInfo,
-  [EnumType.BLOCK_TYPE]: BlockTypeOptionInfo,
-  [EnumType.TEXT_LINE_TYPE]: TextLineTypeOptionInfo,
-  [EnumType.TEXT_SPAN_TYPE]: TextSpanTypeOptionInfo,
-  [EnumType.PROCESS_STATUS]: ProcessStatusOptionInfo,
-  [EnumType.SPAN_TYPE]: SpanTypeOptionInfo,
-  [EnumType.SEVERITY]: SeverityOptionInfo,
+  [EnumType.MESSAGE_TYPE]: MessageTypeOptionInfo,
   [EnumType.CLAIM_TYPE]: ClaimTypeOptionInfo,
   [EnumType.CLAIM_STATUS]: ClaimStatusOptionInfo,
   [EnumType.CURSOR_TYPE]: CursorTypeOptionInfo,
   [EnumType.CURSOR_STATUS]: CursorStatusOptionInfo,
-  [EnumType.INTERRUPTION_TYPE]: InterruptionTypeOptionInfo,
-  [EnumType.MODEL_DEVELOPER]: ModelDeveloperOptionInfo,
-  [EnumType.MODEL_PROVIDER]: ModelProviderOptionInfo,
   [EnumType.ACTION_TYPE]: ActionTypeOptionInfo,
   [EnumType.TRANSITION_TYPE]: TransitionTypeOptionInfo,
   [EnumType.FLOW_TYPE]: FlowTypeOptionInfo,
-  [EnumType.MESSAGE_TYPE]: MessageTypeOptionInfo,
+  [EnumType.PROCESS_STATUS]: ProcessStatusOptionInfo,
+  [EnumType.SPAN_TYPE]: SpanTypeOptionInfo,
+  [EnumType.INTERRUPTION_TYPE]: InterruptionTypeOptionInfo,
+  [EnumType.MODEL_DEVELOPER]: ModelDeveloperOptionInfo,
+  [EnumType.MODEL_PROVIDER]: ModelProviderOptionInfo,
 }
 
 
