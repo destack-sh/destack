@@ -18,6 +18,12 @@ from .length import Length
 from .style import StyleBase
 
 
+@enum_(EnumType.TEXT_TYPE)
+class TextType(BuiltinEnum):
+    INLINE = 1
+    STYLE = 2
+
+
 @enum_(EnumType.FONT_TYPE)
 class FontType(BuiltinEnum):
     SERIF = 1
@@ -78,15 +84,21 @@ class TextTransform(BuiltinEnum):
 
 @node_component_()
 class TextStyleBase(BuiltinObject):
-    type: Optional[FontType] = p_regular(30, default=FontType.SERIF)
+    """A text style value."""
+
+    type: TextType = p_regular(30, default=TextType.INLINE)
+    style: Optional["TextStyle"] = p_regular(
+        40, default=None, require=False, array=False, references=NodeType.TEXT_STYLE
+    )
     weight: Optional[FontWeight] = p_regular(41, default=FontWeight.NORMAL)
     color: Optional[Color] = p_regular(45, default=None, struct=StructType.COLOR)
-    size: Optional[FontSize] = p_regular(46, default=FontSize.BASE)
-    align: Optional[TextAlign] = p_regular(47, default=TextAlign.LEFT)
-    line_height: Optional[Length] = p_regular(48, default=None, struct=StructType.LENGTH)
-    letter_spacing: Optional[Length] = p_regular(49, default=None, struct=StructType.LENGTH)
-    decoration: Optional[TextDecoration] = p_regular(50, default=TextDecoration.NONE)
-    transform: Optional[TextTransform] = p_regular(51, default=TextTransform.NONE)
+    font_type: Optional[FontType] = p_regular(46, default=FontType.SERIF)
+    font_size: Optional[FontSize] = p_regular(47, default=FontSize.BASE)
+    align: Optional[TextAlign] = p_regular(48, default=TextAlign.LEFT)
+    line_height: Optional[Length] = p_regular(49, default=None, struct=StructType.LENGTH)
+    letter_spacing: Optional[Length] = p_regular(50, default=None, struct=StructType.LENGTH)
+    decoration: Optional[TextDecoration] = p_regular(51, default=TextDecoration.NONE)
+    transform: Optional[TextTransform] = p_regular(52, default=TextTransform.NONE)
 
 
 @node_(NodeType.TEXT_STYLE)

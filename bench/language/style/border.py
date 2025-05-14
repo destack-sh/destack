@@ -24,22 +24,26 @@ class BorderType(BuiltinEnum):
     """Built-in border types."""
 
     NONE = 1
-    SOLID = 2
-    DASHED = 3
-    DOTTED = 4
-    DOUBLE = 5
+    STYLE = 2
+    SOLID = 10
+    DASHED = 11
+    DOTTED = 12
+    DOUBLE = 13
 
 
 @node_component_()
 class BorderBase(BuiltinObject):
     type: BorderType = p_regular(30, default=BorderType.SOLID)
-    width: Optional[int] = p_regular(40, default=None)
-    color: Optional["Color"] = p_regular(50, array=False, default=None, struct=StructType.COLOR)
-    radius: Optional[int] = p_regular(60, default=None)
-    radius_top_left: Optional[int] = p_regular(61, default=None)
-    radius_top_right: Optional[int] = p_regular(62, default=None)
-    radius_bottom_right: Optional[int] = p_regular(63, default=None)
-    radius_bottom_left: Optional[int] = p_regular(64, default=None)
+    style: Optional["BorderStyle"] = p_regular(
+        40, default=None, require=False, array=False, references=NodeType.BORDER_STYLE
+    )
+    width: Optional[int] = p_regular(41, default=None)
+    color: Optional["Color"] = p_regular(42, array=False, default=None, struct=StructType.COLOR)
+    radius: Optional[int] = p_regular(43, default=None)
+    radius_top_left: Optional[int] = p_regular(44, default=None)
+    radius_top_right: Optional[int] = p_regular(45, default=None)
+    radius_bottom_right: Optional[int] = p_regular(46, default=None)
+    radius_bottom_left: Optional[int] = p_regular(47, default=None)
 
 
 @struct_(StructType.BORDER)

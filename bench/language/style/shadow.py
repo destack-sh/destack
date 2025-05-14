@@ -23,8 +23,9 @@ from .style import StyleBase
 class ShadowType(BuiltinEnum):
     """Built-in shadow types."""
 
-    BOX = 1
-    REALISTIC = 2
+    STYLE = 2
+    BOX = 10
+    REALISTIC = 11
 
 
 @enum_(EnumType.SHADOW_POSITION)
@@ -38,12 +39,15 @@ class ShadowPosition(BuiltinEnum):
 @node_component_()
 class ShadowBase(BuiltinObject):
     type: ShadowType = p_regular(30, default=ShadowType.BOX)
-    position: ShadowPosition = p_regular(40, default=ShadowPosition.OUTSIDE)
-    offset_x: int = p_regular(41, default=0)
-    offset_y: int = p_regular(42, default=0)
-    blur: int = p_regular(43, default=2)
-    spread: int = p_regular(44, default=0)
-    color: Optional["Color"] = p_regular(45, array=False, default=None, struct=StructType.COLOR)
+    style: Optional["ShadowStyle"] = p_regular(
+        40, default=None, require=False, array=False, references=NodeType.SHADOW_STYLE
+    )
+    position: ShadowPosition = p_regular(41, default=ShadowPosition.OUTSIDE)
+    offset_x: int = p_regular(42, default=0)
+    offset_y: int = p_regular(43, default=0)
+    blur: int = p_regular(44, default=2)
+    spread: int = p_regular(45, default=0)
+    color: Optional["Color"] = p_regular(46, array=False, default=None, struct=StructType.COLOR)
 
 
 @struct_(StructType.SHADOW)

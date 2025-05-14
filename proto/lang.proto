@@ -77,23 +77,23 @@ enum EnumType {
   ENUM_TYPE_PORT_SIDE = 22221;
   ENUM_TYPE_TRANSITION_TYPE = 22222;
   ENUM_TYPE_FLOW_TYPE = 22223;
-  ENUM_TYPE_PROCESS_STATUS = 22400;
-  ENUM_TYPE_RUN_TYPE = 22401;
-  ENUM_TYPE_SPAN_TYPE = 22402;
-  ENUM_TYPE_SESSION_STATUS = 22403;
-  ENUM_TYPE_SCHEDULE_FREQUENCY = 22410;
-  ENUM_TYPE_INTERRUPTION_TYPE = 22200;
-  ENUM_TYPE_INTERRUPTION_STATUS = 22201;
-  ENUM_TYPE_INTERRUPTION_RESPONSE = 22202;
-  ENUM_TYPE_ACCESS_MODE = 22600;
-  ENUM_TYPE_ACCESS_KIND = 22601;
-  ENUM_TYPE_POLICY_EFFECT = 22602;
-  ENUM_TYPE_ACCESS_TYPE = 22603;
-  ENUM_TYPE_QUERY_TYPE = 22650;
-  ENUM_TYPE_EDIT_TYPE = 22651;
-  ENUM_TYPE_USE_TYPE = 22652;
-  ENUM_TYPE_MODEL_DEVELOPER = 22800;
-  ENUM_TYPE_MODEL_PROVIDER = 22801;
+  ENUM_TYPE_PROCESS_STATUS = 22600;
+  ENUM_TYPE_RUN_TYPE = 22601;
+  ENUM_TYPE_SPAN_TYPE = 22602;
+  ENUM_TYPE_SESSION_STATUS = 22603;
+  ENUM_TYPE_SCHEDULE_FREQUENCY = 22610;
+  ENUM_TYPE_INTERRUPTION_TYPE = 22620;
+  ENUM_TYPE_INTERRUPTION_STATUS = 22621;
+  ENUM_TYPE_INTERRUPTION_RESPONSE = 22622;
+  ENUM_TYPE_ACCESS_MODE = 22800;
+  ENUM_TYPE_ACCESS_KIND = 22801;
+  ENUM_TYPE_POLICY_EFFECT = 22802;
+  ENUM_TYPE_ACCESS_TYPE = 22803;
+  ENUM_TYPE_QUERY_TYPE = 22850;
+  ENUM_TYPE_EDIT_TYPE = 22851;
+  ENUM_TYPE_USE_TYPE = 22852;
+  ENUM_TYPE_MODEL_DEVELOPER = 24000;
+  ENUM_TYPE_MODEL_PROVIDER = 24001;
   ENUM_TYPE_SPACE_TYPE = 28000;
   ENUM_TYPE_COLOR_TYPE = 28010;
   ENUM_TYPE_COLOR_SHADE = 28011;
@@ -101,9 +101,10 @@ enum EnumType {
   ENUM_TYPE_FONT_TYPE = 28020;
   ENUM_TYPE_FONT_WEIGHT = 28021;
   ENUM_TYPE_FONT_SIZE = 28022;
-  ENUM_TYPE_TEXT_ALIGN = 28023;
-  ENUM_TYPE_TEXT_DECORATION = 28024;
-  ENUM_TYPE_TEXT_TRANSFORM = 28025;
+  ENUM_TYPE_TEXT_TYPE = 28023;
+  ENUM_TYPE_TEXT_ALIGN = 28024;
+  ENUM_TYPE_TEXT_DECORATION = 28025;
+  ENUM_TYPE_TEXT_TRANSFORM = 28026;
   ENUM_TYPE_SHADOW_TYPE = 28030;
   ENUM_TYPE_SHADOW_POSITION = 28031;
   ENUM_TYPE_BORDER_TYPE = 28040;
@@ -148,16 +149,23 @@ enum NodeType {
   NODE_TYPE_FLOW = 2220;
   NODE_TYPE_TRANSITION = 2230;
   NODE_TYPE_AGENT = 2250;
-  NODE_TYPE_SESSION = 2400;
-  NODE_TYPE_RUN = 2410;
-  NODE_TYPE_SPAN = 2420;
-  NODE_TYPE_INTERRUPTION = 2430;
-  NODE_TYPE_MEMBERSHIP = 2600;
-  NODE_TYPE_INVITE = 2610;
-  NODE_TYPE_TEAM = 2630;
-  NODE_TYPE_ROLE = 2640;
+  NODE_TYPE_SESSION = 2600;
+  NODE_TYPE_RUN = 2610;
+  NODE_TYPE_SPAN = 2620;
+  NODE_TYPE_INTERRUPTION = 2630;
+  NODE_TYPE_MEMBERSHIP = 2800;
+  NODE_TYPE_INVITE = 2810;
+  NODE_TYPE_TEAM = 2820;
+  NODE_TYPE_ROLE = 2830;
   NODE_TYPE_SPACE = 8000;
   NODE_TYPE_WIZARD_VIEW = 8010;
+  NODE_TYPE_FRAME_VIEW = 8100;
+  NODE_TYPE_LABEL_VIEW = 8101;
+  NODE_TYPE_SPLIT_VIEW = 8110;
+  NODE_TYPE_SPLIT_ELEMENT_VIEW = 8111;
+  NODE_TYPE_SPLIT_HANDLE_VIEW = 8112;
+  NODE_TYPE_INPUT_VIEW = 8210;
+  NODE_TYPE_SLIDER_VIEW = 8211;
   NODE_TYPE_THREAD_VIEW = 8430;
   NODE_TYPE_THEME = 8500;
   NODE_TYPE_COLOR_STYLE = 8510;
@@ -193,15 +201,15 @@ enum StructType {
   STRUCT_TYPE_AGGREGATION_RESULT = 12201;
   STRUCT_TYPE_SELECTION = 12210;
   STRUCT_TYPE_SELECT_OPTIONS = 12220;
-  STRUCT_TYPE_ERROR = 12400;
-  STRUCT_TYPE_RUN_TRACE = 12403;
-  STRUCT_TYPE_RUN_FRAME = 12404;
-  STRUCT_TYPE_POLICY = 14000;
-  STRUCT_TYPE_POLICY_RULE = 14001;
-  STRUCT_TYPE_POLICY_SUBJECT = 14002;
-  STRUCT_TYPE_ACCESS_ZONE = 14003;
-  STRUCT_TYPE_ACCESS_MATRIX = 14004;
-  STRUCT_TYPE_ACCESS = 14005;
+  STRUCT_TYPE_ERROR = 12600;
+  STRUCT_TYPE_RUN_TRACE = 12603;
+  STRUCT_TYPE_RUN_FRAME = 12604;
+  STRUCT_TYPE_POLICY = 13000;
+  STRUCT_TYPE_POLICY_RULE = 13001;
+  STRUCT_TYPE_POLICY_SUBJECT = 13002;
+  STRUCT_TYPE_ACCESS_ZONE = 13003;
+  STRUCT_TYPE_ACCESS_MATRIX = 13004;
+  STRUCT_TYPE_ACCESS = 13005;
   STRUCT_TYPE_COLOR = 18500;
   STRUCT_TYPE_SHADOW = 18503;
   STRUCT_TYPE_BORDER = 18504;
@@ -248,16 +256,23 @@ enum ObjectType {
   OBJECT_TYPE_FLOW = 2220;
   OBJECT_TYPE_TRANSITION = 2230;
   OBJECT_TYPE_AGENT = 2250;
-  OBJECT_TYPE_SESSION = 2400;
-  OBJECT_TYPE_RUN = 2410;
-  OBJECT_TYPE_SPAN = 2420;
-  OBJECT_TYPE_INTERRUPTION = 2430;
-  OBJECT_TYPE_MEMBERSHIP = 2600;
-  OBJECT_TYPE_INVITE = 2610;
-  OBJECT_TYPE_TEAM = 2630;
-  OBJECT_TYPE_ROLE = 2640;
+  OBJECT_TYPE_SESSION = 2600;
+  OBJECT_TYPE_RUN = 2610;
+  OBJECT_TYPE_SPAN = 2620;
+  OBJECT_TYPE_INTERRUPTION = 2630;
+  OBJECT_TYPE_MEMBERSHIP = 2800;
+  OBJECT_TYPE_INVITE = 2810;
+  OBJECT_TYPE_TEAM = 2820;
+  OBJECT_TYPE_ROLE = 2830;
   OBJECT_TYPE_SPACE = 8000;
   OBJECT_TYPE_WIZARD_VIEW = 8010;
+  OBJECT_TYPE_FRAME_VIEW = 8100;
+  OBJECT_TYPE_LABEL_VIEW = 8101;
+  OBJECT_TYPE_SPLIT_VIEW = 8110;
+  OBJECT_TYPE_SPLIT_ELEMENT_VIEW = 8111;
+  OBJECT_TYPE_SPLIT_HANDLE_VIEW = 8112;
+  OBJECT_TYPE_INPUT_VIEW = 8210;
+  OBJECT_TYPE_SLIDER_VIEW = 8211;
   OBJECT_TYPE_THREAD_VIEW = 8430;
   OBJECT_TYPE_THEME = 8500;
   OBJECT_TYPE_COLOR_STYLE = 8510;
@@ -289,15 +304,15 @@ enum ObjectType {
   OBJECT_TYPE_AGGREGATION_RESULT = 12201;
   OBJECT_TYPE_SELECTION = 12210;
   OBJECT_TYPE_SELECT_OPTIONS = 12220;
-  OBJECT_TYPE_ERROR = 12400;
-  OBJECT_TYPE_RUN_TRACE = 12403;
-  OBJECT_TYPE_RUN_FRAME = 12404;
-  OBJECT_TYPE_POLICY = 14000;
-  OBJECT_TYPE_POLICY_RULE = 14001;
-  OBJECT_TYPE_POLICY_SUBJECT = 14002;
-  OBJECT_TYPE_ACCESS_ZONE = 14003;
-  OBJECT_TYPE_ACCESS_MATRIX = 14004;
-  OBJECT_TYPE_ACCESS = 14005;
+  OBJECT_TYPE_ERROR = 12600;
+  OBJECT_TYPE_RUN_TRACE = 12603;
+  OBJECT_TYPE_RUN_FRAME = 12604;
+  OBJECT_TYPE_POLICY = 13000;
+  OBJECT_TYPE_POLICY_RULE = 13001;
+  OBJECT_TYPE_POLICY_SUBJECT = 13002;
+  OBJECT_TYPE_ACCESS_ZONE = 13003;
+  OBJECT_TYPE_ACCESS_MATRIX = 13004;
+  OBJECT_TYPE_ACCESS = 13005;
   OBJECT_TYPE_COLOR = 18500;
   OBJECT_TYPE_SHADOW = 18503;
   OBJECT_TYPE_BORDER = 18504;
@@ -344,16 +359,23 @@ enum BenchType {
   BENCH_TYPE_FLOW = 2220;
   BENCH_TYPE_TRANSITION = 2230;
   BENCH_TYPE_AGENT = 2250;
-  BENCH_TYPE_SESSION = 2400;
-  BENCH_TYPE_RUN = 2410;
-  BENCH_TYPE_SPAN = 2420;
-  BENCH_TYPE_INTERRUPTION = 2430;
-  BENCH_TYPE_MEMBERSHIP = 2600;
-  BENCH_TYPE_INVITE = 2610;
-  BENCH_TYPE_TEAM = 2630;
-  BENCH_TYPE_ROLE = 2640;
+  BENCH_TYPE_SESSION = 2600;
+  BENCH_TYPE_RUN = 2610;
+  BENCH_TYPE_SPAN = 2620;
+  BENCH_TYPE_INTERRUPTION = 2630;
+  BENCH_TYPE_MEMBERSHIP = 2800;
+  BENCH_TYPE_INVITE = 2810;
+  BENCH_TYPE_TEAM = 2820;
+  BENCH_TYPE_ROLE = 2830;
   BENCH_TYPE_SPACE = 8000;
   BENCH_TYPE_WIZARD_VIEW = 8010;
+  BENCH_TYPE_FRAME_VIEW = 8100;
+  BENCH_TYPE_LABEL_VIEW = 8101;
+  BENCH_TYPE_SPLIT_VIEW = 8110;
+  BENCH_TYPE_SPLIT_ELEMENT_VIEW = 8111;
+  BENCH_TYPE_SPLIT_HANDLE_VIEW = 8112;
+  BENCH_TYPE_INPUT_VIEW = 8210;
+  BENCH_TYPE_SLIDER_VIEW = 8211;
   BENCH_TYPE_THREAD_VIEW = 8430;
   BENCH_TYPE_THEME = 8500;
   BENCH_TYPE_COLOR_STYLE = 8510;
@@ -385,15 +407,15 @@ enum BenchType {
   BENCH_TYPE_AGGREGATION_RESULT = 12201;
   BENCH_TYPE_SELECTION = 12210;
   BENCH_TYPE_SELECT_OPTIONS = 12220;
-  BENCH_TYPE_ERROR = 12400;
-  BENCH_TYPE_RUN_TRACE = 12403;
-  BENCH_TYPE_RUN_FRAME = 12404;
-  BENCH_TYPE_POLICY = 14000;
-  BENCH_TYPE_POLICY_RULE = 14001;
-  BENCH_TYPE_POLICY_SUBJECT = 14002;
-  BENCH_TYPE_ACCESS_ZONE = 14003;
-  BENCH_TYPE_ACCESS_MATRIX = 14004;
-  BENCH_TYPE_ACCESS = 14005;
+  BENCH_TYPE_ERROR = 12600;
+  BENCH_TYPE_RUN_TRACE = 12603;
+  BENCH_TYPE_RUN_FRAME = 12604;
+  BENCH_TYPE_POLICY = 13000;
+  BENCH_TYPE_POLICY_RULE = 13001;
+  BENCH_TYPE_POLICY_SUBJECT = 13002;
+  BENCH_TYPE_ACCESS_ZONE = 13003;
+  BENCH_TYPE_ACCESS_MATRIX = 13004;
+  BENCH_TYPE_ACCESS = 13005;
   BENCH_TYPE_COLOR = 18500;
   BENCH_TYPE_SHADOW = 18503;
   BENCH_TYPE_BORDER = 18504;
@@ -470,23 +492,23 @@ enum BenchType {
   BENCH_TYPE_PORT_SIDE = 22221;
   BENCH_TYPE_TRANSITION_TYPE = 22222;
   BENCH_TYPE_FLOW_TYPE = 22223;
-  BENCH_TYPE_PROCESS_STATUS = 22400;
-  BENCH_TYPE_RUN_TYPE = 22401;
-  BENCH_TYPE_SPAN_TYPE = 22402;
-  BENCH_TYPE_SESSION_STATUS = 22403;
-  BENCH_TYPE_SCHEDULE_FREQUENCY = 22410;
-  BENCH_TYPE_INTERRUPTION_TYPE = 22200;
-  BENCH_TYPE_INTERRUPTION_STATUS = 22201;
-  BENCH_TYPE_INTERRUPTION_RESPONSE = 22202;
-  BENCH_TYPE_ACCESS_MODE = 22600;
-  BENCH_TYPE_ACCESS_KIND = 22601;
-  BENCH_TYPE_POLICY_EFFECT = 22602;
-  BENCH_TYPE_ACCESS_TYPE = 22603;
-  BENCH_TYPE_QUERY_TYPE = 22650;
-  BENCH_TYPE_EDIT_TYPE = 22651;
-  BENCH_TYPE_USE_TYPE = 22652;
-  BENCH_TYPE_MODEL_DEVELOPER = 22800;
-  BENCH_TYPE_MODEL_PROVIDER = 22801;
+  BENCH_TYPE_PROCESS_STATUS = 22600;
+  BENCH_TYPE_RUN_TYPE = 22601;
+  BENCH_TYPE_SPAN_TYPE = 22602;
+  BENCH_TYPE_SESSION_STATUS = 22603;
+  BENCH_TYPE_SCHEDULE_FREQUENCY = 22610;
+  BENCH_TYPE_INTERRUPTION_TYPE = 22620;
+  BENCH_TYPE_INTERRUPTION_STATUS = 22621;
+  BENCH_TYPE_INTERRUPTION_RESPONSE = 22622;
+  BENCH_TYPE_ACCESS_MODE = 22800;
+  BENCH_TYPE_ACCESS_KIND = 22801;
+  BENCH_TYPE_POLICY_EFFECT = 22802;
+  BENCH_TYPE_ACCESS_TYPE = 22803;
+  BENCH_TYPE_QUERY_TYPE = 22850;
+  BENCH_TYPE_EDIT_TYPE = 22851;
+  BENCH_TYPE_USE_TYPE = 22852;
+  BENCH_TYPE_MODEL_DEVELOPER = 24000;
+  BENCH_TYPE_MODEL_PROVIDER = 24001;
   BENCH_TYPE_SPACE_TYPE = 28000;
   BENCH_TYPE_COLOR_TYPE = 28010;
   BENCH_TYPE_COLOR_SHADE = 28011;
@@ -494,9 +516,10 @@ enum BenchType {
   BENCH_TYPE_FONT_TYPE = 28020;
   BENCH_TYPE_FONT_WEIGHT = 28021;
   BENCH_TYPE_FONT_SIZE = 28022;
-  BENCH_TYPE_TEXT_ALIGN = 28023;
-  BENCH_TYPE_TEXT_DECORATION = 28024;
-  BENCH_TYPE_TEXT_TRANSFORM = 28025;
+  BENCH_TYPE_TEXT_TYPE = 28023;
+  BENCH_TYPE_TEXT_ALIGN = 28024;
+  BENCH_TYPE_TEXT_DECORATION = 28025;
+  BENCH_TYPE_TEXT_TRANSFORM = 28026;
   BENCH_TYPE_SHADOW_TYPE = 28030;
   BENCH_TYPE_SHADOW_POSITION = 28031;
   BENCH_TYPE_BORDER_TYPE = 28040;
@@ -1495,6 +1518,12 @@ enum FontSize {
   FONT_SIZE_XL7 = 72;
 }
 
+enum TextType {
+  TEXT_TYPE_UNSPECIFIED = 0;
+  TEXT_TYPE_INLINE = 1;
+  TEXT_TYPE_STYLE = 2;
+}
+
 enum TextAlign {
   TEXT_ALIGN_UNSPECIFIED = 0;
   TEXT_ALIGN_LEFT = 1;
@@ -1521,8 +1550,9 @@ enum TextTransform {
 // Built-in shadow types.
 enum ShadowType {
   SHADOW_TYPE_UNSPECIFIED = 0;
-  SHADOW_TYPE_BOX = 1;
-  SHADOW_TYPE_REALISTIC = 2;
+  SHADOW_TYPE_STYLE = 2;
+  SHADOW_TYPE_BOX = 10;
+  SHADOW_TYPE_REALISTIC = 11;
 }
 
 // Built-in shadow positions.
@@ -1536,10 +1566,11 @@ enum ShadowPosition {
 enum BorderType {
   BORDER_TYPE_UNSPECIFIED = 0;
   BORDER_TYPE_NONE = 1;
-  BORDER_TYPE_SOLID = 2;
-  BORDER_TYPE_DASHED = 3;
-  BORDER_TYPE_DOTTED = 4;
-  BORDER_TYPE_DOUBLE = 5;
+  BORDER_TYPE_STYLE = 2;
+  BORDER_TYPE_SOLID = 10;
+  BORDER_TYPE_DASHED = 11;
+  BORDER_TYPE_DOTTED = 12;
+  BORDER_TYPE_DOUBLE = 13;
 }
 
 // Built-in gradient types.
@@ -1966,13 +1997,14 @@ message ColorData {
 message BorderData {
   ObjectType metatype = 1;
   BorderType type = 30;
-  optional int32 width = 40;
-  optional ColorData color = 50;
-  optional int32 radius = 60;
-  optional int32 radius_top_left = 61;
-  optional int32 radius_top_right = 62;
-  optional int32 radius_bottom_right = 63;
-  optional int32 radius_bottom_left = 64;
+  optional NodeReferenceData style_ptr = 40;
+  optional int32 width = 41;
+  optional ColorData color = 42;
+  optional int32 radius = 43;
+  optional int32 radius_top_left = 44;
+  optional int32 radius_top_right = 45;
+  optional int32 radius_bottom_right = 46;
+  optional int32 radius_bottom_left = 47;
 }
 
 message GradientStopData {
@@ -2001,12 +2033,13 @@ message FillData {
 message ShadowData {
   ObjectType metatype = 1;
   ShadowType type = 30;
-  ShadowPosition position = 40;
-  int32 offset_x = 41;
-  int32 offset_y = 42;
-  int32 blur = 43;
-  int32 spread = 44;
-  optional ColorData color = 45;
+  optional NodeReferenceData style_ptr = 40;
+  ShadowPosition position = 41;
+  int32 offset_x = 42;
+  int32 offset_y = 43;
+  int32 blur = 44;
+  int32 spread = 45;
+  optional ColorData color = 46;
 }
 
 message LengthData {
@@ -3141,6 +3174,162 @@ message SpaceData {
   optional NodeReferenceData thread_ptr = 75;
 }
 
+message FrameViewData {
+  ObjectType metatype = 1;
+  string id = 2;
+  optional NodeReferenceData parent_ptr = 4;
+  optional NodeReferenceData bench_ptr = 5;
+  optional NodeReferenceData package_ptr = 9;
+  google.protobuf.Timestamp created_at = 10;
+  optional NodeReferenceData created_by_ptr = 11;
+  google.protobuf.Timestamp updated_at = 12;
+  optional NodeReferenceData updated_by_ptr = 13;
+  optional google.protobuf.Timestamp archived_at = 14;
+  optional google.protobuf.Timestamp deleted_at = 15;
+  optional NodeReferenceData template_ptr = 16;
+  NodeMode mode = 20;
+  optional string name = 31;
+  optional string order_key = 33;
+  optional IconData icon = 34;
+  optional NodeReferenceData definition_ptr = 35;
+  optional NodeReferenceData focus_ptr = 70;
+  optional SelectionData selection = 71;
+}
+
+message LabelViewData {
+  ObjectType metatype = 1;
+  string id = 2;
+  optional NodeReferenceData parent_ptr = 4;
+  optional NodeReferenceData bench_ptr = 5;
+  optional NodeReferenceData package_ptr = 9;
+  google.protobuf.Timestamp created_at = 10;
+  optional NodeReferenceData created_by_ptr = 11;
+  google.protobuf.Timestamp updated_at = 12;
+  optional NodeReferenceData updated_by_ptr = 13;
+  optional google.protobuf.Timestamp archived_at = 14;
+  optional google.protobuf.Timestamp deleted_at = 15;
+  optional NodeReferenceData template_ptr = 16;
+  NodeMode mode = 20;
+  optional string name = 31;
+  optional string order_key = 33;
+  optional IconData icon = 34;
+  optional NodeReferenceData definition_ptr = 35;
+  optional NodeReferenceData focus_ptr = 70;
+  optional SelectionData selection = 71;
+}
+
+message InputViewData {
+  ObjectType metatype = 1;
+  string id = 2;
+  optional NodeReferenceData parent_ptr = 4;
+  optional NodeReferenceData bench_ptr = 5;
+  optional NodeReferenceData package_ptr = 9;
+  google.protobuf.Timestamp created_at = 10;
+  optional NodeReferenceData created_by_ptr = 11;
+  google.protobuf.Timestamp updated_at = 12;
+  optional NodeReferenceData updated_by_ptr = 13;
+  optional google.protobuf.Timestamp archived_at = 14;
+  optional google.protobuf.Timestamp deleted_at = 15;
+  optional NodeReferenceData template_ptr = 16;
+  NodeMode mode = 20;
+  optional string name = 31;
+  optional string order_key = 33;
+  optional IconData icon = 34;
+  optional NodeReferenceData definition_ptr = 35;
+  optional string value = 40;
+  optional string placeholder = 41;
+}
+
+message SliderViewData {
+  ObjectType metatype = 1;
+  string id = 2;
+  optional NodeReferenceData parent_ptr = 4;
+  optional NodeReferenceData bench_ptr = 5;
+  optional NodeReferenceData package_ptr = 9;
+  google.protobuf.Timestamp created_at = 10;
+  optional NodeReferenceData created_by_ptr = 11;
+  google.protobuf.Timestamp updated_at = 12;
+  optional NodeReferenceData updated_by_ptr = 13;
+  optional google.protobuf.Timestamp archived_at = 14;
+  optional google.protobuf.Timestamp deleted_at = 15;
+  optional NodeReferenceData template_ptr = 16;
+  NodeMode mode = 20;
+  optional string name = 31;
+  optional string order_key = 33;
+  optional IconData icon = 34;
+  optional NodeReferenceData definition_ptr = 35;
+  optional float value = 40;
+  optional float min_value = 41;
+  optional float max_value = 42;
+  optional float step = 43;
+}
+
+message SplitViewData {
+  ObjectType metatype = 1;
+  string id = 2;
+  optional NodeReferenceData parent_ptr = 4;
+  optional NodeReferenceData bench_ptr = 5;
+  optional NodeReferenceData package_ptr = 9;
+  google.protobuf.Timestamp created_at = 10;
+  optional NodeReferenceData created_by_ptr = 11;
+  google.protobuf.Timestamp updated_at = 12;
+  optional NodeReferenceData updated_by_ptr = 13;
+  optional google.protobuf.Timestamp archived_at = 14;
+  optional google.protobuf.Timestamp deleted_at = 15;
+  optional NodeReferenceData template_ptr = 16;
+  NodeMode mode = 20;
+  optional string name = 31;
+  optional string order_key = 33;
+  optional IconData icon = 34;
+  optional NodeReferenceData definition_ptr = 35;
+  optional NodeReferenceData focus_ptr = 70;
+  optional SelectionData selection = 71;
+}
+
+message SplitElementViewData {
+  ObjectType metatype = 1;
+  string id = 2;
+  optional NodeReferenceData parent_ptr = 4;
+  optional NodeReferenceData bench_ptr = 5;
+  optional NodeReferenceData package_ptr = 9;
+  google.protobuf.Timestamp created_at = 10;
+  optional NodeReferenceData created_by_ptr = 11;
+  google.protobuf.Timestamp updated_at = 12;
+  optional NodeReferenceData updated_by_ptr = 13;
+  optional google.protobuf.Timestamp archived_at = 14;
+  optional google.protobuf.Timestamp deleted_at = 15;
+  optional NodeReferenceData template_ptr = 16;
+  NodeMode mode = 20;
+  optional string name = 31;
+  optional string order_key = 33;
+  optional IconData icon = 34;
+  optional NodeReferenceData definition_ptr = 35;
+  optional NodeReferenceData focus_ptr = 70;
+  optional SelectionData selection = 71;
+}
+
+message SplitHandleViewData {
+  ObjectType metatype = 1;
+  string id = 2;
+  optional NodeReferenceData parent_ptr = 4;
+  optional NodeReferenceData bench_ptr = 5;
+  optional NodeReferenceData package_ptr = 9;
+  google.protobuf.Timestamp created_at = 10;
+  optional NodeReferenceData created_by_ptr = 11;
+  google.protobuf.Timestamp updated_at = 12;
+  optional NodeReferenceData updated_by_ptr = 13;
+  optional google.protobuf.Timestamp archived_at = 14;
+  optional google.protobuf.Timestamp deleted_at = 15;
+  optional NodeReferenceData template_ptr = 16;
+  NodeMode mode = 20;
+  optional string name = 31;
+  optional string order_key = 33;
+  optional IconData icon = 34;
+  optional NodeReferenceData definition_ptr = 35;
+  optional NodeReferenceData focus_ptr = 70;
+  optional SelectionData selection = 71;
+}
+
 message ThreadViewData {
   ObjectType metatype = 1;
   string id = 2;
@@ -3162,8 +3351,6 @@ message ThreadViewData {
   optional TextData draft_text = 40;
   repeated NodeReferenceData draft_nodes_ptr = 41;
   optional NodeReferenceData draft_reply_to_ptr = 42;
-  optional NodeReferenceData focus_ptr = 70;
-  optional SelectionData selection = 71;
 }
 
 message WizardViewData {
@@ -3184,8 +3371,6 @@ message WizardViewData {
   optional string order_key = 33;
   optional IconData icon = 34;
   optional NodeReferenceData definition_ptr = 35;
-  optional NodeReferenceData focus_ptr = 70;
-  optional SelectionData selection = 71;
 }
 
 message ColorStyleData {
@@ -3236,13 +3421,14 @@ message BorderStyleData {
   optional string order_key = 33;
   optional IconData icon = 34;
   optional NodeReferenceData definition_ptr = 35;
-  optional int32 width = 40;
-  optional ColorData color = 50;
-  optional int32 radius = 60;
-  optional int32 radius_top_left = 61;
-  optional int32 radius_top_right = 62;
-  optional int32 radius_bottom_right = 63;
-  optional int32 radius_bottom_left = 64;
+  optional NodeReferenceData style_ptr = 40;
+  optional int32 width = 41;
+  optional ColorData color = 42;
+  optional int32 radius = 43;
+  optional int32 radius_top_left = 44;
+  optional int32 radius_top_right = 45;
+  optional int32 radius_bottom_right = 46;
+  optional int32 radius_bottom_left = 47;
 }
 
 message GradientStyleData {
@@ -3288,12 +3474,13 @@ message ShadowStyleData {
   optional string order_key = 33;
   optional IconData icon = 34;
   optional NodeReferenceData definition_ptr = 35;
-  ShadowPosition position = 40;
-  int32 offset_x = 41;
-  int32 offset_y = 42;
-  int32 blur = 43;
-  int32 spread = 44;
-  optional ColorData color = 45;
+  optional NodeReferenceData style_ptr = 40;
+  ShadowPosition position = 41;
+  int32 offset_x = 42;
+  int32 offset_y = 43;
+  int32 blur = 44;
+  int32 spread = 45;
+  optional ColorData color = 46;
 }
 
 message TextStyleData {
@@ -3310,19 +3497,21 @@ message TextStyleData {
   optional google.protobuf.Timestamp deleted_at = 15;
   optional NodeReferenceData template_ptr = 16;
   NodeMode mode = 20;
-  optional FontType type = 30;
+  TextType type = 30;
   optional string name = 31;
   optional string order_key = 33;
   optional IconData icon = 34;
   optional NodeReferenceData definition_ptr = 35;
+  optional NodeReferenceData style_ptr = 40;
   optional FontWeight weight = 41;
   optional ColorData color = 45;
-  optional FontSize size = 46;
-  optional TextAlign align = 47;
-  optional LengthData line_height = 48;
-  optional LengthData letter_spacing = 49;
-  optional TextDecoration decoration = 50;
-  optional TextTransform transform = 51;
+  optional FontType font_type = 46;
+  optional FontSize font_size = 47;
+  optional TextAlign align = 48;
+  optional LengthData line_height = 49;
+  optional LengthData letter_spacing = 50;
+  optional TextDecoration decoration = 51;
+  optional TextTransform transform = 52;
 }
 
 message ThemeData {
@@ -3507,14 +3696,21 @@ message SomeNodeData {
     RoleData role = 40;
     SpaceData space = 41;
     WizardViewData wizard_view = 42;
-    ThreadViewData thread_view = 43;
-    ThemeData theme = 44;
-    ColorStyleData color_style = 45;
-    TextStyleData text_style = 46;
-    BorderStyleData border_style = 47;
-    ShadowStyleData shadow_style = 48;
-    GradientStyleData gradient_style = 49;
-    EmptyData empty = 50;
+    FrameViewData frame_view = 43;
+    LabelViewData label_view = 44;
+    SplitViewData split_view = 45;
+    SplitElementViewData split_element_view = 46;
+    SplitHandleViewData split_handle_view = 47;
+    InputViewData input_view = 48;
+    SliderViewData slider_view = 49;
+    ThreadViewData thread_view = 50;
+    ThemeData theme = 51;
+    ColorStyleData color_style = 52;
+    TextStyleData text_style = 53;
+    BorderStyleData border_style = 54;
+    ShadowStyleData shadow_style = 55;
+    GradientStyleData gradient_style = 56;
+    EmptyData empty = 57;
   };
 }
 

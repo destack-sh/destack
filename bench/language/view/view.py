@@ -40,6 +40,11 @@ class ViewBase[NodeDataT: AnyNodeData](
         4, NodeType.SPACE, *VIEW_NODE_TYPES.tuple, NodeType.PAGE
     )
 
+
+@node_component_()
+class ContainerViewBase[NodeDataT: AnyNodeData](ViewBase[NodeDataT]):
+    """A container View contains other Views."""
+
     # behavior
     focus: Optional[Node] = p_regular(
         70, default=None, require=False, array=False, references="any"
@@ -49,7 +54,17 @@ class ViewBase[NodeDataT: AnyNodeData](
     )
     ...  # actions/effects/...
 
-    # flags
-    # is_input: bool = p_regular(82, default=False)
-    # is_inline: bool = p_regular(83, default=False)
-    # is_minimal: bool = p_regular(84, default=False)
+
+@node_component_()
+class ContentViewBase[NodeDataT: AnyNodeData](ViewBase[NodeDataT]):
+    """A content View."""
+
+
+@node_component_()
+class InputViewBase[NodeDataT: AnyNodeData](ContentViewBase[NodeDataT]):
+    """An input View."""
+
+
+@node_component_()
+class NodeViewBase[NodeDataT: AnyNodeData](ContentViewBase[NodeDataT]):
+    """A node View."""
