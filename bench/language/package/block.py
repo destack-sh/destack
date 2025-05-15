@@ -8,6 +8,7 @@ from bench.language.core import (
     EnumType,
     IsModal,
     IsNamed,
+    IsOrdered,
     IsTemplatable,
     LocalNodeList,
     Node,
@@ -22,14 +23,12 @@ from bench.language.core import (
     TextLineType,
     enum_,
     node_,
-    p_internal,
     p_node_children,
     p_node_parent,
     p_regular,
     text_line,
 )
 from bench.pb2 import BlockData
-from bench.utils.fractional import INTEGER_ZERO
 
 if TYPE_CHECKING:
     from bench.language import Page, ViewBase
@@ -69,7 +68,7 @@ BLOCK_TYPES: tuple[BlockType, ...] = tuple(BlockType)
 
 
 @node_(NodeType.BLOCK)
-class Block(IsTemplatable, IsModal, IsNamed, PackageNode[BlockData]):
+class Block(IsTemplatable, IsModal, IsNamed, IsOrdered, PackageNode[BlockData]):
     """
     A Block on a Page.
     """
@@ -78,7 +77,6 @@ class Block(IsTemplatable, IsModal, IsNamed, PackageNode[BlockData]):
 
     # meta
     type: BlockType = p_regular(30, description="The type of block.")
-    order_key: str = p_internal(33, default=INTEGER_ZERO)
 
     # content
     line: Optional["TextLine"] = p_regular(

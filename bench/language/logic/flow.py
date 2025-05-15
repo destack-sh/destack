@@ -3,13 +3,13 @@ from typing import TYPE_CHECKING, Literal, Optional, Union
 from uuid import UUID
 
 from bench.language.core import (
-    NAME_CONSTRAINT,
     BuiltinEnum,
     EnumType,
     FieldType,
     IsClaimable,
     IsModal,
     IsNamed,
+    IsOrdered,
     IsOwnable,
     IsRunnable,
     IsTemplatable,
@@ -28,7 +28,6 @@ from bench.language.core import (
     p_regular,
 )
 from bench.pb2 import FlowData, FlowEdgeData
-from bench.utils.fractional import INTEGER_ZERO
 
 if TYPE_CHECKING:
     from bench.language import (
@@ -143,6 +142,8 @@ class FlowEdge(
     IsTemplatable,
     IsModal,
     IsRunnable,
+    IsNamed,
+    IsOrdered,
     PackageNode[FlowEdgeData],
 ):
     """
@@ -154,8 +155,6 @@ class FlowEdge(
 
     # meta
     type: FlowEdgeType = p_internal(30)
-    name: str | None = p_regular(32, constraint=NAME_CONSTRAINT)
-    order_key: str = p_internal(33, default=INTEGER_ZERO)
     source: "Action" = p_regular(35, require=True, references=NodeType.ACTION, ckless=True)
     target: "Action" = p_regular(36, require=True, references=NodeType.ACTION, ckless=True)
     if TYPE_CHECKING:

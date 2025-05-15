@@ -1931,9 +1931,9 @@ export interface ChannelData {
      */
     name?: string;
     /**
-     * @generated from protobuf field: optional string order_key = 33;
+     * @generated from protobuf field: string order_key = 33;
      */
-    orderKey?: string;
+    orderKey: string;
     /**
      * @generated from protobuf field: optional symbol.bench.IconData icon = 34;
      */
@@ -2294,9 +2294,9 @@ export interface ThreadData {
      */
     title?: TextLineData;
     /**
-     * @generated from protobuf field: optional string order_key = 33;
+     * @generated from protobuf field: string order_key = 33;
      */
-    orderKey?: string;
+    orderKey: string;
     /**
      * @generated from protobuf field: optional symbol.bench.IconData icon = 34;
      */
@@ -2471,9 +2471,9 @@ export interface FileData {
      */
     name?: string;
     /**
-     * @generated from protobuf field: optional string order_key = 33;
+     * @generated from protobuf field: string order_key = 33;
      */
-    orderKey?: string;
+    orderKey: string;
     /**
      * @generated from protobuf field: optional symbol.bench.IconData icon = 34;
      */
@@ -2644,9 +2644,9 @@ export interface LinkData {
      */
     title?: TextLineData;
     /**
-     * @generated from protobuf field: optional string order_key = 33;
+     * @generated from protobuf field: string order_key = 33;
      */
-    orderKey?: string;
+    orderKey: string;
     /**
      * @generated from protobuf field: optional symbol.bench.IconData icon = 34;
      */
@@ -2777,9 +2777,9 @@ export interface RecordData {
      */
     title?: TextLineData;
     /**
-     * @generated from protobuf field: optional string order_key = 33;
+     * @generated from protobuf field: string order_key = 33;
      */
-    orderKey?: string;
+    orderKey: string;
     /**
      * @generated from protobuf field: optional symbol.bench.IconData icon = 34;
      */
@@ -2866,9 +2866,9 @@ export interface TableData {
      */
     name?: string;
     /**
-     * @generated from protobuf field: optional string order_key = 33;
+     * @generated from protobuf field: string order_key = 33;
      */
-    orderKey?: string;
+    orderKey: string;
     /**
      * @generated from protobuf field: optional symbol.bench.IconData icon = 34;
      */
@@ -3053,9 +3053,9 @@ export interface RoleData {
      */
     name?: string;
     /**
-     * @generated from protobuf field: optional string order_key = 33;
+     * @generated from protobuf field: string order_key = 33;
      */
-    orderKey?: string;
+    orderKey: string;
     /**
      * @generated from protobuf field: optional symbol.bench.IconData icon = 34;
      */
@@ -3138,9 +3138,9 @@ export interface TeamData {
      */
     name?: string;
     /**
-     * @generated from protobuf field: optional string order_key = 33;
+     * @generated from protobuf field: string order_key = 33;
      */
-    orderKey?: string;
+    orderKey: string;
     /**
      * @generated from protobuf field: optional symbol.bench.IconData icon = 34;
      */
@@ -3227,9 +3227,9 @@ export interface ComputerData {
      */
     name?: string;
     /**
-     * @generated from protobuf field: optional string order_key = 33;
+     * @generated from protobuf field: string order_key = 33;
      */
-    orderKey?: string;
+    orderKey: string;
     /**
      * @generated from protobuf field: optional symbol.bench.IconData icon = 34;
      */
@@ -3408,9 +3408,9 @@ export interface DatabaseData {
      */
     name?: string;
     /**
-     * @generated from protobuf field: optional string order_key = 33;
+     * @generated from protobuf field: string order_key = 33;
      */
-    orderKey?: string;
+    orderKey: string;
     /**
      * @generated from protobuf field: optional symbol.bench.IconData icon = 34;
      */
@@ -3557,9 +3557,9 @@ export interface ScalerData {
      */
     name?: string;
     /**
-     * @generated from protobuf field: optional string order_key = 33;
+     * @generated from protobuf field: string order_key = 33;
      */
-    orderKey?: string;
+    orderKey: string;
     /**
      * @generated from protobuf field: optional symbol.bench.IconData icon = 34;
      */
@@ -3827,9 +3827,9 @@ export interface AgentData {
      */
     name?: string;
     /**
-     * @generated from protobuf field: optional string order_key = 33;
+     * @generated from protobuf field: string order_key = 33;
      */
-    orderKey?: string;
+    orderKey: string;
     /**
      * @generated from protobuf field: optional symbol.bench.IconData icon = 34;
      */
@@ -4012,9 +4012,9 @@ export interface FlowData {
      */
     name?: string;
     /**
-     * @generated from protobuf field: optional string order_key = 33;
+     * @generated from protobuf field: string order_key = 33;
      */
-    orderKey?: string;
+    orderKey: string;
     /**
      * @generated from protobuf field: optional symbol.bench.IconData icon = 34;
      */
@@ -4113,7 +4113,7 @@ export interface FlowEdgeData {
      */
     type: FlowEdgeType;
     /**
-     * @generated from protobuf field: optional string name = 32;
+     * @generated from protobuf field: optional string name = 31;
      */
     name?: string;
     /**
@@ -4226,9 +4226,9 @@ export interface ServiceData {
      */
     name?: string;
     /**
-     * @generated from protobuf field: optional string order_key = 33;
+     * @generated from protobuf field: string order_key = 33;
      */
-    orderKey?: string;
+    orderKey: string;
     /**
      * @generated from protobuf field: optional symbol.bench.IconData icon = 34;
      */
@@ -4712,9 +4712,9 @@ export interface ApplicationData {
      */
     name?: string;
     /**
-     * @generated from protobuf field: optional string order_key = 33;
+     * @generated from protobuf field: string order_key = 33;
      */
-    orderKey?: string;
+    orderKey: string;
     /**
      * @generated from protobuf field: optional symbol.bench.IconData icon = 34;
      */
@@ -5028,9 +5028,9 @@ export interface PageData {
      */
     title?: TextLineData;
     /**
-     * @generated from protobuf field: optional string order_key = 33;
+     * @generated from protobuf field: string order_key = 33;
      */
-    orderKey?: string;
+    orderKey: string;
     /**
      * @generated from protobuf field: optional symbol.bench.IconData icon = 34;
      */
@@ -5367,9 +5367,9 @@ export interface TaskData {
      */
     title?: TextLineData;
     /**
-     * @generated from protobuf field: optional string order_key = 33;
+     * @generated from protobuf field: string order_key = 33;
      */
-    orderKey?: string;
+    orderKey: string;
     /**
      * @generated from protobuf field: optional symbol.bench.IconData icon = 34;
      */
@@ -6068,9 +6068,9 @@ export interface RouteData {
      */
     name?: string;
     /**
-     * @generated from protobuf field: optional string order_key = 33;
+     * @generated from protobuf field: string order_key = 33;
      */
-    orderKey?: string;
+    orderKey: string;
     /**
      * @generated from protobuf field: optional symbol.bench.IconData icon = 34;
      */
@@ -6153,9 +6153,9 @@ export interface SceneData {
      */
     name?: string;
     /**
-     * @generated from protobuf field: optional string order_key = 33;
+     * @generated from protobuf field: string order_key = 33;
      */
-    orderKey?: string;
+    orderKey: string;
     /**
      * @generated from protobuf field: optional symbol.bench.IconData icon = 34;
      */
@@ -6331,9 +6331,9 @@ export interface ColorStyleData {
      */
     name?: string;
     /**
-     * @generated from protobuf field: optional string order_key = 33;
+     * @generated from protobuf field: string order_key = 33;
      */
-    orderKey?: string;
+    orderKey: string;
     /**
      * @generated from protobuf field: optional symbol.bench.IconData icon = 34;
      */
@@ -6440,9 +6440,9 @@ export interface BorderStyleData {
      */
     name?: string;
     /**
-     * @generated from protobuf field: optional string order_key = 33;
+     * @generated from protobuf field: string order_key = 33;
      */
-    orderKey?: string;
+    orderKey: string;
     /**
      * @generated from protobuf field: optional symbol.bench.IconData icon = 34;
      */
@@ -6529,9 +6529,9 @@ export interface EffectStyleData {
      */
     name?: string;
     /**
-     * @generated from protobuf field: optional string order_key = 33;
+     * @generated from protobuf field: string order_key = 33;
      */
-    orderKey?: string;
+    orderKey: string;
     /**
      * @generated from protobuf field: optional symbol.bench.IconData icon = 34;
      */
@@ -6642,9 +6642,9 @@ export interface GradientStyleData {
      */
     name?: string;
     /**
-     * @generated from protobuf field: optional string order_key = 33;
+     * @generated from protobuf field: string order_key = 33;
      */
-    orderKey?: string;
+    orderKey: string;
     /**
      * @generated from protobuf field: optional symbol.bench.IconData icon = 34;
      */
@@ -6735,9 +6735,9 @@ export interface FontStyleData {
      */
     name?: string;
     /**
-     * @generated from protobuf field: optional string order_key = 33;
+     * @generated from protobuf field: string order_key = 33;
      */
-    orderKey?: string;
+    orderKey: string;
     /**
      * @generated from protobuf field: optional symbol.bench.IconData icon = 34;
      */
@@ -6852,9 +6852,9 @@ export interface ShadowStyleData {
      */
     name?: string;
     /**
-     * @generated from protobuf field: optional string order_key = 33;
+     * @generated from protobuf field: string order_key = 33;
      */
-    orderKey?: string;
+    orderKey: string;
     /**
      * @generated from protobuf field: optional symbol.bench.IconData icon = 34;
      */
@@ -6941,9 +6941,9 @@ export interface ThemeData {
      */
     deletedAt?: Timestamp;
     /**
-     * @generated from protobuf field: optional string order_key = 33;
+     * @generated from protobuf field: string order_key = 33;
      */
-    orderKey?: string;
+    orderKey: string;
     /**
      * @generated from protobuf field: optional symbol.bench.IconData icon = 34;
      */
@@ -7046,9 +7046,9 @@ export interface TransitionStyleData {
      */
     name?: string;
     /**
-     * @generated from protobuf field: optional string order_key = 33;
+     * @generated from protobuf field: string order_key = 33;
      */
-    orderKey?: string;
+    orderKey: string;
     /**
      * @generated from protobuf field: optional symbol.bench.IconData icon = 34;
      */
@@ -7155,9 +7155,9 @@ export interface ChoiceData {
      */
     name?: string;
     /**
-     * @generated from protobuf field: optional string order_key = 33;
+     * @generated from protobuf field: string order_key = 33;
      */
-    orderKey?: string;
+    orderKey: string;
     /**
      * @generated from protobuf field: optional symbol.bench.IconData icon = 34;
      */
@@ -7228,9 +7228,9 @@ export interface ClassData {
      */
     name?: string;
     /**
-     * @generated from protobuf field: optional string order_key = 33;
+     * @generated from protobuf field: string order_key = 33;
      */
-    orderKey?: string;
+    orderKey: string;
     /**
      * @generated from protobuf field: optional symbol.bench.IconData icon = 34;
      */
@@ -7438,7 +7438,7 @@ export interface OptionData {
      */
     name?: string;
     /**
-     * @generated from protobuf field: string order_key = 32;
+     * @generated from protobuf field: string order_key = 33;
      */
     orderKey: string;
     /**
@@ -7511,9 +7511,9 @@ export interface ComponentViewData {
      */
     name?: string;
     /**
-     * @generated from protobuf field: optional string order_key = 33;
+     * @generated from protobuf field: string order_key = 33;
      */
-    orderKey?: string;
+    orderKey: string;
     /**
      * @generated from protobuf field: optional symbol.bench.IconData icon = 34;
      */
@@ -7684,9 +7684,9 @@ export interface FrameViewData {
      */
     name?: string;
     /**
-     * @generated from protobuf field: optional string order_key = 33;
+     * @generated from protobuf field: string order_key = 33;
      */
-    orderKey?: string;
+    orderKey: string;
     /**
      * @generated from protobuf field: optional symbol.bench.IconData icon = 34;
      */
@@ -7857,9 +7857,9 @@ export interface LabelViewData {
      */
     name?: string;
     /**
-     * @generated from protobuf field: optional string order_key = 33;
+     * @generated from protobuf field: string order_key = 33;
      */
-    orderKey?: string;
+    orderKey: string;
     /**
      * @generated from protobuf field: optional symbol.bench.IconData icon = 34;
      */
@@ -8030,9 +8030,9 @@ export interface SplitViewData {
      */
     name?: string;
     /**
-     * @generated from protobuf field: optional string order_key = 33;
+     * @generated from protobuf field: string order_key = 33;
      */
-    orderKey?: string;
+    orderKey: string;
     /**
      * @generated from protobuf field: optional symbol.bench.IconData icon = 34;
      */
@@ -8203,9 +8203,9 @@ export interface TextViewData {
      */
     name?: string;
     /**
-     * @generated from protobuf field: optional string order_key = 33;
+     * @generated from protobuf field: string order_key = 33;
      */
-    orderKey?: string;
+    orderKey: string;
     /**
      * @generated from protobuf field: optional symbol.bench.IconData icon = 34;
      */
@@ -8336,9 +8336,9 @@ export interface NumberInputViewData {
      */
     name?: string;
     /**
-     * @generated from protobuf field: optional string order_key = 33;
+     * @generated from protobuf field: string order_key = 33;
      */
-    orderKey?: string;
+    orderKey: string;
     /**
      * @generated from protobuf field: optional symbol.bench.IconData icon = 34;
      */
@@ -8449,9 +8449,9 @@ export interface SliderInputViewData {
      */
     name?: string;
     /**
-     * @generated from protobuf field: optional string order_key = 33;
+     * @generated from protobuf field: string order_key = 33;
      */
-    orderKey?: string;
+    orderKey: string;
     /**
      * @generated from protobuf field: optional symbol.bench.IconData icon = 34;
      */
@@ -8570,9 +8570,9 @@ export interface WizardViewData {
      */
     name?: string;
     /**
-     * @generated from protobuf field: optional string order_key = 33;
+     * @generated from protobuf field: string order_key = 33;
      */
-    orderKey?: string;
+    orderKey: string;
     /**
      * @generated from protobuf field: optional symbol.bench.IconData icon = 34;
      */
@@ -8675,9 +8675,9 @@ export interface ThreadViewData {
      */
     name?: string;
     /**
-     * @generated from protobuf field: optional string order_key = 33;
+     * @generated from protobuf field: string order_key = 33;
      */
-    orderKey?: string;
+    orderKey: string;
     /**
      * @generated from protobuf field: optional symbol.bench.IconData icon = 34;
      */
@@ -20558,7 +20558,7 @@ class ChannelData$Type extends MessageType$<ChannelData> {
             { no: 16, name: "template_ptr", kind: "message", T: () => NodeReferenceData },
             { no: 25, name: "mode", kind: "enum", T: () => ["symbol.bench.NodeMode", NodeMode, "NODE_MODE_"] },
             { no: 31, name: "name", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
-            { no: 33, name: "order_key", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
+            { no: 33, name: "order_key", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
             { no: 34, name: "icon", kind: "message", T: () => IconData },
             { no: 35, name: "definition_ptr", kind: "message", T: () => NodeReferenceData },
             { no: 80, name: "status", kind: "enum", T: () => ["symbol.bench.ProcessStatus", ProcessStatus, "PROCESS_STATUS_"] },
@@ -20585,6 +20585,7 @@ class ChannelData$Type extends MessageType$<ChannelData> {
         message.id = "";
         message.ck = "";
         message.mode = 0;
+        message.orderKey = "";
         message.status = 0;
         if (value !== undefined)
             reflectionMergePartial<ChannelData>(this, message, value);
@@ -20640,7 +20641,7 @@ class ChannelData$Type extends MessageType$<ChannelData> {
                 case /* optional string name */ 31:
                     message.name = reader.string();
                     break;
-                case /* optional string order_key */ 33:
+                case /* string order_key */ 33:
                     message.orderKey = reader.string();
                     break;
                 case /* optional symbol.bench.IconData icon */ 34:
@@ -20754,8 +20755,8 @@ class ChannelData$Type extends MessageType$<ChannelData> {
         /* optional string name = 31; */
         if (message.name !== undefined)
             writer.tag(31, WireType.LengthDelimited).string(message.name);
-        /* optional string order_key = 33; */
-        if (message.orderKey !== undefined)
+        /* string order_key = 33; */
+        if (message.orderKey !== "")
             writer.tag(33, WireType.LengthDelimited).string(message.orderKey);
         /* optional symbol.bench.IconData icon = 34; */
         if (message.icon)
@@ -21294,7 +21295,7 @@ class ThreadData$Type extends MessageType$<ThreadData> {
             { no: 17, name: "owned_by_ptr", kind: "message", T: () => NodeReferenceData },
             { no: 25, name: "mode", kind: "enum", T: () => ["symbol.bench.NodeMode", NodeMode, "NODE_MODE_"] },
             { no: 32, name: "title", kind: "message", T: () => TextLineData },
-            { no: 33, name: "order_key", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
+            { no: 33, name: "order_key", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
             { no: 34, name: "icon", kind: "message", T: () => IconData },
             { no: 35, name: "definition_ptr", kind: "message", T: () => NodeReferenceData },
             { no: 40, name: "channel_ptr", kind: "message", T: () => NodeReferenceData },
@@ -21327,6 +21328,7 @@ class ThreadData$Type extends MessageType$<ThreadData> {
         message.id = "";
         message.ck = "";
         message.mode = 0;
+        message.orderKey = "";
         message.status = 0;
         if (value !== undefined)
             reflectionMergePartial<ThreadData>(this, message, value);
@@ -21385,7 +21387,7 @@ class ThreadData$Type extends MessageType$<ThreadData> {
                 case /* optional symbol.bench.TextLineData title */ 32:
                     message.title = TextLineData.internalBinaryRead(reader, reader.uint32(), options, message.title);
                     break;
-                case /* optional string order_key */ 33:
+                case /* string order_key */ 33:
                     message.orderKey = reader.string();
                     break;
                 case /* optional symbol.bench.IconData icon */ 34:
@@ -21520,8 +21522,8 @@ class ThreadData$Type extends MessageType$<ThreadData> {
         /* optional symbol.bench.TextLineData title = 32; */
         if (message.title)
             TextLineData.internalBinaryWrite(message.title, writer.tag(32, WireType.LengthDelimited).fork(), options).join();
-        /* optional string order_key = 33; */
-        if (message.orderKey !== undefined)
+        /* string order_key = 33; */
+        if (message.orderKey !== "")
             writer.tag(33, WireType.LengthDelimited).string(message.orderKey);
         /* optional symbol.bench.IconData icon = 34; */
         if (message.icon)
@@ -21627,7 +21629,7 @@ class FileData$Type extends MessageType$<FileData> {
             { no: 25, name: "mode", kind: "enum", T: () => ["symbol.bench.NodeMode", NodeMode, "NODE_MODE_"] },
             { no: 30, name: "type", kind: "enum", T: () => ["symbol.bench.FileType", FileType, "FILE_TYPE_"] },
             { no: 31, name: "name", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
-            { no: 33, name: "order_key", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
+            { no: 33, name: "order_key", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
             { no: 34, name: "icon", kind: "message", T: () => IconData },
             { no: 35, name: "definition_ptr", kind: "message", T: () => NodeReferenceData },
             { no: 38, name: "region", kind: "enum", T: () => ["symbol.bench.Region", Region, "REGION_"] },
@@ -21659,6 +21661,7 @@ class FileData$Type extends MessageType$<FileData> {
         message.ck = "";
         message.mode = 0;
         message.type = 0;
+        message.orderKey = "";
         message.region = 0;
         message.source = 0;
         message.retention = 0;
@@ -21725,7 +21728,7 @@ class FileData$Type extends MessageType$<FileData> {
                 case /* optional string name */ 31:
                     message.name = reader.string();
                     break;
-                case /* optional string order_key */ 33:
+                case /* string order_key */ 33:
                     message.orderKey = reader.string();
                     break;
                 case /* optional symbol.bench.IconData icon */ 34:
@@ -21860,8 +21863,8 @@ class FileData$Type extends MessageType$<FileData> {
         /* optional string name = 31; */
         if (message.name !== undefined)
             writer.tag(31, WireType.LengthDelimited).string(message.name);
-        /* optional string order_key = 33; */
-        if (message.orderKey !== undefined)
+        /* string order_key = 33; */
+        if (message.orderKey !== "")
             writer.tag(33, WireType.LengthDelimited).string(message.orderKey);
         /* optional symbol.bench.IconData icon = 34; */
         if (message.icon)
@@ -21962,7 +21965,7 @@ class LinkData$Type extends MessageType$<LinkData> {
             { no: 30, name: "type", kind: "enum", T: () => ["symbol.bench.LinkType", LinkType, "LINK_TYPE_"] },
             { no: 31, name: "name", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
             { no: 32, name: "title", kind: "message", T: () => TextLineData },
-            { no: 33, name: "order_key", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
+            { no: 33, name: "order_key", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
             { no: 34, name: "icon", kind: "message", T: () => IconData },
             { no: 35, name: "definition_ptr", kind: "message", T: () => NodeReferenceData },
             { no: 38, name: "region", kind: "enum", T: () => ["symbol.bench.Region", Region, "REGION_"] },
@@ -21988,6 +21991,7 @@ class LinkData$Type extends MessageType$<LinkData> {
         message.ck = "";
         message.mode = 0;
         message.type = 0;
+        message.orderKey = "";
         message.region = 0;
         message.imageUrls = [];
         if (value !== undefined)
@@ -22056,7 +22060,7 @@ class LinkData$Type extends MessageType$<LinkData> {
                 case /* optional symbol.bench.TextLineData title */ 32:
                     message.title = TextLineData.internalBinaryRead(reader, reader.uint32(), options, message.title);
                     break;
-                case /* optional string order_key */ 33:
+                case /* string order_key */ 33:
                     message.orderKey = reader.string();
                     break;
                 case /* optional symbol.bench.IconData icon */ 34:
@@ -22176,8 +22180,8 @@ class LinkData$Type extends MessageType$<LinkData> {
         /* optional symbol.bench.TextLineData title = 32; */
         if (message.title)
             TextLineData.internalBinaryWrite(message.title, writer.tag(32, WireType.LengthDelimited).fork(), options).join();
-        /* optional string order_key = 33; */
-        if (message.orderKey !== undefined)
+        /* string order_key = 33; */
+        if (message.orderKey !== "")
             writer.tag(33, WireType.LengthDelimited).string(message.orderKey);
         /* optional symbol.bench.IconData icon = 34; */
         if (message.icon)
@@ -22256,7 +22260,7 @@ class RecordData$Type extends MessageType$<RecordData> {
             { no: 18, name: "claimed_by_ptr", kind: "message", T: () => NodeReferenceData },
             { no: 25, name: "mode", kind: "enum", T: () => ["symbol.bench.NodeMode", NodeMode, "NODE_MODE_"] },
             { no: 32, name: "title", kind: "message", T: () => TextLineData },
-            { no: 33, name: "order_key", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
+            { no: 33, name: "order_key", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
             { no: 34, name: "icon", kind: "message", T: () => IconData },
             { no: 36, name: "table_ptr", kind: "message", T: () => NodeReferenceData },
             { no: 40, name: "value_packed", kind: "message", T: () => Value }
@@ -22267,6 +22271,7 @@ class RecordData$Type extends MessageType$<RecordData> {
         message.metatype = 0;
         message.id = "";
         message.mode = 0;
+        message.orderKey = "";
         if (value !== undefined)
             reflectionMergePartial<RecordData>(this, message, value);
         return message;
@@ -22321,7 +22326,7 @@ class RecordData$Type extends MessageType$<RecordData> {
                 case /* optional symbol.bench.TextLineData title */ 32:
                     message.title = TextLineData.internalBinaryRead(reader, reader.uint32(), options, message.title);
                     break;
-                case /* optional string order_key */ 33:
+                case /* string order_key */ 33:
                     message.orderKey = reader.string();
                     break;
                 case /* optional symbol.bench.IconData icon */ 34:
@@ -22390,8 +22395,8 @@ class RecordData$Type extends MessageType$<RecordData> {
         /* optional symbol.bench.TextLineData title = 32; */
         if (message.title)
             TextLineData.internalBinaryWrite(message.title, writer.tag(32, WireType.LengthDelimited).fork(), options).join();
-        /* optional string order_key = 33; */
-        if (message.orderKey !== undefined)
+        /* string order_key = 33; */
+        if (message.orderKey !== "")
             writer.tag(33, WireType.LengthDelimited).string(message.orderKey);
         /* optional symbol.bench.IconData icon = 34; */
         if (message.icon)
@@ -22433,7 +22438,7 @@ class TableData$Type extends MessageType$<TableData> {
             { no: 18, name: "claimed_by_ptr", kind: "message", T: () => NodeReferenceData },
             { no: 25, name: "mode", kind: "enum", T: () => ["symbol.bench.NodeMode", NodeMode, "NODE_MODE_"] },
             { no: 31, name: "name", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
-            { no: 33, name: "order_key", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
+            { no: 33, name: "order_key", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
             { no: 34, name: "icon", kind: "message", T: () => IconData },
             { no: 35, name: "definition_ptr", kind: "message", T: () => NodeReferenceData }
         ]);
@@ -22444,6 +22449,7 @@ class TableData$Type extends MessageType$<TableData> {
         message.id = "";
         message.ck = "";
         message.mode = 0;
+        message.orderKey = "";
         if (value !== undefined)
             reflectionMergePartial<TableData>(this, message, value);
         return message;
@@ -22504,7 +22510,7 @@ class TableData$Type extends MessageType$<TableData> {
                 case /* optional string name */ 31:
                     message.name = reader.string();
                     break;
-                case /* optional string order_key */ 33:
+                case /* string order_key */ 33:
                     message.orderKey = reader.string();
                     break;
                 case /* optional symbol.bench.IconData icon */ 34:
@@ -22576,8 +22582,8 @@ class TableData$Type extends MessageType$<TableData> {
         /* optional string name = 31; */
         if (message.name !== undefined)
             writer.tag(31, WireType.LengthDelimited).string(message.name);
-        /* optional string order_key = 33; */
-        if (message.orderKey !== undefined)
+        /* string order_key = 33; */
+        if (message.orderKey !== "")
             writer.tag(33, WireType.LengthDelimited).string(message.orderKey);
         /* optional symbol.bench.IconData icon = 34; */
         if (message.icon)
@@ -22879,7 +22885,7 @@ class RoleData$Type extends MessageType$<RoleData> {
             { no: 16, name: "template_ptr", kind: "message", T: () => NodeReferenceData },
             { no: 25, name: "mode", kind: "enum", T: () => ["symbol.bench.NodeMode", NodeMode, "NODE_MODE_"] },
             { no: 31, name: "name", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
-            { no: 33, name: "order_key", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
+            { no: 33, name: "order_key", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
             { no: 34, name: "icon", kind: "message", T: () => IconData },
             { no: 35, name: "definition_ptr", kind: "message", T: () => NodeReferenceData }
         ]);
@@ -22889,6 +22895,7 @@ class RoleData$Type extends MessageType$<RoleData> {
         message.metatype = 0;
         message.id = "";
         message.mode = 0;
+        message.orderKey = "";
         if (value !== undefined)
             reflectionMergePartial<RoleData>(this, message, value);
         return message;
@@ -22940,7 +22947,7 @@ class RoleData$Type extends MessageType$<RoleData> {
                 case /* optional string name */ 31:
                     message.name = reader.string();
                     break;
-                case /* optional string order_key */ 33:
+                case /* string order_key */ 33:
                     message.orderKey = reader.string();
                     break;
                 case /* optional symbol.bench.IconData icon */ 34:
@@ -23003,8 +23010,8 @@ class RoleData$Type extends MessageType$<RoleData> {
         /* optional string name = 31; */
         if (message.name !== undefined)
             writer.tag(31, WireType.LengthDelimited).string(message.name);
-        /* optional string order_key = 33; */
-        if (message.orderKey !== undefined)
+        /* string order_key = 33; */
+        if (message.orderKey !== "")
             writer.tag(33, WireType.LengthDelimited).string(message.orderKey);
         /* optional symbol.bench.IconData icon = 34; */
         if (message.icon)
@@ -23043,7 +23050,7 @@ class TeamData$Type extends MessageType$<TeamData> {
             { no: 16, name: "template_ptr", kind: "message", T: () => NodeReferenceData },
             { no: 25, name: "mode", kind: "enum", T: () => ["symbol.bench.NodeMode", NodeMode, "NODE_MODE_"] },
             { no: 31, name: "name", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
-            { no: 33, name: "order_key", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
+            { no: 33, name: "order_key", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
             { no: 34, name: "icon", kind: "message", T: () => IconData },
             { no: 35, name: "definition_ptr", kind: "message", T: () => NodeReferenceData }
         ]);
@@ -23054,6 +23061,7 @@ class TeamData$Type extends MessageType$<TeamData> {
         message.id = "";
         message.ck = "";
         message.mode = 0;
+        message.orderKey = "";
         if (value !== undefined)
             reflectionMergePartial<TeamData>(this, message, value);
         return message;
@@ -23114,7 +23122,7 @@ class TeamData$Type extends MessageType$<TeamData> {
                 case /* optional string name */ 31:
                     message.name = reader.string();
                     break;
-                case /* optional string order_key */ 33:
+                case /* string order_key */ 33:
                     message.orderKey = reader.string();
                     break;
                 case /* optional symbol.bench.IconData icon */ 34:
@@ -23186,8 +23194,8 @@ class TeamData$Type extends MessageType$<TeamData> {
         /* optional string name = 31; */
         if (message.name !== undefined)
             writer.tag(31, WireType.LengthDelimited).string(message.name);
-        /* optional string order_key = 33; */
-        if (message.orderKey !== undefined)
+        /* string order_key = 33; */
+        if (message.orderKey !== "")
             writer.tag(33, WireType.LengthDelimited).string(message.orderKey);
         /* optional symbol.bench.IconData icon = 34; */
         if (message.icon)
@@ -23227,7 +23235,7 @@ class ComputerData$Type extends MessageType$<ComputerData> {
             { no: 25, name: "mode", kind: "enum", T: () => ["symbol.bench.NodeMode", NodeMode, "NODE_MODE_"] },
             { no: 30, name: "type", kind: "enum", T: () => ["symbol.bench.ComputerType", ComputerType, "COMPUTER_TYPE_"] },
             { no: 31, name: "name", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
-            { no: 33, name: "order_key", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
+            { no: 33, name: "order_key", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
             { no: 34, name: "icon", kind: "message", T: () => IconData },
             { no: 35, name: "definition_ptr", kind: "message", T: () => NodeReferenceData },
             { no: 38, name: "region", kind: "enum", T: () => ["symbol.bench.Region", Region, "REGION_"] },
@@ -23262,6 +23270,7 @@ class ComputerData$Type extends MessageType$<ComputerData> {
         message.ck = "";
         message.mode = 0;
         message.type = 0;
+        message.orderKey = "";
         message.region = 0;
         message.status = 0;
         message.failedAttempts = 0;
@@ -23334,7 +23343,7 @@ class ComputerData$Type extends MessageType$<ComputerData> {
                 case /* optional string name */ 31:
                     message.name = reader.string();
                     break;
-                case /* optional string order_key */ 33:
+                case /* string order_key */ 33:
                     message.orderKey = reader.string();
                     break;
                 case /* optional symbol.bench.IconData icon */ 34:
@@ -23478,8 +23487,8 @@ class ComputerData$Type extends MessageType$<ComputerData> {
         /* optional string name = 31; */
         if (message.name !== undefined)
             writer.tag(31, WireType.LengthDelimited).string(message.name);
-        /* optional string order_key = 33; */
-        if (message.orderKey !== undefined)
+        /* string order_key = 33; */
+        if (message.orderKey !== "")
             writer.tag(33, WireType.LengthDelimited).string(message.orderKey);
         /* optional symbol.bench.IconData icon = 34; */
         if (message.icon)
@@ -23588,7 +23597,7 @@ class DatabaseData$Type extends MessageType$<DatabaseData> {
             { no: 25, name: "mode", kind: "enum", T: () => ["symbol.bench.NodeMode", NodeMode, "NODE_MODE_"] },
             { no: 30, name: "type", kind: "enum", T: () => ["symbol.bench.DatabaseType", DatabaseType, "DATABASE_TYPE_"] },
             { no: 31, name: "name", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
-            { no: 33, name: "order_key", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
+            { no: 33, name: "order_key", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
             { no: 34, name: "icon", kind: "message", T: () => IconData },
             { no: 35, name: "definition_ptr", kind: "message", T: () => NodeReferenceData },
             { no: 38, name: "region", kind: "enum", T: () => ["symbol.bench.Region", Region, "REGION_"] },
@@ -23615,6 +23624,7 @@ class DatabaseData$Type extends MessageType$<DatabaseData> {
         message.ck = "";
         message.mode = 0;
         message.type = 0;
+        message.orderKey = "";
         message.region = 0;
         message.status = 0;
         message.failedAttempts = 0;
@@ -23682,7 +23692,7 @@ class DatabaseData$Type extends MessageType$<DatabaseData> {
                 case /* optional string name */ 31:
                     message.name = reader.string();
                     break;
-                case /* optional string order_key */ 33:
+                case /* string order_key */ 33:
                     message.orderKey = reader.string();
                     break;
                 case /* optional symbol.bench.IconData icon */ 34:
@@ -23802,8 +23812,8 @@ class DatabaseData$Type extends MessageType$<DatabaseData> {
         /* optional string name = 31; */
         if (message.name !== undefined)
             writer.tag(31, WireType.LengthDelimited).string(message.name);
-        /* optional string order_key = 33; */
-        if (message.orderKey !== undefined)
+        /* string order_key = 33; */
+        if (message.orderKey !== "")
             writer.tag(33, WireType.LengthDelimited).string(message.orderKey);
         /* optional symbol.bench.IconData icon = 34; */
         if (message.icon)
@@ -23888,7 +23898,7 @@ class ScalerData$Type extends MessageType$<ScalerData> {
             { no: 25, name: "mode", kind: "enum", T: () => ["symbol.bench.NodeMode", NodeMode, "NODE_MODE_"] },
             { no: 30, name: "type", kind: "enum", T: () => ["symbol.bench.ScalerType", ScalerType, "SCALER_TYPE_"] },
             { no: 31, name: "name", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
-            { no: 33, name: "order_key", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
+            { no: 33, name: "order_key", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
             { no: 34, name: "icon", kind: "message", T: () => IconData },
             { no: 35, name: "definition_ptr", kind: "message", T: () => NodeReferenceData },
             { no: 38, name: "region", kind: "enum", T: () => ["symbol.bench.Region", Region, "REGION_"] },
@@ -23916,6 +23926,7 @@ class ScalerData$Type extends MessageType$<ScalerData> {
         message.ck = "";
         message.mode = 0;
         message.type = 0;
+        message.orderKey = "";
         message.region = 0;
         message.status = 0;
         message.failedAttempts = 0;
@@ -23986,7 +23997,7 @@ class ScalerData$Type extends MessageType$<ScalerData> {
                 case /* optional string name */ 31:
                     message.name = reader.string();
                     break;
-                case /* optional string order_key */ 33:
+                case /* string order_key */ 33:
                     message.orderKey = reader.string();
                     break;
                 case /* optional symbol.bench.IconData icon */ 34:
@@ -24109,8 +24120,8 @@ class ScalerData$Type extends MessageType$<ScalerData> {
         /* optional string name = 31; */
         if (message.name !== undefined)
             writer.tag(31, WireType.LengthDelimited).string(message.name);
-        /* optional string order_key = 33; */
-        if (message.orderKey !== undefined)
+        /* string order_key = 33; */
+        if (message.orderKey !== "")
             writer.tag(33, WireType.LengthDelimited).string(message.orderKey);
         /* optional symbol.bench.IconData icon = 34; */
         if (message.icon)
@@ -24445,7 +24456,7 @@ class AgentData$Type extends MessageType$<AgentData> {
             { no: 18, name: "claimed_by_ptr", kind: "message", T: () => NodeReferenceData },
             { no: 25, name: "mode", kind: "enum", T: () => ["symbol.bench.NodeMode", NodeMode, "NODE_MODE_"] },
             { no: 31, name: "name", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
-            { no: 33, name: "order_key", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
+            { no: 33, name: "order_key", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
             { no: 34, name: "icon", kind: "message", T: () => IconData },
             { no: 35, name: "definition_ptr", kind: "message", T: () => NodeReferenceData },
             { no: 54, name: "page_ptr", kind: "message", T: () => NodeReferenceData },
@@ -24481,6 +24492,7 @@ class AgentData$Type extends MessageType$<AgentData> {
         message.id = "";
         message.ck = "";
         message.mode = 0;
+        message.orderKey = "";
         message.status = 0;
         if (value !== undefined)
             reflectionMergePartial<AgentData>(this, message, value);
@@ -24542,7 +24554,7 @@ class AgentData$Type extends MessageType$<AgentData> {
                 case /* optional string name */ 31:
                     message.name = reader.string();
                     break;
-                case /* optional string order_key */ 33:
+                case /* string order_key */ 33:
                     message.orderKey = reader.string();
                     break;
                 case /* optional symbol.bench.IconData icon */ 34:
@@ -24689,8 +24701,8 @@ class AgentData$Type extends MessageType$<AgentData> {
         /* optional string name = 31; */
         if (message.name !== undefined)
             writer.tag(31, WireType.LengthDelimited).string(message.name);
-        /* optional string order_key = 33; */
-        if (message.orderKey !== undefined)
+        /* string order_key = 33; */
+        if (message.orderKey !== "")
             writer.tag(33, WireType.LengthDelimited).string(message.orderKey);
         /* optional symbol.bench.IconData icon = 34; */
         if (message.icon)
@@ -24804,7 +24816,7 @@ class FlowData$Type extends MessageType$<FlowData> {
             { no: 25, name: "mode", kind: "enum", T: () => ["symbol.bench.NodeMode", NodeMode, "NODE_MODE_"] },
             { no: 30, name: "type", kind: "enum", T: () => ["symbol.bench.FlowType", FlowType, "FLOW_TYPE_"] },
             { no: 31, name: "name", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
-            { no: 33, name: "order_key", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
+            { no: 33, name: "order_key", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
             { no: 34, name: "icon", kind: "message", T: () => IconData },
             { no: 35, name: "definition_ptr", kind: "message", T: () => NodeReferenceData },
             { no: 100, name: "model_developer", kind: "enum", opt: true, T: () => ["symbol.bench.ModelDeveloper", ModelDeveloper, "MODEL_DEVELOPER_"] },
@@ -24822,6 +24834,7 @@ class FlowData$Type extends MessageType$<FlowData> {
         message.id = "";
         message.mode = 0;
         message.type = 0;
+        message.orderKey = "";
         if (value !== undefined)
             reflectionMergePartial<FlowData>(this, message, value);
         return message;
@@ -24882,7 +24895,7 @@ class FlowData$Type extends MessageType$<FlowData> {
                 case /* optional string name */ 31:
                     message.name = reader.string();
                     break;
-                case /* optional string order_key */ 33:
+                case /* string order_key */ 33:
                     message.orderKey = reader.string();
                     break;
                 case /* optional symbol.bench.IconData icon */ 34:
@@ -24975,8 +24988,8 @@ class FlowData$Type extends MessageType$<FlowData> {
         /* optional string name = 31; */
         if (message.name !== undefined)
             writer.tag(31, WireType.LengthDelimited).string(message.name);
-        /* optional string order_key = 33; */
-        if (message.orderKey !== undefined)
+        /* string order_key = 33; */
+        if (message.orderKey !== "")
             writer.tag(33, WireType.LengthDelimited).string(message.orderKey);
         /* optional symbol.bench.IconData icon = 34; */
         if (message.icon)
@@ -25033,7 +25046,7 @@ class FlowEdgeData$Type extends MessageType$<FlowEdgeData> {
             { no: 16, name: "template_ptr", kind: "message", T: () => NodeReferenceData },
             { no: 25, name: "mode", kind: "enum", T: () => ["symbol.bench.NodeMode", NodeMode, "NODE_MODE_"] },
             { no: 30, name: "type", kind: "enum", T: () => ["symbol.bench.FlowEdgeType", FlowEdgeType, "FLOW_EDGE_TYPE_"] },
-            { no: 32, name: "name", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
+            { no: 31, name: "name", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
             { no: 33, name: "order_key", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
             { no: 35, name: "source_ptr", kind: "message", T: () => NodeReferenceData },
             { no: 36, name: "target_ptr", kind: "message", T: () => NodeReferenceData },
@@ -25104,7 +25117,7 @@ class FlowEdgeData$Type extends MessageType$<FlowEdgeData> {
                 case /* symbol.bench.FlowEdgeType type */ 30:
                     message.type = reader.int32();
                     break;
-                case /* optional string name */ 32:
+                case /* optional string name */ 31:
                     message.name = reader.string();
                     break;
                 case /* string order_key */ 33:
@@ -25191,9 +25204,9 @@ class FlowEdgeData$Type extends MessageType$<FlowEdgeData> {
         /* symbol.bench.FlowEdgeType type = 30; */
         if (message.type !== 0)
             writer.tag(30, WireType.Varint).int32(message.type);
-        /* optional string name = 32; */
+        /* optional string name = 31; */
         if (message.name !== undefined)
-            writer.tag(32, WireType.LengthDelimited).string(message.name);
+            writer.tag(31, WireType.LengthDelimited).string(message.name);
         /* string order_key = 33; */
         if (message.orderKey !== "")
             writer.tag(33, WireType.LengthDelimited).string(message.orderKey);
@@ -25254,7 +25267,7 @@ class ServiceData$Type extends MessageType$<ServiceData> {
             { no: 18, name: "claimed_by_ptr", kind: "message", T: () => NodeReferenceData },
             { no: 25, name: "mode", kind: "enum", T: () => ["symbol.bench.NodeMode", NodeMode, "NODE_MODE_"] },
             { no: 31, name: "name", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
-            { no: 33, name: "order_key", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
+            { no: 33, name: "order_key", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
             { no: 34, name: "icon", kind: "message", T: () => IconData },
             { no: 35, name: "definition_ptr", kind: "message", T: () => NodeReferenceData },
             { no: 40, name: "target_ptr", kind: "message", T: () => NodeReferenceData }
@@ -25265,6 +25278,7 @@ class ServiceData$Type extends MessageType$<ServiceData> {
         message.metatype = 0;
         message.id = "";
         message.mode = 0;
+        message.orderKey = "";
         if (value !== undefined)
             reflectionMergePartial<ServiceData>(this, message, value);
         return message;
@@ -25322,7 +25336,7 @@ class ServiceData$Type extends MessageType$<ServiceData> {
                 case /* optional string name */ 31:
                     message.name = reader.string();
                     break;
-                case /* optional string order_key */ 33:
+                case /* string order_key */ 33:
                     message.orderKey = reader.string();
                     break;
                 case /* optional symbol.bench.IconData icon */ 34:
@@ -25394,8 +25408,8 @@ class ServiceData$Type extends MessageType$<ServiceData> {
         /* optional string name = 31; */
         if (message.name !== undefined)
             writer.tag(31, WireType.LengthDelimited).string(message.name);
-        /* optional string order_key = 33; */
-        if (message.orderKey !== undefined)
+        /* string order_key = 33; */
+        if (message.orderKey !== "")
             writer.tag(33, WireType.LengthDelimited).string(message.orderKey);
         /* optional symbol.bench.IconData icon = 34; */
         if (message.icon)
@@ -26318,7 +26332,7 @@ class ApplicationData$Type extends MessageType$<ApplicationData> {
             { no: 16, name: "template_ptr", kind: "message", T: () => NodeReferenceData },
             { no: 25, name: "mode", kind: "enum", T: () => ["symbol.bench.NodeMode", NodeMode, "NODE_MODE_"] },
             { no: 31, name: "name", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
-            { no: 33, name: "order_key", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
+            { no: 33, name: "order_key", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
             { no: 34, name: "icon", kind: "message", T: () => IconData },
             { no: 35, name: "definition_ptr", kind: "message", T: () => NodeReferenceData },
             { no: 40, name: "root_scene_ptr", kind: "message", T: () => NodeReferenceData }
@@ -26330,6 +26344,7 @@ class ApplicationData$Type extends MessageType$<ApplicationData> {
         message.id = "";
         message.ck = "";
         message.mode = 0;
+        message.orderKey = "";
         if (value !== undefined)
             reflectionMergePartial<ApplicationData>(this, message, value);
         return message;
@@ -26384,7 +26399,7 @@ class ApplicationData$Type extends MessageType$<ApplicationData> {
                 case /* optional string name */ 31:
                     message.name = reader.string();
                     break;
-                case /* optional string order_key */ 33:
+                case /* string order_key */ 33:
                     message.orderKey = reader.string();
                     break;
                 case /* optional symbol.bench.IconData icon */ 34:
@@ -26453,8 +26468,8 @@ class ApplicationData$Type extends MessageType$<ApplicationData> {
         /* optional string name = 31; */
         if (message.name !== undefined)
             writer.tag(31, WireType.LengthDelimited).string(message.name);
-        /* optional string order_key = 33; */
-        if (message.orderKey !== undefined)
+        /* string order_key = 33; */
+        if (message.orderKey !== "")
             writer.tag(33, WireType.LengthDelimited).string(message.orderKey);
         /* optional symbol.bench.IconData icon = 34; */
         if (message.icon)
@@ -27002,7 +27017,7 @@ class PageData$Type extends MessageType$<PageData> {
             { no: 18, name: "claimed_by_ptr", kind: "message", T: () => NodeReferenceData },
             { no: 25, name: "mode", kind: "enum", T: () => ["symbol.bench.NodeMode", NodeMode, "NODE_MODE_"] },
             { no: 32, name: "title", kind: "message", T: () => TextLineData },
-            { no: 33, name: "order_key", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
+            { no: 33, name: "order_key", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
             { no: 34, name: "icon", kind: "message", T: () => IconData },
             { no: 35, name: "definition_ptr", kind: "message", T: () => NodeReferenceData }
         ]);
@@ -27012,6 +27027,7 @@ class PageData$Type extends MessageType$<PageData> {
         message.metatype = 0;
         message.id = "";
         message.mode = 0;
+        message.orderKey = "";
         if (value !== undefined)
             reflectionMergePartial<PageData>(this, message, value);
         return message;
@@ -27069,7 +27085,7 @@ class PageData$Type extends MessageType$<PageData> {
                 case /* optional symbol.bench.TextLineData title */ 32:
                     message.title = TextLineData.internalBinaryRead(reader, reader.uint32(), options, message.title);
                     break;
-                case /* optional string order_key */ 33:
+                case /* string order_key */ 33:
                     message.orderKey = reader.string();
                     break;
                 case /* optional symbol.bench.IconData icon */ 34:
@@ -27138,8 +27154,8 @@ class PageData$Type extends MessageType$<PageData> {
         /* optional symbol.bench.TextLineData title = 32; */
         if (message.title)
             TextLineData.internalBinaryWrite(message.title, writer.tag(32, WireType.LengthDelimited).fork(), options).join();
-        /* optional string order_key = 33; */
-        if (message.orderKey !== undefined)
+        /* string order_key = 33; */
+        if (message.orderKey !== "")
             writer.tag(33, WireType.LengthDelimited).string(message.orderKey);
         /* optional symbol.bench.IconData icon = 34; */
         if (message.icon)
@@ -27697,7 +27713,7 @@ class TaskData$Type extends MessageType$<TaskData> {
             { no: 18, name: "claimed_by_ptr", kind: "message", T: () => NodeReferenceData },
             { no: 25, name: "mode", kind: "enum", T: () => ["symbol.bench.NodeMode", NodeMode, "NODE_MODE_"] },
             { no: 32, name: "title", kind: "message", T: () => TextLineData },
-            { no: 33, name: "order_key", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
+            { no: 33, name: "order_key", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
             { no: 34, name: "icon", kind: "message", T: () => IconData },
             { no: 35, name: "definition_ptr", kind: "message", T: () => NodeReferenceData },
             { no: 50, name: "due_at", kind: "message", T: () => Timestamp },
@@ -27727,6 +27743,7 @@ class TaskData$Type extends MessageType$<TaskData> {
         message.id = "";
         message.ck = "";
         message.mode = 0;
+        message.orderKey = "";
         message.nodesPtr = [];
         message.status = 0;
         if (value !== undefined)
@@ -27789,7 +27806,7 @@ class TaskData$Type extends MessageType$<TaskData> {
                 case /* optional symbol.bench.TextLineData title */ 32:
                     message.title = TextLineData.internalBinaryRead(reader, reader.uint32(), options, message.title);
                     break;
-                case /* optional string order_key */ 33:
+                case /* string order_key */ 33:
                     message.orderKey = reader.string();
                     break;
                 case /* optional symbol.bench.IconData icon */ 34:
@@ -27918,8 +27935,8 @@ class TaskData$Type extends MessageType$<TaskData> {
         /* optional symbol.bench.TextLineData title = 32; */
         if (message.title)
             TextLineData.internalBinaryWrite(message.title, writer.tag(32, WireType.LengthDelimited).fork(), options).join();
-        /* optional string order_key = 33; */
-        if (message.orderKey !== undefined)
+        /* string order_key = 33; */
+        if (message.orderKey !== "")
             writer.tag(33, WireType.LengthDelimited).string(message.orderKey);
         /* optional symbol.bench.IconData icon = 34; */
         if (message.icon)
@@ -29107,7 +29124,7 @@ class RouteData$Type extends MessageType$<RouteData> {
             { no: 17, name: "owned_by_ptr", kind: "message", T: () => NodeReferenceData },
             { no: 25, name: "mode", kind: "enum", T: () => ["symbol.bench.NodeMode", NodeMode, "NODE_MODE_"] },
             { no: 31, name: "name", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
-            { no: 33, name: "order_key", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
+            { no: 33, name: "order_key", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
             { no: 34, name: "icon", kind: "message", T: () => IconData },
             { no: 35, name: "definition_ptr", kind: "message", T: () => NodeReferenceData },
             { no: 40, name: "scene_ptr", kind: "message", T: () => NodeReferenceData }
@@ -29119,6 +29136,7 @@ class RouteData$Type extends MessageType$<RouteData> {
         message.id = "";
         message.ck = "";
         message.mode = 0;
+        message.orderKey = "";
         if (value !== undefined)
             reflectionMergePartial<RouteData>(this, message, value);
         return message;
@@ -29176,7 +29194,7 @@ class RouteData$Type extends MessageType$<RouteData> {
                 case /* optional string name */ 31:
                     message.name = reader.string();
                     break;
-                case /* optional string order_key */ 33:
+                case /* string order_key */ 33:
                     message.orderKey = reader.string();
                     break;
                 case /* optional symbol.bench.IconData icon */ 34:
@@ -29248,8 +29266,8 @@ class RouteData$Type extends MessageType$<RouteData> {
         /* optional string name = 31; */
         if (message.name !== undefined)
             writer.tag(31, WireType.LengthDelimited).string(message.name);
-        /* optional string order_key = 33; */
-        if (message.orderKey !== undefined)
+        /* string order_key = 33; */
+        if (message.orderKey !== "")
             writer.tag(33, WireType.LengthDelimited).string(message.orderKey);
         /* optional symbol.bench.IconData icon = 34; */
         if (message.icon)
@@ -29290,7 +29308,7 @@ class SceneData$Type extends MessageType$<SceneData> {
             { no: 17, name: "owned_by_ptr", kind: "message", T: () => NodeReferenceData },
             { no: 25, name: "mode", kind: "enum", T: () => ["symbol.bench.NodeMode", NodeMode, "NODE_MODE_"] },
             { no: 31, name: "name", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
-            { no: 33, name: "order_key", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
+            { no: 33, name: "order_key", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
             { no: 34, name: "icon", kind: "message", T: () => IconData },
             { no: 35, name: "definition_ptr", kind: "message", T: () => NodeReferenceData },
             { no: 40, name: "root_view_ptr", kind: "message", T: () => NodeReferenceData }
@@ -29302,6 +29320,7 @@ class SceneData$Type extends MessageType$<SceneData> {
         message.id = "";
         message.ck = "";
         message.mode = 0;
+        message.orderKey = "";
         if (value !== undefined)
             reflectionMergePartial<SceneData>(this, message, value);
         return message;
@@ -29359,7 +29378,7 @@ class SceneData$Type extends MessageType$<SceneData> {
                 case /* optional string name */ 31:
                     message.name = reader.string();
                     break;
-                case /* optional string order_key */ 33:
+                case /* string order_key */ 33:
                     message.orderKey = reader.string();
                     break;
                 case /* optional symbol.bench.IconData icon */ 34:
@@ -29431,8 +29450,8 @@ class SceneData$Type extends MessageType$<SceneData> {
         /* optional string name = 31; */
         if (message.name !== undefined)
             writer.tag(31, WireType.LengthDelimited).string(message.name);
-        /* optional string order_key = 33; */
-        if (message.orderKey !== undefined)
+        /* string order_key = 33; */
+        if (message.orderKey !== "")
             writer.tag(33, WireType.LengthDelimited).string(message.orderKey);
         /* optional symbol.bench.IconData icon = 34; */
         if (message.icon)
@@ -29677,7 +29696,7 @@ class ColorStyleData$Type extends MessageType$<ColorStyleData> {
             { no: 25, name: "mode", kind: "enum", T: () => ["symbol.bench.NodeMode", NodeMode, "NODE_MODE_"] },
             { no: 30, name: "type", kind: "enum", T: () => ["symbol.bench.ColorType", ColorType, "COLOR_TYPE_"] },
             { no: 31, name: "name", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
-            { no: 33, name: "order_key", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
+            { no: 33, name: "order_key", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
             { no: 34, name: "icon", kind: "message", T: () => IconData },
             { no: 35, name: "definition_ptr", kind: "message", T: () => NodeReferenceData },
             { no: 40, name: "hue", kind: "enum", opt: true, T: () => ["symbol.bench.ColorHue", ColorHue, "COLOR_HUE_"] },
@@ -29696,6 +29715,7 @@ class ColorStyleData$Type extends MessageType$<ColorStyleData> {
         message.id = "";
         message.mode = 0;
         message.type = 0;
+        message.orderKey = "";
         if (value !== undefined)
             reflectionMergePartial<ColorStyleData>(this, message, value);
         return message;
@@ -29750,7 +29770,7 @@ class ColorStyleData$Type extends MessageType$<ColorStyleData> {
                 case /* optional string name */ 31:
                     message.name = reader.string();
                     break;
-                case /* optional string order_key */ 33:
+                case /* string order_key */ 33:
                     message.orderKey = reader.string();
                     break;
                 case /* optional symbol.bench.IconData icon */ 34:
@@ -29840,8 +29860,8 @@ class ColorStyleData$Type extends MessageType$<ColorStyleData> {
         /* optional string name = 31; */
         if (message.name !== undefined)
             writer.tag(31, WireType.LengthDelimited).string(message.name);
-        /* optional string order_key = 33; */
-        if (message.orderKey !== undefined)
+        /* string order_key = 33; */
+        if (message.orderKey !== "")
             writer.tag(33, WireType.LengthDelimited).string(message.orderKey);
         /* optional symbol.bench.IconData icon = 34; */
         if (message.icon)
@@ -29902,7 +29922,7 @@ class BorderStyleData$Type extends MessageType$<BorderStyleData> {
             { no: 25, name: "mode", kind: "enum", T: () => ["symbol.bench.NodeMode", NodeMode, "NODE_MODE_"] },
             { no: 30, name: "type", kind: "enum", T: () => ["symbol.bench.BorderType", BorderType, "BORDER_TYPE_"] },
             { no: 31, name: "name", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
-            { no: 33, name: "order_key", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
+            { no: 33, name: "order_key", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
             { no: 34, name: "icon", kind: "message", T: () => IconData },
             { no: 35, name: "definition_ptr", kind: "message", T: () => NodeReferenceData },
             { no: 40, name: "style_ptr", kind: "message", T: () => NodeReferenceData },
@@ -29916,6 +29936,7 @@ class BorderStyleData$Type extends MessageType$<BorderStyleData> {
         message.id = "";
         message.mode = 0;
         message.type = 0;
+        message.orderKey = "";
         if (value !== undefined)
             reflectionMergePartial<BorderStyleData>(this, message, value);
         return message;
@@ -29970,7 +29991,7 @@ class BorderStyleData$Type extends MessageType$<BorderStyleData> {
                 case /* optional string name */ 31:
                     message.name = reader.string();
                     break;
-                case /* optional string order_key */ 33:
+                case /* string order_key */ 33:
                     message.orderKey = reader.string();
                     break;
                 case /* optional symbol.bench.IconData icon */ 34:
@@ -30045,8 +30066,8 @@ class BorderStyleData$Type extends MessageType$<BorderStyleData> {
         /* optional string name = 31; */
         if (message.name !== undefined)
             writer.tag(31, WireType.LengthDelimited).string(message.name);
-        /* optional string order_key = 33; */
-        if (message.orderKey !== undefined)
+        /* string order_key = 33; */
+        if (message.orderKey !== "")
             writer.tag(33, WireType.LengthDelimited).string(message.orderKey);
         /* optional symbol.bench.IconData icon = 34; */
         if (message.icon)
@@ -30092,7 +30113,7 @@ class EffectStyleData$Type extends MessageType$<EffectStyleData> {
             { no: 25, name: "mode", kind: "enum", T: () => ["symbol.bench.NodeMode", NodeMode, "NODE_MODE_"] },
             { no: 30, name: "type", kind: "enum", T: () => ["symbol.bench.EffectType", EffectType, "EFFECT_TYPE_"] },
             { no: 31, name: "name", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
-            { no: 33, name: "order_key", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
+            { no: 33, name: "order_key", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
             { no: 34, name: "icon", kind: "message", T: () => IconData },
             { no: 35, name: "definition_ptr", kind: "message", T: () => NodeReferenceData },
             { no: 40, name: "opacity", kind: "scalar", opt: true, T: 2 /*ScalarType.FLOAT*/ },
@@ -30112,6 +30133,7 @@ class EffectStyleData$Type extends MessageType$<EffectStyleData> {
         message.id = "";
         message.mode = 0;
         message.type = 0;
+        message.orderKey = "";
         if (value !== undefined)
             reflectionMergePartial<EffectStyleData>(this, message, value);
         return message;
@@ -30166,7 +30188,7 @@ class EffectStyleData$Type extends MessageType$<EffectStyleData> {
                 case /* optional string name */ 31:
                     message.name = reader.string();
                     break;
-                case /* optional string order_key */ 33:
+                case /* string order_key */ 33:
                     message.orderKey = reader.string();
                     break;
                 case /* optional symbol.bench.IconData icon */ 34:
@@ -30259,8 +30281,8 @@ class EffectStyleData$Type extends MessageType$<EffectStyleData> {
         /* optional string name = 31; */
         if (message.name !== undefined)
             writer.tag(31, WireType.LengthDelimited).string(message.name);
-        /* optional string order_key = 33; */
-        if (message.orderKey !== undefined)
+        /* string order_key = 33; */
+        if (message.orderKey !== "")
             writer.tag(33, WireType.LengthDelimited).string(message.orderKey);
         /* optional symbol.bench.IconData icon = 34; */
         if (message.icon)
@@ -30324,7 +30346,7 @@ class GradientStyleData$Type extends MessageType$<GradientStyleData> {
             { no: 25, name: "mode", kind: "enum", T: () => ["symbol.bench.NodeMode", NodeMode, "NODE_MODE_"] },
             { no: 30, name: "type", kind: "enum", T: () => ["symbol.bench.GradientType", GradientType, "GRADIENT_TYPE_"] },
             { no: 31, name: "name", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
-            { no: 33, name: "order_key", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
+            { no: 33, name: "order_key", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
             { no: 34, name: "icon", kind: "message", T: () => IconData },
             { no: 35, name: "definition_ptr", kind: "message", T: () => NodeReferenceData },
             { no: 40, name: "angle", kind: "scalar", opt: true, T: 2 /*ScalarType.FLOAT*/ },
@@ -30339,6 +30361,7 @@ class GradientStyleData$Type extends MessageType$<GradientStyleData> {
         message.id = "";
         message.mode = 0;
         message.type = 0;
+        message.orderKey = "";
         message.stops = [];
         if (value !== undefined)
             reflectionMergePartial<GradientStyleData>(this, message, value);
@@ -30394,7 +30417,7 @@ class GradientStyleData$Type extends MessageType$<GradientStyleData> {
                 case /* optional string name */ 31:
                     message.name = reader.string();
                     break;
-                case /* optional string order_key */ 33:
+                case /* string order_key */ 33:
                     message.orderKey = reader.string();
                     break;
                 case /* optional symbol.bench.IconData icon */ 34:
@@ -30472,8 +30495,8 @@ class GradientStyleData$Type extends MessageType$<GradientStyleData> {
         /* optional string name = 31; */
         if (message.name !== undefined)
             writer.tag(31, WireType.LengthDelimited).string(message.name);
-        /* optional string order_key = 33; */
-        if (message.orderKey !== undefined)
+        /* string order_key = 33; */
+        if (message.orderKey !== "")
             writer.tag(33, WireType.LengthDelimited).string(message.orderKey);
         /* optional symbol.bench.IconData icon = 34; */
         if (message.icon)
@@ -30522,7 +30545,7 @@ class FontStyleData$Type extends MessageType$<FontStyleData> {
             { no: 25, name: "mode", kind: "enum", T: () => ["symbol.bench.NodeMode", NodeMode, "NODE_MODE_"] },
             { no: 30, name: "type", kind: "enum", T: () => ["symbol.bench.TextType", TextType, "TEXT_TYPE_"] },
             { no: 31, name: "name", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
-            { no: 33, name: "order_key", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
+            { no: 33, name: "order_key", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
             { no: 34, name: "icon", kind: "message", T: () => IconData },
             { no: 35, name: "definition_ptr", kind: "message", T: () => NodeReferenceData },
             { no: 40, name: "style_ptr", kind: "message", T: () => NodeReferenceData },
@@ -30543,6 +30566,7 @@ class FontStyleData$Type extends MessageType$<FontStyleData> {
         message.id = "";
         message.mode = 0;
         message.type = 0;
+        message.orderKey = "";
         if (value !== undefined)
             reflectionMergePartial<FontStyleData>(this, message, value);
         return message;
@@ -30597,7 +30621,7 @@ class FontStyleData$Type extends MessageType$<FontStyleData> {
                 case /* optional string name */ 31:
                     message.name = reader.string();
                     break;
-                case /* optional string order_key */ 33:
+                case /* string order_key */ 33:
                     message.orderKey = reader.string();
                     break;
                 case /* optional symbol.bench.IconData icon */ 34:
@@ -30693,8 +30717,8 @@ class FontStyleData$Type extends MessageType$<FontStyleData> {
         /* optional string name = 31; */
         if (message.name !== undefined)
             writer.tag(31, WireType.LengthDelimited).string(message.name);
-        /* optional string order_key = 33; */
-        if (message.orderKey !== undefined)
+        /* string order_key = 33; */
+        if (message.orderKey !== "")
             writer.tag(33, WireType.LengthDelimited).string(message.orderKey);
         /* optional symbol.bench.IconData icon = 34; */
         if (message.icon)
@@ -30761,7 +30785,7 @@ class ShadowStyleData$Type extends MessageType$<ShadowStyleData> {
             { no: 25, name: "mode", kind: "enum", T: () => ["symbol.bench.NodeMode", NodeMode, "NODE_MODE_"] },
             { no: 30, name: "type", kind: "enum", T: () => ["symbol.bench.ShadowType", ShadowType, "SHADOW_TYPE_"] },
             { no: 31, name: "name", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
-            { no: 33, name: "order_key", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
+            { no: 33, name: "order_key", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
             { no: 34, name: "icon", kind: "message", T: () => IconData },
             { no: 35, name: "definition_ptr", kind: "message", T: () => NodeReferenceData },
             { no: 40, name: "style_ptr", kind: "message", T: () => NodeReferenceData },
@@ -30779,6 +30803,7 @@ class ShadowStyleData$Type extends MessageType$<ShadowStyleData> {
         message.id = "";
         message.mode = 0;
         message.type = 0;
+        message.orderKey = "";
         message.position = 0;
         if (value !== undefined)
             reflectionMergePartial<ShadowStyleData>(this, message, value);
@@ -30834,7 +30859,7 @@ class ShadowStyleData$Type extends MessageType$<ShadowStyleData> {
                 case /* optional string name */ 31:
                     message.name = reader.string();
                     break;
-                case /* optional string order_key */ 33:
+                case /* string order_key */ 33:
                     message.orderKey = reader.string();
                     break;
                 case /* optional symbol.bench.IconData icon */ 34:
@@ -30921,8 +30946,8 @@ class ShadowStyleData$Type extends MessageType$<ShadowStyleData> {
         /* optional string name = 31; */
         if (message.name !== undefined)
             writer.tag(31, WireType.LengthDelimited).string(message.name);
-        /* optional string order_key = 33; */
-        if (message.orderKey !== undefined)
+        /* string order_key = 33; */
+        if (message.orderKey !== "")
             writer.tag(33, WireType.LengthDelimited).string(message.orderKey);
         /* optional symbol.bench.IconData icon = 34; */
         if (message.icon)
@@ -30976,7 +31001,7 @@ class ThemeData$Type extends MessageType$<ThemeData> {
             { no: 13, name: "updated_by_ptr", kind: "message", T: () => NodeReferenceData },
             { no: 14, name: "archived_at", kind: "message", T: () => Timestamp },
             { no: 15, name: "deleted_at", kind: "message", T: () => Timestamp },
-            { no: 33, name: "order_key", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
+            { no: 33, name: "order_key", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
             { no: 34, name: "icon", kind: "message", T: () => IconData },
             { no: 35, name: "definition_ptr", kind: "message", T: () => NodeReferenceData },
             { no: 50, name: "primary_color", kind: "message", T: () => ColorData },
@@ -30992,6 +31017,7 @@ class ThemeData$Type extends MessageType$<ThemeData> {
         const message = globalThis.Object.create((this.messagePrototype!));
         message.metatype = 0;
         message.id = "";
+        message.orderKey = "";
         if (value !== undefined)
             reflectionMergePartial<ThemeData>(this, message, value);
         return message;
@@ -31034,7 +31060,7 @@ class ThemeData$Type extends MessageType$<ThemeData> {
                 case /* optional google.protobuf.Timestamp deleted_at */ 15:
                     message.deletedAt = Timestamp.internalBinaryRead(reader, reader.uint32(), options, message.deletedAt);
                     break;
-                case /* optional string order_key */ 33:
+                case /* string order_key */ 33:
                     message.orderKey = reader.string();
                     break;
                 case /* optional symbol.bench.IconData icon */ 34:
@@ -31109,8 +31135,8 @@ class ThemeData$Type extends MessageType$<ThemeData> {
         /* optional google.protobuf.Timestamp deleted_at = 15; */
         if (message.deletedAt)
             Timestamp.internalBinaryWrite(message.deletedAt, writer.tag(15, WireType.LengthDelimited).fork(), options).join();
-        /* optional string order_key = 33; */
-        if (message.orderKey !== undefined)
+        /* string order_key = 33; */
+        if (message.orderKey !== "")
             writer.tag(33, WireType.LengthDelimited).string(message.orderKey);
         /* optional symbol.bench.IconData icon = 34; */
         if (message.icon)
@@ -31168,7 +31194,7 @@ class TransitionStyleData$Type extends MessageType$<TransitionStyleData> {
             { no: 25, name: "mode", kind: "enum", T: () => ["symbol.bench.NodeMode", NodeMode, "NODE_MODE_"] },
             { no: 30, name: "type", kind: "enum", T: () => ["symbol.bench.TransitionType", TransitionType, "TRANSITION_TYPE_"] },
             { no: 31, name: "name", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
-            { no: 33, name: "order_key", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
+            { no: 33, name: "order_key", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
             { no: 34, name: "icon", kind: "message", T: () => IconData },
             { no: 35, name: "definition_ptr", kind: "message", T: () => NodeReferenceData },
             { no: 40, name: "style_ptr", kind: "message", T: () => NodeReferenceData },
@@ -31188,6 +31214,7 @@ class TransitionStyleData$Type extends MessageType$<TransitionStyleData> {
         message.id = "";
         message.mode = 0;
         message.type = 0;
+        message.orderKey = "";
         message.ease = [];
         if (value !== undefined)
             reflectionMergePartial<TransitionStyleData>(this, message, value);
@@ -31243,7 +31270,7 @@ class TransitionStyleData$Type extends MessageType$<TransitionStyleData> {
                 case /* optional string name */ 31:
                     message.name = reader.string();
                     break;
-                case /* optional string order_key */ 33:
+                case /* string order_key */ 33:
                     message.orderKey = reader.string();
                     break;
                 case /* optional symbol.bench.IconData icon */ 34:
@@ -31340,8 +31367,8 @@ class TransitionStyleData$Type extends MessageType$<TransitionStyleData> {
         /* optional string name = 31; */
         if (message.name !== undefined)
             writer.tag(31, WireType.LengthDelimited).string(message.name);
-        /* optional string order_key = 33; */
-        if (message.orderKey !== undefined)
+        /* string order_key = 33; */
+        if (message.orderKey !== "")
             writer.tag(33, WireType.LengthDelimited).string(message.orderKey);
         /* optional symbol.bench.IconData icon = 34; */
         if (message.icon)
@@ -31408,7 +31435,7 @@ class ChoiceData$Type extends MessageType$<ChoiceData> {
             { no: 16, name: "template_ptr", kind: "message", T: () => NodeReferenceData },
             { no: 25, name: "mode", kind: "enum", T: () => ["symbol.bench.NodeMode", NodeMode, "NODE_MODE_"] },
             { no: 31, name: "name", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
-            { no: 33, name: "order_key", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
+            { no: 33, name: "order_key", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
             { no: 34, name: "icon", kind: "message", T: () => IconData },
             { no: 35, name: "definition_ptr", kind: "message", T: () => NodeReferenceData }
         ]);
@@ -31418,6 +31445,7 @@ class ChoiceData$Type extends MessageType$<ChoiceData> {
         message.metatype = 0;
         message.id = "";
         message.mode = 0;
+        message.orderKey = "";
         if (value !== undefined)
             reflectionMergePartial<ChoiceData>(this, message, value);
         return message;
@@ -31469,7 +31497,7 @@ class ChoiceData$Type extends MessageType$<ChoiceData> {
                 case /* optional string name */ 31:
                     message.name = reader.string();
                     break;
-                case /* optional string order_key */ 33:
+                case /* string order_key */ 33:
                     message.orderKey = reader.string();
                     break;
                 case /* optional symbol.bench.IconData icon */ 34:
@@ -31532,8 +31560,8 @@ class ChoiceData$Type extends MessageType$<ChoiceData> {
         /* optional string name = 31; */
         if (message.name !== undefined)
             writer.tag(31, WireType.LengthDelimited).string(message.name);
-        /* optional string order_key = 33; */
-        if (message.orderKey !== undefined)
+        /* string order_key = 33; */
+        if (message.orderKey !== "")
             writer.tag(33, WireType.LengthDelimited).string(message.orderKey);
         /* optional symbol.bench.IconData icon = 34; */
         if (message.icon)
@@ -31569,7 +31597,7 @@ class ClassData$Type extends MessageType$<ClassData> {
             { no: 16, name: "template_ptr", kind: "message", T: () => NodeReferenceData },
             { no: 25, name: "mode", kind: "enum", T: () => ["symbol.bench.NodeMode", NodeMode, "NODE_MODE_"] },
             { no: 31, name: "name", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
-            { no: 33, name: "order_key", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
+            { no: 33, name: "order_key", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
             { no: 34, name: "icon", kind: "message", T: () => IconData },
             { no: 35, name: "definition_ptr", kind: "message", T: () => NodeReferenceData }
         ]);
@@ -31579,6 +31607,7 @@ class ClassData$Type extends MessageType$<ClassData> {
         message.metatype = 0;
         message.id = "";
         message.mode = 0;
+        message.orderKey = "";
         if (value !== undefined)
             reflectionMergePartial<ClassData>(this, message, value);
         return message;
@@ -31630,7 +31659,7 @@ class ClassData$Type extends MessageType$<ClassData> {
                 case /* optional string name */ 31:
                     message.name = reader.string();
                     break;
-                case /* optional string order_key */ 33:
+                case /* string order_key */ 33:
                     message.orderKey = reader.string();
                     break;
                 case /* optional symbol.bench.IconData icon */ 34:
@@ -31693,8 +31722,8 @@ class ClassData$Type extends MessageType$<ClassData> {
         /* optional string name = 31; */
         if (message.name !== undefined)
             writer.tag(31, WireType.LengthDelimited).string(message.name);
-        /* optional string order_key = 33; */
-        if (message.orderKey !== undefined)
+        /* string order_key = 33; */
+        if (message.orderKey !== "")
             writer.tag(33, WireType.LengthDelimited).string(message.orderKey);
         /* optional symbol.bench.IconData icon = 34; */
         if (message.icon)
@@ -32022,7 +32051,7 @@ class OptionData$Type extends MessageType$<OptionData> {
             { no: 16, name: "template_ptr", kind: "message", T: () => NodeReferenceData },
             { no: 25, name: "mode", kind: "enum", T: () => ["symbol.bench.NodeMode", NodeMode, "NODE_MODE_"] },
             { no: 31, name: "name", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
-            { no: 32, name: "order_key", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
+            { no: 33, name: "order_key", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
             { no: 34, name: "icon", kind: "message", T: () => IconData }
         ]);
     }
@@ -32087,7 +32116,7 @@ class OptionData$Type extends MessageType$<OptionData> {
                 case /* optional string name */ 31:
                     message.name = reader.string();
                     break;
-                case /* string order_key */ 32:
+                case /* string order_key */ 33:
                     message.orderKey = reader.string();
                     break;
                 case /* optional symbol.bench.IconData icon */ 34:
@@ -32150,9 +32179,9 @@ class OptionData$Type extends MessageType$<OptionData> {
         /* optional string name = 31; */
         if (message.name !== undefined)
             writer.tag(31, WireType.LengthDelimited).string(message.name);
-        /* string order_key = 32; */
+        /* string order_key = 33; */
         if (message.orderKey !== "")
-            writer.tag(32, WireType.LengthDelimited).string(message.orderKey);
+            writer.tag(33, WireType.LengthDelimited).string(message.orderKey);
         /* optional symbol.bench.IconData icon = 34; */
         if (message.icon)
             IconData.internalBinaryWrite(message.icon, writer.tag(34, WireType.LengthDelimited).fork(), options).join();
@@ -32185,7 +32214,7 @@ class ComponentViewData$Type extends MessageType$<ComponentViewData> {
             { no: 16, name: "template_ptr", kind: "message", T: () => NodeReferenceData },
             { no: 25, name: "mode", kind: "enum", T: () => ["symbol.bench.NodeMode", NodeMode, "NODE_MODE_"] },
             { no: 31, name: "name", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
-            { no: 33, name: "order_key", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
+            { no: 33, name: "order_key", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
             { no: 34, name: "icon", kind: "message", T: () => IconData },
             { no: 35, name: "definition_ptr", kind: "message", T: () => NodeReferenceData },
             { no: 40, name: "position", kind: "message", T: () => PositionData },
@@ -32220,6 +32249,7 @@ class ComponentViewData$Type extends MessageType$<ComponentViewData> {
         message.id = "";
         message.ck = "";
         message.mode = 0;
+        message.orderKey = "";
         if (value !== undefined)
             reflectionMergePartial<ComponentViewData>(this, message, value);
         return message;
@@ -32274,7 +32304,7 @@ class ComponentViewData$Type extends MessageType$<ComponentViewData> {
                 case /* optional string name */ 31:
                     message.name = reader.string();
                     break;
-                case /* optional string order_key */ 33:
+                case /* string order_key */ 33:
                     message.orderKey = reader.string();
                     break;
                 case /* optional symbol.bench.IconData icon */ 34:
@@ -32412,8 +32442,8 @@ class ComponentViewData$Type extends MessageType$<ComponentViewData> {
         /* optional string name = 31; */
         if (message.name !== undefined)
             writer.tag(31, WireType.LengthDelimited).string(message.name);
-        /* optional string order_key = 33; */
-        if (message.orderKey !== undefined)
+        /* string order_key = 33; */
+        if (message.orderKey !== "")
             writer.tag(33, WireType.LengthDelimited).string(message.orderKey);
         /* optional symbol.bench.IconData icon = 34; */
         if (message.icon)
@@ -32522,7 +32552,7 @@ class FrameViewData$Type extends MessageType$<FrameViewData> {
             { no: 16, name: "template_ptr", kind: "message", T: () => NodeReferenceData },
             { no: 25, name: "mode", kind: "enum", T: () => ["symbol.bench.NodeMode", NodeMode, "NODE_MODE_"] },
             { no: 31, name: "name", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
-            { no: 33, name: "order_key", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
+            { no: 33, name: "order_key", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
             { no: 34, name: "icon", kind: "message", T: () => IconData },
             { no: 35, name: "definition_ptr", kind: "message", T: () => NodeReferenceData },
             { no: 40, name: "position", kind: "message", T: () => PositionData },
@@ -32557,6 +32587,7 @@ class FrameViewData$Type extends MessageType$<FrameViewData> {
         message.id = "";
         message.ck = "";
         message.mode = 0;
+        message.orderKey = "";
         if (value !== undefined)
             reflectionMergePartial<FrameViewData>(this, message, value);
         return message;
@@ -32611,7 +32642,7 @@ class FrameViewData$Type extends MessageType$<FrameViewData> {
                 case /* optional string name */ 31:
                     message.name = reader.string();
                     break;
-                case /* optional string order_key */ 33:
+                case /* string order_key */ 33:
                     message.orderKey = reader.string();
                     break;
                 case /* optional symbol.bench.IconData icon */ 34:
@@ -32749,8 +32780,8 @@ class FrameViewData$Type extends MessageType$<FrameViewData> {
         /* optional string name = 31; */
         if (message.name !== undefined)
             writer.tag(31, WireType.LengthDelimited).string(message.name);
-        /* optional string order_key = 33; */
-        if (message.orderKey !== undefined)
+        /* string order_key = 33; */
+        if (message.orderKey !== "")
             writer.tag(33, WireType.LengthDelimited).string(message.orderKey);
         /* optional symbol.bench.IconData icon = 34; */
         if (message.icon)
@@ -32859,7 +32890,7 @@ class LabelViewData$Type extends MessageType$<LabelViewData> {
             { no: 16, name: "template_ptr", kind: "message", T: () => NodeReferenceData },
             { no: 25, name: "mode", kind: "enum", T: () => ["symbol.bench.NodeMode", NodeMode, "NODE_MODE_"] },
             { no: 31, name: "name", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
-            { no: 33, name: "order_key", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
+            { no: 33, name: "order_key", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
             { no: 34, name: "icon", kind: "message", T: () => IconData },
             { no: 35, name: "definition_ptr", kind: "message", T: () => NodeReferenceData },
             { no: 40, name: "position", kind: "message", T: () => PositionData },
@@ -32894,6 +32925,7 @@ class LabelViewData$Type extends MessageType$<LabelViewData> {
         message.id = "";
         message.ck = "";
         message.mode = 0;
+        message.orderKey = "";
         if (value !== undefined)
             reflectionMergePartial<LabelViewData>(this, message, value);
         return message;
@@ -32948,7 +32980,7 @@ class LabelViewData$Type extends MessageType$<LabelViewData> {
                 case /* optional string name */ 31:
                     message.name = reader.string();
                     break;
-                case /* optional string order_key */ 33:
+                case /* string order_key */ 33:
                     message.orderKey = reader.string();
                     break;
                 case /* optional symbol.bench.IconData icon */ 34:
@@ -33086,8 +33118,8 @@ class LabelViewData$Type extends MessageType$<LabelViewData> {
         /* optional string name = 31; */
         if (message.name !== undefined)
             writer.tag(31, WireType.LengthDelimited).string(message.name);
-        /* optional string order_key = 33; */
-        if (message.orderKey !== undefined)
+        /* string order_key = 33; */
+        if (message.orderKey !== "")
             writer.tag(33, WireType.LengthDelimited).string(message.orderKey);
         /* optional symbol.bench.IconData icon = 34; */
         if (message.icon)
@@ -33196,7 +33228,7 @@ class SplitViewData$Type extends MessageType$<SplitViewData> {
             { no: 16, name: "template_ptr", kind: "message", T: () => NodeReferenceData },
             { no: 25, name: "mode", kind: "enum", T: () => ["symbol.bench.NodeMode", NodeMode, "NODE_MODE_"] },
             { no: 31, name: "name", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
-            { no: 33, name: "order_key", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
+            { no: 33, name: "order_key", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
             { no: 34, name: "icon", kind: "message", T: () => IconData },
             { no: 35, name: "definition_ptr", kind: "message", T: () => NodeReferenceData },
             { no: 40, name: "position", kind: "message", T: () => PositionData },
@@ -33231,6 +33263,7 @@ class SplitViewData$Type extends MessageType$<SplitViewData> {
         message.id = "";
         message.ck = "";
         message.mode = 0;
+        message.orderKey = "";
         if (value !== undefined)
             reflectionMergePartial<SplitViewData>(this, message, value);
         return message;
@@ -33285,7 +33318,7 @@ class SplitViewData$Type extends MessageType$<SplitViewData> {
                 case /* optional string name */ 31:
                     message.name = reader.string();
                     break;
-                case /* optional string order_key */ 33:
+                case /* string order_key */ 33:
                     message.orderKey = reader.string();
                     break;
                 case /* optional symbol.bench.IconData icon */ 34:
@@ -33423,8 +33456,8 @@ class SplitViewData$Type extends MessageType$<SplitViewData> {
         /* optional string name = 31; */
         if (message.name !== undefined)
             writer.tag(31, WireType.LengthDelimited).string(message.name);
-        /* optional string order_key = 33; */
-        if (message.orderKey !== undefined)
+        /* string order_key = 33; */
+        if (message.orderKey !== "")
             writer.tag(33, WireType.LengthDelimited).string(message.orderKey);
         /* optional symbol.bench.IconData icon = 34; */
         if (message.icon)
@@ -33533,7 +33566,7 @@ class TextViewData$Type extends MessageType$<TextViewData> {
             { no: 16, name: "template_ptr", kind: "message", T: () => NodeReferenceData },
             { no: 25, name: "mode", kind: "enum", T: () => ["symbol.bench.NodeMode", NodeMode, "NODE_MODE_"] },
             { no: 31, name: "name", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
-            { no: 33, name: "order_key", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
+            { no: 33, name: "order_key", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
             { no: 34, name: "icon", kind: "message", T: () => IconData },
             { no: 35, name: "definition_ptr", kind: "message", T: () => NodeReferenceData },
             { no: 40, name: "position", kind: "message", T: () => PositionData },
@@ -33558,6 +33591,7 @@ class TextViewData$Type extends MessageType$<TextViewData> {
         message.id = "";
         message.ck = "";
         message.mode = 0;
+        message.orderKey = "";
         message.text = "";
         if (value !== undefined)
             reflectionMergePartial<TextViewData>(this, message, value);
@@ -33613,7 +33647,7 @@ class TextViewData$Type extends MessageType$<TextViewData> {
                 case /* optional string name */ 31:
                     message.name = reader.string();
                     break;
-                case /* optional string order_key */ 33:
+                case /* string order_key */ 33:
                     message.orderKey = reader.string();
                     break;
                 case /* optional symbol.bench.IconData icon */ 34:
@@ -33721,8 +33755,8 @@ class TextViewData$Type extends MessageType$<TextViewData> {
         /* optional string name = 31; */
         if (message.name !== undefined)
             writer.tag(31, WireType.LengthDelimited).string(message.name);
-        /* optional string order_key = 33; */
-        if (message.orderKey !== undefined)
+        /* string order_key = 33; */
+        if (message.orderKey !== "")
             writer.tag(33, WireType.LengthDelimited).string(message.orderKey);
         /* optional symbol.bench.IconData icon = 34; */
         if (message.icon)
@@ -33801,7 +33835,7 @@ class NumberInputViewData$Type extends MessageType$<NumberInputViewData> {
             { no: 16, name: "template_ptr", kind: "message", T: () => NodeReferenceData },
             { no: 25, name: "mode", kind: "enum", T: () => ["symbol.bench.NodeMode", NodeMode, "NODE_MODE_"] },
             { no: 31, name: "name", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
-            { no: 33, name: "order_key", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
+            { no: 33, name: "order_key", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
             { no: 34, name: "icon", kind: "message", T: () => IconData },
             { no: 35, name: "definition_ptr", kind: "message", T: () => NodeReferenceData },
             { no: 40, name: "position", kind: "message", T: () => PositionData },
@@ -33821,6 +33855,7 @@ class NumberInputViewData$Type extends MessageType$<NumberInputViewData> {
         message.id = "";
         message.ck = "";
         message.mode = 0;
+        message.orderKey = "";
         if (value !== undefined)
             reflectionMergePartial<NumberInputViewData>(this, message, value);
         return message;
@@ -33875,7 +33910,7 @@ class NumberInputViewData$Type extends MessageType$<NumberInputViewData> {
                 case /* optional string name */ 31:
                     message.name = reader.string();
                     break;
-                case /* optional string order_key */ 33:
+                case /* string order_key */ 33:
                     message.orderKey = reader.string();
                     break;
                 case /* optional symbol.bench.IconData icon */ 34:
@@ -33968,8 +34003,8 @@ class NumberInputViewData$Type extends MessageType$<NumberInputViewData> {
         /* optional string name = 31; */
         if (message.name !== undefined)
             writer.tag(31, WireType.LengthDelimited).string(message.name);
-        /* optional string order_key = 33; */
-        if (message.orderKey !== undefined)
+        /* string order_key = 33; */
+        if (message.orderKey !== "")
             writer.tag(33, WireType.LengthDelimited).string(message.orderKey);
         /* optional symbol.bench.IconData icon = 34; */
         if (message.icon)
@@ -34033,7 +34068,7 @@ class SliderInputViewData$Type extends MessageType$<SliderInputViewData> {
             { no: 16, name: "template_ptr", kind: "message", T: () => NodeReferenceData },
             { no: 25, name: "mode", kind: "enum", T: () => ["symbol.bench.NodeMode", NodeMode, "NODE_MODE_"] },
             { no: 31, name: "name", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
-            { no: 33, name: "order_key", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
+            { no: 33, name: "order_key", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
             { no: 34, name: "icon", kind: "message", T: () => IconData },
             { no: 35, name: "definition_ptr", kind: "message", T: () => NodeReferenceData },
             { no: 40, name: "position", kind: "message", T: () => PositionData },
@@ -34055,6 +34090,7 @@ class SliderInputViewData$Type extends MessageType$<SliderInputViewData> {
         message.id = "";
         message.ck = "";
         message.mode = 0;
+        message.orderKey = "";
         if (value !== undefined)
             reflectionMergePartial<SliderInputViewData>(this, message, value);
         return message;
@@ -34109,7 +34145,7 @@ class SliderInputViewData$Type extends MessageType$<SliderInputViewData> {
                 case /* optional string name */ 31:
                     message.name = reader.string();
                     break;
-                case /* optional string order_key */ 33:
+                case /* string order_key */ 33:
                     message.orderKey = reader.string();
                     break;
                 case /* optional symbol.bench.IconData icon */ 34:
@@ -34208,8 +34244,8 @@ class SliderInputViewData$Type extends MessageType$<SliderInputViewData> {
         /* optional string name = 31; */
         if (message.name !== undefined)
             writer.tag(31, WireType.LengthDelimited).string(message.name);
-        /* optional string order_key = 33; */
-        if (message.orderKey !== undefined)
+        /* string order_key = 33; */
+        if (message.orderKey !== "")
             writer.tag(33, WireType.LengthDelimited).string(message.orderKey);
         /* optional symbol.bench.IconData icon = 34; */
         if (message.icon)
@@ -34279,7 +34315,7 @@ class WizardViewData$Type extends MessageType$<WizardViewData> {
             { no: 16, name: "template_ptr", kind: "message", T: () => NodeReferenceData },
             { no: 25, name: "mode", kind: "enum", T: () => ["symbol.bench.NodeMode", NodeMode, "NODE_MODE_"] },
             { no: 31, name: "name", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
-            { no: 33, name: "order_key", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
+            { no: 33, name: "order_key", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
             { no: 34, name: "icon", kind: "message", T: () => IconData },
             { no: 35, name: "definition_ptr", kind: "message", T: () => NodeReferenceData },
             { no: 40, name: "position", kind: "message", T: () => PositionData },
@@ -34297,6 +34333,7 @@ class WizardViewData$Type extends MessageType$<WizardViewData> {
         message.id = "";
         message.ck = "";
         message.mode = 0;
+        message.orderKey = "";
         if (value !== undefined)
             reflectionMergePartial<WizardViewData>(this, message, value);
         return message;
@@ -34351,7 +34388,7 @@ class WizardViewData$Type extends MessageType$<WizardViewData> {
                 case /* optional string name */ 31:
                     message.name = reader.string();
                     break;
-                case /* optional string order_key */ 33:
+                case /* string order_key */ 33:
                     message.orderKey = reader.string();
                     break;
                 case /* optional symbol.bench.IconData icon */ 34:
@@ -34438,8 +34475,8 @@ class WizardViewData$Type extends MessageType$<WizardViewData> {
         /* optional string name = 31; */
         if (message.name !== undefined)
             writer.tag(31, WireType.LengthDelimited).string(message.name);
-        /* optional string order_key = 33; */
-        if (message.orderKey !== undefined)
+        /* string order_key = 33; */
+        if (message.orderKey !== "")
             writer.tag(33, WireType.LengthDelimited).string(message.orderKey);
         /* optional symbol.bench.IconData icon = 34; */
         if (message.icon)
@@ -34497,7 +34534,7 @@ class ThreadViewData$Type extends MessageType$<ThreadViewData> {
             { no: 16, name: "template_ptr", kind: "message", T: () => NodeReferenceData },
             { no: 25, name: "mode", kind: "enum", T: () => ["symbol.bench.NodeMode", NodeMode, "NODE_MODE_"] },
             { no: 31, name: "name", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
-            { no: 33, name: "order_key", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
+            { no: 33, name: "order_key", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
             { no: 34, name: "icon", kind: "message", T: () => IconData },
             { no: 35, name: "definition_ptr", kind: "message", T: () => NodeReferenceData },
             { no: 40, name: "position", kind: "message", T: () => PositionData },
@@ -34518,6 +34555,7 @@ class ThreadViewData$Type extends MessageType$<ThreadViewData> {
         message.id = "";
         message.ck = "";
         message.mode = 0;
+        message.orderKey = "";
         message.draftNodesPtr = [];
         if (value !== undefined)
             reflectionMergePartial<ThreadViewData>(this, message, value);
@@ -34573,7 +34611,7 @@ class ThreadViewData$Type extends MessageType$<ThreadViewData> {
                 case /* optional string name */ 31:
                     message.name = reader.string();
                     break;
-                case /* optional string order_key */ 33:
+                case /* string order_key */ 33:
                     message.orderKey = reader.string();
                     break;
                 case /* optional symbol.bench.IconData icon */ 34:
@@ -34669,8 +34707,8 @@ class ThreadViewData$Type extends MessageType$<ThreadViewData> {
         /* optional string name = 31; */
         if (message.name !== undefined)
             writer.tag(31, WireType.LengthDelimited).string(message.name);
-        /* optional string order_key = 33; */
-        if (message.orderKey !== undefined)
+        /* string order_key = 33; */
+        if (message.orderKey !== "")
             writer.tag(33, WireType.LengthDelimited).string(message.orderKey);
         /* optional symbol.bench.IconData icon = 34; */
         if (message.icon)
@@ -37260,7 +37298,7 @@ export enum OptionProperty {
   templatePtr = 16,
   mode = 25,
   name = 31,
-  orderKey = 32,
+  orderKey = 33,
   icon = 34,
 }
 
@@ -37740,7 +37778,7 @@ export enum FlowEdgeProperty {
   templatePtr = 16,
   mode = 25,
   type = 30,
-  name = 32,
+  name = 31,
   orderKey = 33,
   sourcePtr = 35,
   targetPtr = 36,
@@ -39648,7 +39686,7 @@ export const PageDataInfo: Record<PageProperty, PropertyInfo> = {
   [PageProperty.claimedByPtr]: { id: 18, name: 'claimed_by_ptr', component: ObjectType.PAGE, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.CLAIM], referenceStruct: StructType.NODE_REFERENCE },
   [PageProperty.mode]: { id: 25, name: 'mode', component: ObjectType.PAGE, enumType: EnumType.NODE_MODE, kind: 'enum', primitiveType: PrimitiveType.INT16, default: 20, isRequired: true, isInternal: true, isRuntime: true, isWired: true, isStored: true },
   [PageProperty.title]: { id: 32, name: 'title', component: ObjectType.PAGE, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.TEXT_LINE },
-  [PageProperty.orderKey]: { id: 33, name: 'order_key', component: ObjectType.PAGE, kind: 'primitive', primitiveType: PrimitiveType.STRING, default: "a0", isInternal: true, isRuntime: true, isWired: true, isStored: true },
+  [PageProperty.orderKey]: { id: 33, name: 'order_key', component: ObjectType.PAGE, kind: 'primitive', primitiveType: PrimitiveType.STRING, default: "a0", isRequired: true, isInternal: true, isRuntime: true, isWired: true, isStored: true },
   [PageProperty.icon]: { id: 34, name: 'icon', component: ObjectType.PAGE, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.ICON },
   [PageProperty.definitionPtr]: { id: 35, name: 'definition_ptr', component: ObjectType.PAGE, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.BLOCK], referenceStruct: StructType.NODE_REFERENCE },
 }
@@ -39689,7 +39727,7 @@ export const ApplicationDataInfo: Record<ApplicationProperty, PropertyInfo> = {
   [ApplicationProperty.templatePtr]: { id: 16, name: 'template_ptr', component: ObjectType.APPLICATION, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_TEMPLATE, referenceNodes: [NodeType.APPLICATION], referenceStruct: StructType.NODE_REFERENCE },
   [ApplicationProperty.mode]: { id: 25, name: 'mode', component: ObjectType.APPLICATION, enumType: EnumType.NODE_MODE, kind: 'enum', primitiveType: PrimitiveType.INT16, default: 20, isRequired: true, isInternal: true, isRuntime: true, isWired: true, isStored: true },
   [ApplicationProperty.name]: { id: 31, name: 'name', component: ObjectType.APPLICATION, kind: 'primitive', primitiveType: PrimitiveType.STRING, constraint: { minLength: 0, maxLength: 128, nodeTypes: [] }, isRuntime: true, isWired: true, isStored: true },
-  [ApplicationProperty.orderKey]: { id: 33, name: 'order_key', component: ObjectType.APPLICATION, kind: 'primitive', primitiveType: PrimitiveType.STRING, default: "a0", isInternal: true, isRuntime: true, isWired: true, isStored: true },
+  [ApplicationProperty.orderKey]: { id: 33, name: 'order_key', component: ObjectType.APPLICATION, kind: 'primitive', primitiveType: PrimitiveType.STRING, default: "a0", isRequired: true, isInternal: true, isRuntime: true, isWired: true, isStored: true },
   [ApplicationProperty.icon]: { id: 34, name: 'icon', component: ObjectType.APPLICATION, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.ICON },
   [ApplicationProperty.definitionPtr]: { id: 35, name: 'definition_ptr', component: ObjectType.APPLICATION, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.BLOCK], referenceStruct: StructType.NODE_REFERENCE },
   [ApplicationProperty.rootScenePtr]: { id: 40, name: 'root_scene_ptr', component: ObjectType.APPLICATION, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.SCENE], referenceStruct: StructType.NODE_REFERENCE },
@@ -39713,7 +39751,7 @@ export const DatabaseDataInfo: Record<DatabaseProperty, PropertyInfo> = {
   [DatabaseProperty.mode]: { id: 25, name: 'mode', component: ObjectType.DATABASE, enumType: EnumType.NODE_MODE, kind: 'enum', primitiveType: PrimitiveType.INT16, default: 20, isRequired: true, isInternal: true, isRuntime: true, isWired: true, isStored: true },
   [DatabaseProperty.type]: { id: 30, name: 'type', component: ObjectType.DATABASE, enumType: EnumType.DATABASE_TYPE, kind: 'enum', primitiveType: PrimitiveType.INT16, default: 1, isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
   [DatabaseProperty.name]: { id: 31, name: 'name', component: ObjectType.DATABASE, kind: 'primitive', primitiveType: PrimitiveType.STRING, constraint: { minLength: 0, maxLength: 128, nodeTypes: [] }, isRuntime: true, isWired: true, isStored: true },
-  [DatabaseProperty.orderKey]: { id: 33, name: 'order_key', component: ObjectType.DATABASE, kind: 'primitive', primitiveType: PrimitiveType.STRING, default: "a0", isInternal: true, isRuntime: true, isWired: true, isStored: true },
+  [DatabaseProperty.orderKey]: { id: 33, name: 'order_key', component: ObjectType.DATABASE, kind: 'primitive', primitiveType: PrimitiveType.STRING, default: "a0", isRequired: true, isInternal: true, isRuntime: true, isWired: true, isStored: true },
   [DatabaseProperty.icon]: { id: 34, name: 'icon', component: ObjectType.DATABASE, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.ICON },
   [DatabaseProperty.definitionPtr]: { id: 35, name: 'definition_ptr', component: ObjectType.DATABASE, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.BLOCK], referenceStruct: StructType.NODE_REFERENCE },
   [DatabaseProperty.region]: { id: 38, name: 'region', component: ObjectType.DATABASE, enumType: EnumType.REGION, kind: 'enum', primitiveType: PrimitiveType.INT16, default: 1000, isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
@@ -39751,7 +39789,7 @@ export const ComputerDataInfo: Record<ComputerProperty, PropertyInfo> = {
   [ComputerProperty.mode]: { id: 25, name: 'mode', component: ObjectType.COMPUTER, enumType: EnumType.NODE_MODE, kind: 'enum', primitiveType: PrimitiveType.INT16, default: 20, isRequired: true, isInternal: true, isRuntime: true, isWired: true, isStored: true },
   [ComputerProperty.type]: { id: 30, name: 'type', component: ObjectType.COMPUTER, enumType: EnumType.COMPUTER_TYPE, kind: 'enum', primitiveType: PrimitiveType.INT16, default: 10, isRequired: true, isRuntime: true, isWired: true, isStored: true },
   [ComputerProperty.name]: { id: 31, name: 'name', component: ObjectType.COMPUTER, kind: 'primitive', primitiveType: PrimitiveType.STRING, constraint: { minLength: 0, maxLength: 128, nodeTypes: [] }, isRuntime: true, isWired: true, isStored: true },
-  [ComputerProperty.orderKey]: { id: 33, name: 'order_key', component: ObjectType.COMPUTER, kind: 'primitive', primitiveType: PrimitiveType.STRING, default: "a0", isInternal: true, isRuntime: true, isWired: true, isStored: true },
+  [ComputerProperty.orderKey]: { id: 33, name: 'order_key', component: ObjectType.COMPUTER, kind: 'primitive', primitiveType: PrimitiveType.STRING, default: "a0", isRequired: true, isInternal: true, isRuntime: true, isWired: true, isStored: true },
   [ComputerProperty.icon]: { id: 34, name: 'icon', component: ObjectType.COMPUTER, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.ICON },
   [ComputerProperty.definitionPtr]: { id: 35, name: 'definition_ptr', component: ObjectType.COMPUTER, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.BLOCK], referenceStruct: StructType.NODE_REFERENCE },
   [ComputerProperty.region]: { id: 38, name: 'region', component: ObjectType.COMPUTER, enumType: EnumType.REGION, kind: 'enum', primitiveType: PrimitiveType.INT16, default: 1000, isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
@@ -39797,7 +39835,7 @@ export const ScalerDataInfo: Record<ScalerProperty, PropertyInfo> = {
   [ScalerProperty.mode]: { id: 25, name: 'mode', component: ObjectType.SCALER, enumType: EnumType.NODE_MODE, kind: 'enum', primitiveType: PrimitiveType.INT16, default: 20, isRequired: true, isInternal: true, isRuntime: true, isWired: true, isStored: true },
   [ScalerProperty.type]: { id: 30, name: 'type', component: ObjectType.SCALER, enumType: EnumType.SCALER_TYPE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
   [ScalerProperty.name]: { id: 31, name: 'name', component: ObjectType.SCALER, kind: 'primitive', primitiveType: PrimitiveType.STRING, constraint: { minLength: 0, maxLength: 128, nodeTypes: [] }, isRuntime: true, isWired: true, isStored: true },
-  [ScalerProperty.orderKey]: { id: 33, name: 'order_key', component: ObjectType.SCALER, kind: 'primitive', primitiveType: PrimitiveType.STRING, default: "a0", isInternal: true, isRuntime: true, isWired: true, isStored: true },
+  [ScalerProperty.orderKey]: { id: 33, name: 'order_key', component: ObjectType.SCALER, kind: 'primitive', primitiveType: PrimitiveType.STRING, default: "a0", isRequired: true, isInternal: true, isRuntime: true, isWired: true, isStored: true },
   [ScalerProperty.icon]: { id: 34, name: 'icon', component: ObjectType.SCALER, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.ICON },
   [ScalerProperty.definitionPtr]: { id: 35, name: 'definition_ptr', component: ObjectType.SCALER, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.BLOCK], referenceStruct: StructType.NODE_REFERENCE },
   [ScalerProperty.region]: { id: 38, name: 'region', component: ObjectType.SCALER, enumType: EnumType.REGION, kind: 'enum', primitiveType: PrimitiveType.INT16, default: 1000, isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
@@ -39832,7 +39870,7 @@ export const ChoiceDataInfo: Record<ChoiceProperty, PropertyInfo> = {
   [ChoiceProperty.templatePtr]: { id: 16, name: 'template_ptr', component: ObjectType.CHOICE, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_TEMPLATE, referenceNodes: [NodeType.CHOICE], referenceStruct: StructType.NODE_REFERENCE },
   [ChoiceProperty.mode]: { id: 25, name: 'mode', component: ObjectType.CHOICE, enumType: EnumType.NODE_MODE, kind: 'enum', primitiveType: PrimitiveType.INT16, default: 20, isRequired: true, isInternal: true, isRuntime: true, isWired: true, isStored: true },
   [ChoiceProperty.name]: { id: 31, name: 'name', component: ObjectType.CHOICE, kind: 'primitive', primitiveType: PrimitiveType.STRING, constraint: { minLength: 0, maxLength: 128, nodeTypes: [] }, isRuntime: true, isWired: true, isStored: true },
-  [ChoiceProperty.orderKey]: { id: 33, name: 'order_key', component: ObjectType.CHOICE, kind: 'primitive', primitiveType: PrimitiveType.STRING, default: "a0", isInternal: true, isRuntime: true, isWired: true, isStored: true },
+  [ChoiceProperty.orderKey]: { id: 33, name: 'order_key', component: ObjectType.CHOICE, kind: 'primitive', primitiveType: PrimitiveType.STRING, default: "a0", isRequired: true, isInternal: true, isRuntime: true, isWired: true, isStored: true },
   [ChoiceProperty.icon]: { id: 34, name: 'icon', component: ObjectType.CHOICE, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.ICON },
   [ChoiceProperty.definitionPtr]: { id: 35, name: 'definition_ptr', component: ObjectType.CHOICE, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.BLOCK], referenceStruct: StructType.NODE_REFERENCE },
 }
@@ -39851,7 +39889,7 @@ export const ClassDataInfo: Record<ClassProperty, PropertyInfo> = {
   [ClassProperty.templatePtr]: { id: 16, name: 'template_ptr', component: ObjectType.CLASS, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_TEMPLATE, referenceNodes: [NodeType.CLASS], referenceStruct: StructType.NODE_REFERENCE },
   [ClassProperty.mode]: { id: 25, name: 'mode', component: ObjectType.CLASS, enumType: EnumType.NODE_MODE, kind: 'enum', primitiveType: PrimitiveType.INT16, default: 20, isRequired: true, isInternal: true, isRuntime: true, isWired: true, isStored: true },
   [ClassProperty.name]: { id: 31, name: 'name', component: ObjectType.CLASS, kind: 'primitive', primitiveType: PrimitiveType.STRING, constraint: { minLength: 0, maxLength: 128, nodeTypes: [] }, isRuntime: true, isWired: true, isStored: true },
-  [ClassProperty.orderKey]: { id: 33, name: 'order_key', component: ObjectType.CLASS, kind: 'primitive', primitiveType: PrimitiveType.STRING, default: "a0", isInternal: true, isRuntime: true, isWired: true, isStored: true },
+  [ClassProperty.orderKey]: { id: 33, name: 'order_key', component: ObjectType.CLASS, kind: 'primitive', primitiveType: PrimitiveType.STRING, default: "a0", isRequired: true, isInternal: true, isRuntime: true, isWired: true, isStored: true },
   [ClassProperty.icon]: { id: 34, name: 'icon', component: ObjectType.CLASS, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.ICON },
   [ClassProperty.definitionPtr]: { id: 35, name: 'definition_ptr', component: ObjectType.CLASS, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.BLOCK], referenceStruct: StructType.NODE_REFERENCE },
 }
@@ -39905,7 +39943,7 @@ export const OptionDataInfo: Record<OptionProperty, PropertyInfo> = {
   [OptionProperty.templatePtr]: { id: 16, name: 'template_ptr', component: ObjectType.OPTION, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_TEMPLATE, referenceNodes: [NodeType.OPTION], referenceStruct: StructType.NODE_REFERENCE },
   [OptionProperty.mode]: { id: 25, name: 'mode', component: ObjectType.OPTION, enumType: EnumType.NODE_MODE, kind: 'enum', primitiveType: PrimitiveType.INT16, default: 20, isRequired: true, isInternal: true, isRuntime: true, isWired: true, isStored: true },
   [OptionProperty.name]: { id: 31, name: 'name', component: ObjectType.OPTION, kind: 'primitive', primitiveType: PrimitiveType.STRING, constraint: { minLength: 0, maxLength: 128, nodeTypes: [] }, isRuntime: true, isWired: true, isStored: true },
-  [OptionProperty.orderKey]: { id: 32, name: 'order_key', component: ObjectType.OPTION, kind: 'primitive', primitiveType: PrimitiveType.STRING, default: "a0", isRequired: true, isInternal: true, isRuntime: true, isWired: true, isStored: true },
+  [OptionProperty.orderKey]: { id: 33, name: 'order_key', component: ObjectType.OPTION, kind: 'primitive', primitiveType: PrimitiveType.STRING, default: "a0", isRequired: true, isInternal: true, isRuntime: true, isWired: true, isStored: true },
   [OptionProperty.icon]: { id: 34, name: 'icon', component: ObjectType.OPTION, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.ICON },
 }
 export const TableDataInfo: Record<TableProperty, PropertyInfo> = {
@@ -39926,7 +39964,7 @@ export const TableDataInfo: Record<TableProperty, PropertyInfo> = {
   [TableProperty.claimedByPtr]: { id: 18, name: 'claimed_by_ptr', component: ObjectType.TABLE, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.CLAIM], referenceStruct: StructType.NODE_REFERENCE },
   [TableProperty.mode]: { id: 25, name: 'mode', component: ObjectType.TABLE, enumType: EnumType.NODE_MODE, kind: 'enum', primitiveType: PrimitiveType.INT16, default: 20, isRequired: true, isInternal: true, isRuntime: true, isWired: true, isStored: true },
   [TableProperty.name]: { id: 31, name: 'name', component: ObjectType.TABLE, kind: 'primitive', primitiveType: PrimitiveType.STRING, constraint: { minLength: 0, maxLength: 128, nodeTypes: [] }, isRuntime: true, isWired: true, isStored: true },
-  [TableProperty.orderKey]: { id: 33, name: 'order_key', component: ObjectType.TABLE, kind: 'primitive', primitiveType: PrimitiveType.STRING, default: "a0", isInternal: true, isRuntime: true, isWired: true, isStored: true },
+  [TableProperty.orderKey]: { id: 33, name: 'order_key', component: ObjectType.TABLE, kind: 'primitive', primitiveType: PrimitiveType.STRING, default: "a0", isRequired: true, isInternal: true, isRuntime: true, isWired: true, isStored: true },
   [TableProperty.icon]: { id: 34, name: 'icon', component: ObjectType.TABLE, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.ICON },
   [TableProperty.definitionPtr]: { id: 35, name: 'definition_ptr', component: ObjectType.TABLE, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.BLOCK], referenceStruct: StructType.NODE_REFERENCE },
 }
@@ -39946,7 +39984,7 @@ export const RecordDataInfo: Record<RecordProperty, PropertyInfo> = {
   [RecordProperty.claimedByPtr]: { id: 18, name: 'claimed_by_ptr', component: ObjectType.RECORD, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.CLAIM], referenceStruct: StructType.NODE_REFERENCE },
   [RecordProperty.mode]: { id: 25, name: 'mode', component: ObjectType.RECORD, enumType: EnumType.NODE_MODE, kind: 'enum', primitiveType: PrimitiveType.INT16, default: 20, isRequired: true, isInternal: true, isRuntime: true, isWired: true, isStored: true },
   [RecordProperty.title]: { id: 32, name: 'title', component: ObjectType.RECORD, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.TEXT_LINE },
-  [RecordProperty.orderKey]: { id: 33, name: 'order_key', component: ObjectType.RECORD, kind: 'primitive', primitiveType: PrimitiveType.STRING, default: "a0", isInternal: true, isRuntime: true, isWired: true, isStored: true },
+  [RecordProperty.orderKey]: { id: 33, name: 'order_key', component: ObjectType.RECORD, kind: 'primitive', primitiveType: PrimitiveType.STRING, default: "a0", isRequired: true, isInternal: true, isRuntime: true, isWired: true, isStored: true },
   [RecordProperty.icon]: { id: 34, name: 'icon', component: ObjectType.RECORD, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.ICON },
   [RecordProperty.tablePtr]: { id: 36, name: 'table_ptr', component: ObjectType.RECORD, kind: 'reference', isRequired: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.TABLE], referenceStruct: StructType.NODE_REFERENCE },
   [RecordProperty.valuePacked]: { id: 40, name: 'value_packed', component: ObjectType.RECORD, kind: 'primitive', primitiveType: PrimitiveType.JSON, isInternal: true, isRuntime: true, isWired: true, isStored: true, isValuePacked: true },
@@ -39970,7 +40008,7 @@ export const FileDataInfo: Record<FileProperty, PropertyInfo> = {
   [FileProperty.mode]: { id: 25, name: 'mode', component: ObjectType.FILE, enumType: EnumType.NODE_MODE, kind: 'enum', primitiveType: PrimitiveType.INT16, default: 20, isRequired: true, isInternal: true, isRuntime: true, isWired: true, isStored: true },
   [FileProperty.type]: { id: 30, name: 'type', component: ObjectType.FILE, enumType: EnumType.FILE_TYPE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isRuntime: true, isWired: true, isStored: true },
   [FileProperty.name]: { id: 31, name: 'name', component: ObjectType.FILE, kind: 'primitive', primitiveType: PrimitiveType.STRING, constraint: { minLength: 0, maxLength: 128, nodeTypes: [] }, isRuntime: true, isWired: true, isStored: true },
-  [FileProperty.orderKey]: { id: 33, name: 'order_key', component: ObjectType.FILE, kind: 'primitive', primitiveType: PrimitiveType.STRING, default: "a0", isInternal: true, isRuntime: true, isWired: true, isStored: true },
+  [FileProperty.orderKey]: { id: 33, name: 'order_key', component: ObjectType.FILE, kind: 'primitive', primitiveType: PrimitiveType.STRING, default: "a0", isRequired: true, isInternal: true, isRuntime: true, isWired: true, isStored: true },
   [FileProperty.icon]: { id: 34, name: 'icon', component: ObjectType.FILE, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.ICON },
   [FileProperty.definitionPtr]: { id: 35, name: 'definition_ptr', component: ObjectType.FILE, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.BLOCK], referenceStruct: StructType.NODE_REFERENCE },
   [FileProperty.region]: { id: 38, name: 'region', component: ObjectType.FILE, enumType: EnumType.REGION, kind: 'enum', primitiveType: PrimitiveType.INT16, default: 1000, isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
@@ -40014,7 +40052,7 @@ export const LinkDataInfo: Record<LinkProperty, PropertyInfo> = {
   [LinkProperty.type]: { id: 30, name: 'type', component: ObjectType.LINK, enumType: EnumType.LINK_TYPE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isRuntime: true, isWired: true, isStored: true },
   [LinkProperty.name]: { id: 31, name: 'name', component: ObjectType.LINK, kind: 'primitive', primitiveType: PrimitiveType.STRING, constraint: { minLength: 0, maxLength: 128, nodeTypes: [] }, isRuntime: true, isWired: true, isStored: true },
   [LinkProperty.title]: { id: 32, name: 'title', component: ObjectType.LINK, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.TEXT_LINE },
-  [LinkProperty.orderKey]: { id: 33, name: 'order_key', component: ObjectType.LINK, kind: 'primitive', primitiveType: PrimitiveType.STRING, default: "a0", isInternal: true, isRuntime: true, isWired: true, isStored: true },
+  [LinkProperty.orderKey]: { id: 33, name: 'order_key', component: ObjectType.LINK, kind: 'primitive', primitiveType: PrimitiveType.STRING, default: "a0", isRequired: true, isInternal: true, isRuntime: true, isWired: true, isStored: true },
   [LinkProperty.icon]: { id: 34, name: 'icon', component: ObjectType.LINK, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.ICON },
   [LinkProperty.definitionPtr]: { id: 35, name: 'definition_ptr', component: ObjectType.LINK, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.BLOCK], referenceStruct: StructType.NODE_REFERENCE },
   [LinkProperty.region]: { id: 38, name: 'region', component: ObjectType.LINK, enumType: EnumType.REGION, kind: 'enum', primitiveType: PrimitiveType.INT16, default: 1000, isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
@@ -40048,7 +40086,7 @@ export const ChannelDataInfo: Record<ChannelProperty, PropertyInfo> = {
   [ChannelProperty.templatePtr]: { id: 16, name: 'template_ptr', component: ObjectType.CHANNEL, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_TEMPLATE, referenceNodes: [NodeType.CHANNEL], referenceStruct: StructType.NODE_REFERENCE },
   [ChannelProperty.mode]: { id: 25, name: 'mode', component: ObjectType.CHANNEL, enumType: EnumType.NODE_MODE, kind: 'enum', primitiveType: PrimitiveType.INT16, default: 20, isRequired: true, isInternal: true, isRuntime: true, isWired: true, isStored: true },
   [ChannelProperty.name]: { id: 31, name: 'name', component: ObjectType.CHANNEL, kind: 'primitive', primitiveType: PrimitiveType.STRING, constraint: { minLength: 0, maxLength: 128, nodeTypes: [] }, isRuntime: true, isWired: true, isStored: true },
-  [ChannelProperty.orderKey]: { id: 33, name: 'order_key', component: ObjectType.CHANNEL, kind: 'primitive', primitiveType: PrimitiveType.STRING, default: "a0", isInternal: true, isRuntime: true, isWired: true, isStored: true },
+  [ChannelProperty.orderKey]: { id: 33, name: 'order_key', component: ObjectType.CHANNEL, kind: 'primitive', primitiveType: PrimitiveType.STRING, default: "a0", isRequired: true, isInternal: true, isRuntime: true, isWired: true, isStored: true },
   [ChannelProperty.icon]: { id: 34, name: 'icon', component: ObjectType.CHANNEL, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.ICON },
   [ChannelProperty.definitionPtr]: { id: 35, name: 'definition_ptr', component: ObjectType.CHANNEL, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.BLOCK], referenceStruct: StructType.NODE_REFERENCE },
   [ChannelProperty.status]: { id: 80, name: 'status', component: ObjectType.CHANNEL, enumType: EnumType.PROCESS_STATUS, kind: 'enum', primitiveType: PrimitiveType.INT16, default: 1, isRequired: true, isRuntime: true, isWired: true, isStored: true },
@@ -40085,7 +40123,7 @@ export const ThreadDataInfo: Record<ThreadProperty, PropertyInfo> = {
   [ThreadProperty.ownedByPtr]: { id: 17, name: 'owned_by_ptr', component: ObjectType.THREAD, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.USER, NodeType.ORGANIZATION, NodeType.COMPUTER, NodeType.AGENT], referenceStruct: StructType.NODE_REFERENCE },
   [ThreadProperty.mode]: { id: 25, name: 'mode', component: ObjectType.THREAD, enumType: EnumType.NODE_MODE, kind: 'enum', primitiveType: PrimitiveType.INT16, default: 20, isRequired: true, isInternal: true, isRuntime: true, isWired: true, isStored: true },
   [ThreadProperty.title]: { id: 32, name: 'title', component: ObjectType.THREAD, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.TEXT_LINE },
-  [ThreadProperty.orderKey]: { id: 33, name: 'order_key', component: ObjectType.THREAD, kind: 'primitive', primitiveType: PrimitiveType.STRING, default: "a0", isInternal: true, isRuntime: true, isWired: true, isStored: true },
+  [ThreadProperty.orderKey]: { id: 33, name: 'order_key', component: ObjectType.THREAD, kind: 'primitive', primitiveType: PrimitiveType.STRING, default: "a0", isRequired: true, isInternal: true, isRuntime: true, isWired: true, isStored: true },
   [ThreadProperty.icon]: { id: 34, name: 'icon', component: ObjectType.THREAD, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.ICON },
   [ThreadProperty.definitionPtr]: { id: 35, name: 'definition_ptr', component: ObjectType.THREAD, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.BLOCK], referenceStruct: StructType.NODE_REFERENCE },
   [ThreadProperty.channelPtr]: { id: 40, name: 'channel_ptr', component: ObjectType.THREAD, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.CHANNEL], referenceStruct: StructType.NODE_REFERENCE },
@@ -40185,7 +40223,7 @@ export const TaskDataInfo: Record<TaskProperty, PropertyInfo> = {
   [TaskProperty.claimedByPtr]: { id: 18, name: 'claimed_by_ptr', component: ObjectType.TASK, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.CLAIM], referenceStruct: StructType.NODE_REFERENCE },
   [TaskProperty.mode]: { id: 25, name: 'mode', component: ObjectType.TASK, enumType: EnumType.NODE_MODE, kind: 'enum', primitiveType: PrimitiveType.INT16, default: 20, isRequired: true, isInternal: true, isRuntime: true, isWired: true, isStored: true },
   [TaskProperty.title]: { id: 32, name: 'title', component: ObjectType.TASK, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.TEXT_LINE },
-  [TaskProperty.orderKey]: { id: 33, name: 'order_key', component: ObjectType.TASK, kind: 'primitive', primitiveType: PrimitiveType.STRING, default: "a0", isInternal: true, isRuntime: true, isWired: true, isStored: true },
+  [TaskProperty.orderKey]: { id: 33, name: 'order_key', component: ObjectType.TASK, kind: 'primitive', primitiveType: PrimitiveType.STRING, default: "a0", isRequired: true, isInternal: true, isRuntime: true, isWired: true, isStored: true },
   [TaskProperty.icon]: { id: 34, name: 'icon', component: ObjectType.TASK, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.ICON },
   [TaskProperty.definitionPtr]: { id: 35, name: 'definition_ptr', component: ObjectType.TASK, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.BLOCK], referenceStruct: StructType.NODE_REFERENCE },
   [TaskProperty.dueAt]: { id: 50, name: 'due_at', component: ObjectType.TASK, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isRuntime: true, isWired: true, isStored: true },
@@ -40290,7 +40328,7 @@ export const ServiceDataInfo: Record<ServiceProperty, PropertyInfo> = {
   [ServiceProperty.claimedByPtr]: { id: 18, name: 'claimed_by_ptr', component: ObjectType.SERVICE, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.CLAIM], referenceStruct: StructType.NODE_REFERENCE },
   [ServiceProperty.mode]: { id: 25, name: 'mode', component: ObjectType.SERVICE, enumType: EnumType.NODE_MODE, kind: 'enum', primitiveType: PrimitiveType.INT16, default: 20, isRequired: true, isInternal: true, isRuntime: true, isWired: true, isStored: true },
   [ServiceProperty.name]: { id: 31, name: 'name', component: ObjectType.SERVICE, kind: 'primitive', primitiveType: PrimitiveType.STRING, constraint: { minLength: 0, maxLength: 128, nodeTypes: [] }, isRuntime: true, isWired: true, isStored: true },
-  [ServiceProperty.orderKey]: { id: 33, name: 'order_key', component: ObjectType.SERVICE, kind: 'primitive', primitiveType: PrimitiveType.STRING, default: "a0", isInternal: true, isRuntime: true, isWired: true, isStored: true },
+  [ServiceProperty.orderKey]: { id: 33, name: 'order_key', component: ObjectType.SERVICE, kind: 'primitive', primitiveType: PrimitiveType.STRING, default: "a0", isRequired: true, isInternal: true, isRuntime: true, isWired: true, isStored: true },
   [ServiceProperty.icon]: { id: 34, name: 'icon', component: ObjectType.SERVICE, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.ICON },
   [ServiceProperty.definitionPtr]: { id: 35, name: 'definition_ptr', component: ObjectType.SERVICE, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.BLOCK], referenceStruct: StructType.NODE_REFERENCE },
   [ServiceProperty.targetPtr]: { id: 40, name: 'target_ptr', component: ObjectType.SERVICE, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.DATABASE, NodeType.COMPUTER, NodeType.SCALER, NodeType.FILE, NodeType.LINK, NodeType.FRAME_VIEW, NodeType.LABEL_VIEW, NodeType.COMPONENT_VIEW, NodeType.SPLIT_VIEW, NodeType.TEXT_VIEW, NodeType.NUMBER_INPUT_VIEW, NodeType.SLIDER_INPUT_VIEW, NodeType.THREAD_VIEW, NodeType.WIZARD_VIEW, NodeType.COLOR_STYLE, NodeType.FONT_STYLE, NodeType.BORDER_STYLE, NodeType.SHADOW_STYLE, NodeType.GRADIENT_STYLE, NodeType.TRANSITION_STYLE, NodeType.EFFECT_STYLE, NodeType.APPLICATION, NodeType.CHOICE, NodeType.CLASS, NodeType.TABLE, NodeType.FLOW, NodeType.SERVICE, NodeType.PAGE, NodeType.ROLE, NodeType.TASK, NodeType.THREAD, NodeType.CHANNEL, NodeType.TEAM, NodeType.AGENT, NodeType.THEME, NodeType.ROUTE, NodeType.SCENE], referenceStruct: StructType.NODE_REFERENCE },
@@ -40344,7 +40382,7 @@ export const FlowDataInfo: Record<FlowProperty, PropertyInfo> = {
   [FlowProperty.mode]: { id: 25, name: 'mode', component: ObjectType.FLOW, enumType: EnumType.NODE_MODE, kind: 'enum', primitiveType: PrimitiveType.INT16, default: 20, isRequired: true, isInternal: true, isRuntime: true, isWired: true, isStored: true },
   [FlowProperty.type]: { id: 30, name: 'type', component: ObjectType.FLOW, enumType: EnumType.FLOW_TYPE, kind: 'enum', primitiveType: PrimitiveType.INT16, default: 10, isRequired: true, isRuntime: true, isWired: true, isStored: true },
   [FlowProperty.name]: { id: 31, name: 'name', component: ObjectType.FLOW, kind: 'primitive', primitiveType: PrimitiveType.STRING, constraint: { minLength: 0, maxLength: 128, nodeTypes: [] }, isRuntime: true, isWired: true, isStored: true },
-  [FlowProperty.orderKey]: { id: 33, name: 'order_key', component: ObjectType.FLOW, kind: 'primitive', primitiveType: PrimitiveType.STRING, default: "a0", isInternal: true, isRuntime: true, isWired: true, isStored: true },
+  [FlowProperty.orderKey]: { id: 33, name: 'order_key', component: ObjectType.FLOW, kind: 'primitive', primitiveType: PrimitiveType.STRING, default: "a0", isRequired: true, isInternal: true, isRuntime: true, isWired: true, isStored: true },
   [FlowProperty.icon]: { id: 34, name: 'icon', component: ObjectType.FLOW, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.ICON },
   [FlowProperty.definitionPtr]: { id: 35, name: 'definition_ptr', component: ObjectType.FLOW, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.BLOCK], referenceStruct: StructType.NODE_REFERENCE },
   [FlowProperty.modelDeveloper]: { id: 100, name: 'model_developer', component: ObjectType.FLOW, enumType: EnumType.MODEL_DEVELOPER, kind: 'enum', primitiveType: PrimitiveType.INT16, isInternal: true, isRuntime: true, isWired: true, isStored: true },
@@ -40370,7 +40408,7 @@ export const FlowEdgeDataInfo: Record<FlowEdgeProperty, PropertyInfo> = {
   [FlowEdgeProperty.templatePtr]: { id: 16, name: 'template_ptr', component: ObjectType.FLOW_EDGE, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_TEMPLATE, referenceNodes: [NodeType.FLOW_EDGE], referenceStruct: StructType.NODE_REFERENCE },
   [FlowEdgeProperty.mode]: { id: 25, name: 'mode', component: ObjectType.FLOW_EDGE, enumType: EnumType.NODE_MODE, kind: 'enum', primitiveType: PrimitiveType.INT16, default: 20, isRequired: true, isInternal: true, isRuntime: true, isWired: true, isStored: true },
   [FlowEdgeProperty.type]: { id: 30, name: 'type', component: ObjectType.FLOW_EDGE, enumType: EnumType.FLOW_EDGE_TYPE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isInternal: true, isRuntime: true, isWired: true, isStored: true },
-  [FlowEdgeProperty.name]: { id: 32, name: 'name', component: ObjectType.FLOW_EDGE, kind: 'primitive', primitiveType: PrimitiveType.STRING, constraint: { minLength: 0, maxLength: 128, nodeTypes: [] }, isRuntime: true, isWired: true, isStored: true },
+  [FlowEdgeProperty.name]: { id: 31, name: 'name', component: ObjectType.FLOW_EDGE, kind: 'primitive', primitiveType: PrimitiveType.STRING, constraint: { minLength: 0, maxLength: 128, nodeTypes: [] }, isRuntime: true, isWired: true, isStored: true },
   [FlowEdgeProperty.orderKey]: { id: 33, name: 'order_key', component: ObjectType.FLOW_EDGE, kind: 'primitive', primitiveType: PrimitiveType.STRING, default: "a0", isRequired: true, isInternal: true, isRuntime: true, isWired: true, isStored: true },
   [FlowEdgeProperty.sourcePtr]: { id: 35, name: 'source_ptr', component: ObjectType.FLOW_EDGE, kind: 'reference', isRequired: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.ACTION], referenceStruct: StructType.NODE_REFERENCE },
   [FlowEdgeProperty.targetPtr]: { id: 36, name: 'target_ptr', component: ObjectType.FLOW_EDGE, kind: 'reference', isRequired: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.ACTION], referenceStruct: StructType.NODE_REFERENCE },
@@ -40400,7 +40438,7 @@ export const AgentDataInfo: Record<AgentProperty, PropertyInfo> = {
   [AgentProperty.claimedByPtr]: { id: 18, name: 'claimed_by_ptr', component: ObjectType.AGENT, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.CLAIM], referenceStruct: StructType.NODE_REFERENCE },
   [AgentProperty.mode]: { id: 25, name: 'mode', component: ObjectType.AGENT, enumType: EnumType.NODE_MODE, kind: 'enum', primitiveType: PrimitiveType.INT16, default: 20, isRequired: true, isInternal: true, isRuntime: true, isWired: true, isStored: true },
   [AgentProperty.name]: { id: 31, name: 'name', component: ObjectType.AGENT, kind: 'primitive', primitiveType: PrimitiveType.STRING, constraint: { minLength: 0, maxLength: 128, nodeTypes: [] }, isRuntime: true, isWired: true, isStored: true },
-  [AgentProperty.orderKey]: { id: 33, name: 'order_key', component: ObjectType.AGENT, kind: 'primitive', primitiveType: PrimitiveType.STRING, default: "a0", isInternal: true, isRuntime: true, isWired: true, isStored: true },
+  [AgentProperty.orderKey]: { id: 33, name: 'order_key', component: ObjectType.AGENT, kind: 'primitive', primitiveType: PrimitiveType.STRING, default: "a0", isRequired: true, isInternal: true, isRuntime: true, isWired: true, isStored: true },
   [AgentProperty.icon]: { id: 34, name: 'icon', component: ObjectType.AGENT, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.ICON },
   [AgentProperty.definitionPtr]: { id: 35, name: 'definition_ptr', component: ObjectType.AGENT, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.BLOCK], referenceStruct: StructType.NODE_REFERENCE },
   [AgentProperty.pagePtr]: { id: 54, name: 'page_ptr', component: ObjectType.AGENT, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.PAGE], referenceStruct: StructType.NODE_REFERENCE },
@@ -40616,7 +40654,7 @@ export const TeamDataInfo: Record<TeamProperty, PropertyInfo> = {
   [TeamProperty.templatePtr]: { id: 16, name: 'template_ptr', component: ObjectType.TEAM, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_TEMPLATE, referenceNodes: [NodeType.TEAM], referenceStruct: StructType.NODE_REFERENCE },
   [TeamProperty.mode]: { id: 25, name: 'mode', component: ObjectType.TEAM, enumType: EnumType.NODE_MODE, kind: 'enum', primitiveType: PrimitiveType.INT16, default: 20, isRequired: true, isInternal: true, isRuntime: true, isWired: true, isStored: true },
   [TeamProperty.name]: { id: 31, name: 'name', component: ObjectType.TEAM, kind: 'primitive', primitiveType: PrimitiveType.STRING, constraint: { minLength: 0, maxLength: 128, nodeTypes: [] }, isRuntime: true, isWired: true, isStored: true },
-  [TeamProperty.orderKey]: { id: 33, name: 'order_key', component: ObjectType.TEAM, kind: 'primitive', primitiveType: PrimitiveType.STRING, default: "a0", isInternal: true, isRuntime: true, isWired: true, isStored: true },
+  [TeamProperty.orderKey]: { id: 33, name: 'order_key', component: ObjectType.TEAM, kind: 'primitive', primitiveType: PrimitiveType.STRING, default: "a0", isRequired: true, isInternal: true, isRuntime: true, isWired: true, isStored: true },
   [TeamProperty.icon]: { id: 34, name: 'icon', component: ObjectType.TEAM, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.ICON },
   [TeamProperty.definitionPtr]: { id: 35, name: 'definition_ptr', component: ObjectType.TEAM, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.BLOCK], referenceStruct: StructType.NODE_REFERENCE },
 }
@@ -40635,7 +40673,7 @@ export const RoleDataInfo: Record<RoleProperty, PropertyInfo> = {
   [RoleProperty.templatePtr]: { id: 16, name: 'template_ptr', component: ObjectType.ROLE, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_TEMPLATE, referenceNodes: [NodeType.ROLE], referenceStruct: StructType.NODE_REFERENCE },
   [RoleProperty.mode]: { id: 25, name: 'mode', component: ObjectType.ROLE, enumType: EnumType.NODE_MODE, kind: 'enum', primitiveType: PrimitiveType.INT16, default: 20, isRequired: true, isInternal: true, isRuntime: true, isWired: true, isStored: true },
   [RoleProperty.name]: { id: 31, name: 'name', component: ObjectType.ROLE, kind: 'primitive', primitiveType: PrimitiveType.STRING, constraint: { minLength: 0, maxLength: 128, nodeTypes: [] }, isRuntime: true, isWired: true, isStored: true },
-  [RoleProperty.orderKey]: { id: 33, name: 'order_key', component: ObjectType.ROLE, kind: 'primitive', primitiveType: PrimitiveType.STRING, default: "a0", isInternal: true, isRuntime: true, isWired: true, isStored: true },
+  [RoleProperty.orderKey]: { id: 33, name: 'order_key', component: ObjectType.ROLE, kind: 'primitive', primitiveType: PrimitiveType.STRING, default: "a0", isRequired: true, isInternal: true, isRuntime: true, isWired: true, isStored: true },
   [RoleProperty.icon]: { id: 34, name: 'icon', component: ObjectType.ROLE, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.ICON },
   [RoleProperty.definitionPtr]: { id: 35, name: 'definition_ptr', component: ObjectType.ROLE, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.BLOCK], referenceStruct: StructType.NODE_REFERENCE },
 }
@@ -40681,7 +40719,7 @@ export const SceneDataInfo: Record<SceneProperty, PropertyInfo> = {
   [SceneProperty.ownedByPtr]: { id: 17, name: 'owned_by_ptr', component: ObjectType.SCENE, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.USER, NodeType.ORGANIZATION, NodeType.COMPUTER, NodeType.AGENT], referenceStruct: StructType.NODE_REFERENCE },
   [SceneProperty.mode]: { id: 25, name: 'mode', component: ObjectType.SCENE, enumType: EnumType.NODE_MODE, kind: 'enum', primitiveType: PrimitiveType.INT16, default: 20, isRequired: true, isInternal: true, isRuntime: true, isWired: true, isStored: true },
   [SceneProperty.name]: { id: 31, name: 'name', component: ObjectType.SCENE, kind: 'primitive', primitiveType: PrimitiveType.STRING, constraint: { minLength: 0, maxLength: 128, nodeTypes: [] }, isRuntime: true, isWired: true, isStored: true },
-  [SceneProperty.orderKey]: { id: 33, name: 'order_key', component: ObjectType.SCENE, kind: 'primitive', primitiveType: PrimitiveType.STRING, default: "a0", isInternal: true, isRuntime: true, isWired: true, isStored: true },
+  [SceneProperty.orderKey]: { id: 33, name: 'order_key', component: ObjectType.SCENE, kind: 'primitive', primitiveType: PrimitiveType.STRING, default: "a0", isRequired: true, isInternal: true, isRuntime: true, isWired: true, isStored: true },
   [SceneProperty.icon]: { id: 34, name: 'icon', component: ObjectType.SCENE, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.ICON },
   [SceneProperty.definitionPtr]: { id: 35, name: 'definition_ptr', component: ObjectType.SCENE, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.BLOCK], referenceStruct: StructType.NODE_REFERENCE },
   [SceneProperty.rootViewPtr]: { id: 40, name: 'root_view_ptr', component: ObjectType.SCENE, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.FRAME_VIEW, NodeType.LABEL_VIEW, NodeType.COMPONENT_VIEW, NodeType.SPLIT_VIEW, NodeType.TEXT_VIEW, NodeType.NUMBER_INPUT_VIEW, NodeType.SLIDER_INPUT_VIEW, NodeType.THREAD_VIEW, NodeType.WIZARD_VIEW], referenceStruct: StructType.NODE_REFERENCE },
@@ -40703,7 +40741,7 @@ export const RouteDataInfo: Record<RouteProperty, PropertyInfo> = {
   [RouteProperty.ownedByPtr]: { id: 17, name: 'owned_by_ptr', component: ObjectType.ROUTE, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.USER, NodeType.ORGANIZATION, NodeType.COMPUTER, NodeType.AGENT], referenceStruct: StructType.NODE_REFERENCE },
   [RouteProperty.mode]: { id: 25, name: 'mode', component: ObjectType.ROUTE, enumType: EnumType.NODE_MODE, kind: 'enum', primitiveType: PrimitiveType.INT16, default: 20, isRequired: true, isInternal: true, isRuntime: true, isWired: true, isStored: true },
   [RouteProperty.name]: { id: 31, name: 'name', component: ObjectType.ROUTE, kind: 'primitive', primitiveType: PrimitiveType.STRING, constraint: { minLength: 0, maxLength: 128, nodeTypes: [] }, isRuntime: true, isWired: true, isStored: true },
-  [RouteProperty.orderKey]: { id: 33, name: 'order_key', component: ObjectType.ROUTE, kind: 'primitive', primitiveType: PrimitiveType.STRING, default: "a0", isInternal: true, isRuntime: true, isWired: true, isStored: true },
+  [RouteProperty.orderKey]: { id: 33, name: 'order_key', component: ObjectType.ROUTE, kind: 'primitive', primitiveType: PrimitiveType.STRING, default: "a0", isRequired: true, isInternal: true, isRuntime: true, isWired: true, isStored: true },
   [RouteProperty.icon]: { id: 34, name: 'icon', component: ObjectType.ROUTE, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.ICON },
   [RouteProperty.definitionPtr]: { id: 35, name: 'definition_ptr', component: ObjectType.ROUTE, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.BLOCK], referenceStruct: StructType.NODE_REFERENCE },
   [RouteProperty.scenePtr]: { id: 40, name: 'scene_ptr', component: ObjectType.ROUTE, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.SCENE], referenceStruct: StructType.NODE_REFERENCE },
@@ -40724,7 +40762,7 @@ export const FrameViewDataInfo: Record<FrameViewProperty, PropertyInfo> = {
   [FrameViewProperty.templatePtr]: { id: 16, name: 'template_ptr', component: ObjectType.FRAME_VIEW, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_TEMPLATE, referenceNodes: [NodeType.FRAME_VIEW], referenceStruct: StructType.NODE_REFERENCE },
   [FrameViewProperty.mode]: { id: 25, name: 'mode', component: ObjectType.FRAME_VIEW, enumType: EnumType.NODE_MODE, kind: 'enum', primitiveType: PrimitiveType.INT16, default: 20, isRequired: true, isInternal: true, isRuntime: true, isWired: true, isStored: true },
   [FrameViewProperty.name]: { id: 31, name: 'name', component: ObjectType.FRAME_VIEW, kind: 'primitive', primitiveType: PrimitiveType.STRING, constraint: { minLength: 0, maxLength: 128, nodeTypes: [] }, isRuntime: true, isWired: true, isStored: true },
-  [FrameViewProperty.orderKey]: { id: 33, name: 'order_key', component: ObjectType.FRAME_VIEW, kind: 'primitive', primitiveType: PrimitiveType.STRING, default: "a0", isInternal: true, isRuntime: true, isWired: true, isStored: true },
+  [FrameViewProperty.orderKey]: { id: 33, name: 'order_key', component: ObjectType.FRAME_VIEW, kind: 'primitive', primitiveType: PrimitiveType.STRING, default: "a0", isRequired: true, isInternal: true, isRuntime: true, isWired: true, isStored: true },
   [FrameViewProperty.icon]: { id: 34, name: 'icon', component: ObjectType.FRAME_VIEW, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.ICON },
   [FrameViewProperty.definitionPtr]: { id: 35, name: 'definition_ptr', component: ObjectType.FRAME_VIEW, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.BLOCK], referenceStruct: StructType.NODE_REFERENCE },
   [FrameViewProperty.position]: { id: 40, name: 'position', component: ObjectType.FRAME_VIEW, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.POSITION },
@@ -40768,7 +40806,7 @@ export const LabelViewDataInfo: Record<LabelViewProperty, PropertyInfo> = {
   [LabelViewProperty.templatePtr]: { id: 16, name: 'template_ptr', component: ObjectType.LABEL_VIEW, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_TEMPLATE, referenceNodes: [NodeType.LABEL_VIEW], referenceStruct: StructType.NODE_REFERENCE },
   [LabelViewProperty.mode]: { id: 25, name: 'mode', component: ObjectType.LABEL_VIEW, enumType: EnumType.NODE_MODE, kind: 'enum', primitiveType: PrimitiveType.INT16, default: 20, isRequired: true, isInternal: true, isRuntime: true, isWired: true, isStored: true },
   [LabelViewProperty.name]: { id: 31, name: 'name', component: ObjectType.LABEL_VIEW, kind: 'primitive', primitiveType: PrimitiveType.STRING, constraint: { minLength: 0, maxLength: 128, nodeTypes: [] }, isRuntime: true, isWired: true, isStored: true },
-  [LabelViewProperty.orderKey]: { id: 33, name: 'order_key', component: ObjectType.LABEL_VIEW, kind: 'primitive', primitiveType: PrimitiveType.STRING, default: "a0", isInternal: true, isRuntime: true, isWired: true, isStored: true },
+  [LabelViewProperty.orderKey]: { id: 33, name: 'order_key', component: ObjectType.LABEL_VIEW, kind: 'primitive', primitiveType: PrimitiveType.STRING, default: "a0", isRequired: true, isInternal: true, isRuntime: true, isWired: true, isStored: true },
   [LabelViewProperty.icon]: { id: 34, name: 'icon', component: ObjectType.LABEL_VIEW, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.ICON },
   [LabelViewProperty.definitionPtr]: { id: 35, name: 'definition_ptr', component: ObjectType.LABEL_VIEW, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.BLOCK], referenceStruct: StructType.NODE_REFERENCE },
   [LabelViewProperty.position]: { id: 40, name: 'position', component: ObjectType.LABEL_VIEW, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.POSITION },
@@ -40812,7 +40850,7 @@ export const ComponentViewDataInfo: Record<ComponentViewProperty, PropertyInfo> 
   [ComponentViewProperty.templatePtr]: { id: 16, name: 'template_ptr', component: ObjectType.COMPONENT_VIEW, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_TEMPLATE, referenceNodes: [NodeType.COMPONENT_VIEW], referenceStruct: StructType.NODE_REFERENCE },
   [ComponentViewProperty.mode]: { id: 25, name: 'mode', component: ObjectType.COMPONENT_VIEW, enumType: EnumType.NODE_MODE, kind: 'enum', primitiveType: PrimitiveType.INT16, default: 20, isRequired: true, isInternal: true, isRuntime: true, isWired: true, isStored: true },
   [ComponentViewProperty.name]: { id: 31, name: 'name', component: ObjectType.COMPONENT_VIEW, kind: 'primitive', primitiveType: PrimitiveType.STRING, constraint: { minLength: 0, maxLength: 128, nodeTypes: [] }, isRuntime: true, isWired: true, isStored: true },
-  [ComponentViewProperty.orderKey]: { id: 33, name: 'order_key', component: ObjectType.COMPONENT_VIEW, kind: 'primitive', primitiveType: PrimitiveType.STRING, default: "a0", isInternal: true, isRuntime: true, isWired: true, isStored: true },
+  [ComponentViewProperty.orderKey]: { id: 33, name: 'order_key', component: ObjectType.COMPONENT_VIEW, kind: 'primitive', primitiveType: PrimitiveType.STRING, default: "a0", isRequired: true, isInternal: true, isRuntime: true, isWired: true, isStored: true },
   [ComponentViewProperty.icon]: { id: 34, name: 'icon', component: ObjectType.COMPONENT_VIEW, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.ICON },
   [ComponentViewProperty.definitionPtr]: { id: 35, name: 'definition_ptr', component: ObjectType.COMPONENT_VIEW, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.BLOCK], referenceStruct: StructType.NODE_REFERENCE },
   [ComponentViewProperty.position]: { id: 40, name: 'position', component: ObjectType.COMPONENT_VIEW, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.POSITION },
@@ -40856,7 +40894,7 @@ export const SplitViewDataInfo: Record<SplitViewProperty, PropertyInfo> = {
   [SplitViewProperty.templatePtr]: { id: 16, name: 'template_ptr', component: ObjectType.SPLIT_VIEW, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_TEMPLATE, referenceNodes: [NodeType.SPLIT_VIEW], referenceStruct: StructType.NODE_REFERENCE },
   [SplitViewProperty.mode]: { id: 25, name: 'mode', component: ObjectType.SPLIT_VIEW, enumType: EnumType.NODE_MODE, kind: 'enum', primitiveType: PrimitiveType.INT16, default: 20, isRequired: true, isInternal: true, isRuntime: true, isWired: true, isStored: true },
   [SplitViewProperty.name]: { id: 31, name: 'name', component: ObjectType.SPLIT_VIEW, kind: 'primitive', primitiveType: PrimitiveType.STRING, constraint: { minLength: 0, maxLength: 128, nodeTypes: [] }, isRuntime: true, isWired: true, isStored: true },
-  [SplitViewProperty.orderKey]: { id: 33, name: 'order_key', component: ObjectType.SPLIT_VIEW, kind: 'primitive', primitiveType: PrimitiveType.STRING, default: "a0", isInternal: true, isRuntime: true, isWired: true, isStored: true },
+  [SplitViewProperty.orderKey]: { id: 33, name: 'order_key', component: ObjectType.SPLIT_VIEW, kind: 'primitive', primitiveType: PrimitiveType.STRING, default: "a0", isRequired: true, isInternal: true, isRuntime: true, isWired: true, isStored: true },
   [SplitViewProperty.icon]: { id: 34, name: 'icon', component: ObjectType.SPLIT_VIEW, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.ICON },
   [SplitViewProperty.definitionPtr]: { id: 35, name: 'definition_ptr', component: ObjectType.SPLIT_VIEW, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.BLOCK], referenceStruct: StructType.NODE_REFERENCE },
   [SplitViewProperty.position]: { id: 40, name: 'position', component: ObjectType.SPLIT_VIEW, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.POSITION },
@@ -40900,7 +40938,7 @@ export const TextViewDataInfo: Record<TextViewProperty, PropertyInfo> = {
   [TextViewProperty.templatePtr]: { id: 16, name: 'template_ptr', component: ObjectType.TEXT_VIEW, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_TEMPLATE, referenceNodes: [NodeType.TEXT_VIEW], referenceStruct: StructType.NODE_REFERENCE },
   [TextViewProperty.mode]: { id: 25, name: 'mode', component: ObjectType.TEXT_VIEW, enumType: EnumType.NODE_MODE, kind: 'enum', primitiveType: PrimitiveType.INT16, default: 20, isRequired: true, isInternal: true, isRuntime: true, isWired: true, isStored: true },
   [TextViewProperty.name]: { id: 31, name: 'name', component: ObjectType.TEXT_VIEW, kind: 'primitive', primitiveType: PrimitiveType.STRING, constraint: { minLength: 0, maxLength: 128, nodeTypes: [] }, isRuntime: true, isWired: true, isStored: true },
-  [TextViewProperty.orderKey]: { id: 33, name: 'order_key', component: ObjectType.TEXT_VIEW, kind: 'primitive', primitiveType: PrimitiveType.STRING, default: "a0", isInternal: true, isRuntime: true, isWired: true, isStored: true },
+  [TextViewProperty.orderKey]: { id: 33, name: 'order_key', component: ObjectType.TEXT_VIEW, kind: 'primitive', primitiveType: PrimitiveType.STRING, default: "a0", isRequired: true, isInternal: true, isRuntime: true, isWired: true, isStored: true },
   [TextViewProperty.icon]: { id: 34, name: 'icon', component: ObjectType.TEXT_VIEW, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.ICON },
   [TextViewProperty.definitionPtr]: { id: 35, name: 'definition_ptr', component: ObjectType.TEXT_VIEW, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.BLOCK], referenceStruct: StructType.NODE_REFERENCE },
   [TextViewProperty.position]: { id: 40, name: 'position', component: ObjectType.TEXT_VIEW, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.POSITION },
@@ -40934,7 +40972,7 @@ export const NumberInputViewDataInfo: Record<NumberInputViewProperty, PropertyIn
   [NumberInputViewProperty.templatePtr]: { id: 16, name: 'template_ptr', component: ObjectType.NUMBER_INPUT_VIEW, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_TEMPLATE, referenceNodes: [NodeType.NUMBER_INPUT_VIEW], referenceStruct: StructType.NODE_REFERENCE },
   [NumberInputViewProperty.mode]: { id: 25, name: 'mode', component: ObjectType.NUMBER_INPUT_VIEW, enumType: EnumType.NODE_MODE, kind: 'enum', primitiveType: PrimitiveType.INT16, default: 20, isRequired: true, isInternal: true, isRuntime: true, isWired: true, isStored: true },
   [NumberInputViewProperty.name]: { id: 31, name: 'name', component: ObjectType.NUMBER_INPUT_VIEW, kind: 'primitive', primitiveType: PrimitiveType.STRING, constraint: { minLength: 0, maxLength: 128, nodeTypes: [] }, isRuntime: true, isWired: true, isStored: true },
-  [NumberInputViewProperty.orderKey]: { id: 33, name: 'order_key', component: ObjectType.NUMBER_INPUT_VIEW, kind: 'primitive', primitiveType: PrimitiveType.STRING, default: "a0", isInternal: true, isRuntime: true, isWired: true, isStored: true },
+  [NumberInputViewProperty.orderKey]: { id: 33, name: 'order_key', component: ObjectType.NUMBER_INPUT_VIEW, kind: 'primitive', primitiveType: PrimitiveType.STRING, default: "a0", isRequired: true, isInternal: true, isRuntime: true, isWired: true, isStored: true },
   [NumberInputViewProperty.icon]: { id: 34, name: 'icon', component: ObjectType.NUMBER_INPUT_VIEW, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.ICON },
   [NumberInputViewProperty.definitionPtr]: { id: 35, name: 'definition_ptr', component: ObjectType.NUMBER_INPUT_VIEW, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.BLOCK], referenceStruct: StructType.NODE_REFERENCE },
   [NumberInputViewProperty.position]: { id: 40, name: 'position', component: ObjectType.NUMBER_INPUT_VIEW, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.POSITION },
@@ -40963,7 +41001,7 @@ export const SliderInputViewDataInfo: Record<SliderInputViewProperty, PropertyIn
   [SliderInputViewProperty.templatePtr]: { id: 16, name: 'template_ptr', component: ObjectType.SLIDER_INPUT_VIEW, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_TEMPLATE, referenceNodes: [NodeType.SLIDER_INPUT_VIEW], referenceStruct: StructType.NODE_REFERENCE },
   [SliderInputViewProperty.mode]: { id: 25, name: 'mode', component: ObjectType.SLIDER_INPUT_VIEW, enumType: EnumType.NODE_MODE, kind: 'enum', primitiveType: PrimitiveType.INT16, default: 20, isRequired: true, isInternal: true, isRuntime: true, isWired: true, isStored: true },
   [SliderInputViewProperty.name]: { id: 31, name: 'name', component: ObjectType.SLIDER_INPUT_VIEW, kind: 'primitive', primitiveType: PrimitiveType.STRING, constraint: { minLength: 0, maxLength: 128, nodeTypes: [] }, isRuntime: true, isWired: true, isStored: true },
-  [SliderInputViewProperty.orderKey]: { id: 33, name: 'order_key', component: ObjectType.SLIDER_INPUT_VIEW, kind: 'primitive', primitiveType: PrimitiveType.STRING, default: "a0", isInternal: true, isRuntime: true, isWired: true, isStored: true },
+  [SliderInputViewProperty.orderKey]: { id: 33, name: 'order_key', component: ObjectType.SLIDER_INPUT_VIEW, kind: 'primitive', primitiveType: PrimitiveType.STRING, default: "a0", isRequired: true, isInternal: true, isRuntime: true, isWired: true, isStored: true },
   [SliderInputViewProperty.icon]: { id: 34, name: 'icon', component: ObjectType.SLIDER_INPUT_VIEW, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.ICON },
   [SliderInputViewProperty.definitionPtr]: { id: 35, name: 'definition_ptr', component: ObjectType.SLIDER_INPUT_VIEW, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.BLOCK], referenceStruct: StructType.NODE_REFERENCE },
   [SliderInputViewProperty.position]: { id: 40, name: 'position', component: ObjectType.SLIDER_INPUT_VIEW, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.POSITION },
@@ -40994,7 +41032,7 @@ export const ThreadViewDataInfo: Record<ThreadViewProperty, PropertyInfo> = {
   [ThreadViewProperty.templatePtr]: { id: 16, name: 'template_ptr', component: ObjectType.THREAD_VIEW, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_TEMPLATE, referenceNodes: [NodeType.THREAD_VIEW], referenceStruct: StructType.NODE_REFERENCE },
   [ThreadViewProperty.mode]: { id: 25, name: 'mode', component: ObjectType.THREAD_VIEW, enumType: EnumType.NODE_MODE, kind: 'enum', primitiveType: PrimitiveType.INT16, default: 20, isRequired: true, isInternal: true, isRuntime: true, isWired: true, isStored: true },
   [ThreadViewProperty.name]: { id: 31, name: 'name', component: ObjectType.THREAD_VIEW, kind: 'primitive', primitiveType: PrimitiveType.STRING, constraint: { minLength: 0, maxLength: 128, nodeTypes: [] }, isRuntime: true, isWired: true, isStored: true },
-  [ThreadViewProperty.orderKey]: { id: 33, name: 'order_key', component: ObjectType.THREAD_VIEW, kind: 'primitive', primitiveType: PrimitiveType.STRING, default: "a0", isInternal: true, isRuntime: true, isWired: true, isStored: true },
+  [ThreadViewProperty.orderKey]: { id: 33, name: 'order_key', component: ObjectType.THREAD_VIEW, kind: 'primitive', primitiveType: PrimitiveType.STRING, default: "a0", isRequired: true, isInternal: true, isRuntime: true, isWired: true, isStored: true },
   [ThreadViewProperty.icon]: { id: 34, name: 'icon', component: ObjectType.THREAD_VIEW, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.ICON },
   [ThreadViewProperty.definitionPtr]: { id: 35, name: 'definition_ptr', component: ObjectType.THREAD_VIEW, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.BLOCK], referenceStruct: StructType.NODE_REFERENCE },
   [ThreadViewProperty.position]: { id: 40, name: 'position', component: ObjectType.THREAD_VIEW, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.POSITION },
@@ -41024,7 +41062,7 @@ export const WizardViewDataInfo: Record<WizardViewProperty, PropertyInfo> = {
   [WizardViewProperty.templatePtr]: { id: 16, name: 'template_ptr', component: ObjectType.WIZARD_VIEW, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_TEMPLATE, referenceNodes: [NodeType.WIZARD_VIEW], referenceStruct: StructType.NODE_REFERENCE },
   [WizardViewProperty.mode]: { id: 25, name: 'mode', component: ObjectType.WIZARD_VIEW, enumType: EnumType.NODE_MODE, kind: 'enum', primitiveType: PrimitiveType.INT16, default: 20, isRequired: true, isInternal: true, isRuntime: true, isWired: true, isStored: true },
   [WizardViewProperty.name]: { id: 31, name: 'name', component: ObjectType.WIZARD_VIEW, kind: 'primitive', primitiveType: PrimitiveType.STRING, constraint: { minLength: 0, maxLength: 128, nodeTypes: [] }, isRuntime: true, isWired: true, isStored: true },
-  [WizardViewProperty.orderKey]: { id: 33, name: 'order_key', component: ObjectType.WIZARD_VIEW, kind: 'primitive', primitiveType: PrimitiveType.STRING, default: "a0", isInternal: true, isRuntime: true, isWired: true, isStored: true },
+  [WizardViewProperty.orderKey]: { id: 33, name: 'order_key', component: ObjectType.WIZARD_VIEW, kind: 'primitive', primitiveType: PrimitiveType.STRING, default: "a0", isRequired: true, isInternal: true, isRuntime: true, isWired: true, isStored: true },
   [WizardViewProperty.icon]: { id: 34, name: 'icon', component: ObjectType.WIZARD_VIEW, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.ICON },
   [WizardViewProperty.definitionPtr]: { id: 35, name: 'definition_ptr', component: ObjectType.WIZARD_VIEW, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.BLOCK], referenceStruct: StructType.NODE_REFERENCE },
   [WizardViewProperty.position]: { id: 40, name: 'position', component: ObjectType.WIZARD_VIEW, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.POSITION },
@@ -41047,7 +41085,7 @@ export const ThemeDataInfo: Record<ThemeProperty, PropertyInfo> = {
   [ThemeProperty.updatedByPtr]: { id: 13, name: 'updated_by_ptr', component: ObjectType.THEME, kind: 'reference', isAutoset: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.USER, NodeType.ORGANIZATION, NodeType.COMPUTER, NodeType.AGENT], referenceStruct: StructType.NODE_REFERENCE },
   [ThemeProperty.archivedAt]: { id: 14, name: 'archived_at', component: ObjectType.THEME, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
   [ThemeProperty.deletedAt]: { id: 15, name: 'deleted_at', component: ObjectType.THEME, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
-  [ThemeProperty.orderKey]: { id: 33, name: 'order_key', component: ObjectType.THEME, kind: 'primitive', primitiveType: PrimitiveType.STRING, default: "a0", isInternal: true, isRuntime: true, isWired: true, isStored: true },
+  [ThemeProperty.orderKey]: { id: 33, name: 'order_key', component: ObjectType.THEME, kind: 'primitive', primitiveType: PrimitiveType.STRING, default: "a0", isRequired: true, isInternal: true, isRuntime: true, isWired: true, isStored: true },
   [ThemeProperty.icon]: { id: 34, name: 'icon', component: ObjectType.THEME, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.ICON },
   [ThemeProperty.definitionPtr]: { id: 35, name: 'definition_ptr', component: ObjectType.THEME, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.BLOCK], referenceStruct: StructType.NODE_REFERENCE },
   [ThemeProperty.primaryColor]: { id: 50, name: 'primary_color', component: ObjectType.THEME, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.COLOR },
@@ -41074,7 +41112,7 @@ export const ColorStyleDataInfo: Record<ColorStyleProperty, PropertyInfo> = {
   [ColorStyleProperty.mode]: { id: 25, name: 'mode', component: ObjectType.COLOR_STYLE, enumType: EnumType.NODE_MODE, kind: 'enum', primitiveType: PrimitiveType.INT16, default: 20, isRequired: true, isInternal: true, isRuntime: true, isWired: true, isStored: true },
   [ColorStyleProperty.type]: { id: 30, name: 'type', component: ObjectType.COLOR_STYLE, enumType: EnumType.COLOR_TYPE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isRuntime: true, isWired: true, isStored: true },
   [ColorStyleProperty.name]: { id: 31, name: 'name', component: ObjectType.COLOR_STYLE, kind: 'primitive', primitiveType: PrimitiveType.STRING, constraint: { minLength: 0, maxLength: 128, nodeTypes: [] }, isRuntime: true, isWired: true, isStored: true },
-  [ColorStyleProperty.orderKey]: { id: 33, name: 'order_key', component: ObjectType.COLOR_STYLE, kind: 'primitive', primitiveType: PrimitiveType.STRING, default: "a0", isInternal: true, isRuntime: true, isWired: true, isStored: true },
+  [ColorStyleProperty.orderKey]: { id: 33, name: 'order_key', component: ObjectType.COLOR_STYLE, kind: 'primitive', primitiveType: PrimitiveType.STRING, default: "a0", isRequired: true, isInternal: true, isRuntime: true, isWired: true, isStored: true },
   [ColorStyleProperty.icon]: { id: 34, name: 'icon', component: ObjectType.COLOR_STYLE, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.ICON },
   [ColorStyleProperty.definitionPtr]: { id: 35, name: 'definition_ptr', component: ObjectType.COLOR_STYLE, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.BLOCK], referenceStruct: StructType.NODE_REFERENCE },
   [ColorStyleProperty.hue]: { id: 40, name: 'hue', component: ObjectType.COLOR_STYLE, enumType: EnumType.COLOR_HUE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRuntime: true, isWired: true, isStored: true },
@@ -41102,7 +41140,7 @@ export const FontStyleDataInfo: Record<FontStyleProperty, PropertyInfo> = {
   [FontStyleProperty.mode]: { id: 25, name: 'mode', component: ObjectType.FONT_STYLE, enumType: EnumType.NODE_MODE, kind: 'enum', primitiveType: PrimitiveType.INT16, default: 20, isRequired: true, isInternal: true, isRuntime: true, isWired: true, isStored: true },
   [FontStyleProperty.type]: { id: 30, name: 'type', component: ObjectType.FONT_STYLE, enumType: EnumType.TEXT_TYPE, kind: 'enum', primitiveType: PrimitiveType.INT16, default: 1, isRequired: true, isRuntime: true, isWired: true, isStored: true },
   [FontStyleProperty.name]: { id: 31, name: 'name', component: ObjectType.FONT_STYLE, kind: 'primitive', primitiveType: PrimitiveType.STRING, constraint: { minLength: 0, maxLength: 128, nodeTypes: [] }, isRuntime: true, isWired: true, isStored: true },
-  [FontStyleProperty.orderKey]: { id: 33, name: 'order_key', component: ObjectType.FONT_STYLE, kind: 'primitive', primitiveType: PrimitiveType.STRING, default: "a0", isInternal: true, isRuntime: true, isWired: true, isStored: true },
+  [FontStyleProperty.orderKey]: { id: 33, name: 'order_key', component: ObjectType.FONT_STYLE, kind: 'primitive', primitiveType: PrimitiveType.STRING, default: "a0", isRequired: true, isInternal: true, isRuntime: true, isWired: true, isStored: true },
   [FontStyleProperty.icon]: { id: 34, name: 'icon', component: ObjectType.FONT_STYLE, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.ICON },
   [FontStyleProperty.definitionPtr]: { id: 35, name: 'definition_ptr', component: ObjectType.FONT_STYLE, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.BLOCK], referenceStruct: StructType.NODE_REFERENCE },
   [FontStyleProperty.stylePtr]: { id: 40, name: 'style_ptr', component: ObjectType.FONT_STYLE, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.FONT_STYLE], referenceStruct: StructType.NODE_REFERENCE },
@@ -41132,7 +41170,7 @@ export const BorderStyleDataInfo: Record<BorderStyleProperty, PropertyInfo> = {
   [BorderStyleProperty.mode]: { id: 25, name: 'mode', component: ObjectType.BORDER_STYLE, enumType: EnumType.NODE_MODE, kind: 'enum', primitiveType: PrimitiveType.INT16, default: 20, isRequired: true, isInternal: true, isRuntime: true, isWired: true, isStored: true },
   [BorderStyleProperty.type]: { id: 30, name: 'type', component: ObjectType.BORDER_STYLE, enumType: EnumType.BORDER_TYPE, kind: 'enum', primitiveType: PrimitiveType.INT16, default: 10, isRequired: true, isRuntime: true, isWired: true, isStored: true },
   [BorderStyleProperty.name]: { id: 31, name: 'name', component: ObjectType.BORDER_STYLE, kind: 'primitive', primitiveType: PrimitiveType.STRING, constraint: { minLength: 0, maxLength: 128, nodeTypes: [] }, isRuntime: true, isWired: true, isStored: true },
-  [BorderStyleProperty.orderKey]: { id: 33, name: 'order_key', component: ObjectType.BORDER_STYLE, kind: 'primitive', primitiveType: PrimitiveType.STRING, default: "a0", isInternal: true, isRuntime: true, isWired: true, isStored: true },
+  [BorderStyleProperty.orderKey]: { id: 33, name: 'order_key', component: ObjectType.BORDER_STYLE, kind: 'primitive', primitiveType: PrimitiveType.STRING, default: "a0", isRequired: true, isInternal: true, isRuntime: true, isWired: true, isStored: true },
   [BorderStyleProperty.icon]: { id: 34, name: 'icon', component: ObjectType.BORDER_STYLE, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.ICON },
   [BorderStyleProperty.definitionPtr]: { id: 35, name: 'definition_ptr', component: ObjectType.BORDER_STYLE, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.BLOCK], referenceStruct: StructType.NODE_REFERENCE },
   [BorderStyleProperty.stylePtr]: { id: 40, name: 'style_ptr', component: ObjectType.BORDER_STYLE, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.BORDER_STYLE], referenceStruct: StructType.NODE_REFERENCE },
@@ -41155,7 +41193,7 @@ export const ShadowStyleDataInfo: Record<ShadowStyleProperty, PropertyInfo> = {
   [ShadowStyleProperty.mode]: { id: 25, name: 'mode', component: ObjectType.SHADOW_STYLE, enumType: EnumType.NODE_MODE, kind: 'enum', primitiveType: PrimitiveType.INT16, default: 20, isRequired: true, isInternal: true, isRuntime: true, isWired: true, isStored: true },
   [ShadowStyleProperty.type]: { id: 30, name: 'type', component: ObjectType.SHADOW_STYLE, enumType: EnumType.SHADOW_TYPE, kind: 'enum', primitiveType: PrimitiveType.INT16, default: 10, isRequired: true, isRuntime: true, isWired: true, isStored: true },
   [ShadowStyleProperty.name]: { id: 31, name: 'name', component: ObjectType.SHADOW_STYLE, kind: 'primitive', primitiveType: PrimitiveType.STRING, constraint: { minLength: 0, maxLength: 128, nodeTypes: [] }, isRuntime: true, isWired: true, isStored: true },
-  [ShadowStyleProperty.orderKey]: { id: 33, name: 'order_key', component: ObjectType.SHADOW_STYLE, kind: 'primitive', primitiveType: PrimitiveType.STRING, default: "a0", isInternal: true, isRuntime: true, isWired: true, isStored: true },
+  [ShadowStyleProperty.orderKey]: { id: 33, name: 'order_key', component: ObjectType.SHADOW_STYLE, kind: 'primitive', primitiveType: PrimitiveType.STRING, default: "a0", isRequired: true, isInternal: true, isRuntime: true, isWired: true, isStored: true },
   [ShadowStyleProperty.icon]: { id: 34, name: 'icon', component: ObjectType.SHADOW_STYLE, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.ICON },
   [ShadowStyleProperty.definitionPtr]: { id: 35, name: 'definition_ptr', component: ObjectType.SHADOW_STYLE, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.BLOCK], referenceStruct: StructType.NODE_REFERENCE },
   [ShadowStyleProperty.stylePtr]: { id: 40, name: 'style_ptr', component: ObjectType.SHADOW_STYLE, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.SHADOW_STYLE], referenceStruct: StructType.NODE_REFERENCE },
@@ -41182,7 +41220,7 @@ export const GradientStyleDataInfo: Record<GradientStyleProperty, PropertyInfo> 
   [GradientStyleProperty.mode]: { id: 25, name: 'mode', component: ObjectType.GRADIENT_STYLE, enumType: EnumType.NODE_MODE, kind: 'enum', primitiveType: PrimitiveType.INT16, default: 20, isRequired: true, isInternal: true, isRuntime: true, isWired: true, isStored: true },
   [GradientStyleProperty.type]: { id: 30, name: 'type', component: ObjectType.GRADIENT_STYLE, enumType: EnumType.GRADIENT_TYPE, kind: 'enum', primitiveType: PrimitiveType.INT16, default: 1, isRequired: true, isRuntime: true, isWired: true, isStored: true },
   [GradientStyleProperty.name]: { id: 31, name: 'name', component: ObjectType.GRADIENT_STYLE, kind: 'primitive', primitiveType: PrimitiveType.STRING, constraint: { minLength: 0, maxLength: 128, nodeTypes: [] }, isRuntime: true, isWired: true, isStored: true },
-  [GradientStyleProperty.orderKey]: { id: 33, name: 'order_key', component: ObjectType.GRADIENT_STYLE, kind: 'primitive', primitiveType: PrimitiveType.STRING, default: "a0", isInternal: true, isRuntime: true, isWired: true, isStored: true },
+  [GradientStyleProperty.orderKey]: { id: 33, name: 'order_key', component: ObjectType.GRADIENT_STYLE, kind: 'primitive', primitiveType: PrimitiveType.STRING, default: "a0", isRequired: true, isInternal: true, isRuntime: true, isWired: true, isStored: true },
   [GradientStyleProperty.icon]: { id: 34, name: 'icon', component: ObjectType.GRADIENT_STYLE, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.ICON },
   [GradientStyleProperty.definitionPtr]: { id: 35, name: 'definition_ptr', component: ObjectType.GRADIENT_STYLE, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.BLOCK], referenceStruct: StructType.NODE_REFERENCE },
   [GradientStyleProperty.angle]: { id: 40, name: 'angle', component: ObjectType.GRADIENT_STYLE, kind: 'primitive', primitiveType: PrimitiveType.FLOAT32, isRuntime: true, isWired: true, isStored: true },
@@ -41206,7 +41244,7 @@ export const TransitionStyleDataInfo: Record<TransitionStyleProperty, PropertyIn
   [TransitionStyleProperty.mode]: { id: 25, name: 'mode', component: ObjectType.TRANSITION_STYLE, enumType: EnumType.NODE_MODE, kind: 'enum', primitiveType: PrimitiveType.INT16, default: 20, isRequired: true, isInternal: true, isRuntime: true, isWired: true, isStored: true },
   [TransitionStyleProperty.type]: { id: 30, name: 'type', component: ObjectType.TRANSITION_STYLE, enumType: EnumType.TRANSITION_TYPE, kind: 'enum', primitiveType: PrimitiveType.INT16, default: 10, isRequired: true, isRuntime: true, isWired: true, isStored: true },
   [TransitionStyleProperty.name]: { id: 31, name: 'name', component: ObjectType.TRANSITION_STYLE, kind: 'primitive', primitiveType: PrimitiveType.STRING, constraint: { minLength: 0, maxLength: 128, nodeTypes: [] }, isRuntime: true, isWired: true, isStored: true },
-  [TransitionStyleProperty.orderKey]: { id: 33, name: 'order_key', component: ObjectType.TRANSITION_STYLE, kind: 'primitive', primitiveType: PrimitiveType.STRING, default: "a0", isInternal: true, isRuntime: true, isWired: true, isStored: true },
+  [TransitionStyleProperty.orderKey]: { id: 33, name: 'order_key', component: ObjectType.TRANSITION_STYLE, kind: 'primitive', primitiveType: PrimitiveType.STRING, default: "a0", isRequired: true, isInternal: true, isRuntime: true, isWired: true, isStored: true },
   [TransitionStyleProperty.icon]: { id: 34, name: 'icon', component: ObjectType.TRANSITION_STYLE, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.ICON },
   [TransitionStyleProperty.definitionPtr]: { id: 35, name: 'definition_ptr', component: ObjectType.TRANSITION_STYLE, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.BLOCK], referenceStruct: StructType.NODE_REFERENCE },
   [TransitionStyleProperty.stylePtr]: { id: 40, name: 'style_ptr', component: ObjectType.TRANSITION_STYLE, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.TRANSITION_STYLE], referenceStruct: StructType.NODE_REFERENCE },
@@ -41235,7 +41273,7 @@ export const EffectStyleDataInfo: Record<EffectStyleProperty, PropertyInfo> = {
   [EffectStyleProperty.mode]: { id: 25, name: 'mode', component: ObjectType.EFFECT_STYLE, enumType: EnumType.NODE_MODE, kind: 'enum', primitiveType: PrimitiveType.INT16, default: 20, isRequired: true, isInternal: true, isRuntime: true, isWired: true, isStored: true },
   [EffectStyleProperty.type]: { id: 30, name: 'type', component: ObjectType.EFFECT_STYLE, enumType: EnumType.EFFECT_TYPE, kind: 'enum', primitiveType: PrimitiveType.INT16, default: 10, isRequired: true, isRuntime: true, isWired: true, isStored: true },
   [EffectStyleProperty.name]: { id: 31, name: 'name', component: ObjectType.EFFECT_STYLE, kind: 'primitive', primitiveType: PrimitiveType.STRING, constraint: { minLength: 0, maxLength: 128, nodeTypes: [] }, isRuntime: true, isWired: true, isStored: true },
-  [EffectStyleProperty.orderKey]: { id: 33, name: 'order_key', component: ObjectType.EFFECT_STYLE, kind: 'primitive', primitiveType: PrimitiveType.STRING, default: "a0", isInternal: true, isRuntime: true, isWired: true, isStored: true },
+  [EffectStyleProperty.orderKey]: { id: 33, name: 'order_key', component: ObjectType.EFFECT_STYLE, kind: 'primitive', primitiveType: PrimitiveType.STRING, default: "a0", isRequired: true, isInternal: true, isRuntime: true, isWired: true, isStored: true },
   [EffectStyleProperty.icon]: { id: 34, name: 'icon', component: ObjectType.EFFECT_STYLE, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.ICON },
   [EffectStyleProperty.definitionPtr]: { id: 35, name: 'definition_ptr', component: ObjectType.EFFECT_STYLE, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.BLOCK], referenceStruct: StructType.NODE_REFERENCE },
   [EffectStyleProperty.opacity]: { id: 40, name: 'opacity', component: ObjectType.EFFECT_STYLE, kind: 'primitive', primitiveType: PrimitiveType.FLOAT32, isRuntime: true, isWired: true, isStored: true },

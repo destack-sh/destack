@@ -33,7 +33,6 @@ from bench.language.registry import (
     NODE_CLASS_BY_TYPE,
 )
 from bench.pb2 import AnyNodeData, NodeReferenceData
-from bench.utils.fractional import INTEGER_ZERO
 from bench.utils.func import dualmethod, hash_stable
 from bench.utils.string import Casing, to_casing, to_code_name
 from bench.utils.utils import frozendict
@@ -80,7 +79,7 @@ from .property import (
     p_system,
 )
 from .struct import Struct, struct_
-from .trait import SUBJECT_NODE_TYPES, IsBased, IsInstantiable, IsModal, Subject
+from .trait import SUBJECT_NODE_TYPES, IsBased, IsInstantiable, IsModal, IsOrdered, Subject
 from .validation import on_invalid_raise
 
 if TYPE_CHECKING:
@@ -1124,13 +1123,13 @@ class PackageNode[NodeDataT: AnyNodeData](BenchNode[NodeDataT]):
 
 
 @node_component_()
-class PageNode[NodeDataT: AnyNodeData](PackageNode[NodeDataT]):
+class PageNode[NodeDataT: AnyNodeData](IsOrdered, PackageNode[NodeDataT]):
     """A Node that can (but may not be) be inline on a Page."""
 
     parent: Union["Page", None] = p_node_parent(4, NodeType.PAGE)
     # name: 31
     # title: 32
-    order_key: str | None = p_internal(33, default=INTEGER_ZERO, default_sql=None)
+    # order_key: 33
     icon: Optional["Icon"] = p_regular(
         34, default=None, require=False, array=False, struct=StructType.ICON
     )

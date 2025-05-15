@@ -5,6 +5,7 @@ from uuid import UUID
 
 from bench.language.registry import CHILD_NODE_TYPES
 from bench.pb2 import AnyNodeData, NodeReferenceData
+from bench.utils.fractional import INTEGER_ZERO
 from bench.utils.tenacity import RetryOptions
 from bench.utils.uuidt import UUIDT
 
@@ -363,6 +364,13 @@ class IsTitled(BuiltinObject):
     """A Node with a rich title."""
 
     title: Optional["TextLine"] = p_regular(32, struct=StructType.TEXT_LINE)
+
+
+@object_()
+class IsOrdered(BuiltinObject):
+    """A Node that can be ordered."""
+
+    order_key: str = p_internal(33, default=INTEGER_ZERO)
 
 
 @object_()
