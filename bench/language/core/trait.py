@@ -365,7 +365,7 @@ class IsTitled(BuiltinObject):
 class IsModal(BuiltinObject):
     """A Node that can be in different modes."""
 
-    mode: NodeMode = p_internal(20, default=NodeMode.MAIN, default_sql=str(NodeMode.MAIN.value))
+    mode: NodeMode = p_internal(25, default=NodeMode.MAIN, default_sql=str(NodeMode.MAIN.value))
 
     @property
     def is_active(self) -> bool:

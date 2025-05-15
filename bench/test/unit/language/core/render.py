@@ -30,7 +30,6 @@ from bench.language import (
     Run,
     Session,
     code,
-    constraint,
     format_code,
     render_expression,
     text,
@@ -203,15 +202,6 @@ def test_render_class(session: Session, package: Package):
     )
     Class1 = Class.new("Class1", Field.member("field1", Choice1))
     return {"Choice1": Choice1, "Class1": Class1}
-
-
-@_render_test
-def test_render_field_with_constraint(session: Session, package: Package):
-    """Constraints should be simplified with `constraint`."""
-    Field1 = Field.input(
-        "Field1", int, constraint=constraint(min_value=1.0, max_value=10.0, step_value=2.0)
-    )
-    return {"Field1": Field1}
 
 
 @_render_test

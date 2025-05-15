@@ -94,6 +94,7 @@ enum EnumType {
   ENUM_TYPE_MODEL_DEVELOPER = 24000;
   ENUM_TYPE_MODEL_PROVIDER = 24001;
   ENUM_TYPE_SPACE_TYPE = 28000;
+  ENUM_TYPE_POSITION_TYPE = 28080;
   ENUM_TYPE_COLOR_TYPE = 28010;
   ENUM_TYPE_COLOR_SHADE = 28011;
   ENUM_TYPE_COLOR_HUE = 28012;
@@ -112,7 +113,13 @@ enum EnumType {
   ENUM_TYPE_FILL_POSITION = 28061;
   ENUM_TYPE_FILL_SIZE = 28062;
   ENUM_TYPE_LENGTH_UNIT = 28070;
-  ENUM_TYPE_POSITION_TYPE = 28080;
+  ENUM_TYPE_LAYOUT = 28071;
+  ENUM_TYPE_DISTRIBUTE = 28072;
+  ENUM_TYPE_ALIGN = 28073;
+  ENUM_TYPE_DIRECTION = 28074;
+  ENUM_TYPE_TRANSITION_TYPE = 28075;
+  ENUM_TYPE_SPRING_TYPE = 28076;
+  ENUM_TYPE_EFFECT_TYPE = 28077;
 }
 
 enum NodeType {
@@ -171,6 +178,8 @@ enum NodeType {
   NODE_TYPE_BORDER_STYLE = 8512;
   NODE_TYPE_SHADOW_STYLE = 8513;
   NODE_TYPE_GRADIENT_STYLE = 8514;
+  NODE_TYPE_TRANSITION_STYLE = 8515;
+  NODE_TYPE_EFFECT_STYLE = 8516;
   NODE_TYPE_EMPTY = 9999;
 }
 
@@ -219,6 +228,8 @@ enum StructType {
   STRUCT_TYPE_FILL = 18511;
   STRUCT_TYPE_LENGTH = 18512;
   STRUCT_TYPE_POSITION = 18513;
+  STRUCT_TYPE_TRANSITION = 18514;
+  STRUCT_TYPE_EFFECT = 18515;
 }
 
 enum ObjectType {
@@ -277,6 +288,8 @@ enum ObjectType {
   OBJECT_TYPE_BORDER_STYLE = 8512;
   OBJECT_TYPE_SHADOW_STYLE = 8513;
   OBJECT_TYPE_GRADIENT_STYLE = 8514;
+  OBJECT_TYPE_TRANSITION_STYLE = 8515;
+  OBJECT_TYPE_EFFECT_STYLE = 8516;
   OBJECT_TYPE_EMPTY = 9999;
   OBJECT_TYPE_CONTEXT = 10001;
   OBJECT_TYPE_EDIT_CONTEXT = 10002;
@@ -321,6 +334,8 @@ enum ObjectType {
   OBJECT_TYPE_FILL = 18511;
   OBJECT_TYPE_LENGTH = 18512;
   OBJECT_TYPE_POSITION = 18513;
+  OBJECT_TYPE_TRANSITION = 18514;
+  OBJECT_TYPE_EFFECT = 18515;
 }
 
 enum BenchType {
@@ -379,6 +394,8 @@ enum BenchType {
   BENCH_TYPE_BORDER_STYLE = 8512;
   BENCH_TYPE_SHADOW_STYLE = 8513;
   BENCH_TYPE_GRADIENT_STYLE = 8514;
+  BENCH_TYPE_TRANSITION_STYLE = 8515;
+  BENCH_TYPE_EFFECT_STYLE = 8516;
   BENCH_TYPE_EMPTY = 9999;
   BENCH_TYPE_CONTEXT = 10001;
   BENCH_TYPE_EDIT_CONTEXT = 10002;
@@ -423,6 +440,8 @@ enum BenchType {
   BENCH_TYPE_FILL = 18511;
   BENCH_TYPE_LENGTH = 18512;
   BENCH_TYPE_POSITION = 18513;
+  BENCH_TYPE_TRANSITION = 18514;
+  BENCH_TYPE_EFFECT = 18515;
   BENCH_TYPE_ENUM_TYPE = 20000;
   BENCH_TYPE_NODE_TYPE = 20001;
   BENCH_TYPE_STRUCT_TYPE = 20002;
@@ -506,6 +525,7 @@ enum BenchType {
   BENCH_TYPE_MODEL_DEVELOPER = 24000;
   BENCH_TYPE_MODEL_PROVIDER = 24001;
   BENCH_TYPE_SPACE_TYPE = 28000;
+  BENCH_TYPE_POSITION_TYPE = 28080;
   BENCH_TYPE_COLOR_TYPE = 28010;
   BENCH_TYPE_COLOR_SHADE = 28011;
   BENCH_TYPE_COLOR_HUE = 28012;
@@ -524,7 +544,13 @@ enum BenchType {
   BENCH_TYPE_FILL_POSITION = 28061;
   BENCH_TYPE_FILL_SIZE = 28062;
   BENCH_TYPE_LENGTH_UNIT = 28070;
-  BENCH_TYPE_POSITION_TYPE = 28080;
+  BENCH_TYPE_LAYOUT = 28071;
+  BENCH_TYPE_DISTRIBUTE = 28072;
+  BENCH_TYPE_ALIGN = 28073;
+  BENCH_TYPE_DIRECTION = 28074;
+  BENCH_TYPE_TRANSITION_TYPE = 28075;
+  BENCH_TYPE_SPRING_TYPE = 28076;
+  BENCH_TYPE_EFFECT_TYPE = 28077;
 }
 
 enum NodeMode {
@@ -1424,6 +1450,14 @@ enum SpaceType {
   SPACE_TYPE_MOBILE = 30;
 }
 
+// The position of a View.
+enum PositionType {
+  POSITION_TYPE_UNSPECIFIED = 0;
+  POSITION_TYPE_RELATIVE = 1;
+  POSITION_TYPE_ABSOLUTE = 2;
+  POSITION_TYPE_STICKY = 3;
+}
+
 // Built-in color formats.
 enum ColorType {
   COLOR_TYPE_UNSPECIFIED = 0;
@@ -1606,12 +1640,59 @@ enum LengthUnit {
   LENGTH_UNIT_REM = 2;
 }
 
-// The position of a View.
-enum PositionType {
-  POSITION_TYPE_UNSPECIFIED = 0;
-  POSITION_TYPE_RELATIVE = 1;
-  POSITION_TYPE_ABSOLUTE = 2;
-  POSITION_TYPE_STICKY = 3;
+enum Layout {
+  LAYOUT_UNSPECIFIED = 0;
+  LAYOUT_STACK = 1;
+  LAYOUT_GRID = 2;
+}
+
+enum Distribute {
+  DISTRIBUTE_UNSPECIFIED = 0;
+  DISTRIBUTE_START = 1;
+  DISTRIBUTE_CENTER = 2;
+  DISTRIBUTE_END = 3;
+  DISTRIBUTE_SPACE_BETWEEN = 4;
+  DISTRIBUTE_SPACE_AROUND = 5;
+  DISTRIBUTE_SPACE_EVENLY = 6;
+}
+
+enum Align {
+  ALIGN_UNSPECIFIED = 0;
+  ALIGN_START = 1;
+  ALIGN_CENTER = 2;
+  ALIGN_END = 3;
+}
+
+enum Direction {
+  DIRECTION_UNSPECIFIED = 0;
+  DIRECTION_HORIZONTAL = 1;
+  DIRECTION_VERTICAL = 2;
+}
+
+// Built-in transition types.
+enum TransitionType {
+  TRANSITION_TYPE_UNSPECIFIED = 0;
+  TRANSITION_TYPE_STYLE = 2;
+  TRANSITION_TYPE_TWEEN = 10;
+  TRANSITION_TYPE_SPRING = 11;
+}
+
+// Built-in spring types.
+enum SpringType {
+  SPRING_TYPE_UNSPECIFIED = 0;
+  SPRING_TYPE_TIME = 1;
+  SPRING_TYPE_PHYSICS = 2;
+}
+
+// Built-in effect types.
+enum EffectType {
+  EFFECT_TYPE_UNSPECIFIED = 0;
+  EFFECT_TYPE_STYLE = 2;
+  EFFECT_TYPE_APPEAR = 10;
+  EFFECT_TYPE_ENTER = 11;
+  EFFECT_TYPE_EXIT = 12;
+  EFFECT_TYPE_HOVER = 13;
+  EFFECT_TYPE_TRANSFORM = 14;
 }
 
 message GraphScopeData {
@@ -1997,13 +2078,37 @@ message BorderData {
   ObjectType metatype = 1;
   BorderType type = 30;
   optional NodeReferenceData style_ptr = 40;
-  optional int32 width = 41;
   optional ColorData color = 42;
-  optional int32 radius = 43;
-  optional int32 radius_top_left = 44;
-  optional int32 radius_top_right = 45;
-  optional int32 radius_bottom_right = 46;
-  optional int32 radius_bottom_left = 47;
+  optional int32 width = 43;
+  optional int32 width_top = 44;
+  optional int32 width_right = 45;
+  optional int32 width_bottom = 46;
+  optional int32 width_left = 47;
+  optional int32 radius = 50;
+  optional int32 radius_top_left = 51;
+  optional int32 radius_top_right = 52;
+  optional int32 radius_bottom_right = 53;
+  optional int32 radius_bottom_left = 54;
+}
+
+message EffectData {
+  ObjectType metatype = 1;
+  EffectType type = 30;
+  optional float opacity = 40;
+  optional int32 offset_x = 41;
+  optional int32 offset_y = 42;
+  optional float scale = 43;
+  optional float rotate = 44;
+  optional float rotate_x = 45;
+  optional float rotate_y = 46;
+  optional bool is_rotate_3d = 47;
+  optional float skew_x = 48;
+  optional float skew_y = 49;
+  optional float perspective = 50;
+  optional float delay = 51;
+  optional float duration = 52;
+  optional float threshold = 53;
+  optional string trigger = 54;
 }
 
 message GradientStopData {
@@ -2029,29 +2134,46 @@ message FillData {
   optional FillSize size = 70;
 }
 
+message LengthData {
+  ObjectType metatype = 1;
+  LengthUnit unit = 31;
+  float value = 32;
+}
+
 message PositionData {
   ObjectType metatype = 1;
   PositionType type = 40;
-  float x = 41;
-  float y = 42;
+  optional float top = 41;
+  optional float left = 42;
+  optional float width = 43;
+  optional float height = 44;
 }
 
 message ShadowData {
   ObjectType metatype = 1;
   ShadowType type = 30;
   optional NodeReferenceData style_ptr = 40;
-  ShadowPosition position = 41;
-  int32 offset_x = 42;
-  int32 offset_y = 43;
-  int32 blur = 44;
-  int32 spread = 45;
-  optional ColorData color = 46;
+  optional ColorData color = 41;
+  ShadowPosition position = 42;
+  optional int32 offset_x = 43;
+  optional int32 offset_y = 44;
+  optional int32 blur = 45;
+  optional int32 spread = 46;
+  optional float diffusion = 47;
 }
 
-message LengthData {
+message TransitionData {
   ObjectType metatype = 1;
-  LengthUnit unit = 31;
-  float value = 32;
+  TransitionType type = 30;
+  optional NodeReferenceData style_ptr = 40;
+  optional float delay = 41;
+  optional float duration = 42;
+  repeated float ease = 43;
+  optional float stiffness = 44;
+  optional float damping = 45;
+  optional float mass = 46;
+  optional float bounce = 47;
+  optional SpringType spring_type = 48;
 }
 
 message BaseNodeData {
@@ -3384,13 +3506,53 @@ message BorderStyleData {
   optional IconData icon = 34;
   optional NodeReferenceData definition_ptr = 35;
   optional NodeReferenceData style_ptr = 40;
-  optional int32 width = 41;
   optional ColorData color = 42;
-  optional int32 radius = 43;
-  optional int32 radius_top_left = 44;
-  optional int32 radius_top_right = 45;
-  optional int32 radius_bottom_right = 46;
-  optional int32 radius_bottom_left = 47;
+  optional int32 width = 43;
+  optional int32 width_top = 44;
+  optional int32 width_right = 45;
+  optional int32 width_bottom = 46;
+  optional int32 width_left = 47;
+  optional int32 radius = 50;
+  optional int32 radius_top_left = 51;
+  optional int32 radius_top_right = 52;
+  optional int32 radius_bottom_right = 53;
+  optional int32 radius_bottom_left = 54;
+}
+
+message EffectStyleData {
+  ObjectType metatype = 1;
+  string id = 2;
+  optional NodeReferenceData parent_ptr = 4;
+  optional NodeReferenceData bench_ptr = 5;
+  optional NodeReferenceData package_ptr = 9;
+  google.protobuf.Timestamp created_at = 10;
+  optional NodeReferenceData created_by_ptr = 11;
+  google.protobuf.Timestamp updated_at = 12;
+  optional NodeReferenceData updated_by_ptr = 13;
+  optional google.protobuf.Timestamp archived_at = 14;
+  optional google.protobuf.Timestamp deleted_at = 15;
+  optional NodeReferenceData template_ptr = 16;
+  NodeMode mode = 20;
+  EffectType type = 30;
+  optional string name = 31;
+  optional string order_key = 33;
+  optional IconData icon = 34;
+  optional NodeReferenceData definition_ptr = 35;
+  optional float opacity = 40;
+  optional int32 offset_x = 41;
+  optional int32 offset_y = 42;
+  optional float scale = 43;
+  optional float rotate = 44;
+  optional float rotate_x = 45;
+  optional float rotate_y = 46;
+  optional bool is_rotate_3d = 47;
+  optional float skew_x = 48;
+  optional float skew_y = 49;
+  optional float perspective = 50;
+  optional float delay = 51;
+  optional float duration = 52;
+  optional float threshold = 53;
+  optional string trigger = 54;
 }
 
 message GradientStyleData {
@@ -3437,12 +3599,13 @@ message ShadowStyleData {
   optional IconData icon = 34;
   optional NodeReferenceData definition_ptr = 35;
   optional NodeReferenceData style_ptr = 40;
-  ShadowPosition position = 41;
-  int32 offset_x = 42;
-  int32 offset_y = 43;
-  int32 blur = 44;
-  int32 spread = 45;
-  optional ColorData color = 46;
+  optional ColorData color = 41;
+  ShadowPosition position = 42;
+  optional int32 offset_x = 43;
+  optional int32 offset_y = 44;
+  optional int32 blur = 45;
+  optional int32 spread = 46;
+  optional float diffusion = 47;
 }
 
 message TextStyleData {
@@ -3499,6 +3662,36 @@ message ThemeData {
   optional ColorData warning_color = 55;
   optional ColorData error_color = 56;
   optional ColorData info_color = 57;
+}
+
+message TransitionStyleData {
+  ObjectType metatype = 1;
+  string id = 2;
+  optional NodeReferenceData parent_ptr = 4;
+  optional NodeReferenceData bench_ptr = 5;
+  optional NodeReferenceData package_ptr = 9;
+  google.protobuf.Timestamp created_at = 10;
+  optional NodeReferenceData created_by_ptr = 11;
+  google.protobuf.Timestamp updated_at = 12;
+  optional NodeReferenceData updated_by_ptr = 13;
+  optional google.protobuf.Timestamp archived_at = 14;
+  optional google.protobuf.Timestamp deleted_at = 15;
+  optional NodeReferenceData template_ptr = 16;
+  NodeMode mode = 20;
+  TransitionType type = 30;
+  optional string name = 31;
+  optional string order_key = 33;
+  optional IconData icon = 34;
+  optional NodeReferenceData definition_ptr = 35;
+  optional NodeReferenceData style_ptr = 40;
+  optional float delay = 41;
+  optional float duration = 42;
+  repeated float ease = 43;
+  optional float stiffness = 44;
+  optional float damping = 45;
+  optional float mass = 46;
+  optional float bounce = 47;
+  optional SpringType spring_type = 48;
 }
 
 message ChoiceData {
@@ -3670,7 +3863,9 @@ message SomeNodeData {
     BorderStyleData border_style = 52;
     ShadowStyleData shadow_style = 53;
     GradientStyleData gradient_style = 54;
-    EmptyData empty = 55;
+    TransitionStyleData transition_style = 55;
+    EffectStyleData effect_style = 56;
+    EmptyData empty = 57;
   };
 }
 

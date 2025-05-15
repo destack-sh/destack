@@ -278,7 +278,7 @@ class Node[NodeDataT: AnyNodeData](BuiltinObject[NodeDataT]):
         parent_ptr: Optional[NodeReference] = None
     # BenchNode.bench: 5
     # PackageNode.package: 6
-    # AuthNode.organization/team/user: 7-9
+    # .organization/team/user: 7-9
 
     # 10-29: node tracking
     created_at: datetime = p_system(10, default=None, require=True, autoset=True)
@@ -307,10 +307,6 @@ class Node[NodeDataT: AnyNodeData](BuiltinObject[NodeDataT]):
     )
     archived_at: Optional[datetime] = p_system(14, default=None, autoset=True)
     deleted_at: Optional[datetime] = p_system(15, default=None, autoset=True)
-    # IsTemplatable.template: 16
-    # IsOwnable.owned_by: 17
-    # IsClaimable.claimed_by: 18
-    # ...managed_by/controlled_by?
     if TYPE_CHECKING:
         created_by_id: Optional[UUID] = None
         created_by_type: NodeType | None = None
@@ -318,7 +314,11 @@ class Node[NodeDataT: AnyNodeData](BuiltinObject[NodeDataT]):
         updated_by_id: Optional[UUID] = None
         updated_by_type: NodeType | None = None
         updated_by_ptr: Optional[NodeReference] = None
-    # IsModal.mode: 20
+    # IsTemplatable.template: 16
+    # IsOwnable.owned_by: 17
+    # IsClaimable.claimed_by: 18
+    # ...managed_by/controlled_by?
+    # IsModal.mode: 25
 
     # 30+ for general properties
     # ...

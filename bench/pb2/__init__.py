@@ -2,7 +2,7 @@
 
 from typing import TYPE_CHECKING, Union
 
-VERSION = "2025.05.15.0"
+VERSION = "2025.05.15.1"
 
 # import from all generated files
 from .runtime_pb2 import *
@@ -77,6 +77,8 @@ AnyNodeData = Union[
     BorderStyleData,
     ShadowStyleData,
     GradientStyleData,
+    TransitionStyleData,
+    EffectStyleData,
     EmptyData,
 ]
 AnyStructData = Union[
@@ -123,6 +125,8 @@ AnyStructData = Union[
     FillData,
     LengthData,
     PositionData,
+    TransitionData,
+    EffectData,
 ]
 AnyObjectData = AnyNodeData | AnyStructData
 BenchNodeData = Union[
@@ -177,6 +181,8 @@ BenchNodeData = Union[
     BorderStyleData,
     ShadowStyleData,
     GradientStyleData,
+    TransitionStyleData,
+    EffectStyleData,
 ]
 ResourceNodeData = Union[DatabaseData, ComputerData, ScalerData, FileData, LinkData]
 PageNodeData = Union[
@@ -210,6 +216,8 @@ PageNodeData = Union[
     BorderStyleData,
     ShadowStyleData,
     GradientStyleData,
+    TransitionStyleData,
+    EffectStyleData,
 ]
 SubjectNodeData = Union[UserData, OrganizationData, ComputerData, AgentData]
 JoinableNodeData = Union[PackageData, ChannelData, ThreadData, TeamData]
@@ -259,5 +267,11 @@ ViewNodeData = Union[
     ThreadViewData,
 ]
 StyleNodeData = Union[
-    ColorStyleData, TextStyleData, BorderStyleData, ShadowStyleData, GradientStyleData
+    ColorStyleData,
+    TextStyleData,
+    BorderStyleData,
+    ShadowStyleData,
+    GradientStyleData,
+    TransitionStyleData,
+    EffectStyleData,
 ]
