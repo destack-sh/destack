@@ -5,13 +5,15 @@ from bench.language.core import (
     BuiltinObject,
     EnumType,
     NodeType,
+    Struct,
     StructType,
     enum_,
     node_,
     node_component_,
     p_regular,
+    struct_,
 )
-from bench.pb2 import TextStyleData
+from bench.pb2 import FontStyleData
 
 from .color import Color
 from .core import Length
@@ -83,12 +85,12 @@ class TextTransform(BuiltinEnum):
 
 
 @node_component_()
-class TextStyleBase(BuiltinObject):
+class FontStyleBase(BuiltinObject):
     """A text style value."""
 
     type: TextType = p_regular(30, default=TextType.INLINE)
-    style: Optional["TextStyle"] = p_regular(
-        40, default=None, require=False, array=False, references=NodeType.TEXT_STYLE
+    style: Optional["FontStyle"] = p_regular(
+        40, default=None, require=False, array=False, references=NodeType.FONT_STYLE
     )
     weight: Optional[FontWeight] = p_regular(41, default=FontWeight.NORMAL)
     color: Optional[Color] = p_regular(45, default=None, struct=StructType.COLOR)
@@ -101,6 +103,15 @@ class TextStyleBase(BuiltinObject):
     transform: Optional[TextTransform] = p_regular(52, default=TextTransform.NONE)
 
 
-@node_(NodeType.TEXT_STYLE)
-class TextStyle(TextStyleBase, StyleBase[TextStyleData]):
+@struct_(StructType.FONT)
+class Font(FontStyleBase, Struct):
+    """A font value."""
+
+    pass
+
+
+@node_(NodeType.FONT_STYLE)
+class FontStyle(FontStyleBase, StyleBase[FontStyleData]):
+    """A font style."""
+
     pass

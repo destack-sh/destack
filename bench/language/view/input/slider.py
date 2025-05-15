@@ -6,8 +6,8 @@ from bench.pb2 import SliderViewData
 from .input import InputViewBase
 
 
-@node_(NodeType.SLIDER_VIEW)
-class SliderView(InputViewBase[SliderViewData]):
+@node_(NodeType.SLIDER_INPUT_VIEW)
+class SliderInputView(InputViewBase[SliderViewData]):
     """A slider input View."""
 
     value: Optional[float] = p_regular(100, default=None, require=False, array=False)

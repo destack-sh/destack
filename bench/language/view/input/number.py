@@ -6,8 +6,8 @@ from bench.pb2 import NumberViewData
 from .input import InputViewBase
 
 
-@node_(NodeType.NUMBER_VIEW)
-class NumberView(InputViewBase[NumberViewData]):
+@node_(NodeType.NUMBER_INPUT_VIEW)
+class NumberInputView(InputViewBase[NumberViewData]):
     """A general number input View."""
 
     value: Optional[str] = p_regular(100, default=None)

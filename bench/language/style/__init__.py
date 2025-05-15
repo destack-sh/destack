@@ -34,10 +34,18 @@ from .core import (
 )
 from .effect import Effect, EffectBase, EffectStyle, EffectType
 from .fill import Fill, FillPosition, FillSize, FillType
+from .font import (
+    Font,
+    FontStyle,
+    FontStyleBase,
+    FontType,
+    FontWeight,
+    TextDecoration,
+    TextTransform,
+)
 from .gradient import Gradient, GradientStop, GradientStyle, GradientType
 from .shadow import Shadow, ShadowBase, ShadowStyle, ShadowType
 from .style import StyleBase
-from .text import FontType, FontWeight, TextDecoration, TextStyle, TextStyleBase, TextTransform
 from .theme import Theme
 from .transition import Transition, TransitionBase, TransitionStyle, TransitionType
 
@@ -67,6 +75,9 @@ __all__ = [
     "FillPosition",
     "FillSize",
     "FillType",
+    "Font",
+    "FontStyle",
+    "FontStyleBase",
     "FontType",
     "FontWeight",
     "Gradient",
@@ -88,8 +99,6 @@ __all__ = [
     "ShadowType",
     "StyleBase",
     "TextDecoration",
-    "TextStyle",
-    "TextStyleBase",
     "TextTransform",
     "Theme",
     "Transition",

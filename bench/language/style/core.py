@@ -164,6 +164,9 @@ class Grid(Struct):
     column_min_width: Dimension | None = p_regular(
         43, require=False, array=False, default=None, struct=StructType.DIMENSION
     )
+    row_height: Dimension | None = p_regular(
+        44, require=False, array=False, default=None, struct=StructType.DIMENSION
+    )
 
 
 @struct_(StructType.GRID_SPAN)

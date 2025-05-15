@@ -30,8 +30,6 @@ if TYPE_CHECKING:
 class ContainerViewBase[NodeDataT: AnyNodeData](ViewBase[NodeDataT]):
     """A container View contains other Views."""
 
-    # border, padding, margin, fill, ...
-
     # layout
     layout: Optional["Layout"] = p_regular(50, require=False)
     direction: Optional["Direction"] = p_regular(51, require=False)
@@ -42,21 +40,12 @@ class ContainerViewBase[NodeDataT: AnyNodeData](ViewBase[NodeDataT]):
     grid: Optional["Grid"] = p_regular(56, require=False, struct=StructType.GRID)
     grid_span: Optional["GridSpan"] = p_regular(57, require=False, struct=StructType.GRID_SPAN)
     aspect_ratio: Optional[float] = p_regular(58, require=False)
-    is_wrapping: Optional[bool] = p_regular(59, require=False)
+    wrap: Optional[bool] = p_regular(59, require=False)
 
-    # style
-    is_visible: Optional[bool] = p_regular(60, require=False)
+    # appearance
+    visible: Optional[bool] = p_regular(60, require=False)
     opacity: Optional[float] = p_regular(61, require=False)
     fill: Optional["Fill"] = p_regular(62, require=False, struct=StructType.FILL)
     rotation: Optional["Axis3"] = p_regular(63, require=False, struct=StructType.AXIS_3)
     shadow: Optional["Shadow"] = p_regular(64, require=False, struct=StructType.SHADOW)
     border: Optional["Border"] = p_regular(65, require=False, struct=StructType.BORDER)
-
-    # behavior
-    # focus: Optional[Node] = p_regular(
-    #     70, default=None, require=False, array=False, references="any"
-    # )
-    # selection: Optional[Selection] = p_regular(
-    #     71, default=None, require=False, struct=StructType.SELECTION
-    # )
-    ...  # actions/effects/...
