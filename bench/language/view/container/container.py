@@ -15,6 +15,7 @@ if TYPE_CHECKING:
         Axis2,
         Axis3,
         Border,
+        Corners,
         Direction,
         Distribute,
         Fill,
@@ -49,3 +50,4 @@ class ContainerViewBase[NodeDataT: AnyNodeData](ViewBase[NodeDataT]):
     rotation: Optional["Axis3"] = p_regular(63, require=False, struct=StructType.AXIS_3)
     shadow: Optional["Shadow"] = p_regular(64, require=False, struct=StructType.SHADOW)
     border: Optional["Border"] = p_regular(65, require=False, struct=StructType.BORDER)
+    radius: Optional["Corners"] = p_regular(66, require=False, struct=StructType.CORNERS)

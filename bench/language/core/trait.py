@@ -94,6 +94,8 @@ OWNABLE_NODE_TYPES = bittuple(
     NodeType.RECORD,
     NodeType.MESSAGE,
     NodeType.CURSOR,
+    NodeType.ROUTE,
+    NodeType.SCENE,
 )
 
 Claimable = Union[

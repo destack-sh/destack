@@ -2,9 +2,9 @@ from typing import TYPE_CHECKING, Optional, Union
 
 from bench.language.core import (
     VIEW_NODE_TYPES,
+    IsInstantiable,
     IsModal,
     IsNamed,
-    IsTemplatable,
     NodeType,
     PageNode,
     StructType,
@@ -15,19 +15,14 @@ from bench.language.core import (
 from bench.pb2 import AnyNodeData
 
 if TYPE_CHECKING:
-    from bench.language import (
-        Dimension,
-        Page,
-        Position,
-        Space,
-    )
+    from bench.language import Dimension, Page, Position, Space
 
 # pyright: reportIncompatibleVariableOverride=false
 
 
 @node_component_()
 class ViewBase[NodeDataT: AnyNodeData](
-    IsTemplatable,
+    IsInstantiable,
     IsModal,
     IsNamed,
     PageNode[NodeDataT],

@@ -48,7 +48,7 @@ class _Unset:
 
 
 # forever constants
-VERSION = "2025.05.15.1"
+VERSION = "2025.05.15.2"
 UUID_NAMESPACE = uuid5(UUID(int=0), b"bench")
 CK_LENGTH_B64 = 24  # 1.5 * CK_LENGTH_BYTES (must be integer)
 FLOAT_EPSILON = 1e-6
@@ -438,9 +438,8 @@ class EnumType(BuiltinEnum):
     # world [24600-24800]
     # ...
 
-    # view [28000-29000]
+    # ui [28000-30000]
     SPACE_TYPE = 28000
-    POSITION_TYPE = 28080
 
     # space [28000-28100]
     # ...
@@ -454,34 +453,41 @@ class EnumType(BuiltinEnum):
     # node views [28400-28500]
     # ...
 
-    # style [28500-28600]
-    COLOR_TYPE = 28010
-    COLOR_SHADE = 28011
-    COLOR_HUE = 28012
-    FONT_TYPE = 28020
-    FONT_WEIGHT = 28021
-    FONT_SIZE = 28022
-    TEXT_TYPE = 28023
-    TEXT_ALIGN = 28024
-    TEXT_DECORATION = 28025
-    TEXT_TRANSFORM = 28026
-    SHADOW_TYPE = 28030
-    SHADOW_POSITION = 28031
-    BORDER_TYPE = 28040
-    GRADIENT_TYPE = 28050
-    FILL_TYPE = 28060
-    FILL_POSITION = 28061
-    FILL_SIZE = 28062
-    LENGTH_UNIT = 28070
-    LAYOUT = 28071
-    DISTRIBUTE = 28072
-    ALIGN = 28073
-    DIRECTION = 28074
-    OVERFLOW = 28075
-    TRANSITION_TYPE = 28076
-    SPRING_TYPE = 28077
-    EFFECT_TYPE = 28078
-    DIMENSION_TYPE = 28079
+    # style [29000-29200]
+    POSITION_TYPE = 29000
+    COLOR_TYPE = 29010
+    COLOR_SHADE = 29011
+    COLOR_HUE = 29012
+    FONT_TYPE = 29020
+    FONT_WEIGHT = 29021
+    FONT_SIZE = 29022
+    TEXT_TYPE = 29023
+    TEXT_ALIGN = 29024
+    TEXT_DECORATION = 29025
+    TEXT_TRANSFORM = 29026
+    SHADOW_TYPE = 29030
+    SHADOW_POSITION = 29031
+    BORDER_TYPE = 29040
+    GRADIENT_TYPE = 29050
+    FILL_TYPE = 29060
+    FILL_POSITION = 29061
+    FILL_SIZE = 29062
+    LENGTH_UNIT = 29070
+    LAYOUT = 29071
+    DISTRIBUTE = 29072
+    ALIGN = 29073
+    DIRECTION = 29074
+    OVERFLOW = 29075
+    TRANSITION_TYPE = 29076
+    SPRING_TYPE = 29077
+    EFFECT_TYPE = 29078
+    DIMENSION_TYPE = 29079
+
+    # drawing
+    # ...
+
+    # audio/media?
+    # ...
 
 
 enum_(EnumType.ENUM_TYPE)(EnumType)
@@ -591,34 +597,33 @@ class NodeType(BuiltinEnum):
     # world [4600-4800]
     # PHONE, ADDRESS, ...
 
-    # view [8000-9000]
+    # ui [8000-10000]
 
     # space [8000-8100]
     SPACE = 8000, "Space", "Space", "fas fa-galaxy"
-    WIZARD_VIEW = 8010, "Wizard View", "Wizard", "fas fa-wand-sparkles"
-    # SIDEBAR_VIEW = 8011, "Sidebar View", "Sidebar", "fas fa-bars"
-    # CONTEXT_VIEW = 8012, "Context View", "Context", "fas fa-sitemap"
+    SCENE = 8010, "Scene", "Scene", "fas fa-masks-theater"
+    ROUTE = 8020, "Route", "Route", "fas fa-route"
     # SCENE, OVERLAY, WIDGET, ROUTE, ...
 
     # container views [8100-8200]
     FRAME_VIEW = 8100, "Frame View", "Fixed Container", "fas fa-frame"
     LABEL_VIEW = 8101, "Label View", "Label Container", "fas fa-font-case"
-    # STACK_VIEW?, SCROLL_VIEW?, CARD_VIEW?, FORM_VIEW, ...
+    # STACK_VIEW?, SCROLL_VIEW?, CARD_VIEW?, FORM_VIEW, MENU_VIEW, ...
     COMPONENT_VIEW = 8110, "Component View", "Component Container", "fas fa-cube"
     SPLIT_VIEW = 8120, "Split View", "Split Container", "fas fa-columns"
     # TAB_VIEW = 8120, "Tab Container View", "Tab Container", "fas fa-tabs"
     # DRAWER_VIEW, SPLIT_DRAWER_VIEW, GRID/GRID_ELEMENT_VIEW, ...
 
     # content views [8200-8300]
-    TEXT_VIEW = 8222, "Text View", "Text", "fas fa-text"
-    # CODE_VIEW = 8224, "Code View", "Code", "fas fa-code"
-    # BUTTON_VIEW = 8225, "Button View", "Button", "fas fa-hand-pointer"
-    # LINK_VIEW = 8226, "Link View", "Link", "fas fa-link"
-    # ICON_VIEW = 8231, "Icon View", "Icon", "fas fa-icons"
-    # IMAGE_VIEW = 8232, "Image View", "Image", "fas fa-image"
-    # AUDIO_VIEW = 8233, "Audio View", "Audio", "fas fa-volume"
-    # VIDEO_VIEW = 8229, "Video View", "Video", "fas fa-video"
-    # DOCUMENT_VIEW = 8230, "Document View", "Document", "fas fa-file-alt"
+    TEXT_VIEW = 8200, "Text View", "Text", "fas fa-text"
+    # CODE_VIEW = 8201, "Code View", "Code", "fas fa-code"
+    # ICON_VIEW = 8202, "Icon View", "Icon", "fas fa-icons"
+    # BUTTON_VIEW = 8210, "Button View", "Button", "fas fa-hand-pointer"
+    # LINK_VIEW = 8211, "Link View", "Link", "fas fa-link"
+    # IMAGE_VIEW = 8220, "Image View", "Image", "fas fa-image"
+    # AUDIO_VIEW = 8221, "Audio View", "Audio", "fas fa-volume"
+    # VIDEO_VIEW = 8222, "Video View", "Video", "fas fa-video"
+    # DOCUMENT_VIEW = 8223, "Document View", "Document", "fas fa-file-alt"
 
     # input views [8300-8400]
     NUMBER_INPUT_VIEW = 8300, "Number Input View", "Number or String Input", "fas fa-hashtag"
@@ -635,6 +640,7 @@ class NodeType(BuiltinEnum):
     # node views [8400-8500]
     # NODE_VIEW = 8400, "Node View", "Node", "fas fa-hexagon"
     # NODE_CHIP_VIEW = 8401, "Node Chip View", "Node Chip", "fas fa-hexagon"
+    # NODE_PATH = 8405, "Node Path", "Node Path", "fas fa-sitemap"
     # PAGE_VIEW = 8410, "Page View", "Page", "far fa-file"
     # PAGE_PREVIEW_VIEW, ...
     # TABLE_VIEW = 8420, "Table View", "Table", "fas fa-table"
@@ -643,19 +649,27 @@ class NodeType(BuiltinEnum):
     # THREAD_PREVIEW_VIEW, ...
     # FILE_VIEW, FILE_CHIP_VIEW, FILE_PREVIEW_VIEW, ...
 
-    # style [8500-8600]
-    THEME = 8500, "Theme", "Theme", "fas fa-palette"
-    COLOR_STYLE = 8510, "Color Style", "Color Style", "fas fa-palette"
-    FONT_STYLE = 8511, "Font Style", "Font Style", "fas fa-text"
-    BORDER_STYLE = 8512, "Border Style", "Border Style", "fas fa-border-all"
-    SHADOW_STYLE = 8513, "Shadow Style", "Shadow Style", "fas fa-shadow"
-    GRADIENT_STYLE = 8514, "Gradient Style", "Gradient Style", "fas fa-gradient"
-    TRANSITION_STYLE = 8515, "Transition Style", "Transition Style", "fas fa-transition"
-    EFFECT_STYLE = 8516, "Effect Style", "Effect Style", "fas fa-effect"
+    # internal views [8500-8600]
+    WIZARD_VIEW = 8500, "Wizard View", "Wizard", "fas fa-wand-sparkles"
+    # SIDEBAR_VIEW = 8501, "Sidebar View", "Sidebar", "fas fa-bars"
+    # CONTEXT_VIEW = 8502, "Context View", "Context", "fas fa-sitemap"
+
+    # style [9000-9100]
+    THEME = 9000, "Theme", "Theme", "fas fa-palette"
+    COLOR_STYLE = 9010, "Color Style", "Color Style", "fas fa-palette"
+    FONT_STYLE = 9011, "Font Style", "Font Style", "fas fa-text"
+    BORDER_STYLE = 9012, "Border Style", "Border Style", "fas fa-border-outer"
+    SHADOW_STYLE = 9013, "Shadow Style", "Shadow Style", "fas fa-eclipse"
+    GRADIENT_STYLE = 9014, "Gradient Style", "Gradient Style", "fas fa-gradient"
+    TRANSITION_STYLE = 9015, "Transition Style", "Transition Style", "fas fa-bezier-curve"
+    EFFECT_STYLE = 9016, "Effect Style", "Effect Style", "fas fa-sparkle"
     # ANIMATION, ...
 
     # canvas?
     # CANVAS/DRAWING, SHAPE, BRUSH, ...
+
+    # audio/media?
+    # SOUND, ...?
 
     EMPTY = 9999
 
@@ -757,7 +771,7 @@ class StructType(BuiltinEnum):
     # world [14600-14800]
     # ...
 
-    # view [18000-19000]
+    # ui [18000-20000]
 
     # space [18000-18100]
     # ...
@@ -771,32 +785,34 @@ class StructType(BuiltinEnum):
     # node views [18400-18500]
     # ...
 
-    # style [18500-18600]
-    COLOR = 18500, None, None, "fas fa-palette"
-    SHADOW = 18503, None, None, "fas fa-shadow"
-    BORDER = 18504, None, None, "fas fa-border-all"
-    FONT = 18505, None, None, "fas fa-text"
-    VECTOR2 = 18506, None, None, "fas fa-vector-square"
-    VECTOR3 = 18507, None, None, "fas fa-vector-square"
-    VECTOR4 = 18508, None, None, "fas fa-vector-square"
-    GRADIENT_STOP = 18509, None, None, "fas fa-gradient"
-    GRADIENT = 18510, None, None, "fas fa-gradient"
-    FILL = 18511, None, None, "fas fa-fill"
-    LENGTH = 18512, None, None, "fas fa-length"
-    POSITION = 18513, None, None, "fas fa-position"
-    DIMENSION = 18514, None, None, "fas fa-dimension"
-    TRANSITION = 18515, None, None, "fas fa-transition"
-    EFFECT = 18516, None, None, "fas fa-effect"
-    GRID = 18518, None, None, "fas fa-grid"
-    GRID_SPAN = 18519, None, None, "fas fa-grid"
-    INSETS = 18520, None, None, "fas fa-padding"
-    CORNERS = 18521, None, None, "fas fa-corners"
-    AXIS_2 = 18522, None, None, "fas fa-gap"
-    AXIS_3 = 18523, None, None, "fas fa-rotation"
-    # ANIMATION, ...
+    # style [19000-19100]
+    COLOR = 19000, None, None, "fas fa-palette"
+    SHADOW = 19003, None, None, "fas fa-eclipse"
+    BORDER = 19004, None, None, "fas fa-border-outer"
+    FONT = 19005, None, None, "fas fa-text"
+    VECTOR2 = 19006, None, None, "fas fa-vector-square"
+    VECTOR3 = 19007, None, None, "fas fa-vector-square"
+    VECTOR4 = 19008, None, None, "fas fa-vector-square"
+    GRADIENT_STOP = 19009, None, None, "fas fa-gradient"
+    GRADIENT = 19010, None, None, "fas fa-gradient"
+    FILL = 19011, None, None, "fas fa-fill"
+    LENGTH = 19012, None, None, "fas fa-ruler"
+    POSITION = 19013, None, None, "fas fa-location-crosshair"
+    DIMENSION = 19014, None, None, "fas fa-ruler"
+    TRANSITION = 19015, None, None, "fas fa-bezier-curve"
+    EFFECT = 19016, None, None, "fas fa-sparkle"
+    GRID = 19018, None, None, "fas fa-grid-2"
+    GRID_SPAN = 19019, None, None, "fas fa-grid-2"
+    INSETS = 19020, None, None, "fas fa-corner"
+    CORNERS = 19021, None, None, "fas fa-corner"
+    AXIS_2 = 19022, None, None, "fas fa-vector-square"
+    AXIS_3 = 19023, None, None, "fas fa-vector-square"
 
-    # canvas [18600-18800]
-    # CANVAS/DRAWING, SHAPE, BRUSH, ...
+    # drawing
+    # ...
+
+    # audio/media
+    # ...
 
 
 @enum_(EnumType.NODE_AREA)
@@ -892,9 +908,12 @@ PAGE_NODE_TYPES = bittuple(
     NodeType.TEAM,
     NodeType.AGENT,
     NodeType.THEME,
+    NodeType.ROUTE,
+    NodeType.SCENE,
 )
 INSTANTIABLE_NODE_TYPES = bittuple(
     *RESOURCE_NODE_TYPES,
+    *VIEW_NODE_TYPES,
     NodeType.ACTION,
     NodeType.FIELD,
     NodeType.OPTION,
@@ -906,6 +925,8 @@ INSTANTIABLE_NODE_TYPES = bittuple(
     NodeType.TEAM,
     NodeType.AGENT,
     NodeType.MEMBERSHIP,
+    NodeType.ROUTE,
+    NodeType.SCENE,
 )
 TEMPLATABLE_NODE_TYPES = bittuple(
     *RESOURCE_NODE_TYPES,
