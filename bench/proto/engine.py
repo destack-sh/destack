@@ -157,27 +157,12 @@ def map_object_type_to_proto(
         return cache[bench_t]
     if issubclass(bench_t, BuiltinObject):
         ret = map_builtin_object_to_proto(bench_t, cache, alias=alias)
-    elif issubclass(bench_t, (BuiltinEnum, enum.IntFlag)):
+    elif issubclass(bench_t, BuiltinEnum):
         ret = map_builtin_enum_to_proto(bench_t, cache, alias=alias)
     else:
         raise TypeError(f"invalid bench type: {bench_t!r}")
     cache[bench_t] = ret
     return ret
-
-
-def map_object_subtype_to_proto(
-    node_t: type[Node],
-    cache: dict[_ThingType, ProtoThing],
-    subtype: int,
-) -> Message:
-    """Maps a Node subtype to a Proto type. Only includes the subtype properties not in base."""
-    assert node_t.__base_class__ is not None, f"node is not a subtype: {node_t!r}"
-    properties = [
-        prop
-        for prop in node_t.__properties__.values()
-        if prop.name not in node_t.__base_class__.__properties__
-    ]
-    return map_builtin_object_to_proto(node_t, cache, properties=properties)
 
 
 def generate_proto_schema(

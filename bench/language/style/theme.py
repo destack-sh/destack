@@ -33,9 +33,6 @@ class Theme(PageNode[ThemeData]):
     error_color: Optional["Color"] = p_regular(
         56, require=False, array=False, struct=StructType.COLOR
     )
-    info_color: Optional["Color"] = p_regular(
-        57, require=False, array=False, struct=StructType.COLOR
-    )
 
     # fonts
     # ...

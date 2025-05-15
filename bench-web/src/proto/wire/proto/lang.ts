@@ -1341,6 +1341,186 @@ export interface BorderData {
     radiusBottomLeft?: number;
 }
 /**
+ * @generated from protobuf message symbol.bench.LengthData
+ */
+export interface LengthData {
+    /**
+     * @generated from protobuf field: symbol.bench.ObjectType metatype = 1;
+     */
+    metatype: ObjectType;
+    /**
+     * @generated from protobuf field: symbol.bench.LengthUnit unit = 31;
+     */
+    unit: LengthUnit;
+    /**
+     * @generated from protobuf field: float value = 40;
+     */
+    value: number;
+}
+/**
+ * @generated from protobuf message symbol.bench.PositionData
+ */
+export interface PositionData {
+    /**
+     * @generated from protobuf field: symbol.bench.ObjectType metatype = 1;
+     */
+    metatype: ObjectType;
+    /**
+     * @generated from protobuf field: symbol.bench.PositionType type = 40;
+     */
+    type: PositionType;
+    /**
+     * @generated from protobuf field: optional symbol.bench.LengthData top = 41;
+     */
+    top?: LengthData;
+    /**
+     * @generated from protobuf field: optional symbol.bench.LengthData left = 42;
+     */
+    left?: LengthData;
+    /**
+     * @generated from protobuf field: optional symbol.bench.LengthData width = 43;
+     */
+    width?: LengthData;
+    /**
+     * @generated from protobuf field: optional symbol.bench.LengthData height = 44;
+     */
+    height?: LengthData;
+}
+/**
+ * @generated from protobuf message symbol.bench.DimensionData
+ */
+export interface DimensionData {
+    /**
+     * @generated from protobuf field: symbol.bench.ObjectType metatype = 1;
+     */
+    metatype: ObjectType;
+    /**
+     * @generated from protobuf field: symbol.bench.DimensionType type = 30;
+     */
+    type: DimensionType;
+    /**
+     * @generated from protobuf field: float value = 40;
+     */
+    value: number;
+}
+/**
+ * @generated from protobuf message symbol.bench.PaddingData
+ */
+export interface PaddingData {
+    /**
+     * @generated from protobuf field: symbol.bench.ObjectType metatype = 1;
+     */
+    metatype: ObjectType;
+    /**
+     * @generated from protobuf field: optional int32 value = 40;
+     */
+    value?: number;
+    /**
+     * @generated from protobuf field: optional int32 top = 41;
+     */
+    top?: number;
+    /**
+     * @generated from protobuf field: optional int32 left = 42;
+     */
+    left?: number;
+    /**
+     * @generated from protobuf field: optional int32 right = 43;
+     */
+    right?: number;
+    /**
+     * @generated from protobuf field: optional int32 bottom = 44;
+     */
+    bottom?: number;
+}
+/**
+ * @generated from protobuf message symbol.bench.RotationData
+ */
+export interface RotationData {
+    /**
+     * @generated from protobuf field: symbol.bench.ObjectType metatype = 1;
+     */
+    metatype: ObjectType;
+    /**
+     * @generated from protobuf field: optional float value = 40;
+     */
+    value?: number;
+    /**
+     * @generated from protobuf field: optional float x = 41;
+     */
+    x?: number;
+    /**
+     * @generated from protobuf field: optional float y = 42;
+     */
+    y?: number;
+    /**
+     * @generated from protobuf field: optional float z = 43;
+     */
+    z?: number;
+}
+/**
+ * @generated from protobuf message symbol.bench.GapData
+ */
+export interface GapData {
+    /**
+     * @generated from protobuf field: symbol.bench.ObjectType metatype = 1;
+     */
+    metatype: ObjectType;
+    /**
+     * @generated from protobuf field: optional float value = 40;
+     */
+    value?: number;
+    /**
+     * @generated from protobuf field: optional float x = 41;
+     */
+    x?: number;
+    /**
+     * @generated from protobuf field: optional float y = 42;
+     */
+    y?: number;
+}
+/**
+ * @generated from protobuf message symbol.bench.GridData
+ */
+export interface GridData {
+    /**
+     * @generated from protobuf field: symbol.bench.ObjectType metatype = 1;
+     */
+    metatype: ObjectType;
+    /**
+     * @generated from protobuf field: int32 columns = 40;
+     */
+    columns: number;
+    /**
+     * @generated from protobuf field: int32 rows = 41;
+     */
+    rows: number;
+    /**
+     * @generated from protobuf field: optional symbol.bench.DimensionData column_width = 42;
+     */
+    columnWidth?: DimensionData;
+    /**
+     * @generated from protobuf field: optional symbol.bench.DimensionData column_min_width = 43;
+     */
+    columnMinWidth?: DimensionData;
+}
+/**
+ * @generated from protobuf message symbol.bench.GridSpanData
+ */
+export interface GridSpanData {
+    /**
+     * @generated from protobuf field: symbol.bench.ObjectType metatype = 1;
+     */
+    metatype: ObjectType;
+    /**
+     * @generated from protobuf field: int32 columns = 40;
+     */
+    columns: number;
+    /**
+     * @generated from protobuf field: int32 rows = 41;
+     */
+    rows: number;
+}
+/**
  * @generated from protobuf message symbol.bench.EffectData
  */
 export interface EffectData {
@@ -1381,9 +1561,9 @@ export interface EffectData {
      */
     rotateY?: number;
     /**
-     * @generated from protobuf field: optional bool is_rotate_3d = 47 [json_name = "isRotate3d"];
+     * @generated from protobuf field: optional float rotate_z = 47;
      */
-    isRotate3D?: boolean;
+    rotateZ?: number;
     /**
      * @generated from protobuf field: optional float skew_x = 48;
      */
@@ -1483,52 +1663,6 @@ export interface FillData {
      * @generated from protobuf field: optional symbol.bench.FillSize size = 70;
      */
     size?: FillSize;
-}
-/**
- * @generated from protobuf message symbol.bench.LengthData
- */
-export interface LengthData {
-    /**
-     * @generated from protobuf field: symbol.bench.ObjectType metatype = 1;
-     */
-    metatype: ObjectType;
-    /**
-     * @generated from protobuf field: symbol.bench.LengthUnit unit = 31;
-     */
-    unit: LengthUnit;
-    /**
-     * @generated from protobuf field: float value = 32;
-     */
-    value: number;
-}
-/**
- * @generated from protobuf message symbol.bench.PositionData
- */
-export interface PositionData {
-    /**
-     * @generated from protobuf field: symbol.bench.ObjectType metatype = 1;
-     */
-    metatype: ObjectType;
-    /**
-     * @generated from protobuf field: symbol.bench.PositionType type = 40;
-     */
-    type: PositionType;
-    /**
-     * @generated from protobuf field: optional float top = 41;
-     */
-    top?: number;
-    /**
-     * @generated from protobuf field: optional float left = 42;
-     */
-    left?: number;
-    /**
-     * @generated from protobuf field: optional float width = 43;
-     */
-    width?: number;
-    /**
-     * @generated from protobuf field: optional float height = 44;
-     */
-    height?: number;
 }
 /**
  * @generated from protobuf message symbol.bench.ShadowData
@@ -1763,7 +1897,7 @@ export interface ChannelData {
      */
     templatePtr?: NodeReferenceData;
     /**
-     * @generated from protobuf field: symbol.bench.NodeMode mode = 20;
+     * @generated from protobuf field: symbol.bench.NodeMode mode = 25;
      */
     mode: NodeMode;
     /**
@@ -1900,7 +2034,7 @@ export interface MessageData {
      */
     ownedByPtr?: NodeReferenceData;
     /**
-     * @generated from protobuf field: symbol.bench.NodeMode mode = 20;
+     * @generated from protobuf field: symbol.bench.NodeMode mode = 25;
      */
     mode: NodeMode;
     /**
@@ -2013,7 +2147,7 @@ export interface NotificationData {
      */
     deletedAt?: Timestamp;
     /**
-     * @generated from protobuf field: symbol.bench.NodeMode mode = 20;
+     * @generated from protobuf field: symbol.bench.NodeMode mode = 25;
      */
     mode: NodeMode;
     /**
@@ -2126,7 +2260,7 @@ export interface ThreadData {
      */
     ownedByPtr?: NodeReferenceData;
     /**
-     * @generated from protobuf field: symbol.bench.NodeMode mode = 20;
+     * @generated from protobuf field: symbol.bench.NodeMode mode = 25;
      */
     mode: NodeMode;
     /**
@@ -2299,7 +2433,7 @@ export interface FileData {
      */
     claimedByPtr?: NodeReferenceData;
     /**
-     * @generated from protobuf field: symbol.bench.NodeMode mode = 20;
+     * @generated from protobuf field: symbol.bench.NodeMode mode = 25;
      */
     mode: NodeMode;
     /**
@@ -2468,7 +2602,7 @@ export interface LinkData {
      */
     claimedByPtr?: NodeReferenceData;
     /**
-     * @generated from protobuf field: symbol.bench.NodeMode mode = 20;
+     * @generated from protobuf field: symbol.bench.NodeMode mode = 25;
      */
     mode: NodeMode;
     /**
@@ -2609,7 +2743,7 @@ export interface RecordData {
      */
     claimedByPtr?: NodeReferenceData;
     /**
-     * @generated from protobuf field: symbol.bench.NodeMode mode = 20;
+     * @generated from protobuf field: symbol.bench.NodeMode mode = 25;
      */
     mode: NodeMode;
     /**
@@ -2698,7 +2832,7 @@ export interface TableData {
      */
     claimedByPtr?: NodeReferenceData;
     /**
-     * @generated from protobuf field: symbol.bench.NodeMode mode = 20;
+     * @generated from protobuf field: symbol.bench.NodeMode mode = 25;
      */
     mode: NodeMode;
     /**
@@ -2824,7 +2958,7 @@ export interface MembershipData {
      */
     templatePtr?: NodeReferenceData;
     /**
-     * @generated from protobuf field: symbol.bench.NodeMode mode = 20;
+     * @generated from protobuf field: symbol.bench.NodeMode mode = 25;
      */
     mode: NodeMode;
     /**
@@ -2885,7 +3019,7 @@ export interface RoleData {
      */
     templatePtr?: NodeReferenceData;
     /**
-     * @generated from protobuf field: symbol.bench.NodeMode mode = 20;
+     * @generated from protobuf field: symbol.bench.NodeMode mode = 25;
      */
     mode: NodeMode;
     /**
@@ -2970,7 +3104,7 @@ export interface TeamData {
      */
     templatePtr?: NodeReferenceData;
     /**
-     * @generated from protobuf field: symbol.bench.NodeMode mode = 20;
+     * @generated from protobuf field: symbol.bench.NodeMode mode = 25;
      */
     mode: NodeMode;
     /**
@@ -3055,7 +3189,7 @@ export interface ComputerData {
      */
     claimedByPtr?: NodeReferenceData;
     /**
-     * @generated from protobuf field: symbol.bench.NodeMode mode = 20;
+     * @generated from protobuf field: symbol.bench.NodeMode mode = 25;
      */
     mode: NodeMode;
     /**
@@ -3236,7 +3370,7 @@ export interface DatabaseData {
      */
     claimedByPtr?: NodeReferenceData;
     /**
-     * @generated from protobuf field: symbol.bench.NodeMode mode = 20;
+     * @generated from protobuf field: symbol.bench.NodeMode mode = 25;
      */
     mode: NodeMode;
     /**
@@ -3385,7 +3519,7 @@ export interface ScalerData {
      */
     claimedByPtr?: NodeReferenceData;
     /**
-     * @generated from protobuf field: symbol.bench.NodeMode mode = 20;
+     * @generated from protobuf field: symbol.bench.NodeMode mode = 25;
      */
     mode: NodeMode;
     /**
@@ -3534,7 +3668,7 @@ export interface ActionData {
      */
     claimedByPtr?: NodeReferenceData;
     /**
-     * @generated from protobuf field: symbol.bench.NodeMode mode = 20;
+     * @generated from protobuf field: symbol.bench.NodeMode mode = 25;
      */
     mode: NodeMode;
     /**
@@ -3659,7 +3793,7 @@ export interface AgentData {
      */
     claimedByPtr?: NodeReferenceData;
     /**
-     * @generated from protobuf field: symbol.bench.NodeMode mode = 20;
+     * @generated from protobuf field: symbol.bench.NodeMode mode = 25;
      */
     mode: NodeMode;
     /**
@@ -3840,7 +3974,7 @@ export interface FlowData {
      */
     claimedByPtr?: NodeReferenceData;
     /**
-     * @generated from protobuf field: symbol.bench.NodeMode mode = 20;
+     * @generated from protobuf field: symbol.bench.NodeMode mode = 25;
      */
     mode: NodeMode;
     /**
@@ -3945,7 +4079,7 @@ export interface FlowEdgeData {
      */
     templatePtr?: NodeReferenceData;
     /**
-     * @generated from protobuf field: symbol.bench.NodeMode mode = 20;
+     * @generated from protobuf field: symbol.bench.NodeMode mode = 25;
      */
     mode: NodeMode;
     /**
@@ -4058,7 +4192,7 @@ export interface ServiceData {
      */
     claimedByPtr?: NodeReferenceData;
     /**
-     * @generated from protobuf field: symbol.bench.NodeMode mode = 20;
+     * @generated from protobuf field: symbol.bench.NodeMode mode = 25;
      */
     mode: NodeMode;
     /**
@@ -4540,7 +4674,7 @@ export interface BlockData {
      */
     templatePtr?: NodeReferenceData;
     /**
-     * @generated from protobuf field: symbol.bench.NodeMode mode = 20;
+     * @generated from protobuf field: symbol.bench.NodeMode mode = 25;
      */
     mode: NodeMode;
     /**
@@ -4621,7 +4755,7 @@ export interface DependencyData {
      */
     templatePtr?: NodeReferenceData;
     /**
-     * @generated from protobuf field: symbol.bench.NodeMode mode = 20;
+     * @generated from protobuf field: symbol.bench.NodeMode mode = 25;
      */
     mode: NodeMode;
     /**
@@ -4686,7 +4820,7 @@ export interface PackageData {
      */
     ownedByPtr?: NodeReferenceData;
     /**
-     * @generated from protobuf field: symbol.bench.NodeMode mode = 20;
+     * @generated from protobuf field: symbol.bench.NodeMode mode = 25;
      */
     mode: NodeMode;
     /**
@@ -4779,7 +4913,7 @@ export interface PageData {
      */
     claimedByPtr?: NodeReferenceData;
     /**
-     * @generated from protobuf field: symbol.bench.NodeMode mode = 20;
+     * @generated from protobuf field: symbol.bench.NodeMode mode = 25;
      */
     mode: NodeMode;
     /**
@@ -4860,7 +4994,7 @@ export interface ClaimData {
      */
     ownedByPtr?: NodeReferenceData;
     /**
-     * @generated from protobuf field: symbol.bench.NodeMode mode = 20;
+     * @generated from protobuf field: symbol.bench.NodeMode mode = 25;
      */
     mode: NodeMode;
     /**
@@ -4981,7 +5115,7 @@ export interface CursorData {
      */
     ownedByPtr?: NodeReferenceData;
     /**
-     * @generated from protobuf field: symbol.bench.NodeMode mode = 20;
+     * @generated from protobuf field: symbol.bench.NodeMode mode = 25;
      */
     mode: NodeMode;
     /**
@@ -5118,7 +5252,7 @@ export interface TaskData {
      */
     claimedByPtr?: NodeReferenceData;
     /**
-     * @generated from protobuf field: symbol.bench.NodeMode mode = 20;
+     * @generated from protobuf field: symbol.bench.NodeMode mode = 25;
      */
     mode: NodeMode;
     /**
@@ -5263,7 +5397,7 @@ export interface InterruptionData {
      */
     deletedAt?: Timestamp;
     /**
-     * @generated from protobuf field: symbol.bench.NodeMode mode = 20;
+     * @generated from protobuf field: symbol.bench.NodeMode mode = 25;
      */
     mode: NodeMode;
     /**
@@ -5380,7 +5514,7 @@ export interface RunData {
      */
     deletedAt?: Timestamp;
     /**
-     * @generated from protobuf field: symbol.bench.NodeMode mode = 20;
+     * @generated from protobuf field: symbol.bench.NodeMode mode = 25;
      */
     mode: NodeMode;
     /**
@@ -5561,7 +5695,7 @@ export interface SessionData {
      */
     deletedAt?: Timestamp;
     /**
-     * @generated from protobuf field: symbol.bench.NodeMode mode = 20;
+     * @generated from protobuf field: symbol.bench.NodeMode mode = 25;
      */
     mode: NodeMode;
     /**
@@ -5646,7 +5780,7 @@ export interface SpanData {
      */
     deletedAt?: Timestamp;
     /**
-     * @generated from protobuf field: symbol.bench.NodeMode mode = 20;
+     * @generated from protobuf field: symbol.bench.NodeMode mode = 25;
      */
     mode: NodeMode;
     /**
@@ -5815,7 +5949,7 @@ export interface SpaceData {
      */
     ownedByPtr?: NodeReferenceData;
     /**
-     * @generated from protobuf field: symbol.bench.NodeMode mode = 20;
+     * @generated from protobuf field: symbol.bench.NodeMode mode = 25;
      */
     mode: NodeMode;
     /**
@@ -5854,6 +5988,167 @@ export interface SpaceData {
      * @generated from protobuf field: optional symbol.bench.NodeReferenceData thread_ptr = 75;
      */
     threadPtr?: NodeReferenceData;
+}
+/**
+ * @generated from protobuf message symbol.bench.ComponentViewData
+ */
+export interface ComponentViewData {
+    /**
+     * @generated from protobuf field: symbol.bench.ObjectType metatype = 1;
+     */
+    metatype: ObjectType;
+    /**
+     * @generated from protobuf field: string id = 2;
+     */
+    id: string;
+    /**
+     * @generated from protobuf field: optional symbol.bench.NodeReferenceData parent_ptr = 4;
+     */
+    parentPtr?: NodeReferenceData;
+    /**
+     * @generated from protobuf field: optional symbol.bench.NodeReferenceData bench_ptr = 5;
+     */
+    benchPtr?: NodeReferenceData;
+    /**
+     * @generated from protobuf field: optional symbol.bench.NodeReferenceData package_ptr = 9;
+     */
+    packagePtr?: NodeReferenceData;
+    /**
+     * @generated from protobuf field: google.protobuf.Timestamp created_at = 10;
+     */
+    createdAt?: Timestamp;
+    /**
+     * @generated from protobuf field: optional symbol.bench.NodeReferenceData created_by_ptr = 11;
+     */
+    createdByPtr?: NodeReferenceData;
+    /**
+     * @generated from protobuf field: google.protobuf.Timestamp updated_at = 12;
+     */
+    updatedAt?: Timestamp;
+    /**
+     * @generated from protobuf field: optional symbol.bench.NodeReferenceData updated_by_ptr = 13;
+     */
+    updatedByPtr?: NodeReferenceData;
+    /**
+     * @generated from protobuf field: optional google.protobuf.Timestamp archived_at = 14;
+     */
+    archivedAt?: Timestamp;
+    /**
+     * @generated from protobuf field: optional google.protobuf.Timestamp deleted_at = 15;
+     */
+    deletedAt?: Timestamp;
+    /**
+     * @generated from protobuf field: optional symbol.bench.NodeReferenceData template_ptr = 16;
+     */
+    templatePtr?: NodeReferenceData;
+    /**
+     * @generated from protobuf field: symbol.bench.NodeMode mode = 25;
+     */
+    mode: NodeMode;
+    /**
+     * @generated from protobuf field: optional string name = 31;
+     */
+    name?: string;
+    /**
+     * @generated from protobuf field: optional string order_key = 33;
+     */
+    orderKey?: string;
+    /**
+     * @generated from protobuf field: optional symbol.bench.IconData icon = 34;
+     */
+    icon?: IconData;
+    /**
+     * @generated from protobuf field: optional symbol.bench.NodeReferenceData definition_ptr = 35;
+     */
+    definitionPtr?: NodeReferenceData;
+    /**
+     * @generated from protobuf field: optional symbol.bench.PositionData position = 40;
+     */
+    position?: PositionData;
+    /**
+     * @generated from protobuf field: optional symbol.bench.DimensionData width = 41;
+     */
+    width?: DimensionData;
+    /**
+     * @generated from protobuf field: optional symbol.bench.DimensionData height = 42;
+     */
+    height?: DimensionData;
+    /**
+     * @generated from protobuf field: optional symbol.bench.DimensionData min_width = 43;
+     */
+    minWidth?: DimensionData;
+    /**
+     * @generated from protobuf field: optional symbol.bench.DimensionData min_height = 44;
+     */
+    minHeight?: DimensionData;
+    /**
+     * @generated from protobuf field: optional symbol.bench.DimensionData max_width = 45;
+     */
+    maxWidth?: DimensionData;
+    /**
+     * @generated from protobuf field: optional symbol.bench.DimensionData max_height = 46;
+     */
+    maxHeight?: DimensionData;
+    /**
+     * @generated from protobuf field: optional symbol.bench.Layout layout = 50;
+     */
+    layout?: Layout;
+    /**
+     * @generated from protobuf field: optional symbol.bench.Direction direction = 51;
+     */
+    direction?: Direction;
+    /**
+     * @generated from protobuf field: optional symbol.bench.Distribute distribute = 52;
+     */
+    distribute?: Distribute;
+    /**
+     * @generated from protobuf field: optional symbol.bench.Align align = 53;
+     */
+    align?: Align;
+    /**
+     * @generated from protobuf field: optional symbol.bench.GapData gap = 54;
+     */
+    gap?: GapData;
+    /**
+     * @generated from protobuf field: optional symbol.bench.PaddingData padding = 55;
+     */
+    padding?: PaddingData;
+    /**
+     * @generated from protobuf field: optional symbol.bench.GridData grid = 56;
+     */
+    grid?: GridData;
+    /**
+     * @generated from protobuf field: optional symbol.bench.GridSpanData grid_span = 57;
+     */
+    gridSpan?: GridSpanData;
+    /**
+     * @generated from protobuf field: optional float aspect_ratio = 58;
+     */
+    aspectRatio?: number;
+    /**
+     * @generated from protobuf field: optional symbol.bench.FillData fill = 60;
+     */
+    fill?: FillData;
+    /**
+     * @generated from protobuf field: optional float opacity = 61;
+     */
+    opacity?: number;
+    /**
+     * @generated from protobuf field: optional bool is_visible = 62;
+     */
+    isVisible?: boolean;
+    /**
+     * @generated from protobuf field: optional symbol.bench.RotationData rotation = 63;
+     */
+    rotation?: RotationData;
+    /**
+     * @generated from protobuf field: optional symbol.bench.ShadowData shadow = 64;
+     */
+    shadow?: ShadowData;
+    /**
+     * @generated from protobuf field: optional symbol.bench.BorderData border = 65;
+     */
+    border?: BorderData;
 }
 /**
  * @generated from protobuf message symbol.bench.FrameViewData
@@ -5908,7 +6203,7 @@ export interface FrameViewData {
      */
     templatePtr?: NodeReferenceData;
     /**
-     * @generated from protobuf field: symbol.bench.NodeMode mode = 20;
+     * @generated from protobuf field: symbol.bench.NodeMode mode = 25;
      */
     mode: NodeMode;
     /**
@@ -5928,13 +6223,93 @@ export interface FrameViewData {
      */
     definitionPtr?: NodeReferenceData;
     /**
-     * @generated from protobuf field: optional symbol.bench.NodeReferenceData focus_ptr = 70;
+     * @generated from protobuf field: optional symbol.bench.PositionData position = 40;
      */
-    focusPtr?: NodeReferenceData;
+    position?: PositionData;
     /**
-     * @generated from protobuf field: optional symbol.bench.SelectionData selection = 71;
+     * @generated from protobuf field: optional symbol.bench.DimensionData width = 41;
      */
-    selection?: SelectionData;
+    width?: DimensionData;
+    /**
+     * @generated from protobuf field: optional symbol.bench.DimensionData height = 42;
+     */
+    height?: DimensionData;
+    /**
+     * @generated from protobuf field: optional symbol.bench.DimensionData min_width = 43;
+     */
+    minWidth?: DimensionData;
+    /**
+     * @generated from protobuf field: optional symbol.bench.DimensionData min_height = 44;
+     */
+    minHeight?: DimensionData;
+    /**
+     * @generated from protobuf field: optional symbol.bench.DimensionData max_width = 45;
+     */
+    maxWidth?: DimensionData;
+    /**
+     * @generated from protobuf field: optional symbol.bench.DimensionData max_height = 46;
+     */
+    maxHeight?: DimensionData;
+    /**
+     * @generated from protobuf field: optional symbol.bench.Layout layout = 50;
+     */
+    layout?: Layout;
+    /**
+     * @generated from protobuf field: optional symbol.bench.Direction direction = 51;
+     */
+    direction?: Direction;
+    /**
+     * @generated from protobuf field: optional symbol.bench.Distribute distribute = 52;
+     */
+    distribute?: Distribute;
+    /**
+     * @generated from protobuf field: optional symbol.bench.Align align = 53;
+     */
+    align?: Align;
+    /**
+     * @generated from protobuf field: optional symbol.bench.GapData gap = 54;
+     */
+    gap?: GapData;
+    /**
+     * @generated from protobuf field: optional symbol.bench.PaddingData padding = 55;
+     */
+    padding?: PaddingData;
+    /**
+     * @generated from protobuf field: optional symbol.bench.GridData grid = 56;
+     */
+    grid?: GridData;
+    /**
+     * @generated from protobuf field: optional symbol.bench.GridSpanData grid_span = 57;
+     */
+    gridSpan?: GridSpanData;
+    /**
+     * @generated from protobuf field: optional float aspect_ratio = 58;
+     */
+    aspectRatio?: number;
+    /**
+     * @generated from protobuf field: optional symbol.bench.FillData fill = 60;
+     */
+    fill?: FillData;
+    /**
+     * @generated from protobuf field: optional float opacity = 61;
+     */
+    opacity?: number;
+    /**
+     * @generated from protobuf field: optional bool is_visible = 62;
+     */
+    isVisible?: boolean;
+    /**
+     * @generated from protobuf field: optional symbol.bench.RotationData rotation = 63;
+     */
+    rotation?: RotationData;
+    /**
+     * @generated from protobuf field: optional symbol.bench.ShadowData shadow = 64;
+     */
+    shadow?: ShadowData;
+    /**
+     * @generated from protobuf field: optional symbol.bench.BorderData border = 65;
+     */
+    border?: BorderData;
 }
 /**
  * @generated from protobuf message symbol.bench.LabelViewData
@@ -5989,7 +6364,7 @@ export interface LabelViewData {
      */
     templatePtr?: NodeReferenceData;
     /**
-     * @generated from protobuf field: symbol.bench.NodeMode mode = 20;
+     * @generated from protobuf field: symbol.bench.NodeMode mode = 25;
      */
     mode: NodeMode;
     /**
@@ -6009,18 +6384,98 @@ export interface LabelViewData {
      */
     definitionPtr?: NodeReferenceData;
     /**
-     * @generated from protobuf field: optional symbol.bench.NodeReferenceData focus_ptr = 70;
+     * @generated from protobuf field: optional symbol.bench.PositionData position = 40;
      */
-    focusPtr?: NodeReferenceData;
+    position?: PositionData;
     /**
-     * @generated from protobuf field: optional symbol.bench.SelectionData selection = 71;
+     * @generated from protobuf field: optional symbol.bench.DimensionData width = 41;
      */
-    selection?: SelectionData;
+    width?: DimensionData;
+    /**
+     * @generated from protobuf field: optional symbol.bench.DimensionData height = 42;
+     */
+    height?: DimensionData;
+    /**
+     * @generated from protobuf field: optional symbol.bench.DimensionData min_width = 43;
+     */
+    minWidth?: DimensionData;
+    /**
+     * @generated from protobuf field: optional symbol.bench.DimensionData min_height = 44;
+     */
+    minHeight?: DimensionData;
+    /**
+     * @generated from protobuf field: optional symbol.bench.DimensionData max_width = 45;
+     */
+    maxWidth?: DimensionData;
+    /**
+     * @generated from protobuf field: optional symbol.bench.DimensionData max_height = 46;
+     */
+    maxHeight?: DimensionData;
+    /**
+     * @generated from protobuf field: optional symbol.bench.Layout layout = 50;
+     */
+    layout?: Layout;
+    /**
+     * @generated from protobuf field: optional symbol.bench.Direction direction = 51;
+     */
+    direction?: Direction;
+    /**
+     * @generated from protobuf field: optional symbol.bench.Distribute distribute = 52;
+     */
+    distribute?: Distribute;
+    /**
+     * @generated from protobuf field: optional symbol.bench.Align align = 53;
+     */
+    align?: Align;
+    /**
+     * @generated from protobuf field: optional symbol.bench.GapData gap = 54;
+     */
+    gap?: GapData;
+    /**
+     * @generated from protobuf field: optional symbol.bench.PaddingData padding = 55;
+     */
+    padding?: PaddingData;
+    /**
+     * @generated from protobuf field: optional symbol.bench.GridData grid = 56;
+     */
+    grid?: GridData;
+    /**
+     * @generated from protobuf field: optional symbol.bench.GridSpanData grid_span = 57;
+     */
+    gridSpan?: GridSpanData;
+    /**
+     * @generated from protobuf field: optional float aspect_ratio = 58;
+     */
+    aspectRatio?: number;
+    /**
+     * @generated from protobuf field: optional symbol.bench.FillData fill = 60;
+     */
+    fill?: FillData;
+    /**
+     * @generated from protobuf field: optional float opacity = 61;
+     */
+    opacity?: number;
+    /**
+     * @generated from protobuf field: optional bool is_visible = 62;
+     */
+    isVisible?: boolean;
+    /**
+     * @generated from protobuf field: optional symbol.bench.RotationData rotation = 63;
+     */
+    rotation?: RotationData;
+    /**
+     * @generated from protobuf field: optional symbol.bench.ShadowData shadow = 64;
+     */
+    shadow?: ShadowData;
+    /**
+     * @generated from protobuf field: optional symbol.bench.BorderData border = 65;
+     */
+    border?: BorderData;
 }
 /**
- * @generated from protobuf message symbol.bench.InputViewData
+ * @generated from protobuf message symbol.bench.SplitViewData
  */
-export interface InputViewData {
+export interface SplitViewData {
     /**
      * @generated from protobuf field: symbol.bench.ObjectType metatype = 1;
      */
@@ -6070,7 +6525,7 @@ export interface InputViewData {
      */
     templatePtr?: NodeReferenceData;
     /**
-     * @generated from protobuf field: symbol.bench.NodeMode mode = 20;
+     * @generated from protobuf field: symbol.bench.NodeMode mode = 25;
      */
     mode: NodeMode;
     /**
@@ -6090,11 +6545,200 @@ export interface InputViewData {
      */
     definitionPtr?: NodeReferenceData;
     /**
-     * @generated from protobuf field: optional string value = 40;
+     * @generated from protobuf field: optional symbol.bench.PositionData position = 40;
+     */
+    position?: PositionData;
+    /**
+     * @generated from protobuf field: optional symbol.bench.DimensionData width = 41;
+     */
+    width?: DimensionData;
+    /**
+     * @generated from protobuf field: optional symbol.bench.DimensionData height = 42;
+     */
+    height?: DimensionData;
+    /**
+     * @generated from protobuf field: optional symbol.bench.DimensionData min_width = 43;
+     */
+    minWidth?: DimensionData;
+    /**
+     * @generated from protobuf field: optional symbol.bench.DimensionData min_height = 44;
+     */
+    minHeight?: DimensionData;
+    /**
+     * @generated from protobuf field: optional symbol.bench.DimensionData max_width = 45;
+     */
+    maxWidth?: DimensionData;
+    /**
+     * @generated from protobuf field: optional symbol.bench.DimensionData max_height = 46;
+     */
+    maxHeight?: DimensionData;
+    /**
+     * @generated from protobuf field: optional symbol.bench.Layout layout = 50;
+     */
+    layout?: Layout;
+    /**
+     * @generated from protobuf field: optional symbol.bench.Direction direction = 51;
+     */
+    direction?: Direction;
+    /**
+     * @generated from protobuf field: optional symbol.bench.Distribute distribute = 52;
+     */
+    distribute?: Distribute;
+    /**
+     * @generated from protobuf field: optional symbol.bench.Align align = 53;
+     */
+    align?: Align;
+    /**
+     * @generated from protobuf field: optional symbol.bench.GapData gap = 54;
+     */
+    gap?: GapData;
+    /**
+     * @generated from protobuf field: optional symbol.bench.PaddingData padding = 55;
+     */
+    padding?: PaddingData;
+    /**
+     * @generated from protobuf field: optional symbol.bench.GridData grid = 56;
+     */
+    grid?: GridData;
+    /**
+     * @generated from protobuf field: optional symbol.bench.GridSpanData grid_span = 57;
+     */
+    gridSpan?: GridSpanData;
+    /**
+     * @generated from protobuf field: optional float aspect_ratio = 58;
+     */
+    aspectRatio?: number;
+    /**
+     * @generated from protobuf field: optional symbol.bench.FillData fill = 60;
+     */
+    fill?: FillData;
+    /**
+     * @generated from protobuf field: optional float opacity = 61;
+     */
+    opacity?: number;
+    /**
+     * @generated from protobuf field: optional bool is_visible = 62;
+     */
+    isVisible?: boolean;
+    /**
+     * @generated from protobuf field: optional symbol.bench.RotationData rotation = 63;
+     */
+    rotation?: RotationData;
+    /**
+     * @generated from protobuf field: optional symbol.bench.ShadowData shadow = 64;
+     */
+    shadow?: ShadowData;
+    /**
+     * @generated from protobuf field: optional symbol.bench.BorderData border = 65;
+     */
+    border?: BorderData;
+}
+/**
+ * @generated from protobuf message symbol.bench.NumberViewData
+ */
+export interface NumberViewData {
+    /**
+     * @generated from protobuf field: symbol.bench.ObjectType metatype = 1;
+     */
+    metatype: ObjectType;
+    /**
+     * @generated from protobuf field: string id = 2;
+     */
+    id: string;
+    /**
+     * @generated from protobuf field: optional symbol.bench.NodeReferenceData parent_ptr = 4;
+     */
+    parentPtr?: NodeReferenceData;
+    /**
+     * @generated from protobuf field: optional symbol.bench.NodeReferenceData bench_ptr = 5;
+     */
+    benchPtr?: NodeReferenceData;
+    /**
+     * @generated from protobuf field: optional symbol.bench.NodeReferenceData package_ptr = 9;
+     */
+    packagePtr?: NodeReferenceData;
+    /**
+     * @generated from protobuf field: google.protobuf.Timestamp created_at = 10;
+     */
+    createdAt?: Timestamp;
+    /**
+     * @generated from protobuf field: optional symbol.bench.NodeReferenceData created_by_ptr = 11;
+     */
+    createdByPtr?: NodeReferenceData;
+    /**
+     * @generated from protobuf field: google.protobuf.Timestamp updated_at = 12;
+     */
+    updatedAt?: Timestamp;
+    /**
+     * @generated from protobuf field: optional symbol.bench.NodeReferenceData updated_by_ptr = 13;
+     */
+    updatedByPtr?: NodeReferenceData;
+    /**
+     * @generated from protobuf field: optional google.protobuf.Timestamp archived_at = 14;
+     */
+    archivedAt?: Timestamp;
+    /**
+     * @generated from protobuf field: optional google.protobuf.Timestamp deleted_at = 15;
+     */
+    deletedAt?: Timestamp;
+    /**
+     * @generated from protobuf field: optional symbol.bench.NodeReferenceData template_ptr = 16;
+     */
+    templatePtr?: NodeReferenceData;
+    /**
+     * @generated from protobuf field: symbol.bench.NodeMode mode = 25;
+     */
+    mode: NodeMode;
+    /**
+     * @generated from protobuf field: optional string name = 31;
+     */
+    name?: string;
+    /**
+     * @generated from protobuf field: optional string order_key = 33;
+     */
+    orderKey?: string;
+    /**
+     * @generated from protobuf field: optional symbol.bench.IconData icon = 34;
+     */
+    icon?: IconData;
+    /**
+     * @generated from protobuf field: optional symbol.bench.NodeReferenceData definition_ptr = 35;
+     */
+    definitionPtr?: NodeReferenceData;
+    /**
+     * @generated from protobuf field: optional symbol.bench.PositionData position = 40;
+     */
+    position?: PositionData;
+    /**
+     * @generated from protobuf field: optional symbol.bench.DimensionData width = 41;
+     */
+    width?: DimensionData;
+    /**
+     * @generated from protobuf field: optional symbol.bench.DimensionData height = 42;
+     */
+    height?: DimensionData;
+    /**
+     * @generated from protobuf field: optional symbol.bench.DimensionData min_width = 43;
+     */
+    minWidth?: DimensionData;
+    /**
+     * @generated from protobuf field: optional symbol.bench.DimensionData min_height = 44;
+     */
+    minHeight?: DimensionData;
+    /**
+     * @generated from protobuf field: optional symbol.bench.DimensionData max_width = 45;
+     */
+    maxWidth?: DimensionData;
+    /**
+     * @generated from protobuf field: optional symbol.bench.DimensionData max_height = 46;
+     */
+    maxHeight?: DimensionData;
+    /**
+     * @generated from protobuf field: optional string value = 100;
      */
     value?: string;
     /**
-     * @generated from protobuf field: optional string placeholder = 41;
+     * @generated from protobuf field: optional string placeholder = 101;
      */
     placeholder?: string;
 }
@@ -6151,7 +6795,7 @@ export interface SliderViewData {
      */
     templatePtr?: NodeReferenceData;
     /**
-     * @generated from protobuf field: symbol.bench.NodeMode mode = 20;
+     * @generated from protobuf field: symbol.bench.NodeMode mode = 25;
      */
     mode: NodeMode;
     /**
@@ -6171,102 +6815,49 @@ export interface SliderViewData {
      */
     definitionPtr?: NodeReferenceData;
     /**
-     * @generated from protobuf field: optional float value = 40;
+     * @generated from protobuf field: optional symbol.bench.PositionData position = 40;
+     */
+    position?: PositionData;
+    /**
+     * @generated from protobuf field: optional symbol.bench.DimensionData width = 41;
+     */
+    width?: DimensionData;
+    /**
+     * @generated from protobuf field: optional symbol.bench.DimensionData height = 42;
+     */
+    height?: DimensionData;
+    /**
+     * @generated from protobuf field: optional symbol.bench.DimensionData min_width = 43;
+     */
+    minWidth?: DimensionData;
+    /**
+     * @generated from protobuf field: optional symbol.bench.DimensionData min_height = 44;
+     */
+    minHeight?: DimensionData;
+    /**
+     * @generated from protobuf field: optional symbol.bench.DimensionData max_width = 45;
+     */
+    maxWidth?: DimensionData;
+    /**
+     * @generated from protobuf field: optional symbol.bench.DimensionData max_height = 46;
+     */
+    maxHeight?: DimensionData;
+    /**
+     * @generated from protobuf field: optional float value = 100;
      */
     value?: number;
     /**
-     * @generated from protobuf field: optional float min_value = 41;
+     * @generated from protobuf field: optional float min_value = 101;
      */
     minValue?: number;
     /**
-     * @generated from protobuf field: optional float max_value = 42;
+     * @generated from protobuf field: optional float max_value = 102;
      */
     maxValue?: number;
     /**
-     * @generated from protobuf field: optional float step = 43;
+     * @generated from protobuf field: optional float step = 103;
      */
     step?: number;
-}
-/**
- * @generated from protobuf message symbol.bench.SplitViewData
- */
-export interface SplitViewData {
-    /**
-     * @generated from protobuf field: symbol.bench.ObjectType metatype = 1;
-     */
-    metatype: ObjectType;
-    /**
-     * @generated from protobuf field: string id = 2;
-     */
-    id: string;
-    /**
-     * @generated from protobuf field: optional symbol.bench.NodeReferenceData parent_ptr = 4;
-     */
-    parentPtr?: NodeReferenceData;
-    /**
-     * @generated from protobuf field: optional symbol.bench.NodeReferenceData bench_ptr = 5;
-     */
-    benchPtr?: NodeReferenceData;
-    /**
-     * @generated from protobuf field: optional symbol.bench.NodeReferenceData package_ptr = 9;
-     */
-    packagePtr?: NodeReferenceData;
-    /**
-     * @generated from protobuf field: google.protobuf.Timestamp created_at = 10;
-     */
-    createdAt?: Timestamp;
-    /**
-     * @generated from protobuf field: optional symbol.bench.NodeReferenceData created_by_ptr = 11;
-     */
-    createdByPtr?: NodeReferenceData;
-    /**
-     * @generated from protobuf field: google.protobuf.Timestamp updated_at = 12;
-     */
-    updatedAt?: Timestamp;
-    /**
-     * @generated from protobuf field: optional symbol.bench.NodeReferenceData updated_by_ptr = 13;
-     */
-    updatedByPtr?: NodeReferenceData;
-    /**
-     * @generated from protobuf field: optional google.protobuf.Timestamp archived_at = 14;
-     */
-    archivedAt?: Timestamp;
-    /**
-     * @generated from protobuf field: optional google.protobuf.Timestamp deleted_at = 15;
-     */
-    deletedAt?: Timestamp;
-    /**
-     * @generated from protobuf field: optional symbol.bench.NodeReferenceData template_ptr = 16;
-     */
-    templatePtr?: NodeReferenceData;
-    /**
-     * @generated from protobuf field: symbol.bench.NodeMode mode = 20;
-     */
-    mode: NodeMode;
-    /**
-     * @generated from protobuf field: optional string name = 31;
-     */
-    name?: string;
-    /**
-     * @generated from protobuf field: optional string order_key = 33;
-     */
-    orderKey?: string;
-    /**
-     * @generated from protobuf field: optional symbol.bench.IconData icon = 34;
-     */
-    icon?: IconData;
-    /**
-     * @generated from protobuf field: optional symbol.bench.NodeReferenceData definition_ptr = 35;
-     */
-    definitionPtr?: NodeReferenceData;
-    /**
-     * @generated from protobuf field: optional symbol.bench.NodeReferenceData focus_ptr = 70;
-     */
-    focusPtr?: NodeReferenceData;
-    /**
-     * @generated from protobuf field: optional symbol.bench.SelectionData selection = 71;
-     */
-    selection?: SelectionData;
 }
 /**
  * @generated from protobuf message symbol.bench.ThreadViewData
@@ -6321,7 +6912,7 @@ export interface ThreadViewData {
      */
     templatePtr?: NodeReferenceData;
     /**
-     * @generated from protobuf field: symbol.bench.NodeMode mode = 20;
+     * @generated from protobuf field: symbol.bench.NodeMode mode = 25;
      */
     mode: NodeMode;
     /**
@@ -6341,15 +6932,43 @@ export interface ThreadViewData {
      */
     definitionPtr?: NodeReferenceData;
     /**
-     * @generated from protobuf field: optional symbol.bench.TextData draft_text = 40;
+     * @generated from protobuf field: optional symbol.bench.PositionData position = 40;
+     */
+    position?: PositionData;
+    /**
+     * @generated from protobuf field: optional symbol.bench.DimensionData width = 41;
+     */
+    width?: DimensionData;
+    /**
+     * @generated from protobuf field: optional symbol.bench.DimensionData height = 42;
+     */
+    height?: DimensionData;
+    /**
+     * @generated from protobuf field: optional symbol.bench.DimensionData min_width = 43;
+     */
+    minWidth?: DimensionData;
+    /**
+     * @generated from protobuf field: optional symbol.bench.DimensionData min_height = 44;
+     */
+    minHeight?: DimensionData;
+    /**
+     * @generated from protobuf field: optional symbol.bench.DimensionData max_width = 45;
+     */
+    maxWidth?: DimensionData;
+    /**
+     * @generated from protobuf field: optional symbol.bench.DimensionData max_height = 46;
+     */
+    maxHeight?: DimensionData;
+    /**
+     * @generated from protobuf field: optional symbol.bench.TextData draft_text = 100;
      */
     draftText?: TextData;
     /**
-     * @generated from protobuf field: repeated symbol.bench.NodeReferenceData draft_nodes_ptr = 41;
+     * @generated from protobuf field: repeated symbol.bench.NodeReferenceData draft_nodes_ptr = 101;
      */
     draftNodesPtr: NodeReferenceData[];
     /**
-     * @generated from protobuf field: optional symbol.bench.NodeReferenceData draft_reply_to_ptr = 42;
+     * @generated from protobuf field: optional symbol.bench.NodeReferenceData draft_reply_to_ptr = 102;
      */
     draftReplyToPtr?: NodeReferenceData;
 }
@@ -6406,7 +7025,7 @@ export interface WizardViewData {
      */
     templatePtr?: NodeReferenceData;
     /**
-     * @generated from protobuf field: symbol.bench.NodeMode mode = 20;
+     * @generated from protobuf field: symbol.bench.NodeMode mode = 25;
      */
     mode: NodeMode;
     /**
@@ -6425,6 +7044,34 @@ export interface WizardViewData {
      * @generated from protobuf field: optional symbol.bench.NodeReferenceData definition_ptr = 35;
      */
     definitionPtr?: NodeReferenceData;
+    /**
+     * @generated from protobuf field: optional symbol.bench.PositionData position = 40;
+     */
+    position?: PositionData;
+    /**
+     * @generated from protobuf field: optional symbol.bench.DimensionData width = 41;
+     */
+    width?: DimensionData;
+    /**
+     * @generated from protobuf field: optional symbol.bench.DimensionData height = 42;
+     */
+    height?: DimensionData;
+    /**
+     * @generated from protobuf field: optional symbol.bench.DimensionData min_width = 43;
+     */
+    minWidth?: DimensionData;
+    /**
+     * @generated from protobuf field: optional symbol.bench.DimensionData min_height = 44;
+     */
+    minHeight?: DimensionData;
+    /**
+     * @generated from protobuf field: optional symbol.bench.DimensionData max_width = 45;
+     */
+    maxWidth?: DimensionData;
+    /**
+     * @generated from protobuf field: optional symbol.bench.DimensionData max_height = 46;
+     */
+    maxHeight?: DimensionData;
 }
 /**
  * @generated from protobuf message symbol.bench.ColorStyleData
@@ -6479,7 +7126,7 @@ export interface ColorStyleData {
      */
     templatePtr?: NodeReferenceData;
     /**
-     * @generated from protobuf field: symbol.bench.NodeMode mode = 20;
+     * @generated from protobuf field: symbol.bench.NodeMode mode = 25;
      */
     mode: NodeMode;
     /**
@@ -6588,7 +7235,7 @@ export interface BorderStyleData {
      */
     templatePtr?: NodeReferenceData;
     /**
-     * @generated from protobuf field: symbol.bench.NodeMode mode = 20;
+     * @generated from protobuf field: symbol.bench.NodeMode mode = 25;
      */
     mode: NodeMode;
     /**
@@ -6713,7 +7360,7 @@ export interface EffectStyleData {
      */
     templatePtr?: NodeReferenceData;
     /**
-     * @generated from protobuf field: symbol.bench.NodeMode mode = 20;
+     * @generated from protobuf field: symbol.bench.NodeMode mode = 25;
      */
     mode: NodeMode;
     /**
@@ -6765,9 +7412,9 @@ export interface EffectStyleData {
      */
     rotateY?: number;
     /**
-     * @generated from protobuf field: optional bool is_rotate_3d = 47 [json_name = "isRotate3d"];
+     * @generated from protobuf field: optional float rotate_z = 47;
      */
-    isRotate3D?: boolean;
+    rotateZ?: number;
     /**
      * @generated from protobuf field: optional float skew_x = 48;
      */
@@ -6850,7 +7497,7 @@ export interface GradientStyleData {
      */
     templatePtr?: NodeReferenceData;
     /**
-     * @generated from protobuf field: symbol.bench.NodeMode mode = 20;
+     * @generated from protobuf field: symbol.bench.NodeMode mode = 25;
      */
     mode: NodeMode;
     /**
@@ -6939,7 +7586,7 @@ export interface ShadowStyleData {
      */
     templatePtr?: NodeReferenceData;
     /**
-     * @generated from protobuf field: symbol.bench.NodeMode mode = 20;
+     * @generated from protobuf field: symbol.bench.NodeMode mode = 25;
      */
     mode: NodeMode;
     /**
@@ -7048,7 +7695,7 @@ export interface TextStyleData {
      */
     templatePtr?: NodeReferenceData;
     /**
-     * @generated from protobuf field: symbol.bench.NodeMode mode = 20;
+     * @generated from protobuf field: symbol.bench.NodeMode mode = 25;
      */
     mode: NodeMode;
     /**
@@ -7258,7 +7905,7 @@ export interface TransitionStyleData {
      */
     templatePtr?: NodeReferenceData;
     /**
-     * @generated from protobuf field: symbol.bench.NodeMode mode = 20;
+     * @generated from protobuf field: symbol.bench.NodeMode mode = 25;
      */
     mode: NodeMode;
     /**
@@ -7371,7 +8018,7 @@ export interface ChoiceData {
      */
     templatePtr?: NodeReferenceData;
     /**
-     * @generated from protobuf field: symbol.bench.NodeMode mode = 20;
+     * @generated from protobuf field: symbol.bench.NodeMode mode = 25;
      */
     mode: NodeMode;
     /**
@@ -7444,7 +8091,7 @@ export interface ClassData {
      */
     templatePtr?: NodeReferenceData;
     /**
-     * @generated from protobuf field: symbol.bench.NodeMode mode = 20;
+     * @generated from protobuf field: symbol.bench.NodeMode mode = 25;
      */
     mode: NodeMode;
     /**
@@ -7521,7 +8168,7 @@ export interface FieldData {
      */
     templatePtr?: NodeReferenceData;
     /**
-     * @generated from protobuf field: symbol.bench.NodeMode mode = 20;
+     * @generated from protobuf field: symbol.bench.NodeMode mode = 25;
      */
     mode: NodeMode;
     /**
@@ -7654,7 +8301,7 @@ export interface OptionData {
      */
     templatePtr?: NodeReferenceData;
     /**
-     * @generated from protobuf field: symbol.bench.NodeMode mode = 20;
+     * @generated from protobuf field: symbol.bench.NodeMode mode = 25;
      */
     mode: NodeMode;
     /**
@@ -7942,81 +8589,87 @@ export interface SomeNodeData {
          */
         labelView: LabelViewData;
     } | {
+        oneofKind: "componentView";
+        /**
+         * @generated from protobuf field: symbol.bench.ComponentViewData component_view = 45;
+         */
+        componentView: ComponentViewData;
+    } | {
         oneofKind: "splitView";
         /**
-         * @generated from protobuf field: symbol.bench.SplitViewData split_view = 45;
+         * @generated from protobuf field: symbol.bench.SplitViewData split_view = 46;
          */
         splitView: SplitViewData;
     } | {
-        oneofKind: "inputView";
+        oneofKind: "numberView";
         /**
-         * @generated from protobuf field: symbol.bench.InputViewData input_view = 46;
+         * @generated from protobuf field: symbol.bench.NumberViewData number_view = 47;
          */
-        inputView: InputViewData;
+        numberView: NumberViewData;
     } | {
         oneofKind: "sliderView";
         /**
-         * @generated from protobuf field: symbol.bench.SliderViewData slider_view = 47;
+         * @generated from protobuf field: symbol.bench.SliderViewData slider_view = 48;
          */
         sliderView: SliderViewData;
     } | {
         oneofKind: "threadView";
         /**
-         * @generated from protobuf field: symbol.bench.ThreadViewData thread_view = 48;
+         * @generated from protobuf field: symbol.bench.ThreadViewData thread_view = 49;
          */
         threadView: ThreadViewData;
     } | {
         oneofKind: "theme";
         /**
-         * @generated from protobuf field: symbol.bench.ThemeData theme = 49;
+         * @generated from protobuf field: symbol.bench.ThemeData theme = 50;
          */
         theme: ThemeData;
     } | {
         oneofKind: "colorStyle";
         /**
-         * @generated from protobuf field: symbol.bench.ColorStyleData color_style = 50;
+         * @generated from protobuf field: symbol.bench.ColorStyleData color_style = 51;
          */
         colorStyle: ColorStyleData;
     } | {
         oneofKind: "textStyle";
         /**
-         * @generated from protobuf field: symbol.bench.TextStyleData text_style = 51;
+         * @generated from protobuf field: symbol.bench.TextStyleData text_style = 52;
          */
         textStyle: TextStyleData;
     } | {
         oneofKind: "borderStyle";
         /**
-         * @generated from protobuf field: symbol.bench.BorderStyleData border_style = 52;
+         * @generated from protobuf field: symbol.bench.BorderStyleData border_style = 53;
          */
         borderStyle: BorderStyleData;
     } | {
         oneofKind: "shadowStyle";
         /**
-         * @generated from protobuf field: symbol.bench.ShadowStyleData shadow_style = 53;
+         * @generated from protobuf field: symbol.bench.ShadowStyleData shadow_style = 54;
          */
         shadowStyle: ShadowStyleData;
     } | {
         oneofKind: "gradientStyle";
         /**
-         * @generated from protobuf field: symbol.bench.GradientStyleData gradient_style = 54;
+         * @generated from protobuf field: symbol.bench.GradientStyleData gradient_style = 55;
          */
         gradientStyle: GradientStyleData;
     } | {
         oneofKind: "transitionStyle";
         /**
-         * @generated from protobuf field: symbol.bench.TransitionStyleData transition_style = 55;
+         * @generated from protobuf field: symbol.bench.TransitionStyleData transition_style = 56;
          */
         transitionStyle: TransitionStyleData;
     } | {
         oneofKind: "effectStyle";
         /**
-         * @generated from protobuf field: symbol.bench.EffectStyleData effect_style = 56;
+         * @generated from protobuf field: symbol.bench.EffectStyleData effect_style = 57;
          */
         effectStyle: EffectStyleData;
     } | {
         oneofKind: "empty";
         /**
-         * @generated from protobuf field: symbol.bench.EmptyData empty = 57;
+         * @generated from protobuf field: symbol.bench.EmptyData empty = 58;
          */
         empty: EmptyData;
     } | {
@@ -8456,17 +9109,25 @@ export enum EnumType {
      */
     DIRECTION = 28074,
     /**
-     * @generated from protobuf enum value: ENUM_TYPE_TRANSITION_TYPE = 28075;
+     * @generated from protobuf enum value: ENUM_TYPE_OVERFLOW = 28075;
      */
-    TRANSITION_TYPE = 28075,
+    OVERFLOW = 28075,
     /**
-     * @generated from protobuf enum value: ENUM_TYPE_SPRING_TYPE = 28076;
+     * @generated from protobuf enum value: ENUM_TYPE_TRANSITION_TYPE = 28076;
      */
-    SPRING_TYPE = 28076,
+    TRANSITION_TYPE = 28076,
     /**
-     * @generated from protobuf enum value: ENUM_TYPE_EFFECT_TYPE = 28077;
+     * @generated from protobuf enum value: ENUM_TYPE_SPRING_TYPE = 28077;
      */
-    EFFECT_TYPE = 28077
+    SPRING_TYPE = 28077,
+    /**
+     * @generated from protobuf enum value: ENUM_TYPE_EFFECT_TYPE = 28078;
+     */
+    EFFECT_TYPE = 28078,
+    /**
+     * @generated from protobuf enum value: ENUM_TYPE_DIMENSION_TYPE = 28079;
+     */
+    DIMENSION_TYPE = 28079
 }
 /**
  * @generated from protobuf enum symbol.bench.NodeType
@@ -8653,17 +9314,21 @@ export enum NodeType {
      */
     LABEL_VIEW = 8101,
     /**
-     * @generated from protobuf enum value: NODE_TYPE_SPLIT_VIEW = 8110;
+     * @generated from protobuf enum value: NODE_TYPE_COMPONENT_VIEW = 8110;
      */
-    SPLIT_VIEW = 8110,
+    COMPONENT_VIEW = 8110,
     /**
-     * @generated from protobuf enum value: NODE_TYPE_INPUT_VIEW = 8210;
+     * @generated from protobuf enum value: NODE_TYPE_SPLIT_VIEW = 8120;
      */
-    INPUT_VIEW = 8210,
+    SPLIT_VIEW = 8120,
     /**
-     * @generated from protobuf enum value: NODE_TYPE_SLIDER_VIEW = 8211;
+     * @generated from protobuf enum value: NODE_TYPE_NUMBER_VIEW = 8300;
      */
-    SLIDER_VIEW = 8211,
+    NUMBER_VIEW = 8300,
+    /**
+     * @generated from protobuf enum value: NODE_TYPE_SLIDER_VIEW = 8301;
+     */
+    SLIDER_VIEW = 8301,
     /**
      * @generated from protobuf enum value: NODE_TYPE_THREAD_VIEW = 8430;
      */
@@ -8886,13 +9551,37 @@ export enum StructType {
      */
     POSITION = 18513,
     /**
-     * @generated from protobuf enum value: STRUCT_TYPE_TRANSITION = 18514;
+     * @generated from protobuf enum value: STRUCT_TYPE_DIMENSION = 18514;
      */
-    TRANSITION = 18514,
+    DIMENSION = 18514,
     /**
-     * @generated from protobuf enum value: STRUCT_TYPE_EFFECT = 18515;
+     * @generated from protobuf enum value: STRUCT_TYPE_TRANSITION = 18515;
      */
-    EFFECT = 18515
+    TRANSITION = 18515,
+    /**
+     * @generated from protobuf enum value: STRUCT_TYPE_EFFECT = 18516;
+     */
+    EFFECT = 18516,
+    /**
+     * @generated from protobuf enum value: STRUCT_TYPE_GAP = 18517;
+     */
+    GAP = 18517,
+    /**
+     * @generated from protobuf enum value: STRUCT_TYPE_GRID = 18518;
+     */
+    GRID = 18518,
+    /**
+     * @generated from protobuf enum value: STRUCT_TYPE_GRID_SPAN = 18519;
+     */
+    GRID_SPAN = 18519,
+    /**
+     * @generated from protobuf enum value: STRUCT_TYPE_PADDING = 18520;
+     */
+    PADDING = 18520,
+    /**
+     * @generated from protobuf enum value: STRUCT_TYPE_ROTATION = 18521;
+     */
+    ROTATION = 18521
 }
 /**
  * @generated from protobuf enum symbol.bench.ObjectType
@@ -9079,17 +9768,21 @@ export enum ObjectType {
      */
     LABEL_VIEW = 8101,
     /**
-     * @generated from protobuf enum value: OBJECT_TYPE_SPLIT_VIEW = 8110;
+     * @generated from protobuf enum value: OBJECT_TYPE_COMPONENT_VIEW = 8110;
      */
-    SPLIT_VIEW = 8110,
+    COMPONENT_VIEW = 8110,
     /**
-     * @generated from protobuf enum value: OBJECT_TYPE_INPUT_VIEW = 8210;
+     * @generated from protobuf enum value: OBJECT_TYPE_SPLIT_VIEW = 8120;
      */
-    INPUT_VIEW = 8210,
+    SPLIT_VIEW = 8120,
     /**
-     * @generated from protobuf enum value: OBJECT_TYPE_SLIDER_VIEW = 8211;
+     * @generated from protobuf enum value: OBJECT_TYPE_NUMBER_VIEW = 8300;
      */
-    SLIDER_VIEW = 8211,
+    NUMBER_VIEW = 8300,
+    /**
+     * @generated from protobuf enum value: OBJECT_TYPE_SLIDER_VIEW = 8301;
+     */
+    SLIDER_VIEW = 8301,
     /**
      * @generated from protobuf enum value: OBJECT_TYPE_THREAD_VIEW = 8430;
      */
@@ -9303,13 +9996,37 @@ export enum ObjectType {
      */
     POSITION = 18513,
     /**
-     * @generated from protobuf enum value: OBJECT_TYPE_TRANSITION = 18514;
+     * @generated from protobuf enum value: OBJECT_TYPE_DIMENSION = 18514;
      */
-    TRANSITION = 18514,
+    DIMENSION = 18514,
     /**
-     * @generated from protobuf enum value: OBJECT_TYPE_EFFECT = 18515;
+     * @generated from protobuf enum value: OBJECT_TYPE_TRANSITION = 18515;
      */
-    EFFECT = 18515
+    TRANSITION = 18515,
+    /**
+     * @generated from protobuf enum value: OBJECT_TYPE_EFFECT = 18516;
+     */
+    EFFECT = 18516,
+    /**
+     * @generated from protobuf enum value: OBJECT_TYPE_GAP = 18517;
+     */
+    GAP = 18517,
+    /**
+     * @generated from protobuf enum value: OBJECT_TYPE_GRID = 18518;
+     */
+    GRID = 18518,
+    /**
+     * @generated from protobuf enum value: OBJECT_TYPE_GRID_SPAN = 18519;
+     */
+    GRID_SPAN = 18519,
+    /**
+     * @generated from protobuf enum value: OBJECT_TYPE_PADDING = 18520;
+     */
+    PADDING = 18520,
+    /**
+     * @generated from protobuf enum value: OBJECT_TYPE_ROTATION = 18521;
+     */
+    ROTATION = 18521
 }
 /**
  * @generated from protobuf enum symbol.bench.BenchType
@@ -9496,17 +10213,21 @@ export enum BenchType {
      */
     LABEL_VIEW = 8101,
     /**
-     * @generated from protobuf enum value: BENCH_TYPE_SPLIT_VIEW = 8110;
+     * @generated from protobuf enum value: BENCH_TYPE_COMPONENT_VIEW = 8110;
      */
-    SPLIT_VIEW = 8110,
+    COMPONENT_VIEW = 8110,
     /**
-     * @generated from protobuf enum value: BENCH_TYPE_INPUT_VIEW = 8210;
+     * @generated from protobuf enum value: BENCH_TYPE_SPLIT_VIEW = 8120;
      */
-    INPUT_VIEW = 8210,
+    SPLIT_VIEW = 8120,
     /**
-     * @generated from protobuf enum value: BENCH_TYPE_SLIDER_VIEW = 8211;
+     * @generated from protobuf enum value: BENCH_TYPE_NUMBER_VIEW = 8300;
      */
-    SLIDER_VIEW = 8211,
+    NUMBER_VIEW = 8300,
+    /**
+     * @generated from protobuf enum value: BENCH_TYPE_SLIDER_VIEW = 8301;
+     */
+    SLIDER_VIEW = 8301,
     /**
      * @generated from protobuf enum value: BENCH_TYPE_THREAD_VIEW = 8430;
      */
@@ -9720,13 +10441,37 @@ export enum BenchType {
      */
     POSITION = 18513,
     /**
-     * @generated from protobuf enum value: BENCH_TYPE_TRANSITION = 18514;
+     * @generated from protobuf enum value: BENCH_TYPE_DIMENSION = 18514;
      */
-    TRANSITION = 18514,
+    DIMENSION = 18514,
     /**
-     * @generated from protobuf enum value: BENCH_TYPE_EFFECT = 18515;
+     * @generated from protobuf enum value: BENCH_TYPE_TRANSITION = 18515;
      */
-    EFFECT = 18515,
+    TRANSITION = 18515,
+    /**
+     * @generated from protobuf enum value: BENCH_TYPE_EFFECT = 18516;
+     */
+    EFFECT = 18516,
+    /**
+     * @generated from protobuf enum value: BENCH_TYPE_GAP = 18517;
+     */
+    GAP = 18517,
+    /**
+     * @generated from protobuf enum value: BENCH_TYPE_GRID = 18518;
+     */
+    GRID = 18518,
+    /**
+     * @generated from protobuf enum value: BENCH_TYPE_GRID_SPAN = 18519;
+     */
+    GRID_SPAN = 18519,
+    /**
+     * @generated from protobuf enum value: BENCH_TYPE_PADDING = 18520;
+     */
+    PADDING = 18520,
+    /**
+     * @generated from protobuf enum value: BENCH_TYPE_ROTATION = 18521;
+     */
+    ROTATION = 18521,
     /**
      * @generated from protobuf enum value: BENCH_TYPE_ENUM_TYPE = 20000;
      */
@@ -10152,17 +10897,25 @@ export enum BenchType {
      */
     DIRECTION = 28074,
     /**
-     * @generated from protobuf enum value: BENCH_TYPE_TRANSITION_TYPE = 28075;
+     * @generated from protobuf enum value: BENCH_TYPE_OVERFLOW = 28075;
      */
-    TRANSITION_TYPE = 28075,
+    OVERFLOW = 28075,
     /**
-     * @generated from protobuf enum value: BENCH_TYPE_SPRING_TYPE = 28076;
+     * @generated from protobuf enum value: BENCH_TYPE_TRANSITION_TYPE = 28076;
      */
-    SPRING_TYPE = 28076,
+    TRANSITION_TYPE = 28076,
     /**
-     * @generated from protobuf enum value: BENCH_TYPE_EFFECT_TYPE = 28077;
+     * @generated from protobuf enum value: BENCH_TYPE_SPRING_TYPE = 28077;
      */
-    EFFECT_TYPE = 28077
+    SPRING_TYPE = 28077,
+    /**
+     * @generated from protobuf enum value: BENCH_TYPE_EFFECT_TYPE = 28078;
+     */
+    EFFECT_TYPE = 28078,
+    /**
+     * @generated from protobuf enum value: BENCH_TYPE_DIMENSION_TYPE = 28079;
+     */
+    DIMENSION_TYPE = 28079
 }
 /**
  * @generated from protobuf enum symbol.bench.NodeMode
@@ -13177,9 +13930,13 @@ export enum PositionType {
      */
     ABSOLUTE = 2,
     /**
-     * @generated from protobuf enum value: POSITION_TYPE_STICKY = 3;
+     * @generated from protobuf enum value: POSITION_TYPE_FIXED = 3;
      */
-    STICKY = 3
+    FIXED = 3,
+    /**
+     * @generated from protobuf enum value: POSITION_TYPE_STICKY = 4;
+     */
+    STICKY = 4
 }
 /**
  * Built-in color formats.
@@ -13767,7 +14524,15 @@ export enum LengthUnit {
     /**
      * @generated from protobuf enum value: LENGTH_UNIT_REM = 2;
      */
-    REM = 2
+    REM = 2,
+    /**
+     * @generated from protobuf enum value: LENGTH_UNIT_PERCENT = 3;
+     */
+    PERCENT = 3,
+    /**
+     * @generated from protobuf enum value: LENGTH_UNIT_FR = 4;
+     */
+    FR = 4
 }
 /**
  * @generated from protobuf enum symbol.bench.Layout
@@ -13858,6 +14623,27 @@ export enum Direction {
     VERTICAL = 2
 }
 /**
+ * @generated from protobuf enum symbol.bench.Overflow
+ */
+export enum Overflow {
+    /**
+     * @generated from protobuf enum value: OVERFLOW_UNSPECIFIED = 0;
+     */
+    UNSPECIFIED = 0,
+    /**
+     * @generated from protobuf enum value: OVERFLOW_AUTO = 1;
+     */
+    AUTO = 1,
+    /**
+     * @generated from protobuf enum value: OVERFLOW_HIDDEN = 2;
+     */
+    HIDDEN = 2,
+    /**
+     * @generated from protobuf enum value: OVERFLOW_SCROLL = 3;
+     */
+    SCROLL = 3
+}
+/**
  * Built-in transition types.
  *
  * @generated from protobuf enum symbol.bench.TransitionType
@@ -13933,6 +14719,35 @@ export enum EffectType {
      * @generated from protobuf enum value: EFFECT_TYPE_TRANSFORM = 14;
      */
     TRANSFORM = 14
+}
+/**
+ * @generated from protobuf enum symbol.bench.DimensionType
+ */
+export enum DimensionType {
+    /**
+     * @generated from protobuf enum value: DIMENSION_TYPE_UNSPECIFIED = 0;
+     */
+    UNSPECIFIED = 0,
+    /**
+     * @generated from protobuf enum value: DIMENSION_TYPE_FIXED = 1;
+     */
+    FIXED = 1,
+    /**
+     * @generated from protobuf enum value: DIMENSION_TYPE_RELATIVE = 2;
+     */
+    RELATIVE = 2,
+    /**
+     * @generated from protobuf enum value: DIMENSION_TYPE_FIT_CONTENT = 3;
+     */
+    FIT_CONTENT = 3,
+    /**
+     * @generated from protobuf enum value: DIMENSION_TYPE_FILL = 4;
+     */
+    FILL = 4,
+    /**
+     * @generated from protobuf enum value: DIMENSION_TYPE_ASPECT_RATIO = 5;
+     */
+    ASPECT_RATIO = 5
 }
 /**
  * @generated from protobuf enum symbol.bench.BuiltinEnum
@@ -17695,6 +18510,580 @@ class BorderData$Type extends MessageType$<BorderData> {
  */
 export const BorderData = new BorderData$Type();
 // @generated message type with reflection information, may provide speed optimized methods
+class LengthData$Type extends MessageType$<LengthData> {
+    constructor() {
+        super("symbol.bench.LengthData", [
+            { no: 1, name: "metatype", kind: "enum", T: () => ["symbol.bench.ObjectType", ObjectType, "OBJECT_TYPE_"] },
+            { no: 31, name: "unit", kind: "enum", T: () => ["symbol.bench.LengthUnit", LengthUnit, "LENGTH_UNIT_"] },
+            { no: 40, name: "value", kind: "scalar", T: 2 /*ScalarType.FLOAT*/ }
+        ]);
+    }
+    create(value?: PartialMessage<LengthData>): LengthData {
+        const message = globalThis.Object.create((this.messagePrototype!));
+        message.metatype = 0;
+        message.unit = 0;
+        message.value = 0;
+        if (value !== undefined)
+            reflectionMergePartial<LengthData>(this, message, value);
+        return message;
+    }
+    internalBinaryRead(reader: IBinaryReader, length: number, options: BinaryReadOptions, target?: LengthData): LengthData {
+        let message = target ?? this.create(), end = reader.pos + length;
+        while (reader.pos < end) {
+            let [fieldNo, wireType] = reader.tag();
+            switch (fieldNo) {
+                case /* symbol.bench.ObjectType metatype */ 1:
+                    message.metatype = reader.int32();
+                    break;
+                case /* symbol.bench.LengthUnit unit */ 31:
+                    message.unit = reader.int32();
+                    break;
+                case /* float value */ 40:
+                    message.value = reader.float();
+                    break;
+                default:
+                    let u = options.readUnknownField;
+                    if (u === "throw")
+                        throw new globalThis.Error(`Unknown field ${fieldNo} (wire type ${wireType}) for ${this.typeName}`);
+                    let d = reader.skip(wireType);
+                    if (u !== false)
+                        (u === true ? UnknownFieldHandler.onRead : u)(this.typeName, message, fieldNo, wireType, d);
+            }
+        }
+        return message;
+    }
+    internalBinaryWrite(message: LengthData, writer: IBinaryWriter, options: BinaryWriteOptions): IBinaryWriter {
+        /* symbol.bench.ObjectType metatype = 1; */
+        if (message.metatype !== 0)
+            writer.tag(1, WireType.Varint).int32(message.metatype);
+        /* symbol.bench.LengthUnit unit = 31; */
+        if (message.unit !== 0)
+            writer.tag(31, WireType.Varint).int32(message.unit);
+        /* float value = 40; */
+        if (message.value !== 0)
+            writer.tag(40, WireType.Bit32).float(message.value);
+        let u = options.writeUnknownFields;
+        if (u !== false)
+            (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
+        return writer;
+    }
+}
+/**
+ * @generated MessageType for protobuf message symbol.bench.LengthData
+ */
+export const LengthData = new LengthData$Type();
+// @generated message type with reflection information, may provide speed optimized methods
+class PositionData$Type extends MessageType$<PositionData> {
+    constructor() {
+        super("symbol.bench.PositionData", [
+            { no: 1, name: "metatype", kind: "enum", T: () => ["symbol.bench.ObjectType", ObjectType, "OBJECT_TYPE_"] },
+            { no: 40, name: "type", kind: "enum", T: () => ["symbol.bench.PositionType", PositionType, "POSITION_TYPE_"] },
+            { no: 41, name: "top", kind: "message", T: () => LengthData },
+            { no: 42, name: "left", kind: "message", T: () => LengthData },
+            { no: 43, name: "width", kind: "message", T: () => LengthData },
+            { no: 44, name: "height", kind: "message", T: () => LengthData }
+        ]);
+    }
+    create(value?: PartialMessage<PositionData>): PositionData {
+        const message = globalThis.Object.create((this.messagePrototype!));
+        message.metatype = 0;
+        message.type = 0;
+        if (value !== undefined)
+            reflectionMergePartial<PositionData>(this, message, value);
+        return message;
+    }
+    internalBinaryRead(reader: IBinaryReader, length: number, options: BinaryReadOptions, target?: PositionData): PositionData {
+        let message = target ?? this.create(), end = reader.pos + length;
+        while (reader.pos < end) {
+            let [fieldNo, wireType] = reader.tag();
+            switch (fieldNo) {
+                case /* symbol.bench.ObjectType metatype */ 1:
+                    message.metatype = reader.int32();
+                    break;
+                case /* symbol.bench.PositionType type */ 40:
+                    message.type = reader.int32();
+                    break;
+                case /* optional symbol.bench.LengthData top */ 41:
+                    message.top = LengthData.internalBinaryRead(reader, reader.uint32(), options, message.top);
+                    break;
+                case /* optional symbol.bench.LengthData left */ 42:
+                    message.left = LengthData.internalBinaryRead(reader, reader.uint32(), options, message.left);
+                    break;
+                case /* optional symbol.bench.LengthData width */ 43:
+                    message.width = LengthData.internalBinaryRead(reader, reader.uint32(), options, message.width);
+                    break;
+                case /* optional symbol.bench.LengthData height */ 44:
+                    message.height = LengthData.internalBinaryRead(reader, reader.uint32(), options, message.height);
+                    break;
+                default:
+                    let u = options.readUnknownField;
+                    if (u === "throw")
+                        throw new globalThis.Error(`Unknown field ${fieldNo} (wire type ${wireType}) for ${this.typeName}`);
+                    let d = reader.skip(wireType);
+                    if (u !== false)
+                        (u === true ? UnknownFieldHandler.onRead : u)(this.typeName, message, fieldNo, wireType, d);
+            }
+        }
+        return message;
+    }
+    internalBinaryWrite(message: PositionData, writer: IBinaryWriter, options: BinaryWriteOptions): IBinaryWriter {
+        /* symbol.bench.ObjectType metatype = 1; */
+        if (message.metatype !== 0)
+            writer.tag(1, WireType.Varint).int32(message.metatype);
+        /* symbol.bench.PositionType type = 40; */
+        if (message.type !== 0)
+            writer.tag(40, WireType.Varint).int32(message.type);
+        /* optional symbol.bench.LengthData top = 41; */
+        if (message.top)
+            LengthData.internalBinaryWrite(message.top, writer.tag(41, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbol.bench.LengthData left = 42; */
+        if (message.left)
+            LengthData.internalBinaryWrite(message.left, writer.tag(42, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbol.bench.LengthData width = 43; */
+        if (message.width)
+            LengthData.internalBinaryWrite(message.width, writer.tag(43, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbol.bench.LengthData height = 44; */
+        if (message.height)
+            LengthData.internalBinaryWrite(message.height, writer.tag(44, WireType.LengthDelimited).fork(), options).join();
+        let u = options.writeUnknownFields;
+        if (u !== false)
+            (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
+        return writer;
+    }
+}
+/**
+ * @generated MessageType for protobuf message symbol.bench.PositionData
+ */
+export const PositionData = new PositionData$Type();
+// @generated message type with reflection information, may provide speed optimized methods
+class DimensionData$Type extends MessageType$<DimensionData> {
+    constructor() {
+        super("symbol.bench.DimensionData", [
+            { no: 1, name: "metatype", kind: "enum", T: () => ["symbol.bench.ObjectType", ObjectType, "OBJECT_TYPE_"] },
+            { no: 30, name: "type", kind: "enum", T: () => ["symbol.bench.DimensionType", DimensionType, "DIMENSION_TYPE_"] },
+            { no: 40, name: "value", kind: "scalar", T: 2 /*ScalarType.FLOAT*/ }
+        ]);
+    }
+    create(value?: PartialMessage<DimensionData>): DimensionData {
+        const message = globalThis.Object.create((this.messagePrototype!));
+        message.metatype = 0;
+        message.type = 0;
+        message.value = 0;
+        if (value !== undefined)
+            reflectionMergePartial<DimensionData>(this, message, value);
+        return message;
+    }
+    internalBinaryRead(reader: IBinaryReader, length: number, options: BinaryReadOptions, target?: DimensionData): DimensionData {
+        let message = target ?? this.create(), end = reader.pos + length;
+        while (reader.pos < end) {
+            let [fieldNo, wireType] = reader.tag();
+            switch (fieldNo) {
+                case /* symbol.bench.ObjectType metatype */ 1:
+                    message.metatype = reader.int32();
+                    break;
+                case /* symbol.bench.DimensionType type */ 30:
+                    message.type = reader.int32();
+                    break;
+                case /* float value */ 40:
+                    message.value = reader.float();
+                    break;
+                default:
+                    let u = options.readUnknownField;
+                    if (u === "throw")
+                        throw new globalThis.Error(`Unknown field ${fieldNo} (wire type ${wireType}) for ${this.typeName}`);
+                    let d = reader.skip(wireType);
+                    if (u !== false)
+                        (u === true ? UnknownFieldHandler.onRead : u)(this.typeName, message, fieldNo, wireType, d);
+            }
+        }
+        return message;
+    }
+    internalBinaryWrite(message: DimensionData, writer: IBinaryWriter, options: BinaryWriteOptions): IBinaryWriter {
+        /* symbol.bench.ObjectType metatype = 1; */
+        if (message.metatype !== 0)
+            writer.tag(1, WireType.Varint).int32(message.metatype);
+        /* symbol.bench.DimensionType type = 30; */
+        if (message.type !== 0)
+            writer.tag(30, WireType.Varint).int32(message.type);
+        /* float value = 40; */
+        if (message.value !== 0)
+            writer.tag(40, WireType.Bit32).float(message.value);
+        let u = options.writeUnknownFields;
+        if (u !== false)
+            (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
+        return writer;
+    }
+}
+/**
+ * @generated MessageType for protobuf message symbol.bench.DimensionData
+ */
+export const DimensionData = new DimensionData$Type();
+// @generated message type with reflection information, may provide speed optimized methods
+class PaddingData$Type extends MessageType$<PaddingData> {
+    constructor() {
+        super("symbol.bench.PaddingData", [
+            { no: 1, name: "metatype", kind: "enum", T: () => ["symbol.bench.ObjectType", ObjectType, "OBJECT_TYPE_"] },
+            { no: 40, name: "value", kind: "scalar", opt: true, T: 5 /*ScalarType.INT32*/ },
+            { no: 41, name: "top", kind: "scalar", opt: true, T: 5 /*ScalarType.INT32*/ },
+            { no: 42, name: "left", kind: "scalar", opt: true, T: 5 /*ScalarType.INT32*/ },
+            { no: 43, name: "right", kind: "scalar", opt: true, T: 5 /*ScalarType.INT32*/ },
+            { no: 44, name: "bottom", kind: "scalar", opt: true, T: 5 /*ScalarType.INT32*/ }
+        ]);
+    }
+    create(value?: PartialMessage<PaddingData>): PaddingData {
+        const message = globalThis.Object.create((this.messagePrototype!));
+        message.metatype = 0;
+        if (value !== undefined)
+            reflectionMergePartial<PaddingData>(this, message, value);
+        return message;
+    }
+    internalBinaryRead(reader: IBinaryReader, length: number, options: BinaryReadOptions, target?: PaddingData): PaddingData {
+        let message = target ?? this.create(), end = reader.pos + length;
+        while (reader.pos < end) {
+            let [fieldNo, wireType] = reader.tag();
+            switch (fieldNo) {
+                case /* symbol.bench.ObjectType metatype */ 1:
+                    message.metatype = reader.int32();
+                    break;
+                case /* optional int32 value */ 40:
+                    message.value = reader.int32();
+                    break;
+                case /* optional int32 top */ 41:
+                    message.top = reader.int32();
+                    break;
+                case /* optional int32 left */ 42:
+                    message.left = reader.int32();
+                    break;
+                case /* optional int32 right */ 43:
+                    message.right = reader.int32();
+                    break;
+                case /* optional int32 bottom */ 44:
+                    message.bottom = reader.int32();
+                    break;
+                default:
+                    let u = options.readUnknownField;
+                    if (u === "throw")
+                        throw new globalThis.Error(`Unknown field ${fieldNo} (wire type ${wireType}) for ${this.typeName}`);
+                    let d = reader.skip(wireType);
+                    if (u !== false)
+                        (u === true ? UnknownFieldHandler.onRead : u)(this.typeName, message, fieldNo, wireType, d);
+            }
+        }
+        return message;
+    }
+    internalBinaryWrite(message: PaddingData, writer: IBinaryWriter, options: BinaryWriteOptions): IBinaryWriter {
+        /* symbol.bench.ObjectType metatype = 1; */
+        if (message.metatype !== 0)
+            writer.tag(1, WireType.Varint).int32(message.metatype);
+        /* optional int32 value = 40; */
+        if (message.value !== undefined)
+            writer.tag(40, WireType.Varint).int32(message.value);
+        /* optional int32 top = 41; */
+        if (message.top !== undefined)
+            writer.tag(41, WireType.Varint).int32(message.top);
+        /* optional int32 left = 42; */
+        if (message.left !== undefined)
+            writer.tag(42, WireType.Varint).int32(message.left);
+        /* optional int32 right = 43; */
+        if (message.right !== undefined)
+            writer.tag(43, WireType.Varint).int32(message.right);
+        /* optional int32 bottom = 44; */
+        if (message.bottom !== undefined)
+            writer.tag(44, WireType.Varint).int32(message.bottom);
+        let u = options.writeUnknownFields;
+        if (u !== false)
+            (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
+        return writer;
+    }
+}
+/**
+ * @generated MessageType for protobuf message symbol.bench.PaddingData
+ */
+export const PaddingData = new PaddingData$Type();
+// @generated message type with reflection information, may provide speed optimized methods
+class RotationData$Type extends MessageType$<RotationData> {
+    constructor() {
+        super("symbol.bench.RotationData", [
+            { no: 1, name: "metatype", kind: "enum", T: () => ["symbol.bench.ObjectType", ObjectType, "OBJECT_TYPE_"] },
+            { no: 40, name: "value", kind: "scalar", opt: true, T: 2 /*ScalarType.FLOAT*/ },
+            { no: 41, name: "x", kind: "scalar", opt: true, T: 2 /*ScalarType.FLOAT*/ },
+            { no: 42, name: "y", kind: "scalar", opt: true, T: 2 /*ScalarType.FLOAT*/ },
+            { no: 43, name: "z", kind: "scalar", opt: true, T: 2 /*ScalarType.FLOAT*/ }
+        ]);
+    }
+    create(value?: PartialMessage<RotationData>): RotationData {
+        const message = globalThis.Object.create((this.messagePrototype!));
+        message.metatype = 0;
+        if (value !== undefined)
+            reflectionMergePartial<RotationData>(this, message, value);
+        return message;
+    }
+    internalBinaryRead(reader: IBinaryReader, length: number, options: BinaryReadOptions, target?: RotationData): RotationData {
+        let message = target ?? this.create(), end = reader.pos + length;
+        while (reader.pos < end) {
+            let [fieldNo, wireType] = reader.tag();
+            switch (fieldNo) {
+                case /* symbol.bench.ObjectType metatype */ 1:
+                    message.metatype = reader.int32();
+                    break;
+                case /* optional float value */ 40:
+                    message.value = reader.float();
+                    break;
+                case /* optional float x */ 41:
+                    message.x = reader.float();
+                    break;
+                case /* optional float y */ 42:
+                    message.y = reader.float();
+                    break;
+                case /* optional float z */ 43:
+                    message.z = reader.float();
+                    break;
+                default:
+                    let u = options.readUnknownField;
+                    if (u === "throw")
+                        throw new globalThis.Error(`Unknown field ${fieldNo} (wire type ${wireType}) for ${this.typeName}`);
+                    let d = reader.skip(wireType);
+                    if (u !== false)
+                        (u === true ? UnknownFieldHandler.onRead : u)(this.typeName, message, fieldNo, wireType, d);
+            }
+        }
+        return message;
+    }
+    internalBinaryWrite(message: RotationData, writer: IBinaryWriter, options: BinaryWriteOptions): IBinaryWriter {
+        /* symbol.bench.ObjectType metatype = 1; */
+        if (message.metatype !== 0)
+            writer.tag(1, WireType.Varint).int32(message.metatype);
+        /* optional float value = 40; */
+        if (message.value !== undefined)
+            writer.tag(40, WireType.Bit32).float(message.value);
+        /* optional float x = 41; */
+        if (message.x !== undefined)
+            writer.tag(41, WireType.Bit32).float(message.x);
+        /* optional float y = 42; */
+        if (message.y !== undefined)
+            writer.tag(42, WireType.Bit32).float(message.y);
+        /* optional float z = 43; */
+        if (message.z !== undefined)
+            writer.tag(43, WireType.Bit32).float(message.z);
+        let u = options.writeUnknownFields;
+        if (u !== false)
+            (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
+        return writer;
+    }
+}
+/**
+ * @generated MessageType for protobuf message symbol.bench.RotationData
+ */
+export const RotationData = new RotationData$Type();
+// @generated message type with reflection information, may provide speed optimized methods
+class GapData$Type extends MessageType$<GapData> {
+    constructor() {
+        super("symbol.bench.GapData", [
+            { no: 1, name: "metatype", kind: "enum", T: () => ["symbol.bench.ObjectType", ObjectType, "OBJECT_TYPE_"] },
+            { no: 40, name: "value", kind: "scalar", opt: true, T: 2 /*ScalarType.FLOAT*/ },
+            { no: 41, name: "x", kind: "scalar", opt: true, T: 2 /*ScalarType.FLOAT*/ },
+            { no: 42, name: "y", kind: "scalar", opt: true, T: 2 /*ScalarType.FLOAT*/ }
+        ]);
+    }
+    create(value?: PartialMessage<GapData>): GapData {
+        const message = globalThis.Object.create((this.messagePrototype!));
+        message.metatype = 0;
+        if (value !== undefined)
+            reflectionMergePartial<GapData>(this, message, value);
+        return message;
+    }
+    internalBinaryRead(reader: IBinaryReader, length: number, options: BinaryReadOptions, target?: GapData): GapData {
+        let message = target ?? this.create(), end = reader.pos + length;
+        while (reader.pos < end) {
+            let [fieldNo, wireType] = reader.tag();
+            switch (fieldNo) {
+                case /* symbol.bench.ObjectType metatype */ 1:
+                    message.metatype = reader.int32();
+                    break;
+                case /* optional float value */ 40:
+                    message.value = reader.float();
+                    break;
+                case /* optional float x */ 41:
+                    message.x = reader.float();
+                    break;
+                case /* optional float y */ 42:
+                    message.y = reader.float();
+                    break;
+                default:
+                    let u = options.readUnknownField;
+                    if (u === "throw")
+                        throw new globalThis.Error(`Unknown field ${fieldNo} (wire type ${wireType}) for ${this.typeName}`);
+                    let d = reader.skip(wireType);
+                    if (u !== false)
+                        (u === true ? UnknownFieldHandler.onRead : u)(this.typeName, message, fieldNo, wireType, d);
+            }
+        }
+        return message;
+    }
+    internalBinaryWrite(message: GapData, writer: IBinaryWriter, options: BinaryWriteOptions): IBinaryWriter {
+        /* symbol.bench.ObjectType metatype = 1; */
+        if (message.metatype !== 0)
+            writer.tag(1, WireType.Varint).int32(message.metatype);
+        /* optional float value = 40; */
+        if (message.value !== undefined)
+            writer.tag(40, WireType.Bit32).float(message.value);
+        /* optional float x = 41; */
+        if (message.x !== undefined)
+            writer.tag(41, WireType.Bit32).float(message.x);
+        /* optional float y = 42; */
+        if (message.y !== undefined)
+            writer.tag(42, WireType.Bit32).float(message.y);
+        let u = options.writeUnknownFields;
+        if (u !== false)
+            (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
+        return writer;
+    }
+}
+/**
+ * @generated MessageType for protobuf message symbol.bench.GapData
+ */
+export const GapData = new GapData$Type();
+// @generated message type with reflection information, may provide speed optimized methods
+class GridData$Type extends MessageType$<GridData> {
+    constructor() {
+        super("symbol.bench.GridData", [
+            { no: 1, name: "metatype", kind: "enum", T: () => ["symbol.bench.ObjectType", ObjectType, "OBJECT_TYPE_"] },
+            { no: 40, name: "columns", kind: "scalar", T: 5 /*ScalarType.INT32*/ },
+            { no: 41, name: "rows", kind: "scalar", T: 5 /*ScalarType.INT32*/ },
+            { no: 42, name: "column_width", kind: "message", T: () => DimensionData },
+            { no: 43, name: "column_min_width", kind: "message", T: () => DimensionData }
+        ]);
+    }
+    create(value?: PartialMessage<GridData>): GridData {
+        const message = globalThis.Object.create((this.messagePrototype!));
+        message.metatype = 0;
+        message.columns = 0;
+        message.rows = 0;
+        if (value !== undefined)
+            reflectionMergePartial<GridData>(this, message, value);
+        return message;
+    }
+    internalBinaryRead(reader: IBinaryReader, length: number, options: BinaryReadOptions, target?: GridData): GridData {
+        let message = target ?? this.create(), end = reader.pos + length;
+        while (reader.pos < end) {
+            let [fieldNo, wireType] = reader.tag();
+            switch (fieldNo) {
+                case /* symbol.bench.ObjectType metatype */ 1:
+                    message.metatype = reader.int32();
+                    break;
+                case /* int32 columns */ 40:
+                    message.columns = reader.int32();
+                    break;
+                case /* int32 rows */ 41:
+                    message.rows = reader.int32();
+                    break;
+                case /* optional symbol.bench.DimensionData column_width */ 42:
+                    message.columnWidth = DimensionData.internalBinaryRead(reader, reader.uint32(), options, message.columnWidth);
+                    break;
+                case /* optional symbol.bench.DimensionData column_min_width */ 43:
+                    message.columnMinWidth = DimensionData.internalBinaryRead(reader, reader.uint32(), options, message.columnMinWidth);
+                    break;
+                default:
+                    let u = options.readUnknownField;
+                    if (u === "throw")
+                        throw new globalThis.Error(`Unknown field ${fieldNo} (wire type ${wireType}) for ${this.typeName}`);
+                    let d = reader.skip(wireType);
+                    if (u !== false)
+                        (u === true ? UnknownFieldHandler.onRead : u)(this.typeName, message, fieldNo, wireType, d);
+            }
+        }
+        return message;
+    }
+    internalBinaryWrite(message: GridData, writer: IBinaryWriter, options: BinaryWriteOptions): IBinaryWriter {
+        /* symbol.bench.ObjectType metatype = 1; */
+        if (message.metatype !== 0)
+            writer.tag(1, WireType.Varint).int32(message.metatype);
+        /* int32 columns = 40; */
+        if (message.columns !== 0)
+            writer.tag(40, WireType.Varint).int32(message.columns);
+        /* int32 rows = 41; */
+        if (message.rows !== 0)
+            writer.tag(41, WireType.Varint).int32(message.rows);
+        /* optional symbol.bench.DimensionData column_width = 42; */
+        if (message.columnWidth)
+            DimensionData.internalBinaryWrite(message.columnWidth, writer.tag(42, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbol.bench.DimensionData column_min_width = 43; */
+        if (message.columnMinWidth)
+            DimensionData.internalBinaryWrite(message.columnMinWidth, writer.tag(43, WireType.LengthDelimited).fork(), options).join();
+        let u = options.writeUnknownFields;
+        if (u !== false)
+            (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
+        return writer;
+    }
+}
+/**
+ * @generated MessageType for protobuf message symbol.bench.GridData
+ */
+export const GridData = new GridData$Type();
+// @generated message type with reflection information, may provide speed optimized methods
+class GridSpanData$Type extends MessageType$<GridSpanData> {
+    constructor() {
+        super("symbol.bench.GridSpanData", [
+            { no: 1, name: "metatype", kind: "enum", T: () => ["symbol.bench.ObjectType", ObjectType, "OBJECT_TYPE_"] },
+            { no: 40, name: "columns", kind: "scalar", T: 5 /*ScalarType.INT32*/ },
+            { no: 41, name: "rows", kind: "scalar", T: 5 /*ScalarType.INT32*/ }
+        ]);
+    }
+    create(value?: PartialMessage<GridSpanData>): GridSpanData {
+        const message = globalThis.Object.create((this.messagePrototype!));
+        message.metatype = 0;
+        message.columns = 0;
+        message.rows = 0;
+        if (value !== undefined)
+            reflectionMergePartial<GridSpanData>(this, message, value);
+        return message;
+    }
+    internalBinaryRead(reader: IBinaryReader, length: number, options: BinaryReadOptions, target?: GridSpanData): GridSpanData {
+        let message = target ?? this.create(), end = reader.pos + length;
+        while (reader.pos < end) {
+            let [fieldNo, wireType] = reader.tag();
+            switch (fieldNo) {
+                case /* symbol.bench.ObjectType metatype */ 1:
+                    message.metatype = reader.int32();
+                    break;
+                case /* int32 columns */ 40:
+                    message.columns = reader.int32();
+                    break;
+                case /* int32 rows */ 41:
+                    message.rows = reader.int32();
+                    break;
+                default:
+                    let u = options.readUnknownField;
+                    if (u === "throw")
+                        throw new globalThis.Error(`Unknown field ${fieldNo} (wire type ${wireType}) for ${this.typeName}`);
+                    let d = reader.skip(wireType);
+                    if (u !== false)
+                        (u === true ? UnknownFieldHandler.onRead : u)(this.typeName, message, fieldNo, wireType, d);
+            }
+        }
+        return message;
+    }
+    internalBinaryWrite(message: GridSpanData, writer: IBinaryWriter, options: BinaryWriteOptions): IBinaryWriter {
+        /* symbol.bench.ObjectType metatype = 1; */
+        if (message.metatype !== 0)
+            writer.tag(1, WireType.Varint).int32(message.metatype);
+        /* int32 columns = 40; */
+        if (message.columns !== 0)
+            writer.tag(40, WireType.Varint).int32(message.columns);
+        /* int32 rows = 41; */
+        if (message.rows !== 0)
+            writer.tag(41, WireType.Varint).int32(message.rows);
+        let u = options.writeUnknownFields;
+        if (u !== false)
+            (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
+        return writer;
+    }
+}
+/**
+ * @generated MessageType for protobuf message symbol.bench.GridSpanData
+ */
+export const GridSpanData = new GridSpanData$Type();
+// @generated message type with reflection information, may provide speed optimized methods
 class EffectData$Type extends MessageType$<EffectData> {
     constructor() {
         super("symbol.bench.EffectData", [
@@ -17707,7 +19096,7 @@ class EffectData$Type extends MessageType$<EffectData> {
             { no: 44, name: "rotate", kind: "scalar", opt: true, T: 2 /*ScalarType.FLOAT*/ },
             { no: 45, name: "rotate_x", kind: "scalar", opt: true, T: 2 /*ScalarType.FLOAT*/ },
             { no: 46, name: "rotate_y", kind: "scalar", opt: true, T: 2 /*ScalarType.FLOAT*/ },
-            { no: 47, name: "is_rotate_3d", kind: "scalar", jsonName: "isRotate3d", opt: true, T: 8 /*ScalarType.BOOL*/ },
+            { no: 47, name: "rotate_z", kind: "scalar", opt: true, T: 2 /*ScalarType.FLOAT*/ },
             { no: 48, name: "skew_x", kind: "scalar", opt: true, T: 2 /*ScalarType.FLOAT*/ },
             { no: 49, name: "skew_y", kind: "scalar", opt: true, T: 2 /*ScalarType.FLOAT*/ },
             { no: 50, name: "perspective", kind: "scalar", opt: true, T: 2 /*ScalarType.FLOAT*/ },
@@ -17757,8 +19146,8 @@ class EffectData$Type extends MessageType$<EffectData> {
                 case /* optional float rotate_y */ 46:
                     message.rotateY = reader.float();
                     break;
-                case /* optional bool is_rotate_3d = 47 [json_name = "isRotate3d"];*/ 47:
-                    message.isRotate3D = reader.bool();
+                case /* optional float rotate_z */ 47:
+                    message.rotateZ = reader.float();
                     break;
                 case /* optional float skew_x */ 48:
                     message.skewX = reader.float();
@@ -17820,9 +19209,9 @@ class EffectData$Type extends MessageType$<EffectData> {
         /* optional float rotate_y = 46; */
         if (message.rotateY !== undefined)
             writer.tag(46, WireType.Bit32).float(message.rotateY);
-        /* optional bool is_rotate_3d = 47 [json_name = "isRotate3d"]; */
-        if (message.isRotate3D !== undefined)
-            writer.tag(47, WireType.Varint).bool(message.isRotate3D);
+        /* optional float rotate_z = 47; */
+        if (message.rotateZ !== undefined)
+            writer.tag(47, WireType.Bit32).float(message.rotateZ);
         /* optional float skew_x = 48; */
         if (message.skewX !== undefined)
             writer.tag(48, WireType.Bit32).float(message.skewX);
@@ -18076,152 +19465,6 @@ class FillData$Type extends MessageType$<FillData> {
  * @generated MessageType for protobuf message symbol.bench.FillData
  */
 export const FillData = new FillData$Type();
-// @generated message type with reflection information, may provide speed optimized methods
-class LengthData$Type extends MessageType$<LengthData> {
-    constructor() {
-        super("symbol.bench.LengthData", [
-            { no: 1, name: "metatype", kind: "enum", T: () => ["symbol.bench.ObjectType", ObjectType, "OBJECT_TYPE_"] },
-            { no: 31, name: "unit", kind: "enum", T: () => ["symbol.bench.LengthUnit", LengthUnit, "LENGTH_UNIT_"] },
-            { no: 32, name: "value", kind: "scalar", T: 2 /*ScalarType.FLOAT*/ }
-        ]);
-    }
-    create(value?: PartialMessage<LengthData>): LengthData {
-        const message = globalThis.Object.create((this.messagePrototype!));
-        message.metatype = 0;
-        message.unit = 0;
-        message.value = 0;
-        if (value !== undefined)
-            reflectionMergePartial<LengthData>(this, message, value);
-        return message;
-    }
-    internalBinaryRead(reader: IBinaryReader, length: number, options: BinaryReadOptions, target?: LengthData): LengthData {
-        let message = target ?? this.create(), end = reader.pos + length;
-        while (reader.pos < end) {
-            let [fieldNo, wireType] = reader.tag();
-            switch (fieldNo) {
-                case /* symbol.bench.ObjectType metatype */ 1:
-                    message.metatype = reader.int32();
-                    break;
-                case /* symbol.bench.LengthUnit unit */ 31:
-                    message.unit = reader.int32();
-                    break;
-                case /* float value */ 32:
-                    message.value = reader.float();
-                    break;
-                default:
-                    let u = options.readUnknownField;
-                    if (u === "throw")
-                        throw new globalThis.Error(`Unknown field ${fieldNo} (wire type ${wireType}) for ${this.typeName}`);
-                    let d = reader.skip(wireType);
-                    if (u !== false)
-                        (u === true ? UnknownFieldHandler.onRead : u)(this.typeName, message, fieldNo, wireType, d);
-            }
-        }
-        return message;
-    }
-    internalBinaryWrite(message: LengthData, writer: IBinaryWriter, options: BinaryWriteOptions): IBinaryWriter {
-        /* symbol.bench.ObjectType metatype = 1; */
-        if (message.metatype !== 0)
-            writer.tag(1, WireType.Varint).int32(message.metatype);
-        /* symbol.bench.LengthUnit unit = 31; */
-        if (message.unit !== 0)
-            writer.tag(31, WireType.Varint).int32(message.unit);
-        /* float value = 32; */
-        if (message.value !== 0)
-            writer.tag(32, WireType.Bit32).float(message.value);
-        let u = options.writeUnknownFields;
-        if (u !== false)
-            (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
-        return writer;
-    }
-}
-/**
- * @generated MessageType for protobuf message symbol.bench.LengthData
- */
-export const LengthData = new LengthData$Type();
-// @generated message type with reflection information, may provide speed optimized methods
-class PositionData$Type extends MessageType$<PositionData> {
-    constructor() {
-        super("symbol.bench.PositionData", [
-            { no: 1, name: "metatype", kind: "enum", T: () => ["symbol.bench.ObjectType", ObjectType, "OBJECT_TYPE_"] },
-            { no: 40, name: "type", kind: "enum", T: () => ["symbol.bench.PositionType", PositionType, "POSITION_TYPE_"] },
-            { no: 41, name: "top", kind: "scalar", opt: true, T: 2 /*ScalarType.FLOAT*/ },
-            { no: 42, name: "left", kind: "scalar", opt: true, T: 2 /*ScalarType.FLOAT*/ },
-            { no: 43, name: "width", kind: "scalar", opt: true, T: 2 /*ScalarType.FLOAT*/ },
-            { no: 44, name: "height", kind: "scalar", opt: true, T: 2 /*ScalarType.FLOAT*/ }
-        ]);
-    }
-    create(value?: PartialMessage<PositionData>): PositionData {
-        const message = globalThis.Object.create((this.messagePrototype!));
-        message.metatype = 0;
-        message.type = 0;
-        if (value !== undefined)
-            reflectionMergePartial<PositionData>(this, message, value);
-        return message;
-    }
-    internalBinaryRead(reader: IBinaryReader, length: number, options: BinaryReadOptions, target?: PositionData): PositionData {
-        let message = target ?? this.create(), end = reader.pos + length;
-        while (reader.pos < end) {
-            let [fieldNo, wireType] = reader.tag();
-            switch (fieldNo) {
-                case /* symbol.bench.ObjectType metatype */ 1:
-                    message.metatype = reader.int32();
-                    break;
-                case /* symbol.bench.PositionType type */ 40:
-                    message.type = reader.int32();
-                    break;
-                case /* optional float top */ 41:
-                    message.top = reader.float();
-                    break;
-                case /* optional float left */ 42:
-                    message.left = reader.float();
-                    break;
-                case /* optional float width */ 43:
-                    message.width = reader.float();
-                    break;
-                case /* optional float height */ 44:
-                    message.height = reader.float();
-                    break;
-                default:
-                    let u = options.readUnknownField;
-                    if (u === "throw")
-                        throw new globalThis.Error(`Unknown field ${fieldNo} (wire type ${wireType}) for ${this.typeName}`);
-                    let d = reader.skip(wireType);
-                    if (u !== false)
-                        (u === true ? UnknownFieldHandler.onRead : u)(this.typeName, message, fieldNo, wireType, d);
-            }
-        }
-        return message;
-    }
-    internalBinaryWrite(message: PositionData, writer: IBinaryWriter, options: BinaryWriteOptions): IBinaryWriter {
-        /* symbol.bench.ObjectType metatype = 1; */
-        if (message.metatype !== 0)
-            writer.tag(1, WireType.Varint).int32(message.metatype);
-        /* symbol.bench.PositionType type = 40; */
-        if (message.type !== 0)
-            writer.tag(40, WireType.Varint).int32(message.type);
-        /* optional float top = 41; */
-        if (message.top !== undefined)
-            writer.tag(41, WireType.Bit32).float(message.top);
-        /* optional float left = 42; */
-        if (message.left !== undefined)
-            writer.tag(42, WireType.Bit32).float(message.left);
-        /* optional float width = 43; */
-        if (message.width !== undefined)
-            writer.tag(43, WireType.Bit32).float(message.width);
-        /* optional float height = 44; */
-        if (message.height !== undefined)
-            writer.tag(44, WireType.Bit32).float(message.height);
-        let u = options.writeUnknownFields;
-        if (u !== false)
-            (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
-        return writer;
-    }
-}
-/**
- * @generated MessageType for protobuf message symbol.bench.PositionData
- */
-export const PositionData = new PositionData$Type();
 // @generated message type with reflection information, may provide speed optimized methods
 class ShadowData$Type extends MessageType$<ShadowData> {
     constructor() {
@@ -18686,7 +19929,7 @@ class ChannelData$Type extends MessageType$<ChannelData> {
             { no: 14, name: "archived_at", kind: "message", T: () => Timestamp },
             { no: 15, name: "deleted_at", kind: "message", T: () => Timestamp },
             { no: 16, name: "template_ptr", kind: "message", T: () => NodeReferenceData },
-            { no: 20, name: "mode", kind: "enum", T: () => ["symbol.bench.NodeMode", NodeMode, "NODE_MODE_"] },
+            { no: 25, name: "mode", kind: "enum", T: () => ["symbol.bench.NodeMode", NodeMode, "NODE_MODE_"] },
             { no: 31, name: "name", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
             { no: 33, name: "order_key", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
             { no: 34, name: "icon", kind: "message", T: () => IconData },
@@ -18764,7 +20007,7 @@ class ChannelData$Type extends MessageType$<ChannelData> {
                 case /* optional symbol.bench.NodeReferenceData template_ptr */ 16:
                     message.templatePtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.templatePtr);
                     break;
-                case /* symbol.bench.NodeMode mode */ 20:
+                case /* symbol.bench.NodeMode mode */ 25:
                     message.mode = reader.int32();
                     break;
                 case /* optional string name */ 31:
@@ -18878,9 +20121,9 @@ class ChannelData$Type extends MessageType$<ChannelData> {
         /* optional symbol.bench.NodeReferenceData template_ptr = 16; */
         if (message.templatePtr)
             NodeReferenceData.internalBinaryWrite(message.templatePtr, writer.tag(16, WireType.LengthDelimited).fork(), options).join();
-        /* symbol.bench.NodeMode mode = 20; */
+        /* symbol.bench.NodeMode mode = 25; */
         if (message.mode !== 0)
-            writer.tag(20, WireType.Varint).int32(message.mode);
+            writer.tag(25, WireType.Varint).int32(message.mode);
         /* optional string name = 31; */
         if (message.name !== undefined)
             writer.tag(31, WireType.LengthDelimited).string(message.name);
@@ -18967,7 +20210,7 @@ class MessageData$Type extends MessageType$<MessageData> {
             { no: 14, name: "archived_at", kind: "message", T: () => Timestamp },
             { no: 15, name: "deleted_at", kind: "message", T: () => Timestamp },
             { no: 17, name: "owned_by_ptr", kind: "message", T: () => NodeReferenceData },
-            { no: 20, name: "mode", kind: "enum", T: () => ["symbol.bench.NodeMode", NodeMode, "NODE_MODE_"] },
+            { no: 25, name: "mode", kind: "enum", T: () => ["symbol.bench.NodeMode", NodeMode, "NODE_MODE_"] },
             { no: 30, name: "type", kind: "enum", T: () => ["symbol.bench.MessageType", MessageType, "MESSAGE_TYPE_"] },
             { no: 32, name: "title", kind: "message", T: () => TextLineData },
             { no: 34, name: "channel_ptr", kind: "message", T: () => NodeReferenceData },
@@ -19037,7 +20280,7 @@ class MessageData$Type extends MessageType$<MessageData> {
                 case /* optional symbol.bench.NodeReferenceData owned_by_ptr */ 17:
                     message.ownedByPtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.ownedByPtr);
                     break;
-                case /* symbol.bench.NodeMode mode */ 20:
+                case /* symbol.bench.NodeMode mode */ 25:
                     message.mode = reader.int32();
                     break;
                 case /* symbol.bench.MessageType type */ 30:
@@ -19133,9 +20376,9 @@ class MessageData$Type extends MessageType$<MessageData> {
         /* optional symbol.bench.NodeReferenceData owned_by_ptr = 17; */
         if (message.ownedByPtr)
             NodeReferenceData.internalBinaryWrite(message.ownedByPtr, writer.tag(17, WireType.LengthDelimited).fork(), options).join();
-        /* symbol.bench.NodeMode mode = 20; */
+        /* symbol.bench.NodeMode mode = 25; */
         if (message.mode !== 0)
-            writer.tag(20, WireType.Varint).int32(message.mode);
+            writer.tag(25, WireType.Varint).int32(message.mode);
         /* symbol.bench.MessageType type = 30; */
         if (message.type !== 0)
             writer.tag(30, WireType.Varint).int32(message.type);
@@ -19206,7 +20449,7 @@ class NotificationData$Type extends MessageType$<NotificationData> {
             { no: 13, name: "updated_by_ptr", kind: "message", T: () => NodeReferenceData },
             { no: 14, name: "archived_at", kind: "message", T: () => Timestamp },
             { no: 15, name: "deleted_at", kind: "message", T: () => Timestamp },
-            { no: 20, name: "mode", kind: "enum", T: () => ["symbol.bench.NodeMode", NodeMode, "NODE_MODE_"] },
+            { no: 25, name: "mode", kind: "enum", T: () => ["symbol.bench.NodeMode", NodeMode, "NODE_MODE_"] },
             { no: 30, name: "type", kind: "enum", T: () => ["symbol.bench.NotificationType", NotificationType, "NOTIFICATION_TYPE_"] },
             { no: 32, name: "title", kind: "message", T: () => TextLineData },
             { no: 33, name: "channel_ptr", kind: "message", T: () => NodeReferenceData },
@@ -19271,7 +20514,7 @@ class NotificationData$Type extends MessageType$<NotificationData> {
                 case /* optional google.protobuf.Timestamp deleted_at */ 15:
                     message.deletedAt = Timestamp.internalBinaryRead(reader, reader.uint32(), options, message.deletedAt);
                     break;
-                case /* symbol.bench.NodeMode mode */ 20:
+                case /* symbol.bench.NodeMode mode */ 25:
                     message.mode = reader.int32();
                     break;
                 case /* symbol.bench.NotificationType type */ 30:
@@ -19355,9 +20598,9 @@ class NotificationData$Type extends MessageType$<NotificationData> {
         /* optional google.protobuf.Timestamp deleted_at = 15; */
         if (message.deletedAt)
             Timestamp.internalBinaryWrite(message.deletedAt, writer.tag(15, WireType.LengthDelimited).fork(), options).join();
-        /* symbol.bench.NodeMode mode = 20; */
+        /* symbol.bench.NodeMode mode = 25; */
         if (message.mode !== 0)
-            writer.tag(20, WireType.Varint).int32(message.mode);
+            writer.tag(25, WireType.Varint).int32(message.mode);
         /* symbol.bench.NotificationType type = 30; */
         if (message.type !== 0)
             writer.tag(30, WireType.Varint).int32(message.type);
@@ -19422,7 +20665,7 @@ class ThreadData$Type extends MessageType$<ThreadData> {
             { no: 15, name: "deleted_at", kind: "message", T: () => Timestamp },
             { no: 16, name: "template_ptr", kind: "message", T: () => NodeReferenceData },
             { no: 17, name: "owned_by_ptr", kind: "message", T: () => NodeReferenceData },
-            { no: 20, name: "mode", kind: "enum", T: () => ["symbol.bench.NodeMode", NodeMode, "NODE_MODE_"] },
+            { no: 25, name: "mode", kind: "enum", T: () => ["symbol.bench.NodeMode", NodeMode, "NODE_MODE_"] },
             { no: 32, name: "title", kind: "message", T: () => TextLineData },
             { no: 33, name: "order_key", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
             { no: 34, name: "icon", kind: "message", T: () => IconData },
@@ -19509,7 +20752,7 @@ class ThreadData$Type extends MessageType$<ThreadData> {
                 case /* optional symbol.bench.NodeReferenceData owned_by_ptr */ 17:
                     message.ownedByPtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.ownedByPtr);
                     break;
-                case /* symbol.bench.NodeMode mode */ 20:
+                case /* symbol.bench.NodeMode mode */ 25:
                     message.mode = reader.int32();
                     break;
                 case /* optional symbol.bench.TextLineData title */ 32:
@@ -19644,9 +20887,9 @@ class ThreadData$Type extends MessageType$<ThreadData> {
         /* optional symbol.bench.NodeReferenceData owned_by_ptr = 17; */
         if (message.ownedByPtr)
             NodeReferenceData.internalBinaryWrite(message.ownedByPtr, writer.tag(17, WireType.LengthDelimited).fork(), options).join();
-        /* symbol.bench.NodeMode mode = 20; */
+        /* symbol.bench.NodeMode mode = 25; */
         if (message.mode !== 0)
-            writer.tag(20, WireType.Varint).int32(message.mode);
+            writer.tag(25, WireType.Varint).int32(message.mode);
         /* optional symbol.bench.TextLineData title = 32; */
         if (message.title)
             TextLineData.internalBinaryWrite(message.title, writer.tag(32, WireType.LengthDelimited).fork(), options).join();
@@ -19754,7 +20997,7 @@ class FileData$Type extends MessageType$<FileData> {
             { no: 16, name: "template_ptr", kind: "message", T: () => NodeReferenceData },
             { no: 17, name: "owned_by_ptr", kind: "message", T: () => NodeReferenceData },
             { no: 18, name: "claimed_by_ptr", kind: "message", T: () => NodeReferenceData },
-            { no: 20, name: "mode", kind: "enum", T: () => ["symbol.bench.NodeMode", NodeMode, "NODE_MODE_"] },
+            { no: 25, name: "mode", kind: "enum", T: () => ["symbol.bench.NodeMode", NodeMode, "NODE_MODE_"] },
             { no: 30, name: "type", kind: "enum", T: () => ["symbol.bench.FileType", FileType, "FILE_TYPE_"] },
             { no: 31, name: "name", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
             { no: 33, name: "order_key", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
@@ -19846,7 +21089,7 @@ class FileData$Type extends MessageType$<FileData> {
                 case /* optional symbol.bench.NodeReferenceData claimed_by_ptr */ 18:
                     message.claimedByPtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.claimedByPtr);
                     break;
-                case /* symbol.bench.NodeMode mode */ 20:
+                case /* symbol.bench.NodeMode mode */ 25:
                     message.mode = reader.int32();
                     break;
                 case /* symbol.bench.FileType type */ 30:
@@ -19981,9 +21224,9 @@ class FileData$Type extends MessageType$<FileData> {
         /* optional symbol.bench.NodeReferenceData claimed_by_ptr = 18; */
         if (message.claimedByPtr)
             NodeReferenceData.internalBinaryWrite(message.claimedByPtr, writer.tag(18, WireType.LengthDelimited).fork(), options).join();
-        /* symbol.bench.NodeMode mode = 20; */
+        /* symbol.bench.NodeMode mode = 25; */
         if (message.mode !== 0)
-            writer.tag(20, WireType.Varint).int32(message.mode);
+            writer.tag(25, WireType.Varint).int32(message.mode);
         /* symbol.bench.FileType type = 30; */
         if (message.type !== 0)
             writer.tag(30, WireType.Varint).int32(message.type);
@@ -20088,7 +21331,7 @@ class LinkData$Type extends MessageType$<LinkData> {
             { no: 16, name: "template_ptr", kind: "message", T: () => NodeReferenceData },
             { no: 17, name: "owned_by_ptr", kind: "message", T: () => NodeReferenceData },
             { no: 18, name: "claimed_by_ptr", kind: "message", T: () => NodeReferenceData },
-            { no: 20, name: "mode", kind: "enum", T: () => ["symbol.bench.NodeMode", NodeMode, "NODE_MODE_"] },
+            { no: 25, name: "mode", kind: "enum", T: () => ["symbol.bench.NodeMode", NodeMode, "NODE_MODE_"] },
             { no: 30, name: "type", kind: "enum", T: () => ["symbol.bench.LinkType", LinkType, "LINK_TYPE_"] },
             { no: 31, name: "name", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
             { no: 32, name: "title", kind: "message", T: () => TextLineData },
@@ -20174,7 +21417,7 @@ class LinkData$Type extends MessageType$<LinkData> {
                 case /* optional symbol.bench.NodeReferenceData claimed_by_ptr */ 18:
                     message.claimedByPtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.claimedByPtr);
                     break;
-                case /* symbol.bench.NodeMode mode */ 20:
+                case /* symbol.bench.NodeMode mode */ 25:
                     message.mode = reader.int32();
                     break;
                 case /* symbol.bench.LinkType type */ 30:
@@ -20294,9 +21537,9 @@ class LinkData$Type extends MessageType$<LinkData> {
         /* optional symbol.bench.NodeReferenceData claimed_by_ptr = 18; */
         if (message.claimedByPtr)
             NodeReferenceData.internalBinaryWrite(message.claimedByPtr, writer.tag(18, WireType.LengthDelimited).fork(), options).join();
-        /* symbol.bench.NodeMode mode = 20; */
+        /* symbol.bench.NodeMode mode = 25; */
         if (message.mode !== 0)
-            writer.tag(20, WireType.Varint).int32(message.mode);
+            writer.tag(25, WireType.Varint).int32(message.mode);
         /* symbol.bench.LinkType type = 30; */
         if (message.type !== 0)
             writer.tag(30, WireType.Varint).int32(message.type);
@@ -20384,7 +21627,7 @@ class RecordData$Type extends MessageType$<RecordData> {
             { no: 15, name: "deleted_at", kind: "message", T: () => Timestamp },
             { no: 17, name: "owned_by_ptr", kind: "message", T: () => NodeReferenceData },
             { no: 18, name: "claimed_by_ptr", kind: "message", T: () => NodeReferenceData },
-            { no: 20, name: "mode", kind: "enum", T: () => ["symbol.bench.NodeMode", NodeMode, "NODE_MODE_"] },
+            { no: 25, name: "mode", kind: "enum", T: () => ["symbol.bench.NodeMode", NodeMode, "NODE_MODE_"] },
             { no: 32, name: "title", kind: "message", T: () => TextLineData },
             { no: 33, name: "order_key", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
             { no: 34, name: "icon", kind: "message", T: () => IconData },
@@ -20445,7 +21688,7 @@ class RecordData$Type extends MessageType$<RecordData> {
                 case /* optional symbol.bench.NodeReferenceData claimed_by_ptr */ 18:
                     message.claimedByPtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.claimedByPtr);
                     break;
-                case /* symbol.bench.NodeMode mode */ 20:
+                case /* symbol.bench.NodeMode mode */ 25:
                     message.mode = reader.int32();
                     break;
                 case /* optional symbol.bench.TextLineData title */ 32:
@@ -20514,9 +21757,9 @@ class RecordData$Type extends MessageType$<RecordData> {
         /* optional symbol.bench.NodeReferenceData claimed_by_ptr = 18; */
         if (message.claimedByPtr)
             NodeReferenceData.internalBinaryWrite(message.claimedByPtr, writer.tag(18, WireType.LengthDelimited).fork(), options).join();
-        /* symbol.bench.NodeMode mode = 20; */
+        /* symbol.bench.NodeMode mode = 25; */
         if (message.mode !== 0)
-            writer.tag(20, WireType.Varint).int32(message.mode);
+            writer.tag(25, WireType.Varint).int32(message.mode);
         /* optional symbol.bench.TextLineData title = 32; */
         if (message.title)
             TextLineData.internalBinaryWrite(message.title, writer.tag(32, WireType.LengthDelimited).fork(), options).join();
@@ -20561,7 +21804,7 @@ class TableData$Type extends MessageType$<TableData> {
             { no: 16, name: "template_ptr", kind: "message", T: () => NodeReferenceData },
             { no: 17, name: "owned_by_ptr", kind: "message", T: () => NodeReferenceData },
             { no: 18, name: "claimed_by_ptr", kind: "message", T: () => NodeReferenceData },
-            { no: 20, name: "mode", kind: "enum", T: () => ["symbol.bench.NodeMode", NodeMode, "NODE_MODE_"] },
+            { no: 25, name: "mode", kind: "enum", T: () => ["symbol.bench.NodeMode", NodeMode, "NODE_MODE_"] },
             { no: 31, name: "name", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
             { no: 33, name: "order_key", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
             { no: 34, name: "icon", kind: "message", T: () => IconData },
@@ -20628,7 +21871,7 @@ class TableData$Type extends MessageType$<TableData> {
                 case /* optional symbol.bench.NodeReferenceData claimed_by_ptr */ 18:
                     message.claimedByPtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.claimedByPtr);
                     break;
-                case /* symbol.bench.NodeMode mode */ 20:
+                case /* symbol.bench.NodeMode mode */ 25:
                     message.mode = reader.int32();
                     break;
                 case /* optional string name */ 31:
@@ -20700,9 +21943,9 @@ class TableData$Type extends MessageType$<TableData> {
         /* optional symbol.bench.NodeReferenceData claimed_by_ptr = 18; */
         if (message.claimedByPtr)
             NodeReferenceData.internalBinaryWrite(message.claimedByPtr, writer.tag(18, WireType.LengthDelimited).fork(), options).join();
-        /* symbol.bench.NodeMode mode = 20; */
+        /* symbol.bench.NodeMode mode = 25; */
         if (message.mode !== 0)
-            writer.tag(20, WireType.Varint).int32(message.mode);
+            writer.tag(25, WireType.Varint).int32(message.mode);
         /* optional string name = 31; */
         if (message.name !== undefined)
             writer.tag(31, WireType.LengthDelimited).string(message.name);
@@ -20860,7 +22103,7 @@ class MembershipData$Type extends MessageType$<MembershipData> {
             { no: 14, name: "archived_at", kind: "message", T: () => Timestamp },
             { no: 15, name: "deleted_at", kind: "message", T: () => Timestamp },
             { no: 16, name: "template_ptr", kind: "message", T: () => NodeReferenceData },
-            { no: 20, name: "mode", kind: "enum", T: () => ["symbol.bench.NodeMode", NodeMode, "NODE_MODE_"] },
+            { no: 25, name: "mode", kind: "enum", T: () => ["symbol.bench.NodeMode", NodeMode, "NODE_MODE_"] },
             { no: 41, name: "member_ptr", kind: "message", T: () => NodeReferenceData }
         ]);
     }
@@ -20918,7 +22161,7 @@ class MembershipData$Type extends MessageType$<MembershipData> {
                 case /* optional symbol.bench.NodeReferenceData template_ptr */ 16:
                     message.templatePtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.templatePtr);
                     break;
-                case /* symbol.bench.NodeMode mode */ 20:
+                case /* symbol.bench.NodeMode mode */ 25:
                     message.mode = reader.int32();
                     break;
                 case /* symbol.bench.NodeReferenceData member_ptr */ 41:
@@ -20975,9 +22218,9 @@ class MembershipData$Type extends MessageType$<MembershipData> {
         /* optional symbol.bench.NodeReferenceData template_ptr = 16; */
         if (message.templatePtr)
             NodeReferenceData.internalBinaryWrite(message.templatePtr, writer.tag(16, WireType.LengthDelimited).fork(), options).join();
-        /* symbol.bench.NodeMode mode = 20; */
+        /* symbol.bench.NodeMode mode = 25; */
         if (message.mode !== 0)
-            writer.tag(20, WireType.Varint).int32(message.mode);
+            writer.tag(25, WireType.Varint).int32(message.mode);
         /* symbol.bench.NodeReferenceData member_ptr = 41; */
         if (message.memberPtr)
             NodeReferenceData.internalBinaryWrite(message.memberPtr, writer.tag(41, WireType.LengthDelimited).fork(), options).join();
@@ -21007,7 +22250,7 @@ class RoleData$Type extends MessageType$<RoleData> {
             { no: 14, name: "archived_at", kind: "message", T: () => Timestamp },
             { no: 15, name: "deleted_at", kind: "message", T: () => Timestamp },
             { no: 16, name: "template_ptr", kind: "message", T: () => NodeReferenceData },
-            { no: 20, name: "mode", kind: "enum", T: () => ["symbol.bench.NodeMode", NodeMode, "NODE_MODE_"] },
+            { no: 25, name: "mode", kind: "enum", T: () => ["symbol.bench.NodeMode", NodeMode, "NODE_MODE_"] },
             { no: 31, name: "name", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
             { no: 33, name: "order_key", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
             { no: 34, name: "icon", kind: "message", T: () => IconData },
@@ -21064,7 +22307,7 @@ class RoleData$Type extends MessageType$<RoleData> {
                 case /* optional symbol.bench.NodeReferenceData template_ptr */ 16:
                     message.templatePtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.templatePtr);
                     break;
-                case /* symbol.bench.NodeMode mode */ 20:
+                case /* symbol.bench.NodeMode mode */ 25:
                     message.mode = reader.int32();
                     break;
                 case /* optional string name */ 31:
@@ -21127,9 +22370,9 @@ class RoleData$Type extends MessageType$<RoleData> {
         /* optional symbol.bench.NodeReferenceData template_ptr = 16; */
         if (message.templatePtr)
             NodeReferenceData.internalBinaryWrite(message.templatePtr, writer.tag(16, WireType.LengthDelimited).fork(), options).join();
-        /* symbol.bench.NodeMode mode = 20; */
+        /* symbol.bench.NodeMode mode = 25; */
         if (message.mode !== 0)
-            writer.tag(20, WireType.Varint).int32(message.mode);
+            writer.tag(25, WireType.Varint).int32(message.mode);
         /* optional string name = 31; */
         if (message.name !== undefined)
             writer.tag(31, WireType.LengthDelimited).string(message.name);
@@ -21171,7 +22414,7 @@ class TeamData$Type extends MessageType$<TeamData> {
             { no: 14, name: "archived_at", kind: "message", T: () => Timestamp },
             { no: 15, name: "deleted_at", kind: "message", T: () => Timestamp },
             { no: 16, name: "template_ptr", kind: "message", T: () => NodeReferenceData },
-            { no: 20, name: "mode", kind: "enum", T: () => ["symbol.bench.NodeMode", NodeMode, "NODE_MODE_"] },
+            { no: 25, name: "mode", kind: "enum", T: () => ["symbol.bench.NodeMode", NodeMode, "NODE_MODE_"] },
             { no: 31, name: "name", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
             { no: 33, name: "order_key", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
             { no: 34, name: "icon", kind: "message", T: () => IconData },
@@ -21238,7 +22481,7 @@ class TeamData$Type extends MessageType$<TeamData> {
                 case /* optional symbol.bench.NodeReferenceData template_ptr */ 16:
                     message.templatePtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.templatePtr);
                     break;
-                case /* symbol.bench.NodeMode mode */ 20:
+                case /* symbol.bench.NodeMode mode */ 25:
                     message.mode = reader.int32();
                     break;
                 case /* optional string name */ 31:
@@ -21310,9 +22553,9 @@ class TeamData$Type extends MessageType$<TeamData> {
         /* optional symbol.bench.NodeReferenceData template_ptr = 16; */
         if (message.templatePtr)
             NodeReferenceData.internalBinaryWrite(message.templatePtr, writer.tag(16, WireType.LengthDelimited).fork(), options).join();
-        /* symbol.bench.NodeMode mode = 20; */
+        /* symbol.bench.NodeMode mode = 25; */
         if (message.mode !== 0)
-            writer.tag(20, WireType.Varint).int32(message.mode);
+            writer.tag(25, WireType.Varint).int32(message.mode);
         /* optional string name = 31; */
         if (message.name !== undefined)
             writer.tag(31, WireType.LengthDelimited).string(message.name);
@@ -21354,7 +22597,7 @@ class ComputerData$Type extends MessageType$<ComputerData> {
             { no: 16, name: "template_ptr", kind: "message", T: () => NodeReferenceData },
             { no: 17, name: "owned_by_ptr", kind: "message", T: () => NodeReferenceData },
             { no: 18, name: "claimed_by_ptr", kind: "message", T: () => NodeReferenceData },
-            { no: 20, name: "mode", kind: "enum", T: () => ["symbol.bench.NodeMode", NodeMode, "NODE_MODE_"] },
+            { no: 25, name: "mode", kind: "enum", T: () => ["symbol.bench.NodeMode", NodeMode, "NODE_MODE_"] },
             { no: 30, name: "type", kind: "enum", T: () => ["symbol.bench.ComputerType", ComputerType, "COMPUTER_TYPE_"] },
             { no: 31, name: "name", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
             { no: 33, name: "order_key", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
@@ -21455,7 +22698,7 @@ class ComputerData$Type extends MessageType$<ComputerData> {
                 case /* optional symbol.bench.NodeReferenceData claimed_by_ptr */ 18:
                     message.claimedByPtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.claimedByPtr);
                     break;
-                case /* symbol.bench.NodeMode mode */ 20:
+                case /* symbol.bench.NodeMode mode */ 25:
                     message.mode = reader.int32();
                     break;
                 case /* symbol.bench.ComputerType type */ 30:
@@ -21599,9 +22842,9 @@ class ComputerData$Type extends MessageType$<ComputerData> {
         /* optional symbol.bench.NodeReferenceData claimed_by_ptr = 18; */
         if (message.claimedByPtr)
             NodeReferenceData.internalBinaryWrite(message.claimedByPtr, writer.tag(18, WireType.LengthDelimited).fork(), options).join();
-        /* symbol.bench.NodeMode mode = 20; */
+        /* symbol.bench.NodeMode mode = 25; */
         if (message.mode !== 0)
-            writer.tag(20, WireType.Varint).int32(message.mode);
+            writer.tag(25, WireType.Varint).int32(message.mode);
         /* symbol.bench.ComputerType type = 30; */
         if (message.type !== 0)
             writer.tag(30, WireType.Varint).int32(message.type);
@@ -21715,7 +22958,7 @@ class DatabaseData$Type extends MessageType$<DatabaseData> {
             { no: 16, name: "template_ptr", kind: "message", T: () => NodeReferenceData },
             { no: 17, name: "owned_by_ptr", kind: "message", T: () => NodeReferenceData },
             { no: 18, name: "claimed_by_ptr", kind: "message", T: () => NodeReferenceData },
-            { no: 20, name: "mode", kind: "enum", T: () => ["symbol.bench.NodeMode", NodeMode, "NODE_MODE_"] },
+            { no: 25, name: "mode", kind: "enum", T: () => ["symbol.bench.NodeMode", NodeMode, "NODE_MODE_"] },
             { no: 30, name: "type", kind: "enum", T: () => ["symbol.bench.DatabaseType", DatabaseType, "DATABASE_TYPE_"] },
             { no: 31, name: "name", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
             { no: 33, name: "order_key", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
@@ -21803,7 +23046,7 @@ class DatabaseData$Type extends MessageType$<DatabaseData> {
                 case /* optional symbol.bench.NodeReferenceData claimed_by_ptr */ 18:
                     message.claimedByPtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.claimedByPtr);
                     break;
-                case /* symbol.bench.NodeMode mode */ 20:
+                case /* symbol.bench.NodeMode mode */ 25:
                     message.mode = reader.int32();
                     break;
                 case /* symbol.bench.DatabaseType type */ 30:
@@ -21923,9 +23166,9 @@ class DatabaseData$Type extends MessageType$<DatabaseData> {
         /* optional symbol.bench.NodeReferenceData claimed_by_ptr = 18; */
         if (message.claimedByPtr)
             NodeReferenceData.internalBinaryWrite(message.claimedByPtr, writer.tag(18, WireType.LengthDelimited).fork(), options).join();
-        /* symbol.bench.NodeMode mode = 20; */
+        /* symbol.bench.NodeMode mode = 25; */
         if (message.mode !== 0)
-            writer.tag(20, WireType.Varint).int32(message.mode);
+            writer.tag(25, WireType.Varint).int32(message.mode);
         /* symbol.bench.DatabaseType type = 30; */
         if (message.type !== 0)
             writer.tag(30, WireType.Varint).int32(message.type);
@@ -22015,7 +23258,7 @@ class ScalerData$Type extends MessageType$<ScalerData> {
             { no: 16, name: "template_ptr", kind: "message", T: () => NodeReferenceData },
             { no: 17, name: "owned_by_ptr", kind: "message", T: () => NodeReferenceData },
             { no: 18, name: "claimed_by_ptr", kind: "message", T: () => NodeReferenceData },
-            { no: 20, name: "mode", kind: "enum", T: () => ["symbol.bench.NodeMode", NodeMode, "NODE_MODE_"] },
+            { no: 25, name: "mode", kind: "enum", T: () => ["symbol.bench.NodeMode", NodeMode, "NODE_MODE_"] },
             { no: 30, name: "type", kind: "enum", T: () => ["symbol.bench.ScalerType", ScalerType, "SCALER_TYPE_"] },
             { no: 31, name: "name", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
             { no: 33, name: "order_key", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
@@ -22107,7 +23350,7 @@ class ScalerData$Type extends MessageType$<ScalerData> {
                 case /* optional symbol.bench.NodeReferenceData claimed_by_ptr */ 18:
                     message.claimedByPtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.claimedByPtr);
                     break;
-                case /* symbol.bench.NodeMode mode */ 20:
+                case /* symbol.bench.NodeMode mode */ 25:
                     message.mode = reader.int32();
                     break;
                 case /* symbol.bench.ScalerType type */ 30:
@@ -22230,9 +23473,9 @@ class ScalerData$Type extends MessageType$<ScalerData> {
         /* optional symbol.bench.NodeReferenceData claimed_by_ptr = 18; */
         if (message.claimedByPtr)
             NodeReferenceData.internalBinaryWrite(message.claimedByPtr, writer.tag(18, WireType.LengthDelimited).fork(), options).join();
-        /* symbol.bench.NodeMode mode = 20; */
+        /* symbol.bench.NodeMode mode = 25; */
         if (message.mode !== 0)
-            writer.tag(20, WireType.Varint).int32(message.mode);
+            writer.tag(25, WireType.Varint).int32(message.mode);
         /* symbol.bench.ScalerType type = 30; */
         if (message.type !== 0)
             writer.tag(30, WireType.Varint).int32(message.type);
@@ -22324,7 +23567,7 @@ class ActionData$Type extends MessageType$<ActionData> {
             { no: 15, name: "deleted_at", kind: "message", T: () => Timestamp },
             { no: 16, name: "template_ptr", kind: "message", T: () => NodeReferenceData },
             { no: 18, name: "claimed_by_ptr", kind: "message", T: () => NodeReferenceData },
-            { no: 20, name: "mode", kind: "enum", T: () => ["symbol.bench.NodeMode", NodeMode, "NODE_MODE_"] },
+            { no: 25, name: "mode", kind: "enum", T: () => ["symbol.bench.NodeMode", NodeMode, "NODE_MODE_"] },
             { no: 30, name: "type", kind: "enum", T: () => ["symbol.bench.ActionType", ActionType, "ACTION_TYPE_"] },
             { no: 31, name: "name", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
             { no: 33, name: "order_key", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
@@ -22400,7 +23643,7 @@ class ActionData$Type extends MessageType$<ActionData> {
                 case /* optional symbol.bench.NodeReferenceData claimed_by_ptr */ 18:
                     message.claimedByPtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.claimedByPtr);
                     break;
-                case /* symbol.bench.NodeMode mode */ 20:
+                case /* symbol.bench.NodeMode mode */ 25:
                     message.mode = reader.int32();
                     break;
                 case /* symbol.bench.ActionType type */ 30:
@@ -22499,9 +23742,9 @@ class ActionData$Type extends MessageType$<ActionData> {
         /* optional symbol.bench.NodeReferenceData claimed_by_ptr = 18; */
         if (message.claimedByPtr)
             NodeReferenceData.internalBinaryWrite(message.claimedByPtr, writer.tag(18, WireType.LengthDelimited).fork(), options).join();
-        /* symbol.bench.NodeMode mode = 20; */
+        /* symbol.bench.NodeMode mode = 25; */
         if (message.mode !== 0)
-            writer.tag(20, WireType.Varint).int32(message.mode);
+            writer.tag(25, WireType.Varint).int32(message.mode);
         /* symbol.bench.ActionType type = 30; */
         if (message.type !== 0)
             writer.tag(30, WireType.Varint).int32(message.type);
@@ -22573,7 +23816,7 @@ class AgentData$Type extends MessageType$<AgentData> {
             { no: 16, name: "template_ptr", kind: "message", T: () => NodeReferenceData },
             { no: 17, name: "owned_by_ptr", kind: "message", T: () => NodeReferenceData },
             { no: 18, name: "claimed_by_ptr", kind: "message", T: () => NodeReferenceData },
-            { no: 20, name: "mode", kind: "enum", T: () => ["symbol.bench.NodeMode", NodeMode, "NODE_MODE_"] },
+            { no: 25, name: "mode", kind: "enum", T: () => ["symbol.bench.NodeMode", NodeMode, "NODE_MODE_"] },
             { no: 31, name: "name", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
             { no: 33, name: "order_key", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
             { no: 34, name: "icon", kind: "message", T: () => IconData },
@@ -22666,7 +23909,7 @@ class AgentData$Type extends MessageType$<AgentData> {
                 case /* optional symbol.bench.NodeReferenceData claimed_by_ptr */ 18:
                     message.claimedByPtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.claimedByPtr);
                     break;
-                case /* symbol.bench.NodeMode mode */ 20:
+                case /* symbol.bench.NodeMode mode */ 25:
                     message.mode = reader.int32();
                     break;
                 case /* optional string name */ 31:
@@ -22813,9 +24056,9 @@ class AgentData$Type extends MessageType$<AgentData> {
         /* optional symbol.bench.NodeReferenceData claimed_by_ptr = 18; */
         if (message.claimedByPtr)
             NodeReferenceData.internalBinaryWrite(message.claimedByPtr, writer.tag(18, WireType.LengthDelimited).fork(), options).join();
-        /* symbol.bench.NodeMode mode = 20; */
+        /* symbol.bench.NodeMode mode = 25; */
         if (message.mode !== 0)
-            writer.tag(20, WireType.Varint).int32(message.mode);
+            writer.tag(25, WireType.Varint).int32(message.mode);
         /* optional string name = 31; */
         if (message.name !== undefined)
             writer.tag(31, WireType.LengthDelimited).string(message.name);
@@ -22931,7 +24174,7 @@ class FlowData$Type extends MessageType$<FlowData> {
             { no: 16, name: "template_ptr", kind: "message", T: () => NodeReferenceData },
             { no: 17, name: "owned_by_ptr", kind: "message", T: () => NodeReferenceData },
             { no: 18, name: "claimed_by_ptr", kind: "message", T: () => NodeReferenceData },
-            { no: 20, name: "mode", kind: "enum", T: () => ["symbol.bench.NodeMode", NodeMode, "NODE_MODE_"] },
+            { no: 25, name: "mode", kind: "enum", T: () => ["symbol.bench.NodeMode", NodeMode, "NODE_MODE_"] },
             { no: 30, name: "type", kind: "enum", T: () => ["symbol.bench.FlowType", FlowType, "FLOW_TYPE_"] },
             { no: 31, name: "name", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
             { no: 33, name: "order_key", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
@@ -23003,7 +24246,7 @@ class FlowData$Type extends MessageType$<FlowData> {
                 case /* optional symbol.bench.NodeReferenceData claimed_by_ptr */ 18:
                     message.claimedByPtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.claimedByPtr);
                     break;
-                case /* symbol.bench.NodeMode mode */ 20:
+                case /* symbol.bench.NodeMode mode */ 25:
                     message.mode = reader.int32();
                     break;
                 case /* symbol.bench.FlowType type */ 30:
@@ -23096,9 +24339,9 @@ class FlowData$Type extends MessageType$<FlowData> {
         /* optional symbol.bench.NodeReferenceData claimed_by_ptr = 18; */
         if (message.claimedByPtr)
             NodeReferenceData.internalBinaryWrite(message.claimedByPtr, writer.tag(18, WireType.LengthDelimited).fork(), options).join();
-        /* symbol.bench.NodeMode mode = 20; */
+        /* symbol.bench.NodeMode mode = 25; */
         if (message.mode !== 0)
-            writer.tag(20, WireType.Varint).int32(message.mode);
+            writer.tag(25, WireType.Varint).int32(message.mode);
         /* symbol.bench.FlowType type = 30; */
         if (message.type !== 0)
             writer.tag(30, WireType.Varint).int32(message.type);
@@ -23161,7 +24404,7 @@ class FlowEdgeData$Type extends MessageType$<FlowEdgeData> {
             { no: 14, name: "archived_at", kind: "message", T: () => Timestamp },
             { no: 15, name: "deleted_at", kind: "message", T: () => Timestamp },
             { no: 16, name: "template_ptr", kind: "message", T: () => NodeReferenceData },
-            { no: 20, name: "mode", kind: "enum", T: () => ["symbol.bench.NodeMode", NodeMode, "NODE_MODE_"] },
+            { no: 25, name: "mode", kind: "enum", T: () => ["symbol.bench.NodeMode", NodeMode, "NODE_MODE_"] },
             { no: 30, name: "type", kind: "enum", T: () => ["symbol.bench.FlowEdgeType", FlowEdgeType, "FLOW_EDGE_TYPE_"] },
             { no: 32, name: "name", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
             { no: 33, name: "order_key", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
@@ -23228,7 +24471,7 @@ class FlowEdgeData$Type extends MessageType$<FlowEdgeData> {
                 case /* optional symbol.bench.NodeReferenceData template_ptr */ 16:
                     message.templatePtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.templatePtr);
                     break;
-                case /* symbol.bench.NodeMode mode */ 20:
+                case /* symbol.bench.NodeMode mode */ 25:
                     message.mode = reader.int32();
                     break;
                 case /* symbol.bench.FlowEdgeType type */ 30:
@@ -23315,9 +24558,9 @@ class FlowEdgeData$Type extends MessageType$<FlowEdgeData> {
         /* optional symbol.bench.NodeReferenceData template_ptr = 16; */
         if (message.templatePtr)
             NodeReferenceData.internalBinaryWrite(message.templatePtr, writer.tag(16, WireType.LengthDelimited).fork(), options).join();
-        /* symbol.bench.NodeMode mode = 20; */
+        /* symbol.bench.NodeMode mode = 25; */
         if (message.mode !== 0)
-            writer.tag(20, WireType.Varint).int32(message.mode);
+            writer.tag(25, WireType.Varint).int32(message.mode);
         /* symbol.bench.FlowEdgeType type = 30; */
         if (message.type !== 0)
             writer.tag(30, WireType.Varint).int32(message.type);
@@ -23382,7 +24625,7 @@ class ServiceData$Type extends MessageType$<ServiceData> {
             { no: 16, name: "template_ptr", kind: "message", T: () => NodeReferenceData },
             { no: 17, name: "owned_by_ptr", kind: "message", T: () => NodeReferenceData },
             { no: 18, name: "claimed_by_ptr", kind: "message", T: () => NodeReferenceData },
-            { no: 20, name: "mode", kind: "enum", T: () => ["symbol.bench.NodeMode", NodeMode, "NODE_MODE_"] },
+            { no: 25, name: "mode", kind: "enum", T: () => ["symbol.bench.NodeMode", NodeMode, "NODE_MODE_"] },
             { no: 31, name: "name", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
             { no: 33, name: "order_key", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
             { no: 34, name: "icon", kind: "message", T: () => IconData },
@@ -23446,7 +24689,7 @@ class ServiceData$Type extends MessageType$<ServiceData> {
                 case /* optional symbol.bench.NodeReferenceData claimed_by_ptr */ 18:
                     message.claimedByPtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.claimedByPtr);
                     break;
-                case /* symbol.bench.NodeMode mode */ 20:
+                case /* symbol.bench.NodeMode mode */ 25:
                     message.mode = reader.int32();
                     break;
                 case /* optional string name */ 31:
@@ -23518,9 +24761,9 @@ class ServiceData$Type extends MessageType$<ServiceData> {
         /* optional symbol.bench.NodeReferenceData claimed_by_ptr = 18; */
         if (message.claimedByPtr)
             NodeReferenceData.internalBinaryWrite(message.claimedByPtr, writer.tag(18, WireType.LengthDelimited).fork(), options).join();
-        /* symbol.bench.NodeMode mode = 20; */
+        /* symbol.bench.NodeMode mode = 25; */
         if (message.mode !== 0)
-            writer.tag(20, WireType.Varint).int32(message.mode);
+            writer.tag(25, WireType.Varint).int32(message.mode);
         /* optional string name = 31; */
         if (message.name !== undefined)
             writer.tag(31, WireType.LengthDelimited).string(message.name);
@@ -24445,7 +25688,7 @@ class BlockData$Type extends MessageType$<BlockData> {
             { no: 14, name: "archived_at", kind: "message", T: () => Timestamp },
             { no: 15, name: "deleted_at", kind: "message", T: () => Timestamp },
             { no: 16, name: "template_ptr", kind: "message", T: () => NodeReferenceData },
-            { no: 20, name: "mode", kind: "enum", T: () => ["symbol.bench.NodeMode", NodeMode, "NODE_MODE_"] },
+            { no: 25, name: "mode", kind: "enum", T: () => ["symbol.bench.NodeMode", NodeMode, "NODE_MODE_"] },
             { no: 30, name: "type", kind: "enum", T: () => ["symbol.bench.BlockType", BlockType, "BLOCK_TYPE_"] },
             { no: 31, name: "name", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
             { no: 33, name: "order_key", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
@@ -24506,7 +25749,7 @@ class BlockData$Type extends MessageType$<BlockData> {
                 case /* optional symbol.bench.NodeReferenceData template_ptr */ 16:
                     message.templatePtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.templatePtr);
                     break;
-                case /* symbol.bench.NodeMode mode */ 20:
+                case /* symbol.bench.NodeMode mode */ 25:
                     message.mode = reader.int32();
                     break;
                 case /* symbol.bench.BlockType type */ 30:
@@ -24575,9 +25818,9 @@ class BlockData$Type extends MessageType$<BlockData> {
         /* optional symbol.bench.NodeReferenceData template_ptr = 16; */
         if (message.templatePtr)
             NodeReferenceData.internalBinaryWrite(message.templatePtr, writer.tag(16, WireType.LengthDelimited).fork(), options).join();
-        /* symbol.bench.NodeMode mode = 20; */
+        /* symbol.bench.NodeMode mode = 25; */
         if (message.mode !== 0)
-            writer.tag(20, WireType.Varint).int32(message.mode);
+            writer.tag(25, WireType.Varint).int32(message.mode);
         /* symbol.bench.BlockType type = 30; */
         if (message.type !== 0)
             writer.tag(30, WireType.Varint).int32(message.type);
@@ -24622,7 +25865,7 @@ class DependencyData$Type extends MessageType$<DependencyData> {
             { no: 14, name: "archived_at", kind: "message", T: () => Timestamp },
             { no: 15, name: "deleted_at", kind: "message", T: () => Timestamp },
             { no: 16, name: "template_ptr", kind: "message", T: () => NodeReferenceData },
-            { no: 20, name: "mode", kind: "enum", T: () => ["symbol.bench.NodeMode", NodeMode, "NODE_MODE_"] },
+            { no: 25, name: "mode", kind: "enum", T: () => ["symbol.bench.NodeMode", NodeMode, "NODE_MODE_"] },
             { no: 40, name: "dependency_ptr", kind: "message", T: () => NodeReferenceData }
         ]);
     }
@@ -24676,7 +25919,7 @@ class DependencyData$Type extends MessageType$<DependencyData> {
                 case /* optional symbol.bench.NodeReferenceData template_ptr */ 16:
                     message.templatePtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.templatePtr);
                     break;
-                case /* symbol.bench.NodeMode mode */ 20:
+                case /* symbol.bench.NodeMode mode */ 25:
                     message.mode = reader.int32();
                     break;
                 case /* symbol.bench.NodeReferenceData dependency_ptr */ 40:
@@ -24730,9 +25973,9 @@ class DependencyData$Type extends MessageType$<DependencyData> {
         /* optional symbol.bench.NodeReferenceData template_ptr = 16; */
         if (message.templatePtr)
             NodeReferenceData.internalBinaryWrite(message.templatePtr, writer.tag(16, WireType.LengthDelimited).fork(), options).join();
-        /* symbol.bench.NodeMode mode = 20; */
+        /* symbol.bench.NodeMode mode = 25; */
         if (message.mode !== 0)
-            writer.tag(20, WireType.Varint).int32(message.mode);
+            writer.tag(25, WireType.Varint).int32(message.mode);
         /* symbol.bench.NodeReferenceData dependency_ptr = 40; */
         if (message.dependencyPtr)
             NodeReferenceData.internalBinaryWrite(message.dependencyPtr, writer.tag(40, WireType.LengthDelimited).fork(), options).join();
@@ -24763,7 +26006,7 @@ class PackageData$Type extends MessageType$<PackageData> {
             { no: 15, name: "deleted_at", kind: "message", T: () => Timestamp },
             { no: 16, name: "template_ptr", kind: "message", T: () => NodeReferenceData },
             { no: 17, name: "owned_by_ptr", kind: "message", T: () => NodeReferenceData },
-            { no: 20, name: "mode", kind: "enum", T: () => ["symbol.bench.NodeMode", NodeMode, "NODE_MODE_"] },
+            { no: 25, name: "mode", kind: "enum", T: () => ["symbol.bench.NodeMode", NodeMode, "NODE_MODE_"] },
             { no: 30, name: "type", kind: "enum", T: () => ["symbol.bench.PackageType", PackageType, "PACKAGE_TYPE_"] },
             { no: 31, name: "name", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
             { no: 34, name: "slug", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
@@ -24827,7 +26070,7 @@ class PackageData$Type extends MessageType$<PackageData> {
                 case /* optional symbol.bench.NodeReferenceData owned_by_ptr */ 17:
                     message.ownedByPtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.ownedByPtr);
                     break;
-                case /* symbol.bench.NodeMode mode */ 20:
+                case /* symbol.bench.NodeMode mode */ 25:
                     message.mode = reader.int32();
                     break;
                 case /* symbol.bench.PackageType type */ 30:
@@ -24902,9 +26145,9 @@ class PackageData$Type extends MessageType$<PackageData> {
         /* optional symbol.bench.NodeReferenceData owned_by_ptr = 17; */
         if (message.ownedByPtr)
             NodeReferenceData.internalBinaryWrite(message.ownedByPtr, writer.tag(17, WireType.LengthDelimited).fork(), options).join();
-        /* symbol.bench.NodeMode mode = 20; */
+        /* symbol.bench.NodeMode mode = 25; */
         if (message.mode !== 0)
-            writer.tag(20, WireType.Varint).int32(message.mode);
+            writer.tag(25, WireType.Varint).int32(message.mode);
         /* symbol.bench.PackageType type = 30; */
         if (message.type !== 0)
             writer.tag(30, WireType.Varint).int32(message.type);
@@ -24954,7 +26197,7 @@ class PageData$Type extends MessageType$<PageData> {
             { no: 16, name: "template_ptr", kind: "message", T: () => NodeReferenceData },
             { no: 17, name: "owned_by_ptr", kind: "message", T: () => NodeReferenceData },
             { no: 18, name: "claimed_by_ptr", kind: "message", T: () => NodeReferenceData },
-            { no: 20, name: "mode", kind: "enum", T: () => ["symbol.bench.NodeMode", NodeMode, "NODE_MODE_"] },
+            { no: 25, name: "mode", kind: "enum", T: () => ["symbol.bench.NodeMode", NodeMode, "NODE_MODE_"] },
             { no: 32, name: "title", kind: "message", T: () => TextLineData },
             { no: 33, name: "order_key", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
             { no: 34, name: "icon", kind: "message", T: () => IconData },
@@ -25017,7 +26260,7 @@ class PageData$Type extends MessageType$<PageData> {
                 case /* optional symbol.bench.NodeReferenceData claimed_by_ptr */ 18:
                     message.claimedByPtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.claimedByPtr);
                     break;
-                case /* symbol.bench.NodeMode mode */ 20:
+                case /* symbol.bench.NodeMode mode */ 25:
                     message.mode = reader.int32();
                     break;
                 case /* optional symbol.bench.TextLineData title */ 32:
@@ -25086,9 +26329,9 @@ class PageData$Type extends MessageType$<PageData> {
         /* optional symbol.bench.NodeReferenceData claimed_by_ptr = 18; */
         if (message.claimedByPtr)
             NodeReferenceData.internalBinaryWrite(message.claimedByPtr, writer.tag(18, WireType.LengthDelimited).fork(), options).join();
-        /* symbol.bench.NodeMode mode = 20; */
+        /* symbol.bench.NodeMode mode = 25; */
         if (message.mode !== 0)
-            writer.tag(20, WireType.Varint).int32(message.mode);
+            writer.tag(25, WireType.Varint).int32(message.mode);
         /* optional symbol.bench.TextLineData title = 32; */
         if (message.title)
             TextLineData.internalBinaryWrite(message.title, writer.tag(32, WireType.LengthDelimited).fork(), options).join();
@@ -25129,7 +26372,7 @@ class ClaimData$Type extends MessageType$<ClaimData> {
             { no: 15, name: "deleted_at", kind: "message", T: () => Timestamp },
             { no: 16, name: "template_ptr", kind: "message", T: () => NodeReferenceData },
             { no: 17, name: "owned_by_ptr", kind: "message", T: () => NodeReferenceData },
-            { no: 20, name: "mode", kind: "enum", T: () => ["symbol.bench.NodeMode", NodeMode, "NODE_MODE_"] },
+            { no: 25, name: "mode", kind: "enum", T: () => ["symbol.bench.NodeMode", NodeMode, "NODE_MODE_"] },
             { no: 30, name: "type", kind: "enum", T: () => ["symbol.bench.ClaimType", ClaimType, "CLAIM_TYPE_"] },
             { no: 31, name: "name", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
             { no: 33, name: "order_key", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
@@ -25209,7 +26452,7 @@ class ClaimData$Type extends MessageType$<ClaimData> {
                 case /* optional symbol.bench.NodeReferenceData owned_by_ptr */ 17:
                     message.ownedByPtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.ownedByPtr);
                     break;
-                case /* symbol.bench.NodeMode mode */ 20:
+                case /* symbol.bench.NodeMode mode */ 25:
                     message.mode = reader.int32();
                     break;
                 case /* symbol.bench.ClaimType type */ 30:
@@ -25314,9 +26557,9 @@ class ClaimData$Type extends MessageType$<ClaimData> {
         /* optional symbol.bench.NodeReferenceData owned_by_ptr = 17; */
         if (message.ownedByPtr)
             NodeReferenceData.internalBinaryWrite(message.ownedByPtr, writer.tag(17, WireType.LengthDelimited).fork(), options).join();
-        /* symbol.bench.NodeMode mode = 20; */
+        /* symbol.bench.NodeMode mode = 25; */
         if (message.mode !== 0)
-            writer.tag(20, WireType.Varint).int32(message.mode);
+            writer.tag(25, WireType.Varint).int32(message.mode);
         /* symbol.bench.ClaimType type = 30; */
         if (message.type !== 0)
             writer.tag(30, WireType.Varint).int32(message.type);
@@ -25391,7 +26634,7 @@ class CursorData$Type extends MessageType$<CursorData> {
             { no: 14, name: "archived_at", kind: "message", T: () => Timestamp },
             { no: 15, name: "deleted_at", kind: "message", T: () => Timestamp },
             { no: 17, name: "owned_by_ptr", kind: "message", T: () => NodeReferenceData },
-            { no: 20, name: "mode", kind: "enum", T: () => ["symbol.bench.NodeMode", NodeMode, "NODE_MODE_"] },
+            { no: 25, name: "mode", kind: "enum", T: () => ["symbol.bench.NodeMode", NodeMode, "NODE_MODE_"] },
             { no: 30, name: "type", kind: "enum", T: () => ["symbol.bench.CursorType", CursorType, "CURSOR_TYPE_"] },
             { no: 32, name: "title", kind: "message", T: () => TextLineData },
             { no: 40, name: "status", kind: "enum", T: () => ["symbol.bench.CursorStatus", CursorStatus, "CURSOR_STATUS_"] },
@@ -25464,7 +26707,7 @@ class CursorData$Type extends MessageType$<CursorData> {
                 case /* optional symbol.bench.NodeReferenceData owned_by_ptr */ 17:
                     message.ownedByPtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.ownedByPtr);
                     break;
-                case /* symbol.bench.NodeMode mode */ 20:
+                case /* symbol.bench.NodeMode mode */ 25:
                     message.mode = reader.int32();
                     break;
                 case /* symbol.bench.CursorType type */ 30:
@@ -25566,9 +26809,9 @@ class CursorData$Type extends MessageType$<CursorData> {
         /* optional symbol.bench.NodeReferenceData owned_by_ptr = 17; */
         if (message.ownedByPtr)
             NodeReferenceData.internalBinaryWrite(message.ownedByPtr, writer.tag(17, WireType.LengthDelimited).fork(), options).join();
-        /* symbol.bench.NodeMode mode = 20; */
+        /* symbol.bench.NodeMode mode = 25; */
         if (message.mode !== 0)
-            writer.tag(20, WireType.Varint).int32(message.mode);
+            writer.tag(25, WireType.Varint).int32(message.mode);
         /* symbol.bench.CursorType type = 30; */
         if (message.type !== 0)
             writer.tag(30, WireType.Varint).int32(message.type);
@@ -25649,7 +26892,7 @@ class TaskData$Type extends MessageType$<TaskData> {
             { no: 16, name: "template_ptr", kind: "message", T: () => NodeReferenceData },
             { no: 17, name: "owned_by_ptr", kind: "message", T: () => NodeReferenceData },
             { no: 18, name: "claimed_by_ptr", kind: "message", T: () => NodeReferenceData },
-            { no: 20, name: "mode", kind: "enum", T: () => ["symbol.bench.NodeMode", NodeMode, "NODE_MODE_"] },
+            { no: 25, name: "mode", kind: "enum", T: () => ["symbol.bench.NodeMode", NodeMode, "NODE_MODE_"] },
             { no: 32, name: "title", kind: "message", T: () => TextLineData },
             { no: 33, name: "order_key", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
             { no: 34, name: "icon", kind: "message", T: () => IconData },
@@ -25737,7 +26980,7 @@ class TaskData$Type extends MessageType$<TaskData> {
                 case /* optional symbol.bench.NodeReferenceData claimed_by_ptr */ 18:
                     message.claimedByPtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.claimedByPtr);
                     break;
-                case /* symbol.bench.NodeMode mode */ 20:
+                case /* symbol.bench.NodeMode mode */ 25:
                     message.mode = reader.int32();
                     break;
                 case /* optional symbol.bench.TextLineData title */ 32:
@@ -25866,9 +27109,9 @@ class TaskData$Type extends MessageType$<TaskData> {
         /* optional symbol.bench.NodeReferenceData claimed_by_ptr = 18; */
         if (message.claimedByPtr)
             NodeReferenceData.internalBinaryWrite(message.claimedByPtr, writer.tag(18, WireType.LengthDelimited).fork(), options).join();
-        /* symbol.bench.NodeMode mode = 20; */
+        /* symbol.bench.NodeMode mode = 25; */
         if (message.mode !== 0)
-            writer.tag(20, WireType.Varint).int32(message.mode);
+            writer.tag(25, WireType.Varint).int32(message.mode);
         /* optional symbol.bench.TextLineData title = 32; */
         if (message.title)
             TextLineData.internalBinaryWrite(message.title, writer.tag(32, WireType.LengthDelimited).fork(), options).join();
@@ -25963,7 +27206,7 @@ class InterruptionData$Type extends MessageType$<InterruptionData> {
             { no: 13, name: "updated_by_ptr", kind: "message", T: () => NodeReferenceData },
             { no: 14, name: "archived_at", kind: "message", T: () => Timestamp },
             { no: 15, name: "deleted_at", kind: "message", T: () => Timestamp },
-            { no: 20, name: "mode", kind: "enum", T: () => ["symbol.bench.NodeMode", NodeMode, "NODE_MODE_"] },
+            { no: 25, name: "mode", kind: "enum", T: () => ["symbol.bench.NodeMode", NodeMode, "NODE_MODE_"] },
             { no: 30, name: "type", kind: "enum", T: () => ["symbol.bench.InterruptionType", InterruptionType, "INTERRUPTION_TYPE_"] },
             { no: 31, name: "root_ptr", kind: "message", T: () => NodeReferenceData },
             { no: 33, name: "flow_ptr", kind: "message", T: () => NodeReferenceData },
@@ -26031,7 +27274,7 @@ class InterruptionData$Type extends MessageType$<InterruptionData> {
                 case /* optional google.protobuf.Timestamp deleted_at */ 15:
                     message.deletedAt = Timestamp.internalBinaryRead(reader, reader.uint32(), options, message.deletedAt);
                     break;
-                case /* symbol.bench.NodeMode mode */ 20:
+                case /* symbol.bench.NodeMode mode */ 25:
                     message.mode = reader.int32();
                     break;
                 case /* symbol.bench.InterruptionType type */ 30:
@@ -26127,9 +27370,9 @@ class InterruptionData$Type extends MessageType$<InterruptionData> {
         /* optional google.protobuf.Timestamp deleted_at = 15; */
         if (message.deletedAt)
             Timestamp.internalBinaryWrite(message.deletedAt, writer.tag(15, WireType.LengthDelimited).fork(), options).join();
-        /* symbol.bench.NodeMode mode = 20; */
+        /* symbol.bench.NodeMode mode = 25; */
         if (message.mode !== 0)
-            writer.tag(20, WireType.Varint).int32(message.mode);
+            writer.tag(25, WireType.Varint).int32(message.mode);
         /* symbol.bench.InterruptionType type = 30; */
         if (message.type !== 0)
             writer.tag(30, WireType.Varint).int32(message.type);
@@ -26203,7 +27446,7 @@ class RunData$Type extends MessageType$<RunData> {
             { no: 13, name: "updated_by_ptr", kind: "message", T: () => NodeReferenceData },
             { no: 14, name: "archived_at", kind: "message", T: () => Timestamp },
             { no: 15, name: "deleted_at", kind: "message", T: () => Timestamp },
-            { no: 20, name: "mode", kind: "enum", T: () => ["symbol.bench.NodeMode", NodeMode, "NODE_MODE_"] },
+            { no: 25, name: "mode", kind: "enum", T: () => ["symbol.bench.NodeMode", NodeMode, "NODE_MODE_"] },
             { no: 30, name: "type", kind: "enum", T: () => ["symbol.bench.RunType", RunType, "RUN_TYPE_"] },
             { no: 32, name: "title", kind: "message", T: () => TextLineData },
             { no: 33, name: "root_ptr", kind: "message", T: () => NodeReferenceData },
@@ -26288,7 +27531,7 @@ class RunData$Type extends MessageType$<RunData> {
                 case /* optional google.protobuf.Timestamp deleted_at */ 15:
                     message.deletedAt = Timestamp.internalBinaryRead(reader, reader.uint32(), options, message.deletedAt);
                     break;
-                case /* symbol.bench.NodeMode mode */ 20:
+                case /* symbol.bench.NodeMode mode */ 25:
                     message.mode = reader.int32();
                     break;
                 case /* symbol.bench.RunType type */ 30:
@@ -26435,9 +27678,9 @@ class RunData$Type extends MessageType$<RunData> {
         /* optional google.protobuf.Timestamp deleted_at = 15; */
         if (message.deletedAt)
             Timestamp.internalBinaryWrite(message.deletedAt, writer.tag(15, WireType.LengthDelimited).fork(), options).join();
-        /* symbol.bench.NodeMode mode = 20; */
+        /* symbol.bench.NodeMode mode = 25; */
         if (message.mode !== 0)
-            writer.tag(20, WireType.Varint).int32(message.mode);
+            writer.tag(25, WireType.Varint).int32(message.mode);
         /* symbol.bench.RunType type = 30; */
         if (message.type !== 0)
             writer.tag(30, WireType.Varint).int32(message.type);
@@ -26561,7 +27804,7 @@ class SessionData$Type extends MessageType$<SessionData> {
             { no: 13, name: "updated_by_ptr", kind: "message", T: () => NodeReferenceData },
             { no: 14, name: "archived_at", kind: "message", T: () => Timestamp },
             { no: 15, name: "deleted_at", kind: "message", T: () => Timestamp },
-            { no: 20, name: "mode", kind: "enum", T: () => ["symbol.bench.NodeMode", NodeMode, "NODE_MODE_"] },
+            { no: 25, name: "mode", kind: "enum", T: () => ["symbol.bench.NodeMode", NodeMode, "NODE_MODE_"] },
             { no: 40, name: "status", kind: "enum", T: () => ["symbol.bench.SessionStatus", SessionStatus, "SESSION_STATUS_"] },
             { no: 41, name: "duration", kind: "message", T: () => Duration },
             { no: 42, name: "opened_at", kind: "message", T: () => Timestamp },
@@ -26617,7 +27860,7 @@ class SessionData$Type extends MessageType$<SessionData> {
                 case /* optional google.protobuf.Timestamp deleted_at */ 15:
                     message.deletedAt = Timestamp.internalBinaryRead(reader, reader.uint32(), options, message.deletedAt);
                     break;
-                case /* symbol.bench.NodeMode mode */ 20:
+                case /* symbol.bench.NodeMode mode */ 25:
                     message.mode = reader.int32();
                     break;
                 case /* symbol.bench.SessionStatus status */ 40:
@@ -26686,9 +27929,9 @@ class SessionData$Type extends MessageType$<SessionData> {
         /* optional google.protobuf.Timestamp deleted_at = 15; */
         if (message.deletedAt)
             Timestamp.internalBinaryWrite(message.deletedAt, writer.tag(15, WireType.LengthDelimited).fork(), options).join();
-        /* symbol.bench.NodeMode mode = 20; */
+        /* symbol.bench.NodeMode mode = 25; */
         if (message.mode !== 0)
-            writer.tag(20, WireType.Varint).int32(message.mode);
+            writer.tag(25, WireType.Varint).int32(message.mode);
         /* symbol.bench.SessionStatus status = 40; */
         if (message.status !== 0)
             writer.tag(40, WireType.Varint).int32(message.status);
@@ -26738,7 +27981,7 @@ class SpanData$Type extends MessageType$<SpanData> {
             { no: 13, name: "updated_by_ptr", kind: "message", T: () => NodeReferenceData },
             { no: 14, name: "archived_at", kind: "message", T: () => Timestamp },
             { no: 15, name: "deleted_at", kind: "message", T: () => Timestamp },
-            { no: 20, name: "mode", kind: "enum", T: () => ["symbol.bench.NodeMode", NodeMode, "NODE_MODE_"] },
+            { no: 25, name: "mode", kind: "enum", T: () => ["symbol.bench.NodeMode", NodeMode, "NODE_MODE_"] },
             { no: 30, name: "type", kind: "enum", T: () => ["symbol.bench.SpanType", SpanType, "SPAN_TYPE_"] },
             { no: 31, name: "root_ptr", kind: "message", T: () => NodeReferenceData },
             { no: 60, name: "title", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
@@ -26818,7 +28061,7 @@ class SpanData$Type extends MessageType$<SpanData> {
                 case /* optional google.protobuf.Timestamp deleted_at */ 15:
                     message.deletedAt = Timestamp.internalBinaryRead(reader, reader.uint32(), options, message.deletedAt);
                     break;
-                case /* symbol.bench.NodeMode mode */ 20:
+                case /* symbol.bench.NodeMode mode */ 25:
                     message.mode = reader.int32();
                     break;
                 case /* symbol.bench.SpanType type */ 30:
@@ -26947,9 +28190,9 @@ class SpanData$Type extends MessageType$<SpanData> {
         /* optional google.protobuf.Timestamp deleted_at = 15; */
         if (message.deletedAt)
             Timestamp.internalBinaryWrite(message.deletedAt, writer.tag(15, WireType.LengthDelimited).fork(), options).join();
-        /* symbol.bench.NodeMode mode = 20; */
+        /* symbol.bench.NodeMode mode = 25; */
         if (message.mode !== 0)
-            writer.tag(20, WireType.Varint).int32(message.mode);
+            writer.tag(25, WireType.Varint).int32(message.mode);
         /* symbol.bench.SpanType type = 30; */
         if (message.type !== 0)
             writer.tag(30, WireType.Varint).int32(message.type);
@@ -27058,7 +28301,7 @@ class SpaceData$Type extends MessageType$<SpaceData> {
             { no: 15, name: "deleted_at", kind: "message", T: () => Timestamp },
             { no: 16, name: "template_ptr", kind: "message", T: () => NodeReferenceData },
             { no: 17, name: "owned_by_ptr", kind: "message", T: () => NodeReferenceData },
-            { no: 20, name: "mode", kind: "enum", T: () => ["symbol.bench.NodeMode", NodeMode, "NODE_MODE_"] },
+            { no: 25, name: "mode", kind: "enum", T: () => ["symbol.bench.NodeMode", NodeMode, "NODE_MODE_"] },
             { no: 30, name: "type", kind: "enum", T: () => ["symbol.bench.SpaceType", SpaceType, "SPACE_TYPE_"] },
             { no: 31, name: "name", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
             { no: 33, name: "order_key", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
@@ -27125,7 +28368,7 @@ class SpaceData$Type extends MessageType$<SpaceData> {
                 case /* optional symbol.bench.NodeReferenceData owned_by_ptr */ 17:
                     message.ownedByPtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.ownedByPtr);
                     break;
-                case /* symbol.bench.NodeMode mode */ 20:
+                case /* symbol.bench.NodeMode mode */ 25:
                     message.mode = reader.int32();
                     break;
                 case /* symbol.bench.SpaceType type */ 30:
@@ -27206,9 +28449,9 @@ class SpaceData$Type extends MessageType$<SpaceData> {
         /* optional symbol.bench.NodeReferenceData owned_by_ptr = 17; */
         if (message.ownedByPtr)
             NodeReferenceData.internalBinaryWrite(message.ownedByPtr, writer.tag(17, WireType.LengthDelimited).fork(), options).join();
-        /* symbol.bench.NodeMode mode = 20; */
+        /* symbol.bench.NodeMode mode = 25; */
         if (message.mode !== 0)
-            writer.tag(20, WireType.Varint).int32(message.mode);
+            writer.tag(25, WireType.Varint).int32(message.mode);
         /* symbol.bench.SpaceType type = 30; */
         if (message.type !== 0)
             writer.tag(30, WireType.Varint).int32(message.type);
@@ -27247,6 +28490,321 @@ class SpaceData$Type extends MessageType$<SpaceData> {
  */
 export const SpaceData = new SpaceData$Type();
 // @generated message type with reflection information, may provide speed optimized methods
+class ComponentViewData$Type extends MessageType$<ComponentViewData> {
+    constructor() {
+        super("symbol.bench.ComponentViewData", [
+            { no: 1, name: "metatype", kind: "enum", T: () => ["symbol.bench.ObjectType", ObjectType, "OBJECT_TYPE_"] },
+            { no: 2, name: "id", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
+            { no: 4, name: "parent_ptr", kind: "message", T: () => NodeReferenceData },
+            { no: 5, name: "bench_ptr", kind: "message", T: () => NodeReferenceData },
+            { no: 9, name: "package_ptr", kind: "message", T: () => NodeReferenceData },
+            { no: 10, name: "created_at", kind: "message", T: () => Timestamp },
+            { no: 11, name: "created_by_ptr", kind: "message", T: () => NodeReferenceData },
+            { no: 12, name: "updated_at", kind: "message", T: () => Timestamp },
+            { no: 13, name: "updated_by_ptr", kind: "message", T: () => NodeReferenceData },
+            { no: 14, name: "archived_at", kind: "message", T: () => Timestamp },
+            { no: 15, name: "deleted_at", kind: "message", T: () => Timestamp },
+            { no: 16, name: "template_ptr", kind: "message", T: () => NodeReferenceData },
+            { no: 25, name: "mode", kind: "enum", T: () => ["symbol.bench.NodeMode", NodeMode, "NODE_MODE_"] },
+            { no: 31, name: "name", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
+            { no: 33, name: "order_key", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
+            { no: 34, name: "icon", kind: "message", T: () => IconData },
+            { no: 35, name: "definition_ptr", kind: "message", T: () => NodeReferenceData },
+            { no: 40, name: "position", kind: "message", T: () => PositionData },
+            { no: 41, name: "width", kind: "message", T: () => DimensionData },
+            { no: 42, name: "height", kind: "message", T: () => DimensionData },
+            { no: 43, name: "min_width", kind: "message", T: () => DimensionData },
+            { no: 44, name: "min_height", kind: "message", T: () => DimensionData },
+            { no: 45, name: "max_width", kind: "message", T: () => DimensionData },
+            { no: 46, name: "max_height", kind: "message", T: () => DimensionData },
+            { no: 50, name: "layout", kind: "enum", opt: true, T: () => ["symbol.bench.Layout", Layout, "LAYOUT_"] },
+            { no: 51, name: "direction", kind: "enum", opt: true, T: () => ["symbol.bench.Direction", Direction, "DIRECTION_"] },
+            { no: 52, name: "distribute", kind: "enum", opt: true, T: () => ["symbol.bench.Distribute", Distribute, "DISTRIBUTE_"] },
+            { no: 53, name: "align", kind: "enum", opt: true, T: () => ["symbol.bench.Align", Align, "ALIGN_"] },
+            { no: 54, name: "gap", kind: "message", T: () => GapData },
+            { no: 55, name: "padding", kind: "message", T: () => PaddingData },
+            { no: 56, name: "grid", kind: "message", T: () => GridData },
+            { no: 57, name: "grid_span", kind: "message", T: () => GridSpanData },
+            { no: 58, name: "aspect_ratio", kind: "scalar", opt: true, T: 2 /*ScalarType.FLOAT*/ },
+            { no: 60, name: "fill", kind: "message", T: () => FillData },
+            { no: 61, name: "opacity", kind: "scalar", opt: true, T: 2 /*ScalarType.FLOAT*/ },
+            { no: 62, name: "is_visible", kind: "scalar", opt: true, T: 8 /*ScalarType.BOOL*/ },
+            { no: 63, name: "rotation", kind: "message", T: () => RotationData },
+            { no: 64, name: "shadow", kind: "message", T: () => ShadowData },
+            { no: 65, name: "border", kind: "message", T: () => BorderData }
+        ]);
+    }
+    create(value?: PartialMessage<ComponentViewData>): ComponentViewData {
+        const message = globalThis.Object.create((this.messagePrototype!));
+        message.metatype = 0;
+        message.id = "";
+        message.mode = 0;
+        if (value !== undefined)
+            reflectionMergePartial<ComponentViewData>(this, message, value);
+        return message;
+    }
+    internalBinaryRead(reader: IBinaryReader, length: number, options: BinaryReadOptions, target?: ComponentViewData): ComponentViewData {
+        let message = target ?? this.create(), end = reader.pos + length;
+        while (reader.pos < end) {
+            let [fieldNo, wireType] = reader.tag();
+            switch (fieldNo) {
+                case /* symbol.bench.ObjectType metatype */ 1:
+                    message.metatype = reader.int32();
+                    break;
+                case /* string id */ 2:
+                    message.id = reader.string();
+                    break;
+                case /* optional symbol.bench.NodeReferenceData parent_ptr */ 4:
+                    message.parentPtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.parentPtr);
+                    break;
+                case /* optional symbol.bench.NodeReferenceData bench_ptr */ 5:
+                    message.benchPtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.benchPtr);
+                    break;
+                case /* optional symbol.bench.NodeReferenceData package_ptr */ 9:
+                    message.packagePtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.packagePtr);
+                    break;
+                case /* google.protobuf.Timestamp created_at */ 10:
+                    message.createdAt = Timestamp.internalBinaryRead(reader, reader.uint32(), options, message.createdAt);
+                    break;
+                case /* optional symbol.bench.NodeReferenceData created_by_ptr */ 11:
+                    message.createdByPtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.createdByPtr);
+                    break;
+                case /* google.protobuf.Timestamp updated_at */ 12:
+                    message.updatedAt = Timestamp.internalBinaryRead(reader, reader.uint32(), options, message.updatedAt);
+                    break;
+                case /* optional symbol.bench.NodeReferenceData updated_by_ptr */ 13:
+                    message.updatedByPtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.updatedByPtr);
+                    break;
+                case /* optional google.protobuf.Timestamp archived_at */ 14:
+                    message.archivedAt = Timestamp.internalBinaryRead(reader, reader.uint32(), options, message.archivedAt);
+                    break;
+                case /* optional google.protobuf.Timestamp deleted_at */ 15:
+                    message.deletedAt = Timestamp.internalBinaryRead(reader, reader.uint32(), options, message.deletedAt);
+                    break;
+                case /* optional symbol.bench.NodeReferenceData template_ptr */ 16:
+                    message.templatePtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.templatePtr);
+                    break;
+                case /* symbol.bench.NodeMode mode */ 25:
+                    message.mode = reader.int32();
+                    break;
+                case /* optional string name */ 31:
+                    message.name = reader.string();
+                    break;
+                case /* optional string order_key */ 33:
+                    message.orderKey = reader.string();
+                    break;
+                case /* optional symbol.bench.IconData icon */ 34:
+                    message.icon = IconData.internalBinaryRead(reader, reader.uint32(), options, message.icon);
+                    break;
+                case /* optional symbol.bench.NodeReferenceData definition_ptr */ 35:
+                    message.definitionPtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.definitionPtr);
+                    break;
+                case /* optional symbol.bench.PositionData position */ 40:
+                    message.position = PositionData.internalBinaryRead(reader, reader.uint32(), options, message.position);
+                    break;
+                case /* optional symbol.bench.DimensionData width */ 41:
+                    message.width = DimensionData.internalBinaryRead(reader, reader.uint32(), options, message.width);
+                    break;
+                case /* optional symbol.bench.DimensionData height */ 42:
+                    message.height = DimensionData.internalBinaryRead(reader, reader.uint32(), options, message.height);
+                    break;
+                case /* optional symbol.bench.DimensionData min_width */ 43:
+                    message.minWidth = DimensionData.internalBinaryRead(reader, reader.uint32(), options, message.minWidth);
+                    break;
+                case /* optional symbol.bench.DimensionData min_height */ 44:
+                    message.minHeight = DimensionData.internalBinaryRead(reader, reader.uint32(), options, message.minHeight);
+                    break;
+                case /* optional symbol.bench.DimensionData max_width */ 45:
+                    message.maxWidth = DimensionData.internalBinaryRead(reader, reader.uint32(), options, message.maxWidth);
+                    break;
+                case /* optional symbol.bench.DimensionData max_height */ 46:
+                    message.maxHeight = DimensionData.internalBinaryRead(reader, reader.uint32(), options, message.maxHeight);
+                    break;
+                case /* optional symbol.bench.Layout layout */ 50:
+                    message.layout = reader.int32();
+                    break;
+                case /* optional symbol.bench.Direction direction */ 51:
+                    message.direction = reader.int32();
+                    break;
+                case /* optional symbol.bench.Distribute distribute */ 52:
+                    message.distribute = reader.int32();
+                    break;
+                case /* optional symbol.bench.Align align */ 53:
+                    message.align = reader.int32();
+                    break;
+                case /* optional symbol.bench.GapData gap */ 54:
+                    message.gap = GapData.internalBinaryRead(reader, reader.uint32(), options, message.gap);
+                    break;
+                case /* optional symbol.bench.PaddingData padding */ 55:
+                    message.padding = PaddingData.internalBinaryRead(reader, reader.uint32(), options, message.padding);
+                    break;
+                case /* optional symbol.bench.GridData grid */ 56:
+                    message.grid = GridData.internalBinaryRead(reader, reader.uint32(), options, message.grid);
+                    break;
+                case /* optional symbol.bench.GridSpanData grid_span */ 57:
+                    message.gridSpan = GridSpanData.internalBinaryRead(reader, reader.uint32(), options, message.gridSpan);
+                    break;
+                case /* optional float aspect_ratio */ 58:
+                    message.aspectRatio = reader.float();
+                    break;
+                case /* optional symbol.bench.FillData fill */ 60:
+                    message.fill = FillData.internalBinaryRead(reader, reader.uint32(), options, message.fill);
+                    break;
+                case /* optional float opacity */ 61:
+                    message.opacity = reader.float();
+                    break;
+                case /* optional bool is_visible */ 62:
+                    message.isVisible = reader.bool();
+                    break;
+                case /* optional symbol.bench.RotationData rotation */ 63:
+                    message.rotation = RotationData.internalBinaryRead(reader, reader.uint32(), options, message.rotation);
+                    break;
+                case /* optional symbol.bench.ShadowData shadow */ 64:
+                    message.shadow = ShadowData.internalBinaryRead(reader, reader.uint32(), options, message.shadow);
+                    break;
+                case /* optional symbol.bench.BorderData border */ 65:
+                    message.border = BorderData.internalBinaryRead(reader, reader.uint32(), options, message.border);
+                    break;
+                default:
+                    let u = options.readUnknownField;
+                    if (u === "throw")
+                        throw new globalThis.Error(`Unknown field ${fieldNo} (wire type ${wireType}) for ${this.typeName}`);
+                    let d = reader.skip(wireType);
+                    if (u !== false)
+                        (u === true ? UnknownFieldHandler.onRead : u)(this.typeName, message, fieldNo, wireType, d);
+            }
+        }
+        return message;
+    }
+    internalBinaryWrite(message: ComponentViewData, writer: IBinaryWriter, options: BinaryWriteOptions): IBinaryWriter {
+        /* symbol.bench.ObjectType metatype = 1; */
+        if (message.metatype !== 0)
+            writer.tag(1, WireType.Varint).int32(message.metatype);
+        /* string id = 2; */
+        if (message.id !== "")
+            writer.tag(2, WireType.LengthDelimited).string(message.id);
+        /* optional symbol.bench.NodeReferenceData parent_ptr = 4; */
+        if (message.parentPtr)
+            NodeReferenceData.internalBinaryWrite(message.parentPtr, writer.tag(4, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbol.bench.NodeReferenceData bench_ptr = 5; */
+        if (message.benchPtr)
+            NodeReferenceData.internalBinaryWrite(message.benchPtr, writer.tag(5, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbol.bench.NodeReferenceData package_ptr = 9; */
+        if (message.packagePtr)
+            NodeReferenceData.internalBinaryWrite(message.packagePtr, writer.tag(9, WireType.LengthDelimited).fork(), options).join();
+        /* google.protobuf.Timestamp created_at = 10; */
+        if (message.createdAt)
+            Timestamp.internalBinaryWrite(message.createdAt, writer.tag(10, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbol.bench.NodeReferenceData created_by_ptr = 11; */
+        if (message.createdByPtr)
+            NodeReferenceData.internalBinaryWrite(message.createdByPtr, writer.tag(11, WireType.LengthDelimited).fork(), options).join();
+        /* google.protobuf.Timestamp updated_at = 12; */
+        if (message.updatedAt)
+            Timestamp.internalBinaryWrite(message.updatedAt, writer.tag(12, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbol.bench.NodeReferenceData updated_by_ptr = 13; */
+        if (message.updatedByPtr)
+            NodeReferenceData.internalBinaryWrite(message.updatedByPtr, writer.tag(13, WireType.LengthDelimited).fork(), options).join();
+        /* optional google.protobuf.Timestamp archived_at = 14; */
+        if (message.archivedAt)
+            Timestamp.internalBinaryWrite(message.archivedAt, writer.tag(14, WireType.LengthDelimited).fork(), options).join();
+        /* optional google.protobuf.Timestamp deleted_at = 15; */
+        if (message.deletedAt)
+            Timestamp.internalBinaryWrite(message.deletedAt, writer.tag(15, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbol.bench.NodeReferenceData template_ptr = 16; */
+        if (message.templatePtr)
+            NodeReferenceData.internalBinaryWrite(message.templatePtr, writer.tag(16, WireType.LengthDelimited).fork(), options).join();
+        /* symbol.bench.NodeMode mode = 25; */
+        if (message.mode !== 0)
+            writer.tag(25, WireType.Varint).int32(message.mode);
+        /* optional string name = 31; */
+        if (message.name !== undefined)
+            writer.tag(31, WireType.LengthDelimited).string(message.name);
+        /* optional string order_key = 33; */
+        if (message.orderKey !== undefined)
+            writer.tag(33, WireType.LengthDelimited).string(message.orderKey);
+        /* optional symbol.bench.IconData icon = 34; */
+        if (message.icon)
+            IconData.internalBinaryWrite(message.icon, writer.tag(34, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbol.bench.NodeReferenceData definition_ptr = 35; */
+        if (message.definitionPtr)
+            NodeReferenceData.internalBinaryWrite(message.definitionPtr, writer.tag(35, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbol.bench.PositionData position = 40; */
+        if (message.position)
+            PositionData.internalBinaryWrite(message.position, writer.tag(40, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbol.bench.DimensionData width = 41; */
+        if (message.width)
+            DimensionData.internalBinaryWrite(message.width, writer.tag(41, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbol.bench.DimensionData height = 42; */
+        if (message.height)
+            DimensionData.internalBinaryWrite(message.height, writer.tag(42, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbol.bench.DimensionData min_width = 43; */
+        if (message.minWidth)
+            DimensionData.internalBinaryWrite(message.minWidth, writer.tag(43, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbol.bench.DimensionData min_height = 44; */
+        if (message.minHeight)
+            DimensionData.internalBinaryWrite(message.minHeight, writer.tag(44, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbol.bench.DimensionData max_width = 45; */
+        if (message.maxWidth)
+            DimensionData.internalBinaryWrite(message.maxWidth, writer.tag(45, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbol.bench.DimensionData max_height = 46; */
+        if (message.maxHeight)
+            DimensionData.internalBinaryWrite(message.maxHeight, writer.tag(46, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbol.bench.Layout layout = 50; */
+        if (message.layout !== undefined)
+            writer.tag(50, WireType.Varint).int32(message.layout);
+        /* optional symbol.bench.Direction direction = 51; */
+        if (message.direction !== undefined)
+            writer.tag(51, WireType.Varint).int32(message.direction);
+        /* optional symbol.bench.Distribute distribute = 52; */
+        if (message.distribute !== undefined)
+            writer.tag(52, WireType.Varint).int32(message.distribute);
+        /* optional symbol.bench.Align align = 53; */
+        if (message.align !== undefined)
+            writer.tag(53, WireType.Varint).int32(message.align);
+        /* optional symbol.bench.GapData gap = 54; */
+        if (message.gap)
+            GapData.internalBinaryWrite(message.gap, writer.tag(54, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbol.bench.PaddingData padding = 55; */
+        if (message.padding)
+            PaddingData.internalBinaryWrite(message.padding, writer.tag(55, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbol.bench.GridData grid = 56; */
+        if (message.grid)
+            GridData.internalBinaryWrite(message.grid, writer.tag(56, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbol.bench.GridSpanData grid_span = 57; */
+        if (message.gridSpan)
+            GridSpanData.internalBinaryWrite(message.gridSpan, writer.tag(57, WireType.LengthDelimited).fork(), options).join();
+        /* optional float aspect_ratio = 58; */
+        if (message.aspectRatio !== undefined)
+            writer.tag(58, WireType.Bit32).float(message.aspectRatio);
+        /* optional symbol.bench.FillData fill = 60; */
+        if (message.fill)
+            FillData.internalBinaryWrite(message.fill, writer.tag(60, WireType.LengthDelimited).fork(), options).join();
+        /* optional float opacity = 61; */
+        if (message.opacity !== undefined)
+            writer.tag(61, WireType.Bit32).float(message.opacity);
+        /* optional bool is_visible = 62; */
+        if (message.isVisible !== undefined)
+            writer.tag(62, WireType.Varint).bool(message.isVisible);
+        /* optional symbol.bench.RotationData rotation = 63; */
+        if (message.rotation)
+            RotationData.internalBinaryWrite(message.rotation, writer.tag(63, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbol.bench.ShadowData shadow = 64; */
+        if (message.shadow)
+            ShadowData.internalBinaryWrite(message.shadow, writer.tag(64, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbol.bench.BorderData border = 65; */
+        if (message.border)
+            BorderData.internalBinaryWrite(message.border, writer.tag(65, WireType.LengthDelimited).fork(), options).join();
+        let u = options.writeUnknownFields;
+        if (u !== false)
+            (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
+        return writer;
+    }
+}
+/**
+ * @generated MessageType for protobuf message symbol.bench.ComponentViewData
+ */
+export const ComponentViewData = new ComponentViewData$Type();
+// @generated message type with reflection information, may provide speed optimized methods
 class FrameViewData$Type extends MessageType$<FrameViewData> {
     constructor() {
         super("symbol.bench.FrameViewData", [
@@ -27262,13 +28820,33 @@ class FrameViewData$Type extends MessageType$<FrameViewData> {
             { no: 14, name: "archived_at", kind: "message", T: () => Timestamp },
             { no: 15, name: "deleted_at", kind: "message", T: () => Timestamp },
             { no: 16, name: "template_ptr", kind: "message", T: () => NodeReferenceData },
-            { no: 20, name: "mode", kind: "enum", T: () => ["symbol.bench.NodeMode", NodeMode, "NODE_MODE_"] },
+            { no: 25, name: "mode", kind: "enum", T: () => ["symbol.bench.NodeMode", NodeMode, "NODE_MODE_"] },
             { no: 31, name: "name", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
             { no: 33, name: "order_key", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
             { no: 34, name: "icon", kind: "message", T: () => IconData },
             { no: 35, name: "definition_ptr", kind: "message", T: () => NodeReferenceData },
-            { no: 70, name: "focus_ptr", kind: "message", T: () => NodeReferenceData },
-            { no: 71, name: "selection", kind: "message", T: () => SelectionData }
+            { no: 40, name: "position", kind: "message", T: () => PositionData },
+            { no: 41, name: "width", kind: "message", T: () => DimensionData },
+            { no: 42, name: "height", kind: "message", T: () => DimensionData },
+            { no: 43, name: "min_width", kind: "message", T: () => DimensionData },
+            { no: 44, name: "min_height", kind: "message", T: () => DimensionData },
+            { no: 45, name: "max_width", kind: "message", T: () => DimensionData },
+            { no: 46, name: "max_height", kind: "message", T: () => DimensionData },
+            { no: 50, name: "layout", kind: "enum", opt: true, T: () => ["symbol.bench.Layout", Layout, "LAYOUT_"] },
+            { no: 51, name: "direction", kind: "enum", opt: true, T: () => ["symbol.bench.Direction", Direction, "DIRECTION_"] },
+            { no: 52, name: "distribute", kind: "enum", opt: true, T: () => ["symbol.bench.Distribute", Distribute, "DISTRIBUTE_"] },
+            { no: 53, name: "align", kind: "enum", opt: true, T: () => ["symbol.bench.Align", Align, "ALIGN_"] },
+            { no: 54, name: "gap", kind: "message", T: () => GapData },
+            { no: 55, name: "padding", kind: "message", T: () => PaddingData },
+            { no: 56, name: "grid", kind: "message", T: () => GridData },
+            { no: 57, name: "grid_span", kind: "message", T: () => GridSpanData },
+            { no: 58, name: "aspect_ratio", kind: "scalar", opt: true, T: 2 /*ScalarType.FLOAT*/ },
+            { no: 60, name: "fill", kind: "message", T: () => FillData },
+            { no: 61, name: "opacity", kind: "scalar", opt: true, T: 2 /*ScalarType.FLOAT*/ },
+            { no: 62, name: "is_visible", kind: "scalar", opt: true, T: 8 /*ScalarType.BOOL*/ },
+            { no: 63, name: "rotation", kind: "message", T: () => RotationData },
+            { no: 64, name: "shadow", kind: "message", T: () => ShadowData },
+            { no: 65, name: "border", kind: "message", T: () => BorderData }
         ]);
     }
     create(value?: PartialMessage<FrameViewData>): FrameViewData {
@@ -27321,7 +28899,7 @@ class FrameViewData$Type extends MessageType$<FrameViewData> {
                 case /* optional symbol.bench.NodeReferenceData template_ptr */ 16:
                     message.templatePtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.templatePtr);
                     break;
-                case /* symbol.bench.NodeMode mode */ 20:
+                case /* symbol.bench.NodeMode mode */ 25:
                     message.mode = reader.int32();
                     break;
                 case /* optional string name */ 31:
@@ -27336,11 +28914,71 @@ class FrameViewData$Type extends MessageType$<FrameViewData> {
                 case /* optional symbol.bench.NodeReferenceData definition_ptr */ 35:
                     message.definitionPtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.definitionPtr);
                     break;
-                case /* optional symbol.bench.NodeReferenceData focus_ptr */ 70:
-                    message.focusPtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.focusPtr);
+                case /* optional symbol.bench.PositionData position */ 40:
+                    message.position = PositionData.internalBinaryRead(reader, reader.uint32(), options, message.position);
                     break;
-                case /* optional symbol.bench.SelectionData selection */ 71:
-                    message.selection = SelectionData.internalBinaryRead(reader, reader.uint32(), options, message.selection);
+                case /* optional symbol.bench.DimensionData width */ 41:
+                    message.width = DimensionData.internalBinaryRead(reader, reader.uint32(), options, message.width);
+                    break;
+                case /* optional symbol.bench.DimensionData height */ 42:
+                    message.height = DimensionData.internalBinaryRead(reader, reader.uint32(), options, message.height);
+                    break;
+                case /* optional symbol.bench.DimensionData min_width */ 43:
+                    message.minWidth = DimensionData.internalBinaryRead(reader, reader.uint32(), options, message.minWidth);
+                    break;
+                case /* optional symbol.bench.DimensionData min_height */ 44:
+                    message.minHeight = DimensionData.internalBinaryRead(reader, reader.uint32(), options, message.minHeight);
+                    break;
+                case /* optional symbol.bench.DimensionData max_width */ 45:
+                    message.maxWidth = DimensionData.internalBinaryRead(reader, reader.uint32(), options, message.maxWidth);
+                    break;
+                case /* optional symbol.bench.DimensionData max_height */ 46:
+                    message.maxHeight = DimensionData.internalBinaryRead(reader, reader.uint32(), options, message.maxHeight);
+                    break;
+                case /* optional symbol.bench.Layout layout */ 50:
+                    message.layout = reader.int32();
+                    break;
+                case /* optional symbol.bench.Direction direction */ 51:
+                    message.direction = reader.int32();
+                    break;
+                case /* optional symbol.bench.Distribute distribute */ 52:
+                    message.distribute = reader.int32();
+                    break;
+                case /* optional symbol.bench.Align align */ 53:
+                    message.align = reader.int32();
+                    break;
+                case /* optional symbol.bench.GapData gap */ 54:
+                    message.gap = GapData.internalBinaryRead(reader, reader.uint32(), options, message.gap);
+                    break;
+                case /* optional symbol.bench.PaddingData padding */ 55:
+                    message.padding = PaddingData.internalBinaryRead(reader, reader.uint32(), options, message.padding);
+                    break;
+                case /* optional symbol.bench.GridData grid */ 56:
+                    message.grid = GridData.internalBinaryRead(reader, reader.uint32(), options, message.grid);
+                    break;
+                case /* optional symbol.bench.GridSpanData grid_span */ 57:
+                    message.gridSpan = GridSpanData.internalBinaryRead(reader, reader.uint32(), options, message.gridSpan);
+                    break;
+                case /* optional float aspect_ratio */ 58:
+                    message.aspectRatio = reader.float();
+                    break;
+                case /* optional symbol.bench.FillData fill */ 60:
+                    message.fill = FillData.internalBinaryRead(reader, reader.uint32(), options, message.fill);
+                    break;
+                case /* optional float opacity */ 61:
+                    message.opacity = reader.float();
+                    break;
+                case /* optional bool is_visible */ 62:
+                    message.isVisible = reader.bool();
+                    break;
+                case /* optional symbol.bench.RotationData rotation */ 63:
+                    message.rotation = RotationData.internalBinaryRead(reader, reader.uint32(), options, message.rotation);
+                    break;
+                case /* optional symbol.bench.ShadowData shadow */ 64:
+                    message.shadow = ShadowData.internalBinaryRead(reader, reader.uint32(), options, message.shadow);
+                    break;
+                case /* optional symbol.bench.BorderData border */ 65:
+                    message.border = BorderData.internalBinaryRead(reader, reader.uint32(), options, message.border);
                     break;
                 default:
                     let u = options.readUnknownField;
@@ -27390,9 +29028,9 @@ class FrameViewData$Type extends MessageType$<FrameViewData> {
         /* optional symbol.bench.NodeReferenceData template_ptr = 16; */
         if (message.templatePtr)
             NodeReferenceData.internalBinaryWrite(message.templatePtr, writer.tag(16, WireType.LengthDelimited).fork(), options).join();
-        /* symbol.bench.NodeMode mode = 20; */
+        /* symbol.bench.NodeMode mode = 25; */
         if (message.mode !== 0)
-            writer.tag(20, WireType.Varint).int32(message.mode);
+            writer.tag(25, WireType.Varint).int32(message.mode);
         /* optional string name = 31; */
         if (message.name !== undefined)
             writer.tag(31, WireType.LengthDelimited).string(message.name);
@@ -27405,12 +29043,72 @@ class FrameViewData$Type extends MessageType$<FrameViewData> {
         /* optional symbol.bench.NodeReferenceData definition_ptr = 35; */
         if (message.definitionPtr)
             NodeReferenceData.internalBinaryWrite(message.definitionPtr, writer.tag(35, WireType.LengthDelimited).fork(), options).join();
-        /* optional symbol.bench.NodeReferenceData focus_ptr = 70; */
-        if (message.focusPtr)
-            NodeReferenceData.internalBinaryWrite(message.focusPtr, writer.tag(70, WireType.LengthDelimited).fork(), options).join();
-        /* optional symbol.bench.SelectionData selection = 71; */
-        if (message.selection)
-            SelectionData.internalBinaryWrite(message.selection, writer.tag(71, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbol.bench.PositionData position = 40; */
+        if (message.position)
+            PositionData.internalBinaryWrite(message.position, writer.tag(40, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbol.bench.DimensionData width = 41; */
+        if (message.width)
+            DimensionData.internalBinaryWrite(message.width, writer.tag(41, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbol.bench.DimensionData height = 42; */
+        if (message.height)
+            DimensionData.internalBinaryWrite(message.height, writer.tag(42, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbol.bench.DimensionData min_width = 43; */
+        if (message.minWidth)
+            DimensionData.internalBinaryWrite(message.minWidth, writer.tag(43, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbol.bench.DimensionData min_height = 44; */
+        if (message.minHeight)
+            DimensionData.internalBinaryWrite(message.minHeight, writer.tag(44, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbol.bench.DimensionData max_width = 45; */
+        if (message.maxWidth)
+            DimensionData.internalBinaryWrite(message.maxWidth, writer.tag(45, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbol.bench.DimensionData max_height = 46; */
+        if (message.maxHeight)
+            DimensionData.internalBinaryWrite(message.maxHeight, writer.tag(46, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbol.bench.Layout layout = 50; */
+        if (message.layout !== undefined)
+            writer.tag(50, WireType.Varint).int32(message.layout);
+        /* optional symbol.bench.Direction direction = 51; */
+        if (message.direction !== undefined)
+            writer.tag(51, WireType.Varint).int32(message.direction);
+        /* optional symbol.bench.Distribute distribute = 52; */
+        if (message.distribute !== undefined)
+            writer.tag(52, WireType.Varint).int32(message.distribute);
+        /* optional symbol.bench.Align align = 53; */
+        if (message.align !== undefined)
+            writer.tag(53, WireType.Varint).int32(message.align);
+        /* optional symbol.bench.GapData gap = 54; */
+        if (message.gap)
+            GapData.internalBinaryWrite(message.gap, writer.tag(54, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbol.bench.PaddingData padding = 55; */
+        if (message.padding)
+            PaddingData.internalBinaryWrite(message.padding, writer.tag(55, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbol.bench.GridData grid = 56; */
+        if (message.grid)
+            GridData.internalBinaryWrite(message.grid, writer.tag(56, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbol.bench.GridSpanData grid_span = 57; */
+        if (message.gridSpan)
+            GridSpanData.internalBinaryWrite(message.gridSpan, writer.tag(57, WireType.LengthDelimited).fork(), options).join();
+        /* optional float aspect_ratio = 58; */
+        if (message.aspectRatio !== undefined)
+            writer.tag(58, WireType.Bit32).float(message.aspectRatio);
+        /* optional symbol.bench.FillData fill = 60; */
+        if (message.fill)
+            FillData.internalBinaryWrite(message.fill, writer.tag(60, WireType.LengthDelimited).fork(), options).join();
+        /* optional float opacity = 61; */
+        if (message.opacity !== undefined)
+            writer.tag(61, WireType.Bit32).float(message.opacity);
+        /* optional bool is_visible = 62; */
+        if (message.isVisible !== undefined)
+            writer.tag(62, WireType.Varint).bool(message.isVisible);
+        /* optional symbol.bench.RotationData rotation = 63; */
+        if (message.rotation)
+            RotationData.internalBinaryWrite(message.rotation, writer.tag(63, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbol.bench.ShadowData shadow = 64; */
+        if (message.shadow)
+            ShadowData.internalBinaryWrite(message.shadow, writer.tag(64, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbol.bench.BorderData border = 65; */
+        if (message.border)
+            BorderData.internalBinaryWrite(message.border, writer.tag(65, WireType.LengthDelimited).fork(), options).join();
         let u = options.writeUnknownFields;
         if (u !== false)
             (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
@@ -27437,13 +29135,33 @@ class LabelViewData$Type extends MessageType$<LabelViewData> {
             { no: 14, name: "archived_at", kind: "message", T: () => Timestamp },
             { no: 15, name: "deleted_at", kind: "message", T: () => Timestamp },
             { no: 16, name: "template_ptr", kind: "message", T: () => NodeReferenceData },
-            { no: 20, name: "mode", kind: "enum", T: () => ["symbol.bench.NodeMode", NodeMode, "NODE_MODE_"] },
+            { no: 25, name: "mode", kind: "enum", T: () => ["symbol.bench.NodeMode", NodeMode, "NODE_MODE_"] },
             { no: 31, name: "name", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
             { no: 33, name: "order_key", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
             { no: 34, name: "icon", kind: "message", T: () => IconData },
             { no: 35, name: "definition_ptr", kind: "message", T: () => NodeReferenceData },
-            { no: 70, name: "focus_ptr", kind: "message", T: () => NodeReferenceData },
-            { no: 71, name: "selection", kind: "message", T: () => SelectionData }
+            { no: 40, name: "position", kind: "message", T: () => PositionData },
+            { no: 41, name: "width", kind: "message", T: () => DimensionData },
+            { no: 42, name: "height", kind: "message", T: () => DimensionData },
+            { no: 43, name: "min_width", kind: "message", T: () => DimensionData },
+            { no: 44, name: "min_height", kind: "message", T: () => DimensionData },
+            { no: 45, name: "max_width", kind: "message", T: () => DimensionData },
+            { no: 46, name: "max_height", kind: "message", T: () => DimensionData },
+            { no: 50, name: "layout", kind: "enum", opt: true, T: () => ["symbol.bench.Layout", Layout, "LAYOUT_"] },
+            { no: 51, name: "direction", kind: "enum", opt: true, T: () => ["symbol.bench.Direction", Direction, "DIRECTION_"] },
+            { no: 52, name: "distribute", kind: "enum", opt: true, T: () => ["symbol.bench.Distribute", Distribute, "DISTRIBUTE_"] },
+            { no: 53, name: "align", kind: "enum", opt: true, T: () => ["symbol.bench.Align", Align, "ALIGN_"] },
+            { no: 54, name: "gap", kind: "message", T: () => GapData },
+            { no: 55, name: "padding", kind: "message", T: () => PaddingData },
+            { no: 56, name: "grid", kind: "message", T: () => GridData },
+            { no: 57, name: "grid_span", kind: "message", T: () => GridSpanData },
+            { no: 58, name: "aspect_ratio", kind: "scalar", opt: true, T: 2 /*ScalarType.FLOAT*/ },
+            { no: 60, name: "fill", kind: "message", T: () => FillData },
+            { no: 61, name: "opacity", kind: "scalar", opt: true, T: 2 /*ScalarType.FLOAT*/ },
+            { no: 62, name: "is_visible", kind: "scalar", opt: true, T: 8 /*ScalarType.BOOL*/ },
+            { no: 63, name: "rotation", kind: "message", T: () => RotationData },
+            { no: 64, name: "shadow", kind: "message", T: () => ShadowData },
+            { no: 65, name: "border", kind: "message", T: () => BorderData }
         ]);
     }
     create(value?: PartialMessage<LabelViewData>): LabelViewData {
@@ -27496,7 +29214,7 @@ class LabelViewData$Type extends MessageType$<LabelViewData> {
                 case /* optional symbol.bench.NodeReferenceData template_ptr */ 16:
                     message.templatePtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.templatePtr);
                     break;
-                case /* symbol.bench.NodeMode mode */ 20:
+                case /* symbol.bench.NodeMode mode */ 25:
                     message.mode = reader.int32();
                     break;
                 case /* optional string name */ 31:
@@ -27511,11 +29229,71 @@ class LabelViewData$Type extends MessageType$<LabelViewData> {
                 case /* optional symbol.bench.NodeReferenceData definition_ptr */ 35:
                     message.definitionPtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.definitionPtr);
                     break;
-                case /* optional symbol.bench.NodeReferenceData focus_ptr */ 70:
-                    message.focusPtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.focusPtr);
+                case /* optional symbol.bench.PositionData position */ 40:
+                    message.position = PositionData.internalBinaryRead(reader, reader.uint32(), options, message.position);
                     break;
-                case /* optional symbol.bench.SelectionData selection */ 71:
-                    message.selection = SelectionData.internalBinaryRead(reader, reader.uint32(), options, message.selection);
+                case /* optional symbol.bench.DimensionData width */ 41:
+                    message.width = DimensionData.internalBinaryRead(reader, reader.uint32(), options, message.width);
+                    break;
+                case /* optional symbol.bench.DimensionData height */ 42:
+                    message.height = DimensionData.internalBinaryRead(reader, reader.uint32(), options, message.height);
+                    break;
+                case /* optional symbol.bench.DimensionData min_width */ 43:
+                    message.minWidth = DimensionData.internalBinaryRead(reader, reader.uint32(), options, message.minWidth);
+                    break;
+                case /* optional symbol.bench.DimensionData min_height */ 44:
+                    message.minHeight = DimensionData.internalBinaryRead(reader, reader.uint32(), options, message.minHeight);
+                    break;
+                case /* optional symbol.bench.DimensionData max_width */ 45:
+                    message.maxWidth = DimensionData.internalBinaryRead(reader, reader.uint32(), options, message.maxWidth);
+                    break;
+                case /* optional symbol.bench.DimensionData max_height */ 46:
+                    message.maxHeight = DimensionData.internalBinaryRead(reader, reader.uint32(), options, message.maxHeight);
+                    break;
+                case /* optional symbol.bench.Layout layout */ 50:
+                    message.layout = reader.int32();
+                    break;
+                case /* optional symbol.bench.Direction direction */ 51:
+                    message.direction = reader.int32();
+                    break;
+                case /* optional symbol.bench.Distribute distribute */ 52:
+                    message.distribute = reader.int32();
+                    break;
+                case /* optional symbol.bench.Align align */ 53:
+                    message.align = reader.int32();
+                    break;
+                case /* optional symbol.bench.GapData gap */ 54:
+                    message.gap = GapData.internalBinaryRead(reader, reader.uint32(), options, message.gap);
+                    break;
+                case /* optional symbol.bench.PaddingData padding */ 55:
+                    message.padding = PaddingData.internalBinaryRead(reader, reader.uint32(), options, message.padding);
+                    break;
+                case /* optional symbol.bench.GridData grid */ 56:
+                    message.grid = GridData.internalBinaryRead(reader, reader.uint32(), options, message.grid);
+                    break;
+                case /* optional symbol.bench.GridSpanData grid_span */ 57:
+                    message.gridSpan = GridSpanData.internalBinaryRead(reader, reader.uint32(), options, message.gridSpan);
+                    break;
+                case /* optional float aspect_ratio */ 58:
+                    message.aspectRatio = reader.float();
+                    break;
+                case /* optional symbol.bench.FillData fill */ 60:
+                    message.fill = FillData.internalBinaryRead(reader, reader.uint32(), options, message.fill);
+                    break;
+                case /* optional float opacity */ 61:
+                    message.opacity = reader.float();
+                    break;
+                case /* optional bool is_visible */ 62:
+                    message.isVisible = reader.bool();
+                    break;
+                case /* optional symbol.bench.RotationData rotation */ 63:
+                    message.rotation = RotationData.internalBinaryRead(reader, reader.uint32(), options, message.rotation);
+                    break;
+                case /* optional symbol.bench.ShadowData shadow */ 64:
+                    message.shadow = ShadowData.internalBinaryRead(reader, reader.uint32(), options, message.shadow);
+                    break;
+                case /* optional symbol.bench.BorderData border */ 65:
+                    message.border = BorderData.internalBinaryRead(reader, reader.uint32(), options, message.border);
                     break;
                 default:
                     let u = options.readUnknownField;
@@ -27565,9 +29343,9 @@ class LabelViewData$Type extends MessageType$<LabelViewData> {
         /* optional symbol.bench.NodeReferenceData template_ptr = 16; */
         if (message.templatePtr)
             NodeReferenceData.internalBinaryWrite(message.templatePtr, writer.tag(16, WireType.LengthDelimited).fork(), options).join();
-        /* symbol.bench.NodeMode mode = 20; */
+        /* symbol.bench.NodeMode mode = 25; */
         if (message.mode !== 0)
-            writer.tag(20, WireType.Varint).int32(message.mode);
+            writer.tag(25, WireType.Varint).int32(message.mode);
         /* optional string name = 31; */
         if (message.name !== undefined)
             writer.tag(31, WireType.LengthDelimited).string(message.name);
@@ -27580,12 +29358,72 @@ class LabelViewData$Type extends MessageType$<LabelViewData> {
         /* optional symbol.bench.NodeReferenceData definition_ptr = 35; */
         if (message.definitionPtr)
             NodeReferenceData.internalBinaryWrite(message.definitionPtr, writer.tag(35, WireType.LengthDelimited).fork(), options).join();
-        /* optional symbol.bench.NodeReferenceData focus_ptr = 70; */
-        if (message.focusPtr)
-            NodeReferenceData.internalBinaryWrite(message.focusPtr, writer.tag(70, WireType.LengthDelimited).fork(), options).join();
-        /* optional symbol.bench.SelectionData selection = 71; */
-        if (message.selection)
-            SelectionData.internalBinaryWrite(message.selection, writer.tag(71, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbol.bench.PositionData position = 40; */
+        if (message.position)
+            PositionData.internalBinaryWrite(message.position, writer.tag(40, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbol.bench.DimensionData width = 41; */
+        if (message.width)
+            DimensionData.internalBinaryWrite(message.width, writer.tag(41, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbol.bench.DimensionData height = 42; */
+        if (message.height)
+            DimensionData.internalBinaryWrite(message.height, writer.tag(42, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbol.bench.DimensionData min_width = 43; */
+        if (message.minWidth)
+            DimensionData.internalBinaryWrite(message.minWidth, writer.tag(43, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbol.bench.DimensionData min_height = 44; */
+        if (message.minHeight)
+            DimensionData.internalBinaryWrite(message.minHeight, writer.tag(44, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbol.bench.DimensionData max_width = 45; */
+        if (message.maxWidth)
+            DimensionData.internalBinaryWrite(message.maxWidth, writer.tag(45, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbol.bench.DimensionData max_height = 46; */
+        if (message.maxHeight)
+            DimensionData.internalBinaryWrite(message.maxHeight, writer.tag(46, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbol.bench.Layout layout = 50; */
+        if (message.layout !== undefined)
+            writer.tag(50, WireType.Varint).int32(message.layout);
+        /* optional symbol.bench.Direction direction = 51; */
+        if (message.direction !== undefined)
+            writer.tag(51, WireType.Varint).int32(message.direction);
+        /* optional symbol.bench.Distribute distribute = 52; */
+        if (message.distribute !== undefined)
+            writer.tag(52, WireType.Varint).int32(message.distribute);
+        /* optional symbol.bench.Align align = 53; */
+        if (message.align !== undefined)
+            writer.tag(53, WireType.Varint).int32(message.align);
+        /* optional symbol.bench.GapData gap = 54; */
+        if (message.gap)
+            GapData.internalBinaryWrite(message.gap, writer.tag(54, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbol.bench.PaddingData padding = 55; */
+        if (message.padding)
+            PaddingData.internalBinaryWrite(message.padding, writer.tag(55, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbol.bench.GridData grid = 56; */
+        if (message.grid)
+            GridData.internalBinaryWrite(message.grid, writer.tag(56, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbol.bench.GridSpanData grid_span = 57; */
+        if (message.gridSpan)
+            GridSpanData.internalBinaryWrite(message.gridSpan, writer.tag(57, WireType.LengthDelimited).fork(), options).join();
+        /* optional float aspect_ratio = 58; */
+        if (message.aspectRatio !== undefined)
+            writer.tag(58, WireType.Bit32).float(message.aspectRatio);
+        /* optional symbol.bench.FillData fill = 60; */
+        if (message.fill)
+            FillData.internalBinaryWrite(message.fill, writer.tag(60, WireType.LengthDelimited).fork(), options).join();
+        /* optional float opacity = 61; */
+        if (message.opacity !== undefined)
+            writer.tag(61, WireType.Bit32).float(message.opacity);
+        /* optional bool is_visible = 62; */
+        if (message.isVisible !== undefined)
+            writer.tag(62, WireType.Varint).bool(message.isVisible);
+        /* optional symbol.bench.RotationData rotation = 63; */
+        if (message.rotation)
+            RotationData.internalBinaryWrite(message.rotation, writer.tag(63, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbol.bench.ShadowData shadow = 64; */
+        if (message.shadow)
+            ShadowData.internalBinaryWrite(message.shadow, writer.tag(64, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbol.bench.BorderData border = 65; */
+        if (message.border)
+            BorderData.internalBinaryWrite(message.border, writer.tag(65, WireType.LengthDelimited).fork(), options).join();
         let u = options.writeUnknownFields;
         if (u !== false)
             (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
@@ -27596,370 +29434,6 @@ class LabelViewData$Type extends MessageType$<LabelViewData> {
  * @generated MessageType for protobuf message symbol.bench.LabelViewData
  */
 export const LabelViewData = new LabelViewData$Type();
-// @generated message type with reflection information, may provide speed optimized methods
-class InputViewData$Type extends MessageType$<InputViewData> {
-    constructor() {
-        super("symbol.bench.InputViewData", [
-            { no: 1, name: "metatype", kind: "enum", T: () => ["symbol.bench.ObjectType", ObjectType, "OBJECT_TYPE_"] },
-            { no: 2, name: "id", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
-            { no: 4, name: "parent_ptr", kind: "message", T: () => NodeReferenceData },
-            { no: 5, name: "bench_ptr", kind: "message", T: () => NodeReferenceData },
-            { no: 9, name: "package_ptr", kind: "message", T: () => NodeReferenceData },
-            { no: 10, name: "created_at", kind: "message", T: () => Timestamp },
-            { no: 11, name: "created_by_ptr", kind: "message", T: () => NodeReferenceData },
-            { no: 12, name: "updated_at", kind: "message", T: () => Timestamp },
-            { no: 13, name: "updated_by_ptr", kind: "message", T: () => NodeReferenceData },
-            { no: 14, name: "archived_at", kind: "message", T: () => Timestamp },
-            { no: 15, name: "deleted_at", kind: "message", T: () => Timestamp },
-            { no: 16, name: "template_ptr", kind: "message", T: () => NodeReferenceData },
-            { no: 20, name: "mode", kind: "enum", T: () => ["symbol.bench.NodeMode", NodeMode, "NODE_MODE_"] },
-            { no: 31, name: "name", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
-            { no: 33, name: "order_key", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
-            { no: 34, name: "icon", kind: "message", T: () => IconData },
-            { no: 35, name: "definition_ptr", kind: "message", T: () => NodeReferenceData },
-            { no: 40, name: "value", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
-            { no: 41, name: "placeholder", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ }
-        ]);
-    }
-    create(value?: PartialMessage<InputViewData>): InputViewData {
-        const message = globalThis.Object.create((this.messagePrototype!));
-        message.metatype = 0;
-        message.id = "";
-        message.mode = 0;
-        if (value !== undefined)
-            reflectionMergePartial<InputViewData>(this, message, value);
-        return message;
-    }
-    internalBinaryRead(reader: IBinaryReader, length: number, options: BinaryReadOptions, target?: InputViewData): InputViewData {
-        let message = target ?? this.create(), end = reader.pos + length;
-        while (reader.pos < end) {
-            let [fieldNo, wireType] = reader.tag();
-            switch (fieldNo) {
-                case /* symbol.bench.ObjectType metatype */ 1:
-                    message.metatype = reader.int32();
-                    break;
-                case /* string id */ 2:
-                    message.id = reader.string();
-                    break;
-                case /* optional symbol.bench.NodeReferenceData parent_ptr */ 4:
-                    message.parentPtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.parentPtr);
-                    break;
-                case /* optional symbol.bench.NodeReferenceData bench_ptr */ 5:
-                    message.benchPtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.benchPtr);
-                    break;
-                case /* optional symbol.bench.NodeReferenceData package_ptr */ 9:
-                    message.packagePtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.packagePtr);
-                    break;
-                case /* google.protobuf.Timestamp created_at */ 10:
-                    message.createdAt = Timestamp.internalBinaryRead(reader, reader.uint32(), options, message.createdAt);
-                    break;
-                case /* optional symbol.bench.NodeReferenceData created_by_ptr */ 11:
-                    message.createdByPtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.createdByPtr);
-                    break;
-                case /* google.protobuf.Timestamp updated_at */ 12:
-                    message.updatedAt = Timestamp.internalBinaryRead(reader, reader.uint32(), options, message.updatedAt);
-                    break;
-                case /* optional symbol.bench.NodeReferenceData updated_by_ptr */ 13:
-                    message.updatedByPtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.updatedByPtr);
-                    break;
-                case /* optional google.protobuf.Timestamp archived_at */ 14:
-                    message.archivedAt = Timestamp.internalBinaryRead(reader, reader.uint32(), options, message.archivedAt);
-                    break;
-                case /* optional google.protobuf.Timestamp deleted_at */ 15:
-                    message.deletedAt = Timestamp.internalBinaryRead(reader, reader.uint32(), options, message.deletedAt);
-                    break;
-                case /* optional symbol.bench.NodeReferenceData template_ptr */ 16:
-                    message.templatePtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.templatePtr);
-                    break;
-                case /* symbol.bench.NodeMode mode */ 20:
-                    message.mode = reader.int32();
-                    break;
-                case /* optional string name */ 31:
-                    message.name = reader.string();
-                    break;
-                case /* optional string order_key */ 33:
-                    message.orderKey = reader.string();
-                    break;
-                case /* optional symbol.bench.IconData icon */ 34:
-                    message.icon = IconData.internalBinaryRead(reader, reader.uint32(), options, message.icon);
-                    break;
-                case /* optional symbol.bench.NodeReferenceData definition_ptr */ 35:
-                    message.definitionPtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.definitionPtr);
-                    break;
-                case /* optional string value */ 40:
-                    message.value = reader.string();
-                    break;
-                case /* optional string placeholder */ 41:
-                    message.placeholder = reader.string();
-                    break;
-                default:
-                    let u = options.readUnknownField;
-                    if (u === "throw")
-                        throw new globalThis.Error(`Unknown field ${fieldNo} (wire type ${wireType}) for ${this.typeName}`);
-                    let d = reader.skip(wireType);
-                    if (u !== false)
-                        (u === true ? UnknownFieldHandler.onRead : u)(this.typeName, message, fieldNo, wireType, d);
-            }
-        }
-        return message;
-    }
-    internalBinaryWrite(message: InputViewData, writer: IBinaryWriter, options: BinaryWriteOptions): IBinaryWriter {
-        /* symbol.bench.ObjectType metatype = 1; */
-        if (message.metatype !== 0)
-            writer.tag(1, WireType.Varint).int32(message.metatype);
-        /* string id = 2; */
-        if (message.id !== "")
-            writer.tag(2, WireType.LengthDelimited).string(message.id);
-        /* optional symbol.bench.NodeReferenceData parent_ptr = 4; */
-        if (message.parentPtr)
-            NodeReferenceData.internalBinaryWrite(message.parentPtr, writer.tag(4, WireType.LengthDelimited).fork(), options).join();
-        /* optional symbol.bench.NodeReferenceData bench_ptr = 5; */
-        if (message.benchPtr)
-            NodeReferenceData.internalBinaryWrite(message.benchPtr, writer.tag(5, WireType.LengthDelimited).fork(), options).join();
-        /* optional symbol.bench.NodeReferenceData package_ptr = 9; */
-        if (message.packagePtr)
-            NodeReferenceData.internalBinaryWrite(message.packagePtr, writer.tag(9, WireType.LengthDelimited).fork(), options).join();
-        /* google.protobuf.Timestamp created_at = 10; */
-        if (message.createdAt)
-            Timestamp.internalBinaryWrite(message.createdAt, writer.tag(10, WireType.LengthDelimited).fork(), options).join();
-        /* optional symbol.bench.NodeReferenceData created_by_ptr = 11; */
-        if (message.createdByPtr)
-            NodeReferenceData.internalBinaryWrite(message.createdByPtr, writer.tag(11, WireType.LengthDelimited).fork(), options).join();
-        /* google.protobuf.Timestamp updated_at = 12; */
-        if (message.updatedAt)
-            Timestamp.internalBinaryWrite(message.updatedAt, writer.tag(12, WireType.LengthDelimited).fork(), options).join();
-        /* optional symbol.bench.NodeReferenceData updated_by_ptr = 13; */
-        if (message.updatedByPtr)
-            NodeReferenceData.internalBinaryWrite(message.updatedByPtr, writer.tag(13, WireType.LengthDelimited).fork(), options).join();
-        /* optional google.protobuf.Timestamp archived_at = 14; */
-        if (message.archivedAt)
-            Timestamp.internalBinaryWrite(message.archivedAt, writer.tag(14, WireType.LengthDelimited).fork(), options).join();
-        /* optional google.protobuf.Timestamp deleted_at = 15; */
-        if (message.deletedAt)
-            Timestamp.internalBinaryWrite(message.deletedAt, writer.tag(15, WireType.LengthDelimited).fork(), options).join();
-        /* optional symbol.bench.NodeReferenceData template_ptr = 16; */
-        if (message.templatePtr)
-            NodeReferenceData.internalBinaryWrite(message.templatePtr, writer.tag(16, WireType.LengthDelimited).fork(), options).join();
-        /* symbol.bench.NodeMode mode = 20; */
-        if (message.mode !== 0)
-            writer.tag(20, WireType.Varint).int32(message.mode);
-        /* optional string name = 31; */
-        if (message.name !== undefined)
-            writer.tag(31, WireType.LengthDelimited).string(message.name);
-        /* optional string order_key = 33; */
-        if (message.orderKey !== undefined)
-            writer.tag(33, WireType.LengthDelimited).string(message.orderKey);
-        /* optional symbol.bench.IconData icon = 34; */
-        if (message.icon)
-            IconData.internalBinaryWrite(message.icon, writer.tag(34, WireType.LengthDelimited).fork(), options).join();
-        /* optional symbol.bench.NodeReferenceData definition_ptr = 35; */
-        if (message.definitionPtr)
-            NodeReferenceData.internalBinaryWrite(message.definitionPtr, writer.tag(35, WireType.LengthDelimited).fork(), options).join();
-        /* optional string value = 40; */
-        if (message.value !== undefined)
-            writer.tag(40, WireType.LengthDelimited).string(message.value);
-        /* optional string placeholder = 41; */
-        if (message.placeholder !== undefined)
-            writer.tag(41, WireType.LengthDelimited).string(message.placeholder);
-        let u = options.writeUnknownFields;
-        if (u !== false)
-            (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
-        return writer;
-    }
-}
-/**
- * @generated MessageType for protobuf message symbol.bench.InputViewData
- */
-export const InputViewData = new InputViewData$Type();
-// @generated message type with reflection information, may provide speed optimized methods
-class SliderViewData$Type extends MessageType$<SliderViewData> {
-    constructor() {
-        super("symbol.bench.SliderViewData", [
-            { no: 1, name: "metatype", kind: "enum", T: () => ["symbol.bench.ObjectType", ObjectType, "OBJECT_TYPE_"] },
-            { no: 2, name: "id", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
-            { no: 4, name: "parent_ptr", kind: "message", T: () => NodeReferenceData },
-            { no: 5, name: "bench_ptr", kind: "message", T: () => NodeReferenceData },
-            { no: 9, name: "package_ptr", kind: "message", T: () => NodeReferenceData },
-            { no: 10, name: "created_at", kind: "message", T: () => Timestamp },
-            { no: 11, name: "created_by_ptr", kind: "message", T: () => NodeReferenceData },
-            { no: 12, name: "updated_at", kind: "message", T: () => Timestamp },
-            { no: 13, name: "updated_by_ptr", kind: "message", T: () => NodeReferenceData },
-            { no: 14, name: "archived_at", kind: "message", T: () => Timestamp },
-            { no: 15, name: "deleted_at", kind: "message", T: () => Timestamp },
-            { no: 16, name: "template_ptr", kind: "message", T: () => NodeReferenceData },
-            { no: 20, name: "mode", kind: "enum", T: () => ["symbol.bench.NodeMode", NodeMode, "NODE_MODE_"] },
-            { no: 31, name: "name", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
-            { no: 33, name: "order_key", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
-            { no: 34, name: "icon", kind: "message", T: () => IconData },
-            { no: 35, name: "definition_ptr", kind: "message", T: () => NodeReferenceData },
-            { no: 40, name: "value", kind: "scalar", opt: true, T: 2 /*ScalarType.FLOAT*/ },
-            { no: 41, name: "min_value", kind: "scalar", opt: true, T: 2 /*ScalarType.FLOAT*/ },
-            { no: 42, name: "max_value", kind: "scalar", opt: true, T: 2 /*ScalarType.FLOAT*/ },
-            { no: 43, name: "step", kind: "scalar", opt: true, T: 2 /*ScalarType.FLOAT*/ }
-        ]);
-    }
-    create(value?: PartialMessage<SliderViewData>): SliderViewData {
-        const message = globalThis.Object.create((this.messagePrototype!));
-        message.metatype = 0;
-        message.id = "";
-        message.mode = 0;
-        if (value !== undefined)
-            reflectionMergePartial<SliderViewData>(this, message, value);
-        return message;
-    }
-    internalBinaryRead(reader: IBinaryReader, length: number, options: BinaryReadOptions, target?: SliderViewData): SliderViewData {
-        let message = target ?? this.create(), end = reader.pos + length;
-        while (reader.pos < end) {
-            let [fieldNo, wireType] = reader.tag();
-            switch (fieldNo) {
-                case /* symbol.bench.ObjectType metatype */ 1:
-                    message.metatype = reader.int32();
-                    break;
-                case /* string id */ 2:
-                    message.id = reader.string();
-                    break;
-                case /* optional symbol.bench.NodeReferenceData parent_ptr */ 4:
-                    message.parentPtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.parentPtr);
-                    break;
-                case /* optional symbol.bench.NodeReferenceData bench_ptr */ 5:
-                    message.benchPtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.benchPtr);
-                    break;
-                case /* optional symbol.bench.NodeReferenceData package_ptr */ 9:
-                    message.packagePtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.packagePtr);
-                    break;
-                case /* google.protobuf.Timestamp created_at */ 10:
-                    message.createdAt = Timestamp.internalBinaryRead(reader, reader.uint32(), options, message.createdAt);
-                    break;
-                case /* optional symbol.bench.NodeReferenceData created_by_ptr */ 11:
-                    message.createdByPtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.createdByPtr);
-                    break;
-                case /* google.protobuf.Timestamp updated_at */ 12:
-                    message.updatedAt = Timestamp.internalBinaryRead(reader, reader.uint32(), options, message.updatedAt);
-                    break;
-                case /* optional symbol.bench.NodeReferenceData updated_by_ptr */ 13:
-                    message.updatedByPtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.updatedByPtr);
-                    break;
-                case /* optional google.protobuf.Timestamp archived_at */ 14:
-                    message.archivedAt = Timestamp.internalBinaryRead(reader, reader.uint32(), options, message.archivedAt);
-                    break;
-                case /* optional google.protobuf.Timestamp deleted_at */ 15:
-                    message.deletedAt = Timestamp.internalBinaryRead(reader, reader.uint32(), options, message.deletedAt);
-                    break;
-                case /* optional symbol.bench.NodeReferenceData template_ptr */ 16:
-                    message.templatePtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.templatePtr);
-                    break;
-                case /* symbol.bench.NodeMode mode */ 20:
-                    message.mode = reader.int32();
-                    break;
-                case /* optional string name */ 31:
-                    message.name = reader.string();
-                    break;
-                case /* optional string order_key */ 33:
-                    message.orderKey = reader.string();
-                    break;
-                case /* optional symbol.bench.IconData icon */ 34:
-                    message.icon = IconData.internalBinaryRead(reader, reader.uint32(), options, message.icon);
-                    break;
-                case /* optional symbol.bench.NodeReferenceData definition_ptr */ 35:
-                    message.definitionPtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.definitionPtr);
-                    break;
-                case /* optional float value */ 40:
-                    message.value = reader.float();
-                    break;
-                case /* optional float min_value */ 41:
-                    message.minValue = reader.float();
-                    break;
-                case /* optional float max_value */ 42:
-                    message.maxValue = reader.float();
-                    break;
-                case /* optional float step */ 43:
-                    message.step = reader.float();
-                    break;
-                default:
-                    let u = options.readUnknownField;
-                    if (u === "throw")
-                        throw new globalThis.Error(`Unknown field ${fieldNo} (wire type ${wireType}) for ${this.typeName}`);
-                    let d = reader.skip(wireType);
-                    if (u !== false)
-                        (u === true ? UnknownFieldHandler.onRead : u)(this.typeName, message, fieldNo, wireType, d);
-            }
-        }
-        return message;
-    }
-    internalBinaryWrite(message: SliderViewData, writer: IBinaryWriter, options: BinaryWriteOptions): IBinaryWriter {
-        /* symbol.bench.ObjectType metatype = 1; */
-        if (message.metatype !== 0)
-            writer.tag(1, WireType.Varint).int32(message.metatype);
-        /* string id = 2; */
-        if (message.id !== "")
-            writer.tag(2, WireType.LengthDelimited).string(message.id);
-        /* optional symbol.bench.NodeReferenceData parent_ptr = 4; */
-        if (message.parentPtr)
-            NodeReferenceData.internalBinaryWrite(message.parentPtr, writer.tag(4, WireType.LengthDelimited).fork(), options).join();
-        /* optional symbol.bench.NodeReferenceData bench_ptr = 5; */
-        if (message.benchPtr)
-            NodeReferenceData.internalBinaryWrite(message.benchPtr, writer.tag(5, WireType.LengthDelimited).fork(), options).join();
-        /* optional symbol.bench.NodeReferenceData package_ptr = 9; */
-        if (message.packagePtr)
-            NodeReferenceData.internalBinaryWrite(message.packagePtr, writer.tag(9, WireType.LengthDelimited).fork(), options).join();
-        /* google.protobuf.Timestamp created_at = 10; */
-        if (message.createdAt)
-            Timestamp.internalBinaryWrite(message.createdAt, writer.tag(10, WireType.LengthDelimited).fork(), options).join();
-        /* optional symbol.bench.NodeReferenceData created_by_ptr = 11; */
-        if (message.createdByPtr)
-            NodeReferenceData.internalBinaryWrite(message.createdByPtr, writer.tag(11, WireType.LengthDelimited).fork(), options).join();
-        /* google.protobuf.Timestamp updated_at = 12; */
-        if (message.updatedAt)
-            Timestamp.internalBinaryWrite(message.updatedAt, writer.tag(12, WireType.LengthDelimited).fork(), options).join();
-        /* optional symbol.bench.NodeReferenceData updated_by_ptr = 13; */
-        if (message.updatedByPtr)
-            NodeReferenceData.internalBinaryWrite(message.updatedByPtr, writer.tag(13, WireType.LengthDelimited).fork(), options).join();
-        /* optional google.protobuf.Timestamp archived_at = 14; */
-        if (message.archivedAt)
-            Timestamp.internalBinaryWrite(message.archivedAt, writer.tag(14, WireType.LengthDelimited).fork(), options).join();
-        /* optional google.protobuf.Timestamp deleted_at = 15; */
-        if (message.deletedAt)
-            Timestamp.internalBinaryWrite(message.deletedAt, writer.tag(15, WireType.LengthDelimited).fork(), options).join();
-        /* optional symbol.bench.NodeReferenceData template_ptr = 16; */
-        if (message.templatePtr)
-            NodeReferenceData.internalBinaryWrite(message.templatePtr, writer.tag(16, WireType.LengthDelimited).fork(), options).join();
-        /* symbol.bench.NodeMode mode = 20; */
-        if (message.mode !== 0)
-            writer.tag(20, WireType.Varint).int32(message.mode);
-        /* optional string name = 31; */
-        if (message.name !== undefined)
-            writer.tag(31, WireType.LengthDelimited).string(message.name);
-        /* optional string order_key = 33; */
-        if (message.orderKey !== undefined)
-            writer.tag(33, WireType.LengthDelimited).string(message.orderKey);
-        /* optional symbol.bench.IconData icon = 34; */
-        if (message.icon)
-            IconData.internalBinaryWrite(message.icon, writer.tag(34, WireType.LengthDelimited).fork(), options).join();
-        /* optional symbol.bench.NodeReferenceData definition_ptr = 35; */
-        if (message.definitionPtr)
-            NodeReferenceData.internalBinaryWrite(message.definitionPtr, writer.tag(35, WireType.LengthDelimited).fork(), options).join();
-        /* optional float value = 40; */
-        if (message.value !== undefined)
-            writer.tag(40, WireType.Bit32).float(message.value);
-        /* optional float min_value = 41; */
-        if (message.minValue !== undefined)
-            writer.tag(41, WireType.Bit32).float(message.minValue);
-        /* optional float max_value = 42; */
-        if (message.maxValue !== undefined)
-            writer.tag(42, WireType.Bit32).float(message.maxValue);
-        /* optional float step = 43; */
-        if (message.step !== undefined)
-            writer.tag(43, WireType.Bit32).float(message.step);
-        let u = options.writeUnknownFields;
-        if (u !== false)
-            (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
-        return writer;
-    }
-}
-/**
- * @generated MessageType for protobuf message symbol.bench.SliderViewData
- */
-export const SliderViewData = new SliderViewData$Type();
 // @generated message type with reflection information, may provide speed optimized methods
 class SplitViewData$Type extends MessageType$<SplitViewData> {
     constructor() {
@@ -27976,13 +29450,33 @@ class SplitViewData$Type extends MessageType$<SplitViewData> {
             { no: 14, name: "archived_at", kind: "message", T: () => Timestamp },
             { no: 15, name: "deleted_at", kind: "message", T: () => Timestamp },
             { no: 16, name: "template_ptr", kind: "message", T: () => NodeReferenceData },
-            { no: 20, name: "mode", kind: "enum", T: () => ["symbol.bench.NodeMode", NodeMode, "NODE_MODE_"] },
+            { no: 25, name: "mode", kind: "enum", T: () => ["symbol.bench.NodeMode", NodeMode, "NODE_MODE_"] },
             { no: 31, name: "name", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
             { no: 33, name: "order_key", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
             { no: 34, name: "icon", kind: "message", T: () => IconData },
             { no: 35, name: "definition_ptr", kind: "message", T: () => NodeReferenceData },
-            { no: 70, name: "focus_ptr", kind: "message", T: () => NodeReferenceData },
-            { no: 71, name: "selection", kind: "message", T: () => SelectionData }
+            { no: 40, name: "position", kind: "message", T: () => PositionData },
+            { no: 41, name: "width", kind: "message", T: () => DimensionData },
+            { no: 42, name: "height", kind: "message", T: () => DimensionData },
+            { no: 43, name: "min_width", kind: "message", T: () => DimensionData },
+            { no: 44, name: "min_height", kind: "message", T: () => DimensionData },
+            { no: 45, name: "max_width", kind: "message", T: () => DimensionData },
+            { no: 46, name: "max_height", kind: "message", T: () => DimensionData },
+            { no: 50, name: "layout", kind: "enum", opt: true, T: () => ["symbol.bench.Layout", Layout, "LAYOUT_"] },
+            { no: 51, name: "direction", kind: "enum", opt: true, T: () => ["symbol.bench.Direction", Direction, "DIRECTION_"] },
+            { no: 52, name: "distribute", kind: "enum", opt: true, T: () => ["symbol.bench.Distribute", Distribute, "DISTRIBUTE_"] },
+            { no: 53, name: "align", kind: "enum", opt: true, T: () => ["symbol.bench.Align", Align, "ALIGN_"] },
+            { no: 54, name: "gap", kind: "message", T: () => GapData },
+            { no: 55, name: "padding", kind: "message", T: () => PaddingData },
+            { no: 56, name: "grid", kind: "message", T: () => GridData },
+            { no: 57, name: "grid_span", kind: "message", T: () => GridSpanData },
+            { no: 58, name: "aspect_ratio", kind: "scalar", opt: true, T: 2 /*ScalarType.FLOAT*/ },
+            { no: 60, name: "fill", kind: "message", T: () => FillData },
+            { no: 61, name: "opacity", kind: "scalar", opt: true, T: 2 /*ScalarType.FLOAT*/ },
+            { no: 62, name: "is_visible", kind: "scalar", opt: true, T: 8 /*ScalarType.BOOL*/ },
+            { no: 63, name: "rotation", kind: "message", T: () => RotationData },
+            { no: 64, name: "shadow", kind: "message", T: () => ShadowData },
+            { no: 65, name: "border", kind: "message", T: () => BorderData }
         ]);
     }
     create(value?: PartialMessage<SplitViewData>): SplitViewData {
@@ -28035,7 +29529,7 @@ class SplitViewData$Type extends MessageType$<SplitViewData> {
                 case /* optional symbol.bench.NodeReferenceData template_ptr */ 16:
                     message.templatePtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.templatePtr);
                     break;
-                case /* symbol.bench.NodeMode mode */ 20:
+                case /* symbol.bench.NodeMode mode */ 25:
                     message.mode = reader.int32();
                     break;
                 case /* optional string name */ 31:
@@ -28050,11 +29544,71 @@ class SplitViewData$Type extends MessageType$<SplitViewData> {
                 case /* optional symbol.bench.NodeReferenceData definition_ptr */ 35:
                     message.definitionPtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.definitionPtr);
                     break;
-                case /* optional symbol.bench.NodeReferenceData focus_ptr */ 70:
-                    message.focusPtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.focusPtr);
+                case /* optional symbol.bench.PositionData position */ 40:
+                    message.position = PositionData.internalBinaryRead(reader, reader.uint32(), options, message.position);
                     break;
-                case /* optional symbol.bench.SelectionData selection */ 71:
-                    message.selection = SelectionData.internalBinaryRead(reader, reader.uint32(), options, message.selection);
+                case /* optional symbol.bench.DimensionData width */ 41:
+                    message.width = DimensionData.internalBinaryRead(reader, reader.uint32(), options, message.width);
+                    break;
+                case /* optional symbol.bench.DimensionData height */ 42:
+                    message.height = DimensionData.internalBinaryRead(reader, reader.uint32(), options, message.height);
+                    break;
+                case /* optional symbol.bench.DimensionData min_width */ 43:
+                    message.minWidth = DimensionData.internalBinaryRead(reader, reader.uint32(), options, message.minWidth);
+                    break;
+                case /* optional symbol.bench.DimensionData min_height */ 44:
+                    message.minHeight = DimensionData.internalBinaryRead(reader, reader.uint32(), options, message.minHeight);
+                    break;
+                case /* optional symbol.bench.DimensionData max_width */ 45:
+                    message.maxWidth = DimensionData.internalBinaryRead(reader, reader.uint32(), options, message.maxWidth);
+                    break;
+                case /* optional symbol.bench.DimensionData max_height */ 46:
+                    message.maxHeight = DimensionData.internalBinaryRead(reader, reader.uint32(), options, message.maxHeight);
+                    break;
+                case /* optional symbol.bench.Layout layout */ 50:
+                    message.layout = reader.int32();
+                    break;
+                case /* optional symbol.bench.Direction direction */ 51:
+                    message.direction = reader.int32();
+                    break;
+                case /* optional symbol.bench.Distribute distribute */ 52:
+                    message.distribute = reader.int32();
+                    break;
+                case /* optional symbol.bench.Align align */ 53:
+                    message.align = reader.int32();
+                    break;
+                case /* optional symbol.bench.GapData gap */ 54:
+                    message.gap = GapData.internalBinaryRead(reader, reader.uint32(), options, message.gap);
+                    break;
+                case /* optional symbol.bench.PaddingData padding */ 55:
+                    message.padding = PaddingData.internalBinaryRead(reader, reader.uint32(), options, message.padding);
+                    break;
+                case /* optional symbol.bench.GridData grid */ 56:
+                    message.grid = GridData.internalBinaryRead(reader, reader.uint32(), options, message.grid);
+                    break;
+                case /* optional symbol.bench.GridSpanData grid_span */ 57:
+                    message.gridSpan = GridSpanData.internalBinaryRead(reader, reader.uint32(), options, message.gridSpan);
+                    break;
+                case /* optional float aspect_ratio */ 58:
+                    message.aspectRatio = reader.float();
+                    break;
+                case /* optional symbol.bench.FillData fill */ 60:
+                    message.fill = FillData.internalBinaryRead(reader, reader.uint32(), options, message.fill);
+                    break;
+                case /* optional float opacity */ 61:
+                    message.opacity = reader.float();
+                    break;
+                case /* optional bool is_visible */ 62:
+                    message.isVisible = reader.bool();
+                    break;
+                case /* optional symbol.bench.RotationData rotation */ 63:
+                    message.rotation = RotationData.internalBinaryRead(reader, reader.uint32(), options, message.rotation);
+                    break;
+                case /* optional symbol.bench.ShadowData shadow */ 64:
+                    message.shadow = ShadowData.internalBinaryRead(reader, reader.uint32(), options, message.shadow);
+                    break;
+                case /* optional symbol.bench.BorderData border */ 65:
+                    message.border = BorderData.internalBinaryRead(reader, reader.uint32(), options, message.border);
                     break;
                 default:
                     let u = options.readUnknownField;
@@ -28104,9 +29658,9 @@ class SplitViewData$Type extends MessageType$<SplitViewData> {
         /* optional symbol.bench.NodeReferenceData template_ptr = 16; */
         if (message.templatePtr)
             NodeReferenceData.internalBinaryWrite(message.templatePtr, writer.tag(16, WireType.LengthDelimited).fork(), options).join();
-        /* symbol.bench.NodeMode mode = 20; */
+        /* symbol.bench.NodeMode mode = 25; */
         if (message.mode !== 0)
-            writer.tag(20, WireType.Varint).int32(message.mode);
+            writer.tag(25, WireType.Varint).int32(message.mode);
         /* optional string name = 31; */
         if (message.name !== undefined)
             writer.tag(31, WireType.LengthDelimited).string(message.name);
@@ -28119,12 +29673,72 @@ class SplitViewData$Type extends MessageType$<SplitViewData> {
         /* optional symbol.bench.NodeReferenceData definition_ptr = 35; */
         if (message.definitionPtr)
             NodeReferenceData.internalBinaryWrite(message.definitionPtr, writer.tag(35, WireType.LengthDelimited).fork(), options).join();
-        /* optional symbol.bench.NodeReferenceData focus_ptr = 70; */
-        if (message.focusPtr)
-            NodeReferenceData.internalBinaryWrite(message.focusPtr, writer.tag(70, WireType.LengthDelimited).fork(), options).join();
-        /* optional symbol.bench.SelectionData selection = 71; */
-        if (message.selection)
-            SelectionData.internalBinaryWrite(message.selection, writer.tag(71, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbol.bench.PositionData position = 40; */
+        if (message.position)
+            PositionData.internalBinaryWrite(message.position, writer.tag(40, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbol.bench.DimensionData width = 41; */
+        if (message.width)
+            DimensionData.internalBinaryWrite(message.width, writer.tag(41, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbol.bench.DimensionData height = 42; */
+        if (message.height)
+            DimensionData.internalBinaryWrite(message.height, writer.tag(42, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbol.bench.DimensionData min_width = 43; */
+        if (message.minWidth)
+            DimensionData.internalBinaryWrite(message.minWidth, writer.tag(43, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbol.bench.DimensionData min_height = 44; */
+        if (message.minHeight)
+            DimensionData.internalBinaryWrite(message.minHeight, writer.tag(44, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbol.bench.DimensionData max_width = 45; */
+        if (message.maxWidth)
+            DimensionData.internalBinaryWrite(message.maxWidth, writer.tag(45, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbol.bench.DimensionData max_height = 46; */
+        if (message.maxHeight)
+            DimensionData.internalBinaryWrite(message.maxHeight, writer.tag(46, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbol.bench.Layout layout = 50; */
+        if (message.layout !== undefined)
+            writer.tag(50, WireType.Varint).int32(message.layout);
+        /* optional symbol.bench.Direction direction = 51; */
+        if (message.direction !== undefined)
+            writer.tag(51, WireType.Varint).int32(message.direction);
+        /* optional symbol.bench.Distribute distribute = 52; */
+        if (message.distribute !== undefined)
+            writer.tag(52, WireType.Varint).int32(message.distribute);
+        /* optional symbol.bench.Align align = 53; */
+        if (message.align !== undefined)
+            writer.tag(53, WireType.Varint).int32(message.align);
+        /* optional symbol.bench.GapData gap = 54; */
+        if (message.gap)
+            GapData.internalBinaryWrite(message.gap, writer.tag(54, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbol.bench.PaddingData padding = 55; */
+        if (message.padding)
+            PaddingData.internalBinaryWrite(message.padding, writer.tag(55, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbol.bench.GridData grid = 56; */
+        if (message.grid)
+            GridData.internalBinaryWrite(message.grid, writer.tag(56, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbol.bench.GridSpanData grid_span = 57; */
+        if (message.gridSpan)
+            GridSpanData.internalBinaryWrite(message.gridSpan, writer.tag(57, WireType.LengthDelimited).fork(), options).join();
+        /* optional float aspect_ratio = 58; */
+        if (message.aspectRatio !== undefined)
+            writer.tag(58, WireType.Bit32).float(message.aspectRatio);
+        /* optional symbol.bench.FillData fill = 60; */
+        if (message.fill)
+            FillData.internalBinaryWrite(message.fill, writer.tag(60, WireType.LengthDelimited).fork(), options).join();
+        /* optional float opacity = 61; */
+        if (message.opacity !== undefined)
+            writer.tag(61, WireType.Bit32).float(message.opacity);
+        /* optional bool is_visible = 62; */
+        if (message.isVisible !== undefined)
+            writer.tag(62, WireType.Varint).bool(message.isVisible);
+        /* optional symbol.bench.RotationData rotation = 63; */
+        if (message.rotation)
+            RotationData.internalBinaryWrite(message.rotation, writer.tag(63, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbol.bench.ShadowData shadow = 64; */
+        if (message.shadow)
+            ShadowData.internalBinaryWrite(message.shadow, writer.tag(64, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbol.bench.BorderData border = 65; */
+        if (message.border)
+            BorderData.internalBinaryWrite(message.border, writer.tag(65, WireType.LengthDelimited).fork(), options).join();
         let u = options.writeUnknownFields;
         if (u !== false)
             (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
@@ -28135,6 +29749,468 @@ class SplitViewData$Type extends MessageType$<SplitViewData> {
  * @generated MessageType for protobuf message symbol.bench.SplitViewData
  */
 export const SplitViewData = new SplitViewData$Type();
+// @generated message type with reflection information, may provide speed optimized methods
+class NumberViewData$Type extends MessageType$<NumberViewData> {
+    constructor() {
+        super("symbol.bench.NumberViewData", [
+            { no: 1, name: "metatype", kind: "enum", T: () => ["symbol.bench.ObjectType", ObjectType, "OBJECT_TYPE_"] },
+            { no: 2, name: "id", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
+            { no: 4, name: "parent_ptr", kind: "message", T: () => NodeReferenceData },
+            { no: 5, name: "bench_ptr", kind: "message", T: () => NodeReferenceData },
+            { no: 9, name: "package_ptr", kind: "message", T: () => NodeReferenceData },
+            { no: 10, name: "created_at", kind: "message", T: () => Timestamp },
+            { no: 11, name: "created_by_ptr", kind: "message", T: () => NodeReferenceData },
+            { no: 12, name: "updated_at", kind: "message", T: () => Timestamp },
+            { no: 13, name: "updated_by_ptr", kind: "message", T: () => NodeReferenceData },
+            { no: 14, name: "archived_at", kind: "message", T: () => Timestamp },
+            { no: 15, name: "deleted_at", kind: "message", T: () => Timestamp },
+            { no: 16, name: "template_ptr", kind: "message", T: () => NodeReferenceData },
+            { no: 25, name: "mode", kind: "enum", T: () => ["symbol.bench.NodeMode", NodeMode, "NODE_MODE_"] },
+            { no: 31, name: "name", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
+            { no: 33, name: "order_key", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
+            { no: 34, name: "icon", kind: "message", T: () => IconData },
+            { no: 35, name: "definition_ptr", kind: "message", T: () => NodeReferenceData },
+            { no: 40, name: "position", kind: "message", T: () => PositionData },
+            { no: 41, name: "width", kind: "message", T: () => DimensionData },
+            { no: 42, name: "height", kind: "message", T: () => DimensionData },
+            { no: 43, name: "min_width", kind: "message", T: () => DimensionData },
+            { no: 44, name: "min_height", kind: "message", T: () => DimensionData },
+            { no: 45, name: "max_width", kind: "message", T: () => DimensionData },
+            { no: 46, name: "max_height", kind: "message", T: () => DimensionData },
+            { no: 100, name: "value", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
+            { no: 101, name: "placeholder", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ }
+        ]);
+    }
+    create(value?: PartialMessage<NumberViewData>): NumberViewData {
+        const message = globalThis.Object.create((this.messagePrototype!));
+        message.metatype = 0;
+        message.id = "";
+        message.mode = 0;
+        if (value !== undefined)
+            reflectionMergePartial<NumberViewData>(this, message, value);
+        return message;
+    }
+    internalBinaryRead(reader: IBinaryReader, length: number, options: BinaryReadOptions, target?: NumberViewData): NumberViewData {
+        let message = target ?? this.create(), end = reader.pos + length;
+        while (reader.pos < end) {
+            let [fieldNo, wireType] = reader.tag();
+            switch (fieldNo) {
+                case /* symbol.bench.ObjectType metatype */ 1:
+                    message.metatype = reader.int32();
+                    break;
+                case /* string id */ 2:
+                    message.id = reader.string();
+                    break;
+                case /* optional symbol.bench.NodeReferenceData parent_ptr */ 4:
+                    message.parentPtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.parentPtr);
+                    break;
+                case /* optional symbol.bench.NodeReferenceData bench_ptr */ 5:
+                    message.benchPtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.benchPtr);
+                    break;
+                case /* optional symbol.bench.NodeReferenceData package_ptr */ 9:
+                    message.packagePtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.packagePtr);
+                    break;
+                case /* google.protobuf.Timestamp created_at */ 10:
+                    message.createdAt = Timestamp.internalBinaryRead(reader, reader.uint32(), options, message.createdAt);
+                    break;
+                case /* optional symbol.bench.NodeReferenceData created_by_ptr */ 11:
+                    message.createdByPtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.createdByPtr);
+                    break;
+                case /* google.protobuf.Timestamp updated_at */ 12:
+                    message.updatedAt = Timestamp.internalBinaryRead(reader, reader.uint32(), options, message.updatedAt);
+                    break;
+                case /* optional symbol.bench.NodeReferenceData updated_by_ptr */ 13:
+                    message.updatedByPtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.updatedByPtr);
+                    break;
+                case /* optional google.protobuf.Timestamp archived_at */ 14:
+                    message.archivedAt = Timestamp.internalBinaryRead(reader, reader.uint32(), options, message.archivedAt);
+                    break;
+                case /* optional google.protobuf.Timestamp deleted_at */ 15:
+                    message.deletedAt = Timestamp.internalBinaryRead(reader, reader.uint32(), options, message.deletedAt);
+                    break;
+                case /* optional symbol.bench.NodeReferenceData template_ptr */ 16:
+                    message.templatePtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.templatePtr);
+                    break;
+                case /* symbol.bench.NodeMode mode */ 25:
+                    message.mode = reader.int32();
+                    break;
+                case /* optional string name */ 31:
+                    message.name = reader.string();
+                    break;
+                case /* optional string order_key */ 33:
+                    message.orderKey = reader.string();
+                    break;
+                case /* optional symbol.bench.IconData icon */ 34:
+                    message.icon = IconData.internalBinaryRead(reader, reader.uint32(), options, message.icon);
+                    break;
+                case /* optional symbol.bench.NodeReferenceData definition_ptr */ 35:
+                    message.definitionPtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.definitionPtr);
+                    break;
+                case /* optional symbol.bench.PositionData position */ 40:
+                    message.position = PositionData.internalBinaryRead(reader, reader.uint32(), options, message.position);
+                    break;
+                case /* optional symbol.bench.DimensionData width */ 41:
+                    message.width = DimensionData.internalBinaryRead(reader, reader.uint32(), options, message.width);
+                    break;
+                case /* optional symbol.bench.DimensionData height */ 42:
+                    message.height = DimensionData.internalBinaryRead(reader, reader.uint32(), options, message.height);
+                    break;
+                case /* optional symbol.bench.DimensionData min_width */ 43:
+                    message.minWidth = DimensionData.internalBinaryRead(reader, reader.uint32(), options, message.minWidth);
+                    break;
+                case /* optional symbol.bench.DimensionData min_height */ 44:
+                    message.minHeight = DimensionData.internalBinaryRead(reader, reader.uint32(), options, message.minHeight);
+                    break;
+                case /* optional symbol.bench.DimensionData max_width */ 45:
+                    message.maxWidth = DimensionData.internalBinaryRead(reader, reader.uint32(), options, message.maxWidth);
+                    break;
+                case /* optional symbol.bench.DimensionData max_height */ 46:
+                    message.maxHeight = DimensionData.internalBinaryRead(reader, reader.uint32(), options, message.maxHeight);
+                    break;
+                case /* optional string value */ 100:
+                    message.value = reader.string();
+                    break;
+                case /* optional string placeholder */ 101:
+                    message.placeholder = reader.string();
+                    break;
+                default:
+                    let u = options.readUnknownField;
+                    if (u === "throw")
+                        throw new globalThis.Error(`Unknown field ${fieldNo} (wire type ${wireType}) for ${this.typeName}`);
+                    let d = reader.skip(wireType);
+                    if (u !== false)
+                        (u === true ? UnknownFieldHandler.onRead : u)(this.typeName, message, fieldNo, wireType, d);
+            }
+        }
+        return message;
+    }
+    internalBinaryWrite(message: NumberViewData, writer: IBinaryWriter, options: BinaryWriteOptions): IBinaryWriter {
+        /* symbol.bench.ObjectType metatype = 1; */
+        if (message.metatype !== 0)
+            writer.tag(1, WireType.Varint).int32(message.metatype);
+        /* string id = 2; */
+        if (message.id !== "")
+            writer.tag(2, WireType.LengthDelimited).string(message.id);
+        /* optional symbol.bench.NodeReferenceData parent_ptr = 4; */
+        if (message.parentPtr)
+            NodeReferenceData.internalBinaryWrite(message.parentPtr, writer.tag(4, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbol.bench.NodeReferenceData bench_ptr = 5; */
+        if (message.benchPtr)
+            NodeReferenceData.internalBinaryWrite(message.benchPtr, writer.tag(5, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbol.bench.NodeReferenceData package_ptr = 9; */
+        if (message.packagePtr)
+            NodeReferenceData.internalBinaryWrite(message.packagePtr, writer.tag(9, WireType.LengthDelimited).fork(), options).join();
+        /* google.protobuf.Timestamp created_at = 10; */
+        if (message.createdAt)
+            Timestamp.internalBinaryWrite(message.createdAt, writer.tag(10, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbol.bench.NodeReferenceData created_by_ptr = 11; */
+        if (message.createdByPtr)
+            NodeReferenceData.internalBinaryWrite(message.createdByPtr, writer.tag(11, WireType.LengthDelimited).fork(), options).join();
+        /* google.protobuf.Timestamp updated_at = 12; */
+        if (message.updatedAt)
+            Timestamp.internalBinaryWrite(message.updatedAt, writer.tag(12, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbol.bench.NodeReferenceData updated_by_ptr = 13; */
+        if (message.updatedByPtr)
+            NodeReferenceData.internalBinaryWrite(message.updatedByPtr, writer.tag(13, WireType.LengthDelimited).fork(), options).join();
+        /* optional google.protobuf.Timestamp archived_at = 14; */
+        if (message.archivedAt)
+            Timestamp.internalBinaryWrite(message.archivedAt, writer.tag(14, WireType.LengthDelimited).fork(), options).join();
+        /* optional google.protobuf.Timestamp deleted_at = 15; */
+        if (message.deletedAt)
+            Timestamp.internalBinaryWrite(message.deletedAt, writer.tag(15, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbol.bench.NodeReferenceData template_ptr = 16; */
+        if (message.templatePtr)
+            NodeReferenceData.internalBinaryWrite(message.templatePtr, writer.tag(16, WireType.LengthDelimited).fork(), options).join();
+        /* symbol.bench.NodeMode mode = 25; */
+        if (message.mode !== 0)
+            writer.tag(25, WireType.Varint).int32(message.mode);
+        /* optional string name = 31; */
+        if (message.name !== undefined)
+            writer.tag(31, WireType.LengthDelimited).string(message.name);
+        /* optional string order_key = 33; */
+        if (message.orderKey !== undefined)
+            writer.tag(33, WireType.LengthDelimited).string(message.orderKey);
+        /* optional symbol.bench.IconData icon = 34; */
+        if (message.icon)
+            IconData.internalBinaryWrite(message.icon, writer.tag(34, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbol.bench.NodeReferenceData definition_ptr = 35; */
+        if (message.definitionPtr)
+            NodeReferenceData.internalBinaryWrite(message.definitionPtr, writer.tag(35, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbol.bench.PositionData position = 40; */
+        if (message.position)
+            PositionData.internalBinaryWrite(message.position, writer.tag(40, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbol.bench.DimensionData width = 41; */
+        if (message.width)
+            DimensionData.internalBinaryWrite(message.width, writer.tag(41, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbol.bench.DimensionData height = 42; */
+        if (message.height)
+            DimensionData.internalBinaryWrite(message.height, writer.tag(42, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbol.bench.DimensionData min_width = 43; */
+        if (message.minWidth)
+            DimensionData.internalBinaryWrite(message.minWidth, writer.tag(43, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbol.bench.DimensionData min_height = 44; */
+        if (message.minHeight)
+            DimensionData.internalBinaryWrite(message.minHeight, writer.tag(44, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbol.bench.DimensionData max_width = 45; */
+        if (message.maxWidth)
+            DimensionData.internalBinaryWrite(message.maxWidth, writer.tag(45, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbol.bench.DimensionData max_height = 46; */
+        if (message.maxHeight)
+            DimensionData.internalBinaryWrite(message.maxHeight, writer.tag(46, WireType.LengthDelimited).fork(), options).join();
+        /* optional string value = 100; */
+        if (message.value !== undefined)
+            writer.tag(100, WireType.LengthDelimited).string(message.value);
+        /* optional string placeholder = 101; */
+        if (message.placeholder !== undefined)
+            writer.tag(101, WireType.LengthDelimited).string(message.placeholder);
+        let u = options.writeUnknownFields;
+        if (u !== false)
+            (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
+        return writer;
+    }
+}
+/**
+ * @generated MessageType for protobuf message symbol.bench.NumberViewData
+ */
+export const NumberViewData = new NumberViewData$Type();
+// @generated message type with reflection information, may provide speed optimized methods
+class SliderViewData$Type extends MessageType$<SliderViewData> {
+    constructor() {
+        super("symbol.bench.SliderViewData", [
+            { no: 1, name: "metatype", kind: "enum", T: () => ["symbol.bench.ObjectType", ObjectType, "OBJECT_TYPE_"] },
+            { no: 2, name: "id", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
+            { no: 4, name: "parent_ptr", kind: "message", T: () => NodeReferenceData },
+            { no: 5, name: "bench_ptr", kind: "message", T: () => NodeReferenceData },
+            { no: 9, name: "package_ptr", kind: "message", T: () => NodeReferenceData },
+            { no: 10, name: "created_at", kind: "message", T: () => Timestamp },
+            { no: 11, name: "created_by_ptr", kind: "message", T: () => NodeReferenceData },
+            { no: 12, name: "updated_at", kind: "message", T: () => Timestamp },
+            { no: 13, name: "updated_by_ptr", kind: "message", T: () => NodeReferenceData },
+            { no: 14, name: "archived_at", kind: "message", T: () => Timestamp },
+            { no: 15, name: "deleted_at", kind: "message", T: () => Timestamp },
+            { no: 16, name: "template_ptr", kind: "message", T: () => NodeReferenceData },
+            { no: 25, name: "mode", kind: "enum", T: () => ["symbol.bench.NodeMode", NodeMode, "NODE_MODE_"] },
+            { no: 31, name: "name", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
+            { no: 33, name: "order_key", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
+            { no: 34, name: "icon", kind: "message", T: () => IconData },
+            { no: 35, name: "definition_ptr", kind: "message", T: () => NodeReferenceData },
+            { no: 40, name: "position", kind: "message", T: () => PositionData },
+            { no: 41, name: "width", kind: "message", T: () => DimensionData },
+            { no: 42, name: "height", kind: "message", T: () => DimensionData },
+            { no: 43, name: "min_width", kind: "message", T: () => DimensionData },
+            { no: 44, name: "min_height", kind: "message", T: () => DimensionData },
+            { no: 45, name: "max_width", kind: "message", T: () => DimensionData },
+            { no: 46, name: "max_height", kind: "message", T: () => DimensionData },
+            { no: 100, name: "value", kind: "scalar", opt: true, T: 2 /*ScalarType.FLOAT*/ },
+            { no: 101, name: "min_value", kind: "scalar", opt: true, T: 2 /*ScalarType.FLOAT*/ },
+            { no: 102, name: "max_value", kind: "scalar", opt: true, T: 2 /*ScalarType.FLOAT*/ },
+            { no: 103, name: "step", kind: "scalar", opt: true, T: 2 /*ScalarType.FLOAT*/ }
+        ]);
+    }
+    create(value?: PartialMessage<SliderViewData>): SliderViewData {
+        const message = globalThis.Object.create((this.messagePrototype!));
+        message.metatype = 0;
+        message.id = "";
+        message.mode = 0;
+        if (value !== undefined)
+            reflectionMergePartial<SliderViewData>(this, message, value);
+        return message;
+    }
+    internalBinaryRead(reader: IBinaryReader, length: number, options: BinaryReadOptions, target?: SliderViewData): SliderViewData {
+        let message = target ?? this.create(), end = reader.pos + length;
+        while (reader.pos < end) {
+            let [fieldNo, wireType] = reader.tag();
+            switch (fieldNo) {
+                case /* symbol.bench.ObjectType metatype */ 1:
+                    message.metatype = reader.int32();
+                    break;
+                case /* string id */ 2:
+                    message.id = reader.string();
+                    break;
+                case /* optional symbol.bench.NodeReferenceData parent_ptr */ 4:
+                    message.parentPtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.parentPtr);
+                    break;
+                case /* optional symbol.bench.NodeReferenceData bench_ptr */ 5:
+                    message.benchPtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.benchPtr);
+                    break;
+                case /* optional symbol.bench.NodeReferenceData package_ptr */ 9:
+                    message.packagePtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.packagePtr);
+                    break;
+                case /* google.protobuf.Timestamp created_at */ 10:
+                    message.createdAt = Timestamp.internalBinaryRead(reader, reader.uint32(), options, message.createdAt);
+                    break;
+                case /* optional symbol.bench.NodeReferenceData created_by_ptr */ 11:
+                    message.createdByPtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.createdByPtr);
+                    break;
+                case /* google.protobuf.Timestamp updated_at */ 12:
+                    message.updatedAt = Timestamp.internalBinaryRead(reader, reader.uint32(), options, message.updatedAt);
+                    break;
+                case /* optional symbol.bench.NodeReferenceData updated_by_ptr */ 13:
+                    message.updatedByPtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.updatedByPtr);
+                    break;
+                case /* optional google.protobuf.Timestamp archived_at */ 14:
+                    message.archivedAt = Timestamp.internalBinaryRead(reader, reader.uint32(), options, message.archivedAt);
+                    break;
+                case /* optional google.protobuf.Timestamp deleted_at */ 15:
+                    message.deletedAt = Timestamp.internalBinaryRead(reader, reader.uint32(), options, message.deletedAt);
+                    break;
+                case /* optional symbol.bench.NodeReferenceData template_ptr */ 16:
+                    message.templatePtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.templatePtr);
+                    break;
+                case /* symbol.bench.NodeMode mode */ 25:
+                    message.mode = reader.int32();
+                    break;
+                case /* optional string name */ 31:
+                    message.name = reader.string();
+                    break;
+                case /* optional string order_key */ 33:
+                    message.orderKey = reader.string();
+                    break;
+                case /* optional symbol.bench.IconData icon */ 34:
+                    message.icon = IconData.internalBinaryRead(reader, reader.uint32(), options, message.icon);
+                    break;
+                case /* optional symbol.bench.NodeReferenceData definition_ptr */ 35:
+                    message.definitionPtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.definitionPtr);
+                    break;
+                case /* optional symbol.bench.PositionData position */ 40:
+                    message.position = PositionData.internalBinaryRead(reader, reader.uint32(), options, message.position);
+                    break;
+                case /* optional symbol.bench.DimensionData width */ 41:
+                    message.width = DimensionData.internalBinaryRead(reader, reader.uint32(), options, message.width);
+                    break;
+                case /* optional symbol.bench.DimensionData height */ 42:
+                    message.height = DimensionData.internalBinaryRead(reader, reader.uint32(), options, message.height);
+                    break;
+                case /* optional symbol.bench.DimensionData min_width */ 43:
+                    message.minWidth = DimensionData.internalBinaryRead(reader, reader.uint32(), options, message.minWidth);
+                    break;
+                case /* optional symbol.bench.DimensionData min_height */ 44:
+                    message.minHeight = DimensionData.internalBinaryRead(reader, reader.uint32(), options, message.minHeight);
+                    break;
+                case /* optional symbol.bench.DimensionData max_width */ 45:
+                    message.maxWidth = DimensionData.internalBinaryRead(reader, reader.uint32(), options, message.maxWidth);
+                    break;
+                case /* optional symbol.bench.DimensionData max_height */ 46:
+                    message.maxHeight = DimensionData.internalBinaryRead(reader, reader.uint32(), options, message.maxHeight);
+                    break;
+                case /* optional float value */ 100:
+                    message.value = reader.float();
+                    break;
+                case /* optional float min_value */ 101:
+                    message.minValue = reader.float();
+                    break;
+                case /* optional float max_value */ 102:
+                    message.maxValue = reader.float();
+                    break;
+                case /* optional float step */ 103:
+                    message.step = reader.float();
+                    break;
+                default:
+                    let u = options.readUnknownField;
+                    if (u === "throw")
+                        throw new globalThis.Error(`Unknown field ${fieldNo} (wire type ${wireType}) for ${this.typeName}`);
+                    let d = reader.skip(wireType);
+                    if (u !== false)
+                        (u === true ? UnknownFieldHandler.onRead : u)(this.typeName, message, fieldNo, wireType, d);
+            }
+        }
+        return message;
+    }
+    internalBinaryWrite(message: SliderViewData, writer: IBinaryWriter, options: BinaryWriteOptions): IBinaryWriter {
+        /* symbol.bench.ObjectType metatype = 1; */
+        if (message.metatype !== 0)
+            writer.tag(1, WireType.Varint).int32(message.metatype);
+        /* string id = 2; */
+        if (message.id !== "")
+            writer.tag(2, WireType.LengthDelimited).string(message.id);
+        /* optional symbol.bench.NodeReferenceData parent_ptr = 4; */
+        if (message.parentPtr)
+            NodeReferenceData.internalBinaryWrite(message.parentPtr, writer.tag(4, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbol.bench.NodeReferenceData bench_ptr = 5; */
+        if (message.benchPtr)
+            NodeReferenceData.internalBinaryWrite(message.benchPtr, writer.tag(5, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbol.bench.NodeReferenceData package_ptr = 9; */
+        if (message.packagePtr)
+            NodeReferenceData.internalBinaryWrite(message.packagePtr, writer.tag(9, WireType.LengthDelimited).fork(), options).join();
+        /* google.protobuf.Timestamp created_at = 10; */
+        if (message.createdAt)
+            Timestamp.internalBinaryWrite(message.createdAt, writer.tag(10, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbol.bench.NodeReferenceData created_by_ptr = 11; */
+        if (message.createdByPtr)
+            NodeReferenceData.internalBinaryWrite(message.createdByPtr, writer.tag(11, WireType.LengthDelimited).fork(), options).join();
+        /* google.protobuf.Timestamp updated_at = 12; */
+        if (message.updatedAt)
+            Timestamp.internalBinaryWrite(message.updatedAt, writer.tag(12, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbol.bench.NodeReferenceData updated_by_ptr = 13; */
+        if (message.updatedByPtr)
+            NodeReferenceData.internalBinaryWrite(message.updatedByPtr, writer.tag(13, WireType.LengthDelimited).fork(), options).join();
+        /* optional google.protobuf.Timestamp archived_at = 14; */
+        if (message.archivedAt)
+            Timestamp.internalBinaryWrite(message.archivedAt, writer.tag(14, WireType.LengthDelimited).fork(), options).join();
+        /* optional google.protobuf.Timestamp deleted_at = 15; */
+        if (message.deletedAt)
+            Timestamp.internalBinaryWrite(message.deletedAt, writer.tag(15, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbol.bench.NodeReferenceData template_ptr = 16; */
+        if (message.templatePtr)
+            NodeReferenceData.internalBinaryWrite(message.templatePtr, writer.tag(16, WireType.LengthDelimited).fork(), options).join();
+        /* symbol.bench.NodeMode mode = 25; */
+        if (message.mode !== 0)
+            writer.tag(25, WireType.Varint).int32(message.mode);
+        /* optional string name = 31; */
+        if (message.name !== undefined)
+            writer.tag(31, WireType.LengthDelimited).string(message.name);
+        /* optional string order_key = 33; */
+        if (message.orderKey !== undefined)
+            writer.tag(33, WireType.LengthDelimited).string(message.orderKey);
+        /* optional symbol.bench.IconData icon = 34; */
+        if (message.icon)
+            IconData.internalBinaryWrite(message.icon, writer.tag(34, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbol.bench.NodeReferenceData definition_ptr = 35; */
+        if (message.definitionPtr)
+            NodeReferenceData.internalBinaryWrite(message.definitionPtr, writer.tag(35, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbol.bench.PositionData position = 40; */
+        if (message.position)
+            PositionData.internalBinaryWrite(message.position, writer.tag(40, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbol.bench.DimensionData width = 41; */
+        if (message.width)
+            DimensionData.internalBinaryWrite(message.width, writer.tag(41, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbol.bench.DimensionData height = 42; */
+        if (message.height)
+            DimensionData.internalBinaryWrite(message.height, writer.tag(42, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbol.bench.DimensionData min_width = 43; */
+        if (message.minWidth)
+            DimensionData.internalBinaryWrite(message.minWidth, writer.tag(43, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbol.bench.DimensionData min_height = 44; */
+        if (message.minHeight)
+            DimensionData.internalBinaryWrite(message.minHeight, writer.tag(44, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbol.bench.DimensionData max_width = 45; */
+        if (message.maxWidth)
+            DimensionData.internalBinaryWrite(message.maxWidth, writer.tag(45, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbol.bench.DimensionData max_height = 46; */
+        if (message.maxHeight)
+            DimensionData.internalBinaryWrite(message.maxHeight, writer.tag(46, WireType.LengthDelimited).fork(), options).join();
+        /* optional float value = 100; */
+        if (message.value !== undefined)
+            writer.tag(100, WireType.Bit32).float(message.value);
+        /* optional float min_value = 101; */
+        if (message.minValue !== undefined)
+            writer.tag(101, WireType.Bit32).float(message.minValue);
+        /* optional float max_value = 102; */
+        if (message.maxValue !== undefined)
+            writer.tag(102, WireType.Bit32).float(message.maxValue);
+        /* optional float step = 103; */
+        if (message.step !== undefined)
+            writer.tag(103, WireType.Bit32).float(message.step);
+        let u = options.writeUnknownFields;
+        if (u !== false)
+            (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
+        return writer;
+    }
+}
+/**
+ * @generated MessageType for protobuf message symbol.bench.SliderViewData
+ */
+export const SliderViewData = new SliderViewData$Type();
 // @generated message type with reflection information, may provide speed optimized methods
 class ThreadViewData$Type extends MessageType$<ThreadViewData> {
     constructor() {
@@ -28151,14 +30227,21 @@ class ThreadViewData$Type extends MessageType$<ThreadViewData> {
             { no: 14, name: "archived_at", kind: "message", T: () => Timestamp },
             { no: 15, name: "deleted_at", kind: "message", T: () => Timestamp },
             { no: 16, name: "template_ptr", kind: "message", T: () => NodeReferenceData },
-            { no: 20, name: "mode", kind: "enum", T: () => ["symbol.bench.NodeMode", NodeMode, "NODE_MODE_"] },
+            { no: 25, name: "mode", kind: "enum", T: () => ["symbol.bench.NodeMode", NodeMode, "NODE_MODE_"] },
             { no: 31, name: "name", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
             { no: 33, name: "order_key", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
             { no: 34, name: "icon", kind: "message", T: () => IconData },
             { no: 35, name: "definition_ptr", kind: "message", T: () => NodeReferenceData },
-            { no: 40, name: "draft_text", kind: "message", T: () => TextData },
-            { no: 41, name: "draft_nodes_ptr", kind: "message", repeat: 1 /*RepeatType.PACKED*/, T: () => NodeReferenceData },
-            { no: 42, name: "draft_reply_to_ptr", kind: "message", T: () => NodeReferenceData }
+            { no: 40, name: "position", kind: "message", T: () => PositionData },
+            { no: 41, name: "width", kind: "message", T: () => DimensionData },
+            { no: 42, name: "height", kind: "message", T: () => DimensionData },
+            { no: 43, name: "min_width", kind: "message", T: () => DimensionData },
+            { no: 44, name: "min_height", kind: "message", T: () => DimensionData },
+            { no: 45, name: "max_width", kind: "message", T: () => DimensionData },
+            { no: 46, name: "max_height", kind: "message", T: () => DimensionData },
+            { no: 100, name: "draft_text", kind: "message", T: () => TextData },
+            { no: 101, name: "draft_nodes_ptr", kind: "message", repeat: 1 /*RepeatType.PACKED*/, T: () => NodeReferenceData },
+            { no: 102, name: "draft_reply_to_ptr", kind: "message", T: () => NodeReferenceData }
         ]);
     }
     create(value?: PartialMessage<ThreadViewData>): ThreadViewData {
@@ -28212,7 +30295,7 @@ class ThreadViewData$Type extends MessageType$<ThreadViewData> {
                 case /* optional symbol.bench.NodeReferenceData template_ptr */ 16:
                     message.templatePtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.templatePtr);
                     break;
-                case /* symbol.bench.NodeMode mode */ 20:
+                case /* symbol.bench.NodeMode mode */ 25:
                     message.mode = reader.int32();
                     break;
                 case /* optional string name */ 31:
@@ -28227,13 +30310,34 @@ class ThreadViewData$Type extends MessageType$<ThreadViewData> {
                 case /* optional symbol.bench.NodeReferenceData definition_ptr */ 35:
                     message.definitionPtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.definitionPtr);
                     break;
-                case /* optional symbol.bench.TextData draft_text */ 40:
+                case /* optional symbol.bench.PositionData position */ 40:
+                    message.position = PositionData.internalBinaryRead(reader, reader.uint32(), options, message.position);
+                    break;
+                case /* optional symbol.bench.DimensionData width */ 41:
+                    message.width = DimensionData.internalBinaryRead(reader, reader.uint32(), options, message.width);
+                    break;
+                case /* optional symbol.bench.DimensionData height */ 42:
+                    message.height = DimensionData.internalBinaryRead(reader, reader.uint32(), options, message.height);
+                    break;
+                case /* optional symbol.bench.DimensionData min_width */ 43:
+                    message.minWidth = DimensionData.internalBinaryRead(reader, reader.uint32(), options, message.minWidth);
+                    break;
+                case /* optional symbol.bench.DimensionData min_height */ 44:
+                    message.minHeight = DimensionData.internalBinaryRead(reader, reader.uint32(), options, message.minHeight);
+                    break;
+                case /* optional symbol.bench.DimensionData max_width */ 45:
+                    message.maxWidth = DimensionData.internalBinaryRead(reader, reader.uint32(), options, message.maxWidth);
+                    break;
+                case /* optional symbol.bench.DimensionData max_height */ 46:
+                    message.maxHeight = DimensionData.internalBinaryRead(reader, reader.uint32(), options, message.maxHeight);
+                    break;
+                case /* optional symbol.bench.TextData draft_text */ 100:
                     message.draftText = TextData.internalBinaryRead(reader, reader.uint32(), options, message.draftText);
                     break;
-                case /* repeated symbol.bench.NodeReferenceData draft_nodes_ptr */ 41:
+                case /* repeated symbol.bench.NodeReferenceData draft_nodes_ptr */ 101:
                     message.draftNodesPtr.push(NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options));
                     break;
-                case /* optional symbol.bench.NodeReferenceData draft_reply_to_ptr */ 42:
+                case /* optional symbol.bench.NodeReferenceData draft_reply_to_ptr */ 102:
                     message.draftReplyToPtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.draftReplyToPtr);
                     break;
                 default:
@@ -28284,9 +30388,9 @@ class ThreadViewData$Type extends MessageType$<ThreadViewData> {
         /* optional symbol.bench.NodeReferenceData template_ptr = 16; */
         if (message.templatePtr)
             NodeReferenceData.internalBinaryWrite(message.templatePtr, writer.tag(16, WireType.LengthDelimited).fork(), options).join();
-        /* symbol.bench.NodeMode mode = 20; */
+        /* symbol.bench.NodeMode mode = 25; */
         if (message.mode !== 0)
-            writer.tag(20, WireType.Varint).int32(message.mode);
+            writer.tag(25, WireType.Varint).int32(message.mode);
         /* optional string name = 31; */
         if (message.name !== undefined)
             writer.tag(31, WireType.LengthDelimited).string(message.name);
@@ -28299,15 +30403,36 @@ class ThreadViewData$Type extends MessageType$<ThreadViewData> {
         /* optional symbol.bench.NodeReferenceData definition_ptr = 35; */
         if (message.definitionPtr)
             NodeReferenceData.internalBinaryWrite(message.definitionPtr, writer.tag(35, WireType.LengthDelimited).fork(), options).join();
-        /* optional symbol.bench.TextData draft_text = 40; */
+        /* optional symbol.bench.PositionData position = 40; */
+        if (message.position)
+            PositionData.internalBinaryWrite(message.position, writer.tag(40, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbol.bench.DimensionData width = 41; */
+        if (message.width)
+            DimensionData.internalBinaryWrite(message.width, writer.tag(41, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbol.bench.DimensionData height = 42; */
+        if (message.height)
+            DimensionData.internalBinaryWrite(message.height, writer.tag(42, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbol.bench.DimensionData min_width = 43; */
+        if (message.minWidth)
+            DimensionData.internalBinaryWrite(message.minWidth, writer.tag(43, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbol.bench.DimensionData min_height = 44; */
+        if (message.minHeight)
+            DimensionData.internalBinaryWrite(message.minHeight, writer.tag(44, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbol.bench.DimensionData max_width = 45; */
+        if (message.maxWidth)
+            DimensionData.internalBinaryWrite(message.maxWidth, writer.tag(45, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbol.bench.DimensionData max_height = 46; */
+        if (message.maxHeight)
+            DimensionData.internalBinaryWrite(message.maxHeight, writer.tag(46, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbol.bench.TextData draft_text = 100; */
         if (message.draftText)
-            TextData.internalBinaryWrite(message.draftText, writer.tag(40, WireType.LengthDelimited).fork(), options).join();
-        /* repeated symbol.bench.NodeReferenceData draft_nodes_ptr = 41; */
+            TextData.internalBinaryWrite(message.draftText, writer.tag(100, WireType.LengthDelimited).fork(), options).join();
+        /* repeated symbol.bench.NodeReferenceData draft_nodes_ptr = 101; */
         for (let i = 0; i < message.draftNodesPtr.length; i++)
-            NodeReferenceData.internalBinaryWrite(message.draftNodesPtr[i], writer.tag(41, WireType.LengthDelimited).fork(), options).join();
-        /* optional symbol.bench.NodeReferenceData draft_reply_to_ptr = 42; */
+            NodeReferenceData.internalBinaryWrite(message.draftNodesPtr[i], writer.tag(101, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbol.bench.NodeReferenceData draft_reply_to_ptr = 102; */
         if (message.draftReplyToPtr)
-            NodeReferenceData.internalBinaryWrite(message.draftReplyToPtr, writer.tag(42, WireType.LengthDelimited).fork(), options).join();
+            NodeReferenceData.internalBinaryWrite(message.draftReplyToPtr, writer.tag(102, WireType.LengthDelimited).fork(), options).join();
         let u = options.writeUnknownFields;
         if (u !== false)
             (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
@@ -28334,11 +30459,18 @@ class WizardViewData$Type extends MessageType$<WizardViewData> {
             { no: 14, name: "archived_at", kind: "message", T: () => Timestamp },
             { no: 15, name: "deleted_at", kind: "message", T: () => Timestamp },
             { no: 16, name: "template_ptr", kind: "message", T: () => NodeReferenceData },
-            { no: 20, name: "mode", kind: "enum", T: () => ["symbol.bench.NodeMode", NodeMode, "NODE_MODE_"] },
+            { no: 25, name: "mode", kind: "enum", T: () => ["symbol.bench.NodeMode", NodeMode, "NODE_MODE_"] },
             { no: 31, name: "name", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
             { no: 33, name: "order_key", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
             { no: 34, name: "icon", kind: "message", T: () => IconData },
-            { no: 35, name: "definition_ptr", kind: "message", T: () => NodeReferenceData }
+            { no: 35, name: "definition_ptr", kind: "message", T: () => NodeReferenceData },
+            { no: 40, name: "position", kind: "message", T: () => PositionData },
+            { no: 41, name: "width", kind: "message", T: () => DimensionData },
+            { no: 42, name: "height", kind: "message", T: () => DimensionData },
+            { no: 43, name: "min_width", kind: "message", T: () => DimensionData },
+            { no: 44, name: "min_height", kind: "message", T: () => DimensionData },
+            { no: 45, name: "max_width", kind: "message", T: () => DimensionData },
+            { no: 46, name: "max_height", kind: "message", T: () => DimensionData }
         ]);
     }
     create(value?: PartialMessage<WizardViewData>): WizardViewData {
@@ -28391,7 +30523,7 @@ class WizardViewData$Type extends MessageType$<WizardViewData> {
                 case /* optional symbol.bench.NodeReferenceData template_ptr */ 16:
                     message.templatePtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.templatePtr);
                     break;
-                case /* symbol.bench.NodeMode mode */ 20:
+                case /* symbol.bench.NodeMode mode */ 25:
                     message.mode = reader.int32();
                     break;
                 case /* optional string name */ 31:
@@ -28405,6 +30537,27 @@ class WizardViewData$Type extends MessageType$<WizardViewData> {
                     break;
                 case /* optional symbol.bench.NodeReferenceData definition_ptr */ 35:
                     message.definitionPtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.definitionPtr);
+                    break;
+                case /* optional symbol.bench.PositionData position */ 40:
+                    message.position = PositionData.internalBinaryRead(reader, reader.uint32(), options, message.position);
+                    break;
+                case /* optional symbol.bench.DimensionData width */ 41:
+                    message.width = DimensionData.internalBinaryRead(reader, reader.uint32(), options, message.width);
+                    break;
+                case /* optional symbol.bench.DimensionData height */ 42:
+                    message.height = DimensionData.internalBinaryRead(reader, reader.uint32(), options, message.height);
+                    break;
+                case /* optional symbol.bench.DimensionData min_width */ 43:
+                    message.minWidth = DimensionData.internalBinaryRead(reader, reader.uint32(), options, message.minWidth);
+                    break;
+                case /* optional symbol.bench.DimensionData min_height */ 44:
+                    message.minHeight = DimensionData.internalBinaryRead(reader, reader.uint32(), options, message.minHeight);
+                    break;
+                case /* optional symbol.bench.DimensionData max_width */ 45:
+                    message.maxWidth = DimensionData.internalBinaryRead(reader, reader.uint32(), options, message.maxWidth);
+                    break;
+                case /* optional symbol.bench.DimensionData max_height */ 46:
+                    message.maxHeight = DimensionData.internalBinaryRead(reader, reader.uint32(), options, message.maxHeight);
                     break;
                 default:
                     let u = options.readUnknownField;
@@ -28454,9 +30607,9 @@ class WizardViewData$Type extends MessageType$<WizardViewData> {
         /* optional symbol.bench.NodeReferenceData template_ptr = 16; */
         if (message.templatePtr)
             NodeReferenceData.internalBinaryWrite(message.templatePtr, writer.tag(16, WireType.LengthDelimited).fork(), options).join();
-        /* symbol.bench.NodeMode mode = 20; */
+        /* symbol.bench.NodeMode mode = 25; */
         if (message.mode !== 0)
-            writer.tag(20, WireType.Varint).int32(message.mode);
+            writer.tag(25, WireType.Varint).int32(message.mode);
         /* optional string name = 31; */
         if (message.name !== undefined)
             writer.tag(31, WireType.LengthDelimited).string(message.name);
@@ -28469,6 +30622,27 @@ class WizardViewData$Type extends MessageType$<WizardViewData> {
         /* optional symbol.bench.NodeReferenceData definition_ptr = 35; */
         if (message.definitionPtr)
             NodeReferenceData.internalBinaryWrite(message.definitionPtr, writer.tag(35, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbol.bench.PositionData position = 40; */
+        if (message.position)
+            PositionData.internalBinaryWrite(message.position, writer.tag(40, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbol.bench.DimensionData width = 41; */
+        if (message.width)
+            DimensionData.internalBinaryWrite(message.width, writer.tag(41, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbol.bench.DimensionData height = 42; */
+        if (message.height)
+            DimensionData.internalBinaryWrite(message.height, writer.tag(42, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbol.bench.DimensionData min_width = 43; */
+        if (message.minWidth)
+            DimensionData.internalBinaryWrite(message.minWidth, writer.tag(43, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbol.bench.DimensionData min_height = 44; */
+        if (message.minHeight)
+            DimensionData.internalBinaryWrite(message.minHeight, writer.tag(44, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbol.bench.DimensionData max_width = 45; */
+        if (message.maxWidth)
+            DimensionData.internalBinaryWrite(message.maxWidth, writer.tag(45, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbol.bench.DimensionData max_height = 46; */
+        if (message.maxHeight)
+            DimensionData.internalBinaryWrite(message.maxHeight, writer.tag(46, WireType.LengthDelimited).fork(), options).join();
         let u = options.writeUnknownFields;
         if (u !== false)
             (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
@@ -28495,7 +30669,7 @@ class ColorStyleData$Type extends MessageType$<ColorStyleData> {
             { no: 14, name: "archived_at", kind: "message", T: () => Timestamp },
             { no: 15, name: "deleted_at", kind: "message", T: () => Timestamp },
             { no: 16, name: "template_ptr", kind: "message", T: () => NodeReferenceData },
-            { no: 20, name: "mode", kind: "enum", T: () => ["symbol.bench.NodeMode", NodeMode, "NODE_MODE_"] },
+            { no: 25, name: "mode", kind: "enum", T: () => ["symbol.bench.NodeMode", NodeMode, "NODE_MODE_"] },
             { no: 30, name: "type", kind: "enum", T: () => ["symbol.bench.ColorType", ColorType, "COLOR_TYPE_"] },
             { no: 31, name: "name", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
             { no: 33, name: "order_key", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
@@ -28562,7 +30736,7 @@ class ColorStyleData$Type extends MessageType$<ColorStyleData> {
                 case /* optional symbol.bench.NodeReferenceData template_ptr */ 16:
                     message.templatePtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.templatePtr);
                     break;
-                case /* symbol.bench.NodeMode mode */ 20:
+                case /* symbol.bench.NodeMode mode */ 25:
                     message.mode = reader.int32();
                     break;
                 case /* symbol.bench.ColorType type */ 30:
@@ -28652,9 +30826,9 @@ class ColorStyleData$Type extends MessageType$<ColorStyleData> {
         /* optional symbol.bench.NodeReferenceData template_ptr = 16; */
         if (message.templatePtr)
             NodeReferenceData.internalBinaryWrite(message.templatePtr, writer.tag(16, WireType.LengthDelimited).fork(), options).join();
-        /* symbol.bench.NodeMode mode = 20; */
+        /* symbol.bench.NodeMode mode = 25; */
         if (message.mode !== 0)
-            writer.tag(20, WireType.Varint).int32(message.mode);
+            writer.tag(25, WireType.Varint).int32(message.mode);
         /* symbol.bench.ColorType type = 30; */
         if (message.type !== 0)
             writer.tag(30, WireType.Varint).int32(message.type);
@@ -28720,7 +30894,7 @@ class BorderStyleData$Type extends MessageType$<BorderStyleData> {
             { no: 14, name: "archived_at", kind: "message", T: () => Timestamp },
             { no: 15, name: "deleted_at", kind: "message", T: () => Timestamp },
             { no: 16, name: "template_ptr", kind: "message", T: () => NodeReferenceData },
-            { no: 20, name: "mode", kind: "enum", T: () => ["symbol.bench.NodeMode", NodeMode, "NODE_MODE_"] },
+            { no: 25, name: "mode", kind: "enum", T: () => ["symbol.bench.NodeMode", NodeMode, "NODE_MODE_"] },
             { no: 30, name: "type", kind: "enum", T: () => ["symbol.bench.BorderType", BorderType, "BORDER_TYPE_"] },
             { no: 31, name: "name", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
             { no: 33, name: "order_key", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
@@ -28791,7 +30965,7 @@ class BorderStyleData$Type extends MessageType$<BorderStyleData> {
                 case /* optional symbol.bench.NodeReferenceData template_ptr */ 16:
                     message.templatePtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.templatePtr);
                     break;
-                case /* symbol.bench.NodeMode mode */ 20:
+                case /* symbol.bench.NodeMode mode */ 25:
                     message.mode = reader.int32();
                     break;
                 case /* symbol.bench.BorderType type */ 30:
@@ -28893,9 +31067,9 @@ class BorderStyleData$Type extends MessageType$<BorderStyleData> {
         /* optional symbol.bench.NodeReferenceData template_ptr = 16; */
         if (message.templatePtr)
             NodeReferenceData.internalBinaryWrite(message.templatePtr, writer.tag(16, WireType.LengthDelimited).fork(), options).join();
-        /* symbol.bench.NodeMode mode = 20; */
+        /* symbol.bench.NodeMode mode = 25; */
         if (message.mode !== 0)
-            writer.tag(20, WireType.Varint).int32(message.mode);
+            writer.tag(25, WireType.Varint).int32(message.mode);
         /* symbol.bench.BorderType type = 30; */
         if (message.type !== 0)
             writer.tag(30, WireType.Varint).int32(message.type);
@@ -28973,7 +31147,7 @@ class EffectStyleData$Type extends MessageType$<EffectStyleData> {
             { no: 14, name: "archived_at", kind: "message", T: () => Timestamp },
             { no: 15, name: "deleted_at", kind: "message", T: () => Timestamp },
             { no: 16, name: "template_ptr", kind: "message", T: () => NodeReferenceData },
-            { no: 20, name: "mode", kind: "enum", T: () => ["symbol.bench.NodeMode", NodeMode, "NODE_MODE_"] },
+            { no: 25, name: "mode", kind: "enum", T: () => ["symbol.bench.NodeMode", NodeMode, "NODE_MODE_"] },
             { no: 30, name: "type", kind: "enum", T: () => ["symbol.bench.EffectType", EffectType, "EFFECT_TYPE_"] },
             { no: 31, name: "name", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
             { no: 33, name: "order_key", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
@@ -28986,7 +31160,7 @@ class EffectStyleData$Type extends MessageType$<EffectStyleData> {
             { no: 44, name: "rotate", kind: "scalar", opt: true, T: 2 /*ScalarType.FLOAT*/ },
             { no: 45, name: "rotate_x", kind: "scalar", opt: true, T: 2 /*ScalarType.FLOAT*/ },
             { no: 46, name: "rotate_y", kind: "scalar", opt: true, T: 2 /*ScalarType.FLOAT*/ },
-            { no: 47, name: "is_rotate_3d", kind: "scalar", jsonName: "isRotate3d", opt: true, T: 8 /*ScalarType.BOOL*/ },
+            { no: 47, name: "rotate_z", kind: "scalar", opt: true, T: 2 /*ScalarType.FLOAT*/ },
             { no: 48, name: "skew_x", kind: "scalar", opt: true, T: 2 /*ScalarType.FLOAT*/ },
             { no: 49, name: "skew_y", kind: "scalar", opt: true, T: 2 /*ScalarType.FLOAT*/ },
             { no: 50, name: "perspective", kind: "scalar", opt: true, T: 2 /*ScalarType.FLOAT*/ },
@@ -29047,7 +31221,7 @@ class EffectStyleData$Type extends MessageType$<EffectStyleData> {
                 case /* optional symbol.bench.NodeReferenceData template_ptr */ 16:
                     message.templatePtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.templatePtr);
                     break;
-                case /* symbol.bench.NodeMode mode */ 20:
+                case /* symbol.bench.NodeMode mode */ 25:
                     message.mode = reader.int32();
                     break;
                 case /* symbol.bench.EffectType type */ 30:
@@ -29086,8 +31260,8 @@ class EffectStyleData$Type extends MessageType$<EffectStyleData> {
                 case /* optional float rotate_y */ 46:
                     message.rotateY = reader.float();
                     break;
-                case /* optional bool is_rotate_3d = 47 [json_name = "isRotate3d"];*/ 47:
-                    message.isRotate3D = reader.bool();
+                case /* optional float rotate_z */ 47:
+                    message.rotateZ = reader.float();
                     break;
                 case /* optional float skew_x */ 48:
                     message.skewX = reader.float();
@@ -29158,9 +31332,9 @@ class EffectStyleData$Type extends MessageType$<EffectStyleData> {
         /* optional symbol.bench.NodeReferenceData template_ptr = 16; */
         if (message.templatePtr)
             NodeReferenceData.internalBinaryWrite(message.templatePtr, writer.tag(16, WireType.LengthDelimited).fork(), options).join();
-        /* symbol.bench.NodeMode mode = 20; */
+        /* symbol.bench.NodeMode mode = 25; */
         if (message.mode !== 0)
-            writer.tag(20, WireType.Varint).int32(message.mode);
+            writer.tag(25, WireType.Varint).int32(message.mode);
         /* symbol.bench.EffectType type = 30; */
         if (message.type !== 0)
             writer.tag(30, WireType.Varint).int32(message.type);
@@ -29197,9 +31371,9 @@ class EffectStyleData$Type extends MessageType$<EffectStyleData> {
         /* optional float rotate_y = 46; */
         if (message.rotateY !== undefined)
             writer.tag(46, WireType.Bit32).float(message.rotateY);
-        /* optional bool is_rotate_3d = 47 [json_name = "isRotate3d"]; */
-        if (message.isRotate3D !== undefined)
-            writer.tag(47, WireType.Varint).bool(message.isRotate3D);
+        /* optional float rotate_z = 47; */
+        if (message.rotateZ !== undefined)
+            writer.tag(47, WireType.Bit32).float(message.rotateZ);
         /* optional float skew_x = 48; */
         if (message.skewX !== undefined)
             writer.tag(48, WireType.Bit32).float(message.skewX);
@@ -29247,7 +31421,7 @@ class GradientStyleData$Type extends MessageType$<GradientStyleData> {
             { no: 14, name: "archived_at", kind: "message", T: () => Timestamp },
             { no: 15, name: "deleted_at", kind: "message", T: () => Timestamp },
             { no: 16, name: "template_ptr", kind: "message", T: () => NodeReferenceData },
-            { no: 20, name: "mode", kind: "enum", T: () => ["symbol.bench.NodeMode", NodeMode, "NODE_MODE_"] },
+            { no: 25, name: "mode", kind: "enum", T: () => ["symbol.bench.NodeMode", NodeMode, "NODE_MODE_"] },
             { no: 30, name: "type", kind: "enum", T: () => ["symbol.bench.GradientType", GradientType, "GRADIENT_TYPE_"] },
             { no: 31, name: "name", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
             { no: 33, name: "order_key", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
@@ -29310,7 +31484,7 @@ class GradientStyleData$Type extends MessageType$<GradientStyleData> {
                 case /* optional symbol.bench.NodeReferenceData template_ptr */ 16:
                     message.templatePtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.templatePtr);
                     break;
-                case /* symbol.bench.NodeMode mode */ 20:
+                case /* symbol.bench.NodeMode mode */ 25:
                     message.mode = reader.int32();
                     break;
                 case /* symbol.bench.GradientType type */ 30:
@@ -29385,9 +31559,9 @@ class GradientStyleData$Type extends MessageType$<GradientStyleData> {
         /* optional symbol.bench.NodeReferenceData template_ptr = 16; */
         if (message.templatePtr)
             NodeReferenceData.internalBinaryWrite(message.templatePtr, writer.tag(16, WireType.LengthDelimited).fork(), options).join();
-        /* symbol.bench.NodeMode mode = 20; */
+        /* symbol.bench.NodeMode mode = 25; */
         if (message.mode !== 0)
-            writer.tag(20, WireType.Varint).int32(message.mode);
+            writer.tag(25, WireType.Varint).int32(message.mode);
         /* symbol.bench.GradientType type = 30; */
         if (message.type !== 0)
             writer.tag(30, WireType.Varint).int32(message.type);
@@ -29438,7 +31612,7 @@ class ShadowStyleData$Type extends MessageType$<ShadowStyleData> {
             { no: 14, name: "archived_at", kind: "message", T: () => Timestamp },
             { no: 15, name: "deleted_at", kind: "message", T: () => Timestamp },
             { no: 16, name: "template_ptr", kind: "message", T: () => NodeReferenceData },
-            { no: 20, name: "mode", kind: "enum", T: () => ["symbol.bench.NodeMode", NodeMode, "NODE_MODE_"] },
+            { no: 25, name: "mode", kind: "enum", T: () => ["symbol.bench.NodeMode", NodeMode, "NODE_MODE_"] },
             { no: 30, name: "type", kind: "enum", T: () => ["symbol.bench.ShadowType", ShadowType, "SHADOW_TYPE_"] },
             { no: 31, name: "name", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
             { no: 33, name: "order_key", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
@@ -29506,7 +31680,7 @@ class ShadowStyleData$Type extends MessageType$<ShadowStyleData> {
                 case /* optional symbol.bench.NodeReferenceData template_ptr */ 16:
                     message.templatePtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.templatePtr);
                     break;
-                case /* symbol.bench.NodeMode mode */ 20:
+                case /* symbol.bench.NodeMode mode */ 25:
                     message.mode = reader.int32();
                     break;
                 case /* symbol.bench.ShadowType type */ 30:
@@ -29596,9 +31770,9 @@ class ShadowStyleData$Type extends MessageType$<ShadowStyleData> {
         /* optional symbol.bench.NodeReferenceData template_ptr = 16; */
         if (message.templatePtr)
             NodeReferenceData.internalBinaryWrite(message.templatePtr, writer.tag(16, WireType.LengthDelimited).fork(), options).join();
-        /* symbol.bench.NodeMode mode = 20; */
+        /* symbol.bench.NodeMode mode = 25; */
         if (message.mode !== 0)
-            writer.tag(20, WireType.Varint).int32(message.mode);
+            writer.tag(25, WireType.Varint).int32(message.mode);
         /* symbol.bench.ShadowType type = 30; */
         if (message.type !== 0)
             writer.tag(30, WireType.Varint).int32(message.type);
@@ -29664,7 +31838,7 @@ class TextStyleData$Type extends MessageType$<TextStyleData> {
             { no: 14, name: "archived_at", kind: "message", T: () => Timestamp },
             { no: 15, name: "deleted_at", kind: "message", T: () => Timestamp },
             { no: 16, name: "template_ptr", kind: "message", T: () => NodeReferenceData },
-            { no: 20, name: "mode", kind: "enum", T: () => ["symbol.bench.NodeMode", NodeMode, "NODE_MODE_"] },
+            { no: 25, name: "mode", kind: "enum", T: () => ["symbol.bench.NodeMode", NodeMode, "NODE_MODE_"] },
             { no: 30, name: "type", kind: "enum", T: () => ["symbol.bench.TextType", TextType, "TEXT_TYPE_"] },
             { no: 31, name: "name", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
             { no: 33, name: "order_key", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
@@ -29733,7 +31907,7 @@ class TextStyleData$Type extends MessageType$<TextStyleData> {
                 case /* optional symbol.bench.NodeReferenceData template_ptr */ 16:
                     message.templatePtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.templatePtr);
                     break;
-                case /* symbol.bench.NodeMode mode */ 20:
+                case /* symbol.bench.NodeMode mode */ 25:
                     message.mode = reader.int32();
                     break;
                 case /* symbol.bench.TextType type */ 30:
@@ -29829,9 +32003,9 @@ class TextStyleData$Type extends MessageType$<TextStyleData> {
         /* optional symbol.bench.NodeReferenceData template_ptr = 16; */
         if (message.templatePtr)
             NodeReferenceData.internalBinaryWrite(message.templatePtr, writer.tag(16, WireType.LengthDelimited).fork(), options).join();
-        /* symbol.bench.NodeMode mode = 20; */
+        /* symbol.bench.NodeMode mode = 25; */
         if (message.mode !== 0)
-            writer.tag(20, WireType.Varint).int32(message.mode);
+            writer.tag(25, WireType.Varint).int32(message.mode);
         /* symbol.bench.TextType type = 30; */
         if (message.type !== 0)
             writer.tag(30, WireType.Varint).int32(message.type);
@@ -30098,7 +32272,7 @@ class TransitionStyleData$Type extends MessageType$<TransitionStyleData> {
             { no: 14, name: "archived_at", kind: "message", T: () => Timestamp },
             { no: 15, name: "deleted_at", kind: "message", T: () => Timestamp },
             { no: 16, name: "template_ptr", kind: "message", T: () => NodeReferenceData },
-            { no: 20, name: "mode", kind: "enum", T: () => ["symbol.bench.NodeMode", NodeMode, "NODE_MODE_"] },
+            { no: 25, name: "mode", kind: "enum", T: () => ["symbol.bench.NodeMode", NodeMode, "NODE_MODE_"] },
             { no: 30, name: "type", kind: "enum", T: () => ["symbol.bench.TransitionType", TransitionType, "TRANSITION_TYPE_"] },
             { no: 31, name: "name", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
             { no: 33, name: "order_key", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
@@ -30167,7 +32341,7 @@ class TransitionStyleData$Type extends MessageType$<TransitionStyleData> {
                 case /* optional symbol.bench.NodeReferenceData template_ptr */ 16:
                     message.templatePtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.templatePtr);
                     break;
-                case /* symbol.bench.NodeMode mode */ 20:
+                case /* symbol.bench.NodeMode mode */ 25:
                     message.mode = reader.int32();
                     break;
                 case /* symbol.bench.TransitionType type */ 30:
@@ -30264,9 +32438,9 @@ class TransitionStyleData$Type extends MessageType$<TransitionStyleData> {
         /* optional symbol.bench.NodeReferenceData template_ptr = 16; */
         if (message.templatePtr)
             NodeReferenceData.internalBinaryWrite(message.templatePtr, writer.tag(16, WireType.LengthDelimited).fork(), options).join();
-        /* symbol.bench.NodeMode mode = 20; */
+        /* symbol.bench.NodeMode mode = 25; */
         if (message.mode !== 0)
-            writer.tag(20, WireType.Varint).int32(message.mode);
+            writer.tag(25, WireType.Varint).int32(message.mode);
         /* symbol.bench.TransitionType type = 30; */
         if (message.type !== 0)
             writer.tag(30, WireType.Varint).int32(message.type);
@@ -30339,7 +32513,7 @@ class ChoiceData$Type extends MessageType$<ChoiceData> {
             { no: 14, name: "archived_at", kind: "message", T: () => Timestamp },
             { no: 15, name: "deleted_at", kind: "message", T: () => Timestamp },
             { no: 16, name: "template_ptr", kind: "message", T: () => NodeReferenceData },
-            { no: 20, name: "mode", kind: "enum", T: () => ["symbol.bench.NodeMode", NodeMode, "NODE_MODE_"] },
+            { no: 25, name: "mode", kind: "enum", T: () => ["symbol.bench.NodeMode", NodeMode, "NODE_MODE_"] },
             { no: 31, name: "name", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
             { no: 33, name: "order_key", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
             { no: 34, name: "icon", kind: "message", T: () => IconData },
@@ -30396,7 +32570,7 @@ class ChoiceData$Type extends MessageType$<ChoiceData> {
                 case /* optional symbol.bench.NodeReferenceData template_ptr */ 16:
                     message.templatePtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.templatePtr);
                     break;
-                case /* symbol.bench.NodeMode mode */ 20:
+                case /* symbol.bench.NodeMode mode */ 25:
                     message.mode = reader.int32();
                     break;
                 case /* optional string name */ 31:
@@ -30459,9 +32633,9 @@ class ChoiceData$Type extends MessageType$<ChoiceData> {
         /* optional symbol.bench.NodeReferenceData template_ptr = 16; */
         if (message.templatePtr)
             NodeReferenceData.internalBinaryWrite(message.templatePtr, writer.tag(16, WireType.LengthDelimited).fork(), options).join();
-        /* symbol.bench.NodeMode mode = 20; */
+        /* symbol.bench.NodeMode mode = 25; */
         if (message.mode !== 0)
-            writer.tag(20, WireType.Varint).int32(message.mode);
+            writer.tag(25, WireType.Varint).int32(message.mode);
         /* optional string name = 31; */
         if (message.name !== undefined)
             writer.tag(31, WireType.LengthDelimited).string(message.name);
@@ -30500,7 +32674,7 @@ class ClassData$Type extends MessageType$<ClassData> {
             { no: 14, name: "archived_at", kind: "message", T: () => Timestamp },
             { no: 15, name: "deleted_at", kind: "message", T: () => Timestamp },
             { no: 16, name: "template_ptr", kind: "message", T: () => NodeReferenceData },
-            { no: 20, name: "mode", kind: "enum", T: () => ["symbol.bench.NodeMode", NodeMode, "NODE_MODE_"] },
+            { no: 25, name: "mode", kind: "enum", T: () => ["symbol.bench.NodeMode", NodeMode, "NODE_MODE_"] },
             { no: 31, name: "name", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
             { no: 33, name: "order_key", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
             { no: 34, name: "icon", kind: "message", T: () => IconData },
@@ -30557,7 +32731,7 @@ class ClassData$Type extends MessageType$<ClassData> {
                 case /* optional symbol.bench.NodeReferenceData template_ptr */ 16:
                     message.templatePtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.templatePtr);
                     break;
-                case /* symbol.bench.NodeMode mode */ 20:
+                case /* symbol.bench.NodeMode mode */ 25:
                     message.mode = reader.int32();
                     break;
                 case /* optional string name */ 31:
@@ -30620,9 +32794,9 @@ class ClassData$Type extends MessageType$<ClassData> {
         /* optional symbol.bench.NodeReferenceData template_ptr = 16; */
         if (message.templatePtr)
             NodeReferenceData.internalBinaryWrite(message.templatePtr, writer.tag(16, WireType.LengthDelimited).fork(), options).join();
-        /* symbol.bench.NodeMode mode = 20; */
+        /* symbol.bench.NodeMode mode = 25; */
         if (message.mode !== 0)
-            writer.tag(20, WireType.Varint).int32(message.mode);
+            writer.tag(25, WireType.Varint).int32(message.mode);
         /* optional string name = 31; */
         if (message.name !== undefined)
             writer.tag(31, WireType.LengthDelimited).string(message.name);
@@ -30662,7 +32836,7 @@ class FieldData$Type extends MessageType$<FieldData> {
             { no: 14, name: "archived_at", kind: "message", T: () => Timestamp },
             { no: 15, name: "deleted_at", kind: "message", T: () => Timestamp },
             { no: 16, name: "template_ptr", kind: "message", T: () => NodeReferenceData },
-            { no: 20, name: "mode", kind: "enum", T: () => ["symbol.bench.NodeMode", NodeMode, "NODE_MODE_"] },
+            { no: 25, name: "mode", kind: "enum", T: () => ["symbol.bench.NodeMode", NodeMode, "NODE_MODE_"] },
             { no: 30, name: "type", kind: "enum", T: () => ["symbol.bench.FieldType", FieldType, "FIELD_TYPE_"] },
             { no: 31, name: "name", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
             { no: 33, name: "order_key", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
@@ -30745,7 +32919,7 @@ class FieldData$Type extends MessageType$<FieldData> {
                 case /* optional symbol.bench.NodeReferenceData template_ptr */ 16:
                     message.templatePtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.templatePtr);
                     break;
-                case /* symbol.bench.NodeMode mode */ 20:
+                case /* symbol.bench.NodeMode mode */ 25:
                     message.mode = reader.int32();
                     break;
                 case /* symbol.bench.FieldType type */ 30:
@@ -30861,9 +33035,9 @@ class FieldData$Type extends MessageType$<FieldData> {
         /* optional symbol.bench.NodeReferenceData template_ptr = 16; */
         if (message.templatePtr)
             NodeReferenceData.internalBinaryWrite(message.templatePtr, writer.tag(16, WireType.LengthDelimited).fork(), options).join();
-        /* symbol.bench.NodeMode mode = 20; */
+        /* symbol.bench.NodeMode mode = 25; */
         if (message.mode !== 0)
-            writer.tag(20, WireType.Varint).int32(message.mode);
+            writer.tag(25, WireType.Varint).int32(message.mode);
         /* symbol.bench.FieldType type = 30; */
         if (message.type !== 0)
             writer.tag(30, WireType.Varint).int32(message.type);
@@ -30953,7 +33127,7 @@ class OptionData$Type extends MessageType$<OptionData> {
             { no: 14, name: "archived_at", kind: "message", T: () => Timestamp },
             { no: 15, name: "deleted_at", kind: "message", T: () => Timestamp },
             { no: 16, name: "template_ptr", kind: "message", T: () => NodeReferenceData },
-            { no: 20, name: "mode", kind: "enum", T: () => ["symbol.bench.NodeMode", NodeMode, "NODE_MODE_"] },
+            { no: 25, name: "mode", kind: "enum", T: () => ["symbol.bench.NodeMode", NodeMode, "NODE_MODE_"] },
             { no: 31, name: "name", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
             { no: 32, name: "order_key", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
             { no: 34, name: "icon", kind: "message", T: () => IconData }
@@ -31014,7 +33188,7 @@ class OptionData$Type extends MessageType$<OptionData> {
                 case /* optional symbol.bench.NodeReferenceData template_ptr */ 16:
                     message.templatePtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.templatePtr);
                     break;
-                case /* symbol.bench.NodeMode mode */ 20:
+                case /* symbol.bench.NodeMode mode */ 25:
                     message.mode = reader.int32();
                     break;
                 case /* optional string name */ 31:
@@ -31077,9 +33251,9 @@ class OptionData$Type extends MessageType$<OptionData> {
         /* optional symbol.bench.NodeReferenceData template_ptr = 16; */
         if (message.templatePtr)
             NodeReferenceData.internalBinaryWrite(message.templatePtr, writer.tag(16, WireType.LengthDelimited).fork(), options).join();
-        /* symbol.bench.NodeMode mode = 20; */
+        /* symbol.bench.NodeMode mode = 25; */
         if (message.mode !== 0)
-            writer.tag(20, WireType.Varint).int32(message.mode);
+            writer.tag(25, WireType.Varint).int32(message.mode);
         /* optional string name = 31; */
         if (message.name !== undefined)
             writer.tag(31, WireType.LengthDelimited).string(message.name);
@@ -31147,19 +33321,20 @@ class SomeNodeData$Type extends MessageType$<SomeNodeData> {
             { no: 42, name: "wizard_view", kind: "message", oneof: "node", T: () => WizardViewData },
             { no: 43, name: "frame_view", kind: "message", oneof: "node", T: () => FrameViewData },
             { no: 44, name: "label_view", kind: "message", oneof: "node", T: () => LabelViewData },
-            { no: 45, name: "split_view", kind: "message", oneof: "node", T: () => SplitViewData },
-            { no: 46, name: "input_view", kind: "message", oneof: "node", T: () => InputViewData },
-            { no: 47, name: "slider_view", kind: "message", oneof: "node", T: () => SliderViewData },
-            { no: 48, name: "thread_view", kind: "message", oneof: "node", T: () => ThreadViewData },
-            { no: 49, name: "theme", kind: "message", oneof: "node", T: () => ThemeData },
-            { no: 50, name: "color_style", kind: "message", oneof: "node", T: () => ColorStyleData },
-            { no: 51, name: "text_style", kind: "message", oneof: "node", T: () => TextStyleData },
-            { no: 52, name: "border_style", kind: "message", oneof: "node", T: () => BorderStyleData },
-            { no: 53, name: "shadow_style", kind: "message", oneof: "node", T: () => ShadowStyleData },
-            { no: 54, name: "gradient_style", kind: "message", oneof: "node", T: () => GradientStyleData },
-            { no: 55, name: "transition_style", kind: "message", oneof: "node", T: () => TransitionStyleData },
-            { no: 56, name: "effect_style", kind: "message", oneof: "node", T: () => EffectStyleData },
-            { no: 57, name: "empty", kind: "message", oneof: "node", T: () => EmptyData }
+            { no: 45, name: "component_view", kind: "message", oneof: "node", T: () => ComponentViewData },
+            { no: 46, name: "split_view", kind: "message", oneof: "node", T: () => SplitViewData },
+            { no: 47, name: "number_view", kind: "message", oneof: "node", T: () => NumberViewData },
+            { no: 48, name: "slider_view", kind: "message", oneof: "node", T: () => SliderViewData },
+            { no: 49, name: "thread_view", kind: "message", oneof: "node", T: () => ThreadViewData },
+            { no: 50, name: "theme", kind: "message", oneof: "node", T: () => ThemeData },
+            { no: 51, name: "color_style", kind: "message", oneof: "node", T: () => ColorStyleData },
+            { no: 52, name: "text_style", kind: "message", oneof: "node", T: () => TextStyleData },
+            { no: 53, name: "border_style", kind: "message", oneof: "node", T: () => BorderStyleData },
+            { no: 54, name: "shadow_style", kind: "message", oneof: "node", T: () => ShadowStyleData },
+            { no: 55, name: "gradient_style", kind: "message", oneof: "node", T: () => GradientStyleData },
+            { no: 56, name: "transition_style", kind: "message", oneof: "node", T: () => TransitionStyleData },
+            { no: 57, name: "effect_style", kind: "message", oneof: "node", T: () => EffectStyleData },
+            { no: 58, name: "empty", kind: "message", oneof: "node", T: () => EmptyData }
         ]);
     }
     create(value?: PartialMessage<SomeNodeData>): SomeNodeData {
@@ -31438,79 +33613,85 @@ class SomeNodeData$Type extends MessageType$<SomeNodeData> {
                         labelView: LabelViewData.internalBinaryRead(reader, reader.uint32(), options, (message.node as any).labelView)
                     };
                     break;
-                case /* symbol.bench.SplitViewData split_view */ 45:
+                case /* symbol.bench.ComponentViewData component_view */ 45:
+                    message.node = {
+                        oneofKind: "componentView",
+                        componentView: ComponentViewData.internalBinaryRead(reader, reader.uint32(), options, (message.node as any).componentView)
+                    };
+                    break;
+                case /* symbol.bench.SplitViewData split_view */ 46:
                     message.node = {
                         oneofKind: "splitView",
                         splitView: SplitViewData.internalBinaryRead(reader, reader.uint32(), options, (message.node as any).splitView)
                     };
                     break;
-                case /* symbol.bench.InputViewData input_view */ 46:
+                case /* symbol.bench.NumberViewData number_view */ 47:
                     message.node = {
-                        oneofKind: "inputView",
-                        inputView: InputViewData.internalBinaryRead(reader, reader.uint32(), options, (message.node as any).inputView)
+                        oneofKind: "numberView",
+                        numberView: NumberViewData.internalBinaryRead(reader, reader.uint32(), options, (message.node as any).numberView)
                     };
                     break;
-                case /* symbol.bench.SliderViewData slider_view */ 47:
+                case /* symbol.bench.SliderViewData slider_view */ 48:
                     message.node = {
                         oneofKind: "sliderView",
                         sliderView: SliderViewData.internalBinaryRead(reader, reader.uint32(), options, (message.node as any).sliderView)
                     };
                     break;
-                case /* symbol.bench.ThreadViewData thread_view */ 48:
+                case /* symbol.bench.ThreadViewData thread_view */ 49:
                     message.node = {
                         oneofKind: "threadView",
                         threadView: ThreadViewData.internalBinaryRead(reader, reader.uint32(), options, (message.node as any).threadView)
                     };
                     break;
-                case /* symbol.bench.ThemeData theme */ 49:
+                case /* symbol.bench.ThemeData theme */ 50:
                     message.node = {
                         oneofKind: "theme",
                         theme: ThemeData.internalBinaryRead(reader, reader.uint32(), options, (message.node as any).theme)
                     };
                     break;
-                case /* symbol.bench.ColorStyleData color_style */ 50:
+                case /* symbol.bench.ColorStyleData color_style */ 51:
                     message.node = {
                         oneofKind: "colorStyle",
                         colorStyle: ColorStyleData.internalBinaryRead(reader, reader.uint32(), options, (message.node as any).colorStyle)
                     };
                     break;
-                case /* symbol.bench.TextStyleData text_style */ 51:
+                case /* symbol.bench.TextStyleData text_style */ 52:
                     message.node = {
                         oneofKind: "textStyle",
                         textStyle: TextStyleData.internalBinaryRead(reader, reader.uint32(), options, (message.node as any).textStyle)
                     };
                     break;
-                case /* symbol.bench.BorderStyleData border_style */ 52:
+                case /* symbol.bench.BorderStyleData border_style */ 53:
                     message.node = {
                         oneofKind: "borderStyle",
                         borderStyle: BorderStyleData.internalBinaryRead(reader, reader.uint32(), options, (message.node as any).borderStyle)
                     };
                     break;
-                case /* symbol.bench.ShadowStyleData shadow_style */ 53:
+                case /* symbol.bench.ShadowStyleData shadow_style */ 54:
                     message.node = {
                         oneofKind: "shadowStyle",
                         shadowStyle: ShadowStyleData.internalBinaryRead(reader, reader.uint32(), options, (message.node as any).shadowStyle)
                     };
                     break;
-                case /* symbol.bench.GradientStyleData gradient_style */ 54:
+                case /* symbol.bench.GradientStyleData gradient_style */ 55:
                     message.node = {
                         oneofKind: "gradientStyle",
                         gradientStyle: GradientStyleData.internalBinaryRead(reader, reader.uint32(), options, (message.node as any).gradientStyle)
                     };
                     break;
-                case /* symbol.bench.TransitionStyleData transition_style */ 55:
+                case /* symbol.bench.TransitionStyleData transition_style */ 56:
                     message.node = {
                         oneofKind: "transitionStyle",
                         transitionStyle: TransitionStyleData.internalBinaryRead(reader, reader.uint32(), options, (message.node as any).transitionStyle)
                     };
                     break;
-                case /* symbol.bench.EffectStyleData effect_style */ 56:
+                case /* symbol.bench.EffectStyleData effect_style */ 57:
                     message.node = {
                         oneofKind: "effectStyle",
                         effectStyle: EffectStyleData.internalBinaryRead(reader, reader.uint32(), options, (message.node as any).effectStyle)
                     };
                     break;
-                case /* symbol.bench.EmptyData empty */ 57:
+                case /* symbol.bench.EmptyData empty */ 58:
                     message.node = {
                         oneofKind: "empty",
                         empty: EmptyData.internalBinaryRead(reader, reader.uint32(), options, (message.node as any).empty)
@@ -31660,45 +33841,48 @@ class SomeNodeData$Type extends MessageType$<SomeNodeData> {
         /* symbol.bench.LabelViewData label_view = 44; */
         if (message.node.oneofKind === "labelView")
             LabelViewData.internalBinaryWrite(message.node.labelView, writer.tag(44, WireType.LengthDelimited).fork(), options).join();
-        /* symbol.bench.SplitViewData split_view = 45; */
+        /* symbol.bench.ComponentViewData component_view = 45; */
+        if (message.node.oneofKind === "componentView")
+            ComponentViewData.internalBinaryWrite(message.node.componentView, writer.tag(45, WireType.LengthDelimited).fork(), options).join();
+        /* symbol.bench.SplitViewData split_view = 46; */
         if (message.node.oneofKind === "splitView")
-            SplitViewData.internalBinaryWrite(message.node.splitView, writer.tag(45, WireType.LengthDelimited).fork(), options).join();
-        /* symbol.bench.InputViewData input_view = 46; */
-        if (message.node.oneofKind === "inputView")
-            InputViewData.internalBinaryWrite(message.node.inputView, writer.tag(46, WireType.LengthDelimited).fork(), options).join();
-        /* symbol.bench.SliderViewData slider_view = 47; */
+            SplitViewData.internalBinaryWrite(message.node.splitView, writer.tag(46, WireType.LengthDelimited).fork(), options).join();
+        /* symbol.bench.NumberViewData number_view = 47; */
+        if (message.node.oneofKind === "numberView")
+            NumberViewData.internalBinaryWrite(message.node.numberView, writer.tag(47, WireType.LengthDelimited).fork(), options).join();
+        /* symbol.bench.SliderViewData slider_view = 48; */
         if (message.node.oneofKind === "sliderView")
-            SliderViewData.internalBinaryWrite(message.node.sliderView, writer.tag(47, WireType.LengthDelimited).fork(), options).join();
-        /* symbol.bench.ThreadViewData thread_view = 48; */
+            SliderViewData.internalBinaryWrite(message.node.sliderView, writer.tag(48, WireType.LengthDelimited).fork(), options).join();
+        /* symbol.bench.ThreadViewData thread_view = 49; */
         if (message.node.oneofKind === "threadView")
-            ThreadViewData.internalBinaryWrite(message.node.threadView, writer.tag(48, WireType.LengthDelimited).fork(), options).join();
-        /* symbol.bench.ThemeData theme = 49; */
+            ThreadViewData.internalBinaryWrite(message.node.threadView, writer.tag(49, WireType.LengthDelimited).fork(), options).join();
+        /* symbol.bench.ThemeData theme = 50; */
         if (message.node.oneofKind === "theme")
-            ThemeData.internalBinaryWrite(message.node.theme, writer.tag(49, WireType.LengthDelimited).fork(), options).join();
-        /* symbol.bench.ColorStyleData color_style = 50; */
+            ThemeData.internalBinaryWrite(message.node.theme, writer.tag(50, WireType.LengthDelimited).fork(), options).join();
+        /* symbol.bench.ColorStyleData color_style = 51; */
         if (message.node.oneofKind === "colorStyle")
-            ColorStyleData.internalBinaryWrite(message.node.colorStyle, writer.tag(50, WireType.LengthDelimited).fork(), options).join();
-        /* symbol.bench.TextStyleData text_style = 51; */
+            ColorStyleData.internalBinaryWrite(message.node.colorStyle, writer.tag(51, WireType.LengthDelimited).fork(), options).join();
+        /* symbol.bench.TextStyleData text_style = 52; */
         if (message.node.oneofKind === "textStyle")
-            TextStyleData.internalBinaryWrite(message.node.textStyle, writer.tag(51, WireType.LengthDelimited).fork(), options).join();
-        /* symbol.bench.BorderStyleData border_style = 52; */
+            TextStyleData.internalBinaryWrite(message.node.textStyle, writer.tag(52, WireType.LengthDelimited).fork(), options).join();
+        /* symbol.bench.BorderStyleData border_style = 53; */
         if (message.node.oneofKind === "borderStyle")
-            BorderStyleData.internalBinaryWrite(message.node.borderStyle, writer.tag(52, WireType.LengthDelimited).fork(), options).join();
-        /* symbol.bench.ShadowStyleData shadow_style = 53; */
+            BorderStyleData.internalBinaryWrite(message.node.borderStyle, writer.tag(53, WireType.LengthDelimited).fork(), options).join();
+        /* symbol.bench.ShadowStyleData shadow_style = 54; */
         if (message.node.oneofKind === "shadowStyle")
-            ShadowStyleData.internalBinaryWrite(message.node.shadowStyle, writer.tag(53, WireType.LengthDelimited).fork(), options).join();
-        /* symbol.bench.GradientStyleData gradient_style = 54; */
+            ShadowStyleData.internalBinaryWrite(message.node.shadowStyle, writer.tag(54, WireType.LengthDelimited).fork(), options).join();
+        /* symbol.bench.GradientStyleData gradient_style = 55; */
         if (message.node.oneofKind === "gradientStyle")
-            GradientStyleData.internalBinaryWrite(message.node.gradientStyle, writer.tag(54, WireType.LengthDelimited).fork(), options).join();
-        /* symbol.bench.TransitionStyleData transition_style = 55; */
+            GradientStyleData.internalBinaryWrite(message.node.gradientStyle, writer.tag(55, WireType.LengthDelimited).fork(), options).join();
+        /* symbol.bench.TransitionStyleData transition_style = 56; */
         if (message.node.oneofKind === "transitionStyle")
-            TransitionStyleData.internalBinaryWrite(message.node.transitionStyle, writer.tag(55, WireType.LengthDelimited).fork(), options).join();
-        /* symbol.bench.EffectStyleData effect_style = 56; */
+            TransitionStyleData.internalBinaryWrite(message.node.transitionStyle, writer.tag(56, WireType.LengthDelimited).fork(), options).join();
+        /* symbol.bench.EffectStyleData effect_style = 57; */
         if (message.node.oneofKind === "effectStyle")
-            EffectStyleData.internalBinaryWrite(message.node.effectStyle, writer.tag(56, WireType.LengthDelimited).fork(), options).join();
-        /* symbol.bench.EmptyData empty = 57; */
+            EffectStyleData.internalBinaryWrite(message.node.effectStyle, writer.tag(57, WireType.LengthDelimited).fork(), options).join();
+        /* symbol.bench.EmptyData empty = 58; */
         if (message.node.oneofKind === "empty")
-            EmptyData.internalBinaryWrite(message.node.empty, writer.tag(57, WireType.LengthDelimited).fork(), options).join();
+            EmptyData.internalBinaryWrite(message.node.empty, writer.tag(58, WireType.LengthDelimited).fork(), options).join();
         let u = options.writeUnknownFields;
         if (u !== false)
             (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
@@ -31721,21 +33905,21 @@ export type JsonValue = JsonPrimitive | { [key: string]: JsonValue } | JsonValue
 //
 
 // Any...
-export type AnyNodeData = BenchData | HandleData | UserData | OrganizationData | ClientData | PackageData | DependencyData | PageData | BlockData | DatabaseData | ComputerData | ScalerData | ChoiceData | ClassData | FieldData | OptionData | TableData | RecordData | FileData | LinkData | ChannelData | ThreadData | MessageData | NotificationData | TaskData | ClaimData | CursorData | ServiceData | ActionData | FlowData | FlowEdgeData | AgentData | SessionData | RunData | SpanData | InterruptionData | MembershipData | InviteData | TeamData | RoleData | SpaceData | WizardViewData | FrameViewData | LabelViewData | SplitViewData | InputViewData | SliderViewData | ThreadViewData | ThemeData | ColorStyleData | TextStyleData | BorderStyleData | ShadowStyleData | GradientStyleData | TransitionStyleData | EffectStyleData | EmptyData
-export type AnyStructData = ContextData | EditContextData | EditData | EditOperationData | ChangeData | ChangeVignetteData | GraphScopeData | ClientOriginData | NodeReferenceData | PropertyReferenceData | TypeData | TypeConstraintData | FileInfoData | ScheduleData | TextData | TextLineData | TextSpanData | CodeData | IconData | ExpressionData | AggregationResultData | SelectionData | SelectOptionsData | ErrorData | RunTraceData | RunFrameData | PolicyData | PolicyRuleData | PolicySubjectData | AccessZoneData | AccessMatrixData | AccessData | ColorData | ShadowData | BorderData | Vector2Data | Vector3Data | Vector4Data | GradientStopData | GradientData | FillData | LengthData | PositionData | TransitionData | EffectData
-export type AnyNodeDataType = typeof BenchData | typeof HandleData | typeof UserData | typeof OrganizationData | typeof ClientData | typeof PackageData | typeof DependencyData | typeof PageData | typeof BlockData | typeof DatabaseData | typeof ComputerData | typeof ScalerData | typeof ChoiceData | typeof ClassData | typeof FieldData | typeof OptionData | typeof TableData | typeof RecordData | typeof FileData | typeof LinkData | typeof ChannelData | typeof ThreadData | typeof MessageData | typeof NotificationData | typeof TaskData | typeof ClaimData | typeof CursorData | typeof ServiceData | typeof ActionData | typeof FlowData | typeof FlowEdgeData | typeof AgentData | typeof SessionData | typeof RunData | typeof SpanData | typeof InterruptionData | typeof MembershipData | typeof InviteData | typeof TeamData | typeof RoleData | typeof SpaceData | typeof WizardViewData | typeof FrameViewData | typeof LabelViewData | typeof SplitViewData | typeof InputViewData | typeof SliderViewData | typeof ThreadViewData | typeof ThemeData | typeof ColorStyleData | typeof TextStyleData | typeof BorderStyleData | typeof ShadowStyleData | typeof GradientStyleData | typeof TransitionStyleData | typeof EffectStyleData | typeof EmptyData
-export type AnyStructDataType = typeof ContextData | typeof EditContextData | typeof EditData | typeof EditOperationData | typeof ChangeData | typeof ChangeVignetteData | typeof GraphScopeData | typeof ClientOriginData | typeof NodeReferenceData | typeof PropertyReferenceData | typeof TypeData | typeof TypeConstraintData | typeof FileInfoData | typeof ScheduleData | typeof TextData | typeof TextLineData | typeof TextSpanData | typeof CodeData | typeof IconData | typeof ExpressionData | typeof AggregationResultData | typeof SelectionData | typeof SelectOptionsData | typeof ErrorData | typeof RunTraceData | typeof RunFrameData | typeof PolicyData | typeof PolicyRuleData | typeof PolicySubjectData | typeof AccessZoneData | typeof AccessMatrixData | typeof AccessData | typeof ColorData | typeof ShadowData | typeof BorderData | typeof Vector2Data | typeof Vector3Data | typeof Vector4Data | typeof GradientStopData | typeof GradientData | typeof FillData | typeof LengthData | typeof PositionData | typeof TransitionData | typeof EffectData
-export type BenchNodeData = BenchData | HandleData | PackageData | DependencyData | PageData | BlockData | DatabaseData | ComputerData | ScalerData | ChoiceData | ClassData | FieldData | OptionData | TableData | RecordData | FileData | LinkData | ChannelData | ThreadData | MessageData | NotificationData | TaskData | ClaimData | CursorData | ServiceData | ActionData | FlowData | FlowEdgeData | AgentData | SessionData | RunData | SpanData | InterruptionData | MembershipData | InviteData | TeamData | RoleData | SpaceData | WizardViewData | FrameViewData | LabelViewData | SplitViewData | InputViewData | SliderViewData | ThreadViewData | ThemeData | ColorStyleData | TextStyleData | BorderStyleData | ShadowStyleData | GradientStyleData | TransitionStyleData | EffectStyleData
+export type AnyNodeData = BenchData | HandleData | UserData | OrganizationData | ClientData | PackageData | DependencyData | PageData | BlockData | DatabaseData | ComputerData | ScalerData | ChoiceData | ClassData | FieldData | OptionData | TableData | RecordData | FileData | LinkData | ChannelData | ThreadData | MessageData | NotificationData | TaskData | ClaimData | CursorData | ServiceData | ActionData | FlowData | FlowEdgeData | AgentData | SessionData | RunData | SpanData | InterruptionData | MembershipData | InviteData | TeamData | RoleData | SpaceData | WizardViewData | FrameViewData | LabelViewData | ComponentViewData | SplitViewData | NumberViewData | SliderViewData | ThreadViewData | ThemeData | ColorStyleData | TextStyleData | BorderStyleData | ShadowStyleData | GradientStyleData | TransitionStyleData | EffectStyleData | EmptyData
+export type AnyStructData = ContextData | EditContextData | EditData | EditOperationData | ChangeData | ChangeVignetteData | GraphScopeData | ClientOriginData | NodeReferenceData | PropertyReferenceData | TypeData | TypeConstraintData | FileInfoData | ScheduleData | TextData | TextLineData | TextSpanData | CodeData | IconData | ExpressionData | AggregationResultData | SelectionData | SelectOptionsData | ErrorData | RunTraceData | RunFrameData | PolicyData | PolicyRuleData | PolicySubjectData | AccessZoneData | AccessMatrixData | AccessData | ColorData | ShadowData | BorderData | Vector2Data | Vector3Data | Vector4Data | GradientStopData | GradientData | FillData | LengthData | PositionData | DimensionData | TransitionData | EffectData | GapData | GridData | GridSpanData | PaddingData | RotationData
+export type AnyNodeDataType = typeof BenchData | typeof HandleData | typeof UserData | typeof OrganizationData | typeof ClientData | typeof PackageData | typeof DependencyData | typeof PageData | typeof BlockData | typeof DatabaseData | typeof ComputerData | typeof ScalerData | typeof ChoiceData | typeof ClassData | typeof FieldData | typeof OptionData | typeof TableData | typeof RecordData | typeof FileData | typeof LinkData | typeof ChannelData | typeof ThreadData | typeof MessageData | typeof NotificationData | typeof TaskData | typeof ClaimData | typeof CursorData | typeof ServiceData | typeof ActionData | typeof FlowData | typeof FlowEdgeData | typeof AgentData | typeof SessionData | typeof RunData | typeof SpanData | typeof InterruptionData | typeof MembershipData | typeof InviteData | typeof TeamData | typeof RoleData | typeof SpaceData | typeof WizardViewData | typeof FrameViewData | typeof LabelViewData | typeof ComponentViewData | typeof SplitViewData | typeof NumberViewData | typeof SliderViewData | typeof ThreadViewData | typeof ThemeData | typeof ColorStyleData | typeof TextStyleData | typeof BorderStyleData | typeof ShadowStyleData | typeof GradientStyleData | typeof TransitionStyleData | typeof EffectStyleData | typeof EmptyData
+export type AnyStructDataType = typeof ContextData | typeof EditContextData | typeof EditData | typeof EditOperationData | typeof ChangeData | typeof ChangeVignetteData | typeof GraphScopeData | typeof ClientOriginData | typeof NodeReferenceData | typeof PropertyReferenceData | typeof TypeData | typeof TypeConstraintData | typeof FileInfoData | typeof ScheduleData | typeof TextData | typeof TextLineData | typeof TextSpanData | typeof CodeData | typeof IconData | typeof ExpressionData | typeof AggregationResultData | typeof SelectionData | typeof SelectOptionsData | typeof ErrorData | typeof RunTraceData | typeof RunFrameData | typeof PolicyData | typeof PolicyRuleData | typeof PolicySubjectData | typeof AccessZoneData | typeof AccessMatrixData | typeof AccessData | typeof ColorData | typeof ShadowData | typeof BorderData | typeof Vector2Data | typeof Vector3Data | typeof Vector4Data | typeof GradientStopData | typeof GradientData | typeof FillData | typeof LengthData | typeof PositionData | typeof DimensionData | typeof TransitionData | typeof EffectData | typeof GapData | typeof GridData | typeof GridSpanData | typeof PaddingData | typeof RotationData
+export type BenchNodeData = BenchData | HandleData | PackageData | DependencyData | PageData | BlockData | DatabaseData | ComputerData | ScalerData | ChoiceData | ClassData | FieldData | OptionData | TableData | RecordData | FileData | LinkData | ChannelData | ThreadData | MessageData | NotificationData | TaskData | ClaimData | CursorData | ServiceData | ActionData | FlowData | FlowEdgeData | AgentData | SessionData | RunData | SpanData | InterruptionData | MembershipData | InviteData | TeamData | RoleData | SpaceData | WizardViewData | FrameViewData | LabelViewData | ComponentViewData | SplitViewData | NumberViewData | SliderViewData | ThreadViewData | ThemeData | ColorStyleData | TextStyleData | BorderStyleData | ShadowStyleData | GradientStyleData | TransitionStyleData | EffectStyleData
 export type ClaimableNodeData = PageData | DatabaseData | ComputerData | ScalerData | TableData | RecordData | FileData | LinkData | TaskData | ServiceData | ActionData | FlowData | AgentData
-export type PageNodeData = PageData | DatabaseData | ComputerData | ScalerData | ChoiceData | ClassData | TableData | FileData | LinkData | ChannelData | ThreadData | TaskData | ServiceData | FlowData | AgentData | TeamData | RoleData | WizardViewData | FrameViewData | LabelViewData | SplitViewData | InputViewData | SliderViewData | ThreadViewData | ThemeData | ColorStyleData | TextStyleData | BorderStyleData | ShadowStyleData | GradientStyleData | TransitionStyleData | EffectStyleData
+export type PageNodeData = PageData | DatabaseData | ComputerData | ScalerData | ChoiceData | ClassData | TableData | FileData | LinkData | ChannelData | ThreadData | TaskData | ServiceData | FlowData | AgentData | TeamData | RoleData | WizardViewData | FrameViewData | LabelViewData | ComponentViewData | SplitViewData | NumberViewData | SliderViewData | ThreadViewData | ThemeData | ColorStyleData | TextStyleData | BorderStyleData | ShadowStyleData | GradientStyleData | TransitionStyleData | EffectStyleData
 export type JoinableNodeData = PackageData | ChannelData | ThreadData | TeamData
 export type OwnableNodeData = BenchData | PackageData | PageData | DatabaseData | ComputerData | ScalerData | TableData | RecordData | FileData | LinkData | ThreadData | MessageData | TaskData | ClaimData | CursorData | ServiceData | FlowData | AgentData | SpaceData
-export type TemplatableNodeData = PackageData | DependencyData | PageData | BlockData | DatabaseData | ComputerData | ScalerData | ChoiceData | ClassData | FieldData | OptionData | TableData | FileData | LinkData | ChannelData | ThreadData | TaskData | ClaimData | ServiceData | ActionData | FlowData | FlowEdgeData | AgentData | MembershipData | TeamData | RoleData | SpaceData | WizardViewData | FrameViewData | LabelViewData | SplitViewData | InputViewData | SliderViewData | ThreadViewData | ColorStyleData | TextStyleData | BorderStyleData | ShadowStyleData | GradientStyleData | TransitionStyleData | EffectStyleData
+export type TemplatableNodeData = PackageData | DependencyData | PageData | BlockData | DatabaseData | ComputerData | ScalerData | ChoiceData | ClassData | FieldData | OptionData | TableData | FileData | LinkData | ChannelData | ThreadData | TaskData | ClaimData | ServiceData | ActionData | FlowData | FlowEdgeData | AgentData | MembershipData | TeamData | RoleData | SpaceData | WizardViewData | FrameViewData | LabelViewData | ComponentViewData | SplitViewData | NumberViewData | SliderViewData | ThreadViewData | ColorStyleData | TextStyleData | BorderStyleData | ShadowStyleData | GradientStyleData | TransitionStyleData | EffectStyleData
 export type InstantiableNodeData = DatabaseData | ComputerData | ScalerData | FieldData | OptionData | TableData | FileData | LinkData | ChannelData | ThreadData | TaskData | ClaimData | ActionData | AgentData | MembershipData | TeamData
 export type ProcessableNodeData = ChannelData | ThreadData | TaskData | AgentData | RunData | SpanData
 export type ResourceNodeData = DatabaseData | ComputerData | ScalerData | FileData | LinkData
 export type ProvisionableNodeData = DatabaseData | ComputerData | ScalerData
-export type ViewNodeData = WizardViewData | FrameViewData | LabelViewData | SplitViewData | InputViewData | SliderViewData | ThreadViewData
+export type ViewNodeData = WizardViewData | FrameViewData | LabelViewData | ComponentViewData | SplitViewData | NumberViewData | SliderViewData | ThreadViewData
 export type StyleNodeData = ColorStyleData | TextStyleData | BorderStyleData | ShadowStyleData | GradientStyleData | TransitionStyleData | EffectStyleData
 export type RunnableNodeData = ActionData | FlowData | FlowEdgeData | AgentData
 export type SubjectNodeData = UserData | OrganizationData | ComputerData | AgentData
@@ -31789,8 +33973,9 @@ export const BENCH_NODE_TYPES: NodeType[] = [
   NodeType.WIZARD_VIEW,
   NodeType.FRAME_VIEW,
   NodeType.LABEL_VIEW,
+  NodeType.COMPONENT_VIEW,
   NodeType.SPLIT_VIEW,
-  NodeType.INPUT_VIEW,
+  NodeType.NUMBER_VIEW,
   NodeType.SLIDER_VIEW,
   NodeType.THREAD_VIEW,
   NodeType.THEME,
@@ -31819,8 +34004,9 @@ export const PAGE_NODE_TYPES: NodeType[] = [
   NodeType.WIZARD_VIEW,
   NodeType.FRAME_VIEW,
   NodeType.LABEL_VIEW,
+  NodeType.COMPONENT_VIEW,
   NodeType.SPLIT_VIEW,
-  NodeType.INPUT_VIEW,
+  NodeType.NUMBER_VIEW,
   NodeType.SLIDER_VIEW,
   NodeType.THREAD_VIEW,
   NodeType.COLOR_STYLE,
@@ -31848,8 +34034,9 @@ export const VIEW_NODE_TYPES: NodeType[] = [
   NodeType.WIZARD_VIEW,
   NodeType.FRAME_VIEW,
   NodeType.LABEL_VIEW,
+  NodeType.COMPONENT_VIEW,
   NodeType.SPLIT_VIEW,
-  NodeType.INPUT_VIEW,
+  NodeType.NUMBER_VIEW,
   NodeType.SLIDER_VIEW,
   NodeType.THREAD_VIEW,
 ];
@@ -31927,8 +34114,9 @@ export const REGIONAL_NODE_TYPES: NodeType[] = [
   NodeType.WIZARD_VIEW,
   NodeType.FRAME_VIEW,
   NodeType.LABEL_VIEW,
+  NodeType.COMPONENT_VIEW,
   NodeType.SPLIT_VIEW,
-  NodeType.INPUT_VIEW,
+  NodeType.NUMBER_VIEW,
   NodeType.SLIDER_VIEW,
   NodeType.THREAD_VIEW,
   NodeType.THEME,
@@ -32049,8 +34237,9 @@ export const PACKAGE_NODE_TYPES: NodeType[] = [
   NodeType.WIZARD_VIEW,
   NodeType.FRAME_VIEW,
   NodeType.LABEL_VIEW,
+  NodeType.COMPONENT_VIEW,
   NodeType.SPLIT_VIEW,
-  NodeType.INPUT_VIEW,
+  NodeType.NUMBER_VIEW,
   NodeType.SLIDER_VIEW,
   NodeType.THREAD_VIEW,
   NodeType.THEME,
@@ -32100,8 +34289,9 @@ export const TEMPLATABLE_NODE_TYPES: NodeType[] = [
   NodeType.WIZARD_VIEW,
   NodeType.FRAME_VIEW,
   NodeType.LABEL_VIEW,
+  NodeType.COMPONENT_VIEW,
   NodeType.SPLIT_VIEW,
-  NodeType.INPUT_VIEW,
+  NodeType.NUMBER_VIEW,
   NodeType.SLIDER_VIEW,
   NodeType.THREAD_VIEW,
   NodeType.COLOR_STYLE,
@@ -32183,22 +34373,23 @@ export const PARENT_NODE_TYPES: Record<NodeType, NodeType[]> = {
   [NodeType.TEAM]: [NodeType.PACKAGE, NodeType.PAGE, NodeType.TEAM],
   [NodeType.ROLE]: [NodeType.TEAM, NodeType.PAGE],
   [NodeType.SPACE]: [NodeType.PACKAGE],
-  [NodeType.WIZARD_VIEW]: [NodeType.SPACE, NodeType.FRAME_VIEW, NodeType.LABEL_VIEW, NodeType.WIZARD_VIEW, NodeType.SPLIT_VIEW, NodeType.THREAD_VIEW, NodeType.INPUT_VIEW, NodeType.SLIDER_VIEW, NodeType.PAGE],
-  [NodeType.FRAME_VIEW]: [NodeType.SPACE, NodeType.FRAME_VIEW, NodeType.LABEL_VIEW, NodeType.WIZARD_VIEW, NodeType.SPLIT_VIEW, NodeType.THREAD_VIEW, NodeType.INPUT_VIEW, NodeType.SLIDER_VIEW, NodeType.PAGE],
-  [NodeType.LABEL_VIEW]: [NodeType.SPACE, NodeType.FRAME_VIEW, NodeType.LABEL_VIEW, NodeType.WIZARD_VIEW, NodeType.SPLIT_VIEW, NodeType.THREAD_VIEW, NodeType.INPUT_VIEW, NodeType.SLIDER_VIEW, NodeType.PAGE],
-  [NodeType.SPLIT_VIEW]: [NodeType.SPACE, NodeType.FRAME_VIEW, NodeType.LABEL_VIEW, NodeType.WIZARD_VIEW, NodeType.SPLIT_VIEW, NodeType.THREAD_VIEW, NodeType.INPUT_VIEW, NodeType.SLIDER_VIEW, NodeType.PAGE],
-  [NodeType.INPUT_VIEW]: [NodeType.SPACE, NodeType.FRAME_VIEW, NodeType.LABEL_VIEW, NodeType.WIZARD_VIEW, NodeType.SPLIT_VIEW, NodeType.THREAD_VIEW, NodeType.INPUT_VIEW, NodeType.SLIDER_VIEW, NodeType.PAGE],
-  [NodeType.SLIDER_VIEW]: [NodeType.SPACE, NodeType.FRAME_VIEW, NodeType.LABEL_VIEW, NodeType.WIZARD_VIEW, NodeType.SPLIT_VIEW, NodeType.THREAD_VIEW, NodeType.INPUT_VIEW, NodeType.SLIDER_VIEW, NodeType.PAGE],
-  [NodeType.THREAD_VIEW]: [NodeType.SPACE, NodeType.FRAME_VIEW, NodeType.LABEL_VIEW, NodeType.WIZARD_VIEW, NodeType.SPLIT_VIEW, NodeType.THREAD_VIEW, NodeType.INPUT_VIEW, NodeType.SLIDER_VIEW, NodeType.PAGE],
+  [NodeType.WIZARD_VIEW]: [NodeType.SPACE, NodeType.FRAME_VIEW, NodeType.LABEL_VIEW, NodeType.WIZARD_VIEW, NodeType.NUMBER_VIEW, NodeType.SLIDER_VIEW, NodeType.COMPONENT_VIEW, NodeType.THREAD_VIEW, NodeType.SPLIT_VIEW, NodeType.PAGE],
+  [NodeType.FRAME_VIEW]: [NodeType.SPACE, NodeType.FRAME_VIEW, NodeType.LABEL_VIEW, NodeType.WIZARD_VIEW, NodeType.NUMBER_VIEW, NodeType.SLIDER_VIEW, NodeType.COMPONENT_VIEW, NodeType.THREAD_VIEW, NodeType.SPLIT_VIEW, NodeType.PAGE],
+  [NodeType.LABEL_VIEW]: [NodeType.SPACE, NodeType.FRAME_VIEW, NodeType.LABEL_VIEW, NodeType.WIZARD_VIEW, NodeType.NUMBER_VIEW, NodeType.SLIDER_VIEW, NodeType.COMPONENT_VIEW, NodeType.THREAD_VIEW, NodeType.SPLIT_VIEW, NodeType.PAGE],
+  [NodeType.COMPONENT_VIEW]: [NodeType.SPACE, NodeType.FRAME_VIEW, NodeType.LABEL_VIEW, NodeType.WIZARD_VIEW, NodeType.NUMBER_VIEW, NodeType.SLIDER_VIEW, NodeType.COMPONENT_VIEW, NodeType.THREAD_VIEW, NodeType.SPLIT_VIEW, NodeType.PAGE],
+  [NodeType.SPLIT_VIEW]: [NodeType.SPACE, NodeType.FRAME_VIEW, NodeType.LABEL_VIEW, NodeType.WIZARD_VIEW, NodeType.NUMBER_VIEW, NodeType.SLIDER_VIEW, NodeType.COMPONENT_VIEW, NodeType.THREAD_VIEW, NodeType.SPLIT_VIEW, NodeType.PAGE],
+  [NodeType.NUMBER_VIEW]: [NodeType.SPACE, NodeType.FRAME_VIEW, NodeType.LABEL_VIEW, NodeType.WIZARD_VIEW, NodeType.NUMBER_VIEW, NodeType.SLIDER_VIEW, NodeType.COMPONENT_VIEW, NodeType.THREAD_VIEW, NodeType.SPLIT_VIEW, NodeType.PAGE],
+  [NodeType.SLIDER_VIEW]: [NodeType.SPACE, NodeType.FRAME_VIEW, NodeType.LABEL_VIEW, NodeType.WIZARD_VIEW, NodeType.NUMBER_VIEW, NodeType.SLIDER_VIEW, NodeType.COMPONENT_VIEW, NodeType.THREAD_VIEW, NodeType.SPLIT_VIEW, NodeType.PAGE],
+  [NodeType.THREAD_VIEW]: [NodeType.SPACE, NodeType.FRAME_VIEW, NodeType.LABEL_VIEW, NodeType.WIZARD_VIEW, NodeType.NUMBER_VIEW, NodeType.SLIDER_VIEW, NodeType.COMPONENT_VIEW, NodeType.THREAD_VIEW, NodeType.SPLIT_VIEW, NodeType.PAGE],
   [NodeType.THEME]: [NodeType.PAGE],
-  [NodeType.COLOR_STYLE]: [NodeType.SPACE, NodeType.FRAME_VIEW, NodeType.LABEL_VIEW, NodeType.WIZARD_VIEW, NodeType.SPLIT_VIEW, NodeType.THREAD_VIEW, NodeType.INPUT_VIEW, NodeType.SLIDER_VIEW, NodeType.PAGE],
-  [NodeType.TEXT_STYLE]: [NodeType.SPACE, NodeType.FRAME_VIEW, NodeType.LABEL_VIEW, NodeType.WIZARD_VIEW, NodeType.SPLIT_VIEW, NodeType.THREAD_VIEW, NodeType.INPUT_VIEW, NodeType.SLIDER_VIEW, NodeType.PAGE],
-  [NodeType.BORDER_STYLE]: [NodeType.SPACE, NodeType.FRAME_VIEW, NodeType.LABEL_VIEW, NodeType.WIZARD_VIEW, NodeType.SPLIT_VIEW, NodeType.THREAD_VIEW, NodeType.INPUT_VIEW, NodeType.SLIDER_VIEW, NodeType.PAGE],
-  [NodeType.SHADOW_STYLE]: [NodeType.SPACE, NodeType.FRAME_VIEW, NodeType.LABEL_VIEW, NodeType.WIZARD_VIEW, NodeType.SPLIT_VIEW, NodeType.THREAD_VIEW, NodeType.INPUT_VIEW, NodeType.SLIDER_VIEW, NodeType.PAGE],
-  [NodeType.GRADIENT_STYLE]: [NodeType.SPACE, NodeType.FRAME_VIEW, NodeType.LABEL_VIEW, NodeType.WIZARD_VIEW, NodeType.SPLIT_VIEW, NodeType.THREAD_VIEW, NodeType.INPUT_VIEW, NodeType.SLIDER_VIEW, NodeType.PAGE],
-  [NodeType.TRANSITION_STYLE]: [NodeType.SPACE, NodeType.FRAME_VIEW, NodeType.LABEL_VIEW, NodeType.WIZARD_VIEW, NodeType.SPLIT_VIEW, NodeType.THREAD_VIEW, NodeType.INPUT_VIEW, NodeType.SLIDER_VIEW, NodeType.PAGE],
-  [NodeType.EFFECT_STYLE]: [NodeType.SPACE, NodeType.FRAME_VIEW, NodeType.LABEL_VIEW, NodeType.WIZARD_VIEW, NodeType.SPLIT_VIEW, NodeType.THREAD_VIEW, NodeType.INPUT_VIEW, NodeType.SLIDER_VIEW, NodeType.PAGE],
-  [NodeType.EMPTY]: [NodeType.BENCH, NodeType.HANDLE, NodeType.CLASS, NodeType.TEAM, NodeType.BLOCK, NodeType.CHANNEL, NodeType.USER, NodeType.FIELD, NodeType.ROLE, NodeType.EMPTY, NodeType.THREAD, NodeType.INPUT_VIEW, NodeType.ORGANIZATION, NodeType.SLIDER_VIEW, NodeType.OPTION, NodeType.SERVICE, NodeType.MESSAGE, NodeType.ACTION, NodeType.FRAME_VIEW, NodeType.LABEL_VIEW, NodeType.SESSION, NodeType.FLOW, NodeType.FLOW_EDGE, NodeType.SPLIT_VIEW, NodeType.DATABASE, NodeType.CLIENT, NodeType.RUN, NodeType.THEME, NodeType.COMPUTER, NodeType.NOTIFICATION, NodeType.SPAN, NodeType.COLOR_STYLE, NodeType.TEXT_STYLE, NodeType.TABLE, NodeType.SPACE, NodeType.BORDER_STYLE, NodeType.SHADOW_STYLE, NodeType.GRADIENT_STYLE, NodeType.TRANSITION_STYLE, NodeType.INTERRUPTION, NodeType.EFFECT_STYLE, NodeType.RECORD, NodeType.AGENT, NodeType.WIZARD_VIEW, NodeType.TASK, NodeType.FILE, NodeType.CLAIM, NodeType.SCALER, NodeType.CURSOR, NodeType.PACKAGE, NodeType.THREAD_VIEW, NodeType.MEMBERSHIP, NodeType.DEPENDENCY, NodeType.LINK, NodeType.CHOICE, NodeType.INVITE, NodeType.PAGE],
+  [NodeType.COLOR_STYLE]: [NodeType.SPACE, NodeType.FRAME_VIEW, NodeType.LABEL_VIEW, NodeType.WIZARD_VIEW, NodeType.NUMBER_VIEW, NodeType.SLIDER_VIEW, NodeType.COMPONENT_VIEW, NodeType.THREAD_VIEW, NodeType.SPLIT_VIEW, NodeType.PAGE],
+  [NodeType.TEXT_STYLE]: [NodeType.SPACE, NodeType.FRAME_VIEW, NodeType.LABEL_VIEW, NodeType.WIZARD_VIEW, NodeType.NUMBER_VIEW, NodeType.SLIDER_VIEW, NodeType.COMPONENT_VIEW, NodeType.THREAD_VIEW, NodeType.SPLIT_VIEW, NodeType.PAGE],
+  [NodeType.BORDER_STYLE]: [NodeType.SPACE, NodeType.FRAME_VIEW, NodeType.LABEL_VIEW, NodeType.WIZARD_VIEW, NodeType.NUMBER_VIEW, NodeType.SLIDER_VIEW, NodeType.COMPONENT_VIEW, NodeType.THREAD_VIEW, NodeType.SPLIT_VIEW, NodeType.PAGE],
+  [NodeType.SHADOW_STYLE]: [NodeType.SPACE, NodeType.FRAME_VIEW, NodeType.LABEL_VIEW, NodeType.WIZARD_VIEW, NodeType.NUMBER_VIEW, NodeType.SLIDER_VIEW, NodeType.COMPONENT_VIEW, NodeType.THREAD_VIEW, NodeType.SPLIT_VIEW, NodeType.PAGE],
+  [NodeType.GRADIENT_STYLE]: [NodeType.SPACE, NodeType.FRAME_VIEW, NodeType.LABEL_VIEW, NodeType.WIZARD_VIEW, NodeType.NUMBER_VIEW, NodeType.SLIDER_VIEW, NodeType.COMPONENT_VIEW, NodeType.THREAD_VIEW, NodeType.SPLIT_VIEW, NodeType.PAGE],
+  [NodeType.TRANSITION_STYLE]: [NodeType.SPACE, NodeType.FRAME_VIEW, NodeType.LABEL_VIEW, NodeType.WIZARD_VIEW, NodeType.NUMBER_VIEW, NodeType.SLIDER_VIEW, NodeType.COMPONENT_VIEW, NodeType.THREAD_VIEW, NodeType.SPLIT_VIEW, NodeType.PAGE],
+  [NodeType.EFFECT_STYLE]: [NodeType.SPACE, NodeType.FRAME_VIEW, NodeType.LABEL_VIEW, NodeType.WIZARD_VIEW, NodeType.NUMBER_VIEW, NodeType.SLIDER_VIEW, NodeType.COMPONENT_VIEW, NodeType.THREAD_VIEW, NodeType.SPLIT_VIEW, NodeType.PAGE],
+  [NodeType.EMPTY]: [NodeType.BENCH, NodeType.HANDLE, NodeType.CLASS, NodeType.TEAM, NodeType.BLOCK, NodeType.CHANNEL, NodeType.USER, NodeType.FIELD, NodeType.ROLE, NodeType.EMPTY, NodeType.THREAD, NodeType.ORGANIZATION, NodeType.OPTION, NodeType.SERVICE, NodeType.MESSAGE, NodeType.ACTION, NodeType.FRAME_VIEW, NodeType.LABEL_VIEW, NodeType.SESSION, NodeType.FLOW, NodeType.FLOW_EDGE, NodeType.COMPONENT_VIEW, NodeType.DATABASE, NodeType.CLIENT, NodeType.RUN, NodeType.THEME, NodeType.SPLIT_VIEW, NodeType.COMPUTER, NodeType.NOTIFICATION, NodeType.SPAN, NodeType.COLOR_STYLE, NodeType.TEXT_STYLE, NodeType.TABLE, NodeType.SPACE, NodeType.BORDER_STYLE, NodeType.SHADOW_STYLE, NodeType.GRADIENT_STYLE, NodeType.TRANSITION_STYLE, NodeType.INTERRUPTION, NodeType.EFFECT_STYLE, NodeType.RECORD, NodeType.AGENT, NodeType.WIZARD_VIEW, NodeType.TASK, NodeType.FILE, NodeType.CLAIM, NodeType.SCALER, NodeType.CURSOR, NodeType.PACKAGE, NodeType.NUMBER_VIEW, NodeType.SLIDER_VIEW, NodeType.THREAD_VIEW, NodeType.MEMBERSHIP, NodeType.DEPENDENCY, NodeType.LINK, NodeType.CHOICE, NodeType.INVITE, NodeType.PAGE],
 }
 
 export const CHILD_NODE_TYPES: Record<NodeType, NodeType[]> = {
@@ -32210,7 +34401,7 @@ export const CHILD_NODE_TYPES: Record<NodeType, NodeType[]> = {
   [NodeType.CLIENT]: [NodeType.EMPTY],
   [NodeType.PACKAGE]: [NodeType.SPACE, NodeType.SCALER, NodeType.TEAM, NodeType.INVITE, NodeType.CHANNEL, NodeType.COMPUTER, NodeType.EMPTY, NodeType.MEMBERSHIP, NodeType.DATABASE, NodeType.THREAD, NodeType.LINK, NodeType.FILE, NodeType.DEPENDENCY, NodeType.NOTIFICATION, NodeType.PAGE],
   [NodeType.DEPENDENCY]: [NodeType.EMPTY],
-  [NodeType.PAGE]: [NodeType.CLASS, NodeType.TEAM, NodeType.BLOCK, NodeType.CHANNEL, NodeType.ROLE, NodeType.EMPTY, NodeType.THREAD, NodeType.INPUT_VIEW, NodeType.SLIDER_VIEW, NodeType.SERVICE, NodeType.FRAME_VIEW, NodeType.LABEL_VIEW, NodeType.FLOW, NodeType.SPLIT_VIEW, NodeType.DATABASE, NodeType.THEME, NodeType.COMPUTER, NodeType.COLOR_STYLE, NodeType.TEXT_STYLE, NodeType.TABLE, NodeType.BORDER_STYLE, NodeType.GRADIENT_STYLE, NodeType.SHADOW_STYLE, NodeType.EFFECT_STYLE, NodeType.TRANSITION_STYLE, NodeType.AGENT, NodeType.WIZARD_VIEW, NodeType.TASK, NodeType.FILE, NodeType.SCALER, NodeType.THREAD_VIEW, NodeType.LINK, NodeType.CHOICE, NodeType.PAGE],
+  [NodeType.PAGE]: [NodeType.CLASS, NodeType.TEAM, NodeType.BLOCK, NodeType.CHANNEL, NodeType.ROLE, NodeType.EMPTY, NodeType.THREAD, NodeType.SERVICE, NodeType.FRAME_VIEW, NodeType.LABEL_VIEW, NodeType.FLOW, NodeType.COMPONENT_VIEW, NodeType.DATABASE, NodeType.THEME, NodeType.SPLIT_VIEW, NodeType.COMPUTER, NodeType.COLOR_STYLE, NodeType.TEXT_STYLE, NodeType.TABLE, NodeType.BORDER_STYLE, NodeType.GRADIENT_STYLE, NodeType.SHADOW_STYLE, NodeType.EFFECT_STYLE, NodeType.TRANSITION_STYLE, NodeType.AGENT, NodeType.WIZARD_VIEW, NodeType.TASK, NodeType.FILE, NodeType.SCALER, NodeType.NUMBER_VIEW, NodeType.SLIDER_VIEW, NodeType.THREAD_VIEW, NodeType.LINK, NodeType.CHOICE, NodeType.PAGE],
   [NodeType.BLOCK]: [NodeType.BLOCK, NodeType.EMPTY],
   [NodeType.DATABASE]: [NodeType.EMPTY],
   [NodeType.COMPUTER]: [NodeType.EMPTY],
@@ -32243,14 +34434,15 @@ export const CHILD_NODE_TYPES: Record<NodeType, NodeType[]> = {
   [NodeType.INVITE]: [NodeType.EMPTY],
   [NodeType.TEAM]: [NodeType.TEAM, NodeType.ROLE, NodeType.EMPTY, NodeType.MEMBERSHIP, NodeType.INVITE],
   [NodeType.ROLE]: [NodeType.CLAIM, NodeType.EMPTY],
-  [NodeType.SPACE]: [NodeType.BORDER_STYLE, NodeType.SHADOW_STYLE, NodeType.GRADIENT_STYLE, NodeType.TRANSITION_STYLE, NodeType.FRAME_VIEW, NodeType.CURSOR, NodeType.LABEL_VIEW, NodeType.EFFECT_STYLE, NodeType.WIZARD_VIEW, NodeType.SPLIT_VIEW, NodeType.EMPTY, NodeType.THREAD_VIEW, NodeType.INPUT_VIEW, NodeType.SLIDER_VIEW, NodeType.COLOR_STYLE, NodeType.TEXT_STYLE],
-  [NodeType.WIZARD_VIEW]: [NodeType.BORDER_STYLE, NodeType.SHADOW_STYLE, NodeType.GRADIENT_STYLE, NodeType.TRANSITION_STYLE, NodeType.FRAME_VIEW, NodeType.LABEL_VIEW, NodeType.EFFECT_STYLE, NodeType.WIZARD_VIEW, NodeType.SPLIT_VIEW, NodeType.EMPTY, NodeType.THREAD_VIEW, NodeType.INPUT_VIEW, NodeType.SLIDER_VIEW, NodeType.COLOR_STYLE, NodeType.TEXT_STYLE],
-  [NodeType.FRAME_VIEW]: [NodeType.BORDER_STYLE, NodeType.SHADOW_STYLE, NodeType.GRADIENT_STYLE, NodeType.TRANSITION_STYLE, NodeType.FRAME_VIEW, NodeType.LABEL_VIEW, NodeType.EFFECT_STYLE, NodeType.WIZARD_VIEW, NodeType.SPLIT_VIEW, NodeType.EMPTY, NodeType.THREAD_VIEW, NodeType.INPUT_VIEW, NodeType.SLIDER_VIEW, NodeType.COLOR_STYLE, NodeType.TEXT_STYLE],
-  [NodeType.LABEL_VIEW]: [NodeType.BORDER_STYLE, NodeType.SHADOW_STYLE, NodeType.GRADIENT_STYLE, NodeType.TRANSITION_STYLE, NodeType.FRAME_VIEW, NodeType.LABEL_VIEW, NodeType.EFFECT_STYLE, NodeType.WIZARD_VIEW, NodeType.SPLIT_VIEW, NodeType.EMPTY, NodeType.THREAD_VIEW, NodeType.INPUT_VIEW, NodeType.SLIDER_VIEW, NodeType.COLOR_STYLE, NodeType.TEXT_STYLE],
-  [NodeType.SPLIT_VIEW]: [NodeType.BORDER_STYLE, NodeType.SHADOW_STYLE, NodeType.GRADIENT_STYLE, NodeType.TRANSITION_STYLE, NodeType.FRAME_VIEW, NodeType.LABEL_VIEW, NodeType.EFFECT_STYLE, NodeType.WIZARD_VIEW, NodeType.SPLIT_VIEW, NodeType.EMPTY, NodeType.THREAD_VIEW, NodeType.INPUT_VIEW, NodeType.SLIDER_VIEW, NodeType.COLOR_STYLE, NodeType.TEXT_STYLE],
-  [NodeType.INPUT_VIEW]: [NodeType.BORDER_STYLE, NodeType.SHADOW_STYLE, NodeType.GRADIENT_STYLE, NodeType.TRANSITION_STYLE, NodeType.FRAME_VIEW, NodeType.LABEL_VIEW, NodeType.EFFECT_STYLE, NodeType.WIZARD_VIEW, NodeType.SPLIT_VIEW, NodeType.EMPTY, NodeType.THREAD_VIEW, NodeType.INPUT_VIEW, NodeType.SLIDER_VIEW, NodeType.COLOR_STYLE, NodeType.TEXT_STYLE],
-  [NodeType.SLIDER_VIEW]: [NodeType.BORDER_STYLE, NodeType.SHADOW_STYLE, NodeType.GRADIENT_STYLE, NodeType.TRANSITION_STYLE, NodeType.FRAME_VIEW, NodeType.LABEL_VIEW, NodeType.EFFECT_STYLE, NodeType.WIZARD_VIEW, NodeType.SPLIT_VIEW, NodeType.EMPTY, NodeType.THREAD_VIEW, NodeType.INPUT_VIEW, NodeType.SLIDER_VIEW, NodeType.COLOR_STYLE, NodeType.TEXT_STYLE],
-  [NodeType.THREAD_VIEW]: [NodeType.BORDER_STYLE, NodeType.SHADOW_STYLE, NodeType.GRADIENT_STYLE, NodeType.TRANSITION_STYLE, NodeType.FRAME_VIEW, NodeType.LABEL_VIEW, NodeType.EFFECT_STYLE, NodeType.WIZARD_VIEW, NodeType.SPLIT_VIEW, NodeType.EMPTY, NodeType.THREAD_VIEW, NodeType.INPUT_VIEW, NodeType.SLIDER_VIEW, NodeType.COLOR_STYLE, NodeType.TEXT_STYLE],
+  [NodeType.SPACE]: [NodeType.BORDER_STYLE, NodeType.SHADOW_STYLE, NodeType.GRADIENT_STYLE, NodeType.TRANSITION_STYLE, NodeType.FRAME_VIEW, NodeType.CURSOR, NodeType.LABEL_VIEW, NodeType.EFFECT_STYLE, NodeType.WIZARD_VIEW, NodeType.NUMBER_VIEW, NodeType.SLIDER_VIEW, NodeType.COMPONENT_VIEW, NodeType.EMPTY, NodeType.THREAD_VIEW, NodeType.SPLIT_VIEW, NodeType.COLOR_STYLE, NodeType.TEXT_STYLE],
+  [NodeType.WIZARD_VIEW]: [NodeType.BORDER_STYLE, NodeType.SHADOW_STYLE, NodeType.GRADIENT_STYLE, NodeType.TRANSITION_STYLE, NodeType.FRAME_VIEW, NodeType.LABEL_VIEW, NodeType.EFFECT_STYLE, NodeType.WIZARD_VIEW, NodeType.NUMBER_VIEW, NodeType.SLIDER_VIEW, NodeType.COMPONENT_VIEW, NodeType.EMPTY, NodeType.THREAD_VIEW, NodeType.SPLIT_VIEW, NodeType.COLOR_STYLE, NodeType.TEXT_STYLE],
+  [NodeType.FRAME_VIEW]: [NodeType.BORDER_STYLE, NodeType.SHADOW_STYLE, NodeType.GRADIENT_STYLE, NodeType.TRANSITION_STYLE, NodeType.FRAME_VIEW, NodeType.LABEL_VIEW, NodeType.EFFECT_STYLE, NodeType.WIZARD_VIEW, NodeType.NUMBER_VIEW, NodeType.SLIDER_VIEW, NodeType.COMPONENT_VIEW, NodeType.EMPTY, NodeType.THREAD_VIEW, NodeType.SPLIT_VIEW, NodeType.COLOR_STYLE, NodeType.TEXT_STYLE],
+  [NodeType.LABEL_VIEW]: [NodeType.BORDER_STYLE, NodeType.SHADOW_STYLE, NodeType.GRADIENT_STYLE, NodeType.TRANSITION_STYLE, NodeType.FRAME_VIEW, NodeType.LABEL_VIEW, NodeType.EFFECT_STYLE, NodeType.WIZARD_VIEW, NodeType.NUMBER_VIEW, NodeType.SLIDER_VIEW, NodeType.COMPONENT_VIEW, NodeType.EMPTY, NodeType.THREAD_VIEW, NodeType.SPLIT_VIEW, NodeType.COLOR_STYLE, NodeType.TEXT_STYLE],
+  [NodeType.COMPONENT_VIEW]: [NodeType.BORDER_STYLE, NodeType.SHADOW_STYLE, NodeType.GRADIENT_STYLE, NodeType.TRANSITION_STYLE, NodeType.FRAME_VIEW, NodeType.LABEL_VIEW, NodeType.EFFECT_STYLE, NodeType.WIZARD_VIEW, NodeType.NUMBER_VIEW, NodeType.SLIDER_VIEW, NodeType.COMPONENT_VIEW, NodeType.EMPTY, NodeType.THREAD_VIEW, NodeType.SPLIT_VIEW, NodeType.COLOR_STYLE, NodeType.TEXT_STYLE],
+  [NodeType.SPLIT_VIEW]: [NodeType.BORDER_STYLE, NodeType.SHADOW_STYLE, NodeType.GRADIENT_STYLE, NodeType.TRANSITION_STYLE, NodeType.FRAME_VIEW, NodeType.LABEL_VIEW, NodeType.EFFECT_STYLE, NodeType.WIZARD_VIEW, NodeType.NUMBER_VIEW, NodeType.SLIDER_VIEW, NodeType.COMPONENT_VIEW, NodeType.EMPTY, NodeType.THREAD_VIEW, NodeType.SPLIT_VIEW, NodeType.COLOR_STYLE, NodeType.TEXT_STYLE],
+  [NodeType.NUMBER_VIEW]: [NodeType.BORDER_STYLE, NodeType.SHADOW_STYLE, NodeType.GRADIENT_STYLE, NodeType.TRANSITION_STYLE, NodeType.FRAME_VIEW, NodeType.LABEL_VIEW, NodeType.EFFECT_STYLE, NodeType.WIZARD_VIEW, NodeType.NUMBER_VIEW, NodeType.SLIDER_VIEW, NodeType.COMPONENT_VIEW, NodeType.EMPTY, NodeType.THREAD_VIEW, NodeType.SPLIT_VIEW, NodeType.COLOR_STYLE, NodeType.TEXT_STYLE],
+  [NodeType.SLIDER_VIEW]: [NodeType.BORDER_STYLE, NodeType.SHADOW_STYLE, NodeType.GRADIENT_STYLE, NodeType.TRANSITION_STYLE, NodeType.FRAME_VIEW, NodeType.LABEL_VIEW, NodeType.EFFECT_STYLE, NodeType.WIZARD_VIEW, NodeType.NUMBER_VIEW, NodeType.SLIDER_VIEW, NodeType.COMPONENT_VIEW, NodeType.EMPTY, NodeType.THREAD_VIEW, NodeType.SPLIT_VIEW, NodeType.COLOR_STYLE, NodeType.TEXT_STYLE],
+  [NodeType.THREAD_VIEW]: [NodeType.BORDER_STYLE, NodeType.SHADOW_STYLE, NodeType.GRADIENT_STYLE, NodeType.TRANSITION_STYLE, NodeType.FRAME_VIEW, NodeType.LABEL_VIEW, NodeType.EFFECT_STYLE, NodeType.WIZARD_VIEW, NodeType.NUMBER_VIEW, NodeType.SLIDER_VIEW, NodeType.COMPONENT_VIEW, NodeType.EMPTY, NodeType.THREAD_VIEW, NodeType.SPLIT_VIEW, NodeType.COLOR_STYLE, NodeType.TEXT_STYLE],
   [NodeType.THEME]: [NodeType.EMPTY],
   [NodeType.COLOR_STYLE]: [NodeType.EMPTY],
   [NodeType.TEXT_STYLE]: [NodeType.EMPTY],
@@ -32305,34 +34497,35 @@ export const ANCESTOR_NODE_TYPES: Record<NodeType, NodeType[]> = {
   [NodeType.TEAM]: [NodeType.BENCH, NodeType.TEAM, NodeType.PACKAGE, NodeType.PAGE],
   [NodeType.ROLE]: [NodeType.BENCH, NodeType.TEAM, NodeType.PACKAGE, NodeType.PAGE],
   [NodeType.SPACE]: [NodeType.PACKAGE, NodeType.BENCH],
-  [NodeType.WIZARD_VIEW]: [NodeType.SPACE, NodeType.BENCH, NodeType.FRAME_VIEW, NodeType.LABEL_VIEW, NodeType.PACKAGE, NodeType.WIZARD_VIEW, NodeType.THREAD_VIEW, NodeType.SPLIT_VIEW, NodeType.INPUT_VIEW, NodeType.SLIDER_VIEW, NodeType.PAGE],
-  [NodeType.FRAME_VIEW]: [NodeType.SPACE, NodeType.BENCH, NodeType.WIZARD_VIEW, NodeType.INPUT_VIEW, NodeType.SLIDER_VIEW, NodeType.FRAME_VIEW, NodeType.LABEL_VIEW, NodeType.PACKAGE, NodeType.THREAD_VIEW, NodeType.SPLIT_VIEW, NodeType.PAGE],
-  [NodeType.LABEL_VIEW]: [NodeType.SPACE, NodeType.BENCH, NodeType.WIZARD_VIEW, NodeType.INPUT_VIEW, NodeType.SLIDER_VIEW, NodeType.FRAME_VIEW, NodeType.LABEL_VIEW, NodeType.PACKAGE, NodeType.THREAD_VIEW, NodeType.SPLIT_VIEW, NodeType.PAGE],
-  [NodeType.SPLIT_VIEW]: [NodeType.SPACE, NodeType.BENCH, NodeType.WIZARD_VIEW, NodeType.INPUT_VIEW, NodeType.SLIDER_VIEW, NodeType.FRAME_VIEW, NodeType.LABEL_VIEW, NodeType.PACKAGE, NodeType.THREAD_VIEW, NodeType.SPLIT_VIEW, NodeType.PAGE],
-  [NodeType.INPUT_VIEW]: [NodeType.SPACE, NodeType.BENCH, NodeType.WIZARD_VIEW, NodeType.INPUT_VIEW, NodeType.SLIDER_VIEW, NodeType.FRAME_VIEW, NodeType.LABEL_VIEW, NodeType.PACKAGE, NodeType.THREAD_VIEW, NodeType.SPLIT_VIEW, NodeType.PAGE],
-  [NodeType.SLIDER_VIEW]: [NodeType.SPACE, NodeType.BENCH, NodeType.WIZARD_VIEW, NodeType.INPUT_VIEW, NodeType.SLIDER_VIEW, NodeType.FRAME_VIEW, NodeType.LABEL_VIEW, NodeType.PACKAGE, NodeType.THREAD_VIEW, NodeType.SPLIT_VIEW, NodeType.PAGE],
-  [NodeType.THREAD_VIEW]: [NodeType.SPACE, NodeType.BENCH, NodeType.WIZARD_VIEW, NodeType.INPUT_VIEW, NodeType.SLIDER_VIEW, NodeType.FRAME_VIEW, NodeType.LABEL_VIEW, NodeType.PACKAGE, NodeType.THREAD_VIEW, NodeType.SPLIT_VIEW, NodeType.PAGE],
+  [NodeType.WIZARD_VIEW]: [NodeType.SPACE, NodeType.BENCH, NodeType.FRAME_VIEW, NodeType.LABEL_VIEW, NodeType.PACKAGE, NodeType.WIZARD_VIEW, NodeType.NUMBER_VIEW, NodeType.SLIDER_VIEW, NodeType.THREAD_VIEW, NodeType.COMPONENT_VIEW, NodeType.SPLIT_VIEW, NodeType.PAGE],
+  [NodeType.FRAME_VIEW]: [NodeType.SPACE, NodeType.BENCH, NodeType.WIZARD_VIEW, NodeType.FRAME_VIEW, NodeType.LABEL_VIEW, NodeType.PACKAGE, NodeType.NUMBER_VIEW, NodeType.SLIDER_VIEW, NodeType.THREAD_VIEW, NodeType.COMPONENT_VIEW, NodeType.SPLIT_VIEW, NodeType.PAGE],
+  [NodeType.LABEL_VIEW]: [NodeType.SPACE, NodeType.BENCH, NodeType.WIZARD_VIEW, NodeType.FRAME_VIEW, NodeType.LABEL_VIEW, NodeType.PACKAGE, NodeType.NUMBER_VIEW, NodeType.SLIDER_VIEW, NodeType.THREAD_VIEW, NodeType.COMPONENT_VIEW, NodeType.SPLIT_VIEW, NodeType.PAGE],
+  [NodeType.COMPONENT_VIEW]: [NodeType.SPACE, NodeType.BENCH, NodeType.WIZARD_VIEW, NodeType.FRAME_VIEW, NodeType.LABEL_VIEW, NodeType.PACKAGE, NodeType.NUMBER_VIEW, NodeType.SLIDER_VIEW, NodeType.THREAD_VIEW, NodeType.COMPONENT_VIEW, NodeType.SPLIT_VIEW, NodeType.PAGE],
+  [NodeType.SPLIT_VIEW]: [NodeType.SPACE, NodeType.BENCH, NodeType.WIZARD_VIEW, NodeType.FRAME_VIEW, NodeType.LABEL_VIEW, NodeType.PACKAGE, NodeType.NUMBER_VIEW, NodeType.SLIDER_VIEW, NodeType.THREAD_VIEW, NodeType.COMPONENT_VIEW, NodeType.SPLIT_VIEW, NodeType.PAGE],
+  [NodeType.NUMBER_VIEW]: [NodeType.SPACE, NodeType.BENCH, NodeType.WIZARD_VIEW, NodeType.FRAME_VIEW, NodeType.LABEL_VIEW, NodeType.PACKAGE, NodeType.NUMBER_VIEW, NodeType.SLIDER_VIEW, NodeType.THREAD_VIEW, NodeType.COMPONENT_VIEW, NodeType.SPLIT_VIEW, NodeType.PAGE],
+  [NodeType.SLIDER_VIEW]: [NodeType.SPACE, NodeType.BENCH, NodeType.WIZARD_VIEW, NodeType.FRAME_VIEW, NodeType.LABEL_VIEW, NodeType.PACKAGE, NodeType.NUMBER_VIEW, NodeType.SLIDER_VIEW, NodeType.THREAD_VIEW, NodeType.COMPONENT_VIEW, NodeType.SPLIT_VIEW, NodeType.PAGE],
+  [NodeType.THREAD_VIEW]: [NodeType.SPACE, NodeType.BENCH, NodeType.WIZARD_VIEW, NodeType.FRAME_VIEW, NodeType.LABEL_VIEW, NodeType.PACKAGE, NodeType.NUMBER_VIEW, NodeType.SLIDER_VIEW, NodeType.THREAD_VIEW, NodeType.COMPONENT_VIEW, NodeType.SPLIT_VIEW, NodeType.PAGE],
   [NodeType.THEME]: [NodeType.PACKAGE, NodeType.BENCH, NodeType.PAGE],
-  [NodeType.COLOR_STYLE]: [NodeType.SPACE, NodeType.BENCH, NodeType.WIZARD_VIEW, NodeType.INPUT_VIEW, NodeType.SLIDER_VIEW, NodeType.FRAME_VIEW, NodeType.LABEL_VIEW, NodeType.PACKAGE, NodeType.THREAD_VIEW, NodeType.SPLIT_VIEW, NodeType.PAGE],
-  [NodeType.TEXT_STYLE]: [NodeType.SPACE, NodeType.BENCH, NodeType.WIZARD_VIEW, NodeType.INPUT_VIEW, NodeType.SLIDER_VIEW, NodeType.FRAME_VIEW, NodeType.LABEL_VIEW, NodeType.PACKAGE, NodeType.THREAD_VIEW, NodeType.SPLIT_VIEW, NodeType.PAGE],
-  [NodeType.BORDER_STYLE]: [NodeType.SPACE, NodeType.BENCH, NodeType.WIZARD_VIEW, NodeType.INPUT_VIEW, NodeType.SLIDER_VIEW, NodeType.FRAME_VIEW, NodeType.LABEL_VIEW, NodeType.PACKAGE, NodeType.THREAD_VIEW, NodeType.SPLIT_VIEW, NodeType.PAGE],
-  [NodeType.SHADOW_STYLE]: [NodeType.SPACE, NodeType.BENCH, NodeType.WIZARD_VIEW, NodeType.INPUT_VIEW, NodeType.SLIDER_VIEW, NodeType.FRAME_VIEW, NodeType.LABEL_VIEW, NodeType.PACKAGE, NodeType.THREAD_VIEW, NodeType.SPLIT_VIEW, NodeType.PAGE],
-  [NodeType.GRADIENT_STYLE]: [NodeType.SPACE, NodeType.BENCH, NodeType.WIZARD_VIEW, NodeType.INPUT_VIEW, NodeType.SLIDER_VIEW, NodeType.FRAME_VIEW, NodeType.LABEL_VIEW, NodeType.PACKAGE, NodeType.THREAD_VIEW, NodeType.SPLIT_VIEW, NodeType.PAGE],
-  [NodeType.TRANSITION_STYLE]: [NodeType.SPACE, NodeType.BENCH, NodeType.WIZARD_VIEW, NodeType.INPUT_VIEW, NodeType.SLIDER_VIEW, NodeType.FRAME_VIEW, NodeType.LABEL_VIEW, NodeType.PACKAGE, NodeType.THREAD_VIEW, NodeType.SPLIT_VIEW, NodeType.PAGE],
-  [NodeType.EFFECT_STYLE]: [NodeType.SPACE, NodeType.BENCH, NodeType.WIZARD_VIEW, NodeType.INPUT_VIEW, NodeType.SLIDER_VIEW, NodeType.FRAME_VIEW, NodeType.LABEL_VIEW, NodeType.PACKAGE, NodeType.THREAD_VIEW, NodeType.SPLIT_VIEW, NodeType.PAGE],
-  [NodeType.EMPTY]: [NodeType.BENCH, NodeType.CLASS, NodeType.HANDLE, NodeType.TEAM, NodeType.BLOCK, NodeType.CHANNEL, NodeType.USER, NodeType.FIELD, NodeType.ROLE, NodeType.EMPTY, NodeType.THREAD, NodeType.INPUT_VIEW, NodeType.SLIDER_VIEW, NodeType.ORGANIZATION, NodeType.OPTION, NodeType.SERVICE, NodeType.MESSAGE, NodeType.ACTION, NodeType.FRAME_VIEW, NodeType.LABEL_VIEW, NodeType.SESSION, NodeType.FLOW, NodeType.FLOW_EDGE, NodeType.SPLIT_VIEW, NodeType.DATABASE, NodeType.RUN, NodeType.CLIENT, NodeType.THEME, NodeType.NOTIFICATION, NodeType.COMPUTER, NodeType.SPAN, NodeType.COLOR_STYLE, NodeType.TEXT_STYLE, NodeType.TABLE, NodeType.SPACE, NodeType.GRADIENT_STYLE, NodeType.TRANSITION_STYLE, NodeType.EFFECT_STYLE, NodeType.SHADOW_STYLE, NodeType.INTERRUPTION, NodeType.BORDER_STYLE, NodeType.AGENT, NodeType.WIZARD_VIEW, NodeType.RECORD, NodeType.TASK, NodeType.FILE, NodeType.CLAIM, NodeType.SCALER, NodeType.CURSOR, NodeType.PACKAGE, NodeType.THREAD_VIEW, NodeType.MEMBERSHIP, NodeType.LINK, NodeType.DEPENDENCY, NodeType.CHOICE, NodeType.INVITE, NodeType.PAGE],
+  [NodeType.COLOR_STYLE]: [NodeType.SPACE, NodeType.BENCH, NodeType.WIZARD_VIEW, NodeType.FRAME_VIEW, NodeType.LABEL_VIEW, NodeType.PACKAGE, NodeType.NUMBER_VIEW, NodeType.SLIDER_VIEW, NodeType.THREAD_VIEW, NodeType.COMPONENT_VIEW, NodeType.SPLIT_VIEW, NodeType.PAGE],
+  [NodeType.TEXT_STYLE]: [NodeType.SPACE, NodeType.BENCH, NodeType.WIZARD_VIEW, NodeType.FRAME_VIEW, NodeType.LABEL_VIEW, NodeType.PACKAGE, NodeType.NUMBER_VIEW, NodeType.SLIDER_VIEW, NodeType.THREAD_VIEW, NodeType.COMPONENT_VIEW, NodeType.SPLIT_VIEW, NodeType.PAGE],
+  [NodeType.BORDER_STYLE]: [NodeType.SPACE, NodeType.BENCH, NodeType.WIZARD_VIEW, NodeType.FRAME_VIEW, NodeType.LABEL_VIEW, NodeType.PACKAGE, NodeType.NUMBER_VIEW, NodeType.SLIDER_VIEW, NodeType.THREAD_VIEW, NodeType.COMPONENT_VIEW, NodeType.SPLIT_VIEW, NodeType.PAGE],
+  [NodeType.SHADOW_STYLE]: [NodeType.SPACE, NodeType.BENCH, NodeType.WIZARD_VIEW, NodeType.FRAME_VIEW, NodeType.LABEL_VIEW, NodeType.PACKAGE, NodeType.NUMBER_VIEW, NodeType.SLIDER_VIEW, NodeType.THREAD_VIEW, NodeType.COMPONENT_VIEW, NodeType.SPLIT_VIEW, NodeType.PAGE],
+  [NodeType.GRADIENT_STYLE]: [NodeType.SPACE, NodeType.BENCH, NodeType.WIZARD_VIEW, NodeType.FRAME_VIEW, NodeType.LABEL_VIEW, NodeType.PACKAGE, NodeType.NUMBER_VIEW, NodeType.SLIDER_VIEW, NodeType.THREAD_VIEW, NodeType.COMPONENT_VIEW, NodeType.SPLIT_VIEW, NodeType.PAGE],
+  [NodeType.TRANSITION_STYLE]: [NodeType.SPACE, NodeType.BENCH, NodeType.WIZARD_VIEW, NodeType.FRAME_VIEW, NodeType.LABEL_VIEW, NodeType.PACKAGE, NodeType.NUMBER_VIEW, NodeType.SLIDER_VIEW, NodeType.THREAD_VIEW, NodeType.COMPONENT_VIEW, NodeType.SPLIT_VIEW, NodeType.PAGE],
+  [NodeType.EFFECT_STYLE]: [NodeType.SPACE, NodeType.BENCH, NodeType.WIZARD_VIEW, NodeType.FRAME_VIEW, NodeType.LABEL_VIEW, NodeType.PACKAGE, NodeType.NUMBER_VIEW, NodeType.SLIDER_VIEW, NodeType.THREAD_VIEW, NodeType.COMPONENT_VIEW, NodeType.SPLIT_VIEW, NodeType.PAGE],
+  [NodeType.EMPTY]: [NodeType.BENCH, NodeType.CLASS, NodeType.HANDLE, NodeType.TEAM, NodeType.BLOCK, NodeType.CHANNEL, NodeType.USER, NodeType.FIELD, NodeType.ROLE, NodeType.EMPTY, NodeType.THREAD, NodeType.ORGANIZATION, NodeType.OPTION, NodeType.SERVICE, NodeType.MESSAGE, NodeType.ACTION, NodeType.FRAME_VIEW, NodeType.LABEL_VIEW, NodeType.SESSION, NodeType.FLOW, NodeType.FLOW_EDGE, NodeType.COMPONENT_VIEW, NodeType.DATABASE, NodeType.RUN, NodeType.CLIENT, NodeType.THEME, NodeType.SPLIT_VIEW, NodeType.NOTIFICATION, NodeType.COMPUTER, NodeType.SPAN, NodeType.COLOR_STYLE, NodeType.TEXT_STYLE, NodeType.TABLE, NodeType.SPACE, NodeType.GRADIENT_STYLE, NodeType.TRANSITION_STYLE, NodeType.EFFECT_STYLE, NodeType.SHADOW_STYLE, NodeType.INTERRUPTION, NodeType.BORDER_STYLE, NodeType.AGENT, NodeType.WIZARD_VIEW, NodeType.RECORD, NodeType.TASK, NodeType.FILE, NodeType.CLAIM, NodeType.SCALER, NodeType.CURSOR, NodeType.PACKAGE, NodeType.NUMBER_VIEW, NodeType.SLIDER_VIEW, NodeType.THREAD_VIEW, NodeType.MEMBERSHIP, NodeType.LINK, NodeType.DEPENDENCY, NodeType.CHOICE, NodeType.INVITE, NodeType.PAGE],
 }
 
 export const DESCENDANT_NODE_TYPES: Record<NodeType, NodeType[]> = {
   [NodeType.UNSPECIFIED]: [],
-  [NodeType.BENCH]: [NodeType.CLASS, NodeType.HANDLE, NodeType.TEAM, NodeType.BLOCK, NodeType.CHANNEL, NodeType.FIELD, NodeType.ROLE, NodeType.EMPTY, NodeType.THREAD, NodeType.SLIDER_VIEW, NodeType.INPUT_VIEW, NodeType.OPTION, NodeType.SERVICE, NodeType.MESSAGE, NodeType.ACTION, NodeType.FRAME_VIEW, NodeType.LABEL_VIEW, NodeType.SESSION, NodeType.FLOW, NodeType.FLOW_EDGE, NodeType.SPLIT_VIEW, NodeType.DATABASE, NodeType.CLIENT, NodeType.RUN, NodeType.THEME, NodeType.COMPUTER, NodeType.NOTIFICATION, NodeType.SPAN, NodeType.COLOR_STYLE, NodeType.TEXT_STYLE, NodeType.BORDER_STYLE, NodeType.SHADOW_STYLE, NodeType.GRADIENT_STYLE, NodeType.TRANSITION_STYLE, NodeType.EFFECT_STYLE, NodeType.TABLE, NodeType.INTERRUPTION, NodeType.SPACE, NodeType.WIZARD_VIEW, NodeType.AGENT, NodeType.RECORD, NodeType.TASK, NodeType.FILE, NodeType.CLAIM, NodeType.SCALER, NodeType.CURSOR, NodeType.PACKAGE, NodeType.THREAD_VIEW, NodeType.MEMBERSHIP, NodeType.DEPENDENCY, NodeType.LINK, NodeType.CHOICE, NodeType.INVITE, NodeType.PAGE],
+  [NodeType.BENCH]: [NodeType.CLASS, NodeType.HANDLE, NodeType.TEAM, NodeType.BLOCK, NodeType.CHANNEL, NodeType.FIELD, NodeType.ROLE, NodeType.EMPTY, NodeType.THREAD, NodeType.OPTION, NodeType.SERVICE, NodeType.MESSAGE, NodeType.ACTION, NodeType.FRAME_VIEW, NodeType.LABEL_VIEW, NodeType.SESSION, NodeType.FLOW, NodeType.FLOW_EDGE, NodeType.COMPONENT_VIEW, NodeType.DATABASE, NodeType.CLIENT, NodeType.RUN, NodeType.THEME, NodeType.SPLIT_VIEW, NodeType.COMPUTER, NodeType.NOTIFICATION, NodeType.SPAN, NodeType.COLOR_STYLE, NodeType.TEXT_STYLE, NodeType.BORDER_STYLE, NodeType.SHADOW_STYLE, NodeType.GRADIENT_STYLE, NodeType.TRANSITION_STYLE, NodeType.EFFECT_STYLE, NodeType.TABLE, NodeType.INTERRUPTION, NodeType.SPACE, NodeType.WIZARD_VIEW, NodeType.AGENT, NodeType.RECORD, NodeType.TASK, NodeType.FILE, NodeType.CLAIM, NodeType.SCALER, NodeType.CURSOR, NodeType.PACKAGE, NodeType.NUMBER_VIEW, NodeType.SLIDER_VIEW, NodeType.THREAD_VIEW, NodeType.MEMBERSHIP, NodeType.DEPENDENCY, NodeType.LINK, NodeType.CHOICE, NodeType.INVITE, NodeType.PAGE],
   [NodeType.HANDLE]: [NodeType.EMPTY],
   [NodeType.USER]: [NodeType.HANDLE, NodeType.CLIENT, NodeType.EMPTY],
   [NodeType.ORGANIZATION]: [NodeType.HANDLE, NodeType.EMPTY],
   [NodeType.CLIENT]: [NodeType.EMPTY],
-  [NodeType.PACKAGE]: [NodeType.CLASS, NodeType.TEAM, NodeType.BLOCK, NodeType.CHANNEL, NodeType.FIELD, NodeType.ROLE, NodeType.EMPTY, NodeType.INPUT_VIEW, NodeType.SLIDER_VIEW, NodeType.THREAD, NodeType.OPTION, NodeType.SERVICE, NodeType.MESSAGE, NodeType.ACTION, NodeType.FRAME_VIEW, NodeType.LABEL_VIEW, NodeType.FLOW, NodeType.FLOW_EDGE, NodeType.SPLIT_VIEW, NodeType.DATABASE, NodeType.RUN, NodeType.THEME, NodeType.COMPUTER, NodeType.NOTIFICATION, NodeType.SPAN, NodeType.COLOR_STYLE, NodeType.TEXT_STYLE, NodeType.BORDER_STYLE, NodeType.SHADOW_STYLE, NodeType.GRADIENT_STYLE, NodeType.TRANSITION_STYLE, NodeType.EFFECT_STYLE, NodeType.TABLE, NodeType.INTERRUPTION, NodeType.SPACE, NodeType.WIZARD_VIEW, NodeType.AGENT, NodeType.RECORD, NodeType.TASK, NodeType.FILE, NodeType.CLAIM, NodeType.SCALER, NodeType.CURSOR, NodeType.THREAD_VIEW, NodeType.MEMBERSHIP, NodeType.LINK, NodeType.DEPENDENCY, NodeType.CHOICE, NodeType.INVITE, NodeType.PAGE],
+  [NodeType.PACKAGE]: [NodeType.CLASS, NodeType.TEAM, NodeType.BLOCK, NodeType.CHANNEL, NodeType.FIELD, NodeType.ROLE, NodeType.EMPTY, NodeType.THREAD, NodeType.OPTION, NodeType.SERVICE, NodeType.MESSAGE, NodeType.ACTION, NodeType.FRAME_VIEW, NodeType.LABEL_VIEW, NodeType.FLOW, NodeType.FLOW_EDGE, NodeType.COMPONENT_VIEW, NodeType.DATABASE, NodeType.RUN, NodeType.THEME, NodeType.SPLIT_VIEW, NodeType.COMPUTER, NodeType.NOTIFICATION, NodeType.SPAN, NodeType.COLOR_STYLE, NodeType.TEXT_STYLE, NodeType.BORDER_STYLE, NodeType.SHADOW_STYLE, NodeType.GRADIENT_STYLE, NodeType.TRANSITION_STYLE, NodeType.EFFECT_STYLE, NodeType.TABLE, NodeType.INTERRUPTION, NodeType.SPACE, NodeType.WIZARD_VIEW, NodeType.AGENT, NodeType.RECORD, NodeType.TASK, NodeType.FILE, NodeType.CLAIM, NodeType.SCALER, NodeType.CURSOR, NodeType.NUMBER_VIEW, NodeType.SLIDER_VIEW, NodeType.THREAD_VIEW, NodeType.MEMBERSHIP, NodeType.LINK, NodeType.DEPENDENCY, NodeType.CHOICE, NodeType.INVITE, NodeType.PAGE],
   [NodeType.DEPENDENCY]: [NodeType.EMPTY],
-  [NodeType.PAGE]: [NodeType.CLASS, NodeType.TEAM, NodeType.BLOCK, NodeType.CHANNEL, NodeType.FIELD, NodeType.ROLE, NodeType.EMPTY, NodeType.INPUT_VIEW, NodeType.SLIDER_VIEW, NodeType.THREAD, NodeType.OPTION, NodeType.SERVICE, NodeType.MESSAGE, NodeType.ACTION, NodeType.FRAME_VIEW, NodeType.LABEL_VIEW, NodeType.FLOW, NodeType.FLOW_EDGE, NodeType.SPLIT_VIEW, NodeType.DATABASE, NodeType.RUN, NodeType.THEME, NodeType.COMPUTER, NodeType.SPAN, NodeType.COLOR_STYLE, NodeType.TEXT_STYLE, NodeType.BORDER_STYLE, NodeType.SHADOW_STYLE, NodeType.GRADIENT_STYLE, NodeType.TRANSITION_STYLE, NodeType.EFFECT_STYLE, NodeType.TABLE, NodeType.INTERRUPTION, NodeType.WIZARD_VIEW, NodeType.AGENT, NodeType.RECORD, NodeType.TASK, NodeType.FILE, NodeType.CLAIM, NodeType.SCALER, NodeType.CURSOR, NodeType.THREAD_VIEW, NodeType.MEMBERSHIP, NodeType.LINK, NodeType.CHOICE, NodeType.INVITE, NodeType.PAGE],
+  [NodeType.PAGE]: [NodeType.CLASS, NodeType.TEAM, NodeType.BLOCK, NodeType.CHANNEL, NodeType.FIELD, NodeType.ROLE, NodeType.EMPTY, NodeType.THREAD, NodeType.OPTION, NodeType.SERVICE, NodeType.MESSAGE, NodeType.ACTION, NodeType.FRAME_VIEW, NodeType.LABEL_VIEW, NodeType.FLOW, NodeType.FLOW_EDGE, NodeType.COMPONENT_VIEW, NodeType.DATABASE, NodeType.RUN, NodeType.THEME, NodeType.SPLIT_VIEW, NodeType.COMPUTER, NodeType.SPAN, NodeType.COLOR_STYLE, NodeType.TEXT_STYLE, NodeType.BORDER_STYLE, NodeType.SHADOW_STYLE, NodeType.GRADIENT_STYLE, NodeType.TRANSITION_STYLE, NodeType.EFFECT_STYLE, NodeType.TABLE, NodeType.INTERRUPTION, NodeType.WIZARD_VIEW, NodeType.AGENT, NodeType.RECORD, NodeType.TASK, NodeType.FILE, NodeType.CLAIM, NodeType.SCALER, NodeType.CURSOR, NodeType.NUMBER_VIEW, NodeType.SLIDER_VIEW, NodeType.THREAD_VIEW, NodeType.MEMBERSHIP, NodeType.LINK, NodeType.CHOICE, NodeType.INVITE, NodeType.PAGE],
   [NodeType.BLOCK]: [NodeType.BLOCK, NodeType.EMPTY],
   [NodeType.DATABASE]: [NodeType.EMPTY],
   [NodeType.COMPUTER]: [NodeType.EMPTY],
@@ -32365,14 +34558,15 @@ export const DESCENDANT_NODE_TYPES: Record<NodeType, NodeType[]> = {
   [NodeType.INVITE]: [NodeType.EMPTY],
   [NodeType.TEAM]: [NodeType.TEAM, NodeType.INVITE, NodeType.ROLE, NodeType.EMPTY, NodeType.MEMBERSHIP, NodeType.CLAIM],
   [NodeType.ROLE]: [NodeType.CLAIM, NodeType.EMPTY],
-  [NodeType.SPACE]: [NodeType.BORDER_STYLE, NodeType.SHADOW_STYLE, NodeType.GRADIENT_STYLE, NodeType.TRANSITION_STYLE, NodeType.EFFECT_STYLE, NodeType.LABEL_VIEW, NodeType.FRAME_VIEW, NodeType.CURSOR, NodeType.WIZARD_VIEW, NodeType.THREAD_VIEW, NodeType.EMPTY, NodeType.SPLIT_VIEW, NodeType.INPUT_VIEW, NodeType.SLIDER_VIEW, NodeType.COLOR_STYLE, NodeType.TEXT_STYLE],
-  [NodeType.WIZARD_VIEW]: [NodeType.BORDER_STYLE, NodeType.SHADOW_STYLE, NodeType.GRADIENT_STYLE, NodeType.TRANSITION_STYLE, NodeType.EFFECT_STYLE, NodeType.LABEL_VIEW, NodeType.FRAME_VIEW, NodeType.WIZARD_VIEW, NodeType.THREAD_VIEW, NodeType.EMPTY, NodeType.SPLIT_VIEW, NodeType.INPUT_VIEW, NodeType.SLIDER_VIEW, NodeType.COLOR_STYLE, NodeType.TEXT_STYLE],
-  [NodeType.FRAME_VIEW]: [NodeType.BORDER_STYLE, NodeType.SHADOW_STYLE, NodeType.GRADIENT_STYLE, NodeType.TRANSITION_STYLE, NodeType.EFFECT_STYLE, NodeType.WIZARD_VIEW, NodeType.EMPTY, NodeType.INPUT_VIEW, NodeType.SLIDER_VIEW, NodeType.FRAME_VIEW, NodeType.LABEL_VIEW, NodeType.THREAD_VIEW, NodeType.SPLIT_VIEW, NodeType.COLOR_STYLE, NodeType.TEXT_STYLE],
-  [NodeType.LABEL_VIEW]: [NodeType.BORDER_STYLE, NodeType.SHADOW_STYLE, NodeType.GRADIENT_STYLE, NodeType.TRANSITION_STYLE, NodeType.EFFECT_STYLE, NodeType.WIZARD_VIEW, NodeType.EMPTY, NodeType.INPUT_VIEW, NodeType.SLIDER_VIEW, NodeType.FRAME_VIEW, NodeType.LABEL_VIEW, NodeType.THREAD_VIEW, NodeType.SPLIT_VIEW, NodeType.COLOR_STYLE, NodeType.TEXT_STYLE],
-  [NodeType.SPLIT_VIEW]: [NodeType.BORDER_STYLE, NodeType.SHADOW_STYLE, NodeType.GRADIENT_STYLE, NodeType.TRANSITION_STYLE, NodeType.EFFECT_STYLE, NodeType.WIZARD_VIEW, NodeType.EMPTY, NodeType.INPUT_VIEW, NodeType.SLIDER_VIEW, NodeType.FRAME_VIEW, NodeType.LABEL_VIEW, NodeType.THREAD_VIEW, NodeType.SPLIT_VIEW, NodeType.COLOR_STYLE, NodeType.TEXT_STYLE],
-  [NodeType.INPUT_VIEW]: [NodeType.BORDER_STYLE, NodeType.SHADOW_STYLE, NodeType.GRADIENT_STYLE, NodeType.TRANSITION_STYLE, NodeType.EFFECT_STYLE, NodeType.WIZARD_VIEW, NodeType.EMPTY, NodeType.INPUT_VIEW, NodeType.SLIDER_VIEW, NodeType.FRAME_VIEW, NodeType.LABEL_VIEW, NodeType.THREAD_VIEW, NodeType.SPLIT_VIEW, NodeType.COLOR_STYLE, NodeType.TEXT_STYLE],
-  [NodeType.SLIDER_VIEW]: [NodeType.BORDER_STYLE, NodeType.SHADOW_STYLE, NodeType.GRADIENT_STYLE, NodeType.TRANSITION_STYLE, NodeType.EFFECT_STYLE, NodeType.WIZARD_VIEW, NodeType.EMPTY, NodeType.INPUT_VIEW, NodeType.SLIDER_VIEW, NodeType.FRAME_VIEW, NodeType.LABEL_VIEW, NodeType.THREAD_VIEW, NodeType.SPLIT_VIEW, NodeType.COLOR_STYLE, NodeType.TEXT_STYLE],
-  [NodeType.THREAD_VIEW]: [NodeType.BORDER_STYLE, NodeType.SHADOW_STYLE, NodeType.GRADIENT_STYLE, NodeType.TRANSITION_STYLE, NodeType.EFFECT_STYLE, NodeType.WIZARD_VIEW, NodeType.EMPTY, NodeType.INPUT_VIEW, NodeType.SLIDER_VIEW, NodeType.FRAME_VIEW, NodeType.LABEL_VIEW, NodeType.THREAD_VIEW, NodeType.SPLIT_VIEW, NodeType.COLOR_STYLE, NodeType.TEXT_STYLE],
+  [NodeType.SPACE]: [NodeType.BORDER_STYLE, NodeType.SHADOW_STYLE, NodeType.GRADIENT_STYLE, NodeType.TRANSITION_STYLE, NodeType.EFFECT_STYLE, NodeType.LABEL_VIEW, NodeType.FRAME_VIEW, NodeType.CURSOR, NodeType.WIZARD_VIEW, NodeType.NUMBER_VIEW, NodeType.SLIDER_VIEW, NodeType.THREAD_VIEW, NodeType.EMPTY, NodeType.COMPONENT_VIEW, NodeType.SPLIT_VIEW, NodeType.COLOR_STYLE, NodeType.TEXT_STYLE],
+  [NodeType.WIZARD_VIEW]: [NodeType.BORDER_STYLE, NodeType.SHADOW_STYLE, NodeType.GRADIENT_STYLE, NodeType.TRANSITION_STYLE, NodeType.EFFECT_STYLE, NodeType.LABEL_VIEW, NodeType.FRAME_VIEW, NodeType.WIZARD_VIEW, NodeType.NUMBER_VIEW, NodeType.SLIDER_VIEW, NodeType.THREAD_VIEW, NodeType.EMPTY, NodeType.COMPONENT_VIEW, NodeType.SPLIT_VIEW, NodeType.COLOR_STYLE, NodeType.TEXT_STYLE],
+  [NodeType.FRAME_VIEW]: [NodeType.BORDER_STYLE, NodeType.SHADOW_STYLE, NodeType.GRADIENT_STYLE, NodeType.TRANSITION_STYLE, NodeType.EFFECT_STYLE, NodeType.WIZARD_VIEW, NodeType.EMPTY, NodeType.FRAME_VIEW, NodeType.LABEL_VIEW, NodeType.NUMBER_VIEW, NodeType.SLIDER_VIEW, NodeType.THREAD_VIEW, NodeType.COMPONENT_VIEW, NodeType.SPLIT_VIEW, NodeType.COLOR_STYLE, NodeType.TEXT_STYLE],
+  [NodeType.LABEL_VIEW]: [NodeType.BORDER_STYLE, NodeType.SHADOW_STYLE, NodeType.GRADIENT_STYLE, NodeType.TRANSITION_STYLE, NodeType.EFFECT_STYLE, NodeType.WIZARD_VIEW, NodeType.EMPTY, NodeType.FRAME_VIEW, NodeType.LABEL_VIEW, NodeType.NUMBER_VIEW, NodeType.SLIDER_VIEW, NodeType.THREAD_VIEW, NodeType.COMPONENT_VIEW, NodeType.SPLIT_VIEW, NodeType.COLOR_STYLE, NodeType.TEXT_STYLE],
+  [NodeType.COMPONENT_VIEW]: [NodeType.BORDER_STYLE, NodeType.SHADOW_STYLE, NodeType.GRADIENT_STYLE, NodeType.TRANSITION_STYLE, NodeType.EFFECT_STYLE, NodeType.WIZARD_VIEW, NodeType.EMPTY, NodeType.FRAME_VIEW, NodeType.LABEL_VIEW, NodeType.NUMBER_VIEW, NodeType.SLIDER_VIEW, NodeType.THREAD_VIEW, NodeType.COMPONENT_VIEW, NodeType.SPLIT_VIEW, NodeType.COLOR_STYLE, NodeType.TEXT_STYLE],
+  [NodeType.SPLIT_VIEW]: [NodeType.BORDER_STYLE, NodeType.SHADOW_STYLE, NodeType.GRADIENT_STYLE, NodeType.TRANSITION_STYLE, NodeType.EFFECT_STYLE, NodeType.WIZARD_VIEW, NodeType.EMPTY, NodeType.FRAME_VIEW, NodeType.LABEL_VIEW, NodeType.NUMBER_VIEW, NodeType.SLIDER_VIEW, NodeType.THREAD_VIEW, NodeType.COMPONENT_VIEW, NodeType.SPLIT_VIEW, NodeType.COLOR_STYLE, NodeType.TEXT_STYLE],
+  [NodeType.NUMBER_VIEW]: [NodeType.BORDER_STYLE, NodeType.SHADOW_STYLE, NodeType.GRADIENT_STYLE, NodeType.TRANSITION_STYLE, NodeType.EFFECT_STYLE, NodeType.WIZARD_VIEW, NodeType.EMPTY, NodeType.FRAME_VIEW, NodeType.LABEL_VIEW, NodeType.NUMBER_VIEW, NodeType.SLIDER_VIEW, NodeType.THREAD_VIEW, NodeType.COMPONENT_VIEW, NodeType.SPLIT_VIEW, NodeType.COLOR_STYLE, NodeType.TEXT_STYLE],
+  [NodeType.SLIDER_VIEW]: [NodeType.BORDER_STYLE, NodeType.SHADOW_STYLE, NodeType.GRADIENT_STYLE, NodeType.TRANSITION_STYLE, NodeType.EFFECT_STYLE, NodeType.WIZARD_VIEW, NodeType.EMPTY, NodeType.FRAME_VIEW, NodeType.LABEL_VIEW, NodeType.NUMBER_VIEW, NodeType.SLIDER_VIEW, NodeType.THREAD_VIEW, NodeType.COMPONENT_VIEW, NodeType.SPLIT_VIEW, NodeType.COLOR_STYLE, NodeType.TEXT_STYLE],
+  [NodeType.THREAD_VIEW]: [NodeType.BORDER_STYLE, NodeType.SHADOW_STYLE, NodeType.GRADIENT_STYLE, NodeType.TRANSITION_STYLE, NodeType.EFFECT_STYLE, NodeType.WIZARD_VIEW, NodeType.EMPTY, NodeType.FRAME_VIEW, NodeType.LABEL_VIEW, NodeType.NUMBER_VIEW, NodeType.SLIDER_VIEW, NodeType.THREAD_VIEW, NodeType.COMPONENT_VIEW, NodeType.SPLIT_VIEW, NodeType.COLOR_STYLE, NodeType.TEXT_STYLE],
   [NodeType.THEME]: [NodeType.EMPTY],
   [NodeType.COLOR_STYLE]: [NodeType.EMPTY],
   [NodeType.TEXT_STYLE]: [NodeType.EMPTY],
@@ -32431,8 +34625,9 @@ export const MESSAGE_TYPE_BY_OBJECT_TYPE: Partial<Record<ObjectType, MessageType
   [ObjectType.WIZARD_VIEW]: WizardViewData,
   [ObjectType.FRAME_VIEW]: FrameViewData,
   [ObjectType.LABEL_VIEW]: LabelViewData,
+  [ObjectType.COMPONENT_VIEW]: ComponentViewData,
   [ObjectType.SPLIT_VIEW]: SplitViewData,
-  [ObjectType.INPUT_VIEW]: InputViewData,
+  [ObjectType.NUMBER_VIEW]: NumberViewData,
   [ObjectType.SLIDER_VIEW]: SliderViewData,
   [ObjectType.THREAD_VIEW]: ThreadViewData,
   [ObjectType.THEME]: ThemeData,
@@ -32487,8 +34682,14 @@ export const MESSAGE_TYPE_BY_OBJECT_TYPE: Partial<Record<ObjectType, MessageType
   [ObjectType.FILL]: FillData,
   [ObjectType.LENGTH]: LengthData,
   [ObjectType.POSITION]: PositionData,
+  [ObjectType.DIMENSION]: DimensionData,
   [ObjectType.TRANSITION]: TransitionData,
   [ObjectType.EFFECT]: EffectData,
+  [ObjectType.GAP]: GapData,
+  [ObjectType.GRID]: GridData,
+  [ObjectType.GRID_SPAN]: GridSpanData,
+  [ObjectType.PADDING]: PaddingData,
+  [ObjectType.ROTATION]: RotationData,
 }
 
 export const OBJECT_TYPE_BY_MESSAGE_TYPE_NAME: Record<string, ObjectType> = {
@@ -32536,8 +34737,9 @@ export const OBJECT_TYPE_BY_MESSAGE_TYPE_NAME: Record<string, ObjectType> = {
   ["symbol.bench.WizardViewData"]: ObjectType.WIZARD_VIEW,
   ["symbol.bench.FrameViewData"]: ObjectType.FRAME_VIEW,
   ["symbol.bench.LabelViewData"]: ObjectType.LABEL_VIEW,
+  ["symbol.bench.ComponentViewData"]: ObjectType.COMPONENT_VIEW,
   ["symbol.bench.SplitViewData"]: ObjectType.SPLIT_VIEW,
-  ["symbol.bench.InputViewData"]: ObjectType.INPUT_VIEW,
+  ["symbol.bench.NumberViewData"]: ObjectType.NUMBER_VIEW,
   ["symbol.bench.SliderViewData"]: ObjectType.SLIDER_VIEW,
   ["symbol.bench.ThreadViewData"]: ObjectType.THREAD_VIEW,
   ["symbol.bench.ThemeData"]: ObjectType.THEME,
@@ -32592,8 +34794,14 @@ export const OBJECT_TYPE_BY_MESSAGE_TYPE_NAME: Record<string, ObjectType> = {
   ["symbol.bench.FillData"]: ObjectType.FILL,
   ["symbol.bench.LengthData"]: ObjectType.LENGTH,
   ["symbol.bench.PositionData"]: ObjectType.POSITION,
+  ["symbol.bench.DimensionData"]: ObjectType.DIMENSION,
   ["symbol.bench.TransitionData"]: ObjectType.TRANSITION,
   ["symbol.bench.EffectData"]: ObjectType.EFFECT,
+  ["symbol.bench.GapData"]: ObjectType.GAP,
+  ["symbol.bench.GridData"]: ObjectType.GRID,
+  ["symbol.bench.GridSpanData"]: ObjectType.GRID_SPAN,
+  ["symbol.bench.PaddingData"]: ObjectType.PADDING,
+  ["symbol.bench.RotationData"]: ObjectType.ROTATION,
 }
 
 export const ENUM_BY_TYPE: Record<EnumType, Record<number | string, number | string>> = {
@@ -32704,9 +34912,11 @@ export const ENUM_BY_TYPE: Record<EnumType, Record<number | string, number | str
   [EnumType.DISTRIBUTE]: Distribute,
   [EnumType.ALIGN]: Align,
   [EnumType.DIRECTION]: Direction,
+  [EnumType.OVERFLOW]: Overflow,
   [EnumType.TRANSITION_TYPE]: TransitionType,
   [EnumType.SPRING_TYPE]: SpringType,
   [EnumType.EFFECT_TYPE]: EffectType,
+  [EnumType.DIMENSION_TYPE]: DimensionType,
 }
 
 
@@ -32755,8 +34965,14 @@ export interface StructTypeMapping extends Record<StructType, AnyStructData> {
   [StructType.FILL]: FillData,
   [StructType.LENGTH]: LengthData,
   [StructType.POSITION]: PositionData,
+  [StructType.DIMENSION]: DimensionData,
   [StructType.TRANSITION]: TransitionData,
   [StructType.EFFECT]: EffectData,
+  [StructType.GAP]: GapData,
+  [StructType.GRID]: GridData,
+  [StructType.GRID_SPAN]: GridSpanData,
+  [StructType.PADDING]: PaddingData,
+  [StructType.ROTATION]: RotationData,
 }
 
 export interface NodeTypeMapping extends Record<NodeType, AnyNodeData> {
@@ -32804,8 +35020,9 @@ export interface NodeTypeMapping extends Record<NodeType, AnyNodeData> {
   [NodeType.WIZARD_VIEW]: WizardViewData,
   [NodeType.FRAME_VIEW]: FrameViewData,
   [NodeType.LABEL_VIEW]: LabelViewData,
+  [NodeType.COMPONENT_VIEW]: ComponentViewData,
   [NodeType.SPLIT_VIEW]: SplitViewData,
-  [NodeType.INPUT_VIEW]: InputViewData,
+  [NodeType.NUMBER_VIEW]: NumberViewData,
   [NodeType.SLIDER_VIEW]: SliderViewData,
   [NodeType.THREAD_VIEW]: ThreadViewData,
   [NodeType.THEME]: ThemeData,
@@ -32864,8 +35081,9 @@ export interface AnyTypeMapping extends Record<ObjectType, AnyStructData | AnyNo
   [ObjectType.WIZARD_VIEW]: WizardViewData,
   [ObjectType.FRAME_VIEW]: FrameViewData,
   [ObjectType.LABEL_VIEW]: LabelViewData,
+  [ObjectType.COMPONENT_VIEW]: ComponentViewData,
   [ObjectType.SPLIT_VIEW]: SplitViewData,
-  [ObjectType.INPUT_VIEW]: InputViewData,
+  [ObjectType.NUMBER_VIEW]: NumberViewData,
   [ObjectType.SLIDER_VIEW]: SliderViewData,
   [ObjectType.THREAD_VIEW]: ThreadViewData,
   [ObjectType.THEME]: ThemeData,
@@ -32920,8 +35138,14 @@ export interface AnyTypeMapping extends Record<ObjectType, AnyStructData | AnyNo
   [ObjectType.FILL]: FillData,
   [ObjectType.LENGTH]: LengthData,
   [ObjectType.POSITION]: PositionData,
+  [ObjectType.DIMENSION]: DimensionData,
   [ObjectType.TRANSITION]: TransitionData,
   [ObjectType.EFFECT]: EffectData,
+  [ObjectType.GAP]: GapData,
+  [ObjectType.GRID]: GridData,
+  [ObjectType.GRID_SPAN]: GridSpanData,
+  [ObjectType.PADDING]: PaddingData,
+  [ObjectType.ROTATION]: RotationData,
 }
 
 export interface EnumTypeMapping extends Record<EnumType, any> {
@@ -33032,9 +35256,11 @@ export interface EnumTypeMapping extends Record<EnumType, any> {
   [EnumType.DISTRIBUTE]: Distribute,
   [EnumType.ALIGN]: Align,
   [EnumType.DIRECTION]: Direction,
+  [EnumType.OVERFLOW]: Overflow,
   [EnumType.TRANSITION_TYPE]: TransitionType,
   [EnumType.SPRING_TYPE]: SpringType,
   [EnumType.EFFECT_TYPE]: EffectType,
+  [EnumType.DIMENSION_TYPE]: DimensionType,
 }
 
 
@@ -33163,7 +35389,7 @@ export enum PackageProperty {
   deletedAt = 15,
   templatePtr = 16,
   ownedByPtr = 17,
-  mode = 20,
+  mode = 25,
   type = 30,
   name = 31,
   slug = 34,
@@ -33186,7 +35412,7 @@ export enum DependencyProperty {
   archivedAt = 14,
   deletedAt = 15,
   templatePtr = 16,
-  mode = 20,
+  mode = 25,
   dependencyPtr = 40,
 }
 
@@ -33205,7 +35431,7 @@ export enum PageProperty {
   templatePtr = 16,
   ownedByPtr = 17,
   claimedByPtr = 18,
-  mode = 20,
+  mode = 25,
   title = 32,
   orderKey = 33,
   icon = 34,
@@ -33225,7 +35451,7 @@ export enum BlockProperty {
   archivedAt = 14,
   deletedAt = 15,
   templatePtr = 16,
-  mode = 20,
+  mode = 25,
   type = 30,
   name = 31,
   orderKey = 33,
@@ -33250,7 +35476,7 @@ export enum DatabaseProperty {
   templatePtr = 16,
   ownedByPtr = 17,
   claimedByPtr = 18,
-  mode = 20,
+  mode = 25,
   type = 30,
   name = 31,
   orderKey = 33,
@@ -33289,7 +35515,7 @@ export enum ComputerProperty {
   templatePtr = 16,
   ownedByPtr = 17,
   claimedByPtr = 18,
-  mode = 20,
+  mode = 25,
   type = 30,
   name = 31,
   orderKey = 33,
@@ -33336,7 +35562,7 @@ export enum ScalerProperty {
   templatePtr = 16,
   ownedByPtr = 17,
   claimedByPtr = 18,
-  mode = 20,
+  mode = 25,
   type = 30,
   name = 31,
   orderKey = 33,
@@ -33373,7 +35599,7 @@ export enum ChoiceProperty {
   archivedAt = 14,
   deletedAt = 15,
   templatePtr = 16,
-  mode = 20,
+  mode = 25,
   name = 31,
   orderKey = 33,
   icon = 34,
@@ -33393,7 +35619,7 @@ export enum ClassProperty {
   archivedAt = 14,
   deletedAt = 15,
   templatePtr = 16,
-  mode = 20,
+  mode = 25,
   name = 31,
   orderKey = 33,
   icon = 34,
@@ -33414,7 +35640,7 @@ export enum FieldProperty {
   archivedAt = 14,
   deletedAt = 15,
   templatePtr = 16,
-  mode = 20,
+  mode = 25,
   type = 30,
   name = 31,
   orderKey = 33,
@@ -33449,7 +35675,7 @@ export enum OptionProperty {
   archivedAt = 14,
   deletedAt = 15,
   templatePtr = 16,
-  mode = 20,
+  mode = 25,
   name = 31,
   orderKey = 32,
   icon = 34,
@@ -33471,7 +35697,7 @@ export enum TableProperty {
   templatePtr = 16,
   ownedByPtr = 17,
   claimedByPtr = 18,
-  mode = 20,
+  mode = 25,
   name = 31,
   orderKey = 33,
   icon = 34,
@@ -33492,7 +35718,7 @@ export enum RecordProperty {
   deletedAt = 15,
   ownedByPtr = 17,
   claimedByPtr = 18,
-  mode = 20,
+  mode = 25,
   title = 32,
   orderKey = 33,
   icon = 34,
@@ -33516,7 +35742,7 @@ export enum FileProperty {
   templatePtr = 16,
   ownedByPtr = 17,
   claimedByPtr = 18,
-  mode = 20,
+  mode = 25,
   type = 30,
   name = 31,
   orderKey = 33,
@@ -33560,7 +35786,7 @@ export enum LinkProperty {
   templatePtr = 16,
   ownedByPtr = 17,
   claimedByPtr = 18,
-  mode = 20,
+  mode = 25,
   type = 30,
   name = 31,
   title = 32,
@@ -33597,7 +35823,7 @@ export enum ChannelProperty {
   archivedAt = 14,
   deletedAt = 15,
   templatePtr = 16,
-  mode = 20,
+  mode = 25,
   name = 31,
   orderKey = 33,
   icon = 34,
@@ -33635,7 +35861,7 @@ export enum ThreadProperty {
   deletedAt = 15,
   templatePtr = 16,
   ownedByPtr = 17,
-  mode = 20,
+  mode = 25,
   title = 32,
   orderKey = 33,
   icon = 34,
@@ -33677,7 +35903,7 @@ export enum MessageProperty {
   archivedAt = 14,
   deletedAt = 15,
   ownedByPtr = 17,
-  mode = 20,
+  mode = 25,
   type = 30,
   title = 32,
   channelPtr = 34,
@@ -33707,7 +35933,7 @@ export enum NotificationProperty {
   updatedByPtr = 13,
   archivedAt = 14,
   deletedAt = 15,
-  mode = 20,
+  mode = 25,
   type = 30,
   title = 32,
   channelPtr = 33,
@@ -33738,7 +35964,7 @@ export enum TaskProperty {
   templatePtr = 16,
   ownedByPtr = 17,
   claimedByPtr = 18,
-  mode = 20,
+  mode = 25,
   title = 32,
   orderKey = 33,
   icon = 34,
@@ -33779,7 +36005,7 @@ export enum ClaimProperty {
   deletedAt = 15,
   templatePtr = 16,
   ownedByPtr = 17,
-  mode = 20,
+  mode = 25,
   type = 30,
   name = 31,
   orderKey = 33,
@@ -33811,7 +36037,7 @@ export enum CursorProperty {
   archivedAt = 14,
   deletedAt = 15,
   ownedByPtr = 17,
-  mode = 20,
+  mode = 25,
   type = 30,
   title = 32,
   status = 40,
@@ -33846,7 +36072,7 @@ export enum ServiceProperty {
   templatePtr = 16,
   ownedByPtr = 17,
   claimedByPtr = 18,
-  mode = 20,
+  mode = 25,
   name = 31,
   orderKey = 33,
   icon = 34,
@@ -33869,7 +36095,7 @@ export enum ActionProperty {
   deletedAt = 15,
   templatePtr = 16,
   claimedByPtr = 18,
-  mode = 20,
+  mode = 25,
   type = 30,
   name = 31,
   orderKey = 33,
@@ -33901,7 +36127,7 @@ export enum FlowProperty {
   templatePtr = 16,
   ownedByPtr = 17,
   claimedByPtr = 18,
-  mode = 20,
+  mode = 25,
   type = 30,
   name = 31,
   orderKey = 33,
@@ -33929,7 +36155,7 @@ export enum FlowEdgeProperty {
   archivedAt = 14,
   deletedAt = 15,
   templatePtr = 16,
-  mode = 20,
+  mode = 25,
   type = 30,
   name = 32,
   orderKey = 33,
@@ -33960,7 +36186,7 @@ export enum AgentProperty {
   templatePtr = 16,
   ownedByPtr = 17,
   claimedByPtr = 18,
-  mode = 20,
+  mode = 25,
   name = 31,
   orderKey = 33,
   icon = 34,
@@ -34003,7 +36229,7 @@ export enum SessionProperty {
   updatedByPtr = 13,
   archivedAt = 14,
   deletedAt = 15,
-  mode = 20,
+  mode = 25,
   status = 40,
   duration = 41,
   openedAt = 42,
@@ -34026,7 +36252,7 @@ export enum RunProperty {
   updatedByPtr = 13,
   archivedAt = 14,
   deletedAt = 15,
-  mode = 20,
+  mode = 25,
   type = 30,
   title = 32,
   rootPtr = 33,
@@ -34074,7 +36300,7 @@ export enum SpanProperty {
   updatedByPtr = 13,
   archivedAt = 14,
   deletedAt = 15,
-  mode = 20,
+  mode = 25,
   type = 30,
   rootPtr = 31,
   title = 60,
@@ -34116,7 +36342,7 @@ export enum InterruptionProperty {
   updatedByPtr = 13,
   archivedAt = 14,
   deletedAt = 15,
-  mode = 20,
+  mode = 25,
   type = 30,
   rootPtr = 31,
   flowPtr = 33,
@@ -34149,7 +36375,7 @@ export enum MembershipProperty {
   archivedAt = 14,
   deletedAt = 15,
   templatePtr = 16,
-  mode = 20,
+  mode = 25,
   memberPtr = 41,
 }
 
@@ -34183,7 +36409,7 @@ export enum TeamProperty {
   archivedAt = 14,
   deletedAt = 15,
   templatePtr = 16,
-  mode = 20,
+  mode = 25,
   name = 31,
   orderKey = 33,
   icon = 34,
@@ -34203,7 +36429,7 @@ export enum RoleProperty {
   archivedAt = 14,
   deletedAt = 15,
   templatePtr = 16,
-  mode = 20,
+  mode = 25,
   name = 31,
   orderKey = 33,
   icon = 34,
@@ -34224,7 +36450,7 @@ export enum SpaceProperty {
   deletedAt = 15,
   templatePtr = 16,
   ownedByPtr = 17,
-  mode = 20,
+  mode = 25,
   type = 30,
   name = 31,
   orderKey = 33,
@@ -34249,11 +36475,18 @@ export enum WizardViewProperty {
   archivedAt = 14,
   deletedAt = 15,
   templatePtr = 16,
-  mode = 20,
+  mode = 25,
   name = 31,
   orderKey = 33,
   icon = 34,
   definitionPtr = 35,
+  position = 40,
+  width = 41,
+  height = 42,
+  minWidth = 43,
+  minHeight = 44,
+  maxWidth = 45,
+  maxHeight = 46,
 }
 
 export enum FrameViewProperty {
@@ -34269,13 +36502,33 @@ export enum FrameViewProperty {
   archivedAt = 14,
   deletedAt = 15,
   templatePtr = 16,
-  mode = 20,
+  mode = 25,
   name = 31,
   orderKey = 33,
   icon = 34,
   definitionPtr = 35,
-  focusPtr = 70,
-  selection = 71,
+  position = 40,
+  width = 41,
+  height = 42,
+  minWidth = 43,
+  minHeight = 44,
+  maxWidth = 45,
+  maxHeight = 46,
+  layout = 50,
+  direction = 51,
+  distribute = 52,
+  align = 53,
+  gap = 54,
+  padding = 55,
+  grid = 56,
+  gridSpan = 57,
+  aspectRatio = 58,
+  fill = 60,
+  opacity = 61,
+  isVisible = 62,
+  rotation = 63,
+  shadow = 64,
+  border = 65,
 }
 
 export enum LabelViewProperty {
@@ -34291,13 +36544,75 @@ export enum LabelViewProperty {
   archivedAt = 14,
   deletedAt = 15,
   templatePtr = 16,
-  mode = 20,
+  mode = 25,
   name = 31,
   orderKey = 33,
   icon = 34,
   definitionPtr = 35,
-  focusPtr = 70,
-  selection = 71,
+  position = 40,
+  width = 41,
+  height = 42,
+  minWidth = 43,
+  minHeight = 44,
+  maxWidth = 45,
+  maxHeight = 46,
+  layout = 50,
+  direction = 51,
+  distribute = 52,
+  align = 53,
+  gap = 54,
+  padding = 55,
+  grid = 56,
+  gridSpan = 57,
+  aspectRatio = 58,
+  fill = 60,
+  opacity = 61,
+  isVisible = 62,
+  rotation = 63,
+  shadow = 64,
+  border = 65,
+}
+
+export enum ComponentViewProperty {
+  metatype = 1,
+  id = 2,
+  parentPtr = 4,
+  benchPtr = 5,
+  packagePtr = 9,
+  createdAt = 10,
+  createdByPtr = 11,
+  updatedAt = 12,
+  updatedByPtr = 13,
+  archivedAt = 14,
+  deletedAt = 15,
+  templatePtr = 16,
+  mode = 25,
+  name = 31,
+  orderKey = 33,
+  icon = 34,
+  definitionPtr = 35,
+  position = 40,
+  width = 41,
+  height = 42,
+  minWidth = 43,
+  minHeight = 44,
+  maxWidth = 45,
+  maxHeight = 46,
+  layout = 50,
+  direction = 51,
+  distribute = 52,
+  align = 53,
+  gap = 54,
+  padding = 55,
+  grid = 56,
+  gridSpan = 57,
+  aspectRatio = 58,
+  fill = 60,
+  opacity = 61,
+  isVisible = 62,
+  rotation = 63,
+  shadow = 64,
+  border = 65,
 }
 
 export enum SplitViewProperty {
@@ -34313,16 +36628,36 @@ export enum SplitViewProperty {
   archivedAt = 14,
   deletedAt = 15,
   templatePtr = 16,
-  mode = 20,
+  mode = 25,
   name = 31,
   orderKey = 33,
   icon = 34,
   definitionPtr = 35,
-  focusPtr = 70,
-  selection = 71,
+  position = 40,
+  width = 41,
+  height = 42,
+  minWidth = 43,
+  minHeight = 44,
+  maxWidth = 45,
+  maxHeight = 46,
+  layout = 50,
+  direction = 51,
+  distribute = 52,
+  align = 53,
+  gap = 54,
+  padding = 55,
+  grid = 56,
+  gridSpan = 57,
+  aspectRatio = 58,
+  fill = 60,
+  opacity = 61,
+  isVisible = 62,
+  rotation = 63,
+  shadow = 64,
+  border = 65,
 }
 
-export enum InputViewProperty {
+export enum NumberViewProperty {
   metatype = 1,
   id = 2,
   parentPtr = 4,
@@ -34335,13 +36670,20 @@ export enum InputViewProperty {
   archivedAt = 14,
   deletedAt = 15,
   templatePtr = 16,
-  mode = 20,
+  mode = 25,
   name = 31,
   orderKey = 33,
   icon = 34,
   definitionPtr = 35,
-  value = 40,
-  placeholder = 41,
+  position = 40,
+  width = 41,
+  height = 42,
+  minWidth = 43,
+  minHeight = 44,
+  maxWidth = 45,
+  maxHeight = 46,
+  value = 100,
+  placeholder = 101,
 }
 
 export enum SliderViewProperty {
@@ -34357,15 +36699,22 @@ export enum SliderViewProperty {
   archivedAt = 14,
   deletedAt = 15,
   templatePtr = 16,
-  mode = 20,
+  mode = 25,
   name = 31,
   orderKey = 33,
   icon = 34,
   definitionPtr = 35,
-  value = 40,
-  minValue = 41,
-  maxValue = 42,
-  step = 43,
+  position = 40,
+  width = 41,
+  height = 42,
+  minWidth = 43,
+  minHeight = 44,
+  maxWidth = 45,
+  maxHeight = 46,
+  value = 100,
+  minValue = 101,
+  maxValue = 102,
+  step = 103,
 }
 
 export enum ThreadViewProperty {
@@ -34381,14 +36730,21 @@ export enum ThreadViewProperty {
   archivedAt = 14,
   deletedAt = 15,
   templatePtr = 16,
-  mode = 20,
+  mode = 25,
   name = 31,
   orderKey = 33,
   icon = 34,
   definitionPtr = 35,
-  draftText = 40,
-  draftNodesPtr = 41,
-  draftReplyToPtr = 42,
+  position = 40,
+  width = 41,
+  height = 42,
+  minWidth = 43,
+  minHeight = 44,
+  maxWidth = 45,
+  maxHeight = 46,
+  draftText = 100,
+  draftNodesPtr = 101,
+  draftReplyToPtr = 102,
 }
 
 export enum ThemeProperty {
@@ -34429,7 +36785,7 @@ export enum ColorStyleProperty {
   archivedAt = 14,
   deletedAt = 15,
   templatePtr = 16,
-  mode = 20,
+  mode = 25,
   type = 30,
   name = 31,
   orderKey = 33,
@@ -34458,7 +36814,7 @@ export enum TextStyleProperty {
   archivedAt = 14,
   deletedAt = 15,
   templatePtr = 16,
-  mode = 20,
+  mode = 25,
   type = 30,
   name = 31,
   orderKey = 33,
@@ -34489,7 +36845,7 @@ export enum BorderStyleProperty {
   archivedAt = 14,
   deletedAt = 15,
   templatePtr = 16,
-  mode = 20,
+  mode = 25,
   type = 30,
   name = 31,
   orderKey = 33,
@@ -34522,7 +36878,7 @@ export enum ShadowStyleProperty {
   archivedAt = 14,
   deletedAt = 15,
   templatePtr = 16,
-  mode = 20,
+  mode = 25,
   type = 30,
   name = 31,
   orderKey = 33,
@@ -34551,7 +36907,7 @@ export enum GradientStyleProperty {
   archivedAt = 14,
   deletedAt = 15,
   templatePtr = 16,
-  mode = 20,
+  mode = 25,
   type = 30,
   name = 31,
   orderKey = 33,
@@ -34575,7 +36931,7 @@ export enum TransitionStyleProperty {
   archivedAt = 14,
   deletedAt = 15,
   templatePtr = 16,
-  mode = 20,
+  mode = 25,
   type = 30,
   name = 31,
   orderKey = 33,
@@ -34605,7 +36961,7 @@ export enum EffectStyleProperty {
   archivedAt = 14,
   deletedAt = 15,
   templatePtr = 16,
-  mode = 20,
+  mode = 25,
   type = 30,
   name = 31,
   orderKey = 33,
@@ -34618,7 +36974,7 @@ export enum EffectStyleProperty {
   rotate = 44,
   rotateX = 45,
   rotateY = 46,
-  isRotate3D = 47,
+  rotateZ = 47,
   skewX = 48,
   skewY = 49,
   perspective = 50,
@@ -35075,7 +37431,7 @@ export enum FillProperty {
 export enum LengthProperty {
   metatype = 1,
   unit = 31,
-  value = 32,
+  value = 40,
 }
 
 export enum PositionProperty {
@@ -35085,6 +37441,12 @@ export enum PositionProperty {
   left = 42,
   width = 43,
   height = 44,
+}
+
+export enum DimensionProperty {
+  metatype = 1,
+  type = 30,
+  value = 40,
 }
 
 export enum TransitionProperty {
@@ -35111,7 +37473,7 @@ export enum EffectProperty {
   rotate = 44,
   rotateX = 45,
   rotateY = 46,
-  isRotate3D = 47,
+  rotateZ = 47,
   skewX = 48,
   skewY = 49,
   perspective = 50,
@@ -35121,12 +37483,50 @@ export enum EffectProperty {
   trigger = 54,
 }
 
-export type AnyNodeProperty = typeof BenchProperty | typeof HandleProperty | typeof UserProperty | typeof OrganizationProperty | typeof ClientProperty | typeof PackageProperty | typeof DependencyProperty | typeof PageProperty | typeof BlockProperty | typeof DatabaseProperty | typeof ComputerProperty | typeof ScalerProperty | typeof ChoiceProperty | typeof ClassProperty | typeof FieldProperty | typeof OptionProperty | typeof TableProperty | typeof RecordProperty | typeof FileProperty | typeof LinkProperty | typeof ChannelProperty | typeof ThreadProperty | typeof MessageProperty | typeof NotificationProperty | typeof TaskProperty | typeof ClaimProperty | typeof CursorProperty | typeof ServiceProperty | typeof ActionProperty | typeof FlowProperty | typeof FlowEdgeProperty | typeof AgentProperty | typeof SessionProperty | typeof RunProperty | typeof SpanProperty | typeof InterruptionProperty | typeof MembershipProperty | typeof InviteProperty | typeof TeamProperty | typeof RoleProperty | typeof SpaceProperty | typeof WizardViewProperty | typeof FrameViewProperty | typeof LabelViewProperty | typeof SplitViewProperty | typeof InputViewProperty | typeof SliderViewProperty | typeof ThreadViewProperty | typeof ThemeProperty | typeof ColorStyleProperty | typeof TextStyleProperty | typeof BorderStyleProperty | typeof ShadowStyleProperty | typeof GradientStyleProperty | typeof TransitionStyleProperty | typeof EffectStyleProperty | typeof EmptyProperty
-export type AnyStructProperty = typeof ContextProperty | typeof EditContextProperty | typeof EditProperty | typeof EditOperationProperty | typeof ChangeProperty | typeof ChangeVignetteProperty | typeof GraphScopeProperty | typeof ClientOriginProperty | typeof NodeReferenceProperty | typeof PropertyReferenceProperty | typeof TypeProperty | typeof TypeConstraintProperty | typeof FileInfoProperty | typeof ScheduleProperty | typeof TextProperty | typeof TextLineProperty | typeof TextSpanProperty | typeof CodeProperty | typeof IconProperty | typeof ExpressionProperty | typeof AggregationResultProperty | typeof SelectionProperty | typeof SelectOptionsProperty | typeof ErrorProperty | typeof RunTraceProperty | typeof RunFrameProperty | typeof PolicyProperty | typeof PolicyRuleProperty | typeof PolicySubjectProperty | typeof AccessZoneProperty | typeof AccessMatrixProperty | typeof AccessProperty | typeof ColorProperty | typeof ShadowProperty | typeof BorderProperty | typeof Vector2Property | typeof Vector3Property | typeof Vector4Property | typeof GradientStopProperty | typeof GradientProperty | typeof FillProperty | typeof LengthProperty | typeof PositionProperty | typeof TransitionProperty | typeof EffectProperty
+export enum GapProperty {
+  metatype = 1,
+  value = 40,
+  x = 41,
+  y = 42,
+}
+
+export enum GridProperty {
+  metatype = 1,
+  columns = 40,
+  rows = 41,
+  columnWidth = 42,
+  columnMinWidth = 43,
+}
+
+export enum GridSpanProperty {
+  metatype = 1,
+  columns = 40,
+  rows = 41,
+}
+
+export enum PaddingProperty {
+  metatype = 1,
+  value = 40,
+  top = 41,
+  left = 42,
+  right = 43,
+  bottom = 44,
+}
+
+export enum RotationProperty {
+  metatype = 1,
+  value = 40,
+  x = 41,
+  y = 42,
+  z = 43,
+}
+
+export type AnyNodeProperty = typeof BenchProperty | typeof HandleProperty | typeof UserProperty | typeof OrganizationProperty | typeof ClientProperty | typeof PackageProperty | typeof DependencyProperty | typeof PageProperty | typeof BlockProperty | typeof DatabaseProperty | typeof ComputerProperty | typeof ScalerProperty | typeof ChoiceProperty | typeof ClassProperty | typeof FieldProperty | typeof OptionProperty | typeof TableProperty | typeof RecordProperty | typeof FileProperty | typeof LinkProperty | typeof ChannelProperty | typeof ThreadProperty | typeof MessageProperty | typeof NotificationProperty | typeof TaskProperty | typeof ClaimProperty | typeof CursorProperty | typeof ServiceProperty | typeof ActionProperty | typeof FlowProperty | typeof FlowEdgeProperty | typeof AgentProperty | typeof SessionProperty | typeof RunProperty | typeof SpanProperty | typeof InterruptionProperty | typeof MembershipProperty | typeof InviteProperty | typeof TeamProperty | typeof RoleProperty | typeof SpaceProperty | typeof WizardViewProperty | typeof FrameViewProperty | typeof LabelViewProperty | typeof ComponentViewProperty | typeof SplitViewProperty | typeof NumberViewProperty | typeof SliderViewProperty | typeof ThreadViewProperty | typeof ThemeProperty | typeof ColorStyleProperty | typeof TextStyleProperty | typeof BorderStyleProperty | typeof ShadowStyleProperty | typeof GradientStyleProperty | typeof TransitionStyleProperty | typeof EffectStyleProperty | typeof EmptyProperty
+export type AnyStructProperty = typeof ContextProperty | typeof EditContextProperty | typeof EditProperty | typeof EditOperationProperty | typeof ChangeProperty | typeof ChangeVignetteProperty | typeof GraphScopeProperty | typeof ClientOriginProperty | typeof NodeReferenceProperty | typeof PropertyReferenceProperty | typeof TypeProperty | typeof TypeConstraintProperty | typeof FileInfoProperty | typeof ScheduleProperty | typeof TextProperty | typeof TextLineProperty | typeof TextSpanProperty | typeof CodeProperty | typeof IconProperty | typeof ExpressionProperty | typeof AggregationResultProperty | typeof SelectionProperty | typeof SelectOptionsProperty | typeof ErrorProperty | typeof RunTraceProperty | typeof RunFrameProperty | typeof PolicyProperty | typeof PolicyRuleProperty | typeof PolicySubjectProperty | typeof AccessZoneProperty | typeof AccessMatrixProperty | typeof AccessProperty | typeof ColorProperty | typeof ShadowProperty | typeof BorderProperty | typeof Vector2Property | typeof Vector3Property | typeof Vector4Property | typeof GradientStopProperty | typeof GradientProperty | typeof FillProperty | typeof LengthProperty | typeof PositionProperty | typeof DimensionProperty | typeof TransitionProperty | typeof EffectProperty | typeof GapProperty | typeof GridProperty | typeof GridSpanProperty | typeof PaddingProperty | typeof RotationProperty
 export type AnyProperty = AnyNodeProperty | AnyStructProperty
-export type AnyNodePropertyType = typeof BenchProperty | typeof HandleProperty | typeof UserProperty | typeof OrganizationProperty | typeof ClientProperty | typeof PackageProperty | typeof DependencyProperty | typeof PageProperty | typeof BlockProperty | typeof DatabaseProperty | typeof ComputerProperty | typeof ScalerProperty | typeof ChoiceProperty | typeof ClassProperty | typeof FieldProperty | typeof OptionProperty | typeof TableProperty | typeof RecordProperty | typeof FileProperty | typeof LinkProperty | typeof ChannelProperty | typeof ThreadProperty | typeof MessageProperty | typeof NotificationProperty | typeof TaskProperty | typeof ClaimProperty | typeof CursorProperty | typeof ServiceProperty | typeof ActionProperty | typeof FlowProperty | typeof FlowEdgeProperty | typeof AgentProperty | typeof SessionProperty | typeof RunProperty | typeof SpanProperty | typeof InterruptionProperty | typeof MembershipProperty | typeof InviteProperty | typeof TeamProperty | typeof RoleProperty | typeof SpaceProperty | typeof WizardViewProperty | typeof FrameViewProperty | typeof LabelViewProperty | typeof SplitViewProperty | typeof InputViewProperty | typeof SliderViewProperty | typeof ThreadViewProperty | typeof ThemeProperty | typeof ColorStyleProperty | typeof TextStyleProperty | typeof BorderStyleProperty | typeof ShadowStyleProperty | typeof GradientStyleProperty | typeof TransitionStyleProperty | typeof EffectStyleProperty | typeof EmptyProperty
-export type AnyStructPropertyType = typeof ContextProperty | typeof EditContextProperty | typeof EditProperty | typeof EditOperationProperty | typeof ChangeProperty | typeof ChangeVignetteProperty | typeof GraphScopeProperty | typeof ClientOriginProperty | typeof NodeReferenceProperty | typeof PropertyReferenceProperty | typeof TypeProperty | typeof TypeConstraintProperty | typeof FileInfoProperty | typeof ScheduleProperty | typeof TextProperty | typeof TextLineProperty | typeof TextSpanProperty | typeof CodeProperty | typeof IconProperty | typeof ExpressionProperty | typeof AggregationResultProperty | typeof SelectionProperty | typeof SelectOptionsProperty | typeof ErrorProperty | typeof RunTraceProperty | typeof RunFrameProperty | typeof PolicyProperty | typeof PolicyRuleProperty | typeof PolicySubjectProperty | typeof AccessZoneProperty | typeof AccessMatrixProperty | typeof AccessProperty | typeof ColorProperty | typeof ShadowProperty | typeof BorderProperty | typeof Vector2Property | typeof Vector3Property | typeof Vector4Property | typeof GradientStopProperty | typeof GradientProperty | typeof FillProperty | typeof LengthProperty | typeof PositionProperty | typeof TransitionProperty | typeof EffectProperty
-export type AnyPropertyType = typeof BenchProperty | typeof HandleProperty | typeof UserProperty | typeof OrganizationProperty | typeof ClientProperty | typeof PackageProperty | typeof DependencyProperty | typeof PageProperty | typeof BlockProperty | typeof DatabaseProperty | typeof ComputerProperty | typeof ScalerProperty | typeof ChoiceProperty | typeof ClassProperty | typeof FieldProperty | typeof OptionProperty | typeof TableProperty | typeof RecordProperty | typeof FileProperty | typeof LinkProperty | typeof ChannelProperty | typeof ThreadProperty | typeof MessageProperty | typeof NotificationProperty | typeof TaskProperty | typeof ClaimProperty | typeof CursorProperty | typeof ServiceProperty | typeof ActionProperty | typeof FlowProperty | typeof FlowEdgeProperty | typeof AgentProperty | typeof SessionProperty | typeof RunProperty | typeof SpanProperty | typeof InterruptionProperty | typeof MembershipProperty | typeof InviteProperty | typeof TeamProperty | typeof RoleProperty | typeof SpaceProperty | typeof WizardViewProperty | typeof FrameViewProperty | typeof LabelViewProperty | typeof SplitViewProperty | typeof InputViewProperty | typeof SliderViewProperty | typeof ThreadViewProperty | typeof ThemeProperty | typeof ColorStyleProperty | typeof TextStyleProperty | typeof BorderStyleProperty | typeof ShadowStyleProperty | typeof GradientStyleProperty | typeof TransitionStyleProperty | typeof EffectStyleProperty | typeof EmptyProperty | typeof ContextProperty | typeof EditContextProperty | typeof EditProperty | typeof EditOperationProperty | typeof ChangeProperty | typeof ChangeVignetteProperty | typeof GraphScopeProperty | typeof ClientOriginProperty | typeof NodeReferenceProperty | typeof PropertyReferenceProperty | typeof TypeProperty | typeof TypeConstraintProperty | typeof FileInfoProperty | typeof ScheduleProperty | typeof TextProperty | typeof TextLineProperty | typeof TextSpanProperty | typeof CodeProperty | typeof IconProperty | typeof ExpressionProperty | typeof AggregationResultProperty | typeof SelectionProperty | typeof SelectOptionsProperty | typeof ErrorProperty | typeof RunTraceProperty | typeof RunFrameProperty | typeof PolicyProperty | typeof PolicyRuleProperty | typeof PolicySubjectProperty | typeof AccessZoneProperty | typeof AccessMatrixProperty | typeof AccessProperty | typeof ColorProperty | typeof ShadowProperty | typeof BorderProperty | typeof Vector2Property | typeof Vector3Property | typeof Vector4Property | typeof GradientStopProperty | typeof GradientProperty | typeof FillProperty | typeof LengthProperty | typeof PositionProperty | typeof TransitionProperty | typeof EffectProperty
+export type AnyNodePropertyType = typeof BenchProperty | typeof HandleProperty | typeof UserProperty | typeof OrganizationProperty | typeof ClientProperty | typeof PackageProperty | typeof DependencyProperty | typeof PageProperty | typeof BlockProperty | typeof DatabaseProperty | typeof ComputerProperty | typeof ScalerProperty | typeof ChoiceProperty | typeof ClassProperty | typeof FieldProperty | typeof OptionProperty | typeof TableProperty | typeof RecordProperty | typeof FileProperty | typeof LinkProperty | typeof ChannelProperty | typeof ThreadProperty | typeof MessageProperty | typeof NotificationProperty | typeof TaskProperty | typeof ClaimProperty | typeof CursorProperty | typeof ServiceProperty | typeof ActionProperty | typeof FlowProperty | typeof FlowEdgeProperty | typeof AgentProperty | typeof SessionProperty | typeof RunProperty | typeof SpanProperty | typeof InterruptionProperty | typeof MembershipProperty | typeof InviteProperty | typeof TeamProperty | typeof RoleProperty | typeof SpaceProperty | typeof WizardViewProperty | typeof FrameViewProperty | typeof LabelViewProperty | typeof ComponentViewProperty | typeof SplitViewProperty | typeof NumberViewProperty | typeof SliderViewProperty | typeof ThreadViewProperty | typeof ThemeProperty | typeof ColorStyleProperty | typeof TextStyleProperty | typeof BorderStyleProperty | typeof ShadowStyleProperty | typeof GradientStyleProperty | typeof TransitionStyleProperty | typeof EffectStyleProperty | typeof EmptyProperty
+export type AnyStructPropertyType = typeof ContextProperty | typeof EditContextProperty | typeof EditProperty | typeof EditOperationProperty | typeof ChangeProperty | typeof ChangeVignetteProperty | typeof GraphScopeProperty | typeof ClientOriginProperty | typeof NodeReferenceProperty | typeof PropertyReferenceProperty | typeof TypeProperty | typeof TypeConstraintProperty | typeof FileInfoProperty | typeof ScheduleProperty | typeof TextProperty | typeof TextLineProperty | typeof TextSpanProperty | typeof CodeProperty | typeof IconProperty | typeof ExpressionProperty | typeof AggregationResultProperty | typeof SelectionProperty | typeof SelectOptionsProperty | typeof ErrorProperty | typeof RunTraceProperty | typeof RunFrameProperty | typeof PolicyProperty | typeof PolicyRuleProperty | typeof PolicySubjectProperty | typeof AccessZoneProperty | typeof AccessMatrixProperty | typeof AccessProperty | typeof ColorProperty | typeof ShadowProperty | typeof BorderProperty | typeof Vector2Property | typeof Vector3Property | typeof Vector4Property | typeof GradientStopProperty | typeof GradientProperty | typeof FillProperty | typeof LengthProperty | typeof PositionProperty | typeof DimensionProperty | typeof TransitionProperty | typeof EffectProperty | typeof GapProperty | typeof GridProperty | typeof GridSpanProperty | typeof PaddingProperty | typeof RotationProperty
+export type AnyPropertyType = typeof BenchProperty | typeof HandleProperty | typeof UserProperty | typeof OrganizationProperty | typeof ClientProperty | typeof PackageProperty | typeof DependencyProperty | typeof PageProperty | typeof BlockProperty | typeof DatabaseProperty | typeof ComputerProperty | typeof ScalerProperty | typeof ChoiceProperty | typeof ClassProperty | typeof FieldProperty | typeof OptionProperty | typeof TableProperty | typeof RecordProperty | typeof FileProperty | typeof LinkProperty | typeof ChannelProperty | typeof ThreadProperty | typeof MessageProperty | typeof NotificationProperty | typeof TaskProperty | typeof ClaimProperty | typeof CursorProperty | typeof ServiceProperty | typeof ActionProperty | typeof FlowProperty | typeof FlowEdgeProperty | typeof AgentProperty | typeof SessionProperty | typeof RunProperty | typeof SpanProperty | typeof InterruptionProperty | typeof MembershipProperty | typeof InviteProperty | typeof TeamProperty | typeof RoleProperty | typeof SpaceProperty | typeof WizardViewProperty | typeof FrameViewProperty | typeof LabelViewProperty | typeof ComponentViewProperty | typeof SplitViewProperty | typeof NumberViewProperty | typeof SliderViewProperty | typeof ThreadViewProperty | typeof ThemeProperty | typeof ColorStyleProperty | typeof TextStyleProperty | typeof BorderStyleProperty | typeof ShadowStyleProperty | typeof GradientStyleProperty | typeof TransitionStyleProperty | typeof EffectStyleProperty | typeof EmptyProperty | typeof ContextProperty | typeof EditContextProperty | typeof EditProperty | typeof EditOperationProperty | typeof ChangeProperty | typeof ChangeVignetteProperty | typeof GraphScopeProperty | typeof ClientOriginProperty | typeof NodeReferenceProperty | typeof PropertyReferenceProperty | typeof TypeProperty | typeof TypeConstraintProperty | typeof FileInfoProperty | typeof ScheduleProperty | typeof TextProperty | typeof TextLineProperty | typeof TextSpanProperty | typeof CodeProperty | typeof IconProperty | typeof ExpressionProperty | typeof AggregationResultProperty | typeof SelectionProperty | typeof SelectOptionsProperty | typeof ErrorProperty | typeof RunTraceProperty | typeof RunFrameProperty | typeof PolicyProperty | typeof PolicyRuleProperty | typeof PolicySubjectProperty | typeof AccessZoneProperty | typeof AccessMatrixProperty | typeof AccessProperty | typeof ColorProperty | typeof ShadowProperty | typeof BorderProperty | typeof Vector2Property | typeof Vector3Property | typeof Vector4Property | typeof GradientStopProperty | typeof GradientProperty | typeof FillProperty | typeof LengthProperty | typeof PositionProperty | typeof DimensionProperty | typeof TransitionProperty | typeof EffectProperty | typeof GapProperty | typeof GridProperty | typeof GridSpanProperty | typeof PaddingProperty | typeof RotationProperty
 export const NODE_PROPERTY_ENUM_BY_TYPE: Partial<Record<ObjectType, AnyNodePropertyType>> = {
   [ObjectType.BENCH]: BenchProperty,
   [ObjectType.HANDLE]: HandleProperty,
@@ -35172,8 +37572,9 @@ export const NODE_PROPERTY_ENUM_BY_TYPE: Partial<Record<ObjectType, AnyNodePrope
   [ObjectType.WIZARD_VIEW]: WizardViewProperty,
   [ObjectType.FRAME_VIEW]: FrameViewProperty,
   [ObjectType.LABEL_VIEW]: LabelViewProperty,
+  [ObjectType.COMPONENT_VIEW]: ComponentViewProperty,
   [ObjectType.SPLIT_VIEW]: SplitViewProperty,
-  [ObjectType.INPUT_VIEW]: InputViewProperty,
+  [ObjectType.NUMBER_VIEW]: NumberViewProperty,
   [ObjectType.SLIDER_VIEW]: SliderViewProperty,
   [ObjectType.THREAD_VIEW]: ThreadViewProperty,
   [ObjectType.THEME]: ThemeProperty,
@@ -35231,8 +37632,14 @@ export const STRUCT_PROPERTY_ENUM_BY_TYPE: Partial<Record<ObjectType, AnyStructP
   [ObjectType.FILL]: FillProperty,
   [ObjectType.LENGTH]: LengthProperty,
   [ObjectType.POSITION]: PositionProperty,
+  [ObjectType.DIMENSION]: DimensionProperty,
   [ObjectType.TRANSITION]: TransitionProperty,
   [ObjectType.EFFECT]: EffectProperty,
+  [ObjectType.GAP]: GapProperty,
+  [ObjectType.GRID]: GridProperty,
+  [ObjectType.GRID_SPAN]: GridSpanProperty,
+  [ObjectType.PADDING]: PaddingProperty,
+  [ObjectType.ROTATION]: RotationProperty,
 }
 
 export const PROPERTY_ENUM_BY_TYPE: Partial<Record<ObjectType, AnyPropertyType>> = {
@@ -35280,8 +37687,9 @@ export const PROPERTY_ENUM_BY_TYPE: Partial<Record<ObjectType, AnyPropertyType>>
   [ObjectType.WIZARD_VIEW]: WizardViewProperty,
   [ObjectType.FRAME_VIEW]: FrameViewProperty,
   [ObjectType.LABEL_VIEW]: LabelViewProperty,
+  [ObjectType.COMPONENT_VIEW]: ComponentViewProperty,
   [ObjectType.SPLIT_VIEW]: SplitViewProperty,
-  [ObjectType.INPUT_VIEW]: InputViewProperty,
+  [ObjectType.NUMBER_VIEW]: NumberViewProperty,
   [ObjectType.SLIDER_VIEW]: SliderViewProperty,
   [ObjectType.THREAD_VIEW]: ThreadViewProperty,
   [ObjectType.THEME]: ThemeProperty,
@@ -35336,8 +37744,14 @@ export const PROPERTY_ENUM_BY_TYPE: Partial<Record<ObjectType, AnyPropertyType>>
   [ObjectType.FILL]: FillProperty,
   [ObjectType.LENGTH]: LengthProperty,
   [ObjectType.POSITION]: PositionProperty,
+  [ObjectType.DIMENSION]: DimensionProperty,
   [ObjectType.TRANSITION]: TransitionProperty,
   [ObjectType.EFFECT]: EffectProperty,
+  [ObjectType.GAP]: GapProperty,
+  [ObjectType.GRID]: GridProperty,
+  [ObjectType.GRID_SPAN]: GridSpanProperty,
+  [ObjectType.PADDING]: PaddingProperty,
+  [ObjectType.ROTATION]: RotationProperty,
 }
 
 
@@ -35506,7 +37920,7 @@ export const PackageDataInfo: Record<PackageProperty, PropertyInfo> = {
   [PackageProperty.deletedAt]: { id: 15, name: 'deleted_at', component: ObjectType.PACKAGE, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
   [PackageProperty.templatePtr]: { id: 16, name: 'template_ptr', component: ObjectType.PACKAGE, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_TEMPLATE, referenceNodes: [NodeType.PACKAGE], referenceStruct: StructType.NODE_REFERENCE },
   [PackageProperty.ownedByPtr]: { id: 17, name: 'owned_by_ptr', component: ObjectType.PACKAGE, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.USER, NodeType.ORGANIZATION, NodeType.COMPUTER, NodeType.AGENT], referenceStruct: StructType.NODE_REFERENCE },
-  [PackageProperty.mode]: { id: 20, name: 'mode', component: ObjectType.PACKAGE, enumType: EnumType.NODE_MODE, kind: 'enum', primitiveType: PrimitiveType.INT16, default: 20, isRequired: true, isInternal: true, isRuntime: true, isWired: true, isStored: true },
+  [PackageProperty.mode]: { id: 25, name: 'mode', component: ObjectType.PACKAGE, enumType: EnumType.NODE_MODE, kind: 'enum', primitiveType: PrimitiveType.INT16, default: 20, isRequired: true, isInternal: true, isRuntime: true, isWired: true, isStored: true },
   [PackageProperty.type]: { id: 30, name: 'type', component: ObjectType.PACKAGE, enumType: EnumType.PACKAGE_TYPE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isRuntime: true, isWired: true, isStored: true },
   [PackageProperty.name]: { id: 31, name: 'name', component: ObjectType.PACKAGE, kind: 'primitive', primitiveType: PrimitiveType.STRING, constraint: { minLength: 0, maxLength: 128, nodeTypes: [] }, isRuntime: true, isWired: true, isStored: true },
   [PackageProperty.slug]: { id: 34, name: 'slug', component: ObjectType.PACKAGE, kind: 'primitive', primitiveType: PrimitiveType.STRING, constraint: { regex: "^[a-z0-9-]{3,}$", nodeTypes: [] }, isRuntime: true, isWired: true, isStored: true },
@@ -35528,7 +37942,7 @@ export const DependencyDataInfo: Record<DependencyProperty, PropertyInfo> = {
   [DependencyProperty.archivedAt]: { id: 14, name: 'archived_at', component: ObjectType.DEPENDENCY, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
   [DependencyProperty.deletedAt]: { id: 15, name: 'deleted_at', component: ObjectType.DEPENDENCY, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
   [DependencyProperty.templatePtr]: { id: 16, name: 'template_ptr', component: ObjectType.DEPENDENCY, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_TEMPLATE, referenceNodes: [NodeType.DEPENDENCY], referenceStruct: StructType.NODE_REFERENCE },
-  [DependencyProperty.mode]: { id: 20, name: 'mode', component: ObjectType.DEPENDENCY, enumType: EnumType.NODE_MODE, kind: 'enum', primitiveType: PrimitiveType.INT16, default: 20, isRequired: true, isInternal: true, isRuntime: true, isWired: true, isStored: true },
+  [DependencyProperty.mode]: { id: 25, name: 'mode', component: ObjectType.DEPENDENCY, enumType: EnumType.NODE_MODE, kind: 'enum', primitiveType: PrimitiveType.INT16, default: 20, isRequired: true, isInternal: true, isRuntime: true, isWired: true, isStored: true },
   [DependencyProperty.dependencyPtr]: { id: 40, name: 'dependency_ptr', component: ObjectType.DEPENDENCY, kind: 'reference', isRequired: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.PACKAGE, NodeType.BENCH], referenceStruct: StructType.NODE_REFERENCE },
 }
 export const PageDataInfo: Record<PageProperty, PropertyInfo> = {
@@ -35546,7 +37960,7 @@ export const PageDataInfo: Record<PageProperty, PropertyInfo> = {
   [PageProperty.templatePtr]: { id: 16, name: 'template_ptr', component: ObjectType.PAGE, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_TEMPLATE, referenceNodes: [NodeType.PAGE], referenceStruct: StructType.NODE_REFERENCE },
   [PageProperty.ownedByPtr]: { id: 17, name: 'owned_by_ptr', component: ObjectType.PAGE, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.USER, NodeType.ORGANIZATION, NodeType.COMPUTER, NodeType.AGENT], referenceStruct: StructType.NODE_REFERENCE },
   [PageProperty.claimedByPtr]: { id: 18, name: 'claimed_by_ptr', component: ObjectType.PAGE, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.CLAIM], referenceStruct: StructType.NODE_REFERENCE },
-  [PageProperty.mode]: { id: 20, name: 'mode', component: ObjectType.PAGE, enumType: EnumType.NODE_MODE, kind: 'enum', primitiveType: PrimitiveType.INT16, default: 20, isRequired: true, isInternal: true, isRuntime: true, isWired: true, isStored: true },
+  [PageProperty.mode]: { id: 25, name: 'mode', component: ObjectType.PAGE, enumType: EnumType.NODE_MODE, kind: 'enum', primitiveType: PrimitiveType.INT16, default: 20, isRequired: true, isInternal: true, isRuntime: true, isWired: true, isStored: true },
   [PageProperty.title]: { id: 32, name: 'title', component: ObjectType.PAGE, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.TEXT_LINE },
   [PageProperty.orderKey]: { id: 33, name: 'order_key', component: ObjectType.PAGE, kind: 'primitive', primitiveType: PrimitiveType.STRING, default: "a0", isInternal: true, isRuntime: true, isWired: true, isStored: true },
   [PageProperty.icon]: { id: 34, name: 'icon', component: ObjectType.PAGE, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.ICON },
@@ -35565,13 +37979,13 @@ export const BlockDataInfo: Record<BlockProperty, PropertyInfo> = {
   [BlockProperty.archivedAt]: { id: 14, name: 'archived_at', component: ObjectType.BLOCK, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
   [BlockProperty.deletedAt]: { id: 15, name: 'deleted_at', component: ObjectType.BLOCK, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
   [BlockProperty.templatePtr]: { id: 16, name: 'template_ptr', component: ObjectType.BLOCK, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_TEMPLATE, referenceNodes: [NodeType.BLOCK], referenceStruct: StructType.NODE_REFERENCE },
-  [BlockProperty.mode]: { id: 20, name: 'mode', component: ObjectType.BLOCK, enumType: EnumType.NODE_MODE, kind: 'enum', primitiveType: PrimitiveType.INT16, default: 20, isRequired: true, isInternal: true, isRuntime: true, isWired: true, isStored: true },
+  [BlockProperty.mode]: { id: 25, name: 'mode', component: ObjectType.BLOCK, enumType: EnumType.NODE_MODE, kind: 'enum', primitiveType: PrimitiveType.INT16, default: 20, isRequired: true, isInternal: true, isRuntime: true, isWired: true, isStored: true },
   [BlockProperty.type]: { id: 30, name: 'type', component: ObjectType.BLOCK, enumType: EnumType.BLOCK_TYPE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isRuntime: true, isWired: true, isStored: true },
   [BlockProperty.name]: { id: 31, name: 'name', component: ObjectType.BLOCK, kind: 'primitive', primitiveType: PrimitiveType.STRING, constraint: { minLength: 0, maxLength: 128, nodeTypes: [] }, isRuntime: true, isWired: true, isStored: true },
   [BlockProperty.orderKey]: { id: 33, name: 'order_key', component: ObjectType.BLOCK, kind: 'primitive', primitiveType: PrimitiveType.STRING, default: "a0", isRequired: true, isInternal: true, isRuntime: true, isWired: true, isStored: true },
   [BlockProperty.line]: { id: 40, name: 'line', component: ObjectType.BLOCK, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.TEXT_LINE },
   [BlockProperty.nodePtr]: { id: 41, name: 'node_ptr', component: ObjectType.BLOCK, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: "any", referenceStruct: StructType.NODE_REFERENCE },
-  [BlockProperty.viewPtr]: { id: 42, name: 'view_ptr', component: ObjectType.BLOCK, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.WIZARD_VIEW, NodeType.FRAME_VIEW, NodeType.LABEL_VIEW, NodeType.SPLIT_VIEW, NodeType.INPUT_VIEW, NodeType.SLIDER_VIEW, NodeType.THREAD_VIEW], referenceStruct: StructType.NODE_REFERENCE },
+  [BlockProperty.viewPtr]: { id: 42, name: 'view_ptr', component: ObjectType.BLOCK, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.WIZARD_VIEW, NodeType.FRAME_VIEW, NodeType.LABEL_VIEW, NodeType.COMPONENT_VIEW, NodeType.SPLIT_VIEW, NodeType.NUMBER_VIEW, NodeType.SLIDER_VIEW, NodeType.THREAD_VIEW], referenceStruct: StructType.NODE_REFERENCE },
 }
 export const DatabaseDataInfo: Record<DatabaseProperty, PropertyInfo> = {
   [DatabaseProperty.metatype]: { id: 1, name: 'metatype', component: ObjectType.DATABASE, enumType: EnumType.OBJECT_TYPE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isInternal: true, isComputed: true, isWired: true },
@@ -35589,7 +38003,7 @@ export const DatabaseDataInfo: Record<DatabaseProperty, PropertyInfo> = {
   [DatabaseProperty.templatePtr]: { id: 16, name: 'template_ptr', component: ObjectType.DATABASE, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_TEMPLATE, referenceNodes: [NodeType.DATABASE], referenceStruct: StructType.NODE_REFERENCE },
   [DatabaseProperty.ownedByPtr]: { id: 17, name: 'owned_by_ptr', component: ObjectType.DATABASE, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.USER, NodeType.ORGANIZATION, NodeType.COMPUTER, NodeType.AGENT], referenceStruct: StructType.NODE_REFERENCE },
   [DatabaseProperty.claimedByPtr]: { id: 18, name: 'claimed_by_ptr', component: ObjectType.DATABASE, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.CLAIM], referenceStruct: StructType.NODE_REFERENCE },
-  [DatabaseProperty.mode]: { id: 20, name: 'mode', component: ObjectType.DATABASE, enumType: EnumType.NODE_MODE, kind: 'enum', primitiveType: PrimitiveType.INT16, default: 20, isRequired: true, isInternal: true, isRuntime: true, isWired: true, isStored: true },
+  [DatabaseProperty.mode]: { id: 25, name: 'mode', component: ObjectType.DATABASE, enumType: EnumType.NODE_MODE, kind: 'enum', primitiveType: PrimitiveType.INT16, default: 20, isRequired: true, isInternal: true, isRuntime: true, isWired: true, isStored: true },
   [DatabaseProperty.type]: { id: 30, name: 'type', component: ObjectType.DATABASE, enumType: EnumType.DATABASE_TYPE, kind: 'enum', primitiveType: PrimitiveType.INT16, default: 1, isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
   [DatabaseProperty.name]: { id: 31, name: 'name', component: ObjectType.DATABASE, kind: 'primitive', primitiveType: PrimitiveType.STRING, constraint: { minLength: 0, maxLength: 128, nodeTypes: [] }, isRuntime: true, isWired: true, isStored: true },
   [DatabaseProperty.orderKey]: { id: 33, name: 'order_key', component: ObjectType.DATABASE, kind: 'primitive', primitiveType: PrimitiveType.STRING, default: "a0", isInternal: true, isRuntime: true, isWired: true, isStored: true },
@@ -35627,7 +38041,7 @@ export const ComputerDataInfo: Record<ComputerProperty, PropertyInfo> = {
   [ComputerProperty.templatePtr]: { id: 16, name: 'template_ptr', component: ObjectType.COMPUTER, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_TEMPLATE, referenceNodes: [NodeType.COMPUTER], referenceStruct: StructType.NODE_REFERENCE },
   [ComputerProperty.ownedByPtr]: { id: 17, name: 'owned_by_ptr', component: ObjectType.COMPUTER, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.USER, NodeType.ORGANIZATION, NodeType.COMPUTER, NodeType.AGENT], referenceStruct: StructType.NODE_REFERENCE },
   [ComputerProperty.claimedByPtr]: { id: 18, name: 'claimed_by_ptr', component: ObjectType.COMPUTER, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.CLAIM], referenceStruct: StructType.NODE_REFERENCE },
-  [ComputerProperty.mode]: { id: 20, name: 'mode', component: ObjectType.COMPUTER, enumType: EnumType.NODE_MODE, kind: 'enum', primitiveType: PrimitiveType.INT16, default: 20, isRequired: true, isInternal: true, isRuntime: true, isWired: true, isStored: true },
+  [ComputerProperty.mode]: { id: 25, name: 'mode', component: ObjectType.COMPUTER, enumType: EnumType.NODE_MODE, kind: 'enum', primitiveType: PrimitiveType.INT16, default: 20, isRequired: true, isInternal: true, isRuntime: true, isWired: true, isStored: true },
   [ComputerProperty.type]: { id: 30, name: 'type', component: ObjectType.COMPUTER, enumType: EnumType.COMPUTER_TYPE, kind: 'enum', primitiveType: PrimitiveType.INT16, default: 10, isRequired: true, isRuntime: true, isWired: true, isStored: true },
   [ComputerProperty.name]: { id: 31, name: 'name', component: ObjectType.COMPUTER, kind: 'primitive', primitiveType: PrimitiveType.STRING, constraint: { minLength: 0, maxLength: 128, nodeTypes: [] }, isRuntime: true, isWired: true, isStored: true },
   [ComputerProperty.orderKey]: { id: 33, name: 'order_key', component: ObjectType.COMPUTER, kind: 'primitive', primitiveType: PrimitiveType.STRING, default: "a0", isInternal: true, isRuntime: true, isWired: true, isStored: true },
@@ -35673,7 +38087,7 @@ export const ScalerDataInfo: Record<ScalerProperty, PropertyInfo> = {
   [ScalerProperty.templatePtr]: { id: 16, name: 'template_ptr', component: ObjectType.SCALER, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_TEMPLATE, referenceNodes: [NodeType.SCALER], referenceStruct: StructType.NODE_REFERENCE },
   [ScalerProperty.ownedByPtr]: { id: 17, name: 'owned_by_ptr', component: ObjectType.SCALER, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.USER, NodeType.ORGANIZATION, NodeType.COMPUTER, NodeType.AGENT], referenceStruct: StructType.NODE_REFERENCE },
   [ScalerProperty.claimedByPtr]: { id: 18, name: 'claimed_by_ptr', component: ObjectType.SCALER, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.CLAIM], referenceStruct: StructType.NODE_REFERENCE },
-  [ScalerProperty.mode]: { id: 20, name: 'mode', component: ObjectType.SCALER, enumType: EnumType.NODE_MODE, kind: 'enum', primitiveType: PrimitiveType.INT16, default: 20, isRequired: true, isInternal: true, isRuntime: true, isWired: true, isStored: true },
+  [ScalerProperty.mode]: { id: 25, name: 'mode', component: ObjectType.SCALER, enumType: EnumType.NODE_MODE, kind: 'enum', primitiveType: PrimitiveType.INT16, default: 20, isRequired: true, isInternal: true, isRuntime: true, isWired: true, isStored: true },
   [ScalerProperty.type]: { id: 30, name: 'type', component: ObjectType.SCALER, enumType: EnumType.SCALER_TYPE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
   [ScalerProperty.name]: { id: 31, name: 'name', component: ObjectType.SCALER, kind: 'primitive', primitiveType: PrimitiveType.STRING, constraint: { minLength: 0, maxLength: 128, nodeTypes: [] }, isRuntime: true, isWired: true, isStored: true },
   [ScalerProperty.orderKey]: { id: 33, name: 'order_key', component: ObjectType.SCALER, kind: 'primitive', primitiveType: PrimitiveType.STRING, default: "a0", isInternal: true, isRuntime: true, isWired: true, isStored: true },
@@ -35709,7 +38123,7 @@ export const ChoiceDataInfo: Record<ChoiceProperty, PropertyInfo> = {
   [ChoiceProperty.archivedAt]: { id: 14, name: 'archived_at', component: ObjectType.CHOICE, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
   [ChoiceProperty.deletedAt]: { id: 15, name: 'deleted_at', component: ObjectType.CHOICE, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
   [ChoiceProperty.templatePtr]: { id: 16, name: 'template_ptr', component: ObjectType.CHOICE, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_TEMPLATE, referenceNodes: [NodeType.CHOICE], referenceStruct: StructType.NODE_REFERENCE },
-  [ChoiceProperty.mode]: { id: 20, name: 'mode', component: ObjectType.CHOICE, enumType: EnumType.NODE_MODE, kind: 'enum', primitiveType: PrimitiveType.INT16, default: 20, isRequired: true, isInternal: true, isRuntime: true, isWired: true, isStored: true },
+  [ChoiceProperty.mode]: { id: 25, name: 'mode', component: ObjectType.CHOICE, enumType: EnumType.NODE_MODE, kind: 'enum', primitiveType: PrimitiveType.INT16, default: 20, isRequired: true, isInternal: true, isRuntime: true, isWired: true, isStored: true },
   [ChoiceProperty.name]: { id: 31, name: 'name', component: ObjectType.CHOICE, kind: 'primitive', primitiveType: PrimitiveType.STRING, constraint: { minLength: 0, maxLength: 128, nodeTypes: [] }, isRuntime: true, isWired: true, isStored: true },
   [ChoiceProperty.orderKey]: { id: 33, name: 'order_key', component: ObjectType.CHOICE, kind: 'primitive', primitiveType: PrimitiveType.STRING, default: "a0", isInternal: true, isRuntime: true, isWired: true, isStored: true },
   [ChoiceProperty.icon]: { id: 34, name: 'icon', component: ObjectType.CHOICE, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.ICON },
@@ -35728,7 +38142,7 @@ export const ClassDataInfo: Record<ClassProperty, PropertyInfo> = {
   [ClassProperty.archivedAt]: { id: 14, name: 'archived_at', component: ObjectType.CLASS, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
   [ClassProperty.deletedAt]: { id: 15, name: 'deleted_at', component: ObjectType.CLASS, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
   [ClassProperty.templatePtr]: { id: 16, name: 'template_ptr', component: ObjectType.CLASS, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_TEMPLATE, referenceNodes: [NodeType.CLASS], referenceStruct: StructType.NODE_REFERENCE },
-  [ClassProperty.mode]: { id: 20, name: 'mode', component: ObjectType.CLASS, enumType: EnumType.NODE_MODE, kind: 'enum', primitiveType: PrimitiveType.INT16, default: 20, isRequired: true, isInternal: true, isRuntime: true, isWired: true, isStored: true },
+  [ClassProperty.mode]: { id: 25, name: 'mode', component: ObjectType.CLASS, enumType: EnumType.NODE_MODE, kind: 'enum', primitiveType: PrimitiveType.INT16, default: 20, isRequired: true, isInternal: true, isRuntime: true, isWired: true, isStored: true },
   [ClassProperty.name]: { id: 31, name: 'name', component: ObjectType.CLASS, kind: 'primitive', primitiveType: PrimitiveType.STRING, constraint: { minLength: 0, maxLength: 128, nodeTypes: [] }, isRuntime: true, isWired: true, isStored: true },
   [ClassProperty.orderKey]: { id: 33, name: 'order_key', component: ObjectType.CLASS, kind: 'primitive', primitiveType: PrimitiveType.STRING, default: "a0", isInternal: true, isRuntime: true, isWired: true, isStored: true },
   [ClassProperty.icon]: { id: 34, name: 'icon', component: ObjectType.CLASS, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.ICON },
@@ -35748,7 +38162,7 @@ export const FieldDataInfo: Record<FieldProperty, PropertyInfo> = {
   [FieldProperty.archivedAt]: { id: 14, name: 'archived_at', component: ObjectType.FIELD, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
   [FieldProperty.deletedAt]: { id: 15, name: 'deleted_at', component: ObjectType.FIELD, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
   [FieldProperty.templatePtr]: { id: 16, name: 'template_ptr', component: ObjectType.FIELD, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_TEMPLATE, referenceNodes: [NodeType.FIELD], referenceStruct: StructType.NODE_REFERENCE },
-  [FieldProperty.mode]: { id: 20, name: 'mode', component: ObjectType.FIELD, enumType: EnumType.NODE_MODE, kind: 'enum', primitiveType: PrimitiveType.INT16, default: 20, isRequired: true, isInternal: true, isRuntime: true, isWired: true, isStored: true },
+  [FieldProperty.mode]: { id: 25, name: 'mode', component: ObjectType.FIELD, enumType: EnumType.NODE_MODE, kind: 'enum', primitiveType: PrimitiveType.INT16, default: 20, isRequired: true, isInternal: true, isRuntime: true, isWired: true, isStored: true },
   [FieldProperty.type]: { id: 30, name: 'type', component: ObjectType.FIELD, enumType: EnumType.FIELD_ZONE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isInternal: true, isRuntime: true, isWired: true, isStored: true },
   [FieldProperty.name]: { id: 31, name: 'name', component: ObjectType.FIELD, kind: 'primitive', primitiveType: PrimitiveType.STRING, constraint: { minLength: 0, maxLength: 128, nodeTypes: [] }, isRuntime: true, isWired: true, isStored: true },
   [FieldProperty.orderKey]: { id: 33, name: 'order_key', component: ObjectType.FIELD, kind: 'primitive', primitiveType: PrimitiveType.STRING, default: "a0", isRequired: true, isInternal: true, isRuntime: true, isWired: true, isStored: true },
@@ -35782,7 +38196,7 @@ export const OptionDataInfo: Record<OptionProperty, PropertyInfo> = {
   [OptionProperty.archivedAt]: { id: 14, name: 'archived_at', component: ObjectType.OPTION, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
   [OptionProperty.deletedAt]: { id: 15, name: 'deleted_at', component: ObjectType.OPTION, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
   [OptionProperty.templatePtr]: { id: 16, name: 'template_ptr', component: ObjectType.OPTION, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_TEMPLATE, referenceNodes: [NodeType.OPTION], referenceStruct: StructType.NODE_REFERENCE },
-  [OptionProperty.mode]: { id: 20, name: 'mode', component: ObjectType.OPTION, enumType: EnumType.NODE_MODE, kind: 'enum', primitiveType: PrimitiveType.INT16, default: 20, isRequired: true, isInternal: true, isRuntime: true, isWired: true, isStored: true },
+  [OptionProperty.mode]: { id: 25, name: 'mode', component: ObjectType.OPTION, enumType: EnumType.NODE_MODE, kind: 'enum', primitiveType: PrimitiveType.INT16, default: 20, isRequired: true, isInternal: true, isRuntime: true, isWired: true, isStored: true },
   [OptionProperty.name]: { id: 31, name: 'name', component: ObjectType.OPTION, kind: 'primitive', primitiveType: PrimitiveType.STRING, constraint: { minLength: 0, maxLength: 128, nodeTypes: [] }, isRuntime: true, isWired: true, isStored: true },
   [OptionProperty.orderKey]: { id: 32, name: 'order_key', component: ObjectType.OPTION, kind: 'primitive', primitiveType: PrimitiveType.STRING, default: "a0", isRequired: true, isInternal: true, isRuntime: true, isWired: true, isStored: true },
   [OptionProperty.icon]: { id: 34, name: 'icon', component: ObjectType.OPTION, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.ICON },
@@ -35803,7 +38217,7 @@ export const TableDataInfo: Record<TableProperty, PropertyInfo> = {
   [TableProperty.templatePtr]: { id: 16, name: 'template_ptr', component: ObjectType.TABLE, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_TEMPLATE, referenceNodes: [NodeType.TABLE], referenceStruct: StructType.NODE_REFERENCE },
   [TableProperty.ownedByPtr]: { id: 17, name: 'owned_by_ptr', component: ObjectType.TABLE, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.USER, NodeType.ORGANIZATION, NodeType.COMPUTER, NodeType.AGENT], referenceStruct: StructType.NODE_REFERENCE },
   [TableProperty.claimedByPtr]: { id: 18, name: 'claimed_by_ptr', component: ObjectType.TABLE, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.CLAIM], referenceStruct: StructType.NODE_REFERENCE },
-  [TableProperty.mode]: { id: 20, name: 'mode', component: ObjectType.TABLE, enumType: EnumType.NODE_MODE, kind: 'enum', primitiveType: PrimitiveType.INT16, default: 20, isRequired: true, isInternal: true, isRuntime: true, isWired: true, isStored: true },
+  [TableProperty.mode]: { id: 25, name: 'mode', component: ObjectType.TABLE, enumType: EnumType.NODE_MODE, kind: 'enum', primitiveType: PrimitiveType.INT16, default: 20, isRequired: true, isInternal: true, isRuntime: true, isWired: true, isStored: true },
   [TableProperty.name]: { id: 31, name: 'name', component: ObjectType.TABLE, kind: 'primitive', primitiveType: PrimitiveType.STRING, constraint: { minLength: 0, maxLength: 128, nodeTypes: [] }, isRuntime: true, isWired: true, isStored: true },
   [TableProperty.orderKey]: { id: 33, name: 'order_key', component: ObjectType.TABLE, kind: 'primitive', primitiveType: PrimitiveType.STRING, default: "a0", isInternal: true, isRuntime: true, isWired: true, isStored: true },
   [TableProperty.icon]: { id: 34, name: 'icon', component: ObjectType.TABLE, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.ICON },
@@ -35823,7 +38237,7 @@ export const RecordDataInfo: Record<RecordProperty, PropertyInfo> = {
   [RecordProperty.deletedAt]: { id: 15, name: 'deleted_at', component: ObjectType.RECORD, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
   [RecordProperty.ownedByPtr]: { id: 17, name: 'owned_by_ptr', component: ObjectType.RECORD, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.USER, NodeType.ORGANIZATION, NodeType.COMPUTER, NodeType.AGENT], referenceStruct: StructType.NODE_REFERENCE },
   [RecordProperty.claimedByPtr]: { id: 18, name: 'claimed_by_ptr', component: ObjectType.RECORD, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.CLAIM], referenceStruct: StructType.NODE_REFERENCE },
-  [RecordProperty.mode]: { id: 20, name: 'mode', component: ObjectType.RECORD, enumType: EnumType.NODE_MODE, kind: 'enum', primitiveType: PrimitiveType.INT16, default: 20, isRequired: true, isInternal: true, isRuntime: true, isWired: true, isStored: true },
+  [RecordProperty.mode]: { id: 25, name: 'mode', component: ObjectType.RECORD, enumType: EnumType.NODE_MODE, kind: 'enum', primitiveType: PrimitiveType.INT16, default: 20, isRequired: true, isInternal: true, isRuntime: true, isWired: true, isStored: true },
   [RecordProperty.title]: { id: 32, name: 'title', component: ObjectType.RECORD, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.TEXT_LINE },
   [RecordProperty.orderKey]: { id: 33, name: 'order_key', component: ObjectType.RECORD, kind: 'primitive', primitiveType: PrimitiveType.STRING, default: "a0", isInternal: true, isRuntime: true, isWired: true, isStored: true },
   [RecordProperty.icon]: { id: 34, name: 'icon', component: ObjectType.RECORD, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.ICON },
@@ -35846,7 +38260,7 @@ export const FileDataInfo: Record<FileProperty, PropertyInfo> = {
   [FileProperty.templatePtr]: { id: 16, name: 'template_ptr', component: ObjectType.FILE, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_TEMPLATE, referenceNodes: [NodeType.FILE], referenceStruct: StructType.NODE_REFERENCE },
   [FileProperty.ownedByPtr]: { id: 17, name: 'owned_by_ptr', component: ObjectType.FILE, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.USER, NodeType.ORGANIZATION, NodeType.COMPUTER, NodeType.AGENT], referenceStruct: StructType.NODE_REFERENCE },
   [FileProperty.claimedByPtr]: { id: 18, name: 'claimed_by_ptr', component: ObjectType.FILE, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.CLAIM], referenceStruct: StructType.NODE_REFERENCE },
-  [FileProperty.mode]: { id: 20, name: 'mode', component: ObjectType.FILE, enumType: EnumType.NODE_MODE, kind: 'enum', primitiveType: PrimitiveType.INT16, default: 20, isRequired: true, isInternal: true, isRuntime: true, isWired: true, isStored: true },
+  [FileProperty.mode]: { id: 25, name: 'mode', component: ObjectType.FILE, enumType: EnumType.NODE_MODE, kind: 'enum', primitiveType: PrimitiveType.INT16, default: 20, isRequired: true, isInternal: true, isRuntime: true, isWired: true, isStored: true },
   [FileProperty.type]: { id: 30, name: 'type', component: ObjectType.FILE, enumType: EnumType.FILE_TYPE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isRuntime: true, isWired: true, isStored: true },
   [FileProperty.name]: { id: 31, name: 'name', component: ObjectType.FILE, kind: 'primitive', primitiveType: PrimitiveType.STRING, constraint: { minLength: 0, maxLength: 128, nodeTypes: [] }, isRuntime: true, isWired: true, isStored: true },
   [FileProperty.orderKey]: { id: 33, name: 'order_key', component: ObjectType.FILE, kind: 'primitive', primitiveType: PrimitiveType.STRING, default: "a0", isInternal: true, isRuntime: true, isWired: true, isStored: true },
@@ -35889,7 +38303,7 @@ export const LinkDataInfo: Record<LinkProperty, PropertyInfo> = {
   [LinkProperty.templatePtr]: { id: 16, name: 'template_ptr', component: ObjectType.LINK, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_TEMPLATE, referenceNodes: [NodeType.LINK], referenceStruct: StructType.NODE_REFERENCE },
   [LinkProperty.ownedByPtr]: { id: 17, name: 'owned_by_ptr', component: ObjectType.LINK, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.USER, NodeType.ORGANIZATION, NodeType.COMPUTER, NodeType.AGENT], referenceStruct: StructType.NODE_REFERENCE },
   [LinkProperty.claimedByPtr]: { id: 18, name: 'claimed_by_ptr', component: ObjectType.LINK, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.CLAIM], referenceStruct: StructType.NODE_REFERENCE },
-  [LinkProperty.mode]: { id: 20, name: 'mode', component: ObjectType.LINK, enumType: EnumType.NODE_MODE, kind: 'enum', primitiveType: PrimitiveType.INT16, default: 20, isRequired: true, isInternal: true, isRuntime: true, isWired: true, isStored: true },
+  [LinkProperty.mode]: { id: 25, name: 'mode', component: ObjectType.LINK, enumType: EnumType.NODE_MODE, kind: 'enum', primitiveType: PrimitiveType.INT16, default: 20, isRequired: true, isInternal: true, isRuntime: true, isWired: true, isStored: true },
   [LinkProperty.type]: { id: 30, name: 'type', component: ObjectType.LINK, enumType: EnumType.LINK_TYPE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isRuntime: true, isWired: true, isStored: true },
   [LinkProperty.name]: { id: 31, name: 'name', component: ObjectType.LINK, kind: 'primitive', primitiveType: PrimitiveType.STRING, constraint: { minLength: 0, maxLength: 128, nodeTypes: [] }, isRuntime: true, isWired: true, isStored: true },
   [LinkProperty.title]: { id: 32, name: 'title', component: ObjectType.LINK, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.TEXT_LINE },
@@ -35925,7 +38339,7 @@ export const ChannelDataInfo: Record<ChannelProperty, PropertyInfo> = {
   [ChannelProperty.archivedAt]: { id: 14, name: 'archived_at', component: ObjectType.CHANNEL, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
   [ChannelProperty.deletedAt]: { id: 15, name: 'deleted_at', component: ObjectType.CHANNEL, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
   [ChannelProperty.templatePtr]: { id: 16, name: 'template_ptr', component: ObjectType.CHANNEL, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_TEMPLATE, referenceNodes: [NodeType.CHANNEL], referenceStruct: StructType.NODE_REFERENCE },
-  [ChannelProperty.mode]: { id: 20, name: 'mode', component: ObjectType.CHANNEL, enumType: EnumType.NODE_MODE, kind: 'enum', primitiveType: PrimitiveType.INT16, default: 20, isRequired: true, isInternal: true, isRuntime: true, isWired: true, isStored: true },
+  [ChannelProperty.mode]: { id: 25, name: 'mode', component: ObjectType.CHANNEL, enumType: EnumType.NODE_MODE, kind: 'enum', primitiveType: PrimitiveType.INT16, default: 20, isRequired: true, isInternal: true, isRuntime: true, isWired: true, isStored: true },
   [ChannelProperty.name]: { id: 31, name: 'name', component: ObjectType.CHANNEL, kind: 'primitive', primitiveType: PrimitiveType.STRING, constraint: { minLength: 0, maxLength: 128, nodeTypes: [] }, isRuntime: true, isWired: true, isStored: true },
   [ChannelProperty.orderKey]: { id: 33, name: 'order_key', component: ObjectType.CHANNEL, kind: 'primitive', primitiveType: PrimitiveType.STRING, default: "a0", isInternal: true, isRuntime: true, isWired: true, isStored: true },
   [ChannelProperty.icon]: { id: 34, name: 'icon', component: ObjectType.CHANNEL, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.ICON },
@@ -35962,7 +38376,7 @@ export const ThreadDataInfo: Record<ThreadProperty, PropertyInfo> = {
   [ThreadProperty.deletedAt]: { id: 15, name: 'deleted_at', component: ObjectType.THREAD, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
   [ThreadProperty.templatePtr]: { id: 16, name: 'template_ptr', component: ObjectType.THREAD, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_TEMPLATE, referenceNodes: [NodeType.THREAD], referenceStruct: StructType.NODE_REFERENCE },
   [ThreadProperty.ownedByPtr]: { id: 17, name: 'owned_by_ptr', component: ObjectType.THREAD, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.USER, NodeType.ORGANIZATION, NodeType.COMPUTER, NodeType.AGENT], referenceStruct: StructType.NODE_REFERENCE },
-  [ThreadProperty.mode]: { id: 20, name: 'mode', component: ObjectType.THREAD, enumType: EnumType.NODE_MODE, kind: 'enum', primitiveType: PrimitiveType.INT16, default: 20, isRequired: true, isInternal: true, isRuntime: true, isWired: true, isStored: true },
+  [ThreadProperty.mode]: { id: 25, name: 'mode', component: ObjectType.THREAD, enumType: EnumType.NODE_MODE, kind: 'enum', primitiveType: PrimitiveType.INT16, default: 20, isRequired: true, isInternal: true, isRuntime: true, isWired: true, isStored: true },
   [ThreadProperty.title]: { id: 32, name: 'title', component: ObjectType.THREAD, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.TEXT_LINE },
   [ThreadProperty.orderKey]: { id: 33, name: 'order_key', component: ObjectType.THREAD, kind: 'primitive', primitiveType: PrimitiveType.STRING, default: "a0", isInternal: true, isRuntime: true, isWired: true, isStored: true },
   [ThreadProperty.icon]: { id: 34, name: 'icon', component: ObjectType.THREAD, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.ICON },
@@ -36003,12 +38417,12 @@ export const MessageDataInfo: Record<MessageProperty, PropertyInfo> = {
   [MessageProperty.archivedAt]: { id: 14, name: 'archived_at', component: ObjectType.MESSAGE, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
   [MessageProperty.deletedAt]: { id: 15, name: 'deleted_at', component: ObjectType.MESSAGE, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
   [MessageProperty.ownedByPtr]: { id: 17, name: 'owned_by_ptr', component: ObjectType.MESSAGE, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.USER, NodeType.ORGANIZATION, NodeType.COMPUTER, NodeType.AGENT], referenceStruct: StructType.NODE_REFERENCE },
-  [MessageProperty.mode]: { id: 20, name: 'mode', component: ObjectType.MESSAGE, enumType: EnumType.NODE_MODE, kind: 'enum', primitiveType: PrimitiveType.INT16, default: 20, isRequired: true, isInternal: true, isRuntime: true, isWired: true, isStored: true },
+  [MessageProperty.mode]: { id: 25, name: 'mode', component: ObjectType.MESSAGE, enumType: EnumType.NODE_MODE, kind: 'enum', primitiveType: PrimitiveType.INT16, default: 20, isRequired: true, isInternal: true, isRuntime: true, isWired: true, isStored: true },
   [MessageProperty.type]: { id: 30, name: 'type', component: ObjectType.MESSAGE, enumType: EnumType.MESSAGE_TYPE, kind: 'enum', primitiveType: PrimitiveType.INT16, default: 1, isRequired: true, isRuntime: true, isWired: true, isStored: true },
   [MessageProperty.title]: { id: 32, name: 'title', component: ObjectType.MESSAGE, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.TEXT_LINE },
   [MessageProperty.channelPtr]: { id: 34, name: 'channel_ptr', component: ObjectType.MESSAGE, kind: 'reference', isInternal: true, isComputed: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_ANCESTOR, referenceNodes: [NodeType.CHANNEL], referenceStruct: StructType.NODE_REFERENCE },
   [MessageProperty.threadPtr]: { id: 35, name: 'thread_ptr', component: ObjectType.MESSAGE, kind: 'reference', isInternal: true, isComputed: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_ANCESTOR, referenceNodes: [NodeType.THREAD], referenceStruct: StructType.NODE_REFERENCE },
-  [MessageProperty.scopePtr]: { id: 36, name: 'scope_ptr', component: ObjectType.MESSAGE, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.DATABASE, NodeType.COMPUTER, NodeType.SCALER, NodeType.FILE, NodeType.LINK, NodeType.WIZARD_VIEW, NodeType.FRAME_VIEW, NodeType.LABEL_VIEW, NodeType.SPLIT_VIEW, NodeType.INPUT_VIEW, NodeType.SLIDER_VIEW, NodeType.THREAD_VIEW, NodeType.COLOR_STYLE, NodeType.TEXT_STYLE, NodeType.BORDER_STYLE, NodeType.SHADOW_STYLE, NodeType.GRADIENT_STYLE, NodeType.TRANSITION_STYLE, NodeType.EFFECT_STYLE, NodeType.CHOICE, NodeType.CLASS, NodeType.TABLE, NodeType.FLOW, NodeType.SERVICE, NodeType.PAGE, NodeType.ROLE, NodeType.TASK, NodeType.THREAD, NodeType.CHANNEL, NodeType.TEAM, NodeType.AGENT, NodeType.THEME, NodeType.PACKAGE], referenceStruct: StructType.NODE_REFERENCE },
+  [MessageProperty.scopePtr]: { id: 36, name: 'scope_ptr', component: ObjectType.MESSAGE, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.DATABASE, NodeType.COMPUTER, NodeType.SCALER, NodeType.FILE, NodeType.LINK, NodeType.WIZARD_VIEW, NodeType.FRAME_VIEW, NodeType.LABEL_VIEW, NodeType.COMPONENT_VIEW, NodeType.SPLIT_VIEW, NodeType.NUMBER_VIEW, NodeType.SLIDER_VIEW, NodeType.THREAD_VIEW, NodeType.COLOR_STYLE, NodeType.TEXT_STYLE, NodeType.BORDER_STYLE, NodeType.SHADOW_STYLE, NodeType.GRADIENT_STYLE, NodeType.TRANSITION_STYLE, NodeType.EFFECT_STYLE, NodeType.CHOICE, NodeType.CLASS, NodeType.TABLE, NodeType.FLOW, NodeType.SERVICE, NodeType.PAGE, NodeType.ROLE, NodeType.TASK, NodeType.THREAD, NodeType.CHANNEL, NodeType.TEAM, NodeType.AGENT, NodeType.THEME, NodeType.PACKAGE], referenceStruct: StructType.NODE_REFERENCE },
   [MessageProperty.editedAt]: { id: 40, name: 'edited_at', component: ObjectType.MESSAGE, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isRuntime: true, isWired: true, isStored: true },
   [MessageProperty.replyToPtr]: { id: 50, name: 'reply_to_ptr', component: ObjectType.MESSAGE, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.MESSAGE], referenceStruct: StructType.NODE_REFERENCE },
   [MessageProperty.forwardedFromPtr]: { id: 51, name: 'forwarded_from_ptr', component: ObjectType.MESSAGE, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.MESSAGE], referenceStruct: StructType.NODE_REFERENCE },
@@ -36032,7 +38446,7 @@ export const NotificationDataInfo: Record<NotificationProperty, PropertyInfo> = 
   [NotificationProperty.updatedByPtr]: { id: 13, name: 'updated_by_ptr', component: ObjectType.NOTIFICATION, kind: 'reference', isAutoset: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.USER, NodeType.ORGANIZATION, NodeType.COMPUTER, NodeType.AGENT], referenceStruct: StructType.NODE_REFERENCE },
   [NotificationProperty.archivedAt]: { id: 14, name: 'archived_at', component: ObjectType.NOTIFICATION, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
   [NotificationProperty.deletedAt]: { id: 15, name: 'deleted_at', component: ObjectType.NOTIFICATION, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
-  [NotificationProperty.mode]: { id: 20, name: 'mode', component: ObjectType.NOTIFICATION, enumType: EnumType.NODE_MODE, kind: 'enum', primitiveType: PrimitiveType.INT16, default: 20, isRequired: true, isInternal: true, isRuntime: true, isWired: true, isStored: true },
+  [NotificationProperty.mode]: { id: 25, name: 'mode', component: ObjectType.NOTIFICATION, enumType: EnumType.NODE_MODE, kind: 'enum', primitiveType: PrimitiveType.INT16, default: 20, isRequired: true, isInternal: true, isRuntime: true, isWired: true, isStored: true },
   [NotificationProperty.type]: { id: 30, name: 'type', component: ObjectType.NOTIFICATION, enumType: EnumType.NOTIFICATION_TYPE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isRuntime: true, isWired: true, isStored: true },
   [NotificationProperty.title]: { id: 32, name: 'title', component: ObjectType.NOTIFICATION, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.TEXT_LINE },
   [NotificationProperty.channelPtr]: { id: 33, name: 'channel_ptr', component: ObjectType.NOTIFICATION, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.CHANNEL], referenceStruct: StructType.NODE_REFERENCE },
@@ -36062,7 +38476,7 @@ export const TaskDataInfo: Record<TaskProperty, PropertyInfo> = {
   [TaskProperty.templatePtr]: { id: 16, name: 'template_ptr', component: ObjectType.TASK, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_TEMPLATE, referenceNodes: [NodeType.TASK], referenceStruct: StructType.NODE_REFERENCE },
   [TaskProperty.ownedByPtr]: { id: 17, name: 'owned_by_ptr', component: ObjectType.TASK, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.USER, NodeType.ORGANIZATION, NodeType.COMPUTER, NodeType.AGENT], referenceStruct: StructType.NODE_REFERENCE },
   [TaskProperty.claimedByPtr]: { id: 18, name: 'claimed_by_ptr', component: ObjectType.TASK, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.CLAIM], referenceStruct: StructType.NODE_REFERENCE },
-  [TaskProperty.mode]: { id: 20, name: 'mode', component: ObjectType.TASK, enumType: EnumType.NODE_MODE, kind: 'enum', primitiveType: PrimitiveType.INT16, default: 20, isRequired: true, isInternal: true, isRuntime: true, isWired: true, isStored: true },
+  [TaskProperty.mode]: { id: 25, name: 'mode', component: ObjectType.TASK, enumType: EnumType.NODE_MODE, kind: 'enum', primitiveType: PrimitiveType.INT16, default: 20, isRequired: true, isInternal: true, isRuntime: true, isWired: true, isStored: true },
   [TaskProperty.title]: { id: 32, name: 'title', component: ObjectType.TASK, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.TEXT_LINE },
   [TaskProperty.orderKey]: { id: 33, name: 'order_key', component: ObjectType.TASK, kind: 'primitive', primitiveType: PrimitiveType.STRING, default: "a0", isInternal: true, isRuntime: true, isWired: true, isStored: true },
   [TaskProperty.icon]: { id: 34, name: 'icon', component: ObjectType.TASK, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.ICON },
@@ -36102,7 +38516,7 @@ export const ClaimDataInfo: Record<ClaimProperty, PropertyInfo> = {
   [ClaimProperty.deletedAt]: { id: 15, name: 'deleted_at', component: ObjectType.CLAIM, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
   [ClaimProperty.templatePtr]: { id: 16, name: 'template_ptr', component: ObjectType.CLAIM, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_TEMPLATE, referenceNodes: [NodeType.CLAIM], referenceStruct: StructType.NODE_REFERENCE },
   [ClaimProperty.ownedByPtr]: { id: 17, name: 'owned_by_ptr', component: ObjectType.CLAIM, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.USER, NodeType.ORGANIZATION, NodeType.COMPUTER, NodeType.AGENT], referenceStruct: StructType.NODE_REFERENCE },
-  [ClaimProperty.mode]: { id: 20, name: 'mode', component: ObjectType.CLAIM, enumType: EnumType.NODE_MODE, kind: 'enum', primitiveType: PrimitiveType.INT16, default: 20, isRequired: true, isInternal: true, isRuntime: true, isWired: true, isStored: true },
+  [ClaimProperty.mode]: { id: 25, name: 'mode', component: ObjectType.CLAIM, enumType: EnumType.NODE_MODE, kind: 'enum', primitiveType: PrimitiveType.INT16, default: 20, isRequired: true, isInternal: true, isRuntime: true, isWired: true, isStored: true },
   [ClaimProperty.type]: { id: 30, name: 'type', component: ObjectType.CLAIM, enumType: EnumType.CLAIM_TYPE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isRuntime: true, isWired: true, isStored: true },
   [ClaimProperty.name]: { id: 31, name: 'name', component: ObjectType.CLAIM, kind: 'primitive', primitiveType: PrimitiveType.STRING, constraint: { minLength: 0, maxLength: 128, nodeTypes: [] }, isRuntime: true, isWired: true, isStored: true },
   [ClaimProperty.orderKey]: { id: 33, name: 'order_key', component: ObjectType.CLAIM, kind: 'primitive', primitiveType: PrimitiveType.STRING, default: "a0", isRequired: true, isInternal: true, isRuntime: true, isWired: true, isStored: true },
@@ -36133,7 +38547,7 @@ export const CursorDataInfo: Record<CursorProperty, PropertyInfo> = {
   [CursorProperty.archivedAt]: { id: 14, name: 'archived_at', component: ObjectType.CURSOR, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
   [CursorProperty.deletedAt]: { id: 15, name: 'deleted_at', component: ObjectType.CURSOR, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
   [CursorProperty.ownedByPtr]: { id: 17, name: 'owned_by_ptr', component: ObjectType.CURSOR, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.USER, NodeType.ORGANIZATION, NodeType.COMPUTER, NodeType.AGENT], referenceStruct: StructType.NODE_REFERENCE },
-  [CursorProperty.mode]: { id: 20, name: 'mode', component: ObjectType.CURSOR, enumType: EnumType.NODE_MODE, kind: 'enum', primitiveType: PrimitiveType.INT16, default: 20, isRequired: true, isInternal: true, isRuntime: true, isWired: true, isStored: true },
+  [CursorProperty.mode]: { id: 25, name: 'mode', component: ObjectType.CURSOR, enumType: EnumType.NODE_MODE, kind: 'enum', primitiveType: PrimitiveType.INT16, default: 20, isRequired: true, isInternal: true, isRuntime: true, isWired: true, isStored: true },
   [CursorProperty.type]: { id: 30, name: 'type', component: ObjectType.CURSOR, enumType: EnumType.CURSOR_TYPE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isRuntime: true, isWired: true, isStored: true },
   [CursorProperty.title]: { id: 32, name: 'title', component: ObjectType.CURSOR, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.TEXT_LINE },
   [CursorProperty.status]: { id: 40, name: 'status', component: ObjectType.CURSOR, enumType: EnumType.CURSOR_STATUS, kind: 'enum', primitiveType: PrimitiveType.INT16, default: 1, isRequired: true, isRuntime: true, isWired: true, isStored: true },
@@ -36167,12 +38581,12 @@ export const ServiceDataInfo: Record<ServiceProperty, PropertyInfo> = {
   [ServiceProperty.templatePtr]: { id: 16, name: 'template_ptr', component: ObjectType.SERVICE, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_TEMPLATE, referenceNodes: [NodeType.SERVICE], referenceStruct: StructType.NODE_REFERENCE },
   [ServiceProperty.ownedByPtr]: { id: 17, name: 'owned_by_ptr', component: ObjectType.SERVICE, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.USER, NodeType.ORGANIZATION, NodeType.COMPUTER, NodeType.AGENT], referenceStruct: StructType.NODE_REFERENCE },
   [ServiceProperty.claimedByPtr]: { id: 18, name: 'claimed_by_ptr', component: ObjectType.SERVICE, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.CLAIM], referenceStruct: StructType.NODE_REFERENCE },
-  [ServiceProperty.mode]: { id: 20, name: 'mode', component: ObjectType.SERVICE, enumType: EnumType.NODE_MODE, kind: 'enum', primitiveType: PrimitiveType.INT16, default: 20, isRequired: true, isInternal: true, isRuntime: true, isWired: true, isStored: true },
+  [ServiceProperty.mode]: { id: 25, name: 'mode', component: ObjectType.SERVICE, enumType: EnumType.NODE_MODE, kind: 'enum', primitiveType: PrimitiveType.INT16, default: 20, isRequired: true, isInternal: true, isRuntime: true, isWired: true, isStored: true },
   [ServiceProperty.name]: { id: 31, name: 'name', component: ObjectType.SERVICE, kind: 'primitive', primitiveType: PrimitiveType.STRING, constraint: { minLength: 0, maxLength: 128, nodeTypes: [] }, isRuntime: true, isWired: true, isStored: true },
   [ServiceProperty.orderKey]: { id: 33, name: 'order_key', component: ObjectType.SERVICE, kind: 'primitive', primitiveType: PrimitiveType.STRING, default: "a0", isInternal: true, isRuntime: true, isWired: true, isStored: true },
   [ServiceProperty.icon]: { id: 34, name: 'icon', component: ObjectType.SERVICE, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.ICON },
   [ServiceProperty.definitionPtr]: { id: 35, name: 'definition_ptr', component: ObjectType.SERVICE, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.BLOCK], referenceStruct: StructType.NODE_REFERENCE },
-  [ServiceProperty.targetPtr]: { id: 40, name: 'target_ptr', component: ObjectType.SERVICE, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.DATABASE, NodeType.COMPUTER, NodeType.SCALER, NodeType.FILE, NodeType.LINK, NodeType.WIZARD_VIEW, NodeType.FRAME_VIEW, NodeType.LABEL_VIEW, NodeType.SPLIT_VIEW, NodeType.INPUT_VIEW, NodeType.SLIDER_VIEW, NodeType.THREAD_VIEW, NodeType.COLOR_STYLE, NodeType.TEXT_STYLE, NodeType.BORDER_STYLE, NodeType.SHADOW_STYLE, NodeType.GRADIENT_STYLE, NodeType.TRANSITION_STYLE, NodeType.EFFECT_STYLE, NodeType.CHOICE, NodeType.CLASS, NodeType.TABLE, NodeType.FLOW, NodeType.SERVICE, NodeType.PAGE, NodeType.ROLE, NodeType.TASK, NodeType.THREAD, NodeType.CHANNEL, NodeType.TEAM, NodeType.AGENT, NodeType.THEME], referenceStruct: StructType.NODE_REFERENCE },
+  [ServiceProperty.targetPtr]: { id: 40, name: 'target_ptr', component: ObjectType.SERVICE, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.DATABASE, NodeType.COMPUTER, NodeType.SCALER, NodeType.FILE, NodeType.LINK, NodeType.WIZARD_VIEW, NodeType.FRAME_VIEW, NodeType.LABEL_VIEW, NodeType.COMPONENT_VIEW, NodeType.SPLIT_VIEW, NodeType.NUMBER_VIEW, NodeType.SLIDER_VIEW, NodeType.THREAD_VIEW, NodeType.COLOR_STYLE, NodeType.TEXT_STYLE, NodeType.BORDER_STYLE, NodeType.SHADOW_STYLE, NodeType.GRADIENT_STYLE, NodeType.TRANSITION_STYLE, NodeType.EFFECT_STYLE, NodeType.CHOICE, NodeType.CLASS, NodeType.TABLE, NodeType.FLOW, NodeType.SERVICE, NodeType.PAGE, NodeType.ROLE, NodeType.TASK, NodeType.THREAD, NodeType.CHANNEL, NodeType.TEAM, NodeType.AGENT, NodeType.THEME], referenceStruct: StructType.NODE_REFERENCE },
 }
 export const ActionDataInfo: Record<ActionProperty, PropertyInfo> = {
   [ActionProperty.metatype]: { id: 1, name: 'metatype', component: ObjectType.ACTION, enumType: EnumType.OBJECT_TYPE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isInternal: true, isComputed: true, isWired: true },
@@ -36189,7 +38603,7 @@ export const ActionDataInfo: Record<ActionProperty, PropertyInfo> = {
   [ActionProperty.deletedAt]: { id: 15, name: 'deleted_at', component: ObjectType.ACTION, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
   [ActionProperty.templatePtr]: { id: 16, name: 'template_ptr', component: ObjectType.ACTION, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_TEMPLATE, referenceNodes: [NodeType.ACTION], referenceStruct: StructType.NODE_REFERENCE },
   [ActionProperty.claimedByPtr]: { id: 18, name: 'claimed_by_ptr', component: ObjectType.ACTION, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.CLAIM], referenceStruct: StructType.NODE_REFERENCE },
-  [ActionProperty.mode]: { id: 20, name: 'mode', component: ObjectType.ACTION, enumType: EnumType.NODE_MODE, kind: 'enum', primitiveType: PrimitiveType.INT16, default: 20, isRequired: true, isInternal: true, isRuntime: true, isWired: true, isStored: true },
+  [ActionProperty.mode]: { id: 25, name: 'mode', component: ObjectType.ACTION, enumType: EnumType.NODE_MODE, kind: 'enum', primitiveType: PrimitiveType.INT16, default: 20, isRequired: true, isInternal: true, isRuntime: true, isWired: true, isStored: true },
   [ActionProperty.type]: { id: 30, name: 'type', component: ObjectType.ACTION, enumType: EnumType.ACTION_TYPE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isRuntime: true, isWired: true, isStored: true },
   [ActionProperty.name]: { id: 31, name: 'name', component: ObjectType.ACTION, kind: 'primitive', primitiveType: PrimitiveType.STRING, constraint: { minLength: 0, maxLength: 128, nodeTypes: [] }, isRuntime: true, isWired: true, isStored: true },
   [ActionProperty.orderKey]: { id: 33, name: 'order_key', component: ObjectType.ACTION, kind: 'primitive', primitiveType: PrimitiveType.STRING, default: "a0", isRequired: true, isInternal: true, isRuntime: true, isWired: true, isStored: true },
@@ -36220,7 +38634,7 @@ export const FlowDataInfo: Record<FlowProperty, PropertyInfo> = {
   [FlowProperty.templatePtr]: { id: 16, name: 'template_ptr', component: ObjectType.FLOW, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_TEMPLATE, referenceNodes: [NodeType.FLOW], referenceStruct: StructType.NODE_REFERENCE },
   [FlowProperty.ownedByPtr]: { id: 17, name: 'owned_by_ptr', component: ObjectType.FLOW, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.USER, NodeType.ORGANIZATION, NodeType.COMPUTER, NodeType.AGENT], referenceStruct: StructType.NODE_REFERENCE },
   [FlowProperty.claimedByPtr]: { id: 18, name: 'claimed_by_ptr', component: ObjectType.FLOW, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.CLAIM], referenceStruct: StructType.NODE_REFERENCE },
-  [FlowProperty.mode]: { id: 20, name: 'mode', component: ObjectType.FLOW, enumType: EnumType.NODE_MODE, kind: 'enum', primitiveType: PrimitiveType.INT16, default: 20, isRequired: true, isInternal: true, isRuntime: true, isWired: true, isStored: true },
+  [FlowProperty.mode]: { id: 25, name: 'mode', component: ObjectType.FLOW, enumType: EnumType.NODE_MODE, kind: 'enum', primitiveType: PrimitiveType.INT16, default: 20, isRequired: true, isInternal: true, isRuntime: true, isWired: true, isStored: true },
   [FlowProperty.type]: { id: 30, name: 'type', component: ObjectType.FLOW, enumType: EnumType.FLOW_TYPE, kind: 'enum', primitiveType: PrimitiveType.INT16, default: 10, isRequired: true, isRuntime: true, isWired: true, isStored: true },
   [FlowProperty.name]: { id: 31, name: 'name', component: ObjectType.FLOW, kind: 'primitive', primitiveType: PrimitiveType.STRING, constraint: { minLength: 0, maxLength: 128, nodeTypes: [] }, isRuntime: true, isWired: true, isStored: true },
   [FlowProperty.orderKey]: { id: 33, name: 'order_key', component: ObjectType.FLOW, kind: 'primitive', primitiveType: PrimitiveType.STRING, default: "a0", isInternal: true, isRuntime: true, isWired: true, isStored: true },
@@ -36247,7 +38661,7 @@ export const FlowEdgeDataInfo: Record<FlowEdgeProperty, PropertyInfo> = {
   [FlowEdgeProperty.archivedAt]: { id: 14, name: 'archived_at', component: ObjectType.FLOW_EDGE, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
   [FlowEdgeProperty.deletedAt]: { id: 15, name: 'deleted_at', component: ObjectType.FLOW_EDGE, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
   [FlowEdgeProperty.templatePtr]: { id: 16, name: 'template_ptr', component: ObjectType.FLOW_EDGE, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_TEMPLATE, referenceNodes: [NodeType.FLOW_EDGE], referenceStruct: StructType.NODE_REFERENCE },
-  [FlowEdgeProperty.mode]: { id: 20, name: 'mode', component: ObjectType.FLOW_EDGE, enumType: EnumType.NODE_MODE, kind: 'enum', primitiveType: PrimitiveType.INT16, default: 20, isRequired: true, isInternal: true, isRuntime: true, isWired: true, isStored: true },
+  [FlowEdgeProperty.mode]: { id: 25, name: 'mode', component: ObjectType.FLOW_EDGE, enumType: EnumType.NODE_MODE, kind: 'enum', primitiveType: PrimitiveType.INT16, default: 20, isRequired: true, isInternal: true, isRuntime: true, isWired: true, isStored: true },
   [FlowEdgeProperty.type]: { id: 30, name: 'type', component: ObjectType.FLOW_EDGE, enumType: EnumType.FLOW_EDGE_TYPE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isInternal: true, isRuntime: true, isWired: true, isStored: true },
   [FlowEdgeProperty.name]: { id: 32, name: 'name', component: ObjectType.FLOW_EDGE, kind: 'primitive', primitiveType: PrimitiveType.STRING, constraint: { minLength: 0, maxLength: 128, nodeTypes: [] }, isRuntime: true, isWired: true, isStored: true },
   [FlowEdgeProperty.orderKey]: { id: 33, name: 'order_key', component: ObjectType.FLOW_EDGE, kind: 'primitive', primitiveType: PrimitiveType.STRING, default: "a0", isRequired: true, isInternal: true, isRuntime: true, isWired: true, isStored: true },
@@ -36277,7 +38691,7 @@ export const AgentDataInfo: Record<AgentProperty, PropertyInfo> = {
   [AgentProperty.templatePtr]: { id: 16, name: 'template_ptr', component: ObjectType.AGENT, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_TEMPLATE, referenceNodes: [NodeType.AGENT], referenceStruct: StructType.NODE_REFERENCE },
   [AgentProperty.ownedByPtr]: { id: 17, name: 'owned_by_ptr', component: ObjectType.AGENT, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.USER, NodeType.ORGANIZATION, NodeType.COMPUTER, NodeType.AGENT], referenceStruct: StructType.NODE_REFERENCE },
   [AgentProperty.claimedByPtr]: { id: 18, name: 'claimed_by_ptr', component: ObjectType.AGENT, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.CLAIM], referenceStruct: StructType.NODE_REFERENCE },
-  [AgentProperty.mode]: { id: 20, name: 'mode', component: ObjectType.AGENT, enumType: EnumType.NODE_MODE, kind: 'enum', primitiveType: PrimitiveType.INT16, default: 20, isRequired: true, isInternal: true, isRuntime: true, isWired: true, isStored: true },
+  [AgentProperty.mode]: { id: 25, name: 'mode', component: ObjectType.AGENT, enumType: EnumType.NODE_MODE, kind: 'enum', primitiveType: PrimitiveType.INT16, default: 20, isRequired: true, isInternal: true, isRuntime: true, isWired: true, isStored: true },
   [AgentProperty.name]: { id: 31, name: 'name', component: ObjectType.AGENT, kind: 'primitive', primitiveType: PrimitiveType.STRING, constraint: { minLength: 0, maxLength: 128, nodeTypes: [] }, isRuntime: true, isWired: true, isStored: true },
   [AgentProperty.orderKey]: { id: 33, name: 'order_key', component: ObjectType.AGENT, kind: 'primitive', primitiveType: PrimitiveType.STRING, default: "a0", isInternal: true, isRuntime: true, isWired: true, isStored: true },
   [AgentProperty.icon]: { id: 34, name: 'icon', component: ObjectType.AGENT, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.ICON },
@@ -36319,7 +38733,7 @@ export const SessionDataInfo: Record<SessionProperty, PropertyInfo> = {
   [SessionProperty.updatedByPtr]: { id: 13, name: 'updated_by_ptr', component: ObjectType.SESSION, kind: 'reference', isAutoset: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.USER, NodeType.ORGANIZATION, NodeType.COMPUTER, NodeType.AGENT], referenceStruct: StructType.NODE_REFERENCE },
   [SessionProperty.archivedAt]: { id: 14, name: 'archived_at', component: ObjectType.SESSION, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
   [SessionProperty.deletedAt]: { id: 15, name: 'deleted_at', component: ObjectType.SESSION, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
-  [SessionProperty.mode]: { id: 20, name: 'mode', component: ObjectType.SESSION, enumType: EnumType.NODE_MODE, kind: 'enum', primitiveType: PrimitiveType.INT16, default: 20, isRequired: true, isInternal: true, isRuntime: true, isWired: true, isStored: true },
+  [SessionProperty.mode]: { id: 25, name: 'mode', component: ObjectType.SESSION, enumType: EnumType.NODE_MODE, kind: 'enum', primitiveType: PrimitiveType.INT16, default: 20, isRequired: true, isInternal: true, isRuntime: true, isWired: true, isStored: true },
   [SessionProperty.status]: { id: 40, name: 'status', component: ObjectType.SESSION, enumType: EnumType.SESSION_STATUS, kind: 'enum', primitiveType: PrimitiveType.INT16, default: 1, isRequired: true, isRuntime: true, isWired: true, isStored: true },
   [SessionProperty.duration]: { id: 41, name: 'duration', component: ObjectType.SESSION, kind: 'primitive', primitiveType: PrimitiveType.DURATION, isRuntime: true, isWired: true, isStored: true },
   [SessionProperty.openedAt]: { id: 42, name: 'opened_at', component: ObjectType.SESSION, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isRuntime: true, isWired: true, isStored: true },
@@ -36341,7 +38755,7 @@ export const RunDataInfo: Record<RunProperty, PropertyInfo> = {
   [RunProperty.updatedByPtr]: { id: 13, name: 'updated_by_ptr', component: ObjectType.RUN, kind: 'reference', isAutoset: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.USER, NodeType.ORGANIZATION, NodeType.COMPUTER, NodeType.AGENT], referenceStruct: StructType.NODE_REFERENCE },
   [RunProperty.archivedAt]: { id: 14, name: 'archived_at', component: ObjectType.RUN, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
   [RunProperty.deletedAt]: { id: 15, name: 'deleted_at', component: ObjectType.RUN, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
-  [RunProperty.mode]: { id: 20, name: 'mode', component: ObjectType.RUN, enumType: EnumType.NODE_MODE, kind: 'enum', primitiveType: PrimitiveType.INT16, default: 20, isRequired: true, isInternal: true, isRuntime: true, isWired: true, isStored: true },
+  [RunProperty.mode]: { id: 25, name: 'mode', component: ObjectType.RUN, enumType: EnumType.NODE_MODE, kind: 'enum', primitiveType: PrimitiveType.INT16, default: 20, isRequired: true, isInternal: true, isRuntime: true, isWired: true, isStored: true },
   [RunProperty.type]: { id: 30, name: 'type', component: ObjectType.RUN, enumType: EnumType.RUN_TYPE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
   [RunProperty.title]: { id: 32, name: 'title', component: ObjectType.RUN, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.TEXT_LINE },
   [RunProperty.rootPtr]: { id: 33, name: 'root_ptr', component: ObjectType.RUN, kind: 'reference', isInternal: true, isComputed: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_ANCESTOR, referenceNodes: [NodeType.RUN], referenceStruct: StructType.NODE_REFERENCE },
@@ -36388,7 +38802,7 @@ export const SpanDataInfo: Record<SpanProperty, PropertyInfo> = {
   [SpanProperty.updatedByPtr]: { id: 13, name: 'updated_by_ptr', component: ObjectType.SPAN, kind: 'reference', isAutoset: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.USER, NodeType.ORGANIZATION, NodeType.COMPUTER, NodeType.AGENT], referenceStruct: StructType.NODE_REFERENCE },
   [SpanProperty.archivedAt]: { id: 14, name: 'archived_at', component: ObjectType.SPAN, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
   [SpanProperty.deletedAt]: { id: 15, name: 'deleted_at', component: ObjectType.SPAN, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
-  [SpanProperty.mode]: { id: 20, name: 'mode', component: ObjectType.SPAN, enumType: EnumType.NODE_MODE, kind: 'enum', primitiveType: PrimitiveType.INT16, default: 20, isRequired: true, isInternal: true, isRuntime: true, isWired: true, isStored: true },
+  [SpanProperty.mode]: { id: 25, name: 'mode', component: ObjectType.SPAN, enumType: EnumType.NODE_MODE, kind: 'enum', primitiveType: PrimitiveType.INT16, default: 20, isRequired: true, isInternal: true, isRuntime: true, isWired: true, isStored: true },
   [SpanProperty.type]: { id: 30, name: 'type', component: ObjectType.SPAN, enumType: EnumType.SPAN_TYPE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isRuntime: true, isWired: true, isStored: true },
   [SpanProperty.rootPtr]: { id: 31, name: 'root_ptr', component: ObjectType.SPAN, kind: 'reference', isInternal: true, isComputed: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_ANCESTOR, referenceNodes: [NodeType.RUN], referenceStruct: StructType.NODE_REFERENCE },
   [SpanProperty.title]: { id: 60, name: 'title', component: ObjectType.SPAN, kind: 'primitive', primitiveType: PrimitiveType.STRING, isRuntime: true, isWired: true, isStored: true },
@@ -36429,7 +38843,7 @@ export const InterruptionDataInfo: Record<InterruptionProperty, PropertyInfo> = 
   [InterruptionProperty.updatedByPtr]: { id: 13, name: 'updated_by_ptr', component: ObjectType.INTERRUPTION, kind: 'reference', isAutoset: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.USER, NodeType.ORGANIZATION, NodeType.COMPUTER, NodeType.AGENT], referenceStruct: StructType.NODE_REFERENCE },
   [InterruptionProperty.archivedAt]: { id: 14, name: 'archived_at', component: ObjectType.INTERRUPTION, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
   [InterruptionProperty.deletedAt]: { id: 15, name: 'deleted_at', component: ObjectType.INTERRUPTION, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
-  [InterruptionProperty.mode]: { id: 20, name: 'mode', component: ObjectType.INTERRUPTION, enumType: EnumType.NODE_MODE, kind: 'enum', primitiveType: PrimitiveType.INT16, default: 20, isRequired: true, isInternal: true, isRuntime: true, isWired: true, isStored: true },
+  [InterruptionProperty.mode]: { id: 25, name: 'mode', component: ObjectType.INTERRUPTION, enumType: EnumType.NODE_MODE, kind: 'enum', primitiveType: PrimitiveType.INT16, default: 20, isRequired: true, isInternal: true, isRuntime: true, isWired: true, isStored: true },
   [InterruptionProperty.type]: { id: 30, name: 'type', component: ObjectType.INTERRUPTION, enumType: EnumType.INTERRUPTION_TYPE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isRuntime: true, isWired: true, isStored: true },
   [InterruptionProperty.rootPtr]: { id: 31, name: 'root_ptr', component: ObjectType.INTERRUPTION, kind: 'reference', isInternal: true, isComputed: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_ANCESTOR, referenceNodes: [NodeType.RUN], referenceStruct: StructType.NODE_REFERENCE },
   [InterruptionProperty.flowPtr]: { id: 33, name: 'flow_ptr', component: ObjectType.INTERRUPTION, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.FLOW], referenceStruct: StructType.NODE_REFERENCE },
@@ -36461,7 +38875,7 @@ export const MembershipDataInfo: Record<MembershipProperty, PropertyInfo> = {
   [MembershipProperty.archivedAt]: { id: 14, name: 'archived_at', component: ObjectType.MEMBERSHIP, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
   [MembershipProperty.deletedAt]: { id: 15, name: 'deleted_at', component: ObjectType.MEMBERSHIP, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
   [MembershipProperty.templatePtr]: { id: 16, name: 'template_ptr', component: ObjectType.MEMBERSHIP, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_TEMPLATE, referenceNodes: [NodeType.MEMBERSHIP], referenceStruct: StructType.NODE_REFERENCE },
-  [MembershipProperty.mode]: { id: 20, name: 'mode', component: ObjectType.MEMBERSHIP, enumType: EnumType.NODE_MODE, kind: 'enum', primitiveType: PrimitiveType.INT16, default: 20, isRequired: true, isInternal: true, isRuntime: true, isWired: true, isStored: true },
+  [MembershipProperty.mode]: { id: 25, name: 'mode', component: ObjectType.MEMBERSHIP, enumType: EnumType.NODE_MODE, kind: 'enum', primitiveType: PrimitiveType.INT16, default: 20, isRequired: true, isInternal: true, isRuntime: true, isWired: true, isStored: true },
   [MembershipProperty.memberPtr]: { id: 41, name: 'member_ptr', component: ObjectType.MEMBERSHIP, kind: 'reference', isRequired: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.USER, NodeType.ORGANIZATION, NodeType.COMPUTER, NodeType.AGENT], referenceStruct: StructType.NODE_REFERENCE },
 }
 export const InviteDataInfo: Record<InviteProperty, PropertyInfo> = {
@@ -36493,7 +38907,7 @@ export const TeamDataInfo: Record<TeamProperty, PropertyInfo> = {
   [TeamProperty.archivedAt]: { id: 14, name: 'archived_at', component: ObjectType.TEAM, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
   [TeamProperty.deletedAt]: { id: 15, name: 'deleted_at', component: ObjectType.TEAM, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
   [TeamProperty.templatePtr]: { id: 16, name: 'template_ptr', component: ObjectType.TEAM, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_TEMPLATE, referenceNodes: [NodeType.TEAM], referenceStruct: StructType.NODE_REFERENCE },
-  [TeamProperty.mode]: { id: 20, name: 'mode', component: ObjectType.TEAM, enumType: EnumType.NODE_MODE, kind: 'enum', primitiveType: PrimitiveType.INT16, default: 20, isRequired: true, isInternal: true, isRuntime: true, isWired: true, isStored: true },
+  [TeamProperty.mode]: { id: 25, name: 'mode', component: ObjectType.TEAM, enumType: EnumType.NODE_MODE, kind: 'enum', primitiveType: PrimitiveType.INT16, default: 20, isRequired: true, isInternal: true, isRuntime: true, isWired: true, isStored: true },
   [TeamProperty.name]: { id: 31, name: 'name', component: ObjectType.TEAM, kind: 'primitive', primitiveType: PrimitiveType.STRING, constraint: { minLength: 0, maxLength: 128, nodeTypes: [] }, isRuntime: true, isWired: true, isStored: true },
   [TeamProperty.orderKey]: { id: 33, name: 'order_key', component: ObjectType.TEAM, kind: 'primitive', primitiveType: PrimitiveType.STRING, default: "a0", isInternal: true, isRuntime: true, isWired: true, isStored: true },
   [TeamProperty.icon]: { id: 34, name: 'icon', component: ObjectType.TEAM, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.ICON },
@@ -36512,7 +38926,7 @@ export const RoleDataInfo: Record<RoleProperty, PropertyInfo> = {
   [RoleProperty.archivedAt]: { id: 14, name: 'archived_at', component: ObjectType.ROLE, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
   [RoleProperty.deletedAt]: { id: 15, name: 'deleted_at', component: ObjectType.ROLE, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
   [RoleProperty.templatePtr]: { id: 16, name: 'template_ptr', component: ObjectType.ROLE, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_TEMPLATE, referenceNodes: [NodeType.ROLE], referenceStruct: StructType.NODE_REFERENCE },
-  [RoleProperty.mode]: { id: 20, name: 'mode', component: ObjectType.ROLE, enumType: EnumType.NODE_MODE, kind: 'enum', primitiveType: PrimitiveType.INT16, default: 20, isRequired: true, isInternal: true, isRuntime: true, isWired: true, isStored: true },
+  [RoleProperty.mode]: { id: 25, name: 'mode', component: ObjectType.ROLE, enumType: EnumType.NODE_MODE, kind: 'enum', primitiveType: PrimitiveType.INT16, default: 20, isRequired: true, isInternal: true, isRuntime: true, isWired: true, isStored: true },
   [RoleProperty.name]: { id: 31, name: 'name', component: ObjectType.ROLE, kind: 'primitive', primitiveType: PrimitiveType.STRING, constraint: { minLength: 0, maxLength: 128, nodeTypes: [] }, isRuntime: true, isWired: true, isStored: true },
   [RoleProperty.orderKey]: { id: 33, name: 'order_key', component: ObjectType.ROLE, kind: 'primitive', primitiveType: PrimitiveType.STRING, default: "a0", isInternal: true, isRuntime: true, isWired: true, isStored: true },
   [RoleProperty.icon]: { id: 34, name: 'icon', component: ObjectType.ROLE, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.ICON },
@@ -36532,7 +38946,7 @@ export const SpaceDataInfo: Record<SpaceProperty, PropertyInfo> = {
   [SpaceProperty.deletedAt]: { id: 15, name: 'deleted_at', component: ObjectType.SPACE, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
   [SpaceProperty.templatePtr]: { id: 16, name: 'template_ptr', component: ObjectType.SPACE, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_TEMPLATE, referenceNodes: [NodeType.SPACE], referenceStruct: StructType.NODE_REFERENCE },
   [SpaceProperty.ownedByPtr]: { id: 17, name: 'owned_by_ptr', component: ObjectType.SPACE, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.USER, NodeType.ORGANIZATION, NodeType.COMPUTER, NodeType.AGENT], referenceStruct: StructType.NODE_REFERENCE },
-  [SpaceProperty.mode]: { id: 20, name: 'mode', component: ObjectType.SPACE, enumType: EnumType.NODE_MODE, kind: 'enum', primitiveType: PrimitiveType.INT16, default: 20, isRequired: true, isInternal: true, isRuntime: true, isWired: true, isStored: true },
+  [SpaceProperty.mode]: { id: 25, name: 'mode', component: ObjectType.SPACE, enumType: EnumType.NODE_MODE, kind: 'enum', primitiveType: PrimitiveType.INT16, default: 20, isRequired: true, isInternal: true, isRuntime: true, isWired: true, isStored: true },
   [SpaceProperty.type]: { id: 30, name: 'type', component: ObjectType.SPACE, enumType: EnumType.SPACE_TYPE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isRuntime: true, isWired: true, isStored: true },
   [SpaceProperty.name]: { id: 31, name: 'name', component: ObjectType.SPACE, kind: 'primitive', primitiveType: PrimitiveType.STRING, constraint: { minLength: 0, maxLength: 128, nodeTypes: [] }, isRuntime: true, isWired: true, isStored: true },
   [SpaceProperty.orderKey]: { id: 33, name: 'order_key', component: ObjectType.SPACE, kind: 'primitive', primitiveType: PrimitiveType.STRING, default: "a0", isRequired: true, isInternal: true, isRuntime: true, isWired: true, isStored: true },
@@ -36546,7 +38960,7 @@ export const SpaceDataInfo: Record<SpaceProperty, PropertyInfo> = {
 export const WizardViewDataInfo: Record<WizardViewProperty, PropertyInfo> = {
   [WizardViewProperty.metatype]: { id: 1, name: 'metatype', component: ObjectType.WIZARD_VIEW, enumType: EnumType.OBJECT_TYPE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isInternal: true, isComputed: true, isWired: true },
   [WizardViewProperty.id]: { id: 2, name: 'id', component: ObjectType.WIZARD_VIEW, kind: 'primitive', primitiveType: PrimitiveType.UUID, isRequired: true, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
-  [WizardViewProperty.parentPtr]: { id: 4, name: 'parent_ptr', component: ObjectType.WIZARD_VIEW, kind: 'reference', isInternal: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_PARENT, referenceNodes: [NodeType.SPACE, NodeType.WIZARD_VIEW, NodeType.FRAME_VIEW, NodeType.LABEL_VIEW, NodeType.SPLIT_VIEW, NodeType.INPUT_VIEW, NodeType.SLIDER_VIEW, NodeType.THREAD_VIEW, NodeType.PAGE], referenceStruct: StructType.NODE_REFERENCE },
+  [WizardViewProperty.parentPtr]: { id: 4, name: 'parent_ptr', component: ObjectType.WIZARD_VIEW, kind: 'reference', isInternal: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_PARENT, referenceNodes: [NodeType.SPACE, NodeType.WIZARD_VIEW, NodeType.FRAME_VIEW, NodeType.LABEL_VIEW, NodeType.COMPONENT_VIEW, NodeType.SPLIT_VIEW, NodeType.NUMBER_VIEW, NodeType.SLIDER_VIEW, NodeType.THREAD_VIEW, NodeType.PAGE], referenceStruct: StructType.NODE_REFERENCE },
   [WizardViewProperty.benchPtr]: { id: 5, name: 'bench_ptr', component: ObjectType.WIZARD_VIEW, kind: 'reference', isInternal: true, isComputed: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_ANCESTOR_OR_SELF, referenceNodes: [NodeType.BENCH], referenceStruct: StructType.NODE_REFERENCE },
   [WizardViewProperty.packagePtr]: { id: 9, name: 'package_ptr', component: ObjectType.WIZARD_VIEW, kind: 'reference', isInternal: true, isComputed: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_ANCESTOR_OR_SELF, referenceNodes: [NodeType.PACKAGE], referenceStruct: StructType.NODE_REFERENCE },
   [WizardViewProperty.createdAt]: { id: 10, name: 'created_at', component: ObjectType.WIZARD_VIEW, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isRequired: true, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
@@ -36556,16 +38970,23 @@ export const WizardViewDataInfo: Record<WizardViewProperty, PropertyInfo> = {
   [WizardViewProperty.archivedAt]: { id: 14, name: 'archived_at', component: ObjectType.WIZARD_VIEW, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
   [WizardViewProperty.deletedAt]: { id: 15, name: 'deleted_at', component: ObjectType.WIZARD_VIEW, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
   [WizardViewProperty.templatePtr]: { id: 16, name: 'template_ptr', component: ObjectType.WIZARD_VIEW, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_TEMPLATE, referenceNodes: [NodeType.WIZARD_VIEW], referenceStruct: StructType.NODE_REFERENCE },
-  [WizardViewProperty.mode]: { id: 20, name: 'mode', component: ObjectType.WIZARD_VIEW, enumType: EnumType.NODE_MODE, kind: 'enum', primitiveType: PrimitiveType.INT16, default: 20, isRequired: true, isInternal: true, isRuntime: true, isWired: true, isStored: true },
+  [WizardViewProperty.mode]: { id: 25, name: 'mode', component: ObjectType.WIZARD_VIEW, enumType: EnumType.NODE_MODE, kind: 'enum', primitiveType: PrimitiveType.INT16, default: 20, isRequired: true, isInternal: true, isRuntime: true, isWired: true, isStored: true },
   [WizardViewProperty.name]: { id: 31, name: 'name', component: ObjectType.WIZARD_VIEW, kind: 'primitive', primitiveType: PrimitiveType.STRING, constraint: { minLength: 0, maxLength: 128, nodeTypes: [] }, isRuntime: true, isWired: true, isStored: true },
   [WizardViewProperty.orderKey]: { id: 33, name: 'order_key', component: ObjectType.WIZARD_VIEW, kind: 'primitive', primitiveType: PrimitiveType.STRING, default: "a0", isInternal: true, isRuntime: true, isWired: true, isStored: true },
   [WizardViewProperty.icon]: { id: 34, name: 'icon', component: ObjectType.WIZARD_VIEW, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.ICON },
   [WizardViewProperty.definitionPtr]: { id: 35, name: 'definition_ptr', component: ObjectType.WIZARD_VIEW, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.BLOCK], referenceStruct: StructType.NODE_REFERENCE },
+  [WizardViewProperty.position]: { id: 40, name: 'position', component: ObjectType.WIZARD_VIEW, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.POSITION },
+  [WizardViewProperty.width]: { id: 41, name: 'width', component: ObjectType.WIZARD_VIEW, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.DIMENSION },
+  [WizardViewProperty.height]: { id: 42, name: 'height', component: ObjectType.WIZARD_VIEW, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.DIMENSION },
+  [WizardViewProperty.minWidth]: { id: 43, name: 'min_width', component: ObjectType.WIZARD_VIEW, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.DIMENSION },
+  [WizardViewProperty.minHeight]: { id: 44, name: 'min_height', component: ObjectType.WIZARD_VIEW, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.DIMENSION },
+  [WizardViewProperty.maxWidth]: { id: 45, name: 'max_width', component: ObjectType.WIZARD_VIEW, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.DIMENSION },
+  [WizardViewProperty.maxHeight]: { id: 46, name: 'max_height', component: ObjectType.WIZARD_VIEW, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.DIMENSION },
 }
 export const FrameViewDataInfo: Record<FrameViewProperty, PropertyInfo> = {
   [FrameViewProperty.metatype]: { id: 1, name: 'metatype', component: ObjectType.FRAME_VIEW, enumType: EnumType.OBJECT_TYPE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isInternal: true, isComputed: true, isWired: true },
   [FrameViewProperty.id]: { id: 2, name: 'id', component: ObjectType.FRAME_VIEW, kind: 'primitive', primitiveType: PrimitiveType.UUID, isRequired: true, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
-  [FrameViewProperty.parentPtr]: { id: 4, name: 'parent_ptr', component: ObjectType.FRAME_VIEW, kind: 'reference', isInternal: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_PARENT, referenceNodes: [NodeType.SPACE, NodeType.WIZARD_VIEW, NodeType.FRAME_VIEW, NodeType.LABEL_VIEW, NodeType.SPLIT_VIEW, NodeType.INPUT_VIEW, NodeType.SLIDER_VIEW, NodeType.THREAD_VIEW, NodeType.PAGE], referenceStruct: StructType.NODE_REFERENCE },
+  [FrameViewProperty.parentPtr]: { id: 4, name: 'parent_ptr', component: ObjectType.FRAME_VIEW, kind: 'reference', isInternal: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_PARENT, referenceNodes: [NodeType.SPACE, NodeType.WIZARD_VIEW, NodeType.FRAME_VIEW, NodeType.LABEL_VIEW, NodeType.COMPONENT_VIEW, NodeType.SPLIT_VIEW, NodeType.NUMBER_VIEW, NodeType.SLIDER_VIEW, NodeType.THREAD_VIEW, NodeType.PAGE], referenceStruct: StructType.NODE_REFERENCE },
   [FrameViewProperty.benchPtr]: { id: 5, name: 'bench_ptr', component: ObjectType.FRAME_VIEW, kind: 'reference', isInternal: true, isComputed: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_ANCESTOR_OR_SELF, referenceNodes: [NodeType.BENCH], referenceStruct: StructType.NODE_REFERENCE },
   [FrameViewProperty.packagePtr]: { id: 9, name: 'package_ptr', component: ObjectType.FRAME_VIEW, kind: 'reference', isInternal: true, isComputed: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_ANCESTOR_OR_SELF, referenceNodes: [NodeType.PACKAGE], referenceStruct: StructType.NODE_REFERENCE },
   [FrameViewProperty.createdAt]: { id: 10, name: 'created_at', component: ObjectType.FRAME_VIEW, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isRequired: true, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
@@ -36575,18 +38996,38 @@ export const FrameViewDataInfo: Record<FrameViewProperty, PropertyInfo> = {
   [FrameViewProperty.archivedAt]: { id: 14, name: 'archived_at', component: ObjectType.FRAME_VIEW, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
   [FrameViewProperty.deletedAt]: { id: 15, name: 'deleted_at', component: ObjectType.FRAME_VIEW, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
   [FrameViewProperty.templatePtr]: { id: 16, name: 'template_ptr', component: ObjectType.FRAME_VIEW, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_TEMPLATE, referenceNodes: [NodeType.FRAME_VIEW], referenceStruct: StructType.NODE_REFERENCE },
-  [FrameViewProperty.mode]: { id: 20, name: 'mode', component: ObjectType.FRAME_VIEW, enumType: EnumType.NODE_MODE, kind: 'enum', primitiveType: PrimitiveType.INT16, default: 20, isRequired: true, isInternal: true, isRuntime: true, isWired: true, isStored: true },
+  [FrameViewProperty.mode]: { id: 25, name: 'mode', component: ObjectType.FRAME_VIEW, enumType: EnumType.NODE_MODE, kind: 'enum', primitiveType: PrimitiveType.INT16, default: 20, isRequired: true, isInternal: true, isRuntime: true, isWired: true, isStored: true },
   [FrameViewProperty.name]: { id: 31, name: 'name', component: ObjectType.FRAME_VIEW, kind: 'primitive', primitiveType: PrimitiveType.STRING, constraint: { minLength: 0, maxLength: 128, nodeTypes: [] }, isRuntime: true, isWired: true, isStored: true },
   [FrameViewProperty.orderKey]: { id: 33, name: 'order_key', component: ObjectType.FRAME_VIEW, kind: 'primitive', primitiveType: PrimitiveType.STRING, default: "a0", isInternal: true, isRuntime: true, isWired: true, isStored: true },
   [FrameViewProperty.icon]: { id: 34, name: 'icon', component: ObjectType.FRAME_VIEW, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.ICON },
   [FrameViewProperty.definitionPtr]: { id: 35, name: 'definition_ptr', component: ObjectType.FRAME_VIEW, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.BLOCK], referenceStruct: StructType.NODE_REFERENCE },
-  [FrameViewProperty.focusPtr]: { id: 70, name: 'focus_ptr', component: ObjectType.FRAME_VIEW, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: "any", referenceStruct: StructType.NODE_REFERENCE },
-  [FrameViewProperty.selection]: { id: 71, name: 'selection', component: ObjectType.FRAME_VIEW, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.SELECTION },
+  [FrameViewProperty.position]: { id: 40, name: 'position', component: ObjectType.FRAME_VIEW, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.POSITION },
+  [FrameViewProperty.width]: { id: 41, name: 'width', component: ObjectType.FRAME_VIEW, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.DIMENSION },
+  [FrameViewProperty.height]: { id: 42, name: 'height', component: ObjectType.FRAME_VIEW, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.DIMENSION },
+  [FrameViewProperty.minWidth]: { id: 43, name: 'min_width', component: ObjectType.FRAME_VIEW, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.DIMENSION },
+  [FrameViewProperty.minHeight]: { id: 44, name: 'min_height', component: ObjectType.FRAME_VIEW, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.DIMENSION },
+  [FrameViewProperty.maxWidth]: { id: 45, name: 'max_width', component: ObjectType.FRAME_VIEW, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.DIMENSION },
+  [FrameViewProperty.maxHeight]: { id: 46, name: 'max_height', component: ObjectType.FRAME_VIEW, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.DIMENSION },
+  [FrameViewProperty.layout]: { id: 50, name: 'layout', component: ObjectType.FRAME_VIEW, enumType: EnumType.LAYOUT, kind: 'enum', primitiveType: PrimitiveType.INT16, isRuntime: true, isWired: true, isStored: true },
+  [FrameViewProperty.direction]: { id: 51, name: 'direction', component: ObjectType.FRAME_VIEW, enumType: EnumType.DIRECTION, kind: 'enum', primitiveType: PrimitiveType.INT16, isRuntime: true, isWired: true, isStored: true },
+  [FrameViewProperty.distribute]: { id: 52, name: 'distribute', component: ObjectType.FRAME_VIEW, enumType: EnumType.DISTRIBUTE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRuntime: true, isWired: true, isStored: true },
+  [FrameViewProperty.align]: { id: 53, name: 'align', component: ObjectType.FRAME_VIEW, enumType: EnumType.ALIGN, kind: 'enum', primitiveType: PrimitiveType.INT16, isRuntime: true, isWired: true, isStored: true },
+  [FrameViewProperty.gap]: { id: 54, name: 'gap', component: ObjectType.FRAME_VIEW, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.GAP },
+  [FrameViewProperty.padding]: { id: 55, name: 'padding', component: ObjectType.FRAME_VIEW, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.PADDING },
+  [FrameViewProperty.grid]: { id: 56, name: 'grid', component: ObjectType.FRAME_VIEW, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.GRID },
+  [FrameViewProperty.gridSpan]: { id: 57, name: 'grid_span', component: ObjectType.FRAME_VIEW, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.GRID_SPAN },
+  [FrameViewProperty.aspectRatio]: { id: 58, name: 'aspect_ratio', component: ObjectType.FRAME_VIEW, kind: 'primitive', primitiveType: PrimitiveType.FLOAT32, isRuntime: true, isWired: true, isStored: true },
+  [FrameViewProperty.fill]: { id: 60, name: 'fill', component: ObjectType.FRAME_VIEW, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.FILL },
+  [FrameViewProperty.opacity]: { id: 61, name: 'opacity', component: ObjectType.FRAME_VIEW, kind: 'primitive', primitiveType: PrimitiveType.FLOAT32, isRuntime: true, isWired: true, isStored: true },
+  [FrameViewProperty.isVisible]: { id: 62, name: 'is_visible', component: ObjectType.FRAME_VIEW, kind: 'primitive', primitiveType: PrimitiveType.BOOLEAN, isRuntime: true, isWired: true, isStored: true },
+  [FrameViewProperty.rotation]: { id: 63, name: 'rotation', component: ObjectType.FRAME_VIEW, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.ROTATION },
+  [FrameViewProperty.shadow]: { id: 64, name: 'shadow', component: ObjectType.FRAME_VIEW, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.SHADOW },
+  [FrameViewProperty.border]: { id: 65, name: 'border', component: ObjectType.FRAME_VIEW, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.BORDER },
 }
 export const LabelViewDataInfo: Record<LabelViewProperty, PropertyInfo> = {
   [LabelViewProperty.metatype]: { id: 1, name: 'metatype', component: ObjectType.LABEL_VIEW, enumType: EnumType.OBJECT_TYPE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isInternal: true, isComputed: true, isWired: true },
   [LabelViewProperty.id]: { id: 2, name: 'id', component: ObjectType.LABEL_VIEW, kind: 'primitive', primitiveType: PrimitiveType.UUID, isRequired: true, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
-  [LabelViewProperty.parentPtr]: { id: 4, name: 'parent_ptr', component: ObjectType.LABEL_VIEW, kind: 'reference', isInternal: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_PARENT, referenceNodes: [NodeType.SPACE, NodeType.WIZARD_VIEW, NodeType.FRAME_VIEW, NodeType.LABEL_VIEW, NodeType.SPLIT_VIEW, NodeType.INPUT_VIEW, NodeType.SLIDER_VIEW, NodeType.THREAD_VIEW, NodeType.PAGE], referenceStruct: StructType.NODE_REFERENCE },
+  [LabelViewProperty.parentPtr]: { id: 4, name: 'parent_ptr', component: ObjectType.LABEL_VIEW, kind: 'reference', isInternal: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_PARENT, referenceNodes: [NodeType.SPACE, NodeType.WIZARD_VIEW, NodeType.FRAME_VIEW, NodeType.LABEL_VIEW, NodeType.COMPONENT_VIEW, NodeType.SPLIT_VIEW, NodeType.NUMBER_VIEW, NodeType.SLIDER_VIEW, NodeType.THREAD_VIEW, NodeType.PAGE], referenceStruct: StructType.NODE_REFERENCE },
   [LabelViewProperty.benchPtr]: { id: 5, name: 'bench_ptr', component: ObjectType.LABEL_VIEW, kind: 'reference', isInternal: true, isComputed: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_ANCESTOR_OR_SELF, referenceNodes: [NodeType.BENCH], referenceStruct: StructType.NODE_REFERENCE },
   [LabelViewProperty.packagePtr]: { id: 9, name: 'package_ptr', component: ObjectType.LABEL_VIEW, kind: 'reference', isInternal: true, isComputed: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_ANCESTOR_OR_SELF, referenceNodes: [NodeType.PACKAGE], referenceStruct: StructType.NODE_REFERENCE },
   [LabelViewProperty.createdAt]: { id: 10, name: 'created_at', component: ObjectType.LABEL_VIEW, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isRequired: true, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
@@ -36596,18 +39037,79 @@ export const LabelViewDataInfo: Record<LabelViewProperty, PropertyInfo> = {
   [LabelViewProperty.archivedAt]: { id: 14, name: 'archived_at', component: ObjectType.LABEL_VIEW, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
   [LabelViewProperty.deletedAt]: { id: 15, name: 'deleted_at', component: ObjectType.LABEL_VIEW, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
   [LabelViewProperty.templatePtr]: { id: 16, name: 'template_ptr', component: ObjectType.LABEL_VIEW, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_TEMPLATE, referenceNodes: [NodeType.LABEL_VIEW], referenceStruct: StructType.NODE_REFERENCE },
-  [LabelViewProperty.mode]: { id: 20, name: 'mode', component: ObjectType.LABEL_VIEW, enumType: EnumType.NODE_MODE, kind: 'enum', primitiveType: PrimitiveType.INT16, default: 20, isRequired: true, isInternal: true, isRuntime: true, isWired: true, isStored: true },
+  [LabelViewProperty.mode]: { id: 25, name: 'mode', component: ObjectType.LABEL_VIEW, enumType: EnumType.NODE_MODE, kind: 'enum', primitiveType: PrimitiveType.INT16, default: 20, isRequired: true, isInternal: true, isRuntime: true, isWired: true, isStored: true },
   [LabelViewProperty.name]: { id: 31, name: 'name', component: ObjectType.LABEL_VIEW, kind: 'primitive', primitiveType: PrimitiveType.STRING, constraint: { minLength: 0, maxLength: 128, nodeTypes: [] }, isRuntime: true, isWired: true, isStored: true },
   [LabelViewProperty.orderKey]: { id: 33, name: 'order_key', component: ObjectType.LABEL_VIEW, kind: 'primitive', primitiveType: PrimitiveType.STRING, default: "a0", isInternal: true, isRuntime: true, isWired: true, isStored: true },
   [LabelViewProperty.icon]: { id: 34, name: 'icon', component: ObjectType.LABEL_VIEW, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.ICON },
   [LabelViewProperty.definitionPtr]: { id: 35, name: 'definition_ptr', component: ObjectType.LABEL_VIEW, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.BLOCK], referenceStruct: StructType.NODE_REFERENCE },
-  [LabelViewProperty.focusPtr]: { id: 70, name: 'focus_ptr', component: ObjectType.LABEL_VIEW, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: "any", referenceStruct: StructType.NODE_REFERENCE },
-  [LabelViewProperty.selection]: { id: 71, name: 'selection', component: ObjectType.LABEL_VIEW, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.SELECTION },
+  [LabelViewProperty.position]: { id: 40, name: 'position', component: ObjectType.LABEL_VIEW, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.POSITION },
+  [LabelViewProperty.width]: { id: 41, name: 'width', component: ObjectType.LABEL_VIEW, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.DIMENSION },
+  [LabelViewProperty.height]: { id: 42, name: 'height', component: ObjectType.LABEL_VIEW, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.DIMENSION },
+  [LabelViewProperty.minWidth]: { id: 43, name: 'min_width', component: ObjectType.LABEL_VIEW, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.DIMENSION },
+  [LabelViewProperty.minHeight]: { id: 44, name: 'min_height', component: ObjectType.LABEL_VIEW, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.DIMENSION },
+  [LabelViewProperty.maxWidth]: { id: 45, name: 'max_width', component: ObjectType.LABEL_VIEW, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.DIMENSION },
+  [LabelViewProperty.maxHeight]: { id: 46, name: 'max_height', component: ObjectType.LABEL_VIEW, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.DIMENSION },
+  [LabelViewProperty.layout]: { id: 50, name: 'layout', component: ObjectType.LABEL_VIEW, enumType: EnumType.LAYOUT, kind: 'enum', primitiveType: PrimitiveType.INT16, isRuntime: true, isWired: true, isStored: true },
+  [LabelViewProperty.direction]: { id: 51, name: 'direction', component: ObjectType.LABEL_VIEW, enumType: EnumType.DIRECTION, kind: 'enum', primitiveType: PrimitiveType.INT16, isRuntime: true, isWired: true, isStored: true },
+  [LabelViewProperty.distribute]: { id: 52, name: 'distribute', component: ObjectType.LABEL_VIEW, enumType: EnumType.DISTRIBUTE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRuntime: true, isWired: true, isStored: true },
+  [LabelViewProperty.align]: { id: 53, name: 'align', component: ObjectType.LABEL_VIEW, enumType: EnumType.ALIGN, kind: 'enum', primitiveType: PrimitiveType.INT16, isRuntime: true, isWired: true, isStored: true },
+  [LabelViewProperty.gap]: { id: 54, name: 'gap', component: ObjectType.LABEL_VIEW, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.GAP },
+  [LabelViewProperty.padding]: { id: 55, name: 'padding', component: ObjectType.LABEL_VIEW, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.PADDING },
+  [LabelViewProperty.grid]: { id: 56, name: 'grid', component: ObjectType.LABEL_VIEW, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.GRID },
+  [LabelViewProperty.gridSpan]: { id: 57, name: 'grid_span', component: ObjectType.LABEL_VIEW, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.GRID_SPAN },
+  [LabelViewProperty.aspectRatio]: { id: 58, name: 'aspect_ratio', component: ObjectType.LABEL_VIEW, kind: 'primitive', primitiveType: PrimitiveType.FLOAT32, isRuntime: true, isWired: true, isStored: true },
+  [LabelViewProperty.fill]: { id: 60, name: 'fill', component: ObjectType.LABEL_VIEW, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.FILL },
+  [LabelViewProperty.opacity]: { id: 61, name: 'opacity', component: ObjectType.LABEL_VIEW, kind: 'primitive', primitiveType: PrimitiveType.FLOAT32, isRuntime: true, isWired: true, isStored: true },
+  [LabelViewProperty.isVisible]: { id: 62, name: 'is_visible', component: ObjectType.LABEL_VIEW, kind: 'primitive', primitiveType: PrimitiveType.BOOLEAN, isRuntime: true, isWired: true, isStored: true },
+  [LabelViewProperty.rotation]: { id: 63, name: 'rotation', component: ObjectType.LABEL_VIEW, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.ROTATION },
+  [LabelViewProperty.shadow]: { id: 64, name: 'shadow', component: ObjectType.LABEL_VIEW, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.SHADOW },
+  [LabelViewProperty.border]: { id: 65, name: 'border', component: ObjectType.LABEL_VIEW, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.BORDER },
+}
+export const ComponentViewDataInfo: Record<ComponentViewProperty, PropertyInfo> = {
+  [ComponentViewProperty.metatype]: { id: 1, name: 'metatype', component: ObjectType.COMPONENT_VIEW, enumType: EnumType.OBJECT_TYPE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isInternal: true, isComputed: true, isWired: true },
+  [ComponentViewProperty.id]: { id: 2, name: 'id', component: ObjectType.COMPONENT_VIEW, kind: 'primitive', primitiveType: PrimitiveType.UUID, isRequired: true, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
+  [ComponentViewProperty.parentPtr]: { id: 4, name: 'parent_ptr', component: ObjectType.COMPONENT_VIEW, kind: 'reference', isInternal: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_PARENT, referenceNodes: [NodeType.SPACE, NodeType.WIZARD_VIEW, NodeType.FRAME_VIEW, NodeType.LABEL_VIEW, NodeType.COMPONENT_VIEW, NodeType.SPLIT_VIEW, NodeType.NUMBER_VIEW, NodeType.SLIDER_VIEW, NodeType.THREAD_VIEW, NodeType.PAGE], referenceStruct: StructType.NODE_REFERENCE },
+  [ComponentViewProperty.benchPtr]: { id: 5, name: 'bench_ptr', component: ObjectType.COMPONENT_VIEW, kind: 'reference', isInternal: true, isComputed: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_ANCESTOR_OR_SELF, referenceNodes: [NodeType.BENCH], referenceStruct: StructType.NODE_REFERENCE },
+  [ComponentViewProperty.packagePtr]: { id: 9, name: 'package_ptr', component: ObjectType.COMPONENT_VIEW, kind: 'reference', isInternal: true, isComputed: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_ANCESTOR_OR_SELF, referenceNodes: [NodeType.PACKAGE], referenceStruct: StructType.NODE_REFERENCE },
+  [ComponentViewProperty.createdAt]: { id: 10, name: 'created_at', component: ObjectType.COMPONENT_VIEW, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isRequired: true, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
+  [ComponentViewProperty.createdByPtr]: { id: 11, name: 'created_by_ptr', component: ObjectType.COMPONENT_VIEW, kind: 'reference', isAutoset: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.USER, NodeType.ORGANIZATION, NodeType.COMPUTER, NodeType.AGENT], referenceStruct: StructType.NODE_REFERENCE },
+  [ComponentViewProperty.updatedAt]: { id: 12, name: 'updated_at', component: ObjectType.COMPONENT_VIEW, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isRequired: true, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
+  [ComponentViewProperty.updatedByPtr]: { id: 13, name: 'updated_by_ptr', component: ObjectType.COMPONENT_VIEW, kind: 'reference', isAutoset: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.USER, NodeType.ORGANIZATION, NodeType.COMPUTER, NodeType.AGENT], referenceStruct: StructType.NODE_REFERENCE },
+  [ComponentViewProperty.archivedAt]: { id: 14, name: 'archived_at', component: ObjectType.COMPONENT_VIEW, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
+  [ComponentViewProperty.deletedAt]: { id: 15, name: 'deleted_at', component: ObjectType.COMPONENT_VIEW, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
+  [ComponentViewProperty.templatePtr]: { id: 16, name: 'template_ptr', component: ObjectType.COMPONENT_VIEW, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_TEMPLATE, referenceNodes: [NodeType.COMPONENT_VIEW], referenceStruct: StructType.NODE_REFERENCE },
+  [ComponentViewProperty.mode]: { id: 25, name: 'mode', component: ObjectType.COMPONENT_VIEW, enumType: EnumType.NODE_MODE, kind: 'enum', primitiveType: PrimitiveType.INT16, default: 20, isRequired: true, isInternal: true, isRuntime: true, isWired: true, isStored: true },
+  [ComponentViewProperty.name]: { id: 31, name: 'name', component: ObjectType.COMPONENT_VIEW, kind: 'primitive', primitiveType: PrimitiveType.STRING, constraint: { minLength: 0, maxLength: 128, nodeTypes: [] }, isRuntime: true, isWired: true, isStored: true },
+  [ComponentViewProperty.orderKey]: { id: 33, name: 'order_key', component: ObjectType.COMPONENT_VIEW, kind: 'primitive', primitiveType: PrimitiveType.STRING, default: "a0", isInternal: true, isRuntime: true, isWired: true, isStored: true },
+  [ComponentViewProperty.icon]: { id: 34, name: 'icon', component: ObjectType.COMPONENT_VIEW, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.ICON },
+  [ComponentViewProperty.definitionPtr]: { id: 35, name: 'definition_ptr', component: ObjectType.COMPONENT_VIEW, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.BLOCK], referenceStruct: StructType.NODE_REFERENCE },
+  [ComponentViewProperty.position]: { id: 40, name: 'position', component: ObjectType.COMPONENT_VIEW, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.POSITION },
+  [ComponentViewProperty.width]: { id: 41, name: 'width', component: ObjectType.COMPONENT_VIEW, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.DIMENSION },
+  [ComponentViewProperty.height]: { id: 42, name: 'height', component: ObjectType.COMPONENT_VIEW, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.DIMENSION },
+  [ComponentViewProperty.minWidth]: { id: 43, name: 'min_width', component: ObjectType.COMPONENT_VIEW, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.DIMENSION },
+  [ComponentViewProperty.minHeight]: { id: 44, name: 'min_height', component: ObjectType.COMPONENT_VIEW, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.DIMENSION },
+  [ComponentViewProperty.maxWidth]: { id: 45, name: 'max_width', component: ObjectType.COMPONENT_VIEW, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.DIMENSION },
+  [ComponentViewProperty.maxHeight]: { id: 46, name: 'max_height', component: ObjectType.COMPONENT_VIEW, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.DIMENSION },
+  [ComponentViewProperty.layout]: { id: 50, name: 'layout', component: ObjectType.COMPONENT_VIEW, enumType: EnumType.LAYOUT, kind: 'enum', primitiveType: PrimitiveType.INT16, isRuntime: true, isWired: true, isStored: true },
+  [ComponentViewProperty.direction]: { id: 51, name: 'direction', component: ObjectType.COMPONENT_VIEW, enumType: EnumType.DIRECTION, kind: 'enum', primitiveType: PrimitiveType.INT16, isRuntime: true, isWired: true, isStored: true },
+  [ComponentViewProperty.distribute]: { id: 52, name: 'distribute', component: ObjectType.COMPONENT_VIEW, enumType: EnumType.DISTRIBUTE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRuntime: true, isWired: true, isStored: true },
+  [ComponentViewProperty.align]: { id: 53, name: 'align', component: ObjectType.COMPONENT_VIEW, enumType: EnumType.ALIGN, kind: 'enum', primitiveType: PrimitiveType.INT16, isRuntime: true, isWired: true, isStored: true },
+  [ComponentViewProperty.gap]: { id: 54, name: 'gap', component: ObjectType.COMPONENT_VIEW, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.GAP },
+  [ComponentViewProperty.padding]: { id: 55, name: 'padding', component: ObjectType.COMPONENT_VIEW, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.PADDING },
+  [ComponentViewProperty.grid]: { id: 56, name: 'grid', component: ObjectType.COMPONENT_VIEW, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.GRID },
+  [ComponentViewProperty.gridSpan]: { id: 57, name: 'grid_span', component: ObjectType.COMPONENT_VIEW, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.GRID_SPAN },
+  [ComponentViewProperty.aspectRatio]: { id: 58, name: 'aspect_ratio', component: ObjectType.COMPONENT_VIEW, kind: 'primitive', primitiveType: PrimitiveType.FLOAT32, isRuntime: true, isWired: true, isStored: true },
+  [ComponentViewProperty.fill]: { id: 60, name: 'fill', component: ObjectType.COMPONENT_VIEW, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.FILL },
+  [ComponentViewProperty.opacity]: { id: 61, name: 'opacity', component: ObjectType.COMPONENT_VIEW, kind: 'primitive', primitiveType: PrimitiveType.FLOAT32, isRuntime: true, isWired: true, isStored: true },
+  [ComponentViewProperty.isVisible]: { id: 62, name: 'is_visible', component: ObjectType.COMPONENT_VIEW, kind: 'primitive', primitiveType: PrimitiveType.BOOLEAN, isRuntime: true, isWired: true, isStored: true },
+  [ComponentViewProperty.rotation]: { id: 63, name: 'rotation', component: ObjectType.COMPONENT_VIEW, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.ROTATION },
+  [ComponentViewProperty.shadow]: { id: 64, name: 'shadow', component: ObjectType.COMPONENT_VIEW, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.SHADOW },
+  [ComponentViewProperty.border]: { id: 65, name: 'border', component: ObjectType.COMPONENT_VIEW, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.BORDER },
 }
 export const SplitViewDataInfo: Record<SplitViewProperty, PropertyInfo> = {
   [SplitViewProperty.metatype]: { id: 1, name: 'metatype', component: ObjectType.SPLIT_VIEW, enumType: EnumType.OBJECT_TYPE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isInternal: true, isComputed: true, isWired: true },
   [SplitViewProperty.id]: { id: 2, name: 'id', component: ObjectType.SPLIT_VIEW, kind: 'primitive', primitiveType: PrimitiveType.UUID, isRequired: true, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
-  [SplitViewProperty.parentPtr]: { id: 4, name: 'parent_ptr', component: ObjectType.SPLIT_VIEW, kind: 'reference', isInternal: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_PARENT, referenceNodes: [NodeType.SPACE, NodeType.WIZARD_VIEW, NodeType.FRAME_VIEW, NodeType.LABEL_VIEW, NodeType.SPLIT_VIEW, NodeType.INPUT_VIEW, NodeType.SLIDER_VIEW, NodeType.THREAD_VIEW, NodeType.PAGE], referenceStruct: StructType.NODE_REFERENCE },
+  [SplitViewProperty.parentPtr]: { id: 4, name: 'parent_ptr', component: ObjectType.SPLIT_VIEW, kind: 'reference', isInternal: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_PARENT, referenceNodes: [NodeType.SPACE, NodeType.WIZARD_VIEW, NodeType.FRAME_VIEW, NodeType.LABEL_VIEW, NodeType.COMPONENT_VIEW, NodeType.SPLIT_VIEW, NodeType.NUMBER_VIEW, NodeType.SLIDER_VIEW, NodeType.THREAD_VIEW, NodeType.PAGE], referenceStruct: StructType.NODE_REFERENCE },
   [SplitViewProperty.benchPtr]: { id: 5, name: 'bench_ptr', component: ObjectType.SPLIT_VIEW, kind: 'reference', isInternal: true, isComputed: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_ANCESTOR_OR_SELF, referenceNodes: [NodeType.BENCH], referenceStruct: StructType.NODE_REFERENCE },
   [SplitViewProperty.packagePtr]: { id: 9, name: 'package_ptr', component: ObjectType.SPLIT_VIEW, kind: 'reference', isInternal: true, isComputed: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_ANCESTOR_OR_SELF, referenceNodes: [NodeType.PACKAGE], referenceStruct: StructType.NODE_REFERENCE },
   [SplitViewProperty.createdAt]: { id: 10, name: 'created_at', component: ObjectType.SPLIT_VIEW, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isRequired: true, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
@@ -36617,39 +39119,66 @@ export const SplitViewDataInfo: Record<SplitViewProperty, PropertyInfo> = {
   [SplitViewProperty.archivedAt]: { id: 14, name: 'archived_at', component: ObjectType.SPLIT_VIEW, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
   [SplitViewProperty.deletedAt]: { id: 15, name: 'deleted_at', component: ObjectType.SPLIT_VIEW, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
   [SplitViewProperty.templatePtr]: { id: 16, name: 'template_ptr', component: ObjectType.SPLIT_VIEW, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_TEMPLATE, referenceNodes: [NodeType.SPLIT_VIEW], referenceStruct: StructType.NODE_REFERENCE },
-  [SplitViewProperty.mode]: { id: 20, name: 'mode', component: ObjectType.SPLIT_VIEW, enumType: EnumType.NODE_MODE, kind: 'enum', primitiveType: PrimitiveType.INT16, default: 20, isRequired: true, isInternal: true, isRuntime: true, isWired: true, isStored: true },
+  [SplitViewProperty.mode]: { id: 25, name: 'mode', component: ObjectType.SPLIT_VIEW, enumType: EnumType.NODE_MODE, kind: 'enum', primitiveType: PrimitiveType.INT16, default: 20, isRequired: true, isInternal: true, isRuntime: true, isWired: true, isStored: true },
   [SplitViewProperty.name]: { id: 31, name: 'name', component: ObjectType.SPLIT_VIEW, kind: 'primitive', primitiveType: PrimitiveType.STRING, constraint: { minLength: 0, maxLength: 128, nodeTypes: [] }, isRuntime: true, isWired: true, isStored: true },
   [SplitViewProperty.orderKey]: { id: 33, name: 'order_key', component: ObjectType.SPLIT_VIEW, kind: 'primitive', primitiveType: PrimitiveType.STRING, default: "a0", isInternal: true, isRuntime: true, isWired: true, isStored: true },
   [SplitViewProperty.icon]: { id: 34, name: 'icon', component: ObjectType.SPLIT_VIEW, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.ICON },
   [SplitViewProperty.definitionPtr]: { id: 35, name: 'definition_ptr', component: ObjectType.SPLIT_VIEW, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.BLOCK], referenceStruct: StructType.NODE_REFERENCE },
-  [SplitViewProperty.focusPtr]: { id: 70, name: 'focus_ptr', component: ObjectType.SPLIT_VIEW, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: "any", referenceStruct: StructType.NODE_REFERENCE },
-  [SplitViewProperty.selection]: { id: 71, name: 'selection', component: ObjectType.SPLIT_VIEW, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.SELECTION },
+  [SplitViewProperty.position]: { id: 40, name: 'position', component: ObjectType.SPLIT_VIEW, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.POSITION },
+  [SplitViewProperty.width]: { id: 41, name: 'width', component: ObjectType.SPLIT_VIEW, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.DIMENSION },
+  [SplitViewProperty.height]: { id: 42, name: 'height', component: ObjectType.SPLIT_VIEW, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.DIMENSION },
+  [SplitViewProperty.minWidth]: { id: 43, name: 'min_width', component: ObjectType.SPLIT_VIEW, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.DIMENSION },
+  [SplitViewProperty.minHeight]: { id: 44, name: 'min_height', component: ObjectType.SPLIT_VIEW, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.DIMENSION },
+  [SplitViewProperty.maxWidth]: { id: 45, name: 'max_width', component: ObjectType.SPLIT_VIEW, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.DIMENSION },
+  [SplitViewProperty.maxHeight]: { id: 46, name: 'max_height', component: ObjectType.SPLIT_VIEW, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.DIMENSION },
+  [SplitViewProperty.layout]: { id: 50, name: 'layout', component: ObjectType.SPLIT_VIEW, enumType: EnumType.LAYOUT, kind: 'enum', primitiveType: PrimitiveType.INT16, isRuntime: true, isWired: true, isStored: true },
+  [SplitViewProperty.direction]: { id: 51, name: 'direction', component: ObjectType.SPLIT_VIEW, enumType: EnumType.DIRECTION, kind: 'enum', primitiveType: PrimitiveType.INT16, isRuntime: true, isWired: true, isStored: true },
+  [SplitViewProperty.distribute]: { id: 52, name: 'distribute', component: ObjectType.SPLIT_VIEW, enumType: EnumType.DISTRIBUTE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRuntime: true, isWired: true, isStored: true },
+  [SplitViewProperty.align]: { id: 53, name: 'align', component: ObjectType.SPLIT_VIEW, enumType: EnumType.ALIGN, kind: 'enum', primitiveType: PrimitiveType.INT16, isRuntime: true, isWired: true, isStored: true },
+  [SplitViewProperty.gap]: { id: 54, name: 'gap', component: ObjectType.SPLIT_VIEW, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.GAP },
+  [SplitViewProperty.padding]: { id: 55, name: 'padding', component: ObjectType.SPLIT_VIEW, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.PADDING },
+  [SplitViewProperty.grid]: { id: 56, name: 'grid', component: ObjectType.SPLIT_VIEW, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.GRID },
+  [SplitViewProperty.gridSpan]: { id: 57, name: 'grid_span', component: ObjectType.SPLIT_VIEW, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.GRID_SPAN },
+  [SplitViewProperty.aspectRatio]: { id: 58, name: 'aspect_ratio', component: ObjectType.SPLIT_VIEW, kind: 'primitive', primitiveType: PrimitiveType.FLOAT32, isRuntime: true, isWired: true, isStored: true },
+  [SplitViewProperty.fill]: { id: 60, name: 'fill', component: ObjectType.SPLIT_VIEW, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.FILL },
+  [SplitViewProperty.opacity]: { id: 61, name: 'opacity', component: ObjectType.SPLIT_VIEW, kind: 'primitive', primitiveType: PrimitiveType.FLOAT32, isRuntime: true, isWired: true, isStored: true },
+  [SplitViewProperty.isVisible]: { id: 62, name: 'is_visible', component: ObjectType.SPLIT_VIEW, kind: 'primitive', primitiveType: PrimitiveType.BOOLEAN, isRuntime: true, isWired: true, isStored: true },
+  [SplitViewProperty.rotation]: { id: 63, name: 'rotation', component: ObjectType.SPLIT_VIEW, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.ROTATION },
+  [SplitViewProperty.shadow]: { id: 64, name: 'shadow', component: ObjectType.SPLIT_VIEW, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.SHADOW },
+  [SplitViewProperty.border]: { id: 65, name: 'border', component: ObjectType.SPLIT_VIEW, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.BORDER },
 }
-export const InputViewDataInfo: Record<InputViewProperty, PropertyInfo> = {
-  [InputViewProperty.metatype]: { id: 1, name: 'metatype', component: ObjectType.INPUT_VIEW, enumType: EnumType.OBJECT_TYPE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isInternal: true, isComputed: true, isWired: true },
-  [InputViewProperty.id]: { id: 2, name: 'id', component: ObjectType.INPUT_VIEW, kind: 'primitive', primitiveType: PrimitiveType.UUID, isRequired: true, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
-  [InputViewProperty.parentPtr]: { id: 4, name: 'parent_ptr', component: ObjectType.INPUT_VIEW, kind: 'reference', isInternal: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_PARENT, referenceNodes: [NodeType.SPACE, NodeType.WIZARD_VIEW, NodeType.FRAME_VIEW, NodeType.LABEL_VIEW, NodeType.SPLIT_VIEW, NodeType.INPUT_VIEW, NodeType.SLIDER_VIEW, NodeType.THREAD_VIEW, NodeType.PAGE], referenceStruct: StructType.NODE_REFERENCE },
-  [InputViewProperty.benchPtr]: { id: 5, name: 'bench_ptr', component: ObjectType.INPUT_VIEW, kind: 'reference', isInternal: true, isComputed: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_ANCESTOR_OR_SELF, referenceNodes: [NodeType.BENCH], referenceStruct: StructType.NODE_REFERENCE },
-  [InputViewProperty.packagePtr]: { id: 9, name: 'package_ptr', component: ObjectType.INPUT_VIEW, kind: 'reference', isInternal: true, isComputed: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_ANCESTOR_OR_SELF, referenceNodes: [NodeType.PACKAGE], referenceStruct: StructType.NODE_REFERENCE },
-  [InputViewProperty.createdAt]: { id: 10, name: 'created_at', component: ObjectType.INPUT_VIEW, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isRequired: true, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
-  [InputViewProperty.createdByPtr]: { id: 11, name: 'created_by_ptr', component: ObjectType.INPUT_VIEW, kind: 'reference', isAutoset: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.USER, NodeType.ORGANIZATION, NodeType.COMPUTER, NodeType.AGENT], referenceStruct: StructType.NODE_REFERENCE },
-  [InputViewProperty.updatedAt]: { id: 12, name: 'updated_at', component: ObjectType.INPUT_VIEW, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isRequired: true, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
-  [InputViewProperty.updatedByPtr]: { id: 13, name: 'updated_by_ptr', component: ObjectType.INPUT_VIEW, kind: 'reference', isAutoset: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.USER, NodeType.ORGANIZATION, NodeType.COMPUTER, NodeType.AGENT], referenceStruct: StructType.NODE_REFERENCE },
-  [InputViewProperty.archivedAt]: { id: 14, name: 'archived_at', component: ObjectType.INPUT_VIEW, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
-  [InputViewProperty.deletedAt]: { id: 15, name: 'deleted_at', component: ObjectType.INPUT_VIEW, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
-  [InputViewProperty.templatePtr]: { id: 16, name: 'template_ptr', component: ObjectType.INPUT_VIEW, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_TEMPLATE, referenceNodes: [NodeType.INPUT_VIEW], referenceStruct: StructType.NODE_REFERENCE },
-  [InputViewProperty.mode]: { id: 20, name: 'mode', component: ObjectType.INPUT_VIEW, enumType: EnumType.NODE_MODE, kind: 'enum', primitiveType: PrimitiveType.INT16, default: 20, isRequired: true, isInternal: true, isRuntime: true, isWired: true, isStored: true },
-  [InputViewProperty.name]: { id: 31, name: 'name', component: ObjectType.INPUT_VIEW, kind: 'primitive', primitiveType: PrimitiveType.STRING, constraint: { minLength: 0, maxLength: 128, nodeTypes: [] }, isRuntime: true, isWired: true, isStored: true },
-  [InputViewProperty.orderKey]: { id: 33, name: 'order_key', component: ObjectType.INPUT_VIEW, kind: 'primitive', primitiveType: PrimitiveType.STRING, default: "a0", isInternal: true, isRuntime: true, isWired: true, isStored: true },
-  [InputViewProperty.icon]: { id: 34, name: 'icon', component: ObjectType.INPUT_VIEW, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.ICON },
-  [InputViewProperty.definitionPtr]: { id: 35, name: 'definition_ptr', component: ObjectType.INPUT_VIEW, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.BLOCK], referenceStruct: StructType.NODE_REFERENCE },
-  [InputViewProperty.value]: { id: 40, name: 'value', component: ObjectType.INPUT_VIEW, kind: 'primitive', primitiveType: PrimitiveType.STRING, isRuntime: true, isWired: true, isStored: true },
-  [InputViewProperty.placeholder]: { id: 41, name: 'placeholder', component: ObjectType.INPUT_VIEW, kind: 'primitive', primitiveType: PrimitiveType.STRING, isRuntime: true, isWired: true, isStored: true },
+export const NumberViewDataInfo: Record<NumberViewProperty, PropertyInfo> = {
+  [NumberViewProperty.metatype]: { id: 1, name: 'metatype', component: ObjectType.NUMBER_VIEW, enumType: EnumType.OBJECT_TYPE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isInternal: true, isComputed: true, isWired: true },
+  [NumberViewProperty.id]: { id: 2, name: 'id', component: ObjectType.NUMBER_VIEW, kind: 'primitive', primitiveType: PrimitiveType.UUID, isRequired: true, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
+  [NumberViewProperty.parentPtr]: { id: 4, name: 'parent_ptr', component: ObjectType.NUMBER_VIEW, kind: 'reference', isInternal: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_PARENT, referenceNodes: [NodeType.SPACE, NodeType.WIZARD_VIEW, NodeType.FRAME_VIEW, NodeType.LABEL_VIEW, NodeType.COMPONENT_VIEW, NodeType.SPLIT_VIEW, NodeType.NUMBER_VIEW, NodeType.SLIDER_VIEW, NodeType.THREAD_VIEW, NodeType.PAGE], referenceStruct: StructType.NODE_REFERENCE },
+  [NumberViewProperty.benchPtr]: { id: 5, name: 'bench_ptr', component: ObjectType.NUMBER_VIEW, kind: 'reference', isInternal: true, isComputed: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_ANCESTOR_OR_SELF, referenceNodes: [NodeType.BENCH], referenceStruct: StructType.NODE_REFERENCE },
+  [NumberViewProperty.packagePtr]: { id: 9, name: 'package_ptr', component: ObjectType.NUMBER_VIEW, kind: 'reference', isInternal: true, isComputed: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_ANCESTOR_OR_SELF, referenceNodes: [NodeType.PACKAGE], referenceStruct: StructType.NODE_REFERENCE },
+  [NumberViewProperty.createdAt]: { id: 10, name: 'created_at', component: ObjectType.NUMBER_VIEW, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isRequired: true, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
+  [NumberViewProperty.createdByPtr]: { id: 11, name: 'created_by_ptr', component: ObjectType.NUMBER_VIEW, kind: 'reference', isAutoset: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.USER, NodeType.ORGANIZATION, NodeType.COMPUTER, NodeType.AGENT], referenceStruct: StructType.NODE_REFERENCE },
+  [NumberViewProperty.updatedAt]: { id: 12, name: 'updated_at', component: ObjectType.NUMBER_VIEW, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isRequired: true, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
+  [NumberViewProperty.updatedByPtr]: { id: 13, name: 'updated_by_ptr', component: ObjectType.NUMBER_VIEW, kind: 'reference', isAutoset: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.USER, NodeType.ORGANIZATION, NodeType.COMPUTER, NodeType.AGENT], referenceStruct: StructType.NODE_REFERENCE },
+  [NumberViewProperty.archivedAt]: { id: 14, name: 'archived_at', component: ObjectType.NUMBER_VIEW, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
+  [NumberViewProperty.deletedAt]: { id: 15, name: 'deleted_at', component: ObjectType.NUMBER_VIEW, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
+  [NumberViewProperty.templatePtr]: { id: 16, name: 'template_ptr', component: ObjectType.NUMBER_VIEW, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_TEMPLATE, referenceNodes: [NodeType.NUMBER_VIEW], referenceStruct: StructType.NODE_REFERENCE },
+  [NumberViewProperty.mode]: { id: 25, name: 'mode', component: ObjectType.NUMBER_VIEW, enumType: EnumType.NODE_MODE, kind: 'enum', primitiveType: PrimitiveType.INT16, default: 20, isRequired: true, isInternal: true, isRuntime: true, isWired: true, isStored: true },
+  [NumberViewProperty.name]: { id: 31, name: 'name', component: ObjectType.NUMBER_VIEW, kind: 'primitive', primitiveType: PrimitiveType.STRING, constraint: { minLength: 0, maxLength: 128, nodeTypes: [] }, isRuntime: true, isWired: true, isStored: true },
+  [NumberViewProperty.orderKey]: { id: 33, name: 'order_key', component: ObjectType.NUMBER_VIEW, kind: 'primitive', primitiveType: PrimitiveType.STRING, default: "a0", isInternal: true, isRuntime: true, isWired: true, isStored: true },
+  [NumberViewProperty.icon]: { id: 34, name: 'icon', component: ObjectType.NUMBER_VIEW, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.ICON },
+  [NumberViewProperty.definitionPtr]: { id: 35, name: 'definition_ptr', component: ObjectType.NUMBER_VIEW, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.BLOCK], referenceStruct: StructType.NODE_REFERENCE },
+  [NumberViewProperty.position]: { id: 40, name: 'position', component: ObjectType.NUMBER_VIEW, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.POSITION },
+  [NumberViewProperty.width]: { id: 41, name: 'width', component: ObjectType.NUMBER_VIEW, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.DIMENSION },
+  [NumberViewProperty.height]: { id: 42, name: 'height', component: ObjectType.NUMBER_VIEW, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.DIMENSION },
+  [NumberViewProperty.minWidth]: { id: 43, name: 'min_width', component: ObjectType.NUMBER_VIEW, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.DIMENSION },
+  [NumberViewProperty.minHeight]: { id: 44, name: 'min_height', component: ObjectType.NUMBER_VIEW, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.DIMENSION },
+  [NumberViewProperty.maxWidth]: { id: 45, name: 'max_width', component: ObjectType.NUMBER_VIEW, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.DIMENSION },
+  [NumberViewProperty.maxHeight]: { id: 46, name: 'max_height', component: ObjectType.NUMBER_VIEW, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.DIMENSION },
+  [NumberViewProperty.value]: { id: 100, name: 'value', component: ObjectType.NUMBER_VIEW, kind: 'primitive', primitiveType: PrimitiveType.STRING, isRuntime: true, isWired: true, isStored: true },
+  [NumberViewProperty.placeholder]: { id: 101, name: 'placeholder', component: ObjectType.NUMBER_VIEW, kind: 'primitive', primitiveType: PrimitiveType.STRING, isRuntime: true, isWired: true, isStored: true },
 }
 export const SliderViewDataInfo: Record<SliderViewProperty, PropertyInfo> = {
   [SliderViewProperty.metatype]: { id: 1, name: 'metatype', component: ObjectType.SLIDER_VIEW, enumType: EnumType.OBJECT_TYPE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isInternal: true, isComputed: true, isWired: true },
   [SliderViewProperty.id]: { id: 2, name: 'id', component: ObjectType.SLIDER_VIEW, kind: 'primitive', primitiveType: PrimitiveType.UUID, isRequired: true, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
-  [SliderViewProperty.parentPtr]: { id: 4, name: 'parent_ptr', component: ObjectType.SLIDER_VIEW, kind: 'reference', isInternal: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_PARENT, referenceNodes: [NodeType.SPACE, NodeType.WIZARD_VIEW, NodeType.FRAME_VIEW, NodeType.LABEL_VIEW, NodeType.SPLIT_VIEW, NodeType.INPUT_VIEW, NodeType.SLIDER_VIEW, NodeType.THREAD_VIEW, NodeType.PAGE], referenceStruct: StructType.NODE_REFERENCE },
+  [SliderViewProperty.parentPtr]: { id: 4, name: 'parent_ptr', component: ObjectType.SLIDER_VIEW, kind: 'reference', isInternal: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_PARENT, referenceNodes: [NodeType.SPACE, NodeType.WIZARD_VIEW, NodeType.FRAME_VIEW, NodeType.LABEL_VIEW, NodeType.COMPONENT_VIEW, NodeType.SPLIT_VIEW, NodeType.NUMBER_VIEW, NodeType.SLIDER_VIEW, NodeType.THREAD_VIEW, NodeType.PAGE], referenceStruct: StructType.NODE_REFERENCE },
   [SliderViewProperty.benchPtr]: { id: 5, name: 'bench_ptr', component: ObjectType.SLIDER_VIEW, kind: 'reference', isInternal: true, isComputed: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_ANCESTOR_OR_SELF, referenceNodes: [NodeType.BENCH], referenceStruct: StructType.NODE_REFERENCE },
   [SliderViewProperty.packagePtr]: { id: 9, name: 'package_ptr', component: ObjectType.SLIDER_VIEW, kind: 'reference', isInternal: true, isComputed: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_ANCESTOR_OR_SELF, referenceNodes: [NodeType.PACKAGE], referenceStruct: StructType.NODE_REFERENCE },
   [SliderViewProperty.createdAt]: { id: 10, name: 'created_at', component: ObjectType.SLIDER_VIEW, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isRequired: true, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
@@ -36659,20 +39188,27 @@ export const SliderViewDataInfo: Record<SliderViewProperty, PropertyInfo> = {
   [SliderViewProperty.archivedAt]: { id: 14, name: 'archived_at', component: ObjectType.SLIDER_VIEW, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
   [SliderViewProperty.deletedAt]: { id: 15, name: 'deleted_at', component: ObjectType.SLIDER_VIEW, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
   [SliderViewProperty.templatePtr]: { id: 16, name: 'template_ptr', component: ObjectType.SLIDER_VIEW, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_TEMPLATE, referenceNodes: [NodeType.SLIDER_VIEW], referenceStruct: StructType.NODE_REFERENCE },
-  [SliderViewProperty.mode]: { id: 20, name: 'mode', component: ObjectType.SLIDER_VIEW, enumType: EnumType.NODE_MODE, kind: 'enum', primitiveType: PrimitiveType.INT16, default: 20, isRequired: true, isInternal: true, isRuntime: true, isWired: true, isStored: true },
+  [SliderViewProperty.mode]: { id: 25, name: 'mode', component: ObjectType.SLIDER_VIEW, enumType: EnumType.NODE_MODE, kind: 'enum', primitiveType: PrimitiveType.INT16, default: 20, isRequired: true, isInternal: true, isRuntime: true, isWired: true, isStored: true },
   [SliderViewProperty.name]: { id: 31, name: 'name', component: ObjectType.SLIDER_VIEW, kind: 'primitive', primitiveType: PrimitiveType.STRING, constraint: { minLength: 0, maxLength: 128, nodeTypes: [] }, isRuntime: true, isWired: true, isStored: true },
   [SliderViewProperty.orderKey]: { id: 33, name: 'order_key', component: ObjectType.SLIDER_VIEW, kind: 'primitive', primitiveType: PrimitiveType.STRING, default: "a0", isInternal: true, isRuntime: true, isWired: true, isStored: true },
   [SliderViewProperty.icon]: { id: 34, name: 'icon', component: ObjectType.SLIDER_VIEW, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.ICON },
   [SliderViewProperty.definitionPtr]: { id: 35, name: 'definition_ptr', component: ObjectType.SLIDER_VIEW, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.BLOCK], referenceStruct: StructType.NODE_REFERENCE },
-  [SliderViewProperty.value]: { id: 40, name: 'value', component: ObjectType.SLIDER_VIEW, kind: 'primitive', primitiveType: PrimitiveType.FLOAT32, isRuntime: true, isWired: true, isStored: true },
-  [SliderViewProperty.minValue]: { id: 41, name: 'min_value', component: ObjectType.SLIDER_VIEW, kind: 'primitive', primitiveType: PrimitiveType.FLOAT32, isRuntime: true, isWired: true, isStored: true },
-  [SliderViewProperty.maxValue]: { id: 42, name: 'max_value', component: ObjectType.SLIDER_VIEW, kind: 'primitive', primitiveType: PrimitiveType.FLOAT32, isRuntime: true, isWired: true, isStored: true },
-  [SliderViewProperty.step]: { id: 43, name: 'step', component: ObjectType.SLIDER_VIEW, kind: 'primitive', primitiveType: PrimitiveType.FLOAT32, isRuntime: true, isWired: true, isStored: true },
+  [SliderViewProperty.position]: { id: 40, name: 'position', component: ObjectType.SLIDER_VIEW, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.POSITION },
+  [SliderViewProperty.width]: { id: 41, name: 'width', component: ObjectType.SLIDER_VIEW, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.DIMENSION },
+  [SliderViewProperty.height]: { id: 42, name: 'height', component: ObjectType.SLIDER_VIEW, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.DIMENSION },
+  [SliderViewProperty.minWidth]: { id: 43, name: 'min_width', component: ObjectType.SLIDER_VIEW, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.DIMENSION },
+  [SliderViewProperty.minHeight]: { id: 44, name: 'min_height', component: ObjectType.SLIDER_VIEW, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.DIMENSION },
+  [SliderViewProperty.maxWidth]: { id: 45, name: 'max_width', component: ObjectType.SLIDER_VIEW, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.DIMENSION },
+  [SliderViewProperty.maxHeight]: { id: 46, name: 'max_height', component: ObjectType.SLIDER_VIEW, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.DIMENSION },
+  [SliderViewProperty.value]: { id: 100, name: 'value', component: ObjectType.SLIDER_VIEW, kind: 'primitive', primitiveType: PrimitiveType.FLOAT32, isRuntime: true, isWired: true, isStored: true },
+  [SliderViewProperty.minValue]: { id: 101, name: 'min_value', component: ObjectType.SLIDER_VIEW, kind: 'primitive', primitiveType: PrimitiveType.FLOAT32, isRuntime: true, isWired: true, isStored: true },
+  [SliderViewProperty.maxValue]: { id: 102, name: 'max_value', component: ObjectType.SLIDER_VIEW, kind: 'primitive', primitiveType: PrimitiveType.FLOAT32, isRuntime: true, isWired: true, isStored: true },
+  [SliderViewProperty.step]: { id: 103, name: 'step', component: ObjectType.SLIDER_VIEW, kind: 'primitive', primitiveType: PrimitiveType.FLOAT32, isRuntime: true, isWired: true, isStored: true },
 }
 export const ThreadViewDataInfo: Record<ThreadViewProperty, PropertyInfo> = {
   [ThreadViewProperty.metatype]: { id: 1, name: 'metatype', component: ObjectType.THREAD_VIEW, enumType: EnumType.OBJECT_TYPE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isInternal: true, isComputed: true, isWired: true },
   [ThreadViewProperty.id]: { id: 2, name: 'id', component: ObjectType.THREAD_VIEW, kind: 'primitive', primitiveType: PrimitiveType.UUID, isRequired: true, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
-  [ThreadViewProperty.parentPtr]: { id: 4, name: 'parent_ptr', component: ObjectType.THREAD_VIEW, kind: 'reference', isInternal: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_PARENT, referenceNodes: [NodeType.SPACE, NodeType.WIZARD_VIEW, NodeType.FRAME_VIEW, NodeType.LABEL_VIEW, NodeType.SPLIT_VIEW, NodeType.INPUT_VIEW, NodeType.SLIDER_VIEW, NodeType.THREAD_VIEW, NodeType.PAGE], referenceStruct: StructType.NODE_REFERENCE },
+  [ThreadViewProperty.parentPtr]: { id: 4, name: 'parent_ptr', component: ObjectType.THREAD_VIEW, kind: 'reference', isInternal: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_PARENT, referenceNodes: [NodeType.SPACE, NodeType.WIZARD_VIEW, NodeType.FRAME_VIEW, NodeType.LABEL_VIEW, NodeType.COMPONENT_VIEW, NodeType.SPLIT_VIEW, NodeType.NUMBER_VIEW, NodeType.SLIDER_VIEW, NodeType.THREAD_VIEW, NodeType.PAGE], referenceStruct: StructType.NODE_REFERENCE },
   [ThreadViewProperty.benchPtr]: { id: 5, name: 'bench_ptr', component: ObjectType.THREAD_VIEW, kind: 'reference', isInternal: true, isComputed: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_ANCESTOR_OR_SELF, referenceNodes: [NodeType.BENCH], referenceStruct: StructType.NODE_REFERENCE },
   [ThreadViewProperty.packagePtr]: { id: 9, name: 'package_ptr', component: ObjectType.THREAD_VIEW, kind: 'reference', isInternal: true, isComputed: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_ANCESTOR_OR_SELF, referenceNodes: [NodeType.PACKAGE], referenceStruct: StructType.NODE_REFERENCE },
   [ThreadViewProperty.createdAt]: { id: 10, name: 'created_at', component: ObjectType.THREAD_VIEW, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isRequired: true, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
@@ -36682,14 +39218,21 @@ export const ThreadViewDataInfo: Record<ThreadViewProperty, PropertyInfo> = {
   [ThreadViewProperty.archivedAt]: { id: 14, name: 'archived_at', component: ObjectType.THREAD_VIEW, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
   [ThreadViewProperty.deletedAt]: { id: 15, name: 'deleted_at', component: ObjectType.THREAD_VIEW, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
   [ThreadViewProperty.templatePtr]: { id: 16, name: 'template_ptr', component: ObjectType.THREAD_VIEW, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_TEMPLATE, referenceNodes: [NodeType.THREAD_VIEW], referenceStruct: StructType.NODE_REFERENCE },
-  [ThreadViewProperty.mode]: { id: 20, name: 'mode', component: ObjectType.THREAD_VIEW, enumType: EnumType.NODE_MODE, kind: 'enum', primitiveType: PrimitiveType.INT16, default: 20, isRequired: true, isInternal: true, isRuntime: true, isWired: true, isStored: true },
+  [ThreadViewProperty.mode]: { id: 25, name: 'mode', component: ObjectType.THREAD_VIEW, enumType: EnumType.NODE_MODE, kind: 'enum', primitiveType: PrimitiveType.INT16, default: 20, isRequired: true, isInternal: true, isRuntime: true, isWired: true, isStored: true },
   [ThreadViewProperty.name]: { id: 31, name: 'name', component: ObjectType.THREAD_VIEW, kind: 'primitive', primitiveType: PrimitiveType.STRING, constraint: { minLength: 0, maxLength: 128, nodeTypes: [] }, isRuntime: true, isWired: true, isStored: true },
   [ThreadViewProperty.orderKey]: { id: 33, name: 'order_key', component: ObjectType.THREAD_VIEW, kind: 'primitive', primitiveType: PrimitiveType.STRING, default: "a0", isInternal: true, isRuntime: true, isWired: true, isStored: true },
   [ThreadViewProperty.icon]: { id: 34, name: 'icon', component: ObjectType.THREAD_VIEW, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.ICON },
   [ThreadViewProperty.definitionPtr]: { id: 35, name: 'definition_ptr', component: ObjectType.THREAD_VIEW, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.BLOCK], referenceStruct: StructType.NODE_REFERENCE },
-  [ThreadViewProperty.draftText]: { id: 40, name: 'draft_text', component: ObjectType.THREAD_VIEW, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.TEXT },
-  [ThreadViewProperty.draftNodesPtr]: { id: 41, name: 'draft_nodes_ptr', component: ObjectType.THREAD_VIEW, kind: 'reference', isList: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: "any", referenceStruct: StructType.NODE_REFERENCE },
-  [ThreadViewProperty.draftReplyToPtr]: { id: 42, name: 'draft_reply_to_ptr', component: ObjectType.THREAD_VIEW, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.MESSAGE], referenceStruct: StructType.NODE_REFERENCE },
+  [ThreadViewProperty.position]: { id: 40, name: 'position', component: ObjectType.THREAD_VIEW, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.POSITION },
+  [ThreadViewProperty.width]: { id: 41, name: 'width', component: ObjectType.THREAD_VIEW, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.DIMENSION },
+  [ThreadViewProperty.height]: { id: 42, name: 'height', component: ObjectType.THREAD_VIEW, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.DIMENSION },
+  [ThreadViewProperty.minWidth]: { id: 43, name: 'min_width', component: ObjectType.THREAD_VIEW, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.DIMENSION },
+  [ThreadViewProperty.minHeight]: { id: 44, name: 'min_height', component: ObjectType.THREAD_VIEW, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.DIMENSION },
+  [ThreadViewProperty.maxWidth]: { id: 45, name: 'max_width', component: ObjectType.THREAD_VIEW, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.DIMENSION },
+  [ThreadViewProperty.maxHeight]: { id: 46, name: 'max_height', component: ObjectType.THREAD_VIEW, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.DIMENSION },
+  [ThreadViewProperty.draftText]: { id: 100, name: 'draft_text', component: ObjectType.THREAD_VIEW, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.TEXT },
+  [ThreadViewProperty.draftNodesPtr]: { id: 101, name: 'draft_nodes_ptr', component: ObjectType.THREAD_VIEW, kind: 'reference', isList: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: "any", referenceStruct: StructType.NODE_REFERENCE },
+  [ThreadViewProperty.draftReplyToPtr]: { id: 102, name: 'draft_reply_to_ptr', component: ObjectType.THREAD_VIEW, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.MESSAGE], referenceStruct: StructType.NODE_REFERENCE },
 }
 export const ThemeDataInfo: Record<ThemeProperty, PropertyInfo> = {
   [ThemeProperty.metatype]: { id: 1, name: 'metatype', component: ObjectType.THEME, enumType: EnumType.OBJECT_TYPE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isInternal: true, isComputed: true, isWired: true },
@@ -36718,7 +39261,7 @@ export const ThemeDataInfo: Record<ThemeProperty, PropertyInfo> = {
 export const ColorStyleDataInfo: Record<ColorStyleProperty, PropertyInfo> = {
   [ColorStyleProperty.metatype]: { id: 1, name: 'metatype', component: ObjectType.COLOR_STYLE, enumType: EnumType.OBJECT_TYPE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isInternal: true, isComputed: true, isWired: true },
   [ColorStyleProperty.id]: { id: 2, name: 'id', component: ObjectType.COLOR_STYLE, kind: 'primitive', primitiveType: PrimitiveType.UUID, isRequired: true, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
-  [ColorStyleProperty.parentPtr]: { id: 4, name: 'parent_ptr', component: ObjectType.COLOR_STYLE, kind: 'reference', isInternal: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_PARENT, referenceNodes: [NodeType.SPACE, NodeType.WIZARD_VIEW, NodeType.FRAME_VIEW, NodeType.LABEL_VIEW, NodeType.SPLIT_VIEW, NodeType.INPUT_VIEW, NodeType.SLIDER_VIEW, NodeType.THREAD_VIEW, NodeType.PAGE], referenceStruct: StructType.NODE_REFERENCE },
+  [ColorStyleProperty.parentPtr]: { id: 4, name: 'parent_ptr', component: ObjectType.COLOR_STYLE, kind: 'reference', isInternal: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_PARENT, referenceNodes: [NodeType.SPACE, NodeType.WIZARD_VIEW, NodeType.FRAME_VIEW, NodeType.LABEL_VIEW, NodeType.COMPONENT_VIEW, NodeType.SPLIT_VIEW, NodeType.NUMBER_VIEW, NodeType.SLIDER_VIEW, NodeType.THREAD_VIEW, NodeType.PAGE], referenceStruct: StructType.NODE_REFERENCE },
   [ColorStyleProperty.benchPtr]: { id: 5, name: 'bench_ptr', component: ObjectType.COLOR_STYLE, kind: 'reference', isInternal: true, isComputed: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_ANCESTOR_OR_SELF, referenceNodes: [NodeType.BENCH], referenceStruct: StructType.NODE_REFERENCE },
   [ColorStyleProperty.packagePtr]: { id: 9, name: 'package_ptr', component: ObjectType.COLOR_STYLE, kind: 'reference', isInternal: true, isComputed: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_ANCESTOR_OR_SELF, referenceNodes: [NodeType.PACKAGE], referenceStruct: StructType.NODE_REFERENCE },
   [ColorStyleProperty.createdAt]: { id: 10, name: 'created_at', component: ObjectType.COLOR_STYLE, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isRequired: true, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
@@ -36728,7 +39271,7 @@ export const ColorStyleDataInfo: Record<ColorStyleProperty, PropertyInfo> = {
   [ColorStyleProperty.archivedAt]: { id: 14, name: 'archived_at', component: ObjectType.COLOR_STYLE, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
   [ColorStyleProperty.deletedAt]: { id: 15, name: 'deleted_at', component: ObjectType.COLOR_STYLE, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
   [ColorStyleProperty.templatePtr]: { id: 16, name: 'template_ptr', component: ObjectType.COLOR_STYLE, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_TEMPLATE, referenceNodes: [NodeType.COLOR_STYLE], referenceStruct: StructType.NODE_REFERENCE },
-  [ColorStyleProperty.mode]: { id: 20, name: 'mode', component: ObjectType.COLOR_STYLE, enumType: EnumType.NODE_MODE, kind: 'enum', primitiveType: PrimitiveType.INT16, default: 20, isRequired: true, isInternal: true, isRuntime: true, isWired: true, isStored: true },
+  [ColorStyleProperty.mode]: { id: 25, name: 'mode', component: ObjectType.COLOR_STYLE, enumType: EnumType.NODE_MODE, kind: 'enum', primitiveType: PrimitiveType.INT16, default: 20, isRequired: true, isInternal: true, isRuntime: true, isWired: true, isStored: true },
   [ColorStyleProperty.type]: { id: 30, name: 'type', component: ObjectType.COLOR_STYLE, enumType: EnumType.COLOR_TYPE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isRuntime: true, isWired: true, isStored: true },
   [ColorStyleProperty.name]: { id: 31, name: 'name', component: ObjectType.COLOR_STYLE, kind: 'primitive', primitiveType: PrimitiveType.STRING, constraint: { minLength: 0, maxLength: 128, nodeTypes: [] }, isRuntime: true, isWired: true, isStored: true },
   [ColorStyleProperty.orderKey]: { id: 33, name: 'order_key', component: ObjectType.COLOR_STYLE, kind: 'primitive', primitiveType: PrimitiveType.STRING, default: "a0", isInternal: true, isRuntime: true, isWired: true, isStored: true },
@@ -36746,7 +39289,7 @@ export const ColorStyleDataInfo: Record<ColorStyleProperty, PropertyInfo> = {
 export const TextStyleDataInfo: Record<TextStyleProperty, PropertyInfo> = {
   [TextStyleProperty.metatype]: { id: 1, name: 'metatype', component: ObjectType.TEXT_STYLE, enumType: EnumType.OBJECT_TYPE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isInternal: true, isComputed: true, isWired: true },
   [TextStyleProperty.id]: { id: 2, name: 'id', component: ObjectType.TEXT_STYLE, kind: 'primitive', primitiveType: PrimitiveType.UUID, isRequired: true, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
-  [TextStyleProperty.parentPtr]: { id: 4, name: 'parent_ptr', component: ObjectType.TEXT_STYLE, kind: 'reference', isInternal: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_PARENT, referenceNodes: [NodeType.SPACE, NodeType.WIZARD_VIEW, NodeType.FRAME_VIEW, NodeType.LABEL_VIEW, NodeType.SPLIT_VIEW, NodeType.INPUT_VIEW, NodeType.SLIDER_VIEW, NodeType.THREAD_VIEW, NodeType.PAGE], referenceStruct: StructType.NODE_REFERENCE },
+  [TextStyleProperty.parentPtr]: { id: 4, name: 'parent_ptr', component: ObjectType.TEXT_STYLE, kind: 'reference', isInternal: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_PARENT, referenceNodes: [NodeType.SPACE, NodeType.WIZARD_VIEW, NodeType.FRAME_VIEW, NodeType.LABEL_VIEW, NodeType.COMPONENT_VIEW, NodeType.SPLIT_VIEW, NodeType.NUMBER_VIEW, NodeType.SLIDER_VIEW, NodeType.THREAD_VIEW, NodeType.PAGE], referenceStruct: StructType.NODE_REFERENCE },
   [TextStyleProperty.benchPtr]: { id: 5, name: 'bench_ptr', component: ObjectType.TEXT_STYLE, kind: 'reference', isInternal: true, isComputed: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_ANCESTOR_OR_SELF, referenceNodes: [NodeType.BENCH], referenceStruct: StructType.NODE_REFERENCE },
   [TextStyleProperty.packagePtr]: { id: 9, name: 'package_ptr', component: ObjectType.TEXT_STYLE, kind: 'reference', isInternal: true, isComputed: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_ANCESTOR_OR_SELF, referenceNodes: [NodeType.PACKAGE], referenceStruct: StructType.NODE_REFERENCE },
   [TextStyleProperty.createdAt]: { id: 10, name: 'created_at', component: ObjectType.TEXT_STYLE, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isRequired: true, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
@@ -36756,7 +39299,7 @@ export const TextStyleDataInfo: Record<TextStyleProperty, PropertyInfo> = {
   [TextStyleProperty.archivedAt]: { id: 14, name: 'archived_at', component: ObjectType.TEXT_STYLE, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
   [TextStyleProperty.deletedAt]: { id: 15, name: 'deleted_at', component: ObjectType.TEXT_STYLE, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
   [TextStyleProperty.templatePtr]: { id: 16, name: 'template_ptr', component: ObjectType.TEXT_STYLE, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_TEMPLATE, referenceNodes: [NodeType.TEXT_STYLE], referenceStruct: StructType.NODE_REFERENCE },
-  [TextStyleProperty.mode]: { id: 20, name: 'mode', component: ObjectType.TEXT_STYLE, enumType: EnumType.NODE_MODE, kind: 'enum', primitiveType: PrimitiveType.INT16, default: 20, isRequired: true, isInternal: true, isRuntime: true, isWired: true, isStored: true },
+  [TextStyleProperty.mode]: { id: 25, name: 'mode', component: ObjectType.TEXT_STYLE, enumType: EnumType.NODE_MODE, kind: 'enum', primitiveType: PrimitiveType.INT16, default: 20, isRequired: true, isInternal: true, isRuntime: true, isWired: true, isStored: true },
   [TextStyleProperty.type]: { id: 30, name: 'type', component: ObjectType.TEXT_STYLE, enumType: EnumType.TEXT_TYPE, kind: 'enum', primitiveType: PrimitiveType.INT16, default: 1, isRequired: true, isRuntime: true, isWired: true, isStored: true },
   [TextStyleProperty.name]: { id: 31, name: 'name', component: ObjectType.TEXT_STYLE, kind: 'primitive', primitiveType: PrimitiveType.STRING, constraint: { minLength: 0, maxLength: 128, nodeTypes: [] }, isRuntime: true, isWired: true, isStored: true },
   [TextStyleProperty.orderKey]: { id: 33, name: 'order_key', component: ObjectType.TEXT_STYLE, kind: 'primitive', primitiveType: PrimitiveType.STRING, default: "a0", isInternal: true, isRuntime: true, isWired: true, isStored: true },
@@ -36776,7 +39319,7 @@ export const TextStyleDataInfo: Record<TextStyleProperty, PropertyInfo> = {
 export const BorderStyleDataInfo: Record<BorderStyleProperty, PropertyInfo> = {
   [BorderStyleProperty.metatype]: { id: 1, name: 'metatype', component: ObjectType.BORDER_STYLE, enumType: EnumType.OBJECT_TYPE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isInternal: true, isComputed: true, isWired: true },
   [BorderStyleProperty.id]: { id: 2, name: 'id', component: ObjectType.BORDER_STYLE, kind: 'primitive', primitiveType: PrimitiveType.UUID, isRequired: true, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
-  [BorderStyleProperty.parentPtr]: { id: 4, name: 'parent_ptr', component: ObjectType.BORDER_STYLE, kind: 'reference', isInternal: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_PARENT, referenceNodes: [NodeType.SPACE, NodeType.WIZARD_VIEW, NodeType.FRAME_VIEW, NodeType.LABEL_VIEW, NodeType.SPLIT_VIEW, NodeType.INPUT_VIEW, NodeType.SLIDER_VIEW, NodeType.THREAD_VIEW, NodeType.PAGE], referenceStruct: StructType.NODE_REFERENCE },
+  [BorderStyleProperty.parentPtr]: { id: 4, name: 'parent_ptr', component: ObjectType.BORDER_STYLE, kind: 'reference', isInternal: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_PARENT, referenceNodes: [NodeType.SPACE, NodeType.WIZARD_VIEW, NodeType.FRAME_VIEW, NodeType.LABEL_VIEW, NodeType.COMPONENT_VIEW, NodeType.SPLIT_VIEW, NodeType.NUMBER_VIEW, NodeType.SLIDER_VIEW, NodeType.THREAD_VIEW, NodeType.PAGE], referenceStruct: StructType.NODE_REFERENCE },
   [BorderStyleProperty.benchPtr]: { id: 5, name: 'bench_ptr', component: ObjectType.BORDER_STYLE, kind: 'reference', isInternal: true, isComputed: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_ANCESTOR_OR_SELF, referenceNodes: [NodeType.BENCH], referenceStruct: StructType.NODE_REFERENCE },
   [BorderStyleProperty.packagePtr]: { id: 9, name: 'package_ptr', component: ObjectType.BORDER_STYLE, kind: 'reference', isInternal: true, isComputed: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_ANCESTOR_OR_SELF, referenceNodes: [NodeType.PACKAGE], referenceStruct: StructType.NODE_REFERENCE },
   [BorderStyleProperty.createdAt]: { id: 10, name: 'created_at', component: ObjectType.BORDER_STYLE, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isRequired: true, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
@@ -36786,7 +39329,7 @@ export const BorderStyleDataInfo: Record<BorderStyleProperty, PropertyInfo> = {
   [BorderStyleProperty.archivedAt]: { id: 14, name: 'archived_at', component: ObjectType.BORDER_STYLE, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
   [BorderStyleProperty.deletedAt]: { id: 15, name: 'deleted_at', component: ObjectType.BORDER_STYLE, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
   [BorderStyleProperty.templatePtr]: { id: 16, name: 'template_ptr', component: ObjectType.BORDER_STYLE, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_TEMPLATE, referenceNodes: [NodeType.BORDER_STYLE], referenceStruct: StructType.NODE_REFERENCE },
-  [BorderStyleProperty.mode]: { id: 20, name: 'mode', component: ObjectType.BORDER_STYLE, enumType: EnumType.NODE_MODE, kind: 'enum', primitiveType: PrimitiveType.INT16, default: 20, isRequired: true, isInternal: true, isRuntime: true, isWired: true, isStored: true },
+  [BorderStyleProperty.mode]: { id: 25, name: 'mode', component: ObjectType.BORDER_STYLE, enumType: EnumType.NODE_MODE, kind: 'enum', primitiveType: PrimitiveType.INT16, default: 20, isRequired: true, isInternal: true, isRuntime: true, isWired: true, isStored: true },
   [BorderStyleProperty.type]: { id: 30, name: 'type', component: ObjectType.BORDER_STYLE, enumType: EnumType.BORDER_TYPE, kind: 'enum', primitiveType: PrimitiveType.INT16, default: 10, isRequired: true, isRuntime: true, isWired: true, isStored: true },
   [BorderStyleProperty.name]: { id: 31, name: 'name', component: ObjectType.BORDER_STYLE, kind: 'primitive', primitiveType: PrimitiveType.STRING, constraint: { minLength: 0, maxLength: 128, nodeTypes: [] }, isRuntime: true, isWired: true, isStored: true },
   [BorderStyleProperty.orderKey]: { id: 33, name: 'order_key', component: ObjectType.BORDER_STYLE, kind: 'primitive', primitiveType: PrimitiveType.STRING, default: "a0", isInternal: true, isRuntime: true, isWired: true, isStored: true },
@@ -36808,7 +39351,7 @@ export const BorderStyleDataInfo: Record<BorderStyleProperty, PropertyInfo> = {
 export const ShadowStyleDataInfo: Record<ShadowStyleProperty, PropertyInfo> = {
   [ShadowStyleProperty.metatype]: { id: 1, name: 'metatype', component: ObjectType.SHADOW_STYLE, enumType: EnumType.OBJECT_TYPE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isInternal: true, isComputed: true, isWired: true },
   [ShadowStyleProperty.id]: { id: 2, name: 'id', component: ObjectType.SHADOW_STYLE, kind: 'primitive', primitiveType: PrimitiveType.UUID, isRequired: true, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
-  [ShadowStyleProperty.parentPtr]: { id: 4, name: 'parent_ptr', component: ObjectType.SHADOW_STYLE, kind: 'reference', isInternal: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_PARENT, referenceNodes: [NodeType.SPACE, NodeType.WIZARD_VIEW, NodeType.FRAME_VIEW, NodeType.LABEL_VIEW, NodeType.SPLIT_VIEW, NodeType.INPUT_VIEW, NodeType.SLIDER_VIEW, NodeType.THREAD_VIEW, NodeType.PAGE], referenceStruct: StructType.NODE_REFERENCE },
+  [ShadowStyleProperty.parentPtr]: { id: 4, name: 'parent_ptr', component: ObjectType.SHADOW_STYLE, kind: 'reference', isInternal: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_PARENT, referenceNodes: [NodeType.SPACE, NodeType.WIZARD_VIEW, NodeType.FRAME_VIEW, NodeType.LABEL_VIEW, NodeType.COMPONENT_VIEW, NodeType.SPLIT_VIEW, NodeType.NUMBER_VIEW, NodeType.SLIDER_VIEW, NodeType.THREAD_VIEW, NodeType.PAGE], referenceStruct: StructType.NODE_REFERENCE },
   [ShadowStyleProperty.benchPtr]: { id: 5, name: 'bench_ptr', component: ObjectType.SHADOW_STYLE, kind: 'reference', isInternal: true, isComputed: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_ANCESTOR_OR_SELF, referenceNodes: [NodeType.BENCH], referenceStruct: StructType.NODE_REFERENCE },
   [ShadowStyleProperty.packagePtr]: { id: 9, name: 'package_ptr', component: ObjectType.SHADOW_STYLE, kind: 'reference', isInternal: true, isComputed: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_ANCESTOR_OR_SELF, referenceNodes: [NodeType.PACKAGE], referenceStruct: StructType.NODE_REFERENCE },
   [ShadowStyleProperty.createdAt]: { id: 10, name: 'created_at', component: ObjectType.SHADOW_STYLE, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isRequired: true, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
@@ -36818,7 +39361,7 @@ export const ShadowStyleDataInfo: Record<ShadowStyleProperty, PropertyInfo> = {
   [ShadowStyleProperty.archivedAt]: { id: 14, name: 'archived_at', component: ObjectType.SHADOW_STYLE, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
   [ShadowStyleProperty.deletedAt]: { id: 15, name: 'deleted_at', component: ObjectType.SHADOW_STYLE, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
   [ShadowStyleProperty.templatePtr]: { id: 16, name: 'template_ptr', component: ObjectType.SHADOW_STYLE, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_TEMPLATE, referenceNodes: [NodeType.SHADOW_STYLE], referenceStruct: StructType.NODE_REFERENCE },
-  [ShadowStyleProperty.mode]: { id: 20, name: 'mode', component: ObjectType.SHADOW_STYLE, enumType: EnumType.NODE_MODE, kind: 'enum', primitiveType: PrimitiveType.INT16, default: 20, isRequired: true, isInternal: true, isRuntime: true, isWired: true, isStored: true },
+  [ShadowStyleProperty.mode]: { id: 25, name: 'mode', component: ObjectType.SHADOW_STYLE, enumType: EnumType.NODE_MODE, kind: 'enum', primitiveType: PrimitiveType.INT16, default: 20, isRequired: true, isInternal: true, isRuntime: true, isWired: true, isStored: true },
   [ShadowStyleProperty.type]: { id: 30, name: 'type', component: ObjectType.SHADOW_STYLE, enumType: EnumType.SHADOW_TYPE, kind: 'enum', primitiveType: PrimitiveType.INT16, default: 10, isRequired: true, isRuntime: true, isWired: true, isStored: true },
   [ShadowStyleProperty.name]: { id: 31, name: 'name', component: ObjectType.SHADOW_STYLE, kind: 'primitive', primitiveType: PrimitiveType.STRING, constraint: { minLength: 0, maxLength: 128, nodeTypes: [] }, isRuntime: true, isWired: true, isStored: true },
   [ShadowStyleProperty.orderKey]: { id: 33, name: 'order_key', component: ObjectType.SHADOW_STYLE, kind: 'primitive', primitiveType: PrimitiveType.STRING, default: "a0", isInternal: true, isRuntime: true, isWired: true, isStored: true },
@@ -36836,7 +39379,7 @@ export const ShadowStyleDataInfo: Record<ShadowStyleProperty, PropertyInfo> = {
 export const GradientStyleDataInfo: Record<GradientStyleProperty, PropertyInfo> = {
   [GradientStyleProperty.metatype]: { id: 1, name: 'metatype', component: ObjectType.GRADIENT_STYLE, enumType: EnumType.OBJECT_TYPE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isInternal: true, isComputed: true, isWired: true },
   [GradientStyleProperty.id]: { id: 2, name: 'id', component: ObjectType.GRADIENT_STYLE, kind: 'primitive', primitiveType: PrimitiveType.UUID, isRequired: true, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
-  [GradientStyleProperty.parentPtr]: { id: 4, name: 'parent_ptr', component: ObjectType.GRADIENT_STYLE, kind: 'reference', isInternal: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_PARENT, referenceNodes: [NodeType.SPACE, NodeType.WIZARD_VIEW, NodeType.FRAME_VIEW, NodeType.LABEL_VIEW, NodeType.SPLIT_VIEW, NodeType.INPUT_VIEW, NodeType.SLIDER_VIEW, NodeType.THREAD_VIEW, NodeType.PAGE], referenceStruct: StructType.NODE_REFERENCE },
+  [GradientStyleProperty.parentPtr]: { id: 4, name: 'parent_ptr', component: ObjectType.GRADIENT_STYLE, kind: 'reference', isInternal: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_PARENT, referenceNodes: [NodeType.SPACE, NodeType.WIZARD_VIEW, NodeType.FRAME_VIEW, NodeType.LABEL_VIEW, NodeType.COMPONENT_VIEW, NodeType.SPLIT_VIEW, NodeType.NUMBER_VIEW, NodeType.SLIDER_VIEW, NodeType.THREAD_VIEW, NodeType.PAGE], referenceStruct: StructType.NODE_REFERENCE },
   [GradientStyleProperty.benchPtr]: { id: 5, name: 'bench_ptr', component: ObjectType.GRADIENT_STYLE, kind: 'reference', isInternal: true, isComputed: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_ANCESTOR_OR_SELF, referenceNodes: [NodeType.BENCH], referenceStruct: StructType.NODE_REFERENCE },
   [GradientStyleProperty.packagePtr]: { id: 9, name: 'package_ptr', component: ObjectType.GRADIENT_STYLE, kind: 'reference', isInternal: true, isComputed: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_ANCESTOR_OR_SELF, referenceNodes: [NodeType.PACKAGE], referenceStruct: StructType.NODE_REFERENCE },
   [GradientStyleProperty.createdAt]: { id: 10, name: 'created_at', component: ObjectType.GRADIENT_STYLE, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isRequired: true, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
@@ -36846,7 +39389,7 @@ export const GradientStyleDataInfo: Record<GradientStyleProperty, PropertyInfo> 
   [GradientStyleProperty.archivedAt]: { id: 14, name: 'archived_at', component: ObjectType.GRADIENT_STYLE, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
   [GradientStyleProperty.deletedAt]: { id: 15, name: 'deleted_at', component: ObjectType.GRADIENT_STYLE, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
   [GradientStyleProperty.templatePtr]: { id: 16, name: 'template_ptr', component: ObjectType.GRADIENT_STYLE, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_TEMPLATE, referenceNodes: [NodeType.GRADIENT_STYLE], referenceStruct: StructType.NODE_REFERENCE },
-  [GradientStyleProperty.mode]: { id: 20, name: 'mode', component: ObjectType.GRADIENT_STYLE, enumType: EnumType.NODE_MODE, kind: 'enum', primitiveType: PrimitiveType.INT16, default: 20, isRequired: true, isInternal: true, isRuntime: true, isWired: true, isStored: true },
+  [GradientStyleProperty.mode]: { id: 25, name: 'mode', component: ObjectType.GRADIENT_STYLE, enumType: EnumType.NODE_MODE, kind: 'enum', primitiveType: PrimitiveType.INT16, default: 20, isRequired: true, isInternal: true, isRuntime: true, isWired: true, isStored: true },
   [GradientStyleProperty.type]: { id: 30, name: 'type', component: ObjectType.GRADIENT_STYLE, enumType: EnumType.GRADIENT_TYPE, kind: 'enum', primitiveType: PrimitiveType.INT16, default: 1, isRequired: true, isRuntime: true, isWired: true, isStored: true },
   [GradientStyleProperty.name]: { id: 31, name: 'name', component: ObjectType.GRADIENT_STYLE, kind: 'primitive', primitiveType: PrimitiveType.STRING, constraint: { minLength: 0, maxLength: 128, nodeTypes: [] }, isRuntime: true, isWired: true, isStored: true },
   [GradientStyleProperty.orderKey]: { id: 33, name: 'order_key', component: ObjectType.GRADIENT_STYLE, kind: 'primitive', primitiveType: PrimitiveType.STRING, default: "a0", isInternal: true, isRuntime: true, isWired: true, isStored: true },
@@ -36859,7 +39402,7 @@ export const GradientStyleDataInfo: Record<GradientStyleProperty, PropertyInfo> 
 export const TransitionStyleDataInfo: Record<TransitionStyleProperty, PropertyInfo> = {
   [TransitionStyleProperty.metatype]: { id: 1, name: 'metatype', component: ObjectType.TRANSITION_STYLE, enumType: EnumType.OBJECT_TYPE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isInternal: true, isComputed: true, isWired: true },
   [TransitionStyleProperty.id]: { id: 2, name: 'id', component: ObjectType.TRANSITION_STYLE, kind: 'primitive', primitiveType: PrimitiveType.UUID, isRequired: true, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
-  [TransitionStyleProperty.parentPtr]: { id: 4, name: 'parent_ptr', component: ObjectType.TRANSITION_STYLE, kind: 'reference', isInternal: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_PARENT, referenceNodes: [NodeType.SPACE, NodeType.WIZARD_VIEW, NodeType.FRAME_VIEW, NodeType.LABEL_VIEW, NodeType.SPLIT_VIEW, NodeType.INPUT_VIEW, NodeType.SLIDER_VIEW, NodeType.THREAD_VIEW, NodeType.PAGE], referenceStruct: StructType.NODE_REFERENCE },
+  [TransitionStyleProperty.parentPtr]: { id: 4, name: 'parent_ptr', component: ObjectType.TRANSITION_STYLE, kind: 'reference', isInternal: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_PARENT, referenceNodes: [NodeType.SPACE, NodeType.WIZARD_VIEW, NodeType.FRAME_VIEW, NodeType.LABEL_VIEW, NodeType.COMPONENT_VIEW, NodeType.SPLIT_VIEW, NodeType.NUMBER_VIEW, NodeType.SLIDER_VIEW, NodeType.THREAD_VIEW, NodeType.PAGE], referenceStruct: StructType.NODE_REFERENCE },
   [TransitionStyleProperty.benchPtr]: { id: 5, name: 'bench_ptr', component: ObjectType.TRANSITION_STYLE, kind: 'reference', isInternal: true, isComputed: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_ANCESTOR_OR_SELF, referenceNodes: [NodeType.BENCH], referenceStruct: StructType.NODE_REFERENCE },
   [TransitionStyleProperty.packagePtr]: { id: 9, name: 'package_ptr', component: ObjectType.TRANSITION_STYLE, kind: 'reference', isInternal: true, isComputed: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_ANCESTOR_OR_SELF, referenceNodes: [NodeType.PACKAGE], referenceStruct: StructType.NODE_REFERENCE },
   [TransitionStyleProperty.createdAt]: { id: 10, name: 'created_at', component: ObjectType.TRANSITION_STYLE, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isRequired: true, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
@@ -36869,7 +39412,7 @@ export const TransitionStyleDataInfo: Record<TransitionStyleProperty, PropertyIn
   [TransitionStyleProperty.archivedAt]: { id: 14, name: 'archived_at', component: ObjectType.TRANSITION_STYLE, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
   [TransitionStyleProperty.deletedAt]: { id: 15, name: 'deleted_at', component: ObjectType.TRANSITION_STYLE, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
   [TransitionStyleProperty.templatePtr]: { id: 16, name: 'template_ptr', component: ObjectType.TRANSITION_STYLE, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_TEMPLATE, referenceNodes: [NodeType.TRANSITION_STYLE], referenceStruct: StructType.NODE_REFERENCE },
-  [TransitionStyleProperty.mode]: { id: 20, name: 'mode', component: ObjectType.TRANSITION_STYLE, enumType: EnumType.NODE_MODE, kind: 'enum', primitiveType: PrimitiveType.INT16, default: 20, isRequired: true, isInternal: true, isRuntime: true, isWired: true, isStored: true },
+  [TransitionStyleProperty.mode]: { id: 25, name: 'mode', component: ObjectType.TRANSITION_STYLE, enumType: EnumType.NODE_MODE, kind: 'enum', primitiveType: PrimitiveType.INT16, default: 20, isRequired: true, isInternal: true, isRuntime: true, isWired: true, isStored: true },
   [TransitionStyleProperty.type]: { id: 30, name: 'type', component: ObjectType.TRANSITION_STYLE, enumType: EnumType.TRANSITION_TYPE, kind: 'enum', primitiveType: PrimitiveType.INT16, default: 10, isRequired: true, isRuntime: true, isWired: true, isStored: true },
   [TransitionStyleProperty.name]: { id: 31, name: 'name', component: ObjectType.TRANSITION_STYLE, kind: 'primitive', primitiveType: PrimitiveType.STRING, constraint: { minLength: 0, maxLength: 128, nodeTypes: [] }, isRuntime: true, isWired: true, isStored: true },
   [TransitionStyleProperty.orderKey]: { id: 33, name: 'order_key', component: ObjectType.TRANSITION_STYLE, kind: 'primitive', primitiveType: PrimitiveType.STRING, default: "a0", isInternal: true, isRuntime: true, isWired: true, isStored: true },
@@ -36888,7 +39431,7 @@ export const TransitionStyleDataInfo: Record<TransitionStyleProperty, PropertyIn
 export const EffectStyleDataInfo: Record<EffectStyleProperty, PropertyInfo> = {
   [EffectStyleProperty.metatype]: { id: 1, name: 'metatype', component: ObjectType.EFFECT_STYLE, enumType: EnumType.OBJECT_TYPE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isInternal: true, isComputed: true, isWired: true },
   [EffectStyleProperty.id]: { id: 2, name: 'id', component: ObjectType.EFFECT_STYLE, kind: 'primitive', primitiveType: PrimitiveType.UUID, isRequired: true, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
-  [EffectStyleProperty.parentPtr]: { id: 4, name: 'parent_ptr', component: ObjectType.EFFECT_STYLE, kind: 'reference', isInternal: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_PARENT, referenceNodes: [NodeType.SPACE, NodeType.WIZARD_VIEW, NodeType.FRAME_VIEW, NodeType.LABEL_VIEW, NodeType.SPLIT_VIEW, NodeType.INPUT_VIEW, NodeType.SLIDER_VIEW, NodeType.THREAD_VIEW, NodeType.PAGE], referenceStruct: StructType.NODE_REFERENCE },
+  [EffectStyleProperty.parentPtr]: { id: 4, name: 'parent_ptr', component: ObjectType.EFFECT_STYLE, kind: 'reference', isInternal: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_PARENT, referenceNodes: [NodeType.SPACE, NodeType.WIZARD_VIEW, NodeType.FRAME_VIEW, NodeType.LABEL_VIEW, NodeType.COMPONENT_VIEW, NodeType.SPLIT_VIEW, NodeType.NUMBER_VIEW, NodeType.SLIDER_VIEW, NodeType.THREAD_VIEW, NodeType.PAGE], referenceStruct: StructType.NODE_REFERENCE },
   [EffectStyleProperty.benchPtr]: { id: 5, name: 'bench_ptr', component: ObjectType.EFFECT_STYLE, kind: 'reference', isInternal: true, isComputed: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_ANCESTOR_OR_SELF, referenceNodes: [NodeType.BENCH], referenceStruct: StructType.NODE_REFERENCE },
   [EffectStyleProperty.packagePtr]: { id: 9, name: 'package_ptr', component: ObjectType.EFFECT_STYLE, kind: 'reference', isInternal: true, isComputed: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_ANCESTOR_OR_SELF, referenceNodes: [NodeType.PACKAGE], referenceStruct: StructType.NODE_REFERENCE },
   [EffectStyleProperty.createdAt]: { id: 10, name: 'created_at', component: ObjectType.EFFECT_STYLE, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isRequired: true, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
@@ -36898,7 +39441,7 @@ export const EffectStyleDataInfo: Record<EffectStyleProperty, PropertyInfo> = {
   [EffectStyleProperty.archivedAt]: { id: 14, name: 'archived_at', component: ObjectType.EFFECT_STYLE, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
   [EffectStyleProperty.deletedAt]: { id: 15, name: 'deleted_at', component: ObjectType.EFFECT_STYLE, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
   [EffectStyleProperty.templatePtr]: { id: 16, name: 'template_ptr', component: ObjectType.EFFECT_STYLE, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_TEMPLATE, referenceNodes: [NodeType.EFFECT_STYLE], referenceStruct: StructType.NODE_REFERENCE },
-  [EffectStyleProperty.mode]: { id: 20, name: 'mode', component: ObjectType.EFFECT_STYLE, enumType: EnumType.NODE_MODE, kind: 'enum', primitiveType: PrimitiveType.INT16, default: 20, isRequired: true, isInternal: true, isRuntime: true, isWired: true, isStored: true },
+  [EffectStyleProperty.mode]: { id: 25, name: 'mode', component: ObjectType.EFFECT_STYLE, enumType: EnumType.NODE_MODE, kind: 'enum', primitiveType: PrimitiveType.INT16, default: 20, isRequired: true, isInternal: true, isRuntime: true, isWired: true, isStored: true },
   [EffectStyleProperty.type]: { id: 30, name: 'type', component: ObjectType.EFFECT_STYLE, enumType: EnumType.EFFECT_TYPE, kind: 'enum', primitiveType: PrimitiveType.INT16, default: 10, isRequired: true, isRuntime: true, isWired: true, isStored: true },
   [EffectStyleProperty.name]: { id: 31, name: 'name', component: ObjectType.EFFECT_STYLE, kind: 'primitive', primitiveType: PrimitiveType.STRING, constraint: { minLength: 0, maxLength: 128, nodeTypes: [] }, isRuntime: true, isWired: true, isStored: true },
   [EffectStyleProperty.orderKey]: { id: 33, name: 'order_key', component: ObjectType.EFFECT_STYLE, kind: 'primitive', primitiveType: PrimitiveType.STRING, default: "a0", isInternal: true, isRuntime: true, isWired: true, isStored: true },
@@ -36911,7 +39454,7 @@ export const EffectStyleDataInfo: Record<EffectStyleProperty, PropertyInfo> = {
   [EffectStyleProperty.rotate]: { id: 44, name: 'rotate', component: ObjectType.EFFECT_STYLE, kind: 'primitive', primitiveType: PrimitiveType.FLOAT32, isRuntime: true, isWired: true, isStored: true },
   [EffectStyleProperty.rotateX]: { id: 45, name: 'rotate_x', component: ObjectType.EFFECT_STYLE, kind: 'primitive', primitiveType: PrimitiveType.FLOAT32, isRuntime: true, isWired: true, isStored: true },
   [EffectStyleProperty.rotateY]: { id: 46, name: 'rotate_y', component: ObjectType.EFFECT_STYLE, kind: 'primitive', primitiveType: PrimitiveType.FLOAT32, isRuntime: true, isWired: true, isStored: true },
-  [EffectStyleProperty.isRotate3D]: { id: 47, name: 'is_rotate_3d', component: ObjectType.EFFECT_STYLE, kind: 'primitive', primitiveType: PrimitiveType.BOOLEAN, isRuntime: true, isWired: true, isStored: true },
+  [EffectStyleProperty.rotateZ]: { id: 47, name: 'rotate_z', component: ObjectType.EFFECT_STYLE, kind: 'primitive', primitiveType: PrimitiveType.FLOAT32, isRuntime: true, isWired: true, isStored: true },
   [EffectStyleProperty.skewX]: { id: 48, name: 'skew_x', component: ObjectType.EFFECT_STYLE, kind: 'primitive', primitiveType: PrimitiveType.FLOAT32, isRuntime: true, isWired: true, isStored: true },
   [EffectStyleProperty.skewY]: { id: 49, name: 'skew_y', component: ObjectType.EFFECT_STYLE, kind: 'primitive', primitiveType: PrimitiveType.FLOAT32, isRuntime: true, isWired: true, isStored: true },
   [EffectStyleProperty.perspective]: { id: 50, name: 'perspective', component: ObjectType.EFFECT_STYLE, kind: 'primitive', primitiveType: PrimitiveType.FLOAT32, isRuntime: true, isWired: true, isStored: true },
@@ -36923,7 +39466,7 @@ export const EffectStyleDataInfo: Record<EffectStyleProperty, PropertyInfo> = {
 export const EmptyDataInfo: Record<EmptyProperty, PropertyInfo> = {
   [EmptyProperty.metatype]: { id: 1, name: 'metatype', component: ObjectType.EMPTY, enumType: EnumType.OBJECT_TYPE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isInternal: true, isComputed: true, isWired: true },
   [EmptyProperty.id]: { id: 2, name: 'id', component: ObjectType.EMPTY, kind: 'primitive', primitiveType: PrimitiveType.UUID, isRequired: true, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
-  [EmptyProperty.parentPtr]: { id: 4, name: 'parent_ptr', component: ObjectType.EMPTY, kind: 'reference', isInternal: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_PARENT, referenceNodes: [NodeType.BENCH, NodeType.HANDLE, NodeType.USER, NodeType.ORGANIZATION, NodeType.CLIENT, NodeType.PACKAGE, NodeType.DEPENDENCY, NodeType.PAGE, NodeType.BLOCK, NodeType.DATABASE, NodeType.COMPUTER, NodeType.SCALER, NodeType.CHOICE, NodeType.CLASS, NodeType.FIELD, NodeType.OPTION, NodeType.TABLE, NodeType.RECORD, NodeType.FILE, NodeType.LINK, NodeType.CHANNEL, NodeType.THREAD, NodeType.MESSAGE, NodeType.NOTIFICATION, NodeType.TASK, NodeType.CLAIM, NodeType.CURSOR, NodeType.SERVICE, NodeType.ACTION, NodeType.FLOW, NodeType.FLOW_EDGE, NodeType.AGENT, NodeType.SESSION, NodeType.RUN, NodeType.SPAN, NodeType.INTERRUPTION, NodeType.MEMBERSHIP, NodeType.INVITE, NodeType.TEAM, NodeType.ROLE, NodeType.SPACE, NodeType.WIZARD_VIEW, NodeType.FRAME_VIEW, NodeType.LABEL_VIEW, NodeType.SPLIT_VIEW, NodeType.INPUT_VIEW, NodeType.SLIDER_VIEW, NodeType.THREAD_VIEW, NodeType.THEME, NodeType.COLOR_STYLE, NodeType.TEXT_STYLE, NodeType.BORDER_STYLE, NodeType.SHADOW_STYLE, NodeType.GRADIENT_STYLE, NodeType.TRANSITION_STYLE, NodeType.EFFECT_STYLE, NodeType.EMPTY], referenceStruct: StructType.NODE_REFERENCE },
+  [EmptyProperty.parentPtr]: { id: 4, name: 'parent_ptr', component: ObjectType.EMPTY, kind: 'reference', isInternal: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_PARENT, referenceNodes: [NodeType.BENCH, NodeType.HANDLE, NodeType.USER, NodeType.ORGANIZATION, NodeType.CLIENT, NodeType.PACKAGE, NodeType.DEPENDENCY, NodeType.PAGE, NodeType.BLOCK, NodeType.DATABASE, NodeType.COMPUTER, NodeType.SCALER, NodeType.CHOICE, NodeType.CLASS, NodeType.FIELD, NodeType.OPTION, NodeType.TABLE, NodeType.RECORD, NodeType.FILE, NodeType.LINK, NodeType.CHANNEL, NodeType.THREAD, NodeType.MESSAGE, NodeType.NOTIFICATION, NodeType.TASK, NodeType.CLAIM, NodeType.CURSOR, NodeType.SERVICE, NodeType.ACTION, NodeType.FLOW, NodeType.FLOW_EDGE, NodeType.AGENT, NodeType.SESSION, NodeType.RUN, NodeType.SPAN, NodeType.INTERRUPTION, NodeType.MEMBERSHIP, NodeType.INVITE, NodeType.TEAM, NodeType.ROLE, NodeType.SPACE, NodeType.WIZARD_VIEW, NodeType.FRAME_VIEW, NodeType.LABEL_VIEW, NodeType.COMPONENT_VIEW, NodeType.SPLIT_VIEW, NodeType.NUMBER_VIEW, NodeType.SLIDER_VIEW, NodeType.THREAD_VIEW, NodeType.THEME, NodeType.COLOR_STYLE, NodeType.TEXT_STYLE, NodeType.BORDER_STYLE, NodeType.SHADOW_STYLE, NodeType.GRADIENT_STYLE, NodeType.TRANSITION_STYLE, NodeType.EFFECT_STYLE, NodeType.EMPTY], referenceStruct: StructType.NODE_REFERENCE },
   [EmptyProperty.createdAt]: { id: 10, name: 'created_at', component: ObjectType.EMPTY, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isRequired: true, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
   [EmptyProperty.createdByPtr]: { id: 11, name: 'created_by_ptr', component: ObjectType.EMPTY, kind: 'reference', isAutoset: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.USER, NodeType.ORGANIZATION, NodeType.COMPUTER, NodeType.AGENT], referenceStruct: StructType.NODE_REFERENCE },
   [EmptyProperty.updatedAt]: { id: 12, name: 'updated_at', component: ObjectType.EMPTY, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isRequired: true, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
@@ -37325,15 +39868,20 @@ export const FillDataInfo: Record<FillProperty, PropertyInfo> = {
 export const LengthDataInfo: Record<LengthProperty, PropertyInfo> = {
   [LengthProperty.metatype]: { id: 1, name: 'metatype', component: ObjectType.LENGTH, enumType: EnumType.OBJECT_TYPE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isInternal: true, isComputed: true, isWired: true },
   [LengthProperty.unit]: { id: 31, name: 'unit', component: ObjectType.LENGTH, enumType: EnumType.LENGTH_UNIT, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isRuntime: true, isWired: true, isStored: true },
-  [LengthProperty.value]: { id: 32, name: 'value', component: ObjectType.LENGTH, kind: 'primitive', primitiveType: PrimitiveType.FLOAT32, isRequired: true, isRuntime: true, isWired: true, isStored: true },
+  [LengthProperty.value]: { id: 40, name: 'value', component: ObjectType.LENGTH, kind: 'primitive', primitiveType: PrimitiveType.FLOAT32, isRequired: true, isRuntime: true, isWired: true, isStored: true },
 }
 export const PositionDataInfo: Record<PositionProperty, PropertyInfo> = {
   [PositionProperty.metatype]: { id: 1, name: 'metatype', component: ObjectType.POSITION, enumType: EnumType.OBJECT_TYPE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isInternal: true, isComputed: true, isWired: true },
   [PositionProperty.type]: { id: 40, name: 'type', component: ObjectType.POSITION, enumType: EnumType.POSITION_TYPE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isRuntime: true, isWired: true, isStored: true },
-  [PositionProperty.top]: { id: 41, name: 'top', component: ObjectType.POSITION, kind: 'primitive', primitiveType: PrimitiveType.FLOAT32, isRuntime: true, isWired: true, isStored: true },
-  [PositionProperty.left]: { id: 42, name: 'left', component: ObjectType.POSITION, kind: 'primitive', primitiveType: PrimitiveType.FLOAT32, isRuntime: true, isWired: true, isStored: true },
-  [PositionProperty.width]: { id: 43, name: 'width', component: ObjectType.POSITION, kind: 'primitive', primitiveType: PrimitiveType.FLOAT32, isRuntime: true, isWired: true, isStored: true },
-  [PositionProperty.height]: { id: 44, name: 'height', component: ObjectType.POSITION, kind: 'primitive', primitiveType: PrimitiveType.FLOAT32, isRuntime: true, isWired: true, isStored: true },
+  [PositionProperty.top]: { id: 41, name: 'top', component: ObjectType.POSITION, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.LENGTH },
+  [PositionProperty.left]: { id: 42, name: 'left', component: ObjectType.POSITION, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.LENGTH },
+  [PositionProperty.width]: { id: 43, name: 'width', component: ObjectType.POSITION, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.LENGTH },
+  [PositionProperty.height]: { id: 44, name: 'height', component: ObjectType.POSITION, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.LENGTH },
+}
+export const DimensionDataInfo: Record<DimensionProperty, PropertyInfo> = {
+  [DimensionProperty.metatype]: { id: 1, name: 'metatype', component: ObjectType.DIMENSION, enumType: EnumType.OBJECT_TYPE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isInternal: true, isComputed: true, isWired: true },
+  [DimensionProperty.type]: { id: 30, name: 'type', component: ObjectType.DIMENSION, enumType: EnumType.DIMENSION_TYPE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isRuntime: true, isWired: true, isStored: true },
+  [DimensionProperty.value]: { id: 40, name: 'value', component: ObjectType.DIMENSION, kind: 'primitive', primitiveType: PrimitiveType.FLOAT32, isRequired: true, isRuntime: true, isWired: true, isStored: true },
 }
 export const TransitionDataInfo: Record<TransitionProperty, PropertyInfo> = {
   [TransitionProperty.metatype]: { id: 1, name: 'metatype', component: ObjectType.TRANSITION, enumType: EnumType.OBJECT_TYPE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isInternal: true, isComputed: true, isWired: true },
@@ -37358,7 +39906,7 @@ export const EffectDataInfo: Record<EffectProperty, PropertyInfo> = {
   [EffectProperty.rotate]: { id: 44, name: 'rotate', component: ObjectType.EFFECT, kind: 'primitive', primitiveType: PrimitiveType.FLOAT32, isRuntime: true, isWired: true, isStored: true },
   [EffectProperty.rotateX]: { id: 45, name: 'rotate_x', component: ObjectType.EFFECT, kind: 'primitive', primitiveType: PrimitiveType.FLOAT32, isRuntime: true, isWired: true, isStored: true },
   [EffectProperty.rotateY]: { id: 46, name: 'rotate_y', component: ObjectType.EFFECT, kind: 'primitive', primitiveType: PrimitiveType.FLOAT32, isRuntime: true, isWired: true, isStored: true },
-  [EffectProperty.isRotate3D]: { id: 47, name: 'is_rotate_3d', component: ObjectType.EFFECT, kind: 'primitive', primitiveType: PrimitiveType.BOOLEAN, isRuntime: true, isWired: true, isStored: true },
+  [EffectProperty.rotateZ]: { id: 47, name: 'rotate_z', component: ObjectType.EFFECT, kind: 'primitive', primitiveType: PrimitiveType.FLOAT32, isRuntime: true, isWired: true, isStored: true },
   [EffectProperty.skewX]: { id: 48, name: 'skew_x', component: ObjectType.EFFECT, kind: 'primitive', primitiveType: PrimitiveType.FLOAT32, isRuntime: true, isWired: true, isStored: true },
   [EffectProperty.skewY]: { id: 49, name: 'skew_y', component: ObjectType.EFFECT, kind: 'primitive', primitiveType: PrimitiveType.FLOAT32, isRuntime: true, isWired: true, isStored: true },
   [EffectProperty.perspective]: { id: 50, name: 'perspective', component: ObjectType.EFFECT, kind: 'primitive', primitiveType: PrimitiveType.FLOAT32, isRuntime: true, isWired: true, isStored: true },
@@ -37366,6 +39914,39 @@ export const EffectDataInfo: Record<EffectProperty, PropertyInfo> = {
   [EffectProperty.duration]: { id: 52, name: 'duration', component: ObjectType.EFFECT, kind: 'primitive', primitiveType: PrimitiveType.FLOAT32, isRuntime: true, isWired: true, isStored: true },
   [EffectProperty.threshold]: { id: 53, name: 'threshold', component: ObjectType.EFFECT, kind: 'primitive', primitiveType: PrimitiveType.FLOAT32, isRuntime: true, isWired: true, isStored: true },
   [EffectProperty.trigger]: { id: 54, name: 'trigger', component: ObjectType.EFFECT, kind: 'primitive', primitiveType: PrimitiveType.STRING, isRuntime: true, isWired: true, isStored: true },
+}
+export const GapDataInfo: Record<GapProperty, PropertyInfo> = {
+  [GapProperty.metatype]: { id: 1, name: 'metatype', component: ObjectType.GAP, enumType: EnumType.OBJECT_TYPE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isInternal: true, isComputed: true, isWired: true },
+  [GapProperty.value]: { id: 40, name: 'value', component: ObjectType.GAP, kind: 'primitive', primitiveType: PrimitiveType.FLOAT32, isRuntime: true, isWired: true, isStored: true },
+  [GapProperty.x]: { id: 41, name: 'x', component: ObjectType.GAP, kind: 'primitive', primitiveType: PrimitiveType.FLOAT32, isRuntime: true, isWired: true, isStored: true },
+  [GapProperty.y]: { id: 42, name: 'y', component: ObjectType.GAP, kind: 'primitive', primitiveType: PrimitiveType.FLOAT32, isRuntime: true, isWired: true, isStored: true },
+}
+export const GridDataInfo: Record<GridProperty, PropertyInfo> = {
+  [GridProperty.metatype]: { id: 1, name: 'metatype', component: ObjectType.GRID, enumType: EnumType.OBJECT_TYPE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isInternal: true, isComputed: true, isWired: true },
+  [GridProperty.columns]: { id: 40, name: 'columns', component: ObjectType.GRID, kind: 'primitive', primitiveType: PrimitiveType.INT32, isRequired: true, isRuntime: true, isWired: true, isStored: true },
+  [GridProperty.rows]: { id: 41, name: 'rows', component: ObjectType.GRID, kind: 'primitive', primitiveType: PrimitiveType.INT32, isRequired: true, isRuntime: true, isWired: true, isStored: true },
+  [GridProperty.columnWidth]: { id: 42, name: 'column_width', component: ObjectType.GRID, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.DIMENSION },
+  [GridProperty.columnMinWidth]: { id: 43, name: 'column_min_width', component: ObjectType.GRID, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.DIMENSION },
+}
+export const GridSpanDataInfo: Record<GridSpanProperty, PropertyInfo> = {
+  [GridSpanProperty.metatype]: { id: 1, name: 'metatype', component: ObjectType.GRID_SPAN, enumType: EnumType.OBJECT_TYPE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isInternal: true, isComputed: true, isWired: true },
+  [GridSpanProperty.columns]: { id: 40, name: 'columns', component: ObjectType.GRID_SPAN, kind: 'primitive', primitiveType: PrimitiveType.INT32, isRequired: true, isRuntime: true, isWired: true, isStored: true },
+  [GridSpanProperty.rows]: { id: 41, name: 'rows', component: ObjectType.GRID_SPAN, kind: 'primitive', primitiveType: PrimitiveType.INT32, isRequired: true, isRuntime: true, isWired: true, isStored: true },
+}
+export const PaddingDataInfo: Record<PaddingProperty, PropertyInfo> = {
+  [PaddingProperty.metatype]: { id: 1, name: 'metatype', component: ObjectType.PADDING, enumType: EnumType.OBJECT_TYPE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isInternal: true, isComputed: true, isWired: true },
+  [PaddingProperty.value]: { id: 40, name: 'value', component: ObjectType.PADDING, kind: 'primitive', primitiveType: PrimitiveType.INT32, isRuntime: true, isWired: true, isStored: true },
+  [PaddingProperty.top]: { id: 41, name: 'top', component: ObjectType.PADDING, kind: 'primitive', primitiveType: PrimitiveType.INT32, isRuntime: true, isWired: true, isStored: true },
+  [PaddingProperty.left]: { id: 42, name: 'left', component: ObjectType.PADDING, kind: 'primitive', primitiveType: PrimitiveType.INT32, isRuntime: true, isWired: true, isStored: true },
+  [PaddingProperty.right]: { id: 43, name: 'right', component: ObjectType.PADDING, kind: 'primitive', primitiveType: PrimitiveType.INT32, isRuntime: true, isWired: true, isStored: true },
+  [PaddingProperty.bottom]: { id: 44, name: 'bottom', component: ObjectType.PADDING, kind: 'primitive', primitiveType: PrimitiveType.INT32, isRuntime: true, isWired: true, isStored: true },
+}
+export const RotationDataInfo: Record<RotationProperty, PropertyInfo> = {
+  [RotationProperty.metatype]: { id: 1, name: 'metatype', component: ObjectType.ROTATION, enumType: EnumType.OBJECT_TYPE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isInternal: true, isComputed: true, isWired: true },
+  [RotationProperty.value]: { id: 40, name: 'value', component: ObjectType.ROTATION, kind: 'primitive', primitiveType: PrimitiveType.FLOAT32, isRuntime: true, isWired: true, isStored: true },
+  [RotationProperty.x]: { id: 41, name: 'x', component: ObjectType.ROTATION, kind: 'primitive', primitiveType: PrimitiveType.FLOAT32, isRuntime: true, isWired: true, isStored: true },
+  [RotationProperty.y]: { id: 42, name: 'y', component: ObjectType.ROTATION, kind: 'primitive', primitiveType: PrimitiveType.FLOAT32, isRuntime: true, isWired: true, isStored: true },
+  [RotationProperty.z]: { id: 43, name: 'z', component: ObjectType.ROTATION, kind: 'primitive', primitiveType: PrimitiveType.FLOAT32, isRuntime: true, isWired: true, isStored: true },
 }
 export const PROPERTY_INFOS_BY_TYPE: Record<ObjectType, Record<any, PropertyInfo>> = {
   [ObjectType.UNSPECIFIED]: {},
@@ -37413,8 +39994,9 @@ export const PROPERTY_INFOS_BY_TYPE: Record<ObjectType, Record<any, PropertyInfo
   [ObjectType.WIZARD_VIEW]: WizardViewDataInfo,
   [ObjectType.FRAME_VIEW]: FrameViewDataInfo,
   [ObjectType.LABEL_VIEW]: LabelViewDataInfo,
+  [ObjectType.COMPONENT_VIEW]: ComponentViewDataInfo,
   [ObjectType.SPLIT_VIEW]: SplitViewDataInfo,
-  [ObjectType.INPUT_VIEW]: InputViewDataInfo,
+  [ObjectType.NUMBER_VIEW]: NumberViewDataInfo,
   [ObjectType.SLIDER_VIEW]: SliderViewDataInfo,
   [ObjectType.THREAD_VIEW]: ThreadViewDataInfo,
   [ObjectType.THEME]: ThemeDataInfo,
@@ -37469,8 +40051,14 @@ export const PROPERTY_INFOS_BY_TYPE: Record<ObjectType, Record<any, PropertyInfo
   [ObjectType.FILL]: FillDataInfo,
   [ObjectType.LENGTH]: LengthDataInfo,
   [ObjectType.POSITION]: PositionDataInfo,
+  [ObjectType.DIMENSION]: DimensionDataInfo,
   [ObjectType.TRANSITION]: TransitionDataInfo,
   [ObjectType.EFFECT]: EffectDataInfo,
+  [ObjectType.GAP]: GapDataInfo,
+  [ObjectType.GRID]: GridDataInfo,
+  [ObjectType.GRID_SPAN]: GridSpanDataInfo,
+  [ObjectType.PADDING]: PaddingDataInfo,
+  [ObjectType.ROTATION]: RotationDataInfo,
 }
 
 // Enum options
@@ -37528,9 +40116,10 @@ export const NodeTypeOptionInfo: Partial<Record<NodeType, EnumOptionInfo>> = {
   [NodeType.WIZARD_VIEW]: { id: 8010, name: 'WIZARD_VIEW', text: 'Wizard', title: 'Wizard View', icon: 'fas fa-wand-sparkles' },
   [NodeType.FRAME_VIEW]: { id: 8100, name: 'FRAME_VIEW', text: 'Fixed Container', title: 'Frame View', icon: 'fas fa-frame' },
   [NodeType.LABEL_VIEW]: { id: 8101, name: 'LABEL_VIEW', text: 'Label Container', title: 'Label View', icon: 'fas fa-font-case' },
-  [NodeType.SPLIT_VIEW]: { id: 8110, name: 'SPLIT_VIEW', text: 'Split Container', title: 'Split View', icon: 'fas fa-columns' },
-  [NodeType.INPUT_VIEW]: { id: 8210, name: 'INPUT_VIEW', text: 'Number or String Input', title: 'Input View', icon: 'fas fa-hashtag' },
-  [NodeType.SLIDER_VIEW]: { id: 8211, name: 'SLIDER_VIEW', text: 'Slider', title: 'Slider View', icon: 'fas fa-slider' },
+  [NodeType.COMPONENT_VIEW]: { id: 8110, name: 'COMPONENT_VIEW', text: 'Component Container', title: 'Component View', icon: 'fas fa-cube' },
+  [NodeType.SPLIT_VIEW]: { id: 8120, name: 'SPLIT_VIEW', text: 'Split Container', title: 'Split View', icon: 'fas fa-columns' },
+  [NodeType.NUMBER_VIEW]: { id: 8300, name: 'NUMBER_VIEW', text: 'Number or String Input', title: 'Number Input View', icon: 'fas fa-hashtag' },
+  [NodeType.SLIDER_VIEW]: { id: 8301, name: 'SLIDER_VIEW', text: 'Slider', title: 'Slider View', icon: 'fas fa-slider' },
   [NodeType.THREAD_VIEW]: { id: 8430, name: 'THREAD_VIEW', text: 'Thread', title: 'Thread View', icon: 'fas fa-reel' },
   [NodeType.THEME]: { id: 8500, name: 'THEME', text: 'Theme', title: 'Theme', icon: 'fas fa-palette' },
   [NodeType.COLOR_STYLE]: { id: 8510, name: 'COLOR_STYLE', text: 'Color Style', title: 'Color Style', icon: 'fas fa-palette' },
@@ -37558,8 +40147,14 @@ export const StructTypeOptionInfo: Partial<Record<StructType, EnumOptionInfo>> =
   [StructType.FILL]: { id: 18511, name: 'FILL', icon: 'fas fa-fill' },
   [StructType.LENGTH]: { id: 18512, name: 'LENGTH', icon: 'fas fa-length' },
   [StructType.POSITION]: { id: 18513, name: 'POSITION', icon: 'fas fa-position' },
-  [StructType.TRANSITION]: { id: 18514, name: 'TRANSITION', icon: 'fas fa-transition' },
-  [StructType.EFFECT]: { id: 18515, name: 'EFFECT', icon: 'fas fa-effect' },
+  [StructType.DIMENSION]: { id: 18514, name: 'DIMENSION', icon: 'fas fa-dimension' },
+  [StructType.TRANSITION]: { id: 18515, name: 'TRANSITION', icon: 'fas fa-transition' },
+  [StructType.EFFECT]: { id: 18516, name: 'EFFECT', icon: 'fas fa-effect' },
+  [StructType.GAP]: { id: 18517, name: 'GAP', icon: 'fas fa-gap' },
+  [StructType.GRID]: { id: 18518, name: 'GRID', icon: 'fas fa-grid' },
+  [StructType.GRID_SPAN]: { id: 18519, name: 'GRID_SPAN', icon: 'fas fa-grid' },
+  [StructType.PADDING]: { id: 18520, name: 'PADDING', icon: 'fas fa-padding' },
+  [StructType.ROTATION]: { id: 18521, name: 'ROTATION', icon: 'fas fa-rotation' },
 }
 
 export const NodeModeOptionInfo: Partial<Record<NodeMode, EnumOptionInfo>> = {

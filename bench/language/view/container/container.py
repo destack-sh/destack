@@ -12,16 +12,16 @@ from ..view import ViewBase
 if TYPE_CHECKING:
     from bench.language import (
         Align,
+        Axis2,
+        Axis3,
         Border,
         Direction,
         Distribute,
         Fill,
-        Gap,
         Grid,
         GridSpan,
+        Insets,
         Layout,
-        Padding,
-        Rotation,
         Shadow,
     )
 
@@ -37,17 +37,18 @@ class ContainerViewBase[NodeDataT: AnyNodeData](ViewBase[NodeDataT]):
     direction: Optional["Direction"] = p_regular(51, require=False)
     distribute: Optional["Distribute"] = p_regular(52, require=False)
     align: Optional["Align"] = p_regular(53, require=False)
-    gap: Optional["Gap"] = p_regular(54, require=False, struct=StructType.GAP)
-    padding: Optional["Padding"] = p_regular(55, require=False, struct=StructType.PADDING)
+    gap: Optional["Axis2"] = p_regular(54, require=False, struct=StructType.AXIS_2)
+    padding: Optional["Insets"] = p_regular(55, require=False, struct=StructType.INSETS)
     grid: Optional["Grid"] = p_regular(56, require=False, struct=StructType.GRID)
     grid_span: Optional["GridSpan"] = p_regular(57, require=False, struct=StructType.GRID_SPAN)
     aspect_ratio: Optional[float] = p_regular(58, require=False)
+    is_wrapping: Optional[bool] = p_regular(59, require=False)
 
     # style
-    fill: Optional["Fill"] = p_regular(60, require=False, struct=StructType.FILL)
+    is_visible: Optional[bool] = p_regular(60, require=False)
     opacity: Optional[float] = p_regular(61, require=False)
-    is_visible: Optional[bool] = p_regular(62, require=False)
-    rotation: Optional["Rotation"] = p_regular(63, require=False, struct=StructType.ROTATION)
+    fill: Optional["Fill"] = p_regular(62, require=False, struct=StructType.FILL)
+    rotation: Optional["Axis3"] = p_regular(63, require=False, struct=StructType.AXIS_3)
     shadow: Optional["Shadow"] = p_regular(64, require=False, struct=StructType.SHADOW)
     border: Optional["Border"] = p_regular(65, require=False, struct=StructType.BORDER)
 

@@ -15,6 +15,7 @@ from bench.language.core import (
 )
 from bench.pb2 import EffectStyleData
 
+from .core import Axis2, Axis3
 from .style import StyleBase
 
 
@@ -36,20 +37,14 @@ class EffectBase(BuiltinObject):
 
     type: EffectType = p_regular(30, default=EffectType.APPEAR)
     opacity: Optional[float] = p_regular(40, default=None)
-    offset_x: Optional[int] = p_regular(41, default=None)
-    offset_y: Optional[int] = p_regular(42, default=None)
+    offset: Optional[Axis2] = p_regular(41, default=None, struct=StructType.AXIS_2)
     scale: Optional[float] = p_regular(43, default=None)
-    rotate: Optional[float] = p_regular(44, default=None)
-    rotate_x: Optional[float] = p_regular(45, default=None)
-    rotate_y: Optional[float] = p_regular(46, default=None)
-    rotate_z: Optional[float] = p_regular(47, default=None)
-    skew_x: Optional[float] = p_regular(48, default=None)
-    skew_y: Optional[float] = p_regular(49, default=None)
+    rotate: Optional[Axis3] = p_regular(44, default=None, struct=StructType.AXIS_3)
+    skew: Optional[Axis2] = p_regular(45, default=None, struct=StructType.AXIS_2)
     perspective: Optional[float] = p_regular(50, default=None)
     delay: Optional[float] = p_regular(51, default=None)
     duration: Optional[float] = p_regular(52, default=None)
     threshold: Optional[float] = p_regular(53, default=None)
-    trigger: Optional[str] = p_regular(54, default=None)
 
 
 @struct_(StructType.EFFECT)

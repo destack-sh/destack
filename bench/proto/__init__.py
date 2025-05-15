@@ -14,7 +14,6 @@ from .engine import (
     map_bench_property_to_proto,
     map_builtin_enum_to_proto,
     map_builtin_object_to_proto,
-    map_object_subtype_to_proto,
     map_object_type_to_proto,
 )
 from .health import HealthService
@@ -81,7 +80,6 @@ __all__ = [
     "map_bench_property_to_proto",
     "map_builtin_enum_to_proto",
     "map_builtin_object_to_proto",
-    "map_object_subtype_to_proto",
     "map_object_type_to_proto",
     "minikubeify_url",
     "pack_and_set_object_prop",
