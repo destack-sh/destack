@@ -11,7 +11,7 @@ if TYPE_CHECKING:
 
 @node_(NodeType.TEXT_VIEW)
 class TextView(ContentViewBase[TextViewData]):
-    """A text view."""
+    """A (rich) text view."""
 
     # appearance
     user_select: Optional[bool] = p_regular(65, require=False)

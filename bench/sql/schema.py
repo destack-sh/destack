@@ -11,7 +11,7 @@ from .core import (
     SqlTable,
 )
 
-VERSION = "2025.05.15.1"
+VERSION = "2025.05.15.2"
 
 BENCH_TABLE = SqlTable(
     "bench_bench",
@@ -348,6 +348,7 @@ BLOCK_TABLE = SqlTable(
         SqlColumn("node_bench_id", PrimitiveType.UUID, is_nullable=True),
         SqlColumn("node_base_id", PrimitiveType.UUID, is_nullable=True),
         SqlColumn("view_id", PrimitiveType.UUID, is_nullable=True),
+        SqlColumn("view_ck", PrimitiveType.UUID, is_nullable=True),
         SqlColumn("view_type", PrimitiveType.INT16, is_nullable=True),
         SqlColumn("view_bench_id", PrimitiveType.UUID, is_nullable=True),
     ),
@@ -1695,12 +1696,12 @@ SPACE_TABLE = SqlTable(
     indexes=(SqlIndex("bench_idx_parent_id", SqlIndexType.BTREE, ("parent_id",), cover=("id",)),),
 )
 
-WIZARD_VIEW_TABLE = SqlTable(
-    "bench_wizard_view",
+SCENE_TABLE = SqlTable(
+    "bench_scene",
     (
         SqlColumn("id", PrimitiveType.UUID, is_primary_key=True),
+        SqlColumn("ck", PrimitiveType.UUID),
         SqlColumn("parent_id", PrimitiveType.UUID, is_nullable=True),
-        SqlColumn("parent_type", PrimitiveType.INT16, is_nullable=True),
         SqlColumn("bench_id", PrimitiveType.UUID),
         SqlColumn("package_id", PrimitiveType.UUID),
         SqlColumn("created_at", PrimitiveType.DATETIME),
@@ -1713,18 +1714,40 @@ WIZARD_VIEW_TABLE = SqlTable(
         SqlColumn("deleted_at", PrimitiveType.DATETIME, is_nullable=True),
         SqlColumn("template_id", PrimitiveType.UUID, is_nullable=True),
         SqlColumn("template_bench_id", PrimitiveType.UUID, is_nullable=True),
+        SqlColumn("owned_by_id", PrimitiveType.UUID, is_nullable=True),
+        SqlColumn("owned_by_type", PrimitiveType.INT16, is_nullable=True),
         SqlColumn("mode", PrimitiveType.INT16, default="20"),
-        SqlColumn("name", PrimitiveType.STRING, is_nullable=True),
         SqlColumn("order_key", PrimitiveType.STRING, is_nullable=True),
         SqlColumn("icon", PrimitiveType.JSON, is_nullable=True),
         SqlColumn("definition_id", PrimitiveType.UUID, is_nullable=True),
-        SqlColumn("position", PrimitiveType.JSON, is_nullable=True),
-        SqlColumn("width", PrimitiveType.JSON, is_nullable=True),
-        SqlColumn("height", PrimitiveType.JSON, is_nullable=True),
-        SqlColumn("min_width", PrimitiveType.JSON, is_nullable=True),
-        SqlColumn("min_height", PrimitiveType.JSON, is_nullable=True),
-        SqlColumn("max_width", PrimitiveType.JSON, is_nullable=True),
-        SqlColumn("max_height", PrimitiveType.JSON, is_nullable=True),
+    ),
+    indexes=(SqlIndex("bench_idx_parent_id", SqlIndexType.BTREE, ("parent_id",), cover=("id",)),),
+)
+
+ROUTE_TABLE = SqlTable(
+    "bench_route",
+    (
+        SqlColumn("id", PrimitiveType.UUID, is_primary_key=True),
+        SqlColumn("ck", PrimitiveType.UUID),
+        SqlColumn("parent_id", PrimitiveType.UUID, is_nullable=True),
+        SqlColumn("bench_id", PrimitiveType.UUID),
+        SqlColumn("package_id", PrimitiveType.UUID),
+        SqlColumn("created_at", PrimitiveType.DATETIME),
+        SqlColumn("created_by_id", PrimitiveType.UUID, is_nullable=True),
+        SqlColumn("created_by_type", PrimitiveType.INT16, is_nullable=True),
+        SqlColumn("updated_at", PrimitiveType.DATETIME),
+        SqlColumn("updated_by_id", PrimitiveType.UUID, is_nullable=True),
+        SqlColumn("updated_by_type", PrimitiveType.INT16, is_nullable=True),
+        SqlColumn("archived_at", PrimitiveType.DATETIME, is_nullable=True),
+        SqlColumn("deleted_at", PrimitiveType.DATETIME, is_nullable=True),
+        SqlColumn("template_id", PrimitiveType.UUID, is_nullable=True),
+        SqlColumn("template_bench_id", PrimitiveType.UUID, is_nullable=True),
+        SqlColumn("owned_by_id", PrimitiveType.UUID, is_nullable=True),
+        SqlColumn("owned_by_type", PrimitiveType.INT16, is_nullable=True),
+        SqlColumn("mode", PrimitiveType.INT16, default="20"),
+        SqlColumn("order_key", PrimitiveType.STRING, is_nullable=True),
+        SqlColumn("icon", PrimitiveType.JSON, is_nullable=True),
+        SqlColumn("definition_id", PrimitiveType.UUID, is_nullable=True),
     ),
     indexes=(SqlIndex("bench_idx_parent_id", SqlIndexType.BTREE, ("parent_id",), cover=("id",)),),
 )
@@ -1733,6 +1756,7 @@ FRAME_VIEW_TABLE = SqlTable(
     "bench_frame_view",
     (
         SqlColumn("id", PrimitiveType.UUID, is_primary_key=True),
+        SqlColumn("ck", PrimitiveType.UUID),
         SqlColumn("parent_id", PrimitiveType.UUID, is_nullable=True),
         SqlColumn("parent_type", PrimitiveType.INT16, is_nullable=True),
         SqlColumn("bench_id", PrimitiveType.UUID),
@@ -1775,6 +1799,7 @@ FRAME_VIEW_TABLE = SqlTable(
         SqlColumn("rotation", PrimitiveType.JSON, is_nullable=True),
         SqlColumn("shadow", PrimitiveType.JSON, is_nullable=True),
         SqlColumn("border", PrimitiveType.JSON, is_nullable=True),
+        SqlColumn("radius", PrimitiveType.JSON, is_nullable=True),
     ),
     indexes=(SqlIndex("bench_idx_parent_id", SqlIndexType.BTREE, ("parent_id",), cover=("id",)),),
 )
@@ -1783,6 +1808,7 @@ LABEL_VIEW_TABLE = SqlTable(
     "bench_label_view",
     (
         SqlColumn("id", PrimitiveType.UUID, is_primary_key=True),
+        SqlColumn("ck", PrimitiveType.UUID),
         SqlColumn("parent_id", PrimitiveType.UUID, is_nullable=True),
         SqlColumn("parent_type", PrimitiveType.INT16, is_nullable=True),
         SqlColumn("bench_id", PrimitiveType.UUID),
@@ -1825,6 +1851,7 @@ LABEL_VIEW_TABLE = SqlTable(
         SqlColumn("rotation", PrimitiveType.JSON, is_nullable=True),
         SqlColumn("shadow", PrimitiveType.JSON, is_nullable=True),
         SqlColumn("border", PrimitiveType.JSON, is_nullable=True),
+        SqlColumn("radius", PrimitiveType.JSON, is_nullable=True),
     ),
     indexes=(SqlIndex("bench_idx_parent_id", SqlIndexType.BTREE, ("parent_id",), cover=("id",)),),
 )
@@ -1833,6 +1860,7 @@ COMPONENT_VIEW_TABLE = SqlTable(
     "bench_component_view",
     (
         SqlColumn("id", PrimitiveType.UUID, is_primary_key=True),
+        SqlColumn("ck", PrimitiveType.UUID),
         SqlColumn("parent_id", PrimitiveType.UUID, is_nullable=True),
         SqlColumn("parent_type", PrimitiveType.INT16, is_nullable=True),
         SqlColumn("bench_id", PrimitiveType.UUID),
@@ -1875,6 +1903,7 @@ COMPONENT_VIEW_TABLE = SqlTable(
         SqlColumn("rotation", PrimitiveType.JSON, is_nullable=True),
         SqlColumn("shadow", PrimitiveType.JSON, is_nullable=True),
         SqlColumn("border", PrimitiveType.JSON, is_nullable=True),
+        SqlColumn("radius", PrimitiveType.JSON, is_nullable=True),
     ),
     indexes=(SqlIndex("bench_idx_parent_id", SqlIndexType.BTREE, ("parent_id",), cover=("id",)),),
 )
@@ -1883,6 +1912,7 @@ SPLIT_VIEW_TABLE = SqlTable(
     "bench_split_view",
     (
         SqlColumn("id", PrimitiveType.UUID, is_primary_key=True),
+        SqlColumn("ck", PrimitiveType.UUID),
         SqlColumn("parent_id", PrimitiveType.UUID, is_nullable=True),
         SqlColumn("parent_type", PrimitiveType.INT16, is_nullable=True),
         SqlColumn("bench_id", PrimitiveType.UUID),
@@ -1925,6 +1955,7 @@ SPLIT_VIEW_TABLE = SqlTable(
         SqlColumn("rotation", PrimitiveType.JSON, is_nullable=True),
         SqlColumn("shadow", PrimitiveType.JSON, is_nullable=True),
         SqlColumn("border", PrimitiveType.JSON, is_nullable=True),
+        SqlColumn("radius", PrimitiveType.JSON, is_nullable=True),
     ),
     indexes=(SqlIndex("bench_idx_parent_id", SqlIndexType.BTREE, ("parent_id",), cover=("id",)),),
 )
@@ -1933,6 +1964,7 @@ TEXT_VIEW_TABLE = SqlTable(
     "bench_text_view",
     (
         SqlColumn("id", PrimitiveType.UUID, is_primary_key=True),
+        SqlColumn("ck", PrimitiveType.UUID),
         SqlColumn("parent_id", PrimitiveType.UUID, is_nullable=True),
         SqlColumn("parent_type", PrimitiveType.INT16, is_nullable=True),
         SqlColumn("bench_id", PrimitiveType.UUID),
@@ -1970,10 +2002,11 @@ TEXT_VIEW_TABLE = SqlTable(
     indexes=(SqlIndex("bench_idx_parent_id", SqlIndexType.BTREE, ("parent_id",), cover=("id",)),),
 )
 
-NUMBER_VIEW_TABLE = SqlTable(
-    "bench_number_view",
+NUMBER_INPUT_VIEW_TABLE = SqlTable(
+    "bench_number_input_view",
     (
         SqlColumn("id", PrimitiveType.UUID, is_primary_key=True),
+        SqlColumn("ck", PrimitiveType.UUID),
         SqlColumn("parent_id", PrimitiveType.UUID, is_nullable=True),
         SqlColumn("parent_type", PrimitiveType.INT16, is_nullable=True),
         SqlColumn("bench_id", PrimitiveType.UUID),
@@ -2006,10 +2039,11 @@ NUMBER_VIEW_TABLE = SqlTable(
     indexes=(SqlIndex("bench_idx_parent_id", SqlIndexType.BTREE, ("parent_id",), cover=("id",)),),
 )
 
-SLIDER_VIEW_TABLE = SqlTable(
-    "bench_slider_view",
+SLIDER_INPUT_VIEW_TABLE = SqlTable(
+    "bench_slider_input_view",
     (
         SqlColumn("id", PrimitiveType.UUID, is_primary_key=True),
+        SqlColumn("ck", PrimitiveType.UUID),
         SqlColumn("parent_id", PrimitiveType.UUID, is_nullable=True),
         SqlColumn("parent_type", PrimitiveType.INT16, is_nullable=True),
         SqlColumn("bench_id", PrimitiveType.UUID),
@@ -2048,6 +2082,7 @@ THREAD_VIEW_TABLE = SqlTable(
     "bench_thread_view",
     (
         SqlColumn("id", PrimitiveType.UUID, is_primary_key=True),
+        SqlColumn("ck", PrimitiveType.UUID),
         SqlColumn("parent_id", PrimitiveType.UUID, is_nullable=True),
         SqlColumn("parent_type", PrimitiveType.INT16, is_nullable=True),
         SqlColumn("bench_id", PrimitiveType.UUID),
@@ -2083,6 +2118,41 @@ THREAD_VIEW_TABLE = SqlTable(
         SqlColumn("draft_reply_to_id", PrimitiveType.UUID, is_nullable=True),
         SqlColumn("draft_reply_to_bench_id", PrimitiveType.UUID, is_nullable=True),
         SqlColumn("draft_reply_to_base_id", PrimitiveType.UUID, is_nullable=True),
+    ),
+    indexes=(SqlIndex("bench_idx_parent_id", SqlIndexType.BTREE, ("parent_id",), cover=("id",)),),
+)
+
+WIZARD_VIEW_TABLE = SqlTable(
+    "bench_wizard_view",
+    (
+        SqlColumn("id", PrimitiveType.UUID, is_primary_key=True),
+        SqlColumn("ck", PrimitiveType.UUID),
+        SqlColumn("parent_id", PrimitiveType.UUID, is_nullable=True),
+        SqlColumn("parent_type", PrimitiveType.INT16, is_nullable=True),
+        SqlColumn("bench_id", PrimitiveType.UUID),
+        SqlColumn("package_id", PrimitiveType.UUID),
+        SqlColumn("created_at", PrimitiveType.DATETIME),
+        SqlColumn("created_by_id", PrimitiveType.UUID, is_nullable=True),
+        SqlColumn("created_by_type", PrimitiveType.INT16, is_nullable=True),
+        SqlColumn("updated_at", PrimitiveType.DATETIME),
+        SqlColumn("updated_by_id", PrimitiveType.UUID, is_nullable=True),
+        SqlColumn("updated_by_type", PrimitiveType.INT16, is_nullable=True),
+        SqlColumn("archived_at", PrimitiveType.DATETIME, is_nullable=True),
+        SqlColumn("deleted_at", PrimitiveType.DATETIME, is_nullable=True),
+        SqlColumn("template_id", PrimitiveType.UUID, is_nullable=True),
+        SqlColumn("template_bench_id", PrimitiveType.UUID, is_nullable=True),
+        SqlColumn("mode", PrimitiveType.INT16, default="20"),
+        SqlColumn("name", PrimitiveType.STRING, is_nullable=True),
+        SqlColumn("order_key", PrimitiveType.STRING, is_nullable=True),
+        SqlColumn("icon", PrimitiveType.JSON, is_nullable=True),
+        SqlColumn("definition_id", PrimitiveType.UUID, is_nullable=True),
+        SqlColumn("position", PrimitiveType.JSON, is_nullable=True),
+        SqlColumn("width", PrimitiveType.JSON, is_nullable=True),
+        SqlColumn("height", PrimitiveType.JSON, is_nullable=True),
+        SqlColumn("min_width", PrimitiveType.JSON, is_nullable=True),
+        SqlColumn("min_height", PrimitiveType.JSON, is_nullable=True),
+        SqlColumn("max_width", PrimitiveType.JSON, is_nullable=True),
+        SqlColumn("max_height", PrimitiveType.JSON, is_nullable=True),
     ),
     indexes=(SqlIndex("bench_idx_parent_id", SqlIndexType.BTREE, ("parent_id",), cover=("id",)),),
 )

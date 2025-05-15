@@ -94,34 +94,34 @@ enum EnumType {
   ENUM_TYPE_MODEL_DEVELOPER = 24000;
   ENUM_TYPE_MODEL_PROVIDER = 24001;
   ENUM_TYPE_SPACE_TYPE = 28000;
-  ENUM_TYPE_POSITION_TYPE = 28080;
-  ENUM_TYPE_COLOR_TYPE = 28010;
-  ENUM_TYPE_COLOR_SHADE = 28011;
-  ENUM_TYPE_COLOR_HUE = 28012;
-  ENUM_TYPE_FONT_TYPE = 28020;
-  ENUM_TYPE_FONT_WEIGHT = 28021;
-  ENUM_TYPE_FONT_SIZE = 28022;
-  ENUM_TYPE_TEXT_TYPE = 28023;
-  ENUM_TYPE_TEXT_ALIGN = 28024;
-  ENUM_TYPE_TEXT_DECORATION = 28025;
-  ENUM_TYPE_TEXT_TRANSFORM = 28026;
-  ENUM_TYPE_SHADOW_TYPE = 28030;
-  ENUM_TYPE_SHADOW_POSITION = 28031;
-  ENUM_TYPE_BORDER_TYPE = 28040;
-  ENUM_TYPE_GRADIENT_TYPE = 28050;
-  ENUM_TYPE_FILL_TYPE = 28060;
-  ENUM_TYPE_FILL_POSITION = 28061;
-  ENUM_TYPE_FILL_SIZE = 28062;
-  ENUM_TYPE_LENGTH_UNIT = 28070;
-  ENUM_TYPE_LAYOUT = 28071;
-  ENUM_TYPE_DISTRIBUTE = 28072;
-  ENUM_TYPE_ALIGN = 28073;
-  ENUM_TYPE_DIRECTION = 28074;
-  ENUM_TYPE_OVERFLOW = 28075;
-  ENUM_TYPE_TRANSITION_TYPE = 28076;
-  ENUM_TYPE_SPRING_TYPE = 28077;
-  ENUM_TYPE_EFFECT_TYPE = 28078;
-  ENUM_TYPE_DIMENSION_TYPE = 28079;
+  ENUM_TYPE_POSITION_TYPE = 29000;
+  ENUM_TYPE_COLOR_TYPE = 29010;
+  ENUM_TYPE_COLOR_SHADE = 29011;
+  ENUM_TYPE_COLOR_HUE = 29012;
+  ENUM_TYPE_FONT_TYPE = 29020;
+  ENUM_TYPE_FONT_WEIGHT = 29021;
+  ENUM_TYPE_FONT_SIZE = 29022;
+  ENUM_TYPE_TEXT_TYPE = 29023;
+  ENUM_TYPE_TEXT_ALIGN = 29024;
+  ENUM_TYPE_TEXT_DECORATION = 29025;
+  ENUM_TYPE_TEXT_TRANSFORM = 29026;
+  ENUM_TYPE_SHADOW_TYPE = 29030;
+  ENUM_TYPE_SHADOW_POSITION = 29031;
+  ENUM_TYPE_BORDER_TYPE = 29040;
+  ENUM_TYPE_GRADIENT_TYPE = 29050;
+  ENUM_TYPE_FILL_TYPE = 29060;
+  ENUM_TYPE_FILL_POSITION = 29061;
+  ENUM_TYPE_FILL_SIZE = 29062;
+  ENUM_TYPE_LENGTH_UNIT = 29070;
+  ENUM_TYPE_LAYOUT = 29071;
+  ENUM_TYPE_DISTRIBUTE = 29072;
+  ENUM_TYPE_ALIGN = 29073;
+  ENUM_TYPE_DIRECTION = 29074;
+  ENUM_TYPE_OVERFLOW = 29075;
+  ENUM_TYPE_TRANSITION_TYPE = 29076;
+  ENUM_TYPE_SPRING_TYPE = 29077;
+  ENUM_TYPE_EFFECT_TYPE = 29078;
+  ENUM_TYPE_DIMENSION_TYPE = 29079;
 }
 
 enum NodeType {
@@ -167,23 +167,25 @@ enum NodeType {
   NODE_TYPE_TEAM = 2820;
   NODE_TYPE_ROLE = 2830;
   NODE_TYPE_SPACE = 8000;
-  NODE_TYPE_WIZARD_VIEW = 8010;
+  NODE_TYPE_SCENE = 8010;
+  NODE_TYPE_ROUTE = 8020;
   NODE_TYPE_FRAME_VIEW = 8100;
   NODE_TYPE_LABEL_VIEW = 8101;
   NODE_TYPE_COMPONENT_VIEW = 8110;
   NODE_TYPE_SPLIT_VIEW = 8120;
-  NODE_TYPE_TEXT_VIEW = 8222;
-  NODE_TYPE_NUMBER_VIEW = 8300;
-  NODE_TYPE_SLIDER_VIEW = 8301;
+  NODE_TYPE_TEXT_VIEW = 8200;
+  NODE_TYPE_NUMBER_INPUT_VIEW = 8300;
+  NODE_TYPE_SLIDER_INPUT_VIEW = 8301;
   NODE_TYPE_THREAD_VIEW = 8430;
-  NODE_TYPE_THEME = 8500;
-  NODE_TYPE_COLOR_STYLE = 8510;
-  NODE_TYPE_FONT_STYLE = 8511;
-  NODE_TYPE_BORDER_STYLE = 8512;
-  NODE_TYPE_SHADOW_STYLE = 8513;
-  NODE_TYPE_GRADIENT_STYLE = 8514;
-  NODE_TYPE_TRANSITION_STYLE = 8515;
-  NODE_TYPE_EFFECT_STYLE = 8516;
+  NODE_TYPE_WIZARD_VIEW = 8500;
+  NODE_TYPE_THEME = 9000;
+  NODE_TYPE_COLOR_STYLE = 9010;
+  NODE_TYPE_FONT_STYLE = 9011;
+  NODE_TYPE_BORDER_STYLE = 9012;
+  NODE_TYPE_SHADOW_STYLE = 9013;
+  NODE_TYPE_GRADIENT_STYLE = 9014;
+  NODE_TYPE_TRANSITION_STYLE = 9015;
+  NODE_TYPE_EFFECT_STYLE = 9016;
   NODE_TYPE_EMPTY = 9999;
 }
 
@@ -221,27 +223,27 @@ enum StructType {
   STRUCT_TYPE_ACCESS_ZONE = 13003;
   STRUCT_TYPE_ACCESS_MATRIX = 13004;
   STRUCT_TYPE_ACCESS = 13005;
-  STRUCT_TYPE_COLOR = 18500;
-  STRUCT_TYPE_SHADOW = 18503;
-  STRUCT_TYPE_BORDER = 18504;
-  STRUCT_TYPE_FONT = 18505;
-  STRUCT_TYPE_VECTOR2 = 18506;
-  STRUCT_TYPE_VECTOR3 = 18507;
-  STRUCT_TYPE_VECTOR4 = 18508;
-  STRUCT_TYPE_GRADIENT_STOP = 18509;
-  STRUCT_TYPE_GRADIENT = 18510;
-  STRUCT_TYPE_FILL = 18511;
-  STRUCT_TYPE_LENGTH = 18512;
-  STRUCT_TYPE_POSITION = 18513;
-  STRUCT_TYPE_DIMENSION = 18514;
-  STRUCT_TYPE_TRANSITION = 18515;
-  STRUCT_TYPE_EFFECT = 18516;
-  STRUCT_TYPE_GRID = 18518;
-  STRUCT_TYPE_GRID_SPAN = 18519;
-  STRUCT_TYPE_INSETS = 18520;
-  STRUCT_TYPE_CORNERS = 18521;
-  STRUCT_TYPE_AXIS_2 = 18522;
-  STRUCT_TYPE_AXIS_3 = 18523;
+  STRUCT_TYPE_COLOR = 19000;
+  STRUCT_TYPE_SHADOW = 19003;
+  STRUCT_TYPE_BORDER = 19004;
+  STRUCT_TYPE_FONT = 19005;
+  STRUCT_TYPE_VECTOR2 = 19006;
+  STRUCT_TYPE_VECTOR3 = 19007;
+  STRUCT_TYPE_VECTOR4 = 19008;
+  STRUCT_TYPE_GRADIENT_STOP = 19009;
+  STRUCT_TYPE_GRADIENT = 19010;
+  STRUCT_TYPE_FILL = 19011;
+  STRUCT_TYPE_LENGTH = 19012;
+  STRUCT_TYPE_POSITION = 19013;
+  STRUCT_TYPE_DIMENSION = 19014;
+  STRUCT_TYPE_TRANSITION = 19015;
+  STRUCT_TYPE_EFFECT = 19016;
+  STRUCT_TYPE_GRID = 19018;
+  STRUCT_TYPE_GRID_SPAN = 19019;
+  STRUCT_TYPE_INSETS = 19020;
+  STRUCT_TYPE_CORNERS = 19021;
+  STRUCT_TYPE_AXIS_2 = 19022;
+  STRUCT_TYPE_AXIS_3 = 19023;
 }
 
 enum ObjectType {
@@ -287,23 +289,25 @@ enum ObjectType {
   OBJECT_TYPE_TEAM = 2820;
   OBJECT_TYPE_ROLE = 2830;
   OBJECT_TYPE_SPACE = 8000;
-  OBJECT_TYPE_WIZARD_VIEW = 8010;
+  OBJECT_TYPE_SCENE = 8010;
+  OBJECT_TYPE_ROUTE = 8020;
   OBJECT_TYPE_FRAME_VIEW = 8100;
   OBJECT_TYPE_LABEL_VIEW = 8101;
   OBJECT_TYPE_COMPONENT_VIEW = 8110;
   OBJECT_TYPE_SPLIT_VIEW = 8120;
-  OBJECT_TYPE_TEXT_VIEW = 8222;
-  OBJECT_TYPE_NUMBER_VIEW = 8300;
-  OBJECT_TYPE_SLIDER_VIEW = 8301;
+  OBJECT_TYPE_TEXT_VIEW = 8200;
+  OBJECT_TYPE_NUMBER_INPUT_VIEW = 8300;
+  OBJECT_TYPE_SLIDER_INPUT_VIEW = 8301;
   OBJECT_TYPE_THREAD_VIEW = 8430;
-  OBJECT_TYPE_THEME = 8500;
-  OBJECT_TYPE_COLOR_STYLE = 8510;
-  OBJECT_TYPE_FONT_STYLE = 8511;
-  OBJECT_TYPE_BORDER_STYLE = 8512;
-  OBJECT_TYPE_SHADOW_STYLE = 8513;
-  OBJECT_TYPE_GRADIENT_STYLE = 8514;
-  OBJECT_TYPE_TRANSITION_STYLE = 8515;
-  OBJECT_TYPE_EFFECT_STYLE = 8516;
+  OBJECT_TYPE_WIZARD_VIEW = 8500;
+  OBJECT_TYPE_THEME = 9000;
+  OBJECT_TYPE_COLOR_STYLE = 9010;
+  OBJECT_TYPE_FONT_STYLE = 9011;
+  OBJECT_TYPE_BORDER_STYLE = 9012;
+  OBJECT_TYPE_SHADOW_STYLE = 9013;
+  OBJECT_TYPE_GRADIENT_STYLE = 9014;
+  OBJECT_TYPE_TRANSITION_STYLE = 9015;
+  OBJECT_TYPE_EFFECT_STYLE = 9016;
   OBJECT_TYPE_EMPTY = 9999;
   OBJECT_TYPE_CONTEXT = 10001;
   OBJECT_TYPE_EDIT_CONTEXT = 10002;
@@ -337,27 +341,27 @@ enum ObjectType {
   OBJECT_TYPE_ACCESS_ZONE = 13003;
   OBJECT_TYPE_ACCESS_MATRIX = 13004;
   OBJECT_TYPE_ACCESS = 13005;
-  OBJECT_TYPE_COLOR = 18500;
-  OBJECT_TYPE_SHADOW = 18503;
-  OBJECT_TYPE_BORDER = 18504;
-  OBJECT_TYPE_FONT = 18505;
-  OBJECT_TYPE_VECTOR2 = 18506;
-  OBJECT_TYPE_VECTOR3 = 18507;
-  OBJECT_TYPE_VECTOR4 = 18508;
-  OBJECT_TYPE_GRADIENT_STOP = 18509;
-  OBJECT_TYPE_GRADIENT = 18510;
-  OBJECT_TYPE_FILL = 18511;
-  OBJECT_TYPE_LENGTH = 18512;
-  OBJECT_TYPE_POSITION = 18513;
-  OBJECT_TYPE_DIMENSION = 18514;
-  OBJECT_TYPE_TRANSITION = 18515;
-  OBJECT_TYPE_EFFECT = 18516;
-  OBJECT_TYPE_GRID = 18518;
-  OBJECT_TYPE_GRID_SPAN = 18519;
-  OBJECT_TYPE_INSETS = 18520;
-  OBJECT_TYPE_CORNERS = 18521;
-  OBJECT_TYPE_AXIS_2 = 18522;
-  OBJECT_TYPE_AXIS_3 = 18523;
+  OBJECT_TYPE_COLOR = 19000;
+  OBJECT_TYPE_SHADOW = 19003;
+  OBJECT_TYPE_BORDER = 19004;
+  OBJECT_TYPE_FONT = 19005;
+  OBJECT_TYPE_VECTOR2 = 19006;
+  OBJECT_TYPE_VECTOR3 = 19007;
+  OBJECT_TYPE_VECTOR4 = 19008;
+  OBJECT_TYPE_GRADIENT_STOP = 19009;
+  OBJECT_TYPE_GRADIENT = 19010;
+  OBJECT_TYPE_FILL = 19011;
+  OBJECT_TYPE_LENGTH = 19012;
+  OBJECT_TYPE_POSITION = 19013;
+  OBJECT_TYPE_DIMENSION = 19014;
+  OBJECT_TYPE_TRANSITION = 19015;
+  OBJECT_TYPE_EFFECT = 19016;
+  OBJECT_TYPE_GRID = 19018;
+  OBJECT_TYPE_GRID_SPAN = 19019;
+  OBJECT_TYPE_INSETS = 19020;
+  OBJECT_TYPE_CORNERS = 19021;
+  OBJECT_TYPE_AXIS_2 = 19022;
+  OBJECT_TYPE_AXIS_3 = 19023;
 }
 
 enum BenchType {
@@ -403,23 +407,25 @@ enum BenchType {
   BENCH_TYPE_TEAM = 2820;
   BENCH_TYPE_ROLE = 2830;
   BENCH_TYPE_SPACE = 8000;
-  BENCH_TYPE_WIZARD_VIEW = 8010;
+  BENCH_TYPE_SCENE = 8010;
+  BENCH_TYPE_ROUTE = 8020;
   BENCH_TYPE_FRAME_VIEW = 8100;
   BENCH_TYPE_LABEL_VIEW = 8101;
   BENCH_TYPE_COMPONENT_VIEW = 8110;
   BENCH_TYPE_SPLIT_VIEW = 8120;
-  BENCH_TYPE_TEXT_VIEW = 8222;
-  BENCH_TYPE_NUMBER_VIEW = 8300;
-  BENCH_TYPE_SLIDER_VIEW = 8301;
+  BENCH_TYPE_TEXT_VIEW = 8200;
+  BENCH_TYPE_NUMBER_INPUT_VIEW = 8300;
+  BENCH_TYPE_SLIDER_INPUT_VIEW = 8301;
   BENCH_TYPE_THREAD_VIEW = 8430;
-  BENCH_TYPE_THEME = 8500;
-  BENCH_TYPE_COLOR_STYLE = 8510;
-  BENCH_TYPE_FONT_STYLE = 8511;
-  BENCH_TYPE_BORDER_STYLE = 8512;
-  BENCH_TYPE_SHADOW_STYLE = 8513;
-  BENCH_TYPE_GRADIENT_STYLE = 8514;
-  BENCH_TYPE_TRANSITION_STYLE = 8515;
-  BENCH_TYPE_EFFECT_STYLE = 8516;
+  BENCH_TYPE_WIZARD_VIEW = 8500;
+  BENCH_TYPE_THEME = 9000;
+  BENCH_TYPE_COLOR_STYLE = 9010;
+  BENCH_TYPE_FONT_STYLE = 9011;
+  BENCH_TYPE_BORDER_STYLE = 9012;
+  BENCH_TYPE_SHADOW_STYLE = 9013;
+  BENCH_TYPE_GRADIENT_STYLE = 9014;
+  BENCH_TYPE_TRANSITION_STYLE = 9015;
+  BENCH_TYPE_EFFECT_STYLE = 9016;
   BENCH_TYPE_EMPTY = 9999;
   BENCH_TYPE_CONTEXT = 10001;
   BENCH_TYPE_EDIT_CONTEXT = 10002;
@@ -453,27 +459,27 @@ enum BenchType {
   BENCH_TYPE_ACCESS_ZONE = 13003;
   BENCH_TYPE_ACCESS_MATRIX = 13004;
   BENCH_TYPE_ACCESS = 13005;
-  BENCH_TYPE_COLOR = 18500;
-  BENCH_TYPE_SHADOW = 18503;
-  BENCH_TYPE_BORDER = 18504;
-  BENCH_TYPE_FONT = 18505;
-  BENCH_TYPE_VECTOR2 = 18506;
-  BENCH_TYPE_VECTOR3 = 18507;
-  BENCH_TYPE_VECTOR4 = 18508;
-  BENCH_TYPE_GRADIENT_STOP = 18509;
-  BENCH_TYPE_GRADIENT = 18510;
-  BENCH_TYPE_FILL = 18511;
-  BENCH_TYPE_LENGTH = 18512;
-  BENCH_TYPE_POSITION = 18513;
-  BENCH_TYPE_DIMENSION = 18514;
-  BENCH_TYPE_TRANSITION = 18515;
-  BENCH_TYPE_EFFECT = 18516;
-  BENCH_TYPE_GRID = 18518;
-  BENCH_TYPE_GRID_SPAN = 18519;
-  BENCH_TYPE_INSETS = 18520;
-  BENCH_TYPE_CORNERS = 18521;
-  BENCH_TYPE_AXIS_2 = 18522;
-  BENCH_TYPE_AXIS_3 = 18523;
+  BENCH_TYPE_COLOR = 19000;
+  BENCH_TYPE_SHADOW = 19003;
+  BENCH_TYPE_BORDER = 19004;
+  BENCH_TYPE_FONT = 19005;
+  BENCH_TYPE_VECTOR2 = 19006;
+  BENCH_TYPE_VECTOR3 = 19007;
+  BENCH_TYPE_VECTOR4 = 19008;
+  BENCH_TYPE_GRADIENT_STOP = 19009;
+  BENCH_TYPE_GRADIENT = 19010;
+  BENCH_TYPE_FILL = 19011;
+  BENCH_TYPE_LENGTH = 19012;
+  BENCH_TYPE_POSITION = 19013;
+  BENCH_TYPE_DIMENSION = 19014;
+  BENCH_TYPE_TRANSITION = 19015;
+  BENCH_TYPE_EFFECT = 19016;
+  BENCH_TYPE_GRID = 19018;
+  BENCH_TYPE_GRID_SPAN = 19019;
+  BENCH_TYPE_INSETS = 19020;
+  BENCH_TYPE_CORNERS = 19021;
+  BENCH_TYPE_AXIS_2 = 19022;
+  BENCH_TYPE_AXIS_3 = 19023;
   BENCH_TYPE_ENUM_TYPE = 20000;
   BENCH_TYPE_NODE_TYPE = 20001;
   BENCH_TYPE_STRUCT_TYPE = 20002;
@@ -557,34 +563,34 @@ enum BenchType {
   BENCH_TYPE_MODEL_DEVELOPER = 24000;
   BENCH_TYPE_MODEL_PROVIDER = 24001;
   BENCH_TYPE_SPACE_TYPE = 28000;
-  BENCH_TYPE_POSITION_TYPE = 28080;
-  BENCH_TYPE_COLOR_TYPE = 28010;
-  BENCH_TYPE_COLOR_SHADE = 28011;
-  BENCH_TYPE_COLOR_HUE = 28012;
-  BENCH_TYPE_FONT_TYPE = 28020;
-  BENCH_TYPE_FONT_WEIGHT = 28021;
-  BENCH_TYPE_FONT_SIZE = 28022;
-  BENCH_TYPE_TEXT_TYPE = 28023;
-  BENCH_TYPE_TEXT_ALIGN = 28024;
-  BENCH_TYPE_TEXT_DECORATION = 28025;
-  BENCH_TYPE_TEXT_TRANSFORM = 28026;
-  BENCH_TYPE_SHADOW_TYPE = 28030;
-  BENCH_TYPE_SHADOW_POSITION = 28031;
-  BENCH_TYPE_BORDER_TYPE = 28040;
-  BENCH_TYPE_GRADIENT_TYPE = 28050;
-  BENCH_TYPE_FILL_TYPE = 28060;
-  BENCH_TYPE_FILL_POSITION = 28061;
-  BENCH_TYPE_FILL_SIZE = 28062;
-  BENCH_TYPE_LENGTH_UNIT = 28070;
-  BENCH_TYPE_LAYOUT = 28071;
-  BENCH_TYPE_DISTRIBUTE = 28072;
-  BENCH_TYPE_ALIGN = 28073;
-  BENCH_TYPE_DIRECTION = 28074;
-  BENCH_TYPE_OVERFLOW = 28075;
-  BENCH_TYPE_TRANSITION_TYPE = 28076;
-  BENCH_TYPE_SPRING_TYPE = 28077;
-  BENCH_TYPE_EFFECT_TYPE = 28078;
-  BENCH_TYPE_DIMENSION_TYPE = 28079;
+  BENCH_TYPE_POSITION_TYPE = 29000;
+  BENCH_TYPE_COLOR_TYPE = 29010;
+  BENCH_TYPE_COLOR_SHADE = 29011;
+  BENCH_TYPE_COLOR_HUE = 29012;
+  BENCH_TYPE_FONT_TYPE = 29020;
+  BENCH_TYPE_FONT_WEIGHT = 29021;
+  BENCH_TYPE_FONT_SIZE = 29022;
+  BENCH_TYPE_TEXT_TYPE = 29023;
+  BENCH_TYPE_TEXT_ALIGN = 29024;
+  BENCH_TYPE_TEXT_DECORATION = 29025;
+  BENCH_TYPE_TEXT_TRANSFORM = 29026;
+  BENCH_TYPE_SHADOW_TYPE = 29030;
+  BENCH_TYPE_SHADOW_POSITION = 29031;
+  BENCH_TYPE_BORDER_TYPE = 29040;
+  BENCH_TYPE_GRADIENT_TYPE = 29050;
+  BENCH_TYPE_FILL_TYPE = 29060;
+  BENCH_TYPE_FILL_POSITION = 29061;
+  BENCH_TYPE_FILL_SIZE = 29062;
+  BENCH_TYPE_LENGTH_UNIT = 29070;
+  BENCH_TYPE_LAYOUT = 29071;
+  BENCH_TYPE_DISTRIBUTE = 29072;
+  BENCH_TYPE_ALIGN = 29073;
+  BENCH_TYPE_DIRECTION = 29074;
+  BENCH_TYPE_OVERFLOW = 29075;
+  BENCH_TYPE_TRANSITION_TYPE = 29076;
+  BENCH_TYPE_SPRING_TYPE = 29077;
+  BENCH_TYPE_EFFECT_TYPE = 29078;
+  BENCH_TYPE_DIMENSION_TYPE = 29079;
 }
 
 enum NodeMode {
@@ -2100,27 +2106,6 @@ message ChangeData {
   repeated EditData edits = 34;
 }
 
-message Vector2Data {
-  ObjectType metatype = 1;
-  float x = 30;
-  float y = 31;
-}
-
-message Vector3Data {
-  ObjectType metatype = 1;
-  float x = 30;
-  float y = 31;
-  float z = 32;
-}
-
-message Vector4Data {
-  ObjectType metatype = 1;
-  float x = 30;
-  float y = 31;
-  float z = 32;
-  float w = 33;
-}
-
 message ColorData {
   ObjectType metatype = 1;
   ColorType type = 30;
@@ -2287,6 +2272,27 @@ message TransitionData {
   optional float mass = 46;
   optional float bounce = 47;
   optional SpringType spring_type = 48;
+}
+
+message Vector2Data {
+  ObjectType metatype = 1;
+  float x = 30;
+  float y = 31;
+}
+
+message Vector3Data {
+  ObjectType metatype = 1;
+  float x = 30;
+  float y = 31;
+  float z = 32;
+}
+
+message Vector4Data {
+  ObjectType metatype = 1;
+  float x = 30;
+  float y = 31;
+  float z = 32;
+  float w = 33;
 }
 
 message BaseNodeData {
@@ -3389,6 +3395,48 @@ message SpanData {
   optional NodeReferenceData user_ptr = 97;
 }
 
+message RouteData {
+  ObjectType metatype = 1;
+  string id = 2;
+  string ck = 3;
+  optional NodeReferenceData parent_ptr = 4;
+  optional NodeReferenceData bench_ptr = 5;
+  optional NodeReferenceData package_ptr = 9;
+  google.protobuf.Timestamp created_at = 10;
+  optional NodeReferenceData created_by_ptr = 11;
+  google.protobuf.Timestamp updated_at = 12;
+  optional NodeReferenceData updated_by_ptr = 13;
+  optional google.protobuf.Timestamp archived_at = 14;
+  optional google.protobuf.Timestamp deleted_at = 15;
+  optional NodeReferenceData template_ptr = 16;
+  optional NodeReferenceData owned_by_ptr = 17;
+  NodeMode mode = 25;
+  optional string order_key = 33;
+  optional IconData icon = 34;
+  optional NodeReferenceData definition_ptr = 35;
+}
+
+message SceneData {
+  ObjectType metatype = 1;
+  string id = 2;
+  string ck = 3;
+  optional NodeReferenceData parent_ptr = 4;
+  optional NodeReferenceData bench_ptr = 5;
+  optional NodeReferenceData package_ptr = 9;
+  google.protobuf.Timestamp created_at = 10;
+  optional NodeReferenceData created_by_ptr = 11;
+  google.protobuf.Timestamp updated_at = 12;
+  optional NodeReferenceData updated_by_ptr = 13;
+  optional google.protobuf.Timestamp archived_at = 14;
+  optional google.protobuf.Timestamp deleted_at = 15;
+  optional NodeReferenceData template_ptr = 16;
+  optional NodeReferenceData owned_by_ptr = 17;
+  NodeMode mode = 25;
+  optional string order_key = 33;
+  optional IconData icon = 34;
+  optional NodeReferenceData definition_ptr = 35;
+}
+
 message SpaceData {
   ObjectType metatype = 1;
   string id = 2;
@@ -3413,329 +3461,6 @@ message SpaceData {
   optional NodeReferenceData container_ptr = 73;
   optional NodeReferenceData page_ptr = 74;
   optional NodeReferenceData thread_ptr = 75;
-}
-
-message ComponentViewData {
-  ObjectType metatype = 1;
-  string id = 2;
-  optional NodeReferenceData parent_ptr = 4;
-  optional NodeReferenceData bench_ptr = 5;
-  optional NodeReferenceData package_ptr = 9;
-  google.protobuf.Timestamp created_at = 10;
-  optional NodeReferenceData created_by_ptr = 11;
-  google.protobuf.Timestamp updated_at = 12;
-  optional NodeReferenceData updated_by_ptr = 13;
-  optional google.protobuf.Timestamp archived_at = 14;
-  optional google.protobuf.Timestamp deleted_at = 15;
-  optional NodeReferenceData template_ptr = 16;
-  NodeMode mode = 25;
-  optional string name = 31;
-  optional string order_key = 33;
-  optional IconData icon = 34;
-  optional NodeReferenceData definition_ptr = 35;
-  optional PositionData position = 40;
-  optional DimensionData width = 41;
-  optional DimensionData height = 42;
-  optional DimensionData min_width = 43;
-  optional DimensionData min_height = 44;
-  optional DimensionData max_width = 45;
-  optional DimensionData max_height = 46;
-  optional Layout layout = 50;
-  optional Direction direction = 51;
-  optional Distribute distribute = 52;
-  optional Align align = 53;
-  optional Axis2Data gap = 54;
-  optional InsetsData padding = 55;
-  optional GridData grid = 56;
-  optional GridSpanData grid_span = 57;
-  optional float aspect_ratio = 58;
-  optional bool wrap = 59;
-  optional bool visible = 60;
-  optional float opacity = 61;
-  optional FillData fill = 62;
-  optional Axis3Data rotation = 63;
-  optional ShadowData shadow = 64;
-  optional BorderData border = 65;
-}
-
-message FrameViewData {
-  ObjectType metatype = 1;
-  string id = 2;
-  optional NodeReferenceData parent_ptr = 4;
-  optional NodeReferenceData bench_ptr = 5;
-  optional NodeReferenceData package_ptr = 9;
-  google.protobuf.Timestamp created_at = 10;
-  optional NodeReferenceData created_by_ptr = 11;
-  google.protobuf.Timestamp updated_at = 12;
-  optional NodeReferenceData updated_by_ptr = 13;
-  optional google.protobuf.Timestamp archived_at = 14;
-  optional google.protobuf.Timestamp deleted_at = 15;
-  optional NodeReferenceData template_ptr = 16;
-  NodeMode mode = 25;
-  optional string name = 31;
-  optional string order_key = 33;
-  optional IconData icon = 34;
-  optional NodeReferenceData definition_ptr = 35;
-  optional PositionData position = 40;
-  optional DimensionData width = 41;
-  optional DimensionData height = 42;
-  optional DimensionData min_width = 43;
-  optional DimensionData min_height = 44;
-  optional DimensionData max_width = 45;
-  optional DimensionData max_height = 46;
-  optional Layout layout = 50;
-  optional Direction direction = 51;
-  optional Distribute distribute = 52;
-  optional Align align = 53;
-  optional Axis2Data gap = 54;
-  optional InsetsData padding = 55;
-  optional GridData grid = 56;
-  optional GridSpanData grid_span = 57;
-  optional float aspect_ratio = 58;
-  optional bool wrap = 59;
-  optional bool visible = 60;
-  optional float opacity = 61;
-  optional FillData fill = 62;
-  optional Axis3Data rotation = 63;
-  optional ShadowData shadow = 64;
-  optional BorderData border = 65;
-}
-
-message LabelViewData {
-  ObjectType metatype = 1;
-  string id = 2;
-  optional NodeReferenceData parent_ptr = 4;
-  optional NodeReferenceData bench_ptr = 5;
-  optional NodeReferenceData package_ptr = 9;
-  google.protobuf.Timestamp created_at = 10;
-  optional NodeReferenceData created_by_ptr = 11;
-  google.protobuf.Timestamp updated_at = 12;
-  optional NodeReferenceData updated_by_ptr = 13;
-  optional google.protobuf.Timestamp archived_at = 14;
-  optional google.protobuf.Timestamp deleted_at = 15;
-  optional NodeReferenceData template_ptr = 16;
-  NodeMode mode = 25;
-  optional string name = 31;
-  optional string order_key = 33;
-  optional IconData icon = 34;
-  optional NodeReferenceData definition_ptr = 35;
-  optional PositionData position = 40;
-  optional DimensionData width = 41;
-  optional DimensionData height = 42;
-  optional DimensionData min_width = 43;
-  optional DimensionData min_height = 44;
-  optional DimensionData max_width = 45;
-  optional DimensionData max_height = 46;
-  optional Layout layout = 50;
-  optional Direction direction = 51;
-  optional Distribute distribute = 52;
-  optional Align align = 53;
-  optional Axis2Data gap = 54;
-  optional InsetsData padding = 55;
-  optional GridData grid = 56;
-  optional GridSpanData grid_span = 57;
-  optional float aspect_ratio = 58;
-  optional bool wrap = 59;
-  optional bool visible = 60;
-  optional float opacity = 61;
-  optional FillData fill = 62;
-  optional Axis3Data rotation = 63;
-  optional ShadowData shadow = 64;
-  optional BorderData border = 65;
-}
-
-message SplitViewData {
-  ObjectType metatype = 1;
-  string id = 2;
-  optional NodeReferenceData parent_ptr = 4;
-  optional NodeReferenceData bench_ptr = 5;
-  optional NodeReferenceData package_ptr = 9;
-  google.protobuf.Timestamp created_at = 10;
-  optional NodeReferenceData created_by_ptr = 11;
-  google.protobuf.Timestamp updated_at = 12;
-  optional NodeReferenceData updated_by_ptr = 13;
-  optional google.protobuf.Timestamp archived_at = 14;
-  optional google.protobuf.Timestamp deleted_at = 15;
-  optional NodeReferenceData template_ptr = 16;
-  NodeMode mode = 25;
-  optional string name = 31;
-  optional string order_key = 33;
-  optional IconData icon = 34;
-  optional NodeReferenceData definition_ptr = 35;
-  optional PositionData position = 40;
-  optional DimensionData width = 41;
-  optional DimensionData height = 42;
-  optional DimensionData min_width = 43;
-  optional DimensionData min_height = 44;
-  optional DimensionData max_width = 45;
-  optional DimensionData max_height = 46;
-  optional Layout layout = 50;
-  optional Direction direction = 51;
-  optional Distribute distribute = 52;
-  optional Align align = 53;
-  optional Axis2Data gap = 54;
-  optional InsetsData padding = 55;
-  optional GridData grid = 56;
-  optional GridSpanData grid_span = 57;
-  optional float aspect_ratio = 58;
-  optional bool wrap = 59;
-  optional bool visible = 60;
-  optional float opacity = 61;
-  optional FillData fill = 62;
-  optional Axis3Data rotation = 63;
-  optional ShadowData shadow = 64;
-  optional BorderData border = 65;
-}
-
-message TextViewData {
-  ObjectType metatype = 1;
-  string id = 2;
-  optional NodeReferenceData parent_ptr = 4;
-  optional NodeReferenceData bench_ptr = 5;
-  optional NodeReferenceData package_ptr = 9;
-  google.protobuf.Timestamp created_at = 10;
-  optional NodeReferenceData created_by_ptr = 11;
-  google.protobuf.Timestamp updated_at = 12;
-  optional NodeReferenceData updated_by_ptr = 13;
-  optional google.protobuf.Timestamp archived_at = 14;
-  optional google.protobuf.Timestamp deleted_at = 15;
-  optional NodeReferenceData template_ptr = 16;
-  NodeMode mode = 25;
-  optional string name = 31;
-  optional string order_key = 33;
-  optional IconData icon = 34;
-  optional NodeReferenceData definition_ptr = 35;
-  optional PositionData position = 40;
-  optional DimensionData width = 41;
-  optional DimensionData height = 42;
-  optional DimensionData min_width = 43;
-  optional DimensionData min_height = 44;
-  optional DimensionData max_width = 45;
-  optional DimensionData max_height = 46;
-  optional Align align = 53;
-  optional bool visible = 60;
-  optional float opacity = 61;
-  optional bool user_select = 62;
-  optional FontData font = 63;
-  optional ColorData color = 64;
-  string text = 100;
-}
-
-message NumberViewData {
-  ObjectType metatype = 1;
-  string id = 2;
-  optional NodeReferenceData parent_ptr = 4;
-  optional NodeReferenceData bench_ptr = 5;
-  optional NodeReferenceData package_ptr = 9;
-  google.protobuf.Timestamp created_at = 10;
-  optional NodeReferenceData created_by_ptr = 11;
-  google.protobuf.Timestamp updated_at = 12;
-  optional NodeReferenceData updated_by_ptr = 13;
-  optional google.protobuf.Timestamp archived_at = 14;
-  optional google.protobuf.Timestamp deleted_at = 15;
-  optional NodeReferenceData template_ptr = 16;
-  NodeMode mode = 25;
-  optional string name = 31;
-  optional string order_key = 33;
-  optional IconData icon = 34;
-  optional NodeReferenceData definition_ptr = 35;
-  optional PositionData position = 40;
-  optional DimensionData width = 41;
-  optional DimensionData height = 42;
-  optional DimensionData min_width = 43;
-  optional DimensionData min_height = 44;
-  optional DimensionData max_width = 45;
-  optional DimensionData max_height = 46;
-  optional string value = 100;
-  optional string placeholder = 101;
-}
-
-message SliderViewData {
-  ObjectType metatype = 1;
-  string id = 2;
-  optional NodeReferenceData parent_ptr = 4;
-  optional NodeReferenceData bench_ptr = 5;
-  optional NodeReferenceData package_ptr = 9;
-  google.protobuf.Timestamp created_at = 10;
-  optional NodeReferenceData created_by_ptr = 11;
-  google.protobuf.Timestamp updated_at = 12;
-  optional NodeReferenceData updated_by_ptr = 13;
-  optional google.protobuf.Timestamp archived_at = 14;
-  optional google.protobuf.Timestamp deleted_at = 15;
-  optional NodeReferenceData template_ptr = 16;
-  NodeMode mode = 25;
-  optional string name = 31;
-  optional string order_key = 33;
-  optional IconData icon = 34;
-  optional NodeReferenceData definition_ptr = 35;
-  optional PositionData position = 40;
-  optional DimensionData width = 41;
-  optional DimensionData height = 42;
-  optional DimensionData min_width = 43;
-  optional DimensionData min_height = 44;
-  optional DimensionData max_width = 45;
-  optional DimensionData max_height = 46;
-  optional float value = 100;
-  optional float min_value = 101;
-  optional float max_value = 102;
-  optional float step = 103;
-}
-
-message ThreadViewData {
-  ObjectType metatype = 1;
-  string id = 2;
-  optional NodeReferenceData parent_ptr = 4;
-  optional NodeReferenceData bench_ptr = 5;
-  optional NodeReferenceData package_ptr = 9;
-  google.protobuf.Timestamp created_at = 10;
-  optional NodeReferenceData created_by_ptr = 11;
-  google.protobuf.Timestamp updated_at = 12;
-  optional NodeReferenceData updated_by_ptr = 13;
-  optional google.protobuf.Timestamp archived_at = 14;
-  optional google.protobuf.Timestamp deleted_at = 15;
-  optional NodeReferenceData template_ptr = 16;
-  NodeMode mode = 25;
-  optional string name = 31;
-  optional string order_key = 33;
-  optional IconData icon = 34;
-  optional NodeReferenceData definition_ptr = 35;
-  optional PositionData position = 40;
-  optional DimensionData width = 41;
-  optional DimensionData height = 42;
-  optional DimensionData min_width = 43;
-  optional DimensionData min_height = 44;
-  optional DimensionData max_width = 45;
-  optional DimensionData max_height = 46;
-  optional TextData draft_text = 100;
-  repeated NodeReferenceData draft_nodes_ptr = 101;
-  optional NodeReferenceData draft_reply_to_ptr = 102;
-}
-
-message WizardViewData {
-  ObjectType metatype = 1;
-  string id = 2;
-  optional NodeReferenceData parent_ptr = 4;
-  optional NodeReferenceData bench_ptr = 5;
-  optional NodeReferenceData package_ptr = 9;
-  google.protobuf.Timestamp created_at = 10;
-  optional NodeReferenceData created_by_ptr = 11;
-  google.protobuf.Timestamp updated_at = 12;
-  optional NodeReferenceData updated_by_ptr = 13;
-  optional google.protobuf.Timestamp archived_at = 14;
-  optional google.protobuf.Timestamp deleted_at = 15;
-  optional NodeReferenceData template_ptr = 16;
-  NodeMode mode = 25;
-  optional string name = 31;
-  optional string order_key = 33;
-  optional IconData icon = 34;
-  optional NodeReferenceData definition_ptr = 35;
-  optional PositionData position = 40;
-  optional DimensionData width = 41;
-  optional DimensionData height = 42;
-  optional DimensionData min_width = 43;
-  optional DimensionData min_height = 44;
-  optional DimensionData max_width = 45;
-  optional DimensionData max_height = 46;
 }
 
 message ColorStyleData {
@@ -4054,6 +3779,342 @@ message OptionData {
   optional IconData icon = 34;
 }
 
+message ComponentViewData {
+  ObjectType metatype = 1;
+  string id = 2;
+  string ck = 3;
+  optional NodeReferenceData parent_ptr = 4;
+  optional NodeReferenceData bench_ptr = 5;
+  optional NodeReferenceData package_ptr = 9;
+  google.protobuf.Timestamp created_at = 10;
+  optional NodeReferenceData created_by_ptr = 11;
+  google.protobuf.Timestamp updated_at = 12;
+  optional NodeReferenceData updated_by_ptr = 13;
+  optional google.protobuf.Timestamp archived_at = 14;
+  optional google.protobuf.Timestamp deleted_at = 15;
+  optional NodeReferenceData template_ptr = 16;
+  NodeMode mode = 25;
+  optional string name = 31;
+  optional string order_key = 33;
+  optional IconData icon = 34;
+  optional NodeReferenceData definition_ptr = 35;
+  optional PositionData position = 40;
+  optional DimensionData width = 41;
+  optional DimensionData height = 42;
+  optional DimensionData min_width = 43;
+  optional DimensionData min_height = 44;
+  optional DimensionData max_width = 45;
+  optional DimensionData max_height = 46;
+  optional Layout layout = 50;
+  optional Direction direction = 51;
+  optional Distribute distribute = 52;
+  optional Align align = 53;
+  optional Axis2Data gap = 54;
+  optional InsetsData padding = 55;
+  optional GridData grid = 56;
+  optional GridSpanData grid_span = 57;
+  optional float aspect_ratio = 58;
+  optional bool wrap = 59;
+  optional bool visible = 60;
+  optional float opacity = 61;
+  optional FillData fill = 62;
+  optional Axis3Data rotation = 63;
+  optional ShadowData shadow = 64;
+  optional BorderData border = 65;
+  optional CornersData radius = 66;
+}
+
+message FrameViewData {
+  ObjectType metatype = 1;
+  string id = 2;
+  string ck = 3;
+  optional NodeReferenceData parent_ptr = 4;
+  optional NodeReferenceData bench_ptr = 5;
+  optional NodeReferenceData package_ptr = 9;
+  google.protobuf.Timestamp created_at = 10;
+  optional NodeReferenceData created_by_ptr = 11;
+  google.protobuf.Timestamp updated_at = 12;
+  optional NodeReferenceData updated_by_ptr = 13;
+  optional google.protobuf.Timestamp archived_at = 14;
+  optional google.protobuf.Timestamp deleted_at = 15;
+  optional NodeReferenceData template_ptr = 16;
+  NodeMode mode = 25;
+  optional string name = 31;
+  optional string order_key = 33;
+  optional IconData icon = 34;
+  optional NodeReferenceData definition_ptr = 35;
+  optional PositionData position = 40;
+  optional DimensionData width = 41;
+  optional DimensionData height = 42;
+  optional DimensionData min_width = 43;
+  optional DimensionData min_height = 44;
+  optional DimensionData max_width = 45;
+  optional DimensionData max_height = 46;
+  optional Layout layout = 50;
+  optional Direction direction = 51;
+  optional Distribute distribute = 52;
+  optional Align align = 53;
+  optional Axis2Data gap = 54;
+  optional InsetsData padding = 55;
+  optional GridData grid = 56;
+  optional GridSpanData grid_span = 57;
+  optional float aspect_ratio = 58;
+  optional bool wrap = 59;
+  optional bool visible = 60;
+  optional float opacity = 61;
+  optional FillData fill = 62;
+  optional Axis3Data rotation = 63;
+  optional ShadowData shadow = 64;
+  optional BorderData border = 65;
+  optional CornersData radius = 66;
+}
+
+message LabelViewData {
+  ObjectType metatype = 1;
+  string id = 2;
+  string ck = 3;
+  optional NodeReferenceData parent_ptr = 4;
+  optional NodeReferenceData bench_ptr = 5;
+  optional NodeReferenceData package_ptr = 9;
+  google.protobuf.Timestamp created_at = 10;
+  optional NodeReferenceData created_by_ptr = 11;
+  google.protobuf.Timestamp updated_at = 12;
+  optional NodeReferenceData updated_by_ptr = 13;
+  optional google.protobuf.Timestamp archived_at = 14;
+  optional google.protobuf.Timestamp deleted_at = 15;
+  optional NodeReferenceData template_ptr = 16;
+  NodeMode mode = 25;
+  optional string name = 31;
+  optional string order_key = 33;
+  optional IconData icon = 34;
+  optional NodeReferenceData definition_ptr = 35;
+  optional PositionData position = 40;
+  optional DimensionData width = 41;
+  optional DimensionData height = 42;
+  optional DimensionData min_width = 43;
+  optional DimensionData min_height = 44;
+  optional DimensionData max_width = 45;
+  optional DimensionData max_height = 46;
+  optional Layout layout = 50;
+  optional Direction direction = 51;
+  optional Distribute distribute = 52;
+  optional Align align = 53;
+  optional Axis2Data gap = 54;
+  optional InsetsData padding = 55;
+  optional GridData grid = 56;
+  optional GridSpanData grid_span = 57;
+  optional float aspect_ratio = 58;
+  optional bool wrap = 59;
+  optional bool visible = 60;
+  optional float opacity = 61;
+  optional FillData fill = 62;
+  optional Axis3Data rotation = 63;
+  optional ShadowData shadow = 64;
+  optional BorderData border = 65;
+  optional CornersData radius = 66;
+}
+
+message SplitViewData {
+  ObjectType metatype = 1;
+  string id = 2;
+  string ck = 3;
+  optional NodeReferenceData parent_ptr = 4;
+  optional NodeReferenceData bench_ptr = 5;
+  optional NodeReferenceData package_ptr = 9;
+  google.protobuf.Timestamp created_at = 10;
+  optional NodeReferenceData created_by_ptr = 11;
+  google.protobuf.Timestamp updated_at = 12;
+  optional NodeReferenceData updated_by_ptr = 13;
+  optional google.protobuf.Timestamp archived_at = 14;
+  optional google.protobuf.Timestamp deleted_at = 15;
+  optional NodeReferenceData template_ptr = 16;
+  NodeMode mode = 25;
+  optional string name = 31;
+  optional string order_key = 33;
+  optional IconData icon = 34;
+  optional NodeReferenceData definition_ptr = 35;
+  optional PositionData position = 40;
+  optional DimensionData width = 41;
+  optional DimensionData height = 42;
+  optional DimensionData min_width = 43;
+  optional DimensionData min_height = 44;
+  optional DimensionData max_width = 45;
+  optional DimensionData max_height = 46;
+  optional Layout layout = 50;
+  optional Direction direction = 51;
+  optional Distribute distribute = 52;
+  optional Align align = 53;
+  optional Axis2Data gap = 54;
+  optional InsetsData padding = 55;
+  optional GridData grid = 56;
+  optional GridSpanData grid_span = 57;
+  optional float aspect_ratio = 58;
+  optional bool wrap = 59;
+  optional bool visible = 60;
+  optional float opacity = 61;
+  optional FillData fill = 62;
+  optional Axis3Data rotation = 63;
+  optional ShadowData shadow = 64;
+  optional BorderData border = 65;
+  optional CornersData radius = 66;
+}
+
+message TextViewData {
+  ObjectType metatype = 1;
+  string id = 2;
+  string ck = 3;
+  optional NodeReferenceData parent_ptr = 4;
+  optional NodeReferenceData bench_ptr = 5;
+  optional NodeReferenceData package_ptr = 9;
+  google.protobuf.Timestamp created_at = 10;
+  optional NodeReferenceData created_by_ptr = 11;
+  google.protobuf.Timestamp updated_at = 12;
+  optional NodeReferenceData updated_by_ptr = 13;
+  optional google.protobuf.Timestamp archived_at = 14;
+  optional google.protobuf.Timestamp deleted_at = 15;
+  optional NodeReferenceData template_ptr = 16;
+  NodeMode mode = 25;
+  optional string name = 31;
+  optional string order_key = 33;
+  optional IconData icon = 34;
+  optional NodeReferenceData definition_ptr = 35;
+  optional PositionData position = 40;
+  optional DimensionData width = 41;
+  optional DimensionData height = 42;
+  optional DimensionData min_width = 43;
+  optional DimensionData min_height = 44;
+  optional DimensionData max_width = 45;
+  optional DimensionData max_height = 46;
+  optional Align align = 53;
+  optional bool visible = 60;
+  optional float opacity = 61;
+  optional bool user_select = 65;
+  optional FontData font = 66;
+  optional FillData color = 67;
+  string text = 100;
+}
+
+message NumberInputViewData {
+  ObjectType metatype = 1;
+  string id = 2;
+  string ck = 3;
+  optional NodeReferenceData parent_ptr = 4;
+  optional NodeReferenceData bench_ptr = 5;
+  optional NodeReferenceData package_ptr = 9;
+  google.protobuf.Timestamp created_at = 10;
+  optional NodeReferenceData created_by_ptr = 11;
+  google.protobuf.Timestamp updated_at = 12;
+  optional NodeReferenceData updated_by_ptr = 13;
+  optional google.protobuf.Timestamp archived_at = 14;
+  optional google.protobuf.Timestamp deleted_at = 15;
+  optional NodeReferenceData template_ptr = 16;
+  NodeMode mode = 25;
+  optional string name = 31;
+  optional string order_key = 33;
+  optional IconData icon = 34;
+  optional NodeReferenceData definition_ptr = 35;
+  optional PositionData position = 40;
+  optional DimensionData width = 41;
+  optional DimensionData height = 42;
+  optional DimensionData min_width = 43;
+  optional DimensionData min_height = 44;
+  optional DimensionData max_width = 45;
+  optional DimensionData max_height = 46;
+  optional string value = 100;
+  optional string placeholder = 101;
+}
+
+message SliderInputViewData {
+  ObjectType metatype = 1;
+  string id = 2;
+  string ck = 3;
+  optional NodeReferenceData parent_ptr = 4;
+  optional NodeReferenceData bench_ptr = 5;
+  optional NodeReferenceData package_ptr = 9;
+  google.protobuf.Timestamp created_at = 10;
+  optional NodeReferenceData created_by_ptr = 11;
+  google.protobuf.Timestamp updated_at = 12;
+  optional NodeReferenceData updated_by_ptr = 13;
+  optional google.protobuf.Timestamp archived_at = 14;
+  optional google.protobuf.Timestamp deleted_at = 15;
+  optional NodeReferenceData template_ptr = 16;
+  NodeMode mode = 25;
+  optional string name = 31;
+  optional string order_key = 33;
+  optional IconData icon = 34;
+  optional NodeReferenceData definition_ptr = 35;
+  optional PositionData position = 40;
+  optional DimensionData width = 41;
+  optional DimensionData height = 42;
+  optional DimensionData min_width = 43;
+  optional DimensionData min_height = 44;
+  optional DimensionData max_width = 45;
+  optional DimensionData max_height = 46;
+  optional float value = 100;
+  optional float min_value = 101;
+  optional float max_value = 102;
+  optional float step = 103;
+}
+
+message WizardViewData {
+  ObjectType metatype = 1;
+  string id = 2;
+  string ck = 3;
+  optional NodeReferenceData parent_ptr = 4;
+  optional NodeReferenceData bench_ptr = 5;
+  optional NodeReferenceData package_ptr = 9;
+  google.protobuf.Timestamp created_at = 10;
+  optional NodeReferenceData created_by_ptr = 11;
+  google.protobuf.Timestamp updated_at = 12;
+  optional NodeReferenceData updated_by_ptr = 13;
+  optional google.protobuf.Timestamp archived_at = 14;
+  optional google.protobuf.Timestamp deleted_at = 15;
+  optional NodeReferenceData template_ptr = 16;
+  NodeMode mode = 25;
+  optional string name = 31;
+  optional string order_key = 33;
+  optional IconData icon = 34;
+  optional NodeReferenceData definition_ptr = 35;
+  optional PositionData position = 40;
+  optional DimensionData width = 41;
+  optional DimensionData height = 42;
+  optional DimensionData min_width = 43;
+  optional DimensionData min_height = 44;
+  optional DimensionData max_width = 45;
+  optional DimensionData max_height = 46;
+}
+
+message ThreadViewData {
+  ObjectType metatype = 1;
+  string id = 2;
+  string ck = 3;
+  optional NodeReferenceData parent_ptr = 4;
+  optional NodeReferenceData bench_ptr = 5;
+  optional NodeReferenceData package_ptr = 9;
+  google.protobuf.Timestamp created_at = 10;
+  optional NodeReferenceData created_by_ptr = 11;
+  google.protobuf.Timestamp updated_at = 12;
+  optional NodeReferenceData updated_by_ptr = 13;
+  optional google.protobuf.Timestamp archived_at = 14;
+  optional google.protobuf.Timestamp deleted_at = 15;
+  optional NodeReferenceData template_ptr = 16;
+  NodeMode mode = 25;
+  optional string name = 31;
+  optional string order_key = 33;
+  optional IconData icon = 34;
+  optional NodeReferenceData definition_ptr = 35;
+  optional PositionData position = 40;
+  optional DimensionData width = 41;
+  optional DimensionData height = 42;
+  optional DimensionData min_width = 43;
+  optional DimensionData min_height = 44;
+  optional DimensionData max_width = 45;
+  optional DimensionData max_height = 46;
+  optional TextData draft_text = 100;
+  repeated NodeReferenceData draft_nodes_ptr = 101;
+  optional NodeReferenceData draft_reply_to_ptr = 102;
+}
+
 enum BuiltinEnum {
   BUILTIN_ENUM_UNSPECIFIED = 0;
 }
@@ -4115,24 +4176,26 @@ message SomeNodeData {
     TeamData team = 39;
     RoleData role = 40;
     SpaceData space = 41;
-    WizardViewData wizard_view = 42;
-    FrameViewData frame_view = 43;
-    LabelViewData label_view = 44;
-    ComponentViewData component_view = 45;
-    SplitViewData split_view = 46;
-    TextViewData text_view = 47;
-    NumberViewData number_view = 48;
-    SliderViewData slider_view = 49;
-    ThreadViewData thread_view = 50;
-    ThemeData theme = 51;
-    ColorStyleData color_style = 52;
-    FontStyleData font_style = 53;
-    BorderStyleData border_style = 54;
-    ShadowStyleData shadow_style = 55;
-    GradientStyleData gradient_style = 56;
-    TransitionStyleData transition_style = 57;
-    EffectStyleData effect_style = 58;
-    EmptyData empty = 59;
+    SceneData scene = 42;
+    RouteData route = 43;
+    FrameViewData frame_view = 44;
+    LabelViewData label_view = 45;
+    ComponentViewData component_view = 46;
+    SplitViewData split_view = 47;
+    TextViewData text_view = 48;
+    NumberInputViewData number_input_view = 49;
+    SliderInputViewData slider_input_view = 50;
+    ThreadViewData thread_view = 51;
+    WizardViewData wizard_view = 52;
+    ThemeData theme = 53;
+    ColorStyleData color_style = 54;
+    FontStyleData font_style = 55;
+    BorderStyleData border_style = 56;
+    ShadowStyleData shadow_style = 57;
+    GradientStyleData gradient_style = 58;
+    TransitionStyleData transition_style = 59;
+    EffectStyleData effect_style = 60;
+    EmptyData empty = 61;
   };
 }
 
