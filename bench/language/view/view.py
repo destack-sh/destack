@@ -34,11 +34,15 @@ class ViewBase[NodeDataT: AnyNodeData](
     parent: Union["Space", "ViewBase", "Page", None] = p_node_parent(
         4, NodeType.SPACE, *VIEW_NODE_TYPES.tuple, NodeType.PAGE
     )
+    # variant_of, ...
+    # position, size, grow, min/max, ...
 
 
 @node_component_()
 class ContainerViewBase[NodeDataT: AnyNodeData](ViewBase[NodeDataT]):
     """A container View contains other Views."""
+
+    # border, padding, margin, fill, ...
 
     # behavior
     focus: Optional[Node] = p_regular(

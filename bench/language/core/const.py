@@ -48,7 +48,7 @@ class _Unset:
 
 
 # forever constants
-VERSION = "2025.05.15.0"
+VERSION = "2025.05.15.1"
 UUID_NAMESPACE = uuid5(UUID(int=0), b"bench")
 CK_LENGTH_B64 = 24  # 1.5 * CK_LENGTH_BYTES (must be integer)
 FLOAT_EPSILON = 1e-6
@@ -440,6 +440,7 @@ class EnumType(BuiltinEnum):
 
     # view [28000-29000]
     SPACE_TYPE = 28000
+    POSITION_TYPE = 28080
 
     # space [28000-28100]
     # ...
@@ -472,7 +473,13 @@ class EnumType(BuiltinEnum):
     FILL_POSITION = 28061
     FILL_SIZE = 28062
     LENGTH_UNIT = 28070
-    POSITION_TYPE = 28080
+    LAYOUT = 28071
+    DISTRIBUTE = 28072
+    ALIGN = 28073
+    DIRECTION = 28074
+    TRANSITION_TYPE = 28075
+    SPRING_TYPE = 28076
+    EFFECT_TYPE = 28077
 
 
 enum_(EnumType.ENUM_TYPE)(EnumType)
@@ -637,7 +644,9 @@ class NodeType(BuiltinEnum):
     BORDER_STYLE = 8512, "Border Style", "Border Style", "fas fa-border-all"
     SHADOW_STYLE = 8513, "Shadow Style", "Shadow Style", "fas fa-shadow"
     GRADIENT_STYLE = 8514, "Gradient Style", "Gradient Style", "fas fa-gradient"
-    # EFFECT, TRANSITION, ANIMATION, ...
+    TRANSITION_STYLE = 8515, "Transition Style", "Transition Style", "fas fa-transition"
+    EFFECT_STYLE = 8516, "Effect Style", "Effect Style", "fas fa-effect"
+    # ANIMATION, ...
 
     # canvas?
     # CANVAS/DRAWING, SHAPE, BRUSH, ...
@@ -768,7 +777,9 @@ class StructType(BuiltinEnum):
     FILL = 18511, None, None, "fas fa-fill"
     LENGTH = 18512, None, None, "fas fa-length"
     POSITION = 18513, None, None, "fas fa-position"
-    # EFFECT, TRANSITION, ANIMATION, ...
+    TRANSITION = 18514, None, None, "fas fa-transition"
+    EFFECT = 18515, None, None, "fas fa-effect"
+    # ANIMATION, ...
 
     # canvas [18600-18800]
     # CANVAS/DRAWING, SHAPE, BRUSH, ...

@@ -42,12 +42,15 @@ class ShadowBase(BuiltinObject):
     style: Optional["ShadowStyle"] = p_regular(
         40, default=None, require=False, array=False, references=NodeType.SHADOW_STYLE
     )
-    position: ShadowPosition = p_regular(41, default=ShadowPosition.OUTSIDE)
-    offset_x: int = p_regular(42, default=0)
-    offset_y: int = p_regular(43, default=0)
-    blur: int = p_regular(44, default=2)
-    spread: int = p_regular(45, default=0)
-    color: Optional["Color"] = p_regular(46, array=False, default=None, struct=StructType.COLOR)
+    color: Optional["Color"] = p_regular(
+        41, array=False, default=None, require=False, struct=StructType.COLOR
+    )
+    position: ShadowPosition = p_regular(42, default=ShadowPosition.OUTSIDE)
+    offset_x: int | None = p_regular(43, default=None)
+    offset_y: int | None = p_regular(44, default=None)
+    blur: int | None = p_regular(45, default=None)
+    spread: int | None = p_regular(46, default=None)
+    diffusion: float | None = p_regular(47, default=None)
 
 
 @struct_(StructType.SHADOW)
