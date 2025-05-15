@@ -7,9 +7,9 @@ from bench.language import (
     ErrorType,
     Field,
     Flow,
+    FlowEdgeType,
     NodeMode,
     ProcessStatus,
-    TransitionType,
     code,
 )
 from bench.runtime import create_run
@@ -67,7 +67,7 @@ async def test_run_flow_trivial(simulation: Simulation, runtime: RuntimeLambdaWo
     Start = Action.new(ActionType.START, "Start")
     End = Action.new(ActionType.END, "End")
     Flow1.actions.extend(Start, End)
-    Start.connect(TransitionType.MANUAL, End)
+    Start.connect(FlowEdgeType.MANUAL, End)
     runtime.page().append(Flow1)
     await runtime.commit()
 
@@ -95,8 +95,8 @@ return {'Block': block}
     )
     End = Action.new(ActionType.END, "End")
     Flow1.actions.extend(Start, Create, End)
-    Start.connect(TransitionType.MANUAL, Create)
-    Create.connect(TransitionType.MANUAL, End)
+    Start.connect(FlowEdgeType.MANUAL, Create)
+    Create.connect(FlowEdgeType.MANUAL, End)
     runtime.page().append(Flow1)
     await runtime.commit()
 
@@ -115,8 +115,8 @@ async def test_run_flow_link_from_nowhere(simulation: Simulation, runtime: Runti
     End = Action.new(ActionType.END, "End")
     Flow1.actions.extend(Start, End)
     Nowhere = Action.new(ActionType.START, "Nowhere")  # not added to flow/graph
-    Nowhere.connect(TransitionType.REQUIRE, End, parent=Flow1)
-    Start.connect(TransitionType.MANUAL, End)
+    Nowhere.connect(FlowEdgeType.REQUIRE, End, parent=Flow1)
+    Start.connect(FlowEdgeType.MANUAL, End)
     runtime.page().append(Flow1)
     await runtime.commit()
 
@@ -132,8 +132,8 @@ async def test_run_flow_link_to_nowhere(simulation: Simulation, runtime: Runtime
     End = Action.new(ActionType.END, "End")
     Nowhere = Action.new(ActionType.START, "Nowhere")  # not added to flow/graph
     Flow1.actions.extend(Start, Nowhere, End)
-    Start.connect(TransitionType.MANUAL, Nowhere, parent=Flow1)
-    Start.connect(TransitionType.MANUAL, End)
+    Start.connect(FlowEdgeType.MANUAL, Nowhere, parent=Flow1)
+    Start.connect(FlowEdgeType.MANUAL, End)
     runtime.page().append(Flow1)
     Nowhere.delete()
     await runtime.commit()
@@ -154,7 +154,7 @@ async def test_run_flow_force_invalid_output(
     Start = Action.new(ActionType.START, "Start")
     End = Action.new(ActionType.END, "End")
     Flow1.actions.extend(Start, End)
-    Start.connect(TransitionType.MANUAL, End)
+    Start.connect(FlowEdgeType.MANUAL, End)
     runtime.page().append(Flow1)
     await runtime.commit()
 
@@ -179,8 +179,8 @@ async def test_run_flow_force_invalid_input(simulation: Simulation, runtime: Run
     )
     End = Action.new(ActionType.END, "End")
     Flow1.actions.extend(Start, Code1, End)
-    Start.connect(TransitionType.MANUAL, Code1)
-    Code1.connect(TransitionType.MANUAL, End)
+    Start.connect(FlowEdgeType.MANUAL, Code1)
+    Code1.connect(FlowEdgeType.MANUAL, End)
     runtime.page().append(Flow1)
     await runtime.commit()
 
@@ -196,7 +196,7 @@ async def test_run_flow_error(simulation: Simulation, runtime: RuntimeLambdaWork
     Start = Action.new(ActionType.START, "Start")
     Code1 = Action.new(ActionType.CODE, "Code1", code=code("raise ValueError"))
     Flow1.actions.extend(Start, Code1)
-    Start.connect(TransitionType.MANUAL, Code1)
+    Start.connect(FlowEdgeType.MANUAL, Code1)
     runtime.page().append(Flow1)
     await runtime.commit()
 
@@ -213,8 +213,8 @@ async def test_run_flow_abort(simulation: Simulation, runtime: RuntimeLambdaWork
     Code1 = Action.new(ActionType.CODE, "Code1", code=code("await asyncio.sleep(5)"))
     End = Action.new(ActionType.END, "End")
     Flow1.actions.extend(Start, Code1, End)
-    Start.connect(TransitionType.MANUAL, Code1)
-    Code1.connect(TransitionType.MANUAL, End)
+    Start.connect(FlowEdgeType.MANUAL, Code1)
+    Code1.connect(FlowEdgeType.MANUAL, End)
     runtime.page().append(Flow1)
     await runtime.commit()
 

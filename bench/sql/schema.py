@@ -11,7 +11,7 @@ from .core import (
     SqlTable,
 )
 
-VERSION = "2025.05.14.2"
+VERSION = "2025.05.15.0"
 
 BENCH_TABLE = SqlTable(
     "bench_bench",
@@ -1244,8 +1244,8 @@ FLOW_TABLE = SqlTable(
     indexes=(SqlIndex("bench_idx_parent_id", SqlIndexType.BTREE, ("parent_id",), cover=("id",)),),
 )
 
-TRANSITION_TABLE = SqlTable(
-    "bench_transition",
+FLOW_EDGE_TABLE = SqlTable(
+    "bench_flow_edge",
     (
         SqlColumn("id", PrimitiveType.UUID, is_primary_key=True),
         SqlColumn("parent_id", PrimitiveType.UUID, is_nullable=True),
@@ -1790,72 +1790,6 @@ LABEL_VIEW_TABLE = SqlTable(
 
 SPLIT_VIEW_TABLE = SqlTable(
     "bench_split_view",
-    (
-        SqlColumn("id", PrimitiveType.UUID, is_primary_key=True),
-        SqlColumn("parent_id", PrimitiveType.UUID, is_nullable=True),
-        SqlColumn("parent_type", PrimitiveType.INT16, is_nullable=True),
-        SqlColumn("bench_id", PrimitiveType.UUID),
-        SqlColumn("package_id", PrimitiveType.UUID),
-        SqlColumn("created_at", PrimitiveType.DATETIME),
-        SqlColumn("created_by_id", PrimitiveType.UUID, is_nullable=True),
-        SqlColumn("created_by_type", PrimitiveType.INT16, is_nullable=True),
-        SqlColumn("updated_at", PrimitiveType.DATETIME),
-        SqlColumn("updated_by_id", PrimitiveType.UUID, is_nullable=True),
-        SqlColumn("updated_by_type", PrimitiveType.INT16, is_nullable=True),
-        SqlColumn("archived_at", PrimitiveType.DATETIME, is_nullable=True),
-        SqlColumn("deleted_at", PrimitiveType.DATETIME, is_nullable=True),
-        SqlColumn("template_id", PrimitiveType.UUID, is_nullable=True),
-        SqlColumn("template_bench_id", PrimitiveType.UUID, is_nullable=True),
-        SqlColumn("mode", PrimitiveType.INT16, default="20"),
-        SqlColumn("name", PrimitiveType.STRING, is_nullable=True),
-        SqlColumn("order_key", PrimitiveType.STRING, is_nullable=True),
-        SqlColumn("icon", PrimitiveType.JSON, is_nullable=True),
-        SqlColumn("definition_id", PrimitiveType.UUID, is_nullable=True),
-        SqlColumn("focus_id", PrimitiveType.UUID, is_nullable=True),
-        SqlColumn("focus_ck", PrimitiveType.UUID, is_nullable=True),
-        SqlColumn("focus_type", PrimitiveType.INT16, is_nullable=True),
-        SqlColumn("focus_bench_id", PrimitiveType.UUID, is_nullable=True),
-        SqlColumn("focus_base_id", PrimitiveType.UUID, is_nullable=True),
-        SqlColumn("selection", PrimitiveType.JSON, is_nullable=True),
-    ),
-    indexes=(SqlIndex("bench_idx_parent_id", SqlIndexType.BTREE, ("parent_id",), cover=("id",)),),
-)
-
-SPLIT_ELEMENT_VIEW_TABLE = SqlTable(
-    "bench_split_element_view",
-    (
-        SqlColumn("id", PrimitiveType.UUID, is_primary_key=True),
-        SqlColumn("parent_id", PrimitiveType.UUID, is_nullable=True),
-        SqlColumn("parent_type", PrimitiveType.INT16, is_nullable=True),
-        SqlColumn("bench_id", PrimitiveType.UUID),
-        SqlColumn("package_id", PrimitiveType.UUID),
-        SqlColumn("created_at", PrimitiveType.DATETIME),
-        SqlColumn("created_by_id", PrimitiveType.UUID, is_nullable=True),
-        SqlColumn("created_by_type", PrimitiveType.INT16, is_nullable=True),
-        SqlColumn("updated_at", PrimitiveType.DATETIME),
-        SqlColumn("updated_by_id", PrimitiveType.UUID, is_nullable=True),
-        SqlColumn("updated_by_type", PrimitiveType.INT16, is_nullable=True),
-        SqlColumn("archived_at", PrimitiveType.DATETIME, is_nullable=True),
-        SqlColumn("deleted_at", PrimitiveType.DATETIME, is_nullable=True),
-        SqlColumn("template_id", PrimitiveType.UUID, is_nullable=True),
-        SqlColumn("template_bench_id", PrimitiveType.UUID, is_nullable=True),
-        SqlColumn("mode", PrimitiveType.INT16, default="20"),
-        SqlColumn("name", PrimitiveType.STRING, is_nullable=True),
-        SqlColumn("order_key", PrimitiveType.STRING, is_nullable=True),
-        SqlColumn("icon", PrimitiveType.JSON, is_nullable=True),
-        SqlColumn("definition_id", PrimitiveType.UUID, is_nullable=True),
-        SqlColumn("focus_id", PrimitiveType.UUID, is_nullable=True),
-        SqlColumn("focus_ck", PrimitiveType.UUID, is_nullable=True),
-        SqlColumn("focus_type", PrimitiveType.INT16, is_nullable=True),
-        SqlColumn("focus_bench_id", PrimitiveType.UUID, is_nullable=True),
-        SqlColumn("focus_base_id", PrimitiveType.UUID, is_nullable=True),
-        SqlColumn("selection", PrimitiveType.JSON, is_nullable=True),
-    ),
-    indexes=(SqlIndex("bench_idx_parent_id", SqlIndexType.BTREE, ("parent_id",), cover=("id",)),),
-)
-
-SPLIT_HANDLE_VIEW_TABLE = SqlTable(
-    "bench_split_handle_view",
     (
         SqlColumn("id", PrimitiveType.UUID, is_primary_key=True),
         SqlColumn("parent_id", PrimitiveType.UUID, is_nullable=True),

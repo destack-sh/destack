@@ -346,7 +346,7 @@ class Run(
         timeout: timedelta | None = None,
     ) -> "Run":
         """Get the Run of a Node (waiting if necessary)."""
-        from bench.language import Action, Flow, Transition
+        from bench.language import Action, Flow, FlowEdge
 
         if where is None:
             where = Run.get_property("status").gte(ProcessStatus.QUEUED)
@@ -357,7 +357,7 @@ class Run(
             base_query = Run.get_property("agent").eq(node)
         elif isinstance(node, Action):
             base_query = Run.get_property("action").eq(node)
-        elif isinstance(node, Transition):
+        elif isinstance(node, FlowEdge):
             base_query = Run.get_property("link").eq(node)
         elif isinstance(node, Flow):
             base_query = (

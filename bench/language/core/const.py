@@ -48,7 +48,7 @@ class _Unset:
 
 
 # forever constants
-VERSION = "2025.05.14.2"
+VERSION = "2025.05.15.0"
 UUID_NAMESPACE = uuid5(UUID(int=0), b"bench")
 CK_LENGTH_B64 = 24  # 1.5 * CK_LENGTH_BYTES (must be integer)
 FLOAT_EPSILON = 1e-6
@@ -382,8 +382,7 @@ class EnumType(BuiltinEnum):
 
     # logic [22200-22400]
     ACTION_TYPE = 22220
-    PORT_SIDE = 22221
-    TRANSITION_TYPE = 22222
+    FLOW_EDGE_TYPE = 22222
     FLOW_TYPE = 22223
     # TRIGGER, TIMER, BREAKPOINT, ...
 
@@ -473,24 +472,10 @@ class EnumType(BuiltinEnum):
     FILL_POSITION = 28061
     FILL_SIZE = 28062
     LENGTH_UNIT = 28070
+    POSITION_TYPE = 28080
 
 
 enum_(EnumType.ENUM_TYPE)(EnumType)
-
-
-ENUM_TYPES: bittuple[EnumType] = bittuple(*EnumType)
-ENUM_TYPES_SET: frozenset[EnumType] = frozenset(ENUM_TYPES)
-
-
-@enum_(EnumType.NODE_MODE)
-class NodeMode(BuiltinEnum):
-    KERNEL = 3, "Kernel", "Managed by Bench (hidden)", "fas fa-cog"
-    SYSTEM = 6, "System", "Managed by Bench", "fas fa-cog"
-    BUILTIN = 10, "Builtin", "Provided by Bench", "fas fa-cog"
-    MAIN = 20, "Main", "Active and available", "fas fa-globe"
-    TEST = 30, "Test", "Active in test", "fas fa-flask"
-    TEMPLATE = 40, "Template", "Template to use", "fas fa-puzzle-piece"
-    ARCHIVE = 50, "Archive", "Inactive and hidden", "fas fa-box-archive"
 
 
 @enum_(EnumType.NODE_TYPE)
@@ -549,7 +534,7 @@ class NodeType(BuiltinEnum):
     SERVICE = 2200, "Service", "Service", "fas fa-screwdriver-wrench"
     ACTION = 2210, "Action", "Action", "fas fa-step-forward"
     FLOW = 2220, "Flow", "Sequence Actions", "fas fa-diagram-project"
-    TRANSITION = 2230, "Transition", "Transition Actions", "fas fa-link"
+    FLOW_EDGE = 2221, "Flow Edge", "Edge between Actions", "fas fa-link"
     AGENT = 2250, "Agent", "Identity for an AI", "fas fa-robot"
     # TRIGGER, TIMER, BREAKPOINT, ...
 
@@ -612,7 +597,6 @@ class NodeType(BuiltinEnum):
     # STACK_VIEW?, SCROLL_VIEW?, CARD_VIEW?, FORM_VIEW, ...
     SPLIT_VIEW = 8110, "Split View", "Split Container", "fas fa-columns"
     # TAB_VIEW = 8120, "Tab Container View", "Tab Container", "fas fa-tabs"
-    # TAB_ELEMENT_VIEW = 8121, "Tab Element View", "Tab Element", "fas fa-tabs"
     # DRAWER, SPLIT_DRAWER, GRID/GRID_ELEMENT, ...
 
     # content views [8200-8300]
@@ -663,170 +647,6 @@ class NodeType(BuiltinEnum):
     @property
     def area(self) -> "NodeArea":
         return AREA_BY_NODE_TYPE[self]
-
-
-@enum_(EnumType.NODE_AREA)
-class NodeArea(BuiltinEnum):
-    GLOBAL = 1
-    REGIONAL = 2
-    LOCAL = 3
-
-
-NODE_TYPES = bittuple(*NodeType)
-NODE_TYPES_SET: frozenset[NodeType] = frozenset(NODE_TYPES)
-
-
-def _get_node_types(
-    start: int | None = None, end: int | None = None, *extra_node_types: NodeType
-) -> bittuple[NodeType]:
-    if start is None:
-        start = 0
-    if end is None:
-        end = 10000
-    node_types = bittuple(
-        *tuple(nt for nt in NODE_TYPES if nt.id >= start and nt.id < end), enum_cls=NodeType
-    )
-    if extra_node_types:
-        node_types = node_types | bittuple(*extra_node_types)
-    return node_types
-
-
-GLOBAL_NODE_TYPES = _get_node_types(None, 1000)
-LOCAL_NODE_TYPES = bittuple(NodeType.RECORD)
-REGIONAL_NODE_TYPES = _get_node_types(1000, 10000) - LOCAL_NODE_TYPES
-AREA_BY_NODE_TYPE = {
-    **dict.fromkeys(GLOBAL_NODE_TYPES, NodeArea.GLOBAL),
-    **dict.fromkeys(REGIONAL_NODE_TYPES, NodeArea.REGIONAL),
-    **dict.fromkeys(LOCAL_NODE_TYPES, NodeArea.LOCAL),
-}
-NODE_TYPES_BY_AREA = {
-    NodeArea.GLOBAL: GLOBAL_NODE_TYPES,
-    NodeArea.REGIONAL: REGIONAL_NODE_TYPES,
-    NodeArea.LOCAL: LOCAL_NODE_TYPES,
-}
-ROOT_NODE_TYPES = bittuple(NodeType.BENCH, NodeType.USER, NodeType.ORGANIZATION)
-RESOURCE_NODE_TYPES = bittuple(
-    NodeType.DATABASE, NodeType.COMPUTER, NodeType.SCALER, NodeType.FILE, NodeType.LINK
-)
-PROVISIONABLE_RESOURCE_NODE_TYPES = bittuple(NodeType.SCALER, NodeType.DATABASE, NodeType.COMPUTER)
-COMMUNICATION_NODE_TYPES = _get_node_types(5500, 5600)
-RUNTIME_NODE_TYPES = _get_node_types(2400, 2500)
-PACKAGE_NODE_TYPES = _get_node_types(1000, 9000)
-BENCH_NODE_TYPES = _get_node_types(
-    1000,
-    10000,
-    NodeType.BENCH,
-    NodeType.PACKAGE,
-    NodeType.HANDLE,
-    NodeType.MEMBERSHIP,
-    NodeType.INVITE,
-    NodeType.CLIENT,
-)
-PUBLIC_NODE_TYPES = bittuple(NodeType.USER, NodeType.ORGANIZATION, NodeType.BENCH)
-# NOTE: these traits should also be in trait.py but we need the constants in property.py
-#  (which also depends on trait.py, and we can't have a circular dependency)
-BASED_NODE_TYPES = bittuple(NodeType.RECORD, NodeType.MESSAGE, NodeType.RUN)
-VIEW_NODE_TYPES = bittuple(*(n for n in NODE_TYPES if n.name.endswith("VIEW")))
-STYLE_NODE_TYPES = bittuple(*(n for n in NODE_TYPES if n.name.endswith("STYLE")))
-PAGE_NODE_TYPES = bittuple(
-    *RESOURCE_NODE_TYPES,
-    *VIEW_NODE_TYPES,
-    *STYLE_NODE_TYPES,
-    NodeType.CHOICE,
-    NodeType.CLASS,
-    NodeType.TABLE,
-    NodeType.FLOW,
-    NodeType.SERVICE,
-    NodeType.PAGE,
-    NodeType.ROLE,
-    NodeType.TASK,
-    NodeType.THREAD,
-    NodeType.CHANNEL,
-    NodeType.TEAM,
-    NodeType.AGENT,
-    NodeType.THEME,
-)
-INSTANTIABLE_NODE_TYPES = bittuple(
-    *RESOURCE_NODE_TYPES,
-    NodeType.ACTION,
-    NodeType.FIELD,
-    NodeType.OPTION,
-    NodeType.TABLE,
-    NodeType.TASK,
-    NodeType.THREAD,
-    NodeType.CLAIM,
-    NodeType.CHANNEL,
-    NodeType.TEAM,
-    NodeType.AGENT,
-    NodeType.MEMBERSHIP,
-)
-TEMPLATABLE_NODE_TYPES = bittuple(
-    *RESOURCE_NODE_TYPES,
-    *INSTANTIABLE_NODE_TYPES,
-    *VIEW_NODE_TYPES,
-    *STYLE_NODE_TYPES,
-    NodeType.PACKAGE,
-    NodeType.DEPENDENCY,
-    NodeType.PAGE,
-    NodeType.BLOCK,
-    NodeType.CHOICE,
-    NodeType.CLASS,
-    NodeType.FIELD,
-    NodeType.OPTION,
-    NodeType.SERVICE,
-    NodeType.ACTION,
-    NodeType.FLOW,
-    NodeType.TRANSITION,
-    NodeType.TABLE,
-    NodeType.CHANNEL,
-    NodeType.ROLE,
-    NodeType.SPACE,
-)
-
-
-# TODO :Broken: :Performance: we load too much and too coarsely :NodeOverload :RichGraph
-UNLOADED_RESOURCE_NODE_TYPES = bittuple(NodeType.FILE)
-LOADED_PACKAGE_NODE_TYPES = bittuple(
-    *(RESOURCE_NODE_TYPES - UNLOADED_RESOURCE_NODE_TYPES),
-    *VIEW_NODE_TYPES,
-    NodeType.PACKAGE,
-    NodeType.DEPENDENCY,
-    NodeType.PAGE,
-    NodeType.BLOCK,
-    NodeType.CHOICE,
-    NodeType.CLASS,
-    NodeType.FIELD,
-    NodeType.OPTION,
-    NodeType.SERVICE,
-    NodeType.ACTION,
-    NodeType.FLOW,
-    NodeType.TRANSITION,
-    NodeType.TABLE,
-    NodeType.CHANNEL,
-    NodeType.TEAM,
-    NodeType.MEMBERSHIP,
-    NodeType.ROLE,
-    NodeType.AGENT,
-    NodeType.TASK,
-    NodeType.CLAIM,
-    NodeType.SPACE,
-)
-
-
-# automatically included descendants :AutoLoading :RichGraph
-AUTOLOAD_DESCENDANT_TYPES: dict[NodeType, tuple[NodeType, ...]] = {
-    NodeType.THREAD: (
-        NodeType.FILE,
-        NodeType.MEMBERSHIP,
-        NodeType.CLAIM,
-        NodeType.AGENT,
-        NodeType.CURSOR,
-    ),
-}
-
-#
-# Struct metatypes
-#
 
 
 @enum_(EnumType.STRUCT_TYPE)
@@ -947,10 +767,184 @@ class StructType(BuiltinEnum):
     GRADIENT = 18510, None, None, "fas fa-gradient"
     FILL = 18511, None, None, "fas fa-fill"
     LENGTH = 18512, None, None, "fas fa-length"
+    POSITION = 18513, None, None, "fas fa-position"
     # EFFECT, TRANSITION, ANIMATION, ...
 
     # canvas [18600-18800]
     # CANVAS/DRAWING, SHAPE, BRUSH, ...
+
+
+@enum_(EnumType.NODE_AREA)
+class NodeArea(BuiltinEnum):
+    GLOBAL = 1
+    REGIONAL = 2
+    LOCAL = 3
+
+
+@enum_(EnumType.NODE_MODE)
+class NodeMode(BuiltinEnum):
+    KERNEL = 3, "Kernel", "Managed by Bench (hidden)", "fas fa-cog"
+    SYSTEM = 6, "System", "Managed by Bench", "fas fa-cog"
+    BUILTIN = 10, "Builtin", "Provided by Bench", "fas fa-cog"
+    MAIN = 20, "Main", "Active and available", "fas fa-globe"
+    TEST = 30, "Test", "Active in test", "fas fa-flask"
+    TEMPLATE = 40, "Template", "Template to use", "fas fa-puzzle-piece"
+    ARCHIVE = 50, "Archive", "Inactive and hidden", "fas fa-box-archive"
+
+
+def _get_node_types(
+    start: int | None = None, end: int | None = None, *extra_node_types: NodeType
+) -> bittuple[NodeType]:
+    if start is None:
+        start = 0
+    if end is None:
+        end = 10000
+    node_types = bittuple(
+        *tuple(nt for nt in NODE_TYPES if nt.id >= start and nt.id < end), enum_cls=NodeType
+    )
+    if extra_node_types:
+        node_types = node_types | bittuple(*extra_node_types)
+    return node_types
+
+
+ENUM_TYPES: bittuple[EnumType] = bittuple(*EnumType)
+ENUM_TYPES_SET: frozenset[EnumType] = frozenset(ENUM_TYPES)
+
+NODE_TYPES = bittuple(*NodeType)
+NODE_TYPES_SET: frozenset[NodeType] = frozenset(NODE_TYPES)
+
+GLOBAL_NODE_TYPES = _get_node_types(None, 1000)
+LOCAL_NODE_TYPES = bittuple(NodeType.RECORD)
+REGIONAL_NODE_TYPES = _get_node_types(1000, 10000) - LOCAL_NODE_TYPES
+AREA_BY_NODE_TYPE = {
+    **dict.fromkeys(GLOBAL_NODE_TYPES, NodeArea.GLOBAL),
+    **dict.fromkeys(REGIONAL_NODE_TYPES, NodeArea.REGIONAL),
+    **dict.fromkeys(LOCAL_NODE_TYPES, NodeArea.LOCAL),
+}
+NODE_TYPES_BY_AREA = {
+    NodeArea.GLOBAL: GLOBAL_NODE_TYPES,
+    NodeArea.REGIONAL: REGIONAL_NODE_TYPES,
+    NodeArea.LOCAL: LOCAL_NODE_TYPES,
+}
+ROOT_NODE_TYPES = bittuple(NodeType.BENCH, NodeType.USER, NodeType.ORGANIZATION)
+RESOURCE_NODE_TYPES = bittuple(
+    NodeType.DATABASE, NodeType.COMPUTER, NodeType.SCALER, NodeType.FILE, NodeType.LINK
+)
+PROVISIONABLE_RESOURCE_NODE_TYPES = bittuple(NodeType.SCALER, NodeType.DATABASE, NodeType.COMPUTER)
+COMMUNICATION_NODE_TYPES = _get_node_types(5500, 5600)
+RUNTIME_NODE_TYPES = _get_node_types(2400, 2500)
+PACKAGE_NODE_TYPES = _get_node_types(1000, 9000)
+BENCH_NODE_TYPES = _get_node_types(
+    1000,
+    10000,
+    NodeType.BENCH,
+    NodeType.PACKAGE,
+    NodeType.HANDLE,
+    NodeType.MEMBERSHIP,
+    NodeType.INVITE,
+    NodeType.CLIENT,
+)
+PUBLIC_NODE_TYPES = bittuple(NodeType.USER, NodeType.ORGANIZATION, NodeType.BENCH)
+# NOTE: these traits should also be in trait.py but we need the constants in property.py
+#  (which also depends on trait.py, and we can't have a circular dependency)
+BASED_NODE_TYPES = bittuple(NodeType.RECORD, NodeType.MESSAGE, NodeType.RUN)
+VIEW_NODE_TYPES = bittuple(*(n for n in NODE_TYPES if n.name.endswith("VIEW")))
+STYLE_NODE_TYPES = bittuple(*(n for n in NODE_TYPES if n.name.endswith("STYLE")))
+PAGE_NODE_TYPES = bittuple(
+    *RESOURCE_NODE_TYPES,
+    *VIEW_NODE_TYPES,
+    *STYLE_NODE_TYPES,
+    NodeType.CHOICE,
+    NodeType.CLASS,
+    NodeType.TABLE,
+    NodeType.FLOW,
+    NodeType.SERVICE,
+    NodeType.PAGE,
+    NodeType.ROLE,
+    NodeType.TASK,
+    NodeType.THREAD,
+    NodeType.CHANNEL,
+    NodeType.TEAM,
+    NodeType.AGENT,
+    NodeType.THEME,
+)
+INSTANTIABLE_NODE_TYPES = bittuple(
+    *RESOURCE_NODE_TYPES,
+    NodeType.ACTION,
+    NodeType.FIELD,
+    NodeType.OPTION,
+    NodeType.TABLE,
+    NodeType.TASK,
+    NodeType.THREAD,
+    NodeType.CLAIM,
+    NodeType.CHANNEL,
+    NodeType.TEAM,
+    NodeType.AGENT,
+    NodeType.MEMBERSHIP,
+)
+TEMPLATABLE_NODE_TYPES = bittuple(
+    *RESOURCE_NODE_TYPES,
+    *INSTANTIABLE_NODE_TYPES,
+    *VIEW_NODE_TYPES,
+    *STYLE_NODE_TYPES,
+    NodeType.PACKAGE,
+    NodeType.DEPENDENCY,
+    NodeType.PAGE,
+    NodeType.BLOCK,
+    NodeType.CHOICE,
+    NodeType.CLASS,
+    NodeType.FIELD,
+    NodeType.OPTION,
+    NodeType.SERVICE,
+    NodeType.ACTION,
+    NodeType.FLOW,
+    NodeType.FLOW_EDGE,
+    NodeType.TABLE,
+    NodeType.CHANNEL,
+    NodeType.ROLE,
+    NodeType.SPACE,
+)
+
+
+# TODO :Broken: :Performance: we load too much and too coarsely :NodeOverload :RichGraph
+UNLOADED_RESOURCE_NODE_TYPES = bittuple(NodeType.FILE)
+LOADED_PACKAGE_NODE_TYPES = bittuple(
+    *(RESOURCE_NODE_TYPES - UNLOADED_RESOURCE_NODE_TYPES),
+    *VIEW_NODE_TYPES,
+    NodeType.PACKAGE,
+    NodeType.DEPENDENCY,
+    NodeType.PAGE,
+    NodeType.BLOCK,
+    NodeType.CHOICE,
+    NodeType.CLASS,
+    NodeType.FIELD,
+    NodeType.OPTION,
+    NodeType.SERVICE,
+    NodeType.ACTION,
+    NodeType.FLOW,
+    NodeType.FLOW_EDGE,
+    NodeType.TABLE,
+    NodeType.CHANNEL,
+    NodeType.TEAM,
+    NodeType.MEMBERSHIP,
+    NodeType.ROLE,
+    NodeType.AGENT,
+    NodeType.TASK,
+    NodeType.CLAIM,
+    NodeType.SPACE,
+)
+
+
+# automatically included descendants :AutoLoading :RichGraph
+AUTOLOAD_DESCENDANT_TYPES: dict[NodeType, tuple[NodeType, ...]] = {
+    NodeType.THREAD: (
+        NodeType.FILE,
+        NodeType.MEMBERSHIP,
+        NodeType.CLAIM,
+        NodeType.AGENT,
+        NodeType.CURSOR,
+    ),
+}
 
 
 STRUCT_TYPES: bittuple[StructType] = bittuple(*StructType)

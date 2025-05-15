@@ -58,12 +58,12 @@ if TYPE_CHECKING:
         Class,
         Field,
         Flow,
+        FlowEdge,
         Message,
         Option,
         Page,
         Table,
         Task,
-        Transition,
     )
 
 logger = structlog.get_logger(__name__)
@@ -428,7 +428,7 @@ class Renderer:
                     self._get_parent_child_key(nodes[i + 1]) if i < len(nodes) - 1 else None
                 )
                 if parent_key is not None:
-                    if node.metatype == NodeType.TRANSITION:
+                    if node.metatype == NodeType.FLOW_EDGE:
                         continue  # implicitly added into parent (see LinkRenderer)
                     current_children.append(node_alias)
                     if parent_key != next_parent_key:
@@ -736,13 +736,13 @@ class ActionRenderer(PackageNodeRenderer["Action"]):
         return f"Action.new({action_args})"
 
 
-@_renderer(NodeType.TRANSITION)
-class TransitionRenderer(PackageNodeRenderer["Transition"]):
+@_renderer(NodeType.FLOW_EDGE)
+class FlowEdgeRenderer(PackageNodeRenderer["FlowEdge"]):
     @override
     def _render_constructor(
         self,
         renderer: "Renderer",
-        obj: "Transition",
+        obj: "FlowEdge",
         kwargs: dict[Property, Any],
         rendered_kwargs: dict[str, str],
     ) -> str:

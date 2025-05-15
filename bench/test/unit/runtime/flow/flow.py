@@ -4,8 +4,8 @@ from bench.language import (
     Action,
     ActionType,
     Flow,
+    FlowEdgeType,
     ProcessStatus,
-    TransitionType,
     code,
 )
 from bench.runtime import Interrupted, make_runner
@@ -24,12 +24,12 @@ async def test_run_flow_race(simulation: Simulation, runtime: RuntimeLambdaWorkl
     Race2 = Action.new(ActionType.CODE, "Race2", code=code("await asyncio.sleep(2)"))
     Race3 = Action.new(ActionType.CODE, "Race3", code=code("await asyncio.sleep(3)"))
     Flow1.actions.extend(Start, Race1, Race2, Race3, End)
-    Start.connect(TransitionType.MANUAL, Race1)
-    Start.connect(TransitionType.MANUAL, Race2)
-    Start.connect(TransitionType.MANUAL, Race3)
-    Race1.connect(TransitionType.MANUAL, End)
-    Race2.connect(TransitionType.MANUAL, End)
-    Race3.connect(TransitionType.MANUAL, End)
+    Start.connect(FlowEdgeType.MANUAL, Race1)
+    Start.connect(FlowEdgeType.MANUAL, Race2)
+    Start.connect(FlowEdgeType.MANUAL, Race3)
+    Race1.connect(FlowEdgeType.MANUAL, End)
+    Race2.connect(FlowEdgeType.MANUAL, End)
+    Race3.connect(FlowEdgeType.MANUAL, End)
     runtime.page().append(Flow1)
     await runtime.commit()
 
@@ -49,9 +49,9 @@ async def test_run_flow_pause_resume(simulation: Simulation, runtime: RuntimeLam
     Action2 = Action.new(ActionType.CODE, "Action2", code=code("await sleep(0.2)"))
     End = Action.new(ActionType.END, "End")
     Flow1.actions.extend(Start, Action1, Action2, End)
-    Start.connect(TransitionType.MANUAL, Action1)
-    Action1.connect(TransitionType.MANUAL, Action2)
-    Action2.connect(TransitionType.MANUAL, End)
+    Start.connect(FlowEdgeType.MANUAL, Action1)
+    Action1.connect(FlowEdgeType.MANUAL, Action2)
+    Action2.connect(FlowEdgeType.MANUAL, End)
     runtime.page().append(Flow1)
     await runtime.commit()
 

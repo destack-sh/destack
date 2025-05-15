@@ -74,8 +74,7 @@ enum EnumType {
   ENUM_TYPE_CURSOR_TYPE = 22010;
   ENUM_TYPE_CURSOR_STATUS = 22011;
   ENUM_TYPE_ACTION_TYPE = 22220;
-  ENUM_TYPE_PORT_SIDE = 22221;
-  ENUM_TYPE_TRANSITION_TYPE = 22222;
+  ENUM_TYPE_FLOW_EDGE_TYPE = 22222;
   ENUM_TYPE_FLOW_TYPE = 22223;
   ENUM_TYPE_PROCESS_STATUS = 22600;
   ENUM_TYPE_RUN_TYPE = 22601;
@@ -113,6 +112,7 @@ enum EnumType {
   ENUM_TYPE_FILL_POSITION = 28061;
   ENUM_TYPE_FILL_SIZE = 28062;
   ENUM_TYPE_LENGTH_UNIT = 28070;
+  ENUM_TYPE_POSITION_TYPE = 28080;
 }
 
 enum NodeType {
@@ -147,7 +147,7 @@ enum NodeType {
   NODE_TYPE_SERVICE = 2200;
   NODE_TYPE_ACTION = 2210;
   NODE_TYPE_FLOW = 2220;
-  NODE_TYPE_TRANSITION = 2230;
+  NODE_TYPE_FLOW_EDGE = 2221;
   NODE_TYPE_AGENT = 2250;
   NODE_TYPE_SESSION = 2600;
   NODE_TYPE_RUN = 2610;
@@ -162,8 +162,6 @@ enum NodeType {
   NODE_TYPE_FRAME_VIEW = 8100;
   NODE_TYPE_LABEL_VIEW = 8101;
   NODE_TYPE_SPLIT_VIEW = 8110;
-  NODE_TYPE_SPLIT_ELEMENT_VIEW = 8111;
-  NODE_TYPE_SPLIT_HANDLE_VIEW = 8112;
   NODE_TYPE_INPUT_VIEW = 8210;
   NODE_TYPE_SLIDER_VIEW = 8211;
   NODE_TYPE_THREAD_VIEW = 8430;
@@ -220,6 +218,7 @@ enum StructType {
   STRUCT_TYPE_GRADIENT = 18510;
   STRUCT_TYPE_FILL = 18511;
   STRUCT_TYPE_LENGTH = 18512;
+  STRUCT_TYPE_POSITION = 18513;
 }
 
 enum ObjectType {
@@ -254,7 +253,7 @@ enum ObjectType {
   OBJECT_TYPE_SERVICE = 2200;
   OBJECT_TYPE_ACTION = 2210;
   OBJECT_TYPE_FLOW = 2220;
-  OBJECT_TYPE_TRANSITION = 2230;
+  OBJECT_TYPE_FLOW_EDGE = 2221;
   OBJECT_TYPE_AGENT = 2250;
   OBJECT_TYPE_SESSION = 2600;
   OBJECT_TYPE_RUN = 2610;
@@ -269,8 +268,6 @@ enum ObjectType {
   OBJECT_TYPE_FRAME_VIEW = 8100;
   OBJECT_TYPE_LABEL_VIEW = 8101;
   OBJECT_TYPE_SPLIT_VIEW = 8110;
-  OBJECT_TYPE_SPLIT_ELEMENT_VIEW = 8111;
-  OBJECT_TYPE_SPLIT_HANDLE_VIEW = 8112;
   OBJECT_TYPE_INPUT_VIEW = 8210;
   OBJECT_TYPE_SLIDER_VIEW = 8211;
   OBJECT_TYPE_THREAD_VIEW = 8430;
@@ -323,6 +320,7 @@ enum ObjectType {
   OBJECT_TYPE_GRADIENT = 18510;
   OBJECT_TYPE_FILL = 18511;
   OBJECT_TYPE_LENGTH = 18512;
+  OBJECT_TYPE_POSITION = 18513;
 }
 
 enum BenchType {
@@ -357,7 +355,7 @@ enum BenchType {
   BENCH_TYPE_SERVICE = 2200;
   BENCH_TYPE_ACTION = 2210;
   BENCH_TYPE_FLOW = 2220;
-  BENCH_TYPE_TRANSITION = 2230;
+  BENCH_TYPE_FLOW_EDGE = 2221;
   BENCH_TYPE_AGENT = 2250;
   BENCH_TYPE_SESSION = 2600;
   BENCH_TYPE_RUN = 2610;
@@ -372,8 +370,6 @@ enum BenchType {
   BENCH_TYPE_FRAME_VIEW = 8100;
   BENCH_TYPE_LABEL_VIEW = 8101;
   BENCH_TYPE_SPLIT_VIEW = 8110;
-  BENCH_TYPE_SPLIT_ELEMENT_VIEW = 8111;
-  BENCH_TYPE_SPLIT_HANDLE_VIEW = 8112;
   BENCH_TYPE_INPUT_VIEW = 8210;
   BENCH_TYPE_SLIDER_VIEW = 8211;
   BENCH_TYPE_THREAD_VIEW = 8430;
@@ -426,6 +422,7 @@ enum BenchType {
   BENCH_TYPE_GRADIENT = 18510;
   BENCH_TYPE_FILL = 18511;
   BENCH_TYPE_LENGTH = 18512;
+  BENCH_TYPE_POSITION = 18513;
   BENCH_TYPE_ENUM_TYPE = 20000;
   BENCH_TYPE_NODE_TYPE = 20001;
   BENCH_TYPE_STRUCT_TYPE = 20002;
@@ -489,8 +486,7 @@ enum BenchType {
   BENCH_TYPE_CURSOR_TYPE = 22010;
   BENCH_TYPE_CURSOR_STATUS = 22011;
   BENCH_TYPE_ACTION_TYPE = 22220;
-  BENCH_TYPE_PORT_SIDE = 22221;
-  BENCH_TYPE_TRANSITION_TYPE = 22222;
+  BENCH_TYPE_FLOW_EDGE_TYPE = 22222;
   BENCH_TYPE_FLOW_TYPE = 22223;
   BENCH_TYPE_PROCESS_STATUS = 22600;
   BENCH_TYPE_RUN_TYPE = 22601;
@@ -528,6 +524,7 @@ enum BenchType {
   BENCH_TYPE_FILL_POSITION = 28061;
   BENCH_TYPE_FILL_SIZE = 28062;
   BENCH_TYPE_LENGTH_UNIT = 28070;
+  BENCH_TYPE_POSITION_TYPE = 28080;
 }
 
 enum NodeMode {
@@ -1235,17 +1232,11 @@ enum ActionType {
   ACTION_TYPE_BUILTIN = 102;
 }
 
-enum PortSide {
-  PORT_SIDE_UNSPECIFIED = 0;
-  PORT_SIDE_INCOMING = 1;
-  PORT_SIDE_OUTGOING = 2;
-}
-
-enum TransitionType {
-  TRANSITION_TYPE_UNSPECIFIED = 0;
-  TRANSITION_TYPE_MANUAL = 10;
-  TRANSITION_TYPE_DECIDE = 20;
-  TRANSITION_TYPE_REQUIRE = 30;
+enum FlowEdgeType {
+  FLOW_EDGE_TYPE_UNSPECIFIED = 0;
+  FLOW_EDGE_TYPE_MANUAL = 10;
+  FLOW_EDGE_TYPE_DECIDE = 20;
+  FLOW_EDGE_TYPE_REQUIRE = 30;
 }
 
 enum FlowType {
@@ -1613,6 +1604,14 @@ enum LengthUnit {
   LENGTH_UNIT_UNSPECIFIED = 0;
   LENGTH_UNIT_PIXEL = 1;
   LENGTH_UNIT_REM = 2;
+}
+
+// The position of a View.
+enum PositionType {
+  POSITION_TYPE_UNSPECIFIED = 0;
+  POSITION_TYPE_RELATIVE = 1;
+  POSITION_TYPE_ABSOLUTE = 2;
+  POSITION_TYPE_STICKY = 3;
 }
 
 message GraphScopeData {
@@ -2028,6 +2027,13 @@ message FillData {
   optional NodeReferenceData image_ptr = 50;
   optional FillPosition position = 60;
   optional FillSize size = 70;
+}
+
+message PositionData {
+  ObjectType metatype = 1;
+  PositionType type = 40;
+  float x = 41;
+  float y = 42;
 }
 
 message ShadowData {
@@ -2650,6 +2656,34 @@ message FlowData {
   optional float backoff = 112;
 }
 
+message FlowEdgeData {
+  ObjectType metatype = 1;
+  string id = 2;
+  optional NodeReferenceData parent_ptr = 4;
+  optional NodeReferenceData bench_ptr = 5;
+  optional NodeReferenceData package_ptr = 9;
+  google.protobuf.Timestamp created_at = 10;
+  optional NodeReferenceData created_by_ptr = 11;
+  google.protobuf.Timestamp updated_at = 12;
+  optional NodeReferenceData updated_by_ptr = 13;
+  optional google.protobuf.Timestamp archived_at = 14;
+  optional google.protobuf.Timestamp deleted_at = 15;
+  optional NodeReferenceData template_ptr = 16;
+  NodeMode mode = 20;
+  FlowEdgeType type = 30;
+  optional string name = 32;
+  string order_key = 33;
+  NodeReferenceData source_ptr = 35;
+  NodeReferenceData target_ptr = 36;
+  optional ModelDeveloper model_developer = 100;
+  optional ModelProvider model_provider = 101;
+  optional string model_id = 102;
+  optional string model_name = 103;
+  optional int32 max_attempts = 110;
+  optional google.protobuf.Duration retry_interval = 111;
+  optional float backoff = 112;
+}
+
 message ServiceData {
   ObjectType metatype = 1;
   string id = 2;
@@ -2671,34 +2705,6 @@ message ServiceData {
   optional IconData icon = 34;
   optional NodeReferenceData definition_ptr = 35;
   optional NodeReferenceData target_ptr = 40;
-}
-
-message TransitionData {
-  ObjectType metatype = 1;
-  string id = 2;
-  optional NodeReferenceData parent_ptr = 4;
-  optional NodeReferenceData bench_ptr = 5;
-  optional NodeReferenceData package_ptr = 9;
-  google.protobuf.Timestamp created_at = 10;
-  optional NodeReferenceData created_by_ptr = 11;
-  google.protobuf.Timestamp updated_at = 12;
-  optional NodeReferenceData updated_by_ptr = 13;
-  optional google.protobuf.Timestamp archived_at = 14;
-  optional google.protobuf.Timestamp deleted_at = 15;
-  optional NodeReferenceData template_ptr = 16;
-  NodeMode mode = 20;
-  TransitionType type = 30;
-  optional string name = 32;
-  string order_key = 33;
-  NodeReferenceData source_ptr = 35;
-  NodeReferenceData target_ptr = 36;
-  optional ModelDeveloper model_developer = 100;
-  optional ModelProvider model_provider = 101;
-  optional string model_id = 102;
-  optional string model_name = 103;
-  optional int32 max_attempts = 110;
-  optional google.protobuf.Duration retry_interval = 111;
-  optional float backoff = 112;
 }
 
 message BenchData {
@@ -3286,50 +3292,6 @@ message SplitViewData {
   optional SelectionData selection = 71;
 }
 
-message SplitElementViewData {
-  ObjectType metatype = 1;
-  string id = 2;
-  optional NodeReferenceData parent_ptr = 4;
-  optional NodeReferenceData bench_ptr = 5;
-  optional NodeReferenceData package_ptr = 9;
-  google.protobuf.Timestamp created_at = 10;
-  optional NodeReferenceData created_by_ptr = 11;
-  google.protobuf.Timestamp updated_at = 12;
-  optional NodeReferenceData updated_by_ptr = 13;
-  optional google.protobuf.Timestamp archived_at = 14;
-  optional google.protobuf.Timestamp deleted_at = 15;
-  optional NodeReferenceData template_ptr = 16;
-  NodeMode mode = 20;
-  optional string name = 31;
-  optional string order_key = 33;
-  optional IconData icon = 34;
-  optional NodeReferenceData definition_ptr = 35;
-  optional NodeReferenceData focus_ptr = 70;
-  optional SelectionData selection = 71;
-}
-
-message SplitHandleViewData {
-  ObjectType metatype = 1;
-  string id = 2;
-  optional NodeReferenceData parent_ptr = 4;
-  optional NodeReferenceData bench_ptr = 5;
-  optional NodeReferenceData package_ptr = 9;
-  google.protobuf.Timestamp created_at = 10;
-  optional NodeReferenceData created_by_ptr = 11;
-  google.protobuf.Timestamp updated_at = 12;
-  optional NodeReferenceData updated_by_ptr = 13;
-  optional google.protobuf.Timestamp archived_at = 14;
-  optional google.protobuf.Timestamp deleted_at = 15;
-  optional NodeReferenceData template_ptr = 16;
-  NodeMode mode = 20;
-  optional string name = 31;
-  optional string order_key = 33;
-  optional IconData icon = 34;
-  optional NodeReferenceData definition_ptr = 35;
-  optional NodeReferenceData focus_ptr = 70;
-  optional SelectionData selection = 71;
-}
-
 message ThreadViewData {
   ObjectType metatype = 1;
   string id = 2;
@@ -3684,7 +3646,7 @@ message SomeNodeData {
     ServiceData service = 28;
     ActionData action = 29;
     FlowData flow = 30;
-    TransitionData transition = 31;
+    FlowEdgeData flow_edge = 31;
     AgentData agent = 32;
     SessionData session = 33;
     RunData run = 34;
@@ -3699,18 +3661,16 @@ message SomeNodeData {
     FrameViewData frame_view = 43;
     LabelViewData label_view = 44;
     SplitViewData split_view = 45;
-    SplitElementViewData split_element_view = 46;
-    SplitHandleViewData split_handle_view = 47;
-    InputViewData input_view = 48;
-    SliderViewData slider_view = 49;
-    ThreadViewData thread_view = 50;
-    ThemeData theme = 51;
-    ColorStyleData color_style = 52;
-    TextStyleData text_style = 53;
-    BorderStyleData border_style = 54;
-    ShadowStyleData shadow_style = 55;
-    GradientStyleData gradient_style = 56;
-    EmptyData empty = 57;
+    InputViewData input_view = 46;
+    SliderViewData slider_view = 47;
+    ThreadViewData thread_view = 48;
+    ThemeData theme = 49;
+    ColorStyleData color_style = 50;
+    TextStyleData text_style = 51;
+    BorderStyleData border_style = 52;
+    ShadowStyleData shadow_style = 53;
+    GradientStyleData gradient_style = 54;
+    EmptyData empty = 55;
   };
 }
 
