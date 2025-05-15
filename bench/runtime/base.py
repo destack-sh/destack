@@ -99,7 +99,7 @@ class RuntimeServiceBase(ServiceBase, abc.ABC):
         )
         self._supergraph = NodeSuperGraph(name="Runtime", root_ptr=self._bench_ptr)
         self._bench: Bench | None = None
-        self._main_package: Package | None = None
+        self._package: Package | None = None
         self._bench_bench: Bench | None = None
         self._session: Session | None = None
         self._tx_lock: asyncio.Lock = CriticalLock(
@@ -117,9 +117,9 @@ class RuntimeServiceBase(ServiceBase, abc.ABC):
         return self._bench
 
     @property
-    def main_package(self) -> Package:
-        assert self._main_package is not None, f"no main package for {self!r}"
-        return self._main_package
+    def package(self) -> Package:
+        assert self._package is not None, f"no main package for {self!r}"
+        return self._package
 
     @asynccontextmanager
     async def session(self):
@@ -178,7 +178,7 @@ class RuntimeServiceBase(ServiceBase, abc.ABC):
         async with self.session():
             # get bench
             self._bench = await BENCH_QUERY.get(self._bench_ptr, live=True)
-            self._main_package = self._bench.package
+            self._package = self._bench.package
             self._session.parent = self._bench
             # NOTE: bench bench is not live because it only ever changes on Host restart
             #  (in which case we auto-reconnect and get the new stuff anyway)

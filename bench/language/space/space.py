@@ -45,7 +45,7 @@ class Space(IsOwnable, IsTemplatable, IsModal, PackageNode[SpaceData]):
 
     type: SpaceType = p_regular(30)
     name: str | None = p_regular(31, constraint=NAME_CONSTRAINT)
-    order_key: str = p_internal(33, default=INTEGER_ZERO)
+    order_key: str = p_internal(33, default=INTEGER_ZERO)  # nocheckin: IsOrdered?
 
     selection: Optional[Selection] = p_regular(
         70,

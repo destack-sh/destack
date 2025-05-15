@@ -271,6 +271,8 @@ class IsInstantiable(IsTemplatable):
 
     ck: UUID = p_system(3, default=None, require=True, autoset=True)  # type: ignore
 
+    # nocheckin: proper templating/instancing (for views)
+
     @property
     def is_instance(self) -> bool:
         return self.ck != cast("Node", self).id

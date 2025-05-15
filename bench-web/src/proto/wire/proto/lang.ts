@@ -4648,6 +4648,87 @@ export interface UserData {
     passwordHash?: Uint8Array;
 }
 /**
+ * @generated from protobuf message symbol.bench.ApplicationData
+ */
+export interface ApplicationData {
+    /**
+     * @generated from protobuf field: symbol.bench.ObjectType metatype = 1;
+     */
+    metatype: ObjectType;
+    /**
+     * @generated from protobuf field: string id = 2;
+     */
+    id: string;
+    /**
+     * @generated from protobuf field: string ck = 3;
+     */
+    ck: string;
+    /**
+     * @generated from protobuf field: optional symbol.bench.NodeReferenceData parent_ptr = 4;
+     */
+    parentPtr?: NodeReferenceData;
+    /**
+     * @generated from protobuf field: optional symbol.bench.NodeReferenceData bench_ptr = 5;
+     */
+    benchPtr?: NodeReferenceData;
+    /**
+     * @generated from protobuf field: optional symbol.bench.NodeReferenceData package_ptr = 9;
+     */
+    packagePtr?: NodeReferenceData;
+    /**
+     * @generated from protobuf field: google.protobuf.Timestamp created_at = 10;
+     */
+    createdAt?: Timestamp;
+    /**
+     * @generated from protobuf field: optional symbol.bench.NodeReferenceData created_by_ptr = 11;
+     */
+    createdByPtr?: NodeReferenceData;
+    /**
+     * @generated from protobuf field: google.protobuf.Timestamp updated_at = 12;
+     */
+    updatedAt?: Timestamp;
+    /**
+     * @generated from protobuf field: optional symbol.bench.NodeReferenceData updated_by_ptr = 13;
+     */
+    updatedByPtr?: NodeReferenceData;
+    /**
+     * @generated from protobuf field: optional google.protobuf.Timestamp archived_at = 14;
+     */
+    archivedAt?: Timestamp;
+    /**
+     * @generated from protobuf field: optional google.protobuf.Timestamp deleted_at = 15;
+     */
+    deletedAt?: Timestamp;
+    /**
+     * @generated from protobuf field: optional symbol.bench.NodeReferenceData template_ptr = 16;
+     */
+    templatePtr?: NodeReferenceData;
+    /**
+     * @generated from protobuf field: symbol.bench.NodeMode mode = 25;
+     */
+    mode: NodeMode;
+    /**
+     * @generated from protobuf field: optional string name = 31;
+     */
+    name?: string;
+    /**
+     * @generated from protobuf field: optional string order_key = 33;
+     */
+    orderKey?: string;
+    /**
+     * @generated from protobuf field: optional symbol.bench.IconData icon = 34;
+     */
+    icon?: IconData;
+    /**
+     * @generated from protobuf field: optional symbol.bench.NodeReferenceData definition_ptr = 35;
+     */
+    definitionPtr?: NodeReferenceData;
+    /**
+     * @generated from protobuf field: optional symbol.bench.NodeReferenceData root_scene_ptr = 40;
+     */
+    rootScenePtr?: NodeReferenceData;
+}
+/**
  * @generated from protobuf message symbol.bench.BlockData
  */
 export interface BlockData {
@@ -5983,6 +6064,10 @@ export interface RouteData {
      */
     mode: NodeMode;
     /**
+     * @generated from protobuf field: optional string name = 31;
+     */
+    name?: string;
+    /**
      * @generated from protobuf field: optional string order_key = 33;
      */
     orderKey?: string;
@@ -5994,6 +6079,10 @@ export interface RouteData {
      * @generated from protobuf field: optional symbol.bench.NodeReferenceData definition_ptr = 35;
      */
     definitionPtr?: NodeReferenceData;
+    /**
+     * @generated from protobuf field: optional symbol.bench.NodeReferenceData scene_ptr = 40;
+     */
+    scenePtr?: NodeReferenceData;
 }
 /**
  * @generated from protobuf message symbol.bench.SceneData
@@ -6060,6 +6149,10 @@ export interface SceneData {
      */
     mode: NodeMode;
     /**
+     * @generated from protobuf field: optional string name = 31;
+     */
+    name?: string;
+    /**
      * @generated from protobuf field: optional string order_key = 33;
      */
     orderKey?: string;
@@ -6071,6 +6164,10 @@ export interface SceneData {
      * @generated from protobuf field: optional symbol.bench.NodeReferenceData definition_ptr = 35;
      */
     definitionPtr?: NodeReferenceData;
+    /**
+     * @generated from protobuf field: optional symbol.bench.NodeReferenceData root_view_ptr = 40;
+     */
+    rootViewPtr?: NodeReferenceData;
 }
 /**
  * @generated from protobuf message symbol.bench.SpaceData
@@ -8692,315 +8789,321 @@ export interface SomeNodeData {
          */
         block: BlockData;
     } | {
+        oneofKind: "application";
+        /**
+         * @generated from protobuf field: symbol.bench.ApplicationData application = 10;
+         */
+        application: ApplicationData;
+    } | {
         oneofKind: "database";
         /**
-         * @generated from protobuf field: symbol.bench.DatabaseData database = 10;
+         * @generated from protobuf field: symbol.bench.DatabaseData database = 11;
          */
         database: DatabaseData;
     } | {
         oneofKind: "computer";
         /**
-         * @generated from protobuf field: symbol.bench.ComputerData computer = 11;
+         * @generated from protobuf field: symbol.bench.ComputerData computer = 12;
          */
         computer: ComputerData;
     } | {
         oneofKind: "scaler";
         /**
-         * @generated from protobuf field: symbol.bench.ScalerData scaler = 12;
+         * @generated from protobuf field: symbol.bench.ScalerData scaler = 13;
          */
         scaler: ScalerData;
     } | {
         oneofKind: "choice";
         /**
-         * @generated from protobuf field: symbol.bench.ChoiceData choice = 13;
+         * @generated from protobuf field: symbol.bench.ChoiceData choice = 14;
          */
         choice: ChoiceData;
     } | {
         oneofKind: "class";
         /**
-         * @generated from protobuf field: symbol.bench.ClassData class = 14;
+         * @generated from protobuf field: symbol.bench.ClassData class = 15;
          */
         class: ClassData;
     } | {
         oneofKind: "field";
         /**
-         * @generated from protobuf field: symbol.bench.FieldData field = 15;
+         * @generated from protobuf field: symbol.bench.FieldData field = 16;
          */
         field: FieldData;
     } | {
         oneofKind: "option";
         /**
-         * @generated from protobuf field: symbol.bench.OptionData option = 16;
+         * @generated from protobuf field: symbol.bench.OptionData option = 17;
          */
         option: OptionData;
     } | {
         oneofKind: "table";
         /**
-         * @generated from protobuf field: symbol.bench.TableData table = 17;
+         * @generated from protobuf field: symbol.bench.TableData table = 18;
          */
         table: TableData;
     } | {
         oneofKind: "record";
         /**
-         * @generated from protobuf field: symbol.bench.RecordData record = 18;
+         * @generated from protobuf field: symbol.bench.RecordData record = 19;
          */
         record: RecordData;
     } | {
         oneofKind: "file";
         /**
-         * @generated from protobuf field: symbol.bench.FileData file = 19;
+         * @generated from protobuf field: symbol.bench.FileData file = 20;
          */
         file: FileData;
     } | {
         oneofKind: "link";
         /**
-         * @generated from protobuf field: symbol.bench.LinkData link = 20;
+         * @generated from protobuf field: symbol.bench.LinkData link = 21;
          */
         link: LinkData;
     } | {
         oneofKind: "channel";
         /**
-         * @generated from protobuf field: symbol.bench.ChannelData channel = 21;
+         * @generated from protobuf field: symbol.bench.ChannelData channel = 22;
          */
         channel: ChannelData;
     } | {
         oneofKind: "thread";
         /**
-         * @generated from protobuf field: symbol.bench.ThreadData thread = 22;
+         * @generated from protobuf field: symbol.bench.ThreadData thread = 23;
          */
         thread: ThreadData;
     } | {
         oneofKind: "message";
         /**
-         * @generated from protobuf field: symbol.bench.MessageData message = 23;
+         * @generated from protobuf field: symbol.bench.MessageData message = 24;
          */
         message: MessageData;
     } | {
         oneofKind: "notification";
         /**
-         * @generated from protobuf field: symbol.bench.NotificationData notification = 24;
+         * @generated from protobuf field: symbol.bench.NotificationData notification = 25;
          */
         notification: NotificationData;
     } | {
         oneofKind: "task";
         /**
-         * @generated from protobuf field: symbol.bench.TaskData task = 25;
+         * @generated from protobuf field: symbol.bench.TaskData task = 26;
          */
         task: TaskData;
     } | {
         oneofKind: "claim";
         /**
-         * @generated from protobuf field: symbol.bench.ClaimData claim = 26;
+         * @generated from protobuf field: symbol.bench.ClaimData claim = 27;
          */
         claim: ClaimData;
     } | {
         oneofKind: "cursor";
         /**
-         * @generated from protobuf field: symbol.bench.CursorData cursor = 27;
+         * @generated from protobuf field: symbol.bench.CursorData cursor = 28;
          */
         cursor: CursorData;
     } | {
         oneofKind: "service";
         /**
-         * @generated from protobuf field: symbol.bench.ServiceData service = 28;
+         * @generated from protobuf field: symbol.bench.ServiceData service = 29;
          */
         service: ServiceData;
     } | {
         oneofKind: "action";
         /**
-         * @generated from protobuf field: symbol.bench.ActionData action = 29;
+         * @generated from protobuf field: symbol.bench.ActionData action = 30;
          */
         action: ActionData;
     } | {
         oneofKind: "flow";
         /**
-         * @generated from protobuf field: symbol.bench.FlowData flow = 30;
+         * @generated from protobuf field: symbol.bench.FlowData flow = 31;
          */
         flow: FlowData;
     } | {
         oneofKind: "flowEdge";
         /**
-         * @generated from protobuf field: symbol.bench.FlowEdgeData flow_edge = 31;
+         * @generated from protobuf field: symbol.bench.FlowEdgeData flow_edge = 32;
          */
         flowEdge: FlowEdgeData;
     } | {
         oneofKind: "agent";
         /**
-         * @generated from protobuf field: symbol.bench.AgentData agent = 32;
+         * @generated from protobuf field: symbol.bench.AgentData agent = 33;
          */
         agent: AgentData;
     } | {
         oneofKind: "session";
         /**
-         * @generated from protobuf field: symbol.bench.SessionData session = 33;
+         * @generated from protobuf field: symbol.bench.SessionData session = 34;
          */
         session: SessionData;
     } | {
         oneofKind: "run";
         /**
-         * @generated from protobuf field: symbol.bench.RunData run = 34;
+         * @generated from protobuf field: symbol.bench.RunData run = 35;
          */
         run: RunData;
     } | {
         oneofKind: "span";
         /**
-         * @generated from protobuf field: symbol.bench.SpanData span = 35;
+         * @generated from protobuf field: symbol.bench.SpanData span = 36;
          */
         span: SpanData;
     } | {
         oneofKind: "interruption";
         /**
-         * @generated from protobuf field: symbol.bench.InterruptionData interruption = 36;
+         * @generated from protobuf field: symbol.bench.InterruptionData interruption = 37;
          */
         interruption: InterruptionData;
     } | {
         oneofKind: "membership";
         /**
-         * @generated from protobuf field: symbol.bench.MembershipData membership = 37;
+         * @generated from protobuf field: symbol.bench.MembershipData membership = 38;
          */
         membership: MembershipData;
     } | {
         oneofKind: "invite";
         /**
-         * @generated from protobuf field: symbol.bench.InviteData invite = 38;
+         * @generated from protobuf field: symbol.bench.InviteData invite = 39;
          */
         invite: InviteData;
     } | {
         oneofKind: "team";
         /**
-         * @generated from protobuf field: symbol.bench.TeamData team = 39;
+         * @generated from protobuf field: symbol.bench.TeamData team = 40;
          */
         team: TeamData;
     } | {
         oneofKind: "role";
         /**
-         * @generated from protobuf field: symbol.bench.RoleData role = 40;
+         * @generated from protobuf field: symbol.bench.RoleData role = 41;
          */
         role: RoleData;
     } | {
         oneofKind: "space";
         /**
-         * @generated from protobuf field: symbol.bench.SpaceData space = 41;
+         * @generated from protobuf field: symbol.bench.SpaceData space = 42;
          */
         space: SpaceData;
     } | {
         oneofKind: "scene";
         /**
-         * @generated from protobuf field: symbol.bench.SceneData scene = 42;
+         * @generated from protobuf field: symbol.bench.SceneData scene = 43;
          */
         scene: SceneData;
     } | {
         oneofKind: "route";
         /**
-         * @generated from protobuf field: symbol.bench.RouteData route = 43;
+         * @generated from protobuf field: symbol.bench.RouteData route = 44;
          */
         route: RouteData;
     } | {
         oneofKind: "frameView";
         /**
-         * @generated from protobuf field: symbol.bench.FrameViewData frame_view = 44;
+         * @generated from protobuf field: symbol.bench.FrameViewData frame_view = 45;
          */
         frameView: FrameViewData;
     } | {
         oneofKind: "labelView";
         /**
-         * @generated from protobuf field: symbol.bench.LabelViewData label_view = 45;
+         * @generated from protobuf field: symbol.bench.LabelViewData label_view = 46;
          */
         labelView: LabelViewData;
     } | {
         oneofKind: "componentView";
         /**
-         * @generated from protobuf field: symbol.bench.ComponentViewData component_view = 46;
+         * @generated from protobuf field: symbol.bench.ComponentViewData component_view = 47;
          */
         componentView: ComponentViewData;
     } | {
         oneofKind: "splitView";
         /**
-         * @generated from protobuf field: symbol.bench.SplitViewData split_view = 47;
+         * @generated from protobuf field: symbol.bench.SplitViewData split_view = 48;
          */
         splitView: SplitViewData;
     } | {
         oneofKind: "textView";
         /**
-         * @generated from protobuf field: symbol.bench.TextViewData text_view = 48;
+         * @generated from protobuf field: symbol.bench.TextViewData text_view = 49;
          */
         textView: TextViewData;
     } | {
         oneofKind: "numberInputView";
         /**
-         * @generated from protobuf field: symbol.bench.NumberInputViewData number_input_view = 49;
+         * @generated from protobuf field: symbol.bench.NumberInputViewData number_input_view = 50;
          */
         numberInputView: NumberInputViewData;
     } | {
         oneofKind: "sliderInputView";
         /**
-         * @generated from protobuf field: symbol.bench.SliderInputViewData slider_input_view = 50;
+         * @generated from protobuf field: symbol.bench.SliderInputViewData slider_input_view = 51;
          */
         sliderInputView: SliderInputViewData;
     } | {
         oneofKind: "threadView";
         /**
-         * @generated from protobuf field: symbol.bench.ThreadViewData thread_view = 51;
+         * @generated from protobuf field: symbol.bench.ThreadViewData thread_view = 52;
          */
         threadView: ThreadViewData;
     } | {
         oneofKind: "wizardView";
         /**
-         * @generated from protobuf field: symbol.bench.WizardViewData wizard_view = 52;
+         * @generated from protobuf field: symbol.bench.WizardViewData wizard_view = 53;
          */
         wizardView: WizardViewData;
     } | {
         oneofKind: "theme";
         /**
-         * @generated from protobuf field: symbol.bench.ThemeData theme = 53;
+         * @generated from protobuf field: symbol.bench.ThemeData theme = 54;
          */
         theme: ThemeData;
     } | {
         oneofKind: "colorStyle";
         /**
-         * @generated from protobuf field: symbol.bench.ColorStyleData color_style = 54;
+         * @generated from protobuf field: symbol.bench.ColorStyleData color_style = 55;
          */
         colorStyle: ColorStyleData;
     } | {
         oneofKind: "fontStyle";
         /**
-         * @generated from protobuf field: symbol.bench.FontStyleData font_style = 55;
+         * @generated from protobuf field: symbol.bench.FontStyleData font_style = 56;
          */
         fontStyle: FontStyleData;
     } | {
         oneofKind: "borderStyle";
         /**
-         * @generated from protobuf field: symbol.bench.BorderStyleData border_style = 56;
+         * @generated from protobuf field: symbol.bench.BorderStyleData border_style = 57;
          */
         borderStyle: BorderStyleData;
     } | {
         oneofKind: "shadowStyle";
         /**
-         * @generated from protobuf field: symbol.bench.ShadowStyleData shadow_style = 57;
+         * @generated from protobuf field: symbol.bench.ShadowStyleData shadow_style = 58;
          */
         shadowStyle: ShadowStyleData;
     } | {
         oneofKind: "gradientStyle";
         /**
-         * @generated from protobuf field: symbol.bench.GradientStyleData gradient_style = 58;
+         * @generated from protobuf field: symbol.bench.GradientStyleData gradient_style = 59;
          */
         gradientStyle: GradientStyleData;
     } | {
         oneofKind: "transitionStyle";
         /**
-         * @generated from protobuf field: symbol.bench.TransitionStyleData transition_style = 59;
+         * @generated from protobuf field: symbol.bench.TransitionStyleData transition_style = 60;
          */
         transitionStyle: TransitionStyleData;
     } | {
         oneofKind: "effectStyle";
         /**
-         * @generated from protobuf field: symbol.bench.EffectStyleData effect_style = 60;
+         * @generated from protobuf field: symbol.bench.EffectStyleData effect_style = 61;
          */
         effectStyle: EffectStyleData;
     } | {
         oneofKind: "empty";
         /**
-         * @generated from protobuf field: symbol.bench.EmptyData empty = 61;
+         * @generated from protobuf field: symbol.bench.EmptyData empty = 62;
          */
         empty: EmptyData;
     } | {
@@ -9505,6 +9608,10 @@ export enum NodeType {
      */
     BLOCK = 1030,
     /**
+     * @generated from protobuf enum value: NODE_TYPE_APPLICATION = 1040;
+     */
+    APPLICATION = 1040,
+    /**
      * @generated from protobuf enum value: NODE_TYPE_DATABASE = 1200;
      */
     DATABASE = 1200,
@@ -9979,6 +10086,10 @@ export enum ObjectType {
      */
     BLOCK = 1030,
     /**
+     * @generated from protobuf enum value: OBJECT_TYPE_APPLICATION = 1040;
+     */
+    APPLICATION = 1040,
+    /**
      * @generated from protobuf enum value: OBJECT_TYPE_DATABASE = 1200;
      */
     DATABASE = 1200,
@@ -10443,6 +10554,10 @@ export enum BenchType {
      * @generated from protobuf enum value: BENCH_TYPE_BLOCK = 1030;
      */
     BLOCK = 1030,
+    /**
+     * @generated from protobuf enum value: BENCH_TYPE_APPLICATION = 1040;
+     */
+    APPLICATION = 1040,
     /**
      * @generated from protobuf enum value: BENCH_TYPE_DATABASE = 1200;
      */
@@ -26185,6 +26300,182 @@ class UserData$Type extends MessageType$<UserData> {
  */
 export const UserData = new UserData$Type();
 // @generated message type with reflection information, may provide speed optimized methods
+class ApplicationData$Type extends MessageType$<ApplicationData> {
+    constructor() {
+        super("symbol.bench.ApplicationData", [
+            { no: 1, name: "metatype", kind: "enum", T: () => ["symbol.bench.ObjectType", ObjectType, "OBJECT_TYPE_"] },
+            { no: 2, name: "id", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
+            { no: 3, name: "ck", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
+            { no: 4, name: "parent_ptr", kind: "message", T: () => NodeReferenceData },
+            { no: 5, name: "bench_ptr", kind: "message", T: () => NodeReferenceData },
+            { no: 9, name: "package_ptr", kind: "message", T: () => NodeReferenceData },
+            { no: 10, name: "created_at", kind: "message", T: () => Timestamp },
+            { no: 11, name: "created_by_ptr", kind: "message", T: () => NodeReferenceData },
+            { no: 12, name: "updated_at", kind: "message", T: () => Timestamp },
+            { no: 13, name: "updated_by_ptr", kind: "message", T: () => NodeReferenceData },
+            { no: 14, name: "archived_at", kind: "message", T: () => Timestamp },
+            { no: 15, name: "deleted_at", kind: "message", T: () => Timestamp },
+            { no: 16, name: "template_ptr", kind: "message", T: () => NodeReferenceData },
+            { no: 25, name: "mode", kind: "enum", T: () => ["symbol.bench.NodeMode", NodeMode, "NODE_MODE_"] },
+            { no: 31, name: "name", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
+            { no: 33, name: "order_key", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
+            { no: 34, name: "icon", kind: "message", T: () => IconData },
+            { no: 35, name: "definition_ptr", kind: "message", T: () => NodeReferenceData },
+            { no: 40, name: "root_scene_ptr", kind: "message", T: () => NodeReferenceData }
+        ]);
+    }
+    create(value?: PartialMessage<ApplicationData>): ApplicationData {
+        const message = globalThis.Object.create((this.messagePrototype!));
+        message.metatype = 0;
+        message.id = "";
+        message.ck = "";
+        message.mode = 0;
+        if (value !== undefined)
+            reflectionMergePartial<ApplicationData>(this, message, value);
+        return message;
+    }
+    internalBinaryRead(reader: IBinaryReader, length: number, options: BinaryReadOptions, target?: ApplicationData): ApplicationData {
+        let message = target ?? this.create(), end = reader.pos + length;
+        while (reader.pos < end) {
+            let [fieldNo, wireType] = reader.tag();
+            switch (fieldNo) {
+                case /* symbol.bench.ObjectType metatype */ 1:
+                    message.metatype = reader.int32();
+                    break;
+                case /* string id */ 2:
+                    message.id = reader.string();
+                    break;
+                case /* string ck */ 3:
+                    message.ck = reader.string();
+                    break;
+                case /* optional symbol.bench.NodeReferenceData parent_ptr */ 4:
+                    message.parentPtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.parentPtr);
+                    break;
+                case /* optional symbol.bench.NodeReferenceData bench_ptr */ 5:
+                    message.benchPtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.benchPtr);
+                    break;
+                case /* optional symbol.bench.NodeReferenceData package_ptr */ 9:
+                    message.packagePtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.packagePtr);
+                    break;
+                case /* google.protobuf.Timestamp created_at */ 10:
+                    message.createdAt = Timestamp.internalBinaryRead(reader, reader.uint32(), options, message.createdAt);
+                    break;
+                case /* optional symbol.bench.NodeReferenceData created_by_ptr */ 11:
+                    message.createdByPtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.createdByPtr);
+                    break;
+                case /* google.protobuf.Timestamp updated_at */ 12:
+                    message.updatedAt = Timestamp.internalBinaryRead(reader, reader.uint32(), options, message.updatedAt);
+                    break;
+                case /* optional symbol.bench.NodeReferenceData updated_by_ptr */ 13:
+                    message.updatedByPtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.updatedByPtr);
+                    break;
+                case /* optional google.protobuf.Timestamp archived_at */ 14:
+                    message.archivedAt = Timestamp.internalBinaryRead(reader, reader.uint32(), options, message.archivedAt);
+                    break;
+                case /* optional google.protobuf.Timestamp deleted_at */ 15:
+                    message.deletedAt = Timestamp.internalBinaryRead(reader, reader.uint32(), options, message.deletedAt);
+                    break;
+                case /* optional symbol.bench.NodeReferenceData template_ptr */ 16:
+                    message.templatePtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.templatePtr);
+                    break;
+                case /* symbol.bench.NodeMode mode */ 25:
+                    message.mode = reader.int32();
+                    break;
+                case /* optional string name */ 31:
+                    message.name = reader.string();
+                    break;
+                case /* optional string order_key */ 33:
+                    message.orderKey = reader.string();
+                    break;
+                case /* optional symbol.bench.IconData icon */ 34:
+                    message.icon = IconData.internalBinaryRead(reader, reader.uint32(), options, message.icon);
+                    break;
+                case /* optional symbol.bench.NodeReferenceData definition_ptr */ 35:
+                    message.definitionPtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.definitionPtr);
+                    break;
+                case /* optional symbol.bench.NodeReferenceData root_scene_ptr */ 40:
+                    message.rootScenePtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.rootScenePtr);
+                    break;
+                default:
+                    let u = options.readUnknownField;
+                    if (u === "throw")
+                        throw new globalThis.Error(`Unknown field ${fieldNo} (wire type ${wireType}) for ${this.typeName}`);
+                    let d = reader.skip(wireType);
+                    if (u !== false)
+                        (u === true ? UnknownFieldHandler.onRead : u)(this.typeName, message, fieldNo, wireType, d);
+            }
+        }
+        return message;
+    }
+    internalBinaryWrite(message: ApplicationData, writer: IBinaryWriter, options: BinaryWriteOptions): IBinaryWriter {
+        /* symbol.bench.ObjectType metatype = 1; */
+        if (message.metatype !== 0)
+            writer.tag(1, WireType.Varint).int32(message.metatype);
+        /* string id = 2; */
+        if (message.id !== "")
+            writer.tag(2, WireType.LengthDelimited).string(message.id);
+        /* string ck = 3; */
+        if (message.ck !== "")
+            writer.tag(3, WireType.LengthDelimited).string(message.ck);
+        /* optional symbol.bench.NodeReferenceData parent_ptr = 4; */
+        if (message.parentPtr)
+            NodeReferenceData.internalBinaryWrite(message.parentPtr, writer.tag(4, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbol.bench.NodeReferenceData bench_ptr = 5; */
+        if (message.benchPtr)
+            NodeReferenceData.internalBinaryWrite(message.benchPtr, writer.tag(5, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbol.bench.NodeReferenceData package_ptr = 9; */
+        if (message.packagePtr)
+            NodeReferenceData.internalBinaryWrite(message.packagePtr, writer.tag(9, WireType.LengthDelimited).fork(), options).join();
+        /* google.protobuf.Timestamp created_at = 10; */
+        if (message.createdAt)
+            Timestamp.internalBinaryWrite(message.createdAt, writer.tag(10, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbol.bench.NodeReferenceData created_by_ptr = 11; */
+        if (message.createdByPtr)
+            NodeReferenceData.internalBinaryWrite(message.createdByPtr, writer.tag(11, WireType.LengthDelimited).fork(), options).join();
+        /* google.protobuf.Timestamp updated_at = 12; */
+        if (message.updatedAt)
+            Timestamp.internalBinaryWrite(message.updatedAt, writer.tag(12, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbol.bench.NodeReferenceData updated_by_ptr = 13; */
+        if (message.updatedByPtr)
+            NodeReferenceData.internalBinaryWrite(message.updatedByPtr, writer.tag(13, WireType.LengthDelimited).fork(), options).join();
+        /* optional google.protobuf.Timestamp archived_at = 14; */
+        if (message.archivedAt)
+            Timestamp.internalBinaryWrite(message.archivedAt, writer.tag(14, WireType.LengthDelimited).fork(), options).join();
+        /* optional google.protobuf.Timestamp deleted_at = 15; */
+        if (message.deletedAt)
+            Timestamp.internalBinaryWrite(message.deletedAt, writer.tag(15, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbol.bench.NodeReferenceData template_ptr = 16; */
+        if (message.templatePtr)
+            NodeReferenceData.internalBinaryWrite(message.templatePtr, writer.tag(16, WireType.LengthDelimited).fork(), options).join();
+        /* symbol.bench.NodeMode mode = 25; */
+        if (message.mode !== 0)
+            writer.tag(25, WireType.Varint).int32(message.mode);
+        /* optional string name = 31; */
+        if (message.name !== undefined)
+            writer.tag(31, WireType.LengthDelimited).string(message.name);
+        /* optional string order_key = 33; */
+        if (message.orderKey !== undefined)
+            writer.tag(33, WireType.LengthDelimited).string(message.orderKey);
+        /* optional symbol.bench.IconData icon = 34; */
+        if (message.icon)
+            IconData.internalBinaryWrite(message.icon, writer.tag(34, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbol.bench.NodeReferenceData definition_ptr = 35; */
+        if (message.definitionPtr)
+            NodeReferenceData.internalBinaryWrite(message.definitionPtr, writer.tag(35, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbol.bench.NodeReferenceData root_scene_ptr = 40; */
+        if (message.rootScenePtr)
+            NodeReferenceData.internalBinaryWrite(message.rootScenePtr, writer.tag(40, WireType.LengthDelimited).fork(), options).join();
+        let u = options.writeUnknownFields;
+        if (u !== false)
+            (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
+        return writer;
+    }
+}
+/**
+ * @generated MessageType for protobuf message symbol.bench.ApplicationData
+ */
+export const ApplicationData = new ApplicationData$Type();
+// @generated message type with reflection information, may provide speed optimized methods
 class BlockData$Type extends MessageType$<BlockData> {
     constructor() {
         super("symbol.bench.BlockData", [
@@ -28815,9 +29106,11 @@ class RouteData$Type extends MessageType$<RouteData> {
             { no: 16, name: "template_ptr", kind: "message", T: () => NodeReferenceData },
             { no: 17, name: "owned_by_ptr", kind: "message", T: () => NodeReferenceData },
             { no: 25, name: "mode", kind: "enum", T: () => ["symbol.bench.NodeMode", NodeMode, "NODE_MODE_"] },
+            { no: 31, name: "name", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
             { no: 33, name: "order_key", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
             { no: 34, name: "icon", kind: "message", T: () => IconData },
-            { no: 35, name: "definition_ptr", kind: "message", T: () => NodeReferenceData }
+            { no: 35, name: "definition_ptr", kind: "message", T: () => NodeReferenceData },
+            { no: 40, name: "scene_ptr", kind: "message", T: () => NodeReferenceData }
         ]);
     }
     create(value?: PartialMessage<RouteData>): RouteData {
@@ -28880,6 +29173,9 @@ class RouteData$Type extends MessageType$<RouteData> {
                 case /* symbol.bench.NodeMode mode */ 25:
                     message.mode = reader.int32();
                     break;
+                case /* optional string name */ 31:
+                    message.name = reader.string();
+                    break;
                 case /* optional string order_key */ 33:
                     message.orderKey = reader.string();
                     break;
@@ -28888,6 +29184,9 @@ class RouteData$Type extends MessageType$<RouteData> {
                     break;
                 case /* optional symbol.bench.NodeReferenceData definition_ptr */ 35:
                     message.definitionPtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.definitionPtr);
+                    break;
+                case /* optional symbol.bench.NodeReferenceData scene_ptr */ 40:
+                    message.scenePtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.scenePtr);
                     break;
                 default:
                     let u = options.readUnknownField;
@@ -28946,6 +29245,9 @@ class RouteData$Type extends MessageType$<RouteData> {
         /* symbol.bench.NodeMode mode = 25; */
         if (message.mode !== 0)
             writer.tag(25, WireType.Varint).int32(message.mode);
+        /* optional string name = 31; */
+        if (message.name !== undefined)
+            writer.tag(31, WireType.LengthDelimited).string(message.name);
         /* optional string order_key = 33; */
         if (message.orderKey !== undefined)
             writer.tag(33, WireType.LengthDelimited).string(message.orderKey);
@@ -28955,6 +29257,9 @@ class RouteData$Type extends MessageType$<RouteData> {
         /* optional symbol.bench.NodeReferenceData definition_ptr = 35; */
         if (message.definitionPtr)
             NodeReferenceData.internalBinaryWrite(message.definitionPtr, writer.tag(35, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbol.bench.NodeReferenceData scene_ptr = 40; */
+        if (message.scenePtr)
+            NodeReferenceData.internalBinaryWrite(message.scenePtr, writer.tag(40, WireType.LengthDelimited).fork(), options).join();
         let u = options.writeUnknownFields;
         if (u !== false)
             (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
@@ -28984,9 +29289,11 @@ class SceneData$Type extends MessageType$<SceneData> {
             { no: 16, name: "template_ptr", kind: "message", T: () => NodeReferenceData },
             { no: 17, name: "owned_by_ptr", kind: "message", T: () => NodeReferenceData },
             { no: 25, name: "mode", kind: "enum", T: () => ["symbol.bench.NodeMode", NodeMode, "NODE_MODE_"] },
+            { no: 31, name: "name", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
             { no: 33, name: "order_key", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
             { no: 34, name: "icon", kind: "message", T: () => IconData },
-            { no: 35, name: "definition_ptr", kind: "message", T: () => NodeReferenceData }
+            { no: 35, name: "definition_ptr", kind: "message", T: () => NodeReferenceData },
+            { no: 40, name: "root_view_ptr", kind: "message", T: () => NodeReferenceData }
         ]);
     }
     create(value?: PartialMessage<SceneData>): SceneData {
@@ -29049,6 +29356,9 @@ class SceneData$Type extends MessageType$<SceneData> {
                 case /* symbol.bench.NodeMode mode */ 25:
                     message.mode = reader.int32();
                     break;
+                case /* optional string name */ 31:
+                    message.name = reader.string();
+                    break;
                 case /* optional string order_key */ 33:
                     message.orderKey = reader.string();
                     break;
@@ -29057,6 +29367,9 @@ class SceneData$Type extends MessageType$<SceneData> {
                     break;
                 case /* optional symbol.bench.NodeReferenceData definition_ptr */ 35:
                     message.definitionPtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.definitionPtr);
+                    break;
+                case /* optional symbol.bench.NodeReferenceData root_view_ptr */ 40:
+                    message.rootViewPtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.rootViewPtr);
                     break;
                 default:
                     let u = options.readUnknownField;
@@ -29115,6 +29428,9 @@ class SceneData$Type extends MessageType$<SceneData> {
         /* symbol.bench.NodeMode mode = 25; */
         if (message.mode !== 0)
             writer.tag(25, WireType.Varint).int32(message.mode);
+        /* optional string name = 31; */
+        if (message.name !== undefined)
+            writer.tag(31, WireType.LengthDelimited).string(message.name);
         /* optional string order_key = 33; */
         if (message.orderKey !== undefined)
             writer.tag(33, WireType.LengthDelimited).string(message.orderKey);
@@ -29124,6 +29440,9 @@ class SceneData$Type extends MessageType$<SceneData> {
         /* optional symbol.bench.NodeReferenceData definition_ptr = 35; */
         if (message.definitionPtr)
             NodeReferenceData.internalBinaryWrite(message.definitionPtr, writer.tag(35, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbol.bench.NodeReferenceData root_view_ptr = 40; */
+        if (message.rootViewPtr)
+            NodeReferenceData.internalBinaryWrite(message.rootViewPtr, writer.tag(40, WireType.LengthDelimited).fork(), options).join();
         let u = options.writeUnknownFields;
         if (u !== false)
             (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
@@ -34412,58 +34731,59 @@ class SomeNodeData$Type extends MessageType$<SomeNodeData> {
             { no: 7, name: "dependency", kind: "message", oneof: "node", T: () => DependencyData },
             { no: 8, name: "page", kind: "message", oneof: "node", T: () => PageData },
             { no: 9, name: "block", kind: "message", oneof: "node", T: () => BlockData },
-            { no: 10, name: "database", kind: "message", oneof: "node", T: () => DatabaseData },
-            { no: 11, name: "computer", kind: "message", oneof: "node", T: () => ComputerData },
-            { no: 12, name: "scaler", kind: "message", oneof: "node", T: () => ScalerData },
-            { no: 13, name: "choice", kind: "message", oneof: "node", T: () => ChoiceData },
-            { no: 14, name: "class", kind: "message", oneof: "node", T: () => ClassData },
-            { no: 15, name: "field", kind: "message", oneof: "node", T: () => FieldData },
-            { no: 16, name: "option", kind: "message", oneof: "node", T: () => OptionData },
-            { no: 17, name: "table", kind: "message", oneof: "node", T: () => TableData },
-            { no: 18, name: "record", kind: "message", oneof: "node", T: () => RecordData },
-            { no: 19, name: "file", kind: "message", oneof: "node", T: () => FileData },
-            { no: 20, name: "link", kind: "message", oneof: "node", T: () => LinkData },
-            { no: 21, name: "channel", kind: "message", oneof: "node", T: () => ChannelData },
-            { no: 22, name: "thread", kind: "message", oneof: "node", T: () => ThreadData },
-            { no: 23, name: "message", kind: "message", oneof: "node", T: () => MessageData },
-            { no: 24, name: "notification", kind: "message", oneof: "node", T: () => NotificationData },
-            { no: 25, name: "task", kind: "message", oneof: "node", T: () => TaskData },
-            { no: 26, name: "claim", kind: "message", oneof: "node", T: () => ClaimData },
-            { no: 27, name: "cursor", kind: "message", oneof: "node", T: () => CursorData },
-            { no: 28, name: "service", kind: "message", oneof: "node", T: () => ServiceData },
-            { no: 29, name: "action", kind: "message", oneof: "node", T: () => ActionData },
-            { no: 30, name: "flow", kind: "message", oneof: "node", T: () => FlowData },
-            { no: 31, name: "flow_edge", kind: "message", oneof: "node", T: () => FlowEdgeData },
-            { no: 32, name: "agent", kind: "message", oneof: "node", T: () => AgentData },
-            { no: 33, name: "session", kind: "message", oneof: "node", T: () => SessionData },
-            { no: 34, name: "run", kind: "message", oneof: "node", T: () => RunData },
-            { no: 35, name: "span", kind: "message", oneof: "node", T: () => SpanData },
-            { no: 36, name: "interruption", kind: "message", oneof: "node", T: () => InterruptionData },
-            { no: 37, name: "membership", kind: "message", oneof: "node", T: () => MembershipData },
-            { no: 38, name: "invite", kind: "message", oneof: "node", T: () => InviteData },
-            { no: 39, name: "team", kind: "message", oneof: "node", T: () => TeamData },
-            { no: 40, name: "role", kind: "message", oneof: "node", T: () => RoleData },
-            { no: 41, name: "space", kind: "message", oneof: "node", T: () => SpaceData },
-            { no: 42, name: "scene", kind: "message", oneof: "node", T: () => SceneData },
-            { no: 43, name: "route", kind: "message", oneof: "node", T: () => RouteData },
-            { no: 44, name: "frame_view", kind: "message", oneof: "node", T: () => FrameViewData },
-            { no: 45, name: "label_view", kind: "message", oneof: "node", T: () => LabelViewData },
-            { no: 46, name: "component_view", kind: "message", oneof: "node", T: () => ComponentViewData },
-            { no: 47, name: "split_view", kind: "message", oneof: "node", T: () => SplitViewData },
-            { no: 48, name: "text_view", kind: "message", oneof: "node", T: () => TextViewData },
-            { no: 49, name: "number_input_view", kind: "message", oneof: "node", T: () => NumberInputViewData },
-            { no: 50, name: "slider_input_view", kind: "message", oneof: "node", T: () => SliderInputViewData },
-            { no: 51, name: "thread_view", kind: "message", oneof: "node", T: () => ThreadViewData },
-            { no: 52, name: "wizard_view", kind: "message", oneof: "node", T: () => WizardViewData },
-            { no: 53, name: "theme", kind: "message", oneof: "node", T: () => ThemeData },
-            { no: 54, name: "color_style", kind: "message", oneof: "node", T: () => ColorStyleData },
-            { no: 55, name: "font_style", kind: "message", oneof: "node", T: () => FontStyleData },
-            { no: 56, name: "border_style", kind: "message", oneof: "node", T: () => BorderStyleData },
-            { no: 57, name: "shadow_style", kind: "message", oneof: "node", T: () => ShadowStyleData },
-            { no: 58, name: "gradient_style", kind: "message", oneof: "node", T: () => GradientStyleData },
-            { no: 59, name: "transition_style", kind: "message", oneof: "node", T: () => TransitionStyleData },
-            { no: 60, name: "effect_style", kind: "message", oneof: "node", T: () => EffectStyleData },
-            { no: 61, name: "empty", kind: "message", oneof: "node", T: () => EmptyData }
+            { no: 10, name: "application", kind: "message", oneof: "node", T: () => ApplicationData },
+            { no: 11, name: "database", kind: "message", oneof: "node", T: () => DatabaseData },
+            { no: 12, name: "computer", kind: "message", oneof: "node", T: () => ComputerData },
+            { no: 13, name: "scaler", kind: "message", oneof: "node", T: () => ScalerData },
+            { no: 14, name: "choice", kind: "message", oneof: "node", T: () => ChoiceData },
+            { no: 15, name: "class", kind: "message", oneof: "node", T: () => ClassData },
+            { no: 16, name: "field", kind: "message", oneof: "node", T: () => FieldData },
+            { no: 17, name: "option", kind: "message", oneof: "node", T: () => OptionData },
+            { no: 18, name: "table", kind: "message", oneof: "node", T: () => TableData },
+            { no: 19, name: "record", kind: "message", oneof: "node", T: () => RecordData },
+            { no: 20, name: "file", kind: "message", oneof: "node", T: () => FileData },
+            { no: 21, name: "link", kind: "message", oneof: "node", T: () => LinkData },
+            { no: 22, name: "channel", kind: "message", oneof: "node", T: () => ChannelData },
+            { no: 23, name: "thread", kind: "message", oneof: "node", T: () => ThreadData },
+            { no: 24, name: "message", kind: "message", oneof: "node", T: () => MessageData },
+            { no: 25, name: "notification", kind: "message", oneof: "node", T: () => NotificationData },
+            { no: 26, name: "task", kind: "message", oneof: "node", T: () => TaskData },
+            { no: 27, name: "claim", kind: "message", oneof: "node", T: () => ClaimData },
+            { no: 28, name: "cursor", kind: "message", oneof: "node", T: () => CursorData },
+            { no: 29, name: "service", kind: "message", oneof: "node", T: () => ServiceData },
+            { no: 30, name: "action", kind: "message", oneof: "node", T: () => ActionData },
+            { no: 31, name: "flow", kind: "message", oneof: "node", T: () => FlowData },
+            { no: 32, name: "flow_edge", kind: "message", oneof: "node", T: () => FlowEdgeData },
+            { no: 33, name: "agent", kind: "message", oneof: "node", T: () => AgentData },
+            { no: 34, name: "session", kind: "message", oneof: "node", T: () => SessionData },
+            { no: 35, name: "run", kind: "message", oneof: "node", T: () => RunData },
+            { no: 36, name: "span", kind: "message", oneof: "node", T: () => SpanData },
+            { no: 37, name: "interruption", kind: "message", oneof: "node", T: () => InterruptionData },
+            { no: 38, name: "membership", kind: "message", oneof: "node", T: () => MembershipData },
+            { no: 39, name: "invite", kind: "message", oneof: "node", T: () => InviteData },
+            { no: 40, name: "team", kind: "message", oneof: "node", T: () => TeamData },
+            { no: 41, name: "role", kind: "message", oneof: "node", T: () => RoleData },
+            { no: 42, name: "space", kind: "message", oneof: "node", T: () => SpaceData },
+            { no: 43, name: "scene", kind: "message", oneof: "node", T: () => SceneData },
+            { no: 44, name: "route", kind: "message", oneof: "node", T: () => RouteData },
+            { no: 45, name: "frame_view", kind: "message", oneof: "node", T: () => FrameViewData },
+            { no: 46, name: "label_view", kind: "message", oneof: "node", T: () => LabelViewData },
+            { no: 47, name: "component_view", kind: "message", oneof: "node", T: () => ComponentViewData },
+            { no: 48, name: "split_view", kind: "message", oneof: "node", T: () => SplitViewData },
+            { no: 49, name: "text_view", kind: "message", oneof: "node", T: () => TextViewData },
+            { no: 50, name: "number_input_view", kind: "message", oneof: "node", T: () => NumberInputViewData },
+            { no: 51, name: "slider_input_view", kind: "message", oneof: "node", T: () => SliderInputViewData },
+            { no: 52, name: "thread_view", kind: "message", oneof: "node", T: () => ThreadViewData },
+            { no: 53, name: "wizard_view", kind: "message", oneof: "node", T: () => WizardViewData },
+            { no: 54, name: "theme", kind: "message", oneof: "node", T: () => ThemeData },
+            { no: 55, name: "color_style", kind: "message", oneof: "node", T: () => ColorStyleData },
+            { no: 56, name: "font_style", kind: "message", oneof: "node", T: () => FontStyleData },
+            { no: 57, name: "border_style", kind: "message", oneof: "node", T: () => BorderStyleData },
+            { no: 58, name: "shadow_style", kind: "message", oneof: "node", T: () => ShadowStyleData },
+            { no: 59, name: "gradient_style", kind: "message", oneof: "node", T: () => GradientStyleData },
+            { no: 60, name: "transition_style", kind: "message", oneof: "node", T: () => TransitionStyleData },
+            { no: 61, name: "effect_style", kind: "message", oneof: "node", T: () => EffectStyleData },
+            { no: 62, name: "empty", kind: "message", oneof: "node", T: () => EmptyData }
         ]);
     }
     create(value?: PartialMessage<SomeNodeData>): SomeNodeData {
@@ -34532,313 +34852,319 @@ class SomeNodeData$Type extends MessageType$<SomeNodeData> {
                         block: BlockData.internalBinaryRead(reader, reader.uint32(), options, (message.node as any).block)
                     };
                     break;
-                case /* symbol.bench.DatabaseData database */ 10:
+                case /* symbol.bench.ApplicationData application */ 10:
+                    message.node = {
+                        oneofKind: "application",
+                        application: ApplicationData.internalBinaryRead(reader, reader.uint32(), options, (message.node as any).application)
+                    };
+                    break;
+                case /* symbol.bench.DatabaseData database */ 11:
                     message.node = {
                         oneofKind: "database",
                         database: DatabaseData.internalBinaryRead(reader, reader.uint32(), options, (message.node as any).database)
                     };
                     break;
-                case /* symbol.bench.ComputerData computer */ 11:
+                case /* symbol.bench.ComputerData computer */ 12:
                     message.node = {
                         oneofKind: "computer",
                         computer: ComputerData.internalBinaryRead(reader, reader.uint32(), options, (message.node as any).computer)
                     };
                     break;
-                case /* symbol.bench.ScalerData scaler */ 12:
+                case /* symbol.bench.ScalerData scaler */ 13:
                     message.node = {
                         oneofKind: "scaler",
                         scaler: ScalerData.internalBinaryRead(reader, reader.uint32(), options, (message.node as any).scaler)
                     };
                     break;
-                case /* symbol.bench.ChoiceData choice */ 13:
+                case /* symbol.bench.ChoiceData choice */ 14:
                     message.node = {
                         oneofKind: "choice",
                         choice: ChoiceData.internalBinaryRead(reader, reader.uint32(), options, (message.node as any).choice)
                     };
                     break;
-                case /* symbol.bench.ClassData class */ 14:
+                case /* symbol.bench.ClassData class */ 15:
                     message.node = {
                         oneofKind: "class",
                         class: ClassData.internalBinaryRead(reader, reader.uint32(), options, (message.node as any).class)
                     };
                     break;
-                case /* symbol.bench.FieldData field */ 15:
+                case /* symbol.bench.FieldData field */ 16:
                     message.node = {
                         oneofKind: "field",
                         field: FieldData.internalBinaryRead(reader, reader.uint32(), options, (message.node as any).field)
                     };
                     break;
-                case /* symbol.bench.OptionData option */ 16:
+                case /* symbol.bench.OptionData option */ 17:
                     message.node = {
                         oneofKind: "option",
                         option: OptionData.internalBinaryRead(reader, reader.uint32(), options, (message.node as any).option)
                     };
                     break;
-                case /* symbol.bench.TableData table */ 17:
+                case /* symbol.bench.TableData table */ 18:
                     message.node = {
                         oneofKind: "table",
                         table: TableData.internalBinaryRead(reader, reader.uint32(), options, (message.node as any).table)
                     };
                     break;
-                case /* symbol.bench.RecordData record */ 18:
+                case /* symbol.bench.RecordData record */ 19:
                     message.node = {
                         oneofKind: "record",
                         record: RecordData.internalBinaryRead(reader, reader.uint32(), options, (message.node as any).record)
                     };
                     break;
-                case /* symbol.bench.FileData file */ 19:
+                case /* symbol.bench.FileData file */ 20:
                     message.node = {
                         oneofKind: "file",
                         file: FileData.internalBinaryRead(reader, reader.uint32(), options, (message.node as any).file)
                     };
                     break;
-                case /* symbol.bench.LinkData link */ 20:
+                case /* symbol.bench.LinkData link */ 21:
                     message.node = {
                         oneofKind: "link",
                         link: LinkData.internalBinaryRead(reader, reader.uint32(), options, (message.node as any).link)
                     };
                     break;
-                case /* symbol.bench.ChannelData channel */ 21:
+                case /* symbol.bench.ChannelData channel */ 22:
                     message.node = {
                         oneofKind: "channel",
                         channel: ChannelData.internalBinaryRead(reader, reader.uint32(), options, (message.node as any).channel)
                     };
                     break;
-                case /* symbol.bench.ThreadData thread */ 22:
+                case /* symbol.bench.ThreadData thread */ 23:
                     message.node = {
                         oneofKind: "thread",
                         thread: ThreadData.internalBinaryRead(reader, reader.uint32(), options, (message.node as any).thread)
                     };
                     break;
-                case /* symbol.bench.MessageData message */ 23:
+                case /* symbol.bench.MessageData message */ 24:
                     message.node = {
                         oneofKind: "message",
                         message: MessageData.internalBinaryRead(reader, reader.uint32(), options, (message.node as any).message)
                     };
                     break;
-                case /* symbol.bench.NotificationData notification */ 24:
+                case /* symbol.bench.NotificationData notification */ 25:
                     message.node = {
                         oneofKind: "notification",
                         notification: NotificationData.internalBinaryRead(reader, reader.uint32(), options, (message.node as any).notification)
                     };
                     break;
-                case /* symbol.bench.TaskData task */ 25:
+                case /* symbol.bench.TaskData task */ 26:
                     message.node = {
                         oneofKind: "task",
                         task: TaskData.internalBinaryRead(reader, reader.uint32(), options, (message.node as any).task)
                     };
                     break;
-                case /* symbol.bench.ClaimData claim */ 26:
+                case /* symbol.bench.ClaimData claim */ 27:
                     message.node = {
                         oneofKind: "claim",
                         claim: ClaimData.internalBinaryRead(reader, reader.uint32(), options, (message.node as any).claim)
                     };
                     break;
-                case /* symbol.bench.CursorData cursor */ 27:
+                case /* symbol.bench.CursorData cursor */ 28:
                     message.node = {
                         oneofKind: "cursor",
                         cursor: CursorData.internalBinaryRead(reader, reader.uint32(), options, (message.node as any).cursor)
                     };
                     break;
-                case /* symbol.bench.ServiceData service */ 28:
+                case /* symbol.bench.ServiceData service */ 29:
                     message.node = {
                         oneofKind: "service",
                         service: ServiceData.internalBinaryRead(reader, reader.uint32(), options, (message.node as any).service)
                     };
                     break;
-                case /* symbol.bench.ActionData action */ 29:
+                case /* symbol.bench.ActionData action */ 30:
                     message.node = {
                         oneofKind: "action",
                         action: ActionData.internalBinaryRead(reader, reader.uint32(), options, (message.node as any).action)
                     };
                     break;
-                case /* symbol.bench.FlowData flow */ 30:
+                case /* symbol.bench.FlowData flow */ 31:
                     message.node = {
                         oneofKind: "flow",
                         flow: FlowData.internalBinaryRead(reader, reader.uint32(), options, (message.node as any).flow)
                     };
                     break;
-                case /* symbol.bench.FlowEdgeData flow_edge */ 31:
+                case /* symbol.bench.FlowEdgeData flow_edge */ 32:
                     message.node = {
                         oneofKind: "flowEdge",
                         flowEdge: FlowEdgeData.internalBinaryRead(reader, reader.uint32(), options, (message.node as any).flowEdge)
                     };
                     break;
-                case /* symbol.bench.AgentData agent */ 32:
+                case /* symbol.bench.AgentData agent */ 33:
                     message.node = {
                         oneofKind: "agent",
                         agent: AgentData.internalBinaryRead(reader, reader.uint32(), options, (message.node as any).agent)
                     };
                     break;
-                case /* symbol.bench.SessionData session */ 33:
+                case /* symbol.bench.SessionData session */ 34:
                     message.node = {
                         oneofKind: "session",
                         session: SessionData.internalBinaryRead(reader, reader.uint32(), options, (message.node as any).session)
                     };
                     break;
-                case /* symbol.bench.RunData run */ 34:
+                case /* symbol.bench.RunData run */ 35:
                     message.node = {
                         oneofKind: "run",
                         run: RunData.internalBinaryRead(reader, reader.uint32(), options, (message.node as any).run)
                     };
                     break;
-                case /* symbol.bench.SpanData span */ 35:
+                case /* symbol.bench.SpanData span */ 36:
                     message.node = {
                         oneofKind: "span",
                         span: SpanData.internalBinaryRead(reader, reader.uint32(), options, (message.node as any).span)
                     };
                     break;
-                case /* symbol.bench.InterruptionData interruption */ 36:
+                case /* symbol.bench.InterruptionData interruption */ 37:
                     message.node = {
                         oneofKind: "interruption",
                         interruption: InterruptionData.internalBinaryRead(reader, reader.uint32(), options, (message.node as any).interruption)
                     };
                     break;
-                case /* symbol.bench.MembershipData membership */ 37:
+                case /* symbol.bench.MembershipData membership */ 38:
                     message.node = {
                         oneofKind: "membership",
                         membership: MembershipData.internalBinaryRead(reader, reader.uint32(), options, (message.node as any).membership)
                     };
                     break;
-                case /* symbol.bench.InviteData invite */ 38:
+                case /* symbol.bench.InviteData invite */ 39:
                     message.node = {
                         oneofKind: "invite",
                         invite: InviteData.internalBinaryRead(reader, reader.uint32(), options, (message.node as any).invite)
                     };
                     break;
-                case /* symbol.bench.TeamData team */ 39:
+                case /* symbol.bench.TeamData team */ 40:
                     message.node = {
                         oneofKind: "team",
                         team: TeamData.internalBinaryRead(reader, reader.uint32(), options, (message.node as any).team)
                     };
                     break;
-                case /* symbol.bench.RoleData role */ 40:
+                case /* symbol.bench.RoleData role */ 41:
                     message.node = {
                         oneofKind: "role",
                         role: RoleData.internalBinaryRead(reader, reader.uint32(), options, (message.node as any).role)
                     };
                     break;
-                case /* symbol.bench.SpaceData space */ 41:
+                case /* symbol.bench.SpaceData space */ 42:
                     message.node = {
                         oneofKind: "space",
                         space: SpaceData.internalBinaryRead(reader, reader.uint32(), options, (message.node as any).space)
                     };
                     break;
-                case /* symbol.bench.SceneData scene */ 42:
+                case /* symbol.bench.SceneData scene */ 43:
                     message.node = {
                         oneofKind: "scene",
                         scene: SceneData.internalBinaryRead(reader, reader.uint32(), options, (message.node as any).scene)
                     };
                     break;
-                case /* symbol.bench.RouteData route */ 43:
+                case /* symbol.bench.RouteData route */ 44:
                     message.node = {
                         oneofKind: "route",
                         route: RouteData.internalBinaryRead(reader, reader.uint32(), options, (message.node as any).route)
                     };
                     break;
-                case /* symbol.bench.FrameViewData frame_view */ 44:
+                case /* symbol.bench.FrameViewData frame_view */ 45:
                     message.node = {
                         oneofKind: "frameView",
                         frameView: FrameViewData.internalBinaryRead(reader, reader.uint32(), options, (message.node as any).frameView)
                     };
                     break;
-                case /* symbol.bench.LabelViewData label_view */ 45:
+                case /* symbol.bench.LabelViewData label_view */ 46:
                     message.node = {
                         oneofKind: "labelView",
                         labelView: LabelViewData.internalBinaryRead(reader, reader.uint32(), options, (message.node as any).labelView)
                     };
                     break;
-                case /* symbol.bench.ComponentViewData component_view */ 46:
+                case /* symbol.bench.ComponentViewData component_view */ 47:
                     message.node = {
                         oneofKind: "componentView",
                         componentView: ComponentViewData.internalBinaryRead(reader, reader.uint32(), options, (message.node as any).componentView)
                     };
                     break;
-                case /* symbol.bench.SplitViewData split_view */ 47:
+                case /* symbol.bench.SplitViewData split_view */ 48:
                     message.node = {
                         oneofKind: "splitView",
                         splitView: SplitViewData.internalBinaryRead(reader, reader.uint32(), options, (message.node as any).splitView)
                     };
                     break;
-                case /* symbol.bench.TextViewData text_view */ 48:
+                case /* symbol.bench.TextViewData text_view */ 49:
                     message.node = {
                         oneofKind: "textView",
                         textView: TextViewData.internalBinaryRead(reader, reader.uint32(), options, (message.node as any).textView)
                     };
                     break;
-                case /* symbol.bench.NumberInputViewData number_input_view */ 49:
+                case /* symbol.bench.NumberInputViewData number_input_view */ 50:
                     message.node = {
                         oneofKind: "numberInputView",
                         numberInputView: NumberInputViewData.internalBinaryRead(reader, reader.uint32(), options, (message.node as any).numberInputView)
                     };
                     break;
-                case /* symbol.bench.SliderInputViewData slider_input_view */ 50:
+                case /* symbol.bench.SliderInputViewData slider_input_view */ 51:
                     message.node = {
                         oneofKind: "sliderInputView",
                         sliderInputView: SliderInputViewData.internalBinaryRead(reader, reader.uint32(), options, (message.node as any).sliderInputView)
                     };
                     break;
-                case /* symbol.bench.ThreadViewData thread_view */ 51:
+                case /* symbol.bench.ThreadViewData thread_view */ 52:
                     message.node = {
                         oneofKind: "threadView",
                         threadView: ThreadViewData.internalBinaryRead(reader, reader.uint32(), options, (message.node as any).threadView)
                     };
                     break;
-                case /* symbol.bench.WizardViewData wizard_view */ 52:
+                case /* symbol.bench.WizardViewData wizard_view */ 53:
                     message.node = {
                         oneofKind: "wizardView",
                         wizardView: WizardViewData.internalBinaryRead(reader, reader.uint32(), options, (message.node as any).wizardView)
                     };
                     break;
-                case /* symbol.bench.ThemeData theme */ 53:
+                case /* symbol.bench.ThemeData theme */ 54:
                     message.node = {
                         oneofKind: "theme",
                         theme: ThemeData.internalBinaryRead(reader, reader.uint32(), options, (message.node as any).theme)
                     };
                     break;
-                case /* symbol.bench.ColorStyleData color_style */ 54:
+                case /* symbol.bench.ColorStyleData color_style */ 55:
                     message.node = {
                         oneofKind: "colorStyle",
                         colorStyle: ColorStyleData.internalBinaryRead(reader, reader.uint32(), options, (message.node as any).colorStyle)
                     };
                     break;
-                case /* symbol.bench.FontStyleData font_style */ 55:
+                case /* symbol.bench.FontStyleData font_style */ 56:
                     message.node = {
                         oneofKind: "fontStyle",
                         fontStyle: FontStyleData.internalBinaryRead(reader, reader.uint32(), options, (message.node as any).fontStyle)
                     };
                     break;
-                case /* symbol.bench.BorderStyleData border_style */ 56:
+                case /* symbol.bench.BorderStyleData border_style */ 57:
                     message.node = {
                         oneofKind: "borderStyle",
                         borderStyle: BorderStyleData.internalBinaryRead(reader, reader.uint32(), options, (message.node as any).borderStyle)
                     };
                     break;
-                case /* symbol.bench.ShadowStyleData shadow_style */ 57:
+                case /* symbol.bench.ShadowStyleData shadow_style */ 58:
                     message.node = {
                         oneofKind: "shadowStyle",
                         shadowStyle: ShadowStyleData.internalBinaryRead(reader, reader.uint32(), options, (message.node as any).shadowStyle)
                     };
                     break;
-                case /* symbol.bench.GradientStyleData gradient_style */ 58:
+                case /* symbol.bench.GradientStyleData gradient_style */ 59:
                     message.node = {
                         oneofKind: "gradientStyle",
                         gradientStyle: GradientStyleData.internalBinaryRead(reader, reader.uint32(), options, (message.node as any).gradientStyle)
                     };
                     break;
-                case /* symbol.bench.TransitionStyleData transition_style */ 59:
+                case /* symbol.bench.TransitionStyleData transition_style */ 60:
                     message.node = {
                         oneofKind: "transitionStyle",
                         transitionStyle: TransitionStyleData.internalBinaryRead(reader, reader.uint32(), options, (message.node as any).transitionStyle)
                     };
                     break;
-                case /* symbol.bench.EffectStyleData effect_style */ 60:
+                case /* symbol.bench.EffectStyleData effect_style */ 61:
                     message.node = {
                         oneofKind: "effectStyle",
                         effectStyle: EffectStyleData.internalBinaryRead(reader, reader.uint32(), options, (message.node as any).effectStyle)
                     };
                     break;
-                case /* symbol.bench.EmptyData empty */ 61:
+                case /* symbol.bench.EmptyData empty */ 62:
                     message.node = {
                         oneofKind: "empty",
                         empty: EmptyData.internalBinaryRead(reader, reader.uint32(), options, (message.node as any).empty)
@@ -34883,162 +35209,165 @@ class SomeNodeData$Type extends MessageType$<SomeNodeData> {
         /* symbol.bench.BlockData block = 9; */
         if (message.node.oneofKind === "block")
             BlockData.internalBinaryWrite(message.node.block, writer.tag(9, WireType.LengthDelimited).fork(), options).join();
-        /* symbol.bench.DatabaseData database = 10; */
+        /* symbol.bench.ApplicationData application = 10; */
+        if (message.node.oneofKind === "application")
+            ApplicationData.internalBinaryWrite(message.node.application, writer.tag(10, WireType.LengthDelimited).fork(), options).join();
+        /* symbol.bench.DatabaseData database = 11; */
         if (message.node.oneofKind === "database")
-            DatabaseData.internalBinaryWrite(message.node.database, writer.tag(10, WireType.LengthDelimited).fork(), options).join();
-        /* symbol.bench.ComputerData computer = 11; */
+            DatabaseData.internalBinaryWrite(message.node.database, writer.tag(11, WireType.LengthDelimited).fork(), options).join();
+        /* symbol.bench.ComputerData computer = 12; */
         if (message.node.oneofKind === "computer")
-            ComputerData.internalBinaryWrite(message.node.computer, writer.tag(11, WireType.LengthDelimited).fork(), options).join();
-        /* symbol.bench.ScalerData scaler = 12; */
+            ComputerData.internalBinaryWrite(message.node.computer, writer.tag(12, WireType.LengthDelimited).fork(), options).join();
+        /* symbol.bench.ScalerData scaler = 13; */
         if (message.node.oneofKind === "scaler")
-            ScalerData.internalBinaryWrite(message.node.scaler, writer.tag(12, WireType.LengthDelimited).fork(), options).join();
-        /* symbol.bench.ChoiceData choice = 13; */
+            ScalerData.internalBinaryWrite(message.node.scaler, writer.tag(13, WireType.LengthDelimited).fork(), options).join();
+        /* symbol.bench.ChoiceData choice = 14; */
         if (message.node.oneofKind === "choice")
-            ChoiceData.internalBinaryWrite(message.node.choice, writer.tag(13, WireType.LengthDelimited).fork(), options).join();
-        /* symbol.bench.ClassData class = 14; */
+            ChoiceData.internalBinaryWrite(message.node.choice, writer.tag(14, WireType.LengthDelimited).fork(), options).join();
+        /* symbol.bench.ClassData class = 15; */
         if (message.node.oneofKind === "class")
-            ClassData.internalBinaryWrite(message.node.class, writer.tag(14, WireType.LengthDelimited).fork(), options).join();
-        /* symbol.bench.FieldData field = 15; */
+            ClassData.internalBinaryWrite(message.node.class, writer.tag(15, WireType.LengthDelimited).fork(), options).join();
+        /* symbol.bench.FieldData field = 16; */
         if (message.node.oneofKind === "field")
-            FieldData.internalBinaryWrite(message.node.field, writer.tag(15, WireType.LengthDelimited).fork(), options).join();
-        /* symbol.bench.OptionData option = 16; */
+            FieldData.internalBinaryWrite(message.node.field, writer.tag(16, WireType.LengthDelimited).fork(), options).join();
+        /* symbol.bench.OptionData option = 17; */
         if (message.node.oneofKind === "option")
-            OptionData.internalBinaryWrite(message.node.option, writer.tag(16, WireType.LengthDelimited).fork(), options).join();
-        /* symbol.bench.TableData table = 17; */
+            OptionData.internalBinaryWrite(message.node.option, writer.tag(17, WireType.LengthDelimited).fork(), options).join();
+        /* symbol.bench.TableData table = 18; */
         if (message.node.oneofKind === "table")
-            TableData.internalBinaryWrite(message.node.table, writer.tag(17, WireType.LengthDelimited).fork(), options).join();
-        /* symbol.bench.RecordData record = 18; */
+            TableData.internalBinaryWrite(message.node.table, writer.tag(18, WireType.LengthDelimited).fork(), options).join();
+        /* symbol.bench.RecordData record = 19; */
         if (message.node.oneofKind === "record")
-            RecordData.internalBinaryWrite(message.node.record, writer.tag(18, WireType.LengthDelimited).fork(), options).join();
-        /* symbol.bench.FileData file = 19; */
+            RecordData.internalBinaryWrite(message.node.record, writer.tag(19, WireType.LengthDelimited).fork(), options).join();
+        /* symbol.bench.FileData file = 20; */
         if (message.node.oneofKind === "file")
-            FileData.internalBinaryWrite(message.node.file, writer.tag(19, WireType.LengthDelimited).fork(), options).join();
-        /* symbol.bench.LinkData link = 20; */
+            FileData.internalBinaryWrite(message.node.file, writer.tag(20, WireType.LengthDelimited).fork(), options).join();
+        /* symbol.bench.LinkData link = 21; */
         if (message.node.oneofKind === "link")
-            LinkData.internalBinaryWrite(message.node.link, writer.tag(20, WireType.LengthDelimited).fork(), options).join();
-        /* symbol.bench.ChannelData channel = 21; */
+            LinkData.internalBinaryWrite(message.node.link, writer.tag(21, WireType.LengthDelimited).fork(), options).join();
+        /* symbol.bench.ChannelData channel = 22; */
         if (message.node.oneofKind === "channel")
-            ChannelData.internalBinaryWrite(message.node.channel, writer.tag(21, WireType.LengthDelimited).fork(), options).join();
-        /* symbol.bench.ThreadData thread = 22; */
+            ChannelData.internalBinaryWrite(message.node.channel, writer.tag(22, WireType.LengthDelimited).fork(), options).join();
+        /* symbol.bench.ThreadData thread = 23; */
         if (message.node.oneofKind === "thread")
-            ThreadData.internalBinaryWrite(message.node.thread, writer.tag(22, WireType.LengthDelimited).fork(), options).join();
-        /* symbol.bench.MessageData message = 23; */
+            ThreadData.internalBinaryWrite(message.node.thread, writer.tag(23, WireType.LengthDelimited).fork(), options).join();
+        /* symbol.bench.MessageData message = 24; */
         if (message.node.oneofKind === "message")
-            MessageData.internalBinaryWrite(message.node.message, writer.tag(23, WireType.LengthDelimited).fork(), options).join();
-        /* symbol.bench.NotificationData notification = 24; */
+            MessageData.internalBinaryWrite(message.node.message, writer.tag(24, WireType.LengthDelimited).fork(), options).join();
+        /* symbol.bench.NotificationData notification = 25; */
         if (message.node.oneofKind === "notification")
-            NotificationData.internalBinaryWrite(message.node.notification, writer.tag(24, WireType.LengthDelimited).fork(), options).join();
-        /* symbol.bench.TaskData task = 25; */
+            NotificationData.internalBinaryWrite(message.node.notification, writer.tag(25, WireType.LengthDelimited).fork(), options).join();
+        /* symbol.bench.TaskData task = 26; */
         if (message.node.oneofKind === "task")
-            TaskData.internalBinaryWrite(message.node.task, writer.tag(25, WireType.LengthDelimited).fork(), options).join();
-        /* symbol.bench.ClaimData claim = 26; */
+            TaskData.internalBinaryWrite(message.node.task, writer.tag(26, WireType.LengthDelimited).fork(), options).join();
+        /* symbol.bench.ClaimData claim = 27; */
         if (message.node.oneofKind === "claim")
-            ClaimData.internalBinaryWrite(message.node.claim, writer.tag(26, WireType.LengthDelimited).fork(), options).join();
-        /* symbol.bench.CursorData cursor = 27; */
+            ClaimData.internalBinaryWrite(message.node.claim, writer.tag(27, WireType.LengthDelimited).fork(), options).join();
+        /* symbol.bench.CursorData cursor = 28; */
         if (message.node.oneofKind === "cursor")
-            CursorData.internalBinaryWrite(message.node.cursor, writer.tag(27, WireType.LengthDelimited).fork(), options).join();
-        /* symbol.bench.ServiceData service = 28; */
+            CursorData.internalBinaryWrite(message.node.cursor, writer.tag(28, WireType.LengthDelimited).fork(), options).join();
+        /* symbol.bench.ServiceData service = 29; */
         if (message.node.oneofKind === "service")
-            ServiceData.internalBinaryWrite(message.node.service, writer.tag(28, WireType.LengthDelimited).fork(), options).join();
-        /* symbol.bench.ActionData action = 29; */
+            ServiceData.internalBinaryWrite(message.node.service, writer.tag(29, WireType.LengthDelimited).fork(), options).join();
+        /* symbol.bench.ActionData action = 30; */
         if (message.node.oneofKind === "action")
-            ActionData.internalBinaryWrite(message.node.action, writer.tag(29, WireType.LengthDelimited).fork(), options).join();
-        /* symbol.bench.FlowData flow = 30; */
+            ActionData.internalBinaryWrite(message.node.action, writer.tag(30, WireType.LengthDelimited).fork(), options).join();
+        /* symbol.bench.FlowData flow = 31; */
         if (message.node.oneofKind === "flow")
-            FlowData.internalBinaryWrite(message.node.flow, writer.tag(30, WireType.LengthDelimited).fork(), options).join();
-        /* symbol.bench.FlowEdgeData flow_edge = 31; */
+            FlowData.internalBinaryWrite(message.node.flow, writer.tag(31, WireType.LengthDelimited).fork(), options).join();
+        /* symbol.bench.FlowEdgeData flow_edge = 32; */
         if (message.node.oneofKind === "flowEdge")
-            FlowEdgeData.internalBinaryWrite(message.node.flowEdge, writer.tag(31, WireType.LengthDelimited).fork(), options).join();
-        /* symbol.bench.AgentData agent = 32; */
+            FlowEdgeData.internalBinaryWrite(message.node.flowEdge, writer.tag(32, WireType.LengthDelimited).fork(), options).join();
+        /* symbol.bench.AgentData agent = 33; */
         if (message.node.oneofKind === "agent")
-            AgentData.internalBinaryWrite(message.node.agent, writer.tag(32, WireType.LengthDelimited).fork(), options).join();
-        /* symbol.bench.SessionData session = 33; */
+            AgentData.internalBinaryWrite(message.node.agent, writer.tag(33, WireType.LengthDelimited).fork(), options).join();
+        /* symbol.bench.SessionData session = 34; */
         if (message.node.oneofKind === "session")
-            SessionData.internalBinaryWrite(message.node.session, writer.tag(33, WireType.LengthDelimited).fork(), options).join();
-        /* symbol.bench.RunData run = 34; */
+            SessionData.internalBinaryWrite(message.node.session, writer.tag(34, WireType.LengthDelimited).fork(), options).join();
+        /* symbol.bench.RunData run = 35; */
         if (message.node.oneofKind === "run")
-            RunData.internalBinaryWrite(message.node.run, writer.tag(34, WireType.LengthDelimited).fork(), options).join();
-        /* symbol.bench.SpanData span = 35; */
+            RunData.internalBinaryWrite(message.node.run, writer.tag(35, WireType.LengthDelimited).fork(), options).join();
+        /* symbol.bench.SpanData span = 36; */
         if (message.node.oneofKind === "span")
-            SpanData.internalBinaryWrite(message.node.span, writer.tag(35, WireType.LengthDelimited).fork(), options).join();
-        /* symbol.bench.InterruptionData interruption = 36; */
+            SpanData.internalBinaryWrite(message.node.span, writer.tag(36, WireType.LengthDelimited).fork(), options).join();
+        /* symbol.bench.InterruptionData interruption = 37; */
         if (message.node.oneofKind === "interruption")
-            InterruptionData.internalBinaryWrite(message.node.interruption, writer.tag(36, WireType.LengthDelimited).fork(), options).join();
-        /* symbol.bench.MembershipData membership = 37; */
+            InterruptionData.internalBinaryWrite(message.node.interruption, writer.tag(37, WireType.LengthDelimited).fork(), options).join();
+        /* symbol.bench.MembershipData membership = 38; */
         if (message.node.oneofKind === "membership")
-            MembershipData.internalBinaryWrite(message.node.membership, writer.tag(37, WireType.LengthDelimited).fork(), options).join();
-        /* symbol.bench.InviteData invite = 38; */
+            MembershipData.internalBinaryWrite(message.node.membership, writer.tag(38, WireType.LengthDelimited).fork(), options).join();
+        /* symbol.bench.InviteData invite = 39; */
         if (message.node.oneofKind === "invite")
-            InviteData.internalBinaryWrite(message.node.invite, writer.tag(38, WireType.LengthDelimited).fork(), options).join();
-        /* symbol.bench.TeamData team = 39; */
+            InviteData.internalBinaryWrite(message.node.invite, writer.tag(39, WireType.LengthDelimited).fork(), options).join();
+        /* symbol.bench.TeamData team = 40; */
         if (message.node.oneofKind === "team")
-            TeamData.internalBinaryWrite(message.node.team, writer.tag(39, WireType.LengthDelimited).fork(), options).join();
-        /* symbol.bench.RoleData role = 40; */
+            TeamData.internalBinaryWrite(message.node.team, writer.tag(40, WireType.LengthDelimited).fork(), options).join();
+        /* symbol.bench.RoleData role = 41; */
         if (message.node.oneofKind === "role")
-            RoleData.internalBinaryWrite(message.node.role, writer.tag(40, WireType.LengthDelimited).fork(), options).join();
-        /* symbol.bench.SpaceData space = 41; */
+            RoleData.internalBinaryWrite(message.node.role, writer.tag(41, WireType.LengthDelimited).fork(), options).join();
+        /* symbol.bench.SpaceData space = 42; */
         if (message.node.oneofKind === "space")
-            SpaceData.internalBinaryWrite(message.node.space, writer.tag(41, WireType.LengthDelimited).fork(), options).join();
-        /* symbol.bench.SceneData scene = 42; */
+            SpaceData.internalBinaryWrite(message.node.space, writer.tag(42, WireType.LengthDelimited).fork(), options).join();
+        /* symbol.bench.SceneData scene = 43; */
         if (message.node.oneofKind === "scene")
-            SceneData.internalBinaryWrite(message.node.scene, writer.tag(42, WireType.LengthDelimited).fork(), options).join();
-        /* symbol.bench.RouteData route = 43; */
+            SceneData.internalBinaryWrite(message.node.scene, writer.tag(43, WireType.LengthDelimited).fork(), options).join();
+        /* symbol.bench.RouteData route = 44; */
         if (message.node.oneofKind === "route")
-            RouteData.internalBinaryWrite(message.node.route, writer.tag(43, WireType.LengthDelimited).fork(), options).join();
-        /* symbol.bench.FrameViewData frame_view = 44; */
+            RouteData.internalBinaryWrite(message.node.route, writer.tag(44, WireType.LengthDelimited).fork(), options).join();
+        /* symbol.bench.FrameViewData frame_view = 45; */
         if (message.node.oneofKind === "frameView")
-            FrameViewData.internalBinaryWrite(message.node.frameView, writer.tag(44, WireType.LengthDelimited).fork(), options).join();
-        /* symbol.bench.LabelViewData label_view = 45; */
+            FrameViewData.internalBinaryWrite(message.node.frameView, writer.tag(45, WireType.LengthDelimited).fork(), options).join();
+        /* symbol.bench.LabelViewData label_view = 46; */
         if (message.node.oneofKind === "labelView")
-            LabelViewData.internalBinaryWrite(message.node.labelView, writer.tag(45, WireType.LengthDelimited).fork(), options).join();
-        /* symbol.bench.ComponentViewData component_view = 46; */
+            LabelViewData.internalBinaryWrite(message.node.labelView, writer.tag(46, WireType.LengthDelimited).fork(), options).join();
+        /* symbol.bench.ComponentViewData component_view = 47; */
         if (message.node.oneofKind === "componentView")
-            ComponentViewData.internalBinaryWrite(message.node.componentView, writer.tag(46, WireType.LengthDelimited).fork(), options).join();
-        /* symbol.bench.SplitViewData split_view = 47; */
+            ComponentViewData.internalBinaryWrite(message.node.componentView, writer.tag(47, WireType.LengthDelimited).fork(), options).join();
+        /* symbol.bench.SplitViewData split_view = 48; */
         if (message.node.oneofKind === "splitView")
-            SplitViewData.internalBinaryWrite(message.node.splitView, writer.tag(47, WireType.LengthDelimited).fork(), options).join();
-        /* symbol.bench.TextViewData text_view = 48; */
+            SplitViewData.internalBinaryWrite(message.node.splitView, writer.tag(48, WireType.LengthDelimited).fork(), options).join();
+        /* symbol.bench.TextViewData text_view = 49; */
         if (message.node.oneofKind === "textView")
-            TextViewData.internalBinaryWrite(message.node.textView, writer.tag(48, WireType.LengthDelimited).fork(), options).join();
-        /* symbol.bench.NumberInputViewData number_input_view = 49; */
+            TextViewData.internalBinaryWrite(message.node.textView, writer.tag(49, WireType.LengthDelimited).fork(), options).join();
+        /* symbol.bench.NumberInputViewData number_input_view = 50; */
         if (message.node.oneofKind === "numberInputView")
-            NumberInputViewData.internalBinaryWrite(message.node.numberInputView, writer.tag(49, WireType.LengthDelimited).fork(), options).join();
-        /* symbol.bench.SliderInputViewData slider_input_view = 50; */
+            NumberInputViewData.internalBinaryWrite(message.node.numberInputView, writer.tag(50, WireType.LengthDelimited).fork(), options).join();
+        /* symbol.bench.SliderInputViewData slider_input_view = 51; */
         if (message.node.oneofKind === "sliderInputView")
-            SliderInputViewData.internalBinaryWrite(message.node.sliderInputView, writer.tag(50, WireType.LengthDelimited).fork(), options).join();
-        /* symbol.bench.ThreadViewData thread_view = 51; */
+            SliderInputViewData.internalBinaryWrite(message.node.sliderInputView, writer.tag(51, WireType.LengthDelimited).fork(), options).join();
+        /* symbol.bench.ThreadViewData thread_view = 52; */
         if (message.node.oneofKind === "threadView")
-            ThreadViewData.internalBinaryWrite(message.node.threadView, writer.tag(51, WireType.LengthDelimited).fork(), options).join();
-        /* symbol.bench.WizardViewData wizard_view = 52; */
+            ThreadViewData.internalBinaryWrite(message.node.threadView, writer.tag(52, WireType.LengthDelimited).fork(), options).join();
+        /* symbol.bench.WizardViewData wizard_view = 53; */
         if (message.node.oneofKind === "wizardView")
-            WizardViewData.internalBinaryWrite(message.node.wizardView, writer.tag(52, WireType.LengthDelimited).fork(), options).join();
-        /* symbol.bench.ThemeData theme = 53; */
+            WizardViewData.internalBinaryWrite(message.node.wizardView, writer.tag(53, WireType.LengthDelimited).fork(), options).join();
+        /* symbol.bench.ThemeData theme = 54; */
         if (message.node.oneofKind === "theme")
-            ThemeData.internalBinaryWrite(message.node.theme, writer.tag(53, WireType.LengthDelimited).fork(), options).join();
-        /* symbol.bench.ColorStyleData color_style = 54; */
+            ThemeData.internalBinaryWrite(message.node.theme, writer.tag(54, WireType.LengthDelimited).fork(), options).join();
+        /* symbol.bench.ColorStyleData color_style = 55; */
         if (message.node.oneofKind === "colorStyle")
-            ColorStyleData.internalBinaryWrite(message.node.colorStyle, writer.tag(54, WireType.LengthDelimited).fork(), options).join();
-        /* symbol.bench.FontStyleData font_style = 55; */
+            ColorStyleData.internalBinaryWrite(message.node.colorStyle, writer.tag(55, WireType.LengthDelimited).fork(), options).join();
+        /* symbol.bench.FontStyleData font_style = 56; */
         if (message.node.oneofKind === "fontStyle")
-            FontStyleData.internalBinaryWrite(message.node.fontStyle, writer.tag(55, WireType.LengthDelimited).fork(), options).join();
-        /* symbol.bench.BorderStyleData border_style = 56; */
+            FontStyleData.internalBinaryWrite(message.node.fontStyle, writer.tag(56, WireType.LengthDelimited).fork(), options).join();
+        /* symbol.bench.BorderStyleData border_style = 57; */
         if (message.node.oneofKind === "borderStyle")
-            BorderStyleData.internalBinaryWrite(message.node.borderStyle, writer.tag(56, WireType.LengthDelimited).fork(), options).join();
-        /* symbol.bench.ShadowStyleData shadow_style = 57; */
+            BorderStyleData.internalBinaryWrite(message.node.borderStyle, writer.tag(57, WireType.LengthDelimited).fork(), options).join();
+        /* symbol.bench.ShadowStyleData shadow_style = 58; */
         if (message.node.oneofKind === "shadowStyle")
-            ShadowStyleData.internalBinaryWrite(message.node.shadowStyle, writer.tag(57, WireType.LengthDelimited).fork(), options).join();
-        /* symbol.bench.GradientStyleData gradient_style = 58; */
+            ShadowStyleData.internalBinaryWrite(message.node.shadowStyle, writer.tag(58, WireType.LengthDelimited).fork(), options).join();
+        /* symbol.bench.GradientStyleData gradient_style = 59; */
         if (message.node.oneofKind === "gradientStyle")
-            GradientStyleData.internalBinaryWrite(message.node.gradientStyle, writer.tag(58, WireType.LengthDelimited).fork(), options).join();
-        /* symbol.bench.TransitionStyleData transition_style = 59; */
+            GradientStyleData.internalBinaryWrite(message.node.gradientStyle, writer.tag(59, WireType.LengthDelimited).fork(), options).join();
+        /* symbol.bench.TransitionStyleData transition_style = 60; */
         if (message.node.oneofKind === "transitionStyle")
-            TransitionStyleData.internalBinaryWrite(message.node.transitionStyle, writer.tag(59, WireType.LengthDelimited).fork(), options).join();
-        /* symbol.bench.EffectStyleData effect_style = 60; */
+            TransitionStyleData.internalBinaryWrite(message.node.transitionStyle, writer.tag(60, WireType.LengthDelimited).fork(), options).join();
+        /* symbol.bench.EffectStyleData effect_style = 61; */
         if (message.node.oneofKind === "effectStyle")
-            EffectStyleData.internalBinaryWrite(message.node.effectStyle, writer.tag(60, WireType.LengthDelimited).fork(), options).join();
-        /* symbol.bench.EmptyData empty = 61; */
+            EffectStyleData.internalBinaryWrite(message.node.effectStyle, writer.tag(61, WireType.LengthDelimited).fork(), options).join();
+        /* symbol.bench.EmptyData empty = 62; */
         if (message.node.oneofKind === "empty")
-            EmptyData.internalBinaryWrite(message.node.empty, writer.tag(61, WireType.LengthDelimited).fork(), options).join();
+            EmptyData.internalBinaryWrite(message.node.empty, writer.tag(62, WireType.LengthDelimited).fork(), options).join();
         let u = options.writeUnknownFields;
         if (u !== false)
             (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
@@ -35061,17 +35390,17 @@ export type JsonValue = JsonPrimitive | { [key: string]: JsonValue } | JsonValue
 //
 
 // Any...
-export type AnyNodeData = BenchData | HandleData | UserData | OrganizationData | ClientData | PackageData | DependencyData | PageData | BlockData | DatabaseData | ComputerData | ScalerData | ChoiceData | ClassData | FieldData | OptionData | TableData | RecordData | FileData | LinkData | ChannelData | ThreadData | MessageData | NotificationData | TaskData | ClaimData | CursorData | ServiceData | ActionData | FlowData | FlowEdgeData | AgentData | SessionData | RunData | SpanData | InterruptionData | MembershipData | InviteData | TeamData | RoleData | SpaceData | SceneData | RouteData | FrameViewData | LabelViewData | ComponentViewData | SplitViewData | TextViewData | NumberInputViewData | SliderInputViewData | ThreadViewData | WizardViewData | ThemeData | ColorStyleData | FontStyleData | BorderStyleData | ShadowStyleData | GradientStyleData | TransitionStyleData | EffectStyleData | EmptyData
+export type AnyNodeData = BenchData | HandleData | UserData | OrganizationData | ClientData | PackageData | DependencyData | PageData | BlockData | ApplicationData | DatabaseData | ComputerData | ScalerData | ChoiceData | ClassData | FieldData | OptionData | TableData | RecordData | FileData | LinkData | ChannelData | ThreadData | MessageData | NotificationData | TaskData | ClaimData | CursorData | ServiceData | ActionData | FlowData | FlowEdgeData | AgentData | SessionData | RunData | SpanData | InterruptionData | MembershipData | InviteData | TeamData | RoleData | SpaceData | SceneData | RouteData | FrameViewData | LabelViewData | ComponentViewData | SplitViewData | TextViewData | NumberInputViewData | SliderInputViewData | ThreadViewData | WizardViewData | ThemeData | ColorStyleData | FontStyleData | BorderStyleData | ShadowStyleData | GradientStyleData | TransitionStyleData | EffectStyleData | EmptyData
 export type AnyStructData = ContextData | EditContextData | EditData | EditOperationData | ChangeData | ChangeVignetteData | GraphScopeData | ClientOriginData | NodeReferenceData | PropertyReferenceData | TypeData | TypeConstraintData | FileInfoData | ScheduleData | TextData | TextLineData | TextSpanData | CodeData | IconData | ExpressionData | AggregationResultData | SelectionData | SelectOptionsData | ErrorData | RunTraceData | RunFrameData | PolicyData | PolicyRuleData | PolicySubjectData | AccessZoneData | AccessMatrixData | AccessData | ColorData | ShadowData | BorderData | FontData | Vector2Data | Vector3Data | Vector4Data | GradientStopData | GradientData | FillData | LengthData | PositionData | DimensionData | TransitionData | EffectData | GridData | GridSpanData | InsetsData | CornersData | Axis2Data | Axis3Data
-export type AnyNodeDataType = typeof BenchData | typeof HandleData | typeof UserData | typeof OrganizationData | typeof ClientData | typeof PackageData | typeof DependencyData | typeof PageData | typeof BlockData | typeof DatabaseData | typeof ComputerData | typeof ScalerData | typeof ChoiceData | typeof ClassData | typeof FieldData | typeof OptionData | typeof TableData | typeof RecordData | typeof FileData | typeof LinkData | typeof ChannelData | typeof ThreadData | typeof MessageData | typeof NotificationData | typeof TaskData | typeof ClaimData | typeof CursorData | typeof ServiceData | typeof ActionData | typeof FlowData | typeof FlowEdgeData | typeof AgentData | typeof SessionData | typeof RunData | typeof SpanData | typeof InterruptionData | typeof MembershipData | typeof InviteData | typeof TeamData | typeof RoleData | typeof SpaceData | typeof SceneData | typeof RouteData | typeof FrameViewData | typeof LabelViewData | typeof ComponentViewData | typeof SplitViewData | typeof TextViewData | typeof NumberInputViewData | typeof SliderInputViewData | typeof ThreadViewData | typeof WizardViewData | typeof ThemeData | typeof ColorStyleData | typeof FontStyleData | typeof BorderStyleData | typeof ShadowStyleData | typeof GradientStyleData | typeof TransitionStyleData | typeof EffectStyleData | typeof EmptyData
+export type AnyNodeDataType = typeof BenchData | typeof HandleData | typeof UserData | typeof OrganizationData | typeof ClientData | typeof PackageData | typeof DependencyData | typeof PageData | typeof BlockData | typeof ApplicationData | typeof DatabaseData | typeof ComputerData | typeof ScalerData | typeof ChoiceData | typeof ClassData | typeof FieldData | typeof OptionData | typeof TableData | typeof RecordData | typeof FileData | typeof LinkData | typeof ChannelData | typeof ThreadData | typeof MessageData | typeof NotificationData | typeof TaskData | typeof ClaimData | typeof CursorData | typeof ServiceData | typeof ActionData | typeof FlowData | typeof FlowEdgeData | typeof AgentData | typeof SessionData | typeof RunData | typeof SpanData | typeof InterruptionData | typeof MembershipData | typeof InviteData | typeof TeamData | typeof RoleData | typeof SpaceData | typeof SceneData | typeof RouteData | typeof FrameViewData | typeof LabelViewData | typeof ComponentViewData | typeof SplitViewData | typeof TextViewData | typeof NumberInputViewData | typeof SliderInputViewData | typeof ThreadViewData | typeof WizardViewData | typeof ThemeData | typeof ColorStyleData | typeof FontStyleData | typeof BorderStyleData | typeof ShadowStyleData | typeof GradientStyleData | typeof TransitionStyleData | typeof EffectStyleData | typeof EmptyData
 export type AnyStructDataType = typeof ContextData | typeof EditContextData | typeof EditData | typeof EditOperationData | typeof ChangeData | typeof ChangeVignetteData | typeof GraphScopeData | typeof ClientOriginData | typeof NodeReferenceData | typeof PropertyReferenceData | typeof TypeData | typeof TypeConstraintData | typeof FileInfoData | typeof ScheduleData | typeof TextData | typeof TextLineData | typeof TextSpanData | typeof CodeData | typeof IconData | typeof ExpressionData | typeof AggregationResultData | typeof SelectionData | typeof SelectOptionsData | typeof ErrorData | typeof RunTraceData | typeof RunFrameData | typeof PolicyData | typeof PolicyRuleData | typeof PolicySubjectData | typeof AccessZoneData | typeof AccessMatrixData | typeof AccessData | typeof ColorData | typeof ShadowData | typeof BorderData | typeof FontData | typeof Vector2Data | typeof Vector3Data | typeof Vector4Data | typeof GradientStopData | typeof GradientData | typeof FillData | typeof LengthData | typeof PositionData | typeof DimensionData | typeof TransitionData | typeof EffectData | typeof GridData | typeof GridSpanData | typeof InsetsData | typeof CornersData | typeof Axis2Data | typeof Axis3Data
-export type BenchNodeData = BenchData | HandleData | PackageData | DependencyData | PageData | BlockData | DatabaseData | ComputerData | ScalerData | ChoiceData | ClassData | FieldData | OptionData | TableData | RecordData | FileData | LinkData | ChannelData | ThreadData | MessageData | NotificationData | TaskData | ClaimData | CursorData | ServiceData | ActionData | FlowData | FlowEdgeData | AgentData | SessionData | RunData | SpanData | InterruptionData | MembershipData | InviteData | TeamData | RoleData | SpaceData | SceneData | RouteData | FrameViewData | LabelViewData | ComponentViewData | SplitViewData | TextViewData | NumberInputViewData | SliderInputViewData | ThreadViewData | WizardViewData | ThemeData | ColorStyleData | FontStyleData | BorderStyleData | ShadowStyleData | GradientStyleData | TransitionStyleData | EffectStyleData
+export type BenchNodeData = BenchData | HandleData | PackageData | DependencyData | PageData | BlockData | ApplicationData | DatabaseData | ComputerData | ScalerData | ChoiceData | ClassData | FieldData | OptionData | TableData | RecordData | FileData | LinkData | ChannelData | ThreadData | MessageData | NotificationData | TaskData | ClaimData | CursorData | ServiceData | ActionData | FlowData | FlowEdgeData | AgentData | SessionData | RunData | SpanData | InterruptionData | MembershipData | InviteData | TeamData | RoleData | SpaceData | SceneData | RouteData | FrameViewData | LabelViewData | ComponentViewData | SplitViewData | TextViewData | NumberInputViewData | SliderInputViewData | ThreadViewData | WizardViewData | ThemeData | ColorStyleData | FontStyleData | BorderStyleData | ShadowStyleData | GradientStyleData | TransitionStyleData | EffectStyleData
 export type ClaimableNodeData = PageData | DatabaseData | ComputerData | ScalerData | TableData | RecordData | FileData | LinkData | TaskData | ServiceData | ActionData | FlowData | AgentData
-export type PageNodeData = PageData | DatabaseData | ComputerData | ScalerData | ChoiceData | ClassData | TableData | FileData | LinkData | ChannelData | ThreadData | TaskData | ServiceData | FlowData | AgentData | TeamData | RoleData | SceneData | RouteData | FrameViewData | LabelViewData | ComponentViewData | SplitViewData | TextViewData | NumberInputViewData | SliderInputViewData | ThreadViewData | WizardViewData | ThemeData | ColorStyleData | FontStyleData | BorderStyleData | ShadowStyleData | GradientStyleData | TransitionStyleData | EffectStyleData
+export type PageNodeData = PageData | ApplicationData | DatabaseData | ComputerData | ScalerData | ChoiceData | ClassData | TableData | FileData | LinkData | ChannelData | ThreadData | TaskData | ServiceData | FlowData | AgentData | TeamData | RoleData | SceneData | RouteData | FrameViewData | LabelViewData | ComponentViewData | SplitViewData | TextViewData | NumberInputViewData | SliderInputViewData | ThreadViewData | WizardViewData | ThemeData | ColorStyleData | FontStyleData | BorderStyleData | ShadowStyleData | GradientStyleData | TransitionStyleData | EffectStyleData
 export type JoinableNodeData = PackageData | ChannelData | ThreadData | TeamData
 export type OwnableNodeData = BenchData | PackageData | PageData | DatabaseData | ComputerData | ScalerData | TableData | RecordData | FileData | LinkData | ThreadData | MessageData | TaskData | ClaimData | CursorData | ServiceData | FlowData | AgentData | SpaceData | SceneData | RouteData
-export type TemplatableNodeData = PackageData | DependencyData | PageData | BlockData | DatabaseData | ComputerData | ScalerData | ChoiceData | ClassData | FieldData | OptionData | TableData | FileData | LinkData | ChannelData | ThreadData | TaskData | ClaimData | ServiceData | ActionData | FlowData | FlowEdgeData | AgentData | MembershipData | TeamData | RoleData | SpaceData | SceneData | RouteData | FrameViewData | LabelViewData | ComponentViewData | SplitViewData | TextViewData | NumberInputViewData | SliderInputViewData | ThreadViewData | WizardViewData | ColorStyleData | FontStyleData | BorderStyleData | ShadowStyleData | GradientStyleData | TransitionStyleData | EffectStyleData
-export type InstantiableNodeData = DatabaseData | ComputerData | ScalerData | FieldData | OptionData | TableData | FileData | LinkData | ChannelData | ThreadData | TaskData | ClaimData | ActionData | AgentData | MembershipData | TeamData | SceneData | RouteData | FrameViewData | LabelViewData | ComponentViewData | SplitViewData | TextViewData | NumberInputViewData | SliderInputViewData | ThreadViewData | WizardViewData
+export type TemplatableNodeData = PackageData | DependencyData | PageData | BlockData | ApplicationData | DatabaseData | ComputerData | ScalerData | ChoiceData | ClassData | FieldData | OptionData | TableData | FileData | LinkData | ChannelData | ThreadData | TaskData | ClaimData | ServiceData | ActionData | FlowData | FlowEdgeData | AgentData | MembershipData | TeamData | RoleData | SpaceData | SceneData | RouteData | FrameViewData | LabelViewData | ComponentViewData | SplitViewData | TextViewData | NumberInputViewData | SliderInputViewData | ThreadViewData | WizardViewData | ColorStyleData | FontStyleData | BorderStyleData | ShadowStyleData | GradientStyleData | TransitionStyleData | EffectStyleData
+export type InstantiableNodeData = ApplicationData | DatabaseData | ComputerData | ScalerData | FieldData | OptionData | TableData | FileData | LinkData | ChannelData | ThreadData | TaskData | ClaimData | ActionData | AgentData | MembershipData | TeamData | SceneData | RouteData | FrameViewData | LabelViewData | ComponentViewData | SplitViewData | TextViewData | NumberInputViewData | SliderInputViewData | ThreadViewData | WizardViewData
 export type ProcessableNodeData = ChannelData | ThreadData | TaskData | AgentData | RunData | SpanData
 export type ResourceNodeData = DatabaseData | ComputerData | ScalerData | FileData | LinkData
 export type ProvisionableNodeData = DatabaseData | ComputerData | ScalerData
@@ -35094,6 +35423,7 @@ export const BENCH_NODE_TYPES: NodeType[] = [
   NodeType.DEPENDENCY,
   NodeType.PAGE,
   NodeType.BLOCK,
+  NodeType.APPLICATION,
   NodeType.DATABASE,
   NodeType.COMPUTER,
   NodeType.SCALER,
@@ -35176,6 +35506,7 @@ export const PAGE_NODE_TYPES: NodeType[] = [
   NodeType.GRADIENT_STYLE,
   NodeType.TRANSITION_STYLE,
   NodeType.EFFECT_STYLE,
+  NodeType.APPLICATION,
   NodeType.CHOICE,
   NodeType.CLASS,
   NodeType.TABLE,
@@ -35227,6 +35558,7 @@ export const INSTANTIABLE_NODE_TYPES: NodeType[] = [
   NodeType.SLIDER_INPUT_VIEW,
   NodeType.THREAD_VIEW,
   NodeType.WIZARD_VIEW,
+  NodeType.APPLICATION,
   NodeType.ACTION,
   NodeType.FIELD,
   NodeType.OPTION,
@@ -35254,6 +35586,7 @@ export const REGIONAL_NODE_TYPES: NodeType[] = [
   NodeType.DEPENDENCY,
   NodeType.PAGE,
   NodeType.BLOCK,
+  NodeType.APPLICATION,
   NodeType.DATABASE,
   NodeType.COMPUTER,
   NodeType.SCALER,
@@ -35381,6 +35714,7 @@ export const PACKAGE_NODE_TYPES: NodeType[] = [
   NodeType.DEPENDENCY,
   NodeType.PAGE,
   NodeType.BLOCK,
+  NodeType.APPLICATION,
   NodeType.DATABASE,
   NodeType.COMPUTER,
   NodeType.SCALER,
@@ -35458,6 +35792,7 @@ export const TEMPLATABLE_NODE_TYPES: NodeType[] = [
   NodeType.SLIDER_INPUT_VIEW,
   NodeType.THREAD_VIEW,
   NodeType.WIZARD_VIEW,
+  NodeType.APPLICATION,
   NodeType.ACTION,
   NodeType.FIELD,
   NodeType.OPTION,
@@ -35527,12 +35862,13 @@ export const PARENT_NODE_TYPES: Record<NodeType, NodeType[]> = {
   [NodeType.DEPENDENCY]: [NodeType.PACKAGE],
   [NodeType.PAGE]: [NodeType.PACKAGE, NodeType.PAGE],
   [NodeType.BLOCK]: [NodeType.PAGE, NodeType.BLOCK],
+  [NodeType.APPLICATION]: [NodeType.PAGE],
   [NodeType.DATABASE]: [NodeType.PACKAGE, NodeType.THREAD, NodeType.PAGE],
   [NodeType.COMPUTER]: [NodeType.PACKAGE, NodeType.THREAD, NodeType.PAGE],
   [NodeType.SCALER]: [NodeType.PACKAGE, NodeType.THREAD, NodeType.PAGE],
   [NodeType.CHOICE]: [NodeType.TABLE, NodeType.PAGE],
   [NodeType.CLASS]: [NodeType.PAGE],
-  [NodeType.FIELD]: [NodeType.TABLE, NodeType.ACTION, NodeType.CLASS, NodeType.AGENT, NodeType.FLOW, NodeType.THREAD],
+  [NodeType.FIELD]: [NodeType.TABLE, NodeType.ACTION, NodeType.CLASS, NodeType.FRAME_VIEW, NodeType.LABEL_VIEW, NodeType.TEXT_VIEW, NodeType.AGENT, NodeType.SCENE, NodeType.FLOW, NodeType.NUMBER_INPUT_VIEW, NodeType.COMPONENT_VIEW, NodeType.SLIDER_INPUT_VIEW, NodeType.THREAD_VIEW, NodeType.THREAD, NodeType.WIZARD_VIEW, NodeType.SPLIT_VIEW],
   [NodeType.OPTION]: [NodeType.CHOICE, NodeType.FIELD],
   [NodeType.TABLE]: [NodeType.PAGE],
   [NodeType.RECORD]: [NodeType.TABLE, NodeType.RECORD],
@@ -35578,7 +35914,7 @@ export const PARENT_NODE_TYPES: Record<NodeType, NodeType[]> = {
   [NodeType.GRADIENT_STYLE]: [NodeType.SPACE, NodeType.FRAME_VIEW, NodeType.LABEL_VIEW, NodeType.TEXT_VIEW, NodeType.NUMBER_INPUT_VIEW, NodeType.SLIDER_INPUT_VIEW, NodeType.COMPONENT_VIEW, NodeType.THREAD_VIEW, NodeType.WIZARD_VIEW, NodeType.SPLIT_VIEW, NodeType.PAGE],
   [NodeType.TRANSITION_STYLE]: [NodeType.SPACE, NodeType.FRAME_VIEW, NodeType.LABEL_VIEW, NodeType.TEXT_VIEW, NodeType.NUMBER_INPUT_VIEW, NodeType.SLIDER_INPUT_VIEW, NodeType.COMPONENT_VIEW, NodeType.THREAD_VIEW, NodeType.WIZARD_VIEW, NodeType.SPLIT_VIEW, NodeType.PAGE],
   [NodeType.EFFECT_STYLE]: [NodeType.SPACE, NodeType.FRAME_VIEW, NodeType.LABEL_VIEW, NodeType.TEXT_VIEW, NodeType.NUMBER_INPUT_VIEW, NodeType.SLIDER_INPUT_VIEW, NodeType.COMPONENT_VIEW, NodeType.THREAD_VIEW, NodeType.WIZARD_VIEW, NodeType.SPLIT_VIEW, NodeType.PAGE],
-  [NodeType.EMPTY]: [NodeType.BENCH, NodeType.HANDLE, NodeType.CLASS, NodeType.TEAM, NodeType.BLOCK, NodeType.CHANNEL, NodeType.TEXT_VIEW, NodeType.USER, NodeType.FIELD, NodeType.ROLE, NodeType.EMPTY, NodeType.THREAD, NodeType.ORGANIZATION, NodeType.OPTION, NodeType.SERVICE, NodeType.MESSAGE, NodeType.ACTION, NodeType.FRAME_VIEW, NodeType.LABEL_VIEW, NodeType.SESSION, NodeType.THEME, NodeType.FLOW, NodeType.FLOW_EDGE, NodeType.COMPONENT_VIEW, NodeType.DATABASE, NodeType.CLIENT, NodeType.RUN, NodeType.WIZARD_VIEW, NodeType.COLOR_STYLE, NodeType.FONT_STYLE, NodeType.BORDER_STYLE, NodeType.SPLIT_VIEW, NodeType.SHADOW_STYLE, NodeType.COMPUTER, NodeType.NOTIFICATION, NodeType.SPAN, NodeType.GRADIENT_STYLE, NodeType.TRANSITION_STYLE, NodeType.EFFECT_STYLE, NodeType.TABLE, NodeType.SPACE, NodeType.INTERRUPTION, NodeType.RECORD, NodeType.AGENT, NodeType.SCENE, NodeType.TASK, NodeType.FILE, NodeType.ROUTE, NodeType.CLAIM, NodeType.SCALER, NodeType.CURSOR, NodeType.PACKAGE, NodeType.NUMBER_INPUT_VIEW, NodeType.SLIDER_INPUT_VIEW, NodeType.THREAD_VIEW, NodeType.MEMBERSHIP, NodeType.DEPENDENCY, NodeType.LINK, NodeType.CHOICE, NodeType.INVITE, NodeType.PAGE],
+  [NodeType.EMPTY]: [NodeType.BENCH, NodeType.HANDLE, NodeType.CLASS, NodeType.TEAM, NodeType.BLOCK, NodeType.CHANNEL, NodeType.TEXT_VIEW, NodeType.USER, NodeType.FIELD, NodeType.ROLE, NodeType.EMPTY, NodeType.APPLICATION, NodeType.THREAD, NodeType.ORGANIZATION, NodeType.OPTION, NodeType.SERVICE, NodeType.MESSAGE, NodeType.ACTION, NodeType.FRAME_VIEW, NodeType.LABEL_VIEW, NodeType.SESSION, NodeType.THEME, NodeType.FLOW, NodeType.FLOW_EDGE, NodeType.COMPONENT_VIEW, NodeType.DATABASE, NodeType.CLIENT, NodeType.RUN, NodeType.WIZARD_VIEW, NodeType.COLOR_STYLE, NodeType.FONT_STYLE, NodeType.BORDER_STYLE, NodeType.SPLIT_VIEW, NodeType.SHADOW_STYLE, NodeType.COMPUTER, NodeType.NOTIFICATION, NodeType.SPAN, NodeType.GRADIENT_STYLE, NodeType.TRANSITION_STYLE, NodeType.EFFECT_STYLE, NodeType.TABLE, NodeType.SPACE, NodeType.INTERRUPTION, NodeType.RECORD, NodeType.AGENT, NodeType.SCENE, NodeType.TASK, NodeType.FILE, NodeType.ROUTE, NodeType.CLAIM, NodeType.SCALER, NodeType.CURSOR, NodeType.PACKAGE, NodeType.NUMBER_INPUT_VIEW, NodeType.SLIDER_INPUT_VIEW, NodeType.THREAD_VIEW, NodeType.MEMBERSHIP, NodeType.DEPENDENCY, NodeType.LINK, NodeType.CHOICE, NodeType.INVITE, NodeType.PAGE],
 }
 
 export const CHILD_NODE_TYPES: Record<NodeType, NodeType[]> = {
@@ -35590,8 +35926,9 @@ export const CHILD_NODE_TYPES: Record<NodeType, NodeType[]> = {
   [NodeType.CLIENT]: [NodeType.EMPTY],
   [NodeType.PACKAGE]: [NodeType.SPACE, NodeType.SCALER, NodeType.TEAM, NodeType.INVITE, NodeType.CHANNEL, NodeType.COMPUTER, NodeType.EMPTY, NodeType.MEMBERSHIP, NodeType.DATABASE, NodeType.THREAD, NodeType.LINK, NodeType.FILE, NodeType.DEPENDENCY, NodeType.NOTIFICATION, NodeType.PAGE],
   [NodeType.DEPENDENCY]: [NodeType.EMPTY],
-  [NodeType.PAGE]: [NodeType.CLASS, NodeType.TEAM, NodeType.BLOCK, NodeType.CHANNEL, NodeType.TEXT_VIEW, NodeType.ROLE, NodeType.EMPTY, NodeType.THREAD, NodeType.SERVICE, NodeType.FRAME_VIEW, NodeType.LABEL_VIEW, NodeType.THEME, NodeType.FLOW, NodeType.COMPONENT_VIEW, NodeType.DATABASE, NodeType.COLOR_STYLE, NodeType.FONT_STYLE, NodeType.BORDER_STYLE, NodeType.SHADOW_STYLE, NodeType.GRADIENT_STYLE, NodeType.TRANSITION_STYLE, NodeType.EFFECT_STYLE, NodeType.SPLIT_VIEW, NodeType.COMPUTER, NodeType.WIZARD_VIEW, NodeType.TABLE, NodeType.AGENT, NodeType.SCENE, NodeType.TASK, NodeType.FILE, NodeType.ROUTE, NodeType.SCALER, NodeType.NUMBER_INPUT_VIEW, NodeType.SLIDER_INPUT_VIEW, NodeType.THREAD_VIEW, NodeType.LINK, NodeType.CHOICE, NodeType.PAGE],
+  [NodeType.PAGE]: [NodeType.CLASS, NodeType.TEAM, NodeType.BLOCK, NodeType.CHANNEL, NodeType.TEXT_VIEW, NodeType.ROLE, NodeType.EMPTY, NodeType.APPLICATION, NodeType.THREAD, NodeType.SERVICE, NodeType.FRAME_VIEW, NodeType.LABEL_VIEW, NodeType.THEME, NodeType.FLOW, NodeType.COMPONENT_VIEW, NodeType.DATABASE, NodeType.COLOR_STYLE, NodeType.FONT_STYLE, NodeType.BORDER_STYLE, NodeType.SHADOW_STYLE, NodeType.GRADIENT_STYLE, NodeType.TRANSITION_STYLE, NodeType.EFFECT_STYLE, NodeType.SPLIT_VIEW, NodeType.COMPUTER, NodeType.WIZARD_VIEW, NodeType.TABLE, NodeType.AGENT, NodeType.SCENE, NodeType.TASK, NodeType.FILE, NodeType.ROUTE, NodeType.SCALER, NodeType.NUMBER_INPUT_VIEW, NodeType.SLIDER_INPUT_VIEW, NodeType.THREAD_VIEW, NodeType.LINK, NodeType.CHOICE, NodeType.PAGE],
   [NodeType.BLOCK]: [NodeType.BLOCK, NodeType.EMPTY],
+  [NodeType.APPLICATION]: [NodeType.EMPTY],
   [NodeType.DATABASE]: [NodeType.EMPTY],
   [NodeType.COMPUTER]: [NodeType.EMPTY],
   [NodeType.SCALER]: [NodeType.EMPTY],
@@ -35624,17 +35961,17 @@ export const CHILD_NODE_TYPES: Record<NodeType, NodeType[]> = {
   [NodeType.TEAM]: [NodeType.TEAM, NodeType.ROLE, NodeType.EMPTY, NodeType.MEMBERSHIP, NodeType.INVITE],
   [NodeType.ROLE]: [NodeType.CLAIM, NodeType.EMPTY],
   [NodeType.SPACE]: [NodeType.CURSOR, NodeType.FRAME_VIEW, NodeType.LABEL_VIEW, NodeType.TEXT_VIEW, NodeType.NUMBER_INPUT_VIEW, NodeType.SLIDER_INPUT_VIEW, NodeType.COMPONENT_VIEW, NodeType.EMPTY, NodeType.THREAD_VIEW, NodeType.COLOR_STYLE, NodeType.FONT_STYLE, NodeType.BORDER_STYLE, NodeType.SHADOW_STYLE, NodeType.GRADIENT_STYLE, NodeType.TRANSITION_STYLE, NodeType.EFFECT_STYLE, NodeType.SPLIT_VIEW, NodeType.WIZARD_VIEW],
-  [NodeType.SCENE]: [NodeType.EMPTY],
+  [NodeType.SCENE]: [NodeType.FIELD, NodeType.EMPTY],
   [NodeType.ROUTE]: [NodeType.EMPTY],
-  [NodeType.FRAME_VIEW]: [NodeType.FRAME_VIEW, NodeType.LABEL_VIEW, NodeType.TEXT_VIEW, NodeType.NUMBER_INPUT_VIEW, NodeType.SLIDER_INPUT_VIEW, NodeType.COMPONENT_VIEW, NodeType.EMPTY, NodeType.THREAD_VIEW, NodeType.COLOR_STYLE, NodeType.FONT_STYLE, NodeType.BORDER_STYLE, NodeType.SHADOW_STYLE, NodeType.GRADIENT_STYLE, NodeType.TRANSITION_STYLE, NodeType.EFFECT_STYLE, NodeType.SPLIT_VIEW, NodeType.WIZARD_VIEW],
-  [NodeType.LABEL_VIEW]: [NodeType.FRAME_VIEW, NodeType.LABEL_VIEW, NodeType.TEXT_VIEW, NodeType.NUMBER_INPUT_VIEW, NodeType.SLIDER_INPUT_VIEW, NodeType.COMPONENT_VIEW, NodeType.EMPTY, NodeType.THREAD_VIEW, NodeType.COLOR_STYLE, NodeType.FONT_STYLE, NodeType.BORDER_STYLE, NodeType.SHADOW_STYLE, NodeType.GRADIENT_STYLE, NodeType.TRANSITION_STYLE, NodeType.EFFECT_STYLE, NodeType.SPLIT_VIEW, NodeType.WIZARD_VIEW],
-  [NodeType.COMPONENT_VIEW]: [NodeType.FRAME_VIEW, NodeType.LABEL_VIEW, NodeType.TEXT_VIEW, NodeType.NUMBER_INPUT_VIEW, NodeType.SLIDER_INPUT_VIEW, NodeType.COMPONENT_VIEW, NodeType.EMPTY, NodeType.THREAD_VIEW, NodeType.COLOR_STYLE, NodeType.FONT_STYLE, NodeType.BORDER_STYLE, NodeType.SHADOW_STYLE, NodeType.GRADIENT_STYLE, NodeType.TRANSITION_STYLE, NodeType.EFFECT_STYLE, NodeType.SPLIT_VIEW, NodeType.WIZARD_VIEW],
-  [NodeType.SPLIT_VIEW]: [NodeType.FRAME_VIEW, NodeType.LABEL_VIEW, NodeType.TEXT_VIEW, NodeType.NUMBER_INPUT_VIEW, NodeType.SLIDER_INPUT_VIEW, NodeType.COMPONENT_VIEW, NodeType.EMPTY, NodeType.THREAD_VIEW, NodeType.COLOR_STYLE, NodeType.FONT_STYLE, NodeType.BORDER_STYLE, NodeType.SHADOW_STYLE, NodeType.GRADIENT_STYLE, NodeType.TRANSITION_STYLE, NodeType.EFFECT_STYLE, NodeType.SPLIT_VIEW, NodeType.WIZARD_VIEW],
-  [NodeType.TEXT_VIEW]: [NodeType.FRAME_VIEW, NodeType.LABEL_VIEW, NodeType.TEXT_VIEW, NodeType.NUMBER_INPUT_VIEW, NodeType.SLIDER_INPUT_VIEW, NodeType.COMPONENT_VIEW, NodeType.EMPTY, NodeType.THREAD_VIEW, NodeType.COLOR_STYLE, NodeType.FONT_STYLE, NodeType.BORDER_STYLE, NodeType.SHADOW_STYLE, NodeType.GRADIENT_STYLE, NodeType.TRANSITION_STYLE, NodeType.EFFECT_STYLE, NodeType.SPLIT_VIEW, NodeType.WIZARD_VIEW],
-  [NodeType.NUMBER_INPUT_VIEW]: [NodeType.FRAME_VIEW, NodeType.LABEL_VIEW, NodeType.TEXT_VIEW, NodeType.NUMBER_INPUT_VIEW, NodeType.SLIDER_INPUT_VIEW, NodeType.COMPONENT_VIEW, NodeType.EMPTY, NodeType.THREAD_VIEW, NodeType.COLOR_STYLE, NodeType.FONT_STYLE, NodeType.BORDER_STYLE, NodeType.SHADOW_STYLE, NodeType.GRADIENT_STYLE, NodeType.TRANSITION_STYLE, NodeType.EFFECT_STYLE, NodeType.SPLIT_VIEW, NodeType.WIZARD_VIEW],
-  [NodeType.SLIDER_INPUT_VIEW]: [NodeType.FRAME_VIEW, NodeType.LABEL_VIEW, NodeType.TEXT_VIEW, NodeType.NUMBER_INPUT_VIEW, NodeType.SLIDER_INPUT_VIEW, NodeType.COMPONENT_VIEW, NodeType.EMPTY, NodeType.THREAD_VIEW, NodeType.COLOR_STYLE, NodeType.FONT_STYLE, NodeType.BORDER_STYLE, NodeType.SHADOW_STYLE, NodeType.GRADIENT_STYLE, NodeType.TRANSITION_STYLE, NodeType.EFFECT_STYLE, NodeType.SPLIT_VIEW, NodeType.WIZARD_VIEW],
-  [NodeType.THREAD_VIEW]: [NodeType.FRAME_VIEW, NodeType.LABEL_VIEW, NodeType.TEXT_VIEW, NodeType.NUMBER_INPUT_VIEW, NodeType.SLIDER_INPUT_VIEW, NodeType.COMPONENT_VIEW, NodeType.EMPTY, NodeType.THREAD_VIEW, NodeType.COLOR_STYLE, NodeType.FONT_STYLE, NodeType.BORDER_STYLE, NodeType.SHADOW_STYLE, NodeType.GRADIENT_STYLE, NodeType.TRANSITION_STYLE, NodeType.EFFECT_STYLE, NodeType.SPLIT_VIEW, NodeType.WIZARD_VIEW],
-  [NodeType.WIZARD_VIEW]: [NodeType.FRAME_VIEW, NodeType.LABEL_VIEW, NodeType.TEXT_VIEW, NodeType.NUMBER_INPUT_VIEW, NodeType.SLIDER_INPUT_VIEW, NodeType.COMPONENT_VIEW, NodeType.EMPTY, NodeType.THREAD_VIEW, NodeType.COLOR_STYLE, NodeType.FONT_STYLE, NodeType.BORDER_STYLE, NodeType.SHADOW_STYLE, NodeType.GRADIENT_STYLE, NodeType.TRANSITION_STYLE, NodeType.EFFECT_STYLE, NodeType.SPLIT_VIEW, NodeType.WIZARD_VIEW],
+  [NodeType.FRAME_VIEW]: [NodeType.FRAME_VIEW, NodeType.LABEL_VIEW, NodeType.TEXT_VIEW, NodeType.FIELD, NodeType.NUMBER_INPUT_VIEW, NodeType.COMPONENT_VIEW, NodeType.EMPTY, NodeType.SLIDER_INPUT_VIEW, NodeType.THREAD_VIEW, NodeType.COLOR_STYLE, NodeType.FONT_STYLE, NodeType.BORDER_STYLE, NodeType.SHADOW_STYLE, NodeType.GRADIENT_STYLE, NodeType.TRANSITION_STYLE, NodeType.EFFECT_STYLE, NodeType.SPLIT_VIEW, NodeType.WIZARD_VIEW],
+  [NodeType.LABEL_VIEW]: [NodeType.FRAME_VIEW, NodeType.LABEL_VIEW, NodeType.TEXT_VIEW, NodeType.FIELD, NodeType.NUMBER_INPUT_VIEW, NodeType.COMPONENT_VIEW, NodeType.EMPTY, NodeType.SLIDER_INPUT_VIEW, NodeType.THREAD_VIEW, NodeType.COLOR_STYLE, NodeType.FONT_STYLE, NodeType.BORDER_STYLE, NodeType.SHADOW_STYLE, NodeType.GRADIENT_STYLE, NodeType.TRANSITION_STYLE, NodeType.EFFECT_STYLE, NodeType.SPLIT_VIEW, NodeType.WIZARD_VIEW],
+  [NodeType.COMPONENT_VIEW]: [NodeType.FRAME_VIEW, NodeType.LABEL_VIEW, NodeType.TEXT_VIEW, NodeType.FIELD, NodeType.NUMBER_INPUT_VIEW, NodeType.COMPONENT_VIEW, NodeType.EMPTY, NodeType.SLIDER_INPUT_VIEW, NodeType.THREAD_VIEW, NodeType.COLOR_STYLE, NodeType.FONT_STYLE, NodeType.BORDER_STYLE, NodeType.SHADOW_STYLE, NodeType.GRADIENT_STYLE, NodeType.TRANSITION_STYLE, NodeType.EFFECT_STYLE, NodeType.SPLIT_VIEW, NodeType.WIZARD_VIEW],
+  [NodeType.SPLIT_VIEW]: [NodeType.FRAME_VIEW, NodeType.LABEL_VIEW, NodeType.TEXT_VIEW, NodeType.FIELD, NodeType.NUMBER_INPUT_VIEW, NodeType.COMPONENT_VIEW, NodeType.EMPTY, NodeType.SLIDER_INPUT_VIEW, NodeType.THREAD_VIEW, NodeType.COLOR_STYLE, NodeType.FONT_STYLE, NodeType.BORDER_STYLE, NodeType.SHADOW_STYLE, NodeType.GRADIENT_STYLE, NodeType.TRANSITION_STYLE, NodeType.EFFECT_STYLE, NodeType.SPLIT_VIEW, NodeType.WIZARD_VIEW],
+  [NodeType.TEXT_VIEW]: [NodeType.FRAME_VIEW, NodeType.LABEL_VIEW, NodeType.TEXT_VIEW, NodeType.FIELD, NodeType.NUMBER_INPUT_VIEW, NodeType.COMPONENT_VIEW, NodeType.EMPTY, NodeType.SLIDER_INPUT_VIEW, NodeType.THREAD_VIEW, NodeType.COLOR_STYLE, NodeType.FONT_STYLE, NodeType.BORDER_STYLE, NodeType.SHADOW_STYLE, NodeType.GRADIENT_STYLE, NodeType.TRANSITION_STYLE, NodeType.EFFECT_STYLE, NodeType.SPLIT_VIEW, NodeType.WIZARD_VIEW],
+  [NodeType.NUMBER_INPUT_VIEW]: [NodeType.FRAME_VIEW, NodeType.LABEL_VIEW, NodeType.TEXT_VIEW, NodeType.FIELD, NodeType.NUMBER_INPUT_VIEW, NodeType.COMPONENT_VIEW, NodeType.EMPTY, NodeType.SLIDER_INPUT_VIEW, NodeType.THREAD_VIEW, NodeType.COLOR_STYLE, NodeType.FONT_STYLE, NodeType.BORDER_STYLE, NodeType.SHADOW_STYLE, NodeType.GRADIENT_STYLE, NodeType.TRANSITION_STYLE, NodeType.EFFECT_STYLE, NodeType.SPLIT_VIEW, NodeType.WIZARD_VIEW],
+  [NodeType.SLIDER_INPUT_VIEW]: [NodeType.FRAME_VIEW, NodeType.LABEL_VIEW, NodeType.TEXT_VIEW, NodeType.FIELD, NodeType.NUMBER_INPUT_VIEW, NodeType.COMPONENT_VIEW, NodeType.EMPTY, NodeType.SLIDER_INPUT_VIEW, NodeType.THREAD_VIEW, NodeType.COLOR_STYLE, NodeType.FONT_STYLE, NodeType.BORDER_STYLE, NodeType.SHADOW_STYLE, NodeType.GRADIENT_STYLE, NodeType.TRANSITION_STYLE, NodeType.EFFECT_STYLE, NodeType.SPLIT_VIEW, NodeType.WIZARD_VIEW],
+  [NodeType.THREAD_VIEW]: [NodeType.FRAME_VIEW, NodeType.LABEL_VIEW, NodeType.TEXT_VIEW, NodeType.FIELD, NodeType.NUMBER_INPUT_VIEW, NodeType.COMPONENT_VIEW, NodeType.EMPTY, NodeType.SLIDER_INPUT_VIEW, NodeType.THREAD_VIEW, NodeType.COLOR_STYLE, NodeType.FONT_STYLE, NodeType.BORDER_STYLE, NodeType.SHADOW_STYLE, NodeType.GRADIENT_STYLE, NodeType.TRANSITION_STYLE, NodeType.EFFECT_STYLE, NodeType.SPLIT_VIEW, NodeType.WIZARD_VIEW],
+  [NodeType.WIZARD_VIEW]: [NodeType.FRAME_VIEW, NodeType.LABEL_VIEW, NodeType.TEXT_VIEW, NodeType.FIELD, NodeType.NUMBER_INPUT_VIEW, NodeType.COMPONENT_VIEW, NodeType.EMPTY, NodeType.SLIDER_INPUT_VIEW, NodeType.THREAD_VIEW, NodeType.COLOR_STYLE, NodeType.FONT_STYLE, NodeType.BORDER_STYLE, NodeType.SHADOW_STYLE, NodeType.GRADIENT_STYLE, NodeType.TRANSITION_STYLE, NodeType.EFFECT_STYLE, NodeType.SPLIT_VIEW, NodeType.WIZARD_VIEW],
   [NodeType.THEME]: [NodeType.EMPTY],
   [NodeType.COLOR_STYLE]: [NodeType.EMPTY],
   [NodeType.FONT_STYLE]: [NodeType.EMPTY],
@@ -35657,13 +35994,14 @@ export const ANCESTOR_NODE_TYPES: Record<NodeType, NodeType[]> = {
   [NodeType.DEPENDENCY]: [NodeType.PACKAGE, NodeType.BENCH],
   [NodeType.PAGE]: [NodeType.PACKAGE, NodeType.BENCH, NodeType.PAGE],
   [NodeType.BLOCK]: [NodeType.BENCH, NodeType.BLOCK, NodeType.PACKAGE, NodeType.PAGE],
+  [NodeType.APPLICATION]: [NodeType.PACKAGE, NodeType.BENCH, NodeType.PAGE],
   [NodeType.DATABASE]: [NodeType.BENCH, NodeType.PACKAGE, NodeType.CHANNEL, NodeType.THREAD, NodeType.PAGE],
   [NodeType.COMPUTER]: [NodeType.BENCH, NodeType.PACKAGE, NodeType.CHANNEL, NodeType.THREAD, NodeType.PAGE],
   [NodeType.SCALER]: [NodeType.BENCH, NodeType.PACKAGE, NodeType.CHANNEL, NodeType.THREAD, NodeType.PAGE],
   [NodeType.CHOICE]: [NodeType.PACKAGE, NodeType.BENCH, NodeType.TABLE, NodeType.PAGE],
   [NodeType.CLASS]: [NodeType.PACKAGE, NodeType.BENCH, NodeType.PAGE],
-  [NodeType.FIELD]: [NodeType.TABLE, NodeType.BENCH, NodeType.CLASS, NodeType.ACTION, NodeType.CHANNEL, NodeType.PACKAGE, NodeType.AGENT, NodeType.FLOW, NodeType.THREAD, NodeType.SERVICE, NodeType.PAGE],
-  [NodeType.OPTION]: [NodeType.TABLE, NodeType.BENCH, NodeType.CLASS, NodeType.ACTION, NodeType.CHOICE, NodeType.CHANNEL, NodeType.PACKAGE, NodeType.AGENT, NodeType.FIELD, NodeType.FLOW, NodeType.THREAD, NodeType.SERVICE, NodeType.PAGE],
+  [NodeType.FIELD]: [NodeType.SPACE, NodeType.BENCH, NodeType.CLASS, NodeType.TABLE, NodeType.TEXT_VIEW, NodeType.CHANNEL, NodeType.AGENT, NodeType.SCENE, NodeType.THREAD, NodeType.SERVICE, NodeType.ACTION, NodeType.FRAME_VIEW, NodeType.LABEL_VIEW, NodeType.PACKAGE, NodeType.NUMBER_INPUT_VIEW, NodeType.SLIDER_INPUT_VIEW, NodeType.COMPONENT_VIEW, NodeType.THREAD_VIEW, NodeType.FLOW, NodeType.WIZARD_VIEW, NodeType.SPLIT_VIEW, NodeType.PAGE],
+  [NodeType.OPTION]: [NodeType.SPACE, NodeType.BENCH, NodeType.CLASS, NodeType.TABLE, NodeType.CHOICE, NodeType.TEXT_VIEW, NodeType.CHANNEL, NodeType.AGENT, NodeType.SCENE, NodeType.FIELD, NodeType.THREAD, NodeType.SERVICE, NodeType.ACTION, NodeType.FRAME_VIEW, NodeType.LABEL_VIEW, NodeType.PACKAGE, NodeType.NUMBER_INPUT_VIEW, NodeType.SLIDER_INPUT_VIEW, NodeType.COMPONENT_VIEW, NodeType.THREAD_VIEW, NodeType.FLOW, NodeType.WIZARD_VIEW, NodeType.SPLIT_VIEW, NodeType.PAGE],
   [NodeType.TABLE]: [NodeType.PACKAGE, NodeType.BENCH, NodeType.PAGE],
   [NodeType.RECORD]: [NodeType.TABLE, NodeType.BENCH, NodeType.PACKAGE, NodeType.RECORD, NodeType.PAGE],
   [NodeType.FILE]: [NodeType.TABLE, NodeType.BENCH, NodeType.MESSAGE, NodeType.PACKAGE, NodeType.CHANNEL, NodeType.AGENT, NodeType.RUN, NodeType.THREAD, NodeType.PAGE],
@@ -35708,20 +36046,21 @@ export const ANCESTOR_NODE_TYPES: Record<NodeType, NodeType[]> = {
   [NodeType.GRADIENT_STYLE]: [NodeType.SPACE, NodeType.BENCH, NodeType.TEXT_VIEW, NodeType.FRAME_VIEW, NodeType.LABEL_VIEW, NodeType.PACKAGE, NodeType.NUMBER_INPUT_VIEW, NodeType.SLIDER_INPUT_VIEW, NodeType.THREAD_VIEW, NodeType.COMPONENT_VIEW, NodeType.WIZARD_VIEW, NodeType.SPLIT_VIEW, NodeType.PAGE],
   [NodeType.TRANSITION_STYLE]: [NodeType.SPACE, NodeType.BENCH, NodeType.TEXT_VIEW, NodeType.FRAME_VIEW, NodeType.LABEL_VIEW, NodeType.PACKAGE, NodeType.NUMBER_INPUT_VIEW, NodeType.SLIDER_INPUT_VIEW, NodeType.THREAD_VIEW, NodeType.COMPONENT_VIEW, NodeType.WIZARD_VIEW, NodeType.SPLIT_VIEW, NodeType.PAGE],
   [NodeType.EFFECT_STYLE]: [NodeType.SPACE, NodeType.BENCH, NodeType.TEXT_VIEW, NodeType.FRAME_VIEW, NodeType.LABEL_VIEW, NodeType.PACKAGE, NodeType.NUMBER_INPUT_VIEW, NodeType.SLIDER_INPUT_VIEW, NodeType.THREAD_VIEW, NodeType.COMPONENT_VIEW, NodeType.WIZARD_VIEW, NodeType.SPLIT_VIEW, NodeType.PAGE],
-  [NodeType.EMPTY]: [NodeType.BENCH, NodeType.CLASS, NodeType.HANDLE, NodeType.TEAM, NodeType.BLOCK, NodeType.CHANNEL, NodeType.TEXT_VIEW, NodeType.USER, NodeType.FIELD, NodeType.ROLE, NodeType.EMPTY, NodeType.THREAD, NodeType.COLOR_STYLE, NodeType.ORGANIZATION, NodeType.OPTION, NodeType.SERVICE, NodeType.MESSAGE, NodeType.ACTION, NodeType.FRAME_VIEW, NodeType.LABEL_VIEW, NodeType.THEME, NodeType.SESSION, NodeType.FLOW, NodeType.FLOW_EDGE, NodeType.COMPONENT_VIEW, NodeType.DATABASE, NodeType.RUN, NodeType.FONT_STYLE, NodeType.WIZARD_VIEW, NodeType.SHADOW_STYLE, NodeType.GRADIENT_STYLE, NodeType.TRANSITION_STYLE, NodeType.SPLIT_VIEW, NodeType.EFFECT_STYLE, NodeType.NOTIFICATION, NodeType.COMPUTER, NodeType.SPAN, NodeType.BORDER_STYLE, NodeType.TABLE, NodeType.SPACE, NodeType.INTERRUPTION, NodeType.AGENT, NodeType.SCENE, NodeType.RECORD, NodeType.TASK, NodeType.ROUTE, NodeType.FILE, NodeType.CLAIM, NodeType.SCALER, NodeType.CURSOR, NodeType.PACKAGE, NodeType.NUMBER_INPUT_VIEW, NodeType.SLIDER_INPUT_VIEW, NodeType.THREAD_VIEW, NodeType.CLIENT, NodeType.MEMBERSHIP, NodeType.LINK, NodeType.DEPENDENCY, NodeType.CHOICE, NodeType.INVITE, NodeType.PAGE],
+  [NodeType.EMPTY]: [NodeType.BENCH, NodeType.HANDLE, NodeType.TEAM, NodeType.BLOCK, NodeType.CHANNEL, NodeType.TEXT_VIEW, NodeType.USER, NodeType.PAGE, NodeType.ROLE, NodeType.EMPTY, NodeType.APPLICATION, NodeType.THREAD, NodeType.ORGANIZATION, NodeType.MESSAGE, NodeType.THEME, NodeType.SESSION, NodeType.COLOR_STYLE, NodeType.RUN, NodeType.FONT_STYLE, NodeType.WIZARD_VIEW, NodeType.SHADOW_STYLE, NodeType.GRADIENT_STYLE, NodeType.TRANSITION_STYLE, NodeType.EFFECT_STYLE, NodeType.NOTIFICATION, NodeType.BORDER_STYLE, NodeType.SPAN, NodeType.TABLE, NodeType.SPACE, NodeType.INTERRUPTION, NodeType.SCENE, NodeType.RECORD, NodeType.ROUTE, NodeType.FILE, NodeType.NUMBER_INPUT_VIEW, NodeType.SLIDER_INPUT_VIEW, NodeType.LINK, NodeType.CHOICE, NodeType.CLASS, NodeType.FIELD, NodeType.OPTION, NodeType.SERVICE, NodeType.ACTION, NodeType.FRAME_VIEW, NodeType.LABEL_VIEW, NodeType.FLOW, NodeType.FLOW_EDGE, NodeType.COMPONENT_VIEW, NodeType.DATABASE, NodeType.SPLIT_VIEW, NodeType.COMPUTER, NodeType.AGENT, NodeType.TASK, NodeType.CLAIM, NodeType.SCALER, NodeType.CURSOR, NodeType.PACKAGE, NodeType.THREAD_VIEW, NodeType.MEMBERSHIP, NodeType.DEPENDENCY, NodeType.INVITE, NodeType.CLIENT],
 }
 
 export const DESCENDANT_NODE_TYPES: Record<NodeType, NodeType[]> = {
   [NodeType.UNSPECIFIED]: [],
-  [NodeType.BENCH]: [NodeType.CLASS, NodeType.HANDLE, NodeType.TEAM, NodeType.BLOCK, NodeType.TEXT_VIEW, NodeType.CHANNEL, NodeType.FIELD, NodeType.ROLE, NodeType.EMPTY, NodeType.THREAD, NodeType.COLOR_STYLE, NodeType.OPTION, NodeType.SERVICE, NodeType.FONT_STYLE, NodeType.MESSAGE, NodeType.ACTION, NodeType.FRAME_VIEW, NodeType.LABEL_VIEW, NodeType.SESSION, NodeType.THEME, NodeType.FLOW, NodeType.FLOW_EDGE, NodeType.COMPONENT_VIEW, NodeType.DATABASE, NodeType.CLIENT, NodeType.RUN, NodeType.WIZARD_VIEW, NodeType.SHADOW_STYLE, NodeType.GRADIENT_STYLE, NodeType.TRANSITION_STYLE, NodeType.SPLIT_VIEW, NodeType.EFFECT_STYLE, NodeType.COMPUTER, NodeType.NOTIFICATION, NodeType.SPAN, NodeType.BORDER_STYLE, NodeType.TABLE, NodeType.SPACE, NodeType.INTERRUPTION, NodeType.SCENE, NodeType.AGENT, NodeType.RECORD, NodeType.TASK, NodeType.FILE, NodeType.ROUTE, NodeType.CLAIM, NodeType.SCALER, NodeType.CURSOR, NodeType.PACKAGE, NodeType.NUMBER_INPUT_VIEW, NodeType.SLIDER_INPUT_VIEW, NodeType.THREAD_VIEW, NodeType.MEMBERSHIP, NodeType.DEPENDENCY, NodeType.LINK, NodeType.CHOICE, NodeType.INVITE, NodeType.PAGE],
+  [NodeType.BENCH]: [NodeType.CLASS, NodeType.HANDLE, NodeType.TEAM, NodeType.BLOCK, NodeType.TEXT_VIEW, NodeType.CHANNEL, NodeType.FIELD, NodeType.ROLE, NodeType.EMPTY, NodeType.APPLICATION, NodeType.THREAD, NodeType.COLOR_STYLE, NodeType.OPTION, NodeType.SERVICE, NodeType.FONT_STYLE, NodeType.MESSAGE, NodeType.ACTION, NodeType.FRAME_VIEW, NodeType.LABEL_VIEW, NodeType.SESSION, NodeType.THEME, NodeType.FLOW, NodeType.FLOW_EDGE, NodeType.COMPONENT_VIEW, NodeType.DATABASE, NodeType.CLIENT, NodeType.RUN, NodeType.WIZARD_VIEW, NodeType.SHADOW_STYLE, NodeType.GRADIENT_STYLE, NodeType.TRANSITION_STYLE, NodeType.SPLIT_VIEW, NodeType.EFFECT_STYLE, NodeType.COMPUTER, NodeType.NOTIFICATION, NodeType.SPAN, NodeType.BORDER_STYLE, NodeType.TABLE, NodeType.SPACE, NodeType.INTERRUPTION, NodeType.SCENE, NodeType.AGENT, NodeType.RECORD, NodeType.TASK, NodeType.FILE, NodeType.ROUTE, NodeType.CLAIM, NodeType.SCALER, NodeType.CURSOR, NodeType.PACKAGE, NodeType.NUMBER_INPUT_VIEW, NodeType.SLIDER_INPUT_VIEW, NodeType.THREAD_VIEW, NodeType.MEMBERSHIP, NodeType.DEPENDENCY, NodeType.LINK, NodeType.CHOICE, NodeType.INVITE, NodeType.PAGE],
   [NodeType.HANDLE]: [NodeType.EMPTY],
   [NodeType.USER]: [NodeType.HANDLE, NodeType.CLIENT, NodeType.EMPTY],
   [NodeType.ORGANIZATION]: [NodeType.HANDLE, NodeType.EMPTY],
   [NodeType.CLIENT]: [NodeType.EMPTY],
-  [NodeType.PACKAGE]: [NodeType.CLASS, NodeType.TEAM, NodeType.BLOCK, NodeType.TEXT_VIEW, NodeType.CHANNEL, NodeType.FIELD, NodeType.ROLE, NodeType.EMPTY, NodeType.THREAD, NodeType.OPTION, NodeType.SERVICE, NodeType.MESSAGE, NodeType.ACTION, NodeType.FRAME_VIEW, NodeType.LABEL_VIEW, NodeType.THEME, NodeType.FLOW, NodeType.FLOW_EDGE, NodeType.COMPONENT_VIEW, NodeType.DATABASE, NodeType.COLOR_STYLE, NodeType.FONT_STYLE, NodeType.WIZARD_VIEW, NodeType.SHADOW_STYLE, NodeType.GRADIENT_STYLE, NodeType.TRANSITION_STYLE, NodeType.EFFECT_STYLE, NodeType.SPLIT_VIEW, NodeType.BORDER_STYLE, NodeType.RUN, NodeType.SPAN, NodeType.COMPUTER, NodeType.NOTIFICATION, NodeType.TABLE, NodeType.SPACE, NodeType.INTERRUPTION, NodeType.SCENE, NodeType.AGENT, NodeType.RECORD, NodeType.TASK, NodeType.ROUTE, NodeType.FILE, NodeType.CLAIM, NodeType.SCALER, NodeType.CURSOR, NodeType.NUMBER_INPUT_VIEW, NodeType.SLIDER_INPUT_VIEW, NodeType.THREAD_VIEW, NodeType.MEMBERSHIP, NodeType.LINK, NodeType.DEPENDENCY, NodeType.CHOICE, NodeType.INVITE, NodeType.PAGE],
+  [NodeType.PACKAGE]: [NodeType.CLASS, NodeType.TEAM, NodeType.BLOCK, NodeType.TEXT_VIEW, NodeType.CHANNEL, NodeType.FIELD, NodeType.ROLE, NodeType.EMPTY, NodeType.APPLICATION, NodeType.THREAD, NodeType.OPTION, NodeType.SERVICE, NodeType.MESSAGE, NodeType.ACTION, NodeType.FRAME_VIEW, NodeType.LABEL_VIEW, NodeType.THEME, NodeType.FLOW, NodeType.FLOW_EDGE, NodeType.COMPONENT_VIEW, NodeType.DATABASE, NodeType.COLOR_STYLE, NodeType.FONT_STYLE, NodeType.WIZARD_VIEW, NodeType.SHADOW_STYLE, NodeType.GRADIENT_STYLE, NodeType.TRANSITION_STYLE, NodeType.EFFECT_STYLE, NodeType.SPLIT_VIEW, NodeType.BORDER_STYLE, NodeType.RUN, NodeType.SPAN, NodeType.COMPUTER, NodeType.NOTIFICATION, NodeType.TABLE, NodeType.SPACE, NodeType.INTERRUPTION, NodeType.SCENE, NodeType.AGENT, NodeType.RECORD, NodeType.TASK, NodeType.ROUTE, NodeType.FILE, NodeType.CLAIM, NodeType.SCALER, NodeType.CURSOR, NodeType.NUMBER_INPUT_VIEW, NodeType.SLIDER_INPUT_VIEW, NodeType.THREAD_VIEW, NodeType.MEMBERSHIP, NodeType.LINK, NodeType.DEPENDENCY, NodeType.CHOICE, NodeType.INVITE, NodeType.PAGE],
   [NodeType.DEPENDENCY]: [NodeType.EMPTY],
-  [NodeType.PAGE]: [NodeType.CLASS, NodeType.TEAM, NodeType.BLOCK, NodeType.TEXT_VIEW, NodeType.CHANNEL, NodeType.FIELD, NodeType.ROLE, NodeType.EMPTY, NodeType.THREAD, NodeType.OPTION, NodeType.SERVICE, NodeType.MESSAGE, NodeType.ACTION, NodeType.FRAME_VIEW, NodeType.LABEL_VIEW, NodeType.THEME, NodeType.FLOW, NodeType.FLOW_EDGE, NodeType.COMPONENT_VIEW, NodeType.DATABASE, NodeType.COLOR_STYLE, NodeType.FONT_STYLE, NodeType.WIZARD_VIEW, NodeType.SHADOW_STYLE, NodeType.GRADIENT_STYLE, NodeType.TRANSITION_STYLE, NodeType.EFFECT_STYLE, NodeType.SPLIT_VIEW, NodeType.BORDER_STYLE, NodeType.RUN, NodeType.SPAN, NodeType.COMPUTER, NodeType.TABLE, NodeType.INTERRUPTION, NodeType.SCENE, NodeType.AGENT, NodeType.RECORD, NodeType.TASK, NodeType.ROUTE, NodeType.FILE, NodeType.CLAIM, NodeType.SCALER, NodeType.CURSOR, NodeType.NUMBER_INPUT_VIEW, NodeType.SLIDER_INPUT_VIEW, NodeType.THREAD_VIEW, NodeType.MEMBERSHIP, NodeType.LINK, NodeType.CHOICE, NodeType.INVITE, NodeType.PAGE],
+  [NodeType.PAGE]: [NodeType.CLASS, NodeType.TEAM, NodeType.BLOCK, NodeType.TEXT_VIEW, NodeType.CHANNEL, NodeType.FIELD, NodeType.ROLE, NodeType.EMPTY, NodeType.APPLICATION, NodeType.THREAD, NodeType.OPTION, NodeType.SERVICE, NodeType.MESSAGE, NodeType.ACTION, NodeType.FRAME_VIEW, NodeType.LABEL_VIEW, NodeType.THEME, NodeType.FLOW, NodeType.FLOW_EDGE, NodeType.COMPONENT_VIEW, NodeType.DATABASE, NodeType.COLOR_STYLE, NodeType.FONT_STYLE, NodeType.WIZARD_VIEW, NodeType.SHADOW_STYLE, NodeType.GRADIENT_STYLE, NodeType.TRANSITION_STYLE, NodeType.EFFECT_STYLE, NodeType.SPLIT_VIEW, NodeType.BORDER_STYLE, NodeType.RUN, NodeType.SPAN, NodeType.COMPUTER, NodeType.TABLE, NodeType.INTERRUPTION, NodeType.SCENE, NodeType.AGENT, NodeType.RECORD, NodeType.TASK, NodeType.ROUTE, NodeType.FILE, NodeType.CLAIM, NodeType.SCALER, NodeType.CURSOR, NodeType.NUMBER_INPUT_VIEW, NodeType.SLIDER_INPUT_VIEW, NodeType.THREAD_VIEW, NodeType.MEMBERSHIP, NodeType.LINK, NodeType.CHOICE, NodeType.INVITE, NodeType.PAGE],
   [NodeType.BLOCK]: [NodeType.BLOCK, NodeType.EMPTY],
+  [NodeType.APPLICATION]: [NodeType.EMPTY],
   [NodeType.DATABASE]: [NodeType.EMPTY],
   [NodeType.COMPUTER]: [NodeType.EMPTY],
   [NodeType.SCALER]: [NodeType.EMPTY],
@@ -35753,18 +36092,18 @@ export const DESCENDANT_NODE_TYPES: Record<NodeType, NodeType[]> = {
   [NodeType.INVITE]: [NodeType.EMPTY],
   [NodeType.TEAM]: [NodeType.TEAM, NodeType.INVITE, NodeType.ROLE, NodeType.EMPTY, NodeType.MEMBERSHIP, NodeType.CLAIM],
   [NodeType.ROLE]: [NodeType.CLAIM, NodeType.EMPTY],
-  [NodeType.SPACE]: [NodeType.TEXT_VIEW, NodeType.EMPTY, NodeType.SPLIT_VIEW, NodeType.FRAME_VIEW, NodeType.LABEL_VIEW, NodeType.CURSOR, NodeType.NUMBER_INPUT_VIEW, NodeType.SLIDER_INPUT_VIEW, NodeType.THREAD_VIEW, NodeType.COMPONENT_VIEW, NodeType.COLOR_STYLE, NodeType.FONT_STYLE, NodeType.WIZARD_VIEW, NodeType.SHADOW_STYLE, NodeType.GRADIENT_STYLE, NodeType.TRANSITION_STYLE, NodeType.EFFECT_STYLE, NodeType.BORDER_STYLE],
-  [NodeType.SCENE]: [NodeType.EMPTY],
+  [NodeType.SPACE]: [NodeType.TEXT_VIEW, NodeType.FIELD, NodeType.EMPTY, NodeType.SPLIT_VIEW, NodeType.OPTION, NodeType.FRAME_VIEW, NodeType.LABEL_VIEW, NodeType.CURSOR, NodeType.NUMBER_INPUT_VIEW, NodeType.SLIDER_INPUT_VIEW, NodeType.THREAD_VIEW, NodeType.COMPONENT_VIEW, NodeType.COLOR_STYLE, NodeType.FONT_STYLE, NodeType.WIZARD_VIEW, NodeType.SHADOW_STYLE, NodeType.GRADIENT_STYLE, NodeType.TRANSITION_STYLE, NodeType.EFFECT_STYLE, NodeType.BORDER_STYLE],
+  [NodeType.SCENE]: [NodeType.FIELD, NodeType.OPTION, NodeType.EMPTY],
   [NodeType.ROUTE]: [NodeType.EMPTY],
-  [NodeType.FRAME_VIEW]: [NodeType.FRAME_VIEW, NodeType.LABEL_VIEW, NodeType.TEXT_VIEW, NodeType.NUMBER_INPUT_VIEW, NodeType.SLIDER_INPUT_VIEW, NodeType.THREAD_VIEW, NodeType.EMPTY, NodeType.COMPONENT_VIEW, NodeType.COLOR_STYLE, NodeType.FONT_STYLE, NodeType.WIZARD_VIEW, NodeType.SHADOW_STYLE, NodeType.GRADIENT_STYLE, NodeType.TRANSITION_STYLE, NodeType.EFFECT_STYLE, NodeType.BORDER_STYLE, NodeType.SPLIT_VIEW],
-  [NodeType.LABEL_VIEW]: [NodeType.TEXT_VIEW, NodeType.EMPTY, NodeType.FRAME_VIEW, NodeType.LABEL_VIEW, NodeType.COMPONENT_VIEW, NodeType.COLOR_STYLE, NodeType.FONT_STYLE, NodeType.WIZARD_VIEW, NodeType.SHADOW_STYLE, NodeType.GRADIENT_STYLE, NodeType.TRANSITION_STYLE, NodeType.EFFECT_STYLE, NodeType.BORDER_STYLE, NodeType.SPLIT_VIEW, NodeType.NUMBER_INPUT_VIEW, NodeType.SLIDER_INPUT_VIEW, NodeType.THREAD_VIEW],
-  [NodeType.COMPONENT_VIEW]: [NodeType.TEXT_VIEW, NodeType.EMPTY, NodeType.SPLIT_VIEW, NodeType.FRAME_VIEW, NodeType.LABEL_VIEW, NodeType.NUMBER_INPUT_VIEW, NodeType.SLIDER_INPUT_VIEW, NodeType.THREAD_VIEW, NodeType.COMPONENT_VIEW, NodeType.COLOR_STYLE, NodeType.FONT_STYLE, NodeType.WIZARD_VIEW, NodeType.SHADOW_STYLE, NodeType.GRADIENT_STYLE, NodeType.TRANSITION_STYLE, NodeType.EFFECT_STYLE, NodeType.BORDER_STYLE],
-  [NodeType.SPLIT_VIEW]: [NodeType.TEXT_VIEW, NodeType.EMPTY, NodeType.SPLIT_VIEW, NodeType.FRAME_VIEW, NodeType.LABEL_VIEW, NodeType.NUMBER_INPUT_VIEW, NodeType.SLIDER_INPUT_VIEW, NodeType.THREAD_VIEW, NodeType.COMPONENT_VIEW, NodeType.COLOR_STYLE, NodeType.FONT_STYLE, NodeType.WIZARD_VIEW, NodeType.SHADOW_STYLE, NodeType.GRADIENT_STYLE, NodeType.TRANSITION_STYLE, NodeType.EFFECT_STYLE, NodeType.BORDER_STYLE],
-  [NodeType.TEXT_VIEW]: [NodeType.TEXT_VIEW, NodeType.EMPTY, NodeType.SPLIT_VIEW, NodeType.FRAME_VIEW, NodeType.LABEL_VIEW, NodeType.NUMBER_INPUT_VIEW, NodeType.SLIDER_INPUT_VIEW, NodeType.THREAD_VIEW, NodeType.COMPONENT_VIEW, NodeType.COLOR_STYLE, NodeType.FONT_STYLE, NodeType.WIZARD_VIEW, NodeType.SHADOW_STYLE, NodeType.GRADIENT_STYLE, NodeType.TRANSITION_STYLE, NodeType.EFFECT_STYLE, NodeType.BORDER_STYLE],
-  [NodeType.NUMBER_INPUT_VIEW]: [NodeType.TEXT_VIEW, NodeType.EMPTY, NodeType.SPLIT_VIEW, NodeType.FRAME_VIEW, NodeType.LABEL_VIEW, NodeType.NUMBER_INPUT_VIEW, NodeType.SLIDER_INPUT_VIEW, NodeType.THREAD_VIEW, NodeType.COMPONENT_VIEW, NodeType.COLOR_STYLE, NodeType.FONT_STYLE, NodeType.WIZARD_VIEW, NodeType.SHADOW_STYLE, NodeType.GRADIENT_STYLE, NodeType.TRANSITION_STYLE, NodeType.EFFECT_STYLE, NodeType.BORDER_STYLE],
-  [NodeType.SLIDER_INPUT_VIEW]: [NodeType.TEXT_VIEW, NodeType.EMPTY, NodeType.SPLIT_VIEW, NodeType.FRAME_VIEW, NodeType.LABEL_VIEW, NodeType.NUMBER_INPUT_VIEW, NodeType.SLIDER_INPUT_VIEW, NodeType.THREAD_VIEW, NodeType.COMPONENT_VIEW, NodeType.COLOR_STYLE, NodeType.FONT_STYLE, NodeType.WIZARD_VIEW, NodeType.SHADOW_STYLE, NodeType.GRADIENT_STYLE, NodeType.TRANSITION_STYLE, NodeType.EFFECT_STYLE, NodeType.BORDER_STYLE],
-  [NodeType.THREAD_VIEW]: [NodeType.TEXT_VIEW, NodeType.EMPTY, NodeType.SPLIT_VIEW, NodeType.FRAME_VIEW, NodeType.LABEL_VIEW, NodeType.NUMBER_INPUT_VIEW, NodeType.SLIDER_INPUT_VIEW, NodeType.THREAD_VIEW, NodeType.COMPONENT_VIEW, NodeType.COLOR_STYLE, NodeType.FONT_STYLE, NodeType.WIZARD_VIEW, NodeType.SHADOW_STYLE, NodeType.GRADIENT_STYLE, NodeType.TRANSITION_STYLE, NodeType.EFFECT_STYLE, NodeType.BORDER_STYLE],
-  [NodeType.WIZARD_VIEW]: [NodeType.TEXT_VIEW, NodeType.EMPTY, NodeType.SPLIT_VIEW, NodeType.FRAME_VIEW, NodeType.LABEL_VIEW, NodeType.NUMBER_INPUT_VIEW, NodeType.SLIDER_INPUT_VIEW, NodeType.THREAD_VIEW, NodeType.COMPONENT_VIEW, NodeType.COLOR_STYLE, NodeType.FONT_STYLE, NodeType.WIZARD_VIEW, NodeType.SHADOW_STYLE, NodeType.GRADIENT_STYLE, NodeType.TRANSITION_STYLE, NodeType.EFFECT_STYLE, NodeType.BORDER_STYLE],
+  [NodeType.FRAME_VIEW]: [NodeType.TEXT_VIEW, NodeType.FIELD, NodeType.EMPTY, NodeType.SPLIT_VIEW, NodeType.OPTION, NodeType.FRAME_VIEW, NodeType.LABEL_VIEW, NodeType.NUMBER_INPUT_VIEW, NodeType.SLIDER_INPUT_VIEW, NodeType.THREAD_VIEW, NodeType.COMPONENT_VIEW, NodeType.COLOR_STYLE, NodeType.FONT_STYLE, NodeType.WIZARD_VIEW, NodeType.SHADOW_STYLE, NodeType.GRADIENT_STYLE, NodeType.TRANSITION_STYLE, NodeType.EFFECT_STYLE, NodeType.BORDER_STYLE],
+  [NodeType.LABEL_VIEW]: [NodeType.TEXT_VIEW, NodeType.FIELD, NodeType.EMPTY, NodeType.OPTION, NodeType.FRAME_VIEW, NodeType.LABEL_VIEW, NodeType.COMPONENT_VIEW, NodeType.COLOR_STYLE, NodeType.FONT_STYLE, NodeType.WIZARD_VIEW, NodeType.SHADOW_STYLE, NodeType.GRADIENT_STYLE, NodeType.TRANSITION_STYLE, NodeType.EFFECT_STYLE, NodeType.BORDER_STYLE, NodeType.SPLIT_VIEW, NodeType.NUMBER_INPUT_VIEW, NodeType.SLIDER_INPUT_VIEW, NodeType.THREAD_VIEW],
+  [NodeType.COMPONENT_VIEW]: [NodeType.TEXT_VIEW, NodeType.FIELD, NodeType.EMPTY, NodeType.OPTION, NodeType.FRAME_VIEW, NodeType.LABEL_VIEW, NodeType.COMPONENT_VIEW, NodeType.COLOR_STYLE, NodeType.FONT_STYLE, NodeType.WIZARD_VIEW, NodeType.SHADOW_STYLE, NodeType.GRADIENT_STYLE, NodeType.TRANSITION_STYLE, NodeType.EFFECT_STYLE, NodeType.BORDER_STYLE, NodeType.SPLIT_VIEW, NodeType.NUMBER_INPUT_VIEW, NodeType.SLIDER_INPUT_VIEW, NodeType.THREAD_VIEW],
+  [NodeType.SPLIT_VIEW]: [NodeType.TEXT_VIEW, NodeType.FIELD, NodeType.EMPTY, NodeType.OPTION, NodeType.FRAME_VIEW, NodeType.LABEL_VIEW, NodeType.COMPONENT_VIEW, NodeType.COLOR_STYLE, NodeType.FONT_STYLE, NodeType.WIZARD_VIEW, NodeType.SHADOW_STYLE, NodeType.GRADIENT_STYLE, NodeType.TRANSITION_STYLE, NodeType.EFFECT_STYLE, NodeType.BORDER_STYLE, NodeType.SPLIT_VIEW, NodeType.NUMBER_INPUT_VIEW, NodeType.SLIDER_INPUT_VIEW, NodeType.THREAD_VIEW],
+  [NodeType.TEXT_VIEW]: [NodeType.TEXT_VIEW, NodeType.FIELD, NodeType.EMPTY, NodeType.OPTION, NodeType.FRAME_VIEW, NodeType.LABEL_VIEW, NodeType.COMPONENT_VIEW, NodeType.COLOR_STYLE, NodeType.FONT_STYLE, NodeType.WIZARD_VIEW, NodeType.SHADOW_STYLE, NodeType.GRADIENT_STYLE, NodeType.TRANSITION_STYLE, NodeType.SPLIT_VIEW, NodeType.EFFECT_STYLE, NodeType.BORDER_STYLE, NodeType.NUMBER_INPUT_VIEW, NodeType.SLIDER_INPUT_VIEW, NodeType.THREAD_VIEW],
+  [NodeType.NUMBER_INPUT_VIEW]: [NodeType.TEXT_VIEW, NodeType.FIELD, NodeType.EMPTY, NodeType.OPTION, NodeType.FRAME_VIEW, NodeType.LABEL_VIEW, NodeType.COMPONENT_VIEW, NodeType.COLOR_STYLE, NodeType.FONT_STYLE, NodeType.WIZARD_VIEW, NodeType.SHADOW_STYLE, NodeType.GRADIENT_STYLE, NodeType.TRANSITION_STYLE, NodeType.SPLIT_VIEW, NodeType.EFFECT_STYLE, NodeType.BORDER_STYLE, NodeType.NUMBER_INPUT_VIEW, NodeType.SLIDER_INPUT_VIEW, NodeType.THREAD_VIEW],
+  [NodeType.SLIDER_INPUT_VIEW]: [NodeType.TEXT_VIEW, NodeType.FIELD, NodeType.EMPTY, NodeType.OPTION, NodeType.FRAME_VIEW, NodeType.LABEL_VIEW, NodeType.COMPONENT_VIEW, NodeType.COLOR_STYLE, NodeType.FONT_STYLE, NodeType.WIZARD_VIEW, NodeType.SHADOW_STYLE, NodeType.GRADIENT_STYLE, NodeType.TRANSITION_STYLE, NodeType.SPLIT_VIEW, NodeType.EFFECT_STYLE, NodeType.BORDER_STYLE, NodeType.NUMBER_INPUT_VIEW, NodeType.SLIDER_INPUT_VIEW, NodeType.THREAD_VIEW],
+  [NodeType.THREAD_VIEW]: [NodeType.TEXT_VIEW, NodeType.FIELD, NodeType.EMPTY, NodeType.OPTION, NodeType.FRAME_VIEW, NodeType.LABEL_VIEW, NodeType.COMPONENT_VIEW, NodeType.COLOR_STYLE, NodeType.FONT_STYLE, NodeType.WIZARD_VIEW, NodeType.SHADOW_STYLE, NodeType.GRADIENT_STYLE, NodeType.TRANSITION_STYLE, NodeType.SPLIT_VIEW, NodeType.EFFECT_STYLE, NodeType.BORDER_STYLE, NodeType.NUMBER_INPUT_VIEW, NodeType.SLIDER_INPUT_VIEW, NodeType.THREAD_VIEW],
+  [NodeType.WIZARD_VIEW]: [NodeType.TEXT_VIEW, NodeType.FIELD, NodeType.EMPTY, NodeType.OPTION, NodeType.FRAME_VIEW, NodeType.LABEL_VIEW, NodeType.COMPONENT_VIEW, NodeType.COLOR_STYLE, NodeType.FONT_STYLE, NodeType.WIZARD_VIEW, NodeType.SHADOW_STYLE, NodeType.GRADIENT_STYLE, NodeType.TRANSITION_STYLE, NodeType.SPLIT_VIEW, NodeType.EFFECT_STYLE, NodeType.BORDER_STYLE, NodeType.NUMBER_INPUT_VIEW, NodeType.SLIDER_INPUT_VIEW, NodeType.THREAD_VIEW],
   [NodeType.THEME]: [NodeType.EMPTY],
   [NodeType.COLOR_STYLE]: [NodeType.EMPTY],
   [NodeType.FONT_STYLE]: [NodeType.EMPTY],
@@ -35788,6 +36127,7 @@ export const MESSAGE_TYPE_BY_OBJECT_TYPE: Partial<Record<ObjectType, MessageType
   [ObjectType.DEPENDENCY]: DependencyData,
   [ObjectType.PAGE]: PageData,
   [ObjectType.BLOCK]: BlockData,
+  [ObjectType.APPLICATION]: ApplicationData,
   [ObjectType.DATABASE]: DatabaseData,
   [ObjectType.COMPUTER]: ComputerData,
   [ObjectType.SCALER]: ScalerData,
@@ -35905,6 +36245,7 @@ export const OBJECT_TYPE_BY_MESSAGE_TYPE_NAME: Record<string, ObjectType> = {
   ["symbol.bench.DependencyData"]: ObjectType.DEPENDENCY,
   ["symbol.bench.PageData"]: ObjectType.PAGE,
   ["symbol.bench.BlockData"]: ObjectType.BLOCK,
+  ["symbol.bench.ApplicationData"]: ObjectType.APPLICATION,
   ["symbol.bench.DatabaseData"]: ObjectType.DATABASE,
   ["symbol.bench.ComputerData"]: ObjectType.COMPUTER,
   ["symbol.bench.ScalerData"]: ObjectType.SCALER,
@@ -36195,6 +36536,7 @@ export interface NodeTypeMapping extends Record<NodeType, AnyNodeData> {
   [NodeType.DEPENDENCY]: DependencyData,
   [NodeType.PAGE]: PageData,
   [NodeType.BLOCK]: BlockData,
+  [NodeType.APPLICATION]: ApplicationData,
   [NodeType.DATABASE]: DatabaseData,
   [NodeType.COMPUTER]: ComputerData,
   [NodeType.SCALER]: ScalerData,
@@ -36259,6 +36601,7 @@ export interface AnyTypeMapping extends Record<ObjectType, AnyStructData | AnyNo
   [ObjectType.DEPENDENCY]: DependencyData,
   [ObjectType.PAGE]: PageData,
   [ObjectType.BLOCK]: BlockData,
+  [ObjectType.APPLICATION]: ApplicationData,
   [ObjectType.DATABASE]: DatabaseData,
   [ObjectType.COMPUTER]: ComputerData,
   [ObjectType.SCALER]: ScalerData,
@@ -36676,6 +37019,28 @@ export enum BlockProperty {
   line = 40,
   nodePtr = 41,
   viewPtr = 42,
+}
+
+export enum ApplicationProperty {
+  metatype = 1,
+  id = 2,
+  ck = 3,
+  parentPtr = 4,
+  benchPtr = 5,
+  packagePtr = 9,
+  createdAt = 10,
+  createdByPtr = 11,
+  updatedAt = 12,
+  updatedByPtr = 13,
+  archivedAt = 14,
+  deletedAt = 15,
+  templatePtr = 16,
+  mode = 25,
+  name = 31,
+  orderKey = 33,
+  icon = 34,
+  definitionPtr = 35,
+  rootScenePtr = 40,
 }
 
 export enum DatabaseProperty {
@@ -37696,9 +38061,11 @@ export enum SceneProperty {
   templatePtr = 16,
   ownedByPtr = 17,
   mode = 25,
+  name = 31,
   orderKey = 33,
   icon = 34,
   definitionPtr = 35,
+  rootViewPtr = 40,
 }
 
 export enum RouteProperty {
@@ -37717,9 +38084,11 @@ export enum RouteProperty {
   templatePtr = 16,
   ownedByPtr = 17,
   mode = 25,
+  name = 31,
   orderKey = 33,
   icon = 34,
   definitionPtr = 35,
+  scenePtr = 40,
 }
 
 export enum FrameViewProperty {
@@ -38826,12 +39195,12 @@ export enum Axis3Property {
   z = 43,
 }
 
-export type AnyNodeProperty = typeof BenchProperty | typeof HandleProperty | typeof UserProperty | typeof OrganizationProperty | typeof ClientProperty | typeof PackageProperty | typeof DependencyProperty | typeof PageProperty | typeof BlockProperty | typeof DatabaseProperty | typeof ComputerProperty | typeof ScalerProperty | typeof ChoiceProperty | typeof ClassProperty | typeof FieldProperty | typeof OptionProperty | typeof TableProperty | typeof RecordProperty | typeof FileProperty | typeof LinkProperty | typeof ChannelProperty | typeof ThreadProperty | typeof MessageProperty | typeof NotificationProperty | typeof TaskProperty | typeof ClaimProperty | typeof CursorProperty | typeof ServiceProperty | typeof ActionProperty | typeof FlowProperty | typeof FlowEdgeProperty | typeof AgentProperty | typeof SessionProperty | typeof RunProperty | typeof SpanProperty | typeof InterruptionProperty | typeof MembershipProperty | typeof InviteProperty | typeof TeamProperty | typeof RoleProperty | typeof SpaceProperty | typeof SceneProperty | typeof RouteProperty | typeof FrameViewProperty | typeof LabelViewProperty | typeof ComponentViewProperty | typeof SplitViewProperty | typeof TextViewProperty | typeof NumberInputViewProperty | typeof SliderInputViewProperty | typeof ThreadViewProperty | typeof WizardViewProperty | typeof ThemeProperty | typeof ColorStyleProperty | typeof FontStyleProperty | typeof BorderStyleProperty | typeof ShadowStyleProperty | typeof GradientStyleProperty | typeof TransitionStyleProperty | typeof EffectStyleProperty | typeof EmptyProperty
+export type AnyNodeProperty = typeof BenchProperty | typeof HandleProperty | typeof UserProperty | typeof OrganizationProperty | typeof ClientProperty | typeof PackageProperty | typeof DependencyProperty | typeof PageProperty | typeof BlockProperty | typeof ApplicationProperty | typeof DatabaseProperty | typeof ComputerProperty | typeof ScalerProperty | typeof ChoiceProperty | typeof ClassProperty | typeof FieldProperty | typeof OptionProperty | typeof TableProperty | typeof RecordProperty | typeof FileProperty | typeof LinkProperty | typeof ChannelProperty | typeof ThreadProperty | typeof MessageProperty | typeof NotificationProperty | typeof TaskProperty | typeof ClaimProperty | typeof CursorProperty | typeof ServiceProperty | typeof ActionProperty | typeof FlowProperty | typeof FlowEdgeProperty | typeof AgentProperty | typeof SessionProperty | typeof RunProperty | typeof SpanProperty | typeof InterruptionProperty | typeof MembershipProperty | typeof InviteProperty | typeof TeamProperty | typeof RoleProperty | typeof SpaceProperty | typeof SceneProperty | typeof RouteProperty | typeof FrameViewProperty | typeof LabelViewProperty | typeof ComponentViewProperty | typeof SplitViewProperty | typeof TextViewProperty | typeof NumberInputViewProperty | typeof SliderInputViewProperty | typeof ThreadViewProperty | typeof WizardViewProperty | typeof ThemeProperty | typeof ColorStyleProperty | typeof FontStyleProperty | typeof BorderStyleProperty | typeof ShadowStyleProperty | typeof GradientStyleProperty | typeof TransitionStyleProperty | typeof EffectStyleProperty | typeof EmptyProperty
 export type AnyStructProperty = typeof ContextProperty | typeof EditContextProperty | typeof EditProperty | typeof EditOperationProperty | typeof ChangeProperty | typeof ChangeVignetteProperty | typeof GraphScopeProperty | typeof ClientOriginProperty | typeof NodeReferenceProperty | typeof PropertyReferenceProperty | typeof TypeProperty | typeof TypeConstraintProperty | typeof FileInfoProperty | typeof ScheduleProperty | typeof TextProperty | typeof TextLineProperty | typeof TextSpanProperty | typeof CodeProperty | typeof IconProperty | typeof ExpressionProperty | typeof AggregationResultProperty | typeof SelectionProperty | typeof SelectOptionsProperty | typeof ErrorProperty | typeof RunTraceProperty | typeof RunFrameProperty | typeof PolicyProperty | typeof PolicyRuleProperty | typeof PolicySubjectProperty | typeof AccessZoneProperty | typeof AccessMatrixProperty | typeof AccessProperty | typeof ColorProperty | typeof ShadowProperty | typeof BorderProperty | typeof FontProperty | typeof Vector2Property | typeof Vector3Property | typeof Vector4Property | typeof GradientStopProperty | typeof GradientProperty | typeof FillProperty | typeof LengthProperty | typeof PositionProperty | typeof DimensionProperty | typeof TransitionProperty | typeof EffectProperty | typeof GridProperty | typeof GridSpanProperty | typeof InsetsProperty | typeof CornersProperty | typeof Axis2Property | typeof Axis3Property
 export type AnyProperty = AnyNodeProperty | AnyStructProperty
-export type AnyNodePropertyType = typeof BenchProperty | typeof HandleProperty | typeof UserProperty | typeof OrganizationProperty | typeof ClientProperty | typeof PackageProperty | typeof DependencyProperty | typeof PageProperty | typeof BlockProperty | typeof DatabaseProperty | typeof ComputerProperty | typeof ScalerProperty | typeof ChoiceProperty | typeof ClassProperty | typeof FieldProperty | typeof OptionProperty | typeof TableProperty | typeof RecordProperty | typeof FileProperty | typeof LinkProperty | typeof ChannelProperty | typeof ThreadProperty | typeof MessageProperty | typeof NotificationProperty | typeof TaskProperty | typeof ClaimProperty | typeof CursorProperty | typeof ServiceProperty | typeof ActionProperty | typeof FlowProperty | typeof FlowEdgeProperty | typeof AgentProperty | typeof SessionProperty | typeof RunProperty | typeof SpanProperty | typeof InterruptionProperty | typeof MembershipProperty | typeof InviteProperty | typeof TeamProperty | typeof RoleProperty | typeof SpaceProperty | typeof SceneProperty | typeof RouteProperty | typeof FrameViewProperty | typeof LabelViewProperty | typeof ComponentViewProperty | typeof SplitViewProperty | typeof TextViewProperty | typeof NumberInputViewProperty | typeof SliderInputViewProperty | typeof ThreadViewProperty | typeof WizardViewProperty | typeof ThemeProperty | typeof ColorStyleProperty | typeof FontStyleProperty | typeof BorderStyleProperty | typeof ShadowStyleProperty | typeof GradientStyleProperty | typeof TransitionStyleProperty | typeof EffectStyleProperty | typeof EmptyProperty
+export type AnyNodePropertyType = typeof BenchProperty | typeof HandleProperty | typeof UserProperty | typeof OrganizationProperty | typeof ClientProperty | typeof PackageProperty | typeof DependencyProperty | typeof PageProperty | typeof BlockProperty | typeof ApplicationProperty | typeof DatabaseProperty | typeof ComputerProperty | typeof ScalerProperty | typeof ChoiceProperty | typeof ClassProperty | typeof FieldProperty | typeof OptionProperty | typeof TableProperty | typeof RecordProperty | typeof FileProperty | typeof LinkProperty | typeof ChannelProperty | typeof ThreadProperty | typeof MessageProperty | typeof NotificationProperty | typeof TaskProperty | typeof ClaimProperty | typeof CursorProperty | typeof ServiceProperty | typeof ActionProperty | typeof FlowProperty | typeof FlowEdgeProperty | typeof AgentProperty | typeof SessionProperty | typeof RunProperty | typeof SpanProperty | typeof InterruptionProperty | typeof MembershipProperty | typeof InviteProperty | typeof TeamProperty | typeof RoleProperty | typeof SpaceProperty | typeof SceneProperty | typeof RouteProperty | typeof FrameViewProperty | typeof LabelViewProperty | typeof ComponentViewProperty | typeof SplitViewProperty | typeof TextViewProperty | typeof NumberInputViewProperty | typeof SliderInputViewProperty | typeof ThreadViewProperty | typeof WizardViewProperty | typeof ThemeProperty | typeof ColorStyleProperty | typeof FontStyleProperty | typeof BorderStyleProperty | typeof ShadowStyleProperty | typeof GradientStyleProperty | typeof TransitionStyleProperty | typeof EffectStyleProperty | typeof EmptyProperty
 export type AnyStructPropertyType = typeof ContextProperty | typeof EditContextProperty | typeof EditProperty | typeof EditOperationProperty | typeof ChangeProperty | typeof ChangeVignetteProperty | typeof GraphScopeProperty | typeof ClientOriginProperty | typeof NodeReferenceProperty | typeof PropertyReferenceProperty | typeof TypeProperty | typeof TypeConstraintProperty | typeof FileInfoProperty | typeof ScheduleProperty | typeof TextProperty | typeof TextLineProperty | typeof TextSpanProperty | typeof CodeProperty | typeof IconProperty | typeof ExpressionProperty | typeof AggregationResultProperty | typeof SelectionProperty | typeof SelectOptionsProperty | typeof ErrorProperty | typeof RunTraceProperty | typeof RunFrameProperty | typeof PolicyProperty | typeof PolicyRuleProperty | typeof PolicySubjectProperty | typeof AccessZoneProperty | typeof AccessMatrixProperty | typeof AccessProperty | typeof ColorProperty | typeof ShadowProperty | typeof BorderProperty | typeof FontProperty | typeof Vector2Property | typeof Vector3Property | typeof Vector4Property | typeof GradientStopProperty | typeof GradientProperty | typeof FillProperty | typeof LengthProperty | typeof PositionProperty | typeof DimensionProperty | typeof TransitionProperty | typeof EffectProperty | typeof GridProperty | typeof GridSpanProperty | typeof InsetsProperty | typeof CornersProperty | typeof Axis2Property | typeof Axis3Property
-export type AnyPropertyType = typeof BenchProperty | typeof HandleProperty | typeof UserProperty | typeof OrganizationProperty | typeof ClientProperty | typeof PackageProperty | typeof DependencyProperty | typeof PageProperty | typeof BlockProperty | typeof DatabaseProperty | typeof ComputerProperty | typeof ScalerProperty | typeof ChoiceProperty | typeof ClassProperty | typeof FieldProperty | typeof OptionProperty | typeof TableProperty | typeof RecordProperty | typeof FileProperty | typeof LinkProperty | typeof ChannelProperty | typeof ThreadProperty | typeof MessageProperty | typeof NotificationProperty | typeof TaskProperty | typeof ClaimProperty | typeof CursorProperty | typeof ServiceProperty | typeof ActionProperty | typeof FlowProperty | typeof FlowEdgeProperty | typeof AgentProperty | typeof SessionProperty | typeof RunProperty | typeof SpanProperty | typeof InterruptionProperty | typeof MembershipProperty | typeof InviteProperty | typeof TeamProperty | typeof RoleProperty | typeof SpaceProperty | typeof SceneProperty | typeof RouteProperty | typeof FrameViewProperty | typeof LabelViewProperty | typeof ComponentViewProperty | typeof SplitViewProperty | typeof TextViewProperty | typeof NumberInputViewProperty | typeof SliderInputViewProperty | typeof ThreadViewProperty | typeof WizardViewProperty | typeof ThemeProperty | typeof ColorStyleProperty | typeof FontStyleProperty | typeof BorderStyleProperty | typeof ShadowStyleProperty | typeof GradientStyleProperty | typeof TransitionStyleProperty | typeof EffectStyleProperty | typeof EmptyProperty | typeof ContextProperty | typeof EditContextProperty | typeof EditProperty | typeof EditOperationProperty | typeof ChangeProperty | typeof ChangeVignetteProperty | typeof GraphScopeProperty | typeof ClientOriginProperty | typeof NodeReferenceProperty | typeof PropertyReferenceProperty | typeof TypeProperty | typeof TypeConstraintProperty | typeof FileInfoProperty | typeof ScheduleProperty | typeof TextProperty | typeof TextLineProperty | typeof TextSpanProperty | typeof CodeProperty | typeof IconProperty | typeof ExpressionProperty | typeof AggregationResultProperty | typeof SelectionProperty | typeof SelectOptionsProperty | typeof ErrorProperty | typeof RunTraceProperty | typeof RunFrameProperty | typeof PolicyProperty | typeof PolicyRuleProperty | typeof PolicySubjectProperty | typeof AccessZoneProperty | typeof AccessMatrixProperty | typeof AccessProperty | typeof ColorProperty | typeof ShadowProperty | typeof BorderProperty | typeof FontProperty | typeof Vector2Property | typeof Vector3Property | typeof Vector4Property | typeof GradientStopProperty | typeof GradientProperty | typeof FillProperty | typeof LengthProperty | typeof PositionProperty | typeof DimensionProperty | typeof TransitionProperty | typeof EffectProperty | typeof GridProperty | typeof GridSpanProperty | typeof InsetsProperty | typeof CornersProperty | typeof Axis2Property | typeof Axis3Property
+export type AnyPropertyType = typeof BenchProperty | typeof HandleProperty | typeof UserProperty | typeof OrganizationProperty | typeof ClientProperty | typeof PackageProperty | typeof DependencyProperty | typeof PageProperty | typeof BlockProperty | typeof ApplicationProperty | typeof DatabaseProperty | typeof ComputerProperty | typeof ScalerProperty | typeof ChoiceProperty | typeof ClassProperty | typeof FieldProperty | typeof OptionProperty | typeof TableProperty | typeof RecordProperty | typeof FileProperty | typeof LinkProperty | typeof ChannelProperty | typeof ThreadProperty | typeof MessageProperty | typeof NotificationProperty | typeof TaskProperty | typeof ClaimProperty | typeof CursorProperty | typeof ServiceProperty | typeof ActionProperty | typeof FlowProperty | typeof FlowEdgeProperty | typeof AgentProperty | typeof SessionProperty | typeof RunProperty | typeof SpanProperty | typeof InterruptionProperty | typeof MembershipProperty | typeof InviteProperty | typeof TeamProperty | typeof RoleProperty | typeof SpaceProperty | typeof SceneProperty | typeof RouteProperty | typeof FrameViewProperty | typeof LabelViewProperty | typeof ComponentViewProperty | typeof SplitViewProperty | typeof TextViewProperty | typeof NumberInputViewProperty | typeof SliderInputViewProperty | typeof ThreadViewProperty | typeof WizardViewProperty | typeof ThemeProperty | typeof ColorStyleProperty | typeof FontStyleProperty | typeof BorderStyleProperty | typeof ShadowStyleProperty | typeof GradientStyleProperty | typeof TransitionStyleProperty | typeof EffectStyleProperty | typeof EmptyProperty | typeof ContextProperty | typeof EditContextProperty | typeof EditProperty | typeof EditOperationProperty | typeof ChangeProperty | typeof ChangeVignetteProperty | typeof GraphScopeProperty | typeof ClientOriginProperty | typeof NodeReferenceProperty | typeof PropertyReferenceProperty | typeof TypeProperty | typeof TypeConstraintProperty | typeof FileInfoProperty | typeof ScheduleProperty | typeof TextProperty | typeof TextLineProperty | typeof TextSpanProperty | typeof CodeProperty | typeof IconProperty | typeof ExpressionProperty | typeof AggregationResultProperty | typeof SelectionProperty | typeof SelectOptionsProperty | typeof ErrorProperty | typeof RunTraceProperty | typeof RunFrameProperty | typeof PolicyProperty | typeof PolicyRuleProperty | typeof PolicySubjectProperty | typeof AccessZoneProperty | typeof AccessMatrixProperty | typeof AccessProperty | typeof ColorProperty | typeof ShadowProperty | typeof BorderProperty | typeof FontProperty | typeof Vector2Property | typeof Vector3Property | typeof Vector4Property | typeof GradientStopProperty | typeof GradientProperty | typeof FillProperty | typeof LengthProperty | typeof PositionProperty | typeof DimensionProperty | typeof TransitionProperty | typeof EffectProperty | typeof GridProperty | typeof GridSpanProperty | typeof InsetsProperty | typeof CornersProperty | typeof Axis2Property | typeof Axis3Property
 export const NODE_PROPERTY_ENUM_BY_TYPE: Partial<Record<ObjectType, AnyNodePropertyType>> = {
   [ObjectType.BENCH]: BenchProperty,
   [ObjectType.HANDLE]: HandleProperty,
@@ -38842,6 +39211,7 @@ export const NODE_PROPERTY_ENUM_BY_TYPE: Partial<Record<ObjectType, AnyNodePrope
   [ObjectType.DEPENDENCY]: DependencyProperty,
   [ObjectType.PAGE]: PageProperty,
   [ObjectType.BLOCK]: BlockProperty,
+  [ObjectType.APPLICATION]: ApplicationProperty,
   [ObjectType.DATABASE]: DatabaseProperty,
   [ObjectType.COMPUTER]: ComputerProperty,
   [ObjectType.SCALER]: ScalerProperty,
@@ -38962,6 +39332,7 @@ export const PROPERTY_ENUM_BY_TYPE: Partial<Record<ObjectType, AnyPropertyType>>
   [ObjectType.DEPENDENCY]: DependencyProperty,
   [ObjectType.PAGE]: PageProperty,
   [ObjectType.BLOCK]: BlockProperty,
+  [ObjectType.APPLICATION]: ApplicationProperty,
   [ObjectType.DATABASE]: DatabaseProperty,
   [ObjectType.COMPUTER]: ComputerProperty,
   [ObjectType.SCALER]: ScalerProperty,
@@ -39302,6 +39673,27 @@ export const BlockDataInfo: Record<BlockProperty, PropertyInfo> = {
   [BlockProperty.nodePtr]: { id: 41, name: 'node_ptr', component: ObjectType.BLOCK, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: "any", referenceStruct: StructType.NODE_REFERENCE },
   [BlockProperty.viewPtr]: { id: 42, name: 'view_ptr', component: ObjectType.BLOCK, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.FRAME_VIEW, NodeType.LABEL_VIEW, NodeType.COMPONENT_VIEW, NodeType.SPLIT_VIEW, NodeType.TEXT_VIEW, NodeType.NUMBER_INPUT_VIEW, NodeType.SLIDER_INPUT_VIEW, NodeType.THREAD_VIEW, NodeType.WIZARD_VIEW], referenceStruct: StructType.NODE_REFERENCE },
 }
+export const ApplicationDataInfo: Record<ApplicationProperty, PropertyInfo> = {
+  [ApplicationProperty.metatype]: { id: 1, name: 'metatype', component: ObjectType.APPLICATION, enumType: EnumType.OBJECT_TYPE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isInternal: true, isComputed: true, isWired: true },
+  [ApplicationProperty.id]: { id: 2, name: 'id', component: ObjectType.APPLICATION, kind: 'primitive', primitiveType: PrimitiveType.UUID, isRequired: true, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
+  [ApplicationProperty.ck]: { id: 3, name: 'ck', component: ObjectType.APPLICATION, kind: 'primitive', primitiveType: PrimitiveType.UUID, isRequired: true, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
+  [ApplicationProperty.parentPtr]: { id: 4, name: 'parent_ptr', component: ObjectType.APPLICATION, kind: 'reference', isInternal: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_PARENT, referenceNodes: [NodeType.PAGE], referenceStruct: StructType.NODE_REFERENCE },
+  [ApplicationProperty.benchPtr]: { id: 5, name: 'bench_ptr', component: ObjectType.APPLICATION, kind: 'reference', isInternal: true, isComputed: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_ANCESTOR_OR_SELF, referenceNodes: [NodeType.BENCH], referenceStruct: StructType.NODE_REFERENCE },
+  [ApplicationProperty.packagePtr]: { id: 9, name: 'package_ptr', component: ObjectType.APPLICATION, kind: 'reference', isInternal: true, isComputed: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_ANCESTOR_OR_SELF, referenceNodes: [NodeType.PACKAGE], referenceStruct: StructType.NODE_REFERENCE },
+  [ApplicationProperty.createdAt]: { id: 10, name: 'created_at', component: ObjectType.APPLICATION, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isRequired: true, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
+  [ApplicationProperty.createdByPtr]: { id: 11, name: 'created_by_ptr', component: ObjectType.APPLICATION, kind: 'reference', isAutoset: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.USER, NodeType.ORGANIZATION, NodeType.COMPUTER, NodeType.AGENT], referenceStruct: StructType.NODE_REFERENCE },
+  [ApplicationProperty.updatedAt]: { id: 12, name: 'updated_at', component: ObjectType.APPLICATION, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isRequired: true, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
+  [ApplicationProperty.updatedByPtr]: { id: 13, name: 'updated_by_ptr', component: ObjectType.APPLICATION, kind: 'reference', isAutoset: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.USER, NodeType.ORGANIZATION, NodeType.COMPUTER, NodeType.AGENT], referenceStruct: StructType.NODE_REFERENCE },
+  [ApplicationProperty.archivedAt]: { id: 14, name: 'archived_at', component: ObjectType.APPLICATION, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
+  [ApplicationProperty.deletedAt]: { id: 15, name: 'deleted_at', component: ObjectType.APPLICATION, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
+  [ApplicationProperty.templatePtr]: { id: 16, name: 'template_ptr', component: ObjectType.APPLICATION, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_TEMPLATE, referenceNodes: [NodeType.APPLICATION], referenceStruct: StructType.NODE_REFERENCE },
+  [ApplicationProperty.mode]: { id: 25, name: 'mode', component: ObjectType.APPLICATION, enumType: EnumType.NODE_MODE, kind: 'enum', primitiveType: PrimitiveType.INT16, default: 20, isRequired: true, isInternal: true, isRuntime: true, isWired: true, isStored: true },
+  [ApplicationProperty.name]: { id: 31, name: 'name', component: ObjectType.APPLICATION, kind: 'primitive', primitiveType: PrimitiveType.STRING, constraint: { minLength: 0, maxLength: 128, nodeTypes: [] }, isRuntime: true, isWired: true, isStored: true },
+  [ApplicationProperty.orderKey]: { id: 33, name: 'order_key', component: ObjectType.APPLICATION, kind: 'primitive', primitiveType: PrimitiveType.STRING, default: "a0", isInternal: true, isRuntime: true, isWired: true, isStored: true },
+  [ApplicationProperty.icon]: { id: 34, name: 'icon', component: ObjectType.APPLICATION, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.ICON },
+  [ApplicationProperty.definitionPtr]: { id: 35, name: 'definition_ptr', component: ObjectType.APPLICATION, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.BLOCK], referenceStruct: StructType.NODE_REFERENCE },
+  [ApplicationProperty.rootScenePtr]: { id: 40, name: 'root_scene_ptr', component: ObjectType.APPLICATION, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.SCENE], referenceStruct: StructType.NODE_REFERENCE },
+}
 export const DatabaseDataInfo: Record<DatabaseProperty, PropertyInfo> = {
   [DatabaseProperty.metatype]: { id: 1, name: 'metatype', component: ObjectType.DATABASE, enumType: EnumType.OBJECT_TYPE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isInternal: true, isComputed: true, isWired: true },
   [DatabaseProperty.id]: { id: 2, name: 'id', component: ObjectType.DATABASE, kind: 'primitive', primitiveType: PrimitiveType.UUID, isRequired: true, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
@@ -39335,7 +39727,7 @@ export const DatabaseDataInfo: Record<DatabaseProperty, PropertyInfo> = {
   [DatabaseProperty.failedAt]: { id: 47, name: 'failed_at', component: ObjectType.DATABASE, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
   [DatabaseProperty.failedAttempts]: { id: 48, name: 'failed_attempts', component: ObjectType.DATABASE, kind: 'primitive', primitiveType: PrimitiveType.INT32, default: 0, isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
   [DatabaseProperty.scalerPtr]: { id: 49, name: 'scaler_ptr', component: ObjectType.DATABASE, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.SCALER], referenceStruct: StructType.NODE_REFERENCE },
-  [DatabaseProperty.version]: { id: 60, name: 'version', component: ObjectType.DATABASE, kind: 'primitive', primitiveType: PrimitiveType.STRING, default: "2025.05.15.2", isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
+  [DatabaseProperty.version]: { id: 60, name: 'version', component: ObjectType.DATABASE, kind: 'primitive', primitiveType: PrimitiveType.STRING, default: "2025.05.15.4", isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
   [DatabaseProperty.externalName]: { id: 62, name: 'external_name', component: ObjectType.DATABASE, kind: 'primitive', primitiveType: PrimitiveType.STRING, isInternal: true, isSystem: true, isKernel: true, isRuntime: true, isWired: true, isStored: true, isSensitive: true },
   [DatabaseProperty.externalId]: { id: 63, name: 'external_id', component: ObjectType.DATABASE, kind: 'primitive', primitiveType: PrimitiveType.STRING, isInternal: true, isSystem: true, isKernel: true, isRuntime: true, isWired: true, isStored: true, isSensitive: true },
   [DatabaseProperty.sqlUrl]: { id: 64, name: 'sql_url', component: ObjectType.DATABASE, kind: 'primitive', primitiveType: PrimitiveType.STRING, isInternal: true, isSystem: true, isKernel: true, isRuntime: true, isWired: true, isStored: true, isDeferred: true, isSensitive: true },
@@ -39373,7 +39765,7 @@ export const ComputerDataInfo: Record<ComputerProperty, PropertyInfo> = {
   [ComputerProperty.failedAt]: { id: 47, name: 'failed_at', component: ObjectType.COMPUTER, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
   [ComputerProperty.failedAttempts]: { id: 48, name: 'failed_attempts', component: ObjectType.COMPUTER, kind: 'primitive', primitiveType: PrimitiveType.INT32, default: 0, isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
   [ComputerProperty.scalerPtr]: { id: 49, name: 'scaler_ptr', component: ObjectType.COMPUTER, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.SCALER], referenceStruct: StructType.NODE_REFERENCE },
-  [ComputerProperty.version]: { id: 60, name: 'version', component: ObjectType.COMPUTER, kind: 'primitive', primitiveType: PrimitiveType.STRING, default: "2025.05.15.2", isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
+  [ComputerProperty.version]: { id: 60, name: 'version', component: ObjectType.COMPUTER, kind: 'primitive', primitiveType: PrimitiveType.STRING, default: "2025.05.15.4", isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
   [ComputerProperty.externalName]: { id: 62, name: 'external_name', component: ObjectType.COMPUTER, kind: 'primitive', primitiveType: PrimitiveType.STRING, isInternal: true, isSystem: true, isKernel: true, isRuntime: true, isWired: true, isStored: true, isSensitive: true },
   [ComputerProperty.externalId]: { id: 63, name: 'external_id', component: ObjectType.COMPUTER, kind: 'primitive', primitiveType: PrimitiveType.STRING, isInternal: true, isSystem: true, isKernel: true, isRuntime: true, isWired: true, isStored: true, isSensitive: true },
   [ComputerProperty.imageId]: { id: 64, name: 'image_id', component: ObjectType.COMPUTER, kind: 'primitive', primitiveType: PrimitiveType.STRING, isInternal: true, isSystem: true, isKernel: true, isRuntime: true, isWired: true, isStored: true, isSensitive: true },
@@ -39467,7 +39859,7 @@ export const FieldDataInfo: Record<FieldProperty, PropertyInfo> = {
   [FieldProperty.metatype]: { id: 1, name: 'metatype', component: ObjectType.FIELD, enumType: EnumType.OBJECT_TYPE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isInternal: true, isComputed: true, isWired: true },
   [FieldProperty.id]: { id: 2, name: 'id', component: ObjectType.FIELD, kind: 'primitive', primitiveType: PrimitiveType.UUID, isRequired: true, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
   [FieldProperty.ck]: { id: 3, name: 'ck', component: ObjectType.FIELD, kind: 'primitive', primitiveType: PrimitiveType.UUID, isRequired: true, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
-  [FieldProperty.parentPtr]: { id: 4, name: 'parent_ptr', component: ObjectType.FIELD, kind: 'reference', isInternal: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_PARENT, referenceNodes: [NodeType.THREAD, NodeType.AGENT, NodeType.ACTION, NodeType.CLASS, NodeType.FLOW, NodeType.TABLE], referenceStruct: StructType.NODE_REFERENCE },
+  [FieldProperty.parentPtr]: { id: 4, name: 'parent_ptr', component: ObjectType.FIELD, kind: 'reference', isInternal: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_PARENT, referenceNodes: [NodeType.THREAD, NodeType.AGENT, NodeType.ACTION, NodeType.CLASS, NodeType.FLOW, NodeType.TABLE, NodeType.SCENE, NodeType.FRAME_VIEW, NodeType.LABEL_VIEW, NodeType.COMPONENT_VIEW, NodeType.SPLIT_VIEW, NodeType.TEXT_VIEW, NodeType.NUMBER_INPUT_VIEW, NodeType.SLIDER_INPUT_VIEW, NodeType.THREAD_VIEW, NodeType.WIZARD_VIEW], referenceStruct: StructType.NODE_REFERENCE },
   [FieldProperty.benchPtr]: { id: 5, name: 'bench_ptr', component: ObjectType.FIELD, kind: 'reference', isInternal: true, isComputed: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_ANCESTOR_OR_SELF, referenceNodes: [NodeType.BENCH], referenceStruct: StructType.NODE_REFERENCE },
   [FieldProperty.packagePtr]: { id: 9, name: 'package_ptr', component: ObjectType.FIELD, kind: 'reference', isInternal: true, isComputed: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_ANCESTOR_OR_SELF, referenceNodes: [NodeType.PACKAGE], referenceStruct: StructType.NODE_REFERENCE },
   [FieldProperty.createdAt]: { id: 10, name: 'created_at', component: ObjectType.FIELD, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isRequired: true, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
@@ -39737,7 +40129,7 @@ export const MessageDataInfo: Record<MessageProperty, PropertyInfo> = {
   [MessageProperty.title]: { id: 32, name: 'title', component: ObjectType.MESSAGE, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.TEXT_LINE },
   [MessageProperty.channelPtr]: { id: 34, name: 'channel_ptr', component: ObjectType.MESSAGE, kind: 'reference', isInternal: true, isComputed: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_ANCESTOR, referenceNodes: [NodeType.CHANNEL], referenceStruct: StructType.NODE_REFERENCE },
   [MessageProperty.threadPtr]: { id: 35, name: 'thread_ptr', component: ObjectType.MESSAGE, kind: 'reference', isInternal: true, isComputed: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_ANCESTOR, referenceNodes: [NodeType.THREAD], referenceStruct: StructType.NODE_REFERENCE },
-  [MessageProperty.scopePtr]: { id: 36, name: 'scope_ptr', component: ObjectType.MESSAGE, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.DATABASE, NodeType.COMPUTER, NodeType.SCALER, NodeType.FILE, NodeType.LINK, NodeType.FRAME_VIEW, NodeType.LABEL_VIEW, NodeType.COMPONENT_VIEW, NodeType.SPLIT_VIEW, NodeType.TEXT_VIEW, NodeType.NUMBER_INPUT_VIEW, NodeType.SLIDER_INPUT_VIEW, NodeType.THREAD_VIEW, NodeType.WIZARD_VIEW, NodeType.COLOR_STYLE, NodeType.FONT_STYLE, NodeType.BORDER_STYLE, NodeType.SHADOW_STYLE, NodeType.GRADIENT_STYLE, NodeType.TRANSITION_STYLE, NodeType.EFFECT_STYLE, NodeType.CHOICE, NodeType.CLASS, NodeType.TABLE, NodeType.FLOW, NodeType.SERVICE, NodeType.PAGE, NodeType.ROLE, NodeType.TASK, NodeType.THREAD, NodeType.CHANNEL, NodeType.TEAM, NodeType.AGENT, NodeType.THEME, NodeType.ROUTE, NodeType.SCENE, NodeType.PACKAGE], referenceStruct: StructType.NODE_REFERENCE },
+  [MessageProperty.scopePtr]: { id: 36, name: 'scope_ptr', component: ObjectType.MESSAGE, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.DATABASE, NodeType.COMPUTER, NodeType.SCALER, NodeType.FILE, NodeType.LINK, NodeType.FRAME_VIEW, NodeType.LABEL_VIEW, NodeType.COMPONENT_VIEW, NodeType.SPLIT_VIEW, NodeType.TEXT_VIEW, NodeType.NUMBER_INPUT_VIEW, NodeType.SLIDER_INPUT_VIEW, NodeType.THREAD_VIEW, NodeType.WIZARD_VIEW, NodeType.COLOR_STYLE, NodeType.FONT_STYLE, NodeType.BORDER_STYLE, NodeType.SHADOW_STYLE, NodeType.GRADIENT_STYLE, NodeType.TRANSITION_STYLE, NodeType.EFFECT_STYLE, NodeType.APPLICATION, NodeType.CHOICE, NodeType.CLASS, NodeType.TABLE, NodeType.FLOW, NodeType.SERVICE, NodeType.PAGE, NodeType.ROLE, NodeType.TASK, NodeType.THREAD, NodeType.CHANNEL, NodeType.TEAM, NodeType.AGENT, NodeType.THEME, NodeType.ROUTE, NodeType.SCENE, NodeType.PACKAGE], referenceStruct: StructType.NODE_REFERENCE },
   [MessageProperty.editedAt]: { id: 40, name: 'edited_at', component: ObjectType.MESSAGE, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isRuntime: true, isWired: true, isStored: true },
   [MessageProperty.replyToPtr]: { id: 50, name: 'reply_to_ptr', component: ObjectType.MESSAGE, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.MESSAGE], referenceStruct: StructType.NODE_REFERENCE },
   [MessageProperty.forwardedFromPtr]: { id: 51, name: 'forwarded_from_ptr', component: ObjectType.MESSAGE, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.MESSAGE], referenceStruct: StructType.NODE_REFERENCE },
@@ -39901,7 +40293,7 @@ export const ServiceDataInfo: Record<ServiceProperty, PropertyInfo> = {
   [ServiceProperty.orderKey]: { id: 33, name: 'order_key', component: ObjectType.SERVICE, kind: 'primitive', primitiveType: PrimitiveType.STRING, default: "a0", isInternal: true, isRuntime: true, isWired: true, isStored: true },
   [ServiceProperty.icon]: { id: 34, name: 'icon', component: ObjectType.SERVICE, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.ICON },
   [ServiceProperty.definitionPtr]: { id: 35, name: 'definition_ptr', component: ObjectType.SERVICE, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.BLOCK], referenceStruct: StructType.NODE_REFERENCE },
-  [ServiceProperty.targetPtr]: { id: 40, name: 'target_ptr', component: ObjectType.SERVICE, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.DATABASE, NodeType.COMPUTER, NodeType.SCALER, NodeType.FILE, NodeType.LINK, NodeType.FRAME_VIEW, NodeType.LABEL_VIEW, NodeType.COMPONENT_VIEW, NodeType.SPLIT_VIEW, NodeType.TEXT_VIEW, NodeType.NUMBER_INPUT_VIEW, NodeType.SLIDER_INPUT_VIEW, NodeType.THREAD_VIEW, NodeType.WIZARD_VIEW, NodeType.COLOR_STYLE, NodeType.FONT_STYLE, NodeType.BORDER_STYLE, NodeType.SHADOW_STYLE, NodeType.GRADIENT_STYLE, NodeType.TRANSITION_STYLE, NodeType.EFFECT_STYLE, NodeType.CHOICE, NodeType.CLASS, NodeType.TABLE, NodeType.FLOW, NodeType.SERVICE, NodeType.PAGE, NodeType.ROLE, NodeType.TASK, NodeType.THREAD, NodeType.CHANNEL, NodeType.TEAM, NodeType.AGENT, NodeType.THEME, NodeType.ROUTE, NodeType.SCENE], referenceStruct: StructType.NODE_REFERENCE },
+  [ServiceProperty.targetPtr]: { id: 40, name: 'target_ptr', component: ObjectType.SERVICE, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.DATABASE, NodeType.COMPUTER, NodeType.SCALER, NodeType.FILE, NodeType.LINK, NodeType.FRAME_VIEW, NodeType.LABEL_VIEW, NodeType.COMPONENT_VIEW, NodeType.SPLIT_VIEW, NodeType.TEXT_VIEW, NodeType.NUMBER_INPUT_VIEW, NodeType.SLIDER_INPUT_VIEW, NodeType.THREAD_VIEW, NodeType.WIZARD_VIEW, NodeType.COLOR_STYLE, NodeType.FONT_STYLE, NodeType.BORDER_STYLE, NodeType.SHADOW_STYLE, NodeType.GRADIENT_STYLE, NodeType.TRANSITION_STYLE, NodeType.EFFECT_STYLE, NodeType.APPLICATION, NodeType.CHOICE, NodeType.CLASS, NodeType.TABLE, NodeType.FLOW, NodeType.SERVICE, NodeType.PAGE, NodeType.ROLE, NodeType.TASK, NodeType.THREAD, NodeType.CHANNEL, NodeType.TEAM, NodeType.AGENT, NodeType.THEME, NodeType.ROUTE, NodeType.SCENE], referenceStruct: StructType.NODE_REFERENCE },
 }
 export const ActionDataInfo: Record<ActionProperty, PropertyInfo> = {
   [ActionProperty.metatype]: { id: 1, name: 'metatype', component: ObjectType.ACTION, enumType: EnumType.OBJECT_TYPE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isInternal: true, isComputed: true, isWired: true },
@@ -40288,9 +40680,11 @@ export const SceneDataInfo: Record<SceneProperty, PropertyInfo> = {
   [SceneProperty.templatePtr]: { id: 16, name: 'template_ptr', component: ObjectType.SCENE, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_TEMPLATE, referenceNodes: [NodeType.SCENE], referenceStruct: StructType.NODE_REFERENCE },
   [SceneProperty.ownedByPtr]: { id: 17, name: 'owned_by_ptr', component: ObjectType.SCENE, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.USER, NodeType.ORGANIZATION, NodeType.COMPUTER, NodeType.AGENT], referenceStruct: StructType.NODE_REFERENCE },
   [SceneProperty.mode]: { id: 25, name: 'mode', component: ObjectType.SCENE, enumType: EnumType.NODE_MODE, kind: 'enum', primitiveType: PrimitiveType.INT16, default: 20, isRequired: true, isInternal: true, isRuntime: true, isWired: true, isStored: true },
+  [SceneProperty.name]: { id: 31, name: 'name', component: ObjectType.SCENE, kind: 'primitive', primitiveType: PrimitiveType.STRING, constraint: { minLength: 0, maxLength: 128, nodeTypes: [] }, isRuntime: true, isWired: true, isStored: true },
   [SceneProperty.orderKey]: { id: 33, name: 'order_key', component: ObjectType.SCENE, kind: 'primitive', primitiveType: PrimitiveType.STRING, default: "a0", isInternal: true, isRuntime: true, isWired: true, isStored: true },
   [SceneProperty.icon]: { id: 34, name: 'icon', component: ObjectType.SCENE, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.ICON },
   [SceneProperty.definitionPtr]: { id: 35, name: 'definition_ptr', component: ObjectType.SCENE, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.BLOCK], referenceStruct: StructType.NODE_REFERENCE },
+  [SceneProperty.rootViewPtr]: { id: 40, name: 'root_view_ptr', component: ObjectType.SCENE, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.FRAME_VIEW, NodeType.LABEL_VIEW, NodeType.COMPONENT_VIEW, NodeType.SPLIT_VIEW, NodeType.TEXT_VIEW, NodeType.NUMBER_INPUT_VIEW, NodeType.SLIDER_INPUT_VIEW, NodeType.THREAD_VIEW, NodeType.WIZARD_VIEW], referenceStruct: StructType.NODE_REFERENCE },
 }
 export const RouteDataInfo: Record<RouteProperty, PropertyInfo> = {
   [RouteProperty.metatype]: { id: 1, name: 'metatype', component: ObjectType.ROUTE, enumType: EnumType.OBJECT_TYPE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isInternal: true, isComputed: true, isWired: true },
@@ -40308,9 +40702,11 @@ export const RouteDataInfo: Record<RouteProperty, PropertyInfo> = {
   [RouteProperty.templatePtr]: { id: 16, name: 'template_ptr', component: ObjectType.ROUTE, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_TEMPLATE, referenceNodes: [NodeType.ROUTE], referenceStruct: StructType.NODE_REFERENCE },
   [RouteProperty.ownedByPtr]: { id: 17, name: 'owned_by_ptr', component: ObjectType.ROUTE, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.USER, NodeType.ORGANIZATION, NodeType.COMPUTER, NodeType.AGENT], referenceStruct: StructType.NODE_REFERENCE },
   [RouteProperty.mode]: { id: 25, name: 'mode', component: ObjectType.ROUTE, enumType: EnumType.NODE_MODE, kind: 'enum', primitiveType: PrimitiveType.INT16, default: 20, isRequired: true, isInternal: true, isRuntime: true, isWired: true, isStored: true },
+  [RouteProperty.name]: { id: 31, name: 'name', component: ObjectType.ROUTE, kind: 'primitive', primitiveType: PrimitiveType.STRING, constraint: { minLength: 0, maxLength: 128, nodeTypes: [] }, isRuntime: true, isWired: true, isStored: true },
   [RouteProperty.orderKey]: { id: 33, name: 'order_key', component: ObjectType.ROUTE, kind: 'primitive', primitiveType: PrimitiveType.STRING, default: "a0", isInternal: true, isRuntime: true, isWired: true, isStored: true },
   [RouteProperty.icon]: { id: 34, name: 'icon', component: ObjectType.ROUTE, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.ICON },
   [RouteProperty.definitionPtr]: { id: 35, name: 'definition_ptr', component: ObjectType.ROUTE, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.BLOCK], referenceStruct: StructType.NODE_REFERENCE },
+  [RouteProperty.scenePtr]: { id: 40, name: 'scene_ptr', component: ObjectType.ROUTE, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.SCENE], referenceStruct: StructType.NODE_REFERENCE },
 }
 export const FrameViewDataInfo: Record<FrameViewProperty, PropertyInfo> = {
   [FrameViewProperty.metatype]: { id: 1, name: 'metatype', component: ObjectType.FRAME_VIEW, enumType: EnumType.OBJECT_TYPE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isInternal: true, isComputed: true, isWired: true },
@@ -40855,7 +41251,7 @@ export const EffectStyleDataInfo: Record<EffectStyleProperty, PropertyInfo> = {
 export const EmptyDataInfo: Record<EmptyProperty, PropertyInfo> = {
   [EmptyProperty.metatype]: { id: 1, name: 'metatype', component: ObjectType.EMPTY, enumType: EnumType.OBJECT_TYPE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isInternal: true, isComputed: true, isWired: true },
   [EmptyProperty.id]: { id: 2, name: 'id', component: ObjectType.EMPTY, kind: 'primitive', primitiveType: PrimitiveType.UUID, isRequired: true, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
-  [EmptyProperty.parentPtr]: { id: 4, name: 'parent_ptr', component: ObjectType.EMPTY, kind: 'reference', isInternal: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_PARENT, referenceNodes: [NodeType.BENCH, NodeType.HANDLE, NodeType.USER, NodeType.ORGANIZATION, NodeType.CLIENT, NodeType.PACKAGE, NodeType.DEPENDENCY, NodeType.PAGE, NodeType.BLOCK, NodeType.DATABASE, NodeType.COMPUTER, NodeType.SCALER, NodeType.CHOICE, NodeType.CLASS, NodeType.FIELD, NodeType.OPTION, NodeType.TABLE, NodeType.RECORD, NodeType.FILE, NodeType.LINK, NodeType.CHANNEL, NodeType.THREAD, NodeType.MESSAGE, NodeType.NOTIFICATION, NodeType.TASK, NodeType.CLAIM, NodeType.CURSOR, NodeType.SERVICE, NodeType.ACTION, NodeType.FLOW, NodeType.FLOW_EDGE, NodeType.AGENT, NodeType.SESSION, NodeType.RUN, NodeType.SPAN, NodeType.INTERRUPTION, NodeType.MEMBERSHIP, NodeType.INVITE, NodeType.TEAM, NodeType.ROLE, NodeType.SPACE, NodeType.SCENE, NodeType.ROUTE, NodeType.FRAME_VIEW, NodeType.LABEL_VIEW, NodeType.COMPONENT_VIEW, NodeType.SPLIT_VIEW, NodeType.TEXT_VIEW, NodeType.NUMBER_INPUT_VIEW, NodeType.SLIDER_INPUT_VIEW, NodeType.THREAD_VIEW, NodeType.WIZARD_VIEW, NodeType.THEME, NodeType.COLOR_STYLE, NodeType.FONT_STYLE, NodeType.BORDER_STYLE, NodeType.SHADOW_STYLE, NodeType.GRADIENT_STYLE, NodeType.TRANSITION_STYLE, NodeType.EFFECT_STYLE, NodeType.EMPTY], referenceStruct: StructType.NODE_REFERENCE },
+  [EmptyProperty.parentPtr]: { id: 4, name: 'parent_ptr', component: ObjectType.EMPTY, kind: 'reference', isInternal: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_PARENT, referenceNodes: [NodeType.BENCH, NodeType.HANDLE, NodeType.USER, NodeType.ORGANIZATION, NodeType.CLIENT, NodeType.PACKAGE, NodeType.DEPENDENCY, NodeType.PAGE, NodeType.BLOCK, NodeType.APPLICATION, NodeType.DATABASE, NodeType.COMPUTER, NodeType.SCALER, NodeType.CHOICE, NodeType.CLASS, NodeType.FIELD, NodeType.OPTION, NodeType.TABLE, NodeType.RECORD, NodeType.FILE, NodeType.LINK, NodeType.CHANNEL, NodeType.THREAD, NodeType.MESSAGE, NodeType.NOTIFICATION, NodeType.TASK, NodeType.CLAIM, NodeType.CURSOR, NodeType.SERVICE, NodeType.ACTION, NodeType.FLOW, NodeType.FLOW_EDGE, NodeType.AGENT, NodeType.SESSION, NodeType.RUN, NodeType.SPAN, NodeType.INTERRUPTION, NodeType.MEMBERSHIP, NodeType.INVITE, NodeType.TEAM, NodeType.ROLE, NodeType.SPACE, NodeType.SCENE, NodeType.ROUTE, NodeType.FRAME_VIEW, NodeType.LABEL_VIEW, NodeType.COMPONENT_VIEW, NodeType.SPLIT_VIEW, NodeType.TEXT_VIEW, NodeType.NUMBER_INPUT_VIEW, NodeType.SLIDER_INPUT_VIEW, NodeType.THREAD_VIEW, NodeType.WIZARD_VIEW, NodeType.THEME, NodeType.COLOR_STYLE, NodeType.FONT_STYLE, NodeType.BORDER_STYLE, NodeType.SHADOW_STYLE, NodeType.GRADIENT_STYLE, NodeType.TRANSITION_STYLE, NodeType.EFFECT_STYLE, NodeType.EMPTY], referenceStruct: StructType.NODE_REFERENCE },
   [EmptyProperty.createdAt]: { id: 10, name: 'created_at', component: ObjectType.EMPTY, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isRequired: true, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
   [EmptyProperty.createdByPtr]: { id: 11, name: 'created_by_ptr', component: ObjectType.EMPTY, kind: 'reference', isAutoset: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.USER, NodeType.ORGANIZATION, NodeType.COMPUTER, NodeType.AGENT], referenceStruct: StructType.NODE_REFERENCE },
   [EmptyProperty.updatedAt]: { id: 12, name: 'updated_at', component: ObjectType.EMPTY, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isRequired: true, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
@@ -41356,6 +41752,7 @@ export const PROPERTY_INFOS_BY_TYPE: Record<ObjectType, Record<any, PropertyInfo
   [ObjectType.DEPENDENCY]: DependencyDataInfo,
   [ObjectType.PAGE]: PageDataInfo,
   [ObjectType.BLOCK]: BlockDataInfo,
+  [ObjectType.APPLICATION]: ApplicationDataInfo,
   [ObjectType.DATABASE]: DatabaseDataInfo,
   [ObjectType.COMPUTER]: ComputerDataInfo,
   [ObjectType.SCALER]: ScalerDataInfo,
@@ -41483,6 +41880,7 @@ export const NodeTypeOptionInfo: Partial<Record<NodeType, EnumOptionInfo>> = {
   [NodeType.DEPENDENCY]: { id: 1010, name: 'DEPENDENCY', text: 'Dependency to something', title: 'Dependency', icon: 'fas fa-turn-down-right' },
   [NodeType.PAGE]: { id: 1020, name: 'PAGE', text: 'Page of Blocks', title: 'Page', icon: 'far fa-file' },
   [NodeType.BLOCK]: { id: 1030, name: 'BLOCK', text: 'Rich Block on a Page', title: 'Block', icon: 'fas fa-cube' },
+  [NodeType.APPLICATION]: { id: 1040, name: 'APPLICATION', text: 'Interactive Application', title: 'Application', icon: 'fas fa-app' },
   [NodeType.DATABASE]: { id: 1200, name: 'DATABASE', text: 'Store custom data', title: 'Store', icon: 'fas fa-database' },
   [NodeType.COMPUTER]: { id: 1210, name: 'COMPUTER', text: 'Machine for computing', title: 'Computer', icon: 'fas fa-computer-classic' },
   [NodeType.SCALER]: { id: 1250, name: 'SCALER', text: 'Autoscale Resources', title: 'Scaler', icon: 'fas fa-scale-unbalanced' },
@@ -41515,8 +41913,8 @@ export const NodeTypeOptionInfo: Partial<Record<NodeType, EnumOptionInfo>> = {
   [NodeType.TEAM]: { id: 2820, name: 'TEAM', text: 'Group of Users or Agents', title: 'Team', icon: 'fas fa-users' },
   [NodeType.ROLE]: { id: 2830, name: 'ROLE', text: 'Role', title: 'Role', icon: 'fas fa-user-tag' },
   [NodeType.SPACE]: { id: 8000, name: 'SPACE', text: 'Space', title: 'Space', icon: 'fas fa-galaxy' },
-  [NodeType.SCENE]: { id: 8010, name: 'SCENE', text: 'Scene', title: 'Scene', icon: 'fas fa-masks-theater' },
-  [NodeType.ROUTE]: { id: 8020, name: 'ROUTE', text: 'Route', title: 'Route', icon: 'fas fa-route' },
+  [NodeType.SCENE]: { id: 8010, name: 'SCENE', text: 'Scene of an Application', title: 'Scene', icon: 'fas fa-masks-theater' },
+  [NodeType.ROUTE]: { id: 8020, name: 'ROUTE', text: 'Route to a Scene', title: 'Route', icon: 'fas fa-route' },
   [NodeType.FRAME_VIEW]: { id: 8100, name: 'FRAME_VIEW', text: 'Fixed Container', title: 'Frame View', icon: 'fas fa-frame' },
   [NodeType.LABEL_VIEW]: { id: 8101, name: 'LABEL_VIEW', text: 'Label Container', title: 'Label View', icon: 'fas fa-font-case' },
   [NodeType.COMPONENT_VIEW]: { id: 8110, name: 'COMPONENT_VIEW', text: 'Component Container', title: 'Component View', icon: 'fas fa-cube' },

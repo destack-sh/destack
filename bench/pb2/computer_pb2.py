@@ -1,7 +1,9 @@
+
 # type: ignore
 # ruff: noqa
 
 from typing import TYPE_CHECKING, Union, AsyncIterator, Mapping
+
 
 
 # -*- coding: utf-8 -*-
@@ -18,35 +20,35 @@ from google.protobuf.internal import builder as _builder
 _sym_db = _symbol_database.Default()
 
 
-DESCRIPTOR = _descriptor_pool.Default().AddSerializedFile(
-    b'\n\x0e\x63omputer.proto\x12\x0fsymbol.computer"\x07\n\x05\x45mpty"\x13\n\x11ScreenshotRequest"#\n\x12ScreenshotResponse\x12\r\n\x05image\x18\x01 \x01(\x0c"4\n\x0c\x43lickRequest\x12\t\n\x01x\x18\x01 \x01(\x05\x12\t\n\x01y\x18\x02 \x01(\x05\x12\x0e\n\x06\x62utton\x18\x03 \x01(\t"\x1c\n\x0cPressRequest\x12\x0c\n\x04keys\x18\x01 \x03(\t"\x1b\n\x0bTypeRequest\x12\x0c\n\x04text\x18\x01 \x01(\t"#\n\x0bMoveRequest\x12\t\n\x01x\x18\x01 \x01(\x05\x12\t\n\x01y\x18\x02 \x01(\x05"I\n\rScrollRequest\x12\t\n\x01x\x18\x01 \x01(\x05\x12\t\n\x01y\x18\x02 \x01(\x05\x12\x10\n\x08scroll_x\x18\x03 \x01(\x05\x12\x10\n\x08scroll_y\x18\x04 \x01(\x05"&\n\x13ShellCommandRequest\x12\x0f\n\x07\x63ommand\x18\x01 \x01(\t"I\n\x14ShellCommandResponse\x12\x11\n\texit_code\x18\x01 \x01(\x05\x12\x0e\n\x06stdout\x18\x02 \x01(\t\x12\x0e\n\x06stderr\x18\x03 \x01(\t2\xbb\x04\n\x08\x43omputer\x12U\n\nScreenshot\x12".symbol.computer.ScreenshotRequest\x1a#.symbol.computer.ScreenshotResponse\x12>\n\x05\x43lick\x12\x1d.symbol.computer.ClickRequest\x1a\x16.symbol.computer.Empty\x12\x44\n\x0b\x44oubleClick\x12\x1d.symbol.computer.ClickRequest\x1a\x16.symbol.computer.Empty\x12>\n\x05Press\x12\x1d.symbol.computer.PressRequest\x1a\x16.symbol.computer.Empty\x12<\n\x04Type\x12\x1c.symbol.computer.TypeRequest\x1a\x16.symbol.computer.Empty\x12<\n\x04Move\x12\x1c.symbol.computer.MoveRequest\x1a\x16.symbol.computer.Empty\x12@\n\x06Scroll\x12\x1e.symbol.computer.ScrollRequest\x1a\x16.symbol.computer.Empty\x12T\n\x05Shell\x12$.symbol.computer.ShellCommandRequest\x1a%.symbol.computer.ShellCommandResponseb\x06proto3'
-)
+
+
+DESCRIPTOR = _descriptor_pool.Default().AddSerializedFile(b'\n\x0e\x63omputer.proto\x12\x0fsymbol.computer\"\x07\n\x05\x45mpty\"\x13\n\x11ScreenshotRequest\"#\n\x12ScreenshotResponse\x12\r\n\x05image\x18\x01 \x01(\x0c\"4\n\x0c\x43lickRequest\x12\t\n\x01x\x18\x01 \x01(\x05\x12\t\n\x01y\x18\x02 \x01(\x05\x12\x0e\n\x06\x62utton\x18\x03 \x01(\t\"\x1c\n\x0cPressRequest\x12\x0c\n\x04keys\x18\x01 \x03(\t\"\x1b\n\x0bTypeRequest\x12\x0c\n\x04text\x18\x01 \x01(\t\"#\n\x0bMoveRequest\x12\t\n\x01x\x18\x01 \x01(\x05\x12\t\n\x01y\x18\x02 \x01(\x05\"I\n\rScrollRequest\x12\t\n\x01x\x18\x01 \x01(\x05\x12\t\n\x01y\x18\x02 \x01(\x05\x12\x10\n\x08scroll_x\x18\x03 \x01(\x05\x12\x10\n\x08scroll_y\x18\x04 \x01(\x05\"&\n\x13ShellCommandRequest\x12\x0f\n\x07\x63ommand\x18\x01 \x01(\t\"I\n\x14ShellCommandResponse\x12\x11\n\texit_code\x18\x01 \x01(\x05\x12\x0e\n\x06stdout\x18\x02 \x01(\t\x12\x0e\n\x06stderr\x18\x03 \x01(\t2\xbb\x04\n\x08\x43omputer\x12U\n\nScreenshot\x12\".symbol.computer.ScreenshotRequest\x1a#.symbol.computer.ScreenshotResponse\x12>\n\x05\x43lick\x12\x1d.symbol.computer.ClickRequest\x1a\x16.symbol.computer.Empty\x12\x44\n\x0b\x44oubleClick\x12\x1d.symbol.computer.ClickRequest\x1a\x16.symbol.computer.Empty\x12>\n\x05Press\x12\x1d.symbol.computer.PressRequest\x1a\x16.symbol.computer.Empty\x12<\n\x04Type\x12\x1c.symbol.computer.TypeRequest\x1a\x16.symbol.computer.Empty\x12<\n\x04Move\x12\x1c.symbol.computer.MoveRequest\x1a\x16.symbol.computer.Empty\x12@\n\x06Scroll\x12\x1e.symbol.computer.ScrollRequest\x1a\x16.symbol.computer.Empty\x12T\n\x05Shell\x12$.symbol.computer.ShellCommandRequest\x1a%.symbol.computer.ShellCommandResponseb\x06proto3')
 
 _globals = globals()
 _builder.BuildMessageAndEnumDescriptors(DESCRIPTOR, _globals)
-_builder.BuildTopDescriptorsAndMessages(DESCRIPTOR, "computer_pb2", _globals)
+_builder.BuildTopDescriptorsAndMessages(DESCRIPTOR, 'computer_pb2', _globals)
 if not _descriptor._USE_C_DESCRIPTORS:
-    DESCRIPTOR._loaded_options = None
-    _globals["_EMPTY"]._serialized_start = 35
-    _globals["_EMPTY"]._serialized_end = 42
-    _globals["_SCREENSHOTREQUEST"]._serialized_start = 44
-    _globals["_SCREENSHOTREQUEST"]._serialized_end = 63
-    _globals["_SCREENSHOTRESPONSE"]._serialized_start = 65
-    _globals["_SCREENSHOTRESPONSE"]._serialized_end = 100
-    _globals["_CLICKREQUEST"]._serialized_start = 102
-    _globals["_CLICKREQUEST"]._serialized_end = 154
-    _globals["_PRESSREQUEST"]._serialized_start = 156
-    _globals["_PRESSREQUEST"]._serialized_end = 184
-    _globals["_TYPEREQUEST"]._serialized_start = 186
-    _globals["_TYPEREQUEST"]._serialized_end = 213
-    _globals["_MOVEREQUEST"]._serialized_start = 215
-    _globals["_MOVEREQUEST"]._serialized_end = 250
-    _globals["_SCROLLREQUEST"]._serialized_start = 252
-    _globals["_SCROLLREQUEST"]._serialized_end = 325
-    _globals["_SHELLCOMMANDREQUEST"]._serialized_start = 327
-    _globals["_SHELLCOMMANDREQUEST"]._serialized_end = 365
-    _globals["_SHELLCOMMANDRESPONSE"]._serialized_start = 367
-    _globals["_SHELLCOMMANDRESPONSE"]._serialized_end = 440
-    _globals["_COMPUTER"]._serialized_start = 443
-    _globals["_COMPUTER"]._serialized_end = 1014
+  DESCRIPTOR._loaded_options = None
+  _globals['_EMPTY']._serialized_start=35
+  _globals['_EMPTY']._serialized_end=42
+  _globals['_SCREENSHOTREQUEST']._serialized_start=44
+  _globals['_SCREENSHOTREQUEST']._serialized_end=63
+  _globals['_SCREENSHOTRESPONSE']._serialized_start=65
+  _globals['_SCREENSHOTRESPONSE']._serialized_end=100
+  _globals['_CLICKREQUEST']._serialized_start=102
+  _globals['_CLICKREQUEST']._serialized_end=154
+  _globals['_PRESSREQUEST']._serialized_start=156
+  _globals['_PRESSREQUEST']._serialized_end=184
+  _globals['_TYPEREQUEST']._serialized_start=186
+  _globals['_TYPEREQUEST']._serialized_end=213
+  _globals['_MOVEREQUEST']._serialized_start=215
+  _globals['_MOVEREQUEST']._serialized_end=250
+  _globals['_SCROLLREQUEST']._serialized_start=252
+  _globals['_SCROLLREQUEST']._serialized_end=325
+  _globals['_SHELLCOMMANDREQUEST']._serialized_start=327
+  _globals['_SHELLCOMMANDREQUEST']._serialized_end=365
+  _globals['_SHELLCOMMANDRESPONSE']._serialized_start=367
+  _globals['_SHELLCOMMANDRESPONSE']._serialized_end=440
+  _globals['_COMPUTER']._serialized_start=443
+  _globals['_COMPUTER']._serialized_end=1014
 # @@protoc_insertion_point(module_scope)

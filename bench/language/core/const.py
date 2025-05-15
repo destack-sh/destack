@@ -48,7 +48,7 @@ class _Unset:
 
 
 # forever constants
-VERSION = "2025.05.15.2"
+VERSION = "2025.05.15.4"
 UUID_NAMESPACE = uuid5(UUID(int=0), b"bench")
 CK_LENGTH_B64 = 24  # 1.5 * CK_LENGTH_BYTES (must be integer)
 FLOAT_EPSILON = 1e-6
@@ -363,7 +363,7 @@ class EnumType(BuiltinEnum):
     SORT_MODE = 21650
     SORT_TYPE = 21651
     SELECTION_TYPE = 21652
-    # STREAM, SECRET, INDEX, CONSTRAINT, ...
+    # ...
 
     # chat [21800-22000]
     CHANNEL_STATUS = 21800
@@ -371,20 +371,20 @@ class EnumType(BuiltinEnum):
     MESSAGE_TYPE = 21802
     NOTIFICATION_TYPE = 21810
     NOTIFICATION_STATUS = 21811
-    # POLL, VOTE, REACTION, ...
+    # ...
 
     # plan [22000-22200]
     CLAIM_TYPE = 22000
     CLAIM_STATUS = 22001
     CURSOR_TYPE = 22010
     CURSOR_STATUS = 22011
-    # JOB, PLAN, ENTITLEMENT, POOL, LOCK, BARRIER, ...
+    # ...
 
     # logic [22200-22400]
     ACTION_TYPE = 22220
     FLOW_EDGE_TYPE = 22222
     FLOW_TYPE = 22223
-    # TRIGGER, TIMER, BREAKPOINT, ...
+    #  ...
 
     # qa [22400-22600]
     # ...
@@ -503,14 +503,13 @@ class NodeType(BuiltinEnum):
     CLIENT = 50, "Client", "Client to a Bench", "fas fa-desktop"
     # PROFILE, CREDENTIAL, FRIENDSHIP, ...
 
-    # ...materialized global stuff?
-
     # package [1000-1200]
     PACKAGE = 1000, "Package", "Isolated sub-Bench", "fas fa-box-open"
     DEPENDENCY = 1010, "Dependency", "Dependency to something", "fas fa-turn-down-right"
     PAGE = 1020, "Page", "Page of Blocks", "far fa-file"
     BLOCK = 1030, "Block", "Rich Block on a Page", "fas fa-cube"
-    # APP, PLUGIN, ...
+    APPLICATION = 1040, "Application", "Interactive Application", "fas fa-app"
+    # PLUGIN, ...
 
     # infra [1200-1400]
     DATABASE = 1200, "Store", "Store custom data", "fas fa-database"
@@ -601,14 +600,14 @@ class NodeType(BuiltinEnum):
 
     # space [8000-8100]
     SPACE = 8000, "Space", "Space", "fas fa-galaxy"
-    SCENE = 8010, "Scene", "Scene", "fas fa-masks-theater"
-    ROUTE = 8020, "Route", "Route", "fas fa-route"
+    SCENE = 8010, "Scene", "Scene of an Application", "fas fa-masks-theater"
+    ROUTE = 8020, "Route", "Route to a Scene", "fas fa-route"
     # SCENE, OVERLAY, WIDGET, ROUTE, ...
 
     # container views [8100-8200]
     FRAME_VIEW = 8100, "Frame View", "Fixed Container", "fas fa-frame"
     LABEL_VIEW = 8101, "Label View", "Label Container", "fas fa-font-case"
-    # STACK_VIEW?, SCROLL_VIEW?, CARD_VIEW?, FORM_VIEW, MENU_VIEW, ...
+    # FORM_VIEW, MENU_VIEW, EMAIL_VIEW, ...
     COMPONENT_VIEW = 8110, "Component View", "Component Container", "fas fa-cube"
     SPLIT_VIEW = 8120, "Split View", "Split Container", "fas fa-columns"
     # TAB_VIEW = 8120, "Tab Container View", "Tab Container", "fas fa-tabs"
@@ -724,7 +723,7 @@ class StructType(BuiltinEnum):
     AGGREGATION_RESULT = 12201
     SELECTION = 12210
     SELECT_OPTIONS = 12220
-    # TRIGGER, TIMER, BREAKPOINT, ...
+    # ...
 
     # qa [12400-12600]
     # ...
@@ -895,6 +894,7 @@ PAGE_NODE_TYPES = bittuple(
     *RESOURCE_NODE_TYPES,
     *VIEW_NODE_TYPES,
     *STYLE_NODE_TYPES,
+    NodeType.APPLICATION,
     NodeType.CHOICE,
     NodeType.CLASS,
     NodeType.TABLE,
@@ -914,6 +914,7 @@ PAGE_NODE_TYPES = bittuple(
 INSTANTIABLE_NODE_TYPES = bittuple(
     *RESOURCE_NODE_TYPES,
     *VIEW_NODE_TYPES,
+    NodeType.APPLICATION,
     NodeType.ACTION,
     NodeType.FIELD,
     NodeType.OPTION,

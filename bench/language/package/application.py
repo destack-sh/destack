@@ -4,13 +4,12 @@ from bench.language.core import (
     IsInstantiable,
     IsModal,
     IsNamed,
-    IsOwnable,
     NodeType,
     PageNode,
     node_,
     p_regular,
 )
-from bench.pb2 import RouteData
+from bench.pb2 import ApplicationData
 
 if TYPE_CHECKING:
     from bench.language import Scene
@@ -18,14 +17,14 @@ if TYPE_CHECKING:
 # pyright: reportIncompatibleVariableOverride=false
 
 
-@node_(NodeType.ROUTE)
-class Route(IsOwnable, IsInstantiable, IsNamed, IsModal, PageNode[RouteData]):
-    """A Route is a path to a Scene."""
+@node_(NodeType.APPLICATION)
+class Application(IsInstantiable, IsNamed, IsModal, PageNode[ApplicationData]):
+    """An Application is an interactive set of Scenes for some purpose."""
 
-    scene: Optional["Scene"] = p_regular(
+    root_scene: Optional["Scene"] = p_regular(
         40,
-        require=False,
         array=False,
+        require=False,
         references=NodeType.SCENE,
-        description="The Scene to route to.",
+        description="The root scene of the Application.",
     )
