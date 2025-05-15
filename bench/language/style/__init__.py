@@ -16,6 +16,7 @@ from .color import (
 )
 from .fill import Fill, FillPosition, FillSize, FillType
 from .gradient import Gradient, GradientStop, GradientStyle, GradientType
+from .position import Position, PositionType
 from .shadow import Shadow, ShadowBase, ShadowStyle, ShadowType
 from .style import StyleBase
 from .text import FontType, FontWeight, TextDecoration, TextStyle, TextStyleBase, TextTransform
@@ -42,6 +43,8 @@ __all__ = [
     "GradientStop",
     "GradientStyle",
     "GradientType",
+    "Position",
+    "PositionType",
     "Shadow",
     "ShadowBase",
     "ShadowStyle",

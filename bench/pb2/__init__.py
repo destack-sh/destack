@@ -2,7 +2,7 @@
 
 from typing import TYPE_CHECKING, Union
 
-VERSION = "2025.05.14.2"
+VERSION = "2025.05.15.0"
 
 # import from all generated files
 from .runtime_pb2 import *
@@ -53,7 +53,7 @@ AnyNodeData = Union[
     ServiceData,
     ActionData,
     FlowData,
-    TransitionData,
+    FlowEdgeData,
     AgentData,
     SessionData,
     RunData,
@@ -68,8 +68,6 @@ AnyNodeData = Union[
     FrameViewData,
     LabelViewData,
     SplitViewData,
-    SplitElementViewData,
-    SplitHandleViewData,
     InputViewData,
     SliderViewData,
     ThreadViewData,
@@ -124,6 +122,7 @@ AnyStructData = Union[
     GradientData,
     FillData,
     LengthData,
+    PositionData,
 ]
 AnyObjectData = AnyNodeData | AnyStructData
 BenchNodeData = Union[
@@ -154,7 +153,7 @@ BenchNodeData = Union[
     ServiceData,
     ActionData,
     FlowData,
-    TransitionData,
+    FlowEdgeData,
     AgentData,
     SessionData,
     RunData,
@@ -169,8 +168,6 @@ BenchNodeData = Union[
     FrameViewData,
     LabelViewData,
     SplitViewData,
-    SplitElementViewData,
-    SplitHandleViewData,
     InputViewData,
     SliderViewData,
     ThreadViewData,
@@ -204,8 +201,6 @@ PageNodeData = Union[
     FrameViewData,
     LabelViewData,
     SplitViewData,
-    SplitElementViewData,
-    SplitHandleViewData,
     InputViewData,
     SliderViewData,
     ThreadViewData,
@@ -259,8 +254,6 @@ ViewNodeData = Union[
     FrameViewData,
     LabelViewData,
     SplitViewData,
-    SplitElementViewData,
-    SplitHandleViewData,
     InputViewData,
     SliderViewData,
     ThreadViewData,

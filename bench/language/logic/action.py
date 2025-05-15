@@ -37,12 +37,12 @@ if TYPE_CHECKING:
         Code,
         Field,
         Flow,
+        FlowEdge,
+        FlowEdgeType,
         Icon,
         NodeReference,
         Service,
         Text,
-        Transition,
-        TransitionType,
     )
 
 # pyright: reportIncompatibleVariableOverride=false
@@ -118,7 +118,7 @@ class Action(
         tool_ck: Optional[UUID] = None
 
     actions: LocalNodeList["Action"] = p_node_children(NodeType.ACTION)
-    links: LocalNodeList["Transition"] = p_node_children(NodeType.TRANSITION)
+    links: LocalNodeList["FlowEdge"] = p_node_children(NodeType.FLOW_EDGE)
     fields: LocalNodeList["Field"] = p_node_children(NodeType.FIELD)
     claims: LocalNodeList["Claim"] = p_node_children(NodeType.CLAIM)
 
@@ -151,14 +151,14 @@ class Action(
 
     def connect(
         self,
-        type: "TransitionType",
+        type: "FlowEdgeType",
         target: "Action",
         name: str | None = None,
         *,
         parent: Union["Flow", "Service", None] = None,
-    ) -> "Transition":
+    ) -> "FlowEdge":
         """Connects a target Action to this Action."""
-        from bench.language import Flow, Transition
+        from bench.language import Flow, FlowEdge
 
         parent = parent or self.parent
         assert parent is not None, f"{self!r} is not attached to a parent"
@@ -173,7 +173,7 @@ class Action(
                 count += 1
                 name = f"{type.bench_name}{count}"
 
-        transition = Transition(
+        transition = FlowEdge(
             type=type,
             name=name,
             source=self,

@@ -23,14 +23,14 @@ from bench.language import (
     CustomObject,
     Error,
     Flow,
+    FlowEdge,
+    FlowEdgeType,
     Interruption,
     ProcessStatus,
     Run,
     Runnable,
     RunType,
     TextLine,
-    Transition,
-    TransitionType,
     TypeBase,
     coerce_custom_object_scalar,
 )
@@ -154,7 +154,7 @@ class FlowRunner[N: Flow = Flow](Runner[N], ABC):
 
     def _start(
         self,
-        node: Action | Transition,
+        node: Action | FlowEdge,
         *,
         inputs: CustomObject | None = None,
         title: TextLine | None = None,
@@ -211,7 +211,7 @@ class FlowRunner[N: Flow = Flow](Runner[N], ABC):
             if not self._is_stopping:
                 if isinstance(runner.node, Action):
                     self._tick_action(cast("ActionRunner", runner), runner.node, event)
-                elif isinstance(runner.node, Transition):
+                elif isinstance(runner.node, FlowEdge):
                     self._tick_link(cast(TransitionRunner, runner), runner.node, event)
         elif isinstance(event, RunnerFailedEvent):
             self._active_runners_by_id.pop(runner.id)
@@ -221,7 +221,7 @@ class FlowRunner[N: Flow = Flow](Runner[N], ABC):
                     tick = self._tick_action(cast("ActionRunner", runner), runner.node, event)
                     if not tick.is_handled:
                         self.fail(runner.error)  # fail on unhandled action error
-                elif isinstance(runner.node, Transition):
+                elif isinstance(runner.node, FlowEdge):
                     self.fail(runner.error)  # fail on any link fail?
 
     def _tick_action(
@@ -238,7 +238,7 @@ class FlowRunner[N: Flow = Flow](Runner[N], ABC):
         # start manual links
         if isinstance(event, RunnerCompletedEvent):
             for link in self.node.transitions:
-                if link.type == TransitionType.MANUAL and link.source_id == action.id:
+                if link.type == FlowEdgeType.MANUAL and link.source_id == action.id:
                     new_run = self._start(link)
                     new_runs.append(new_run)
 
@@ -246,7 +246,7 @@ class FlowRunner[N: Flow = Flow](Runner[N], ABC):
         return TickActionResult(new_runs=new_runs, is_handled=len(new_runs) > 0)
 
     def _tick_link(
-        self, runner: TransitionRunner, link: Transition, event: RunnerEvent
+        self, runner: TransitionRunner, link: FlowEdge, event: RunnerEvent
     ) -> TickLinkResult:
         """Ticks the Link to progress the Flow."""
         assert runner.tracked_run is not None, f"{runner!r} must be tracked"

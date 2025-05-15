@@ -477,8 +477,8 @@ def to_type_scalar(type_in: TypeIn) -> "Type":
         Choice,
         Class,
         Flow,
+        FlowEdge,
         Table,
-        Transition,
     )
 
     if isinstance(type_in, Block) and (node := type_in.node) is not None:
@@ -486,7 +486,7 @@ def to_type_scalar(type_in: TypeIn) -> "Type":
 
     if isinstance(type_in, TypeBase):
         return cast("Type", type_in)
-    elif isinstance(type_in, (Class, Choice, Flow, Action, Transition, Table, Agent)):
+    elif isinstance(type_in, (Class, Choice, Flow, Action, FlowEdge, Table, Agent)):
         type_scalar = type_in.to_type_maybe()
         if type_scalar is not None:
             assert isinstance(type_scalar, Type), f"expected Type, got {type_scalar!r}"

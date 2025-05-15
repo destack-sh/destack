@@ -4,7 +4,7 @@ from typing import TYPE_CHECKING, ClassVar, override
 import structlog
 from opentelemetry import trace
 
-from bench.language import Agent, CustomObject, RunType, Transition, TypeBase
+from bench.language import Agent, CustomObject, FlowEdge, RunType, TypeBase
 from bench.runtime.core import RunIn, Runner, Runtime
 
 if TYPE_CHECKING:
@@ -14,14 +14,14 @@ logger = structlog.get_logger(__name__)
 tracer = trace.get_tracer(__name__)
 
 
-class TransitionRunner(Runner[Transition], ABC):
+class TransitionRunner(Runner[FlowEdge], ABC):
     runner_type: ClassVar[RunType] = RunType.TRANSITION
 
     def __init__(
         self,
         *,
         runtime: Runtime,
-        node: Transition,
+        node: FlowEdge,
         run: RunIn,
         flow: "FlowRunner | None" = None,
         parent: Runner | None = None,

@@ -17,6 +17,7 @@ from bench.language import (
     CustomObject,
     Field,
     Flow,
+    FlowEdgeType,
     Message,
     Node,
     NodeReference,
@@ -28,7 +29,6 @@ from bench.language import (
     RenderOptions,
     Run,
     Session,
-    TransitionType,
     code,
     constraint,
     format_code,
@@ -221,7 +221,7 @@ def test_render_flow_simple(session: Session, package: Package):
     Action1 = Action.new(ActionType.START, "Action1")
     Action2 = Action.new(ActionType.END, "Action2")
     Flow1.actions.extend(Action1, Action2)
-    Transition1 = Action1.connect(TransitionType.REQUIRE, Action2, "Transition1")
+    Transition1 = Action1.connect(FlowEdgeType.REQUIRE, Action2, "Transition1")
     return {"Flow1": Flow1, "Action1": Action1, "Action2": Action2, "Transition1": Transition1}
 
 

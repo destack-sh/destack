@@ -22,11 +22,6 @@ if TYPE_CHECKING:
 # pyright: reportIncompatibleVariableOverride=false
 
 
-#
-# Views
-#
-
-
 @node_component_()
 class ViewBase[NodeDataT: AnyNodeData](
     IsTemplatable,

@@ -27,6 +27,7 @@ from bench.language import (
     CustomObject,
     Error,
     Flow,
+    FlowEdge,
     GraphCapture,
     Interruption,
     InterruptionStatus,
@@ -46,7 +47,6 @@ from bench.language import (
     SpanType,
     TextLine,
     Thread,
-    Transition,
     TypeBase,
     active_session,
 )
@@ -518,7 +518,7 @@ class Runner[N: Runnable = Runnable](abc.ABC):
 RUN_TYPE_BY_NODE_TYPE: dict[NodeType, RunType] = {
     NodeType.ACTION: RunType.ACTION,
     NodeType.FLOW: RunType.FLOW,
-    NodeType.TRANSITION: RunType.TRANSITION,
+    NodeType.FLOW_EDGE: RunType.TRANSITION,
 }
 
 
@@ -548,7 +548,7 @@ def create_run(
     flow: Flow | None = None
     service: Service | None = None
     action: Action | None = None
-    link: Transition | None = None
+    link: FlowEdge | None = None
     typ: RunType | None = None
     if isinstance(node, Agent):
         typ = RunType.AGENT
@@ -561,7 +561,7 @@ def create_run(
         action = node
         flow = node.flow
         service = node.service
-    elif isinstance(node, Transition):
+    elif isinstance(node, FlowEdge):
         typ = RunType.TRANSITION
         link = node
         flow = node.flow
@@ -749,7 +749,7 @@ def make_runner(
     elif RUN_TYPE == RunType.TRANSITION:
         from bench.runtime.flow import TransitionRunner
 
-        assert isinstance(node, Transition), f"expected Link, got {node!r}"
+        assert isinstance(node, FlowEdge), f"expected Link, got {node!r}"
         runner = TransitionRunner(
             runtime=runtime,
             inputs=inputs,

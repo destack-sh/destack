@@ -27,11 +27,11 @@ if TYPE_CHECKING:
     from bench.language import (
         Action,
         Flow,
+        FlowEdge,
         Message,
         Run,
         Span,
         Task,
-        Transition,
         TypeBase,
     )
 
@@ -91,8 +91,8 @@ class Interruption(IsTimed, IsRuntime, IsModal, PackageNode[InterruptionData]):
     action: Optional["Action"] = p_internal(
         34, require=False, array=False, references=NodeType.ACTION
     )
-    link: Optional["Transition"] = p_internal(
-        35, require=False, array=False, references=NodeType.TRANSITION
+    link: Optional["FlowEdge"] = p_internal(
+        35, require=False, array=False, references=NodeType.FLOW_EDGE
     )
     if TYPE_CHECKING:
         flow_ptr: Optional[NodeReference] = None

@@ -8,6 +8,7 @@ from bench.language import (
     ActionType,
     Agent,
     Flow,
+    FlowEdgeType,
     Membership,
     Message,
     Node,
@@ -16,7 +17,6 @@ from bench.language import (
     Run,
     Session,
     Thread,
-    TransitionType,
     code,
     text,
 )
@@ -95,7 +95,7 @@ async def test_start_run_from_message(simulation: Simulation, runtime: RuntimeLa
     Start1 = Action.new(ActionType.START, "Start1")
     End1 = Action.new(ActionType.END, "End1")
     Flow1.extend(Start1, End1)
-    Start1.connect(TransitionType.MANUAL, End1)
+    Start1.connect(FlowEdgeType.MANUAL, End1)
     Agent1 = Agent.new("Agent", main_flow=Flow1)
     Page1 = runtime.page()
     Page1.extend(Flow1, Agent1)
@@ -124,8 +124,8 @@ async def test_pause_resume_run(simulation: Simulation, runtime: RuntimeLambdaWo
     Action1 = Action.new(ActionType.CODE, "Action1", code=code("await sleep(1)"))
     End = Action.new(ActionType.END, "End")
     Flow1.actions.extend(Start, Action1, End)
-    Start.connect(TransitionType.MANUAL, Action1)
-    Action1.connect(TransitionType.MANUAL, End)
+    Start.connect(FlowEdgeType.MANUAL, Action1)
+    Action1.connect(FlowEdgeType.MANUAL, End)
     runtime.page().append(Flow1)
     await runtime.commit()
 

@@ -19,6 +19,7 @@ if TYPE_CHECKING:
         Action,
         Agent,
         Flow,
+        FlowEdge,
         Message,
         NodeReference,
         Page,
@@ -27,7 +28,6 @@ if TYPE_CHECKING:
         Session,
         Span,
         Task,
-        Transition,
     )
 
 # pyright: reportIncompatibleVariableOverride=false
@@ -73,11 +73,11 @@ class IsRun(BuiltinObject):
         same_bench=True,
         description="The Action this Run is executing.",
     )
-    transition: Optional["Transition"] = p_internal(
+    transition: Optional["FlowEdge"] = p_internal(
         74,
         require=False,
         array=False,
-        references=NodeType.TRANSITION,
+        references=NodeType.FLOW_EDGE,
         same_bench=True,
         description="The Transition this Run is executing.",
     )
