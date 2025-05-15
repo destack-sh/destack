@@ -3,14 +3,14 @@ from typing import TYPE_CHECKING, Optional
 from bench.language.core import Node, NodeType, StructType, Text, node_, p_regular
 from bench.pb2 import ThreadData
 
-from .view import ViewBase
+from .node import NodeViewBase
 
 if TYPE_CHECKING:
     from bench.language import Message
 
 
 @node_(NodeType.THREAD_VIEW)
-class ThreadView(ViewBase[ThreadData]):
+class ThreadView(NodeViewBase[ThreadData]):
     """A Thread view."""
 
     draft_text: Optional[Text] = p_regular(40, default=None, require=False, struct=StructType.TEXT)

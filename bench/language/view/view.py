@@ -5,10 +5,8 @@ from bench.language.core import (
     IsModal,
     IsNamed,
     IsTemplatable,
-    Node,
     NodeType,
     PageNode,
-    Selection,
     StructType,
     node_component_,
     p_node_parent,
@@ -17,7 +15,12 @@ from bench.language.core import (
 from bench.pb2 import AnyNodeData
 
 if TYPE_CHECKING:
-    from bench.language import Page, Space
+    from bench.language import (
+        Dimension,
+        Page,
+        Position,
+        Space,
+    )
 
 # pyright: reportIncompatibleVariableOverride=false
 
@@ -35,35 +38,27 @@ class ViewBase[NodeDataT: AnyNodeData](
         4, NodeType.SPACE, *VIEW_NODE_TYPES.tuple, NodeType.PAGE
     )
     # variant_of, ...
+
+    # sizing
+    position: Optional["Position"] = p_regular(
+        40, require=False, array=False, default=None, struct=StructType.POSITION
+    )
+    width: Optional["Dimension"] = p_regular(
+        41, require=False, array=False, default=None, struct=StructType.DIMENSION
+    )
+    height: Optional["Dimension"] = p_regular(
+        42, require=False, array=False, default=None, struct=StructType.DIMENSION
+    )
+    min_width: Optional["Dimension"] = p_regular(
+        43, require=False, array=False, default=None, struct=StructType.DIMENSION
+    )
+    min_height: Optional["Dimension"] = p_regular(
+        44, require=False, array=False, default=None, struct=StructType.DIMENSION
+    )
+    max_width: Optional["Dimension"] = p_regular(
+        45, require=False, array=False, default=None, struct=StructType.DIMENSION
+    )
+    max_height: Optional["Dimension"] = p_regular(
+        46, require=False, array=False, default=None, struct=StructType.DIMENSION
+    )
     # position, size, grow, min/max, ...
-
-
-@node_component_()
-class ContainerViewBase[NodeDataT: AnyNodeData](ViewBase[NodeDataT]):
-    """A container View contains other Views."""
-
-    # border, padding, margin, fill, ...
-
-    # behavior
-    focus: Optional[Node] = p_regular(
-        70, default=None, require=False, array=False, references="any"
-    )
-    selection: Optional[Selection] = p_regular(
-        71, default=None, require=False, struct=StructType.SELECTION
-    )
-    ...  # actions/effects/...
-
-
-@node_component_()
-class ContentViewBase[NodeDataT: AnyNodeData](ViewBase[NodeDataT]):
-    """A content View."""
-
-
-@node_component_()
-class InputViewBase[NodeDataT: AnyNodeData](ContentViewBase[NodeDataT]):
-    """An input View."""
-
-
-@node_component_()
-class NodeViewBase[NodeDataT: AnyNodeData](ContentViewBase[NodeDataT]):
-    """A node View."""
