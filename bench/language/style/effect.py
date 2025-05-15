@@ -42,7 +42,7 @@ class EffectBase(BuiltinObject):
     rotate: Optional[float] = p_regular(44, default=None)
     rotate_x: Optional[float] = p_regular(45, default=None)
     rotate_y: Optional[float] = p_regular(46, default=None)
-    is_rotate_3d: Optional[bool] = p_regular(47, default=None)
+    rotate_z: Optional[float] = p_regular(47, default=None)
     skew_x: Optional[float] = p_regular(48, default=None)
     skew_y: Optional[float] = p_regular(49, default=None)
     perspective: Optional[float] = p_regular(50, default=None)

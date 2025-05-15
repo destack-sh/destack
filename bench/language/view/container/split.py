@@ -1,7 +1,7 @@
 from bench.language.core import NodeType, node_
 from bench.pb2 import SplitViewData
 
-from .view import ContainerViewBase
+from .container import ContainerViewBase
 
 
 @node_(NodeType.SPLIT_VIEW)

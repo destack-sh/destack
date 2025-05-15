@@ -477,9 +477,11 @@ class EnumType(BuiltinEnum):
     DISTRIBUTE = 28072
     ALIGN = 28073
     DIRECTION = 28074
-    TRANSITION_TYPE = 28075
-    SPRING_TYPE = 28076
-    EFFECT_TYPE = 28077
+    OVERFLOW = 28075
+    TRANSITION_TYPE = 28076
+    SPRING_TYPE = 28077
+    EFFECT_TYPE = 28078
+    DIMENSION_TYPE = 28079
 
 
 enum_(EnumType.ENUM_TYPE)(EnumType)
@@ -602,25 +604,33 @@ class NodeType(BuiltinEnum):
     FRAME_VIEW = 8100, "Frame View", "Fixed Container", "fas fa-frame"
     LABEL_VIEW = 8101, "Label View", "Label Container", "fas fa-font-case"
     # STACK_VIEW?, SCROLL_VIEW?, CARD_VIEW?, FORM_VIEW, ...
-    SPLIT_VIEW = 8110, "Split View", "Split Container", "fas fa-columns"
+    COMPONENT_VIEW = 8110, "Component View", "Component Container", "fas fa-cube"
+    SPLIT_VIEW = 8120, "Split View", "Split Container", "fas fa-columns"
     # TAB_VIEW = 8120, "Tab Container View", "Tab Container", "fas fa-tabs"
     # DRAWER, SPLIT_DRAWER, GRID/GRID_ELEMENT, ...
 
     # content views [8200-8300]
-    INPUT_VIEW = 8210, "Input View", "Number or String Input", "fas fa-hashtag"
-    SLIDER_VIEW = 8211, "Slider View", "Slider", "fas fa-slider"
-    # STRING_VIEW = 8221, "String View", "String", "fas fa-font-case"
     # TEXT_VIEW = 8222, "Text View", "Text", "fas fa-text"
     # TEXT_LINE_VIEW = 8223, "Text Line View", "Text Line", "fas fa-text"
     # CODE_VIEW = 8224, "Code View", "Code", "fas fa-code"
-    # TOGGLE_VIEW = 8230, "Toggle View", "Toggle", "fas fa-square-check"
-    # PICKER_VIEW = 8231, "Picker View", "Picker", "fas fa-caret-circle-down"
-    # COLOR_VIEW = 8232, "Color View", "Color", "fas fa-palette"
-    # ICON_VIEW = 8233, "Icon View", "Icon", "fas fa-icons"
-    # DATETIME_VIEW = 8240, "Datetime View", "Datetime", "fas fa-calendar-days"
-    # DURATION_VIEW = 8241, "Duration View", "Duration", "fas fa-stopwatch"
-    # BUTTON_VIEW = 8460, "Button View", "Button", "fas fa-hand-pointer"
-    # LINK_VIEW = 8461, "Link View", "Link", "fas fa-link"
+    # BUTTON_VIEW = 8225, "Button View", "Button", "fas fa-hand-pointer"
+    # LINK_VIEW = 8226, "Link View", "Link", "fas fa-link"
+    # IMAGE_VIEW = 8227, "Image View", "Image", "fas fa-image"
+    # AUDIO_VIEW = 8228, "Audio View", "Audio", "fas fa-volume"
+    # VIDEO_VIEW = 8229, "Video View", "Video", "fas fa-video"
+    # DOCUMENT_VIEW = 8230, "Document View", "Document", "fas fa-file-alt"
+
+    # input views [8300-8400]
+    NUMBER_INPUT_VIEW = 8300, "Number Input View", "Number or String Input", "fas fa-hashtag"
+    SLIDER_VIEW = 8301, "Slider View", "Slider", "fas fa-slider"
+    # STRING_INPUT_VIEW = 8302, "String View", "String", "fas fa-font-case"
+    # TOGGLE_VIEW = 8303, "Toggle View", "Toggle", "fas fa-square-check"
+    # PICKER_VIEW = 8310, "Picker View", "Picker", "fas fa-caret-circle-down"
+    # COLOR_VIEW = 8311, "Color View", "Color", "fas fa-palette"
+    # ICON_VIEW = 8312, "Icon View", "Icon", "fas fa-icons"
+    # FILE_INPUT_VIEW = 8313, "File View", "File", "fas fa-file"
+    # DATETIME_VIEW = 8320, "Datetime View", "Datetime", "fas fa-calendar-days"
+    # DURATION_VIEW = 8321, "Duration View", "Duration", "fas fa-stopwatch"
 
     # node views [8400-8500]
     # NODE_VIEW = 8400, "Node View", "Node", "fas fa-hexagon"
@@ -631,11 +641,7 @@ class NodeType(BuiltinEnum):
     # TABLE_PREVIEW_VIEW, ...
     THREAD_VIEW = 8430, "Thread View", "Thread", "fas fa-reel"
     # THREAD_PREVIEW_VIEW, ...
-    # FILE_VIEW = 8450, "File View", "File", "fas fa-file"
-    # IMAGE_VIEW = 8451, "Image View", "Image", "fas fa-image"
-    # AUDIO_VIEW = 8452, "Audio View", "Audio", "fas fa-volume"
-    # VIDEO_VIEW = 8453, "Video View", "Video", "fas fa-video"
-    # DOCUMENT_VIEW = 8454, "Document View", "Document", "fas fa-file-alt"
+    # FILE_VIEW, FILE_CHIP_VIEW, FILE_PREVIEW_VIEW, ...
 
     # style [8500-8600]
     THEME = 8500, "Theme", "Theme", "fas fa-palette"
@@ -646,6 +652,7 @@ class NodeType(BuiltinEnum):
     GRADIENT_STYLE = 8514, "Gradient Style", "Gradient Style", "fas fa-gradient"
     TRANSITION_STYLE = 8515, "Transition Style", "Transition Style", "fas fa-transition"
     EFFECT_STYLE = 8516, "Effect Style", "Effect Style", "fas fa-effect"
+    DIMENSION_STYLE = 8517, "Dimension Style", "Dimension Style", "fas fa-dimension"
     # ANIMATION, ...
 
     # canvas?
@@ -777,8 +784,14 @@ class StructType(BuiltinEnum):
     FILL = 18511, None, None, "fas fa-fill"
     LENGTH = 18512, None, None, "fas fa-length"
     POSITION = 18513, None, None, "fas fa-position"
-    TRANSITION = 18514, None, None, "fas fa-transition"
-    EFFECT = 18515, None, None, "fas fa-effect"
+    DIMENSION = 18514, None, None, "fas fa-dimension"
+    TRANSITION = 18515, None, None, "fas fa-transition"
+    EFFECT = 18516, None, None, "fas fa-effect"
+    GAP = 18517, None, None, "fas fa-gap"
+    GRID = 18518, None, None, "fas fa-grid"
+    GRID_SPAN = 18519, None, None, "fas fa-grid"
+    PADDING = 18520, None, None, "fas fa-padding"
+    ROTATION = 18521, None, None, "fas fa-rotation"
     # ANIMATION, ...
 
     # canvas [18600-18800]

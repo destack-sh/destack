@@ -36,27 +36,110 @@ class PositionType(BuiltinEnum):
 
     RELATIVE = 1
     ABSOLUTE = 2
-    STICKY = 3
+    FIXED = 3
+    STICKY = 4
 
 
 @enum_(EnumType.LENGTH_UNIT)
 class LengthUnit(BuiltinEnum):
     PIXEL = 1
     REM = 2
+    PERCENT = 3
+    FR = 4
 
 
 @struct_(StructType.LENGTH)
 class Length(Struct):
+    """A length value."""
+
     unit: LengthUnit = p_regular(31)
-    value: float = p_regular(32)
+    value: float = p_regular(40)
 
 
 @struct_(StructType.POSITION)
 class Position(Struct):
-    """The position of a View."""
+    """A position value."""
 
     type: PositionType = p_regular(40)
-    top: float | None = p_regular(41, require=False, default=None)
-    left: float | None = p_regular(42, require=False, default=None)
-    width: float | None = p_regular(43, require=False, default=None)
-    height: float | None = p_regular(44, require=False, default=None)
+    top: Length | None = p_regular(
+        41, require=False, array=False, default=None, struct=StructType.LENGTH
+    )
+    left: Length | None = p_regular(
+        42, require=False, array=False, default=None, struct=StructType.LENGTH
+    )
+    width: Length | None = p_regular(
+        43, require=False, array=False, default=None, struct=StructType.LENGTH
+    )
+    height: Length | None = p_regular(
+        44, require=False, array=False, default=None, struct=StructType.LENGTH
+    )
+
+
+@enum_(EnumType.DIMENSION_TYPE)
+class DimensionType(BuiltinEnum):
+    FIXED = 1
+    RELATIVE = 2
+    FIT_CONTENT = 3
+    FILL = 4
+    ASPECT_RATIO = 5
+
+
+@struct_(StructType.DIMENSION)
+class Dimension(Struct):
+    """A dimension value."""
+
+    type: DimensionType = p_regular(30)
+    value: float = p_regular(40)
+
+
+@struct_(StructType.PADDING)
+class Padding(Struct):
+    """A padding value."""
+
+    value: int | None = p_regular(40, default=None)
+    top: int | None = p_regular(41, default=None)
+    left: int | None = p_regular(42, default=None)
+    right: int | None = p_regular(43, default=None)
+    bottom: int | None = p_regular(44, default=None)
+
+
+@struct_(StructType.ROTATION)
+class Rotation(Struct):
+    """A rotation value."""
+
+    value: float | None = p_regular(40, default=None)
+    x: float | None = p_regular(41, default=None)
+    y: float | None = p_regular(42, default=None)
+    z: float | None = p_regular(43, default=None)
+
+
+@struct_(StructType.GAP)
+class Gap(Struct):
+    """A gap value."""
+
+    value: float | None = p_regular(40, default=None)
+    x: float | None = p_regular(41, default=None)
+    y: float | None = p_regular(42, default=None)
+
+
+@struct_(StructType.GRID)
+class Grid(Struct):
+    """A grid value."""
+
+    columns: int = p_regular(40)
+    rows: int = p_regular(41)
+    column_width: float | None = p_regular(
+        42, require=False, array=False, default=None, struct=StructType.DIMENSION
+    )
+    column_min_width: float | None = p_regular(
+        43, require=False, array=False, default=None, struct=StructType.DIMENSION
+    )
+    column_width_type: DimensionType | None = p_regular(45, require=False)
+
+
+@struct_(StructType.GRID_SPAN)
+class GridSpan(Struct):
+    """A grid span value."""
+
+    columns: int = p_regular(40)
+    rows: int = p_regular(41)
