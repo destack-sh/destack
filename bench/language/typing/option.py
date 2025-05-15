@@ -2,19 +2,18 @@ import typing
 from typing import Optional, Union
 
 from bench.language.core import (
-    NAME_CONSTRAINT,
     IsInstantiable,
     IsModal,
+    IsNamed,
+    IsOrdered,
     NodeType,
     PackageNode,
     StructType,
     node_,
-    p_internal,
     p_node_parent,
     p_regular,
 )
 from bench.pb2 import OptionData
-from bench.utils.fractional import INTEGER_ZERO
 
 if typing.TYPE_CHECKING:
     from bench.language import Choice, Field, Icon
@@ -24,14 +23,12 @@ if typing.TYPE_CHECKING:
 
 
 @node_(NodeType.OPTION)
-class Option(IsInstantiable, IsModal, PackageNode[OptionData]):
+class Option(IsInstantiable, IsModal, IsNamed, IsOrdered, PackageNode[OptionData]):
     """
     An Option in a Choice or Field.
     """
 
     parent: Union["Choice", "Field", None] = p_node_parent(4, NodeType.CHOICE, NodeType.FIELD)
-    name: str | None = p_regular(31, constraint=NAME_CONSTRAINT)
-    order_key: str = p_internal(32, default=INTEGER_ZERO)
     icon: Optional["Icon"] = p_regular(34, require=False, array=False, struct=StructType.ICON)
 
     @staticmethod

@@ -10,6 +10,7 @@ from bench.language.core import (
     IsInstantiable,
     IsModal,
     IsNamed,
+    IsOrdered,
     IsRunnable,
     LocalNodeList,
     NodeReference,
@@ -27,7 +28,6 @@ from bench.language.core import (
     p_regular,
 )
 from bench.pb2 import ActionData
-from bench.utils.fractional import INTEGER_ZERO
 
 if TYPE_CHECKING:
     from bench.language import (
@@ -76,6 +76,7 @@ class Action(
     IsInstantiable,
     IsNamed,
     IsModal,
+    IsOrdered,
     IsRunnable,
     PackageNode[ActionData],
 ):
@@ -88,7 +89,6 @@ class Action(
 
     # common
     type: ActionType = p_regular(30, description="Type of this Action. Only dynamic for tools.")
-    order_key: str = p_internal(33, default=INTEGER_ZERO)
     icon: Optional["Icon"] = p_regular(
         35, default=None, require=False, array=False, struct=StructType.ICON
     )

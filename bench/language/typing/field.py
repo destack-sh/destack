@@ -6,6 +6,7 @@ from bench.language.core import (
     IsInstantiable,
     IsModal,
     IsNamed,
+    IsOrdered,
     IsTemplatable,
     NodeMode,
     NodeType,
@@ -27,7 +28,6 @@ from bench.language.core import (
     to_type_scalar,
 )
 from bench.pb2 import FieldData
-from bench.utils.fractional import INTEGER_ZERO
 
 if TYPE_CHECKING:
     from bench.language import Action, Agent, Class, Flow, Icon, Scene, Table, Thread, ViewBase
@@ -44,6 +44,7 @@ class Field(
     IsTemplatable,
     IsModal,
     IsNamed,
+    IsOrdered,
     TypeBase,
     PackageNode[FieldData],
     _IntoQuery,
@@ -66,7 +67,6 @@ class Field(
         *VIEW_NODE_TYPES.tuple,
     )
     type: FieldType = p_internal(30)
-    order_key: str = p_internal(33, default=INTEGER_ZERO)
     icon: Optional["Icon"] = p_regular(35, require=False, array=False, struct=StructType.ICON)
     property: Optional[Property] = p_regular(
         36,

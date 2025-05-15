@@ -10,6 +10,7 @@ from bench.language.core import (
     IsInstantiable,
     IsModal,
     IsNamed,
+    IsOrdered,
     IsOwnable,
     IsRuntime,
     NodeReference,
@@ -22,7 +23,6 @@ from bench.language.core import (
     p_regular,
 )
 from bench.pb2 import ClaimData
-from bench.utils.fractional import INTEGER_ZERO
 
 if TYPE_CHECKING:
     from bench.language import Action, Agent, Flow, Run, Service, Thread
@@ -72,6 +72,7 @@ class Claim(
     IsOwnable,
     IsModal,
     IsInstantiable,
+    IsOrdered,
     IsNamed,
     PackageNode[ClaimData],
 ):
@@ -93,7 +94,6 @@ class Claim(
         ckless=True,
     )
     type: ClaimType = p_regular(30, require=True)
-    order_key: str = p_internal(33, default=INTEGER_ZERO)
 
     # status
     status: ClaimStatus = p_regular(50, default=ClaimStatus.REQUESTED)

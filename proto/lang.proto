@@ -2338,7 +2338,7 @@ message ChannelData {
   optional NodeReferenceData template_ptr = 16;
   NodeMode mode = 25;
   optional string name = 31;
-  optional string order_key = 33;
+  string order_key = 33;
   optional IconData icon = 34;
   optional NodeReferenceData definition_ptr = 35;
   ProcessStatus status = 80;
@@ -2434,7 +2434,7 @@ message ThreadData {
   optional NodeReferenceData owned_by_ptr = 17;
   NodeMode mode = 25;
   optional TextLineData title = 32;
-  optional string order_key = 33;
+  string order_key = 33;
   optional IconData icon = 34;
   optional NodeReferenceData definition_ptr = 35;
   optional NodeReferenceData channel_ptr = 40;
@@ -2480,7 +2480,7 @@ message FileData {
   NodeMode mode = 25;
   FileType type = 30;
   optional string name = 31;
-  optional string order_key = 33;
+  string order_key = 33;
   optional IconData icon = 34;
   optional NodeReferenceData definition_ptr = 35;
   Region region = 38;
@@ -2525,7 +2525,7 @@ message LinkData {
   LinkType type = 30;
   optional string name = 31;
   optional TextLineData title = 32;
-  optional string order_key = 33;
+  string order_key = 33;
   optional IconData icon = 34;
   optional NodeReferenceData definition_ptr = 35;
   Region region = 38;
@@ -2560,7 +2560,7 @@ message RecordData {
   optional NodeReferenceData claimed_by_ptr = 18;
   NodeMode mode = 25;
   optional TextLineData title = 32;
-  optional string order_key = 33;
+  string order_key = 33;
   optional IconData icon = 34;
   NodeReferenceData table_ptr = 36;
   optional google.protobuf.Value value_packed = 40;
@@ -2584,7 +2584,7 @@ message TableData {
   optional NodeReferenceData claimed_by_ptr = 18;
   NodeMode mode = 25;
   optional string name = 31;
-  optional string order_key = 33;
+  string order_key = 33;
   optional IconData icon = 34;
   optional NodeReferenceData definition_ptr = 35;
 }
@@ -2636,7 +2636,7 @@ message RoleData {
   optional NodeReferenceData template_ptr = 16;
   NodeMode mode = 25;
   optional string name = 31;
-  optional string order_key = 33;
+  string order_key = 33;
   optional IconData icon = 34;
   optional NodeReferenceData definition_ptr = 35;
 }
@@ -2659,7 +2659,7 @@ message TeamData {
   optional NodeReferenceData template_ptr = 16;
   NodeMode mode = 25;
   optional string name = 31;
-  optional string order_key = 33;
+  string order_key = 33;
   optional IconData icon = 34;
   optional NodeReferenceData definition_ptr = 35;
 }
@@ -2683,7 +2683,7 @@ message ComputerData {
   NodeMode mode = 25;
   ComputerType type = 30;
   optional string name = 31;
-  optional string order_key = 33;
+  string order_key = 33;
   optional IconData icon = 34;
   optional NodeReferenceData definition_ptr = 35;
   Region region = 38;
@@ -2730,7 +2730,7 @@ message DatabaseData {
   NodeMode mode = 25;
   DatabaseType type = 30;
   optional string name = 31;
-  optional string order_key = 33;
+  string order_key = 33;
   optional IconData icon = 34;
   optional NodeReferenceData definition_ptr = 35;
   Region region = 38;
@@ -2769,7 +2769,7 @@ message ScalerData {
   NodeMode mode = 25;
   ScalerType type = 30;
   optional string name = 31;
-  optional string order_key = 33;
+  string order_key = 33;
   optional IconData icon = 34;
   optional NodeReferenceData definition_ptr = 35;
   Region region = 38;
@@ -2840,7 +2840,7 @@ message AgentData {
   optional NodeReferenceData claimed_by_ptr = 18;
   NodeMode mode = 25;
   optional string name = 31;
-  optional string order_key = 33;
+  string order_key = 33;
   optional IconData icon = 34;
   optional NodeReferenceData definition_ptr = 35;
   optional NodeReferenceData page_ptr = 54;
@@ -2888,7 +2888,7 @@ message FlowData {
   NodeMode mode = 25;
   FlowType type = 30;
   optional string name = 31;
-  optional string order_key = 33;
+  string order_key = 33;
   optional IconData icon = 34;
   optional NodeReferenceData definition_ptr = 35;
   optional ModelDeveloper model_developer = 100;
@@ -2915,7 +2915,7 @@ message FlowEdgeData {
   optional NodeReferenceData template_ptr = 16;
   NodeMode mode = 25;
   FlowEdgeType type = 30;
-  optional string name = 32;
+  optional string name = 31;
   string order_key = 33;
   NodeReferenceData source_ptr = 35;
   NodeReferenceData target_ptr = 36;
@@ -2945,7 +2945,7 @@ message ServiceData {
   optional NodeReferenceData claimed_by_ptr = 18;
   NodeMode mode = 25;
   optional string name = 31;
-  optional string order_key = 33;
+  string order_key = 33;
   optional IconData icon = 34;
   optional NodeReferenceData definition_ptr = 35;
   optional NodeReferenceData target_ptr = 40;
@@ -3077,7 +3077,7 @@ message ApplicationData {
   optional NodeReferenceData template_ptr = 16;
   NodeMode mode = 25;
   optional string name = 31;
-  optional string order_key = 33;
+  string order_key = 33;
   optional IconData icon = 34;
   optional NodeReferenceData definition_ptr = 35;
   optional NodeReferenceData root_scene_ptr = 40;
@@ -3163,7 +3163,7 @@ message PageData {
   optional NodeReferenceData claimed_by_ptr = 18;
   NodeMode mode = 25;
   optional TextLineData title = 32;
-  optional string order_key = 33;
+  string order_key = 33;
   optional IconData icon = 34;
   optional NodeReferenceData definition_ptr = 35;
 }
@@ -3253,7 +3253,7 @@ message TaskData {
   optional NodeReferenceData claimed_by_ptr = 18;
   NodeMode mode = 25;
   optional TextLineData title = 32;
-  optional string order_key = 33;
+  string order_key = 33;
   optional IconData icon = 34;
   optional NodeReferenceData definition_ptr = 35;
   optional google.protobuf.Timestamp due_at = 50;
@@ -3437,7 +3437,7 @@ message RouteData {
   optional NodeReferenceData owned_by_ptr = 17;
   NodeMode mode = 25;
   optional string name = 31;
-  optional string order_key = 33;
+  string order_key = 33;
   optional IconData icon = 34;
   optional NodeReferenceData definition_ptr = 35;
   optional NodeReferenceData scene_ptr = 40;
@@ -3460,7 +3460,7 @@ message SceneData {
   optional NodeReferenceData owned_by_ptr = 17;
   NodeMode mode = 25;
   optional string name = 31;
-  optional string order_key = 33;
+  string order_key = 33;
   optional IconData icon = 34;
   optional NodeReferenceData definition_ptr = 35;
   optional NodeReferenceData root_view_ptr = 40;
@@ -3508,7 +3508,7 @@ message ColorStyleData {
   NodeMode mode = 25;
   ColorType type = 30;
   optional string name = 31;
-  optional string order_key = 33;
+  string order_key = 33;
   optional IconData icon = 34;
   optional NodeReferenceData definition_ptr = 35;
   optional ColorHue hue = 40;
@@ -3537,7 +3537,7 @@ message BorderStyleData {
   NodeMode mode = 25;
   BorderType type = 30;
   optional string name = 31;
-  optional string order_key = 33;
+  string order_key = 33;
   optional IconData icon = 34;
   optional NodeReferenceData definition_ptr = 35;
   optional NodeReferenceData style_ptr = 40;
@@ -3561,7 +3561,7 @@ message EffectStyleData {
   NodeMode mode = 25;
   EffectType type = 30;
   optional string name = 31;
-  optional string order_key = 33;
+  string order_key = 33;
   optional IconData icon = 34;
   optional NodeReferenceData definition_ptr = 35;
   optional float opacity = 40;
@@ -3591,7 +3591,7 @@ message GradientStyleData {
   NodeMode mode = 25;
   GradientType type = 30;
   optional string name = 31;
-  optional string order_key = 33;
+  string order_key = 33;
   optional IconData icon = 34;
   optional NodeReferenceData definition_ptr = 35;
   optional float angle = 40;
@@ -3616,7 +3616,7 @@ message FontStyleData {
   NodeMode mode = 25;
   TextType type = 30;
   optional string name = 31;
-  optional string order_key = 33;
+  string order_key = 33;
   optional IconData icon = 34;
   optional NodeReferenceData definition_ptr = 35;
   optional NodeReferenceData style_ptr = 40;
@@ -3647,7 +3647,7 @@ message ShadowStyleData {
   NodeMode mode = 25;
   ShadowType type = 30;
   optional string name = 31;
-  optional string order_key = 33;
+  string order_key = 33;
   optional IconData icon = 34;
   optional NodeReferenceData definition_ptr = 35;
   optional NodeReferenceData style_ptr = 40;
@@ -3671,7 +3671,7 @@ message ThemeData {
   optional NodeReferenceData updated_by_ptr = 13;
   optional google.protobuf.Timestamp archived_at = 14;
   optional google.protobuf.Timestamp deleted_at = 15;
-  optional string order_key = 33;
+  string order_key = 33;
   optional IconData icon = 34;
   optional NodeReferenceData definition_ptr = 35;
   optional ColorData primary_color = 50;
@@ -3699,7 +3699,7 @@ message TransitionStyleData {
   NodeMode mode = 25;
   TransitionType type = 30;
   optional string name = 31;
-  optional string order_key = 33;
+  string order_key = 33;
   optional IconData icon = 34;
   optional NodeReferenceData definition_ptr = 35;
   optional NodeReferenceData style_ptr = 40;
@@ -3728,7 +3728,7 @@ message ChoiceData {
   optional NodeReferenceData template_ptr = 16;
   NodeMode mode = 25;
   optional string name = 31;
-  optional string order_key = 33;
+  string order_key = 33;
   optional IconData icon = 34;
   optional NodeReferenceData definition_ptr = 35;
 }
@@ -3748,7 +3748,7 @@ message ClassData {
   optional NodeReferenceData template_ptr = 16;
   NodeMode mode = 25;
   optional string name = 31;
-  optional string order_key = 33;
+  string order_key = 33;
   optional IconData icon = 34;
   optional NodeReferenceData definition_ptr = 35;
 }
@@ -3804,7 +3804,7 @@ message OptionData {
   optional NodeReferenceData template_ptr = 16;
   NodeMode mode = 25;
   optional string name = 31;
-  string order_key = 32;
+  string order_key = 33;
   optional IconData icon = 34;
 }
 
@@ -3824,7 +3824,7 @@ message ComponentViewData {
   optional NodeReferenceData template_ptr = 16;
   NodeMode mode = 25;
   optional string name = 31;
-  optional string order_key = 33;
+  string order_key = 33;
   optional IconData icon = 34;
   optional NodeReferenceData definition_ptr = 35;
   optional PositionData position = 40;
@@ -3869,7 +3869,7 @@ message FrameViewData {
   optional NodeReferenceData template_ptr = 16;
   NodeMode mode = 25;
   optional string name = 31;
-  optional string order_key = 33;
+  string order_key = 33;
   optional IconData icon = 34;
   optional NodeReferenceData definition_ptr = 35;
   optional PositionData position = 40;
@@ -3914,7 +3914,7 @@ message LabelViewData {
   optional NodeReferenceData template_ptr = 16;
   NodeMode mode = 25;
   optional string name = 31;
-  optional string order_key = 33;
+  string order_key = 33;
   optional IconData icon = 34;
   optional NodeReferenceData definition_ptr = 35;
   optional PositionData position = 40;
@@ -3959,7 +3959,7 @@ message SplitViewData {
   optional NodeReferenceData template_ptr = 16;
   NodeMode mode = 25;
   optional string name = 31;
-  optional string order_key = 33;
+  string order_key = 33;
   optional IconData icon = 34;
   optional NodeReferenceData definition_ptr = 35;
   optional PositionData position = 40;
@@ -4004,7 +4004,7 @@ message TextViewData {
   optional NodeReferenceData template_ptr = 16;
   NodeMode mode = 25;
   optional string name = 31;
-  optional string order_key = 33;
+  string order_key = 33;
   optional IconData icon = 34;
   optional NodeReferenceData definition_ptr = 35;
   optional PositionData position = 40;
@@ -4039,7 +4039,7 @@ message NumberInputViewData {
   optional NodeReferenceData template_ptr = 16;
   NodeMode mode = 25;
   optional string name = 31;
-  optional string order_key = 33;
+  string order_key = 33;
   optional IconData icon = 34;
   optional NodeReferenceData definition_ptr = 35;
   optional PositionData position = 40;
@@ -4069,7 +4069,7 @@ message SliderInputViewData {
   optional NodeReferenceData template_ptr = 16;
   NodeMode mode = 25;
   optional string name = 31;
-  optional string order_key = 33;
+  string order_key = 33;
   optional IconData icon = 34;
   optional NodeReferenceData definition_ptr = 35;
   optional PositionData position = 40;
@@ -4101,7 +4101,7 @@ message WizardViewData {
   optional NodeReferenceData template_ptr = 16;
   NodeMode mode = 25;
   optional string name = 31;
-  optional string order_key = 33;
+  string order_key = 33;
   optional IconData icon = 34;
   optional NodeReferenceData definition_ptr = 35;
   optional PositionData position = 40;
@@ -4129,7 +4129,7 @@ message ThreadViewData {
   optional NodeReferenceData template_ptr = 16;
   NodeMode mode = 25;
   optional string name = 31;
-  optional string order_key = 33;
+  string order_key = 33;
   optional IconData icon = 34;
   optional NodeReferenceData definition_ptr = 35;
   optional PositionData position = 40;

@@ -5,6 +5,7 @@ from bench.language.core import (
     BuiltinEnum,
     EnumType,
     IsModal,
+    IsOrdered,
     IsOwnable,
     IsTemplatable,
     Node,
@@ -14,12 +15,10 @@ from bench.language.core import (
     StructType,
     enum_,
     node_,
-    p_internal,
     p_node_parent,
     p_regular,
 )
 from bench.pb2 import SpaceData
-from bench.utils.fractional import INTEGER_ZERO
 
 if TYPE_CHECKING:
     from bench.language import Package, Page, Thread
@@ -35,7 +34,7 @@ class SpaceType(BuiltinEnum):
 
 
 @node_(NodeType.SPACE)
-class Space(IsOwnable, IsTemplatable, IsModal, PackageNode[SpaceData]):
+class Space(IsOwnable, IsTemplatable, IsModal, IsOrdered, PackageNode[SpaceData]):
     """
     A Space for a User to interact with a Bench.
     Spaces to all Benches are stored in the owning User's Bench.
@@ -45,7 +44,6 @@ class Space(IsOwnable, IsTemplatable, IsModal, PackageNode[SpaceData]):
 
     type: SpaceType = p_regular(30)
     name: str | None = p_regular(31, constraint=NAME_CONSTRAINT)
-    order_key: str = p_internal(33, default=INTEGER_ZERO)  # nocheckin: IsOrdered?
 
     selection: Optional[Selection] = p_regular(
         70,

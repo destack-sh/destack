@@ -7,6 +7,7 @@ from bench.language.core import (
     IsBased,
     IsClaimable,
     IsModal,
+    IsOrdered,
     IsOwnable,
     IsTitled,
     NodeType,
@@ -14,7 +15,6 @@ from bench.language.core import (
     StructType,
     TypeBase,
     node_,
-    p_internal,
     p_node_parent,
     p_regular,
     p_system,
@@ -22,7 +22,6 @@ from bench.language.core import (
     p_value_runtime,
 )
 from bench.pb2 import AnyNodeData, NodeReferenceData, RecordData
-from bench.utils.fractional import INTEGER_ZERO
 
 if TYPE_CHECKING:
     from bench.language import CustomObject, Icon, Table
@@ -38,6 +37,7 @@ class Record(
     IsModal,
     IsOwnable,
     IsClaimable,
+    IsOrdered,
     IsTitled,
     PackageNode[RecordData],
 ):
@@ -48,7 +48,6 @@ class Record(
     # meta
     parent: Union["Table", "Record", None] = p_node_parent(4, NodeType.TABLE, NodeType.RECORD)
     # type: RecordType?
-    order_key: str | None = p_internal(33, default=INTEGER_ZERO)
     icon: Optional["Icon"] = p_regular(34, default=None, struct=StructType.ICON)
     table: "Table" = p_system(
         36, require=True, references=NodeType.TABLE, description="The Table this Record is from."
