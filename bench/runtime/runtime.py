@@ -302,7 +302,7 @@ class RuntimeService(RuntimeServiceBase, RuntimeBase):
 
     @override
     async def run(self, request: RunRequest, headers: Mapping) -> RunResponse:
-        assert self._main_package, f"{self!r} has no main package"
+        assert self._package, f"{self!r} has no main package"
 
         # refuse if stopping
         if self._is_draining:
@@ -338,7 +338,7 @@ class RuntimeService(RuntimeServiceBase, RuntimeBase):
 
     @override
     async def wake(self, request: WakeRequest, headers: Mapping) -> WakeResponse:
-        assert self._main_package, f"{self!r} has no main package"
+        assert self._package, f"{self!r} has no main package"
 
         # refuse if stopping
         if self._is_draining:

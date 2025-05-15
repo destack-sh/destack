@@ -11,7 +11,7 @@ from .core import (
     SqlTable,
 )
 
-VERSION = "2025.05.15.2"
+VERSION = "2025.05.15.4"
 
 BENCH_TABLE = SqlTable(
     "bench_bench",
@@ -351,6 +351,36 @@ BLOCK_TABLE = SqlTable(
         SqlColumn("view_ck", PrimitiveType.UUID, is_nullable=True),
         SqlColumn("view_type", PrimitiveType.INT16, is_nullable=True),
         SqlColumn("view_bench_id", PrimitiveType.UUID, is_nullable=True),
+    ),
+    indexes=(SqlIndex("bench_idx_parent_id", SqlIndexType.BTREE, ("parent_id",), cover=("id",)),),
+)
+
+APPLICATION_TABLE = SqlTable(
+    "bench_application",
+    (
+        SqlColumn("id", PrimitiveType.UUID, is_primary_key=True),
+        SqlColumn("ck", PrimitiveType.UUID),
+        SqlColumn("parent_id", PrimitiveType.UUID, is_nullable=True),
+        SqlColumn("bench_id", PrimitiveType.UUID),
+        SqlColumn("package_id", PrimitiveType.UUID),
+        SqlColumn("created_at", PrimitiveType.DATETIME),
+        SqlColumn("created_by_id", PrimitiveType.UUID, is_nullable=True),
+        SqlColumn("created_by_type", PrimitiveType.INT16, is_nullable=True),
+        SqlColumn("updated_at", PrimitiveType.DATETIME),
+        SqlColumn("updated_by_id", PrimitiveType.UUID, is_nullable=True),
+        SqlColumn("updated_by_type", PrimitiveType.INT16, is_nullable=True),
+        SqlColumn("archived_at", PrimitiveType.DATETIME, is_nullable=True),
+        SqlColumn("deleted_at", PrimitiveType.DATETIME, is_nullable=True),
+        SqlColumn("template_id", PrimitiveType.UUID, is_nullable=True),
+        SqlColumn("template_bench_id", PrimitiveType.UUID, is_nullable=True),
+        SqlColumn("mode", PrimitiveType.INT16, default="20"),
+        SqlColumn("name", PrimitiveType.STRING, is_nullable=True),
+        SqlColumn("order_key", PrimitiveType.STRING, is_nullable=True),
+        SqlColumn("icon", PrimitiveType.JSON, is_nullable=True),
+        SqlColumn("definition_id", PrimitiveType.UUID, is_nullable=True),
+        SqlColumn("root_scene_id", PrimitiveType.UUID, is_nullable=True),
+        SqlColumn("root_scene_ck", PrimitiveType.UUID, is_nullable=True),
+        SqlColumn("root_scene_bench_id", PrimitiveType.UUID, is_nullable=True),
     ),
     indexes=(SqlIndex("bench_idx_parent_id", SqlIndexType.BTREE, ("parent_id",), cover=("id",)),),
 )
@@ -1717,9 +1747,14 @@ SCENE_TABLE = SqlTable(
         SqlColumn("owned_by_id", PrimitiveType.UUID, is_nullable=True),
         SqlColumn("owned_by_type", PrimitiveType.INT16, is_nullable=True),
         SqlColumn("mode", PrimitiveType.INT16, default="20"),
+        SqlColumn("name", PrimitiveType.STRING, is_nullable=True),
         SqlColumn("order_key", PrimitiveType.STRING, is_nullable=True),
         SqlColumn("icon", PrimitiveType.JSON, is_nullable=True),
         SqlColumn("definition_id", PrimitiveType.UUID, is_nullable=True),
+        SqlColumn("root_view_id", PrimitiveType.UUID, is_nullable=True),
+        SqlColumn("root_view_ck", PrimitiveType.UUID, is_nullable=True),
+        SqlColumn("root_view_type", PrimitiveType.INT16, is_nullable=True),
+        SqlColumn("root_view_bench_id", PrimitiveType.UUID, is_nullable=True),
     ),
     indexes=(SqlIndex("bench_idx_parent_id", SqlIndexType.BTREE, ("parent_id",), cover=("id",)),),
 )
@@ -1745,9 +1780,13 @@ ROUTE_TABLE = SqlTable(
         SqlColumn("owned_by_id", PrimitiveType.UUID, is_nullable=True),
         SqlColumn("owned_by_type", PrimitiveType.INT16, is_nullable=True),
         SqlColumn("mode", PrimitiveType.INT16, default="20"),
+        SqlColumn("name", PrimitiveType.STRING, is_nullable=True),
         SqlColumn("order_key", PrimitiveType.STRING, is_nullable=True),
         SqlColumn("icon", PrimitiveType.JSON, is_nullable=True),
         SqlColumn("definition_id", PrimitiveType.UUID, is_nullable=True),
+        SqlColumn("scene_id", PrimitiveType.UUID, is_nullable=True),
+        SqlColumn("scene_ck", PrimitiveType.UUID, is_nullable=True),
+        SqlColumn("scene_bench_id", PrimitiveType.UUID, is_nullable=True),
     ),
     indexes=(SqlIndex("bench_idx_parent_id", SqlIndexType.BTREE, ("parent_id",), cover=("id",)),),
 )

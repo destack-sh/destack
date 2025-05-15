@@ -135,6 +135,7 @@ enum NodeType {
   NODE_TYPE_DEPENDENCY = 1010;
   NODE_TYPE_PAGE = 1020;
   NODE_TYPE_BLOCK = 1030;
+  NODE_TYPE_APPLICATION = 1040;
   NODE_TYPE_DATABASE = 1200;
   NODE_TYPE_COMPUTER = 1210;
   NODE_TYPE_SCALER = 1250;
@@ -257,6 +258,7 @@ enum ObjectType {
   OBJECT_TYPE_DEPENDENCY = 1010;
   OBJECT_TYPE_PAGE = 1020;
   OBJECT_TYPE_BLOCK = 1030;
+  OBJECT_TYPE_APPLICATION = 1040;
   OBJECT_TYPE_DATABASE = 1200;
   OBJECT_TYPE_COMPUTER = 1210;
   OBJECT_TYPE_SCALER = 1250;
@@ -375,6 +377,7 @@ enum BenchType {
   BENCH_TYPE_DEPENDENCY = 1010;
   BENCH_TYPE_PAGE = 1020;
   BENCH_TYPE_BLOCK = 1030;
+  BENCH_TYPE_APPLICATION = 1040;
   BENCH_TYPE_DATABASE = 1200;
   BENCH_TYPE_COMPUTER = 1210;
   BENCH_TYPE_SCALER = 1250;
@@ -3058,6 +3061,28 @@ message UserData {
   optional bytes password_hash = 62;
 }
 
+message ApplicationData {
+  ObjectType metatype = 1;
+  string id = 2;
+  string ck = 3;
+  optional NodeReferenceData parent_ptr = 4;
+  optional NodeReferenceData bench_ptr = 5;
+  optional NodeReferenceData package_ptr = 9;
+  google.protobuf.Timestamp created_at = 10;
+  optional NodeReferenceData created_by_ptr = 11;
+  google.protobuf.Timestamp updated_at = 12;
+  optional NodeReferenceData updated_by_ptr = 13;
+  optional google.protobuf.Timestamp archived_at = 14;
+  optional google.protobuf.Timestamp deleted_at = 15;
+  optional NodeReferenceData template_ptr = 16;
+  NodeMode mode = 25;
+  optional string name = 31;
+  optional string order_key = 33;
+  optional IconData icon = 34;
+  optional NodeReferenceData definition_ptr = 35;
+  optional NodeReferenceData root_scene_ptr = 40;
+}
+
 message BlockData {
   ObjectType metatype = 1;
   string id = 2;
@@ -3411,9 +3436,11 @@ message RouteData {
   optional NodeReferenceData template_ptr = 16;
   optional NodeReferenceData owned_by_ptr = 17;
   NodeMode mode = 25;
+  optional string name = 31;
   optional string order_key = 33;
   optional IconData icon = 34;
   optional NodeReferenceData definition_ptr = 35;
+  optional NodeReferenceData scene_ptr = 40;
 }
 
 message SceneData {
@@ -3432,9 +3459,11 @@ message SceneData {
   optional NodeReferenceData template_ptr = 16;
   optional NodeReferenceData owned_by_ptr = 17;
   NodeMode mode = 25;
+  optional string name = 31;
   optional string order_key = 33;
   optional IconData icon = 34;
   optional NodeReferenceData definition_ptr = 35;
+  optional NodeReferenceData root_view_ptr = 40;
 }
 
 message SpaceData {
@@ -4144,58 +4173,59 @@ message SomeNodeData {
     DependencyData dependency = 7;
     PageData page = 8;
     BlockData block = 9;
-    DatabaseData database = 10;
-    ComputerData computer = 11;
-    ScalerData scaler = 12;
-    ChoiceData choice = 13;
-    ClassData class = 14;
-    FieldData field = 15;
-    OptionData option = 16;
-    TableData table = 17;
-    RecordData record = 18;
-    FileData file = 19;
-    LinkData link = 20;
-    ChannelData channel = 21;
-    ThreadData thread = 22;
-    MessageData message = 23;
-    NotificationData notification = 24;
-    TaskData task = 25;
-    ClaimData claim = 26;
-    CursorData cursor = 27;
-    ServiceData service = 28;
-    ActionData action = 29;
-    FlowData flow = 30;
-    FlowEdgeData flow_edge = 31;
-    AgentData agent = 32;
-    SessionData session = 33;
-    RunData run = 34;
-    SpanData span = 35;
-    InterruptionData interruption = 36;
-    MembershipData membership = 37;
-    InviteData invite = 38;
-    TeamData team = 39;
-    RoleData role = 40;
-    SpaceData space = 41;
-    SceneData scene = 42;
-    RouteData route = 43;
-    FrameViewData frame_view = 44;
-    LabelViewData label_view = 45;
-    ComponentViewData component_view = 46;
-    SplitViewData split_view = 47;
-    TextViewData text_view = 48;
-    NumberInputViewData number_input_view = 49;
-    SliderInputViewData slider_input_view = 50;
-    ThreadViewData thread_view = 51;
-    WizardViewData wizard_view = 52;
-    ThemeData theme = 53;
-    ColorStyleData color_style = 54;
-    FontStyleData font_style = 55;
-    BorderStyleData border_style = 56;
-    ShadowStyleData shadow_style = 57;
-    GradientStyleData gradient_style = 58;
-    TransitionStyleData transition_style = 59;
-    EffectStyleData effect_style = 60;
-    EmptyData empty = 61;
+    ApplicationData application = 10;
+    DatabaseData database = 11;
+    ComputerData computer = 12;
+    ScalerData scaler = 13;
+    ChoiceData choice = 14;
+    ClassData class = 15;
+    FieldData field = 16;
+    OptionData option = 17;
+    TableData table = 18;
+    RecordData record = 19;
+    FileData file = 20;
+    LinkData link = 21;
+    ChannelData channel = 22;
+    ThreadData thread = 23;
+    MessageData message = 24;
+    NotificationData notification = 25;
+    TaskData task = 26;
+    ClaimData claim = 27;
+    CursorData cursor = 28;
+    ServiceData service = 29;
+    ActionData action = 30;
+    FlowData flow = 31;
+    FlowEdgeData flow_edge = 32;
+    AgentData agent = 33;
+    SessionData session = 34;
+    RunData run = 35;
+    SpanData span = 36;
+    InterruptionData interruption = 37;
+    MembershipData membership = 38;
+    InviteData invite = 39;
+    TeamData team = 40;
+    RoleData role = 41;
+    SpaceData space = 42;
+    SceneData scene = 43;
+    RouteData route = 44;
+    FrameViewData frame_view = 45;
+    LabelViewData label_view = 46;
+    ComponentViewData component_view = 47;
+    SplitViewData split_view = 48;
+    TextViewData text_view = 49;
+    NumberInputViewData number_input_view = 50;
+    SliderInputViewData slider_input_view = 51;
+    ThreadViewData thread_view = 52;
+    WizardViewData wizard_view = 53;
+    ThemeData theme = 54;
+    ColorStyleData color_style = 55;
+    FontStyleData font_style = 56;
+    BorderStyleData border_style = 57;
+    ShadowStyleData shadow_style = 58;
+    GradientStyleData gradient_style = 59;
+    TransitionStyleData transition_style = 60;
+    EffectStyleData effect_style = 61;
+    EmptyData empty = 62;
   };
 }
 
