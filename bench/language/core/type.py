@@ -222,8 +222,8 @@ class TypeConstraint(Struct):
     node_scope: list["Node"] = p_regular(72, require=False, array=True, references="any")
     node_max_depth: Optional[int] = p_regular(73, require=False, default=None)
     # nocheckin :Architecture: TypeConstraint.node_subtypes feels wrong, need Node-specific constraints?
-    # specific node-ish
-    # ...?
+    # specific node/struct/custom constraints?
+    # e.g., for Text (number of lines), ...
 
 
 constraint = TypeConstraintIn

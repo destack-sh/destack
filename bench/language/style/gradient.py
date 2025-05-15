@@ -16,6 +16,7 @@ from bench.language.core import (
 from bench.pb2 import GradientStyleData
 
 from .color import Color
+from .core import Axis2
 from .style import StyleBase
 
 
@@ -41,7 +42,10 @@ class GradientBase(BuiltinObject):
     type: GradientType = p_regular(30, default=GradientType.LINEAR)
     angle: Optional[float] = p_regular(40, default=None)  # degrees
     stops: list[GradientStop] = p_regular(
-        50, array=True, require=False, struct=StructType.GRADIENT_STOP
+        41, array=True, require=False, struct=StructType.GRADIENT_STOP
+    )
+    center_anchor: Optional[Axis2] = p_regular(
+        42, require=False, array=False, default=None, struct=StructType.AXIS_2
     )
 
 

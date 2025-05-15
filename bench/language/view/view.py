@@ -61,4 +61,3 @@ class ViewBase[NodeDataT: AnyNodeData](
     max_height: Optional["Dimension"] = p_regular(
         46, require=False, array=False, default=None, struct=StructType.DIMENSION
     )
-    # position, size, grow, min/max, ...
