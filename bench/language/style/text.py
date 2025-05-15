@@ -14,7 +14,7 @@ from bench.language.core import (
 from bench.pb2 import TextStyleData
 
 from .color import Color
-from .position import Length
+from .core import Length
 from .style import StyleBase
 
 

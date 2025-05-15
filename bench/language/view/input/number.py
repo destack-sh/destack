@@ -1,14 +1,14 @@
 from typing import Optional
 
 from bench.language.core import NodeType, node_, p_regular
-from bench.pb2 import InputViewData
+from bench.pb2 import NumberViewData
 
 from .input import InputViewBase
 
 
-@node_(NodeType.NUMBER_INPUT_VIEW)
-class NumberInputView(InputViewBase[InputViewData]):
-    """A general number or string input View."""
+@node_(NodeType.NUMBER_VIEW)
+class NumberView(InputViewBase[NumberViewData]):
+    """A general number input View."""
 
-    value: Optional[str] = p_regular(40, default=None)
-    placeholder: Optional[str] = p_regular(41, default=None)
+    value: Optional[str] = p_regular(100, default=None)
+    placeholder: Optional[str] = p_regular(101, default=None)

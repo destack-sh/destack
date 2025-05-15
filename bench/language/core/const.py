@@ -621,7 +621,7 @@ class NodeType(BuiltinEnum):
     # DOCUMENT_VIEW = 8230, "Document View", "Document", "fas fa-file-alt"
 
     # input views [8300-8400]
-    NUMBER_INPUT_VIEW = 8300, "Number Input View", "Number or String Input", "fas fa-hashtag"
+    NUMBER_VIEW = 8300, "Number Input View", "Number or String Input", "fas fa-hashtag"
     SLIDER_VIEW = 8301, "Slider View", "Slider", "fas fa-slider"
     # STRING_INPUT_VIEW = 8302, "String View", "String", "fas fa-font-case"
     # TOGGLE_VIEW = 8303, "Toggle View", "Toggle", "fas fa-square-check"
@@ -652,7 +652,6 @@ class NodeType(BuiltinEnum):
     GRADIENT_STYLE = 8514, "Gradient Style", "Gradient Style", "fas fa-gradient"
     TRANSITION_STYLE = 8515, "Transition Style", "Transition Style", "fas fa-transition"
     EFFECT_STYLE = 8516, "Effect Style", "Effect Style", "fas fa-effect"
-    DIMENSION_STYLE = 8517, "Dimension Style", "Dimension Style", "fas fa-dimension"
     # ANIMATION, ...
 
     # canvas?
@@ -787,11 +786,12 @@ class StructType(BuiltinEnum):
     DIMENSION = 18514, None, None, "fas fa-dimension"
     TRANSITION = 18515, None, None, "fas fa-transition"
     EFFECT = 18516, None, None, "fas fa-effect"
-    GAP = 18517, None, None, "fas fa-gap"
     GRID = 18518, None, None, "fas fa-grid"
     GRID_SPAN = 18519, None, None, "fas fa-grid"
-    PADDING = 18520, None, None, "fas fa-padding"
-    ROTATION = 18521, None, None, "fas fa-rotation"
+    INSETS = 18520, None, None, "fas fa-padding"
+    CORNERS = 18521, None, None, "fas fa-corners"
+    AXIS_2 = 18522, None, None, "fas fa-gap"
+    AXIS_3 = 18523, None, None, "fas fa-rotation"
     # ANIMATION, ...
 
     # canvas [18600-18800]

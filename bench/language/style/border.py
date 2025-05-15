@@ -16,6 +16,7 @@ from bench.language.core import (
 from bench.pb2 import BorderStyleData
 
 from .color import Color
+from .core import Insets
 from .style import StyleBase
 
 
@@ -38,16 +39,9 @@ class BorderBase(BuiltinObject):
         40, default=None, require=False, array=False, references=NodeType.BORDER_STYLE
     )
     color: Optional["Color"] = p_regular(42, array=False, default=None, struct=StructType.COLOR)
-    width: Optional[int] = p_regular(43, default=None)
-    width_top: Optional[int] = p_regular(44, default=None)
-    width_right: Optional[int] = p_regular(45, default=None)
-    width_bottom: Optional[int] = p_regular(46, default=None)
-    width_left: Optional[int] = p_regular(47, default=None)
-    radius: Optional[int] = p_regular(50, default=None)
-    radius_top_left: Optional[int] = p_regular(51, default=None)
-    radius_top_right: Optional[int] = p_regular(52, default=None)
-    radius_bottom_right: Optional[int] = p_regular(53, default=None)
-    radius_bottom_left: Optional[int] = p_regular(54, default=None)
+    width: Optional[Insets] = p_regular(
+        43, default=None, require=False, array=False, struct=StructType.INSETS
+    )
 
 
 @struct_(StructType.BORDER)

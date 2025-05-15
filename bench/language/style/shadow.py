@@ -16,6 +16,7 @@ from bench.language.core import (
 from bench.pb2 import ShadowStyleData
 
 from .color import Color
+from .core import Axis2
 from .style import StyleBase
 
 
@@ -46,8 +47,7 @@ class ShadowBase(BuiltinObject):
         41, array=False, default=None, require=False, struct=StructType.COLOR
     )
     position: ShadowPosition = p_regular(42, default=ShadowPosition.OUTSIDE)
-    offset_x: int | None = p_regular(43, default=None)
-    offset_y: int | None = p_regular(44, default=None)
+    offset: Optional[Axis2] = p_regular(43, default=None, struct=StructType.AXIS_2)
     blur: int | None = p_regular(45, default=None)
     spread: int | None = p_regular(46, default=None)
     diffusion: float | None = p_regular(47, default=None)
