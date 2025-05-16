@@ -27,10 +27,10 @@ async def test_bench_agent_get_reply_to_message(
 
     # create Thread in separate tx to test loading
     Thread1 = Thread.new("Test Thread", memberships=[Membership.new(BenchAgent)])
-    runtime.main_package.append(Thread1)
+    runtime.main_package.add_child(Thread1)
     await runtime.commit()
 
     # submit message
     Message1 = Message.new(text=text("Hello!"))
-    Thread1.messages.append(Message1)
+    Thread1.add_child(Message1)
     await runtime.commit()

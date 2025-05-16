@@ -237,9 +237,9 @@ class FlowRunner[N: Flow = Flow](Runner[N], ABC):
 
         # start manual links
         if isinstance(event, RunnerCompletedEvent):
-            for link in self.node.transitions:
-                if link.type == FlowEdgeType.MANUAL and link.source_id == action.id:
-                    new_run = self._start(link)
+            for edge in self.node.get_children(FlowEdge):
+                if edge.type == FlowEdgeType.MANUAL and edge.source_id == action.id:
+                    new_run = self._start(edge)
                     new_runs.append(new_run)
 
         logger.trace("flow.tick", flow=self.node, node=runner.node, runner=runner)
@@ -266,10 +266,10 @@ class FlowRunner[N: Flow = Flow](Runner[N], ABC):
 
         # start / resume
         self._stop_result = None  # clear
-        runs = run.runs.tolist()
+        runs = run.get_children(Run)
         if not runs:
             # start from scratch
-            for action in self.node.actions:
+            for action in self.node.get_children(Action):
                 if action.type == ActionType.START:
                     self._start(action, inputs=self.inputs)
         else:

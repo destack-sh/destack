@@ -39,10 +39,11 @@ class ClientWorkload[SpecT: ClientWorkloadSpec](Workload[SpecT], abc.ABC):
     def page(self, title: TextLineIn = "Page1") -> Page:
         """Gets or creates a page in the current package."""
         title = text_line(title)
-        page = self.main_package.pages.find(lambda p: p.title == title)
+        pages = self.main_package.get_children(Page)
+        page = next((p for p in pages if p.title == title), None)
         if page is None:
             page = Page.new(title=title)
-            self.main_package.pages.append(page)
+            self.main_package.add_child(page)
         return page
 
     async def commit(self):

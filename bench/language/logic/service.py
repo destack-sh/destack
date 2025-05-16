@@ -6,17 +6,15 @@ from bench.language.core import (
     IsNamed,
     IsOwnable,
     IsTemplatable,
-    LocalNodeList,
     NodeType,
     PageNode,
     node_,
-    p_node_children,
     p_regular,
 )
 from bench.pb2 import ServiceData
 
 if TYPE_CHECKING:
-    from bench.language import Action, Claim
+    pass
 
 
 # pyright: reportIncompatibleVariableOverride=false, reportIncompatibleMethodOverride=false
@@ -36,9 +34,6 @@ class Service(
     """
 
     target: Optional["PageNode"] = p_regular(40)
-
-    actions: LocalNodeList["Action"] = p_node_children(NodeType.ACTION)
-    claims: LocalNodeList["Claim"] = p_node_children(NodeType.CLAIM)
 
     @staticmethod
     def new(name: str, **kwargs) -> "Service":

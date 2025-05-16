@@ -50,7 +50,7 @@ class ScalerProvisioner[WT: ProvisionableResourceBase](Provisioner[Scaler, Scale
     async def _get_scaled_resources(self) -> Mapping[Scaler, list[WT]]:
         """Gets all the scaled Resources for this Provisioner."""
         resources_by_scaler: dict[Scaler, list[WT]] = {}
-        for scaler in self.main_package.scalers:
+        for scaler in self.main_package.get_children(Scaler):
             if scaler.is_active:
                 resources_by_scaler[scaler] = []
         for scale_type in self.scale_types:

@@ -15,6 +15,7 @@ from bench.language import (
     ClientType,
     Code,
     Computer,
+    Database,
     Field,
     Flow,
     Message,
@@ -72,8 +73,10 @@ def test_node_pointers_consistency(session: "Session"):
     assert bench_a.to_ref().equals(
         NodeReference(node_type=NodeType.BENCH, id=bench_a.id, ck=bench_a.ck, bench_id=bench_a.id)
     )
-    package_a = bench_a.packages.create(type=PackageType.OPEN, name="Main", slug="main")
-    bench_a.database = package_a.databases.create(name="Database")
+    package_a = Package(type=PackageType.OPEN, name="Main", slug="main")
+    bench_a.add_child(package_a)
+    bench_a.database = Database(name="Database")
+    bench_a.add_child(bench_a.database)
 
     # sub bench, above package pointers
     assert package_a.bench_id == bench_a.id
@@ -104,9 +107,11 @@ def test_node_pointers_consistency(session: "Session"):
     assert client_a.parent_ptr.bench_id == bench_a.id
 
     # sub package nested pointers
-    package_a = bench_a.packages.create(type=PackageType.OPEN, name="Main B", slug="main-b")
+    package_a = Package(type=PackageType.OPEN, name="Main B", slug="main-b")
+    bench_a.add_child(package_a)
     assert package_a.bench_id == bench_a.id
-    page_a_1 = package_a.pages.create()
+    page_a_1 = Page()
+    package_a.add_child(page_a_1)
     assert page_a_1.bench_id == bench_a.id
     assert page_a_1.to_ref().equals(
         NodeReference(node_type=NodeType.PAGE, id=page_a_1.id, ck=page_a_1.ck, bench_id=bench_a.id)
@@ -114,7 +119,7 @@ def test_node_pointers_consistency(session: "Session"):
 
     # based pointers
     thread_a = Thread.new("Thread1")
-    page_a_1.append(thread_a)
+    page_a_1.add_child(thread_a)
     message_a = Message(parent=thread_a)
     assert message_a.bench_id == bench_a.id
     assert message_a.to_ref().equals(
@@ -129,12 +134,15 @@ def test_node_pointers_consistency(session: "Session"):
 
     # refs pointing to different bench
     bench_b = Bench(slug="testb", name="testb")
-    package_b = bench_b.packages.create(type=PackageType.OPEN, name="Main B", slug="main-b")
-    bench_b.database = package_b.databases.create(name="Database")
-    page_b = package_b.pages.create()
+    package_b = Package(type=PackageType.OPEN, name="Main B", slug="main-b")
+    bench_b.add_child(package_b)
+    bench_b.database = Database(name="Database")
+    bench_b.add_child(bench_b.database)
+    page_b = Page()
+    package_b.add_child(page_b)
     assert page_b.bench_id == bench_b.id
     thread_b = Thread.new("Thread1")
-    page_b.append(thread_b)
+    page_b.add_child(thread_b)
     message_b = Message(parent=thread_b)
     assert message_b.bench_id == bench_b.id
     assert message_b.to_ref().equals(
@@ -167,8 +175,8 @@ async def test_add_detached_subtree(simulation: Simulation, runtime: RuntimeLamb
     choice = Choice.new("Letter")
     for i in range(0, 26):
         letter = chr(65 + i)
-        choice.options.append(Option.new(letter))
-    runtime.page().append(choice)
+        choice.add_child(Option.new(letter))
+    runtime.page().add_child(choice)
     await runtime.commit()
 
 
@@ -178,12 +186,12 @@ async def test_clone(simulation: Simulation, runtime: RuntimeLambdaWorkload):
     choice = Choice.new("Letter")
     for i in range(0, 26):
         letter = chr(65 + i)
-        choice.options.append(Option.new(letter))
-    runtime.page().append(choice)
+        choice.add_child(Option.new(letter))
+    runtime.page().add_child(choice)
     await runtime.commit()
 
     choice_clone = choice.clone()
-    for option, option_clone in zip(choice.options, choice_clone.options):
+    for option, option_clone in zip(choice.get_children(Option), choice_clone.get_children(Option)):
         assert option is not option_clone
         assert option.id != option_clone.id
         assert option.equals(option_clone)
@@ -200,12 +208,12 @@ async def test_clone_with_cross_references(simulation: Simulation, runtime: Runt
         "Action",
         fields=[Field.input("Text", Text), Field.output("Choice", choice)],
     )
-    flow.append(action)
+    flow.add_child(action)
     table = Table.new("Table", fields=[Field.member("Text", Text)])
     page = runtime.page()
-    choice_block = page.append(choice)
-    flow_block = page.append(flow)
-    _ = page.append(table)
+    choice_block = page.add_child(choice)
+    flow_block = page.add_child(flow)
+    _ = page.add_child(table)
     await runtime.commit()
 
     # cloning an inline node should be consistent with its definition counterpart
@@ -220,14 +228,14 @@ async def test_clone_with_cross_references(simulation: Simulation, runtime: Runt
 
     # references should be consistent within new subtree
     page_clone = page.clone()
-    flow_clone = page_clone.blocks.Flow.get_node_as(Flow)
+    flow_clone = page_clone.child(Block, "Flow").get_node_as(Flow)
     assert flow_clone is not None
-    choice_clone = page_clone.blocks.Letter.get_node_as(Choice)
+    choice_clone = page_clone.child(Block, "Letter").get_node_as(Choice)
     assert choice_clone is not None
-    action_clone = flow_clone.actions.Action
+    action_clone = flow_clone.child(Action, "Action")
     assert action_clone is not None
-    assert action_clone.fields.Choice.base_type == choice_clone
-    table_clone = page_clone.blocks.Table.get_node_as(Table)
+    assert action_clone.child(Field, "Choice").base_type == choice_clone
+    table_clone = page_clone.child(Block, "Table").get_node_as(Table)
     assert table_clone is not None
     await runtime.commit()
 
@@ -238,15 +246,17 @@ async def test_instance(simulation: Simulation, runtime: RuntimeLambdaWorkload):
     choice = Choice.new("Letter")
     for i in range(0, 26):
         letter = chr(65 + i)
-        choice.options.append(Option.new(letter))
-    runtime.page().append(choice)
+        choice.add_child(Option.new(letter))
+    runtime.page().add_child(choice)
     await runtime.commit()
 
     choice_instance = choice.instance()
     assert choice_instance.equals(choice)
     assert choice_instance.id != choice.id
     assert choice_instance.template_id == choice.id
-    for option, option_instance in zip(choice.options, choice_instance.options):
+    for option, option_instance in zip(
+        choice.get_children(Option), choice_instance.get_children(Option)
+    ):
         assert option_instance.id != option.id
         assert option_instance.ck == option.ck
         assert option_instance.template_id == option.id
@@ -266,30 +276,30 @@ async def test_instance_with_cross_references(
         "Action",
         fields=[Field.input("Text", Text), Field.output("Choice", choice)],
     )
-    flow.append(action)
+    flow.add_child(action)
     table = Table.new("Table", fields=[Field.member("Text", Text)])
     page = runtime.page()
-    _ = page.append(choice)
-    _ = page.append(flow)
-    _ = page.append(table)
+    _ = page.add_child(choice)
+    _ = page.add_child(flow)
+    _ = page.add_child(table)
     await runtime.commit()
 
     # references should be consistent within new subtree
     page_instance = page.instance()
-    flow_instance = page_instance.blocks.Flow.get_node_as(Flow)
+    flow_instance = page_instance.child(Block, "Flow").get_node_as(Flow)
     assert flow_instance is not None
     assert flow_instance is not flow
     assert flow_instance.template is flow
-    choice_instance = page_instance.blocks.Letter.get_node_as(Choice)
+    choice_instance = page_instance.child(Block, "Letter").get_node_as(Choice)
     assert choice_instance is not None
     assert choice_instance is not choice
     assert choice_instance.template is choice
-    action_instance = flow_instance.actions.Action
+    action_instance = flow_instance.child(Action, "Action")
     assert action_instance is not None
     assert action_instance is not action
     assert action_instance.template is action
-    assert action_instance.fields.Choice.base_type == choice_instance
-    table_instance = page_instance.blocks.Table.get_node_as(Table)
+    assert action_instance.child(Field, "Choice").base_type == choice_instance
+    table_instance = page_instance.child(Block, "Table").get_node_as(Table)
     assert table_instance is not None
     assert table_instance is not table
     assert table_instance.template is table
@@ -301,41 +311,41 @@ async def test_move_subtree(simulation: Simulation, runtime: RuntimeLambdaWorklo
     """Move Nodes between parents (within a Package)."""
     Page1 = runtime.page("Page1")
     Page2 = runtime.page("Page2")
-    Block1 = Page1.append(Choice.new("Block1", options=[Option.new("A"), Option.new("B")]))
-    Block2 = Page1.append(
+    Block1 = Page1.add_child(Choice.new("Block1", options=[Option.new("A"), Option.new("B")]))
+    Block2 = Page1.add_child(
         Flow.new("Block2", fields=[Field.input("Text", Text), Field.output("Choice", Block1)])
     )
-    Block3 = Page1.append(Table.new("Block3", fields=[Field.member("Text", Text)]))
+    Block3 = Page1.add_child(Table.new("Block3", fields=[Field.member("Text", Text)]))
     await runtime.commit()
 
     # can't just append directly
     with pytest.raises(ValueError):
-        Page2.append(Block3)
+        Page2.add_child(Block3)
 
     # move Block1 to Page2
     Block1.move(to=Page2)
     await runtime.commit()
-    assert Page1.blocks == [Block2, Block3]
-    assert Page2.blocks == [Block1]
+    assert Page1.get_children(Block) == [Block2, Block3]
+    assert Page2.get_children(Block) == [Block1]
 
     # move Block1 back to Page1
     Block1.move(to=Page1)
     await runtime.commit()
-    assert Page1.blocks == [Block2, Block3, Block1]
-    assert Page2.blocks == []
+    assert Page1.get_children(Block) == [Block2, Block3, Block1]
+    assert Page2.get_children(Block) == []
 
     # move all blocks to Page2
     Block1.move(to=Page2)
     Block2.move(to=Page2)
     Block3.move(to=Page2)
     await runtime.commit()
-    assert Page1.blocks == []
-    assert Page2.blocks == [Block1, Block2, Block3]
+    assert Page1.get_children(Block) == []
+    assert Page2.get_children(Block) == [Block1, Block2, Block3]
 
 
 def test_create_circular_node_ancestry(session: Session, package: Package):
     """Create a circular node ancestry. Should fail."""
     Page1 = Page.new("Page1")
     with pytest.raises(ValueError):
-        Page1.append(Page1)
-    package.append(Page1)
+        Page1.add_child(Page1)
+    package.add_child(Page1)

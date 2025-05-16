@@ -6,14 +6,12 @@ from bench.language.core import (
     IsOwnable,
     IsTemplatable,
     IsTitled,
-    LocalNodeList,
     Node,
     NodeType,
     PageNode,
     TextIn,
     TextLineIn,
     node_,
-    p_node_children,
     p_node_parent,
     text_line,
     to_text,
@@ -44,40 +42,36 @@ class Page(
     parent: Union["Package", "Page", None] = p_node_parent(4, NodeType.PACKAGE, NodeType.PAGE)
     # app? scene? plugin? Page/Record/View/... tying? :NodeTying
 
-    pages: LocalNodeList["Page"] = p_node_children(NodeType.PAGE)
-    blocks: LocalNodeList["Block"] = p_node_children(NodeType.BLOCK)
-
     def __content_str__(self):
         return ""
 
     @overload
-    def append(self, child: PageNode, move: bool = False) -> "Block": ...
+    def add_child(self, child: PageNode, move: bool = False) -> "Block": ...
     @overload
-    def append[T: Node](self, child: T, move: bool = False) -> T: ...
-    def append[T: Node](self, child: T, move: bool = False) -> "T | Block":
+    def add_child[T: Node](self, child: T, move: bool = False) -> T: ...
+    def add_child[T: Node](self, child: T, move: bool = False) -> "T | Block":
         if not move and isinstance(child, PageNode):
             # wrap PageNodes into Blocks
             child_block = child.wrap_in_block()
-            self.blocks.append(child_block)
-            super().append(child, move)
+            super().add_child(child_block, move)
+            super().add_child(child, move)
             return child_block
         else:
-            return super().append(child, move)
+            return super().add_child(child, move)
 
     @overload
-    def extend(self, *children: "PageNode", move: bool = False) -> "Sequence[Block]": ...
+    def add_children(self, *children: "PageNode", move: bool = False) -> "Sequence[Block]": ...
     @overload
-    def extend[T: Node](self, *children: T, move: bool = False) -> "Sequence[T | Block]": ...
-    def extend[T: Node](self, *children: T, move: bool = False) -> "Sequence[T | Block]":
+    def add_children[T: Node](self, *children: T, move: bool = False) -> "Sequence[T | Block]": ...
+    def add_children[T: Node](self, *children: T, move: bool = False) -> "Sequence[T | Block]":
         if not move and isinstance(children[0], PageNode):
             # wrap PageNodes into Blocks
             child_blocks = [cast(PageNode, child).wrap_in_block() for child in children]
-            self.blocks.extend(*child_blocks)
-            for child in children:
-                super().append(child, move)
+            super().add_children(*child_blocks, move=move)
+            super().add_children(*children, move=move)
             return child_blocks
         else:
-            return super().extend(*children, move=move)
+            return super().add_children(*children, move=move)
 
     def add_text(
         self, text: TextIn, after: Optional["Block"] = None, before: Optional["Block"] = None
@@ -85,17 +79,13 @@ class Page(
         """Add text to the Page."""
         text = to_text(text)
         blocks = Block.from_text(text)
-        self.blocks.extend(*blocks, after=after, before=before)
+        raise NotImplementedError("TODO: :Incomplete: add_children(..., before=..., after=...)")
+        # self.add_children(*blocks, after=after, before=before)
         return blocks
-
-    def remove_range(self, start: Optional["Block"] = None, end: Optional["Block"] = None):
-        """Remove a range of Blocks."""
-        blocks = self.blocks.between(start, end)
-        self.blocks.remove(*blocks)
 
     @staticmethod
     def new(title: "TextLineIn", *nodes: "Block | PageNode", **kwargs) -> "Page":
         page = Page(title=text_line(title), **kwargs)
         for node in nodes:
-            page.append(node)
+            page.add_child(node)
         return page

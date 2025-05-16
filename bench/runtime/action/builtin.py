@@ -24,7 +24,7 @@ def _register_builtins():
 
     for kit, impl_cls in ((InternetService, InternetServiceImpl),):
         impl = impl_cls()
-        for action in kit.actions:
+        for action in kit.get_children(Action):
             assert action.name is not None, f"{action!r} has no name"
             method_name = action.name.replace(" ", "_")
             method = getattr(impl, method_name, None)

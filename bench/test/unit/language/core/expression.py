@@ -8,6 +8,7 @@ from bench.language import (
     Flow,
     Option,
     Package,
+    Page,
     Run,
     S,
     Session,
@@ -47,11 +48,12 @@ def test_evaluate_conditional_property_stringy(session: Session):
 
 
 def test_evaluate_conditional_property_node(session: Session, package: Package):
-    Page1 = package.pages.create(title=text_line("Page1"))
+    page = Page(title=text_line("Page1"))
+    Page1 = package.add_child(page)
     Flow1 = Flow.new("Flow1")
-    Page1.append(Flow1)
+    Page1.add_child(Flow1)
     Code1 = Action.new(ActionType.CODE, "Code1", code=code("pass"))
-    Flow1.append(Code1)
+    Flow1.add_child(Code1)
     run, _ = create_run(Code1, parent=package)
 
     cond = Run.get_property("action").is_equal(Code1)
@@ -108,34 +110,44 @@ def test_evaluate_conditional_field(session: Session, package: Package):
         Field.member("Name", str),
         Field.member("Choice", Choice1),
     )
-    Record1 = Table1.records.create(Rating=1, Name="Alice", Choice=Choice1.options.Option1)
-    Record2 = Table1.records.create(Rating=2, Name="Bob", Choice=Choice1.options.Option2)
-    Record3 = Table1.records.create(Rating=3, Name="Charlie", Choice=Choice1.options.Option3)
+    Record1 = Table1.records.create(
+        Rating=1, Name="Alice", Choice=Choice1.get_child(Option, "Option1")
+    )
+    Record2 = Table1.records.create(
+        Rating=2, Name="Bob", Choice=Choice1.get_child(Option, "Option2")
+    )
+    Record3 = Table1.records.create(
+        Rating=3, Name="Charlie", Choice=Choice1.get_child(Option, "Option3")
+    )
 
     # basic number
-    cond = Table1.fields.Rating.is_equal(1)
+    cond = Table1.child(Field, "Rating").is_equal(1)
     assert evaluate_conditional(cond, Record1) is True
     assert evaluate_conditional(cond, Record2) is False
     assert evaluate_conditional(cond, Record3) is False
 
     # basic string
-    cond = Table1.fields.Name.matches_regex(".*ob.*")
+    cond = Table1.child(Field, "Name").matches_regex(".*ob.*")
     assert evaluate_conditional(cond, Record1) is False
     assert evaluate_conditional(cond, Record2) is True
     assert evaluate_conditional(cond, Record3) is False
 
     # basic node
-    cond = Table1.fields.Choice.is_equal(Choice1.options.Option1)
+    cond = Table1.child(Field, "Choice").is_equal(Choice1.get_child(Option, "Option1"))
     assert evaluate_conditional(cond, Record1) is True
     assert evaluate_conditional(cond, Record2) is False
     assert evaluate_conditional(cond, Record3) is False
 
     # compound
-    cond = Table1.fields.Rating.is_equal(1) & Table1.fields.Name.matches_regex(".*ob.*")
+    cond = Table1.child(Field, "Rating").is_equal(1) & Table1.child(Field, "Name").matches_regex(
+        ".*ob.*"
+    )
     assert evaluate_conditional(cond, Record1) is False
     assert evaluate_conditional(cond, Record2) is False
     assert evaluate_conditional(cond, Record3) is False
-    cond = Table1.fields.Rating.gte(2) | Table1.fields.Name.matches_regex(".*ob.*")
+    cond = Table1.child(Field, "Rating").gte(2) | Table1.child(Field, "Name").matches_regex(
+        ".*ob.*"
+    )
     assert evaluate_conditional(cond, Record1) is False
     assert evaluate_conditional(cond, Record2) is True
     assert evaluate_conditional(cond, Record3) is True

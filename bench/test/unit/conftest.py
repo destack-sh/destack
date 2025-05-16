@@ -29,6 +29,7 @@ from bench.language import (
     NodeSuperGraph,
     NullEngine,
     ObjectType,
+    Package,
     PackageType,
     Region,
     Session,
@@ -136,8 +137,8 @@ async def session_async(request):
 
 def make_package(session: Session):
     bench = Bench(name="test", slug="test", status=BenchStatus.ACTIVATED)
-    package = bench.packages.create(type=PackageType.OPEN, name="Main", slug="main")
-    bench.database = package.databases.create(name="Database")
+    package = bench.add_child(Package(type=PackageType.OPEN, name="Main", slug="main"))
+    bench.database = package.add_child(Database(name="Database"))
     session.parent = bench
     session._graph.update(session, _force_update_parent=True)
     return package

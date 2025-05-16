@@ -129,7 +129,7 @@ from .graph import (
     NodeSuperGraph,
 )
 from .icon import Icon, IconIn, IconType, icon, reverse_icon, to_icon
-from .list import LocalNodeList, NodeList, RecordNodeList, RemoteNodeList, ValueList
+from .list import NodeList, RemoteNodeList, ValueList
 from .node import (
     BASED_NODE_TYPES,
     BenchNode,
@@ -163,7 +163,6 @@ from .property import (
     p_kernel,
     p_node_ancestor,
     p_node_ancestor_with_self,
-    p_node_children,
     p_node_parent,
     p_regular,
     p_runtime,
@@ -445,7 +444,6 @@ __all__ = [
     "Joinable",
     "LegacyQuery",
     "LiteralType",
-    "LocalNodeList",
     "Month",
     "MultipleNodesFoundError",
     "Node",
@@ -471,7 +469,6 @@ __all__ = [
     "PropertyReferenceType",
     "ProvisionableResourceBase",
     "QueryType",
-    "RecordNodeList",
     "ReferenceKind",
     "Region",
     "RemoteNodeList",
@@ -563,7 +560,6 @@ __all__ = [
     "p_kernel",
     "p_node_ancestor",
     "p_node_ancestor_with_self",
-    "p_node_children",
     "p_node_parent",
     "p_regular",
     "p_runtime",

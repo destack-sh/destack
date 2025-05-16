@@ -11,14 +11,12 @@ from bench.language.core import (
     IsProcessable,
     IsTimed,
     IsTitled,
-    NodeList,
     NodeType,
     PageNode,
     ProcessStatus,
     Subject,
     TextLineIn,
     TypeBase,
-    p_node_children,
     p_node_parent,
     p_regular,
     text_line,
@@ -60,8 +58,6 @@ class Task(
         assigned_to_type: Optional[NodeType] = None
 
     # ...IsProcessable[80-]
-
-    tasks: NodeList["Task"] = p_node_children(NodeType.TASK)
 
     def start(self) -> None:
         self.status = ProcessStatus.RUNNING

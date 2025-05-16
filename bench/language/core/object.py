@@ -52,7 +52,7 @@ from .const import (
     StructType,
 )
 from .graph import NULL_SUPERGRAPH, NodeSuperGraph
-from .list import RemoteNodeList
+from .list import RemoteNodeList, ValueList
 from .property import (
     _PROPERTY_SPECIFIERS,
     METATYPE_PROPERTY,
@@ -635,7 +635,7 @@ def _trace_edit_operation(
     # pack edit operation content
     operation_type = EditOperationType.CLEAR if new_value is None else EditOperationType.SET
     if type(key) is Property:
-        typ = key._type_info
+        typ = key._type
         assert typ is not None, f"{key!r} in {obj!r} has no type info"
     else:
         typ = cast("Field", key)
@@ -777,9 +777,11 @@ class BuiltinObject[ObjectDataT: AnyObjectData](abc.ABC):
                 if prop.is_list:
                     # and init value list
                     assert prop.reference_list_type is not None, f"no list type for {prop!r}"
-                    value_list = prop.reference_list_type(cast("Node", self), prop)
+                    value_list = prop.reference_list_type(cast("Node", self))
                     if isinstance(prop_value, list):
-                        value_list.extend(prop_value)  # will auto copy if needed
+                        cast("ValueList", value_list).extend(
+                            *prop_value
+                        )  # will auto copy if needed
                     prop_value = value_list
                 elif isinstance(prop_value, Struct):
                     prop_value = prop_value._move_to(cast("Node | Struct", self), prop)
@@ -875,12 +877,12 @@ class BuiltinObject[ObjectDataT: AnyObjectData](abc.ABC):
                 prop.id < 30
                 or prop.is_value_packed  # compared in runtime value
                 or prop.name == "order_key"  # implicitly checked in lists
-                or prop._type_info is None
+                or prop._type is None
             ):
                 continue  # ignore identity/tracking
             self_value = getattr(self, prop.name)
             other_value = getattr(other, prop.name)
-            if not value_equals(prop._type_info, self_value, other_value, identity_map):
+            if not value_equals(prop._type, self_value, other_value, identity_map):
                 return False
         return True
 
@@ -944,7 +946,7 @@ class BuiltinObject[ObjectDataT: AnyObjectData](abc.ABC):
                 return
 
             # check (if it's not a contributed property, which are system-only)
-            if (typ := prop._type_info) is not None and prop.reference_source is None:
+            if (typ := prop._type) is not None and prop.reference_source is None:
                 # move
                 if prop.reference_kind == ReferenceKind.STRUCT_CHILD:
                     if not prop.is_list:
@@ -1099,9 +1101,9 @@ class BuiltinObject[ObjectDataT: AnyObjectData](abc.ABC):
         # check properties types
         for prop in properties or self.__tracked_properties__.values():
             # NOTE: references may be unloaded and there's not much to validate, so we don't
-            if prop._type_info is not None and prop.reference_kind is None:
+            if prop._type is not None and prop.reference_kind is None:
                 value = getattr(self, prop.name)
-                check_value(value, prop._type_info, options=DEFAULT_CHECK_OPTIONS, invalid=invalid)
+                check_value(value, prop._type, options=DEFAULT_CHECK_OPTIONS, invalid=invalid)
 
     @final
     def _validate_rec(self, invalid: "ValidationHandler"):

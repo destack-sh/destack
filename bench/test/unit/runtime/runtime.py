@@ -79,7 +79,7 @@ async def test_start_run(simulation: Simulation, runtime: RuntimeLambdaWorkload)
     """Create a Run and wait for it to execute in another Runtime."""
     Page1 = runtime.page()
     Flow1 = Flow.new("Flow1")
-    Page1.append(Flow1)
+    Page1.add_child(Flow1)
     await runtime.commit()
 
     run, _ = create_run(Flow1, parent=runtime.main_package)
@@ -94,21 +94,21 @@ async def test_start_run_from_message(simulation: Simulation, runtime: RuntimeLa
     Flow1 = Flow.new("Flow1")
     Start1 = Action.new(ActionType.START, "Start1")
     End1 = Action.new(ActionType.END, "End1")
-    Flow1.extend(Start1, End1)
+    Flow1.add_children(Start1, End1)
     Start1.connect(FlowEdgeType.MANUAL, End1)
     Agent1 = Agent.new("Agent", main_flow=Flow1)
     Page1 = runtime.page()
-    Page1.extend(Flow1, Agent1)
+    Page1.add_children(Flow1, Agent1)
     await runtime.commit()
 
     # create Thread in separate tx to test loading
     Thread1 = Thread.new("Test Thread", memberships=[Membership.new(Agent1)])
-    runtime.main_package.append(Thread1)
+    runtime.main_package.add_child(Thread1)
     await runtime.commit()
 
     # submit message
     Message1 = Message.new(text=text("Hello!"))
-    Thread1.messages.append(Message1)
+    Thread1.add_child(Message1)
     await runtime.commit()
 
     Run1 = await Run.get_run_of(Flow1, where=TERMINAL_PROCESS_STATUSES)
@@ -123,10 +123,10 @@ async def test_pause_resume_run(simulation: Simulation, runtime: RuntimeLambdaWo
     Start = Action.new(ActionType.START, "Start")
     Action1 = Action.new(ActionType.CODE, "Action1", code=code("await sleep(1)"))
     End = Action.new(ActionType.END, "End")
-    Flow1.actions.extend(Start, Action1, End)
+    Flow1.add_children(Start, Action1, End)
     Start.connect(FlowEdgeType.MANUAL, Action1)
     Action1.connect(FlowEdgeType.MANUAL, End)
-    runtime.page().append(Flow1)
+    runtime.page().add_child(Flow1)
     await runtime.commit()
 
     async def pause_run(run: Run):

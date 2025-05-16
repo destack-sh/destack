@@ -10,6 +10,7 @@ from bench.language import (
     FlowEdgeType,
     NodeMode,
     ProcessStatus,
+    Run,
     code,
 )
 from bench.runtime import create_run
@@ -22,11 +23,11 @@ from bench.test.unit.conftest import simulated_runtime
 async def test_run_flow_empty(simulation: Simulation, runtime: RuntimeLambdaWorkload):
     """Empty Code without any fields should fail."""
     Flow1 = Flow.new("Flow1")
-    runtime.page().append(Flow1)
+    runtime.page().add_child(Flow1)
     await runtime.commit()
 
     runner = await runtime.run_in_runtime(Flow1)
-    assert runner.tracked_run and not runner.tracked_run.runs  # no nested runs
+    assert runner.tracked_run and not runner.tracked_run.get_children(Run)  # no nested runs
 
 
 @simulated_runtime()
@@ -34,14 +35,14 @@ async def test_run_flow_lifted_from_action(simulation: Simulation, runtime: Runt
     """Run a Flow lifted from an Action."""
     Flow1 = Flow.new("Flow1")
     Action1 = Action.new(ActionType.START, "Action1")
-    Flow1.actions.append(Action1)
-    runtime.page().append(Flow1)
+    Flow1.add_child(Action1)
+    runtime.page().add_child(Flow1)
     await runtime.commit()
 
     runner = await runtime.run_in_runtime(Action1)
     assert runner.parent is not None
     assert runner.parent.tracked_run and runner.parent.tracked_run.runnable == Flow1
-    assert runner.parent.tracked_run.runs[0].runnable == Action1
+    assert runner.parent.tracked_run.get_children(Run)[0].runnable == Action1
 
 
 @simulated_runtime()
@@ -52,12 +53,12 @@ async def test_run_flow_spurious(simulation: Simulation, runtime: RuntimeLambdaW
     End = Action.new(ActionType.END, "End")
     Code1 = Action.new(ActionType.CODE, "Code1", code=code("pass"))
     # don't actually connect the actions
-    Flow1.actions.extend(Start, End, Code1)
-    runtime.page().append(Flow1)
+    Flow1.add_children(Start, End, Code1)
+    runtime.page().add_child(Flow1)
     await runtime.commit()
 
     runner = await runtime.run_in_runtime(Flow1)
-    assert runner.tracked_run and len(runner.tracked_run.runs) == 1  # just Start
+    assert runner.tracked_run and len(runner.tracked_run.get_children(Run)) == 1  # just Start
 
 
 @simulated_runtime()
@@ -66,13 +67,13 @@ async def test_run_flow_trivial(simulation: Simulation, runtime: RuntimeLambdaWo
     Flow1 = Flow.new("Flow1")
     Start = Action.new(ActionType.START, "Start")
     End = Action.new(ActionType.END, "End")
-    Flow1.actions.extend(Start, End)
+    Flow1.add_children(Start, End)
     Start.connect(FlowEdgeType.MANUAL, End)
-    runtime.page().append(Flow1)
+    runtime.page().add_child(Flow1)
     await runtime.commit()
 
     runner = await runtime.run_in_runtime(Flow1)
-    assert runner.tracked_run and len(runner.tracked_run.runs) == 3
+    assert runner.tracked_run and len(runner.tracked_run.get_children(Run)) == 3
 
 
 @simulated_runtime()
@@ -88,21 +89,21 @@ async def test_run_flow_create_in_test_mode(simulation: Simulation, runtime: Run
         "Create",
         code=code("""\
 block = Block.new(BlockType.PARAGRAPH)
-Flow1.parent.append(block)
+Flow1.parent.add_child(block)
 return {'Block': block}
 """),
         fields=(Field.output("Block", Block, is_required=True),),
     )
     End = Action.new(ActionType.END, "End")
-    Flow1.actions.extend(Start, Create, End)
+    Flow1.add_children(Start, Create, End)
     Start.connect(FlowEdgeType.MANUAL, Create)
     Create.connect(FlowEdgeType.MANUAL, End)
-    runtime.page().append(Flow1)
+    runtime.page().add_child(Flow1)
     await runtime.commit()
 
     runner = await runtime.run_in_runtime(Flow1, mode=NodeMode.TEST)
-    assert runner.tracked_run and len(runner.tracked_run.runs) == 5
-    assert all(r.mode == NodeMode.TEST for r in runner.tracked_run.runs)
+    assert runner.tracked_run and len(runner.tracked_run.get_children(Run)) == 5
+    assert all(r.mode == NodeMode.TEST for r in runner.tracked_run.get_children(Run))
     assert runner.outputs and isinstance(runner.outputs.Block, Block)
     assert runner.outputs.Block.mode == NodeMode.TEST
 
@@ -113,15 +114,15 @@ async def test_run_flow_link_from_nowhere(simulation: Simulation, runtime: Runti
     Flow1 = Flow.new("Flow1")
     Start = Action.new(ActionType.START, "Start")
     End = Action.new(ActionType.END, "End")
-    Flow1.actions.extend(Start, End)
+    Flow1.add_children(Start, End)
     Nowhere = Action.new(ActionType.START, "Nowhere")  # not added to flow/graph
     Nowhere.connect(FlowEdgeType.REQUIRE, End, parent=Flow1)
     Start.connect(FlowEdgeType.MANUAL, End)
-    runtime.page().append(Flow1)
+    runtime.page().add_child(Flow1)
     await runtime.commit()
 
     runner = await runtime.run_in_runtime(Flow1)
-    assert runner.tracked_run and len(runner.tracked_run.runs) == 3
+    assert runner.tracked_run and len(runner.tracked_run.get_children(Run)) == 3
 
 
 @simulated_runtime()
@@ -131,15 +132,15 @@ async def test_run_flow_link_to_nowhere(simulation: Simulation, runtime: Runtime
     Start = Action.new(ActionType.START, "Start")
     End = Action.new(ActionType.END, "End")
     Nowhere = Action.new(ActionType.START, "Nowhere")  # not added to flow/graph
-    Flow1.actions.extend(Start, Nowhere, End)
+    Flow1.add_children(Start, Nowhere, End)
     Start.connect(FlowEdgeType.MANUAL, Nowhere, parent=Flow1)
     Start.connect(FlowEdgeType.MANUAL, End)
-    runtime.page().append(Flow1)
+    runtime.page().add_child(Flow1)
     Nowhere.delete()
     await runtime.commit()
 
     runner = await runtime.run_in_runtime(Flow1)
-    assert runner.tracked_run and len(runner.tracked_run.runs) == 4
+    assert runner.tracked_run and len(runner.tracked_run.get_children(Run)) == 4
 
 
 @simulated_runtime()
@@ -153,9 +154,9 @@ async def test_run_flow_force_invalid_output(
     )
     Start = Action.new(ActionType.START, "Start")
     End = Action.new(ActionType.END, "End")
-    Flow1.actions.extend(Start, End)
+    Flow1.add_children(Start, End)
     Start.connect(FlowEdgeType.MANUAL, End)
-    runtime.page().append(Flow1)
+    runtime.page().add_child(Flow1)
     await runtime.commit()
 
     runner = await runtime.run_in_runtime(Flow1, return_error=True)
@@ -178,10 +179,10 @@ async def test_run_flow_force_invalid_input(simulation: Simulation, runtime: Run
         fields=(Field.input("Input1", str, is_required=True),),
     )
     End = Action.new(ActionType.END, "End")
-    Flow1.actions.extend(Start, Code1, End)
+    Flow1.add_children(Start, Code1, End)
     Start.connect(FlowEdgeType.MANUAL, Code1)
     Code1.connect(FlowEdgeType.MANUAL, End)
-    runtime.page().append(Flow1)
+    runtime.page().add_child(Flow1)
     await runtime.commit()
 
     runner = await runtime.run_in_runtime(Flow1, return_error=True)
@@ -195,14 +196,14 @@ async def test_run_flow_error(simulation: Simulation, runtime: RuntimeLambdaWork
     Flow1 = Flow.new("Flow1")
     Start = Action.new(ActionType.START, "Start")
     Code1 = Action.new(ActionType.CODE, "Code1", code=code("raise ValueError"))
-    Flow1.actions.extend(Start, Code1)
+    Flow1.add_children(Start, Code1)
     Start.connect(FlowEdgeType.MANUAL, Code1)
-    runtime.page().append(Flow1)
+    runtime.page().add_child(Flow1)
     await runtime.commit()
 
     runner = await runtime.run_in_runtime(Flow1, return_error=True)
     assert runner.status == ProcessStatus.FAILED
-    assert runner.tracked_run and len(runner.tracked_run.runs) == 3
+    assert runner.tracked_run and len(runner.tracked_run.get_children(Run)) == 3
 
 
 @simulated_runtime()
@@ -212,10 +213,10 @@ async def test_run_flow_abort(simulation: Simulation, runtime: RuntimeLambdaWork
     Start = Action.new(ActionType.START, "Start")
     Code1 = Action.new(ActionType.CODE, "Code1", code=code("await asyncio.sleep(5)"))
     End = Action.new(ActionType.END, "End")
-    Flow1.actions.extend(Start, Code1, End)
+    Flow1.add_children(Start, Code1, End)
     Start.connect(FlowEdgeType.MANUAL, Code1)
     Code1.connect(FlowEdgeType.MANUAL, End)
-    runtime.page().append(Flow1)
+    runtime.page().add_child(Flow1)
     await runtime.commit()
 
     run, _ = create_run(Flow1, status=ProcessStatus.QUEUED, parent=runtime.main_package)

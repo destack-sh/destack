@@ -13,7 +13,6 @@ from bench.language.core import (
     IsOwnable,
     IsRunnable,
     IsTemplatable,
-    LocalNodeList,
     NodeType,
     PackageNode,
     PageNode,
@@ -23,7 +22,6 @@ from bench.language.core import (
     enum_,
     node_,
     p_internal,
-    p_node_children,
     p_node_parent,
     p_regular,
 )
@@ -40,7 +38,7 @@ if TYPE_CHECKING:
 # pyright: reportIncompatibleVariableOverride=false
 
 if TYPE_CHECKING:
-    from bench.language import Action, Agent, Claim, Field, FlowEdge, Page
+    from bench.language import Action, Agent, Claim, FlowEdge, Page
 
 # pyright: reportIncompatibleVariableOverride=false
 
@@ -67,11 +65,6 @@ class Flow(
 
     parent: Union["Page", "Agent", None] = p_node_parent(4, NodeType.PAGE, NodeType.AGENT)
     type: FlowType = p_regular(30, default=FlowType.ACTION, default_sql=None)
-
-    actions: LocalNodeList["Action"] = p_node_children(NodeType.ACTION)
-    transitions: LocalNodeList["FlowEdge"] = p_node_children(NodeType.FLOW_EDGE)
-    fields: LocalNodeList["Field"] = p_node_children(NodeType.FIELD)
-    claims: LocalNodeList["Claim"] = p_node_children(NodeType.CLAIM)
 
     def __content_str__(self):
         return ""

@@ -38,7 +38,7 @@ def class_to_service(
 
         # template
         if template is not None:
-            template_action = template.actions.get(method_name)
+            template_action = template.get_child(Action, method_name)
             if template_action is not None:
                 action.ck = template_action.ck
         else:
@@ -101,7 +101,7 @@ def class_to_service(
                 is_list=type_info.is_list,
                 is_required=not type_info.is_optional,
             )
-            action.fields.append(field)
+            action.add_child(field)
 
         # outputs
         return_type = sig.return_annotation
@@ -114,22 +114,23 @@ def class_to_service(
             if isinstance(metadata, dict):
                 for output_name, output_type in metadata.items():
                     type_info = parse_py_annotation(output_type, BENCH_CLASS_BY_NAME)
+                    assert isinstance(type_info.type, type), f"{type_info.type!r} is not a type"
                     field = Field.output(
                         name=output_name.replace("_", " ").title(),
                         typ=type_info.type,
                         is_list=type_info.is_list,
                         is_required=not type_info.is_optional,
                     )
-                    action.fields.append(field)
+                    action.add_child(field)
 
         # 'inherit' base field's ck for instances
         if template_action is not None:
-            for template_field in template_action.fields:
+            for template_field in template_action.get_children(Field):
                 assert template_field.name, f"{template_field!r} has no name"
-                field = action.fields.get(template_field.name)
+                field = action.get_child(Field, template_field.name)
                 if field is not None:
                     field.ck = template_field.ck
 
-        service.actions.append(action)
+        service.add_child(action)
 
     return service

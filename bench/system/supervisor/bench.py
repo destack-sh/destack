@@ -3,6 +3,7 @@ from uuid import UUID
 
 from bench.language import (
     Bench,
+    Database,
     Handle,
     Membership,
     NodeMode,
@@ -10,6 +11,7 @@ from bench.language import (
     Package,
     PackageType,
     Region,
+    Scaler,
     ScalerStrategy,
     ScalerType,
     Session,
@@ -58,23 +60,24 @@ async def create_default_bench(  # noqa: RUF029
         slug=options.main_package_slug,
         _is_new=True,
     )
-    main_package.memberships.append(Membership.new(owned_by, mode=NodeMode.BUILTIN))
+    main_package.add_child(Membership.new(owned_by, mode=NodeMode.BUILTIN))
     session._create(main_package)
     session.stage()
     bench.package = main_package
 
     # main Database
-    database = main_package.databases.create(
+    database = Database(
         mode=NodeMode.BUILTIN,
         region=bench.region,
         name=options.local_database_name,
     )
+    main_package.add_child(database)
     session.stage()
     bench.database = database
     session.stage()
 
     if options.create_computer_scaler:
-        _ = main_package.scalers.create(
+        scaler = Scaler(
             type=ScalerType.COMPUTER,
             mode=NodeMode.BUILTIN,
             strategy=ScalerStrategy.AUTO,
@@ -84,5 +87,7 @@ async def create_default_bench(  # noqa: RUF029
             target_count=1,
             max_count=4,
         )
+        main_package.add_child(scaler)
+        session.stage()
 
     return bench

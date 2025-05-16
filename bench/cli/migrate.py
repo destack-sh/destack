@@ -220,13 +220,13 @@ async def apply(
             if bench != "*":
                 bench_node = await BENCH_QUERY.get(slug=bench)
                 assert bench_node.package, f"{bench!r} has no main package"
-                databases = list(bench_node.package.databases)
+                databases = list(bench_node.package.get_children(Database))
             else:
                 benches = await BENCH_QUERY.tolist()
                 databases: list[Database] = []
                 for bench_node in benches:
                     assert bench_node.package, f"{bench_node!r} has no main package"
-                    databases.extend(bench_node.package.databases)
+                    databases.extend(bench_node.package.get_children(Database))
     elif area == NodeArea.REGIONAL:
         databases = [regional_database]
     elif area == NodeArea.GLOBAL:

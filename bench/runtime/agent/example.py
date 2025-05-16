@@ -308,7 +308,7 @@ def example_edit_a_text_line_on_a_page(NotesPage1: Page, Block7: Block):
 def example_create_simple_table(Page1: Page, Link2: Link):
     # basic Person table (Record.title is builtin)
     Table1 = Table.new("Person", Field.member("Age", int))
-    Page1.append(Table1)
+    Page1.add_child(Table1)
     Record1 = Table1.records.create(name="Florian", Age=27)
     Record2 = Table1.records.create(name="John", Age=30)
     # reference directly by alias
@@ -351,7 +351,7 @@ def example_draft_report_for_confirmation(Page1: Page):
     Task1 = Task.new("Search web for list of tech companies", owned_by=ME)
     Task2 = Task.new("Find information on each company (add notes to page)", owned_by=ME)
     Task3 = Task.new("Rewrite notes into proper report", owned_by=ME)
-    TaskBlocks = Page1.extend(Task1, Task2, Task3)
+    TaskBlocks = Page1.add_children(Task1, Task2, Task3)
     # draft outline (with some notes based on the conversation)
     ADD_PAGE_TEXT(
         """\

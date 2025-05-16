@@ -13,6 +13,7 @@ from bench.language import (
     Bench,
     Database,
     Engine,
+    Handle,
     NodeReference,
     NodeSuperGraph,
     NodeType,
@@ -63,7 +64,8 @@ async def create_system_benches(
             )
             session._create(system_user)
             session.stage()
-            system_user.handle = system_user.handles.create(slug=SYSTEM_SLUG)
+            system_user.handle = Handle(slug=SYSTEM_SLUG)
+            system_user.add_child(system_user.handle)
             logger.debug("system.bootstrap.create", system_user=system_user)
         else:
             assert upsert, f"{system_user!r} already exists"
@@ -93,7 +95,8 @@ async def create_system_benches(
 
         bench_bench = await Bench.where(id=BENCH_ID).one_or_none()
         if bench_bench is None:
-            bench_bench_handle = system_user.handles.create(slug=BENCH_SLUG)
+            bench_bench_handle = Handle(slug=BENCH_SLUG)
+            system_user.add_child(bench_bench_handle)
             bench_bench = await create_default_bench(
                 handle=bench_bench_handle,
                 owned_by=system_user,

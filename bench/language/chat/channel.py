@@ -8,19 +8,16 @@ from bench.language.core import (
     IsModal,
     IsNamed,
     IsProcessable,
-    LocalNodeList,
     NodeType,
     PageNode,
-    RemoteNodeList,
     enum_,
-    p_node_children,
     p_node_parent,
     timed_node_,
 )
-from bench.pb2 import ChannelData, MessageData
+from bench.pb2 import ChannelData
 
 if TYPE_CHECKING:
-    from bench.language import Agent, File, Link, Membership, Message, Package, Page
+    from bench.language import Package, Page
 
 # pyright: reportIncompatibleVariableOverride=false
 
@@ -42,14 +39,6 @@ class Channel(IsInstantiable, IsProcessable, IsJoinable, IsModal, IsNamed, PageN
     # type: ChannelType? (text, voice, etc.)
 
     # ...IsProcessable[80-]
-
-    messages: RemoteNodeList["Message", MessageData] = p_node_children(
-        NodeType.MESSAGE, list=RemoteNodeList
-    )
-    agents: LocalNodeList["Agent"] = p_node_children(NodeType.AGENT)
-    memberships: LocalNodeList["Membership"] = p_node_children(NodeType.MEMBERSHIP)
-    files: LocalNodeList["File"] = p_node_children(NodeType.FILE)
-    links: LocalNodeList["Link"] = p_node_children(NodeType.LINK)
 
     @staticmethod
     def new(name: str) -> "Channel":

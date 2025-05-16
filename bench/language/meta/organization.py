@@ -6,21 +6,19 @@ from bench.language.core import (
     BuiltinEnum,
     EnumType,
     IsSubject,
-    LocalNodeList,
     Node,
     NodeReference,
     NodeType,
     Region,
     enum_,
     node_,
-    p_node_children,
     p_regular,
     p_system,
 )
 from bench.pb2 import OrganizationData
 
 if TYPE_CHECKING:
-    from bench.language import Bench, Handle, Icon, Membership, TextLine
+    from bench.language import Bench, Handle, Icon, TextLine
 
 # pyright: reportIncompatibleVariableOverride=false
 
@@ -52,5 +50,3 @@ class Organization(IsSubject, Node[OrganizationData]):
         bench_ptr: Optional[NodeReference] = None
         handle_id: Optional[UUID] = None
         handle_ptr: Optional[NodeReference] = None
-
-    memberships: LocalNodeList["Membership"] = p_node_children(NodeType.MEMBERSHIP)

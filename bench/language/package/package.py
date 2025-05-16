@@ -10,12 +10,10 @@ from bench.language.core import (
     IsNamed,
     IsOwnable,
     IsTemplatable,
-    LocalNodeList,
     NodeType,
     PackageNode,
     enum_,
     node_,
-    p_node_children,
     p_node_parent,
     p_regular,
 )
@@ -26,14 +24,8 @@ if TYPE_CHECKING:
         Agent,
         Bench,
         Channel,
-        Database,
-        Dependency,
         Flow,
         Icon,
-        Membership,
-        Page,
-        Scaler,
-        Space,
     )
 
 # pyright: reportIncompatibleVariableOverride=false
@@ -76,14 +68,6 @@ class Package(IsOwnable, IsJoinable, IsTemplatable, IsModal, IsNamed, PackageNod
         description="The default Identity for Flows.",
     )
 
-    databases: LocalNodeList["Database"] = p_node_children(NodeType.DATABASE)
-    scalers: LocalNodeList["Scaler"] = p_node_children(NodeType.SCALER)
-    pages: LocalNodeList["Page"] = p_node_children(NodeType.PAGE)
-    channels: LocalNodeList["Channel"] = p_node_children(NodeType.CHANNEL)
-    spaces: LocalNodeList["Space"] = p_node_children(NodeType.SPACE)
-    dependencies: LocalNodeList["Dependency"] = p_node_children(NodeType.DEPENDENCY)
-    memberships: LocalNodeList["Membership"] = p_node_children(NodeType.MEMBERSHIP)
-
     @property
     def package(self):
         return self
@@ -103,12 +87,3 @@ class Package(IsOwnable, IsJoinable, IsTemplatable, IsModal, IsNamed, PackageNod
     @property
     def package_ptr(self):
         return self.to_ref()
-
-    def __content_str__(self):
-        parts = [
-            f"pages={len(self.pages)}",
-            f"channels={len(self.channels)}",
-            f"spaces={len(self.spaces)}",
-            f"dependencies={len(self.dependencies)}",
-        ]
-        return ", ".join(parts)

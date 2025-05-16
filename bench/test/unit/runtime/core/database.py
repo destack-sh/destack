@@ -74,7 +74,7 @@ async def test_create_record_kwargs(simulation: Simulation, runtime: RuntimeLamb
         Field.member("Age", int),
         Field.member("Aliases", str, is_list=True),
     )
-    runtime.page().append(Table1)
+    runtime.page().add_child(Table1)
     Record1 = Table1.records.create()
     assert Record1.Name is None  # type: ignore
     assert Record1.Age is None  # type: ignore
@@ -87,14 +87,14 @@ async def test_create_record_kwargs(simulation: Simulation, runtime: RuntimeLamb
     with pytest.raises(AttributeError):
         _ = Record2.NonExistent  # type: ignore
     assert Record2.value_packed is not None
-    assert Record2.value_packed[Table1.fields.Name.storage_key] == "Record2"
+    assert Record2.value_packed[Table1.child(Field, "Name").storage_key] == "Record2"
 
 
 @simulated_runtime()
 async def test_create_empty_table_block(simulation: Simulation, runtime: RuntimeLambdaWorkload):
     """Create a blank table and query it."""
     Table1 = Table.new("Table1")
-    runtime.page().append(Table1)
+    runtime.page().add_child(Table1)
 
     # cannot access table before committing it
     with simulation.raises(NodeNotFoundError, GRPCError):
@@ -114,7 +114,7 @@ async def test_create_table_and_records_simultaneously(
 ):
     """Create a table and records within it in the same transaction/commit."""
     Table1 = Table.new("Table1", Field.member("Name", str))
-    runtime.page().append(Table1)
+    runtime.page().add_child(Table1)
     Record1 = Table1.records.create(Name="Record1")
     Record2 = Table1.records.create(Name="Record2")
     await runtime.commit()
@@ -133,7 +133,7 @@ async def test_update_record(simulation: Simulation, runtime: RuntimeLambdaWorkl
         Field.member("name", Field.get_property("name")),  # internal property
         Field.member("Name", str),
     )
-    runtime.page().append(Table1)
+    runtime.page().add_child(Table1)
 
     # create & query
     Record1 = Table1.records.create(Name="Record1")
@@ -152,7 +152,7 @@ async def test_update_record(simulation: Simulation, runtime: RuntimeLambdaWorkl
 async def test_update_table_and_record(simulation: Simulation, runtime: RuntimeLambdaWorkload):
     """Updates a table and records within and across transactions."""
     Table1 = Table.new("Table1", Field.member("Id", int))
-    runtime.page().append(Table1)
+    runtime.page().add_child(Table1)
     sampler = SampleGenerator(Random(0))
 
     # create records with value for every field type
@@ -171,26 +171,26 @@ async def test_update_table_and_record(simulation: Simulation, runtime: RuntimeL
     ):
         for is_list in (False, True):
             field_name = f"{to_casing(sample_type.__name__, Casing.CAMEL)}{'s' if is_list else ''}"
-            field = Table1.fields.append(Field.member(field_name, sample_type, is_list=is_list))
+            field = Table1.add_child(Field.member(field_name, sample_type, is_list=is_list))
             sample_field_value = sampler.generate(field)
             record = Table1.records.create(Id=i, **{field_name: sample_field_value})
             cached_records.append(record)
             await runtime.commit()
 
     # query
-    stored_records = await Table1.records.order_by(Table1.fields.Id).search()
+    stored_records = await Table1.records.order_by(Table1.child(Field, "Id")).search()
     for stored_record, cached_record in zip(stored_records, cached_records):
         assert stored_record.equals(cached_record)
 
     # update
-    for field, record in zip(Table1.fields, stored_records):
+    for field, record in zip(Table1.get_children(Field), stored_records):
         assert field.name is not None, f"field {field!r} has no name"
         sample_field_value = sampler.generate(field)
         setattr(record, field.name, sample_field_value)
     await runtime.commit()
 
     # query again
-    stored_records = await Table1.records.order_by(Table1.fields.Id).search()
+    stored_records = await Table1.records.order_by(Table1.child(Field, "Id")).search()
     for stored_record, cached_record in zip(stored_records, cached_records):
         assert stored_record.equals(cached_record)
 
@@ -203,7 +203,7 @@ async def test_create_record_with_ptrs(simulation: Simulation, runtime: RuntimeL
         Field.member("Block", Block),
         Field.member("Blocks", Block, is_list=True),
     )
-    runtime.page().append(Table1)
+    runtime.page().add_child(Table1)
     await runtime.commit()
 
     Record1 = Table1.records.create(Block=Table1, Blocks=[Table1])
@@ -223,7 +223,7 @@ async def test_move_table(simulation: Simulation, runtime: RuntimeLambdaWorkload
         Field.member("Alias", str),
         Field.member("Image", FileType.IMAGE),
     )
-    Page1.append(Table1)
+    Page1.add_child(Table1)
     Record1 = Table1.records.create(name="Record1", Alias="1")
     await runtime.commit()
 
@@ -252,7 +252,7 @@ async def test_delete_restore_table(simulation: Simulation, runtime: RuntimeLamb
     """Delete a table, querying it shouldn't work. Restore, and it should work again."""
     Table1 = Table.new("Table1", Field.member("Name", str))
     Record1 = Table1.records.create(Name="Record1")
-    runtime.page().append(Table1)
+    runtime.page().add_child(Table1)
     await runtime.commit()
 
     # delete
@@ -272,7 +272,7 @@ async def test_delete_restore_table(simulation: Simulation, runtime: RuntimeLamb
 async def test_delete_restore_record(simulation: Simulation, runtime: RuntimeLambdaWorkload):
     """Deleting a Record should remove it from default view, restoring should re-add it."""
     Table1 = Table.new("Table1", Field.member("Name", str))
-    runtime.page().append(Table1)
+    runtime.page().add_child(Table1)
     Record1 = Table1.records.create(Name="Record1")
     Record2 = Table1.records.create(Name="Record2")
     await runtime.commit()
@@ -309,7 +309,7 @@ async def test_delete_restore_table_field(simulation: Simulation, runtime: Runti
     """Delete and restore a Field in a Table."""
     Field1 = Field.member("Field1", str)
     Table1 = Table.new("Table1", Field1)
-    runtime.page().append(Table1)
+    runtime.page().add_child(Table1)
     Record1 = Table1.records.create(Field1="Record1")
     await runtime.commit()
 
@@ -336,7 +336,7 @@ async def test_morph_table_field_type(simulation: Simulation, runtime: RuntimeLa
     Field1 = Field.member("Field1", str, is_list=False)
     Field2 = Field.member("Field2", bool, is_list=False)
     Table1 = Table.new("Table1", Field1, Field2)
-    runtime.page().append(Table1)
+    runtime.page().add_child(Table1)
     Record1 = Table1.records.create(Field1="Record1", Field2=True)
     await runtime.commit()
 
@@ -373,8 +373,8 @@ async def test_morph_table_field_type(simulation: Simulation, runtime: RuntimeLa
 async def test_record_recursive_reference(simulation: Simulation, runtime: RuntimeLambdaWorkload):
     """Create a Record with a recursive reference to itself."""
     Table1 = Table.new("Table1")
-    Table1.fields.append(Field.member("Record", Table1))
-    runtime.page().append(Table1)
+    Table1.add_child(Field.member("Record", Table1))
+    runtime.page().add_child(Table1)
     Record1 = Table1.records.create(name="Record1")
     Record1.Record = Record1  # type: ignore
     assert Record1.Record == Record1  # type: ignore
@@ -394,7 +394,7 @@ async def test_search_record(simulation: Simulation, runtime: RuntimeLambdaWorkl
         Field.member("Age", int),
         Field.member("Description", Text),
     )
-    runtime.page().append(Table1)
+    runtime.page().add_child(Table1)
     Record1 = Table1.records.create(Name="Alice", Age=30, Description=text("Alice is a *person*."))
     Record2 = Table1.records.create(Name="Bob", Age=40, Description=text("Bob is a *goat*."))
     Record3 = Table1.records.create(Name="Charlie", Age=50, Description=text("Charlie is a *cat*."))
@@ -409,7 +409,7 @@ async def test_search_record(simulation: Simulation, runtime: RuntimeLambdaWorkl
     assert Result == Record2
 
     # get by custom column
-    Result = await Table1.records.get(Table1.fields.Age == 40)  # type: ignore
+    Result = await Table1.records.get(Table1.child(Field, "Age") == 40)  # type: ignore
     assert Result == Record2
 
     # get by custom column
@@ -417,11 +417,11 @@ async def test_search_record(simulation: Simulation, runtime: RuntimeLambdaWorkl
     assert Result == Record3
 
     # filter by custom column
-    Result = await Table1.records.search(Table1.fields.Age >= 40)
+    Result = await Table1.records.search(Table1.child(Field, "Age") >= 40)
     assert Result == [Record2, Record3]
 
     # order by custom column
-    Result = await Table1.records.order_by(Table1.fields.Age).search()
+    Result = await Table1.records.order_by(Table1.child(Field, "Age")).search()
     assert Result == [Record1, Record2, Record3]
 
 
@@ -431,7 +431,7 @@ async def test_table_isolation(simulation: Simulation, runtime: RuntimeLambdaWor
 
     Table1 = Table.new("Table1", Field.member("Name", str))
     Table2 = Table.new("Table2", Field.member("Name", str))
-    runtime.page().extend(Table1, Table2)
+    runtime.page().add_children(Table1, Table2)
 
     Record1 = Table1.records.create(Name="Record1")
     Record2 = Table2.records.create(Name="Record2")

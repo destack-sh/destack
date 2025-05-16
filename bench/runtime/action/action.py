@@ -10,6 +10,7 @@ from bench.language import (
     Agent,
     Aliasing,
     CustomObject,
+    Run,
     Runnable,
     RunType,
     Span,
@@ -80,7 +81,7 @@ class ActionRunner(Runner[Action], ABC):
             runnable = node
             agent = None
 
-        for run in self.tracked_run.runs:
+        for run in self.tracked_run.get_children(Run):
             # try to resume interrupted Run
             if (
                 run.status.is_interrupted
@@ -136,7 +137,7 @@ class CodeActionRunner(ActionRunner):
         # try to resume interrupted span
         resumed_span: Span | None = None
         resumed_runner: Runner | None = None
-        for span in self.tracked_run.spans:
+        for span in self.tracked_run.get_children(Span):
             if (
                 span.status.is_interrupted
                 and span.type == SpanType.CODE

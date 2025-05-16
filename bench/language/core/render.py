@@ -781,8 +781,10 @@ class ChoiceRenderer(PackageNodeRenderer["Choice"]):
         kwargs: dict[Property, Any],
         rendered_kwargs: dict[str, str],
     ) -> str:
-        # inline name and fields (like Choice.new(name, *fields))
-        options_refs = [renderer.render_builtin_object(option) for option in obj.options]
+        # inline name and options (like Choice.new(name, *options))
+        options_refs = [
+            renderer.render_builtin_object(option) for option in obj.get_children(Option)
+        ]
         rendered_kwargs.pop("options", None)
         args = (
             rendered_kwargs.pop("name"),
@@ -803,7 +805,7 @@ class ClassRenderer(PackageNodeRenderer["Class"]):
         rendered_kwargs: dict[str, str],
     ) -> str:
         # inline name and fields (like Class.new(name, *fields))
-        fields_refs = [renderer.render_builtin_object(field) for field in obj.fields]
+        fields_refs = [renderer.render_builtin_object(field) for field in obj.get_children(Field)]
         rendered_kwargs.pop("fields", None)
         args = (
             rendered_kwargs.pop("name"),
@@ -823,8 +825,10 @@ class TableRenderer(PackageNodeRenderer["Table"]):
         kwargs: dict[Property, Any],
         rendered_kwargs: dict[str, str],
     ) -> str:
+        from bench.language import Field
+
         # inline name and fields (like Table.new(name, *fields))
-        fields_refs = [renderer.render_builtin_object(field) for field in obj.fields]
+        fields_refs = [renderer.render_builtin_object(field) for field in obj.get_children(Field)]
         rendered_kwargs.pop("fields", None)
         args = (
             rendered_kwargs.pop("name"),

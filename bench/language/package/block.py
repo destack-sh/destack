@@ -9,7 +9,6 @@ from bench.language.core import (
     IsNamed,
     IsOrdered,
     IsTemplatable,
-    LocalNodeList,
     Node,
     NodeReference,
     NodeType,
@@ -21,7 +20,6 @@ from bench.language.core import (
     TextLineType,
     enum_,
     node_,
-    p_node_children,
     p_node_parent,
     p_regular,
     text_line,
@@ -90,8 +88,6 @@ class Block(IsTemplatable, IsModal, IsNamed, IsOrdered, PackageNode[BlockData]):
         node_id: Optional[UUID] = None
         node_ck: Optional[UUID] = None
         node_ptr: Optional[NodeReference] = None
-
-    blocks: LocalNodeList["Block"] = p_node_children(NodeType.BLOCK)
 
     def __content_str__(self):
         if self.node_ptr is not None and (node := self.node) is not None:

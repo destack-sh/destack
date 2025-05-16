@@ -405,14 +405,6 @@ class Node[NodeDataT: AnyNodeData](BuiltinObject[NodeDataT]):
         if not _skip_add_self:
             self._graph.add(self)
 
-        # init node lists (preserving existing)
-        for name, prop in self.__node_child_properties__.items():
-            assert prop.reference_list_type is not None
-            node_list = prop.reference_list_type(self, prop)
-            self.__dict__[name] = node_list
-            if (existing := kwargs.get(name, UNSET)) is not UNSET:
-                node_list.extend(*existing)
-
         # parse extraneous kwargs
         self._init_extra_kwargs(kwargs)
 
@@ -619,7 +611,7 @@ class Node[NodeDataT: AnyNodeData](BuiltinObject[NodeDataT]):
         if detach:
             clone.parent_ptr = None
         elif parent:
-            parent.append(clone)
+            parent.add_child(clone)
         return clone
 
     def __eq__(self, other: Any):
@@ -847,15 +839,11 @@ class Node[NodeDataT: AnyNodeData](BuiltinObject[NodeDataT]):
 
     def move(self, to: "Node"):
         """Move this Node to a new parent."""
-        to.append(self, move=True)
+        to.add_child(self, move=True)
 
-    def append[T: Node](self, child: T, move: bool = False) -> T:
+    def add_child[T: Node](self, child: T, move: bool = False) -> T:
         """Append a Node as a child of this Node."""
-        child_prop = self.get_child_property(child.metatype)
-        if child_prop is not None:
-            child_list = getattr(self, child_prop.name)
-            child_list.append(child, move=move)
-        elif self.metatype in child.__parent_types__:
+        if self.metatype in child.__parent_types__:
             if child.metatype in self._graph.node_types:
                 graph = self._graph
             else:
@@ -871,11 +859,18 @@ class Node[NodeDataT: AnyNodeData](BuiltinObject[NodeDataT]):
             raise ValueError(f"cannot append {child!r} to {self!r}")
         return child
 
-    def extend[T: Node](self, *children: T, move: bool = False) -> Sequence[T]:
+    def add_children[T: Node](self, *children: T, move: bool = False) -> Sequence[T]:
         """Append multiple Nodes as children of this Node."""
         for child in children:
-            self.append(child, move=move)
+            self.add_child(child, move=move)
         return children
+
+    def remove_child(self, child: "Node"):
+        """Remove a child from this Node."""
+        if self._session is not None:
+            self._session._delete(child)
+        self._graph.remove(child)
+        child.parent_ptr = None
 
     def get_children[N: Node = Node](
         self, node_type: NodeType | type[N] | None = None
@@ -894,6 +889,37 @@ class Node[NodeDataT: AnyNodeData](BuiltinObject[NodeDataT]):
             if child.code_name == key or getattr(child, "name", None) == key:
                 return cast(N, child)
         return None
+
+    def child[N: Node = Node](self, node_type: NodeType | type[N], key: str) -> N:
+        """Gets a specific child of this Node, or raises an error if not found."""
+        child = self.get_child(node_type, key)
+        if child is None:
+            raise LookupError(f"no child {key} of {self!r}")
+        return cast(N, child)
+
+    def get_children_between[N: Node = Node](
+        self, node_type: NodeType | type[N], after: N | None = None, before: N | None = None
+    ) -> list[N]:
+        """Get all nodes between two nodes (exclusive)."""
+        found_after = after is None
+        nodes = []
+        for node in self.get_children(node_type):
+            if after is not None and after == node:
+                found_after = True
+                continue
+            if before is not None and before == node:
+                break
+            if found_after:
+                nodes.append(node)
+        return nodes
+
+    def remove_children_between[N: Node = Node](
+        self, node_type: NodeType | type[N], after: N | None = None, before: N | None = None
+    ):
+        """Removes all nodes between two nodes (exclusive)."""
+        nodes_to_remove = self.get_children_between(node_type, after, before)
+        for node in nodes_to_remove:
+            self.remove_child(node)
 
     def get_descendants[N: Node = Node](
         self, node_type: NodeType | type[N] | None = None

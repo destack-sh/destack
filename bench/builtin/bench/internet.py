@@ -50,4 +50,4 @@ InternetService = class_to_service(
     IInternetService, "Internet Service", icon=to_icon("fas fa-globe")
 )
 InternetPage = Page.new("Internet")
-InternetPage.append(InternetService)
+InternetPage.add_child(InternetService)

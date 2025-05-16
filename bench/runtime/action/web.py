@@ -116,7 +116,7 @@ class InternetService(IInternetService if TYPE_CHECKING else object):
         links = await _do_search(Query, Include_Content, Limit, max_characters=Max_Characters)
         run = runner.closest_tracked_run
         assert run is not None, f"no run in {runner!r}"
-        run.extend(*links)
+        run.add_children(*links)
         return {"Links": links}
 
     @override
@@ -173,5 +173,5 @@ class InternetService(IInternetService if TYPE_CHECKING else object):
             links.append(_make_link(result))
         run = runner.closest_tracked_run
         assert run is not None, f"no run in {runner!r}"
-        run.extend(*links)
+        run.add_children(*links)
         return {"Links": links}

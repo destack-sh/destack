@@ -297,7 +297,7 @@ def map_table_to_sql_table(table: Table, prev_sql_table: SqlTable | None) -> Sql
     indexes: list[SqlIndex] = [index.clone() for index in base_sql_table.indexes]
 
     # map fields into columns
-    for field in table.fields:
+    for field in table.get_children(Field):
         if field.kind == TypeKind.PRIMITIVE:
             assert field.primitive_type is not None, f"no primitive type for {field!r}"
             primitive_type = field.primitive_type
@@ -809,7 +809,7 @@ def _pg_pack_node_data_row(
                 if value_packed_any is not None
                 else None
             )
-            for field in table.fields:
+            for field in table.get_children(Field):
                 if field.type != FieldType.MEMBER:
                     continue
                 column = node_sql_table.get_column(field)
@@ -1549,7 +1549,9 @@ async def _pg_edit_batch(
             implicit_properties.append(node_cls.deleted_at)
         dynamic_columns: list[SqlColumn] = [node_sql_table._primary_key]
         dynamic_fields: list[Field] = (
-            [f for f in table.fields if f.type == FieldType.MEMBER] if table is not None else []
+            [f for f in table.get_children(Field) if f.type == FieldType.MEMBER]
+            if table is not None
+            else []
         )
         for prop in chain(implicit_properties, updated_properties):
             if prop.is_value_packed and node_cls.__unravel_value__:  # unravel value

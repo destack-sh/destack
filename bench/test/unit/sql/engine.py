@@ -16,7 +16,9 @@ from bench.language import (
     NodeNotFoundError,
     NodeReference,
     NodeType,
+    Package,
     PackageType,
+    Page,
     PrimitiveType,
     Region,
     Session,
@@ -295,8 +297,8 @@ async def test_crud_node_pointers(omni_session: Session):
         )
         session._create(bench)
         await session.flush()
-        package = bench.packages.create(type=PackageType.OPEN, name="Main", slug="main")
-        database = package.databases.create(name="Production A")
+        package = bench.add_child(Package(type=PackageType.OPEN, name="Main", slug="main"))
+        database = package.add_child(Database(name="Production A"))
         client = Client(
             parent=bench,
             type=ClientType.MOBILE,
@@ -311,10 +313,12 @@ async def test_crud_node_pointers(omni_session: Session):
         bench._untrack_rec()
 
         session._track(bench)
-        page1 = package.pages.create()
+        page1 = Page()
+        package.add_child(page1)
         view1 = ThreadView(name="View1")
-        page1.append(view1)
-        block1 = page1.blocks.create(type=BlockType.PARAGRAPH)
+        page1.add_child(view1)
+        block1 = Block(type=BlockType.PARAGRAPH)
+        page1.add_child(block1)
         await session.commit()
 
         # read back

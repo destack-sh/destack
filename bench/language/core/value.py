@@ -197,11 +197,11 @@ class CustomObject(Mapping[str, Any]):
             return False
         # properties
         for prop in get_custom_object_properties(self._type, self._value):
-            if prop._type_info is None:
+            if prop._type is None:
                 continue
             self_value = self._do_get(prop)
             other_value = other._do_get(prop)
-            if not value_equals(prop._type_info, self_value, other_value, identity_map):
+            if not value_equals(prop._type, self_value, other_value, identity_map):
                 return False
         # fields
         for field in self._type._base_fields:
