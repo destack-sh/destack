@@ -23,15 +23,9 @@ class Application(IsInstantiable, IsNamed, IsModal, PageNode[ApplicationData]):
 
     main_scene: Optional["Scene"] = p_regular(
         50,
-        array=False,
-        require=False,
-        references=NodeType.SCENE,
         description="The main scene of the Application.",
     )
     error_scene: Optional["Scene"] = p_regular(
         53,
-        array=False,
-        require=False,
-        references=NodeType.SCENE,
         description="The error scene of the Application.",
     )

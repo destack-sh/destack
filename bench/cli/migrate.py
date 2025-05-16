@@ -149,7 +149,7 @@ async def make(
     if not global_migration_ops and not local_migration_ops and not regional_migration_ops:
         logger.info("migrate.make.noop")
         return
-    latest_migration = max(file_migrations, key=lambda m: m.id, default=None)
+    latest_migration = max(file_migrations, key=lambda m: m.id)
     new_migration = Migration(
         id=latest_migration.id + 1 if latest_migration is not None else 1,
         version=VERSION,

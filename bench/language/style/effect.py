@@ -69,27 +69,23 @@ class EffectBase(IsVariable, BuiltinObject):
     """A base class for effects."""
 
     type: EffectType = p_regular(30)
-    style: Optional["EffectStyle"] = p_regular(
-        41, default=None, require=False, array=False, references=NodeType.EFFECT_STYLE
-    )
+    style: Optional["EffectStyle"] = p_regular(41)
 
-    opacity: Optional[float] = p_regular(50, default=None)
-    offset: Optional[Vector2] = p_regular(51, default=None, struct=StructType.VECTOR2)
-    scale: Optional[float] = p_regular(52, default=None)
-    rotate: Optional[Axis3] = p_regular(53, default=None, struct=StructType.AXIS3)
-    skew: Optional[Vector2] = p_regular(54, default=None, struct=StructType.AXIS2)
-    perspective: Optional[float] = p_regular(55, default=None)
-    delay: Optional[timedelta] = p_regular(56, default=None)
-    duration: Optional[float] = p_regular(57, default=None)
-    threshold: Optional[float] = p_regular(58, default=None)
-    once: Optional[bool] = p_regular(59, default=None)
-    repeat: Optional[RepeatType] = p_regular(60, default=None)
-    split: Optional[TextSplitType] = p_regular(61, default=None)
-    offscreen: Optional[OffscreenBehavior] = p_regular(62, default=None)
+    opacity: Optional[float] = p_regular(50)
+    offset: Optional[Vector2] = p_regular(51)
+    scale: Optional[float] = p_regular(52)
+    rotate: Optional[Axis3] = p_regular(53)
+    skew: Optional[Vector2] = p_regular(54)
+    perspective: Optional[float] = p_regular(55)
+    delay: Optional[timedelta] = p_regular(56)
+    duration: Optional[float] = p_regular(57)
+    threshold: Optional[float] = p_regular(58)
+    once: Optional[bool] = p_regular(59)
+    repeat: Optional[RepeatType] = p_regular(60)
+    split: Optional[TextSplitType] = p_regular(61)
+    offscreen: Optional[OffscreenBehavior] = p_regular(62)
 
-    transition: Optional["Transition"] = p_regular(
-        70, default=None, require=False, array=False, struct=StructType.TRANSITION
-    )
+    transition: Optional["Transition"] = p_regular(70)
 
 
 @struct_(StructType.EFFECT)

@@ -13,7 +13,6 @@ from bench.language.core import (
     PackageNode,
     Property,
     PropertyReference,
-    StructType,
     TypeBase,
     TypeConstraint,
     TypeConstraintIn,
@@ -67,15 +66,8 @@ class Field(
         *VIEW_NODE_TYPES.tuple,
     )
     type: FieldType = p_internal(30)
-    icon: Optional["Icon"] = p_regular(35, require=False, array=False, struct=StructType.ICON)
-    property: Optional[Property] = p_regular(
-        36,
-        require=False,
-        default=None,
-        array=False,
-        struct=StructType.PROPERTY_REFERENCE,
-        description="The Property the Field refers to (for builtin Fields).",
-    )
+    icon: Optional["Icon"] = p_regular(35)
+    property: Optional[Property] = p_regular(36)
     if TYPE_CHECKING:
         property_ptr: Optional["PropertyReference"] = None
 

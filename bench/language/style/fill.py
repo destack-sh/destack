@@ -3,7 +3,6 @@ from typing import TYPE_CHECKING
 from bench.language.core import (
     BuiltinEnum,
     EnumType,
-    NodeType,
     Struct,
     StructType,
     enum_,
@@ -49,10 +48,8 @@ class FillSize(BuiltinEnum):
 @struct_(StructType.FILL)
 class Fill(Struct):
     type: FillType = p_regular(30)
-    color: Color | None = p_regular(40, array=False, require=False, struct=StructType.COLOR)
-    gradient: Gradient | None = p_regular(
-        41, array=False, require=False, struct=StructType.GRADIENT
-    )
-    image: "File | None" = p_regular(50, array=False, require=False, references=NodeType.FILE)
+    color: Color | None = p_regular(40)
+    gradient: Gradient | None = p_regular(41)
+    image: "File | None" = p_regular(50)
     position: FillPosition | None = p_regular(60)
     size: FillSize | None = p_regular(70)

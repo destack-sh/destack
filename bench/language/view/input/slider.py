@@ -10,7 +10,7 @@ from .input import InputViewBase
 class SliderInputView(InputViewBase[SliderInputViewData]):
     """A slider input View."""
 
-    value: Optional[float] = p_regular(100, default=None, require=False, array=False)
-    min_value: Optional[float] = p_regular(101, default=None, require=False, array=False)
-    max_value: Optional[float] = p_regular(102, default=None, require=False, array=False)
-    step: Optional[float] = p_regular(103, default=None, require=False, array=False)
+    value: Optional[float] = p_regular(100)
+    min_value: Optional[float] = p_regular(101)
+    max_value: Optional[float] = p_regular(102)
+    step: Optional[float] = p_regular(103)

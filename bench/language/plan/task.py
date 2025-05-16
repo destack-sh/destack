@@ -4,7 +4,6 @@ from typing import TYPE_CHECKING, Optional, Union
 from uuid import UUID
 
 from bench.language.core import (
-    SUBJECT_NODE_TYPES,
     IsClaimable,
     IsInstantiable,
     IsModal,
@@ -52,13 +51,9 @@ class Task(
     # priority?
 
     # routing
-    due_at: Optional[datetime] = p_regular(50, default=None)
-    assigned_to: Optional[Subject] = p_regular(
-        51, require=False, array=False, references=SUBJECT_NODE_TYPES.tuple
-    )
-    nodes: list["Node"] = p_regular(
-        52, require=False, array=True, references="any", description="The Nodes this Task is about."
-    )
+    due_at: Optional[datetime] = p_regular(50)
+    assigned_to: Optional[Subject] = p_regular(51)
+    nodes: list["Node"] = p_regular(52, description="The Nodes this Task is about.")
     if TYPE_CHECKING:
         assigned_to_ptr: Optional[NodeReference] = None
         assigned_to_id: Optional[UUID] = None

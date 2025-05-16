@@ -12,7 +12,6 @@ from bench.language.core import (
     Node,
     NodeType,
     Region,
-    StructType,
     enum_,
     node_,
     p_kernel,
@@ -43,28 +42,20 @@ class User(IsSubject, Node[UserData]):
 
     slug: Optional[str] = p_system(31, unique=True)  # must match main handle
     name: str = p_regular(32, constraint=NAME_CONSTRAINT)
-    icon: Optional["Icon"] = p_regular(33, default=None, struct=StructType.ICON)
-    line: Optional["TextLine"] = p_regular(
-        34, default=None, require=False, array=False, struct=StructType.TEXT_LINE
-    )
+    icon: Optional["Icon"] = p_regular(33)
+    line: Optional["TextLine"] = p_regular(34)
     region: "Region" = p_system(35)
     is_staff: bool = p_system(39, default=False)
 
     # status
     status: UserStatus = p_system(40)
-    last_logged_in_at: Optional[datetime] = p_system(41, default=None)
+    last_logged_in_at: Optional[datetime] = p_system(41)
     # last_active_at: Optional[datetime] = ...
     # seen_at: Optional[datetime] = ...
 
-    bench: Optional["Bench"] = p_system(
-        50, array=False, require=False, references=NodeType.BENCH, fk=True
-    )
-    handle: Optional["Handle"] = p_system(
-        51, require=False, array=False, references=NodeType.HANDLE, fk=True
-    )
-    cursor: Optional["Cursor"] = p_regular(
-        52, default=None, require=False, references=NodeType.CURSOR, fk=True
-    )
+    bench: Optional["Bench"] = p_system(50, fk=True)
+    handle: Optional["Handle"] = p_system(51, fk=True)
+    cursor: Optional["Cursor"] = p_regular(52, fk=True)
     if TYPE_CHECKING:
         bench_id: Optional[UUID] = None
         bench_ptr: Optional[NodeReference] = None
@@ -78,8 +69,8 @@ class User(IsSubject, Node[UserData]):
     email: str | None = p_system(
         60, defer=True, unique=True, sensitive=True, constraint=EMAIL_CONSTRAINT
     )
-    password_salt: Optional[bytes] = p_kernel(61, default=None, defer=True, sensitive=True)
-    password_hash: Optional[bytes] = p_kernel(62, default=None, defer=True, sensitive=True)
+    password_salt: Optional[bytes] = p_kernel(61, defer=True, sensitive=True)
+    password_hash: Optional[bytes] = p_kernel(62, defer=True, sensitive=True)
     # challenges?
     # password_reset_token, email_confirmation_token, ...
 

@@ -78,26 +78,13 @@ class Thread(
     parent: Union["Package", "Page", "Channel", "Thread", None] = p_node_parent(
         4, NodeType.PACKAGE, NodeType.PAGE, NodeType.CHANNEL, NodeType.THREAD
     )
-    channel: Optional["Channel"] = p_system(
-        40,
-        require=False,
-        array=False,
-        same_bench=True,
-        references=NodeType.CHANNEL,
-    )
+    channel: Optional["Channel"] = p_system(40, same_bench=True)
     if TYPE_CHECKING:
         channel_ptr: Optional[NodeReference] = None
         channel_id: Optional[UUID] = None
 
     # content
-    page: Optional["Page"] = p_regular(
-        60,
-        require=False,
-        array=False,
-        references=NodeType.PAGE,
-        same_bench=True,
-        description="The main or root Page used by this Thread (may be shared).",
-    )
+    page: Optional["Page"] = p_regular(60, same_bench=True)
     if TYPE_CHECKING:
         page_ptr: Optional[NodeReference] = None
         page_id: Optional[UUID] = None

@@ -772,8 +772,6 @@ def _render_migration_op(op: MigrationOp) -> str | None:
             diff_keys = op.diff_keys or ()
             if "is_unique" in diff_keys:
                 pass  # noop, already handled by generated index
-            if "is_encrypted" in diff_keys:
-                pass  # noop, handled in read/write logic
             if any(k in diff_keys for k in ("type", "is_array", "length")):
                 # change type
                 updates.append(

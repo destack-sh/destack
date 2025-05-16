@@ -19,7 +19,6 @@ from bench.language.core import (
     ProcessStatus,
     RunType,
     SpanType,
-    StructType,
     p_internal,
     p_node_ancestor,
     p_node_children,
@@ -76,9 +75,6 @@ class Run(
     )
     thread: Optional["Thread"] = p_internal(
         38,
-        require=False,
-        array=False,
-        references=NodeType.THREAD,
         same_bench=True,
         description="The Thread to communicate with the Run. May be shared with other Runs.",
     )
@@ -97,7 +93,7 @@ class Run(
     outputs: "CustomObject | None" = p_value_runtime(
         62, type=FieldType.OUTPUT, typ=lambda self: cast("Run", self).output_type
     )
-    code: Optional["Code"] = p_regular(66, default=None, struct=StructType.CODE)
+    code: Optional["Code"] = p_regular(66)
 
     # ...IsProcessable[80-]
 

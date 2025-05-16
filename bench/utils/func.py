@@ -19,6 +19,7 @@ from typing import (
     Callable,
     Collection,
     Iterable,
+    Iterator,
     Mapping,
     assert_never,
     cast,
@@ -310,7 +311,7 @@ def parse_py_annotation(
         if isinstance(py_type, typing.ForwardRef):
             py_type = py_type.__forward_arg__
         if isinstance(py_type, str):
-            if py_type.endswith(" | None"):  # highly advanced parsing logic
+            if py_type.endswith(" | None"):
                 is_optional = True
                 py_type = py_type[:-7]
         py_type = _resolve_py_type(py_type, type_map)
@@ -421,7 +422,7 @@ def cyrb53a(s: str, seed: int = 0) -> int:
     return ((h2 & ((1 << 32) - 1)) << 21) + (h1 >> 11)
 
 
-def get_subclasses(cls, seen=None):
+def get_subclasses[T](cls: type[T], seen: set[type[T]] | None = None) -> Iterator[type[T]]:
     """Gets all subclasses of a class recursively."""
     seen = seen if seen is not None else set()
     seen.add(cls)

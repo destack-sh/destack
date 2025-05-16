@@ -3,7 +3,6 @@ from typing import TYPE_CHECKING, Optional, Union, override
 from uuid import UUID
 
 from bench.language.core import (
-    VIEW_NODE_TYPES,
     BuiltinEnum,
     EnumType,
     IsModal,
@@ -16,7 +15,6 @@ from bench.language.core import (
     NodeType,
     PackageNode,
     PageNode,
-    StructType,
     Text,
     TextLine,
     TextLineIn,
@@ -80,18 +78,10 @@ class Block(IsTemplatable, IsModal, IsNamed, IsOrdered, PackageNode[BlockData]):
 
     # content
     # NOTE: maybe there should be a general mechanism for tying Nodes like Blocks? :NodeTying
-    line: Optional["TextLine"] = p_regular(
-        40, default=None, require=False, array=False, struct=StructType.TEXT_LINE
-    )
-    node: Optional["Node"] = p_regular(
-        41, references="any", default=None, require=False, array=False, baseless=False
-    )
+    line: Optional["TextLine"] = p_regular(40)
+    node: Optional["Node"] = p_regular(41, baseless=False)
     view: Optional["ViewBase"] = p_regular(
         42,
-        references=VIEW_NODE_TYPES.tuple,
-        default=None,
-        require=False,
-        array=False,
         baseless=False,
     )
     # view? (specific view of that node, e.g. TableView for a Table)

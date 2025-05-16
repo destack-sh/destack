@@ -8,7 +8,6 @@ from bench.language.core import (
     IsOrdered,
     NodeType,
     PackageNode,
-    StructType,
     node_,
     p_node_parent,
     p_regular,
@@ -29,7 +28,7 @@ class Option(IsInstantiable, IsModal, IsNamed, IsOrdered, PackageNode[OptionData
     """
 
     parent: Union["Choice", "Field", None] = p_node_parent(4, NodeType.CHOICE, NodeType.FIELD)
-    icon: Optional["Icon"] = p_regular(34, require=False, array=False, struct=StructType.ICON)
+    icon: Optional["Icon"] = p_regular(34)
 
     @staticmethod
     def new(name: str, **kwargs) -> "Option":

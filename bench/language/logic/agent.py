@@ -51,17 +51,11 @@ class Agent(
     # content
     page: Optional["Page"] = p_regular(
         54,
-        require=False,
-        array=False,
-        references=NodeType.PAGE,
         same_bench=True,
         description="The main Page used by this Agent.",
     )
     cursor: Optional["Cursor"] = p_regular(
         55,
-        require=False,
-        array=False,
-        references=NodeType.CURSOR,
         same_bench=True,
         description="The main Cursor for this Agent.",
     )

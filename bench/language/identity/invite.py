@@ -2,7 +2,6 @@ from typing import TYPE_CHECKING, Optional, Union
 
 from bench.language.core import (
     JOINABLE_NODE_TYPES,
-    SUBJECT_NODE_TYPES,
     BenchNode,
     Joinable,
     NodeType,
@@ -30,9 +29,6 @@ class Invite(BenchNode[InviteData]):
     # content
     member: Optional[Subject] = p_regular(
         40,
-        require=True,
-        array=False,
         baseless=True,
         ckless=True,
-        references=SUBJECT_NODE_TYPES.tuple,
     )

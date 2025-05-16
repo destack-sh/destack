@@ -16,8 +16,8 @@ class ContentViewBase[NodeDataT: AnyNodeData](ViewBase[NodeDataT]):
     """A content View."""
 
     # layout
-    align: Optional["Align"] = p_regular(53, require=False)
+    align: Optional["Align"] = p_regular(53)
 
     # appearance
-    visible: Optional[bool] = p_regular(60, require=False)
-    opacity: Optional[float] = p_regular(61, require=False)
+    visible: Optional[bool] = p_regular(60)
+    opacity: Optional[float] = p_regular(61)

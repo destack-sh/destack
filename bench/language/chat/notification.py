@@ -12,7 +12,6 @@ from bench.language.core import (
     Node,
     NodeType,
     PackageNode,
-    StructType,
     enum_,
     p_node_parent,
     p_regular,
@@ -51,35 +50,27 @@ class Notification(IsTitled, IsTimed, IsModal, PackageNode[NotificationData]):
 
     # meta
     parent: Union["Package", None] = p_node_parent(4, NodeType.PACKAGE)
-    type: NotificationType = p_regular(30, require=True)
+    type: NotificationType = p_regular(30)
     channel: Optional["Channel"] = p_system(
         33,
-        require=False,
-        array=False,
         same_bench=True,
-        references=NodeType.CHANNEL,
     )
     thread: Optional["Thread"] = p_regular(
         34,
-        require=False,
-        array=False,
         same_bench=True,
-        references=NodeType.THREAD,
     )
 
     # status
     status: NotificationStatus = p_regular(40, default=NotificationStatus.SENT)
-    failed_at: Optional[datetime] = p_system(42, default=None)
-    sent_at: Optional[datetime] = p_system(43, default=None)
-    received_at: Optional[datetime] = p_system(44, default=None)
-    read_at: Optional[datetime] = p_system(45, default=None)
+    failed_at: Optional[datetime] = p_system(42)
+    sent_at: Optional[datetime] = p_system(43)
+    received_at: Optional[datetime] = p_system(44)
+    read_at: Optional[datetime] = p_system(45)
 
     # content
-    text: Optional["Text"] = p_regular(51, require=False, default=None, struct=StructType.TEXT)
-    nodes: list["Node"] = p_regular(53, array=True, require=False, references="any")
-    message: Optional["Message"] = p_regular(
-        54, require=False, array=False, baseless=True, references=NodeType.MESSAGE
-    )
+    text: Optional["Text"] = p_regular(51)
+    nodes: list["Node"] = p_regular(53)
+    message: Optional["Message"] = p_regular(54, baseless=True)
 
     def __content_str__(self) -> str:
         if self.title:

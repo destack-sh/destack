@@ -314,6 +314,7 @@ class EnumType(BuiltinEnum):
     ERROR_KIND = 20100
     ERROR_TYPE = 20101
     SEVERITY = 20102
+    VARIABLE_TYPE = 20110
     # PROFILE, CREDENTIAL, FRIENDSHIP, ...
 
     # package [21000-21200]
@@ -694,6 +695,7 @@ class StructType(BuiltinEnum):
     CLIENT_ORIGIN = 10009
     NODE_REFERENCE = 10010
     PROPERTY_REFERENCE = 10011
+    VARIABLE = 10020  # nocheckin: Variables
 
     # package [11000-11200]
     # APP, PLUGIN, ...
@@ -705,7 +707,6 @@ class StructType(BuiltinEnum):
     TYPE = 11400
     TYPE_CONSTRAINT = 11401
     FILE_INFO = 11420
-    SCHEDULE = 11440
     # SCHEMA, UNION, TAG, ...
 
     # data [11600-11800]
@@ -727,6 +728,7 @@ class StructType(BuiltinEnum):
     AGGREGATION_RESULT = 12201
     SELECTION = 12210
     SELECT_OPTIONS = 12220
+    SCHEDULE = 11440
     # ...
 
     # qa [12400-12600]
@@ -1196,8 +1198,6 @@ REGION_BY_SLUG = {r.slug: r for r in Region}
 
 
 class ReferenceKind(BuiltinEnum):
-    """A reference to a Node or Struct - usually both have an identity (except for inlined Structs)."""
-
     NODE_ANCESTOR = 1
     NODE_ANCESTOR_OR_SELF = 2
     NODE_PARENT = 3

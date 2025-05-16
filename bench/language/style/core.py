@@ -4,7 +4,6 @@ from bench.language.core import (
     BuiltinEnum,
     BuiltinObject,
     EnumType,
-    NodeType,
     Struct,
     StructType,
     enum_,
@@ -23,7 +22,7 @@ if TYPE_CHECKING:
 class IsVariable(BuiltinObject):
     """A value that can be tied to a Field."""
 
-    field: Optional["Field"] = p_regular(40, require=False, array=False, references=NodeType.FIELD)
+    field: Optional["Field"] = p_regular(40)
 
 
 @enum_(EnumType.LAYOUT)
@@ -105,18 +104,10 @@ class Position(Struct):
     """A position value."""
 
     type: PositionType = p_regular(30)
-    top: Length | None = p_regular(
-        50, require=False, array=False, default=None, struct=StructType.LENGTH
-    )
-    left: Length | None = p_regular(
-        51, require=False, array=False, default=None, struct=StructType.LENGTH
-    )
-    width: Length | None = p_regular(
-        52, require=False, array=False, default=None, struct=StructType.LENGTH
-    )
-    height: Length | None = p_regular(
-        53, require=False, array=False, default=None, struct=StructType.LENGTH
-    )
+    top: Length | None = p_regular(50)
+    left: Length | None = p_regular(51)
+    width: Length | None = p_regular(52)
+    height: Length | None = p_regular(53)
 
 
 @enum_(EnumType.DIMENSION_TYPE)
@@ -139,41 +130,41 @@ class Dimension(Struct):
 class Insets(Struct):
     """An insets value (base + top/left/right/bottom)."""
 
-    base: int | None = p_regular(50, default=None)
-    top: int | None = p_regular(51, default=None)
-    left: int | None = p_regular(52, default=None)
-    right: int | None = p_regular(53, default=None)
-    bottom: int | None = p_regular(54, default=None)
+    base: int | None = p_regular(50)
+    top: int | None = p_regular(51)
+    left: int | None = p_regular(52)
+    right: int | None = p_regular(53)
+    bottom: int | None = p_regular(54)
 
 
 @struct_(StructType.CORNERS)
 class Corners(Struct):
     """A corners value (base + top_left/top_right/bottom_left/bottom_right)."""
 
-    base: int | None = p_regular(50, default=None)
-    top_left: int | None = p_regular(51, default=None)
-    top_right: int | None = p_regular(52, default=None)
-    bottom_left: int | None = p_regular(53, default=None)
-    bottom_right: int | None = p_regular(54, default=None)
+    base: int | None = p_regular(50)
+    top_left: int | None = p_regular(51)
+    top_right: int | None = p_regular(52)
+    bottom_left: int | None = p_regular(53)
+    bottom_right: int | None = p_regular(54)
 
 
 @struct_(StructType.AXIS2)
 class Axis2(Struct):
     """A gap value (base + x/y)."""
 
-    base: float | None = p_regular(50, default=None)
-    x: float | None = p_regular(51, default=None)
-    y: float | None = p_regular(52, default=None)
+    base: float | None = p_regular(50)
+    x: float | None = p_regular(51)
+    y: float | None = p_regular(52)
 
 
 @struct_(StructType.AXIS3)
 class Axis3(Struct):
     """A rotation value (base + x/y/z)."""
 
-    base: float | None = p_regular(50, default=None)
-    x: float | None = p_regular(51, default=None)
-    y: float | None = p_regular(52, default=None)
-    z: float | None = p_regular(53, default=None)
+    base: float | None = p_regular(50)
+    x: float | None = p_regular(51)
+    y: float | None = p_regular(52)
+    z: float | None = p_regular(53)
 
 
 @struct_(StructType.VECTOR2)
@@ -221,15 +212,9 @@ class Grid(Struct):
 
     columns: int = p_regular(50)
     rows: int = p_regular(51)
-    column_width: Dimension | None = p_regular(
-        52, require=False, array=False, default=None, struct=StructType.DIMENSION
-    )
-    column_min_width: Dimension | None = p_regular(
-        53, require=False, array=False, default=None, struct=StructType.DIMENSION
-    )
-    row_height: Dimension | None = p_regular(
-        54, require=False, array=False, default=None, struct=StructType.DIMENSION
-    )
+    column_width: Dimension | None = p_regular(52)
+    column_min_width: Dimension | None = p_regular(53)
+    row_height: Dimension | None = p_regular(54)
 
 
 @struct_(StructType.GRID_SPAN)

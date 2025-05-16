@@ -1,6 +1,6 @@
 from typing import TYPE_CHECKING, Optional, Union
 
-from .const import BuiltinEnum, EnumType, NodeType, StructType, enum_
+from .const import BuiltinEnum, EnumType, StructType, enum_
 from .property import p_regular
 from .struct import Struct, struct_
 
@@ -30,13 +30,13 @@ class Icon(Struct):
 
     type: IconType = p_regular(30, default=False)
     # content
-    emoji: str | None = p_regular(31, require=False)
-    fa_name: str | None = p_regular(33, require=False)
-    vsc_name: str | None = p_regular(34, require=False)
-    file: Optional["File"] = p_regular(35, require=False, references=NodeType.FILE)
-    file_url: str | None = p_regular(36, require=False)
+    emoji: str | None = p_regular(31)
+    fa_name: str | None = p_regular(33)
+    vsc_name: str | None = p_regular(34)
+    file: Optional["File"] = p_regular(35)
+    file_url: str | None = p_regular(36)
     # style
-    color: Optional["Color"] = p_regular(40, require=False, array=False, struct=StructType.COLOR)
+    color: Optional["Color"] = p_regular(40)
 
     @staticmethod
     def new(icon: "IconIn", color: "ColorIn | None" = None) -> "Icon":

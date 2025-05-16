@@ -123,7 +123,7 @@ def _process_object_cls[ObjectT: BuiltinObject](
     """Process an object base class and return the processed class and its properties."""
     assert isinstance(cls, type), f"expected type, got {cls} ({type(cls)})"
 
-    # TODO :Performance! :Architecture: use slots or something for our builtin objects
+    # nocheckin: :Performance! :Architecture: use slots or something for our builtin objects
     #  (unfortunately, as of Python 3.13, __slots__ always uses class-level descriptors, but we also
     #   want to use class level attributes for our own properties, like Block.type, ...
     #   - neglecting this conflict causes fun errors like 'X is a read-only attribute'
@@ -208,7 +208,7 @@ def _process_object_cls[ObjectT: BuiltinObject](
             if prop.reference_kind == ReferenceKind.NODE_TEMPLATE:
                 if not (is_final and is_node):
                     prop.is_stored = False
-                    prop.is_wired = False
+                    prop.is_proto = False
                     continue
                 # template points to nodes of same type
                 prop.reference_nodes = (cast(NodeType, object_type),)
@@ -271,6 +271,8 @@ def _process_object_cls[ObjectT: BuiltinObject](
     for prop in properties_by_name.values():
         prop.component = cls
         prop._finalize_meta()
+        if is_final:
+            prop._finalize_type()
 
     # register components and index properties
     cls.__components__ = tuple(static_components)  # type: ignore
@@ -318,8 +320,8 @@ def _process_object_cls[ObjectT: BuiltinObject](
     cls.__stored_properties__ = frozendict(
         {p.name: p for p in cls.__properties__.values() if p.is_stored is True}
     )
-    cls.__wired_properties__ = frozendict(
-        {p.name: p for p in cls.__properties__.values() if p.is_wired is True}
+    cls.__proto_properties__ = frozendict(
+        {p.name: p for p in cls.__properties__.values() if p.is_proto is True}
     )
     cls.__runtime_properties__ = frozendict(
         {p.name: p for p in cls.__properties__.values() if p.is_runtime is True}
@@ -685,7 +687,7 @@ class BuiltinObject[ObjectDataT: AnyObjectData](abc.ABC):
     __struct_properties__: ClassVar[dict[str, Property]] = {}
     __value_runtime_properties__: ClassVar[dict[str, Property]] = {}
     __stored_properties__: ClassVar[dict[str, Property]] = {}
-    __wired_properties__: ClassVar[dict[str, Property]] = {}
+    __proto_properties__: ClassVar[dict[str, Property]] = {}
     __runtime_properties__: ClassVar[dict[str, Property]] = {}
     __properties_in_order__: ClassVar[tuple[Property, ...]]
     __properties_id_in_order__: ClassVar[tuple[int, ...]]
@@ -868,10 +870,9 @@ class BuiltinObject[ObjectDataT: AnyObjectData](abc.ABC):
         """Checks if the content of the two objects is equal (recursively)."""
         if other is None or self.metatype != getattr(other, "metatype", None):
             return False
-        for prop in self.__wired_properties__.values():
+        for prop in self.__proto_properties__.values():
             if (
                 prop.id < 30
-                or prop.is_encrypted
                 or prop.is_value_packed  # compared in runtime value
                 or prop.name == "order_key"  # implicitly checked in lists
                 or prop._type_info is None
@@ -886,7 +887,7 @@ class BuiltinObject[ObjectDataT: AnyObjectData](abc.ABC):
     def _stable_hash(self) -> int:
         """Hash of content properties."""
         content_props = []
-        for prop in self.__wired_properties__.values():
+        for prop in self.__proto_properties__.values():
             if prop.id < 30:
                 continue
             prop_value = getattr(self, prop.name)
@@ -905,7 +906,7 @@ class BuiltinObject[ObjectDataT: AnyObjectData](abc.ABC):
 
     def _patch_from(self, other: Self):
         """Patches this Node *in place* from another Node."""
-        for prop in self.__wired_properties__.values():
+        for prop in self.__proto_properties__.values():
             if prop.is_computed:
                 continue  # ignore computed properties
             prop_value = getattr(other, prop.name)
@@ -1019,7 +1020,7 @@ class BuiltinObject[ObjectDataT: AnyObjectData](abc.ABC):
     def _clone_kwargs(self, reset: bool = True):
         """Clone kwargs for a new instance."""
         copy_kwargs = {}
-        for prop in self.__wired_properties__.values():
+        for prop in self.__proto_properties__.values():
             prop_value = getattr(self, prop.name)
             if reset and prop.id < 30:
                 continue  # ignore tracking/autoset properties
@@ -1261,7 +1262,7 @@ class Struct[StructDataT: AnyStructData](BuiltinObject[StructDataT], abc.ABC):
 
     def _copy_to(self, parent: StructParent, parent_key: StructParentKey) -> Self:
         """Create a copy of this Struct for the given parent/prop."""
-        kwargs = {p.name: getattr(self, p.name) for p in self.__wired_properties__.values()}
+        kwargs = {p.name: getattr(self, p.name) for p in self.__proto_properties__.values()}
         kwargs["parent"] = parent
         kwargs["parent_key"] = parent_key
         copy = self.__class__(**kwargs)
@@ -1285,8 +1286,8 @@ def is_struct[T: Struct | Struct](obj: Any, struct_cls: type[T]) -> TypeGuard[T]
 class GraphScope(Struct[GraphScopeData]):
     """The scope for an operation on the Bench graph."""
 
-    bench_id: Optional[UUID] = p_internal(30, default=None)
-    package_ids: list[UUID] = p_internal(31, array=True)
+    bench_id: Optional[UUID] = p_internal(30)
+    package_ids: list[UUID] = p_internal(31)
 
     def __content_str__(self) -> str:
         return repr_scope(self)
@@ -1314,7 +1315,7 @@ class PropertyReference(Struct):
     object_type: ObjectType | None = p_regular(30)
     id: int = p_regular(31)
     references_node_type: Optional[NodeType] = p_internal(35)  # disambiguate reference properties
-    references_meta: Optional[PropertyReferenceType] = p_internal(36, default=None)
+    references_meta: Optional[PropertyReferenceType] = p_internal(36)
 
     def __content_str__(self):
         if self.object_type is None:

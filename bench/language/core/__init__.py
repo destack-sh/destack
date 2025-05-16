@@ -320,6 +320,7 @@ from .value import (
     unpack_value_scalar,
     unpack_value_scalar_data,
 )
+from .variable import Variable, VariableType
 
 __all__ = [
     "ACCESS_KINDS",
@@ -532,6 +533,8 @@ __all__ = [
     "TypeKind",
     "ValidationError",
     "ValueList",
+    "Variable",
+    "VariableType",
     "_IntoQuery",
     "_check_type_supports",
     "_is_setup_complete",

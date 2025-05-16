@@ -44,17 +44,13 @@ class ShadowPosition(BuiltinEnum):
 @node_component_()
 class ShadowBase(IsVariable, BuiltinObject):
     type: ShadowType = p_regular(30, default=ShadowType.BOX)
-    style: Optional["ShadowStyle"] = p_regular(
-        41, default=None, require=False, array=False, references=NodeType.SHADOW_STYLE
-    )
-    color: Optional["Color"] = p_regular(
-        50, array=False, default=None, require=False, struct=StructType.COLOR
-    )
+    style: Optional["ShadowStyle"] = p_regular(41)
+    color: Optional["Color"] = p_regular(50)
     position: ShadowPosition = p_regular(51, default=ShadowPosition.OUTSIDE)
-    offset: Optional[Axis2] = p_regular(52, default=None, struct=StructType.AXIS2)
-    blur: int | None = p_regular(53, default=None)
-    spread: int | None = p_regular(54, default=None)
-    diffusion: float | None = p_regular(55, default=None)
+    offset: Optional[Axis2] = p_regular(52)
+    blur: int | None = p_regular(53)
+    spread: int | None = p_regular(54)
+    diffusion: float | None = p_regular(55)
 
 
 @struct_(StructType.SHADOW)

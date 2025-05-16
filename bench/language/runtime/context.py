@@ -43,51 +43,33 @@ class IsRun(BuiltinObject):
     # context
     agent: Optional["Agent"] = p_internal(
         70,
-        require=False,
-        array=False,
-        references=NodeType.AGENT,
         same_bench=True,
         description="The Agent we're running as.",
     )
     flow: Optional["Flow"] = p_internal(
         71,
-        require=False,
-        array=False,
-        references=NodeType.FLOW,
         same_bench=True,
         description="The Flow the Action is in.",
     )
     service: Optional["Service"] = p_internal(
         72,
-        require=False,
-        array=False,
-        references=NodeType.SERVICE,
         same_bench=True,
         description="The Service the Action is in.",
     )
     action: Optional["Action"] = p_internal(
         73,
-        require=False,
-        array=False,
-        references=NodeType.ACTION,
         same_bench=True,
         description="The Action this Run is executing.",
     )
     transition: Optional["FlowEdge"] = p_internal(
         74,
-        require=False,
-        array=False,
-        references=NodeType.FLOW_EDGE,
         same_bench=True,
         description="The Transition this Run is executing.",
     )
     task: Optional["Task"] = p_internal(
         78,
-        require=False,
-        array=False,
-        references=NodeType.TASK,
         same_bench=True,
-        description="The manual Task this Run is implementing (leaf).",
+        description="The Task this Run is executing.",
     )
     if TYPE_CHECKING:
         agent_ptr: Optional[NodeReference] = None
@@ -118,21 +100,13 @@ class IsRun(BuiltinObject):
 class EditContext(Struct):
     """Additional context for a specific edit (per-edit variable subset of Session context)."""
 
-    page: Optional["Page"] = p_internal(70, require=False, array=False, references=NodeType.PAGE)
-    flow: Optional["Flow"] = p_internal(71, require=False, array=False, references=NodeType.FLOW)
-    action: Optional["Action"] = p_internal(
-        72, require=False, array=False, references=NodeType.ACTION
-    )
-    session: Optional["Session"] = p_internal(
-        73, require=False, array=False, references=NodeType.SESSION, same_bench=True
-    )
-    run: Optional["Run"] = p_internal(
-        74, require=False, array=False, references=NodeType.RUN, same_bench=True
-    )
-    run_root: Optional["Run"] = p_internal(
-        75, require=False, array=False, references=NodeType.RUN, same_bench=True
-    )
-    agent: Optional["Agent"] = p_internal(76, require=False, array=False, references=NodeType.AGENT)
+    page: Optional["Page"] = p_internal(70)
+    flow: Optional["Flow"] = p_internal(71)
+    action: Optional["Action"] = p_internal(72)
+    session: Optional["Session"] = p_internal(73, same_bench=True)
+    run: Optional["Run"] = p_internal(74, same_bench=True)
+    run_root: Optional["Run"] = p_internal(75, same_bench=True)
+    agent: Optional["Agent"] = p_internal(76)
     if TYPE_CHECKING:
         block_ptr: Optional[NodeReference] = None
         action_ptr: Optional[NodeReference] = None

@@ -24,8 +24,5 @@ class Route(IsOwnable, IsInstantiable, IsNamed, IsModal, PageNode[RouteData]):
 
     scene: Optional["Scene"] = p_regular(
         40,
-        require=False,
-        array=False,
-        references=NodeType.SCENE,
         description="The Scene to route to.",
     )

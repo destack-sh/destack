@@ -8,7 +8,6 @@ from bench.language.core import (
     NodeType,
     PackageNode,
     SpanType,
-    StructType,
     p_node_ancestor,
     p_node_parent,
     p_regular,
@@ -49,9 +48,9 @@ class Span(
         root_id: Optional[UUID] = None
 
     # content
-    title: str | None = p_regular(60, default=None)
-    code: Optional["Code"] = p_regular(62, default=None, struct=StructType.CODE)
-    nodes: list["Node"] = p_regular(65, array=True, require=False, references="any")
+    title: str | None = p_regular(60)
+    code: Optional["Code"] = p_regular(62)
+    nodes: list["Node"] = p_regular(65)
 
     # ...IsProcessable[80-]
 

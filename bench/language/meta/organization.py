@@ -11,7 +11,6 @@ from bench.language.core import (
     NodeReference,
     NodeType,
     Region,
-    StructType,
     enum_,
     node_,
     p_node_children,
@@ -41,19 +40,13 @@ class Organization(IsSubject, Node[OrganizationData]):
     # parent: Organization for nesting?
     slug: Optional[str] = p_system(32, unique=True)  # must match main handle
     name: str = p_regular(33, constraint=NAME_CONSTRAINT)
-    icon: Optional["Icon"] = p_regular(35, default=None, struct=StructType.ICON)
-    line: Optional["TextLine"] = p_regular(
-        34, default=None, require=False, array=False, struct=StructType.TEXT_LINE
-    )
+    icon: Optional["Icon"] = p_regular(35)
+    line: Optional["TextLine"] = p_regular(34)
     region: "Region" = p_system(37)
     status: OrganizationStatus = p_system(38)
 
-    bench: Optional["Bench"] = p_system(
-        40, array=False, require=False, references=NodeType.BENCH, fk=True
-    )
-    handle: Optional["Handle"] = p_system(
-        41, require=False, array=False, references=NodeType.HANDLE, fk=True
-    )
+    bench: Optional["Bench"] = p_system(40, fk=True)
+    handle: Optional["Handle"] = p_system(41, fk=True)
     if TYPE_CHECKING:
         bench_id: Optional[UUID] = None
         bench_ptr: Optional[NodeReference] = None

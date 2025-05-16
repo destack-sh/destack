@@ -83,22 +83,18 @@ class Interruption(IsTimed, IsRuntime, IsModal, PackageNode[InterruptionData]):
 
     # meta
     parent: Optional["Run"] = p_node_parent(4, NodeType.RUN)
-    type: InterruptionType = p_regular(30, require=True)
+    type: InterruptionType = p_regular(30)
     root: "Run | None" = p_node_ancestor(
         31, NodeType.RUN, require=False, store=True, wire=True, is_bench_implicit=True
     )
-    flow: Optional["Flow"] = p_internal(33, require=False, array=False, references=NodeType.FLOW)
-    action: Optional["Action"] = p_internal(
-        34, require=False, array=False, references=NodeType.ACTION
-    )
-    link: Optional["FlowEdge"] = p_internal(
-        35, require=False, array=False, references=NodeType.FLOW_EDGE
-    )
+    flow: Optional["Flow"] = p_internal(33)
+    action: Optional["Action"] = p_internal(34)
+    link: Optional["FlowEdge"] = p_internal(35)
     if TYPE_CHECKING:
         flow_ptr: Optional[NodeReference] = None
         action_ptr: Optional[NodeReference] = None
         link_ptr: Optional[NodeReference] = None
-    span: Optional["Span"] = p_internal(37, require=False, default=None, references=NodeType.SPAN)
+    span: Optional["Span"] = p_internal(37)
     if TYPE_CHECKING:
         root_id: Optional[UUID] = None
         root_ptr: Optional[NodeReference] = None
@@ -115,25 +111,19 @@ class Interruption(IsTimed, IsRuntime, IsModal, PackageNode[InterruptionData]):
 
     # status
     status: InterruptionStatus = p_regular(40, default=InterruptionStatus.OPEN)
-    duration: Optional[timedelta] = p_internal(41, require=False, default=None)
-    closed_at: Optional[datetime] = p_internal(42, require=False, default=None)
+    duration: Optional[timedelta] = p_internal(41)
+    closed_at: Optional[datetime] = p_internal(42)
 
     # content
-    response: Optional[InterruptionResponse] = p_internal(54, require=False, default=None)
+    response: Optional[InterruptionResponse] = p_internal(54)
     message: Optional["Message"] = p_regular(
         55,
-        require=False,
-        array=False,
         baseless=True,
-        references=NodeType.MESSAGE,
         description="The Message that was created for this Interruption.",
         same_bench=True,
     )
     task: Optional["Task"] = p_regular(
         56,
-        require=False,
-        array=False,
-        references=NodeType.TASK,
         description="The Task that was created for this Interruption.",
         same_bench=True,
     )

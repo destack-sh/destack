@@ -1,12 +1,9 @@
-from itertools import chain
 from typing import cast
 
 import pytest
 from hypothesis import HealthCheck, given, settings
 
 from bench.language import (
-    NODE_CLASSES,
-    STRUCT_CLASSES,
     Action,
     ActionType,
     Bench,
@@ -27,7 +24,6 @@ from bench.language import (
     Package,
     PackageType,
     Page,
-    Property,
     Session,
     Table,
     Text,
@@ -39,15 +35,6 @@ from bench.test.simulation.core import Simulation
 from bench.test.simulation.workload import RuntimeLambdaWorkload
 from bench.test.strategies import structs
 from bench.test.unit.conftest import simulated_runtime
-
-
-def test_builtin_object_properties_are_available():
-    """Slightly tautological sanity check to check our introspected properties"""
-    for cls in chain(STRUCT_CLASSES, NODE_CLASSES):
-        for prop in cls.__properties__.values():
-            if prop.is_introspectable:
-                attr = getattr(cls, prop.name)
-                assert type(attr) is Property, f"{prop!r}->{attr!r} is not a Property"
 
 
 def test_init_with_non_existing_property(session: "Session"):

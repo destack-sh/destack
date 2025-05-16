@@ -247,7 +247,6 @@ class SqlColumn(SqlTableObject):
         "on_delete",
         # "is_unique", handled via constraints
         "is_nullable",
-        # "is_encrypted", handled in read/write
         "length",
         "default",
     )
@@ -546,7 +545,7 @@ class SqlTable(SqlTableObject):
             column = self._columns_by_field.get(key)
             if column is None:
                 context_fields = [*self._columns_by_field.keys()]
-                source_fields = key.parent.fields.tolist() if key.parent else ()
+                source_fields = key.parent.get_children(Field) if key.parent else ()
                 raise KeyError(
                     f"no column for field {key!r} in {self!r} (context={context_fields}, tracked={source_fields})"
                 )

@@ -34,23 +34,17 @@ class GradientType(BuiltinEnum):
 class GradientStop(Struct):
     """A gradient stop with color and position."""
 
-    color: "Color | None" = p_regular(50, require=False, struct=StructType.COLOR)
+    color: Optional["Color"] = p_regular(50)
     position: float = p_regular(51)
 
 
 @node_component_()
 class GradientBase(BuiltinObject):
     type: GradientType = p_regular(30, default=GradientType.LINEAR)
-    style: Optional["GradientStyle"] = p_regular(
-        40, require=False, references=NodeType.GRADIENT_STYLE
-    )
-    angle: Optional[float] = p_regular(50, default=None)  # degrees
-    stops: list[GradientStop] = p_regular(
-        51, array=True, require=False, struct=StructType.GRADIENT_STOP
-    )
-    center_anchor: Optional[Axis2] = p_regular(
-        52, require=False, array=False, default=None, struct=StructType.AXIS2
-    )
+    style: Optional["GradientStyle"] = p_regular(40)
+    angle: Optional[float] = p_regular(50)
+    stops: list[GradientStop] = p_regular(51)
+    center_anchor: Optional[Axis2] = p_regular(52)
 
 
 @struct_(StructType.GRADIENT)
@@ -64,4 +58,4 @@ class Gradient(GradientBase, Struct):
 class GradientStyle(GradientBase, StyleBase[GradientStyleData]):
     """A gradient style."""
 
-    dark: Gradient | None = p_regular(60, require=False, array=False, struct=StructType.GRADIENT)
+    dark: Gradient | None = p_regular(60)

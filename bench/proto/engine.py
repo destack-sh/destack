@@ -57,7 +57,7 @@ def map_bench_property_to_proto(
             repeated=prop.is_list,
         )
     elif prop.is_struct or prop.is_enum:
-        proto_t = map_object_type_to_proto(prop.py_type_stripped, cache)
+        proto_t = map_object_type_to_proto(prop.py_type, cache)
         assert isinstance(proto_t, (Enum, Message)), f"unexpected property type: {proto_t!r}"
         return Field(
             id=prop.id,
@@ -106,7 +106,7 @@ def map_builtin_object_to_proto(
     message.comment = (doc or "").strip()
     cache[cls] = message  # to solve recursive references
     for prop in properties if properties is not None else cls.__properties__.values():
-        if not prop.is_wired:
+        if not prop.is_proto:
             continue
         fields = map_bench_property_to_proto(prop, cache)
         if isinstance(fields, Field):

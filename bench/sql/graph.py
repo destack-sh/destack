@@ -202,7 +202,6 @@ def map_builtin_object_to_sql_table(
         if not prop.is_stored:
             continue
         assert prop.primitive_type is not None, f"no primitive type for {prop!r}"
-        assert not prop.is_encrypted, f"encryption not supported: {prop!r}"  # :RealSecrets
         column = SqlColumn(
             name=prop.name,
             type=prop.primitive_type,
@@ -780,7 +779,7 @@ def _pg_pack_node_data_row(
         row: dict[str, SqlPrimitive] = {}
 
         # wired properties
-        for name, prop in node_cls.__wired_properties__.items():
+        for name, prop in node_cls.__proto_properties__.items():
             if prop.is_value_packed and node_cls.__unravel_value__:
                 continue  # value is stored in unraveled columns
             elif prop.reference_source is None or not prop.is_node_reference:
@@ -841,7 +840,7 @@ def _pg_unpack_node_data_row(
         )
 
         # wired properties
-        for name, prop in node_cls.__wired_properties__.items():
+        for name, prop in node_cls.__proto_properties__.items():
             if prop.is_value_packed and node_cls.__unravel_value__:
                 continue  # value is stored in unraveled columns
             if prop.reference_source is not None and prop.is_node_reference:

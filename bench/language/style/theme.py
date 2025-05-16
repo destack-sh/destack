@@ -8,7 +8,6 @@ from bench.language.core import (
     IsNamed,
     NodeType,
     PageNode,
-    StructType,
     enum_,
     node_,
     p_regular,
@@ -39,27 +38,13 @@ class Theme(IsInstantiable, IsModal, IsNamed, PageNode[ThemeData]):
     """A Theme with common styles."""
 
     # colors
-    primary_color: Optional["Color"] = p_regular(
-        50, require=False, array=False, struct=StructType.COLOR
-    )
-    secondary_color: Optional["Color"] = p_regular(
-        51, require=False, array=False, struct=StructType.COLOR
-    )
-    accent_color: Optional["Color"] = p_regular(
-        52, require=False, array=False, struct=StructType.COLOR
-    )
-    muted_color: Optional["Color"] = p_regular(
-        53, require=False, array=False, struct=StructType.COLOR
-    )
-    success_color: Optional["Color"] = p_regular(
-        54, require=False, array=False, struct=StructType.COLOR
-    )
-    warning_color: Optional["Color"] = p_regular(
-        55, require=False, array=False, struct=StructType.COLOR
-    )
-    error_color: Optional["Color"] = p_regular(
-        56, require=False, array=False, struct=StructType.COLOR
-    )
+    primary_color: Optional["Color"] = p_regular(50)
+    secondary_color: Optional["Color"] = p_regular(51)
+    accent_color: Optional["Color"] = p_regular(52)
+    muted_color: Optional["Color"] = p_regular(53)
+    success_color: Optional["Color"] = p_regular(54)
+    warning_color: Optional["Color"] = p_regular(55)
+    error_color: Optional["Color"] = p_regular(56)
 
     # fonts
     # ...

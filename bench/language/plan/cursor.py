@@ -12,7 +12,6 @@ from bench.language.core import (
     NodeType,
     PackageNode,
     Selection,
-    StructType,
     enum_,
     node_,
     p_node_parent,
@@ -78,33 +77,24 @@ class Cursor(IsRuntime, IsOwnable, IsModal, IsTitled, PackageNode):
         NodeType.RUN,
         ckless=True,
     )
-    type: CursorType = p_regular(30, require=True)
+    type: CursorType = p_regular(30)
 
     # status?
     status: CursorStatus = p_regular(40, default=CursorStatus.CREATED)
-    started_at: Optional[datetime] = p_regular(41, default=None)
-    active_at: Optional[datetime] = p_regular(42, default=None)
-    seen_at: Optional[datetime] = p_regular(43, default=None)
-    terminated_at: Optional[datetime] = p_regular(45, default=None)
+    started_at: Optional[datetime] = p_regular(41)
+    active_at: Optional[datetime] = p_regular(42)
+    seen_at: Optional[datetime] = p_regular(43)
+    terminated_at: Optional[datetime] = p_regular(45)
 
     # content
     target: Optional[Node] = p_regular(
         50,
-        require=False,
-        array=False,
-        references="any",
     )
-    selection: Optional[Selection] = p_regular(
-        51, default=None, require=False, struct=StructType.SELECTION
-    )
-    focus: Optional[Selection] = p_regular(
-        52, default=None, require=False, struct=StructType.SELECTION
-    )
-    filter: Optional[Expression] = p_regular(
-        53, default=None, require=False, struct=StructType.EXPRESSION
-    )
-    sort: list[Expression] = p_regular(54, require=False, array=True, struct=StructType.EXPRESSION)
-    url: Optional[str] = p_regular(55, require=False)
+    selection: Optional[Selection] = p_regular(51)
+    focus: Optional[Selection] = p_regular(52)
+    filter: Optional[Expression] = p_regular(53)
+    sort: list[Expression] = p_regular(54)
+    url: Optional[str] = p_regular(55)
 
     @override
     def __content_str__(self) -> str:

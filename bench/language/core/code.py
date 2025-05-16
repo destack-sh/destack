@@ -32,8 +32,8 @@ class CodeType(BuiltinEnum):
 class Code(Struct):
     """Code in some language."""
 
-    language: Optional[str] = p_regular(32, require=False)
-    content: Optional[str] = p_regular(40, require=False)
+    language: Optional[str] = p_regular(32)
+    content: Optional[str] = p_regular(40)
 
     def __content_str__(self) -> str:
         preview_str = self.content or ""

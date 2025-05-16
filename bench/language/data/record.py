@@ -12,7 +12,6 @@ from bench.language.core import (
     IsTitled,
     NodeType,
     PackageNode,
-    StructType,
     TypeBase,
     node_,
     p_node_parent,
@@ -48,10 +47,8 @@ class Record(
     # meta
     parent: Union["Table", "Record", None] = p_node_parent(4, NodeType.TABLE, NodeType.RECORD)
     # type: RecordType?
-    icon: Optional["Icon"] = p_regular(34, default=None, struct=StructType.ICON)
-    table: "Table" = p_system(
-        36, require=True, references=NodeType.TABLE, description="The Table this Record is from."
-    )
+    icon: Optional["Icon"] = p_regular(34)
+    table: "Table" = p_system(36, description="The Table this Record is from.")
 
     # target: Page/Task/...? (tie Record to a Page for a Notion-like experience in some Tables)
     # ... general Record/Page/Block 'tying'? :NodeTying
