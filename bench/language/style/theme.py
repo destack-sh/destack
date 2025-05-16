@@ -1,14 +1,41 @@
 from typing import TYPE_CHECKING, Optional
 
-from bench.language.core import NodeType, PageNode, StructType, node_, p_regular
+from bench.language.core import (
+    BuiltinEnum,
+    EnumType,
+    IsInstantiable,
+    IsModal,
+    IsNamed,
+    NodeType,
+    PageNode,
+    StructType,
+    enum_,
+    node_,
+    p_regular,
+)
 from bench.pb2 import ThemeData
 
 if TYPE_CHECKING:
     from .color import Color
 
+# pyright: reportIncompatibleVariableOverride=false
+
+
+@enum_(EnumType.THEME_COLOR)
+class ThemeColor(BuiltinEnum):
+    """A color in the theme."""
+
+    PRIMARY = 50
+    SECONDARY = 51
+    ACCENT = 52
+    MUTED = 53
+    SUCCESS = 54
+    WARNING = 55
+    ERROR = 56
+
 
 @node_(NodeType.THEME)
-class Theme(PageNode[ThemeData]):
+class Theme(IsInstantiable, IsModal, IsNamed, PageNode[ThemeData]):
     """A Theme with common styles."""
 
     # colors

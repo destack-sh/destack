@@ -119,8 +119,12 @@ enum EnumType {
   ENUM_TYPE_OVERFLOW = 29075;
   ENUM_TYPE_TRANSITION_TYPE = 29076;
   ENUM_TYPE_SPRING_TYPE = 29077;
-  ENUM_TYPE_EFFECT_TYPE = 29078;
-  ENUM_TYPE_DIMENSION_TYPE = 29079;
+  ENUM_TYPE_DIMENSION_TYPE = 29078;
+  ENUM_TYPE_THEME_COLOR = 29079;
+  ENUM_TYPE_EFFECT_TYPE = 29080;
+  ENUM_TYPE_REPEAT_TYPE = 29081;
+  ENUM_TYPE_TEXT_SPLIT_TYPE = 29083;
+  ENUM_TYPE_OFFSCREEN_BEHAVIOR = 29084;
 }
 
 enum NodeType {
@@ -223,27 +227,27 @@ enum StructType {
   STRUCT_TYPE_ACCESS_ZONE = 13003;
   STRUCT_TYPE_ACCESS_MATRIX = 13004;
   STRUCT_TYPE_ACCESS = 13005;
-  STRUCT_TYPE_COLOR = 19000;
-  STRUCT_TYPE_SHADOW = 19003;
-  STRUCT_TYPE_BORDER = 19004;
-  STRUCT_TYPE_FONT = 19005;
-  STRUCT_TYPE_VECTOR2 = 19006;
-  STRUCT_TYPE_VECTOR3 = 19007;
-  STRUCT_TYPE_VECTOR4 = 19008;
-  STRUCT_TYPE_GRADIENT_STOP = 19009;
-  STRUCT_TYPE_GRADIENT = 19010;
-  STRUCT_TYPE_FILL = 19011;
-  STRUCT_TYPE_LENGTH = 19012;
-  STRUCT_TYPE_POSITION = 19013;
-  STRUCT_TYPE_DIMENSION = 19014;
-  STRUCT_TYPE_TRANSITION = 19015;
-  STRUCT_TYPE_EFFECT = 19016;
-  STRUCT_TYPE_GRID = 19018;
-  STRUCT_TYPE_GRID_SPAN = 19019;
-  STRUCT_TYPE_INSETS = 19020;
-  STRUCT_TYPE_CORNERS = 19021;
-  STRUCT_TYPE_AXIS_2 = 19022;
-  STRUCT_TYPE_AXIS_3 = 19023;
+  STRUCT_TYPE_VECTOR2 = 19000;
+  STRUCT_TYPE_VECTOR3 = 19001;
+  STRUCT_TYPE_VECTOR4 = 19002;
+  STRUCT_TYPE_AXIS2 = 19003;
+  STRUCT_TYPE_AXIS3 = 19004;
+  STRUCT_TYPE_COLOR = 19010;
+  STRUCT_TYPE_SHADOW = 19011;
+  STRUCT_TYPE_BORDER = 19012;
+  STRUCT_TYPE_FONT = 19013;
+  STRUCT_TYPE_GRADIENT_STOP = 19014;
+  STRUCT_TYPE_GRADIENT = 19015;
+  STRUCT_TYPE_FILL = 19016;
+  STRUCT_TYPE_LENGTH = 19017;
+  STRUCT_TYPE_POSITION = 19018;
+  STRUCT_TYPE_DIMENSION = 19019;
+  STRUCT_TYPE_TRANSITION = 19020;
+  STRUCT_TYPE_EFFECT = 19021;
+  STRUCT_TYPE_GRID = 19022;
+  STRUCT_TYPE_GRID_SPAN = 19023;
+  STRUCT_TYPE_INSETS = 19024;
+  STRUCT_TYPE_CORNERS = 19025;
 }
 
 enum ObjectType {
@@ -342,27 +346,27 @@ enum ObjectType {
   OBJECT_TYPE_ACCESS_ZONE = 13003;
   OBJECT_TYPE_ACCESS_MATRIX = 13004;
   OBJECT_TYPE_ACCESS = 13005;
-  OBJECT_TYPE_COLOR = 19000;
-  OBJECT_TYPE_SHADOW = 19003;
-  OBJECT_TYPE_BORDER = 19004;
-  OBJECT_TYPE_FONT = 19005;
-  OBJECT_TYPE_VECTOR2 = 19006;
-  OBJECT_TYPE_VECTOR3 = 19007;
-  OBJECT_TYPE_VECTOR4 = 19008;
-  OBJECT_TYPE_GRADIENT_STOP = 19009;
-  OBJECT_TYPE_GRADIENT = 19010;
-  OBJECT_TYPE_FILL = 19011;
-  OBJECT_TYPE_LENGTH = 19012;
-  OBJECT_TYPE_POSITION = 19013;
-  OBJECT_TYPE_DIMENSION = 19014;
-  OBJECT_TYPE_TRANSITION = 19015;
-  OBJECT_TYPE_EFFECT = 19016;
-  OBJECT_TYPE_GRID = 19018;
-  OBJECT_TYPE_GRID_SPAN = 19019;
-  OBJECT_TYPE_INSETS = 19020;
-  OBJECT_TYPE_CORNERS = 19021;
-  OBJECT_TYPE_AXIS_2 = 19022;
-  OBJECT_TYPE_AXIS_3 = 19023;
+  OBJECT_TYPE_VECTOR2 = 19000;
+  OBJECT_TYPE_VECTOR3 = 19001;
+  OBJECT_TYPE_VECTOR4 = 19002;
+  OBJECT_TYPE_AXIS2 = 19003;
+  OBJECT_TYPE_AXIS3 = 19004;
+  OBJECT_TYPE_COLOR = 19010;
+  OBJECT_TYPE_SHADOW = 19011;
+  OBJECT_TYPE_BORDER = 19012;
+  OBJECT_TYPE_FONT = 19013;
+  OBJECT_TYPE_GRADIENT_STOP = 19014;
+  OBJECT_TYPE_GRADIENT = 19015;
+  OBJECT_TYPE_FILL = 19016;
+  OBJECT_TYPE_LENGTH = 19017;
+  OBJECT_TYPE_POSITION = 19018;
+  OBJECT_TYPE_DIMENSION = 19019;
+  OBJECT_TYPE_TRANSITION = 19020;
+  OBJECT_TYPE_EFFECT = 19021;
+  OBJECT_TYPE_GRID = 19022;
+  OBJECT_TYPE_GRID_SPAN = 19023;
+  OBJECT_TYPE_INSETS = 19024;
+  OBJECT_TYPE_CORNERS = 19025;
 }
 
 enum BenchType {
@@ -461,27 +465,27 @@ enum BenchType {
   BENCH_TYPE_ACCESS_ZONE = 13003;
   BENCH_TYPE_ACCESS_MATRIX = 13004;
   BENCH_TYPE_ACCESS = 13005;
-  BENCH_TYPE_COLOR = 19000;
-  BENCH_TYPE_SHADOW = 19003;
-  BENCH_TYPE_BORDER = 19004;
-  BENCH_TYPE_FONT = 19005;
-  BENCH_TYPE_VECTOR2 = 19006;
-  BENCH_TYPE_VECTOR3 = 19007;
-  BENCH_TYPE_VECTOR4 = 19008;
-  BENCH_TYPE_GRADIENT_STOP = 19009;
-  BENCH_TYPE_GRADIENT = 19010;
-  BENCH_TYPE_FILL = 19011;
-  BENCH_TYPE_LENGTH = 19012;
-  BENCH_TYPE_POSITION = 19013;
-  BENCH_TYPE_DIMENSION = 19014;
-  BENCH_TYPE_TRANSITION = 19015;
-  BENCH_TYPE_EFFECT = 19016;
-  BENCH_TYPE_GRID = 19018;
-  BENCH_TYPE_GRID_SPAN = 19019;
-  BENCH_TYPE_INSETS = 19020;
-  BENCH_TYPE_CORNERS = 19021;
-  BENCH_TYPE_AXIS_2 = 19022;
-  BENCH_TYPE_AXIS_3 = 19023;
+  BENCH_TYPE_VECTOR2 = 19000;
+  BENCH_TYPE_VECTOR3 = 19001;
+  BENCH_TYPE_VECTOR4 = 19002;
+  BENCH_TYPE_AXIS2 = 19003;
+  BENCH_TYPE_AXIS3 = 19004;
+  BENCH_TYPE_COLOR = 19010;
+  BENCH_TYPE_SHADOW = 19011;
+  BENCH_TYPE_BORDER = 19012;
+  BENCH_TYPE_FONT = 19013;
+  BENCH_TYPE_GRADIENT_STOP = 19014;
+  BENCH_TYPE_GRADIENT = 19015;
+  BENCH_TYPE_FILL = 19016;
+  BENCH_TYPE_LENGTH = 19017;
+  BENCH_TYPE_POSITION = 19018;
+  BENCH_TYPE_DIMENSION = 19019;
+  BENCH_TYPE_TRANSITION = 19020;
+  BENCH_TYPE_EFFECT = 19021;
+  BENCH_TYPE_GRID = 19022;
+  BENCH_TYPE_GRID_SPAN = 19023;
+  BENCH_TYPE_INSETS = 19024;
+  BENCH_TYPE_CORNERS = 19025;
   BENCH_TYPE_ENUM_TYPE = 20000;
   BENCH_TYPE_NODE_TYPE = 20001;
   BENCH_TYPE_STRUCT_TYPE = 20002;
@@ -590,8 +594,12 @@ enum BenchType {
   BENCH_TYPE_OVERFLOW = 29075;
   BENCH_TYPE_TRANSITION_TYPE = 29076;
   BENCH_TYPE_SPRING_TYPE = 29077;
-  BENCH_TYPE_EFFECT_TYPE = 29078;
-  BENCH_TYPE_DIMENSION_TYPE = 29079;
+  BENCH_TYPE_DIMENSION_TYPE = 29078;
+  BENCH_TYPE_THEME_COLOR = 29079;
+  BENCH_TYPE_EFFECT_TYPE = 29080;
+  BENCH_TYPE_REPEAT_TYPE = 29081;
+  BENCH_TYPE_TEXT_SPLIT_TYPE = 29083;
+  BENCH_TYPE_OFFSCREEN_BEHAVIOR = 29084;
 }
 
 enum NodeMode {
@@ -1741,23 +1749,60 @@ enum SpringType {
   SPRING_TYPE_PHYSICS = 2;
 }
 
-// Built-in effect types.
-enum EffectType {
-  EFFECT_TYPE_UNSPECIFIED = 0;
-  EFFECT_TYPE_STYLE = 2;
-  EFFECT_TYPE_FIELD = 3;
-  EFFECT_TYPE_APPEAR = 10;
-  EFFECT_TYPE_ENTER = 11;
-  EFFECT_TYPE_EXIT = 12;
-  EFFECT_TYPE_HOVER = 13;
-  EFFECT_TYPE_TRANSFORM = 14;
-}
-
 enum DimensionType {
   DIMENSION_TYPE_UNSPECIFIED = 0;
   DIMENSION_TYPE_FIXED = 2;
   DIMENSION_TYPE_FIT = 3;
   DIMENSION_TYPE_FILL = 4;
+}
+
+// A color in the theme.
+enum ThemeColor {
+  THEME_COLOR_UNSPECIFIED = 0;
+  THEME_COLOR_PRIMARY = 50;
+  THEME_COLOR_SECONDARY = 51;
+  THEME_COLOR_ACCENT = 52;
+  THEME_COLOR_MUTED = 53;
+  THEME_COLOR_SUCCESS = 54;
+  THEME_COLOR_WARNING = 55;
+  THEME_COLOR_ERROR = 56;
+}
+
+// When the effect fires.
+enum EffectType {
+  EFFECT_TYPE_UNSPECIFIED = 0;
+  EFFECT_TYPE_NONE = 1;
+  EFFECT_TYPE_STYLE = 2;
+  EFFECT_TYPE_FIELD = 3;
+  EFFECT_TYPE_APPEAR = 10;
+  EFFECT_TYPE_ENTER = 11;
+  EFFECT_TYPE_EXIT = 12;
+  EFFECT_TYPE_HOVER = 20;
+  EFFECT_TYPE_PRESS = 21;
+  EFFECT_TYPE_DRAG = 22;
+  EFFECT_TYPE_FOCUS = 23;
+  EFFECT_TYPE_LOOP = 30;
+}
+
+enum RepeatType {
+  REPEAT_TYPE_UNSPECIFIED = 0;
+  REPEAT_TYPE_LOOP = 1;
+  REPEAT_TYPE_REVERSE = 2;
+  REPEAT_TYPE_MIRROR = 3;
+}
+
+enum TextSplitType {
+  TEXT_SPLIT_TYPE_UNSPECIFIED = 0;
+  TEXT_SPLIT_TYPE_CHAR = 1;
+  TEXT_SPLIT_TYPE_WORD = 2;
+  TEXT_SPLIT_TYPE_LINE = 3;
+}
+
+// What happens when the element is offscreen.
+enum OffscreenBehavior {
+  OFFSCREEN_BEHAVIOR_UNSPECIFIED = 0;
+  OFFSCREEN_BEHAVIOR_PLAY = 1;
+  OFFSCREEN_BEHAVIOR_PAUSE = 2;
 }
 
 message GraphScopeData {
@@ -2198,20 +2243,61 @@ message BorderData {
   optional InsetsData width = 51;
 }
 
+message Vector2Data {
+  ObjectType metatype = 1;
+  float x = 30;
+  float y = 31;
+}
+
+message Vector3Data {
+  ObjectType metatype = 1;
+  float x = 30;
+  float y = 31;
+  float z = 32;
+}
+
+message Vector4Data {
+  ObjectType metatype = 1;
+  float x = 30;
+  float y = 31;
+  float z = 32;
+  float w = 33;
+}
+
+message TransitionData {
+  ObjectType metatype = 1;
+  TransitionType type = 30;
+  optional NodeReferenceData style_ptr = 40;
+  optional NodeReferenceData field_ptr = 41;
+  optional float delay = 50;
+  optional float duration = 51;
+  repeated float ease = 52;
+  optional float stiffness = 53;
+  optional float damping = 54;
+  optional float mass = 55;
+  optional float bounce = 56;
+  optional SpringType spring_type = 57;
+}
+
 message EffectData {
   ObjectType metatype = 1;
   EffectType type = 30;
-  optional NodeReferenceData style_ptr = 40;
-  optional NodeReferenceData field_ptr = 41;
+  optional NodeReferenceData style_ptr = 41;
+  optional NodeReferenceData field_ptr = 42;
   optional float opacity = 50;
-  optional Axis2Data offset = 51;
+  optional Vector2Data offset = 51;
   optional float scale = 52;
   optional Axis3Data rotate = 53;
-  optional Axis2Data skew = 54;
+  optional Vector2Data skew = 54;
   optional float perspective = 55;
-  optional float delay = 56;
+  optional google.protobuf.Duration delay = 56;
   optional float duration = 57;
   optional float threshold = 58;
+  optional bool once = 59;
+  optional RepeatType repeat = 60;
+  optional TextSplitType split = 61;
+  optional OffscreenBehavior offscreen = 62;
+  optional TransitionData transition = 70;
 }
 
 message GradientStopData {
@@ -2264,42 +2350,6 @@ message ShadowData {
   optional int32 blur = 53;
   optional int32 spread = 54;
   optional float diffusion = 55;
-}
-
-message TransitionData {
-  ObjectType metatype = 1;
-  TransitionType type = 30;
-  optional NodeReferenceData style_ptr = 40;
-  optional NodeReferenceData field_ptr = 41;
-  optional float delay = 50;
-  optional float duration = 51;
-  repeated float ease = 52;
-  optional float stiffness = 53;
-  optional float damping = 54;
-  optional float mass = 55;
-  optional float bounce = 56;
-  optional SpringType spring_type = 57;
-}
-
-message Vector2Data {
-  ObjectType metatype = 1;
-  float x = 30;
-  float y = 31;
-}
-
-message Vector3Data {
-  ObjectType metatype = 1;
-  float x = 30;
-  float y = 31;
-  float z = 32;
-}
-
-message Vector4Data {
-  ObjectType metatype = 1;
-  float x = 30;
-  float y = 31;
-  float z = 32;
-  float w = 33;
 }
 
 message BaseNodeData {
@@ -3552,6 +3602,37 @@ message BorderStyleData {
   optional InsetsData width = 51;
 }
 
+message TransitionStyleData {
+  ObjectType metatype = 1;
+  string id = 2;
+  optional NodeReferenceData parent_ptr = 4;
+  optional NodeReferenceData bench_ptr = 5;
+  optional NodeReferenceData package_ptr = 9;
+  google.protobuf.Timestamp created_at = 10;
+  optional NodeReferenceData created_by_ptr = 11;
+  google.protobuf.Timestamp updated_at = 12;
+  optional NodeReferenceData updated_by_ptr = 13;
+  optional google.protobuf.Timestamp archived_at = 14;
+  optional google.protobuf.Timestamp deleted_at = 15;
+  optional NodeReferenceData template_ptr = 16;
+  NodeMode mode = 25;
+  TransitionType type = 30;
+  optional string name = 31;
+  string order_key = 33;
+  optional IconData icon = 34;
+  optional NodeReferenceData definition_ptr = 35;
+  optional NodeReferenceData style_ptr = 40;
+  optional NodeReferenceData field_ptr = 41;
+  optional float delay = 50;
+  optional float duration = 51;
+  repeated float ease = 52;
+  optional float stiffness = 53;
+  optional float damping = 54;
+  optional float mass = 55;
+  optional float bounce = 56;
+  optional SpringType spring_type = 57;
+}
+
 message EffectStyleData {
   ObjectType metatype = 1;
   string id = 2;
@@ -3571,17 +3652,22 @@ message EffectStyleData {
   string order_key = 33;
   optional IconData icon = 34;
   optional NodeReferenceData definition_ptr = 35;
-  optional NodeReferenceData style_ptr = 40;
-  optional NodeReferenceData field_ptr = 41;
+  optional NodeReferenceData style_ptr = 41;
+  optional NodeReferenceData field_ptr = 42;
   optional float opacity = 50;
-  optional Axis2Data offset = 51;
+  optional Vector2Data offset = 51;
   optional float scale = 52;
   optional Axis3Data rotate = 53;
-  optional Axis2Data skew = 54;
+  optional Vector2Data skew = 54;
   optional float perspective = 55;
-  optional float delay = 56;
+  optional google.protobuf.Duration delay = 56;
   optional float duration = 57;
   optional float threshold = 58;
+  optional bool once = 59;
+  optional RepeatType repeat = 60;
+  optional TextSplitType split = 61;
+  optional OffscreenBehavior offscreen = 62;
+  optional TransitionData transition = 70;
 }
 
 message GradientStyleData {
@@ -3672,30 +3758,7 @@ message ShadowStyleData {
 message ThemeData {
   ObjectType metatype = 1;
   string id = 2;
-  optional NodeReferenceData parent_ptr = 4;
-  optional NodeReferenceData bench_ptr = 5;
-  optional NodeReferenceData package_ptr = 9;
-  google.protobuf.Timestamp created_at = 10;
-  optional NodeReferenceData created_by_ptr = 11;
-  google.protobuf.Timestamp updated_at = 12;
-  optional NodeReferenceData updated_by_ptr = 13;
-  optional google.protobuf.Timestamp archived_at = 14;
-  optional google.protobuf.Timestamp deleted_at = 15;
-  string order_key = 33;
-  optional IconData icon = 34;
-  optional NodeReferenceData definition_ptr = 35;
-  optional ColorData primary_color = 50;
-  optional ColorData secondary_color = 51;
-  optional ColorData accent_color = 52;
-  optional ColorData muted_color = 53;
-  optional ColorData success_color = 54;
-  optional ColorData warning_color = 55;
-  optional ColorData error_color = 56;
-}
-
-message TransitionStyleData {
-  ObjectType metatype = 1;
-  string id = 2;
+  string ck = 3;
   optional NodeReferenceData parent_ptr = 4;
   optional NodeReferenceData bench_ptr = 5;
   optional NodeReferenceData package_ptr = 9;
@@ -3707,21 +3770,17 @@ message TransitionStyleData {
   optional google.protobuf.Timestamp deleted_at = 15;
   optional NodeReferenceData template_ptr = 16;
   NodeMode mode = 25;
-  TransitionType type = 30;
   optional string name = 31;
   string order_key = 33;
   optional IconData icon = 34;
   optional NodeReferenceData definition_ptr = 35;
-  optional NodeReferenceData style_ptr = 40;
-  optional NodeReferenceData field_ptr = 41;
-  optional float delay = 50;
-  optional float duration = 51;
-  repeated float ease = 52;
-  optional float stiffness = 53;
-  optional float damping = 54;
-  optional float mass = 55;
-  optional float bounce = 56;
-  optional SpringType spring_type = 57;
+  optional ColorData primary_color = 50;
+  optional ColorData secondary_color = 51;
+  optional ColorData accent_color = 52;
+  optional ColorData muted_color = 53;
+  optional ColorData success_color = 54;
+  optional ColorData warning_color = 55;
+  optional ColorData error_color = 56;
 }
 
 message ChoiceData {

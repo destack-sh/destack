@@ -11,7 +11,7 @@ from .core import (
     SqlTable,
 )
 
-VERSION = "2025.05.15.4"
+VERSION = "2025.05.16.0"
 
 BENCH_TABLE = SqlTable(
     "bench_bench",
@@ -2203,6 +2203,7 @@ THEME_TABLE = SqlTable(
     "bench_theme",
     (
         SqlColumn("id", PrimitiveType.UUID, is_primary_key=True),
+        SqlColumn("ck", PrimitiveType.UUID),
         SqlColumn("parent_id", PrimitiveType.UUID, is_nullable=True),
         SqlColumn("bench_id", PrimitiveType.UUID),
         SqlColumn("package_id", PrimitiveType.UUID),
@@ -2214,6 +2215,10 @@ THEME_TABLE = SqlTable(
         SqlColumn("updated_by_type", PrimitiveType.INT16, is_nullable=True),
         SqlColumn("archived_at", PrimitiveType.DATETIME, is_nullable=True),
         SqlColumn("deleted_at", PrimitiveType.DATETIME, is_nullable=True),
+        SqlColumn("template_id", PrimitiveType.UUID, is_nullable=True),
+        SqlColumn("template_bench_id", PrimitiveType.UUID, is_nullable=True),
+        SqlColumn("mode", PrimitiveType.INT16, default="20"),
+        SqlColumn("name", PrimitiveType.STRING, is_nullable=True),
         SqlColumn("order_key", PrimitiveType.STRING, default="'a0'::character varying"),
         SqlColumn("icon", PrimitiveType.JSON, is_nullable=True),
         SqlColumn("definition_id", PrimitiveType.UUID, is_nullable=True),
@@ -2475,7 +2480,7 @@ EFFECT_STYLE_TABLE = SqlTable(
         SqlColumn("template_id", PrimitiveType.UUID, is_nullable=True),
         SqlColumn("template_bench_id", PrimitiveType.UUID, is_nullable=True),
         SqlColumn("mode", PrimitiveType.INT16, default="20"),
-        SqlColumn("type", PrimitiveType.INT16, default="10"),
+        SqlColumn("type", PrimitiveType.INT16),
         SqlColumn("name", PrimitiveType.STRING, is_nullable=True),
         SqlColumn("order_key", PrimitiveType.STRING, default="'a0'::character varying"),
         SqlColumn("icon", PrimitiveType.JSON, is_nullable=True),
@@ -2491,9 +2496,14 @@ EFFECT_STYLE_TABLE = SqlTable(
         SqlColumn("rotate", PrimitiveType.JSON, is_nullable=True),
         SqlColumn("skew", PrimitiveType.JSON, is_nullable=True),
         SqlColumn("perspective", PrimitiveType.FLOAT32, is_nullable=True),
-        SqlColumn("delay", PrimitiveType.FLOAT32, is_nullable=True),
+        SqlColumn("delay", PrimitiveType.DURATION, is_nullable=True),
         SqlColumn("duration", PrimitiveType.FLOAT32, is_nullable=True),
         SqlColumn("threshold", PrimitiveType.FLOAT32, is_nullable=True),
+        SqlColumn("once", PrimitiveType.BOOLEAN, is_nullable=True),
+        SqlColumn("repeat", PrimitiveType.INT16, is_nullable=True),
+        SqlColumn("split", PrimitiveType.INT16, is_nullable=True),
+        SqlColumn("offscreen", PrimitiveType.INT16, is_nullable=True),
+        SqlColumn("transition", PrimitiveType.JSON, is_nullable=True),
     ),
     indexes=(SqlIndex("bench_idx_parent_id", SqlIndexType.BTREE, ("parent_id",), cover=("id",)),),
 )

@@ -1,3 +1,4 @@
+from datetime import timedelta
 from typing import TYPE_CHECKING, Optional
 
 from bench.language.core import (
@@ -13,10 +14,12 @@ from bench.language.core import (
     p_regular,
     struct_,
 )
+from bench.language.style.vector import Vector2
 from bench.pb2 import EffectStyleData
 
-from .core import Axis2, Axis3
+from .core import Axis3
 from .style import StyleBase
+from .transition import Transition
 
 if TYPE_CHECKING:
     from bench.language import Field
@@ -24,38 +27,72 @@ if TYPE_CHECKING:
 
 @enum_(EnumType.EFFECT_TYPE)
 class EffectType(BuiltinEnum):
-    """Built-in effect types."""
+    """When the effect fires."""
 
-    # nocheckin: Effects/Animations
+    NONE = 1
     STYLE = 2
     FIELD = 3
-    APPEAR = 10
-    ENTER = 11
-    EXIT = 12
-    HOVER = 13
-    TRANSFORM = 14
+    APPEAR = 10, "Appear", "Initial render in"
+    ENTER = 11, "Enter", "Enters viewport"
+    EXIT = 12, "Exit", "Leaves viewport"
+    HOVER = 20, "Hover", "While hover"
+    PRESS = 21, "Press", "While tap"
+    DRAG = 22, "Drag", "While drag / drag"
+    FOCUS = 23, "Focus", "While focus"
+    LOOP = 30, "Loop", "Continuous loop"
+    # SCROLL, ...
+
+
+@enum_(EnumType.REPEAT_TYPE)
+class RepeatType(BuiltinEnum):
+    LOOP = 1, "Loop", "Restart from beginning"
+    REVERSE = 2, "Reverse", "Yoyo back and forth"
+    MIRROR = 3, "Mirror", "Mirror keyframes"
+
+
+@enum_(EnumType.TEXT_SPLIT_TYPE)
+class TextSplitType(BuiltinEnum):
+    CHAR = 1
+    WORD = 2
+    LINE = 3
+
+
+@enum_(EnumType.OFFSCREEN_BEHAVIOR)
+class OffscreenBehavior(BuiltinEnum):
+    """What happens when the element is offscreen."""
+
+    PLAY = 1, "Play", "Play the animation"
+    PAUSE = 2, "Pause", "Pause the animation"
 
 
 @node_component_()
 class EffectBase(BuiltinObject):
     """A base class for effects."""
 
-    type: EffectType = p_regular(30, default=EffectType.APPEAR)
+    type: EffectType = p_regular(30)
     style: Optional["EffectStyle"] = p_regular(
-        40, default=None, require=False, array=False, references=NodeType.EFFECT_STYLE
+        41, default=None, require=False, array=False, references=NodeType.EFFECT_STYLE
     )
     field: Optional["Field"] = p_regular(
-        41, default=None, require=False, array=False, references=NodeType.FIELD
+        42, default=None, require=False, array=False, references=NodeType.FIELD
     )
+
     opacity: Optional[float] = p_regular(50, default=None)
-    offset: Optional[Axis2] = p_regular(51, default=None, struct=StructType.AXIS_2)
+    offset: Optional[Vector2] = p_regular(51, default=None, struct=StructType.VECTOR2)
     scale: Optional[float] = p_regular(52, default=None)
-    rotate: Optional[Axis3] = p_regular(53, default=None, struct=StructType.AXIS_3)
-    skew: Optional[Axis2] = p_regular(54, default=None, struct=StructType.AXIS_2)
+    rotate: Optional[Axis3] = p_regular(53, default=None, struct=StructType.AXIS3)
+    skew: Optional[Vector2] = p_regular(54, default=None, struct=StructType.AXIS2)
     perspective: Optional[float] = p_regular(55, default=None)
-    delay: Optional[float] = p_regular(56, default=None)
+    delay: Optional[timedelta] = p_regular(56, default=None)
     duration: Optional[float] = p_regular(57, default=None)
     threshold: Optional[float] = p_regular(58, default=None)
+    once: Optional[bool] = p_regular(59, default=None)
+    repeat: Optional[RepeatType] = p_regular(60, default=None)
+    split: Optional[TextSplitType] = p_regular(61, default=None)
+    offscreen: Optional[OffscreenBehavior] = p_regular(62, default=None)
+    transition: Optional["Transition"] = p_regular(
+        70, default=None, require=False, array=False, struct=StructType.TRANSITION
+    )
 
 
 @struct_(StructType.EFFECT)

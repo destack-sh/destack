@@ -48,7 +48,7 @@ class _Unset:
 
 
 # forever constants
-VERSION = "2025.05.15.4"
+VERSION = "2025.05.16.0"
 UUID_NAMESPACE = uuid5(UUID(int=0), b"bench")
 CK_LENGTH_B64 = 24  # 1.5 * CK_LENGTH_BYTES (must be integer)
 FLOAT_EPSILON = 1e-6
@@ -479,8 +479,12 @@ class EnumType(BuiltinEnum):
     OVERFLOW = 29075
     TRANSITION_TYPE = 29076
     SPRING_TYPE = 29077
-    EFFECT_TYPE = 29078
-    DIMENSION_TYPE = 29079
+    DIMENSION_TYPE = 29078
+    THEME_COLOR = 29079
+    EFFECT_TYPE = 29080
+    REPEAT_TYPE = 29081
+    TEXT_SPLIT_TYPE = 29083
+    OFFSCREEN_BEHAVIOR = 29084
 
     # drawing
     # ...
@@ -587,7 +591,8 @@ class NodeType(BuiltinEnum):
     # MODEL, FINETUNE, ...
 
     # finance [4200-4400] (also see Stripe API?)
-    # WALLET, BALANCE, BUDGET, TRANSFER, CREDIT, TIER, PRICE, ORDER, INVOICE, DISCOUNT, DISPUTE, REFUND, ...
+    # WALLET, BALANCE, BUDGET, TRANSFER, CREDIT, ...
+    # TIER, SUBSCRIPTION, PRODUCT, PRICE, ORDER, INVOICE, DISCOUNT, DISPUTE, REFUND, ...
 
     # web [4400-4600]
     # ACCOUNT, APPLICATION, DOMAIN, EMAIL, ...
@@ -662,9 +667,7 @@ class NodeType(BuiltinEnum):
     GRADIENT_STYLE = 9014, "Gradient Style", "Gradient Style", "fas fa-gradient"
     TRANSITION_STYLE = 9015, "Transition Style", "Transition Style", "fas fa-bezier-curve"
     EFFECT_STYLE = 9016, "Effect Style", "Effect Style", "fas fa-sparkle"
-    # SCREEN = 9030, "Screen", "Screen", "fas fa-display"
-    # VARIANT = 9031, "Variant", "Variant", "fas fa-bring-forward"
-    # ANIMATION, ...
+    # VARIANT = 9050, "Variant", "Variant", "fas fa-bring-forward"
 
     # canvas?
     # CANVAS/DRAWING, SHAPE, BRUSH, ...
@@ -787,27 +790,27 @@ class StructType(BuiltinEnum):
     # ...
 
     # style [19000-19100]
-    COLOR = 19000, None, None, "fas fa-palette"
-    SHADOW = 19003, None, None, "fas fa-eclipse"
-    BORDER = 19004, None, None, "fas fa-border-outer"
-    FONT = 19005, None, None, "fas fa-text"
-    VECTOR2 = 19006, None, None, "fas fa-vector-square"
-    VECTOR3 = 19007, None, None, "fas fa-vector-square"
-    VECTOR4 = 19008, None, None, "fas fa-vector-square"
-    GRADIENT_STOP = 19009, None, None, "fas fa-gradient"
-    GRADIENT = 19010, None, None, "fas fa-gradient"
-    FILL = 19011, None, None, "fas fa-fill"
-    LENGTH = 19012, None, None, "fas fa-ruler"
-    POSITION = 19013, None, None, "fas fa-location-crosshair"
-    DIMENSION = 19014, None, None, "fas fa-ruler"
-    TRANSITION = 19015, None, None, "fas fa-bezier-curve"
-    EFFECT = 19016, None, None, "fas fa-sparkle"
-    GRID = 19018, None, None, "fas fa-grid-2"
-    GRID_SPAN = 19019, None, None, "fas fa-grid-2"
-    INSETS = 19020, None, None, "fas fa-corner"
-    CORNERS = 19021, None, None, "fas fa-corner"
-    AXIS_2 = 19022, None, None, "fas fa-vector-square"
-    AXIS_3 = 19023, None, None, "fas fa-vector-square"
+    VECTOR2 = 19000, None, None, "fas fa-vector-square"
+    VECTOR3 = 19001, None, None, "fas fa-vector-square"
+    VECTOR4 = 19002, None, None, "fas fa-vector-square"
+    AXIS2 = 19003, None, None, "fas fa-vector-square"
+    AXIS3 = 19004, None, None, "fas fa-vector-square"
+    COLOR = 19010, None, None, "fas fa-palette"
+    SHADOW = 19011, None, None, "fas fa-eclipse"
+    BORDER = 19012, None, None, "fas fa-border-outer"
+    FONT = 19013, None, None, "fas fa-text"
+    GRADIENT_STOP = 19014, None, None, "fas fa-gradient"
+    GRADIENT = 19015, None, None, "fas fa-gradient"
+    FILL = 19016, None, None, "fas fa-fill"
+    LENGTH = 19017, None, None, "fas fa-ruler"
+    POSITION = 19018, None, None, "fas fa-location-crosshair"
+    DIMENSION = 19019, None, None, "fas fa-ruler"
+    TRANSITION = 19020, None, None, "fas fa-bezier-curve"
+    EFFECT = 19021, None, None, "fas fa-sparkle"
+    GRID = 19022, None, None, "fas fa-grid-2"
+    GRID_SPAN = 19023, None, None, "fas fa-grid-2"
+    INSETS = 19024, None, None, "fas fa-corner"
+    CORNERS = 19025, None, None, "fas fa-corner"
 
     # drawing
     # ...
@@ -930,6 +933,7 @@ INSTANTIABLE_NODE_TYPES = bittuple(
     NodeType.MEMBERSHIP,
     NodeType.ROUTE,
     NodeType.SCENE,
+    NodeType.THEME,
 )
 TEMPLATABLE_NODE_TYPES = bittuple(
     *RESOURCE_NODE_TYPES,

@@ -1467,6 +1467,122 @@ export interface BorderData {
     width?: InsetsData;
 }
 /**
+ * @generated from protobuf message symbol.bench.Vector2Data
+ */
+export interface Vector2Data {
+    /**
+     * @generated from protobuf field: symbol.bench.ObjectType metatype = 1;
+     */
+    metatype: ObjectType;
+    /**
+     * @generated from protobuf field: float x = 30;
+     */
+    x: number;
+    /**
+     * @generated from protobuf field: float y = 31;
+     */
+    y: number;
+}
+/**
+ * @generated from protobuf message symbol.bench.Vector3Data
+ */
+export interface Vector3Data {
+    /**
+     * @generated from protobuf field: symbol.bench.ObjectType metatype = 1;
+     */
+    metatype: ObjectType;
+    /**
+     * @generated from protobuf field: float x = 30;
+     */
+    x: number;
+    /**
+     * @generated from protobuf field: float y = 31;
+     */
+    y: number;
+    /**
+     * @generated from protobuf field: float z = 32;
+     */
+    z: number;
+}
+/**
+ * @generated from protobuf message symbol.bench.Vector4Data
+ */
+export interface Vector4Data {
+    /**
+     * @generated from protobuf field: symbol.bench.ObjectType metatype = 1;
+     */
+    metatype: ObjectType;
+    /**
+     * @generated from protobuf field: float x = 30;
+     */
+    x: number;
+    /**
+     * @generated from protobuf field: float y = 31;
+     */
+    y: number;
+    /**
+     * @generated from protobuf field: float z = 32;
+     */
+    z: number;
+    /**
+     * @generated from protobuf field: float w = 33;
+     */
+    w: number;
+}
+/**
+ * @generated from protobuf message symbol.bench.TransitionData
+ */
+export interface TransitionData {
+    /**
+     * @generated from protobuf field: symbol.bench.ObjectType metatype = 1;
+     */
+    metatype: ObjectType;
+    /**
+     * @generated from protobuf field: symbol.bench.TransitionType type = 30;
+     */
+    type: TransitionType;
+    /**
+     * @generated from protobuf field: optional symbol.bench.NodeReferenceData style_ptr = 40;
+     */
+    stylePtr?: NodeReferenceData;
+    /**
+     * @generated from protobuf field: optional symbol.bench.NodeReferenceData field_ptr = 41;
+     */
+    fieldPtr?: NodeReferenceData;
+    /**
+     * @generated from protobuf field: optional float delay = 50;
+     */
+    delay?: number;
+    /**
+     * @generated from protobuf field: optional float duration = 51;
+     */
+    duration?: number;
+    /**
+     * @generated from protobuf field: repeated float ease = 52;
+     */
+    ease: number[];
+    /**
+     * @generated from protobuf field: optional float stiffness = 53;
+     */
+    stiffness?: number;
+    /**
+     * @generated from protobuf field: optional float damping = 54;
+     */
+    damping?: number;
+    /**
+     * @generated from protobuf field: optional float mass = 55;
+     */
+    mass?: number;
+    /**
+     * @generated from protobuf field: optional float bounce = 56;
+     */
+    bounce?: number;
+    /**
+     * @generated from protobuf field: optional symbol.bench.SpringType spring_type = 57;
+     */
+    springType?: SpringType;
+}
+/**
  * @generated from protobuf message symbol.bench.EffectData
  */
 export interface EffectData {
@@ -1479,11 +1595,11 @@ export interface EffectData {
      */
     type: EffectType;
     /**
-     * @generated from protobuf field: optional symbol.bench.NodeReferenceData style_ptr = 40;
+     * @generated from protobuf field: optional symbol.bench.NodeReferenceData style_ptr = 41;
      */
     stylePtr?: NodeReferenceData;
     /**
-     * @generated from protobuf field: optional symbol.bench.NodeReferenceData field_ptr = 41;
+     * @generated from protobuf field: optional symbol.bench.NodeReferenceData field_ptr = 42;
      */
     fieldPtr?: NodeReferenceData;
     /**
@@ -1491,9 +1607,9 @@ export interface EffectData {
      */
     opacity?: number;
     /**
-     * @generated from protobuf field: optional symbol.bench.Axis2Data offset = 51;
+     * @generated from protobuf field: optional symbol.bench.Vector2Data offset = 51;
      */
-    offset?: Axis2Data;
+    offset?: Vector2Data;
     /**
      * @generated from protobuf field: optional float scale = 52;
      */
@@ -1503,17 +1619,17 @@ export interface EffectData {
      */
     rotate?: Axis3Data;
     /**
-     * @generated from protobuf field: optional symbol.bench.Axis2Data skew = 54;
+     * @generated from protobuf field: optional symbol.bench.Vector2Data skew = 54;
      */
-    skew?: Axis2Data;
+    skew?: Vector2Data;
     /**
      * @generated from protobuf field: optional float perspective = 55;
      */
     perspective?: number;
     /**
-     * @generated from protobuf field: optional float delay = 56;
+     * @generated from protobuf field: optional google.protobuf.Duration delay = 56;
      */
-    delay?: number;
+    delay?: Duration;
     /**
      * @generated from protobuf field: optional float duration = 57;
      */
@@ -1522,6 +1638,26 @@ export interface EffectData {
      * @generated from protobuf field: optional float threshold = 58;
      */
     threshold?: number;
+    /**
+     * @generated from protobuf field: optional bool once = 59;
+     */
+    once?: boolean;
+    /**
+     * @generated from protobuf field: optional symbol.bench.RepeatType repeat = 60;
+     */
+    repeat?: RepeatType;
+    /**
+     * @generated from protobuf field: optional symbol.bench.TextSplitType split = 61;
+     */
+    split?: TextSplitType;
+    /**
+     * @generated from protobuf field: optional symbol.bench.OffscreenBehavior offscreen = 62;
+     */
+    offscreen?: OffscreenBehavior;
+    /**
+     * @generated from protobuf field: optional symbol.bench.TransitionData transition = 70;
+     */
+    transition?: TransitionData;
 }
 /**
  * @generated from protobuf message symbol.bench.GradientStopData
@@ -1695,122 +1831,6 @@ export interface ShadowData {
      * @generated from protobuf field: optional float diffusion = 55;
      */
     diffusion?: number;
-}
-/**
- * @generated from protobuf message symbol.bench.TransitionData
- */
-export interface TransitionData {
-    /**
-     * @generated from protobuf field: symbol.bench.ObjectType metatype = 1;
-     */
-    metatype: ObjectType;
-    /**
-     * @generated from protobuf field: symbol.bench.TransitionType type = 30;
-     */
-    type: TransitionType;
-    /**
-     * @generated from protobuf field: optional symbol.bench.NodeReferenceData style_ptr = 40;
-     */
-    stylePtr?: NodeReferenceData;
-    /**
-     * @generated from protobuf field: optional symbol.bench.NodeReferenceData field_ptr = 41;
-     */
-    fieldPtr?: NodeReferenceData;
-    /**
-     * @generated from protobuf field: optional float delay = 50;
-     */
-    delay?: number;
-    /**
-     * @generated from protobuf field: optional float duration = 51;
-     */
-    duration?: number;
-    /**
-     * @generated from protobuf field: repeated float ease = 52;
-     */
-    ease: number[];
-    /**
-     * @generated from protobuf field: optional float stiffness = 53;
-     */
-    stiffness?: number;
-    /**
-     * @generated from protobuf field: optional float damping = 54;
-     */
-    damping?: number;
-    /**
-     * @generated from protobuf field: optional float mass = 55;
-     */
-    mass?: number;
-    /**
-     * @generated from protobuf field: optional float bounce = 56;
-     */
-    bounce?: number;
-    /**
-     * @generated from protobuf field: optional symbol.bench.SpringType spring_type = 57;
-     */
-    springType?: SpringType;
-}
-/**
- * @generated from protobuf message symbol.bench.Vector2Data
- */
-export interface Vector2Data {
-    /**
-     * @generated from protobuf field: symbol.bench.ObjectType metatype = 1;
-     */
-    metatype: ObjectType;
-    /**
-     * @generated from protobuf field: float x = 30;
-     */
-    x: number;
-    /**
-     * @generated from protobuf field: float y = 31;
-     */
-    y: number;
-}
-/**
- * @generated from protobuf message symbol.bench.Vector3Data
- */
-export interface Vector3Data {
-    /**
-     * @generated from protobuf field: symbol.bench.ObjectType metatype = 1;
-     */
-    metatype: ObjectType;
-    /**
-     * @generated from protobuf field: float x = 30;
-     */
-    x: number;
-    /**
-     * @generated from protobuf field: float y = 31;
-     */
-    y: number;
-    /**
-     * @generated from protobuf field: float z = 32;
-     */
-    z: number;
-}
-/**
- * @generated from protobuf message symbol.bench.Vector4Data
- */
-export interface Vector4Data {
-    /**
-     * @generated from protobuf field: symbol.bench.ObjectType metatype = 1;
-     */
-    metatype: ObjectType;
-    /**
-     * @generated from protobuf field: float x = 30;
-     */
-    x: number;
-    /**
-     * @generated from protobuf field: float y = 31;
-     */
-    y: number;
-    /**
-     * @generated from protobuf field: float z = 32;
-     */
-    z: number;
-    /**
-     * @generated from protobuf field: float w = 33;
-     */
-    w: number;
 }
 /**
  * @generated from protobuf message symbol.bench.BaseNodeData
@@ -6505,6 +6525,123 @@ export interface BorderStyleData {
     width?: InsetsData;
 }
 /**
+ * @generated from protobuf message symbol.bench.TransitionStyleData
+ */
+export interface TransitionStyleData {
+    /**
+     * @generated from protobuf field: symbol.bench.ObjectType metatype = 1;
+     */
+    metatype: ObjectType;
+    /**
+     * @generated from protobuf field: string id = 2;
+     */
+    id: string;
+    /**
+     * @generated from protobuf field: optional symbol.bench.NodeReferenceData parent_ptr = 4;
+     */
+    parentPtr?: NodeReferenceData;
+    /**
+     * @generated from protobuf field: optional symbol.bench.NodeReferenceData bench_ptr = 5;
+     */
+    benchPtr?: NodeReferenceData;
+    /**
+     * @generated from protobuf field: optional symbol.bench.NodeReferenceData package_ptr = 9;
+     */
+    packagePtr?: NodeReferenceData;
+    /**
+     * @generated from protobuf field: google.protobuf.Timestamp created_at = 10;
+     */
+    createdAt?: Timestamp;
+    /**
+     * @generated from protobuf field: optional symbol.bench.NodeReferenceData created_by_ptr = 11;
+     */
+    createdByPtr?: NodeReferenceData;
+    /**
+     * @generated from protobuf field: google.protobuf.Timestamp updated_at = 12;
+     */
+    updatedAt?: Timestamp;
+    /**
+     * @generated from protobuf field: optional symbol.bench.NodeReferenceData updated_by_ptr = 13;
+     */
+    updatedByPtr?: NodeReferenceData;
+    /**
+     * @generated from protobuf field: optional google.protobuf.Timestamp archived_at = 14;
+     */
+    archivedAt?: Timestamp;
+    /**
+     * @generated from protobuf field: optional google.protobuf.Timestamp deleted_at = 15;
+     */
+    deletedAt?: Timestamp;
+    /**
+     * @generated from protobuf field: optional symbol.bench.NodeReferenceData template_ptr = 16;
+     */
+    templatePtr?: NodeReferenceData;
+    /**
+     * @generated from protobuf field: symbol.bench.NodeMode mode = 25;
+     */
+    mode: NodeMode;
+    /**
+     * @generated from protobuf field: symbol.bench.TransitionType type = 30;
+     */
+    type: TransitionType;
+    /**
+     * @generated from protobuf field: optional string name = 31;
+     */
+    name?: string;
+    /**
+     * @generated from protobuf field: string order_key = 33;
+     */
+    orderKey: string;
+    /**
+     * @generated from protobuf field: optional symbol.bench.IconData icon = 34;
+     */
+    icon?: IconData;
+    /**
+     * @generated from protobuf field: optional symbol.bench.NodeReferenceData definition_ptr = 35;
+     */
+    definitionPtr?: NodeReferenceData;
+    /**
+     * @generated from protobuf field: optional symbol.bench.NodeReferenceData style_ptr = 40;
+     */
+    stylePtr?: NodeReferenceData;
+    /**
+     * @generated from protobuf field: optional symbol.bench.NodeReferenceData field_ptr = 41;
+     */
+    fieldPtr?: NodeReferenceData;
+    /**
+     * @generated from protobuf field: optional float delay = 50;
+     */
+    delay?: number;
+    /**
+     * @generated from protobuf field: optional float duration = 51;
+     */
+    duration?: number;
+    /**
+     * @generated from protobuf field: repeated float ease = 52;
+     */
+    ease: number[];
+    /**
+     * @generated from protobuf field: optional float stiffness = 53;
+     */
+    stiffness?: number;
+    /**
+     * @generated from protobuf field: optional float damping = 54;
+     */
+    damping?: number;
+    /**
+     * @generated from protobuf field: optional float mass = 55;
+     */
+    mass?: number;
+    /**
+     * @generated from protobuf field: optional float bounce = 56;
+     */
+    bounce?: number;
+    /**
+     * @generated from protobuf field: optional symbol.bench.SpringType spring_type = 57;
+     */
+    springType?: SpringType;
+}
+/**
  * @generated from protobuf message symbol.bench.EffectStyleData
  */
 export interface EffectStyleData {
@@ -6581,11 +6718,11 @@ export interface EffectStyleData {
      */
     definitionPtr?: NodeReferenceData;
     /**
-     * @generated from protobuf field: optional symbol.bench.NodeReferenceData style_ptr = 40;
+     * @generated from protobuf field: optional symbol.bench.NodeReferenceData style_ptr = 41;
      */
     stylePtr?: NodeReferenceData;
     /**
-     * @generated from protobuf field: optional symbol.bench.NodeReferenceData field_ptr = 41;
+     * @generated from protobuf field: optional symbol.bench.NodeReferenceData field_ptr = 42;
      */
     fieldPtr?: NodeReferenceData;
     /**
@@ -6593,9 +6730,9 @@ export interface EffectStyleData {
      */
     opacity?: number;
     /**
-     * @generated from protobuf field: optional symbol.bench.Axis2Data offset = 51;
+     * @generated from protobuf field: optional symbol.bench.Vector2Data offset = 51;
      */
-    offset?: Axis2Data;
+    offset?: Vector2Data;
     /**
      * @generated from protobuf field: optional float scale = 52;
      */
@@ -6605,17 +6742,17 @@ export interface EffectStyleData {
      */
     rotate?: Axis3Data;
     /**
-     * @generated from protobuf field: optional symbol.bench.Axis2Data skew = 54;
+     * @generated from protobuf field: optional symbol.bench.Vector2Data skew = 54;
      */
-    skew?: Axis2Data;
+    skew?: Vector2Data;
     /**
      * @generated from protobuf field: optional float perspective = 55;
      */
     perspective?: number;
     /**
-     * @generated from protobuf field: optional float delay = 56;
+     * @generated from protobuf field: optional google.protobuf.Duration delay = 56;
      */
-    delay?: number;
+    delay?: Duration;
     /**
      * @generated from protobuf field: optional float duration = 57;
      */
@@ -6624,6 +6761,26 @@ export interface EffectStyleData {
      * @generated from protobuf field: optional float threshold = 58;
      */
     threshold?: number;
+    /**
+     * @generated from protobuf field: optional bool once = 59;
+     */
+    once?: boolean;
+    /**
+     * @generated from protobuf field: optional symbol.bench.RepeatType repeat = 60;
+     */
+    repeat?: RepeatType;
+    /**
+     * @generated from protobuf field: optional symbol.bench.TextSplitType split = 61;
+     */
+    split?: TextSplitType;
+    /**
+     * @generated from protobuf field: optional symbol.bench.OffscreenBehavior offscreen = 62;
+     */
+    offscreen?: OffscreenBehavior;
+    /**
+     * @generated from protobuf field: optional symbol.bench.TransitionData transition = 70;
+     */
+    transition?: TransitionData;
 }
 /**
  * @generated from protobuf message symbol.bench.GradientStyleData
@@ -6957,94 +7114,9 @@ export interface ThemeData {
      */
     id: string;
     /**
-     * @generated from protobuf field: optional symbol.bench.NodeReferenceData parent_ptr = 4;
+     * @generated from protobuf field: string ck = 3;
      */
-    parentPtr?: NodeReferenceData;
-    /**
-     * @generated from protobuf field: optional symbol.bench.NodeReferenceData bench_ptr = 5;
-     */
-    benchPtr?: NodeReferenceData;
-    /**
-     * @generated from protobuf field: optional symbol.bench.NodeReferenceData package_ptr = 9;
-     */
-    packagePtr?: NodeReferenceData;
-    /**
-     * @generated from protobuf field: google.protobuf.Timestamp created_at = 10;
-     */
-    createdAt?: Timestamp;
-    /**
-     * @generated from protobuf field: optional symbol.bench.NodeReferenceData created_by_ptr = 11;
-     */
-    createdByPtr?: NodeReferenceData;
-    /**
-     * @generated from protobuf field: google.protobuf.Timestamp updated_at = 12;
-     */
-    updatedAt?: Timestamp;
-    /**
-     * @generated from protobuf field: optional symbol.bench.NodeReferenceData updated_by_ptr = 13;
-     */
-    updatedByPtr?: NodeReferenceData;
-    /**
-     * @generated from protobuf field: optional google.protobuf.Timestamp archived_at = 14;
-     */
-    archivedAt?: Timestamp;
-    /**
-     * @generated from protobuf field: optional google.protobuf.Timestamp deleted_at = 15;
-     */
-    deletedAt?: Timestamp;
-    /**
-     * @generated from protobuf field: string order_key = 33;
-     */
-    orderKey: string;
-    /**
-     * @generated from protobuf field: optional symbol.bench.IconData icon = 34;
-     */
-    icon?: IconData;
-    /**
-     * @generated from protobuf field: optional symbol.bench.NodeReferenceData definition_ptr = 35;
-     */
-    definitionPtr?: NodeReferenceData;
-    /**
-     * @generated from protobuf field: optional symbol.bench.ColorData primary_color = 50;
-     */
-    primaryColor?: ColorData;
-    /**
-     * @generated from protobuf field: optional symbol.bench.ColorData secondary_color = 51;
-     */
-    secondaryColor?: ColorData;
-    /**
-     * @generated from protobuf field: optional symbol.bench.ColorData accent_color = 52;
-     */
-    accentColor?: ColorData;
-    /**
-     * @generated from protobuf field: optional symbol.bench.ColorData muted_color = 53;
-     */
-    mutedColor?: ColorData;
-    /**
-     * @generated from protobuf field: optional symbol.bench.ColorData success_color = 54;
-     */
-    successColor?: ColorData;
-    /**
-     * @generated from protobuf field: optional symbol.bench.ColorData warning_color = 55;
-     */
-    warningColor?: ColorData;
-    /**
-     * @generated from protobuf field: optional symbol.bench.ColorData error_color = 56;
-     */
-    errorColor?: ColorData;
-}
-/**
- * @generated from protobuf message symbol.bench.TransitionStyleData
- */
-export interface TransitionStyleData {
-    /**
-     * @generated from protobuf field: symbol.bench.ObjectType metatype = 1;
-     */
-    metatype: ObjectType;
-    /**
-     * @generated from protobuf field: string id = 2;
-     */
-    id: string;
+    ck: string;
     /**
      * @generated from protobuf field: optional symbol.bench.NodeReferenceData parent_ptr = 4;
      */
@@ -7090,10 +7162,6 @@ export interface TransitionStyleData {
      */
     mode: NodeMode;
     /**
-     * @generated from protobuf field: symbol.bench.TransitionType type = 30;
-     */
-    type: TransitionType;
-    /**
      * @generated from protobuf field: optional string name = 31;
      */
     name?: string;
@@ -7110,45 +7178,33 @@ export interface TransitionStyleData {
      */
     definitionPtr?: NodeReferenceData;
     /**
-     * @generated from protobuf field: optional symbol.bench.NodeReferenceData style_ptr = 40;
+     * @generated from protobuf field: optional symbol.bench.ColorData primary_color = 50;
      */
-    stylePtr?: NodeReferenceData;
+    primaryColor?: ColorData;
     /**
-     * @generated from protobuf field: optional symbol.bench.NodeReferenceData field_ptr = 41;
+     * @generated from protobuf field: optional symbol.bench.ColorData secondary_color = 51;
      */
-    fieldPtr?: NodeReferenceData;
+    secondaryColor?: ColorData;
     /**
-     * @generated from protobuf field: optional float delay = 50;
+     * @generated from protobuf field: optional symbol.bench.ColorData accent_color = 52;
      */
-    delay?: number;
+    accentColor?: ColorData;
     /**
-     * @generated from protobuf field: optional float duration = 51;
+     * @generated from protobuf field: optional symbol.bench.ColorData muted_color = 53;
      */
-    duration?: number;
+    mutedColor?: ColorData;
     /**
-     * @generated from protobuf field: repeated float ease = 52;
+     * @generated from protobuf field: optional symbol.bench.ColorData success_color = 54;
      */
-    ease: number[];
+    successColor?: ColorData;
     /**
-     * @generated from protobuf field: optional float stiffness = 53;
+     * @generated from protobuf field: optional symbol.bench.ColorData warning_color = 55;
      */
-    stiffness?: number;
+    warningColor?: ColorData;
     /**
-     * @generated from protobuf field: optional float damping = 54;
+     * @generated from protobuf field: optional symbol.bench.ColorData error_color = 56;
      */
-    damping?: number;
-    /**
-     * @generated from protobuf field: optional float mass = 55;
-     */
-    mass?: number;
-    /**
-     * @generated from protobuf field: optional float bounce = 56;
-     */
-    bounce?: number;
-    /**
-     * @generated from protobuf field: optional symbol.bench.SpringType spring_type = 57;
-     */
-    springType?: SpringType;
+    errorColor?: ColorData;
 }
 /**
  * @generated from protobuf message symbol.bench.ChoiceData
@@ -9607,13 +9663,29 @@ export enum EnumType {
      */
     SPRING_TYPE = 29077,
     /**
-     * @generated from protobuf enum value: ENUM_TYPE_EFFECT_TYPE = 29078;
+     * @generated from protobuf enum value: ENUM_TYPE_DIMENSION_TYPE = 29078;
      */
-    EFFECT_TYPE = 29078,
+    DIMENSION_TYPE = 29078,
     /**
-     * @generated from protobuf enum value: ENUM_TYPE_DIMENSION_TYPE = 29079;
+     * @generated from protobuf enum value: ENUM_TYPE_THEME_COLOR = 29079;
      */
-    DIMENSION_TYPE = 29079
+    THEME_COLOR = 29079,
+    /**
+     * @generated from protobuf enum value: ENUM_TYPE_EFFECT_TYPE = 29080;
+     */
+    EFFECT_TYPE = 29080,
+    /**
+     * @generated from protobuf enum value: ENUM_TYPE_REPEAT_TYPE = 29081;
+     */
+    REPEAT_TYPE = 29081,
+    /**
+     * @generated from protobuf enum value: ENUM_TYPE_TEXT_SPLIT_TYPE = 29083;
+     */
+    TEXT_SPLIT_TYPE = 29083,
+    /**
+     * @generated from protobuf enum value: ENUM_TYPE_OFFSCREEN_BEHAVIOR = 29084;
+     */
+    OFFSCREEN_BEHAVIOR = 29084
 }
 /**
  * @generated from protobuf enum symbol.bench.NodeType
@@ -10009,89 +10081,89 @@ export enum StructType {
      */
     ACCESS = 13005,
     /**
-     * @generated from protobuf enum value: STRUCT_TYPE_COLOR = 19000;
+     * @generated from protobuf enum value: STRUCT_TYPE_VECTOR2 = 19000;
      */
-    COLOR = 19000,
+    VECTOR2 = 19000,
     /**
-     * @generated from protobuf enum value: STRUCT_TYPE_SHADOW = 19003;
+     * @generated from protobuf enum value: STRUCT_TYPE_VECTOR3 = 19001;
      */
-    SHADOW = 19003,
+    VECTOR3 = 19001,
     /**
-     * @generated from protobuf enum value: STRUCT_TYPE_BORDER = 19004;
+     * @generated from protobuf enum value: STRUCT_TYPE_VECTOR4 = 19002;
      */
-    BORDER = 19004,
+    VECTOR4 = 19002,
     /**
-     * @generated from protobuf enum value: STRUCT_TYPE_FONT = 19005;
+     * @generated from protobuf enum value: STRUCT_TYPE_AXIS2 = 19003;
      */
-    FONT = 19005,
+    AXIS2 = 19003,
     /**
-     * @generated from protobuf enum value: STRUCT_TYPE_VECTOR2 = 19006;
+     * @generated from protobuf enum value: STRUCT_TYPE_AXIS3 = 19004;
      */
-    VECTOR2 = 19006,
+    AXIS3 = 19004,
     /**
-     * @generated from protobuf enum value: STRUCT_TYPE_VECTOR3 = 19007;
+     * @generated from protobuf enum value: STRUCT_TYPE_COLOR = 19010;
      */
-    VECTOR3 = 19007,
+    COLOR = 19010,
     /**
-     * @generated from protobuf enum value: STRUCT_TYPE_VECTOR4 = 19008;
+     * @generated from protobuf enum value: STRUCT_TYPE_SHADOW = 19011;
      */
-    VECTOR4 = 19008,
+    SHADOW = 19011,
     /**
-     * @generated from protobuf enum value: STRUCT_TYPE_GRADIENT_STOP = 19009;
+     * @generated from protobuf enum value: STRUCT_TYPE_BORDER = 19012;
      */
-    GRADIENT_STOP = 19009,
+    BORDER = 19012,
     /**
-     * @generated from protobuf enum value: STRUCT_TYPE_GRADIENT = 19010;
+     * @generated from protobuf enum value: STRUCT_TYPE_FONT = 19013;
      */
-    GRADIENT = 19010,
+    FONT = 19013,
     /**
-     * @generated from protobuf enum value: STRUCT_TYPE_FILL = 19011;
+     * @generated from protobuf enum value: STRUCT_TYPE_GRADIENT_STOP = 19014;
      */
-    FILL = 19011,
+    GRADIENT_STOP = 19014,
     /**
-     * @generated from protobuf enum value: STRUCT_TYPE_LENGTH = 19012;
+     * @generated from protobuf enum value: STRUCT_TYPE_GRADIENT = 19015;
      */
-    LENGTH = 19012,
+    GRADIENT = 19015,
     /**
-     * @generated from protobuf enum value: STRUCT_TYPE_POSITION = 19013;
+     * @generated from protobuf enum value: STRUCT_TYPE_FILL = 19016;
      */
-    POSITION = 19013,
+    FILL = 19016,
     /**
-     * @generated from protobuf enum value: STRUCT_TYPE_DIMENSION = 19014;
+     * @generated from protobuf enum value: STRUCT_TYPE_LENGTH = 19017;
      */
-    DIMENSION = 19014,
+    LENGTH = 19017,
     /**
-     * @generated from protobuf enum value: STRUCT_TYPE_TRANSITION = 19015;
+     * @generated from protobuf enum value: STRUCT_TYPE_POSITION = 19018;
      */
-    TRANSITION = 19015,
+    POSITION = 19018,
     /**
-     * @generated from protobuf enum value: STRUCT_TYPE_EFFECT = 19016;
+     * @generated from protobuf enum value: STRUCT_TYPE_DIMENSION = 19019;
      */
-    EFFECT = 19016,
+    DIMENSION = 19019,
     /**
-     * @generated from protobuf enum value: STRUCT_TYPE_GRID = 19018;
+     * @generated from protobuf enum value: STRUCT_TYPE_TRANSITION = 19020;
      */
-    GRID = 19018,
+    TRANSITION = 19020,
     /**
-     * @generated from protobuf enum value: STRUCT_TYPE_GRID_SPAN = 19019;
+     * @generated from protobuf enum value: STRUCT_TYPE_EFFECT = 19021;
      */
-    GRID_SPAN = 19019,
+    EFFECT = 19021,
     /**
-     * @generated from protobuf enum value: STRUCT_TYPE_INSETS = 19020;
+     * @generated from protobuf enum value: STRUCT_TYPE_GRID = 19022;
      */
-    INSETS = 19020,
+    GRID = 19022,
     /**
-     * @generated from protobuf enum value: STRUCT_TYPE_CORNERS = 19021;
+     * @generated from protobuf enum value: STRUCT_TYPE_GRID_SPAN = 19023;
      */
-    CORNERS = 19021,
+    GRID_SPAN = 19023,
     /**
-     * @generated from protobuf enum value: STRUCT_TYPE_AXIS_2 = 19022;
+     * @generated from protobuf enum value: STRUCT_TYPE_INSETS = 19024;
      */
-    AXIS_2 = 19022,
+    INSETS = 19024,
     /**
-     * @generated from protobuf enum value: STRUCT_TYPE_AXIS_3 = 19023;
+     * @generated from protobuf enum value: STRUCT_TYPE_CORNERS = 19025;
      */
-    AXIS_3 = 19023
+    CORNERS = 19025
 }
 /**
  * @generated from protobuf enum symbol.bench.ObjectType
@@ -10478,89 +10550,89 @@ export enum ObjectType {
      */
     ACCESS = 13005,
     /**
-     * @generated from protobuf enum value: OBJECT_TYPE_COLOR = 19000;
+     * @generated from protobuf enum value: OBJECT_TYPE_VECTOR2 = 19000;
      */
-    COLOR = 19000,
+    VECTOR2 = 19000,
     /**
-     * @generated from protobuf enum value: OBJECT_TYPE_SHADOW = 19003;
+     * @generated from protobuf enum value: OBJECT_TYPE_VECTOR3 = 19001;
      */
-    SHADOW = 19003,
+    VECTOR3 = 19001,
     /**
-     * @generated from protobuf enum value: OBJECT_TYPE_BORDER = 19004;
+     * @generated from protobuf enum value: OBJECT_TYPE_VECTOR4 = 19002;
      */
-    BORDER = 19004,
+    VECTOR4 = 19002,
     /**
-     * @generated from protobuf enum value: OBJECT_TYPE_FONT = 19005;
+     * @generated from protobuf enum value: OBJECT_TYPE_AXIS2 = 19003;
      */
-    FONT = 19005,
+    AXIS2 = 19003,
     /**
-     * @generated from protobuf enum value: OBJECT_TYPE_VECTOR2 = 19006;
+     * @generated from protobuf enum value: OBJECT_TYPE_AXIS3 = 19004;
      */
-    VECTOR2 = 19006,
+    AXIS3 = 19004,
     /**
-     * @generated from protobuf enum value: OBJECT_TYPE_VECTOR3 = 19007;
+     * @generated from protobuf enum value: OBJECT_TYPE_COLOR = 19010;
      */
-    VECTOR3 = 19007,
+    COLOR = 19010,
     /**
-     * @generated from protobuf enum value: OBJECT_TYPE_VECTOR4 = 19008;
+     * @generated from protobuf enum value: OBJECT_TYPE_SHADOW = 19011;
      */
-    VECTOR4 = 19008,
+    SHADOW = 19011,
     /**
-     * @generated from protobuf enum value: OBJECT_TYPE_GRADIENT_STOP = 19009;
+     * @generated from protobuf enum value: OBJECT_TYPE_BORDER = 19012;
      */
-    GRADIENT_STOP = 19009,
+    BORDER = 19012,
     /**
-     * @generated from protobuf enum value: OBJECT_TYPE_GRADIENT = 19010;
+     * @generated from protobuf enum value: OBJECT_TYPE_FONT = 19013;
      */
-    GRADIENT = 19010,
+    FONT = 19013,
     /**
-     * @generated from protobuf enum value: OBJECT_TYPE_FILL = 19011;
+     * @generated from protobuf enum value: OBJECT_TYPE_GRADIENT_STOP = 19014;
      */
-    FILL = 19011,
+    GRADIENT_STOP = 19014,
     /**
-     * @generated from protobuf enum value: OBJECT_TYPE_LENGTH = 19012;
+     * @generated from protobuf enum value: OBJECT_TYPE_GRADIENT = 19015;
      */
-    LENGTH = 19012,
+    GRADIENT = 19015,
     /**
-     * @generated from protobuf enum value: OBJECT_TYPE_POSITION = 19013;
+     * @generated from protobuf enum value: OBJECT_TYPE_FILL = 19016;
      */
-    POSITION = 19013,
+    FILL = 19016,
     /**
-     * @generated from protobuf enum value: OBJECT_TYPE_DIMENSION = 19014;
+     * @generated from protobuf enum value: OBJECT_TYPE_LENGTH = 19017;
      */
-    DIMENSION = 19014,
+    LENGTH = 19017,
     /**
-     * @generated from protobuf enum value: OBJECT_TYPE_TRANSITION = 19015;
+     * @generated from protobuf enum value: OBJECT_TYPE_POSITION = 19018;
      */
-    TRANSITION = 19015,
+    POSITION = 19018,
     /**
-     * @generated from protobuf enum value: OBJECT_TYPE_EFFECT = 19016;
+     * @generated from protobuf enum value: OBJECT_TYPE_DIMENSION = 19019;
      */
-    EFFECT = 19016,
+    DIMENSION = 19019,
     /**
-     * @generated from protobuf enum value: OBJECT_TYPE_GRID = 19018;
+     * @generated from protobuf enum value: OBJECT_TYPE_TRANSITION = 19020;
      */
-    GRID = 19018,
+    TRANSITION = 19020,
     /**
-     * @generated from protobuf enum value: OBJECT_TYPE_GRID_SPAN = 19019;
+     * @generated from protobuf enum value: OBJECT_TYPE_EFFECT = 19021;
      */
-    GRID_SPAN = 19019,
+    EFFECT = 19021,
     /**
-     * @generated from protobuf enum value: OBJECT_TYPE_INSETS = 19020;
+     * @generated from protobuf enum value: OBJECT_TYPE_GRID = 19022;
      */
-    INSETS = 19020,
+    GRID = 19022,
     /**
-     * @generated from protobuf enum value: OBJECT_TYPE_CORNERS = 19021;
+     * @generated from protobuf enum value: OBJECT_TYPE_GRID_SPAN = 19023;
      */
-    CORNERS = 19021,
+    GRID_SPAN = 19023,
     /**
-     * @generated from protobuf enum value: OBJECT_TYPE_AXIS_2 = 19022;
+     * @generated from protobuf enum value: OBJECT_TYPE_INSETS = 19024;
      */
-    AXIS_2 = 19022,
+    INSETS = 19024,
     /**
-     * @generated from protobuf enum value: OBJECT_TYPE_AXIS_3 = 19023;
+     * @generated from protobuf enum value: OBJECT_TYPE_CORNERS = 19025;
      */
-    AXIS_3 = 19023
+    CORNERS = 19025
 }
 /**
  * @generated from protobuf enum symbol.bench.BenchType
@@ -10947,89 +11019,89 @@ export enum BenchType {
      */
     ACCESS = 13005,
     /**
-     * @generated from protobuf enum value: BENCH_TYPE_COLOR = 19000;
+     * @generated from protobuf enum value: BENCH_TYPE_VECTOR2 = 19000;
      */
-    COLOR = 19000,
+    VECTOR2 = 19000,
     /**
-     * @generated from protobuf enum value: BENCH_TYPE_SHADOW = 19003;
+     * @generated from protobuf enum value: BENCH_TYPE_VECTOR3 = 19001;
      */
-    SHADOW = 19003,
+    VECTOR3 = 19001,
     /**
-     * @generated from protobuf enum value: BENCH_TYPE_BORDER = 19004;
+     * @generated from protobuf enum value: BENCH_TYPE_VECTOR4 = 19002;
      */
-    BORDER = 19004,
+    VECTOR4 = 19002,
     /**
-     * @generated from protobuf enum value: BENCH_TYPE_FONT = 19005;
+     * @generated from protobuf enum value: BENCH_TYPE_AXIS2 = 19003;
      */
-    FONT = 19005,
+    AXIS2 = 19003,
     /**
-     * @generated from protobuf enum value: BENCH_TYPE_VECTOR2 = 19006;
+     * @generated from protobuf enum value: BENCH_TYPE_AXIS3 = 19004;
      */
-    VECTOR2 = 19006,
+    AXIS3 = 19004,
     /**
-     * @generated from protobuf enum value: BENCH_TYPE_VECTOR3 = 19007;
+     * @generated from protobuf enum value: BENCH_TYPE_COLOR = 19010;
      */
-    VECTOR3 = 19007,
+    COLOR = 19010,
     /**
-     * @generated from protobuf enum value: BENCH_TYPE_VECTOR4 = 19008;
+     * @generated from protobuf enum value: BENCH_TYPE_SHADOW = 19011;
      */
-    VECTOR4 = 19008,
+    SHADOW = 19011,
     /**
-     * @generated from protobuf enum value: BENCH_TYPE_GRADIENT_STOP = 19009;
+     * @generated from protobuf enum value: BENCH_TYPE_BORDER = 19012;
      */
-    GRADIENT_STOP = 19009,
+    BORDER = 19012,
     /**
-     * @generated from protobuf enum value: BENCH_TYPE_GRADIENT = 19010;
+     * @generated from protobuf enum value: BENCH_TYPE_FONT = 19013;
      */
-    GRADIENT = 19010,
+    FONT = 19013,
     /**
-     * @generated from protobuf enum value: BENCH_TYPE_FILL = 19011;
+     * @generated from protobuf enum value: BENCH_TYPE_GRADIENT_STOP = 19014;
      */
-    FILL = 19011,
+    GRADIENT_STOP = 19014,
     /**
-     * @generated from protobuf enum value: BENCH_TYPE_LENGTH = 19012;
+     * @generated from protobuf enum value: BENCH_TYPE_GRADIENT = 19015;
      */
-    LENGTH = 19012,
+    GRADIENT = 19015,
     /**
-     * @generated from protobuf enum value: BENCH_TYPE_POSITION = 19013;
+     * @generated from protobuf enum value: BENCH_TYPE_FILL = 19016;
      */
-    POSITION = 19013,
+    FILL = 19016,
     /**
-     * @generated from protobuf enum value: BENCH_TYPE_DIMENSION = 19014;
+     * @generated from protobuf enum value: BENCH_TYPE_LENGTH = 19017;
      */
-    DIMENSION = 19014,
+    LENGTH = 19017,
     /**
-     * @generated from protobuf enum value: BENCH_TYPE_TRANSITION = 19015;
+     * @generated from protobuf enum value: BENCH_TYPE_POSITION = 19018;
      */
-    TRANSITION = 19015,
+    POSITION = 19018,
     /**
-     * @generated from protobuf enum value: BENCH_TYPE_EFFECT = 19016;
+     * @generated from protobuf enum value: BENCH_TYPE_DIMENSION = 19019;
      */
-    EFFECT = 19016,
+    DIMENSION = 19019,
     /**
-     * @generated from protobuf enum value: BENCH_TYPE_GRID = 19018;
+     * @generated from protobuf enum value: BENCH_TYPE_TRANSITION = 19020;
      */
-    GRID = 19018,
+    TRANSITION = 19020,
     /**
-     * @generated from protobuf enum value: BENCH_TYPE_GRID_SPAN = 19019;
+     * @generated from protobuf enum value: BENCH_TYPE_EFFECT = 19021;
      */
-    GRID_SPAN = 19019,
+    EFFECT = 19021,
     /**
-     * @generated from protobuf enum value: BENCH_TYPE_INSETS = 19020;
+     * @generated from protobuf enum value: BENCH_TYPE_GRID = 19022;
      */
-    INSETS = 19020,
+    GRID = 19022,
     /**
-     * @generated from protobuf enum value: BENCH_TYPE_CORNERS = 19021;
+     * @generated from protobuf enum value: BENCH_TYPE_GRID_SPAN = 19023;
      */
-    CORNERS = 19021,
+    GRID_SPAN = 19023,
     /**
-     * @generated from protobuf enum value: BENCH_TYPE_AXIS_2 = 19022;
+     * @generated from protobuf enum value: BENCH_TYPE_INSETS = 19024;
      */
-    AXIS_2 = 19022,
+    INSETS = 19024,
     /**
-     * @generated from protobuf enum value: BENCH_TYPE_AXIS_3 = 19023;
+     * @generated from protobuf enum value: BENCH_TYPE_CORNERS = 19025;
      */
-    AXIS_3 = 19023,
+    CORNERS = 19025,
     /**
      * @generated from protobuf enum value: BENCH_TYPE_ENUM_TYPE = 20000;
      */
@@ -11463,13 +11535,29 @@ export enum BenchType {
      */
     SPRING_TYPE = 29077,
     /**
-     * @generated from protobuf enum value: BENCH_TYPE_EFFECT_TYPE = 29078;
+     * @generated from protobuf enum value: BENCH_TYPE_DIMENSION_TYPE = 29078;
      */
-    EFFECT_TYPE = 29078,
+    DIMENSION_TYPE = 29078,
     /**
-     * @generated from protobuf enum value: BENCH_TYPE_DIMENSION_TYPE = 29079;
+     * @generated from protobuf enum value: BENCH_TYPE_THEME_COLOR = 29079;
      */
-    DIMENSION_TYPE = 29079
+    THEME_COLOR = 29079,
+    /**
+     * @generated from protobuf enum value: BENCH_TYPE_EFFECT_TYPE = 29080;
+     */
+    EFFECT_TYPE = 29080,
+    /**
+     * @generated from protobuf enum value: BENCH_TYPE_REPEAT_TYPE = 29081;
+     */
+    REPEAT_TYPE = 29081,
+    /**
+     * @generated from protobuf enum value: BENCH_TYPE_TEXT_SPLIT_TYPE = 29083;
+     */
+    TEXT_SPLIT_TYPE = 29083,
+    /**
+     * @generated from protobuf enum value: BENCH_TYPE_OFFSCREEN_BEHAVIOR = 29084;
+     */
+    OFFSCREEN_BEHAVIOR = 29084
 }
 /**
  * @generated from protobuf enum symbol.bench.NodeMode
@@ -15259,7 +15347,67 @@ export enum SpringType {
     PHYSICS = 2
 }
 /**
- * Built-in effect types.
+ * @generated from protobuf enum symbol.bench.DimensionType
+ */
+export enum DimensionType {
+    /**
+     * @generated from protobuf enum value: DIMENSION_TYPE_UNSPECIFIED = 0;
+     */
+    UNSPECIFIED = 0,
+    /**
+     * @generated from protobuf enum value: DIMENSION_TYPE_FIXED = 2;
+     */
+    FIXED = 2,
+    /**
+     * @generated from protobuf enum value: DIMENSION_TYPE_FIT = 3;
+     */
+    FIT = 3,
+    /**
+     * @generated from protobuf enum value: DIMENSION_TYPE_FILL = 4;
+     */
+    FILL = 4
+}
+/**
+ * A color in the theme.
+ *
+ * @generated from protobuf enum symbol.bench.ThemeColor
+ */
+export enum ThemeColor {
+    /**
+     * @generated from protobuf enum value: THEME_COLOR_UNSPECIFIED = 0;
+     */
+    UNSPECIFIED = 0,
+    /**
+     * @generated from protobuf enum value: THEME_COLOR_PRIMARY = 50;
+     */
+    PRIMARY = 50,
+    /**
+     * @generated from protobuf enum value: THEME_COLOR_SECONDARY = 51;
+     */
+    SECONDARY = 51,
+    /**
+     * @generated from protobuf enum value: THEME_COLOR_ACCENT = 52;
+     */
+    ACCENT = 52,
+    /**
+     * @generated from protobuf enum value: THEME_COLOR_MUTED = 53;
+     */
+    MUTED = 53,
+    /**
+     * @generated from protobuf enum value: THEME_COLOR_SUCCESS = 54;
+     */
+    SUCCESS = 54,
+    /**
+     * @generated from protobuf enum value: THEME_COLOR_WARNING = 55;
+     */
+    WARNING = 55,
+    /**
+     * @generated from protobuf enum value: THEME_COLOR_ERROR = 56;
+     */
+    ERROR = 56
+}
+/**
+ * When the effect fires.
  *
  * @generated from protobuf enum symbol.bench.EffectType
  */
@@ -15268,6 +15416,10 @@ export enum EffectType {
      * @generated from protobuf enum value: EFFECT_TYPE_UNSPECIFIED = 0;
      */
     UNSPECIFIED = 0,
+    /**
+     * @generated from protobuf enum value: EFFECT_TYPE_NONE = 1;
+     */
+    NONE = 1,
     /**
      * @generated from protobuf enum value: EFFECT_TYPE_STYLE = 2;
      */
@@ -15289,34 +15441,86 @@ export enum EffectType {
      */
     EXIT = 12,
     /**
-     * @generated from protobuf enum value: EFFECT_TYPE_HOVER = 13;
+     * @generated from protobuf enum value: EFFECT_TYPE_HOVER = 20;
      */
-    HOVER = 13,
+    HOVER = 20,
     /**
-     * @generated from protobuf enum value: EFFECT_TYPE_TRANSFORM = 14;
+     * @generated from protobuf enum value: EFFECT_TYPE_PRESS = 21;
      */
-    TRANSFORM = 14
+    PRESS = 21,
+    /**
+     * @generated from protobuf enum value: EFFECT_TYPE_DRAG = 22;
+     */
+    DRAG = 22,
+    /**
+     * @generated from protobuf enum value: EFFECT_TYPE_FOCUS = 23;
+     */
+    FOCUS = 23,
+    /**
+     * @generated from protobuf enum value: EFFECT_TYPE_LOOP = 30;
+     */
+    LOOP = 30
 }
 /**
- * @generated from protobuf enum symbol.bench.DimensionType
+ * @generated from protobuf enum symbol.bench.RepeatType
  */
-export enum DimensionType {
+export enum RepeatType {
     /**
-     * @generated from protobuf enum value: DIMENSION_TYPE_UNSPECIFIED = 0;
+     * @generated from protobuf enum value: REPEAT_TYPE_UNSPECIFIED = 0;
      */
     UNSPECIFIED = 0,
     /**
-     * @generated from protobuf enum value: DIMENSION_TYPE_FIXED = 2;
+     * @generated from protobuf enum value: REPEAT_TYPE_LOOP = 1;
      */
-    FIXED = 2,
+    LOOP = 1,
     /**
-     * @generated from protobuf enum value: DIMENSION_TYPE_FIT = 3;
+     * @generated from protobuf enum value: REPEAT_TYPE_REVERSE = 2;
      */
-    FIT = 3,
+    REVERSE = 2,
     /**
-     * @generated from protobuf enum value: DIMENSION_TYPE_FILL = 4;
+     * @generated from protobuf enum value: REPEAT_TYPE_MIRROR = 3;
      */
-    FILL = 4
+    MIRROR = 3
+}
+/**
+ * @generated from protobuf enum symbol.bench.TextSplitType
+ */
+export enum TextSplitType {
+    /**
+     * @generated from protobuf enum value: TEXT_SPLIT_TYPE_UNSPECIFIED = 0;
+     */
+    UNSPECIFIED = 0,
+    /**
+     * @generated from protobuf enum value: TEXT_SPLIT_TYPE_CHAR = 1;
+     */
+    CHAR = 1,
+    /**
+     * @generated from protobuf enum value: TEXT_SPLIT_TYPE_WORD = 2;
+     */
+    WORD = 2,
+    /**
+     * @generated from protobuf enum value: TEXT_SPLIT_TYPE_LINE = 3;
+     */
+    LINE = 3
+}
+/**
+ * What happens when the element is offscreen.
+ *
+ * @generated from protobuf enum symbol.bench.OffscreenBehavior
+ */
+export enum OffscreenBehavior {
+    /**
+     * @generated from protobuf enum value: OFFSCREEN_BEHAVIOR_UNSPECIFIED = 0;
+     */
+    UNSPECIFIED = 0,
+    /**
+     * @generated from protobuf enum value: OFFSCREEN_BEHAVIOR_PLAY = 1;
+     */
+    PLAY = 1,
+    /**
+     * @generated from protobuf enum value: OFFSCREEN_BEHAVIOR_PAUSE = 2;
+     */
+    PAUSE = 2
 }
 /**
  * @generated from protobuf enum symbol.bench.BuiltinEnum
@@ -19488,22 +19692,374 @@ class BorderData$Type extends MessageType$<BorderData> {
  */
 export const BorderData = new BorderData$Type();
 // @generated message type with reflection information, may provide speed optimized methods
+class Vector2Data$Type extends MessageType$<Vector2Data> {
+    constructor() {
+        super("symbol.bench.Vector2Data", [
+            { no: 1, name: "metatype", kind: "enum", T: () => ["symbol.bench.ObjectType", ObjectType, "OBJECT_TYPE_"] },
+            { no: 30, name: "x", kind: "scalar", T: 2 /*ScalarType.FLOAT*/ },
+            { no: 31, name: "y", kind: "scalar", T: 2 /*ScalarType.FLOAT*/ }
+        ]);
+    }
+    create(value?: PartialMessage<Vector2Data>): Vector2Data {
+        const message = globalThis.Object.create((this.messagePrototype!));
+        message.metatype = 0;
+        message.x = 0;
+        message.y = 0;
+        if (value !== undefined)
+            reflectionMergePartial<Vector2Data>(this, message, value);
+        return message;
+    }
+    internalBinaryRead(reader: IBinaryReader, length: number, options: BinaryReadOptions, target?: Vector2Data): Vector2Data {
+        let message = target ?? this.create(), end = reader.pos + length;
+        while (reader.pos < end) {
+            let [fieldNo, wireType] = reader.tag();
+            switch (fieldNo) {
+                case /* symbol.bench.ObjectType metatype */ 1:
+                    message.metatype = reader.int32();
+                    break;
+                case /* float x */ 30:
+                    message.x = reader.float();
+                    break;
+                case /* float y */ 31:
+                    message.y = reader.float();
+                    break;
+                default:
+                    let u = options.readUnknownField;
+                    if (u === "throw")
+                        throw new globalThis.Error(`Unknown field ${fieldNo} (wire type ${wireType}) for ${this.typeName}`);
+                    let d = reader.skip(wireType);
+                    if (u !== false)
+                        (u === true ? UnknownFieldHandler.onRead : u)(this.typeName, message, fieldNo, wireType, d);
+            }
+        }
+        return message;
+    }
+    internalBinaryWrite(message: Vector2Data, writer: IBinaryWriter, options: BinaryWriteOptions): IBinaryWriter {
+        /* symbol.bench.ObjectType metatype = 1; */
+        if (message.metatype !== 0)
+            writer.tag(1, WireType.Varint).int32(message.metatype);
+        /* float x = 30; */
+        if (message.x !== 0)
+            writer.tag(30, WireType.Bit32).float(message.x);
+        /* float y = 31; */
+        if (message.y !== 0)
+            writer.tag(31, WireType.Bit32).float(message.y);
+        let u = options.writeUnknownFields;
+        if (u !== false)
+            (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
+        return writer;
+    }
+}
+/**
+ * @generated MessageType for protobuf message symbol.bench.Vector2Data
+ */
+export const Vector2Data = new Vector2Data$Type();
+// @generated message type with reflection information, may provide speed optimized methods
+class Vector3Data$Type extends MessageType$<Vector3Data> {
+    constructor() {
+        super("symbol.bench.Vector3Data", [
+            { no: 1, name: "metatype", kind: "enum", T: () => ["symbol.bench.ObjectType", ObjectType, "OBJECT_TYPE_"] },
+            { no: 30, name: "x", kind: "scalar", T: 2 /*ScalarType.FLOAT*/ },
+            { no: 31, name: "y", kind: "scalar", T: 2 /*ScalarType.FLOAT*/ },
+            { no: 32, name: "z", kind: "scalar", T: 2 /*ScalarType.FLOAT*/ }
+        ]);
+    }
+    create(value?: PartialMessage<Vector3Data>): Vector3Data {
+        const message = globalThis.Object.create((this.messagePrototype!));
+        message.metatype = 0;
+        message.x = 0;
+        message.y = 0;
+        message.z = 0;
+        if (value !== undefined)
+            reflectionMergePartial<Vector3Data>(this, message, value);
+        return message;
+    }
+    internalBinaryRead(reader: IBinaryReader, length: number, options: BinaryReadOptions, target?: Vector3Data): Vector3Data {
+        let message = target ?? this.create(), end = reader.pos + length;
+        while (reader.pos < end) {
+            let [fieldNo, wireType] = reader.tag();
+            switch (fieldNo) {
+                case /* symbol.bench.ObjectType metatype */ 1:
+                    message.metatype = reader.int32();
+                    break;
+                case /* float x */ 30:
+                    message.x = reader.float();
+                    break;
+                case /* float y */ 31:
+                    message.y = reader.float();
+                    break;
+                case /* float z */ 32:
+                    message.z = reader.float();
+                    break;
+                default:
+                    let u = options.readUnknownField;
+                    if (u === "throw")
+                        throw new globalThis.Error(`Unknown field ${fieldNo} (wire type ${wireType}) for ${this.typeName}`);
+                    let d = reader.skip(wireType);
+                    if (u !== false)
+                        (u === true ? UnknownFieldHandler.onRead : u)(this.typeName, message, fieldNo, wireType, d);
+            }
+        }
+        return message;
+    }
+    internalBinaryWrite(message: Vector3Data, writer: IBinaryWriter, options: BinaryWriteOptions): IBinaryWriter {
+        /* symbol.bench.ObjectType metatype = 1; */
+        if (message.metatype !== 0)
+            writer.tag(1, WireType.Varint).int32(message.metatype);
+        /* float x = 30; */
+        if (message.x !== 0)
+            writer.tag(30, WireType.Bit32).float(message.x);
+        /* float y = 31; */
+        if (message.y !== 0)
+            writer.tag(31, WireType.Bit32).float(message.y);
+        /* float z = 32; */
+        if (message.z !== 0)
+            writer.tag(32, WireType.Bit32).float(message.z);
+        let u = options.writeUnknownFields;
+        if (u !== false)
+            (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
+        return writer;
+    }
+}
+/**
+ * @generated MessageType for protobuf message symbol.bench.Vector3Data
+ */
+export const Vector3Data = new Vector3Data$Type();
+// @generated message type with reflection information, may provide speed optimized methods
+class Vector4Data$Type extends MessageType$<Vector4Data> {
+    constructor() {
+        super("symbol.bench.Vector4Data", [
+            { no: 1, name: "metatype", kind: "enum", T: () => ["symbol.bench.ObjectType", ObjectType, "OBJECT_TYPE_"] },
+            { no: 30, name: "x", kind: "scalar", T: 2 /*ScalarType.FLOAT*/ },
+            { no: 31, name: "y", kind: "scalar", T: 2 /*ScalarType.FLOAT*/ },
+            { no: 32, name: "z", kind: "scalar", T: 2 /*ScalarType.FLOAT*/ },
+            { no: 33, name: "w", kind: "scalar", T: 2 /*ScalarType.FLOAT*/ }
+        ]);
+    }
+    create(value?: PartialMessage<Vector4Data>): Vector4Data {
+        const message = globalThis.Object.create((this.messagePrototype!));
+        message.metatype = 0;
+        message.x = 0;
+        message.y = 0;
+        message.z = 0;
+        message.w = 0;
+        if (value !== undefined)
+            reflectionMergePartial<Vector4Data>(this, message, value);
+        return message;
+    }
+    internalBinaryRead(reader: IBinaryReader, length: number, options: BinaryReadOptions, target?: Vector4Data): Vector4Data {
+        let message = target ?? this.create(), end = reader.pos + length;
+        while (reader.pos < end) {
+            let [fieldNo, wireType] = reader.tag();
+            switch (fieldNo) {
+                case /* symbol.bench.ObjectType metatype */ 1:
+                    message.metatype = reader.int32();
+                    break;
+                case /* float x */ 30:
+                    message.x = reader.float();
+                    break;
+                case /* float y */ 31:
+                    message.y = reader.float();
+                    break;
+                case /* float z */ 32:
+                    message.z = reader.float();
+                    break;
+                case /* float w */ 33:
+                    message.w = reader.float();
+                    break;
+                default:
+                    let u = options.readUnknownField;
+                    if (u === "throw")
+                        throw new globalThis.Error(`Unknown field ${fieldNo} (wire type ${wireType}) for ${this.typeName}`);
+                    let d = reader.skip(wireType);
+                    if (u !== false)
+                        (u === true ? UnknownFieldHandler.onRead : u)(this.typeName, message, fieldNo, wireType, d);
+            }
+        }
+        return message;
+    }
+    internalBinaryWrite(message: Vector4Data, writer: IBinaryWriter, options: BinaryWriteOptions): IBinaryWriter {
+        /* symbol.bench.ObjectType metatype = 1; */
+        if (message.metatype !== 0)
+            writer.tag(1, WireType.Varint).int32(message.metatype);
+        /* float x = 30; */
+        if (message.x !== 0)
+            writer.tag(30, WireType.Bit32).float(message.x);
+        /* float y = 31; */
+        if (message.y !== 0)
+            writer.tag(31, WireType.Bit32).float(message.y);
+        /* float z = 32; */
+        if (message.z !== 0)
+            writer.tag(32, WireType.Bit32).float(message.z);
+        /* float w = 33; */
+        if (message.w !== 0)
+            writer.tag(33, WireType.Bit32).float(message.w);
+        let u = options.writeUnknownFields;
+        if (u !== false)
+            (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
+        return writer;
+    }
+}
+/**
+ * @generated MessageType for protobuf message symbol.bench.Vector4Data
+ */
+export const Vector4Data = new Vector4Data$Type();
+// @generated message type with reflection information, may provide speed optimized methods
+class TransitionData$Type extends MessageType$<TransitionData> {
+    constructor() {
+        super("symbol.bench.TransitionData", [
+            { no: 1, name: "metatype", kind: "enum", T: () => ["symbol.bench.ObjectType", ObjectType, "OBJECT_TYPE_"] },
+            { no: 30, name: "type", kind: "enum", T: () => ["symbol.bench.TransitionType", TransitionType, "TRANSITION_TYPE_"] },
+            { no: 40, name: "style_ptr", kind: "message", T: () => NodeReferenceData },
+            { no: 41, name: "field_ptr", kind: "message", T: () => NodeReferenceData },
+            { no: 50, name: "delay", kind: "scalar", opt: true, T: 2 /*ScalarType.FLOAT*/ },
+            { no: 51, name: "duration", kind: "scalar", opt: true, T: 2 /*ScalarType.FLOAT*/ },
+            { no: 52, name: "ease", kind: "scalar", repeat: 1 /*RepeatType.PACKED*/, T: 2 /*ScalarType.FLOAT*/ },
+            { no: 53, name: "stiffness", kind: "scalar", opt: true, T: 2 /*ScalarType.FLOAT*/ },
+            { no: 54, name: "damping", kind: "scalar", opt: true, T: 2 /*ScalarType.FLOAT*/ },
+            { no: 55, name: "mass", kind: "scalar", opt: true, T: 2 /*ScalarType.FLOAT*/ },
+            { no: 56, name: "bounce", kind: "scalar", opt: true, T: 2 /*ScalarType.FLOAT*/ },
+            { no: 57, name: "spring_type", kind: "enum", opt: true, T: () => ["symbol.bench.SpringType", SpringType, "SPRING_TYPE_"] }
+        ]);
+    }
+    create(value?: PartialMessage<TransitionData>): TransitionData {
+        const message = globalThis.Object.create((this.messagePrototype!));
+        message.metatype = 0;
+        message.type = 0;
+        message.ease = [];
+        if (value !== undefined)
+            reflectionMergePartial<TransitionData>(this, message, value);
+        return message;
+    }
+    internalBinaryRead(reader: IBinaryReader, length: number, options: BinaryReadOptions, target?: TransitionData): TransitionData {
+        let message = target ?? this.create(), end = reader.pos + length;
+        while (reader.pos < end) {
+            let [fieldNo, wireType] = reader.tag();
+            switch (fieldNo) {
+                case /* symbol.bench.ObjectType metatype */ 1:
+                    message.metatype = reader.int32();
+                    break;
+                case /* symbol.bench.TransitionType type */ 30:
+                    message.type = reader.int32();
+                    break;
+                case /* optional symbol.bench.NodeReferenceData style_ptr */ 40:
+                    message.stylePtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.stylePtr);
+                    break;
+                case /* optional symbol.bench.NodeReferenceData field_ptr */ 41:
+                    message.fieldPtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.fieldPtr);
+                    break;
+                case /* optional float delay */ 50:
+                    message.delay = reader.float();
+                    break;
+                case /* optional float duration */ 51:
+                    message.duration = reader.float();
+                    break;
+                case /* repeated float ease */ 52:
+                    if (wireType === WireType.LengthDelimited)
+                        for (let e = reader.int32() + reader.pos; reader.pos < e;)
+                            message.ease.push(reader.float());
+                    else
+                        message.ease.push(reader.float());
+                    break;
+                case /* optional float stiffness */ 53:
+                    message.stiffness = reader.float();
+                    break;
+                case /* optional float damping */ 54:
+                    message.damping = reader.float();
+                    break;
+                case /* optional float mass */ 55:
+                    message.mass = reader.float();
+                    break;
+                case /* optional float bounce */ 56:
+                    message.bounce = reader.float();
+                    break;
+                case /* optional symbol.bench.SpringType spring_type */ 57:
+                    message.springType = reader.int32();
+                    break;
+                default:
+                    let u = options.readUnknownField;
+                    if (u === "throw")
+                        throw new globalThis.Error(`Unknown field ${fieldNo} (wire type ${wireType}) for ${this.typeName}`);
+                    let d = reader.skip(wireType);
+                    if (u !== false)
+                        (u === true ? UnknownFieldHandler.onRead : u)(this.typeName, message, fieldNo, wireType, d);
+            }
+        }
+        return message;
+    }
+    internalBinaryWrite(message: TransitionData, writer: IBinaryWriter, options: BinaryWriteOptions): IBinaryWriter {
+        /* symbol.bench.ObjectType metatype = 1; */
+        if (message.metatype !== 0)
+            writer.tag(1, WireType.Varint).int32(message.metatype);
+        /* symbol.bench.TransitionType type = 30; */
+        if (message.type !== 0)
+            writer.tag(30, WireType.Varint).int32(message.type);
+        /* optional symbol.bench.NodeReferenceData style_ptr = 40; */
+        if (message.stylePtr)
+            NodeReferenceData.internalBinaryWrite(message.stylePtr, writer.tag(40, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbol.bench.NodeReferenceData field_ptr = 41; */
+        if (message.fieldPtr)
+            NodeReferenceData.internalBinaryWrite(message.fieldPtr, writer.tag(41, WireType.LengthDelimited).fork(), options).join();
+        /* optional float delay = 50; */
+        if (message.delay !== undefined)
+            writer.tag(50, WireType.Bit32).float(message.delay);
+        /* optional float duration = 51; */
+        if (message.duration !== undefined)
+            writer.tag(51, WireType.Bit32).float(message.duration);
+        /* repeated float ease = 52; */
+        if (message.ease.length) {
+            writer.tag(52, WireType.LengthDelimited).fork();
+            for (let i = 0; i < message.ease.length; i++)
+                writer.float(message.ease[i]);
+            writer.join();
+        }
+        /* optional float stiffness = 53; */
+        if (message.stiffness !== undefined)
+            writer.tag(53, WireType.Bit32).float(message.stiffness);
+        /* optional float damping = 54; */
+        if (message.damping !== undefined)
+            writer.tag(54, WireType.Bit32).float(message.damping);
+        /* optional float mass = 55; */
+        if (message.mass !== undefined)
+            writer.tag(55, WireType.Bit32).float(message.mass);
+        /* optional float bounce = 56; */
+        if (message.bounce !== undefined)
+            writer.tag(56, WireType.Bit32).float(message.bounce);
+        /* optional symbol.bench.SpringType spring_type = 57; */
+        if (message.springType !== undefined)
+            writer.tag(57, WireType.Varint).int32(message.springType);
+        let u = options.writeUnknownFields;
+        if (u !== false)
+            (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
+        return writer;
+    }
+}
+/**
+ * @generated MessageType for protobuf message symbol.bench.TransitionData
+ */
+export const TransitionData = new TransitionData$Type();
+// @generated message type with reflection information, may provide speed optimized methods
 class EffectData$Type extends MessageType$<EffectData> {
     constructor() {
         super("symbol.bench.EffectData", [
             { no: 1, name: "metatype", kind: "enum", T: () => ["symbol.bench.ObjectType", ObjectType, "OBJECT_TYPE_"] },
             { no: 30, name: "type", kind: "enum", T: () => ["symbol.bench.EffectType", EffectType, "EFFECT_TYPE_"] },
-            { no: 40, name: "style_ptr", kind: "message", T: () => NodeReferenceData },
-            { no: 41, name: "field_ptr", kind: "message", T: () => NodeReferenceData },
+            { no: 41, name: "style_ptr", kind: "message", T: () => NodeReferenceData },
+            { no: 42, name: "field_ptr", kind: "message", T: () => NodeReferenceData },
             { no: 50, name: "opacity", kind: "scalar", opt: true, T: 2 /*ScalarType.FLOAT*/ },
-            { no: 51, name: "offset", kind: "message", T: () => Axis2Data },
+            { no: 51, name: "offset", kind: "message", T: () => Vector2Data },
             { no: 52, name: "scale", kind: "scalar", opt: true, T: 2 /*ScalarType.FLOAT*/ },
             { no: 53, name: "rotate", kind: "message", T: () => Axis3Data },
-            { no: 54, name: "skew", kind: "message", T: () => Axis2Data },
+            { no: 54, name: "skew", kind: "message", T: () => Vector2Data },
             { no: 55, name: "perspective", kind: "scalar", opt: true, T: 2 /*ScalarType.FLOAT*/ },
-            { no: 56, name: "delay", kind: "scalar", opt: true, T: 2 /*ScalarType.FLOAT*/ },
+            { no: 56, name: "delay", kind: "message", T: () => Duration },
             { no: 57, name: "duration", kind: "scalar", opt: true, T: 2 /*ScalarType.FLOAT*/ },
-            { no: 58, name: "threshold", kind: "scalar", opt: true, T: 2 /*ScalarType.FLOAT*/ }
+            { no: 58, name: "threshold", kind: "scalar", opt: true, T: 2 /*ScalarType.FLOAT*/ },
+            { no: 59, name: "once", kind: "scalar", opt: true, T: 8 /*ScalarType.BOOL*/ },
+            { no: 60, name: "repeat", kind: "enum", opt: true, T: () => ["symbol.bench.RepeatType", RepeatType, "REPEAT_TYPE_"] },
+            { no: 61, name: "split", kind: "enum", opt: true, T: () => ["symbol.bench.TextSplitType", TextSplitType, "TEXT_SPLIT_TYPE_"] },
+            { no: 62, name: "offscreen", kind: "enum", opt: true, T: () => ["symbol.bench.OffscreenBehavior", OffscreenBehavior, "OFFSCREEN_BEHAVIOR_"] },
+            { no: 70, name: "transition", kind: "message", T: () => TransitionData }
         ]);
     }
     create(value?: PartialMessage<EffectData>): EffectData {
@@ -19525,17 +20081,17 @@ class EffectData$Type extends MessageType$<EffectData> {
                 case /* symbol.bench.EffectType type */ 30:
                     message.type = reader.int32();
                     break;
-                case /* optional symbol.bench.NodeReferenceData style_ptr */ 40:
+                case /* optional symbol.bench.NodeReferenceData style_ptr */ 41:
                     message.stylePtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.stylePtr);
                     break;
-                case /* optional symbol.bench.NodeReferenceData field_ptr */ 41:
+                case /* optional symbol.bench.NodeReferenceData field_ptr */ 42:
                     message.fieldPtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.fieldPtr);
                     break;
                 case /* optional float opacity */ 50:
                     message.opacity = reader.float();
                     break;
-                case /* optional symbol.bench.Axis2Data offset */ 51:
-                    message.offset = Axis2Data.internalBinaryRead(reader, reader.uint32(), options, message.offset);
+                case /* optional symbol.bench.Vector2Data offset */ 51:
+                    message.offset = Vector2Data.internalBinaryRead(reader, reader.uint32(), options, message.offset);
                     break;
                 case /* optional float scale */ 52:
                     message.scale = reader.float();
@@ -19543,20 +20099,35 @@ class EffectData$Type extends MessageType$<EffectData> {
                 case /* optional symbol.bench.Axis3Data rotate */ 53:
                     message.rotate = Axis3Data.internalBinaryRead(reader, reader.uint32(), options, message.rotate);
                     break;
-                case /* optional symbol.bench.Axis2Data skew */ 54:
-                    message.skew = Axis2Data.internalBinaryRead(reader, reader.uint32(), options, message.skew);
+                case /* optional symbol.bench.Vector2Data skew */ 54:
+                    message.skew = Vector2Data.internalBinaryRead(reader, reader.uint32(), options, message.skew);
                     break;
                 case /* optional float perspective */ 55:
                     message.perspective = reader.float();
                     break;
-                case /* optional float delay */ 56:
-                    message.delay = reader.float();
+                case /* optional google.protobuf.Duration delay */ 56:
+                    message.delay = Duration.internalBinaryRead(reader, reader.uint32(), options, message.delay);
                     break;
                 case /* optional float duration */ 57:
                     message.duration = reader.float();
                     break;
                 case /* optional float threshold */ 58:
                     message.threshold = reader.float();
+                    break;
+                case /* optional bool once */ 59:
+                    message.once = reader.bool();
+                    break;
+                case /* optional symbol.bench.RepeatType repeat */ 60:
+                    message.repeat = reader.int32();
+                    break;
+                case /* optional symbol.bench.TextSplitType split */ 61:
+                    message.split = reader.int32();
+                    break;
+                case /* optional symbol.bench.OffscreenBehavior offscreen */ 62:
+                    message.offscreen = reader.int32();
+                    break;
+                case /* optional symbol.bench.TransitionData transition */ 70:
+                    message.transition = TransitionData.internalBinaryRead(reader, reader.uint32(), options, message.transition);
                     break;
                 default:
                     let u = options.readUnknownField;
@@ -19576,39 +20147,54 @@ class EffectData$Type extends MessageType$<EffectData> {
         /* symbol.bench.EffectType type = 30; */
         if (message.type !== 0)
             writer.tag(30, WireType.Varint).int32(message.type);
-        /* optional symbol.bench.NodeReferenceData style_ptr = 40; */
+        /* optional symbol.bench.NodeReferenceData style_ptr = 41; */
         if (message.stylePtr)
-            NodeReferenceData.internalBinaryWrite(message.stylePtr, writer.tag(40, WireType.LengthDelimited).fork(), options).join();
-        /* optional symbol.bench.NodeReferenceData field_ptr = 41; */
+            NodeReferenceData.internalBinaryWrite(message.stylePtr, writer.tag(41, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbol.bench.NodeReferenceData field_ptr = 42; */
         if (message.fieldPtr)
-            NodeReferenceData.internalBinaryWrite(message.fieldPtr, writer.tag(41, WireType.LengthDelimited).fork(), options).join();
+            NodeReferenceData.internalBinaryWrite(message.fieldPtr, writer.tag(42, WireType.LengthDelimited).fork(), options).join();
         /* optional float opacity = 50; */
         if (message.opacity !== undefined)
             writer.tag(50, WireType.Bit32).float(message.opacity);
-        /* optional symbol.bench.Axis2Data offset = 51; */
+        /* optional symbol.bench.Vector2Data offset = 51; */
         if (message.offset)
-            Axis2Data.internalBinaryWrite(message.offset, writer.tag(51, WireType.LengthDelimited).fork(), options).join();
+            Vector2Data.internalBinaryWrite(message.offset, writer.tag(51, WireType.LengthDelimited).fork(), options).join();
         /* optional float scale = 52; */
         if (message.scale !== undefined)
             writer.tag(52, WireType.Bit32).float(message.scale);
         /* optional symbol.bench.Axis3Data rotate = 53; */
         if (message.rotate)
             Axis3Data.internalBinaryWrite(message.rotate, writer.tag(53, WireType.LengthDelimited).fork(), options).join();
-        /* optional symbol.bench.Axis2Data skew = 54; */
+        /* optional symbol.bench.Vector2Data skew = 54; */
         if (message.skew)
-            Axis2Data.internalBinaryWrite(message.skew, writer.tag(54, WireType.LengthDelimited).fork(), options).join();
+            Vector2Data.internalBinaryWrite(message.skew, writer.tag(54, WireType.LengthDelimited).fork(), options).join();
         /* optional float perspective = 55; */
         if (message.perspective !== undefined)
             writer.tag(55, WireType.Bit32).float(message.perspective);
-        /* optional float delay = 56; */
-        if (message.delay !== undefined)
-            writer.tag(56, WireType.Bit32).float(message.delay);
+        /* optional google.protobuf.Duration delay = 56; */
+        if (message.delay)
+            Duration.internalBinaryWrite(message.delay, writer.tag(56, WireType.LengthDelimited).fork(), options).join();
         /* optional float duration = 57; */
         if (message.duration !== undefined)
             writer.tag(57, WireType.Bit32).float(message.duration);
         /* optional float threshold = 58; */
         if (message.threshold !== undefined)
             writer.tag(58, WireType.Bit32).float(message.threshold);
+        /* optional bool once = 59; */
+        if (message.once !== undefined)
+            writer.tag(59, WireType.Varint).bool(message.once);
+        /* optional symbol.bench.RepeatType repeat = 60; */
+        if (message.repeat !== undefined)
+            writer.tag(60, WireType.Varint).int32(message.repeat);
+        /* optional symbol.bench.TextSplitType split = 61; */
+        if (message.split !== undefined)
+            writer.tag(61, WireType.Varint).int32(message.split);
+        /* optional symbol.bench.OffscreenBehavior offscreen = 62; */
+        if (message.offscreen !== undefined)
+            writer.tag(62, WireType.Varint).int32(message.offscreen);
+        /* optional symbol.bench.TransitionData transition = 70; */
+        if (message.transition)
+            TransitionData.internalBinaryWrite(message.transition, writer.tag(70, WireType.LengthDelimited).fork(), options).join();
         let u = options.writeUnknownFields;
         if (u !== false)
             (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
@@ -20085,353 +20671,6 @@ class ShadowData$Type extends MessageType$<ShadowData> {
  * @generated MessageType for protobuf message symbol.bench.ShadowData
  */
 export const ShadowData = new ShadowData$Type();
-// @generated message type with reflection information, may provide speed optimized methods
-class TransitionData$Type extends MessageType$<TransitionData> {
-    constructor() {
-        super("symbol.bench.TransitionData", [
-            { no: 1, name: "metatype", kind: "enum", T: () => ["symbol.bench.ObjectType", ObjectType, "OBJECT_TYPE_"] },
-            { no: 30, name: "type", kind: "enum", T: () => ["symbol.bench.TransitionType", TransitionType, "TRANSITION_TYPE_"] },
-            { no: 40, name: "style_ptr", kind: "message", T: () => NodeReferenceData },
-            { no: 41, name: "field_ptr", kind: "message", T: () => NodeReferenceData },
-            { no: 50, name: "delay", kind: "scalar", opt: true, T: 2 /*ScalarType.FLOAT*/ },
-            { no: 51, name: "duration", kind: "scalar", opt: true, T: 2 /*ScalarType.FLOAT*/ },
-            { no: 52, name: "ease", kind: "scalar", repeat: 1 /*RepeatType.PACKED*/, T: 2 /*ScalarType.FLOAT*/ },
-            { no: 53, name: "stiffness", kind: "scalar", opt: true, T: 2 /*ScalarType.FLOAT*/ },
-            { no: 54, name: "damping", kind: "scalar", opt: true, T: 2 /*ScalarType.FLOAT*/ },
-            { no: 55, name: "mass", kind: "scalar", opt: true, T: 2 /*ScalarType.FLOAT*/ },
-            { no: 56, name: "bounce", kind: "scalar", opt: true, T: 2 /*ScalarType.FLOAT*/ },
-            { no: 57, name: "spring_type", kind: "enum", opt: true, T: () => ["symbol.bench.SpringType", SpringType, "SPRING_TYPE_"] }
-        ]);
-    }
-    create(value?: PartialMessage<TransitionData>): TransitionData {
-        const message = globalThis.Object.create((this.messagePrototype!));
-        message.metatype = 0;
-        message.type = 0;
-        message.ease = [];
-        if (value !== undefined)
-            reflectionMergePartial<TransitionData>(this, message, value);
-        return message;
-    }
-    internalBinaryRead(reader: IBinaryReader, length: number, options: BinaryReadOptions, target?: TransitionData): TransitionData {
-        let message = target ?? this.create(), end = reader.pos + length;
-        while (reader.pos < end) {
-            let [fieldNo, wireType] = reader.tag();
-            switch (fieldNo) {
-                case /* symbol.bench.ObjectType metatype */ 1:
-                    message.metatype = reader.int32();
-                    break;
-                case /* symbol.bench.TransitionType type */ 30:
-                    message.type = reader.int32();
-                    break;
-                case /* optional symbol.bench.NodeReferenceData style_ptr */ 40:
-                    message.stylePtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.stylePtr);
-                    break;
-                case /* optional symbol.bench.NodeReferenceData field_ptr */ 41:
-                    message.fieldPtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.fieldPtr);
-                    break;
-                case /* optional float delay */ 50:
-                    message.delay = reader.float();
-                    break;
-                case /* optional float duration */ 51:
-                    message.duration = reader.float();
-                    break;
-                case /* repeated float ease */ 52:
-                    if (wireType === WireType.LengthDelimited)
-                        for (let e = reader.int32() + reader.pos; reader.pos < e;)
-                            message.ease.push(reader.float());
-                    else
-                        message.ease.push(reader.float());
-                    break;
-                case /* optional float stiffness */ 53:
-                    message.stiffness = reader.float();
-                    break;
-                case /* optional float damping */ 54:
-                    message.damping = reader.float();
-                    break;
-                case /* optional float mass */ 55:
-                    message.mass = reader.float();
-                    break;
-                case /* optional float bounce */ 56:
-                    message.bounce = reader.float();
-                    break;
-                case /* optional symbol.bench.SpringType spring_type */ 57:
-                    message.springType = reader.int32();
-                    break;
-                default:
-                    let u = options.readUnknownField;
-                    if (u === "throw")
-                        throw new globalThis.Error(`Unknown field ${fieldNo} (wire type ${wireType}) for ${this.typeName}`);
-                    let d = reader.skip(wireType);
-                    if (u !== false)
-                        (u === true ? UnknownFieldHandler.onRead : u)(this.typeName, message, fieldNo, wireType, d);
-            }
-        }
-        return message;
-    }
-    internalBinaryWrite(message: TransitionData, writer: IBinaryWriter, options: BinaryWriteOptions): IBinaryWriter {
-        /* symbol.bench.ObjectType metatype = 1; */
-        if (message.metatype !== 0)
-            writer.tag(1, WireType.Varint).int32(message.metatype);
-        /* symbol.bench.TransitionType type = 30; */
-        if (message.type !== 0)
-            writer.tag(30, WireType.Varint).int32(message.type);
-        /* optional symbol.bench.NodeReferenceData style_ptr = 40; */
-        if (message.stylePtr)
-            NodeReferenceData.internalBinaryWrite(message.stylePtr, writer.tag(40, WireType.LengthDelimited).fork(), options).join();
-        /* optional symbol.bench.NodeReferenceData field_ptr = 41; */
-        if (message.fieldPtr)
-            NodeReferenceData.internalBinaryWrite(message.fieldPtr, writer.tag(41, WireType.LengthDelimited).fork(), options).join();
-        /* optional float delay = 50; */
-        if (message.delay !== undefined)
-            writer.tag(50, WireType.Bit32).float(message.delay);
-        /* optional float duration = 51; */
-        if (message.duration !== undefined)
-            writer.tag(51, WireType.Bit32).float(message.duration);
-        /* repeated float ease = 52; */
-        if (message.ease.length) {
-            writer.tag(52, WireType.LengthDelimited).fork();
-            for (let i = 0; i < message.ease.length; i++)
-                writer.float(message.ease[i]);
-            writer.join();
-        }
-        /* optional float stiffness = 53; */
-        if (message.stiffness !== undefined)
-            writer.tag(53, WireType.Bit32).float(message.stiffness);
-        /* optional float damping = 54; */
-        if (message.damping !== undefined)
-            writer.tag(54, WireType.Bit32).float(message.damping);
-        /* optional float mass = 55; */
-        if (message.mass !== undefined)
-            writer.tag(55, WireType.Bit32).float(message.mass);
-        /* optional float bounce = 56; */
-        if (message.bounce !== undefined)
-            writer.tag(56, WireType.Bit32).float(message.bounce);
-        /* optional symbol.bench.SpringType spring_type = 57; */
-        if (message.springType !== undefined)
-            writer.tag(57, WireType.Varint).int32(message.springType);
-        let u = options.writeUnknownFields;
-        if (u !== false)
-            (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
-        return writer;
-    }
-}
-/**
- * @generated MessageType for protobuf message symbol.bench.TransitionData
- */
-export const TransitionData = new TransitionData$Type();
-// @generated message type with reflection information, may provide speed optimized methods
-class Vector2Data$Type extends MessageType$<Vector2Data> {
-    constructor() {
-        super("symbol.bench.Vector2Data", [
-            { no: 1, name: "metatype", kind: "enum", T: () => ["symbol.bench.ObjectType", ObjectType, "OBJECT_TYPE_"] },
-            { no: 30, name: "x", kind: "scalar", T: 2 /*ScalarType.FLOAT*/ },
-            { no: 31, name: "y", kind: "scalar", T: 2 /*ScalarType.FLOAT*/ }
-        ]);
-    }
-    create(value?: PartialMessage<Vector2Data>): Vector2Data {
-        const message = globalThis.Object.create((this.messagePrototype!));
-        message.metatype = 0;
-        message.x = 0;
-        message.y = 0;
-        if (value !== undefined)
-            reflectionMergePartial<Vector2Data>(this, message, value);
-        return message;
-    }
-    internalBinaryRead(reader: IBinaryReader, length: number, options: BinaryReadOptions, target?: Vector2Data): Vector2Data {
-        let message = target ?? this.create(), end = reader.pos + length;
-        while (reader.pos < end) {
-            let [fieldNo, wireType] = reader.tag();
-            switch (fieldNo) {
-                case /* symbol.bench.ObjectType metatype */ 1:
-                    message.metatype = reader.int32();
-                    break;
-                case /* float x */ 30:
-                    message.x = reader.float();
-                    break;
-                case /* float y */ 31:
-                    message.y = reader.float();
-                    break;
-                default:
-                    let u = options.readUnknownField;
-                    if (u === "throw")
-                        throw new globalThis.Error(`Unknown field ${fieldNo} (wire type ${wireType}) for ${this.typeName}`);
-                    let d = reader.skip(wireType);
-                    if (u !== false)
-                        (u === true ? UnknownFieldHandler.onRead : u)(this.typeName, message, fieldNo, wireType, d);
-            }
-        }
-        return message;
-    }
-    internalBinaryWrite(message: Vector2Data, writer: IBinaryWriter, options: BinaryWriteOptions): IBinaryWriter {
-        /* symbol.bench.ObjectType metatype = 1; */
-        if (message.metatype !== 0)
-            writer.tag(1, WireType.Varint).int32(message.metatype);
-        /* float x = 30; */
-        if (message.x !== 0)
-            writer.tag(30, WireType.Bit32).float(message.x);
-        /* float y = 31; */
-        if (message.y !== 0)
-            writer.tag(31, WireType.Bit32).float(message.y);
-        let u = options.writeUnknownFields;
-        if (u !== false)
-            (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
-        return writer;
-    }
-}
-/**
- * @generated MessageType for protobuf message symbol.bench.Vector2Data
- */
-export const Vector2Data = new Vector2Data$Type();
-// @generated message type with reflection information, may provide speed optimized methods
-class Vector3Data$Type extends MessageType$<Vector3Data> {
-    constructor() {
-        super("symbol.bench.Vector3Data", [
-            { no: 1, name: "metatype", kind: "enum", T: () => ["symbol.bench.ObjectType", ObjectType, "OBJECT_TYPE_"] },
-            { no: 30, name: "x", kind: "scalar", T: 2 /*ScalarType.FLOAT*/ },
-            { no: 31, name: "y", kind: "scalar", T: 2 /*ScalarType.FLOAT*/ },
-            { no: 32, name: "z", kind: "scalar", T: 2 /*ScalarType.FLOAT*/ }
-        ]);
-    }
-    create(value?: PartialMessage<Vector3Data>): Vector3Data {
-        const message = globalThis.Object.create((this.messagePrototype!));
-        message.metatype = 0;
-        message.x = 0;
-        message.y = 0;
-        message.z = 0;
-        if (value !== undefined)
-            reflectionMergePartial<Vector3Data>(this, message, value);
-        return message;
-    }
-    internalBinaryRead(reader: IBinaryReader, length: number, options: BinaryReadOptions, target?: Vector3Data): Vector3Data {
-        let message = target ?? this.create(), end = reader.pos + length;
-        while (reader.pos < end) {
-            let [fieldNo, wireType] = reader.tag();
-            switch (fieldNo) {
-                case /* symbol.bench.ObjectType metatype */ 1:
-                    message.metatype = reader.int32();
-                    break;
-                case /* float x */ 30:
-                    message.x = reader.float();
-                    break;
-                case /* float y */ 31:
-                    message.y = reader.float();
-                    break;
-                case /* float z */ 32:
-                    message.z = reader.float();
-                    break;
-                default:
-                    let u = options.readUnknownField;
-                    if (u === "throw")
-                        throw new globalThis.Error(`Unknown field ${fieldNo} (wire type ${wireType}) for ${this.typeName}`);
-                    let d = reader.skip(wireType);
-                    if (u !== false)
-                        (u === true ? UnknownFieldHandler.onRead : u)(this.typeName, message, fieldNo, wireType, d);
-            }
-        }
-        return message;
-    }
-    internalBinaryWrite(message: Vector3Data, writer: IBinaryWriter, options: BinaryWriteOptions): IBinaryWriter {
-        /* symbol.bench.ObjectType metatype = 1; */
-        if (message.metatype !== 0)
-            writer.tag(1, WireType.Varint).int32(message.metatype);
-        /* float x = 30; */
-        if (message.x !== 0)
-            writer.tag(30, WireType.Bit32).float(message.x);
-        /* float y = 31; */
-        if (message.y !== 0)
-            writer.tag(31, WireType.Bit32).float(message.y);
-        /* float z = 32; */
-        if (message.z !== 0)
-            writer.tag(32, WireType.Bit32).float(message.z);
-        let u = options.writeUnknownFields;
-        if (u !== false)
-            (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
-        return writer;
-    }
-}
-/**
- * @generated MessageType for protobuf message symbol.bench.Vector3Data
- */
-export const Vector3Data = new Vector3Data$Type();
-// @generated message type with reflection information, may provide speed optimized methods
-class Vector4Data$Type extends MessageType$<Vector4Data> {
-    constructor() {
-        super("symbol.bench.Vector4Data", [
-            { no: 1, name: "metatype", kind: "enum", T: () => ["symbol.bench.ObjectType", ObjectType, "OBJECT_TYPE_"] },
-            { no: 30, name: "x", kind: "scalar", T: 2 /*ScalarType.FLOAT*/ },
-            { no: 31, name: "y", kind: "scalar", T: 2 /*ScalarType.FLOAT*/ },
-            { no: 32, name: "z", kind: "scalar", T: 2 /*ScalarType.FLOAT*/ },
-            { no: 33, name: "w", kind: "scalar", T: 2 /*ScalarType.FLOAT*/ }
-        ]);
-    }
-    create(value?: PartialMessage<Vector4Data>): Vector4Data {
-        const message = globalThis.Object.create((this.messagePrototype!));
-        message.metatype = 0;
-        message.x = 0;
-        message.y = 0;
-        message.z = 0;
-        message.w = 0;
-        if (value !== undefined)
-            reflectionMergePartial<Vector4Data>(this, message, value);
-        return message;
-    }
-    internalBinaryRead(reader: IBinaryReader, length: number, options: BinaryReadOptions, target?: Vector4Data): Vector4Data {
-        let message = target ?? this.create(), end = reader.pos + length;
-        while (reader.pos < end) {
-            let [fieldNo, wireType] = reader.tag();
-            switch (fieldNo) {
-                case /* symbol.bench.ObjectType metatype */ 1:
-                    message.metatype = reader.int32();
-                    break;
-                case /* float x */ 30:
-                    message.x = reader.float();
-                    break;
-                case /* float y */ 31:
-                    message.y = reader.float();
-                    break;
-                case /* float z */ 32:
-                    message.z = reader.float();
-                    break;
-                case /* float w */ 33:
-                    message.w = reader.float();
-                    break;
-                default:
-                    let u = options.readUnknownField;
-                    if (u === "throw")
-                        throw new globalThis.Error(`Unknown field ${fieldNo} (wire type ${wireType}) for ${this.typeName}`);
-                    let d = reader.skip(wireType);
-                    if (u !== false)
-                        (u === true ? UnknownFieldHandler.onRead : u)(this.typeName, message, fieldNo, wireType, d);
-            }
-        }
-        return message;
-    }
-    internalBinaryWrite(message: Vector4Data, writer: IBinaryWriter, options: BinaryWriteOptions): IBinaryWriter {
-        /* symbol.bench.ObjectType metatype = 1; */
-        if (message.metatype !== 0)
-            writer.tag(1, WireType.Varint).int32(message.metatype);
-        /* float x = 30; */
-        if (message.x !== 0)
-            writer.tag(30, WireType.Bit32).float(message.x);
-        /* float y = 31; */
-        if (message.y !== 0)
-            writer.tag(31, WireType.Bit32).float(message.y);
-        /* float z = 32; */
-        if (message.z !== 0)
-            writer.tag(32, WireType.Bit32).float(message.z);
-        /* float w = 33; */
-        if (message.w !== 0)
-            writer.tag(33, WireType.Bit32).float(message.w);
-        let u = options.writeUnknownFields;
-        if (u !== false)
-            (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
-        return writer;
-    }
-}
-/**
- * @generated MessageType for protobuf message symbol.bench.Vector4Data
- */
-export const Vector4Data = new Vector4Data$Type();
 // @generated message type with reflection information, may provide speed optimized methods
 class BaseNodeData$Type extends MessageType$<BaseNodeData> {
     constructor() {
@@ -30217,6 +30456,255 @@ class BorderStyleData$Type extends MessageType$<BorderStyleData> {
  */
 export const BorderStyleData = new BorderStyleData$Type();
 // @generated message type with reflection information, may provide speed optimized methods
+class TransitionStyleData$Type extends MessageType$<TransitionStyleData> {
+    constructor() {
+        super("symbol.bench.TransitionStyleData", [
+            { no: 1, name: "metatype", kind: "enum", T: () => ["symbol.bench.ObjectType", ObjectType, "OBJECT_TYPE_"] },
+            { no: 2, name: "id", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
+            { no: 4, name: "parent_ptr", kind: "message", T: () => NodeReferenceData },
+            { no: 5, name: "bench_ptr", kind: "message", T: () => NodeReferenceData },
+            { no: 9, name: "package_ptr", kind: "message", T: () => NodeReferenceData },
+            { no: 10, name: "created_at", kind: "message", T: () => Timestamp },
+            { no: 11, name: "created_by_ptr", kind: "message", T: () => NodeReferenceData },
+            { no: 12, name: "updated_at", kind: "message", T: () => Timestamp },
+            { no: 13, name: "updated_by_ptr", kind: "message", T: () => NodeReferenceData },
+            { no: 14, name: "archived_at", kind: "message", T: () => Timestamp },
+            { no: 15, name: "deleted_at", kind: "message", T: () => Timestamp },
+            { no: 16, name: "template_ptr", kind: "message", T: () => NodeReferenceData },
+            { no: 25, name: "mode", kind: "enum", T: () => ["symbol.bench.NodeMode", NodeMode, "NODE_MODE_"] },
+            { no: 30, name: "type", kind: "enum", T: () => ["symbol.bench.TransitionType", TransitionType, "TRANSITION_TYPE_"] },
+            { no: 31, name: "name", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
+            { no: 33, name: "order_key", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
+            { no: 34, name: "icon", kind: "message", T: () => IconData },
+            { no: 35, name: "definition_ptr", kind: "message", T: () => NodeReferenceData },
+            { no: 40, name: "style_ptr", kind: "message", T: () => NodeReferenceData },
+            { no: 41, name: "field_ptr", kind: "message", T: () => NodeReferenceData },
+            { no: 50, name: "delay", kind: "scalar", opt: true, T: 2 /*ScalarType.FLOAT*/ },
+            { no: 51, name: "duration", kind: "scalar", opt: true, T: 2 /*ScalarType.FLOAT*/ },
+            { no: 52, name: "ease", kind: "scalar", repeat: 1 /*RepeatType.PACKED*/, T: 2 /*ScalarType.FLOAT*/ },
+            { no: 53, name: "stiffness", kind: "scalar", opt: true, T: 2 /*ScalarType.FLOAT*/ },
+            { no: 54, name: "damping", kind: "scalar", opt: true, T: 2 /*ScalarType.FLOAT*/ },
+            { no: 55, name: "mass", kind: "scalar", opt: true, T: 2 /*ScalarType.FLOAT*/ },
+            { no: 56, name: "bounce", kind: "scalar", opt: true, T: 2 /*ScalarType.FLOAT*/ },
+            { no: 57, name: "spring_type", kind: "enum", opt: true, T: () => ["symbol.bench.SpringType", SpringType, "SPRING_TYPE_"] }
+        ]);
+    }
+    create(value?: PartialMessage<TransitionStyleData>): TransitionStyleData {
+        const message = globalThis.Object.create((this.messagePrototype!));
+        message.metatype = 0;
+        message.id = "";
+        message.mode = 0;
+        message.type = 0;
+        message.orderKey = "";
+        message.ease = [];
+        if (value !== undefined)
+            reflectionMergePartial<TransitionStyleData>(this, message, value);
+        return message;
+    }
+    internalBinaryRead(reader: IBinaryReader, length: number, options: BinaryReadOptions, target?: TransitionStyleData): TransitionStyleData {
+        let message = target ?? this.create(), end = reader.pos + length;
+        while (reader.pos < end) {
+            let [fieldNo, wireType] = reader.tag();
+            switch (fieldNo) {
+                case /* symbol.bench.ObjectType metatype */ 1:
+                    message.metatype = reader.int32();
+                    break;
+                case /* string id */ 2:
+                    message.id = reader.string();
+                    break;
+                case /* optional symbol.bench.NodeReferenceData parent_ptr */ 4:
+                    message.parentPtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.parentPtr);
+                    break;
+                case /* optional symbol.bench.NodeReferenceData bench_ptr */ 5:
+                    message.benchPtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.benchPtr);
+                    break;
+                case /* optional symbol.bench.NodeReferenceData package_ptr */ 9:
+                    message.packagePtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.packagePtr);
+                    break;
+                case /* google.protobuf.Timestamp created_at */ 10:
+                    message.createdAt = Timestamp.internalBinaryRead(reader, reader.uint32(), options, message.createdAt);
+                    break;
+                case /* optional symbol.bench.NodeReferenceData created_by_ptr */ 11:
+                    message.createdByPtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.createdByPtr);
+                    break;
+                case /* google.protobuf.Timestamp updated_at */ 12:
+                    message.updatedAt = Timestamp.internalBinaryRead(reader, reader.uint32(), options, message.updatedAt);
+                    break;
+                case /* optional symbol.bench.NodeReferenceData updated_by_ptr */ 13:
+                    message.updatedByPtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.updatedByPtr);
+                    break;
+                case /* optional google.protobuf.Timestamp archived_at */ 14:
+                    message.archivedAt = Timestamp.internalBinaryRead(reader, reader.uint32(), options, message.archivedAt);
+                    break;
+                case /* optional google.protobuf.Timestamp deleted_at */ 15:
+                    message.deletedAt = Timestamp.internalBinaryRead(reader, reader.uint32(), options, message.deletedAt);
+                    break;
+                case /* optional symbol.bench.NodeReferenceData template_ptr */ 16:
+                    message.templatePtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.templatePtr);
+                    break;
+                case /* symbol.bench.NodeMode mode */ 25:
+                    message.mode = reader.int32();
+                    break;
+                case /* symbol.bench.TransitionType type */ 30:
+                    message.type = reader.int32();
+                    break;
+                case /* optional string name */ 31:
+                    message.name = reader.string();
+                    break;
+                case /* string order_key */ 33:
+                    message.orderKey = reader.string();
+                    break;
+                case /* optional symbol.bench.IconData icon */ 34:
+                    message.icon = IconData.internalBinaryRead(reader, reader.uint32(), options, message.icon);
+                    break;
+                case /* optional symbol.bench.NodeReferenceData definition_ptr */ 35:
+                    message.definitionPtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.definitionPtr);
+                    break;
+                case /* optional symbol.bench.NodeReferenceData style_ptr */ 40:
+                    message.stylePtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.stylePtr);
+                    break;
+                case /* optional symbol.bench.NodeReferenceData field_ptr */ 41:
+                    message.fieldPtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.fieldPtr);
+                    break;
+                case /* optional float delay */ 50:
+                    message.delay = reader.float();
+                    break;
+                case /* optional float duration */ 51:
+                    message.duration = reader.float();
+                    break;
+                case /* repeated float ease */ 52:
+                    if (wireType === WireType.LengthDelimited)
+                        for (let e = reader.int32() + reader.pos; reader.pos < e;)
+                            message.ease.push(reader.float());
+                    else
+                        message.ease.push(reader.float());
+                    break;
+                case /* optional float stiffness */ 53:
+                    message.stiffness = reader.float();
+                    break;
+                case /* optional float damping */ 54:
+                    message.damping = reader.float();
+                    break;
+                case /* optional float mass */ 55:
+                    message.mass = reader.float();
+                    break;
+                case /* optional float bounce */ 56:
+                    message.bounce = reader.float();
+                    break;
+                case /* optional symbol.bench.SpringType spring_type */ 57:
+                    message.springType = reader.int32();
+                    break;
+                default:
+                    let u = options.readUnknownField;
+                    if (u === "throw")
+                        throw new globalThis.Error(`Unknown field ${fieldNo} (wire type ${wireType}) for ${this.typeName}`);
+                    let d = reader.skip(wireType);
+                    if (u !== false)
+                        (u === true ? UnknownFieldHandler.onRead : u)(this.typeName, message, fieldNo, wireType, d);
+            }
+        }
+        return message;
+    }
+    internalBinaryWrite(message: TransitionStyleData, writer: IBinaryWriter, options: BinaryWriteOptions): IBinaryWriter {
+        /* symbol.bench.ObjectType metatype = 1; */
+        if (message.metatype !== 0)
+            writer.tag(1, WireType.Varint).int32(message.metatype);
+        /* string id = 2; */
+        if (message.id !== "")
+            writer.tag(2, WireType.LengthDelimited).string(message.id);
+        /* optional symbol.bench.NodeReferenceData parent_ptr = 4; */
+        if (message.parentPtr)
+            NodeReferenceData.internalBinaryWrite(message.parentPtr, writer.tag(4, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbol.bench.NodeReferenceData bench_ptr = 5; */
+        if (message.benchPtr)
+            NodeReferenceData.internalBinaryWrite(message.benchPtr, writer.tag(5, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbol.bench.NodeReferenceData package_ptr = 9; */
+        if (message.packagePtr)
+            NodeReferenceData.internalBinaryWrite(message.packagePtr, writer.tag(9, WireType.LengthDelimited).fork(), options).join();
+        /* google.protobuf.Timestamp created_at = 10; */
+        if (message.createdAt)
+            Timestamp.internalBinaryWrite(message.createdAt, writer.tag(10, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbol.bench.NodeReferenceData created_by_ptr = 11; */
+        if (message.createdByPtr)
+            NodeReferenceData.internalBinaryWrite(message.createdByPtr, writer.tag(11, WireType.LengthDelimited).fork(), options).join();
+        /* google.protobuf.Timestamp updated_at = 12; */
+        if (message.updatedAt)
+            Timestamp.internalBinaryWrite(message.updatedAt, writer.tag(12, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbol.bench.NodeReferenceData updated_by_ptr = 13; */
+        if (message.updatedByPtr)
+            NodeReferenceData.internalBinaryWrite(message.updatedByPtr, writer.tag(13, WireType.LengthDelimited).fork(), options).join();
+        /* optional google.protobuf.Timestamp archived_at = 14; */
+        if (message.archivedAt)
+            Timestamp.internalBinaryWrite(message.archivedAt, writer.tag(14, WireType.LengthDelimited).fork(), options).join();
+        /* optional google.protobuf.Timestamp deleted_at = 15; */
+        if (message.deletedAt)
+            Timestamp.internalBinaryWrite(message.deletedAt, writer.tag(15, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbol.bench.NodeReferenceData template_ptr = 16; */
+        if (message.templatePtr)
+            NodeReferenceData.internalBinaryWrite(message.templatePtr, writer.tag(16, WireType.LengthDelimited).fork(), options).join();
+        /* symbol.bench.NodeMode mode = 25; */
+        if (message.mode !== 0)
+            writer.tag(25, WireType.Varint).int32(message.mode);
+        /* symbol.bench.TransitionType type = 30; */
+        if (message.type !== 0)
+            writer.tag(30, WireType.Varint).int32(message.type);
+        /* optional string name = 31; */
+        if (message.name !== undefined)
+            writer.tag(31, WireType.LengthDelimited).string(message.name);
+        /* string order_key = 33; */
+        if (message.orderKey !== "")
+            writer.tag(33, WireType.LengthDelimited).string(message.orderKey);
+        /* optional symbol.bench.IconData icon = 34; */
+        if (message.icon)
+            IconData.internalBinaryWrite(message.icon, writer.tag(34, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbol.bench.NodeReferenceData definition_ptr = 35; */
+        if (message.definitionPtr)
+            NodeReferenceData.internalBinaryWrite(message.definitionPtr, writer.tag(35, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbol.bench.NodeReferenceData style_ptr = 40; */
+        if (message.stylePtr)
+            NodeReferenceData.internalBinaryWrite(message.stylePtr, writer.tag(40, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbol.bench.NodeReferenceData field_ptr = 41; */
+        if (message.fieldPtr)
+            NodeReferenceData.internalBinaryWrite(message.fieldPtr, writer.tag(41, WireType.LengthDelimited).fork(), options).join();
+        /* optional float delay = 50; */
+        if (message.delay !== undefined)
+            writer.tag(50, WireType.Bit32).float(message.delay);
+        /* optional float duration = 51; */
+        if (message.duration !== undefined)
+            writer.tag(51, WireType.Bit32).float(message.duration);
+        /* repeated float ease = 52; */
+        if (message.ease.length) {
+            writer.tag(52, WireType.LengthDelimited).fork();
+            for (let i = 0; i < message.ease.length; i++)
+                writer.float(message.ease[i]);
+            writer.join();
+        }
+        /* optional float stiffness = 53; */
+        if (message.stiffness !== undefined)
+            writer.tag(53, WireType.Bit32).float(message.stiffness);
+        /* optional float damping = 54; */
+        if (message.damping !== undefined)
+            writer.tag(54, WireType.Bit32).float(message.damping);
+        /* optional float mass = 55; */
+        if (message.mass !== undefined)
+            writer.tag(55, WireType.Bit32).float(message.mass);
+        /* optional float bounce = 56; */
+        if (message.bounce !== undefined)
+            writer.tag(56, WireType.Bit32).float(message.bounce);
+        /* optional symbol.bench.SpringType spring_type = 57; */
+        if (message.springType !== undefined)
+            writer.tag(57, WireType.Varint).int32(message.springType);
+        let u = options.writeUnknownFields;
+        if (u !== false)
+            (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
+        return writer;
+    }
+}
+/**
+ * @generated MessageType for protobuf message symbol.bench.TransitionStyleData
+ */
+export const TransitionStyleData = new TransitionStyleData$Type();
+// @generated message type with reflection information, may provide speed optimized methods
 class EffectStyleData$Type extends MessageType$<EffectStyleData> {
     constructor() {
         super("symbol.bench.EffectStyleData", [
@@ -30238,17 +30726,22 @@ class EffectStyleData$Type extends MessageType$<EffectStyleData> {
             { no: 33, name: "order_key", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
             { no: 34, name: "icon", kind: "message", T: () => IconData },
             { no: 35, name: "definition_ptr", kind: "message", T: () => NodeReferenceData },
-            { no: 40, name: "style_ptr", kind: "message", T: () => NodeReferenceData },
-            { no: 41, name: "field_ptr", kind: "message", T: () => NodeReferenceData },
+            { no: 41, name: "style_ptr", kind: "message", T: () => NodeReferenceData },
+            { no: 42, name: "field_ptr", kind: "message", T: () => NodeReferenceData },
             { no: 50, name: "opacity", kind: "scalar", opt: true, T: 2 /*ScalarType.FLOAT*/ },
-            { no: 51, name: "offset", kind: "message", T: () => Axis2Data },
+            { no: 51, name: "offset", kind: "message", T: () => Vector2Data },
             { no: 52, name: "scale", kind: "scalar", opt: true, T: 2 /*ScalarType.FLOAT*/ },
             { no: 53, name: "rotate", kind: "message", T: () => Axis3Data },
-            { no: 54, name: "skew", kind: "message", T: () => Axis2Data },
+            { no: 54, name: "skew", kind: "message", T: () => Vector2Data },
             { no: 55, name: "perspective", kind: "scalar", opt: true, T: 2 /*ScalarType.FLOAT*/ },
-            { no: 56, name: "delay", kind: "scalar", opt: true, T: 2 /*ScalarType.FLOAT*/ },
+            { no: 56, name: "delay", kind: "message", T: () => Duration },
             { no: 57, name: "duration", kind: "scalar", opt: true, T: 2 /*ScalarType.FLOAT*/ },
-            { no: 58, name: "threshold", kind: "scalar", opt: true, T: 2 /*ScalarType.FLOAT*/ }
+            { no: 58, name: "threshold", kind: "scalar", opt: true, T: 2 /*ScalarType.FLOAT*/ },
+            { no: 59, name: "once", kind: "scalar", opt: true, T: 8 /*ScalarType.BOOL*/ },
+            { no: 60, name: "repeat", kind: "enum", opt: true, T: () => ["symbol.bench.RepeatType", RepeatType, "REPEAT_TYPE_"] },
+            { no: 61, name: "split", kind: "enum", opt: true, T: () => ["symbol.bench.TextSplitType", TextSplitType, "TEXT_SPLIT_TYPE_"] },
+            { no: 62, name: "offscreen", kind: "enum", opt: true, T: () => ["symbol.bench.OffscreenBehavior", OffscreenBehavior, "OFFSCREEN_BEHAVIOR_"] },
+            { no: 70, name: "transition", kind: "message", T: () => TransitionData }
         ]);
     }
     create(value?: PartialMessage<EffectStyleData>): EffectStyleData {
@@ -30321,17 +30814,17 @@ class EffectStyleData$Type extends MessageType$<EffectStyleData> {
                 case /* optional symbol.bench.NodeReferenceData definition_ptr */ 35:
                     message.definitionPtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.definitionPtr);
                     break;
-                case /* optional symbol.bench.NodeReferenceData style_ptr */ 40:
+                case /* optional symbol.bench.NodeReferenceData style_ptr */ 41:
                     message.stylePtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.stylePtr);
                     break;
-                case /* optional symbol.bench.NodeReferenceData field_ptr */ 41:
+                case /* optional symbol.bench.NodeReferenceData field_ptr */ 42:
                     message.fieldPtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.fieldPtr);
                     break;
                 case /* optional float opacity */ 50:
                     message.opacity = reader.float();
                     break;
-                case /* optional symbol.bench.Axis2Data offset */ 51:
-                    message.offset = Axis2Data.internalBinaryRead(reader, reader.uint32(), options, message.offset);
+                case /* optional symbol.bench.Vector2Data offset */ 51:
+                    message.offset = Vector2Data.internalBinaryRead(reader, reader.uint32(), options, message.offset);
                     break;
                 case /* optional float scale */ 52:
                     message.scale = reader.float();
@@ -30339,20 +30832,35 @@ class EffectStyleData$Type extends MessageType$<EffectStyleData> {
                 case /* optional symbol.bench.Axis3Data rotate */ 53:
                     message.rotate = Axis3Data.internalBinaryRead(reader, reader.uint32(), options, message.rotate);
                     break;
-                case /* optional symbol.bench.Axis2Data skew */ 54:
-                    message.skew = Axis2Data.internalBinaryRead(reader, reader.uint32(), options, message.skew);
+                case /* optional symbol.bench.Vector2Data skew */ 54:
+                    message.skew = Vector2Data.internalBinaryRead(reader, reader.uint32(), options, message.skew);
                     break;
                 case /* optional float perspective */ 55:
                     message.perspective = reader.float();
                     break;
-                case /* optional float delay */ 56:
-                    message.delay = reader.float();
+                case /* optional google.protobuf.Duration delay */ 56:
+                    message.delay = Duration.internalBinaryRead(reader, reader.uint32(), options, message.delay);
                     break;
                 case /* optional float duration */ 57:
                     message.duration = reader.float();
                     break;
                 case /* optional float threshold */ 58:
                     message.threshold = reader.float();
+                    break;
+                case /* optional bool once */ 59:
+                    message.once = reader.bool();
+                    break;
+                case /* optional symbol.bench.RepeatType repeat */ 60:
+                    message.repeat = reader.int32();
+                    break;
+                case /* optional symbol.bench.TextSplitType split */ 61:
+                    message.split = reader.int32();
+                    break;
+                case /* optional symbol.bench.OffscreenBehavior offscreen */ 62:
+                    message.offscreen = reader.int32();
+                    break;
+                case /* optional symbol.bench.TransitionData transition */ 70:
+                    message.transition = TransitionData.internalBinaryRead(reader, reader.uint32(), options, message.transition);
                     break;
                 default:
                     let u = options.readUnknownField;
@@ -30420,39 +30928,54 @@ class EffectStyleData$Type extends MessageType$<EffectStyleData> {
         /* optional symbol.bench.NodeReferenceData definition_ptr = 35; */
         if (message.definitionPtr)
             NodeReferenceData.internalBinaryWrite(message.definitionPtr, writer.tag(35, WireType.LengthDelimited).fork(), options).join();
-        /* optional symbol.bench.NodeReferenceData style_ptr = 40; */
+        /* optional symbol.bench.NodeReferenceData style_ptr = 41; */
         if (message.stylePtr)
-            NodeReferenceData.internalBinaryWrite(message.stylePtr, writer.tag(40, WireType.LengthDelimited).fork(), options).join();
-        /* optional symbol.bench.NodeReferenceData field_ptr = 41; */
+            NodeReferenceData.internalBinaryWrite(message.stylePtr, writer.tag(41, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbol.bench.NodeReferenceData field_ptr = 42; */
         if (message.fieldPtr)
-            NodeReferenceData.internalBinaryWrite(message.fieldPtr, writer.tag(41, WireType.LengthDelimited).fork(), options).join();
+            NodeReferenceData.internalBinaryWrite(message.fieldPtr, writer.tag(42, WireType.LengthDelimited).fork(), options).join();
         /* optional float opacity = 50; */
         if (message.opacity !== undefined)
             writer.tag(50, WireType.Bit32).float(message.opacity);
-        /* optional symbol.bench.Axis2Data offset = 51; */
+        /* optional symbol.bench.Vector2Data offset = 51; */
         if (message.offset)
-            Axis2Data.internalBinaryWrite(message.offset, writer.tag(51, WireType.LengthDelimited).fork(), options).join();
+            Vector2Data.internalBinaryWrite(message.offset, writer.tag(51, WireType.LengthDelimited).fork(), options).join();
         /* optional float scale = 52; */
         if (message.scale !== undefined)
             writer.tag(52, WireType.Bit32).float(message.scale);
         /* optional symbol.bench.Axis3Data rotate = 53; */
         if (message.rotate)
             Axis3Data.internalBinaryWrite(message.rotate, writer.tag(53, WireType.LengthDelimited).fork(), options).join();
-        /* optional symbol.bench.Axis2Data skew = 54; */
+        /* optional symbol.bench.Vector2Data skew = 54; */
         if (message.skew)
-            Axis2Data.internalBinaryWrite(message.skew, writer.tag(54, WireType.LengthDelimited).fork(), options).join();
+            Vector2Data.internalBinaryWrite(message.skew, writer.tag(54, WireType.LengthDelimited).fork(), options).join();
         /* optional float perspective = 55; */
         if (message.perspective !== undefined)
             writer.tag(55, WireType.Bit32).float(message.perspective);
-        /* optional float delay = 56; */
-        if (message.delay !== undefined)
-            writer.tag(56, WireType.Bit32).float(message.delay);
+        /* optional google.protobuf.Duration delay = 56; */
+        if (message.delay)
+            Duration.internalBinaryWrite(message.delay, writer.tag(56, WireType.LengthDelimited).fork(), options).join();
         /* optional float duration = 57; */
         if (message.duration !== undefined)
             writer.tag(57, WireType.Bit32).float(message.duration);
         /* optional float threshold = 58; */
         if (message.threshold !== undefined)
             writer.tag(58, WireType.Bit32).float(message.threshold);
+        /* optional bool once = 59; */
+        if (message.once !== undefined)
+            writer.tag(59, WireType.Varint).bool(message.once);
+        /* optional symbol.bench.RepeatType repeat = 60; */
+        if (message.repeat !== undefined)
+            writer.tag(60, WireType.Varint).int32(message.repeat);
+        /* optional symbol.bench.TextSplitType split = 61; */
+        if (message.split !== undefined)
+            writer.tag(61, WireType.Varint).int32(message.split);
+        /* optional symbol.bench.OffscreenBehavior offscreen = 62; */
+        if (message.offscreen !== undefined)
+            writer.tag(62, WireType.Varint).int32(message.offscreen);
+        /* optional symbol.bench.TransitionData transition = 70; */
+        if (message.transition)
+            TransitionData.internalBinaryWrite(message.transition, writer.tag(70, WireType.LengthDelimited).fork(), options).join();
         let u = options.writeUnknownFields;
         if (u !== false)
             (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
@@ -31135,6 +31658,7 @@ class ThemeData$Type extends MessageType$<ThemeData> {
         super("symbol.bench.ThemeData", [
             { no: 1, name: "metatype", kind: "enum", T: () => ["symbol.bench.ObjectType", ObjectType, "OBJECT_TYPE_"] },
             { no: 2, name: "id", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
+            { no: 3, name: "ck", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
             { no: 4, name: "parent_ptr", kind: "message", T: () => NodeReferenceData },
             { no: 5, name: "bench_ptr", kind: "message", T: () => NodeReferenceData },
             { no: 9, name: "package_ptr", kind: "message", T: () => NodeReferenceData },
@@ -31144,6 +31668,9 @@ class ThemeData$Type extends MessageType$<ThemeData> {
             { no: 13, name: "updated_by_ptr", kind: "message", T: () => NodeReferenceData },
             { no: 14, name: "archived_at", kind: "message", T: () => Timestamp },
             { no: 15, name: "deleted_at", kind: "message", T: () => Timestamp },
+            { no: 16, name: "template_ptr", kind: "message", T: () => NodeReferenceData },
+            { no: 25, name: "mode", kind: "enum", T: () => ["symbol.bench.NodeMode", NodeMode, "NODE_MODE_"] },
+            { no: 31, name: "name", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
             { no: 33, name: "order_key", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
             { no: 34, name: "icon", kind: "message", T: () => IconData },
             { no: 35, name: "definition_ptr", kind: "message", T: () => NodeReferenceData },
@@ -31160,6 +31687,8 @@ class ThemeData$Type extends MessageType$<ThemeData> {
         const message = globalThis.Object.create((this.messagePrototype!));
         message.metatype = 0;
         message.id = "";
+        message.ck = "";
+        message.mode = 0;
         message.orderKey = "";
         if (value !== undefined)
             reflectionMergePartial<ThemeData>(this, message, value);
@@ -31175,6 +31704,9 @@ class ThemeData$Type extends MessageType$<ThemeData> {
                     break;
                 case /* string id */ 2:
                     message.id = reader.string();
+                    break;
+                case /* string ck */ 3:
+                    message.ck = reader.string();
                     break;
                 case /* optional symbol.bench.NodeReferenceData parent_ptr */ 4:
                     message.parentPtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.parentPtr);
@@ -31202,6 +31734,15 @@ class ThemeData$Type extends MessageType$<ThemeData> {
                     break;
                 case /* optional google.protobuf.Timestamp deleted_at */ 15:
                     message.deletedAt = Timestamp.internalBinaryRead(reader, reader.uint32(), options, message.deletedAt);
+                    break;
+                case /* optional symbol.bench.NodeReferenceData template_ptr */ 16:
+                    message.templatePtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.templatePtr);
+                    break;
+                case /* symbol.bench.NodeMode mode */ 25:
+                    message.mode = reader.int32();
+                    break;
+                case /* optional string name */ 31:
+                    message.name = reader.string();
                     break;
                 case /* string order_key */ 33:
                     message.orderKey = reader.string();
@@ -31251,6 +31792,9 @@ class ThemeData$Type extends MessageType$<ThemeData> {
         /* string id = 2; */
         if (message.id !== "")
             writer.tag(2, WireType.LengthDelimited).string(message.id);
+        /* string ck = 3; */
+        if (message.ck !== "")
+            writer.tag(3, WireType.LengthDelimited).string(message.ck);
         /* optional symbol.bench.NodeReferenceData parent_ptr = 4; */
         if (message.parentPtr)
             NodeReferenceData.internalBinaryWrite(message.parentPtr, writer.tag(4, WireType.LengthDelimited).fork(), options).join();
@@ -31278,6 +31822,15 @@ class ThemeData$Type extends MessageType$<ThemeData> {
         /* optional google.protobuf.Timestamp deleted_at = 15; */
         if (message.deletedAt)
             Timestamp.internalBinaryWrite(message.deletedAt, writer.tag(15, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbol.bench.NodeReferenceData template_ptr = 16; */
+        if (message.templatePtr)
+            NodeReferenceData.internalBinaryWrite(message.templatePtr, writer.tag(16, WireType.LengthDelimited).fork(), options).join();
+        /* symbol.bench.NodeMode mode = 25; */
+        if (message.mode !== 0)
+            writer.tag(25, WireType.Varint).int32(message.mode);
+        /* optional string name = 31; */
+        if (message.name !== undefined)
+            writer.tag(31, WireType.LengthDelimited).string(message.name);
         /* string order_key = 33; */
         if (message.orderKey !== "")
             writer.tag(33, WireType.LengthDelimited).string(message.orderKey);
@@ -31318,255 +31871,6 @@ class ThemeData$Type extends MessageType$<ThemeData> {
  * @generated MessageType for protobuf message symbol.bench.ThemeData
  */
 export const ThemeData = new ThemeData$Type();
-// @generated message type with reflection information, may provide speed optimized methods
-class TransitionStyleData$Type extends MessageType$<TransitionStyleData> {
-    constructor() {
-        super("symbol.bench.TransitionStyleData", [
-            { no: 1, name: "metatype", kind: "enum", T: () => ["symbol.bench.ObjectType", ObjectType, "OBJECT_TYPE_"] },
-            { no: 2, name: "id", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
-            { no: 4, name: "parent_ptr", kind: "message", T: () => NodeReferenceData },
-            { no: 5, name: "bench_ptr", kind: "message", T: () => NodeReferenceData },
-            { no: 9, name: "package_ptr", kind: "message", T: () => NodeReferenceData },
-            { no: 10, name: "created_at", kind: "message", T: () => Timestamp },
-            { no: 11, name: "created_by_ptr", kind: "message", T: () => NodeReferenceData },
-            { no: 12, name: "updated_at", kind: "message", T: () => Timestamp },
-            { no: 13, name: "updated_by_ptr", kind: "message", T: () => NodeReferenceData },
-            { no: 14, name: "archived_at", kind: "message", T: () => Timestamp },
-            { no: 15, name: "deleted_at", kind: "message", T: () => Timestamp },
-            { no: 16, name: "template_ptr", kind: "message", T: () => NodeReferenceData },
-            { no: 25, name: "mode", kind: "enum", T: () => ["symbol.bench.NodeMode", NodeMode, "NODE_MODE_"] },
-            { no: 30, name: "type", kind: "enum", T: () => ["symbol.bench.TransitionType", TransitionType, "TRANSITION_TYPE_"] },
-            { no: 31, name: "name", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
-            { no: 33, name: "order_key", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
-            { no: 34, name: "icon", kind: "message", T: () => IconData },
-            { no: 35, name: "definition_ptr", kind: "message", T: () => NodeReferenceData },
-            { no: 40, name: "style_ptr", kind: "message", T: () => NodeReferenceData },
-            { no: 41, name: "field_ptr", kind: "message", T: () => NodeReferenceData },
-            { no: 50, name: "delay", kind: "scalar", opt: true, T: 2 /*ScalarType.FLOAT*/ },
-            { no: 51, name: "duration", kind: "scalar", opt: true, T: 2 /*ScalarType.FLOAT*/ },
-            { no: 52, name: "ease", kind: "scalar", repeat: 1 /*RepeatType.PACKED*/, T: 2 /*ScalarType.FLOAT*/ },
-            { no: 53, name: "stiffness", kind: "scalar", opt: true, T: 2 /*ScalarType.FLOAT*/ },
-            { no: 54, name: "damping", kind: "scalar", opt: true, T: 2 /*ScalarType.FLOAT*/ },
-            { no: 55, name: "mass", kind: "scalar", opt: true, T: 2 /*ScalarType.FLOAT*/ },
-            { no: 56, name: "bounce", kind: "scalar", opt: true, T: 2 /*ScalarType.FLOAT*/ },
-            { no: 57, name: "spring_type", kind: "enum", opt: true, T: () => ["symbol.bench.SpringType", SpringType, "SPRING_TYPE_"] }
-        ]);
-    }
-    create(value?: PartialMessage<TransitionStyleData>): TransitionStyleData {
-        const message = globalThis.Object.create((this.messagePrototype!));
-        message.metatype = 0;
-        message.id = "";
-        message.mode = 0;
-        message.type = 0;
-        message.orderKey = "";
-        message.ease = [];
-        if (value !== undefined)
-            reflectionMergePartial<TransitionStyleData>(this, message, value);
-        return message;
-    }
-    internalBinaryRead(reader: IBinaryReader, length: number, options: BinaryReadOptions, target?: TransitionStyleData): TransitionStyleData {
-        let message = target ?? this.create(), end = reader.pos + length;
-        while (reader.pos < end) {
-            let [fieldNo, wireType] = reader.tag();
-            switch (fieldNo) {
-                case /* symbol.bench.ObjectType metatype */ 1:
-                    message.metatype = reader.int32();
-                    break;
-                case /* string id */ 2:
-                    message.id = reader.string();
-                    break;
-                case /* optional symbol.bench.NodeReferenceData parent_ptr */ 4:
-                    message.parentPtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.parentPtr);
-                    break;
-                case /* optional symbol.bench.NodeReferenceData bench_ptr */ 5:
-                    message.benchPtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.benchPtr);
-                    break;
-                case /* optional symbol.bench.NodeReferenceData package_ptr */ 9:
-                    message.packagePtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.packagePtr);
-                    break;
-                case /* google.protobuf.Timestamp created_at */ 10:
-                    message.createdAt = Timestamp.internalBinaryRead(reader, reader.uint32(), options, message.createdAt);
-                    break;
-                case /* optional symbol.bench.NodeReferenceData created_by_ptr */ 11:
-                    message.createdByPtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.createdByPtr);
-                    break;
-                case /* google.protobuf.Timestamp updated_at */ 12:
-                    message.updatedAt = Timestamp.internalBinaryRead(reader, reader.uint32(), options, message.updatedAt);
-                    break;
-                case /* optional symbol.bench.NodeReferenceData updated_by_ptr */ 13:
-                    message.updatedByPtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.updatedByPtr);
-                    break;
-                case /* optional google.protobuf.Timestamp archived_at */ 14:
-                    message.archivedAt = Timestamp.internalBinaryRead(reader, reader.uint32(), options, message.archivedAt);
-                    break;
-                case /* optional google.protobuf.Timestamp deleted_at */ 15:
-                    message.deletedAt = Timestamp.internalBinaryRead(reader, reader.uint32(), options, message.deletedAt);
-                    break;
-                case /* optional symbol.bench.NodeReferenceData template_ptr */ 16:
-                    message.templatePtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.templatePtr);
-                    break;
-                case /* symbol.bench.NodeMode mode */ 25:
-                    message.mode = reader.int32();
-                    break;
-                case /* symbol.bench.TransitionType type */ 30:
-                    message.type = reader.int32();
-                    break;
-                case /* optional string name */ 31:
-                    message.name = reader.string();
-                    break;
-                case /* string order_key */ 33:
-                    message.orderKey = reader.string();
-                    break;
-                case /* optional symbol.bench.IconData icon */ 34:
-                    message.icon = IconData.internalBinaryRead(reader, reader.uint32(), options, message.icon);
-                    break;
-                case /* optional symbol.bench.NodeReferenceData definition_ptr */ 35:
-                    message.definitionPtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.definitionPtr);
-                    break;
-                case /* optional symbol.bench.NodeReferenceData style_ptr */ 40:
-                    message.stylePtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.stylePtr);
-                    break;
-                case /* optional symbol.bench.NodeReferenceData field_ptr */ 41:
-                    message.fieldPtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.fieldPtr);
-                    break;
-                case /* optional float delay */ 50:
-                    message.delay = reader.float();
-                    break;
-                case /* optional float duration */ 51:
-                    message.duration = reader.float();
-                    break;
-                case /* repeated float ease */ 52:
-                    if (wireType === WireType.LengthDelimited)
-                        for (let e = reader.int32() + reader.pos; reader.pos < e;)
-                            message.ease.push(reader.float());
-                    else
-                        message.ease.push(reader.float());
-                    break;
-                case /* optional float stiffness */ 53:
-                    message.stiffness = reader.float();
-                    break;
-                case /* optional float damping */ 54:
-                    message.damping = reader.float();
-                    break;
-                case /* optional float mass */ 55:
-                    message.mass = reader.float();
-                    break;
-                case /* optional float bounce */ 56:
-                    message.bounce = reader.float();
-                    break;
-                case /* optional symbol.bench.SpringType spring_type */ 57:
-                    message.springType = reader.int32();
-                    break;
-                default:
-                    let u = options.readUnknownField;
-                    if (u === "throw")
-                        throw new globalThis.Error(`Unknown field ${fieldNo} (wire type ${wireType}) for ${this.typeName}`);
-                    let d = reader.skip(wireType);
-                    if (u !== false)
-                        (u === true ? UnknownFieldHandler.onRead : u)(this.typeName, message, fieldNo, wireType, d);
-            }
-        }
-        return message;
-    }
-    internalBinaryWrite(message: TransitionStyleData, writer: IBinaryWriter, options: BinaryWriteOptions): IBinaryWriter {
-        /* symbol.bench.ObjectType metatype = 1; */
-        if (message.metatype !== 0)
-            writer.tag(1, WireType.Varint).int32(message.metatype);
-        /* string id = 2; */
-        if (message.id !== "")
-            writer.tag(2, WireType.LengthDelimited).string(message.id);
-        /* optional symbol.bench.NodeReferenceData parent_ptr = 4; */
-        if (message.parentPtr)
-            NodeReferenceData.internalBinaryWrite(message.parentPtr, writer.tag(4, WireType.LengthDelimited).fork(), options).join();
-        /* optional symbol.bench.NodeReferenceData bench_ptr = 5; */
-        if (message.benchPtr)
-            NodeReferenceData.internalBinaryWrite(message.benchPtr, writer.tag(5, WireType.LengthDelimited).fork(), options).join();
-        /* optional symbol.bench.NodeReferenceData package_ptr = 9; */
-        if (message.packagePtr)
-            NodeReferenceData.internalBinaryWrite(message.packagePtr, writer.tag(9, WireType.LengthDelimited).fork(), options).join();
-        /* google.protobuf.Timestamp created_at = 10; */
-        if (message.createdAt)
-            Timestamp.internalBinaryWrite(message.createdAt, writer.tag(10, WireType.LengthDelimited).fork(), options).join();
-        /* optional symbol.bench.NodeReferenceData created_by_ptr = 11; */
-        if (message.createdByPtr)
-            NodeReferenceData.internalBinaryWrite(message.createdByPtr, writer.tag(11, WireType.LengthDelimited).fork(), options).join();
-        /* google.protobuf.Timestamp updated_at = 12; */
-        if (message.updatedAt)
-            Timestamp.internalBinaryWrite(message.updatedAt, writer.tag(12, WireType.LengthDelimited).fork(), options).join();
-        /* optional symbol.bench.NodeReferenceData updated_by_ptr = 13; */
-        if (message.updatedByPtr)
-            NodeReferenceData.internalBinaryWrite(message.updatedByPtr, writer.tag(13, WireType.LengthDelimited).fork(), options).join();
-        /* optional google.protobuf.Timestamp archived_at = 14; */
-        if (message.archivedAt)
-            Timestamp.internalBinaryWrite(message.archivedAt, writer.tag(14, WireType.LengthDelimited).fork(), options).join();
-        /* optional google.protobuf.Timestamp deleted_at = 15; */
-        if (message.deletedAt)
-            Timestamp.internalBinaryWrite(message.deletedAt, writer.tag(15, WireType.LengthDelimited).fork(), options).join();
-        /* optional symbol.bench.NodeReferenceData template_ptr = 16; */
-        if (message.templatePtr)
-            NodeReferenceData.internalBinaryWrite(message.templatePtr, writer.tag(16, WireType.LengthDelimited).fork(), options).join();
-        /* symbol.bench.NodeMode mode = 25; */
-        if (message.mode !== 0)
-            writer.tag(25, WireType.Varint).int32(message.mode);
-        /* symbol.bench.TransitionType type = 30; */
-        if (message.type !== 0)
-            writer.tag(30, WireType.Varint).int32(message.type);
-        /* optional string name = 31; */
-        if (message.name !== undefined)
-            writer.tag(31, WireType.LengthDelimited).string(message.name);
-        /* string order_key = 33; */
-        if (message.orderKey !== "")
-            writer.tag(33, WireType.LengthDelimited).string(message.orderKey);
-        /* optional symbol.bench.IconData icon = 34; */
-        if (message.icon)
-            IconData.internalBinaryWrite(message.icon, writer.tag(34, WireType.LengthDelimited).fork(), options).join();
-        /* optional symbol.bench.NodeReferenceData definition_ptr = 35; */
-        if (message.definitionPtr)
-            NodeReferenceData.internalBinaryWrite(message.definitionPtr, writer.tag(35, WireType.LengthDelimited).fork(), options).join();
-        /* optional symbol.bench.NodeReferenceData style_ptr = 40; */
-        if (message.stylePtr)
-            NodeReferenceData.internalBinaryWrite(message.stylePtr, writer.tag(40, WireType.LengthDelimited).fork(), options).join();
-        /* optional symbol.bench.NodeReferenceData field_ptr = 41; */
-        if (message.fieldPtr)
-            NodeReferenceData.internalBinaryWrite(message.fieldPtr, writer.tag(41, WireType.LengthDelimited).fork(), options).join();
-        /* optional float delay = 50; */
-        if (message.delay !== undefined)
-            writer.tag(50, WireType.Bit32).float(message.delay);
-        /* optional float duration = 51; */
-        if (message.duration !== undefined)
-            writer.tag(51, WireType.Bit32).float(message.duration);
-        /* repeated float ease = 52; */
-        if (message.ease.length) {
-            writer.tag(52, WireType.LengthDelimited).fork();
-            for (let i = 0; i < message.ease.length; i++)
-                writer.float(message.ease[i]);
-            writer.join();
-        }
-        /* optional float stiffness = 53; */
-        if (message.stiffness !== undefined)
-            writer.tag(53, WireType.Bit32).float(message.stiffness);
-        /* optional float damping = 54; */
-        if (message.damping !== undefined)
-            writer.tag(54, WireType.Bit32).float(message.damping);
-        /* optional float mass = 55; */
-        if (message.mass !== undefined)
-            writer.tag(55, WireType.Bit32).float(message.mass);
-        /* optional float bounce = 56; */
-        if (message.bounce !== undefined)
-            writer.tag(56, WireType.Bit32).float(message.bounce);
-        /* optional symbol.bench.SpringType spring_type = 57; */
-        if (message.springType !== undefined)
-            writer.tag(57, WireType.Varint).int32(message.springType);
-        let u = options.writeUnknownFields;
-        if (u !== false)
-            (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
-        return writer;
-    }
-}
-/**
- * @generated MessageType for protobuf message symbol.bench.TransitionStyleData
- */
-export const TransitionStyleData = new TransitionStyleData$Type();
 // @generated message type with reflection information, may provide speed optimized methods
 class ChoiceData$Type extends MessageType$<ChoiceData> {
     constructor() {
@@ -35579,16 +35883,16 @@ export type JsonValue = JsonPrimitive | { [key: string]: JsonValue } | JsonValue
 
 // Any...
 export type AnyNodeData = BenchData | HandleData | UserData | OrganizationData | ClientData | PackageData | DependencyData | PageData | BlockData | ApplicationData | DatabaseData | ComputerData | ScalerData | ChoiceData | ClassData | FieldData | OptionData | TableData | RecordData | FileData | LinkData | ChannelData | ThreadData | MessageData | NotificationData | TaskData | ClaimData | CursorData | ServiceData | ActionData | FlowData | FlowEdgeData | AgentData | SessionData | RunData | SpanData | InterruptionData | MembershipData | InviteData | TeamData | RoleData | SpaceData | SceneData | RouteData | FrameViewData | LabelViewData | ComponentViewData | SplitViewData | TextViewData | NumberInputViewData | SliderInputViewData | ThreadViewData | WizardViewData | ThemeData | ColorStyleData | FontStyleData | BorderStyleData | ShadowStyleData | GradientStyleData | TransitionStyleData | EffectStyleData | EmptyData
-export type AnyStructData = ContextData | EditContextData | EditData | EditOperationData | ChangeData | ChangeVignetteData | GraphScopeData | ClientOriginData | NodeReferenceData | PropertyReferenceData | TypeData | TypeConstraintData | FileInfoData | ScheduleData | TextData | TextLineData | TextSpanData | CodeData | IconData | ExpressionData | AggregationResultData | SelectionData | SelectOptionsData | ErrorData | RunTraceData | RunFrameData | PolicyData | PolicyRuleData | PolicySubjectData | AccessZoneData | AccessMatrixData | AccessData | ColorData | ShadowData | BorderData | FontData | Vector2Data | Vector3Data | Vector4Data | GradientStopData | GradientData | FillData | LengthData | PositionData | DimensionData | TransitionData | EffectData | GridData | GridSpanData | InsetsData | CornersData | Axis2Data | Axis3Data
+export type AnyStructData = ContextData | EditContextData | EditData | EditOperationData | ChangeData | ChangeVignetteData | GraphScopeData | ClientOriginData | NodeReferenceData | PropertyReferenceData | TypeData | TypeConstraintData | FileInfoData | ScheduleData | TextData | TextLineData | TextSpanData | CodeData | IconData | ExpressionData | AggregationResultData | SelectionData | SelectOptionsData | ErrorData | RunTraceData | RunFrameData | PolicyData | PolicyRuleData | PolicySubjectData | AccessZoneData | AccessMatrixData | AccessData | Vector2Data | Vector3Data | Vector4Data | Axis2Data | Axis3Data | ColorData | ShadowData | BorderData | FontData | GradientStopData | GradientData | FillData | LengthData | PositionData | DimensionData | TransitionData | EffectData | GridData | GridSpanData | InsetsData | CornersData
 export type AnyNodeDataType = typeof BenchData | typeof HandleData | typeof UserData | typeof OrganizationData | typeof ClientData | typeof PackageData | typeof DependencyData | typeof PageData | typeof BlockData | typeof ApplicationData | typeof DatabaseData | typeof ComputerData | typeof ScalerData | typeof ChoiceData | typeof ClassData | typeof FieldData | typeof OptionData | typeof TableData | typeof RecordData | typeof FileData | typeof LinkData | typeof ChannelData | typeof ThreadData | typeof MessageData | typeof NotificationData | typeof TaskData | typeof ClaimData | typeof CursorData | typeof ServiceData | typeof ActionData | typeof FlowData | typeof FlowEdgeData | typeof AgentData | typeof SessionData | typeof RunData | typeof SpanData | typeof InterruptionData | typeof MembershipData | typeof InviteData | typeof TeamData | typeof RoleData | typeof SpaceData | typeof SceneData | typeof RouteData | typeof FrameViewData | typeof LabelViewData | typeof ComponentViewData | typeof SplitViewData | typeof TextViewData | typeof NumberInputViewData | typeof SliderInputViewData | typeof ThreadViewData | typeof WizardViewData | typeof ThemeData | typeof ColorStyleData | typeof FontStyleData | typeof BorderStyleData | typeof ShadowStyleData | typeof GradientStyleData | typeof TransitionStyleData | typeof EffectStyleData | typeof EmptyData
-export type AnyStructDataType = typeof ContextData | typeof EditContextData | typeof EditData | typeof EditOperationData | typeof ChangeData | typeof ChangeVignetteData | typeof GraphScopeData | typeof ClientOriginData | typeof NodeReferenceData | typeof PropertyReferenceData | typeof TypeData | typeof TypeConstraintData | typeof FileInfoData | typeof ScheduleData | typeof TextData | typeof TextLineData | typeof TextSpanData | typeof CodeData | typeof IconData | typeof ExpressionData | typeof AggregationResultData | typeof SelectionData | typeof SelectOptionsData | typeof ErrorData | typeof RunTraceData | typeof RunFrameData | typeof PolicyData | typeof PolicyRuleData | typeof PolicySubjectData | typeof AccessZoneData | typeof AccessMatrixData | typeof AccessData | typeof ColorData | typeof ShadowData | typeof BorderData | typeof FontData | typeof Vector2Data | typeof Vector3Data | typeof Vector4Data | typeof GradientStopData | typeof GradientData | typeof FillData | typeof LengthData | typeof PositionData | typeof DimensionData | typeof TransitionData | typeof EffectData | typeof GridData | typeof GridSpanData | typeof InsetsData | typeof CornersData | typeof Axis2Data | typeof Axis3Data
+export type AnyStructDataType = typeof ContextData | typeof EditContextData | typeof EditData | typeof EditOperationData | typeof ChangeData | typeof ChangeVignetteData | typeof GraphScopeData | typeof ClientOriginData | typeof NodeReferenceData | typeof PropertyReferenceData | typeof TypeData | typeof TypeConstraintData | typeof FileInfoData | typeof ScheduleData | typeof TextData | typeof TextLineData | typeof TextSpanData | typeof CodeData | typeof IconData | typeof ExpressionData | typeof AggregationResultData | typeof SelectionData | typeof SelectOptionsData | typeof ErrorData | typeof RunTraceData | typeof RunFrameData | typeof PolicyData | typeof PolicyRuleData | typeof PolicySubjectData | typeof AccessZoneData | typeof AccessMatrixData | typeof AccessData | typeof Vector2Data | typeof Vector3Data | typeof Vector4Data | typeof Axis2Data | typeof Axis3Data | typeof ColorData | typeof ShadowData | typeof BorderData | typeof FontData | typeof GradientStopData | typeof GradientData | typeof FillData | typeof LengthData | typeof PositionData | typeof DimensionData | typeof TransitionData | typeof EffectData | typeof GridData | typeof GridSpanData | typeof InsetsData | typeof CornersData
 export type BenchNodeData = BenchData | HandleData | PackageData | DependencyData | PageData | BlockData | ApplicationData | DatabaseData | ComputerData | ScalerData | ChoiceData | ClassData | FieldData | OptionData | TableData | RecordData | FileData | LinkData | ChannelData | ThreadData | MessageData | NotificationData | TaskData | ClaimData | CursorData | ServiceData | ActionData | FlowData | FlowEdgeData | AgentData | SessionData | RunData | SpanData | InterruptionData | MembershipData | InviteData | TeamData | RoleData | SpaceData | SceneData | RouteData | FrameViewData | LabelViewData | ComponentViewData | SplitViewData | TextViewData | NumberInputViewData | SliderInputViewData | ThreadViewData | WizardViewData | ThemeData | ColorStyleData | FontStyleData | BorderStyleData | ShadowStyleData | GradientStyleData | TransitionStyleData | EffectStyleData
 export type ClaimableNodeData = PageData | DatabaseData | ComputerData | ScalerData | TableData | RecordData | FileData | LinkData | TaskData | ServiceData | ActionData | FlowData | AgentData
 export type PageNodeData = PageData | ApplicationData | DatabaseData | ComputerData | ScalerData | ChoiceData | ClassData | TableData | FileData | LinkData | ChannelData | ThreadData | TaskData | ServiceData | FlowData | AgentData | TeamData | RoleData | SceneData | RouteData | FrameViewData | LabelViewData | ComponentViewData | SplitViewData | TextViewData | NumberInputViewData | SliderInputViewData | ThreadViewData | WizardViewData | ThemeData | ColorStyleData | FontStyleData | BorderStyleData | ShadowStyleData | GradientStyleData | TransitionStyleData | EffectStyleData
 export type JoinableNodeData = PackageData | ChannelData | ThreadData | TeamData
 export type OwnableNodeData = BenchData | PackageData | PageData | DatabaseData | ComputerData | ScalerData | TableData | RecordData | FileData | LinkData | ThreadData | MessageData | TaskData | ClaimData | CursorData | ServiceData | FlowData | AgentData | SpaceData | SceneData | RouteData
-export type TemplatableNodeData = PackageData | DependencyData | PageData | BlockData | ApplicationData | DatabaseData | ComputerData | ScalerData | ChoiceData | ClassData | FieldData | OptionData | TableData | FileData | LinkData | ChannelData | ThreadData | TaskData | ClaimData | ServiceData | ActionData | FlowData | FlowEdgeData | AgentData | MembershipData | TeamData | RoleData | SpaceData | SceneData | RouteData | FrameViewData | LabelViewData | ComponentViewData | SplitViewData | TextViewData | NumberInputViewData | SliderInputViewData | ThreadViewData | WizardViewData | ColorStyleData | FontStyleData | BorderStyleData | ShadowStyleData | GradientStyleData | TransitionStyleData | EffectStyleData
-export type InstantiableNodeData = ApplicationData | DatabaseData | ComputerData | ScalerData | FieldData | OptionData | TableData | FileData | LinkData | ChannelData | ThreadData | TaskData | ClaimData | ActionData | AgentData | MembershipData | TeamData | SceneData | RouteData | FrameViewData | LabelViewData | ComponentViewData | SplitViewData | TextViewData | NumberInputViewData | SliderInputViewData | ThreadViewData | WizardViewData
+export type TemplatableNodeData = PackageData | DependencyData | PageData | BlockData | ApplicationData | DatabaseData | ComputerData | ScalerData | ChoiceData | ClassData | FieldData | OptionData | TableData | FileData | LinkData | ChannelData | ThreadData | TaskData | ClaimData | ServiceData | ActionData | FlowData | FlowEdgeData | AgentData | MembershipData | TeamData | RoleData | SpaceData | SceneData | RouteData | FrameViewData | LabelViewData | ComponentViewData | SplitViewData | TextViewData | NumberInputViewData | SliderInputViewData | ThreadViewData | WizardViewData | ThemeData | ColorStyleData | FontStyleData | BorderStyleData | ShadowStyleData | GradientStyleData | TransitionStyleData | EffectStyleData
+export type InstantiableNodeData = ApplicationData | DatabaseData | ComputerData | ScalerData | FieldData | OptionData | TableData | FileData | LinkData | ChannelData | ThreadData | TaskData | ClaimData | ActionData | AgentData | MembershipData | TeamData | SceneData | RouteData | FrameViewData | LabelViewData | ComponentViewData | SplitViewData | TextViewData | NumberInputViewData | SliderInputViewData | ThreadViewData | WizardViewData | ThemeData
 export type ProcessableNodeData = ChannelData | ThreadData | TaskData | AgentData | RunData | SpanData
 export type ResourceNodeData = DatabaseData | ComputerData | ScalerData | FileData | LinkData
 export type ProvisionableNodeData = DatabaseData | ComputerData | ScalerData
@@ -35760,6 +36064,7 @@ export const INSTANTIABLE_NODE_TYPES: NodeType[] = [
   NodeType.MEMBERSHIP,
   NodeType.ROUTE,
   NodeType.SCENE,
+  NodeType.THEME,
 ];
 export const LOCAL_NODE_TYPES: NodeType[] = [
   NodeType.RECORD,
@@ -35994,6 +36299,7 @@ export const TEMPLATABLE_NODE_TYPES: NodeType[] = [
   NodeType.MEMBERSHIP,
   NodeType.ROUTE,
   NodeType.SCENE,
+  NodeType.THEME,
   NodeType.FRAME_VIEW,
   NodeType.LABEL_VIEW,
   NodeType.COMPONENT_VIEW,
@@ -36400,13 +36706,15 @@ export const MESSAGE_TYPE_BY_OBJECT_TYPE: Partial<Record<ObjectType, MessageType
   [ObjectType.ACCESS_ZONE]: AccessZoneData,
   [ObjectType.ACCESS_MATRIX]: AccessMatrixData,
   [ObjectType.ACCESS]: AccessData,
+  [ObjectType.VECTOR2]: Vector2Data,
+  [ObjectType.VECTOR3]: Vector3Data,
+  [ObjectType.VECTOR4]: Vector4Data,
+  [ObjectType.AXIS2]: Axis2Data,
+  [ObjectType.AXIS3]: Axis3Data,
   [ObjectType.COLOR]: ColorData,
   [ObjectType.SHADOW]: ShadowData,
   [ObjectType.BORDER]: BorderData,
   [ObjectType.FONT]: FontData,
-  [ObjectType.VECTOR2]: Vector2Data,
-  [ObjectType.VECTOR3]: Vector3Data,
-  [ObjectType.VECTOR4]: Vector4Data,
   [ObjectType.GRADIENT_STOP]: GradientStopData,
   [ObjectType.GRADIENT]: GradientData,
   [ObjectType.FILL]: FillData,
@@ -36419,8 +36727,6 @@ export const MESSAGE_TYPE_BY_OBJECT_TYPE: Partial<Record<ObjectType, MessageType
   [ObjectType.GRID_SPAN]: GridSpanData,
   [ObjectType.INSETS]: InsetsData,
   [ObjectType.CORNERS]: CornersData,
-  [ObjectType.AXIS_2]: Axis2Data,
-  [ObjectType.AXIS_3]: Axis3Data,
 }
 
 export const OBJECT_TYPE_BY_MESSAGE_TYPE_NAME: Record<string, ObjectType> = {
@@ -36518,13 +36824,15 @@ export const OBJECT_TYPE_BY_MESSAGE_TYPE_NAME: Record<string, ObjectType> = {
   ["symbol.bench.AccessZoneData"]: ObjectType.ACCESS_ZONE,
   ["symbol.bench.AccessMatrixData"]: ObjectType.ACCESS_MATRIX,
   ["symbol.bench.AccessData"]: ObjectType.ACCESS,
+  ["symbol.bench.Vector2Data"]: ObjectType.VECTOR2,
+  ["symbol.bench.Vector3Data"]: ObjectType.VECTOR3,
+  ["symbol.bench.Vector4Data"]: ObjectType.VECTOR4,
+  ["symbol.bench.Axis2Data"]: ObjectType.AXIS2,
+  ["symbol.bench.Axis3Data"]: ObjectType.AXIS3,
   ["symbol.bench.ColorData"]: ObjectType.COLOR,
   ["symbol.bench.ShadowData"]: ObjectType.SHADOW,
   ["symbol.bench.BorderData"]: ObjectType.BORDER,
   ["symbol.bench.FontData"]: ObjectType.FONT,
-  ["symbol.bench.Vector2Data"]: ObjectType.VECTOR2,
-  ["symbol.bench.Vector3Data"]: ObjectType.VECTOR3,
-  ["symbol.bench.Vector4Data"]: ObjectType.VECTOR4,
   ["symbol.bench.GradientStopData"]: ObjectType.GRADIENT_STOP,
   ["symbol.bench.GradientData"]: ObjectType.GRADIENT,
   ["symbol.bench.FillData"]: ObjectType.FILL,
@@ -36537,8 +36845,6 @@ export const OBJECT_TYPE_BY_MESSAGE_TYPE_NAME: Record<string, ObjectType> = {
   ["symbol.bench.GridSpanData"]: ObjectType.GRID_SPAN,
   ["symbol.bench.InsetsData"]: ObjectType.INSETS,
   ["symbol.bench.CornersData"]: ObjectType.CORNERS,
-  ["symbol.bench.Axis2Data"]: ObjectType.AXIS_2,
-  ["symbol.bench.Axis3Data"]: ObjectType.AXIS_3,
 }
 
 export const ENUM_BY_TYPE: Record<EnumType, Record<number | string, number | string>> = {
@@ -36651,8 +36957,12 @@ export const ENUM_BY_TYPE: Record<EnumType, Record<number | string, number | str
   [EnumType.OVERFLOW]: Overflow,
   [EnumType.TRANSITION_TYPE]: TransitionType,
   [EnumType.SPRING_TYPE]: SpringType,
-  [EnumType.EFFECT_TYPE]: EffectType,
   [EnumType.DIMENSION_TYPE]: DimensionType,
+  [EnumType.THEME_COLOR]: ThemeColor,
+  [EnumType.EFFECT_TYPE]: EffectType,
+  [EnumType.REPEAT_TYPE]: RepeatType,
+  [EnumType.TEXT_SPLIT_TYPE]: TextSplitType,
+  [EnumType.OFFSCREEN_BEHAVIOR]: OffscreenBehavior,
 }
 
 
@@ -36690,13 +37000,15 @@ export interface StructTypeMapping extends Record<StructType, AnyStructData> {
   [StructType.ACCESS_ZONE]: AccessZoneData,
   [StructType.ACCESS_MATRIX]: AccessMatrixData,
   [StructType.ACCESS]: AccessData,
+  [StructType.VECTOR2]: Vector2Data,
+  [StructType.VECTOR3]: Vector3Data,
+  [StructType.VECTOR4]: Vector4Data,
+  [StructType.AXIS2]: Axis2Data,
+  [StructType.AXIS3]: Axis3Data,
   [StructType.COLOR]: ColorData,
   [StructType.SHADOW]: ShadowData,
   [StructType.BORDER]: BorderData,
   [StructType.FONT]: FontData,
-  [StructType.VECTOR2]: Vector2Data,
-  [StructType.VECTOR3]: Vector3Data,
-  [StructType.VECTOR4]: Vector4Data,
   [StructType.GRADIENT_STOP]: GradientStopData,
   [StructType.GRADIENT]: GradientData,
   [StructType.FILL]: FillData,
@@ -36709,8 +37021,6 @@ export interface StructTypeMapping extends Record<StructType, AnyStructData> {
   [StructType.GRID_SPAN]: GridSpanData,
   [StructType.INSETS]: InsetsData,
   [StructType.CORNERS]: CornersData,
-  [StructType.AXIS_2]: Axis2Data,
-  [StructType.AXIS_3]: Axis3Data,
 }
 
 export interface NodeTypeMapping extends Record<NodeType, AnyNodeData> {
@@ -36873,13 +37183,15 @@ export interface AnyTypeMapping extends Record<ObjectType, AnyStructData | AnyNo
   [ObjectType.ACCESS_ZONE]: AccessZoneData,
   [ObjectType.ACCESS_MATRIX]: AccessMatrixData,
   [ObjectType.ACCESS]: AccessData,
+  [ObjectType.VECTOR2]: Vector2Data,
+  [ObjectType.VECTOR3]: Vector3Data,
+  [ObjectType.VECTOR4]: Vector4Data,
+  [ObjectType.AXIS2]: Axis2Data,
+  [ObjectType.AXIS3]: Axis3Data,
   [ObjectType.COLOR]: ColorData,
   [ObjectType.SHADOW]: ShadowData,
   [ObjectType.BORDER]: BorderData,
   [ObjectType.FONT]: FontData,
-  [ObjectType.VECTOR2]: Vector2Data,
-  [ObjectType.VECTOR3]: Vector3Data,
-  [ObjectType.VECTOR4]: Vector4Data,
   [ObjectType.GRADIENT_STOP]: GradientStopData,
   [ObjectType.GRADIENT]: GradientData,
   [ObjectType.FILL]: FillData,
@@ -36892,8 +37204,6 @@ export interface AnyTypeMapping extends Record<ObjectType, AnyStructData | AnyNo
   [ObjectType.GRID_SPAN]: GridSpanData,
   [ObjectType.INSETS]: InsetsData,
   [ObjectType.CORNERS]: CornersData,
-  [ObjectType.AXIS_2]: Axis2Data,
-  [ObjectType.AXIS_3]: Axis3Data,
 }
 
 export interface EnumTypeMapping extends Record<EnumType, any> {
@@ -37006,8 +37316,12 @@ export interface EnumTypeMapping extends Record<EnumType, any> {
   [EnumType.OVERFLOW]: Overflow,
   [EnumType.TRANSITION_TYPE]: TransitionType,
   [EnumType.SPRING_TYPE]: SpringType,
-  [EnumType.EFFECT_TYPE]: EffectType,
   [EnumType.DIMENSION_TYPE]: DimensionType,
+  [EnumType.THEME_COLOR]: ThemeColor,
+  [EnumType.EFFECT_TYPE]: EffectType,
+  [EnumType.REPEAT_TYPE]: RepeatType,
+  [EnumType.TEXT_SPLIT_TYPE]: TextSplitType,
+  [EnumType.OFFSCREEN_BEHAVIOR]: OffscreenBehavior,
 }
 
 
@@ -38617,6 +38931,7 @@ export enum WizardViewProperty {
 export enum ThemeProperty {
   metatype = 1,
   id = 2,
+  ck = 3,
   parentPtr = 4,
   benchPtr = 5,
   packagePtr = 9,
@@ -38626,6 +38941,9 @@ export enum ThemeProperty {
   updatedByPtr = 13,
   archivedAt = 14,
   deletedAt = 15,
+  templatePtr = 16,
+  mode = 25,
+  name = 31,
   orderKey = 33,
   icon = 34,
   definitionPtr = 35,
@@ -38828,8 +39146,8 @@ export enum EffectStyleProperty {
   orderKey = 33,
   icon = 34,
   definitionPtr = 35,
-  stylePtr = 40,
-  fieldPtr = 41,
+  stylePtr = 41,
+  fieldPtr = 42,
   opacity = 50,
   offset = 51,
   scale = 52,
@@ -38839,6 +39157,11 @@ export enum EffectStyleProperty {
   delay = 56,
   duration = 57,
   threshold = 58,
+  once = 59,
+  repeat = 60,
+  split = 61,
+  offscreen = 62,
+  transition = 70,
 }
 
 export enum EmptyProperty {
@@ -39199,6 +39522,42 @@ export enum AccessProperty {
   allowedPropertiesPtr = 34,
 }
 
+export enum Vector2Property {
+  metatype = 1,
+  x = 30,
+  y = 31,
+}
+
+export enum Vector3Property {
+  metatype = 1,
+  x = 30,
+  y = 31,
+  z = 32,
+}
+
+export enum Vector4Property {
+  metatype = 1,
+  x = 30,
+  y = 31,
+  z = 32,
+  w = 33,
+}
+
+export enum Axis2Property {
+  metatype = 1,
+  base = 40,
+  x = 41,
+  y = 42,
+}
+
+export enum Axis3Property {
+  metatype = 1,
+  base = 40,
+  x = 41,
+  y = 42,
+  z = 43,
+}
+
 export enum ColorProperty {
   metatype = 1,
   type = 30,
@@ -39247,27 +39606,6 @@ export enum FontProperty {
   letterSpacing = 55,
   decoration = 56,
   transform = 57,
-}
-
-export enum Vector2Property {
-  metatype = 1,
-  x = 30,
-  y = 31,
-}
-
-export enum Vector3Property {
-  metatype = 1,
-  x = 30,
-  y = 31,
-  z = 32,
-}
-
-export enum Vector4Property {
-  metatype = 1,
-  x = 30,
-  y = 31,
-  z = 32,
-  w = 33,
 }
 
 export enum GradientStopProperty {
@@ -39334,8 +39672,8 @@ export enum TransitionProperty {
 export enum EffectProperty {
   metatype = 1,
   type = 30,
-  stylePtr = 40,
-  fieldPtr = 41,
+  stylePtr = 41,
+  fieldPtr = 42,
   opacity = 50,
   offset = 51,
   scale = 52,
@@ -39345,6 +39683,11 @@ export enum EffectProperty {
   delay = 56,
   duration = 57,
   threshold = 58,
+  once = 59,
+  repeat = 60,
+  split = 61,
+  offscreen = 62,
+  transition = 70,
 }
 
 export enum GridProperty {
@@ -39380,27 +39723,12 @@ export enum CornersProperty {
   bottomRight = 44,
 }
 
-export enum Axis2Property {
-  metatype = 1,
-  base = 40,
-  x = 41,
-  y = 42,
-}
-
-export enum Axis3Property {
-  metatype = 1,
-  base = 40,
-  x = 41,
-  y = 42,
-  z = 43,
-}
-
 export type AnyNodeProperty = typeof BenchProperty | typeof HandleProperty | typeof UserProperty | typeof OrganizationProperty | typeof ClientProperty | typeof PackageProperty | typeof DependencyProperty | typeof PageProperty | typeof BlockProperty | typeof ApplicationProperty | typeof DatabaseProperty | typeof ComputerProperty | typeof ScalerProperty | typeof ChoiceProperty | typeof ClassProperty | typeof FieldProperty | typeof OptionProperty | typeof TableProperty | typeof RecordProperty | typeof FileProperty | typeof LinkProperty | typeof ChannelProperty | typeof ThreadProperty | typeof MessageProperty | typeof NotificationProperty | typeof TaskProperty | typeof ClaimProperty | typeof CursorProperty | typeof ServiceProperty | typeof ActionProperty | typeof FlowProperty | typeof FlowEdgeProperty | typeof AgentProperty | typeof SessionProperty | typeof RunProperty | typeof SpanProperty | typeof InterruptionProperty | typeof MembershipProperty | typeof InviteProperty | typeof TeamProperty | typeof RoleProperty | typeof SpaceProperty | typeof SceneProperty | typeof RouteProperty | typeof FrameViewProperty | typeof LabelViewProperty | typeof ComponentViewProperty | typeof SplitViewProperty | typeof TextViewProperty | typeof NumberInputViewProperty | typeof SliderInputViewProperty | typeof ThreadViewProperty | typeof WizardViewProperty | typeof ThemeProperty | typeof ColorStyleProperty | typeof FontStyleProperty | typeof BorderStyleProperty | typeof ShadowStyleProperty | typeof GradientStyleProperty | typeof TransitionStyleProperty | typeof EffectStyleProperty | typeof EmptyProperty
-export type AnyStructProperty = typeof ContextProperty | typeof EditContextProperty | typeof EditProperty | typeof EditOperationProperty | typeof ChangeProperty | typeof ChangeVignetteProperty | typeof GraphScopeProperty | typeof ClientOriginProperty | typeof NodeReferenceProperty | typeof PropertyReferenceProperty | typeof TypeProperty | typeof TypeConstraintProperty | typeof FileInfoProperty | typeof ScheduleProperty | typeof TextProperty | typeof TextLineProperty | typeof TextSpanProperty | typeof CodeProperty | typeof IconProperty | typeof ExpressionProperty | typeof AggregationResultProperty | typeof SelectionProperty | typeof SelectOptionsProperty | typeof ErrorProperty | typeof RunTraceProperty | typeof RunFrameProperty | typeof PolicyProperty | typeof PolicyRuleProperty | typeof PolicySubjectProperty | typeof AccessZoneProperty | typeof AccessMatrixProperty | typeof AccessProperty | typeof ColorProperty | typeof ShadowProperty | typeof BorderProperty | typeof FontProperty | typeof Vector2Property | typeof Vector3Property | typeof Vector4Property | typeof GradientStopProperty | typeof GradientProperty | typeof FillProperty | typeof LengthProperty | typeof PositionProperty | typeof DimensionProperty | typeof TransitionProperty | typeof EffectProperty | typeof GridProperty | typeof GridSpanProperty | typeof InsetsProperty | typeof CornersProperty | typeof Axis2Property | typeof Axis3Property
+export type AnyStructProperty = typeof ContextProperty | typeof EditContextProperty | typeof EditProperty | typeof EditOperationProperty | typeof ChangeProperty | typeof ChangeVignetteProperty | typeof GraphScopeProperty | typeof ClientOriginProperty | typeof NodeReferenceProperty | typeof PropertyReferenceProperty | typeof TypeProperty | typeof TypeConstraintProperty | typeof FileInfoProperty | typeof ScheduleProperty | typeof TextProperty | typeof TextLineProperty | typeof TextSpanProperty | typeof CodeProperty | typeof IconProperty | typeof ExpressionProperty | typeof AggregationResultProperty | typeof SelectionProperty | typeof SelectOptionsProperty | typeof ErrorProperty | typeof RunTraceProperty | typeof RunFrameProperty | typeof PolicyProperty | typeof PolicyRuleProperty | typeof PolicySubjectProperty | typeof AccessZoneProperty | typeof AccessMatrixProperty | typeof AccessProperty | typeof Vector2Property | typeof Vector3Property | typeof Vector4Property | typeof Axis2Property | typeof Axis3Property | typeof ColorProperty | typeof ShadowProperty | typeof BorderProperty | typeof FontProperty | typeof GradientStopProperty | typeof GradientProperty | typeof FillProperty | typeof LengthProperty | typeof PositionProperty | typeof DimensionProperty | typeof TransitionProperty | typeof EffectProperty | typeof GridProperty | typeof GridSpanProperty | typeof InsetsProperty | typeof CornersProperty
 export type AnyProperty = AnyNodeProperty | AnyStructProperty
 export type AnyNodePropertyType = typeof BenchProperty | typeof HandleProperty | typeof UserProperty | typeof OrganizationProperty | typeof ClientProperty | typeof PackageProperty | typeof DependencyProperty | typeof PageProperty | typeof BlockProperty | typeof ApplicationProperty | typeof DatabaseProperty | typeof ComputerProperty | typeof ScalerProperty | typeof ChoiceProperty | typeof ClassProperty | typeof FieldProperty | typeof OptionProperty | typeof TableProperty | typeof RecordProperty | typeof FileProperty | typeof LinkProperty | typeof ChannelProperty | typeof ThreadProperty | typeof MessageProperty | typeof NotificationProperty | typeof TaskProperty | typeof ClaimProperty | typeof CursorProperty | typeof ServiceProperty | typeof ActionProperty | typeof FlowProperty | typeof FlowEdgeProperty | typeof AgentProperty | typeof SessionProperty | typeof RunProperty | typeof SpanProperty | typeof InterruptionProperty | typeof MembershipProperty | typeof InviteProperty | typeof TeamProperty | typeof RoleProperty | typeof SpaceProperty | typeof SceneProperty | typeof RouteProperty | typeof FrameViewProperty | typeof LabelViewProperty | typeof ComponentViewProperty | typeof SplitViewProperty | typeof TextViewProperty | typeof NumberInputViewProperty | typeof SliderInputViewProperty | typeof ThreadViewProperty | typeof WizardViewProperty | typeof ThemeProperty | typeof ColorStyleProperty | typeof FontStyleProperty | typeof BorderStyleProperty | typeof ShadowStyleProperty | typeof GradientStyleProperty | typeof TransitionStyleProperty | typeof EffectStyleProperty | typeof EmptyProperty
-export type AnyStructPropertyType = typeof ContextProperty | typeof EditContextProperty | typeof EditProperty | typeof EditOperationProperty | typeof ChangeProperty | typeof ChangeVignetteProperty | typeof GraphScopeProperty | typeof ClientOriginProperty | typeof NodeReferenceProperty | typeof PropertyReferenceProperty | typeof TypeProperty | typeof TypeConstraintProperty | typeof FileInfoProperty | typeof ScheduleProperty | typeof TextProperty | typeof TextLineProperty | typeof TextSpanProperty | typeof CodeProperty | typeof IconProperty | typeof ExpressionProperty | typeof AggregationResultProperty | typeof SelectionProperty | typeof SelectOptionsProperty | typeof ErrorProperty | typeof RunTraceProperty | typeof RunFrameProperty | typeof PolicyProperty | typeof PolicyRuleProperty | typeof PolicySubjectProperty | typeof AccessZoneProperty | typeof AccessMatrixProperty | typeof AccessProperty | typeof ColorProperty | typeof ShadowProperty | typeof BorderProperty | typeof FontProperty | typeof Vector2Property | typeof Vector3Property | typeof Vector4Property | typeof GradientStopProperty | typeof GradientProperty | typeof FillProperty | typeof LengthProperty | typeof PositionProperty | typeof DimensionProperty | typeof TransitionProperty | typeof EffectProperty | typeof GridProperty | typeof GridSpanProperty | typeof InsetsProperty | typeof CornersProperty | typeof Axis2Property | typeof Axis3Property
-export type AnyPropertyType = typeof BenchProperty | typeof HandleProperty | typeof UserProperty | typeof OrganizationProperty | typeof ClientProperty | typeof PackageProperty | typeof DependencyProperty | typeof PageProperty | typeof BlockProperty | typeof ApplicationProperty | typeof DatabaseProperty | typeof ComputerProperty | typeof ScalerProperty | typeof ChoiceProperty | typeof ClassProperty | typeof FieldProperty | typeof OptionProperty | typeof TableProperty | typeof RecordProperty | typeof FileProperty | typeof LinkProperty | typeof ChannelProperty | typeof ThreadProperty | typeof MessageProperty | typeof NotificationProperty | typeof TaskProperty | typeof ClaimProperty | typeof CursorProperty | typeof ServiceProperty | typeof ActionProperty | typeof FlowProperty | typeof FlowEdgeProperty | typeof AgentProperty | typeof SessionProperty | typeof RunProperty | typeof SpanProperty | typeof InterruptionProperty | typeof MembershipProperty | typeof InviteProperty | typeof TeamProperty | typeof RoleProperty | typeof SpaceProperty | typeof SceneProperty | typeof RouteProperty | typeof FrameViewProperty | typeof LabelViewProperty | typeof ComponentViewProperty | typeof SplitViewProperty | typeof TextViewProperty | typeof NumberInputViewProperty | typeof SliderInputViewProperty | typeof ThreadViewProperty | typeof WizardViewProperty | typeof ThemeProperty | typeof ColorStyleProperty | typeof FontStyleProperty | typeof BorderStyleProperty | typeof ShadowStyleProperty | typeof GradientStyleProperty | typeof TransitionStyleProperty | typeof EffectStyleProperty | typeof EmptyProperty | typeof ContextProperty | typeof EditContextProperty | typeof EditProperty | typeof EditOperationProperty | typeof ChangeProperty | typeof ChangeVignetteProperty | typeof GraphScopeProperty | typeof ClientOriginProperty | typeof NodeReferenceProperty | typeof PropertyReferenceProperty | typeof TypeProperty | typeof TypeConstraintProperty | typeof FileInfoProperty | typeof ScheduleProperty | typeof TextProperty | typeof TextLineProperty | typeof TextSpanProperty | typeof CodeProperty | typeof IconProperty | typeof ExpressionProperty | typeof AggregationResultProperty | typeof SelectionProperty | typeof SelectOptionsProperty | typeof ErrorProperty | typeof RunTraceProperty | typeof RunFrameProperty | typeof PolicyProperty | typeof PolicyRuleProperty | typeof PolicySubjectProperty | typeof AccessZoneProperty | typeof AccessMatrixProperty | typeof AccessProperty | typeof ColorProperty | typeof ShadowProperty | typeof BorderProperty | typeof FontProperty | typeof Vector2Property | typeof Vector3Property | typeof Vector4Property | typeof GradientStopProperty | typeof GradientProperty | typeof FillProperty | typeof LengthProperty | typeof PositionProperty | typeof DimensionProperty | typeof TransitionProperty | typeof EffectProperty | typeof GridProperty | typeof GridSpanProperty | typeof InsetsProperty | typeof CornersProperty | typeof Axis2Property | typeof Axis3Property
+export type AnyStructPropertyType = typeof ContextProperty | typeof EditContextProperty | typeof EditProperty | typeof EditOperationProperty | typeof ChangeProperty | typeof ChangeVignetteProperty | typeof GraphScopeProperty | typeof ClientOriginProperty | typeof NodeReferenceProperty | typeof PropertyReferenceProperty | typeof TypeProperty | typeof TypeConstraintProperty | typeof FileInfoProperty | typeof ScheduleProperty | typeof TextProperty | typeof TextLineProperty | typeof TextSpanProperty | typeof CodeProperty | typeof IconProperty | typeof ExpressionProperty | typeof AggregationResultProperty | typeof SelectionProperty | typeof SelectOptionsProperty | typeof ErrorProperty | typeof RunTraceProperty | typeof RunFrameProperty | typeof PolicyProperty | typeof PolicyRuleProperty | typeof PolicySubjectProperty | typeof AccessZoneProperty | typeof AccessMatrixProperty | typeof AccessProperty | typeof Vector2Property | typeof Vector3Property | typeof Vector4Property | typeof Axis2Property | typeof Axis3Property | typeof ColorProperty | typeof ShadowProperty | typeof BorderProperty | typeof FontProperty | typeof GradientStopProperty | typeof GradientProperty | typeof FillProperty | typeof LengthProperty | typeof PositionProperty | typeof DimensionProperty | typeof TransitionProperty | typeof EffectProperty | typeof GridProperty | typeof GridSpanProperty | typeof InsetsProperty | typeof CornersProperty
+export type AnyPropertyType = typeof BenchProperty | typeof HandleProperty | typeof UserProperty | typeof OrganizationProperty | typeof ClientProperty | typeof PackageProperty | typeof DependencyProperty | typeof PageProperty | typeof BlockProperty | typeof ApplicationProperty | typeof DatabaseProperty | typeof ComputerProperty | typeof ScalerProperty | typeof ChoiceProperty | typeof ClassProperty | typeof FieldProperty | typeof OptionProperty | typeof TableProperty | typeof RecordProperty | typeof FileProperty | typeof LinkProperty | typeof ChannelProperty | typeof ThreadProperty | typeof MessageProperty | typeof NotificationProperty | typeof TaskProperty | typeof ClaimProperty | typeof CursorProperty | typeof ServiceProperty | typeof ActionProperty | typeof FlowProperty | typeof FlowEdgeProperty | typeof AgentProperty | typeof SessionProperty | typeof RunProperty | typeof SpanProperty | typeof InterruptionProperty | typeof MembershipProperty | typeof InviteProperty | typeof TeamProperty | typeof RoleProperty | typeof SpaceProperty | typeof SceneProperty | typeof RouteProperty | typeof FrameViewProperty | typeof LabelViewProperty | typeof ComponentViewProperty | typeof SplitViewProperty | typeof TextViewProperty | typeof NumberInputViewProperty | typeof SliderInputViewProperty | typeof ThreadViewProperty | typeof WizardViewProperty | typeof ThemeProperty | typeof ColorStyleProperty | typeof FontStyleProperty | typeof BorderStyleProperty | typeof ShadowStyleProperty | typeof GradientStyleProperty | typeof TransitionStyleProperty | typeof EffectStyleProperty | typeof EmptyProperty | typeof ContextProperty | typeof EditContextProperty | typeof EditProperty | typeof EditOperationProperty | typeof ChangeProperty | typeof ChangeVignetteProperty | typeof GraphScopeProperty | typeof ClientOriginProperty | typeof NodeReferenceProperty | typeof PropertyReferenceProperty | typeof TypeProperty | typeof TypeConstraintProperty | typeof FileInfoProperty | typeof ScheduleProperty | typeof TextProperty | typeof TextLineProperty | typeof TextSpanProperty | typeof CodeProperty | typeof IconProperty | typeof ExpressionProperty | typeof AggregationResultProperty | typeof SelectionProperty | typeof SelectOptionsProperty | typeof ErrorProperty | typeof RunTraceProperty | typeof RunFrameProperty | typeof PolicyProperty | typeof PolicyRuleProperty | typeof PolicySubjectProperty | typeof AccessZoneProperty | typeof AccessMatrixProperty | typeof AccessProperty | typeof Vector2Property | typeof Vector3Property | typeof Vector4Property | typeof Axis2Property | typeof Axis3Property | typeof ColorProperty | typeof ShadowProperty | typeof BorderProperty | typeof FontProperty | typeof GradientStopProperty | typeof GradientProperty | typeof FillProperty | typeof LengthProperty | typeof PositionProperty | typeof DimensionProperty | typeof TransitionProperty | typeof EffectProperty | typeof GridProperty | typeof GridSpanProperty | typeof InsetsProperty | typeof CornersProperty
 export const NODE_PROPERTY_ENUM_BY_TYPE: Partial<Record<ObjectType, AnyNodePropertyType>> = {
   [ObjectType.BENCH]: BenchProperty,
   [ObjectType.HANDLE]: HandleProperty,
@@ -39499,13 +39827,15 @@ export const STRUCT_PROPERTY_ENUM_BY_TYPE: Partial<Record<ObjectType, AnyStructP
   [ObjectType.ACCESS_ZONE]: AccessZoneProperty,
   [ObjectType.ACCESS_MATRIX]: AccessMatrixProperty,
   [ObjectType.ACCESS]: AccessProperty,
+  [ObjectType.VECTOR2]: Vector2Property,
+  [ObjectType.VECTOR3]: Vector3Property,
+  [ObjectType.VECTOR4]: Vector4Property,
+  [ObjectType.AXIS2]: Axis2Property,
+  [ObjectType.AXIS3]: Axis3Property,
   [ObjectType.COLOR]: ColorProperty,
   [ObjectType.SHADOW]: ShadowProperty,
   [ObjectType.BORDER]: BorderProperty,
   [ObjectType.FONT]: FontProperty,
-  [ObjectType.VECTOR2]: Vector2Property,
-  [ObjectType.VECTOR3]: Vector3Property,
-  [ObjectType.VECTOR4]: Vector4Property,
   [ObjectType.GRADIENT_STOP]: GradientStopProperty,
   [ObjectType.GRADIENT]: GradientProperty,
   [ObjectType.FILL]: FillProperty,
@@ -39518,8 +39848,6 @@ export const STRUCT_PROPERTY_ENUM_BY_TYPE: Partial<Record<ObjectType, AnyStructP
   [ObjectType.GRID_SPAN]: GridSpanProperty,
   [ObjectType.INSETS]: InsetsProperty,
   [ObjectType.CORNERS]: CornersProperty,
-  [ObjectType.AXIS_2]: Axis2Property,
-  [ObjectType.AXIS_3]: Axis3Property,
 }
 
 export const PROPERTY_ENUM_BY_TYPE: Partial<Record<ObjectType, AnyPropertyType>> = {
@@ -39617,13 +39945,15 @@ export const PROPERTY_ENUM_BY_TYPE: Partial<Record<ObjectType, AnyPropertyType>>
   [ObjectType.ACCESS_ZONE]: AccessZoneProperty,
   [ObjectType.ACCESS_MATRIX]: AccessMatrixProperty,
   [ObjectType.ACCESS]: AccessProperty,
+  [ObjectType.VECTOR2]: Vector2Property,
+  [ObjectType.VECTOR3]: Vector3Property,
+  [ObjectType.VECTOR4]: Vector4Property,
+  [ObjectType.AXIS2]: Axis2Property,
+  [ObjectType.AXIS3]: Axis3Property,
   [ObjectType.COLOR]: ColorProperty,
   [ObjectType.SHADOW]: ShadowProperty,
   [ObjectType.BORDER]: BorderProperty,
   [ObjectType.FONT]: FontProperty,
-  [ObjectType.VECTOR2]: Vector2Property,
-  [ObjectType.VECTOR3]: Vector3Property,
-  [ObjectType.VECTOR4]: Vector4Property,
   [ObjectType.GRADIENT_STOP]: GradientStopProperty,
   [ObjectType.GRADIENT]: GradientProperty,
   [ObjectType.FILL]: FillProperty,
@@ -39636,8 +39966,6 @@ export const PROPERTY_ENUM_BY_TYPE: Partial<Record<ObjectType, AnyPropertyType>>
   [ObjectType.GRID_SPAN]: GridSpanProperty,
   [ObjectType.INSETS]: InsetsProperty,
   [ObjectType.CORNERS]: CornersProperty,
-  [ObjectType.AXIS_2]: Axis2Property,
-  [ObjectType.AXIS_3]: Axis3Property,
 }
 
 
@@ -39928,7 +40256,7 @@ export const DatabaseDataInfo: Record<DatabaseProperty, PropertyInfo> = {
   [DatabaseProperty.failedAt]: { id: 47, name: 'failed_at', component: ObjectType.DATABASE, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
   [DatabaseProperty.failedAttempts]: { id: 48, name: 'failed_attempts', component: ObjectType.DATABASE, kind: 'primitive', primitiveType: PrimitiveType.INT32, default: 0, isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
   [DatabaseProperty.scalerPtr]: { id: 49, name: 'scaler_ptr', component: ObjectType.DATABASE, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.SCALER], referenceStruct: StructType.NODE_REFERENCE },
-  [DatabaseProperty.version]: { id: 60, name: 'version', component: ObjectType.DATABASE, kind: 'primitive', primitiveType: PrimitiveType.STRING, default: "2025.05.15.4", isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
+  [DatabaseProperty.version]: { id: 60, name: 'version', component: ObjectType.DATABASE, kind: 'primitive', primitiveType: PrimitiveType.STRING, default: "2025.05.16.0", isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
   [DatabaseProperty.externalName]: { id: 62, name: 'external_name', component: ObjectType.DATABASE, kind: 'primitive', primitiveType: PrimitiveType.STRING, isInternal: true, isSystem: true, isKernel: true, isRuntime: true, isWired: true, isStored: true, isSensitive: true },
   [DatabaseProperty.externalId]: { id: 63, name: 'external_id', component: ObjectType.DATABASE, kind: 'primitive', primitiveType: PrimitiveType.STRING, isInternal: true, isSystem: true, isKernel: true, isRuntime: true, isWired: true, isStored: true, isSensitive: true },
   [DatabaseProperty.sqlUrl]: { id: 64, name: 'sql_url', component: ObjectType.DATABASE, kind: 'primitive', primitiveType: PrimitiveType.STRING, isInternal: true, isSystem: true, isKernel: true, isRuntime: true, isWired: true, isStored: true, isDeferred: true, isSensitive: true },
@@ -39966,7 +40294,7 @@ export const ComputerDataInfo: Record<ComputerProperty, PropertyInfo> = {
   [ComputerProperty.failedAt]: { id: 47, name: 'failed_at', component: ObjectType.COMPUTER, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
   [ComputerProperty.failedAttempts]: { id: 48, name: 'failed_attempts', component: ObjectType.COMPUTER, kind: 'primitive', primitiveType: PrimitiveType.INT32, default: 0, isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
   [ComputerProperty.scalerPtr]: { id: 49, name: 'scaler_ptr', component: ObjectType.COMPUTER, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.SCALER], referenceStruct: StructType.NODE_REFERENCE },
-  [ComputerProperty.version]: { id: 60, name: 'version', component: ObjectType.COMPUTER, kind: 'primitive', primitiveType: PrimitiveType.STRING, default: "2025.05.15.4", isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
+  [ComputerProperty.version]: { id: 60, name: 'version', component: ObjectType.COMPUTER, kind: 'primitive', primitiveType: PrimitiveType.STRING, default: "2025.05.16.0", isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
   [ComputerProperty.externalName]: { id: 62, name: 'external_name', component: ObjectType.COMPUTER, kind: 'primitive', primitiveType: PrimitiveType.STRING, isInternal: true, isSystem: true, isKernel: true, isRuntime: true, isWired: true, isStored: true, isSensitive: true },
   [ComputerProperty.externalId]: { id: 63, name: 'external_id', component: ObjectType.COMPUTER, kind: 'primitive', primitiveType: PrimitiveType.STRING, isInternal: true, isSystem: true, isKernel: true, isRuntime: true, isWired: true, isStored: true, isSensitive: true },
   [ComputerProperty.imageId]: { id: 64, name: 'image_id', component: ObjectType.COMPUTER, kind: 'primitive', primitiveType: PrimitiveType.STRING, isInternal: true, isSystem: true, isKernel: true, isRuntime: true, isWired: true, isStored: true, isSensitive: true },
@@ -40939,7 +41267,7 @@ export const FrameViewDataInfo: Record<FrameViewProperty, PropertyInfo> = {
   [FrameViewProperty.direction]: { id: 51, name: 'direction', component: ObjectType.FRAME_VIEW, enumType: EnumType.DIRECTION, kind: 'enum', primitiveType: PrimitiveType.INT16, isRuntime: true, isWired: true, isStored: true },
   [FrameViewProperty.distribute]: { id: 52, name: 'distribute', component: ObjectType.FRAME_VIEW, enumType: EnumType.DISTRIBUTE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRuntime: true, isWired: true, isStored: true },
   [FrameViewProperty.align]: { id: 53, name: 'align', component: ObjectType.FRAME_VIEW, enumType: EnumType.ALIGN, kind: 'enum', primitiveType: PrimitiveType.INT16, isRuntime: true, isWired: true, isStored: true },
-  [FrameViewProperty.gap]: { id: 54, name: 'gap', component: ObjectType.FRAME_VIEW, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.AXIS_2 },
+  [FrameViewProperty.gap]: { id: 54, name: 'gap', component: ObjectType.FRAME_VIEW, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.AXIS2 },
   [FrameViewProperty.padding]: { id: 55, name: 'padding', component: ObjectType.FRAME_VIEW, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.INSETS },
   [FrameViewProperty.grid]: { id: 56, name: 'grid', component: ObjectType.FRAME_VIEW, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.GRID },
   [FrameViewProperty.gridSpan]: { id: 57, name: 'grid_span', component: ObjectType.FRAME_VIEW, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.GRID_SPAN },
@@ -40948,7 +41276,7 @@ export const FrameViewDataInfo: Record<FrameViewProperty, PropertyInfo> = {
   [FrameViewProperty.visible]: { id: 60, name: 'visible', component: ObjectType.FRAME_VIEW, kind: 'primitive', primitiveType: PrimitiveType.BOOLEAN, isRuntime: true, isWired: true, isStored: true },
   [FrameViewProperty.opacity]: { id: 61, name: 'opacity', component: ObjectType.FRAME_VIEW, kind: 'primitive', primitiveType: PrimitiveType.FLOAT32, isRuntime: true, isWired: true, isStored: true },
   [FrameViewProperty.fill]: { id: 62, name: 'fill', component: ObjectType.FRAME_VIEW, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.FILL },
-  [FrameViewProperty.rotation]: { id: 63, name: 'rotation', component: ObjectType.FRAME_VIEW, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.AXIS_3 },
+  [FrameViewProperty.rotation]: { id: 63, name: 'rotation', component: ObjectType.FRAME_VIEW, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.AXIS3 },
   [FrameViewProperty.shadow]: { id: 64, name: 'shadow', component: ObjectType.FRAME_VIEW, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.SHADOW },
   [FrameViewProperty.border]: { id: 65, name: 'border', component: ObjectType.FRAME_VIEW, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.BORDER },
   [FrameViewProperty.radius]: { id: 66, name: 'radius', component: ObjectType.FRAME_VIEW, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.CORNERS },
@@ -40983,7 +41311,7 @@ export const LabelViewDataInfo: Record<LabelViewProperty, PropertyInfo> = {
   [LabelViewProperty.direction]: { id: 51, name: 'direction', component: ObjectType.LABEL_VIEW, enumType: EnumType.DIRECTION, kind: 'enum', primitiveType: PrimitiveType.INT16, isRuntime: true, isWired: true, isStored: true },
   [LabelViewProperty.distribute]: { id: 52, name: 'distribute', component: ObjectType.LABEL_VIEW, enumType: EnumType.DISTRIBUTE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRuntime: true, isWired: true, isStored: true },
   [LabelViewProperty.align]: { id: 53, name: 'align', component: ObjectType.LABEL_VIEW, enumType: EnumType.ALIGN, kind: 'enum', primitiveType: PrimitiveType.INT16, isRuntime: true, isWired: true, isStored: true },
-  [LabelViewProperty.gap]: { id: 54, name: 'gap', component: ObjectType.LABEL_VIEW, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.AXIS_2 },
+  [LabelViewProperty.gap]: { id: 54, name: 'gap', component: ObjectType.LABEL_VIEW, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.AXIS2 },
   [LabelViewProperty.padding]: { id: 55, name: 'padding', component: ObjectType.LABEL_VIEW, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.INSETS },
   [LabelViewProperty.grid]: { id: 56, name: 'grid', component: ObjectType.LABEL_VIEW, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.GRID },
   [LabelViewProperty.gridSpan]: { id: 57, name: 'grid_span', component: ObjectType.LABEL_VIEW, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.GRID_SPAN },
@@ -40992,7 +41320,7 @@ export const LabelViewDataInfo: Record<LabelViewProperty, PropertyInfo> = {
   [LabelViewProperty.visible]: { id: 60, name: 'visible', component: ObjectType.LABEL_VIEW, kind: 'primitive', primitiveType: PrimitiveType.BOOLEAN, isRuntime: true, isWired: true, isStored: true },
   [LabelViewProperty.opacity]: { id: 61, name: 'opacity', component: ObjectType.LABEL_VIEW, kind: 'primitive', primitiveType: PrimitiveType.FLOAT32, isRuntime: true, isWired: true, isStored: true },
   [LabelViewProperty.fill]: { id: 62, name: 'fill', component: ObjectType.LABEL_VIEW, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.FILL },
-  [LabelViewProperty.rotation]: { id: 63, name: 'rotation', component: ObjectType.LABEL_VIEW, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.AXIS_3 },
+  [LabelViewProperty.rotation]: { id: 63, name: 'rotation', component: ObjectType.LABEL_VIEW, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.AXIS3 },
   [LabelViewProperty.shadow]: { id: 64, name: 'shadow', component: ObjectType.LABEL_VIEW, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.SHADOW },
   [LabelViewProperty.border]: { id: 65, name: 'border', component: ObjectType.LABEL_VIEW, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.BORDER },
   [LabelViewProperty.radius]: { id: 66, name: 'radius', component: ObjectType.LABEL_VIEW, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.CORNERS },
@@ -41027,7 +41355,7 @@ export const ComponentViewDataInfo: Record<ComponentViewProperty, PropertyInfo> 
   [ComponentViewProperty.direction]: { id: 51, name: 'direction', component: ObjectType.COMPONENT_VIEW, enumType: EnumType.DIRECTION, kind: 'enum', primitiveType: PrimitiveType.INT16, isRuntime: true, isWired: true, isStored: true },
   [ComponentViewProperty.distribute]: { id: 52, name: 'distribute', component: ObjectType.COMPONENT_VIEW, enumType: EnumType.DISTRIBUTE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRuntime: true, isWired: true, isStored: true },
   [ComponentViewProperty.align]: { id: 53, name: 'align', component: ObjectType.COMPONENT_VIEW, enumType: EnumType.ALIGN, kind: 'enum', primitiveType: PrimitiveType.INT16, isRuntime: true, isWired: true, isStored: true },
-  [ComponentViewProperty.gap]: { id: 54, name: 'gap', component: ObjectType.COMPONENT_VIEW, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.AXIS_2 },
+  [ComponentViewProperty.gap]: { id: 54, name: 'gap', component: ObjectType.COMPONENT_VIEW, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.AXIS2 },
   [ComponentViewProperty.padding]: { id: 55, name: 'padding', component: ObjectType.COMPONENT_VIEW, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.INSETS },
   [ComponentViewProperty.grid]: { id: 56, name: 'grid', component: ObjectType.COMPONENT_VIEW, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.GRID },
   [ComponentViewProperty.gridSpan]: { id: 57, name: 'grid_span', component: ObjectType.COMPONENT_VIEW, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.GRID_SPAN },
@@ -41036,7 +41364,7 @@ export const ComponentViewDataInfo: Record<ComponentViewProperty, PropertyInfo> 
   [ComponentViewProperty.visible]: { id: 60, name: 'visible', component: ObjectType.COMPONENT_VIEW, kind: 'primitive', primitiveType: PrimitiveType.BOOLEAN, isRuntime: true, isWired: true, isStored: true },
   [ComponentViewProperty.opacity]: { id: 61, name: 'opacity', component: ObjectType.COMPONENT_VIEW, kind: 'primitive', primitiveType: PrimitiveType.FLOAT32, isRuntime: true, isWired: true, isStored: true },
   [ComponentViewProperty.fill]: { id: 62, name: 'fill', component: ObjectType.COMPONENT_VIEW, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.FILL },
-  [ComponentViewProperty.rotation]: { id: 63, name: 'rotation', component: ObjectType.COMPONENT_VIEW, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.AXIS_3 },
+  [ComponentViewProperty.rotation]: { id: 63, name: 'rotation', component: ObjectType.COMPONENT_VIEW, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.AXIS3 },
   [ComponentViewProperty.shadow]: { id: 64, name: 'shadow', component: ObjectType.COMPONENT_VIEW, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.SHADOW },
   [ComponentViewProperty.border]: { id: 65, name: 'border', component: ObjectType.COMPONENT_VIEW, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.BORDER },
   [ComponentViewProperty.radius]: { id: 66, name: 'radius', component: ObjectType.COMPONENT_VIEW, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.CORNERS },
@@ -41071,7 +41399,7 @@ export const SplitViewDataInfo: Record<SplitViewProperty, PropertyInfo> = {
   [SplitViewProperty.direction]: { id: 51, name: 'direction', component: ObjectType.SPLIT_VIEW, enumType: EnumType.DIRECTION, kind: 'enum', primitiveType: PrimitiveType.INT16, isRuntime: true, isWired: true, isStored: true },
   [SplitViewProperty.distribute]: { id: 52, name: 'distribute', component: ObjectType.SPLIT_VIEW, enumType: EnumType.DISTRIBUTE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRuntime: true, isWired: true, isStored: true },
   [SplitViewProperty.align]: { id: 53, name: 'align', component: ObjectType.SPLIT_VIEW, enumType: EnumType.ALIGN, kind: 'enum', primitiveType: PrimitiveType.INT16, isRuntime: true, isWired: true, isStored: true },
-  [SplitViewProperty.gap]: { id: 54, name: 'gap', component: ObjectType.SPLIT_VIEW, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.AXIS_2 },
+  [SplitViewProperty.gap]: { id: 54, name: 'gap', component: ObjectType.SPLIT_VIEW, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.AXIS2 },
   [SplitViewProperty.padding]: { id: 55, name: 'padding', component: ObjectType.SPLIT_VIEW, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.INSETS },
   [SplitViewProperty.grid]: { id: 56, name: 'grid', component: ObjectType.SPLIT_VIEW, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.GRID },
   [SplitViewProperty.gridSpan]: { id: 57, name: 'grid_span', component: ObjectType.SPLIT_VIEW, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.GRID_SPAN },
@@ -41080,7 +41408,7 @@ export const SplitViewDataInfo: Record<SplitViewProperty, PropertyInfo> = {
   [SplitViewProperty.visible]: { id: 60, name: 'visible', component: ObjectType.SPLIT_VIEW, kind: 'primitive', primitiveType: PrimitiveType.BOOLEAN, isRuntime: true, isWired: true, isStored: true },
   [SplitViewProperty.opacity]: { id: 61, name: 'opacity', component: ObjectType.SPLIT_VIEW, kind: 'primitive', primitiveType: PrimitiveType.FLOAT32, isRuntime: true, isWired: true, isStored: true },
   [SplitViewProperty.fill]: { id: 62, name: 'fill', component: ObjectType.SPLIT_VIEW, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.FILL },
-  [SplitViewProperty.rotation]: { id: 63, name: 'rotation', component: ObjectType.SPLIT_VIEW, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.AXIS_3 },
+  [SplitViewProperty.rotation]: { id: 63, name: 'rotation', component: ObjectType.SPLIT_VIEW, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.AXIS3 },
   [SplitViewProperty.shadow]: { id: 64, name: 'shadow', component: ObjectType.SPLIT_VIEW, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.SHADOW },
   [SplitViewProperty.border]: { id: 65, name: 'border', component: ObjectType.SPLIT_VIEW, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.BORDER },
   [SplitViewProperty.radius]: { id: 66, name: 'radius', component: ObjectType.SPLIT_VIEW, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.CORNERS },
@@ -41239,6 +41567,7 @@ export const WizardViewDataInfo: Record<WizardViewProperty, PropertyInfo> = {
 export const ThemeDataInfo: Record<ThemeProperty, PropertyInfo> = {
   [ThemeProperty.metatype]: { id: 1, name: 'metatype', component: ObjectType.THEME, enumType: EnumType.OBJECT_TYPE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isInternal: true, isComputed: true, isWired: true },
   [ThemeProperty.id]: { id: 2, name: 'id', component: ObjectType.THEME, kind: 'primitive', primitiveType: PrimitiveType.UUID, isRequired: true, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
+  [ThemeProperty.ck]: { id: 3, name: 'ck', component: ObjectType.THEME, kind: 'primitive', primitiveType: PrimitiveType.UUID, isRequired: true, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
   [ThemeProperty.parentPtr]: { id: 4, name: 'parent_ptr', component: ObjectType.THEME, kind: 'reference', isInternal: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_PARENT, referenceNodes: [NodeType.PAGE], referenceStruct: StructType.NODE_REFERENCE },
   [ThemeProperty.benchPtr]: { id: 5, name: 'bench_ptr', component: ObjectType.THEME, kind: 'reference', isInternal: true, isComputed: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_ANCESTOR_OR_SELF, referenceNodes: [NodeType.BENCH], referenceStruct: StructType.NODE_REFERENCE },
   [ThemeProperty.packagePtr]: { id: 9, name: 'package_ptr', component: ObjectType.THEME, kind: 'reference', isInternal: true, isComputed: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_ANCESTOR_OR_SELF, referenceNodes: [NodeType.PACKAGE], referenceStruct: StructType.NODE_REFERENCE },
@@ -41248,6 +41577,9 @@ export const ThemeDataInfo: Record<ThemeProperty, PropertyInfo> = {
   [ThemeProperty.updatedByPtr]: { id: 13, name: 'updated_by_ptr', component: ObjectType.THEME, kind: 'reference', isAutoset: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.USER, NodeType.ORGANIZATION, NodeType.COMPUTER, NodeType.AGENT], referenceStruct: StructType.NODE_REFERENCE },
   [ThemeProperty.archivedAt]: { id: 14, name: 'archived_at', component: ObjectType.THEME, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
   [ThemeProperty.deletedAt]: { id: 15, name: 'deleted_at', component: ObjectType.THEME, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
+  [ThemeProperty.templatePtr]: { id: 16, name: 'template_ptr', component: ObjectType.THEME, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_TEMPLATE, referenceNodes: [NodeType.THEME], referenceStruct: StructType.NODE_REFERENCE },
+  [ThemeProperty.mode]: { id: 25, name: 'mode', component: ObjectType.THEME, enumType: EnumType.NODE_MODE, kind: 'enum', primitiveType: PrimitiveType.INT16, default: 20, isRequired: true, isInternal: true, isRuntime: true, isWired: true, isStored: true },
+  [ThemeProperty.name]: { id: 31, name: 'name', component: ObjectType.THEME, kind: 'primitive', primitiveType: PrimitiveType.STRING, constraint: { minLength: 0, maxLength: 128, nodeTypes: [] }, isRuntime: true, isWired: true, isStored: true },
   [ThemeProperty.orderKey]: { id: 33, name: 'order_key', component: ObjectType.THEME, kind: 'primitive', primitiveType: PrimitiveType.STRING, default: "a0", isRequired: true, isInternal: true, isRuntime: true, isWired: true, isStored: true },
   [ThemeProperty.icon]: { id: 34, name: 'icon', component: ObjectType.THEME, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.ICON },
   [ThemeProperty.definitionPtr]: { id: 35, name: 'definition_ptr', component: ObjectType.THEME, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.BLOCK], referenceStruct: StructType.NODE_REFERENCE },
@@ -41365,7 +41697,7 @@ export const ShadowStyleDataInfo: Record<ShadowStyleProperty, PropertyInfo> = {
   [ShadowStyleProperty.fieldPtr]: { id: 41, name: 'field_ptr', component: ObjectType.SHADOW_STYLE, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.FIELD], referenceStruct: StructType.NODE_REFERENCE },
   [ShadowStyleProperty.color]: { id: 50, name: 'color', component: ObjectType.SHADOW_STYLE, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.COLOR },
   [ShadowStyleProperty.position]: { id: 51, name: 'position', component: ObjectType.SHADOW_STYLE, enumType: EnumType.SHADOW_POSITION, kind: 'enum', primitiveType: PrimitiveType.INT16, default: 1, isRequired: true, isRuntime: true, isWired: true, isStored: true },
-  [ShadowStyleProperty.offset]: { id: 52, name: 'offset', component: ObjectType.SHADOW_STYLE, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.AXIS_2 },
+  [ShadowStyleProperty.offset]: { id: 52, name: 'offset', component: ObjectType.SHADOW_STYLE, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.AXIS2 },
   [ShadowStyleProperty.blur]: { id: 53, name: 'blur', component: ObjectType.SHADOW_STYLE, kind: 'primitive', primitiveType: PrimitiveType.INT32, isRuntime: true, isWired: true, isStored: true },
   [ShadowStyleProperty.spread]: { id: 54, name: 'spread', component: ObjectType.SHADOW_STYLE, kind: 'primitive', primitiveType: PrimitiveType.INT32, isRuntime: true, isWired: true, isStored: true },
   [ShadowStyleProperty.diffusion]: { id: 55, name: 'diffusion', component: ObjectType.SHADOW_STYLE, kind: 'primitive', primitiveType: PrimitiveType.FLOAT32, isRuntime: true, isWired: true, isStored: true },
@@ -41391,7 +41723,7 @@ export const GradientStyleDataInfo: Record<GradientStyleProperty, PropertyInfo> 
   [GradientStyleProperty.definitionPtr]: { id: 35, name: 'definition_ptr', component: ObjectType.GRADIENT_STYLE, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.BLOCK], referenceStruct: StructType.NODE_REFERENCE },
   [GradientStyleProperty.angle]: { id: 40, name: 'angle', component: ObjectType.GRADIENT_STYLE, kind: 'primitive', primitiveType: PrimitiveType.FLOAT32, isRuntime: true, isWired: true, isStored: true },
   [GradientStyleProperty.stops]: { id: 41, name: 'stops', component: ObjectType.GRADIENT_STYLE, kind: 'reference', primitiveType: PrimitiveType.JSON, isList: true, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.GRADIENT_STOP },
-  [GradientStyleProperty.centerAnchor]: { id: 42, name: 'center_anchor', component: ObjectType.GRADIENT_STYLE, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.AXIS_2 },
+  [GradientStyleProperty.centerAnchor]: { id: 42, name: 'center_anchor', component: ObjectType.GRADIENT_STYLE, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.AXIS2 },
   [GradientStyleProperty.dark]: { id: 60, name: 'dark', component: ObjectType.GRADIENT_STYLE, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.GRADIENT },
 }
 export const TransitionStyleDataInfo: Record<TransitionStyleProperty, PropertyInfo> = {
@@ -41438,22 +41770,27 @@ export const EffectStyleDataInfo: Record<EffectStyleProperty, PropertyInfo> = {
   [EffectStyleProperty.deletedAt]: { id: 15, name: 'deleted_at', component: ObjectType.EFFECT_STYLE, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
   [EffectStyleProperty.templatePtr]: { id: 16, name: 'template_ptr', component: ObjectType.EFFECT_STYLE, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_TEMPLATE, referenceNodes: [NodeType.EFFECT_STYLE], referenceStruct: StructType.NODE_REFERENCE },
   [EffectStyleProperty.mode]: { id: 25, name: 'mode', component: ObjectType.EFFECT_STYLE, enumType: EnumType.NODE_MODE, kind: 'enum', primitiveType: PrimitiveType.INT16, default: 20, isRequired: true, isInternal: true, isRuntime: true, isWired: true, isStored: true },
-  [EffectStyleProperty.type]: { id: 30, name: 'type', component: ObjectType.EFFECT_STYLE, enumType: EnumType.EFFECT_TYPE, kind: 'enum', primitiveType: PrimitiveType.INT16, default: 10, isRequired: true, isRuntime: true, isWired: true, isStored: true },
+  [EffectStyleProperty.type]: { id: 30, name: 'type', component: ObjectType.EFFECT_STYLE, enumType: EnumType.EFFECT_TYPE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isRuntime: true, isWired: true, isStored: true },
   [EffectStyleProperty.name]: { id: 31, name: 'name', component: ObjectType.EFFECT_STYLE, kind: 'primitive', primitiveType: PrimitiveType.STRING, constraint: { minLength: 0, maxLength: 128, nodeTypes: [] }, isRuntime: true, isWired: true, isStored: true },
   [EffectStyleProperty.orderKey]: { id: 33, name: 'order_key', component: ObjectType.EFFECT_STYLE, kind: 'primitive', primitiveType: PrimitiveType.STRING, default: "a0", isRequired: true, isInternal: true, isRuntime: true, isWired: true, isStored: true },
   [EffectStyleProperty.icon]: { id: 34, name: 'icon', component: ObjectType.EFFECT_STYLE, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.ICON },
   [EffectStyleProperty.definitionPtr]: { id: 35, name: 'definition_ptr', component: ObjectType.EFFECT_STYLE, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.BLOCK], referenceStruct: StructType.NODE_REFERENCE },
-  [EffectStyleProperty.stylePtr]: { id: 40, name: 'style_ptr', component: ObjectType.EFFECT_STYLE, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.EFFECT_STYLE], referenceStruct: StructType.NODE_REFERENCE },
-  [EffectStyleProperty.fieldPtr]: { id: 41, name: 'field_ptr', component: ObjectType.EFFECT_STYLE, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.FIELD], referenceStruct: StructType.NODE_REFERENCE },
+  [EffectStyleProperty.stylePtr]: { id: 41, name: 'style_ptr', component: ObjectType.EFFECT_STYLE, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.EFFECT_STYLE], referenceStruct: StructType.NODE_REFERENCE },
+  [EffectStyleProperty.fieldPtr]: { id: 42, name: 'field_ptr', component: ObjectType.EFFECT_STYLE, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.FIELD], referenceStruct: StructType.NODE_REFERENCE },
   [EffectStyleProperty.opacity]: { id: 50, name: 'opacity', component: ObjectType.EFFECT_STYLE, kind: 'primitive', primitiveType: PrimitiveType.FLOAT32, isRuntime: true, isWired: true, isStored: true },
-  [EffectStyleProperty.offset]: { id: 51, name: 'offset', component: ObjectType.EFFECT_STYLE, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.AXIS_2 },
+  [EffectStyleProperty.offset]: { id: 51, name: 'offset', component: ObjectType.EFFECT_STYLE, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.VECTOR2 },
   [EffectStyleProperty.scale]: { id: 52, name: 'scale', component: ObjectType.EFFECT_STYLE, kind: 'primitive', primitiveType: PrimitiveType.FLOAT32, isRuntime: true, isWired: true, isStored: true },
-  [EffectStyleProperty.rotate]: { id: 53, name: 'rotate', component: ObjectType.EFFECT_STYLE, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.AXIS_3 },
-  [EffectStyleProperty.skew]: { id: 54, name: 'skew', component: ObjectType.EFFECT_STYLE, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.AXIS_2 },
+  [EffectStyleProperty.rotate]: { id: 53, name: 'rotate', component: ObjectType.EFFECT_STYLE, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.AXIS3 },
+  [EffectStyleProperty.skew]: { id: 54, name: 'skew', component: ObjectType.EFFECT_STYLE, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.AXIS2 },
   [EffectStyleProperty.perspective]: { id: 55, name: 'perspective', component: ObjectType.EFFECT_STYLE, kind: 'primitive', primitiveType: PrimitiveType.FLOAT32, isRuntime: true, isWired: true, isStored: true },
-  [EffectStyleProperty.delay]: { id: 56, name: 'delay', component: ObjectType.EFFECT_STYLE, kind: 'primitive', primitiveType: PrimitiveType.FLOAT32, isRuntime: true, isWired: true, isStored: true },
+  [EffectStyleProperty.delay]: { id: 56, name: 'delay', component: ObjectType.EFFECT_STYLE, kind: 'primitive', primitiveType: PrimitiveType.DURATION, isRuntime: true, isWired: true, isStored: true },
   [EffectStyleProperty.duration]: { id: 57, name: 'duration', component: ObjectType.EFFECT_STYLE, kind: 'primitive', primitiveType: PrimitiveType.FLOAT32, isRuntime: true, isWired: true, isStored: true },
   [EffectStyleProperty.threshold]: { id: 58, name: 'threshold', component: ObjectType.EFFECT_STYLE, kind: 'primitive', primitiveType: PrimitiveType.FLOAT32, isRuntime: true, isWired: true, isStored: true },
+  [EffectStyleProperty.once]: { id: 59, name: 'once', component: ObjectType.EFFECT_STYLE, kind: 'primitive', primitiveType: PrimitiveType.BOOLEAN, isRuntime: true, isWired: true, isStored: true },
+  [EffectStyleProperty.repeat]: { id: 60, name: 'repeat', component: ObjectType.EFFECT_STYLE, enumType: EnumType.REPEAT_TYPE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRuntime: true, isWired: true, isStored: true },
+  [EffectStyleProperty.split]: { id: 61, name: 'split', component: ObjectType.EFFECT_STYLE, enumType: EnumType.TEXT_SPLIT_TYPE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRuntime: true, isWired: true, isStored: true },
+  [EffectStyleProperty.offscreen]: { id: 62, name: 'offscreen', component: ObjectType.EFFECT_STYLE, enumType: EnumType.OFFSCREEN_BEHAVIOR, kind: 'enum', primitiveType: PrimitiveType.INT16, isRuntime: true, isWired: true, isStored: true },
+  [EffectStyleProperty.transition]: { id: 70, name: 'transition', component: ObjectType.EFFECT_STYLE, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.TRANSITION },
 }
 export const EmptyDataInfo: Record<EmptyProperty, PropertyInfo> = {
   [EmptyProperty.metatype]: { id: 1, name: 'metatype', component: ObjectType.EMPTY, enumType: EnumType.OBJECT_TYPE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isInternal: true, isComputed: true, isWired: true },
@@ -41780,6 +42117,37 @@ export const AccessDataInfo: Record<AccessProperty, PropertyInfo> = {
   [AccessProperty.nodeType]: { id: 33, name: 'node_type', component: ObjectType.ACCESS, enumType: EnumType.NODE_TYPE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
   [AccessProperty.allowedPropertiesPtr]: { id: 34, name: 'allowed_properties_ptr', component: ObjectType.ACCESS, kind: 'primitive', primitiveType: PrimitiveType.JSON, isList: true, isInternal: true, isRuntime: true, isWired: true, isStored: true, referenceStruct: StructType.PROPERTY_REFERENCE },
 }
+export const Vector2DataInfo: Record<Vector2Property, PropertyInfo> = {
+  [Vector2Property.metatype]: { id: 1, name: 'metatype', component: ObjectType.VECTOR2, enumType: EnumType.OBJECT_TYPE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isInternal: true, isComputed: true, isWired: true },
+  [Vector2Property.x]: { id: 30, name: 'x', component: ObjectType.VECTOR2, kind: 'primitive', primitiveType: PrimitiveType.FLOAT32, isRequired: true, isRuntime: true, isWired: true, isStored: true },
+  [Vector2Property.y]: { id: 31, name: 'y', component: ObjectType.VECTOR2, kind: 'primitive', primitiveType: PrimitiveType.FLOAT32, isRequired: true, isRuntime: true, isWired: true, isStored: true },
+}
+export const Vector3DataInfo: Record<Vector3Property, PropertyInfo> = {
+  [Vector3Property.metatype]: { id: 1, name: 'metatype', component: ObjectType.VECTOR3, enumType: EnumType.OBJECT_TYPE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isInternal: true, isComputed: true, isWired: true },
+  [Vector3Property.x]: { id: 30, name: 'x', component: ObjectType.VECTOR3, kind: 'primitive', primitiveType: PrimitiveType.FLOAT32, isRequired: true, isRuntime: true, isWired: true, isStored: true },
+  [Vector3Property.y]: { id: 31, name: 'y', component: ObjectType.VECTOR3, kind: 'primitive', primitiveType: PrimitiveType.FLOAT32, isRequired: true, isRuntime: true, isWired: true, isStored: true },
+  [Vector3Property.z]: { id: 32, name: 'z', component: ObjectType.VECTOR3, kind: 'primitive', primitiveType: PrimitiveType.FLOAT32, isRequired: true, isRuntime: true, isWired: true, isStored: true },
+}
+export const Vector4DataInfo: Record<Vector4Property, PropertyInfo> = {
+  [Vector4Property.metatype]: { id: 1, name: 'metatype', component: ObjectType.VECTOR4, enumType: EnumType.OBJECT_TYPE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isInternal: true, isComputed: true, isWired: true },
+  [Vector4Property.x]: { id: 30, name: 'x', component: ObjectType.VECTOR4, kind: 'primitive', primitiveType: PrimitiveType.FLOAT32, isRequired: true, isRuntime: true, isWired: true, isStored: true },
+  [Vector4Property.y]: { id: 31, name: 'y', component: ObjectType.VECTOR4, kind: 'primitive', primitiveType: PrimitiveType.FLOAT32, isRequired: true, isRuntime: true, isWired: true, isStored: true },
+  [Vector4Property.z]: { id: 32, name: 'z', component: ObjectType.VECTOR4, kind: 'primitive', primitiveType: PrimitiveType.FLOAT32, isRequired: true, isRuntime: true, isWired: true, isStored: true },
+  [Vector4Property.w]: { id: 33, name: 'w', component: ObjectType.VECTOR4, kind: 'primitive', primitiveType: PrimitiveType.FLOAT32, isRequired: true, isRuntime: true, isWired: true, isStored: true },
+}
+export const Axis2DataInfo: Record<Axis2Property, PropertyInfo> = {
+  [Axis2Property.metatype]: { id: 1, name: 'metatype', component: ObjectType.AXIS2, enumType: EnumType.OBJECT_TYPE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isInternal: true, isComputed: true, isWired: true },
+  [Axis2Property.base]: { id: 40, name: 'base', component: ObjectType.AXIS2, kind: 'primitive', primitiveType: PrimitiveType.FLOAT32, isRuntime: true, isWired: true, isStored: true },
+  [Axis2Property.x]: { id: 41, name: 'x', component: ObjectType.AXIS2, kind: 'primitive', primitiveType: PrimitiveType.FLOAT32, isRuntime: true, isWired: true, isStored: true },
+  [Axis2Property.y]: { id: 42, name: 'y', component: ObjectType.AXIS2, kind: 'primitive', primitiveType: PrimitiveType.FLOAT32, isRuntime: true, isWired: true, isStored: true },
+}
+export const Axis3DataInfo: Record<Axis3Property, PropertyInfo> = {
+  [Axis3Property.metatype]: { id: 1, name: 'metatype', component: ObjectType.AXIS3, enumType: EnumType.OBJECT_TYPE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isInternal: true, isComputed: true, isWired: true },
+  [Axis3Property.base]: { id: 40, name: 'base', component: ObjectType.AXIS3, kind: 'primitive', primitiveType: PrimitiveType.FLOAT32, isRuntime: true, isWired: true, isStored: true },
+  [Axis3Property.x]: { id: 41, name: 'x', component: ObjectType.AXIS3, kind: 'primitive', primitiveType: PrimitiveType.FLOAT32, isRuntime: true, isWired: true, isStored: true },
+  [Axis3Property.y]: { id: 42, name: 'y', component: ObjectType.AXIS3, kind: 'primitive', primitiveType: PrimitiveType.FLOAT32, isRuntime: true, isWired: true, isStored: true },
+  [Axis3Property.z]: { id: 43, name: 'z', component: ObjectType.AXIS3, kind: 'primitive', primitiveType: PrimitiveType.FLOAT32, isRuntime: true, isWired: true, isStored: true },
+}
 export const ColorDataInfo: Record<ColorProperty, PropertyInfo> = {
   [ColorProperty.metatype]: { id: 1, name: 'metatype', component: ObjectType.COLOR, enumType: EnumType.OBJECT_TYPE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isInternal: true, isComputed: true, isWired: true },
   [ColorProperty.type]: { id: 30, name: 'type', component: ObjectType.COLOR, enumType: EnumType.COLOR_TYPE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isRuntime: true, isWired: true, isStored: true },
@@ -41799,7 +42167,7 @@ export const ShadowDataInfo: Record<ShadowProperty, PropertyInfo> = {
   [ShadowProperty.fieldPtr]: { id: 41, name: 'field_ptr', component: ObjectType.SHADOW, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.FIELD], referenceStruct: StructType.NODE_REFERENCE },
   [ShadowProperty.color]: { id: 50, name: 'color', component: ObjectType.SHADOW, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.COLOR },
   [ShadowProperty.position]: { id: 51, name: 'position', component: ObjectType.SHADOW, enumType: EnumType.SHADOW_POSITION, kind: 'enum', primitiveType: PrimitiveType.INT16, default: 1, isRequired: true, isRuntime: true, isWired: true, isStored: true },
-  [ShadowProperty.offset]: { id: 52, name: 'offset', component: ObjectType.SHADOW, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.AXIS_2 },
+  [ShadowProperty.offset]: { id: 52, name: 'offset', component: ObjectType.SHADOW, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.AXIS2 },
   [ShadowProperty.blur]: { id: 53, name: 'blur', component: ObjectType.SHADOW, kind: 'primitive', primitiveType: PrimitiveType.INT32, isRuntime: true, isWired: true, isStored: true },
   [ShadowProperty.spread]: { id: 54, name: 'spread', component: ObjectType.SHADOW, kind: 'primitive', primitiveType: PrimitiveType.INT32, isRuntime: true, isWired: true, isStored: true },
   [ShadowProperty.diffusion]: { id: 55, name: 'diffusion', component: ObjectType.SHADOW, kind: 'primitive', primitiveType: PrimitiveType.FLOAT32, isRuntime: true, isWired: true, isStored: true },
@@ -41826,24 +42194,6 @@ export const FontDataInfo: Record<FontProperty, PropertyInfo> = {
   [FontProperty.decoration]: { id: 56, name: 'decoration', component: ObjectType.FONT, enumType: EnumType.TEXT_DECORATION, kind: 'enum', primitiveType: PrimitiveType.INT16, default: 1, isRuntime: true, isWired: true, isStored: true },
   [FontProperty.transform]: { id: 57, name: 'transform', component: ObjectType.FONT, enumType: EnumType.TEXT_TRANSFORM, kind: 'enum', primitiveType: PrimitiveType.INT16, default: 1, isRuntime: true, isWired: true, isStored: true },
 }
-export const Vector2DataInfo: Record<Vector2Property, PropertyInfo> = {
-  [Vector2Property.metatype]: { id: 1, name: 'metatype', component: ObjectType.VECTOR2, enumType: EnumType.OBJECT_TYPE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isInternal: true, isComputed: true, isWired: true },
-  [Vector2Property.x]: { id: 30, name: 'x', component: ObjectType.VECTOR2, kind: 'primitive', primitiveType: PrimitiveType.FLOAT32, isRequired: true, isRuntime: true, isWired: true, isStored: true },
-  [Vector2Property.y]: { id: 31, name: 'y', component: ObjectType.VECTOR2, kind: 'primitive', primitiveType: PrimitiveType.FLOAT32, isRequired: true, isRuntime: true, isWired: true, isStored: true },
-}
-export const Vector3DataInfo: Record<Vector3Property, PropertyInfo> = {
-  [Vector3Property.metatype]: { id: 1, name: 'metatype', component: ObjectType.VECTOR3, enumType: EnumType.OBJECT_TYPE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isInternal: true, isComputed: true, isWired: true },
-  [Vector3Property.x]: { id: 30, name: 'x', component: ObjectType.VECTOR3, kind: 'primitive', primitiveType: PrimitiveType.FLOAT32, isRequired: true, isRuntime: true, isWired: true, isStored: true },
-  [Vector3Property.y]: { id: 31, name: 'y', component: ObjectType.VECTOR3, kind: 'primitive', primitiveType: PrimitiveType.FLOAT32, isRequired: true, isRuntime: true, isWired: true, isStored: true },
-  [Vector3Property.z]: { id: 32, name: 'z', component: ObjectType.VECTOR3, kind: 'primitive', primitiveType: PrimitiveType.FLOAT32, isRequired: true, isRuntime: true, isWired: true, isStored: true },
-}
-export const Vector4DataInfo: Record<Vector4Property, PropertyInfo> = {
-  [Vector4Property.metatype]: { id: 1, name: 'metatype', component: ObjectType.VECTOR4, enumType: EnumType.OBJECT_TYPE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isInternal: true, isComputed: true, isWired: true },
-  [Vector4Property.x]: { id: 30, name: 'x', component: ObjectType.VECTOR4, kind: 'primitive', primitiveType: PrimitiveType.FLOAT32, isRequired: true, isRuntime: true, isWired: true, isStored: true },
-  [Vector4Property.y]: { id: 31, name: 'y', component: ObjectType.VECTOR4, kind: 'primitive', primitiveType: PrimitiveType.FLOAT32, isRequired: true, isRuntime: true, isWired: true, isStored: true },
-  [Vector4Property.z]: { id: 32, name: 'z', component: ObjectType.VECTOR4, kind: 'primitive', primitiveType: PrimitiveType.FLOAT32, isRequired: true, isRuntime: true, isWired: true, isStored: true },
-  [Vector4Property.w]: { id: 33, name: 'w', component: ObjectType.VECTOR4, kind: 'primitive', primitiveType: PrimitiveType.FLOAT32, isRequired: true, isRuntime: true, isWired: true, isStored: true },
-}
 export const GradientStopDataInfo: Record<GradientStopProperty, PropertyInfo> = {
   [GradientStopProperty.metatype]: { id: 1, name: 'metatype', component: ObjectType.GRADIENT_STOP, enumType: EnumType.OBJECT_TYPE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isInternal: true, isComputed: true, isWired: true },
   [GradientStopProperty.color]: { id: 10, name: 'color', component: ObjectType.GRADIENT_STOP, kind: 'reference', primitiveType: PrimitiveType.JSON, isRequired: true, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.COLOR },
@@ -41854,7 +42204,7 @@ export const GradientDataInfo: Record<GradientProperty, PropertyInfo> = {
   [GradientProperty.type]: { id: 30, name: 'type', component: ObjectType.GRADIENT, enumType: EnumType.GRADIENT_TYPE, kind: 'enum', primitiveType: PrimitiveType.INT16, default: 10, isRequired: true, isRuntime: true, isWired: true, isStored: true },
   [GradientProperty.angle]: { id: 40, name: 'angle', component: ObjectType.GRADIENT, kind: 'primitive', primitiveType: PrimitiveType.FLOAT32, isRuntime: true, isWired: true, isStored: true },
   [GradientProperty.stops]: { id: 41, name: 'stops', component: ObjectType.GRADIENT, kind: 'reference', primitiveType: PrimitiveType.JSON, isList: true, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.GRADIENT_STOP },
-  [GradientProperty.centerAnchor]: { id: 42, name: 'center_anchor', component: ObjectType.GRADIENT, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.AXIS_2 },
+  [GradientProperty.centerAnchor]: { id: 42, name: 'center_anchor', component: ObjectType.GRADIENT, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.AXIS2 },
 }
 export const FillDataInfo: Record<FillProperty, PropertyInfo> = {
   [FillProperty.metatype]: { id: 1, name: 'metatype', component: ObjectType.FILL, enumType: EnumType.OBJECT_TYPE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isInternal: true, isComputed: true, isWired: true },
@@ -41900,18 +42250,23 @@ export const TransitionDataInfo: Record<TransitionProperty, PropertyInfo> = {
 }
 export const EffectDataInfo: Record<EffectProperty, PropertyInfo> = {
   [EffectProperty.metatype]: { id: 1, name: 'metatype', component: ObjectType.EFFECT, enumType: EnumType.OBJECT_TYPE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isInternal: true, isComputed: true, isWired: true },
-  [EffectProperty.type]: { id: 30, name: 'type', component: ObjectType.EFFECT, enumType: EnumType.EFFECT_TYPE, kind: 'enum', primitiveType: PrimitiveType.INT16, default: 10, isRequired: true, isRuntime: true, isWired: true, isStored: true },
-  [EffectProperty.stylePtr]: { id: 40, name: 'style_ptr', component: ObjectType.EFFECT, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.EFFECT_STYLE], referenceStruct: StructType.NODE_REFERENCE },
-  [EffectProperty.fieldPtr]: { id: 41, name: 'field_ptr', component: ObjectType.EFFECT, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.FIELD], referenceStruct: StructType.NODE_REFERENCE },
+  [EffectProperty.type]: { id: 30, name: 'type', component: ObjectType.EFFECT, enumType: EnumType.EFFECT_TYPE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isRuntime: true, isWired: true, isStored: true },
+  [EffectProperty.stylePtr]: { id: 41, name: 'style_ptr', component: ObjectType.EFFECT, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.EFFECT_STYLE], referenceStruct: StructType.NODE_REFERENCE },
+  [EffectProperty.fieldPtr]: { id: 42, name: 'field_ptr', component: ObjectType.EFFECT, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.FIELD], referenceStruct: StructType.NODE_REFERENCE },
   [EffectProperty.opacity]: { id: 50, name: 'opacity', component: ObjectType.EFFECT, kind: 'primitive', primitiveType: PrimitiveType.FLOAT32, isRuntime: true, isWired: true, isStored: true },
-  [EffectProperty.offset]: { id: 51, name: 'offset', component: ObjectType.EFFECT, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.AXIS_2 },
+  [EffectProperty.offset]: { id: 51, name: 'offset', component: ObjectType.EFFECT, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.VECTOR2 },
   [EffectProperty.scale]: { id: 52, name: 'scale', component: ObjectType.EFFECT, kind: 'primitive', primitiveType: PrimitiveType.FLOAT32, isRuntime: true, isWired: true, isStored: true },
-  [EffectProperty.rotate]: { id: 53, name: 'rotate', component: ObjectType.EFFECT, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.AXIS_3 },
-  [EffectProperty.skew]: { id: 54, name: 'skew', component: ObjectType.EFFECT, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.AXIS_2 },
+  [EffectProperty.rotate]: { id: 53, name: 'rotate', component: ObjectType.EFFECT, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.AXIS3 },
+  [EffectProperty.skew]: { id: 54, name: 'skew', component: ObjectType.EFFECT, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.AXIS2 },
   [EffectProperty.perspective]: { id: 55, name: 'perspective', component: ObjectType.EFFECT, kind: 'primitive', primitiveType: PrimitiveType.FLOAT32, isRuntime: true, isWired: true, isStored: true },
-  [EffectProperty.delay]: { id: 56, name: 'delay', component: ObjectType.EFFECT, kind: 'primitive', primitiveType: PrimitiveType.FLOAT32, isRuntime: true, isWired: true, isStored: true },
+  [EffectProperty.delay]: { id: 56, name: 'delay', component: ObjectType.EFFECT, kind: 'primitive', primitiveType: PrimitiveType.DURATION, isRuntime: true, isWired: true, isStored: true },
   [EffectProperty.duration]: { id: 57, name: 'duration', component: ObjectType.EFFECT, kind: 'primitive', primitiveType: PrimitiveType.FLOAT32, isRuntime: true, isWired: true, isStored: true },
   [EffectProperty.threshold]: { id: 58, name: 'threshold', component: ObjectType.EFFECT, kind: 'primitive', primitiveType: PrimitiveType.FLOAT32, isRuntime: true, isWired: true, isStored: true },
+  [EffectProperty.once]: { id: 59, name: 'once', component: ObjectType.EFFECT, kind: 'primitive', primitiveType: PrimitiveType.BOOLEAN, isRuntime: true, isWired: true, isStored: true },
+  [EffectProperty.repeat]: { id: 60, name: 'repeat', component: ObjectType.EFFECT, enumType: EnumType.REPEAT_TYPE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRuntime: true, isWired: true, isStored: true },
+  [EffectProperty.split]: { id: 61, name: 'split', component: ObjectType.EFFECT, enumType: EnumType.TEXT_SPLIT_TYPE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRuntime: true, isWired: true, isStored: true },
+  [EffectProperty.offscreen]: { id: 62, name: 'offscreen', component: ObjectType.EFFECT, enumType: EnumType.OFFSCREEN_BEHAVIOR, kind: 'enum', primitiveType: PrimitiveType.INT16, isRuntime: true, isWired: true, isStored: true },
+  [EffectProperty.transition]: { id: 70, name: 'transition', component: ObjectType.EFFECT, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.TRANSITION },
 }
 export const GridDataInfo: Record<GridProperty, PropertyInfo> = {
   [GridProperty.metatype]: { id: 1, name: 'metatype', component: ObjectType.GRID, enumType: EnumType.OBJECT_TYPE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isInternal: true, isComputed: true, isWired: true },
@@ -41941,19 +42296,6 @@ export const CornersDataInfo: Record<CornersProperty, PropertyInfo> = {
   [CornersProperty.topRight]: { id: 42, name: 'top_right', component: ObjectType.CORNERS, kind: 'primitive', primitiveType: PrimitiveType.INT32, isRuntime: true, isWired: true, isStored: true },
   [CornersProperty.bottomLeft]: { id: 43, name: 'bottom_left', component: ObjectType.CORNERS, kind: 'primitive', primitiveType: PrimitiveType.INT32, isRuntime: true, isWired: true, isStored: true },
   [CornersProperty.bottomRight]: { id: 44, name: 'bottom_right', component: ObjectType.CORNERS, kind: 'primitive', primitiveType: PrimitiveType.INT32, isRuntime: true, isWired: true, isStored: true },
-}
-export const Axis2DataInfo: Record<Axis2Property, PropertyInfo> = {
-  [Axis2Property.metatype]: { id: 1, name: 'metatype', component: ObjectType.AXIS_2, enumType: EnumType.OBJECT_TYPE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isInternal: true, isComputed: true, isWired: true },
-  [Axis2Property.base]: { id: 40, name: 'base', component: ObjectType.AXIS_2, kind: 'primitive', primitiveType: PrimitiveType.FLOAT32, isRuntime: true, isWired: true, isStored: true },
-  [Axis2Property.x]: { id: 41, name: 'x', component: ObjectType.AXIS_2, kind: 'primitive', primitiveType: PrimitiveType.FLOAT32, isRuntime: true, isWired: true, isStored: true },
-  [Axis2Property.y]: { id: 42, name: 'y', component: ObjectType.AXIS_2, kind: 'primitive', primitiveType: PrimitiveType.FLOAT32, isRuntime: true, isWired: true, isStored: true },
-}
-export const Axis3DataInfo: Record<Axis3Property, PropertyInfo> = {
-  [Axis3Property.metatype]: { id: 1, name: 'metatype', component: ObjectType.AXIS_3, enumType: EnumType.OBJECT_TYPE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isInternal: true, isComputed: true, isWired: true },
-  [Axis3Property.base]: { id: 40, name: 'base', component: ObjectType.AXIS_3, kind: 'primitive', primitiveType: PrimitiveType.FLOAT32, isRuntime: true, isWired: true, isStored: true },
-  [Axis3Property.x]: { id: 41, name: 'x', component: ObjectType.AXIS_3, kind: 'primitive', primitiveType: PrimitiveType.FLOAT32, isRuntime: true, isWired: true, isStored: true },
-  [Axis3Property.y]: { id: 42, name: 'y', component: ObjectType.AXIS_3, kind: 'primitive', primitiveType: PrimitiveType.FLOAT32, isRuntime: true, isWired: true, isStored: true },
-  [Axis3Property.z]: { id: 43, name: 'z', component: ObjectType.AXIS_3, kind: 'primitive', primitiveType: PrimitiveType.FLOAT32, isRuntime: true, isWired: true, isStored: true },
 }
 export const PROPERTY_INFOS_BY_TYPE: Record<ObjectType, Record<any, PropertyInfo>> = {
   [ObjectType.UNSPECIFIED]: {},
@@ -42051,13 +42393,15 @@ export const PROPERTY_INFOS_BY_TYPE: Record<ObjectType, Record<any, PropertyInfo
   [ObjectType.ACCESS_ZONE]: AccessZoneDataInfo,
   [ObjectType.ACCESS_MATRIX]: AccessMatrixDataInfo,
   [ObjectType.ACCESS]: AccessDataInfo,
+  [ObjectType.VECTOR2]: Vector2DataInfo,
+  [ObjectType.VECTOR3]: Vector3DataInfo,
+  [ObjectType.VECTOR4]: Vector4DataInfo,
+  [ObjectType.AXIS2]: Axis2DataInfo,
+  [ObjectType.AXIS3]: Axis3DataInfo,
   [ObjectType.COLOR]: ColorDataInfo,
   [ObjectType.SHADOW]: ShadowDataInfo,
   [ObjectType.BORDER]: BorderDataInfo,
   [ObjectType.FONT]: FontDataInfo,
-  [ObjectType.VECTOR2]: Vector2DataInfo,
-  [ObjectType.VECTOR3]: Vector3DataInfo,
-  [ObjectType.VECTOR4]: Vector4DataInfo,
   [ObjectType.GRADIENT_STOP]: GradientStopDataInfo,
   [ObjectType.GRADIENT]: GradientDataInfo,
   [ObjectType.FILL]: FillDataInfo,
@@ -42070,8 +42414,6 @@ export const PROPERTY_INFOS_BY_TYPE: Record<ObjectType, Record<any, PropertyInfo
   [ObjectType.GRID_SPAN]: GridSpanDataInfo,
   [ObjectType.INSETS]: InsetsDataInfo,
   [ObjectType.CORNERS]: CornersDataInfo,
-  [ObjectType.AXIS_2]: Axis2DataInfo,
-  [ObjectType.AXIS_3]: Axis3DataInfo,
 }
 
 // Enum options
@@ -42153,27 +42495,27 @@ export const StructTypeOptionInfo: Partial<Record<StructType, EnumOptionInfo>> =
   [StructType.TEXT_LINE]: { id: 11601, name: 'TEXT_LINE', icon: 'fas fa-text' },
   [StructType.TEXT_SPAN]: { id: 11602, name: 'TEXT_SPAN', icon: 'fas fa-text' },
   [StructType.CODE]: { id: 11610, name: 'CODE', icon: 'fas fa-code' },
-  [StructType.COLOR]: { id: 19000, name: 'COLOR', icon: 'fas fa-palette' },
-  [StructType.SHADOW]: { id: 19003, name: 'SHADOW', icon: 'fas fa-eclipse' },
-  [StructType.BORDER]: { id: 19004, name: 'BORDER', icon: 'fas fa-border-outer' },
-  [StructType.FONT]: { id: 19005, name: 'FONT', icon: 'fas fa-text' },
-  [StructType.VECTOR2]: { id: 19006, name: 'VECTOR2', icon: 'fas fa-vector-square' },
-  [StructType.VECTOR3]: { id: 19007, name: 'VECTOR3', icon: 'fas fa-vector-square' },
-  [StructType.VECTOR4]: { id: 19008, name: 'VECTOR4', icon: 'fas fa-vector-square' },
-  [StructType.GRADIENT_STOP]: { id: 19009, name: 'GRADIENT_STOP', icon: 'fas fa-gradient' },
-  [StructType.GRADIENT]: { id: 19010, name: 'GRADIENT', icon: 'fas fa-gradient' },
-  [StructType.FILL]: { id: 19011, name: 'FILL', icon: 'fas fa-fill' },
-  [StructType.LENGTH]: { id: 19012, name: 'LENGTH', icon: 'fas fa-ruler' },
-  [StructType.POSITION]: { id: 19013, name: 'POSITION', icon: 'fas fa-location-crosshair' },
-  [StructType.DIMENSION]: { id: 19014, name: 'DIMENSION', icon: 'fas fa-ruler' },
-  [StructType.TRANSITION]: { id: 19015, name: 'TRANSITION', icon: 'fas fa-bezier-curve' },
-  [StructType.EFFECT]: { id: 19016, name: 'EFFECT', icon: 'fas fa-sparkle' },
-  [StructType.GRID]: { id: 19018, name: 'GRID', icon: 'fas fa-grid-2' },
-  [StructType.GRID_SPAN]: { id: 19019, name: 'GRID_SPAN', icon: 'fas fa-grid-2' },
-  [StructType.INSETS]: { id: 19020, name: 'INSETS', icon: 'fas fa-corner' },
-  [StructType.CORNERS]: { id: 19021, name: 'CORNERS', icon: 'fas fa-corner' },
-  [StructType.AXIS_2]: { id: 19022, name: 'AXIS_2', icon: 'fas fa-vector-square' },
-  [StructType.AXIS_3]: { id: 19023, name: 'AXIS_3', icon: 'fas fa-vector-square' },
+  [StructType.VECTOR2]: { id: 19000, name: 'VECTOR2', icon: 'fas fa-vector-square' },
+  [StructType.VECTOR3]: { id: 19001, name: 'VECTOR3', icon: 'fas fa-vector-square' },
+  [StructType.VECTOR4]: { id: 19002, name: 'VECTOR4', icon: 'fas fa-vector-square' },
+  [StructType.AXIS2]: { id: 19003, name: 'AXIS2', icon: 'fas fa-vector-square' },
+  [StructType.AXIS3]: { id: 19004, name: 'AXIS3', icon: 'fas fa-vector-square' },
+  [StructType.COLOR]: { id: 19010, name: 'COLOR', icon: 'fas fa-palette' },
+  [StructType.SHADOW]: { id: 19011, name: 'SHADOW', icon: 'fas fa-eclipse' },
+  [StructType.BORDER]: { id: 19012, name: 'BORDER', icon: 'fas fa-border-outer' },
+  [StructType.FONT]: { id: 19013, name: 'FONT', icon: 'fas fa-text' },
+  [StructType.GRADIENT_STOP]: { id: 19014, name: 'GRADIENT_STOP', icon: 'fas fa-gradient' },
+  [StructType.GRADIENT]: { id: 19015, name: 'GRADIENT', icon: 'fas fa-gradient' },
+  [StructType.FILL]: { id: 19016, name: 'FILL', icon: 'fas fa-fill' },
+  [StructType.LENGTH]: { id: 19017, name: 'LENGTH', icon: 'fas fa-ruler' },
+  [StructType.POSITION]: { id: 19018, name: 'POSITION', icon: 'fas fa-location-crosshair' },
+  [StructType.DIMENSION]: { id: 19019, name: 'DIMENSION', icon: 'fas fa-ruler' },
+  [StructType.TRANSITION]: { id: 19020, name: 'TRANSITION', icon: 'fas fa-bezier-curve' },
+  [StructType.EFFECT]: { id: 19021, name: 'EFFECT', icon: 'fas fa-sparkle' },
+  [StructType.GRID]: { id: 19022, name: 'GRID', icon: 'fas fa-grid-2' },
+  [StructType.GRID_SPAN]: { id: 19023, name: 'GRID_SPAN', icon: 'fas fa-grid-2' },
+  [StructType.INSETS]: { id: 19024, name: 'INSETS', icon: 'fas fa-corner' },
+  [StructType.CORNERS]: { id: 19025, name: 'CORNERS', icon: 'fas fa-corner' },
 }
 
 export const NodeModeOptionInfo: Partial<Record<NodeMode, EnumOptionInfo>> = {
@@ -42506,6 +42848,28 @@ export const DimensionTypeOptionInfo: Partial<Record<DimensionType, EnumOptionIn
   [DimensionType.FILL]: { id: 4, name: 'FILL', text: 'Fill', title: 'Fill', icon: 'fas fa-arrows-from-dotted-line' },
 }
 
+export const EffectTypeOptionInfo: Partial<Record<EffectType, EnumOptionInfo>> = {
+  [EffectType.APPEAR]: { id: 10, name: 'APPEAR', text: 'Initial render in', title: 'Appear' },
+  [EffectType.ENTER]: { id: 11, name: 'ENTER', text: 'Enters viewport', title: 'Enter' },
+  [EffectType.EXIT]: { id: 12, name: 'EXIT', text: 'Leaves viewport', title: 'Exit' },
+  [EffectType.HOVER]: { id: 20, name: 'HOVER', text: 'While hover', title: 'Hover' },
+  [EffectType.PRESS]: { id: 21, name: 'PRESS', text: 'While tap', title: 'Press' },
+  [EffectType.DRAG]: { id: 22, name: 'DRAG', text: 'While drag / drag', title: 'Drag' },
+  [EffectType.FOCUS]: { id: 23, name: 'FOCUS', text: 'While focus', title: 'Focus' },
+  [EffectType.LOOP]: { id: 30, name: 'LOOP', text: 'Continuous loop', title: 'Loop' },
+}
+
+export const RepeatTypeOptionInfo: Partial<Record<RepeatType, EnumOptionInfo>> = {
+  [RepeatType.LOOP]: { id: 1, name: 'LOOP', text: 'Restart from beginning', title: 'Loop' },
+  [RepeatType.REVERSE]: { id: 2, name: 'REVERSE', text: 'Yoyo back and forth', title: 'Reverse' },
+  [RepeatType.MIRROR]: { id: 3, name: 'MIRROR', text: 'Mirror keyframes', title: 'Mirror' },
+}
+
+export const OffscreenBehaviorOptionInfo: Partial<Record<OffscreenBehavior, EnumOptionInfo>> = {
+  [OffscreenBehavior.PLAY]: { id: 1, name: 'PLAY', text: 'Play the animation', title: 'Play' },
+  [OffscreenBehavior.PAUSE]: { id: 2, name: 'PAUSE', text: 'Pause the animation', title: 'Pause' },
+}
+
 
 export const ENUM_OPTION_INFO_BY_TYPE: Partial<Record<EnumType, Record<any, EnumOptionInfo>>> = {
   [EnumType.NODE_TYPE]: NodeTypeOptionInfo,
@@ -42546,6 +42910,9 @@ export const ENUM_OPTION_INFO_BY_TYPE: Partial<Record<EnumType, Record<any, Enum
   [EnumType.DIRECTION]: DirectionOptionInfo,
   [EnumType.OVERFLOW]: OverflowOptionInfo,
   [EnumType.DIMENSION_TYPE]: DimensionTypeOptionInfo,
+  [EnumType.EFFECT_TYPE]: EffectTypeOptionInfo,
+  [EnumType.REPEAT_TYPE]: RepeatTypeOptionInfo,
+  [EnumType.OFFSCREEN_BEHAVIOR]: OffscreenBehaviorOptionInfo,
 }
 
 
