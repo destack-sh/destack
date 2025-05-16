@@ -110,10 +110,9 @@ class EnumType(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     ENUM_TYPE_COLOR_TYPE: _ClassVar[EnumType]
     ENUM_TYPE_COLOR_SHADE: _ClassVar[EnumType]
     ENUM_TYPE_COLOR_HUE: _ClassVar[EnumType]
-    ENUM_TYPE_FONT_TYPE: _ClassVar[EnumType]
     ENUM_TYPE_FONT_WEIGHT: _ClassVar[EnumType]
     ENUM_TYPE_FONT_SIZE: _ClassVar[EnumType]
-    ENUM_TYPE_TEXT_TYPE: _ClassVar[EnumType]
+    ENUM_TYPE_FONT_TYPE: _ClassVar[EnumType]
     ENUM_TYPE_TEXT_ALIGN: _ClassVar[EnumType]
     ENUM_TYPE_TEXT_DECORATION: _ClassVar[EnumType]
     ENUM_TYPE_TEXT_TRANSFORM: _ClassVar[EnumType]
@@ -582,10 +581,9 @@ class BenchType(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     BENCH_TYPE_COLOR_TYPE: _ClassVar[BenchType]
     BENCH_TYPE_COLOR_SHADE: _ClassVar[BenchType]
     BENCH_TYPE_COLOR_HUE: _ClassVar[BenchType]
-    BENCH_TYPE_FONT_TYPE: _ClassVar[BenchType]
     BENCH_TYPE_FONT_WEIGHT: _ClassVar[BenchType]
     BENCH_TYPE_FONT_SIZE: _ClassVar[BenchType]
-    BENCH_TYPE_TEXT_TYPE: _ClassVar[BenchType]
+    BENCH_TYPE_FONT_TYPE: _ClassVar[BenchType]
     BENCH_TYPE_TEXT_ALIGN: _ClassVar[BenchType]
     BENCH_TYPE_TEXT_DECORATION: _ClassVar[BenchType]
     BENCH_TYPE_TEXT_TRANSFORM: _ClassVar[BenchType]
@@ -1494,6 +1492,7 @@ class ColorType(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     COLOR_TYPE_UNSPECIFIED: _ClassVar[ColorType]
     COLOR_TYPE_BUILTIN: _ClassVar[ColorType]
     COLOR_TYPE_STYLE: _ClassVar[ColorType]
+    COLOR_TYPE_FIELD: _ClassVar[ColorType]
     COLOR_TYPE_RGB: _ClassVar[ColorType]
     COLOR_TYPE_HSL: _ClassVar[ColorType]
     COLOR_TYPE_P3: _ClassVar[ColorType]
@@ -1536,13 +1535,6 @@ class ColorHue(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     COLOR_HUE_PINK: _ClassVar[ColorHue]
     COLOR_HUE_ROSE: _ClassVar[ColorHue]
 
-class FontType(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
-    __slots__ = ()
-    FONT_TYPE_UNSPECIFIED: _ClassVar[FontType]
-    FONT_TYPE_SERIF: _ClassVar[FontType]
-    FONT_TYPE_SANS: _ClassVar[FontType]
-    FONT_TYPE_MONO: _ClassVar[FontType]
-
 class FontWeight(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     __slots__ = ()
     FONT_WEIGHT_UNSPECIFIED: _ClassVar[FontWeight]
@@ -1571,11 +1563,14 @@ class FontSize(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     FONT_SIZE_XL6: _ClassVar[FontSize]
     FONT_SIZE_XL7: _ClassVar[FontSize]
 
-class TextType(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
+class FontType(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     __slots__ = ()
-    TEXT_TYPE_UNSPECIFIED: _ClassVar[TextType]
-    TEXT_TYPE_INLINE: _ClassVar[TextType]
-    TEXT_TYPE_STYLE: _ClassVar[TextType]
+    FONT_TYPE_UNSPECIFIED: _ClassVar[FontType]
+    FONT_TYPE_STYLE: _ClassVar[FontType]
+    FONT_TYPE_FIELD: _ClassVar[FontType]
+    FONT_TYPE_SERIF: _ClassVar[FontType]
+    FONT_TYPE_SANS: _ClassVar[FontType]
+    FONT_TYPE_MONO: _ClassVar[FontType]
 
 class TextAlign(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     __slots__ = ()
@@ -1604,6 +1599,7 @@ class ShadowType(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     __slots__ = ()
     SHADOW_TYPE_UNSPECIFIED: _ClassVar[ShadowType]
     SHADOW_TYPE_STYLE: _ClassVar[ShadowType]
+    SHADOW_TYPE_FIELD: _ClassVar[ShadowType]
     SHADOW_TYPE_BOX: _ClassVar[ShadowType]
     SHADOW_TYPE_REALISTIC: _ClassVar[ShadowType]
 
@@ -1618,6 +1614,7 @@ class BorderType(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     BORDER_TYPE_UNSPECIFIED: _ClassVar[BorderType]
     BORDER_TYPE_NONE: _ClassVar[BorderType]
     BORDER_TYPE_STYLE: _ClassVar[BorderType]
+    BORDER_TYPE_FIELD: _ClassVar[BorderType]
     BORDER_TYPE_SOLID: _ClassVar[BorderType]
     BORDER_TYPE_DASHED: _ClassVar[BorderType]
     BORDER_TYPE_DOTTED: _ClassVar[BorderType]
@@ -1706,6 +1703,7 @@ class TransitionType(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     __slots__ = ()
     TRANSITION_TYPE_UNSPECIFIED: _ClassVar[TransitionType]
     TRANSITION_TYPE_STYLE: _ClassVar[TransitionType]
+    TRANSITION_TYPE_FIELD: _ClassVar[TransitionType]
     TRANSITION_TYPE_TWEEN: _ClassVar[TransitionType]
     TRANSITION_TYPE_SPRING: _ClassVar[TransitionType]
 
@@ -1719,6 +1717,7 @@ class EffectType(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     __slots__ = ()
     EFFECT_TYPE_UNSPECIFIED: _ClassVar[EffectType]
     EFFECT_TYPE_STYLE: _ClassVar[EffectType]
+    EFFECT_TYPE_FIELD: _ClassVar[EffectType]
     EFFECT_TYPE_APPEAR: _ClassVar[EffectType]
     EFFECT_TYPE_ENTER: _ClassVar[EffectType]
     EFFECT_TYPE_EXIT: _ClassVar[EffectType]
@@ -1729,10 +1728,8 @@ class DimensionType(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     __slots__ = ()
     DIMENSION_TYPE_UNSPECIFIED: _ClassVar[DimensionType]
     DIMENSION_TYPE_FIXED: _ClassVar[DimensionType]
-    DIMENSION_TYPE_RELATIVE: _ClassVar[DimensionType]
-    DIMENSION_TYPE_FIT_CONTENT: _ClassVar[DimensionType]
+    DIMENSION_TYPE_FIT: _ClassVar[DimensionType]
     DIMENSION_TYPE_FILL: _ClassVar[DimensionType]
-    DIMENSION_TYPE_ASPECT_RATIO: _ClassVar[DimensionType]
 
 class BuiltinEnum(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     __slots__ = ()
@@ -1838,10 +1835,9 @@ ENUM_TYPE_POSITION_TYPE: EnumType
 ENUM_TYPE_COLOR_TYPE: EnumType
 ENUM_TYPE_COLOR_SHADE: EnumType
 ENUM_TYPE_COLOR_HUE: EnumType
-ENUM_TYPE_FONT_TYPE: EnumType
 ENUM_TYPE_FONT_WEIGHT: EnumType
 ENUM_TYPE_FONT_SIZE: EnumType
-ENUM_TYPE_TEXT_TYPE: EnumType
+ENUM_TYPE_FONT_TYPE: EnumType
 ENUM_TYPE_TEXT_ALIGN: EnumType
 ENUM_TYPE_TEXT_DECORATION: EnumType
 ENUM_TYPE_TEXT_TRANSFORM: EnumType
@@ -2298,10 +2294,9 @@ BENCH_TYPE_POSITION_TYPE: BenchType
 BENCH_TYPE_COLOR_TYPE: BenchType
 BENCH_TYPE_COLOR_SHADE: BenchType
 BENCH_TYPE_COLOR_HUE: BenchType
-BENCH_TYPE_FONT_TYPE: BenchType
 BENCH_TYPE_FONT_WEIGHT: BenchType
 BENCH_TYPE_FONT_SIZE: BenchType
-BENCH_TYPE_TEXT_TYPE: BenchType
+BENCH_TYPE_FONT_TYPE: BenchType
 BENCH_TYPE_TEXT_ALIGN: BenchType
 BENCH_TYPE_TEXT_DECORATION: BenchType
 BENCH_TYPE_TEXT_TRANSFORM: BenchType
@@ -2970,6 +2965,7 @@ POSITION_TYPE_STICKY: PositionType
 COLOR_TYPE_UNSPECIFIED: ColorType
 COLOR_TYPE_BUILTIN: ColorType
 COLOR_TYPE_STYLE: ColorType
+COLOR_TYPE_FIELD: ColorType
 COLOR_TYPE_RGB: ColorType
 COLOR_TYPE_HSL: ColorType
 COLOR_TYPE_P3: ColorType
@@ -3005,10 +3001,6 @@ COLOR_HUE_PURPLE: ColorHue
 COLOR_HUE_FUCHSIA: ColorHue
 COLOR_HUE_PINK: ColorHue
 COLOR_HUE_ROSE: ColorHue
-FONT_TYPE_UNSPECIFIED: FontType
-FONT_TYPE_SERIF: FontType
-FONT_TYPE_SANS: FontType
-FONT_TYPE_MONO: FontType
 FONT_WEIGHT_UNSPECIFIED: FontWeight
 FONT_WEIGHT_THIN: FontWeight
 FONT_WEIGHT_EXTRA_LIGHT: FontWeight
@@ -3031,9 +3023,12 @@ FONT_SIZE_XL4: FontSize
 FONT_SIZE_XL5: FontSize
 FONT_SIZE_XL6: FontSize
 FONT_SIZE_XL7: FontSize
-TEXT_TYPE_UNSPECIFIED: TextType
-TEXT_TYPE_INLINE: TextType
-TEXT_TYPE_STYLE: TextType
+FONT_TYPE_UNSPECIFIED: FontType
+FONT_TYPE_STYLE: FontType
+FONT_TYPE_FIELD: FontType
+FONT_TYPE_SERIF: FontType
+FONT_TYPE_SANS: FontType
+FONT_TYPE_MONO: FontType
 TEXT_ALIGN_UNSPECIFIED: TextAlign
 TEXT_ALIGN_LEFT: TextAlign
 TEXT_ALIGN_CENTER: TextAlign
@@ -3050,6 +3045,7 @@ TEXT_TRANSFORM_LOWERCASE: TextTransform
 TEXT_TRANSFORM_CAPITALIZE: TextTransform
 SHADOW_TYPE_UNSPECIFIED: ShadowType
 SHADOW_TYPE_STYLE: ShadowType
+SHADOW_TYPE_FIELD: ShadowType
 SHADOW_TYPE_BOX: ShadowType
 SHADOW_TYPE_REALISTIC: ShadowType
 SHADOW_POSITION_UNSPECIFIED: ShadowPosition
@@ -3058,6 +3054,7 @@ SHADOW_POSITION_INSIDE: ShadowPosition
 BORDER_TYPE_UNSPECIFIED: BorderType
 BORDER_TYPE_NONE: BorderType
 BORDER_TYPE_STYLE: BorderType
+BORDER_TYPE_FIELD: BorderType
 BORDER_TYPE_SOLID: BorderType
 BORDER_TYPE_DASHED: BorderType
 BORDER_TYPE_DOTTED: BorderType
@@ -3113,6 +3110,7 @@ OVERFLOW_VISIBLE: Overflow
 OVERFLOW_SCROLL: Overflow
 TRANSITION_TYPE_UNSPECIFIED: TransitionType
 TRANSITION_TYPE_STYLE: TransitionType
+TRANSITION_TYPE_FIELD: TransitionType
 TRANSITION_TYPE_TWEEN: TransitionType
 TRANSITION_TYPE_SPRING: TransitionType
 SPRING_TYPE_UNSPECIFIED: SpringType
@@ -3120,6 +3118,7 @@ SPRING_TYPE_TIME: SpringType
 SPRING_TYPE_PHYSICS: SpringType
 EFFECT_TYPE_UNSPECIFIED: EffectType
 EFFECT_TYPE_STYLE: EffectType
+EFFECT_TYPE_FIELD: EffectType
 EFFECT_TYPE_APPEAR: EffectType
 EFFECT_TYPE_ENTER: EffectType
 EFFECT_TYPE_EXIT: EffectType
@@ -3127,10 +3126,8 @@ EFFECT_TYPE_HOVER: EffectType
 EFFECT_TYPE_TRANSFORM: EffectType
 DIMENSION_TYPE_UNSPECIFIED: DimensionType
 DIMENSION_TYPE_FIXED: DimensionType
-DIMENSION_TYPE_RELATIVE: DimensionType
-DIMENSION_TYPE_FIT_CONTENT: DimensionType
+DIMENSION_TYPE_FIT: DimensionType
 DIMENSION_TYPE_FILL: DimensionType
-DIMENSION_TYPE_ASPECT_RATIO: DimensionType
 BUILTIN_ENUM_UNSPECIFIED: BuiltinEnum
 REFERENCE_KIND_UNSPECIFIED: ReferenceKind
 REFERENCE_KIND_NODE_ANCESTOR: ReferenceKind
@@ -3772,12 +3769,13 @@ class ChangeData(_message.Message):
     def __init__(self, metatype: _Optional[_Union[ObjectType, str]] = ..., key: _Optional[str] = ..., code: _Optional[_Union[CodeData, _Mapping]] = ..., edits: _Optional[_Iterable[_Union[EditData, _Mapping]]] = ...) -> None: ...
 
 class ColorData(_message.Message):
-    __slots__ = ("metatype", "type", "hue", "shade", "style_ptr", "x", "y", "z", "alpha")
+    __slots__ = ("metatype", "type", "hue", "shade", "style_ptr", "field_ptr", "x", "y", "z", "alpha")
     METATYPE_FIELD_NUMBER: _ClassVar[int]
     TYPE_FIELD_NUMBER: _ClassVar[int]
     HUE_FIELD_NUMBER: _ClassVar[int]
     SHADE_FIELD_NUMBER: _ClassVar[int]
     STYLE_PTR_FIELD_NUMBER: _ClassVar[int]
+    FIELD_PTR_FIELD_NUMBER: _ClassVar[int]
     X_FIELD_NUMBER: _ClassVar[int]
     Y_FIELD_NUMBER: _ClassVar[int]
     Z_FIELD_NUMBER: _ClassVar[int]
@@ -3787,11 +3785,12 @@ class ColorData(_message.Message):
     hue: ColorHue
     shade: ColorShade
     style_ptr: NodeReferenceData
+    field_ptr: NodeReferenceData
     x: float
     y: float
     z: float
     alpha: float
-    def __init__(self, metatype: _Optional[_Union[ObjectType, str]] = ..., type: _Optional[_Union[ColorType, str]] = ..., hue: _Optional[_Union[ColorHue, str]] = ..., shade: _Optional[_Union[ColorShade, str]] = ..., style_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., x: _Optional[float] = ..., y: _Optional[float] = ..., z: _Optional[float] = ..., alpha: _Optional[float] = ...) -> None: ...
+    def __init__(self, metatype: _Optional[_Union[ObjectType, str]] = ..., type: _Optional[_Union[ColorType, str]] = ..., hue: _Optional[_Union[ColorHue, str]] = ..., shade: _Optional[_Union[ColorShade, str]] = ..., style_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., field_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., x: _Optional[float] = ..., y: _Optional[float] = ..., z: _Optional[float] = ..., alpha: _Optional[float] = ...) -> None: ...
 
 class LengthData(_message.Message):
     __slots__ = ("metatype", "unit", "value")
@@ -3820,14 +3819,16 @@ class PositionData(_message.Message):
     def __init__(self, metatype: _Optional[_Union[ObjectType, str]] = ..., type: _Optional[_Union[PositionType, str]] = ..., top: _Optional[_Union[LengthData, _Mapping]] = ..., left: _Optional[_Union[LengthData, _Mapping]] = ..., width: _Optional[_Union[LengthData, _Mapping]] = ..., height: _Optional[_Union[LengthData, _Mapping]] = ...) -> None: ...
 
 class DimensionData(_message.Message):
-    __slots__ = ("metatype", "type", "value")
+    __slots__ = ("metatype", "type", "unit", "value")
     METATYPE_FIELD_NUMBER: _ClassVar[int]
     TYPE_FIELD_NUMBER: _ClassVar[int]
+    UNIT_FIELD_NUMBER: _ClassVar[int]
     VALUE_FIELD_NUMBER: _ClassVar[int]
     metatype: ObjectType
     type: DimensionType
+    unit: LengthUnit
     value: float
-    def __init__(self, metatype: _Optional[_Union[ObjectType, str]] = ..., type: _Optional[_Union[DimensionType, str]] = ..., value: _Optional[float] = ...) -> None: ...
+    def __init__(self, metatype: _Optional[_Union[ObjectType, str]] = ..., type: _Optional[_Union[DimensionType, str]] = ..., unit: _Optional[_Union[LengthUnit, str]] = ..., value: _Optional[float] = ...) -> None: ...
 
 class InsetsData(_message.Message):
     __slots__ = ("metatype", "base", "top", "left", "right", "bottom")
@@ -3914,23 +3915,27 @@ class GridSpanData(_message.Message):
     def __init__(self, metatype: _Optional[_Union[ObjectType, str]] = ..., columns: _Optional[int] = ..., rows: _Optional[int] = ...) -> None: ...
 
 class BorderData(_message.Message):
-    __slots__ = ("metatype", "type", "style_ptr", "color", "width")
+    __slots__ = ("metatype", "type", "style_ptr", "field_ptr", "color", "width")
     METATYPE_FIELD_NUMBER: _ClassVar[int]
     TYPE_FIELD_NUMBER: _ClassVar[int]
     STYLE_PTR_FIELD_NUMBER: _ClassVar[int]
+    FIELD_PTR_FIELD_NUMBER: _ClassVar[int]
     COLOR_FIELD_NUMBER: _ClassVar[int]
     WIDTH_FIELD_NUMBER: _ClassVar[int]
     metatype: ObjectType
     type: BorderType
     style_ptr: NodeReferenceData
+    field_ptr: NodeReferenceData
     color: ColorData
     width: InsetsData
-    def __init__(self, metatype: _Optional[_Union[ObjectType, str]] = ..., type: _Optional[_Union[BorderType, str]] = ..., style_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., color: _Optional[_Union[ColorData, _Mapping]] = ..., width: _Optional[_Union[InsetsData, _Mapping]] = ...) -> None: ...
+    def __init__(self, metatype: _Optional[_Union[ObjectType, str]] = ..., type: _Optional[_Union[BorderType, str]] = ..., style_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., field_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., color: _Optional[_Union[ColorData, _Mapping]] = ..., width: _Optional[_Union[InsetsData, _Mapping]] = ...) -> None: ...
 
 class EffectData(_message.Message):
-    __slots__ = ("metatype", "type", "opacity", "offset", "scale", "rotate", "skew", "perspective", "delay", "duration", "threshold")
+    __slots__ = ("metatype", "type", "style_ptr", "field_ptr", "opacity", "offset", "scale", "rotate", "skew", "perspective", "delay", "duration", "threshold")
     METATYPE_FIELD_NUMBER: _ClassVar[int]
     TYPE_FIELD_NUMBER: _ClassVar[int]
+    STYLE_PTR_FIELD_NUMBER: _ClassVar[int]
+    FIELD_PTR_FIELD_NUMBER: _ClassVar[int]
     OPACITY_FIELD_NUMBER: _ClassVar[int]
     OFFSET_FIELD_NUMBER: _ClassVar[int]
     SCALE_FIELD_NUMBER: _ClassVar[int]
@@ -3942,6 +3947,8 @@ class EffectData(_message.Message):
     THRESHOLD_FIELD_NUMBER: _ClassVar[int]
     metatype: ObjectType
     type: EffectType
+    style_ptr: NodeReferenceData
+    field_ptr: NodeReferenceData
     opacity: float
     offset: Axis2Data
     scale: float
@@ -3951,7 +3958,7 @@ class EffectData(_message.Message):
     delay: float
     duration: float
     threshold: float
-    def __init__(self, metatype: _Optional[_Union[ObjectType, str]] = ..., type: _Optional[_Union[EffectType, str]] = ..., opacity: _Optional[float] = ..., offset: _Optional[_Union[Axis2Data, _Mapping]] = ..., scale: _Optional[float] = ..., rotate: _Optional[_Union[Axis3Data, _Mapping]] = ..., skew: _Optional[_Union[Axis2Data, _Mapping]] = ..., perspective: _Optional[float] = ..., delay: _Optional[float] = ..., duration: _Optional[float] = ..., threshold: _Optional[float] = ...) -> None: ...
+    def __init__(self, metatype: _Optional[_Union[ObjectType, str]] = ..., type: _Optional[_Union[EffectType, str]] = ..., style_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., field_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., opacity: _Optional[float] = ..., offset: _Optional[_Union[Axis2Data, _Mapping]] = ..., scale: _Optional[float] = ..., rotate: _Optional[_Union[Axis3Data, _Mapping]] = ..., skew: _Optional[_Union[Axis2Data, _Mapping]] = ..., perspective: _Optional[float] = ..., delay: _Optional[float] = ..., duration: _Optional[float] = ..., threshold: _Optional[float] = ...) -> None: ...
 
 class GradientStopData(_message.Message):
     __slots__ = ("metatype", "color", "position")
@@ -3996,38 +4003,39 @@ class FillData(_message.Message):
     def __init__(self, metatype: _Optional[_Union[ObjectType, str]] = ..., type: _Optional[_Union[FillType, str]] = ..., color: _Optional[_Union[ColorData, _Mapping]] = ..., gradient: _Optional[_Union[GradientData, _Mapping]] = ..., image_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., position: _Optional[_Union[FillPosition, str]] = ..., size: _Optional[_Union[FillSize, str]] = ...) -> None: ...
 
 class FontData(_message.Message):
-    __slots__ = ("metatype", "type", "style_ptr", "weight", "color", "font_type", "font_size", "align", "line_height", "letter_spacing", "decoration", "transform")
+    __slots__ = ("metatype", "type", "style_ptr", "field_ptr", "weight", "color", "size", "align", "line_height", "letter_spacing", "decoration", "transform")
     METATYPE_FIELD_NUMBER: _ClassVar[int]
     TYPE_FIELD_NUMBER: _ClassVar[int]
     STYLE_PTR_FIELD_NUMBER: _ClassVar[int]
+    FIELD_PTR_FIELD_NUMBER: _ClassVar[int]
     WEIGHT_FIELD_NUMBER: _ClassVar[int]
     COLOR_FIELD_NUMBER: _ClassVar[int]
-    FONT_TYPE_FIELD_NUMBER: _ClassVar[int]
-    FONT_SIZE_FIELD_NUMBER: _ClassVar[int]
+    SIZE_FIELD_NUMBER: _ClassVar[int]
     ALIGN_FIELD_NUMBER: _ClassVar[int]
     LINE_HEIGHT_FIELD_NUMBER: _ClassVar[int]
     LETTER_SPACING_FIELD_NUMBER: _ClassVar[int]
     DECORATION_FIELD_NUMBER: _ClassVar[int]
     TRANSFORM_FIELD_NUMBER: _ClassVar[int]
     metatype: ObjectType
-    type: TextType
+    type: FontType
     style_ptr: NodeReferenceData
+    field_ptr: NodeReferenceData
     weight: FontWeight
-    color: ColorData
-    font_type: FontType
-    font_size: FontSize
+    color: FillData
+    size: FontSize
     align: TextAlign
     line_height: LengthData
     letter_spacing: LengthData
     decoration: TextDecoration
     transform: TextTransform
-    def __init__(self, metatype: _Optional[_Union[ObjectType, str]] = ..., type: _Optional[_Union[TextType, str]] = ..., style_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., weight: _Optional[_Union[FontWeight, str]] = ..., color: _Optional[_Union[ColorData, _Mapping]] = ..., font_type: _Optional[_Union[FontType, str]] = ..., font_size: _Optional[_Union[FontSize, str]] = ..., align: _Optional[_Union[TextAlign, str]] = ..., line_height: _Optional[_Union[LengthData, _Mapping]] = ..., letter_spacing: _Optional[_Union[LengthData, _Mapping]] = ..., decoration: _Optional[_Union[TextDecoration, str]] = ..., transform: _Optional[_Union[TextTransform, str]] = ...) -> None: ...
+    def __init__(self, metatype: _Optional[_Union[ObjectType, str]] = ..., type: _Optional[_Union[FontType, str]] = ..., style_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., field_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., weight: _Optional[_Union[FontWeight, str]] = ..., color: _Optional[_Union[FillData, _Mapping]] = ..., size: _Optional[_Union[FontSize, str]] = ..., align: _Optional[_Union[TextAlign, str]] = ..., line_height: _Optional[_Union[LengthData, _Mapping]] = ..., letter_spacing: _Optional[_Union[LengthData, _Mapping]] = ..., decoration: _Optional[_Union[TextDecoration, str]] = ..., transform: _Optional[_Union[TextTransform, str]] = ...) -> None: ...
 
 class ShadowData(_message.Message):
-    __slots__ = ("metatype", "type", "style_ptr", "color", "position", "offset", "blur", "spread", "diffusion")
+    __slots__ = ("metatype", "type", "style_ptr", "field_ptr", "color", "position", "offset", "blur", "spread", "diffusion")
     METATYPE_FIELD_NUMBER: _ClassVar[int]
     TYPE_FIELD_NUMBER: _ClassVar[int]
     STYLE_PTR_FIELD_NUMBER: _ClassVar[int]
+    FIELD_PTR_FIELD_NUMBER: _ClassVar[int]
     COLOR_FIELD_NUMBER: _ClassVar[int]
     POSITION_FIELD_NUMBER: _ClassVar[int]
     OFFSET_FIELD_NUMBER: _ClassVar[int]
@@ -4037,19 +4045,21 @@ class ShadowData(_message.Message):
     metatype: ObjectType
     type: ShadowType
     style_ptr: NodeReferenceData
+    field_ptr: NodeReferenceData
     color: ColorData
     position: ShadowPosition
     offset: Axis2Data
     blur: int
     spread: int
     diffusion: float
-    def __init__(self, metatype: _Optional[_Union[ObjectType, str]] = ..., type: _Optional[_Union[ShadowType, str]] = ..., style_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., color: _Optional[_Union[ColorData, _Mapping]] = ..., position: _Optional[_Union[ShadowPosition, str]] = ..., offset: _Optional[_Union[Axis2Data, _Mapping]] = ..., blur: _Optional[int] = ..., spread: _Optional[int] = ..., diffusion: _Optional[float] = ...) -> None: ...
+    def __init__(self, metatype: _Optional[_Union[ObjectType, str]] = ..., type: _Optional[_Union[ShadowType, str]] = ..., style_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., field_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., color: _Optional[_Union[ColorData, _Mapping]] = ..., position: _Optional[_Union[ShadowPosition, str]] = ..., offset: _Optional[_Union[Axis2Data, _Mapping]] = ..., blur: _Optional[int] = ..., spread: _Optional[int] = ..., diffusion: _Optional[float] = ...) -> None: ...
 
 class TransitionData(_message.Message):
-    __slots__ = ("metatype", "type", "style_ptr", "delay", "duration", "ease", "stiffness", "damping", "mass", "bounce", "spring_type")
+    __slots__ = ("metatype", "type", "style_ptr", "field_ptr", "delay", "duration", "ease", "stiffness", "damping", "mass", "bounce", "spring_type")
     METATYPE_FIELD_NUMBER: _ClassVar[int]
     TYPE_FIELD_NUMBER: _ClassVar[int]
     STYLE_PTR_FIELD_NUMBER: _ClassVar[int]
+    FIELD_PTR_FIELD_NUMBER: _ClassVar[int]
     DELAY_FIELD_NUMBER: _ClassVar[int]
     DURATION_FIELD_NUMBER: _ClassVar[int]
     EASE_FIELD_NUMBER: _ClassVar[int]
@@ -4061,6 +4071,7 @@ class TransitionData(_message.Message):
     metatype: ObjectType
     type: TransitionType
     style_ptr: NodeReferenceData
+    field_ptr: NodeReferenceData
     delay: float
     duration: float
     ease: _containers.RepeatedScalarFieldContainer[float]
@@ -4069,7 +4080,7 @@ class TransitionData(_message.Message):
     mass: float
     bounce: float
     spring_type: SpringType
-    def __init__(self, metatype: _Optional[_Union[ObjectType, str]] = ..., type: _Optional[_Union[TransitionType, str]] = ..., style_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., delay: _Optional[float] = ..., duration: _Optional[float] = ..., ease: _Optional[_Iterable[float]] = ..., stiffness: _Optional[float] = ..., damping: _Optional[float] = ..., mass: _Optional[float] = ..., bounce: _Optional[float] = ..., spring_type: _Optional[_Union[SpringType, str]] = ...) -> None: ...
+    def __init__(self, metatype: _Optional[_Union[ObjectType, str]] = ..., type: _Optional[_Union[TransitionType, str]] = ..., style_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., field_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., delay: _Optional[float] = ..., duration: _Optional[float] = ..., ease: _Optional[_Iterable[float]] = ..., stiffness: _Optional[float] = ..., damping: _Optional[float] = ..., mass: _Optional[float] = ..., bounce: _Optional[float] = ..., spring_type: _Optional[_Union[SpringType, str]] = ...) -> None: ...
 
 class Vector2Data(_message.Message):
     __slots__ = ("metatype", "x", "y")
@@ -5580,7 +5591,7 @@ class UserData(_message.Message):
     def __init__(self, metatype: _Optional[_Union[ObjectType, str]] = ..., id: _Optional[str] = ..., parent_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., created_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., created_by_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., updated_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., updated_by_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., archived_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., deleted_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., slug: _Optional[str] = ..., name: _Optional[str] = ..., icon: _Optional[_Union[IconData, _Mapping]] = ..., line: _Optional[_Union[TextLineData, _Mapping]] = ..., region: _Optional[_Union[Region, str]] = ..., is_staff: bool = ..., status: _Optional[_Union[UserStatus, str]] = ..., last_logged_in_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., bench_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., handle_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., cursor_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., email: _Optional[str] = ..., password_salt: _Optional[bytes] = ..., password_hash: _Optional[bytes] = ...) -> None: ...
 
 class ApplicationData(_message.Message):
-    __slots__ = ("metatype", "id", "ck", "parent_ptr", "bench_ptr", "package_ptr", "created_at", "created_by_ptr", "updated_at", "updated_by_ptr", "archived_at", "deleted_at", "template_ptr", "mode", "name", "order_key", "icon", "definition_ptr", "root_scene_ptr")
+    __slots__ = ("metatype", "id", "ck", "parent_ptr", "bench_ptr", "package_ptr", "created_at", "created_by_ptr", "updated_at", "updated_by_ptr", "archived_at", "deleted_at", "template_ptr", "mode", "name", "order_key", "icon", "definition_ptr", "main_scene_ptr", "error_scene_ptr")
     METATYPE_FIELD_NUMBER: _ClassVar[int]
     ID_FIELD_NUMBER: _ClassVar[int]
     CK_FIELD_NUMBER: _ClassVar[int]
@@ -5599,7 +5610,8 @@ class ApplicationData(_message.Message):
     ORDER_KEY_FIELD_NUMBER: _ClassVar[int]
     ICON_FIELD_NUMBER: _ClassVar[int]
     DEFINITION_PTR_FIELD_NUMBER: _ClassVar[int]
-    ROOT_SCENE_PTR_FIELD_NUMBER: _ClassVar[int]
+    MAIN_SCENE_PTR_FIELD_NUMBER: _ClassVar[int]
+    ERROR_SCENE_PTR_FIELD_NUMBER: _ClassVar[int]
     metatype: ObjectType
     id: str
     ck: str
@@ -5618,8 +5630,9 @@ class ApplicationData(_message.Message):
     order_key: str
     icon: IconData
     definition_ptr: NodeReferenceData
-    root_scene_ptr: NodeReferenceData
-    def __init__(self, metatype: _Optional[_Union[ObjectType, str]] = ..., id: _Optional[str] = ..., ck: _Optional[str] = ..., parent_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., bench_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., package_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., created_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., created_by_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., updated_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., updated_by_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., archived_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., deleted_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., template_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., mode: _Optional[_Union[NodeMode, str]] = ..., name: _Optional[str] = ..., order_key: _Optional[str] = ..., icon: _Optional[_Union[IconData, _Mapping]] = ..., definition_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., root_scene_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ...) -> None: ...
+    main_scene_ptr: NodeReferenceData
+    error_scene_ptr: NodeReferenceData
+    def __init__(self, metatype: _Optional[_Union[ObjectType, str]] = ..., id: _Optional[str] = ..., ck: _Optional[str] = ..., parent_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., bench_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., package_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., created_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., created_by_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., updated_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., updated_by_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., archived_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., deleted_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., template_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., mode: _Optional[_Union[NodeMode, str]] = ..., name: _Optional[str] = ..., order_key: _Optional[str] = ..., icon: _Optional[_Union[IconData, _Mapping]] = ..., definition_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., main_scene_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., error_scene_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ...) -> None: ...
 
 class BlockData(_message.Message):
     __slots__ = ("metatype", "id", "parent_ptr", "bench_ptr", "package_ptr", "created_at", "created_by_ptr", "updated_at", "updated_by_ptr", "archived_at", "deleted_at", "template_ptr", "mode", "type", "name", "order_key", "line", "node_ptr", "view_ptr")
@@ -6412,7 +6425,7 @@ class SpaceData(_message.Message):
     def __init__(self, metatype: _Optional[_Union[ObjectType, str]] = ..., id: _Optional[str] = ..., parent_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., bench_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., package_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., created_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., created_by_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., updated_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., updated_by_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., archived_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., deleted_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., template_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., owned_by_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., mode: _Optional[_Union[NodeMode, str]] = ..., type: _Optional[_Union[SpaceType, str]] = ..., name: _Optional[str] = ..., order_key: _Optional[str] = ..., selection: _Optional[_Union[SelectionData, _Mapping]] = ..., focus_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., inspection_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., container_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., page_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., thread_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ...) -> None: ...
 
 class ColorStyleData(_message.Message):
-    __slots__ = ("metatype", "id", "parent_ptr", "bench_ptr", "package_ptr", "created_at", "created_by_ptr", "updated_at", "updated_by_ptr", "archived_at", "deleted_at", "template_ptr", "mode", "type", "name", "order_key", "icon", "definition_ptr", "hue", "shade", "style_ptr", "x", "y", "z", "alpha", "dark")
+    __slots__ = ("metatype", "id", "parent_ptr", "bench_ptr", "package_ptr", "created_at", "created_by_ptr", "updated_at", "updated_by_ptr", "archived_at", "deleted_at", "template_ptr", "mode", "type", "name", "order_key", "icon", "definition_ptr", "hue", "shade", "style_ptr", "field_ptr", "x", "y", "z", "alpha", "dark")
     METATYPE_FIELD_NUMBER: _ClassVar[int]
     ID_FIELD_NUMBER: _ClassVar[int]
     PARENT_PTR_FIELD_NUMBER: _ClassVar[int]
@@ -6434,6 +6447,7 @@ class ColorStyleData(_message.Message):
     HUE_FIELD_NUMBER: _ClassVar[int]
     SHADE_FIELD_NUMBER: _ClassVar[int]
     STYLE_PTR_FIELD_NUMBER: _ClassVar[int]
+    FIELD_PTR_FIELD_NUMBER: _ClassVar[int]
     X_FIELD_NUMBER: _ClassVar[int]
     Y_FIELD_NUMBER: _ClassVar[int]
     Z_FIELD_NUMBER: _ClassVar[int]
@@ -6460,15 +6474,16 @@ class ColorStyleData(_message.Message):
     hue: ColorHue
     shade: ColorShade
     style_ptr: NodeReferenceData
+    field_ptr: NodeReferenceData
     x: float
     y: float
     z: float
     alpha: float
     dark: ColorData
-    def __init__(self, metatype: _Optional[_Union[ObjectType, str]] = ..., id: _Optional[str] = ..., parent_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., bench_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., package_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., created_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., created_by_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., updated_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., updated_by_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., archived_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., deleted_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., template_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., mode: _Optional[_Union[NodeMode, str]] = ..., type: _Optional[_Union[ColorType, str]] = ..., name: _Optional[str] = ..., order_key: _Optional[str] = ..., icon: _Optional[_Union[IconData, _Mapping]] = ..., definition_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., hue: _Optional[_Union[ColorHue, str]] = ..., shade: _Optional[_Union[ColorShade, str]] = ..., style_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., x: _Optional[float] = ..., y: _Optional[float] = ..., z: _Optional[float] = ..., alpha: _Optional[float] = ..., dark: _Optional[_Union[ColorData, _Mapping]] = ...) -> None: ...
+    def __init__(self, metatype: _Optional[_Union[ObjectType, str]] = ..., id: _Optional[str] = ..., parent_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., bench_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., package_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., created_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., created_by_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., updated_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., updated_by_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., archived_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., deleted_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., template_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., mode: _Optional[_Union[NodeMode, str]] = ..., type: _Optional[_Union[ColorType, str]] = ..., name: _Optional[str] = ..., order_key: _Optional[str] = ..., icon: _Optional[_Union[IconData, _Mapping]] = ..., definition_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., hue: _Optional[_Union[ColorHue, str]] = ..., shade: _Optional[_Union[ColorShade, str]] = ..., style_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., field_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., x: _Optional[float] = ..., y: _Optional[float] = ..., z: _Optional[float] = ..., alpha: _Optional[float] = ..., dark: _Optional[_Union[ColorData, _Mapping]] = ...) -> None: ...
 
 class BorderStyleData(_message.Message):
-    __slots__ = ("metatype", "id", "parent_ptr", "bench_ptr", "package_ptr", "created_at", "created_by_ptr", "updated_at", "updated_by_ptr", "archived_at", "deleted_at", "template_ptr", "mode", "type", "name", "order_key", "icon", "definition_ptr", "style_ptr", "color", "width")
+    __slots__ = ("metatype", "id", "parent_ptr", "bench_ptr", "package_ptr", "created_at", "created_by_ptr", "updated_at", "updated_by_ptr", "archived_at", "deleted_at", "template_ptr", "mode", "type", "name", "order_key", "icon", "definition_ptr", "style_ptr", "field_ptr", "color", "width")
     METATYPE_FIELD_NUMBER: _ClassVar[int]
     ID_FIELD_NUMBER: _ClassVar[int]
     PARENT_PTR_FIELD_NUMBER: _ClassVar[int]
@@ -6488,6 +6503,7 @@ class BorderStyleData(_message.Message):
     ICON_FIELD_NUMBER: _ClassVar[int]
     DEFINITION_PTR_FIELD_NUMBER: _ClassVar[int]
     STYLE_PTR_FIELD_NUMBER: _ClassVar[int]
+    FIELD_PTR_FIELD_NUMBER: _ClassVar[int]
     COLOR_FIELD_NUMBER: _ClassVar[int]
     WIDTH_FIELD_NUMBER: _ClassVar[int]
     metatype: ObjectType
@@ -6509,12 +6525,13 @@ class BorderStyleData(_message.Message):
     icon: IconData
     definition_ptr: NodeReferenceData
     style_ptr: NodeReferenceData
+    field_ptr: NodeReferenceData
     color: ColorData
     width: InsetsData
-    def __init__(self, metatype: _Optional[_Union[ObjectType, str]] = ..., id: _Optional[str] = ..., parent_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., bench_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., package_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., created_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., created_by_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., updated_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., updated_by_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., archived_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., deleted_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., template_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., mode: _Optional[_Union[NodeMode, str]] = ..., type: _Optional[_Union[BorderType, str]] = ..., name: _Optional[str] = ..., order_key: _Optional[str] = ..., icon: _Optional[_Union[IconData, _Mapping]] = ..., definition_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., style_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., color: _Optional[_Union[ColorData, _Mapping]] = ..., width: _Optional[_Union[InsetsData, _Mapping]] = ...) -> None: ...
+    def __init__(self, metatype: _Optional[_Union[ObjectType, str]] = ..., id: _Optional[str] = ..., parent_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., bench_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., package_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., created_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., created_by_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., updated_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., updated_by_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., archived_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., deleted_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., template_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., mode: _Optional[_Union[NodeMode, str]] = ..., type: _Optional[_Union[BorderType, str]] = ..., name: _Optional[str] = ..., order_key: _Optional[str] = ..., icon: _Optional[_Union[IconData, _Mapping]] = ..., definition_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., style_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., field_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., color: _Optional[_Union[ColorData, _Mapping]] = ..., width: _Optional[_Union[InsetsData, _Mapping]] = ...) -> None: ...
 
 class EffectStyleData(_message.Message):
-    __slots__ = ("metatype", "id", "parent_ptr", "bench_ptr", "package_ptr", "created_at", "created_by_ptr", "updated_at", "updated_by_ptr", "archived_at", "deleted_at", "template_ptr", "mode", "type", "name", "order_key", "icon", "definition_ptr", "opacity", "offset", "scale", "rotate", "skew", "perspective", "delay", "duration", "threshold")
+    __slots__ = ("metatype", "id", "parent_ptr", "bench_ptr", "package_ptr", "created_at", "created_by_ptr", "updated_at", "updated_by_ptr", "archived_at", "deleted_at", "template_ptr", "mode", "type", "name", "order_key", "icon", "definition_ptr", "style_ptr", "field_ptr", "opacity", "offset", "scale", "rotate", "skew", "perspective", "delay", "duration", "threshold")
     METATYPE_FIELD_NUMBER: _ClassVar[int]
     ID_FIELD_NUMBER: _ClassVar[int]
     PARENT_PTR_FIELD_NUMBER: _ClassVar[int]
@@ -6533,6 +6550,8 @@ class EffectStyleData(_message.Message):
     ORDER_KEY_FIELD_NUMBER: _ClassVar[int]
     ICON_FIELD_NUMBER: _ClassVar[int]
     DEFINITION_PTR_FIELD_NUMBER: _ClassVar[int]
+    STYLE_PTR_FIELD_NUMBER: _ClassVar[int]
+    FIELD_PTR_FIELD_NUMBER: _ClassVar[int]
     OPACITY_FIELD_NUMBER: _ClassVar[int]
     OFFSET_FIELD_NUMBER: _ClassVar[int]
     SCALE_FIELD_NUMBER: _ClassVar[int]
@@ -6560,6 +6579,8 @@ class EffectStyleData(_message.Message):
     order_key: str
     icon: IconData
     definition_ptr: NodeReferenceData
+    style_ptr: NodeReferenceData
+    field_ptr: NodeReferenceData
     opacity: float
     offset: Axis2Data
     scale: float
@@ -6569,7 +6590,7 @@ class EffectStyleData(_message.Message):
     delay: float
     duration: float
     threshold: float
-    def __init__(self, metatype: _Optional[_Union[ObjectType, str]] = ..., id: _Optional[str] = ..., parent_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., bench_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., package_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., created_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., created_by_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., updated_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., updated_by_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., archived_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., deleted_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., template_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., mode: _Optional[_Union[NodeMode, str]] = ..., type: _Optional[_Union[EffectType, str]] = ..., name: _Optional[str] = ..., order_key: _Optional[str] = ..., icon: _Optional[_Union[IconData, _Mapping]] = ..., definition_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., opacity: _Optional[float] = ..., offset: _Optional[_Union[Axis2Data, _Mapping]] = ..., scale: _Optional[float] = ..., rotate: _Optional[_Union[Axis3Data, _Mapping]] = ..., skew: _Optional[_Union[Axis2Data, _Mapping]] = ..., perspective: _Optional[float] = ..., delay: _Optional[float] = ..., duration: _Optional[float] = ..., threshold: _Optional[float] = ...) -> None: ...
+    def __init__(self, metatype: _Optional[_Union[ObjectType, str]] = ..., id: _Optional[str] = ..., parent_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., bench_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., package_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., created_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., created_by_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., updated_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., updated_by_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., archived_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., deleted_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., template_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., mode: _Optional[_Union[NodeMode, str]] = ..., type: _Optional[_Union[EffectType, str]] = ..., name: _Optional[str] = ..., order_key: _Optional[str] = ..., icon: _Optional[_Union[IconData, _Mapping]] = ..., definition_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., style_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., field_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., opacity: _Optional[float] = ..., offset: _Optional[_Union[Axis2Data, _Mapping]] = ..., scale: _Optional[float] = ..., rotate: _Optional[_Union[Axis3Data, _Mapping]] = ..., skew: _Optional[_Union[Axis2Data, _Mapping]] = ..., perspective: _Optional[float] = ..., delay: _Optional[float] = ..., duration: _Optional[float] = ..., threshold: _Optional[float] = ...) -> None: ...
 
 class GradientStyleData(_message.Message):
     __slots__ = ("metatype", "id", "parent_ptr", "bench_ptr", "package_ptr", "created_at", "created_by_ptr", "updated_at", "updated_by_ptr", "archived_at", "deleted_at", "template_ptr", "mode", "type", "name", "order_key", "icon", "definition_ptr", "angle", "stops", "center_anchor", "dark")
@@ -6620,7 +6641,7 @@ class GradientStyleData(_message.Message):
     def __init__(self, metatype: _Optional[_Union[ObjectType, str]] = ..., id: _Optional[str] = ..., parent_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., bench_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., package_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., created_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., created_by_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., updated_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., updated_by_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., archived_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., deleted_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., template_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., mode: _Optional[_Union[NodeMode, str]] = ..., type: _Optional[_Union[GradientType, str]] = ..., name: _Optional[str] = ..., order_key: _Optional[str] = ..., icon: _Optional[_Union[IconData, _Mapping]] = ..., definition_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., angle: _Optional[float] = ..., stops: _Optional[_Iterable[_Union[GradientStopData, _Mapping]]] = ..., center_anchor: _Optional[_Union[Axis2Data, _Mapping]] = ..., dark: _Optional[_Union[GradientData, _Mapping]] = ...) -> None: ...
 
 class FontStyleData(_message.Message):
-    __slots__ = ("metatype", "id", "parent_ptr", "bench_ptr", "package_ptr", "created_at", "created_by_ptr", "updated_at", "updated_by_ptr", "archived_at", "deleted_at", "template_ptr", "mode", "type", "name", "order_key", "icon", "definition_ptr", "style_ptr", "weight", "color", "font_type", "font_size", "align", "line_height", "letter_spacing", "decoration", "transform")
+    __slots__ = ("metatype", "id", "parent_ptr", "bench_ptr", "package_ptr", "created_at", "created_by_ptr", "updated_at", "updated_by_ptr", "archived_at", "deleted_at", "template_ptr", "mode", "type", "name", "order_key", "icon", "definition_ptr", "style_ptr", "field_ptr", "weight", "color", "size", "align", "line_height", "letter_spacing", "decoration", "transform")
     METATYPE_FIELD_NUMBER: _ClassVar[int]
     ID_FIELD_NUMBER: _ClassVar[int]
     PARENT_PTR_FIELD_NUMBER: _ClassVar[int]
@@ -6640,10 +6661,10 @@ class FontStyleData(_message.Message):
     ICON_FIELD_NUMBER: _ClassVar[int]
     DEFINITION_PTR_FIELD_NUMBER: _ClassVar[int]
     STYLE_PTR_FIELD_NUMBER: _ClassVar[int]
+    FIELD_PTR_FIELD_NUMBER: _ClassVar[int]
     WEIGHT_FIELD_NUMBER: _ClassVar[int]
     COLOR_FIELD_NUMBER: _ClassVar[int]
-    FONT_TYPE_FIELD_NUMBER: _ClassVar[int]
-    FONT_SIZE_FIELD_NUMBER: _ClassVar[int]
+    SIZE_FIELD_NUMBER: _ClassVar[int]
     ALIGN_FIELD_NUMBER: _ClassVar[int]
     LINE_HEIGHT_FIELD_NUMBER: _ClassVar[int]
     LETTER_SPACING_FIELD_NUMBER: _ClassVar[int]
@@ -6662,25 +6683,25 @@ class FontStyleData(_message.Message):
     deleted_at: _timestamp_pb2.Timestamp
     template_ptr: NodeReferenceData
     mode: NodeMode
-    type: TextType
+    type: FontType
     name: str
     order_key: str
     icon: IconData
     definition_ptr: NodeReferenceData
     style_ptr: NodeReferenceData
+    field_ptr: NodeReferenceData
     weight: FontWeight
-    color: ColorData
-    font_type: FontType
-    font_size: FontSize
+    color: FillData
+    size: FontSize
     align: TextAlign
     line_height: LengthData
     letter_spacing: LengthData
     decoration: TextDecoration
     transform: TextTransform
-    def __init__(self, metatype: _Optional[_Union[ObjectType, str]] = ..., id: _Optional[str] = ..., parent_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., bench_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., package_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., created_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., created_by_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., updated_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., updated_by_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., archived_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., deleted_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., template_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., mode: _Optional[_Union[NodeMode, str]] = ..., type: _Optional[_Union[TextType, str]] = ..., name: _Optional[str] = ..., order_key: _Optional[str] = ..., icon: _Optional[_Union[IconData, _Mapping]] = ..., definition_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., style_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., weight: _Optional[_Union[FontWeight, str]] = ..., color: _Optional[_Union[ColorData, _Mapping]] = ..., font_type: _Optional[_Union[FontType, str]] = ..., font_size: _Optional[_Union[FontSize, str]] = ..., align: _Optional[_Union[TextAlign, str]] = ..., line_height: _Optional[_Union[LengthData, _Mapping]] = ..., letter_spacing: _Optional[_Union[LengthData, _Mapping]] = ..., decoration: _Optional[_Union[TextDecoration, str]] = ..., transform: _Optional[_Union[TextTransform, str]] = ...) -> None: ...
+    def __init__(self, metatype: _Optional[_Union[ObjectType, str]] = ..., id: _Optional[str] = ..., parent_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., bench_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., package_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., created_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., created_by_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., updated_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., updated_by_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., archived_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., deleted_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., template_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., mode: _Optional[_Union[NodeMode, str]] = ..., type: _Optional[_Union[FontType, str]] = ..., name: _Optional[str] = ..., order_key: _Optional[str] = ..., icon: _Optional[_Union[IconData, _Mapping]] = ..., definition_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., style_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., field_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., weight: _Optional[_Union[FontWeight, str]] = ..., color: _Optional[_Union[FillData, _Mapping]] = ..., size: _Optional[_Union[FontSize, str]] = ..., align: _Optional[_Union[TextAlign, str]] = ..., line_height: _Optional[_Union[LengthData, _Mapping]] = ..., letter_spacing: _Optional[_Union[LengthData, _Mapping]] = ..., decoration: _Optional[_Union[TextDecoration, str]] = ..., transform: _Optional[_Union[TextTransform, str]] = ...) -> None: ...
 
 class ShadowStyleData(_message.Message):
-    __slots__ = ("metatype", "id", "parent_ptr", "bench_ptr", "package_ptr", "created_at", "created_by_ptr", "updated_at", "updated_by_ptr", "archived_at", "deleted_at", "template_ptr", "mode", "type", "name", "order_key", "icon", "definition_ptr", "style_ptr", "color", "position", "offset", "blur", "spread", "diffusion")
+    __slots__ = ("metatype", "id", "parent_ptr", "bench_ptr", "package_ptr", "created_at", "created_by_ptr", "updated_at", "updated_by_ptr", "archived_at", "deleted_at", "template_ptr", "mode", "type", "name", "order_key", "icon", "definition_ptr", "style_ptr", "field_ptr", "color", "position", "offset", "blur", "spread", "diffusion")
     METATYPE_FIELD_NUMBER: _ClassVar[int]
     ID_FIELD_NUMBER: _ClassVar[int]
     PARENT_PTR_FIELD_NUMBER: _ClassVar[int]
@@ -6700,6 +6721,7 @@ class ShadowStyleData(_message.Message):
     ICON_FIELD_NUMBER: _ClassVar[int]
     DEFINITION_PTR_FIELD_NUMBER: _ClassVar[int]
     STYLE_PTR_FIELD_NUMBER: _ClassVar[int]
+    FIELD_PTR_FIELD_NUMBER: _ClassVar[int]
     COLOR_FIELD_NUMBER: _ClassVar[int]
     POSITION_FIELD_NUMBER: _ClassVar[int]
     OFFSET_FIELD_NUMBER: _ClassVar[int]
@@ -6725,13 +6747,14 @@ class ShadowStyleData(_message.Message):
     icon: IconData
     definition_ptr: NodeReferenceData
     style_ptr: NodeReferenceData
+    field_ptr: NodeReferenceData
     color: ColorData
     position: ShadowPosition
     offset: Axis2Data
     blur: int
     spread: int
     diffusion: float
-    def __init__(self, metatype: _Optional[_Union[ObjectType, str]] = ..., id: _Optional[str] = ..., parent_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., bench_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., package_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., created_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., created_by_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., updated_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., updated_by_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., archived_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., deleted_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., template_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., mode: _Optional[_Union[NodeMode, str]] = ..., type: _Optional[_Union[ShadowType, str]] = ..., name: _Optional[str] = ..., order_key: _Optional[str] = ..., icon: _Optional[_Union[IconData, _Mapping]] = ..., definition_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., style_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., color: _Optional[_Union[ColorData, _Mapping]] = ..., position: _Optional[_Union[ShadowPosition, str]] = ..., offset: _Optional[_Union[Axis2Data, _Mapping]] = ..., blur: _Optional[int] = ..., spread: _Optional[int] = ..., diffusion: _Optional[float] = ...) -> None: ...
+    def __init__(self, metatype: _Optional[_Union[ObjectType, str]] = ..., id: _Optional[str] = ..., parent_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., bench_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., package_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., created_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., created_by_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., updated_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., updated_by_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., archived_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., deleted_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., template_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., mode: _Optional[_Union[NodeMode, str]] = ..., type: _Optional[_Union[ShadowType, str]] = ..., name: _Optional[str] = ..., order_key: _Optional[str] = ..., icon: _Optional[_Union[IconData, _Mapping]] = ..., definition_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., style_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., field_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., color: _Optional[_Union[ColorData, _Mapping]] = ..., position: _Optional[_Union[ShadowPosition, str]] = ..., offset: _Optional[_Union[Axis2Data, _Mapping]] = ..., blur: _Optional[int] = ..., spread: _Optional[int] = ..., diffusion: _Optional[float] = ...) -> None: ...
 
 class ThemeData(_message.Message):
     __slots__ = ("metatype", "id", "parent_ptr", "bench_ptr", "package_ptr", "created_at", "created_by_ptr", "updated_at", "updated_by_ptr", "archived_at", "deleted_at", "order_key", "icon", "definition_ptr", "primary_color", "secondary_color", "accent_color", "muted_color", "success_color", "warning_color", "error_color")
@@ -6780,7 +6803,7 @@ class ThemeData(_message.Message):
     def __init__(self, metatype: _Optional[_Union[ObjectType, str]] = ..., id: _Optional[str] = ..., parent_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., bench_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., package_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., created_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., created_by_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., updated_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., updated_by_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., archived_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., deleted_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., order_key: _Optional[str] = ..., icon: _Optional[_Union[IconData, _Mapping]] = ..., definition_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., primary_color: _Optional[_Union[ColorData, _Mapping]] = ..., secondary_color: _Optional[_Union[ColorData, _Mapping]] = ..., accent_color: _Optional[_Union[ColorData, _Mapping]] = ..., muted_color: _Optional[_Union[ColorData, _Mapping]] = ..., success_color: _Optional[_Union[ColorData, _Mapping]] = ..., warning_color: _Optional[_Union[ColorData, _Mapping]] = ..., error_color: _Optional[_Union[ColorData, _Mapping]] = ...) -> None: ...
 
 class TransitionStyleData(_message.Message):
-    __slots__ = ("metatype", "id", "parent_ptr", "bench_ptr", "package_ptr", "created_at", "created_by_ptr", "updated_at", "updated_by_ptr", "archived_at", "deleted_at", "template_ptr", "mode", "type", "name", "order_key", "icon", "definition_ptr", "style_ptr", "delay", "duration", "ease", "stiffness", "damping", "mass", "bounce", "spring_type")
+    __slots__ = ("metatype", "id", "parent_ptr", "bench_ptr", "package_ptr", "created_at", "created_by_ptr", "updated_at", "updated_by_ptr", "archived_at", "deleted_at", "template_ptr", "mode", "type", "name", "order_key", "icon", "definition_ptr", "style_ptr", "field_ptr", "delay", "duration", "ease", "stiffness", "damping", "mass", "bounce", "spring_type")
     METATYPE_FIELD_NUMBER: _ClassVar[int]
     ID_FIELD_NUMBER: _ClassVar[int]
     PARENT_PTR_FIELD_NUMBER: _ClassVar[int]
@@ -6800,6 +6823,7 @@ class TransitionStyleData(_message.Message):
     ICON_FIELD_NUMBER: _ClassVar[int]
     DEFINITION_PTR_FIELD_NUMBER: _ClassVar[int]
     STYLE_PTR_FIELD_NUMBER: _ClassVar[int]
+    FIELD_PTR_FIELD_NUMBER: _ClassVar[int]
     DELAY_FIELD_NUMBER: _ClassVar[int]
     DURATION_FIELD_NUMBER: _ClassVar[int]
     EASE_FIELD_NUMBER: _ClassVar[int]
@@ -6827,6 +6851,7 @@ class TransitionStyleData(_message.Message):
     icon: IconData
     definition_ptr: NodeReferenceData
     style_ptr: NodeReferenceData
+    field_ptr: NodeReferenceData
     delay: float
     duration: float
     ease: _containers.RepeatedScalarFieldContainer[float]
@@ -6835,7 +6860,7 @@ class TransitionStyleData(_message.Message):
     mass: float
     bounce: float
     spring_type: SpringType
-    def __init__(self, metatype: _Optional[_Union[ObjectType, str]] = ..., id: _Optional[str] = ..., parent_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., bench_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., package_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., created_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., created_by_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., updated_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., updated_by_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., archived_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., deleted_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., template_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., mode: _Optional[_Union[NodeMode, str]] = ..., type: _Optional[_Union[TransitionType, str]] = ..., name: _Optional[str] = ..., order_key: _Optional[str] = ..., icon: _Optional[_Union[IconData, _Mapping]] = ..., definition_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., style_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., delay: _Optional[float] = ..., duration: _Optional[float] = ..., ease: _Optional[_Iterable[float]] = ..., stiffness: _Optional[float] = ..., damping: _Optional[float] = ..., mass: _Optional[float] = ..., bounce: _Optional[float] = ..., spring_type: _Optional[_Union[SpringType, str]] = ...) -> None: ...
+    def __init__(self, metatype: _Optional[_Union[ObjectType, str]] = ..., id: _Optional[str] = ..., parent_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., bench_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., package_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., created_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., created_by_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., updated_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., updated_by_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., archived_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., deleted_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., template_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., mode: _Optional[_Union[NodeMode, str]] = ..., type: _Optional[_Union[TransitionType, str]] = ..., name: _Optional[str] = ..., order_key: _Optional[str] = ..., icon: _Optional[_Union[IconData, _Mapping]] = ..., definition_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., style_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., field_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., delay: _Optional[float] = ..., duration: _Optional[float] = ..., ease: _Optional[_Iterable[float]] = ..., stiffness: _Optional[float] = ..., damping: _Optional[float] = ..., mass: _Optional[float] = ..., bounce: _Optional[float] = ..., spring_type: _Optional[_Union[SpringType, str]] = ...) -> None: ...
 
 class ChoiceData(_message.Message):
     __slots__ = ("metatype", "id", "parent_ptr", "bench_ptr", "package_ptr", "created_at", "created_by_ptr", "updated_at", "updated_by_ptr", "archived_at", "deleted_at", "template_ptr", "mode", "name", "order_key", "icon", "definition_ptr")

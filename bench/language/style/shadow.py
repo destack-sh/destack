@@ -1,4 +1,4 @@
-from typing import Optional
+from typing import TYPE_CHECKING, Optional
 
 from bench.language.core import (
     BuiltinEnum,
@@ -19,12 +19,16 @@ from .color import Color
 from .core import Axis2
 from .style import StyleBase
 
+if TYPE_CHECKING:
+    from bench.language import Field
+
 
 @enum_(EnumType.SHADOW_TYPE)
 class ShadowType(BuiltinEnum):
     """Built-in shadow types."""
 
     STYLE = 2
+    FIELD = 3
     BOX = 10
     REALISTIC = 11
 
@@ -43,14 +47,17 @@ class ShadowBase(BuiltinObject):
     style: Optional["ShadowStyle"] = p_regular(
         40, default=None, require=False, array=False, references=NodeType.SHADOW_STYLE
     )
-    color: Optional["Color"] = p_regular(
-        41, array=False, default=None, require=False, struct=StructType.COLOR
+    field: Optional["Field"] = p_regular(
+        41, default=None, require=False, array=False, references=NodeType.FIELD
     )
-    position: ShadowPosition = p_regular(42, default=ShadowPosition.OUTSIDE)
-    offset: Optional[Axis2] = p_regular(43, default=None, struct=StructType.AXIS_2)
-    blur: int | None = p_regular(45, default=None)
-    spread: int | None = p_regular(46, default=None)
-    diffusion: float | None = p_regular(47, default=None)
+    color: Optional["Color"] = p_regular(
+        50, array=False, default=None, require=False, struct=StructType.COLOR
+    )
+    position: ShadowPosition = p_regular(51, default=ShadowPosition.OUTSIDE)
+    offset: Optional[Axis2] = p_regular(52, default=None, struct=StructType.AXIS_2)
+    blur: int | None = p_regular(53, default=None)
+    spread: int | None = p_regular(54, default=None)
+    diffusion: float | None = p_regular(55, default=None)
 
 
 @struct_(StructType.SHADOW)

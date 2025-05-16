@@ -20,9 +20,9 @@ if TYPE_CHECKING:
 
 @enum_(EnumType.FILL_TYPE)
 class FillType(BuiltinEnum):
-    SOLID = 1
-    GRADIENT = 2
-    IMAGE = 3
+    SOLID = 10
+    GRADIENT = 11
+    IMAGE = 12
 
 
 @enum_(EnumType.FILL_POSITION)

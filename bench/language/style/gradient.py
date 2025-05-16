@@ -24,9 +24,9 @@ from .style import StyleBase
 class GradientType(BuiltinEnum):
     """Built-in gradient types."""
 
-    LINEAR = 1
-    RADIAL = 2
-    CONIC = 3
+    LINEAR = 10
+    RADIAL = 11
+    CONIC = 12
 
 
 @struct_(StructType.GRADIENT_STOP)

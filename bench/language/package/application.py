@@ -21,10 +21,17 @@ if TYPE_CHECKING:
 class Application(IsInstantiable, IsNamed, IsModal, PageNode[ApplicationData]):
     """An Application is an interactive set of Scenes for some purpose."""
 
-    root_scene: Optional["Scene"] = p_regular(
-        40,
+    main_scene: Optional["Scene"] = p_regular(
+        50,
         array=False,
         require=False,
         references=NodeType.SCENE,
-        description="The root scene of the Application.",
+        description="The main scene of the Application.",
+    )
+    error_scene: Optional["Scene"] = p_regular(
+        53,
+        array=False,
+        require=False,
+        references=NodeType.SCENE,
+        description="The error scene of the Application.",
     )

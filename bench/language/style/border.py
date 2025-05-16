@@ -1,4 +1,4 @@
-from typing import Optional
+from typing import TYPE_CHECKING, Optional
 
 from bench.language.core import (
     BuiltinEnum,
@@ -19,6 +19,9 @@ from .color import Color
 from .core import Insets
 from .style import StyleBase
 
+if TYPE_CHECKING:
+    from bench.language import Field
+
 
 @enum_(EnumType.BORDER_TYPE)
 class BorderType(BuiltinEnum):
@@ -26,6 +29,7 @@ class BorderType(BuiltinEnum):
 
     NONE = 1
     STYLE = 2
+    FIELD = 3
     SOLID = 10
     DASHED = 11
     DOTTED = 12
@@ -38,9 +42,12 @@ class BorderBase(BuiltinObject):
     style: Optional["BorderStyle"] = p_regular(
         40, default=None, require=False, array=False, references=NodeType.BORDER_STYLE
     )
-    color: Optional["Color"] = p_regular(42, array=False, default=None, struct=StructType.COLOR)
+    field: Optional["Field"] = p_regular(
+        41, default=None, require=False, array=False, references=NodeType.FIELD
+    )
+    color: Optional["Color"] = p_regular(50, array=False, default=None, struct=StructType.COLOR)
     width: Optional[Insets] = p_regular(
-        43, default=None, require=False, array=False, struct=StructType.INSETS
+        51, default=None, require=False, array=False, struct=StructType.INSETS
     )
 
 

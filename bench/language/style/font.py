@@ -1,4 +1,4 @@
-from typing import Optional
+from typing import TYPE_CHECKING, Optional
 
 from bench.language.core import (
     BuiltinEnum,
@@ -15,22 +15,21 @@ from bench.language.core import (
 )
 from bench.pb2 import FontStyleData
 
-from .color import Color
 from .core import Length
+from .fill import Fill
 from .style import StyleBase
 
-
-@enum_(EnumType.TEXT_TYPE)
-class TextType(BuiltinEnum):
-    INLINE = 1
-    STYLE = 2
+if TYPE_CHECKING:
+    from bench.language import Field
 
 
 @enum_(EnumType.FONT_TYPE)
 class FontType(BuiltinEnum):
-    SERIF = 1
-    SANS = 2
-    MONO = 3
+    STYLE = 2
+    FIELD = 3
+    SERIF = 10
+    SANS = 11
+    MONO = 12
 
 
 @enum_(EnumType.FONT_WEIGHT)
@@ -85,33 +84,35 @@ class TextTransform(BuiltinEnum):
 
 
 @node_component_()
-class FontStyleBase(BuiltinObject):
+class FontBase(BuiltinObject):
     """A text style value."""
 
-    type: TextType = p_regular(30, default=TextType.INLINE)
+    type: FontType = p_regular(30, default=FontType.SANS)
     style: Optional["FontStyle"] = p_regular(
         40, default=None, require=False, array=False, references=NodeType.FONT_STYLE
     )
-    weight: Optional[FontWeight] = p_regular(41, default=FontWeight.NORMAL)
-    color: Optional[Color] = p_regular(45, default=None, struct=StructType.COLOR)
-    font_type: Optional[FontType] = p_regular(46, default=FontType.SERIF)
-    font_size: Optional[FontSize] = p_regular(47, default=FontSize.BASE)
-    align: Optional[TextAlign] = p_regular(48, default=TextAlign.LEFT)
-    line_height: Optional[Length] = p_regular(49, default=None, struct=StructType.LENGTH)
-    letter_spacing: Optional[Length] = p_regular(50, default=None, struct=StructType.LENGTH)
-    decoration: Optional[TextDecoration] = p_regular(51, default=TextDecoration.NONE)
-    transform: Optional[TextTransform] = p_regular(52, default=TextTransform.NONE)
+    field: Optional["Field"] = p_regular(
+        41, default=None, require=False, array=False, references=NodeType.FIELD
+    )
+    weight: Optional[FontWeight] = p_regular(50, default=FontWeight.NORMAL)
+    color: Optional[Fill] = p_regular(51, default=None, struct=StructType.FILL)
+    size: Optional[FontSize] = p_regular(52, default=FontSize.BASE)
+    align: Optional[TextAlign] = p_regular(53, default=TextAlign.LEFT)
+    line_height: Optional[Length] = p_regular(54, default=None, struct=StructType.LENGTH)
+    letter_spacing: Optional[Length] = p_regular(55, default=None, struct=StructType.LENGTH)
+    decoration: Optional[TextDecoration] = p_regular(56, default=TextDecoration.NONE)
+    transform: Optional[TextTransform] = p_regular(57, default=TextTransform.NONE)
 
 
 @struct_(StructType.FONT)
-class Font(FontStyleBase, Struct):
+class Font(FontBase, Struct):
     """A font value."""
 
     pass
 
 
 @node_(NodeType.FONT_STYLE)
-class FontStyle(FontStyleBase, StyleBase[FontStyleData]):
+class FontStyle(FontBase, StyleBase[FontStyleData]):
     """A font style."""
 
     pass
