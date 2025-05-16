@@ -240,15 +240,10 @@ class StructType(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     STRUCT_TYPE_ACCESS_MATRIX: _ClassVar[StructType]
     STRUCT_TYPE_ACCESS: _ClassVar[StructType]
     STRUCT_TYPE_VECTOR2: _ClassVar[StructType]
-    STRUCT_TYPE_VARIABLE_VECTOR2: _ClassVar[StructType]
     STRUCT_TYPE_VECTOR3: _ClassVar[StructType]
-    STRUCT_TYPE_VARIABLE_VECTOR3: _ClassVar[StructType]
     STRUCT_TYPE_VECTOR4: _ClassVar[StructType]
-    STRUCT_TYPE_VARIABLE_VECTOR4: _ClassVar[StructType]
     STRUCT_TYPE_AXIS2: _ClassVar[StructType]
-    STRUCT_TYPE_VARIABLE_AXIS2: _ClassVar[StructType]
     STRUCT_TYPE_AXIS3: _ClassVar[StructType]
-    STRUCT_TYPE_VARIABLE_AXIS3: _ClassVar[StructType]
     STRUCT_TYPE_COLOR: _ClassVar[StructType]
     STRUCT_TYPE_SHADOW: _ClassVar[StructType]
     STRUCT_TYPE_BORDER: _ClassVar[StructType]
@@ -257,21 +252,14 @@ class StructType(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     STRUCT_TYPE_GRADIENT: _ClassVar[StructType]
     STRUCT_TYPE_FILL: _ClassVar[StructType]
     STRUCT_TYPE_LENGTH: _ClassVar[StructType]
-    STRUCT_TYPE_VARIABLE_LENGTH: _ClassVar[StructType]
     STRUCT_TYPE_POSITION: _ClassVar[StructType]
-    STRUCT_TYPE_VARIABLE_POSITION: _ClassVar[StructType]
     STRUCT_TYPE_DIMENSION: _ClassVar[StructType]
-    STRUCT_TYPE_VARIABLE_DIMENSION: _ClassVar[StructType]
     STRUCT_TYPE_TRANSITION: _ClassVar[StructType]
     STRUCT_TYPE_EFFECT: _ClassVar[StructType]
     STRUCT_TYPE_GRID: _ClassVar[StructType]
-    STRUCT_TYPE_VARIABLE_GRID: _ClassVar[StructType]
     STRUCT_TYPE_GRID_SPAN: _ClassVar[StructType]
-    STRUCT_TYPE_VARIABLE_GRID_SPAN: _ClassVar[StructType]
     STRUCT_TYPE_INSETS: _ClassVar[StructType]
-    STRUCT_TYPE_VARIABLE_INSETS: _ClassVar[StructType]
     STRUCT_TYPE_CORNERS: _ClassVar[StructType]
-    STRUCT_TYPE_VARIABLE_CORNERS: _ClassVar[StructType]
 
 class ObjectType(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     __slots__ = ()
@@ -371,15 +359,10 @@ class ObjectType(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     OBJECT_TYPE_ACCESS_MATRIX: _ClassVar[ObjectType]
     OBJECT_TYPE_ACCESS: _ClassVar[ObjectType]
     OBJECT_TYPE_VECTOR2: _ClassVar[ObjectType]
-    OBJECT_TYPE_VARIABLE_VECTOR2: _ClassVar[ObjectType]
     OBJECT_TYPE_VECTOR3: _ClassVar[ObjectType]
-    OBJECT_TYPE_VARIABLE_VECTOR3: _ClassVar[ObjectType]
     OBJECT_TYPE_VECTOR4: _ClassVar[ObjectType]
-    OBJECT_TYPE_VARIABLE_VECTOR4: _ClassVar[ObjectType]
     OBJECT_TYPE_AXIS2: _ClassVar[ObjectType]
-    OBJECT_TYPE_VARIABLE_AXIS2: _ClassVar[ObjectType]
     OBJECT_TYPE_AXIS3: _ClassVar[ObjectType]
-    OBJECT_TYPE_VARIABLE_AXIS3: _ClassVar[ObjectType]
     OBJECT_TYPE_COLOR: _ClassVar[ObjectType]
     OBJECT_TYPE_SHADOW: _ClassVar[ObjectType]
     OBJECT_TYPE_BORDER: _ClassVar[ObjectType]
@@ -388,21 +371,14 @@ class ObjectType(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     OBJECT_TYPE_GRADIENT: _ClassVar[ObjectType]
     OBJECT_TYPE_FILL: _ClassVar[ObjectType]
     OBJECT_TYPE_LENGTH: _ClassVar[ObjectType]
-    OBJECT_TYPE_VARIABLE_LENGTH: _ClassVar[ObjectType]
     OBJECT_TYPE_POSITION: _ClassVar[ObjectType]
-    OBJECT_TYPE_VARIABLE_POSITION: _ClassVar[ObjectType]
     OBJECT_TYPE_DIMENSION: _ClassVar[ObjectType]
-    OBJECT_TYPE_VARIABLE_DIMENSION: _ClassVar[ObjectType]
     OBJECT_TYPE_TRANSITION: _ClassVar[ObjectType]
     OBJECT_TYPE_EFFECT: _ClassVar[ObjectType]
     OBJECT_TYPE_GRID: _ClassVar[ObjectType]
-    OBJECT_TYPE_VARIABLE_GRID: _ClassVar[ObjectType]
     OBJECT_TYPE_GRID_SPAN: _ClassVar[ObjectType]
-    OBJECT_TYPE_VARIABLE_GRID_SPAN: _ClassVar[ObjectType]
     OBJECT_TYPE_INSETS: _ClassVar[ObjectType]
-    OBJECT_TYPE_VARIABLE_INSETS: _ClassVar[ObjectType]
     OBJECT_TYPE_CORNERS: _ClassVar[ObjectType]
-    OBJECT_TYPE_VARIABLE_CORNERS: _ClassVar[ObjectType]
 
 class BenchType(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     __slots__ = ()
@@ -502,15 +478,10 @@ class BenchType(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     BENCH_TYPE_ACCESS_MATRIX: _ClassVar[BenchType]
     BENCH_TYPE_ACCESS: _ClassVar[BenchType]
     BENCH_TYPE_VECTOR2: _ClassVar[BenchType]
-    BENCH_TYPE_VARIABLE_VECTOR2: _ClassVar[BenchType]
     BENCH_TYPE_VECTOR3: _ClassVar[BenchType]
-    BENCH_TYPE_VARIABLE_VECTOR3: _ClassVar[BenchType]
     BENCH_TYPE_VECTOR4: _ClassVar[BenchType]
-    BENCH_TYPE_VARIABLE_VECTOR4: _ClassVar[BenchType]
     BENCH_TYPE_AXIS2: _ClassVar[BenchType]
-    BENCH_TYPE_VARIABLE_AXIS2: _ClassVar[BenchType]
     BENCH_TYPE_AXIS3: _ClassVar[BenchType]
-    BENCH_TYPE_VARIABLE_AXIS3: _ClassVar[BenchType]
     BENCH_TYPE_COLOR: _ClassVar[BenchType]
     BENCH_TYPE_SHADOW: _ClassVar[BenchType]
     BENCH_TYPE_BORDER: _ClassVar[BenchType]
@@ -519,21 +490,14 @@ class BenchType(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     BENCH_TYPE_GRADIENT: _ClassVar[BenchType]
     BENCH_TYPE_FILL: _ClassVar[BenchType]
     BENCH_TYPE_LENGTH: _ClassVar[BenchType]
-    BENCH_TYPE_VARIABLE_LENGTH: _ClassVar[BenchType]
     BENCH_TYPE_POSITION: _ClassVar[BenchType]
-    BENCH_TYPE_VARIABLE_POSITION: _ClassVar[BenchType]
     BENCH_TYPE_DIMENSION: _ClassVar[BenchType]
-    BENCH_TYPE_VARIABLE_DIMENSION: _ClassVar[BenchType]
     BENCH_TYPE_TRANSITION: _ClassVar[BenchType]
     BENCH_TYPE_EFFECT: _ClassVar[BenchType]
     BENCH_TYPE_GRID: _ClassVar[BenchType]
-    BENCH_TYPE_VARIABLE_GRID: _ClassVar[BenchType]
     BENCH_TYPE_GRID_SPAN: _ClassVar[BenchType]
-    BENCH_TYPE_VARIABLE_GRID_SPAN: _ClassVar[BenchType]
     BENCH_TYPE_INSETS: _ClassVar[BenchType]
-    BENCH_TYPE_VARIABLE_INSETS: _ClassVar[BenchType]
     BENCH_TYPE_CORNERS: _ClassVar[BenchType]
-    BENCH_TYPE_VARIABLE_CORNERS: _ClassVar[BenchType]
     BENCH_TYPE_ENUM_TYPE: _ClassVar[BenchType]
     BENCH_TYPE_NODE_TYPE: _ClassVar[BenchType]
     BENCH_TYPE_STRUCT_TYPE: _ClassVar[BenchType]
@@ -2038,15 +2002,10 @@ STRUCT_TYPE_ACCESS_ZONE: StructType
 STRUCT_TYPE_ACCESS_MATRIX: StructType
 STRUCT_TYPE_ACCESS: StructType
 STRUCT_TYPE_VECTOR2: StructType
-STRUCT_TYPE_VARIABLE_VECTOR2: StructType
 STRUCT_TYPE_VECTOR3: StructType
-STRUCT_TYPE_VARIABLE_VECTOR3: StructType
 STRUCT_TYPE_VECTOR4: StructType
-STRUCT_TYPE_VARIABLE_VECTOR4: StructType
 STRUCT_TYPE_AXIS2: StructType
-STRUCT_TYPE_VARIABLE_AXIS2: StructType
 STRUCT_TYPE_AXIS3: StructType
-STRUCT_TYPE_VARIABLE_AXIS3: StructType
 STRUCT_TYPE_COLOR: StructType
 STRUCT_TYPE_SHADOW: StructType
 STRUCT_TYPE_BORDER: StructType
@@ -2055,21 +2014,14 @@ STRUCT_TYPE_GRADIENT_STOP: StructType
 STRUCT_TYPE_GRADIENT: StructType
 STRUCT_TYPE_FILL: StructType
 STRUCT_TYPE_LENGTH: StructType
-STRUCT_TYPE_VARIABLE_LENGTH: StructType
 STRUCT_TYPE_POSITION: StructType
-STRUCT_TYPE_VARIABLE_POSITION: StructType
 STRUCT_TYPE_DIMENSION: StructType
-STRUCT_TYPE_VARIABLE_DIMENSION: StructType
 STRUCT_TYPE_TRANSITION: StructType
 STRUCT_TYPE_EFFECT: StructType
 STRUCT_TYPE_GRID: StructType
-STRUCT_TYPE_VARIABLE_GRID: StructType
 STRUCT_TYPE_GRID_SPAN: StructType
-STRUCT_TYPE_VARIABLE_GRID_SPAN: StructType
 STRUCT_TYPE_INSETS: StructType
-STRUCT_TYPE_VARIABLE_INSETS: StructType
 STRUCT_TYPE_CORNERS: StructType
-STRUCT_TYPE_VARIABLE_CORNERS: StructType
 OBJECT_TYPE_UNSPECIFIED: ObjectType
 OBJECT_TYPE_BENCH: ObjectType
 OBJECT_TYPE_HANDLE: ObjectType
@@ -2166,15 +2118,10 @@ OBJECT_TYPE_ACCESS_ZONE: ObjectType
 OBJECT_TYPE_ACCESS_MATRIX: ObjectType
 OBJECT_TYPE_ACCESS: ObjectType
 OBJECT_TYPE_VECTOR2: ObjectType
-OBJECT_TYPE_VARIABLE_VECTOR2: ObjectType
 OBJECT_TYPE_VECTOR3: ObjectType
-OBJECT_TYPE_VARIABLE_VECTOR3: ObjectType
 OBJECT_TYPE_VECTOR4: ObjectType
-OBJECT_TYPE_VARIABLE_VECTOR4: ObjectType
 OBJECT_TYPE_AXIS2: ObjectType
-OBJECT_TYPE_VARIABLE_AXIS2: ObjectType
 OBJECT_TYPE_AXIS3: ObjectType
-OBJECT_TYPE_VARIABLE_AXIS3: ObjectType
 OBJECT_TYPE_COLOR: ObjectType
 OBJECT_TYPE_SHADOW: ObjectType
 OBJECT_TYPE_BORDER: ObjectType
@@ -2183,21 +2130,14 @@ OBJECT_TYPE_GRADIENT_STOP: ObjectType
 OBJECT_TYPE_GRADIENT: ObjectType
 OBJECT_TYPE_FILL: ObjectType
 OBJECT_TYPE_LENGTH: ObjectType
-OBJECT_TYPE_VARIABLE_LENGTH: ObjectType
 OBJECT_TYPE_POSITION: ObjectType
-OBJECT_TYPE_VARIABLE_POSITION: ObjectType
 OBJECT_TYPE_DIMENSION: ObjectType
-OBJECT_TYPE_VARIABLE_DIMENSION: ObjectType
 OBJECT_TYPE_TRANSITION: ObjectType
 OBJECT_TYPE_EFFECT: ObjectType
 OBJECT_TYPE_GRID: ObjectType
-OBJECT_TYPE_VARIABLE_GRID: ObjectType
 OBJECT_TYPE_GRID_SPAN: ObjectType
-OBJECT_TYPE_VARIABLE_GRID_SPAN: ObjectType
 OBJECT_TYPE_INSETS: ObjectType
-OBJECT_TYPE_VARIABLE_INSETS: ObjectType
 OBJECT_TYPE_CORNERS: ObjectType
-OBJECT_TYPE_VARIABLE_CORNERS: ObjectType
 BENCH_TYPE_UNSPECIFIED: BenchType
 BENCH_TYPE_BENCH: BenchType
 BENCH_TYPE_HANDLE: BenchType
@@ -2294,15 +2234,10 @@ BENCH_TYPE_ACCESS_ZONE: BenchType
 BENCH_TYPE_ACCESS_MATRIX: BenchType
 BENCH_TYPE_ACCESS: BenchType
 BENCH_TYPE_VECTOR2: BenchType
-BENCH_TYPE_VARIABLE_VECTOR2: BenchType
 BENCH_TYPE_VECTOR3: BenchType
-BENCH_TYPE_VARIABLE_VECTOR3: BenchType
 BENCH_TYPE_VECTOR4: BenchType
-BENCH_TYPE_VARIABLE_VECTOR4: BenchType
 BENCH_TYPE_AXIS2: BenchType
-BENCH_TYPE_VARIABLE_AXIS2: BenchType
 BENCH_TYPE_AXIS3: BenchType
-BENCH_TYPE_VARIABLE_AXIS3: BenchType
 BENCH_TYPE_COLOR: BenchType
 BENCH_TYPE_SHADOW: BenchType
 BENCH_TYPE_BORDER: BenchType
@@ -2311,21 +2246,14 @@ BENCH_TYPE_GRADIENT_STOP: BenchType
 BENCH_TYPE_GRADIENT: BenchType
 BENCH_TYPE_FILL: BenchType
 BENCH_TYPE_LENGTH: BenchType
-BENCH_TYPE_VARIABLE_LENGTH: BenchType
 BENCH_TYPE_POSITION: BenchType
-BENCH_TYPE_VARIABLE_POSITION: BenchType
 BENCH_TYPE_DIMENSION: BenchType
-BENCH_TYPE_VARIABLE_DIMENSION: BenchType
 BENCH_TYPE_TRANSITION: BenchType
 BENCH_TYPE_EFFECT: BenchType
 BENCH_TYPE_GRID: BenchType
-BENCH_TYPE_VARIABLE_GRID: BenchType
 BENCH_TYPE_GRID_SPAN: BenchType
-BENCH_TYPE_VARIABLE_GRID_SPAN: BenchType
 BENCH_TYPE_INSETS: BenchType
-BENCH_TYPE_VARIABLE_INSETS: BenchType
 BENCH_TYPE_CORNERS: BenchType
-BENCH_TYPE_VARIABLE_CORNERS: BenchType
 BENCH_TYPE_ENUM_TYPE: BenchType
 BENCH_TYPE_NODE_TYPE: BenchType
 BENCH_TYPE_STRUCT_TYPE: BenchType
@@ -3924,18 +3852,6 @@ class LengthData(_message.Message):
     value: float
     def __init__(self, metatype: _Optional[_Union[ObjectType, str]] = ..., unit: _Optional[_Union[LengthUnit, str]] = ..., value: _Optional[float] = ...) -> None: ...
 
-class VariableLengthData(_message.Message):
-    __slots__ = ("metatype", "field_ptr", "unit", "value")
-    METATYPE_FIELD_NUMBER: _ClassVar[int]
-    FIELD_PTR_FIELD_NUMBER: _ClassVar[int]
-    UNIT_FIELD_NUMBER: _ClassVar[int]
-    VALUE_FIELD_NUMBER: _ClassVar[int]
-    metatype: ObjectType
-    field_ptr: NodeReferenceData
-    unit: LengthUnit
-    value: float
-    def __init__(self, metatype: _Optional[_Union[ObjectType, str]] = ..., field_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., unit: _Optional[_Union[LengthUnit, str]] = ..., value: _Optional[float] = ...) -> None: ...
-
 class PositionData(_message.Message):
     __slots__ = ("metatype", "type", "top", "left", "width", "height")
     METATYPE_FIELD_NUMBER: _ClassVar[int]
@@ -3952,24 +3868,6 @@ class PositionData(_message.Message):
     height: LengthData
     def __init__(self, metatype: _Optional[_Union[ObjectType, str]] = ..., type: _Optional[_Union[PositionType, str]] = ..., top: _Optional[_Union[LengthData, _Mapping]] = ..., left: _Optional[_Union[LengthData, _Mapping]] = ..., width: _Optional[_Union[LengthData, _Mapping]] = ..., height: _Optional[_Union[LengthData, _Mapping]] = ...) -> None: ...
 
-class VariablePositionData(_message.Message):
-    __slots__ = ("metatype", "type", "field_ptr", "top", "left", "width", "height")
-    METATYPE_FIELD_NUMBER: _ClassVar[int]
-    TYPE_FIELD_NUMBER: _ClassVar[int]
-    FIELD_PTR_FIELD_NUMBER: _ClassVar[int]
-    TOP_FIELD_NUMBER: _ClassVar[int]
-    LEFT_FIELD_NUMBER: _ClassVar[int]
-    WIDTH_FIELD_NUMBER: _ClassVar[int]
-    HEIGHT_FIELD_NUMBER: _ClassVar[int]
-    metatype: ObjectType
-    type: PositionType
-    field_ptr: NodeReferenceData
-    top: LengthData
-    left: LengthData
-    width: LengthData
-    height: LengthData
-    def __init__(self, metatype: _Optional[_Union[ObjectType, str]] = ..., type: _Optional[_Union[PositionType, str]] = ..., field_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., top: _Optional[_Union[LengthData, _Mapping]] = ..., left: _Optional[_Union[LengthData, _Mapping]] = ..., width: _Optional[_Union[LengthData, _Mapping]] = ..., height: _Optional[_Union[LengthData, _Mapping]] = ...) -> None: ...
-
 class DimensionData(_message.Message):
     __slots__ = ("metatype", "type", "unit", "value")
     METATYPE_FIELD_NUMBER: _ClassVar[int]
@@ -3981,20 +3879,6 @@ class DimensionData(_message.Message):
     unit: LengthUnit
     value: float
     def __init__(self, metatype: _Optional[_Union[ObjectType, str]] = ..., type: _Optional[_Union[DimensionType, str]] = ..., unit: _Optional[_Union[LengthUnit, str]] = ..., value: _Optional[float] = ...) -> None: ...
-
-class VariableDimensionData(_message.Message):
-    __slots__ = ("metatype", "type", "field_ptr", "unit", "value")
-    METATYPE_FIELD_NUMBER: _ClassVar[int]
-    TYPE_FIELD_NUMBER: _ClassVar[int]
-    FIELD_PTR_FIELD_NUMBER: _ClassVar[int]
-    UNIT_FIELD_NUMBER: _ClassVar[int]
-    VALUE_FIELD_NUMBER: _ClassVar[int]
-    metatype: ObjectType
-    type: DimensionType
-    field_ptr: NodeReferenceData
-    unit: LengthUnit
-    value: float
-    def __init__(self, metatype: _Optional[_Union[ObjectType, str]] = ..., type: _Optional[_Union[DimensionType, str]] = ..., field_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., unit: _Optional[_Union[LengthUnit, str]] = ..., value: _Optional[float] = ...) -> None: ...
 
 class InsetsData(_message.Message):
     __slots__ = ("metatype", "base", "top", "left", "right", "bottom")
@@ -4012,24 +3896,6 @@ class InsetsData(_message.Message):
     bottom: int
     def __init__(self, metatype: _Optional[_Union[ObjectType, str]] = ..., base: _Optional[int] = ..., top: _Optional[int] = ..., left: _Optional[int] = ..., right: _Optional[int] = ..., bottom: _Optional[int] = ...) -> None: ...
 
-class VariableInsetsData(_message.Message):
-    __slots__ = ("metatype", "field_ptr", "base", "top", "left", "right", "bottom")
-    METATYPE_FIELD_NUMBER: _ClassVar[int]
-    FIELD_PTR_FIELD_NUMBER: _ClassVar[int]
-    BASE_FIELD_NUMBER: _ClassVar[int]
-    TOP_FIELD_NUMBER: _ClassVar[int]
-    LEFT_FIELD_NUMBER: _ClassVar[int]
-    RIGHT_FIELD_NUMBER: _ClassVar[int]
-    BOTTOM_FIELD_NUMBER: _ClassVar[int]
-    metatype: ObjectType
-    field_ptr: NodeReferenceData
-    base: int
-    top: int
-    left: int
-    right: int
-    bottom: int
-    def __init__(self, metatype: _Optional[_Union[ObjectType, str]] = ..., field_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., base: _Optional[int] = ..., top: _Optional[int] = ..., left: _Optional[int] = ..., right: _Optional[int] = ..., bottom: _Optional[int] = ...) -> None: ...
-
 class CornersData(_message.Message):
     __slots__ = ("metatype", "base", "top_left", "top_right", "bottom_left", "bottom_right")
     METATYPE_FIELD_NUMBER: _ClassVar[int]
@@ -4046,24 +3912,6 @@ class CornersData(_message.Message):
     bottom_right: int
     def __init__(self, metatype: _Optional[_Union[ObjectType, str]] = ..., base: _Optional[int] = ..., top_left: _Optional[int] = ..., top_right: _Optional[int] = ..., bottom_left: _Optional[int] = ..., bottom_right: _Optional[int] = ...) -> None: ...
 
-class VariableCornersData(_message.Message):
-    __slots__ = ("metatype", "field_ptr", "base", "top_left", "top_right", "bottom_left", "bottom_right")
-    METATYPE_FIELD_NUMBER: _ClassVar[int]
-    FIELD_PTR_FIELD_NUMBER: _ClassVar[int]
-    BASE_FIELD_NUMBER: _ClassVar[int]
-    TOP_LEFT_FIELD_NUMBER: _ClassVar[int]
-    TOP_RIGHT_FIELD_NUMBER: _ClassVar[int]
-    BOTTOM_LEFT_FIELD_NUMBER: _ClassVar[int]
-    BOTTOM_RIGHT_FIELD_NUMBER: _ClassVar[int]
-    metatype: ObjectType
-    field_ptr: NodeReferenceData
-    base: int
-    top_left: int
-    top_right: int
-    bottom_left: int
-    bottom_right: int
-    def __init__(self, metatype: _Optional[_Union[ObjectType, str]] = ..., field_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., base: _Optional[int] = ..., top_left: _Optional[int] = ..., top_right: _Optional[int] = ..., bottom_left: _Optional[int] = ..., bottom_right: _Optional[int] = ...) -> None: ...
-
 class Axis2Data(_message.Message):
     __slots__ = ("metatype", "base", "x", "y")
     METATYPE_FIELD_NUMBER: _ClassVar[int]
@@ -4075,20 +3923,6 @@ class Axis2Data(_message.Message):
     x: float
     y: float
     def __init__(self, metatype: _Optional[_Union[ObjectType, str]] = ..., base: _Optional[float] = ..., x: _Optional[float] = ..., y: _Optional[float] = ...) -> None: ...
-
-class VariableAxis2Data(_message.Message):
-    __slots__ = ("metatype", "field_ptr", "base", "x", "y")
-    METATYPE_FIELD_NUMBER: _ClassVar[int]
-    FIELD_PTR_FIELD_NUMBER: _ClassVar[int]
-    BASE_FIELD_NUMBER: _ClassVar[int]
-    X_FIELD_NUMBER: _ClassVar[int]
-    Y_FIELD_NUMBER: _ClassVar[int]
-    metatype: ObjectType
-    field_ptr: NodeReferenceData
-    base: float
-    x: float
-    y: float
-    def __init__(self, metatype: _Optional[_Union[ObjectType, str]] = ..., field_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., base: _Optional[float] = ..., x: _Optional[float] = ..., y: _Optional[float] = ...) -> None: ...
 
 class Axis3Data(_message.Message):
     __slots__ = ("metatype", "base", "x", "y", "z")
@@ -4104,22 +3938,6 @@ class Axis3Data(_message.Message):
     z: float
     def __init__(self, metatype: _Optional[_Union[ObjectType, str]] = ..., base: _Optional[float] = ..., x: _Optional[float] = ..., y: _Optional[float] = ..., z: _Optional[float] = ...) -> None: ...
 
-class VariableAxis3Data(_message.Message):
-    __slots__ = ("metatype", "field_ptr", "base", "x", "y", "z")
-    METATYPE_FIELD_NUMBER: _ClassVar[int]
-    FIELD_PTR_FIELD_NUMBER: _ClassVar[int]
-    BASE_FIELD_NUMBER: _ClassVar[int]
-    X_FIELD_NUMBER: _ClassVar[int]
-    Y_FIELD_NUMBER: _ClassVar[int]
-    Z_FIELD_NUMBER: _ClassVar[int]
-    metatype: ObjectType
-    field_ptr: NodeReferenceData
-    base: float
-    x: float
-    y: float
-    z: float
-    def __init__(self, metatype: _Optional[_Union[ObjectType, str]] = ..., field_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., base: _Optional[float] = ..., x: _Optional[float] = ..., y: _Optional[float] = ..., z: _Optional[float] = ...) -> None: ...
-
 class Vector2Data(_message.Message):
     __slots__ = ("metatype", "x", "y")
     METATYPE_FIELD_NUMBER: _ClassVar[int]
@@ -4129,18 +3947,6 @@ class Vector2Data(_message.Message):
     x: float
     y: float
     def __init__(self, metatype: _Optional[_Union[ObjectType, str]] = ..., x: _Optional[float] = ..., y: _Optional[float] = ...) -> None: ...
-
-class VariableVector2Data(_message.Message):
-    __slots__ = ("metatype", "field_ptr", "x", "y")
-    METATYPE_FIELD_NUMBER: _ClassVar[int]
-    FIELD_PTR_FIELD_NUMBER: _ClassVar[int]
-    X_FIELD_NUMBER: _ClassVar[int]
-    Y_FIELD_NUMBER: _ClassVar[int]
-    metatype: ObjectType
-    field_ptr: NodeReferenceData
-    x: float
-    y: float
-    def __init__(self, metatype: _Optional[_Union[ObjectType, str]] = ..., field_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., x: _Optional[float] = ..., y: _Optional[float] = ...) -> None: ...
 
 class Vector3Data(_message.Message):
     __slots__ = ("metatype", "x", "y", "z")
@@ -4153,20 +3959,6 @@ class Vector3Data(_message.Message):
     y: float
     z: float
     def __init__(self, metatype: _Optional[_Union[ObjectType, str]] = ..., x: _Optional[float] = ..., y: _Optional[float] = ..., z: _Optional[float] = ...) -> None: ...
-
-class VariableVector3Data(_message.Message):
-    __slots__ = ("metatype", "field_ptr", "x", "y", "z")
-    METATYPE_FIELD_NUMBER: _ClassVar[int]
-    FIELD_PTR_FIELD_NUMBER: _ClassVar[int]
-    X_FIELD_NUMBER: _ClassVar[int]
-    Y_FIELD_NUMBER: _ClassVar[int]
-    Z_FIELD_NUMBER: _ClassVar[int]
-    metatype: ObjectType
-    field_ptr: NodeReferenceData
-    x: float
-    y: float
-    z: float
-    def __init__(self, metatype: _Optional[_Union[ObjectType, str]] = ..., field_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., x: _Optional[float] = ..., y: _Optional[float] = ..., z: _Optional[float] = ...) -> None: ...
 
 class Vector4Data(_message.Message):
     __slots__ = ("metatype", "x", "y", "z", "w")
@@ -4181,22 +3973,6 @@ class Vector4Data(_message.Message):
     z: float
     w: float
     def __init__(self, metatype: _Optional[_Union[ObjectType, str]] = ..., x: _Optional[float] = ..., y: _Optional[float] = ..., z: _Optional[float] = ..., w: _Optional[float] = ...) -> None: ...
-
-class VariableVector4Data(_message.Message):
-    __slots__ = ("metatype", "field_ptr", "x", "y", "z", "w")
-    METATYPE_FIELD_NUMBER: _ClassVar[int]
-    FIELD_PTR_FIELD_NUMBER: _ClassVar[int]
-    X_FIELD_NUMBER: _ClassVar[int]
-    Y_FIELD_NUMBER: _ClassVar[int]
-    Z_FIELD_NUMBER: _ClassVar[int]
-    W_FIELD_NUMBER: _ClassVar[int]
-    metatype: ObjectType
-    field_ptr: NodeReferenceData
-    x: float
-    y: float
-    z: float
-    w: float
-    def __init__(self, metatype: _Optional[_Union[ObjectType, str]] = ..., field_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., x: _Optional[float] = ..., y: _Optional[float] = ..., z: _Optional[float] = ..., w: _Optional[float] = ...) -> None: ...
 
 class GridData(_message.Message):
     __slots__ = ("metatype", "columns", "rows", "column_width", "column_min_width", "row_height")
@@ -4214,24 +3990,6 @@ class GridData(_message.Message):
     row_height: DimensionData
     def __init__(self, metatype: _Optional[_Union[ObjectType, str]] = ..., columns: _Optional[int] = ..., rows: _Optional[int] = ..., column_width: _Optional[_Union[DimensionData, _Mapping]] = ..., column_min_width: _Optional[_Union[DimensionData, _Mapping]] = ..., row_height: _Optional[_Union[DimensionData, _Mapping]] = ...) -> None: ...
 
-class VariableGridData(_message.Message):
-    __slots__ = ("metatype", "field_ptr", "columns", "rows", "column_width", "column_min_width", "row_height")
-    METATYPE_FIELD_NUMBER: _ClassVar[int]
-    FIELD_PTR_FIELD_NUMBER: _ClassVar[int]
-    COLUMNS_FIELD_NUMBER: _ClassVar[int]
-    ROWS_FIELD_NUMBER: _ClassVar[int]
-    COLUMN_WIDTH_FIELD_NUMBER: _ClassVar[int]
-    COLUMN_MIN_WIDTH_FIELD_NUMBER: _ClassVar[int]
-    ROW_HEIGHT_FIELD_NUMBER: _ClassVar[int]
-    metatype: ObjectType
-    field_ptr: NodeReferenceData
-    columns: int
-    rows: int
-    column_width: DimensionData
-    column_min_width: DimensionData
-    row_height: DimensionData
-    def __init__(self, metatype: _Optional[_Union[ObjectType, str]] = ..., field_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., columns: _Optional[int] = ..., rows: _Optional[int] = ..., column_width: _Optional[_Union[DimensionData, _Mapping]] = ..., column_min_width: _Optional[_Union[DimensionData, _Mapping]] = ..., row_height: _Optional[_Union[DimensionData, _Mapping]] = ...) -> None: ...
-
 class GridSpanData(_message.Message):
     __slots__ = ("metatype", "columns", "rows")
     METATYPE_FIELD_NUMBER: _ClassVar[int]
@@ -4241,18 +3999,6 @@ class GridSpanData(_message.Message):
     columns: int
     rows: int
     def __init__(self, metatype: _Optional[_Union[ObjectType, str]] = ..., columns: _Optional[int] = ..., rows: _Optional[int] = ...) -> None: ...
-
-class VariableGridSpanData(_message.Message):
-    __slots__ = ("metatype", "field_ptr", "columns", "rows")
-    METATYPE_FIELD_NUMBER: _ClassVar[int]
-    FIELD_PTR_FIELD_NUMBER: _ClassVar[int]
-    COLUMNS_FIELD_NUMBER: _ClassVar[int]
-    ROWS_FIELD_NUMBER: _ClassVar[int]
-    metatype: ObjectType
-    field_ptr: NodeReferenceData
-    columns: int
-    rows: int
-    def __init__(self, metatype: _Optional[_Union[ObjectType, str]] = ..., field_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., columns: _Optional[int] = ..., rows: _Optional[int] = ...) -> None: ...
 
 class ColorData(_message.Message):
     __slots__ = ("metatype", "type", "field_ptr", "style_ptr", "hue", "shade", "x", "y", "z", "alpha")
@@ -7401,7 +7147,7 @@ class OptionData(_message.Message):
     def __init__(self, metatype: _Optional[_Union[ObjectType, str]] = ..., id: _Optional[str] = ..., ck: _Optional[str] = ..., parent_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., bench_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., package_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., created_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., created_by_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., updated_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., updated_by_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., archived_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., deleted_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., template_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., mode: _Optional[_Union[NodeMode, str]] = ..., name: _Optional[str] = ..., order_key: _Optional[str] = ..., icon: _Optional[_Union[IconData, _Mapping]] = ...) -> None: ...
 
 class ComponentViewData(_message.Message):
-    __slots__ = ("metatype", "id", "ck", "parent_ptr", "bench_ptr", "package_ptr", "created_at", "created_by_ptr", "updated_at", "updated_by_ptr", "archived_at", "deleted_at", "template_ptr", "mode", "name", "order_key", "icon", "definition_ptr", "position", "width", "height", "min_width", "min_height", "max_width", "max_height", "layout", "direction", "distribute", "align", "gap", "padding", "grid", "grid_span", "aspect_ratio", "wrap", "visible", "opacity", "fill", "rotation", "shadow", "border", "radius")
+    __slots__ = ("metatype", "id", "ck", "parent_ptr", "bench_ptr", "package_ptr", "created_at", "created_by_ptr", "updated_at", "updated_by_ptr", "archived_at", "deleted_at", "template_ptr", "mode", "name", "order_key", "icon", "definition_ptr", "position", "width", "height", "min_width", "min_height", "max_width", "max_height", "layout", "direction", "distribute", "align", "gap", "padding", "grid", "grid_span", "aspect_ratio", "wrap", "visible", "opacity", "fill", "rotation", "skew", "scale", "shadow", "border", "radius")
     METATYPE_FIELD_NUMBER: _ClassVar[int]
     ID_FIELD_NUMBER: _ClassVar[int]
     CK_FIELD_NUMBER: _ClassVar[int]
@@ -7441,6 +7187,8 @@ class ComponentViewData(_message.Message):
     OPACITY_FIELD_NUMBER: _ClassVar[int]
     FILL_FIELD_NUMBER: _ClassVar[int]
     ROTATION_FIELD_NUMBER: _ClassVar[int]
+    SKEW_FIELD_NUMBER: _ClassVar[int]
+    SCALE_FIELD_NUMBER: _ClassVar[int]
     SHADOW_FIELD_NUMBER: _ClassVar[int]
     BORDER_FIELD_NUMBER: _ClassVar[int]
     RADIUS_FIELD_NUMBER: _ClassVar[int]
@@ -7483,13 +7231,15 @@ class ComponentViewData(_message.Message):
     opacity: float
     fill: FillData
     rotation: Axis3Data
+    skew: Vector2Data
+    scale: float
     shadow: ShadowData
     border: BorderData
     radius: CornersData
-    def __init__(self, metatype: _Optional[_Union[ObjectType, str]] = ..., id: _Optional[str] = ..., ck: _Optional[str] = ..., parent_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., bench_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., package_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., created_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., created_by_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., updated_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., updated_by_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., archived_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., deleted_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., template_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., mode: _Optional[_Union[NodeMode, str]] = ..., name: _Optional[str] = ..., order_key: _Optional[str] = ..., icon: _Optional[_Union[IconData, _Mapping]] = ..., definition_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., position: _Optional[_Union[PositionData, _Mapping]] = ..., width: _Optional[_Union[DimensionData, _Mapping]] = ..., height: _Optional[_Union[DimensionData, _Mapping]] = ..., min_width: _Optional[_Union[DimensionData, _Mapping]] = ..., min_height: _Optional[_Union[DimensionData, _Mapping]] = ..., max_width: _Optional[_Union[DimensionData, _Mapping]] = ..., max_height: _Optional[_Union[DimensionData, _Mapping]] = ..., layout: _Optional[_Union[Layout, str]] = ..., direction: _Optional[_Union[Direction, str]] = ..., distribute: _Optional[_Union[Distribute, str]] = ..., align: _Optional[_Union[Align, str]] = ..., gap: _Optional[_Union[Axis2Data, _Mapping]] = ..., padding: _Optional[_Union[InsetsData, _Mapping]] = ..., grid: _Optional[_Union[GridData, _Mapping]] = ..., grid_span: _Optional[_Union[GridSpanData, _Mapping]] = ..., aspect_ratio: _Optional[float] = ..., wrap: bool = ..., visible: bool = ..., opacity: _Optional[float] = ..., fill: _Optional[_Union[FillData, _Mapping]] = ..., rotation: _Optional[_Union[Axis3Data, _Mapping]] = ..., shadow: _Optional[_Union[ShadowData, _Mapping]] = ..., border: _Optional[_Union[BorderData, _Mapping]] = ..., radius: _Optional[_Union[CornersData, _Mapping]] = ...) -> None: ...
+    def __init__(self, metatype: _Optional[_Union[ObjectType, str]] = ..., id: _Optional[str] = ..., ck: _Optional[str] = ..., parent_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., bench_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., package_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., created_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., created_by_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., updated_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., updated_by_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., archived_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., deleted_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., template_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., mode: _Optional[_Union[NodeMode, str]] = ..., name: _Optional[str] = ..., order_key: _Optional[str] = ..., icon: _Optional[_Union[IconData, _Mapping]] = ..., definition_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., position: _Optional[_Union[PositionData, _Mapping]] = ..., width: _Optional[_Union[DimensionData, _Mapping]] = ..., height: _Optional[_Union[DimensionData, _Mapping]] = ..., min_width: _Optional[_Union[DimensionData, _Mapping]] = ..., min_height: _Optional[_Union[DimensionData, _Mapping]] = ..., max_width: _Optional[_Union[DimensionData, _Mapping]] = ..., max_height: _Optional[_Union[DimensionData, _Mapping]] = ..., layout: _Optional[_Union[Layout, str]] = ..., direction: _Optional[_Union[Direction, str]] = ..., distribute: _Optional[_Union[Distribute, str]] = ..., align: _Optional[_Union[Align, str]] = ..., gap: _Optional[_Union[Axis2Data, _Mapping]] = ..., padding: _Optional[_Union[InsetsData, _Mapping]] = ..., grid: _Optional[_Union[GridData, _Mapping]] = ..., grid_span: _Optional[_Union[GridSpanData, _Mapping]] = ..., aspect_ratio: _Optional[float] = ..., wrap: bool = ..., visible: bool = ..., opacity: _Optional[float] = ..., fill: _Optional[_Union[FillData, _Mapping]] = ..., rotation: _Optional[_Union[Axis3Data, _Mapping]] = ..., skew: _Optional[_Union[Vector2Data, _Mapping]] = ..., scale: _Optional[float] = ..., shadow: _Optional[_Union[ShadowData, _Mapping]] = ..., border: _Optional[_Union[BorderData, _Mapping]] = ..., radius: _Optional[_Union[CornersData, _Mapping]] = ...) -> None: ...
 
 class FrameViewData(_message.Message):
-    __slots__ = ("metatype", "id", "ck", "parent_ptr", "bench_ptr", "package_ptr", "created_at", "created_by_ptr", "updated_at", "updated_by_ptr", "archived_at", "deleted_at", "template_ptr", "mode", "name", "order_key", "icon", "definition_ptr", "position", "width", "height", "min_width", "min_height", "max_width", "max_height", "layout", "direction", "distribute", "align", "gap", "padding", "grid", "grid_span", "aspect_ratio", "wrap", "visible", "opacity", "fill", "rotation", "shadow", "border", "radius")
+    __slots__ = ("metatype", "id", "ck", "parent_ptr", "bench_ptr", "package_ptr", "created_at", "created_by_ptr", "updated_at", "updated_by_ptr", "archived_at", "deleted_at", "template_ptr", "mode", "name", "order_key", "icon", "definition_ptr", "position", "width", "height", "min_width", "min_height", "max_width", "max_height", "layout", "direction", "distribute", "align", "gap", "padding", "grid", "grid_span", "aspect_ratio", "wrap", "visible", "opacity", "fill", "rotation", "skew", "scale", "shadow", "border", "radius")
     METATYPE_FIELD_NUMBER: _ClassVar[int]
     ID_FIELD_NUMBER: _ClassVar[int]
     CK_FIELD_NUMBER: _ClassVar[int]
@@ -7529,6 +7279,8 @@ class FrameViewData(_message.Message):
     OPACITY_FIELD_NUMBER: _ClassVar[int]
     FILL_FIELD_NUMBER: _ClassVar[int]
     ROTATION_FIELD_NUMBER: _ClassVar[int]
+    SKEW_FIELD_NUMBER: _ClassVar[int]
+    SCALE_FIELD_NUMBER: _ClassVar[int]
     SHADOW_FIELD_NUMBER: _ClassVar[int]
     BORDER_FIELD_NUMBER: _ClassVar[int]
     RADIUS_FIELD_NUMBER: _ClassVar[int]
@@ -7571,13 +7323,15 @@ class FrameViewData(_message.Message):
     opacity: float
     fill: FillData
     rotation: Axis3Data
+    skew: Vector2Data
+    scale: float
     shadow: ShadowData
     border: BorderData
     radius: CornersData
-    def __init__(self, metatype: _Optional[_Union[ObjectType, str]] = ..., id: _Optional[str] = ..., ck: _Optional[str] = ..., parent_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., bench_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., package_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., created_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., created_by_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., updated_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., updated_by_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., archived_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., deleted_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., template_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., mode: _Optional[_Union[NodeMode, str]] = ..., name: _Optional[str] = ..., order_key: _Optional[str] = ..., icon: _Optional[_Union[IconData, _Mapping]] = ..., definition_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., position: _Optional[_Union[PositionData, _Mapping]] = ..., width: _Optional[_Union[DimensionData, _Mapping]] = ..., height: _Optional[_Union[DimensionData, _Mapping]] = ..., min_width: _Optional[_Union[DimensionData, _Mapping]] = ..., min_height: _Optional[_Union[DimensionData, _Mapping]] = ..., max_width: _Optional[_Union[DimensionData, _Mapping]] = ..., max_height: _Optional[_Union[DimensionData, _Mapping]] = ..., layout: _Optional[_Union[Layout, str]] = ..., direction: _Optional[_Union[Direction, str]] = ..., distribute: _Optional[_Union[Distribute, str]] = ..., align: _Optional[_Union[Align, str]] = ..., gap: _Optional[_Union[Axis2Data, _Mapping]] = ..., padding: _Optional[_Union[InsetsData, _Mapping]] = ..., grid: _Optional[_Union[GridData, _Mapping]] = ..., grid_span: _Optional[_Union[GridSpanData, _Mapping]] = ..., aspect_ratio: _Optional[float] = ..., wrap: bool = ..., visible: bool = ..., opacity: _Optional[float] = ..., fill: _Optional[_Union[FillData, _Mapping]] = ..., rotation: _Optional[_Union[Axis3Data, _Mapping]] = ..., shadow: _Optional[_Union[ShadowData, _Mapping]] = ..., border: _Optional[_Union[BorderData, _Mapping]] = ..., radius: _Optional[_Union[CornersData, _Mapping]] = ...) -> None: ...
+    def __init__(self, metatype: _Optional[_Union[ObjectType, str]] = ..., id: _Optional[str] = ..., ck: _Optional[str] = ..., parent_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., bench_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., package_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., created_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., created_by_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., updated_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., updated_by_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., archived_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., deleted_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., template_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., mode: _Optional[_Union[NodeMode, str]] = ..., name: _Optional[str] = ..., order_key: _Optional[str] = ..., icon: _Optional[_Union[IconData, _Mapping]] = ..., definition_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., position: _Optional[_Union[PositionData, _Mapping]] = ..., width: _Optional[_Union[DimensionData, _Mapping]] = ..., height: _Optional[_Union[DimensionData, _Mapping]] = ..., min_width: _Optional[_Union[DimensionData, _Mapping]] = ..., min_height: _Optional[_Union[DimensionData, _Mapping]] = ..., max_width: _Optional[_Union[DimensionData, _Mapping]] = ..., max_height: _Optional[_Union[DimensionData, _Mapping]] = ..., layout: _Optional[_Union[Layout, str]] = ..., direction: _Optional[_Union[Direction, str]] = ..., distribute: _Optional[_Union[Distribute, str]] = ..., align: _Optional[_Union[Align, str]] = ..., gap: _Optional[_Union[Axis2Data, _Mapping]] = ..., padding: _Optional[_Union[InsetsData, _Mapping]] = ..., grid: _Optional[_Union[GridData, _Mapping]] = ..., grid_span: _Optional[_Union[GridSpanData, _Mapping]] = ..., aspect_ratio: _Optional[float] = ..., wrap: bool = ..., visible: bool = ..., opacity: _Optional[float] = ..., fill: _Optional[_Union[FillData, _Mapping]] = ..., rotation: _Optional[_Union[Axis3Data, _Mapping]] = ..., skew: _Optional[_Union[Vector2Data, _Mapping]] = ..., scale: _Optional[float] = ..., shadow: _Optional[_Union[ShadowData, _Mapping]] = ..., border: _Optional[_Union[BorderData, _Mapping]] = ..., radius: _Optional[_Union[CornersData, _Mapping]] = ...) -> None: ...
 
 class LabelViewData(_message.Message):
-    __slots__ = ("metatype", "id", "ck", "parent_ptr", "bench_ptr", "package_ptr", "created_at", "created_by_ptr", "updated_at", "updated_by_ptr", "archived_at", "deleted_at", "template_ptr", "mode", "name", "order_key", "icon", "definition_ptr", "position", "width", "height", "min_width", "min_height", "max_width", "max_height", "layout", "direction", "distribute", "align", "gap", "padding", "grid", "grid_span", "aspect_ratio", "wrap", "visible", "opacity", "fill", "rotation", "shadow", "border", "radius")
+    __slots__ = ("metatype", "id", "ck", "parent_ptr", "bench_ptr", "package_ptr", "created_at", "created_by_ptr", "updated_at", "updated_by_ptr", "archived_at", "deleted_at", "template_ptr", "mode", "name", "order_key", "icon", "definition_ptr", "position", "width", "height", "min_width", "min_height", "max_width", "max_height", "layout", "direction", "distribute", "align", "gap", "padding", "grid", "grid_span", "aspect_ratio", "wrap", "visible", "opacity", "fill", "rotation", "skew", "scale", "shadow", "border", "radius")
     METATYPE_FIELD_NUMBER: _ClassVar[int]
     ID_FIELD_NUMBER: _ClassVar[int]
     CK_FIELD_NUMBER: _ClassVar[int]
@@ -7617,6 +7371,8 @@ class LabelViewData(_message.Message):
     OPACITY_FIELD_NUMBER: _ClassVar[int]
     FILL_FIELD_NUMBER: _ClassVar[int]
     ROTATION_FIELD_NUMBER: _ClassVar[int]
+    SKEW_FIELD_NUMBER: _ClassVar[int]
+    SCALE_FIELD_NUMBER: _ClassVar[int]
     SHADOW_FIELD_NUMBER: _ClassVar[int]
     BORDER_FIELD_NUMBER: _ClassVar[int]
     RADIUS_FIELD_NUMBER: _ClassVar[int]
@@ -7659,13 +7415,15 @@ class LabelViewData(_message.Message):
     opacity: float
     fill: FillData
     rotation: Axis3Data
+    skew: Vector2Data
+    scale: float
     shadow: ShadowData
     border: BorderData
     radius: CornersData
-    def __init__(self, metatype: _Optional[_Union[ObjectType, str]] = ..., id: _Optional[str] = ..., ck: _Optional[str] = ..., parent_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., bench_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., package_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., created_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., created_by_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., updated_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., updated_by_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., archived_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., deleted_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., template_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., mode: _Optional[_Union[NodeMode, str]] = ..., name: _Optional[str] = ..., order_key: _Optional[str] = ..., icon: _Optional[_Union[IconData, _Mapping]] = ..., definition_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., position: _Optional[_Union[PositionData, _Mapping]] = ..., width: _Optional[_Union[DimensionData, _Mapping]] = ..., height: _Optional[_Union[DimensionData, _Mapping]] = ..., min_width: _Optional[_Union[DimensionData, _Mapping]] = ..., min_height: _Optional[_Union[DimensionData, _Mapping]] = ..., max_width: _Optional[_Union[DimensionData, _Mapping]] = ..., max_height: _Optional[_Union[DimensionData, _Mapping]] = ..., layout: _Optional[_Union[Layout, str]] = ..., direction: _Optional[_Union[Direction, str]] = ..., distribute: _Optional[_Union[Distribute, str]] = ..., align: _Optional[_Union[Align, str]] = ..., gap: _Optional[_Union[Axis2Data, _Mapping]] = ..., padding: _Optional[_Union[InsetsData, _Mapping]] = ..., grid: _Optional[_Union[GridData, _Mapping]] = ..., grid_span: _Optional[_Union[GridSpanData, _Mapping]] = ..., aspect_ratio: _Optional[float] = ..., wrap: bool = ..., visible: bool = ..., opacity: _Optional[float] = ..., fill: _Optional[_Union[FillData, _Mapping]] = ..., rotation: _Optional[_Union[Axis3Data, _Mapping]] = ..., shadow: _Optional[_Union[ShadowData, _Mapping]] = ..., border: _Optional[_Union[BorderData, _Mapping]] = ..., radius: _Optional[_Union[CornersData, _Mapping]] = ...) -> None: ...
+    def __init__(self, metatype: _Optional[_Union[ObjectType, str]] = ..., id: _Optional[str] = ..., ck: _Optional[str] = ..., parent_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., bench_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., package_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., created_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., created_by_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., updated_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., updated_by_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., archived_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., deleted_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., template_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., mode: _Optional[_Union[NodeMode, str]] = ..., name: _Optional[str] = ..., order_key: _Optional[str] = ..., icon: _Optional[_Union[IconData, _Mapping]] = ..., definition_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., position: _Optional[_Union[PositionData, _Mapping]] = ..., width: _Optional[_Union[DimensionData, _Mapping]] = ..., height: _Optional[_Union[DimensionData, _Mapping]] = ..., min_width: _Optional[_Union[DimensionData, _Mapping]] = ..., min_height: _Optional[_Union[DimensionData, _Mapping]] = ..., max_width: _Optional[_Union[DimensionData, _Mapping]] = ..., max_height: _Optional[_Union[DimensionData, _Mapping]] = ..., layout: _Optional[_Union[Layout, str]] = ..., direction: _Optional[_Union[Direction, str]] = ..., distribute: _Optional[_Union[Distribute, str]] = ..., align: _Optional[_Union[Align, str]] = ..., gap: _Optional[_Union[Axis2Data, _Mapping]] = ..., padding: _Optional[_Union[InsetsData, _Mapping]] = ..., grid: _Optional[_Union[GridData, _Mapping]] = ..., grid_span: _Optional[_Union[GridSpanData, _Mapping]] = ..., aspect_ratio: _Optional[float] = ..., wrap: bool = ..., visible: bool = ..., opacity: _Optional[float] = ..., fill: _Optional[_Union[FillData, _Mapping]] = ..., rotation: _Optional[_Union[Axis3Data, _Mapping]] = ..., skew: _Optional[_Union[Vector2Data, _Mapping]] = ..., scale: _Optional[float] = ..., shadow: _Optional[_Union[ShadowData, _Mapping]] = ..., border: _Optional[_Union[BorderData, _Mapping]] = ..., radius: _Optional[_Union[CornersData, _Mapping]] = ...) -> None: ...
 
 class SplitViewData(_message.Message):
-    __slots__ = ("metatype", "id", "ck", "parent_ptr", "bench_ptr", "package_ptr", "created_at", "created_by_ptr", "updated_at", "updated_by_ptr", "archived_at", "deleted_at", "template_ptr", "mode", "name", "order_key", "icon", "definition_ptr", "position", "width", "height", "min_width", "min_height", "max_width", "max_height", "layout", "direction", "distribute", "align", "gap", "padding", "grid", "grid_span", "aspect_ratio", "wrap", "visible", "opacity", "fill", "rotation", "shadow", "border", "radius")
+    __slots__ = ("metatype", "id", "ck", "parent_ptr", "bench_ptr", "package_ptr", "created_at", "created_by_ptr", "updated_at", "updated_by_ptr", "archived_at", "deleted_at", "template_ptr", "mode", "name", "order_key", "icon", "definition_ptr", "position", "width", "height", "min_width", "min_height", "max_width", "max_height", "layout", "direction", "distribute", "align", "gap", "padding", "grid", "grid_span", "aspect_ratio", "wrap", "visible", "opacity", "fill", "rotation", "skew", "scale", "shadow", "border", "radius")
     METATYPE_FIELD_NUMBER: _ClassVar[int]
     ID_FIELD_NUMBER: _ClassVar[int]
     CK_FIELD_NUMBER: _ClassVar[int]
@@ -7705,6 +7463,8 @@ class SplitViewData(_message.Message):
     OPACITY_FIELD_NUMBER: _ClassVar[int]
     FILL_FIELD_NUMBER: _ClassVar[int]
     ROTATION_FIELD_NUMBER: _ClassVar[int]
+    SKEW_FIELD_NUMBER: _ClassVar[int]
+    SCALE_FIELD_NUMBER: _ClassVar[int]
     SHADOW_FIELD_NUMBER: _ClassVar[int]
     BORDER_FIELD_NUMBER: _ClassVar[int]
     RADIUS_FIELD_NUMBER: _ClassVar[int]
@@ -7747,10 +7507,12 @@ class SplitViewData(_message.Message):
     opacity: float
     fill: FillData
     rotation: Axis3Data
+    skew: Vector2Data
+    scale: float
     shadow: ShadowData
     border: BorderData
     radius: CornersData
-    def __init__(self, metatype: _Optional[_Union[ObjectType, str]] = ..., id: _Optional[str] = ..., ck: _Optional[str] = ..., parent_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., bench_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., package_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., created_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., created_by_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., updated_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., updated_by_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., archived_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., deleted_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., template_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., mode: _Optional[_Union[NodeMode, str]] = ..., name: _Optional[str] = ..., order_key: _Optional[str] = ..., icon: _Optional[_Union[IconData, _Mapping]] = ..., definition_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., position: _Optional[_Union[PositionData, _Mapping]] = ..., width: _Optional[_Union[DimensionData, _Mapping]] = ..., height: _Optional[_Union[DimensionData, _Mapping]] = ..., min_width: _Optional[_Union[DimensionData, _Mapping]] = ..., min_height: _Optional[_Union[DimensionData, _Mapping]] = ..., max_width: _Optional[_Union[DimensionData, _Mapping]] = ..., max_height: _Optional[_Union[DimensionData, _Mapping]] = ..., layout: _Optional[_Union[Layout, str]] = ..., direction: _Optional[_Union[Direction, str]] = ..., distribute: _Optional[_Union[Distribute, str]] = ..., align: _Optional[_Union[Align, str]] = ..., gap: _Optional[_Union[Axis2Data, _Mapping]] = ..., padding: _Optional[_Union[InsetsData, _Mapping]] = ..., grid: _Optional[_Union[GridData, _Mapping]] = ..., grid_span: _Optional[_Union[GridSpanData, _Mapping]] = ..., aspect_ratio: _Optional[float] = ..., wrap: bool = ..., visible: bool = ..., opacity: _Optional[float] = ..., fill: _Optional[_Union[FillData, _Mapping]] = ..., rotation: _Optional[_Union[Axis3Data, _Mapping]] = ..., shadow: _Optional[_Union[ShadowData, _Mapping]] = ..., border: _Optional[_Union[BorderData, _Mapping]] = ..., radius: _Optional[_Union[CornersData, _Mapping]] = ...) -> None: ...
+    def __init__(self, metatype: _Optional[_Union[ObjectType, str]] = ..., id: _Optional[str] = ..., ck: _Optional[str] = ..., parent_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., bench_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., package_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., created_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., created_by_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., updated_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., updated_by_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., archived_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., deleted_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., template_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., mode: _Optional[_Union[NodeMode, str]] = ..., name: _Optional[str] = ..., order_key: _Optional[str] = ..., icon: _Optional[_Union[IconData, _Mapping]] = ..., definition_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., position: _Optional[_Union[PositionData, _Mapping]] = ..., width: _Optional[_Union[DimensionData, _Mapping]] = ..., height: _Optional[_Union[DimensionData, _Mapping]] = ..., min_width: _Optional[_Union[DimensionData, _Mapping]] = ..., min_height: _Optional[_Union[DimensionData, _Mapping]] = ..., max_width: _Optional[_Union[DimensionData, _Mapping]] = ..., max_height: _Optional[_Union[DimensionData, _Mapping]] = ..., layout: _Optional[_Union[Layout, str]] = ..., direction: _Optional[_Union[Direction, str]] = ..., distribute: _Optional[_Union[Distribute, str]] = ..., align: _Optional[_Union[Align, str]] = ..., gap: _Optional[_Union[Axis2Data, _Mapping]] = ..., padding: _Optional[_Union[InsetsData, _Mapping]] = ..., grid: _Optional[_Union[GridData, _Mapping]] = ..., grid_span: _Optional[_Union[GridSpanData, _Mapping]] = ..., aspect_ratio: _Optional[float] = ..., wrap: bool = ..., visible: bool = ..., opacity: _Optional[float] = ..., fill: _Optional[_Union[FillData, _Mapping]] = ..., rotation: _Optional[_Union[Axis3Data, _Mapping]] = ..., skew: _Optional[_Union[Vector2Data, _Mapping]] = ..., scale: _Optional[float] = ..., shadow: _Optional[_Union[ShadowData, _Mapping]] = ..., border: _Optional[_Union[BorderData, _Mapping]] = ..., radius: _Optional[_Union[CornersData, _Mapping]] = ...) -> None: ...
 
 class TextViewData(_message.Message):
     __slots__ = ("metatype", "id", "ck", "parent_ptr", "bench_ptr", "package_ptr", "created_at", "created_by_ptr", "updated_at", "updated_by_ptr", "archived_at", "deleted_at", "template_ptr", "mode", "name", "order_key", "icon", "definition_ptr", "position", "width", "height", "min_width", "min_height", "max_width", "max_height", "align", "visible", "opacity", "user_select", "font", "color", "text")

@@ -228,15 +228,10 @@ enum StructType {
   STRUCT_TYPE_ACCESS_MATRIX = 13004;
   STRUCT_TYPE_ACCESS = 13005;
   STRUCT_TYPE_VECTOR2 = 19000;
-  STRUCT_TYPE_VARIABLE_VECTOR2 = 19001;
   STRUCT_TYPE_VECTOR3 = 19002;
-  STRUCT_TYPE_VARIABLE_VECTOR3 = 19003;
   STRUCT_TYPE_VECTOR4 = 19004;
-  STRUCT_TYPE_VARIABLE_VECTOR4 = 19005;
   STRUCT_TYPE_AXIS2 = 19006;
-  STRUCT_TYPE_VARIABLE_AXIS2 = 19007;
   STRUCT_TYPE_AXIS3 = 19008;
-  STRUCT_TYPE_VARIABLE_AXIS3 = 19009;
   STRUCT_TYPE_COLOR = 19010;
   STRUCT_TYPE_SHADOW = 19011;
   STRUCT_TYPE_BORDER = 19012;
@@ -245,21 +240,14 @@ enum StructType {
   STRUCT_TYPE_GRADIENT = 19015;
   STRUCT_TYPE_FILL = 19016;
   STRUCT_TYPE_LENGTH = 19017;
-  STRUCT_TYPE_VARIABLE_LENGTH = 19018;
   STRUCT_TYPE_POSITION = 19019;
-  STRUCT_TYPE_VARIABLE_POSITION = 19020;
   STRUCT_TYPE_DIMENSION = 19021;
-  STRUCT_TYPE_VARIABLE_DIMENSION = 19022;
   STRUCT_TYPE_TRANSITION = 19023;
   STRUCT_TYPE_EFFECT = 19024;
   STRUCT_TYPE_GRID = 19025;
-  STRUCT_TYPE_VARIABLE_GRID = 19026;
   STRUCT_TYPE_GRID_SPAN = 19027;
-  STRUCT_TYPE_VARIABLE_GRID_SPAN = 19028;
   STRUCT_TYPE_INSETS = 19029;
-  STRUCT_TYPE_VARIABLE_INSETS = 19030;
   STRUCT_TYPE_CORNERS = 19031;
-  STRUCT_TYPE_VARIABLE_CORNERS = 19032;
 }
 
 enum ObjectType {
@@ -359,15 +347,10 @@ enum ObjectType {
   OBJECT_TYPE_ACCESS_MATRIX = 13004;
   OBJECT_TYPE_ACCESS = 13005;
   OBJECT_TYPE_VECTOR2 = 19000;
-  OBJECT_TYPE_VARIABLE_VECTOR2 = 19001;
   OBJECT_TYPE_VECTOR3 = 19002;
-  OBJECT_TYPE_VARIABLE_VECTOR3 = 19003;
   OBJECT_TYPE_VECTOR4 = 19004;
-  OBJECT_TYPE_VARIABLE_VECTOR4 = 19005;
   OBJECT_TYPE_AXIS2 = 19006;
-  OBJECT_TYPE_VARIABLE_AXIS2 = 19007;
   OBJECT_TYPE_AXIS3 = 19008;
-  OBJECT_TYPE_VARIABLE_AXIS3 = 19009;
   OBJECT_TYPE_COLOR = 19010;
   OBJECT_TYPE_SHADOW = 19011;
   OBJECT_TYPE_BORDER = 19012;
@@ -376,21 +359,14 @@ enum ObjectType {
   OBJECT_TYPE_GRADIENT = 19015;
   OBJECT_TYPE_FILL = 19016;
   OBJECT_TYPE_LENGTH = 19017;
-  OBJECT_TYPE_VARIABLE_LENGTH = 19018;
   OBJECT_TYPE_POSITION = 19019;
-  OBJECT_TYPE_VARIABLE_POSITION = 19020;
   OBJECT_TYPE_DIMENSION = 19021;
-  OBJECT_TYPE_VARIABLE_DIMENSION = 19022;
   OBJECT_TYPE_TRANSITION = 19023;
   OBJECT_TYPE_EFFECT = 19024;
   OBJECT_TYPE_GRID = 19025;
-  OBJECT_TYPE_VARIABLE_GRID = 19026;
   OBJECT_TYPE_GRID_SPAN = 19027;
-  OBJECT_TYPE_VARIABLE_GRID_SPAN = 19028;
   OBJECT_TYPE_INSETS = 19029;
-  OBJECT_TYPE_VARIABLE_INSETS = 19030;
   OBJECT_TYPE_CORNERS = 19031;
-  OBJECT_TYPE_VARIABLE_CORNERS = 19032;
 }
 
 enum BenchType {
@@ -490,15 +466,10 @@ enum BenchType {
   BENCH_TYPE_ACCESS_MATRIX = 13004;
   BENCH_TYPE_ACCESS = 13005;
   BENCH_TYPE_VECTOR2 = 19000;
-  BENCH_TYPE_VARIABLE_VECTOR2 = 19001;
   BENCH_TYPE_VECTOR3 = 19002;
-  BENCH_TYPE_VARIABLE_VECTOR3 = 19003;
   BENCH_TYPE_VECTOR4 = 19004;
-  BENCH_TYPE_VARIABLE_VECTOR4 = 19005;
   BENCH_TYPE_AXIS2 = 19006;
-  BENCH_TYPE_VARIABLE_AXIS2 = 19007;
   BENCH_TYPE_AXIS3 = 19008;
-  BENCH_TYPE_VARIABLE_AXIS3 = 19009;
   BENCH_TYPE_COLOR = 19010;
   BENCH_TYPE_SHADOW = 19011;
   BENCH_TYPE_BORDER = 19012;
@@ -507,21 +478,14 @@ enum BenchType {
   BENCH_TYPE_GRADIENT = 19015;
   BENCH_TYPE_FILL = 19016;
   BENCH_TYPE_LENGTH = 19017;
-  BENCH_TYPE_VARIABLE_LENGTH = 19018;
   BENCH_TYPE_POSITION = 19019;
-  BENCH_TYPE_VARIABLE_POSITION = 19020;
   BENCH_TYPE_DIMENSION = 19021;
-  BENCH_TYPE_VARIABLE_DIMENSION = 19022;
   BENCH_TYPE_TRANSITION = 19023;
   BENCH_TYPE_EFFECT = 19024;
   BENCH_TYPE_GRID = 19025;
-  BENCH_TYPE_VARIABLE_GRID = 19026;
   BENCH_TYPE_GRID_SPAN = 19027;
-  BENCH_TYPE_VARIABLE_GRID_SPAN = 19028;
   BENCH_TYPE_INSETS = 19029;
-  BENCH_TYPE_VARIABLE_INSETS = 19030;
   BENCH_TYPE_CORNERS = 19031;
-  BENCH_TYPE_VARIABLE_CORNERS = 19032;
   BENCH_TYPE_ENUM_TYPE = 20000;
   BENCH_TYPE_NODE_TYPE = 20001;
   BENCH_TYPE_STRUCT_TYPE = 20002;
@@ -2193,26 +2157,9 @@ message LengthData {
   float value = 51;
 }
 
-message VariableLengthData {
-  ObjectType metatype = 1;
-  optional NodeReferenceData field_ptr = 40;
-  LengthUnit unit = 50;
-  float value = 51;
-}
-
 message PositionData {
   ObjectType metatype = 1;
   PositionType type = 30;
-  optional LengthData top = 50;
-  optional LengthData left = 51;
-  optional LengthData width = 52;
-  optional LengthData height = 53;
-}
-
-message VariablePositionData {
-  ObjectType metatype = 1;
-  PositionType type = 30;
-  optional NodeReferenceData field_ptr = 40;
   optional LengthData top = 50;
   optional LengthData left = 51;
   optional LengthData width = 52;
@@ -2226,26 +2173,8 @@ message DimensionData {
   float value = 51;
 }
 
-message VariableDimensionData {
-  ObjectType metatype = 1;
-  DimensionType type = 30;
-  optional NodeReferenceData field_ptr = 40;
-  LengthUnit unit = 50;
-  float value = 51;
-}
-
 message InsetsData {
   ObjectType metatype = 1;
-  optional int32 base = 50;
-  optional int32 top = 51;
-  optional int32 left = 52;
-  optional int32 right = 53;
-  optional int32 bottom = 54;
-}
-
-message VariableInsetsData {
-  ObjectType metatype = 1;
-  optional NodeReferenceData field_ptr = 40;
   optional int32 base = 50;
   optional int32 top = 51;
   optional int32 left = 52;
@@ -2262,26 +2191,8 @@ message CornersData {
   optional int32 bottom_right = 54;
 }
 
-message VariableCornersData {
-  ObjectType metatype = 1;
-  optional NodeReferenceData field_ptr = 40;
-  optional int32 base = 50;
-  optional int32 top_left = 51;
-  optional int32 top_right = 52;
-  optional int32 bottom_left = 53;
-  optional int32 bottom_right = 54;
-}
-
 message Axis2Data {
   ObjectType metatype = 1;
-  optional float base = 50;
-  optional float x = 51;
-  optional float y = 52;
-}
-
-message VariableAxis2Data {
-  ObjectType metatype = 1;
-  optional NodeReferenceData field_ptr = 40;
   optional float base = 50;
   optional float x = 51;
   optional float y = 52;
@@ -2295,24 +2206,8 @@ message Axis3Data {
   optional float z = 53;
 }
 
-message VariableAxis3Data {
-  ObjectType metatype = 1;
-  optional NodeReferenceData field_ptr = 40;
-  optional float base = 50;
-  optional float x = 51;
-  optional float y = 52;
-  optional float z = 53;
-}
-
 message Vector2Data {
   ObjectType metatype = 1;
-  float x = 50;
-  float y = 51;
-}
-
-message VariableVector2Data {
-  ObjectType metatype = 1;
-  optional NodeReferenceData field_ptr = 40;
   float x = 50;
   float y = 51;
 }
@@ -2324,25 +2219,8 @@ message Vector3Data {
   float z = 52;
 }
 
-message VariableVector3Data {
-  ObjectType metatype = 1;
-  optional NodeReferenceData field_ptr = 40;
-  float x = 50;
-  float y = 51;
-  float z = 52;
-}
-
 message Vector4Data {
   ObjectType metatype = 1;
-  float x = 50;
-  float y = 51;
-  float z = 52;
-  float w = 53;
-}
-
-message VariableVector4Data {
-  ObjectType metatype = 1;
-  optional NodeReferenceData field_ptr = 40;
   float x = 50;
   float y = 51;
   float z = 52;
@@ -2358,25 +2236,8 @@ message GridData {
   optional DimensionData row_height = 54;
 }
 
-message VariableGridData {
-  ObjectType metatype = 1;
-  optional NodeReferenceData field_ptr = 40;
-  int32 columns = 50;
-  int32 rows = 51;
-  optional DimensionData column_width = 52;
-  optional DimensionData column_min_width = 53;
-  optional DimensionData row_height = 54;
-}
-
 message GridSpanData {
   ObjectType metatype = 1;
-  int32 columns = 50;
-  int32 rows = 51;
-}
-
-message VariableGridSpanData {
-  ObjectType metatype = 1;
-  optional NodeReferenceData field_ptr = 40;
   int32 columns = 50;
   int32 rows = 51;
 }
@@ -4057,9 +3918,11 @@ message ComponentViewData {
   optional float opacity = 61;
   optional FillData fill = 62;
   optional Axis3Data rotation = 63;
-  optional ShadowData shadow = 64;
-  optional BorderData border = 65;
-  optional CornersData radius = 66;
+  optional Vector2Data skew = 64;
+  optional float scale = 65;
+  optional ShadowData shadow = 66;
+  optional BorderData border = 67;
+  optional CornersData radius = 68;
 }
 
 message FrameViewData {
@@ -4102,9 +3965,11 @@ message FrameViewData {
   optional float opacity = 61;
   optional FillData fill = 62;
   optional Axis3Data rotation = 63;
-  optional ShadowData shadow = 64;
-  optional BorderData border = 65;
-  optional CornersData radius = 66;
+  optional Vector2Data skew = 64;
+  optional float scale = 65;
+  optional ShadowData shadow = 66;
+  optional BorderData border = 67;
+  optional CornersData radius = 68;
 }
 
 message LabelViewData {
@@ -4147,9 +4012,11 @@ message LabelViewData {
   optional float opacity = 61;
   optional FillData fill = 62;
   optional Axis3Data rotation = 63;
-  optional ShadowData shadow = 64;
-  optional BorderData border = 65;
-  optional CornersData radius = 66;
+  optional Vector2Data skew = 64;
+  optional float scale = 65;
+  optional ShadowData shadow = 66;
+  optional BorderData border = 67;
+  optional CornersData radius = 68;
 }
 
 message SplitViewData {
@@ -4192,9 +4059,11 @@ message SplitViewData {
   optional float opacity = 61;
   optional FillData fill = 62;
   optional Axis3Data rotation = 63;
-  optional ShadowData shadow = 64;
-  optional BorderData border = 65;
-  optional CornersData radius = 66;
+  optional Vector2Data skew = 64;
+  optional float scale = 65;
+  optional ShadowData shadow = 66;
+  optional BorderData border = 67;
+  optional CornersData radius = 68;
 }
 
 message TextViewData {
