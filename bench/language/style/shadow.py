@@ -54,7 +54,7 @@ class ShadowBase(BuiltinObject):
         50, array=False, default=None, require=False, struct=StructType.COLOR
     )
     position: ShadowPosition = p_regular(51, default=ShadowPosition.OUTSIDE)
-    offset: Optional[Axis2] = p_regular(52, default=None, struct=StructType.AXIS_2)
+    offset: Optional[Axis2] = p_regular(52, default=None, struct=StructType.AXIS2)
     blur: int | None = p_regular(53, default=None)
     spread: int | None = p_regular(54, default=None)
     diffusion: float | None = p_regular(55, default=None)

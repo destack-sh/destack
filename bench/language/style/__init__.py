@@ -49,6 +49,7 @@ from .shadow import Shadow, ShadowBase, ShadowStyle, ShadowType
 from .style import StyleBase
 from .theme import Theme
 from .transition import Transition, TransitionBase, TransitionStyle, TransitionType
+from .vector import Vector2, Vector3, Vector4, vector2, vector3, vector4
 
 __all__ = [
     "Align",
@@ -107,6 +108,9 @@ __all__ = [
     "TransitionBase",
     "TransitionStyle",
     "TransitionType",
+    "Vector2",
+    "Vector3",
+    "Vector4",
     "hsl_to_p3",
     "hsl_to_rgb",
     "p3_to_hsl",
@@ -114,4 +118,7 @@ __all__ = [
     "rgb_to_hsl",
     "rgb_to_p3",
     "to_color",
+    "vector2",
+    "vector3",
+    "vector4",
 ]

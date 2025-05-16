@@ -131,8 +131,12 @@ class EnumType(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     ENUM_TYPE_OVERFLOW: _ClassVar[EnumType]
     ENUM_TYPE_TRANSITION_TYPE: _ClassVar[EnumType]
     ENUM_TYPE_SPRING_TYPE: _ClassVar[EnumType]
-    ENUM_TYPE_EFFECT_TYPE: _ClassVar[EnumType]
     ENUM_TYPE_DIMENSION_TYPE: _ClassVar[EnumType]
+    ENUM_TYPE_THEME_COLOR: _ClassVar[EnumType]
+    ENUM_TYPE_EFFECT_TYPE: _ClassVar[EnumType]
+    ENUM_TYPE_REPEAT_TYPE: _ClassVar[EnumType]
+    ENUM_TYPE_TEXT_SPLIT_TYPE: _ClassVar[EnumType]
+    ENUM_TYPE_OFFSCREEN_BEHAVIOR: _ClassVar[EnumType]
 
 class NodeType(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     __slots__ = ()
@@ -235,13 +239,15 @@ class StructType(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     STRUCT_TYPE_ACCESS_ZONE: _ClassVar[StructType]
     STRUCT_TYPE_ACCESS_MATRIX: _ClassVar[StructType]
     STRUCT_TYPE_ACCESS: _ClassVar[StructType]
+    STRUCT_TYPE_VECTOR2: _ClassVar[StructType]
+    STRUCT_TYPE_VECTOR3: _ClassVar[StructType]
+    STRUCT_TYPE_VECTOR4: _ClassVar[StructType]
+    STRUCT_TYPE_AXIS2: _ClassVar[StructType]
+    STRUCT_TYPE_AXIS3: _ClassVar[StructType]
     STRUCT_TYPE_COLOR: _ClassVar[StructType]
     STRUCT_TYPE_SHADOW: _ClassVar[StructType]
     STRUCT_TYPE_BORDER: _ClassVar[StructType]
     STRUCT_TYPE_FONT: _ClassVar[StructType]
-    STRUCT_TYPE_VECTOR2: _ClassVar[StructType]
-    STRUCT_TYPE_VECTOR3: _ClassVar[StructType]
-    STRUCT_TYPE_VECTOR4: _ClassVar[StructType]
     STRUCT_TYPE_GRADIENT_STOP: _ClassVar[StructType]
     STRUCT_TYPE_GRADIENT: _ClassVar[StructType]
     STRUCT_TYPE_FILL: _ClassVar[StructType]
@@ -254,8 +260,6 @@ class StructType(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     STRUCT_TYPE_GRID_SPAN: _ClassVar[StructType]
     STRUCT_TYPE_INSETS: _ClassVar[StructType]
     STRUCT_TYPE_CORNERS: _ClassVar[StructType]
-    STRUCT_TYPE_AXIS_2: _ClassVar[StructType]
-    STRUCT_TYPE_AXIS_3: _ClassVar[StructType]
 
 class ObjectType(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     __slots__ = ()
@@ -354,13 +358,15 @@ class ObjectType(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     OBJECT_TYPE_ACCESS_ZONE: _ClassVar[ObjectType]
     OBJECT_TYPE_ACCESS_MATRIX: _ClassVar[ObjectType]
     OBJECT_TYPE_ACCESS: _ClassVar[ObjectType]
+    OBJECT_TYPE_VECTOR2: _ClassVar[ObjectType]
+    OBJECT_TYPE_VECTOR3: _ClassVar[ObjectType]
+    OBJECT_TYPE_VECTOR4: _ClassVar[ObjectType]
+    OBJECT_TYPE_AXIS2: _ClassVar[ObjectType]
+    OBJECT_TYPE_AXIS3: _ClassVar[ObjectType]
     OBJECT_TYPE_COLOR: _ClassVar[ObjectType]
     OBJECT_TYPE_SHADOW: _ClassVar[ObjectType]
     OBJECT_TYPE_BORDER: _ClassVar[ObjectType]
     OBJECT_TYPE_FONT: _ClassVar[ObjectType]
-    OBJECT_TYPE_VECTOR2: _ClassVar[ObjectType]
-    OBJECT_TYPE_VECTOR3: _ClassVar[ObjectType]
-    OBJECT_TYPE_VECTOR4: _ClassVar[ObjectType]
     OBJECT_TYPE_GRADIENT_STOP: _ClassVar[ObjectType]
     OBJECT_TYPE_GRADIENT: _ClassVar[ObjectType]
     OBJECT_TYPE_FILL: _ClassVar[ObjectType]
@@ -373,8 +379,6 @@ class ObjectType(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     OBJECT_TYPE_GRID_SPAN: _ClassVar[ObjectType]
     OBJECT_TYPE_INSETS: _ClassVar[ObjectType]
     OBJECT_TYPE_CORNERS: _ClassVar[ObjectType]
-    OBJECT_TYPE_AXIS_2: _ClassVar[ObjectType]
-    OBJECT_TYPE_AXIS_3: _ClassVar[ObjectType]
 
 class BenchType(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     __slots__ = ()
@@ -473,13 +477,15 @@ class BenchType(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     BENCH_TYPE_ACCESS_ZONE: _ClassVar[BenchType]
     BENCH_TYPE_ACCESS_MATRIX: _ClassVar[BenchType]
     BENCH_TYPE_ACCESS: _ClassVar[BenchType]
+    BENCH_TYPE_VECTOR2: _ClassVar[BenchType]
+    BENCH_TYPE_VECTOR3: _ClassVar[BenchType]
+    BENCH_TYPE_VECTOR4: _ClassVar[BenchType]
+    BENCH_TYPE_AXIS2: _ClassVar[BenchType]
+    BENCH_TYPE_AXIS3: _ClassVar[BenchType]
     BENCH_TYPE_COLOR: _ClassVar[BenchType]
     BENCH_TYPE_SHADOW: _ClassVar[BenchType]
     BENCH_TYPE_BORDER: _ClassVar[BenchType]
     BENCH_TYPE_FONT: _ClassVar[BenchType]
-    BENCH_TYPE_VECTOR2: _ClassVar[BenchType]
-    BENCH_TYPE_VECTOR3: _ClassVar[BenchType]
-    BENCH_TYPE_VECTOR4: _ClassVar[BenchType]
     BENCH_TYPE_GRADIENT_STOP: _ClassVar[BenchType]
     BENCH_TYPE_GRADIENT: _ClassVar[BenchType]
     BENCH_TYPE_FILL: _ClassVar[BenchType]
@@ -492,8 +498,6 @@ class BenchType(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     BENCH_TYPE_GRID_SPAN: _ClassVar[BenchType]
     BENCH_TYPE_INSETS: _ClassVar[BenchType]
     BENCH_TYPE_CORNERS: _ClassVar[BenchType]
-    BENCH_TYPE_AXIS_2: _ClassVar[BenchType]
-    BENCH_TYPE_AXIS_3: _ClassVar[BenchType]
     BENCH_TYPE_ENUM_TYPE: _ClassVar[BenchType]
     BENCH_TYPE_NODE_TYPE: _ClassVar[BenchType]
     BENCH_TYPE_STRUCT_TYPE: _ClassVar[BenchType]
@@ -602,8 +606,12 @@ class BenchType(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     BENCH_TYPE_OVERFLOW: _ClassVar[BenchType]
     BENCH_TYPE_TRANSITION_TYPE: _ClassVar[BenchType]
     BENCH_TYPE_SPRING_TYPE: _ClassVar[BenchType]
-    BENCH_TYPE_EFFECT_TYPE: _ClassVar[BenchType]
     BENCH_TYPE_DIMENSION_TYPE: _ClassVar[BenchType]
+    BENCH_TYPE_THEME_COLOR: _ClassVar[BenchType]
+    BENCH_TYPE_EFFECT_TYPE: _ClassVar[BenchType]
+    BENCH_TYPE_REPEAT_TYPE: _ClassVar[BenchType]
+    BENCH_TYPE_TEXT_SPLIT_TYPE: _ClassVar[BenchType]
+    BENCH_TYPE_OFFSCREEN_BEHAVIOR: _ClassVar[BenchType]
 
 class NodeMode(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     __slots__ = ()
@@ -1713,23 +1721,58 @@ class SpringType(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     SPRING_TYPE_TIME: _ClassVar[SpringType]
     SPRING_TYPE_PHYSICS: _ClassVar[SpringType]
 
-class EffectType(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
-    __slots__ = ()
-    EFFECT_TYPE_UNSPECIFIED: _ClassVar[EffectType]
-    EFFECT_TYPE_STYLE: _ClassVar[EffectType]
-    EFFECT_TYPE_FIELD: _ClassVar[EffectType]
-    EFFECT_TYPE_APPEAR: _ClassVar[EffectType]
-    EFFECT_TYPE_ENTER: _ClassVar[EffectType]
-    EFFECT_TYPE_EXIT: _ClassVar[EffectType]
-    EFFECT_TYPE_HOVER: _ClassVar[EffectType]
-    EFFECT_TYPE_TRANSFORM: _ClassVar[EffectType]
-
 class DimensionType(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     __slots__ = ()
     DIMENSION_TYPE_UNSPECIFIED: _ClassVar[DimensionType]
     DIMENSION_TYPE_FIXED: _ClassVar[DimensionType]
     DIMENSION_TYPE_FIT: _ClassVar[DimensionType]
     DIMENSION_TYPE_FILL: _ClassVar[DimensionType]
+
+class ThemeColor(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
+    __slots__ = ()
+    THEME_COLOR_UNSPECIFIED: _ClassVar[ThemeColor]
+    THEME_COLOR_PRIMARY: _ClassVar[ThemeColor]
+    THEME_COLOR_SECONDARY: _ClassVar[ThemeColor]
+    THEME_COLOR_ACCENT: _ClassVar[ThemeColor]
+    THEME_COLOR_MUTED: _ClassVar[ThemeColor]
+    THEME_COLOR_SUCCESS: _ClassVar[ThemeColor]
+    THEME_COLOR_WARNING: _ClassVar[ThemeColor]
+    THEME_COLOR_ERROR: _ClassVar[ThemeColor]
+
+class EffectType(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
+    __slots__ = ()
+    EFFECT_TYPE_UNSPECIFIED: _ClassVar[EffectType]
+    EFFECT_TYPE_NONE: _ClassVar[EffectType]
+    EFFECT_TYPE_STYLE: _ClassVar[EffectType]
+    EFFECT_TYPE_FIELD: _ClassVar[EffectType]
+    EFFECT_TYPE_APPEAR: _ClassVar[EffectType]
+    EFFECT_TYPE_ENTER: _ClassVar[EffectType]
+    EFFECT_TYPE_EXIT: _ClassVar[EffectType]
+    EFFECT_TYPE_HOVER: _ClassVar[EffectType]
+    EFFECT_TYPE_PRESS: _ClassVar[EffectType]
+    EFFECT_TYPE_DRAG: _ClassVar[EffectType]
+    EFFECT_TYPE_FOCUS: _ClassVar[EffectType]
+    EFFECT_TYPE_LOOP: _ClassVar[EffectType]
+
+class RepeatType(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
+    __slots__ = ()
+    REPEAT_TYPE_UNSPECIFIED: _ClassVar[RepeatType]
+    REPEAT_TYPE_LOOP: _ClassVar[RepeatType]
+    REPEAT_TYPE_REVERSE: _ClassVar[RepeatType]
+    REPEAT_TYPE_MIRROR: _ClassVar[RepeatType]
+
+class TextSplitType(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
+    __slots__ = ()
+    TEXT_SPLIT_TYPE_UNSPECIFIED: _ClassVar[TextSplitType]
+    TEXT_SPLIT_TYPE_CHAR: _ClassVar[TextSplitType]
+    TEXT_SPLIT_TYPE_WORD: _ClassVar[TextSplitType]
+    TEXT_SPLIT_TYPE_LINE: _ClassVar[TextSplitType]
+
+class OffscreenBehavior(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
+    __slots__ = ()
+    OFFSCREEN_BEHAVIOR_UNSPECIFIED: _ClassVar[OffscreenBehavior]
+    OFFSCREEN_BEHAVIOR_PLAY: _ClassVar[OffscreenBehavior]
+    OFFSCREEN_BEHAVIOR_PAUSE: _ClassVar[OffscreenBehavior]
 
 class BuiltinEnum(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     __slots__ = ()
@@ -1856,8 +1899,12 @@ ENUM_TYPE_DIRECTION: EnumType
 ENUM_TYPE_OVERFLOW: EnumType
 ENUM_TYPE_TRANSITION_TYPE: EnumType
 ENUM_TYPE_SPRING_TYPE: EnumType
-ENUM_TYPE_EFFECT_TYPE: EnumType
 ENUM_TYPE_DIMENSION_TYPE: EnumType
+ENUM_TYPE_THEME_COLOR: EnumType
+ENUM_TYPE_EFFECT_TYPE: EnumType
+ENUM_TYPE_REPEAT_TYPE: EnumType
+ENUM_TYPE_TEXT_SPLIT_TYPE: EnumType
+ENUM_TYPE_OFFSCREEN_BEHAVIOR: EnumType
 NODE_TYPE_UNSPECIFIED: NodeType
 NODE_TYPE_BENCH: NodeType
 NODE_TYPE_HANDLE: NodeType
@@ -1954,13 +2001,15 @@ STRUCT_TYPE_POLICY_SUBJECT: StructType
 STRUCT_TYPE_ACCESS_ZONE: StructType
 STRUCT_TYPE_ACCESS_MATRIX: StructType
 STRUCT_TYPE_ACCESS: StructType
+STRUCT_TYPE_VECTOR2: StructType
+STRUCT_TYPE_VECTOR3: StructType
+STRUCT_TYPE_VECTOR4: StructType
+STRUCT_TYPE_AXIS2: StructType
+STRUCT_TYPE_AXIS3: StructType
 STRUCT_TYPE_COLOR: StructType
 STRUCT_TYPE_SHADOW: StructType
 STRUCT_TYPE_BORDER: StructType
 STRUCT_TYPE_FONT: StructType
-STRUCT_TYPE_VECTOR2: StructType
-STRUCT_TYPE_VECTOR3: StructType
-STRUCT_TYPE_VECTOR4: StructType
 STRUCT_TYPE_GRADIENT_STOP: StructType
 STRUCT_TYPE_GRADIENT: StructType
 STRUCT_TYPE_FILL: StructType
@@ -1973,8 +2022,6 @@ STRUCT_TYPE_GRID: StructType
 STRUCT_TYPE_GRID_SPAN: StructType
 STRUCT_TYPE_INSETS: StructType
 STRUCT_TYPE_CORNERS: StructType
-STRUCT_TYPE_AXIS_2: StructType
-STRUCT_TYPE_AXIS_3: StructType
 OBJECT_TYPE_UNSPECIFIED: ObjectType
 OBJECT_TYPE_BENCH: ObjectType
 OBJECT_TYPE_HANDLE: ObjectType
@@ -2070,13 +2117,15 @@ OBJECT_TYPE_POLICY_SUBJECT: ObjectType
 OBJECT_TYPE_ACCESS_ZONE: ObjectType
 OBJECT_TYPE_ACCESS_MATRIX: ObjectType
 OBJECT_TYPE_ACCESS: ObjectType
+OBJECT_TYPE_VECTOR2: ObjectType
+OBJECT_TYPE_VECTOR3: ObjectType
+OBJECT_TYPE_VECTOR4: ObjectType
+OBJECT_TYPE_AXIS2: ObjectType
+OBJECT_TYPE_AXIS3: ObjectType
 OBJECT_TYPE_COLOR: ObjectType
 OBJECT_TYPE_SHADOW: ObjectType
 OBJECT_TYPE_BORDER: ObjectType
 OBJECT_TYPE_FONT: ObjectType
-OBJECT_TYPE_VECTOR2: ObjectType
-OBJECT_TYPE_VECTOR3: ObjectType
-OBJECT_TYPE_VECTOR4: ObjectType
 OBJECT_TYPE_GRADIENT_STOP: ObjectType
 OBJECT_TYPE_GRADIENT: ObjectType
 OBJECT_TYPE_FILL: ObjectType
@@ -2089,8 +2138,6 @@ OBJECT_TYPE_GRID: ObjectType
 OBJECT_TYPE_GRID_SPAN: ObjectType
 OBJECT_TYPE_INSETS: ObjectType
 OBJECT_TYPE_CORNERS: ObjectType
-OBJECT_TYPE_AXIS_2: ObjectType
-OBJECT_TYPE_AXIS_3: ObjectType
 BENCH_TYPE_UNSPECIFIED: BenchType
 BENCH_TYPE_BENCH: BenchType
 BENCH_TYPE_HANDLE: BenchType
@@ -2186,13 +2233,15 @@ BENCH_TYPE_POLICY_SUBJECT: BenchType
 BENCH_TYPE_ACCESS_ZONE: BenchType
 BENCH_TYPE_ACCESS_MATRIX: BenchType
 BENCH_TYPE_ACCESS: BenchType
+BENCH_TYPE_VECTOR2: BenchType
+BENCH_TYPE_VECTOR3: BenchType
+BENCH_TYPE_VECTOR4: BenchType
+BENCH_TYPE_AXIS2: BenchType
+BENCH_TYPE_AXIS3: BenchType
 BENCH_TYPE_COLOR: BenchType
 BENCH_TYPE_SHADOW: BenchType
 BENCH_TYPE_BORDER: BenchType
 BENCH_TYPE_FONT: BenchType
-BENCH_TYPE_VECTOR2: BenchType
-BENCH_TYPE_VECTOR3: BenchType
-BENCH_TYPE_VECTOR4: BenchType
 BENCH_TYPE_GRADIENT_STOP: BenchType
 BENCH_TYPE_GRADIENT: BenchType
 BENCH_TYPE_FILL: BenchType
@@ -2205,8 +2254,6 @@ BENCH_TYPE_GRID: BenchType
 BENCH_TYPE_GRID_SPAN: BenchType
 BENCH_TYPE_INSETS: BenchType
 BENCH_TYPE_CORNERS: BenchType
-BENCH_TYPE_AXIS_2: BenchType
-BENCH_TYPE_AXIS_3: BenchType
 BENCH_TYPE_ENUM_TYPE: BenchType
 BENCH_TYPE_NODE_TYPE: BenchType
 BENCH_TYPE_STRUCT_TYPE: BenchType
@@ -2315,8 +2362,12 @@ BENCH_TYPE_DIRECTION: BenchType
 BENCH_TYPE_OVERFLOW: BenchType
 BENCH_TYPE_TRANSITION_TYPE: BenchType
 BENCH_TYPE_SPRING_TYPE: BenchType
-BENCH_TYPE_EFFECT_TYPE: BenchType
 BENCH_TYPE_DIMENSION_TYPE: BenchType
+BENCH_TYPE_THEME_COLOR: BenchType
+BENCH_TYPE_EFFECT_TYPE: BenchType
+BENCH_TYPE_REPEAT_TYPE: BenchType
+BENCH_TYPE_TEXT_SPLIT_TYPE: BenchType
+BENCH_TYPE_OFFSCREEN_BEHAVIOR: BenchType
 NODE_MODE_UNSPECIFIED: NodeMode
 NODE_MODE_KERNEL: NodeMode
 NODE_MODE_SYSTEM: NodeMode
@@ -3116,18 +3167,41 @@ TRANSITION_TYPE_SPRING: TransitionType
 SPRING_TYPE_UNSPECIFIED: SpringType
 SPRING_TYPE_TIME: SpringType
 SPRING_TYPE_PHYSICS: SpringType
+DIMENSION_TYPE_UNSPECIFIED: DimensionType
+DIMENSION_TYPE_FIXED: DimensionType
+DIMENSION_TYPE_FIT: DimensionType
+DIMENSION_TYPE_FILL: DimensionType
+THEME_COLOR_UNSPECIFIED: ThemeColor
+THEME_COLOR_PRIMARY: ThemeColor
+THEME_COLOR_SECONDARY: ThemeColor
+THEME_COLOR_ACCENT: ThemeColor
+THEME_COLOR_MUTED: ThemeColor
+THEME_COLOR_SUCCESS: ThemeColor
+THEME_COLOR_WARNING: ThemeColor
+THEME_COLOR_ERROR: ThemeColor
 EFFECT_TYPE_UNSPECIFIED: EffectType
+EFFECT_TYPE_NONE: EffectType
 EFFECT_TYPE_STYLE: EffectType
 EFFECT_TYPE_FIELD: EffectType
 EFFECT_TYPE_APPEAR: EffectType
 EFFECT_TYPE_ENTER: EffectType
 EFFECT_TYPE_EXIT: EffectType
 EFFECT_TYPE_HOVER: EffectType
-EFFECT_TYPE_TRANSFORM: EffectType
-DIMENSION_TYPE_UNSPECIFIED: DimensionType
-DIMENSION_TYPE_FIXED: DimensionType
-DIMENSION_TYPE_FIT: DimensionType
-DIMENSION_TYPE_FILL: DimensionType
+EFFECT_TYPE_PRESS: EffectType
+EFFECT_TYPE_DRAG: EffectType
+EFFECT_TYPE_FOCUS: EffectType
+EFFECT_TYPE_LOOP: EffectType
+REPEAT_TYPE_UNSPECIFIED: RepeatType
+REPEAT_TYPE_LOOP: RepeatType
+REPEAT_TYPE_REVERSE: RepeatType
+REPEAT_TYPE_MIRROR: RepeatType
+TEXT_SPLIT_TYPE_UNSPECIFIED: TextSplitType
+TEXT_SPLIT_TYPE_CHAR: TextSplitType
+TEXT_SPLIT_TYPE_WORD: TextSplitType
+TEXT_SPLIT_TYPE_LINE: TextSplitType
+OFFSCREEN_BEHAVIOR_UNSPECIFIED: OffscreenBehavior
+OFFSCREEN_BEHAVIOR_PLAY: OffscreenBehavior
+OFFSCREEN_BEHAVIOR_PAUSE: OffscreenBehavior
 BUILTIN_ENUM_UNSPECIFIED: BuiltinEnum
 REFERENCE_KIND_UNSPECIFIED: ReferenceKind
 REFERENCE_KIND_NODE_ANCESTOR: ReferenceKind
@@ -3930,8 +4004,72 @@ class BorderData(_message.Message):
     width: InsetsData
     def __init__(self, metatype: _Optional[_Union[ObjectType, str]] = ..., type: _Optional[_Union[BorderType, str]] = ..., style_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., field_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., color: _Optional[_Union[ColorData, _Mapping]] = ..., width: _Optional[_Union[InsetsData, _Mapping]] = ...) -> None: ...
 
+class Vector2Data(_message.Message):
+    __slots__ = ("metatype", "x", "y")
+    METATYPE_FIELD_NUMBER: _ClassVar[int]
+    X_FIELD_NUMBER: _ClassVar[int]
+    Y_FIELD_NUMBER: _ClassVar[int]
+    metatype: ObjectType
+    x: float
+    y: float
+    def __init__(self, metatype: _Optional[_Union[ObjectType, str]] = ..., x: _Optional[float] = ..., y: _Optional[float] = ...) -> None: ...
+
+class Vector3Data(_message.Message):
+    __slots__ = ("metatype", "x", "y", "z")
+    METATYPE_FIELD_NUMBER: _ClassVar[int]
+    X_FIELD_NUMBER: _ClassVar[int]
+    Y_FIELD_NUMBER: _ClassVar[int]
+    Z_FIELD_NUMBER: _ClassVar[int]
+    metatype: ObjectType
+    x: float
+    y: float
+    z: float
+    def __init__(self, metatype: _Optional[_Union[ObjectType, str]] = ..., x: _Optional[float] = ..., y: _Optional[float] = ..., z: _Optional[float] = ...) -> None: ...
+
+class Vector4Data(_message.Message):
+    __slots__ = ("metatype", "x", "y", "z", "w")
+    METATYPE_FIELD_NUMBER: _ClassVar[int]
+    X_FIELD_NUMBER: _ClassVar[int]
+    Y_FIELD_NUMBER: _ClassVar[int]
+    Z_FIELD_NUMBER: _ClassVar[int]
+    W_FIELD_NUMBER: _ClassVar[int]
+    metatype: ObjectType
+    x: float
+    y: float
+    z: float
+    w: float
+    def __init__(self, metatype: _Optional[_Union[ObjectType, str]] = ..., x: _Optional[float] = ..., y: _Optional[float] = ..., z: _Optional[float] = ..., w: _Optional[float] = ...) -> None: ...
+
+class TransitionData(_message.Message):
+    __slots__ = ("metatype", "type", "style_ptr", "field_ptr", "delay", "duration", "ease", "stiffness", "damping", "mass", "bounce", "spring_type")
+    METATYPE_FIELD_NUMBER: _ClassVar[int]
+    TYPE_FIELD_NUMBER: _ClassVar[int]
+    STYLE_PTR_FIELD_NUMBER: _ClassVar[int]
+    FIELD_PTR_FIELD_NUMBER: _ClassVar[int]
+    DELAY_FIELD_NUMBER: _ClassVar[int]
+    DURATION_FIELD_NUMBER: _ClassVar[int]
+    EASE_FIELD_NUMBER: _ClassVar[int]
+    STIFFNESS_FIELD_NUMBER: _ClassVar[int]
+    DAMPING_FIELD_NUMBER: _ClassVar[int]
+    MASS_FIELD_NUMBER: _ClassVar[int]
+    BOUNCE_FIELD_NUMBER: _ClassVar[int]
+    SPRING_TYPE_FIELD_NUMBER: _ClassVar[int]
+    metatype: ObjectType
+    type: TransitionType
+    style_ptr: NodeReferenceData
+    field_ptr: NodeReferenceData
+    delay: float
+    duration: float
+    ease: _containers.RepeatedScalarFieldContainer[float]
+    stiffness: float
+    damping: float
+    mass: float
+    bounce: float
+    spring_type: SpringType
+    def __init__(self, metatype: _Optional[_Union[ObjectType, str]] = ..., type: _Optional[_Union[TransitionType, str]] = ..., style_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., field_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., delay: _Optional[float] = ..., duration: _Optional[float] = ..., ease: _Optional[_Iterable[float]] = ..., stiffness: _Optional[float] = ..., damping: _Optional[float] = ..., mass: _Optional[float] = ..., bounce: _Optional[float] = ..., spring_type: _Optional[_Union[SpringType, str]] = ...) -> None: ...
+
 class EffectData(_message.Message):
-    __slots__ = ("metatype", "type", "style_ptr", "field_ptr", "opacity", "offset", "scale", "rotate", "skew", "perspective", "delay", "duration", "threshold")
+    __slots__ = ("metatype", "type", "style_ptr", "field_ptr", "opacity", "offset", "scale", "rotate", "skew", "perspective", "delay", "duration", "threshold", "once", "repeat", "split", "offscreen", "transition")
     METATYPE_FIELD_NUMBER: _ClassVar[int]
     TYPE_FIELD_NUMBER: _ClassVar[int]
     STYLE_PTR_FIELD_NUMBER: _ClassVar[int]
@@ -3945,20 +4083,30 @@ class EffectData(_message.Message):
     DELAY_FIELD_NUMBER: _ClassVar[int]
     DURATION_FIELD_NUMBER: _ClassVar[int]
     THRESHOLD_FIELD_NUMBER: _ClassVar[int]
+    ONCE_FIELD_NUMBER: _ClassVar[int]
+    REPEAT_FIELD_NUMBER: _ClassVar[int]
+    SPLIT_FIELD_NUMBER: _ClassVar[int]
+    OFFSCREEN_FIELD_NUMBER: _ClassVar[int]
+    TRANSITION_FIELD_NUMBER: _ClassVar[int]
     metatype: ObjectType
     type: EffectType
     style_ptr: NodeReferenceData
     field_ptr: NodeReferenceData
     opacity: float
-    offset: Axis2Data
+    offset: Vector2Data
     scale: float
     rotate: Axis3Data
-    skew: Axis2Data
+    skew: Vector2Data
     perspective: float
-    delay: float
+    delay: _duration_pb2.Duration
     duration: float
     threshold: float
-    def __init__(self, metatype: _Optional[_Union[ObjectType, str]] = ..., type: _Optional[_Union[EffectType, str]] = ..., style_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., field_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., opacity: _Optional[float] = ..., offset: _Optional[_Union[Axis2Data, _Mapping]] = ..., scale: _Optional[float] = ..., rotate: _Optional[_Union[Axis3Data, _Mapping]] = ..., skew: _Optional[_Union[Axis2Data, _Mapping]] = ..., perspective: _Optional[float] = ..., delay: _Optional[float] = ..., duration: _Optional[float] = ..., threshold: _Optional[float] = ...) -> None: ...
+    once: bool
+    repeat: RepeatType
+    split: TextSplitType
+    offscreen: OffscreenBehavior
+    transition: TransitionData
+    def __init__(self, metatype: _Optional[_Union[ObjectType, str]] = ..., type: _Optional[_Union[EffectType, str]] = ..., style_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., field_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., opacity: _Optional[float] = ..., offset: _Optional[_Union[Vector2Data, _Mapping]] = ..., scale: _Optional[float] = ..., rotate: _Optional[_Union[Axis3Data, _Mapping]] = ..., skew: _Optional[_Union[Vector2Data, _Mapping]] = ..., perspective: _Optional[float] = ..., delay: _Optional[_Union[_duration_pb2.Duration, _Mapping]] = ..., duration: _Optional[float] = ..., threshold: _Optional[float] = ..., once: bool = ..., repeat: _Optional[_Union[RepeatType, str]] = ..., split: _Optional[_Union[TextSplitType, str]] = ..., offscreen: _Optional[_Union[OffscreenBehavior, str]] = ..., transition: _Optional[_Union[TransitionData, _Mapping]] = ...) -> None: ...
 
 class GradientStopData(_message.Message):
     __slots__ = ("metatype", "color", "position")
@@ -4053,70 +4201,6 @@ class ShadowData(_message.Message):
     spread: int
     diffusion: float
     def __init__(self, metatype: _Optional[_Union[ObjectType, str]] = ..., type: _Optional[_Union[ShadowType, str]] = ..., style_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., field_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., color: _Optional[_Union[ColorData, _Mapping]] = ..., position: _Optional[_Union[ShadowPosition, str]] = ..., offset: _Optional[_Union[Axis2Data, _Mapping]] = ..., blur: _Optional[int] = ..., spread: _Optional[int] = ..., diffusion: _Optional[float] = ...) -> None: ...
-
-class TransitionData(_message.Message):
-    __slots__ = ("metatype", "type", "style_ptr", "field_ptr", "delay", "duration", "ease", "stiffness", "damping", "mass", "bounce", "spring_type")
-    METATYPE_FIELD_NUMBER: _ClassVar[int]
-    TYPE_FIELD_NUMBER: _ClassVar[int]
-    STYLE_PTR_FIELD_NUMBER: _ClassVar[int]
-    FIELD_PTR_FIELD_NUMBER: _ClassVar[int]
-    DELAY_FIELD_NUMBER: _ClassVar[int]
-    DURATION_FIELD_NUMBER: _ClassVar[int]
-    EASE_FIELD_NUMBER: _ClassVar[int]
-    STIFFNESS_FIELD_NUMBER: _ClassVar[int]
-    DAMPING_FIELD_NUMBER: _ClassVar[int]
-    MASS_FIELD_NUMBER: _ClassVar[int]
-    BOUNCE_FIELD_NUMBER: _ClassVar[int]
-    SPRING_TYPE_FIELD_NUMBER: _ClassVar[int]
-    metatype: ObjectType
-    type: TransitionType
-    style_ptr: NodeReferenceData
-    field_ptr: NodeReferenceData
-    delay: float
-    duration: float
-    ease: _containers.RepeatedScalarFieldContainer[float]
-    stiffness: float
-    damping: float
-    mass: float
-    bounce: float
-    spring_type: SpringType
-    def __init__(self, metatype: _Optional[_Union[ObjectType, str]] = ..., type: _Optional[_Union[TransitionType, str]] = ..., style_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., field_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., delay: _Optional[float] = ..., duration: _Optional[float] = ..., ease: _Optional[_Iterable[float]] = ..., stiffness: _Optional[float] = ..., damping: _Optional[float] = ..., mass: _Optional[float] = ..., bounce: _Optional[float] = ..., spring_type: _Optional[_Union[SpringType, str]] = ...) -> None: ...
-
-class Vector2Data(_message.Message):
-    __slots__ = ("metatype", "x", "y")
-    METATYPE_FIELD_NUMBER: _ClassVar[int]
-    X_FIELD_NUMBER: _ClassVar[int]
-    Y_FIELD_NUMBER: _ClassVar[int]
-    metatype: ObjectType
-    x: float
-    y: float
-    def __init__(self, metatype: _Optional[_Union[ObjectType, str]] = ..., x: _Optional[float] = ..., y: _Optional[float] = ...) -> None: ...
-
-class Vector3Data(_message.Message):
-    __slots__ = ("metatype", "x", "y", "z")
-    METATYPE_FIELD_NUMBER: _ClassVar[int]
-    X_FIELD_NUMBER: _ClassVar[int]
-    Y_FIELD_NUMBER: _ClassVar[int]
-    Z_FIELD_NUMBER: _ClassVar[int]
-    metatype: ObjectType
-    x: float
-    y: float
-    z: float
-    def __init__(self, metatype: _Optional[_Union[ObjectType, str]] = ..., x: _Optional[float] = ..., y: _Optional[float] = ..., z: _Optional[float] = ...) -> None: ...
-
-class Vector4Data(_message.Message):
-    __slots__ = ("metatype", "x", "y", "z", "w")
-    METATYPE_FIELD_NUMBER: _ClassVar[int]
-    X_FIELD_NUMBER: _ClassVar[int]
-    Y_FIELD_NUMBER: _ClassVar[int]
-    Z_FIELD_NUMBER: _ClassVar[int]
-    W_FIELD_NUMBER: _ClassVar[int]
-    metatype: ObjectType
-    x: float
-    y: float
-    z: float
-    w: float
-    def __init__(self, metatype: _Optional[_Union[ObjectType, str]] = ..., x: _Optional[float] = ..., y: _Optional[float] = ..., z: _Optional[float] = ..., w: _Optional[float] = ...) -> None: ...
 
 class BaseNodeData(_message.Message):
     __slots__ = ("metatype", "id", "parent_ptr", "created_at", "created_by_ptr", "updated_at", "updated_by_ptr", "archived_at", "deleted_at")
@@ -6530,8 +6614,68 @@ class BorderStyleData(_message.Message):
     width: InsetsData
     def __init__(self, metatype: _Optional[_Union[ObjectType, str]] = ..., id: _Optional[str] = ..., parent_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., bench_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., package_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., created_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., created_by_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., updated_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., updated_by_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., archived_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., deleted_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., template_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., mode: _Optional[_Union[NodeMode, str]] = ..., type: _Optional[_Union[BorderType, str]] = ..., name: _Optional[str] = ..., order_key: _Optional[str] = ..., icon: _Optional[_Union[IconData, _Mapping]] = ..., definition_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., style_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., field_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., color: _Optional[_Union[ColorData, _Mapping]] = ..., width: _Optional[_Union[InsetsData, _Mapping]] = ...) -> None: ...
 
+class TransitionStyleData(_message.Message):
+    __slots__ = ("metatype", "id", "parent_ptr", "bench_ptr", "package_ptr", "created_at", "created_by_ptr", "updated_at", "updated_by_ptr", "archived_at", "deleted_at", "template_ptr", "mode", "type", "name", "order_key", "icon", "definition_ptr", "style_ptr", "field_ptr", "delay", "duration", "ease", "stiffness", "damping", "mass", "bounce", "spring_type")
+    METATYPE_FIELD_NUMBER: _ClassVar[int]
+    ID_FIELD_NUMBER: _ClassVar[int]
+    PARENT_PTR_FIELD_NUMBER: _ClassVar[int]
+    BENCH_PTR_FIELD_NUMBER: _ClassVar[int]
+    PACKAGE_PTR_FIELD_NUMBER: _ClassVar[int]
+    CREATED_AT_FIELD_NUMBER: _ClassVar[int]
+    CREATED_BY_PTR_FIELD_NUMBER: _ClassVar[int]
+    UPDATED_AT_FIELD_NUMBER: _ClassVar[int]
+    UPDATED_BY_PTR_FIELD_NUMBER: _ClassVar[int]
+    ARCHIVED_AT_FIELD_NUMBER: _ClassVar[int]
+    DELETED_AT_FIELD_NUMBER: _ClassVar[int]
+    TEMPLATE_PTR_FIELD_NUMBER: _ClassVar[int]
+    MODE_FIELD_NUMBER: _ClassVar[int]
+    TYPE_FIELD_NUMBER: _ClassVar[int]
+    NAME_FIELD_NUMBER: _ClassVar[int]
+    ORDER_KEY_FIELD_NUMBER: _ClassVar[int]
+    ICON_FIELD_NUMBER: _ClassVar[int]
+    DEFINITION_PTR_FIELD_NUMBER: _ClassVar[int]
+    STYLE_PTR_FIELD_NUMBER: _ClassVar[int]
+    FIELD_PTR_FIELD_NUMBER: _ClassVar[int]
+    DELAY_FIELD_NUMBER: _ClassVar[int]
+    DURATION_FIELD_NUMBER: _ClassVar[int]
+    EASE_FIELD_NUMBER: _ClassVar[int]
+    STIFFNESS_FIELD_NUMBER: _ClassVar[int]
+    DAMPING_FIELD_NUMBER: _ClassVar[int]
+    MASS_FIELD_NUMBER: _ClassVar[int]
+    BOUNCE_FIELD_NUMBER: _ClassVar[int]
+    SPRING_TYPE_FIELD_NUMBER: _ClassVar[int]
+    metatype: ObjectType
+    id: str
+    parent_ptr: NodeReferenceData
+    bench_ptr: NodeReferenceData
+    package_ptr: NodeReferenceData
+    created_at: _timestamp_pb2.Timestamp
+    created_by_ptr: NodeReferenceData
+    updated_at: _timestamp_pb2.Timestamp
+    updated_by_ptr: NodeReferenceData
+    archived_at: _timestamp_pb2.Timestamp
+    deleted_at: _timestamp_pb2.Timestamp
+    template_ptr: NodeReferenceData
+    mode: NodeMode
+    type: TransitionType
+    name: str
+    order_key: str
+    icon: IconData
+    definition_ptr: NodeReferenceData
+    style_ptr: NodeReferenceData
+    field_ptr: NodeReferenceData
+    delay: float
+    duration: float
+    ease: _containers.RepeatedScalarFieldContainer[float]
+    stiffness: float
+    damping: float
+    mass: float
+    bounce: float
+    spring_type: SpringType
+    def __init__(self, metatype: _Optional[_Union[ObjectType, str]] = ..., id: _Optional[str] = ..., parent_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., bench_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., package_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., created_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., created_by_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., updated_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., updated_by_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., archived_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., deleted_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., template_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., mode: _Optional[_Union[NodeMode, str]] = ..., type: _Optional[_Union[TransitionType, str]] = ..., name: _Optional[str] = ..., order_key: _Optional[str] = ..., icon: _Optional[_Union[IconData, _Mapping]] = ..., definition_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., style_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., field_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., delay: _Optional[float] = ..., duration: _Optional[float] = ..., ease: _Optional[_Iterable[float]] = ..., stiffness: _Optional[float] = ..., damping: _Optional[float] = ..., mass: _Optional[float] = ..., bounce: _Optional[float] = ..., spring_type: _Optional[_Union[SpringType, str]] = ...) -> None: ...
+
 class EffectStyleData(_message.Message):
-    __slots__ = ("metatype", "id", "parent_ptr", "bench_ptr", "package_ptr", "created_at", "created_by_ptr", "updated_at", "updated_by_ptr", "archived_at", "deleted_at", "template_ptr", "mode", "type", "name", "order_key", "icon", "definition_ptr", "style_ptr", "field_ptr", "opacity", "offset", "scale", "rotate", "skew", "perspective", "delay", "duration", "threshold")
+    __slots__ = ("metatype", "id", "parent_ptr", "bench_ptr", "package_ptr", "created_at", "created_by_ptr", "updated_at", "updated_by_ptr", "archived_at", "deleted_at", "template_ptr", "mode", "type", "name", "order_key", "icon", "definition_ptr", "style_ptr", "field_ptr", "opacity", "offset", "scale", "rotate", "skew", "perspective", "delay", "duration", "threshold", "once", "repeat", "split", "offscreen", "transition")
     METATYPE_FIELD_NUMBER: _ClassVar[int]
     ID_FIELD_NUMBER: _ClassVar[int]
     PARENT_PTR_FIELD_NUMBER: _ClassVar[int]
@@ -6561,6 +6705,11 @@ class EffectStyleData(_message.Message):
     DELAY_FIELD_NUMBER: _ClassVar[int]
     DURATION_FIELD_NUMBER: _ClassVar[int]
     THRESHOLD_FIELD_NUMBER: _ClassVar[int]
+    ONCE_FIELD_NUMBER: _ClassVar[int]
+    REPEAT_FIELD_NUMBER: _ClassVar[int]
+    SPLIT_FIELD_NUMBER: _ClassVar[int]
+    OFFSCREEN_FIELD_NUMBER: _ClassVar[int]
+    TRANSITION_FIELD_NUMBER: _ClassVar[int]
     metatype: ObjectType
     id: str
     parent_ptr: NodeReferenceData
@@ -6582,15 +6731,20 @@ class EffectStyleData(_message.Message):
     style_ptr: NodeReferenceData
     field_ptr: NodeReferenceData
     opacity: float
-    offset: Axis2Data
+    offset: Vector2Data
     scale: float
     rotate: Axis3Data
-    skew: Axis2Data
+    skew: Vector2Data
     perspective: float
-    delay: float
+    delay: _duration_pb2.Duration
     duration: float
     threshold: float
-    def __init__(self, metatype: _Optional[_Union[ObjectType, str]] = ..., id: _Optional[str] = ..., parent_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., bench_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., package_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., created_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., created_by_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., updated_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., updated_by_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., archived_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., deleted_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., template_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., mode: _Optional[_Union[NodeMode, str]] = ..., type: _Optional[_Union[EffectType, str]] = ..., name: _Optional[str] = ..., order_key: _Optional[str] = ..., icon: _Optional[_Union[IconData, _Mapping]] = ..., definition_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., style_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., field_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., opacity: _Optional[float] = ..., offset: _Optional[_Union[Axis2Data, _Mapping]] = ..., scale: _Optional[float] = ..., rotate: _Optional[_Union[Axis3Data, _Mapping]] = ..., skew: _Optional[_Union[Axis2Data, _Mapping]] = ..., perspective: _Optional[float] = ..., delay: _Optional[float] = ..., duration: _Optional[float] = ..., threshold: _Optional[float] = ...) -> None: ...
+    once: bool
+    repeat: RepeatType
+    split: TextSplitType
+    offscreen: OffscreenBehavior
+    transition: TransitionData
+    def __init__(self, metatype: _Optional[_Union[ObjectType, str]] = ..., id: _Optional[str] = ..., parent_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., bench_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., package_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., created_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., created_by_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., updated_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., updated_by_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., archived_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., deleted_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., template_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., mode: _Optional[_Union[NodeMode, str]] = ..., type: _Optional[_Union[EffectType, str]] = ..., name: _Optional[str] = ..., order_key: _Optional[str] = ..., icon: _Optional[_Union[IconData, _Mapping]] = ..., definition_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., style_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., field_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., opacity: _Optional[float] = ..., offset: _Optional[_Union[Vector2Data, _Mapping]] = ..., scale: _Optional[float] = ..., rotate: _Optional[_Union[Axis3Data, _Mapping]] = ..., skew: _Optional[_Union[Vector2Data, _Mapping]] = ..., perspective: _Optional[float] = ..., delay: _Optional[_Union[_duration_pb2.Duration, _Mapping]] = ..., duration: _Optional[float] = ..., threshold: _Optional[float] = ..., once: bool = ..., repeat: _Optional[_Union[RepeatType, str]] = ..., split: _Optional[_Union[TextSplitType, str]] = ..., offscreen: _Optional[_Union[OffscreenBehavior, str]] = ..., transition: _Optional[_Union[TransitionData, _Mapping]] = ...) -> None: ...
 
 class GradientStyleData(_message.Message):
     __slots__ = ("metatype", "id", "parent_ptr", "bench_ptr", "package_ptr", "created_at", "created_by_ptr", "updated_at", "updated_by_ptr", "archived_at", "deleted_at", "template_ptr", "mode", "type", "name", "order_key", "icon", "definition_ptr", "angle", "stops", "center_anchor", "dark")
@@ -6757,9 +6911,10 @@ class ShadowStyleData(_message.Message):
     def __init__(self, metatype: _Optional[_Union[ObjectType, str]] = ..., id: _Optional[str] = ..., parent_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., bench_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., package_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., created_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., created_by_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., updated_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., updated_by_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., archived_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., deleted_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., template_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., mode: _Optional[_Union[NodeMode, str]] = ..., type: _Optional[_Union[ShadowType, str]] = ..., name: _Optional[str] = ..., order_key: _Optional[str] = ..., icon: _Optional[_Union[IconData, _Mapping]] = ..., definition_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., style_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., field_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., color: _Optional[_Union[ColorData, _Mapping]] = ..., position: _Optional[_Union[ShadowPosition, str]] = ..., offset: _Optional[_Union[Axis2Data, _Mapping]] = ..., blur: _Optional[int] = ..., spread: _Optional[int] = ..., diffusion: _Optional[float] = ...) -> None: ...
 
 class ThemeData(_message.Message):
-    __slots__ = ("metatype", "id", "parent_ptr", "bench_ptr", "package_ptr", "created_at", "created_by_ptr", "updated_at", "updated_by_ptr", "archived_at", "deleted_at", "order_key", "icon", "definition_ptr", "primary_color", "secondary_color", "accent_color", "muted_color", "success_color", "warning_color", "error_color")
+    __slots__ = ("metatype", "id", "ck", "parent_ptr", "bench_ptr", "package_ptr", "created_at", "created_by_ptr", "updated_at", "updated_by_ptr", "archived_at", "deleted_at", "template_ptr", "mode", "name", "order_key", "icon", "definition_ptr", "primary_color", "secondary_color", "accent_color", "muted_color", "success_color", "warning_color", "error_color")
     METATYPE_FIELD_NUMBER: _ClassVar[int]
     ID_FIELD_NUMBER: _ClassVar[int]
+    CK_FIELD_NUMBER: _ClassVar[int]
     PARENT_PTR_FIELD_NUMBER: _ClassVar[int]
     BENCH_PTR_FIELD_NUMBER: _ClassVar[int]
     PACKAGE_PTR_FIELD_NUMBER: _ClassVar[int]
@@ -6769,6 +6924,9 @@ class ThemeData(_message.Message):
     UPDATED_BY_PTR_FIELD_NUMBER: _ClassVar[int]
     ARCHIVED_AT_FIELD_NUMBER: _ClassVar[int]
     DELETED_AT_FIELD_NUMBER: _ClassVar[int]
+    TEMPLATE_PTR_FIELD_NUMBER: _ClassVar[int]
+    MODE_FIELD_NUMBER: _ClassVar[int]
+    NAME_FIELD_NUMBER: _ClassVar[int]
     ORDER_KEY_FIELD_NUMBER: _ClassVar[int]
     ICON_FIELD_NUMBER: _ClassVar[int]
     DEFINITION_PTR_FIELD_NUMBER: _ClassVar[int]
@@ -6781,59 +6939,7 @@ class ThemeData(_message.Message):
     ERROR_COLOR_FIELD_NUMBER: _ClassVar[int]
     metatype: ObjectType
     id: str
-    parent_ptr: NodeReferenceData
-    bench_ptr: NodeReferenceData
-    package_ptr: NodeReferenceData
-    created_at: _timestamp_pb2.Timestamp
-    created_by_ptr: NodeReferenceData
-    updated_at: _timestamp_pb2.Timestamp
-    updated_by_ptr: NodeReferenceData
-    archived_at: _timestamp_pb2.Timestamp
-    deleted_at: _timestamp_pb2.Timestamp
-    order_key: str
-    icon: IconData
-    definition_ptr: NodeReferenceData
-    primary_color: ColorData
-    secondary_color: ColorData
-    accent_color: ColorData
-    muted_color: ColorData
-    success_color: ColorData
-    warning_color: ColorData
-    error_color: ColorData
-    def __init__(self, metatype: _Optional[_Union[ObjectType, str]] = ..., id: _Optional[str] = ..., parent_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., bench_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., package_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., created_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., created_by_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., updated_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., updated_by_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., archived_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., deleted_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., order_key: _Optional[str] = ..., icon: _Optional[_Union[IconData, _Mapping]] = ..., definition_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., primary_color: _Optional[_Union[ColorData, _Mapping]] = ..., secondary_color: _Optional[_Union[ColorData, _Mapping]] = ..., accent_color: _Optional[_Union[ColorData, _Mapping]] = ..., muted_color: _Optional[_Union[ColorData, _Mapping]] = ..., success_color: _Optional[_Union[ColorData, _Mapping]] = ..., warning_color: _Optional[_Union[ColorData, _Mapping]] = ..., error_color: _Optional[_Union[ColorData, _Mapping]] = ...) -> None: ...
-
-class TransitionStyleData(_message.Message):
-    __slots__ = ("metatype", "id", "parent_ptr", "bench_ptr", "package_ptr", "created_at", "created_by_ptr", "updated_at", "updated_by_ptr", "archived_at", "deleted_at", "template_ptr", "mode", "type", "name", "order_key", "icon", "definition_ptr", "style_ptr", "field_ptr", "delay", "duration", "ease", "stiffness", "damping", "mass", "bounce", "spring_type")
-    METATYPE_FIELD_NUMBER: _ClassVar[int]
-    ID_FIELD_NUMBER: _ClassVar[int]
-    PARENT_PTR_FIELD_NUMBER: _ClassVar[int]
-    BENCH_PTR_FIELD_NUMBER: _ClassVar[int]
-    PACKAGE_PTR_FIELD_NUMBER: _ClassVar[int]
-    CREATED_AT_FIELD_NUMBER: _ClassVar[int]
-    CREATED_BY_PTR_FIELD_NUMBER: _ClassVar[int]
-    UPDATED_AT_FIELD_NUMBER: _ClassVar[int]
-    UPDATED_BY_PTR_FIELD_NUMBER: _ClassVar[int]
-    ARCHIVED_AT_FIELD_NUMBER: _ClassVar[int]
-    DELETED_AT_FIELD_NUMBER: _ClassVar[int]
-    TEMPLATE_PTR_FIELD_NUMBER: _ClassVar[int]
-    MODE_FIELD_NUMBER: _ClassVar[int]
-    TYPE_FIELD_NUMBER: _ClassVar[int]
-    NAME_FIELD_NUMBER: _ClassVar[int]
-    ORDER_KEY_FIELD_NUMBER: _ClassVar[int]
-    ICON_FIELD_NUMBER: _ClassVar[int]
-    DEFINITION_PTR_FIELD_NUMBER: _ClassVar[int]
-    STYLE_PTR_FIELD_NUMBER: _ClassVar[int]
-    FIELD_PTR_FIELD_NUMBER: _ClassVar[int]
-    DELAY_FIELD_NUMBER: _ClassVar[int]
-    DURATION_FIELD_NUMBER: _ClassVar[int]
-    EASE_FIELD_NUMBER: _ClassVar[int]
-    STIFFNESS_FIELD_NUMBER: _ClassVar[int]
-    DAMPING_FIELD_NUMBER: _ClassVar[int]
-    MASS_FIELD_NUMBER: _ClassVar[int]
-    BOUNCE_FIELD_NUMBER: _ClassVar[int]
-    SPRING_TYPE_FIELD_NUMBER: _ClassVar[int]
-    metatype: ObjectType
-    id: str
+    ck: str
     parent_ptr: NodeReferenceData
     bench_ptr: NodeReferenceData
     package_ptr: NodeReferenceData
@@ -6845,22 +6951,18 @@ class TransitionStyleData(_message.Message):
     deleted_at: _timestamp_pb2.Timestamp
     template_ptr: NodeReferenceData
     mode: NodeMode
-    type: TransitionType
     name: str
     order_key: str
     icon: IconData
     definition_ptr: NodeReferenceData
-    style_ptr: NodeReferenceData
-    field_ptr: NodeReferenceData
-    delay: float
-    duration: float
-    ease: _containers.RepeatedScalarFieldContainer[float]
-    stiffness: float
-    damping: float
-    mass: float
-    bounce: float
-    spring_type: SpringType
-    def __init__(self, metatype: _Optional[_Union[ObjectType, str]] = ..., id: _Optional[str] = ..., parent_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., bench_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., package_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., created_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., created_by_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., updated_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., updated_by_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., archived_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., deleted_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., template_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., mode: _Optional[_Union[NodeMode, str]] = ..., type: _Optional[_Union[TransitionType, str]] = ..., name: _Optional[str] = ..., order_key: _Optional[str] = ..., icon: _Optional[_Union[IconData, _Mapping]] = ..., definition_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., style_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., field_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., delay: _Optional[float] = ..., duration: _Optional[float] = ..., ease: _Optional[_Iterable[float]] = ..., stiffness: _Optional[float] = ..., damping: _Optional[float] = ..., mass: _Optional[float] = ..., bounce: _Optional[float] = ..., spring_type: _Optional[_Union[SpringType, str]] = ...) -> None: ...
+    primary_color: ColorData
+    secondary_color: ColorData
+    accent_color: ColorData
+    muted_color: ColorData
+    success_color: ColorData
+    warning_color: ColorData
+    error_color: ColorData
+    def __init__(self, metatype: _Optional[_Union[ObjectType, str]] = ..., id: _Optional[str] = ..., ck: _Optional[str] = ..., parent_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., bench_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., package_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., created_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., created_by_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., updated_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., updated_by_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., archived_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., deleted_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., template_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., mode: _Optional[_Union[NodeMode, str]] = ..., name: _Optional[str] = ..., order_key: _Optional[str] = ..., icon: _Optional[_Union[IconData, _Mapping]] = ..., definition_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., primary_color: _Optional[_Union[ColorData, _Mapping]] = ..., secondary_color: _Optional[_Union[ColorData, _Mapping]] = ..., accent_color: _Optional[_Union[ColorData, _Mapping]] = ..., muted_color: _Optional[_Union[ColorData, _Mapping]] = ..., success_color: _Optional[_Union[ColorData, _Mapping]] = ..., warning_color: _Optional[_Union[ColorData, _Mapping]] = ..., error_color: _Optional[_Union[ColorData, _Mapping]] = ...) -> None: ...
 
 class ChoiceData(_message.Message):
     __slots__ = ("metatype", "id", "parent_ptr", "bench_ptr", "package_ptr", "created_at", "created_by_ptr", "updated_at", "updated_by_ptr", "archived_at", "deleted_at", "template_ptr", "mode", "name", "order_key", "icon", "definition_ptr")

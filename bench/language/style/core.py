@@ -132,7 +132,7 @@ class Corners(Struct):
     bottom_right: int | None = p_regular(44, default=None)
 
 
-@struct_(StructType.AXIS_2)
+@struct_(StructType.AXIS2)
 class Axis2(Struct):
     """A gap value (base + x/y)."""
 
@@ -141,7 +141,7 @@ class Axis2(Struct):
     y: float | None = p_regular(42, default=None)
 
 
-@struct_(StructType.AXIS_3)
+@struct_(StructType.AXIS3)
 class Axis3(Struct):
     """A rotation value (base + x/y/z)."""
 

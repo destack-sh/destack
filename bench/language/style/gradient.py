@@ -45,7 +45,7 @@ class GradientBase(BuiltinObject):
         41, array=True, require=False, struct=StructType.GRADIENT_STOP
     )
     center_anchor: Optional[Axis2] = p_regular(
-        42, require=False, array=False, default=None, struct=StructType.AXIS_2
+        42, require=False, array=False, default=None, struct=StructType.AXIS2
     )
 
 
