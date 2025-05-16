@@ -88,15 +88,13 @@ class FontBase(IsVariable, BuiltinObject):
     """A text style value."""
 
     type: FontType = p_regular(30, default=FontType.SANS)
-    style: Optional["FontStyle"] = p_regular(
-        41, default=None, require=False, array=False, references=NodeType.FONT_STYLE
-    )
+    style: Optional["FontStyle"] = p_regular(41)
     weight: Optional[FontWeight] = p_regular(50, default=FontWeight.NORMAL)
-    color: Optional[Fill] = p_regular(51, default=None, struct=StructType.FILL)
+    color: Optional[Fill] = p_regular(51)
     size: Optional[FontSize] = p_regular(52, default=FontSize.BASE)
     align: Optional[TextAlign] = p_regular(53, default=TextAlign.LEFT)
-    line_height: Optional[Length] = p_regular(54, default=None, struct=StructType.LENGTH)
-    letter_spacing: Optional[Length] = p_regular(55, default=None, struct=StructType.LENGTH)
+    line_height: Optional[Length] = p_regular(54)
+    letter_spacing: Optional[Length] = p_regular(55)
     decoration: Optional[TextDecoration] = p_regular(56, default=TextDecoration.NONE)
     transform: Optional[TextTransform] = p_regular(57, default=TextTransform.NONE)
 

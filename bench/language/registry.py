@@ -81,7 +81,6 @@ def _complete_bench_setup():
         PageNode,
         ProvisionableResourceBase,
         ResourceBase,
-        Struct,
         StyleBase,
         ViewBase,
     )
@@ -92,7 +91,6 @@ def _complete_bench_setup():
     from bench.language.core.object import (
         _is_setup_complete,
         _set_setup_complete,
-        _set_setup_finalizing,
     )
 
     if _is_setup_complete():
@@ -110,7 +108,8 @@ def _complete_bench_setup():
         if isinstance(bench_t, type) and issubclass(bench_t, BuiltinEnum):
             FINAL_BENCH_CLASSES_BY_NAME[bench_t.__name__] = bench_t
             FINAL_BENCH_CLASSES.append(bench_t)
-    BENCH_CLASSES.extend(chain(get_subclasses(BuiltinObject), (CustomObject,)))
+    BENCH_CLASSES.extend(get_subclasses(BuiltinObject))
+    BENCH_CLASSES.append(CustomObject)  # type: ignore ???
     for cls in BENCH_CLASSES:
         BENCH_CLASS_BY_NAME[cls.__name__] = cls
     for node_t in NODE_TYPES:
@@ -183,45 +182,6 @@ def _complete_bench_setup():
         CHILD_NODE_TYPES[node_type] = bittuple(*child_types[node_type], enum_cls=NodeType)
         if child_types[node_type]:
             HAS_CHILD_NODE_TYPES.bits[node_type.ord] = True
-
-    #
-    # Finalize
-    #
-
-    _set_setup_finalizing()
-
-    # finalize classes
-    for cls in get_subclasses(BuiltinObject):
-        # misc finalization on properties
-        for name, prop in cls.__properties__.items():
-            # finalize type info
-            prop._finalize_type()
-
-            # set introspectable properties as <cls>.<property>
-            if prop.is_introspectable:
-                setattr(cls, name, prop)
-
-            if IS_DEV:
-                # check deferred/encrypted properties
-                if prop.is_deferred and not prop.is_stored:
-                    raise ValueError(f"{prop!r} cannot be deferred and not stored on {cls!r}")
-
-                # check py_type matches struct type as defined
-                if (
-                    isinstance(prop.py_type_raw, type)
-                    and issubclass(prop.py_type_raw, Struct)
-                    and not issubclass(prop.py_type_raw, Node)
-                ):
-                    if not prop.reference_struct:
-                        raise ValueError(
-                            f"cannot store {prop!r} as {prop.py_type_raw!r} (missing struct_type)"
-                        )
-                    if STRUCT_CLASS_BY_TYPE[prop.reference_struct] is not prop.py_type_raw:
-                        raise ValueError(f"{prop!r} {prop.reference_struct} != {prop.py_type_raw}")
-
-    #
-    # Complete
-    #
 
     _set_setup_complete()
 

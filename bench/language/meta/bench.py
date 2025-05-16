@@ -12,7 +12,6 @@ from bench.language.core import (
     LocalNodeList,
     NodeType,
     Region,
-    StructType,
     enum_,
     node_,
     p_node_children,
@@ -54,34 +53,24 @@ class Bench(IsOwnable, BenchNode[BenchData]):
     parent: None = p_node_parent(4)
     handle: Optional["Handle"] = p_system(
         31,
-        require=False,
-        array=False,
-        references=NodeType.HANDLE,
         fk=True,
         same_bench=True,
     )
     handles: LocalNodeList["Handle"] = p_node_children(NodeType.HANDLE)
     slug: str = p_system(32, unique=True, constraint=SLUG_CONSTRAINT)  # must match main handle
     name: str = p_regular(33, constraint=NAME_CONSTRAINT)
-    line: Optional["TextLine"] = p_regular(
-        34, default=None, require=False, array=False, struct=StructType.TEXT_LINE
-    )
-    icon: Optional["Icon"] = p_regular(35, default=None, struct=StructType.ICON)
-    region: "Region" = p_system(37, require=True, default=REGION, default_sql=None)
+    line: Optional["TextLine"] = p_regular(34)
+    icon: Optional["Icon"] = p_regular(35)
+    region: "Region" = p_system(37, default=REGION, default_sql=None)
     # TODO :Security: Bench.encryption_key (DEK) or put it into a Vault (Bench.main_vault) :RealSecrets
 
     # status
     status: BenchStatus = p_system(40, default=BenchStatus.RESERVED)
 
     # content
-    database: Optional["Database"] = p_system(
-        50, require=False, array=False, references=NodeType.DATABASE, fk=True, same_bench=True
-    )
+    database: Optional["Database"] = p_system(50, fk=True, same_bench=True)
     package: Optional["Package"] = p_regular(
         51,
-        require=False,
-        array=False,
-        references=NodeType.PACKAGE,
         fk=True,
         same_bench=True,
     )

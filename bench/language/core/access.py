@@ -40,7 +40,6 @@ from .graph import NodeDataGraph, NodeGraph, NodeSuperGraph
 from .node import NODE_CLASS_BY_TYPE, NodeReference
 from .property import Property, p_regular, p_runtime, p_system
 from .struct import Struct, struct_
-from .trait import OWNABLE_NODE_TYPES
 from .validation import NAME_CONSTRAINT, ValidationError
 
 if TYPE_CHECKING:
@@ -78,8 +77,8 @@ class Policy(Struct):
     """
 
     name: str = p_regular(30, constraint=NAME_CONSTRAINT)
-    rules: list["PolicyRule"] = p_regular(32, array=True, struct=StructType.POLICY_RULE)
-    scopes: list["Block"] = p_regular(33, require=False, array=True, references=NodeType.BLOCK)
+    rules: list["PolicyRule"] = p_regular(32)
+    scopes: list["Block"] = p_regular(33)
 
     def __content_str__(self) -> str:
         scopes = self.scopes
@@ -108,29 +107,27 @@ class PolicyRule(Struct):
     # subject
     # if subject is delegated then it always matches if this rule is present
     #  (and no other subject filters make sense)
-    subject_is_delegated: Optional[bool] = p_regular(40, default=None)
-    subject_is_authenticated: Optional[bool] = p_regular(41, default=None)
-    subject_is_staff: Optional[bool] = p_regular(42, default=None)
+    subject_is_delegated: Optional[bool] = p_regular(40)
+    subject_is_authenticated: Optional[bool] = p_regular(41)
+    subject_is_staff: Optional[bool] = p_regular(42)
     # member/owner is evaluated relative to the object
-    subject_is_member: Optional[bool] = p_regular(43, default=None)
-    subject_is_owner: Optional[bool] = p_regular(44, default=None)
+    subject_is_member: Optional[bool] = p_regular(43)
+    subject_is_owner: Optional[bool] = p_regular(44)
     # subject_users, subject_groups, subject_identities, subject_roles, ...
 
     # verb
     effect: PolicyEffect = p_regular(60, default=PolicyEffect.DENY)
-    verbs: list[AccessType] = p_regular(61, array=True)
-    verb_kinds: list[AccessKind] = p_regular(62, array=True)
+    verbs: list[AccessType] = p_regular(61)
+    verb_kinds: list[AccessKind] = p_regular(62)
     _verb_mask: bitarray | None = p_runtime(default=None)
 
     # object (if unset it's a wildcard, except for _properties_is_<...>)
-    object_node_types: Optional[list[NodeType]] = p_regular(80, array=True)
+    object_node_types: Optional[list[NodeType]] = p_regular(80)
     _object_node_types_mask: bitarray | None = p_runtime(default=None)
-    object_properties: list[Property] = p_regular(
-        81, require=False, array=True, struct=StructType.PROPERTY_REFERENCE
-    )
-    object_properties_is_system: Optional[bool] = p_regular(82, default=None)
-    object_properties_is_sensitive: Optional[bool] = p_regular(83, default=None)
-    object_properties_is_kernel: Optional[bool] = p_regular(84, default=None)
+    object_properties: list[Property] = p_regular(81)
+    object_properties_is_system: Optional[bool] = p_regular(82)
+    object_properties_is_sensitive: Optional[bool] = p_regular(83)
+    object_properties_is_kernel: Optional[bool] = p_regular(84)
     _object_properties_masks: dict[NodeType, bitarray] = p_runtime(default=None)
 
     # object_properties, object_nodes, object_fields, ...
@@ -321,21 +318,15 @@ class PolicySubject(Struct):
     id: int = p_system(2, default_factory=new_struct_id)
 
     # flags
-    is_authenticated: Optional[bool] = p_system(30, default=None)
-    is_staff: Optional[bool] = p_system(31, default=None)
-    is_system: Optional[bool] = p_system(32, default=None)
+    is_authenticated: Optional[bool] = p_system(30)
+    is_staff: Optional[bool] = p_system(31)
+    is_system: Optional[bool] = p_system(32)
     # (Client isn't a separate subject but useful to know)
 
     # who
-    client: Optional["Client"] = p_system(
-        40, default=None, require=False, array=False, references=NodeType.CLIENT
-    )
-    user: Optional["User"] = p_system(
-        41, default=None, require=False, array=False, references=NodeType.USER
-    )
-    computer: Optional["Computer"] = p_system(
-        43, default=None, require=False, array=False, references=NodeType.COMPUTER
-    )
+    client: Optional["Client"] = p_system(40)
+    user: Optional["User"] = p_system(41)
+    computer: Optional["Computer"] = p_system(43)
     if TYPE_CHECKING:
         client_ptr: Optional[NodeReference] = None
         client_id: Optional[UUID] = None
@@ -345,12 +336,8 @@ class PolicySubject(Struct):
         computer_id: Optional[UUID] = None
 
     # accessories
-    owned: list[Union["User", "Bench", "Organization"]] = p_system(
-        52, array=True, require=False, references=OWNABLE_NODE_TYPES.tuple
-    )
-    memberships: list[Union["Bench", "Organization"]] = p_system(
-        53, require=False, array=True, references=NodeType.MEMBERSHIP
-    )
+    owned: list[Union["User", "Bench", "Organization"]] = p_system(52)
+    memberships: list[Union["Bench", "Organization"]] = p_system(53)
 
     def __content_str__(self):
         content_parts = []
@@ -476,7 +463,7 @@ class AccessZone(Struct):
     _scope: Optional[AnyNodeData] = p_runtime(default=None)
     identity_id: int = p_system(31)
     _identity: Optional[PolicySubject] = p_runtime(default=None)
-    rules: list[PolicyRule] = p_system(32, array=True, struct=StructType.POLICY_RULE)
+    rules: list[PolicyRule] = p_system(32)
 
     def __content_str__(self) -> str:
         return f"{(self._identity or self.identity_id)!r} in {self._scope or self.scope_id}: {len(self.rules)} rules"
@@ -486,10 +473,10 @@ class AccessZone(Struct):
 class AccessMatrix(Struct):
     """The materialized access matrix generated for a specific subject to quickly evaluate access for objects."""
 
-    subject: PolicySubject = p_system(30, require=True, struct=StructType.POLICY_SUBJECT)
-    identities: list[PolicySubject] = p_system(32, array=True, struct=StructType.POLICY_SUBJECT)
-    scoped_zones: list[AccessZone] = p_system(33, array=True, struct=StructType.ACCESS_ZONE)
-    base_zones: list[AccessZone] = p_system(34, array=True, struct=StructType.ACCESS_ZONE)
+    subject: PolicySubject = p_system(30)
+    identities: list[PolicySubject] = p_system(32)
+    scoped_zones: list[AccessZone] = p_system(33)
+    base_zones: list[AccessZone] = p_system(34)
 
     # quick access to the zone (id = index)
     _scoped_zones_by_id: dict[int, AccessZone] = p_runtime(default_factory=dict)
@@ -504,13 +491,11 @@ class AccessMatrix(Struct):
 class Access(Struct):
     """An evaluated access."""
 
-    mode: AccessMode = p_system(30, require=True)
-    decision: PolicyEffect = p_system(31, require=True)
-    verb: AccessType = p_system(32, require=True)
-    node_type: NodeType = p_system(33, require=True)
-    allowed_properties: list[Property] = p_system(
-        34, require=False, array=True, struct=StructType.PROPERTY_REFERENCE
-    )
+    mode: AccessMode = p_system(30)
+    decision: PolicyEffect = p_system(31)
+    verb: AccessType = p_system(32)
+    node_type: NodeType = p_system(33)
+    allowed_properties: list[Property] = p_system(34)
 
     # arguments
     # roots, read_options, ...

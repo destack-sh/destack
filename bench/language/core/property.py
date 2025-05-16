@@ -15,7 +15,6 @@ from typing import (
 from uuid import UUID
 
 from bench.language.registry import BENCH_CLASS_BY_NAME, ENUM_TYPE_BY_CLASS, _on_completing_setup
-from bench.utils.env import IS_DEV
 from bench.utils.func import hash_stable, parse_py_annotation
 from bench.utils.utils import frozendict
 
@@ -89,7 +88,7 @@ class Property(_IntoQuery if TYPE_CHECKING else object):
     name: str = UNSET  # name from LHS of assignment
     component: type["BuiltinObject"] = UNSET  # source component class
     py_type_raw: Any = None  # type annotation on LHS of assignment
-    py_type_stripped: Any = UNSET  # stripped type annotation
+    py_type: Any = UNSET  # stripped type annotation
     primitive_type: PrimitiveType | None = UNSET
     enum_type: EnumType | None = None
     default: Any = UNSET
@@ -108,13 +107,12 @@ class Property(_IntoQuery if TYPE_CHECKING else object):
     is_computed: bool = False
     is_runtime: bool = UNSET  # exists on runtime object
     is_ephemeral: bool = False  # runtime-only in-memory property
-    is_wired: bool = UNSET  # serialized onto wire (in proto)
+    is_proto: bool = UNSET  # serialized onto wire (in proto)
     is_stored: bool = UNSET  # stored in DB
     is_indexed: bool = False  # indexed in DB?
     is_unique: bool = False  # unique index in DB?
     is_deferred: bool = False  # loaded only on demand (only for stored node properties)
     is_sensitive: bool = False  # sensitive data (generally requires special permissions)
-    is_encrypted: bool = False  # encrypt at rest (only for stored node properties)
     is_untracked: bool = False  # whether writes are tracked
 
     # value
@@ -146,7 +144,7 @@ class Property(_IntoQuery if TYPE_CHECKING else object):
     _type_info: Optional["Type"] = None
 
     def __post_init__(self):
-        if self.reference_kind is not None and self.default is UNSET:
+        if self.default is UNSET:
             self.default = None
         if self.id is not None:
             self.key = intern(str(self.id))
@@ -177,7 +175,7 @@ class Property(_IntoQuery if TYPE_CHECKING else object):
             "is_list",
             "is_required",
             "is_runtime",
-            "is_wired",
+            "is_proto",
             "is_stored",
             "is_computed",
             "is_ephemeral",
@@ -185,7 +183,6 @@ class Property(_IntoQuery if TYPE_CHECKING else object):
             "is_system",
             "is_kernel",
             "is_deferred",
-            "is_encrypted",
             "reference_kind",
             "reference_nodes",
             "reference_struct",
@@ -397,7 +394,7 @@ class Property(_IntoQuery if TYPE_CHECKING else object):
                 reference_struct=StructType.PROPERTY_REFERENCE,
                 is_runtime=True,
                 is_internal=self.is_internal,
-                is_wired=True,
+                is_proto=True,
                 is_stored=True,
                 is_required=self.is_required,
                 is_list=self.is_list,
@@ -426,7 +423,7 @@ class Property(_IntoQuery if TYPE_CHECKING else object):
 
         # wired/stored pointer settings for each node reference kind
         elif self.reference_kind == ReferenceKind.NODE_PARENT:
-            is_wired = True
+            is_proto = True
             is_stored = True
             is_required = False  # parent is always optional
             is_list = False
@@ -436,9 +433,9 @@ class Property(_IntoQuery if TYPE_CHECKING else object):
             ReferenceKind.NODE_ANCESTOR_OR_SELF,
             ReferenceKind.NODE_ANCESTOR,
         ):
-            assert self.is_wired is not UNSET, f"must set is_wired on {self!r}"
+            assert self.is_proto is not UNSET, f"must set is_proto on {self!r}"
             assert self.is_stored is not UNSET, f"must set is_stored on {self!r}"
-            is_wired = self.is_wired
+            is_proto = self.is_proto
             is_stored = self.is_stored
             is_required = self.is_required
             is_list = False
@@ -447,7 +444,7 @@ class Property(_IntoQuery if TYPE_CHECKING else object):
         elif self.reference_kind in (ReferenceKind.NODE_REGULAR, ReferenceKind.NODE_TEMPLATE):
             assert self.is_required is not UNSET, f"must set is_required on {self!r}"
             assert self.is_list is not UNSET, f"must set is_list on {self!r}"
-            is_wired = True
+            is_proto = True
             is_stored = True
             is_required = self.is_required
             is_list = self.is_list
@@ -456,7 +453,7 @@ class Property(_IntoQuery if TYPE_CHECKING else object):
         else:
             raise ValueError(f"unexpected reference kind {self.reference_kind!r} for {self!r}")
 
-        if is_wired:
+        if is_proto:
             # wired reference representation is just a nice NodeReference struct
             self.reference_wired_ptr = Property(
                 id=self.id,  # re-use id, self is not stored
@@ -468,7 +465,7 @@ class Property(_IntoQuery if TYPE_CHECKING else object):
                 reference_source=self,
                 reference_struct=StructType.NODE_REFERENCE,
                 is_runtime=True,
-                is_wired=True,
+                is_proto=True,
                 is_stored=False,
                 is_autoset=self.is_autoset,
                 is_computed=is_computed,
@@ -520,7 +517,7 @@ class Property(_IntoQuery if TYPE_CHECKING else object):
                         reference_source=self,
                         reference_force_fk=True,
                         is_runtime=False,
-                        is_wired=False,
+                        is_proto=False,
                         is_stored=True,
                         is_internal=is_internal,
                         is_list=is_list,
@@ -542,7 +539,7 @@ class Property(_IntoQuery if TYPE_CHECKING else object):
                     reference_source=self,
                     reference_type=PropertyReferenceType.ID,
                     is_runtime=False,
-                    is_wired=False,
+                    is_proto=False,
                     is_stored=True,
                     is_internal=is_internal,
                     is_list=is_list,
@@ -564,7 +561,7 @@ class Property(_IntoQuery if TYPE_CHECKING else object):
                         reference_source=self,
                         reference_type=PropertyReferenceType.CK,
                         is_runtime=False,
-                        is_wired=False,
+                        is_proto=False,
                         is_stored=True,
                         is_internal=is_internal,
                         is_list=is_list,
@@ -582,7 +579,7 @@ class Property(_IntoQuery if TYPE_CHECKING else object):
                         reference_source=self,
                         reference_type=PropertyReferenceType.NODE_TYPE,
                         is_runtime=False,
-                        is_wired=False,
+                        is_proto=False,
                         is_stored=True,
                         is_internal=is_internal,
                         is_list=is_list,
@@ -609,7 +606,7 @@ class Property(_IntoQuery if TYPE_CHECKING else object):
                     reference_type=PropertyReferenceType.BENCH_ID,
                     reference_nodes=(NodeType.BENCH,),
                     is_runtime=False,
-                    is_wired=False,
+                    is_proto=False,
                     is_stored=True,
                     is_internal=is_internal,
                     is_list=is_list,
@@ -631,7 +628,7 @@ class Property(_IntoQuery if TYPE_CHECKING else object):
                     reference_source=self,
                     reference_type=PropertyReferenceType.BASE_ID,
                     is_runtime=False,
-                    is_wired=False,
+                    is_proto=False,
                     is_stored=True,
                     is_internal=is_internal,
                     is_list=is_list,
@@ -664,14 +661,14 @@ class Property(_IntoQuery if TYPE_CHECKING else object):
             self.primitive_type = None
         elif self.is_stored is UNSET:
             self.is_stored = True
-        if self.is_wired is UNSET:
-            self.is_wired = self.is_stored
+        if self.is_proto is UNSET:
+            self.is_proto = self.is_stored
         if self.is_runtime is UNSET:
             self.is_runtime = self.is_stored
         # obviously, we don't store the runtime properties with different wired/stored representations
-        #  directly, we just use is_wired/is_stored to indicate whether to contribute those (above)
+        #  directly, we just use is_proto/is_stored to indicate whether to contribute those (above)
         if self.reference_wired_ptr or self.reference_stored_ids:
-            self.is_wired = False
+            self.is_proto = False
             self.is_stored = False
 
     def _finalize_type(self) -> None:
@@ -691,12 +688,12 @@ class Property(_IntoQuery if TYPE_CHECKING else object):
             self.is_ephemeral and not (self.is_struct or self.is_enum)
         ) or self.reference_kind == ReferenceKind.NODE_CHILDREN:
             # can't resolve these because they may point to non-Bench types
-            self.py_type_stripped = self.py_type_raw
+            self.py_type = self.py_type_raw
             return
 
         # update/check info from annotation
         annotation = parse_py_annotation(self.py_type_raw, BENCH_CLASS_BY_NAME)
-        self.py_type_stripped = annotation.type
+        self.py_type = annotation.type
         if annotation.is_list != self.is_list:
             raise ValueError(f"array mismatch for {self!r} (expected is_list={self.is_list})")
         if self.is_required is UNSET:
@@ -711,7 +708,7 @@ class Property(_IntoQuery if TYPE_CHECKING else object):
                 raise ValueError(f"missing enum type for {annotation.type!r} at {self!r}")
 
         # determine storage type
-        if self.primitive_type is UNSET and (self.is_stored or self.is_wired):
+        if self.primitive_type is UNSET and (self.is_stored or self.is_proto):
             if annotation.is_union:
                 raise ValueError(f"cannot store union {self!r}")
             # map to column type
@@ -721,8 +718,6 @@ class Property(_IntoQuery if TYPE_CHECKING else object):
                     self.primitive_type = PrimitiveType.INT16
                 else:
                     self.primitive_type = PrimitiveType.INT32
-            elif issubclass(annotation.type, enum.IntFlag):
-                self.primitive_type = PrimitiveType.INT64
             elif getattr(annotation.type, "__is_node__", False):
                 raise ValueError(f"cannot store/wire node directly: {self!r}")
             elif getattr(annotation.type, "__is_struct__", False):
@@ -743,13 +738,6 @@ class Property(_IntoQuery if TYPE_CHECKING else object):
             or self.id == 1
         ):
             self._type_info = self._to_type_info()
-
-        # sanity check some stuff
-        if IS_DEV:
-            if self.is_encrypted and not self.is_sensitive:
-                raise ValueError(f"encrypted properties should be sensitive {self!r}")
-            if self.is_encrypted and not self.is_deferred:
-                raise ValueError(f"encrypted properties should be deferred {self!r}")
 
 
 @_on_completing_setup
@@ -841,11 +829,10 @@ def p_property(
         is_autoset=autoset,
         is_untracked=autoset,
         is_runtime=True,
-        is_wired=wire,
+        is_proto=wire,
         is_stored=store,
         is_list=array,
         is_deferred=defer,
-        is_encrypted=encrypt,
         is_sensitive=sensitive,
         is_indexed=index_in_pg,
         is_unique=unique,
@@ -861,7 +848,7 @@ def p_runtime(
     return Property(
         is_internal=True,
         is_runtime=True,
-        is_wired=False,
+        is_proto=False,
         is_ephemeral=True,
         is_untracked=True,
         is_computed=False,
@@ -917,7 +904,7 @@ def _p_node_ancestor(
         is_computed=True,
         is_system=True,
         is_stored=store,
-        is_wired=wire,
+        is_proto=wire,
         is_required=require,
         is_indexed=index_in_pg,
         reference_is_bench_implicit=is_bench_implicit,
@@ -955,12 +942,13 @@ def p_node_template(id: int) -> Any:
         reference_is_ckless=True,
         is_internal=True,
         is_stored=True,
-        is_wired=True,
+        is_proto=True,
         is_list=False,
         is_system=True,
     )
 
 
+# nocheckin: remove StructParents, use plain edits (turn Structs into pure data classes?)
 def p_struct_parent(id: int) -> Any:
     """The parent of a struct."""
     return Property(
@@ -969,7 +957,7 @@ def p_struct_parent(id: int) -> Any:
         reference_nodes=(),
         is_internal=True,
         is_stored=False,
-        is_wired=False,
+        is_proto=False,
         is_list=False,
     )
 
@@ -990,7 +978,7 @@ def p_value_runtime(
     return Property(
         is_internal=True,
         is_runtime=True,
-        is_wired=False,
+        is_proto=False,
         is_stored=False,
         is_ephemeral=True,
         is_required=False,
@@ -1018,10 +1006,9 @@ def p_value_packed(
         is_required=False,
         is_internal=True,
         is_stored=True,
-        is_wired=True,
+        is_proto=True,
         is_list=False,
         is_sensitive=secret,
-        is_encrypted=secret,
         is_deferred=secret,
     )
 
@@ -1044,7 +1031,7 @@ METATYPE_PROPERTY = Property(
     is_computed=True,  # is set statically by class decorator
     is_ephemeral=True,
     is_runtime=False,
-    is_wired=True,
+    is_proto=True,
     is_stored=False,
     is_list=False,
     primitive_type=PrimitiveType.INT16,

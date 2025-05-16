@@ -1,7 +1,6 @@
 from typing import TYPE_CHECKING, Optional
 
 from bench.language.core import (
-    PAGE_NODE_TYPES,
     IsClaimable,
     IsModal,
     IsNamed,
@@ -36,9 +35,7 @@ class Service(
     A Kit of Actions for a Node.
     """
 
-    target: Optional["PageNode"] = p_regular(
-        40, require=False, array=False, references=PAGE_NODE_TYPES.tuple
-    )
+    target: Optional["PageNode"] = p_regular(40)
 
     actions: LocalNodeList["Action"] = p_node_children(NodeType.ACTION)
     claims: LocalNodeList["Claim"] = p_node_children(NodeType.CLAIM)

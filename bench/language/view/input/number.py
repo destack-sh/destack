@@ -10,5 +10,5 @@ from .input import InputViewBase
 class NumberInputView(InputViewBase[NumberInputViewData]):
     """A general number input View."""
 
-    value: Optional[str] = p_regular(100, default=None)
-    placeholder: Optional[str] = p_regular(101, default=None)
+    value: Optional[str] = p_regular(100)
+    placeholder: Optional[str] = p_regular(101)

@@ -12,7 +12,6 @@ from bench.language.core import (
     NodeType,
     PackageNode,
     Selection,
-    StructType,
     enum_,
     node_,
     p_node_parent,
@@ -48,47 +47,30 @@ class Space(IsOwnable, IsTemplatable, IsModal, IsOrdered, PackageNode[SpaceData]
     selection: Optional[Selection] = p_regular(
         70,
         default=None,
-        require=False,
-        struct=StructType.SELECTION,
         description="The current selection of the Space.",
     )
     focus: Optional[Node] = p_regular(
         71,
         default=None,
-        require=False,
-        array=False,
-        references="any",
         description="The current main focus.",
     )
     inspection: Optional[Node] = p_regular(
         72,
         default=None,
-        require=False,
-        array=False,
-        references="any",
         description="The current inspected Node.",
     )
     container: Optional[Node] = p_regular(
         73,
         default=None,
-        require=False,
-        array=False,
-        references="any",
         description="The current 'root' container Node.",
     )
     page: Optional["Page"] = p_regular(
         74,
         default=None,
-        require=False,
-        array=False,
-        references=NodeType.PAGE,
         description="The current Page.",
     )
     thread: Optional["Thread"] = p_regular(
         75,
         default=None,
-        require=False,
-        array=False,
-        references=NodeType.THREAD,
         description="The current Thread.",
     )

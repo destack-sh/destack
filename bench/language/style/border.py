@@ -39,13 +39,9 @@ class BorderType(BuiltinEnum):
 @node_component_()
 class BorderBase(IsVariable, BuiltinObject):
     type: BorderType = p_regular(30, default=BorderType.SOLID)
-    style: Optional["BorderStyle"] = p_regular(
-        41, default=None, require=False, array=False, references=NodeType.BORDER_STYLE
-    )
-    color: Optional["Color"] = p_regular(50, array=False, default=None, struct=StructType.COLOR)
-    width: Optional[Insets] = p_regular(
-        51, default=None, require=False, array=False, struct=StructType.INSETS
-    )
+    style: Optional["BorderStyle"] = p_regular(41)
+    color: Optional["Color"] = p_regular(50)
+    width: Optional[Insets] = p_regular(51)
 
 
 @struct_(StructType.BORDER)

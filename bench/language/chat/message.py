@@ -5,7 +5,6 @@ from uuid import UUID
 import structlog
 
 from bench.language.core import (
-    PAGE_NODE_TYPES,
     UNSET,
     BuiltinEnum,
     EnumType,
@@ -20,7 +19,6 @@ from bench.language.core import (
     PackageNode,
     PageNode,
     ResourceStatus,
-    StructType,
     Subject,
     Text,
     TextIn,
@@ -75,7 +73,7 @@ class Message(
     parent: Union["Channel", "Thread", None] = p_node_parent(
         4, NodeType.CHANNEL, NodeType.THREAD, ckless=True
     )
-    type: MessageType = p_regular(30, require=True, default=MessageType.DEFAULT)
+    type: MessageType = p_regular(30, default=MessageType.DEFAULT)
     # platform? source?
     channel: Optional["Channel"] = p_node_ancestor(
         34,
@@ -93,9 +91,7 @@ class Message(
         wire=True,
         is_bench_implicit=True,
     )
-    scope: Union["PageNode", "Package"] = p_regular(
-        36, require=False, references=(*PAGE_NODE_TYPES, NodeType.PACKAGE)
-    )
+    scope: Union["PageNode", "Package"] = p_regular(36)
     if TYPE_CHECKING:
         channel_id: Optional[UUID] = None
         channel_ptr: Optional[NodeReference] = None
@@ -105,15 +101,11 @@ class Message(
         scope_ptr: Optional[NodeReference] = None
 
     # status
-    edited_at: Optional[datetime] = p_internal(40, default=None)
+    edited_at: Optional[datetime] = p_internal(40)
 
     # routing
-    reply_to: Optional["Message"] = p_regular(
-        50, require=False, array=False, baseless=True, references=NodeType.MESSAGE
-    )
-    forwarded_from: Optional["Message"] = p_regular(
-        51, require=False, array=False, baseless=True, references=NodeType.MESSAGE
-    )
+    reply_to: Optional["Message"] = p_regular(50, baseless=True)
+    forwarded_from: Optional["Message"] = p_regular(51, baseless=True)
     if TYPE_CHECKING:
         reply_to_ptr: Optional[NodeReference] = None
         reply_to_id: Optional[UUID] = None
@@ -121,20 +113,15 @@ class Message(
         forwarded_from_id: Optional[UUID] = None
 
     # content
-    text: Optional["Text"] = p_regular(61, require=False, default=None, struct=StructType.TEXT)
+    text: Optional["Text"] = p_regular(61)
     nodes: list["Node"] = p_regular(
         63,
-        array=True,
-        require=False,
-        references="any",
         description="The Nodes this Message is about.",
     )
     if TYPE_CHECKING:
         nodes_ptr: Optional[NodeReference] = None
         nodes_id: Optional[UUID] = None
-    resource_status: Optional[ResourceStatus] = p_regular(
-        64, description="The status of the Resources (in nodes) at that time."
-    )
+    resource_status: Optional[ResourceStatus] = p_regular(64)
 
     def __content_str__(self) -> str:
         if self.title:

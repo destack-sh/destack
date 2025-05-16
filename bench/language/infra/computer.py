@@ -44,15 +44,13 @@ class Computer(IsSubject, ProvisionableResourceBase[ComputerData]):
     type: ComputerType = p_regular(30, default=ComputerType.RUNTIME)
 
     version: str = p_system(60, default=VERSION, default_sql=None)
-    external_name: Optional[str] = p_kernel(62, require=False, default=None, sensitive=True)
-    external_id: Optional[str] = p_kernel(63, require=False, default=None, sensitive=True)
-    image_id: Optional[str] = p_kernel(64, require=False, default=None, sensitive=True)
+    external_name: Optional[str] = p_kernel(62, sensitive=True)
+    external_id: Optional[str] = p_kernel(63, sensitive=True)
+    image_id: Optional[str] = p_kernel(64, sensitive=True)
     # NOTE :Security: Computer.grpc_url/vnc_url should maybe be :RealSecrets
-    grpc_url: Optional[str] = p_kernel(65, require=False, default=None, sensitive=True)
-    vnc_url: Optional[str] = p_kernel(66, require=False, default=None, sensitive=True)
-    client: Optional["Client"] = p_system(
-        69, require=False, array=False, references=NodeType.CLIENT, fk=True, same_bench=True
-    )
+    grpc_url: Optional[str] = p_kernel(65, sensitive=True)
+    vnc_url: Optional[str] = p_kernel(66, sensitive=True)
+    client: Optional["Client"] = p_system(69, fk=True, same_bench=True)
     if TYPE_CHECKING:
         client_ptr: Optional[NodeReference] = None
         client_id: Optional[UUID] = None

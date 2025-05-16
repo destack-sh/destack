@@ -3,7 +3,6 @@ from bench.language.core import (
     EnumType,
     NodeType,
     ProvisionableResourceBase,
-    constraint,
     enum_,
     node_,
     p_regular,
@@ -36,7 +35,7 @@ class Scaler(ProvisionableResourceBase[ScalerData]):
 
     # content
     strategy: ScalerStrategy = p_regular(60, default=ScalerStrategy.AUTO, default_sql=None)
-    target_count: int = p_regular(61, default=0, constraint=constraint(min_value=0))
-    min_count: int = p_regular(62, default=0, constraint=constraint(min_value=0, max_value=16))
-    max_count: int = p_regular(63, default=16, constraint=constraint(min_value=0, max_value=64))
-    name_template: str | None = p_regular(65, default=None)
+    target_count: int = p_regular(61, default=0)
+    min_count: int = p_regular(62, default=0)
+    max_count: int = p_regular(63, default=16)
+    name_template: str | None = p_regular(65)

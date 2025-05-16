@@ -80,20 +80,18 @@ class ChangeVignette(Struct):
     (so if you rename Block 'A' to 'B', the vignette will say 'A').
     """
 
-    name: str | None = p_system(30, require=False, description="Name of the object.")
-    title: str | None = p_system(31, require=False, description="Title of the object.")
-    subtype: int | None = p_system(32, require=False, description="Subtype of the object.")
-    icon: Optional["Icon"] = p_system(
-        35, require=False, struct=StructType.ICON, description="Icon of the object."
-    )
+    name: str | None = p_system(30, description="Name of the object.")
+    title: str | None = p_system(31, description="Title of the object.")
+    subtype: int | None = p_system(32, description="Subtype of the object.")
+    icon: Optional["Icon"] = p_system(35, description="Icon of the object.")
 
 
 @struct_(StructType.EDIT_OPERATION)
 class EditOperation(Struct):
     """An edit operation."""
 
-    type: EditOperationType = p_system(30, require=True, default=EditOperationType.SET)
-    path: list[str] = p_system(31, array=True)
+    type: EditOperationType = p_system(30, default=EditOperationType.SET)
+    path: list[str] = p_system(31)
 
     new_value_packed: Any | None = p_value_packed(40)
     # TODO :Performance: do we even need EditOperation.old_value_packed?
@@ -115,18 +113,15 @@ class Edit(Struct):
     id: UUID = p_system(
         2,
         default_factory=UUIDT,
-        require=True,
         description="Unique identifier for the Edit within a Session.",
     )
-    type: EditType = p_system(30, require=True, description="Type of Edit.")
-    node: Node = p_system(31, require=True, references="any", description="Which Node.")
+    type: EditType = p_system(30, description="Type of Edit.")
+    node: Node = p_system(31, description="Which Node.")
     vignette: ChangeVignette | None = p_system(
         32,
-        require=False,
-        struct=StructType.CHANGE_VIGNETTE,
         description="Summary of the Node before the Edit.",
     )
-    edited_at: datetime = p_system(33, require=True, description="When the Edit was made.")
+    edited_at: datetime = p_system(33, description="When the Edit was made.")
     old_edited_at: Optional[datetime] = p_system(
         34,
         default=None,
@@ -134,44 +129,26 @@ class Edit(Struct):
     )
 
     # content
-    node_data: AnyNodeData | None = p_system(
-        40,
-        primitive_type=None,
-        is_node_data=True,
-        description="The entire Node (for add/remove Edits)",
-    )
+    node_data: AnyNodeData | None = p_system(40, primitive_type=None, is_node_data=True)
     operations: list[EditOperation] = p_system(
         41,
-        array=True,
         description="The operations to perform on the Node",
-        struct=StructType.EDIT_OPERATION,
     )
 
     # meta
-    scope: GraphScope = p_system(
-        60, require=True, struct=StructType.GRAPH_SCOPE, description="Enclosing scope of the Edit."
-    )
-    change_key: UUID | None = p_system(
-        61, require=False, description="The Change that this Edit is part of."
-    )
+    scope: GraphScope = p_system(60, description="Enclosing scope of the Edit.")
+    change_key: UUID | None = p_system(61, description="The Change that this Edit is part of.")
     category: "ChangeCategory | None" = p_system(
-        62, require=False, description="Optional classification for the Edit."
+        62, description="Optional classification for the Edit."
     )
-    subject: Optional[Subject] = p_system(
-        63, require=False, references="any", description="Who made the Edit."
-    )
-    origin: "ClientOrigin | None" = p_system(
-        64, require=False, struct=StructType.CLIENT_ORIGIN, description="Where the Edit came from."
-    )
+    subject: Optional[Subject] = p_system(63, description="Who made the Edit.")
+    origin: "ClientOrigin | None" = p_system(64, description="Where the Edit came from.")
     context: "EditContext | None" = p_system(
         65,
-        require=False,
-        struct=StructType.EDIT_CONTEXT,
         description="Additional per-Edit context for servers.",
     )
     epoch: int | None = p_system(
         68,
-        require=False,
         description="Epoch at that Edit.",
         primitive_type=PrimitiveType.INT64,
     )
@@ -186,16 +163,8 @@ class Change(Struct):
     """
 
     key: UUID = p_system(30, default_factory=UUIDT)
-    code: Optional["Code"] = p_internal(
-        33,
-        require=False,
-        array=False,
-        struct=StructType.CODE,
-        description="Code to (re)produce the Change.",
-    )
-    edits: list[Edit] = p_internal(
-        34, array=True, struct=StructType.EDIT, description="The materialized Edits in the Change."
-    )
+    code: Optional["Code"] = p_internal(33)
+    edits: list[Edit] = p_internal(34, description="The materialized Edits in the Change.")
 
 
 @dataclasses.dataclass(slots=True)

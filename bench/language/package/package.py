@@ -13,7 +13,6 @@ from bench.language.core import (
     LocalNodeList,
     NodeType,
     PackageNode,
-    StructType,
     enum_,
     node_,
     p_node_children,
@@ -53,34 +52,25 @@ class Package(IsOwnable, IsJoinable, IsTemplatable, IsModal, IsNamed, PackageNod
 
     # meta
     parent: Optional["Bench"] = p_node_parent(4, NodeType.BENCH)
-    type: PackageType = p_regular(30, require=True)
+    type: PackageType = p_regular(30)
     slug: str | None = p_regular(34, constraint=SLUG_CONSTRAINT)
-    icon: Optional["Icon"] = p_regular(35, require=False, array=False, struct=StructType.ICON)
+    icon: Optional["Icon"] = p_regular(35)
 
     # NOTE :Architecture: maybe we should factor out main_channel/main_flow/.. from Package
     #  (into something more general that we could also use in Page or Flow or such)
     default_channel: Optional["Channel"] = p_regular(
         50,
-        require=False,
-        array=False,
-        references=NodeType.CHANNEL,
         same_bench=True,
         ckless=True,
         description="The default Channel to communicate with.",
     )
     default_flow: Optional["Flow"] = p_regular(
         51,
-        require=False,
-        array=False,
         ckless=True,
-        references=NodeType.FLOW,
         description="The default Flow for dynamic behavior.",
     )
     default_identity: Optional["Agent"] = p_regular(
         52,
-        require=False,
-        array=False,
-        references=NodeType.AGENT,
         same_bench=True,
         ckless=True,
         description="The default Identity for Flows.",

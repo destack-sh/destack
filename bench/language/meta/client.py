@@ -36,10 +36,8 @@ class Client(IsNamed, Node[ClientData]):
     bench: "Bench | None" = p_node_ancestor(5, NodeType.BENCH, require=False, store=True, wire=True)
     user: "User | None" = p_node_ancestor(7, NodeType.USER, require=False, store=True, wire=True)
     type: ClientType = p_regular(30)
-    space: Optional["Space"] = p_system(35, array=False, require=False, references=NodeType.SPACE)
-    computer: Optional["Computer"] = p_system(
-        36, array=False, require=False, references=NodeType.COMPUTER
-    )
+    space: Optional["Space"] = p_system(35)
+    computer: Optional["Computer"] = p_system(36)
     if TYPE_CHECKING:
         bench_id: Optional[UUID] = None
         bench_ptr: Optional[NodeReference] = None
@@ -51,24 +49,20 @@ class Client(IsNamed, Node[ClientData]):
         computer_ptr: Optional[NodeReference] = None
 
     # status
-    access_token: Optional[str] = p_kernel(
-        50, default=None, defer=True, unique=True, sensitive=True
-    )
-    seen_at: Optional[datetime] = p_system(51, default=None)
-    logged_in_at: Optional[datetime] = p_system(52, default=None)
-    cursor: Optional["Cursor"] = p_regular(
-        55, default=None, require=False, references=NodeType.CURSOR, fk=True
-    )
+    access_token: Optional[str] = p_kernel(50, defer=True, unique=True, sensitive=True)
+    seen_at: Optional[datetime] = p_system(51)
+    logged_in_at: Optional[datetime] = p_system(52)
+    cursor: Optional["Cursor"] = p_regular(55, fk=True)
     if TYPE_CHECKING:
         cursor_id: Optional[UUID] = None
         cursor_ptr: Optional[NodeReference] = None
 
     # details
-    device_type: Optional[str] = p_regular(40, default=None)
-    device_name: Optional[str] = p_regular(41, default=None)
-    operating_system: Optional[str] = p_regular(42, default=None)
-    browser_name: Optional[str] = p_regular(43, default=None)
-    browser_version: Optional[str] = p_regular(44, default=None)
+    device_type: Optional[str] = p_regular(40)
+    device_name: Optional[str] = p_regular(41)
+    operating_system: Optional[str] = p_regular(42)
+    browser_name: Optional[str] = p_regular(43)
+    browser_version: Optional[str] = p_regular(44)
 
     @property
     def is_attached(self) -> bool:
@@ -99,6 +93,6 @@ class Client(IsNamed, Node[ClientData]):
 class ClientOrigin(Struct[ClientOriginData]):
     """Information to identify a Client."""
 
-    type: ClientType = p_internal(30, require=True)
-    id: Optional[UUID] = p_internal(31, default=None)
-    nonce: Optional[UUID] = p_internal(32, default=None)
+    type: ClientType = p_internal(30)
+    id: Optional[UUID] = p_internal(31)
+    nonce: Optional[UUID] = p_internal(32)

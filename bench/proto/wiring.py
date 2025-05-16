@@ -119,7 +119,7 @@ def pack_builtin_object_prop_scalar(obj: BuiltinObject, prop: Property, value: A
     elif prop.reference_is_node_data:
         return wrap_some_node(value)
     elif prop.is_enum:
-        return pack_enum(prop.py_type_stripped, value)
+        return pack_enum(prop.py_type, value)
     elif prop.reference_kind is not None and not prop.reference_kind.is_struct_tree:
         value_id = str(value.id)
         return NodeReferenceData(
@@ -170,7 +170,7 @@ def unpack_builtin_object_prop_scalar(
         elif prop.reference_is_node_data:
             return unwrap_some_node(value)
         elif prop.is_enum:
-            return unpack_enum(prop.py_type_stripped, value)
+            return unpack_enum(prop.py_type, value)
         elif prop.reference_kind is not None and not prop.reference_kind.is_struct_tree:
             value_id = UUID(value.id)
             return NodeReference(
@@ -269,7 +269,7 @@ def pack_builtin_object[T: AnyStructData | AnyNodeData](
         raise RuntimeError(f"expected {expect.__name__} but got {data_cls}")
     obj_data = into if into is not None else data_cls(metatype=metatype)  # type: ignore
     try:
-        for prop in obj.__wired_properties__.values():
+        for prop in obj.__proto_properties__.values():
             value = getattr(obj, prop.name)
             if value is None:
                 continue
@@ -310,7 +310,7 @@ def unpack_builtin_object[T: BuiltinObject](
         raise RuntimeError(f"expected {expect} but got {object_cls}")
     object_kwargs = {}
     try:
-        for prop in object_cls.__wired_properties__.values():
+        for prop in object_cls.__proto_properties__.values():
             if not prop.is_runtime or prop.is_computed:
                 continue
             if prop.is_optional_scalar and not obj_data.HasField(prop.name):

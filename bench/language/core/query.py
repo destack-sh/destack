@@ -90,20 +90,12 @@ class SelectOptions(Struct):
 
     # properties (include/exclude relative to default OR select specific properties)
     select_all_properties: bool = p_regular(40, default=False)
-    include_properties: list[Property] = p_regular(
-        41, require=False, array=True, struct=StructType.PROPERTY_REFERENCE
-    )
-    exclude_properties: list[Property] = p_regular(
-        42, require=False, array=True, struct=StructType.PROPERTY_REFERENCE
-    )
-    select_properties: list[Property] = p_regular(
-        43, require=False, array=True, struct=StructType.PROPERTY_REFERENCE
-    )
+    include_properties: list[Property] = p_regular(41)
+    exclude_properties: list[Property] = p_regular(42)
+    select_properties: list[Property] = p_regular(43)
 
     # fields
-    select_fields: list["Field"] = p_regular(
-        51, require=True, array=True, references=NodeType.FIELD
-    )
+    select_fields: list["Field"] = p_regular(51)
 
     if TYPE_CHECKING:
         include_properties_ptr: list["PropertyReference"] = []

@@ -28,8 +28,5 @@ class Dependency(IsTemplatable, IsModal, PackageNode[DependencyData]):
 
     dependency: Union["Package", "Bench"] = p_regular(
         40,
-        require=True,
-        array=False,
-        references=(NodeType.PACKAGE, NodeType.BENCH),
         description="The Package or Bench this Dependency depends on (if Bench it's all Packages).",
     )

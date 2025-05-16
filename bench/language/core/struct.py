@@ -135,7 +135,7 @@ class Struct[StructDataT: AnyStructData](BuiltinObject[StructDataT], abc.ABC):
 
     def _copy_to(self, parent: StructParent, parent_key: StructParentKey) -> Self:
         """Create a copy of this Struct for the given parent/prop."""
-        kwargs = {p.name: getattr(self, p.name) for p in self.__wired_properties__.values()}
+        kwargs = {p.name: getattr(self, p.name) for p in self.__proto_properties__.values()}
         kwargs["parent"] = parent
         kwargs["parent_key"] = parent_key
         copy = self.__class__(**kwargs)

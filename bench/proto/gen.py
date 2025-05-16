@@ -408,7 +408,7 @@ export type JsonValue = JsonPrimitive | { [key: string]: JsonValue } | JsonValue
     property_enums_parts: list[str] = []
     for cls in chain(NODE_CLASSES, STRUCT_CLASSES):
         props_strs: list[str] = []
-        properties = list(cls.__wired_properties__.values())
+        properties = list(cls.__proto_properties__.values())
         for prop in sorted(properties, key=lambda p: p.id):
             ts_name = to_casing(prop.name, Casing.CAMEL)
             ts_name = ts_name[0].lower() + ts_name[1:]
@@ -487,7 +487,7 @@ export type PropertyInfo = {
         prop_infos_strs: list[str] = []
         properties = list(bench_cls.__properties__.values())
         for prop in sorted(properties, key=lambda p: p.id or 0):
-            if not prop.is_wired:
+            if not prop.is_proto:
                 continue
 
             prop_info_parts: dict[str, str] = {

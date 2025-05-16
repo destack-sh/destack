@@ -43,17 +43,15 @@ class SpringType(BuiltinEnum):
 @node_component_()
 class TransitionBase(IsVariable, BuiltinObject):
     type: TransitionType = p_regular(30, default=TransitionType.TWEEN)
-    style: Optional["TransitionStyle"] = p_regular(
-        41, default=None, require=False, array=False, references=NodeType.TRANSITION_STYLE
-    )
-    delay: float | None = p_regular(50, default=None)
-    duration: float | None = p_regular(51, default=None)
-    ease: list[float] | None = p_regular(52, array=True)
-    stiffness: float | None = p_regular(53, default=None)
-    damping: float | None = p_regular(54, default=None)
-    mass: float | None = p_regular(55, default=None)
-    bounce: float | None = p_regular(56, default=None)
-    spring_type: SpringType | None = p_regular(57, default=None)
+    style: Optional["TransitionStyle"] = p_regular(41)
+    delay: float | None = p_regular(50)
+    duration: float | None = p_regular(51)
+    ease: list[float] | None = p_regular(52)
+    stiffness: float | None = p_regular(53)
+    damping: float | None = p_regular(54)
+    mass: float | None = p_regular(55)
+    bounce: float | None = p_regular(56)
+    spring_type: SpringType | None = p_regular(57)
 
 
 @struct_(StructType.TRANSITION)

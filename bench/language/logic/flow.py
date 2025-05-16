@@ -155,8 +155,8 @@ class FlowEdge(
 
     # meta
     type: FlowEdgeType = p_internal(30)
-    source: "Action" = p_regular(35, require=True, references=NodeType.ACTION, ckless=True)
-    target: "Action" = p_regular(36, require=True, references=NodeType.ACTION, ckless=True)
+    source: "Action" = p_regular(35, ckless=True)
+    target: "Action" = p_regular(36, ckless=True)
     if TYPE_CHECKING:
         source_ptr: Optional[NodeReference] = None
         source_id: Optional[UUID] = None

@@ -122,9 +122,9 @@ class Session(BenchNode[SessionData], IsRuntime, IsModal):
 
     # status
     status: SessionStatus = p_regular(40, default=SessionStatus.PENDING, index_in_pg=True)
-    duration: Optional[timedelta] = p_regular(41, default=None)
-    opened_at: Optional[datetime] = p_regular(42, default=None)
-    closed_at: Optional[datetime] = p_regular(43, default=None)
+    duration: Optional[timedelta] = p_regular(41)
+    opened_at: Optional[datetime] = p_regular(42)
+    closed_at: Optional[datetime] = p_regular(43)
 
     # context
     # ...HasRuntimeContext[80-99]

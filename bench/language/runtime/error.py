@@ -27,7 +27,7 @@ if TYPE_CHECKING:
 class RunTrace(Struct):
     """A stacktrace for a Run."""
 
-    frames: list["RunFrame"] = p_regular(30, array=True, struct=StructType.RUN_FRAME)
+    frames: list["RunFrame"] = p_regular(30)
 
 
 @struct_(StructType.RUN_FRAME)
@@ -70,13 +70,11 @@ class Error(Struct, BenchError):
     """An error that occurred in the context of a Run."""
 
     kind: ErrorKind = p_regular(30)
-    type: ErrorType = p_regular(31, default=None)
-    title: str | None = p_regular(32, default=None)
-    text: str | None = p_regular(33, default=None)
-    nodes: list["Node"] = p_regular(34, array=True, require=False, references="any")
-    trace: Optional[RunTrace] = p_regular(
-        35, require=False, array=False, struct=StructType.RUN_TRACE
-    )
+    type: ErrorType = p_regular(31)
+    title: str | None = p_regular(32)
+    text: str | None = p_regular(33)
+    nodes: list["Node"] = p_regular(34)
+    trace: Optional[RunTrace] = p_regular(35)
 
     def __content_str__(self) -> str:
         parts = [self.kind.bench_name]

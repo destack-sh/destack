@@ -17,7 +17,6 @@ from bench.language.core import (
     NodeType,
     PackageNode,
     RunType,
-    StructType,
     TypeBase,
     TypeKind,
     enum_,
@@ -89,27 +88,17 @@ class Action(
 
     # common
     type: ActionType = p_regular(30, description="Type of this Action. Only dynamic for tools.")
-    icon: Optional["Icon"] = p_regular(
-        35, default=None, require=False, array=False, struct=StructType.ICON
-    )
-    text: Optional["Text"] = p_regular(
-        36, default=None, require=False, array=False, struct=StructType.TEXT
-    )
+    icon: Optional["Icon"] = p_regular(35)
+    text: Optional["Text"] = p_regular(36)
 
     # content
     code: Optional["Code"] = p_internal(
         52,
         default=None,
-        require=False,
-        array=False,
-        struct=StructType.CODE,
         description="The implementation code for this action.",
     )
     tool: Union["Agent", "Flow", "Action", None] = p_regular(
         53,
-        require=False,
-        array=False,
-        references=(NodeType.AGENT, NodeType.FLOW, NodeType.ACTION),
         description="The implementation for this action.",
     )
     if TYPE_CHECKING:

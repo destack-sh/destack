@@ -15,13 +15,12 @@ from .const import (
     NodeType,
     ProcessStatus,
     ReferenceKind,
-    StructType,
     bittuple,
 )
 from .list import attach_node
 from .object import BuiltinObject, object_
 from .property import p_internal, p_node_template, p_regular, p_system
-from .validation import NAME_CONSTRAINT, TypeConstraintIn
+from .validation import NAME_CONSTRAINT
 
 if TYPE_CHECKING:
     from bench.language import (
@@ -270,7 +269,7 @@ class IsTemplatable(BuiltinObject):
 class IsInstantiable(IsTemplatable):
     """A Node that can be instanced (we can create Nodes that are 'instances' of this Node)."""
 
-    ck: UUID = p_system(3, default=None, require=True, autoset=True)  # type: ignore
+    ck: UUID = p_system(3, autoset=True)  # type: ignore
 
     # nocheckin: proper templating/instancing (for views/Variants)
 
@@ -292,9 +291,6 @@ class IsOwnable(BuiltinObject):
 
     owned_by: Optional[Subject] = p_internal(
         17,
-        require=False,
-        array=False,
-        references=SUBJECT_NODE_TYPES.tuple,
         same_bench=True,
         baseless=True,
         ckless=True,
@@ -316,9 +312,7 @@ class IsJoinable(BuiltinObject):
 class IsClaimable(BuiltinObject):
     """A Node that can be claimed with a Claim."""
 
-    claimed_by: Optional["Claim"] = p_internal(
-        18, require=False, array=False, references=NodeType.CLAIM, same_bench=True
-    )
+    claimed_by: Optional["Claim"] = p_internal(18, same_bench=True)
     if TYPE_CHECKING:
         claimed_by_id: Optional[UUID] = None
         claimed_by_ptr: Optional[NodeReference] = None
@@ -363,7 +357,7 @@ class IsNamed(BuiltinObject):
 class IsTitled(BuiltinObject):
     """A Node with a rich title."""
 
-    title: Optional["TextLine"] = p_regular(32, struct=StructType.TEXT_LINE)
+    title: Optional["TextLine"] = p_regular(32)
 
 
 @object_()
@@ -377,7 +371,7 @@ class IsOrdered(BuiltinObject):
 class IsModal(BuiltinObject):
     """A Node that can be in different modes."""
 
-    mode: NodeMode = p_internal(25, default=NodeMode.MAIN, default_sql=str(NodeMode.MAIN.value))
+    mode: NodeMode = p_internal(25, default=NodeMode.MAIN)
 
     @property
     def is_active(self) -> bool:
@@ -394,16 +388,10 @@ class IsRuntime(BuiltinObject):
 
     # NOTE :Security: session context properties are p_internal (not p_system) so we can update
     #   them in all Clients. But this also means Users could mess with them if they really want to.
-    session: Optional["Session"] = p_internal(
-        94, require=False, array=False, references=NodeType.SESSION, same_bench=True
-    )
-    client: Optional["Client"] = p_internal(
-        95, require=False, array=False, references=NodeType.CLIENT, same_bench=True
-    )
-    computer: Optional["Computer"] = p_internal(
-        96, require=False, array=False, references=NodeType.COMPUTER, same_bench=True
-    )
-    user: Optional["User"] = p_internal(97, require=False, array=False, references=NodeType.USER)
+    session: Optional["Session"] = p_internal(94, same_bench=True)
+    client: Optional["Client"] = p_internal(95, same_bench=True)
+    computer: Optional["Computer"] = p_internal(96, same_bench=True)
+    user: Optional["User"] = p_internal(97)
     if TYPE_CHECKING:
         session_ptr: Optional[NodeReference] = None
         session_id: Optional[UUID] = None
@@ -430,40 +418,31 @@ class IsProcessable(IsRuntime):
         default=None,
         description="Duration from first attempt start to last attempt termination.",
     )
-    error: Optional["Error"] = p_internal(
-        82, default=None, require=False, array=False, struct=StructType.ERROR
-    )
+    error: Optional["Error"] = p_internal(82)
     interruption: Optional["Interruption"] = p_internal(
         83,
-        require=False,
-        array=False,
-        references=NodeType.INTERRUPTION,
         same_bench=True,
         description="The latest Interruption concerning the Node.",
     )
     scheduled_at: Optional[datetime] = p_internal(
-        85, default=None, description="When the Node is scheduled to start."
+        85, description="When the Node is scheduled to start."
     )
-    started_at: Optional[datetime] = p_internal(
-        86, default=None, description="When the Node first started."
-    )
-    active_at: Optional[datetime] = p_internal(
-        87, default=None, description="When the Node was last active."
-    )
+    started_at: Optional[datetime] = p_internal(86, description="When the Node first started.")
+    active_at: Optional[datetime] = p_internal(87, description="When the Node was last active.")
     interrupted_at: Optional[datetime] = p_internal(
-        88, default=None, description="When the Node was interrupted."
+        88, description="When the Node was interrupted."
     )
     terminated_at: Optional[datetime] = p_internal(
-        89, default=None, description="When the Node was last terminated."
+        89, description="When the Node was last terminated."
     )
     requested_stop_at: Optional[datetime] = p_regular(
-        90, default=None, description="When the Node was requested to stop."
+        90, description="When the Node was requested to stop."
     )
     requested_pause_at: Optional[datetime] = p_regular(
-        91, default=None, description="When the Node was requested to pause."
+        91, description="When the Node was requested to pause."
     )
     requested_resume_at: Optional[datetime] = p_regular(
-        92, default=None, description="When the Node was requested to resume."
+        92, description="When the Node was requested to resume."
     )
     if TYPE_CHECKING:
         interruption_ptr: Optional[NodeReference] = None
@@ -553,11 +532,9 @@ class IsRunnable(IsComputable):
     """A Node that can be run (at runtime in a Run)."""
 
     # control
-    max_attempts: Optional[int] = p_regular(
-        110, constraint=TypeConstraintIn(min_value=-1), description="Maximum retry attempts per Run"
-    )
+    max_attempts: Optional[int] = p_regular(110)
     retry_interval: Optional[timedelta] = p_regular(111)
-    backoff: Optional[float] = p_regular(112, constraint=TypeConstraintIn(min_value=1))
+    backoff: Optional[float] = p_regular(112)
 
     def to_retry(self) -> RetryOptions:
         """Turns the options into our RetryOptions."""

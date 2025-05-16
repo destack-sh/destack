@@ -93,18 +93,14 @@ class Selection(Struct):
 
     type: SelectionType = p_regular(30, default=SelectionType.LIST)
 
-    selections: list["Selection"] = p_regular(
-        40, require=False, array=True, struct=StructType.SELECTION
-    )
-    node_types: list[NodeType] = p_regular(41, require=False, array=True)
-    nodes: list[Node] = p_regular(42, require=False, array=True, references="any")
-    scopes: list[Node] = p_regular(43, require=False, array=True, references="any")
-    from_node: Optional[Node] = p_regular(45, require=False, default=None, references="any")
-    to_node: Optional[Node] = p_regular(46, require=False, default=None, references="any")
-    fields: list["Field"] = p_regular(50, require=False, array=True, references=NodeType.FIELD)
-    properties: list[Property] = p_regular(
-        51, require=False, array=True, struct=StructType.PROPERTY_REFERENCE
-    )
+    selections: list["Selection"] = p_regular(40)
+    node_types: list[NodeType] = p_regular(41)
+    nodes: list[Node] = p_regular(42)
+    scopes: list[Node] = p_regular(43)
+    from_node: Optional[Node] = p_regular(45)
+    to_node: Optional[Node] = p_regular(46)
+    fields: list["Field"] = p_regular(50)
+    properties: list[Property] = p_regular(51)
 
 
 property_ = property
@@ -117,23 +113,19 @@ class Expression(Struct):
     """
 
     type: ExpressionType = p_regular(30)
-    property: Optional[Property] = p_regular(
-        31, require=False, default=None, array=False, struct=StructType.PROPERTY_REFERENCE
-    )
-    field: Optional["Field"] = p_regular(
-        32, require=False, default=None, array=False, references=NodeType.FIELD
-    )
+    property: Optional[Property] = p_regular(31)
+    field: Optional["Field"] = p_regular(32)
     if TYPE_CHECKING:
         property_ptr: Optional[PropertyReference] = None
         field_ptr: Optional[NodeReference] = None
         field_id: Optional[UUID] = None
 
     # content
-    clauses: list["Expression"] | None = p_regular(40, array=True, struct=StructType.EXPRESSION)
+    clauses: list["Expression"] | None = p_regular(40)
     value_packed: Any = p_value_packed(46)
     value: Any = p_value_runtime(46, typ=lambda self: cast(Expression, self).value_type)
-    sort_mode: Optional[SortMode] = p_regular(48, default=None)
-    tolerance: Optional[float] = p_regular(49, default=None)
+    sort_mode: Optional[SortMode] = p_regular(48)
+    tolerance: Optional[float] = p_regular(49)
 
     def __content_str__(self):
         if self.type in ExpressionTypes.COMPOUND:
@@ -327,10 +319,10 @@ DJANGO_SIGN_BY_CONDITIONAL_OP: dict[ConditionalType, str] = {
 class AggregationResult(Struct):
     """The result of an aggregation expression."""
 
-    op: AggregationType = p_regular(30, require=True)
-    exists: Optional[bool] = p_regular(31, default=None)
-    count: Optional[int] = p_regular(32, default=None)
-    scalar: Optional[float] = p_regular(33, default=None)
+    op: AggregationType = p_regular(30)
+    exists: Optional[bool] = p_regular(31)
+    count: Optional[int] = p_regular(32)
+    scalar: Optional[float] = p_regular(33)
 
 
 def coerce_conditional(

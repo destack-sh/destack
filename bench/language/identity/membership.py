@@ -3,7 +3,6 @@ from uuid import UUID
 
 from bench.language.core import (
     JOINABLE_NODE_TYPES,
-    SUBJECT_NODE_TYPES,
     IsInstantiable,
     IsModal,
     Joinable,
@@ -33,7 +32,7 @@ class Membership(IsInstantiable, IsModal, PackageNode[MembershipData]):
     parent: Union[Joinable, None] = p_node_parent(4, *JOINABLE_NODE_TYPES)
 
     # content
-    member: Subject = p_regular(41, require=True, array=False, references=SUBJECT_NODE_TYPES.tuple)
+    member: Subject = p_regular(41)
     if TYPE_CHECKING:
         member_ptr: NodeReference | None = None
         member_id: UUID | None = None

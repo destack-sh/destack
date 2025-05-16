@@ -7,7 +7,6 @@ from bench.language.core import (
     IsNamed,
     NodeType,
     PageNode,
-    StructType,
     node_component_,
     p_node_parent,
     p_regular,
@@ -35,24 +34,10 @@ class ViewBase[NodeDataT: AnyNodeData](
     # variant_of, ...
 
     # sizing
-    position: Optional["Position"] = p_regular(
-        40, require=False, array=False, default=None, struct=StructType.POSITION
-    )
-    width: Optional["Dimension"] = p_regular(
-        41, require=False, array=False, default=None, struct=StructType.DIMENSION
-    )
-    height: Optional["Dimension"] = p_regular(
-        42, require=False, array=False, default=None, struct=StructType.DIMENSION
-    )
-    min_width: Optional["Dimension"] = p_regular(
-        43, require=False, array=False, default=None, struct=StructType.DIMENSION
-    )
-    min_height: Optional["Dimension"] = p_regular(
-        44, require=False, array=False, default=None, struct=StructType.DIMENSION
-    )
-    max_width: Optional["Dimension"] = p_regular(
-        45, require=False, array=False, default=None, struct=StructType.DIMENSION
-    )
-    max_height: Optional["Dimension"] = p_regular(
-        46, require=False, array=False, default=None, struct=StructType.DIMENSION
-    )
+    position: Optional["Position"] = p_regular(40)
+    width: Optional["Dimension"] = p_regular(41)
+    height: Optional["Dimension"] = p_regular(42)
+    min_width: Optional["Dimension"] = p_regular(43)
+    min_height: Optional["Dimension"] = p_regular(44)
+    max_width: Optional["Dimension"] = p_regular(45)
+    max_height: Optional["Dimension"] = p_regular(46)

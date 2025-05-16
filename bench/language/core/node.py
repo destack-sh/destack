@@ -267,7 +267,7 @@ class Node[NodeDataT: AnyNodeData](BuiltinObject[NodeDataT]):
 
     # 1-9: node identity
     # Node.metatype: 1
-    id: UUID = p_system(2, default=None, require=True, autoset=True)
+    id: UUID = p_system(2, autoset=True)
     # IsTemplatable.ck: 3
     parent: Optional["Node"] = p_node_parent(4)  # type: ignore
     if TYPE_CHECKING:
@@ -280,7 +280,7 @@ class Node[NodeDataT: AnyNodeData](BuiltinObject[NodeDataT]):
     # .organization/team/user: 7-9
 
     # 10-29: node tracking
-    created_at: datetime = p_system(10, default=None, require=True, autoset=True)
+    created_at: datetime = p_system(10, autoset=True)
     created_by: Optional[Subject] = p_system(  # type: ignore (pyright is wrong, Subject is a type)
         11,
         default=None,
@@ -292,7 +292,7 @@ class Node[NodeDataT: AnyNodeData](BuiltinObject[NodeDataT]):
         baseless=True,
         ckless=True,
     )
-    updated_at: datetime = p_system(12, default=None, require=True, autoset=True)
+    updated_at: datetime = p_system(12, autoset=True)
     updated_by: Optional[Subject] = p_system(  # type: ignore (see above)
         13,
         default=None,
@@ -304,8 +304,8 @@ class Node[NodeDataT: AnyNodeData](BuiltinObject[NodeDataT]):
         baseless=True,
         ckless=True,
     )
-    archived_at: Optional[datetime] = p_system(14, default=None, autoset=True)
-    deleted_at: Optional[datetime] = p_system(15, default=None, autoset=True)
+    archived_at: Optional[datetime] = p_system(14, autoset=True)
+    deleted_at: Optional[datetime] = p_system(15, autoset=True)
     if TYPE_CHECKING:
         created_by_id: Optional[UUID] = None
         created_by_type: NodeType | None = None
@@ -1130,14 +1130,9 @@ class PageNode[NodeDataT: AnyNodeData](IsOrdered, PackageNode[NodeDataT]):
     # name: 31
     # title: 32
     # order_key: 33
-    icon: Optional["Icon"] = p_regular(
-        34, default=None, require=False, array=False, struct=StructType.ICON
-    )
+    icon: Optional["Icon"] = p_regular(34)
     definition: "Block | None" = p_internal(
         35,
-        require=False,
-        array=False,
-        references=NodeType.BLOCK,
         same_bench=True,
         description="The Block where this Node is 'defined'.",
     )
@@ -1200,11 +1195,11 @@ class NodeReference(Struct[NodeReferenceData]):
     Base = the Node is 'based' on (as in HasNodeBase).
     """
 
-    node_type: NodeType = p_internal(30, require=True)
+    node_type: NodeType = p_internal(30)
     id: UUID = p_internal(31)
-    ck: Optional[UUID] = p_internal(32, default=None)
-    bench_id: Optional[UUID] = p_internal(33, default=None)
-    base_id: Optional[UUID] = p_internal(34, default=None)
+    ck: Optional[UUID] = p_internal(32)
+    bench_id: Optional[UUID] = p_internal(33)
+    base_id: Optional[UUID] = p_internal(34)
 
     async def get(self) -> "Node":
         """Gets the Node referenced by this reference."""
@@ -1351,7 +1346,7 @@ def patch_graph(*, old_graph: NodeGraph, new_graph: NodeGraph) -> None:
         else:
             # node updated: patch in place
             patch_node = new_graph[existing_node.id]
-            for prop in existing_node.__wired_properties__.values():
+            for prop in existing_node.__proto_properties__.values():
                 if prop.is_computed:
                     continue  # ignore computed properties
                 prop_value = getattr(existing_node, prop.name)

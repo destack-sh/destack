@@ -18,15 +18,15 @@ if TYPE_CHECKING:
 
 @object_()
 class TextOptionsBase(BuiltinObject):
-    color: Optional["ColorHue"] = p_regular(50, default=None)
-    background_color: Optional["ColorHue"] = p_regular(51, default=None)
-    is_bold: Optional[bool] = p_regular(60, default=None)
-    is_italic: Optional[bool] = p_regular(61, default=None)
-    is_strikethrough: Optional[bool] = p_regular(62, default=None)
-    is_underline: Optional[bool] = p_regular(63, default=None)
-    is_code: Optional[bool] = p_regular(64, default=None)
-    is_spoiler: Optional[bool] = p_regular(65, default=None)
-    language: Optional[str] = p_regular(70, default=None)
+    color: Optional["ColorHue"] = p_regular(50)
+    background_color: Optional["ColorHue"] = p_regular(51)
+    is_bold: Optional[bool] = p_regular(60)
+    is_italic: Optional[bool] = p_regular(61)
+    is_strikethrough: Optional[bool] = p_regular(62)
+    is_underline: Optional[bool] = p_regular(63)
+    is_code: Optional[bool] = p_regular(64)
+    is_spoiler: Optional[bool] = p_regular(65)
+    language: Optional[str] = p_regular(70)
 
     def _to_option_kwargs(self):
         kwargs = {}
@@ -78,13 +78,13 @@ class TextSpan(TextOptionsBase, Struct):
     """A span of text with optional formatting"""
 
     type: TextSpanType = p_regular(30, default=TextSpanType.TEXT)
-    content: Optional[str] = p_regular(33, default=None)
-    node: Optional[Node] = p_regular(34, array=False, default=None, require=False, references="any")
+    content: Optional[str] = p_regular(33)
+    node: Optional[Node] = p_regular(34)
     if TYPE_CHECKING:
         node_id: Optional[UUID] = None
         node_ck: Optional[UUID] = None
         node_ptr: Optional[NodeReference] = None
-    url: Optional[str] = p_regular(35, default=None)
+    url: Optional[str] = p_regular(35)
 
     def __content_str__(self) -> str:
         return _render_inline((self,))
@@ -129,8 +129,8 @@ class TextLine(TextOptionsBase, Struct):
     """
 
     type: TextLineType = p_regular(30, default=TextLineType.PARAGRAPH)
-    spans: List[TextSpan] = p_regular(33, array=True, struct=StructType.TEXT_SPAN)
-    content: Optional[str] = p_regular(34, default=None)
+    spans: List[TextSpan] = p_regular(33)
+    content: Optional[str] = p_regular(34)
 
     def __content_str__(self) -> str:
         return text_line_to_markdown(self)
@@ -264,7 +264,7 @@ class Text(Struct):
     Rich Text; composed of TextLines with many markdown+ goodies.
     """
 
-    lines: List[TextLine] = p_regular(32, array=True, struct=StructType.TEXT_LINE)
+    lines: List[TextLine] = p_regular(32)
 
     def __contains__(self, item: str | Node) -> bool:
         return any(item in line for line in self.lines)

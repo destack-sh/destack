@@ -1372,7 +1372,7 @@ def pack_builtin_object(
     """Packs a BuiltinObject into a JSON representation."""
     value_packed: dict[str, JsonValue] = {}
     object_cls = BUILTIN_OBJECT_CLASS_BY_TYPE[value.metatype]
-    for prop in only if only is not None else object_cls.__wired_properties__.values():
+    for prop in only if only is not None else object_cls.__proto_properties__.values():
         if prop.reference_wired_ptr is not None:
             prop = prop.reference_wired_ptr
         prop_name = prop.name
@@ -1407,7 +1407,7 @@ def unpack_builtin_object[T: BuiltinObject = BuiltinObject](
     assert not object_cls.__is_node__, f"cannot unpack {object_cls.__name__} from value"
 
     object_kwargs = {}
-    for prop in object_cls.__wired_properties__.values():
+    for prop in object_cls.__proto_properties__.values():
         if prop.reference_wired_ptr is not None:
             prop = prop.reference_wired_ptr
         prop_value_packed = value_packed.get(prop.key)
@@ -1436,7 +1436,7 @@ def pack_builtin_object_data(
     """Packs a single struct/node data value into a JSON representation."""
     value_packed: dict[str, JsonValue] = {}
     builtin_object_cls = BUILTIN_OBJECT_CLASS_BY_TYPE[value.metatype]  # type: ignore
-    for prop in only if only is not None else builtin_object_cls.__wired_properties__.values():
+    for prop in only if only is not None else builtin_object_cls.__proto_properties__.values():
         if prop.reference_wired_ptr is not None:
             prop = prop.reference_wired_ptr
         prop_name = prop.name
@@ -1472,7 +1472,7 @@ def unpack_builtin_object_data[T: AnyStructData | AnyNodeData](
     proto_cls = wiring.PROTO_CLASS_BY_TYPE[object_type]
 
     value = into if into is not None else proto_cls(metatype=object_type)  # type: ignore
-    for prop in object_cls.__wired_properties__.values():
+    for prop in object_cls.__proto_properties__.values():
         if prop.reference_wired_ptr is not None:
             prop = prop.reference_wired_ptr
         prop_value_packed = value_packed.get(prop.key)

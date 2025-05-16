@@ -15,7 +15,7 @@ logger = structlog.get_logger(__name__)
 tracer = trace.get_tracer(__name__)
 
 _graph_capture: contextvars.ContextVar["GraphCapture | None"] = contextvars.ContextVar(
-    "graph_capture", default=None
+    "graph_capture"
 )
 
 

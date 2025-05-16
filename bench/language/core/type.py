@@ -44,7 +44,6 @@ from .value import SomeValue
 
 if typing.TYPE_CHECKING:
     from bench.language import (
-        Expression,
         Field,
         FileType,
     )
@@ -206,21 +205,21 @@ class TypeConstraint(Struct):
     """
 
     # numeric
-    min_value: Optional[float] = p_regular(40, require=False, default=None)
-    max_value: Optional[float] = p_regular(41, require=False, default=None)
-    step_value: Optional[float] = p_regular(42, require=False, default=None)
+    min_value: Optional[float] = p_regular(40)
+    max_value: Optional[float] = p_regular(41)
+    step_value: Optional[float] = p_regular(42)
     # sequence-ish
-    min_length: Optional[int] = p_regular(50, require=False, default=None)
-    max_length: Optional[int] = p_regular(51, require=False, default=None)
+    min_length: Optional[int] = p_regular(50)
+    max_length: Optional[int] = p_regular(51)
     # string-ish
-    regex: Optional[str] = p_regular(60, require=False, default=None)
-    starts_with: Optional[str] = p_regular(61, require=False, default=None)
-    ends_with: Optional[str] = p_regular(62, require=False, default=None)
+    regex: Optional[str] = p_regular(60)
+    starts_with: Optional[str] = p_regular(61)
+    ends_with: Optional[str] = p_regular(62)
     # node-ish
-    node_mode: Optional[NodeMode] = p_regular(70, require=False, default=None)
-    node_types: list["NodeType"] = p_regular(71, array=True)
-    node_scope: list["Node"] = p_regular(72, require=False, array=True, references="any")
-    node_max_depth: Optional[int] = p_regular(73, require=False, default=None)
+    node_mode: Optional[NodeMode] = p_regular(70)
+    node_types: list["NodeType"] = p_regular(71)
+    node_scope: list["Node"] = p_regular(72)
+    node_max_depth: Optional[int] = p_regular(73)
     # nocheckin :Architecture: TypeConstraint.node_subtypes feels wrong, need Node-specific constraints?
     # specific node/struct/custom constraints?
     # e.g., for Text (number of lines), ...
@@ -254,27 +253,20 @@ class TypeBase(BuiltinObject):
 
     # type identity
     kind: TypeKind = p_internal(40)
-    primitive_type: Optional[PrimitiveType] = p_regular(41, default=None)
-    bench_type: Optional[BenchType] = p_regular(42, default=None)
-    base_type: Optional["Node"] = p_regular(
-        43, array=False, require=False, default=None, references="any"
-    )
+    primitive_type: Optional[PrimitiveType] = p_regular(41)
+    bench_type: Optional[BenchType] = p_regular(42)
+    base_type: Optional["Node"] = p_regular(43)
     if TYPE_CHECKING:
         base_type_id: Optional[UUID] = None
         base_type_ptr: Optional["NodeReference"] = None
-    base_field_types: list["FieldType"] = p_internal(44, require=False, array=True)
-    property_field_types: list["FieldType"] = p_internal(45, require=False, array=True)
+    base_field_types: list["FieldType"] = p_internal(44)
+    property_field_types: list["FieldType"] = p_internal(45)
 
     # metadata
     default_packed: Optional[Any] = p_value_packed(50)
     default = p_value_runtime(packed=50, typ=lambda self: cast("TypeBase", self))
-    format: Optional["TypeFormat"] = p_regular(53, default=None)
-    condition: Optional["Expression"] = p_regular(
-        54, require=False, array=False, default=None, struct=StructType.EXPRESSION
-    )
-    constraint: Optional["TypeConstraint"] = p_regular(
-        55, require=False, array=False, default=None, struct=StructType.TYPE_CONSTRAINT
-    )
+    format: Optional["TypeFormat"] = p_regular(53)
+    constraint: Optional["TypeConstraint"] = p_regular(55)
     # jsonschema?
 
     # flags
@@ -307,8 +299,6 @@ class TypeBase(BuiltinObject):
                 clauses.append(
                     f"Property={'|'.join(f.bench_name for f in self.property_field_types)}"
                 )
-        if self.condition is not None:
-            clauses.append(repr(self.condition))
         if self.is_list:
             clauses.append("is_list")
         if self.is_required:

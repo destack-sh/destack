@@ -209,9 +209,7 @@ class Aliasing:
         return aliasing
 
 
-ACTIVE_ALIASING: contextvars.ContextVar[Aliasing | None] = contextvars.ContextVar(
-    "active_aliasing", default=None
-)
+ACTIVE_ALIASING: contextvars.ContextVar[Aliasing | None] = contextvars.ContextVar("active_aliasing")
 
 
 def get_active_aliasing() -> Aliasing | None:

@@ -3,7 +3,6 @@ from typing import TYPE_CHECKING, Optional, Union
 from uuid import UUID
 
 from bench.language.core import (
-    CLAIMABLE_NODE_TYPES,
     BuiltinEnum,
     Claimable,
     EnumType,
@@ -93,29 +92,23 @@ class Claim(
         NodeType.RUN,
         ckless=True,
     )
-    type: ClaimType = p_regular(30, require=True)
+    type: ClaimType = p_regular(30)
 
     # status
     status: ClaimStatus = p_regular(50, default=ClaimStatus.REQUESTED)
-    duration: Optional[timedelta] = p_internal(51, default=None)
-    opened_at: Optional[datetime] = p_internal(52, default=None)
-    paused_at: Optional[datetime] = p_internal(53, default=None)
-    resumed_at: Optional[datetime] = p_internal(54, default=None)
-    terminated_at: Optional[datetime] = p_internal(55, default=None)
+    duration: Optional[timedelta] = p_internal(51)
+    opened_at: Optional[datetime] = p_internal(52)
+    paused_at: Optional[datetime] = p_internal(53)
+    resumed_at: Optional[datetime] = p_internal(54)
+    terminated_at: Optional[datetime] = p_internal(55)
 
     # content
     target: Optional[Claimable] = p_regular(
         60,
-        require=False,
-        array=False,
-        references=CLAIMABLE_NODE_TYPES.tuple,
         description="The target Node this claim is about.",
     )
     target_template: Optional[Claimable] = p_regular(
         61,
-        require=False,
-        array=False,
-        references=CLAIMABLE_NODE_TYPES.tuple,
         description="The template for a target Node.",
     )
     # target_selection/filter/....?

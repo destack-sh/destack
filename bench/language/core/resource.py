@@ -78,17 +78,15 @@ class ProvisionableResourceBase[NodeDataT: AnyNodeData](ResourceBase[NodeDataT])
 
     # status
     status: ResourceStatus = p_system(40, default=ResourceStatus.PENDING, default_sql=None)
-    requested_activate_at: Optional[datetime] = p_internal(41, default=None)
-    requested_deactivate_at: Optional[datetime] = p_internal(42, default=None)
-    requested_reset_at: Optional[datetime] = p_internal(43, default=None)
-    requested_suspend_at: Optional[datetime] = p_internal(44, default=None)
-    requested_decommission_at: Optional[datetime] = p_internal(45, default=None)
-    active_at: Optional[datetime] = p_system(46, default=None)
-    failed_at: Optional[datetime] = p_system(47, default=None)
+    requested_activate_at: Optional[datetime] = p_internal(41)
+    requested_deactivate_at: Optional[datetime] = p_internal(42)
+    requested_reset_at: Optional[datetime] = p_internal(43)
+    requested_suspend_at: Optional[datetime] = p_internal(44)
+    requested_decommission_at: Optional[datetime] = p_internal(45)
+    active_at: Optional[datetime] = p_system(46)
+    failed_at: Optional[datetime] = p_system(47)
     failed_attempts: int = p_system(48, default=0)
-    scaler: Optional["Scaler"] = p_system(
-        49, require=False, array=False, references=NodeType.SCALER
-    )
+    scaler: Optional["Scaler"] = p_system(49)
     if TYPE_CHECKING:
         scaler_ptr: Optional[NodeReference] = None
         scaler_id: Optional[UUID] = None

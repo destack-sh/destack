@@ -81,16 +81,14 @@ class ColorBase(IsVariable, BuiltinObject):
     """A color value (x, y, z, alpha in 0-1)."""
 
     type: ColorType = p_regular(30)
-    style: Optional["ColorStyle"] = p_regular(
-        42, default=None, require=False, array=False, references=NodeType.COLOR_STYLE
-    )
+    style: Optional["ColorStyle"] = p_regular(42)
 
-    hue: Optional[ColorHue] = p_regular(50, default=None)
-    shade: Optional[ColorShade] = p_regular(51, default=None)
-    x: Optional[float] = p_regular(52, default=None)
-    y: Optional[float] = p_regular(53, default=None)
-    z: Optional[float] = p_regular(54, default=None)
-    alpha: Optional[float] = p_regular(55, default=None)
+    hue: Optional[ColorHue] = p_regular(50)
+    shade: Optional[ColorShade] = p_regular(51)
+    x: Optional[float] = p_regular(52)
+    y: Optional[float] = p_regular(53)
+    z: Optional[float] = p_regular(54)
+    alpha: Optional[float] = p_regular(55)
 
 
 @struct_(StructType.COLOR)
@@ -115,7 +113,7 @@ class Color(ColorBase, Struct):
 class ColorStyle(ColorBase, StyleBase[ColorStyleData]):
     """A color style, with an optional dark variant."""
 
-    dark: Color | None = p_regular(60, require=False, array=False, struct=StructType.COLOR)
+    dark: Color | None = p_regular(60)
 
     @staticmethod
     def from_color(color: Color, dark: Color | None = None) -> "ColorStyle":

@@ -491,25 +491,23 @@ class FileBase(BuiltinObject):
     # meta
     source: FileSource = p_regular(60)
     mime_type: str | None = p_regular(61, constraint=MIME_TYPE_CONSTRAINT)
-    format: FileFormat | None = p_regular(62, default=None)
-    size: int | None = p_regular(
-        63, primitive_type=PrimitiveType.INT64, constraint=constraint(min_value=0)
-    )
+    format: FileFormat | None = p_regular(62)
+    size: int | None = p_regular(63, primitive_type=PrimitiveType.INT64)
     sha256: str | None = p_internal(64, constraint=SHA256_CONSTRAINT)
-    width: int | None = p_regular(65, default=None)
-    height: int | None = p_regular(66, default=None)
-    aspect_ratio: float | None = p_regular(67, default=None)
-    codec: str | None = p_regular(68, default=None)
-    duration: Optional[timedelta] = p_regular(69, default=None)
+    width: int | None = p_regular(65)
+    height: int | None = p_regular(66)
+    aspect_ratio: float | None = p_regular(67)
+    codec: str | None = p_regular(68)
+    duration: Optional[timedelta] = p_regular(69)
 
     # content
-    url: str | None = p_regular(70, default=None)  # if external
-    content_url: str | None = p_regular(71, default=None)  # if external
-    thumbnail_url: str | None = p_regular(72, default=None)  # if external
-    favicon_url: str | None = p_regular(73, default=None)
-    thumbnail_width: int | None = p_regular(74, default=None)
-    thumbnail_height: int | None = p_regular(75, default=None)
-    content: bytes | None = p_regular(76, default=None)
+    url: str | None = p_regular(70)  # if external
+    content_url: str | None = p_regular(71)  # if external
+    thumbnail_url: str | None = p_regular(72)  # if external
+    favicon_url: str | None = p_regular(73)
+    thumbnail_width: int | None = p_regular(74)
+    thumbnail_height: int | None = p_regular(75)
+    content: bytes | None = p_regular(76)
     ...  # thumbnail/preview/...?
 
     # cached content
