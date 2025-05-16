@@ -355,13 +355,15 @@ class Runner[N: Runnable = Runnable](abc.ABC):
     def attempts(self) -> Sequence[Span]:
         if self.tracked_run is None:
             return ()
-        return tuple(span for span in self.tracked_run.spans if span.type == SpanType.ATTEMPT)
+        return tuple(
+            span for span in self.tracked_run.get_children(Span) if span.type == SpanType.ATTEMPT
+        )
 
     @property
     def current_attempt(self) -> Span | None:
         if self.tracked_run is None:
             return None
-        for span in reversed(self.tracked_run.spans):
+        for span in reversed(self.tracked_run.get_children(Span)):
             if span.type == SpanType.ATTEMPT:
                 return span
 
@@ -436,7 +438,7 @@ class Runner[N: Runnable = Runnable](abc.ABC):
         """Gets an Interrupt in the current Runner of the given shape (or creates one)."""
         run = self.closest_tracked_run
         assert run is not None, f"{self!r} is not tracked"
-        for interruption in run.interruptions:
+        for interruption in run.get_children(Interruption):
             interruption = cast(Interruption, interruption)
             if interruption.type == kind and (
                 interruption.span_ptr is None or interruption.span_ptr.id == self.id

@@ -35,7 +35,7 @@ BenchPackage = Package(
     slug=BENCH_BENCH_PACKAGE_SLUG,
     _is_new=True,
 )
-BenchPackage.extend(ComputerPage, ThreadPage, AgentPage, InternetPage)
+BenchPackage.add_children(ComputerPage, ThreadPage, AgentPage, InternetPage)
 
 # finalize
 supergraph = NodeSuperGraph(

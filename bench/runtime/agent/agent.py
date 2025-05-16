@@ -107,7 +107,7 @@ class AgentRunner[N: Agent = Agent](Runner[N]):
                 title=run.title,
                 nodes=[run],
             )
-            self.thread.thread.append(message)
+            self.thread.thread.add_child(message)
             self._next_action = AgentCall(runs=[run], message=message)
         else:
             # add run to existing call
@@ -193,7 +193,7 @@ class AgentRunner[N: Agent = Agent](Runner[N]):
             # update agent & thread cursor
             if (cursor := thread.get_cursor(type=CursorType.THREAD, owned_by=agent)) is None:
                 cursor = Cursor(type=CursorType.THREAD, target=thread, owned_by=agent)
-                thread.cursors.append(cursor)
+                thread.add_child(cursor)
             assert cursor.type == CursorType.THREAD
             cursor.status = CursorStatus.THINKING
             if (new_seen_at := self.thread.last_message_at) is not None and (

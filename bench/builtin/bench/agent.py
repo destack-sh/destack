@@ -8,7 +8,7 @@ BenchAgent = Agent.new(
 )
 
 BenchAgentPage = Page.new("Bench Agent")
-BenchAgentPage.append(BenchAgent)
+BenchAgentPage.add_child(BenchAgent)
 BenchAgentPage.add_text(
     """\
 You are the default Agent for Bench, so you represent the entire Bench system.
@@ -27,4 +27,4 @@ You *should not* try to have the last word (e.g., just shut up instead of saying
 )
 
 AgentPage = Page.new("Agents")
-AgentPage.append(BenchAgentPage)
+AgentPage.add_child(BenchAgentPage)

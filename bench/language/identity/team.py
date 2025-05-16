@@ -6,19 +6,17 @@ from bench.language.core import (
     IsJoinable,
     IsModal,
     IsNamed,
-    LocalNodeList,
     NodeReference,
     NodeType,
     PageNode,
     node_,
     p_node_ancestor,
-    p_node_children,
     p_node_parent,
 )
 from bench.pb2 import TeamData
 
 if TYPE_CHECKING:
-    from bench.language import Membership, Organization, Package, Page
+    from bench.language import Organization, Package, Page
 
 # pyright: reportIncompatibleVariableOverride=false
 
@@ -41,5 +39,3 @@ class Team(IsInstantiable, IsJoinable, IsModal, IsNamed, PageNode[TeamData]):
         team_ptr: Optional[NodeReference] = None
         organization_id: Optional[UUID] = None
         organization_ptr: Optional[NodeReference] = None
-
-    memberships: LocalNodeList["Membership"] = p_node_children(NodeType.MEMBERSHIP)

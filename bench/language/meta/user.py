@@ -8,14 +8,12 @@ from bench.language.core import (
     BuiltinEnum,
     EnumType,
     IsSubject,
-    LocalNodeList,
     Node,
     NodeType,
     Region,
     enum_,
     node_,
     p_kernel,
-    p_node_children,
     p_regular,
     p_system,
 )
@@ -73,5 +71,3 @@ class User(IsSubject, Node[UserData]):
     password_hash: Optional[bytes] = p_kernel(62, defer=True, sensitive=True)
     # challenges?
     # password_reset_token, email_confirmation_token, ...
-
-    handles: LocalNodeList["Handle"] = p_node_children(NodeType.HANDLE)

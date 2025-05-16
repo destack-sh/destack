@@ -13,7 +13,6 @@ from bench.language.core import (
     IsProcessable,
     IsTimed,
     IsTitled,
-    LocalNodeList,
     NodeType,
     PackageNode,
     ProcessStatus,
@@ -21,7 +20,6 @@ from bench.language.core import (
     SpanType,
     p_internal,
     p_node_ancestor,
-    p_node_children,
     p_node_parent,
     p_regular,
     p_system,
@@ -38,7 +36,6 @@ if TYPE_CHECKING:
         Agent,
         Code,
         CustomObject,
-        Interruption,
         NodeReference,
         Runnable,
         Span,
@@ -96,10 +93,6 @@ class Run(
     code: Optional["Code"] = p_regular(66)
 
     # ...IsProcessable[80-]
-
-    runs: LocalNodeList["Run"] = p_node_children(NodeType.RUN)
-    spans: LocalNodeList["Span"] = p_node_children(NodeType.SPAN)
-    interruptions: LocalNodeList["Interruption"] = p_node_children(NodeType.INTERRUPTION)
 
     def __content_str__(self):
         node = self.runnable
@@ -226,11 +219,11 @@ class Run(
 
     @property
     def attempts(self) -> Sequence["Span"]:
-        return tuple(span for span in self.spans if span.type == SpanType.ATTEMPT)
+        return tuple(span for span in self.get_children(Span) if span.type == SpanType.ATTEMPT)
 
     @property
     def current_attempt(self) -> "Span | None":
-        for span in reversed(self.spans):
+        for span in reversed(self.get_children(Span)):
             if span.type == SpanType.ATTEMPT:
                 return span
         return None

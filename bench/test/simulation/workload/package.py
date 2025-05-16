@@ -64,7 +64,7 @@ class WritePageTreeWorkload(ClientWorkload[WritePageTreeSpec]):
                     parent = self.random.choice((self.main_package, *pages))
                     page = Page.new(title=f"Page {self.page_num}")
                     self.page_num += 1
-                    parent.pages.append(page)
+                    parent.add_child(page)
                 elif edit_type == EditType.ARCHIVE:
                     if not pages:
                         continue  # no pages yet

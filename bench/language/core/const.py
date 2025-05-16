@@ -1797,7 +1797,7 @@ def capture_span(
             _skip_validate_self=True,
         )
         run._copy_context_to(span)
-        run.spans.append(span)
+        run.add_child(span)
         try:
             with tracer.start_as_current_span(key):
                 yield span

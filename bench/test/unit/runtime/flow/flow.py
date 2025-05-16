@@ -6,6 +6,7 @@ from bench.language import (
     Flow,
     FlowEdgeType,
     ProcessStatus,
+    Run,
     code,
 )
 from bench.runtime import Interrupted, make_runner
@@ -23,21 +24,25 @@ async def test_run_flow_race(simulation: Simulation, runtime: RuntimeLambdaWorkl
     Race1 = Action.new(ActionType.CODE, "Race1", code=code("await asyncio.sleep(1)"))
     Race2 = Action.new(ActionType.CODE, "Race2", code=code("await asyncio.sleep(2)"))
     Race3 = Action.new(ActionType.CODE, "Race3", code=code("await asyncio.sleep(3)"))
-    Flow1.actions.extend(Start, Race1, Race2, Race3, End)
+    Flow1.add_children(Start, Race1, Race2, Race3, End)
     Start.connect(FlowEdgeType.MANUAL, Race1)
     Start.connect(FlowEdgeType.MANUAL, Race2)
     Start.connect(FlowEdgeType.MANUAL, Race3)
     Race1.connect(FlowEdgeType.MANUAL, End)
     Race2.connect(FlowEdgeType.MANUAL, End)
     Race3.connect(FlowEdgeType.MANUAL, End)
-    runtime.page().append(Flow1)
+    runtime.page().add_child(Flow1)
     await runtime.commit()
 
     runner = await runtime.run_in_runtime(Flow1)
     assert runner.tracked_run
-    aborted_runs = [r for r in runner.tracked_run.runs if r.status == ProcessStatus.ABORTED]
+    aborted_runs = [
+        r for r in runner.tracked_run.get_children(Run) if r.status == ProcessStatus.ABORTED
+    ]
     assert len(aborted_runs) == 2  # the two losers should be aborted
-    assert len(runner.tracked_run.runs) == 9  # all actions & links should run exactly once
+    assert (
+        len(runner.tracked_run.get_children(Run)) == 9
+    )  # all actions & links should run exactly once
 
 
 @simulated_runtime(system=True)
@@ -48,11 +53,11 @@ async def test_run_flow_pause_resume(simulation: Simulation, runtime: RuntimeLam
     Action1 = Action.new(ActionType.CODE, "Action1", code=code("await sleep(0.2)"))
     Action2 = Action.new(ActionType.CODE, "Action2", code=code("await sleep(0.2)"))
     End = Action.new(ActionType.END, "End")
-    Flow1.actions.extend(Start, Action1, Action2, End)
+    Flow1.add_children(Start, Action1, Action2, End)
     Start.connect(FlowEdgeType.MANUAL, Action1)
     Action1.connect(FlowEdgeType.MANUAL, Action2)
     Action2.connect(FlowEdgeType.MANUAL, End)
-    runtime.page().append(Flow1)
+    runtime.page().add_child(Flow1)
     await runtime.commit()
 
     # run, pause, then resume (manually)

@@ -13,9 +13,9 @@ async def test_trace_edits(simulation: Simulation, runtime: RuntimeLambdaWorkloa
     """Edits to nested objects should be traced correctly."""
     session = runtime.session
     Message1 = Class.new("Message1", Field.member("Integer", int), Field.member("String", str))
-    Message1.fields.append(Field.member("Message1", Message1))
+    Message1.add_child(Field.member("Message1", Message1))
     Value1 = Class.new("Value1", Field.member("Value", str))
-    runtime.page().extend(Message1, Value1)
+    runtime.page().add_children(Message1, Value1)
     await runtime.commit()
 
     def get_last_operation():

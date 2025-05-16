@@ -5,14 +5,12 @@ from bench.language.core import (
     IsModal,
     IsNamed,
     IsTemplatable,
-    LocalNodeList,
     NodeType,
     PageNode,
     Type,
     TypeBase,
     TypeKind,
     node_,
-    p_node_children,
     p_node_parent,
 )
 from bench.pb2.lang_pb2 import ChoiceData
@@ -34,8 +32,6 @@ class Choice(
 
     parent: Union["Page", "Table", None] = p_node_parent(4, NodeType.PAGE, NodeType.TABLE)
 
-    options: LocalNodeList["Option"] = p_node_children(NodeType.OPTION)
-
     def __content_str__(self):
         return ""
 
@@ -56,5 +52,5 @@ class Choice(
     def new(name: str, *options: "Option", **kwargs) -> "Choice":
         choice = Choice(name=name, **kwargs)
         for option in options:
-            choice.options.append(option)
+            choice.add_child(option)
         return choice

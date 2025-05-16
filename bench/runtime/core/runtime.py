@@ -12,7 +12,6 @@ from opentelemetry import baggage, context, trace
 from bench.language import (
     COMMUNICATION_NODE_TYPES,
     DEFAULT_CHECK_OPTIONS,
-    DEFAULT_RESOURCE_TIMEOUT,
     DEFAULT_WAIT_TIMEOUT,
     PROCESS_STATUS_BY_INTERRUPTION_TYPE,
     RESOURCE_NODE_TYPES,
@@ -20,8 +19,6 @@ from bench.language import (
     Agent,
     BenchError,
     CheckOptions,
-    Claim,
-    ClaimStatus,
     CursorType,
     CustomObject,
     Error,
@@ -31,6 +28,7 @@ from bench.language import (
     Interruption,
     InterruptionType,
     IsRuntime,
+    Membership,
     Message,
     Node,
     NodeGraph,
@@ -48,7 +46,6 @@ from bench.language import (
     ValidationError,
     WatchGetUpdate,
     WatchSearchUpdate,
-    capture_span,
     check_value,
     on_invalid_raise,
     synchronize_nodes,
@@ -310,28 +307,6 @@ class Runtime:
         run = runner.tracked_run
         assert run is not None, f"missing tracked run for {runner!r}"
 
-        # prepare resources
-        open_claims: list[Claim] = []
-        for claim in runner.node.claims:
-            # create new claim
-            claim = claim.instance(recursive=False, detach=True)
-            claim.parent = runner.thread.thread
-            self.session._create(claim)
-            open_claims.append(claim)
-        if open_claims:
-            with capture_span(
-                tracer, "runtime.acquire_resources", SpanType.ACQUIRE, runner=runner
-            ) as span:
-                if span:
-                    span.nodes = cast(list["Node"], open_claims)
-                await self.wait_for(
-                    nodes=open_claims,
-                    condition=lambda: all(
-                        claim.status == ClaimStatus.OPEN for claim in open_claims
-                    ),
-                    timeout=DEFAULT_RESOURCE_TIMEOUT,
-                )
-
         # check inputs
         if runner.input_type is not None:
             with tracer.start_as_current_span("runtime.check_inputs"):
@@ -459,7 +434,7 @@ class Runtime:
         if runner.is_root:
             assert type(span) is Run, f"unexpected non-Run root: {span!r}"
             thread = runner.thread.thread
-            thread.update_status_from(span, *thread.runs)
+            thread.update_status_from(span, *thread.get_children(Run))
             self.session.stage(include_runtime=True)
         else:
             self.session.stage()
@@ -536,7 +511,7 @@ class Runtime:
             if runner.is_root:
                 assert type(span) is Run, f"unexpected non-Run root: {span!r}"
                 thread = runner.thread.thread
-                thread.update_status_from(span, *thread.runs)
+                thread.update_status_from(span, *thread.get_children(Run))
                 self.session.stage(include_runtime=True)
             else:
                 self.session.stage(include_runtime=False)
@@ -800,7 +775,7 @@ class Runtime:
         # ensure all Agent runs are active if they should be
         new_runs: list[Run] = []
         woke_agents: list[Agent] = []
-        for membership in thread.memberships:
+        for membership in thread.get_children(Membership):
             if not isinstance(agent := membership.member, Agent):
                 continue
             cursor = thread.get_cursor(type=CursorType.THREAD, owned_by=agent)

@@ -26,8 +26,8 @@ async def test_run_code_empty(simulation: Simulation, runtime: RuntimeLambdaWork
         "Code1",
         fields=(Field.input("Input1", int), Field.output("Output1", int)),
     )
-    Flow1.actions.append(Code1)
-    runtime.page().append(Flow1)
+    Flow1.add_child(Code1)
+    runtime.page().add_child(Flow1)
     await runtime.commit()
 
     runner = await runtime.run_in_runtime(Code1, return_error=True)
@@ -39,8 +39,8 @@ async def test_run_code_with_syntax_error(simulation: Simulation, runtime: Runti
     """Code Action with a syntax error should re-raise that error (at runtime)."""
     Flow1 = Flow.new("Flow1")
     InvalidCode = Action.new(ActionType.CODE, "InvalidCode", code=code("!!invalid!!"))
-    Flow1.actions.append(InvalidCode)
-    runtime.page().append(Flow1)
+    Flow1.add_child(InvalidCode)
+    runtime.page().add_child(Flow1)
     await runtime.commit()
 
     runner = await runtime.run_in_runtime(InvalidCode, return_error=True)
@@ -59,8 +59,8 @@ async def test_run_code_invalid_inputs(simulation: Simulation, runtime: RuntimeL
         code=code("pass"),
         fields=(Field.input("Input1", int, is_required=True),),
     )
-    Flow1.actions.append(Code1)
-    runtime.page().append(Flow1)
+    Flow1.add_child(Code1)
+    runtime.page().add_child(Flow1)
     await runtime.commit()
 
     run, _ = create_run(Code1, status=ProcessStatus.QUEUED, parent=runtime.main_package)
@@ -82,8 +82,8 @@ async def test_run_code_invalid_outputs(simulation: Simulation, runtime: Runtime
         code=code("return 'invalid'"),
         fields=(Field.output("Output1", int),),
     )
-    Flow1.actions.append(Code1)
-    runtime.page().append(Flow1)
+    Flow1.add_child(Code1)
+    runtime.page().add_child(Flow1)
     await runtime.commit()
 
     run, _ = create_run(Code1, status=ProcessStatus.QUEUED, parent=runtime.main_package)
@@ -122,8 +122,8 @@ return {
             Field.output("Output5", str),
         ),
     )
-    Flow1.actions.append(Code1)
-    runtime.page().append(Flow1)
+    Flow1.add_child(Code1)
+    runtime.page().add_child(Flow1)
     await runtime.commit()
 
     runner = await runtime.run_in_runtime(
@@ -158,8 +158,8 @@ assert Very_WEIRD__THER_Input == 7
             Field.input("Very WEIRD ÖTHER Input", int),
         ),
     )
-    Flow1.actions.append(Function)
-    runtime.page().append(Flow1)
+    Flow1.add_child(Function)
+    runtime.page().add_child(Flow1)
     await runtime.commit()
 
     _ = await runtime.run_in_runtime(
@@ -177,8 +177,8 @@ async def test_run_code_output_none(simulation: Simulation, runtime: RuntimeLamb
         code=code("""pass"""),
         fields=(Field.input("Input1", int),),
     )
-    Flow1.actions.append(Function)
-    runtime.page().append(Flow1)
+    Flow1.add_child(Function)
+    runtime.page().add_child(Flow1)
     await runtime.commit()
 
     _ = await runtime.run_in_runtime(Function)
@@ -198,8 +198,8 @@ async def test_run_code_output_scalar(simulation: Simulation, runtime: RuntimeLa
         code=code("""return {"Result1": Input1 * 4}"""),
         fields=(Field.input("Input1", int), Field.output("Result1", int, is_required=True)),
     )
-    Flow1.actions.append(Function)
-    runtime.page().append(Flow1)
+    Flow1.add_child(Function)
+    runtime.page().add_child(Flow1)
     await runtime.commit()
 
     # run with good return value
@@ -213,7 +213,7 @@ async def test_run_code_output_scalar(simulation: Simulation, runtime: RuntimeLa
         code=code("return {'Result1': Input1 * 1.7}"),
         fields=(Field.input("Input1", int), Field.output("Result1", int, is_required=True)),
     )
-    Flow1.actions.append(Function)
+    Flow1.add_child(Function)
     await runtime.commit()
     runner = await runtime.run_in_runtime(Function, inputs={"Input1": 3})
     assert runner.outputs and runner.outputs.Result1 == 5
@@ -225,7 +225,7 @@ async def test_run_code_output_scalar(simulation: Simulation, runtime: RuntimeLa
         code=code("return {'Result1': 'stringy'}"),
         fields=(Field.input("Input1", int), Field.output("Result1", int, is_required=True)),
     )
-    Flow1.actions.append(Function)
+    Flow1.add_child(Function)
     await runtime.commit()
     runner = await runtime.run_in_runtime(Function, inputs={"Input1": 3}, return_error=True)
     assert runner.status == ProcessStatus.FAILED
@@ -242,8 +242,8 @@ async def test_run_code_return_detached_node(
         "Function",
         fields=[Field.output("Output", Block), Field.output("Text", Text)],
     )
-    Flow1.actions.append(Function)
-    runtime.page().append(Flow1)
+    Flow1.add_child(Function)
+    runtime.page().add_child(Flow1)
     await runtime.commit()
 
     # detached top-level node
@@ -277,8 +277,8 @@ async def test_run_code_raise_retryable_error(
         code=code("""raise RetryableError('error1')"""),
         max_attempts=3,
     )
-    Flow1.actions.append(Action1)
-    runtime.page().append(Flow1)
+    Flow1.add_child(Action1)
+    runtime.page().add_child(Flow1)
     await runtime.commit()
 
     runner = await runtime.run_in_runtime(Action1, return_error=True)
@@ -299,8 +299,8 @@ async def test_run_code_raise_unretryable_error(
         code=code("""raise NonRetryableError('error1')"""),
         max_attempts=3,
     )
-    Flow1.actions.append(Action1)
-    runtime.page().append(Flow1)
+    Flow1.add_child(Action1)
+    runtime.page().add_child(Flow1)
     await runtime.commit()
 
     runner = await runtime.run_in_runtime(Action1, return_error=True)

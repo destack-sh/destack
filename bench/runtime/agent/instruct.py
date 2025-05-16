@@ -8,11 +8,14 @@ from bench.language import (
     Action,
     Agent,
     BuiltinObject,
+    Claim,
     File,
     Link,
+    Membership,
     Node,
     NodeMode,
     Page,
+    Run,
     RunType,
     Span,
     _is_setup_complete,
@@ -266,7 +269,7 @@ async def build_agent_prompt(  # noqa: RUF029
         system_prompt=get_system_prompt(agent, model_settings),
     )
     agent_alias = prompt.aliasing.get_or_add(agent)
-    previous_tool_runs = [r for r in run.runs if r.type == RunType.ACTION]
+    previous_tool_runs = [r for r in run.get_children(Run) if r.type == RunType.ACTION]
 
     # system...?
     prompt.region(
@@ -297,7 +300,7 @@ async def build_agent_prompt(  # noqa: RUF029
     )
 
     # actions
-    builtin_actions: list[Action] = [*InternetService.actions]
+    builtin_actions: list[Action] = [*InternetService.get_children(Action)]
     custom_actions: list[Action] = []  # ?
     prompt.region(
         "Actions",
@@ -309,7 +312,7 @@ async def build_agent_prompt(  # noqa: RUF029
     )
 
     # resources
-    for claim in thread.thread.claims:
+    for claim in thread.thread.get_children(Claim):
         claim_name = prompt.aliasing.get_or_add(claim)
         if claim.is_hidden or (node := claim.target) is None:
             continue
@@ -343,7 +346,9 @@ A Link from Run {run_alias}
             )
 
     # thread
-    agents = [m.member for m in thread.thread.memberships if isinstance(m.member, Agent)]
+    agents = [
+        m.member for m in thread.thread.get_children(Membership) if isinstance(m.member, Agent)
+    ]
     thread_text = "The Thread you're in (oldest first to newest last)"
     if thread.thread.title is None or thread.thread.title.is_empty:
         thread_text += """

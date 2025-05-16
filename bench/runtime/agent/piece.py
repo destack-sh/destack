@@ -6,7 +6,9 @@ from opentelemetry import trace
 from bench.language import (
     Action,
     Agent,
+    Block,
     BlockType,
+    Field,
     FieldType,
     File,
     Link,
@@ -129,7 +131,7 @@ class PagePiece(NodePiece[Page]):
     @override
     def prefetch(self, prompt: "Prompt") -> Sequence[Node | NodeReference]:
         missing_nodes: list[NodeReference] = []
-        for block in self.node.blocks:
+        for block in self.node.get_children(Block):
             if block.type == BlockType.NODE and (node_ptr := block.node_ptr) is not None:
                 missing_nodes.append(node_ptr)
         return missing_nodes
@@ -158,7 +160,7 @@ class PagePiece(NodePiece[Page]):
             text_block_parts.clear()
             return CodePiece(code=rendered_blocks)
 
-        for block in self.node.blocks:
+        for block in self.node.get_children(Block):
             block_alias = prompt.renderer.aliasing.get_or_add(block)
             if block.type == BlockType.NODE:
                 # node block
@@ -195,7 +197,7 @@ class ActionPiece(NodePiece[Action]):
         alias = prompt.renderer.aliasing.get_or_add(self.node)
         path = self.node.absolute_path
         inputs_examples_str = tuple(
-            f"{f.name}=..." for f in self.node.fields if f.type == FieldType.INPUT
+            f"{f.name}=..." for f in self.node.get_children(Field) if f.type == FieldType.INPUT
         )
         call_args_str = ", ".join([alias, *inputs_examples_str])
         rendered_node = f"# {path}: call like CALL({call_args_str})\n{rendered_node}"

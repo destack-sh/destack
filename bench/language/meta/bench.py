@@ -9,12 +9,10 @@ from bench.language.core import (
     BuiltinEnum,
     EnumType,
     IsOwnable,
-    LocalNodeList,
     NodeType,
     Region,
     enum_,
     node_,
-    p_node_children,
     p_node_parent,
     p_regular,
     p_system,
@@ -26,7 +24,6 @@ if TYPE_CHECKING:
         Database,
         Handle,
         Icon,
-        Membership,
         NodeReference,
         Package,
         Region,
@@ -56,13 +53,12 @@ class Bench(IsOwnable, BenchNode[BenchData]):
         fk=True,
         same_bench=True,
     )
-    handles: LocalNodeList["Handle"] = p_node_children(NodeType.HANDLE)
     slug: str = p_system(32, unique=True, constraint=SLUG_CONSTRAINT)  # must match main handle
     name: str = p_regular(33, constraint=NAME_CONSTRAINT)
     line: Optional["TextLine"] = p_regular(34)
     icon: Optional["Icon"] = p_regular(35)
     region: "Region" = p_system(37, default=REGION, default_sql=None)
-    # TODO :Security: Bench.encryption_key (DEK) or put it into a Vault (Bench.main_vault) :RealSecrets
+    # TODO :Security: Bench.encryption_key (DEK) or put it into a Vault (Bench.vault) :RealSecrets
 
     # status
     status: BenchStatus = p_system(40, default=BenchStatus.RESERVED)
@@ -79,9 +75,6 @@ class Bench(IsOwnable, BenchNode[BenchData]):
         database_id: Optional[UUID] = None
         package_ptr: Optional[NodeReference] = None
         package_id: Optional[UUID] = None
-
-    packages: LocalNodeList["Package"] = p_node_children(NodeType.PACKAGE)
-    memberships: LocalNodeList["Membership"] = p_node_children(NodeType.MEMBERSHIP)
 
     @property
     def is_attached(self) -> bool:

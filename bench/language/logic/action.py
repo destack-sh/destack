@@ -12,7 +12,6 @@ from bench.language.core import (
     IsNamed,
     IsOrdered,
     IsRunnable,
-    LocalNodeList,
     NodeReference,
     NodeType,
     PackageNode,
@@ -22,7 +21,6 @@ from bench.language.core import (
     enum_,
     node_,
     p_internal,
-    p_node_children,
     p_node_parent,
     p_regular,
 )
@@ -32,9 +30,7 @@ if TYPE_CHECKING:
     from bench.language import (
         Action,
         Agent,
-        Claim,
         Code,
-        Field,
         Flow,
         FlowEdge,
         FlowEdgeType,
@@ -106,11 +102,6 @@ class Action(
         tool_id: Optional[UUID] = None
         tool_ck: Optional[UUID] = None
 
-    actions: LocalNodeList["Action"] = p_node_children(NodeType.ACTION)
-    links: LocalNodeList["FlowEdge"] = p_node_children(NodeType.FLOW_EDGE)
-    fields: LocalNodeList["Field"] = p_node_children(NodeType.FIELD)
-    claims: LocalNodeList["Claim"] = p_node_children(NodeType.CLAIM)
-
     @property
     def flow(self) -> "Flow | None":
         """Gets the containing ancestor Flow (if any)"""
@@ -155,7 +146,7 @@ class Action(
 
         # assign next name like Pipe1, .. in parent :AutoNaming
         if name is None:
-            siblings = parent.transitions.tolist()
+            siblings = parent.get_children(FlowEdge)
             count = len(siblings) + 1
             name = f"{type.bench_name}{count}"
             while any(p.name == name for p in siblings):
@@ -169,7 +160,7 @@ class Action(
             target=target,
             parent=parent,
         )
-        parent.transitions.append(transition)
+        parent.add_child(transition)
         return transition
 
     def to_type_maybe(

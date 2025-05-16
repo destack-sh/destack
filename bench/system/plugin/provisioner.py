@@ -71,7 +71,7 @@ class Provisioner[PT: ProvisionableResourceBase, WT: ProvisionableResourceBase](
                 resource_status=status,
                 _supergraph=thread._supergraph,
             )
-            thread.messages.append(message)
+            thread.add_child(message)
 
         resource.update_status(status)
 

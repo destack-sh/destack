@@ -525,7 +525,7 @@ class Session(BenchNode[SessionData], IsRuntime, IsModal):
 
         parent_property = node.__parent_property__
         assert parent_property is not None, f"{node!r} has no parent property"
-        parent_typ = parent_property._type_info
+        parent_typ = parent_property._type
         assert parent_typ is not None, f"{parent_property!r} has no type info"
 
         self._pending_nodes_by_id[node.id] = node

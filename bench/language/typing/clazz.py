@@ -6,13 +6,11 @@ from bench.language.core import (
     IsModal,
     IsNamed,
     IsTemplatable,
-    LocalNodeList,
     NodeType,
     PageNode,
     TypeBase,
     TypeKind,
     node_,
-    p_node_children,
     p_node_parent,
 )
 from bench.pb2 import BlockData
@@ -33,8 +31,6 @@ class Class(
     """A Class with Fields."""
 
     parent: Union["Page", None] = p_node_parent(4, NodeType.PAGE)
-
-    fields: LocalNodeList["Field"] = p_node_children(NodeType.FIELD)
 
     def __content_str__(self):
         return ""
@@ -77,5 +73,5 @@ class Class(
     def new(name: str, *fields: "Field", **kwargs) -> "Class":
         cls = Class(name=name, **kwargs)
         for field in fields:
-            cls.fields.append(field)
+            cls.add_child(field)
         return cls

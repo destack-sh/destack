@@ -30,6 +30,7 @@ from bench.language import (
     Engine,
     EngineUnavailableError,
     Expression,
+    Field,
     GetOptions,
     IsRuntime,
     LegacyQuery,
@@ -382,7 +383,7 @@ class GraphServiceBase(ServiceBase, GraphBase, abc.ABC):
                     node_type = wiring.unpack_enum(NodeType, node_type)
                     table = await self.resolve_request_base(base_id) if base_id else None
                     select = (
-                        SelectOptions(select_fields=list(table.fields))
+                        SelectOptions(select_fields=list(table.get_children(Field)))
                         if isinstance(table, Table)
                         else None
                     )

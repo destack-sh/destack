@@ -148,7 +148,7 @@ def sync_node(
                 target_child, IsTemplatable
             ), f"unexpected non-templatable node: {target_child!r}"
             target_child.template_ptr = target_child.to_ref()
-        target_parent.append(target)
+        target_parent.add_child(target)
     else:
         # target has that node, diff it
         patch_node(target, reference)

@@ -244,7 +244,9 @@ class SupervisorService(GraphServiceBase, SupervisorBase):
             client.access_token = generate_access_token(ACCESS_TOKEN_LENGTH)
             session._create(client)
             session.stage()
-            user.handle = user.handles.create(slug=user.slug)
+            assert user.slug, f"{user!r} has no slug"
+            user.handle = Handle(slug=user.slug)
+            user.add_child(user.handle)
             await session.commit()
 
             # immediately create User's main Bench

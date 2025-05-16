@@ -231,8 +231,8 @@ def SEND(
     )
     for node in new_nodes:
         if node.parent_ptr is None:
-            message.append(node)
-    runner.thread.thread.messages.append(message)
+            message.add_child(node)
+    runner.thread.thread.add_child(message)
     runner.thread.add_optimistic_message(message)
     # cursor
     if (
@@ -264,9 +264,9 @@ def CALL(
     # title
     object_title = text_line(object_title) if object_title is not None else None
     if action.mode == NodeMode.BUILTIN:  # use known good title for builtin actions
-        if action.id == InternetService.actions.Search.id and "Query" in inputs:
+        if action.id == InternetService.child(Action, "Search").id and "Query" in inputs:
             object_title = text_line(inputs["Query"])
-        elif action.id == InternetService.actions.Read.id and "URL" in inputs:
+        elif action.id == InternetService.child(Action, "Read").id and "URL" in inputs:
             object_title = text_line(inputs["URL"])
 
     # create run
@@ -302,7 +302,7 @@ def ADD_CONTEXT(
     runner: "AgentRunner" = _INJECTED_RUNNER,
 ) -> Sequence[Claim]:
     thread = runner.thread.thread
-    existing_claims = thread.claims.tolist()
+    existing_claims = list(thread.get_children(Claim))
     claims: list[Claim] = []
     for node in nodes:
         for claim in existing_claims:
@@ -311,28 +311,9 @@ def ADD_CONTEXT(
                 break
         else:
             claim = Claim(type=ClaimType.WRITE, target=node, owned_by=runner.agent)
-            thread.claims.append(claim)
+            thread.add_child(claim)
             claims.append(claim)
     return claims
-
-
-@function_macro_(
-    "REMOVE_CONTEXT",
-    """\
-Remove context from the current Thread if you're sure it's no longer relevant.
-You SHOULD ONLY remove context if there is a lot and it's not needed anymore (or if you're asked).
-""",
-    signature="(*nodes: Page | File) -> None",
-    is_edit=True,
-)
-def REMOVE_CONTEXT(*nodes: Page | File, runner: "AgentRunner" = _INJECTED_RUNNER) -> None:
-    thread = runner.thread.thread
-    existing_claims = thread.claims.tolist()
-    for node in nodes:
-        for claim in existing_claims:
-            if claim.target_id == node.id:
-                thread.claims.remove(claim)
-    runner.session.stage()
 
 
 @function_macro_(
@@ -354,10 +335,10 @@ def CREATE_PAGE(
     if parent is None:
         parent = runner.tracked.package
     assert parent is not None, f"no parent for {page!r}"
-    parent.append(page)
+    parent.add_child(page)
     if add_to_context:
         claim = Claim(type=ClaimType.WRITE, target=page, owned_by=runner.agent)
-        runner.thread.thread.claims.append(claim)
+        runner.thread.thread.add_child(claim)
     runner.session.stage()
     return page
 

@@ -14,13 +14,14 @@ from typing import (
 )
 from uuid import UUID
 
-from bench.language.registry import BENCH_CLASS_BY_NAME, ENUM_TYPE_BY_CLASS, _on_completing_setup
+from bench.language.registry import ENUM_TYPE_BY_CLASS, _on_completing_setup
 from bench.utils.func import hash_stable, parse_py_annotation
 from bench.utils.utils import frozendict
 
 from .const import (
     BASED_NODE_TYPES,
     BENCH_NODE_TYPES,
+    EMPTY_DICT,
     INSTANTIABLE_NODE_TYPES,
     NODE_TYPES,
     PACKAGE_NODE_TYPES,
@@ -37,7 +38,7 @@ from .const import (
     TypeKind,
     enum_,
 )
-from .list import LocalNodeList, NodeList, ValueList
+from .list import NodeList, ValueList
 
 if TYPE_CHECKING:
     from bench.language import (
@@ -141,7 +142,7 @@ class Property(_IntoQuery if TYPE_CHECKING else object):
     reference_force_fk: bool = False
     reference_is_node_data: bool = False
     _cached_as_ref: Optional["PropertyReference"] = None
-    _type_info: Optional["Type"] = None
+    _type: Optional["Type"] = None
 
     def __post_init__(self):
         if self.default is UNSET:
@@ -321,7 +322,7 @@ class Property(_IntoQuery if TYPE_CHECKING else object):
                 return False
         return True
 
-    def _to_type_info(self) -> "Type":
+    def _to_type(self) -> "Type":
         from bench.language.core import Type, TypeConstraintIn
 
         if isinstance(self.constraint, TypeConstraintIn):
@@ -371,8 +372,17 @@ class Property(_IntoQuery if TYPE_CHECKING else object):
     @property
     def type_info(self) -> "Type":
         """The type info for this property (can't extend TypeInfo because circles)."""
-        assert self._type_info is not None, f"{self!r} is not finalized"
-        return self._type_info
+        if self._type is None:
+            if (
+                self.is_introspectable
+                or self.reference_source is not None
+                or self.reference_nodes
+                or self.reference_kind == ReferenceKind.PROPERTY
+                or self.id == 1
+            ):
+                self._type = self._to_type()
+            assert self._type is not None, f"{self!r} is not finalized"
+        return self._type
 
     def _contribute_ptrs(self, *, is_root: bool) -> tuple["Property", ...]:
         """
@@ -673,6 +683,8 @@ class Property(_IntoQuery if TYPE_CHECKING else object):
 
     def _finalize_type(self) -> None:
         """Finalizes the type info for this property."""
+        if self.is_ephemeral or self.reference_kind == ReferenceKind.NODE_CHILDREN:
+            return  # nothing to do
 
         # resolve & check value type info
         if self.is_value_runtime:
@@ -683,21 +695,11 @@ class Property(_IntoQuery if TYPE_CHECKING else object):
             self.value_packed_ptr.value_runtime_ptr = self
             self.value_packed_ptr.value_type_info_getter = self.value_type_info_getter
 
-        # resolve py type
-        if (
-            self.is_ephemeral and not (self.is_struct or self.is_enum)
-        ) or self.reference_kind == ReferenceKind.NODE_CHILDREN:
-            # can't resolve these because they may point to non-Bench types
-            self.py_type = self.py_type_raw
-            return
-
-        # update/check info from annotation
-        annotation = parse_py_annotation(self.py_type_raw, BENCH_CLASS_BY_NAME)
+        # get info from annotation
+        annotation = parse_py_annotation(self.py_type_raw, EMPTY_DICT)
         self.py_type = annotation.type
-        if annotation.is_list != self.is_list:
-            raise ValueError(f"array mismatch for {self!r} (expected is_list={self.is_list})")
-        if self.is_required is UNSET:
-            self.is_required = not annotation.is_optional
+        self.is_required = not annotation.is_optional
+        self.is_list = annotation.is_list
         if not self.is_required and self.default is UNSET and self.default_factory is None:
             self.default = None
         if isinstance(annotation.type, type) and issubclass(annotation.type, enum.Enum):
@@ -728,16 +730,6 @@ class Property(_IntoQuery if TYPE_CHECKING else object):
                 if primitive_type is None:
                     raise ValueError(f"cannot determine storage for {self!r}: {self.py_type_raw!r}")
                 self.primitive_type = primitive_type
-
-        # derive type info
-        if (
-            self.is_introspectable
-            or self.reference_source is not None
-            or self.reference_nodes
-            or self.reference_kind == ReferenceKind.PROPERTY
-            or self.id == 1
-        ):
-            self._type_info = self._to_type_info()
 
 
 @_on_completing_setup
@@ -917,22 +909,6 @@ p_node_ancestor_with_self = functools.partial(
 )
 
 
-def p_node_children(
-    node_type: NodeType,
-    list: type["NodeList"] | None = None,
-) -> Any:
-    """Computed read/write children or descendants of the given type."""
-    return Property(
-        reference_kind=ReferenceKind.NODE_CHILDREN,
-        reference_nodes=(node_type,),
-        is_internal=True,
-        is_required=True,
-        is_list=True,
-        reference_list_type=list or LocalNodeList,
-        is_stored=False,
-    )
-
-
 def p_node_template(id: int) -> Any:
     """Template property for a node."""
     return Property(
@@ -948,7 +924,7 @@ def p_node_template(id: int) -> Any:
     )
 
 
-# nocheckin: remove StructParents, use plain edits (turn Structs into pure data classes?)
+# nocheckin: remove StructParents, use plain edits (turn Structs into immutable data classes?)
 def p_struct_parent(id: int) -> Any:
     """The parent of a struct."""
     return Property(
@@ -1042,7 +1018,6 @@ _PROPERTY_SPECIFIERS: tuple[Callable, ...] = (
     p_runtime,
     p_node_parent,
     p_node_ancestor,
-    p_node_children,
     p_value_runtime,
     p_value_packed,
 )

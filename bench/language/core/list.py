@@ -1,10 +1,8 @@
 import abc
 from typing import (
     TYPE_CHECKING,
-    Callable,
     Collection,
     Generic,
-    Iterator,
     Optional,
     Sequence,
     TypeVar,
@@ -13,13 +11,8 @@ from typing import (
     overload,
     override,
 )
-from uuid import UUID
-
-from more_itertools import first
 
 from bench.language.registry import DESCENDANT_NODE_TYPES, NODE_CLASS_BY_TYPE
-from bench.pb2.lang_pb2 import RecordData
-from bench.utils.fractional import get_key_bounds, get_order_key
 
 from .const import NodeType, QueryType, SortType, active_session
 
@@ -35,7 +28,6 @@ if TYPE_CHECKING:
         NodeReference,
         PackageNode,
         Property,
-        Record,
         Struct,
     )
     from bench.pb2 import AnyNodeData
@@ -139,24 +131,15 @@ class NodeList[V: Node](abc.ABC):
         "_child_node_cls",
         "_child_node_type",
         "_node",
-        "_property",
     )
 
-    def __init__(self, node: "Node", property: "Property"):
+    def __init__(self, node: "Node", child_node_type: NodeType):
         self._node = node
-        self._property = property
-        assert (
-            property.reference_nodes
-            and property.reference_nodes != "any"
-            and len(property.reference_nodes) == 1
-        ), f"cannot have many child types: {property!r}"
-        self._child_node_type: NodeType = property.reference_nodes[0]
+        self._child_node_type = child_node_type
         self._child_node_cls = cast(type[V], NODE_CLASS_BY_TYPE[self._child_node_type])
 
     def __repr__(self):
-        return (
-            f"<{self.__class__.__name__} {self._node.absolute_path}.{self._property.name}: {self}>"
-        )
+        return f"<{self.__class__.__name__} {self._node.absolute_path}: {self}>"
 
     def _get_parent(self) -> "Node":
         """Get the effective parent of a child node."""
@@ -186,17 +169,17 @@ class NodeList[V: Node](abc.ABC):
         parent = self._get_parent()
         graph = self._get_child_graph(parent)
         node = self._child_node_cls(**kwargs, parent=parent, _graph=graph)
-        self.append(node)
+        self.add_child(node)
         return node
 
-    def append(self, node: V, move: bool = False) -> V:
+    def add_child(self, node: V, move: bool = False) -> V:
         """Attaches a child node to a parent through a list. If move, may be re-attached."""
         parent = self._get_parent()
         graph = self._get_child_graph(parent)
         attach_node(node, parent=parent, graph=graph, move=move)
         return node
 
-    def extend(self, *nodes: V, move: bool = False):
+    def add_children(self, *nodes: V, move: bool = False):
         """Attaches a list of child nodes to a parent. See append."""
         parent = self._get_parent()
         graph = self._get_child_graph(parent)
@@ -218,160 +201,7 @@ class NodeList[V: Node](abc.ABC):
     def set(self, nodes: Collection[V]):
         """Replaces all child nodes of a parent."""
         self.clear()
-        self.extend(*nodes)
-
-
-class LocalNodeList[V: Node](NodeList[V], Sequence[V]):
-    """A NodeList backed by a local graph."""
-
-    def __str__(self):
-        return str(self.nodes)
-
-    @override
-    def create(self, **kwargs) -> V:
-        if "name" in self._child_node_cls.__properties__ and "name" not in kwargs:
-            from .node import generate_node_name
-
-            # auto-generate name if required and not given :AutoNaming
-            kwargs["name"] = generate_node_name(self._child_node_type, kwargs.get("type"), self)
-        return super().create(**kwargs)
-
-    @override
-    def append(
-        self, node: V, move: bool = False, after: V | None = None, before: V | None = None
-    ) -> V:
-        parent = self._get_parent()
-        graph = self._get_child_graph(parent)
-        attach_node(node, parent=parent, graph=graph, move=move)
-        # assign order key to ordered nodes
-        if hasattr(node, "order_key"):
-            ok = get_order_key(*get_key_bounds(self.nodes, after, before))
-            setattr(node, "order_key", ok)
-        return node
-
-    @override
-    def extend(self, *nodes: V, after: V | None = None, before: V | None = None) -> None:  # type: ignore
-        if not nodes:
-            return
-        elif after is not None:
-            for node in nodes:
-                self.append(node, after=after)
-                after = node
-        elif before is not None:
-            self.append(nodes[0], before=before)
-            after = nodes[0]
-            for node in nodes[1:]:
-                self.append(node, after=after)
-                after = node
-        else:
-            for node in nodes:
-                self.append(node)
-
-    def between(self, after: V | None = None, before: V | None = None) -> list[V]:
-        """Get all nodes between two nodes (exclusive)."""
-        found_after = after is None
-        nodes = []
-        for node in self.nodes:
-            if after is not None and after == node:
-                found_after = True
-                continue
-            if before is not None and before == node:
-                break
-            if found_after:
-                nodes.append(node)
-        return nodes
-
-    def remove_between(self, after: V | None = None, before: V | None = None):
-        """Removes all nodes between two nodes (exclusive)."""
-        nodes_to_remove = self.between(after, before)
-        for node in nodes_to_remove:
-            self.remove(node)
-
-    def clear(self):
-        if not self.nodes:
-            return
-        removed = tuple(self.nodes)
-        for n in removed:
-            self.remove(n)
-
-    #
-    # Querying
-    #
-
-    @property
-    def nodes(self) -> tuple[V, ...] | list[V]:
-        """Access the computed nodes"""
-        descendants = self._node._graph.get_descendants(
-            node=self._node, node_type=self._child_node_type, recursive=False
-        )
-        if (
-            len(descendants) > 1
-            and "order_key" in NODE_CLASS_BY_TYPE[self._child_node_type].__properties__
-        ):
-            descendants.sort(key=lambda n: n.order_key)  # type: ignore
-        return cast(list[V], descendants)
-
-    def tolist(self) -> list[V]:
-        return list(self)
-
-    def get(self, key: UUID | str | int) -> V | None:
-        if isinstance(key, UUID):
-            return cast(V, self._node._graph.get(key))
-        elif isinstance(key, str):
-            return first(
-                (n for n in self.nodes if n.code_name == key or getattr(n, "name", None) == key),
-                None,
-            )
-        else:
-            return self.nodes[key]
-
-    def find(self, filter: Callable[[V], bool]) -> V | None:
-        return first((n for n in self.nodes if filter(n)), None)
-
-    @overload
-    def __getitem__(self, item: str) -> Optional[V]: ...
-    @overload
-    def __getitem__(self, item: UUID) -> Optional[V]: ...
-    @overload
-    def __getitem__(self, item: int) -> V: ...
-    @overload
-    def __getitem__(self, item: slice) -> list[V]: ...
-    def __getitem__(self, item: Union[str, UUID, int, slice]):  # type: ignore
-        """Gets a node by index or name."""
-        if isinstance(item, (str, UUID)):
-            return self.get(item)
-        else:
-            return self.nodes[item]
-
-    def __getattr__(self, item: str) -> V:
-        """Gets a node by name."""
-        node = self.get(item)
-        if node is None:
-            raise AttributeError(f"{self!r} has no node {item!r}")
-        return node
-
-    def __bool__(self):
-        return len(self.nodes) > 0
-
-    def __contains__(self, obj: object) -> bool:
-        metatype = getattr(obj, "metatype", None)
-        if not metatype or metatype not in self._property.reference_nodes:
-            raise TypeError(f"{self!r} cannot contain {obj!r}")
-        return obj in self.nodes
-
-    def __iter__(self) -> Iterator[V]:
-        yield from self.nodes
-
-    def __len__(self) -> int:
-        return len(self.nodes)
-
-    def __eq__(self, other: object) -> bool:
-        if isinstance(other, LocalNodeList):
-            return self.nodes == other.nodes
-        elif isinstance(other, list):
-            return self.nodes == other
-        else:
-            return False
+        self.add_children(*nodes)
 
 
 class RemoteNodeList[V: Node, VD: AnyNodeData](NodeList[V]):
@@ -411,14 +241,14 @@ class RemoteNodeList[V: Node, VD: AnyNodeData](NodeList[V]):
         return node
 
     @override
-    def append(self, node: V, move: bool = False) -> V:
+    def add_child(self, node: V, move: bool = False) -> V:
         parent = self._get_parent()
         graph = self._get_child_graph(parent)
         attach_node(node, parent=parent, graph=graph, move=move)
         return node
 
     @override
-    def extend(self, *nodes: V, move: bool = False) -> None:
+    def add_children(self, *nodes: V, move: bool = False) -> None:
         parent = self._get_parent()
         graph = self._get_child_graph(parent)
         for node in nodes:
@@ -429,7 +259,7 @@ class RemoteNodeList[V: Node, VD: AnyNodeData](NodeList[V]):
     #
 
     def _query(self) -> "LegacyQuery[V, VD]":
-        from bench.language import Expression, LegacyQuery, SelectOptions, Table
+        from bench.language import Expression, Field, LegacyQuery, SelectOptions, Table
 
         assert isinstance(self._node, Table), f"cannot query from: {self._node!r}"
         created_at = self._child_node_cls.get_property("created_at")
@@ -440,7 +270,7 @@ class RemoteNodeList[V: Node, VD: AnyNodeData](NodeList[V]):
             # sort by created_at by default (earliest first)
             sort=[Expression(type=SortType.ASCENDING, property=created_at)],
             # select all fields by default
-            select=SelectOptions(select_fields=list(self._node.fields)),
+            select=SelectOptions(select_fields=list(self._node.get_children(Field))),
         )
         return query
 
@@ -494,44 +324,6 @@ class RemoteNodeList[V: Node, VD: AnyNodeData](NodeList[V]):
 
     def first(self, count: int) -> "LegacyQuery[V, VD]":
         return self._query().first(count)
-
-
-class RecordNodeList(RemoteNodeList["Record", RecordData]):
-    """
-    A RemoteNodeList that is backed by a Table.
-    Automatically sets 'table' as needed.
-    """
-
-    @override
-    def create(self, **kwargs) -> "Record":
-        from bench.language import Record, Table
-
-        if "table" not in kwargs:
-            kwargs["table"] = self._node
-        parent = self._get_parent()
-        assert isinstance(parent, Table), f"cannot create Record in: {parent!r}"
-        graph = self._get_child_graph(parent)
-        node = Record(**kwargs, parent=parent)
-        attach_node(node, parent=parent, graph=graph, move=False)
-        return node
-
-    @override
-    def append(self, node: "Record", move: bool = False) -> "Record":
-        parent = self._get_parent()
-        graph = self._get_child_graph(parent)
-        attach_node(node, parent=parent, graph=graph, move=move)
-        if getattr(node, "table_id") != self._node.id:
-            node._do_set("table", self._node)
-        return node
-
-    @override
-    def extend(self, *nodes: "Record", move: bool = False) -> None:
-        parent = self._get_parent()
-        graph = self._get_child_graph(parent)
-        for node in nodes:
-            attach_node(node, parent=parent, graph=graph, move=move)
-            if getattr(node, "table_id") != self._node.id:
-                node._do_set("table", self._node)
 
 
 ValueParentT = TypeVar("ValueParentT", bound=Union["CustomObject", "Struct", "Node"])

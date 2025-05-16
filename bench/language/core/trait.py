@@ -261,7 +261,7 @@ class IsTemplatable(BuiltinObject):
         if detach:
             instance.parent_ptr = None
         elif parent:
-            parent.append(instance)
+            parent.add_child(instance)
         return instance
 
 
@@ -542,6 +542,6 @@ class IsRunnable(IsComputable):
         return RetryOptions(
             max_attempts=self.max_attempts or 1,
             retry_interval=retry_interval,
-            backoff=self.backoff or 2,
+            backoff=self.backoff or 22,
             max_retry_interval=max(30, retry_interval * 5),
         )

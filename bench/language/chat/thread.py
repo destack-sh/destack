@@ -13,37 +13,27 @@ from bench.language.core import (
     IsRuntime,
     IsTimed,
     IsTitled,
-    LocalNodeList,
     NodeReference,
     NodeType,
     PageNode,
-    RemoteNodeList,
     Subject,
     TextLineIn,
     enum_,
-    p_node_children,
     p_node_parent,
     p_regular,
     p_system,
     timed_node_,
     to_text_line,
 )
-from bench.pb2 import MessageData, ThreadData
+from bench.pb2 import ThreadData
 
 if TYPE_CHECKING:
     from bench.language import (
         Channel,
-        Claim,
         Cursor,
         CursorType,
-        Field,
-        File,
-        Link,
-        Membership,
-        Message,
         Package,
         Page,
-        Run,
     )
 
 # pyright: reportIncompatibleVariableOverride=false
@@ -94,17 +84,6 @@ class Thread(
 
     # ...IsProcessable[80-]
 
-    messages: RemoteNodeList["Message", MessageData] = p_node_children(
-        NodeType.MESSAGE, list=RemoteNodeList
-    )
-    memberships: LocalNodeList["Membership"] = p_node_children(NodeType.MEMBERSHIP)
-    fields: LocalNodeList["Field"] = p_node_children(NodeType.FIELD)
-    claims: LocalNodeList["Claim"] = p_node_children(NodeType.CLAIM)
-    cursors: LocalNodeList["Cursor"] = p_node_children(NodeType.CURSOR)
-    files: LocalNodeList["File"] = p_node_children(NodeType.FILE)
-    links: LocalNodeList["Link"] = p_node_children(NodeType.LINK)
-    runs: LocalNodeList["Run"] = p_node_children(NodeType.RUN)
-
     @staticmethod
     def new(
         title: TextLineIn | None = None,
@@ -123,7 +102,7 @@ class Thread(
 
     def get_cursor(self, *, type: "CursorType", owned_by: "Subject | None") -> "Cursor | None":
         """Get a Cursor of the given type."""
-        for cursor in self.cursors:
+        for cursor in self.get_children(Cursor):
             if cursor.type == type and (owned_by is None or cursor.owned_by_id == owned_by.id):
                 return cursor
         return None

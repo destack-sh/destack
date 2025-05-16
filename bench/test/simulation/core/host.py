@@ -1,5 +1,6 @@
 from typing import TYPE_CHECKING, final, override
 
+from bench.language import Database
 from bench.proto import HostClient
 from bench.sql import pg_connection, sqlstr
 from bench.system import HostService
@@ -51,6 +52,6 @@ class HostHandle(ServiceHandle[HostSpec, HostService, HostClient]):
         async with pg_connection(
             self.simulation.global_database, owner=self, autocommit=True
         ) as conn:
-            for database in self.service.main_package.databases:
+            for database in self.service.main_package.get_children(Database):
                 if database.external_name:
                     await conn.execute(sqlstr(f'DROP DATABASE "{database.external_name}"'))

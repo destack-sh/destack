@@ -13,20 +13,18 @@ from bench.language.core import (
     IsRunnable,
     IsSubject,
     IsTimed,
-    LocalNodeList,
     NodeReference,
     NodeType,
     PageNode,
     TypeBase,
     TypeKind,
     node_,
-    p_node_children,
     p_regular,
 )
 from bench.pb2 import AgentData
 
 if TYPE_CHECKING:
-    from bench.language import Claim, Cursor, Field, Page
+    from bench.language import Cursor, Page
 
 # pyright: reportIncompatibleVariableOverride=false
 
@@ -66,10 +64,6 @@ class Agent(
         cursor_id: Optional[UUID] = None
 
     # ...IsProcessable[80-]
-
-    claims: LocalNodeList["Claim"] = p_node_children(NodeType.CLAIM)
-    fields: LocalNodeList["Field"] = p_node_children(NodeType.FIELD)
-    cursors: LocalNodeList["Cursor"] = p_node_children(NodeType.CURSOR)
 
     def to_type_maybe(
         self,

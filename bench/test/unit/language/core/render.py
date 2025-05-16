@@ -210,23 +210,24 @@ def test_render_flow_simple(session: Session, package: Package):
     Flow1 = Flow.new("Flow1")
     Action1 = Action.new(ActionType.START, "Action1")
     Action2 = Action.new(ActionType.END, "Action2")
-    Flow1.actions.extend(Action1, Action2)
+    Flow1.add_children(Action1, Action2)
     Transition1 = Action1.connect(FlowEdgeType.REQUIRE, Action2, "Transition1")
     return {"Flow1": Flow1, "Action1": Action1, "Action2": Action2, "Transition1": Transition1}
 
 
 def test_render_simple_choice_option_ref(session: Session, package: Package):
     """Rendered node ref in sibling scope should be simplified"""
-    Page1 = package.pages.create(title="Page")
+    Page1 = Page.new("Page")
+    package.add_child(Page1)
     Choice1 = Choice.new(
         "Choice1",
         Option.new("Option1"),
         Option.new("Option2"),
         Option.new("Option3"),
     )
-    Page1.append(Choice1)
+    Page1.add_child(Choice1)
     rendered_option = render_expression(
-        Choice1.options.Option2,
+        Choice1.child(Option, "Option2"),
         options=RenderOptions(aliasing=Aliasing(session._supergraph)),
         as_ref=True,
     )
