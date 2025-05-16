@@ -1176,51 +1176,6 @@ export interface ChangeData {
     edits: EditData[];
 }
 /**
- * @generated from protobuf message symbol.bench.ColorData
- */
-export interface ColorData {
-    /**
-     * @generated from protobuf field: symbol.bench.ObjectType metatype = 1;
-     */
-    metatype: ObjectType;
-    /**
-     * @generated from protobuf field: symbol.bench.ColorType type = 30;
-     */
-    type: ColorType;
-    /**
-     * @generated from protobuf field: optional symbol.bench.ColorHue hue = 40;
-     */
-    hue?: ColorHue;
-    /**
-     * @generated from protobuf field: optional symbol.bench.ColorShade shade = 41;
-     */
-    shade?: ColorShade;
-    /**
-     * @generated from protobuf field: optional symbol.bench.NodeReferenceData style_ptr = 42;
-     */
-    stylePtr?: NodeReferenceData;
-    /**
-     * @generated from protobuf field: optional symbol.bench.NodeReferenceData field_ptr = 43;
-     */
-    fieldPtr?: NodeReferenceData;
-    /**
-     * @generated from protobuf field: optional float x = 50;
-     */
-    x?: number;
-    /**
-     * @generated from protobuf field: optional float y = 51;
-     */
-    y?: number;
-    /**
-     * @generated from protobuf field: optional float z = 52;
-     */
-    z?: number;
-    /**
-     * @generated from protobuf field: optional float alpha = 53;
-     */
-    alpha?: number;
-}
-/**
  * @generated from protobuf message symbol.bench.LengthData
  */
 export interface LengthData {
@@ -1229,11 +1184,32 @@ export interface LengthData {
      */
     metatype: ObjectType;
     /**
-     * @generated from protobuf field: symbol.bench.LengthUnit unit = 31;
+     * @generated from protobuf field: symbol.bench.LengthUnit unit = 50;
      */
     unit: LengthUnit;
     /**
-     * @generated from protobuf field: float value = 40;
+     * @generated from protobuf field: float value = 51;
+     */
+    value: number;
+}
+/**
+ * @generated from protobuf message symbol.bench.VariableLengthData
+ */
+export interface VariableLengthData {
+    /**
+     * @generated from protobuf field: symbol.bench.ObjectType metatype = 1;
+     */
+    metatype: ObjectType;
+    /**
+     * @generated from protobuf field: optional symbol.bench.NodeReferenceData field_ptr = 40;
+     */
+    fieldPtr?: NodeReferenceData;
+    /**
+     * @generated from protobuf field: symbol.bench.LengthUnit unit = 50;
+     */
+    unit: LengthUnit;
+    /**
+     * @generated from protobuf field: float value = 51;
      */
     value: number;
 }
@@ -1246,23 +1222,56 @@ export interface PositionData {
      */
     metatype: ObjectType;
     /**
-     * @generated from protobuf field: symbol.bench.PositionType type = 40;
+     * @generated from protobuf field: symbol.bench.PositionType type = 30;
      */
     type: PositionType;
     /**
-     * @generated from protobuf field: optional symbol.bench.LengthData top = 41;
+     * @generated from protobuf field: optional symbol.bench.LengthData top = 50;
      */
     top?: LengthData;
     /**
-     * @generated from protobuf field: optional symbol.bench.LengthData left = 42;
+     * @generated from protobuf field: optional symbol.bench.LengthData left = 51;
      */
     left?: LengthData;
     /**
-     * @generated from protobuf field: optional symbol.bench.LengthData width = 43;
+     * @generated from protobuf field: optional symbol.bench.LengthData width = 52;
      */
     width?: LengthData;
     /**
-     * @generated from protobuf field: optional symbol.bench.LengthData height = 44;
+     * @generated from protobuf field: optional symbol.bench.LengthData height = 53;
+     */
+    height?: LengthData;
+}
+/**
+ * @generated from protobuf message symbol.bench.VariablePositionData
+ */
+export interface VariablePositionData {
+    /**
+     * @generated from protobuf field: symbol.bench.ObjectType metatype = 1;
+     */
+    metatype: ObjectType;
+    /**
+     * @generated from protobuf field: symbol.bench.PositionType type = 30;
+     */
+    type: PositionType;
+    /**
+     * @generated from protobuf field: optional symbol.bench.NodeReferenceData field_ptr = 40;
+     */
+    fieldPtr?: NodeReferenceData;
+    /**
+     * @generated from protobuf field: optional symbol.bench.LengthData top = 50;
+     */
+    top?: LengthData;
+    /**
+     * @generated from protobuf field: optional symbol.bench.LengthData left = 51;
+     */
+    left?: LengthData;
+    /**
+     * @generated from protobuf field: optional symbol.bench.LengthData width = 52;
+     */
+    width?: LengthData;
+    /**
+     * @generated from protobuf field: optional symbol.bench.LengthData height = 53;
      */
     height?: LengthData;
 }
@@ -1279,11 +1288,36 @@ export interface DimensionData {
      */
     type: DimensionType;
     /**
-     * @generated from protobuf field: symbol.bench.LengthUnit unit = 31;
+     * @generated from protobuf field: symbol.bench.LengthUnit unit = 50;
      */
     unit: LengthUnit;
     /**
-     * @generated from protobuf field: float value = 40;
+     * @generated from protobuf field: float value = 51;
+     */
+    value: number;
+}
+/**
+ * @generated from protobuf message symbol.bench.VariableDimensionData
+ */
+export interface VariableDimensionData {
+    /**
+     * @generated from protobuf field: symbol.bench.ObjectType metatype = 1;
+     */
+    metatype: ObjectType;
+    /**
+     * @generated from protobuf field: symbol.bench.DimensionType type = 30;
+     */
+    type: DimensionType;
+    /**
+     * @generated from protobuf field: optional symbol.bench.NodeReferenceData field_ptr = 40;
+     */
+    fieldPtr?: NodeReferenceData;
+    /**
+     * @generated from protobuf field: symbol.bench.LengthUnit unit = 50;
+     */
+    unit: LengthUnit;
+    /**
+     * @generated from protobuf field: float value = 51;
      */
     value: number;
 }
@@ -1296,23 +1330,56 @@ export interface InsetsData {
      */
     metatype: ObjectType;
     /**
-     * @generated from protobuf field: optional int32 base = 40;
+     * @generated from protobuf field: optional int32 base = 50;
      */
     base?: number;
     /**
-     * @generated from protobuf field: optional int32 top = 41;
+     * @generated from protobuf field: optional int32 top = 51;
      */
     top?: number;
     /**
-     * @generated from protobuf field: optional int32 left = 42;
+     * @generated from protobuf field: optional int32 left = 52;
      */
     left?: number;
     /**
-     * @generated from protobuf field: optional int32 right = 43;
+     * @generated from protobuf field: optional int32 right = 53;
      */
     right?: number;
     /**
-     * @generated from protobuf field: optional int32 bottom = 44;
+     * @generated from protobuf field: optional int32 bottom = 54;
+     */
+    bottom?: number;
+}
+/**
+ * @generated from protobuf message symbol.bench.VariableInsetsData
+ */
+export interface VariableInsetsData {
+    /**
+     * @generated from protobuf field: symbol.bench.ObjectType metatype = 1;
+     */
+    metatype: ObjectType;
+    /**
+     * @generated from protobuf field: optional symbol.bench.NodeReferenceData field_ptr = 40;
+     */
+    fieldPtr?: NodeReferenceData;
+    /**
+     * @generated from protobuf field: optional int32 base = 50;
+     */
+    base?: number;
+    /**
+     * @generated from protobuf field: optional int32 top = 51;
+     */
+    top?: number;
+    /**
+     * @generated from protobuf field: optional int32 left = 52;
+     */
+    left?: number;
+    /**
+     * @generated from protobuf field: optional int32 right = 53;
+     */
+    right?: number;
+    /**
+     * @generated from protobuf field: optional int32 bottom = 54;
      */
     bottom?: number;
 }
@@ -1325,23 +1392,56 @@ export interface CornersData {
      */
     metatype: ObjectType;
     /**
-     * @generated from protobuf field: optional int32 base = 40;
+     * @generated from protobuf field: optional int32 base = 50;
      */
     base?: number;
     /**
-     * @generated from protobuf field: optional int32 top_left = 41;
+     * @generated from protobuf field: optional int32 top_left = 51;
      */
     topLeft?: number;
     /**
-     * @generated from protobuf field: optional int32 top_right = 42;
+     * @generated from protobuf field: optional int32 top_right = 52;
      */
     topRight?: number;
     /**
-     * @generated from protobuf field: optional int32 bottom_left = 43;
+     * @generated from protobuf field: optional int32 bottom_left = 53;
      */
     bottomLeft?: number;
     /**
-     * @generated from protobuf field: optional int32 bottom_right = 44;
+     * @generated from protobuf field: optional int32 bottom_right = 54;
+     */
+    bottomRight?: number;
+}
+/**
+ * @generated from protobuf message symbol.bench.VariableCornersData
+ */
+export interface VariableCornersData {
+    /**
+     * @generated from protobuf field: symbol.bench.ObjectType metatype = 1;
+     */
+    metatype: ObjectType;
+    /**
+     * @generated from protobuf field: optional symbol.bench.NodeReferenceData field_ptr = 40;
+     */
+    fieldPtr?: NodeReferenceData;
+    /**
+     * @generated from protobuf field: optional int32 base = 50;
+     */
+    base?: number;
+    /**
+     * @generated from protobuf field: optional int32 top_left = 51;
+     */
+    topLeft?: number;
+    /**
+     * @generated from protobuf field: optional int32 top_right = 52;
+     */
+    topRight?: number;
+    /**
+     * @generated from protobuf field: optional int32 bottom_left = 53;
+     */
+    bottomLeft?: number;
+    /**
+     * @generated from protobuf field: optional int32 bottom_right = 54;
      */
     bottomRight?: number;
 }
@@ -1354,15 +1454,40 @@ export interface Axis2Data {
      */
     metatype: ObjectType;
     /**
-     * @generated from protobuf field: optional float base = 40;
+     * @generated from protobuf field: optional float base = 50;
      */
     base?: number;
     /**
-     * @generated from protobuf field: optional float x = 41;
+     * @generated from protobuf field: optional float x = 51;
      */
     x?: number;
     /**
-     * @generated from protobuf field: optional float y = 42;
+     * @generated from protobuf field: optional float y = 52;
+     */
+    y?: number;
+}
+/**
+ * @generated from protobuf message symbol.bench.VariableAxis2Data
+ */
+export interface VariableAxis2Data {
+    /**
+     * @generated from protobuf field: symbol.bench.ObjectType metatype = 1;
+     */
+    metatype: ObjectType;
+    /**
+     * @generated from protobuf field: optional symbol.bench.NodeReferenceData field_ptr = 40;
+     */
+    fieldPtr?: NodeReferenceData;
+    /**
+     * @generated from protobuf field: optional float base = 50;
+     */
+    base?: number;
+    /**
+     * @generated from protobuf field: optional float x = 51;
+     */
+    x?: number;
+    /**
+     * @generated from protobuf field: optional float y = 52;
      */
     y?: number;
 }
@@ -1375,21 +1500,188 @@ export interface Axis3Data {
      */
     metatype: ObjectType;
     /**
-     * @generated from protobuf field: optional float base = 40;
+     * @generated from protobuf field: optional float base = 50;
      */
     base?: number;
     /**
-     * @generated from protobuf field: optional float x = 41;
+     * @generated from protobuf field: optional float x = 51;
      */
     x?: number;
     /**
-     * @generated from protobuf field: optional float y = 42;
+     * @generated from protobuf field: optional float y = 52;
      */
     y?: number;
     /**
-     * @generated from protobuf field: optional float z = 43;
+     * @generated from protobuf field: optional float z = 53;
      */
     z?: number;
+}
+/**
+ * @generated from protobuf message symbol.bench.VariableAxis3Data
+ */
+export interface VariableAxis3Data {
+    /**
+     * @generated from protobuf field: symbol.bench.ObjectType metatype = 1;
+     */
+    metatype: ObjectType;
+    /**
+     * @generated from protobuf field: optional symbol.bench.NodeReferenceData field_ptr = 40;
+     */
+    fieldPtr?: NodeReferenceData;
+    /**
+     * @generated from protobuf field: optional float base = 50;
+     */
+    base?: number;
+    /**
+     * @generated from protobuf field: optional float x = 51;
+     */
+    x?: number;
+    /**
+     * @generated from protobuf field: optional float y = 52;
+     */
+    y?: number;
+    /**
+     * @generated from protobuf field: optional float z = 53;
+     */
+    z?: number;
+}
+/**
+ * @generated from protobuf message symbol.bench.Vector2Data
+ */
+export interface Vector2Data {
+    /**
+     * @generated from protobuf field: symbol.bench.ObjectType metatype = 1;
+     */
+    metatype: ObjectType;
+    /**
+     * @generated from protobuf field: float x = 50;
+     */
+    x: number;
+    /**
+     * @generated from protobuf field: float y = 51;
+     */
+    y: number;
+}
+/**
+ * @generated from protobuf message symbol.bench.VariableVector2Data
+ */
+export interface VariableVector2Data {
+    /**
+     * @generated from protobuf field: symbol.bench.ObjectType metatype = 1;
+     */
+    metatype: ObjectType;
+    /**
+     * @generated from protobuf field: optional symbol.bench.NodeReferenceData field_ptr = 40;
+     */
+    fieldPtr?: NodeReferenceData;
+    /**
+     * @generated from protobuf field: float x = 50;
+     */
+    x: number;
+    /**
+     * @generated from protobuf field: float y = 51;
+     */
+    y: number;
+}
+/**
+ * @generated from protobuf message symbol.bench.Vector3Data
+ */
+export interface Vector3Data {
+    /**
+     * @generated from protobuf field: symbol.bench.ObjectType metatype = 1;
+     */
+    metatype: ObjectType;
+    /**
+     * @generated from protobuf field: float x = 50;
+     */
+    x: number;
+    /**
+     * @generated from protobuf field: float y = 51;
+     */
+    y: number;
+    /**
+     * @generated from protobuf field: float z = 52;
+     */
+    z: number;
+}
+/**
+ * @generated from protobuf message symbol.bench.VariableVector3Data
+ */
+export interface VariableVector3Data {
+    /**
+     * @generated from protobuf field: symbol.bench.ObjectType metatype = 1;
+     */
+    metatype: ObjectType;
+    /**
+     * @generated from protobuf field: optional symbol.bench.NodeReferenceData field_ptr = 40;
+     */
+    fieldPtr?: NodeReferenceData;
+    /**
+     * @generated from protobuf field: float x = 50;
+     */
+    x: number;
+    /**
+     * @generated from protobuf field: float y = 51;
+     */
+    y: number;
+    /**
+     * @generated from protobuf field: float z = 52;
+     */
+    z: number;
+}
+/**
+ * @generated from protobuf message symbol.bench.Vector4Data
+ */
+export interface Vector4Data {
+    /**
+     * @generated from protobuf field: symbol.bench.ObjectType metatype = 1;
+     */
+    metatype: ObjectType;
+    /**
+     * @generated from protobuf field: float x = 50;
+     */
+    x: number;
+    /**
+     * @generated from protobuf field: float y = 51;
+     */
+    y: number;
+    /**
+     * @generated from protobuf field: float z = 52;
+     */
+    z: number;
+    /**
+     * @generated from protobuf field: float w = 53;
+     */
+    w: number;
+}
+/**
+ * @generated from protobuf message symbol.bench.VariableVector4Data
+ */
+export interface VariableVector4Data {
+    /**
+     * @generated from protobuf field: symbol.bench.ObjectType metatype = 1;
+     */
+    metatype: ObjectType;
+    /**
+     * @generated from protobuf field: optional symbol.bench.NodeReferenceData field_ptr = 40;
+     */
+    fieldPtr?: NodeReferenceData;
+    /**
+     * @generated from protobuf field: float x = 50;
+     */
+    x: number;
+    /**
+     * @generated from protobuf field: float y = 51;
+     */
+    y: number;
+    /**
+     * @generated from protobuf field: float z = 52;
+     */
+    z: number;
+    /**
+     * @generated from protobuf field: float w = 53;
+     */
+    w: number;
 }
 /**
  * @generated from protobuf message symbol.bench.GridData
@@ -1400,23 +1692,56 @@ export interface GridData {
      */
     metatype: ObjectType;
     /**
-     * @generated from protobuf field: int32 columns = 40;
+     * @generated from protobuf field: int32 columns = 50;
      */
     columns: number;
     /**
-     * @generated from protobuf field: int32 rows = 41;
+     * @generated from protobuf field: int32 rows = 51;
      */
     rows: number;
     /**
-     * @generated from protobuf field: optional symbol.bench.DimensionData column_width = 42;
+     * @generated from protobuf field: optional symbol.bench.DimensionData column_width = 52;
      */
     columnWidth?: DimensionData;
     /**
-     * @generated from protobuf field: optional symbol.bench.DimensionData column_min_width = 43;
+     * @generated from protobuf field: optional symbol.bench.DimensionData column_min_width = 53;
      */
     columnMinWidth?: DimensionData;
     /**
-     * @generated from protobuf field: optional symbol.bench.DimensionData row_height = 44;
+     * @generated from protobuf field: optional symbol.bench.DimensionData row_height = 54;
+     */
+    rowHeight?: DimensionData;
+}
+/**
+ * @generated from protobuf message symbol.bench.VariableGridData
+ */
+export interface VariableGridData {
+    /**
+     * @generated from protobuf field: symbol.bench.ObjectType metatype = 1;
+     */
+    metatype: ObjectType;
+    /**
+     * @generated from protobuf field: optional symbol.bench.NodeReferenceData field_ptr = 40;
+     */
+    fieldPtr?: NodeReferenceData;
+    /**
+     * @generated from protobuf field: int32 columns = 50;
+     */
+    columns: number;
+    /**
+     * @generated from protobuf field: int32 rows = 51;
+     */
+    rows: number;
+    /**
+     * @generated from protobuf field: optional symbol.bench.DimensionData column_width = 52;
+     */
+    columnWidth?: DimensionData;
+    /**
+     * @generated from protobuf field: optional symbol.bench.DimensionData column_min_width = 53;
+     */
+    columnMinWidth?: DimensionData;
+    /**
+     * @generated from protobuf field: optional symbol.bench.DimensionData row_height = 54;
      */
     rowHeight?: DimensionData;
 }
@@ -1429,13 +1754,79 @@ export interface GridSpanData {
      */
     metatype: ObjectType;
     /**
-     * @generated from protobuf field: int32 columns = 40;
+     * @generated from protobuf field: int32 columns = 50;
      */
     columns: number;
     /**
-     * @generated from protobuf field: int32 rows = 41;
+     * @generated from protobuf field: int32 rows = 51;
      */
     rows: number;
+}
+/**
+ * @generated from protobuf message symbol.bench.VariableGridSpanData
+ */
+export interface VariableGridSpanData {
+    /**
+     * @generated from protobuf field: symbol.bench.ObjectType metatype = 1;
+     */
+    metatype: ObjectType;
+    /**
+     * @generated from protobuf field: optional symbol.bench.NodeReferenceData field_ptr = 40;
+     */
+    fieldPtr?: NodeReferenceData;
+    /**
+     * @generated from protobuf field: int32 columns = 50;
+     */
+    columns: number;
+    /**
+     * @generated from protobuf field: int32 rows = 51;
+     */
+    rows: number;
+}
+/**
+ * @generated from protobuf message symbol.bench.ColorData
+ */
+export interface ColorData {
+    /**
+     * @generated from protobuf field: symbol.bench.ObjectType metatype = 1;
+     */
+    metatype: ObjectType;
+    /**
+     * @generated from protobuf field: symbol.bench.ColorType type = 30;
+     */
+    type: ColorType;
+    /**
+     * @generated from protobuf field: optional symbol.bench.NodeReferenceData field_ptr = 40;
+     */
+    fieldPtr?: NodeReferenceData;
+    /**
+     * @generated from protobuf field: optional symbol.bench.NodeReferenceData style_ptr = 42;
+     */
+    stylePtr?: NodeReferenceData;
+    /**
+     * @generated from protobuf field: optional symbol.bench.ColorHue hue = 50;
+     */
+    hue?: ColorHue;
+    /**
+     * @generated from protobuf field: optional symbol.bench.ColorShade shade = 51;
+     */
+    shade?: ColorShade;
+    /**
+     * @generated from protobuf field: optional float x = 52;
+     */
+    x?: number;
+    /**
+     * @generated from protobuf field: optional float y = 53;
+     */
+    y?: number;
+    /**
+     * @generated from protobuf field: optional float z = 54;
+     */
+    z?: number;
+    /**
+     * @generated from protobuf field: optional float alpha = 55;
+     */
+    alpha?: number;
 }
 /**
  * @generated from protobuf message symbol.bench.BorderData
@@ -1450,13 +1841,13 @@ export interface BorderData {
      */
     type: BorderType;
     /**
-     * @generated from protobuf field: optional symbol.bench.NodeReferenceData style_ptr = 40;
-     */
-    stylePtr?: NodeReferenceData;
-    /**
-     * @generated from protobuf field: optional symbol.bench.NodeReferenceData field_ptr = 41;
+     * @generated from protobuf field: optional symbol.bench.NodeReferenceData field_ptr = 40;
      */
     fieldPtr?: NodeReferenceData;
+    /**
+     * @generated from protobuf field: optional symbol.bench.NodeReferenceData style_ptr = 41;
+     */
+    stylePtr?: NodeReferenceData;
     /**
      * @generated from protobuf field: optional symbol.bench.ColorData color = 50;
      */
@@ -1465,69 +1856,6 @@ export interface BorderData {
      * @generated from protobuf field: optional symbol.bench.InsetsData width = 51;
      */
     width?: InsetsData;
-}
-/**
- * @generated from protobuf message symbol.bench.Vector2Data
- */
-export interface Vector2Data {
-    /**
-     * @generated from protobuf field: symbol.bench.ObjectType metatype = 1;
-     */
-    metatype: ObjectType;
-    /**
-     * @generated from protobuf field: float x = 30;
-     */
-    x: number;
-    /**
-     * @generated from protobuf field: float y = 31;
-     */
-    y: number;
-}
-/**
- * @generated from protobuf message symbol.bench.Vector3Data
- */
-export interface Vector3Data {
-    /**
-     * @generated from protobuf field: symbol.bench.ObjectType metatype = 1;
-     */
-    metatype: ObjectType;
-    /**
-     * @generated from protobuf field: float x = 30;
-     */
-    x: number;
-    /**
-     * @generated from protobuf field: float y = 31;
-     */
-    y: number;
-    /**
-     * @generated from protobuf field: float z = 32;
-     */
-    z: number;
-}
-/**
- * @generated from protobuf message symbol.bench.Vector4Data
- */
-export interface Vector4Data {
-    /**
-     * @generated from protobuf field: symbol.bench.ObjectType metatype = 1;
-     */
-    metatype: ObjectType;
-    /**
-     * @generated from protobuf field: float x = 30;
-     */
-    x: number;
-    /**
-     * @generated from protobuf field: float y = 31;
-     */
-    y: number;
-    /**
-     * @generated from protobuf field: float z = 32;
-     */
-    z: number;
-    /**
-     * @generated from protobuf field: float w = 33;
-     */
-    w: number;
 }
 /**
  * @generated from protobuf message symbol.bench.TransitionData
@@ -1542,13 +1870,13 @@ export interface TransitionData {
      */
     type: TransitionType;
     /**
-     * @generated from protobuf field: optional symbol.bench.NodeReferenceData style_ptr = 40;
-     */
-    stylePtr?: NodeReferenceData;
-    /**
-     * @generated from protobuf field: optional symbol.bench.NodeReferenceData field_ptr = 41;
+     * @generated from protobuf field: optional symbol.bench.NodeReferenceData field_ptr = 40;
      */
     fieldPtr?: NodeReferenceData;
+    /**
+     * @generated from protobuf field: optional symbol.bench.NodeReferenceData style_ptr = 41;
+     */
+    stylePtr?: NodeReferenceData;
     /**
      * @generated from protobuf field: optional float delay = 50;
      */
@@ -1595,13 +1923,13 @@ export interface EffectData {
      */
     type: EffectType;
     /**
+     * @generated from protobuf field: optional symbol.bench.NodeReferenceData field_ptr = 40;
+     */
+    fieldPtr?: NodeReferenceData;
+    /**
      * @generated from protobuf field: optional symbol.bench.NodeReferenceData style_ptr = 41;
      */
     stylePtr?: NodeReferenceData;
-    /**
-     * @generated from protobuf field: optional symbol.bench.NodeReferenceData field_ptr = 42;
-     */
-    fieldPtr?: NodeReferenceData;
     /**
      * @generated from protobuf field: optional float opacity = 50;
      */
@@ -1747,13 +2075,13 @@ export interface FontData {
      */
     type: FontType;
     /**
-     * @generated from protobuf field: optional symbol.bench.NodeReferenceData style_ptr = 40;
-     */
-    stylePtr?: NodeReferenceData;
-    /**
-     * @generated from protobuf field: optional symbol.bench.NodeReferenceData field_ptr = 41;
+     * @generated from protobuf field: optional symbol.bench.NodeReferenceData field_ptr = 40;
      */
     fieldPtr?: NodeReferenceData;
+    /**
+     * @generated from protobuf field: optional symbol.bench.NodeReferenceData style_ptr = 41;
+     */
+    stylePtr?: NodeReferenceData;
     /**
      * @generated from protobuf field: optional symbol.bench.FontWeight weight = 50;
      */
@@ -1800,13 +2128,13 @@ export interface ShadowData {
      */
     type: ShadowType;
     /**
-     * @generated from protobuf field: optional symbol.bench.NodeReferenceData style_ptr = 40;
-     */
-    stylePtr?: NodeReferenceData;
-    /**
-     * @generated from protobuf field: optional symbol.bench.NodeReferenceData field_ptr = 41;
+     * @generated from protobuf field: optional symbol.bench.NodeReferenceData field_ptr = 40;
      */
     fieldPtr?: NodeReferenceData;
+    /**
+     * @generated from protobuf field: optional symbol.bench.NodeReferenceData style_ptr = 41;
+     */
+    stylePtr?: NodeReferenceData;
     /**
      * @generated from protobuf field: optional symbol.bench.ColorData color = 50;
      */
@@ -6395,35 +6723,35 @@ export interface ColorStyleData {
      */
     definitionPtr?: NodeReferenceData;
     /**
-     * @generated from protobuf field: optional symbol.bench.ColorHue hue = 40;
+     * @generated from protobuf field: optional symbol.bench.NodeReferenceData field_ptr = 40;
      */
-    hue?: ColorHue;
-    /**
-     * @generated from protobuf field: optional symbol.bench.ColorShade shade = 41;
-     */
-    shade?: ColorShade;
+    fieldPtr?: NodeReferenceData;
     /**
      * @generated from protobuf field: optional symbol.bench.NodeReferenceData style_ptr = 42;
      */
     stylePtr?: NodeReferenceData;
     /**
-     * @generated from protobuf field: optional symbol.bench.NodeReferenceData field_ptr = 43;
+     * @generated from protobuf field: optional symbol.bench.ColorHue hue = 50;
      */
-    fieldPtr?: NodeReferenceData;
+    hue?: ColorHue;
     /**
-     * @generated from protobuf field: optional float x = 50;
+     * @generated from protobuf field: optional symbol.bench.ColorShade shade = 51;
+     */
+    shade?: ColorShade;
+    /**
+     * @generated from protobuf field: optional float x = 52;
      */
     x?: number;
     /**
-     * @generated from protobuf field: optional float y = 51;
+     * @generated from protobuf field: optional float y = 53;
      */
     y?: number;
     /**
-     * @generated from protobuf field: optional float z = 52;
+     * @generated from protobuf field: optional float z = 54;
      */
     z?: number;
     /**
-     * @generated from protobuf field: optional float alpha = 53;
+     * @generated from protobuf field: optional float alpha = 55;
      */
     alpha?: number;
     /**
@@ -6508,13 +6836,13 @@ export interface BorderStyleData {
      */
     definitionPtr?: NodeReferenceData;
     /**
-     * @generated from protobuf field: optional symbol.bench.NodeReferenceData style_ptr = 40;
-     */
-    stylePtr?: NodeReferenceData;
-    /**
-     * @generated from protobuf field: optional symbol.bench.NodeReferenceData field_ptr = 41;
+     * @generated from protobuf field: optional symbol.bench.NodeReferenceData field_ptr = 40;
      */
     fieldPtr?: NodeReferenceData;
+    /**
+     * @generated from protobuf field: optional symbol.bench.NodeReferenceData style_ptr = 41;
+     */
+    stylePtr?: NodeReferenceData;
     /**
      * @generated from protobuf field: optional symbol.bench.ColorData color = 50;
      */
@@ -6601,13 +6929,13 @@ export interface TransitionStyleData {
      */
     definitionPtr?: NodeReferenceData;
     /**
-     * @generated from protobuf field: optional symbol.bench.NodeReferenceData style_ptr = 40;
-     */
-    stylePtr?: NodeReferenceData;
-    /**
-     * @generated from protobuf field: optional symbol.bench.NodeReferenceData field_ptr = 41;
+     * @generated from protobuf field: optional symbol.bench.NodeReferenceData field_ptr = 40;
      */
     fieldPtr?: NodeReferenceData;
+    /**
+     * @generated from protobuf field: optional symbol.bench.NodeReferenceData style_ptr = 41;
+     */
+    stylePtr?: NodeReferenceData;
     /**
      * @generated from protobuf field: optional float delay = 50;
      */
@@ -6718,13 +7046,13 @@ export interface EffectStyleData {
      */
     definitionPtr?: NodeReferenceData;
     /**
+     * @generated from protobuf field: optional symbol.bench.NodeReferenceData field_ptr = 40;
+     */
+    fieldPtr?: NodeReferenceData;
+    /**
      * @generated from protobuf field: optional symbol.bench.NodeReferenceData style_ptr = 41;
      */
     stylePtr?: NodeReferenceData;
-    /**
-     * @generated from protobuf field: optional symbol.bench.NodeReferenceData field_ptr = 42;
-     */
-    fieldPtr?: NodeReferenceData;
     /**
      * @generated from protobuf field: optional float opacity = 50;
      */
@@ -6952,13 +7280,13 @@ export interface FontStyleData {
      */
     definitionPtr?: NodeReferenceData;
     /**
-     * @generated from protobuf field: optional symbol.bench.NodeReferenceData style_ptr = 40;
-     */
-    stylePtr?: NodeReferenceData;
-    /**
-     * @generated from protobuf field: optional symbol.bench.NodeReferenceData field_ptr = 41;
+     * @generated from protobuf field: optional symbol.bench.NodeReferenceData field_ptr = 40;
      */
     fieldPtr?: NodeReferenceData;
+    /**
+     * @generated from protobuf field: optional symbol.bench.NodeReferenceData style_ptr = 41;
+     */
+    stylePtr?: NodeReferenceData;
     /**
      * @generated from protobuf field: optional symbol.bench.FontWeight weight = 50;
      */
@@ -7069,13 +7397,13 @@ export interface ShadowStyleData {
      */
     definitionPtr?: NodeReferenceData;
     /**
-     * @generated from protobuf field: optional symbol.bench.NodeReferenceData style_ptr = 40;
-     */
-    stylePtr?: NodeReferenceData;
-    /**
-     * @generated from protobuf field: optional symbol.bench.NodeReferenceData field_ptr = 41;
+     * @generated from protobuf field: optional symbol.bench.NodeReferenceData field_ptr = 40;
      */
     fieldPtr?: NodeReferenceData;
+    /**
+     * @generated from protobuf field: optional symbol.bench.NodeReferenceData style_ptr = 41;
+     */
+    stylePtr?: NodeReferenceData;
     /**
      * @generated from protobuf field: optional symbol.bench.ColorData color = 50;
      */
@@ -10085,21 +10413,41 @@ export enum StructType {
      */
     VECTOR2 = 19000,
     /**
-     * @generated from protobuf enum value: STRUCT_TYPE_VECTOR3 = 19001;
+     * @generated from protobuf enum value: STRUCT_TYPE_VARIABLE_VECTOR2 = 19001;
      */
-    VECTOR3 = 19001,
+    VARIABLE_VECTOR2 = 19001,
     /**
-     * @generated from protobuf enum value: STRUCT_TYPE_VECTOR4 = 19002;
+     * @generated from protobuf enum value: STRUCT_TYPE_VECTOR3 = 19002;
      */
-    VECTOR4 = 19002,
+    VECTOR3 = 19002,
     /**
-     * @generated from protobuf enum value: STRUCT_TYPE_AXIS2 = 19003;
+     * @generated from protobuf enum value: STRUCT_TYPE_VARIABLE_VECTOR3 = 19003;
      */
-    AXIS2 = 19003,
+    VARIABLE_VECTOR3 = 19003,
     /**
-     * @generated from protobuf enum value: STRUCT_TYPE_AXIS3 = 19004;
+     * @generated from protobuf enum value: STRUCT_TYPE_VECTOR4 = 19004;
      */
-    AXIS3 = 19004,
+    VECTOR4 = 19004,
+    /**
+     * @generated from protobuf enum value: STRUCT_TYPE_VARIABLE_VECTOR4 = 19005;
+     */
+    VARIABLE_VECTOR4 = 19005,
+    /**
+     * @generated from protobuf enum value: STRUCT_TYPE_AXIS2 = 19006;
+     */
+    AXIS2 = 19006,
+    /**
+     * @generated from protobuf enum value: STRUCT_TYPE_VARIABLE_AXIS2 = 19007;
+     */
+    VARIABLE_AXIS2 = 19007,
+    /**
+     * @generated from protobuf enum value: STRUCT_TYPE_AXIS3 = 19008;
+     */
+    AXIS3 = 19008,
+    /**
+     * @generated from protobuf enum value: STRUCT_TYPE_VARIABLE_AXIS3 = 19009;
+     */
+    VARIABLE_AXIS3 = 19009,
     /**
      * @generated from protobuf enum value: STRUCT_TYPE_COLOR = 19010;
      */
@@ -10133,37 +10481,65 @@ export enum StructType {
      */
     LENGTH = 19017,
     /**
-     * @generated from protobuf enum value: STRUCT_TYPE_POSITION = 19018;
+     * @generated from protobuf enum value: STRUCT_TYPE_VARIABLE_LENGTH = 19018;
      */
-    POSITION = 19018,
+    VARIABLE_LENGTH = 19018,
     /**
-     * @generated from protobuf enum value: STRUCT_TYPE_DIMENSION = 19019;
+     * @generated from protobuf enum value: STRUCT_TYPE_POSITION = 19019;
      */
-    DIMENSION = 19019,
+    POSITION = 19019,
     /**
-     * @generated from protobuf enum value: STRUCT_TYPE_TRANSITION = 19020;
+     * @generated from protobuf enum value: STRUCT_TYPE_VARIABLE_POSITION = 19020;
      */
-    TRANSITION = 19020,
+    VARIABLE_POSITION = 19020,
     /**
-     * @generated from protobuf enum value: STRUCT_TYPE_EFFECT = 19021;
+     * @generated from protobuf enum value: STRUCT_TYPE_DIMENSION = 19021;
      */
-    EFFECT = 19021,
+    DIMENSION = 19021,
     /**
-     * @generated from protobuf enum value: STRUCT_TYPE_GRID = 19022;
+     * @generated from protobuf enum value: STRUCT_TYPE_VARIABLE_DIMENSION = 19022;
      */
-    GRID = 19022,
+    VARIABLE_DIMENSION = 19022,
     /**
-     * @generated from protobuf enum value: STRUCT_TYPE_GRID_SPAN = 19023;
+     * @generated from protobuf enum value: STRUCT_TYPE_TRANSITION = 19023;
      */
-    GRID_SPAN = 19023,
+    TRANSITION = 19023,
     /**
-     * @generated from protobuf enum value: STRUCT_TYPE_INSETS = 19024;
+     * @generated from protobuf enum value: STRUCT_TYPE_EFFECT = 19024;
      */
-    INSETS = 19024,
+    EFFECT = 19024,
     /**
-     * @generated from protobuf enum value: STRUCT_TYPE_CORNERS = 19025;
+     * @generated from protobuf enum value: STRUCT_TYPE_GRID = 19025;
      */
-    CORNERS = 19025
+    GRID = 19025,
+    /**
+     * @generated from protobuf enum value: STRUCT_TYPE_VARIABLE_GRID = 19026;
+     */
+    VARIABLE_GRID = 19026,
+    /**
+     * @generated from protobuf enum value: STRUCT_TYPE_GRID_SPAN = 19027;
+     */
+    GRID_SPAN = 19027,
+    /**
+     * @generated from protobuf enum value: STRUCT_TYPE_VARIABLE_GRID_SPAN = 19028;
+     */
+    VARIABLE_GRID_SPAN = 19028,
+    /**
+     * @generated from protobuf enum value: STRUCT_TYPE_INSETS = 19029;
+     */
+    INSETS = 19029,
+    /**
+     * @generated from protobuf enum value: STRUCT_TYPE_VARIABLE_INSETS = 19030;
+     */
+    VARIABLE_INSETS = 19030,
+    /**
+     * @generated from protobuf enum value: STRUCT_TYPE_CORNERS = 19031;
+     */
+    CORNERS = 19031,
+    /**
+     * @generated from protobuf enum value: STRUCT_TYPE_VARIABLE_CORNERS = 19032;
+     */
+    VARIABLE_CORNERS = 19032
 }
 /**
  * @generated from protobuf enum symbol.bench.ObjectType
@@ -10554,21 +10930,41 @@ export enum ObjectType {
      */
     VECTOR2 = 19000,
     /**
-     * @generated from protobuf enum value: OBJECT_TYPE_VECTOR3 = 19001;
+     * @generated from protobuf enum value: OBJECT_TYPE_VARIABLE_VECTOR2 = 19001;
      */
-    VECTOR3 = 19001,
+    VARIABLE_VECTOR2 = 19001,
     /**
-     * @generated from protobuf enum value: OBJECT_TYPE_VECTOR4 = 19002;
+     * @generated from protobuf enum value: OBJECT_TYPE_VECTOR3 = 19002;
      */
-    VECTOR4 = 19002,
+    VECTOR3 = 19002,
     /**
-     * @generated from protobuf enum value: OBJECT_TYPE_AXIS2 = 19003;
+     * @generated from protobuf enum value: OBJECT_TYPE_VARIABLE_VECTOR3 = 19003;
      */
-    AXIS2 = 19003,
+    VARIABLE_VECTOR3 = 19003,
     /**
-     * @generated from protobuf enum value: OBJECT_TYPE_AXIS3 = 19004;
+     * @generated from protobuf enum value: OBJECT_TYPE_VECTOR4 = 19004;
      */
-    AXIS3 = 19004,
+    VECTOR4 = 19004,
+    /**
+     * @generated from protobuf enum value: OBJECT_TYPE_VARIABLE_VECTOR4 = 19005;
+     */
+    VARIABLE_VECTOR4 = 19005,
+    /**
+     * @generated from protobuf enum value: OBJECT_TYPE_AXIS2 = 19006;
+     */
+    AXIS2 = 19006,
+    /**
+     * @generated from protobuf enum value: OBJECT_TYPE_VARIABLE_AXIS2 = 19007;
+     */
+    VARIABLE_AXIS2 = 19007,
+    /**
+     * @generated from protobuf enum value: OBJECT_TYPE_AXIS3 = 19008;
+     */
+    AXIS3 = 19008,
+    /**
+     * @generated from protobuf enum value: OBJECT_TYPE_VARIABLE_AXIS3 = 19009;
+     */
+    VARIABLE_AXIS3 = 19009,
     /**
      * @generated from protobuf enum value: OBJECT_TYPE_COLOR = 19010;
      */
@@ -10602,37 +10998,65 @@ export enum ObjectType {
      */
     LENGTH = 19017,
     /**
-     * @generated from protobuf enum value: OBJECT_TYPE_POSITION = 19018;
+     * @generated from protobuf enum value: OBJECT_TYPE_VARIABLE_LENGTH = 19018;
      */
-    POSITION = 19018,
+    VARIABLE_LENGTH = 19018,
     /**
-     * @generated from protobuf enum value: OBJECT_TYPE_DIMENSION = 19019;
+     * @generated from protobuf enum value: OBJECT_TYPE_POSITION = 19019;
      */
-    DIMENSION = 19019,
+    POSITION = 19019,
     /**
-     * @generated from protobuf enum value: OBJECT_TYPE_TRANSITION = 19020;
+     * @generated from protobuf enum value: OBJECT_TYPE_VARIABLE_POSITION = 19020;
      */
-    TRANSITION = 19020,
+    VARIABLE_POSITION = 19020,
     /**
-     * @generated from protobuf enum value: OBJECT_TYPE_EFFECT = 19021;
+     * @generated from protobuf enum value: OBJECT_TYPE_DIMENSION = 19021;
      */
-    EFFECT = 19021,
+    DIMENSION = 19021,
     /**
-     * @generated from protobuf enum value: OBJECT_TYPE_GRID = 19022;
+     * @generated from protobuf enum value: OBJECT_TYPE_VARIABLE_DIMENSION = 19022;
      */
-    GRID = 19022,
+    VARIABLE_DIMENSION = 19022,
     /**
-     * @generated from protobuf enum value: OBJECT_TYPE_GRID_SPAN = 19023;
+     * @generated from protobuf enum value: OBJECT_TYPE_TRANSITION = 19023;
      */
-    GRID_SPAN = 19023,
+    TRANSITION = 19023,
     /**
-     * @generated from protobuf enum value: OBJECT_TYPE_INSETS = 19024;
+     * @generated from protobuf enum value: OBJECT_TYPE_EFFECT = 19024;
      */
-    INSETS = 19024,
+    EFFECT = 19024,
     /**
-     * @generated from protobuf enum value: OBJECT_TYPE_CORNERS = 19025;
+     * @generated from protobuf enum value: OBJECT_TYPE_GRID = 19025;
      */
-    CORNERS = 19025
+    GRID = 19025,
+    /**
+     * @generated from protobuf enum value: OBJECT_TYPE_VARIABLE_GRID = 19026;
+     */
+    VARIABLE_GRID = 19026,
+    /**
+     * @generated from protobuf enum value: OBJECT_TYPE_GRID_SPAN = 19027;
+     */
+    GRID_SPAN = 19027,
+    /**
+     * @generated from protobuf enum value: OBJECT_TYPE_VARIABLE_GRID_SPAN = 19028;
+     */
+    VARIABLE_GRID_SPAN = 19028,
+    /**
+     * @generated from protobuf enum value: OBJECT_TYPE_INSETS = 19029;
+     */
+    INSETS = 19029,
+    /**
+     * @generated from protobuf enum value: OBJECT_TYPE_VARIABLE_INSETS = 19030;
+     */
+    VARIABLE_INSETS = 19030,
+    /**
+     * @generated from protobuf enum value: OBJECT_TYPE_CORNERS = 19031;
+     */
+    CORNERS = 19031,
+    /**
+     * @generated from protobuf enum value: OBJECT_TYPE_VARIABLE_CORNERS = 19032;
+     */
+    VARIABLE_CORNERS = 19032
 }
 /**
  * @generated from protobuf enum symbol.bench.BenchType
@@ -11023,21 +11447,41 @@ export enum BenchType {
      */
     VECTOR2 = 19000,
     /**
-     * @generated from protobuf enum value: BENCH_TYPE_VECTOR3 = 19001;
+     * @generated from protobuf enum value: BENCH_TYPE_VARIABLE_VECTOR2 = 19001;
      */
-    VECTOR3 = 19001,
+    VARIABLE_VECTOR2 = 19001,
     /**
-     * @generated from protobuf enum value: BENCH_TYPE_VECTOR4 = 19002;
+     * @generated from protobuf enum value: BENCH_TYPE_VECTOR3 = 19002;
      */
-    VECTOR4 = 19002,
+    VECTOR3 = 19002,
     /**
-     * @generated from protobuf enum value: BENCH_TYPE_AXIS2 = 19003;
+     * @generated from protobuf enum value: BENCH_TYPE_VARIABLE_VECTOR3 = 19003;
      */
-    AXIS2 = 19003,
+    VARIABLE_VECTOR3 = 19003,
     /**
-     * @generated from protobuf enum value: BENCH_TYPE_AXIS3 = 19004;
+     * @generated from protobuf enum value: BENCH_TYPE_VECTOR4 = 19004;
      */
-    AXIS3 = 19004,
+    VECTOR4 = 19004,
+    /**
+     * @generated from protobuf enum value: BENCH_TYPE_VARIABLE_VECTOR4 = 19005;
+     */
+    VARIABLE_VECTOR4 = 19005,
+    /**
+     * @generated from protobuf enum value: BENCH_TYPE_AXIS2 = 19006;
+     */
+    AXIS2 = 19006,
+    /**
+     * @generated from protobuf enum value: BENCH_TYPE_VARIABLE_AXIS2 = 19007;
+     */
+    VARIABLE_AXIS2 = 19007,
+    /**
+     * @generated from protobuf enum value: BENCH_TYPE_AXIS3 = 19008;
+     */
+    AXIS3 = 19008,
+    /**
+     * @generated from protobuf enum value: BENCH_TYPE_VARIABLE_AXIS3 = 19009;
+     */
+    VARIABLE_AXIS3 = 19009,
     /**
      * @generated from protobuf enum value: BENCH_TYPE_COLOR = 19010;
      */
@@ -11071,37 +11515,65 @@ export enum BenchType {
      */
     LENGTH = 19017,
     /**
-     * @generated from protobuf enum value: BENCH_TYPE_POSITION = 19018;
+     * @generated from protobuf enum value: BENCH_TYPE_VARIABLE_LENGTH = 19018;
      */
-    POSITION = 19018,
+    VARIABLE_LENGTH = 19018,
     /**
-     * @generated from protobuf enum value: BENCH_TYPE_DIMENSION = 19019;
+     * @generated from protobuf enum value: BENCH_TYPE_POSITION = 19019;
      */
-    DIMENSION = 19019,
+    POSITION = 19019,
     /**
-     * @generated from protobuf enum value: BENCH_TYPE_TRANSITION = 19020;
+     * @generated from protobuf enum value: BENCH_TYPE_VARIABLE_POSITION = 19020;
      */
-    TRANSITION = 19020,
+    VARIABLE_POSITION = 19020,
     /**
-     * @generated from protobuf enum value: BENCH_TYPE_EFFECT = 19021;
+     * @generated from protobuf enum value: BENCH_TYPE_DIMENSION = 19021;
      */
-    EFFECT = 19021,
+    DIMENSION = 19021,
     /**
-     * @generated from protobuf enum value: BENCH_TYPE_GRID = 19022;
+     * @generated from protobuf enum value: BENCH_TYPE_VARIABLE_DIMENSION = 19022;
      */
-    GRID = 19022,
+    VARIABLE_DIMENSION = 19022,
     /**
-     * @generated from protobuf enum value: BENCH_TYPE_GRID_SPAN = 19023;
+     * @generated from protobuf enum value: BENCH_TYPE_TRANSITION = 19023;
      */
-    GRID_SPAN = 19023,
+    TRANSITION = 19023,
     /**
-     * @generated from protobuf enum value: BENCH_TYPE_INSETS = 19024;
+     * @generated from protobuf enum value: BENCH_TYPE_EFFECT = 19024;
      */
-    INSETS = 19024,
+    EFFECT = 19024,
     /**
-     * @generated from protobuf enum value: BENCH_TYPE_CORNERS = 19025;
+     * @generated from protobuf enum value: BENCH_TYPE_GRID = 19025;
      */
-    CORNERS = 19025,
+    GRID = 19025,
+    /**
+     * @generated from protobuf enum value: BENCH_TYPE_VARIABLE_GRID = 19026;
+     */
+    VARIABLE_GRID = 19026,
+    /**
+     * @generated from protobuf enum value: BENCH_TYPE_GRID_SPAN = 19027;
+     */
+    GRID_SPAN = 19027,
+    /**
+     * @generated from protobuf enum value: BENCH_TYPE_VARIABLE_GRID_SPAN = 19028;
+     */
+    VARIABLE_GRID_SPAN = 19028,
+    /**
+     * @generated from protobuf enum value: BENCH_TYPE_INSETS = 19029;
+     */
+    INSETS = 19029,
+    /**
+     * @generated from protobuf enum value: BENCH_TYPE_VARIABLE_INSETS = 19030;
+     */
+    VARIABLE_INSETS = 19030,
+    /**
+     * @generated from protobuf enum value: BENCH_TYPE_CORNERS = 19031;
+     */
+    CORNERS = 19031,
+    /**
+     * @generated from protobuf enum value: BENCH_TYPE_VARIABLE_CORNERS = 19032;
+     */
+    VARIABLE_CORNERS = 19032,
     /**
      * @generated from protobuf enum value: BENCH_TYPE_ENUM_TYPE = 20000;
      */
@@ -18827,123 +19299,12 @@ class ChangeData$Type extends MessageType$<ChangeData> {
  */
 export const ChangeData = new ChangeData$Type();
 // @generated message type with reflection information, may provide speed optimized methods
-class ColorData$Type extends MessageType$<ColorData> {
-    constructor() {
-        super("symbol.bench.ColorData", [
-            { no: 1, name: "metatype", kind: "enum", T: () => ["symbol.bench.ObjectType", ObjectType, "OBJECT_TYPE_"] },
-            { no: 30, name: "type", kind: "enum", T: () => ["symbol.bench.ColorType", ColorType, "COLOR_TYPE_"] },
-            { no: 40, name: "hue", kind: "enum", opt: true, T: () => ["symbol.bench.ColorHue", ColorHue, "COLOR_HUE_"] },
-            { no: 41, name: "shade", kind: "enum", opt: true, T: () => ["symbol.bench.ColorShade", ColorShade, "COLOR_SHADE_"] },
-            { no: 42, name: "style_ptr", kind: "message", T: () => NodeReferenceData },
-            { no: 43, name: "field_ptr", kind: "message", T: () => NodeReferenceData },
-            { no: 50, name: "x", kind: "scalar", opt: true, T: 2 /*ScalarType.FLOAT*/ },
-            { no: 51, name: "y", kind: "scalar", opt: true, T: 2 /*ScalarType.FLOAT*/ },
-            { no: 52, name: "z", kind: "scalar", opt: true, T: 2 /*ScalarType.FLOAT*/ },
-            { no: 53, name: "alpha", kind: "scalar", opt: true, T: 2 /*ScalarType.FLOAT*/ }
-        ]);
-    }
-    create(value?: PartialMessage<ColorData>): ColorData {
-        const message = globalThis.Object.create((this.messagePrototype!));
-        message.metatype = 0;
-        message.type = 0;
-        if (value !== undefined)
-            reflectionMergePartial<ColorData>(this, message, value);
-        return message;
-    }
-    internalBinaryRead(reader: IBinaryReader, length: number, options: BinaryReadOptions, target?: ColorData): ColorData {
-        let message = target ?? this.create(), end = reader.pos + length;
-        while (reader.pos < end) {
-            let [fieldNo, wireType] = reader.tag();
-            switch (fieldNo) {
-                case /* symbol.bench.ObjectType metatype */ 1:
-                    message.metatype = reader.int32();
-                    break;
-                case /* symbol.bench.ColorType type */ 30:
-                    message.type = reader.int32();
-                    break;
-                case /* optional symbol.bench.ColorHue hue */ 40:
-                    message.hue = reader.int32();
-                    break;
-                case /* optional symbol.bench.ColorShade shade */ 41:
-                    message.shade = reader.int32();
-                    break;
-                case /* optional symbol.bench.NodeReferenceData style_ptr */ 42:
-                    message.stylePtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.stylePtr);
-                    break;
-                case /* optional symbol.bench.NodeReferenceData field_ptr */ 43:
-                    message.fieldPtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.fieldPtr);
-                    break;
-                case /* optional float x */ 50:
-                    message.x = reader.float();
-                    break;
-                case /* optional float y */ 51:
-                    message.y = reader.float();
-                    break;
-                case /* optional float z */ 52:
-                    message.z = reader.float();
-                    break;
-                case /* optional float alpha */ 53:
-                    message.alpha = reader.float();
-                    break;
-                default:
-                    let u = options.readUnknownField;
-                    if (u === "throw")
-                        throw new globalThis.Error(`Unknown field ${fieldNo} (wire type ${wireType}) for ${this.typeName}`);
-                    let d = reader.skip(wireType);
-                    if (u !== false)
-                        (u === true ? UnknownFieldHandler.onRead : u)(this.typeName, message, fieldNo, wireType, d);
-            }
-        }
-        return message;
-    }
-    internalBinaryWrite(message: ColorData, writer: IBinaryWriter, options: BinaryWriteOptions): IBinaryWriter {
-        /* symbol.bench.ObjectType metatype = 1; */
-        if (message.metatype !== 0)
-            writer.tag(1, WireType.Varint).int32(message.metatype);
-        /* symbol.bench.ColorType type = 30; */
-        if (message.type !== 0)
-            writer.tag(30, WireType.Varint).int32(message.type);
-        /* optional symbol.bench.ColorHue hue = 40; */
-        if (message.hue !== undefined)
-            writer.tag(40, WireType.Varint).int32(message.hue);
-        /* optional symbol.bench.ColorShade shade = 41; */
-        if (message.shade !== undefined)
-            writer.tag(41, WireType.Varint).int32(message.shade);
-        /* optional symbol.bench.NodeReferenceData style_ptr = 42; */
-        if (message.stylePtr)
-            NodeReferenceData.internalBinaryWrite(message.stylePtr, writer.tag(42, WireType.LengthDelimited).fork(), options).join();
-        /* optional symbol.bench.NodeReferenceData field_ptr = 43; */
-        if (message.fieldPtr)
-            NodeReferenceData.internalBinaryWrite(message.fieldPtr, writer.tag(43, WireType.LengthDelimited).fork(), options).join();
-        /* optional float x = 50; */
-        if (message.x !== undefined)
-            writer.tag(50, WireType.Bit32).float(message.x);
-        /* optional float y = 51; */
-        if (message.y !== undefined)
-            writer.tag(51, WireType.Bit32).float(message.y);
-        /* optional float z = 52; */
-        if (message.z !== undefined)
-            writer.tag(52, WireType.Bit32).float(message.z);
-        /* optional float alpha = 53; */
-        if (message.alpha !== undefined)
-            writer.tag(53, WireType.Bit32).float(message.alpha);
-        let u = options.writeUnknownFields;
-        if (u !== false)
-            (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
-        return writer;
-    }
-}
-/**
- * @generated MessageType for protobuf message symbol.bench.ColorData
- */
-export const ColorData = new ColorData$Type();
-// @generated message type with reflection information, may provide speed optimized methods
 class LengthData$Type extends MessageType$<LengthData> {
     constructor() {
         super("symbol.bench.LengthData", [
             { no: 1, name: "metatype", kind: "enum", T: () => ["symbol.bench.ObjectType", ObjectType, "OBJECT_TYPE_"] },
-            { no: 31, name: "unit", kind: "enum", T: () => ["symbol.bench.LengthUnit", LengthUnit, "LENGTH_UNIT_"] },
-            { no: 40, name: "value", kind: "scalar", T: 2 /*ScalarType.FLOAT*/ }
+            { no: 50, name: "unit", kind: "enum", T: () => ["symbol.bench.LengthUnit", LengthUnit, "LENGTH_UNIT_"] },
+            { no: 51, name: "value", kind: "scalar", T: 2 /*ScalarType.FLOAT*/ }
         ]);
     }
     create(value?: PartialMessage<LengthData>): LengthData {
@@ -18963,10 +19324,10 @@ class LengthData$Type extends MessageType$<LengthData> {
                 case /* symbol.bench.ObjectType metatype */ 1:
                     message.metatype = reader.int32();
                     break;
-                case /* symbol.bench.LengthUnit unit */ 31:
+                case /* symbol.bench.LengthUnit unit */ 50:
                     message.unit = reader.int32();
                     break;
-                case /* float value */ 40:
+                case /* float value */ 51:
                     message.value = reader.float();
                     break;
                 default:
@@ -18984,12 +19345,12 @@ class LengthData$Type extends MessageType$<LengthData> {
         /* symbol.bench.ObjectType metatype = 1; */
         if (message.metatype !== 0)
             writer.tag(1, WireType.Varint).int32(message.metatype);
-        /* symbol.bench.LengthUnit unit = 31; */
+        /* symbol.bench.LengthUnit unit = 50; */
         if (message.unit !== 0)
-            writer.tag(31, WireType.Varint).int32(message.unit);
-        /* float value = 40; */
+            writer.tag(50, WireType.Varint).int32(message.unit);
+        /* float value = 51; */
         if (message.value !== 0)
-            writer.tag(40, WireType.Bit32).float(message.value);
+            writer.tag(51, WireType.Bit32).float(message.value);
         let u = options.writeUnknownFields;
         if (u !== false)
             (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
@@ -19001,15 +19362,85 @@ class LengthData$Type extends MessageType$<LengthData> {
  */
 export const LengthData = new LengthData$Type();
 // @generated message type with reflection information, may provide speed optimized methods
+class VariableLengthData$Type extends MessageType$<VariableLengthData> {
+    constructor() {
+        super("symbol.bench.VariableLengthData", [
+            { no: 1, name: "metatype", kind: "enum", T: () => ["symbol.bench.ObjectType", ObjectType, "OBJECT_TYPE_"] },
+            { no: 40, name: "field_ptr", kind: "message", T: () => NodeReferenceData },
+            { no: 50, name: "unit", kind: "enum", T: () => ["symbol.bench.LengthUnit", LengthUnit, "LENGTH_UNIT_"] },
+            { no: 51, name: "value", kind: "scalar", T: 2 /*ScalarType.FLOAT*/ }
+        ]);
+    }
+    create(value?: PartialMessage<VariableLengthData>): VariableLengthData {
+        const message = globalThis.Object.create((this.messagePrototype!));
+        message.metatype = 0;
+        message.unit = 0;
+        message.value = 0;
+        if (value !== undefined)
+            reflectionMergePartial<VariableLengthData>(this, message, value);
+        return message;
+    }
+    internalBinaryRead(reader: IBinaryReader, length: number, options: BinaryReadOptions, target?: VariableLengthData): VariableLengthData {
+        let message = target ?? this.create(), end = reader.pos + length;
+        while (reader.pos < end) {
+            let [fieldNo, wireType] = reader.tag();
+            switch (fieldNo) {
+                case /* symbol.bench.ObjectType metatype */ 1:
+                    message.metatype = reader.int32();
+                    break;
+                case /* optional symbol.bench.NodeReferenceData field_ptr */ 40:
+                    message.fieldPtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.fieldPtr);
+                    break;
+                case /* symbol.bench.LengthUnit unit */ 50:
+                    message.unit = reader.int32();
+                    break;
+                case /* float value */ 51:
+                    message.value = reader.float();
+                    break;
+                default:
+                    let u = options.readUnknownField;
+                    if (u === "throw")
+                        throw new globalThis.Error(`Unknown field ${fieldNo} (wire type ${wireType}) for ${this.typeName}`);
+                    let d = reader.skip(wireType);
+                    if (u !== false)
+                        (u === true ? UnknownFieldHandler.onRead : u)(this.typeName, message, fieldNo, wireType, d);
+            }
+        }
+        return message;
+    }
+    internalBinaryWrite(message: VariableLengthData, writer: IBinaryWriter, options: BinaryWriteOptions): IBinaryWriter {
+        /* symbol.bench.ObjectType metatype = 1; */
+        if (message.metatype !== 0)
+            writer.tag(1, WireType.Varint).int32(message.metatype);
+        /* optional symbol.bench.NodeReferenceData field_ptr = 40; */
+        if (message.fieldPtr)
+            NodeReferenceData.internalBinaryWrite(message.fieldPtr, writer.tag(40, WireType.LengthDelimited).fork(), options).join();
+        /* symbol.bench.LengthUnit unit = 50; */
+        if (message.unit !== 0)
+            writer.tag(50, WireType.Varint).int32(message.unit);
+        /* float value = 51; */
+        if (message.value !== 0)
+            writer.tag(51, WireType.Bit32).float(message.value);
+        let u = options.writeUnknownFields;
+        if (u !== false)
+            (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
+        return writer;
+    }
+}
+/**
+ * @generated MessageType for protobuf message symbol.bench.VariableLengthData
+ */
+export const VariableLengthData = new VariableLengthData$Type();
+// @generated message type with reflection information, may provide speed optimized methods
 class PositionData$Type extends MessageType$<PositionData> {
     constructor() {
         super("symbol.bench.PositionData", [
             { no: 1, name: "metatype", kind: "enum", T: () => ["symbol.bench.ObjectType", ObjectType, "OBJECT_TYPE_"] },
-            { no: 40, name: "type", kind: "enum", T: () => ["symbol.bench.PositionType", PositionType, "POSITION_TYPE_"] },
-            { no: 41, name: "top", kind: "message", T: () => LengthData },
-            { no: 42, name: "left", kind: "message", T: () => LengthData },
-            { no: 43, name: "width", kind: "message", T: () => LengthData },
-            { no: 44, name: "height", kind: "message", T: () => LengthData }
+            { no: 30, name: "type", kind: "enum", T: () => ["symbol.bench.PositionType", PositionType, "POSITION_TYPE_"] },
+            { no: 50, name: "top", kind: "message", T: () => LengthData },
+            { no: 51, name: "left", kind: "message", T: () => LengthData },
+            { no: 52, name: "width", kind: "message", T: () => LengthData },
+            { no: 53, name: "height", kind: "message", T: () => LengthData }
         ]);
     }
     create(value?: PartialMessage<PositionData>): PositionData {
@@ -19028,19 +19459,19 @@ class PositionData$Type extends MessageType$<PositionData> {
                 case /* symbol.bench.ObjectType metatype */ 1:
                     message.metatype = reader.int32();
                     break;
-                case /* symbol.bench.PositionType type */ 40:
+                case /* symbol.bench.PositionType type */ 30:
                     message.type = reader.int32();
                     break;
-                case /* optional symbol.bench.LengthData top */ 41:
+                case /* optional symbol.bench.LengthData top */ 50:
                     message.top = LengthData.internalBinaryRead(reader, reader.uint32(), options, message.top);
                     break;
-                case /* optional symbol.bench.LengthData left */ 42:
+                case /* optional symbol.bench.LengthData left */ 51:
                     message.left = LengthData.internalBinaryRead(reader, reader.uint32(), options, message.left);
                     break;
-                case /* optional symbol.bench.LengthData width */ 43:
+                case /* optional symbol.bench.LengthData width */ 52:
                     message.width = LengthData.internalBinaryRead(reader, reader.uint32(), options, message.width);
                     break;
-                case /* optional symbol.bench.LengthData height */ 44:
+                case /* optional symbol.bench.LengthData height */ 53:
                     message.height = LengthData.internalBinaryRead(reader, reader.uint32(), options, message.height);
                     break;
                 default:
@@ -19058,21 +19489,21 @@ class PositionData$Type extends MessageType$<PositionData> {
         /* symbol.bench.ObjectType metatype = 1; */
         if (message.metatype !== 0)
             writer.tag(1, WireType.Varint).int32(message.metatype);
-        /* symbol.bench.PositionType type = 40; */
+        /* symbol.bench.PositionType type = 30; */
         if (message.type !== 0)
-            writer.tag(40, WireType.Varint).int32(message.type);
-        /* optional symbol.bench.LengthData top = 41; */
+            writer.tag(30, WireType.Varint).int32(message.type);
+        /* optional symbol.bench.LengthData top = 50; */
         if (message.top)
-            LengthData.internalBinaryWrite(message.top, writer.tag(41, WireType.LengthDelimited).fork(), options).join();
-        /* optional symbol.bench.LengthData left = 42; */
+            LengthData.internalBinaryWrite(message.top, writer.tag(50, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbol.bench.LengthData left = 51; */
         if (message.left)
-            LengthData.internalBinaryWrite(message.left, writer.tag(42, WireType.LengthDelimited).fork(), options).join();
-        /* optional symbol.bench.LengthData width = 43; */
+            LengthData.internalBinaryWrite(message.left, writer.tag(51, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbol.bench.LengthData width = 52; */
         if (message.width)
-            LengthData.internalBinaryWrite(message.width, writer.tag(43, WireType.LengthDelimited).fork(), options).join();
-        /* optional symbol.bench.LengthData height = 44; */
+            LengthData.internalBinaryWrite(message.width, writer.tag(52, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbol.bench.LengthData height = 53; */
         if (message.height)
-            LengthData.internalBinaryWrite(message.height, writer.tag(44, WireType.LengthDelimited).fork(), options).join();
+            LengthData.internalBinaryWrite(message.height, writer.tag(53, WireType.LengthDelimited).fork(), options).join();
         let u = options.writeUnknownFields;
         if (u !== false)
             (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
@@ -19084,13 +19515,103 @@ class PositionData$Type extends MessageType$<PositionData> {
  */
 export const PositionData = new PositionData$Type();
 // @generated message type with reflection information, may provide speed optimized methods
+class VariablePositionData$Type extends MessageType$<VariablePositionData> {
+    constructor() {
+        super("symbol.bench.VariablePositionData", [
+            { no: 1, name: "metatype", kind: "enum", T: () => ["symbol.bench.ObjectType", ObjectType, "OBJECT_TYPE_"] },
+            { no: 30, name: "type", kind: "enum", T: () => ["symbol.bench.PositionType", PositionType, "POSITION_TYPE_"] },
+            { no: 40, name: "field_ptr", kind: "message", T: () => NodeReferenceData },
+            { no: 50, name: "top", kind: "message", T: () => LengthData },
+            { no: 51, name: "left", kind: "message", T: () => LengthData },
+            { no: 52, name: "width", kind: "message", T: () => LengthData },
+            { no: 53, name: "height", kind: "message", T: () => LengthData }
+        ]);
+    }
+    create(value?: PartialMessage<VariablePositionData>): VariablePositionData {
+        const message = globalThis.Object.create((this.messagePrototype!));
+        message.metatype = 0;
+        message.type = 0;
+        if (value !== undefined)
+            reflectionMergePartial<VariablePositionData>(this, message, value);
+        return message;
+    }
+    internalBinaryRead(reader: IBinaryReader, length: number, options: BinaryReadOptions, target?: VariablePositionData): VariablePositionData {
+        let message = target ?? this.create(), end = reader.pos + length;
+        while (reader.pos < end) {
+            let [fieldNo, wireType] = reader.tag();
+            switch (fieldNo) {
+                case /* symbol.bench.ObjectType metatype */ 1:
+                    message.metatype = reader.int32();
+                    break;
+                case /* symbol.bench.PositionType type */ 30:
+                    message.type = reader.int32();
+                    break;
+                case /* optional symbol.bench.NodeReferenceData field_ptr */ 40:
+                    message.fieldPtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.fieldPtr);
+                    break;
+                case /* optional symbol.bench.LengthData top */ 50:
+                    message.top = LengthData.internalBinaryRead(reader, reader.uint32(), options, message.top);
+                    break;
+                case /* optional symbol.bench.LengthData left */ 51:
+                    message.left = LengthData.internalBinaryRead(reader, reader.uint32(), options, message.left);
+                    break;
+                case /* optional symbol.bench.LengthData width */ 52:
+                    message.width = LengthData.internalBinaryRead(reader, reader.uint32(), options, message.width);
+                    break;
+                case /* optional symbol.bench.LengthData height */ 53:
+                    message.height = LengthData.internalBinaryRead(reader, reader.uint32(), options, message.height);
+                    break;
+                default:
+                    let u = options.readUnknownField;
+                    if (u === "throw")
+                        throw new globalThis.Error(`Unknown field ${fieldNo} (wire type ${wireType}) for ${this.typeName}`);
+                    let d = reader.skip(wireType);
+                    if (u !== false)
+                        (u === true ? UnknownFieldHandler.onRead : u)(this.typeName, message, fieldNo, wireType, d);
+            }
+        }
+        return message;
+    }
+    internalBinaryWrite(message: VariablePositionData, writer: IBinaryWriter, options: BinaryWriteOptions): IBinaryWriter {
+        /* symbol.bench.ObjectType metatype = 1; */
+        if (message.metatype !== 0)
+            writer.tag(1, WireType.Varint).int32(message.metatype);
+        /* symbol.bench.PositionType type = 30; */
+        if (message.type !== 0)
+            writer.tag(30, WireType.Varint).int32(message.type);
+        /* optional symbol.bench.NodeReferenceData field_ptr = 40; */
+        if (message.fieldPtr)
+            NodeReferenceData.internalBinaryWrite(message.fieldPtr, writer.tag(40, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbol.bench.LengthData top = 50; */
+        if (message.top)
+            LengthData.internalBinaryWrite(message.top, writer.tag(50, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbol.bench.LengthData left = 51; */
+        if (message.left)
+            LengthData.internalBinaryWrite(message.left, writer.tag(51, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbol.bench.LengthData width = 52; */
+        if (message.width)
+            LengthData.internalBinaryWrite(message.width, writer.tag(52, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbol.bench.LengthData height = 53; */
+        if (message.height)
+            LengthData.internalBinaryWrite(message.height, writer.tag(53, WireType.LengthDelimited).fork(), options).join();
+        let u = options.writeUnknownFields;
+        if (u !== false)
+            (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
+        return writer;
+    }
+}
+/**
+ * @generated MessageType for protobuf message symbol.bench.VariablePositionData
+ */
+export const VariablePositionData = new VariablePositionData$Type();
+// @generated message type with reflection information, may provide speed optimized methods
 class DimensionData$Type extends MessageType$<DimensionData> {
     constructor() {
         super("symbol.bench.DimensionData", [
             { no: 1, name: "metatype", kind: "enum", T: () => ["symbol.bench.ObjectType", ObjectType, "OBJECT_TYPE_"] },
             { no: 30, name: "type", kind: "enum", T: () => ["symbol.bench.DimensionType", DimensionType, "DIMENSION_TYPE_"] },
-            { no: 31, name: "unit", kind: "enum", T: () => ["symbol.bench.LengthUnit", LengthUnit, "LENGTH_UNIT_"] },
-            { no: 40, name: "value", kind: "scalar", T: 2 /*ScalarType.FLOAT*/ }
+            { no: 50, name: "unit", kind: "enum", T: () => ["symbol.bench.LengthUnit", LengthUnit, "LENGTH_UNIT_"] },
+            { no: 51, name: "value", kind: "scalar", T: 2 /*ScalarType.FLOAT*/ }
         ]);
     }
     create(value?: PartialMessage<DimensionData>): DimensionData {
@@ -19114,10 +19635,10 @@ class DimensionData$Type extends MessageType$<DimensionData> {
                 case /* symbol.bench.DimensionType type */ 30:
                     message.type = reader.int32();
                     break;
-                case /* symbol.bench.LengthUnit unit */ 31:
+                case /* symbol.bench.LengthUnit unit */ 50:
                     message.unit = reader.int32();
                     break;
-                case /* float value */ 40:
+                case /* float value */ 51:
                     message.value = reader.float();
                     break;
                 default:
@@ -19138,12 +19659,12 @@ class DimensionData$Type extends MessageType$<DimensionData> {
         /* symbol.bench.DimensionType type = 30; */
         if (message.type !== 0)
             writer.tag(30, WireType.Varint).int32(message.type);
-        /* symbol.bench.LengthUnit unit = 31; */
+        /* symbol.bench.LengthUnit unit = 50; */
         if (message.unit !== 0)
-            writer.tag(31, WireType.Varint).int32(message.unit);
-        /* float value = 40; */
+            writer.tag(50, WireType.Varint).int32(message.unit);
+        /* float value = 51; */
         if (message.value !== 0)
-            writer.tag(40, WireType.Bit32).float(message.value);
+            writer.tag(51, WireType.Bit32).float(message.value);
         let u = options.writeUnknownFields;
         if (u !== false)
             (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
@@ -19155,15 +19676,93 @@ class DimensionData$Type extends MessageType$<DimensionData> {
  */
 export const DimensionData = new DimensionData$Type();
 // @generated message type with reflection information, may provide speed optimized methods
+class VariableDimensionData$Type extends MessageType$<VariableDimensionData> {
+    constructor() {
+        super("symbol.bench.VariableDimensionData", [
+            { no: 1, name: "metatype", kind: "enum", T: () => ["symbol.bench.ObjectType", ObjectType, "OBJECT_TYPE_"] },
+            { no: 30, name: "type", kind: "enum", T: () => ["symbol.bench.DimensionType", DimensionType, "DIMENSION_TYPE_"] },
+            { no: 40, name: "field_ptr", kind: "message", T: () => NodeReferenceData },
+            { no: 50, name: "unit", kind: "enum", T: () => ["symbol.bench.LengthUnit", LengthUnit, "LENGTH_UNIT_"] },
+            { no: 51, name: "value", kind: "scalar", T: 2 /*ScalarType.FLOAT*/ }
+        ]);
+    }
+    create(value?: PartialMessage<VariableDimensionData>): VariableDimensionData {
+        const message = globalThis.Object.create((this.messagePrototype!));
+        message.metatype = 0;
+        message.type = 0;
+        message.unit = 0;
+        message.value = 0;
+        if (value !== undefined)
+            reflectionMergePartial<VariableDimensionData>(this, message, value);
+        return message;
+    }
+    internalBinaryRead(reader: IBinaryReader, length: number, options: BinaryReadOptions, target?: VariableDimensionData): VariableDimensionData {
+        let message = target ?? this.create(), end = reader.pos + length;
+        while (reader.pos < end) {
+            let [fieldNo, wireType] = reader.tag();
+            switch (fieldNo) {
+                case /* symbol.bench.ObjectType metatype */ 1:
+                    message.metatype = reader.int32();
+                    break;
+                case /* symbol.bench.DimensionType type */ 30:
+                    message.type = reader.int32();
+                    break;
+                case /* optional symbol.bench.NodeReferenceData field_ptr */ 40:
+                    message.fieldPtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.fieldPtr);
+                    break;
+                case /* symbol.bench.LengthUnit unit */ 50:
+                    message.unit = reader.int32();
+                    break;
+                case /* float value */ 51:
+                    message.value = reader.float();
+                    break;
+                default:
+                    let u = options.readUnknownField;
+                    if (u === "throw")
+                        throw new globalThis.Error(`Unknown field ${fieldNo} (wire type ${wireType}) for ${this.typeName}`);
+                    let d = reader.skip(wireType);
+                    if (u !== false)
+                        (u === true ? UnknownFieldHandler.onRead : u)(this.typeName, message, fieldNo, wireType, d);
+            }
+        }
+        return message;
+    }
+    internalBinaryWrite(message: VariableDimensionData, writer: IBinaryWriter, options: BinaryWriteOptions): IBinaryWriter {
+        /* symbol.bench.ObjectType metatype = 1; */
+        if (message.metatype !== 0)
+            writer.tag(1, WireType.Varint).int32(message.metatype);
+        /* symbol.bench.DimensionType type = 30; */
+        if (message.type !== 0)
+            writer.tag(30, WireType.Varint).int32(message.type);
+        /* optional symbol.bench.NodeReferenceData field_ptr = 40; */
+        if (message.fieldPtr)
+            NodeReferenceData.internalBinaryWrite(message.fieldPtr, writer.tag(40, WireType.LengthDelimited).fork(), options).join();
+        /* symbol.bench.LengthUnit unit = 50; */
+        if (message.unit !== 0)
+            writer.tag(50, WireType.Varint).int32(message.unit);
+        /* float value = 51; */
+        if (message.value !== 0)
+            writer.tag(51, WireType.Bit32).float(message.value);
+        let u = options.writeUnknownFields;
+        if (u !== false)
+            (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
+        return writer;
+    }
+}
+/**
+ * @generated MessageType for protobuf message symbol.bench.VariableDimensionData
+ */
+export const VariableDimensionData = new VariableDimensionData$Type();
+// @generated message type with reflection information, may provide speed optimized methods
 class InsetsData$Type extends MessageType$<InsetsData> {
     constructor() {
         super("symbol.bench.InsetsData", [
             { no: 1, name: "metatype", kind: "enum", T: () => ["symbol.bench.ObjectType", ObjectType, "OBJECT_TYPE_"] },
-            { no: 40, name: "base", kind: "scalar", opt: true, T: 5 /*ScalarType.INT32*/ },
-            { no: 41, name: "top", kind: "scalar", opt: true, T: 5 /*ScalarType.INT32*/ },
-            { no: 42, name: "left", kind: "scalar", opt: true, T: 5 /*ScalarType.INT32*/ },
-            { no: 43, name: "right", kind: "scalar", opt: true, T: 5 /*ScalarType.INT32*/ },
-            { no: 44, name: "bottom", kind: "scalar", opt: true, T: 5 /*ScalarType.INT32*/ }
+            { no: 50, name: "base", kind: "scalar", opt: true, T: 5 /*ScalarType.INT32*/ },
+            { no: 51, name: "top", kind: "scalar", opt: true, T: 5 /*ScalarType.INT32*/ },
+            { no: 52, name: "left", kind: "scalar", opt: true, T: 5 /*ScalarType.INT32*/ },
+            { no: 53, name: "right", kind: "scalar", opt: true, T: 5 /*ScalarType.INT32*/ },
+            { no: 54, name: "bottom", kind: "scalar", opt: true, T: 5 /*ScalarType.INT32*/ }
         ]);
     }
     create(value?: PartialMessage<InsetsData>): InsetsData {
@@ -19181,19 +19780,19 @@ class InsetsData$Type extends MessageType$<InsetsData> {
                 case /* symbol.bench.ObjectType metatype */ 1:
                     message.metatype = reader.int32();
                     break;
-                case /* optional int32 base */ 40:
+                case /* optional int32 base */ 50:
                     message.base = reader.int32();
                     break;
-                case /* optional int32 top */ 41:
+                case /* optional int32 top */ 51:
                     message.top = reader.int32();
                     break;
-                case /* optional int32 left */ 42:
+                case /* optional int32 left */ 52:
                     message.left = reader.int32();
                     break;
-                case /* optional int32 right */ 43:
+                case /* optional int32 right */ 53:
                     message.right = reader.int32();
                     break;
-                case /* optional int32 bottom */ 44:
+                case /* optional int32 bottom */ 54:
                     message.bottom = reader.int32();
                     break;
                 default:
@@ -19211,21 +19810,21 @@ class InsetsData$Type extends MessageType$<InsetsData> {
         /* symbol.bench.ObjectType metatype = 1; */
         if (message.metatype !== 0)
             writer.tag(1, WireType.Varint).int32(message.metatype);
-        /* optional int32 base = 40; */
+        /* optional int32 base = 50; */
         if (message.base !== undefined)
-            writer.tag(40, WireType.Varint).int32(message.base);
-        /* optional int32 top = 41; */
+            writer.tag(50, WireType.Varint).int32(message.base);
+        /* optional int32 top = 51; */
         if (message.top !== undefined)
-            writer.tag(41, WireType.Varint).int32(message.top);
-        /* optional int32 left = 42; */
+            writer.tag(51, WireType.Varint).int32(message.top);
+        /* optional int32 left = 52; */
         if (message.left !== undefined)
-            writer.tag(42, WireType.Varint).int32(message.left);
-        /* optional int32 right = 43; */
+            writer.tag(52, WireType.Varint).int32(message.left);
+        /* optional int32 right = 53; */
         if (message.right !== undefined)
-            writer.tag(43, WireType.Varint).int32(message.right);
-        /* optional int32 bottom = 44; */
+            writer.tag(53, WireType.Varint).int32(message.right);
+        /* optional int32 bottom = 54; */
         if (message.bottom !== undefined)
-            writer.tag(44, WireType.Varint).int32(message.bottom);
+            writer.tag(54, WireType.Varint).int32(message.bottom);
         let u = options.writeUnknownFields;
         if (u !== false)
             (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
@@ -19237,15 +19836,104 @@ class InsetsData$Type extends MessageType$<InsetsData> {
  */
 export const InsetsData = new InsetsData$Type();
 // @generated message type with reflection information, may provide speed optimized methods
+class VariableInsetsData$Type extends MessageType$<VariableInsetsData> {
+    constructor() {
+        super("symbol.bench.VariableInsetsData", [
+            { no: 1, name: "metatype", kind: "enum", T: () => ["symbol.bench.ObjectType", ObjectType, "OBJECT_TYPE_"] },
+            { no: 40, name: "field_ptr", kind: "message", T: () => NodeReferenceData },
+            { no: 50, name: "base", kind: "scalar", opt: true, T: 5 /*ScalarType.INT32*/ },
+            { no: 51, name: "top", kind: "scalar", opt: true, T: 5 /*ScalarType.INT32*/ },
+            { no: 52, name: "left", kind: "scalar", opt: true, T: 5 /*ScalarType.INT32*/ },
+            { no: 53, name: "right", kind: "scalar", opt: true, T: 5 /*ScalarType.INT32*/ },
+            { no: 54, name: "bottom", kind: "scalar", opt: true, T: 5 /*ScalarType.INT32*/ }
+        ]);
+    }
+    create(value?: PartialMessage<VariableInsetsData>): VariableInsetsData {
+        const message = globalThis.Object.create((this.messagePrototype!));
+        message.metatype = 0;
+        if (value !== undefined)
+            reflectionMergePartial<VariableInsetsData>(this, message, value);
+        return message;
+    }
+    internalBinaryRead(reader: IBinaryReader, length: number, options: BinaryReadOptions, target?: VariableInsetsData): VariableInsetsData {
+        let message = target ?? this.create(), end = reader.pos + length;
+        while (reader.pos < end) {
+            let [fieldNo, wireType] = reader.tag();
+            switch (fieldNo) {
+                case /* symbol.bench.ObjectType metatype */ 1:
+                    message.metatype = reader.int32();
+                    break;
+                case /* optional symbol.bench.NodeReferenceData field_ptr */ 40:
+                    message.fieldPtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.fieldPtr);
+                    break;
+                case /* optional int32 base */ 50:
+                    message.base = reader.int32();
+                    break;
+                case /* optional int32 top */ 51:
+                    message.top = reader.int32();
+                    break;
+                case /* optional int32 left */ 52:
+                    message.left = reader.int32();
+                    break;
+                case /* optional int32 right */ 53:
+                    message.right = reader.int32();
+                    break;
+                case /* optional int32 bottom */ 54:
+                    message.bottom = reader.int32();
+                    break;
+                default:
+                    let u = options.readUnknownField;
+                    if (u === "throw")
+                        throw new globalThis.Error(`Unknown field ${fieldNo} (wire type ${wireType}) for ${this.typeName}`);
+                    let d = reader.skip(wireType);
+                    if (u !== false)
+                        (u === true ? UnknownFieldHandler.onRead : u)(this.typeName, message, fieldNo, wireType, d);
+            }
+        }
+        return message;
+    }
+    internalBinaryWrite(message: VariableInsetsData, writer: IBinaryWriter, options: BinaryWriteOptions): IBinaryWriter {
+        /* symbol.bench.ObjectType metatype = 1; */
+        if (message.metatype !== 0)
+            writer.tag(1, WireType.Varint).int32(message.metatype);
+        /* optional symbol.bench.NodeReferenceData field_ptr = 40; */
+        if (message.fieldPtr)
+            NodeReferenceData.internalBinaryWrite(message.fieldPtr, writer.tag(40, WireType.LengthDelimited).fork(), options).join();
+        /* optional int32 base = 50; */
+        if (message.base !== undefined)
+            writer.tag(50, WireType.Varint).int32(message.base);
+        /* optional int32 top = 51; */
+        if (message.top !== undefined)
+            writer.tag(51, WireType.Varint).int32(message.top);
+        /* optional int32 left = 52; */
+        if (message.left !== undefined)
+            writer.tag(52, WireType.Varint).int32(message.left);
+        /* optional int32 right = 53; */
+        if (message.right !== undefined)
+            writer.tag(53, WireType.Varint).int32(message.right);
+        /* optional int32 bottom = 54; */
+        if (message.bottom !== undefined)
+            writer.tag(54, WireType.Varint).int32(message.bottom);
+        let u = options.writeUnknownFields;
+        if (u !== false)
+            (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
+        return writer;
+    }
+}
+/**
+ * @generated MessageType for protobuf message symbol.bench.VariableInsetsData
+ */
+export const VariableInsetsData = new VariableInsetsData$Type();
+// @generated message type with reflection information, may provide speed optimized methods
 class CornersData$Type extends MessageType$<CornersData> {
     constructor() {
         super("symbol.bench.CornersData", [
             { no: 1, name: "metatype", kind: "enum", T: () => ["symbol.bench.ObjectType", ObjectType, "OBJECT_TYPE_"] },
-            { no: 40, name: "base", kind: "scalar", opt: true, T: 5 /*ScalarType.INT32*/ },
-            { no: 41, name: "top_left", kind: "scalar", opt: true, T: 5 /*ScalarType.INT32*/ },
-            { no: 42, name: "top_right", kind: "scalar", opt: true, T: 5 /*ScalarType.INT32*/ },
-            { no: 43, name: "bottom_left", kind: "scalar", opt: true, T: 5 /*ScalarType.INT32*/ },
-            { no: 44, name: "bottom_right", kind: "scalar", opt: true, T: 5 /*ScalarType.INT32*/ }
+            { no: 50, name: "base", kind: "scalar", opt: true, T: 5 /*ScalarType.INT32*/ },
+            { no: 51, name: "top_left", kind: "scalar", opt: true, T: 5 /*ScalarType.INT32*/ },
+            { no: 52, name: "top_right", kind: "scalar", opt: true, T: 5 /*ScalarType.INT32*/ },
+            { no: 53, name: "bottom_left", kind: "scalar", opt: true, T: 5 /*ScalarType.INT32*/ },
+            { no: 54, name: "bottom_right", kind: "scalar", opt: true, T: 5 /*ScalarType.INT32*/ }
         ]);
     }
     create(value?: PartialMessage<CornersData>): CornersData {
@@ -19263,19 +19951,19 @@ class CornersData$Type extends MessageType$<CornersData> {
                 case /* symbol.bench.ObjectType metatype */ 1:
                     message.metatype = reader.int32();
                     break;
-                case /* optional int32 base */ 40:
+                case /* optional int32 base */ 50:
                     message.base = reader.int32();
                     break;
-                case /* optional int32 top_left */ 41:
+                case /* optional int32 top_left */ 51:
                     message.topLeft = reader.int32();
                     break;
-                case /* optional int32 top_right */ 42:
+                case /* optional int32 top_right */ 52:
                     message.topRight = reader.int32();
                     break;
-                case /* optional int32 bottom_left */ 43:
+                case /* optional int32 bottom_left */ 53:
                     message.bottomLeft = reader.int32();
                     break;
-                case /* optional int32 bottom_right */ 44:
+                case /* optional int32 bottom_right */ 54:
                     message.bottomRight = reader.int32();
                     break;
                 default:
@@ -19293,21 +19981,21 @@ class CornersData$Type extends MessageType$<CornersData> {
         /* symbol.bench.ObjectType metatype = 1; */
         if (message.metatype !== 0)
             writer.tag(1, WireType.Varint).int32(message.metatype);
-        /* optional int32 base = 40; */
+        /* optional int32 base = 50; */
         if (message.base !== undefined)
-            writer.tag(40, WireType.Varint).int32(message.base);
-        /* optional int32 top_left = 41; */
+            writer.tag(50, WireType.Varint).int32(message.base);
+        /* optional int32 top_left = 51; */
         if (message.topLeft !== undefined)
-            writer.tag(41, WireType.Varint).int32(message.topLeft);
-        /* optional int32 top_right = 42; */
+            writer.tag(51, WireType.Varint).int32(message.topLeft);
+        /* optional int32 top_right = 52; */
         if (message.topRight !== undefined)
-            writer.tag(42, WireType.Varint).int32(message.topRight);
-        /* optional int32 bottom_left = 43; */
+            writer.tag(52, WireType.Varint).int32(message.topRight);
+        /* optional int32 bottom_left = 53; */
         if (message.bottomLeft !== undefined)
-            writer.tag(43, WireType.Varint).int32(message.bottomLeft);
-        /* optional int32 bottom_right = 44; */
+            writer.tag(53, WireType.Varint).int32(message.bottomLeft);
+        /* optional int32 bottom_right = 54; */
         if (message.bottomRight !== undefined)
-            writer.tag(44, WireType.Varint).int32(message.bottomRight);
+            writer.tag(54, WireType.Varint).int32(message.bottomRight);
         let u = options.writeUnknownFields;
         if (u !== false)
             (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
@@ -19319,13 +20007,102 @@ class CornersData$Type extends MessageType$<CornersData> {
  */
 export const CornersData = new CornersData$Type();
 // @generated message type with reflection information, may provide speed optimized methods
+class VariableCornersData$Type extends MessageType$<VariableCornersData> {
+    constructor() {
+        super("symbol.bench.VariableCornersData", [
+            { no: 1, name: "metatype", kind: "enum", T: () => ["symbol.bench.ObjectType", ObjectType, "OBJECT_TYPE_"] },
+            { no: 40, name: "field_ptr", kind: "message", T: () => NodeReferenceData },
+            { no: 50, name: "base", kind: "scalar", opt: true, T: 5 /*ScalarType.INT32*/ },
+            { no: 51, name: "top_left", kind: "scalar", opt: true, T: 5 /*ScalarType.INT32*/ },
+            { no: 52, name: "top_right", kind: "scalar", opt: true, T: 5 /*ScalarType.INT32*/ },
+            { no: 53, name: "bottom_left", kind: "scalar", opt: true, T: 5 /*ScalarType.INT32*/ },
+            { no: 54, name: "bottom_right", kind: "scalar", opt: true, T: 5 /*ScalarType.INT32*/ }
+        ]);
+    }
+    create(value?: PartialMessage<VariableCornersData>): VariableCornersData {
+        const message = globalThis.Object.create((this.messagePrototype!));
+        message.metatype = 0;
+        if (value !== undefined)
+            reflectionMergePartial<VariableCornersData>(this, message, value);
+        return message;
+    }
+    internalBinaryRead(reader: IBinaryReader, length: number, options: BinaryReadOptions, target?: VariableCornersData): VariableCornersData {
+        let message = target ?? this.create(), end = reader.pos + length;
+        while (reader.pos < end) {
+            let [fieldNo, wireType] = reader.tag();
+            switch (fieldNo) {
+                case /* symbol.bench.ObjectType metatype */ 1:
+                    message.metatype = reader.int32();
+                    break;
+                case /* optional symbol.bench.NodeReferenceData field_ptr */ 40:
+                    message.fieldPtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.fieldPtr);
+                    break;
+                case /* optional int32 base */ 50:
+                    message.base = reader.int32();
+                    break;
+                case /* optional int32 top_left */ 51:
+                    message.topLeft = reader.int32();
+                    break;
+                case /* optional int32 top_right */ 52:
+                    message.topRight = reader.int32();
+                    break;
+                case /* optional int32 bottom_left */ 53:
+                    message.bottomLeft = reader.int32();
+                    break;
+                case /* optional int32 bottom_right */ 54:
+                    message.bottomRight = reader.int32();
+                    break;
+                default:
+                    let u = options.readUnknownField;
+                    if (u === "throw")
+                        throw new globalThis.Error(`Unknown field ${fieldNo} (wire type ${wireType}) for ${this.typeName}`);
+                    let d = reader.skip(wireType);
+                    if (u !== false)
+                        (u === true ? UnknownFieldHandler.onRead : u)(this.typeName, message, fieldNo, wireType, d);
+            }
+        }
+        return message;
+    }
+    internalBinaryWrite(message: VariableCornersData, writer: IBinaryWriter, options: BinaryWriteOptions): IBinaryWriter {
+        /* symbol.bench.ObjectType metatype = 1; */
+        if (message.metatype !== 0)
+            writer.tag(1, WireType.Varint).int32(message.metatype);
+        /* optional symbol.bench.NodeReferenceData field_ptr = 40; */
+        if (message.fieldPtr)
+            NodeReferenceData.internalBinaryWrite(message.fieldPtr, writer.tag(40, WireType.LengthDelimited).fork(), options).join();
+        /* optional int32 base = 50; */
+        if (message.base !== undefined)
+            writer.tag(50, WireType.Varint).int32(message.base);
+        /* optional int32 top_left = 51; */
+        if (message.topLeft !== undefined)
+            writer.tag(51, WireType.Varint).int32(message.topLeft);
+        /* optional int32 top_right = 52; */
+        if (message.topRight !== undefined)
+            writer.tag(52, WireType.Varint).int32(message.topRight);
+        /* optional int32 bottom_left = 53; */
+        if (message.bottomLeft !== undefined)
+            writer.tag(53, WireType.Varint).int32(message.bottomLeft);
+        /* optional int32 bottom_right = 54; */
+        if (message.bottomRight !== undefined)
+            writer.tag(54, WireType.Varint).int32(message.bottomRight);
+        let u = options.writeUnknownFields;
+        if (u !== false)
+            (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
+        return writer;
+    }
+}
+/**
+ * @generated MessageType for protobuf message symbol.bench.VariableCornersData
+ */
+export const VariableCornersData = new VariableCornersData$Type();
+// @generated message type with reflection information, may provide speed optimized methods
 class Axis2Data$Type extends MessageType$<Axis2Data> {
     constructor() {
         super("symbol.bench.Axis2Data", [
             { no: 1, name: "metatype", kind: "enum", T: () => ["symbol.bench.ObjectType", ObjectType, "OBJECT_TYPE_"] },
-            { no: 40, name: "base", kind: "scalar", opt: true, T: 2 /*ScalarType.FLOAT*/ },
-            { no: 41, name: "x", kind: "scalar", opt: true, T: 2 /*ScalarType.FLOAT*/ },
-            { no: 42, name: "y", kind: "scalar", opt: true, T: 2 /*ScalarType.FLOAT*/ }
+            { no: 50, name: "base", kind: "scalar", opt: true, T: 2 /*ScalarType.FLOAT*/ },
+            { no: 51, name: "x", kind: "scalar", opt: true, T: 2 /*ScalarType.FLOAT*/ },
+            { no: 52, name: "y", kind: "scalar", opt: true, T: 2 /*ScalarType.FLOAT*/ }
         ]);
     }
     create(value?: PartialMessage<Axis2Data>): Axis2Data {
@@ -19343,13 +20120,13 @@ class Axis2Data$Type extends MessageType$<Axis2Data> {
                 case /* symbol.bench.ObjectType metatype */ 1:
                     message.metatype = reader.int32();
                     break;
-                case /* optional float base */ 40:
+                case /* optional float base */ 50:
                     message.base = reader.float();
                     break;
-                case /* optional float x */ 41:
+                case /* optional float x */ 51:
                     message.x = reader.float();
                     break;
-                case /* optional float y */ 42:
+                case /* optional float y */ 52:
                     message.y = reader.float();
                     break;
                 default:
@@ -19367,15 +20144,15 @@ class Axis2Data$Type extends MessageType$<Axis2Data> {
         /* symbol.bench.ObjectType metatype = 1; */
         if (message.metatype !== 0)
             writer.tag(1, WireType.Varint).int32(message.metatype);
-        /* optional float base = 40; */
+        /* optional float base = 50; */
         if (message.base !== undefined)
-            writer.tag(40, WireType.Bit32).float(message.base);
-        /* optional float x = 41; */
+            writer.tag(50, WireType.Bit32).float(message.base);
+        /* optional float x = 51; */
         if (message.x !== undefined)
-            writer.tag(41, WireType.Bit32).float(message.x);
-        /* optional float y = 42; */
+            writer.tag(51, WireType.Bit32).float(message.x);
+        /* optional float y = 52; */
         if (message.y !== undefined)
-            writer.tag(42, WireType.Bit32).float(message.y);
+            writer.tag(52, WireType.Bit32).float(message.y);
         let u = options.writeUnknownFields;
         if (u !== false)
             (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
@@ -19387,14 +20164,89 @@ class Axis2Data$Type extends MessageType$<Axis2Data> {
  */
 export const Axis2Data = new Axis2Data$Type();
 // @generated message type with reflection information, may provide speed optimized methods
+class VariableAxis2Data$Type extends MessageType$<VariableAxis2Data> {
+    constructor() {
+        super("symbol.bench.VariableAxis2Data", [
+            { no: 1, name: "metatype", kind: "enum", T: () => ["symbol.bench.ObjectType", ObjectType, "OBJECT_TYPE_"] },
+            { no: 40, name: "field_ptr", kind: "message", T: () => NodeReferenceData },
+            { no: 50, name: "base", kind: "scalar", opt: true, T: 2 /*ScalarType.FLOAT*/ },
+            { no: 51, name: "x", kind: "scalar", opt: true, T: 2 /*ScalarType.FLOAT*/ },
+            { no: 52, name: "y", kind: "scalar", opt: true, T: 2 /*ScalarType.FLOAT*/ }
+        ]);
+    }
+    create(value?: PartialMessage<VariableAxis2Data>): VariableAxis2Data {
+        const message = globalThis.Object.create((this.messagePrototype!));
+        message.metatype = 0;
+        if (value !== undefined)
+            reflectionMergePartial<VariableAxis2Data>(this, message, value);
+        return message;
+    }
+    internalBinaryRead(reader: IBinaryReader, length: number, options: BinaryReadOptions, target?: VariableAxis2Data): VariableAxis2Data {
+        let message = target ?? this.create(), end = reader.pos + length;
+        while (reader.pos < end) {
+            let [fieldNo, wireType] = reader.tag();
+            switch (fieldNo) {
+                case /* symbol.bench.ObjectType metatype */ 1:
+                    message.metatype = reader.int32();
+                    break;
+                case /* optional symbol.bench.NodeReferenceData field_ptr */ 40:
+                    message.fieldPtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.fieldPtr);
+                    break;
+                case /* optional float base */ 50:
+                    message.base = reader.float();
+                    break;
+                case /* optional float x */ 51:
+                    message.x = reader.float();
+                    break;
+                case /* optional float y */ 52:
+                    message.y = reader.float();
+                    break;
+                default:
+                    let u = options.readUnknownField;
+                    if (u === "throw")
+                        throw new globalThis.Error(`Unknown field ${fieldNo} (wire type ${wireType}) for ${this.typeName}`);
+                    let d = reader.skip(wireType);
+                    if (u !== false)
+                        (u === true ? UnknownFieldHandler.onRead : u)(this.typeName, message, fieldNo, wireType, d);
+            }
+        }
+        return message;
+    }
+    internalBinaryWrite(message: VariableAxis2Data, writer: IBinaryWriter, options: BinaryWriteOptions): IBinaryWriter {
+        /* symbol.bench.ObjectType metatype = 1; */
+        if (message.metatype !== 0)
+            writer.tag(1, WireType.Varint).int32(message.metatype);
+        /* optional symbol.bench.NodeReferenceData field_ptr = 40; */
+        if (message.fieldPtr)
+            NodeReferenceData.internalBinaryWrite(message.fieldPtr, writer.tag(40, WireType.LengthDelimited).fork(), options).join();
+        /* optional float base = 50; */
+        if (message.base !== undefined)
+            writer.tag(50, WireType.Bit32).float(message.base);
+        /* optional float x = 51; */
+        if (message.x !== undefined)
+            writer.tag(51, WireType.Bit32).float(message.x);
+        /* optional float y = 52; */
+        if (message.y !== undefined)
+            writer.tag(52, WireType.Bit32).float(message.y);
+        let u = options.writeUnknownFields;
+        if (u !== false)
+            (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
+        return writer;
+    }
+}
+/**
+ * @generated MessageType for protobuf message symbol.bench.VariableAxis2Data
+ */
+export const VariableAxis2Data = new VariableAxis2Data$Type();
+// @generated message type with reflection information, may provide speed optimized methods
 class Axis3Data$Type extends MessageType$<Axis3Data> {
     constructor() {
         super("symbol.bench.Axis3Data", [
             { no: 1, name: "metatype", kind: "enum", T: () => ["symbol.bench.ObjectType", ObjectType, "OBJECT_TYPE_"] },
-            { no: 40, name: "base", kind: "scalar", opt: true, T: 2 /*ScalarType.FLOAT*/ },
-            { no: 41, name: "x", kind: "scalar", opt: true, T: 2 /*ScalarType.FLOAT*/ },
-            { no: 42, name: "y", kind: "scalar", opt: true, T: 2 /*ScalarType.FLOAT*/ },
-            { no: 43, name: "z", kind: "scalar", opt: true, T: 2 /*ScalarType.FLOAT*/ }
+            { no: 50, name: "base", kind: "scalar", opt: true, T: 2 /*ScalarType.FLOAT*/ },
+            { no: 51, name: "x", kind: "scalar", opt: true, T: 2 /*ScalarType.FLOAT*/ },
+            { no: 52, name: "y", kind: "scalar", opt: true, T: 2 /*ScalarType.FLOAT*/ },
+            { no: 53, name: "z", kind: "scalar", opt: true, T: 2 /*ScalarType.FLOAT*/ }
         ]);
     }
     create(value?: PartialMessage<Axis3Data>): Axis3Data {
@@ -19412,16 +20264,16 @@ class Axis3Data$Type extends MessageType$<Axis3Data> {
                 case /* symbol.bench.ObjectType metatype */ 1:
                     message.metatype = reader.int32();
                     break;
-                case /* optional float base */ 40:
+                case /* optional float base */ 50:
                     message.base = reader.float();
                     break;
-                case /* optional float x */ 41:
+                case /* optional float x */ 51:
                     message.x = reader.float();
                     break;
-                case /* optional float y */ 42:
+                case /* optional float y */ 52:
                     message.y = reader.float();
                     break;
-                case /* optional float z */ 43:
+                case /* optional float z */ 53:
                     message.z = reader.float();
                     break;
                 default:
@@ -19439,18 +20291,18 @@ class Axis3Data$Type extends MessageType$<Axis3Data> {
         /* symbol.bench.ObjectType metatype = 1; */
         if (message.metatype !== 0)
             writer.tag(1, WireType.Varint).int32(message.metatype);
-        /* optional float base = 40; */
+        /* optional float base = 50; */
         if (message.base !== undefined)
-            writer.tag(40, WireType.Bit32).float(message.base);
-        /* optional float x = 41; */
+            writer.tag(50, WireType.Bit32).float(message.base);
+        /* optional float x = 51; */
         if (message.x !== undefined)
-            writer.tag(41, WireType.Bit32).float(message.x);
-        /* optional float y = 42; */
+            writer.tag(51, WireType.Bit32).float(message.x);
+        /* optional float y = 52; */
         if (message.y !== undefined)
-            writer.tag(42, WireType.Bit32).float(message.y);
-        /* optional float z = 43; */
+            writer.tag(52, WireType.Bit32).float(message.y);
+        /* optional float z = 53; */
         if (message.z !== undefined)
-            writer.tag(43, WireType.Bit32).float(message.z);
+            writer.tag(53, WireType.Bit32).float(message.z);
         let u = options.writeUnknownFields;
         if (u !== false)
             (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
@@ -19462,15 +20314,544 @@ class Axis3Data$Type extends MessageType$<Axis3Data> {
  */
 export const Axis3Data = new Axis3Data$Type();
 // @generated message type with reflection information, may provide speed optimized methods
+class VariableAxis3Data$Type extends MessageType$<VariableAxis3Data> {
+    constructor() {
+        super("symbol.bench.VariableAxis3Data", [
+            { no: 1, name: "metatype", kind: "enum", T: () => ["symbol.bench.ObjectType", ObjectType, "OBJECT_TYPE_"] },
+            { no: 40, name: "field_ptr", kind: "message", T: () => NodeReferenceData },
+            { no: 50, name: "base", kind: "scalar", opt: true, T: 2 /*ScalarType.FLOAT*/ },
+            { no: 51, name: "x", kind: "scalar", opt: true, T: 2 /*ScalarType.FLOAT*/ },
+            { no: 52, name: "y", kind: "scalar", opt: true, T: 2 /*ScalarType.FLOAT*/ },
+            { no: 53, name: "z", kind: "scalar", opt: true, T: 2 /*ScalarType.FLOAT*/ }
+        ]);
+    }
+    create(value?: PartialMessage<VariableAxis3Data>): VariableAxis3Data {
+        const message = globalThis.Object.create((this.messagePrototype!));
+        message.metatype = 0;
+        if (value !== undefined)
+            reflectionMergePartial<VariableAxis3Data>(this, message, value);
+        return message;
+    }
+    internalBinaryRead(reader: IBinaryReader, length: number, options: BinaryReadOptions, target?: VariableAxis3Data): VariableAxis3Data {
+        let message = target ?? this.create(), end = reader.pos + length;
+        while (reader.pos < end) {
+            let [fieldNo, wireType] = reader.tag();
+            switch (fieldNo) {
+                case /* symbol.bench.ObjectType metatype */ 1:
+                    message.metatype = reader.int32();
+                    break;
+                case /* optional symbol.bench.NodeReferenceData field_ptr */ 40:
+                    message.fieldPtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.fieldPtr);
+                    break;
+                case /* optional float base */ 50:
+                    message.base = reader.float();
+                    break;
+                case /* optional float x */ 51:
+                    message.x = reader.float();
+                    break;
+                case /* optional float y */ 52:
+                    message.y = reader.float();
+                    break;
+                case /* optional float z */ 53:
+                    message.z = reader.float();
+                    break;
+                default:
+                    let u = options.readUnknownField;
+                    if (u === "throw")
+                        throw new globalThis.Error(`Unknown field ${fieldNo} (wire type ${wireType}) for ${this.typeName}`);
+                    let d = reader.skip(wireType);
+                    if (u !== false)
+                        (u === true ? UnknownFieldHandler.onRead : u)(this.typeName, message, fieldNo, wireType, d);
+            }
+        }
+        return message;
+    }
+    internalBinaryWrite(message: VariableAxis3Data, writer: IBinaryWriter, options: BinaryWriteOptions): IBinaryWriter {
+        /* symbol.bench.ObjectType metatype = 1; */
+        if (message.metatype !== 0)
+            writer.tag(1, WireType.Varint).int32(message.metatype);
+        /* optional symbol.bench.NodeReferenceData field_ptr = 40; */
+        if (message.fieldPtr)
+            NodeReferenceData.internalBinaryWrite(message.fieldPtr, writer.tag(40, WireType.LengthDelimited).fork(), options).join();
+        /* optional float base = 50; */
+        if (message.base !== undefined)
+            writer.tag(50, WireType.Bit32).float(message.base);
+        /* optional float x = 51; */
+        if (message.x !== undefined)
+            writer.tag(51, WireType.Bit32).float(message.x);
+        /* optional float y = 52; */
+        if (message.y !== undefined)
+            writer.tag(52, WireType.Bit32).float(message.y);
+        /* optional float z = 53; */
+        if (message.z !== undefined)
+            writer.tag(53, WireType.Bit32).float(message.z);
+        let u = options.writeUnknownFields;
+        if (u !== false)
+            (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
+        return writer;
+    }
+}
+/**
+ * @generated MessageType for protobuf message symbol.bench.VariableAxis3Data
+ */
+export const VariableAxis3Data = new VariableAxis3Data$Type();
+// @generated message type with reflection information, may provide speed optimized methods
+class Vector2Data$Type extends MessageType$<Vector2Data> {
+    constructor() {
+        super("symbol.bench.Vector2Data", [
+            { no: 1, name: "metatype", kind: "enum", T: () => ["symbol.bench.ObjectType", ObjectType, "OBJECT_TYPE_"] },
+            { no: 50, name: "x", kind: "scalar", T: 2 /*ScalarType.FLOAT*/ },
+            { no: 51, name: "y", kind: "scalar", T: 2 /*ScalarType.FLOAT*/ }
+        ]);
+    }
+    create(value?: PartialMessage<Vector2Data>): Vector2Data {
+        const message = globalThis.Object.create((this.messagePrototype!));
+        message.metatype = 0;
+        message.x = 0;
+        message.y = 0;
+        if (value !== undefined)
+            reflectionMergePartial<Vector2Data>(this, message, value);
+        return message;
+    }
+    internalBinaryRead(reader: IBinaryReader, length: number, options: BinaryReadOptions, target?: Vector2Data): Vector2Data {
+        let message = target ?? this.create(), end = reader.pos + length;
+        while (reader.pos < end) {
+            let [fieldNo, wireType] = reader.tag();
+            switch (fieldNo) {
+                case /* symbol.bench.ObjectType metatype */ 1:
+                    message.metatype = reader.int32();
+                    break;
+                case /* float x */ 50:
+                    message.x = reader.float();
+                    break;
+                case /* float y */ 51:
+                    message.y = reader.float();
+                    break;
+                default:
+                    let u = options.readUnknownField;
+                    if (u === "throw")
+                        throw new globalThis.Error(`Unknown field ${fieldNo} (wire type ${wireType}) for ${this.typeName}`);
+                    let d = reader.skip(wireType);
+                    if (u !== false)
+                        (u === true ? UnknownFieldHandler.onRead : u)(this.typeName, message, fieldNo, wireType, d);
+            }
+        }
+        return message;
+    }
+    internalBinaryWrite(message: Vector2Data, writer: IBinaryWriter, options: BinaryWriteOptions): IBinaryWriter {
+        /* symbol.bench.ObjectType metatype = 1; */
+        if (message.metatype !== 0)
+            writer.tag(1, WireType.Varint).int32(message.metatype);
+        /* float x = 50; */
+        if (message.x !== 0)
+            writer.tag(50, WireType.Bit32).float(message.x);
+        /* float y = 51; */
+        if (message.y !== 0)
+            writer.tag(51, WireType.Bit32).float(message.y);
+        let u = options.writeUnknownFields;
+        if (u !== false)
+            (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
+        return writer;
+    }
+}
+/**
+ * @generated MessageType for protobuf message symbol.bench.Vector2Data
+ */
+export const Vector2Data = new Vector2Data$Type();
+// @generated message type with reflection information, may provide speed optimized methods
+class VariableVector2Data$Type extends MessageType$<VariableVector2Data> {
+    constructor() {
+        super("symbol.bench.VariableVector2Data", [
+            { no: 1, name: "metatype", kind: "enum", T: () => ["symbol.bench.ObjectType", ObjectType, "OBJECT_TYPE_"] },
+            { no: 40, name: "field_ptr", kind: "message", T: () => NodeReferenceData },
+            { no: 50, name: "x", kind: "scalar", T: 2 /*ScalarType.FLOAT*/ },
+            { no: 51, name: "y", kind: "scalar", T: 2 /*ScalarType.FLOAT*/ }
+        ]);
+    }
+    create(value?: PartialMessage<VariableVector2Data>): VariableVector2Data {
+        const message = globalThis.Object.create((this.messagePrototype!));
+        message.metatype = 0;
+        message.x = 0;
+        message.y = 0;
+        if (value !== undefined)
+            reflectionMergePartial<VariableVector2Data>(this, message, value);
+        return message;
+    }
+    internalBinaryRead(reader: IBinaryReader, length: number, options: BinaryReadOptions, target?: VariableVector2Data): VariableVector2Data {
+        let message = target ?? this.create(), end = reader.pos + length;
+        while (reader.pos < end) {
+            let [fieldNo, wireType] = reader.tag();
+            switch (fieldNo) {
+                case /* symbol.bench.ObjectType metatype */ 1:
+                    message.metatype = reader.int32();
+                    break;
+                case /* optional symbol.bench.NodeReferenceData field_ptr */ 40:
+                    message.fieldPtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.fieldPtr);
+                    break;
+                case /* float x */ 50:
+                    message.x = reader.float();
+                    break;
+                case /* float y */ 51:
+                    message.y = reader.float();
+                    break;
+                default:
+                    let u = options.readUnknownField;
+                    if (u === "throw")
+                        throw new globalThis.Error(`Unknown field ${fieldNo} (wire type ${wireType}) for ${this.typeName}`);
+                    let d = reader.skip(wireType);
+                    if (u !== false)
+                        (u === true ? UnknownFieldHandler.onRead : u)(this.typeName, message, fieldNo, wireType, d);
+            }
+        }
+        return message;
+    }
+    internalBinaryWrite(message: VariableVector2Data, writer: IBinaryWriter, options: BinaryWriteOptions): IBinaryWriter {
+        /* symbol.bench.ObjectType metatype = 1; */
+        if (message.metatype !== 0)
+            writer.tag(1, WireType.Varint).int32(message.metatype);
+        /* optional symbol.bench.NodeReferenceData field_ptr = 40; */
+        if (message.fieldPtr)
+            NodeReferenceData.internalBinaryWrite(message.fieldPtr, writer.tag(40, WireType.LengthDelimited).fork(), options).join();
+        /* float x = 50; */
+        if (message.x !== 0)
+            writer.tag(50, WireType.Bit32).float(message.x);
+        /* float y = 51; */
+        if (message.y !== 0)
+            writer.tag(51, WireType.Bit32).float(message.y);
+        let u = options.writeUnknownFields;
+        if (u !== false)
+            (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
+        return writer;
+    }
+}
+/**
+ * @generated MessageType for protobuf message symbol.bench.VariableVector2Data
+ */
+export const VariableVector2Data = new VariableVector2Data$Type();
+// @generated message type with reflection information, may provide speed optimized methods
+class Vector3Data$Type extends MessageType$<Vector3Data> {
+    constructor() {
+        super("symbol.bench.Vector3Data", [
+            { no: 1, name: "metatype", kind: "enum", T: () => ["symbol.bench.ObjectType", ObjectType, "OBJECT_TYPE_"] },
+            { no: 50, name: "x", kind: "scalar", T: 2 /*ScalarType.FLOAT*/ },
+            { no: 51, name: "y", kind: "scalar", T: 2 /*ScalarType.FLOAT*/ },
+            { no: 52, name: "z", kind: "scalar", T: 2 /*ScalarType.FLOAT*/ }
+        ]);
+    }
+    create(value?: PartialMessage<Vector3Data>): Vector3Data {
+        const message = globalThis.Object.create((this.messagePrototype!));
+        message.metatype = 0;
+        message.x = 0;
+        message.y = 0;
+        message.z = 0;
+        if (value !== undefined)
+            reflectionMergePartial<Vector3Data>(this, message, value);
+        return message;
+    }
+    internalBinaryRead(reader: IBinaryReader, length: number, options: BinaryReadOptions, target?: Vector3Data): Vector3Data {
+        let message = target ?? this.create(), end = reader.pos + length;
+        while (reader.pos < end) {
+            let [fieldNo, wireType] = reader.tag();
+            switch (fieldNo) {
+                case /* symbol.bench.ObjectType metatype */ 1:
+                    message.metatype = reader.int32();
+                    break;
+                case /* float x */ 50:
+                    message.x = reader.float();
+                    break;
+                case /* float y */ 51:
+                    message.y = reader.float();
+                    break;
+                case /* float z */ 52:
+                    message.z = reader.float();
+                    break;
+                default:
+                    let u = options.readUnknownField;
+                    if (u === "throw")
+                        throw new globalThis.Error(`Unknown field ${fieldNo} (wire type ${wireType}) for ${this.typeName}`);
+                    let d = reader.skip(wireType);
+                    if (u !== false)
+                        (u === true ? UnknownFieldHandler.onRead : u)(this.typeName, message, fieldNo, wireType, d);
+            }
+        }
+        return message;
+    }
+    internalBinaryWrite(message: Vector3Data, writer: IBinaryWriter, options: BinaryWriteOptions): IBinaryWriter {
+        /* symbol.bench.ObjectType metatype = 1; */
+        if (message.metatype !== 0)
+            writer.tag(1, WireType.Varint).int32(message.metatype);
+        /* float x = 50; */
+        if (message.x !== 0)
+            writer.tag(50, WireType.Bit32).float(message.x);
+        /* float y = 51; */
+        if (message.y !== 0)
+            writer.tag(51, WireType.Bit32).float(message.y);
+        /* float z = 52; */
+        if (message.z !== 0)
+            writer.tag(52, WireType.Bit32).float(message.z);
+        let u = options.writeUnknownFields;
+        if (u !== false)
+            (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
+        return writer;
+    }
+}
+/**
+ * @generated MessageType for protobuf message symbol.bench.Vector3Data
+ */
+export const Vector3Data = new Vector3Data$Type();
+// @generated message type with reflection information, may provide speed optimized methods
+class VariableVector3Data$Type extends MessageType$<VariableVector3Data> {
+    constructor() {
+        super("symbol.bench.VariableVector3Data", [
+            { no: 1, name: "metatype", kind: "enum", T: () => ["symbol.bench.ObjectType", ObjectType, "OBJECT_TYPE_"] },
+            { no: 40, name: "field_ptr", kind: "message", T: () => NodeReferenceData },
+            { no: 50, name: "x", kind: "scalar", T: 2 /*ScalarType.FLOAT*/ },
+            { no: 51, name: "y", kind: "scalar", T: 2 /*ScalarType.FLOAT*/ },
+            { no: 52, name: "z", kind: "scalar", T: 2 /*ScalarType.FLOAT*/ }
+        ]);
+    }
+    create(value?: PartialMessage<VariableVector3Data>): VariableVector3Data {
+        const message = globalThis.Object.create((this.messagePrototype!));
+        message.metatype = 0;
+        message.x = 0;
+        message.y = 0;
+        message.z = 0;
+        if (value !== undefined)
+            reflectionMergePartial<VariableVector3Data>(this, message, value);
+        return message;
+    }
+    internalBinaryRead(reader: IBinaryReader, length: number, options: BinaryReadOptions, target?: VariableVector3Data): VariableVector3Data {
+        let message = target ?? this.create(), end = reader.pos + length;
+        while (reader.pos < end) {
+            let [fieldNo, wireType] = reader.tag();
+            switch (fieldNo) {
+                case /* symbol.bench.ObjectType metatype */ 1:
+                    message.metatype = reader.int32();
+                    break;
+                case /* optional symbol.bench.NodeReferenceData field_ptr */ 40:
+                    message.fieldPtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.fieldPtr);
+                    break;
+                case /* float x */ 50:
+                    message.x = reader.float();
+                    break;
+                case /* float y */ 51:
+                    message.y = reader.float();
+                    break;
+                case /* float z */ 52:
+                    message.z = reader.float();
+                    break;
+                default:
+                    let u = options.readUnknownField;
+                    if (u === "throw")
+                        throw new globalThis.Error(`Unknown field ${fieldNo} (wire type ${wireType}) for ${this.typeName}`);
+                    let d = reader.skip(wireType);
+                    if (u !== false)
+                        (u === true ? UnknownFieldHandler.onRead : u)(this.typeName, message, fieldNo, wireType, d);
+            }
+        }
+        return message;
+    }
+    internalBinaryWrite(message: VariableVector3Data, writer: IBinaryWriter, options: BinaryWriteOptions): IBinaryWriter {
+        /* symbol.bench.ObjectType metatype = 1; */
+        if (message.metatype !== 0)
+            writer.tag(1, WireType.Varint).int32(message.metatype);
+        /* optional symbol.bench.NodeReferenceData field_ptr = 40; */
+        if (message.fieldPtr)
+            NodeReferenceData.internalBinaryWrite(message.fieldPtr, writer.tag(40, WireType.LengthDelimited).fork(), options).join();
+        /* float x = 50; */
+        if (message.x !== 0)
+            writer.tag(50, WireType.Bit32).float(message.x);
+        /* float y = 51; */
+        if (message.y !== 0)
+            writer.tag(51, WireType.Bit32).float(message.y);
+        /* float z = 52; */
+        if (message.z !== 0)
+            writer.tag(52, WireType.Bit32).float(message.z);
+        let u = options.writeUnknownFields;
+        if (u !== false)
+            (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
+        return writer;
+    }
+}
+/**
+ * @generated MessageType for protobuf message symbol.bench.VariableVector3Data
+ */
+export const VariableVector3Data = new VariableVector3Data$Type();
+// @generated message type with reflection information, may provide speed optimized methods
+class Vector4Data$Type extends MessageType$<Vector4Data> {
+    constructor() {
+        super("symbol.bench.Vector4Data", [
+            { no: 1, name: "metatype", kind: "enum", T: () => ["symbol.bench.ObjectType", ObjectType, "OBJECT_TYPE_"] },
+            { no: 50, name: "x", kind: "scalar", T: 2 /*ScalarType.FLOAT*/ },
+            { no: 51, name: "y", kind: "scalar", T: 2 /*ScalarType.FLOAT*/ },
+            { no: 52, name: "z", kind: "scalar", T: 2 /*ScalarType.FLOAT*/ },
+            { no: 53, name: "w", kind: "scalar", T: 2 /*ScalarType.FLOAT*/ }
+        ]);
+    }
+    create(value?: PartialMessage<Vector4Data>): Vector4Data {
+        const message = globalThis.Object.create((this.messagePrototype!));
+        message.metatype = 0;
+        message.x = 0;
+        message.y = 0;
+        message.z = 0;
+        message.w = 0;
+        if (value !== undefined)
+            reflectionMergePartial<Vector4Data>(this, message, value);
+        return message;
+    }
+    internalBinaryRead(reader: IBinaryReader, length: number, options: BinaryReadOptions, target?: Vector4Data): Vector4Data {
+        let message = target ?? this.create(), end = reader.pos + length;
+        while (reader.pos < end) {
+            let [fieldNo, wireType] = reader.tag();
+            switch (fieldNo) {
+                case /* symbol.bench.ObjectType metatype */ 1:
+                    message.metatype = reader.int32();
+                    break;
+                case /* float x */ 50:
+                    message.x = reader.float();
+                    break;
+                case /* float y */ 51:
+                    message.y = reader.float();
+                    break;
+                case /* float z */ 52:
+                    message.z = reader.float();
+                    break;
+                case /* float w */ 53:
+                    message.w = reader.float();
+                    break;
+                default:
+                    let u = options.readUnknownField;
+                    if (u === "throw")
+                        throw new globalThis.Error(`Unknown field ${fieldNo} (wire type ${wireType}) for ${this.typeName}`);
+                    let d = reader.skip(wireType);
+                    if (u !== false)
+                        (u === true ? UnknownFieldHandler.onRead : u)(this.typeName, message, fieldNo, wireType, d);
+            }
+        }
+        return message;
+    }
+    internalBinaryWrite(message: Vector4Data, writer: IBinaryWriter, options: BinaryWriteOptions): IBinaryWriter {
+        /* symbol.bench.ObjectType metatype = 1; */
+        if (message.metatype !== 0)
+            writer.tag(1, WireType.Varint).int32(message.metatype);
+        /* float x = 50; */
+        if (message.x !== 0)
+            writer.tag(50, WireType.Bit32).float(message.x);
+        /* float y = 51; */
+        if (message.y !== 0)
+            writer.tag(51, WireType.Bit32).float(message.y);
+        /* float z = 52; */
+        if (message.z !== 0)
+            writer.tag(52, WireType.Bit32).float(message.z);
+        /* float w = 53; */
+        if (message.w !== 0)
+            writer.tag(53, WireType.Bit32).float(message.w);
+        let u = options.writeUnknownFields;
+        if (u !== false)
+            (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
+        return writer;
+    }
+}
+/**
+ * @generated MessageType for protobuf message symbol.bench.Vector4Data
+ */
+export const Vector4Data = new Vector4Data$Type();
+// @generated message type with reflection information, may provide speed optimized methods
+class VariableVector4Data$Type extends MessageType$<VariableVector4Data> {
+    constructor() {
+        super("symbol.bench.VariableVector4Data", [
+            { no: 1, name: "metatype", kind: "enum", T: () => ["symbol.bench.ObjectType", ObjectType, "OBJECT_TYPE_"] },
+            { no: 40, name: "field_ptr", kind: "message", T: () => NodeReferenceData },
+            { no: 50, name: "x", kind: "scalar", T: 2 /*ScalarType.FLOAT*/ },
+            { no: 51, name: "y", kind: "scalar", T: 2 /*ScalarType.FLOAT*/ },
+            { no: 52, name: "z", kind: "scalar", T: 2 /*ScalarType.FLOAT*/ },
+            { no: 53, name: "w", kind: "scalar", T: 2 /*ScalarType.FLOAT*/ }
+        ]);
+    }
+    create(value?: PartialMessage<VariableVector4Data>): VariableVector4Data {
+        const message = globalThis.Object.create((this.messagePrototype!));
+        message.metatype = 0;
+        message.x = 0;
+        message.y = 0;
+        message.z = 0;
+        message.w = 0;
+        if (value !== undefined)
+            reflectionMergePartial<VariableVector4Data>(this, message, value);
+        return message;
+    }
+    internalBinaryRead(reader: IBinaryReader, length: number, options: BinaryReadOptions, target?: VariableVector4Data): VariableVector4Data {
+        let message = target ?? this.create(), end = reader.pos + length;
+        while (reader.pos < end) {
+            let [fieldNo, wireType] = reader.tag();
+            switch (fieldNo) {
+                case /* symbol.bench.ObjectType metatype */ 1:
+                    message.metatype = reader.int32();
+                    break;
+                case /* optional symbol.bench.NodeReferenceData field_ptr */ 40:
+                    message.fieldPtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.fieldPtr);
+                    break;
+                case /* float x */ 50:
+                    message.x = reader.float();
+                    break;
+                case /* float y */ 51:
+                    message.y = reader.float();
+                    break;
+                case /* float z */ 52:
+                    message.z = reader.float();
+                    break;
+                case /* float w */ 53:
+                    message.w = reader.float();
+                    break;
+                default:
+                    let u = options.readUnknownField;
+                    if (u === "throw")
+                        throw new globalThis.Error(`Unknown field ${fieldNo} (wire type ${wireType}) for ${this.typeName}`);
+                    let d = reader.skip(wireType);
+                    if (u !== false)
+                        (u === true ? UnknownFieldHandler.onRead : u)(this.typeName, message, fieldNo, wireType, d);
+            }
+        }
+        return message;
+    }
+    internalBinaryWrite(message: VariableVector4Data, writer: IBinaryWriter, options: BinaryWriteOptions): IBinaryWriter {
+        /* symbol.bench.ObjectType metatype = 1; */
+        if (message.metatype !== 0)
+            writer.tag(1, WireType.Varint).int32(message.metatype);
+        /* optional symbol.bench.NodeReferenceData field_ptr = 40; */
+        if (message.fieldPtr)
+            NodeReferenceData.internalBinaryWrite(message.fieldPtr, writer.tag(40, WireType.LengthDelimited).fork(), options).join();
+        /* float x = 50; */
+        if (message.x !== 0)
+            writer.tag(50, WireType.Bit32).float(message.x);
+        /* float y = 51; */
+        if (message.y !== 0)
+            writer.tag(51, WireType.Bit32).float(message.y);
+        /* float z = 52; */
+        if (message.z !== 0)
+            writer.tag(52, WireType.Bit32).float(message.z);
+        /* float w = 53; */
+        if (message.w !== 0)
+            writer.tag(53, WireType.Bit32).float(message.w);
+        let u = options.writeUnknownFields;
+        if (u !== false)
+            (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
+        return writer;
+    }
+}
+/**
+ * @generated MessageType for protobuf message symbol.bench.VariableVector4Data
+ */
+export const VariableVector4Data = new VariableVector4Data$Type();
+// @generated message type with reflection information, may provide speed optimized methods
 class GridData$Type extends MessageType$<GridData> {
     constructor() {
         super("symbol.bench.GridData", [
             { no: 1, name: "metatype", kind: "enum", T: () => ["symbol.bench.ObjectType", ObjectType, "OBJECT_TYPE_"] },
-            { no: 40, name: "columns", kind: "scalar", T: 5 /*ScalarType.INT32*/ },
-            { no: 41, name: "rows", kind: "scalar", T: 5 /*ScalarType.INT32*/ },
-            { no: 42, name: "column_width", kind: "message", T: () => DimensionData },
-            { no: 43, name: "column_min_width", kind: "message", T: () => DimensionData },
-            { no: 44, name: "row_height", kind: "message", T: () => DimensionData }
+            { no: 50, name: "columns", kind: "scalar", T: 5 /*ScalarType.INT32*/ },
+            { no: 51, name: "rows", kind: "scalar", T: 5 /*ScalarType.INT32*/ },
+            { no: 52, name: "column_width", kind: "message", T: () => DimensionData },
+            { no: 53, name: "column_min_width", kind: "message", T: () => DimensionData },
+            { no: 54, name: "row_height", kind: "message", T: () => DimensionData }
         ]);
     }
     create(value?: PartialMessage<GridData>): GridData {
@@ -19490,19 +20871,19 @@ class GridData$Type extends MessageType$<GridData> {
                 case /* symbol.bench.ObjectType metatype */ 1:
                     message.metatype = reader.int32();
                     break;
-                case /* int32 columns */ 40:
+                case /* int32 columns */ 50:
                     message.columns = reader.int32();
                     break;
-                case /* int32 rows */ 41:
+                case /* int32 rows */ 51:
                     message.rows = reader.int32();
                     break;
-                case /* optional symbol.bench.DimensionData column_width */ 42:
+                case /* optional symbol.bench.DimensionData column_width */ 52:
                     message.columnWidth = DimensionData.internalBinaryRead(reader, reader.uint32(), options, message.columnWidth);
                     break;
-                case /* optional symbol.bench.DimensionData column_min_width */ 43:
+                case /* optional symbol.bench.DimensionData column_min_width */ 53:
                     message.columnMinWidth = DimensionData.internalBinaryRead(reader, reader.uint32(), options, message.columnMinWidth);
                     break;
-                case /* optional symbol.bench.DimensionData row_height */ 44:
+                case /* optional symbol.bench.DimensionData row_height */ 54:
                     message.rowHeight = DimensionData.internalBinaryRead(reader, reader.uint32(), options, message.rowHeight);
                     break;
                 default:
@@ -19520,21 +20901,21 @@ class GridData$Type extends MessageType$<GridData> {
         /* symbol.bench.ObjectType metatype = 1; */
         if (message.metatype !== 0)
             writer.tag(1, WireType.Varint).int32(message.metatype);
-        /* int32 columns = 40; */
+        /* int32 columns = 50; */
         if (message.columns !== 0)
-            writer.tag(40, WireType.Varint).int32(message.columns);
-        /* int32 rows = 41; */
+            writer.tag(50, WireType.Varint).int32(message.columns);
+        /* int32 rows = 51; */
         if (message.rows !== 0)
-            writer.tag(41, WireType.Varint).int32(message.rows);
-        /* optional symbol.bench.DimensionData column_width = 42; */
+            writer.tag(51, WireType.Varint).int32(message.rows);
+        /* optional symbol.bench.DimensionData column_width = 52; */
         if (message.columnWidth)
-            DimensionData.internalBinaryWrite(message.columnWidth, writer.tag(42, WireType.LengthDelimited).fork(), options).join();
-        /* optional symbol.bench.DimensionData column_min_width = 43; */
+            DimensionData.internalBinaryWrite(message.columnWidth, writer.tag(52, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbol.bench.DimensionData column_min_width = 53; */
         if (message.columnMinWidth)
-            DimensionData.internalBinaryWrite(message.columnMinWidth, writer.tag(43, WireType.LengthDelimited).fork(), options).join();
-        /* optional symbol.bench.DimensionData row_height = 44; */
+            DimensionData.internalBinaryWrite(message.columnMinWidth, writer.tag(53, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbol.bench.DimensionData row_height = 54; */
         if (message.rowHeight)
-            DimensionData.internalBinaryWrite(message.rowHeight, writer.tag(44, WireType.LengthDelimited).fork(), options).join();
+            DimensionData.internalBinaryWrite(message.rowHeight, writer.tag(54, WireType.LengthDelimited).fork(), options).join();
         let u = options.writeUnknownFields;
         if (u !== false)
             (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
@@ -19546,12 +20927,103 @@ class GridData$Type extends MessageType$<GridData> {
  */
 export const GridData = new GridData$Type();
 // @generated message type with reflection information, may provide speed optimized methods
+class VariableGridData$Type extends MessageType$<VariableGridData> {
+    constructor() {
+        super("symbol.bench.VariableGridData", [
+            { no: 1, name: "metatype", kind: "enum", T: () => ["symbol.bench.ObjectType", ObjectType, "OBJECT_TYPE_"] },
+            { no: 40, name: "field_ptr", kind: "message", T: () => NodeReferenceData },
+            { no: 50, name: "columns", kind: "scalar", T: 5 /*ScalarType.INT32*/ },
+            { no: 51, name: "rows", kind: "scalar", T: 5 /*ScalarType.INT32*/ },
+            { no: 52, name: "column_width", kind: "message", T: () => DimensionData },
+            { no: 53, name: "column_min_width", kind: "message", T: () => DimensionData },
+            { no: 54, name: "row_height", kind: "message", T: () => DimensionData }
+        ]);
+    }
+    create(value?: PartialMessage<VariableGridData>): VariableGridData {
+        const message = globalThis.Object.create((this.messagePrototype!));
+        message.metatype = 0;
+        message.columns = 0;
+        message.rows = 0;
+        if (value !== undefined)
+            reflectionMergePartial<VariableGridData>(this, message, value);
+        return message;
+    }
+    internalBinaryRead(reader: IBinaryReader, length: number, options: BinaryReadOptions, target?: VariableGridData): VariableGridData {
+        let message = target ?? this.create(), end = reader.pos + length;
+        while (reader.pos < end) {
+            let [fieldNo, wireType] = reader.tag();
+            switch (fieldNo) {
+                case /* symbol.bench.ObjectType metatype */ 1:
+                    message.metatype = reader.int32();
+                    break;
+                case /* optional symbol.bench.NodeReferenceData field_ptr */ 40:
+                    message.fieldPtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.fieldPtr);
+                    break;
+                case /* int32 columns */ 50:
+                    message.columns = reader.int32();
+                    break;
+                case /* int32 rows */ 51:
+                    message.rows = reader.int32();
+                    break;
+                case /* optional symbol.bench.DimensionData column_width */ 52:
+                    message.columnWidth = DimensionData.internalBinaryRead(reader, reader.uint32(), options, message.columnWidth);
+                    break;
+                case /* optional symbol.bench.DimensionData column_min_width */ 53:
+                    message.columnMinWidth = DimensionData.internalBinaryRead(reader, reader.uint32(), options, message.columnMinWidth);
+                    break;
+                case /* optional symbol.bench.DimensionData row_height */ 54:
+                    message.rowHeight = DimensionData.internalBinaryRead(reader, reader.uint32(), options, message.rowHeight);
+                    break;
+                default:
+                    let u = options.readUnknownField;
+                    if (u === "throw")
+                        throw new globalThis.Error(`Unknown field ${fieldNo} (wire type ${wireType}) for ${this.typeName}`);
+                    let d = reader.skip(wireType);
+                    if (u !== false)
+                        (u === true ? UnknownFieldHandler.onRead : u)(this.typeName, message, fieldNo, wireType, d);
+            }
+        }
+        return message;
+    }
+    internalBinaryWrite(message: VariableGridData, writer: IBinaryWriter, options: BinaryWriteOptions): IBinaryWriter {
+        /* symbol.bench.ObjectType metatype = 1; */
+        if (message.metatype !== 0)
+            writer.tag(1, WireType.Varint).int32(message.metatype);
+        /* optional symbol.bench.NodeReferenceData field_ptr = 40; */
+        if (message.fieldPtr)
+            NodeReferenceData.internalBinaryWrite(message.fieldPtr, writer.tag(40, WireType.LengthDelimited).fork(), options).join();
+        /* int32 columns = 50; */
+        if (message.columns !== 0)
+            writer.tag(50, WireType.Varint).int32(message.columns);
+        /* int32 rows = 51; */
+        if (message.rows !== 0)
+            writer.tag(51, WireType.Varint).int32(message.rows);
+        /* optional symbol.bench.DimensionData column_width = 52; */
+        if (message.columnWidth)
+            DimensionData.internalBinaryWrite(message.columnWidth, writer.tag(52, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbol.bench.DimensionData column_min_width = 53; */
+        if (message.columnMinWidth)
+            DimensionData.internalBinaryWrite(message.columnMinWidth, writer.tag(53, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbol.bench.DimensionData row_height = 54; */
+        if (message.rowHeight)
+            DimensionData.internalBinaryWrite(message.rowHeight, writer.tag(54, WireType.LengthDelimited).fork(), options).join();
+        let u = options.writeUnknownFields;
+        if (u !== false)
+            (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
+        return writer;
+    }
+}
+/**
+ * @generated MessageType for protobuf message symbol.bench.VariableGridData
+ */
+export const VariableGridData = new VariableGridData$Type();
+// @generated message type with reflection information, may provide speed optimized methods
 class GridSpanData$Type extends MessageType$<GridSpanData> {
     constructor() {
         super("symbol.bench.GridSpanData", [
             { no: 1, name: "metatype", kind: "enum", T: () => ["symbol.bench.ObjectType", ObjectType, "OBJECT_TYPE_"] },
-            { no: 40, name: "columns", kind: "scalar", T: 5 /*ScalarType.INT32*/ },
-            { no: 41, name: "rows", kind: "scalar", T: 5 /*ScalarType.INT32*/ }
+            { no: 50, name: "columns", kind: "scalar", T: 5 /*ScalarType.INT32*/ },
+            { no: 51, name: "rows", kind: "scalar", T: 5 /*ScalarType.INT32*/ }
         ]);
     }
     create(value?: PartialMessage<GridSpanData>): GridSpanData {
@@ -19571,10 +21043,10 @@ class GridSpanData$Type extends MessageType$<GridSpanData> {
                 case /* symbol.bench.ObjectType metatype */ 1:
                     message.metatype = reader.int32();
                     break;
-                case /* int32 columns */ 40:
+                case /* int32 columns */ 50:
                     message.columns = reader.int32();
                     break;
-                case /* int32 rows */ 41:
+                case /* int32 rows */ 51:
                     message.rows = reader.int32();
                     break;
                 default:
@@ -19592,12 +21064,12 @@ class GridSpanData$Type extends MessageType$<GridSpanData> {
         /* symbol.bench.ObjectType metatype = 1; */
         if (message.metatype !== 0)
             writer.tag(1, WireType.Varint).int32(message.metatype);
-        /* int32 columns = 40; */
+        /* int32 columns = 50; */
         if (message.columns !== 0)
-            writer.tag(40, WireType.Varint).int32(message.columns);
-        /* int32 rows = 41; */
+            writer.tag(50, WireType.Varint).int32(message.columns);
+        /* int32 rows = 51; */
         if (message.rows !== 0)
-            writer.tag(41, WireType.Varint).int32(message.rows);
+            writer.tag(51, WireType.Varint).int32(message.rows);
         let u = options.writeUnknownFields;
         if (u !== false)
             (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
@@ -19609,13 +21081,194 @@ class GridSpanData$Type extends MessageType$<GridSpanData> {
  */
 export const GridSpanData = new GridSpanData$Type();
 // @generated message type with reflection information, may provide speed optimized methods
+class VariableGridSpanData$Type extends MessageType$<VariableGridSpanData> {
+    constructor() {
+        super("symbol.bench.VariableGridSpanData", [
+            { no: 1, name: "metatype", kind: "enum", T: () => ["symbol.bench.ObjectType", ObjectType, "OBJECT_TYPE_"] },
+            { no: 40, name: "field_ptr", kind: "message", T: () => NodeReferenceData },
+            { no: 50, name: "columns", kind: "scalar", T: 5 /*ScalarType.INT32*/ },
+            { no: 51, name: "rows", kind: "scalar", T: 5 /*ScalarType.INT32*/ }
+        ]);
+    }
+    create(value?: PartialMessage<VariableGridSpanData>): VariableGridSpanData {
+        const message = globalThis.Object.create((this.messagePrototype!));
+        message.metatype = 0;
+        message.columns = 0;
+        message.rows = 0;
+        if (value !== undefined)
+            reflectionMergePartial<VariableGridSpanData>(this, message, value);
+        return message;
+    }
+    internalBinaryRead(reader: IBinaryReader, length: number, options: BinaryReadOptions, target?: VariableGridSpanData): VariableGridSpanData {
+        let message = target ?? this.create(), end = reader.pos + length;
+        while (reader.pos < end) {
+            let [fieldNo, wireType] = reader.tag();
+            switch (fieldNo) {
+                case /* symbol.bench.ObjectType metatype */ 1:
+                    message.metatype = reader.int32();
+                    break;
+                case /* optional symbol.bench.NodeReferenceData field_ptr */ 40:
+                    message.fieldPtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.fieldPtr);
+                    break;
+                case /* int32 columns */ 50:
+                    message.columns = reader.int32();
+                    break;
+                case /* int32 rows */ 51:
+                    message.rows = reader.int32();
+                    break;
+                default:
+                    let u = options.readUnknownField;
+                    if (u === "throw")
+                        throw new globalThis.Error(`Unknown field ${fieldNo} (wire type ${wireType}) for ${this.typeName}`);
+                    let d = reader.skip(wireType);
+                    if (u !== false)
+                        (u === true ? UnknownFieldHandler.onRead : u)(this.typeName, message, fieldNo, wireType, d);
+            }
+        }
+        return message;
+    }
+    internalBinaryWrite(message: VariableGridSpanData, writer: IBinaryWriter, options: BinaryWriteOptions): IBinaryWriter {
+        /* symbol.bench.ObjectType metatype = 1; */
+        if (message.metatype !== 0)
+            writer.tag(1, WireType.Varint).int32(message.metatype);
+        /* optional symbol.bench.NodeReferenceData field_ptr = 40; */
+        if (message.fieldPtr)
+            NodeReferenceData.internalBinaryWrite(message.fieldPtr, writer.tag(40, WireType.LengthDelimited).fork(), options).join();
+        /* int32 columns = 50; */
+        if (message.columns !== 0)
+            writer.tag(50, WireType.Varint).int32(message.columns);
+        /* int32 rows = 51; */
+        if (message.rows !== 0)
+            writer.tag(51, WireType.Varint).int32(message.rows);
+        let u = options.writeUnknownFields;
+        if (u !== false)
+            (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
+        return writer;
+    }
+}
+/**
+ * @generated MessageType for protobuf message symbol.bench.VariableGridSpanData
+ */
+export const VariableGridSpanData = new VariableGridSpanData$Type();
+// @generated message type with reflection information, may provide speed optimized methods
+class ColorData$Type extends MessageType$<ColorData> {
+    constructor() {
+        super("symbol.bench.ColorData", [
+            { no: 1, name: "metatype", kind: "enum", T: () => ["symbol.bench.ObjectType", ObjectType, "OBJECT_TYPE_"] },
+            { no: 30, name: "type", kind: "enum", T: () => ["symbol.bench.ColorType", ColorType, "COLOR_TYPE_"] },
+            { no: 40, name: "field_ptr", kind: "message", T: () => NodeReferenceData },
+            { no: 42, name: "style_ptr", kind: "message", T: () => NodeReferenceData },
+            { no: 50, name: "hue", kind: "enum", opt: true, T: () => ["symbol.bench.ColorHue", ColorHue, "COLOR_HUE_"] },
+            { no: 51, name: "shade", kind: "enum", opt: true, T: () => ["symbol.bench.ColorShade", ColorShade, "COLOR_SHADE_"] },
+            { no: 52, name: "x", kind: "scalar", opt: true, T: 2 /*ScalarType.FLOAT*/ },
+            { no: 53, name: "y", kind: "scalar", opt: true, T: 2 /*ScalarType.FLOAT*/ },
+            { no: 54, name: "z", kind: "scalar", opt: true, T: 2 /*ScalarType.FLOAT*/ },
+            { no: 55, name: "alpha", kind: "scalar", opt: true, T: 2 /*ScalarType.FLOAT*/ }
+        ]);
+    }
+    create(value?: PartialMessage<ColorData>): ColorData {
+        const message = globalThis.Object.create((this.messagePrototype!));
+        message.metatype = 0;
+        message.type = 0;
+        if (value !== undefined)
+            reflectionMergePartial<ColorData>(this, message, value);
+        return message;
+    }
+    internalBinaryRead(reader: IBinaryReader, length: number, options: BinaryReadOptions, target?: ColorData): ColorData {
+        let message = target ?? this.create(), end = reader.pos + length;
+        while (reader.pos < end) {
+            let [fieldNo, wireType] = reader.tag();
+            switch (fieldNo) {
+                case /* symbol.bench.ObjectType metatype */ 1:
+                    message.metatype = reader.int32();
+                    break;
+                case /* symbol.bench.ColorType type */ 30:
+                    message.type = reader.int32();
+                    break;
+                case /* optional symbol.bench.NodeReferenceData field_ptr */ 40:
+                    message.fieldPtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.fieldPtr);
+                    break;
+                case /* optional symbol.bench.NodeReferenceData style_ptr */ 42:
+                    message.stylePtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.stylePtr);
+                    break;
+                case /* optional symbol.bench.ColorHue hue */ 50:
+                    message.hue = reader.int32();
+                    break;
+                case /* optional symbol.bench.ColorShade shade */ 51:
+                    message.shade = reader.int32();
+                    break;
+                case /* optional float x */ 52:
+                    message.x = reader.float();
+                    break;
+                case /* optional float y */ 53:
+                    message.y = reader.float();
+                    break;
+                case /* optional float z */ 54:
+                    message.z = reader.float();
+                    break;
+                case /* optional float alpha */ 55:
+                    message.alpha = reader.float();
+                    break;
+                default:
+                    let u = options.readUnknownField;
+                    if (u === "throw")
+                        throw new globalThis.Error(`Unknown field ${fieldNo} (wire type ${wireType}) for ${this.typeName}`);
+                    let d = reader.skip(wireType);
+                    if (u !== false)
+                        (u === true ? UnknownFieldHandler.onRead : u)(this.typeName, message, fieldNo, wireType, d);
+            }
+        }
+        return message;
+    }
+    internalBinaryWrite(message: ColorData, writer: IBinaryWriter, options: BinaryWriteOptions): IBinaryWriter {
+        /* symbol.bench.ObjectType metatype = 1; */
+        if (message.metatype !== 0)
+            writer.tag(1, WireType.Varint).int32(message.metatype);
+        /* symbol.bench.ColorType type = 30; */
+        if (message.type !== 0)
+            writer.tag(30, WireType.Varint).int32(message.type);
+        /* optional symbol.bench.NodeReferenceData field_ptr = 40; */
+        if (message.fieldPtr)
+            NodeReferenceData.internalBinaryWrite(message.fieldPtr, writer.tag(40, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbol.bench.NodeReferenceData style_ptr = 42; */
+        if (message.stylePtr)
+            NodeReferenceData.internalBinaryWrite(message.stylePtr, writer.tag(42, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbol.bench.ColorHue hue = 50; */
+        if (message.hue !== undefined)
+            writer.tag(50, WireType.Varint).int32(message.hue);
+        /* optional symbol.bench.ColorShade shade = 51; */
+        if (message.shade !== undefined)
+            writer.tag(51, WireType.Varint).int32(message.shade);
+        /* optional float x = 52; */
+        if (message.x !== undefined)
+            writer.tag(52, WireType.Bit32).float(message.x);
+        /* optional float y = 53; */
+        if (message.y !== undefined)
+            writer.tag(53, WireType.Bit32).float(message.y);
+        /* optional float z = 54; */
+        if (message.z !== undefined)
+            writer.tag(54, WireType.Bit32).float(message.z);
+        /* optional float alpha = 55; */
+        if (message.alpha !== undefined)
+            writer.tag(55, WireType.Bit32).float(message.alpha);
+        let u = options.writeUnknownFields;
+        if (u !== false)
+            (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
+        return writer;
+    }
+}
+/**
+ * @generated MessageType for protobuf message symbol.bench.ColorData
+ */
+export const ColorData = new ColorData$Type();
+// @generated message type with reflection information, may provide speed optimized methods
 class BorderData$Type extends MessageType$<BorderData> {
     constructor() {
         super("symbol.bench.BorderData", [
             { no: 1, name: "metatype", kind: "enum", T: () => ["symbol.bench.ObjectType", ObjectType, "OBJECT_TYPE_"] },
             { no: 30, name: "type", kind: "enum", T: () => ["symbol.bench.BorderType", BorderType, "BORDER_TYPE_"] },
-            { no: 40, name: "style_ptr", kind: "message", T: () => NodeReferenceData },
-            { no: 41, name: "field_ptr", kind: "message", T: () => NodeReferenceData },
+            { no: 40, name: "field_ptr", kind: "message", T: () => NodeReferenceData },
+            { no: 41, name: "style_ptr", kind: "message", T: () => NodeReferenceData },
             { no: 50, name: "color", kind: "message", T: () => ColorData },
             { no: 51, name: "width", kind: "message", T: () => InsetsData }
         ]);
@@ -19639,11 +21292,11 @@ class BorderData$Type extends MessageType$<BorderData> {
                 case /* symbol.bench.BorderType type */ 30:
                     message.type = reader.int32();
                     break;
-                case /* optional symbol.bench.NodeReferenceData style_ptr */ 40:
-                    message.stylePtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.stylePtr);
-                    break;
-                case /* optional symbol.bench.NodeReferenceData field_ptr */ 41:
+                case /* optional symbol.bench.NodeReferenceData field_ptr */ 40:
                     message.fieldPtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.fieldPtr);
+                    break;
+                case /* optional symbol.bench.NodeReferenceData style_ptr */ 41:
+                    message.stylePtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.stylePtr);
                     break;
                 case /* optional symbol.bench.ColorData color */ 50:
                     message.color = ColorData.internalBinaryRead(reader, reader.uint32(), options, message.color);
@@ -19669,12 +21322,12 @@ class BorderData$Type extends MessageType$<BorderData> {
         /* symbol.bench.BorderType type = 30; */
         if (message.type !== 0)
             writer.tag(30, WireType.Varint).int32(message.type);
-        /* optional symbol.bench.NodeReferenceData style_ptr = 40; */
-        if (message.stylePtr)
-            NodeReferenceData.internalBinaryWrite(message.stylePtr, writer.tag(40, WireType.LengthDelimited).fork(), options).join();
-        /* optional symbol.bench.NodeReferenceData field_ptr = 41; */
+        /* optional symbol.bench.NodeReferenceData field_ptr = 40; */
         if (message.fieldPtr)
-            NodeReferenceData.internalBinaryWrite(message.fieldPtr, writer.tag(41, WireType.LengthDelimited).fork(), options).join();
+            NodeReferenceData.internalBinaryWrite(message.fieldPtr, writer.tag(40, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbol.bench.NodeReferenceData style_ptr = 41; */
+        if (message.stylePtr)
+            NodeReferenceData.internalBinaryWrite(message.stylePtr, writer.tag(41, WireType.LengthDelimited).fork(), options).join();
         /* optional symbol.bench.ColorData color = 50; */
         if (message.color)
             ColorData.internalBinaryWrite(message.color, writer.tag(50, WireType.LengthDelimited).fork(), options).join();
@@ -19692,226 +21345,13 @@ class BorderData$Type extends MessageType$<BorderData> {
  */
 export const BorderData = new BorderData$Type();
 // @generated message type with reflection information, may provide speed optimized methods
-class Vector2Data$Type extends MessageType$<Vector2Data> {
-    constructor() {
-        super("symbol.bench.Vector2Data", [
-            { no: 1, name: "metatype", kind: "enum", T: () => ["symbol.bench.ObjectType", ObjectType, "OBJECT_TYPE_"] },
-            { no: 30, name: "x", kind: "scalar", T: 2 /*ScalarType.FLOAT*/ },
-            { no: 31, name: "y", kind: "scalar", T: 2 /*ScalarType.FLOAT*/ }
-        ]);
-    }
-    create(value?: PartialMessage<Vector2Data>): Vector2Data {
-        const message = globalThis.Object.create((this.messagePrototype!));
-        message.metatype = 0;
-        message.x = 0;
-        message.y = 0;
-        if (value !== undefined)
-            reflectionMergePartial<Vector2Data>(this, message, value);
-        return message;
-    }
-    internalBinaryRead(reader: IBinaryReader, length: number, options: BinaryReadOptions, target?: Vector2Data): Vector2Data {
-        let message = target ?? this.create(), end = reader.pos + length;
-        while (reader.pos < end) {
-            let [fieldNo, wireType] = reader.tag();
-            switch (fieldNo) {
-                case /* symbol.bench.ObjectType metatype */ 1:
-                    message.metatype = reader.int32();
-                    break;
-                case /* float x */ 30:
-                    message.x = reader.float();
-                    break;
-                case /* float y */ 31:
-                    message.y = reader.float();
-                    break;
-                default:
-                    let u = options.readUnknownField;
-                    if (u === "throw")
-                        throw new globalThis.Error(`Unknown field ${fieldNo} (wire type ${wireType}) for ${this.typeName}`);
-                    let d = reader.skip(wireType);
-                    if (u !== false)
-                        (u === true ? UnknownFieldHandler.onRead : u)(this.typeName, message, fieldNo, wireType, d);
-            }
-        }
-        return message;
-    }
-    internalBinaryWrite(message: Vector2Data, writer: IBinaryWriter, options: BinaryWriteOptions): IBinaryWriter {
-        /* symbol.bench.ObjectType metatype = 1; */
-        if (message.metatype !== 0)
-            writer.tag(1, WireType.Varint).int32(message.metatype);
-        /* float x = 30; */
-        if (message.x !== 0)
-            writer.tag(30, WireType.Bit32).float(message.x);
-        /* float y = 31; */
-        if (message.y !== 0)
-            writer.tag(31, WireType.Bit32).float(message.y);
-        let u = options.writeUnknownFields;
-        if (u !== false)
-            (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
-        return writer;
-    }
-}
-/**
- * @generated MessageType for protobuf message symbol.bench.Vector2Data
- */
-export const Vector2Data = new Vector2Data$Type();
-// @generated message type with reflection information, may provide speed optimized methods
-class Vector3Data$Type extends MessageType$<Vector3Data> {
-    constructor() {
-        super("symbol.bench.Vector3Data", [
-            { no: 1, name: "metatype", kind: "enum", T: () => ["symbol.bench.ObjectType", ObjectType, "OBJECT_TYPE_"] },
-            { no: 30, name: "x", kind: "scalar", T: 2 /*ScalarType.FLOAT*/ },
-            { no: 31, name: "y", kind: "scalar", T: 2 /*ScalarType.FLOAT*/ },
-            { no: 32, name: "z", kind: "scalar", T: 2 /*ScalarType.FLOAT*/ }
-        ]);
-    }
-    create(value?: PartialMessage<Vector3Data>): Vector3Data {
-        const message = globalThis.Object.create((this.messagePrototype!));
-        message.metatype = 0;
-        message.x = 0;
-        message.y = 0;
-        message.z = 0;
-        if (value !== undefined)
-            reflectionMergePartial<Vector3Data>(this, message, value);
-        return message;
-    }
-    internalBinaryRead(reader: IBinaryReader, length: number, options: BinaryReadOptions, target?: Vector3Data): Vector3Data {
-        let message = target ?? this.create(), end = reader.pos + length;
-        while (reader.pos < end) {
-            let [fieldNo, wireType] = reader.tag();
-            switch (fieldNo) {
-                case /* symbol.bench.ObjectType metatype */ 1:
-                    message.metatype = reader.int32();
-                    break;
-                case /* float x */ 30:
-                    message.x = reader.float();
-                    break;
-                case /* float y */ 31:
-                    message.y = reader.float();
-                    break;
-                case /* float z */ 32:
-                    message.z = reader.float();
-                    break;
-                default:
-                    let u = options.readUnknownField;
-                    if (u === "throw")
-                        throw new globalThis.Error(`Unknown field ${fieldNo} (wire type ${wireType}) for ${this.typeName}`);
-                    let d = reader.skip(wireType);
-                    if (u !== false)
-                        (u === true ? UnknownFieldHandler.onRead : u)(this.typeName, message, fieldNo, wireType, d);
-            }
-        }
-        return message;
-    }
-    internalBinaryWrite(message: Vector3Data, writer: IBinaryWriter, options: BinaryWriteOptions): IBinaryWriter {
-        /* symbol.bench.ObjectType metatype = 1; */
-        if (message.metatype !== 0)
-            writer.tag(1, WireType.Varint).int32(message.metatype);
-        /* float x = 30; */
-        if (message.x !== 0)
-            writer.tag(30, WireType.Bit32).float(message.x);
-        /* float y = 31; */
-        if (message.y !== 0)
-            writer.tag(31, WireType.Bit32).float(message.y);
-        /* float z = 32; */
-        if (message.z !== 0)
-            writer.tag(32, WireType.Bit32).float(message.z);
-        let u = options.writeUnknownFields;
-        if (u !== false)
-            (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
-        return writer;
-    }
-}
-/**
- * @generated MessageType for protobuf message symbol.bench.Vector3Data
- */
-export const Vector3Data = new Vector3Data$Type();
-// @generated message type with reflection information, may provide speed optimized methods
-class Vector4Data$Type extends MessageType$<Vector4Data> {
-    constructor() {
-        super("symbol.bench.Vector4Data", [
-            { no: 1, name: "metatype", kind: "enum", T: () => ["symbol.bench.ObjectType", ObjectType, "OBJECT_TYPE_"] },
-            { no: 30, name: "x", kind: "scalar", T: 2 /*ScalarType.FLOAT*/ },
-            { no: 31, name: "y", kind: "scalar", T: 2 /*ScalarType.FLOAT*/ },
-            { no: 32, name: "z", kind: "scalar", T: 2 /*ScalarType.FLOAT*/ },
-            { no: 33, name: "w", kind: "scalar", T: 2 /*ScalarType.FLOAT*/ }
-        ]);
-    }
-    create(value?: PartialMessage<Vector4Data>): Vector4Data {
-        const message = globalThis.Object.create((this.messagePrototype!));
-        message.metatype = 0;
-        message.x = 0;
-        message.y = 0;
-        message.z = 0;
-        message.w = 0;
-        if (value !== undefined)
-            reflectionMergePartial<Vector4Data>(this, message, value);
-        return message;
-    }
-    internalBinaryRead(reader: IBinaryReader, length: number, options: BinaryReadOptions, target?: Vector4Data): Vector4Data {
-        let message = target ?? this.create(), end = reader.pos + length;
-        while (reader.pos < end) {
-            let [fieldNo, wireType] = reader.tag();
-            switch (fieldNo) {
-                case /* symbol.bench.ObjectType metatype */ 1:
-                    message.metatype = reader.int32();
-                    break;
-                case /* float x */ 30:
-                    message.x = reader.float();
-                    break;
-                case /* float y */ 31:
-                    message.y = reader.float();
-                    break;
-                case /* float z */ 32:
-                    message.z = reader.float();
-                    break;
-                case /* float w */ 33:
-                    message.w = reader.float();
-                    break;
-                default:
-                    let u = options.readUnknownField;
-                    if (u === "throw")
-                        throw new globalThis.Error(`Unknown field ${fieldNo} (wire type ${wireType}) for ${this.typeName}`);
-                    let d = reader.skip(wireType);
-                    if (u !== false)
-                        (u === true ? UnknownFieldHandler.onRead : u)(this.typeName, message, fieldNo, wireType, d);
-            }
-        }
-        return message;
-    }
-    internalBinaryWrite(message: Vector4Data, writer: IBinaryWriter, options: BinaryWriteOptions): IBinaryWriter {
-        /* symbol.bench.ObjectType metatype = 1; */
-        if (message.metatype !== 0)
-            writer.tag(1, WireType.Varint).int32(message.metatype);
-        /* float x = 30; */
-        if (message.x !== 0)
-            writer.tag(30, WireType.Bit32).float(message.x);
-        /* float y = 31; */
-        if (message.y !== 0)
-            writer.tag(31, WireType.Bit32).float(message.y);
-        /* float z = 32; */
-        if (message.z !== 0)
-            writer.tag(32, WireType.Bit32).float(message.z);
-        /* float w = 33; */
-        if (message.w !== 0)
-            writer.tag(33, WireType.Bit32).float(message.w);
-        let u = options.writeUnknownFields;
-        if (u !== false)
-            (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
-        return writer;
-    }
-}
-/**
- * @generated MessageType for protobuf message symbol.bench.Vector4Data
- */
-export const Vector4Data = new Vector4Data$Type();
-// @generated message type with reflection information, may provide speed optimized methods
 class TransitionData$Type extends MessageType$<TransitionData> {
     constructor() {
         super("symbol.bench.TransitionData", [
             { no: 1, name: "metatype", kind: "enum", T: () => ["symbol.bench.ObjectType", ObjectType, "OBJECT_TYPE_"] },
             { no: 30, name: "type", kind: "enum", T: () => ["symbol.bench.TransitionType", TransitionType, "TRANSITION_TYPE_"] },
-            { no: 40, name: "style_ptr", kind: "message", T: () => NodeReferenceData },
-            { no: 41, name: "field_ptr", kind: "message", T: () => NodeReferenceData },
+            { no: 40, name: "field_ptr", kind: "message", T: () => NodeReferenceData },
+            { no: 41, name: "style_ptr", kind: "message", T: () => NodeReferenceData },
             { no: 50, name: "delay", kind: "scalar", opt: true, T: 2 /*ScalarType.FLOAT*/ },
             { no: 51, name: "duration", kind: "scalar", opt: true, T: 2 /*ScalarType.FLOAT*/ },
             { no: 52, name: "ease", kind: "scalar", repeat: 1 /*RepeatType.PACKED*/, T: 2 /*ScalarType.FLOAT*/ },
@@ -19942,11 +21382,11 @@ class TransitionData$Type extends MessageType$<TransitionData> {
                 case /* symbol.bench.TransitionType type */ 30:
                     message.type = reader.int32();
                     break;
-                case /* optional symbol.bench.NodeReferenceData style_ptr */ 40:
-                    message.stylePtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.stylePtr);
-                    break;
-                case /* optional symbol.bench.NodeReferenceData field_ptr */ 41:
+                case /* optional symbol.bench.NodeReferenceData field_ptr */ 40:
                     message.fieldPtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.fieldPtr);
+                    break;
+                case /* optional symbol.bench.NodeReferenceData style_ptr */ 41:
+                    message.stylePtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.stylePtr);
                     break;
                 case /* optional float delay */ 50:
                     message.delay = reader.float();
@@ -19994,12 +21434,12 @@ class TransitionData$Type extends MessageType$<TransitionData> {
         /* symbol.bench.TransitionType type = 30; */
         if (message.type !== 0)
             writer.tag(30, WireType.Varint).int32(message.type);
-        /* optional symbol.bench.NodeReferenceData style_ptr = 40; */
-        if (message.stylePtr)
-            NodeReferenceData.internalBinaryWrite(message.stylePtr, writer.tag(40, WireType.LengthDelimited).fork(), options).join();
-        /* optional symbol.bench.NodeReferenceData field_ptr = 41; */
+        /* optional symbol.bench.NodeReferenceData field_ptr = 40; */
         if (message.fieldPtr)
-            NodeReferenceData.internalBinaryWrite(message.fieldPtr, writer.tag(41, WireType.LengthDelimited).fork(), options).join();
+            NodeReferenceData.internalBinaryWrite(message.fieldPtr, writer.tag(40, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbol.bench.NodeReferenceData style_ptr = 41; */
+        if (message.stylePtr)
+            NodeReferenceData.internalBinaryWrite(message.stylePtr, writer.tag(41, WireType.LengthDelimited).fork(), options).join();
         /* optional float delay = 50; */
         if (message.delay !== undefined)
             writer.tag(50, WireType.Bit32).float(message.delay);
@@ -20044,8 +21484,8 @@ class EffectData$Type extends MessageType$<EffectData> {
         super("symbol.bench.EffectData", [
             { no: 1, name: "metatype", kind: "enum", T: () => ["symbol.bench.ObjectType", ObjectType, "OBJECT_TYPE_"] },
             { no: 30, name: "type", kind: "enum", T: () => ["symbol.bench.EffectType", EffectType, "EFFECT_TYPE_"] },
+            { no: 40, name: "field_ptr", kind: "message", T: () => NodeReferenceData },
             { no: 41, name: "style_ptr", kind: "message", T: () => NodeReferenceData },
-            { no: 42, name: "field_ptr", kind: "message", T: () => NodeReferenceData },
             { no: 50, name: "opacity", kind: "scalar", opt: true, T: 2 /*ScalarType.FLOAT*/ },
             { no: 51, name: "offset", kind: "message", T: () => Vector2Data },
             { no: 52, name: "scale", kind: "scalar", opt: true, T: 2 /*ScalarType.FLOAT*/ },
@@ -20081,11 +21521,11 @@ class EffectData$Type extends MessageType$<EffectData> {
                 case /* symbol.bench.EffectType type */ 30:
                     message.type = reader.int32();
                     break;
+                case /* optional symbol.bench.NodeReferenceData field_ptr */ 40:
+                    message.fieldPtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.fieldPtr);
+                    break;
                 case /* optional symbol.bench.NodeReferenceData style_ptr */ 41:
                     message.stylePtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.stylePtr);
-                    break;
-                case /* optional symbol.bench.NodeReferenceData field_ptr */ 42:
-                    message.fieldPtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.fieldPtr);
                     break;
                 case /* optional float opacity */ 50:
                     message.opacity = reader.float();
@@ -20147,12 +21587,12 @@ class EffectData$Type extends MessageType$<EffectData> {
         /* symbol.bench.EffectType type = 30; */
         if (message.type !== 0)
             writer.tag(30, WireType.Varint).int32(message.type);
+        /* optional symbol.bench.NodeReferenceData field_ptr = 40; */
+        if (message.fieldPtr)
+            NodeReferenceData.internalBinaryWrite(message.fieldPtr, writer.tag(40, WireType.LengthDelimited).fork(), options).join();
         /* optional symbol.bench.NodeReferenceData style_ptr = 41; */
         if (message.stylePtr)
             NodeReferenceData.internalBinaryWrite(message.stylePtr, writer.tag(41, WireType.LengthDelimited).fork(), options).join();
-        /* optional symbol.bench.NodeReferenceData field_ptr = 42; */
-        if (message.fieldPtr)
-            NodeReferenceData.internalBinaryWrite(message.fieldPtr, writer.tag(42, WireType.LengthDelimited).fork(), options).join();
         /* optional float opacity = 50; */
         if (message.opacity !== undefined)
             writer.tag(50, WireType.Bit32).float(message.opacity);
@@ -20440,8 +21880,8 @@ class FontData$Type extends MessageType$<FontData> {
         super("symbol.bench.FontData", [
             { no: 1, name: "metatype", kind: "enum", T: () => ["symbol.bench.ObjectType", ObjectType, "OBJECT_TYPE_"] },
             { no: 30, name: "type", kind: "enum", T: () => ["symbol.bench.FontType", FontType, "FONT_TYPE_"] },
-            { no: 40, name: "style_ptr", kind: "message", T: () => NodeReferenceData },
-            { no: 41, name: "field_ptr", kind: "message", T: () => NodeReferenceData },
+            { no: 40, name: "field_ptr", kind: "message", T: () => NodeReferenceData },
+            { no: 41, name: "style_ptr", kind: "message", T: () => NodeReferenceData },
             { no: 50, name: "weight", kind: "enum", opt: true, T: () => ["symbol.bench.FontWeight", FontWeight, "FONT_WEIGHT_"] },
             { no: 51, name: "color", kind: "message", T: () => FillData },
             { no: 52, name: "size", kind: "enum", opt: true, T: () => ["symbol.bench.FontSize", FontSize, "FONT_SIZE_"] },
@@ -20471,11 +21911,11 @@ class FontData$Type extends MessageType$<FontData> {
                 case /* symbol.bench.FontType type */ 30:
                     message.type = reader.int32();
                     break;
-                case /* optional symbol.bench.NodeReferenceData style_ptr */ 40:
-                    message.stylePtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.stylePtr);
-                    break;
-                case /* optional symbol.bench.NodeReferenceData field_ptr */ 41:
+                case /* optional symbol.bench.NodeReferenceData field_ptr */ 40:
                     message.fieldPtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.fieldPtr);
+                    break;
+                case /* optional symbol.bench.NodeReferenceData style_ptr */ 41:
+                    message.stylePtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.stylePtr);
                     break;
                 case /* optional symbol.bench.FontWeight weight */ 50:
                     message.weight = reader.int32();
@@ -20519,12 +21959,12 @@ class FontData$Type extends MessageType$<FontData> {
         /* symbol.bench.FontType type = 30; */
         if (message.type !== 0)
             writer.tag(30, WireType.Varint).int32(message.type);
-        /* optional symbol.bench.NodeReferenceData style_ptr = 40; */
-        if (message.stylePtr)
-            NodeReferenceData.internalBinaryWrite(message.stylePtr, writer.tag(40, WireType.LengthDelimited).fork(), options).join();
-        /* optional symbol.bench.NodeReferenceData field_ptr = 41; */
+        /* optional symbol.bench.NodeReferenceData field_ptr = 40; */
         if (message.fieldPtr)
-            NodeReferenceData.internalBinaryWrite(message.fieldPtr, writer.tag(41, WireType.LengthDelimited).fork(), options).join();
+            NodeReferenceData.internalBinaryWrite(message.fieldPtr, writer.tag(40, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbol.bench.NodeReferenceData style_ptr = 41; */
+        if (message.stylePtr)
+            NodeReferenceData.internalBinaryWrite(message.stylePtr, writer.tag(41, WireType.LengthDelimited).fork(), options).join();
         /* optional symbol.bench.FontWeight weight = 50; */
         if (message.weight !== undefined)
             writer.tag(50, WireType.Varint).int32(message.weight);
@@ -20565,8 +22005,8 @@ class ShadowData$Type extends MessageType$<ShadowData> {
         super("symbol.bench.ShadowData", [
             { no: 1, name: "metatype", kind: "enum", T: () => ["symbol.bench.ObjectType", ObjectType, "OBJECT_TYPE_"] },
             { no: 30, name: "type", kind: "enum", T: () => ["symbol.bench.ShadowType", ShadowType, "SHADOW_TYPE_"] },
-            { no: 40, name: "style_ptr", kind: "message", T: () => NodeReferenceData },
-            { no: 41, name: "field_ptr", kind: "message", T: () => NodeReferenceData },
+            { no: 40, name: "field_ptr", kind: "message", T: () => NodeReferenceData },
+            { no: 41, name: "style_ptr", kind: "message", T: () => NodeReferenceData },
             { no: 50, name: "color", kind: "message", T: () => ColorData },
             { no: 51, name: "position", kind: "enum", T: () => ["symbol.bench.ShadowPosition", ShadowPosition, "SHADOW_POSITION_"] },
             { no: 52, name: "offset", kind: "message", T: () => Axis2Data },
@@ -20595,11 +22035,11 @@ class ShadowData$Type extends MessageType$<ShadowData> {
                 case /* symbol.bench.ShadowType type */ 30:
                     message.type = reader.int32();
                     break;
-                case /* optional symbol.bench.NodeReferenceData style_ptr */ 40:
-                    message.stylePtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.stylePtr);
-                    break;
-                case /* optional symbol.bench.NodeReferenceData field_ptr */ 41:
+                case /* optional symbol.bench.NodeReferenceData field_ptr */ 40:
                     message.fieldPtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.fieldPtr);
+                    break;
+                case /* optional symbol.bench.NodeReferenceData style_ptr */ 41:
+                    message.stylePtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.stylePtr);
                     break;
                 case /* optional symbol.bench.ColorData color */ 50:
                     message.color = ColorData.internalBinaryRead(reader, reader.uint32(), options, message.color);
@@ -20637,12 +22077,12 @@ class ShadowData$Type extends MessageType$<ShadowData> {
         /* symbol.bench.ShadowType type = 30; */
         if (message.type !== 0)
             writer.tag(30, WireType.Varint).int32(message.type);
-        /* optional symbol.bench.NodeReferenceData style_ptr = 40; */
-        if (message.stylePtr)
-            NodeReferenceData.internalBinaryWrite(message.stylePtr, writer.tag(40, WireType.LengthDelimited).fork(), options).join();
-        /* optional symbol.bench.NodeReferenceData field_ptr = 41; */
+        /* optional symbol.bench.NodeReferenceData field_ptr = 40; */
         if (message.fieldPtr)
-            NodeReferenceData.internalBinaryWrite(message.fieldPtr, writer.tag(41, WireType.LengthDelimited).fork(), options).join();
+            NodeReferenceData.internalBinaryWrite(message.fieldPtr, writer.tag(40, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbol.bench.NodeReferenceData style_ptr = 41; */
+        if (message.stylePtr)
+            NodeReferenceData.internalBinaryWrite(message.stylePtr, writer.tag(41, WireType.LengthDelimited).fork(), options).join();
         /* optional symbol.bench.ColorData color = 50; */
         if (message.color)
             ColorData.internalBinaryWrite(message.color, writer.tag(50, WireType.LengthDelimited).fork(), options).join();
@@ -30046,14 +31486,14 @@ class ColorStyleData$Type extends MessageType$<ColorStyleData> {
             { no: 33, name: "order_key", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
             { no: 34, name: "icon", kind: "message", T: () => IconData },
             { no: 35, name: "definition_ptr", kind: "message", T: () => NodeReferenceData },
-            { no: 40, name: "hue", kind: "enum", opt: true, T: () => ["symbol.bench.ColorHue", ColorHue, "COLOR_HUE_"] },
-            { no: 41, name: "shade", kind: "enum", opt: true, T: () => ["symbol.bench.ColorShade", ColorShade, "COLOR_SHADE_"] },
+            { no: 40, name: "field_ptr", kind: "message", T: () => NodeReferenceData },
             { no: 42, name: "style_ptr", kind: "message", T: () => NodeReferenceData },
-            { no: 43, name: "field_ptr", kind: "message", T: () => NodeReferenceData },
-            { no: 50, name: "x", kind: "scalar", opt: true, T: 2 /*ScalarType.FLOAT*/ },
-            { no: 51, name: "y", kind: "scalar", opt: true, T: 2 /*ScalarType.FLOAT*/ },
-            { no: 52, name: "z", kind: "scalar", opt: true, T: 2 /*ScalarType.FLOAT*/ },
-            { no: 53, name: "alpha", kind: "scalar", opt: true, T: 2 /*ScalarType.FLOAT*/ },
+            { no: 50, name: "hue", kind: "enum", opt: true, T: () => ["symbol.bench.ColorHue", ColorHue, "COLOR_HUE_"] },
+            { no: 51, name: "shade", kind: "enum", opt: true, T: () => ["symbol.bench.ColorShade", ColorShade, "COLOR_SHADE_"] },
+            { no: 52, name: "x", kind: "scalar", opt: true, T: 2 /*ScalarType.FLOAT*/ },
+            { no: 53, name: "y", kind: "scalar", opt: true, T: 2 /*ScalarType.FLOAT*/ },
+            { no: 54, name: "z", kind: "scalar", opt: true, T: 2 /*ScalarType.FLOAT*/ },
+            { no: 55, name: "alpha", kind: "scalar", opt: true, T: 2 /*ScalarType.FLOAT*/ },
             { no: 60, name: "dark", kind: "message", T: () => ColorData }
         ]);
     }
@@ -30127,28 +31567,28 @@ class ColorStyleData$Type extends MessageType$<ColorStyleData> {
                 case /* optional symbol.bench.NodeReferenceData definition_ptr */ 35:
                     message.definitionPtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.definitionPtr);
                     break;
-                case /* optional symbol.bench.ColorHue hue */ 40:
-                    message.hue = reader.int32();
-                    break;
-                case /* optional symbol.bench.ColorShade shade */ 41:
-                    message.shade = reader.int32();
+                case /* optional symbol.bench.NodeReferenceData field_ptr */ 40:
+                    message.fieldPtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.fieldPtr);
                     break;
                 case /* optional symbol.bench.NodeReferenceData style_ptr */ 42:
                     message.stylePtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.stylePtr);
                     break;
-                case /* optional symbol.bench.NodeReferenceData field_ptr */ 43:
-                    message.fieldPtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.fieldPtr);
+                case /* optional symbol.bench.ColorHue hue */ 50:
+                    message.hue = reader.int32();
                     break;
-                case /* optional float x */ 50:
+                case /* optional symbol.bench.ColorShade shade */ 51:
+                    message.shade = reader.int32();
+                    break;
+                case /* optional float x */ 52:
                     message.x = reader.float();
                     break;
-                case /* optional float y */ 51:
+                case /* optional float y */ 53:
                     message.y = reader.float();
                     break;
-                case /* optional float z */ 52:
+                case /* optional float z */ 54:
                     message.z = reader.float();
                     break;
-                case /* optional float alpha */ 53:
+                case /* optional float alpha */ 55:
                     message.alpha = reader.float();
                     break;
                 case /* optional symbol.bench.ColorData dark */ 60:
@@ -30220,30 +31660,30 @@ class ColorStyleData$Type extends MessageType$<ColorStyleData> {
         /* optional symbol.bench.NodeReferenceData definition_ptr = 35; */
         if (message.definitionPtr)
             NodeReferenceData.internalBinaryWrite(message.definitionPtr, writer.tag(35, WireType.LengthDelimited).fork(), options).join();
-        /* optional symbol.bench.ColorHue hue = 40; */
-        if (message.hue !== undefined)
-            writer.tag(40, WireType.Varint).int32(message.hue);
-        /* optional symbol.bench.ColorShade shade = 41; */
-        if (message.shade !== undefined)
-            writer.tag(41, WireType.Varint).int32(message.shade);
+        /* optional symbol.bench.NodeReferenceData field_ptr = 40; */
+        if (message.fieldPtr)
+            NodeReferenceData.internalBinaryWrite(message.fieldPtr, writer.tag(40, WireType.LengthDelimited).fork(), options).join();
         /* optional symbol.bench.NodeReferenceData style_ptr = 42; */
         if (message.stylePtr)
             NodeReferenceData.internalBinaryWrite(message.stylePtr, writer.tag(42, WireType.LengthDelimited).fork(), options).join();
-        /* optional symbol.bench.NodeReferenceData field_ptr = 43; */
-        if (message.fieldPtr)
-            NodeReferenceData.internalBinaryWrite(message.fieldPtr, writer.tag(43, WireType.LengthDelimited).fork(), options).join();
-        /* optional float x = 50; */
+        /* optional symbol.bench.ColorHue hue = 50; */
+        if (message.hue !== undefined)
+            writer.tag(50, WireType.Varint).int32(message.hue);
+        /* optional symbol.bench.ColorShade shade = 51; */
+        if (message.shade !== undefined)
+            writer.tag(51, WireType.Varint).int32(message.shade);
+        /* optional float x = 52; */
         if (message.x !== undefined)
-            writer.tag(50, WireType.Bit32).float(message.x);
-        /* optional float y = 51; */
+            writer.tag(52, WireType.Bit32).float(message.x);
+        /* optional float y = 53; */
         if (message.y !== undefined)
-            writer.tag(51, WireType.Bit32).float(message.y);
-        /* optional float z = 52; */
+            writer.tag(53, WireType.Bit32).float(message.y);
+        /* optional float z = 54; */
         if (message.z !== undefined)
-            writer.tag(52, WireType.Bit32).float(message.z);
-        /* optional float alpha = 53; */
+            writer.tag(54, WireType.Bit32).float(message.z);
+        /* optional float alpha = 55; */
         if (message.alpha !== undefined)
-            writer.tag(53, WireType.Bit32).float(message.alpha);
+            writer.tag(55, WireType.Bit32).float(message.alpha);
         /* optional symbol.bench.ColorData dark = 60; */
         if (message.dark)
             ColorData.internalBinaryWrite(message.dark, writer.tag(60, WireType.LengthDelimited).fork(), options).join();
@@ -30279,8 +31719,8 @@ class BorderStyleData$Type extends MessageType$<BorderStyleData> {
             { no: 33, name: "order_key", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
             { no: 34, name: "icon", kind: "message", T: () => IconData },
             { no: 35, name: "definition_ptr", kind: "message", T: () => NodeReferenceData },
-            { no: 40, name: "style_ptr", kind: "message", T: () => NodeReferenceData },
-            { no: 41, name: "field_ptr", kind: "message", T: () => NodeReferenceData },
+            { no: 40, name: "field_ptr", kind: "message", T: () => NodeReferenceData },
+            { no: 41, name: "style_ptr", kind: "message", T: () => NodeReferenceData },
             { no: 50, name: "color", kind: "message", T: () => ColorData },
             { no: 51, name: "width", kind: "message", T: () => InsetsData }
         ]);
@@ -30355,11 +31795,11 @@ class BorderStyleData$Type extends MessageType$<BorderStyleData> {
                 case /* optional symbol.bench.NodeReferenceData definition_ptr */ 35:
                     message.definitionPtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.definitionPtr);
                     break;
-                case /* optional symbol.bench.NodeReferenceData style_ptr */ 40:
-                    message.stylePtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.stylePtr);
-                    break;
-                case /* optional symbol.bench.NodeReferenceData field_ptr */ 41:
+                case /* optional symbol.bench.NodeReferenceData field_ptr */ 40:
                     message.fieldPtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.fieldPtr);
+                    break;
+                case /* optional symbol.bench.NodeReferenceData style_ptr */ 41:
+                    message.stylePtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.stylePtr);
                     break;
                 case /* optional symbol.bench.ColorData color */ 50:
                     message.color = ColorData.internalBinaryRead(reader, reader.uint32(), options, message.color);
@@ -30433,12 +31873,12 @@ class BorderStyleData$Type extends MessageType$<BorderStyleData> {
         /* optional symbol.bench.NodeReferenceData definition_ptr = 35; */
         if (message.definitionPtr)
             NodeReferenceData.internalBinaryWrite(message.definitionPtr, writer.tag(35, WireType.LengthDelimited).fork(), options).join();
-        /* optional symbol.bench.NodeReferenceData style_ptr = 40; */
-        if (message.stylePtr)
-            NodeReferenceData.internalBinaryWrite(message.stylePtr, writer.tag(40, WireType.LengthDelimited).fork(), options).join();
-        /* optional symbol.bench.NodeReferenceData field_ptr = 41; */
+        /* optional symbol.bench.NodeReferenceData field_ptr = 40; */
         if (message.fieldPtr)
-            NodeReferenceData.internalBinaryWrite(message.fieldPtr, writer.tag(41, WireType.LengthDelimited).fork(), options).join();
+            NodeReferenceData.internalBinaryWrite(message.fieldPtr, writer.tag(40, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbol.bench.NodeReferenceData style_ptr = 41; */
+        if (message.stylePtr)
+            NodeReferenceData.internalBinaryWrite(message.stylePtr, writer.tag(41, WireType.LengthDelimited).fork(), options).join();
         /* optional symbol.bench.ColorData color = 50; */
         if (message.color)
             ColorData.internalBinaryWrite(message.color, writer.tag(50, WireType.LengthDelimited).fork(), options).join();
@@ -30477,8 +31917,8 @@ class TransitionStyleData$Type extends MessageType$<TransitionStyleData> {
             { no: 33, name: "order_key", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
             { no: 34, name: "icon", kind: "message", T: () => IconData },
             { no: 35, name: "definition_ptr", kind: "message", T: () => NodeReferenceData },
-            { no: 40, name: "style_ptr", kind: "message", T: () => NodeReferenceData },
-            { no: 41, name: "field_ptr", kind: "message", T: () => NodeReferenceData },
+            { no: 40, name: "field_ptr", kind: "message", T: () => NodeReferenceData },
+            { no: 41, name: "style_ptr", kind: "message", T: () => NodeReferenceData },
             { no: 50, name: "delay", kind: "scalar", opt: true, T: 2 /*ScalarType.FLOAT*/ },
             { no: 51, name: "duration", kind: "scalar", opt: true, T: 2 /*ScalarType.FLOAT*/ },
             { no: 52, name: "ease", kind: "scalar", repeat: 1 /*RepeatType.PACKED*/, T: 2 /*ScalarType.FLOAT*/ },
@@ -30560,11 +32000,11 @@ class TransitionStyleData$Type extends MessageType$<TransitionStyleData> {
                 case /* optional symbol.bench.NodeReferenceData definition_ptr */ 35:
                     message.definitionPtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.definitionPtr);
                     break;
-                case /* optional symbol.bench.NodeReferenceData style_ptr */ 40:
-                    message.stylePtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.stylePtr);
-                    break;
-                case /* optional symbol.bench.NodeReferenceData field_ptr */ 41:
+                case /* optional symbol.bench.NodeReferenceData field_ptr */ 40:
                     message.fieldPtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.fieldPtr);
+                    break;
+                case /* optional symbol.bench.NodeReferenceData style_ptr */ 41:
+                    message.stylePtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.stylePtr);
                     break;
                 case /* optional float delay */ 50:
                     message.delay = reader.float();
@@ -30660,12 +32100,12 @@ class TransitionStyleData$Type extends MessageType$<TransitionStyleData> {
         /* optional symbol.bench.NodeReferenceData definition_ptr = 35; */
         if (message.definitionPtr)
             NodeReferenceData.internalBinaryWrite(message.definitionPtr, writer.tag(35, WireType.LengthDelimited).fork(), options).join();
-        /* optional symbol.bench.NodeReferenceData style_ptr = 40; */
-        if (message.stylePtr)
-            NodeReferenceData.internalBinaryWrite(message.stylePtr, writer.tag(40, WireType.LengthDelimited).fork(), options).join();
-        /* optional symbol.bench.NodeReferenceData field_ptr = 41; */
+        /* optional symbol.bench.NodeReferenceData field_ptr = 40; */
         if (message.fieldPtr)
-            NodeReferenceData.internalBinaryWrite(message.fieldPtr, writer.tag(41, WireType.LengthDelimited).fork(), options).join();
+            NodeReferenceData.internalBinaryWrite(message.fieldPtr, writer.tag(40, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbol.bench.NodeReferenceData style_ptr = 41; */
+        if (message.stylePtr)
+            NodeReferenceData.internalBinaryWrite(message.stylePtr, writer.tag(41, WireType.LengthDelimited).fork(), options).join();
         /* optional float delay = 50; */
         if (message.delay !== undefined)
             writer.tag(50, WireType.Bit32).float(message.delay);
@@ -30726,8 +32166,8 @@ class EffectStyleData$Type extends MessageType$<EffectStyleData> {
             { no: 33, name: "order_key", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
             { no: 34, name: "icon", kind: "message", T: () => IconData },
             { no: 35, name: "definition_ptr", kind: "message", T: () => NodeReferenceData },
+            { no: 40, name: "field_ptr", kind: "message", T: () => NodeReferenceData },
             { no: 41, name: "style_ptr", kind: "message", T: () => NodeReferenceData },
-            { no: 42, name: "field_ptr", kind: "message", T: () => NodeReferenceData },
             { no: 50, name: "opacity", kind: "scalar", opt: true, T: 2 /*ScalarType.FLOAT*/ },
             { no: 51, name: "offset", kind: "message", T: () => Vector2Data },
             { no: 52, name: "scale", kind: "scalar", opt: true, T: 2 /*ScalarType.FLOAT*/ },
@@ -30814,11 +32254,11 @@ class EffectStyleData$Type extends MessageType$<EffectStyleData> {
                 case /* optional symbol.bench.NodeReferenceData definition_ptr */ 35:
                     message.definitionPtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.definitionPtr);
                     break;
+                case /* optional symbol.bench.NodeReferenceData field_ptr */ 40:
+                    message.fieldPtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.fieldPtr);
+                    break;
                 case /* optional symbol.bench.NodeReferenceData style_ptr */ 41:
                     message.stylePtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.stylePtr);
-                    break;
-                case /* optional symbol.bench.NodeReferenceData field_ptr */ 42:
-                    message.fieldPtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.fieldPtr);
                     break;
                 case /* optional float opacity */ 50:
                     message.opacity = reader.float();
@@ -30928,12 +32368,12 @@ class EffectStyleData$Type extends MessageType$<EffectStyleData> {
         /* optional symbol.bench.NodeReferenceData definition_ptr = 35; */
         if (message.definitionPtr)
             NodeReferenceData.internalBinaryWrite(message.definitionPtr, writer.tag(35, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbol.bench.NodeReferenceData field_ptr = 40; */
+        if (message.fieldPtr)
+            NodeReferenceData.internalBinaryWrite(message.fieldPtr, writer.tag(40, WireType.LengthDelimited).fork(), options).join();
         /* optional symbol.bench.NodeReferenceData style_ptr = 41; */
         if (message.stylePtr)
             NodeReferenceData.internalBinaryWrite(message.stylePtr, writer.tag(41, WireType.LengthDelimited).fork(), options).join();
-        /* optional symbol.bench.NodeReferenceData field_ptr = 42; */
-        if (message.fieldPtr)
-            NodeReferenceData.internalBinaryWrite(message.fieldPtr, writer.tag(42, WireType.LengthDelimited).fork(), options).join();
         /* optional float opacity = 50; */
         if (message.opacity !== undefined)
             writer.tag(50, WireType.Bit32).float(message.opacity);
@@ -31207,8 +32647,8 @@ class FontStyleData$Type extends MessageType$<FontStyleData> {
             { no: 33, name: "order_key", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
             { no: 34, name: "icon", kind: "message", T: () => IconData },
             { no: 35, name: "definition_ptr", kind: "message", T: () => NodeReferenceData },
-            { no: 40, name: "style_ptr", kind: "message", T: () => NodeReferenceData },
-            { no: 41, name: "field_ptr", kind: "message", T: () => NodeReferenceData },
+            { no: 40, name: "field_ptr", kind: "message", T: () => NodeReferenceData },
+            { no: 41, name: "style_ptr", kind: "message", T: () => NodeReferenceData },
             { no: 50, name: "weight", kind: "enum", opt: true, T: () => ["symbol.bench.FontWeight", FontWeight, "FONT_WEIGHT_"] },
             { no: 51, name: "color", kind: "message", T: () => FillData },
             { no: 52, name: "size", kind: "enum", opt: true, T: () => ["symbol.bench.FontSize", FontSize, "FONT_SIZE_"] },
@@ -31289,11 +32729,11 @@ class FontStyleData$Type extends MessageType$<FontStyleData> {
                 case /* optional symbol.bench.NodeReferenceData definition_ptr */ 35:
                     message.definitionPtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.definitionPtr);
                     break;
-                case /* optional symbol.bench.NodeReferenceData style_ptr */ 40:
-                    message.stylePtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.stylePtr);
-                    break;
-                case /* optional symbol.bench.NodeReferenceData field_ptr */ 41:
+                case /* optional symbol.bench.NodeReferenceData field_ptr */ 40:
                     message.fieldPtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.fieldPtr);
+                    break;
+                case /* optional symbol.bench.NodeReferenceData style_ptr */ 41:
+                    message.stylePtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.stylePtr);
                     break;
                 case /* optional symbol.bench.FontWeight weight */ 50:
                     message.weight = reader.int32();
@@ -31385,12 +32825,12 @@ class FontStyleData$Type extends MessageType$<FontStyleData> {
         /* optional symbol.bench.NodeReferenceData definition_ptr = 35; */
         if (message.definitionPtr)
             NodeReferenceData.internalBinaryWrite(message.definitionPtr, writer.tag(35, WireType.LengthDelimited).fork(), options).join();
-        /* optional symbol.bench.NodeReferenceData style_ptr = 40; */
-        if (message.stylePtr)
-            NodeReferenceData.internalBinaryWrite(message.stylePtr, writer.tag(40, WireType.LengthDelimited).fork(), options).join();
-        /* optional symbol.bench.NodeReferenceData field_ptr = 41; */
+        /* optional symbol.bench.NodeReferenceData field_ptr = 40; */
         if (message.fieldPtr)
-            NodeReferenceData.internalBinaryWrite(message.fieldPtr, writer.tag(41, WireType.LengthDelimited).fork(), options).join();
+            NodeReferenceData.internalBinaryWrite(message.fieldPtr, writer.tag(40, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbol.bench.NodeReferenceData style_ptr = 41; */
+        if (message.stylePtr)
+            NodeReferenceData.internalBinaryWrite(message.stylePtr, writer.tag(41, WireType.LengthDelimited).fork(), options).join();
         /* optional symbol.bench.FontWeight weight = 50; */
         if (message.weight !== undefined)
             writer.tag(50, WireType.Varint).int32(message.weight);
@@ -31447,8 +32887,8 @@ class ShadowStyleData$Type extends MessageType$<ShadowStyleData> {
             { no: 33, name: "order_key", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
             { no: 34, name: "icon", kind: "message", T: () => IconData },
             { no: 35, name: "definition_ptr", kind: "message", T: () => NodeReferenceData },
-            { no: 40, name: "style_ptr", kind: "message", T: () => NodeReferenceData },
-            { no: 41, name: "field_ptr", kind: "message", T: () => NodeReferenceData },
+            { no: 40, name: "field_ptr", kind: "message", T: () => NodeReferenceData },
+            { no: 41, name: "style_ptr", kind: "message", T: () => NodeReferenceData },
             { no: 50, name: "color", kind: "message", T: () => ColorData },
             { no: 51, name: "position", kind: "enum", T: () => ["symbol.bench.ShadowPosition", ShadowPosition, "SHADOW_POSITION_"] },
             { no: 52, name: "offset", kind: "message", T: () => Axis2Data },
@@ -31528,11 +32968,11 @@ class ShadowStyleData$Type extends MessageType$<ShadowStyleData> {
                 case /* optional symbol.bench.NodeReferenceData definition_ptr */ 35:
                     message.definitionPtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.definitionPtr);
                     break;
-                case /* optional symbol.bench.NodeReferenceData style_ptr */ 40:
-                    message.stylePtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.stylePtr);
-                    break;
-                case /* optional symbol.bench.NodeReferenceData field_ptr */ 41:
+                case /* optional symbol.bench.NodeReferenceData field_ptr */ 40:
                     message.fieldPtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.fieldPtr);
+                    break;
+                case /* optional symbol.bench.NodeReferenceData style_ptr */ 41:
+                    message.stylePtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.stylePtr);
                     break;
                 case /* optional symbol.bench.ColorData color */ 50:
                     message.color = ColorData.internalBinaryRead(reader, reader.uint32(), options, message.color);
@@ -31618,12 +33058,12 @@ class ShadowStyleData$Type extends MessageType$<ShadowStyleData> {
         /* optional symbol.bench.NodeReferenceData definition_ptr = 35; */
         if (message.definitionPtr)
             NodeReferenceData.internalBinaryWrite(message.definitionPtr, writer.tag(35, WireType.LengthDelimited).fork(), options).join();
-        /* optional symbol.bench.NodeReferenceData style_ptr = 40; */
-        if (message.stylePtr)
-            NodeReferenceData.internalBinaryWrite(message.stylePtr, writer.tag(40, WireType.LengthDelimited).fork(), options).join();
-        /* optional symbol.bench.NodeReferenceData field_ptr = 41; */
+        /* optional symbol.bench.NodeReferenceData field_ptr = 40; */
         if (message.fieldPtr)
-            NodeReferenceData.internalBinaryWrite(message.fieldPtr, writer.tag(41, WireType.LengthDelimited).fork(), options).join();
+            NodeReferenceData.internalBinaryWrite(message.fieldPtr, writer.tag(40, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbol.bench.NodeReferenceData style_ptr = 41; */
+        if (message.stylePtr)
+            NodeReferenceData.internalBinaryWrite(message.stylePtr, writer.tag(41, WireType.LengthDelimited).fork(), options).join();
         /* optional symbol.bench.ColorData color = 50; */
         if (message.color)
             ColorData.internalBinaryWrite(message.color, writer.tag(50, WireType.LengthDelimited).fork(), options).join();
@@ -35883,9 +37323,9 @@ export type JsonValue = JsonPrimitive | { [key: string]: JsonValue } | JsonValue
 
 // Any...
 export type AnyNodeData = BenchData | HandleData | UserData | OrganizationData | ClientData | PackageData | DependencyData | PageData | BlockData | ApplicationData | DatabaseData | ComputerData | ScalerData | ChoiceData | ClassData | FieldData | OptionData | TableData | RecordData | FileData | LinkData | ChannelData | ThreadData | MessageData | NotificationData | TaskData | ClaimData | CursorData | ServiceData | ActionData | FlowData | FlowEdgeData | AgentData | SessionData | RunData | SpanData | InterruptionData | MembershipData | InviteData | TeamData | RoleData | SpaceData | SceneData | RouteData | FrameViewData | LabelViewData | ComponentViewData | SplitViewData | TextViewData | NumberInputViewData | SliderInputViewData | ThreadViewData | WizardViewData | ThemeData | ColorStyleData | FontStyleData | BorderStyleData | ShadowStyleData | GradientStyleData | TransitionStyleData | EffectStyleData | EmptyData
-export type AnyStructData = ContextData | EditContextData | EditData | EditOperationData | ChangeData | ChangeVignetteData | GraphScopeData | ClientOriginData | NodeReferenceData | PropertyReferenceData | TypeData | TypeConstraintData | FileInfoData | ScheduleData | TextData | TextLineData | TextSpanData | CodeData | IconData | ExpressionData | AggregationResultData | SelectionData | SelectOptionsData | ErrorData | RunTraceData | RunFrameData | PolicyData | PolicyRuleData | PolicySubjectData | AccessZoneData | AccessMatrixData | AccessData | Vector2Data | Vector3Data | Vector4Data | Axis2Data | Axis3Data | ColorData | ShadowData | BorderData | FontData | GradientStopData | GradientData | FillData | LengthData | PositionData | DimensionData | TransitionData | EffectData | GridData | GridSpanData | InsetsData | CornersData
+export type AnyStructData = ContextData | EditContextData | EditData | EditOperationData | ChangeData | ChangeVignetteData | GraphScopeData | ClientOriginData | NodeReferenceData | PropertyReferenceData | TypeData | TypeConstraintData | FileInfoData | ScheduleData | TextData | TextLineData | TextSpanData | CodeData | IconData | ExpressionData | AggregationResultData | SelectionData | SelectOptionsData | ErrorData | RunTraceData | RunFrameData | PolicyData | PolicyRuleData | PolicySubjectData | AccessZoneData | AccessMatrixData | AccessData | Vector2Data | VariableVector2Data | Vector3Data | VariableVector3Data | Vector4Data | VariableVector4Data | Axis2Data | VariableAxis2Data | Axis3Data | VariableAxis3Data | ColorData | ShadowData | BorderData | FontData | GradientStopData | GradientData | FillData | LengthData | VariableLengthData | PositionData | VariablePositionData | DimensionData | VariableDimensionData | TransitionData | EffectData | GridData | VariableGridData | GridSpanData | VariableGridSpanData | InsetsData | VariableInsetsData | CornersData | VariableCornersData
 export type AnyNodeDataType = typeof BenchData | typeof HandleData | typeof UserData | typeof OrganizationData | typeof ClientData | typeof PackageData | typeof DependencyData | typeof PageData | typeof BlockData | typeof ApplicationData | typeof DatabaseData | typeof ComputerData | typeof ScalerData | typeof ChoiceData | typeof ClassData | typeof FieldData | typeof OptionData | typeof TableData | typeof RecordData | typeof FileData | typeof LinkData | typeof ChannelData | typeof ThreadData | typeof MessageData | typeof NotificationData | typeof TaskData | typeof ClaimData | typeof CursorData | typeof ServiceData | typeof ActionData | typeof FlowData | typeof FlowEdgeData | typeof AgentData | typeof SessionData | typeof RunData | typeof SpanData | typeof InterruptionData | typeof MembershipData | typeof InviteData | typeof TeamData | typeof RoleData | typeof SpaceData | typeof SceneData | typeof RouteData | typeof FrameViewData | typeof LabelViewData | typeof ComponentViewData | typeof SplitViewData | typeof TextViewData | typeof NumberInputViewData | typeof SliderInputViewData | typeof ThreadViewData | typeof WizardViewData | typeof ThemeData | typeof ColorStyleData | typeof FontStyleData | typeof BorderStyleData | typeof ShadowStyleData | typeof GradientStyleData | typeof TransitionStyleData | typeof EffectStyleData | typeof EmptyData
-export type AnyStructDataType = typeof ContextData | typeof EditContextData | typeof EditData | typeof EditOperationData | typeof ChangeData | typeof ChangeVignetteData | typeof GraphScopeData | typeof ClientOriginData | typeof NodeReferenceData | typeof PropertyReferenceData | typeof TypeData | typeof TypeConstraintData | typeof FileInfoData | typeof ScheduleData | typeof TextData | typeof TextLineData | typeof TextSpanData | typeof CodeData | typeof IconData | typeof ExpressionData | typeof AggregationResultData | typeof SelectionData | typeof SelectOptionsData | typeof ErrorData | typeof RunTraceData | typeof RunFrameData | typeof PolicyData | typeof PolicyRuleData | typeof PolicySubjectData | typeof AccessZoneData | typeof AccessMatrixData | typeof AccessData | typeof Vector2Data | typeof Vector3Data | typeof Vector4Data | typeof Axis2Data | typeof Axis3Data | typeof ColorData | typeof ShadowData | typeof BorderData | typeof FontData | typeof GradientStopData | typeof GradientData | typeof FillData | typeof LengthData | typeof PositionData | typeof DimensionData | typeof TransitionData | typeof EffectData | typeof GridData | typeof GridSpanData | typeof InsetsData | typeof CornersData
+export type AnyStructDataType = typeof ContextData | typeof EditContextData | typeof EditData | typeof EditOperationData | typeof ChangeData | typeof ChangeVignetteData | typeof GraphScopeData | typeof ClientOriginData | typeof NodeReferenceData | typeof PropertyReferenceData | typeof TypeData | typeof TypeConstraintData | typeof FileInfoData | typeof ScheduleData | typeof TextData | typeof TextLineData | typeof TextSpanData | typeof CodeData | typeof IconData | typeof ExpressionData | typeof AggregationResultData | typeof SelectionData | typeof SelectOptionsData | typeof ErrorData | typeof RunTraceData | typeof RunFrameData | typeof PolicyData | typeof PolicyRuleData | typeof PolicySubjectData | typeof AccessZoneData | typeof AccessMatrixData | typeof AccessData | typeof Vector2Data | typeof VariableVector2Data | typeof Vector3Data | typeof VariableVector3Data | typeof Vector4Data | typeof VariableVector4Data | typeof Axis2Data | typeof VariableAxis2Data | typeof Axis3Data | typeof VariableAxis3Data | typeof ColorData | typeof ShadowData | typeof BorderData | typeof FontData | typeof GradientStopData | typeof GradientData | typeof FillData | typeof LengthData | typeof VariableLengthData | typeof PositionData | typeof VariablePositionData | typeof DimensionData | typeof VariableDimensionData | typeof TransitionData | typeof EffectData | typeof GridData | typeof VariableGridData | typeof GridSpanData | typeof VariableGridSpanData | typeof InsetsData | typeof VariableInsetsData | typeof CornersData | typeof VariableCornersData
 export type BenchNodeData = BenchData | HandleData | PackageData | DependencyData | PageData | BlockData | ApplicationData | DatabaseData | ComputerData | ScalerData | ChoiceData | ClassData | FieldData | OptionData | TableData | RecordData | FileData | LinkData | ChannelData | ThreadData | MessageData | NotificationData | TaskData | ClaimData | CursorData | ServiceData | ActionData | FlowData | FlowEdgeData | AgentData | SessionData | RunData | SpanData | InterruptionData | MembershipData | InviteData | TeamData | RoleData | SpaceData | SceneData | RouteData | FrameViewData | LabelViewData | ComponentViewData | SplitViewData | TextViewData | NumberInputViewData | SliderInputViewData | ThreadViewData | WizardViewData | ThemeData | ColorStyleData | FontStyleData | BorderStyleData | ShadowStyleData | GradientStyleData | TransitionStyleData | EffectStyleData
 export type ClaimableNodeData = PageData | DatabaseData | ComputerData | ScalerData | TableData | RecordData | FileData | LinkData | TaskData | ServiceData | ActionData | FlowData | AgentData
 export type PageNodeData = PageData | ApplicationData | DatabaseData | ComputerData | ScalerData | ChoiceData | ClassData | TableData | FileData | LinkData | ChannelData | ThreadData | TaskData | ServiceData | FlowData | AgentData | TeamData | RoleData | SceneData | RouteData | FrameViewData | LabelViewData | ComponentViewData | SplitViewData | TextViewData | NumberInputViewData | SliderInputViewData | ThreadViewData | WizardViewData | ThemeData | ColorStyleData | FontStyleData | BorderStyleData | ShadowStyleData | GradientStyleData | TransitionStyleData | EffectStyleData
@@ -36707,10 +38147,15 @@ export const MESSAGE_TYPE_BY_OBJECT_TYPE: Partial<Record<ObjectType, MessageType
   [ObjectType.ACCESS_MATRIX]: AccessMatrixData,
   [ObjectType.ACCESS]: AccessData,
   [ObjectType.VECTOR2]: Vector2Data,
+  [ObjectType.VARIABLE_VECTOR2]: VariableVector2Data,
   [ObjectType.VECTOR3]: Vector3Data,
+  [ObjectType.VARIABLE_VECTOR3]: VariableVector3Data,
   [ObjectType.VECTOR4]: Vector4Data,
+  [ObjectType.VARIABLE_VECTOR4]: VariableVector4Data,
   [ObjectType.AXIS2]: Axis2Data,
+  [ObjectType.VARIABLE_AXIS2]: VariableAxis2Data,
   [ObjectType.AXIS3]: Axis3Data,
+  [ObjectType.VARIABLE_AXIS3]: VariableAxis3Data,
   [ObjectType.COLOR]: ColorData,
   [ObjectType.SHADOW]: ShadowData,
   [ObjectType.BORDER]: BorderData,
@@ -36719,14 +38164,21 @@ export const MESSAGE_TYPE_BY_OBJECT_TYPE: Partial<Record<ObjectType, MessageType
   [ObjectType.GRADIENT]: GradientData,
   [ObjectType.FILL]: FillData,
   [ObjectType.LENGTH]: LengthData,
+  [ObjectType.VARIABLE_LENGTH]: VariableLengthData,
   [ObjectType.POSITION]: PositionData,
+  [ObjectType.VARIABLE_POSITION]: VariablePositionData,
   [ObjectType.DIMENSION]: DimensionData,
+  [ObjectType.VARIABLE_DIMENSION]: VariableDimensionData,
   [ObjectType.TRANSITION]: TransitionData,
   [ObjectType.EFFECT]: EffectData,
   [ObjectType.GRID]: GridData,
+  [ObjectType.VARIABLE_GRID]: VariableGridData,
   [ObjectType.GRID_SPAN]: GridSpanData,
+  [ObjectType.VARIABLE_GRID_SPAN]: VariableGridSpanData,
   [ObjectType.INSETS]: InsetsData,
+  [ObjectType.VARIABLE_INSETS]: VariableInsetsData,
   [ObjectType.CORNERS]: CornersData,
+  [ObjectType.VARIABLE_CORNERS]: VariableCornersData,
 }
 
 export const OBJECT_TYPE_BY_MESSAGE_TYPE_NAME: Record<string, ObjectType> = {
@@ -36825,10 +38277,15 @@ export const OBJECT_TYPE_BY_MESSAGE_TYPE_NAME: Record<string, ObjectType> = {
   ["symbol.bench.AccessMatrixData"]: ObjectType.ACCESS_MATRIX,
   ["symbol.bench.AccessData"]: ObjectType.ACCESS,
   ["symbol.bench.Vector2Data"]: ObjectType.VECTOR2,
+  ["symbol.bench.VariableVector2Data"]: ObjectType.VARIABLE_VECTOR2,
   ["symbol.bench.Vector3Data"]: ObjectType.VECTOR3,
+  ["symbol.bench.VariableVector3Data"]: ObjectType.VARIABLE_VECTOR3,
   ["symbol.bench.Vector4Data"]: ObjectType.VECTOR4,
+  ["symbol.bench.VariableVector4Data"]: ObjectType.VARIABLE_VECTOR4,
   ["symbol.bench.Axis2Data"]: ObjectType.AXIS2,
+  ["symbol.bench.VariableAxis2Data"]: ObjectType.VARIABLE_AXIS2,
   ["symbol.bench.Axis3Data"]: ObjectType.AXIS3,
+  ["symbol.bench.VariableAxis3Data"]: ObjectType.VARIABLE_AXIS3,
   ["symbol.bench.ColorData"]: ObjectType.COLOR,
   ["symbol.bench.ShadowData"]: ObjectType.SHADOW,
   ["symbol.bench.BorderData"]: ObjectType.BORDER,
@@ -36837,14 +38294,21 @@ export const OBJECT_TYPE_BY_MESSAGE_TYPE_NAME: Record<string, ObjectType> = {
   ["symbol.bench.GradientData"]: ObjectType.GRADIENT,
   ["symbol.bench.FillData"]: ObjectType.FILL,
   ["symbol.bench.LengthData"]: ObjectType.LENGTH,
+  ["symbol.bench.VariableLengthData"]: ObjectType.VARIABLE_LENGTH,
   ["symbol.bench.PositionData"]: ObjectType.POSITION,
+  ["symbol.bench.VariablePositionData"]: ObjectType.VARIABLE_POSITION,
   ["symbol.bench.DimensionData"]: ObjectType.DIMENSION,
+  ["symbol.bench.VariableDimensionData"]: ObjectType.VARIABLE_DIMENSION,
   ["symbol.bench.TransitionData"]: ObjectType.TRANSITION,
   ["symbol.bench.EffectData"]: ObjectType.EFFECT,
   ["symbol.bench.GridData"]: ObjectType.GRID,
+  ["symbol.bench.VariableGridData"]: ObjectType.VARIABLE_GRID,
   ["symbol.bench.GridSpanData"]: ObjectType.GRID_SPAN,
+  ["symbol.bench.VariableGridSpanData"]: ObjectType.VARIABLE_GRID_SPAN,
   ["symbol.bench.InsetsData"]: ObjectType.INSETS,
+  ["symbol.bench.VariableInsetsData"]: ObjectType.VARIABLE_INSETS,
   ["symbol.bench.CornersData"]: ObjectType.CORNERS,
+  ["symbol.bench.VariableCornersData"]: ObjectType.VARIABLE_CORNERS,
 }
 
 export const ENUM_BY_TYPE: Record<EnumType, Record<number | string, number | string>> = {
@@ -37001,10 +38465,15 @@ export interface StructTypeMapping extends Record<StructType, AnyStructData> {
   [StructType.ACCESS_MATRIX]: AccessMatrixData,
   [StructType.ACCESS]: AccessData,
   [StructType.VECTOR2]: Vector2Data,
+  [StructType.VARIABLE_VECTOR2]: VariableVector2Data,
   [StructType.VECTOR3]: Vector3Data,
+  [StructType.VARIABLE_VECTOR3]: VariableVector3Data,
   [StructType.VECTOR4]: Vector4Data,
+  [StructType.VARIABLE_VECTOR4]: VariableVector4Data,
   [StructType.AXIS2]: Axis2Data,
+  [StructType.VARIABLE_AXIS2]: VariableAxis2Data,
   [StructType.AXIS3]: Axis3Data,
+  [StructType.VARIABLE_AXIS3]: VariableAxis3Data,
   [StructType.COLOR]: ColorData,
   [StructType.SHADOW]: ShadowData,
   [StructType.BORDER]: BorderData,
@@ -37013,14 +38482,21 @@ export interface StructTypeMapping extends Record<StructType, AnyStructData> {
   [StructType.GRADIENT]: GradientData,
   [StructType.FILL]: FillData,
   [StructType.LENGTH]: LengthData,
+  [StructType.VARIABLE_LENGTH]: VariableLengthData,
   [StructType.POSITION]: PositionData,
+  [StructType.VARIABLE_POSITION]: VariablePositionData,
   [StructType.DIMENSION]: DimensionData,
+  [StructType.VARIABLE_DIMENSION]: VariableDimensionData,
   [StructType.TRANSITION]: TransitionData,
   [StructType.EFFECT]: EffectData,
   [StructType.GRID]: GridData,
+  [StructType.VARIABLE_GRID]: VariableGridData,
   [StructType.GRID_SPAN]: GridSpanData,
+  [StructType.VARIABLE_GRID_SPAN]: VariableGridSpanData,
   [StructType.INSETS]: InsetsData,
+  [StructType.VARIABLE_INSETS]: VariableInsetsData,
   [StructType.CORNERS]: CornersData,
+  [StructType.VARIABLE_CORNERS]: VariableCornersData,
 }
 
 export interface NodeTypeMapping extends Record<NodeType, AnyNodeData> {
@@ -37184,10 +38660,15 @@ export interface AnyTypeMapping extends Record<ObjectType, AnyStructData | AnyNo
   [ObjectType.ACCESS_MATRIX]: AccessMatrixData,
   [ObjectType.ACCESS]: AccessData,
   [ObjectType.VECTOR2]: Vector2Data,
+  [ObjectType.VARIABLE_VECTOR2]: VariableVector2Data,
   [ObjectType.VECTOR3]: Vector3Data,
+  [ObjectType.VARIABLE_VECTOR3]: VariableVector3Data,
   [ObjectType.VECTOR4]: Vector4Data,
+  [ObjectType.VARIABLE_VECTOR4]: VariableVector4Data,
   [ObjectType.AXIS2]: Axis2Data,
+  [ObjectType.VARIABLE_AXIS2]: VariableAxis2Data,
   [ObjectType.AXIS3]: Axis3Data,
+  [ObjectType.VARIABLE_AXIS3]: VariableAxis3Data,
   [ObjectType.COLOR]: ColorData,
   [ObjectType.SHADOW]: ShadowData,
   [ObjectType.BORDER]: BorderData,
@@ -37196,14 +38677,21 @@ export interface AnyTypeMapping extends Record<ObjectType, AnyStructData | AnyNo
   [ObjectType.GRADIENT]: GradientData,
   [ObjectType.FILL]: FillData,
   [ObjectType.LENGTH]: LengthData,
+  [ObjectType.VARIABLE_LENGTH]: VariableLengthData,
   [ObjectType.POSITION]: PositionData,
+  [ObjectType.VARIABLE_POSITION]: VariablePositionData,
   [ObjectType.DIMENSION]: DimensionData,
+  [ObjectType.VARIABLE_DIMENSION]: VariableDimensionData,
   [ObjectType.TRANSITION]: TransitionData,
   [ObjectType.EFFECT]: EffectData,
   [ObjectType.GRID]: GridData,
+  [ObjectType.VARIABLE_GRID]: VariableGridData,
   [ObjectType.GRID_SPAN]: GridSpanData,
+  [ObjectType.VARIABLE_GRID_SPAN]: VariableGridSpanData,
   [ObjectType.INSETS]: InsetsData,
+  [ObjectType.VARIABLE_INSETS]: VariableInsetsData,
   [ObjectType.CORNERS]: CornersData,
+  [ObjectType.VARIABLE_CORNERS]: VariableCornersData,
 }
 
 export interface EnumTypeMapping extends Record<EnumType, any> {
@@ -38975,14 +40463,14 @@ export enum ColorStyleProperty {
   orderKey = 33,
   icon = 34,
   definitionPtr = 35,
-  hue = 40,
-  shade = 41,
+  fieldPtr = 40,
   stylePtr = 42,
-  fieldPtr = 43,
-  x = 50,
-  y = 51,
-  z = 52,
-  alpha = 53,
+  hue = 50,
+  shade = 51,
+  x = 52,
+  y = 53,
+  z = 54,
+  alpha = 55,
   dark = 60,
 }
 
@@ -39005,8 +40493,8 @@ export enum FontStyleProperty {
   orderKey = 33,
   icon = 34,
   definitionPtr = 35,
-  stylePtr = 40,
-  fieldPtr = 41,
+  fieldPtr = 40,
+  stylePtr = 41,
   weight = 50,
   color = 51,
   size = 52,
@@ -39036,8 +40524,8 @@ export enum BorderStyleProperty {
   orderKey = 33,
   icon = 34,
   definitionPtr = 35,
-  stylePtr = 40,
-  fieldPtr = 41,
+  fieldPtr = 40,
+  stylePtr = 41,
   color = 50,
   width = 51,
 }
@@ -39061,8 +40549,8 @@ export enum ShadowStyleProperty {
   orderKey = 33,
   icon = 34,
   definitionPtr = 35,
-  stylePtr = 40,
-  fieldPtr = 41,
+  fieldPtr = 40,
+  stylePtr = 41,
   color = 50,
   position = 51,
   offset = 52,
@@ -39115,8 +40603,8 @@ export enum TransitionStyleProperty {
   orderKey = 33,
   icon = 34,
   definitionPtr = 35,
-  stylePtr = 40,
-  fieldPtr = 41,
+  fieldPtr = 40,
+  stylePtr = 41,
   delay = 50,
   duration = 51,
   ease = 52,
@@ -39146,8 +40634,8 @@ export enum EffectStyleProperty {
   orderKey = 33,
   icon = 34,
   definitionPtr = 35,
+  fieldPtr = 40,
   stylePtr = 41,
-  fieldPtr = 42,
   opacity = 50,
   offset = 51,
   scale = 52,
@@ -39524,58 +41012,99 @@ export enum AccessProperty {
 
 export enum Vector2Property {
   metatype = 1,
-  x = 30,
-  y = 31,
+  x = 50,
+  y = 51,
+}
+
+export enum VariableVector2Property {
+  metatype = 1,
+  fieldPtr = 40,
+  x = 50,
+  y = 51,
 }
 
 export enum Vector3Property {
   metatype = 1,
-  x = 30,
-  y = 31,
-  z = 32,
+  x = 50,
+  y = 51,
+  z = 52,
+}
+
+export enum VariableVector3Property {
+  metatype = 1,
+  fieldPtr = 40,
+  x = 50,
+  y = 51,
+  z = 52,
 }
 
 export enum Vector4Property {
   metatype = 1,
-  x = 30,
-  y = 31,
-  z = 32,
-  w = 33,
+  x = 50,
+  y = 51,
+  z = 52,
+  w = 53,
+}
+
+export enum VariableVector4Property {
+  metatype = 1,
+  fieldPtr = 40,
+  x = 50,
+  y = 51,
+  z = 52,
+  w = 53,
 }
 
 export enum Axis2Property {
   metatype = 1,
-  base = 40,
-  x = 41,
-  y = 42,
+  base = 50,
+  x = 51,
+  y = 52,
+}
+
+export enum VariableAxis2Property {
+  metatype = 1,
+  fieldPtr = 40,
+  base = 50,
+  x = 51,
+  y = 52,
 }
 
 export enum Axis3Property {
   metatype = 1,
-  base = 40,
-  x = 41,
-  y = 42,
-  z = 43,
+  base = 50,
+  x = 51,
+  y = 52,
+  z = 53,
+}
+
+export enum VariableAxis3Property {
+  metatype = 1,
+  fieldPtr = 40,
+  base = 50,
+  x = 51,
+  y = 52,
+  z = 53,
 }
 
 export enum ColorProperty {
   metatype = 1,
   type = 30,
-  hue = 40,
-  shade = 41,
+  fieldPtr = 40,
   stylePtr = 42,
-  fieldPtr = 43,
-  x = 50,
-  y = 51,
-  z = 52,
-  alpha = 53,
+  hue = 50,
+  shade = 51,
+  x = 52,
+  y = 53,
+  z = 54,
+  alpha = 55,
 }
 
 export enum ShadowProperty {
   metatype = 1,
   type = 30,
-  stylePtr = 40,
-  fieldPtr = 41,
+  fieldPtr = 40,
+  stylePtr = 41,
   color = 50,
   position = 51,
   offset = 52,
@@ -39587,8 +41116,8 @@ export enum ShadowProperty {
 export enum BorderProperty {
   metatype = 1,
   type = 30,
-  stylePtr = 40,
-  fieldPtr = 41,
+  fieldPtr = 40,
+  stylePtr = 41,
   color = 50,
   width = 51,
 }
@@ -39596,8 +41125,8 @@ export enum BorderProperty {
 export enum FontProperty {
   metatype = 1,
   type = 30,
-  stylePtr = 40,
-  fieldPtr = 41,
+  fieldPtr = 40,
+  stylePtr = 41,
   weight = 50,
   color = 51,
   size = 52,
@@ -39634,31 +41163,56 @@ export enum FillProperty {
 
 export enum LengthProperty {
   metatype = 1,
-  unit = 31,
-  value = 40,
+  unit = 50,
+  value = 51,
+}
+
+export enum VariableLengthProperty {
+  metatype = 1,
+  fieldPtr = 40,
+  unit = 50,
+  value = 51,
 }
 
 export enum PositionProperty {
   metatype = 1,
-  type = 40,
-  top = 41,
-  left = 42,
-  width = 43,
-  height = 44,
+  type = 30,
+  top = 50,
+  left = 51,
+  width = 52,
+  height = 53,
+}
+
+export enum VariablePositionProperty {
+  metatype = 1,
+  type = 30,
+  fieldPtr = 40,
+  top = 50,
+  left = 51,
+  width = 52,
+  height = 53,
 }
 
 export enum DimensionProperty {
   metatype = 1,
   type = 30,
-  unit = 31,
-  value = 40,
+  unit = 50,
+  value = 51,
+}
+
+export enum VariableDimensionProperty {
+  metatype = 1,
+  type = 30,
+  fieldPtr = 40,
+  unit = 50,
+  value = 51,
 }
 
 export enum TransitionProperty {
   metatype = 1,
   type = 30,
-  stylePtr = 40,
-  fieldPtr = 41,
+  fieldPtr = 40,
+  stylePtr = 41,
   delay = 50,
   duration = 51,
   ease = 52,
@@ -39672,8 +41226,8 @@ export enum TransitionProperty {
 export enum EffectProperty {
   metatype = 1,
   type = 30,
+  fieldPtr = 40,
   stylePtr = 41,
-  fieldPtr = 42,
   opacity = 50,
   offset = 51,
   scale = 52,
@@ -39692,43 +41246,80 @@ export enum EffectProperty {
 
 export enum GridProperty {
   metatype = 1,
-  columns = 40,
-  rows = 41,
-  columnWidth = 42,
-  columnMinWidth = 43,
-  rowHeight = 44,
+  columns = 50,
+  rows = 51,
+  columnWidth = 52,
+  columnMinWidth = 53,
+  rowHeight = 54,
+}
+
+export enum VariableGridProperty {
+  metatype = 1,
+  fieldPtr = 40,
+  columns = 50,
+  rows = 51,
+  columnWidth = 52,
+  columnMinWidth = 53,
+  rowHeight = 54,
 }
 
 export enum GridSpanProperty {
   metatype = 1,
-  columns = 40,
-  rows = 41,
+  columns = 50,
+  rows = 51,
+}
+
+export enum VariableGridSpanProperty {
+  metatype = 1,
+  fieldPtr = 40,
+  columns = 50,
+  rows = 51,
 }
 
 export enum InsetsProperty {
   metatype = 1,
-  base = 40,
-  top = 41,
-  left = 42,
-  right = 43,
-  bottom = 44,
+  base = 50,
+  top = 51,
+  left = 52,
+  right = 53,
+  bottom = 54,
+}
+
+export enum VariableInsetsProperty {
+  metatype = 1,
+  fieldPtr = 40,
+  base = 50,
+  top = 51,
+  left = 52,
+  right = 53,
+  bottom = 54,
 }
 
 export enum CornersProperty {
   metatype = 1,
-  base = 40,
-  topLeft = 41,
-  topRight = 42,
-  bottomLeft = 43,
-  bottomRight = 44,
+  base = 50,
+  topLeft = 51,
+  topRight = 52,
+  bottomLeft = 53,
+  bottomRight = 54,
+}
+
+export enum VariableCornersProperty {
+  metatype = 1,
+  fieldPtr = 40,
+  base = 50,
+  topLeft = 51,
+  topRight = 52,
+  bottomLeft = 53,
+  bottomRight = 54,
 }
 
 export type AnyNodeProperty = typeof BenchProperty | typeof HandleProperty | typeof UserProperty | typeof OrganizationProperty | typeof ClientProperty | typeof PackageProperty | typeof DependencyProperty | typeof PageProperty | typeof BlockProperty | typeof ApplicationProperty | typeof DatabaseProperty | typeof ComputerProperty | typeof ScalerProperty | typeof ChoiceProperty | typeof ClassProperty | typeof FieldProperty | typeof OptionProperty | typeof TableProperty | typeof RecordProperty | typeof FileProperty | typeof LinkProperty | typeof ChannelProperty | typeof ThreadProperty | typeof MessageProperty | typeof NotificationProperty | typeof TaskProperty | typeof ClaimProperty | typeof CursorProperty | typeof ServiceProperty | typeof ActionProperty | typeof FlowProperty | typeof FlowEdgeProperty | typeof AgentProperty | typeof SessionProperty | typeof RunProperty | typeof SpanProperty | typeof InterruptionProperty | typeof MembershipProperty | typeof InviteProperty | typeof TeamProperty | typeof RoleProperty | typeof SpaceProperty | typeof SceneProperty | typeof RouteProperty | typeof FrameViewProperty | typeof LabelViewProperty | typeof ComponentViewProperty | typeof SplitViewProperty | typeof TextViewProperty | typeof NumberInputViewProperty | typeof SliderInputViewProperty | typeof ThreadViewProperty | typeof WizardViewProperty | typeof ThemeProperty | typeof ColorStyleProperty | typeof FontStyleProperty | typeof BorderStyleProperty | typeof ShadowStyleProperty | typeof GradientStyleProperty | typeof TransitionStyleProperty | typeof EffectStyleProperty | typeof EmptyProperty
-export type AnyStructProperty = typeof ContextProperty | typeof EditContextProperty | typeof EditProperty | typeof EditOperationProperty | typeof ChangeProperty | typeof ChangeVignetteProperty | typeof GraphScopeProperty | typeof ClientOriginProperty | typeof NodeReferenceProperty | typeof PropertyReferenceProperty | typeof TypeProperty | typeof TypeConstraintProperty | typeof FileInfoProperty | typeof ScheduleProperty | typeof TextProperty | typeof TextLineProperty | typeof TextSpanProperty | typeof CodeProperty | typeof IconProperty | typeof ExpressionProperty | typeof AggregationResultProperty | typeof SelectionProperty | typeof SelectOptionsProperty | typeof ErrorProperty | typeof RunTraceProperty | typeof RunFrameProperty | typeof PolicyProperty | typeof PolicyRuleProperty | typeof PolicySubjectProperty | typeof AccessZoneProperty | typeof AccessMatrixProperty | typeof AccessProperty | typeof Vector2Property | typeof Vector3Property | typeof Vector4Property | typeof Axis2Property | typeof Axis3Property | typeof ColorProperty | typeof ShadowProperty | typeof BorderProperty | typeof FontProperty | typeof GradientStopProperty | typeof GradientProperty | typeof FillProperty | typeof LengthProperty | typeof PositionProperty | typeof DimensionProperty | typeof TransitionProperty | typeof EffectProperty | typeof GridProperty | typeof GridSpanProperty | typeof InsetsProperty | typeof CornersProperty
+export type AnyStructProperty = typeof ContextProperty | typeof EditContextProperty | typeof EditProperty | typeof EditOperationProperty | typeof ChangeProperty | typeof ChangeVignetteProperty | typeof GraphScopeProperty | typeof ClientOriginProperty | typeof NodeReferenceProperty | typeof PropertyReferenceProperty | typeof TypeProperty | typeof TypeConstraintProperty | typeof FileInfoProperty | typeof ScheduleProperty | typeof TextProperty | typeof TextLineProperty | typeof TextSpanProperty | typeof CodeProperty | typeof IconProperty | typeof ExpressionProperty | typeof AggregationResultProperty | typeof SelectionProperty | typeof SelectOptionsProperty | typeof ErrorProperty | typeof RunTraceProperty | typeof RunFrameProperty | typeof PolicyProperty | typeof PolicyRuleProperty | typeof PolicySubjectProperty | typeof AccessZoneProperty | typeof AccessMatrixProperty | typeof AccessProperty | typeof Vector2Property | typeof VariableVector2Property | typeof Vector3Property | typeof VariableVector3Property | typeof Vector4Property | typeof VariableVector4Property | typeof Axis2Property | typeof VariableAxis2Property | typeof Axis3Property | typeof VariableAxis3Property | typeof ColorProperty | typeof ShadowProperty | typeof BorderProperty | typeof FontProperty | typeof GradientStopProperty | typeof GradientProperty | typeof FillProperty | typeof LengthProperty | typeof VariableLengthProperty | typeof PositionProperty | typeof VariablePositionProperty | typeof DimensionProperty | typeof VariableDimensionProperty | typeof TransitionProperty | typeof EffectProperty | typeof GridProperty | typeof VariableGridProperty | typeof GridSpanProperty | typeof VariableGridSpanProperty | typeof InsetsProperty | typeof VariableInsetsProperty | typeof CornersProperty | typeof VariableCornersProperty
 export type AnyProperty = AnyNodeProperty | AnyStructProperty
 export type AnyNodePropertyType = typeof BenchProperty | typeof HandleProperty | typeof UserProperty | typeof OrganizationProperty | typeof ClientProperty | typeof PackageProperty | typeof DependencyProperty | typeof PageProperty | typeof BlockProperty | typeof ApplicationProperty | typeof DatabaseProperty | typeof ComputerProperty | typeof ScalerProperty | typeof ChoiceProperty | typeof ClassProperty | typeof FieldProperty | typeof OptionProperty | typeof TableProperty | typeof RecordProperty | typeof FileProperty | typeof LinkProperty | typeof ChannelProperty | typeof ThreadProperty | typeof MessageProperty | typeof NotificationProperty | typeof TaskProperty | typeof ClaimProperty | typeof CursorProperty | typeof ServiceProperty | typeof ActionProperty | typeof FlowProperty | typeof FlowEdgeProperty | typeof AgentProperty | typeof SessionProperty | typeof RunProperty | typeof SpanProperty | typeof InterruptionProperty | typeof MembershipProperty | typeof InviteProperty | typeof TeamProperty | typeof RoleProperty | typeof SpaceProperty | typeof SceneProperty | typeof RouteProperty | typeof FrameViewProperty | typeof LabelViewProperty | typeof ComponentViewProperty | typeof SplitViewProperty | typeof TextViewProperty | typeof NumberInputViewProperty | typeof SliderInputViewProperty | typeof ThreadViewProperty | typeof WizardViewProperty | typeof ThemeProperty | typeof ColorStyleProperty | typeof FontStyleProperty | typeof BorderStyleProperty | typeof ShadowStyleProperty | typeof GradientStyleProperty | typeof TransitionStyleProperty | typeof EffectStyleProperty | typeof EmptyProperty
-export type AnyStructPropertyType = typeof ContextProperty | typeof EditContextProperty | typeof EditProperty | typeof EditOperationProperty | typeof ChangeProperty | typeof ChangeVignetteProperty | typeof GraphScopeProperty | typeof ClientOriginProperty | typeof NodeReferenceProperty | typeof PropertyReferenceProperty | typeof TypeProperty | typeof TypeConstraintProperty | typeof FileInfoProperty | typeof ScheduleProperty | typeof TextProperty | typeof TextLineProperty | typeof TextSpanProperty | typeof CodeProperty | typeof IconProperty | typeof ExpressionProperty | typeof AggregationResultProperty | typeof SelectionProperty | typeof SelectOptionsProperty | typeof ErrorProperty | typeof RunTraceProperty | typeof RunFrameProperty | typeof PolicyProperty | typeof PolicyRuleProperty | typeof PolicySubjectProperty | typeof AccessZoneProperty | typeof AccessMatrixProperty | typeof AccessProperty | typeof Vector2Property | typeof Vector3Property | typeof Vector4Property | typeof Axis2Property | typeof Axis3Property | typeof ColorProperty | typeof ShadowProperty | typeof BorderProperty | typeof FontProperty | typeof GradientStopProperty | typeof GradientProperty | typeof FillProperty | typeof LengthProperty | typeof PositionProperty | typeof DimensionProperty | typeof TransitionProperty | typeof EffectProperty | typeof GridProperty | typeof GridSpanProperty | typeof InsetsProperty | typeof CornersProperty
-export type AnyPropertyType = typeof BenchProperty | typeof HandleProperty | typeof UserProperty | typeof OrganizationProperty | typeof ClientProperty | typeof PackageProperty | typeof DependencyProperty | typeof PageProperty | typeof BlockProperty | typeof ApplicationProperty | typeof DatabaseProperty | typeof ComputerProperty | typeof ScalerProperty | typeof ChoiceProperty | typeof ClassProperty | typeof FieldProperty | typeof OptionProperty | typeof TableProperty | typeof RecordProperty | typeof FileProperty | typeof LinkProperty | typeof ChannelProperty | typeof ThreadProperty | typeof MessageProperty | typeof NotificationProperty | typeof TaskProperty | typeof ClaimProperty | typeof CursorProperty | typeof ServiceProperty | typeof ActionProperty | typeof FlowProperty | typeof FlowEdgeProperty | typeof AgentProperty | typeof SessionProperty | typeof RunProperty | typeof SpanProperty | typeof InterruptionProperty | typeof MembershipProperty | typeof InviteProperty | typeof TeamProperty | typeof RoleProperty | typeof SpaceProperty | typeof SceneProperty | typeof RouteProperty | typeof FrameViewProperty | typeof LabelViewProperty | typeof ComponentViewProperty | typeof SplitViewProperty | typeof TextViewProperty | typeof NumberInputViewProperty | typeof SliderInputViewProperty | typeof ThreadViewProperty | typeof WizardViewProperty | typeof ThemeProperty | typeof ColorStyleProperty | typeof FontStyleProperty | typeof BorderStyleProperty | typeof ShadowStyleProperty | typeof GradientStyleProperty | typeof TransitionStyleProperty | typeof EffectStyleProperty | typeof EmptyProperty | typeof ContextProperty | typeof EditContextProperty | typeof EditProperty | typeof EditOperationProperty | typeof ChangeProperty | typeof ChangeVignetteProperty | typeof GraphScopeProperty | typeof ClientOriginProperty | typeof NodeReferenceProperty | typeof PropertyReferenceProperty | typeof TypeProperty | typeof TypeConstraintProperty | typeof FileInfoProperty | typeof ScheduleProperty | typeof TextProperty | typeof TextLineProperty | typeof TextSpanProperty | typeof CodeProperty | typeof IconProperty | typeof ExpressionProperty | typeof AggregationResultProperty | typeof SelectionProperty | typeof SelectOptionsProperty | typeof ErrorProperty | typeof RunTraceProperty | typeof RunFrameProperty | typeof PolicyProperty | typeof PolicyRuleProperty | typeof PolicySubjectProperty | typeof AccessZoneProperty | typeof AccessMatrixProperty | typeof AccessProperty | typeof Vector2Property | typeof Vector3Property | typeof Vector4Property | typeof Axis2Property | typeof Axis3Property | typeof ColorProperty | typeof ShadowProperty | typeof BorderProperty | typeof FontProperty | typeof GradientStopProperty | typeof GradientProperty | typeof FillProperty | typeof LengthProperty | typeof PositionProperty | typeof DimensionProperty | typeof TransitionProperty | typeof EffectProperty | typeof GridProperty | typeof GridSpanProperty | typeof InsetsProperty | typeof CornersProperty
+export type AnyStructPropertyType = typeof ContextProperty | typeof EditContextProperty | typeof EditProperty | typeof EditOperationProperty | typeof ChangeProperty | typeof ChangeVignetteProperty | typeof GraphScopeProperty | typeof ClientOriginProperty | typeof NodeReferenceProperty | typeof PropertyReferenceProperty | typeof TypeProperty | typeof TypeConstraintProperty | typeof FileInfoProperty | typeof ScheduleProperty | typeof TextProperty | typeof TextLineProperty | typeof TextSpanProperty | typeof CodeProperty | typeof IconProperty | typeof ExpressionProperty | typeof AggregationResultProperty | typeof SelectionProperty | typeof SelectOptionsProperty | typeof ErrorProperty | typeof RunTraceProperty | typeof RunFrameProperty | typeof PolicyProperty | typeof PolicyRuleProperty | typeof PolicySubjectProperty | typeof AccessZoneProperty | typeof AccessMatrixProperty | typeof AccessProperty | typeof Vector2Property | typeof VariableVector2Property | typeof Vector3Property | typeof VariableVector3Property | typeof Vector4Property | typeof VariableVector4Property | typeof Axis2Property | typeof VariableAxis2Property | typeof Axis3Property | typeof VariableAxis3Property | typeof ColorProperty | typeof ShadowProperty | typeof BorderProperty | typeof FontProperty | typeof GradientStopProperty | typeof GradientProperty | typeof FillProperty | typeof LengthProperty | typeof VariableLengthProperty | typeof PositionProperty | typeof VariablePositionProperty | typeof DimensionProperty | typeof VariableDimensionProperty | typeof TransitionProperty | typeof EffectProperty | typeof GridProperty | typeof VariableGridProperty | typeof GridSpanProperty | typeof VariableGridSpanProperty | typeof InsetsProperty | typeof VariableInsetsProperty | typeof CornersProperty | typeof VariableCornersProperty
+export type AnyPropertyType = typeof BenchProperty | typeof HandleProperty | typeof UserProperty | typeof OrganizationProperty | typeof ClientProperty | typeof PackageProperty | typeof DependencyProperty | typeof PageProperty | typeof BlockProperty | typeof ApplicationProperty | typeof DatabaseProperty | typeof ComputerProperty | typeof ScalerProperty | typeof ChoiceProperty | typeof ClassProperty | typeof FieldProperty | typeof OptionProperty | typeof TableProperty | typeof RecordProperty | typeof FileProperty | typeof LinkProperty | typeof ChannelProperty | typeof ThreadProperty | typeof MessageProperty | typeof NotificationProperty | typeof TaskProperty | typeof ClaimProperty | typeof CursorProperty | typeof ServiceProperty | typeof ActionProperty | typeof FlowProperty | typeof FlowEdgeProperty | typeof AgentProperty | typeof SessionProperty | typeof RunProperty | typeof SpanProperty | typeof InterruptionProperty | typeof MembershipProperty | typeof InviteProperty | typeof TeamProperty | typeof RoleProperty | typeof SpaceProperty | typeof SceneProperty | typeof RouteProperty | typeof FrameViewProperty | typeof LabelViewProperty | typeof ComponentViewProperty | typeof SplitViewProperty | typeof TextViewProperty | typeof NumberInputViewProperty | typeof SliderInputViewProperty | typeof ThreadViewProperty | typeof WizardViewProperty | typeof ThemeProperty | typeof ColorStyleProperty | typeof FontStyleProperty | typeof BorderStyleProperty | typeof ShadowStyleProperty | typeof GradientStyleProperty | typeof TransitionStyleProperty | typeof EffectStyleProperty | typeof EmptyProperty | typeof ContextProperty | typeof EditContextProperty | typeof EditProperty | typeof EditOperationProperty | typeof ChangeProperty | typeof ChangeVignetteProperty | typeof GraphScopeProperty | typeof ClientOriginProperty | typeof NodeReferenceProperty | typeof PropertyReferenceProperty | typeof TypeProperty | typeof TypeConstraintProperty | typeof FileInfoProperty | typeof ScheduleProperty | typeof TextProperty | typeof TextLineProperty | typeof TextSpanProperty | typeof CodeProperty | typeof IconProperty | typeof ExpressionProperty | typeof AggregationResultProperty | typeof SelectionProperty | typeof SelectOptionsProperty | typeof ErrorProperty | typeof RunTraceProperty | typeof RunFrameProperty | typeof PolicyProperty | typeof PolicyRuleProperty | typeof PolicySubjectProperty | typeof AccessZoneProperty | typeof AccessMatrixProperty | typeof AccessProperty | typeof Vector2Property | typeof VariableVector2Property | typeof Vector3Property | typeof VariableVector3Property | typeof Vector4Property | typeof VariableVector4Property | typeof Axis2Property | typeof VariableAxis2Property | typeof Axis3Property | typeof VariableAxis3Property | typeof ColorProperty | typeof ShadowProperty | typeof BorderProperty | typeof FontProperty | typeof GradientStopProperty | typeof GradientProperty | typeof FillProperty | typeof LengthProperty | typeof VariableLengthProperty | typeof PositionProperty | typeof VariablePositionProperty | typeof DimensionProperty | typeof VariableDimensionProperty | typeof TransitionProperty | typeof EffectProperty | typeof GridProperty | typeof VariableGridProperty | typeof GridSpanProperty | typeof VariableGridSpanProperty | typeof InsetsProperty | typeof VariableInsetsProperty | typeof CornersProperty | typeof VariableCornersProperty
 export const NODE_PROPERTY_ENUM_BY_TYPE: Partial<Record<ObjectType, AnyNodePropertyType>> = {
   [ObjectType.BENCH]: BenchProperty,
   [ObjectType.HANDLE]: HandleProperty,
@@ -39828,10 +41419,15 @@ export const STRUCT_PROPERTY_ENUM_BY_TYPE: Partial<Record<ObjectType, AnyStructP
   [ObjectType.ACCESS_MATRIX]: AccessMatrixProperty,
   [ObjectType.ACCESS]: AccessProperty,
   [ObjectType.VECTOR2]: Vector2Property,
+  [ObjectType.VARIABLE_VECTOR2]: VariableVector2Property,
   [ObjectType.VECTOR3]: Vector3Property,
+  [ObjectType.VARIABLE_VECTOR3]: VariableVector3Property,
   [ObjectType.VECTOR4]: Vector4Property,
+  [ObjectType.VARIABLE_VECTOR4]: VariableVector4Property,
   [ObjectType.AXIS2]: Axis2Property,
+  [ObjectType.VARIABLE_AXIS2]: VariableAxis2Property,
   [ObjectType.AXIS3]: Axis3Property,
+  [ObjectType.VARIABLE_AXIS3]: VariableAxis3Property,
   [ObjectType.COLOR]: ColorProperty,
   [ObjectType.SHADOW]: ShadowProperty,
   [ObjectType.BORDER]: BorderProperty,
@@ -39840,14 +41436,21 @@ export const STRUCT_PROPERTY_ENUM_BY_TYPE: Partial<Record<ObjectType, AnyStructP
   [ObjectType.GRADIENT]: GradientProperty,
   [ObjectType.FILL]: FillProperty,
   [ObjectType.LENGTH]: LengthProperty,
+  [ObjectType.VARIABLE_LENGTH]: VariableLengthProperty,
   [ObjectType.POSITION]: PositionProperty,
+  [ObjectType.VARIABLE_POSITION]: VariablePositionProperty,
   [ObjectType.DIMENSION]: DimensionProperty,
+  [ObjectType.VARIABLE_DIMENSION]: VariableDimensionProperty,
   [ObjectType.TRANSITION]: TransitionProperty,
   [ObjectType.EFFECT]: EffectProperty,
   [ObjectType.GRID]: GridProperty,
+  [ObjectType.VARIABLE_GRID]: VariableGridProperty,
   [ObjectType.GRID_SPAN]: GridSpanProperty,
+  [ObjectType.VARIABLE_GRID_SPAN]: VariableGridSpanProperty,
   [ObjectType.INSETS]: InsetsProperty,
+  [ObjectType.VARIABLE_INSETS]: VariableInsetsProperty,
   [ObjectType.CORNERS]: CornersProperty,
+  [ObjectType.VARIABLE_CORNERS]: VariableCornersProperty,
 }
 
 export const PROPERTY_ENUM_BY_TYPE: Partial<Record<ObjectType, AnyPropertyType>> = {
@@ -39946,10 +41549,15 @@ export const PROPERTY_ENUM_BY_TYPE: Partial<Record<ObjectType, AnyPropertyType>>
   [ObjectType.ACCESS_MATRIX]: AccessMatrixProperty,
   [ObjectType.ACCESS]: AccessProperty,
   [ObjectType.VECTOR2]: Vector2Property,
+  [ObjectType.VARIABLE_VECTOR2]: VariableVector2Property,
   [ObjectType.VECTOR3]: Vector3Property,
+  [ObjectType.VARIABLE_VECTOR3]: VariableVector3Property,
   [ObjectType.VECTOR4]: Vector4Property,
+  [ObjectType.VARIABLE_VECTOR4]: VariableVector4Property,
   [ObjectType.AXIS2]: Axis2Property,
+  [ObjectType.VARIABLE_AXIS2]: VariableAxis2Property,
   [ObjectType.AXIS3]: Axis3Property,
+  [ObjectType.VARIABLE_AXIS3]: VariableAxis3Property,
   [ObjectType.COLOR]: ColorProperty,
   [ObjectType.SHADOW]: ShadowProperty,
   [ObjectType.BORDER]: BorderProperty,
@@ -39958,14 +41566,21 @@ export const PROPERTY_ENUM_BY_TYPE: Partial<Record<ObjectType, AnyPropertyType>>
   [ObjectType.GRADIENT]: GradientProperty,
   [ObjectType.FILL]: FillProperty,
   [ObjectType.LENGTH]: LengthProperty,
+  [ObjectType.VARIABLE_LENGTH]: VariableLengthProperty,
   [ObjectType.POSITION]: PositionProperty,
+  [ObjectType.VARIABLE_POSITION]: VariablePositionProperty,
   [ObjectType.DIMENSION]: DimensionProperty,
+  [ObjectType.VARIABLE_DIMENSION]: VariableDimensionProperty,
   [ObjectType.TRANSITION]: TransitionProperty,
   [ObjectType.EFFECT]: EffectProperty,
   [ObjectType.GRID]: GridProperty,
+  [ObjectType.VARIABLE_GRID]: VariableGridProperty,
   [ObjectType.GRID_SPAN]: GridSpanProperty,
+  [ObjectType.VARIABLE_GRID_SPAN]: VariableGridSpanProperty,
   [ObjectType.INSETS]: InsetsProperty,
+  [ObjectType.VARIABLE_INSETS]: VariableInsetsProperty,
   [ObjectType.CORNERS]: CornersProperty,
+  [ObjectType.VARIABLE_CORNERS]: VariableCornersProperty,
 }
 
 
@@ -41610,14 +43225,14 @@ export const ColorStyleDataInfo: Record<ColorStyleProperty, PropertyInfo> = {
   [ColorStyleProperty.orderKey]: { id: 33, name: 'order_key', component: ObjectType.COLOR_STYLE, kind: 'primitive', primitiveType: PrimitiveType.STRING, default: "a0", isRequired: true, isInternal: true, isRuntime: true, isWired: true, isStored: true },
   [ColorStyleProperty.icon]: { id: 34, name: 'icon', component: ObjectType.COLOR_STYLE, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.ICON },
   [ColorStyleProperty.definitionPtr]: { id: 35, name: 'definition_ptr', component: ObjectType.COLOR_STYLE, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.BLOCK], referenceStruct: StructType.NODE_REFERENCE },
-  [ColorStyleProperty.hue]: { id: 40, name: 'hue', component: ObjectType.COLOR_STYLE, enumType: EnumType.COLOR_HUE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRuntime: true, isWired: true, isStored: true },
-  [ColorStyleProperty.shade]: { id: 41, name: 'shade', component: ObjectType.COLOR_STYLE, enumType: EnumType.COLOR_SHADE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRuntime: true, isWired: true, isStored: true },
+  [ColorStyleProperty.fieldPtr]: { id: 40, name: 'field_ptr', component: ObjectType.COLOR_STYLE, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.FIELD], referenceStruct: StructType.NODE_REFERENCE },
   [ColorStyleProperty.stylePtr]: { id: 42, name: 'style_ptr', component: ObjectType.COLOR_STYLE, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.COLOR_STYLE], referenceStruct: StructType.NODE_REFERENCE },
-  [ColorStyleProperty.fieldPtr]: { id: 43, name: 'field_ptr', component: ObjectType.COLOR_STYLE, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.FIELD], referenceStruct: StructType.NODE_REFERENCE },
-  [ColorStyleProperty.x]: { id: 50, name: 'x', component: ObjectType.COLOR_STYLE, kind: 'primitive', primitiveType: PrimitiveType.FLOAT32, isRuntime: true, isWired: true, isStored: true },
-  [ColorStyleProperty.y]: { id: 51, name: 'y', component: ObjectType.COLOR_STYLE, kind: 'primitive', primitiveType: PrimitiveType.FLOAT32, isRuntime: true, isWired: true, isStored: true },
-  [ColorStyleProperty.z]: { id: 52, name: 'z', component: ObjectType.COLOR_STYLE, kind: 'primitive', primitiveType: PrimitiveType.FLOAT32, isRuntime: true, isWired: true, isStored: true },
-  [ColorStyleProperty.alpha]: { id: 53, name: 'alpha', component: ObjectType.COLOR_STYLE, kind: 'primitive', primitiveType: PrimitiveType.FLOAT32, isRuntime: true, isWired: true, isStored: true },
+  [ColorStyleProperty.hue]: { id: 50, name: 'hue', component: ObjectType.COLOR_STYLE, enumType: EnumType.COLOR_HUE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRuntime: true, isWired: true, isStored: true },
+  [ColorStyleProperty.shade]: { id: 51, name: 'shade', component: ObjectType.COLOR_STYLE, enumType: EnumType.COLOR_SHADE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRuntime: true, isWired: true, isStored: true },
+  [ColorStyleProperty.x]: { id: 52, name: 'x', component: ObjectType.COLOR_STYLE, kind: 'primitive', primitiveType: PrimitiveType.FLOAT32, isRuntime: true, isWired: true, isStored: true },
+  [ColorStyleProperty.y]: { id: 53, name: 'y', component: ObjectType.COLOR_STYLE, kind: 'primitive', primitiveType: PrimitiveType.FLOAT32, isRuntime: true, isWired: true, isStored: true },
+  [ColorStyleProperty.z]: { id: 54, name: 'z', component: ObjectType.COLOR_STYLE, kind: 'primitive', primitiveType: PrimitiveType.FLOAT32, isRuntime: true, isWired: true, isStored: true },
+  [ColorStyleProperty.alpha]: { id: 55, name: 'alpha', component: ObjectType.COLOR_STYLE, kind: 'primitive', primitiveType: PrimitiveType.FLOAT32, isRuntime: true, isWired: true, isStored: true },
   [ColorStyleProperty.dark]: { id: 60, name: 'dark', component: ObjectType.COLOR_STYLE, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.COLOR },
 }
 export const FontStyleDataInfo: Record<FontStyleProperty, PropertyInfo> = {
@@ -41639,8 +43254,8 @@ export const FontStyleDataInfo: Record<FontStyleProperty, PropertyInfo> = {
   [FontStyleProperty.orderKey]: { id: 33, name: 'order_key', component: ObjectType.FONT_STYLE, kind: 'primitive', primitiveType: PrimitiveType.STRING, default: "a0", isRequired: true, isInternal: true, isRuntime: true, isWired: true, isStored: true },
   [FontStyleProperty.icon]: { id: 34, name: 'icon', component: ObjectType.FONT_STYLE, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.ICON },
   [FontStyleProperty.definitionPtr]: { id: 35, name: 'definition_ptr', component: ObjectType.FONT_STYLE, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.BLOCK], referenceStruct: StructType.NODE_REFERENCE },
-  [FontStyleProperty.stylePtr]: { id: 40, name: 'style_ptr', component: ObjectType.FONT_STYLE, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.FONT_STYLE], referenceStruct: StructType.NODE_REFERENCE },
-  [FontStyleProperty.fieldPtr]: { id: 41, name: 'field_ptr', component: ObjectType.FONT_STYLE, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.FIELD], referenceStruct: StructType.NODE_REFERENCE },
+  [FontStyleProperty.fieldPtr]: { id: 40, name: 'field_ptr', component: ObjectType.FONT_STYLE, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.FIELD], referenceStruct: StructType.NODE_REFERENCE },
+  [FontStyleProperty.stylePtr]: { id: 41, name: 'style_ptr', component: ObjectType.FONT_STYLE, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.FONT_STYLE], referenceStruct: StructType.NODE_REFERENCE },
   [FontStyleProperty.weight]: { id: 50, name: 'weight', component: ObjectType.FONT_STYLE, enumType: EnumType.FONT_WEIGHT, kind: 'enum', primitiveType: PrimitiveType.INT16, default: 400, isRuntime: true, isWired: true, isStored: true },
   [FontStyleProperty.color]: { id: 51, name: 'color', component: ObjectType.FONT_STYLE, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.FILL },
   [FontStyleProperty.size]: { id: 52, name: 'size', component: ObjectType.FONT_STYLE, enumType: EnumType.FONT_SIZE, kind: 'enum', primitiveType: PrimitiveType.INT16, default: 16, isRuntime: true, isWired: true, isStored: true },
@@ -41669,8 +43284,8 @@ export const BorderStyleDataInfo: Record<BorderStyleProperty, PropertyInfo> = {
   [BorderStyleProperty.orderKey]: { id: 33, name: 'order_key', component: ObjectType.BORDER_STYLE, kind: 'primitive', primitiveType: PrimitiveType.STRING, default: "a0", isRequired: true, isInternal: true, isRuntime: true, isWired: true, isStored: true },
   [BorderStyleProperty.icon]: { id: 34, name: 'icon', component: ObjectType.BORDER_STYLE, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.ICON },
   [BorderStyleProperty.definitionPtr]: { id: 35, name: 'definition_ptr', component: ObjectType.BORDER_STYLE, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.BLOCK], referenceStruct: StructType.NODE_REFERENCE },
-  [BorderStyleProperty.stylePtr]: { id: 40, name: 'style_ptr', component: ObjectType.BORDER_STYLE, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.BORDER_STYLE], referenceStruct: StructType.NODE_REFERENCE },
-  [BorderStyleProperty.fieldPtr]: { id: 41, name: 'field_ptr', component: ObjectType.BORDER_STYLE, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.FIELD], referenceStruct: StructType.NODE_REFERENCE },
+  [BorderStyleProperty.fieldPtr]: { id: 40, name: 'field_ptr', component: ObjectType.BORDER_STYLE, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.FIELD], referenceStruct: StructType.NODE_REFERENCE },
+  [BorderStyleProperty.stylePtr]: { id: 41, name: 'style_ptr', component: ObjectType.BORDER_STYLE, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.BORDER_STYLE], referenceStruct: StructType.NODE_REFERENCE },
   [BorderStyleProperty.color]: { id: 50, name: 'color', component: ObjectType.BORDER_STYLE, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.COLOR },
   [BorderStyleProperty.width]: { id: 51, name: 'width', component: ObjectType.BORDER_STYLE, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.INSETS },
 }
@@ -41693,8 +43308,8 @@ export const ShadowStyleDataInfo: Record<ShadowStyleProperty, PropertyInfo> = {
   [ShadowStyleProperty.orderKey]: { id: 33, name: 'order_key', component: ObjectType.SHADOW_STYLE, kind: 'primitive', primitiveType: PrimitiveType.STRING, default: "a0", isRequired: true, isInternal: true, isRuntime: true, isWired: true, isStored: true },
   [ShadowStyleProperty.icon]: { id: 34, name: 'icon', component: ObjectType.SHADOW_STYLE, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.ICON },
   [ShadowStyleProperty.definitionPtr]: { id: 35, name: 'definition_ptr', component: ObjectType.SHADOW_STYLE, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.BLOCK], referenceStruct: StructType.NODE_REFERENCE },
-  [ShadowStyleProperty.stylePtr]: { id: 40, name: 'style_ptr', component: ObjectType.SHADOW_STYLE, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.SHADOW_STYLE], referenceStruct: StructType.NODE_REFERENCE },
-  [ShadowStyleProperty.fieldPtr]: { id: 41, name: 'field_ptr', component: ObjectType.SHADOW_STYLE, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.FIELD], referenceStruct: StructType.NODE_REFERENCE },
+  [ShadowStyleProperty.fieldPtr]: { id: 40, name: 'field_ptr', component: ObjectType.SHADOW_STYLE, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.FIELD], referenceStruct: StructType.NODE_REFERENCE },
+  [ShadowStyleProperty.stylePtr]: { id: 41, name: 'style_ptr', component: ObjectType.SHADOW_STYLE, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.SHADOW_STYLE], referenceStruct: StructType.NODE_REFERENCE },
   [ShadowStyleProperty.color]: { id: 50, name: 'color', component: ObjectType.SHADOW_STYLE, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.COLOR },
   [ShadowStyleProperty.position]: { id: 51, name: 'position', component: ObjectType.SHADOW_STYLE, enumType: EnumType.SHADOW_POSITION, kind: 'enum', primitiveType: PrimitiveType.INT16, default: 1, isRequired: true, isRuntime: true, isWired: true, isStored: true },
   [ShadowStyleProperty.offset]: { id: 52, name: 'offset', component: ObjectType.SHADOW_STYLE, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.AXIS2 },
@@ -41745,8 +43360,8 @@ export const TransitionStyleDataInfo: Record<TransitionStyleProperty, PropertyIn
   [TransitionStyleProperty.orderKey]: { id: 33, name: 'order_key', component: ObjectType.TRANSITION_STYLE, kind: 'primitive', primitiveType: PrimitiveType.STRING, default: "a0", isRequired: true, isInternal: true, isRuntime: true, isWired: true, isStored: true },
   [TransitionStyleProperty.icon]: { id: 34, name: 'icon', component: ObjectType.TRANSITION_STYLE, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.ICON },
   [TransitionStyleProperty.definitionPtr]: { id: 35, name: 'definition_ptr', component: ObjectType.TRANSITION_STYLE, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.BLOCK], referenceStruct: StructType.NODE_REFERENCE },
-  [TransitionStyleProperty.stylePtr]: { id: 40, name: 'style_ptr', component: ObjectType.TRANSITION_STYLE, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.TRANSITION_STYLE], referenceStruct: StructType.NODE_REFERENCE },
-  [TransitionStyleProperty.fieldPtr]: { id: 41, name: 'field_ptr', component: ObjectType.TRANSITION_STYLE, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.FIELD], referenceStruct: StructType.NODE_REFERENCE },
+  [TransitionStyleProperty.fieldPtr]: { id: 40, name: 'field_ptr', component: ObjectType.TRANSITION_STYLE, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.FIELD], referenceStruct: StructType.NODE_REFERENCE },
+  [TransitionStyleProperty.stylePtr]: { id: 41, name: 'style_ptr', component: ObjectType.TRANSITION_STYLE, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.TRANSITION_STYLE], referenceStruct: StructType.NODE_REFERENCE },
   [TransitionStyleProperty.delay]: { id: 50, name: 'delay', component: ObjectType.TRANSITION_STYLE, kind: 'primitive', primitiveType: PrimitiveType.FLOAT32, isRuntime: true, isWired: true, isStored: true },
   [TransitionStyleProperty.duration]: { id: 51, name: 'duration', component: ObjectType.TRANSITION_STYLE, kind: 'primitive', primitiveType: PrimitiveType.FLOAT32, isRuntime: true, isWired: true, isStored: true },
   [TransitionStyleProperty.ease]: { id: 52, name: 'ease', component: ObjectType.TRANSITION_STYLE, kind: 'primitive', primitiveType: PrimitiveType.FLOAT32, isList: true, isRuntime: true, isWired: true, isStored: true },
@@ -41775,8 +43390,8 @@ export const EffectStyleDataInfo: Record<EffectStyleProperty, PropertyInfo> = {
   [EffectStyleProperty.orderKey]: { id: 33, name: 'order_key', component: ObjectType.EFFECT_STYLE, kind: 'primitive', primitiveType: PrimitiveType.STRING, default: "a0", isRequired: true, isInternal: true, isRuntime: true, isWired: true, isStored: true },
   [EffectStyleProperty.icon]: { id: 34, name: 'icon', component: ObjectType.EFFECT_STYLE, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.ICON },
   [EffectStyleProperty.definitionPtr]: { id: 35, name: 'definition_ptr', component: ObjectType.EFFECT_STYLE, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.BLOCK], referenceStruct: StructType.NODE_REFERENCE },
+  [EffectStyleProperty.fieldPtr]: { id: 40, name: 'field_ptr', component: ObjectType.EFFECT_STYLE, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.FIELD], referenceStruct: StructType.NODE_REFERENCE },
   [EffectStyleProperty.stylePtr]: { id: 41, name: 'style_ptr', component: ObjectType.EFFECT_STYLE, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.EFFECT_STYLE], referenceStruct: StructType.NODE_REFERENCE },
-  [EffectStyleProperty.fieldPtr]: { id: 42, name: 'field_ptr', component: ObjectType.EFFECT_STYLE, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.FIELD], referenceStruct: StructType.NODE_REFERENCE },
   [EffectStyleProperty.opacity]: { id: 50, name: 'opacity', component: ObjectType.EFFECT_STYLE, kind: 'primitive', primitiveType: PrimitiveType.FLOAT32, isRuntime: true, isWired: true, isStored: true },
   [EffectStyleProperty.offset]: { id: 51, name: 'offset', component: ObjectType.EFFECT_STYLE, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.VECTOR2 },
   [EffectStyleProperty.scale]: { id: 52, name: 'scale', component: ObjectType.EFFECT_STYLE, kind: 'primitive', primitiveType: PrimitiveType.FLOAT32, isRuntime: true, isWired: true, isStored: true },
@@ -42119,52 +43734,88 @@ export const AccessDataInfo: Record<AccessProperty, PropertyInfo> = {
 }
 export const Vector2DataInfo: Record<Vector2Property, PropertyInfo> = {
   [Vector2Property.metatype]: { id: 1, name: 'metatype', component: ObjectType.VECTOR2, enumType: EnumType.OBJECT_TYPE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isInternal: true, isComputed: true, isWired: true },
-  [Vector2Property.x]: { id: 30, name: 'x', component: ObjectType.VECTOR2, kind: 'primitive', primitiveType: PrimitiveType.FLOAT32, isRequired: true, isRuntime: true, isWired: true, isStored: true },
-  [Vector2Property.y]: { id: 31, name: 'y', component: ObjectType.VECTOR2, kind: 'primitive', primitiveType: PrimitiveType.FLOAT32, isRequired: true, isRuntime: true, isWired: true, isStored: true },
+  [Vector2Property.x]: { id: 50, name: 'x', component: ObjectType.VECTOR2, kind: 'primitive', primitiveType: PrimitiveType.FLOAT32, isRequired: true, isRuntime: true, isWired: true, isStored: true },
+  [Vector2Property.y]: { id: 51, name: 'y', component: ObjectType.VECTOR2, kind: 'primitive', primitiveType: PrimitiveType.FLOAT32, isRequired: true, isRuntime: true, isWired: true, isStored: true },
+}
+export const VariableVector2DataInfo: Record<VariableVector2Property, PropertyInfo> = {
+  [VariableVector2Property.metatype]: { id: 1, name: 'metatype', component: ObjectType.VARIABLE_VECTOR2, enumType: EnumType.OBJECT_TYPE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isInternal: true, isComputed: true, isWired: true },
+  [VariableVector2Property.fieldPtr]: { id: 40, name: 'field_ptr', component: ObjectType.VARIABLE_VECTOR2, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.FIELD], referenceStruct: StructType.NODE_REFERENCE },
+  [VariableVector2Property.x]: { id: 50, name: 'x', component: ObjectType.VARIABLE_VECTOR2, kind: 'primitive', primitiveType: PrimitiveType.FLOAT32, isRequired: true, isRuntime: true, isWired: true, isStored: true },
+  [VariableVector2Property.y]: { id: 51, name: 'y', component: ObjectType.VARIABLE_VECTOR2, kind: 'primitive', primitiveType: PrimitiveType.FLOAT32, isRequired: true, isRuntime: true, isWired: true, isStored: true },
 }
 export const Vector3DataInfo: Record<Vector3Property, PropertyInfo> = {
   [Vector3Property.metatype]: { id: 1, name: 'metatype', component: ObjectType.VECTOR3, enumType: EnumType.OBJECT_TYPE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isInternal: true, isComputed: true, isWired: true },
-  [Vector3Property.x]: { id: 30, name: 'x', component: ObjectType.VECTOR3, kind: 'primitive', primitiveType: PrimitiveType.FLOAT32, isRequired: true, isRuntime: true, isWired: true, isStored: true },
-  [Vector3Property.y]: { id: 31, name: 'y', component: ObjectType.VECTOR3, kind: 'primitive', primitiveType: PrimitiveType.FLOAT32, isRequired: true, isRuntime: true, isWired: true, isStored: true },
-  [Vector3Property.z]: { id: 32, name: 'z', component: ObjectType.VECTOR3, kind: 'primitive', primitiveType: PrimitiveType.FLOAT32, isRequired: true, isRuntime: true, isWired: true, isStored: true },
+  [Vector3Property.x]: { id: 50, name: 'x', component: ObjectType.VECTOR3, kind: 'primitive', primitiveType: PrimitiveType.FLOAT32, isRequired: true, isRuntime: true, isWired: true, isStored: true },
+  [Vector3Property.y]: { id: 51, name: 'y', component: ObjectType.VECTOR3, kind: 'primitive', primitiveType: PrimitiveType.FLOAT32, isRequired: true, isRuntime: true, isWired: true, isStored: true },
+  [Vector3Property.z]: { id: 52, name: 'z', component: ObjectType.VECTOR3, kind: 'primitive', primitiveType: PrimitiveType.FLOAT32, isRequired: true, isRuntime: true, isWired: true, isStored: true },
+}
+export const VariableVector3DataInfo: Record<VariableVector3Property, PropertyInfo> = {
+  [VariableVector3Property.metatype]: { id: 1, name: 'metatype', component: ObjectType.VARIABLE_VECTOR3, enumType: EnumType.OBJECT_TYPE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isInternal: true, isComputed: true, isWired: true },
+  [VariableVector3Property.fieldPtr]: { id: 40, name: 'field_ptr', component: ObjectType.VARIABLE_VECTOR3, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.FIELD], referenceStruct: StructType.NODE_REFERENCE },
+  [VariableVector3Property.x]: { id: 50, name: 'x', component: ObjectType.VARIABLE_VECTOR3, kind: 'primitive', primitiveType: PrimitiveType.FLOAT32, isRequired: true, isRuntime: true, isWired: true, isStored: true },
+  [VariableVector3Property.y]: { id: 51, name: 'y', component: ObjectType.VARIABLE_VECTOR3, kind: 'primitive', primitiveType: PrimitiveType.FLOAT32, isRequired: true, isRuntime: true, isWired: true, isStored: true },
+  [VariableVector3Property.z]: { id: 52, name: 'z', component: ObjectType.VARIABLE_VECTOR3, kind: 'primitive', primitiveType: PrimitiveType.FLOAT32, isRequired: true, isRuntime: true, isWired: true, isStored: true },
 }
 export const Vector4DataInfo: Record<Vector4Property, PropertyInfo> = {
   [Vector4Property.metatype]: { id: 1, name: 'metatype', component: ObjectType.VECTOR4, enumType: EnumType.OBJECT_TYPE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isInternal: true, isComputed: true, isWired: true },
-  [Vector4Property.x]: { id: 30, name: 'x', component: ObjectType.VECTOR4, kind: 'primitive', primitiveType: PrimitiveType.FLOAT32, isRequired: true, isRuntime: true, isWired: true, isStored: true },
-  [Vector4Property.y]: { id: 31, name: 'y', component: ObjectType.VECTOR4, kind: 'primitive', primitiveType: PrimitiveType.FLOAT32, isRequired: true, isRuntime: true, isWired: true, isStored: true },
-  [Vector4Property.z]: { id: 32, name: 'z', component: ObjectType.VECTOR4, kind: 'primitive', primitiveType: PrimitiveType.FLOAT32, isRequired: true, isRuntime: true, isWired: true, isStored: true },
-  [Vector4Property.w]: { id: 33, name: 'w', component: ObjectType.VECTOR4, kind: 'primitive', primitiveType: PrimitiveType.FLOAT32, isRequired: true, isRuntime: true, isWired: true, isStored: true },
+  [Vector4Property.x]: { id: 50, name: 'x', component: ObjectType.VECTOR4, kind: 'primitive', primitiveType: PrimitiveType.FLOAT32, isRequired: true, isRuntime: true, isWired: true, isStored: true },
+  [Vector4Property.y]: { id: 51, name: 'y', component: ObjectType.VECTOR4, kind: 'primitive', primitiveType: PrimitiveType.FLOAT32, isRequired: true, isRuntime: true, isWired: true, isStored: true },
+  [Vector4Property.z]: { id: 52, name: 'z', component: ObjectType.VECTOR4, kind: 'primitive', primitiveType: PrimitiveType.FLOAT32, isRequired: true, isRuntime: true, isWired: true, isStored: true },
+  [Vector4Property.w]: { id: 53, name: 'w', component: ObjectType.VECTOR4, kind: 'primitive', primitiveType: PrimitiveType.FLOAT32, isRequired: true, isRuntime: true, isWired: true, isStored: true },
+}
+export const VariableVector4DataInfo: Record<VariableVector4Property, PropertyInfo> = {
+  [VariableVector4Property.metatype]: { id: 1, name: 'metatype', component: ObjectType.VARIABLE_VECTOR4, enumType: EnumType.OBJECT_TYPE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isInternal: true, isComputed: true, isWired: true },
+  [VariableVector4Property.fieldPtr]: { id: 40, name: 'field_ptr', component: ObjectType.VARIABLE_VECTOR4, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.FIELD], referenceStruct: StructType.NODE_REFERENCE },
+  [VariableVector4Property.x]: { id: 50, name: 'x', component: ObjectType.VARIABLE_VECTOR4, kind: 'primitive', primitiveType: PrimitiveType.FLOAT32, isRequired: true, isRuntime: true, isWired: true, isStored: true },
+  [VariableVector4Property.y]: { id: 51, name: 'y', component: ObjectType.VARIABLE_VECTOR4, kind: 'primitive', primitiveType: PrimitiveType.FLOAT32, isRequired: true, isRuntime: true, isWired: true, isStored: true },
+  [VariableVector4Property.z]: { id: 52, name: 'z', component: ObjectType.VARIABLE_VECTOR4, kind: 'primitive', primitiveType: PrimitiveType.FLOAT32, isRequired: true, isRuntime: true, isWired: true, isStored: true },
+  [VariableVector4Property.w]: { id: 53, name: 'w', component: ObjectType.VARIABLE_VECTOR4, kind: 'primitive', primitiveType: PrimitiveType.FLOAT32, isRequired: true, isRuntime: true, isWired: true, isStored: true },
 }
 export const Axis2DataInfo: Record<Axis2Property, PropertyInfo> = {
   [Axis2Property.metatype]: { id: 1, name: 'metatype', component: ObjectType.AXIS2, enumType: EnumType.OBJECT_TYPE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isInternal: true, isComputed: true, isWired: true },
-  [Axis2Property.base]: { id: 40, name: 'base', component: ObjectType.AXIS2, kind: 'primitive', primitiveType: PrimitiveType.FLOAT32, isRuntime: true, isWired: true, isStored: true },
-  [Axis2Property.x]: { id: 41, name: 'x', component: ObjectType.AXIS2, kind: 'primitive', primitiveType: PrimitiveType.FLOAT32, isRuntime: true, isWired: true, isStored: true },
-  [Axis2Property.y]: { id: 42, name: 'y', component: ObjectType.AXIS2, kind: 'primitive', primitiveType: PrimitiveType.FLOAT32, isRuntime: true, isWired: true, isStored: true },
+  [Axis2Property.base]: { id: 50, name: 'base', component: ObjectType.AXIS2, kind: 'primitive', primitiveType: PrimitiveType.FLOAT32, isRuntime: true, isWired: true, isStored: true },
+  [Axis2Property.x]: { id: 51, name: 'x', component: ObjectType.AXIS2, kind: 'primitive', primitiveType: PrimitiveType.FLOAT32, isRuntime: true, isWired: true, isStored: true },
+  [Axis2Property.y]: { id: 52, name: 'y', component: ObjectType.AXIS2, kind: 'primitive', primitiveType: PrimitiveType.FLOAT32, isRuntime: true, isWired: true, isStored: true },
+}
+export const VariableAxis2DataInfo: Record<VariableAxis2Property, PropertyInfo> = {
+  [VariableAxis2Property.metatype]: { id: 1, name: 'metatype', component: ObjectType.VARIABLE_AXIS2, enumType: EnumType.OBJECT_TYPE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isInternal: true, isComputed: true, isWired: true },
+  [VariableAxis2Property.fieldPtr]: { id: 40, name: 'field_ptr', component: ObjectType.VARIABLE_AXIS2, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.FIELD], referenceStruct: StructType.NODE_REFERENCE },
+  [VariableAxis2Property.base]: { id: 50, name: 'base', component: ObjectType.VARIABLE_AXIS2, kind: 'primitive', primitiveType: PrimitiveType.FLOAT32, isRuntime: true, isWired: true, isStored: true },
+  [VariableAxis2Property.x]: { id: 51, name: 'x', component: ObjectType.VARIABLE_AXIS2, kind: 'primitive', primitiveType: PrimitiveType.FLOAT32, isRuntime: true, isWired: true, isStored: true },
+  [VariableAxis2Property.y]: { id: 52, name: 'y', component: ObjectType.VARIABLE_AXIS2, kind: 'primitive', primitiveType: PrimitiveType.FLOAT32, isRuntime: true, isWired: true, isStored: true },
 }
 export const Axis3DataInfo: Record<Axis3Property, PropertyInfo> = {
   [Axis3Property.metatype]: { id: 1, name: 'metatype', component: ObjectType.AXIS3, enumType: EnumType.OBJECT_TYPE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isInternal: true, isComputed: true, isWired: true },
-  [Axis3Property.base]: { id: 40, name: 'base', component: ObjectType.AXIS3, kind: 'primitive', primitiveType: PrimitiveType.FLOAT32, isRuntime: true, isWired: true, isStored: true },
-  [Axis3Property.x]: { id: 41, name: 'x', component: ObjectType.AXIS3, kind: 'primitive', primitiveType: PrimitiveType.FLOAT32, isRuntime: true, isWired: true, isStored: true },
-  [Axis3Property.y]: { id: 42, name: 'y', component: ObjectType.AXIS3, kind: 'primitive', primitiveType: PrimitiveType.FLOAT32, isRuntime: true, isWired: true, isStored: true },
-  [Axis3Property.z]: { id: 43, name: 'z', component: ObjectType.AXIS3, kind: 'primitive', primitiveType: PrimitiveType.FLOAT32, isRuntime: true, isWired: true, isStored: true },
+  [Axis3Property.base]: { id: 50, name: 'base', component: ObjectType.AXIS3, kind: 'primitive', primitiveType: PrimitiveType.FLOAT32, isRuntime: true, isWired: true, isStored: true },
+  [Axis3Property.x]: { id: 51, name: 'x', component: ObjectType.AXIS3, kind: 'primitive', primitiveType: PrimitiveType.FLOAT32, isRuntime: true, isWired: true, isStored: true },
+  [Axis3Property.y]: { id: 52, name: 'y', component: ObjectType.AXIS3, kind: 'primitive', primitiveType: PrimitiveType.FLOAT32, isRuntime: true, isWired: true, isStored: true },
+  [Axis3Property.z]: { id: 53, name: 'z', component: ObjectType.AXIS3, kind: 'primitive', primitiveType: PrimitiveType.FLOAT32, isRuntime: true, isWired: true, isStored: true },
+}
+export const VariableAxis3DataInfo: Record<VariableAxis3Property, PropertyInfo> = {
+  [VariableAxis3Property.metatype]: { id: 1, name: 'metatype', component: ObjectType.VARIABLE_AXIS3, enumType: EnumType.OBJECT_TYPE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isInternal: true, isComputed: true, isWired: true },
+  [VariableAxis3Property.fieldPtr]: { id: 40, name: 'field_ptr', component: ObjectType.VARIABLE_AXIS3, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.FIELD], referenceStruct: StructType.NODE_REFERENCE },
+  [VariableAxis3Property.base]: { id: 50, name: 'base', component: ObjectType.VARIABLE_AXIS3, kind: 'primitive', primitiveType: PrimitiveType.FLOAT32, isRuntime: true, isWired: true, isStored: true },
+  [VariableAxis3Property.x]: { id: 51, name: 'x', component: ObjectType.VARIABLE_AXIS3, kind: 'primitive', primitiveType: PrimitiveType.FLOAT32, isRuntime: true, isWired: true, isStored: true },
+  [VariableAxis3Property.y]: { id: 52, name: 'y', component: ObjectType.VARIABLE_AXIS3, kind: 'primitive', primitiveType: PrimitiveType.FLOAT32, isRuntime: true, isWired: true, isStored: true },
+  [VariableAxis3Property.z]: { id: 53, name: 'z', component: ObjectType.VARIABLE_AXIS3, kind: 'primitive', primitiveType: PrimitiveType.FLOAT32, isRuntime: true, isWired: true, isStored: true },
 }
 export const ColorDataInfo: Record<ColorProperty, PropertyInfo> = {
   [ColorProperty.metatype]: { id: 1, name: 'metatype', component: ObjectType.COLOR, enumType: EnumType.OBJECT_TYPE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isInternal: true, isComputed: true, isWired: true },
   [ColorProperty.type]: { id: 30, name: 'type', component: ObjectType.COLOR, enumType: EnumType.COLOR_TYPE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isRuntime: true, isWired: true, isStored: true },
-  [ColorProperty.hue]: { id: 40, name: 'hue', component: ObjectType.COLOR, enumType: EnumType.COLOR_HUE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRuntime: true, isWired: true, isStored: true },
-  [ColorProperty.shade]: { id: 41, name: 'shade', component: ObjectType.COLOR, enumType: EnumType.COLOR_SHADE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRuntime: true, isWired: true, isStored: true },
+  [ColorProperty.fieldPtr]: { id: 40, name: 'field_ptr', component: ObjectType.COLOR, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.FIELD], referenceStruct: StructType.NODE_REFERENCE },
   [ColorProperty.stylePtr]: { id: 42, name: 'style_ptr', component: ObjectType.COLOR, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.COLOR_STYLE], referenceStruct: StructType.NODE_REFERENCE },
-  [ColorProperty.fieldPtr]: { id: 43, name: 'field_ptr', component: ObjectType.COLOR, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.FIELD], referenceStruct: StructType.NODE_REFERENCE },
-  [ColorProperty.x]: { id: 50, name: 'x', component: ObjectType.COLOR, kind: 'primitive', primitiveType: PrimitiveType.FLOAT32, isRuntime: true, isWired: true, isStored: true },
-  [ColorProperty.y]: { id: 51, name: 'y', component: ObjectType.COLOR, kind: 'primitive', primitiveType: PrimitiveType.FLOAT32, isRuntime: true, isWired: true, isStored: true },
-  [ColorProperty.z]: { id: 52, name: 'z', component: ObjectType.COLOR, kind: 'primitive', primitiveType: PrimitiveType.FLOAT32, isRuntime: true, isWired: true, isStored: true },
-  [ColorProperty.alpha]: { id: 53, name: 'alpha', component: ObjectType.COLOR, kind: 'primitive', primitiveType: PrimitiveType.FLOAT32, isRuntime: true, isWired: true, isStored: true },
+  [ColorProperty.hue]: { id: 50, name: 'hue', component: ObjectType.COLOR, enumType: EnumType.COLOR_HUE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRuntime: true, isWired: true, isStored: true },
+  [ColorProperty.shade]: { id: 51, name: 'shade', component: ObjectType.COLOR, enumType: EnumType.COLOR_SHADE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRuntime: true, isWired: true, isStored: true },
+  [ColorProperty.x]: { id: 52, name: 'x', component: ObjectType.COLOR, kind: 'primitive', primitiveType: PrimitiveType.FLOAT32, isRuntime: true, isWired: true, isStored: true },
+  [ColorProperty.y]: { id: 53, name: 'y', component: ObjectType.COLOR, kind: 'primitive', primitiveType: PrimitiveType.FLOAT32, isRuntime: true, isWired: true, isStored: true },
+  [ColorProperty.z]: { id: 54, name: 'z', component: ObjectType.COLOR, kind: 'primitive', primitiveType: PrimitiveType.FLOAT32, isRuntime: true, isWired: true, isStored: true },
+  [ColorProperty.alpha]: { id: 55, name: 'alpha', component: ObjectType.COLOR, kind: 'primitive', primitiveType: PrimitiveType.FLOAT32, isRuntime: true, isWired: true, isStored: true },
 }
 export const ShadowDataInfo: Record<ShadowProperty, PropertyInfo> = {
   [ShadowProperty.metatype]: { id: 1, name: 'metatype', component: ObjectType.SHADOW, enumType: EnumType.OBJECT_TYPE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isInternal: true, isComputed: true, isWired: true },
   [ShadowProperty.type]: { id: 30, name: 'type', component: ObjectType.SHADOW, enumType: EnumType.SHADOW_TYPE, kind: 'enum', primitiveType: PrimitiveType.INT16, default: 10, isRequired: true, isRuntime: true, isWired: true, isStored: true },
-  [ShadowProperty.stylePtr]: { id: 40, name: 'style_ptr', component: ObjectType.SHADOW, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.SHADOW_STYLE], referenceStruct: StructType.NODE_REFERENCE },
-  [ShadowProperty.fieldPtr]: { id: 41, name: 'field_ptr', component: ObjectType.SHADOW, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.FIELD], referenceStruct: StructType.NODE_REFERENCE },
+  [ShadowProperty.fieldPtr]: { id: 40, name: 'field_ptr', component: ObjectType.SHADOW, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.FIELD], referenceStruct: StructType.NODE_REFERENCE },
+  [ShadowProperty.stylePtr]: { id: 41, name: 'style_ptr', component: ObjectType.SHADOW, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.SHADOW_STYLE], referenceStruct: StructType.NODE_REFERENCE },
   [ShadowProperty.color]: { id: 50, name: 'color', component: ObjectType.SHADOW, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.COLOR },
   [ShadowProperty.position]: { id: 51, name: 'position', component: ObjectType.SHADOW, enumType: EnumType.SHADOW_POSITION, kind: 'enum', primitiveType: PrimitiveType.INT16, default: 1, isRequired: true, isRuntime: true, isWired: true, isStored: true },
   [ShadowProperty.offset]: { id: 52, name: 'offset', component: ObjectType.SHADOW, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.AXIS2 },
@@ -42175,16 +43826,16 @@ export const ShadowDataInfo: Record<ShadowProperty, PropertyInfo> = {
 export const BorderDataInfo: Record<BorderProperty, PropertyInfo> = {
   [BorderProperty.metatype]: { id: 1, name: 'metatype', component: ObjectType.BORDER, enumType: EnumType.OBJECT_TYPE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isInternal: true, isComputed: true, isWired: true },
   [BorderProperty.type]: { id: 30, name: 'type', component: ObjectType.BORDER, enumType: EnumType.BORDER_TYPE, kind: 'enum', primitiveType: PrimitiveType.INT16, default: 10, isRequired: true, isRuntime: true, isWired: true, isStored: true },
-  [BorderProperty.stylePtr]: { id: 40, name: 'style_ptr', component: ObjectType.BORDER, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.BORDER_STYLE], referenceStruct: StructType.NODE_REFERENCE },
-  [BorderProperty.fieldPtr]: { id: 41, name: 'field_ptr', component: ObjectType.BORDER, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.FIELD], referenceStruct: StructType.NODE_REFERENCE },
+  [BorderProperty.fieldPtr]: { id: 40, name: 'field_ptr', component: ObjectType.BORDER, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.FIELD], referenceStruct: StructType.NODE_REFERENCE },
+  [BorderProperty.stylePtr]: { id: 41, name: 'style_ptr', component: ObjectType.BORDER, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.BORDER_STYLE], referenceStruct: StructType.NODE_REFERENCE },
   [BorderProperty.color]: { id: 50, name: 'color', component: ObjectType.BORDER, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.COLOR },
   [BorderProperty.width]: { id: 51, name: 'width', component: ObjectType.BORDER, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.INSETS },
 }
 export const FontDataInfo: Record<FontProperty, PropertyInfo> = {
   [FontProperty.metatype]: { id: 1, name: 'metatype', component: ObjectType.FONT, enumType: EnumType.OBJECT_TYPE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isInternal: true, isComputed: true, isWired: true },
   [FontProperty.type]: { id: 30, name: 'type', component: ObjectType.FONT, enumType: EnumType.FONT_TYPE, kind: 'enum', primitiveType: PrimitiveType.INT16, default: 11, isRequired: true, isRuntime: true, isWired: true, isStored: true },
-  [FontProperty.stylePtr]: { id: 40, name: 'style_ptr', component: ObjectType.FONT, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.FONT_STYLE], referenceStruct: StructType.NODE_REFERENCE },
-  [FontProperty.fieldPtr]: { id: 41, name: 'field_ptr', component: ObjectType.FONT, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.FIELD], referenceStruct: StructType.NODE_REFERENCE },
+  [FontProperty.fieldPtr]: { id: 40, name: 'field_ptr', component: ObjectType.FONT, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.FIELD], referenceStruct: StructType.NODE_REFERENCE },
+  [FontProperty.stylePtr]: { id: 41, name: 'style_ptr', component: ObjectType.FONT, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.FONT_STYLE], referenceStruct: StructType.NODE_REFERENCE },
   [FontProperty.weight]: { id: 50, name: 'weight', component: ObjectType.FONT, enumType: EnumType.FONT_WEIGHT, kind: 'enum', primitiveType: PrimitiveType.INT16, default: 400, isRuntime: true, isWired: true, isStored: true },
   [FontProperty.color]: { id: 51, name: 'color', component: ObjectType.FONT, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.FILL },
   [FontProperty.size]: { id: 52, name: 'size', component: ObjectType.FONT, enumType: EnumType.FONT_SIZE, kind: 'enum', primitiveType: PrimitiveType.INT16, default: 16, isRuntime: true, isWired: true, isStored: true },
@@ -42217,28 +43868,50 @@ export const FillDataInfo: Record<FillProperty, PropertyInfo> = {
 }
 export const LengthDataInfo: Record<LengthProperty, PropertyInfo> = {
   [LengthProperty.metatype]: { id: 1, name: 'metatype', component: ObjectType.LENGTH, enumType: EnumType.OBJECT_TYPE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isInternal: true, isComputed: true, isWired: true },
-  [LengthProperty.unit]: { id: 31, name: 'unit', component: ObjectType.LENGTH, enumType: EnumType.LENGTH_UNIT, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isRuntime: true, isWired: true, isStored: true },
-  [LengthProperty.value]: { id: 40, name: 'value', component: ObjectType.LENGTH, kind: 'primitive', primitiveType: PrimitiveType.FLOAT32, isRequired: true, isRuntime: true, isWired: true, isStored: true },
+  [LengthProperty.unit]: { id: 50, name: 'unit', component: ObjectType.LENGTH, enumType: EnumType.LENGTH_UNIT, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isRuntime: true, isWired: true, isStored: true },
+  [LengthProperty.value]: { id: 51, name: 'value', component: ObjectType.LENGTH, kind: 'primitive', primitiveType: PrimitiveType.FLOAT32, isRequired: true, isRuntime: true, isWired: true, isStored: true },
+}
+export const VariableLengthDataInfo: Record<VariableLengthProperty, PropertyInfo> = {
+  [VariableLengthProperty.metatype]: { id: 1, name: 'metatype', component: ObjectType.VARIABLE_LENGTH, enumType: EnumType.OBJECT_TYPE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isInternal: true, isComputed: true, isWired: true },
+  [VariableLengthProperty.fieldPtr]: { id: 40, name: 'field_ptr', component: ObjectType.VARIABLE_LENGTH, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.FIELD], referenceStruct: StructType.NODE_REFERENCE },
+  [VariableLengthProperty.unit]: { id: 50, name: 'unit', component: ObjectType.VARIABLE_LENGTH, enumType: EnumType.LENGTH_UNIT, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isRuntime: true, isWired: true, isStored: true },
+  [VariableLengthProperty.value]: { id: 51, name: 'value', component: ObjectType.VARIABLE_LENGTH, kind: 'primitive', primitiveType: PrimitiveType.FLOAT32, isRequired: true, isRuntime: true, isWired: true, isStored: true },
 }
 export const PositionDataInfo: Record<PositionProperty, PropertyInfo> = {
   [PositionProperty.metatype]: { id: 1, name: 'metatype', component: ObjectType.POSITION, enumType: EnumType.OBJECT_TYPE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isInternal: true, isComputed: true, isWired: true },
-  [PositionProperty.type]: { id: 40, name: 'type', component: ObjectType.POSITION, enumType: EnumType.POSITION_TYPE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isRuntime: true, isWired: true, isStored: true },
-  [PositionProperty.top]: { id: 41, name: 'top', component: ObjectType.POSITION, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.LENGTH },
-  [PositionProperty.left]: { id: 42, name: 'left', component: ObjectType.POSITION, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.LENGTH },
-  [PositionProperty.width]: { id: 43, name: 'width', component: ObjectType.POSITION, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.LENGTH },
-  [PositionProperty.height]: { id: 44, name: 'height', component: ObjectType.POSITION, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.LENGTH },
+  [PositionProperty.type]: { id: 30, name: 'type', component: ObjectType.POSITION, enumType: EnumType.POSITION_TYPE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isRuntime: true, isWired: true, isStored: true },
+  [PositionProperty.top]: { id: 50, name: 'top', component: ObjectType.POSITION, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.LENGTH },
+  [PositionProperty.left]: { id: 51, name: 'left', component: ObjectType.POSITION, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.LENGTH },
+  [PositionProperty.width]: { id: 52, name: 'width', component: ObjectType.POSITION, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.LENGTH },
+  [PositionProperty.height]: { id: 53, name: 'height', component: ObjectType.POSITION, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.LENGTH },
+}
+export const VariablePositionDataInfo: Record<VariablePositionProperty, PropertyInfo> = {
+  [VariablePositionProperty.metatype]: { id: 1, name: 'metatype', component: ObjectType.VARIABLE_POSITION, enumType: EnumType.OBJECT_TYPE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isInternal: true, isComputed: true, isWired: true },
+  [VariablePositionProperty.type]: { id: 30, name: 'type', component: ObjectType.VARIABLE_POSITION, enumType: EnumType.POSITION_TYPE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isRuntime: true, isWired: true, isStored: true },
+  [VariablePositionProperty.fieldPtr]: { id: 40, name: 'field_ptr', component: ObjectType.VARIABLE_POSITION, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.FIELD], referenceStruct: StructType.NODE_REFERENCE },
+  [VariablePositionProperty.top]: { id: 50, name: 'top', component: ObjectType.VARIABLE_POSITION, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.LENGTH },
+  [VariablePositionProperty.left]: { id: 51, name: 'left', component: ObjectType.VARIABLE_POSITION, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.LENGTH },
+  [VariablePositionProperty.width]: { id: 52, name: 'width', component: ObjectType.VARIABLE_POSITION, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.LENGTH },
+  [VariablePositionProperty.height]: { id: 53, name: 'height', component: ObjectType.VARIABLE_POSITION, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.LENGTH },
 }
 export const DimensionDataInfo: Record<DimensionProperty, PropertyInfo> = {
   [DimensionProperty.metatype]: { id: 1, name: 'metatype', component: ObjectType.DIMENSION, enumType: EnumType.OBJECT_TYPE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isInternal: true, isComputed: true, isWired: true },
   [DimensionProperty.type]: { id: 30, name: 'type', component: ObjectType.DIMENSION, enumType: EnumType.DIMENSION_TYPE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isRuntime: true, isWired: true, isStored: true },
-  [DimensionProperty.unit]: { id: 31, name: 'unit', component: ObjectType.DIMENSION, enumType: EnumType.LENGTH_UNIT, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isRuntime: true, isWired: true, isStored: true },
-  [DimensionProperty.value]: { id: 40, name: 'value', component: ObjectType.DIMENSION, kind: 'primitive', primitiveType: PrimitiveType.FLOAT32, isRequired: true, isRuntime: true, isWired: true, isStored: true },
+  [DimensionProperty.unit]: { id: 50, name: 'unit', component: ObjectType.DIMENSION, enumType: EnumType.LENGTH_UNIT, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isRuntime: true, isWired: true, isStored: true },
+  [DimensionProperty.value]: { id: 51, name: 'value', component: ObjectType.DIMENSION, kind: 'primitive', primitiveType: PrimitiveType.FLOAT32, isRequired: true, isRuntime: true, isWired: true, isStored: true },
+}
+export const VariableDimensionDataInfo: Record<VariableDimensionProperty, PropertyInfo> = {
+  [VariableDimensionProperty.metatype]: { id: 1, name: 'metatype', component: ObjectType.VARIABLE_DIMENSION, enumType: EnumType.OBJECT_TYPE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isInternal: true, isComputed: true, isWired: true },
+  [VariableDimensionProperty.type]: { id: 30, name: 'type', component: ObjectType.VARIABLE_DIMENSION, enumType: EnumType.DIMENSION_TYPE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isRuntime: true, isWired: true, isStored: true },
+  [VariableDimensionProperty.fieldPtr]: { id: 40, name: 'field_ptr', component: ObjectType.VARIABLE_DIMENSION, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.FIELD], referenceStruct: StructType.NODE_REFERENCE },
+  [VariableDimensionProperty.unit]: { id: 50, name: 'unit', component: ObjectType.VARIABLE_DIMENSION, enumType: EnumType.LENGTH_UNIT, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isRuntime: true, isWired: true, isStored: true },
+  [VariableDimensionProperty.value]: { id: 51, name: 'value', component: ObjectType.VARIABLE_DIMENSION, kind: 'primitive', primitiveType: PrimitiveType.FLOAT32, isRequired: true, isRuntime: true, isWired: true, isStored: true },
 }
 export const TransitionDataInfo: Record<TransitionProperty, PropertyInfo> = {
   [TransitionProperty.metatype]: { id: 1, name: 'metatype', component: ObjectType.TRANSITION, enumType: EnumType.OBJECT_TYPE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isInternal: true, isComputed: true, isWired: true },
   [TransitionProperty.type]: { id: 30, name: 'type', component: ObjectType.TRANSITION, enumType: EnumType.TRANSITION_TYPE, kind: 'enum', primitiveType: PrimitiveType.INT16, default: 10, isRequired: true, isRuntime: true, isWired: true, isStored: true },
-  [TransitionProperty.stylePtr]: { id: 40, name: 'style_ptr', component: ObjectType.TRANSITION, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.TRANSITION_STYLE], referenceStruct: StructType.NODE_REFERENCE },
-  [TransitionProperty.fieldPtr]: { id: 41, name: 'field_ptr', component: ObjectType.TRANSITION, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.FIELD], referenceStruct: StructType.NODE_REFERENCE },
+  [TransitionProperty.fieldPtr]: { id: 40, name: 'field_ptr', component: ObjectType.TRANSITION, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.FIELD], referenceStruct: StructType.NODE_REFERENCE },
+  [TransitionProperty.stylePtr]: { id: 41, name: 'style_ptr', component: ObjectType.TRANSITION, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.TRANSITION_STYLE], referenceStruct: StructType.NODE_REFERENCE },
   [TransitionProperty.delay]: { id: 50, name: 'delay', component: ObjectType.TRANSITION, kind: 'primitive', primitiveType: PrimitiveType.FLOAT32, isRuntime: true, isWired: true, isStored: true },
   [TransitionProperty.duration]: { id: 51, name: 'duration', component: ObjectType.TRANSITION, kind: 'primitive', primitiveType: PrimitiveType.FLOAT32, isRuntime: true, isWired: true, isStored: true },
   [TransitionProperty.ease]: { id: 52, name: 'ease', component: ObjectType.TRANSITION, kind: 'primitive', primitiveType: PrimitiveType.FLOAT32, isList: true, isRuntime: true, isWired: true, isStored: true },
@@ -42251,8 +43924,8 @@ export const TransitionDataInfo: Record<TransitionProperty, PropertyInfo> = {
 export const EffectDataInfo: Record<EffectProperty, PropertyInfo> = {
   [EffectProperty.metatype]: { id: 1, name: 'metatype', component: ObjectType.EFFECT, enumType: EnumType.OBJECT_TYPE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isInternal: true, isComputed: true, isWired: true },
   [EffectProperty.type]: { id: 30, name: 'type', component: ObjectType.EFFECT, enumType: EnumType.EFFECT_TYPE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isRuntime: true, isWired: true, isStored: true },
+  [EffectProperty.fieldPtr]: { id: 40, name: 'field_ptr', component: ObjectType.EFFECT, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.FIELD], referenceStruct: StructType.NODE_REFERENCE },
   [EffectProperty.stylePtr]: { id: 41, name: 'style_ptr', component: ObjectType.EFFECT, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.EFFECT_STYLE], referenceStruct: StructType.NODE_REFERENCE },
-  [EffectProperty.fieldPtr]: { id: 42, name: 'field_ptr', component: ObjectType.EFFECT, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.FIELD], referenceStruct: StructType.NODE_REFERENCE },
   [EffectProperty.opacity]: { id: 50, name: 'opacity', component: ObjectType.EFFECT, kind: 'primitive', primitiveType: PrimitiveType.FLOAT32, isRuntime: true, isWired: true, isStored: true },
   [EffectProperty.offset]: { id: 51, name: 'offset', component: ObjectType.EFFECT, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.VECTOR2 },
   [EffectProperty.scale]: { id: 52, name: 'scale', component: ObjectType.EFFECT, kind: 'primitive', primitiveType: PrimitiveType.FLOAT32, isRuntime: true, isWired: true, isStored: true },
@@ -42270,32 +43943,65 @@ export const EffectDataInfo: Record<EffectProperty, PropertyInfo> = {
 }
 export const GridDataInfo: Record<GridProperty, PropertyInfo> = {
   [GridProperty.metatype]: { id: 1, name: 'metatype', component: ObjectType.GRID, enumType: EnumType.OBJECT_TYPE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isInternal: true, isComputed: true, isWired: true },
-  [GridProperty.columns]: { id: 40, name: 'columns', component: ObjectType.GRID, kind: 'primitive', primitiveType: PrimitiveType.INT32, isRequired: true, isRuntime: true, isWired: true, isStored: true },
-  [GridProperty.rows]: { id: 41, name: 'rows', component: ObjectType.GRID, kind: 'primitive', primitiveType: PrimitiveType.INT32, isRequired: true, isRuntime: true, isWired: true, isStored: true },
-  [GridProperty.columnWidth]: { id: 42, name: 'column_width', component: ObjectType.GRID, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.DIMENSION },
-  [GridProperty.columnMinWidth]: { id: 43, name: 'column_min_width', component: ObjectType.GRID, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.DIMENSION },
-  [GridProperty.rowHeight]: { id: 44, name: 'row_height', component: ObjectType.GRID, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.DIMENSION },
+  [GridProperty.columns]: { id: 50, name: 'columns', component: ObjectType.GRID, kind: 'primitive', primitiveType: PrimitiveType.INT32, isRequired: true, isRuntime: true, isWired: true, isStored: true },
+  [GridProperty.rows]: { id: 51, name: 'rows', component: ObjectType.GRID, kind: 'primitive', primitiveType: PrimitiveType.INT32, isRequired: true, isRuntime: true, isWired: true, isStored: true },
+  [GridProperty.columnWidth]: { id: 52, name: 'column_width', component: ObjectType.GRID, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.DIMENSION },
+  [GridProperty.columnMinWidth]: { id: 53, name: 'column_min_width', component: ObjectType.GRID, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.DIMENSION },
+  [GridProperty.rowHeight]: { id: 54, name: 'row_height', component: ObjectType.GRID, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.DIMENSION },
+}
+export const VariableGridDataInfo: Record<VariableGridProperty, PropertyInfo> = {
+  [VariableGridProperty.metatype]: { id: 1, name: 'metatype', component: ObjectType.VARIABLE_GRID, enumType: EnumType.OBJECT_TYPE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isInternal: true, isComputed: true, isWired: true },
+  [VariableGridProperty.fieldPtr]: { id: 40, name: 'field_ptr', component: ObjectType.VARIABLE_GRID, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.FIELD], referenceStruct: StructType.NODE_REFERENCE },
+  [VariableGridProperty.columns]: { id: 50, name: 'columns', component: ObjectType.VARIABLE_GRID, kind: 'primitive', primitiveType: PrimitiveType.INT32, isRequired: true, isRuntime: true, isWired: true, isStored: true },
+  [VariableGridProperty.rows]: { id: 51, name: 'rows', component: ObjectType.VARIABLE_GRID, kind: 'primitive', primitiveType: PrimitiveType.INT32, isRequired: true, isRuntime: true, isWired: true, isStored: true },
+  [VariableGridProperty.columnWidth]: { id: 52, name: 'column_width', component: ObjectType.VARIABLE_GRID, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.DIMENSION },
+  [VariableGridProperty.columnMinWidth]: { id: 53, name: 'column_min_width', component: ObjectType.VARIABLE_GRID, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.DIMENSION },
+  [VariableGridProperty.rowHeight]: { id: 54, name: 'row_height', component: ObjectType.VARIABLE_GRID, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.DIMENSION },
 }
 export const GridSpanDataInfo: Record<GridSpanProperty, PropertyInfo> = {
   [GridSpanProperty.metatype]: { id: 1, name: 'metatype', component: ObjectType.GRID_SPAN, enumType: EnumType.OBJECT_TYPE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isInternal: true, isComputed: true, isWired: true },
-  [GridSpanProperty.columns]: { id: 40, name: 'columns', component: ObjectType.GRID_SPAN, kind: 'primitive', primitiveType: PrimitiveType.INT32, isRequired: true, isRuntime: true, isWired: true, isStored: true },
-  [GridSpanProperty.rows]: { id: 41, name: 'rows', component: ObjectType.GRID_SPAN, kind: 'primitive', primitiveType: PrimitiveType.INT32, isRequired: true, isRuntime: true, isWired: true, isStored: true },
+  [GridSpanProperty.columns]: { id: 50, name: 'columns', component: ObjectType.GRID_SPAN, kind: 'primitive', primitiveType: PrimitiveType.INT32, isRequired: true, isRuntime: true, isWired: true, isStored: true },
+  [GridSpanProperty.rows]: { id: 51, name: 'rows', component: ObjectType.GRID_SPAN, kind: 'primitive', primitiveType: PrimitiveType.INT32, isRequired: true, isRuntime: true, isWired: true, isStored: true },
+}
+export const VariableGridSpanDataInfo: Record<VariableGridSpanProperty, PropertyInfo> = {
+  [VariableGridSpanProperty.metatype]: { id: 1, name: 'metatype', component: ObjectType.VARIABLE_GRID_SPAN, enumType: EnumType.OBJECT_TYPE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isInternal: true, isComputed: true, isWired: true },
+  [VariableGridSpanProperty.fieldPtr]: { id: 40, name: 'field_ptr', component: ObjectType.VARIABLE_GRID_SPAN, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.FIELD], referenceStruct: StructType.NODE_REFERENCE },
+  [VariableGridSpanProperty.columns]: { id: 50, name: 'columns', component: ObjectType.VARIABLE_GRID_SPAN, kind: 'primitive', primitiveType: PrimitiveType.INT32, isRequired: true, isRuntime: true, isWired: true, isStored: true },
+  [VariableGridSpanProperty.rows]: { id: 51, name: 'rows', component: ObjectType.VARIABLE_GRID_SPAN, kind: 'primitive', primitiveType: PrimitiveType.INT32, isRequired: true, isRuntime: true, isWired: true, isStored: true },
 }
 export const InsetsDataInfo: Record<InsetsProperty, PropertyInfo> = {
   [InsetsProperty.metatype]: { id: 1, name: 'metatype', component: ObjectType.INSETS, enumType: EnumType.OBJECT_TYPE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isInternal: true, isComputed: true, isWired: true },
-  [InsetsProperty.base]: { id: 40, name: 'base', component: ObjectType.INSETS, kind: 'primitive', primitiveType: PrimitiveType.INT32, isRuntime: true, isWired: true, isStored: true },
-  [InsetsProperty.top]: { id: 41, name: 'top', component: ObjectType.INSETS, kind: 'primitive', primitiveType: PrimitiveType.INT32, isRuntime: true, isWired: true, isStored: true },
-  [InsetsProperty.left]: { id: 42, name: 'left', component: ObjectType.INSETS, kind: 'primitive', primitiveType: PrimitiveType.INT32, isRuntime: true, isWired: true, isStored: true },
-  [InsetsProperty.right]: { id: 43, name: 'right', component: ObjectType.INSETS, kind: 'primitive', primitiveType: PrimitiveType.INT32, isRuntime: true, isWired: true, isStored: true },
-  [InsetsProperty.bottom]: { id: 44, name: 'bottom', component: ObjectType.INSETS, kind: 'primitive', primitiveType: PrimitiveType.INT32, isRuntime: true, isWired: true, isStored: true },
+  [InsetsProperty.base]: { id: 50, name: 'base', component: ObjectType.INSETS, kind: 'primitive', primitiveType: PrimitiveType.INT32, isRuntime: true, isWired: true, isStored: true },
+  [InsetsProperty.top]: { id: 51, name: 'top', component: ObjectType.INSETS, kind: 'primitive', primitiveType: PrimitiveType.INT32, isRuntime: true, isWired: true, isStored: true },
+  [InsetsProperty.left]: { id: 52, name: 'left', component: ObjectType.INSETS, kind: 'primitive', primitiveType: PrimitiveType.INT32, isRuntime: true, isWired: true, isStored: true },
+  [InsetsProperty.right]: { id: 53, name: 'right', component: ObjectType.INSETS, kind: 'primitive', primitiveType: PrimitiveType.INT32, isRuntime: true, isWired: true, isStored: true },
+  [InsetsProperty.bottom]: { id: 54, name: 'bottom', component: ObjectType.INSETS, kind: 'primitive', primitiveType: PrimitiveType.INT32, isRuntime: true, isWired: true, isStored: true },
+}
+export const VariableInsetsDataInfo: Record<VariableInsetsProperty, PropertyInfo> = {
+  [VariableInsetsProperty.metatype]: { id: 1, name: 'metatype', component: ObjectType.VARIABLE_INSETS, enumType: EnumType.OBJECT_TYPE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isInternal: true, isComputed: true, isWired: true },
+  [VariableInsetsProperty.fieldPtr]: { id: 40, name: 'field_ptr', component: ObjectType.VARIABLE_INSETS, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.FIELD], referenceStruct: StructType.NODE_REFERENCE },
+  [VariableInsetsProperty.base]: { id: 50, name: 'base', component: ObjectType.VARIABLE_INSETS, kind: 'primitive', primitiveType: PrimitiveType.INT32, isRuntime: true, isWired: true, isStored: true },
+  [VariableInsetsProperty.top]: { id: 51, name: 'top', component: ObjectType.VARIABLE_INSETS, kind: 'primitive', primitiveType: PrimitiveType.INT32, isRuntime: true, isWired: true, isStored: true },
+  [VariableInsetsProperty.left]: { id: 52, name: 'left', component: ObjectType.VARIABLE_INSETS, kind: 'primitive', primitiveType: PrimitiveType.INT32, isRuntime: true, isWired: true, isStored: true },
+  [VariableInsetsProperty.right]: { id: 53, name: 'right', component: ObjectType.VARIABLE_INSETS, kind: 'primitive', primitiveType: PrimitiveType.INT32, isRuntime: true, isWired: true, isStored: true },
+  [VariableInsetsProperty.bottom]: { id: 54, name: 'bottom', component: ObjectType.VARIABLE_INSETS, kind: 'primitive', primitiveType: PrimitiveType.INT32, isRuntime: true, isWired: true, isStored: true },
 }
 export const CornersDataInfo: Record<CornersProperty, PropertyInfo> = {
   [CornersProperty.metatype]: { id: 1, name: 'metatype', component: ObjectType.CORNERS, enumType: EnumType.OBJECT_TYPE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isInternal: true, isComputed: true, isWired: true },
-  [CornersProperty.base]: { id: 40, name: 'base', component: ObjectType.CORNERS, kind: 'primitive', primitiveType: PrimitiveType.INT32, isRuntime: true, isWired: true, isStored: true },
-  [CornersProperty.topLeft]: { id: 41, name: 'top_left', component: ObjectType.CORNERS, kind: 'primitive', primitiveType: PrimitiveType.INT32, isRuntime: true, isWired: true, isStored: true },
-  [CornersProperty.topRight]: { id: 42, name: 'top_right', component: ObjectType.CORNERS, kind: 'primitive', primitiveType: PrimitiveType.INT32, isRuntime: true, isWired: true, isStored: true },
-  [CornersProperty.bottomLeft]: { id: 43, name: 'bottom_left', component: ObjectType.CORNERS, kind: 'primitive', primitiveType: PrimitiveType.INT32, isRuntime: true, isWired: true, isStored: true },
-  [CornersProperty.bottomRight]: { id: 44, name: 'bottom_right', component: ObjectType.CORNERS, kind: 'primitive', primitiveType: PrimitiveType.INT32, isRuntime: true, isWired: true, isStored: true },
+  [CornersProperty.base]: { id: 50, name: 'base', component: ObjectType.CORNERS, kind: 'primitive', primitiveType: PrimitiveType.INT32, isRuntime: true, isWired: true, isStored: true },
+  [CornersProperty.topLeft]: { id: 51, name: 'top_left', component: ObjectType.CORNERS, kind: 'primitive', primitiveType: PrimitiveType.INT32, isRuntime: true, isWired: true, isStored: true },
+  [CornersProperty.topRight]: { id: 52, name: 'top_right', component: ObjectType.CORNERS, kind: 'primitive', primitiveType: PrimitiveType.INT32, isRuntime: true, isWired: true, isStored: true },
+  [CornersProperty.bottomLeft]: { id: 53, name: 'bottom_left', component: ObjectType.CORNERS, kind: 'primitive', primitiveType: PrimitiveType.INT32, isRuntime: true, isWired: true, isStored: true },
+  [CornersProperty.bottomRight]: { id: 54, name: 'bottom_right', component: ObjectType.CORNERS, kind: 'primitive', primitiveType: PrimitiveType.INT32, isRuntime: true, isWired: true, isStored: true },
+}
+export const VariableCornersDataInfo: Record<VariableCornersProperty, PropertyInfo> = {
+  [VariableCornersProperty.metatype]: { id: 1, name: 'metatype', component: ObjectType.VARIABLE_CORNERS, enumType: EnumType.OBJECT_TYPE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isInternal: true, isComputed: true, isWired: true },
+  [VariableCornersProperty.fieldPtr]: { id: 40, name: 'field_ptr', component: ObjectType.VARIABLE_CORNERS, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.FIELD], referenceStruct: StructType.NODE_REFERENCE },
+  [VariableCornersProperty.base]: { id: 50, name: 'base', component: ObjectType.VARIABLE_CORNERS, kind: 'primitive', primitiveType: PrimitiveType.INT32, isRuntime: true, isWired: true, isStored: true },
+  [VariableCornersProperty.topLeft]: { id: 51, name: 'top_left', component: ObjectType.VARIABLE_CORNERS, kind: 'primitive', primitiveType: PrimitiveType.INT32, isRuntime: true, isWired: true, isStored: true },
+  [VariableCornersProperty.topRight]: { id: 52, name: 'top_right', component: ObjectType.VARIABLE_CORNERS, kind: 'primitive', primitiveType: PrimitiveType.INT32, isRuntime: true, isWired: true, isStored: true },
+  [VariableCornersProperty.bottomLeft]: { id: 53, name: 'bottom_left', component: ObjectType.VARIABLE_CORNERS, kind: 'primitive', primitiveType: PrimitiveType.INT32, isRuntime: true, isWired: true, isStored: true },
+  [VariableCornersProperty.bottomRight]: { id: 54, name: 'bottom_right', component: ObjectType.VARIABLE_CORNERS, kind: 'primitive', primitiveType: PrimitiveType.INT32, isRuntime: true, isWired: true, isStored: true },
 }
 export const PROPERTY_INFOS_BY_TYPE: Record<ObjectType, Record<any, PropertyInfo>> = {
   [ObjectType.UNSPECIFIED]: {},
@@ -42394,10 +44100,15 @@ export const PROPERTY_INFOS_BY_TYPE: Record<ObjectType, Record<any, PropertyInfo
   [ObjectType.ACCESS_MATRIX]: AccessMatrixDataInfo,
   [ObjectType.ACCESS]: AccessDataInfo,
   [ObjectType.VECTOR2]: Vector2DataInfo,
+  [ObjectType.VARIABLE_VECTOR2]: VariableVector2DataInfo,
   [ObjectType.VECTOR3]: Vector3DataInfo,
+  [ObjectType.VARIABLE_VECTOR3]: VariableVector3DataInfo,
   [ObjectType.VECTOR4]: Vector4DataInfo,
+  [ObjectType.VARIABLE_VECTOR4]: VariableVector4DataInfo,
   [ObjectType.AXIS2]: Axis2DataInfo,
+  [ObjectType.VARIABLE_AXIS2]: VariableAxis2DataInfo,
   [ObjectType.AXIS3]: Axis3DataInfo,
+  [ObjectType.VARIABLE_AXIS3]: VariableAxis3DataInfo,
   [ObjectType.COLOR]: ColorDataInfo,
   [ObjectType.SHADOW]: ShadowDataInfo,
   [ObjectType.BORDER]: BorderDataInfo,
@@ -42406,14 +44117,21 @@ export const PROPERTY_INFOS_BY_TYPE: Record<ObjectType, Record<any, PropertyInfo
   [ObjectType.GRADIENT]: GradientDataInfo,
   [ObjectType.FILL]: FillDataInfo,
   [ObjectType.LENGTH]: LengthDataInfo,
+  [ObjectType.VARIABLE_LENGTH]: VariableLengthDataInfo,
   [ObjectType.POSITION]: PositionDataInfo,
+  [ObjectType.VARIABLE_POSITION]: VariablePositionDataInfo,
   [ObjectType.DIMENSION]: DimensionDataInfo,
+  [ObjectType.VARIABLE_DIMENSION]: VariableDimensionDataInfo,
   [ObjectType.TRANSITION]: TransitionDataInfo,
   [ObjectType.EFFECT]: EffectDataInfo,
   [ObjectType.GRID]: GridDataInfo,
+  [ObjectType.VARIABLE_GRID]: VariableGridDataInfo,
   [ObjectType.GRID_SPAN]: GridSpanDataInfo,
+  [ObjectType.VARIABLE_GRID_SPAN]: VariableGridSpanDataInfo,
   [ObjectType.INSETS]: InsetsDataInfo,
+  [ObjectType.VARIABLE_INSETS]: VariableInsetsDataInfo,
   [ObjectType.CORNERS]: CornersDataInfo,
+  [ObjectType.VARIABLE_CORNERS]: VariableCornersDataInfo,
 }
 
 // Enum options
@@ -42496,10 +44214,15 @@ export const StructTypeOptionInfo: Partial<Record<StructType, EnumOptionInfo>> =
   [StructType.TEXT_SPAN]: { id: 11602, name: 'TEXT_SPAN', icon: 'fas fa-text' },
   [StructType.CODE]: { id: 11610, name: 'CODE', icon: 'fas fa-code' },
   [StructType.VECTOR2]: { id: 19000, name: 'VECTOR2', icon: 'fas fa-vector-square' },
-  [StructType.VECTOR3]: { id: 19001, name: 'VECTOR3', icon: 'fas fa-vector-square' },
-  [StructType.VECTOR4]: { id: 19002, name: 'VECTOR4', icon: 'fas fa-vector-square' },
-  [StructType.AXIS2]: { id: 19003, name: 'AXIS2', icon: 'fas fa-vector-square' },
-  [StructType.AXIS3]: { id: 19004, name: 'AXIS3', icon: 'fas fa-vector-square' },
+  [StructType.VARIABLE_VECTOR2]: { id: 19001, name: 'VARIABLE_VECTOR2', icon: 'fas fa-vector-square' },
+  [StructType.VECTOR3]: { id: 19002, name: 'VECTOR3', icon: 'fas fa-vector-square' },
+  [StructType.VARIABLE_VECTOR3]: { id: 19003, name: 'VARIABLE_VECTOR3', icon: 'fas fa-vector-square' },
+  [StructType.VECTOR4]: { id: 19004, name: 'VECTOR4', icon: 'fas fa-vector-square' },
+  [StructType.VARIABLE_VECTOR4]: { id: 19005, name: 'VARIABLE_VECTOR4', icon: 'fas fa-vector-square' },
+  [StructType.AXIS2]: { id: 19006, name: 'AXIS2', icon: 'fas fa-vector-square' },
+  [StructType.VARIABLE_AXIS2]: { id: 19007, name: 'VARIABLE_AXIS2', icon: 'fas fa-vector-square' },
+  [StructType.AXIS3]: { id: 19008, name: 'AXIS3', icon: 'fas fa-vector-square' },
+  [StructType.VARIABLE_AXIS3]: { id: 19009, name: 'VARIABLE_AXIS3', icon: 'fas fa-vector-square' },
   [StructType.COLOR]: { id: 19010, name: 'COLOR', icon: 'fas fa-palette' },
   [StructType.SHADOW]: { id: 19011, name: 'SHADOW', icon: 'fas fa-eclipse' },
   [StructType.BORDER]: { id: 19012, name: 'BORDER', icon: 'fas fa-border-outer' },
@@ -42508,14 +44231,21 @@ export const StructTypeOptionInfo: Partial<Record<StructType, EnumOptionInfo>> =
   [StructType.GRADIENT]: { id: 19015, name: 'GRADIENT', icon: 'fas fa-gradient' },
   [StructType.FILL]: { id: 19016, name: 'FILL', icon: 'fas fa-fill' },
   [StructType.LENGTH]: { id: 19017, name: 'LENGTH', icon: 'fas fa-ruler' },
-  [StructType.POSITION]: { id: 19018, name: 'POSITION', icon: 'fas fa-location-crosshair' },
-  [StructType.DIMENSION]: { id: 19019, name: 'DIMENSION', icon: 'fas fa-ruler' },
-  [StructType.TRANSITION]: { id: 19020, name: 'TRANSITION', icon: 'fas fa-bezier-curve' },
-  [StructType.EFFECT]: { id: 19021, name: 'EFFECT', icon: 'fas fa-sparkle' },
-  [StructType.GRID]: { id: 19022, name: 'GRID', icon: 'fas fa-grid-2' },
-  [StructType.GRID_SPAN]: { id: 19023, name: 'GRID_SPAN', icon: 'fas fa-grid-2' },
-  [StructType.INSETS]: { id: 19024, name: 'INSETS', icon: 'fas fa-corner' },
-  [StructType.CORNERS]: { id: 19025, name: 'CORNERS', icon: 'fas fa-corner' },
+  [StructType.VARIABLE_LENGTH]: { id: 19018, name: 'VARIABLE_LENGTH', icon: 'fas fa-ruler' },
+  [StructType.POSITION]: { id: 19019, name: 'POSITION', icon: 'fas fa-location-crosshair' },
+  [StructType.VARIABLE_POSITION]: { id: 19020, name: 'VARIABLE_POSITION', icon: 'fas fa-location-crosshair' },
+  [StructType.DIMENSION]: { id: 19021, name: 'DIMENSION', icon: 'fas fa-ruler' },
+  [StructType.VARIABLE_DIMENSION]: { id: 19022, name: 'VARIABLE_DIMENSION', icon: 'fas fa-ruler' },
+  [StructType.TRANSITION]: { id: 19023, name: 'TRANSITION', icon: 'fas fa-bezier-curve' },
+  [StructType.EFFECT]: { id: 19024, name: 'EFFECT', icon: 'fas fa-sparkle' },
+  [StructType.GRID]: { id: 19025, name: 'GRID', icon: 'fas fa-grid-2' },
+  [StructType.VARIABLE_GRID]: { id: 19026, name: 'VARIABLE_GRID', icon: 'fas fa-grid-2' },
+  [StructType.GRID_SPAN]: { id: 19027, name: 'GRID_SPAN', icon: 'fas fa-grid-2' },
+  [StructType.VARIABLE_GRID_SPAN]: { id: 19028, name: 'VARIABLE_GRID_SPAN', icon: 'fas fa-grid-2' },
+  [StructType.INSETS]: { id: 19029, name: 'INSETS', icon: 'fas fa-corner' },
+  [StructType.VARIABLE_INSETS]: { id: 19030, name: 'VARIABLE_INSETS', icon: 'fas fa-corner' },
+  [StructType.CORNERS]: { id: 19031, name: 'CORNERS', icon: 'fas fa-corner' },
+  [StructType.VARIABLE_CORNERS]: { id: 19032, name: 'VARIABLE_CORNERS', icon: 'fas fa-corner' },
 }
 
 export const NodeModeOptionInfo: Partial<Record<NodeMode, EnumOptionInfo>> = {
@@ -42865,6 +44595,12 @@ export const RepeatTypeOptionInfo: Partial<Record<RepeatType, EnumOptionInfo>> =
   [RepeatType.MIRROR]: { id: 3, name: 'MIRROR', text: 'Mirror keyframes', title: 'Mirror' },
 }
 
+export const TextSplitTypeOptionInfo: Partial<Record<TextSplitType, EnumOptionInfo>> = {
+  [TextSplitType.CHAR]: { id: 1, name: 'CHAR', text: 'Split by character', title: 'Char' },
+  [TextSplitType.WORD]: { id: 2, name: 'WORD', text: 'Split by word', title: 'Word' },
+  [TextSplitType.LINE]: { id: 3, name: 'LINE', text: 'Split by line', title: 'Line' },
+}
+
 export const OffscreenBehaviorOptionInfo: Partial<Record<OffscreenBehavior, EnumOptionInfo>> = {
   [OffscreenBehavior.PLAY]: { id: 1, name: 'PLAY', text: 'Play the animation', title: 'Play' },
   [OffscreenBehavior.PAUSE]: { id: 2, name: 'PAUSE', text: 'Pause the animation', title: 'Pause' },
@@ -42912,6 +44648,7 @@ export const ENUM_OPTION_INFO_BY_TYPE: Partial<Record<EnumType, Record<any, Enum
   [EnumType.DIMENSION_TYPE]: DimensionTypeOptionInfo,
   [EnumType.EFFECT_TYPE]: EffectTypeOptionInfo,
   [EnumType.REPEAT_TYPE]: RepeatTypeOptionInfo,
+  [EnumType.TEXT_SPLIT_TYPE]: TextSplitTypeOptionInfo,
   [EnumType.OFFSCREEN_BEHAVIOR]: OffscreenBehaviorOptionInfo,
 }
 

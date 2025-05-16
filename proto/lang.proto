@@ -228,10 +228,15 @@ enum StructType {
   STRUCT_TYPE_ACCESS_MATRIX = 13004;
   STRUCT_TYPE_ACCESS = 13005;
   STRUCT_TYPE_VECTOR2 = 19000;
-  STRUCT_TYPE_VECTOR3 = 19001;
-  STRUCT_TYPE_VECTOR4 = 19002;
-  STRUCT_TYPE_AXIS2 = 19003;
-  STRUCT_TYPE_AXIS3 = 19004;
+  STRUCT_TYPE_VARIABLE_VECTOR2 = 19001;
+  STRUCT_TYPE_VECTOR3 = 19002;
+  STRUCT_TYPE_VARIABLE_VECTOR3 = 19003;
+  STRUCT_TYPE_VECTOR4 = 19004;
+  STRUCT_TYPE_VARIABLE_VECTOR4 = 19005;
+  STRUCT_TYPE_AXIS2 = 19006;
+  STRUCT_TYPE_VARIABLE_AXIS2 = 19007;
+  STRUCT_TYPE_AXIS3 = 19008;
+  STRUCT_TYPE_VARIABLE_AXIS3 = 19009;
   STRUCT_TYPE_COLOR = 19010;
   STRUCT_TYPE_SHADOW = 19011;
   STRUCT_TYPE_BORDER = 19012;
@@ -240,14 +245,21 @@ enum StructType {
   STRUCT_TYPE_GRADIENT = 19015;
   STRUCT_TYPE_FILL = 19016;
   STRUCT_TYPE_LENGTH = 19017;
-  STRUCT_TYPE_POSITION = 19018;
-  STRUCT_TYPE_DIMENSION = 19019;
-  STRUCT_TYPE_TRANSITION = 19020;
-  STRUCT_TYPE_EFFECT = 19021;
-  STRUCT_TYPE_GRID = 19022;
-  STRUCT_TYPE_GRID_SPAN = 19023;
-  STRUCT_TYPE_INSETS = 19024;
-  STRUCT_TYPE_CORNERS = 19025;
+  STRUCT_TYPE_VARIABLE_LENGTH = 19018;
+  STRUCT_TYPE_POSITION = 19019;
+  STRUCT_TYPE_VARIABLE_POSITION = 19020;
+  STRUCT_TYPE_DIMENSION = 19021;
+  STRUCT_TYPE_VARIABLE_DIMENSION = 19022;
+  STRUCT_TYPE_TRANSITION = 19023;
+  STRUCT_TYPE_EFFECT = 19024;
+  STRUCT_TYPE_GRID = 19025;
+  STRUCT_TYPE_VARIABLE_GRID = 19026;
+  STRUCT_TYPE_GRID_SPAN = 19027;
+  STRUCT_TYPE_VARIABLE_GRID_SPAN = 19028;
+  STRUCT_TYPE_INSETS = 19029;
+  STRUCT_TYPE_VARIABLE_INSETS = 19030;
+  STRUCT_TYPE_CORNERS = 19031;
+  STRUCT_TYPE_VARIABLE_CORNERS = 19032;
 }
 
 enum ObjectType {
@@ -347,10 +359,15 @@ enum ObjectType {
   OBJECT_TYPE_ACCESS_MATRIX = 13004;
   OBJECT_TYPE_ACCESS = 13005;
   OBJECT_TYPE_VECTOR2 = 19000;
-  OBJECT_TYPE_VECTOR3 = 19001;
-  OBJECT_TYPE_VECTOR4 = 19002;
-  OBJECT_TYPE_AXIS2 = 19003;
-  OBJECT_TYPE_AXIS3 = 19004;
+  OBJECT_TYPE_VARIABLE_VECTOR2 = 19001;
+  OBJECT_TYPE_VECTOR3 = 19002;
+  OBJECT_TYPE_VARIABLE_VECTOR3 = 19003;
+  OBJECT_TYPE_VECTOR4 = 19004;
+  OBJECT_TYPE_VARIABLE_VECTOR4 = 19005;
+  OBJECT_TYPE_AXIS2 = 19006;
+  OBJECT_TYPE_VARIABLE_AXIS2 = 19007;
+  OBJECT_TYPE_AXIS3 = 19008;
+  OBJECT_TYPE_VARIABLE_AXIS3 = 19009;
   OBJECT_TYPE_COLOR = 19010;
   OBJECT_TYPE_SHADOW = 19011;
   OBJECT_TYPE_BORDER = 19012;
@@ -359,14 +376,21 @@ enum ObjectType {
   OBJECT_TYPE_GRADIENT = 19015;
   OBJECT_TYPE_FILL = 19016;
   OBJECT_TYPE_LENGTH = 19017;
-  OBJECT_TYPE_POSITION = 19018;
-  OBJECT_TYPE_DIMENSION = 19019;
-  OBJECT_TYPE_TRANSITION = 19020;
-  OBJECT_TYPE_EFFECT = 19021;
-  OBJECT_TYPE_GRID = 19022;
-  OBJECT_TYPE_GRID_SPAN = 19023;
-  OBJECT_TYPE_INSETS = 19024;
-  OBJECT_TYPE_CORNERS = 19025;
+  OBJECT_TYPE_VARIABLE_LENGTH = 19018;
+  OBJECT_TYPE_POSITION = 19019;
+  OBJECT_TYPE_VARIABLE_POSITION = 19020;
+  OBJECT_TYPE_DIMENSION = 19021;
+  OBJECT_TYPE_VARIABLE_DIMENSION = 19022;
+  OBJECT_TYPE_TRANSITION = 19023;
+  OBJECT_TYPE_EFFECT = 19024;
+  OBJECT_TYPE_GRID = 19025;
+  OBJECT_TYPE_VARIABLE_GRID = 19026;
+  OBJECT_TYPE_GRID_SPAN = 19027;
+  OBJECT_TYPE_VARIABLE_GRID_SPAN = 19028;
+  OBJECT_TYPE_INSETS = 19029;
+  OBJECT_TYPE_VARIABLE_INSETS = 19030;
+  OBJECT_TYPE_CORNERS = 19031;
+  OBJECT_TYPE_VARIABLE_CORNERS = 19032;
 }
 
 enum BenchType {
@@ -466,10 +490,15 @@ enum BenchType {
   BENCH_TYPE_ACCESS_MATRIX = 13004;
   BENCH_TYPE_ACCESS = 13005;
   BENCH_TYPE_VECTOR2 = 19000;
-  BENCH_TYPE_VECTOR3 = 19001;
-  BENCH_TYPE_VECTOR4 = 19002;
-  BENCH_TYPE_AXIS2 = 19003;
-  BENCH_TYPE_AXIS3 = 19004;
+  BENCH_TYPE_VARIABLE_VECTOR2 = 19001;
+  BENCH_TYPE_VECTOR3 = 19002;
+  BENCH_TYPE_VARIABLE_VECTOR3 = 19003;
+  BENCH_TYPE_VECTOR4 = 19004;
+  BENCH_TYPE_VARIABLE_VECTOR4 = 19005;
+  BENCH_TYPE_AXIS2 = 19006;
+  BENCH_TYPE_VARIABLE_AXIS2 = 19007;
+  BENCH_TYPE_AXIS3 = 19008;
+  BENCH_TYPE_VARIABLE_AXIS3 = 19009;
   BENCH_TYPE_COLOR = 19010;
   BENCH_TYPE_SHADOW = 19011;
   BENCH_TYPE_BORDER = 19012;
@@ -478,14 +507,21 @@ enum BenchType {
   BENCH_TYPE_GRADIENT = 19015;
   BENCH_TYPE_FILL = 19016;
   BENCH_TYPE_LENGTH = 19017;
-  BENCH_TYPE_POSITION = 19018;
-  BENCH_TYPE_DIMENSION = 19019;
-  BENCH_TYPE_TRANSITION = 19020;
-  BENCH_TYPE_EFFECT = 19021;
-  BENCH_TYPE_GRID = 19022;
-  BENCH_TYPE_GRID_SPAN = 19023;
-  BENCH_TYPE_INSETS = 19024;
-  BENCH_TYPE_CORNERS = 19025;
+  BENCH_TYPE_VARIABLE_LENGTH = 19018;
+  BENCH_TYPE_POSITION = 19019;
+  BENCH_TYPE_VARIABLE_POSITION = 19020;
+  BENCH_TYPE_DIMENSION = 19021;
+  BENCH_TYPE_VARIABLE_DIMENSION = 19022;
+  BENCH_TYPE_TRANSITION = 19023;
+  BENCH_TYPE_EFFECT = 19024;
+  BENCH_TYPE_GRID = 19025;
+  BENCH_TYPE_VARIABLE_GRID = 19026;
+  BENCH_TYPE_GRID_SPAN = 19027;
+  BENCH_TYPE_VARIABLE_GRID_SPAN = 19028;
+  BENCH_TYPE_INSETS = 19029;
+  BENCH_TYPE_VARIABLE_INSETS = 19030;
+  BENCH_TYPE_CORNERS = 19031;
+  BENCH_TYPE_VARIABLE_CORNERS = 19032;
   BENCH_TYPE_ENUM_TYPE = 20000;
   BENCH_TYPE_NODE_TYPE = 20001;
   BENCH_TYPE_STRUCT_TYPE = 20002;
@@ -2151,124 +2187,227 @@ message ChangeData {
   repeated EditData edits = 34;
 }
 
-message ColorData {
-  ObjectType metatype = 1;
-  ColorType type = 30;
-  optional ColorHue hue = 40;
-  optional ColorShade shade = 41;
-  optional NodeReferenceData style_ptr = 42;
-  optional NodeReferenceData field_ptr = 43;
-  optional float x = 50;
-  optional float y = 51;
-  optional float z = 52;
-  optional float alpha = 53;
-}
-
 message LengthData {
   ObjectType metatype = 1;
-  LengthUnit unit = 31;
-  float value = 40;
+  LengthUnit unit = 50;
+  float value = 51;
+}
+
+message VariableLengthData {
+  ObjectType metatype = 1;
+  optional NodeReferenceData field_ptr = 40;
+  LengthUnit unit = 50;
+  float value = 51;
 }
 
 message PositionData {
   ObjectType metatype = 1;
-  PositionType type = 40;
-  optional LengthData top = 41;
-  optional LengthData left = 42;
-  optional LengthData width = 43;
-  optional LengthData height = 44;
+  PositionType type = 30;
+  optional LengthData top = 50;
+  optional LengthData left = 51;
+  optional LengthData width = 52;
+  optional LengthData height = 53;
+}
+
+message VariablePositionData {
+  ObjectType metatype = 1;
+  PositionType type = 30;
+  optional NodeReferenceData field_ptr = 40;
+  optional LengthData top = 50;
+  optional LengthData left = 51;
+  optional LengthData width = 52;
+  optional LengthData height = 53;
 }
 
 message DimensionData {
   ObjectType metatype = 1;
   DimensionType type = 30;
-  LengthUnit unit = 31;
-  float value = 40;
+  LengthUnit unit = 50;
+  float value = 51;
+}
+
+message VariableDimensionData {
+  ObjectType metatype = 1;
+  DimensionType type = 30;
+  optional NodeReferenceData field_ptr = 40;
+  LengthUnit unit = 50;
+  float value = 51;
 }
 
 message InsetsData {
   ObjectType metatype = 1;
-  optional int32 base = 40;
-  optional int32 top = 41;
-  optional int32 left = 42;
-  optional int32 right = 43;
-  optional int32 bottom = 44;
+  optional int32 base = 50;
+  optional int32 top = 51;
+  optional int32 left = 52;
+  optional int32 right = 53;
+  optional int32 bottom = 54;
+}
+
+message VariableInsetsData {
+  ObjectType metatype = 1;
+  optional NodeReferenceData field_ptr = 40;
+  optional int32 base = 50;
+  optional int32 top = 51;
+  optional int32 left = 52;
+  optional int32 right = 53;
+  optional int32 bottom = 54;
 }
 
 message CornersData {
   ObjectType metatype = 1;
-  optional int32 base = 40;
-  optional int32 top_left = 41;
-  optional int32 top_right = 42;
-  optional int32 bottom_left = 43;
-  optional int32 bottom_right = 44;
+  optional int32 base = 50;
+  optional int32 top_left = 51;
+  optional int32 top_right = 52;
+  optional int32 bottom_left = 53;
+  optional int32 bottom_right = 54;
+}
+
+message VariableCornersData {
+  ObjectType metatype = 1;
+  optional NodeReferenceData field_ptr = 40;
+  optional int32 base = 50;
+  optional int32 top_left = 51;
+  optional int32 top_right = 52;
+  optional int32 bottom_left = 53;
+  optional int32 bottom_right = 54;
 }
 
 message Axis2Data {
   ObjectType metatype = 1;
-  optional float base = 40;
-  optional float x = 41;
-  optional float y = 42;
+  optional float base = 50;
+  optional float x = 51;
+  optional float y = 52;
+}
+
+message VariableAxis2Data {
+  ObjectType metatype = 1;
+  optional NodeReferenceData field_ptr = 40;
+  optional float base = 50;
+  optional float x = 51;
+  optional float y = 52;
 }
 
 message Axis3Data {
   ObjectType metatype = 1;
-  optional float base = 40;
-  optional float x = 41;
-  optional float y = 42;
-  optional float z = 43;
+  optional float base = 50;
+  optional float x = 51;
+  optional float y = 52;
+  optional float z = 53;
+}
+
+message VariableAxis3Data {
+  ObjectType metatype = 1;
+  optional NodeReferenceData field_ptr = 40;
+  optional float base = 50;
+  optional float x = 51;
+  optional float y = 52;
+  optional float z = 53;
+}
+
+message Vector2Data {
+  ObjectType metatype = 1;
+  float x = 50;
+  float y = 51;
+}
+
+message VariableVector2Data {
+  ObjectType metatype = 1;
+  optional NodeReferenceData field_ptr = 40;
+  float x = 50;
+  float y = 51;
+}
+
+message Vector3Data {
+  ObjectType metatype = 1;
+  float x = 50;
+  float y = 51;
+  float z = 52;
+}
+
+message VariableVector3Data {
+  ObjectType metatype = 1;
+  optional NodeReferenceData field_ptr = 40;
+  float x = 50;
+  float y = 51;
+  float z = 52;
+}
+
+message Vector4Data {
+  ObjectType metatype = 1;
+  float x = 50;
+  float y = 51;
+  float z = 52;
+  float w = 53;
+}
+
+message VariableVector4Data {
+  ObjectType metatype = 1;
+  optional NodeReferenceData field_ptr = 40;
+  float x = 50;
+  float y = 51;
+  float z = 52;
+  float w = 53;
 }
 
 message GridData {
   ObjectType metatype = 1;
-  int32 columns = 40;
-  int32 rows = 41;
-  optional DimensionData column_width = 42;
-  optional DimensionData column_min_width = 43;
-  optional DimensionData row_height = 44;
+  int32 columns = 50;
+  int32 rows = 51;
+  optional DimensionData column_width = 52;
+  optional DimensionData column_min_width = 53;
+  optional DimensionData row_height = 54;
+}
+
+message VariableGridData {
+  ObjectType metatype = 1;
+  optional NodeReferenceData field_ptr = 40;
+  int32 columns = 50;
+  int32 rows = 51;
+  optional DimensionData column_width = 52;
+  optional DimensionData column_min_width = 53;
+  optional DimensionData row_height = 54;
 }
 
 message GridSpanData {
   ObjectType metatype = 1;
-  int32 columns = 40;
-  int32 rows = 41;
+  int32 columns = 50;
+  int32 rows = 51;
+}
+
+message VariableGridSpanData {
+  ObjectType metatype = 1;
+  optional NodeReferenceData field_ptr = 40;
+  int32 columns = 50;
+  int32 rows = 51;
+}
+
+message ColorData {
+  ObjectType metatype = 1;
+  ColorType type = 30;
+  optional NodeReferenceData field_ptr = 40;
+  optional NodeReferenceData style_ptr = 42;
+  optional ColorHue hue = 50;
+  optional ColorShade shade = 51;
+  optional float x = 52;
+  optional float y = 53;
+  optional float z = 54;
+  optional float alpha = 55;
 }
 
 message BorderData {
   ObjectType metatype = 1;
   BorderType type = 30;
-  optional NodeReferenceData style_ptr = 40;
-  optional NodeReferenceData field_ptr = 41;
+  optional NodeReferenceData field_ptr = 40;
+  optional NodeReferenceData style_ptr = 41;
   optional ColorData color = 50;
   optional InsetsData width = 51;
-}
-
-message Vector2Data {
-  ObjectType metatype = 1;
-  float x = 30;
-  float y = 31;
-}
-
-message Vector3Data {
-  ObjectType metatype = 1;
-  float x = 30;
-  float y = 31;
-  float z = 32;
-}
-
-message Vector4Data {
-  ObjectType metatype = 1;
-  float x = 30;
-  float y = 31;
-  float z = 32;
-  float w = 33;
 }
 
 message TransitionData {
   ObjectType metatype = 1;
   TransitionType type = 30;
-  optional NodeReferenceData style_ptr = 40;
-  optional NodeReferenceData field_ptr = 41;
+  optional NodeReferenceData field_ptr = 40;
+  optional NodeReferenceData style_ptr = 41;
   optional float delay = 50;
   optional float duration = 51;
   repeated float ease = 52;
@@ -2282,8 +2421,8 @@ message TransitionData {
 message EffectData {
   ObjectType metatype = 1;
   EffectType type = 30;
+  optional NodeReferenceData field_ptr = 40;
   optional NodeReferenceData style_ptr = 41;
-  optional NodeReferenceData field_ptr = 42;
   optional float opacity = 50;
   optional Vector2Data offset = 51;
   optional float scale = 52;
@@ -2327,8 +2466,8 @@ message FillData {
 message FontData {
   ObjectType metatype = 1;
   FontType type = 30;
-  optional NodeReferenceData style_ptr = 40;
-  optional NodeReferenceData field_ptr = 41;
+  optional NodeReferenceData field_ptr = 40;
+  optional NodeReferenceData style_ptr = 41;
   optional FontWeight weight = 50;
   optional FillData color = 51;
   optional FontSize size = 52;
@@ -2342,8 +2481,8 @@ message FontData {
 message ShadowData {
   ObjectType metatype = 1;
   ShadowType type = 30;
-  optional NodeReferenceData style_ptr = 40;
-  optional NodeReferenceData field_ptr = 41;
+  optional NodeReferenceData field_ptr = 40;
+  optional NodeReferenceData style_ptr = 41;
   optional ColorData color = 50;
   ShadowPosition position = 51;
   optional Axis2Data offset = 52;
@@ -3566,14 +3705,14 @@ message ColorStyleData {
   string order_key = 33;
   optional IconData icon = 34;
   optional NodeReferenceData definition_ptr = 35;
-  optional ColorHue hue = 40;
-  optional ColorShade shade = 41;
+  optional NodeReferenceData field_ptr = 40;
   optional NodeReferenceData style_ptr = 42;
-  optional NodeReferenceData field_ptr = 43;
-  optional float x = 50;
-  optional float y = 51;
-  optional float z = 52;
-  optional float alpha = 53;
+  optional ColorHue hue = 50;
+  optional ColorShade shade = 51;
+  optional float x = 52;
+  optional float y = 53;
+  optional float z = 54;
+  optional float alpha = 55;
   optional ColorData dark = 60;
 }
 
@@ -3596,8 +3735,8 @@ message BorderStyleData {
   string order_key = 33;
   optional IconData icon = 34;
   optional NodeReferenceData definition_ptr = 35;
-  optional NodeReferenceData style_ptr = 40;
-  optional NodeReferenceData field_ptr = 41;
+  optional NodeReferenceData field_ptr = 40;
+  optional NodeReferenceData style_ptr = 41;
   optional ColorData color = 50;
   optional InsetsData width = 51;
 }
@@ -3621,8 +3760,8 @@ message TransitionStyleData {
   string order_key = 33;
   optional IconData icon = 34;
   optional NodeReferenceData definition_ptr = 35;
-  optional NodeReferenceData style_ptr = 40;
-  optional NodeReferenceData field_ptr = 41;
+  optional NodeReferenceData field_ptr = 40;
+  optional NodeReferenceData style_ptr = 41;
   optional float delay = 50;
   optional float duration = 51;
   repeated float ease = 52;
@@ -3652,8 +3791,8 @@ message EffectStyleData {
   string order_key = 33;
   optional IconData icon = 34;
   optional NodeReferenceData definition_ptr = 35;
+  optional NodeReferenceData field_ptr = 40;
   optional NodeReferenceData style_ptr = 41;
-  optional NodeReferenceData field_ptr = 42;
   optional float opacity = 50;
   optional Vector2Data offset = 51;
   optional float scale = 52;
@@ -3714,8 +3853,8 @@ message FontStyleData {
   string order_key = 33;
   optional IconData icon = 34;
   optional NodeReferenceData definition_ptr = 35;
-  optional NodeReferenceData style_ptr = 40;
-  optional NodeReferenceData field_ptr = 41;
+  optional NodeReferenceData field_ptr = 40;
+  optional NodeReferenceData style_ptr = 41;
   optional FontWeight weight = 50;
   optional FillData color = 51;
   optional FontSize size = 52;
@@ -3745,8 +3884,8 @@ message ShadowStyleData {
   string order_key = 33;
   optional IconData icon = 34;
   optional NodeReferenceData definition_ptr = 35;
-  optional NodeReferenceData style_ptr = 40;
-  optional NodeReferenceData field_ptr = 41;
+  optional NodeReferenceData field_ptr = 40;
+  optional NodeReferenceData style_ptr = 41;
   optional ColorData color = 50;
   ShadowPosition position = 51;
   optional Axis2Data offset = 52;

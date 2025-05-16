@@ -54,7 +54,7 @@ class Record(
     )
 
     # target: Page/Task/...? (tie Record to a Page for a Notion-like experience in some Tables)
-    # ... general Record 'tying'?
+    # ... general Record/Page/Block 'tying'? :NodeTying
 
     # value
     value_packed: Any = p_value_packed(40)

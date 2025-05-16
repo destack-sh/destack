@@ -16,11 +16,11 @@ from bench.language.core import (
 from bench.pb2 import BorderStyleData
 
 from .color import Color
-from .core import Insets
+from .core import Insets, IsVariable
 from .style import StyleBase
 
 if TYPE_CHECKING:
-    from bench.language import Field
+    pass
 
 
 @enum_(EnumType.BORDER_TYPE)
@@ -37,13 +37,10 @@ class BorderType(BuiltinEnum):
 
 
 @node_component_()
-class BorderBase(BuiltinObject):
+class BorderBase(IsVariable, BuiltinObject):
     type: BorderType = p_regular(30, default=BorderType.SOLID)
     style: Optional["BorderStyle"] = p_regular(
-        40, default=None, require=False, array=False, references=NodeType.BORDER_STYLE
-    )
-    field: Optional["Field"] = p_regular(
-        41, default=None, require=False, array=False, references=NodeType.FIELD
+        41, default=None, require=False, array=False, references=NodeType.BORDER_STYLE
     )
     color: Optional["Color"] = p_regular(50, array=False, default=None, struct=StructType.COLOR)
     width: Optional[Insets] = p_regular(

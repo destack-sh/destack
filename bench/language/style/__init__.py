@@ -32,6 +32,12 @@ from .core import (
     Overflow,
     Position,
     PositionType,
+    Vector2,
+    Vector3,
+    Vector4,
+    vector2,
+    vector3,
+    vector4,
 )
 from .effect import Effect, EffectBase, EffectStyle, EffectType
 from .fill import Fill, FillPosition, FillSize, FillType
@@ -49,7 +55,6 @@ from .shadow import Shadow, ShadowBase, ShadowStyle, ShadowType
 from .style import StyleBase
 from .theme import Theme
 from .transition import Transition, TransitionBase, TransitionStyle, TransitionType
-from .vector import Vector2, Vector3, Vector4, vector2, vector3, vector4
 
 __all__ = [
     "Align",

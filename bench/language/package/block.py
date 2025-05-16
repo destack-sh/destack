@@ -79,6 +79,7 @@ class Block(IsTemplatable, IsModal, IsNamed, IsOrdered, PackageNode[BlockData]):
     type: BlockType = p_regular(30, description="The type of block.")
 
     # content
+    # NOTE: maybe there should be a general mechanism for tying Nodes like Blocks? :NodeTying
     line: Optional["TextLine"] = p_regular(
         40, default=None, require=False, array=False, struct=StructType.TEXT_LINE
     )

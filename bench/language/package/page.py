@@ -42,7 +42,7 @@ class Page(
 
     # meta
     parent: Union["Package", "Page", None] = p_node_parent(4, NodeType.PACKAGE, NodeType.PAGE)
-    # app? scene? plugin? Page/Record/View/... tying?
+    # app? scene? plugin? Page/Record/View/... tying? :NodeTying
 
     pages: LocalNodeList["Page"] = p_node_children(NodeType.PAGE)
     blocks: LocalNodeList["Block"] = p_node_children(NodeType.BLOCK)

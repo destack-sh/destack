@@ -14,15 +14,14 @@ from bench.language.core import (
     p_regular,
     struct_,
 )
-from bench.language.style.vector import Vector2
 from bench.pb2 import EffectStyleData
 
-from .core import Axis3
+from .core import Axis3, IsVariable, Vector2
 from .style import StyleBase
 from .transition import Transition
 
 if TYPE_CHECKING:
-    from bench.language import Field
+    pass
 
 
 @enum_(EnumType.EFFECT_TYPE)
@@ -52,9 +51,9 @@ class RepeatType(BuiltinEnum):
 
 @enum_(EnumType.TEXT_SPLIT_TYPE)
 class TextSplitType(BuiltinEnum):
-    CHAR = 1
-    WORD = 2
-    LINE = 3
+    CHAR = 1, "Char", "Split by character"
+    WORD = 2, "Word", "Split by word"
+    LINE = 3, "Line", "Split by line"
 
 
 @enum_(EnumType.OFFSCREEN_BEHAVIOR)
@@ -66,15 +65,12 @@ class OffscreenBehavior(BuiltinEnum):
 
 
 @node_component_()
-class EffectBase(BuiltinObject):
+class EffectBase(IsVariable, BuiltinObject):
     """A base class for effects."""
 
     type: EffectType = p_regular(30)
     style: Optional["EffectStyle"] = p_regular(
         41, default=None, require=False, array=False, references=NodeType.EFFECT_STYLE
-    )
-    field: Optional["Field"] = p_regular(
-        42, default=None, require=False, array=False, references=NodeType.FIELD
     )
 
     opacity: Optional[float] = p_regular(50, default=None)
@@ -90,6 +86,7 @@ class EffectBase(BuiltinObject):
     repeat: Optional[RepeatType] = p_regular(60, default=None)
     split: Optional[TextSplitType] = p_regular(61, default=None)
     offscreen: Optional[OffscreenBehavior] = p_regular(62, default=None)
+
     transition: Optional["Transition"] = p_regular(
         70, default=None, require=False, array=False, struct=StructType.TRANSITION
     )

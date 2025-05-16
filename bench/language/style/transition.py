@@ -15,10 +15,11 @@ from bench.language.core import (
 )
 from bench.pb2 import TransitionStyleData
 
+from .core import IsVariable
 from .style import StyleBase
 
 if TYPE_CHECKING:
-    from bench.language import Field
+    pass
 
 
 @enum_(EnumType.TRANSITION_TYPE)
@@ -40,13 +41,10 @@ class SpringType(BuiltinEnum):
 
 
 @node_component_()
-class TransitionBase(BuiltinObject):
+class TransitionBase(IsVariable, BuiltinObject):
     type: TransitionType = p_regular(30, default=TransitionType.TWEEN)
     style: Optional["TransitionStyle"] = p_regular(
-        40, default=None, require=False, array=False, references=NodeType.TRANSITION_STYLE
-    )
-    field: Optional["Field"] = p_regular(
-        41, default=None, require=False, array=False, references=NodeType.FIELD
+        41, default=None, require=False, array=False, references=NodeType.TRANSITION_STYLE
     )
     delay: float | None = p_regular(50, default=None)
     duration: float | None = p_regular(51, default=None)
