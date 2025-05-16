@@ -458,10 +458,9 @@ class EnumType(BuiltinEnum):
     COLOR_TYPE = 29010
     COLOR_SHADE = 29011
     COLOR_HUE = 29012
-    FONT_TYPE = 29020
     FONT_WEIGHT = 29021
     FONT_SIZE = 29022
-    TEXT_TYPE = 29023
+    FONT_TYPE = 29023
     TEXT_ALIGN = 29024
     TEXT_DECORATION = 29025
     TEXT_TRANSFORM = 29026
@@ -602,7 +601,7 @@ class NodeType(BuiltinEnum):
     SPACE = 8000, "Space", "Space", "fas fa-galaxy"
     SCENE = 8010, "Scene", "Scene of an Application", "fas fa-masks-theater"
     ROUTE = 8020, "Route", "Route to a Scene", "fas fa-route"
-    # SCENE, OVERLAY, WIDGET, ROUTE, ...
+    # COMMAND, OVERLAY, WIDGET, ...
 
     # container views [8100-8200]
     FRAME_VIEW = 8100, "Frame View", "Fixed Container", "fas fa-frame"
@@ -625,8 +624,8 @@ class NodeType(BuiltinEnum):
     # DOCUMENT_VIEW = 8223, "Document View", "Document", "fas fa-file-alt"
 
     # input views [8300-8400]
-    NUMBER_INPUT_VIEW = 8300, "Number Input View", "Number or String Input", "fas fa-hashtag"
-    SLIDER_INPUT_VIEW = 8301, "Slider Input View", "Slider", "fas fa-slider"
+    NUMBER_INPUT_VIEW = 8300, "Number Input View", "Number Input", "fas fa-hashtag"
+    SLIDER_INPUT_VIEW = 8301, "Slider Input View", "Slider Input", "fas fa-slider"
     # STRING_INPUT_VIEW = 8302, "String Input View", "String", "fas fa-font-case"
     # TOGGLE_INPUT_VIEW = 8303, "Toggle Input View", "Toggle", "fas fa-square-check"
     # PICKER_INPUT_VIEW = 8310, "Picker Input View", "Picker", "fas fa-caret-circle-down"
@@ -652,6 +651,7 @@ class NodeType(BuiltinEnum):
     WIZARD_VIEW = 8500, "Wizard View", "Wizard", "fas fa-wand-sparkles"
     # SIDEBAR_VIEW = 8501, "Sidebar View", "Sidebar", "fas fa-bars"
     # CONTEXT_VIEW = 8502, "Context View", "Context", "fas fa-sitemap"
+    # SCENE_CANVAS_VIEW = 8510, "Scene Canvas View", "Scene Canvas", "fas fa-canvas"
 
     # style [9000-9100]
     THEME = 9000, "Theme", "Theme", "fas fa-palette"
@@ -662,6 +662,8 @@ class NodeType(BuiltinEnum):
     GRADIENT_STYLE = 9014, "Gradient Style", "Gradient Style", "fas fa-gradient"
     TRANSITION_STYLE = 9015, "Transition Style", "Transition Style", "fas fa-bezier-curve"
     EFFECT_STYLE = 9016, "Effect Style", "Effect Style", "fas fa-sparkle"
+    # SCREEN = 9030, "Screen", "Screen", "fas fa-display"
+    # VARIANT = 9031, "Variant", "Variant", "fas fa-bring-forward"
     # ANIMATION, ...
 
     # canvas?

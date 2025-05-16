@@ -5,66 +5,66 @@ from bench.language.core import BuiltinEnum, EnumType, Struct, StructType, enum_
 class Layout(BuiltinEnum):
     """The layout of a View."""
 
-    STACK = 1
-    GRID = 2
+    STACK = 1, "Stack", "Stack", "fas fa-objects-align-center-vertical"
+    GRID = 2, "Grid", "Grid", "fas fa-grid-2"
 
 
 @enum_(EnumType.OVERFLOW)
 class Overflow(BuiltinEnum):
     """The overflow behavior of a View."""
 
-    HIDDEN = 2
-    VISIBLE = 3
-    SCROLL = 4
+    HIDDEN = 2, "Hidden", "Hidden", "fas fa-eye-slash"
+    VISIBLE = 3, "Visible", "Visible", "fas fa-eye"
+    SCROLL = 4, "Scroll", "Scroll", "fas fa-computer-mouse-scrollwheel"
 
 
 @enum_(EnumType.DIRECTION)
 class Direction(BuiltinEnum):
     """The direction of a View."""
 
-    HORIZONTAL = 1
-    VERTICAL = 2
+    HORIZONTAL = 1, "Horizontal", "Horizontal", "fas fa-left-right"
+    VERTICAL = 2, "Vertical", "Vertical", "fas fa-up-down"
 
 
 @enum_(EnumType.DISTRIBUTE)
 class Distribute(BuiltinEnum):
     """The distribution of a View's children."""
 
-    START = 1
-    CENTER = 2
-    END = 3
-    SPACE_BETWEEN = 4
-    SPACE_AROUND = 5
-    SPACE_EVENLY = 6
+    START = 1, "Start", "Start", "fas fa-align-left"
+    CENTER = 2, "Center", "Center", "fas fa-align-center"
+    END = 3, "End", "End", "fas fa-align-right"
+    SPACE_BETWEEN = 4, "Space Between", "Space Between"
+    SPACE_AROUND = 5, "Space Around", "Space Around"
+    SPACE_EVENLY = 6, "Space Evenly", "Space Evenly"
 
 
 @enum_(EnumType.ALIGN)
 class Align(BuiltinEnum):
     """The alignment of a View."""
 
-    START = 1
-    CENTER = 2
-    END = 3
+    START = 1, "Start", "Start", "fas fa-align-left"
+    CENTER = 2, "Center", "Center", "fas fa-align-center"
+    END = 3, "End", "End", "fas fa-align-right"
 
 
 @enum_(EnumType.POSITION_TYPE)
 class PositionType(BuiltinEnum):
     """The position type of a View."""
 
-    RELATIVE = 1
-    ABSOLUTE = 2
-    FIXED = 3
-    STICKY = 4
+    RELATIVE = 1, "Relative", "Relative"
+    ABSOLUTE = 2, "Absolute", "Absolute"
+    FIXED = 3, "Fixed", "Fixed"
+    STICKY = 4, "Sticky", "Sticky"
 
 
 @enum_(EnumType.LENGTH_UNIT)
 class LengthUnit(BuiltinEnum):
     """The unit of a length value."""
 
-    PIXEL = 1
-    REM = 2
-    PERCENT = 3
-    FR = 4
+    PIXEL = 1, "Pixel", "px"
+    REM = 2, "Rem", "rem"
+    PERCENT = 3, "Percent", "%"
+    FR = 4, "Fr", "fr"
 
 
 @struct_(StructType.LENGTH)
@@ -96,18 +96,17 @@ class Position(Struct):
 
 @enum_(EnumType.DIMENSION_TYPE)
 class DimensionType(BuiltinEnum):
-    FIXED = 1
-    RELATIVE = 2
-    FIT_CONTENT = 3
-    FILL = 4
-    ASPECT_RATIO = 5
+    FIXED = 2, "Fixed", "Fixed", "fas fa-ruler-horizontal"
+    FIT = 3, "Fit", "Fit", "fas fa-arrows-up-to-line"
+    FILL = 4, "Fill", "Fill", "fas fa-arrows-from-dotted-line"
 
 
 @struct_(StructType.DIMENSION)
 class Dimension(Struct):
-    """A dimension value."""
+    """A dimension value (like Length but can fit or fill container)."""
 
     type: DimensionType = p_regular(30)
+    unit: LengthUnit = p_regular(31)
     value: float = p_regular(40)
 
 

@@ -1,4 +1,4 @@
-from typing import Optional, assert_never
+from typing import TYPE_CHECKING, Optional, assert_never
 
 from bench.language.core import (
     BuiltinEnum,
@@ -17,6 +17,9 @@ from bench.pb2 import ColorStyleData
 
 from .style import StyleBase
 
+if TYPE_CHECKING:
+    from bench.language import Field
+
 
 @enum_(EnumType.COLOR_TYPE)
 class ColorType(BuiltinEnum):
@@ -24,6 +27,7 @@ class ColorType(BuiltinEnum):
 
     BUILTIN = 1
     STYLE = 2
+    FIELD = 3
     RGB = 10
     HSL = 11
     P3 = 12
@@ -81,10 +85,13 @@ class ColorBase(BuiltinObject):
     style: Optional["ColorStyle"] = p_regular(
         42, default=None, require=False, array=False, references=NodeType.COLOR_STYLE
     )
-    x: Optional[float] = p_regular(43, default=None)
-    y: Optional[float] = p_regular(44, default=None)
-    z: Optional[float] = p_regular(45, default=None)
-    alpha: Optional[float] = p_regular(46, default=None)
+    field: Optional["Field"] = p_regular(
+        43, default=None, require=False, array=False, references=NodeType.FIELD
+    )
+    x: Optional[float] = p_regular(50, default=None)
+    y: Optional[float] = p_regular(51, default=None)
+    z: Optional[float] = p_regular(52, default=None)
+    alpha: Optional[float] = p_regular(53, default=None)
 
 
 @struct_(StructType.COLOR)
@@ -109,7 +116,7 @@ class Color(ColorBase, Struct):
 class ColorStyle(ColorBase, StyleBase[ColorStyleData]):
     """A color style, with an optional dark variant."""
 
-    dark: Color | None = p_regular(50, require=False, array=False, struct=StructType.COLOR)
+    dark: Color | None = p_regular(60, require=False, array=False, struct=StructType.COLOR)
 
     @staticmethod
     def from_color(color: Color, dark: Color | None = None) -> "ColorStyle":

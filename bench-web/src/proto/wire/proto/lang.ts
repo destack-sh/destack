@@ -1200,19 +1200,23 @@ export interface ColorData {
      */
     stylePtr?: NodeReferenceData;
     /**
-     * @generated from protobuf field: optional float x = 43;
+     * @generated from protobuf field: optional symbol.bench.NodeReferenceData field_ptr = 43;
+     */
+    fieldPtr?: NodeReferenceData;
+    /**
+     * @generated from protobuf field: optional float x = 50;
      */
     x?: number;
     /**
-     * @generated from protobuf field: optional float y = 44;
+     * @generated from protobuf field: optional float y = 51;
      */
     y?: number;
     /**
-     * @generated from protobuf field: optional float z = 45;
+     * @generated from protobuf field: optional float z = 52;
      */
     z?: number;
     /**
-     * @generated from protobuf field: optional float alpha = 46;
+     * @generated from protobuf field: optional float alpha = 53;
      */
     alpha?: number;
 }
@@ -1274,6 +1278,10 @@ export interface DimensionData {
      * @generated from protobuf field: symbol.bench.DimensionType type = 30;
      */
     type: DimensionType;
+    /**
+     * @generated from protobuf field: symbol.bench.LengthUnit unit = 31;
+     */
+    unit: LengthUnit;
     /**
      * @generated from protobuf field: float value = 40;
      */
@@ -1446,11 +1454,15 @@ export interface BorderData {
      */
     stylePtr?: NodeReferenceData;
     /**
-     * @generated from protobuf field: optional symbol.bench.ColorData color = 42;
+     * @generated from protobuf field: optional symbol.bench.NodeReferenceData field_ptr = 41;
+     */
+    fieldPtr?: NodeReferenceData;
+    /**
+     * @generated from protobuf field: optional symbol.bench.ColorData color = 50;
      */
     color?: ColorData;
     /**
-     * @generated from protobuf field: optional symbol.bench.InsetsData width = 43;
+     * @generated from protobuf field: optional symbol.bench.InsetsData width = 51;
      */
     width?: InsetsData;
 }
@@ -1467,39 +1479,47 @@ export interface EffectData {
      */
     type: EffectType;
     /**
-     * @generated from protobuf field: optional float opacity = 40;
+     * @generated from protobuf field: optional symbol.bench.NodeReferenceData style_ptr = 40;
+     */
+    stylePtr?: NodeReferenceData;
+    /**
+     * @generated from protobuf field: optional symbol.bench.NodeReferenceData field_ptr = 41;
+     */
+    fieldPtr?: NodeReferenceData;
+    /**
+     * @generated from protobuf field: optional float opacity = 50;
      */
     opacity?: number;
     /**
-     * @generated from protobuf field: optional symbol.bench.Axis2Data offset = 41;
+     * @generated from protobuf field: optional symbol.bench.Axis2Data offset = 51;
      */
     offset?: Axis2Data;
     /**
-     * @generated from protobuf field: optional float scale = 43;
+     * @generated from protobuf field: optional float scale = 52;
      */
     scale?: number;
     /**
-     * @generated from protobuf field: optional symbol.bench.Axis3Data rotate = 44;
+     * @generated from protobuf field: optional symbol.bench.Axis3Data rotate = 53;
      */
     rotate?: Axis3Data;
     /**
-     * @generated from protobuf field: optional symbol.bench.Axis2Data skew = 45;
+     * @generated from protobuf field: optional symbol.bench.Axis2Data skew = 54;
      */
     skew?: Axis2Data;
     /**
-     * @generated from protobuf field: optional float perspective = 50;
+     * @generated from protobuf field: optional float perspective = 55;
      */
     perspective?: number;
     /**
-     * @generated from protobuf field: optional float delay = 51;
+     * @generated from protobuf field: optional float delay = 56;
      */
     delay?: number;
     /**
-     * @generated from protobuf field: optional float duration = 52;
+     * @generated from protobuf field: optional float duration = 57;
      */
     duration?: number;
     /**
-     * @generated from protobuf field: optional float threshold = 53;
+     * @generated from protobuf field: optional float threshold = 58;
      */
     threshold?: number;
 }
@@ -1587,47 +1607,47 @@ export interface FontData {
      */
     metatype: ObjectType;
     /**
-     * @generated from protobuf field: symbol.bench.TextType type = 30;
+     * @generated from protobuf field: symbol.bench.FontType type = 30;
      */
-    type: TextType;
+    type: FontType;
     /**
      * @generated from protobuf field: optional symbol.bench.NodeReferenceData style_ptr = 40;
      */
     stylePtr?: NodeReferenceData;
     /**
-     * @generated from protobuf field: optional symbol.bench.FontWeight weight = 41;
+     * @generated from protobuf field: optional symbol.bench.NodeReferenceData field_ptr = 41;
+     */
+    fieldPtr?: NodeReferenceData;
+    /**
+     * @generated from protobuf field: optional symbol.bench.FontWeight weight = 50;
      */
     weight?: FontWeight;
     /**
-     * @generated from protobuf field: optional symbol.bench.ColorData color = 45;
+     * @generated from protobuf field: optional symbol.bench.FillData color = 51;
      */
-    color?: ColorData;
+    color?: FillData;
     /**
-     * @generated from protobuf field: optional symbol.bench.FontType font_type = 46;
+     * @generated from protobuf field: optional symbol.bench.FontSize size = 52;
      */
-    fontType?: FontType;
+    size?: FontSize;
     /**
-     * @generated from protobuf field: optional symbol.bench.FontSize font_size = 47;
-     */
-    fontSize?: FontSize;
-    /**
-     * @generated from protobuf field: optional symbol.bench.TextAlign align = 48;
+     * @generated from protobuf field: optional symbol.bench.TextAlign align = 53;
      */
     align?: TextAlign;
     /**
-     * @generated from protobuf field: optional symbol.bench.LengthData line_height = 49;
+     * @generated from protobuf field: optional symbol.bench.LengthData line_height = 54;
      */
     lineHeight?: LengthData;
     /**
-     * @generated from protobuf field: optional symbol.bench.LengthData letter_spacing = 50;
+     * @generated from protobuf field: optional symbol.bench.LengthData letter_spacing = 55;
      */
     letterSpacing?: LengthData;
     /**
-     * @generated from protobuf field: optional symbol.bench.TextDecoration decoration = 51;
+     * @generated from protobuf field: optional symbol.bench.TextDecoration decoration = 56;
      */
     decoration?: TextDecoration;
     /**
-     * @generated from protobuf field: optional symbol.bench.TextTransform transform = 52;
+     * @generated from protobuf field: optional symbol.bench.TextTransform transform = 57;
      */
     transform?: TextTransform;
 }
@@ -1648,27 +1668,31 @@ export interface ShadowData {
      */
     stylePtr?: NodeReferenceData;
     /**
-     * @generated from protobuf field: optional symbol.bench.ColorData color = 41;
+     * @generated from protobuf field: optional symbol.bench.NodeReferenceData field_ptr = 41;
+     */
+    fieldPtr?: NodeReferenceData;
+    /**
+     * @generated from protobuf field: optional symbol.bench.ColorData color = 50;
      */
     color?: ColorData;
     /**
-     * @generated from protobuf field: symbol.bench.ShadowPosition position = 42;
+     * @generated from protobuf field: symbol.bench.ShadowPosition position = 51;
      */
     position: ShadowPosition;
     /**
-     * @generated from protobuf field: optional symbol.bench.Axis2Data offset = 43;
+     * @generated from protobuf field: optional symbol.bench.Axis2Data offset = 52;
      */
     offset?: Axis2Data;
     /**
-     * @generated from protobuf field: optional int32 blur = 45;
+     * @generated from protobuf field: optional int32 blur = 53;
      */
     blur?: number;
     /**
-     * @generated from protobuf field: optional int32 spread = 46;
+     * @generated from protobuf field: optional int32 spread = 54;
      */
     spread?: number;
     /**
-     * @generated from protobuf field: optional float diffusion = 47;
+     * @generated from protobuf field: optional float diffusion = 55;
      */
     diffusion?: number;
 }
@@ -1689,35 +1713,39 @@ export interface TransitionData {
      */
     stylePtr?: NodeReferenceData;
     /**
-     * @generated from protobuf field: optional float delay = 41;
+     * @generated from protobuf field: optional symbol.bench.NodeReferenceData field_ptr = 41;
+     */
+    fieldPtr?: NodeReferenceData;
+    /**
+     * @generated from protobuf field: optional float delay = 50;
      */
     delay?: number;
     /**
-     * @generated from protobuf field: optional float duration = 42;
+     * @generated from protobuf field: optional float duration = 51;
      */
     duration?: number;
     /**
-     * @generated from protobuf field: repeated float ease = 43;
+     * @generated from protobuf field: repeated float ease = 52;
      */
     ease: number[];
     /**
-     * @generated from protobuf field: optional float stiffness = 44;
+     * @generated from protobuf field: optional float stiffness = 53;
      */
     stiffness?: number;
     /**
-     * @generated from protobuf field: optional float damping = 45;
+     * @generated from protobuf field: optional float damping = 54;
      */
     damping?: number;
     /**
-     * @generated from protobuf field: optional float mass = 46;
+     * @generated from protobuf field: optional float mass = 55;
      */
     mass?: number;
     /**
-     * @generated from protobuf field: optional float bounce = 47;
+     * @generated from protobuf field: optional float bounce = 56;
      */
     bounce?: number;
     /**
-     * @generated from protobuf field: optional symbol.bench.SpringType spring_type = 48;
+     * @generated from protobuf field: optional symbol.bench.SpringType spring_type = 57;
      */
     springType?: SpringType;
 }
@@ -4724,9 +4752,13 @@ export interface ApplicationData {
      */
     definitionPtr?: NodeReferenceData;
     /**
-     * @generated from protobuf field: optional symbol.bench.NodeReferenceData root_scene_ptr = 40;
+     * @generated from protobuf field: optional symbol.bench.NodeReferenceData main_scene_ptr = 50;
      */
-    rootScenePtr?: NodeReferenceData;
+    mainScenePtr?: NodeReferenceData;
+    /**
+     * @generated from protobuf field: optional symbol.bench.NodeReferenceData error_scene_ptr = 53;
+     */
+    errorScenePtr?: NodeReferenceData;
 }
 /**
  * @generated from protobuf message symbol.bench.BlockData
@@ -6355,23 +6387,27 @@ export interface ColorStyleData {
      */
     stylePtr?: NodeReferenceData;
     /**
-     * @generated from protobuf field: optional float x = 43;
+     * @generated from protobuf field: optional symbol.bench.NodeReferenceData field_ptr = 43;
+     */
+    fieldPtr?: NodeReferenceData;
+    /**
+     * @generated from protobuf field: optional float x = 50;
      */
     x?: number;
     /**
-     * @generated from protobuf field: optional float y = 44;
+     * @generated from protobuf field: optional float y = 51;
      */
     y?: number;
     /**
-     * @generated from protobuf field: optional float z = 45;
+     * @generated from protobuf field: optional float z = 52;
      */
     z?: number;
     /**
-     * @generated from protobuf field: optional float alpha = 46;
+     * @generated from protobuf field: optional float alpha = 53;
      */
     alpha?: number;
     /**
-     * @generated from protobuf field: optional symbol.bench.ColorData dark = 50;
+     * @generated from protobuf field: optional symbol.bench.ColorData dark = 60;
      */
     dark?: ColorData;
 }
@@ -6456,11 +6492,15 @@ export interface BorderStyleData {
      */
     stylePtr?: NodeReferenceData;
     /**
-     * @generated from protobuf field: optional symbol.bench.ColorData color = 42;
+     * @generated from protobuf field: optional symbol.bench.NodeReferenceData field_ptr = 41;
+     */
+    fieldPtr?: NodeReferenceData;
+    /**
+     * @generated from protobuf field: optional symbol.bench.ColorData color = 50;
      */
     color?: ColorData;
     /**
-     * @generated from protobuf field: optional symbol.bench.InsetsData width = 43;
+     * @generated from protobuf field: optional symbol.bench.InsetsData width = 51;
      */
     width?: InsetsData;
 }
@@ -6541,39 +6581,47 @@ export interface EffectStyleData {
      */
     definitionPtr?: NodeReferenceData;
     /**
-     * @generated from protobuf field: optional float opacity = 40;
+     * @generated from protobuf field: optional symbol.bench.NodeReferenceData style_ptr = 40;
+     */
+    stylePtr?: NodeReferenceData;
+    /**
+     * @generated from protobuf field: optional symbol.bench.NodeReferenceData field_ptr = 41;
+     */
+    fieldPtr?: NodeReferenceData;
+    /**
+     * @generated from protobuf field: optional float opacity = 50;
      */
     opacity?: number;
     /**
-     * @generated from protobuf field: optional symbol.bench.Axis2Data offset = 41;
+     * @generated from protobuf field: optional symbol.bench.Axis2Data offset = 51;
      */
     offset?: Axis2Data;
     /**
-     * @generated from protobuf field: optional float scale = 43;
+     * @generated from protobuf field: optional float scale = 52;
      */
     scale?: number;
     /**
-     * @generated from protobuf field: optional symbol.bench.Axis3Data rotate = 44;
+     * @generated from protobuf field: optional symbol.bench.Axis3Data rotate = 53;
      */
     rotate?: Axis3Data;
     /**
-     * @generated from protobuf field: optional symbol.bench.Axis2Data skew = 45;
+     * @generated from protobuf field: optional symbol.bench.Axis2Data skew = 54;
      */
     skew?: Axis2Data;
     /**
-     * @generated from protobuf field: optional float perspective = 50;
+     * @generated from protobuf field: optional float perspective = 55;
      */
     perspective?: number;
     /**
-     * @generated from protobuf field: optional float delay = 51;
+     * @generated from protobuf field: optional float delay = 56;
      */
     delay?: number;
     /**
-     * @generated from protobuf field: optional float duration = 52;
+     * @generated from protobuf field: optional float duration = 57;
      */
     duration?: number;
     /**
-     * @generated from protobuf field: optional float threshold = 53;
+     * @generated from protobuf field: optional float threshold = 58;
      */
     threshold?: number;
 }
@@ -6727,9 +6775,9 @@ export interface FontStyleData {
      */
     mode: NodeMode;
     /**
-     * @generated from protobuf field: symbol.bench.TextType type = 30;
+     * @generated from protobuf field: symbol.bench.FontType type = 30;
      */
-    type: TextType;
+    type: FontType;
     /**
      * @generated from protobuf field: optional string name = 31;
      */
@@ -6751,39 +6799,39 @@ export interface FontStyleData {
      */
     stylePtr?: NodeReferenceData;
     /**
-     * @generated from protobuf field: optional symbol.bench.FontWeight weight = 41;
+     * @generated from protobuf field: optional symbol.bench.NodeReferenceData field_ptr = 41;
+     */
+    fieldPtr?: NodeReferenceData;
+    /**
+     * @generated from protobuf field: optional symbol.bench.FontWeight weight = 50;
      */
     weight?: FontWeight;
     /**
-     * @generated from protobuf field: optional symbol.bench.ColorData color = 45;
+     * @generated from protobuf field: optional symbol.bench.FillData color = 51;
      */
-    color?: ColorData;
+    color?: FillData;
     /**
-     * @generated from protobuf field: optional symbol.bench.FontType font_type = 46;
+     * @generated from protobuf field: optional symbol.bench.FontSize size = 52;
      */
-    fontType?: FontType;
+    size?: FontSize;
     /**
-     * @generated from protobuf field: optional symbol.bench.FontSize font_size = 47;
-     */
-    fontSize?: FontSize;
-    /**
-     * @generated from protobuf field: optional symbol.bench.TextAlign align = 48;
+     * @generated from protobuf field: optional symbol.bench.TextAlign align = 53;
      */
     align?: TextAlign;
     /**
-     * @generated from protobuf field: optional symbol.bench.LengthData line_height = 49;
+     * @generated from protobuf field: optional symbol.bench.LengthData line_height = 54;
      */
     lineHeight?: LengthData;
     /**
-     * @generated from protobuf field: optional symbol.bench.LengthData letter_spacing = 50;
+     * @generated from protobuf field: optional symbol.bench.LengthData letter_spacing = 55;
      */
     letterSpacing?: LengthData;
     /**
-     * @generated from protobuf field: optional symbol.bench.TextDecoration decoration = 51;
+     * @generated from protobuf field: optional symbol.bench.TextDecoration decoration = 56;
      */
     decoration?: TextDecoration;
     /**
-     * @generated from protobuf field: optional symbol.bench.TextTransform transform = 52;
+     * @generated from protobuf field: optional symbol.bench.TextTransform transform = 57;
      */
     transform?: TextTransform;
 }
@@ -6868,27 +6916,31 @@ export interface ShadowStyleData {
      */
     stylePtr?: NodeReferenceData;
     /**
-     * @generated from protobuf field: optional symbol.bench.ColorData color = 41;
+     * @generated from protobuf field: optional symbol.bench.NodeReferenceData field_ptr = 41;
+     */
+    fieldPtr?: NodeReferenceData;
+    /**
+     * @generated from protobuf field: optional symbol.bench.ColorData color = 50;
      */
     color?: ColorData;
     /**
-     * @generated from protobuf field: symbol.bench.ShadowPosition position = 42;
+     * @generated from protobuf field: symbol.bench.ShadowPosition position = 51;
      */
     position: ShadowPosition;
     /**
-     * @generated from protobuf field: optional symbol.bench.Axis2Data offset = 43;
+     * @generated from protobuf field: optional symbol.bench.Axis2Data offset = 52;
      */
     offset?: Axis2Data;
     /**
-     * @generated from protobuf field: optional int32 blur = 45;
+     * @generated from protobuf field: optional int32 blur = 53;
      */
     blur?: number;
     /**
-     * @generated from protobuf field: optional int32 spread = 46;
+     * @generated from protobuf field: optional int32 spread = 54;
      */
     spread?: number;
     /**
-     * @generated from protobuf field: optional float diffusion = 47;
+     * @generated from protobuf field: optional float diffusion = 55;
      */
     diffusion?: number;
 }
@@ -7062,35 +7114,39 @@ export interface TransitionStyleData {
      */
     stylePtr?: NodeReferenceData;
     /**
-     * @generated from protobuf field: optional float delay = 41;
+     * @generated from protobuf field: optional symbol.bench.NodeReferenceData field_ptr = 41;
+     */
+    fieldPtr?: NodeReferenceData;
+    /**
+     * @generated from protobuf field: optional float delay = 50;
      */
     delay?: number;
     /**
-     * @generated from protobuf field: optional float duration = 42;
+     * @generated from protobuf field: optional float duration = 51;
      */
     duration?: number;
     /**
-     * @generated from protobuf field: repeated float ease = 43;
+     * @generated from protobuf field: repeated float ease = 52;
      */
     ease: number[];
     /**
-     * @generated from protobuf field: optional float stiffness = 44;
+     * @generated from protobuf field: optional float stiffness = 53;
      */
     stiffness?: number;
     /**
-     * @generated from protobuf field: optional float damping = 45;
+     * @generated from protobuf field: optional float damping = 54;
      */
     damping?: number;
     /**
-     * @generated from protobuf field: optional float mass = 46;
+     * @generated from protobuf field: optional float mass = 55;
      */
     mass?: number;
     /**
-     * @generated from protobuf field: optional float bounce = 47;
+     * @generated from protobuf field: optional float bounce = 56;
      */
     bounce?: number;
     /**
-     * @generated from protobuf field: optional symbol.bench.SpringType spring_type = 48;
+     * @generated from protobuf field: optional symbol.bench.SpringType spring_type = 57;
      */
     springType?: SpringType;
 }
@@ -9467,10 +9523,6 @@ export enum EnumType {
      */
     COLOR_HUE = 29012,
     /**
-     * @generated from protobuf enum value: ENUM_TYPE_FONT_TYPE = 29020;
-     */
-    FONT_TYPE = 29020,
-    /**
      * @generated from protobuf enum value: ENUM_TYPE_FONT_WEIGHT = 29021;
      */
     FONT_WEIGHT = 29021,
@@ -9479,9 +9531,9 @@ export enum EnumType {
      */
     FONT_SIZE = 29022,
     /**
-     * @generated from protobuf enum value: ENUM_TYPE_TEXT_TYPE = 29023;
+     * @generated from protobuf enum value: ENUM_TYPE_FONT_TYPE = 29023;
      */
-    TEXT_TYPE = 29023,
+    FONT_TYPE = 29023,
     /**
      * @generated from protobuf enum value: ENUM_TYPE_TEXT_ALIGN = 29024;
      */
@@ -11327,10 +11379,6 @@ export enum BenchType {
      */
     COLOR_HUE = 29012,
     /**
-     * @generated from protobuf enum value: BENCH_TYPE_FONT_TYPE = 29020;
-     */
-    FONT_TYPE = 29020,
-    /**
      * @generated from protobuf enum value: BENCH_TYPE_FONT_WEIGHT = 29021;
      */
     FONT_WEIGHT = 29021,
@@ -11339,9 +11387,9 @@ export enum BenchType {
      */
     FONT_SIZE = 29022,
     /**
-     * @generated from protobuf enum value: BENCH_TYPE_TEXT_TYPE = 29023;
+     * @generated from protobuf enum value: BENCH_TYPE_FONT_TYPE = 29023;
      */
-    TEXT_TYPE = 29023,
+    FONT_TYPE = 29023,
     /**
      * @generated from protobuf enum value: BENCH_TYPE_TEXT_ALIGN = 29024;
      */
@@ -14463,6 +14511,10 @@ export enum ColorType {
      */
     STYLE = 2,
     /**
+     * @generated from protobuf enum value: COLOR_TYPE_FIELD = 3;
+     */
+    FIELD = 3,
+    /**
      * @generated from protobuf enum value: COLOR_TYPE_RGB = 10;
      */
     RGB = 10,
@@ -14618,27 +14670,6 @@ export enum ColorHue {
     ROSE = 47
 }
 /**
- * @generated from protobuf enum symbol.bench.FontType
- */
-export enum FontType {
-    /**
-     * @generated from protobuf enum value: FONT_TYPE_UNSPECIFIED = 0;
-     */
-    UNSPECIFIED = 0,
-    /**
-     * @generated from protobuf enum value: FONT_TYPE_SERIF = 1;
-     */
-    SERIF = 1,
-    /**
-     * @generated from protobuf enum value: FONT_TYPE_SANS = 2;
-     */
-    SANS = 2,
-    /**
-     * @generated from protobuf enum value: FONT_TYPE_MONO = 3;
-     */
-    MONO = 3
-}
-/**
  * @generated from protobuf enum symbol.bench.FontWeight
  */
 export enum FontWeight {
@@ -14737,21 +14768,33 @@ export enum FontSize {
     XL7 = 72
 }
 /**
- * @generated from protobuf enum symbol.bench.TextType
+ * @generated from protobuf enum symbol.bench.FontType
  */
-export enum TextType {
+export enum FontType {
     /**
-     * @generated from protobuf enum value: TEXT_TYPE_UNSPECIFIED = 0;
+     * @generated from protobuf enum value: FONT_TYPE_UNSPECIFIED = 0;
      */
     UNSPECIFIED = 0,
     /**
-     * @generated from protobuf enum value: TEXT_TYPE_INLINE = 1;
+     * @generated from protobuf enum value: FONT_TYPE_STYLE = 2;
      */
-    INLINE = 1,
+    STYLE = 2,
     /**
-     * @generated from protobuf enum value: TEXT_TYPE_STYLE = 2;
+     * @generated from protobuf enum value: FONT_TYPE_FIELD = 3;
      */
-    STYLE = 2
+    FIELD = 3,
+    /**
+     * @generated from protobuf enum value: FONT_TYPE_SERIF = 10;
+     */
+    SERIF = 10,
+    /**
+     * @generated from protobuf enum value: FONT_TYPE_SANS = 11;
+     */
+    SANS = 11,
+    /**
+     * @generated from protobuf enum value: FONT_TYPE_MONO = 12;
+     */
+    MONO = 12
 }
 /**
  * @generated from protobuf enum symbol.bench.TextAlign
@@ -14839,6 +14882,10 @@ export enum ShadowType {
      */
     STYLE = 2,
     /**
+     * @generated from protobuf enum value: SHADOW_TYPE_FIELD = 3;
+     */
+    FIELD = 3,
+    /**
      * @generated from protobuf enum value: SHADOW_TYPE_BOX = 10;
      */
     BOX = 10,
@@ -14885,6 +14932,10 @@ export enum BorderType {
      */
     STYLE = 2,
     /**
+     * @generated from protobuf enum value: BORDER_TYPE_FIELD = 3;
+     */
+    FIELD = 3,
+    /**
      * @generated from protobuf enum value: BORDER_TYPE_SOLID = 10;
      */
     SOLID = 10,
@@ -14912,17 +14963,17 @@ export enum GradientType {
      */
     UNSPECIFIED = 0,
     /**
-     * @generated from protobuf enum value: GRADIENT_TYPE_LINEAR = 1;
+     * @generated from protobuf enum value: GRADIENT_TYPE_LINEAR = 10;
      */
-    LINEAR = 1,
+    LINEAR = 10,
     /**
-     * @generated from protobuf enum value: GRADIENT_TYPE_RADIAL = 2;
+     * @generated from protobuf enum value: GRADIENT_TYPE_RADIAL = 11;
      */
-    RADIAL = 2,
+    RADIAL = 11,
     /**
-     * @generated from protobuf enum value: GRADIENT_TYPE_CONIC = 3;
+     * @generated from protobuf enum value: GRADIENT_TYPE_CONIC = 12;
      */
-    CONIC = 3
+    CONIC = 12
 }
 /**
  * @generated from protobuf enum symbol.bench.FillType
@@ -14933,17 +14984,17 @@ export enum FillType {
      */
     UNSPECIFIED = 0,
     /**
-     * @generated from protobuf enum value: FILL_TYPE_SOLID = 1;
+     * @generated from protobuf enum value: FILL_TYPE_SOLID = 10;
      */
-    SOLID = 1,
+    SOLID = 10,
     /**
-     * @generated from protobuf enum value: FILL_TYPE_GRADIENT = 2;
+     * @generated from protobuf enum value: FILL_TYPE_GRADIENT = 11;
      */
-    GRADIENT = 2,
+    GRADIENT = 11,
     /**
-     * @generated from protobuf enum value: FILL_TYPE_IMAGE = 3;
+     * @generated from protobuf enum value: FILL_TYPE_IMAGE = 12;
      */
-    IMAGE = 3
+    IMAGE = 12
 }
 /**
  * @generated from protobuf enum symbol.bench.FillPosition
@@ -15176,6 +15227,10 @@ export enum TransitionType {
      */
     STYLE = 2,
     /**
+     * @generated from protobuf enum value: TRANSITION_TYPE_FIELD = 3;
+     */
+    FIELD = 3,
+    /**
      * @generated from protobuf enum value: TRANSITION_TYPE_TWEEN = 10;
      */
     TWEEN = 10,
@@ -15218,6 +15273,10 @@ export enum EffectType {
      */
     STYLE = 2,
     /**
+     * @generated from protobuf enum value: EFFECT_TYPE_FIELD = 3;
+     */
+    FIELD = 3,
+    /**
      * @generated from protobuf enum value: EFFECT_TYPE_APPEAR = 10;
      */
     APPEAR = 10,
@@ -15247,25 +15306,17 @@ export enum DimensionType {
      */
     UNSPECIFIED = 0,
     /**
-     * @generated from protobuf enum value: DIMENSION_TYPE_FIXED = 1;
+     * @generated from protobuf enum value: DIMENSION_TYPE_FIXED = 2;
      */
-    FIXED = 1,
+    FIXED = 2,
     /**
-     * @generated from protobuf enum value: DIMENSION_TYPE_RELATIVE = 2;
+     * @generated from protobuf enum value: DIMENSION_TYPE_FIT = 3;
      */
-    RELATIVE = 2,
-    /**
-     * @generated from protobuf enum value: DIMENSION_TYPE_FIT_CONTENT = 3;
-     */
-    FIT_CONTENT = 3,
+    FIT = 3,
     /**
      * @generated from protobuf enum value: DIMENSION_TYPE_FILL = 4;
      */
-    FILL = 4,
-    /**
-     * @generated from protobuf enum value: DIMENSION_TYPE_ASPECT_RATIO = 5;
-     */
-    ASPECT_RATIO = 5
+    FILL = 4
 }
 /**
  * @generated from protobuf enum symbol.bench.BuiltinEnum
@@ -18580,10 +18631,11 @@ class ColorData$Type extends MessageType$<ColorData> {
             { no: 40, name: "hue", kind: "enum", opt: true, T: () => ["symbol.bench.ColorHue", ColorHue, "COLOR_HUE_"] },
             { no: 41, name: "shade", kind: "enum", opt: true, T: () => ["symbol.bench.ColorShade", ColorShade, "COLOR_SHADE_"] },
             { no: 42, name: "style_ptr", kind: "message", T: () => NodeReferenceData },
-            { no: 43, name: "x", kind: "scalar", opt: true, T: 2 /*ScalarType.FLOAT*/ },
-            { no: 44, name: "y", kind: "scalar", opt: true, T: 2 /*ScalarType.FLOAT*/ },
-            { no: 45, name: "z", kind: "scalar", opt: true, T: 2 /*ScalarType.FLOAT*/ },
-            { no: 46, name: "alpha", kind: "scalar", opt: true, T: 2 /*ScalarType.FLOAT*/ }
+            { no: 43, name: "field_ptr", kind: "message", T: () => NodeReferenceData },
+            { no: 50, name: "x", kind: "scalar", opt: true, T: 2 /*ScalarType.FLOAT*/ },
+            { no: 51, name: "y", kind: "scalar", opt: true, T: 2 /*ScalarType.FLOAT*/ },
+            { no: 52, name: "z", kind: "scalar", opt: true, T: 2 /*ScalarType.FLOAT*/ },
+            { no: 53, name: "alpha", kind: "scalar", opt: true, T: 2 /*ScalarType.FLOAT*/ }
         ]);
     }
     create(value?: PartialMessage<ColorData>): ColorData {
@@ -18614,16 +18666,19 @@ class ColorData$Type extends MessageType$<ColorData> {
                 case /* optional symbol.bench.NodeReferenceData style_ptr */ 42:
                     message.stylePtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.stylePtr);
                     break;
-                case /* optional float x */ 43:
+                case /* optional symbol.bench.NodeReferenceData field_ptr */ 43:
+                    message.fieldPtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.fieldPtr);
+                    break;
+                case /* optional float x */ 50:
                     message.x = reader.float();
                     break;
-                case /* optional float y */ 44:
+                case /* optional float y */ 51:
                     message.y = reader.float();
                     break;
-                case /* optional float z */ 45:
+                case /* optional float z */ 52:
                     message.z = reader.float();
                     break;
-                case /* optional float alpha */ 46:
+                case /* optional float alpha */ 53:
                     message.alpha = reader.float();
                     break;
                 default:
@@ -18653,18 +18708,21 @@ class ColorData$Type extends MessageType$<ColorData> {
         /* optional symbol.bench.NodeReferenceData style_ptr = 42; */
         if (message.stylePtr)
             NodeReferenceData.internalBinaryWrite(message.stylePtr, writer.tag(42, WireType.LengthDelimited).fork(), options).join();
-        /* optional float x = 43; */
+        /* optional symbol.bench.NodeReferenceData field_ptr = 43; */
+        if (message.fieldPtr)
+            NodeReferenceData.internalBinaryWrite(message.fieldPtr, writer.tag(43, WireType.LengthDelimited).fork(), options).join();
+        /* optional float x = 50; */
         if (message.x !== undefined)
-            writer.tag(43, WireType.Bit32).float(message.x);
-        /* optional float y = 44; */
+            writer.tag(50, WireType.Bit32).float(message.x);
+        /* optional float y = 51; */
         if (message.y !== undefined)
-            writer.tag(44, WireType.Bit32).float(message.y);
-        /* optional float z = 45; */
+            writer.tag(51, WireType.Bit32).float(message.y);
+        /* optional float z = 52; */
         if (message.z !== undefined)
-            writer.tag(45, WireType.Bit32).float(message.z);
-        /* optional float alpha = 46; */
+            writer.tag(52, WireType.Bit32).float(message.z);
+        /* optional float alpha = 53; */
         if (message.alpha !== undefined)
-            writer.tag(46, WireType.Bit32).float(message.alpha);
+            writer.tag(53, WireType.Bit32).float(message.alpha);
         let u = options.writeUnknownFields;
         if (u !== false)
             (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
@@ -18827,6 +18885,7 @@ class DimensionData$Type extends MessageType$<DimensionData> {
         super("symbol.bench.DimensionData", [
             { no: 1, name: "metatype", kind: "enum", T: () => ["symbol.bench.ObjectType", ObjectType, "OBJECT_TYPE_"] },
             { no: 30, name: "type", kind: "enum", T: () => ["symbol.bench.DimensionType", DimensionType, "DIMENSION_TYPE_"] },
+            { no: 31, name: "unit", kind: "enum", T: () => ["symbol.bench.LengthUnit", LengthUnit, "LENGTH_UNIT_"] },
             { no: 40, name: "value", kind: "scalar", T: 2 /*ScalarType.FLOAT*/ }
         ]);
     }
@@ -18834,6 +18893,7 @@ class DimensionData$Type extends MessageType$<DimensionData> {
         const message = globalThis.Object.create((this.messagePrototype!));
         message.metatype = 0;
         message.type = 0;
+        message.unit = 0;
         message.value = 0;
         if (value !== undefined)
             reflectionMergePartial<DimensionData>(this, message, value);
@@ -18849,6 +18909,9 @@ class DimensionData$Type extends MessageType$<DimensionData> {
                     break;
                 case /* symbol.bench.DimensionType type */ 30:
                     message.type = reader.int32();
+                    break;
+                case /* symbol.bench.LengthUnit unit */ 31:
+                    message.unit = reader.int32();
                     break;
                 case /* float value */ 40:
                     message.value = reader.float();
@@ -18871,6 +18934,9 @@ class DimensionData$Type extends MessageType$<DimensionData> {
         /* symbol.bench.DimensionType type = 30; */
         if (message.type !== 0)
             writer.tag(30, WireType.Varint).int32(message.type);
+        /* symbol.bench.LengthUnit unit = 31; */
+        if (message.unit !== 0)
+            writer.tag(31, WireType.Varint).int32(message.unit);
         /* float value = 40; */
         if (message.value !== 0)
             writer.tag(40, WireType.Bit32).float(message.value);
@@ -19345,8 +19411,9 @@ class BorderData$Type extends MessageType$<BorderData> {
             { no: 1, name: "metatype", kind: "enum", T: () => ["symbol.bench.ObjectType", ObjectType, "OBJECT_TYPE_"] },
             { no: 30, name: "type", kind: "enum", T: () => ["symbol.bench.BorderType", BorderType, "BORDER_TYPE_"] },
             { no: 40, name: "style_ptr", kind: "message", T: () => NodeReferenceData },
-            { no: 42, name: "color", kind: "message", T: () => ColorData },
-            { no: 43, name: "width", kind: "message", T: () => InsetsData }
+            { no: 41, name: "field_ptr", kind: "message", T: () => NodeReferenceData },
+            { no: 50, name: "color", kind: "message", T: () => ColorData },
+            { no: 51, name: "width", kind: "message", T: () => InsetsData }
         ]);
     }
     create(value?: PartialMessage<BorderData>): BorderData {
@@ -19371,10 +19438,13 @@ class BorderData$Type extends MessageType$<BorderData> {
                 case /* optional symbol.bench.NodeReferenceData style_ptr */ 40:
                     message.stylePtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.stylePtr);
                     break;
-                case /* optional symbol.bench.ColorData color */ 42:
+                case /* optional symbol.bench.NodeReferenceData field_ptr */ 41:
+                    message.fieldPtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.fieldPtr);
+                    break;
+                case /* optional symbol.bench.ColorData color */ 50:
                     message.color = ColorData.internalBinaryRead(reader, reader.uint32(), options, message.color);
                     break;
-                case /* optional symbol.bench.InsetsData width */ 43:
+                case /* optional symbol.bench.InsetsData width */ 51:
                     message.width = InsetsData.internalBinaryRead(reader, reader.uint32(), options, message.width);
                     break;
                 default:
@@ -19398,12 +19468,15 @@ class BorderData$Type extends MessageType$<BorderData> {
         /* optional symbol.bench.NodeReferenceData style_ptr = 40; */
         if (message.stylePtr)
             NodeReferenceData.internalBinaryWrite(message.stylePtr, writer.tag(40, WireType.LengthDelimited).fork(), options).join();
-        /* optional symbol.bench.ColorData color = 42; */
+        /* optional symbol.bench.NodeReferenceData field_ptr = 41; */
+        if (message.fieldPtr)
+            NodeReferenceData.internalBinaryWrite(message.fieldPtr, writer.tag(41, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbol.bench.ColorData color = 50; */
         if (message.color)
-            ColorData.internalBinaryWrite(message.color, writer.tag(42, WireType.LengthDelimited).fork(), options).join();
-        /* optional symbol.bench.InsetsData width = 43; */
+            ColorData.internalBinaryWrite(message.color, writer.tag(50, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbol.bench.InsetsData width = 51; */
         if (message.width)
-            InsetsData.internalBinaryWrite(message.width, writer.tag(43, WireType.LengthDelimited).fork(), options).join();
+            InsetsData.internalBinaryWrite(message.width, writer.tag(51, WireType.LengthDelimited).fork(), options).join();
         let u = options.writeUnknownFields;
         if (u !== false)
             (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
@@ -19420,15 +19493,17 @@ class EffectData$Type extends MessageType$<EffectData> {
         super("symbol.bench.EffectData", [
             { no: 1, name: "metatype", kind: "enum", T: () => ["symbol.bench.ObjectType", ObjectType, "OBJECT_TYPE_"] },
             { no: 30, name: "type", kind: "enum", T: () => ["symbol.bench.EffectType", EffectType, "EFFECT_TYPE_"] },
-            { no: 40, name: "opacity", kind: "scalar", opt: true, T: 2 /*ScalarType.FLOAT*/ },
-            { no: 41, name: "offset", kind: "message", T: () => Axis2Data },
-            { no: 43, name: "scale", kind: "scalar", opt: true, T: 2 /*ScalarType.FLOAT*/ },
-            { no: 44, name: "rotate", kind: "message", T: () => Axis3Data },
-            { no: 45, name: "skew", kind: "message", T: () => Axis2Data },
-            { no: 50, name: "perspective", kind: "scalar", opt: true, T: 2 /*ScalarType.FLOAT*/ },
-            { no: 51, name: "delay", kind: "scalar", opt: true, T: 2 /*ScalarType.FLOAT*/ },
-            { no: 52, name: "duration", kind: "scalar", opt: true, T: 2 /*ScalarType.FLOAT*/ },
-            { no: 53, name: "threshold", kind: "scalar", opt: true, T: 2 /*ScalarType.FLOAT*/ }
+            { no: 40, name: "style_ptr", kind: "message", T: () => NodeReferenceData },
+            { no: 41, name: "field_ptr", kind: "message", T: () => NodeReferenceData },
+            { no: 50, name: "opacity", kind: "scalar", opt: true, T: 2 /*ScalarType.FLOAT*/ },
+            { no: 51, name: "offset", kind: "message", T: () => Axis2Data },
+            { no: 52, name: "scale", kind: "scalar", opt: true, T: 2 /*ScalarType.FLOAT*/ },
+            { no: 53, name: "rotate", kind: "message", T: () => Axis3Data },
+            { no: 54, name: "skew", kind: "message", T: () => Axis2Data },
+            { no: 55, name: "perspective", kind: "scalar", opt: true, T: 2 /*ScalarType.FLOAT*/ },
+            { no: 56, name: "delay", kind: "scalar", opt: true, T: 2 /*ScalarType.FLOAT*/ },
+            { no: 57, name: "duration", kind: "scalar", opt: true, T: 2 /*ScalarType.FLOAT*/ },
+            { no: 58, name: "threshold", kind: "scalar", opt: true, T: 2 /*ScalarType.FLOAT*/ }
         ]);
     }
     create(value?: PartialMessage<EffectData>): EffectData {
@@ -19450,31 +19525,37 @@ class EffectData$Type extends MessageType$<EffectData> {
                 case /* symbol.bench.EffectType type */ 30:
                     message.type = reader.int32();
                     break;
-                case /* optional float opacity */ 40:
+                case /* optional symbol.bench.NodeReferenceData style_ptr */ 40:
+                    message.stylePtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.stylePtr);
+                    break;
+                case /* optional symbol.bench.NodeReferenceData field_ptr */ 41:
+                    message.fieldPtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.fieldPtr);
+                    break;
+                case /* optional float opacity */ 50:
                     message.opacity = reader.float();
                     break;
-                case /* optional symbol.bench.Axis2Data offset */ 41:
+                case /* optional symbol.bench.Axis2Data offset */ 51:
                     message.offset = Axis2Data.internalBinaryRead(reader, reader.uint32(), options, message.offset);
                     break;
-                case /* optional float scale */ 43:
+                case /* optional float scale */ 52:
                     message.scale = reader.float();
                     break;
-                case /* optional symbol.bench.Axis3Data rotate */ 44:
+                case /* optional symbol.bench.Axis3Data rotate */ 53:
                     message.rotate = Axis3Data.internalBinaryRead(reader, reader.uint32(), options, message.rotate);
                     break;
-                case /* optional symbol.bench.Axis2Data skew */ 45:
+                case /* optional symbol.bench.Axis2Data skew */ 54:
                     message.skew = Axis2Data.internalBinaryRead(reader, reader.uint32(), options, message.skew);
                     break;
-                case /* optional float perspective */ 50:
+                case /* optional float perspective */ 55:
                     message.perspective = reader.float();
                     break;
-                case /* optional float delay */ 51:
+                case /* optional float delay */ 56:
                     message.delay = reader.float();
                     break;
-                case /* optional float duration */ 52:
+                case /* optional float duration */ 57:
                     message.duration = reader.float();
                     break;
-                case /* optional float threshold */ 53:
+                case /* optional float threshold */ 58:
                     message.threshold = reader.float();
                     break;
                 default:
@@ -19495,33 +19576,39 @@ class EffectData$Type extends MessageType$<EffectData> {
         /* symbol.bench.EffectType type = 30; */
         if (message.type !== 0)
             writer.tag(30, WireType.Varint).int32(message.type);
-        /* optional float opacity = 40; */
+        /* optional symbol.bench.NodeReferenceData style_ptr = 40; */
+        if (message.stylePtr)
+            NodeReferenceData.internalBinaryWrite(message.stylePtr, writer.tag(40, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbol.bench.NodeReferenceData field_ptr = 41; */
+        if (message.fieldPtr)
+            NodeReferenceData.internalBinaryWrite(message.fieldPtr, writer.tag(41, WireType.LengthDelimited).fork(), options).join();
+        /* optional float opacity = 50; */
         if (message.opacity !== undefined)
-            writer.tag(40, WireType.Bit32).float(message.opacity);
-        /* optional symbol.bench.Axis2Data offset = 41; */
+            writer.tag(50, WireType.Bit32).float(message.opacity);
+        /* optional symbol.bench.Axis2Data offset = 51; */
         if (message.offset)
-            Axis2Data.internalBinaryWrite(message.offset, writer.tag(41, WireType.LengthDelimited).fork(), options).join();
-        /* optional float scale = 43; */
+            Axis2Data.internalBinaryWrite(message.offset, writer.tag(51, WireType.LengthDelimited).fork(), options).join();
+        /* optional float scale = 52; */
         if (message.scale !== undefined)
-            writer.tag(43, WireType.Bit32).float(message.scale);
-        /* optional symbol.bench.Axis3Data rotate = 44; */
+            writer.tag(52, WireType.Bit32).float(message.scale);
+        /* optional symbol.bench.Axis3Data rotate = 53; */
         if (message.rotate)
-            Axis3Data.internalBinaryWrite(message.rotate, writer.tag(44, WireType.LengthDelimited).fork(), options).join();
-        /* optional symbol.bench.Axis2Data skew = 45; */
+            Axis3Data.internalBinaryWrite(message.rotate, writer.tag(53, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbol.bench.Axis2Data skew = 54; */
         if (message.skew)
-            Axis2Data.internalBinaryWrite(message.skew, writer.tag(45, WireType.LengthDelimited).fork(), options).join();
-        /* optional float perspective = 50; */
+            Axis2Data.internalBinaryWrite(message.skew, writer.tag(54, WireType.LengthDelimited).fork(), options).join();
+        /* optional float perspective = 55; */
         if (message.perspective !== undefined)
-            writer.tag(50, WireType.Bit32).float(message.perspective);
-        /* optional float delay = 51; */
+            writer.tag(55, WireType.Bit32).float(message.perspective);
+        /* optional float delay = 56; */
         if (message.delay !== undefined)
-            writer.tag(51, WireType.Bit32).float(message.delay);
-        /* optional float duration = 52; */
+            writer.tag(56, WireType.Bit32).float(message.delay);
+        /* optional float duration = 57; */
         if (message.duration !== undefined)
-            writer.tag(52, WireType.Bit32).float(message.duration);
-        /* optional float threshold = 53; */
+            writer.tag(57, WireType.Bit32).float(message.duration);
+        /* optional float threshold = 58; */
         if (message.threshold !== undefined)
-            writer.tag(53, WireType.Bit32).float(message.threshold);
+            writer.tag(58, WireType.Bit32).float(message.threshold);
         let u = options.writeUnknownFields;
         if (u !== false)
             (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
@@ -19766,17 +19853,17 @@ class FontData$Type extends MessageType$<FontData> {
     constructor() {
         super("symbol.bench.FontData", [
             { no: 1, name: "metatype", kind: "enum", T: () => ["symbol.bench.ObjectType", ObjectType, "OBJECT_TYPE_"] },
-            { no: 30, name: "type", kind: "enum", T: () => ["symbol.bench.TextType", TextType, "TEXT_TYPE_"] },
+            { no: 30, name: "type", kind: "enum", T: () => ["symbol.bench.FontType", FontType, "FONT_TYPE_"] },
             { no: 40, name: "style_ptr", kind: "message", T: () => NodeReferenceData },
-            { no: 41, name: "weight", kind: "enum", opt: true, T: () => ["symbol.bench.FontWeight", FontWeight, "FONT_WEIGHT_"] },
-            { no: 45, name: "color", kind: "message", T: () => ColorData },
-            { no: 46, name: "font_type", kind: "enum", opt: true, T: () => ["symbol.bench.FontType", FontType, "FONT_TYPE_"] },
-            { no: 47, name: "font_size", kind: "enum", opt: true, T: () => ["symbol.bench.FontSize", FontSize, "FONT_SIZE_"] },
-            { no: 48, name: "align", kind: "enum", opt: true, T: () => ["symbol.bench.TextAlign", TextAlign, "TEXT_ALIGN_"] },
-            { no: 49, name: "line_height", kind: "message", T: () => LengthData },
-            { no: 50, name: "letter_spacing", kind: "message", T: () => LengthData },
-            { no: 51, name: "decoration", kind: "enum", opt: true, T: () => ["symbol.bench.TextDecoration", TextDecoration, "TEXT_DECORATION_"] },
-            { no: 52, name: "transform", kind: "enum", opt: true, T: () => ["symbol.bench.TextTransform", TextTransform, "TEXT_TRANSFORM_"] }
+            { no: 41, name: "field_ptr", kind: "message", T: () => NodeReferenceData },
+            { no: 50, name: "weight", kind: "enum", opt: true, T: () => ["symbol.bench.FontWeight", FontWeight, "FONT_WEIGHT_"] },
+            { no: 51, name: "color", kind: "message", T: () => FillData },
+            { no: 52, name: "size", kind: "enum", opt: true, T: () => ["symbol.bench.FontSize", FontSize, "FONT_SIZE_"] },
+            { no: 53, name: "align", kind: "enum", opt: true, T: () => ["symbol.bench.TextAlign", TextAlign, "TEXT_ALIGN_"] },
+            { no: 54, name: "line_height", kind: "message", T: () => LengthData },
+            { no: 55, name: "letter_spacing", kind: "message", T: () => LengthData },
+            { no: 56, name: "decoration", kind: "enum", opt: true, T: () => ["symbol.bench.TextDecoration", TextDecoration, "TEXT_DECORATION_"] },
+            { no: 57, name: "transform", kind: "enum", opt: true, T: () => ["symbol.bench.TextTransform", TextTransform, "TEXT_TRANSFORM_"] }
         ]);
     }
     create(value?: PartialMessage<FontData>): FontData {
@@ -19795,37 +19882,37 @@ class FontData$Type extends MessageType$<FontData> {
                 case /* symbol.bench.ObjectType metatype */ 1:
                     message.metatype = reader.int32();
                     break;
-                case /* symbol.bench.TextType type */ 30:
+                case /* symbol.bench.FontType type */ 30:
                     message.type = reader.int32();
                     break;
                 case /* optional symbol.bench.NodeReferenceData style_ptr */ 40:
                     message.stylePtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.stylePtr);
                     break;
-                case /* optional symbol.bench.FontWeight weight */ 41:
+                case /* optional symbol.bench.NodeReferenceData field_ptr */ 41:
+                    message.fieldPtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.fieldPtr);
+                    break;
+                case /* optional symbol.bench.FontWeight weight */ 50:
                     message.weight = reader.int32();
                     break;
-                case /* optional symbol.bench.ColorData color */ 45:
-                    message.color = ColorData.internalBinaryRead(reader, reader.uint32(), options, message.color);
+                case /* optional symbol.bench.FillData color */ 51:
+                    message.color = FillData.internalBinaryRead(reader, reader.uint32(), options, message.color);
                     break;
-                case /* optional symbol.bench.FontType font_type */ 46:
-                    message.fontType = reader.int32();
+                case /* optional symbol.bench.FontSize size */ 52:
+                    message.size = reader.int32();
                     break;
-                case /* optional symbol.bench.FontSize font_size */ 47:
-                    message.fontSize = reader.int32();
-                    break;
-                case /* optional symbol.bench.TextAlign align */ 48:
+                case /* optional symbol.bench.TextAlign align */ 53:
                     message.align = reader.int32();
                     break;
-                case /* optional symbol.bench.LengthData line_height */ 49:
+                case /* optional symbol.bench.LengthData line_height */ 54:
                     message.lineHeight = LengthData.internalBinaryRead(reader, reader.uint32(), options, message.lineHeight);
                     break;
-                case /* optional symbol.bench.LengthData letter_spacing */ 50:
+                case /* optional symbol.bench.LengthData letter_spacing */ 55:
                     message.letterSpacing = LengthData.internalBinaryRead(reader, reader.uint32(), options, message.letterSpacing);
                     break;
-                case /* optional symbol.bench.TextDecoration decoration */ 51:
+                case /* optional symbol.bench.TextDecoration decoration */ 56:
                     message.decoration = reader.int32();
                     break;
-                case /* optional symbol.bench.TextTransform transform */ 52:
+                case /* optional symbol.bench.TextTransform transform */ 57:
                     message.transform = reader.int32();
                     break;
                 default:
@@ -19843,39 +19930,39 @@ class FontData$Type extends MessageType$<FontData> {
         /* symbol.bench.ObjectType metatype = 1; */
         if (message.metatype !== 0)
             writer.tag(1, WireType.Varint).int32(message.metatype);
-        /* symbol.bench.TextType type = 30; */
+        /* symbol.bench.FontType type = 30; */
         if (message.type !== 0)
             writer.tag(30, WireType.Varint).int32(message.type);
         /* optional symbol.bench.NodeReferenceData style_ptr = 40; */
         if (message.stylePtr)
             NodeReferenceData.internalBinaryWrite(message.stylePtr, writer.tag(40, WireType.LengthDelimited).fork(), options).join();
-        /* optional symbol.bench.FontWeight weight = 41; */
+        /* optional symbol.bench.NodeReferenceData field_ptr = 41; */
+        if (message.fieldPtr)
+            NodeReferenceData.internalBinaryWrite(message.fieldPtr, writer.tag(41, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbol.bench.FontWeight weight = 50; */
         if (message.weight !== undefined)
-            writer.tag(41, WireType.Varint).int32(message.weight);
-        /* optional symbol.bench.ColorData color = 45; */
+            writer.tag(50, WireType.Varint).int32(message.weight);
+        /* optional symbol.bench.FillData color = 51; */
         if (message.color)
-            ColorData.internalBinaryWrite(message.color, writer.tag(45, WireType.LengthDelimited).fork(), options).join();
-        /* optional symbol.bench.FontType font_type = 46; */
-        if (message.fontType !== undefined)
-            writer.tag(46, WireType.Varint).int32(message.fontType);
-        /* optional symbol.bench.FontSize font_size = 47; */
-        if (message.fontSize !== undefined)
-            writer.tag(47, WireType.Varint).int32(message.fontSize);
-        /* optional symbol.bench.TextAlign align = 48; */
+            FillData.internalBinaryWrite(message.color, writer.tag(51, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbol.bench.FontSize size = 52; */
+        if (message.size !== undefined)
+            writer.tag(52, WireType.Varint).int32(message.size);
+        /* optional symbol.bench.TextAlign align = 53; */
         if (message.align !== undefined)
-            writer.tag(48, WireType.Varint).int32(message.align);
-        /* optional symbol.bench.LengthData line_height = 49; */
+            writer.tag(53, WireType.Varint).int32(message.align);
+        /* optional symbol.bench.LengthData line_height = 54; */
         if (message.lineHeight)
-            LengthData.internalBinaryWrite(message.lineHeight, writer.tag(49, WireType.LengthDelimited).fork(), options).join();
-        /* optional symbol.bench.LengthData letter_spacing = 50; */
+            LengthData.internalBinaryWrite(message.lineHeight, writer.tag(54, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbol.bench.LengthData letter_spacing = 55; */
         if (message.letterSpacing)
-            LengthData.internalBinaryWrite(message.letterSpacing, writer.tag(50, WireType.LengthDelimited).fork(), options).join();
-        /* optional symbol.bench.TextDecoration decoration = 51; */
+            LengthData.internalBinaryWrite(message.letterSpacing, writer.tag(55, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbol.bench.TextDecoration decoration = 56; */
         if (message.decoration !== undefined)
-            writer.tag(51, WireType.Varint).int32(message.decoration);
-        /* optional symbol.bench.TextTransform transform = 52; */
+            writer.tag(56, WireType.Varint).int32(message.decoration);
+        /* optional symbol.bench.TextTransform transform = 57; */
         if (message.transform !== undefined)
-            writer.tag(52, WireType.Varint).int32(message.transform);
+            writer.tag(57, WireType.Varint).int32(message.transform);
         let u = options.writeUnknownFields;
         if (u !== false)
             (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
@@ -19893,12 +19980,13 @@ class ShadowData$Type extends MessageType$<ShadowData> {
             { no: 1, name: "metatype", kind: "enum", T: () => ["symbol.bench.ObjectType", ObjectType, "OBJECT_TYPE_"] },
             { no: 30, name: "type", kind: "enum", T: () => ["symbol.bench.ShadowType", ShadowType, "SHADOW_TYPE_"] },
             { no: 40, name: "style_ptr", kind: "message", T: () => NodeReferenceData },
-            { no: 41, name: "color", kind: "message", T: () => ColorData },
-            { no: 42, name: "position", kind: "enum", T: () => ["symbol.bench.ShadowPosition", ShadowPosition, "SHADOW_POSITION_"] },
-            { no: 43, name: "offset", kind: "message", T: () => Axis2Data },
-            { no: 45, name: "blur", kind: "scalar", opt: true, T: 5 /*ScalarType.INT32*/ },
-            { no: 46, name: "spread", kind: "scalar", opt: true, T: 5 /*ScalarType.INT32*/ },
-            { no: 47, name: "diffusion", kind: "scalar", opt: true, T: 2 /*ScalarType.FLOAT*/ }
+            { no: 41, name: "field_ptr", kind: "message", T: () => NodeReferenceData },
+            { no: 50, name: "color", kind: "message", T: () => ColorData },
+            { no: 51, name: "position", kind: "enum", T: () => ["symbol.bench.ShadowPosition", ShadowPosition, "SHADOW_POSITION_"] },
+            { no: 52, name: "offset", kind: "message", T: () => Axis2Data },
+            { no: 53, name: "blur", kind: "scalar", opt: true, T: 5 /*ScalarType.INT32*/ },
+            { no: 54, name: "spread", kind: "scalar", opt: true, T: 5 /*ScalarType.INT32*/ },
+            { no: 55, name: "diffusion", kind: "scalar", opt: true, T: 2 /*ScalarType.FLOAT*/ }
         ]);
     }
     create(value?: PartialMessage<ShadowData>): ShadowData {
@@ -19924,22 +20012,25 @@ class ShadowData$Type extends MessageType$<ShadowData> {
                 case /* optional symbol.bench.NodeReferenceData style_ptr */ 40:
                     message.stylePtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.stylePtr);
                     break;
-                case /* optional symbol.bench.ColorData color */ 41:
+                case /* optional symbol.bench.NodeReferenceData field_ptr */ 41:
+                    message.fieldPtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.fieldPtr);
+                    break;
+                case /* optional symbol.bench.ColorData color */ 50:
                     message.color = ColorData.internalBinaryRead(reader, reader.uint32(), options, message.color);
                     break;
-                case /* symbol.bench.ShadowPosition position */ 42:
+                case /* symbol.bench.ShadowPosition position */ 51:
                     message.position = reader.int32();
                     break;
-                case /* optional symbol.bench.Axis2Data offset */ 43:
+                case /* optional symbol.bench.Axis2Data offset */ 52:
                     message.offset = Axis2Data.internalBinaryRead(reader, reader.uint32(), options, message.offset);
                     break;
-                case /* optional int32 blur */ 45:
+                case /* optional int32 blur */ 53:
                     message.blur = reader.int32();
                     break;
-                case /* optional int32 spread */ 46:
+                case /* optional int32 spread */ 54:
                     message.spread = reader.int32();
                     break;
-                case /* optional float diffusion */ 47:
+                case /* optional float diffusion */ 55:
                     message.diffusion = reader.float();
                     break;
                 default:
@@ -19963,24 +20054,27 @@ class ShadowData$Type extends MessageType$<ShadowData> {
         /* optional symbol.bench.NodeReferenceData style_ptr = 40; */
         if (message.stylePtr)
             NodeReferenceData.internalBinaryWrite(message.stylePtr, writer.tag(40, WireType.LengthDelimited).fork(), options).join();
-        /* optional symbol.bench.ColorData color = 41; */
+        /* optional symbol.bench.NodeReferenceData field_ptr = 41; */
+        if (message.fieldPtr)
+            NodeReferenceData.internalBinaryWrite(message.fieldPtr, writer.tag(41, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbol.bench.ColorData color = 50; */
         if (message.color)
-            ColorData.internalBinaryWrite(message.color, writer.tag(41, WireType.LengthDelimited).fork(), options).join();
-        /* symbol.bench.ShadowPosition position = 42; */
+            ColorData.internalBinaryWrite(message.color, writer.tag(50, WireType.LengthDelimited).fork(), options).join();
+        /* symbol.bench.ShadowPosition position = 51; */
         if (message.position !== 0)
-            writer.tag(42, WireType.Varint).int32(message.position);
-        /* optional symbol.bench.Axis2Data offset = 43; */
+            writer.tag(51, WireType.Varint).int32(message.position);
+        /* optional symbol.bench.Axis2Data offset = 52; */
         if (message.offset)
-            Axis2Data.internalBinaryWrite(message.offset, writer.tag(43, WireType.LengthDelimited).fork(), options).join();
-        /* optional int32 blur = 45; */
+            Axis2Data.internalBinaryWrite(message.offset, writer.tag(52, WireType.LengthDelimited).fork(), options).join();
+        /* optional int32 blur = 53; */
         if (message.blur !== undefined)
-            writer.tag(45, WireType.Varint).int32(message.blur);
-        /* optional int32 spread = 46; */
+            writer.tag(53, WireType.Varint).int32(message.blur);
+        /* optional int32 spread = 54; */
         if (message.spread !== undefined)
-            writer.tag(46, WireType.Varint).int32(message.spread);
-        /* optional float diffusion = 47; */
+            writer.tag(54, WireType.Varint).int32(message.spread);
+        /* optional float diffusion = 55; */
         if (message.diffusion !== undefined)
-            writer.tag(47, WireType.Bit32).float(message.diffusion);
+            writer.tag(55, WireType.Bit32).float(message.diffusion);
         let u = options.writeUnknownFields;
         if (u !== false)
             (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
@@ -19998,14 +20092,15 @@ class TransitionData$Type extends MessageType$<TransitionData> {
             { no: 1, name: "metatype", kind: "enum", T: () => ["symbol.bench.ObjectType", ObjectType, "OBJECT_TYPE_"] },
             { no: 30, name: "type", kind: "enum", T: () => ["symbol.bench.TransitionType", TransitionType, "TRANSITION_TYPE_"] },
             { no: 40, name: "style_ptr", kind: "message", T: () => NodeReferenceData },
-            { no: 41, name: "delay", kind: "scalar", opt: true, T: 2 /*ScalarType.FLOAT*/ },
-            { no: 42, name: "duration", kind: "scalar", opt: true, T: 2 /*ScalarType.FLOAT*/ },
-            { no: 43, name: "ease", kind: "scalar", repeat: 1 /*RepeatType.PACKED*/, T: 2 /*ScalarType.FLOAT*/ },
-            { no: 44, name: "stiffness", kind: "scalar", opt: true, T: 2 /*ScalarType.FLOAT*/ },
-            { no: 45, name: "damping", kind: "scalar", opt: true, T: 2 /*ScalarType.FLOAT*/ },
-            { no: 46, name: "mass", kind: "scalar", opt: true, T: 2 /*ScalarType.FLOAT*/ },
-            { no: 47, name: "bounce", kind: "scalar", opt: true, T: 2 /*ScalarType.FLOAT*/ },
-            { no: 48, name: "spring_type", kind: "enum", opt: true, T: () => ["symbol.bench.SpringType", SpringType, "SPRING_TYPE_"] }
+            { no: 41, name: "field_ptr", kind: "message", T: () => NodeReferenceData },
+            { no: 50, name: "delay", kind: "scalar", opt: true, T: 2 /*ScalarType.FLOAT*/ },
+            { no: 51, name: "duration", kind: "scalar", opt: true, T: 2 /*ScalarType.FLOAT*/ },
+            { no: 52, name: "ease", kind: "scalar", repeat: 1 /*RepeatType.PACKED*/, T: 2 /*ScalarType.FLOAT*/ },
+            { no: 53, name: "stiffness", kind: "scalar", opt: true, T: 2 /*ScalarType.FLOAT*/ },
+            { no: 54, name: "damping", kind: "scalar", opt: true, T: 2 /*ScalarType.FLOAT*/ },
+            { no: 55, name: "mass", kind: "scalar", opt: true, T: 2 /*ScalarType.FLOAT*/ },
+            { no: 56, name: "bounce", kind: "scalar", opt: true, T: 2 /*ScalarType.FLOAT*/ },
+            { no: 57, name: "spring_type", kind: "enum", opt: true, T: () => ["symbol.bench.SpringType", SpringType, "SPRING_TYPE_"] }
         ]);
     }
     create(value?: PartialMessage<TransitionData>): TransitionData {
@@ -20031,32 +20126,35 @@ class TransitionData$Type extends MessageType$<TransitionData> {
                 case /* optional symbol.bench.NodeReferenceData style_ptr */ 40:
                     message.stylePtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.stylePtr);
                     break;
-                case /* optional float delay */ 41:
+                case /* optional symbol.bench.NodeReferenceData field_ptr */ 41:
+                    message.fieldPtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.fieldPtr);
+                    break;
+                case /* optional float delay */ 50:
                     message.delay = reader.float();
                     break;
-                case /* optional float duration */ 42:
+                case /* optional float duration */ 51:
                     message.duration = reader.float();
                     break;
-                case /* repeated float ease */ 43:
+                case /* repeated float ease */ 52:
                     if (wireType === WireType.LengthDelimited)
                         for (let e = reader.int32() + reader.pos; reader.pos < e;)
                             message.ease.push(reader.float());
                     else
                         message.ease.push(reader.float());
                     break;
-                case /* optional float stiffness */ 44:
+                case /* optional float stiffness */ 53:
                     message.stiffness = reader.float();
                     break;
-                case /* optional float damping */ 45:
+                case /* optional float damping */ 54:
                     message.damping = reader.float();
                     break;
-                case /* optional float mass */ 46:
+                case /* optional float mass */ 55:
                     message.mass = reader.float();
                     break;
-                case /* optional float bounce */ 47:
+                case /* optional float bounce */ 56:
                     message.bounce = reader.float();
                     break;
-                case /* optional symbol.bench.SpringType spring_type */ 48:
+                case /* optional symbol.bench.SpringType spring_type */ 57:
                     message.springType = reader.int32();
                     break;
                 default:
@@ -20080,34 +20178,37 @@ class TransitionData$Type extends MessageType$<TransitionData> {
         /* optional symbol.bench.NodeReferenceData style_ptr = 40; */
         if (message.stylePtr)
             NodeReferenceData.internalBinaryWrite(message.stylePtr, writer.tag(40, WireType.LengthDelimited).fork(), options).join();
-        /* optional float delay = 41; */
+        /* optional symbol.bench.NodeReferenceData field_ptr = 41; */
+        if (message.fieldPtr)
+            NodeReferenceData.internalBinaryWrite(message.fieldPtr, writer.tag(41, WireType.LengthDelimited).fork(), options).join();
+        /* optional float delay = 50; */
         if (message.delay !== undefined)
-            writer.tag(41, WireType.Bit32).float(message.delay);
-        /* optional float duration = 42; */
+            writer.tag(50, WireType.Bit32).float(message.delay);
+        /* optional float duration = 51; */
         if (message.duration !== undefined)
-            writer.tag(42, WireType.Bit32).float(message.duration);
-        /* repeated float ease = 43; */
+            writer.tag(51, WireType.Bit32).float(message.duration);
+        /* repeated float ease = 52; */
         if (message.ease.length) {
-            writer.tag(43, WireType.LengthDelimited).fork();
+            writer.tag(52, WireType.LengthDelimited).fork();
             for (let i = 0; i < message.ease.length; i++)
                 writer.float(message.ease[i]);
             writer.join();
         }
-        /* optional float stiffness = 44; */
+        /* optional float stiffness = 53; */
         if (message.stiffness !== undefined)
-            writer.tag(44, WireType.Bit32).float(message.stiffness);
-        /* optional float damping = 45; */
+            writer.tag(53, WireType.Bit32).float(message.stiffness);
+        /* optional float damping = 54; */
         if (message.damping !== undefined)
-            writer.tag(45, WireType.Bit32).float(message.damping);
-        /* optional float mass = 46; */
+            writer.tag(54, WireType.Bit32).float(message.damping);
+        /* optional float mass = 55; */
         if (message.mass !== undefined)
-            writer.tag(46, WireType.Bit32).float(message.mass);
-        /* optional float bounce = 47; */
+            writer.tag(55, WireType.Bit32).float(message.mass);
+        /* optional float bounce = 56; */
         if (message.bounce !== undefined)
-            writer.tag(47, WireType.Bit32).float(message.bounce);
-        /* optional symbol.bench.SpringType spring_type = 48; */
+            writer.tag(56, WireType.Bit32).float(message.bounce);
+        /* optional symbol.bench.SpringType spring_type = 57; */
         if (message.springType !== undefined)
-            writer.tag(48, WireType.Varint).int32(message.springType);
+            writer.tag(57, WireType.Varint).int32(message.springType);
         let u = options.writeUnknownFields;
         if (u !== false)
             (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
@@ -26335,7 +26436,8 @@ class ApplicationData$Type extends MessageType$<ApplicationData> {
             { no: 33, name: "order_key", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
             { no: 34, name: "icon", kind: "message", T: () => IconData },
             { no: 35, name: "definition_ptr", kind: "message", T: () => NodeReferenceData },
-            { no: 40, name: "root_scene_ptr", kind: "message", T: () => NodeReferenceData }
+            { no: 50, name: "main_scene_ptr", kind: "message", T: () => NodeReferenceData },
+            { no: 53, name: "error_scene_ptr", kind: "message", T: () => NodeReferenceData }
         ]);
     }
     create(value?: PartialMessage<ApplicationData>): ApplicationData {
@@ -26408,8 +26510,11 @@ class ApplicationData$Type extends MessageType$<ApplicationData> {
                 case /* optional symbol.bench.NodeReferenceData definition_ptr */ 35:
                     message.definitionPtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.definitionPtr);
                     break;
-                case /* optional symbol.bench.NodeReferenceData root_scene_ptr */ 40:
-                    message.rootScenePtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.rootScenePtr);
+                case /* optional symbol.bench.NodeReferenceData main_scene_ptr */ 50:
+                    message.mainScenePtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.mainScenePtr);
+                    break;
+                case /* optional symbol.bench.NodeReferenceData error_scene_ptr */ 53:
+                    message.errorScenePtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.errorScenePtr);
                     break;
                 default:
                     let u = options.readUnknownField;
@@ -26477,9 +26582,12 @@ class ApplicationData$Type extends MessageType$<ApplicationData> {
         /* optional symbol.bench.NodeReferenceData definition_ptr = 35; */
         if (message.definitionPtr)
             NodeReferenceData.internalBinaryWrite(message.definitionPtr, writer.tag(35, WireType.LengthDelimited).fork(), options).join();
-        /* optional symbol.bench.NodeReferenceData root_scene_ptr = 40; */
-        if (message.rootScenePtr)
-            NodeReferenceData.internalBinaryWrite(message.rootScenePtr, writer.tag(40, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbol.bench.NodeReferenceData main_scene_ptr = 50; */
+        if (message.mainScenePtr)
+            NodeReferenceData.internalBinaryWrite(message.mainScenePtr, writer.tag(50, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbol.bench.NodeReferenceData error_scene_ptr = 53; */
+        if (message.errorScenePtr)
+            NodeReferenceData.internalBinaryWrite(message.errorScenePtr, writer.tag(53, WireType.LengthDelimited).fork(), options).join();
         let u = options.writeUnknownFields;
         if (u !== false)
             (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
@@ -29702,11 +29810,12 @@ class ColorStyleData$Type extends MessageType$<ColorStyleData> {
             { no: 40, name: "hue", kind: "enum", opt: true, T: () => ["symbol.bench.ColorHue", ColorHue, "COLOR_HUE_"] },
             { no: 41, name: "shade", kind: "enum", opt: true, T: () => ["symbol.bench.ColorShade", ColorShade, "COLOR_SHADE_"] },
             { no: 42, name: "style_ptr", kind: "message", T: () => NodeReferenceData },
-            { no: 43, name: "x", kind: "scalar", opt: true, T: 2 /*ScalarType.FLOAT*/ },
-            { no: 44, name: "y", kind: "scalar", opt: true, T: 2 /*ScalarType.FLOAT*/ },
-            { no: 45, name: "z", kind: "scalar", opt: true, T: 2 /*ScalarType.FLOAT*/ },
-            { no: 46, name: "alpha", kind: "scalar", opt: true, T: 2 /*ScalarType.FLOAT*/ },
-            { no: 50, name: "dark", kind: "message", T: () => ColorData }
+            { no: 43, name: "field_ptr", kind: "message", T: () => NodeReferenceData },
+            { no: 50, name: "x", kind: "scalar", opt: true, T: 2 /*ScalarType.FLOAT*/ },
+            { no: 51, name: "y", kind: "scalar", opt: true, T: 2 /*ScalarType.FLOAT*/ },
+            { no: 52, name: "z", kind: "scalar", opt: true, T: 2 /*ScalarType.FLOAT*/ },
+            { no: 53, name: "alpha", kind: "scalar", opt: true, T: 2 /*ScalarType.FLOAT*/ },
+            { no: 60, name: "dark", kind: "message", T: () => ColorData }
         ]);
     }
     create(value?: PartialMessage<ColorStyleData>): ColorStyleData {
@@ -29788,19 +29897,22 @@ class ColorStyleData$Type extends MessageType$<ColorStyleData> {
                 case /* optional symbol.bench.NodeReferenceData style_ptr */ 42:
                     message.stylePtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.stylePtr);
                     break;
-                case /* optional float x */ 43:
+                case /* optional symbol.bench.NodeReferenceData field_ptr */ 43:
+                    message.fieldPtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.fieldPtr);
+                    break;
+                case /* optional float x */ 50:
                     message.x = reader.float();
                     break;
-                case /* optional float y */ 44:
+                case /* optional float y */ 51:
                     message.y = reader.float();
                     break;
-                case /* optional float z */ 45:
+                case /* optional float z */ 52:
                     message.z = reader.float();
                     break;
-                case /* optional float alpha */ 46:
+                case /* optional float alpha */ 53:
                     message.alpha = reader.float();
                     break;
-                case /* optional symbol.bench.ColorData dark */ 50:
+                case /* optional symbol.bench.ColorData dark */ 60:
                     message.dark = ColorData.internalBinaryRead(reader, reader.uint32(), options, message.dark);
                     break;
                 default:
@@ -29878,21 +29990,24 @@ class ColorStyleData$Type extends MessageType$<ColorStyleData> {
         /* optional symbol.bench.NodeReferenceData style_ptr = 42; */
         if (message.stylePtr)
             NodeReferenceData.internalBinaryWrite(message.stylePtr, writer.tag(42, WireType.LengthDelimited).fork(), options).join();
-        /* optional float x = 43; */
+        /* optional symbol.bench.NodeReferenceData field_ptr = 43; */
+        if (message.fieldPtr)
+            NodeReferenceData.internalBinaryWrite(message.fieldPtr, writer.tag(43, WireType.LengthDelimited).fork(), options).join();
+        /* optional float x = 50; */
         if (message.x !== undefined)
-            writer.tag(43, WireType.Bit32).float(message.x);
-        /* optional float y = 44; */
+            writer.tag(50, WireType.Bit32).float(message.x);
+        /* optional float y = 51; */
         if (message.y !== undefined)
-            writer.tag(44, WireType.Bit32).float(message.y);
-        /* optional float z = 45; */
+            writer.tag(51, WireType.Bit32).float(message.y);
+        /* optional float z = 52; */
         if (message.z !== undefined)
-            writer.tag(45, WireType.Bit32).float(message.z);
-        /* optional float alpha = 46; */
+            writer.tag(52, WireType.Bit32).float(message.z);
+        /* optional float alpha = 53; */
         if (message.alpha !== undefined)
-            writer.tag(46, WireType.Bit32).float(message.alpha);
-        /* optional symbol.bench.ColorData dark = 50; */
+            writer.tag(53, WireType.Bit32).float(message.alpha);
+        /* optional symbol.bench.ColorData dark = 60; */
         if (message.dark)
-            ColorData.internalBinaryWrite(message.dark, writer.tag(50, WireType.LengthDelimited).fork(), options).join();
+            ColorData.internalBinaryWrite(message.dark, writer.tag(60, WireType.LengthDelimited).fork(), options).join();
         let u = options.writeUnknownFields;
         if (u !== false)
             (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
@@ -29926,8 +30041,9 @@ class BorderStyleData$Type extends MessageType$<BorderStyleData> {
             { no: 34, name: "icon", kind: "message", T: () => IconData },
             { no: 35, name: "definition_ptr", kind: "message", T: () => NodeReferenceData },
             { no: 40, name: "style_ptr", kind: "message", T: () => NodeReferenceData },
-            { no: 42, name: "color", kind: "message", T: () => ColorData },
-            { no: 43, name: "width", kind: "message", T: () => InsetsData }
+            { no: 41, name: "field_ptr", kind: "message", T: () => NodeReferenceData },
+            { no: 50, name: "color", kind: "message", T: () => ColorData },
+            { no: 51, name: "width", kind: "message", T: () => InsetsData }
         ]);
     }
     create(value?: PartialMessage<BorderStyleData>): BorderStyleData {
@@ -30003,10 +30119,13 @@ class BorderStyleData$Type extends MessageType$<BorderStyleData> {
                 case /* optional symbol.bench.NodeReferenceData style_ptr */ 40:
                     message.stylePtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.stylePtr);
                     break;
-                case /* optional symbol.bench.ColorData color */ 42:
+                case /* optional symbol.bench.NodeReferenceData field_ptr */ 41:
+                    message.fieldPtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.fieldPtr);
+                    break;
+                case /* optional symbol.bench.ColorData color */ 50:
                     message.color = ColorData.internalBinaryRead(reader, reader.uint32(), options, message.color);
                     break;
-                case /* optional symbol.bench.InsetsData width */ 43:
+                case /* optional symbol.bench.InsetsData width */ 51:
                     message.width = InsetsData.internalBinaryRead(reader, reader.uint32(), options, message.width);
                     break;
                 default:
@@ -30078,12 +30197,15 @@ class BorderStyleData$Type extends MessageType$<BorderStyleData> {
         /* optional symbol.bench.NodeReferenceData style_ptr = 40; */
         if (message.stylePtr)
             NodeReferenceData.internalBinaryWrite(message.stylePtr, writer.tag(40, WireType.LengthDelimited).fork(), options).join();
-        /* optional symbol.bench.ColorData color = 42; */
+        /* optional symbol.bench.NodeReferenceData field_ptr = 41; */
+        if (message.fieldPtr)
+            NodeReferenceData.internalBinaryWrite(message.fieldPtr, writer.tag(41, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbol.bench.ColorData color = 50; */
         if (message.color)
-            ColorData.internalBinaryWrite(message.color, writer.tag(42, WireType.LengthDelimited).fork(), options).join();
-        /* optional symbol.bench.InsetsData width = 43; */
+            ColorData.internalBinaryWrite(message.color, writer.tag(50, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbol.bench.InsetsData width = 51; */
         if (message.width)
-            InsetsData.internalBinaryWrite(message.width, writer.tag(43, WireType.LengthDelimited).fork(), options).join();
+            InsetsData.internalBinaryWrite(message.width, writer.tag(51, WireType.LengthDelimited).fork(), options).join();
         let u = options.writeUnknownFields;
         if (u !== false)
             (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
@@ -30116,15 +30238,17 @@ class EffectStyleData$Type extends MessageType$<EffectStyleData> {
             { no: 33, name: "order_key", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
             { no: 34, name: "icon", kind: "message", T: () => IconData },
             { no: 35, name: "definition_ptr", kind: "message", T: () => NodeReferenceData },
-            { no: 40, name: "opacity", kind: "scalar", opt: true, T: 2 /*ScalarType.FLOAT*/ },
-            { no: 41, name: "offset", kind: "message", T: () => Axis2Data },
-            { no: 43, name: "scale", kind: "scalar", opt: true, T: 2 /*ScalarType.FLOAT*/ },
-            { no: 44, name: "rotate", kind: "message", T: () => Axis3Data },
-            { no: 45, name: "skew", kind: "message", T: () => Axis2Data },
-            { no: 50, name: "perspective", kind: "scalar", opt: true, T: 2 /*ScalarType.FLOAT*/ },
-            { no: 51, name: "delay", kind: "scalar", opt: true, T: 2 /*ScalarType.FLOAT*/ },
-            { no: 52, name: "duration", kind: "scalar", opt: true, T: 2 /*ScalarType.FLOAT*/ },
-            { no: 53, name: "threshold", kind: "scalar", opt: true, T: 2 /*ScalarType.FLOAT*/ }
+            { no: 40, name: "style_ptr", kind: "message", T: () => NodeReferenceData },
+            { no: 41, name: "field_ptr", kind: "message", T: () => NodeReferenceData },
+            { no: 50, name: "opacity", kind: "scalar", opt: true, T: 2 /*ScalarType.FLOAT*/ },
+            { no: 51, name: "offset", kind: "message", T: () => Axis2Data },
+            { no: 52, name: "scale", kind: "scalar", opt: true, T: 2 /*ScalarType.FLOAT*/ },
+            { no: 53, name: "rotate", kind: "message", T: () => Axis3Data },
+            { no: 54, name: "skew", kind: "message", T: () => Axis2Data },
+            { no: 55, name: "perspective", kind: "scalar", opt: true, T: 2 /*ScalarType.FLOAT*/ },
+            { no: 56, name: "delay", kind: "scalar", opt: true, T: 2 /*ScalarType.FLOAT*/ },
+            { no: 57, name: "duration", kind: "scalar", opt: true, T: 2 /*ScalarType.FLOAT*/ },
+            { no: 58, name: "threshold", kind: "scalar", opt: true, T: 2 /*ScalarType.FLOAT*/ }
         ]);
     }
     create(value?: PartialMessage<EffectStyleData>): EffectStyleData {
@@ -30197,31 +30321,37 @@ class EffectStyleData$Type extends MessageType$<EffectStyleData> {
                 case /* optional symbol.bench.NodeReferenceData definition_ptr */ 35:
                     message.definitionPtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.definitionPtr);
                     break;
-                case /* optional float opacity */ 40:
+                case /* optional symbol.bench.NodeReferenceData style_ptr */ 40:
+                    message.stylePtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.stylePtr);
+                    break;
+                case /* optional symbol.bench.NodeReferenceData field_ptr */ 41:
+                    message.fieldPtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.fieldPtr);
+                    break;
+                case /* optional float opacity */ 50:
                     message.opacity = reader.float();
                     break;
-                case /* optional symbol.bench.Axis2Data offset */ 41:
+                case /* optional symbol.bench.Axis2Data offset */ 51:
                     message.offset = Axis2Data.internalBinaryRead(reader, reader.uint32(), options, message.offset);
                     break;
-                case /* optional float scale */ 43:
+                case /* optional float scale */ 52:
                     message.scale = reader.float();
                     break;
-                case /* optional symbol.bench.Axis3Data rotate */ 44:
+                case /* optional symbol.bench.Axis3Data rotate */ 53:
                     message.rotate = Axis3Data.internalBinaryRead(reader, reader.uint32(), options, message.rotate);
                     break;
-                case /* optional symbol.bench.Axis2Data skew */ 45:
+                case /* optional symbol.bench.Axis2Data skew */ 54:
                     message.skew = Axis2Data.internalBinaryRead(reader, reader.uint32(), options, message.skew);
                     break;
-                case /* optional float perspective */ 50:
+                case /* optional float perspective */ 55:
                     message.perspective = reader.float();
                     break;
-                case /* optional float delay */ 51:
+                case /* optional float delay */ 56:
                     message.delay = reader.float();
                     break;
-                case /* optional float duration */ 52:
+                case /* optional float duration */ 57:
                     message.duration = reader.float();
                     break;
-                case /* optional float threshold */ 53:
+                case /* optional float threshold */ 58:
                     message.threshold = reader.float();
                     break;
                 default:
@@ -30290,33 +30420,39 @@ class EffectStyleData$Type extends MessageType$<EffectStyleData> {
         /* optional symbol.bench.NodeReferenceData definition_ptr = 35; */
         if (message.definitionPtr)
             NodeReferenceData.internalBinaryWrite(message.definitionPtr, writer.tag(35, WireType.LengthDelimited).fork(), options).join();
-        /* optional float opacity = 40; */
+        /* optional symbol.bench.NodeReferenceData style_ptr = 40; */
+        if (message.stylePtr)
+            NodeReferenceData.internalBinaryWrite(message.stylePtr, writer.tag(40, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbol.bench.NodeReferenceData field_ptr = 41; */
+        if (message.fieldPtr)
+            NodeReferenceData.internalBinaryWrite(message.fieldPtr, writer.tag(41, WireType.LengthDelimited).fork(), options).join();
+        /* optional float opacity = 50; */
         if (message.opacity !== undefined)
-            writer.tag(40, WireType.Bit32).float(message.opacity);
-        /* optional symbol.bench.Axis2Data offset = 41; */
+            writer.tag(50, WireType.Bit32).float(message.opacity);
+        /* optional symbol.bench.Axis2Data offset = 51; */
         if (message.offset)
-            Axis2Data.internalBinaryWrite(message.offset, writer.tag(41, WireType.LengthDelimited).fork(), options).join();
-        /* optional float scale = 43; */
+            Axis2Data.internalBinaryWrite(message.offset, writer.tag(51, WireType.LengthDelimited).fork(), options).join();
+        /* optional float scale = 52; */
         if (message.scale !== undefined)
-            writer.tag(43, WireType.Bit32).float(message.scale);
-        /* optional symbol.bench.Axis3Data rotate = 44; */
+            writer.tag(52, WireType.Bit32).float(message.scale);
+        /* optional symbol.bench.Axis3Data rotate = 53; */
         if (message.rotate)
-            Axis3Data.internalBinaryWrite(message.rotate, writer.tag(44, WireType.LengthDelimited).fork(), options).join();
-        /* optional symbol.bench.Axis2Data skew = 45; */
+            Axis3Data.internalBinaryWrite(message.rotate, writer.tag(53, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbol.bench.Axis2Data skew = 54; */
         if (message.skew)
-            Axis2Data.internalBinaryWrite(message.skew, writer.tag(45, WireType.LengthDelimited).fork(), options).join();
-        /* optional float perspective = 50; */
+            Axis2Data.internalBinaryWrite(message.skew, writer.tag(54, WireType.LengthDelimited).fork(), options).join();
+        /* optional float perspective = 55; */
         if (message.perspective !== undefined)
-            writer.tag(50, WireType.Bit32).float(message.perspective);
-        /* optional float delay = 51; */
+            writer.tag(55, WireType.Bit32).float(message.perspective);
+        /* optional float delay = 56; */
         if (message.delay !== undefined)
-            writer.tag(51, WireType.Bit32).float(message.delay);
-        /* optional float duration = 52; */
+            writer.tag(56, WireType.Bit32).float(message.delay);
+        /* optional float duration = 57; */
         if (message.duration !== undefined)
-            writer.tag(52, WireType.Bit32).float(message.duration);
-        /* optional float threshold = 53; */
+            writer.tag(57, WireType.Bit32).float(message.duration);
+        /* optional float threshold = 58; */
         if (message.threshold !== undefined)
-            writer.tag(53, WireType.Bit32).float(message.threshold);
+            writer.tag(58, WireType.Bit32).float(message.threshold);
         let u = options.writeUnknownFields;
         if (u !== false)
             (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
@@ -30543,21 +30679,21 @@ class FontStyleData$Type extends MessageType$<FontStyleData> {
             { no: 15, name: "deleted_at", kind: "message", T: () => Timestamp },
             { no: 16, name: "template_ptr", kind: "message", T: () => NodeReferenceData },
             { no: 25, name: "mode", kind: "enum", T: () => ["symbol.bench.NodeMode", NodeMode, "NODE_MODE_"] },
-            { no: 30, name: "type", kind: "enum", T: () => ["symbol.bench.TextType", TextType, "TEXT_TYPE_"] },
+            { no: 30, name: "type", kind: "enum", T: () => ["symbol.bench.FontType", FontType, "FONT_TYPE_"] },
             { no: 31, name: "name", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
             { no: 33, name: "order_key", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
             { no: 34, name: "icon", kind: "message", T: () => IconData },
             { no: 35, name: "definition_ptr", kind: "message", T: () => NodeReferenceData },
             { no: 40, name: "style_ptr", kind: "message", T: () => NodeReferenceData },
-            { no: 41, name: "weight", kind: "enum", opt: true, T: () => ["symbol.bench.FontWeight", FontWeight, "FONT_WEIGHT_"] },
-            { no: 45, name: "color", kind: "message", T: () => ColorData },
-            { no: 46, name: "font_type", kind: "enum", opt: true, T: () => ["symbol.bench.FontType", FontType, "FONT_TYPE_"] },
-            { no: 47, name: "font_size", kind: "enum", opt: true, T: () => ["symbol.bench.FontSize", FontSize, "FONT_SIZE_"] },
-            { no: 48, name: "align", kind: "enum", opt: true, T: () => ["symbol.bench.TextAlign", TextAlign, "TEXT_ALIGN_"] },
-            { no: 49, name: "line_height", kind: "message", T: () => LengthData },
-            { no: 50, name: "letter_spacing", kind: "message", T: () => LengthData },
-            { no: 51, name: "decoration", kind: "enum", opt: true, T: () => ["symbol.bench.TextDecoration", TextDecoration, "TEXT_DECORATION_"] },
-            { no: 52, name: "transform", kind: "enum", opt: true, T: () => ["symbol.bench.TextTransform", TextTransform, "TEXT_TRANSFORM_"] }
+            { no: 41, name: "field_ptr", kind: "message", T: () => NodeReferenceData },
+            { no: 50, name: "weight", kind: "enum", opt: true, T: () => ["symbol.bench.FontWeight", FontWeight, "FONT_WEIGHT_"] },
+            { no: 51, name: "color", kind: "message", T: () => FillData },
+            { no: 52, name: "size", kind: "enum", opt: true, T: () => ["symbol.bench.FontSize", FontSize, "FONT_SIZE_"] },
+            { no: 53, name: "align", kind: "enum", opt: true, T: () => ["symbol.bench.TextAlign", TextAlign, "TEXT_ALIGN_"] },
+            { no: 54, name: "line_height", kind: "message", T: () => LengthData },
+            { no: 55, name: "letter_spacing", kind: "message", T: () => LengthData },
+            { no: 56, name: "decoration", kind: "enum", opt: true, T: () => ["symbol.bench.TextDecoration", TextDecoration, "TEXT_DECORATION_"] },
+            { no: 57, name: "transform", kind: "enum", opt: true, T: () => ["symbol.bench.TextTransform", TextTransform, "TEXT_TRANSFORM_"] }
         ]);
     }
     create(value?: PartialMessage<FontStyleData>): FontStyleData {
@@ -30615,7 +30751,7 @@ class FontStyleData$Type extends MessageType$<FontStyleData> {
                 case /* symbol.bench.NodeMode mode */ 25:
                     message.mode = reader.int32();
                     break;
-                case /* symbol.bench.TextType type */ 30:
+                case /* symbol.bench.FontType type */ 30:
                     message.type = reader.int32();
                     break;
                 case /* optional string name */ 31:
@@ -30633,31 +30769,31 @@ class FontStyleData$Type extends MessageType$<FontStyleData> {
                 case /* optional symbol.bench.NodeReferenceData style_ptr */ 40:
                     message.stylePtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.stylePtr);
                     break;
-                case /* optional symbol.bench.FontWeight weight */ 41:
+                case /* optional symbol.bench.NodeReferenceData field_ptr */ 41:
+                    message.fieldPtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.fieldPtr);
+                    break;
+                case /* optional symbol.bench.FontWeight weight */ 50:
                     message.weight = reader.int32();
                     break;
-                case /* optional symbol.bench.ColorData color */ 45:
-                    message.color = ColorData.internalBinaryRead(reader, reader.uint32(), options, message.color);
+                case /* optional symbol.bench.FillData color */ 51:
+                    message.color = FillData.internalBinaryRead(reader, reader.uint32(), options, message.color);
                     break;
-                case /* optional symbol.bench.FontType font_type */ 46:
-                    message.fontType = reader.int32();
+                case /* optional symbol.bench.FontSize size */ 52:
+                    message.size = reader.int32();
                     break;
-                case /* optional symbol.bench.FontSize font_size */ 47:
-                    message.fontSize = reader.int32();
-                    break;
-                case /* optional symbol.bench.TextAlign align */ 48:
+                case /* optional symbol.bench.TextAlign align */ 53:
                     message.align = reader.int32();
                     break;
-                case /* optional symbol.bench.LengthData line_height */ 49:
+                case /* optional symbol.bench.LengthData line_height */ 54:
                     message.lineHeight = LengthData.internalBinaryRead(reader, reader.uint32(), options, message.lineHeight);
                     break;
-                case /* optional symbol.bench.LengthData letter_spacing */ 50:
+                case /* optional symbol.bench.LengthData letter_spacing */ 55:
                     message.letterSpacing = LengthData.internalBinaryRead(reader, reader.uint32(), options, message.letterSpacing);
                     break;
-                case /* optional symbol.bench.TextDecoration decoration */ 51:
+                case /* optional symbol.bench.TextDecoration decoration */ 56:
                     message.decoration = reader.int32();
                     break;
-                case /* optional symbol.bench.TextTransform transform */ 52:
+                case /* optional symbol.bench.TextTransform transform */ 57:
                     message.transform = reader.int32();
                     break;
                 default:
@@ -30711,7 +30847,7 @@ class FontStyleData$Type extends MessageType$<FontStyleData> {
         /* symbol.bench.NodeMode mode = 25; */
         if (message.mode !== 0)
             writer.tag(25, WireType.Varint).int32(message.mode);
-        /* symbol.bench.TextType type = 30; */
+        /* symbol.bench.FontType type = 30; */
         if (message.type !== 0)
             writer.tag(30, WireType.Varint).int32(message.type);
         /* optional string name = 31; */
@@ -30729,33 +30865,33 @@ class FontStyleData$Type extends MessageType$<FontStyleData> {
         /* optional symbol.bench.NodeReferenceData style_ptr = 40; */
         if (message.stylePtr)
             NodeReferenceData.internalBinaryWrite(message.stylePtr, writer.tag(40, WireType.LengthDelimited).fork(), options).join();
-        /* optional symbol.bench.FontWeight weight = 41; */
+        /* optional symbol.bench.NodeReferenceData field_ptr = 41; */
+        if (message.fieldPtr)
+            NodeReferenceData.internalBinaryWrite(message.fieldPtr, writer.tag(41, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbol.bench.FontWeight weight = 50; */
         if (message.weight !== undefined)
-            writer.tag(41, WireType.Varint).int32(message.weight);
-        /* optional symbol.bench.ColorData color = 45; */
+            writer.tag(50, WireType.Varint).int32(message.weight);
+        /* optional symbol.bench.FillData color = 51; */
         if (message.color)
-            ColorData.internalBinaryWrite(message.color, writer.tag(45, WireType.LengthDelimited).fork(), options).join();
-        /* optional symbol.bench.FontType font_type = 46; */
-        if (message.fontType !== undefined)
-            writer.tag(46, WireType.Varint).int32(message.fontType);
-        /* optional symbol.bench.FontSize font_size = 47; */
-        if (message.fontSize !== undefined)
-            writer.tag(47, WireType.Varint).int32(message.fontSize);
-        /* optional symbol.bench.TextAlign align = 48; */
+            FillData.internalBinaryWrite(message.color, writer.tag(51, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbol.bench.FontSize size = 52; */
+        if (message.size !== undefined)
+            writer.tag(52, WireType.Varint).int32(message.size);
+        /* optional symbol.bench.TextAlign align = 53; */
         if (message.align !== undefined)
-            writer.tag(48, WireType.Varint).int32(message.align);
-        /* optional symbol.bench.LengthData line_height = 49; */
+            writer.tag(53, WireType.Varint).int32(message.align);
+        /* optional symbol.bench.LengthData line_height = 54; */
         if (message.lineHeight)
-            LengthData.internalBinaryWrite(message.lineHeight, writer.tag(49, WireType.LengthDelimited).fork(), options).join();
-        /* optional symbol.bench.LengthData letter_spacing = 50; */
+            LengthData.internalBinaryWrite(message.lineHeight, writer.tag(54, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbol.bench.LengthData letter_spacing = 55; */
         if (message.letterSpacing)
-            LengthData.internalBinaryWrite(message.letterSpacing, writer.tag(50, WireType.LengthDelimited).fork(), options).join();
-        /* optional symbol.bench.TextDecoration decoration = 51; */
+            LengthData.internalBinaryWrite(message.letterSpacing, writer.tag(55, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbol.bench.TextDecoration decoration = 56; */
         if (message.decoration !== undefined)
-            writer.tag(51, WireType.Varint).int32(message.decoration);
-        /* optional symbol.bench.TextTransform transform = 52; */
+            writer.tag(56, WireType.Varint).int32(message.decoration);
+        /* optional symbol.bench.TextTransform transform = 57; */
         if (message.transform !== undefined)
-            writer.tag(52, WireType.Varint).int32(message.transform);
+            writer.tag(57, WireType.Varint).int32(message.transform);
         let u = options.writeUnknownFields;
         if (u !== false)
             (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
@@ -30789,12 +30925,13 @@ class ShadowStyleData$Type extends MessageType$<ShadowStyleData> {
             { no: 34, name: "icon", kind: "message", T: () => IconData },
             { no: 35, name: "definition_ptr", kind: "message", T: () => NodeReferenceData },
             { no: 40, name: "style_ptr", kind: "message", T: () => NodeReferenceData },
-            { no: 41, name: "color", kind: "message", T: () => ColorData },
-            { no: 42, name: "position", kind: "enum", T: () => ["symbol.bench.ShadowPosition", ShadowPosition, "SHADOW_POSITION_"] },
-            { no: 43, name: "offset", kind: "message", T: () => Axis2Data },
-            { no: 45, name: "blur", kind: "scalar", opt: true, T: 5 /*ScalarType.INT32*/ },
-            { no: 46, name: "spread", kind: "scalar", opt: true, T: 5 /*ScalarType.INT32*/ },
-            { no: 47, name: "diffusion", kind: "scalar", opt: true, T: 2 /*ScalarType.FLOAT*/ }
+            { no: 41, name: "field_ptr", kind: "message", T: () => NodeReferenceData },
+            { no: 50, name: "color", kind: "message", T: () => ColorData },
+            { no: 51, name: "position", kind: "enum", T: () => ["symbol.bench.ShadowPosition", ShadowPosition, "SHADOW_POSITION_"] },
+            { no: 52, name: "offset", kind: "message", T: () => Axis2Data },
+            { no: 53, name: "blur", kind: "scalar", opt: true, T: 5 /*ScalarType.INT32*/ },
+            { no: 54, name: "spread", kind: "scalar", opt: true, T: 5 /*ScalarType.INT32*/ },
+            { no: 55, name: "diffusion", kind: "scalar", opt: true, T: 2 /*ScalarType.FLOAT*/ }
         ]);
     }
     create(value?: PartialMessage<ShadowStyleData>): ShadowStyleData {
@@ -30871,22 +31008,25 @@ class ShadowStyleData$Type extends MessageType$<ShadowStyleData> {
                 case /* optional symbol.bench.NodeReferenceData style_ptr */ 40:
                     message.stylePtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.stylePtr);
                     break;
-                case /* optional symbol.bench.ColorData color */ 41:
+                case /* optional symbol.bench.NodeReferenceData field_ptr */ 41:
+                    message.fieldPtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.fieldPtr);
+                    break;
+                case /* optional symbol.bench.ColorData color */ 50:
                     message.color = ColorData.internalBinaryRead(reader, reader.uint32(), options, message.color);
                     break;
-                case /* symbol.bench.ShadowPosition position */ 42:
+                case /* symbol.bench.ShadowPosition position */ 51:
                     message.position = reader.int32();
                     break;
-                case /* optional symbol.bench.Axis2Data offset */ 43:
+                case /* optional symbol.bench.Axis2Data offset */ 52:
                     message.offset = Axis2Data.internalBinaryRead(reader, reader.uint32(), options, message.offset);
                     break;
-                case /* optional int32 blur */ 45:
+                case /* optional int32 blur */ 53:
                     message.blur = reader.int32();
                     break;
-                case /* optional int32 spread */ 46:
+                case /* optional int32 spread */ 54:
                     message.spread = reader.int32();
                     break;
-                case /* optional float diffusion */ 47:
+                case /* optional float diffusion */ 55:
                     message.diffusion = reader.float();
                     break;
                 default:
@@ -30958,24 +31098,27 @@ class ShadowStyleData$Type extends MessageType$<ShadowStyleData> {
         /* optional symbol.bench.NodeReferenceData style_ptr = 40; */
         if (message.stylePtr)
             NodeReferenceData.internalBinaryWrite(message.stylePtr, writer.tag(40, WireType.LengthDelimited).fork(), options).join();
-        /* optional symbol.bench.ColorData color = 41; */
+        /* optional symbol.bench.NodeReferenceData field_ptr = 41; */
+        if (message.fieldPtr)
+            NodeReferenceData.internalBinaryWrite(message.fieldPtr, writer.tag(41, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbol.bench.ColorData color = 50; */
         if (message.color)
-            ColorData.internalBinaryWrite(message.color, writer.tag(41, WireType.LengthDelimited).fork(), options).join();
-        /* symbol.bench.ShadowPosition position = 42; */
+            ColorData.internalBinaryWrite(message.color, writer.tag(50, WireType.LengthDelimited).fork(), options).join();
+        /* symbol.bench.ShadowPosition position = 51; */
         if (message.position !== 0)
-            writer.tag(42, WireType.Varint).int32(message.position);
-        /* optional symbol.bench.Axis2Data offset = 43; */
+            writer.tag(51, WireType.Varint).int32(message.position);
+        /* optional symbol.bench.Axis2Data offset = 52; */
         if (message.offset)
-            Axis2Data.internalBinaryWrite(message.offset, writer.tag(43, WireType.LengthDelimited).fork(), options).join();
-        /* optional int32 blur = 45; */
+            Axis2Data.internalBinaryWrite(message.offset, writer.tag(52, WireType.LengthDelimited).fork(), options).join();
+        /* optional int32 blur = 53; */
         if (message.blur !== undefined)
-            writer.tag(45, WireType.Varint).int32(message.blur);
-        /* optional int32 spread = 46; */
+            writer.tag(53, WireType.Varint).int32(message.blur);
+        /* optional int32 spread = 54; */
         if (message.spread !== undefined)
-            writer.tag(46, WireType.Varint).int32(message.spread);
-        /* optional float diffusion = 47; */
+            writer.tag(54, WireType.Varint).int32(message.spread);
+        /* optional float diffusion = 55; */
         if (message.diffusion !== undefined)
-            writer.tag(47, WireType.Bit32).float(message.diffusion);
+            writer.tag(55, WireType.Bit32).float(message.diffusion);
         let u = options.writeUnknownFields;
         if (u !== false)
             (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
@@ -31198,14 +31341,15 @@ class TransitionStyleData$Type extends MessageType$<TransitionStyleData> {
             { no: 34, name: "icon", kind: "message", T: () => IconData },
             { no: 35, name: "definition_ptr", kind: "message", T: () => NodeReferenceData },
             { no: 40, name: "style_ptr", kind: "message", T: () => NodeReferenceData },
-            { no: 41, name: "delay", kind: "scalar", opt: true, T: 2 /*ScalarType.FLOAT*/ },
-            { no: 42, name: "duration", kind: "scalar", opt: true, T: 2 /*ScalarType.FLOAT*/ },
-            { no: 43, name: "ease", kind: "scalar", repeat: 1 /*RepeatType.PACKED*/, T: 2 /*ScalarType.FLOAT*/ },
-            { no: 44, name: "stiffness", kind: "scalar", opt: true, T: 2 /*ScalarType.FLOAT*/ },
-            { no: 45, name: "damping", kind: "scalar", opt: true, T: 2 /*ScalarType.FLOAT*/ },
-            { no: 46, name: "mass", kind: "scalar", opt: true, T: 2 /*ScalarType.FLOAT*/ },
-            { no: 47, name: "bounce", kind: "scalar", opt: true, T: 2 /*ScalarType.FLOAT*/ },
-            { no: 48, name: "spring_type", kind: "enum", opt: true, T: () => ["symbol.bench.SpringType", SpringType, "SPRING_TYPE_"] }
+            { no: 41, name: "field_ptr", kind: "message", T: () => NodeReferenceData },
+            { no: 50, name: "delay", kind: "scalar", opt: true, T: 2 /*ScalarType.FLOAT*/ },
+            { no: 51, name: "duration", kind: "scalar", opt: true, T: 2 /*ScalarType.FLOAT*/ },
+            { no: 52, name: "ease", kind: "scalar", repeat: 1 /*RepeatType.PACKED*/, T: 2 /*ScalarType.FLOAT*/ },
+            { no: 53, name: "stiffness", kind: "scalar", opt: true, T: 2 /*ScalarType.FLOAT*/ },
+            { no: 54, name: "damping", kind: "scalar", opt: true, T: 2 /*ScalarType.FLOAT*/ },
+            { no: 55, name: "mass", kind: "scalar", opt: true, T: 2 /*ScalarType.FLOAT*/ },
+            { no: 56, name: "bounce", kind: "scalar", opt: true, T: 2 /*ScalarType.FLOAT*/ },
+            { no: 57, name: "spring_type", kind: "enum", opt: true, T: () => ["symbol.bench.SpringType", SpringType, "SPRING_TYPE_"] }
         ]);
     }
     create(value?: PartialMessage<TransitionStyleData>): TransitionStyleData {
@@ -31282,32 +31426,35 @@ class TransitionStyleData$Type extends MessageType$<TransitionStyleData> {
                 case /* optional symbol.bench.NodeReferenceData style_ptr */ 40:
                     message.stylePtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.stylePtr);
                     break;
-                case /* optional float delay */ 41:
+                case /* optional symbol.bench.NodeReferenceData field_ptr */ 41:
+                    message.fieldPtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.fieldPtr);
+                    break;
+                case /* optional float delay */ 50:
                     message.delay = reader.float();
                     break;
-                case /* optional float duration */ 42:
+                case /* optional float duration */ 51:
                     message.duration = reader.float();
                     break;
-                case /* repeated float ease */ 43:
+                case /* repeated float ease */ 52:
                     if (wireType === WireType.LengthDelimited)
                         for (let e = reader.int32() + reader.pos; reader.pos < e;)
                             message.ease.push(reader.float());
                     else
                         message.ease.push(reader.float());
                     break;
-                case /* optional float stiffness */ 44:
+                case /* optional float stiffness */ 53:
                     message.stiffness = reader.float();
                     break;
-                case /* optional float damping */ 45:
+                case /* optional float damping */ 54:
                     message.damping = reader.float();
                     break;
-                case /* optional float mass */ 46:
+                case /* optional float mass */ 55:
                     message.mass = reader.float();
                     break;
-                case /* optional float bounce */ 47:
+                case /* optional float bounce */ 56:
                     message.bounce = reader.float();
                     break;
-                case /* optional symbol.bench.SpringType spring_type */ 48:
+                case /* optional symbol.bench.SpringType spring_type */ 57:
                     message.springType = reader.int32();
                     break;
                 default:
@@ -31379,34 +31526,37 @@ class TransitionStyleData$Type extends MessageType$<TransitionStyleData> {
         /* optional symbol.bench.NodeReferenceData style_ptr = 40; */
         if (message.stylePtr)
             NodeReferenceData.internalBinaryWrite(message.stylePtr, writer.tag(40, WireType.LengthDelimited).fork(), options).join();
-        /* optional float delay = 41; */
+        /* optional symbol.bench.NodeReferenceData field_ptr = 41; */
+        if (message.fieldPtr)
+            NodeReferenceData.internalBinaryWrite(message.fieldPtr, writer.tag(41, WireType.LengthDelimited).fork(), options).join();
+        /* optional float delay = 50; */
         if (message.delay !== undefined)
-            writer.tag(41, WireType.Bit32).float(message.delay);
-        /* optional float duration = 42; */
+            writer.tag(50, WireType.Bit32).float(message.delay);
+        /* optional float duration = 51; */
         if (message.duration !== undefined)
-            writer.tag(42, WireType.Bit32).float(message.duration);
-        /* repeated float ease = 43; */
+            writer.tag(51, WireType.Bit32).float(message.duration);
+        /* repeated float ease = 52; */
         if (message.ease.length) {
-            writer.tag(43, WireType.LengthDelimited).fork();
+            writer.tag(52, WireType.LengthDelimited).fork();
             for (let i = 0; i < message.ease.length; i++)
                 writer.float(message.ease[i]);
             writer.join();
         }
-        /* optional float stiffness = 44; */
+        /* optional float stiffness = 53; */
         if (message.stiffness !== undefined)
-            writer.tag(44, WireType.Bit32).float(message.stiffness);
-        /* optional float damping = 45; */
+            writer.tag(53, WireType.Bit32).float(message.stiffness);
+        /* optional float damping = 54; */
         if (message.damping !== undefined)
-            writer.tag(45, WireType.Bit32).float(message.damping);
-        /* optional float mass = 46; */
+            writer.tag(54, WireType.Bit32).float(message.damping);
+        /* optional float mass = 55; */
         if (message.mass !== undefined)
-            writer.tag(46, WireType.Bit32).float(message.mass);
-        /* optional float bounce = 47; */
+            writer.tag(55, WireType.Bit32).float(message.mass);
+        /* optional float bounce = 56; */
         if (message.bounce !== undefined)
-            writer.tag(47, WireType.Bit32).float(message.bounce);
-        /* optional symbol.bench.SpringType spring_type = 48; */
+            writer.tag(56, WireType.Bit32).float(message.bounce);
+        /* optional symbol.bench.SpringType spring_type = 57; */
         if (message.springType !== undefined)
-            writer.tag(48, WireType.Varint).int32(message.springType);
+            writer.tag(57, WireType.Varint).int32(message.springType);
         let u = options.writeUnknownFields;
         if (u !== false)
             (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
@@ -36480,10 +36630,9 @@ export const ENUM_BY_TYPE: Record<EnumType, Record<number | string, number | str
   [EnumType.COLOR_TYPE]: ColorType,
   [EnumType.COLOR_SHADE]: ColorShade,
   [EnumType.COLOR_HUE]: ColorHue,
-  [EnumType.FONT_TYPE]: FontType,
   [EnumType.FONT_WEIGHT]: FontWeight,
   [EnumType.FONT_SIZE]: FontSize,
-  [EnumType.TEXT_TYPE]: TextType,
+  [EnumType.FONT_TYPE]: FontType,
   [EnumType.TEXT_ALIGN]: TextAlign,
   [EnumType.TEXT_DECORATION]: TextDecoration,
   [EnumType.TEXT_TRANSFORM]: TextTransform,
@@ -36836,10 +36985,9 @@ export interface EnumTypeMapping extends Record<EnumType, any> {
   [EnumType.COLOR_TYPE]: ColorType,
   [EnumType.COLOR_SHADE]: ColorShade,
   [EnumType.COLOR_HUE]: ColorHue,
-  [EnumType.FONT_TYPE]: FontType,
   [EnumType.FONT_WEIGHT]: FontWeight,
   [EnumType.FONT_SIZE]: FontSize,
-  [EnumType.TEXT_TYPE]: TextType,
+  [EnumType.FONT_TYPE]: FontType,
   [EnumType.TEXT_ALIGN]: TextAlign,
   [EnumType.TEXT_DECORATION]: TextDecoration,
   [EnumType.TEXT_TRANSFORM]: TextTransform,
@@ -37078,7 +37226,8 @@ export enum ApplicationProperty {
   orderKey = 33,
   icon = 34,
   definitionPtr = 35,
-  rootScenePtr = 40,
+  mainScenePtr = 50,
+  errorScenePtr = 53,
 }
 
 export enum DatabaseProperty {
@@ -38511,11 +38660,12 @@ export enum ColorStyleProperty {
   hue = 40,
   shade = 41,
   stylePtr = 42,
-  x = 43,
-  y = 44,
-  z = 45,
-  alpha = 46,
-  dark = 50,
+  fieldPtr = 43,
+  x = 50,
+  y = 51,
+  z = 52,
+  alpha = 53,
+  dark = 60,
 }
 
 export enum FontStyleProperty {
@@ -38538,15 +38688,15 @@ export enum FontStyleProperty {
   icon = 34,
   definitionPtr = 35,
   stylePtr = 40,
-  weight = 41,
-  color = 45,
-  fontType = 46,
-  fontSize = 47,
-  align = 48,
-  lineHeight = 49,
-  letterSpacing = 50,
-  decoration = 51,
-  transform = 52,
+  fieldPtr = 41,
+  weight = 50,
+  color = 51,
+  size = 52,
+  align = 53,
+  lineHeight = 54,
+  letterSpacing = 55,
+  decoration = 56,
+  transform = 57,
 }
 
 export enum BorderStyleProperty {
@@ -38569,8 +38719,9 @@ export enum BorderStyleProperty {
   icon = 34,
   definitionPtr = 35,
   stylePtr = 40,
-  color = 42,
-  width = 43,
+  fieldPtr = 41,
+  color = 50,
+  width = 51,
 }
 
 export enum ShadowStyleProperty {
@@ -38593,12 +38744,13 @@ export enum ShadowStyleProperty {
   icon = 34,
   definitionPtr = 35,
   stylePtr = 40,
-  color = 41,
-  position = 42,
-  offset = 43,
-  blur = 45,
-  spread = 46,
-  diffusion = 47,
+  fieldPtr = 41,
+  color = 50,
+  position = 51,
+  offset = 52,
+  blur = 53,
+  spread = 54,
+  diffusion = 55,
 }
 
 export enum GradientStyleProperty {
@@ -38646,14 +38798,15 @@ export enum TransitionStyleProperty {
   icon = 34,
   definitionPtr = 35,
   stylePtr = 40,
-  delay = 41,
-  duration = 42,
-  ease = 43,
-  stiffness = 44,
-  damping = 45,
-  mass = 46,
-  bounce = 47,
-  springType = 48,
+  fieldPtr = 41,
+  delay = 50,
+  duration = 51,
+  ease = 52,
+  stiffness = 53,
+  damping = 54,
+  mass = 55,
+  bounce = 56,
+  springType = 57,
 }
 
 export enum EffectStyleProperty {
@@ -38675,15 +38828,17 @@ export enum EffectStyleProperty {
   orderKey = 33,
   icon = 34,
   definitionPtr = 35,
-  opacity = 40,
-  offset = 41,
-  scale = 43,
-  rotate = 44,
-  skew = 45,
-  perspective = 50,
-  delay = 51,
-  duration = 52,
-  threshold = 53,
+  stylePtr = 40,
+  fieldPtr = 41,
+  opacity = 50,
+  offset = 51,
+  scale = 52,
+  rotate = 53,
+  skew = 54,
+  perspective = 55,
+  delay = 56,
+  duration = 57,
+  threshold = 58,
 }
 
 export enum EmptyProperty {
@@ -39050,45 +39205,48 @@ export enum ColorProperty {
   hue = 40,
   shade = 41,
   stylePtr = 42,
-  x = 43,
-  y = 44,
-  z = 45,
-  alpha = 46,
+  fieldPtr = 43,
+  x = 50,
+  y = 51,
+  z = 52,
+  alpha = 53,
 }
 
 export enum ShadowProperty {
   metatype = 1,
   type = 30,
   stylePtr = 40,
-  color = 41,
-  position = 42,
-  offset = 43,
-  blur = 45,
-  spread = 46,
-  diffusion = 47,
+  fieldPtr = 41,
+  color = 50,
+  position = 51,
+  offset = 52,
+  blur = 53,
+  spread = 54,
+  diffusion = 55,
 }
 
 export enum BorderProperty {
   metatype = 1,
   type = 30,
   stylePtr = 40,
-  color = 42,
-  width = 43,
+  fieldPtr = 41,
+  color = 50,
+  width = 51,
 }
 
 export enum FontProperty {
   metatype = 1,
   type = 30,
   stylePtr = 40,
-  weight = 41,
-  color = 45,
-  fontType = 46,
-  fontSize = 47,
-  align = 48,
-  lineHeight = 49,
-  letterSpacing = 50,
-  decoration = 51,
-  transform = 52,
+  fieldPtr = 41,
+  weight = 50,
+  color = 51,
+  size = 52,
+  align = 53,
+  lineHeight = 54,
+  letterSpacing = 55,
+  decoration = 56,
+  transform = 57,
 }
 
 export enum Vector2Property {
@@ -39154,6 +39312,7 @@ export enum PositionProperty {
 export enum DimensionProperty {
   metatype = 1,
   type = 30,
+  unit = 31,
   value = 40,
 }
 
@@ -39161,28 +39320,31 @@ export enum TransitionProperty {
   metatype = 1,
   type = 30,
   stylePtr = 40,
-  delay = 41,
-  duration = 42,
-  ease = 43,
-  stiffness = 44,
-  damping = 45,
-  mass = 46,
-  bounce = 47,
-  springType = 48,
+  fieldPtr = 41,
+  delay = 50,
+  duration = 51,
+  ease = 52,
+  stiffness = 53,
+  damping = 54,
+  mass = 55,
+  bounce = 56,
+  springType = 57,
 }
 
 export enum EffectProperty {
   metatype = 1,
   type = 30,
-  opacity = 40,
-  offset = 41,
-  scale = 43,
-  rotate = 44,
-  skew = 45,
-  perspective = 50,
-  delay = 51,
-  duration = 52,
-  threshold = 53,
+  stylePtr = 40,
+  fieldPtr = 41,
+  opacity = 50,
+  offset = 51,
+  scale = 52,
+  rotate = 53,
+  skew = 54,
+  perspective = 55,
+  delay = 56,
+  duration = 57,
+  threshold = 58,
 }
 
 export enum GridProperty {
@@ -39730,7 +39892,8 @@ export const ApplicationDataInfo: Record<ApplicationProperty, PropertyInfo> = {
   [ApplicationProperty.orderKey]: { id: 33, name: 'order_key', component: ObjectType.APPLICATION, kind: 'primitive', primitiveType: PrimitiveType.STRING, default: "a0", isRequired: true, isInternal: true, isRuntime: true, isWired: true, isStored: true },
   [ApplicationProperty.icon]: { id: 34, name: 'icon', component: ObjectType.APPLICATION, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.ICON },
   [ApplicationProperty.definitionPtr]: { id: 35, name: 'definition_ptr', component: ObjectType.APPLICATION, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.BLOCK], referenceStruct: StructType.NODE_REFERENCE },
-  [ApplicationProperty.rootScenePtr]: { id: 40, name: 'root_scene_ptr', component: ObjectType.APPLICATION, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.SCENE], referenceStruct: StructType.NODE_REFERENCE },
+  [ApplicationProperty.mainScenePtr]: { id: 50, name: 'main_scene_ptr', component: ObjectType.APPLICATION, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.SCENE], referenceStruct: StructType.NODE_REFERENCE },
+  [ApplicationProperty.errorScenePtr]: { id: 53, name: 'error_scene_ptr', component: ObjectType.APPLICATION, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.SCENE], referenceStruct: StructType.NODE_REFERENCE },
 }
 export const DatabaseDataInfo: Record<DatabaseProperty, PropertyInfo> = {
   [DatabaseProperty.metatype]: { id: 1, name: 'metatype', component: ObjectType.DATABASE, enumType: EnumType.OBJECT_TYPE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isInternal: true, isComputed: true, isWired: true },
@@ -41118,11 +41281,12 @@ export const ColorStyleDataInfo: Record<ColorStyleProperty, PropertyInfo> = {
   [ColorStyleProperty.hue]: { id: 40, name: 'hue', component: ObjectType.COLOR_STYLE, enumType: EnumType.COLOR_HUE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRuntime: true, isWired: true, isStored: true },
   [ColorStyleProperty.shade]: { id: 41, name: 'shade', component: ObjectType.COLOR_STYLE, enumType: EnumType.COLOR_SHADE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRuntime: true, isWired: true, isStored: true },
   [ColorStyleProperty.stylePtr]: { id: 42, name: 'style_ptr', component: ObjectType.COLOR_STYLE, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.COLOR_STYLE], referenceStruct: StructType.NODE_REFERENCE },
-  [ColorStyleProperty.x]: { id: 43, name: 'x', component: ObjectType.COLOR_STYLE, kind: 'primitive', primitiveType: PrimitiveType.FLOAT32, isRuntime: true, isWired: true, isStored: true },
-  [ColorStyleProperty.y]: { id: 44, name: 'y', component: ObjectType.COLOR_STYLE, kind: 'primitive', primitiveType: PrimitiveType.FLOAT32, isRuntime: true, isWired: true, isStored: true },
-  [ColorStyleProperty.z]: { id: 45, name: 'z', component: ObjectType.COLOR_STYLE, kind: 'primitive', primitiveType: PrimitiveType.FLOAT32, isRuntime: true, isWired: true, isStored: true },
-  [ColorStyleProperty.alpha]: { id: 46, name: 'alpha', component: ObjectType.COLOR_STYLE, kind: 'primitive', primitiveType: PrimitiveType.FLOAT32, isRuntime: true, isWired: true, isStored: true },
-  [ColorStyleProperty.dark]: { id: 50, name: 'dark', component: ObjectType.COLOR_STYLE, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.COLOR },
+  [ColorStyleProperty.fieldPtr]: { id: 43, name: 'field_ptr', component: ObjectType.COLOR_STYLE, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.FIELD], referenceStruct: StructType.NODE_REFERENCE },
+  [ColorStyleProperty.x]: { id: 50, name: 'x', component: ObjectType.COLOR_STYLE, kind: 'primitive', primitiveType: PrimitiveType.FLOAT32, isRuntime: true, isWired: true, isStored: true },
+  [ColorStyleProperty.y]: { id: 51, name: 'y', component: ObjectType.COLOR_STYLE, kind: 'primitive', primitiveType: PrimitiveType.FLOAT32, isRuntime: true, isWired: true, isStored: true },
+  [ColorStyleProperty.z]: { id: 52, name: 'z', component: ObjectType.COLOR_STYLE, kind: 'primitive', primitiveType: PrimitiveType.FLOAT32, isRuntime: true, isWired: true, isStored: true },
+  [ColorStyleProperty.alpha]: { id: 53, name: 'alpha', component: ObjectType.COLOR_STYLE, kind: 'primitive', primitiveType: PrimitiveType.FLOAT32, isRuntime: true, isWired: true, isStored: true },
+  [ColorStyleProperty.dark]: { id: 60, name: 'dark', component: ObjectType.COLOR_STYLE, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.COLOR },
 }
 export const FontStyleDataInfo: Record<FontStyleProperty, PropertyInfo> = {
   [FontStyleProperty.metatype]: { id: 1, name: 'metatype', component: ObjectType.FONT_STYLE, enumType: EnumType.OBJECT_TYPE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isInternal: true, isComputed: true, isWired: true },
@@ -41138,21 +41302,21 @@ export const FontStyleDataInfo: Record<FontStyleProperty, PropertyInfo> = {
   [FontStyleProperty.deletedAt]: { id: 15, name: 'deleted_at', component: ObjectType.FONT_STYLE, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
   [FontStyleProperty.templatePtr]: { id: 16, name: 'template_ptr', component: ObjectType.FONT_STYLE, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_TEMPLATE, referenceNodes: [NodeType.FONT_STYLE], referenceStruct: StructType.NODE_REFERENCE },
   [FontStyleProperty.mode]: { id: 25, name: 'mode', component: ObjectType.FONT_STYLE, enumType: EnumType.NODE_MODE, kind: 'enum', primitiveType: PrimitiveType.INT16, default: 20, isRequired: true, isInternal: true, isRuntime: true, isWired: true, isStored: true },
-  [FontStyleProperty.type]: { id: 30, name: 'type', component: ObjectType.FONT_STYLE, enumType: EnumType.TEXT_TYPE, kind: 'enum', primitiveType: PrimitiveType.INT16, default: 1, isRequired: true, isRuntime: true, isWired: true, isStored: true },
+  [FontStyleProperty.type]: { id: 30, name: 'type', component: ObjectType.FONT_STYLE, enumType: EnumType.FONT_TYPE, kind: 'enum', primitiveType: PrimitiveType.INT16, default: 11, isRequired: true, isRuntime: true, isWired: true, isStored: true },
   [FontStyleProperty.name]: { id: 31, name: 'name', component: ObjectType.FONT_STYLE, kind: 'primitive', primitiveType: PrimitiveType.STRING, constraint: { minLength: 0, maxLength: 128, nodeTypes: [] }, isRuntime: true, isWired: true, isStored: true },
   [FontStyleProperty.orderKey]: { id: 33, name: 'order_key', component: ObjectType.FONT_STYLE, kind: 'primitive', primitiveType: PrimitiveType.STRING, default: "a0", isRequired: true, isInternal: true, isRuntime: true, isWired: true, isStored: true },
   [FontStyleProperty.icon]: { id: 34, name: 'icon', component: ObjectType.FONT_STYLE, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.ICON },
   [FontStyleProperty.definitionPtr]: { id: 35, name: 'definition_ptr', component: ObjectType.FONT_STYLE, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.BLOCK], referenceStruct: StructType.NODE_REFERENCE },
   [FontStyleProperty.stylePtr]: { id: 40, name: 'style_ptr', component: ObjectType.FONT_STYLE, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.FONT_STYLE], referenceStruct: StructType.NODE_REFERENCE },
-  [FontStyleProperty.weight]: { id: 41, name: 'weight', component: ObjectType.FONT_STYLE, enumType: EnumType.FONT_WEIGHT, kind: 'enum', primitiveType: PrimitiveType.INT16, default: 400, isRuntime: true, isWired: true, isStored: true },
-  [FontStyleProperty.color]: { id: 45, name: 'color', component: ObjectType.FONT_STYLE, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.COLOR },
-  [FontStyleProperty.fontType]: { id: 46, name: 'font_type', component: ObjectType.FONT_STYLE, enumType: EnumType.FONT_TYPE, kind: 'enum', primitiveType: PrimitiveType.INT16, default: 1, isRuntime: true, isWired: true, isStored: true },
-  [FontStyleProperty.fontSize]: { id: 47, name: 'font_size', component: ObjectType.FONT_STYLE, enumType: EnumType.FONT_SIZE, kind: 'enum', primitiveType: PrimitiveType.INT16, default: 16, isRuntime: true, isWired: true, isStored: true },
-  [FontStyleProperty.align]: { id: 48, name: 'align', component: ObjectType.FONT_STYLE, enumType: EnumType.TEXT_ALIGN, kind: 'enum', primitiveType: PrimitiveType.INT16, default: 1, isRuntime: true, isWired: true, isStored: true },
-  [FontStyleProperty.lineHeight]: { id: 49, name: 'line_height', component: ObjectType.FONT_STYLE, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.LENGTH },
-  [FontStyleProperty.letterSpacing]: { id: 50, name: 'letter_spacing', component: ObjectType.FONT_STYLE, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.LENGTH },
-  [FontStyleProperty.decoration]: { id: 51, name: 'decoration', component: ObjectType.FONT_STYLE, enumType: EnumType.TEXT_DECORATION, kind: 'enum', primitiveType: PrimitiveType.INT16, default: 1, isRuntime: true, isWired: true, isStored: true },
-  [FontStyleProperty.transform]: { id: 52, name: 'transform', component: ObjectType.FONT_STYLE, enumType: EnumType.TEXT_TRANSFORM, kind: 'enum', primitiveType: PrimitiveType.INT16, default: 1, isRuntime: true, isWired: true, isStored: true },
+  [FontStyleProperty.fieldPtr]: { id: 41, name: 'field_ptr', component: ObjectType.FONT_STYLE, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.FIELD], referenceStruct: StructType.NODE_REFERENCE },
+  [FontStyleProperty.weight]: { id: 50, name: 'weight', component: ObjectType.FONT_STYLE, enumType: EnumType.FONT_WEIGHT, kind: 'enum', primitiveType: PrimitiveType.INT16, default: 400, isRuntime: true, isWired: true, isStored: true },
+  [FontStyleProperty.color]: { id: 51, name: 'color', component: ObjectType.FONT_STYLE, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.FILL },
+  [FontStyleProperty.size]: { id: 52, name: 'size', component: ObjectType.FONT_STYLE, enumType: EnumType.FONT_SIZE, kind: 'enum', primitiveType: PrimitiveType.INT16, default: 16, isRuntime: true, isWired: true, isStored: true },
+  [FontStyleProperty.align]: { id: 53, name: 'align', component: ObjectType.FONT_STYLE, enumType: EnumType.TEXT_ALIGN, kind: 'enum', primitiveType: PrimitiveType.INT16, default: 1, isRuntime: true, isWired: true, isStored: true },
+  [FontStyleProperty.lineHeight]: { id: 54, name: 'line_height', component: ObjectType.FONT_STYLE, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.LENGTH },
+  [FontStyleProperty.letterSpacing]: { id: 55, name: 'letter_spacing', component: ObjectType.FONT_STYLE, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.LENGTH },
+  [FontStyleProperty.decoration]: { id: 56, name: 'decoration', component: ObjectType.FONT_STYLE, enumType: EnumType.TEXT_DECORATION, kind: 'enum', primitiveType: PrimitiveType.INT16, default: 1, isRuntime: true, isWired: true, isStored: true },
+  [FontStyleProperty.transform]: { id: 57, name: 'transform', component: ObjectType.FONT_STYLE, enumType: EnumType.TEXT_TRANSFORM, kind: 'enum', primitiveType: PrimitiveType.INT16, default: 1, isRuntime: true, isWired: true, isStored: true },
 }
 export const BorderStyleDataInfo: Record<BorderStyleProperty, PropertyInfo> = {
   [BorderStyleProperty.metatype]: { id: 1, name: 'metatype', component: ObjectType.BORDER_STYLE, enumType: EnumType.OBJECT_TYPE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isInternal: true, isComputed: true, isWired: true },
@@ -41174,8 +41338,9 @@ export const BorderStyleDataInfo: Record<BorderStyleProperty, PropertyInfo> = {
   [BorderStyleProperty.icon]: { id: 34, name: 'icon', component: ObjectType.BORDER_STYLE, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.ICON },
   [BorderStyleProperty.definitionPtr]: { id: 35, name: 'definition_ptr', component: ObjectType.BORDER_STYLE, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.BLOCK], referenceStruct: StructType.NODE_REFERENCE },
   [BorderStyleProperty.stylePtr]: { id: 40, name: 'style_ptr', component: ObjectType.BORDER_STYLE, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.BORDER_STYLE], referenceStruct: StructType.NODE_REFERENCE },
-  [BorderStyleProperty.color]: { id: 42, name: 'color', component: ObjectType.BORDER_STYLE, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.COLOR },
-  [BorderStyleProperty.width]: { id: 43, name: 'width', component: ObjectType.BORDER_STYLE, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.INSETS },
+  [BorderStyleProperty.fieldPtr]: { id: 41, name: 'field_ptr', component: ObjectType.BORDER_STYLE, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.FIELD], referenceStruct: StructType.NODE_REFERENCE },
+  [BorderStyleProperty.color]: { id: 50, name: 'color', component: ObjectType.BORDER_STYLE, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.COLOR },
+  [BorderStyleProperty.width]: { id: 51, name: 'width', component: ObjectType.BORDER_STYLE, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.INSETS },
 }
 export const ShadowStyleDataInfo: Record<ShadowStyleProperty, PropertyInfo> = {
   [ShadowStyleProperty.metatype]: { id: 1, name: 'metatype', component: ObjectType.SHADOW_STYLE, enumType: EnumType.OBJECT_TYPE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isInternal: true, isComputed: true, isWired: true },
@@ -41197,12 +41362,13 @@ export const ShadowStyleDataInfo: Record<ShadowStyleProperty, PropertyInfo> = {
   [ShadowStyleProperty.icon]: { id: 34, name: 'icon', component: ObjectType.SHADOW_STYLE, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.ICON },
   [ShadowStyleProperty.definitionPtr]: { id: 35, name: 'definition_ptr', component: ObjectType.SHADOW_STYLE, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.BLOCK], referenceStruct: StructType.NODE_REFERENCE },
   [ShadowStyleProperty.stylePtr]: { id: 40, name: 'style_ptr', component: ObjectType.SHADOW_STYLE, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.SHADOW_STYLE], referenceStruct: StructType.NODE_REFERENCE },
-  [ShadowStyleProperty.color]: { id: 41, name: 'color', component: ObjectType.SHADOW_STYLE, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.COLOR },
-  [ShadowStyleProperty.position]: { id: 42, name: 'position', component: ObjectType.SHADOW_STYLE, enumType: EnumType.SHADOW_POSITION, kind: 'enum', primitiveType: PrimitiveType.INT16, default: 1, isRequired: true, isRuntime: true, isWired: true, isStored: true },
-  [ShadowStyleProperty.offset]: { id: 43, name: 'offset', component: ObjectType.SHADOW_STYLE, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.AXIS_2 },
-  [ShadowStyleProperty.blur]: { id: 45, name: 'blur', component: ObjectType.SHADOW_STYLE, kind: 'primitive', primitiveType: PrimitiveType.INT32, isRuntime: true, isWired: true, isStored: true },
-  [ShadowStyleProperty.spread]: { id: 46, name: 'spread', component: ObjectType.SHADOW_STYLE, kind: 'primitive', primitiveType: PrimitiveType.INT32, isRuntime: true, isWired: true, isStored: true },
-  [ShadowStyleProperty.diffusion]: { id: 47, name: 'diffusion', component: ObjectType.SHADOW_STYLE, kind: 'primitive', primitiveType: PrimitiveType.FLOAT32, isRuntime: true, isWired: true, isStored: true },
+  [ShadowStyleProperty.fieldPtr]: { id: 41, name: 'field_ptr', component: ObjectType.SHADOW_STYLE, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.FIELD], referenceStruct: StructType.NODE_REFERENCE },
+  [ShadowStyleProperty.color]: { id: 50, name: 'color', component: ObjectType.SHADOW_STYLE, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.COLOR },
+  [ShadowStyleProperty.position]: { id: 51, name: 'position', component: ObjectType.SHADOW_STYLE, enumType: EnumType.SHADOW_POSITION, kind: 'enum', primitiveType: PrimitiveType.INT16, default: 1, isRequired: true, isRuntime: true, isWired: true, isStored: true },
+  [ShadowStyleProperty.offset]: { id: 52, name: 'offset', component: ObjectType.SHADOW_STYLE, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.AXIS_2 },
+  [ShadowStyleProperty.blur]: { id: 53, name: 'blur', component: ObjectType.SHADOW_STYLE, kind: 'primitive', primitiveType: PrimitiveType.INT32, isRuntime: true, isWired: true, isStored: true },
+  [ShadowStyleProperty.spread]: { id: 54, name: 'spread', component: ObjectType.SHADOW_STYLE, kind: 'primitive', primitiveType: PrimitiveType.INT32, isRuntime: true, isWired: true, isStored: true },
+  [ShadowStyleProperty.diffusion]: { id: 55, name: 'diffusion', component: ObjectType.SHADOW_STYLE, kind: 'primitive', primitiveType: PrimitiveType.FLOAT32, isRuntime: true, isWired: true, isStored: true },
 }
 export const GradientStyleDataInfo: Record<GradientStyleProperty, PropertyInfo> = {
   [GradientStyleProperty.metatype]: { id: 1, name: 'metatype', component: ObjectType.GRADIENT_STYLE, enumType: EnumType.OBJECT_TYPE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isInternal: true, isComputed: true, isWired: true },
@@ -41218,7 +41384,7 @@ export const GradientStyleDataInfo: Record<GradientStyleProperty, PropertyInfo> 
   [GradientStyleProperty.deletedAt]: { id: 15, name: 'deleted_at', component: ObjectType.GRADIENT_STYLE, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
   [GradientStyleProperty.templatePtr]: { id: 16, name: 'template_ptr', component: ObjectType.GRADIENT_STYLE, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_TEMPLATE, referenceNodes: [NodeType.GRADIENT_STYLE], referenceStruct: StructType.NODE_REFERENCE },
   [GradientStyleProperty.mode]: { id: 25, name: 'mode', component: ObjectType.GRADIENT_STYLE, enumType: EnumType.NODE_MODE, kind: 'enum', primitiveType: PrimitiveType.INT16, default: 20, isRequired: true, isInternal: true, isRuntime: true, isWired: true, isStored: true },
-  [GradientStyleProperty.type]: { id: 30, name: 'type', component: ObjectType.GRADIENT_STYLE, enumType: EnumType.GRADIENT_TYPE, kind: 'enum', primitiveType: PrimitiveType.INT16, default: 1, isRequired: true, isRuntime: true, isWired: true, isStored: true },
+  [GradientStyleProperty.type]: { id: 30, name: 'type', component: ObjectType.GRADIENT_STYLE, enumType: EnumType.GRADIENT_TYPE, kind: 'enum', primitiveType: PrimitiveType.INT16, default: 10, isRequired: true, isRuntime: true, isWired: true, isStored: true },
   [GradientStyleProperty.name]: { id: 31, name: 'name', component: ObjectType.GRADIENT_STYLE, kind: 'primitive', primitiveType: PrimitiveType.STRING, constraint: { minLength: 0, maxLength: 128, nodeTypes: [] }, isRuntime: true, isWired: true, isStored: true },
   [GradientStyleProperty.orderKey]: { id: 33, name: 'order_key', component: ObjectType.GRADIENT_STYLE, kind: 'primitive', primitiveType: PrimitiveType.STRING, default: "a0", isRequired: true, isInternal: true, isRuntime: true, isWired: true, isStored: true },
   [GradientStyleProperty.icon]: { id: 34, name: 'icon', component: ObjectType.GRADIENT_STYLE, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.ICON },
@@ -41248,14 +41414,15 @@ export const TransitionStyleDataInfo: Record<TransitionStyleProperty, PropertyIn
   [TransitionStyleProperty.icon]: { id: 34, name: 'icon', component: ObjectType.TRANSITION_STYLE, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.ICON },
   [TransitionStyleProperty.definitionPtr]: { id: 35, name: 'definition_ptr', component: ObjectType.TRANSITION_STYLE, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.BLOCK], referenceStruct: StructType.NODE_REFERENCE },
   [TransitionStyleProperty.stylePtr]: { id: 40, name: 'style_ptr', component: ObjectType.TRANSITION_STYLE, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.TRANSITION_STYLE], referenceStruct: StructType.NODE_REFERENCE },
-  [TransitionStyleProperty.delay]: { id: 41, name: 'delay', component: ObjectType.TRANSITION_STYLE, kind: 'primitive', primitiveType: PrimitiveType.FLOAT32, isRuntime: true, isWired: true, isStored: true },
-  [TransitionStyleProperty.duration]: { id: 42, name: 'duration', component: ObjectType.TRANSITION_STYLE, kind: 'primitive', primitiveType: PrimitiveType.FLOAT32, isRuntime: true, isWired: true, isStored: true },
-  [TransitionStyleProperty.ease]: { id: 43, name: 'ease', component: ObjectType.TRANSITION_STYLE, kind: 'primitive', primitiveType: PrimitiveType.FLOAT32, isList: true, isRuntime: true, isWired: true, isStored: true },
-  [TransitionStyleProperty.stiffness]: { id: 44, name: 'stiffness', component: ObjectType.TRANSITION_STYLE, kind: 'primitive', primitiveType: PrimitiveType.FLOAT32, isRuntime: true, isWired: true, isStored: true },
-  [TransitionStyleProperty.damping]: { id: 45, name: 'damping', component: ObjectType.TRANSITION_STYLE, kind: 'primitive', primitiveType: PrimitiveType.FLOAT32, isRuntime: true, isWired: true, isStored: true },
-  [TransitionStyleProperty.mass]: { id: 46, name: 'mass', component: ObjectType.TRANSITION_STYLE, kind: 'primitive', primitiveType: PrimitiveType.FLOAT32, isRuntime: true, isWired: true, isStored: true },
-  [TransitionStyleProperty.bounce]: { id: 47, name: 'bounce', component: ObjectType.TRANSITION_STYLE, kind: 'primitive', primitiveType: PrimitiveType.FLOAT32, isRuntime: true, isWired: true, isStored: true },
-  [TransitionStyleProperty.springType]: { id: 48, name: 'spring_type', component: ObjectType.TRANSITION_STYLE, enumType: EnumType.SPRING_TYPE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRuntime: true, isWired: true, isStored: true },
+  [TransitionStyleProperty.fieldPtr]: { id: 41, name: 'field_ptr', component: ObjectType.TRANSITION_STYLE, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.FIELD], referenceStruct: StructType.NODE_REFERENCE },
+  [TransitionStyleProperty.delay]: { id: 50, name: 'delay', component: ObjectType.TRANSITION_STYLE, kind: 'primitive', primitiveType: PrimitiveType.FLOAT32, isRuntime: true, isWired: true, isStored: true },
+  [TransitionStyleProperty.duration]: { id: 51, name: 'duration', component: ObjectType.TRANSITION_STYLE, kind: 'primitive', primitiveType: PrimitiveType.FLOAT32, isRuntime: true, isWired: true, isStored: true },
+  [TransitionStyleProperty.ease]: { id: 52, name: 'ease', component: ObjectType.TRANSITION_STYLE, kind: 'primitive', primitiveType: PrimitiveType.FLOAT32, isList: true, isRuntime: true, isWired: true, isStored: true },
+  [TransitionStyleProperty.stiffness]: { id: 53, name: 'stiffness', component: ObjectType.TRANSITION_STYLE, kind: 'primitive', primitiveType: PrimitiveType.FLOAT32, isRuntime: true, isWired: true, isStored: true },
+  [TransitionStyleProperty.damping]: { id: 54, name: 'damping', component: ObjectType.TRANSITION_STYLE, kind: 'primitive', primitiveType: PrimitiveType.FLOAT32, isRuntime: true, isWired: true, isStored: true },
+  [TransitionStyleProperty.mass]: { id: 55, name: 'mass', component: ObjectType.TRANSITION_STYLE, kind: 'primitive', primitiveType: PrimitiveType.FLOAT32, isRuntime: true, isWired: true, isStored: true },
+  [TransitionStyleProperty.bounce]: { id: 56, name: 'bounce', component: ObjectType.TRANSITION_STYLE, kind: 'primitive', primitiveType: PrimitiveType.FLOAT32, isRuntime: true, isWired: true, isStored: true },
+  [TransitionStyleProperty.springType]: { id: 57, name: 'spring_type', component: ObjectType.TRANSITION_STYLE, enumType: EnumType.SPRING_TYPE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRuntime: true, isWired: true, isStored: true },
 }
 export const EffectStyleDataInfo: Record<EffectStyleProperty, PropertyInfo> = {
   [EffectStyleProperty.metatype]: { id: 1, name: 'metatype', component: ObjectType.EFFECT_STYLE, enumType: EnumType.OBJECT_TYPE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isInternal: true, isComputed: true, isWired: true },
@@ -41276,15 +41443,17 @@ export const EffectStyleDataInfo: Record<EffectStyleProperty, PropertyInfo> = {
   [EffectStyleProperty.orderKey]: { id: 33, name: 'order_key', component: ObjectType.EFFECT_STYLE, kind: 'primitive', primitiveType: PrimitiveType.STRING, default: "a0", isRequired: true, isInternal: true, isRuntime: true, isWired: true, isStored: true },
   [EffectStyleProperty.icon]: { id: 34, name: 'icon', component: ObjectType.EFFECT_STYLE, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.ICON },
   [EffectStyleProperty.definitionPtr]: { id: 35, name: 'definition_ptr', component: ObjectType.EFFECT_STYLE, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.BLOCK], referenceStruct: StructType.NODE_REFERENCE },
-  [EffectStyleProperty.opacity]: { id: 40, name: 'opacity', component: ObjectType.EFFECT_STYLE, kind: 'primitive', primitiveType: PrimitiveType.FLOAT32, isRuntime: true, isWired: true, isStored: true },
-  [EffectStyleProperty.offset]: { id: 41, name: 'offset', component: ObjectType.EFFECT_STYLE, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.AXIS_2 },
-  [EffectStyleProperty.scale]: { id: 43, name: 'scale', component: ObjectType.EFFECT_STYLE, kind: 'primitive', primitiveType: PrimitiveType.FLOAT32, isRuntime: true, isWired: true, isStored: true },
-  [EffectStyleProperty.rotate]: { id: 44, name: 'rotate', component: ObjectType.EFFECT_STYLE, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.AXIS_3 },
-  [EffectStyleProperty.skew]: { id: 45, name: 'skew', component: ObjectType.EFFECT_STYLE, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.AXIS_2 },
-  [EffectStyleProperty.perspective]: { id: 50, name: 'perspective', component: ObjectType.EFFECT_STYLE, kind: 'primitive', primitiveType: PrimitiveType.FLOAT32, isRuntime: true, isWired: true, isStored: true },
-  [EffectStyleProperty.delay]: { id: 51, name: 'delay', component: ObjectType.EFFECT_STYLE, kind: 'primitive', primitiveType: PrimitiveType.FLOAT32, isRuntime: true, isWired: true, isStored: true },
-  [EffectStyleProperty.duration]: { id: 52, name: 'duration', component: ObjectType.EFFECT_STYLE, kind: 'primitive', primitiveType: PrimitiveType.FLOAT32, isRuntime: true, isWired: true, isStored: true },
-  [EffectStyleProperty.threshold]: { id: 53, name: 'threshold', component: ObjectType.EFFECT_STYLE, kind: 'primitive', primitiveType: PrimitiveType.FLOAT32, isRuntime: true, isWired: true, isStored: true },
+  [EffectStyleProperty.stylePtr]: { id: 40, name: 'style_ptr', component: ObjectType.EFFECT_STYLE, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.EFFECT_STYLE], referenceStruct: StructType.NODE_REFERENCE },
+  [EffectStyleProperty.fieldPtr]: { id: 41, name: 'field_ptr', component: ObjectType.EFFECT_STYLE, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.FIELD], referenceStruct: StructType.NODE_REFERENCE },
+  [EffectStyleProperty.opacity]: { id: 50, name: 'opacity', component: ObjectType.EFFECT_STYLE, kind: 'primitive', primitiveType: PrimitiveType.FLOAT32, isRuntime: true, isWired: true, isStored: true },
+  [EffectStyleProperty.offset]: { id: 51, name: 'offset', component: ObjectType.EFFECT_STYLE, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.AXIS_2 },
+  [EffectStyleProperty.scale]: { id: 52, name: 'scale', component: ObjectType.EFFECT_STYLE, kind: 'primitive', primitiveType: PrimitiveType.FLOAT32, isRuntime: true, isWired: true, isStored: true },
+  [EffectStyleProperty.rotate]: { id: 53, name: 'rotate', component: ObjectType.EFFECT_STYLE, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.AXIS_3 },
+  [EffectStyleProperty.skew]: { id: 54, name: 'skew', component: ObjectType.EFFECT_STYLE, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.AXIS_2 },
+  [EffectStyleProperty.perspective]: { id: 55, name: 'perspective', component: ObjectType.EFFECT_STYLE, kind: 'primitive', primitiveType: PrimitiveType.FLOAT32, isRuntime: true, isWired: true, isStored: true },
+  [EffectStyleProperty.delay]: { id: 56, name: 'delay', component: ObjectType.EFFECT_STYLE, kind: 'primitive', primitiveType: PrimitiveType.FLOAT32, isRuntime: true, isWired: true, isStored: true },
+  [EffectStyleProperty.duration]: { id: 57, name: 'duration', component: ObjectType.EFFECT_STYLE, kind: 'primitive', primitiveType: PrimitiveType.FLOAT32, isRuntime: true, isWired: true, isStored: true },
+  [EffectStyleProperty.threshold]: { id: 58, name: 'threshold', component: ObjectType.EFFECT_STYLE, kind: 'primitive', primitiveType: PrimitiveType.FLOAT32, isRuntime: true, isWired: true, isStored: true },
 }
 export const EmptyDataInfo: Record<EmptyProperty, PropertyInfo> = {
   [EmptyProperty.metatype]: { id: 1, name: 'metatype', component: ObjectType.EMPTY, enumType: EnumType.OBJECT_TYPE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isInternal: true, isComputed: true, isWired: true },
@@ -41617,42 +41786,45 @@ export const ColorDataInfo: Record<ColorProperty, PropertyInfo> = {
   [ColorProperty.hue]: { id: 40, name: 'hue', component: ObjectType.COLOR, enumType: EnumType.COLOR_HUE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRuntime: true, isWired: true, isStored: true },
   [ColorProperty.shade]: { id: 41, name: 'shade', component: ObjectType.COLOR, enumType: EnumType.COLOR_SHADE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRuntime: true, isWired: true, isStored: true },
   [ColorProperty.stylePtr]: { id: 42, name: 'style_ptr', component: ObjectType.COLOR, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.COLOR_STYLE], referenceStruct: StructType.NODE_REFERENCE },
-  [ColorProperty.x]: { id: 43, name: 'x', component: ObjectType.COLOR, kind: 'primitive', primitiveType: PrimitiveType.FLOAT32, isRuntime: true, isWired: true, isStored: true },
-  [ColorProperty.y]: { id: 44, name: 'y', component: ObjectType.COLOR, kind: 'primitive', primitiveType: PrimitiveType.FLOAT32, isRuntime: true, isWired: true, isStored: true },
-  [ColorProperty.z]: { id: 45, name: 'z', component: ObjectType.COLOR, kind: 'primitive', primitiveType: PrimitiveType.FLOAT32, isRuntime: true, isWired: true, isStored: true },
-  [ColorProperty.alpha]: { id: 46, name: 'alpha', component: ObjectType.COLOR, kind: 'primitive', primitiveType: PrimitiveType.FLOAT32, isRuntime: true, isWired: true, isStored: true },
+  [ColorProperty.fieldPtr]: { id: 43, name: 'field_ptr', component: ObjectType.COLOR, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.FIELD], referenceStruct: StructType.NODE_REFERENCE },
+  [ColorProperty.x]: { id: 50, name: 'x', component: ObjectType.COLOR, kind: 'primitive', primitiveType: PrimitiveType.FLOAT32, isRuntime: true, isWired: true, isStored: true },
+  [ColorProperty.y]: { id: 51, name: 'y', component: ObjectType.COLOR, kind: 'primitive', primitiveType: PrimitiveType.FLOAT32, isRuntime: true, isWired: true, isStored: true },
+  [ColorProperty.z]: { id: 52, name: 'z', component: ObjectType.COLOR, kind: 'primitive', primitiveType: PrimitiveType.FLOAT32, isRuntime: true, isWired: true, isStored: true },
+  [ColorProperty.alpha]: { id: 53, name: 'alpha', component: ObjectType.COLOR, kind: 'primitive', primitiveType: PrimitiveType.FLOAT32, isRuntime: true, isWired: true, isStored: true },
 }
 export const ShadowDataInfo: Record<ShadowProperty, PropertyInfo> = {
   [ShadowProperty.metatype]: { id: 1, name: 'metatype', component: ObjectType.SHADOW, enumType: EnumType.OBJECT_TYPE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isInternal: true, isComputed: true, isWired: true },
   [ShadowProperty.type]: { id: 30, name: 'type', component: ObjectType.SHADOW, enumType: EnumType.SHADOW_TYPE, kind: 'enum', primitiveType: PrimitiveType.INT16, default: 10, isRequired: true, isRuntime: true, isWired: true, isStored: true },
   [ShadowProperty.stylePtr]: { id: 40, name: 'style_ptr', component: ObjectType.SHADOW, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.SHADOW_STYLE], referenceStruct: StructType.NODE_REFERENCE },
-  [ShadowProperty.color]: { id: 41, name: 'color', component: ObjectType.SHADOW, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.COLOR },
-  [ShadowProperty.position]: { id: 42, name: 'position', component: ObjectType.SHADOW, enumType: EnumType.SHADOW_POSITION, kind: 'enum', primitiveType: PrimitiveType.INT16, default: 1, isRequired: true, isRuntime: true, isWired: true, isStored: true },
-  [ShadowProperty.offset]: { id: 43, name: 'offset', component: ObjectType.SHADOW, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.AXIS_2 },
-  [ShadowProperty.blur]: { id: 45, name: 'blur', component: ObjectType.SHADOW, kind: 'primitive', primitiveType: PrimitiveType.INT32, isRuntime: true, isWired: true, isStored: true },
-  [ShadowProperty.spread]: { id: 46, name: 'spread', component: ObjectType.SHADOW, kind: 'primitive', primitiveType: PrimitiveType.INT32, isRuntime: true, isWired: true, isStored: true },
-  [ShadowProperty.diffusion]: { id: 47, name: 'diffusion', component: ObjectType.SHADOW, kind: 'primitive', primitiveType: PrimitiveType.FLOAT32, isRuntime: true, isWired: true, isStored: true },
+  [ShadowProperty.fieldPtr]: { id: 41, name: 'field_ptr', component: ObjectType.SHADOW, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.FIELD], referenceStruct: StructType.NODE_REFERENCE },
+  [ShadowProperty.color]: { id: 50, name: 'color', component: ObjectType.SHADOW, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.COLOR },
+  [ShadowProperty.position]: { id: 51, name: 'position', component: ObjectType.SHADOW, enumType: EnumType.SHADOW_POSITION, kind: 'enum', primitiveType: PrimitiveType.INT16, default: 1, isRequired: true, isRuntime: true, isWired: true, isStored: true },
+  [ShadowProperty.offset]: { id: 52, name: 'offset', component: ObjectType.SHADOW, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.AXIS_2 },
+  [ShadowProperty.blur]: { id: 53, name: 'blur', component: ObjectType.SHADOW, kind: 'primitive', primitiveType: PrimitiveType.INT32, isRuntime: true, isWired: true, isStored: true },
+  [ShadowProperty.spread]: { id: 54, name: 'spread', component: ObjectType.SHADOW, kind: 'primitive', primitiveType: PrimitiveType.INT32, isRuntime: true, isWired: true, isStored: true },
+  [ShadowProperty.diffusion]: { id: 55, name: 'diffusion', component: ObjectType.SHADOW, kind: 'primitive', primitiveType: PrimitiveType.FLOAT32, isRuntime: true, isWired: true, isStored: true },
 }
 export const BorderDataInfo: Record<BorderProperty, PropertyInfo> = {
   [BorderProperty.metatype]: { id: 1, name: 'metatype', component: ObjectType.BORDER, enumType: EnumType.OBJECT_TYPE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isInternal: true, isComputed: true, isWired: true },
   [BorderProperty.type]: { id: 30, name: 'type', component: ObjectType.BORDER, enumType: EnumType.BORDER_TYPE, kind: 'enum', primitiveType: PrimitiveType.INT16, default: 10, isRequired: true, isRuntime: true, isWired: true, isStored: true },
   [BorderProperty.stylePtr]: { id: 40, name: 'style_ptr', component: ObjectType.BORDER, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.BORDER_STYLE], referenceStruct: StructType.NODE_REFERENCE },
-  [BorderProperty.color]: { id: 42, name: 'color', component: ObjectType.BORDER, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.COLOR },
-  [BorderProperty.width]: { id: 43, name: 'width', component: ObjectType.BORDER, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.INSETS },
+  [BorderProperty.fieldPtr]: { id: 41, name: 'field_ptr', component: ObjectType.BORDER, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.FIELD], referenceStruct: StructType.NODE_REFERENCE },
+  [BorderProperty.color]: { id: 50, name: 'color', component: ObjectType.BORDER, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.COLOR },
+  [BorderProperty.width]: { id: 51, name: 'width', component: ObjectType.BORDER, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.INSETS },
 }
 export const FontDataInfo: Record<FontProperty, PropertyInfo> = {
   [FontProperty.metatype]: { id: 1, name: 'metatype', component: ObjectType.FONT, enumType: EnumType.OBJECT_TYPE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isInternal: true, isComputed: true, isWired: true },
-  [FontProperty.type]: { id: 30, name: 'type', component: ObjectType.FONT, enumType: EnumType.TEXT_TYPE, kind: 'enum', primitiveType: PrimitiveType.INT16, default: 1, isRequired: true, isRuntime: true, isWired: true, isStored: true },
+  [FontProperty.type]: { id: 30, name: 'type', component: ObjectType.FONT, enumType: EnumType.FONT_TYPE, kind: 'enum', primitiveType: PrimitiveType.INT16, default: 11, isRequired: true, isRuntime: true, isWired: true, isStored: true },
   [FontProperty.stylePtr]: { id: 40, name: 'style_ptr', component: ObjectType.FONT, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.FONT_STYLE], referenceStruct: StructType.NODE_REFERENCE },
-  [FontProperty.weight]: { id: 41, name: 'weight', component: ObjectType.FONT, enumType: EnumType.FONT_WEIGHT, kind: 'enum', primitiveType: PrimitiveType.INT16, default: 400, isRuntime: true, isWired: true, isStored: true },
-  [FontProperty.color]: { id: 45, name: 'color', component: ObjectType.FONT, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.COLOR },
-  [FontProperty.fontType]: { id: 46, name: 'font_type', component: ObjectType.FONT, enumType: EnumType.FONT_TYPE, kind: 'enum', primitiveType: PrimitiveType.INT16, default: 1, isRuntime: true, isWired: true, isStored: true },
-  [FontProperty.fontSize]: { id: 47, name: 'font_size', component: ObjectType.FONT, enumType: EnumType.FONT_SIZE, kind: 'enum', primitiveType: PrimitiveType.INT16, default: 16, isRuntime: true, isWired: true, isStored: true },
-  [FontProperty.align]: { id: 48, name: 'align', component: ObjectType.FONT, enumType: EnumType.TEXT_ALIGN, kind: 'enum', primitiveType: PrimitiveType.INT16, default: 1, isRuntime: true, isWired: true, isStored: true },
-  [FontProperty.lineHeight]: { id: 49, name: 'line_height', component: ObjectType.FONT, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.LENGTH },
-  [FontProperty.letterSpacing]: { id: 50, name: 'letter_spacing', component: ObjectType.FONT, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.LENGTH },
-  [FontProperty.decoration]: { id: 51, name: 'decoration', component: ObjectType.FONT, enumType: EnumType.TEXT_DECORATION, kind: 'enum', primitiveType: PrimitiveType.INT16, default: 1, isRuntime: true, isWired: true, isStored: true },
-  [FontProperty.transform]: { id: 52, name: 'transform', component: ObjectType.FONT, enumType: EnumType.TEXT_TRANSFORM, kind: 'enum', primitiveType: PrimitiveType.INT16, default: 1, isRuntime: true, isWired: true, isStored: true },
+  [FontProperty.fieldPtr]: { id: 41, name: 'field_ptr', component: ObjectType.FONT, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.FIELD], referenceStruct: StructType.NODE_REFERENCE },
+  [FontProperty.weight]: { id: 50, name: 'weight', component: ObjectType.FONT, enumType: EnumType.FONT_WEIGHT, kind: 'enum', primitiveType: PrimitiveType.INT16, default: 400, isRuntime: true, isWired: true, isStored: true },
+  [FontProperty.color]: { id: 51, name: 'color', component: ObjectType.FONT, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.FILL },
+  [FontProperty.size]: { id: 52, name: 'size', component: ObjectType.FONT, enumType: EnumType.FONT_SIZE, kind: 'enum', primitiveType: PrimitiveType.INT16, default: 16, isRuntime: true, isWired: true, isStored: true },
+  [FontProperty.align]: { id: 53, name: 'align', component: ObjectType.FONT, enumType: EnumType.TEXT_ALIGN, kind: 'enum', primitiveType: PrimitiveType.INT16, default: 1, isRuntime: true, isWired: true, isStored: true },
+  [FontProperty.lineHeight]: { id: 54, name: 'line_height', component: ObjectType.FONT, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.LENGTH },
+  [FontProperty.letterSpacing]: { id: 55, name: 'letter_spacing', component: ObjectType.FONT, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.LENGTH },
+  [FontProperty.decoration]: { id: 56, name: 'decoration', component: ObjectType.FONT, enumType: EnumType.TEXT_DECORATION, kind: 'enum', primitiveType: PrimitiveType.INT16, default: 1, isRuntime: true, isWired: true, isStored: true },
+  [FontProperty.transform]: { id: 57, name: 'transform', component: ObjectType.FONT, enumType: EnumType.TEXT_TRANSFORM, kind: 'enum', primitiveType: PrimitiveType.INT16, default: 1, isRuntime: true, isWired: true, isStored: true },
 }
 export const Vector2DataInfo: Record<Vector2Property, PropertyInfo> = {
   [Vector2Property.metatype]: { id: 1, name: 'metatype', component: ObjectType.VECTOR2, enumType: EnumType.OBJECT_TYPE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isInternal: true, isComputed: true, isWired: true },
@@ -41679,7 +41851,7 @@ export const GradientStopDataInfo: Record<GradientStopProperty, PropertyInfo> = 
 }
 export const GradientDataInfo: Record<GradientProperty, PropertyInfo> = {
   [GradientProperty.metatype]: { id: 1, name: 'metatype', component: ObjectType.GRADIENT, enumType: EnumType.OBJECT_TYPE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isInternal: true, isComputed: true, isWired: true },
-  [GradientProperty.type]: { id: 30, name: 'type', component: ObjectType.GRADIENT, enumType: EnumType.GRADIENT_TYPE, kind: 'enum', primitiveType: PrimitiveType.INT16, default: 1, isRequired: true, isRuntime: true, isWired: true, isStored: true },
+  [GradientProperty.type]: { id: 30, name: 'type', component: ObjectType.GRADIENT, enumType: EnumType.GRADIENT_TYPE, kind: 'enum', primitiveType: PrimitiveType.INT16, default: 10, isRequired: true, isRuntime: true, isWired: true, isStored: true },
   [GradientProperty.angle]: { id: 40, name: 'angle', component: ObjectType.GRADIENT, kind: 'primitive', primitiveType: PrimitiveType.FLOAT32, isRuntime: true, isWired: true, isStored: true },
   [GradientProperty.stops]: { id: 41, name: 'stops', component: ObjectType.GRADIENT, kind: 'reference', primitiveType: PrimitiveType.JSON, isList: true, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.GRADIENT_STOP },
   [GradientProperty.centerAnchor]: { id: 42, name: 'center_anchor', component: ObjectType.GRADIENT, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.AXIS_2 },
@@ -41709,33 +41881,37 @@ export const PositionDataInfo: Record<PositionProperty, PropertyInfo> = {
 export const DimensionDataInfo: Record<DimensionProperty, PropertyInfo> = {
   [DimensionProperty.metatype]: { id: 1, name: 'metatype', component: ObjectType.DIMENSION, enumType: EnumType.OBJECT_TYPE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isInternal: true, isComputed: true, isWired: true },
   [DimensionProperty.type]: { id: 30, name: 'type', component: ObjectType.DIMENSION, enumType: EnumType.DIMENSION_TYPE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isRuntime: true, isWired: true, isStored: true },
+  [DimensionProperty.unit]: { id: 31, name: 'unit', component: ObjectType.DIMENSION, enumType: EnumType.LENGTH_UNIT, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isRuntime: true, isWired: true, isStored: true },
   [DimensionProperty.value]: { id: 40, name: 'value', component: ObjectType.DIMENSION, kind: 'primitive', primitiveType: PrimitiveType.FLOAT32, isRequired: true, isRuntime: true, isWired: true, isStored: true },
 }
 export const TransitionDataInfo: Record<TransitionProperty, PropertyInfo> = {
   [TransitionProperty.metatype]: { id: 1, name: 'metatype', component: ObjectType.TRANSITION, enumType: EnumType.OBJECT_TYPE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isInternal: true, isComputed: true, isWired: true },
   [TransitionProperty.type]: { id: 30, name: 'type', component: ObjectType.TRANSITION, enumType: EnumType.TRANSITION_TYPE, kind: 'enum', primitiveType: PrimitiveType.INT16, default: 10, isRequired: true, isRuntime: true, isWired: true, isStored: true },
   [TransitionProperty.stylePtr]: { id: 40, name: 'style_ptr', component: ObjectType.TRANSITION, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.TRANSITION_STYLE], referenceStruct: StructType.NODE_REFERENCE },
-  [TransitionProperty.delay]: { id: 41, name: 'delay', component: ObjectType.TRANSITION, kind: 'primitive', primitiveType: PrimitiveType.FLOAT32, isRuntime: true, isWired: true, isStored: true },
-  [TransitionProperty.duration]: { id: 42, name: 'duration', component: ObjectType.TRANSITION, kind: 'primitive', primitiveType: PrimitiveType.FLOAT32, isRuntime: true, isWired: true, isStored: true },
-  [TransitionProperty.ease]: { id: 43, name: 'ease', component: ObjectType.TRANSITION, kind: 'primitive', primitiveType: PrimitiveType.FLOAT32, isList: true, isRuntime: true, isWired: true, isStored: true },
-  [TransitionProperty.stiffness]: { id: 44, name: 'stiffness', component: ObjectType.TRANSITION, kind: 'primitive', primitiveType: PrimitiveType.FLOAT32, isRuntime: true, isWired: true, isStored: true },
-  [TransitionProperty.damping]: { id: 45, name: 'damping', component: ObjectType.TRANSITION, kind: 'primitive', primitiveType: PrimitiveType.FLOAT32, isRuntime: true, isWired: true, isStored: true },
-  [TransitionProperty.mass]: { id: 46, name: 'mass', component: ObjectType.TRANSITION, kind: 'primitive', primitiveType: PrimitiveType.FLOAT32, isRuntime: true, isWired: true, isStored: true },
-  [TransitionProperty.bounce]: { id: 47, name: 'bounce', component: ObjectType.TRANSITION, kind: 'primitive', primitiveType: PrimitiveType.FLOAT32, isRuntime: true, isWired: true, isStored: true },
-  [TransitionProperty.springType]: { id: 48, name: 'spring_type', component: ObjectType.TRANSITION, enumType: EnumType.SPRING_TYPE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRuntime: true, isWired: true, isStored: true },
+  [TransitionProperty.fieldPtr]: { id: 41, name: 'field_ptr', component: ObjectType.TRANSITION, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.FIELD], referenceStruct: StructType.NODE_REFERENCE },
+  [TransitionProperty.delay]: { id: 50, name: 'delay', component: ObjectType.TRANSITION, kind: 'primitive', primitiveType: PrimitiveType.FLOAT32, isRuntime: true, isWired: true, isStored: true },
+  [TransitionProperty.duration]: { id: 51, name: 'duration', component: ObjectType.TRANSITION, kind: 'primitive', primitiveType: PrimitiveType.FLOAT32, isRuntime: true, isWired: true, isStored: true },
+  [TransitionProperty.ease]: { id: 52, name: 'ease', component: ObjectType.TRANSITION, kind: 'primitive', primitiveType: PrimitiveType.FLOAT32, isList: true, isRuntime: true, isWired: true, isStored: true },
+  [TransitionProperty.stiffness]: { id: 53, name: 'stiffness', component: ObjectType.TRANSITION, kind: 'primitive', primitiveType: PrimitiveType.FLOAT32, isRuntime: true, isWired: true, isStored: true },
+  [TransitionProperty.damping]: { id: 54, name: 'damping', component: ObjectType.TRANSITION, kind: 'primitive', primitiveType: PrimitiveType.FLOAT32, isRuntime: true, isWired: true, isStored: true },
+  [TransitionProperty.mass]: { id: 55, name: 'mass', component: ObjectType.TRANSITION, kind: 'primitive', primitiveType: PrimitiveType.FLOAT32, isRuntime: true, isWired: true, isStored: true },
+  [TransitionProperty.bounce]: { id: 56, name: 'bounce', component: ObjectType.TRANSITION, kind: 'primitive', primitiveType: PrimitiveType.FLOAT32, isRuntime: true, isWired: true, isStored: true },
+  [TransitionProperty.springType]: { id: 57, name: 'spring_type', component: ObjectType.TRANSITION, enumType: EnumType.SPRING_TYPE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRuntime: true, isWired: true, isStored: true },
 }
 export const EffectDataInfo: Record<EffectProperty, PropertyInfo> = {
   [EffectProperty.metatype]: { id: 1, name: 'metatype', component: ObjectType.EFFECT, enumType: EnumType.OBJECT_TYPE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isInternal: true, isComputed: true, isWired: true },
   [EffectProperty.type]: { id: 30, name: 'type', component: ObjectType.EFFECT, enumType: EnumType.EFFECT_TYPE, kind: 'enum', primitiveType: PrimitiveType.INT16, default: 10, isRequired: true, isRuntime: true, isWired: true, isStored: true },
-  [EffectProperty.opacity]: { id: 40, name: 'opacity', component: ObjectType.EFFECT, kind: 'primitive', primitiveType: PrimitiveType.FLOAT32, isRuntime: true, isWired: true, isStored: true },
-  [EffectProperty.offset]: { id: 41, name: 'offset', component: ObjectType.EFFECT, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.AXIS_2 },
-  [EffectProperty.scale]: { id: 43, name: 'scale', component: ObjectType.EFFECT, kind: 'primitive', primitiveType: PrimitiveType.FLOAT32, isRuntime: true, isWired: true, isStored: true },
-  [EffectProperty.rotate]: { id: 44, name: 'rotate', component: ObjectType.EFFECT, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.AXIS_3 },
-  [EffectProperty.skew]: { id: 45, name: 'skew', component: ObjectType.EFFECT, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.AXIS_2 },
-  [EffectProperty.perspective]: { id: 50, name: 'perspective', component: ObjectType.EFFECT, kind: 'primitive', primitiveType: PrimitiveType.FLOAT32, isRuntime: true, isWired: true, isStored: true },
-  [EffectProperty.delay]: { id: 51, name: 'delay', component: ObjectType.EFFECT, kind: 'primitive', primitiveType: PrimitiveType.FLOAT32, isRuntime: true, isWired: true, isStored: true },
-  [EffectProperty.duration]: { id: 52, name: 'duration', component: ObjectType.EFFECT, kind: 'primitive', primitiveType: PrimitiveType.FLOAT32, isRuntime: true, isWired: true, isStored: true },
-  [EffectProperty.threshold]: { id: 53, name: 'threshold', component: ObjectType.EFFECT, kind: 'primitive', primitiveType: PrimitiveType.FLOAT32, isRuntime: true, isWired: true, isStored: true },
+  [EffectProperty.stylePtr]: { id: 40, name: 'style_ptr', component: ObjectType.EFFECT, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.EFFECT_STYLE], referenceStruct: StructType.NODE_REFERENCE },
+  [EffectProperty.fieldPtr]: { id: 41, name: 'field_ptr', component: ObjectType.EFFECT, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.FIELD], referenceStruct: StructType.NODE_REFERENCE },
+  [EffectProperty.opacity]: { id: 50, name: 'opacity', component: ObjectType.EFFECT, kind: 'primitive', primitiveType: PrimitiveType.FLOAT32, isRuntime: true, isWired: true, isStored: true },
+  [EffectProperty.offset]: { id: 51, name: 'offset', component: ObjectType.EFFECT, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.AXIS_2 },
+  [EffectProperty.scale]: { id: 52, name: 'scale', component: ObjectType.EFFECT, kind: 'primitive', primitiveType: PrimitiveType.FLOAT32, isRuntime: true, isWired: true, isStored: true },
+  [EffectProperty.rotate]: { id: 53, name: 'rotate', component: ObjectType.EFFECT, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.AXIS_3 },
+  [EffectProperty.skew]: { id: 54, name: 'skew', component: ObjectType.EFFECT, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.AXIS_2 },
+  [EffectProperty.perspective]: { id: 55, name: 'perspective', component: ObjectType.EFFECT, kind: 'primitive', primitiveType: PrimitiveType.FLOAT32, isRuntime: true, isWired: true, isStored: true },
+  [EffectProperty.delay]: { id: 56, name: 'delay', component: ObjectType.EFFECT, kind: 'primitive', primitiveType: PrimitiveType.FLOAT32, isRuntime: true, isWired: true, isStored: true },
+  [EffectProperty.duration]: { id: 57, name: 'duration', component: ObjectType.EFFECT, kind: 'primitive', primitiveType: PrimitiveType.FLOAT32, isRuntime: true, isWired: true, isStored: true },
+  [EffectProperty.threshold]: { id: 58, name: 'threshold', component: ObjectType.EFFECT, kind: 'primitive', primitiveType: PrimitiveType.FLOAT32, isRuntime: true, isWired: true, isStored: true },
 }
 export const GridDataInfo: Record<GridProperty, PropertyInfo> = {
   [GridProperty.metatype]: { id: 1, name: 'metatype', component: ObjectType.GRID, enumType: EnumType.OBJECT_TYPE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isInternal: true, isComputed: true, isWired: true },
@@ -41958,8 +42134,8 @@ export const NodeTypeOptionInfo: Partial<Record<NodeType, EnumOptionInfo>> = {
   [NodeType.COMPONENT_VIEW]: { id: 8110, name: 'COMPONENT_VIEW', text: 'Component Container', title: 'Component View', icon: 'fas fa-cube' },
   [NodeType.SPLIT_VIEW]: { id: 8120, name: 'SPLIT_VIEW', text: 'Split Container', title: 'Split View', icon: 'fas fa-columns' },
   [NodeType.TEXT_VIEW]: { id: 8200, name: 'TEXT_VIEW', text: 'Text', title: 'Text View', icon: 'fas fa-text' },
-  [NodeType.NUMBER_INPUT_VIEW]: { id: 8300, name: 'NUMBER_INPUT_VIEW', text: 'Number or String Input', title: 'Number Input View', icon: 'fas fa-hashtag' },
-  [NodeType.SLIDER_INPUT_VIEW]: { id: 8301, name: 'SLIDER_INPUT_VIEW', text: 'Slider', title: 'Slider Input View', icon: 'fas fa-slider' },
+  [NodeType.NUMBER_INPUT_VIEW]: { id: 8300, name: 'NUMBER_INPUT_VIEW', text: 'Number Input', title: 'Number Input View', icon: 'fas fa-hashtag' },
+  [NodeType.SLIDER_INPUT_VIEW]: { id: 8301, name: 'SLIDER_INPUT_VIEW', text: 'Slider Input', title: 'Slider Input View', icon: 'fas fa-slider' },
   [NodeType.THREAD_VIEW]: { id: 8430, name: 'THREAD_VIEW', text: 'Thread', title: 'Thread View', icon: 'fas fa-reel' },
   [NodeType.WIZARD_VIEW]: { id: 8500, name: 'WIZARD_VIEW', text: 'Wizard', title: 'Wizard View', icon: 'fas fa-wand-sparkles' },
   [NodeType.THEME]: { id: 9000, name: 'THEME', text: 'Theme', title: 'Theme', icon: 'fas fa-palette' },
@@ -42279,6 +42455,57 @@ export const ModelProviderOptionInfo: Partial<Record<ModelProvider, EnumOptionIn
   [ModelProvider.XAI]: { id: 1040, name: 'XAI', text: 'xAI', title: 'xAI' },
 }
 
+export const PositionTypeOptionInfo: Partial<Record<PositionType, EnumOptionInfo>> = {
+  [PositionType.RELATIVE]: { id: 1, name: 'RELATIVE', text: 'Relative', title: 'Relative' },
+  [PositionType.ABSOLUTE]: { id: 2, name: 'ABSOLUTE', text: 'Absolute', title: 'Absolute' },
+  [PositionType.FIXED]: { id: 3, name: 'FIXED', text: 'Fixed', title: 'Fixed' },
+  [PositionType.STICKY]: { id: 4, name: 'STICKY', text: 'Sticky', title: 'Sticky' },
+}
+
+export const LengthUnitOptionInfo: Partial<Record<LengthUnit, EnumOptionInfo>> = {
+  [LengthUnit.PIXEL]: { id: 1, name: 'PIXEL', text: 'px', title: 'Pixel' },
+  [LengthUnit.REM]: { id: 2, name: 'REM', text: 'rem', title: 'Rem' },
+  [LengthUnit.PERCENT]: { id: 3, name: 'PERCENT', text: '%', title: 'Percent' },
+  [LengthUnit.FR]: { id: 4, name: 'FR', text: 'fr', title: 'Fr' },
+}
+
+export const LayoutOptionInfo: Partial<Record<Layout, EnumOptionInfo>> = {
+  [Layout.STACK]: { id: 1, name: 'STACK', text: 'Stack', title: 'Stack', icon: 'fas fa-objects-align-center-vertical' },
+  [Layout.GRID]: { id: 2, name: 'GRID', text: 'Grid', title: 'Grid', icon: 'fas fa-grid-2' },
+}
+
+export const DistributeOptionInfo: Partial<Record<Distribute, EnumOptionInfo>> = {
+  [Distribute.START]: { id: 1, name: 'START', text: 'Start', title: 'Start', icon: 'fas fa-align-left' },
+  [Distribute.CENTER]: { id: 2, name: 'CENTER', text: 'Center', title: 'Center', icon: 'fas fa-align-center' },
+  [Distribute.END]: { id: 3, name: 'END', text: 'End', title: 'End', icon: 'fas fa-align-right' },
+  [Distribute.SPACE_BETWEEN]: { id: 4, name: 'SPACE_BETWEEN', text: 'Space Between', title: 'Space Between' },
+  [Distribute.SPACE_AROUND]: { id: 5, name: 'SPACE_AROUND', text: 'Space Around', title: 'Space Around' },
+  [Distribute.SPACE_EVENLY]: { id: 6, name: 'SPACE_EVENLY', text: 'Space Evenly', title: 'Space Evenly' },
+}
+
+export const AlignOptionInfo: Partial<Record<Align, EnumOptionInfo>> = {
+  [Align.START]: { id: 1, name: 'START', text: 'Start', title: 'Start', icon: 'fas fa-align-left' },
+  [Align.CENTER]: { id: 2, name: 'CENTER', text: 'Center', title: 'Center', icon: 'fas fa-align-center' },
+  [Align.END]: { id: 3, name: 'END', text: 'End', title: 'End', icon: 'fas fa-align-right' },
+}
+
+export const DirectionOptionInfo: Partial<Record<Direction, EnumOptionInfo>> = {
+  [Direction.HORIZONTAL]: { id: 1, name: 'HORIZONTAL', text: 'Horizontal', title: 'Horizontal', icon: 'fas fa-left-right' },
+  [Direction.VERTICAL]: { id: 2, name: 'VERTICAL', text: 'Vertical', title: 'Vertical', icon: 'fas fa-up-down' },
+}
+
+export const OverflowOptionInfo: Partial<Record<Overflow, EnumOptionInfo>> = {
+  [Overflow.HIDDEN]: { id: 2, name: 'HIDDEN', text: 'Hidden', title: 'Hidden', icon: 'fas fa-eye-slash' },
+  [Overflow.VISIBLE]: { id: 3, name: 'VISIBLE', text: 'Visible', title: 'Visible', icon: 'fas fa-eye' },
+  [Overflow.SCROLL]: { id: 4, name: 'SCROLL', text: 'Scroll', title: 'Scroll', icon: 'fas fa-computer-mouse-scrollwheel' },
+}
+
+export const DimensionTypeOptionInfo: Partial<Record<DimensionType, EnumOptionInfo>> = {
+  [DimensionType.FIXED]: { id: 2, name: 'FIXED', text: 'Fixed', title: 'Fixed', icon: 'fas fa-ruler-horizontal' },
+  [DimensionType.FIT]: { id: 3, name: 'FIT', text: 'Fit', title: 'Fit', icon: 'fas fa-arrows-up-to-line' },
+  [DimensionType.FILL]: { id: 4, name: 'FILL', text: 'Fill', title: 'Fill', icon: 'fas fa-arrows-from-dotted-line' },
+}
+
 
 export const ENUM_OPTION_INFO_BY_TYPE: Partial<Record<EnumType, Record<any, EnumOptionInfo>>> = {
   [EnumType.NODE_TYPE]: NodeTypeOptionInfo,
@@ -42311,6 +42538,14 @@ export const ENUM_OPTION_INFO_BY_TYPE: Partial<Record<EnumType, Record<any, Enum
   [EnumType.INTERRUPTION_TYPE]: InterruptionTypeOptionInfo,
   [EnumType.MODEL_DEVELOPER]: ModelDeveloperOptionInfo,
   [EnumType.MODEL_PROVIDER]: ModelProviderOptionInfo,
+  [EnumType.POSITION_TYPE]: PositionTypeOptionInfo,
+  [EnumType.LENGTH_UNIT]: LengthUnitOptionInfo,
+  [EnumType.LAYOUT]: LayoutOptionInfo,
+  [EnumType.DISTRIBUTE]: DistributeOptionInfo,
+  [EnumType.ALIGN]: AlignOptionInfo,
+  [EnumType.DIRECTION]: DirectionOptionInfo,
+  [EnumType.OVERFLOW]: OverflowOptionInfo,
+  [EnumType.DIMENSION_TYPE]: DimensionTypeOptionInfo,
 }
 
 

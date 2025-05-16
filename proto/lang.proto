@@ -98,10 +98,9 @@ enum EnumType {
   ENUM_TYPE_COLOR_TYPE = 29010;
   ENUM_TYPE_COLOR_SHADE = 29011;
   ENUM_TYPE_COLOR_HUE = 29012;
-  ENUM_TYPE_FONT_TYPE = 29020;
   ENUM_TYPE_FONT_WEIGHT = 29021;
   ENUM_TYPE_FONT_SIZE = 29022;
-  ENUM_TYPE_TEXT_TYPE = 29023;
+  ENUM_TYPE_FONT_TYPE = 29023;
   ENUM_TYPE_TEXT_ALIGN = 29024;
   ENUM_TYPE_TEXT_DECORATION = 29025;
   ENUM_TYPE_TEXT_TRANSFORM = 29026;
@@ -570,10 +569,9 @@ enum BenchType {
   BENCH_TYPE_COLOR_TYPE = 29010;
   BENCH_TYPE_COLOR_SHADE = 29011;
   BENCH_TYPE_COLOR_HUE = 29012;
-  BENCH_TYPE_FONT_TYPE = 29020;
   BENCH_TYPE_FONT_WEIGHT = 29021;
   BENCH_TYPE_FONT_SIZE = 29022;
-  BENCH_TYPE_TEXT_TYPE = 29023;
+  BENCH_TYPE_FONT_TYPE = 29023;
   BENCH_TYPE_TEXT_ALIGN = 29024;
   BENCH_TYPE_TEXT_DECORATION = 29025;
   BENCH_TYPE_TEXT_TRANSFORM = 29026;
@@ -1507,6 +1505,7 @@ enum ColorType {
   COLOR_TYPE_UNSPECIFIED = 0;
   COLOR_TYPE_BUILTIN = 1;
   COLOR_TYPE_STYLE = 2;
+  COLOR_TYPE_FIELD = 3;
   COLOR_TYPE_RGB = 10;
   COLOR_TYPE_HSL = 11;
   COLOR_TYPE_P3 = 12;
@@ -1552,13 +1551,6 @@ enum ColorHue {
   COLOR_HUE_ROSE = 47;
 }
 
-enum FontType {
-  FONT_TYPE_UNSPECIFIED = 0;
-  FONT_TYPE_SERIF = 1;
-  FONT_TYPE_SANS = 2;
-  FONT_TYPE_MONO = 3;
-}
-
 enum FontWeight {
   FONT_WEIGHT_UNSPECIFIED = 0;
   FONT_WEIGHT_THIN = 100;
@@ -1587,10 +1579,13 @@ enum FontSize {
   FONT_SIZE_XL7 = 72;
 }
 
-enum TextType {
-  TEXT_TYPE_UNSPECIFIED = 0;
-  TEXT_TYPE_INLINE = 1;
-  TEXT_TYPE_STYLE = 2;
+enum FontType {
+  FONT_TYPE_UNSPECIFIED = 0;
+  FONT_TYPE_STYLE = 2;
+  FONT_TYPE_FIELD = 3;
+  FONT_TYPE_SERIF = 10;
+  FONT_TYPE_SANS = 11;
+  FONT_TYPE_MONO = 12;
 }
 
 enum TextAlign {
@@ -1620,6 +1615,7 @@ enum TextTransform {
 enum ShadowType {
   SHADOW_TYPE_UNSPECIFIED = 0;
   SHADOW_TYPE_STYLE = 2;
+  SHADOW_TYPE_FIELD = 3;
   SHADOW_TYPE_BOX = 10;
   SHADOW_TYPE_REALISTIC = 11;
 }
@@ -1636,6 +1632,7 @@ enum BorderType {
   BORDER_TYPE_UNSPECIFIED = 0;
   BORDER_TYPE_NONE = 1;
   BORDER_TYPE_STYLE = 2;
+  BORDER_TYPE_FIELD = 3;
   BORDER_TYPE_SOLID = 10;
   BORDER_TYPE_DASHED = 11;
   BORDER_TYPE_DOTTED = 12;
@@ -1645,16 +1642,16 @@ enum BorderType {
 // Built-in gradient types.
 enum GradientType {
   GRADIENT_TYPE_UNSPECIFIED = 0;
-  GRADIENT_TYPE_LINEAR = 1;
-  GRADIENT_TYPE_RADIAL = 2;
-  GRADIENT_TYPE_CONIC = 3;
+  GRADIENT_TYPE_LINEAR = 10;
+  GRADIENT_TYPE_RADIAL = 11;
+  GRADIENT_TYPE_CONIC = 12;
 }
 
 enum FillType {
   FILL_TYPE_UNSPECIFIED = 0;
-  FILL_TYPE_SOLID = 1;
-  FILL_TYPE_GRADIENT = 2;
-  FILL_TYPE_IMAGE = 3;
+  FILL_TYPE_SOLID = 10;
+  FILL_TYPE_GRADIENT = 11;
+  FILL_TYPE_IMAGE = 12;
 }
 
 enum FillPosition {
@@ -1732,6 +1729,7 @@ enum Overflow {
 enum TransitionType {
   TRANSITION_TYPE_UNSPECIFIED = 0;
   TRANSITION_TYPE_STYLE = 2;
+  TRANSITION_TYPE_FIELD = 3;
   TRANSITION_TYPE_TWEEN = 10;
   TRANSITION_TYPE_SPRING = 11;
 }
@@ -1747,6 +1745,7 @@ enum SpringType {
 enum EffectType {
   EFFECT_TYPE_UNSPECIFIED = 0;
   EFFECT_TYPE_STYLE = 2;
+  EFFECT_TYPE_FIELD = 3;
   EFFECT_TYPE_APPEAR = 10;
   EFFECT_TYPE_ENTER = 11;
   EFFECT_TYPE_EXIT = 12;
@@ -1756,11 +1755,9 @@ enum EffectType {
 
 enum DimensionType {
   DIMENSION_TYPE_UNSPECIFIED = 0;
-  DIMENSION_TYPE_FIXED = 1;
-  DIMENSION_TYPE_RELATIVE = 2;
-  DIMENSION_TYPE_FIT_CONTENT = 3;
+  DIMENSION_TYPE_FIXED = 2;
+  DIMENSION_TYPE_FIT = 3;
   DIMENSION_TYPE_FILL = 4;
-  DIMENSION_TYPE_ASPECT_RATIO = 5;
 }
 
 message GraphScopeData {
@@ -2115,10 +2112,11 @@ message ColorData {
   optional ColorHue hue = 40;
   optional ColorShade shade = 41;
   optional NodeReferenceData style_ptr = 42;
-  optional float x = 43;
-  optional float y = 44;
-  optional float z = 45;
-  optional float alpha = 46;
+  optional NodeReferenceData field_ptr = 43;
+  optional float x = 50;
+  optional float y = 51;
+  optional float z = 52;
+  optional float alpha = 53;
 }
 
 message LengthData {
@@ -2139,6 +2137,7 @@ message PositionData {
 message DimensionData {
   ObjectType metatype = 1;
   DimensionType type = 30;
+  LengthUnit unit = 31;
   float value = 40;
 }
 
@@ -2194,22 +2193,25 @@ message BorderData {
   ObjectType metatype = 1;
   BorderType type = 30;
   optional NodeReferenceData style_ptr = 40;
-  optional ColorData color = 42;
-  optional InsetsData width = 43;
+  optional NodeReferenceData field_ptr = 41;
+  optional ColorData color = 50;
+  optional InsetsData width = 51;
 }
 
 message EffectData {
   ObjectType metatype = 1;
   EffectType type = 30;
-  optional float opacity = 40;
-  optional Axis2Data offset = 41;
-  optional float scale = 43;
-  optional Axis3Data rotate = 44;
-  optional Axis2Data skew = 45;
-  optional float perspective = 50;
-  optional float delay = 51;
-  optional float duration = 52;
-  optional float threshold = 53;
+  optional NodeReferenceData style_ptr = 40;
+  optional NodeReferenceData field_ptr = 41;
+  optional float opacity = 50;
+  optional Axis2Data offset = 51;
+  optional float scale = 52;
+  optional Axis3Data rotate = 53;
+  optional Axis2Data skew = 54;
+  optional float perspective = 55;
+  optional float delay = 56;
+  optional float duration = 57;
+  optional float threshold = 58;
 }
 
 message GradientStopData {
@@ -2238,43 +2240,45 @@ message FillData {
 
 message FontData {
   ObjectType metatype = 1;
-  TextType type = 30;
+  FontType type = 30;
   optional NodeReferenceData style_ptr = 40;
-  optional FontWeight weight = 41;
-  optional ColorData color = 45;
-  optional FontType font_type = 46;
-  optional FontSize font_size = 47;
-  optional TextAlign align = 48;
-  optional LengthData line_height = 49;
-  optional LengthData letter_spacing = 50;
-  optional TextDecoration decoration = 51;
-  optional TextTransform transform = 52;
+  optional NodeReferenceData field_ptr = 41;
+  optional FontWeight weight = 50;
+  optional FillData color = 51;
+  optional FontSize size = 52;
+  optional TextAlign align = 53;
+  optional LengthData line_height = 54;
+  optional LengthData letter_spacing = 55;
+  optional TextDecoration decoration = 56;
+  optional TextTransform transform = 57;
 }
 
 message ShadowData {
   ObjectType metatype = 1;
   ShadowType type = 30;
   optional NodeReferenceData style_ptr = 40;
-  optional ColorData color = 41;
-  ShadowPosition position = 42;
-  optional Axis2Data offset = 43;
-  optional int32 blur = 45;
-  optional int32 spread = 46;
-  optional float diffusion = 47;
+  optional NodeReferenceData field_ptr = 41;
+  optional ColorData color = 50;
+  ShadowPosition position = 51;
+  optional Axis2Data offset = 52;
+  optional int32 blur = 53;
+  optional int32 spread = 54;
+  optional float diffusion = 55;
 }
 
 message TransitionData {
   ObjectType metatype = 1;
   TransitionType type = 30;
   optional NodeReferenceData style_ptr = 40;
-  optional float delay = 41;
-  optional float duration = 42;
-  repeated float ease = 43;
-  optional float stiffness = 44;
-  optional float damping = 45;
-  optional float mass = 46;
-  optional float bounce = 47;
-  optional SpringType spring_type = 48;
+  optional NodeReferenceData field_ptr = 41;
+  optional float delay = 50;
+  optional float duration = 51;
+  repeated float ease = 52;
+  optional float stiffness = 53;
+  optional float damping = 54;
+  optional float mass = 55;
+  optional float bounce = 56;
+  optional SpringType spring_type = 57;
 }
 
 message Vector2Data {
@@ -3080,7 +3084,8 @@ message ApplicationData {
   string order_key = 33;
   optional IconData icon = 34;
   optional NodeReferenceData definition_ptr = 35;
-  optional NodeReferenceData root_scene_ptr = 40;
+  optional NodeReferenceData main_scene_ptr = 50;
+  optional NodeReferenceData error_scene_ptr = 53;
 }
 
 message BlockData {
@@ -3514,11 +3519,12 @@ message ColorStyleData {
   optional ColorHue hue = 40;
   optional ColorShade shade = 41;
   optional NodeReferenceData style_ptr = 42;
-  optional float x = 43;
-  optional float y = 44;
-  optional float z = 45;
-  optional float alpha = 46;
-  optional ColorData dark = 50;
+  optional NodeReferenceData field_ptr = 43;
+  optional float x = 50;
+  optional float y = 51;
+  optional float z = 52;
+  optional float alpha = 53;
+  optional ColorData dark = 60;
 }
 
 message BorderStyleData {
@@ -3541,8 +3547,9 @@ message BorderStyleData {
   optional IconData icon = 34;
   optional NodeReferenceData definition_ptr = 35;
   optional NodeReferenceData style_ptr = 40;
-  optional ColorData color = 42;
-  optional InsetsData width = 43;
+  optional NodeReferenceData field_ptr = 41;
+  optional ColorData color = 50;
+  optional InsetsData width = 51;
 }
 
 message EffectStyleData {
@@ -3564,15 +3571,17 @@ message EffectStyleData {
   string order_key = 33;
   optional IconData icon = 34;
   optional NodeReferenceData definition_ptr = 35;
-  optional float opacity = 40;
-  optional Axis2Data offset = 41;
-  optional float scale = 43;
-  optional Axis3Data rotate = 44;
-  optional Axis2Data skew = 45;
-  optional float perspective = 50;
-  optional float delay = 51;
-  optional float duration = 52;
-  optional float threshold = 53;
+  optional NodeReferenceData style_ptr = 40;
+  optional NodeReferenceData field_ptr = 41;
+  optional float opacity = 50;
+  optional Axis2Data offset = 51;
+  optional float scale = 52;
+  optional Axis3Data rotate = 53;
+  optional Axis2Data skew = 54;
+  optional float perspective = 55;
+  optional float delay = 56;
+  optional float duration = 57;
+  optional float threshold = 58;
 }
 
 message GradientStyleData {
@@ -3614,21 +3623,21 @@ message FontStyleData {
   optional google.protobuf.Timestamp deleted_at = 15;
   optional NodeReferenceData template_ptr = 16;
   NodeMode mode = 25;
-  TextType type = 30;
+  FontType type = 30;
   optional string name = 31;
   string order_key = 33;
   optional IconData icon = 34;
   optional NodeReferenceData definition_ptr = 35;
   optional NodeReferenceData style_ptr = 40;
-  optional FontWeight weight = 41;
-  optional ColorData color = 45;
-  optional FontType font_type = 46;
-  optional FontSize font_size = 47;
-  optional TextAlign align = 48;
-  optional LengthData line_height = 49;
-  optional LengthData letter_spacing = 50;
-  optional TextDecoration decoration = 51;
-  optional TextTransform transform = 52;
+  optional NodeReferenceData field_ptr = 41;
+  optional FontWeight weight = 50;
+  optional FillData color = 51;
+  optional FontSize size = 52;
+  optional TextAlign align = 53;
+  optional LengthData line_height = 54;
+  optional LengthData letter_spacing = 55;
+  optional TextDecoration decoration = 56;
+  optional TextTransform transform = 57;
 }
 
 message ShadowStyleData {
@@ -3651,12 +3660,13 @@ message ShadowStyleData {
   optional IconData icon = 34;
   optional NodeReferenceData definition_ptr = 35;
   optional NodeReferenceData style_ptr = 40;
-  optional ColorData color = 41;
-  ShadowPosition position = 42;
-  optional Axis2Data offset = 43;
-  optional int32 blur = 45;
-  optional int32 spread = 46;
-  optional float diffusion = 47;
+  optional NodeReferenceData field_ptr = 41;
+  optional ColorData color = 50;
+  ShadowPosition position = 51;
+  optional Axis2Data offset = 52;
+  optional int32 blur = 53;
+  optional int32 spread = 54;
+  optional float diffusion = 55;
 }
 
 message ThemeData {
@@ -3703,14 +3713,15 @@ message TransitionStyleData {
   optional IconData icon = 34;
   optional NodeReferenceData definition_ptr = 35;
   optional NodeReferenceData style_ptr = 40;
-  optional float delay = 41;
-  optional float duration = 42;
-  repeated float ease = 43;
-  optional float stiffness = 44;
-  optional float damping = 45;
-  optional float mass = 46;
-  optional float bounce = 47;
-  optional SpringType spring_type = 48;
+  optional NodeReferenceData field_ptr = 41;
+  optional float delay = 50;
+  optional float duration = 51;
+  repeated float ease = 52;
+  optional float stiffness = 53;
+  optional float damping = 54;
+  optional float mass = 55;
+  optional float bounce = 56;
+  optional SpringType spring_type = 57;
 }
 
 message ChoiceData {

@@ -37,8 +37,8 @@ from .effect import Effect, EffectBase, EffectStyle, EffectType
 from .fill import Fill, FillPosition, FillSize, FillType
 from .font import (
     Font,
+    FontBase,
     FontStyle,
-    FontStyleBase,
     FontType,
     FontWeight,
     TextDecoration,
@@ -78,8 +78,8 @@ __all__ = [
     "FillSize",
     "FillType",
     "Font",
+    "FontBase",
     "FontStyle",
-    "FontStyleBase",
     "FontType",
     "FontWeight",
     "Gradient",
