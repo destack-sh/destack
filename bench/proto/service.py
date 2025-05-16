@@ -24,13 +24,7 @@ from grpclib import Status as GRPCStatus
 from grpclib.client import ServiceMethod
 from opentelemetry import trace
 
-from bench.language.core import (
-    AccessError,
-    BenchError,
-    NodeNotFoundError,
-    PolicySubject,
-    ValidationError,
-)
+from bench.language.core import BenchError, NodeNotFoundError, ValidationError
 from bench.pb2 import RpcMetadata, ServiceKind
 from bench.utils.env import IS_DEV, IS_TEST
 from bench.utils.oracle import Oracle
@@ -43,13 +37,15 @@ from bench.utils.telemetry import (
 )
 
 if TYPE_CHECKING:
+    from bench.language import PolicySubject
+
     from .network import Network
 
 logger = structlog.get_logger(__name__)
 tracer = trace.get_tracer(__name__)
 
-UnaryRpcCallable = Callable[[PolicySubject, ProtoMessage], ProtoMessage]
-StreamRpcCallable = Callable[[PolicySubject, ProtoMessage], AsyncIterable[ProtoMessage]]
+UnaryRpcCallable = Callable[["PolicySubject", ProtoMessage], ProtoMessage]
+StreamRpcCallable = Callable[["PolicySubject", ProtoMessage], AsyncIterable[ProtoMessage]]
 RpcCallable = Union[UnaryRpcCallable, StreamRpcCallable]
 
 ServiceStubT = TypeVar("ServiceStubT")
@@ -58,7 +54,6 @@ StubT = TypeVar("StubT")
 GRPC_STATUS_BY_BENCH_ERROR_CLASS: Mapping[type, GRPCStatus] = {
     NotImplementedError: GRPCStatus.UNIMPLEMENTED,
     NodeNotFoundError: GRPCStatus.NOT_FOUND,
-    AccessError: GRPCStatus.PERMISSION_DENIED,
     ValidationError: GRPCStatus.INVALID_ARGUMENT,
 }
 
