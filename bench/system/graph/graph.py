@@ -3,7 +3,6 @@ import asyncio
 import dataclasses
 from contextlib import asynccontextmanager
 from dataclasses import dataclass
-from datetime import datetime
 from typing import (
     AsyncIterator,
     Callable,
@@ -16,7 +15,6 @@ from typing import (
 )
 from uuid import UUID
 
-import pytz
 import structlog
 from google.protobuf.message import Message as ProtoMessage
 from grpclib import GRPCError
@@ -25,10 +23,7 @@ from opentelemetry import trace
 
 from bench.language import (
     EMPTY_SCOPE_DATA,
-    NODE_CLASS_BY_TYPE,
     NODE_TYPES,
-    SUBJECT_NODE_TYPES,
-    AccessError,
     Bench,
     Context,
     EditType,
@@ -45,8 +40,6 @@ from bench.language import (
     NodeReference,
     NodeSuperGraph,
     NodeType,
-    PolicyEffect,
-    PolicySubject,
     QueryType,
     SelectOptions,
     Session,
@@ -54,8 +47,6 @@ from bench.language import (
     ValidationError,
     bittuple,
     edit_data_graph,
-    evaluate_edit,
-    generate_access_matrix,
     on_invalid_raise,
     unpack_proto_json,
     unpack_value_scalar_data,
@@ -234,7 +225,7 @@ class GraphServiceBase(ServiceBase, GraphBase, abc.ABC):
                 GRPCStatus.INVALID_ARGUMENT, f"scope mismatch: {scope.bench_id} != {self.bench_id}"
             )
 
-    def _adapt_read_query(self, subject: PolicySubject, query: "LegacyQuery") -> "LegacyQuery":
+    def _adapt_read_query(self, query: "LegacyQuery") -> "LegacyQuery":
         """
         Adapt read options based on the access to pre-filter as feasible and load any other required Nodes.
         Does NOT fully evaluate access yet, but avoids loading data that will be denied anyway.
@@ -248,14 +239,9 @@ class GraphServiceBase(ServiceBase, GraphBase, abc.ABC):
 
         return query
 
-    def _parse_commit(
-        self, subject: PolicySubject, context: IsRuntime, edits: Sequence[EditData]
-    ) -> "CommitScope":
+    def _parse_commit(self, context: IsRuntime, edits: Sequence[EditData]) -> "CommitScope":
         """Prepares and validates the edits for a commit."""
         scope = self._extract_commit_scope(edits)
-        now = self.oracle.utc()
-        for edit in edits:
-            self._validate_edit(edit, subject, now)
         return scope
 
     async def start(self):
@@ -379,7 +365,7 @@ class GraphServiceBase(ServiceBase, GraphBase, abc.ABC):
         *,
         area: "CommitScope",
         scope: GraphScopeData,
-        subject: PolicySubject,
+        supergraph: NodeSuperGraph,
         context: IsRuntime,
         edits: Sequence[EditData],
     ) -> tuple[Sequence[EditData], Sequence[EditData]]:
@@ -388,9 +374,7 @@ class GraphServiceBase(ServiceBase, GraphBase, abc.ABC):
         # pre-validate/prepare edits
         include_removed = any(e.type == EditType.RESTORE for e in edits)
 
-        async with self.new_request_session(
-            supergraph=subject._supergraph, readonly=False
-        ) as session:
+        async with self.new_request_session(supergraph=supergraph, readonly=False) as session:
             # read the affected nodes into a single graph for evaluation
             data_graph = NodeDataGraph(scope=self._scope, node_types=NODE_TYPES)
             with self.tracer.start_as_current_span(f"{self.name}.commit.read"):
@@ -410,7 +394,7 @@ class GraphServiceBase(ServiceBase, GraphBase, abc.ABC):
                         include_removed=include_removed,
                         select=select,
                     )
-                    adapted_query = self._adapt_read_query(subject, query)
+                    adapted_query = self._adapt_read_query(query)
                     channel = await session._get_connector_for(
                         scope,
                         adapted_query.all_node_types,
@@ -452,13 +436,6 @@ class GraphServiceBase(ServiceBase, GraphBase, abc.ABC):
 
                 self.logger.trace(f"{self.name}.commit.read", graph=data_graph)
 
-            # check access
-            with self.tracer.start_as_current_span(f"{self.name}.commit.check_access"):
-                matrix = generate_access_matrix(subject, data_graph, supergraph=session._supergraph)
-                decision, accesses = evaluate_edit(matrix, data_graph, edits)
-                if decision != PolicyEffect.ALLOW:
-                    raise AccessError(accesses)
-
             # apply edits in copy to validate
             # (and update true 'old' values in prepass, simplify edits for sql engine)
             session.tx._track_edits(edits)  # (assign epochs)
@@ -467,7 +444,7 @@ class GraphServiceBase(ServiceBase, GraphBase, abc.ABC):
             )
             assert flat_edits and len(flat_edits) == len(edits), f"{flat_edits!r} != {edits!r}"
             unpacked_graph = wiring.unpack_node_graph(
-                data_graph, supergraph=subject._supergraph, parent=None, session=session
+                data_graph, supergraph=supergraph, parent=None, session=session
             )
             for node_id in area.edited_node_ids:
                 node = unpacked_graph.get(UUID(node_id))
@@ -505,7 +482,7 @@ class GraphServiceBase(ServiceBase, GraphBase, abc.ABC):
                 _supergraph=subject._supergraph,
             )
 
-        area = self._parse_commit(subject, context, request.edits)
+        area = self._parse_commit(context, request.edits)
         self._check_allowed_node_types(*area.node_types)
         async with self._graph_lock.write(area):
             retry = COMMIT_RETRY.new(self.oracle)
@@ -515,7 +492,7 @@ class GraphServiceBase(ServiceBase, GraphBase, abc.ABC):
                     _, cascaded_edits = await self._do_commit(
                         area=area,
                         scope=self._scope,
-                        subject=subject,
+                        supergraph=subject._supergraph,
                         context=context,
                         edits=request.edits,
                     )
@@ -599,7 +576,7 @@ class GraphServiceBase(ServiceBase, GraphBase, abc.ABC):
                     include_memory=not request.no_memory,
                     select=select,
                 )
-                adapted_query = self._adapt_read_query(subject, query)
+                adapted_query = self._adapt_read_query(query)
 
             # get nodes
             with self.tracer.start_as_current_span(f"{self.name}.get.read") as span:
@@ -647,7 +624,6 @@ class GraphServiceBase(ServiceBase, GraphBase, abc.ABC):
         metadata = wiring.unpack_rpc_headers(headers)
         subject = await self.get_request_subject(request, metadata)
         subscription = await self.connector.subscribe(
-            subject=subject,
             connection_t=GetConnection,
             update_t=WatchGetUpdateData,
             connection_token=request.connection_token,
@@ -737,7 +713,7 @@ class GraphServiceBase(ServiceBase, GraphBase, abc.ABC):
                     first=request.first or None,
                     select=select,
                 )
-                adapted_query = self._adapt_read_query(subject, query)
+                adapted_query = self._adapt_read_query(query)
 
             # bail for joins :BadSearchConnection
             if query._descendant_types:
@@ -781,10 +757,7 @@ class GraphServiceBase(ServiceBase, GraphBase, abc.ABC):
     async def watch_search(
         self, request: WatchSearchRequest, headers: Mapping
     ) -> AsyncIterator[WatchSearchResponse]:
-        metadata = wiring.unpack_rpc_headers(headers)
-        subject = await self.get_request_subject(request, metadata)
         subscription = await self.connector.subscribe(
-            subject=subject,
             connection_t=SearchConnection,
             update_t=WatchSearchUpdateData,
             connection_token=request.connection_token,
@@ -806,7 +779,6 @@ class GraphServiceBase(ServiceBase, GraphBase, abc.ABC):
             )
             self.logger.info(
                 f"{self.name}.watch_search",
-                subject=subject,
                 subscription=subscription,
                 connection=subscription.connection,
                 epoch=self._local_epoch,
@@ -894,68 +866,3 @@ class GraphServiceBase(ServiceBase, GraphBase, abc.ABC):
             scopes_by_base_and_type=node_scopes_by_type,
             graph_scopes=tuple(graph_scopes.values()),
         )
-
-    def _validate_edit(self, edit: EditData, subject: PolicySubject, now: datetime) -> None:
-        """Checks the given (non-system) edit for basic validity."""
-        assert subject.client, f"{subject!r} has no client"
-        node_type = NodeType(edit.node_ptr.node_type)
-        node_cls = NODE_CLASS_BY_TYPE[node_type]
-
-        # scope
-        if node_cls.__is_in_bench__ and not edit.scope.bench_id:
-            raise GRPCError(GRPCStatus.INVALID_ARGUMENT, f"missing bench_id in {edit!r}")
-
-        # subject
-        if subject.client.parent_type == NodeType.USER:
-            user_id = str(subject.user.id) if subject.user else None
-            # subject must match user
-            if not edit.subject_ptr or edit.subject_ptr.id != user_id:
-                raise GRPCError(
-                    GRPCStatus.INVALID_ARGUMENT,
-                    f"subject mismatch in {wiring.describe_edit(edit)!r}: {wiring.describe_node_ptr(edit.subject_ptr)!r} != {user_id}",
-                )
-        else:
-            # subject one of our member types
-            if not edit.subject_ptr or edit.subject_ptr.node_type not in SUBJECT_NODE_TYPES:
-                raise GRPCError(
-                    GRPCStatus.INVALID_ARGUMENT,
-                    f"bad subject in {wiring.describe_edit(edit)!r}: {wiring.describe_node_ptr(edit.subject_ptr)!r}",
-                )
-        # origin
-        if not edit.origin.id or UUID(edit.origin.id) != subject.client.id:
-            raise GRPCError(
-                GRPCStatus.INVALID_ARGUMENT,
-                f"origin mismatch in {wiring.describe_edit(edit)!r}: {(edit.origin)!r} != {subject.client!r}",
-            )
-
-        # time
-        if not edit.edited_at or (
-            (now - edit.edited_at.ToDatetime(tzinfo=pytz.utc)).total_seconds()
-            > MAX_TIME_DRIFT_SECONDS
-        ):
-            raise GRPCError(
-                GRPCStatus.INVALID_ARGUMENT,
-                f"edit too old: {edit.edited_at} << {now}",
-            )
-
-        # node data :EditData
-        should_set_node_data = edit.type in (
-            EditType.CREATE,
-            EditType.UPSERT,
-            EditType.ARCHIVE,
-            EditType.UNARCHIVE,
-            EditType.DELETE,
-            EditType.RESTORE,
-            EditType.ERASE,
-        )
-        if should_set_node_data != edit.HasField("node_data"):
-            raise GRPCError(
-                GRPCStatus.INVALID_ARGUMENT,
-                f"bad node_data in {wiring.describe_edit(edit)!r}: {edit.node_data}",
-            )
-        # properties
-        if edit.operations and edit.type not in (EditType.UPDATE, EditType.MOVE):
-            raise GRPCError(
-                GRPCStatus.INVALID_ARGUMENT,
-                f"cannot add operations to {wiring.describe_edit(edit)!r}",
-            )

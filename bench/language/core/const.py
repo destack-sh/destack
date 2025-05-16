@@ -1227,20 +1227,6 @@ class ReferenceKind(BuiltinEnum):
 #
 
 
-@enum_(EnumType.QUERY_TYPE)
-class QueryType(BuiltinEnum):
-    """Ways to read nodes."""
-
-    """Any direct read for specific nodes."""
-    GET = 1
-    """Search all nodes."""
-    SEARCH = 2
-
-    @property
-    def kind(self) -> "AccessKind":
-        return AccessKind.READ
-
-
 @enum_(EnumType.EDIT_TYPE)
 class EditType(BuiltinEnum):
     """Ways to edit nodes."""
@@ -1255,9 +1241,15 @@ class EditType(BuiltinEnum):
     RESTORE = 27
     ERASE = 28
 
-    @property
-    def kind(self) -> "AccessKind":
-        return AccessKind.EDIT
+
+@enum_(EnumType.QUERY_TYPE)
+class QueryType(BuiltinEnum):
+    """Ways to read nodes."""
+
+    """Any direct read for specific nodes."""
+    GET = 1
+    """Search all nodes."""
+    SEARCH = 2
 
 
 @enum_(EnumType.CHANGE_CATEGORY)
@@ -1286,64 +1278,7 @@ class EditOperationType(BuiltinEnum):
     # ...
 
 
-@enum_(EnumType.USE_TYPE)
-class UseType(BuiltinEnum):
-    """Ways to use nodes."""
-
-    START = 40
-    PAUSE = 41
-    RESUME = 42
-    STOP = 43
-    KILL = 44
-    SEND = 45
-    RECEIVE = 46
-
-    @property
-    def kind(self) -> "AccessKind":
-        return AccessKind.USE
-
-
-@enum_(EnumType.ACCESS_KIND)
-class AccessKind(BuiltinEnum):
-    READ = 1
-    EDIT = 20
-    USE = 40
-
-    @property
-    def from_ord(self) -> int:
-        return ACCESS_CLASS_BY_KIND[self].get_min_ord()
-
-    @property
-    def to_ord(self) -> int:
-        return ACCESS_CLASS_BY_KIND[self].get_max_ord()
-
-
-if typing.TYPE_CHECKING:
-    AccessType = QueryType | EditType | UseType
-else:
-    AccessType = BuiltinEnum.combine("AccessType", QueryType, EditType, UseType)
-    AccessType.kind = property(lambda self: ACCESS_KIND_BY_ACCESS[self])
-    enum_(EnumType.ACCESS_TYPE)(AccessType)
-
-READ_TYPES: bittuple[QueryType] = bittuple(*QueryType)
 EDIT_TYPES: bittuple[EditType] = bittuple(*EditType)
-USE_TYPES: bittuple[UseType] = bittuple(*UseType)
-ACCESS_TYPES: bittuple[AccessType] = bittuple(*AccessType)  # type: ignore
-ACCESS_CLASSES: tuple[type[AccessType], ...] = (QueryType, EditType, UseType, AccessType)  # type: ignore
-ACCESS_KINDS = bittuple(*AccessKind)
-ACCESS_TYPES_BY_KIND: dict[AccessKind, bittuple[AccessType]] = {
-    AccessKind.READ: bittuple(*READ_TYPES),
-    AccessKind.EDIT: bittuple(*EDIT_TYPES),
-    AccessKind.USE: bittuple(*USE_TYPES),
-}
-ACCESS_CLASS_BY_KIND: dict[AccessKind, type[AccessType]] = {
-    AccessKind.READ: QueryType,
-    AccessKind.EDIT: EditType,
-    AccessKind.USE: UseType,
-}
-ACCESS_KIND_BY_ACCESS: dict[AccessType, AccessKind] = {
-    access: kind for kind, access_types in ACCESS_TYPES_BY_KIND.items() for access in access_types
-}
 
 
 @enum_(EnumType.ACCESS_MODE)

@@ -15,7 +15,6 @@ from bench.language import (
     NodeDataGraph,
     NodeReference,
     NodeType,
-    PolicySubject,
     QueryType,
     SearchOptions,
     SearchResultData,
@@ -130,11 +129,9 @@ class Connection[
         ...
 
     @final
-    async def subscribe(
-        self, subject: PolicySubject, since_epoch: int
-    ) -> "ConnectionSubscription[UpdateT]":
+    async def subscribe(self, since_epoch: int) -> "ConnectionSubscription[UpdateT]":
         """Subscribe to the query results."""
-        subscription = ConnectionSubscription(self, subject, since_epoch)
+        subscription = ConnectionSubscription(self, since_epoch)
 
         # replay updates with epoch < since_epoch
         for update in self._replay_buffer:
@@ -176,9 +173,8 @@ class Connection[
 class ConnectionSubscription[UpdateT: Any]:
     """An active subscriber to the query connection."""
 
-    def __init__(self, connection: Connection, subject: PolicySubject, since_epoch: int):
+    def __init__(self, connection: Connection, since_epoch: int):
         self.connection = connection
-        self.subject = subject
         self._since_epoch = since_epoch
         self._subscribed_at_ns = connection.oracle.time_ns()
         self._closed_at_ns: int | None = None
@@ -186,7 +182,7 @@ class ConnectionSubscription[UpdateT: Any]:
         self._keepalive_task: asyncio.Task | None = None
 
     def __str__(self):
-        return f"{self.subject!r} on {self.connection!r}"
+        return f"{self.connection!r}"
 
     def __repr__(self):
         return f"<{self.__class__.__name__} {self}>"
@@ -653,7 +649,6 @@ class ConnectionIndex:
 
     async def subscribe[ConnectionT: Connection, UpdateT: Any](
         self,
-        subject: PolicySubject,
         connection_t: type[ConnectionT],
         update_t: type[UpdateT],
         connection_token: str,
@@ -665,7 +660,7 @@ class ConnectionIndex:
             raise ValueError(f"no connection with token {connection_token!r}")
         if not isinstance(connection, connection_t):
             raise ValueError(f"unexpected connection {connection!r} (want {connection_t})")
-        subscription = await connection.subscribe(subject, since_epoch)
+        subscription = await connection.subscribe(since_epoch)
         return subscription
 
     @tracer.start_as_current_span("connection.post_commit")

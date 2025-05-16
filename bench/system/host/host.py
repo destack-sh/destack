@@ -22,7 +22,6 @@ from bench.language import (
     Bench,
     BenchStatus,
     C,
-    ClientType,
     ConditionalType,
     Database,
     EditType,
@@ -522,15 +521,10 @@ class HostService(GraphServiceBase, HostBase):
 
     @override
     @tracer.start_as_current_span("host.prepare_commit")
-    def _parse_commit(self, subject: PolicySubject, context: IsRuntime, edits: Sequence[EditData]):
-        assert subject.client and subject.client_ptr, f"no client for {subject!r}"
+    def _parse_commit(self, context: IsRuntime, edits: Sequence[EditData]):
         assert self._main_package is not None, f"package not loaded in {self!r}"
 
-        # prepare commit
         scope = self._extract_commit_scope(edits)
-        now = self.oracle.utc()
-        for edit in edits:
-            self._validate_edit(edit, subject, now)
 
         # add any threads
         # NOTE :Cleanup: manually loading more stuff for Thread feels wrong :AutoLoading :RichGraph
@@ -541,14 +535,11 @@ class HostService(GraphServiceBase, HostBase):
                     message = cast(MessageData, unwrap_some_node(edit.node_data))
                     scope.add_scope(message.thread_ptr)
 
-        # check context
-        validate_context(subject, context, edits)
-
         return scope
 
     @override
-    def _adapt_read_query(self, subject: PolicySubject, query: LegacyQuery) -> LegacyQuery:
-        query = super()._adapt_read_query(subject, query)
+    def _adapt_read_query(self, query: LegacyQuery) -> LegacyQuery:
+        query = super()._adapt_read_query(query)
 
         # restrict to this bench if it's an in-bench query
         #  (non-local because those are already in-bench only)
@@ -820,28 +811,6 @@ class HostService(GraphServiceBase, HostBase):
             handles.append(handle)
 
         return DownloadFilesResponse(handles=handles)
-
-
-@tracer.start_as_current_span("host.validate_context")
-def validate_context(subject: PolicySubject, context: IsRuntime, edits: Sequence[EditData]):
-    """Checks the session context and per edit context for consistency."""
-    assert subject.client and subject.client_ptr, f"no client for {subject!r}"
-    if not context.client_ptr or context.client_ptr.id != subject.client_ptr.id:
-        raise GRPCError(
-            GRPCStatus.INVALID_ARGUMENT,
-            f"bad client context for {subject!r}: {context.client_ptr!r}",
-        )
-    if subject.user_ptr and (not context.user_ptr or context.user_ptr.id != subject.user_ptr.id):
-        raise GRPCError(
-            GRPCStatus.INVALID_ARGUMENT,
-            f"bad user context for {subject!r}: {context.user_ptr!r}",
-        )
-    if subject.client.type == ClientType.COMPUTER:
-        if not context.computer_ptr or context.computer_ptr.id != subject.computer_id:
-            raise GRPCError(
-                GRPCStatus.INVALID_ARGUMENT,
-                f"bad computer context for {subject!r}: {context.computer_ptr!r}",
-            )
 
 
 def get_drive_bucket(bench: Bench) -> str:
