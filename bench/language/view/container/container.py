@@ -1,10 +1,6 @@
 from typing import TYPE_CHECKING, Optional
 
-from bench.language.core import (
-    StructType,
-    node_component_,
-    p_regular,
-)
+from bench.language.core import StructType, node_component_, p_regular
 from bench.pb2 import AnyNodeData
 
 from ..view import ViewBase
@@ -24,6 +20,7 @@ if TYPE_CHECKING:
         Insets,
         Layout,
         Shadow,
+        Vector2,
     )
 
 
@@ -48,6 +45,8 @@ class ContainerViewBase[NodeDataT: AnyNodeData](ViewBase[NodeDataT]):
     opacity: Optional[float] = p_regular(61, require=False)
     fill: Optional["Fill"] = p_regular(62, require=False, struct=StructType.FILL)
     rotation: Optional["Axis3"] = p_regular(63, require=False, struct=StructType.AXIS3)
-    shadow: Optional["Shadow"] = p_regular(64, require=False, struct=StructType.SHADOW)
-    border: Optional["Border"] = p_regular(65, require=False, struct=StructType.BORDER)
-    radius: Optional["Corners"] = p_regular(66, require=False, struct=StructType.CORNERS)
+    skew: Optional["Vector2"] = p_regular(64, require=False, struct=StructType.VECTOR2)
+    scale: Optional[float] = p_regular(65, require=False)
+    shadow: Optional["Shadow"] = p_regular(66, require=False, struct=StructType.SHADOW)
+    border: Optional["Border"] = p_regular(67, require=False, struct=StructType.BORDER)
+    radius: Optional["Corners"] = p_regular(68, require=False, struct=StructType.CORNERS)

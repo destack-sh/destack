@@ -15,10 +15,11 @@ from bench.language.core import (
 )
 from bench.pb2 import ColorStyleData
 
+from .core import IsVariable
 from .style import StyleBase
 
 if TYPE_CHECKING:
-    from bench.language import Field
+    pass
 
 
 @enum_(EnumType.COLOR_TYPE)
@@ -76,22 +77,20 @@ class ColorShade(BuiltinEnum):
 
 
 @node_component_()
-class ColorBase(BuiltinObject):
+class ColorBase(IsVariable, BuiltinObject):
     """A color value (x, y, z, alpha in 0-1)."""
 
     type: ColorType = p_regular(30)
-    hue: Optional[ColorHue] = p_regular(40, default=None)
-    shade: Optional[ColorShade] = p_regular(41, default=None)
     style: Optional["ColorStyle"] = p_regular(
         42, default=None, require=False, array=False, references=NodeType.COLOR_STYLE
     )
-    field: Optional["Field"] = p_regular(
-        43, default=None, require=False, array=False, references=NodeType.FIELD
-    )
-    x: Optional[float] = p_regular(50, default=None)
-    y: Optional[float] = p_regular(51, default=None)
-    z: Optional[float] = p_regular(52, default=None)
-    alpha: Optional[float] = p_regular(53, default=None)
+
+    hue: Optional[ColorHue] = p_regular(50, default=None)
+    shade: Optional[ColorShade] = p_regular(51, default=None)
+    x: Optional[float] = p_regular(52, default=None)
+    y: Optional[float] = p_regular(53, default=None)
+    z: Optional[float] = p_regular(54, default=None)
+    alpha: Optional[float] = p_regular(55, default=None)
 
 
 @struct_(StructType.COLOR)

@@ -656,7 +656,6 @@ class NodeType(BuiltinEnum):
     WIZARD_VIEW = 8500, "Wizard View", "Wizard", "fas fa-wand-sparkles"
     # SIDEBAR_VIEW = 8501, "Sidebar View", "Sidebar", "fas fa-bars"
     # CONTEXT_VIEW = 8502, "Context View", "Context", "fas fa-sitemap"
-    # SCENE_CANVAS_VIEW = 8510, "Scene Canvas View", "Scene Canvas", "fas fa-canvas"
 
     # style [9000-9100]
     THEME = 9000, "Theme", "Theme", "fas fa-palette"
@@ -667,7 +666,7 @@ class NodeType(BuiltinEnum):
     GRADIENT_STYLE = 9014, "Gradient Style", "Gradient Style", "fas fa-gradient"
     TRANSITION_STYLE = 9015, "Transition Style", "Transition Style", "fas fa-bezier-curve"
     EFFECT_STYLE = 9016, "Effect Style", "Effect Style", "fas fa-sparkle"
-    # VARIANT = 9050, "Variant", "Variant", "fas fa-bring-forward"
+    # VARIANT = 9030, "Variant", "Variant", "fas fa-bring-forward"
 
     # canvas?
     # CANVAS/DRAWING, SHAPE, BRUSH, ...
@@ -791,10 +790,15 @@ class StructType(BuiltinEnum):
 
     # style [19000-19100]
     VECTOR2 = 19000, None, None, "fas fa-vector-square"
-    VECTOR3 = 19001, None, None, "fas fa-vector-square"
-    VECTOR4 = 19002, None, None, "fas fa-vector-square"
-    AXIS2 = 19003, None, None, "fas fa-vector-square"
-    AXIS3 = 19004, None, None, "fas fa-vector-square"
+    VARIABLE_VECTOR2 = 19001, None, None, "fas fa-vector-square"
+    VECTOR3 = 19002, None, None, "fas fa-vector-square"
+    VARIABLE_VECTOR3 = 19003, None, None, "fas fa-vector-square"
+    VECTOR4 = 19004, None, None, "fas fa-vector-square"
+    VARIABLE_VECTOR4 = 19005, None, None, "fas fa-vector-square"
+    AXIS2 = 19006, None, None, "fas fa-vector-square"
+    VARIABLE_AXIS2 = 19007, None, None, "fas fa-vector-square"
+    AXIS3 = 19008, None, None, "fas fa-vector-square"
+    VARIABLE_AXIS3 = 19009, None, None, "fas fa-vector-square"
     COLOR = 19010, None, None, "fas fa-palette"
     SHADOW = 19011, None, None, "fas fa-eclipse"
     BORDER = 19012, None, None, "fas fa-border-outer"
@@ -803,14 +807,21 @@ class StructType(BuiltinEnum):
     GRADIENT = 19015, None, None, "fas fa-gradient"
     FILL = 19016, None, None, "fas fa-fill"
     LENGTH = 19017, None, None, "fas fa-ruler"
-    POSITION = 19018, None, None, "fas fa-location-crosshair"
-    DIMENSION = 19019, None, None, "fas fa-ruler"
-    TRANSITION = 19020, None, None, "fas fa-bezier-curve"
-    EFFECT = 19021, None, None, "fas fa-sparkle"
-    GRID = 19022, None, None, "fas fa-grid-2"
-    GRID_SPAN = 19023, None, None, "fas fa-grid-2"
-    INSETS = 19024, None, None, "fas fa-corner"
-    CORNERS = 19025, None, None, "fas fa-corner"
+    VARIABLE_LENGTH = 19018, None, None, "fas fa-ruler"
+    POSITION = 19019, None, None, "fas fa-location-crosshair"
+    VARIABLE_POSITION = 19020, None, None, "fas fa-location-crosshair"
+    DIMENSION = 19021, None, None, "fas fa-ruler"
+    VARIABLE_DIMENSION = 19022, None, None, "fas fa-ruler"
+    TRANSITION = 19023, None, None, "fas fa-bezier-curve"
+    EFFECT = 19024, None, None, "fas fa-sparkle"
+    GRID = 19025, None, None, "fas fa-grid-2"
+    VARIABLE_GRID = 19026, None, None, "fas fa-grid-2"
+    GRID_SPAN = 19027, None, None, "fas fa-grid-2"
+    VARIABLE_GRID_SPAN = 19028, None, None, "fas fa-grid-2"
+    INSETS = 19029, None, None, "fas fa-corner"
+    VARIABLE_INSETS = 19030, None, None, "fas fa-corner"
+    CORNERS = 19031, None, None, "fas fa-corner"
+    VARIABLE_CORNERS = 19032, None, None, "fas fa-corner"
 
     # drawing
     # ...

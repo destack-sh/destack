@@ -16,11 +16,11 @@ from bench.language.core import (
 from bench.pb2 import ShadowStyleData
 
 from .color import Color
-from .core import Axis2
+from .core import Axis2, IsVariable
 from .style import StyleBase
 
 if TYPE_CHECKING:
-    from bench.language import Field
+    pass
 
 
 @enum_(EnumType.SHADOW_TYPE)
@@ -42,13 +42,10 @@ class ShadowPosition(BuiltinEnum):
 
 
 @node_component_()
-class ShadowBase(BuiltinObject):
+class ShadowBase(IsVariable, BuiltinObject):
     type: ShadowType = p_regular(30, default=ShadowType.BOX)
     style: Optional["ShadowStyle"] = p_regular(
-        40, default=None, require=False, array=False, references=NodeType.SHADOW_STYLE
-    )
-    field: Optional["Field"] = p_regular(
-        41, default=None, require=False, array=False, references=NodeType.FIELD
+        41, default=None, require=False, array=False, references=NodeType.SHADOW_STYLE
     )
     color: Optional["Color"] = p_regular(
         50, array=False, default=None, require=False, struct=StructType.COLOR

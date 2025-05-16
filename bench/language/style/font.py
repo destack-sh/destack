@@ -15,12 +15,12 @@ from bench.language.core import (
 )
 from bench.pb2 import FontStyleData
 
-from .core import Length
+from .core import IsVariable, Length
 from .fill import Fill
 from .style import StyleBase
 
 if TYPE_CHECKING:
-    from bench.language import Field
+    pass
 
 
 @enum_(EnumType.FONT_TYPE)
@@ -84,15 +84,12 @@ class TextTransform(BuiltinEnum):
 
 
 @node_component_()
-class FontBase(BuiltinObject):
+class FontBase(IsVariable, BuiltinObject):
     """A text style value."""
 
     type: FontType = p_regular(30, default=FontType.SANS)
     style: Optional["FontStyle"] = p_regular(
-        40, default=None, require=False, array=False, references=NodeType.FONT_STYLE
-    )
-    field: Optional["Field"] = p_regular(
-        41, default=None, require=False, array=False, references=NodeType.FIELD
+        41, default=None, require=False, array=False, references=NodeType.FONT_STYLE
     )
     weight: Optional[FontWeight] = p_regular(50, default=FontWeight.NORMAL)
     color: Optional[Fill] = p_regular(51, default=None, struct=StructType.FILL)
