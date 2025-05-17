@@ -34,7 +34,7 @@ class Scaler(ProvisionableResourceBase[ScalerData]):
     type: ScalerType = p_system(30)
 
     # content
-    strategy: ScalerStrategy = p_regular(60, default=ScalerStrategy.AUTO, default_sql=None)
+    strategy: ScalerStrategy = p_regular(60, default=ScalerStrategy.AUTO)
     target_count: int = p_regular(61, default=0)
     min_count: int = p_regular(62, default=0)
     max_count: int = p_regular(63, default=16)

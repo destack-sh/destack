@@ -1,6 +1,6 @@
 from typing import TYPE_CHECKING, Optional
 
-from bench.language.core import node_component_, p_regular
+from bench.language.core import MaybeVariable, node_component_, p_regular
 from bench.pb2 import AnyNodeData
 
 from ..view import ViewBase
@@ -19,5 +19,5 @@ class ContentViewBase[NodeDataT: AnyNodeData](ViewBase[NodeDataT]):
     align: Optional["Align"] = p_regular(53)
 
     # appearance
-    visible: Optional[bool] = p_regular(60)
-    opacity: Optional[float] = p_regular(61)
+    is_visible: MaybeVariable[bool] = p_regular(60)
+    opacity: MaybeVariable[float] = p_regular(61)

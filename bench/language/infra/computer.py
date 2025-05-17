@@ -43,7 +43,7 @@ class Computer(IsSubject, ProvisionableResourceBase[ComputerData]):
 
     type: ComputerType = p_regular(30, default=ComputerType.RUNTIME)
 
-    version: str = p_system(60, default=VERSION, default_sql=None)
+    version: str = p_system(60, default=VERSION)
     external_name: Optional[str] = p_kernel(62, sensitive=True)
     external_id: Optional[str] = p_kernel(63, sensitive=True)
     image_id: Optional[str] = p_kernel(64, sensitive=True)
@@ -55,14 +55,10 @@ class Computer(IsSubject, ProvisionableResourceBase[ComputerData]):
         client_ptr: Optional[NodeReference] = None
         client_id: Optional[UUID] = None
 
-    cpu: float = p_system(
-        70, description="vCPU count", default=1.0, default_sql=None, constraint=CPU_CONSTRAINT
-    )
-    ram: float = p_system(
-        71, description="GB", default=1.0, default_sql=None, constraint=RAM_CONSTRAINT
-    )
-    width: int = p_system(75, default=1280, default_sql=None)
-    height: int = p_system(76, default=960, default_sql=None)
+    cpu: float = p_system(70, description="vCPU count", default=1.0, constraint=CPU_CONSTRAINT)
+    ram: float = p_system(71, description="GB", default=1.0, constraint=RAM_CONSTRAINT)
+    width: int = p_system(75, default=1280)
+    height: int = p_system(76, default=960)
     is_headless: bool = p_system(77, default=False)
 
     @staticmethod

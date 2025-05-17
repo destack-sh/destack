@@ -121,7 +121,7 @@ class Session(BenchNode[SessionData], IsRuntime, IsModal):
     parent: Optional["Bench"] = p_node_parent(4, NodeType.BENCH, is_system=True)
 
     # status
-    status: SessionStatus = p_regular(40, default=SessionStatus.PENDING, index_in_pg=True)
+    status: SessionStatus = p_regular(40, default=SessionStatus.PENDING)
     duration: Optional[timedelta] = p_regular(41)
     opened_at: Optional[datetime] = p_regular(42)
     closed_at: Optional[datetime] = p_regular(43)
@@ -541,8 +541,8 @@ class Session(BenchNode[SessionData], IsRuntime, IsModal):
         self._tx.record_edit_event(EditType.MOVE, node, operation=operation)
         # also update any computed ancestor properties
         for prop in node.__node_ancestor_properties__.values():
-            if prop.reference_source is not None:
-                prop = prop.reference_source
+            if prop.runtime_prop is not None:
+                prop = prop.runtime_prop
             new_value = getattr(node, prop.name)
             if new_value is not None:
                 assert isinstance(new_value, Node), f"bad {prop!r}: {new_value!r}"

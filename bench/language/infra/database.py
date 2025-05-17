@@ -27,7 +27,7 @@ class Database(ProvisionableResourceBase[DatabaseData]):
 
     type: DatabaseType = p_system(30, default=DatabaseType.POSTGRES)
 
-    version: str = p_system(60, default=VERSION, default_sql=None)
+    version: str = p_system(60, default=VERSION)
     external_name: Optional[str] = p_kernel(62, sensitive=True)
     external_id: Optional[str] = p_kernel(63, sensitive=True)
     sql_url: Optional[str] = p_kernel(64, sensitive=True)

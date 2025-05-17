@@ -136,8 +136,8 @@ def _render_js_value(value: Any) -> str:
 def _render_js_constraint(constraint: TypeConstraint | TypeConstraintIn) -> str:
     constraint_parts = []
     for p in TypeConstraint.__declared_properties__.values():
-        if p.reference_wired_ptr:
-            p = p.reference_wired_ptr
+        if p.ptr_prop:
+            p = p.ptr_prop
         p_value = getattr(constraint, p.name, None)
         if p_value is not None:
             js_value = _render_js_value(p_value)
@@ -486,7 +486,7 @@ export type PropertyInfo = {
                 "name": repr(prop.name),
                 "component": f"ObjectType.{bench_cls.metatype.name}",
             }
-            if prop.reference_kind:
+            if prop.node_kind:
                 kind = "reference"
             elif prop.enum_type:
                 kind = "enum"
@@ -520,17 +520,17 @@ export type PropertyInfo = {
             for value_flag in ("isValueRuntime", "isValuePacked"):
                 if getattr(prop, to_casing(value_flag, Casing.SNAKE)):
                     prop_info_parts[value_flag] = "true"
-            if prop.reference_kind:
-                prop_info_parts["referenceKind"] = f"ReferenceKind.{prop.reference_kind.name}"
-            if prop.reference_nodes:
-                if prop.reference_nodes != "any":
-                    nodes_str_parts = [f"NodeType.{node.name}" for node in prop.reference_nodes]
+            if prop.node_kind:
+                prop_info_parts["referenceKind"] = f"ReferenceKind.{prop.node_kind.name}"
+            if prop.node_types:
+                if prop.node_types != "any":
+                    nodes_str_parts = [f"NodeType.{node.name}" for node in prop.node_types]
                     prop_info_parts["referenceNodes"] = f"[{', '.join(nodes_str_parts)}]"
                 else:
                     prop_info_parts["referenceNodes"] = '"any"'
-            if prop.reference_struct:
-                prop_info_parts["referenceStruct"] = f"StructType.{prop.reference_struct.name}"
-            if prop.reference_is_node_data:
+            if prop.struct_type:
+                prop_info_parts["referenceStruct"] = f"StructType.{prop.struct_type.name}"
+            if prop.is_node_data:
                 prop_info_parts["referenceIsNodeData"] = "true"
 
             prop_info_str = ", ".join(f"{k}: {v}" for k, v in prop_info_parts.items())

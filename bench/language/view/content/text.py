@@ -1,6 +1,6 @@
 from typing import TYPE_CHECKING, Optional
 
-from bench.language.core import NodeType, node_, p_regular
+from bench.language.core import MaybeVariable, NodeType, node_, p_regular
 from bench.pb2 import TextViewData
 
 from .content import ContentViewBase
@@ -16,8 +16,8 @@ class TextView(ContentViewBase[TextViewData]):
     # appearance
     user_select: Optional[bool] = p_regular(65)
     font: Optional["Font"] = p_regular(66)
-    color: Optional["Fill"] = p_regular(67)
+    color: MaybeVariable["Fill"] = p_regular(67)
 
     # text
     # nocheckin: TextView.text - what type?
-    text: str = p_regular(100)
+    text: MaybeVariable[str] = p_regular(100)

@@ -702,8 +702,8 @@ def edit_data_graph(
                         prop = node_cls.__properties_by_id__.get(prop_id)
                         if prop is None:
                             continue
-                        if prop.reference_wired_ptr:
-                            prop = prop.reference_wired_ptr
+                        if prop.ptr_prop:
+                            prop = prop.ptr_prop
                         if prop.is_optional_scalar and not node.HasField(prop.name):
                             new_value_packed = None
                             op_type = pb2.EDIT_OPERATION_TYPE_CLEAR

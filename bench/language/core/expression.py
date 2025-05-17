@@ -550,8 +550,8 @@ def evaluate_conditional(cond: Expression, node: Node | AnyNodeData) -> bool:
     prop = cond.property
     field = cond.field
     if prop is not None:
-        if prop.reference_wired_ptr is not None:
-            prop = prop.reference_wired_ptr
+        if prop.ptr_prop is not None:
+            prop = prop.ptr_prop
         typ = prop.type_info
         node_value = _get_node_prop_expression_value(node, prop)
     elif field is not None:
@@ -620,8 +620,8 @@ def evaluate_sort(sorts: Sequence[Expression], a: Node | AnyNodeData, b: Node | 
         field = sort.field
         typ = None
         if prop is not None:
-            if prop.reference_wired_ptr is not None:
-                prop = prop.reference_wired_ptr
+            if prop.ptr_prop is not None:
+                prop = prop.ptr_prop
             typ = prop.type_info
             a_value = _get_node_prop_expression_value(a, prop)
             b_value = _get_node_prop_expression_value(b, prop)

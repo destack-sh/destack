@@ -67,7 +67,7 @@ class ResourceBase[NodeDataT: AnyNodeData](
         4, NodeType.PACKAGE, NodeType.PAGE, NodeType.THREAD, ckless=True
     )
     # ... space for type/name/...
-    region: Region = p_system(38, default=REGION, default_sql=None)
+    region: Region = p_system(38, default=REGION)
 
 
 @node_component_()
@@ -77,7 +77,7 @@ class ProvisionableResourceBase[NodeDataT: AnyNodeData](ResourceBase[NodeDataT])
     """
 
     # status
-    status: ResourceStatus = p_system(40, default=ResourceStatus.PENDING, default_sql=None)
+    status: ResourceStatus = p_system(40, default=ResourceStatus.PENDING)
     requested_activate_at: Optional[datetime] = p_internal(41)
     requested_deactivate_at: Optional[datetime] = p_internal(42)
     requested_reset_at: Optional[datetime] = p_internal(43)

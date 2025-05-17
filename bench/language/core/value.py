@@ -597,8 +597,8 @@ def pack_builtin_object(
     value_packed: dict[str, JsonValue] = {}
     object_cls = BUILTIN_OBJECT_CLASS_BY_TYPE[value.metatype]
     for prop in only if only is not None else object_cls.__proto_properties__.values():
-        if prop.reference_wired_ptr is not None:
-            prop = prop.reference_wired_ptr
+        if prop.ptr_prop is not None:
+            prop = prop.ptr_prop
         prop_name = prop.name
         prop_value = getattr(value, prop_name)
         if prop_value is None or (prop.is_list and len(prop_value) == 0):
@@ -632,8 +632,8 @@ def unpack_builtin_object[T: BuiltinObject = BuiltinObject](
 
     object_kwargs = {}
     for prop in object_cls.__proto_properties__.values():
-        if prop.reference_wired_ptr is not None:
-            prop = prop.reference_wired_ptr
+        if prop.ptr_prop is not None:
+            prop = prop.ptr_prop
         prop_value_packed = value_packed.get(prop.key)
         if prop_value_packed is None:
             continue
@@ -661,8 +661,8 @@ def pack_builtin_object_data(
     value_packed: dict[str, JsonValue] = {}
     builtin_object_cls = BUILTIN_OBJECT_CLASS_BY_TYPE[value.metatype]  # type: ignore
     for prop in only if only is not None else builtin_object_cls.__proto_properties__.values():
-        if prop.reference_wired_ptr is not None:
-            prop = prop.reference_wired_ptr
+        if prop.ptr_prop is not None:
+            prop = prop.ptr_prop
         prop_name = prop.name
         if prop.is_optional_scalar and not value.HasField(prop_name):
             continue
@@ -697,8 +697,8 @@ def unpack_builtin_object_data[T: AnyStructData | AnyNodeData](
 
     value = into if into is not None else proto_cls(metatype=object_type)  # type: ignore
     for prop in object_cls.__proto_properties__.values():
-        if prop.reference_wired_ptr is not None:
-            prop = prop.reference_wired_ptr
+        if prop.ptr_prop is not None:
+            prop = prop.ptr_prop
         prop_value_packed = value_packed.get(prop.key)
         if prop_value_packed is None or (prop.is_list and len(prop_value_packed) == 0):
             continue

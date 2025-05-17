@@ -305,8 +305,6 @@ class EnumType(BuiltinEnum):
     BENCH_TYPE = 40004
     NODE_MODE = 40005
     NODE_AREA = 40006
-    PROPERTY_REFERENCE_TYPE = 40007
-    EDIT_OPERATION_TYPE = 40008
     CHANGE_CATEGORY = 40009
     USER_STATUS = 40010
     ORGANIZATION_STATUS = 40011
@@ -315,6 +313,9 @@ class EnumType(BuiltinEnum):
     ERROR_TYPE = 40101
     SEVERITY = 40102
     VARIABLE_TYPE = 40110
+    EDIT_TYPE = 40120
+    EDIT_OPERATION_TYPE = 40121
+    USE_TYPE = 40122
     # PROFILE, CREDENTIAL, FRIENDSHIP, ...
 
     # package [41000-41200]
@@ -407,8 +408,6 @@ class EnumType(BuiltinEnum):
     POLICY_EFFECT = 42802
     ACCESS_TYPE = 42803
     QUERY_TYPE = 42850
-    EDIT_TYPE = 42851
-    USE_TYPE = 42852
     # PROFILE? (for User, or maybe global?)
 
     # access [43000-43200]
@@ -1198,7 +1197,7 @@ class Region(BuiltinEnum):
 REGION_BY_SLUG = {r.slug: r for r in Region}
 
 
-class ReferenceKind(BuiltinEnum):
+class NodeReferenceKind(BuiltinEnum):
     NODE_ANCESTOR = 1
     NODE_ANCESTOR_OR_SELF = 2
     NODE_PARENT = 3
@@ -1266,13 +1265,13 @@ class EditOperationType(BuiltinEnum):
     CLEAR = 2
 
     # list
-    # APPEND, REMOVE, ...
+    # LIST_APPEND, LIST_APPEND_IF_MISSING, LIST_REMOVE, ...
 
-    # MAP
-    # SET_KEY, DELETE_KEY, ...
+    # map
+    # MAP_SET_KEY, MAP_REMOVE_KEY, ...
 
     # math
-    # ADD, SUBTRACT, ...
+    # NUMBER_ADD, NUMBER_SUBTRACT, ...
 
     # text
     # ...
