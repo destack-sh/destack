@@ -115,7 +115,7 @@ class Runtime:
     """
     The runtime for executing Runs. A Runtime is tied exclusively to one Session.
     A Run is exclusively owned by one Runtime at a time (but may be transferred between Runtimes).
-    NOTE :Architecture! …Security: at some point, the bench language & Runtime will be a custom language
+    NOTE :Security: at some point, the bench language & Runtime will be a custom language
      If just for performance, it makes a lot of sense to implement Bench like Godot with GDScript.
       i.e. we could have Bench be a subset of Python with a Rust-based runtime to actually execute everything.
      Could still support Python in some places, but the core stuff - the orchestration - must blaze.
@@ -606,7 +606,7 @@ class Runtime:
     ):
         """
         Wait for the given nodes to reach a certain state.
-        NOTE :Architecture: use Triggers/Interruptions instead of 'busy' (async) wait in Runtime?
+        NOTE :Performance: use Triggers/Interruptions instead of 'busy' (async) wait in Runtime?
         """
         if condition():
             return  # already good
@@ -825,7 +825,6 @@ class Runtime:
         TODO :Performance: having to commit before loading Run/Runner is inefficient
          (but need to synchronize the Run somehow?)
         """
-        # NOTE :Architecture: split Runner into Runner & RunHandle/RunLoader (like ThreadHandle)?
         trace.get_current_span().set_attribute("run_id", str(run_ptr.id))
 
         # synchronize

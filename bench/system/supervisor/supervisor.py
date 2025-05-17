@@ -131,9 +131,6 @@ class SupervisorService(GraphServiceBase, SupervisorBase):
     async def get_request_subject(
         self, request: ProtoMessage, metadata: RpcMetadata
     ) -> PolicySubject:
-        # NOTE :Architecture: for simplicity we don't get the full Subject auth in Supervisor
-        #  (like we do in Host, since we have the entire Bench cached and ready there,
-        #   and we don't expect to need Bench-level auth in the Supervisor for now).
         async with global_session(self._global_database, self.get_engines(), self.oracle):
             # request will use the subject's supergraph, so ensure all subjects are created in session
             if not metadata.client_id or not metadata.client_access_token:

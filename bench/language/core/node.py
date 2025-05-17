@@ -219,11 +219,6 @@ class Node[NodeDataT: AnyNodeData](BuiltinObject[NodeDataT]):
     In practice, there are multiple stores and we load smaller subgraphs at runtime.
     """
 
-    # NOTE :Architecture!: we may need a better :NodeInheritance mechanism since some
-    #  nodes have different subtypes with varying properties (e.g. View).
-    # Mapping their union into database columns is annoying since there may be many,
-    #  so maybe this has to wait until we have custom storage engines.
-
     metatype: ClassVar[NodeType]  # type: ignore
 
     __is_node__: ClassVar[bool] = True
@@ -1236,7 +1231,7 @@ def patch_graph(*, old_graph: NodeGraph, new_graph: NodeGraph) -> None:
         else:
             # node updated: patch in place
             patch_node = new_graph[existing_node.id]
-            for prop in existing_node.__proto_properties__.values():
+            for prop in existing_node.__wired_properties__.values():
                 if prop.is_computed:
                     continue  # ignore computed properties
                 prop_value = getattr(existing_node, prop.name)

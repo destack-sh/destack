@@ -456,7 +456,7 @@ class SearchConnection(Connection[SearchResultData, WatchSearchUpdateData]):
         #  and because we need to somehow split roots from descendants/ancestors if they
         #  are the same type (like when querying Runs with some filter and their descendants).
         # Also I think this doesn't support moves correctly (doesn't prune/add ancestors).
-        # NOTE :Architecture :Broken: we need to robustify :ConnectionUpdateOrdering :RichGraph
+        # NOTE :Architecture :Broken: robustify :ConnectionUpdateOrdering :RichGraph
         #  (sometimes we need added_nodes before edits, sometimes, after, sometimes both -
         #   so we really need to put all required changes in a common order somehow)
 

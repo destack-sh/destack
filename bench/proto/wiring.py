@@ -250,7 +250,7 @@ def pack_builtin_object[T: AnyStructData | AnyNodeData](
         raise RuntimeError(f"expected {expect.__name__} but got {data_cls}")
     obj_data = into if into is not None else data_cls(metatype=metatype)  # type: ignore
     try:
-        for prop in obj.__proto_properties__.values():
+        for prop in obj.__wired_properties__.values():
             value = getattr(obj, prop.name)
             if value is None:
                 continue
@@ -291,7 +291,7 @@ def unpack_builtin_object[T: BuiltinObject](
         raise RuntimeError(f"expected {expect} but got {object_cls}")
     object_kwargs = {}
     try:
-        for prop in object_cls.__proto_properties__.values():
+        for prop in object_cls.__wired_properties__.values():
             if not prop.is_runtime or prop.is_computed:
                 continue
             if prop.is_optional_scalar and not obj_data.HasField(prop.name):

@@ -110,7 +110,7 @@ def map_builtin_object_to_proto(
     message.comment = (doc or "").strip()
     cache[cls] = message  # to solve recursive references
     for prop in properties if properties is not None else cls.__properties__.values():
-        if not prop.is_proto:
+        if not prop.is_wired:
             continue
         fields = map_bench_property_to_proto(prop, cache)
         if isinstance(fields, ProtoField):

@@ -11,14 +11,15 @@ from typing import (
     cast,
 )
 
-from bench.language.registry import ENUM_TYPE_BY_CLASS, _on_completing_setup
+from bench.language.registry import _on_completing_setup
 from bench.utils.func import hash_stable, parse_py_annotation
+from bench.utils.string import Casing, to_casing
 
 from .const import (
     EMPTY_DICT,
+    NODE_TYPES,
     PRIMITIVE_TYPE_BY_PY_TYPE,
     UNSET,
-    BuiltinEnum,
     EnumType,
     NodeReferenceKind,
     NodeType,
@@ -31,7 +32,6 @@ from .const import (
 if TYPE_CHECKING:
     from bench.language import (
         BuiltinObject,
-        NodeReference,
         PropertyReference,
         Type,
         TypeConstraint,
@@ -89,20 +89,17 @@ class Property(_IntoQuery if TYPE_CHECKING else object):
     default: Any = UNSET
     default_factory: Callable[[], Any] = UNSET
     constraint: "TypeConstraint | TypeConstraintIn | None" = None
-
     is_list: bool = UNSET
     is_required: bool = UNSET  # must be non-null
     is_variable: bool = UNSET  # may be wrapped in an indirect Variable lookup
-    is_runtime: bool = UNSET  # exists on runtime object
-    is_proto: bool = UNSET  # serialized onto wire (in proto)
-    is_stored: bool = UNSET  # stored in DB
+
+    is_wired: bool = False  # serialized onto wire (in proto)
+    is_stored: bool = False  # stored in DB
     is_internal: bool = False  # should be edited via accessors, but not enforced
     is_autoset: bool = False  # set automatically by system, cannot set directly
     is_computed: bool = False
-    is_ephemeral: bool = False  # runtime-only in-memory property
     is_unique: bool = False  # unique index in DB?
     is_sensitive: bool = False  # sensitive data (generally requires special permissions)
-    is_untracked: bool = False  # whether writes are tracked
 
     _ref: Optional["PropertyReference"] = None
     _type: Optional["Type"] = None
@@ -213,7 +210,148 @@ class Property(_IntoQuery if TYPE_CHECKING else object):
     def is_enum(self):
         return self.enum_type is not None
 
+    @property
+    def type_info(self) -> "Type":
+        """The type info for this property (can't extend TypeInfo because circles)."""
+        if self._type is None:
+            if (
+                self.runtime_prop is not None
+                or self.node_types
+                or self.is_property_reference
+                or self.id == 1
+            ):
+                self._type = self._to_type()
+            assert self._type is not None, f"{self!r} is not finalized"
+        return self._type
+
+    def _to_ptr_prop(self) -> Optional["Property"]:
+        """
+        Contribute the wired and stored pointer properties required by this property.
+        """
+
+        # property reference
+        if self.is_property_reference:
+            assert self.is_list is not UNSET, f"must set is_list on {self!r}"
+            assert self.is_required is not UNSET, f"must set is_required on {self!r}"
+            ptr_prop = Property(
+                id=self.id,
+                name=self.name + "_ptr",
+                component=self.component,
+                struct_type=StructType.PROPERTY_REFERENCE,
+                is_internal=self.is_internal,
+                is_wired=True,
+                is_stored=True,
+                is_required=self.is_required,
+                is_list=self.is_list,
+                default=None,
+                runtime_prop=self,
+                constraint=self.constraint,
+            )
+            return ptr_prop
+
+        # node reference
+        elif self.node_kind:
+            if self.node_kind == NodeReferenceKind.NODE_PARENT:
+                is_required = False  # parent is always optional
+                is_list = False
+                is_computed = False
+                is_internal = True
+            elif self.node_kind in (
+                NodeReferenceKind.NODE_ANCESTOR_OR_SELF,
+                NodeReferenceKind.NODE_ANCESTOR,
+            ):
+                is_required = self.is_required
+                is_list = False
+                is_computed = True
+                is_internal = True
+            elif self.node_kind in (
+                NodeReferenceKind.NODE_REGULAR,
+                NodeReferenceKind.NODE_TEMPLATE,
+            ):
+                is_required = self.is_required
+                is_list = self.is_list
+                is_computed = False
+                is_internal = False
+            else:
+                raise ValueError(f"unexpected reference kind {self.node_kind!r} for {self!r}")
+
+            # wired reference representation is just a nice NodeReference struct
+            ptr_prop = Property(
+                id=self.id,  # re-use id, self is not stored
+                name=self.name + "_ptr",
+                component=self.component,
+                node_kind=self.node_kind,
+                node_types=self.node_types,
+                runtime_prop=self,
+                struct_type=StructType.NODE_REFERENCE,
+                is_wired=True,
+                is_stored=False,
+                is_autoset=self.is_autoset,
+                is_computed=is_computed,
+                is_list=is_list,
+                is_required=is_required,
+                is_internal=is_internal,
+                default=None,
+                primitive_type=None,
+                constraint=self.constraint,
+            )
+            if (
+                self.node_kind == NodeReferenceKind.NODE_ANCESTOR
+                or self.node_kind == NodeReferenceKind.NODE_ANCESTOR_OR_SELF
+            ):
+                # wired ancestors are not required (even though stored ancestors are)
+                ptr_prop.is_required = False
+
+            return ptr_prop
+
+    def finalize(self, object_type: ObjectType) -> None:
+        """Analyzes the storage options. Must run after all class defs."""
+        if self.is_wired is False:  # runtime only
+            return  # nothing to do
+
+        # parse annotation
+        annotation = parse_py_annotation(self.py_type_raw, EMPTY_DICT)
+        self.py_type = annotation.type
+        self.is_required = not annotation.is_optional
+        self.is_list = annotation.is_list
+        if not self.is_required and self.default is UNSET and self.default_factory is None:
+            self.default = None
+
+        # determine type from annotation if unset
+        if self.primitive_type is UNSET:
+            class_name = (
+                to_casing(annotation.type.__name__, Casing.ALL_CAPS)
+                if isinstance(annotation.type, type)
+                else None
+            )
+            if isinstance(annotation.type, type) and (
+                primitive_type := PRIMITIVE_TYPE_BY_PY_TYPE.get(annotation.type)
+            ):
+                # primitive type
+                self.primitive_type = primitive_type
+            elif class_name and (enum_type := EnumType[class_name]):
+                self.enum_type = enum_type
+            elif class_name == "Node":
+                self.node_types = NODE_TYPES.tuple
+            else:
+                raise ValueError(f"cannot determine type for {self!r}: {self.py_type_raw!r}")
+
+        # node templates always point to their own type
+        if self.node_kind == NodeReferenceKind.NODE_TEMPLATE:
+            self.node_types = (NodeType(object_type),)
+
+        # references aren't stored/wired directly
+        if self.node_kind is not None or self.is_property_reference:
+            self.ptr_prop = self._to_ptr_prop()
+            self.is_wired = False
+            self.is_stored = False
+
+        # primitive type must be set (for wiring/storage)
+        if self.primitive_type is UNSET:
+            raise ValueError(f"cannot determine type for {self!r}: {self.py_type_raw!r}")
+
     def _to_type(self) -> "Type":
+        """Create the Type for this Property."""
         from bench.language.core import Type, TypeConstraintIn
 
         if isinstance(self.constraint, TypeConstraintIn):
@@ -256,161 +394,6 @@ class Property(_IntoQuery if TYPE_CHECKING else object):
         )
         return typ
 
-    @property
-    def type_info(self) -> "Type":
-        """The type info for this property (can't extend TypeInfo because circles)."""
-        if self._type is None:
-            if (
-                self.runtime_prop is not None
-                or self.node_types
-                or self.is_property_reference
-                or self.id == 1
-            ):
-                self._type = self._to_type()
-            assert self._type is not None, f"{self!r} is not finalized"
-        return self._type
-
-    def _to_ptr_prop(self) -> Optional["Property"]:
-        """
-        Contribute the wired and stored pointer properties required by this property.
-        """
-
-        # property reference
-        if self.is_property_reference:
-            assert self.is_list is not UNSET, f"must set is_list on {self!r}"
-            assert self.is_required is not UNSET, f"must set is_required on {self!r}"
-            ptr_prop = Property(
-                id=self.id,
-                name=self.name + "_ptr",
-                component=self.component,
-                struct_type=StructType.PROPERTY_REFERENCE,
-                is_runtime=True,
-                is_internal=self.is_internal,
-                is_proto=True,
-                is_stored=True,
-                is_required=self.is_required,
-                is_list=self.is_list,
-                default=None,
-                runtime_prop=self,
-                constraint=self.constraint,
-            )
-            return ptr_prop
-
-        # node reference
-        elif self.node_kind:
-            if self.node_kind == NodeReferenceKind.NODE_PARENT:
-                is_required = False  # parent is always optional
-                is_list = False
-                is_computed = False
-                is_internal = True
-            elif self.node_kind in (
-                NodeReferenceKind.NODE_ANCESTOR_OR_SELF,
-                NodeReferenceKind.NODE_ANCESTOR,
-            ):
-                is_required = self.is_required
-                is_list = False
-                is_computed = True
-                is_internal = True
-            elif self.node_kind in (
-                NodeReferenceKind.NODE_REGULAR,
-                NodeReferenceKind.NODE_TEMPLATE,
-            ):
-                is_required = self.is_required
-                is_list = self.is_list
-                is_computed = False
-                is_internal = False
-            else:
-                raise ValueError(f"unexpected reference kind {self.node_kind!r} for {self!r}")
-
-            # wired reference representation is just a nice NodeReference struct
-            ptr_prop = Property(
-                id=self.id,  # re-use id, self is not stored
-                name=self.name + "_ptr",
-                component=self.component,
-                py_type_raw=list["NodeReference"] if is_list else "NodeReference",
-                node_kind=self.node_kind,
-                node_types=self.node_types,
-                runtime_prop=self,
-                struct_type=StructType.NODE_REFERENCE,
-                is_runtime=True,
-                is_proto=True,
-                is_stored=False,
-                is_autoset=self.is_autoset,
-                is_computed=is_computed,
-                is_list=is_list,
-                is_required=is_required,
-                is_internal=is_internal,
-                default=None,
-                primitive_type=None,
-                constraint=self.constraint,
-            )
-            if (
-                self.node_kind == NodeReferenceKind.NODE_ANCESTOR
-                or self.node_kind == NodeReferenceKind.NODE_ANCESTOR_OR_SELF
-            ):
-                # wired ancestors are not required (even though stored ancestors are)
-                ptr_prop.is_required = False
-
-            return ptr_prop
-
-    def _finalize_meta(self) -> None:
-        """Analyzes the storage options. Must run after all class defs."""
-        # store/wire property by default if not runtime (and not indicated otherwise)
-        if self.primitive_type is UNSET and (self.is_tree_reference or self.node_types):
-            if self.is_stored is UNSET:
-                self.is_stored = False
-            self.primitive_type = None
-        elif self.is_stored is UNSET:
-            self.is_stored = True
-        if self.is_proto is UNSET:
-            self.is_proto = self.is_stored
-        if self.is_runtime is UNSET:
-            self.is_runtime = self.is_stored
-        if self.ptr_prop:
-            self.is_proto = False
-            self.is_stored = False
-
-    def _finalize_type(self) -> None:
-        """Finalizes the type info for this property."""
-        if self.is_ephemeral:
-            return  # nothing to do
-
-        # get info from annotation
-        annotation = parse_py_annotation(self.py_type_raw, EMPTY_DICT)
-        self.py_type = annotation.type
-        self.is_required = not annotation.is_optional
-        self.is_list = annotation.is_list
-        if not self.is_required and self.default is UNSET and self.default_factory is None:
-            self.default = None
-        if isinstance(annotation.type, type) and issubclass(annotation.type, enum.Enum):
-            if not issubclass(annotation.type, BuiltinEnum):
-                raise ValueError(f"only BuiltinEnum is supported for enums: {self!r}")
-            self.enum_type = ENUM_TYPE_BY_CLASS.get(annotation.type)
-            if self.enum_type is None:
-                raise ValueError(f"missing enum type for {annotation.type!r} at {self!r}")
-
-        # determine storage type
-        if self.primitive_type is UNSET and (self.is_stored or self.is_proto):
-            if annotation.is_union:
-                raise ValueError(f"cannot store union {self!r}")
-            # map to column type
-            assert isinstance(annotation.type, type), f"invalid type {annotation!r} for {self!r}"
-            if issubclass(annotation.type, BuiltinEnum):
-                if max(annotation.type) < 2**16:
-                    self.primitive_type = PrimitiveType.INT16
-                else:
-                    self.primitive_type = PrimitiveType.INT32
-            elif getattr(annotation.type, "__is_node__", False):
-                raise ValueError(f"cannot store/wire node directly: {self!r}")
-            elif getattr(annotation.type, "__is_struct__", False):
-                assert self.struct_type is not None, f"missing struct type for {self!r}"
-                self.primitive_type = PrimitiveType.JSON  # packed builtin object json
-            else:
-                primitive_type = PRIMITIVE_TYPE_BY_PY_TYPE.get(annotation.type)
-                if primitive_type is None:
-                    raise ValueError(f"cannot determine storage for {self!r}: {self.py_type_raw!r}")
-                self.primitive_type = primitive_type
-
 
 @_on_completing_setup
 def _add_property_expression_base():
@@ -436,7 +419,6 @@ def p_property(
     ckless: bool = False,
     is_node_data: bool = False,
     store: bool = True,
-    wire: bool = True,
     primitive_type: PrimitiveType | None = UNSET,
     unique: bool = False,
     sensitive: bool = False,
@@ -454,9 +436,7 @@ def p_property(
         node_ckless=ckless,
         is_internal=internal,
         is_autoset=autoset,
-        is_untracked=autoset,
-        is_runtime=True,
-        is_proto=wire,
+        is_wired=True,
         is_stored=store,
         is_sensitive=sensitive,
         is_unique=unique,
@@ -471,13 +451,10 @@ def p_runtime(
     """Internal runtime-only struct/node property (not persisted)."""
     return Property(
         is_internal=True,
-        is_runtime=True,
-        is_proto=False,
-        is_ephemeral=True,
-        is_untracked=True,
+        is_wired=False,
+        is_stored=False,
         is_computed=False,
         is_required=False,
-        is_stored=False,
         default=default,
         default_factory=default_factory,
     )
@@ -497,10 +474,9 @@ def p_node_parent(
         node_types=tuple(node_type),
         default=None,
         is_internal=True,
+        is_wired=True,
         is_stored=False,
         is_list=False,
-        is_runtime=True,
-        is_untracked=True,
         is_required=False,
         node_ckless=ckless,
         node_basless=baseless,
@@ -525,7 +501,7 @@ def _p_node_ancestor(
         is_internal=True,
         is_computed=True,
         is_stored=store,
-        is_proto=wire,
+        is_wired=wire,
         is_required=require,
         node_same_bench=is_bench_implicit,
     )
@@ -546,15 +522,9 @@ def p_node_template(id: int) -> Any:
         node_ckless=True,
         is_internal=True,
         is_stored=True,
-        is_proto=True,
+        is_wired=True,
         is_list=False,
     )
-
-
-# TODO :Architecture!: only one 'value/value_packed' property per Node at top-level
-#  (for *all* custom values, simplify edit paths into just one element: property id or field key,
-#   which means we can drastically simplify edit tracking/syncing)
-#  (what about values in Structs like Expression.value and Field.default?)
 
 
 p_regular = functools.partial(p_property, internal=False, system=False)
@@ -573,9 +543,7 @@ METATYPE_PROPERTY = Property(
     is_internal=True,
     is_required=True,
     is_computed=True,  # is set statically by class decorator
-    is_ephemeral=True,
-    is_runtime=False,
-    is_proto=True,
+    is_wired=True,
     is_stored=False,
     is_list=False,
     primitive_type=PrimitiveType.INT16,
