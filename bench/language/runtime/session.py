@@ -784,7 +784,7 @@ class Session(BenchNode[SessionData], IsRuntime, IsModal):
         """Attempt to commit pending edits."""
         from bench.proto.wiring import unwrap_some_node
 
-        # TODO :Architecture :Cleanup: revamp Session handling across internal, system and remote
+        # TODO :Architecture :Cleanup :RichGraph: revamp Session handling across internal, system and remote
         #  It feels quite clumsy and mixes concerns (why are we talking about TablePlugin here?);
         #   and in general, we should probably pull apart system and runtime Sessions somehow
         #  Maybe Session should remain a Node, but the Session logic goes elsewhere...?
@@ -799,7 +799,7 @@ class Session(BenchNode[SessionData], IsRuntime, IsModal):
                 assert self._tx is not None, f"no active transaction in {self!r}"
                 # prepare commit
                 if self._pre_commit is not None:
-                    # NOTE :Architecture: we exclude Records from preflush in commit prepare
+                    # NOTE: we exclude Records from preflush in commit prepare
                     #  because our TablePlugin needs to update schemas before touching any Records.
                     excluded_node_types = (NodeType.RECORD,)
                     self._preflush(exclude=excluded_node_types)

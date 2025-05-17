@@ -94,7 +94,6 @@ class FlowEdge(
 ):
     """
     A Transition between nodes in a Flow (source = outgoing, target = incoming).
-    NOTE :Architecture: maybe add IsTransitionable trait?
     """
 
     parent: Union["Flow", None] = p_node_parent(4, NodeType.FLOW)

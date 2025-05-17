@@ -63,7 +63,7 @@ class User(IsSubject, Node[UserData]):
         cursor_ptr: Optional[NodeReference] = None
 
     # auth
-    # TODO :Architecture: refactor out authentication & challenges for Users/Client
+    # NOTE :Incomplete: factor out authentication, Credentials & Challenges for Users/Client
     email: str | None = p_system(60, unique=True, sensitive=True, constraint=EMAIL_CONSTRAINT)
     password_salt: Optional[bytes] = p_kernel(61, sensitive=True)
     password_hash: Optional[bytes] = p_kernel(62, sensitive=True)

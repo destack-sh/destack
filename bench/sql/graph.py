@@ -771,7 +771,7 @@ def _pg_pack_node_data_row(
         row: dict[str, SqlPrimitive] = {}
 
         # wired properties
-        for name, prop in node_cls.__proto_properties__.items():
+        for name, prop in node_cls.__wired_properties__.items():
             if prop.is_value_packed and node_cls.__is_local__:
                 continue  # value is stored in unraveled columns
             elif prop.runtime_prop is None or not prop.is_node_reference:
@@ -832,7 +832,7 @@ def _pg_unpack_node_data_row(
         )
 
         # wired properties
-        for name, prop in node_cls.__proto_properties__.items():
+        for name, prop in node_cls.__wired_properties__.items():
             if prop.is_value_packed and node_cls.__is_local__:
                 continue  # value is stored in unraveled columns
             if prop.runtime_prop is not None and prop.is_node_reference:

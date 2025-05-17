@@ -253,7 +253,7 @@ class DockerComputerProvisioner(ComputerProvisioner):
 class KubernetesComputerProvisioner(ComputerProvisioner):
     """
     Provision Computers as Pods on Kubernetes.
-    NOTE :Architecture :RichComputing: Computers should really be in k8 Deployments/Services?
+    NOTE :Incomplete :RichComputing: Computers should really be in k8 Deployments/Services?
     """
 
     watch_types = bittuple(NodeType.COMPUTER)

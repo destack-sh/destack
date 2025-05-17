@@ -202,7 +202,7 @@ def get_naive_object_strategy(object_type: ObjectType):
     """Gets the default uncorrelated strategies for every (init) property of an object type."""
     object_cls = BUILTIN_OBJECT_CLASS_BY_TYPE[object_type]
     object_kwargs: dict[str, st.SearchStrategy] = {}
-    for prop in object_cls.__proto_properties__.values():
+    for prop in object_cls.__wired_properties__.values():
         if (
             # ignore runtime-only properties
             prop.id is None

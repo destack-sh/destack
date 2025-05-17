@@ -86,7 +86,7 @@ def assign_builtin_ids(graph: NodeGraph, ignore: Collection[Node] = ()) -> None:
 
     # update references & reindex
     for node in graph.nodes:
-        for prop in node.__proto_properties__.values():
+        for prop in node.__wired_properties__.values():
             if not prop.is_node_reference or prop.is_computed:
                 continue
             prop_value = getattr(node, prop.name)
@@ -103,7 +103,7 @@ def assign_builtin_ids(graph: NodeGraph, ignore: Collection[Node] = ()) -> None:
 
 def patch_node(target: Node, reference: Node, track: bool = True) -> None:
     """Patch the target node *in place* from the reference node."""
-    for prop in target.__proto_properties__.values():
+    for prop in target.__wired_properties__.values():
         if prop.id < 30 or prop.is_computed:
             continue  # ignore internal properties
         target_value = getattr(target, prop.name)

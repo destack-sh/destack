@@ -124,7 +124,7 @@ class HostPlugin[T: Node]:
 
 def _patch_node(target: Node, reference: Node, track: bool = True) -> None:
     """Patch the target node *in place* from the reference node."""
-    for prop in target.__proto_properties__.values():
+    for prop in target.__wired_properties__.values():
         if prop.id < 30 or prop.is_computed:
             continue  # ignore internal properties
         target_value = getattr(target, prop.name)

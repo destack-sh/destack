@@ -1,7 +1,6 @@
 import abc
 import base64
 import contextvars
-import functools
 import inspect
 from enum import IntEnum
 from sys import intern
@@ -121,7 +120,7 @@ def _process_object_cls[ObjectT: BuiltinObject](
     metatype = METATYPE_PROPERTY.clone()
     metatype.component = cls
 
-    # collect static components from class hierarchy
+    # collect all components from class hierarchy (including self)
     components: list[type[BuiltinObject]] = [cls]
     for base in cls.__bases__:
         if base.__name__ == "ABC":
@@ -132,9 +131,10 @@ def _process_object_cls[ObjectT: BuiltinObject](
             for grandparent in base.__components__:
                 if grandparent not in components:
                     components.append(grandparent)
+    cls.__components__ = tuple(components)
 
     # collect properties from this class definition
-    properties_by_name: dict[str, Property] = {"metatype": metatype}
+    properties: dict[str, Property] = {"metatype": metatype}
     for name, prop in list(cls.__dict__.items()):
         if (
             name.startswith("__")
@@ -142,70 +142,53 @@ def _process_object_cls[ObjectT: BuiltinObject](
             or inspect.ismethod(prop)
             or inspect.isfunction(prop)
             or isinstance(prop, (property, classmethod, staticmethod, dualmethod))
-            or type(prop) is functools.cached_property
         ):
             continue  # ignore reserved names and non-fields
         if not isinstance(prop, Property):
-            raise TypeError(f"{cls.__name__}.{name} is not a NodeProperty: {prop} ({type(prop)})")
+            raise TypeError(f"{cls.__name__}.{name} is not a Property: {prop} ({type(prop)})")
         prop.name = intern(name)
         prop.component = cls
         prop.py_type_raw = cls.__annotations__.get(name, None)
-        properties_by_name[name] = prop
-    cls.__declared_properties__ = frozendict(properties_by_name)
+        properties[name] = prop
+    cls.__declared_properties__ = frozendict(properties)
 
     # collect properties from ancestor components
-    for component in reversed(components):
+    for component in components[1:]:
         for name, prop in component.__declared_properties__.items():
-            existing = properties_by_name.get(name)
-            # allow overriding system properties with more specific properties
-            if (
-                existing is None
-                or existing.id is UNSET
-                or existing.id is None
-                or ((prop.id is UNSET or prop.id is None or prop.id < 30) and existing.id < 30)
-            ):
-                prop = prop.clone()
-                prop.component = cls
-                properties_by_name[name] = prop
-            else:
-                raise ValueError(f"property conflict '{name}': {prop!r}, {existing!r}")
-            if not is_node and prop.is_tree_reference:
-                raise ValueError(f"non-node {cls} has node-only relation {prop}")
+            existing = properties.get(name)
+            if existing is not None:
+                if existing.id is not UNSET and existing.id >= 10:
+                    raise ValueError(
+                        f"property conflict '{name}' from {component.__name__} in {cls.__name__}: {prop!r}, {existing!r}"
+                    )
+                else:
+                    print(
+                        f"overriding system property {name} from {component.__name__} in {cls.__name__}: {prop!r}, {existing!r}"
+                    )
+                    continue  # allow override
+            prop = prop.clone()
+            prop.component = cls
+            properties[name] = prop
 
-    # contribute extra properties
-    for prop in tuple(properties_by_name.values()):
-        # collect any extra contributed properties
-        if prop.node_kind in (
-            NodeReferenceKind.NODE_PARENT,
-            NodeReferenceKind.NODE_ANCESTOR_OR_SELF,
-            NodeReferenceKind.NODE_ANCESTOR,
-            NodeReferenceKind.NODE_REGULAR,
-            NodeReferenceKind.NODE_TEMPLATE,
-        ):
-            if prop.node_kind == NodeReferenceKind.NODE_TEMPLATE:
-                if not (is_final and is_node):
-                    prop.is_stored = False
-                    prop.is_proto = False
-                    continue
-                # template points to nodes of same type
-                prop.node_types = (cast(NodeType, object_type),)
-
-            prop.ptr_prop = prop._to_ptr_prop()
+    # finalize properties
+    if is_final:
+        assert object_type is not None
+        for prop in tuple(properties.values()):
+            prop.finalize(object_type)
             if prop.ptr_prop is not None:
-                prop.is_runtime = True
-                properties_by_name[prop.ptr_prop.name] = prop.ptr_prop
+                properties[prop.ptr_prop.name] = prop.ptr_prop
 
     # add computed properties to final classes
     if is_final:
 
         def _set_computed(name: str, prop: property):
             """Sets a computed property that shouldn't conflict with any existing property."""
-            existing = properties_by_name.get(name)
-            if existing is not None and existing.is_runtime:
+            existing = properties.get(name)
+            if existing is not None:
                 raise ValueError(f"property conflict '{name}': {prop!r}, {existing!r}")
             setattr(cls, name, prop)
 
-        for name, prop in properties_by_name.items():
+        for name, prop in properties.items():
             if prop.runtime_prop is None:  # not a contributed property
                 # computed property.. property
                 if prop.is_property_reference:
@@ -233,18 +216,10 @@ def _process_object_cls[ObjectT: BuiltinObject](
                             f"{prop.name}_{obj_key}", _object_node_ref_attr(ptr_key, prop)
                         )
 
-    # finalize props
-    for prop in properties_by_name.values():
-        prop.component = cls
-        prop._finalize_meta()
-        if is_final:
-            prop._finalize_type()
-
-    # register components and index properties
-    cls.__components__ = tuple(components)  # type: ignore
-    cls.__properties__ = frozendict(properties_by_name)
+    # index properties
+    cls.__properties__ = frozendict(properties)
     properties_by_id: dict[int, Property] = {}
-    for prop in properties_by_name.values():
+    for prop in properties.values():
         if prop.id is not None and prop.id is not UNSET and not prop.runtime_prop:
             existing = properties_by_id.get(prop.id, None)
             if existing is None:
@@ -252,7 +227,7 @@ def _process_object_cls[ObjectT: BuiltinObject](
             elif not prop.runtime_prop:
                 # contributed reference properties can share an id
                 raise ValueError(f"property id conflict: {prop!r}, {existing!r}")
-    props = properties_by_name.values()
+    props = properties.values()
     cls.__properties_by_id__ = frozendict(properties_by_id)
     cls.__properties_name_by_id__ = frozendict(
         {p.id: p.name for p in properties_by_id.values() if p.id is not None}
@@ -260,17 +235,14 @@ def _process_object_cls[ObjectT: BuiltinObject](
     cls.__node_properties__ = frozendict(
         {p.name: p for p in props if p.is_node_reference and not p.runtime_prop}
     )
-    cls.__struct_properties__ = frozendict({p.name: p for p in props if p.is_struct})
-    cls.__stored_properties__ = frozendict(
-        {p.name: p for p in cls.__properties__.values() if p.is_stored is True}
-    )
-    cls.__proto_properties__ = frozendict(
-        {p.name: p for p in cls.__properties__.values() if p.is_proto is True}
-    )
+    cls.__struct_properties__ = frozendict({p.name: p for p in props if p.is_struct is True})
+    cls.__wired_properties__ = frozendict({p.name: p for p in props if p.is_wired is True})
+    cls.__stored_properties__ = frozendict({p.name: p for p in props if p.is_stored is True})
 
     # assign ords
     cls.__properties_in_order__ = tuple(sorted(properties_by_id.values(), key=lambda p: p.id))
     for i, prop in enumerate(cls.__properties_in_order__):
+        prop.component = cls
         prop.ord = i
         if prop.ptr_prop:
             prop.ptr_prop.ord = i
@@ -280,7 +252,7 @@ def _process_object_cls[ObjectT: BuiltinObject](
     cls.__properties_mask_set__.setall(True)
     cls.__properties_mask_unset__ = bitarray(cls.__max_property_ord__ + 1)
 
-    return cls, properties_by_name  # type: ignore
+    return cls, properties  # type: ignore
 
 
 @dataclass_transform(kw_only_default=True, field_specifiers=_PROPERTY_SPECIFIERS)
@@ -527,8 +499,8 @@ class BuiltinObject[ObjectDataT: AnyObjectData](abc.ABC):
     """The base for all intrinsic objects like Structs and Nodes and all their derivatives."""
 
     metatype: ClassVar[ObjectType]
-    __components__: ClassVar[tuple[type["BuiltinObject"], ...]] = ()
 
+    __components__: ClassVar[tuple[type["BuiltinObject"], ...]] = ()
     __is_struct__: ClassVar[bool] = False
     __is_node__: ClassVar[bool] = False
 
@@ -540,7 +512,7 @@ class BuiltinObject[ObjectDataT: AnyObjectData](abc.ABC):
     __node_properties__: ClassVar[dict[str, Property]] = {}
     __struct_properties__: ClassVar[dict[str, Property]] = {}
     __stored_properties__: ClassVar[dict[str, Property]] = {}
-    __proto_properties__: ClassVar[dict[str, Property]] = {}
+    __wired_properties__: ClassVar[dict[str, Property]] = {}
 
     __properties_in_order__: ClassVar[tuple[Property, ...]]
     __properties_id_in_order__: ClassVar[tuple[int, ...]]
@@ -577,7 +549,7 @@ class BuiltinObject[ObjectDataT: AnyObjectData](abc.ABC):
         """Checks if the content of the two objects is equal (recursively)."""
         if other is None or self.metatype != getattr(other, "metatype", None):
             return False
-        for prop in self.__proto_properties__.values():
+        for prop in self.__wired_properties__.values():
             if (
                 prop.id < 30
                 or prop.name == "order_key"  # implicitly checked in lists
@@ -593,7 +565,7 @@ class BuiltinObject[ObjectDataT: AnyObjectData](abc.ABC):
     def _stable_hash(self) -> int:
         """Hash of content properties."""
         content_props = []
-        for prop in self.__proto_properties__.values():
+        for prop in self.__wired_properties__.values():
             if prop.id < 30:
                 continue
             prop_value = getattr(self, prop.name)
@@ -612,7 +584,7 @@ class BuiltinObject[ObjectDataT: AnyObjectData](abc.ABC):
 
     def _patch_from(self, other: Self):
         """Patches this Node *in place* from another Node."""
-        for prop in self.__proto_properties__.values():
+        for prop in self.__wired_properties__.values():
             if prop.is_computed:
                 continue  # ignore computed properties
             prop_value = getattr(other, prop.name)
@@ -652,7 +624,7 @@ class BuiltinObject[ObjectDataT: AnyObjectData](abc.ABC):
             raise AttributeError(f"{self_str} has no attribute '{key}'")
 
         # set regular property
-        if prop.is_untracked:
+        if not prop.is_wired:
             object.__setattr__(self, key, new_value)
             return
         raise NotImplementedError("nocheckin: flat edits")
@@ -678,7 +650,7 @@ class BuiltinObject[ObjectDataT: AnyObjectData](abc.ABC):
     def _clone_kwargs(self, reset: bool = True):
         """Clone kwargs for a new instance."""
         copy_kwargs = {}
-        for prop in self.__proto_properties__.values():
+        for prop in self.__wired_properties__.values():
             prop_value = getattr(self, prop.name)
             if reset and prop.id < 30:
                 continue  # ignore tracking/autoset properties

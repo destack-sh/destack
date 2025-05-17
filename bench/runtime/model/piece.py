@@ -29,8 +29,6 @@ def raise_if_none():
     return _field
 
 
-# NOTE :Architecture: Pieces and Renderer seem quite related?
-
 #
 # Basic Pieces
 #

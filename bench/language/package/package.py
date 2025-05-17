@@ -20,13 +20,7 @@ from bench.language.core import (
 from bench.pb2 import PackageData
 
 if TYPE_CHECKING:
-    from bench.language import (
-        Agent,
-        Bench,
-        Channel,
-        Flow,
-        Icon,
-    )
+    from bench.language import Bench, Icon
 
 # pyright: reportIncompatibleVariableOverride=false
 
@@ -47,26 +41,6 @@ class Package(IsOwnable, IsJoinable, IsTemplatable, IsModal, IsNamed, PackageNod
     type: PackageType = p_regular(30)
     slug: str | None = p_regular(34, constraint=SLUG_CONSTRAINT)
     icon: Optional["Icon"] = p_regular(35)
-
-    # NOTE :Architecture: maybe we should factor out main_channel/main_flow/.. from Package
-    #  (into something more general that we could also use in Page or Flow or such)
-    default_channel: Optional["Channel"] = p_regular(
-        50,
-        same_bench=True,
-        ckless=True,
-        description="The default Channel to communicate with.",
-    )
-    default_flow: Optional["Flow"] = p_regular(
-        51,
-        ckless=True,
-        description="The default Flow for dynamic behavior.",
-    )
-    default_identity: Optional["Agent"] = p_regular(
-        52,
-        same_bench=True,
-        ckless=True,
-        description="The default Identity for Flows.",
-    )
 
     @property
     def package(self):
