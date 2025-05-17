@@ -34,7 +34,7 @@ class UserStatus(BuiltinEnum):
     ACTIVATED = 50  # has bench, all ready to go
 
 
-@node_(NodeType.USER, roots=())
+@node_(NodeType.USER, root_type=None)
 class User(IsSubject, Node[UserData]):
     """A User is a human using Bench."""
 

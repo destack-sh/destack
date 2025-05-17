@@ -18,7 +18,7 @@ if TYPE_CHECKING:
 # pyright: reportIncompatibleVariableOverride=false
 
 
-@node_(NodeType.INVITE, roots=(NodeType.BENCH, NodeType.ORGANIZATION))
+@node_(NodeType.INVITE)
 class Invite(BenchNode[InviteData]):
     """
     An Invite to become a member of something.

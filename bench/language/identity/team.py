@@ -21,7 +21,7 @@ if TYPE_CHECKING:
 # pyright: reportIncompatibleVariableOverride=false
 
 
-@node_(NodeType.TEAM, roots=(NodeType.ORGANIZATION,))
+@node_(NodeType.TEAM)
 class Team(IsInstantiable, IsJoinable, IsModal, IsNamed, PageNode[TeamData]):
     """
     A Team of Users or Identities.

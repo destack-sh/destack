@@ -41,7 +41,7 @@ class BenchStatus(BuiltinEnum):
     ACTIVATED = 50
 
 
-@node_(NodeType.BENCH, roots=())
+@node_(NodeType.BENCH)
 class Bench(IsOwnable, BenchNode[BenchData]):
     """
     A Bench is the OS for personal software.

@@ -1,21 +1,18 @@
-from typing import TYPE_CHECKING, Union
+from typing import TYPE_CHECKING
 
-from bench.language.core import SLUG_CONSTRAINT, BenchNode, NodeType, node_, p_node_parent, p_system
+from bench.language.core import SLUG_CONSTRAINT, BenchNode, NodeType, node_, p_system
 from bench.pb2 import HandleData
 
 if TYPE_CHECKING:
-    from bench.language import Bench, Organization, User
+    pass
 
 # pyright: reportIncompatibleVariableOverride=false
 
 
-@node_(NodeType.HANDLE, roots=(NodeType.USER, NodeType.ORGANIZATION, NodeType.BENCH))
+@node_(NodeType.HANDLE)
 class Handle(BenchNode[HandleData]):
     """A Bench @handle."""
 
-    parent: Union["User", "Organization", "Bench"] = p_node_parent(
-        4, NodeType.USER, NodeType.ORGANIZATION, NodeType.BENCH
-    )
     slug: str = p_system(30, unique=True, constraint=SLUG_CONSTRAINT)
 
     @property

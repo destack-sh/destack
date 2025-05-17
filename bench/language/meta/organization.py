@@ -29,7 +29,7 @@ class OrganizationStatus(BuiltinEnum):
     ACTIVATED = 50  # has main bench
 
 
-@node_(NodeType.ORGANIZATION, roots=())
+@node_(NodeType.ORGANIZATION, root_type=None)
 class Organization(IsSubject, Node[OrganizationData]):
     """
     An Organization with Users and Teams.
