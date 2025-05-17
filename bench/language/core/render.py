@@ -76,8 +76,6 @@ class RenderOptions:
     include_properties: Mapping[ObjectType, Collection[Property]] | None = None
     exclude_properties: Mapping[ObjectType, Collection[Property]] | None = None
     node_types: Collection[NodeType] = NODE_TYPES_SET
-    # NOTE :Cleanup :Architecture: RenderOptions.PAGE_NODE_types maybe shouldn't exist?
-    inline_node_types: Collection[NodeType] = (NodeType.FIELD, NodeType.OPTION)
     # formatting
     statement_separator: str = "\n"
     format: bool = True
@@ -231,22 +229,6 @@ class Renderer:
 
     def render_node_ref(self, node: Node | NodeReference) -> str:
         """Renders a python-valid reference to the given node in this context."""
-
-        # refer named inlined children from parent
-        if (
-            isinstance(node, Node)
-            and node.metatype in self.options.inline_node_types
-            and "name" in node.__properties__
-        ):
-            parent = node.parent
-            if parent is not None:
-                parent_alias = self.render_node_ref(parent)
-                parent_cls = NODE_CLASS_BY_TYPE[parent.metatype]
-                parent_child_prop = parent_cls.get_child_property_or_error(node.metatype)
-                alias = f"{parent_alias}.{parent_child_prop.name}.{node.code_name}"
-                return alias
-
-        # otherwise just make context-specific alias
         alias = self.aliasing.get_or_add(node)
         return alias
 
@@ -281,7 +263,7 @@ class Renderer:
                 return f"UUID({value!r})"
             else:
                 return str(value)
-        elif typ.kind == TypeKind.NODE or typ.kind == TypeKind.BASED_NODE:
+        elif typ.kind == TypeKind.NODE:
             assert isinstance(
                 value, (Node, NodeReference)
             ), f"{value!r} is not a node or node reference, expected {typ!r}"
@@ -304,16 +286,7 @@ class Renderer:
         typ = value._type
         kwargs = _deconstruct_custom_object(value)
         rendered_kwargs = _render_custom_object_kwargs(self, value, kwargs)
-        if value._type.kind == TypeKind.PARTIAL_OBJECT:
-            node_cls = (
-                NODE_CLASS_BY_TYPE[cast(NodeType, value._type.bench_type)]
-                if value._type.bench_type
-                else Node
-            )
-            if value._type.bench_type is not None:
-                rendered_kwargs.pop("metatype", None)
-            return f"{node_cls.__name__}.partial({self.render_kwargs(**rendered_kwargs)})"
-        elif (
+        if (
             typ.base_field_types
             and FieldType.MEMBER in typ.base_field_types
             and (base_type := typ.base_type) is not None
@@ -333,7 +306,7 @@ class Renderer:
 
         if value is None:
             return "None"
-        if typ.kind == TypeKind.CUSTOM_OBJECT or typ.kind == TypeKind.PARTIAL_OBJECT:
+        if typ.kind == TypeKind.CUSTOM_OBJECT:
             # nested object
             if not typ.is_list:
                 return self.render_custom_object(cast(CustomObject, value))
@@ -392,16 +365,6 @@ class Renderer:
             rendered = format_code(rendered)
         return rendered
 
-    def _get_parent_child_key(self, node: Node) -> str | None:
-        """Gets the 'key' for the NodeList of the given Node's parent."""
-        if node.parent_ptr and node.parent_ptr in self.aliasing:
-            parent_alias = self.aliasing.get(node.parent_ptr)
-            parent_cls = NODE_CLASS_BY_TYPE[node.parent_ptr.node_type]
-            parent_child_prop = parent_cls.get_child_property(node.metatype)
-            if parent_child_prop is not None:
-                return f"{parent_alias}.{parent_child_prop.name}"
-        return None
-
     def render_statement(
         self,
         *nodes: Node,
@@ -418,16 +381,12 @@ class Renderer:
             node_alias = self.aliasing.get_or_add(node)
             assert node_alias is not None, f"no alias for {node!r}"
             rendered_objs.append(f"{node_alias} = {rendered}")
-
-            # append to parent
-            if append:
-                parent_key = self._get_parent_child_key(node)
+            if append and (parent := node.parent) is not None:
+                parent_key = self.aliasing.get_or_add(parent)
                 next_parent_key = (
-                    self._get_parent_child_key(nodes[i + 1]) if i < len(nodes) - 1 else None
+                    self.aliasing.get_or_add(nodes[i + 1]) if i < len(nodes) - 1 else None
                 )
                 if parent_key is not None:
-                    if node.metatype == NodeType.FLOW_EDGE:
-                        continue  # implicitly added into parent (see LinkRenderer)
                     current_children.append(node_alias)
                     if parent_key != next_parent_key:
                         if len(current_children) > 1:
@@ -628,24 +587,6 @@ class BuiltinObjectRenderer[T: BuiltinObject]:
 class NodeRenderer[T: Node](BuiltinObjectRenderer[T]):
     """The base renderer for a Node."""
 
-    def _render_child_properties(
-        self, renderer: "Renderer", obj: T, rendered_kwargs: dict[str, str] | None = None
-    ) -> dict[str, str]:
-        rendered_kwargs = rendered_kwargs if rendered_kwargs is not None else {}
-        for prop in obj.__node_child_properties__.values():
-            assert prop.reference_nodes, f"no reference nodes for {prop!r}"
-            child_node_type = prop.reference_nodes[0]
-            if child_node_type not in renderer.options.inline_node_types:
-                continue
-            children = getattr(obj, prop.name)
-            if not children:
-                continue
-            rendered_children = [
-                renderer.render_builtin_object(cast(BuiltinObject, child)) for child in children
-            ]
-            rendered_kwargs[prop.name] = f"[{', '.join(rendered_children)}]"
-        return rendered_kwargs
-
     def _render_constructor(
         self,
         renderer: "Renderer",
@@ -660,7 +601,6 @@ class NodeRenderer[T: Node](BuiltinObjectRenderer[T]):
     def render(self, renderer: Renderer, obj: T, options: RenderOptions) -> str:
         kwargs = _deconstruct_builtin_object(obj, options=options)
         rendered_kwargs = _render_builtin_object_kwargs(renderer, obj, kwargs)
-        rendered_kwargs = self._render_child_properties(renderer, obj, rendered_kwargs)
         return self._render_constructor(renderer, obj, kwargs, rendered_kwargs)
 
 
@@ -671,7 +611,6 @@ class PackageNodeRenderer[T: PackageNode](NodeRenderer[T]):
     def render(self, renderer: Renderer, obj: T, options: RenderOptions) -> str:
         kwargs = _deconstruct_builtin_object(obj, options=options)
         rendered_kwargs = _render_builtin_object_kwargs(renderer, obj, kwargs)
-        rendered_kwargs = self._render_child_properties(renderer, obj, rendered_kwargs)
         return self._render_constructor(renderer, obj, kwargs, rendered_kwargs)
 
 
@@ -962,9 +901,6 @@ class MessageRenderer(NodeRenderer["Message"]):
 class TypeRenderer(BuiltinObjectRenderer[TypeBase]):
     @override
     def render(self, renderer: "Renderer", obj: TypeBase, options: RenderOptions) -> str:
-        if obj.kind == TypeKind.PARTIAL_OBJECT:
-            node_cls, rendered_kwargs = _desconstruct_partial_type(renderer, obj)
-            return f"{node_cls.__name__}.partial_type({renderer.render_kwargs(**rendered_kwargs)})"
         kwargs = _deconstruct_builtin_object(obj, options=options)
         rendered_kwargs = _render_builtin_object_kwargs(renderer, obj, kwargs)
         type_in, rendered_kwargs = _deconstruct_type_in(renderer, obj, rendered_kwargs)

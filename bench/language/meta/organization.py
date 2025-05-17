@@ -43,8 +43,8 @@ class Organization(IsSubject, Node[OrganizationData]):
     region: "Region" = p_system(37)
     status: OrganizationStatus = p_system(38)
 
-    bench: Optional["Bench"] = p_system(40, fk=True)
-    handle: Optional["Handle"] = p_system(41, fk=True)
+    bench: Optional["Bench"] = p_system(40)
+    handle: Optional["Handle"] = p_system(41)
     if TYPE_CHECKING:
         bench_id: Optional[UUID] = None
         bench_ptr: Optional[NodeReference] = None

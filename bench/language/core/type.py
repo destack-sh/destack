@@ -58,10 +58,8 @@ LETTER_BY_TYPE_KIND: dict[TypeKind, str] = {
     TypeKind.PRIMITIVE: "p",
     TypeKind.STRUCT: "s",
     TypeKind.NODE: "n",
-    TypeKind.BASED_NODE: "n",  # overlap with TypeKind.NODE
     TypeKind.ENUM: "e",
     TypeKind.CUSTOM_OBJECT: "o",
-    TypeKind.PARTIAL_OBJECT: "r",
 }
 TYPE_KIND_BY_LETTER: dict[str, TypeKind] = {
     "p": TypeKind.PRIMITIVE,
@@ -69,7 +67,6 @@ TYPE_KIND_BY_LETTER: dict[str, TypeKind] = {
     "n": TypeKind.NODE,
     "e": TypeKind.ENUM,
     "o": TypeKind.CUSTOM_OBJECT,
-    "r": TypeKind.PARTIAL_OBJECT,
 }
 
 
@@ -98,7 +95,7 @@ def encode_type_identity(typ: "TypeBase | TypeIdentity") -> str:
     if typ.kind == TypeKind.PRIMITIVE:
         assert typ.primitive_type is not None, f"missing primitive type for {typ!r}"
         value = encode_b64vlq(typ.primitive_type.id)
-    elif typ.kind == TypeKind.NODE or typ.kind == TypeKind.BASED_NODE:
+    elif typ.kind == TypeKind.NODE:
         value = ""  # joint type identity for nodes
     elif typ.kind == TypeKind.STRUCT or typ.kind == TypeKind.ENUM:
         assert typ.bench_type is not None, f"missing bench type for {typ!r}"
@@ -107,8 +104,6 @@ def encode_type_identity(typ: "TypeBase | TypeIdentity") -> str:
         assert typ.base_type_ptr is not None, f"missing base type for {typ!r}"
         assert typ.base_type_ptr.ck is not None, f"missing ck for {typ.base_type_ptr!r}"
         value = encode_b64vlq(typ.base_type_ptr.ck.int)
-    elif typ.kind == TypeKind.PARTIAL_OBJECT:
-        value = encode_b64vlq(typ.bench_type.id) if typ.bench_type else ""
     else:
         raise ValueError(f"unsupported type kind {typ.kind.bench_name} for {typ!r}")
 
@@ -149,7 +144,7 @@ def decode_type_identity(key: str) -> "TypeIdentity":
         return TypeIdentity(
             kind=TypeKind(kind), bench_type=bench_type, is_list=is_list, is_secret=is_secret
         )
-    elif kind == TypeKind.NODE or kind == TypeKind.BASED_NODE.value:
+    elif kind == TypeKind.NODE.value:
         return TypeIdentity(kind=TypeKind(kind), is_list=is_list, is_secret=is_secret)
     elif kind == TypeKind.CUSTOM_OBJECT.value:
         base_id = UUID(int=decode_b64vlq(value))
@@ -159,14 +154,6 @@ def decode_type_identity(key: str) -> "TypeIdentity":
         return TypeIdentity(
             kind=TypeKind.CUSTOM_OBJECT,
             base_type_ptr=base_type_ptr,
-            is_list=is_list,
-            is_secret=is_secret,
-        )
-    elif kind == TypeKind.PARTIAL_OBJECT.value:
-        bench_type = BenchType(decode_b64vlq(value)) if value else None  # type: ignore
-        return TypeIdentity(
-            kind=TypeKind.PARTIAL_OBJECT,
-            bench_type=bench_type,
             is_list=is_list,
             is_secret=is_secret,
         )
@@ -228,6 +215,7 @@ class TypeConstraint(Struct):
 constraint = TypeConstraintIn
 
 
+# nocheckin: revamp Type, cascading Type bases
 @object_()
 class TypeBase(BuiltinObject):
     """
@@ -292,13 +280,8 @@ class TypeBase(BuiltinObject):
             info_str = self.kind.bench_name
 
         clauses = []
-        if self.kind == TypeKind.PARTIAL_OBJECT:
-            if not info_str.startswith("Partial"):
-                info_str = f"Partial{info_str}"
-            if self.property_field_types:
-                clauses.append(
-                    f"Property={'|'.join(f.bench_name for f in self.property_field_types)}"
-                )
+        if self.property_field_types:
+            clauses.append(f"Property={'|'.join(f.bench_name for f in self.property_field_types)}")
         if self.is_list:
             clauses.append("is_list")
         if self.is_required:
@@ -327,7 +310,7 @@ class TypeBase(BuiltinObject):
             py_type = PY_TYPE_BY_PRIMITIVE_TYPE.get(cast(PrimitiveType, self.primitive_type))
             assert py_type is not None, f"{self!r} does not have a python type"
             return py_type(*args, **kwargs)
-        elif self.kind == TypeKind.CUSTOM_OBJECT or self.kind == TypeKind.PARTIAL_OBJECT:
+        elif self.kind == TypeKind.CUSTOM_OBJECT:
             from .value import coerce_custom_object_scalar
 
             return coerce_custom_object_scalar(kwargs, self, as_packed=True)
@@ -354,10 +337,8 @@ class TypeBase(BuiltinObject):
         """Whether this type supports lists."""
         if self.kind in (  # noqa: SIM114
             TypeKind.NODE,
-            TypeKind.BASED_NODE,
             TypeKind.ENUM,
             TypeKind.CUSTOM_OBJECT,
-            TypeKind.PARTIAL_OBJECT,
         ):
             return True
         elif self.primitive_type in (  # noqa: SIM103
@@ -547,8 +528,5 @@ def reverse_type_scalar(typ: TypeBase) -> TypeIn | None:
         assert typ.bench_type is not None, f"missing bench type for {typ!r}"
         bench_cls = BENCH_CLASS_BY_TYPE[typ.bench_type]
         return cast(TypeIn, bench_cls)
-    elif typ.kind == TypeKind.BASED_NODE:
-        assert typ.base_type is not None, f"missing base type for {typ!r}"
-        return typ.base_type
 
     return None  # couldn't reverse

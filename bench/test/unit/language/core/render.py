@@ -190,8 +190,7 @@ def test_render_type_in(session: Session, package: Package):
     """Type in should be rendered as TypeIn with `to_type`."""
     type_1 = to_type(int)
     type_2 = to_type(str)
-    type_3 = Node.partial_type()
-    return {"type_1": type_1, "type_2": type_2, "type_3": type_3}
+    return {"type_1": type_1, "type_2": type_2}
 
 
 @_render_test

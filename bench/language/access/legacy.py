@@ -2,9 +2,7 @@ from typing import TYPE_CHECKING, Optional, Union
 from uuid import UUID
 
 from bench.language.core import (
-    OWNABLE_NODE_TYPES,
     NodeReference,
-    NodeType,
     Struct,
     StructType,
     new_struct_id,
@@ -33,15 +31,9 @@ class PolicySubject(Struct):
     # (Client isn't a separate subject but useful to know)
 
     # who
-    client: Optional["Client"] = p_system(
-        40, default=None, require=False, array=False, references=NodeType.CLIENT
-    )
-    user: Optional["User"] = p_system(
-        41, default=None, require=False, array=False, references=NodeType.USER
-    )
-    computer: Optional["Computer"] = p_system(
-        43, default=None, require=False, array=False, references=NodeType.COMPUTER
-    )
+    client: Optional["Client"] = p_system(40)
+    user: Optional["User"] = p_system(41)
+    computer: Optional["Computer"] = p_system(43)
     if TYPE_CHECKING:
         client_ptr: Optional[NodeReference] = None
         client_id: Optional[UUID] = None
@@ -51,12 +43,8 @@ class PolicySubject(Struct):
         computer_id: Optional[UUID] = None
 
     # accessories
-    owned: list[Union["User", "Bench", "Organization"]] = p_system(
-        52, array=True, require=False, references=OWNABLE_NODE_TYPES.tuple
-    )
-    memberships: list[Union["Bench", "Organization"]] = p_system(
-        53, require=False, array=True, references=NodeType.MEMBERSHIP
-    )
+    owned: list[Union["User", "Bench", "Organization"]] = p_system(52)
+    memberships: list[Union["Bench", "Organization"]] = p_system(53)
 
     def __content_str__(self):
         content_parts = []

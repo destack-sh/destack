@@ -95,7 +95,7 @@ class Table(
         from bench.language.core import Type
 
         if of == "instance":
-            return Type(kind=TypeKind.BASED_NODE, base_type=self, bench_type=NodeType.RECORD)
+            return Type(kind=TypeKind.NODE, base_type=self, bench_type=NodeType.RECORD)
         else:
             field_types = field_types or [FieldType.MEMBER]
             return Type(

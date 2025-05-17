@@ -28,7 +28,6 @@ from bench.language.core import (
     PrimitiveType,
     Property,
     TypeKind,
-    on_invalid_raise,
     pack_custom_object,
     pack_proto_json,
     unpack_proto_json,
@@ -133,7 +132,7 @@ def pack_builtin_object_prop_scalar(obj: BuiltinObject, prop: Property, value: A
         #  (here we force unpack and then repack the value even if it wasn't unpacked before)
         typ = prop.value_type_info_getter(obj)
         assert typ is not None, f"no type for {prop!r}"
-        if typ.kind == TypeKind.CUSTOM_OBJECT or typ.kind == TypeKind.PARTIAL_OBJECT:
+        if typ.kind == TypeKind.CUSTOM_OBJECT:
             assert prop.value_runtime_ptr is not None, f"no value_runtime_ptr for {prop!r}"
             value = getattr(obj, prop.value_runtime_ptr.name)
             assert (
@@ -348,7 +347,6 @@ def unpack_builtin_object_validate[T: BuiltinObject](
     obj = unpack_builtin_object(
         obj_data, supergraph=supergraph, graph=graph, expect=expect, session=session
     )
-    obj._validate_rec(invalid=on_invalid_raise)
     return obj
 
 

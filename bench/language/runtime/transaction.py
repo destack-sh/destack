@@ -24,11 +24,9 @@ from bench.language.core import (
     NodeGraph,
     NodeReference,
     NodeType,
-    PrimitiveType,
     Struct,
     StructType,
     Subject,
-    p_internal,
     p_system,
     p_value_packed,
     pack_proto_json,
@@ -57,8 +55,6 @@ if TYPE_CHECKING:
     from bench.language import (
         ChangeCategory,
         ClientOrigin,
-        Code,
-        EditContext,
         Icon,
         NodeSuperGraph,
         Run,
@@ -91,36 +87,25 @@ class EditOperation(Struct):
     """An edit operation."""
 
     type: EditOperationType = p_system(30, default=EditOperationType.SET)
-    path: list[str] = p_system(31)
+    key: str = p_system(31)
 
     new_value_packed: Any | None = p_value_packed(40)
-    # TODO :Performance: do we even need EditOperation.old_value_packed?
-    old_value_packed: Any | None = p_value_packed(41)
-
-    @property
-    def property_id(self) -> int:
-        assert self.path, f"{self!r} has no path"
-        return int(self.path[0])
 
 
 @struct_(StructType.EDIT)
 class Edit(Struct):
     """
-    An Edit to a Node in some context.
+    An Edit to a Node.
     """
 
     # core
-    id: UUID = p_system(
+    id: str = p_system(
         2,
-        default_factory=UUIDT,
+        default_factory=new_edit_id,
         description="Unique identifier for the Edit within a Session.",
     )
     type: EditType = p_system(30, description="Type of Edit.")
     node: Node = p_system(31, description="Which Node.")
-    vignette: ChangeVignette | None = p_system(
-        32,
-        description="Summary of the Node before the Edit.",
-    )
     edited_at: datetime = p_system(33, description="When the Edit was made.")
     old_edited_at: Optional[datetime] = p_system(
         34,
@@ -143,28 +128,6 @@ class Edit(Struct):
     )
     subject: Optional[Subject] = p_system(63, description="Who made the Edit.")
     origin: "ClientOrigin | None" = p_system(64, description="Where the Edit came from.")
-    context: "EditContext | None" = p_system(
-        65,
-        description="Additional per-Edit context for servers.",
-    )
-    epoch: int | None = p_system(
-        68,
-        description="Epoch at that Edit.",
-        primitive_type=PrimitiveType.INT64,
-    )
-
-
-@struct_(StructType.CHANGE)
-class Change(Struct):
-    """
-    A Change is a sequence of related Edits.
-    Any Edit not associated with a Change is implicitly in its own Change.
-    The 'key' is the id the Change will have in the Log.
-    """
-
-    key: UUID = p_system(30, default_factory=UUIDT)
-    code: Optional["Code"] = p_internal(33)
-    edits: list[Edit] = p_internal(34, description="The materialized Edits in the Change.")
 
 
 @dataclasses.dataclass(slots=True)

@@ -52,7 +52,7 @@ class Client(IsNamed, Node[ClientData]):
     access_token: Optional[str] = p_kernel(50, defer=True, unique=True, sensitive=True)
     seen_at: Optional[datetime] = p_system(51)
     logged_in_at: Optional[datetime] = p_system(52)
-    cursor: Optional["Cursor"] = p_regular(55, fk=True)
+    cursor: Optional["Cursor"] = p_regular(55)
     if TYPE_CHECKING:
         cursor_id: Optional[UUID] = None
         cursor_ptr: Optional[NodeReference] = None

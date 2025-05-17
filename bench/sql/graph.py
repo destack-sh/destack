@@ -301,15 +301,13 @@ def map_table_to_sql_table(table: Table, prev_sql_table: SqlTable | None) -> Sql
         if field.kind == TypeKind.PRIMITIVE:
             assert field.primitive_type is not None, f"no primitive type for {field!r}"
             primitive_type = field.primitive_type
-        elif field.kind == TypeKind.NODE or field.kind == TypeKind.BASED_NODE:
+        elif field.kind == TypeKind.NODE:
             # NOTE :Architecture: unravel custom field node refs like in builtin objects?
             primitive_type = PrimitiveType.JSON
         elif field.kind == TypeKind.STRUCT:
             primitive_type = PrimitiveType.JSON
         elif field.kind == TypeKind.ENUM:
             primitive_type = PrimitiveType.INT16
-        elif field.kind == TypeKind.BASED_NODE:
-            primitive_type = PrimitiveType.JSON
         else:
             raise TypeError(f"cannot store field in {table!r}: {field!r}")
 
@@ -602,10 +600,8 @@ def _pack_field_value(field: Field, value: JsonValue) -> SqlPrimitive:
         return None
     elif field.primitive_type == PrimitiveType.JSON or field.kind in (
         TypeKind.NODE,
-        TypeKind.BASED_NODE,
         TypeKind.STRUCT,
         TypeKind.CUSTOM_OBJECT,
-        TypeKind.PARTIAL_OBJECT,
     ):
         if field.is_list:
             return [Jsonb(v) for v in value]  # type: ignore
@@ -623,10 +619,8 @@ def _unpack_field_value(field: Field, value_packed: Any) -> JsonValue:
         return None
     elif field.primitive_type == PrimitiveType.JSON or field.kind in (
         TypeKind.NODE,
-        TypeKind.BASED_NODE,
         TypeKind.STRUCT,
         TypeKind.CUSTOM_OBJECT,
-        TypeKind.PARTIAL_OBJECT,
     ):
         return value_packed
     elif field.kind == TypeKind.PRIMITIVE or field.kind == TypeKind.ENUM:

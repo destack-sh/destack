@@ -172,7 +172,7 @@ class Action(
         from bench.language import Service, Type
 
         if of == "instance":
-            return Type(kind=TypeKind.BASED_NODE, base_type=self, bench_type=NodeType.RUN)
+            return Type(kind=TypeKind.NODE, base_type=self, bench_type=NodeType.RUN)
         else:
             if self.type == ActionType.END:
                 if field_types and FieldType.INPUT not in field_types:

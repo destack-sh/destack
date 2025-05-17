@@ -2,10 +2,8 @@ import abc
 from typing import (
     TYPE_CHECKING,
     Collection,
-    Generic,
     Optional,
     Sequence,
-    TypeVar,
     Union,
     cast,
     overload,
@@ -19,7 +17,6 @@ from .const import NodeType, QueryType, SortType, active_session
 if TYPE_CHECKING:
     from bench.language import (
         BenchNode,
-        CustomObject,
         Expression,
         Field,
         LegacyQuery,
@@ -28,7 +25,6 @@ if TYPE_CHECKING:
         NodeReference,
         PackageNode,
         Property,
-        Struct,
     )
     from bench.pb2 import AnyNodeData
 
@@ -325,65 +321,3 @@ class RemoteNodeList[V: Node, VD: AnyNodeData](NodeList[V]):
     def first(self, count: int) -> "LegacyQuery[V, VD]":
         return self._query().first(count)
 
-
-ValueParentT = TypeVar("ValueParentT", bound=Union["CustomObject", "Struct", "Node"])
-ValueT = TypeVar("ValueT", bound=Union["CustomObject", "Struct", "Property"])
-ValueParentKey = Union["Property", "Field"]
-
-
-class ValueList(list, Generic[ValueParentT]):
-    """
-    A list of Values or Value-like objects (with local identity, so can't be inlined).
-    Unlike a NodeList, value lists are actual lists and not computed on access.
-    NOTE :Cleanup: shouldn't ValueList be in value.py?
-    """
-
-    def __init__(
-        self,
-        parent: ValueParentT,
-        parent_key: ValueParentKey,
-        *args,
-        **kwargs,
-    ):  # type: ignore
-        super().__init__(*args, **kwargs)
-        self.parent = parent
-        self.parent_key = parent_key
-
-    def append(
-        self,
-        item: ValueT,
-        after: ValueT | None = None,
-        before: ValueT | None = None,
-    ) -> None:
-        from .property import Property
-
-        if not (type(self.parent_key) is Property and self.parent_key.is_property_reference):
-            item = item._move_to(self.parent, self.parent_key)  # type: ignore
-        super().append(item)
-
-    def extend(self, items: Collection[ValueT]):  # type: ignore
-        super().extend(items)
-        from .property import Property
-
-        if not (type(self.parent_key) is Property and self.parent_key.is_property_reference):
-            values = cast(list[Union["CustomObject", "Struct"]], items)
-            if any(item.parent is not None for item in values):
-                values = [e._copy_to(self.parent, self.parent_key) for e in items]  # type: ignore
-            else:
-                for item in values:
-                    item._do_set("parent", self.parent, track=False)
-
-    def clear(self):
-        super().clear()
-
-    @staticmethod
-    def _move_list(
-        values: Collection[ValueT],
-        parent: ValueParentT,
-        parent_key: ValueParentKey,
-        ancestor_prop: Optional["Property"] = None,
-    ):
-        """Moves or copies the values in the list to the given parent."""
-        if any(v.parent is not None for v in cast(list[Union["CustomObject", "Struct"]], values)):
-            values = [v._copy_to(parent, parent_key) for v in values]  # type: ignore
-        return ValueList(parent, parent_key, ancestor_prop, values)

@@ -129,7 +129,7 @@ from .graph import (
     NodeSuperGraph,
 )
 from .icon import Icon, IconIn, IconType, icon, reverse_icon, to_icon
-from .list import NodeList, RemoteNodeList, ValueList
+from .list import NodeList, RemoteNodeList
 from .node import (
     BASED_NODE_TYPES,
     BenchNode,
@@ -282,7 +282,6 @@ from .value import (
     get_custom_object_properties,
     get_custom_object_property,
     is_value,
-    make_node_from_partial,
     pack_builtin_object,
     pack_builtin_object_data,
     pack_custom_object,
@@ -292,7 +291,6 @@ from .value import (
     pack_value,
     pack_value_data,
     pack_value_scalar,
-    patch_node_from_partial,
     register_coercion,
     unpack_builtin_object,
     unpack_builtin_object_data,
@@ -508,7 +506,6 @@ __all__ = [
     "TypeIn",
     "TypeKind",
     "ValidationError",
-    "ValueList",
     "Variable",
     "VariableType",
     "_IntoQuery",
@@ -549,7 +546,6 @@ __all__ = [
     "is_object_type",
     "is_struct_type",
     "is_value",
-    "make_node_from_partial",
     "markdown_to_text",
     "new_struct_id",
     "node_",
@@ -576,7 +572,6 @@ __all__ = [
     "pack_value_data",
     "pack_value_scalar",
     "patch_graph",
-    "patch_node_from_partial",
     "register_coercion",
     "render",
     "render_expression",

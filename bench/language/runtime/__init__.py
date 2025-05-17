@@ -13,7 +13,6 @@ from .run import Run
 from .session import Session
 from .span import Span
 from .transaction import (
-    Change,
     ChangeVignette,
     Edit,
     EditOperation,
@@ -25,7 +24,6 @@ from .transaction import (
 __all__ = [
     "INTERRUPTION_TYPE_BY_PROCESS_STATUS",
     "PROCESS_STATUS_BY_INTERRUPTION_TYPE",
-    "Change",
     "ChangeVignette",
     "Context",
     "Edit",

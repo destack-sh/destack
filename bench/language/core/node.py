@@ -1,4 +1,3 @@
-from collections import defaultdict
 from datetime import datetime, timedelta
 from typing import (
     TYPE_CHECKING,
@@ -48,14 +47,12 @@ from .const import (
     REGIONAL_NODE_TYPES,
     UNSET,
     BuiltinEnum,
-    FieldType,
     NodeArea,
     NodeType,
     ObjectType,
     QueryType,
     ReferenceKind,
     StructType,
-    TypeKind,
     active_session,
     bittuple,
 )
@@ -79,14 +76,13 @@ from .property import (
     p_system,
 )
 from .struct import Struct, struct_
-from .trait import SUBJECT_NODE_TYPES, IsBased, IsInstantiable, IsModal, IsOrdered, Subject
+from .trait import IsBased, IsInstantiable, IsModal, IsOrdered, Subject
 from .validation import on_invalid_raise
 
 if TYPE_CHECKING:
     from bench.language import (
         Bench,
         Block,
-        CustomObject,
         Expression,
         Field,
         GetConnection,
@@ -99,7 +95,6 @@ if TYPE_CHECKING:
         SearchConnection,
         Session,
         TextLine,
-        Type,
     )
 
 # pyright: reportIncompatibleVariableOverride=false
@@ -139,25 +134,13 @@ def node_component_(
         )
 
         # register node properties
-        child_properties: dict[str, Property] = {}
-        child_properties_by_type: dict[NodeType, list[Property]] = defaultdict(list)
         ancestor_properties: dict[str, Property] = {}
         for prop in properties.values():
-            if prop.reference_kind == ReferenceKind.NODE_CHILDREN:
-                if cls.__name__ != "Node" and not issubclass(cls, Node) and node_type is not None:
-                    raise ValueError(f"{cls} is not a Node for {prop}")
-                child_properties[prop.name] = prop
-                assert isinstance(
-                    prop.reference_nodes, tuple
-                ), f"unexpected {prop.reference_nodes!r} for {prop!r}"
-                child_properties_by_type[prop.reference_nodes[0]].append(prop)
-            elif (
+            if (
                 prop.reference_kind == ReferenceKind.NODE_ANCESTOR
                 or prop.reference_kind == ReferenceKind.NODE_ANCESTOR_OR_SELF
             ):
                 ancestor_properties[prop.name] = prop
-        cls.__node_child_properties__ = frozendict(child_properties)
-        cls.__node_child_properties_by_type__ = frozendict(child_properties_by_type)
         cls.__node_ancestor_properties__ = frozendict(ancestor_properties)
 
         # register as concrete node class for node_type
@@ -250,8 +233,6 @@ class Node[NodeDataT: AnyNodeData](BuiltinObject[NodeDataT]):
     # NOTE :Test: make id factories deterministic (incl. UUIDT? somehow)
     __id_factory__: ClassVar[Callable[[], UUID]] = uuid4
 
-    __node_child_properties__: ClassVar[dict[str, Property]] = frozendict()
-    __node_child_properties_by_type__: ClassVar[dict[NodeType, list[Property]]] = frozendict()
     __node_ancestor_properties__: ClassVar[dict[str, Property]] = frozendict()
     __base_class__: ClassVar[type["Node"] | None] = None
 
@@ -284,25 +265,14 @@ class Node[NodeDataT: AnyNodeData](BuiltinObject[NodeDataT]):
     created_by: Optional[Subject] = p_system(  # type: ignore (pyright is wrong, Subject is a type)
         11,
         default=None,
-        require=False,
-        array=False,
         autoset=True,
-        references=SUBJECT_NODE_TYPES.tuple,
         same_bench=True,
         baseless=True,
         ckless=True,
     )
     updated_at: datetime = p_system(12, autoset=True)
     updated_by: Optional[Subject] = p_system(  # type: ignore (see above)
-        13,
-        default=None,
-        require=False,
-        array=False,
-        autoset=True,
-        references=SUBJECT_NODE_TYPES.tuple,
-        same_bench=True,
-        baseless=True,
-        ckless=True,
+        13, default=None, autoset=True, same_bench=True, baseless=True, ckless=True
     )
     archived_at: Optional[datetime] = p_system(14, autoset=True)
     deleted_at: Optional[datetime] = p_system(15, autoset=True)
@@ -438,7 +408,6 @@ class Node[NodeDataT: AnyNodeData](BuiltinObject[NodeDataT]):
             if (
                 prop.id is UNSET
                 or prop.id is None
-                or prop.reference_kind == ReferenceKind.NODE_CHILDREN
                 or prop.is_sensitive
                 or prop.id < 30
                 or prop.name in ("type", "name", "order_key")
@@ -601,10 +570,7 @@ class Node[NodeDataT: AnyNodeData](BuiltinObject[NodeDataT]):
         # map new identities (at root)
         if not _is_nested and type(_map) is dict:
             for node in _map.values():
-                node.replace_references(
-                    _map,
-                    exclude=(ReferenceKind.NODE_PARENT, ReferenceKind.NODE_CHILDREN),
-                )
+                node.replace_references(_map, exclude=(ReferenceKind.NODE_PARENT,))
 
         # append to our parent to re-attach
         parent = self.parent
@@ -960,88 +926,6 @@ class Node[NodeDataT: AnyNodeData](BuiltinObject[NodeDataT]):
         """Wait until the given condition is true."""
         runtime = active_session().runtime
         await runtime.wait_for(nodes=[self], condition=lambda: condition(self), timeout=timeout)
-
-    @classmethod
-    def get_child_property_or_error(cls, node_type: NodeType) -> Property:
-        """Gets the child property for the given Node type."""
-        prop = cls.get_child_property(node_type)
-        if prop is None:
-            raise ValueError(f"no child property for {node_type.bench_name} in {cls.__name__}")
-        return prop
-
-    @classmethod
-    def get_child_property(cls, node_type: NodeType) -> Property | None:
-        """Gets the child property for the given Node type, or None if not found."""
-        for prop in cls.__node_child_properties__.values():
-            if (
-                prop.reference_nodes
-                and prop.reference_nodes != "any"
-                and node_type in prop.reference_nodes
-            ):
-                return prop
-        return None
-
-    @classmethod
-    def partial_type(
-        cls,
-        type: int | None = None,
-        *,
-        base_type: "Node | None" = None,
-        field_types: list[FieldType] | None = None,
-    ) -> "Type":
-        """Creates a Type object for a partial Node."""
-        from bench.language.core import Type
-
-        metatype = getattr(cls, "metatype", None)  # Node has no metatype
-
-        if base_type is not None:
-            return Type(
-                kind=TypeKind.PARTIAL_OBJECT,
-                base_type=base_type,
-                base_field_types=field_types or [FieldType.MEMBER],
-                property_field_types=field_types or [],
-                bench_type=metatype,
-            )
-        else:
-            field_types = field_types or []
-            return Type(
-                kind=TypeKind.PARTIAL_OBJECT,
-                bench_type=metatype,
-                base_field_types=field_types,
-                property_field_types=field_types,
-            )
-
-    @classmethod
-    def partial(
-        cls,
-        type: int | None = None,
-        *,
-        base_type: "Node | None" = None,
-        field_types: list[FieldType] | None = None,
-        **kwargs: Any,
-    ) -> "CustomObject":
-        """Creates a new partial Node of this type."""
-        from .trait import IsBased
-        from .value import coerce_custom_object_scalar
-
-        if base_type is None and issubclass(cls, IsBased):
-            base_type = cls.get_base_from_partial(kwargs)
-
-        typ = cls.partial_type(type, base_type=base_type, field_types=field_types)
-        if cls is not Node:
-            kwargs["metatype"] = cls.metatype
-        if type is not None:
-            kwargs["type"] = type
-        return coerce_custom_object_scalar(kwargs, typ)
-
-    @classmethod
-    def from_partial(cls, partial: "CustomObject", **kwargs) -> Self:
-        """Creates a new full Node from a partial Node."""
-        from .value import make_node_from_partial
-
-        node = make_node_from_partial(partial, **kwargs)
-        assert isinstance(node, cls), f"unexpected node {node!r} from partial {partial!r}"
-        return node
 
     #
     # Querying
