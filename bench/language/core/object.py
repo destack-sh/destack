@@ -107,9 +107,6 @@ def _process_object_cls[ObjectT: BuiltinObject](
     is_final: bool = False,
     is_struct: bool = False,
     is_node: bool = False,
-    # for nodes only
-    is_root: bool = False,
-    is_variable_root: bool = False,
 ) -> tuple[type[ObjectT], dict[str, "Property"]]:
     """Process an object base class and return the processed class and its properties."""
     assert isinstance(cls, type), f"expected type, got {cls} ({type(cls)})"
@@ -174,10 +171,6 @@ def _process_object_cls[ObjectT: BuiltinObject](
                 raise ValueError(f"property conflict '{name}': {prop!r}, {existing!r}")
             if not is_node and prop.is_tree_reference:
                 raise ValueError(f"non-node {cls} has node-only relation {prop}")
-
-    # bench is optional in variable root types (since they can have other roots)
-    if is_node and is_variable_root and "bench" in properties_by_name:
-        properties_by_name["bench"].is_required = False
 
     # contribute extra properties
     for prop in tuple(properties_by_name.values()):

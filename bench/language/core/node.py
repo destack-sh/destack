@@ -55,7 +55,6 @@ from .const import (
     QueryType,
     StructType,
     active_session,
-    bittuple,
 )
 from .graph import NULL_SUPERGRAPH, NodeDataGraph, NodeGraph
 from .list import attach_node
@@ -117,7 +116,6 @@ class IndexIn(NamedTuple):
 def node_component_(
     node_type: NodeType | None = None,
     is_root: bool = False,
-    is_variable_root: bool = False,
     is_final: bool = False,
     is_subtype: bool = False,
 ):
@@ -127,8 +125,6 @@ def node_component_(
         cls, properties = _process_object_cls(
             cls=cls,
             object_type=node_type,
-            is_root=is_root,
-            is_variable_root=is_variable_root,
             is_final=is_final,
             is_node=True,
         )
@@ -164,7 +160,7 @@ def node_(
     node_type: NodeType,
     stored: bool = True,
     is_local: bool = False,
-    roots: tuple[NodeType, ...] = (NodeType.BENCH,),
+    root_type: NodeType | None = NodeType.BENCH,
     index: tuple[IndexIn, ...] = (),
 ):
     """Register a class as a concrete node for the given node type."""
@@ -173,16 +169,11 @@ def node_(
     in_bench = node_type in BENCH_NODE_TYPES
 
     # default index for nodes with parents
-    if roots:
+    if root_type:
         index = (*index, IndexIn(columns=("parent_id",), cover=("id",)))
 
     def decorate(cls: type["Node"]) -> type["Node"]:
-        cls = node_component_(
-            node_type=node_type,
-            is_root=len(roots) == 0,
-            is_variable_root=len(roots) > 1,
-            is_final=True,
-        )(cls)
+        cls = node_component_(node_type=node_type, is_root=root_type is None, is_final=True)(cls)
         cls.__is_stored__ = stored
         cls.__is_local__ = is_local
 
@@ -202,7 +193,7 @@ def node_(
         cls.__parent_property__ = parent_property
         cls.__parent_types__ = parent_property.node_types or ()
 
-        cls.__root_types__ = bittuple(*roots, enum_cls=NodeType)
+        cls.__root_type__ = root_type
         cls.__is_in_package__ = in_package
         cls.__is_in_bench__ = in_bench
 
@@ -240,7 +231,7 @@ class Node[NodeDataT: AnyNodeData](BuiltinObject[NodeDataT]):
     __is_local__: ClassVar[bool] = False  # custom storage logic (for records)
     __is_in_bench__: ClassVar[bool] = UNSET  # part of a Bench
     __is_in_package__: ClassVar[bool] = UNSET  # part of a Package
-    __root_types__: ClassVar[bittuple[NodeType]] = UNSET
+    __root_type__: ClassVar[NodeType | None] = UNSET
     __parent_types__: ClassVar[tuple[NodeType, ...]] = ()
     __parent_property__: ClassVar[Property] = UNSET
     __node_ancestor_properties__: ClassVar[dict[str, Property]] = frozendict()
@@ -465,11 +456,11 @@ class Node[NodeDataT: AnyNodeData](BuiltinObject[NodeDataT]):
         Whether this Node is attached to a roots.
         TODO :Performance: Node.is_attached is very inefficient
         """
-        if not self.__root_types__.bits.any():
+        if self.__root_type__ is None:
             return True  # always attached
         parent = self
         while parent is not None:
-            if parent.metatype in self.__root_types__:
+            if parent.metatype == self.__root_type__:
                 return True
             parent = parent.parent
         return False
@@ -734,7 +725,7 @@ class Node[NodeDataT: AnyNodeData](BuiltinObject[NodeDataT]):
 
                 path_parts.append(current._path_key)
                 next_parent = current.parent
-                if next_parent is None and current.metatype in self.__root_types__:
+                if next_parent is None and current.metatype == self.__root_type__:
                     break  # reached the root
                 current = next_parent
             else:
@@ -1153,7 +1144,7 @@ class NodeReference(Struct[NodeReferenceData]):
         bench_id: UUID | None = None
         if node.metatype == NodeType.BENCH:
             bench_id = node.id
-        elif NodeType.BENCH in node.__root_types__:
+        elif node.__root_type__ == NodeType.BENCH:
             bench_id = cast(BenchNode, node).bench_id
             if bench_id is None:
                 # maybe just creating, try from context

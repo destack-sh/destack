@@ -1,5 +1,5 @@
 from datetime import datetime
-from typing import TYPE_CHECKING, Optional, Union
+from typing import TYPE_CHECKING, Optional
 from uuid import UUID
 
 from bench.language.core import (
@@ -14,7 +14,6 @@ from bench.language.core import (
     p_internal,
     p_kernel,
     p_node_ancestor,
-    p_node_parent,
     p_regular,
     p_system,
     struct_,
@@ -27,12 +26,11 @@ if TYPE_CHECKING:
 # pyright: reportIncompatibleVariableOverride=false
 
 
-@node_(NodeType.CLIENT, roots=(NodeType.USER, NodeType.BENCH))
+@node_(NodeType.CLIENT)
 class Client(IsNamed, Node[ClientData]):
     """A Client to connect with the system."""
 
     # meta
-    parent: Union["User", "Bench", None] = p_node_parent(4, NodeType.USER, NodeType.BENCH)
     bench: "Bench | None" = p_node_ancestor(5, NodeType.BENCH, require=False, store=True, wire=True)
     user: "User | None" = p_node_ancestor(7, NodeType.USER, require=False, store=True, wire=True)
     type: ClientType = p_regular(30)
