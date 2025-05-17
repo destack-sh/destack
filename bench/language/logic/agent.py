@@ -1,10 +1,9 @@
-from functools import cached_property
-from typing import TYPE_CHECKING, Literal, Optional
+from typing import TYPE_CHECKING, Optional
 from uuid import UUID
 
 from bench.language.core import (
-    FieldType,
     IsClaimable,
+    IsExtensible,
     IsInstantiable,
     IsModal,
     IsNamed,
@@ -12,12 +11,9 @@ from bench.language.core import (
     IsProcessable,
     IsRunnable,
     IsSubject,
-    IsTimed,
     NodeReference,
     NodeType,
     PageNode,
-    TypeBase,
-    TypeKind,
     node_,
     p_regular,
 )
@@ -31,7 +27,6 @@ if TYPE_CHECKING:
 
 @node_(NodeType.AGENT)
 class Agent(
-    IsTimed,
     IsInstantiable,
     IsOwnable,
     IsClaimable,
@@ -39,6 +34,7 @@ class Agent(
     IsRunnable,
     IsProcessable,
     IsSubject,
+    IsExtensible,
     IsNamed,
     PageNode[AgentData],
 ):
@@ -64,45 +60,6 @@ class Agent(
         cursor_id: Optional[UUID] = None
 
     # ...IsProcessable[80-]
-
-    def to_type_maybe(
-        self,
-        *,
-        of: Literal["instance", "value"] = "instance",
-        field_types: list[FieldType] | None = None,
-    ) -> "TypeBase":
-        """Get a type represented by this Block (if any)"""
-        from bench.language.core import Type
-
-        if of == "instance":
-            return Type(kind=TypeKind.NODE, base_type=self, bench_type=NodeType.RUN)
-        else:
-            field_types = field_types or []
-            return Type(
-                kind=TypeKind.CUSTOM_OBJECT,
-                base_type=self,
-                base_field_types=field_types,
-                property_field_types=field_types,
-            )
-
-    def to_type(
-        self,
-        *,
-        of: Literal["instance", "value"] = "instance",
-        field_types: list[FieldType] | None = None,
-    ) -> "TypeBase":
-        typ = self.to_type_maybe(of=of, field_types=field_types)
-        if typ is None:
-            raise ValueError(f"{self!r} does not have a type")
-        return typ
-
-    @cached_property  # :CachedTypeInfo
-    def input_type(self) -> "TypeBase | None":
-        return self.to_type_maybe(of="value", field_types=[FieldType.INPUT])
-
-    @cached_property  # :CachedTypeInfo
-    def output_type(self) -> "TypeBase | None":
-        return self.to_type_maybe(of="value", field_types=[FieldType.OUTPUT])
 
     @staticmethod
     def new(name: str, **kwargs) -> "Agent":

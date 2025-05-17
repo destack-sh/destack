@@ -53,7 +53,7 @@ def map_bench_property_to_proto(
             id=prop.id,
             name=prop.name,
             type="NodeReferenceData",
-            optional=prop.is_optional or prop.is_deferred or prop.is_sensitive,
+            optional=prop.is_optional or prop.is_sensitive,
             repeated=prop.is_list,
         )
     elif prop.is_struct or prop.is_enum:
@@ -63,7 +63,7 @@ def map_bench_property_to_proto(
             id=prop.id,
             name=prop.name,
             type=proto_t,
-            optional=prop.is_optional or prop.is_deferred or prop.is_sensitive,
+            optional=prop.is_optional or prop.is_sensitive,
             repeated=prop.is_list,
         )
     elif prop.primitive_type in PROTO_FIELD_TYPE_BY_PRIMITIVE_TYPE:
@@ -72,7 +72,7 @@ def map_bench_property_to_proto(
             id=prop.id,
             name=prop.name,
             type=field_type,
-            optional=prop.is_optional or prop.is_deferred or prop.is_sensitive,
+            optional=prop.is_optional or prop.is_sensitive,
             repeated=prop.is_list,
         )
     elif prop.reference_is_node_data:

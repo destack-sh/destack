@@ -9,11 +9,11 @@ from bench.language import (
     PUBLIC_NODE_TYPES,
     Client,
     Computer,
-    GraphScope,
     NodeReference,
     NodeSuperGraph,
     NodeType,
     RemoteEngine,
+    Scope,
     Session,
     User,
 )
@@ -75,7 +75,7 @@ async def make_remote_session(
         # bench engine
         RemoteEngine(
             name="remote-self-bench",
-            scope=GraphScope(bench_id=bench_id)._to_data(),
+            scope=Scope(bench_id=bench_id)._to_data(),
             node_types=BENCH_NODE_TYPES,
             remote=self_host_client,
             write_retry=RETRY_GRPC_FOREVER,
@@ -88,7 +88,7 @@ async def make_remote_session(
         engines.append(
             RemoteEngine(
                 name="remote-bench-bench",
-                scope=GraphScope(bench_id=BENCH_ID)._to_data(),
+                scope=Scope(bench_id=BENCH_ID)._to_data(),
                 node_types=BENCH_NODE_TYPES,
                 remote=bench_host_client,
                 write_retry=RETRY_GRPC_FOREVER,
@@ -99,7 +99,7 @@ async def make_remote_session(
         root_ptr = NodeReference(node_type=NodeType.BENCH, id=bench_id, ck=bench_id)
         supergraph = NodeSuperGraph(name="Remote", root_ptr=root_ptr)
     session = Session(
-        _default_scope=GraphScope(bench_id=bench_id)._to_data(),
+        _default_scope=Scope(bench_id=bench_id)._to_data(),
         _engines=tuple(engines),
         _origin=client.to_origin(nonce=nonce),
         _supervisor=supervisor_client,

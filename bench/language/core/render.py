@@ -10,7 +10,6 @@ from typing import (
     Any,
     Collection,
     Mapping,
-    Union,
     assert_never,
     cast,
     overload,
@@ -22,7 +21,7 @@ import regex
 import structlog
 from opentelemetry import trace
 
-from bench.language.registry import ENUM_CLASS_BY_TYPE, NODE_CLASS_BY_TYPE
+from bench.language.registry import ENUM_CLASS_BY_TYPE
 from bench.utils.time import timedelta_to_isoformat
 
 from .code import Code, format_code
@@ -30,7 +29,6 @@ from .const import (
     NODE_TYPES_SET,
     PACKAGE_NODE_TYPES,
     EnumType,
-    FieldType,
     NodeType,
     ObjectType,
     PrimitiveType,
@@ -47,7 +45,7 @@ from .property import Property, ReferenceKind
 from .struct import Struct
 from .text import Text, TextLine, text_line_to_markdown, text_to_markdown
 from .type import TypeBase, TypeConstraint, reverse_type_scalar
-from .value import CustomObject, ScalarValue, SomeValue, get_custom_object_properties
+from .value import ScalarValue, SomeValue
 
 if TYPE_CHECKING:
     from bench.language import (
@@ -235,8 +233,6 @@ class Renderer:
     def render_property_ref(self, prop: Property | PropertyReference) -> str:
         if isinstance(prop, PropertyReference):
             prop = prop.resolve_or_error()
-        if prop.value_runtime_ptr is not None:
-            prop = prop.value_runtime_ptr
         return f'{prop.component.__name__}.get_property("{prop.name}")'
 
     def render_value_scalar(self, value: "ScalarValue", typ: "TypeBase") -> str:
@@ -280,44 +276,15 @@ class Renderer:
         else:
             raise RuntimeError(f"unexpected type {typ!r}")
 
-    def render_custom_object(self, value: "CustomObject") -> str:
-        """Renders single Object into an expression."""
-        # collect kwargs
-        typ = value._type
-        kwargs = _deconstruct_custom_object(value)
-        rendered_kwargs = _render_custom_object_kwargs(self, value, kwargs)
-        if (
-            typ.base_field_types
-            and FieldType.MEMBER in typ.base_field_types
-            and (base_type := typ.base_type) is not None
-        ):
-            # object representation
-            kwargs_str = f"{base_type.code_name}({self.render_kwargs(**rendered_kwargs)})"
-            return kwargs_str
-        else:
-            # default dict representation
-            kwargs_str = ", ".join(f"'{k}': {v}" for k, v in rendered_kwargs.items())
-            kwargs_str = f"{{{', '.join({kwargs_str})}}}"
-            return kwargs_str
-
     def render_value(self, value: "SomeValue | None", typ: "TypeBase") -> str:
         """Renders a value into an expression."""
-        from bench.language.core import CustomObject
-
         if value is None:
             return "None"
-        if typ.kind == TypeKind.CUSTOM_OBJECT:
-            # nested object
-            if not typ.is_list:
-                return self.render_custom_object(cast(CustomObject, value))
-            else:
-                return f"[{', '.join(self.render_custom_object(cast(CustomObject, v)) for v in cast(list, value))}]"
+        # scalar
+        if not typ.is_list:
+            return self.render_value_scalar(cast("ScalarValue", value), typ)
         else:
-            # scalar
-            if not typ.is_list:
-                return self.render_value_scalar(cast("ScalarValue", value), typ)
-            else:
-                return f"[{', '.join(self.render_value_scalar(v, typ) for v in cast(list, value))}]"
+            return f"[{', '.join(self.render_value_scalar(v, typ) for v in cast(list, value))}]"
 
     def render_kwargs(self, **kwargs: Any) -> str:
         """Renders kwargs into a string."""
@@ -334,25 +301,14 @@ class Renderer:
         renderer = _get_renderer(obj.metatype)
         return renderer.render(self, obj, options if options is not None else self.options)
 
-    def render_object(self, obj: BuiltinObject | CustomObject):
-        """Renders the given objects to a Python expression."""
-        if isinstance(obj, CustomObject):
-            return self.render_custom_object(obj)
-        elif isinstance(obj, BuiltinObject):
-            return self.render_builtin_object(obj)
-        else:
-            assert_never(obj)
-
     def render_expression(
         self,
-        value: BuiltinObject | CustomObject | Property,
+        value: BuiltinObject | Property,
         as_ref: bool = False,
         format: bool = False,
     ) -> str:
         """Renders a value into an expression."""
-        if isinstance(value, CustomObject):
-            rendered = self.render_custom_object(value)
-        elif isinstance(value, BuiltinObject):
+        if isinstance(value, BuiltinObject):
             if isinstance(value, Node) and as_ref:
                 rendered = self.render_node_ref(value)
             else:
@@ -406,7 +362,7 @@ def _deconstruct_builtin_object(
     obj: BuiltinObject, *, include_defaults: bool = False, options: RenderOptions
 ) -> dict[Property, Any]:
     """Gets the 'content' values for a BuiltinObject."""
-    cls = obj._get_effective_cls()
+    cls = type(obj)
     kwargs: dict[Property, Any] = {}
     # properties
     if options.include_properties is not None:
@@ -438,17 +394,6 @@ def _deconstruct_builtin_object(
         ):
             continue
         kwargs[prop] = prop_value
-    # values last (may depend on types, and to simplify control flow for skipping unset values)
-    for prop in cls.__value_runtime_properties__.values():
-        wired_prop = prop.value_packed_ptr
-        assert type(wired_prop) is Property, f"no wired prop for {prop!r}"
-        wired_prop_value = getattr(obj, wired_prop.name)
-        if wired_prop_value is None:
-            continue
-        prop_value = getattr(obj, prop.name)
-        if prop_value is None:
-            continue
-        kwargs[prop] = prop_value
     return kwargs
 
 
@@ -457,44 +402,7 @@ def _render_builtin_object_kwargs(
 ) -> dict[str, str]:
     rendered_kwargs: dict[str, str] = {}
     for prop, value in kwargs.items():
-        if prop.is_value_runtime:
-            value_type = prop.value_type_info_getter(obj) if prop.value_type_info_getter else None
-            if value_type is not None:
-                rendered_kwargs[prop.name] = renderer.render_value(value, value_type)
-        else:
-            rendered_kwargs[prop.name] = renderer.render_value(value, prop.type_info)
-    return rendered_kwargs
-
-
-def _deconstruct_custom_object(obj: CustomObject) -> dict[Union[Property, "Field"], Any]:
-    """Gets the 'content' values for a CustomObject."""
-    kwargs: dict[Union[Property, Field], Any] = {}
-    # properties
-    for prop in get_custom_object_properties(obj._type, obj._value):
-        storage_key = prop.key
-        prop_value = cast(SomeValue, obj._value.get(storage_key))
-        if prop_value is None:
-            continue
-        kwargs[prop] = prop_value
-    # fields
-    for field in obj._type._fields:
-        field_value = obj._do_get(field)
-        if field_value is None:
-            continue
-        kwargs[field] = field_value
-    return kwargs
-
-
-def _render_custom_object_kwargs(
-    renderer: "Renderer", obj: CustomObject, kwargs: dict[Union[Property, "Field"], Any]
-) -> dict[str, str]:
-    rendered_kwargs: dict[str, str] = {}
-    for prop, value in kwargs.items():
-        if type(prop) is Property and prop.is_value_packed:
-            assert type(prop.value_runtime_ptr) is Property, f"no runtime ptr for {prop!r}"
-            rendered_kwargs[prop.value_runtime_ptr.name] = renderer.render_custom_object(value)
-        elif name := prop.name:
-            rendered_kwargs[name] = renderer.render_value(value, prop.type_info)
+        rendered_kwargs[prop.name] = renderer.render_value(value, prop.type_info)
     return rendered_kwargs
 
 
@@ -519,21 +427,6 @@ def _deconstruct_type_in(
     if isinstance(type_in, TypeFormat):
         kwargs.pop("format", None)
     return rendered_type, kwargs
-
-
-def _desconstruct_partial_type(renderer: "Renderer", obj: TypeBase):
-    kwargs = {}
-    if obj.bench_type is not None:
-        node_cls = NODE_CLASS_BY_TYPE[cast(NodeType, obj.bench_type)]
-    else:
-        node_cls = Node
-    if obj.base_type is not None:
-        kwargs["block"] = renderer.render_node_ref(obj.base_type)
-    if obj.base_field_types:
-        kwargs["field_types"] = (
-            f"[{', '.join(f'FieldType.{field_type.name}' for field_type in obj.base_field_types)}]"
-        )
-    return node_cls, kwargs
 
 
 #
@@ -977,7 +870,7 @@ def render_value(value: SomeValue, typ: TypeBase, options: RenderOptions) -> str
 
 
 def render_expression(
-    value: BuiltinObject | CustomObject | Property, options: RenderOptions, as_ref: bool = False
+    value: BuiltinObject | Property, options: RenderOptions, as_ref: bool = False
 ) -> str:
     """Render the given object to a python expression."""
     renderer = Renderer(options)
@@ -988,7 +881,7 @@ def render_expression(
 
 
 def render_expressions(
-    expressions: Mapping[str, BuiltinObject | CustomObject | Property],
+    expressions: Mapping[str, BuiltinObject | Property],
     options: RenderOptions,
 ) -> str:
     """Render the given expressions to python expressions."""
@@ -1013,8 +906,8 @@ def render_statement(*objs: Node, options: RenderOptions) -> str:
 @overload
 def render(*objs: BuiltinObject, options: RenderOptions) -> str: ...
 @overload
-def render(*objs: CustomObject | Property, options: RenderOptions) -> str: ...
-def render(*objs: BuiltinObject | CustomObject | Property, options: RenderOptions) -> str:
+def render(*objs: Property, options: RenderOptions) -> str: ...
+def render(*objs: BuiltinObject | Property, options: RenderOptions) -> str:
     """Renders the given object to either an expression (for values) or statement (for nodes)."""
     if any(isinstance(obj, Node) for obj in objs):
         return render_statement(*cast(list[Node], objs), options=options)

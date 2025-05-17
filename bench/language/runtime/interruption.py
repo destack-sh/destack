@@ -4,11 +4,10 @@ from uuid import UUID
 
 from bench.language.core import (
     BuiltinEnum,
-    CustomObject,
     EnumType,
+    IsExtensible,
     IsModal,
     IsRuntime,
-    IsTimed,
     NodeReference,
     NodeType,
     PackageNode,
@@ -32,7 +31,6 @@ if TYPE_CHECKING:
         Run,
         Span,
         Task,
-        TypeBase,
     )
 
 # pyright: reportIncompatibleVariableOverride=false
@@ -78,7 +76,12 @@ class InterruptionResponse(BuiltinEnum):
 
 
 @timed_node_(NodeType.INTERRUPTION)
-class Interruption(IsTimed, IsRuntime, IsModal, PackageNode[InterruptionData]):
+class Interruption(
+    IsRuntime,
+    IsModal,
+    IsExtensible,
+    PackageNode[InterruptionData],
+):
     """An Interruption in the processing or execution of something."""
 
     # meta
@@ -152,18 +155,6 @@ class Interruption(IsTimed, IsRuntime, IsModal, PackageNode[InterruptionData]):
             return self.flow
 
     @property
-    def input_type(self) -> "TypeBase | None":
-        if (runnable := self.runnable) is None:
-            return None
-        return runnable.input_type
-
-    @property
-    def output_type(self) -> "TypeBase | None":
-        if (runnable := self.runnable) is None:
-            return None
-        return runnable.output_type
-
-    @property
     def is_open(self) -> bool:
         return self.status == InterruptionStatus.OPEN
 
@@ -178,14 +169,13 @@ class Interruption(IsTimed, IsRuntime, IsModal, PackageNode[InterruptionData]):
         else:
             return parent.is_in(*nodes)
 
-    def complete(self, outputs: CustomObject | None = None, _trigger_runtime: bool = True) -> None:
+    def complete(self, _trigger_runtime: bool = True) -> None:
         """Mark this Interrupt as closed."""
         assert not self.is_closed, f"{self!r} is already closed"
         assert self._session is not None, f"{self!r} has no session"
         self.status = InterruptionStatus.COMPLETED
         self.closed_at = self._session._oracle.utc()
         self.duration = self.closed_at - self.created_at
-        self.outputs = outputs
         runtime = self._session.runtime
         if runtime and _trigger_runtime:
             runs_to_resume = runtime.get_interrupted_runs(self._graph, self)

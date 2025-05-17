@@ -1,42 +1,40 @@
-from typing import TYPE_CHECKING, Any, Optional, Union, cast, final
+from typing import TYPE_CHECKING, Optional, Union, final
 
 import structlog
 
 from bench.language.core import (
-    FieldType,
     IsBased,
     IsClaimable,
+    IsExtensible,
     IsModal,
     IsOrdered,
     IsOwnable,
     IsTitled,
     NodeType,
     PackageNode,
-    TypeBase,
     node_,
     p_node_parent,
     p_regular,
     p_system,
-    p_value_packed,
-    p_value_runtime,
 )
-from bench.pb2 import AnyNodeData, NodeReferenceData, RecordData
+from bench.pb2 import RecordData
 
 if TYPE_CHECKING:
-    from bench.language import CustomObject, Icon, Table
+    from bench.language import Icon, Table
 
 # pyright: reportIncompatibleVariableOverride=false
 
 logger = structlog.get_logger(__name__)
 
 
-@node_(NodeType.RECORD, unravel_value=True)
+@node_(NodeType.RECORD, is_local=True)
 class Record(
     IsBased,
     IsModal,
     IsOwnable,
     IsClaimable,
     IsOrdered,
+    IsExtensible,
     IsTitled,
     PackageNode[RecordData],
 ):
@@ -53,41 +51,9 @@ class Record(
     # target: Page/Task/...? (tie Record to a Page for a Notion-like experience in some Tables)
     # ... general Record/Page/Block 'tying'? :NodeTying
 
-    # value
-    value_packed: Any = p_value_packed(40)
-    value: "CustomObject | None" = p_value_runtime(
-        40, type=FieldType.MEMBER, typ=lambda self: cast("Record", self).value_type
-    )
-
     @final
     def __repr__(self):  # type: ignore
         # override the default __repr__ for records
         table = self.table
         type_name = table.code_name if table is not None else "???"
         return f"<{type_name}Record {self!s}>"
-
-    def __content_str__(self):
-        if (value := self.value) is not None:
-            return str(value)
-        else:
-            return ""
-
-    @property
-    def value_type(self) -> "TypeBase | None":
-        table = self.table
-        return table.to_type_maybe(of="value") if table is not None else None
-
-    @property
-    def base(self) -> "Table | None":
-        return self.table
-
-    @staticmethod
-    def get_base_from_data(data: AnyNodeData) -> Optional[NodeReferenceData]:
-        return cast(RecordData, data).table_ptr
-
-    @staticmethod
-    def get_base_from_partial(data: dict[str, Any]) -> Optional["Table"]:
-        if "database" in data:
-            return data["database"]
-        else:
-            return None

@@ -244,12 +244,7 @@ class Runner[N: Runnable = Runnable](abc.ABC):
             if type(run) is SpanType:
                 assert parent_run is not None, f"{self!r} has no parent Run"
                 tracked_span = Span(
-                    parent=parent_run,
-                    type=run,
-                    status=self.status,
-                    mode=self.mode,
-                    agent=agent,
-                    _skip_validate_self=True,
+                    parent=parent_run, type=run, status=self.status, mode=self.mode, agent=agent
                 )
                 parent_run._copy_context_to(tracked_span)
                 self.session._create(tracked_span)
@@ -636,7 +631,6 @@ def create_run(
         agent=agent,
         status=status or ProcessStatus.CREATED,
         _graph=graph,
-        _skip_validate_self=True,
     )
 
     # inputs

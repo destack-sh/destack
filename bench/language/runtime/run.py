@@ -4,14 +4,12 @@ from uuid import UUID
 
 from bench.language.core import (
     TERMINAL_PROCESS_STATUSES,
-    CustomObject,
     Expression,
-    FieldType,
     IsBased,
     IsComputable,
+    IsExtensible,
     IsModal,
     IsProcessable,
-    IsTimed,
     IsTitled,
     NodeType,
     PackageNode,
@@ -23,8 +21,6 @@ from bench.language.core import (
     p_node_parent,
     p_regular,
     p_system,
-    p_value_packed,
-    p_value_runtime,
     timed_node_,
 )
 from bench.pb2 import AnyNodeData, NodeReferenceData, RunData
@@ -35,12 +31,10 @@ if TYPE_CHECKING:
     from bench.language import (
         Agent,
         Code,
-        CustomObject,
         NodeReference,
         Runnable,
         Span,
         Thread,
-        TypeBase,
     )
 
 
@@ -49,11 +43,11 @@ if TYPE_CHECKING:
 
 @timed_node_(NodeType.RUN)
 class Run(
-    IsTimed,
     IsComputable,
     IsProcessable,
     IsModal,
     IsBased,
+    IsExtensible,
     IsTitled,
     IsRun,
     PackageNode[RunData],
@@ -82,14 +76,6 @@ class Run(
         thread_id: Optional[UUID] = None
 
     # content
-    inputs_packed: Any = p_value_packed(61)
-    inputs: "CustomObject | None" = p_value_runtime(
-        61, type=FieldType.INPUT, typ=lambda self: cast("Run", self).input_type
-    )
-    outputs_packed: Any = p_value_packed(62)
-    outputs: "CustomObject | None" = p_value_runtime(
-        62, type=FieldType.OUTPUT, typ=lambda self: cast("Run", self).output_type
-    )
     code: Optional["Code"] = p_regular(66)
 
     # ...IsProcessable[80-]
@@ -194,28 +180,6 @@ class Run(
     @property
     def is_active(self) -> bool:
         return self.status not in TERMINAL_PROCESS_STATUSES
-
-    @property
-    def input_type(self) -> "TypeBase | None":
-        if (transition := self.transition) is not None:
-            return transition.input_type
-        elif (action := self.action) is not None:
-            return action.input_type
-        elif (flow := self.flow) is not None:
-            return flow.input_type
-        else:
-            return None
-
-    @property
-    def output_type(self) -> "TypeBase | None":
-        if (transition := self.transition) is not None:
-            return transition.output_type
-        elif (action := self.action) is not None:
-            return action.output_type
-        elif (flow := self.flow) is not None:
-            return flow.output_type
-        else:
-            return None
 
     @property
     def attempts(self) -> Sequence["Span"]:

@@ -363,10 +363,7 @@ class Runtime:
                 else:
                     # create new attempt
                     current_attempt = Span(
-                        parent=run,
-                        type=SpanType.ATTEMPT,
-                        status=ProcessStatus.RUNNING,
-                        _skip_validate_self=True,
+                        parent=run, type=SpanType.ATTEMPT, status=ProcessStatus.RUNNING
                     )
                     self.session._create(current_attempt)
                 last_attempt = current_attempt

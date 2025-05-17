@@ -3,7 +3,6 @@ from uuid import UUID
 
 from bench.language.core import (
     IsModal,
-    IsTimed,
     Node,
     NodeType,
     PackageNode,
@@ -27,7 +26,6 @@ if TYPE_CHECKING:
 
 @timed_node_(NodeType.SPAN)
 class Span(
-    IsTimed,
     IsModal,
     IsRun,
     IsProcessable,

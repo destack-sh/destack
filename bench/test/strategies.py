@@ -202,7 +202,7 @@ def get_naive_object_strategy(object_type: ObjectType):
     """Gets the default uncorrelated strategies for every (init) property of an object type."""
     object_cls = BUILTIN_OBJECT_CLASS_BY_TYPE[object_type]
     object_kwargs: dict[str, st.SearchStrategy] = {}
-    for prop in object_cls.__runtime_properties__.values():
+    for prop in object_cls.__proto_properties__.values():
         if (
             # ignore runtime-only properties
             prop.id is None
@@ -239,8 +239,6 @@ def get_naive_object_strategy(object_type: ObjectType):
             )
         elif prop.reference_is_node_data:
             object_kwargs[prop.name] = st.none()  # nothing meaningful to generate?
-        elif prop.is_value_runtime or prop.is_value_packed:
-            object_kwargs[prop.name] = st.none()  # TODO :Test :Incomplete: add strategy for Values
         else:
             object_kwargs[prop.name] = from_type_info(prop.type_info)
     return object_kwargs

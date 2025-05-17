@@ -16,7 +16,6 @@ from bench.language.core import (
     NULL_SUPERGRAPH,
     BuiltinEnumOrUnion,
     BuiltinObject,
-    CustomObject,
     EditType,
     Node,
     NodeDataGraph,
@@ -27,8 +26,6 @@ from bench.language.core import (
     ObjectType,
     PrimitiveType,
     Property,
-    TypeKind,
-    pack_custom_object,
     pack_proto_json,
     unpack_proto_json,
 )
@@ -127,21 +124,6 @@ def pack_builtin_object_prop_scalar(obj: BuiltinObject, prop: Property, value: A
             id=value_id,
             ck=str(value.ck) if value.ck is not None else value_id,
         )
-    elif prop.is_value_packed and prop.value_type_info_getter is not None:  # custom object
-        # NOTE :Performance: avoid roundtripping value unpacking/packing if possible
-        #  (here we force unpack and then repack the value even if it wasn't unpacked before)
-        typ = prop.value_type_info_getter(obj)
-        assert typ is not None, f"no type for {prop!r}"
-        if typ.kind == TypeKind.CUSTOM_OBJECT:
-            assert prop.value_runtime_ptr is not None, f"no value_runtime_ptr for {prop!r}"
-            value = getattr(obj, prop.value_runtime_ptr.name)
-            assert (
-                type(value) is CustomObject
-            ), f"unexpected value {value} {type(value)} for {prop!r}"
-            value_packed = pack_custom_object(value, value._type)
-        else:
-            value_packed = value
-        return pack_proto_json(value_packed)
     elif prop.primitive_type == PrimitiveType.UUID:
         return str(value)  # uuids are wired as strings
     elif prop.primitive_type == PrimitiveType.JSON:

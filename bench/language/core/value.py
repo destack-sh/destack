@@ -7,12 +7,9 @@ from typing import (
     TYPE_CHECKING,
     Any,
     Callable,
-    ClassVar,
     Collection,
-    Iterable,
     Literal,
     NamedTuple,
-    Optional,
     Sequence,
     TypeGuard,
     Union,
@@ -41,14 +38,12 @@ from bench.language.registry import (
     _on_completing_setup,
 )
 from bench.pb2 import AnyNodeData, AnyStructData, Date, NodeReferenceData, TimeOfDay
-from bench.utils.func import is_close
 from bench.utils.time import timedelta_from_isoformat, timedelta_to_isoformat
 
 from .const import (
     EMPTY_DICT,
     FLOAT_EPSILON,
     PY_TYPE_BY_PRIMITIVE_TYPE,
-    UNSET,
     EnumType,
     ObjectType,
     PrimitiveType,
@@ -56,14 +51,14 @@ from .const import (
     StructType,
     TypeKind,
 )
-from .graph import NULL_SUPERGRAPH, NodeSuperGraph
+from .graph import NodeSuperGraph
 from .property import Property
+from .struct import Struct, struct_
 from .validation import TYPE_CONSTRAINT_BY_FORMAT, on_invalid_raise
 
 if TYPE_CHECKING:
     from bench.language import (
         BuiltinObject,
-        Field,
         Node,
         NodeReference,
         Session,
@@ -82,7 +77,7 @@ if TYPE_CHECKING:
 logger = structlog.get_logger(__name__)
 tracer = trace.get_tracer(__name__)
 
-ScalarValue = Union["CustomObject", PrimitiveValue, "BuiltinObject"]
+ScalarValue = Union[PrimitiveValue, "BuiltinObject"]
 ScalarValueData = Union[
     AnyNodeData,
     AnyStructData,
@@ -101,504 +96,12 @@ SomeValueData = Union[ScalarValueData, Collection[ScalarValueData], None]
 JsonPrimitive = Union[str, int, float, bool, None]
 JsonValue = Union[JsonPrimitive, dict[str, "JsonValue"], list["JsonValue"]]
 
-ValueParent = Union["CustomObject", "Struct", "Node"]
-ValueParentKey = Union["Property", "Field"]
 
+@struct_(StructType.VALUE)
+class Value(Struct):
+    """A value of any type."""
 
-class CustomObject(Mapping[str, Any]):
-    """
-    A custom Object; generally the user defined equivalent of our built-in Objects (Structs/Nodes).
-    Basic Objects include values for a specific subset of Fields and the common builtin Object ones
-      (e.g., Block variable, Run inputs, Class instance).
-    Partial Nodes are a CustomObject + a partial Node, they include the Node, its subtype (if any),
-      and values for a specific subset of its value Fields (if any).
-      Subtype properties are stored under a prefixed subtype key to support morphing types
-       (similar to Node, but here we flatten the keys to avoid nested dicts).
-      (e.g., CreateAction input, Action inputs/outputs in general, partial Record, ...)
-    """
-
-    OWN_PROPERTIES: ClassVar[set[str]] = {
-        "_supergraph",
-        "_type",
-        "_value",
-        "ancestor_prop",
-        "parent",
-        "parent_id",
-        "parent_key",
-    }
-
-    def __init__(
-        self,
-        typ: "TypeBase",
-        value: dict[str, SomeValue],
-        parent: ValueParent | None = None,
-        parent_key: ValueParentKey | None = None,
-        supergraph: NodeSuperGraph | None = None,
-    ):
-        self._type = typ
-        # NOTE :Performance: CustomObject always keeps its value unpacked :UnpackedCustomObject
-        self._value = value  # unpacked value
-        self.parent = parent
-        self.parent_key = parent_key
-        self._supergraph = supergraph or typ._supergraph
-        assert self._supergraph is not NULL_SUPERGRAPH, f"missing supergraph for {self!r}"
-
-    def __str__(self) -> str:
-        from .node import BenchNode
-
-        set_fields: list[str] = []
-        for prop in get_custom_object_properties(self._type, self._value):
-            if prop.id is None or prop.id < 30:
-                continue  # ignore tracking properties
-            prop_value = self._do_get(prop)
-            if prop_value:
-                if type(prop_value) is list:
-                    set_fields.append(f"{prop.name}[{len(prop_value)}]")
-                elif type(prop_value) is CustomObject:
-                    set_fields.append(f"{prop.name}=<{prop_value._type_name} (...)>")
-                elif isinstance(prop_value, BenchNode):
-                    set_fields.append(f"{prop.name}=<{prop_value.absolute_path}>")
-                else:
-                    set_fields.append(f"{prop.name}={prop_value!r}")
-        for field in self._type._fields:
-            field_value = self._do_get(field)
-            if field_value is not None and (not field.is_list or field_value):
-                if type(field_value) is list:
-                    set_fields.append(f"{field.name}[{len(field_value)}]")
-                elif type(field_value) is CustomObject:
-                    set_fields.append(f"{field.name}=<{field_value._type_name} (...)>")
-                elif isinstance(field_value, BenchNode):
-                    set_fields.append(f"{field.name}=<{field_value.absolute_path}>")
-                else:
-                    set_fields.append(f"{field.name}={field_value!r}")
-        return ", ".join(set_fields)
-
-    def __repr__(self) -> str:
-        return f"<{self._type_name} ({self})>"
-
-    @property
-    def _type_name(self) -> str:
-        if self._type.base_type is not None:
-            return self._type.base_type.absolute_path
-        else:
-            return self._type.kind.bench_name
-
-    def equals(
-        self,
-        other: Any,
-        identity_map: Mapping[UUID, "NodeReference"] = EMPTY_DICT,
-    ) -> bool:
-        """Checks if all fields of the two Values are equal (recursively)."""
-        if other is None or type(other) is not CustomObject:
-            return False
-        # properties
-        for prop in get_custom_object_properties(self._type, self._value):
-            if prop._type is None:
-                continue
-            self_value = self._do_get(prop)
-            other_value = other._do_get(prop)
-            if not value_equals(prop._type, self_value, other_value, identity_map):
-                return False
-        # fields
-        for field in self._type._base_fields:
-            if not field.name:
-                continue
-            self_value = self._do_get(field)
-            other_value = other.get(field.name)
-            if not value_equals(field, self_value, other_value, identity_map):
-                return False
-        return True
-
-    __eq__ = equals
-
-    def __bool__(self) -> bool:
-        return True  # always True
-
-    def any(self) -> bool:
-        return len(self._value) > 0
-
-    def _get_key(self, item: str) -> "Field | Property | None":
-        prop = get_custom_object_property(self._type, self._value, item)
-        if prop is not None:
-            return prop
-        else:
-            return self._type._get_field(item)
-
-    def __getitem__(self, item: "str | Field | Property") -> SomeValue:
-        # NOTE: __getattr__ is called only when ident is not in the slots, so this is a value lookup
-        # get field
-        if type(item) is str:
-            key = self._get_key(item)
-            if key is None:
-                raise AttributeError(f"{self!r} has no Field or Property with identifier '{item}'")
-        else:
-            key = item
-        return self._do_get(key)  # type: ignore
-
-    __getattr__ = __getitem__
-
-    def _get_storage(self, key: "Field | Property") -> tuple[str, "TypeBase"]:
-        if isinstance(key, Property):
-            if key.is_value_runtime:
-                assert isinstance(
-                    key.value_packed_ptr, Property
-                ), f"unexpected {key.value_packed_ptr!r} for {key!r} in {self!r}"
-                key = key.value_packed_ptr
-            typ = key.type_info
-        else:
-            typ = key
-        return key.key, typ
-
-    def _get_storage_key(self, key: "Field | Property") -> str:
-        if isinstance(key, Property):
-            if key.is_value_runtime:
-                assert isinstance(
-                    key.value_packed_ptr, Property
-                ), f"unexpected {key.value_packed_ptr!r} for {key!r} in {self!r}"
-                key = key.value_packed_ptr
-        return key.key
-
-    def _do_get(self, key: "Field | Property", _raw: bool = False) -> SomeValue:
-        value = self._value.get(key.key)
-        if value is None:
-            default = key.default
-            if default is not UNSET:  # may be unset in Property.default
-                return default
-            else:
-                return None
-
-        from .node import NodeReference
-
-        if isinstance(value, NodeReference) and not _raw:
-            # auto resolve references
-            resolved_value = self._supergraph.get(value)
-            return resolved_value
-        else:
-            return value
-
-    def _do_set(
-        self,
-        item: "str | Field | Property",
-        new_value: SomeValue,
-        track: bool = True,
-        coerce: bool = True,
-        validate: bool = True,
-    ) -> None:
-        if type(item) is str and item in self.OWN_PROPERTIES:
-            return object.__setattr__(self, item, new_value)
-
-        # figure out key
-        if isinstance(item, str):
-            key = self._get_key(item)
-            if key is None:
-                raise AttributeError(f"{self!r} has no Field or Property with identifier '{item}'")
-        else:
-            key = item
-
-        # check/coerce
-        storage_key, key_typ = self._get_storage(key)
-        if coerce:
-            new_value = coerce_value(
-                new_value, key_typ, as_packed=True, supergraph=self._supergraph
-            )
-        elif validate:
-            check_value(new_value, key_typ, options=DEFAULT_CHECK_OPTIONS, invalid=on_invalid_raise)
-
-        # set/track
-        if track:
-            from .object import _trace_edit_operation
-
-            # apply
-            old_value = self._value.get(storage_key)
-            self._value[storage_key] = new_value
-
-            # pack if needed
-            if type(new_value) is CustomObject:
-                new_value = pack_custom_object(new_value, new_value._type)
-            if type(old_value) is CustomObject:
-                old_value = pack_custom_object(old_value, old_value._type)
-            if type(key) is Property and key.is_value_runtime:
-                assert type(key.value_packed_ptr) is Property, f"bad value_packed_ptr for {key!r}"
-                key = key.value_packed_ptr
-
-            # trace
-            _trace_edit_operation(self, key, new_value=new_value, old_value=old_value, subtype=None)
-        else:
-            # apply only
-            self._value[storage_key] = new_value
-
-    __setitem__ = _do_set
-
-    def __setattr__(self, item: str, value: SomeValue) -> None:
-        # NOTE: __setattr__ is also called for slots so we have to bypass those
-        if item in self.OWN_PROPERTIES:
-            object.__setattr__(self, item, value)
-        else:
-            self.__setitem__(item, value)
-
-    def is_set(self, key: "Property | Field") -> bool:
-        """Whether the given key is set."""
-        storage_key = self._get_storage_key(key)
-        return storage_key in self._value
-
-    @property
-    def fields(self):
-        for field in self._type._base_fields:
-            if not self._type.base_field_types or field.type in self._type.base_field_types:
-                yield field
-
-    def __iter__(self):
-        for prop in get_custom_object_properties(self._type, self._value):
-            if self.is_set(prop):
-                yield prop.name
-        for field in self.fields:
-            if field.name and self.is_set(field):
-                yield field.name
-
-    def __len__(self) -> int:
-        count = 0
-        for prop in get_custom_object_properties(self._type, self._value):
-            if self.is_set(prop):
-                count += 1
-        for field in self.fields:
-            if self.is_set(field):
-                count += 1
-        return count
-
-    def __contains__(self, item: object) -> bool:
-        for prop in get_custom_object_properties(self._type, self._value):
-            if prop.name == item and self.is_set(prop):
-                return True
-        for field in self.fields:
-            if (field.code_name == item or field.name == item) and self.is_set(field):
-                return True
-        return False
-
-    def clone(self) -> "CustomObject":
-        """Clones this object."""
-        return CustomObject.new(
-            {**self._value} if self._value is not None else None,
-            self._type,
-            supergraph=self._supergraph,
-        )
-
-    def update(
-        self,
-        values: Mapping["str | Field", Any]
-        | Mapping[str, Any]
-        | Mapping["Field", Any]
-        | None = None,
-        _skip_validate: bool = False,
-        **kwargs,
-    ):
-        """Updates this object with the given value."""
-        if values is not None:
-            for key, v in values.items():
-                self._do_set(key, v, validate=not _skip_validate)
-        for key, v in kwargs.items():
-            self._do_set(key, v, validate=not _skip_validate)
-
-    @staticmethod
-    def new(
-        value: dict[str, SomeValue] | None,
-        typ: "TypeBase",
-        parent: ValueParent | None = None,
-        parent_property: ValueParentKey | None = None,
-        supergraph: NodeSuperGraph | None = None,
-    ) -> "CustomObject":
-        """Creates a new Object of the given Object type, coercing the given value."""
-        assert typ.kind == TypeKind.CUSTOM_OBJECT, f"{typ!r} is not an Object type"
-        return CustomObject(
-            typ=typ,
-            value=value if value is not None else {},
-            parent=parent,
-            parent_key=parent_property,
-            supergraph=supergraph,
-        )
-
-
-def value_equals(
-    typ: "TypeBase | TypeIdentity",
-    self_value: Any,
-    other_value: Any,
-    identity_map: Mapping[UUID, "NodeReference"] = EMPTY_DICT,
-) -> bool:
-    """Checks whether two values for a given type are equal (recursively)."""
-    if self_value is None or other_value is None:
-        return self_value is other_value
-    elif typ.kind == TypeKind.PRIMITIVE:
-        # compare primitives directly with is_close
-        is_float = typ.primitive_type is not None and typ.primitive_type.is_float
-        if not typ.is_list:
-            return self_value == other_value or (
-                is_float and is_close(self_value, other_value, FLOAT_EPSILON)
-            )
-        else:
-            if len(self_value) != len(other_value):
-                return False  # unequal list
-            for i in range(len(self_value)):
-                self_el = self_value[i]
-                other_el = other_value[i]
-                if self_el != other_el or (
-                    is_float and not is_close(self_el, other_el, FLOAT_EPSILON)
-                ):
-                    return False  # unequal list
-            return True
-    elif typ.kind == TypeKind.ENUM:
-        # compare enums directly
-        return self_value == other_value
-    elif (
-        typ.kind == TypeKind.NODE
-       
-        or typ.bench_type == StructType.NODE_REFERENCE
-    ):
-        if not typ.is_list:
-            self_value = identity_map.get(self_value.ck, self_value)
-            other_value = identity_map.get(other_value.ck, other_value)
-            return self_value.id == other_value.id
-        else:
-            if len(self_value) != len(other_value):
-                return False  # unequal list
-            for i in range(len(self_value)):
-                self_element = identity_map.get(self_value[i].ck, self_value[i])
-                other_element = identity_map.get(other_value[i].ck, other_value[i])
-                if self_element.id != other_element.id:
-                    return False  # unequal list
-            return True
-    elif typ.kind == TypeKind.STRUCT:
-        # compare struct recursively
-        if not typ.is_list:
-            if type(self_value) is not type(other_value) or (
-                self_value is not None
-                and not cast(Struct, self_value).equals(other_value, identity_map=identity_map)
-            ):
-                return False  # unequal struct
-        else:
-            if (
-                not isinstance(self_value, Sequence)
-                or not isinstance(other_value, Sequence)
-                or len(self_value) != len(other_value)
-            ):
-                return False  # unequal list
-            for i in range(len(self_value)):
-                if not self_value[i].equals(other_value[i], identity_map=identity_map):
-                    return False  # unequal struct
-
-    elif typ.kind == TypeKind.CUSTOM_OBJECT:
-        return self_value.equals(other_value, identity_map=identity_map)
-
-    return True
-
-
-def get_custom_object_properties(
-    typ: "TypeBase | TypeIdentity", value: Mapping[str, JsonValue | SomeValue]
-) -> "Iterable[Property]":
-    """Gets all the custom object properties available in this value."""
-    # nothing
-    return ()
-
-
-def get_custom_object_property(
-    typ: "TypeBase | TypeIdentity",
-    value_packed: Mapping[str, JsonValue | SomeValue],
-    name: str,
-) -> "Property | None":
-    """Gets the property with the given name from the custom object."""
-    prop = None
-    return prop
-
-
-def _do_get_value_runtime(obj: "Struct | Node", prop: Property):
-    """Computes the runtime value for the given property."""
-    wired_prop = prop.value_packed_ptr
-    assert type(wired_prop) is Property, f"no wired prop for {prop!r}"
-    value_packed = getattr(obj, wired_prop.name)
-    value_type = prop.value_type_info_getter(obj) if prop.value_type_info_getter else None
-    if value_type is not None and value_type.kind == TypeKind.CUSTOM_OBJECT:
-        if value_packed is None:
-            # init custom objects to empty value object instead of None
-            #  (so we can track modifications properly)
-            value_packed = {}
-            obj._do_set(wired_prop.name, value_packed, track=False)
-            value = CustomObject(
-                value_type,
-                value_packed,
-                parent=obj,
-                parent_key=wired_prop,
-                supergraph=obj._supergraph,
-            )
-        else:
-            value = unpack_value(
-                value_packed,
-                value_type,
-                parent=obj,
-                parent_key=wired_prop,
-                supergraph=obj._supergraph,
-            )
-    elif (
-        value_packed is None
-        or (prop.is_list and len(value_packed) == 0 and not prop.is_required)
-        or value_type is None
-    ):
-        value = None
-    else:
-        value = unpack_value(
-            value_packed,
-            value_type,
-            parent=obj,
-            parent_key=wired_prop,
-            wrap_scalar=True,
-            supergraph=obj._supergraph,
-        )
-    return value_type, value
-
-
-def _object_value_runtime(prop: Property) -> property:
-    """The computed get/set property for a runtime value property."""
-
-    assert not prop.is_list, f"runtime value cannot be list {prop!r}"
-    cache_key = prop.cache_key
-    assert cache_key is not None, f"no cache key for {prop!r}"
-
-    def _get_value_runtime(self: "Struct | Node") -> Optional[SomeValue]:
-        """Gets the runtime value for this property (with auto resolving)."""
-        if cache_key in self.__dict__:
-            value_type = prop.value_type_info_getter(self) if prop.value_type_info_getter else None
-            value = self.__dict__[cache_key]
-        else:
-            value_type, value = _do_get_value_runtime(self, prop)
-            self.__dict__[cache_key] = value
-
-        # imitate CustomObject._do_get somewhat
-        # NOTE: we don't resolve references here because it would obfuscate the value if unloaded
-        #  (and for value_packed properties we don't have a _ptr to get the actual value)
-        if (
-            value is None
-            and value_type is not None
-            and self is not value_type
-            and value_type.default_packed
-        ):
-            return value_type.default
-        else:
-            return value
-
-    def _set_value_runtime(self: "Struct | Node", value: SomeValue):
-        wired_prop = prop.value_packed_ptr
-        assert type(wired_prop) is Property, f"no wired prop for {prop!r}"
-        value_type = prop.value_type_info_getter(self) if prop.value_type_info_getter else None
-        if value is not None and value_type is not None:
-            if type(value) is CustomObject:
-                value = value._move_to(self, wired_prop)
-            elif isinstance(value, list) and len(value) > 0 and type(value[0]) is CustomObject:
-                value = [v._move_to(self, wired_prop) for v in value]  # type: ignore
-            value_packed = pack_value(value, value_type, wrap_scalar=True)
-            self._do_set(wired_prop.name, value_packed, track=False)
-        else:
-            self._do_set(wired_prop.name, {} if wired_prop.is_required else None, track=False)
-        # NOTE: is it correct to cache runtime value immediately on set?
-        self.__dict__[cache_key] = value
-
-    return property(_get_value_runtime, _set_value_runtime)
+    value: SomeValue
 
 
 #
@@ -756,33 +259,6 @@ def _check_is_list(
     return True
 
 
-def _check_is_object(
-    value: SomeValue,
-    typ: "TypeBase | TypeIdentity",
-    *,
-    options: CheckOptions = DEFAULT_CHECK_OPTIONS,
-    invalid: "ValidationHandler" = on_invalid_raise,
-) -> TypeGuard[CustomObject]:
-    if not isinstance(value, CustomObject):
-        invalid(value, "not an object", typ)
-        return False
-    return True
-
-
-def check_custom_object_scalar(
-    value: SomeValue,
-    typ: "TypeBase",
-    *,
-    options: CheckOptions = DEFAULT_CHECK_OPTIONS,
-    invalid: "ValidationHandler" = on_invalid_raise,
-) -> None:
-    """Checks whether the given object value has the expected type (recursively)."""
-    if _check_is_object(value, typ, options=options, invalid=invalid):
-        for field in typ._fields:
-            field_value = value._do_get(field)
-            check_value(field_value, field, options=options, invalid=invalid)
-
-
 def check_value(
     value: Any,
     typ: "TypeBase",
@@ -798,18 +274,11 @@ def check_value(
             invalid(value, "missing required value", typ)
         else:
             return
-    if typ.kind == TypeKind.CUSTOM_OBJECT:
-        if not typ.is_list:
-            check_custom_object_scalar(value, typ, options=options, invalid=invalid)
-        elif _check_is_list(value, typ, options=options, invalid=invalid):
-            for element in value:
-                check_custom_object_scalar(element, typ, options=options, invalid=invalid)
-    else:
-        if not typ.is_list:
-            check_value_scalar(value, typ, options=options, invalid=invalid)
-        elif _check_is_list(value, typ, options=options, invalid=invalid):
-            for element in value:
-                check_value_scalar(element, typ, options=options, invalid=invalid)
+    if not typ.is_list:
+        check_value_scalar(value, typ, options=options, invalid=invalid)
+    elif _check_is_list(value, typ, options=options, invalid=invalid):
+        for element in value:
+            check_value_scalar(element, typ, options=options, invalid=invalid)
 
 
 def is_value(value: Any, typ: "TypeBase", options: CheckOptions = DEFAULT_CHECK_OPTIONS) -> bool:
@@ -950,58 +419,8 @@ def coerce_value_scalar(
         if as_packed:
             value = cast("Node", value).to_ref()
         return value
-    elif typ.kind == TypeKind.CUSTOM_OBJECT:
-        raise RuntimeError(f"cannot coerce {typ!r} to scalar")
     else:
         assert_never(typ.kind)
-
-
-def coerce_custom_object_scalar(
-    value: Mapping[str, Any] | CustomObject | None,
-    typ: "TypeBase",
-    *,
-    as_packed: bool = False,
-    supergraph: NodeSuperGraph | None = None,
-) -> CustomObject:
-    """Coerces a single object from its dict representation or existing CustomObject."""
-    if type(value) is CustomObject:
-        # NOTE :Cleanup: not sure if _coerce_object_scalar is correct if given an existing object
-        return value
-    else:
-        if value is None:
-            value = {}
-        if not isinstance(value, Mapping):
-            raise TypeError(f"{value!r} is a {type(value).__name__}, expected {typ!r}")
-
-    # coerce
-    value = {**value}  # copy so we can pop and check extra keys cheaply
-    obj = CustomObject.new(value={}, typ=typ, supergraph=supergraph)
-    properties = get_custom_object_properties(typ, value)
-    for prop in properties:
-        prop_value = value.pop(prop.key, None)
-        if prop_value is None:
-            prop_value = value.pop(prop.name, None)
-        if prop_value is not None:
-            obj._do_set(prop, prop_value, track=False)
-    for field in typ._base_fields:
-        # try getting value by storage key, name and ident
-        if not field.name:
-            continue
-        field_value = value.pop(field.storage_key, None)
-        if field_value is None:
-            field_value = value.pop(field.name, None)
-        if field_value is None:
-            code_name = field.code_name
-            if code_name is not None:
-                field_value = value.pop(code_name, None)
-        if field_value is not None:
-            obj._do_set(field, field_value, track=False)
-
-    # check for unused keys
-    if value:
-        raise ValueError(f"extraneous values {value!r} for {typ!r}")
-
-    return obj
 
 
 def coerce_value(
@@ -1016,41 +435,18 @@ def coerce_value(
     Returns value as is if already of correct type, raises TypeError if coercion is not possible.
     NOTE :Performance: we re-create and copy lists during coercion even if the type was already good
     """
-    if typ.kind == TypeKind.CUSTOM_OBJECT:
-        from bench.language.core import TypeBase
-
-        assert typ.base_field_types, f"missing base field types for {typ!r}"
-        assert isinstance(typ, TypeBase), f"expected full Type for {typ!r}"
-        if not typ.is_list:
-            return coerce_custom_object_scalar(
-                cast(dict, value), typ, as_packed=as_packed, supergraph=supergraph
-            )
-        else:
-            if not isinstance(value, Sequence):
-                raise TypeError(
-                    f"{value!r} ({type(value).__name__}) is not a sequence, expected {typ!r}"
-                )
-            return [
-                coerce_custom_object_scalar(
-                    cast(dict, element), typ, as_packed=as_packed, supergraph=supergraph
-                )
-                for element in value
-            ]
+    if value is None:
+        return None
+    elif not typ.is_list:
+        if isinstance(value, (list, tuple)):
+            raise TypeError(f"{value!r} ({type(value).__name__}) is a sequence, expected {typ!r}")
+        return coerce_value_scalar(value, typ, as_packed=as_packed)
     else:
-        if value is None:
-            return None
-        elif not typ.is_list:
-            if isinstance(value, (list, tuple)):
-                raise TypeError(
-                    f"{value!r} ({type(value).__name__}) is a sequence, expected {typ!r}"
-                )
-            return coerce_value_scalar(value, typ, as_packed=as_packed)
-        else:
-            if not isinstance(value, Sequence):
-                raise TypeError(
-                    f"{value!r} ({type(value).__name__}) is not a sequence, expected {typ!r}"
-                )
-            return [coerce_value_scalar(element, typ, as_packed=as_packed) for element in value]
+        if not isinstance(value, Sequence):
+            raise TypeError(
+                f"{value!r} ({type(value).__name__}) is not a sequence, expected {typ!r}"
+            )
+        return [coerce_value_scalar(element, typ, as_packed=as_packed) for element in value]
 
 
 #
@@ -1317,183 +713,33 @@ def unpack_builtin_object_data[T: AnyStructData | AnyNodeData](
     return value
 
 
-def pack_custom_object(value: CustomObject, typ: "TypeBase | TypeIdentity") -> dict[str, JsonValue]:
-    """
-    Packs an object value into a JSON representation. :UnpackedCustomObject
-    """
-    from bench.language.core import STORAGE_KEY_PREFIX_LENGTH, decode_type_identity
-
-    value_packed: dict[str, JsonValue] = {}
-    _value = value._value if isinstance(value, CustomObject) else value
-    if not _value:
-        return value_packed  # empty value
-
-    # fields
-    for storage_key, field_value in _value.items():
-        if storage_key[0].isnumeric():
-            continue  # property
-        elif field_value is None:
-            continue
-        type_identity = decode_type_identity(storage_key[STORAGE_KEY_PREFIX_LENGTH:])
-        if type_identity.kind == TypeKind.CUSTOM_OBJECT:
-            value_packed[storage_key] = pack_value(field_value, type_identity)
-        elif not type_identity.is_list:
-            value_packed[storage_key] = pack_value_scalar(
-                cast(ScalarValue, field_value), type_identity
-            )
-        elif isinstance(field_value, Sequence) and len(field_value) > 0:  # scalar list
-            value_packed[storage_key] = [
-                pack_value_scalar(element, type_identity) for element in field_value
-            ]
-
-    # properties
-    for prop in get_custom_object_properties(typ, _value):
-        prop_value = cast(SomeValue, _value.get(prop.key))
-        if prop_value is None:
-            continue
-        elif prop.is_value_packed:
-            assert (
-                type(prop_value) is CustomObject
-            ), f"unexpected {prop_value!r} for {prop!r} in {value!r}"
-            value_packed[prop.key] = pack_custom_object(prop_value, prop_value._type)
-        elif not prop.is_list:
-            value_packed[prop.key] = pack_value_scalar(
-                cast(ScalarValue, prop_value), prop.type_info
-            )
-        else:  # scalar list
-            assert isinstance(prop_value, list), f"{prop_value!r} is not a list, expected {prop!r}"
-            prop_typ = prop.type_info
-            value_packed[prop.key] = [
-                pack_value_scalar(element, prop_typ) for element in prop_value
-            ]
-
-    return value_packed
-
-
-def unpack_custom_object(
-    value_packed: dict[str, JsonValue],
-    typ: "TypeBase",
-    *,
-    parent: ValueParent | None = None,
-    parent_key: ValueParentKey | None = None,
-    supergraph: NodeSuperGraph | None,
-) -> CustomObject:
-    """
-    Unpacks an object value from a JSON packed representation. :UnpackedCustomObject
-    """
-    from bench.language.core import STORAGE_KEY_PREFIX_LENGTH, decode_type_identity
-
-    value: dict[str, SomeValue] = {}
-
-    # fields
-    for storage_key, field_value_packed in value_packed.items():
-        if storage_key[0].isnumeric():
-            continue  # property
-        elif field_value_packed is None:
-            continue
-        type_identity = decode_type_identity(storage_key[STORAGE_KEY_PREFIX_LENGTH:])
-        if type_identity.kind == TypeKind.CUSTOM_OBJECT:
-            field_value = unpack_value(field_value_packed, type_identity)
-            if field_value is None:
-                continue
-        elif not type_identity.is_list:
-            field_value = unpack_value_scalar(
-                field_value_packed, type_identity, supergraph=supergraph
-            )
-        else:  # scalar list
-            assert isinstance(
-                field_value_packed, list
-            ), f"{field_value_packed!r} is not a list, expected {type_identity!r}"
-            field_value = [
-                unpack_value_scalar(element, type_identity, supergraph=supergraph)
-                for element in field_value_packed
-            ]
-        value[storage_key] = field_value
-
-    # properties
-    for prop in get_custom_object_properties(typ, value_packed):
-        prop_value_packed = value_packed.get(prop.key)
-        if prop_value_packed is None:
-            continue
-        elif prop.is_value_packed:
-            # nested value_packed
-            assert prop.value_runtime_ptr is not None, f"unexpected {prop!r} in {value!r}"
-            prop = prop.value_runtime_ptr
-            assert prop.value_type_info_getter is not None, f"unexpected {prop!r} in {value!r}"
-            prop_type = prop.value_type_info_getter(None)  # type: ignore
-            assert prop_type is not None, f"missing type from {prop!r} in {value!r}"
-            prop_value = unpack_custom_object(
-                value_packed=cast(dict[str, JsonValue], prop_value_packed),
-                typ=prop_type,
-                supergraph=supergraph,
-            )
-        elif not prop.is_list:
-            prop_value = unpack_value_scalar(
-                prop_value_packed, prop.type_info, supergraph=supergraph
-            )
-        else:
-            assert isinstance(
-                prop_value_packed, list
-            ), f"{prop_value_packed!r} is not a list, expected {prop!r}"
-            prop_typ = prop.type_info
-            prop_value = [
-                unpack_value_scalar(element, prop_typ, supergraph=supergraph)
-                for element in prop_value_packed
-            ]
-        value[prop.key] = prop_value
-
-    return CustomObject.new(
-        value=value,
-        typ=typ,
-        parent=parent,
-        parent_property=parent_key,
-        supergraph=supergraph,
-    )
-
-
 def pack_value(
-    value: SomeValue | None, typ: "TypeBase | TypeIdentity", *, wrap_scalar: bool = False
+    value: SomeValue | None, typ: "TypeBase | TypeIdentity", *, wrap: bool = False
 ) -> JsonValue:
     """
     Packs a value into a JSON representation.
     """
 
-    if typ.kind == TypeKind.CUSTOM_OBJECT:
-        # nested object
-        if not typ.is_list:
-            if type(value) is not CustomObject:
-                raise TypeError(f"{value!r} is not an Object, expected {typ!r}")
-            return pack_custom_object(value, typ)
-        else:
-            value_packed: JsonValue = []
-            for element in cast(Collection[SomeValue], value):
-                if type(element) is not CustomObject:
-                    raise TypeError(f"{element!r} is not an Object, expected {typ!r}")
-                inner_value_packed = pack_custom_object(element, typ)
-                value_packed.append(inner_value_packed)
-            return value_packed
+    # wrap scalar
+    value_packed: JsonValue
+    if value is None:
+        value_packed = None  # no value
+    elif not typ.is_list:
+        value_packed = pack_value_scalar(cast(ScalarValue, value), typ)
     else:
-        # wrap scalar
-        value_packed: JsonValue
-        if value is None:
-            value_packed = None  # no value
-        elif not typ.is_list:
-            value_packed = pack_value_scalar(cast(ScalarValue, value), typ)
-        else:
-            value_packed = [pack_value_scalar(element, typ) for element in cast(list, value)]
-        if wrap_scalar:
-            from bench.language.core import TypeBase
+        value_packed = [pack_value_scalar(element, typ) for element in cast(list, value)]
+    if wrap:
+        from bench.language.core import TypeBase
 
-            assert isinstance(typ, TypeBase), f"expected full Type for {typ!r}"
-            value_packed = {typ.identity_key: value_packed}
-        return value_packed
+        assert isinstance(typ, TypeBase), f"expected full Type for {typ!r}"
+        value_packed = {typ.identity_key: value_packed}
+    return value_packed
 
 
 def pack_value_data(
-    value: SomeValueData, typ: "TypeBase | TypeIdentity", wrap_scalar: bool = False
+    value: SomeValueData, typ: "TypeBase | TypeIdentity", wrap: bool = False
 ) -> JsonValue:
     """Packs a data value into a JSON representation. See above."""
-    assert typ.kind != TypeKind.CUSTOM_OBJECT, f"cannot pack data for {typ!r}"
     # wrap scalar
     value_packed: JsonValue
     if value is None:
@@ -1502,7 +748,7 @@ def pack_value_data(
         value_packed = pack_value_scalar(cast(ScalarValueData, value), typ)
     else:
         value_packed = [pack_value_scalar(element, typ) for element in cast(list, value)]
-    if wrap_scalar:
+    if wrap:
         from bench.language.core import TypeBase
 
         assert isinstance(typ, TypeBase), f"expected full Type for {typ!r}"
@@ -1514,85 +760,51 @@ def unpack_value(
     value_packed: JsonValue,
     typ: "TypeBase | TypeIdentity",
     *,
-    parent: ValueParent | None = None,
-    parent_key: ValueParentKey | None = None,
     supergraph: NodeSuperGraph | None = None,
-    wrap_scalar: bool = False,
+    wrap: bool = False,
 ) -> SomeValue | None:
     """
     Unpacks a value from its JSON representation.
     """
-    if typ.kind == TypeKind.CUSTOM_OBJECT:
-        # nested object
+
+    # unwrap scalar
+    if wrap and isinstance(value_packed, dict):
         from bench.language.core import TypeBase
 
         assert isinstance(typ, TypeBase), f"expected full Type for {typ!r}"
-        if not typ.is_list:
-            if not isinstance(value_packed, dict):
-                raise TypeError(f"{value_packed!r} is not a dict, expected {typ!r}")
-            return unpack_custom_object(
-                value_packed=value_packed,
-                typ=typ,
-                supergraph=supergraph,
-                parent=parent,
-                parent_key=parent_key,
-            )
-        else:
-            if not isinstance(value_packed, list):
-                raise TypeError(f"{value_packed!r} is not a list, expected {typ!r}")
-            return [
-                unpack_custom_object(
-                    value_packed=cast(dict[str, JsonValue], element),
-                    typ=typ,
-                    supergraph=supergraph,
-                    parent=parent,
-                    parent_key=parent_key,
-                )
-                for element in value_packed
-            ]
+        value_packed = value_packed.get(typ.identity_key)
+    if value_packed is None:
+        return None
+    elif not typ.is_list:
+        return unpack_value_scalar(value_packed, typ, supergraph=supergraph)
     else:
-        # unwrap scalar
-        if wrap_scalar and isinstance(value_packed, dict):
-            from bench.language.core import TypeBase
-
-            assert isinstance(typ, TypeBase), f"expected full Type for {typ!r}"
-            value_packed = value_packed.get(typ.identity_key)
-        if value_packed is None:
-            return None
-        elif not typ.is_list:
-            return unpack_value_scalar(value_packed, typ, supergraph=supergraph)
-        else:
-            if not isinstance(value_packed, list):
-                raise TypeError(f"{value_packed!r} is not a list, expected {typ!r}")
-            return [
-                unpack_value_scalar(element, typ, supergraph=supergraph) for element in value_packed
-            ]
+        if not isinstance(value_packed, list):
+            raise TypeError(f"{value_packed!r} is not a list, expected {typ!r}")
+        return [
+            unpack_value_scalar(element, typ, supergraph=supergraph) for element in value_packed
+        ]
 
 
 def unpack_value_data(
-    value_packed: JsonValue, typ: "TypeBase | TypeIdentity", wrap_scalar: bool = False
+    value_packed: JsonValue, typ: "TypeBase | TypeIdentity", wrap: bool = False
 ) -> SomeValueData | JsonValue | None:
     """
     Unpacks a value from its JSON representation. Return nested objects as JSON (as is).
     """
-    if typ.kind == TypeKind.CUSTOM_OBJECT:
-        # nested object
-        return value_packed
-    else:
-        # scalar
-        if wrap_scalar and isinstance(value_packed, dict):
-            from bench.language.core import TypeBase
+    # scalar
+    if wrap and isinstance(value_packed, dict):
+        from bench.language.core import TypeBase
 
-            assert isinstance(typ, TypeBase), f"expected full Type for {typ!r}"
-            value_packed = value_packed.get(typ.identity_key)
-        if value_packed is None:
-            return None
-        elif not typ.is_list:
-            return unpack_value_scalar_data(value_packed, typ)
-        else:
-            if not isinstance(value_packed, list):
-                raise TypeError(f"expected list for {typ!r}, got {value_packed!r}")
-            return [unpack_value_scalar_data(v, typ) for v in value_packed]
+        assert isinstance(typ, TypeBase), f"expected full Type for {typ!r}"
+        value_packed = value_packed.get(typ.identity_key)
+    if value_packed is None:
+        return None
+    elif not typ.is_list:
+        return unpack_value_scalar_data(value_packed, typ)
+    else:
+        if not isinstance(value_packed, list):
+            raise TypeError(f"expected list for {typ!r}, got {value_packed!r}")
+        return [unpack_value_scalar_data(v, typ) for v in value_packed]
 
 
 #

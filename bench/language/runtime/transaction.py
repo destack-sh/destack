@@ -6,41 +6,31 @@ from uuid import UUID
 
 import pytz
 import structlog
-from google.protobuf.struct_pb2 import Struct as ProtoStruct
-from google.protobuf.struct_pb2 import Value as ProtoValue
 from google.protobuf.timestamp_pb2 import Timestamp
 from opentelemetry import trace
 
 from bench import pb2
 from bench.language.connection import Connector, WritableConnector
 from bench.language.core import (
-    BuiltinObject,
-    CustomObject,
     EditOperationType,
     EditType,
-    GraphScope,
     Node,
     NodeDataGraph,
     NodeGraph,
     NodeReference,
     NodeType,
+    Scope,
     Struct,
     StructType,
     Subject,
+    p_regular,
     p_system,
-    p_value_packed,
-    pack_proto_json,
     pack_value_data,
     struct_,
-    unpack_proto_json,
-    unpack_value,
-    unpack_value_data,
 )
-from bench.language.core.const import CK_LENGTH_B64, ReferenceKind
-from bench.language.registry import BUILTIN_OBJECT_CLASS_BY_TYPE, NODE_CLASS_BY_TYPE
+from bench.language.registry import NODE_CLASS_BY_TYPE
 from bench.pb2 import (
     AnyNodeData,
-    AnyObjectData,
     ChangeVignetteData,
     ClientOriginData,
     EditContextData,
@@ -89,7 +79,7 @@ class EditOperation(Struct):
     type: EditOperationType = p_system(30, default=EditOperationType.SET)
     key: str = p_system(31)
 
-    new_value_packed: Any | None = p_value_packed(40)
+    new_value_packed: Any | None = p_regular(40)
 
 
 @struct_(StructType.EDIT)
@@ -121,7 +111,7 @@ class Edit(Struct):
     )
 
     # meta
-    scope: GraphScope = p_system(60, description="Enclosing scope of the Edit.")
+    scope: Scope = p_system(60, description="Enclosing scope of the Edit.")
     change_key: UUID | None = p_system(61, description="The Change that this Edit is part of.")
     category: "ChangeCategory | None" = p_system(
         62, description="Optional classification for the Edit."
@@ -505,157 +495,6 @@ class Transaction:
         self._cascaded_edits = []
         self._pending_edit_events = []
         self._touched_engine_ids.clear()
-
-
-def apply_edit_operation(node: Node, op: EditOperationData, *, validate: bool):
-    """Applies an edit operation to a node."""
-    from bench.language.core import decode_type_identity
-
-    root_prop = node.__properties_by_id__.get(int(op.path[0]))
-    assert root_prop is not None, f"missing root property in {node!r} for {op!r}"
-    obj: BuiltinObject | CustomObject = node
-    for i in range(len(op.path)):
-        # map key
-        key = op.path[i]
-        is_property = key.isdigit() and (i == 0 or not root_prop.is_value_packed)
-        if is_property:
-            # builtin object property
-            assert isinstance(
-                obj, BuiltinObject
-            ), f"unexpected object: {obj} ({type(obj)}) for {op!r}"
-            prop_id = int(key)
-            prop = obj.__properties_by_id__.get(prop_id)
-            if prop is None:
-                return  # invalid path
-            if prop.reference_wired_ptr is not None:
-                prop = prop.reference_wired_ptr
-            key = cast(str, prop.name)
-        else:
-            prop = None
-
-        if i < (len(op.path) - 1):
-            # next: descend into object
-            if prop is not None:  # builtin object property
-                next_obj = getattr(cast("BuiltinObject", obj), prop.name)
-            else:  # custom object field
-                field = cast(CustomObject, obj)._type._get_field_by_key(key)
-                if field is None:
-                    return  # invalid path
-                next_obj = cast(CustomObject, obj)._do_get(field)
-                if next_obj is None:
-                    raise NotImplementedError(
-                        "NOTE :Incomplete: apply_edit_operation init nested object?"
-                    )
-            if not (type(next_obj) is CustomObject or isinstance(next_obj, BuiltinObject)):
-                return  # invalid path
-            obj = next_obj
-        else:
-            # done: set value
-            if prop is not None:
-                # builtin object property
-                if (
-                    prop.reference_kind == ReferenceKind.NODE_ANCESTOR
-                    or prop.reference_kind == ReferenceKind.NODE_ANCESTOR_OR_SELF
-                ):
-                    # set automatically (the edit is generated to update the backend)
-                    return
-                value_type = cast(BuiltinObject, obj).__properties__[key].type_info
-                new_value_packed = unpack_proto_json(op.new_value_packed)
-                new_value = unpack_value(new_value_packed, value_type)
-                if prop.cache_key is not None and prop.cache_key in obj.__dict__:  # wipe cache
-                    del obj.__dict__[prop.cache_key]
-                cast(BuiltinObject, obj)._do_set(
-                    prop.name, new_value, track=False, validate=validate
-                )
-            else:
-                # custom object field
-                value_type = decode_type_identity(key[CK_LENGTH_B64 + 1 :])
-                new_value_packed = unpack_proto_json(op.new_value_packed)
-                new_value = unpack_value(new_value_packed, value_type)
-                field = cast(CustomObject, obj)._type._get_field_by_key(key)
-                if field is None:
-                    return  # invalid path
-                cast(CustomObject, obj)._do_set(field, new_value, track=False, validate=validate)
-
-
-def apply_edit_operation_data(
-    node: AnyNodeData, op: EditOperationData, *, is_prepass: bool = False
-):
-    """
-    Applies an edit operation to a node.
-    For is_prepass, we also update the old_value_packed to the actual current/old value.
-    """
-    from bench.proto import wiring
-
-    node_cls = NODE_CLASS_BY_TYPE[cast(NodeType, node.metatype)]
-    root_prop = node_cls.__properties_by_id__.get(int(op.path[0]))
-    assert root_prop is not None, f"missing root property in {node!r} for {op!r}"
-    obj: AnyObjectData | ProtoStruct = node
-    for i in range(len(op.path)):
-        # map key
-        key = op.path[i]
-        is_property = key.isdigit() and (i == 0 or not root_prop.is_value_packed)
-        if is_property:
-            # builtin object property
-            assert type(obj) is not ProtoStruct, f"unexpected object: {obj} for {op!r}"
-            obj_type = BUILTIN_OBJECT_CLASS_BY_TYPE[obj.metatype]  # type: ignore
-            prop_id = int(key)
-            prop = obj_type.__properties_by_id__.get(prop_id)
-            if prop is None:
-                return  # invalid path
-            if prop.reference_wired_ptr is not None:
-                prop = prop.reference_wired_ptr
-            key = cast(str, prop.name)
-        else:
-            obj_type = None
-            prop = None
-
-        if i < (len(op.path) - 1):
-            # next: descend into object
-            if prop is not None:  # builtin object property
-                next_obj = getattr(cast(AnyObjectData, obj), prop.name)
-                if type(next_obj) is ProtoValue:
-                    next_obj = cast(ProtoValue, next_obj).struct_value
-            else:  # custom object field
-                if key not in cast(ProtoStruct, obj).fields:
-                    # set to blank dict if not present
-                    obj.MergeFrom(ProtoStruct(fields={key: ProtoValue(struct_value=ProtoStruct())}))  # type: ignore
-                next_obj = cast(ProtoStruct, obj).__getitem__(key)
-            if not (type(next_obj) is ProtoStruct or getattr(next_obj, "metatype", None)):
-                return  # invalid path
-            obj = cast("AnyObjectData | ProtoStruct", next_obj)
-        else:
-            # done: set value
-            if prop is not None:
-                # builtin object property
-                assert obj_type is not None, f"missing object type for {op!r}"
-                value_type = obj_type.__properties__[key].type_info
-                new_value_packed = unpack_proto_json(op.new_value_packed)
-                new_value = unpack_value_data(new_value_packed, value_type)
-                if is_prepass:
-                    if prop.is_optional_scalar and not (
-                        cast(AnyObjectData, obj).HasField(prop.name)
-                    ):
-                        old_value = None
-                    else:
-                        old_value = getattr(cast(AnyObjectData, obj), prop.name)
-                    old_value_packed = pack_value_data(old_value, value_type)
-                    wiring.set_builtin_object_prop(
-                        op,
-                        EditOperation.get_property("old_value_packed"),
-                        wiring.pack_proto_json(old_value_packed),
-                    )
-                wiring.set_builtin_object_prop(cast(AnyObjectData, obj), prop, new_value)
-            else:
-                # custom object field
-                new_value_packed = unpack_proto_json(op.new_value_packed)
-                if is_prepass:
-                    if key in cast(ProtoStruct, obj).keys():  # noqa: SIM118
-                        old_value_packed = cast(ProtoStruct, obj).__getitem__(key)
-                        op.old_value_packed.CopyFrom(pack_proto_json(old_value_packed))  # type: ignore
-                    else:
-                        op.ClearField("old_value_packed")
-                cast(ProtoStruct, obj).__setitem__(key, new_value_packed)  # type: ignore
 
 
 @tracer.start_as_current_span("graph.edit_graph")

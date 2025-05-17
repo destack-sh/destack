@@ -25,9 +25,9 @@ class PolicySubject(Struct):
     id: int = p_system(2, default_factory=new_struct_id)
 
     # flags
-    is_authenticated: Optional[bool] = p_system(30, default=None)
-    is_staff: Optional[bool] = p_system(31, default=None)
-    is_system: Optional[bool] = p_system(32, default=None)
+    is_authenticated: Optional[bool] = p_system(30)
+    is_staff: Optional[bool] = p_system(31)
+    is_system: Optional[bool] = p_system(32)
     # (Client isn't a separate subject but useful to know)
 
     # who

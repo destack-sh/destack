@@ -37,10 +37,10 @@ from .const import (
 )
 from .node import Node, NodeReference
 from .object import BuiltinObject, get_tk_b64_from_ck, object_
-from .property import Property, p_internal, p_regular, p_runtime, p_value_packed, p_value_runtime
+from .property import Property, p_internal, p_regular, p_runtime
 from .struct import Struct, struct_
 from .validation import TypeConstraintIn
-from .value import SomeValue
+from .value import Value
 
 if typing.TYPE_CHECKING:
     from bench.language import (
@@ -59,14 +59,12 @@ LETTER_BY_TYPE_KIND: dict[TypeKind, str] = {
     TypeKind.STRUCT: "s",
     TypeKind.NODE: "n",
     TypeKind.ENUM: "e",
-    TypeKind.CUSTOM_OBJECT: "o",
 }
 TYPE_KIND_BY_LETTER: dict[str, TypeKind] = {
     "p": TypeKind.PRIMITIVE,
     "s": TypeKind.STRUCT,
     "n": TypeKind.NODE,
     "e": TypeKind.ENUM,
-    "o": TypeKind.CUSTOM_OBJECT,
 }
 
 
@@ -100,10 +98,6 @@ def encode_type_identity(typ: "TypeBase | TypeIdentity") -> str:
     elif typ.kind == TypeKind.STRUCT or typ.kind == TypeKind.ENUM:
         assert typ.bench_type is not None, f"missing bench type for {typ!r}"
         value = encode_b64vlq(typ.bench_type.id)
-    elif typ.kind == TypeKind.CUSTOM_OBJECT:
-        assert typ.base_type_ptr is not None, f"missing base type for {typ!r}"
-        assert typ.base_type_ptr.ck is not None, f"missing ck for {typ.base_type_ptr!r}"
-        value = encode_b64vlq(typ.base_type_ptr.ck.int)
     else:
         raise ValueError(f"unsupported type kind {typ.kind.bench_name} for {typ!r}")
 
@@ -146,17 +140,6 @@ def decode_type_identity(key: str) -> "TypeIdentity":
         )
     elif kind == TypeKind.NODE.value:
         return TypeIdentity(kind=TypeKind(kind), is_list=is_list, is_secret=is_secret)
-    elif kind == TypeKind.CUSTOM_OBJECT.value:
-        base_id = UUID(int=decode_b64vlq(value))
-        base_type_ptr = NodeReference(
-            node_type=NodeType.BLOCK, id=base_id, ck=base_id, _skip_validate_self=True
-        )
-        return TypeIdentity(
-            kind=TypeKind.CUSTOM_OBJECT,
-            base_type_ptr=base_type_ptr,
-            is_list=is_list,
-            is_secret=is_secret,
-        )
 
     raise ValueError(f"unsupported type kind {kind} for {key!r}")
 
@@ -247,21 +230,16 @@ class TypeBase(BuiltinObject):
     if TYPE_CHECKING:
         base_type_id: Optional[UUID] = None
         base_type_ptr: Optional["NodeReference"] = None
-    base_field_types: list["FieldType"] = p_internal(44)
-    property_field_types: list["FieldType"] = p_internal(45)
 
     # metadata
-    default_packed: Optional[Any] = p_value_packed(50)
-    default = p_value_runtime(packed=50, typ=lambda self: cast("TypeBase", self))
+    default: Value | None = p_regular(50)
     format: Optional["TypeFormat"] = p_regular(53)
     constraint: Optional["TypeConstraint"] = p_regular(55)
-    # jsonschema?
 
     # flags
     is_required: bool = p_regular(60, default=False)
     is_list: bool = p_regular(61, default=False)
     is_secret: bool = p_regular(62, default=False)
-    # is_streaming?
 
     _from_property: Optional["Property"] = p_runtime(default=None)
 
@@ -280,16 +258,12 @@ class TypeBase(BuiltinObject):
             info_str = self.kind.bench_name
 
         clauses = []
-        if self.property_field_types:
-            clauses.append(f"Property={'|'.join(f.bench_name for f in self.property_field_types)}")
         if self.is_list:
             clauses.append("is_list")
         if self.is_required:
             clauses.append("is_required")
         if self.is_secret:
             clauses.append("is_secret")
-        if self.base_field_types:
-            clauses.append(f"Field={'|'.join(f.bench_name for f in self.base_field_types)}")
         if self.constraint is not None:
             constraint_str = self.constraint.__content_str__()
             if constraint_str:
@@ -301,21 +275,6 @@ class TypeBase(BuiltinObject):
             info_str += f" from {self._from_property!s}"
 
         return info_str
-
-    def __call__(self, *args, **kwargs) -> "SomeValue":
-        """Converts the given value to this type."""
-        # TODO :Cleanup :Architecture: TypeInfo.__call__ feels a lot like coerce_value
-        #  But it's not quite the same. Here we want to error if we can't coerce, return full nodes, etc.
-        if self.kind == TypeKind.PRIMITIVE:
-            py_type = PY_TYPE_BY_PRIMITIVE_TYPE.get(cast(PrimitiveType, self.primitive_type))
-            assert py_type is not None, f"{self!r} does not have a python type"
-            return py_type(*args, **kwargs)
-        elif self.kind == TypeKind.CUSTOM_OBJECT:
-            from .value import coerce_custom_object_scalar
-
-            return coerce_custom_object_scalar(kwargs, self, as_packed=True)
-
-        raise ValueError(f"cannot create {self!r} (resolved={self!r}) directly")
 
     def morph_to(
         self,
@@ -338,7 +297,6 @@ class TypeBase(BuiltinObject):
         if self.kind in (  # noqa: SIM114
             TypeKind.NODE,
             TypeKind.ENUM,
-            TypeKind.CUSTOM_OBJECT,
         ):
             return True
         elif self.primitive_type in (  # noqa: SIM103
@@ -378,26 +336,7 @@ class TypeBase(BuiltinObject):
 
     @property
     def _fields(self) -> Sequence["Field"]:
-        if not self.base_field_types:
-            return self._base_fields
-        else:
-            return tuple(f for f in self._base_fields if f.type in self.base_field_types)
-
-    def _get_field(self, ident: str) -> Optional["Field"]:
-        """Resolves a field in this type by an identifier (name or py_name)"""
-        for field in self._base_fields:
-            if (field.code_name == ident or field.name == ident) and (
-                not self.base_field_types or field.type in self.base_field_types
-            ):
-                return field
-        return None
-
-    def _get_field_by_key(self, key: str) -> Optional["Field"]:
-        """Resolves a field in this type by its tk"""
-        for field in self._base_fields:
-            if field.key == key:
-                return field
-        return None
+        return self._base_fields
 
 
 @struct_(StructType.TYPE)

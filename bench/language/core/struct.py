@@ -3,7 +3,6 @@ from typing import (
     TYPE_CHECKING,
     ClassVar,
     Sequence,
-    Union,
     cast,
     dataclass_transform,
     final,
@@ -17,10 +16,10 @@ from bench.utils.env import IS_DEV
 
 from .const import StructType
 from .object import BuiltinObject, object_
-from .property import _PROPERTY_SPECIFIERS, Property
+from .property import _PROPERTY_SPECIFIERS
 
 if TYPE_CHECKING:
-    from bench.language import CustomObject, Field, Node
+    pass
 
 # pyright: reportIncompatibleVariableOverride=false
 
@@ -41,10 +40,6 @@ def struct_[_ObjectT: BuiltinObject](struct_type: StructType):
         return cast(type[_ObjectT], cls)
 
     return decorate
-
-
-StructParent = Union["Struct", "Node", "CustomObject"]
-StructParentKey = Union["Property", "Field"]
 
 
 @object_()

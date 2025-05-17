@@ -11,7 +11,6 @@ from bench.language.core import (
     IsOwnable,
     IsProcessable,
     IsRuntime,
-    IsTimed,
     IsTitled,
     NodeReference,
     NodeType,
@@ -48,7 +47,6 @@ class ThreadStatus(BuiltinEnum):
 @timed_node_(NodeType.THREAD)
 class Thread(
     IsComputable,
-    IsTimed,
     IsOwnable,
     IsProcessable,
     IsJoinable,

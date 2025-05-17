@@ -21,12 +21,12 @@ from bench.language import (
     Client,
     ClientType,
     Computer,
-    GraphScope,
     NodeReference,
     NodeSuperGraph,
     NodeType,
     Package,
     RemoteEngine,
+    Scope,
     Session,
     User,
 )
@@ -146,7 +146,7 @@ class RuntimeServiceBase(ServiceBase, abc.ABC):
             # self bench engine
             RemoteEngine(
                 name="remote-self-bench",
-                scope=GraphScope(bench_id=self._bench_id)._to_data(),
+                scope=Scope(bench_id=self._bench_id)._to_data(),
                 node_types=BENCH_NODE_TYPES,
                 remote=self._self_host,
                 write_retry=RETRY_GRPC_FOREVER,
@@ -155,7 +155,7 @@ class RuntimeServiceBase(ServiceBase, abc.ABC):
             # bench bench engine
             RemoteEngine(
                 name="remote-bench-bench",
-                scope=GraphScope(bench_id=BENCH_ID)._to_data(),
+                scope=Scope(bench_id=BENCH_ID)._to_data(),
                 node_types=BENCH_NODE_TYPES,
                 remote=self._bench_host,
                 write_retry=RETRY_GRPC_FOREVER,
@@ -165,7 +165,7 @@ class RuntimeServiceBase(ServiceBase, abc.ABC):
 
         # setup session
         self._session = Session(
-            _default_scope=GraphScope(bench_id=self._bench_id)._to_data(),
+            _default_scope=Scope(bench_id=self._bench_id)._to_data(),
             _engines=self._engines,
             _supervisor=self._supervisor,
             _self_host=self._self_host,

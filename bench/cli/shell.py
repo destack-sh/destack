@@ -36,11 +36,11 @@ async def shell(
         Bench,
         Client,
         Context,
-        GraphScope,
         NodeArea,
         NodeType,
         Package,
         RemoteEngine,
+        Scope,
         Session,
         User,
     )
@@ -98,7 +98,7 @@ async def shell(
         ),
     )
     session = Session(
-        _default_scope=GraphScope(bench_id=bench_node.id)._to_data(),
+        _default_scope=Scope(bench_id=bench_node.id)._to_data(),
         _engines=remote_engines,
         _supervisor=supervisor,
         _self_host=host,
@@ -114,7 +114,7 @@ async def shell(
         )
         assert bench_node.database is not None, f"{bench_node!r} has no main database"
         session.parent = bench_node  # patch in bench for pg context
-        session._default_scope = GraphScope(bench_id=bench_node.id)._to_data()
+        session._default_scope = Scope(bench_id=bench_node.id)._to_data()
         pkg = await (
             Package.include_ancestors(Bench)
             .include_descendants(*LOADED_PACKAGE_NODE_TYPES)

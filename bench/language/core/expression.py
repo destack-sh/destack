@@ -31,9 +31,9 @@ from .const import (
 )
 from .node import Node, NodeReference
 from .object import Property, PropertyReference
-from .property import p_regular, p_value_packed, p_value_runtime
+from .property import p_regular
 from .struct import Struct, struct_
-from .value import unpack_proto_json
+from .value import Value, unpack_proto_json
 
 if TYPE_CHECKING:
     from bench.language import (
@@ -122,8 +122,7 @@ class Expression(Struct):
 
     # content
     clauses: list["Expression"] | None = p_regular(40)
-    value_packed: Any = p_value_packed(46)
-    value: Any = p_value_runtime(46, typ=lambda self: cast(Expression, self).value_type)
+    value: Value | None = p_regular(46)
     sort_mode: Optional[SortMode] = p_regular(48)
     tolerance: Optional[float] = p_regular(49)
 

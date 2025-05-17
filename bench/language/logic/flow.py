@@ -1,4 +1,3 @@
-from functools import cached_property
 from typing import TYPE_CHECKING, Literal, Optional, Union
 from uuid import UUID
 
@@ -7,6 +6,7 @@ from bench.language.core import (
     EnumType,
     FieldType,
     IsClaimable,
+    IsExtensible,
     IsModal,
     IsNamed,
     IsOrdered,
@@ -18,7 +18,6 @@ from bench.language.core import (
     PageNode,
     RunType,
     TypeBase,
-    TypeKind,
     enum_,
     node_,
     p_internal,
@@ -58,6 +57,7 @@ class Flow(
     IsClaimable,
     IsModal,
     IsNamed,
+    IsExtensible,
     IsRunnable,
     PageNode[FlowData],
 ):
@@ -68,45 +68,6 @@ class Flow(
 
     def __content_str__(self):
         return ""
-
-    def to_type_maybe(
-        self,
-        *,
-        of: Literal["instance", "value"] = "instance",
-        field_types: list[FieldType] | None = None,
-    ) -> "TypeBase":
-        """Get a type represented by this Block (if any)"""
-        from bench.language.core import Type
-
-        if of == "instance":
-            return Type(kind=TypeKind.NODE, base_type=self, bench_type=NodeType.RUN)
-        else:
-            field_types = field_types or []
-            return Type(
-                kind=TypeKind.CUSTOM_OBJECT,
-                base_type=self,
-                base_field_types=field_types,
-                property_field_types=field_types,
-            )
-
-    def to_type(
-        self,
-        *,
-        of: Literal["instance", "value"] = "instance",
-        field_types: list[FieldType] | None = None,
-    ) -> "TypeBase":
-        typ = self.to_type_maybe(of=of, field_types=field_types)
-        if typ is None:
-            raise ValueError(f"{self!r} does not have a type")
-        return typ
-
-    @cached_property  # :CachedTypeInfo
-    def input_type(self) -> "TypeBase | None":
-        return self.to_type_maybe(of="value", field_types=[FieldType.INPUT])
-
-    @cached_property  # :CachedTypeInfo
-    def output_type(self) -> "TypeBase | None":
-        return self.to_type_maybe(of="value", field_types=[FieldType.OUTPUT])
 
     @staticmethod
     def new(name: str, **kwargs) -> "Flow":
@@ -120,14 +81,6 @@ class FlowEdgeType(BuiltinEnum):
     DECIDE = 20, "Decide", "Determine when and how to call", "far fa-shuffle"
     REQUIRE = 30, "Require", "Determine how to call", "fas fa-arrow-right-long"
     # MESSAGE? WAIT? STREAM?
-
-
-SIGN_BY_LINK_TYPE: dict[FlowEdgeType, str] = {
-    FlowEdgeType.MANUAL: "-!>",
-    FlowEdgeType.DECIDE: "-*>",
-    FlowEdgeType.REQUIRE: "-=>",
-}
-LINK_TYPES_BY_SIGN: dict[str, FlowEdgeType] = {v: k for k, v in SIGN_BY_LINK_TYPE.items()}
 
 
 @node_(NodeType.FLOW_EDGE)
@@ -161,10 +114,9 @@ class FlowEdge(
     # is_streaming: bool = p_regular(80, default=False)
 
     def __content_str__(self) -> str:
-        sign = SIGN_BY_LINK_TYPE.get(self.type, "???")
         source = self.source
         target = self.target
-        return f"{source.absolute_path if source else '???'} {sign} {target.absolute_path if target else '???'}"
+        return f"{source.absolute_path if source else '???'} {self.type.name} {target.absolute_path if target else '???'}"
 
     @property
     def run_type(self) -> RunType:

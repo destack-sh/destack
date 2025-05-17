@@ -29,7 +29,6 @@ from bench.language import (
     File,
     FileBase,
     FileSource,
-    GraphScope,
     IsRuntime,
     LegacyQuery,
     MemoryEngine,
@@ -45,6 +44,7 @@ from bench.language import (
     PageNode,
     PolicySubject,
     QueryType,
+    Scope,
     Session,
     User,
     bittuple,
@@ -130,7 +130,7 @@ class HostService(GraphServiceBase, HostBase):
             tracer=tracer,
             network=network,
             oracle=oracle,
-            scope=GraphScope(bench_id=bench_id)._to_data(),
+            scope=Scope(bench_id=bench_id)._to_data(),
             on_error=on_error,
         )
 
@@ -382,7 +382,7 @@ class HostService(GraphServiceBase, HostBase):
             assert self._bench.package is not None, f"{self._bench!r} has no main package"
             self._main_package = self._bench.package
             session.parent = self._bench  # patch in bench for pg context
-            session._default_scope = GraphScope(bench_id=self.bench_id)._to_data()
+            session._default_scope = Scope(bench_id=self.bench_id)._to_data()
             session._engines += (
                 local_pg_engine_from_database(
                     name=f"pg-local-{self._bench.slug}", database=self._bench.database
@@ -545,7 +545,7 @@ class HostService(GraphServiceBase, HostBase):
         #  (non-local because those are already in-bench only)
         if (
             self._bench is not None
-            and NodeType.BENCH in query._node_cls.__roots__
+            and NodeType.BENCH in query._node_cls.__root_types__
             and query._node_cls.__area__ != NodeArea.LOCAL
         ):
             query = query.where(query._node_cls.get_property("bench").eq(self._bench.to_ref()))
