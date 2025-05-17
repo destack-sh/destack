@@ -19,7 +19,7 @@ class ProtoSchema(ProtoThing):
 
     name: str
     imports: list[str]
-    types: list[Union["Enum", "Message"]]
+    types: list[Union["ProtoEnum", "Message"]]
 
     def to_proto_source(self) -> str:
         """Convert to proto source."""
@@ -32,7 +32,7 @@ class ProtoSchema(ProtoThing):
         return source
 
     @staticmethod
-    def from_types(name: str, types: list[Union["Enum", "Message"]]) -> "ProtoSchema":
+    def from_types(name: str, types: list[Union["ProtoEnum", "Message"]]) -> "ProtoSchema":
         """Create a proto file from types. Figures out imports."""
         # just add default imports for all the well-known types we use
         imports = [
@@ -56,7 +56,7 @@ class Message(ProtoThing):
     """Proto message."""
 
     name: str
-    fields: list["Field"]
+    fields: list["ProtoField"]
     reserved_names: list[str] = dataclasses.field(default_factory=list)
     reserved_ids: list[int] = dataclasses.field(default_factory=list)
     comment: str | None = None
@@ -76,7 +76,7 @@ class Message(ProtoThing):
         return source
 
 
-class FieldType(enum.StrEnum):
+class ProtoFieldType(enum.StrEnum):
     """Proto field type."""
 
     INT32 = "int32"
@@ -105,11 +105,11 @@ class FieldType(enum.StrEnum):
 
 
 @dataclass
-class Enum(ProtoThing):
+class ProtoEnum(ProtoThing):
     """Proto enum."""
 
     name: str
-    values: list["EnumValue"]
+    values: list["ProtoEnumValue"]
     allow_alias: bool = False
     comment: str | None = None
 
@@ -127,7 +127,7 @@ class Enum(ProtoThing):
 
 
 @dataclass
-class EnumValue(ProtoThing):
+class ProtoEnumValue(ProtoThing):
     """Proto enum value."""
 
     id: int
@@ -139,15 +139,15 @@ class EnumValue(ProtoThing):
 
 
 @dataclass
-class Field(ProtoThing):
+class ProtoField(ProtoThing):
     id: int | None
     name: str
-    type: FieldType | Enum | Message | str
+    type: ProtoFieldType | ProtoEnum | Message | str
     optional: bool = False
     repeated: bool = False
-    key_type: FieldType | None = None  # for map
-    value_type: FieldType | None = None  # for map
-    sub_fields: list["Field"] | None = None  # for one of
+    key_type: ProtoFieldType | None = None  # for map
+    value_type: ProtoFieldType | None = None  # for map
+    sub_fields: list["ProtoField"] | None = None  # for one of
 
     def to_proto_source(self) -> str:
         """Convert to proto source."""
@@ -156,19 +156,19 @@ class Field(ProtoThing):
             prefix += "repeated "
         elif self.optional:
             prefix += "optional "
-        if self.type == FieldType.REPEATED:
+        if self.type == ProtoFieldType.REPEATED:
             type = f"{prefix}{self.value_type}[]"
-        elif self.type == FieldType.MAP:
+        elif self.type == ProtoFieldType.MAP:
             type = f"{prefix}map<{self.key_type}, {self.value_type}>"
-        elif self.type == FieldType.ONE_OF:
+        elif self.type == ProtoFieldType.ONE_OF:
             type = f"{prefix}oneof {self.name} {{\n"
             for sub_field in self.sub_fields or ():
                 type += f"  {sub_field.to_proto_source()};\n"
             type += "}"
             return type  # no id for one of
-        elif isinstance(self.type, (Enum, Message)):
+        elif isinstance(self.type, (ProtoEnum, Message)):
             type = f"{prefix}{self.type.name}"
-        elif isinstance(self.type, FieldType):
+        elif isinstance(self.type, ProtoFieldType):
             type = f"{prefix}{self.type.value}"
         else:
             type = f"{prefix}{self.type}"

@@ -39,9 +39,9 @@ from .const import (
     EMPTY_DICT,
     FLOAT_EPSILON,
     UNSET,
+    NodeReferenceKind,
     NodeType,
     ObjectType,
-    ReferenceKind,
     StructType,
     TypeKind,
 )
@@ -51,7 +51,6 @@ from .property import (
     _PROPERTY_SPECIFIERS,
     METATYPE_PROPERTY,
     Property,
-    PropertyReferenceType,
     p_internal,
     p_regular,
     p_runtime,
@@ -124,22 +123,21 @@ def _process_object_cls[ObjectT: BuiltinObject](
 
     metatype = METATYPE_PROPERTY.clone()
     metatype.component = cls
-    properties_by_name: dict[str, Property] = {"metatype": metatype}
 
     # collect static components from class hierarchy
-    static_components: list[type[BuiltinObject]] = [cls]
+    components: list[type[BuiltinObject]] = [cls]
     for base in cls.__bases__:
         if base.__name__ == "ABC":
             continue
         if hasattr(base, "__properties__"):
             base: type[Struct]
-            static_components.append(base)
+            components.append(base)
             for grandparent in base.__components__:
-                if grandparent not in static_components:
-                    static_components.append(grandparent)
+                if grandparent not in components:
+                    components.append(grandparent)
 
-    # collect properties from this class
-    declared_properties: dict[str, Property] = {}
+    # collect properties from this class definition
+    properties_by_name: dict[str, Property] = {"metatype": metatype}
     for name, prop in list(cls.__dict__.items()):
         if (
             name.startswith("__")
@@ -156,10 +154,10 @@ def _process_object_cls[ObjectT: BuiltinObject](
         prop.component = cls
         prop.py_type_raw = cls.__annotations__.get(name, None)
         properties_by_name[name] = prop
-        declared_properties[name] = prop
+    cls.__declared_properties__ = frozendict(properties_by_name)
 
-    # collect properties from all parent components
-    for component in reversed(static_components):
+    # collect properties from ancestor components
+    for component in reversed(components):
         for name, prop in component.__declared_properties__.items():
             existing = properties_by_name.get(name)
             # allow overriding system properties with more specific properties
@@ -172,13 +170,10 @@ def _process_object_cls[ObjectT: BuiltinObject](
                 prop = prop.clone()
                 prop.component = cls
                 properties_by_name[name] = prop
-                if name in declared_properties:
-                    declared_properties[name] = prop
-            elif not prop.equals_type(existing):
+            else:
                 raise ValueError(f"property conflict '{name}': {prop!r}, {existing!r}")
             if not is_node and prop.is_tree_reference:
                 raise ValueError(f"non-node {cls} has node-only relation {prop}")
-    cls.__declared_properties__ = frozendict(declared_properties)
 
     # bench is optional in variable root types (since they can have other roots)
     if is_node and is_variable_root and "bench" in properties_by_name:
@@ -187,27 +182,25 @@ def _process_object_cls[ObjectT: BuiltinObject](
     # contribute extra properties
     for prop in tuple(properties_by_name.values()):
         # collect any extra contributed properties
-        if prop.reference_kind in (
-            ReferenceKind.NODE_PARENT,
-            ReferenceKind.NODE_ANCESTOR_OR_SELF,
-            ReferenceKind.NODE_ANCESTOR,
-            ReferenceKind.NODE_REGULAR,
-            ReferenceKind.NODE_TEMPLATE,
+        if prop.node_kind in (
+            NodeReferenceKind.NODE_PARENT,
+            NodeReferenceKind.NODE_ANCESTOR_OR_SELF,
+            NodeReferenceKind.NODE_ANCESTOR,
+            NodeReferenceKind.NODE_REGULAR,
+            NodeReferenceKind.NODE_TEMPLATE,
         ):
-            if prop.reference_kind == ReferenceKind.NODE_TEMPLATE:
+            if prop.node_kind == NodeReferenceKind.NODE_TEMPLATE:
                 if not (is_final and is_node):
                     prop.is_stored = False
                     prop.is_proto = False
                     continue
                 # template points to nodes of same type
-                prop.reference_nodes = (cast(NodeType, object_type),)
+                prop.node_types = (cast(NodeType, object_type),)
 
-            for p in prop._contribute_ptrs(is_root=is_root):
-                if p.name in properties_by_name:
-                    raise ValueError(
-                        f"property conflict '{p.name}': {p!r}, {properties_by_name[prop.name]!r}"
-                    )
-                properties_by_name[p.name] = p
+            prop.ptr_prop = prop._to_ptr_prop()
+            if prop.ptr_prop is not None:
+                prop.is_runtime = True
+                properties_by_name[prop.ptr_prop.name] = prop.ptr_prop
 
     # add computed properties to final classes
     if is_final:
@@ -220,30 +213,28 @@ def _process_object_cls[ObjectT: BuiltinObject](
             setattr(cls, name, prop)
 
         for name, prop in properties_by_name.items():
-            if prop.reference_source is None:  # not a contributed property
+            if prop.runtime_prop is None:  # not a contributed property
                 # computed property.. property
                 if prop.is_property_reference:
                     setattr(cls, name, _object_property_ref(prop))
                 # computed node property
-                elif prop.reference_kind in (
-                    ReferenceKind.NODE_PARENT,
-                    ReferenceKind.NODE_REGULAR,
-                    ReferenceKind.NODE_TEMPLATE,
+                elif prop.node_kind in (
+                    NodeReferenceKind.NODE_PARENT,
+                    NodeReferenceKind.NODE_REGULAR,
+                    NodeReferenceKind.NODE_TEMPLATE,
                 ):
                     setattr(cls, name, _object_node_ref(prop))
                 # computed node ancestor property
-                elif prop.reference_kind in (
-                    ReferenceKind.NODE_ANCESTOR,
-                    ReferenceKind.NODE_ANCESTOR_OR_SELF,
+                elif prop.node_kind in (
+                    NodeReferenceKind.NODE_ANCESTOR,
+                    NodeReferenceKind.NODE_ANCESTOR_OR_SELF,
                 ):
                     setattr(cls, name, _node_ancestor_ref(prop))
                     setattr(cls, f"{name}_ptr", _node_ancestor_ptr_ref(prop))
                 # computed _x node reference properties (e.g., parent_id, type_ck, node_type, ...)
                 if prop.is_node_reference:
                     for obj_key, ptr_key in (("id", "id"), ("ck", "ck"), ("type", "node_type")):
-                        if obj_key == "type" and (
-                            not prop.reference_nodes or len(prop.reference_nodes) <= 1
-                        ):
+                        if obj_key == "type" and (not prop.node_types or len(prop.node_types) <= 1):
                             continue  # no need for *_type if only one possible node type
                         _set_computed(
                             f"{prop.name}_{obj_key}", _object_node_ref_attr(ptr_key, prop)
@@ -257,15 +248,15 @@ def _process_object_cls[ObjectT: BuiltinObject](
             prop._finalize_type()
 
     # register components and index properties
-    cls.__components__ = tuple(static_components)  # type: ignore
+    cls.__components__ = tuple(components)  # type: ignore
     cls.__properties__ = frozendict(properties_by_name)
     properties_by_id: dict[int, Property] = {}
     for prop in properties_by_name.values():
-        if prop.id is not None and prop.id is not UNSET and not prop.reference_source:
+        if prop.id is not None and prop.id is not UNSET and not prop.runtime_prop:
             existing = properties_by_id.get(prop.id, None)
             if existing is None:
                 properties_by_id[prop.id] = prop
-            elif not prop.reference_source:
+            elif not prop.runtime_prop:
                 # contributed reference properties can share an id
                 raise ValueError(f"property id conflict: {prop!r}, {existing!r}")
     props = properties_by_name.values()
@@ -274,7 +265,7 @@ def _process_object_cls[ObjectT: BuiltinObject](
         {p.id: p.name for p in properties_by_id.values() if p.id is not None}
     )
     cls.__node_properties__ = frozendict(
-        {p.name: p for p in props if p.is_node_reference and not p.reference_source}
+        {p.name: p for p in props if p.is_node_reference and not p.runtime_prop}
     )
     cls.__struct_properties__ = frozendict({p.name: p for p in props if p.is_struct})
     cls.__stored_properties__ = frozendict(
@@ -288,12 +279,8 @@ def _process_object_cls[ObjectT: BuiltinObject](
     cls.__properties_in_order__ = tuple(sorted(properties_by_id.values(), key=lambda p: p.id))
     for i, prop in enumerate(cls.__properties_in_order__):
         prop.ord = i
-        if prop.reference_wired_ptr:
-            prop.reference_wired_ptr.ord = i
-        for p in prop.reference_stored_props or ():
-            p.ord = i
-        if prop.reference_source:
-            prop.reference_source.ord = i
+        if prop.ptr_prop:
+            prop.ptr_prop.ord = i
     cls.__properties_id_in_order__ = tuple(p.id for p in cls.__properties_in_order__)
     cls.__max_property_ord__ = len(cls.__properties_in_order__) - 1
     cls.__properties_mask_set__ = bitarray(cls.__max_property_ord__ + 1)
@@ -356,7 +343,7 @@ def struct_[_ObjectT: BuiltinObject](struct_type: StructType):
 def _object_property_ref(prop: Property) -> property:
     """The computed get/set property for a property reference."""
 
-    wired_prop = prop.reference_wired_ptr
+    wired_prop = prop.ptr_prop
     assert wired_prop is not None, f"no wired prop for {prop!r}"
 
     if not prop.is_list:
@@ -392,7 +379,7 @@ def _object_property_ref(prop: Property) -> property:
 def _object_node_ref(prop: Property) -> property:
     """The computed get/set property for a node reference. Resolved against the active supergraph."""
 
-    wired_prop = prop.reference_wired_ptr
+    wired_prop = prop.ptr_prop
     assert wired_prop is not None, f"no wired prop for {prop!r}"
 
     if not prop.is_list:
@@ -445,7 +432,7 @@ def _object_node_ref(prop: Property) -> property:
 def _object_node_ref_attr(ptr_key: str, prop: Property) -> property:
     """The computed get property from a specific attribute of a node pointer."""
 
-    wired_prop = prop.reference_wired_ptr
+    wired_prop = prop.ptr_prop
     assert wired_prop is not None, f"no wired prop for {prop!r}"
 
     if not prop.is_list:
@@ -480,15 +467,15 @@ def _node_ancestor_ref(prop: Property) -> property:
 
     # NOTE :Performance: _node_ancestor_ref could just walk in the graph directly?
 
-    assert prop.reference_nodes != "any", f"unexpected {prop.reference_nodes!r} for {prop!r}"
+    assert prop.node_types != "any", f"unexpected {prop.node_types!r} for {prop!r}"
 
-    if prop.reference_kind == ReferenceKind.NODE_ANCESTOR_OR_SELF:
+    if prop.node_kind == NodeReferenceKind.NODE_ANCESTOR_OR_SELF:
 
         def get_ancestor_first_self(self: "Node") -> Optional["Node"]:
             parent = self
             while parent is not None:
-                if prop.reference_nodes and parent.metatype in cast(
-                    tuple[NodeType, ...], prop.reference_nodes
+                if prop.node_types and parent.metatype in cast(
+                    tuple[NodeType, ...], prop.node_types
                 ):
                     return parent
                 parent = parent.parent
@@ -496,14 +483,14 @@ def _node_ancestor_ref(prop: Property) -> property:
 
         get = get_ancestor_first_self
 
-    elif prop.reference_kind == ReferenceKind.NODE_ANCESTOR:
+    elif prop.node_kind == NodeReferenceKind.NODE_ANCESTOR:
 
         def get_ancestor_first_other(self: "Node") -> Optional["Node"]:
             parent = self.parent
             farthest = None
             while parent is not None:
-                if prop.reference_nodes and parent.metatype in cast(
-                    tuple[NodeType, ...], prop.reference_nodes
+                if prop.node_types and parent.metatype in cast(
+                    tuple[NodeType, ...], prop.node_types
                 ):
                     farthest = parent
                 parent = parent.parent
@@ -512,7 +499,7 @@ def _node_ancestor_ref(prop: Property) -> property:
         get = get_ancestor_first_other
 
     else:
-        raise ValueError(f"unexpected ancestor reference kind: {prop.reference_kind}")
+        raise ValueError(f"unexpected ancestor reference kind: {prop.node_kind}")
 
     def set(self: "Node", value: "Node"):
         raise NotImplementedError(f"cannot set computed property {prop!r}: {value!r}")
@@ -523,11 +510,11 @@ def _node_ancestor_ref(prop: Property) -> property:
 def _node_ancestor_ptr_ref(prop: Property) -> property:
     """The computed get property for Node ancestor pointers (computed because ancestors are computed)."""
 
-    wired_prop = prop.reference_wired_ptr
+    wired_prop = prop.ptr_prop
     assert wired_prop is not None, f"no wired prop for {prop!r}"
 
     def get_ancestor_ptr(self: "Node") -> Optional["NodeReference"]:
-        ancestor = getattr(self, cast(Property, wired_prop.reference_source).name)
+        ancestor = getattr(self, cast(Property, wired_prop.runtime_prop).name)
         if ancestor is None:
             return None
         else:
@@ -727,11 +714,11 @@ class BuiltinObject[ObjectDataT: AnyObjectData](abc.ABC):
     def replace_references(
         self,
         new_node_by_id: Mapping[UUID, "Node"],
-        exclude: Collection[ReferenceKind],
+        exclude: Collection[NodeReferenceKind],
     ):
         """Replaces Node references with new Nodes. Missing Nodes are kept as is."""
         for prop in self.__node_properties__.values():
-            if prop.reference_kind in exclude:
+            if prop.node_kind in exclude:
                 continue
             prop_value = getattr(self, prop.name)
             if not prop.is_list:
@@ -824,11 +811,11 @@ class Struct[StructDataT: AnyStructData](BuiltinObject[StructDataT], abc.ABC):
                         prop_value_str = "|".join(p.bench_name for p in prop_value)
                     else:
                         prop_value_str = prop_value.bench_name  # type: ignore
-                elif prop.reference_struct:
+                elif prop.struct_type:
                     if prop.is_list:
-                        prop_value_str = f"{prop.reference_struct.bench_name}[{len(prop_value)}]"
+                        prop_value_str = f"{prop.struct_type.bench_name}[{len(prop_value)}]"
                     else:
-                        prop_value_str = f"<{prop.reference_struct.bench_name} ...>"
+                        prop_value_str = f"<{prop.struct_type.bench_name} ...>"
                 else:
                     prop_value_str = repr(prop_value)
                 value_strs.append(f"{prop.name}={prop_value_str}")
@@ -888,8 +875,6 @@ class PropertyReference(Struct):
 
     object_type: ObjectType | None = p_regular(30)
     id: int = p_regular(31)
-    references_node_type: Optional[NodeType] = p_internal(35)  # disambiguate reference properties
-    references_meta: Optional[PropertyReferenceType] = p_internal(36)
 
     def __content_str__(self):
         if self.object_type is None:
@@ -932,17 +917,6 @@ class PropertyReference(Struct):
 
         object_cls = self.object_cls
         prop = (object_cls or Node).__properties_by_id__.get(self.id)
-        if prop is not None:
-            if self.references_meta is not None:
-                assert prop.reference_stored_metas is not None, f"{prop!r} has no stored metas"
-                meta_prop = prop.reference_stored_metas.get(self.references_meta)  # type: ignore
-                if meta_prop is not None:
-                    return meta_prop
-            if self.references_node_type is not None:
-                assert prop.reference_stored_ids_by_type is not None, f"{prop!r} has no stored ids"
-                id_prop = prop.reference_stored_ids_by_type.get(self.references_node_type)
-                if id_prop is not None:
-                    return id_prop
         return prop
 
 

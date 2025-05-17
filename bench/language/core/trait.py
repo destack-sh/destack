@@ -11,9 +11,9 @@ from bench.utils.tenacity import RetryOptions
 from .const import (
     RESOURCE_NODE_TYPES,
     NodeMode,
+    NodeReferenceKind,
     NodeType,
     ProcessStatus,
-    ReferenceKind,
     bittuple,
 )
 from .list import attach_node
@@ -225,7 +225,7 @@ class IsTemplatable(BuiltinObject):
             for node in _map.values():
                 node.replace_references(
                     _map,
-                    exclude=(ReferenceKind.NODE_PARENT, ReferenceKind.NODE_TEMPLATE),
+                    exclude=(NodeReferenceKind.NODE_PARENT, NodeReferenceKind.NODE_TEMPLATE),
                 )
 
         # append to our parent to re-attach

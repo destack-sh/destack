@@ -89,8 +89,8 @@ class IsRun(BuiltinObject):
     def _copy_context_to(self, span: "Span"):
         """Copy context from this HasRunContext to a Span."""
         for prop in IsRun.__declared_properties__.values():
-            if type(prop.reference_wired_ptr) is Property:
-                prop = prop.reference_wired_ptr
+            if type(prop.ptr_prop) is Property:
+                prop = prop.ptr_prop
             prop_value = getattr(self, prop.name)
             if prop_value is not None:
                 setattr(span, prop.name, prop_value)

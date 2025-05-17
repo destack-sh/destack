@@ -74,6 +74,7 @@ from .const import (
     Month,
     NodeArea,
     NodeMode,
+    NodeReferenceKind,
     NodeType,
     ObjectType,
     PolicyEffect,
@@ -81,7 +82,6 @@ from .const import (
     PrimitiveValue,
     ProcessStatus,
     QueryType,
-    ReferenceKind,
     Region,
     RunType,
     SessionStatus,
@@ -157,8 +157,8 @@ from .object import (
 )
 from .property import (
     PROPERTY_META_KEY_BY_TYPE,
+    NodeReferenceMeta,
     Property,
-    PropertyReferenceType,
     p_internal,
     p_kernel,
     p_node_ancestor,
@@ -295,7 +295,7 @@ from .value import (
     unpack_value_scalar,
     unpack_value_scalar_data,
 )
-from .variable import Variable, VariableType
+from .variable import MaybeVariable, Variable, VariableType
 
 __all__ = [
     "ACTIVE_ALIASING",
@@ -430,6 +430,7 @@ __all__ = [
     "Joinable",
     "LegacyQuery",
     "LiteralType",
+    "MaybeVariable",
     "Month",
     "MultipleNodesFoundError",
     "Node",
@@ -440,6 +441,8 @@ __all__ = [
     "NodeMode",
     "NodeNotFoundError",
     "NodeReference",
+    "NodeReferenceKind",
+    "NodeReferenceMeta",
     "NodeSuperGraph",
     "NodeType",
     "ObjectType",
@@ -452,10 +455,8 @@ __all__ = [
     "ProcessStatus",
     "Property",
     "PropertyReference",
-    "PropertyReferenceType",
     "ProvisionableResourceBase",
     "QueryType",
-    "ReferenceKind",
     "Region",
     "RemoteNodeList",
     "RenderOptions",

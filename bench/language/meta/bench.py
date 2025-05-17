@@ -53,7 +53,7 @@ class Bench(IsOwnable, BenchNode[BenchData]):
     name: str = p_regular(33, constraint=NAME_CONSTRAINT)
     line: Optional["TextLine"] = p_regular(34)
     icon: Optional["Icon"] = p_regular(35)
-    region: "Region" = p_system(37, default=REGION, default_sql=None)
+    region: "Region" = p_system(37, default=REGION)
     # TODO :Security: Bench.encryption_key (DEK) or put it into a Vault (Bench.vault) :RealSecrets
 
     # status

@@ -14,7 +14,15 @@ from bench.language import (
 from bench.language.core import BuiltinEnum
 from bench.utils.string import Casing, to_casing
 
-from .core import Enum, EnumValue, Field, FieldType, Message, ProtoSchema, ProtoThing
+from .core import (
+    Message,
+    ProtoEnum,
+    ProtoEnumValue,
+    ProtoField,
+    ProtoFieldType,
+    ProtoSchema,
+    ProtoThing,
+)
 
 if TYPE_CHECKING:
     from bench.language import Property
@@ -24,20 +32,20 @@ if TYPE_CHECKING:
 # We map and walk at the same type for simplicity (using the cache)
 #
 
-PROTO_FIELD_TYPE_BY_PRIMITIVE_TYPE: dict[PrimitiveType, FieldType] = {
-    PrimitiveType.BOOLEAN: FieldType.BOOL,
-    PrimitiveType.INT16: FieldType.INT32,
-    PrimitiveType.INT32: FieldType.INT32,
-    PrimitiveType.INT64: FieldType.INT64,
-    PrimitiveType.FLOAT32: FieldType.FLOAT,
-    PrimitiveType.FLOAT64: FieldType.DOUBLE,
-    PrimitiveType.STRING: FieldType.STRING,
-    PrimitiveType.BYTES: FieldType.BYTES,
-    PrimitiveType.DATETIME: FieldType.TIMESTAMP,
-    PrimitiveType.DATE: FieldType.DATE,
-    PrimitiveType.DURATION: FieldType.DURATION,
-    PrimitiveType.UUID: FieldType.STRING,  # see https://stackoverflow.com/q/36344826/3375858
-    PrimitiveType.JSON: FieldType.VALUE,
+PROTO_FIELD_TYPE_BY_PRIMITIVE_TYPE: dict[PrimitiveType, ProtoFieldType] = {
+    PrimitiveType.BOOLEAN: ProtoFieldType.BOOL,
+    PrimitiveType.INT16: ProtoFieldType.INT32,
+    PrimitiveType.INT32: ProtoFieldType.INT32,
+    PrimitiveType.INT64: ProtoFieldType.INT64,
+    PrimitiveType.FLOAT32: ProtoFieldType.FLOAT,
+    PrimitiveType.FLOAT64: ProtoFieldType.DOUBLE,
+    PrimitiveType.STRING: ProtoFieldType.STRING,
+    PrimitiveType.BYTES: ProtoFieldType.BYTES,
+    PrimitiveType.DATETIME: ProtoFieldType.TIMESTAMP,
+    PrimitiveType.DATE: ProtoFieldType.DATE,
+    PrimitiveType.DURATION: ProtoFieldType.DURATION,
+    PrimitiveType.UUID: ProtoFieldType.STRING,  # see https://stackoverflow.com/q/36344826/3375858
+    PrimitiveType.JSON: ProtoFieldType.VALUE,
 }
 
 _ThingType = type[Union["BuiltinObject", "Property", BuiltinEnum, enum.IntFlag]]
@@ -45,11 +53,11 @@ _ThingType = type[Union["BuiltinObject", "Property", BuiltinEnum, enum.IntFlag]]
 
 def map_bench_property_to_proto(
     prop: "Property", cache: dict[_ThingType, ProtoThing]
-) -> Field | Sequence[Field]:
+) -> ProtoField | Sequence[ProtoField]:
     assert prop.id == 1 or not prop.is_ephemeral, f"shouldn't map runtime property: {prop!r}"
     assert isinstance(prop.id, int), f"stored properties need an id: {prop!r}"
     if prop.is_node_reference:
-        return Field(
+        return ProtoField(
             id=prop.id,
             name=prop.name,
             type="NodeReferenceData",
@@ -58,8 +66,8 @@ def map_bench_property_to_proto(
         )
     elif prop.is_struct or prop.is_enum:
         proto_t = map_object_type_to_proto(prop.py_type, cache)
-        assert isinstance(proto_t, (Enum, Message)), f"unexpected property type: {proto_t!r}"
-        return Field(
+        assert isinstance(proto_t, (ProtoEnum, Message)), f"unexpected property type: {proto_t!r}"
+        return ProtoField(
             id=prop.id,
             name=prop.name,
             type=proto_t,
@@ -68,15 +76,15 @@ def map_bench_property_to_proto(
         )
     elif prop.primitive_type in PROTO_FIELD_TYPE_BY_PRIMITIVE_TYPE:
         field_type = PROTO_FIELD_TYPE_BY_PRIMITIVE_TYPE[prop.primitive_type]
-        return Field(
+        return ProtoField(
             id=prop.id,
             name=prop.name,
             type=field_type,
             optional=prop.is_optional or prop.is_sensitive,
             repeated=prop.is_list,
         )
-    elif prop.reference_is_node_data:
-        return Field(
+    elif prop.is_node_data:
+        return ProtoField(
             id=prop.id,
             name=prop.name,
             type="SomeNodeData",
@@ -98,18 +106,14 @@ def map_builtin_object_to_proto(
         assert isinstance(message, Message), f"unexpected cached {message!r} for {cls!r}"
         return message
     message = Message(name=alias or cls.__name__, reserved_names=[], reserved_ids=[], fields=[])
-    doc = (
-        cls.__doc__ or cls.__base_class__.__doc__
-        if issubclass(cls, Node) and cls.__base_class__
-        else None
-    )
+    doc = cls.__doc__ if issubclass(cls, Node) else None
     message.comment = (doc or "").strip()
     cache[cls] = message  # to solve recursive references
     for prop in properties if properties is not None else cls.__properties__.values():
         if not prop.is_proto:
             continue
         fields = map_bench_property_to_proto(prop, cache)
-        if isinstance(fields, Field):
+        if isinstance(fields, ProtoField):
             fields = [fields]
         message.fields.extend(fields)
     message.fields.sort(key=lambda f: cast(int, f.id))
@@ -120,27 +124,30 @@ def map_builtin_enum_to_proto(
     bench_t: type[BuiltinEnum] | type[enum.IntFlag],
     cache: dict[_ThingType, ProtoThing],
     alias: str | None = None,
-) -> Enum:
+) -> ProtoEnum:
     assert issubclass(
         bench_t, (BuiltinEnum, enum.IntEnum, enum.IntFlag)
     ), f"invalid enum: {bench_t!r}"
     enum_prefix = to_casing(alias or bench_t.__name__, Casing.ALL_CAPS) + "_"
     if issubclass(bench_t, BuiltinEnum):
         enum_values = [
-            EnumValue(id=member.id, name=enum_prefix + member.name) for member in bench_t
+            ProtoEnumValue(id=member.id, name=enum_prefix + member.name) for member in bench_t
         ]
     elif issubclass(bench_t, (enum.IntFlag, enum.IntEnum)):
         # use int values as ids
         enum_values = [
-            EnumValue(id=name, name=enum_prefix + id_) for id_, name in bench_t.__members__.items()
+            ProtoEnumValue(id=name, name=enum_prefix + id_)
+            for id_, name in bench_t.__members__.items()
         ]
     else:
         raise TypeError(f"invalid enum type: {bench_t!r}")
     # add unset if not already present
     if not any(v.id == 0 for v in enum_values):
-        enum_values = [EnumValue(id=0, name=enum_prefix + "UNSPECIFIED"), *enum_values]
+        enum_values = [ProtoEnumValue(id=0, name=enum_prefix + "UNSPECIFIED"), *enum_values]
     has_duplicates = len(enum_values) != len({v.id for v in enum_values})
-    proto_t = Enum(name=alias or bench_t.__name__, values=enum_values, allow_alias=has_duplicates)
+    proto_t = ProtoEnum(
+        name=alias or bench_t.__name__, values=enum_values, allow_alias=has_duplicates
+    )
     if bench_t.__doc__:
         proto_t.comment = bench_t.__doc__.strip()
     return proto_t
@@ -168,13 +175,13 @@ def map_object_type_to_proto(
 def generate_proto_schema(
     name: str,
     unions: dict[str, tuple[str, Collection[type[Union["BuiltinObject", BuiltinEnum]]]]],
-    extras: list[Enum | Message],
+    extras: list[ProtoEnum | Message],
     message_postfix: str,
 ) -> ProtoSchema:
     from bench.language import Node
 
     proto_types_cache: dict[_ThingType, ProtoThing] = {}
-    proto_types: list[Enum | Message] = []
+    proto_types: list[ProtoEnum | Message] = []
     # enums
     for enum_t in EnumType:
         enum_cls = cast(type[BuiltinEnum], BENCH_CLASS_BY_TYPE[enum_t])
@@ -197,15 +204,15 @@ def generate_proto_schema(
     # add custom union types
     for union_name, (wrapper_field_name, unioned_types) in unions.items():
         sub_fields = [
-            Field(
+            ProtoField(
                 id=i + 1,
                 name=to_casing(t.__name__, Casing.SNAKE),
                 type=cast(Any, map_object_type_to_proto(t, proto_types_cache)),
             )
             for i, t in enumerate(unioned_types)
         ]
-        wrapper_field = Field(
-            id=None, name=wrapper_field_name, type=FieldType.ONE_OF, sub_fields=sub_fields
+        wrapper_field = ProtoField(
+            id=None, name=wrapper_field_name, type=ProtoFieldType.ONE_OF, sub_fields=sub_fields
         )
         wrapper_message = Message(
             name=union_name, reserved_names=[], reserved_ids=[], fields=[wrapper_field]

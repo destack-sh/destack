@@ -41,7 +41,7 @@ from .graph import NodeSuperGraph
 from .icon import Icon, reverse_icon
 from .node import Node, NodeReference, PackageNode
 from .object import BuiltinObject, PropertyReference
-from .property import Property, ReferenceKind
+from .property import NodeReferenceKind, Property
 from .struct import Struct
 from .text import Text, TextLine, text_line_to_markdown, text_to_markdown
 from .type import TypeBase, TypeConstraint, reverse_type_scalar
@@ -381,9 +381,9 @@ def _deconstruct_builtin_object(
         elif (
             prop.id is None
             or prop.is_internal
-            or prop.reference_source
-            or prop.reference_kind == ReferenceKind.NODE_ANCESTOR
-            or prop.reference_kind == ReferenceKind.NODE_ANCESTOR_OR_SELF
+            or prop.runtime_prop
+            or prop.node_kind == NodeReferenceKind.NODE_ANCESTOR
+            or prop.node_kind == NodeReferenceKind.NODE_ANCESTOR_OR_SELF
         ):
             continue  # ignore internal properties
         prop_value = getattr(obj, prop.name)

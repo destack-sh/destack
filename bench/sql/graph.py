@@ -54,14 +54,14 @@ from bench.language import (
     NodeArea,
     NodeDataGraph,
     NodeReference,
+    NodeReferenceKind,
+    NodeReferenceMeta,
     NodeType,
     PrimitiveType,
     PrimitiveValue,
     Property,
-    PropertyReferenceType,
     QueryType,
     Record,
-    ReferenceKind,
     SelectOptions,
     SortType,
     Table,
@@ -223,18 +223,16 @@ def map_builtin_object_to_sql_table(
             else:
                 raise TypeError(f"unexpected default in {prop!r}: {prop.default!r}")
         # FKs
-        reference_nodes = (
-            prop.reference_nodes or () if prop.reference_nodes != "any" else NODE_TYPES.tuple
-        )
+        reference_nodes = prop.node_types or () if prop.node_types != "any" else NODE_TYPES.tuple
         if (
-            (prop.reference_kind == ReferenceKind.NODE_PARENT or prop.reference_force_fk)
+            (prop.node_kind == NodeReferenceKind.NODE_PARENT)
             and not prop.is_list  # foreign keys must be scalar
             and reference_nodes
             and all(r.area == node.__area__ for r in reference_nodes)
         ):
             assert len(reference_nodes) == 1, f"stored prop {prop!r} has multiple references"
             column.is_foreign_key_to = get_node_table_name(reference_nodes[0])
-            if prop.reference_kind in (ReferenceKind.NODE_PARENT, ReferenceKind.NODE_ANCESTOR):
+            if prop.node_kind in (NodeReferenceKind.NODE_PARENT, NodeReferenceKind.NODE_ANCESTOR):
                 column.on_delete = SqlCascadeAction.CASCADE
             else:
                 column.on_delete = SqlCascadeAction.SET_NULL
@@ -372,7 +370,7 @@ def _pg_lower_conditional(
     prop = cond.property
 
     # translate general pointer queries into underlying id/ck queries
-    if prop is not None and prop.reference_kind is not None:
+    if prop is not None and prop.node_kind is not None:
         assert prop.reference_stored_ids, f"unexpected stored ids: {prop!r}"
         is_list = cond.type == ConditionalType.IN or cond.type == ConditionalType.NOT_IN
         id_prop = prop.reference_stored_ids[0]
@@ -381,10 +379,10 @@ def _pg_lower_conditional(
             id_clause.value = cond.value.id if not is_list else [r.id for r in cond.value]
         if (
             prop.reference_stored_metas
-            and PropertyReferenceType.CK in prop.reference_stored_metas
-            and prop.reference_stored_metas[PropertyReferenceType.CK] is not id_prop
+            and NodeReferenceMeta.CK in prop.reference_stored_metas
+            and prop.reference_stored_metas[NodeReferenceMeta.CK] is not id_prop
         ):
-            ck_prop = prop.reference_stored_metas[PropertyReferenceType.CK]
+            ck_prop = prop.reference_stored_metas[NodeReferenceMeta.CK]
             ck_clause = C(op=cond.type, property=ck_prop)
             if cond.value_packed is not None:
                 ck_clause.value = cond.value.ck if not is_list else [r.ck for r in cond.value]
@@ -572,7 +570,7 @@ def _unpack_builtin_object_data_prop_scalar(
     """Unpacks the value of a BuiltinObject property from Postgres."""
     if value_packed is None:
         return None
-    elif prop.reference_struct:
+    elif prop.struct_type:
         return unpack_builtin_object_data(value_packed, into=into)
     elif prop.primitive_type == PrimitiveType.UUID:
         return str(value_packed)
@@ -665,7 +663,7 @@ def _pg_pack_node_reference_into_row(
             raise ValueError(f"expected single reference, got {value!r}")
         # pointer id/ck
         for stored_prop in prop.reference_stored_ids:
-            assert stored_prop.reference_nodes is not None, f"no reference nodes: {stored_prop!r}"
+            assert stored_prop.node_types is not None, f"no reference nodes: {stored_prop!r}"
             if reference is not None:
                 row[stored_prop.name] = reference.id
             else:
@@ -688,10 +686,10 @@ def _pg_unpack_node_reference_from_row(prop: Property, row: RowOut, node: AnyNod
 
     assert prop.reference_stored_ids is not None, f"no stored ids for {prop!r}"
     assert prop.reference_stored_metas is not None, f"no stored extras for {prop!r}"
-    assert prop.reference_wired_ptr is not None, f"no wired ptr for {prop!r}"
+    assert prop.ptr_prop is not None, f"no wired ptr for {prop!r}"
     if prop.is_list:  # list reference
         # can only be a a set of id props + a single ck prop
-        ptrs = getattr(node, prop.reference_wired_ptr.name)
+        ptrs = getattr(node, prop.ptr_prop.name)
         # pointer id/cks
         for stored_prop in prop.reference_stored_ids:
             ids = cast(list[UUID] | None, row.get(stored_prop.name))
@@ -699,7 +697,7 @@ def _pg_unpack_node_reference_from_row(prop: Property, row: RowOut, node: AnyNod
                 ptr: NodeReferenceData = ptrs.add()
                 ptr.metatype = pb2.ObjectType.OBJECT_TYPE_NODE_REFERENCE
                 ptr.id = str(id)
-                ptr.node_type = cast(list[pb2.NodeType], stored_prop.reference_nodes)[0]
+                ptr.node_type = cast(list[pb2.NodeType], stored_prop.node_types)[0]
                 if ptr.node_type == NodeType.BENCH:
                     ptr.bench_id = ptr.id
                 elif node.metatype == NodeType.BENCH:
@@ -731,7 +729,7 @@ def _pg_unpack_node_reference_from_row(prop: Property, row: RowOut, node: AnyNod
                     metatype=pb2.ObjectType.OBJECT_TYPE_NODE_REFERENCE,
                     id=str(value),
                     # if this is a heterogeneous ck pointer, type will be overwritten from extras
-                    node_type=cast(list[pb2.NodeType], stored_prop.reference_nodes)[0],
+                    node_type=cast(list[pb2.NodeType], stored_prop.node_types)[0],
                 )
                 break
         else:
@@ -758,7 +756,7 @@ def _pg_unpack_node_reference_from_row(prop: Property, row: RowOut, node: AnyNod
             setattr(ptr, meta_key, extra_value)
         if not ptr.ck:
             ptr.ck = ptr.id
-        getattr(node, prop.reference_wired_ptr.name).CopyFrom(ptr)
+        getattr(node, prop.ptr_prop.name).CopyFrom(ptr)
 
 
 def _pg_pack_node_data_row(
@@ -776,7 +774,7 @@ def _pg_pack_node_data_row(
         for name, prop in node_cls.__proto_properties__.items():
             if prop.is_value_packed and node_cls.__is_local__:
                 continue  # value is stored in unraveled columns
-            elif prop.reference_source is None or not prop.is_node_reference:
+            elif prop.runtime_prop is None or not prop.is_node_reference:
                 # regular non-ref property
                 if prop.is_optional_scalar and not node.HasField(name):
                     value = None
@@ -785,12 +783,12 @@ def _pg_pack_node_data_row(
                 row[name] = _pack_builtin_object_data_prop(prop, value)
             else:
                 # unravel stored node reference :StoredPointers
-                wired_name = cast(Property, prop.reference_source.reference_wired_ptr).name
+                wired_name = cast(Property, prop.runtime_prop.ptr_prop).name
                 if prop.is_optional_scalar and not node.HasField(wired_name):
                     value = None
                 else:
                     value = getattr(node, wired_name)
-                _pg_pack_node_reference_into_row(prop.reference_source, row, value)
+                _pg_pack_node_reference_into_row(prop.runtime_prop, row, value)
 
         # unravel value-packed fields
         if node_cls.__is_local__ and table is not None:
@@ -837,9 +835,9 @@ def _pg_unpack_node_data_row(
         for name, prop in node_cls.__proto_properties__.items():
             if prop.is_value_packed and node_cls.__is_local__:
                 continue  # value is stored in unraveled columns
-            if prop.reference_source is not None and prop.is_node_reference:
+            if prop.runtime_prop is not None and prop.is_node_reference:
                 # ravel stored node reference :StoredPointers
-                _pg_unpack_node_reference_from_row(prop.reference_source, row, obj_data)
+                _pg_unpack_node_reference_from_row(prop.runtime_prop, row, obj_data)
                 continue
             # regular non-ref property
             value = row.get(name)

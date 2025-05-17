@@ -207,13 +207,13 @@ def get_naive_object_strategy(object_type: ObjectType):
             # ignore runtime-only properties
             prop.id is None
             # ignore identity/tracking properties
-            or (prop.id < 30 and prop.reference_kind is not None)
+            or (prop.id < 30 and prop.node_kind is not None)
             # ignore contributed wired properties (they're derived from the generated one)
-            or (prop.reference_source is not None)
+            or (prop.runtime_prop is not None)
             # ignore autoset properties (ids, timestamps)
             or prop.is_autoset
             # ignore node data properties
-            or prop.reference_is_node_data
+            or prop.is_node_data
         ):
             continue  # :IgnoredGeneratedProperties
         elif (object_type, prop.name) in STRATEGY_BY_OBJECT_PROPERTY:
@@ -221,14 +221,12 @@ def get_naive_object_strategy(object_type: ObjectType):
         elif prop.name in STRATEGY_BY_PROPERTY:
             object_kwargs[prop.name] = STRATEGY_BY_PROPERTY[prop.name]
         elif prop.is_node_reference:
-            if not prop.reference_nodes:
+            if not prop.node_types:
                 continue  # nothing to do
             # generate random reference instead of node (sometimes this is enough)
-            assert prop.reference_wired_ptr is not None, f"{prop!r} has no wired ptr"
-            reference_nodes = (
-                prop.reference_nodes if prop.reference_nodes != "any" else NODE_TYPES.tuple
-            )
-            object_kwargs[prop.reference_wired_ptr.name] = wrap_value_scalar(
+            assert prop.ptr_prop is not None, f"{prop!r} has no wired ptr"
+            reference_nodes = prop.node_types if prop.node_types != "any" else NODE_TYPES.tuple
+            object_kwargs[prop.ptr_prop.name] = wrap_value_scalar(
                 node_references(st.sampled_from(reference_nodes)),
                 is_required=prop.is_required,
                 is_list=prop.is_list,
@@ -237,7 +235,7 @@ def get_naive_object_strategy(object_type: ObjectType):
             object_kwargs[prop.name] = wrap_value_scalar(
                 properties(), is_required=prop.is_required, is_list=prop.is_list
             )
-        elif prop.reference_is_node_data:
+        elif prop.is_node_data:
             object_kwargs[prop.name] = st.none()  # nothing meaningful to generate?
         else:
             object_kwargs[prop.name] = from_type_info(prop.type_info)

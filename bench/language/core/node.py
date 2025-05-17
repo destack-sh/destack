@@ -17,7 +17,7 @@ from typing import (
     overload,
     override,
 )
-from uuid import UUID, uuid4
+from uuid import UUID
 
 import structlog
 from opentelemetry import trace
@@ -35,6 +35,7 @@ from bench.pb2 import AnyNodeData, NodeReferenceData
 from bench.utils.func import dualmethod, hash_stable
 from bench.utils.string import Casing, to_casing, to_code_name
 from bench.utils.utils import frozendict
+from bench.utils.uuidt import UUIDT
 
 from .const import (
     ACTIVE_SESSION,
@@ -48,10 +49,10 @@ from .const import (
     UNSET,
     BuiltinEnum,
     NodeArea,
+    NodeReferenceKind,
     NodeType,
     ObjectType,
     QueryType,
-    ReferenceKind,
     StructType,
     active_session,
     bittuple,
@@ -136,8 +137,8 @@ def node_component_(
         ancestor_properties: dict[str, Property] = {}
         for prop in properties.values():
             if (
-                prop.reference_kind == ReferenceKind.NODE_ANCESTOR
-                or prop.reference_kind == ReferenceKind.NODE_ANCESTOR_OR_SELF
+                prop.node_kind == NodeReferenceKind.NODE_ANCESTOR
+                or prop.node_kind == NodeReferenceKind.NODE_ANCESTOR_OR_SELF
             ):
                 ancestor_properties[prop.name] = prop
         cls.__node_ancestor_properties__ = frozendict(ancestor_properties)
@@ -199,7 +200,7 @@ def node_(
         parent_property = cls.__properties__.get("parent", None)
         assert parent_property is not None, f"missing parent property for {node_type}"
         cls.__parent_property__ = parent_property
-        cls.__parent_types__ = parent_property.reference_nodes or ()
+        cls.__parent_types__ = parent_property.node_types or ()
 
         cls.__root_types__ = bittuple(*roots, enum_cls=NodeType)
         cls.__is_in_package__ = in_package
@@ -235,18 +236,15 @@ class Node[NodeDataT: AnyNodeData](BuiltinObject[NodeDataT]):
     metatype: ClassVar[NodeType]  # type: ignore
 
     __is_node__: ClassVar[bool] = True
-    __parent_property__: ClassVar[Property] = UNSET
-    __parent_types__: ClassVar[tuple[NodeType, ...]] = ()
-    __id_factory__: ClassVar[Callable[[], UUID]] = uuid4
-
-    __node_ancestor_properties__: ClassVar[dict[str, Property]] = frozendict()
-    __base_class__: ClassVar[type["Node"] | None] = None
-
-    __root_types__: ClassVar[bittuple[NodeType]] = UNSET
-    __is_in_bench__: ClassVar[bool] = UNSET  # part of a Bench
-    __is_in_package__: ClassVar[bool] = UNSET  # part of a Package
     __is_stored__: ClassVar[bool] = False  # stored in primary store (runtime or local)
     __is_local__: ClassVar[bool] = False  # custom storage logic (for records)
+    __is_in_bench__: ClassVar[bool] = UNSET  # part of a Bench
+    __is_in_package__: ClassVar[bool] = UNSET  # part of a Package
+    __root_types__: ClassVar[bittuple[NodeType]] = UNSET
+    __parent_types__: ClassVar[tuple[NodeType, ...]] = ()
+    __parent_property__: ClassVar[Property] = UNSET
+    __node_ancestor_properties__: ClassVar[dict[str, Property]] = frozendict()
+    __id_factory__: ClassVar[Callable[[], UUID]] = UUIDT
     __area__: ClassVar[NodeArea]
     __indexes__: ClassVar[tuple[IndexIn, ...]] = ()
 
@@ -566,7 +564,7 @@ class Node[NodeDataT: AnyNodeData](BuiltinObject[NodeDataT]):
         # map new identities (at root)
         if not _is_nested and type(_map) is dict:
             for node in _map.values():
-                node.replace_references(_map, exclude=(ReferenceKind.NODE_PARENT,))
+                node.replace_references(_map, exclude=(NodeReferenceKind.NODE_PARENT,))
 
         # append to our parent to re-attach
         parent = self.parent

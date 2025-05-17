@@ -112,11 +112,11 @@ def pack_builtin_object_prop_scalar(obj: BuiltinObject, prop: Property, value: A
         return None
     elif prop.is_struct:
         return pack_builtin_object(value)
-    elif prop.reference_is_node_data:
+    elif prop.is_node_data:
         return wrap_some_node(value)
     elif prop.is_enum:
         return pack_enum(prop.py_type, value)
-    elif prop.reference_kind is not None and not prop.reference_kind.is_struct_tree:
+    elif prop.node_kind is not None and not prop.node_kind.is_struct_tree:
         value_id = str(value.id)
         return NodeReferenceData(
             metatype=pb2.ObjectType.OBJECT_TYPE_NODE_REFERENCE,
@@ -148,11 +148,11 @@ def unpack_builtin_object_prop_scalar(
             return None
         elif prop.is_struct:
             return unpack_builtin_object(value, supergraph=supergraph)
-        elif prop.reference_is_node_data:
+        elif prop.is_node_data:
             return unwrap_some_node(value)
         elif prop.is_enum:
             return unpack_enum(prop.py_type, value)
-        elif prop.reference_kind is not None and not prop.reference_kind.is_struct_tree:
+        elif prop.node_kind is not None and not prop.node_kind.is_struct_tree:
             value_id = UUID(value.id)
             return NodeReference(
                 node_type=unpack_enum(NodeType, value.node_type),
@@ -186,8 +186,8 @@ def unpack_builtin_object_prop(prop: Property, value: Any, *, supergraph: NodeSu
 
 def get_object_prop(obj_data: AnyStructData | AnyNodeData, prop: Property) -> Any:
     """Gets the value of the given property from the given data object."""
-    if prop.reference_wired_ptr is not None:
-        prop = prop.reference_wired_ptr
+    if prop.ptr_prop is not None:
+        prop = prop.ptr_prop
     prop_name = prop.name
     if prop.is_optional_scalar and not obj_data.HasField(prop_name):
         return None

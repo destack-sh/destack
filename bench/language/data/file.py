@@ -814,9 +814,7 @@ class File(ResourceBase[FileData], FileBase):
     # ...FileInfoBase[50-79]
 
     # content
-    retention: FileRetentionMode = p_system(
-        80, default=FileRetentionMode.AUTOMATIC, default_sql=None
-    )
+    retention: FileRetentionMode = p_system(80, default=FileRetentionMode.AUTOMATIC)
     expires_at: Optional[datetime] = p_system(81)
 
     __content_str__ = FileBase.__content_str__  # type: ignore
