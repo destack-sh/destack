@@ -249,11 +249,7 @@ class IsTemplatable(BuiltinObject):
             for node in _map.values():
                 node.replace_references(
                     _map,
-                    exclude=(
-                        ReferenceKind.NODE_PARENT,
-                        ReferenceKind.NODE_CHILDREN,
-                        ReferenceKind.NODE_TEMPLATE,
-                    ),
+                    exclude=(ReferenceKind.NODE_PARENT, ReferenceKind.NODE_TEMPLATE),
                 )
 
         # append to our parent to re-attach

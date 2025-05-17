@@ -1,25 +1,18 @@
 import math
-from typing import cast
 
-import pytest
 from hypothesis import HealthCheck, given, settings
 
 from bench.language import (
     Action,
     ActionType,
     BuiltinObject,
-    CustomObject,
     Field,
     FieldType,
     Flow,
-    Node,
-    NodeType,
     Package,
     PrimitiveType,
     Session,
     Text,
-    Type,
-    TypeKind,
     coerce_custom_object_scalar,
     pack_builtin_object,
     pack_builtin_object_data,
@@ -58,36 +51,6 @@ def test_custom_object_with_builtin_properties(session: Session, package: Packag
     obj_packed = pack_custom_object(obj, Flow1Output)
     obj_unpacked = unpack_custom_object(obj_packed, Flow1Output, supergraph=session._supergraph)
     assert obj_unpacked.equals(obj)
-
-
-def test_partial_node_generic(session: Session, package: Package) -> None:
-    """Create, update, pack/unpack a partial generic node."""
-    typ = Type(kind=TypeKind.PARTIAL_OBJECT)
-    obj = CustomObject.new({}, typ)
-
-    # should be init to empty/default values for Node
-    assert obj.id is None
-    assert obj.parent is None
-    # shouldn't have any sub-properties yet
-    with pytest.raises(AttributeError):
-        _ = obj.text  # doesn't exist on Node
-
-    # set metatype, then set properties for Field
-    obj.metatype = NodeType.FIELD
-    obj.type = FieldType.INPUT
-    obj.kind = TypeKind.PRIMITIVE
-    obj.name = "Option1"
-    assert obj.name == "Option1"
-
-    # pack/unpack
-    obj_packed = pack_custom_object(obj, typ)
-    obj_unpacked = unpack_custom_object(obj_packed, typ, supergraph=session._supergraph)
-    assert obj_unpacked.equals(obj)
-
-    # turn into full node
-    full_obj = cast(Field, Node.from_partial(obj))
-    assert full_obj.id is not None
-    assert full_obj.name == "Option1"
 
 
 def test_unpack_custom_object(session: Session, package: Package) -> None:

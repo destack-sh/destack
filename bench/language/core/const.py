@@ -805,7 +805,7 @@ class NodeType(BuiltinEnum):
     GRADIENT_STYLE = 9014, "Gradient Style", "Gradient Style", "fas fa-gradient"
     TRANSITION_STYLE = 9015, "Transition Style", "Transition Style", "fas fa-bezier-curve"
     EFFECT_STYLE = 9016, "Effect Style", "Effect Style", "fas fa-sparkle"
-    # VARIANT = 9030, "Variant", "Variant", "fas fa-bring-forward"
+    # VARIANT :RichGraph
 
     # canvas?
     # CANVAS/DRAWING, SHAPE, BRUSH, ...
@@ -1201,12 +1201,8 @@ class ReferenceKind(BuiltinEnum):
     NODE_ANCESTOR = 1
     NODE_ANCESTOR_OR_SELF = 2
     NODE_PARENT = 3
-    NODE_CHILDREN = 4
     NODE_REGULAR = 5
     NODE_TEMPLATE = 6
-    STRUCT_PARENT = 10
-    STRUCT_CHILD = 11
-    PROPERTY = 20
 
     @property
     def is_node_tree(self):
@@ -1411,9 +1407,7 @@ class TypeKind(BuiltinEnum):
     STRUCT = 2
     NODE = 3
     ENUM = 4
-    BASED_NODE = 5
     CUSTOM_OBJECT = 6
-    PARTIAL_OBJECT = 7
 
 
 @enum_(EnumType.FIELD_ZONE)

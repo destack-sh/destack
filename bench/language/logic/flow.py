@@ -79,7 +79,7 @@ class Flow(
         from bench.language.core import Type
 
         if of == "instance":
-            return Type(kind=TypeKind.BASED_NODE, base_type=self, bench_type=NodeType.RUN)
+            return Type(kind=TypeKind.NODE, base_type=self, bench_type=NodeType.RUN)
         else:
             field_types = field_types or []
             return Type(

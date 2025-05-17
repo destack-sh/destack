@@ -50,7 +50,7 @@ class Computer(IsSubject, ProvisionableResourceBase[ComputerData]):
     # NOTE :Security: Computer.grpc_url/vnc_url should maybe be :RealSecrets
     grpc_url: Optional[str] = p_kernel(65, sensitive=True)
     vnc_url: Optional[str] = p_kernel(66, sensitive=True)
-    client: Optional["Client"] = p_system(69, fk=True, same_bench=True)
+    client: Optional["Client"] = p_system(69, same_bench=True)
     if TYPE_CHECKING:
         client_ptr: Optional[NodeReference] = None
         client_id: Optional[UUID] = None

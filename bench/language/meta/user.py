@@ -51,9 +51,9 @@ class User(IsSubject, Node[UserData]):
     # last_active_at: Optional[datetime] = ...
     # seen_at: Optional[datetime] = ...
 
-    bench: Optional["Bench"] = p_system(50, fk=True)
-    handle: Optional["Handle"] = p_system(51, fk=True)
-    cursor: Optional["Cursor"] = p_regular(52, fk=True)
+    bench: Optional["Bench"] = p_system(50)
+    handle: Optional["Handle"] = p_system(51)
+    cursor: Optional["Cursor"] = p_regular(52)
     if TYPE_CHECKING:
         bench_id: Optional[UUID] = None
         bench_ptr: Optional[NodeReference] = None

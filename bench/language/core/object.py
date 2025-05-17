@@ -52,7 +52,7 @@ from .const import (
     StructType,
 )
 from .graph import NULL_SUPERGRAPH, NodeSuperGraph
-from .list import RemoteNodeList, ValueList
+from .list import RemoteNodeList
 from .property import (
     _PROPERTY_SPECIFIERS,
     METATYPE_PROPERTY,
@@ -61,7 +61,6 @@ from .property import (
     p_internal,
     p_regular,
     p_runtime,
-    p_struct_parent,
 )
 from .validation import ValidationHandler, on_invalid_raise
 
@@ -202,8 +201,6 @@ def _process_object_cls[ObjectT: BuiltinObject](
             ReferenceKind.NODE_ANCESTOR,
             ReferenceKind.NODE_REGULAR,
             ReferenceKind.NODE_TEMPLATE,
-            ReferenceKind.STRUCT_PARENT,
-            ReferenceKind.PROPERTY,
         ):
             if prop.reference_kind == ReferenceKind.NODE_TEMPLATE:
                 if not (is_final and is_node):
@@ -250,7 +247,7 @@ def _process_object_cls[ObjectT: BuiltinObject](
                     setattr(cls, name, _node_ancestor_ref(prop))
                     setattr(cls, f"{name}_ptr", _node_ancestor_ptr_ref(prop))
                 # computed _x node reference properties (e.g., parent_id, type_ck, node_type, ...)
-                if prop.is_node_reference and prop.reference_kind != ReferenceKind.NODE_CHILDREN:
+                if prop.is_node_reference:
                     for obj_key, ptr_key in (("id", "id"), ("ck", "ck"), ("type", "node_type")):
                         if obj_key == "type" and (
                             not prop.reference_nodes or len(prop.reference_nodes) <= 1
@@ -314,7 +311,6 @@ def _process_object_cls[ObjectT: BuiltinObject](
     cls.__struct_reference_properties__ = frozendict(
         {p.name: p for p in props if p.is_struct_reference and not p.reference_source}
     )
-    cls.__sensitive_properties__ = frozendict({p.name: p for p in props if p.is_sensitive})
     cls.__struct_properties__ = frozendict({p.name: p for p in props if p.is_struct})
     cls.__value_runtime_properties__ = frozendict({p.name: p for p in props if p.is_value_runtime})
     cls.__stored_properties__ = frozendict(
@@ -772,19 +768,6 @@ class BuiltinObject[ObjectDataT: AnyObjectData](abc.ABC):
                     wired_prop_value = cast(Any, prop_value).to_ref()
                 self_dict[wired_ptr_prop.name] = wired_prop_value
                 continue
-            # move struct values into this object if passed
-            elif prop.reference_kind == ReferenceKind.STRUCT_CHILD:
-                if prop.is_list:
-                    # and init value list
-                    assert prop.reference_list_type is not None, f"no list type for {prop!r}"
-                    value_list = prop.reference_list_type(cast("Node", self))
-                    if isinstance(prop_value, list):
-                        cast("ValueList", value_list).extend(
-                            *prop_value
-                        )  # will auto copy if needed
-                    prop_value = value_list
-                elif isinstance(prop_value, Struct):
-                    prop_value = prop_value._move_to(cast("Node | Struct", self), prop)
 
             # default value
             if prop_value is UNSET:
@@ -947,14 +930,6 @@ class BuiltinObject[ObjectDataT: AnyObjectData](abc.ABC):
 
             # check (if it's not a contributed property, which are system-only)
             if (typ := prop._type) is not None and prop.reference_source is None:
-                # move
-                if prop.reference_kind == ReferenceKind.STRUCT_CHILD:
-                    if not prop.is_list:
-                        if new_value is not None:
-                            new_value = new_value._move_to(self, prop)
-                    else:
-                        new_value = [v._move_to(self, prop) for v in new_value]
-
                 # coerce value
                 if IS_IN_USER_CODE.get():
                     new_value = coerce_value(new_value, typ, supergraph=self._supergraph)
@@ -1185,9 +1160,6 @@ class Struct[StructDataT: AnyStructData](BuiltinObject[StructDataT], abc.ABC):
 
     __is_struct__: ClassVar[bool] = True
 
-    parent: StructParent | None = p_struct_parent(3)
-    parent_key: StructParentKey | None = p_runtime(default=None)
-
     def __content_str__(self) -> str:
         # default __content_str__ for Structs with all set properties
         value_strs = []
@@ -1216,59 +1188,6 @@ class Struct[StructDataT: AnyStructData](BuiltinObject[StructDataT], abc.ABC):
             return f"<{self.__class__.__name__} {content_str}>"
         else:
             return f"<{self.__class__.__name__}>"
-
-    def replace(self, **kwargs) -> Self:
-        """Replaces specific properties in this struct (in a copy)."""
-        copy = self.clone()
-        for prop_name, prop_value in kwargs.items():
-            setattr(copy, prop_name, prop_value)
-        return copy
-
-    def override(self, override: "Self | None" = None, copy: bool = True, **kwargs) -> Self:
-        """Overrides this Struct with set properties from another struct (in a copy)."""
-        if override is None and len(kwargs) == 0:
-            return self
-        clone = self.clone() if copy else self
-        if override is not None:
-            for prop in self.__declared_properties__.values():
-                override_value = getattr(override, prop.name)
-                if clone.is_set(prop, override_value):
-                    setattr(clone, prop.name, override_value)
-        for key, value in kwargs.items():
-            setattr(clone, key, value)
-        return clone
-
-    def set_default(self, override: "Self", copy: bool = True, **kwargs) -> Self:
-        """Sets default values from another Struct. Like override but only sets if unset."""
-        clone = self.clone() if copy else self
-        for prop in override.__declared_properties__.values():
-            override_value = getattr(override, prop.name)
-            if clone.is_set(prop, override_value) and not self.is_set(prop):
-                setattr(clone, prop.name, override_value)
-        return clone
-
-    def _move_to(
-        self,
-        parent: StructParent,
-        parent_key: StructParentKey,
-    ) -> Self:
-        """Move or copy this Struct into given parent/prop."""
-        assert self.__is_struct__, f"cannot copy non-struct {self!r}"  # this is overriden by Node
-        if self.parent is None:  # detached
-            self._do_set("parent", parent, track=False)
-            self._do_set("parent_key", parent_key, track=False)
-            return self
-        else:
-            copy = self._copy_to(parent, parent_key)
-            return copy
-
-    def _copy_to(self, parent: StructParent, parent_key: StructParentKey) -> Self:
-        """Create a copy of this Struct for the given parent/prop."""
-        kwargs = {p.name: getattr(self, p.name) for p in self.__proto_properties__.values()}
-        kwargs["parent"] = parent
-        kwargs["parent_key"] = parent_key
-        copy = self.__class__(**kwargs)
-        return copy
 
 
 def is_node[T: Node](obj: Any, node_cls: type[T]) -> TypeGuard[T]:

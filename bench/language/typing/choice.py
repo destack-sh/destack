@@ -36,7 +36,7 @@ class Choice(
         return ""
 
     def to_type_maybe(self, of: Literal["instance", "value"] = "instance") -> "TypeBase | None":
-        return Type(kind=TypeKind.BASED_NODE, base_type=self, bench_type=NodeType.OPTION)
+        return Type(kind=TypeKind.NODE, base_type=self, bench_type=NodeType.OPTION)
 
     def to_type(self) -> "TypeBase":
         typ = self.to_type_maybe()

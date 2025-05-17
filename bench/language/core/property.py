@@ -9,7 +9,6 @@ from typing import (
     Callable,
     Literal,
     Optional,
-    Union,
     cast,
 )
 from uuid import UUID
@@ -29,7 +28,6 @@ from .const import (
     UNSET,
     BuiltinEnum,
     EnumType,
-    FieldType,
     NodeType,
     ObjectType,
     PrimitiveType,
@@ -38,7 +36,6 @@ from .const import (
     TypeKind,
     enum_,
 )
-from .list import NodeList, ValueList
 
 if TYPE_CHECKING:
     from bench.language import (
@@ -46,7 +43,6 @@ if TYPE_CHECKING:
         NodeReference,
         PropertyReference,
         Type,
-        TypeBase,
         TypeConstraint,
         TypeConstraintIn,
     )
@@ -89,7 +85,7 @@ class Property(_IntoQuery if TYPE_CHECKING else object):
     name: str = UNSET  # name from LHS of assignment
     component: type["BuiltinObject"] = UNSET  # source component class
     py_type_raw: Any = None  # type annotation on LHS of assignment
-    py_type: Any = UNSET  # stripped type annotation
+    py_type: Any = UNSET  # clean type annotation
     primitive_type: PrimitiveType | None = UNSET
     enum_type: EnumType | None = None
     default: Any = UNSET
@@ -99,8 +95,8 @@ class Property(_IntoQuery if TYPE_CHECKING else object):
 
     # flags
     is_list: bool = UNSET
+    is_required: bool = UNSET  # must be non-null
     is_variable: bool = False  # may be wrapped in an indirect Variable lookupg
-    is_required: bool = False  # must be non-null
     is_internal: bool = False  # should be edited via accessors, but not enforced
     is_system: bool = False  # only editable by system
     is_kernel: bool = False  # only viewable by system
@@ -116,14 +112,6 @@ class Property(_IntoQuery if TYPE_CHECKING else object):
     is_sensitive: bool = False  # sensitive data (generally requires special permissions)
     is_untracked: bool = False  # whether writes are tracked
 
-    # value
-    is_value_runtime: bool = False  # for user 'value' properties
-    is_value_packed: bool = False  # for packed value properties (the underlying value)
-    value_packed_ptr: Union[int, "Property", None] = None  # the packed value
-    value_runtime_ptr: Union["Property", None] = None  # the runtime value
-    value_type_info_getter: Callable[["BuiltinObject"], "TypeBase | None"] | None = None
-    value_field_type: FieldType | None = None  # what field type this value represents
-
     # references to nodes or structs
     reference_kind: ReferenceKind | None = None
     reference_nodes: tuple[NodeType, ...] | Literal["any"] | None = None  # for node relations
@@ -135,7 +123,6 @@ class Property(_IntoQuery if TYPE_CHECKING else object):
     reference_type: PropertyReferenceType | None = None
     reference_source: Optional["Property"] = None
     reference_struct: StructType | None = None  # for struct child types
-    reference_list_type: type["NodeList"] | type["ValueList"] | None = None
     reference_is_bench_implicit: bool = False
     reference_is_ckless: bool = False
     reference_is_baseless: bool = False
@@ -253,22 +240,6 @@ class Property(_IntoQuery if TYPE_CHECKING else object):
         return self.id is not None and self.id is not UNSET
 
     @property
-    def is_introspectable(self) -> bool:
-        # NOTE :Cleanup: 'introspectable' has no clear definition and is only used in oddly specific places
-        #  (it used to indicate whether we set it as a property on the object class like Block.type)
-        return (
-            # exclude our own runtime-only properties
-            not self.is_ephemeral
-            # exclude references (we have them as properties, so they're not directly introspectable, but would be nice)
-            and not (self.reference_kind is not None and self.reference_kind.is_node)
-            and self.reference_kind != ReferenceKind.PROPERTY
-            and self.reference_kind != ReferenceKind.STRUCT_PARENT
-            and not self.reference_is_node_data
-            # exclude contributed reference properties (like parent_id)
-            and not self.reference_source
-        )
-
-    @property
     def is_tree_reference(self) -> bool:
         """Whether this is a tree relation property (parent/child/ancestor)."""
         return self.reference_kind is not None and self.reference_kind.is_node_tree
@@ -288,7 +259,7 @@ class Property(_IntoQuery if TYPE_CHECKING else object):
 
     @property
     def is_property_reference(self) -> bool:
-        return self.reference_kind == ReferenceKind.PROPERTY
+        return self.reference_struct == StructType.PROPERTY_REFERENCE
 
     @property
     def is_optional(self) -> bool:
@@ -340,10 +311,6 @@ class Property(_IntoQuery if TYPE_CHECKING else object):
             kind = TypeKind.STRUCT
             bench_type = self.reference_struct
             primitive_type = None
-        elif self.reference_kind == ReferenceKind.PROPERTY:
-            kind = TypeKind.STRUCT
-            bench_type = StructType.PROPERTY_REFERENCE
-            primitive_type = None
         elif self.enum_type:
             kind = TypeKind.ENUM
             bench_type = self.enum_type
@@ -377,7 +344,7 @@ class Property(_IntoQuery if TYPE_CHECKING else object):
                 self.is_introspectable
                 or self.reference_source is not None
                 or self.reference_nodes
-                or self.reference_kind == ReferenceKind.PROPERTY
+                or self.is_property_reference
                 or self.id == 1
             ):
                 self._type = self._to_type()
@@ -393,7 +360,7 @@ class Property(_IntoQuery if TYPE_CHECKING else object):
         assert self.reference_stored_ids is None, f"already contributed {self!r}"
 
         # property reference
-        if self.reference_kind == ReferenceKind.PROPERTY:
+        if self.is_property_reference:
             assert self.is_list is not UNSET, f"must set is_list on {self!r}"
             assert self.is_required is not UNSET, f"must set is_required on {self!r}"
             property_ptr = Property(
@@ -416,11 +383,6 @@ class Property(_IntoQuery if TYPE_CHECKING else object):
             self.reference_wired_ptr = property_ptr
             self.is_runtime = True
             return (property_ptr,)
-
-        # struct (parent) references
-        elif self.reference_kind == ReferenceKind.STRUCT_PARENT:
-            self.is_runtime = True
-            return ()  # no stored references
 
         # NOTE :Cleanup: mapping stored and wired references (i.e. node pointers) is gnarly.
         #  In wire pointers (=NodeReference[Data]) we conveniently have a struct with all the info:
@@ -683,17 +645,8 @@ class Property(_IntoQuery if TYPE_CHECKING else object):
 
     def _finalize_type(self) -> None:
         """Finalizes the type info for this property."""
-        if self.is_ephemeral or self.reference_kind == ReferenceKind.NODE_CHILDREN:
+        if self.is_ephemeral:
             return  # nothing to do
-
-        # resolve & check value type info
-        if self.is_value_runtime:
-            assert self.value_packed_ptr is not None, f"{self!r} is missing value_packed_ptr"
-            if isinstance(self.value_packed_ptr, int):
-                self.value_packed_ptr = self.component.__properties_by_id__[self.value_packed_ptr]
-                self.value_packed_ptr.cache_key = self.cache_key
-            self.value_packed_ptr.value_runtime_ptr = self
-            self.value_packed_ptr.value_type_info_getter = self.value_type_info_getter
 
         # get info from annotation
         annotation = parse_py_annotation(self.py_type_raw, EMPTY_DICT)
@@ -752,52 +705,19 @@ def p_property(
     default: Any = UNSET,
     default_factory: Callable[[], Any] | None = None,
     default_sql: Any = UNSET,
-    require: bool = UNSET,
-    references: tuple[NodeType, ...] | NodeType | Literal["any"] | None = None,
-    fk: bool = False,
     same_bench: bool = False,
     baseless: bool = False,
     ckless: bool = False,
-    struct: StructType | None = None,
     is_node_data: bool = False,
     store: bool = True,
     wire: bool = True,
     primitive_type: PrimitiveType | None = UNSET,
     index_in_pg: bool = False,
-    array: bool = False,
     defer: bool = False,
-    encrypt: bool = False,
     unique: bool = False,
     sensitive: bool = False,
-    custom_list: type["ValueList"] | None = None,
     constraint: "TypeConstraint | TypeConstraintIn | None" = None,
-    field_type: FieldType | None = None,
 ) -> Any:
-    if isinstance(references, NodeType):
-        references = (references,)
-    if references:
-        reference_kind = ReferenceKind.NODE_REGULAR
-    elif struct == StructType.PROPERTY_REFERENCE:
-        assert custom_list is None, "can't set custom list for property reference"
-        reference_kind = ReferenceKind.PROPERTY
-        struct = None
-        custom_list = ValueList
-    elif struct:
-        reference_kind = ReferenceKind.STRUCT_CHILD
-        custom_list = custom_list or ValueList
-    else:
-        reference_kind = None
-    if (
-        array
-        and reference_kind != ReferenceKind.STRUCT_CHILD
-        and reference_kind != ReferenceKind.NODE_CHILDREN
-    ):
-        assert (
-            default is UNSET and default_factory is None
-        ), f"can't set default for array: {default!r}"
-        default_factory = list
-    if fk:
-        assert not array, "can't have foreign key on list"
     return Property(
         id=id,
         default=default,
@@ -805,25 +725,18 @@ def p_property(
         default_factory=default_factory,
         primitive_type=primitive_type,
         constraint=constraint,
-        reference_kind=reference_kind,
-        reference_nodes=references,
-        reference_struct=struct,
         reference_is_node_data=is_node_data,
-        reference_list_type=custom_list,
         reference_is_bench_implicit=same_bench,
         reference_is_baseless=baseless,
         reference_is_ckless=ckless,
-        reference_force_fk=fk,
         is_internal=internal,
         is_system=system,
         is_kernel=kernel,
-        is_required=require,
         is_autoset=autoset,
         is_untracked=autoset,
         is_runtime=True,
         is_proto=wire,
         is_stored=store,
-        is_list=array,
         is_deferred=defer,
         is_sensitive=sensitive,
         is_indexed=index_in_pg,
@@ -924,69 +837,10 @@ def p_node_template(id: int) -> Any:
     )
 
 
-# nocheckin: remove StructParents, use plain edits (turn Structs into immutable data classes?)
-def p_struct_parent(id: int) -> Any:
-    """The parent of a struct."""
-    return Property(
-        id=id,
-        reference_kind=ReferenceKind.STRUCT_PARENT,
-        reference_nodes=(),
-        is_internal=True,
-        is_stored=False,
-        is_proto=False,
-        is_list=False,
-    )
-
-
 # TODO :Architecture!: only one 'value/value_packed' property per Node at top-level
 #  (for *all* custom values, simplify edit paths into just one element: property id or field key,
 #   which means we can drastically simplify edit tracking/syncing)
 #  (what about values in Structs like Expression.value and Field.default?)
-
-
-def p_value_runtime(
-    packed: int,
-    *,
-    type: FieldType | None = None,
-    typ: Callable[["BuiltinObject"], "TypeBase | None"] | None,
-) -> Any:
-    """Runtime-only property for a Value."""
-    return Property(
-        is_internal=True,
-        is_runtime=True,
-        is_proto=False,
-        is_stored=False,
-        is_ephemeral=True,
-        is_required=False,
-        is_computed=True,
-        is_value_runtime=True,
-        is_list=False,
-        default=None,
-        value_packed_ptr=packed,
-        value_type_info_getter=typ,
-        value_field_type=type,
-    )
-
-
-def p_value_packed(
-    id: int,
-    *,
-    secret: bool = False,
-) -> Any:
-    """Packed value property."""
-    return Property(
-        id=id,
-        primitive_type=PrimitiveType.JSON,
-        default=None,
-        is_value_packed=True,
-        is_required=False,
-        is_internal=True,
-        is_stored=True,
-        is_proto=True,
-        is_list=False,
-        is_sensitive=secret,
-        is_deferred=secret,
-    )
 
 
 p_regular = functools.partial(p_property, internal=False, system=False)
@@ -1018,6 +872,4 @@ _PROPERTY_SPECIFIERS: tuple[Callable, ...] = (
     p_runtime,
     p_node_parent,
     p_node_ancestor,
-    p_value_runtime,
-    p_value_packed,
 )
