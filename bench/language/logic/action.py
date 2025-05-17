@@ -1,12 +1,11 @@
-from functools import cached_property
-from typing import TYPE_CHECKING, Literal, Optional, Union, cast
+from typing import TYPE_CHECKING, Optional, Union, cast
 from uuid import UUID
 
 from bench.language.core import (
     BuiltinEnum,
     EnumType,
-    FieldType,
     IsClaimable,
+    IsExtensible,
     IsInstantiable,
     IsModal,
     IsNamed,
@@ -16,8 +15,6 @@ from bench.language.core import (
     NodeType,
     PackageNode,
     RunType,
-    TypeBase,
-    TypeKind,
     enum_,
     node_,
     p_internal,
@@ -69,6 +66,7 @@ class ActionType(BuiltinEnum):
 class Action(
     IsClaimable,
     IsInstantiable,
+    IsExtensible,
     IsNamed,
     IsModal,
     IsOrdered,
@@ -162,50 +160,6 @@ class Action(
         )
         parent.add_child(transition)
         return transition
-
-    def to_type_maybe(
-        self,
-        of: Literal["instance", "value"] = "instance",
-        field_types: list[FieldType] | None = None,
-    ) -> "TypeBase | None":
-        """Gets a type represented by this Action (if any)"""
-        from bench.language import Service, Type
-
-        if of == "instance":
-            return Type(kind=TypeKind.NODE, base_type=self, bench_type=NodeType.RUN)
-        else:
-            if self.type == ActionType.END:
-                if field_types and FieldType.INPUT not in field_types:
-                    return None
-                base = self.parent
-                assert not isinstance(base, Service), f"{self!r} is invalid inside {base!r}"
-                field_types = [FieldType.OUTPUT]  # remap to only output fields from Flow
-            elif self.type == ActionType.TOOL:
-                base = self.tool
-            else:
-                base = self
-            return Type(
-                kind=TypeKind.CUSTOM_OBJECT, base_type=base, base_field_types=field_types or []
-            )
-
-    def to_type(
-        self,
-        *,
-        of: Literal["instance", "value"] = "instance",
-        field_types: list[FieldType] | None = None,
-    ) -> "TypeBase":
-        typ = self.to_type_maybe(of=of, field_types=field_types)
-        if typ is None:
-            raise ValueError(f"{self!r} does not have a type")
-        return typ
-
-    @cached_property  # :CachedTypeInfo
-    def input_type(self) -> "TypeBase | None":
-        return self.to_type_maybe(of="value", field_types=[FieldType.INPUT])
-
-    @cached_property  # :CachedTypeInfo
-    def output_type(self) -> "TypeBase | None":
-        return self.to_type_maybe(of="value", field_types=[FieldType.OUTPUT])
 
     @staticmethod
     def new[ActionT: "Action" = "Action"](

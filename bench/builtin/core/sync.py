@@ -47,7 +47,7 @@ def get_stable_builtin_path(node: Node) -> str:
 
         path_parts.append(path_key)
         next_parent = current.parent
-        if next_parent is None and current.metatype in node.__roots__:
+        if next_parent is None and current.metatype in node.__root_types__:
             break  # reached the root
         current = next_parent
 

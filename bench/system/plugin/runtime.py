@@ -15,13 +15,13 @@ from bench.language import (
     Error,
     ErrorKind,
     ErrorType,
-    GraphScope,
     Message,
     Node,
     NodeType,
     ProcessStatus,
     ResourceStatus,
     Run,
+    Scope,
     Session,
     Thread,
     bittuple,
@@ -197,7 +197,7 @@ class RunPlugin(RuntimePlugin[Run, RunOp]):
         # should be batched and routed per Thread :RuntimeRouting
         assert op.run.thread_ptr, f"missing thread for run {op.run!r}"
         request = RunRequest(
-            scope=GraphScope(bench_id=self.bench.id)._to_data(),
+            scope=Scope(bench_id=self.bench.id)._to_data(),
             computer_ptr=computer._to_ref_data(),
             thread_ptr=op.run.thread_ptr._to_data(),
             run_ptrs=[op.run._to_ref_data()],
@@ -261,7 +261,7 @@ class WakePlugin(RuntimePlugin[Thread | Message, WakeOp]):
         self, op: WakeOp, computer: Computer, runtime: RuntimeClient
     ) -> None:
         request = WakeRequest(
-            scope=GraphScope(bench_id=self.bench.id)._to_data(),
+            scope=Scope(bench_id=self.bench.id)._to_data(),
             computer_ptr=computer._to_ref_data(),
             thread_ptrs=[op.thread._to_ref_data()],
         )

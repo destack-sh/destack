@@ -9,7 +9,6 @@ from bench.language.core import (
     IsModal,
     IsOwnable,
     IsProcessable,
-    IsTimed,
     IsTitled,
     NodeType,
     PageNode,
@@ -32,7 +31,6 @@ if TYPE_CHECKING:
 
 @timed_node_(NodeType.TASK)
 class Task(
-    IsTimed,
     IsOwnable,
     IsClaimable,
     IsProcessable,

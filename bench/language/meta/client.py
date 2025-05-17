@@ -49,7 +49,7 @@ class Client(IsNamed, Node[ClientData]):
         computer_ptr: Optional[NodeReference] = None
 
     # status
-    access_token: Optional[str] = p_kernel(50, defer=True, unique=True, sensitive=True)
+    access_token: Optional[str] = p_kernel(50, unique=True, sensitive=True)
     seen_at: Optional[datetime] = p_system(51)
     logged_in_at: Optional[datetime] = p_system(52)
     cursor: Optional["Cursor"] = p_regular(55)

@@ -66,7 +66,6 @@ def _complete_bench_setup():
     """Finalize setup of all language constructs after everything is imported."""
     from bench.language import (
         BuiltinObject,
-        CustomObject,
         IsBased,
         IsClaimable,
         IsInstantiable,
@@ -76,7 +75,6 @@ def _complete_bench_setup():
         IsRunnable,
         IsSubject,
         IsTemplatable,
-        IsTimed,
         Node,
         PageNode,
         ProvisionableResourceBase,
@@ -109,7 +107,6 @@ def _complete_bench_setup():
             FINAL_BENCH_CLASSES_BY_NAME[bench_t.__name__] = bench_t
             FINAL_BENCH_CLASSES.append(bench_t)
     BENCH_CLASSES.extend(get_subclasses(BuiltinObject))
-    BENCH_CLASSES.append(CustomObject)  # type: ignore ???
     for cls in BENCH_CLASSES:
         BENCH_CLASS_BY_NAME[cls.__name__] = cls
     for node_t in NODE_TYPES:
@@ -207,7 +204,6 @@ def _complete_bench_setup():
             (IsOwnable, trait.OWNABLE_NODE_TYPES.tuple),
             (IsProcessable, trait.PROCESSABLE_NODE_TYPES.tuple),
             (IsRunnable, trait.RUNNABLE_NODE_TYPES.tuple),
-            (IsTimed, trait.TIMED_NODE_TYPES.tuple),
         ]:
             actual_node_types = [
                 cast(Node, n).metatype

@@ -3,7 +3,6 @@ import base64
 import contextvars
 import functools
 import inspect
-from dataclasses import InitVar
 from enum import IntEnum
 from sys import intern
 from typing import (
@@ -12,7 +11,6 @@ from typing import (
     ClassVar,
     Collection,
     Iterable,
-    Literal,
     Mapping,
     Optional,
     Self,
@@ -27,7 +25,6 @@ from uuid import UUID
 
 import structlog
 from bitarray import bitarray
-from more_itertools import first
 from opentelemetry import trace
 
 from bench.language.registry import (
@@ -35,23 +32,20 @@ from bench.language.registry import (
     STRUCT_CLASS_BY_TYPE,
 )
 from bench.pb2 import AnyObjectData, AnyStructData, GraphScopeData, lang_pb2
-from bench.pb2.lang_pb2 import EditOperationData
-from bench.utils.func import dualmethod, hash_stable
+from bench.utils.func import dualmethod, hash_stable, is_close
 from bench.utils.utils import frozendict
 
 from .const import (
-    ACTIVE_SESSION,
     EMPTY_DICT,
-    IS_IN_USER_CODE,
+    FLOAT_EPSILON,
     UNSET,
-    EditOperationType,
-    FieldType,
     NodeType,
     ObjectType,
     ReferenceKind,
     StructType,
+    TypeKind,
 )
-from .graph import NULL_SUPERGRAPH, NodeSuperGraph
+from .graph import NodeSuperGraph
 from .list import RemoteNodeList
 from .property import (
     _PROPERTY_SPECIFIERS,
@@ -62,10 +56,9 @@ from .property import (
     p_regular,
     p_runtime,
 )
-from .validation import ValidationHandler, on_invalid_raise
 
 if TYPE_CHECKING:
-    from bench.language import CustomObject, Field, Node, NodeReference, PropertyReference, Session
+    from bench.language import Field, Node, NodeReference, PropertyReference, Session, TypeBase
 
 # pyright: reportIncompatibleVariableOverride=false
 
@@ -164,11 +157,10 @@ def _process_object_cls[ObjectT: BuiltinObject](
         prop.py_type_raw = cls.__annotations__.get(name, None)
         properties_by_name[name] = prop
         declared_properties[name] = prop
-    cls.__raw_properties__ = frozendict(properties_by_name)  # remember 'own' properties
 
     # collect properties from all parent components
     for component in reversed(static_components):
-        for name, prop in component.__raw_properties__.items():
+        for name, prop in component.__declared_properties__.items():
             existing = properties_by_name.get(name)
             # allow overriding system properties with more specific properties
             if (
@@ -230,7 +222,7 @@ def _process_object_cls[ObjectT: BuiltinObject](
         for name, prop in properties_by_name.items():
             if prop.reference_source is None:  # not a contributed property
                 # computed property.. property
-                if prop.reference_kind == ReferenceKind.PROPERTY:
+                if prop.is_property_reference:
                     setattr(cls, name, _object_property_ref(prop))
                 # computed node property
                 elif prop.reference_kind in (
@@ -257,14 +249,7 @@ def _process_object_cls[ObjectT: BuiltinObject](
                             f"{prop.name}_{obj_key}", _object_node_ref_attr(ptr_key, prop)
                         )
 
-            # computed runtime value (with cache key)
-            if prop.is_value_runtime:
-                from .value import _object_value_runtime
-
-                prop.cache_key = intern(f"_{prop.name}_cached")
-                setattr(cls, prop.name, _object_value_runtime(prop))
-
-    # finalize props & update reference to transformed class
+    # finalize props
     for prop in properties_by_name.values():
         prop.component = cls
         prop._finalize_meta()
@@ -274,9 +259,6 @@ def _process_object_cls[ObjectT: BuiltinObject](
     # register components and index properties
     cls.__components__ = tuple(static_components)  # type: ignore
     cls.__properties__ = frozendict(properties_by_name)
-    cls.__original_properties__ = frozendict(
-        {p.name: p for p in cls.__properties__.values() if p.reference_source is None}
-    )
     properties_by_id: dict[int, Property] = {}
     for prop in properties_by_name.values():
         if prop.id is not None and prop.id is not UNSET and not prop.reference_source:
@@ -291,36 +273,15 @@ def _process_object_cls[ObjectT: BuiltinObject](
     cls.__properties_name_by_id__ = frozendict(
         {p.id: p.name for p in properties_by_id.values() if p.id is not None}
     )
-    cls.__tracked_properties__ = frozendict(
-        {
-            p.name: p
-            for p in props
-            if not p.is_ephemeral
-            and not p.is_autoset
-            and not p.is_computed
-            and not p.reference_source
-        }
-    )
-    cls.__internal_properties__ = frozendict({p.name: p for p in props if p.is_internal})
-    cls.__node_reference_properties__ = frozendict(
+    cls.__node_properties__ = frozendict(
         {p.name: p for p in props if p.is_node_reference and not p.reference_source}
     )
-    cls.__property_reference_properties__ = frozendict(
-        {p.name: p for p in props if p.is_property_reference and not p.reference_source}
-    )
-    cls.__struct_reference_properties__ = frozendict(
-        {p.name: p for p in props if p.is_struct_reference and not p.reference_source}
-    )
     cls.__struct_properties__ = frozendict({p.name: p for p in props if p.is_struct})
-    cls.__value_runtime_properties__ = frozendict({p.name: p for p in props if p.is_value_runtime})
     cls.__stored_properties__ = frozendict(
         {p.name: p for p in cls.__properties__.values() if p.is_stored is True}
     )
     cls.__proto_properties__ = frozendict(
         {p.name: p for p in cls.__properties__.values() if p.is_proto is True}
-    )
-    cls.__runtime_properties__ = frozendict(
-        {p.name: p for p in cls.__properties__.values() if p.is_runtime is True}
     )
 
     # assign ords
@@ -338,12 +299,6 @@ def _process_object_cls[ObjectT: BuiltinObject](
     cls.__properties_mask_set__ = bitarray(cls.__max_property_ord__ + 1)
     cls.__properties_mask_set__.setall(True)
     cls.__properties_mask_unset__ = bitarray(cls.__max_property_ord__ + 1)
-
-    parent_property = cls.__properties__.get("parent", None)
-    if is_final and (is_node or is_struct) and parent_property is None:
-        raise ValueError(f"missing parent property for node {cls}")
-    cls.__parent_property__ = parent_property
-    cls.__parent_types__ = parent_property.reference_nodes or () if parent_property else ()
 
     return cls, properties_by_name  # type: ignore
 
@@ -584,75 +539,6 @@ def _node_ancestor_ptr_ref(prop: Property) -> property:
     return property(get_ancestor_ptr, set)
 
 
-def _trace_edit_operation(
-    obj: "CustomObject | Struct | Node | None",
-    key: Union["Property", "Field"],
-    *,
-    new_value: Any | None,
-    old_value: Any | None,
-    subtype: int | None,
-):
-    """
-    Traces an edit operation to the given object.
-    TODO :Performance!: trace edits using 'dirty fields/paths' instead of full operations
-     (we flush very frequently and it would be much more efficient to avoid packing edits upfront;
-      also there is no need to track old_value right?)
-    """
-    # figure out if we're in a tracked node (before we start tracing the edit)
-    if key.is_list and not (new_value is None or isinstance(new_value, list)):
-        return  # ignore, not tracking edits to individual list items yet
-    node = None
-    o = obj
-    while o is not None and type(o) is not Property:
-        # (o may be a Property during setup when o.parent is not initialized)
-        if getattr(type(o), "__is_node__", False):
-            node = cast("Node", o)
-            break
-        else:
-            o = o.parent
-    if node is None or node._is_new or node._session is None:
-        return  # ignore, not tracked
-
-    # trace path for edit
-    path: list[str] = [key.key]
-    k = key
-    while obj is not None and not getattr(type(obj), "__is_node__", False):
-        parent = obj.parent
-        if parent is not None:
-            k = cast("Struct", obj).parent_key
-            assert k is not None, f"{obj!r} has no parent key"
-            parent_key_str = k.key
-            assert (
-                type(parent_key_str) is str
-            ), f"{obj!r} has non-str key {parent_key_str!r} in {parent!r}"
-            path.insert(0, parent_key_str)
-        obj = parent
-
-    # pack edit operation content
-    operation_type = EditOperationType.CLEAR if new_value is None else EditOperationType.SET
-    if type(key) is Property:
-        typ = key._type
-        assert typ is not None, f"{key!r} in {obj!r} has no type info"
-    else:
-        typ = cast("Field", key)
-    old_value_packed = None if old_value is None else pack_value_data(old_value, typ)
-    old_value_packed = pack_proto_json(old_value_packed)
-    new_value_packed = None if new_value is None else pack_value_data(new_value, typ)
-    new_value_packed = pack_proto_json(new_value_packed)
-
-    try:
-        operation = EditOperationData(
-            metatype=lang_pb2.OBJECT_TYPE_EDIT_OPERATION,
-            type=operation_type,  # type: ignore
-            path=path,
-            new_value_packed=new_value_packed,
-            old_value_packed=old_value_packed,
-        )
-    except BaseException as e:
-        raise ValueError(f"failed to pack edit operation {e!r} for {node!r} {key!r}") from e
-    node._session._update(node, operation)
-
-
 _HANDLING_ATTRIBUTE_ERROR = contextvars.ContextVar("handling_attribute_error", default=False)
 
 
@@ -666,171 +552,27 @@ class BuiltinObject[ObjectDataT: AnyObjectData](abc.ABC):
     __is_struct__: ClassVar[bool] = False
     __is_node__: ClassVar[bool] = False
 
-    __parent_property__: ClassVar[Property] = UNSET
-    __parent_types__: ClassVar[tuple[NodeType, ...]] = ()
     __properties__: ClassVar[dict[str, Property]] = {}
     __properties_by_id__: ClassVar[dict[int, Property]] = {}
     __properties_name_by_id__: ClassVar[dict[int, str]] = {}
-    __original_properties__: ClassVar[dict[str, Property]] = {}  # excl. contributed
-    __raw_properties__: ClassVar[dict[str, Property]] = {}
+
     __declared_properties__: ClassVar[dict[str, Property]] = {}
-    __tracked_properties__: ClassVar[dict[str, Property]] = {}
-    __internal_properties__: ClassVar[dict[str, Property]] = {}
-    __node_reference_properties__: ClassVar[dict[str, Property]] = {}
-    __property_reference_properties__: ClassVar[dict[str, Property]] = {}
-    __struct_reference_properties__: ClassVar[dict[str, Property]] = {}
-    __sensitive_properties__: ClassVar[dict[str, Property]] = {}
+    __node_properties__: ClassVar[dict[str, Property]] = {}
     __struct_properties__: ClassVar[dict[str, Property]] = {}
-    __value_runtime_properties__: ClassVar[dict[str, Property]] = {}
     __stored_properties__: ClassVar[dict[str, Property]] = {}
     __proto_properties__: ClassVar[dict[str, Property]] = {}
-    __runtime_properties__: ClassVar[dict[str, Property]] = {}
+
     __properties_in_order__: ClassVar[tuple[Property, ...]]
     __properties_id_in_order__: ClassVar[tuple[int, ...]]
     __max_property_ord__: ClassVar[int] = UNSET
     __properties_mask_set__: ClassVar[bitarray] = UNSET
     __properties_mask_unset__: ClassVar[bitarray] = UNSET
 
-    if TYPE_CHECKING:
-        parent: "BuiltinObject | CustomObject | None" = None
-        _skip_validate_self: InitVar[bool] = False
-        _skip_extra_kwargs: InitVar[bool] = False
-
     _session: "Session | None" = p_runtime(default=None)
     _supergraph: "NodeSuperGraph" = p_runtime(default=None)
 
-    def __init__(
-        self, *, _skip_validate_self: bool = False, _skip_extra_kwargs: bool = False, **kwargs
-    ):
-        assert (
-            _SETUP_STAGE >= _SetupStage.FINALIZING
-        ), f"{self.__class__.__name__} requires completed setup"
-
-        self_dict = self.__dict__
-
-        # init session / supergraph context (first)
-        self_dict["_session"] = kwargs.pop("_session", None) or ACTIVE_SESSION.get()
-        supergraph: NodeSuperGraph
-        if "_supergraph" in kwargs:
-            supergraph = cast(NodeSuperGraph, kwargs.pop("_supergraph"))
-        elif self_dict.get("_session") is not None:
-            supergraph = cast("Session", self_dict["_session"])._supergraph
-        else:
-            supergraph = NULL_SUPERGRAPH
-        self_dict["_supergraph"] = supergraph
-
-        # init object (from kwargs & defaults)
-        for prop in self.__runtime_properties__.values():
-            if (
-                prop.reference_source is not None
-                or prop.name == "_session"
-                or prop.name == "_supergraph"
-                or prop.is_computed
-            ):
-                continue  # only handle top level properties
-            wired_ptr_prop = prop.reference_wired_ptr
-            prop_value = kwargs.get(prop.name, UNSET)
-
-            # also get wired pointer if available
-            if wired_ptr_prop is not None:
-                wired_prop_value = kwargs.get(wired_ptr_prop.name, UNSET)
-            else:
-                wired_prop_value = UNSET
-
-            # init node references if nodes are passed directly
-            if prop.is_node_reference and prop_value is not UNSET:
-                assert wired_ptr_prop is not None, f"no wired prop for {prop!r}"
-                if wired_prop_value is not UNSET:
-                    raise ValueError(
-                        f"got both {prop} and {wired_ptr_prop}: {prop_value!r}, {wired_prop_value!r}"
-                    )
-                # init node references (must be in same)
-                if prop_value is None:
-                    wired_prop_value = None
-                elif not prop.is_list:
-                    wired_prop_value = cast(Any, prop_value).to_ref()
-                else:
-                    wired_prop_value = [p.to_ref() for p in prop_value]
-                self_dict[wired_ptr_prop.name] = wired_prop_value
-                continue
-            # init property references if properties are passed directly
-            elif prop.reference_kind == ReferenceKind.PROPERTY and prop_value is not UNSET:
-                assert wired_ptr_prop is not None, f"no wired prop for {prop!r}"
-                if wired_prop_value is not UNSET:
-                    raise ValueError(
-                        f"got both {prop!r} and {wired_ptr_prop!r}: {prop_value!r}, {wired_prop_value!r}"
-                    )
-                if prop_value is None:
-                    wired_prop_value = None
-                elif prop.is_list:
-                    wired_prop_value = [p.to_ref() for p in prop_value]
-                else:
-                    wired_prop_value = cast(Any, prop_value).to_ref()
-                self_dict[wired_ptr_prop.name] = wired_prop_value
-                continue
-
-            # default value
-            if prop_value is UNSET:
-                if prop.default_factory is not None:
-                    prop_value = prop.default_factory()
-                elif prop.default is not UNSET:
-                    prop_value = prop.default
-                elif not prop.is_required:
-                    prop_value = None if not prop.is_list else []
-                else:
-                    raise ValueError(f"missing required value for {prop!r}")
-            if wired_ptr_prop is not None and wired_prop_value is UNSET:
-                if prop.is_list:
-                    wired_prop_value = []
-                elif not prop.is_required:
-                    wired_prop_value = None
-                else:
-                    raise ValueError(f"missing required value for {wired_ptr_prop!r}")
-
-            # and set it
-            if prop_value is UNSET:
-                raise ValueError(f"missing required value for {prop!r}")
-            self_dict[prop.name] = prop_value
-            if wired_ptr_prop is not None:
-                self_dict[wired_ptr_prop.name] = wired_prop_value
-
-        # init object values (from kwargs)
-        for prop in self.__value_runtime_properties__.values():
-            prop_value = kwargs.get(prop.name)
-            if prop_value is not None:
-                object.__setattr__(self, prop.name, prop_value)
-
-        # validate self
-        if self._session is not None and not _skip_validate_self:
-            self._validate_self((), invalid=on_invalid_raise)
-
-        # check for extraneous kwargs
-        if not _skip_extra_kwargs:
-            self._init_extra_kwargs(kwargs)
-
-    def _get_effective_cls(self) -> type["BuiltinObject"]:
-        """Gets the class we're imitating (for subtypes)."""
-        return type(self)
-
-    def _init_extra_kwargs(self, kwargs: dict[str, Any]):
-        """
-        Initialize the object from any extraneous kwargs (try to stuff into values) if relevant.
-        Otherwise just error.
-        """
-        cls = self._get_effective_cls()
-        if self._session is not None and any(key not in cls.__properties__ for key in kwargs):
-            if not self.__value_runtime_properties__:
-                key = first(key for key in kwargs if key not in cls.__properties__)
-                raise AttributeError(f"{self!r} has no attribute '{key}'")
-            # try to stuff extra kwargs into first custom value property
-            value_runtime_key = first(self.__value_runtime_properties__)
-            value = getattr(self, value_runtime_key)
-            if value is None:
-                key = first(key for key in kwargs if key not in cls.__properties__)
-                raise AttributeError(f"{self!r} has no attribute '{key}'")
-            for key in kwargs:
-                if key not in cls.__properties__:
-                    setattr(value, key, kwargs[key])
+    def __init__(self, **kwargs):
+        raise NotImplementedError("nocheckin: generate __init__")
 
     def __content_str__(self) -> str:
         return ""  # empty by default
@@ -858,7 +600,6 @@ class BuiltinObject[ObjectDataT: AnyObjectData](abc.ABC):
         for prop in self.__proto_properties__.values():
             if (
                 prop.id < 30
-                or prop.is_value_packed  # compared in runtime value
                 or prop.name == "order_key"  # implicitly checked in lists
                 or prop._type is None
             ):
@@ -922,59 +663,19 @@ class BuiltinObject[ObjectDataT: AnyObjectData](abc.ABC):
     ):
         """Sets *any* attribute on this builtin object."""
         prop = self.__properties__.get(key)
-        if prop is not None:
-            # set regular property
-            if prop.is_untracked:
-                object.__setattr__(self, key, new_value)
-                return
+        if prop is None:
+            # attribute error
+            try:
+                self_str = repr(self)
+            except Exception:
+                self_str = self.__class__.__name__
+            raise AttributeError(f"{self_str} has no attribute '{key}'")
 
-            # check (if it's not a contributed property, which are system-only)
-            if (typ := prop._type) is not None and prop.reference_source is None:
-                # coerce value
-                if IS_IN_USER_CODE.get():
-                    new_value = coerce_value(new_value, typ, supergraph=self._supergraph)
-                    check_value(
-                        new_value, typ, options=DEFAULT_CHECK_OPTIONS, invalid=on_invalid_raise
-                    )
-                elif validate:
-                    check_value(
-                        new_value, typ, options=DEFAULT_CHECK_OPTIONS, invalid=on_invalid_raise
-                    )
-
-            # set
-            if track:
-                if prop.is_value_runtime:
-                    old_value = getattr(self, prop.value_packed_ptr.name)  # type: ignore
-                else:
-                    old_value = getattr(self, key)
-                object.__setattr__(self, key, new_value)
-                if prop.is_value_runtime:
-                    _trace_edit_operation(
-                        cast("Struct | Node", self),
-                        prop.value_packed_ptr,  # type: ignore
-                        new_value=getattr(self, prop.value_packed_ptr.name),  # type: ignore
-                        old_value=old_value,
-                        subtype=None,
-                    )
-                else:
-                    _trace_edit_operation(
-                        cast("Struct | Node", self),
-                        prop,
-                        new_value=new_value,
-                        old_value=old_value,
-                        subtype=None,
-                    )
-            else:
-                object.__setattr__(self, key, new_value)
-
+        # set regular property
+        if prop.is_untracked:
+            object.__setattr__(self, key, new_value)
             return
-
-        # attribute error
-        try:
-            self_str = repr(self)
-        except Exception:
-            self_str = self.__class__.__name__
-        raise AttributeError(f"{self_str} has no attribute '{key}'")
+        raise NotImplementedError("nocheckin: flat edits")
 
     if not TYPE_CHECKING:
         # NOTE: __setattr__/__getattr__ confuses type checking, so only define it at runtime
@@ -1029,7 +730,7 @@ class BuiltinObject[ObjectDataT: AnyObjectData](abc.ABC):
         exclude: Collection[ReferenceKind],
     ):
         """Replaces Node references with new Nodes. Missing Nodes are kept as is."""
-        for prop in self.__node_reference_properties__.values():
+        for prop in self.__node_properties__.values():
             if prop.reference_kind in exclude:
                 continue
             prop_value = getattr(self, prop.name)
@@ -1063,29 +764,6 @@ class BuiltinObject[ObjectDataT: AnyObjectData](abc.ABC):
                 for item in cast(list, value):
                     yield from cast(Struct, item)._walk_struct()
 
-    @final
-    def _validate_self(
-        self, properties: tuple[Property, ...], invalid: "ValidationHandler"
-    ) -> None:
-        """Check the integrity of this object."""
-        # NOTE :Architecture: BuiltinObject.validate does not validate custom objects, but .do_set does
-        #  (this is somewhat inconsistent, but also useful because e.g. for Runs we don't want to error
-        #   during validation when unpacking, only later when manually checking the inputs;
-        #   however Run.inputs = ... directly errors if invalid, which is inconsistent but convenient.
-        #   Maybe add a flag to .validate whether to validate values?)
-        # check properties types
-        for prop in properties or self.__tracked_properties__.values():
-            # NOTE: references may be unloaded and there's not much to validate, so we don't
-            if prop._type is not None and prop.reference_kind is None:
-                value = getattr(self, prop.name)
-                check_value(value, prop._type, options=DEFAULT_CHECK_OPTIONS, invalid=invalid)
-
-    @final
-    def _validate_rec(self, invalid: "ValidationHandler"):
-        # check inner structs
-        for inner_struct in self._walk_struct():
-            inner_struct._validate_self((), invalid)
-
     def __bool__(self):
         return True  # support truthy checks for objects
 
@@ -1102,27 +780,6 @@ class BuiltinObject[ObjectDataT: AnyObjectData](abc.ABC):
         if prop is None:
             raise ValueError(f"no property '{key}' in {cls.__name__}")
         return prop
-
-    @classmethod
-    def get_value_property(
-        cls,
-        field_type: FieldType,
-        kind: Literal["runtime", "packed"] = "runtime",
-    ) -> Property:
-        """Gets the value property for the given object kind."""
-        for prop in cls.__properties__.values():
-            if prop.is_value_runtime and (
-                prop.value_field_type is None or prop.value_field_type == field_type
-            ):
-                if kind == "runtime":
-                    return prop
-                elif kind == "packed":
-                    assert type(prop.value_packed_ptr) is Property, f"no wired prop for {prop!r}"
-                    return prop.value_packed_ptr
-        else:
-            raise ValueError(
-                f"no value property for {field_type.bench_name} field type in {cls.__name__}"
-            )
 
     @classmethod
     def _unmask_properties_ids(cls, mask: bitarray) -> tuple[int, ...]:
@@ -1146,10 +803,6 @@ class BuiltinObject[ObjectDataT: AnyObjectData](abc.ABC):
             prop = cls.__properties_by_id__[prop_id]
             mask[prop.ord] = True
         return mask
-
-
-StructParent = Union["Struct", "Node", "CustomObject"]
-StructParentKey = Union["Property", "Field"]
 
 
 @object_()
@@ -1203,8 +856,8 @@ def is_struct[T: Struct | Struct](obj: Any, struct_cls: type[T]) -> TypeGuard[T]
 #
 
 
-@struct_(StructType.GRAPH_SCOPE)
-class GraphScope(Struct[GraphScopeData]):
+@struct_(StructType.SCOPE)
+class Scope(Struct[GraphScopeData]):
     """The scope for an operation on the Bench graph."""
 
     bench_id: Optional[UUID] = p_internal(30)
@@ -1214,7 +867,7 @@ class GraphScope(Struct[GraphScopeData]):
         return repr_scope(self)
 
 
-def repr_scope(scope: GraphScope | GraphScopeData) -> str:
+def repr_scope(scope: Scope | GraphScopeData) -> str:
     if scope.package_ids:
         return f"[bench_id={scope.bench_id}, package_ids={', '.join(str(id) for id in scope.package_ids)}]"
     elif scope.bench_id:
@@ -1293,20 +946,67 @@ class PropertyReference(Struct):
         return prop
 
 
-#
-# Utilities
-#
+def value_equals(
+    typ: "TypeBase",
+    self_value: Any,
+    other_value: Any,
+    identity_map: Mapping[UUID, "NodeReference"] = EMPTY_DICT,
+) -> bool:
+    """Checks whether two values for a given type are equal (recursively)."""
+    if self_value is None or other_value is None:
+        return self_value is other_value
+    elif typ.kind == TypeKind.PRIMITIVE:
+        # compare primitives directly with is_close
+        is_float = typ.primitive_type is not None and typ.primitive_type.is_float
+        if not typ.is_list:
+            return self_value == other_value or (
+                is_float and is_close(self_value, other_value, FLOAT_EPSILON)
+            )
+        else:
+            if len(self_value) != len(other_value):
+                return False  # unequal list
+            for i in range(len(self_value)):
+                self_el = self_value[i]
+                other_el = other_value[i]
+                if self_el != other_el or (
+                    is_float and not is_close(self_el, other_el, FLOAT_EPSILON)
+                ):
+                    return False  # unequal list
+            return True
+    elif typ.kind == TypeKind.ENUM:
+        # compare enums directly
+        return self_value == other_value
+    elif typ.kind == TypeKind.NODE or typ.bench_type == StructType.NODE_REFERENCE:
+        if not typ.is_list:
+            self_value = identity_map.get(self_value.ck, self_value)
+            other_value = identity_map.get(other_value.ck, other_value)
+            return self_value.id == other_value.id
+        else:
+            if len(self_value) != len(other_value):
+                return False  # unequal list
+            for i in range(len(self_value)):
+                self_element = identity_map.get(self_value[i].ck, self_value[i])
+                other_element = identity_map.get(other_value[i].ck, other_value[i])
+                if self_element.id != other_element.id:
+                    return False  # unequal list
+            return True
+    elif typ.kind == TypeKind.STRUCT:
+        # compare struct recursively
+        if not typ.is_list:
+            if type(self_value) is not type(other_value) or (
+                self_value is not None
+                and not cast(Struct, self_value).equals(other_value, identity_map=identity_map)
+            ):
+                return False  # unequal struct
+        else:
+            if (
+                not isinstance(self_value, Sequence)
+                or not isinstance(other_value, Sequence)
+                or len(self_value) != len(other_value)
+            ):
+                return False  # unequal list
+            for i in range(len(self_value)):
+                if not self_value[i].equals(other_value[i], identity_map=identity_map):
+                    return False  # unequal struct
 
-
-# NOTE: import from .value later to avoid circular import
-#  (but import at top level to avoid import in critical path)
-
-
-from .value import (  # noqa: E402
-    DEFAULT_CHECK_OPTIONS,
-    check_value,
-    coerce_value,
-    pack_proto_json,
-    pack_value_data,
-    value_equals,
-)
+    return True

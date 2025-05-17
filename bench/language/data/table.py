@@ -1,7 +1,6 @@
-from typing import TYPE_CHECKING, Literal, override
+from typing import TYPE_CHECKING, override
 
 from bench.language.core import (
-    FieldType,
     IsClaimable,
     IsInstantiable,
     IsModal,
@@ -11,8 +10,6 @@ from bench.language.core import (
     NodeType,
     PageNode,
     RemoteNodeList,
-    TypeBase,
-    TypeKind,
     node_,
 )
 from bench.language.core.list import attach_node
@@ -29,19 +26,6 @@ class RecordNodeList(RemoteNodeList["Record", RecordData]):
     A RemoteNodeList that is backed by a Table.
     Automatically sets 'table' as needed.
     """
-
-    @override
-    def create(self, **kwargs) -> "Record":
-        from bench.language import Record, Table
-
-        if "table" not in kwargs:
-            kwargs["table"] = self._node
-        parent = self._get_parent()
-        assert isinstance(parent, Table), f"cannot create Record in: {parent!r}"
-        graph = self._get_child_graph(parent)
-        node = Record(**kwargs, parent=parent)
-        attach_node(node, parent=parent, graph=graph, move=False)
-        return node
 
     @override
     def add_child(self, node: "Record", move: bool = False) -> "Record":
@@ -84,37 +68,6 @@ class Table(
 
     def __content_str__(self):
         return ""
-
-    def to_type_maybe(
-        self,
-        *,
-        of: Literal["instance", "value"] = "instance",
-        field_types: list[FieldType] | None = None,
-    ) -> "TypeBase | None":
-        """Get a type represented by this Block (if any)"""
-        from bench.language.core import Type
-
-        if of == "instance":
-            return Type(kind=TypeKind.NODE, base_type=self, bench_type=NodeType.RECORD)
-        else:
-            field_types = field_types or [FieldType.MEMBER]
-            return Type(
-                kind=TypeKind.CUSTOM_OBJECT,
-                base_type=self,
-                base_field_types=field_types,
-                property_field_types=field_types,
-            )
-
-    def to_type(
-        self,
-        *,
-        of: Literal["instance", "value"] = "instance",
-        field_types: list[FieldType] | None = None,
-    ) -> "TypeBase":
-        typ = self.to_type_maybe(of=of, field_types=field_types)
-        if typ is None:
-            raise ValueError(f"{self!r} does not have a type")
-        return typ
 
     @staticmethod
     def new(name: str, *fields: "Field", **kwargs) -> "Table":

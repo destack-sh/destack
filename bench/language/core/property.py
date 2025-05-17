@@ -7,7 +7,6 @@ from typing import (
     TYPE_CHECKING,
     Any,
     Callable,
-    Literal,
     Optional,
     cast,
 )
@@ -71,7 +70,7 @@ PROPERTY_TYPE_BY_META_KEY = {v: k for k, v in PROPERTY_META_KEY_BY_TYPE.items()}
 
 @dataclass(eq=False, slots=True)
 class Property(_IntoQuery if TYPE_CHECKING else object):
-    """A system-defined attribute of a node or struct."""
+    """A system-defined attribute of a BuiltinObject (Struct or Node)."""
 
     # basics
     # NOTE: yes cast(int, None) is a bit evil but we almost always immediately assign it here and
@@ -80,7 +79,7 @@ class Property(_IntoQuery if TYPE_CHECKING else object):
     id: int = cast(int, None)  # noqa: RUF009
     key: str = UNSET  # str(id)
     cache_key: str | None = None  # for runtime value caching
-    # unstable ordinal for bit-packing
+    # ephemeral ordinal for bit-packing
     ord: int = cast(int, None)  # noqa: RUF009
     name: str = UNSET  # name from LHS of assignment
     component: type["BuiltinObject"] = UNSET  # source component class
@@ -98,8 +97,6 @@ class Property(_IntoQuery if TYPE_CHECKING else object):
     is_required: bool = UNSET  # must be non-null
     is_variable: bool = False  # may be wrapped in an indirect Variable lookupg
     is_internal: bool = False  # should be edited via accessors, but not enforced
-    is_system: bool = False  # only editable by system
-    is_kernel: bool = False  # only viewable by system
     is_autoset: bool = False  # set automatically by system, cannot set directly
     is_computed: bool = False
     is_runtime: bool = UNSET  # exists on runtime object
@@ -108,13 +105,12 @@ class Property(_IntoQuery if TYPE_CHECKING else object):
     is_stored: bool = UNSET  # stored in DB
     is_indexed: bool = False  # indexed in DB?
     is_unique: bool = False  # unique index in DB?
-    is_deferred: bool = False  # loaded only on demand (only for stored node properties)
     is_sensitive: bool = False  # sensitive data (generally requires special permissions)
     is_untracked: bool = False  # whether writes are tracked
 
     # references to nodes or structs
     reference_kind: ReferenceKind | None = None
-    reference_nodes: tuple[NodeType, ...] | Literal["any"] | None = None  # for node relations
+    reference_nodes: tuple[NodeType, ...] | None = None  # for node relations
     reference_wired_ptr: Optional["Property"] = None  # wired representation
     reference_stored_ids: tuple["Property", ...] | None = None  # stored representation
     reference_stored_props: tuple["Property", ...] | None = None
@@ -128,7 +124,8 @@ class Property(_IntoQuery if TYPE_CHECKING else object):
     reference_is_baseless: bool = False
     reference_force_fk: bool = False
     reference_is_node_data: bool = False
-    _cached_as_ref: Optional["PropertyReference"] = None
+
+    _ref: Optional["PropertyReference"] = None
     _type: Optional["Type"] = None
 
     def __post_init__(self):
@@ -170,7 +167,6 @@ class Property(_IntoQuery if TYPE_CHECKING else object):
             "is_internal",
             "is_system",
             "is_kernel",
-            "is_deferred",
             "reference_kind",
             "reference_nodes",
             "reference_struct",
@@ -210,7 +206,7 @@ class Property(_IntoQuery if TYPE_CHECKING else object):
     def to_ref(self) -> "PropertyReference":
         """A pointer to this property. `to_ref()` for consistency with `Node.to_ref()`."""
 
-        if self._cached_as_ref is None:
+        if self._ref is None:
             assert self.component is not None, f"{self!r} is not finalized"
             from .object import PropertyReference
 
@@ -224,8 +220,8 @@ class Property(_IntoQuery if TYPE_CHECKING else object):
                     assert self.reference_nodes is not None, f"missing reference nodes for {self!r}"
                     ref.references_node_type = self.reference_nodes[0]
                 ref.references_meta = self.reference_type
-            self._cached_as_ref = ref
-        return self._cached_as_ref
+            self._ref = ref
+        return self._ref
 
     @property
     def code_name(self) -> str:
@@ -327,8 +323,7 @@ class Property(_IntoQuery if TYPE_CHECKING else object):
             bench_type=bench_type,
             primitive_type=primitive_type,
             is_list=self.is_list,
-            # NOTE: we ignore is_required if deferred as it's unclear what to do with unloaded properties
-            is_required=self.is_required and not self.is_deferred,
+            is_required=self.is_required,
             constraint=constraint.into()
             if isinstance(constraint, TypeConstraintIn)
             else constraint,
@@ -341,8 +336,7 @@ class Property(_IntoQuery if TYPE_CHECKING else object):
         """The type info for this property (can't extend TypeInfo because circles)."""
         if self._type is None:
             if (
-                self.is_introspectable
-                or self.reference_source is not None
+                self.reference_source is not None
                 or self.reference_nodes
                 or self.is_property_reference
                 or self.id == 1
@@ -713,7 +707,6 @@ def p_property(
     wire: bool = True,
     primitive_type: PrimitiveType | None = UNSET,
     index_in_pg: bool = False,
-    defer: bool = False,
     unique: bool = False,
     sensitive: bool = False,
     constraint: "TypeConstraint | TypeConstraintIn | None" = None,
@@ -730,14 +723,11 @@ def p_property(
         reference_is_baseless=baseless,
         reference_is_ckless=ckless,
         is_internal=internal,
-        is_system=system,
-        is_kernel=kernel,
         is_autoset=autoset,
         is_untracked=autoset,
         is_runtime=True,
         is_proto=wire,
         is_stored=store,
-        is_deferred=defer,
         is_sensitive=sensitive,
         is_indexed=index_in_pg,
         is_unique=unique,
@@ -783,7 +773,6 @@ def p_node_parent(
         is_runtime=True,
         is_untracked=True,
         is_required=False,
-        is_system=is_system,
         reference_is_ckless=ckless,
         reference_is_baseless=baseless,
     )
@@ -807,7 +796,6 @@ def _p_node_ancestor(
         is_list=False,
         is_internal=True,
         is_computed=True,
-        is_system=True,
         is_stored=store,
         is_proto=wire,
         is_required=require,
@@ -833,7 +821,6 @@ def p_node_template(id: int) -> Any:
         is_stored=True,
         is_proto=True,
         is_list=False,
-        is_system=True,
     )
 
 

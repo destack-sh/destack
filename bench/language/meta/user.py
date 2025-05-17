@@ -64,10 +64,8 @@ class User(IsSubject, Node[UserData]):
 
     # auth
     # TODO :Architecture: refactor out authentication & challenges for Users/Client
-    email: str | None = p_system(
-        60, defer=True, unique=True, sensitive=True, constraint=EMAIL_CONSTRAINT
-    )
-    password_salt: Optional[bytes] = p_kernel(61, defer=True, sensitive=True)
-    password_hash: Optional[bytes] = p_kernel(62, defer=True, sensitive=True)
+    email: str | None = p_system(60, unique=True, sensitive=True, constraint=EMAIL_CONSTRAINT)
+    password_salt: Optional[bytes] = p_kernel(61, sensitive=True)
+    password_hash: Optional[bytes] = p_kernel(62, sensitive=True)
     # challenges?
     # password_reset_token, email_confirmation_token, ...

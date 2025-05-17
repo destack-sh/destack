@@ -13,7 +13,6 @@ from bench.language import (
     BenchStatus,
     Database,
     Engine,
-    GraphScope,
     Node,
     NodeArea,
     NodeReference,
@@ -22,6 +21,7 @@ from bench.language import (
     Package,
     PackageType,
     Region,
+    Scope,
     Session,
 )
 from bench.proto import GraphScopeData
@@ -110,7 +110,7 @@ def local_pg_engine_from_database(name: str, database: Database):
         name=name,
         database=database,
         area=NodeArea.LOCAL,
-        scope=GraphScope(bench_id=database.bench.id)._to_data(),
+        scope=Scope(bench_id=database.bench.id)._to_data(),
     )
 
 

@@ -63,7 +63,7 @@ def _init_default_query():
     # FILTER_NOT_DELETED.clauses = [C(ConditionalType.NOT_EXISTS, property=Node.deleted_at)]
     for node_t in NODE_CLASSES:
         SELECT_DEFAULT_PROPERTIES[node_t.metatype] = tuple(
-            prop for prop in node_t.__stored_properties__.values() if not prop.is_deferred
+            prop for prop in node_t.__stored_properties__.values()
         )
         SELECT_ALL_PROPERTIES[node_t.metatype] = tuple(node_t.__stored_properties__.values())
 

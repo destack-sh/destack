@@ -1,13 +1,12 @@
 import abc
 from datetime import datetime, timedelta
-from typing import TYPE_CHECKING, Any, Callable, ClassVar, Optional, Self, Union, cast
+from typing import TYPE_CHECKING, Any, Optional, Self, Union, cast
 from uuid import UUID
 
 from bench.language.registry import CHILD_NODE_TYPES
 from bench.pb2 import AnyNodeData, NodeReferenceData
 from bench.utils.fractional import INTEGER_ZERO
 from bench.utils.tenacity import RetryOptions
-from bench.utils.uuidt import UUIDT
 
 from .const import (
     RESOURCE_NODE_TYPES,
@@ -42,7 +41,6 @@ if TYPE_CHECKING:
         ModelProvider,
         Node,
         NodeReference,
-        Notification,
         Organization,
         Package,
         Page,
@@ -147,28 +145,6 @@ PROCESSABLE_NODE_TYPES = bittuple(
     NodeType.AGENT,
     NodeType.RUN,
     NodeType.TASK,
-    NodeType.SPAN,
-)
-
-
-Timed = Union[
-    "Message",
-    "Notification",
-    "Thread",
-    "Agent",
-    "Task",
-    "Interruption",
-    "Run",
-    "Span",
-]
-TIMED_NODE_TYPES = bittuple(
-    NodeType.MESSAGE,
-    NodeType.NOTIFICATION,
-    NodeType.THREAD,
-    NodeType.AGENT,
-    NodeType.TASK,
-    NodeType.INTERRUPTION,
-    NodeType.RUN,
     NodeType.SPAN,
 )
 
@@ -336,13 +312,6 @@ class IsBased(BuiltinObject):
 
 
 @object_()
-class IsTimed(BuiltinObject):
-    """A Node with a time-based identity."""
-
-    __id_factory__: ClassVar[Callable[[], UUID]] = UUIDT
-
-
-@object_()
 class IsNamed(BuiltinObject):
     """A Node with a plain name."""
 
@@ -376,6 +345,11 @@ class IsModal(BuiltinObject):
             and self.archived_at is None  # type: ignore
             and self.mode < NodeMode.TEMPLATE
         )
+
+
+@object_()
+class IsExtensible(BuiltinObject):
+    """A Node that can be extended with fields."""
 
 
 @object_()

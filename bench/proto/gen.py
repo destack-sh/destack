@@ -47,7 +47,6 @@ from bench.language import (
     STYLE_NODE_TYPES,
     SUBJECT_NODE_TYPES,
     TEMPLATABLE_NODE_TYPES,
-    TIMED_NODE_TYPES,
     TYPE_CONSTRAINT_BY_FORMAT,
     UNSET,
     VERSION,
@@ -55,7 +54,6 @@ from bench.language import (
     BenchNode,
     EnumType,
     PageNode,
-    Property,
     ProvisionableResourceBase,
     ResourceBase,
     TypeConstraint,
@@ -466,15 +464,8 @@ export type PropertyInfo = {
     isWired?: boolean;
     isStored?: boolean;
     isUnique?: boolean;
-    isDeferred?: boolean;
     isSensitive?: boolean;
-    isEncrypted?: boolean;
         
-    // value
-    isValueRuntime?: boolean;
-    isValuePacked?: boolean;
-    valuePackedId?: number;
-    
     // references
     referenceKind?: ReferenceKind;
     referenceNodes?: NodeType[] | "any";
@@ -522,18 +513,13 @@ export type PropertyInfo = {
                 "isWired",
                 "isStored",
                 "isUnique",
-                "isDeferred",
                 "isSensitive",
-                "isEncrypted",
             ):
                 if getattr(prop, to_casing(flag, Casing.SNAKE)):
                     prop_info_parts[flag] = "true"
             for value_flag in ("isValueRuntime", "isValuePacked"):
                 if getattr(prop, to_casing(value_flag, Casing.SNAKE)):
                     prop_info_parts[value_flag] = "true"
-            if prop.value_packed_ptr:
-                assert isinstance(prop.value_packed_ptr, Property)
-                prop_info_parts["valuePackedId"] = str(prop.value_packed_ptr.id)
             if prop.reference_kind:
                 prop_info_parts["referenceKind"] = f"ReferenceKind.{prop.reference_kind.name}"
             if prop.reference_nodes:
@@ -690,7 +676,6 @@ export const TYPE_CONSTRAINT_BY_FORMAT: Partial<Record<TypeFormat, TypeConstrain
         ("PROCESSABLE_NODE_TYPES", PROCESSABLE_NODE_TYPES),
         ("PROVISIONABLE_RESOURCE_NODE_TYPES", PROVISIONABLE_RESOURCE_NODE_TYPES),
         ("TEMPLATABLE_NODE_TYPES", TEMPLATABLE_NODE_TYPES),
-        ("TIMED_NODE_TYPES", TIMED_NODE_TYPES),
     ):
         node_types_str_parts.append(f"export const {name}: NodeType[] = [")
         for node_type in node_types:

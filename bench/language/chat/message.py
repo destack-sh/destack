@@ -12,7 +12,6 @@ from bench.language.core import (
     IsComputable,
     IsModal,
     IsOwnable,
-    IsTimed,
     IsTitled,
     Node,
     NodeType,
@@ -25,7 +24,6 @@ from bench.language.core import (
     TextLine,
     enum_,
     p_internal,
-    p_node_ancestor,
     p_node_parent,
     p_regular,
     text_line,
@@ -58,7 +56,6 @@ class MessageType(BuiltinEnum):
 @timed_node_(NodeType.MESSAGE)
 class Message(
     IsComputable,
-    IsTimed,
     IsBased,
     IsOwnable,
     IsTitled,
@@ -75,22 +72,8 @@ class Message(
     )
     type: MessageType = p_regular(30, default=MessageType.DEFAULT)
     # platform? source?
-    channel: Optional["Channel"] = p_node_ancestor(
-        34,
-        NodeType.CHANNEL,
-        require=False,
-        store=True,
-        wire=True,
-        is_bench_implicit=True,
-    )
-    thread: Optional["Thread"] = p_node_ancestor(
-        35,
-        NodeType.THREAD,
-        require=True,
-        store=True,
-        wire=True,
-        is_bench_implicit=True,
-    )
+    channel: Optional["Channel"] = p_regular(34, store=True, wire=True, same_bench=True)
+    thread: Optional["Thread"] = p_regular(35, store=True, wire=True, same_bench=True)
     scope: Union["PageNode", "Package"] = p_regular(36)
     if TYPE_CHECKING:
         channel_id: Optional[UUID] = None

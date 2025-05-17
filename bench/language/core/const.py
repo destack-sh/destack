@@ -506,7 +506,7 @@ class StructType(BuiltinEnum):
     EDIT_OPERATION = 20005
     CHANGE = 20006
     CHANGE_VIGNETTE = 20007
-    GRAPH_SCOPE = 20008
+    SCOPE = 20008
     CLIENT_ORIGIN = 20009
     NODE_REFERENCE = 20010
     PROPERTY_REFERENCE = 20011
@@ -521,6 +521,7 @@ class StructType(BuiltinEnum):
     # type [21400-21600]
     TYPE = 21400
     TYPE_CONSTRAINT = 21401
+    VALUE = 21410
     FILE_INFO = 21420
     # SCHEMA, UNION, TAG, ...
 
@@ -1260,12 +1261,15 @@ class ChangeCategory(BuiltinEnum):
 class EditOperationType(BuiltinEnum):
     """The type of edit operation."""
 
-    # basic (idempotent)
+    # direct
     SET = 1
     CLEAR = 2
 
     # list
     # APPEND, REMOVE, ...
+
+    # MAP
+    # SET_KEY, DELETE_KEY, ...
 
     # math
     # ADD, SUBTRACT, ...
@@ -1407,7 +1411,6 @@ class TypeKind(BuiltinEnum):
     STRUCT = 2
     NODE = 3
     ENUM = 4
-    CUSTOM_OBJECT = 6
 
 
 @enum_(EnumType.FIELD_ZONE)
@@ -1783,13 +1786,7 @@ def capture_span(
         with tracer.start_as_current_span(key):
             yield
     else:
-        span = Span(
-            type=type,
-            nodes=nodes or [],
-            title=title,
-            started_at=runtime.oracle.utc(),
-            _skip_validate_self=True,
-        )
+        span = Span(type=type, nodes=nodes or [], title=title, started_at=runtime.oracle.utc())
         run._copy_context_to(span)
         run.add_child(span)
         try:

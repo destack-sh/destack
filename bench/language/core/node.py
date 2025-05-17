@@ -77,7 +77,6 @@ from .property import (
 )
 from .struct import Struct, struct_
 from .trait import IsBased, IsInstantiable, IsModal, IsOrdered, Subject
-from .validation import on_invalid_raise
 
 if TYPE_CHECKING:
     from bench.language import (
@@ -163,7 +162,7 @@ def node_component_(
 def node_(
     node_type: NodeType,
     stored: bool = True,
-    unravel_value: bool = False,
+    is_local: bool = False,
     roots: tuple[NodeType, ...] = (NodeType.BENCH,),
     index: tuple[IndexIn, ...] = (),
 ):
@@ -184,7 +183,7 @@ def node_(
             is_final=True,
         )(cls)
         cls.__is_stored__ = stored
-        cls.__unravel_value__ = unravel_value
+        cls.__is_local__ = is_local
 
         if node_type in GLOBAL_NODE_TYPES:
             cls.__area__ = NodeArea.GLOBAL
@@ -197,7 +196,12 @@ def node_(
 
         cls.__indexes__ = index
 
-        cls.__roots__ = bittuple(*roots, enum_cls=NodeType)
+        parent_property = cls.__properties__.get("parent", None)
+        assert parent_property is not None, f"missing parent property for {node_type}"
+        cls.__parent_property__ = parent_property
+        cls.__parent_types__ = parent_property.reference_nodes or ()
+
+        cls.__root_types__ = bittuple(*roots, enum_cls=NodeType)
         cls.__is_in_package__ = in_package
         cls.__is_in_bench__ = in_bench
 
@@ -230,19 +234,19 @@ class Node[NodeDataT: AnyNodeData](BuiltinObject[NodeDataT]):
 
     metatype: ClassVar[NodeType]  # type: ignore
 
-    # NOTE :Test: make id factories deterministic (incl. UUIDT? somehow)
+    __is_node__: ClassVar[bool] = True
+    __parent_property__: ClassVar[Property] = UNSET
+    __parent_types__: ClassVar[tuple[NodeType, ...]] = ()
     __id_factory__: ClassVar[Callable[[], UUID]] = uuid4
 
     __node_ancestor_properties__: ClassVar[dict[str, Property]] = frozendict()
     __base_class__: ClassVar[type["Node"] | None] = None
 
-    __roots__: ClassVar[bittuple[NodeType]] = UNSET
-    __is_struct__: ClassVar[bool] = False
-    __is_node__: ClassVar[bool] = True
+    __root_types__: ClassVar[bittuple[NodeType]] = UNSET
     __is_in_bench__: ClassVar[bool] = UNSET  # part of a Bench
     __is_in_package__: ClassVar[bool] = UNSET  # part of a Package
     __is_stored__: ClassVar[bool] = False  # stored in primary store (runtime or local)
-    __unravel_value__: ClassVar[bool] = False  # custom storage logic (for records)
+    __is_local__: ClassVar[bool] = False  # custom storage logic (for records)
     __area__: ClassVar[NodeArea]
     __indexes__: ClassVar[tuple[IndexIn, ...]] = ()
 
@@ -299,11 +303,8 @@ class Node[NodeDataT: AnyNodeData](BuiltinObject[NodeDataT]):
 
     if TYPE_CHECKING:
         _skip_add_self: bool = False
-        _skip_validate_self: bool = False
 
-    def __init__(
-        self, *, _skip_add_self: bool = False, _skip_validate_self: bool = False, **kwargs
-    ):
+    def __init__(self, *, _skip_add_self: bool = False, **kwargs):
         # inject :Tracing context
         cls = type(self)
         if isinstance(self, IsModal):
@@ -313,7 +314,7 @@ class Node[NodeDataT: AnyNodeData](BuiltinObject[NodeDataT]):
                     kwargs["mode"] = session._runtime.active_mode
 
         # init object
-        super().__init__(**kwargs, _skip_validate_self=True, _skip_extra_kwargs=True)
+        super().__init__(**kwargs, _skip_extra_kwargs=True)
 
         # init node
         if isinstance(self, IsInstantiable):
@@ -375,19 +376,14 @@ class Node[NodeDataT: AnyNodeData](BuiltinObject[NodeDataT]):
         if not _skip_add_self:
             self._graph.add(self)
 
-        # parse extraneous kwargs
-        self._init_extra_kwargs(kwargs)
-
         # init session context
         if self._session is not None:
-            if self._is_new and not _skip_validate_self:
-                self._validate_self((), invalid=on_invalid_raise)
             self._track_self(self._session)
 
     @dualmethod
     def get_property(self, key: str) -> Property:  # type: ignore
         """Get a property by key from this instance."""
-        prop = self._get_effective_cls().__properties__.get(key)
+        prop = self.__properties__.get(key)
         if prop is None:
             raise ValueError(f"no property '{key}' in {self.__class__.__name__}")
         return prop
@@ -471,11 +467,11 @@ class Node[NodeDataT: AnyNodeData](BuiltinObject[NodeDataT]):
         Whether this Node is attached to a roots.
         TODO :Performance: Node.is_attached is very inefficient
         """
-        if not self.__roots__.bits.any():
+        if not self.__root_types__.bits.any():
             return True  # always attached
         parent = self
         while parent is not None:
-            if parent.metatype in self.__roots__:
+            if parent.metatype in self.__root_types__:
                 return True
             parent = parent.parent
         return False
@@ -740,7 +736,7 @@ class Node[NodeDataT: AnyNodeData](BuiltinObject[NodeDataT]):
 
                 path_parts.append(current._path_key)
                 next_parent = current.parent
-                if next_parent is None and current.metatype in self.__roots__:
+                if next_parent is None and current.metatype in self.__root_types__:
                     break  # reached the root
                 current = next_parent
             else:
@@ -1159,7 +1155,7 @@ class NodeReference(Struct[NodeReferenceData]):
         bench_id: UUID | None = None
         if node.metatype == NodeType.BENCH:
             bench_id = node.id
-        elif NodeType.BENCH in node.__roots__:
+        elif NodeType.BENCH in node.__root_types__:
             bench_id = cast(BenchNode, node).bench_id
             if bench_id is None:
                 # maybe just creating, try from context
@@ -1173,12 +1169,7 @@ class NodeReference(Struct[NodeReferenceData]):
             base_id = cast(IsBased, node).base_id
 
         reference = NodeReference(
-            node_type=node.metatype,
-            id=node.id,
-            ck=node.ck,
-            bench_id=bench_id,
-            base_id=base_id,
-            _skip_validate_self=True,
+            node_type=node.metatype, id=node.id, ck=node.ck, bench_id=bench_id, base_id=base_id
         )
         return reference
 
