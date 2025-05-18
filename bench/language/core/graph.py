@@ -35,7 +35,7 @@ class GraphConsistencyError(GraphError):
     pass
 
 
-class _NodeGraphBase[K: str | UUID, V: AnyNodeData | Node](abc.ABC):
+class _GraphBase[K: str | UUID, V: AnyNodeData | Node](abc.ABC):
     __slots__ = (
         "_nodes_by_id",
         "_nodes_by_parent",
@@ -366,9 +366,9 @@ class _NodeGraphBase[K: str | UUID, V: AnyNodeData | Node](abc.ABC):
             self.add(node)
 
 
-class NodeGraph(_NodeGraphBase[UUID, "Node"]):
+class Graph(_GraphBase[UUID, "Node"]):
     """
-    A NodeGraph for Node objects (UUIDs for ids, parent_ptr).
+    A Graph for Node objects (UUIDs for ids, parent_ptr).
     Nodes must be part of a supergraph.
     """
 
@@ -379,7 +379,7 @@ class NodeGraph(_NodeGraphBase[UUID, "Node"]):
         self,
         scope: GraphScopeData,
         node_types: Collection[NodeType],
-        supergraph: "NodeSuperGraph",
+        supergraph: "Supergraph",
         *,
         nodes: Collection["Node"] | None = None,
     ):
@@ -396,9 +396,9 @@ class NodeGraph(_NodeGraphBase[UUID, "Node"]):
         return node.parent_ptr
 
 
-class NodeDataGraph(_NodeGraphBase[str, AnyNodeData]):
+class GraphData(_GraphBase[str, AnyNodeData]):
     """
-    A NodeGraph for NodeData objects (strings for ids, parent_ptr).
+    A Graph for NodeData objects (strings for ids, parent_ptr).
     """
 
     key_type = str
@@ -412,7 +412,7 @@ class NodeDataGraph(_NodeGraphBase[str, AnyNodeData]):
             return None
 
 
-class NodeSuperGraph:
+class Supergraph:
     """
     A set of graphs making up the currently available graph in some context (like a session).
     Nodes are resolved against the graphs in the order they were added.
@@ -423,17 +423,17 @@ class NodeSuperGraph:
     __slots__ = ("_base", "_graphs", "_graphs_by_node_type", "_root_ptr", "name")
 
     def __init__(
-        self, name: str, root_ptr: "NodeReference | None", base: "NodeSuperGraph | None" = None
+        self, name: str, root_ptr: "NodeReference | None", base: "Supergraph | None" = None
     ):
         self.name = name
         self._root_ptr = root_ptr
         self._graphs = ()
-        self._graphs_by_node_type: dict[NodeType, tuple[NodeGraph, ...]] = {}
+        self._graphs_by_node_type: dict[NodeType, tuple[Graph, ...]] = {}
         self._base = base
 
-    def instance(self, name: str) -> "NodeSuperGraph":
+    def instance(self, name: str) -> "Supergraph":
         """Clone the supergraph, but not the graphs."""
-        instance = NodeSuperGraph(name, self._root_ptr)
+        instance = Supergraph(name, self._root_ptr)
         instance._base = self
         instance._graphs = self._graphs
         instance._graphs_by_node_type = {**self._graphs_by_node_type}
@@ -451,7 +451,7 @@ class NodeSuperGraph:
             base_str = f", base={self._base!r}" if self._base is not None else ""
             return f"<{self.__class__.__name__} {root_str} ({self!s}{base_str})>"
 
-    def has(self, other: "NodeSuperGraph"):
+    def has(self, other: "Supergraph"):
         return self is other or (self._base is not None and self._base.has(other))
 
     @property
@@ -459,7 +459,7 @@ class NodeSuperGraph:
         assert self._root_ptr is not None, f"{self!r} has no root"
         return self.get_or_error(self._root_ptr)
 
-    def add_graph(self, graph: NodeGraph):
+    def add_graph(self, graph: Graph):
         """Add a graph to this supergraph."""
         if graph.supergraph is None:
             graph.supergraph = self
@@ -476,7 +476,7 @@ class NodeSuperGraph:
                     graph,
                 )
 
-    def remove_graph(self, graph: NodeGraph):
+    def remove_graph(self, graph: Graph):
         """Remove a graph from this supergraph."""
         assert graph in self._graphs, f"{graph!r} not in {self!r}"
         self._graphs = tuple(g for g in self._graphs if g is not graph)
@@ -510,7 +510,7 @@ class NodeSuperGraph:
             raise KeyError(f"node {ptr!r} not found in {self!r}")
         return node
 
-    def get_graphs(self, node_type: NodeType) -> tuple[NodeGraph, ...]:
+    def get_graphs(self, node_type: NodeType) -> tuple[Graph, ...]:
         """Get all graphs that have a certain node type."""
         return self._graphs_by_node_type.get(node_type, ())
 
@@ -520,13 +520,13 @@ class NodeSuperGraph:
         return self.get(ptr) is not None
 
 
-class NullSuperGraph(NodeSuperGraph):
+class NullSuperGraph(Supergraph):
     """A null supergraph."""
 
-    def add_graph(self, graph: NodeGraph):
+    def add_graph(self, graph: Graph):
         raise RuntimeError("cannot add graph to null supergraph")
 
-    def remove_graph(self, graph: NodeGraph):
+    def remove_graph(self, graph: Graph):
         raise RuntimeError("cannot remove graph from null supergraph")
 
 

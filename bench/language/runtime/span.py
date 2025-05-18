@@ -3,28 +3,27 @@ from uuid import UUID
 
 from bench.language.core import (
     IsModal,
-    Node,
+    IsProcessable,
     NodeType,
     PackageNode,
     SpanType,
+    node_,
     p_node_ancestor,
     p_node_parent,
     p_regular,
-    timed_node_,
 )
-from bench.language.core.trait import IsProcessable
 from bench.pb2 import SpanData
 
 from .context import IsRun
 
 if TYPE_CHECKING:
-    from bench.language import Code, NodeReference, Run
+    from bench.language import NodeReference, Run
 
 
 # pyright: reportIncompatibleVariableOverride=false
 
 
-@timed_node_(NodeType.SPAN)
+@node_(NodeType.SPAN)
 class Span(
     IsModal,
     IsRun,
@@ -47,8 +46,6 @@ class Span(
 
     # content
     title: str | None = p_regular(60)
-    code: Optional["Code"] = p_regular(62)
-    nodes: list["Node"] = p_regular(65)
 
     # ...IsProcessable[80-]
 

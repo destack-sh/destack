@@ -13,7 +13,6 @@ from bench.language import (
     Aliasing,
     BuiltinObject,
     Choice,
-    Class,
     Field,
     Flow,
     FlowEdgeType,
@@ -27,6 +26,7 @@ from bench.language import (
     Renderer,
     RenderOptions,
     Run,
+    Schema,
     Session,
     code,
     format_code,
@@ -196,7 +196,7 @@ def test_render_class(session: Session, package: Package):
     Choice1 = Choice.new(
         "Choice1", Option.new("Option1"), Option.new("Option2"), Option.new("Option3")
     )
-    Class1 = Class.new("Class1", Field.member("field1", Choice1))
+    Class1 = Schema.new("Class1", Field.member("field1", Choice1))
     return {"Choice1": Choice1, "Class1": Class1}
 
 

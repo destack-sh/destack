@@ -1,4 +1,3 @@
-from functools import cached_property
 from typing import TYPE_CHECKING, Literal, Union
 
 from bench.language.core import (
@@ -43,10 +42,6 @@ class Choice(
         if typ is None:
             raise ValueError(f"{self!r} does not have a type")
         return typ
-
-    @cached_property  # :CachedTypeInfo
-    def instance_type(self) -> "TypeBase":
-        return self.to_type()
 
     @staticmethod
     def new(name: str, *options: "Option", **kwargs) -> "Choice":

@@ -6,11 +6,11 @@ from bench.language.core import (
     IsModal,
     IsNamed,
     IsOwnable,
-    IsTemplatable,
     NodeType,
     PageNode,
     RemoteNodeList,
     node_,
+    p_runtime,
 )
 from bench.language.core.list import attach_node
 from bench.pb2 import RecordData, TableData
@@ -49,7 +49,6 @@ class RecordNodeList(RemoteNodeList["Record", RecordData]):
 @node_(NodeType.TABLE)
 class Table(
     IsInstantiable,
-    IsTemplatable,
     IsModal,
     IsNamed,
     IsOwnable,
@@ -58,7 +57,7 @@ class Table(
 ):
     """A Table of Records."""
 
-    _record: RecordNodeList | None = None
+    _record: RecordNodeList | None = p_runtime()
 
     @property
     def records(self) -> RecordNodeList:

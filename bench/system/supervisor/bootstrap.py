@@ -15,9 +15,9 @@ from bench.language import (
     Engine,
     Handle,
     NodeReference,
-    NodeSuperGraph,
     NodeType,
     Region,
+    Supergraph,
     User,
     UserStatus,
 )
@@ -42,7 +42,7 @@ async def create_system_benches(
 ):
     """Bootstrap the Bench system."""
 
-    supergraph = NodeSuperGraph(
+    supergraph = Supergraph(
         name="System", root_ptr=NodeReference(node_type=NodeType.BENCH, id=SYSTEM_ID)
     )
 

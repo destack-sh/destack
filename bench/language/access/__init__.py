@@ -1,3 +1,1 @@
-from .legacy import PolicySubject
-
-__all__ = ["PolicySubject"]
+__all__ = []

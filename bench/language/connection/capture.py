@@ -6,7 +6,7 @@ import structlog
 from opentelemetry import trace
 
 if TYPE_CHECKING:
-    from bench.language import Connection, NodeGraph, NodeLink
+    from bench.language import Connection, Graph, NodeLink
 
 
 # pyright: reportIncompatibleVariableOverride=false
@@ -28,7 +28,7 @@ class GraphCapture:
         self.parent = parent
         self.connections: list[Connection] = []
         self.links: list[NodeLink] = []
-        self.graphs: list[NodeGraph] = []
+        self.graphs: list[Graph] = []
 
     def add_connection(self, connection: "Connection"):
         """Capture a Connection."""
@@ -42,8 +42,8 @@ class GraphCapture:
             self.parent.add_link(link)
         self.links.append(link)
 
-    def add_graph(self, graph: "NodeGraph"):
-        """Capture a NodeGraph."""
+    def add_graph(self, graph: "Graph"):
+        """Capture a Graph."""
         if self.parent is not None:
             self.parent.add_graph(graph)
         self.graphs.append(graph)
@@ -62,8 +62,8 @@ class GraphCapture:
         if link in self.links:
             self.links.remove(link)
 
-    def remove_graph(self, graph: "NodeGraph"):
-        """Remove a NodeGraph (if it exists)."""
+    def remove_graph(self, graph: "Graph"):
+        """Remove a Graph (if it exists)."""
         if self.parent is not None:
             self.parent.remove_graph(graph)
         if graph in self.graphs:
@@ -94,7 +94,7 @@ async def isolated_graph(  # noqa: RUF029
     on_exit: Literal["close_and_detach"] = "close_and_detach",
 ):
     """
-    Capture and isolate NodeGraphs, NodeLinks and Connections created in this context.
+    Capture and isolate Graphs, NodeLinks and Connections created in this context.
     """
     # create capture
     capture = GraphCapture(parent=_graph_capture.get())
@@ -108,37 +108,37 @@ async def isolated_graph(  # noqa: RUF029
             capture.close_and_detach()
 
 
-def capture(obj: "Connection | NodeGraph | NodeLink"):
+def capture(obj: "Connection | Graph | NodeLink"):
     """Capture the graph object in this context."""
     capture = _graph_capture.get()
     if capture is None:
         return
 
-    from bench.language import Connection, NodeGraph, NodeLink
+    from bench.language import Connection, Graph, NodeLink
 
     if isinstance(obj, Connection):
         capture.add_connection(obj)
     elif isinstance(obj, NodeLink):
         capture.add_link(obj)
-    elif isinstance(obj, NodeGraph):
+    elif isinstance(obj, Graph):
         capture.add_graph(obj)
     else:
         assert_never(obj)
 
 
-def uncapture(obj: "Connection | NodeGraph | NodeLink"):
+def uncapture(obj: "Connection | Graph | NodeLink"):
     """Remove the graph object from this context."""
     capture = _graph_capture.get()
     if capture is None:
         return
 
-    from bench.language import Connection, NodeGraph, NodeLink
+    from bench.language import Connection, Graph, NodeLink
 
     if isinstance(obj, Connection):
         capture.remove_connection(obj)
     elif isinstance(obj, NodeLink):
         capture.remove_link(obj)
-    elif isinstance(obj, NodeGraph):
+    elif isinstance(obj, Graph):
         capture.remove_graph(obj)
     else:
         assert_never(obj)

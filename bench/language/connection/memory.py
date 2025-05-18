@@ -12,8 +12,8 @@ from opentelemetry import trace
 
 from bench import pb2
 from bench.language.core import (
+    GraphData,
     Node,
-    NodeDataGraph,
     NodeType,
     QueryType,
     bittuple,
@@ -43,7 +43,7 @@ class MemoryEngine(Engine["MemoryConnector"]):
         name: str,
         scope: GraphScopeData,
         node_types: bittuple[NodeType],
-        graph: "NodeDataGraph",
+        graph: "GraphData",
         include_removed: bool,
     ):
         super().__init__(name, scope, node_types)
@@ -97,10 +97,10 @@ class MemoryGetConnection[T: Node](GetConnection[MemoryConnector, T]):
 
     @override
     async def _do_read(self, query: "LegacyQuery") -> GetResultData:
-        from bench.language import NodeDataGraph, NodeReference
+        from bench.language import GraphData, NodeReference
 
         loaded_graph = self.connector.engine.graph
-        visited_graph = NodeDataGraph(
+        visited_graph = GraphData(
             scope=self.connector.engine.scope, node_types=self.connector.engine.node_types
         )
 

@@ -1,7 +1,7 @@
 import asyncio
 import contextvars
 from contextlib import asynccontextmanager, suppress
-from datetime import datetime, timedelta
+from datetime import datetime
 from typing import (
     TYPE_CHECKING,
     Awaitable,
@@ -27,48 +27,36 @@ from bench.language.connection import (
     SplitConnector,
     scope_includes,
 )
-from bench.language.core import (
-    ACTIVE_SESSION,
-    EMPTY_SCOPE_DATA,
-    NODE_TYPES,
-    BenchError,
-    BenchNode,
-    EditType,
-    IsModal,
-    IsRuntime,
-    Node,
-    NodeDataGraph,
-    NodeGraph,
-    NodeMode,
-    NodeType,
-    PackageNode,
-    SessionStatus,
-    Subject,
-    bittuple,
-    p_node_parent,
-    p_regular,
-    p_runtime,
-    repr_scope,
-    timed_node_,
-)
 from bench.language.registry import DESCENDANT_NODE_TYPES
 from bench.pb2 import (
     ClientOriginData,
     ContextData,
     EditData,
+    EditOperationData,
     GraphScopeData,
     HostClient,
     RpcMetadata,
-    SessionData,
     SupervisorClient,
     lang_pb2,
 )
-from bench.pb2.lang_pb2 import EditOperationData
 from bench.utils.func import async_shield, uuid_to_str
 from bench.utils.oracle import Oracle
 from bench.utils.sync import CriticalLock
 from bench.utils.uuidt import UUIDT
 
+from .const import (
+    ACTIVE_SESSION,
+    NODE_TYPES,
+    BenchError,
+    EditType,
+    NodeMode,
+    NodeType,
+    bittuple,
+)
+from .graph import Graph, GraphData, Supergraph
+from .node import BenchNode, Node, PackageNode, Subject
+from .object import EMPTY_SCOPE_DATA, repr_scope
+from .property import p_node_parent, p_runtime
 from .transaction import Transaction
 
 if TYPE_CHECKING:
@@ -96,14 +84,14 @@ class _CommitEvent:
 
 
 CommitPrepareHook = Callable[
-    ["Session", NodeGraph, NodeDataGraph, Sequence["EditData"], Sequence["EditData"]],
+    ["Session", Graph, GraphData, Sequence["EditData"], Sequence["EditData"]],
     Awaitable[None],
 ]
 CommitHook = Callable[
     [
         "Session",
-        NodeGraph,
-        NodeDataGraph,
+        Graph,
+        GraphData,
         Sequence["EditData"],
         Sequence["EditData"],
     ],
@@ -112,19 +100,17 @@ CommitHook = Callable[
 CommitFailedHook = Callable[["Session", BaseException], Awaitable[None]]
 
 
-@timed_node_(NodeType.SESSION)
-class Session(BenchNode[SessionData], IsRuntime, IsModal):
+class Session:
     """
     A managed Session for interacting with and running a Bench.
     """
 
     parent: Optional["Bench"] = p_node_parent(4, NodeType.BENCH, is_system=True)
 
-    # status
-    status: SessionStatus = p_regular(40, default=SessionStatus.PENDING)
-    duration: Optional[timedelta] = p_regular(41)
-    opened_at: Optional[datetime] = p_regular(42)
-    closed_at: Optional[datetime] = p_regular(43)
+    # node
+    mode: NodeMode
+    bench: Optional["Bench"]
+    _supergraph: Supergraph
 
     # context
     # ...HasRuntimeContext[80-99]
@@ -410,13 +396,6 @@ class Session(BenchNode[SessionData], IsRuntime, IsModal):
                 ACTIVE_SESSION.reset(token)
         self._active_session_tokens.clear()
 
-        # remove dangling graph if this was a solo session
-        if self._is_new:
-            if len(self._graph) == 1:
-                self._graph.supergraph.remove_graph(self._graph)
-            elif self.id in self._graph:  # (may not have been added)
-                self._graph.remove(self)
-
         logger.trace("session.close", session=self)
 
     #
@@ -467,34 +446,11 @@ class Session(BenchNode[SessionData], IsRuntime, IsModal):
             if not self._on_edit_subs[node.id]:
                 del self._on_edit_subs[node.id]
 
-    def _get_context(self) -> ContextData:
-        """Gathers context valid for the entire session"""
-        if self._context_data is None:
-            context = ContextData(metatype=pb2.ObjectType.OBJECT_TYPE_CONTEXT)
-            if self.client_ptr is not None:
-                context.client_ptr.CopyFrom(self.client_ptr._to_data())
-            if self.user_ptr is not None:
-                context.user_ptr.CopyFrom(self.user_ptr._to_data())
-            if self.computer_ptr is not None:
-                context.computer_ptr.CopyFrom(self.computer_ptr._to_data())
-            self._context_data = context
-        return self._context_data
-
     def _create(self, node: Node):
         """Creates a new Node. The operation *is not* applied directly."""
         assert self._tx is not None, f"no active transaction for {node!r} in {self!r}"
         assert not self._is_suspended, f"cannot edit {node!r} in {self!r}"
         self._pending_nodes_by_id[node.id] = node
-        if (
-            isinstance(node, IsRuntime)
-            and (runtime := self._runtime) is not None
-            and any(
-                isinstance(ancestor, IsRuntime) and ancestor.session_id == self.id
-                for ancestor in node._walk_ancestors()
-            )
-        ):
-            # 'inherit' runtime context on new runtime nodes
-            runtime._set_session_context(node)
         self._tx.record_edit_event(EditType.CREATE, node)
 
     def _upsert(self, node: Node):
@@ -529,14 +485,12 @@ class Session(BenchNode[SessionData], IsRuntime, IsModal):
         assert parent_typ is not None, f"{parent_property!r} has no type info"
 
         self._pending_nodes_by_id[node.id] = node
-        old_value_packed = pack_value(old_parent.to_ref(), parent_typ)
         new_value_packed = pack_value(new_parent.to_ref(), parent_typ)
         operation = EditOperationData(
             metatype=lang_pb2.OBJECT_TYPE_EDIT_OPERATION,
             type=lang_pb2.EDIT_OPERATION_TYPE_SET,  # type: ignore
             path=[parent_property.key],
             new_value_packed=pack_proto_json(new_value_packed),
-            old_value_packed=pack_proto_json(old_value_packed),
         )
         self._tx.record_edit_event(EditType.MOVE, node, operation=operation)
         # also update any computed ancestor properties
@@ -698,15 +652,6 @@ class Session(BenchNode[SessionData], IsRuntime, IsModal):
                 )
                 raise
 
-    def _is_current_runtime_node(self, node: Node) -> bool:
-        """Whether this is a runtime node tied to the current session."""
-        if node.metatype == NodeType.SESSION:
-            return self.id == node.id
-        elif isinstance(node, IsRuntime):
-            return node.session_id == self.id
-        else:
-            return False
-
     def _preflush(
         self, *, include_runtime: bool = True, exclude: Sequence[NodeType] = ()
     ) -> list[EditData]:
@@ -717,16 +662,11 @@ class Session(BenchNode[SessionData], IsRuntime, IsModal):
         """
         assert self._tx is not None, f"no active transaction in {self!r}"
 
-        def _filter(node: Node) -> bool:
-            return (
-                include_runtime or not self._is_current_runtime_node(node)
-            ) and node.metatype not in exclude
-
         # return new_edits
         for node in self._pending_nodes_by_id.values():
-            if node._is_new and _filter(node):
+            if node._is_new:
                 node._is_new = False
-        new_edits = self._tx.preflush(filter=lambda e: _filter(e.node))
+        new_edits = self._tx.preflush()
         return new_edits
 
     @tracer.start_as_current_span("session.flush")
@@ -751,13 +691,13 @@ class Session(BenchNode[SessionData], IsRuntime, IsModal):
             self._tx.reset()
             raise
 
-    def _make_pending_graph(self) -> NodeGraph:
+    def _make_pending_graph(self) -> Graph:
         node_types = {node.metatype for node in self._pending_nodes_by_id.values()}
         descendant_node_types = set()  # include descendants for cascading edits
         for node_type in node_types:
             descendant_node_types.update(DESCENDANT_NODE_TYPES[node_type])
         node_types = node_types | descendant_node_types
-        graph = NodeGraph(
+        graph = Graph(
             scope=self._default_scope,
             node_types=bittuple(*node_types, enum_cls=NodeType),
             nodes=self._pending_nodes_by_id.values(),
@@ -766,10 +706,10 @@ class Session(BenchNode[SessionData], IsRuntime, IsModal):
         self._supergraph.add_graph(graph)  # cleaned up in _do_commit
         return graph
 
-    def _make_pending_data_graph(self) -> NodeDataGraph:
+    def _make_pending_data_graph(self) -> GraphData:
         """Get graphs with all the pending nodes."""
         node_types = {node.metatype for node in self._pending_nodes_by_id.values()}
-        data_graph = NodeDataGraph(
+        data_graph = GraphData(
             scope=self._default_scope, node_types=bittuple(*node_types, enum_cls=NodeType)
         )
         for node in self._pending_nodes_by_id.values():
@@ -779,7 +719,7 @@ class Session(BenchNode[SessionData], IsRuntime, IsModal):
     @tracer.start_as_current_span("session.commit")
     @async_shield
     async def _do_commit(
-        self, *, data_graph: NodeDataGraph | None = None
+        self, *, data_graph: GraphData | None = None
     ) -> tuple[list[EditData], list[EditData]]:
         """Attempt to commit pending edits."""
         from bench.proto.wiring import unwrap_some_node
@@ -793,7 +733,7 @@ class Session(BenchNode[SessionData], IsRuntime, IsModal):
 
         log = logger.bind(session=self, span="current")
 
-        pending_graphs: list[NodeGraph] = []
+        pending_graphs: list[Graph] = []
         try:
             async with self._tx_lock:
                 assert self._tx is not None, f"no active transaction in {self!r}"
@@ -882,7 +822,7 @@ class Session(BenchNode[SessionData], IsRuntime, IsModal):
     async def commit(
         self,
         *,
-        _data_graph: NodeDataGraph | None = None,
+        _data_graph: GraphData | None = None,
         _ignore_open: bool = False,
     ) -> tuple[list[EditData], list[EditData]]:
         """

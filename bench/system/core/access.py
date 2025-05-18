@@ -12,10 +12,10 @@ from bench.language import (
     EMPTY_SCOPE_DATA,
     Bench,
     Client,
-    NodeGraph,
+    Graph,
     NodeNotFoundError,
-    NodeSuperGraph,
     NodeType,
+    Supergraph,
     User,
 )
 from bench.utils.env import IS_DEV, IS_TEST
@@ -75,8 +75,8 @@ _caches: weakref.WeakSet["ClientCache"] = weakref.WeakSet()
 class ClientCache:
     """A cache of Clients for a Bench. Keeps all Clients in one graph for efficiency."""
 
-    def __init__(self, *, ttl: int, maxsize: float = 1_000, supergraph: NodeSuperGraph):
-        self._client_graph: NodeGraph = NodeGraph(
+    def __init__(self, *, ttl: int, maxsize: float = 1_000, supergraph: Supergraph):
+        self._client_graph: Graph = Graph(
             EMPTY_SCOPE_DATA, (NodeType.CLIENT, NodeType.USER, NodeType.BENCH), supergraph
         )
         supergraph.add_graph(self._client_graph)

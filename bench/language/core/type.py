@@ -37,7 +37,7 @@ from .const import (
 )
 from .node import Node, NodeReference
 from .object import BuiltinObject, get_tk_b64_from_ck, object_
-from .property import Property, p_internal, p_regular, p_runtime
+from .property import p_internal, p_regular
 from .struct import Struct, struct_
 from .validation import TypeConstraintIn
 from .value import Value
@@ -241,8 +241,6 @@ class TypeBase(BuiltinObject):
     is_list: bool = p_regular(61, default=False)
     is_secret: bool = p_regular(62, default=False)
 
-    _from_property: Optional["Property"] = p_runtime(default=None)
-
     def __content_str__(self) -> str:
         base_type = self.base_type
         if base_type is not None:
@@ -271,8 +269,6 @@ class TypeBase(BuiltinObject):
 
         if clauses:
             info_str += f" [{', '.join(clauses)}]"
-        if self._from_property:
-            info_str += f" from {self._from_property!s}"
 
         return info_str
 
@@ -385,9 +381,9 @@ def to_type_scalar(type_in: TypeIn) -> "Type":
         Agent,
         Block,
         Choice,
-        Class,
         Flow,
         FlowEdge,
+        Schema,
         Table,
     )
 
@@ -396,7 +392,7 @@ def to_type_scalar(type_in: TypeIn) -> "Type":
 
     if isinstance(type_in, TypeBase):
         return cast("Type", type_in)
-    elif isinstance(type_in, (Class, Choice, Flow, Action, FlowEdge, Table, Agent)):
+    elif isinstance(type_in, (Schema, Choice, Flow, Action, FlowEdge, Table, Agent)):
         type_scalar = type_in.to_type_maybe()
         if type_scalar is not None:
             assert isinstance(type_scalar, Type), f"expected Type, got {type_scalar!r}"

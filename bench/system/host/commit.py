@@ -13,11 +13,11 @@ from opentelemetry import trace
 
 from bench.language import (
     EditType,
+    Graph,
     Node,
-    NodeGraph,
-    NodeSuperGraph,
     NodeType,
     Session,
+    Supergraph,
     bittuple,
 )
 from bench.proto import EditData, wiring
@@ -121,8 +121,8 @@ class Commit[T: Node]:
 
 def unpack_commit(
     session: Session,
-    graph: NodeGraph,
-    supergraph: NodeSuperGraph,  # graph may not be in supergraph :StaleNodes
+    graph: Graph,
+    supergraph: Supergraph,  # graph may not be in supergraph :StaleNodes
     edits: Sequence[EditData],
     cascaded_edits: Sequence[EditData],
     epoch: int,

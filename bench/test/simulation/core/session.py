@@ -10,11 +10,11 @@ from bench.language import (
     Client,
     Computer,
     NodeReference,
-    NodeSuperGraph,
     NodeType,
     RemoteEngine,
     Scope,
     Session,
+    Supergraph,
     User,
 )
 from bench.proto.wiring import unpack_builtin_object
@@ -29,12 +29,12 @@ if TYPE_CHECKING:
 
 def make_pg_session(
     simulation: "Simulation",
-    supergraph: NodeSuperGraph | None = None,
+    supergraph: Supergraph | None = None,
 ):
     """Create a Session to the global and regional Postgres"""
     if supergraph is None:
         root_ptr = NodeReference(node_type=NodeType.BENCH, id=UUID(int=0), ck=UUID(int=0))
-        supergraph = NodeSuperGraph(name="Global", root_ptr=root_ptr)
+        supergraph = Supergraph(name="Global", root_ptr=root_ptr)
     session = Session(
         _default_scope=EMPTY_SCOPE_DATA,
         _engines=(simulation.global_pg_engine, simulation.regional_pg_engine),
@@ -52,7 +52,7 @@ async def make_remote_session(
     client: "ClientHandle",
     host: "HostHandle",
     oracle: Oracle,
-    supergraph: NodeSuperGraph | None = None,
+    supergraph: Supergraph | None = None,
     system: bool = False,
 ):
     """Create a Session to a remote Bench's Host"""
@@ -97,7 +97,7 @@ async def make_remote_session(
         )
     if supergraph is None:
         root_ptr = NodeReference(node_type=NodeType.BENCH, id=bench_id, ck=bench_id)
-        supergraph = NodeSuperGraph(name="Remote", root_ptr=root_ptr)
+        supergraph = Supergraph(name="Remote", root_ptr=root_ptr)
     session = Session(
         _default_scope=Scope(bench_id=bench_id)._to_data(),
         _engines=tuple(engines),

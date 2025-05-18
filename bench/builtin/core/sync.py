@@ -7,11 +7,11 @@ from bench.language import (
     UUID_NAMESPACE,
     Block,
     BlockType,
+    Graph,
     IsInstantiable,
     IsTemplatable,
     Membership,
     Node,
-    NodeGraph,
     NodeReference,
     Package,
 )
@@ -47,14 +47,14 @@ def get_stable_builtin_path(node: Node) -> str:
 
         path_parts.append(path_key)
         next_parent = current.parent
-        if next_parent is None and current.metatype in node.__root_types__:
+        if next_parent is None and current.metatype == node.__root_type__:
             break  # reached the root
         current = next_parent
 
     return "/".join(reversed(path_parts))
 
 
-def assign_builtin_ids(graph: NodeGraph, ignore: Collection[Node] = ()) -> None:
+def assign_builtin_ids(graph: Graph, ignore: Collection[Node] = ()) -> None:
     """
     Assign deterministic ids/cks to the Nodes in the graph (derived from their absolute path).
     """

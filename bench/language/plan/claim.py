@@ -11,7 +11,6 @@ from bench.language.core import (
     IsNamed,
     IsOrdered,
     IsOwnable,
-    IsRuntime,
     NodeReference,
     NodeType,
     PackageNode,
@@ -67,7 +66,6 @@ class ClaimStatus(BuiltinEnum):
 
 @node_(NodeType.CLAIM)
 class Claim(
-    IsRuntime,
     IsOwnable,
     IsModal,
     IsInstantiable,

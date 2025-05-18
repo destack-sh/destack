@@ -16,10 +16,14 @@ from bench.utils.func import get_class_name, hash_stable, parse_py_annotation
 from bench.utils.string import Casing, to_casing
 
 from .const import (
+    CONTAINER_VIEW_NODE_TYPES,
     EMPTY_DICT,
     NODE_TYPES,
+    PAGE_NODE_TYPES,
     PRIMITIVE_TYPE_BY_PY_TYPE,
+    RESOURCE_NODE_TYPES,
     UNSET,
+    VIEW_NODE_TYPES,
     EnumType,
     NodeReferenceKind,
     NodeType,
@@ -57,6 +61,58 @@ PROPERTY_META_KEY_BY_TYPE = {
     NodeReferenceMeta.NODE_TYPE: "node_type",
 }
 PROPERTY_TYPE_BY_META_KEY = {v: k for k, v in PROPERTY_META_KEY_BY_TYPE.items()}
+
+
+def _resolve_enum_type(class_name: str) -> EnumType | None:
+    """Get the EnumType for the given enum name."""
+    assert class_name
+    enum_name = to_casing(class_name, Casing.ALL_CAPS)
+    if enum_type := EnumType.__members__.get(enum_name):
+        return enum_type
+    enum_name = class_name.upper()
+    if enum_type := EnumType.__members__.get(enum_name):
+        return enum_type
+    return None
+
+
+def _resolve_struct_type(class_name: str) -> StructType | None:
+    """Get the StructType for the given struct name."""
+    assert class_name
+    enum_name = to_casing(class_name, Casing.ALL_CAPS)
+    if struct_type := StructType.__members__.get(enum_name):
+        return struct_type
+    enum_name = class_name.upper()
+    if struct_type := StructType.__members__.get(enum_name):
+        return struct_type
+    return None
+
+
+def _resolve_node_types(class_name: str) -> tuple[NodeType, ...] | None:
+    """Get the NodeType for the given node name."""
+    assert class_name
+
+    # try both (like Vector2->VECTOR_2 and Vector2->VECTOR2)
+    enum_name = to_casing(class_name, Casing.ALL_CAPS)
+    if node_type := NodeType.__members__.get(enum_name):
+        return (node_type,)
+    enum_name = class_name.upper()
+    if node_type := NodeType.__members__.get(enum_name):
+        return (node_type,)
+
+    # special node collections
+    match class_name:
+        case "Node":
+            return NODE_TYPES.tuple
+        case "PageNode":
+            return PAGE_NODE_TYPES.tuple
+        case "ViewBase":
+            return VIEW_NODE_TYPES.tuple
+        case "ContainerViewBase":
+            return CONTAINER_VIEW_NODE_TYPES.tuple
+        case "ResourceBase":
+            return RESOURCE_NODE_TYPES.tuple
+        case _:
+            return None
 
 
 @dataclass(eq=False, slots=True)
@@ -319,7 +375,6 @@ class Property(_IntoQuery if TYPE_CHECKING else object):
 
         # determine type
         class_name = get_class_name(annotation.type)
-        enum_name = to_casing(class_name, Casing.ALL_CAPS) if class_name else None
         if self.primitive_type is not UNSET:
             # primitive type already set
             pass
@@ -328,30 +383,28 @@ class Property(_IntoQuery if TYPE_CHECKING else object):
         ):
             # primitive type
             self.primitive_type = primitive_type
-        elif enum_name and (enum_type := EnumType.__members__.get(enum_name)):
+        elif class_name and (enum_type := _resolve_enum_type(class_name)):
             # Enum
             self.enum_type = enum_type
-        elif enum_name and (struct_type := StructType.__members__.get(enum_name)):
+        elif class_name and (struct_type := _resolve_struct_type(class_name)):
             # Struct
             self.struct_type = struct_type
-        elif enum_name and (node_type := NodeType.__members__.get(enum_name)):
+        elif class_name and (new_node_types := _resolve_node_types(class_name)):
             # Node reference
-            self.node_types = (node_type,)
+            self.node_types = new_node_types
         elif class_name == "Property":
             # Property reference
             self.struct_type = StructType.PROPERTY_REFERENCE
-        elif class_name == "Node":
-            # generic Node reference
-            self.node_types = NODE_TYPES.tuple
         elif annotation.union_types:
             # Node reference union
             node_types: list[NodeType] = []
             for union_type in annotation.union_types:
                 class_name = get_class_name(union_type)
-                enum_name = to_casing(class_name, Casing.ALL_CAPS)
-                node_type = NodeType.__members__.get(enum_name)
-                assert node_type is not None, f"unexpected {class_name!r} in {self!r}"
-                node_types.append(node_type)
+                new_node_types = _resolve_node_types(class_name) if class_name else None
+                assert (
+                    new_node_types is not None
+                ), f"unexpected {class_name!r} in {self!r} (raw={self.py_type_raw!r}, annotation={annotation!r})"
+                node_types.extend(new_node_types)
             self.node_types = tuple(node_types)
 
         # default to regular node references
@@ -364,6 +417,8 @@ class Property(_IntoQuery if TYPE_CHECKING else object):
 
         # references aren't stored/wired directly
         if self.node_kind is not None or self.is_property_reference:
+            # (don't want lists of Node references or Property references in Nodes, it's a mess)
+            assert not self.is_list or not self.component.__is_node__, f"invalid list: {self!r}"
             self.ptr_prop = self._to_ptr_prop()
             self.is_wired = False
             self.is_stored = False
@@ -422,7 +477,6 @@ class Property(_IntoQuery if TYPE_CHECKING else object):
             constraint=constraint.into()
             if isinstance(constraint, TypeConstraintIn)
             else constraint,
-            _from_property=self,
         )
         return typ
 

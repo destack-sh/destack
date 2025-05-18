@@ -44,7 +44,7 @@ from .const import (
     StructType,
     TypeKind,
 )
-from .graph import NodeSuperGraph
+from .graph import Supergraph
 from .list import RemoteNodeList
 from .property import (
     _PROPERTY_SPECIFIERS,
@@ -152,20 +152,16 @@ def _process_object_cls[ObjectT: BuiltinObject](
         properties[name] = prop
     cls.__declared_properties__ = frozendict(properties)
 
-    # collect properties from ancestor components
+    # collect properties from ancestor components (closest first)
     for component in components[1:]:
         for name, prop in component.__declared_properties__.items():
             existing = properties.get(name)
             if existing is not None:
-                if existing.id is not UNSET and existing.id >= 10:
-                    raise ValueError(
-                        f"property conflict '{name}' from {component.__name__} in {cls.__name__}: {prop!r}, {existing!r}"
-                    )
-                else:
-                    print(
-                        f"overriding system property {name} from {component.__name__} in {cls.__name__}: {prop!r}, {existing!r}"
-                    )
-                    continue  # allow override
+                if existing.id == 1 or existing.id == 4 or not existing.is_stored:
+                    continue  # metatype and parent may be overridden
+                raise ValueError(
+                    f"property '{name}' from '{component.__name__}' conflicts with '{cls.__name__}': {prop!r}, {existing!r}"
+                )
             prop = prop.clone()
             prop.component = cls
             properties[name] = prop
@@ -185,36 +181,35 @@ def _process_object_cls[ObjectT: BuiltinObject](
             """Sets a computed property that shouldn't conflict with any existing property."""
             existing = properties.get(name)
             if existing is not None:
-                raise ValueError(f"property conflict '{name}': {prop!r}, {existing!r}")
+                raise ValueError(f"computed property conflict '{name}': {prop!r}, {existing!r}")
             setattr(cls, name, prop)
 
         for name, prop in properties.items():
-            if prop.runtime_prop is None:  # not a contributed property
-                # computed property.. property
-                if prop.is_property_reference:
-                    setattr(cls, name, _object_property_ref(prop))
-                # computed node property
-                elif prop.node_kind in (
-                    NodeReferenceKind.NODE_PARENT,
-                    NodeReferenceKind.NODE_REGULAR,
-                    NodeReferenceKind.NODE_TEMPLATE,
-                ):
-                    setattr(cls, name, _object_node_ref(prop))
-                # computed node ancestor property
-                elif prop.node_kind in (
-                    NodeReferenceKind.NODE_ANCESTOR,
-                    NodeReferenceKind.NODE_ANCESTOR_OR_SELF,
-                ):
-                    setattr(cls, name, _node_ancestor_ref(prop))
-                    setattr(cls, f"{name}_ptr", _node_ancestor_ptr_ref(prop))
-                # computed _x node reference properties (e.g., parent_id, type_ck, node_type, ...)
-                if prop.is_node_reference:
-                    for obj_key, ptr_key in (("id", "id"), ("ck", "ck"), ("type", "node_type")):
-                        if obj_key == "type" and (not prop.node_types or len(prop.node_types) <= 1):
-                            continue  # no need for *_type if only one possible node type
-                        _set_computed(
-                            f"{prop.name}_{obj_key}", _object_node_ref_attr(ptr_key, prop)
-                        )
+            if prop.runtime_prop is not None:
+                continue  # not a contributed property
+            # computed property.. property
+            if prop.is_property_reference:
+                setattr(cls, name, _object_property_ref(prop))
+            # computed node property
+            elif prop.node_kind in (
+                NodeReferenceKind.NODE_PARENT,
+                NodeReferenceKind.NODE_REGULAR,
+                NodeReferenceKind.NODE_TEMPLATE,
+            ):
+                setattr(cls, name, _object_node_ref(prop))
+            # computed node ancestor property
+            elif prop.node_kind in (
+                NodeReferenceKind.NODE_ANCESTOR,
+                NodeReferenceKind.NODE_ANCESTOR_OR_SELF,
+            ):
+                setattr(cls, name, _node_ancestor_ref(prop))
+                setattr(cls, f"{name}_ptr", _node_ancestor_ptr_ref(prop))
+            # computed _x node reference properties (e.g., parent_id, type_ck, node_type, ...)
+            if prop.is_node_reference:
+                for obj_key, ptr_key in (("id", "id"), ("ck", "ck"), ("type", "node_type")):
+                    if obj_key == "type" and (not prop.node_types or len(prop.node_types) <= 1):
+                        continue  # no need for *_type if only one possible node type
+                    _set_computed(f"{prop.name}_{obj_key}", _object_node_ref_attr(ptr_key, prop))
 
     # index properties
     cls.__properties__ = frozendict(properties)
@@ -520,8 +515,8 @@ class BuiltinObject[ObjectDataT: AnyObjectData](abc.ABC):
     __properties_mask_set__: ClassVar[bitarray] = UNSET
     __properties_mask_unset__: ClassVar[bitarray] = UNSET
 
-    _session: "Session | None" = p_runtime(default=None)
-    _supergraph: "NodeSuperGraph" = p_runtime(default=None)
+    _session: "Session" = p_runtime()
+    _supergraph: "Supergraph" = p_runtime()
 
     def __init__(self, **kwargs):
         raise NotImplementedError("nocheckin: generate __init__")

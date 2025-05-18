@@ -11,23 +11,6 @@ from opentelemetry import trace
 
 from bench import pb2
 from bench.language.connection import Connector, WritableConnector
-from bench.language.core import (
-    EditOperationType,
-    EditType,
-    Node,
-    NodeDataGraph,
-    NodeGraph,
-    NodeReference,
-    NodeType,
-    Scope,
-    Struct,
-    StructType,
-    Subject,
-    p_regular,
-    p_system,
-    pack_value_data,
-    struct_,
-)
 from bench.language.registry import NODE_CLASS_BY_TYPE
 from bench.pb2 import (
     AnyNodeData,
@@ -41,15 +24,16 @@ from bench.pb2 import (
 from bench.utils.func import partition
 from bench.utils.uuidt import UUIDT
 
+from .const import EditOperationType, EditType, NodeType, PrimitiveType, StructType
+from .graph import Graph, GraphData
+from .node import Node, NodeReference, Subject
+from .object import Scope
+from .property import p_regular, p_system
+from .struct import Struct, struct_
+from .value import pack_value_data
+
 if TYPE_CHECKING:
-    from bench.language import (
-        ChangeCategory,
-        ClientOrigin,
-        Icon,
-        NodeSuperGraph,
-        Run,
-        Session,
-    )
+    from bench.language import ChangeCategory, ClientOrigin, Run, Session, Supergraph
 
 logger = structlog.get_logger(__name__)
 tracer = trace.get_tracer(__name__)
@@ -59,19 +43,6 @@ def new_edit_id() -> str:
     return str(UUIDT())
 
 
-@struct_(StructType.CHANGE_VIGNETTE)
-class ChangeVignette(Struct):
-    """
-    A short non-binding summary of key properties at the time just before the edit.
-    (so if you rename Block 'A' to 'B', the vignette will say 'A').
-    """
-
-    name: str | None = p_system(30, description="Name of the object.")
-    title: str | None = p_system(31, description="Title of the object.")
-    subtype: int | None = p_system(32, description="Subtype of the object.")
-    icon: Optional["Icon"] = p_system(35, description="Icon of the object.")
-
-
 @struct_(StructType.EDIT_OPERATION)
 class EditOperation(Struct):
     """An edit operation."""
@@ -79,7 +50,7 @@ class EditOperation(Struct):
     type: EditOperationType = p_system(30, default=EditOperationType.SET)
     key: str = p_system(31)
 
-    new_value_packed: Any | None = p_regular(40)
+    new_value_packed: Any | None = p_regular(40, primitive_type=PrimitiveType.JSON)
 
 
 @struct_(StructType.EDIT)
@@ -499,8 +470,8 @@ class Transaction:
 
 @tracer.start_as_current_span("graph.edit_graph")
 def edit_graph(
-    graph: NodeGraph,
-    supergraph: "NodeSuperGraph",
+    graph: Graph,
+    supergraph: "Supergraph",
     edits: Collection[EditData],
     *,
     include_removed: bool,
@@ -588,7 +559,7 @@ def edit_graph(
 
 @tracer.start_as_current_span("graph.edit_data_graph")
 def edit_data_graph(
-    graph: NodeDataGraph,
+    graph: GraphData,
     edits: Collection[EditData],
     *,
     include_removed: bool,

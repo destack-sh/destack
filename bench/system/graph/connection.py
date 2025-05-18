@@ -11,8 +11,8 @@ from bench.language import (
     EditType,
     GetOptions,
     GetResultData,
+    GraphData,
     LegacyQuery,
-    NodeDataGraph,
     NodeReference,
     NodeType,
     QueryType,
@@ -151,7 +151,7 @@ class Connection[
     @abc.abstractmethod
     def post_commit(
         self,
-        graph: NodeDataGraph,
+        graph: GraphData,
         edits: Sequence[EditData],
         cascaded_edits: Sequence[EditData],
         epoch: int,
@@ -217,7 +217,7 @@ class ConnectionSubscription[UpdateT: Any]:
         self.connection.unsubscribe(self)
 
 
-def _get_edited_node(edit: EditData, graph: NodeDataGraph) -> AnyNodeData | None:
+def _get_edited_node(edit: EditData, graph: GraphData) -> AnyNodeData | None:
     """Get the full edited node data."""
     node_id = edit.node_ptr.id
     assert node_id, f"missing node id for {edit.node_ptr!r} in {edit!r}"
@@ -231,7 +231,7 @@ def _get_edited_node(edit: EditData, graph: NodeDataGraph) -> AnyNodeData | None
     return updated_node
 
 
-def is_edit_in_scope(edit: EditData, graph: NodeDataGraph, root_id: str) -> bool:
+def is_edit_in_scope(edit: EditData, graph: GraphData, root_id: str) -> bool:
     """
     Check if the edit is in the scope of the graph (deeply).
     """
@@ -281,7 +281,7 @@ class GetConnection(Connection[GetResultData, WatchGetUpdateData]):
 
     def _apply_node_edits_in_scope(
         self,
-        updated_graph: NodeDataGraph,
+        updated_graph: GraphData,
         edits: Sequence[EditData],
         is_cascaded: bool,
     ):
@@ -377,7 +377,7 @@ class GetConnection(Connection[GetResultData, WatchGetUpdateData]):
 
     def post_commit(
         self,
-        graph: NodeDataGraph,
+        graph: GraphData,
         edits: Sequence[EditData],
         cascaded_edits: Sequence[EditData],
         epoch: int,
@@ -442,7 +442,7 @@ class SearchConnection(Connection[SearchResultData, WatchSearchUpdateData]):
 
     def post_commit(
         self,
-        graph: NodeDataGraph,
+        graph: GraphData,
         edits: Sequence[EditData],
         cascaded_edits: Sequence[EditData],
         epoch: int,
@@ -666,7 +666,7 @@ class ConnectionIndex:
     @tracer.start_as_current_span("connection.post_commit")
     def post_commit(
         self,
-        graph: NodeDataGraph,
+        graph: GraphData,
         edits: Sequence[EditData],
         cascaded_edits: Sequence[EditData],
         epoch: int,

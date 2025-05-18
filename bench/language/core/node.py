@@ -56,7 +56,7 @@ from .const import (
     StructType,
     active_session,
 )
-from .graph import NULL_SUPERGRAPH, NodeDataGraph, NodeGraph
+from .graph import NULL_SUPERGRAPH, Graph, GraphData
 from .list import attach_node
 from .object import (
     EMPTY_SCOPE_DATA,
@@ -202,15 +202,6 @@ def node_(
     return decorate
 
 
-@dataclass_transform(kw_only_default=True, field_specifiers=_PROPERTY_SPECIFIERS)
-def timed_node_(node_type: NodeType, index: tuple[IndexIn, ...] = ()):
-    """Register a class as a concrete node for the given node type."""
-    return node_(
-        node_type=node_type,
-        index=(*index, IndexIn(columns=("created_at",))),
-    )
-
-
 @node_component_()
 class Node[NodeDataT: AnyNodeData](BuiltinObject[NodeDataT]):
     """
@@ -280,7 +271,7 @@ class Node[NodeDataT: AnyNodeData](BuiltinObject[NodeDataT]):
     # 30+ for general properties
     # ...
 
-    _graph: "NodeGraph" = p_runtime(default=None)
+    _graph: "Graph" = p_runtime(default=None)
     _link: "NodeLink | None" = p_runtime(default=None)
     _connection: "GetConnection | SearchConnection" = p_runtime(default=None)
     _is_new: bool = p_runtime(default=False)
@@ -313,9 +304,6 @@ class Node[NodeDataT: AnyNodeData](BuiltinObject[NodeDataT]):
             self.id = cls.__id_factory__()
             self._is_new = True
         if self.created_at is None:
-            if self._session is None and self.metatype == NodeType.SESSION:
-                # 'bootstrap' session with itself
-                self._session = cast("Session", self)
             assert self._session is not None, f"{self!r} is not in a session"
             now = self._session._oracle.utc()
             self.created_at = now
@@ -337,7 +325,7 @@ class Node[NodeDataT: AnyNodeData](BuiltinObject[NodeDataT]):
                 # have parent graph but it's not the right one :IsolatedGraph
                 from bench.language.connection import capture
 
-                self._graph = NodeGraph(
+                self._graph = Graph(
                     scope=parent._graph.scope,
                     node_types=(self.metatype, *DESCENDANT_NODE_TYPES[self.metatype]),
                     supergraph=self._supergraph,
@@ -349,7 +337,7 @@ class Node[NodeDataT: AnyNodeData](BuiltinObject[NodeDataT]):
             # if we're not in a graph, start a new one :IsolatedGraph
             from bench.language.connection import capture
 
-            graph = NodeGraph(  # type: ignore
+            graph = Graph(  # type: ignore
                 scope=EMPTY_SCOPE_DATA,
                 node_types=(self.metatype, *DESCENDANT_NODE_TYPES[self.metatype]),
                 supergraph=self._supergraph,
@@ -489,7 +477,7 @@ class Node[NodeDataT: AnyNodeData](BuiltinObject[NodeDataT]):
         copy_kwargs.update(kwargs)
         if detach and not reset:
             # put the node in a new graph to isolate (because same ids)
-            copy_kwargs["_graph"] = NodeGraph(
+            copy_kwargs["_graph"] = Graph(
                 scope=self._graph.scope,
                 node_types=self._graph.node_types,
                 supergraph=active_session()._supergraph,
@@ -601,7 +589,7 @@ class Node[NodeDataT: AnyNodeData](BuiltinObject[NodeDataT]):
         ) or (self._link is not None and self._link.is_active)
 
     @property
-    def _data_graph(self) -> "NodeDataGraph":
+    def _data_graph(self) -> "GraphData":
         assert self._connection is not None, f"no connection for {self!r}"
         assert self._connection.result_data is not None, f"no data graph for {self!r}"
         return self._connection.result_data.graph
@@ -616,7 +604,7 @@ class Node[NodeDataT: AnyNodeData](BuiltinObject[NodeDataT]):
     @final
     def _untrack_self(self) -> None:
         """Stop tracking this object."""
-        self._session = None
+        raise NotImplementedError(f"{self!r}._untrack_self() is no longer supported")
 
     @final
     def _walk_ancestors(self) -> Iterable["Node"]:
@@ -794,7 +782,7 @@ class Node[NodeDataT: AnyNodeData](BuiltinObject[NodeDataT]):
                 graph = self._graph
             else:
                 # have parent graph but it's not the right one :IsolatedGraph
-                graph = NodeGraph(
+                graph = Graph(
                     scope=self._graph.scope,
                     node_types=(child.metatype, *DESCENDANT_NODE_TYPES[child.metatype]),
                     supergraph=self._supergraph,
@@ -876,7 +864,7 @@ class Node[NodeDataT: AnyNodeData](BuiltinObject[NodeDataT]):
         descendants = self._graph.get_descendants(self, node_type=node_type, recursive=True)
         return cast(Sequence[N], descendants)
 
-    def _move_to_graph(self, graph: NodeGraph):
+    def _move_to_graph(self, graph: Graph):
         """Moves this Node and its descendants to a new graph."""
         moved = self._graph.get_descendants(self, recursive=True)  # type: ignore
         moved = (self, *moved)
@@ -1141,11 +1129,6 @@ class NodeReference(Struct[NodeReferenceData]):
             bench_id = node.id
         elif node.__root_type__ == NodeType.BENCH:
             bench_id = cast(BenchNode, node).bench_id
-            if bench_id is None:
-                # maybe just creating, try from context
-                session = ACTIVE_SESSION.get()
-                if session is not None and session.bench_id is not None:
-                    bench_id = session.bench_id
 
         # base
         base_id: UUID | None = None
@@ -1220,7 +1203,7 @@ def generate_node_name(
     return f"{base_name}{max_id + 1}"
 
 
-def patch_graph(*, old_graph: NodeGraph, new_graph: NodeGraph) -> None:
+def patch_graph(*, old_graph: Graph, new_graph: Graph) -> None:
     """Patches the old graph *in place* from the new graph."""
     for existing_node in tuple(old_graph.nodes):
         if existing_node.id not in new_graph:

@@ -6,7 +6,6 @@ from bench.language.core import (
     EnumType,
     IsModal,
     IsOwnable,
-    IsRuntime,
     IsTitled,
     Node,
     NodeType,
@@ -62,7 +61,7 @@ class CursorStatus(BuiltinEnum):
 
 
 @node_(NodeType.CURSOR)
-class Cursor(IsRuntime, IsOwnable, IsModal, IsTitled, PackageNode):
+class Cursor(IsOwnable, IsModal, IsTitled, PackageNode):
     """
     A Cursor is the current logical or physical 'position' or 'focus' of its owner.
      (e.g., editing Blocks on a Page or processing a specific Record in a Database.)

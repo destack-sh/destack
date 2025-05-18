@@ -3,15 +3,11 @@ from uuid import UUID
 
 from bench.language.core import (
     BuiltinObject,
-    IsRuntime,
     NodeType,
     Property,
-    Struct,
-    StructType,
     bittuple,
     node_component_,
     p_internal,
-    struct_,
 )
 
 if TYPE_CHECKING:
@@ -19,13 +15,9 @@ if TYPE_CHECKING:
         Action,
         Agent,
         Flow,
-        FlowEdge,
         Message,
         NodeReference,
-        Page,
-        Run,
         Service,
-        Session,
         Span,
         Task,
     )
@@ -61,11 +53,6 @@ class IsRun(BuiltinObject):
         same_bench=True,
         description="The Action this Run is executing.",
     )
-    transition: Optional["FlowEdge"] = p_internal(
-        74,
-        same_bench=True,
-        description="The Transition this Run is executing.",
-    )
     task: Optional["Task"] = p_internal(
         78,
         same_bench=True,
@@ -81,8 +68,6 @@ class IsRun(BuiltinObject):
         action_ptr: Optional[NodeReference] = None
         action_id: Optional[UUID] = None
         action_ck: Optional[UUID] = None
-        transition_ptr: Optional[NodeReference] = None
-        transition_id: Optional[UUID] = None
         task_ptr: Optional[NodeReference] = None
         task_id: Optional[UUID] = None
 
@@ -94,30 +79,3 @@ class IsRun(BuiltinObject):
             prop_value = getattr(self, prop.name)
             if prop_value is not None:
                 setattr(span, prop.name, prop_value)
-
-
-@struct_(StructType.EDIT_CONTEXT)
-class EditContext(Struct):
-    """Additional context for a specific edit (per-edit variable subset of Session context)."""
-
-    page: Optional["Page"] = p_internal(70)
-    flow: Optional["Flow"] = p_internal(71)
-    action: Optional["Action"] = p_internal(72)
-    session: Optional["Session"] = p_internal(73, same_bench=True)
-    run: Optional["Run"] = p_internal(74, same_bench=True)
-    run_root: Optional["Run"] = p_internal(75, same_bench=True)
-    agent: Optional["Agent"] = p_internal(76)
-    if TYPE_CHECKING:
-        block_ptr: Optional[NodeReference] = None
-        action_ptr: Optional[NodeReference] = None
-        session_ptr: Optional[NodeReference] = None
-        run_ptr: Optional[NodeReference] = None
-        run_root_ptr: Optional[NodeReference] = None
-        agent_ptr: Optional[NodeReference] = None
-
-
-@struct_(StructType.CONTEXT)
-class Context(Struct, IsRuntime):
-    """Context information for runtime nodes created in a session."""
-
-    pass

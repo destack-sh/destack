@@ -16,13 +16,13 @@ from bench.language import (
     Node,
     NodeArea,
     NodeReference,
-    NodeSuperGraph,
     NodeType,
     Package,
     PackageType,
     Region,
     Scope,
     Session,
+    Supergraph,
 )
 from bench.proto import GraphScopeData
 from bench.sql import BenchSqlContext
@@ -35,7 +35,7 @@ BEGINNING_OF_TIME = datetime.fromisoformat("1970-01-01T00:00:00+00:00")
 
 def make_system_database(region: Region, pg_url: str) -> Database:
     system_bench_ptr = NodeReference(node_type=NodeType.BENCH, id=UUID(int=0), ck=UUID(int=0))
-    supergraph = NodeSuperGraph(name="Global", root_ptr=system_bench_ptr)
+    supergraph = Supergraph(name="Global", root_ptr=system_bench_ptr)
     system_bench_stub = Bench(
         id=UUID(int=0),
         name="System",
@@ -119,7 +119,7 @@ def global_session(
     engines: tuple[Engine, ...],
     oracle: Oracle,
     *,
-    supergraph: NodeSuperGraph | None = None,
+    supergraph: Supergraph | None = None,
     epoch: int | None = None,
     readonly: bool = False,
     split_read: bool = True,

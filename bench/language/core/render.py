@@ -37,7 +37,7 @@ from .const import (
     TypeKind,
     is_node_type,
 )
-from .graph import NodeSuperGraph
+from .graph import Supergraph
 from .icon import Icon, reverse_icon
 from .node import Node, NodeReference, PackageNode
 from .object import BuiltinObject, PropertyReference
@@ -53,13 +53,13 @@ if TYPE_CHECKING:
         Block,
         Choice,
         Claim,
-        Class,
         Field,
         Flow,
         FlowEdge,
         Message,
         Option,
         Page,
+        Schema,
         Table,
         Task,
     )
@@ -86,7 +86,7 @@ class RenderOptions:
 class Aliasing:
     """Registry of aliases for Nodes."""
 
-    def __init__(self, supergraph: NodeSuperGraph):
+    def __init__(self, supergraph: Supergraph):
         self._supergraph = supergraph
         self._alias_by_node_id: dict[UUID, str] = {}
         self._node_by_alias: dict[str, Node | NodeReference] = {}
@@ -197,7 +197,7 @@ class Aliasing:
         return node
 
     @staticmethod
-    def new(supergraph: NodeSuperGraph, aliases: Mapping[str, Node | NodeReference]) -> "Aliasing":
+    def new(supergraph: Supergraph, aliases: Mapping[str, Node | NodeReference]) -> "Aliasing":
         """Create a new Aliasing registry from a supergraph and a mapping of aliases."""
         aliasing = Aliasing(supergraph)
         for name, node in aliases.items():
@@ -626,13 +626,13 @@ class ChoiceRenderer(PackageNodeRenderer["Choice"]):
         return f"Choice.new({renderer.render_args(*args)})"
 
 
-@_renderer(NodeType.CLASS)
-class ClassRenderer(PackageNodeRenderer["Class"]):
+@_renderer(NodeType.SCHEMA)
+class SchemaRenderer(PackageNodeRenderer["Schema"]):
     @override
     def _render_constructor(
         self,
         renderer: "Renderer",
-        obj: "Class",
+        obj: "Schema",
         kwargs: dict[Property, Any],
         rendered_kwargs: dict[str, str],
     ) -> str:
@@ -644,7 +644,7 @@ class ClassRenderer(PackageNodeRenderer["Class"]):
             *fields_refs,
             renderer.render_kwargs(**rendered_kwargs) or None,
         )
-        return f"Class.new({renderer.render_args(*args)})"
+        return f"Schema.new({renderer.render_args(*args)})"
 
 
 @_renderer(NodeType.TABLE)

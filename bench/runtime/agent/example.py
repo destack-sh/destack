@@ -22,11 +22,10 @@ from bench.language import (
     Block,
     Field,
     File,
+    Graph,
     Link,
     Message,
-    NodeGraph,
     NodeReference,
-    NodeSuperGraph,
     NodeType,
     NullEngine,
     Package,
@@ -35,6 +34,7 @@ from bench.language import (
     Record,
     Region,
     Session,
+    Supergraph,
     Table,
     Task,
     Thread,
@@ -94,8 +94,8 @@ class ExamplePiece(CompoundPiece):
 def _make_example_bench() -> tuple[Bench, Package, Session, User]:
     """Create the Bench/Package/... used for examples."""
     bench_ptr = NodeReference(node_type=NodeType.BENCH, id=UUID(int=0), ck=UUID(int=0))
-    supergraph = NodeSuperGraph(name="Global", root_ptr=bench_ptr)
-    graph = NodeGraph(scope=EMPTY_SCOPE_DATA, node_types=NODE_TYPES, supergraph=supergraph)
+    supergraph = Supergraph(name="Global", root_ptr=bench_ptr)
+    graph = Graph(scope=EMPTY_SCOPE_DATA, node_types=NODE_TYPES, supergraph=supergraph)
     now = datetime.now(tz=pytz.utc)
     session = Session(
         _default_scope=EMPTY_SCOPE_DATA,

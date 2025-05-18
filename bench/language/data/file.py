@@ -22,9 +22,7 @@ from opentelemetry import trace
 from PIL import Image
 
 from bench.language.core import (
-    NAME_CONSTRAINT,
     BuiltinEnum,
-    BuiltinObject,
     EnumType,
     NodeReference,
     NodeType,
@@ -32,22 +30,18 @@ from bench.language.core import (
     ResourceBase,
     Severity,
     SpanType,
-    Struct,
-    StructType,
     active_session,
     capture_span,
     constraint,
     enum_,
     node_,
-    object_,
     p_internal,
     p_node_parent,
     p_regular,
     p_runtime,
     p_system,
-    struct_,
 )
-from bench.pb2 import DownloadFilesRequest, FileData, FileInfoData, UploadFilesRequest
+from bench.pb2 import DownloadFilesRequest, FileData, UploadFilesRequest
 from bench.utils.func import group_by
 from bench.utils.string import humanize_bytes
 from bench.utils.utils import get_from_env
@@ -478,15 +472,35 @@ MIME_TYPES_BY_FILE_FORMAT = group_by(
 MIME_TYPE_BY_FORMAT: dict[FileFormat, str] = {v: k for k, v in FILE_FORMAT_BY_MIME_TYPE.items()}
 
 
-@object_()
-class FileBase(BuiltinObject):
+@node_(NodeType.FILE)
+class File(ResourceBase[FileData]):
     """
-    Core File info.
+    A File stored somewhere.
     """
 
-    # common
+    # meta
+    parent: Union[
+        "Package",
+        "Page",
+        "Table",
+        "Channel",
+        "Thread",
+        "Message",
+        "Run",
+        None,
+    ] = p_node_parent(
+        4,
+        NodeType.PACKAGE,
+        NodeType.PAGE,
+        NodeType.TABLE,
+        NodeType.CHANNEL,
+        NodeType.THREAD,
+        NodeType.MESSAGE,
+        NodeType.RUN,
+        ckless=True,
+    )
+
     type: FileType = p_regular(30)
-    name: str | None = p_regular(31, constraint=NAME_CONSTRAINT)
 
     # meta
     source: FileSource = p_regular(60)
@@ -508,7 +522,8 @@ class FileBase(BuiltinObject):
     thumbnail_width: int | None = p_regular(74)
     thumbnail_height: int | None = p_regular(75)
     content: bytes | None = p_regular(76)
-    ...  # thumbnail/preview/...?
+    retention: FileRetentionMode = p_system(80, default=FileRetentionMode.AUTOMATIC)
+    expires_at: Optional[datetime] = p_system(81)
 
     # cached content
     _original: Optional["File"] = p_runtime(default=None)  # if converted
@@ -618,78 +633,6 @@ class FileBase(BuiltinObject):
         self._cached_content = None
         self._cached_get_url = None
 
-    @tracer.start_as_current_span("file.convert")
-    async def convert(self, target_format: FileFormat) -> "FileBase":
-        """Converts the file to the given type/format."""
-        if target_format == self.format:
-            return self
-        elif self.type == FileType.IMAGE:
-            assert target_format.type == self.type, f"cannot convert {self!r} to {target_format!r}"
-            buffer = io.BytesIO()
-            self.image.save(buffer, format=target_format.name)
-            raw_text = buffer.getvalue()
-            return FileInfo(
-                source=FileSource.INLINE,
-                name=self.name,
-                mime_type=target_format.mime_type,
-                type=target_format.type,
-                format=target_format,
-                size=len(raw_text),
-                width=self.width,
-                height=self.height,
-                aspect_ratio=self.aspect_ratio,
-                content=raw_text,
-                _original=self.original,
-            )
-        elif self.type == FileType.DOCUMENT:
-            # NOTE :Incomplete: handle images when converting documents
-            if target_format == FileFormat.MARKDOWN and self.format in (
-                FileFormat.DOC,
-                FileFormat.DOCX,
-                FileFormat.ODT,
-            ):
-                # convert with pandoc
-                import pypandoc
-
-                tmp_file_path = self.to_tmp_file()
-                raw_text = pypandoc.convert_file(
-                    tmp_file_path, target_format.name.lower(), format=self.format.name.lower()
-                )
-                content = raw_text.encode()
-                return FileInfo(
-                    source=FileSource.INLINE,
-                    name=self.name,
-                    mime_type="text/markdown",
-                    type=target_format.type,
-                    format=target_format,
-                    size=len(content),
-                    content=content,
-                    _original=self.original,
-                )
-            elif target_format == FileFormat.MARKDOWN and self.format == FileFormat.PDF:
-                # convert with pypdf
-                import pypdf
-
-                reader = pypdf.PdfReader(io.BytesIO(self.read_content()))
-                pages_text: list[str] = []
-                for page in reader.pages:
-                    page_text = page.extract_text()
-                    pages_text.append(page_text)
-                raw_text = "\n\n".join(pages_text)
-                content = raw_text.encode()
-                return FileInfo(
-                    source=FileSource.INLINE,
-                    name=self.name,
-                    mime_type="text/markdown",
-                    type=target_format.type,
-                    format=target_format,
-                    size=len(content),
-                    content=content,
-                    _original=self.original,
-                )
-
-        raise ValueError(f"cannot convert {self!r} to {target_format!r}")
-
     #
     # Text content
     #
@@ -723,101 +666,6 @@ class FileBase(BuiltinObject):
             return self._cached_image
         else:
             raise ValueError(f"cannot get image content of {self!r}")
-
-    @tracer.start_as_current_span("file.downscale")
-    async def downscale(self, max_pixels: int, max_size: int, quality_step: int = 20) -> "FileBase":
-        """Downscales the image to the given max size and max pixels."""
-
-        # scale down size
-        width, height = self.image.size
-        scale = min(1.0, max_pixels / max(width, height))
-
-        # resize the image if needed
-        if scale < 1.0:
-            new_width = int(width * scale)
-            new_height = int(height * scale)
-            optimized_image = self.image.copy().resize(
-                (new_width, new_height), Image.Resampling.LANCZOS
-            )
-            buffer = io.BytesIO()
-            if optimized_image.mode in ("RGBA", "P"):
-                optimized_image = optimized_image.convert("RGB")
-            optimized_image.save(buffer, format="JPEG", subsampling=0, quality=100)
-            content = buffer.getvalue()
-        else:
-            new_width = width
-            new_height = height
-            optimized_image = self.image
-            content = self.read_content()
-
-        # reduce quality until it fits
-        quality = 100 - quality_step
-        while len(content) > max_size and quality > quality_step:
-            quality -= quality_step
-            buffer = io.BytesIO()
-            optimized_image.save(buffer, format="JPEG", subsampling=0, quality=quality)
-            content = buffer.getvalue()
-
-        return FileInfo(
-            source=FileSource.INLINE,
-            name=self.name,
-            content=content,
-            type=self.type,
-            format=FileFormat.JPEG,
-            size=len(content),
-            width=new_width,
-            height=new_height,
-            aspect_ratio=new_width / new_height,
-            mime_type="image/jpeg",
-            _original=self.original,
-        )
-
-
-@struct_(StructType.FILE_INFO)
-class FileInfo(Struct[FileInfoData], FileBase):
-    """
-    File metadata.
-    """
-
-    __content_str__ = FileBase.__content_str__  # type: ignore
-
-
-@node_(NodeType.FILE)
-class File(ResourceBase[FileData], FileBase):
-    """
-    A File stored somewhere.
-    """
-
-    # meta
-    parent: Union[
-        "Package",
-        "Page",
-        "Table",
-        "Channel",
-        "Thread",
-        "Message",
-        "Run",
-        None,
-    ] = p_node_parent(
-        4,
-        NodeType.PACKAGE,
-        NodeType.PAGE,
-        NodeType.TABLE,
-        NodeType.CHANNEL,
-        NodeType.THREAD,
-        NodeType.MESSAGE,
-        NodeType.RUN,
-        ckless=True,
-    )
-
-    # content/info
-    # ...FileInfoBase[50-79]
-
-    # content
-    retention: FileRetentionMode = p_system(80, default=FileRetentionMode.AUTOMATIC)
-    expires_at: Optional[datetime] = p_system(81)
-
-    __content_str__ = FileBase.__content_str__  # type: ignore
 
     @staticmethod
     async def inline(

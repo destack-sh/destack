@@ -1,6 +1,6 @@
 from .choice import Choice
-from .clazz import Class
 from .field import Field
 from .option import Option
+from .schema import Schema
 
-__all__ = ["Choice", "Class", "Field", "Option"]
+__all__ = ["Choice", "Field", "Option", "Schema"]

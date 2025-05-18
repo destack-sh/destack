@@ -7,7 +7,6 @@ from bench.language.core import (
     IsModal,
     IsNamed,
     IsOrdered,
-    IsTemplatable,
     NodeMode,
     NodeType,
     PackageNode,
@@ -29,7 +28,7 @@ from bench.language.core import (
 from bench.pb2 import FieldData
 
 if TYPE_CHECKING:
-    from bench.language import Action, Agent, Class, Flow, Icon, Scene, Table, Thread, ViewBase
+    from bench.language import Action, Agent, Flow, Icon, Scene, Schema, Table, Thread, ViewBase
 
 
 # pyright: reportIncompatibleVariableOverride=false, reportIncompatibleMethodOverride=false
@@ -40,7 +39,6 @@ property_ = property
 @node_(NodeType.FIELD)
 class Field(
     IsInstantiable,
-    IsTemplatable,
     IsModal,
     IsNamed,
     IsOrdered,
@@ -53,13 +51,13 @@ class Field(
     """
 
     parent: Union[
-        "Thread", "Agent", "Action", "Class", "Flow", "Table", "Scene", "ViewBase", None
+        "Thread", "Agent", "Action", "Schema", "Flow", "Table", "Scene", "ViewBase", None
     ] = p_node_parent(
         4,
         NodeType.THREAD,
         NodeType.AGENT,
         NodeType.ACTION,
-        NodeType.CLASS,
+        NodeType.SCHEMA,
         NodeType.FLOW,
         NodeType.TABLE,
         NodeType.SCENE,

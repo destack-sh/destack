@@ -5,10 +5,10 @@ from bench.language import (
     IsModal,
     NodeMode,
     NodeReference,
-    NodeSuperGraph,
     NodeType,
     Package,
     PackageType,
+    Supergraph,
 )
 
 from .bench import (
@@ -38,7 +38,7 @@ BenchPackage = Package(
 BenchPackage.add_children(ComputerPage, ThreadPage, AgentPage, InternetPage)
 
 # finalize
-supergraph = NodeSuperGraph(
+supergraph = Supergraph(
     name="Builtin", root_ptr=NodeReference(node_type=NodeType.BENCH, id=BENCH_ID)
 )
 BenchPackage._graph.supergraph = supergraph

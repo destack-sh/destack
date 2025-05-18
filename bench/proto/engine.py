@@ -54,7 +54,7 @@ _ThingType = type[Union["BuiltinObject", "Property", BuiltinEnum, enum.IntFlag]]
 def map_bench_property_to_proto(
     prop: "Property", cache: dict[_ThingType, ProtoThing]
 ) -> ProtoField | Sequence[ProtoField]:
-    assert prop.id == 1 or not prop.is_ephemeral, f"shouldn't map runtime property: {prop!r}"
+    assert prop.id == 1 or prop.is_wired, f"shouldn't map runtime property: {prop!r}"
     assert isinstance(prop.id, int), f"stored properties need an id: {prop!r}"
     if prop.is_node_reference:
         return ProtoField(

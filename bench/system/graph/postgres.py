@@ -16,9 +16,9 @@ from bench.language import (
     FlushResultData,
     GetConnection,
     GetResultData,
+    GraphData,
     LegacyQuery,
     Node,
-    NodeDataGraph,
     NodeReference,
     NodeType,
     QueryType,
@@ -176,7 +176,7 @@ class PostgresGetConnection[T: Node](GetConnection[PostgresConnector, T]):
     @override
     async def _do_read(self, query: "LegacyQuery") -> GetResultData:
         assert query._roots, f"{query!r} has no roots"
-        graph = NodeDataGraph(scope=self.scope, node_types=self.node_types)
+        graph = GraphData(scope=self.scope, node_types=self.node_types)
         roots_ptr = [r._to_data() for r in query._roots]
         async with self.connector.connection.lock:
             _ = await pg_graph_get(

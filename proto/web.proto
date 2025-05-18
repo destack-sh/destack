@@ -33,7 +33,7 @@ message BadgeInfo {
   optional string password = 4;
 }
 
-message LocalNodeGraph {
+message LocalGraph {
   SomeNodeData root = 1;
   repeated SomeNodeData nodes = 2;
 }
@@ -72,7 +72,7 @@ message LocalStorage {
   // The Bench->Space mapping for known Benches.
   repeated NodeReferenceData space_ptrs = 13;
   // Any local graphs.
-  repeated LocalNodeGraph local_graphs = 15;
+  repeated LocalGraph local_graphs = 15;
 
   //
   // Debug

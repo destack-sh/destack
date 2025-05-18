@@ -19,9 +19,9 @@ if TYPE_CHECKING:
         BenchNode,
         Expression,
         Field,
+        Graph,
         LegacyQuery,
         Node,
-        NodeGraph,
         NodeReference,
         PackageNode,
         Property,
@@ -33,7 +33,7 @@ NodeTypeOrClass = Union[NodeType, type["Node"]]
 
 
 def attach_node[N: "Node"](
-    node: N, parent: "Node", graph: "NodeGraph", move: bool = False, create: bool = True
+    node: N, parent: "Node", graph: "Graph", move: bool = False, create: bool = True
 ) -> N:
     """(Re)attaches a Node to a new parent."""
 
@@ -141,17 +141,17 @@ class NodeList[V: Node](abc.ABC):
         """Get the effective parent of a child node."""
         return self._node
 
-    def _get_child_graph(self, parent: "Node") -> "NodeGraph":
+    def _get_child_graph(self, parent: "Node") -> "Graph":
         """Get the graph for a child node (isolate if needed)."""
         if self._child_node_type in parent._graph.node_types:
             return parent._graph
         else:
             from bench.language.connection import capture
 
-            from .graph import NodeGraph
+            from .graph import Graph
 
             # make new graph for child node :IsolatedGraph
-            graph = NodeGraph(
+            graph = Graph(
                 scope=parent._graph.scope,
                 node_types=(self._child_node_type, *DESCENDANT_NODE_TYPES[self._child_node_type]),
                 supergraph=parent._supergraph,
@@ -320,4 +320,3 @@ class RemoteNodeList[V: Node, VD: AnyNodeData](NodeList[V]):
 
     def first(self, count: int) -> "LegacyQuery[V, VD]":
         return self._query().first(count)
-

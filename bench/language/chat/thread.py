@@ -10,7 +10,6 @@ from bench.language.core import (
     IsModal,
     IsOwnable,
     IsProcessable,
-    IsRuntime,
     IsTitled,
     NodeReference,
     NodeType,
@@ -18,10 +17,10 @@ from bench.language.core import (
     Subject,
     TextLineIn,
     enum_,
+    node_,
     p_node_parent,
     p_regular,
     p_system,
-    timed_node_,
     to_text_line,
 )
 from bench.pb2 import ThreadData
@@ -44,7 +43,7 @@ class ThreadStatus(BuiltinEnum):
     CLOSED = 30
 
 
-@timed_node_(NodeType.THREAD)
+@node_(NodeType.THREAD)
 class Thread(
     IsComputable,
     IsOwnable,
@@ -52,7 +51,6 @@ class Thread(
     IsJoinable,
     IsTitled,
     IsModal,
-    IsRuntime,
     IsInstantiable,
     PageNode[ThreadData],
 ):
