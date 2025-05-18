@@ -1,8 +1,8 @@
 from datetime import datetime
 from typing import TYPE_CHECKING, Any, Optional, Union, cast
-from uuid import UUID
 
 import structlog
+from fastuuid import UUID
 
 from bench.language.core import (
     UNSET,

@@ -107,6 +107,7 @@ from .const import (
     new_struct_id,
     repr_enums,
 )
+from .edit import Edit, EditOperation, edit_data_graph, edit_graph
 from .expression import (
     A,
     AggregationResult,
@@ -234,7 +235,7 @@ from .trait import (
     Runnable,
     Subject,
 )
-from .transaction import Edit, EditOperation, Transaction, edit_data_graph, edit_graph
+from .transaction import Transaction
 from .type import (
     STORAGE_KEY_PREFIX_LENGTH,
     Type,

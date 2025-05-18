@@ -1,7 +1,7 @@
 from typing import cast
-from uuid import uuid4
 
 import pytest
+from fastuuid import uuid4
 from grpclib import Status as GRPCStatus
 
 from bench import pb2

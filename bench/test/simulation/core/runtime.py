@@ -1,5 +1,6 @@
 from typing import TYPE_CHECKING, final
-from uuid import UUID
+
+from fastuuid import UUID
 
 from bench.language import ClientType
 from bench.pb2 import RuntimeClient

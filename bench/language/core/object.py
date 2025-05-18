@@ -20,10 +20,10 @@ from typing import (
     dataclass_transform,
     final,
 )
-from uuid import UUID
 
 import structlog
 from bitarray import bitarray
+from fastuuid import UUID
 from opentelemetry import trace
 
 from bench.language.registry import (

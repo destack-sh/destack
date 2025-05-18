@@ -1,5 +1,6 @@
 from typing import TYPE_CHECKING, Optional, Union
-from uuid import UUID
+
+from fastuuid import UUID
 
 from bench.language.core import (
     IsModal,

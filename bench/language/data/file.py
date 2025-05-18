@@ -14,10 +14,10 @@ from typing import (
     cast,
     overload,
 )
-from uuid import UUID
 
 import aiohttp
 import structlog
+from fastuuid import UUID
 from opentelemetry import trace
 from PIL import Image
 

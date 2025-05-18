@@ -1,9 +1,9 @@
 import asyncio
 from contextlib import asynccontextmanager
 from typing import TYPE_CHECKING, Any, Callable, Mapping, Sequence, cast, override
-from uuid import UUID
 
 import structlog
+from fastuuid import UUID
 from google.protobuf.message import Message as ProtoMessage
 from google.protobuf.struct_pb2 import Struct as ProtoStruct
 from grpclib import GRPCError

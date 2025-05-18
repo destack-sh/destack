@@ -1,10 +1,10 @@
 import asyncio
 import functools
 from typing import AsyncIterator, Callable, Mapping, override
-from uuid import UUID
 
 import grpclib.server
 import structlog
+from fastuuid import UUID
 from google.protobuf.message import Message as ProtoMessage
 from grpclib import GRPCError
 from grpclib import Status as GRPCStatus

@@ -2,11 +2,11 @@ from contextlib import contextmanager
 
 # ruff: noqa: E402
 from urllib.parse import urlparse
-from uuid import UUID
 
 import grpclib
 import pytest
 import structlog
+from fastuuid import UUID
 
 from bench.language.core.const import SYSTEM_SYSTEM_PACKAGE_ID
 from bench.test.conftest import _setup_test_env

@@ -1,8 +1,8 @@
 from dataclasses import dataclass
 from typing import TYPE_CHECKING, cast, override
-from uuid import UUID
 
 import structlog
+from fastuuid import UUID
 from opentelemetry import trace
 
 from bench.language import Bench, Field, NodeType, Package, Session, Table, bittuple

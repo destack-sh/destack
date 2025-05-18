@@ -10,10 +10,10 @@ from typing import (
     Sequence,
     cast,
 )
-from uuid import UUID
 
 import psycopg
 import structlog
+from fastuuid import UUID
 from opentelemetry import trace
 from psycopg import OperationalError, sql
 from psycopg.types.json import Jsonb

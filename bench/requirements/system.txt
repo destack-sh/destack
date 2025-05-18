@@ -98,6 +98,8 @@ duckdb==1.1.1
     # via -r bench/requirements/base.in
 exa-py==1.12.0
     # via -r bench/requirements/base.in
+fastuuid==0.12.0
+    # via -r bench/requirements/base.in
 flatbuffers==25.2.10
     # via onnxruntime
 frozenlist==1.5.0

@@ -2,8 +2,7 @@ import json
 from base64 import b64decode, b64encode
 from itertools import chain
 from typing import TYPE_CHECKING, Any, Collection, Mapping, Union, cast
-from uuid import UUID
-
+from fastuuid import UUID
 import pytz
 import structlog
 from google.protobuf.duration_pb2 import Duration

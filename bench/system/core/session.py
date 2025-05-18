@@ -1,7 +1,7 @@
 from datetime import datetime
-from uuid import UUID
 
 import cachetools
+from fastuuid import UUID
 
 from bench.language import (
     EMPTY_SCOPE_DATA,

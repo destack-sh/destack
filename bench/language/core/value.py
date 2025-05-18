@@ -16,11 +16,11 @@ from typing import (
     assert_never,
     cast,
 )
-from uuid import UUID
 
 import pytz
 import regex
 import structlog
+from fastuuid import UUID
 from google.protobuf.duration_pb2 import Duration
 from google.protobuf.json_format import MessageToDict
 from google.protobuf.struct_pb2 import NULL_VALUE as PROTO_NULL_VALUE

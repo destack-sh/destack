@@ -1,6 +1,5 @@
-from uuid import UUID
-
 import pytest
+from fastuuid import UUID
 
 from bench.language import (
     EnumType,

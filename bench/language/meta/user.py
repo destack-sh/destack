@@ -1,6 +1,7 @@
 from datetime import datetime
 from typing import TYPE_CHECKING, Optional
-from uuid import UUID
+
+from fastuuid import UUID
 
 from bench.language.core import (
     EMAIL_CONSTRAINT,

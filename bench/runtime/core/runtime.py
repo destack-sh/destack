@@ -4,9 +4,9 @@ from contextvars import ContextVar
 from dataclasses import dataclass
 from datetime import datetime, timedelta
 from typing import TYPE_CHECKING, Any, Callable, Sequence, cast
-from uuid import UUID
 
 import structlog
+from fastuuid import UUID
 from opentelemetry import baggage, context, trace
 
 from bench.language import (

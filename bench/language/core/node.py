@@ -17,9 +17,9 @@ from typing import (
     overload,
     override,
 )
-from uuid import UUID
 
 import structlog
+from fastuuid import UUID
 from opentelemetry import trace
 
 from bench import pb2
@@ -35,7 +35,6 @@ from bench.pb2 import AnyNodeData, NodeReferenceData
 from bench.utils.func import dualmethod, hash_stable
 from bench.utils.string import Casing, to_casing, to_code_name
 from bench.utils.utils import frozendict
-from bench.utils.uuidt import UUIDT
 
 from .const import (
     ACTIVE_SESSION,
@@ -56,10 +55,9 @@ from .const import (
     StructType,
     active_session,
 )
-from .graph import NULL_SUPERGRAPH, Graph, GraphData
+from .graph import Graph, GraphData
 from .list import attach_node
 from .object import (
-    EMPTY_SCOPE_DATA,
     BuiltinObject,
     FieldOrProperty,
     NodeTypeOrClass,
@@ -84,13 +82,11 @@ if TYPE_CHECKING:
         Block,
         Expression,
         Field,
-        GetConnection,
         Icon,
         LegacyQuery,
         NodeReference,
         Package,
         Page,
-        SearchConnection,
         Session,
         TextLine,
     )
@@ -220,7 +216,7 @@ class Node[NodeDataT: AnyNodeData](BuiltinObject[NodeDataT]):
     __parent_types__: ClassVar[tuple[NodeType, ...]] = ()
     __parent_property__: ClassVar[Property] = UNSET
     __node_ancestor_properties__: ClassVar[dict[str, Property]] = frozendict()
-    __id_factory__: ClassVar[Callable[[], UUID]] = UUIDT
+    __id_factory__: ClassVar[Callable[[], UUID]] = UUID
     __area__: ClassVar[NodeArea]
     __indexes__: ClassVar[tuple[IndexIn, ...]] = ()
 
@@ -271,7 +267,6 @@ class Node[NodeDataT: AnyNodeData](BuiltinObject[NodeDataT]):
     # ...
 
     _graph: "Graph" = p_runtime(default=None)
-    _connection: "GetConnection | SearchConnection" = p_runtime(default=None)
     _is_new: bool = p_runtime(default=False)
 
     if TYPE_CHECKING:
@@ -308,41 +303,7 @@ class Node[NodeDataT: AnyNodeData](BuiltinObject[NodeDataT]):
             self.updated_at = now
 
         # init graph (nodes must always be in a non-null supergraph & graph)
-        assert self._supergraph is not NULL_SUPERGRAPH, f"no supergraph for {self!r}"
-        if self._graph is not None:
-            pass  # use given graph
-        elif self.parent_ptr is not None:
-            # use parents graph
-            parent = self.parent
-            assert (
-                parent is not None
-            ), f"parent for {type(self).__name__} not in {self._supergraph!r}: {self.parent_ptr!r}"
-            if self.metatype in parent._graph.node_types:
-                self._graph = parent._graph
-            else:
-                # have parent graph but it's not the right one :IsolatedGraph
-                from bench.language.connection import capture
-
-                self._graph = Graph(
-                    scope=parent._graph.scope,
-                    node_types=(self.metatype, *DESCENDANT_NODE_TYPES[self.metatype]),
-                    supergraph=self._supergraph,
-                )
-                self._supergraph.add_graph(self._graph)
-                capture(self._graph)
-        else:
-            # no parent, create our own graph
-            # if we're not in a graph, start a new one :IsolatedGraph
-            from bench.language.connection import capture
-
-            graph = Graph(  # type: ignore
-                scope=EMPTY_SCOPE_DATA,
-                node_types=(self.metatype, *DESCENDANT_NODE_TYPES[self.metatype]),
-                supergraph=self._supergraph,
-            )
-            self._graph = graph
-            self._supergraph.add_graph(graph)
-            capture(graph)
+        raise NotImplementedError
         if not _skip_add_self:
             self._graph.add(self)
 
@@ -574,23 +535,16 @@ class Node[NodeDataT: AnyNodeData](BuiltinObject[NodeDataT]):
     @property
     def connection(self):
         """The currently active connection (errors if none)"""
-        assert self._connection is not None, f"no connection for {self!r}"
-        return self._connection  # type: ignore (class definition "depends on itself" for some reason)
+        raise NotImplementedError
 
     @property
     def _is_live(self) -> bool:
         """Whether this Node is live."""
-        return (
-            self._connection is not None
-            and self._connection.is_live
-            and not self._connection._is_closed
-        )
+        raise NotImplementedError
 
     @property
     def _data_graph(self) -> "GraphData":
-        assert self._connection is not None, f"no connection for {self!r}"
-        assert self._connection.result_data is not None, f"no data graph for {self!r}"
-        return self._connection.result_data.graph
+        raise NotImplementedError
 
     @final
     def _track_self(self, session: "Session"):
@@ -881,12 +835,6 @@ class Node[NodeDataT: AnyNodeData](BuiltinObject[NodeDataT]):
     def _detach_rec(self):
         """Removes this node from the graph / supergraph."""
         self._graph.remove(self)  # type: ignore ("depends on itself")
-        if len(self._graph) == 0:
-            from bench.language.connection import uncapture
-
-            # remove entire graph from supergraph if it was just this node (and its descendants)
-            self._supergraph.remove_graph(self._graph)
-            uncapture(self._graph)
 
     async def wait_until(self, condition: Callable[[Self], bool], timeout: timedelta | None = None):
         """Wait until the given condition is true."""
@@ -1211,7 +1159,7 @@ def patch_graph(*, old_graph: Graph, new_graph: Graph) -> None:
             continue
         else:
             # node updated: patch in place
-            patch_node = new_graph[existing_node.id]
+            patch_node = new_graph.get(existing_node.id)
             for prop in existing_node.__wired_properties__.values():
                 if prop.is_computed:
                     continue  # ignore computed properties

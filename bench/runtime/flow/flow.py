@@ -11,9 +11,9 @@ from typing import (
     cast,
     override,
 )
-from uuid import UUID
 
 import structlog
+from fastuuid import UUID
 from opentelemetry import trace
 
 from bench.language import (

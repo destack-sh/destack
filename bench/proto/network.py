@@ -1,8 +1,7 @@
 import abc
 from typing import TYPE_CHECKING, AsyncIterator, Optional, cast, override
 from urllib.parse import urlparse
-from uuid import UUID
-
+from fastuuid import UUID
 import cachetools
 import grpclib
 import grpclib.client

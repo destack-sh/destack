@@ -6,27 +6,16 @@ from typing import (
     TYPE_CHECKING,
     Awaitable,
     Callable,
-    Iterable,
     Optional,
     Sequence,
 )
-from uuid import UUID
 
 import structlog
 from attr import dataclass
+from fastuuid import UUID, uuid4
 from opentelemetry import trace
 
 from bench import pb2
-from bench.language.connection import (
-    Connection,
-    Connector,
-    Engine,
-    EngineUnavailableError,
-    MemoryEngine,
-    NullEngine,
-    SplitConnector,
-    scope_includes,
-)
 from bench.language.registry import DESCENDANT_NODE_TYPES
 from bench.pb2 import (
     ClientOriginData,
@@ -39,15 +28,12 @@ from bench.pb2 import (
     SupervisorClient,
     lang_pb2,
 )
-from bench.utils.func import async_shield, uuid_to_str
+from bench.utils.func import uuid_to_str
 from bench.utils.oracle import Oracle
 from bench.utils.sync import CriticalLock
-from bench.utils.uuidt import UUIDT
 
 from .const import (
     ACTIVE_SESSION,
-    NODE_TYPES,
-    BenchError,
     EditType,
     NodeMode,
     NodeType,
@@ -55,7 +41,7 @@ from .const import (
 )
 from .graph import Graph, GraphData, Supergraph
 from .node import BenchNode, Node, PackageNode, Subject
-from .object import EMPTY_SCOPE_DATA, repr_scope
+from .object import EMPTY_SCOPE_DATA
 from .property import p_node_parent, p_runtime
 from .transaction import Transaction
 
@@ -120,14 +106,6 @@ class Session:
     _subject: Subject | None = p_runtime(default=None)
     _context_data: ContextData | None = p_runtime(default=None)
     _is_suspended: bool = p_runtime(default=False)
-
-    # connections
-    _split_read: bool = p_runtime(default=False)
-    _split_read_connector: Connector | None = p_runtime(default=None)
-    _engines: tuple["Engine", ...] = p_runtime(default_factory=tuple)
-    _connectors: list[Connector] = p_runtime(default_factory=list)
-    _connections: list[Connection] = p_runtime(default_factory=list)
-    _lock_by_engine_id: dict[int, asyncio.Lock] = p_runtime(default_factory=dict)
 
     # transaction
     _tx: Transaction | None = p_runtime(default=None)
@@ -252,97 +230,6 @@ class Session:
         else:
             return self._default_scope
 
-    def _get_engine(
-        self,
-        scope: GraphScopeData,
-        node_types: NodeType | Iterable[NodeType],
-        *,
-        is_readonly: bool,
-        include_memory: bool,
-        include_removed: bool,
-    ) -> Engine:
-        """Gets the appropriate Engine to read/write Nodes."""
-        node_types = (node_types,) if isinstance(node_types, NodeType) else tuple(node_types)
-        candidate_engines = [
-            engine
-            for engine in self._engines
-            if (
-                (is_readonly or not engine.is_readonly)
-                and (not include_removed or engine.include_removed)
-                and (include_memory or not isinstance(engine, MemoryEngine))
-                and scope_includes(engine.scope, scope)
-                and all(t in engine.node_types for t in node_types)
-            )
-        ]
-        if not candidate_engines:
-            raise BenchError(
-                f"no engine for [scope={repr_scope(scope)}, node_types={'|'.join(t.bench_name for t in node_types)}] in {self!r}"
-                f" (engines: {self._engines!r})"
-            )
-        return candidate_engines[0]
-
-    async def _get_connector(self, engine: Engine) -> Connector:
-        """Gets or creates a Connector into an Engine"""
-        for connector in self._connectors:
-            if connector.engine.id == engine.id:
-                return connector
-        else:
-            # acquire under lock to avoid race condition
-            if engine.id not in self._lock_by_engine_id:
-                self._lock_by_engine_id[engine.id] = asyncio.Lock()
-            async with self._lock_by_engine_id[engine.id]:
-                # check again in case another task created connector while waiting
-                for connector in self._connectors:
-                    if connector.engine.id == engine.id:
-                        return connector
-                # acquire connector
-                connector = await engine.connector(self)
-                self._connectors.append(connector)
-                return connector
-
-    def _touch_connector(self, connector: Connector):
-        """Touch a Connector to mark it as used in the current transaction."""
-        self.tx._touched_engine_ids.add(connector.engine.id)
-
-    async def _get_connector_for[ConnectorT: Connector](
-        self,
-        scope: GraphScopeData,
-        node_types: NodeType | Iterable[NodeType],
-        *,
-        is_readonly: bool = False,
-        include_removed: bool = False,
-        include_memory: bool = True,
-        expect: type[ConnectorT] = Connector,
-    ) -> ConnectorT:
-        """Gets or creates a store Connector to read/write Nodes."""
-        if is_readonly and self._split_read:
-            if self._split_read_connector is None:
-                self._split_read_connector = SplitConnector(
-                    NullEngine("split", self._default_scope, NODE_TYPES), self
-                )
-            connector = self._split_read_connector
-        else:
-            engine = self._get_engine(
-                scope=scope,
-                node_types=node_types,
-                is_readonly=is_readonly,
-                include_removed=include_removed,
-                include_memory=include_memory,
-            )
-            connector = await self._get_connector(engine)
-        if not isinstance(connector, expect):
-            raise BenchError(f"unexpected connector type {connector!r} for {expect!r}")
-        return connector
-
-    def _on_connection_begin(self, connection: Connection):
-        """Called when a connection begins."""
-        self._connections.append(connection)
-
-    def _on_connection_end(self, connection: Connection):
-        """Called when a connection ends."""
-        if connection in self._connections:
-            self._connections.remove(connection)
-
     async def open(self, *, _set_in_context: bool = True):
         """Opens the session for regular business. Activates context (by default)."""
         assert not self.closed_at, f"session already closed {self!r}"
@@ -352,7 +239,7 @@ class Session:
         self.opened_at = self._oracle.utc()
         self._session = self
         async with self._tx_lock:
-            self._tx = Transaction(id=UUIDT(), session=self)
+            self._tx = Transaction(id=uuid4(), session=self)
 
         # set context
         if self.parent is not None:
@@ -378,14 +265,6 @@ class Session:
                 with suppress(asyncio.CancelledError):
                     await self._commit_loop_task
                 self._commit_loop_task = None
-            # close connections/connectors
-            for connection in self._connections:
-                connection.close()
-                await connection.wait_closed()
-            self._connections.clear()
-            for connector in self._connectors:
-                await connector.close()
-            self._connectors.clear()
             self._tx = None
 
         # close session
@@ -652,45 +531,6 @@ class Session:
                 )
                 raise
 
-    def _preflush(
-        self, *, include_runtime: bool = True, exclude: Sequence[NodeType] = ()
-    ) -> list[EditData]:
-        """
-        Creates an "edit boundary" by accumulating edit events & marking all nodes as 'flushed'.
-        This means any new edits won't be debounced after this point (e.g. to create before update).
-        Runtime nodes from the *current* runtime are not flushed.
-        """
-        assert self._tx is not None, f"no active transaction in {self!r}"
-
-        # return new_edits
-        for node in self._pending_nodes_by_id.values():
-            if node._is_new:
-                node._is_new = False
-        new_edits = self._tx.preflush()
-        return new_edits
-
-    @tracer.start_as_current_span("session.flush")
-    @async_shield
-    async def _do_flush(self) -> tuple[list[EditData], list[EditData]]:
-        assert self.is_open, f"cannot commit {self!r} when closed"
-        assert self._tx is not None, f"no active transaction in {self!r}"
-        try:
-            self._preflush()
-            async with self._tx_lock:
-                edits, cascaded_edits = await self._tx.flush()
-                logger.trace(
-                    "session.flush",
-                    session=self,
-                    edits=len(edits),
-                    cascaded_edits=len(cascaded_edits),
-                    span="current",
-                )
-                return edits, cascaded_edits
-        except EngineUnavailableError as e:
-            logger.error("session.flush.error", session=self, error=e)
-            self._tx.reset()
-            raise
-
     def _make_pending_graph(self) -> Graph:
         node_types = {node.metatype for node in self._pending_nodes_by_id.values()}
         descendant_node_types = set()  # include descendants for cascading edits
@@ -715,79 +555,6 @@ class Session:
         for node in self._pending_nodes_by_id.values():
             data_graph.add(node._to_data())
         return data_graph
-
-    @tracer.start_as_current_span("session.commit")
-    @async_shield
-    async def _do_commit(
-        self, *, data_graph: GraphData | None = None
-    ) -> tuple[list[EditData], list[EditData]]:
-        """Attempt to commit pending edits."""
-        from bench.proto.wiring import unwrap_some_node
-
-        # TODO :Architecture :Cleanup :RichGraph: revamp Session handling across internal, system and remote
-        #  It feels quite clumsy and mixes concerns (why are we talking about TablePlugin here?);
-        #   and in general, we should probably pull apart system and runtime Sessions somehow
-        #  Maybe Session should remain a Node, but the Session logic goes elsewhere...?
-
-        assert self._tx is not None, f"no active transaction in {self!r}"
-
-        log = logger.bind(session=self, span="current")
-
-        pending_graphs: list[Graph] = []
-        try:
-            async with self._tx_lock:
-                assert self._tx is not None, f"no active transaction in {self!r}"
-                # prepare commit
-                if self._pre_commit is not None:
-                    # NOTE: we exclude Records from preflush in commit prepare
-                    #  because our TablePlugin needs to update schemas before touching any Records.
-                    excluded_node_types = (NodeType.RECORD,)
-                    self._preflush(exclude=excluded_node_types)
-                    edits, cascaded_edits = await self._tx.flush(
-                        filter=lambda e: NodeType(e.node_ptr.node_type) not in excluded_node_types
-                    )
-                    graph = self._make_pending_graph()
-                    pending_graphs.append(graph)
-                    if data_graph is None:
-                        data_graph = self._make_pending_data_graph()
-                    await self._pre_commit(self, graph, data_graph, edits, cascaded_edits)
-
-                # do commit
-                self._preflush()
-                edits, cascaded_edits = await self._tx.commit()
-                log = log.bind(edits=len(edits), cascaded_edits=len(cascaded_edits))
-
-            # on commit hook
-            if self._post_commit is not None:
-                graph = self._make_pending_graph()
-                pending_graphs.append(graph)
-                if data_graph is None:
-                    data_graph = self._make_pending_data_graph()
-
-                # update data graph from cascaded edits
-                for edit in cascaded_edits:
-                    if edit.HasField("node_data"):
-                        node_data = unwrap_some_node(edit.node_data)
-                        if node_data.id in data_graph:
-                            data_graph.update(node_data)
-
-                await self._post_commit(self, graph, data_graph, edits, cascaded_edits)
-                self._pending_nodes_by_id = {}
-
-            log.trace("session.commit")
-            return edits, cascaded_edits
-        except BaseException as e:
-            if self._post_commit_failed is not None:
-                await self._post_commit_failed(self, e)
-            if isinstance(e, EngineUnavailableError):
-                logger.error("session.commit.error", error=e, connectors=self._connectors)
-                for connector in self._connectors:
-                    await connector.reset()
-                self._tx.reset()
-            raise
-        finally:
-            for graph in pending_graphs:
-                self._supergraph.remove_graph(graph)
 
     @tracer.start_as_current_span("session.stage")
     def stage(self, *, include_runtime: bool = False):

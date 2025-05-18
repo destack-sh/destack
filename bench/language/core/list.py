@@ -10,7 +10,7 @@ from typing import (
     override,
 )
 
-from bench.language.registry import DESCENDANT_NODE_TYPES, NODE_CLASS_BY_TYPE
+from bench.language.registry import NODE_CLASS_BY_TYPE
 
 from .const import NodeType, QueryType, SortType, active_session
 
@@ -23,7 +23,6 @@ if TYPE_CHECKING:
         LegacyQuery,
         Node,
         NodeReference,
-        PackageNode,
         Property,
     )
     from bench.pb2 import AnyNodeData
@@ -37,84 +36,7 @@ def attach_node[N: "Node"](
 ) -> N:
     """(Re)attaches a Node to a new parent."""
 
-    old_parent = node.parent
-
-    # check node
-    if old_parent is not None and old_parent != parent:
-        # move
-        if not move:
-            raise ValueError(f"cannot attach {node!r} to {parent!r}: attached to {node.parent!r}")
-
-        # check package/bench
-        if node.__is_in_package__:  # must be in same package
-            # NOTE :Incomplete: support cross-package moves
-            #  (would have to move descendants and update their .package_ptr?)
-            pkg = cast("PackageNode", node).package
-            assert cast("PackageNode", parent).package == pkg, f"cannot move {node!r} to {parent!r}"
-        elif node.__is_in_bench__:  # must be in same bench
-            bench = cast("BenchNode", node).bench
-            assert cast("BenchNode", parent).bench == bench, f"cannot move {node!r} to {parent!r}"
-    else:
-        # create
-        move = False  # not actually a move
-
-    # check for circular ancestry
-    seen: list[Node] = [node]
-    n = parent
-    while n is not None:
-        if n in seen:
-            raise ValueError(f"circular ancestry: {node!r} -> {n!r} -> {node!r}")
-        seen.append(n)
-        n = n.parent
-    node.parent = parent
-
-    # move node (and descendants) to this parent's graph
-    if node._graph is not graph:
-        from bench.language.connection import uncapture
-
-        old_graph = node._graph
-        if not graph.supergraph.has(node._graph.supergraph):
-            raise ValueError(
-                f"{node!r} not in same supergraph as {parent!r} ({node._graph.supergraph!r} != {graph.supergraph!r})"
-            )
-        moved = node._move_to_graph(graph)
-        if len(old_graph) == 0:
-            # clean up old graph
-            if old_graph in graph.supergraph._graphs:
-                graph.supergraph.remove_graph(old_graph)
-            uncapture(old_graph)
-    else:
-        moved = (node,)  # already in the graph
-        graph.update(node)
-
-    # actually move/create in session
-    if parent._session is not None:
-        if move:
-            assert old_parent is not None
-            parent._session._move(node, old_parent=old_parent, new_parent=parent)
-        elif parent.is_attached:
-            # 'create' node in session if it's attached
-            if create:
-                for n in moved:
-                    parent._session._create(n)
-            parent._session._track_many(*moved)
-
-    # move inline node and its definition together
-    if move:
-        from bench.language import Block, PageNode
-
-        if isinstance(node, Block):
-            if (
-                isinstance(inner_node := node.node, PageNode)
-                and inner_node.definition_id == node.id
-                and inner_node.parent_id != parent.id
-            ):
-                attach_node(inner_node, parent, graph, move=True)
-        elif isinstance(node, PageNode):
-            if (block := node.definition) is not None and block.parent_id != parent.id:
-                attach_node(block, parent, graph, move=True)
-
-    return node
+    raise NotImplementedError
 
 
 class NodeList[V: Node](abc.ABC):
@@ -143,22 +65,7 @@ class NodeList[V: Node](abc.ABC):
 
     def _get_child_graph(self, parent: "Node") -> "Graph":
         """Get the graph for a child node (isolate if needed)."""
-        if self._child_node_type in parent._graph.node_types:
-            return parent._graph
-        else:
-            from bench.language.connection import capture
-
-            from .graph import Graph
-
-            # make new graph for child node :IsolatedGraph
-            graph = Graph(
-                scope=parent._graph.scope,
-                node_types=(self._child_node_type, *DESCENDANT_NODE_TYPES[self._child_node_type]),
-                supergraph=parent._supergraph,
-            )
-            graph.supergraph.add_graph(graph)
-            capture(graph)
-            return graph
+        raise NotImplementedError
 
     def create(self, **kwargs) -> V:
         """Creates a new node in the list."""

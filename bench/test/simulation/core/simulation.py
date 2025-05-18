@@ -4,10 +4,10 @@ from contextlib import contextmanager
 from datetime import datetime
 from random import Random
 from typing import TYPE_CHECKING, final
-from uuid import UUID
 
 import pytest
 import structlog
+from fastuuid import UUID
 from opentelemetry import trace
 
 from bench.language import (

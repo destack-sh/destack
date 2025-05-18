@@ -1,9 +1,9 @@
 import abc
 from dataclasses import dataclass
 from typing import Awaitable, Callable, final, override
-from uuid import UUID
 
 import structlog
+from fastuuid import UUID
 from opentelemetry import trace
 
 from bench.language import (

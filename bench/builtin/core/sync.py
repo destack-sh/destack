@@ -1,6 +1,7 @@
 from itertools import chain
 from typing import Collection, cast
-from uuid import UUID, uuid5
+
+from fastuuid import UUID, uuid5
 
 from bench.language import (
     BENCH_ID,

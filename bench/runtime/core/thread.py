@@ -1,8 +1,8 @@
 from datetime import datetime
 from typing import TYPE_CHECKING, Collection
-from uuid import UUID
 
 import structlog
+from fastuuid import UUID
 from opentelemetry import trace
 
 from bench.language import (

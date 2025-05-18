@@ -3,10 +3,10 @@ import signal
 from contextlib import contextmanager
 from time import time_ns
 from typing import Collection, Iterator
-from uuid import UUID
 
 import structlog
 import typer
+from fastuuid import UUID
 
 from bench.pb2 import SupervisorClient
 from bench.proto import GrpcServer, Network, RealNetwork, ServiceBase

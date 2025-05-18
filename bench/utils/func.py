@@ -23,11 +23,11 @@ from typing import (
     Mapping,
     assert_never,
 )
-from uuid import UUID
 
 import regex
 import structlog
 from cachetools import cached
+from fastuuid import UUID
 
 from bench.utils.base58 import base58_encode
 

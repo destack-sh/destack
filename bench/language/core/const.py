@@ -18,9 +18,9 @@ from typing import (
     Union,
     cast,
 )
-from uuid import UUID, uuid4, uuid5
 
 from bitarray import bitarray
+from fastuuid import UUID, uuid4, uuid5
 from more_itertools import first
 from opentelemetry.trace import Tracer
 from opentelemetry.util._decorator import _agnosticcontextmanager
@@ -49,7 +49,7 @@ class _Unset:
 
 # forever constants
 VERSION = "2025.05.16.0"
-UUID_NAMESPACE = uuid5(UUID(int=0), b"bench")
+UUID_NAMESPACE = uuid5(UUID(int=0), b"bench")  # type: ignore
 CK_LENGTH_B64 = 24  # 1.5 * CK_LENGTH_BYTES (must be integer)
 FLOAT_EPSILON = 1e-6
 

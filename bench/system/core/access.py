@@ -1,9 +1,9 @@
 import asyncio
 import weakref
-from uuid import UUID
 
 import structlog
 from cachetools import TTLCache
+from fastuuid import UUID
 from grpclib import GRPCError
 from grpclib import Status as GRPCStatus
 from opentelemetry import trace
