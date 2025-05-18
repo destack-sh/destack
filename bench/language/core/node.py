@@ -87,7 +87,6 @@ if TYPE_CHECKING:
         GetConnection,
         Icon,
         LegacyQuery,
-        NodeLink,
         NodeReference,
         Package,
         Page,
@@ -116,7 +115,7 @@ class IndexIn(NamedTuple):
 def node_component_(
     node_type: NodeType | None = None,
     is_root: bool = False,
-    is_final: bool = False,
+    is_concrete: bool = False,
     is_subtype: bool = False,
 ):
     """Mark a class as a node component (or concrete node for a NodeType)."""
@@ -125,7 +124,7 @@ def node_component_(
         cls, properties = _process_object_cls(
             cls=cls,
             object_type=node_type,
-            is_final=is_final,
+            is_concrete=is_concrete,
             is_node=True,
         )
 
@@ -173,7 +172,7 @@ def node_(
         index = (*index, IndexIn(columns=("parent_id",), cover=("id",)))
 
     def decorate(cls: type["Node"]) -> type["Node"]:
-        cls = node_component_(node_type=node_type, is_root=root_type is None, is_final=True)(cls)
+        cls = node_component_(node_type=node_type, is_root=root_type is None, is_concrete=True)(cls)
         cls.__is_stored__ = stored
         cls.__is_local__ = is_local
 
@@ -272,7 +271,6 @@ class Node[NodeDataT: AnyNodeData](BuiltinObject[NodeDataT]):
     # ...
 
     _graph: "Graph" = p_runtime(default=None)
-    _link: "NodeLink | None" = p_runtime(default=None)
     _connection: "GetConnection | SearchConnection" = p_runtime(default=None)
     _is_new: bool = p_runtime(default=False)
 
@@ -586,7 +584,7 @@ class Node[NodeDataT: AnyNodeData](BuiltinObject[NodeDataT]):
             self._connection is not None
             and self._connection.is_live
             and not self._connection._is_closed
-        ) or (self._link is not None and self._link.is_active)
+        )
 
     @property
     def _data_graph(self) -> "GraphData":

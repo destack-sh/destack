@@ -31,7 +31,7 @@ from bench.language.registry import (
     STRUCT_CLASS_BY_TYPE,
 )
 from bench.pb2 import AnyObjectData, AnyStructData, GraphScopeData, lang_pb2
-from bench.utils.func import dualmethod, hash_stable, is_close
+from bench.utils.func import dualmethod, get_superclasses, hash_stable, is_close
 from bench.utils.utils import frozendict
 
 from .const import (
@@ -97,41 +97,31 @@ def get_tk_b64_from_ck(ck: UUID) -> str:
     return base64.b64encode(ck.bytes).decode()
 
 
-_BASE_OBJECT_NAMES = ("BuiltinObject", "Struct", "Struct", "Node")
+_processed_classes: dict[type["BuiltinObject"], type["BuiltinObject"]] = {}
 
 
 def _process_object_cls[ObjectT: BuiltinObject](
     cls: type[ObjectT],
     object_type: ObjectType | None,
-    is_final: bool = False,
+    is_concrete: bool = False,
     is_struct: bool = False,
     is_node: bool = False,
 ) -> tuple[type[ObjectT], dict[str, "Property"]]:
     """Process an object base class and return the processed class and its properties."""
     assert isinstance(cls, type), f"expected type, got {cls} ({type(cls)})"
-
-    # nocheckin: :Performance! :Architecture: use slots or something for our builtin objects
-    #  (unfortunately, as of Python 3.13, __slots__ always uses class-level descriptors, but we also
-    #   want to use class level attributes for our own properties, like Block.type, ...
-    #   - neglecting this conflict causes fun errors like 'X is a read-only attribute'
-    #  .. unless we just use Block.get_property('type') instead of Block.type everywhere?
-    #  also we could maybe just use NamedTuple for simpler Structs like NodeReference?)
+    assert cls not in _processed_classes, f"class {cls.__name__} has already been processed"
 
     metatype = METATYPE_PROPERTY.clone()
     metatype.component = cls
 
     # collect all components from class hierarchy (including self)
-    components: list[type[BuiltinObject]] = [cls]
-    for base in cls.__bases__:
-        if base.__name__ == "ABC":
+    components: list[type[BuiltinObject]] = []
+    for base_cls in get_superclasses(cls):
+        base_cls = _processed_classes.get(base_cls, base_cls)
+        if base_cls.__name__ == "ABC":
             continue
-        if hasattr(base, "__properties__"):
-            base: type[Struct]
-            components.append(base)
-            for grandparent in base.__components__:
-                if grandparent not in components:
-                    components.append(grandparent)
-    cls.__components__ = tuple(components)
+        if hasattr(base_cls, "__properties__"):
+            components.append(base_cls)
 
     # collect properties from this class definition
     properties: dict[str, Property] = {"metatype": metatype}
@@ -157,8 +147,8 @@ def _process_object_cls[ObjectT: BuiltinObject](
         for name, prop in component.__declared_properties__.items():
             existing = properties.get(name)
             if existing is not None:
-                if existing.id == 1 or existing.id == 4 or not existing.is_stored:
-                    continue  # metatype and parent may be overridden
+                if existing.id == 1 or existing.id == 4:
+                    continue  # metatype, parent, runtime-only may be overridden
                 raise ValueError(
                     f"property '{name}' from '{component.__name__}' conflicts with '{cls.__name__}': {prop!r}, {existing!r}"
                 )
@@ -167,23 +157,32 @@ def _process_object_cls[ObjectT: BuiltinObject](
             properties[name] = prop
 
     # finalize properties
-    if is_final:
-        assert object_type is not None
-        for prop in tuple(properties.values()):
-            prop.finalize(object_type)
-            if prop.ptr_prop is not None:
-                properties[prop.ptr_prop.name] = prop.ptr_prop
+    for prop in tuple(properties.values()):
+        prop.finalize(object_type)
+        if prop.ptr_prop is not None:
+            properties[prop.ptr_prop.name] = prop.ptr_prop
 
-    # add computed properties to final classes
-    if is_final:
+    # define slots & __init__
+    if is_concrete:
+        cls_dict = dict(cls.__dict__)
+        cls_dict.pop("__dict__", None)
+        cls_dict.pop("__weakref__", None)
+        for prop in properties.values():
+            cls_dict.pop(prop.name, None)
+        cls_dict["__slots__"] = tuple(cls.__declared_properties__.keys())
 
-        def _set_computed(name: str, prop: property):
-            """Sets a computed property that shouldn't conflict with any existing property."""
-            existing = properties.get(name)
-            if existing is not None:
-                raise ValueError(f"computed property conflict '{name}': {prop!r}, {existing!r}")
-            setattr(cls, name, prop)
+        # create the new class
+        _original_cls = cls
+        cls = cast(type[ObjectT], type(cls.__name__, cls.__bases__, cls_dict))
+        _processed_classes[_original_cls] = cls
+        del _original_cls
 
+    # update cls references in props
+    for prop in properties.values():
+        prop.component = cls
+
+    if is_concrete:
+        # add computed properties to concrete classes
         for name, prop in properties.items():
             if prop.runtime_prop is not None:
                 continue  # not a contributed property
@@ -209,7 +208,7 @@ def _process_object_cls[ObjectT: BuiltinObject](
                 for obj_key, ptr_key in (("id", "id"), ("ck", "ck"), ("type", "node_type")):
                     if obj_key == "type" and (not prop.node_types or len(prop.node_types) <= 1):
                         continue  # no need for *_type if only one possible node type
-                    _set_computed(f"{prop.name}_{obj_key}", _object_node_ref_attr(ptr_key, prop))
+                    setattr(cls, f"{prop.name}_{obj_key}", _object_node_ref_attr(ptr_key, prop))
 
     # index properties
     cls.__properties__ = frozendict(properties)
@@ -234,7 +233,7 @@ def _process_object_cls[ObjectT: BuiltinObject](
     cls.__wired_properties__ = frozendict({p.name: p for p in props if p.is_wired is True})
     cls.__stored_properties__ = frozendict({p.name: p for p in props if p.is_stored is True})
 
-    # assign ords
+    # assign property ordinals
     cls.__properties_in_order__ = tuple(sorted(properties_by_id.values(), key=lambda p: p.id))
     for i, prop in enumerate(cls.__properties_in_order__):
         prop.component = cls
@@ -253,7 +252,7 @@ def _process_object_cls[ObjectT: BuiltinObject](
 @dataclass_transform(kw_only_default=True, field_specifiers=_PROPERTY_SPECIFIERS)
 def object_[_ObjectT: BuiltinObject](
     struct_type: StructType | None = None,
-    is_final: bool = False,
+    is_concrete: bool = False,
     is_struct: bool = False,
     is_node: bool = False,
 ):
@@ -265,7 +264,7 @@ def object_[_ObjectT: BuiltinObject](
         cls, _properties = _process_object_cls(
             cls=cast(Any, cls_in),
             object_type=struct_type,
-            is_final=is_final,
+            is_concrete=is_concrete,
             is_struct=is_struct,
             is_node=is_node,
         )
@@ -288,7 +287,7 @@ def struct_[_ObjectT: BuiltinObject](struct_type: StructType):
     """Register a class as a concrete struct for the given struct type."""
 
     def decorate(cls: type[_ObjectT]) -> type[_ObjectT]:
-        cls = object_(struct_type=struct_type, is_final=True)(cls)
+        cls = object_(struct_type=struct_type, is_concrete=True)(cls)
         return cast(type[_ObjectT], cls)
 
     return decorate
@@ -339,13 +338,13 @@ def _object_property_ref(prop: Property) -> property:
 def _object_node_ref(prop: Property) -> property:
     """The computed get/set property for a node reference. Resolved against the active supergraph."""
 
-    wired_prop = prop.ptr_prop
-    assert wired_prop is not None, f"no wired prop for {prop!r}"
+    ptr_prop = prop.ptr_prop
+    assert ptr_prop is not None, f"no wired prop for {prop!r}"
 
     if not prop.is_list:
 
         def _get_node_scalar(self: BuiltinObject) -> Optional["Node | NodeReference"]:
-            value_ptr: NodeReference | None = getattr(self, wired_prop.name)
+            value_ptr: NodeReference | None = getattr(self, ptr_prop.name)
             if value_ptr is None:
                 return None
             value = self._supergraph.get(value_ptr)
@@ -359,16 +358,16 @@ def _object_node_ref(prop: Property) -> property:
 
         def _set_node_scalar(self: BuiltinObject, value: "Node | None"):
             if value is None:
-                self._do_set(wired_prop.name, None, track=False)
+                self._do_set(ptr_prop.name, None, track=False)
             else:
-                self._do_set(wired_prop.name, value.to_ref(), track=False)
+                self._do_set(ptr_prop.name, value.to_ref(), track=False)
 
         return property(_get_node_scalar, _set_node_scalar)
 
     else:
 
         def _get_node_many(self: BuiltinObject) -> Sequence["Node | NodeReference"]:
-            value_ptrs: Collection[NodeReference] = getattr(self, wired_prop.name)
+            value_ptrs: Collection[NodeReference] = getattr(self, ptr_prop.name)
             if len(value_ptrs) == 0:
                 return ()
             values = []
@@ -384,7 +383,7 @@ def _object_node_ref(prop: Property) -> property:
         def _set_node_many(self: BuiltinObject, values: Collection["Node"]):
             values = tuple(values)
             value_ptrs = [p.to_ref() for p in values]
-            self._do_set(wired_prop.name, value_ptrs, track=False)
+            self._do_set(ptr_prop.name, value_ptrs, track=False)
 
         return property(_get_node_many, _set_node_many)
 
@@ -495,7 +494,6 @@ class BuiltinObject[ObjectDataT: AnyObjectData](abc.ABC):
 
     metatype: ClassVar[ObjectType]
 
-    __components__: ClassVar[tuple[type["BuiltinObject"], ...]] = ()
     __is_struct__: ClassVar[bool] = False
     __is_node__: ClassVar[bool] = False
 
@@ -754,7 +752,7 @@ class BuiltinObject[ObjectDataT: AnyObjectData](abc.ABC):
 
 @object_()
 class Struct[StructDataT: AnyStructData](BuiltinObject[StructDataT], abc.ABC):
-    """A Struct is an ordered collection of Properties."""
+    """A Struct is a value with some properties."""
 
     metatype: ClassVar[StructType]  # type: ignore
 

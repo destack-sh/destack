@@ -175,8 +175,6 @@ class Aliasing:
             alias = self.add(obj)
         return alias
 
-    __getitem__ = get_or_error
-
     def __contains__(self, node: Node | NodeReference | UUID) -> bool:
         return self.get(node) is not None
 

@@ -362,6 +362,16 @@ def cyrb53a(s: str, seed: int = 0) -> int:
     return ((h2 & ((1 << 32) - 1)) << 21) + (h1 >> 11)
 
 
+def get_superclasses[T](cls: type[T], seen: set[type[T]] | None = None) -> Iterator[type[T]]:
+    """Gets all superclasses of a class recursively."""
+    seen = seen if seen is not None else set()
+    seen.add(cls)
+    yield cls
+    for superclass in cls.__bases__:
+        if superclass not in seen:
+            yield from get_superclasses(superclass, seen=seen)
+
+
 def get_subclasses[T](cls: type[T], seen: set[type[T]] | None = None) -> Iterator[type[T]]:
     """Gets all subclasses of a class recursively."""
     seen = seen if seen is not None else set()
