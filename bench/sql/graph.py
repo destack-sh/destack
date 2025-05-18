@@ -48,11 +48,11 @@ from bench.language import (
     ExpressionTypes,
     Field,
     FieldType,
+    GraphData,
     LegacyQuery,
     LiteralType,
     Node,
     NodeArea,
-    NodeDataGraph,
     NodeReference,
     NodeReferenceKind,
     NodeReferenceMeta,
@@ -1115,7 +1115,7 @@ async def pg_graph_get(
     cur: psycopg.AsyncCursor,
     ctx: SqlContext,
     query: LegacyQuery,
-    visited_graph: NodeDataGraph,
+    visited_graph: GraphData,
 ) -> None:
     """
     Gets the 'root' nodes from a Query (Query.roots) and recursively reads up/down the graph.
@@ -1216,7 +1216,7 @@ async def pg_graph_search(
     scope: GraphScopeData,
     query: LegacyQuery,
     count: bool,
-) -> tuple[list[AnyNodeData], NodeDataGraph, int | None]:
+) -> tuple[list[AnyNodeData], GraphData, int | None]:
     """
     Search for roots matching the filter and then get the graph up/down/joined from there.
     """
@@ -1228,7 +1228,7 @@ async def pg_graph_search(
     if query._ancestor_types or query._descendant_types:
         # split into two passes if we have other nodes to fetch
         roots = await pg_graph_select(cur=cur, ctx=ctx, query=query)
-        visited_graph = NodeDataGraph(scope, node_types)
+        visited_graph = GraphData(scope, node_types)
         if not roots:
             return roots, visited_graph, total
         roots_ptrs = [
@@ -1252,7 +1252,7 @@ async def pg_graph_search(
     else:
         # otherwise just select in one go
         roots = await pg_graph_select(cur=cur, ctx=ctx, query=query)
-        graph = NodeDataGraph(scope, node_types, nodes=roots)
+        graph = GraphData(scope, node_types, nodes=roots)
         return roots, graph, total
 
 

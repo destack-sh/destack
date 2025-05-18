@@ -15,8 +15,8 @@ from opentelemetry import trace
 
 from bench import pb2
 from bench.language.core import (
+    GraphData,
     Node,
-    NodeDataGraph,
     NodeType,
     QueryType,
     bittuple,
@@ -166,10 +166,7 @@ class RemoteConnector(WritableConnector[RemoteEngine]):
     async def commit(self, edits: list[EditData] | tuple[EditData, ...]) -> CommitResultData:
         edits = list(edits)
         request = pb2.CommitTransactionRequest(
-            id=str(self.session.tx.id),
-            edits=edits,
-            scope=self.engine.scope,
-            context=self.session._get_context(),
+            id=str(self.session.tx.id), edits=edits, scope=self.engine.scope
         )
         response = await self.engine.remote.commit_transaction(
             request, metadata=self.engine.rpc_headers
@@ -203,7 +200,7 @@ class RemoteGetConnection[T: Node](GetConnection[RemoteConnector, T]):
         except GRPCError as e:
             raise _grpc_wrap_error(query, e) from e
         nodes = [wiring.unwrap_some_node(n) for n in response.nodes]
-        graph = NodeDataGraph(scope=engine.scope, node_types=engine.node_types, nodes=nodes)
+        graph = GraphData(scope=engine.scope, node_types=engine.node_types, nodes=nodes)
         return GetResultData(
             graph=graph,
             roots_ptr=roots_ptr,
@@ -264,7 +261,7 @@ class RemoteSearchConnection[T: Node](SearchConnection[RemoteConnector, T]):
         except GRPCError as e:
             raise _grpc_wrap_error(query, e) from e
         nodes = [wiring.unwrap_some_node(n) for n in response.nodes]
-        graph = NodeDataGraph(scope=engine.scope, node_types=engine.node_types, nodes=nodes)
+        graph = GraphData(scope=engine.scope, node_types=engine.node_types, nodes=nodes)
         roots = [graph[cast(str, r.id)] for r in response.roots_ptr]
         return SearchResultData(
             graph=graph,

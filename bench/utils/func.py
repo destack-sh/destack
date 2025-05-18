@@ -306,6 +306,7 @@ def parse_py_annotation(
     is_optional = False
     is_list = False
     union_types = ()
+    # resolve
     if not isinstance(py_type, type):
         if isinstance(py_type, typing.ForwardRef):
             py_type = py_type.__forward_arg__
@@ -314,7 +315,12 @@ def parse_py_annotation(
                 is_optional = True
                 py_type = py_type[:-7]
         py_type = _try_resolve(py_type, type_map)
-    # strip optional
+    # list (outer)
+    if typing.get_origin(py_type) in (list, tuple):
+        py_type = typing.get_args(py_type)[0]
+        py_type = _try_resolve(py_type, type_map)
+        is_list = True
+    # union/optional
     if typing.get_origin(py_type) in (typing.Union, types.UnionType):
         union_types = typing.get_args(py_type)
         is_optional = any(t is type(None) for t in union_types)
@@ -327,8 +333,9 @@ def parse_py_annotation(
         else:
             py_type = union_types[0]
             py_type = _try_resolve(py_type, type_map)
-    # strip list
+    # list (inner)
     if typing.get_origin(py_type) in (list, tuple):
+        assert not is_list, f"double list: {py_type!r}"
         py_type = typing.get_args(py_type)[0]
         py_type = _try_resolve(py_type, type_map)
         is_list = True
@@ -341,13 +348,15 @@ def parse_py_annotation(
     )
 
 
-def get_class_name(py_type: type | ForwardRef | str) -> str:
+def get_class_name(py_type: type | ForwardRef | str) -> str | None:
     if isinstance(py_type, str):
         return py_type
     elif isinstance(py_type, type):
         return py_type.__name__
     elif isinstance(py_type, ForwardRef):
         return py_type.__forward_arg__
+    else:
+        return None
 
 
 def levenshtein_distance(s1: str, s2: str) -> int:

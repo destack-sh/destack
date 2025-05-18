@@ -17,20 +17,20 @@ from bench.language.core import (
     BuiltinEnumOrUnion,
     BuiltinObject,
     EditType,
+    Graph,
+    GraphData,
     Node,
-    NodeDataGraph,
-    NodeGraph,
     NodeReference,
-    NodeSuperGraph,
     NodeType,
     ObjectType,
     PrimitiveType,
     Property,
+    Session,
+    Supergraph,
     pack_proto_json,
     unpack_proto_json,
 )
 from bench.language.registry import BUILTIN_OBJECT_CLASS_BY_TYPE
-from bench.language.runtime import Session
 from bench.pb2 import AnyNodeData, AnyStructData, EditData, NodeReferenceData, RpcMetadata
 from bench.utils.string import Casing, to_casing
 
@@ -140,9 +140,7 @@ def pack_builtin_object_prop_scalar(obj: BuiltinObject, prop: Property, value: A
         return value
 
 
-def unpack_builtin_object_prop_scalar(
-    prop: Property, value: Any, *, supergraph: NodeSuperGraph
-) -> Any:
+def unpack_builtin_object_prop_scalar(prop: Property, value: Any, *, supergraph: Supergraph) -> Any:
     try:
         if value is None:
             return None
@@ -175,7 +173,7 @@ def unpack_builtin_object_prop_scalar(
         ) from e
 
 
-def unpack_builtin_object_prop(prop: Property, value: Any, *, supergraph: NodeSuperGraph) -> Any:
+def unpack_builtin_object_prop(prop: Property, value: Any, *, supergraph: Supergraph) -> Any:
     if value is None:
         return None
     elif not prop.is_list:
@@ -273,11 +271,11 @@ def unpack_builtin_object[T: BuiltinObject](
     obj_data: AnyStructData | AnyNodeData,
     *,
     expect: type[T] | None = None,
-    supergraph: NodeSuperGraph | None,
+    supergraph: Supergraph | None,
     session: Session | None = None,
     connection: "Connection | None" = None,
     # for nodes
-    graph: NodeGraph | None = None,
+    graph: Graph | None = None,
     # NOTE: by default new Nodes add themselves to their graph, but during
     #  unpacking we almost never want this (because we manage unpacking manually).
     validate: bool = False,
@@ -292,7 +290,7 @@ def unpack_builtin_object[T: BuiltinObject](
     object_kwargs = {}
     try:
         for prop in object_cls.__wired_properties__.values():
-            if not prop.is_runtime or prop.is_computed:
+            if not prop.is_wired or prop.is_computed:
                 continue
             if prop.is_optional_scalar and not obj_data.HasField(prop.name):
                 continue
@@ -320,8 +318,8 @@ def unpack_builtin_object[T: BuiltinObject](
 def unpack_builtin_object_validate[T: BuiltinObject](
     obj_data: AnyStructData | AnyNodeData,
     *,
-    supergraph: NodeSuperGraph | None,
-    graph: NodeGraph | None = None,
+    supergraph: Supergraph | None,
+    graph: Graph | None = None,
     expect: type[T] | None = None,
     session: Session | None = None,
 ) -> T:
@@ -335,7 +333,7 @@ def unpack_builtin_object_validate[T: BuiltinObject](
 def unpack_builtin_object_validate_maybe[T: BuiltinObject](
     obj_data: AnyStructData | AnyNodeData | None,
     *,
-    supergraph: NodeSuperGraph | None,
+    supergraph: Supergraph | None,
     expect: type[T] | None = None,
     session: Session | None = None,
 ) -> T | None:
@@ -350,24 +348,22 @@ def unpack_builtin_object_validate_maybe[T: BuiltinObject](
         )
 
 
-@tracer.start_as_current_span("wiring.unpack_node_graph")
-def unpack_node_graph(
-    data_graph: NodeDataGraph,
-    supergraph: NodeSuperGraph,
+@tracer.start_as_current_span("wiring.unpack_graph")
+def unpack_graph(
+    data_graph: GraphData,
+    supergraph: Supergraph,
     parent: Node | None = None,
     session: Session | None = None,
     exclude: set[NodeType] | tuple[NodeType, ...] | None = (),
     connection: "Connection | None" = None,
-) -> NodeGraph:
+) -> Graph:
     """Unpacks the node data(s) into a node graph."""
     trace.get_current_span().set_attribute("nodes", len(data_graph))
 
     exclude = exclude or ()
     parent_id = parent.id if parent is not None else None
     roots_data = data_graph.find_roots()
-    graph = NodeGraph(
-        scope=data_graph.scope, node_types=data_graph.node_types, supergraph=supergraph
-    )
+    graph = Graph(scope=data_graph.scope, node_types=data_graph.node_types, supergraph=supergraph)
     supergraph.add_graph(graph)
 
     for root_data in roots_data:
@@ -390,7 +386,7 @@ def unpack_node_graph(
             # keep parent instance if it was passed (update it in place)
             if node.id == parent_id:
                 for prop in (cast(Node, parent)).__properties__.values():
-                    if not prop.is_ephemeral and not prop.is_tree_reference:
+                    if prop.is_wired and not prop.is_tree_reference:
                         setattr(parent, prop.name, getattr(node, prop.name))
                 node = cast(Node, parent)
 
@@ -398,17 +394,17 @@ def unpack_node_graph(
 
 
 def unpack_node_roots(
-    data_graph: NodeDataGraph,
-    supergraph: NodeSuperGraph,
+    data_graph: GraphData,
+    supergraph: Supergraph,
     parent: Node | None = None,
     session: Session | None = None,
     exclude: set[NodeType] | None = None,
     roots: Collection[NodeReferenceData] | None = None,
     connection: "Connection | None" = None,
-) -> tuple[tuple[Node, ...], NodeGraph]:
+) -> tuple[tuple[Node, ...], Graph]:
     """Unpack nodes and their descendants. Returns the actual roots (or passed ones)."""
 
-    node_graph = unpack_node_graph(
+    node_graph = unpack_graph(
         data_graph=data_graph,
         supergraph=supergraph,
         parent=parent,

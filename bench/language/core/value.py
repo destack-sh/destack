@@ -51,7 +51,7 @@ from .const import (
     StructType,
     TypeKind,
 )
-from .graph import NodeSuperGraph
+from .graph import Supergraph
 from .property import Property
 from .struct import Struct, struct_
 from .validation import TYPE_CONSTRAINT_BY_FORMAT, on_invalid_raise
@@ -428,7 +428,7 @@ def coerce_value(
     typ: "TypeBase | TypeIdentity",
     *,
     as_packed: bool = False,
-    supergraph: NodeSuperGraph | None = None,
+    supergraph: Supergraph | None = None,
 ) -> SomeValue:
     """
     Coerces the given value to the expected type (recursively).
@@ -517,7 +517,7 @@ def pack_value_scalar(
 
 
 def unpack_value_scalar(
-    value_packed: JsonValue, typ: "TypeBase | TypeIdentity", *, supergraph: NodeSuperGraph | None
+    value_packed: JsonValue, typ: "TypeBase | TypeIdentity", *, supergraph: Supergraph | None
 ) -> ScalarValue:
     """
     Unpacks the given scalar value into its runtime representation.
@@ -615,7 +615,7 @@ def pack_builtin_object(
 def unpack_builtin_object[T: BuiltinObject = BuiltinObject](
     value_packed: dict[str, Any],
     *,
-    supergraph: NodeSuperGraph | None,
+    supergraph: Supergraph | None,
     expect: type[T] | None = None,
     session: "Session | None" = None,
 ) -> T:
@@ -760,7 +760,7 @@ def unpack_value(
     value_packed: JsonValue,
     typ: "TypeBase | TypeIdentity",
     *,
-    supergraph: NodeSuperGraph | None = None,
+    supergraph: Supergraph | None = None,
     wrap: bool = False,
 ) -> SomeValue | None:
     """

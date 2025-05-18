@@ -29,15 +29,13 @@ from bench.language import (
     File,
     FileBase,
     FileSource,
-    IsRuntime,
+    Graph,
+    GraphData,
     LegacyQuery,
     MemoryEngine,
     Node,
     NodeArea,
-    NodeDataGraph,
-    NodeGraph,
     NodeReference,
-    NodeSuperGraph,
     NodeType,
     Ownable,
     Package,
@@ -46,6 +44,7 @@ from bench.language import (
     QueryType,
     Scope,
     Session,
+    Supergraph,
     User,
     bittuple,
     edit_data_graph,
@@ -148,7 +147,7 @@ class HostService(GraphServiceBase, HostBase):
             regional_database,
             NodeArea.REGIONAL,
         )
-        self._supergraph = NodeSuperGraph(name="Host", root_ptr=self.bench_ptr)
+        self._supergraph = Supergraph(name="Host", root_ptr=self.bench_ptr)
         self._client_cache = ClientCache(ttl=60, supergraph=self._supergraph)
         self._bench: Bench | None = None
         self._main_package: Package | None = None
@@ -188,7 +187,7 @@ class HostService(GraphServiceBase, HostBase):
         return self._main_package
 
     @property
-    def graphs(self) -> tuple[NodeGraph, ...]:
+    def graphs(self) -> tuple[Graph, ...]:
         assert self._bench is not None, f"bench not loaded in {self!r}"
         assert self._main_package is not None, f"main package not loaded in {self!r}"
         return self._bench._graph, self._main_package._graph
@@ -604,8 +603,8 @@ class HostService(GraphServiceBase, HostBase):
     async def pre_commit(
         self,
         session: Session,
-        graph: NodeGraph,
-        data_graph: NodeDataGraph,
+        graph: Graph,
+        data_graph: GraphData,
         context: IsRuntime | None,
         edits: Sequence[EditData],
         cascaded_edits: Sequence[EditData],
@@ -641,8 +640,8 @@ class HostService(GraphServiceBase, HostBase):
     async def post_commit(
         self,
         session: Session,
-        graph: NodeGraph,
-        data_graph: NodeDataGraph,
+        graph: Graph,
+        data_graph: GraphData,
         edits: Sequence[EditData],
         cascaded_edits: Sequence[EditData],
     ):

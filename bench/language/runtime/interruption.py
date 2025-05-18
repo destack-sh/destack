@@ -7,18 +7,17 @@ from bench.language.core import (
     EnumType,
     IsExtensible,
     IsModal,
-    IsRuntime,
     NodeReference,
     NodeType,
     PackageNode,
     ProcessStatus,
     Runnable,
     enum_,
+    node_,
     p_internal,
     p_node_ancestor,
     p_node_parent,
     p_regular,
-    timed_node_,
 )
 from bench.pb2 import InterruptionData
 
@@ -75,13 +74,8 @@ class InterruptionResponse(BuiltinEnum):
     # CRITIQUE/EDIT, ...?
 
 
-@timed_node_(NodeType.INTERRUPTION)
-class Interruption(
-    IsRuntime,
-    IsModal,
-    IsExtensible,
-    PackageNode[InterruptionData],
-):
+@node_(NodeType.INTERRUPTION)
+class Interruption(IsModal, IsExtensible, PackageNode[InterruptionData]):
     """An Interruption in the processing or execution of something."""
 
     # meta
@@ -202,10 +196,8 @@ class Interruption(
         return Interruption(
             type=kind,
             parent=run,
-            session=run.session,
             flow=run.flow,
             action=run.action,
-            link=run.transition,
             span=span,
             mode=run.mode,
         )

@@ -16,12 +16,12 @@ from bench.language.core import (
     ProcessStatus,
     RunType,
     SpanType,
+    node_,
     p_internal,
     p_node_ancestor,
     p_node_parent,
     p_regular,
     p_system,
-    timed_node_,
 )
 from bench.pb2 import AnyNodeData, NodeReferenceData, RunData
 
@@ -41,7 +41,7 @@ if TYPE_CHECKING:
 # pyright: reportIncompatibleVariableOverride=false
 
 
-@timed_node_(NodeType.RUN)
+@node_(NodeType.RUN)
 class Run(
     IsComputable,
     IsProcessable,
@@ -93,9 +93,7 @@ class Run(
 
     @property
     def runnable(self) -> Optional["Runnable"]:
-        if self.type == RunType.TRANSITION:
-            return self.transition
-        elif self.type == RunType.ACTION:
+        if self.type == RunType.ACTION:
             return self.action
         elif self.type == RunType.FLOW:
             return self.flow
@@ -106,9 +104,7 @@ class Run(
 
     @property
     def runnable_ptr(self) -> "NodeReference | None":
-        if self.type == RunType.TRANSITION:
-            return self.transition_ptr
-        elif self.type == RunType.ACTION:
+        if self.type == RunType.ACTION:
             return self.action_ptr
         elif self.type == RunType.FLOW:
             return self.flow_ptr
@@ -119,9 +115,7 @@ class Run(
 
     @property
     def base_ptr(self) -> Optional["NodeReference"]:
-        if self.type == RunType.TRANSITION:
-            return self.transition_ptr
-        elif self.type == RunType.ACTION:
+        if self.type == RunType.ACTION:
             return self.action_ptr
         elif self.type == RunType.FLOW:
             return self.flow_ptr
@@ -132,9 +126,7 @@ class Run(
 
     @property
     def base(self) -> Optional["Runnable"]:
-        if self.type == RunType.TRANSITION:
-            return self.transition
-        elif self.type == RunType.ACTION:
+        if self.type == RunType.ACTION:
             return self.action
         elif self.type == RunType.FLOW:
             return self.flow
@@ -243,23 +235,11 @@ class Run(
         """Mark this Run as resumed."""
         assert self._session is not None, f"{self!r} has no session"
         self.requested_resume_at = self._session._oracle.utc()
-        if (
-            (runtime := self.runtime) is not None
-            and self.session_id == runtime.session_id
-            and _trigger_runtime
-        ):
-            runtime.resume_run(self)
 
     def stop(self, _trigger_runtime: bool = True):
         """Mark this Run as stopped."""
         assert self._session is not None, f"{self!r} has no session"
         self.requested_stop_at = self._session._oracle.utc()
-        if (
-            (runtime := self.runtime) is not None
-            and self.session_id == runtime.session_id
-            and _trigger_runtime
-        ):
-            runtime.stop_run(self)
 
     def _mark_terminated(self):
         """Mark this Run as stopped."""

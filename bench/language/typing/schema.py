@@ -17,14 +17,14 @@ if TYPE_CHECKING:
 # pyright: reportIncompatibleVariableOverride=false
 
 
-@node_(NodeType.CLASS)
-class Class(
+@node_(NodeType.SCHEMA)
+class Schema(
     IsTemplatable,
     IsModal,
     IsNamed,
     PageNode[BlockData],
 ):
-    """A Class with Fields."""
+    """A Schema with Fields."""
 
     parent: Union["Page", None] = p_node_parent(4, NodeType.PAGE)
 
@@ -32,8 +32,8 @@ class Class(
         return ""
 
     @staticmethod
-    def new(name: str, *fields: "Field", **kwargs) -> "Class":
-        cls = Class(name=name, **kwargs)
+    def new(name: str, *fields: "Field", **kwargs) -> "Schema":
+        cls = Schema(name=name, **kwargs)
         for field in fields:
             cls.add_child(field)
         return cls

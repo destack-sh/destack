@@ -28,12 +28,12 @@ from bench.language import (
     Error,
     Flow,
     FlowEdge,
+    Graph,
     GraphCapture,
     Interruption,
     InterruptionStatus,
     InterruptionType,
     Node,
-    NodeGraph,
     NodeMode,
     NodeType,
     Package,
@@ -530,7 +530,7 @@ def create_run(
     agent: "Agent | None" = None,
     title: TextLine | None = None,
     session: "Session | None" = None,
-    graph: NodeGraph | None = None,
+    graph: Graph | None = None,
 ) -> tuple["Run", "Thread"]:
     """
     Makes a Run from a runnable Node without adding it to the session.
@@ -570,7 +570,7 @@ def create_run(
 
     # create thread
     if isinstance(parent, Package):
-        graph = NodeGraph(
+        graph = Graph(
             scope=parent._graph.scope,
             node_types=RUNTIME_NODE_TYPES | COMMUNICATION_NODE_TYPES,
             supergraph=session._supergraph,

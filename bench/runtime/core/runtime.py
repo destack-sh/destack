@@ -24,6 +24,7 @@ from bench.language import (
     Error,
     ErrorKind,
     GetConnection,
+    Graph,
     GraphCapture,
     Interruption,
     InterruptionType,
@@ -31,7 +32,6 @@ from bench.language import (
     Membership,
     Message,
     Node,
-    NodeGraph,
     NodeMode,
     NodeReference,
     NodeType,
@@ -535,7 +535,7 @@ class Runtime:
         runner.outer_task = asyncio.create_task(self._wrap_run_runner(runner))
         return runner
 
-    def get_interrupted_runs(self, graph: NodeGraph, *interruptions: Interruption) -> list[Run]:
+    def get_interrupted_runs(self, graph: Graph, *interruptions: Interruption) -> list[Run]:
         """Gets all Runs that were directly interrupted by the given Interruptions."""
         interrupted_runs: list[Run] = []
         for run in graph.nodes_of_type(Run):

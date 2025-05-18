@@ -16,7 +16,6 @@ from bench.language.core import (
     NodeType,
     PackageNode,
     PageNode,
-    RunType,
     TypeBase,
     enum_,
     node_,
@@ -116,10 +115,6 @@ class FlowEdge(
         source = self.source
         target = self.target
         return f"{source.absolute_path if source else '???'} {self.type.name} {target.absolute_path if target else '???'}"
-
-    @property
-    def run_type(self) -> RunType:
-        return RunType.TRANSITION
 
     @property
     def flow(self) -> "Flow | None":

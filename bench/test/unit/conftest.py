@@ -25,14 +25,14 @@ from bench.language import (
     BenchStatus,
     BuiltinObject,
     Database,
-    NodeGraph,
-    NodeSuperGraph,
+    Graph,
     NullEngine,
     ObjectType,
     Package,
     PackageType,
     Region,
     Session,
+    Supergraph,
     User,
     UserStatus,
 )
@@ -80,7 +80,7 @@ def create_omni_session(omni_database: Database, oracle: Oracle):
         _engines=(omni_pg_engine,),
         _local_epoch=0,
         _oracle=oracle,
-        _supergraph=NodeSuperGraph(name="Omni", root_ptr=None),
+        _supergraph=Supergraph(name="Omni", root_ptr=None),
     )
     return session
 
@@ -99,8 +99,8 @@ def omni_session(omni_database: Database):
 
 def make_session(name: str):
     """Make a 'fake' session for context"""
-    supergraph = NodeSuperGraph(name=name, root_ptr=None)
-    graph = NodeGraph(scope=EMPTY_SCOPE_DATA, node_types=NODE_TYPES, supergraph=supergraph)
+    supergraph = Supergraph(name=name, root_ptr=None)
+    graph = Graph(scope=EMPTY_SCOPE_DATA, node_types=NODE_TYPES, supergraph=supergraph)
     session = Session(
         _engines=(NullEngine(name="fake", scope=EMPTY_SCOPE_DATA, node_types=NODE_TYPES),),
         _supergraph=supergraph,

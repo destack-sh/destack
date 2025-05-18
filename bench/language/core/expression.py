@@ -93,18 +93,16 @@ class Selection(Struct):
 
     type: SelectionType = p_regular(30, default=SelectionType.LIST)
 
-    selections: list["Selection"] = p_regular(40)
-    node_types: list[NodeType] = p_regular(41)
-    nodes: list[Node] = p_regular(42)
-    fields: list["Field"] = p_regular(50)
-    properties: list[Property] = p_regular(51)
+    nodes: list[Node] = p_regular(50)
+    fields: list["Field"] = p_regular(51)
+    properties: list[Property] = p_regular(52)
 
 
 property_ = property
 
 
 @struct_(StructType.EXPRESSION)
-class Expression(Struct):
+class Expression(Struct):  # nocheckin: unravel Expressions (new Queries?)
     """
     An Expression like a value, function, comparison or such.
     """
@@ -151,24 +149,6 @@ class Expression(Struct):
     @property_
     def kind(self) -> ExpressionKind:
         return EXPRESSION_KIND_BY_OP[self.type]
-
-    @property_
-    def value_type(self) -> "TypeBase | None":
-        prop = self.property
-        field = self.field
-        if prop is not None:
-            typ = prop.type_info
-        elif field is not None:
-            typ = field.type_info
-        else:
-            return None
-        # wrap as list if needed (NOTE :Performance)
-        if not typ.is_list and (
-            self.type == ConditionalType.IN or self.type == ConditionalType.NOT_IN
-        ):
-            typ = typ.clone()
-            typ.is_list = True
-        return typ
 
     def __bool__(self):
         # safe-guard to ensure expressions are not used directly in boolean context

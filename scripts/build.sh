@@ -29,7 +29,7 @@ push_with_retry() {
   local tag=$1
   local max_attempts=3
   local attempt=1
-  
+
   while [ $attempt -le $max_attempts ]; do
     if docker push $tag; then
       return 0
@@ -37,17 +37,17 @@ push_with_retry() {
       if [ $attempt -lt $max_attempts ]; then
         sleep 5
       fi
-      attempt=$((attempt+1))
+      attempt=$((attempt + 1))
     fi
   done
-  
+
   return 1
 }
 
 # build all images
 # image names and their corresponding Dockerfiles
-IMAGES=("bench-system" "bench-computer-runtime" "bench-computer-ubuntu-desktop" "bench-computer-ubuntu-terminal")
-DOCKERFILES=("bench-infra/docker/Dockerfile.system" "bench-infra/docker/Dockerfile.computer-runtime" "bench-infra/docker/Dockerfile.computer-ubuntu-desktop" "bench-infra/docker/Dockerfile.computer-ubuntu-terminal")
+IMAGES=("bench-system" "bench-computer-runtime")
+DOCKERFILES=("bench-infra/docker/Dockerfile.system" "bench-infra/docker/Dockerfile.computer-runtime")
 
 for i in "${!IMAGES[@]}"; do
   IMAGE="${IMAGES[$i]}"

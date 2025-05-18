@@ -16,8 +16,8 @@ from bench.language.core import (
     BenchError,
     C,
     ConditionalType,
+    GraphData,
     Node,
-    NodeDataGraph,
     NodeType,
     QueryType,
     repr_scope,
@@ -114,7 +114,7 @@ class SplitConnection(Connection):
     async def _read_descendants(
         self,
         scope: GraphScopeData,
-        combined_graph: NodeDataGraph,
+        combined_graph: GraphData,
         remaining_types: set[NodeType],
         query: "LegacyQuery",
     ) -> set[NodeType]:
@@ -167,7 +167,7 @@ class SplitConnection(Connection):
     async def _read_ancestors(
         self,
         scope: GraphScopeData,
-        combined_graph: NodeDataGraph,
+        combined_graph: GraphData,
         remaining_types: set[NodeType],
         query: "LegacyQuery",
     ) -> set[NodeType]:
@@ -226,10 +226,10 @@ class SplitConnection(Connection):
         query: "LegacyQuery",
         initial_result: GetResultData | SearchResultData,
         initial_types: Collection[NodeType],
-    ) -> NodeDataGraph:
+    ) -> GraphData:
         """Fetch the surrounding ancestor/descendant nodes for a split Query."""
 
-        combined_graph = NodeDataGraph(
+        combined_graph = GraphData(
             scope=self.scope,
             node_types=tuple(query.all_node_types),
             nodes=initial_result.graph.nodes,

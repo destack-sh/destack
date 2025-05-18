@@ -21,9 +21,9 @@ from opentelemetry import trace
 
 from bench.language.core import (
     BenchError,
+    Graph,
+    GraphData,
     Node,
-    NodeDataGraph,
-    NodeGraph,
     NodeType,
     QueryType,
     bittuple,
@@ -116,7 +116,7 @@ class GetOptions(_ConnectOptions):
 
 @dataclass(slots=True)
 class GetResultData:
-    graph: NodeDataGraph
+    graph: GraphData
     roots_ptr: list[NodeReferenceData]
     epoch: int | None
     connection_token: str | None
@@ -124,7 +124,7 @@ class GetResultData:
 
 @dataclass(slots=True)
 class GetResult[T: Node]:
-    graph: NodeGraph
+    graph: Graph
     roots: list[T]
 
 
@@ -157,7 +157,7 @@ class SearchOptions(_ConnectOptions):
 
 @dataclass(slots=True)
 class SearchResultData:
-    graph: NodeDataGraph
+    graph: GraphData
     roots: list[AnyNodeData]
     roots_ptr: list[NodeReferenceData]
     total: int | None
@@ -167,7 +167,7 @@ class SearchResultData:
 
 @dataclass(slots=True)
 class SearchResult[T: Node]:
-    graph: NodeGraph
+    graph: Graph
     roots: list[T]
     total: int | None
 

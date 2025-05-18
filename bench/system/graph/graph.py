@@ -32,18 +32,18 @@ from bench.language import (
     Expression,
     Field,
     GetOptions,
+    Graph,
+    GraphData,
     IsRuntime,
     LegacyQuery,
     Node,
-    NodeDataGraph,
-    NodeGraph,
     NodeNotFoundError,
     NodeReference,
-    NodeSuperGraph,
     NodeType,
     QueryType,
     SelectOptions,
     Session,
+    Supergraph,
     Table,
     ValidationError,
     bittuple,
@@ -267,7 +267,7 @@ class GraphServiceBase(ServiceBase, GraphBase, abc.ABC):
     @final
     def new_request_session(
         self,
-        supergraph: NodeSuperGraph,
+        supergraph: Supergraph,
         *,
         engines: tuple[Engine, ...] | None = None,
         readonly: bool = True,
@@ -292,8 +292,8 @@ class GraphServiceBase(ServiceBase, GraphBase, abc.ABC):
     async def _pre_commit_hook(
         self,
         session: Session,
-        graph: NodeGraph,
-        data_graph: NodeDataGraph,
+        graph: Graph,
+        data_graph: GraphData,
         edits: Sequence[EditData],
         cascaded_edits: Sequence[EditData],
     ) -> None:
@@ -309,8 +309,8 @@ class GraphServiceBase(ServiceBase, GraphBase, abc.ABC):
     async def pre_commit(
         self,
         session: Session,
-        graph: NodeGraph,
-        data_graph: NodeDataGraph,
+        graph: Graph,
+        data_graph: GraphData,
         context: IsRuntime | None,
         edits: Sequence[EditData],
         cascaded_edits: Sequence[EditData],
@@ -321,8 +321,8 @@ class GraphServiceBase(ServiceBase, GraphBase, abc.ABC):
     async def _post_commit_hook(
         self,
         session: Session,
-        graph: NodeGraph,
-        data_graph: NodeDataGraph,
+        graph: Graph,
+        data_graph: GraphData,
         edits: Sequence[EditData],
         cascaded_edits: Sequence[EditData],
     ) -> None:
@@ -339,8 +339,8 @@ class GraphServiceBase(ServiceBase, GraphBase, abc.ABC):
     async def post_commit(
         self,
         session: Session,
-        graph: NodeGraph,
-        data_graph: NodeDataGraph,
+        graph: Graph,
+        data_graph: GraphData,
         edits: Sequence[EditData],
         cascaded_edits: Sequence[EditData],
     ):
@@ -366,7 +366,7 @@ class GraphServiceBase(ServiceBase, GraphBase, abc.ABC):
         *,
         area: "CommitScope",
         scope: GraphScopeData,
-        supergraph: NodeSuperGraph,
+        supergraph: Supergraph,
         context: IsRuntime,
         edits: Sequence[EditData],
     ) -> tuple[Sequence[EditData], Sequence[EditData]]:
@@ -377,7 +377,7 @@ class GraphServiceBase(ServiceBase, GraphBase, abc.ABC):
 
         async with self.new_request_session(supergraph=supergraph, readonly=False) as session:
             # read the affected nodes into a single graph for evaluation
-            data_graph = NodeDataGraph(scope=self._scope, node_types=NODE_TYPES)
+            data_graph = GraphData(scope=self._scope, node_types=NODE_TYPES)
             with self.tracer.start_as_current_span(f"{self.name}.commit.read"):
                 for (base_id, node_type), node_references in area.scopes_by_base_and_type.items():
                     node_type = wiring.unpack_enum(NodeType, node_type)
@@ -444,7 +444,7 @@ class GraphServiceBase(ServiceBase, GraphBase, abc.ABC):
                 graph=data_graph, edits=edits, include_removed=True, is_prepass=True
             )
             assert flat_edits and len(flat_edits) == len(edits), f"{flat_edits!r} != {edits!r}"
-            unpacked_graph = wiring.unpack_node_graph(
+            unpacked_graph = wiring.unpack_graph(
                 data_graph, supergraph=supergraph, parent=None, session=session
             )
             for node_id in area.edited_node_ids:

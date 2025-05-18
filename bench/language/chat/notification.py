@@ -8,19 +8,18 @@ from bench.language.core import (
     EnumType,
     IsModal,
     IsTitled,
-    Node,
     NodeType,
     PackageNode,
     enum_,
+    node_,
     p_node_parent,
     p_regular,
     p_system,
-    timed_node_,
 )
 from bench.pb2 import NotificationData
 
 if TYPE_CHECKING:
-    from bench.language import Channel, Message, Package, Text, Thread
+    from bench.language import Channel, Package, Text, Thread
 
 # pyright: reportIncompatibleVariableOverride=false
 
@@ -41,7 +40,7 @@ class NotificationStatus(BuiltinEnum):
     READ = 60
 
 
-@timed_node_(NodeType.NOTIFICATION)
+@node_(NodeType.NOTIFICATION)
 class Notification(IsTitled, IsModal, PackageNode[NotificationData]):
     """
     A Notification about something.
@@ -68,8 +67,6 @@ class Notification(IsTitled, IsModal, PackageNode[NotificationData]):
 
     # content
     text: Optional["Text"] = p_regular(51)
-    nodes: list["Node"] = p_regular(53)
-    message: Optional["Message"] = p_regular(54, baseless=True)
 
     def __content_str__(self) -> str:
         if self.title:

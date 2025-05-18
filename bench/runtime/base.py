@@ -22,12 +22,12 @@ from bench.language import (
     ClientType,
     Computer,
     NodeReference,
-    NodeSuperGraph,
     NodeType,
     Package,
     RemoteEngine,
     Scope,
     Session,
+    Supergraph,
     User,
 )
 from bench.pb2 import HostClient, ResolveHostsRequest, SupervisorClient
@@ -97,7 +97,7 @@ class RuntimeServiceBase(ServiceBase, abc.ABC):
         self._bench_ptr = NodeReference(
             node_type=NodeType.BENCH, id=bench_id, ck=bench_id, bench_id=bench_id
         )
-        self._supergraph = NodeSuperGraph(name="Runtime", root_ptr=self._bench_ptr)
+        self._supergraph = Supergraph(name="Runtime", root_ptr=self._bench_ptr)
         self._bench: Bench | None = None
         self._package: Package | None = None
         self._bench_bench: Bench | None = None

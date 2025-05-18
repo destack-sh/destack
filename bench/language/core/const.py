@@ -26,11 +26,11 @@ from opentelemetry.trace import Tracer
 from opentelemetry.util._decorator import _agnosticcontextmanager
 
 from bench.utils.env import IS_TEST
+from bench.utils.string import Casing, to_casing
 from bench.utils.utils import frozendict, get_from_env
 
 if TYPE_CHECKING:
     from bench.language import (
-        Node,
         Session,
         Span,
         SpanType,
@@ -199,6 +199,8 @@ def enum_(enum_type: "EnumType"):
         if enum_type in _ENUM_CLASS_BY_TYPE:
             raise ValueError(f"enum {enum_type} duplicate: {_ENUM_CLASS_BY_TYPE[enum_type]}")
         _ENUM_CLASS_BY_TYPE[enum_type] = cls
+        enum_name = to_casing(cls.__name__, Casing.ALL_CAPS)
+        assert enum_type.name == enum_name, f"enum name mismatch: {enum_type.name} != {enum_name}"
         return cls
 
     return register_enum
@@ -350,14 +352,14 @@ class EnumType(BuiltinEnum):
 
     # data [41600-41800]
     PRIMITIVE_TYPE = 41600
-    FIELD_ZONE = 41601
+    FIELD_TYPE = 41601
     TYPE_KIND = 41602
     TYPE_FORMAT = 41603
     DAY = 41610
     MONTH = 41611
     TIME_INTERVAL = 41612
     EXPRESSION_KIND = 41640
-    EXPRESSION_OP = 41641
+    EXPRESSION_TYPE = 41641
     LITERAL_TYPE = 41642
     FUNCTIONAL_TYPE = 41643
     CONDITIONAL_TYPE = 41644
@@ -499,12 +501,9 @@ enum_(EnumType.ENUM_TYPE)(EnumType)
 @enum_(EnumType.STRUCT_TYPE)
 class StructType(BuiltinEnum):
     # meta [20000-20200]
-    CONTEXT = 20001
-    EDIT_CONTEXT = 20002
     EDIT = 20003
     EDIT_OPERATION = 20005
     CHANGE = 20006
-    CHANGE_VIGNETTE = 20007
     SCOPE = 20008
     CLIENT_ORIGIN = 20009
     NODE_REFERENCE = 20010
@@ -521,7 +520,6 @@ class StructType(BuiltinEnum):
     TYPE = 21400
     TYPE_CONSTRAINT = 21401
     VALUE = 21410
-    FILE_INFO = 21420
     # SCHEMA, UNION, TAG, ...
 
     # data [21600-21800]
@@ -660,8 +658,8 @@ class NodeType(BuiltinEnum):
     # VAULT, CACHE, ENDPOINT, DEPLOYMENT, NETWORK, ...
 
     # type [1400-1600]
+    SCHEMA = 1410, "Schema", "Schema", "fas fa-shapes"
     CHOICE = 1400, "Choice", "Choice between Options", "fas fa-circle-chevron-down"
-    CLASS = 1410, "Class", "Class", "fas fa-shapes"
     FIELD = 1420, "Field", "Field", "fas fa-triangle"
     OPTION = 1430, "Option", "Option", "far fa-square-check"
     # SCHEMA, UNION, TAG, ...
@@ -698,7 +696,6 @@ class NodeType(BuiltinEnum):
     # ...
 
     # runtime [2600-2800]
-    SESSION = 2600, "Session", "Session", "fas fa-circle-play"
     RUN = 2610, "Run", "Run", "fas fa-play"
     SPAN = 2620, "Span", "Span", "fas fa-ruler-horizontal"
     INTERRUPTION = 2630, "Interruption", "Interruption", "fas fa-hand"
@@ -895,6 +892,9 @@ PUBLIC_NODE_TYPES = bittuple(NodeType.USER, NodeType.ORGANIZATION, NodeType.BENC
 #  (which also depends on trait.py, and we can't have a circular dependency)
 BASED_NODE_TYPES = bittuple(NodeType.RECORD, NodeType.MESSAGE, NodeType.RUN)
 VIEW_NODE_TYPES = bittuple(*(n for n in NODE_TYPES if n.name.endswith("VIEW")))
+CONTAINER_VIEW_NODE_TYPES = _get_node_types(8100, 8200)
+CONTENT_VIEW_NODE_TYPES = _get_node_types(8200, 8300)
+INPUT_VIEW_NODE_TYPES = _get_node_types(8300, 8400)
 STYLE_NODE_TYPES = bittuple(*(n for n in NODE_TYPES if n.name.endswith("STYLE")))
 PAGE_NODE_TYPES = bittuple(
     *RESOURCE_NODE_TYPES,
@@ -902,7 +902,7 @@ PAGE_NODE_TYPES = bittuple(
     *STYLE_NODE_TYPES,
     NodeType.APPLICATION,
     NodeType.CHOICE,
-    NodeType.CLASS,
+    NodeType.SCHEMA,
     NodeType.TABLE,
     NodeType.FLOW,
     NodeType.SERVICE,
@@ -946,7 +946,7 @@ TEMPLATABLE_NODE_TYPES = bittuple(
     NodeType.PAGE,
     NodeType.BLOCK,
     NodeType.CHOICE,
-    NodeType.CLASS,
+    NodeType.SCHEMA,
     NodeType.FIELD,
     NodeType.OPTION,
     NodeType.SERVICE,
@@ -970,7 +970,7 @@ LOADED_PACKAGE_NODE_TYPES = bittuple(
     NodeType.PAGE,
     NodeType.BLOCK,
     NodeType.CHOICE,
-    NodeType.CLASS,
+    NodeType.SCHEMA,
     NodeType.FIELD,
     NodeType.OPTION,
     NodeType.SERVICE,
@@ -1412,7 +1412,7 @@ class TypeKind(BuiltinEnum):
     ENUM = 4
 
 
-@enum_(EnumType.FIELD_ZONE)
+@enum_(EnumType.FIELD_TYPE)
 class FieldType(BuiltinEnum):
     """The type of a Field within its Block. Overlaps with ObjectKind."""
 
@@ -1469,7 +1469,6 @@ class RunType(BuiltinEnum):
     CODE = 1
     ACTION = 10
     FLOW = 11
-    TRANSITION = 12
     AGENT = 15
 
 
@@ -1557,13 +1556,6 @@ INTERRUPTED_PROCESS_STATUSES = bittuple(*(s for s in ProcessStatus if s.is_inter
 ACTIVE_PROCESS_STATUSES = bittuple(*(s for s in ProcessStatus if s.is_active))
 INACTIVE_PROCESS_STATUSES = bittuple(*(s for s in ProcessStatus if s.is_inactive))
 TERMINAL_PROCESS_STATUSES = bittuple(*(s for s in ProcessStatus if s.is_terminal))
-
-
-@enum_(EnumType.SESSION_STATUS)
-class SessionStatus(BuiltinEnum):
-    PENDING = 1
-    OPEN = 10
-    CLOSED = 30
 
 
 @enum_(EnumType.EXPRESSION_KIND)
@@ -1692,7 +1684,7 @@ else:
         "ExpressionType", LiteralType, FunctionalType, ConditionalType, AggregationType, SortType
     )
     ExpressionType.kind = property(lambda self: EXPRESSION_KIND_BY_OP[self])
-    enum_(EnumType.EXPRESSION_OP)(ExpressionType)
+    enum_(EnumType.EXPRESSION_TYPE)(ExpressionType)
 
 
 @enum_(EnumType.CLIENT_TYPE)
@@ -1763,7 +1755,6 @@ def capture_span(
     type: "SpanType",
     *,
     level: "Severity | None" = None,
-    nodes: list["Node"] | None = None,
     title: str | None = None,
     runner: "Runner[Any] | None" = None,
 ) -> Generator["Span | None", None, None]:
@@ -1785,7 +1776,7 @@ def capture_span(
         with tracer.start_as_current_span(key):
             yield
     else:
-        span = Span(type=type, nodes=nodes or [], title=title, started_at=runtime.oracle.utc())
+        span = Span(type=type, title=title, started_at=runtime.oracle.utc())
         run._copy_context_to(span)
         run.add_child(span)
         try:

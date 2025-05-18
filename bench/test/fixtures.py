@@ -23,11 +23,11 @@ from bench.language import (
     BenchStatus,
     Database,
     NodeReference,
-    NodeSuperGraph,
     NodeType,
     Package,
     PackageType,
     Region,
+    Supergraph,
     clean_name,
 )
 from bench.sql import (
@@ -62,7 +62,7 @@ def make_global_database(name: str):
     pg_url = pg_url_parsed._replace(path=f"/{name}").geturl()
 
     system_bench_ptr = NodeReference(node_type=NodeType.BENCH, id=UUID(int=0), ck=UUID(int=0))
-    supergraph = NodeSuperGraph(name="Global", root_ptr=system_bench_ptr)
+    supergraph = Supergraph(name="Global", root_ptr=system_bench_ptr)
     system_bench_stub = Bench(
         id=SYSTEM_ID,
         name="System",
@@ -105,7 +105,7 @@ def make_regional_database(name: str):
     pg_url = pg_url_parsed._replace(path=f"/{name}").geturl()
 
     system_bench_ptr = NodeReference(node_type=NodeType.BENCH, id=UUID(int=0), ck=UUID(int=0))
-    supergraph = NodeSuperGraph(name="Regional", root_ptr=system_bench_ptr)
+    supergraph = Supergraph(name="Regional", root_ptr=system_bench_ptr)
     system_bench_stub = Bench(
         id=SYSTEM_ID,
         name="System",

@@ -29,7 +29,6 @@ if TYPE_CHECKING:
         BenchNode,
         Channel,
         Claim,
-        Client,
         Computer,
         Cursor,
         Error,
@@ -48,7 +47,6 @@ if TYPE_CHECKING:
         ResourceBase,
         Run,
         Service,
-        Session,
         Space,
         Span,
         Table,
@@ -353,33 +351,7 @@ class IsExtensible(BuiltinObject):
 
 
 @object_()
-class IsRuntime(BuiltinObject):
-    """Context for a Node that's relevant at runtime."""
-
-    # NOTE :Security: session context properties are p_internal (not p_system) so we can update
-    #   them in all Clients. But this also means Users could mess with them if they really want to.
-    session: Optional["Session"] = p_internal(94, same_bench=True)
-    client: Optional["Client"] = p_internal(95, same_bench=True)
-    computer: Optional["Computer"] = p_internal(96, same_bench=True)
-    user: Optional["User"] = p_internal(97)
-    if TYPE_CHECKING:
-        session_ptr: Optional[NodeReference] = None
-        session_id: Optional[UUID] = None
-        client_ptr: Optional[NodeReference] = None
-        client_id: Optional[UUID] = None
-        computer_ptr: Optional[NodeReference] = None
-        computer_id: Optional[UUID] = None
-        user_ptr: Optional[NodeReference] = None
-        user_id: Optional[UUID] = None
-
-    @property
-    def runtime(self):
-        """The Runtime associated with this context (if any)."""
-        return self.session._runtime if self.session is not None else None
-
-
-@object_()
-class IsProcessable(IsRuntime):
+class IsProcessable(BuiltinObject):
     """A Node that can be processed somehow."""
 
     status: ProcessStatus = p_regular(80, default=ProcessStatus.CREATED)

@@ -1,10 +1,10 @@
 from typing import Collection
 
-from bench.language import NodeGraph, NodeType
+from bench.language import Graph, NodeType
 
 
 def assert_graph_equals(
-    graph_a: NodeGraph, graph_b: NodeGraph, ignore_node_types: Collection[NodeType] = ()
+    graph_a: Graph, graph_b: Graph, ignore_node_types: Collection[NodeType] = ()
 ):
     """Checks that two graphs are completely equal."""
     for node_a in graph_a.nodes:

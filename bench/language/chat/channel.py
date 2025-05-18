@@ -11,8 +11,8 @@ from bench.language.core import (
     NodeType,
     PageNode,
     enum_,
+    node_,
     p_node_parent,
-    timed_node_,
 )
 from bench.pb2 import ChannelData
 
@@ -28,7 +28,7 @@ class ChannelStatus(BuiltinEnum):
     CLOSED = 30
 
 
-@timed_node_(NodeType.CHANNEL)
+@node_(NodeType.CHANNEL)
 class Channel(IsInstantiable, IsProcessable, IsJoinable, IsModal, IsNamed, PageNode[ChannelData]):
     """
     A Channel for organizing Messages and Threads.

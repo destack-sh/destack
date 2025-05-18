@@ -16,24 +16,23 @@ from bench.language.core import (
     Node,
     NodeType,
     PackageNode,
-    PageNode,
     ResourceStatus,
     Subject,
     Text,
     TextIn,
     TextLine,
     enum_,
+    node_,
     p_internal,
     p_node_parent,
     p_regular,
     text_line,
-    timed_node_,
     to_text,
 )
 from bench.pb2 import AnyNodeData, MessageData, NodeReferenceData
 
 if TYPE_CHECKING:
-    from bench.language import Channel, NodeReference, Package, Thread
+    from bench.language import Channel, NodeReference, Thread
 
 # pyright: reportIncompatibleVariableOverride=false
 
@@ -53,7 +52,7 @@ class MessageType(BuiltinEnum):
     # also see https://discord.com/developers/docs/resources/message
 
 
-@timed_node_(NodeType.MESSAGE)
+@node_(NodeType.MESSAGE)
 class Message(
     IsComputable,
     IsBased,
@@ -74,14 +73,11 @@ class Message(
     # platform? source?
     channel: Optional["Channel"] = p_regular(34, same_bench=True)
     thread: Optional["Thread"] = p_regular(35, same_bench=True)
-    scope: Union["PageNode", "Package"] = p_regular(36)
     if TYPE_CHECKING:
         channel_id: Optional[UUID] = None
         channel_ptr: Optional[NodeReference] = None
         thread_id: Optional[UUID] = None
         thread_ptr: Optional[NodeReference] = None
-        scope_id: Optional[UUID] = None
-        scope_ptr: Optional[NodeReference] = None
 
     # status
     edited_at: Optional[datetime] = p_internal(40)
@@ -97,13 +93,10 @@ class Message(
 
     # content
     text: Optional["Text"] = p_regular(61)
-    nodes: list["Node"] = p_regular(
-        63,
-        description="The Nodes this Message is about.",
-    )
+    node: Optional["Node"] = p_regular(62)
     if TYPE_CHECKING:
-        nodes_ptr: Optional[NodeReference] = None
-        nodes_id: Optional[UUID] = None
+        node_ptr: Optional[NodeReference] = None
+        node_id: Optional[UUID] = None
     resource_status: Optional[ResourceStatus] = p_regular(64)
 
     def __content_str__(self) -> str:
@@ -143,9 +136,8 @@ class Message(
         type: MessageType = MessageType.DEFAULT,
         title: TextLine | None = None,
         owned_by: Optional[Subject] = None,
-        scope: Optional["PageNode"] = None,
         reply_to: Optional["Message"] = None,
-        nodes: list["Node"] | None = None,
+        node: Optional["Node"] = None,
         **kwargs,
     ) -> "Message":
         message = Message(
@@ -156,8 +148,6 @@ class Message(
             owned_by=owned_by,
             **kwargs,
         )
-        if nodes is not None:
-            message.nodes = nodes
-        if scope is not None:
-            message.scope = scope
+        if node is not None:
+            message.node = node
         return message

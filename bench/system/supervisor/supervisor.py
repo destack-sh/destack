@@ -2,7 +2,6 @@ from typing import Callable, Mapping, override
 from uuid import UUID, uuid4, uuid5
 
 import structlog
-from google.protobuf.message import Message as ProtoMessage
 from grpclib import GRPCError
 from grpclib import Status as GRPCStatus
 from opentelemetry import trace
@@ -20,7 +19,6 @@ from bench.language import (
     NodeType,
     Organization,
     OrganizationStatus,
-    PolicySubject,
     Region,
     User,
     UserStatus,
@@ -39,7 +37,6 @@ from bench.proto import (
     Network,
     ResolveHostsRequest,
     ResolveHostsResponse,
-    RpcMetadata,
     ServiceKind,
     SignupUserRequest,
     SignupUserResponse,
@@ -52,8 +49,6 @@ from bench.system.core import (
     DatabaseMap,
     HostMap,
     check_password,
-    get_client_or_error,
-    global_session,
     hash_password,
     pg_engine_from_database,
     purge_client_caches,
@@ -126,33 +121,6 @@ class SupervisorService(GraphServiceBase, SupervisorBase):
     @override
     def get_engines(self):
         return (self._global_pg_engine,)
-
-    @tracer.start_as_current_span("supervisor.get_request_subject")
-    async def get_request_subject(
-        self, request: ProtoMessage, metadata: RpcMetadata
-    ) -> PolicySubject:
-        async with global_session(self._global_database, self.get_engines(), self.oracle):
-            # request will use the subject's supergraph, so ensure all subjects are created in session
-            if not metadata.client_id or not metadata.client_access_token:
-                return PolicySubject(is_authenticated=False)
-            client_id = UUID(metadata.client_id)
-            client = await get_client_or_error(client_id, metadata.client_access_token)
-            if isinstance(client.parent, User):
-                return PolicySubject(
-                    is_authenticated=True,
-                    is_staff=client.parent.is_staff,
-                    client=client,
-                    user=client.parent,
-                    owned=[client.parent],
-                )
-            elif isinstance(client.parent, Bench):
-                bench = client.parent
-                assert bench is not None, f"{client!r} has no bench"
-                return PolicySubject(
-                    is_authenticated=True, client=client, computer=client.computer, owned=[bench]
-                )
-            else:
-                raise RuntimeError(f"unexpected client: {client!r}")
 
     @override
     async def resolve_request_base(self, node_ptr: UUID | NodeReference) -> Node | None:
