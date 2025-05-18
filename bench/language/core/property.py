@@ -12,7 +12,7 @@ from typing import (
 )
 
 from bench.language.registry import _on_completing_setup
-from bench.utils.func import hash_stable, parse_py_annotation
+from bench.utils.func import get_class_name, hash_stable, parse_py_annotation
 from bench.utils.string import Casing, to_casing
 
 from .const import (
@@ -73,7 +73,7 @@ class Property(_IntoQuery if TYPE_CHECKING else object):
     component: type["BuiltinObject"] = UNSET  # source component class
     py_type_raw: Any = None  # type annotation on LHS of assignment
     py_type: Any = UNSET  # clean type annotation
-    primitive_type: PrimitiveType | None = UNSET
+    primitive_type: PrimitiveType | None = UNSET  # primitive representation
     enum_type: EnumType | None = None
     struct_type: StructType | None = None
     is_node_data: bool = False  # special case
@@ -317,24 +317,46 @@ class Property(_IntoQuery if TYPE_CHECKING else object):
         if not self.is_required and self.default is UNSET and self.default_factory is None:
             self.default = None
 
-        # determine type from annotation if unset
-        if self.primitive_type is UNSET:
-            class_name = (
-                to_casing(annotation.type.__name__, Casing.ALL_CAPS)
-                if isinstance(annotation.type, type)
-                else None
-            )
-            if isinstance(annotation.type, type) and (
-                primitive_type := PRIMITIVE_TYPE_BY_PY_TYPE.get(annotation.type)
-            ):
-                # primitive type
-                self.primitive_type = primitive_type
-            elif class_name and (enum_type := EnumType[class_name]):
-                self.enum_type = enum_type
-            elif class_name == "Node":
-                self.node_types = NODE_TYPES.tuple
-            else:
-                raise ValueError(f"cannot determine type for {self!r}: {self.py_type_raw!r}")
+        # determine type
+        class_name = get_class_name(annotation.type)
+        enum_name = to_casing(class_name, Casing.ALL_CAPS) if class_name else None
+        if self.primitive_type is not UNSET:
+            # primitive type already set
+            pass
+        elif isinstance(annotation.type, type) and (
+            primitive_type := PRIMITIVE_TYPE_BY_PY_TYPE.get(annotation.type)
+        ):
+            # primitive type
+            self.primitive_type = primitive_type
+        elif enum_name and (enum_type := EnumType.__members__.get(enum_name)):
+            # Enum
+            self.enum_type = enum_type
+        elif enum_name and (struct_type := StructType.__members__.get(enum_name)):
+            # Struct
+            self.struct_type = struct_type
+        elif enum_name and (node_type := NodeType.__members__.get(enum_name)):
+            # Node reference
+            self.node_types = (node_type,)
+        elif class_name == "Property":
+            # Property reference
+            self.struct_type = StructType.PROPERTY_REFERENCE
+        elif class_name == "Node":
+            # generic Node reference
+            self.node_types = NODE_TYPES.tuple
+        elif annotation.union_types:
+            # Node reference union
+            node_types: list[NodeType] = []
+            for union_type in annotation.union_types:
+                class_name = get_class_name(union_type)
+                enum_name = to_casing(class_name, Casing.ALL_CAPS)
+                node_type = NodeType.__members__.get(enum_name)
+                assert node_type is not None, f"unexpected {class_name!r} in {self!r}"
+                node_types.append(node_type)
+            self.node_types = tuple(node_types)
+
+        # default to regular node references
+        if self.node_types and self.node_kind is None:
+            self.node_kind = NodeReferenceKind.NODE_REGULAR
 
         # node templates always point to their own type
         if self.node_kind == NodeReferenceKind.NODE_TEMPLATE:
@@ -345,10 +367,20 @@ class Property(_IntoQuery if TYPE_CHECKING else object):
             self.ptr_prop = self._to_ptr_prop()
             self.is_wired = False
             self.is_stored = False
+            return  # bail, no need to determine primitive type
 
-        # primitive type must be set (for wiring/storage)
+        # determine primitive type
         if self.primitive_type is UNSET:
-            raise ValueError(f"cannot determine type for {self!r}: {self.py_type_raw!r}")
+            if self.enum_type is not None:
+                if self.enum_type.get_max_ord() < 2**16:
+                    self.primitive_type = PrimitiveType.INT16
+                else:
+                    self.primitive_type = PrimitiveType.INT32
+            elif self.struct_type is not None:
+                self.primitive_type = PrimitiveType.JSON
+        assert (
+            self.primitive_type is not UNSET
+        ), f"undetermined type for {self!r} (raw={self.py_type_raw!r}, annotation={annotation!r})"
 
     def _to_type(self) -> "Type":
         """Create the Type for this Property."""

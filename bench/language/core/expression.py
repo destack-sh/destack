@@ -96,9 +96,6 @@ class Selection(Struct):
     selections: list["Selection"] = p_regular(40)
     node_types: list[NodeType] = p_regular(41)
     nodes: list[Node] = p_regular(42)
-    scopes: list[Node] = p_regular(43)
-    from_node: Optional[Node] = p_regular(45)
-    to_node: Optional[Node] = p_regular(46)
     fields: list["Field"] = p_regular(50)
     properties: list[Property] = p_regular(51)
 

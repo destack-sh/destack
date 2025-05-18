@@ -18,6 +18,7 @@ from typing import (
     Awaitable,
     Callable,
     Collection,
+    ForwardRef,
     Iterable,
     Iterator,
     Mapping,
@@ -338,6 +339,15 @@ def parse_py_annotation(
         is_optional=is_optional,
         is_list=is_list,
     )
+
+
+def get_class_name(py_type: type | ForwardRef | str) -> str:
+    if isinstance(py_type, str):
+        return py_type
+    elif isinstance(py_type, type):
+        return py_type.__name__
+    elif isinstance(py_type, ForwardRef):
+        return py_type.__forward_arg__
 
 
 def levenshtein_distance(s1: str, s2: str) -> int:
