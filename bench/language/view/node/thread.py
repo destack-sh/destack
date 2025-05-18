@@ -1,6 +1,6 @@
 from typing import TYPE_CHECKING, Optional
 
-from bench.language.core import Node, NodeType, Text, node_, p_regular
+from bench.language.core import NodeType, Text, node_, p_regular
 from bench.pb2 import ThreadData
 
 from .node import NodeViewBase
@@ -14,5 +14,5 @@ class ThreadView(NodeViewBase[ThreadData]):
     """A Thread view."""
 
     draft_text: Optional[Text] = p_regular(100)
-    draft_nodes: list[Node] = p_regular(101)
+    # draft_nodes: list[Node] = p_regular(101)
     draft_reply_to: Optional["Message"] = p_regular(102)

@@ -1,6 +1,8 @@
 import dataclasses
 import enum
 import functools
+import types
+import typing
 from dataclasses import dataclass
 from sys import intern
 from typing import (
@@ -12,7 +14,7 @@ from typing import (
 )
 
 from bench.language.registry import _on_completing_setup
-from bench.utils.func import get_class_name, hash_stable, parse_py_annotation
+from bench.utils.func import hash_stable
 from bench.utils.string import Casing, to_casing
 
 from .const import (
@@ -113,6 +115,97 @@ def _resolve_node_types(class_name: str) -> tuple[NodeType, ...] | None:
             return RESOURCE_NODE_TYPES.tuple
         case _:
             return None
+
+
+class TypeAnnotation(typing.NamedTuple):
+    """Type annotation for a property."""
+
+    type: typing.Type | str
+    union_types: tuple[typing.Type | str, ...]
+    is_union: bool
+    is_optional: bool
+    is_list: bool
+    is_variable: bool
+
+
+def _try_resolve(py_type: type | str | typing.ForwardRef, type_map: dict[str, type]) -> type | str:
+    """Resolves the py type."""
+    if isinstance(py_type, str):
+        return type_map.get(py_type, py_type)
+    elif isinstance(py_type, typing.ForwardRef):
+        return type_map.get(py_type.__forward_arg__, py_type.__forward_arg__)
+    else:
+        return py_type
+
+
+def parse_type_annotation(
+    py_type: type | str | typing.ForwardRef, type_map: dict[str, type]
+) -> TypeAnnotation:
+    """Parses the type information from a given py type. Uses type map to resolve forward refs."""
+    is_union = False
+    is_optional = False
+    is_list = False
+    is_variable = False
+    union_types = ()
+    # unwrap VariableProperty[...]
+    if (
+        isinstance(origin_cls := typing.get_origin(py_type), typing.TypeAliasType)
+        and origin_cls.__name__ == "VariableProperty"
+    ):
+        is_variable = True
+        py_type = typing.get_args(py_type)[0]
+    # resolve
+    if not isinstance(py_type, type):
+        if isinstance(py_type, typing.ForwardRef):
+            py_type = py_type.__forward_arg__
+        if isinstance(py_type, str):
+            if py_type.endswith(" | None"):
+                is_optional = True
+                py_type = py_type[:-7]
+        py_type = _try_resolve(py_type, type_map)
+    # list (outer)
+    if typing.get_origin(py_type) in (list, tuple):
+        py_type = typing.get_args(py_type)[0]
+        py_type = _try_resolve(py_type, type_map)
+        is_list = True
+    # union/optional
+    if typing.get_origin(py_type) in (typing.Union, types.UnionType):
+        union_types = typing.get_args(py_type)
+        is_optional = any(t is type(None) for t in union_types)
+        union_types = tuple(t for t in union_types if t is not type(None))
+        is_union = len(union_types) > 1
+        # reconstitute type annotation
+        if is_union:
+            union_types = tuple(_try_resolve(t, type_map) for t in union_types)
+            py_type = cast(type, typing.Union[union_types])  # type: ignore
+        else:
+            py_type = union_types[0]
+            py_type = _try_resolve(py_type, type_map)
+    # list (inner)
+    if typing.get_origin(py_type) in (list, tuple):
+        assert not is_list, f"double list: {py_type!r}"
+        py_type = typing.get_args(py_type)[0]
+        py_type = _try_resolve(py_type, type_map)
+        is_list = True
+    return TypeAnnotation(
+        type=py_type,
+        union_types=union_types,
+        is_union=is_union,
+        is_optional=is_optional,
+        is_list=is_list,
+        is_variable=is_variable,
+    )
+
+
+def get_class_name(py_type: type | typing.ForwardRef | str) -> str | None:
+    if isinstance(py_type, str):
+        return py_type
+    elif isinstance(py_type, type):
+        return py_type.__name__
+    elif isinstance(py_type, typing.ForwardRef):
+        return py_type.__forward_arg__
+    else:
+        return None
 
 
 @dataclass(eq=False, slots=True)
@@ -366,7 +459,7 @@ class Property(_IntoQuery if TYPE_CHECKING else object):
             return  # nothing to do
 
         # parse annotation
-        annotation = parse_py_annotation(self.py_type_raw, EMPTY_DICT)
+        annotation = parse_type_annotation(self.py_type_raw, EMPTY_DICT)
         self.py_type = annotation.type
         self.is_required = not annotation.is_optional
         self.is_list = annotation.is_list
@@ -435,7 +528,7 @@ class Property(_IntoQuery if TYPE_CHECKING else object):
                 self.primitive_type = PrimitiveType.JSON
         assert (
             self.primitive_type is not UNSET
-        ), f"undetermined type for {self!r} (raw={self.py_type_raw!r}, annotation={annotation!r})"
+        ), f"undetermined type {self.py_type_raw!r} for {self!r} ({annotation!r})"
 
     def _to_type(self) -> "Type":
         """Create the Type for this Property."""

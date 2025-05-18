@@ -317,7 +317,6 @@ class EnumType(BuiltinEnum):
     VARIABLE_TYPE = 40110
     EDIT_TYPE = 40120
     EDIT_OPERATION_TYPE = 40121
-    USE_TYPE = 40122
     # PROFILE, CREDENTIAL, FRIENDSHIP, ...
 
     # package [41000-41200]
@@ -397,7 +396,6 @@ class EnumType(BuiltinEnum):
     PROCESS_STATUS = 42600
     RUN_TYPE = 42601
     SPAN_TYPE = 42602
-    SESSION_STATUS = 42603
     SCHEDULE_FREQUENCY = 42610
     INTERRUPTION_TYPE = 42620
     INTERRUPTION_STATUS = 42621
@@ -405,10 +403,6 @@ class EnumType(BuiltinEnum):
     # EVENT, SIGNAL, ...
 
     # identity [42800-43000]
-    ACCESS_MODE = 42800
-    ACCESS_KIND = 42801
-    POLICY_EFFECT = 42802
-    ACCESS_TYPE = 42803
     QUERY_TYPE = 42850
     # PROFILE? (for User, or maybe global?)
 
@@ -501,14 +495,13 @@ enum_(EnumType.ENUM_TYPE)(EnumType)
 @enum_(EnumType.STRUCT_TYPE)
 class StructType(BuiltinEnum):
     # meta [20000-20200]
-    EDIT = 20003
-    EDIT_OPERATION = 20005
-    CHANGE = 20006
-    SCOPE = 20008
-    CLIENT_ORIGIN = 20009
-    NODE_REFERENCE = 20010
-    PROPERTY_REFERENCE = 20011
-    VARIABLE = 20020  # nocheckin: Variables
+    SCOPE = 20000
+    EDIT = 20001
+    EDIT_OPERATION = 20002
+    CLIENT_ORIGIN = 20003
+    NODE_REFERENCE = 20004
+    PROPERTY_REFERENCE = 20005
+    VARIABLE = 20006  # nocheckin: Variables
 
     # package [21000-21200]
     # APP, PLUGIN, ...
@@ -557,12 +550,6 @@ class StructType(BuiltinEnum):
     # PROFILE? (for User, or maybe global?)
 
     # access [23000-23200]
-    POLICY = 23000
-    POLICY_RULE = 23001
-    POLICY_SUBJECT = 23002
-    ACCESS_ZONE = 23003
-    ACCESS_MATRIX = 23004
-    ACCESS = 23005
     # ...
 
     # version [23200-23400]
@@ -1280,12 +1267,6 @@ class EditOperationType(BuiltinEnum):
 EDIT_TYPES: bittuple[EditType] = bittuple(*EditType)
 
 
-@enum_(EnumType.ACCESS_MODE)
-class AccessMode(BuiltinEnum):
-    ADAPTIVE = 1
-    ATOMIC = 2
-
-
 @enum_(EnumType.SEVERITY)
 class Severity(BuiltinEnum):
     TRACE = 1, None, None, "fas fa-bug"
@@ -1294,13 +1275,6 @@ class Severity(BuiltinEnum):
     WARNING = 4, None, None, "fas fa-circle-exclamation"
     ERROR = 5, None, None, "fas fa-circle-exclamation"
     PANIC = 6, None, None, "fas fa-skull"
-
-
-@enum_(EnumType.POLICY_EFFECT)
-class PolicyEffect(BuiltinEnum):
-    ALLOW = 1
-    DENY = 2
-    # YIELD?, METER, LIMIT, ...
 
 
 @enum_(EnumType.PRIMITIVE_TYPE)
