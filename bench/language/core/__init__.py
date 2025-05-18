@@ -80,7 +80,6 @@ from .const import (
     NodeReferenceKind,
     NodeType,
     ObjectType,
-    PolicyEffect,
     PrimitiveType,
     PrimitiveValue,
     ProcessStatus,
@@ -297,7 +296,7 @@ from .value import (
     unpack_value_scalar,
     unpack_value_scalar_data,
 )
-from .variable import MaybeVariable, Variable, VariableType
+from .variable import Variable, VariableProperty, VariableType
 
 __all__ = [
     "ACTIVE_ALIASING",
@@ -438,7 +437,6 @@ __all__ = [
     "Joinable",
     "LegacyQuery",
     "LiteralType",
-    "MaybeVariable",
     "Month",
     "MultipleNodesFoundError",
     "Node",
@@ -454,7 +452,6 @@ __all__ = [
     "Ownable",
     "PackageNode",
     "PageNode",
-    "PolicyEffect",
     "PrimitiveType",
     "PrimitiveValue",
     "ProcessStatus",
@@ -504,6 +501,7 @@ __all__ = [
     "TypeKind",
     "ValidationError",
     "Variable",
+    "VariableProperty",
     "VariableType",
     "_IntoQuery",
     "_check_type_supports",

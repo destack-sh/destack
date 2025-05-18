@@ -1,6 +1,6 @@
 from typing import TYPE_CHECKING
 
-from bench.language.core import MaybeVariable, node_component_, p_regular
+from bench.language.core import VariableProperty, node_component_, p_regular
 from bench.pb2 import AnyNodeData
 
 from ..view import ViewBase
@@ -16,5 +16,5 @@ class InputViewBase[NodeDataT: AnyNodeData](ViewBase[NodeDataT]):
     """An input View."""
 
     # appearance
-    is_visible: MaybeVariable[bool] = p_regular(60)
-    opacity: MaybeVariable[float] = p_regular(61)
+    is_visible: VariableProperty[bool] = p_regular(60)
+    opacity: VariableProperty[float] = p_regular(61)

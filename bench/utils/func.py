@@ -18,13 +18,10 @@ from typing import (
     Awaitable,
     Callable,
     Collection,
-    ForwardRef,
     Iterable,
     Iterator,
     Mapping,
-    Type,
     assert_never,
-    cast,
 )
 from uuid import UUID
 
@@ -278,85 +275,6 @@ def describe_type(obj: Any) -> str:
         return ", ".join(type(value).__name__ for value in obj)
     else:
         return type(obj).__name__
-
-
-class TypeAnnotation(typing.NamedTuple):
-    type: Type | str
-    union_types: tuple[Type | str, ...]
-    is_union: bool
-    is_optional: bool
-    is_list: bool
-
-
-def _try_resolve(py_type: type | str | typing.ForwardRef, type_map: dict[str, type]) -> type | str:
-    """Resolves the py type if it's a forward ref"""
-    if isinstance(py_type, str):
-        return type_map.get(py_type, py_type)
-    elif isinstance(py_type, typing.ForwardRef):
-        return type_map.get(py_type.__forward_arg__, py_type.__forward_arg__)
-    else:
-        return py_type
-
-
-def parse_py_annotation(
-    py_type: type | str | typing.ForwardRef, type_map: dict[str, type]
-) -> TypeAnnotation:
-    """Parses the type information from a given py type. Uses type map to resolve forward refs."""
-    is_union = False
-    is_optional = False
-    is_list = False
-    union_types = ()
-    # resolve
-    if not isinstance(py_type, type):
-        if isinstance(py_type, typing.ForwardRef):
-            py_type = py_type.__forward_arg__
-        if isinstance(py_type, str):
-            if py_type.endswith(" | None"):
-                is_optional = True
-                py_type = py_type[:-7]
-        py_type = _try_resolve(py_type, type_map)
-    # list (outer)
-    if typing.get_origin(py_type) in (list, tuple):
-        py_type = typing.get_args(py_type)[0]
-        py_type = _try_resolve(py_type, type_map)
-        is_list = True
-    # union/optional
-    if typing.get_origin(py_type) in (typing.Union, types.UnionType):
-        union_types = typing.get_args(py_type)
-        is_optional = any(t is type(None) for t in union_types)
-        union_types = tuple(t for t in union_types if t is not type(None))
-        is_union = len(union_types) > 1
-        # reconstitute type annotation
-        if is_union:
-            union_types = tuple(_try_resolve(t, type_map) for t in union_types)
-            py_type = cast(type, typing.Union[union_types])  # type: ignore
-        else:
-            py_type = union_types[0]
-            py_type = _try_resolve(py_type, type_map)
-    # list (inner)
-    if typing.get_origin(py_type) in (list, tuple):
-        assert not is_list, f"double list: {py_type!r}"
-        py_type = typing.get_args(py_type)[0]
-        py_type = _try_resolve(py_type, type_map)
-        is_list = True
-    return TypeAnnotation(
-        type=py_type,
-        union_types=union_types,
-        is_union=is_union,
-        is_optional=is_optional,
-        is_list=is_list,
-    )
-
-
-def get_class_name(py_type: type | ForwardRef | str) -> str | None:
-    if isinstance(py_type, str):
-        return py_type
-    elif isinstance(py_type, type):
-        return py_type.__name__
-    elif isinstance(py_type, ForwardRef):
-        return py_type.__forward_arg__
-    else:
-        return None
 
 
 def levenshtein_distance(s1: str, s2: str) -> int:
