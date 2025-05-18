@@ -32,7 +32,7 @@ def struct_[_ObjectT: BuiltinObject](struct_type: StructType):
     """Register a class as a concrete struct for the given struct type."""
 
     def decorate(cls: type[_ObjectT]) -> type[_ObjectT]:
-        cls = object_(struct_type=struct_type, is_final=True, is_struct=True)(cls)
+        cls = object_(struct_type=struct_type, is_concrete=True, is_struct=True)(cls)
         if IS_DEV and cls.__name__ != "Struct" and cls.__name__ != "Struct":
             if not issubclass(cls, (Struct, Struct)):
                 raise ValueError(f"{cls} is not a struct")

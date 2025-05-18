@@ -271,20 +271,28 @@ class Property(_IntoQuery if TYPE_CHECKING else object):
         if self.node_kind:
             non_default.append(self.node_kind.bench_name)
             if self.node_types:
-                if self.node_types == "any":
-                    non_default.append("*")
-                else:
-                    non_default.append("|".join(t.bench_name for t in self.node_types))
+                node_type_names = [t.bench_name for t in self.node_types[:3]]
+                if len(self.node_types) > 3:
+                    node_type_names.append("...")
+                non_default.append("|".join(node_type_names))
             elif self.struct_type:
                 non_default.append(self.struct_type.bench_name)
         elif self.enum_type:
             non_default.append(self.enum_type.bench_name)
         elif self.primitive_type and self.primitive_type is not UNSET:
             non_default.append(self.primitive_type.bench_name)
-        if self.is_list:
+        if self.is_list is True:
             non_default.append("list")
-        if self.is_required:
+        if self.is_required is True:
             non_default.append("required")
+        if self.is_variable is True:
+            non_default.append("variable")
+        if self.is_computed is True:
+            non_default.append("computed")
+        if self.is_unique is True:
+            non_default.append("unique")
+        if self.is_sensitive is True:
+            non_default.append("sensitive")
         attrs_str = ", ".join(non_default)
         attrs_str = f" ({attrs_str})" if attrs_str else ""
         return f"<{self.__class__.__name__} {self!s}{attrs_str}>"
@@ -453,8 +461,8 @@ class Property(_IntoQuery if TYPE_CHECKING else object):
 
             return ptr_prop
 
-    def finalize(self, object_type: ObjectType) -> None:
-        """Analyzes the storage options. Must run after all class defs."""
+    def finalize(self, object_type: ObjectType | None) -> None:
+        """Determine type information from annotation, add _ptr property if needed."""
         if self.is_wired is False:  # runtime only
             return  # nothing to do
 
@@ -463,33 +471,24 @@ class Property(_IntoQuery if TYPE_CHECKING else object):
         self.py_type = annotation.type
         self.is_required = not annotation.is_optional
         self.is_list = annotation.is_list
-        if not self.is_required and self.default is UNSET and self.default_factory is None:
-            self.default = None
-
+        self.is_variable = annotation.is_variable
         # determine type
         class_name = get_class_name(annotation.type)
         if self.primitive_type is not UNSET:
-            # primitive type already set
-            pass
+            pass  # already set
         elif isinstance(annotation.type, type) and (
             primitive_type := PRIMITIVE_TYPE_BY_PY_TYPE.get(annotation.type)
         ):
-            # primitive type
             self.primitive_type = primitive_type
         elif class_name and (enum_type := _resolve_enum_type(class_name)):
-            # Enum
             self.enum_type = enum_type
         elif class_name and (struct_type := _resolve_struct_type(class_name)):
-            # Struct
             self.struct_type = struct_type
         elif class_name and (new_node_types := _resolve_node_types(class_name)):
-            # Node reference
             self.node_types = new_node_types
         elif class_name == "Property":
-            # Property reference
             self.struct_type = StructType.PROPERTY_REFERENCE
         elif annotation.union_types:
-            # Node reference union
             node_types: list[NodeType] = []
             for union_type in annotation.union_types:
                 class_name = get_class_name(union_type)
@@ -500,21 +499,26 @@ class Property(_IntoQuery if TYPE_CHECKING else object):
                 node_types.extend(new_node_types)
             self.node_types = tuple(node_types)
 
+        # default to None if not required and no default
+        if not self.is_required and self.default is UNSET and self.default_factory is None:
+            self.default = None
+
         # default to regular node references
         if self.node_types and self.node_kind is None:
             self.node_kind = NodeReferenceKind.NODE_REGULAR
 
         # node templates always point to their own type
-        if self.node_kind == NodeReferenceKind.NODE_TEMPLATE:
+        if self.node_kind == NodeReferenceKind.NODE_TEMPLATE and object_type is not None:
             self.node_types = (NodeType(object_type),)
 
-        # references aren't stored/wired directly
+        # references get a _ptr property (which is wired/stored)
         if self.node_kind is not None or self.is_property_reference:
             # (don't want lists of Node references or Property references in Nodes, it's a mess)
             assert not self.is_list or not self.component.__is_node__, f"invalid list: {self!r}"
             self.ptr_prop = self._to_ptr_prop()
-            self.is_wired = False
-            self.is_stored = False
+            # nocheckin?
+            # self.is_wired = False
+            # self.is_stored = False
             return  # bail, no need to determine primitive type
 
         # determine primitive type

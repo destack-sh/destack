@@ -277,9 +277,6 @@ class bittuple(typing.Generic[EnumT], Collection[EnumT]):  # noqa: N801
     def __len__(self):
         return len(self.tuple)
 
-    def __getitem__(self, index):
-        return self.tuple[index]
-
     def __repr__(self):
         return f"{self.__class__.__name__}({self.tuple})"
 

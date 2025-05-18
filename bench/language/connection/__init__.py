@@ -26,7 +26,6 @@ from .engine import (
     WritableConnector,
     scope_includes,
 )
-from .link import NodeLink, synchronize_nodes
 from .memory import MemoryConnector, MemoryEngine, MemoryGetConnection
 from .remote import RemoteConnector, RemoteEngine, RemoteGetConnection, RemoteSearchConnection
 from .split import SplitConnection, SplitConnector, SplitGetConnection, SplitSearchConnection
@@ -51,7 +50,6 @@ __all__ = [
     "MemoryConnector",
     "MemoryEngine",
     "MemoryGetConnection",
-    "NodeLink",
     "NullEngine",
     "RemoteConnector",
     "RemoteEngine",
@@ -75,6 +73,5 @@ __all__ = [
     "capture",
     "isolated_graph",
     "scope_includes",
-    "synchronize_nodes",
     "uncapture",
 ]

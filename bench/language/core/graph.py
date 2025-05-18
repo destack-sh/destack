@@ -352,8 +352,6 @@ class _GraphBase[K: str | UUID, V: AnyNodeData | Node](abc.ABC):
 
     # utilities
 
-    __getitem__ = get_or_error
-
     def __contains__(self, item: K):
         return self.get(item) is not None
 
@@ -513,8 +511,6 @@ class Supergraph:
     def get_graphs(self, node_type: NodeType) -> tuple[Graph, ...]:
         """Get all graphs that have a certain node type."""
         return self._graphs_by_node_type.get(node_type, ())
-
-    __getitem__ = get_or_error
 
     def __contains__(self, ptr: "UUID | NodeReference") -> bool:
         return self.get(ptr) is not None
