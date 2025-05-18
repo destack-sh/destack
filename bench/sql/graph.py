@@ -12,11 +12,11 @@ from typing import (
     assert_never,
     cast,
 )
-from uuid import UUID
 
 import psycopg
 import pytz
 from bitarray import bitarray
+from fastuuid import UUID
 from google.protobuf.duration_pb2 import Duration
 from google.protobuf.message import Message as ProtoMessage
 from google.protobuf.struct_pb2 import Value as ProtoValue

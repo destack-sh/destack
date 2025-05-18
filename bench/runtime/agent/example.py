@@ -4,10 +4,10 @@ import textwrap
 from datetime import datetime
 from enum import StrEnum
 from typing import Generator, cast, override
-from uuid import UUID
 
 import pytz
 import structlog
+from fastuuid import UUID
 from opentelemetry import trace
 
 from bench.language import (

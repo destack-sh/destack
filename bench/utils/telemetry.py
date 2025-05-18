@@ -1,9 +1,9 @@
 from pathlib import Path
 from time import time_ns
 from typing import Any, Mapping, Optional, cast
-from uuid import UUID, uuid4
 
 import structlog
+from fastuuid import UUID, uuid4
 from opentelemetry import baggage, context, metrics, trace
 from opentelemetry.baggage.propagation import W3CBaggagePropagator
 from opentelemetry.sdk.metrics import MeterProvider

@@ -1,5 +1,6 @@
 from typing import TYPE_CHECKING, final
-from uuid import UUID
+
+from fastuuid import UUID
 
 from bench import pb2
 from bench.language import (

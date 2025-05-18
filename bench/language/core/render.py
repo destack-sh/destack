@@ -15,10 +15,10 @@ from typing import (
     overload,
     override,
 )
-from uuid import UUID
 
 import regex
 import structlog
+from fastuuid import UUID
 from opentelemetry import trace
 
 from bench.language.registry import ENUM_CLASS_BY_TYPE

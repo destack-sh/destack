@@ -6,10 +6,10 @@ import sys
 from asyncio.subprocess import Process
 from datetime import datetime
 from typing import Any, Awaitable, Callable, Mapping, assert_never, override
-from uuid import UUID
 
 import grpclib
 import structlog
+from fastuuid import UUID
 from grpclib.client import Channel
 from opentelemetry import trace
 

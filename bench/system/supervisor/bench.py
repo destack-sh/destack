@@ -1,5 +1,6 @@
 from typing import NamedTuple
-from uuid import UUID
+
+from fastuuid import UUID
 
 from bench.language import (
     Bench,

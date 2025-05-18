@@ -1,5 +1,6 @@
 from typing import Callable
-from uuid import UUID
+
+from fastuuid import UUID
 
 from bench.language import Action
 from bench.runtime.core import NotSupportedError

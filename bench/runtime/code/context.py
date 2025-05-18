@@ -4,8 +4,8 @@ import builtins
 import keyword
 from datetime import date, datetime, time, timedelta
 from typing import Any
-from uuid import UUID
 
+from fastuuid import UUID
 from PIL.Image import Image
 
 from bench import language

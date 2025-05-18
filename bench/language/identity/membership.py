@@ -1,5 +1,6 @@
 from typing import TYPE_CHECKING, Union, override
-from uuid import UUID
+
+from fastuuid import UUID
 
 from bench.language.core import (
     JOINABLE_NODE_TYPES,

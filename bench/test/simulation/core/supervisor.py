@@ -1,5 +1,6 @@
 from typing import TYPE_CHECKING, final, override
-from uuid import UUID
+
+from fastuuid import UUID
 
 from bench.language import Region
 from bench.proto import SupervisorClient

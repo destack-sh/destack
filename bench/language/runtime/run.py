@@ -1,6 +1,7 @@
 from datetime import timedelta
 from typing import TYPE_CHECKING, Any, Collection, Optional, Sequence, Union, assert_never, cast
-from uuid import UUID
+
+from fastuuid import UUID
 
 from bench.language.core import (
     TERMINAL_PROCESS_STATUSES,

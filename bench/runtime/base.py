@@ -3,10 +3,10 @@ import asyncio
 import enum
 from contextlib import asynccontextmanager
 from typing import Any, Callable, override
-from uuid import UUID
 
 import cachetools
 import structlog
+from fastuuid import UUID
 from opentelemetry import trace
 
 from bench.language import (

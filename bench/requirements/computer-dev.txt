@@ -143,6 +143,8 @@ execnet==2.1.1
     # via pytest-xdist
 executing==2.2.0
     # via stack-data
+fastuuid==0.12.0
+    # via -r bench/requirements/base.in
 feedparser==6.0.10
     # via -r bench/requirements/computer.in
 filelock==3.15.4

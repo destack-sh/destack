@@ -3,9 +3,9 @@ import inspect
 import re
 import textwrap
 from typing import Any, Callable, Mapping, assert_never, cast
-from uuid import UUID
 
 import pytest
+from fastuuid import UUID
 
 from bench.language import (
     Action,

@@ -1,8 +1,8 @@
 import asyncio
 from typing import TYPE_CHECKING, Any, Callable, Mapping, override
-from uuid import UUID
 
 import structlog
+from fastuuid import UUID
 from opentelemetry import trace
 
 from bench.language import NONCE, ClientType, NodeReference

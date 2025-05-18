@@ -1,7 +1,8 @@
 import abc
 from datetime import datetime, timedelta
 from typing import TYPE_CHECKING, Any, Optional, Self, Union, cast
-from uuid import UUID
+
+from fastuuid import UUID
 
 from bench.language.registry import CHILD_NODE_TYPES
 from bench.pb2 import AnyNodeData, NodeReferenceData

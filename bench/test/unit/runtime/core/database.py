@@ -1,10 +1,10 @@
 from datetime import date, datetime, time, timedelta
 from random import Random
 from typing import Any
-from uuid import UUID
 
 import pytest
 import pytz
+from fastuuid import UUID
 from grpclib import GRPCError
 
 from bench.language import (

@@ -1,8 +1,8 @@
 import abc
 from typing import TYPE_CHECKING, Literal, Mapping
-from uuid import UUID
 
 from attr import dataclass
+from fastuuid import UUID
 
 from bench.language import Region
 from bench.utils.utils import get_from_env

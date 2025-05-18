@@ -1,8 +1,8 @@
 import textwrap
 from typing import TYPE_CHECKING, Any, List, Mapping, Optional, Sequence, assert_never
-from uuid import UUID
 
 import regex
+from fastuuid import UUID
 
 from bench.language.core.code import Code
 

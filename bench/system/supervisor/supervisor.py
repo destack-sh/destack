@@ -1,7 +1,7 @@
 from typing import Callable, Mapping, override
-from uuid import UUID, uuid4, uuid5
 
 import structlog
+from fastuuid import UUID, uuid4, uuid5
 from grpclib import GRPCError
 from grpclib import Status as GRPCStatus
 from opentelemetry import trace

@@ -4,8 +4,8 @@ from dataclasses import dataclass
 from datetime import date, datetime, time, timedelta
 from itertools import chain
 from typing import TYPE_CHECKING, Any, ClassVar, Self, Union, cast
-from uuid import UUID
 
+from fastuuid import UUID
 from more_itertools import first
 from psycopg.types.json import Jsonb
 

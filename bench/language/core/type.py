@@ -8,9 +8,9 @@ from typing import (
     Union,
     cast,
 )
-from uuid import UUID
 
 import structlog
+from fastuuid import UUID
 from opentelemetry import trace
 
 from bench.language.registry import BENCH_CLASS_BY_TYPE, BENCH_TYPE_BY_CLASS

@@ -1,5 +1,6 @@
 from typing import TYPE_CHECKING, Optional
-from uuid import UUID
+
+from fastuuid import UUID
 
 from bench.language.core import (
     CPU_CONSTRAINT,

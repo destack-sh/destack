@@ -4,9 +4,9 @@ import datetime
 import functools
 from collections.abc import Collection
 from typing import TYPE_CHECKING, Any, Optional, Sequence, TypeVar, Union, cast
-from uuid import UUID
 
 import regex
+from fastuuid import UUID
 from google.protobuf.duration_pb2 import Duration
 from google.protobuf.timestamp_pb2 import Timestamp
 

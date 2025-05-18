@@ -25,7 +25,7 @@ from grpclib.client import ServiceMethod
 from opentelemetry import trace
 
 from bench.language.core import BenchError, NodeNotFoundError, ValidationError
-from bench.pb2 import RpcMetadata, ServiceKind
+from bench.pb2 import ServiceKind
 from bench.utils.env import IS_DEV, IS_TEST
 from bench.utils.oracle import Oracle
 from bench.utils.string import Casing, to_casing
@@ -37,15 +37,13 @@ from bench.utils.telemetry import (
 )
 
 if TYPE_CHECKING:
-    from bench.language import PolicySubject
-
     from .network import Network
 
 logger = structlog.get_logger(__name__)
 tracer = trace.get_tracer(__name__)
 
-UnaryRpcCallable = Callable[["PolicySubject", ProtoMessage], ProtoMessage]
-StreamRpcCallable = Callable[["PolicySubject", ProtoMessage], AsyncIterable[ProtoMessage]]
+UnaryRpcCallable = Callable[[ProtoMessage], ProtoMessage]
+StreamRpcCallable = Callable[[ProtoMessage], AsyncIterable[ProtoMessage]]
 RpcCallable = Union[UnaryRpcCallable, StreamRpcCallable]
 
 ServiceStubT = TypeVar("ServiceStubT")
@@ -165,11 +163,6 @@ class ServiceBase(abc.ABC):
     ) -> None:
         """Sends the response to the given stream."""
         await stream.send_message(response)
-
-    async def get_request_subject(
-        self, request: ProtoMessage, metadata: RpcMetadata
-    ) -> PolicySubject:
-        return PolicySubject(is_authenticated=False)
 
     def _wrap_rpc_func(
         self, func: RpcCallable, method_name: str, handler: grpclib.const.Handler
