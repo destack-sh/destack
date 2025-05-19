@@ -28,11 +28,11 @@ def test_evaluate_conditional_property_stringy(session: Session):
     NAME = Field.get_property("name")
     ORDER_KEY = Field.get_property("order_key")
 
-    field_0 = Field.new("apple", FieldType.MEMBER, bool, order_key="a0")
-    field_1 = Field.new("banana", FieldType.MEMBER, bool, order_key="a1")
-    field_2 = Field.new("applepie", FieldType.MEMBER, bool, order_key="a2")
-    field_3 = Field.new("banoffee", FieldType.MEMBER, bool, order_key="a2")
-    field_4 = Field.new("edelweiss", FieldType.MEMBER, bool, order_key="a3")
+    field_0 = Field.new("apple", FieldType.VARIABLE, bool, order_key="a0")
+    field_1 = Field.new("banana", FieldType.VARIABLE, bool, order_key="a1")
+    field_2 = Field.new("applepie", FieldType.VARIABLE, bool, order_key="a2")
+    field_3 = Field.new("banoffee", FieldType.VARIABLE, bool, order_key="a2")
+    field_4 = Field.new("edelweiss", FieldType.VARIABLE, bool, order_key="a3")
     fields = [field_0, field_1, field_2, field_3, field_4]
 
     def _get_matches(cond: Expression):
@@ -61,11 +61,11 @@ def test_evaluate_conditional_property_node(session: Session, package: Package):
 
 
 def test_evaluate_sort_property_stringy(session: Session):
-    field_0 = Field.new("b", FieldType.MEMBER, bool, order_key="a0")
-    field_1 = Field.new("a", FieldType.MEMBER, bool, order_key="a1")
-    field_2 = Field.new("c", FieldType.MEMBER, bool, order_key="a2")
-    field_3 = Field.new("d", FieldType.MEMBER, bool, order_key="a2")
-    field_4 = Field.new("d", FieldType.MEMBER, bool, order_key="a3")
+    field_0 = Field.new("b", FieldType.VARIABLE, bool, order_key="a0")
+    field_1 = Field.new("a", FieldType.VARIABLE, bool, order_key="a1")
+    field_2 = Field.new("c", FieldType.VARIABLE, bool, order_key="a2")
+    field_3 = Field.new("d", FieldType.VARIABLE, bool, order_key="a2")
+    field_4 = Field.new("d", FieldType.VARIABLE, bool, order_key="a3")
 
     # 1 sort, asc
     assert apply_sort(

@@ -537,30 +537,22 @@ class Property(_IntoQuery if TYPE_CHECKING else object):
 
         if self.node_types and not self.runtime_prop:
             kind = TypeKind.NODE
-            bench_type = None
-            if self.node_types != "any":
-                constraint.node_types = list(self.node_types)
-            primitive_type = None
+            constraint.node_types = list(self.node_types)
         elif self.struct_type:
             kind = TypeKind.STRUCT
-            bench_type = self.struct_type
-            primitive_type = None
         elif self.enum_type:
             kind = TypeKind.ENUM
-            bench_type = self.enum_type
-            primitive_type = None
         elif self.primitive_type:
-            assert self.primitive_type is not UNSET, f"missing primitive type for {self!r}"
             kind = TypeKind.PRIMITIVE
-            bench_type = None
-            primitive_type = self.primitive_type
         else:
             raise ValueError(f"cannot determine type info for {self!r}")
 
         typ = Type(
             kind=kind,
-            bench_type=bench_type,
-            primitive_type=primitive_type,
+            primitive_type=self.primitive_type,
+            node_type=self.node_type,
+            struct_type=self.struct_type,
+            enum_type=self.enum_type,
             is_list=self.is_list,
             is_required=self.is_required,
             constraint=constraint.into()

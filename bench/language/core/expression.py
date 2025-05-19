@@ -473,7 +473,7 @@ def _get_node_prop_expression_value(node: Node | AnyNodeData, prop: Property) ->
 NODE_PROPERTY_KEY_BY_FIELD_TYPE: dict[FieldType, str] = {
     FieldType.INPUT: "inputs_packed",
     FieldType.OUTPUT: "outputs_packed",
-    FieldType.MEMBER: "value_packed",
+    FieldType.VARIABLE: "value_packed",
 }
 
 
@@ -753,24 +753,6 @@ class _IntoQuery:
     def less_than_or_equals(self: Any, value: Any) -> "Expression":
         return _to_conditional(ConditionalType.LESS_THAN_OR_EQUALS, self, value=value)
 
-    def __eq__(self, other):  # type: ignore
-        if isinstance(self, Node) and isinstance(other, Node):
-            return Node.__eq__(self, other)  # imitate Field equality
-        elif type(self) is Property and type(other) is Property:
-            return self.component == other.component and self.id == other.id
-        else:
-            return self.is_equal(other)
-
-    def __ne__(self, other):  # type: ignore
-        if isinstance(self, Node) and isinstance(other, Node):
-            return Node.__ne__(self, other)
-        else:
-            return self.not_equal(other)
-
-    __gt__ = greater_than
-    __ge__ = greater_than_or_equals
-    __lt__ = less_than
-    __le__ = less_than_or_equals
     eq = is_equal
     neq = not_equal
     lt = less_than

@@ -136,9 +136,7 @@ class Run(
     @staticmethod
     def get_base_from_data(data: AnyNodeData) -> Optional[NodeReferenceData]:
         run_data = cast(RunData, data)
-        if run_data.transition_ptr.metatype != 0:
-            return run_data.transition_ptr
-        elif run_data.action_ptr.metatype != 0:
+        if run_data.action_ptr.metatype != 0:
             return run_data.action_ptr
         elif run_data.flow_ptr.metatype != 0:
             return run_data.flow_ptr
@@ -149,9 +147,7 @@ class Run(
 
     @staticmethod
     def get_base_from_partial(data: dict[str, Any]) -> Optional["Runnable"]:
-        if "transition" in data:
-            return data["transition"]
-        elif "action" in data:
+        if "action" in data:
             return data["action"]
         elif "flow" in data:
             return data["flow"]
