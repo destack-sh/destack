@@ -212,12 +212,133 @@ if {prop.name}:
     init_str = f"{method_header}:\n{method_body}"
     if IS_DEV:
         init_str = format_code(init_str)
-    print("=" * 80)
-    print(cls.__name__)
-    print("=" * 80)
-    print(init_str)
-    print("=" * 80)
     return init_str
+
+
+def _generate_property_property(prop: Property) -> str:
+    """The computed get/set property for a property reference."""
+
+    ptr_prop = prop.ptr_prop
+    assert ptr_prop is not None, f"no wired prop for {prop!r}"
+
+    if not prop.is_list:
+        # property scalar
+        return f"""\
+@property
+def {prop.name}(self: "BuiltinObject") -> "Property | None":
+    value_ptr: PropertyReference | None = self.{ptr_prop.name}
+    if value_ptr is not None:
+        return value_ptr.resolve()
+    else:
+        return None
+
+@{prop.name}.setter
+def {prop.name}(self: "BuiltinObject", value: "Property | None"):
+    if value is None:
+        {ptr_prop.name} = None
+    else:
+        {ptr_prop.name} = value.to_ref()
+"""
+    else:
+        # property list
+        return f"""\
+@property
+def {prop.name}(self: "BuiltinObject") -> tuple["Property", ...]:
+    value_ptrs: list[PropertyReference] = self.{ptr_prop.name}
+    assert type(value_ptrs) is list, f"invalid {prop}: {{value_ptrs!r}}"
+    return tuple(p.resolve() for p in value_ptrs)
+
+@{prop.name}.setter
+def {prop.name}(self: "BuiltinObject", values: list["Property"]):
+    self.{ptr_prop.name} = [p.to_ref() for p in values]
+"""
+
+
+def _generate_node_property(prop: Property) -> str:
+    """The computed get/set property for a node reference. Resolved against the active supergraph."""
+
+    ptr_prop = prop.ptr_prop
+    assert ptr_prop is not None, f"no wired prop for {prop!r}"
+
+    if not prop.is_list:
+        return f"""\
+@property
+def {prop.name}(self: "BuiltinObject") -> "Node | None":
+    node_ptr: NodeReference | None = self.{ptr_prop.name}
+    if node_ptr is not None:
+        return self._supergraph.get(node_ptr)
+    else:
+        return None
+
+@{prop.name}.setter
+def {prop.name}(self: "BuiltinObject", value: "Node | None"):
+    if value is None:
+        self.{ptr_prop.name} = None
+    else:
+        self.{ptr_prop.name} = value.to_ref()
+"""
+    else:
+        return f"""\
+@property
+def {prop.name}(self: "BuiltinObject") -> tuple["Node", ...]:
+    node_ptrs: list[NodeReference] = self.{ptr_prop.name}
+    assert type(node_ptrs) is list, f"invalid {prop}: {{node_ptrs!r}}"
+    return tuple(self._supergraph.get(p) for p in node_ptrs)
+
+@{prop.name}.setter
+def {prop.name}(self: "BuiltinObject", nodes: list["Node"]):
+    self.{ptr_prop.name} = [n.to_ref() for n in nodes]
+"""
+
+
+def _generate_node_key_property(obj_key: str, ptr_key: str, prop: Property) -> str:
+    """The computed get property from a specific attribute of a node pointer."""
+
+    ptr_prop = prop.ptr_prop
+    assert ptr_prop is not None, f"no wired prop for {prop!r}"
+
+    if not ptr_prop.is_list:
+        return f"""\
+@property
+def {prop.name}_{obj_key}(self: "BuiltinObject") -> "Node | None":
+    node_ptr: NodeReference | None = self.{ptr_prop.name}
+    if node_ptr is not None:
+        return node_ptr.{ptr_key}
+    else:
+        return None
+"""
+    else:
+        return f"""\
+@property
+def {prop.name}_{obj_key}(self: "BuiltinObject") -> tuple["Node", ...]:
+    node_ptrs: list[NodeReference] = self.{ptr_prop.name}
+    assert type(node_ptrs) is list, f"invalid {prop}: {{node_ptrs!r}}"
+    return tuple(node_ptr.{ptr_key} for node_ptr in node_ptrs)
+"""
+
+
+def _generate_ancestor_property(object_type: ObjectType, prop: Property) -> str:
+    """The computer get property for Node ancestors."""
+
+    node_types_str = ", ".join(str(t.value) for t in prop.node_types)
+
+    if prop.node_kind == NodeReferenceKind.NODE_ANCESTOR_OR_SELF and object_type in prop.node_types:
+        return f"""\
+@property
+def {prop.name}(self: "Node") -> "Node":
+    return self
+"""
+    else:
+        return f"""\
+@property
+def {prop.name}(self: "Node") -> "Node | None":
+    node = self.parent
+    while node is not None:
+        if node.metatype in ({node_types_str}):
+            return node
+        node = node.parent
+    return None
+"""
 
 
 def _process_object_cls[ObjectT: BuiltinObject](
@@ -227,7 +348,7 @@ def _process_object_cls[ObjectT: BuiltinObject](
     is_struct: bool = False,
     is_node: bool = False,
 ) -> tuple[type[ObjectT], dict[str, "Property"]]:
-    """Process an object base class and return the processed class and its properties."""
+    """Process a BuiltinObject base class and return the processed class and its properties."""
     assert isinstance(cls, type), f"expected type, got {cls} ({type(cls)})"
     assert cls not in _processed_classes, f"class {cls.__name__} has already been processed"
 
@@ -321,14 +442,46 @@ def _process_object_cls[ObjectT: BuiltinObject](
 
     # define slots & __init__ (in leaf classes, otherwise their slots might clash)
     if is_concrete:
+        assert object_type is not None, f"concrete objects need a type: {cls.__name__}"
         cls_dict = dict(cls.__dict__)
         cls_dict.pop("__dict__", None)
         cls_dict.pop("__weakref__", None)
         for prop in properties.values():
             cls_dict.pop(prop.name, None)
-        cls_dict["__slots__"] = tuple(cls.__declared_properties__.keys())
+        cls_dict["__slots__"] = tuple(cls.__wired_properties__.keys())
         init_str = _generate_init_for_cls(cls, is_node=is_node, header_properties=properties)
         exec(init_str, {"ACTIVE_SESSION": ACTIVE_SESSION}, cls_dict)
+
+        # add computed properties to concrete classes
+        for prop in properties.values():
+            if prop.runtime_prop is not None:
+                continue  # not a contributed property
+            # computed property property
+            if prop.is_property_reference:
+                property_property_str = _generate_property_property(prop)
+                exec(property_property_str, {}, cls_dict)
+            # computed node property
+            elif prop.node_kind in (
+                NodeReferenceKind.NODE_PARENT,
+                NodeReferenceKind.NODE_REGULAR,
+                NodeReferenceKind.NODE_TEMPLATE,
+            ):
+                node_property_str = _generate_node_property(prop)
+                exec(node_property_str, {}, cls_dict)
+            # computed node ancestor property
+            elif prop.node_kind in (
+                NodeReferenceKind.NODE_ANCESTOR,
+                NodeReferenceKind.NODE_ANCESTOR_OR_SELF,
+            ):
+                ancestor_property_str = _generate_ancestor_property(object_type, prop)
+                exec(ancestor_property_str, {}, cls_dict)
+            # computed _x node reference properties (e.g., parent_id, node_ck, node_type, ...)
+            if prop.is_node_reference:
+                for obj_key, ptr_key in (("id", "id"), ("ck", "ck"), ("type", "node_type")):
+                    if obj_key == "type" and (not prop.node_types or len(prop.node_types) <= 1):
+                        continue  # no need for *_type if only one possible node type
+                    node_key_property_str = _generate_node_key_property(obj_key, ptr_key, prop)
+                    exec(node_key_property_str, {}, cls_dict)
 
         # create the new class
         _original_cls = cls
@@ -336,38 +489,9 @@ def _process_object_cls[ObjectT: BuiltinObject](
         _processed_classes[_original_cls] = cls
         del _original_cls
 
-    # update cls references in props
-    for prop in properties.values():
-        prop.component = cls
-
-    if is_concrete:
-        # add computed properties to concrete classes
-        for name, prop in properties.items():
-            if prop.runtime_prop is not None:
-                continue  # not a contributed property
-            # computed property.. property
-            if prop.is_property_reference:
-                setattr(cls, name, _object_property_ref(prop))
-            # computed node property
-            elif prop.node_kind in (
-                NodeReferenceKind.NODE_PARENT,
-                NodeReferenceKind.NODE_REGULAR,
-                NodeReferenceKind.NODE_TEMPLATE,
-            ):
-                setattr(cls, name, _object_node_ref(prop))
-            # computed node ancestor property
-            elif prop.node_kind in (
-                NodeReferenceKind.NODE_ANCESTOR,
-                NodeReferenceKind.NODE_ANCESTOR_OR_SELF,
-            ):
-                setattr(cls, name, _node_ancestor_ref(prop))
-                setattr(cls, f"{name}_ptr", _node_ancestor_ptr_ref(prop))
-            # computed _x node reference properties (e.g., parent_id, type_ck, node_type, ...)
-            if prop.is_node_reference:
-                for obj_key, ptr_key in (("id", "id"), ("ck", "ck"), ("type", "node_type")):
-                    if obj_key == "type" and (not prop.node_types or len(prop.node_types) <= 1):
-                        continue  # no need for *_type if only one possible node type
-                    setattr(cls, f"{prop.name}_{obj_key}", _object_node_ref_attr(ptr_key, prop))
+        # update cls references in props
+        for prop in properties.values():
+            prop.component = cls
 
     return cls, properties  # type: ignore
 
@@ -416,192 +540,6 @@ def struct_[_ObjectT: BuiltinObject](struct_type: StructType):
     return decorate
 
 
-def _object_property_ref(prop: Property) -> property:
-    """The computed get/set property for a property reference."""
-
-    wired_prop = prop.ptr_prop
-    assert wired_prop is not None, f"no wired prop for {prop!r}"
-
-    if not prop.is_list:
-
-        def _get_property_scalar(self: BuiltinObject) -> Optional[Property]:
-            value_ptr: PropertyReference | None = getattr(self, wired_prop.name)
-            if value_ptr is not None:
-                return value_ptr.resolve_or_error()
-            else:
-                return None
-
-        def _set_property_scalar(self: BuiltinObject, value: Property | None):
-            if value is None:
-                self._do_set(wired_prop.name, None, track=False)
-            else:
-                self._do_set(wired_prop.name, value.to_ref(), track=False)
-
-        return property(_get_property_scalar, _set_property_scalar)
-
-    else:
-
-        def _get_properties_many(self: BuiltinObject) -> tuple[Property, ...]:
-            value_ptrs: list[PropertyReference] = getattr(self, wired_prop.name)
-            assert type(value_ptrs) is list, f"invalid {prop!r}: {value_ptrs!r}"
-            return tuple(p.resolve_or_error() for p in value_ptrs)
-
-        def _set_properties_many(self: BuiltinObject, values: Collection[Property]):
-            self._do_set(wired_prop.name, [p.to_ref() for p in values], track=False)
-
-        return property(_get_properties_many, _set_properties_many)
-
-
-def _object_node_ref(prop: Property) -> property:
-    """The computed get/set property for a node reference. Resolved against the active supergraph."""
-
-    ptr_prop = prop.ptr_prop
-    assert ptr_prop is not None, f"no wired prop for {prop!r}"
-
-    if not prop.is_list:
-
-        def _get_node_scalar(self: BuiltinObject) -> Optional["Node | NodeReference"]:
-            value_ptr: NodeReference | None = getattr(self, ptr_prop.name)
-            if value_ptr is None:
-                return None
-            value = self._supergraph.get(value_ptr)
-            if value is None and self._session is not None:
-                # node may already have been removed
-                value = self._session._pending_nodes_by_id.get(cast(UUID, value_ptr.id))
-            if value is not None:
-                return value
-            else:
-                return None
-
-        def _set_node_scalar(self: BuiltinObject, value: "Node | None"):
-            if value is None:
-                self._do_set(ptr_prop.name, None, track=False)
-            else:
-                self._do_set(ptr_prop.name, value.to_ref(), track=False)
-
-        return property(_get_node_scalar, _set_node_scalar)
-
-    else:
-
-        def _get_node_many(self: BuiltinObject) -> Sequence["Node | NodeReference"]:
-            value_ptrs: Collection[NodeReference] = getattr(self, ptr_prop.name)
-            if len(value_ptrs) == 0:
-                return ()
-            values = []
-            for value_ptr in value_ptrs:
-                value = self._supergraph.get(value_ptr)
-                if value is None and self._session is not None:
-                    # node may already have been removed
-                    value = self._session._pending_nodes_by_id.get(cast(UUID, value_ptr.id))
-                if value is not None:
-                    values.append(value)
-            return values
-
-        def _set_node_many(self: BuiltinObject, values: Collection["Node"]):
-            values = tuple(values)
-            value_ptrs = [p.to_ref() for p in values]
-            self._do_set(ptr_prop.name, value_ptrs, track=False)
-
-        return property(_get_node_many, _set_node_many)
-
-
-def _object_node_ref_attr(ptr_key: str, prop: Property) -> property:
-    """The computed get property from a specific attribute of a node pointer."""
-
-    wired_prop = prop.ptr_prop
-    assert wired_prop is not None, f"no wired prop for {prop!r}"
-
-    if not prop.is_list:
-
-        def _get_node_ref_attr_scalar(self):
-            value_ptr = getattr(self, wired_prop.name)
-            if value_ptr is not None:
-                return getattr(value_ptr, ptr_key)
-            else:
-                return None
-
-        def _set_node_ref_attr_scalar(self: BuiltinObject, value):
-            raise RuntimeError(f"cannot set computed property attribute {prop!r}: {value!r}")
-
-        return property(_get_node_ref_attr_scalar, _set_node_ref_attr_scalar)
-
-    else:
-
-        def _get_node_ref_attr_many(self: BuiltinObject):
-            value_ptrs = getattr(self, wired_prop.name)
-            assert type(value_ptrs) is list, f"invalid {prop}: {value_ptrs!r}"
-            return tuple(getattr(p, ptr_key) for p in value_ptrs)
-
-        def _set_node_ref_attr_many(self: BuiltinObject, values):
-            raise RuntimeError(f"cannot set computed property attribute {prop!r}: {values!r}")
-
-        return property(_get_node_ref_attr_many, _set_node_ref_attr_many)
-
-
-def _node_ancestor_ref(prop: Property) -> property:
-    """The computer get property for Node ancestors."""
-
-    # NOTE :Performance: _node_ancestor_ref could just walk in the graph directly?
-
-    assert prop.node_types != "any", f"unexpected {prop.node_types!r} for {prop!r}"
-
-    if prop.node_kind == NodeReferenceKind.NODE_ANCESTOR_OR_SELF:
-
-        def get_ancestor_first_self(self: "Node") -> Optional["Node"]:
-            parent = self
-            while parent is not None:
-                if prop.node_types and parent.metatype in cast(
-                    tuple[NodeType, ...], prop.node_types
-                ):
-                    return parent
-                parent = parent.parent
-            return None
-
-        get = get_ancestor_first_self
-
-    elif prop.node_kind == NodeReferenceKind.NODE_ANCESTOR:
-
-        def get_ancestor_first_other(self: "Node") -> Optional["Node"]:
-            parent = self.parent
-            farthest = None
-            while parent is not None:
-                if prop.node_types and parent.metatype in cast(
-                    tuple[NodeType, ...], prop.node_types
-                ):
-                    farthest = parent
-                parent = parent.parent
-            return farthest
-
-        get = get_ancestor_first_other
-
-    else:
-        raise ValueError(f"unexpected ancestor reference kind: {prop.node_kind}")
-
-    def set(self: "Node", value: "Node"):
-        raise NotImplementedError(f"cannot set computed property {prop!r}: {value!r}")
-
-    return property(get, set)
-
-
-def _node_ancestor_ptr_ref(prop: Property) -> property:
-    """The computed get property for Node ancestor pointers (computed because ancestors are computed)."""
-
-    wired_prop = prop.ptr_prop
-    assert wired_prop is not None, f"no wired prop for {prop!r}"
-
-    def get_ancestor_ptr(self: "Node") -> Optional["NodeReference"]:
-        ancestor = getattr(self, cast(Property, wired_prop.runtime_prop).name)
-        if ancestor is None:
-            return None
-        else:
-            return ancestor.to_ref()
-
-    def set(self: "Node", value: "NodeReference"):
-        raise NotImplementedError(f"cannot set computed property {wired_prop!r}: {value!r}")
-
-    return property(get_ancestor_ptr, set)
-
-
 _HANDLING_ATTRIBUTE_ERROR = contextvars.ContextVar("handling_attribute_error", default=False)
 
 
@@ -620,8 +558,8 @@ class BuiltinObject[ObjectDataT: AnyObjectData](abc.ABC):
     __declared_properties__: ClassVar[dict[str, Property]] = {}
     __node_properties__: ClassVar[dict[str, Property]] = {}
     __struct_properties__: ClassVar[dict[str, Property]] = {}
-    __stored_properties__: ClassVar[dict[str, Property]] = {}
     __wired_properties__: ClassVar[dict[str, Property]] = {}
+    __stored_properties__: ClassVar[dict[str, Property]] = {}
 
     __properties_in_order__: ClassVar[tuple[Property, ...]]
     __properties_id_in_order__: ClassVar[tuple[int, ...]]

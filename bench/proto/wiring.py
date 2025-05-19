@@ -252,13 +252,7 @@ def pack_builtin_object[T: AnyStructData | AnyNodeData](
         raise ValueError(f"could not pack {obj.metatype.name}: {obj!r}") from e
 
 
-def pack_builtin_object_maybe[T: AnyStructData | AnyNodeData](
-    obj: BuiltinObject | None, expect: type[T] | None = None
-) -> T | None:
-    if obj is None:
-        return None
-    else:
-        return pack_builtin_object(obj, expect)
+# nocheckin: generate proto pack/unpack for BuiltinObjects
 
 
 def unpack_builtin_object[T: BuiltinObject](

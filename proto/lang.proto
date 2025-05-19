@@ -2401,7 +2401,6 @@ message ErrorData {
 message ExpressionData {
   ObjectType metatype = 1;
   ExpressionType type = 30;
-  optional PropertyReferenceData property_ptr = 31;
   optional NodeReferenceData field_ptr = 32;
   repeated ExpressionData clauses = 40;
   optional ValueData value = 46;
@@ -2429,7 +2428,6 @@ message FieldData {
   optional string name = 31;
   string order_key = 33;
   optional IconData icon = 35;
-  optional PropertyReferenceData property_ptr = 36;
   TypeKind kind = 40;
   optional PrimitiveType primitive_type = 41;
   optional BenchType bench_type = 42;

@@ -352,6 +352,8 @@ class IsModal(BuiltinObject):
 class IsExtensible(BuiltinObject):
     """A Node that can be extended with fields."""
 
+    # nocheckin: IsExtensible.value
+
 
 @object_()
 class IsProcessable(BuiltinObject):

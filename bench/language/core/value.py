@@ -65,7 +65,6 @@ if TYPE_CHECKING:
         TypeBase,
         TypeConstraint,
         TypeConstraintIn,
-        TypeIdentity,
     )
 
     from .validation import ValidationHandler
@@ -138,7 +137,7 @@ DEFAULT_CHECK_OPTIONS = CheckOptions()
 
 def check_value_scalar_constraint(
     value: SomeValue,
-    typ: "TypeBase | TypeIdentity",
+    typ: "TypeBase",
     constraint: "TypeConstraint | TypeConstraintIn",
     *,
     options: CheckOptions = DEFAULT_CHECK_OPTIONS,
@@ -169,7 +168,7 @@ def check_value_scalar_constraint(
 
 def check_value_scalar(
     value: SomeValue,
-    typ: "TypeBase | TypeIdentity",
+    typ: "TypeBase",
     *,
     options: CheckOptions = DEFAULT_CHECK_OPTIONS,
     invalid: "ValidationHandler" = on_invalid_raise,
@@ -242,7 +241,7 @@ def check_value_scalar(
 
 def _check_is_list(
     value: SomeValue,
-    typ: "TypeBase | TypeIdentity",
+    typ: "TypeBase",
     *,
     options: CheckOptions = DEFAULT_CHECK_OPTIONS,
     invalid: "ValidationHandler" = on_invalid_raise,
@@ -357,7 +356,7 @@ def _register_other_coercions():
 
 
 def _do_coerce(
-    value: ScalarValue, typ: "TypeBase | TypeIdentity", source_type: type, target_type: type
+    value: ScalarValue, typ: "TypeBase", source_type: type, target_type: type
 ) -> ScalarValue:
     """Apply coercion rules to get from source type to target type."""
     coercion = COERCION_RULE_BY_TYPE.get(target_type)
@@ -377,7 +376,7 @@ def _do_coerce(
 
 
 def coerce_value_scalar(
-    value: ScalarValue, typ: "TypeBase | TypeIdentity", *, as_packed: bool = False
+    value: ScalarValue, typ: "TypeBase", *, as_packed: bool = False
 ) -> ScalarValue:
     """Coerces a scalar value (primitive, node, struct)"""
     # apply coercion/check rules
@@ -425,7 +424,7 @@ def coerce_value_scalar(
 
 def coerce_value(
     value: Any,
-    typ: "TypeBase | TypeIdentity",
+    typ: "TypeBase",
     *,
     as_packed: bool = False,
     supergraph: Supergraph | None = None,
@@ -454,9 +453,7 @@ def coerce_value(
 #
 
 
-def pack_value_scalar(
-    value: ScalarValue | ScalarValueData, typ: "TypeBase | TypeIdentity"
-) -> JsonValue:
+def pack_value_scalar(value: ScalarValue | ScalarValueData, typ: "TypeBase") -> JsonValue:
     """
     Packs the given scalar runtime or data value into a JSON-able representation.
     """
@@ -517,7 +514,7 @@ def pack_value_scalar(
 
 
 def unpack_value_scalar(
-    value_packed: JsonValue, typ: "TypeBase | TypeIdentity", *, supergraph: Supergraph | None
+    value_packed: JsonValue, typ: "TypeBase", *, supergraph: Supergraph | None
 ) -> ScalarValue:
     """
     Unpacks the given scalar value into its runtime representation.
@@ -549,9 +546,7 @@ def unpack_value_scalar(
         raise TypeError(f"cannot unpack value of type {typ!r}")
 
 
-def unpack_value_scalar_data(
-    value_packed: JsonValue, typ: "TypeBase | TypeIdentity"
-) -> ScalarValueData:
+def unpack_value_scalar_data(value_packed: JsonValue, typ: "TypeBase") -> ScalarValueData:
     """
     Unpacks the given scalar value into its proto data representation. See above.
     """
@@ -713,9 +708,7 @@ def unpack_builtin_object_data[T: AnyStructData | AnyNodeData](
     return value
 
 
-def pack_value(
-    value: SomeValue | None, typ: "TypeBase | TypeIdentity", *, wrap: bool = False
-) -> JsonValue:
+def pack_value(value: SomeValue | None, typ: "TypeBase", *, wrap: bool = False) -> JsonValue:
     """
     Packs a value into a JSON representation.
     """
@@ -736,9 +729,7 @@ def pack_value(
     return value_packed
 
 
-def pack_value_data(
-    value: SomeValueData, typ: "TypeBase | TypeIdentity", wrap: bool = False
-) -> JsonValue:
+def pack_value_data(value: SomeValueData, typ: "TypeBase", wrap: bool = False) -> JsonValue:
     """Packs a data value into a JSON representation. See above."""
     # wrap scalar
     value_packed: JsonValue
@@ -758,7 +749,7 @@ def pack_value_data(
 
 def unpack_value(
     value_packed: JsonValue,
-    typ: "TypeBase | TypeIdentity",
+    typ: "TypeBase",
     *,
     supergraph: Supergraph | None = None,
     wrap: bool = False,
@@ -786,7 +777,7 @@ def unpack_value(
 
 
 def unpack_value_data(
-    value_packed: JsonValue, typ: "TypeBase | TypeIdentity", wrap: bool = False
+    value_packed: JsonValue, typ: "TypeBase", wrap: bool = False
 ) -> SomeValueData | JsonValue | None:
     """
     Unpacks a value from its JSON representation. Return nested objects as JSON (as is).

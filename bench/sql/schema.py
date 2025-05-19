@@ -549,7 +549,6 @@ FIELD_TABLE = SqlTable(
         SqlColumn("name", PrimitiveType.STRING, is_nullable=True),
         SqlColumn("order_key", PrimitiveType.STRING),
         SqlColumn("icon", PrimitiveType.JSON, is_nullable=True),
-        SqlColumn("property_ptr", PrimitiveType.JSON, is_nullable=True),
         SqlColumn("kind", PrimitiveType.INT16),
         SqlColumn("primitive_type", PrimitiveType.INT16, is_nullable=True),
         SqlColumn("bench_type", PrimitiveType.INT16, is_nullable=True),
