@@ -24,7 +24,7 @@ from bench.language import (
     Session,
     Supergraph,
 )
-from bench.proto import GraphScopeData
+from bench.proto import ScopeData
 from bench.sql import BenchSqlContext
 from bench.system.graph.postgres import PostgresEngine
 from bench.utils.oracle import Oracle
@@ -88,7 +88,7 @@ def pg_engine_from_database(
     database: Database,
     area: NodeArea | None,
     *,
-    scope: GraphScopeData | None = None,
+    scope: ScopeData | None = None,
 ):
     """Get the postgres engine for a database"""
     bench = database.bench

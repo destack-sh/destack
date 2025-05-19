@@ -3,7 +3,6 @@ import re
 from typing import Annotated, Any, cast, get_args, get_origin
 
 from bench.language import (
-    BENCH_CLASS_BY_NAME,
     Action,
     ActionType,
     Field,
@@ -13,10 +12,13 @@ from bench.language import (
     Service,
     TypeIn,
     code,
+    parse_type_annotation,
     text,
     to_icon,
 )
-from bench.language.core.property import parse_type_annotation
+from bench.language.registry import BENCH_CLASSES
+
+BENCH_CLASS_BY_NAME = {t.__name__: t for t in BENCH_CLASSES}
 
 
 def class_to_service(

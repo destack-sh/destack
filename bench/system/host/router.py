@@ -23,10 +23,10 @@ from bench.proto import (
     DownloadFilesResponse,
     GetNodesRequest,
     GetNodesResponse,
-    GraphScopeData,
     HostBase,
     Network,
     RpcMetadata,
+    ScopeData,
     SearchNodesRequest,
     SearchNodesResponse,
     ServiceBase,
@@ -134,7 +134,7 @@ class HostRouterService(ServiceBase, HostBase):
         """Gets or starts a running Host for the given Bench"""
 
         # get request's bench id
-        scope: GraphScopeData | None = getattr(request, "scope")
+        scope: ScopeData | None = getattr(request, "scope")
         if scope is None:
             raise GRPCError(GRPCStatus.INVALID_ARGUMENT, "missing scope")
         bench_id = to_uuid(scope.bench_id)

@@ -5,8 +5,8 @@ from bench.language import ClientType
 from bench.proto import (
     ClientData,
     ClientDataIn,
-    ClientOriginData,
     LoginUserRequest,
+    OriginData,
     RpcMetadata,
     SupervisorClient,
     pack_enum,
@@ -52,8 +52,8 @@ class ClientHandle:
         assert self._client_data is not None, f"{self!r} not ready"
         return self._client_data
 
-    def to_origin(self, *, nonce: str | None) -> ClientOriginData:
-        return ClientOriginData(
+    def to_origin(self, *, nonce: str | None) -> OriginData:
+        return OriginData(
             metatype=pb2.ObjectType.OBJECT_TYPE_CLIENT_ORIGIN,
             type=self.client_data.type,
             id=self.client_data.id,

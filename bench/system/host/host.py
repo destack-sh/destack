@@ -58,10 +58,10 @@ from bench.proto import (
     DownloadFilesRequest,
     DownloadFilesResponse,
     EditData,
-    GraphScopeData,
     HostBase,
     Network,
     RpcMetadata,
+    ScopeData,
     ServiceKind,
     UploadFilesRequest,
     UploadFilesResponse,
@@ -168,7 +168,7 @@ class HostService(GraphServiceBase, HostBase):
         return {"bench_id": self.bench_id}
 
     @property
-    def scope(self) -> GraphScopeData:
+    def scope(self) -> ScopeData:
         return self._scope
 
     @property

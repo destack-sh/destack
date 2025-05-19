@@ -32,7 +32,7 @@ from bench.language import (
 )
 from bench.proto import (
     EditData,
-    GraphScopeData,
+    ScopeData,
 )
 from bench.sql import (
     PostgresConnection,
@@ -55,7 +55,7 @@ class PostgresEngine(Engine):
         name: str,
         database: "Database",
         bench: "Bench",
-        scope: GraphScopeData,
+        scope: ScopeData,
         node_types: bittuple[NodeType],
         context: SqlContext,
     ):
@@ -129,7 +129,7 @@ class PostgresConnector(WritableConnector[PostgresEngine]):
 
     @override
     def _get_connection_cls(
-        self, query: "LegacyQuery", scope: GraphScopeData, options: ConnectionOptions
+        self, query: "LegacyQuery", scope: ScopeData, options: ConnectionOptions
     ) -> type[Connection]:
         if query._type == QueryType.GET:
             return PostgresGetConnection

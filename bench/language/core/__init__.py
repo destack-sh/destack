@@ -62,7 +62,6 @@ from .const import (
     BenchType,
     BuiltinEnum,
     BuiltinEnumOrUnion,
-    ChangeCategory,
     ClientType,
     Cloud,
     ConditionalType,
@@ -167,6 +166,7 @@ from .property import (
     p_regular,
     p_runtime,
     p_system,
+    parse_type_annotation,
 )
 from .query import (
     LegacyQuery,
@@ -389,7 +389,6 @@ __all__ = [
     "BuiltinEnumOrUnion",
     "BuiltinObject",
     "C",
-    "ChangeCategory",
     "CheckOptions",
     "Claimable",
     "ClientType",
@@ -561,6 +560,7 @@ __all__ = [
     "pack_value",
     "pack_value_data",
     "pack_value_scalar",
+    "parse_type_annotation",
     "patch_graph",
     "register_coercion",
     "render",

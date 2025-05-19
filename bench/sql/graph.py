@@ -43,7 +43,7 @@ from bench.language import (
     unpack_proto_time,
 )
 from bench.language.registry import HAS_CHILD_NODE_TYPES, NODE_CLASS_BY_TYPE
-from bench.pb2 import AnyNodeData, Date, EditData, GraphScopeData, TimeOfDay
+from bench.pb2 import AnyNodeData, Date, EditData, ScopeData, TimeOfDay
 from bench.utils.base58 import base58_encode
 from bench.utils.func import to_uuid
 from bench.utils.string import Casing, to_casing
@@ -444,7 +444,7 @@ async def pg_graph_get(
 async def pg_graph_search(
     cur: psycopg.AsyncCursor,
     ctx: SqlContext,
-    scope: GraphScopeData,
+    scope: ScopeData,
     query: LegacyQuery,
     count: bool,
 ) -> tuple[list[AnyNodeData], GraphData, int | None]:

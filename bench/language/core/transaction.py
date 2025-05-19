@@ -6,7 +6,6 @@ import structlog
 from fastuuid import UUID, uuid4
 from opentelemetry import trace
 
-from bench.language.core.edit import EditEvent
 from bench.pb2 import (
     EditData,
     EditOperationData,
@@ -40,12 +39,6 @@ class Transaction:
     _edits: list[EditData] = dataclasses.field(default_factory=list)
     _cascaded_edits: list[EditData] = dataclasses.field(default_factory=list)
     _touched_engine_ids: set[Any] = dataclasses.field(default_factory=set)
-
-    """Pending (unflushed) edits."""
-    # individual edit events, merged into edits on flush
-    _pending_edit_events: list[EditEvent] = dataclasses.field(default_factory=list)
-    # manual edits (or pre-accumulated edits from edit events)
-    _pending_edits: list[EditData] = dataclasses.field(default_factory=list)
 
     def __str__(self):
         return f"[id={self.id}] ({len(self._edits)} edits, {len(self._cascaded_edits)} cascaded, {len(self._pending_edit_events) + len(self._pending_edits)} pending)"

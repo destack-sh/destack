@@ -20,10 +20,10 @@ class WakeRequest(_message.Message):
     SCOPE_FIELD_NUMBER: _ClassVar[int]
     COMPUTER_PTR_FIELD_NUMBER: _ClassVar[int]
     THREAD_PTRS_FIELD_NUMBER: _ClassVar[int]
-    scope: _lang_pb2.GraphScopeData
+    scope: _lang_pb2.ScopeData
     computer_ptr: _lang_pb2.NodeReferenceData
     thread_ptrs: _containers.RepeatedCompositeFieldContainer[_lang_pb2.NodeReferenceData]
-    def __init__(self, scope: _Optional[_Union[_lang_pb2.GraphScopeData, _Mapping]] = ..., computer_ptr: _Optional[_Union[_lang_pb2.NodeReferenceData, _Mapping]] = ..., thread_ptrs: _Optional[_Iterable[_Union[_lang_pb2.NodeReferenceData, _Mapping]]] = ...) -> None: ...
+    def __init__(self, scope: _Optional[_Union[_lang_pb2.ScopeData, _Mapping]] = ..., computer_ptr: _Optional[_Union[_lang_pb2.NodeReferenceData, _Mapping]] = ..., thread_ptrs: _Optional[_Iterable[_Union[_lang_pb2.NodeReferenceData, _Mapping]]] = ...) -> None: ...
 
 class WakeResponse(_message.Message):
     __slots__ = ()
@@ -35,11 +35,11 @@ class RunRequest(_message.Message):
     COMPUTER_PTR_FIELD_NUMBER: _ClassVar[int]
     THREAD_PTR_FIELD_NUMBER: _ClassVar[int]
     RUN_PTRS_FIELD_NUMBER: _ClassVar[int]
-    scope: _lang_pb2.GraphScopeData
+    scope: _lang_pb2.ScopeData
     computer_ptr: _lang_pb2.NodeReferenceData
     thread_ptr: _lang_pb2.NodeReferenceData
     run_ptrs: _containers.RepeatedCompositeFieldContainer[_lang_pb2.NodeReferenceData]
-    def __init__(self, scope: _Optional[_Union[_lang_pb2.GraphScopeData, _Mapping]] = ..., computer_ptr: _Optional[_Union[_lang_pb2.NodeReferenceData, _Mapping]] = ..., thread_ptr: _Optional[_Union[_lang_pb2.NodeReferenceData, _Mapping]] = ..., run_ptrs: _Optional[_Iterable[_Union[_lang_pb2.NodeReferenceData, _Mapping]]] = ...) -> None: ...
+    def __init__(self, scope: _Optional[_Union[_lang_pb2.ScopeData, _Mapping]] = ..., computer_ptr: _Optional[_Union[_lang_pb2.NodeReferenceData, _Mapping]] = ..., thread_ptr: _Optional[_Union[_lang_pb2.NodeReferenceData, _Mapping]] = ..., run_ptrs: _Optional[_Iterable[_Union[_lang_pb2.NodeReferenceData, _Mapping]]] = ...) -> None: ...
 
 class RunResponse(_message.Message):
     __slots__ = ()
