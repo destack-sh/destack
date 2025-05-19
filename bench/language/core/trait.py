@@ -262,9 +262,8 @@ class IsOwnable(BuiltinObject):
 
     owned_by: Optional[Subject] = p_internal(
         17,
-        same_bench=True,
-        baseless=True,
-        ckless=True,
+        node_bench_from="self",
+        node_exclude=("ck", "base_id"),
     )
     if TYPE_CHECKING:
         owned_by_id: Optional[UUID] = None
@@ -283,7 +282,7 @@ class IsJoinable(BuiltinObject):
 class IsClaimable(BuiltinObject):
     """A Node that can be claimed with a Claim."""
 
-    claimed_by: Optional["Claim"] = p_internal(18, same_bench=True)
+    claimed_by: Optional["Claim"] = p_internal(18, node_bench_from="self")
     if TYPE_CHECKING:
         claimed_by_id: Optional[UUID] = None
         claimed_by_ptr: Optional[NodeReference] = None
@@ -291,7 +290,10 @@ class IsClaimable(BuiltinObject):
 
 @object_()
 class IsBased(BuiltinObject):
-    """A Node which may have a 'base' in another Node (e.g., its type definition)."""
+    """
+    A Node which may have a 'base' in another Node (e.g., its type definition).
+    We almost always want to load them together, so it's useful to have this relationship.
+    """
 
     @property
     @abc.abstractmethod
@@ -364,7 +366,7 @@ class IsProcessable(BuiltinObject):
     error: Optional["Error"] = p_internal(82)
     interruption: Optional["Interruption"] = p_internal(
         83,
-        same_bench=True,
+        node_bench_from="self",
         description="The latest Interruption concerning the Node.",
     )
     scheduled_at: Optional[datetime] = p_internal(

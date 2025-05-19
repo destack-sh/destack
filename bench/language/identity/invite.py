@@ -27,8 +27,4 @@ class Invite(BenchNode[InviteData]):
     parent: Union[Joinable, None] = p_node_parent(4, *JOINABLE_NODE_TYPES)
 
     # content
-    member: Optional[Subject] = p_regular(
-        40,
-        baseless=True,
-        ckless=True,
-    )
+    member: Optional[Subject] = p_regular(40, node_exclude=("ck", "base_id"))

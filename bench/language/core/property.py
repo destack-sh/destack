@@ -9,6 +9,7 @@ from typing import (
     TYPE_CHECKING,
     Any,
     Callable,
+    Literal,
     Optional,
     cast,
 )
@@ -229,11 +230,10 @@ class Property(_IntoQuery if TYPE_CHECKING else object):
 
     ptr_prop: Optional["Property"] = None  # wired representation for pointers
     runtime_prop: Optional["Property"] = None  # for the proto property
-    node_types: tuple[NodeType, ...] | None = None  # for node relations
+    node_types: tuple[NodeType, ...] = ()  # for node relations
     node_kind: NodeReferenceKind | None = None
-    node_same_bench: bool = False
-    node_ckless: bool = False
-    node_basless: bool = False
+    node_bench_from: Literal["self"] | None = None
+    node_exclude: tuple[Literal["ck", "base_id"], ...] = ()
 
     default: Any = UNSET
     constraint: "TypeConstraint | TypeConstraintIn | None" = None
@@ -243,11 +243,11 @@ class Property(_IntoQuery if TYPE_CHECKING else object):
 
     is_wired: bool = False  # serialized onto wire (in proto)
     is_stored: bool = False  # stored in DB
-    is_internal: bool = False  # should be edited via accessors, but not enforced
+    is_internal: bool = False  # managed internally (not enforced)
     is_autoset: bool = False  # set automatically by system, cannot set directly
     is_computed: bool = False
-    is_unique: bool = False  # unique index in DB?
-    is_sensitive: bool = False  # sensitive data (generally requires special permissions)
+    is_unique: bool = False  # unique index in DB
+    is_sensitive: bool = False  # sensitive data (hide by default)
 
     _ref: Optional["PropertyReference"] = None
     _type: Optional["Type"] = None
@@ -393,6 +393,7 @@ class Property(_IntoQuery if TYPE_CHECKING else object):
                 id=self.id,
                 name=self.name + "_ptr",
                 component=self.component,
+                primitive_type=PrimitiveType.JSON,
                 struct_type=StructType.PROPERTY_REFERENCE,
                 is_internal=self.is_internal,
                 is_wired=True,
@@ -408,32 +409,24 @@ class Property(_IntoQuery if TYPE_CHECKING else object):
         # node reference
         elif self.node_kind:
             if self.node_kind == NodeReferenceKind.NODE_PARENT:
-                is_required = False  # parent is always optional
-                is_list = False
                 is_computed = False
                 is_internal = True
             elif self.node_kind in (
                 NodeReferenceKind.NODE_ANCESTOR_OR_SELF,
                 NodeReferenceKind.NODE_ANCESTOR,
             ):
-                is_required = self.is_required
-                is_list = False
                 is_computed = True
                 is_internal = True
             elif self.node_kind in (
                 NodeReferenceKind.NODE_REGULAR,
                 NodeReferenceKind.NODE_TEMPLATE,
             ):
-                is_required = self.is_required
-                is_list = self.is_list
                 is_computed = False
                 is_internal = False
             else:
                 raise ValueError(f"unexpected reference kind {self.node_kind!r} for {self!r}")
-
-            # wired reference representation is just a nice NodeReference struct
             ptr_prop = Property(
-                id=self.id,  # re-use id, self is not stored
+                id=self.id,
                 name=self.name + "_ptr",
                 component=self.component,
                 node_kind=self.node_kind,
@@ -441,11 +434,11 @@ class Property(_IntoQuery if TYPE_CHECKING else object):
                 runtime_prop=self,
                 struct_type=StructType.NODE_REFERENCE,
                 is_wired=True,
-                is_stored=False,
+                is_stored=True,
                 is_autoset=self.is_autoset,
                 is_computed=is_computed,
-                is_list=is_list,
-                is_required=is_required,
+                is_list=self.is_list,
+                is_required=self.is_required,
                 is_internal=is_internal,
                 default=None,
                 primitive_type=None,
@@ -515,9 +508,6 @@ class Property(_IntoQuery if TYPE_CHECKING else object):
             # (don't want lists of Node references or Property references in Nodes, it's a mess)
             assert not self.is_list or not self.component.__is_node__, f"invalid list: {self!r}"
             self.ptr_prop = self._to_ptr_prop()
-            # nocheckin?
-            # self.is_wired = False
-            # self.is_stored = False
             return  # bail, no need to determine primitive type
 
         # determine primitive type
@@ -589,21 +579,20 @@ def _add_property_expression_base():
 def p_property(
     id: int,
     *,
+    default: Any = UNSET,
+    primitive_type: PrimitiveType | None = UNSET,
+    constraint: "TypeConstraint | TypeConstraintIn | None" = None,
+    is_node_data: bool = False,
+    node_bench_from: Literal["self"] | None = None,
+    node_exclude: tuple[Literal["ck", "base_id"], ...] = (),
     internal: bool = False,
+    autoset: bool = False,
     system: bool = False,
     kernel: bool = False,
-    autoset: bool = False,
     description: str | None = None,
-    default: Any = UNSET,
-    same_bench: bool = False,
-    baseless: bool = False,
-    ckless: bool = False,
-    is_node_data: bool = False,
     store: bool = True,
-    primitive_type: PrimitiveType | None = UNSET,
     unique: bool = False,
     sensitive: bool = False,
-    constraint: "TypeConstraint | TypeConstraintIn | None" = None,
 ) -> Any:
     return Property(
         id=id,
@@ -611,9 +600,8 @@ def p_property(
         primitive_type=primitive_type,
         constraint=constraint,
         is_node_data=is_node_data,
-        node_same_bench=same_bench,
-        node_basless=baseless,
-        node_ckless=ckless,
+        node_bench_from=node_bench_from,
+        node_exclude=node_exclude,
         is_internal=internal,
         is_autoset=autoset,
         is_wired=True,
@@ -635,13 +623,7 @@ def p_runtime(*, default: Any = None) -> Any:
     )
 
 
-def p_node_parent(
-    id: int,
-    *node_type: NodeType,
-    is_system: bool = False,
-    ckless: bool = True,
-    baseless: bool = True,
-) -> Any:
+def p_node_parent(id: int, *node_type: NodeType, is_system: bool = False) -> Any:
     """The parent of a node, must be of one of the given types."""
     return Property(
         id=id,
@@ -653,8 +635,8 @@ def p_node_parent(
         is_stored=False,
         is_list=False,
         is_required=False,
-        node_ckless=ckless,
-        node_basless=baseless,
+        node_bench_from="self",
+        node_exclude=("ck", "base_id"),
     )
 
 
@@ -665,7 +647,6 @@ def _p_node_ancestor(
     store: bool = False,
     wire: bool = False,
     require: bool = UNSET,
-    is_bench_implicit: bool = False,
 ) -> Any:
     """Computed nearest or farthest ancestor of the given type."""
     return Property(
@@ -678,7 +659,7 @@ def _p_node_ancestor(
         is_stored=store,
         is_wired=wire,
         is_required=require,
-        node_same_bench=is_bench_implicit,
+        node_bench_from="self",
     )
 
 
@@ -693,8 +674,7 @@ def p_node_template(id: int) -> Any:
     return Property(
         id=id,
         node_kind=NodeReferenceKind.NODE_TEMPLATE,
-        node_basless=True,
-        node_ckless=True,
+        node_exclude=("base_id",),
         is_internal=True,
         is_stored=True,
         is_wired=True,

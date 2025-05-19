@@ -61,12 +61,10 @@ class Run(
         4, NodeType.THREAD, NodeType.AGENT, NodeType.RUN
     )
     type: RunType = p_system(30)
-    root: "Run | None" = p_node_ancestor(
-        33, NodeType.RUN, require=False, store=True, wire=True, is_bench_implicit=True
-    )
+    root: "Run | None" = p_node_ancestor(33, NodeType.RUN, require=False, store=True, wire=True)
     thread: Optional["Thread"] = p_internal(
         38,
-        same_bench=True,
+        node_bench_from="self",
         description="The Thread to communicate with the Run. May be shared with other Runs.",
     )
     if TYPE_CHECKING:

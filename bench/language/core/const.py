@@ -1200,6 +1200,14 @@ class NodeReferenceKind(BuiltinEnum):
         return self.id >= 10 and self.id <= 20
 
 
+class NodeReferenceProperty(BuiltinEnum):
+    NODE_TYPE = 30
+    NODE_ID = 31
+    NODE_CK = 32
+    NODE_BENCH_ID = 33
+    NODE_BASE_ID = 34
+
+
 #
 # Access
 # Access types are loosely ranked by access/destructiveness across and within types.

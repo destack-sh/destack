@@ -1,7 +1,7 @@
 import json
 from base64 import b64decode, b64encode
 from itertools import chain
-from typing import TYPE_CHECKING, Any, Collection, Mapping, Union, cast
+from typing import TYPE_CHECKING, Any, Mapping, Union, cast
 
 import pytz
 import structlog
@@ -34,7 +34,7 @@ from bench.pb2 import AnyNodeData, AnyStructData, EditData, NodeReferenceData, R
 from bench.utils.string import Casing, to_casing
 
 if TYPE_CHECKING:
-    from bench.language.connection import Connection
+    pass
 
 logger = structlog.get_logger(__name__)
 tracer = trace.get_tracer(__name__)
@@ -391,38 +391,6 @@ def unpack_graph(
                 node = cast(Node, parent)
 
     return graph
-
-
-def unpack_node_roots(
-    data_graph: GraphData,
-    supergraph: Supergraph,
-    parent: Node | None = None,
-    session: Session | None = None,
-    exclude: set[NodeType] | None = None,
-    roots: Collection[NodeReferenceData] | None = None,
-    connection: "Connection | None" = None,
-) -> tuple[tuple[Node, ...], Graph]:
-    """Unpack nodes and their descendants. Returns the actual roots (or passed ones)."""
-
-    node_graph = unpack_graph(
-        data_graph=data_graph,
-        supergraph=supergraph,
-        parent=parent,
-        session=session,
-        exclude=exclude,
-        connection=connection,
-    )
-
-    if roots is not None:
-        # recover roots if specified (may not be actual roots)
-        recovered_roots = []
-        for root in roots:
-            unpacked_root = node_graph.get(UUID(root.id))
-            if unpacked_root is not None:
-                recovered_roots.append(unpacked_root)
-        return tuple(recovered_roots), node_graph
-    else:
-        return node_graph.find_roots(), node_graph
 
 
 def wrap_some_node(node: AnyNodeData) -> pb2.SomeNodeData:

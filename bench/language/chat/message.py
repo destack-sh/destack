@@ -66,13 +66,11 @@ class Message(
     """
 
     # meta
-    parent: Union["Channel", "Thread", None] = p_node_parent(
-        4, NodeType.CHANNEL, NodeType.THREAD, ckless=True
-    )
+    parent: Union["Channel", "Thread", None] = p_node_parent(4, NodeType.CHANNEL, NodeType.THREAD)
     type: MessageType = p_regular(30, default=MessageType.DEFAULT)
     # platform? source?
-    channel: Optional["Channel"] = p_regular(34, same_bench=True)
-    thread: Optional["Thread"] = p_regular(35, same_bench=True)
+    channel: Optional["Channel"] = p_regular(34, node_bench_from="self")
+    thread: Optional["Thread"] = p_regular(35, node_bench_from="self")
     if TYPE_CHECKING:
         channel_id: Optional[UUID] = None
         channel_ptr: Optional[NodeReference] = None
@@ -83,8 +81,8 @@ class Message(
     edited_at: Optional[datetime] = p_internal(40)
 
     # routing
-    reply_to: Optional["Message"] = p_regular(50, baseless=True)
-    forwarded_from: Optional["Message"] = p_regular(51, baseless=True)
+    reply_to: Optional["Message"] = p_regular(50)
+    forwarded_from: Optional["Message"] = p_regular(51)
     if TYPE_CHECKING:
         reply_to_ptr: Optional[NodeReference] = None
         reply_to_id: Optional[UUID] = None

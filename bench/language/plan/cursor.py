@@ -74,7 +74,6 @@ class Cursor(IsOwnable, IsModal, IsTitled, PackageNode):
         NodeType.AGENT,
         NodeType.THREAD,
         NodeType.RUN,
-        ckless=True,
     )
     type: CursorType = p_regular(30)
 

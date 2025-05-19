@@ -49,7 +49,7 @@ class Bench(IsOwnable, BenchNode[BenchData]):
     """
 
     parent: None = p_node_parent(4)
-    handle: Optional["Handle"] = p_system(31, same_bench=True)
+    handle: Optional["Handle"] = p_system(31, node_bench_from="self")
     slug: str = p_system(32, unique=True, constraint=SLUG_CONSTRAINT)  # must match main handle
     name: str = p_regular(33, constraint=NAME_CONSTRAINT)
     line: Optional["TextLine"] = p_regular(34)
@@ -61,8 +61,8 @@ class Bench(IsOwnable, BenchNode[BenchData]):
     status: BenchStatus = p_system(40, default=BenchStatus.RESERVED)
 
     # content
-    database: Optional["Database"] = p_system(50, same_bench=True)
-    package: Optional["Package"] = p_regular(51, same_bench=True)
+    database: Optional["Database"] = p_system(50, node_bench_from="self")
+    package: Optional["Package"] = p_regular(51, node_bench_from="self")
     if TYPE_CHECKING:
         database_ptr: Optional[NodeReference] = None
         database_id: Optional[UUID] = None

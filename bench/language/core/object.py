@@ -295,15 +295,16 @@ def _process_object_cls[ObjectT: BuiltinObject](
                 raise ValueError(f"property id conflict: {prop!r}, {existing!r}")
     props = properties.values()
     cls.__properties_by_id__ = frozendict(properties_by_id)
-    cls.__properties_name_by_id__ = frozendict(
-        {p.id: p.name for p in properties_by_id.values() if p.id is not None}
-    )
     cls.__node_properties__ = frozendict(
         {p.name: p for p in props if p.is_node_reference and not p.runtime_prop}
     )
     cls.__struct_properties__ = frozendict({p.name: p for p in props if p.is_struct is True})
-    cls.__wired_properties__ = frozendict({p.name: p for p in props if p.is_wired is True})
-    cls.__stored_properties__ = frozendict({p.name: p for p in props if p.is_stored is True})
+    cls.__wired_properties__ = frozendict(
+        {p.name: p for p in props if p.is_wired is True and p.ptr_prop is None}
+    )
+    cls.__stored_properties__ = frozendict(
+        {p.name: p for p in props if p.is_stored is True and p.ptr_prop is None}
+    )
 
     # assign property ordinals
     cls.__properties_in_order__ = tuple(sorted(properties_by_id.values(), key=lambda p: p.id))
@@ -615,7 +616,6 @@ class BuiltinObject[ObjectDataT: AnyObjectData](abc.ABC):
 
     __properties__: ClassVar[dict[str, Property]] = {}
     __properties_by_id__: ClassVar[dict[int, Property]] = {}
-    __properties_name_by_id__: ClassVar[dict[int, str]] = {}
 
     __declared_properties__: ClassVar[dict[str, Property]] = {}
     __node_properties__: ClassVar[dict[str, Property]] = {}

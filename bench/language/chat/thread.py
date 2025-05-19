@@ -65,13 +65,13 @@ class Thread(
     parent: Union["Package", "Page", "Channel", "Thread", None] = p_node_parent(
         4, NodeType.PACKAGE, NodeType.PAGE, NodeType.CHANNEL, NodeType.THREAD
     )
-    channel: Optional["Channel"] = p_system(40, same_bench=True)
+    channel: Optional["Channel"] = p_system(40, node_bench_from="self")
     if TYPE_CHECKING:
         channel_ptr: Optional[NodeReference] = None
         channel_id: Optional[UUID] = None
 
     # content
-    page: Optional["Page"] = p_regular(60, same_bench=True)
+    page: Optional["Page"] = p_regular(60, node_bench_from="self")
     if TYPE_CHECKING:
         page_ptr: Optional[NodeReference] = None
         page_id: Optional[UUID] = None
