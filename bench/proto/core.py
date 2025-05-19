@@ -2,7 +2,7 @@ import dataclasses
 import enum
 import textwrap
 from dataclasses import dataclass
-from typing import Union
+from typing import Sequence, Union
 
 
 class ProtoThing:
@@ -147,7 +147,7 @@ class ProtoField(ProtoThing):
     repeated: bool = False
     key_type: ProtoFieldType | None = None  # for map
     value_type: ProtoFieldType | None = None  # for map
-    sub_fields: list["ProtoField"] | None = None  # for one of
+    sub_fields: Sequence["ProtoField"] | None = None  # for one of
 
     def to_proto_source(self) -> str:
         """Convert to proto source."""

@@ -190,15 +190,15 @@ class TypeConstraint(Struct):
     node_types: list["NodeType"] = p_regular(71)
     node_scope: list["Node"] = p_regular(72)
     node_max_depth: Optional[int] = p_regular(73)
-    # nocheckin :Architecture: TypeConstraint.node_subtypes feels wrong, need Node-specific constraints?
-    # specific node/struct/custom constraints?
     # e.g., for Text (number of lines), ...
 
 
 constraint = TypeConstraintIn
 
 
-# nocheckin: revamp Type, cascading Type bases
+# nocheckin: revamp Type, TypeConstraint cascading Type bases
+#  TypeConstraint.node_subtypes feels wrong, need Node-specific constraints?
+#  specific node/struct/custom constraints?
 @object_()
 class TypeBase(BuiltinObject):
     """

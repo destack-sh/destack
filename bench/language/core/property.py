@@ -154,6 +154,7 @@ def parse_type_annotation(
         and origin_cls.__name__ == "VariableProperty"
     ):
         is_variable = True
+        is_optional = True  # variable Properties are automatically optional
         py_type = typing.get_args(py_type)[0]
     # resolve
     if not isinstance(py_type, type):
@@ -400,6 +401,7 @@ class Property(_IntoQuery if TYPE_CHECKING else object):
                 is_stored=True,
                 is_required=self.is_required,
                 is_list=self.is_list,
+                is_variable=self.is_variable,
                 default=None,
                 runtime_prop=self,
                 constraint=self.constraint,
@@ -439,6 +441,7 @@ class Property(_IntoQuery if TYPE_CHECKING else object):
                 is_computed=is_computed,
                 is_list=self.is_list,
                 is_required=self.is_required,
+                is_variable=self.is_variable,
                 is_internal=is_internal,
                 default=None,
                 primitive_type=None,

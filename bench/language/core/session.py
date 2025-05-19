@@ -3,7 +3,6 @@ from contextlib import asynccontextmanager
 from datetime import datetime
 from typing import (
     TYPE_CHECKING,
-    Awaitable,
     Callable,
     Optional,
     Sequence,
@@ -30,7 +29,7 @@ from .const import (
     EditType,
     NodeMode,
 )
-from .graph import Graph, GraphData, Supergraph
+from .graph import GraphData, Supergraph
 from .node import BenchNode, Node, PackageNode, Subject
 from .object import EMPTY_SCOPE_DATA
 from .transaction import Transaction
@@ -43,23 +42,6 @@ if TYPE_CHECKING:
 
 logger = structlog.get_logger(__name__)
 tracer = trace.get_tracer(__name__)
-
-
-CommitPrepareHook = Callable[
-    ["Session", Graph, GraphData, Sequence["EditData"], Sequence["EditData"]],
-    Awaitable[None],
-]
-CommitHook = Callable[
-    [
-        "Session",
-        Graph,
-        GraphData,
-        Sequence["EditData"],
-        Sequence["EditData"],
-    ],
-    Awaitable[None],
-]
-CommitFailedHook = Callable[["Session", BaseException], Awaitable[None]]
 
 
 @dataclasses.dataclass(slots=True)
@@ -87,9 +69,6 @@ class Session:
     _pending_nodes_by_id: dict[UUID, Node] = dataclasses.field(default_factory=dict)
     _default_scope: ScopeData = dataclasses.field(default_factory=lambda: EMPTY_SCOPE_DATA)
     _local_epoch: int | None = dataclasses.field(default=None)
-    _pre_commit: CommitPrepareHook | None = dataclasses.field(default=None)
-    _post_commit: CommitHook | None = dataclasses.field(default=None)
-    _post_commit_failed: CommitFailedHook | None = dataclasses.field(default=None)
     _on_edit_subs: dict[UUID, list[Callable[[Node], None]]] = dataclasses.field(
         default_factory=dict
     )
