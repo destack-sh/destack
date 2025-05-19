@@ -393,6 +393,7 @@ def to_type_scalar(type_in: TypeIn) -> "Type":
     if isinstance(type_in, TypeBase):
         return cast("Type", type_in)
     elif isinstance(type_in, (Schema, Choice, Flow, Action, FlowEdge, Table, Agent)):
+        raise NotImplementedError
         type_scalar = type_in.to_type_maybe()
         if type_scalar is not None:
             assert isinstance(type_scalar, Type), f"expected Type, got {type_scalar!r}"

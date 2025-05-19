@@ -60,7 +60,6 @@ class Link(IsTitled, ResourceBase[LinkData]):
         NodeType.LINK,
         NodeType.THREAD,
         NodeType.RUN,
-        ckless=True,
     )
     type: LinkType = p_regular(30)
 

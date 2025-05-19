@@ -51,11 +51,11 @@ class Notification(IsTitled, IsModal, PackageNode[NotificationData]):
     type: NotificationType = p_regular(30)
     channel: Optional["Channel"] = p_system(
         33,
-        same_bench=True,
+        node_bench_from="self",
     )
     thread: Optional["Thread"] = p_regular(
         34,
-        same_bench=True,
+        node_bench_from="self",
     )
 
     # status

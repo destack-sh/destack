@@ -78,11 +78,8 @@ class Block(IsTemplatable, IsModal, IsNamed, IsOrdered, PackageNode[BlockData]):
     # content
     # NOTE: maybe there should be a general mechanism for tying Nodes like Blocks? :NodeTying
     line: Optional["TextLine"] = p_regular(40)
-    node: Optional["Node"] = p_regular(41, baseless=False)
-    view: Optional["ViewBase"] = p_regular(
-        42,
-        baseless=False,
-    )
+    node: Optional["Node"] = p_regular(41, node_exclude=("base_id",))
+    view: Optional["ViewBase"] = p_regular(42, node_exclude=("base_id",))
     # view? (specific view of that node, e.g. TableView for a Table)
     # size?
     if TYPE_CHECKING:

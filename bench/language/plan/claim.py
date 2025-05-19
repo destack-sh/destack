@@ -89,7 +89,6 @@ class Claim(
         NodeType.ROLE,
         NodeType.THREAD,
         NodeType.RUN,
-        ckless=True,
     )
     type: ClaimType = p_regular(30)
 

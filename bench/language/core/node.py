@@ -239,13 +239,12 @@ class Node[NodeDataT: AnyNodeData](BuiltinObject[NodeDataT]):
         11,
         default=None,
         autoset=True,
-        same_bench=True,
-        baseless=True,
-        ckless=True,
+        node_bench_from="self",
+        node_exclude=("ck", "base_id"),
     )
     updated_at: datetime = p_system(12, autoset=True)
     updated_by: Optional[Subject] = p_system(  # type: ignore (see above)
-        13, default=None, autoset=True, same_bench=True, baseless=True, ckless=True
+        13, default=None, autoset=True, node_bench_from="self", node_exclude=("ck", "base_id")
     )
     archived_at: Optional[datetime] = p_system(14, autoset=True)
     deleted_at: Optional[datetime] = p_system(15, autoset=True)
@@ -261,6 +260,7 @@ class Node[NodeDataT: AnyNodeData](BuiltinObject[NodeDataT]):
     # IsClaimable.claimed_by: 18
     # ...managed_by/controlled_by?
     # IsModal.mode: 25
+    # IsExtensible.value: 26
 
     # 30+ for general properties
     # ...
@@ -914,7 +914,7 @@ class PackageNode[NodeDataT: AnyNodeData](BenchNode[NodeDataT]):
     """A Node in a Package."""
 
     package: "Package | None" = p_node_ancestor_with_self(
-        9, NodeType.PACKAGE, require=True, store=True, wire=True, is_bench_implicit=True
+        9, NodeType.PACKAGE, require=True, store=True, wire=True
     )
     if TYPE_CHECKING:
         package_id: Optional[UUID] = None
@@ -932,7 +932,7 @@ class PageNode[NodeDataT: AnyNodeData](IsOrdered, PackageNode[NodeDataT]):
     icon: Optional["Icon"] = p_regular(34)
     definition: "Block | None" = p_internal(
         35,
-        same_bench=True,
+        node_bench_from="self",
         description="The Block where this Node is 'defined'.",
     )
     if TYPE_CHECKING:
@@ -989,9 +989,7 @@ class PageNode[NodeDataT: AnyNodeData](IsOrdered, PackageNode[NodeDataT]):
 @struct_(StructType.NODE_REFERENCE)
 class NodeReference(Struct[NodeReferenceData]):
     """
-    A plain reference to a Node.
-    We include the Bench and 'ck' where available.
-    Base = the Node is 'based' on (as in HasNodeBase).
+    A reference to a Node.
     """
 
     node_type: NodeType = p_internal(30)
@@ -999,30 +997,6 @@ class NodeReference(Struct[NodeReferenceData]):
     ck: Optional[UUID] = p_internal(32)
     bench_id: Optional[UUID] = p_internal(33)
     base_id: Optional[UUID] = p_internal(34)
-
-    async def get(self) -> "Node":
-        """Gets the Node referenced by this reference."""
-        node_cls = NODE_CLASS_BY_TYPE[self.node_type]
-        query = node_cls._query()
-        query._include_memory = False
-        return await query.get(self)
-
-    @staticmethod
-    def _clone_ref[T: NodeReference | Any](
-        ref_cls: type[T], ref: "NodeReference | Any", **kwargs
-    ) -> T:
-        return ref_cls(
-            id=ref.id,
-            ck=ref.ck,
-            node_type=ref.node_type,
-            bench_id=ref.bench_id,
-            base_id=ref.base_id,
-            **kwargs,
-        )
-
-    def to_ref(self) -> "Self":
-        """Gets the reference (noop for compatibility with Node.to_ref)."""
-        return self
 
     def __content_str__(self):
         content_parts = []

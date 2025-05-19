@@ -12,7 +12,6 @@ from bench.language import (
     SYSTEM_SYSTEM_PACKAGE_SLUG,
     Bench,
     Database,
-    Engine,
     Handle,
     NodeReference,
     NodeType,

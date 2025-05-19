@@ -82,9 +82,7 @@ class Interruption(IsModal, IsExtensible, PackageNode[InterruptionData]):
     # meta
     parent: Optional["Run"] = p_node_parent(4, NodeType.RUN)
     type: InterruptionType = p_regular(30)
-    root: "Run | None" = p_node_ancestor(
-        31, NodeType.RUN, require=False, store=True, wire=True, is_bench_implicit=True
-    )
+    root: "Run | None" = p_node_ancestor(31, NodeType.RUN, require=False, store=True, wire=True)
     flow: Optional["Flow"] = p_internal(33)
     action: Optional["Action"] = p_internal(34)
     link: Optional["FlowEdge"] = p_internal(35)
@@ -116,14 +114,13 @@ class Interruption(IsModal, IsExtensible, PackageNode[InterruptionData]):
     response: Optional[InterruptionResponse] = p_internal(54)
     message: Optional["Message"] = p_regular(
         55,
-        baseless=True,
         description="The Message that was created for this Interruption.",
-        same_bench=True,
+        node_bench_from="self",
     )
     task: Optional["Task"] = p_regular(
         56,
         description="The Task that was created for this Interruption.",
-        same_bench=True,
+        node_bench_from="self",
     )
 
     # context

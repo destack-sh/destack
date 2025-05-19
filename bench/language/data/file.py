@@ -497,7 +497,6 @@ class File(ResourceBase[FileData]):
         NodeType.THREAD,
         NodeType.MESSAGE,
         NodeType.RUN,
-        ckless=True,
     )
 
     type: FileType = p_regular(30)

@@ -65,7 +65,7 @@ class ResourceBase[NodeDataT: AnyNodeData](
 
     # meta
     parent: Union["Package", "Page", "Thread", None] = p_node_parent(
-        4, NodeType.PACKAGE, NodeType.PAGE, NodeType.THREAD, ckless=True
+        4, NodeType.PACKAGE, NodeType.PAGE, NodeType.THREAD
     )
     # ... space for type/name/...
     region: Region = p_system(38, default=REGION)

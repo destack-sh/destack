@@ -46,12 +46,12 @@ class Agent(
     # content
     page: Optional["Page"] = p_regular(
         54,
-        same_bench=True,
+        node_bench_from="self",
         description="The main Page used by this Agent.",
     )
     cursor: Optional["Cursor"] = p_regular(
         55,
-        same_bench=True,
+        node_bench_from="self",
         description="The main Cursor for this Agent.",
     )
     if TYPE_CHECKING:

@@ -36,27 +36,27 @@ class IsRun(BuiltinObject):
     # context
     agent: Optional["Agent"] = p_internal(
         70,
-        same_bench=True,
+        node_bench_from="self",
         description="The Agent we're running as.",
     )
     flow: Optional["Flow"] = p_internal(
         71,
-        same_bench=True,
+        node_bench_from="self",
         description="The Flow the Action is in.",
     )
     service: Optional["Service"] = p_internal(
         72,
-        same_bench=True,
+        node_bench_from="self",
         description="The Service the Action is in.",
     )
     action: Optional["Action"] = p_internal(
         73,
-        same_bench=True,
+        node_bench_from="self",
         description="The Action this Run is executing.",
     )
     task: Optional["Task"] = p_internal(
         78,
-        same_bench=True,
+        node_bench_from="self",
         description="The Task this Run is executing.",
     )
     if TYPE_CHECKING:
