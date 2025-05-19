@@ -130,12 +130,12 @@ def decode_type_identity(key: str) -> "TypeBase":
 
 
 LETTER_BY_FIELD_TYPE: dict[FieldType, str] = {
-    FieldType.MEMBER: "M",
+    FieldType.VARIABLE: "M",
     FieldType.INPUT: "I",
     FieldType.OUTPUT: "O",
 }
 FIELD_TYPE_BY_LETTER: dict[str, FieldType] = {
-    "M": FieldType.MEMBER,
+    "M": FieldType.VARIABLE,
     "I": FieldType.INPUT,
     "O": FieldType.OUTPUT,
 }
@@ -193,8 +193,10 @@ class TypeBase(BuiltinObject):
     # type identity
     kind: TypeKind = p_internal(40)
     primitive_type: Optional[PrimitiveType] = p_regular(41)
-    bench_type: Optional[BenchType] = p_regular(42)
-    base_type: Optional["Node"] = p_regular(43)
+    node_type: Optional[NodeType] = p_regular(42)
+    struct_type: Optional[StructType] = p_regular(43)
+    enum_type: Optional[EnumType] = p_regular(44)
+    base_type: Optional["Node"] = p_regular(45)
     if TYPE_CHECKING:
         base_type_id: Optional[UUID] = None
         base_type_ptr: Optional["NodeReference"] = None
@@ -370,11 +372,11 @@ def to_type_scalar(type_in: TypeIn) -> "Type":
         return Type(kind=TypeKind.PRIMITIVE, primitive_type=type_in)
     elif isinstance(type_in, (NodeType, StructType, EnumType, BenchType)):
         if is_node_type(type_in):
-            return Type(kind=TypeKind.NODE, bench_type=type_in)
+            return Type(kind=TypeKind.NODE, node_type=type_in)
         elif is_struct_type(type_in):
-            return Type(kind=TypeKind.STRUCT, bench_type=type_in)
+            return Type(kind=TypeKind.STRUCT, struct_type=type_in)
         elif is_enum_type(type_in):
-            return Type(kind=TypeKind.ENUM, bench_type=type_in)
+            return Type(kind=TypeKind.ENUM, enum_type=type_in)
     elif isinstance(type_in, TypeFormat):
         return Type(kind=TypeKind.PRIMITIVE, primitive_type=type_in.primitive_type, format=type_in)
     elif isinstance(type_in, type):
@@ -384,11 +386,11 @@ def to_type_scalar(type_in: TypeIn) -> "Type":
         bench_type = BENCH_TYPE_BY_CLASS.get(cast(Any, type_in))
         if bench_type is not None:
             if is_node_type(bench_type):
-                return Type(kind=TypeKind.NODE, bench_type=bench_type)
+                return Type(kind=TypeKind.NODE, node_type=bench_type)
             elif is_struct_type(bench_type):
-                return Type(kind=TypeKind.STRUCT, bench_type=bench_type)
+                return Type(kind=TypeKind.STRUCT, struct_type=bench_type)
             elif is_enum_type(bench_type):
-                return Type(kind=TypeKind.ENUM, bench_type=bench_type)
+                return Type(kind=TypeKind.ENUM, enum_type=bench_type)
         elif type_in == Node:
             return Type(kind=TypeKind.NODE)
 
@@ -427,10 +429,10 @@ def reverse_type_scalar(typ: TypeBase) -> TypeIn | None:
         else:
             return typ.primitive_type
     elif typ.kind in (TypeKind.NODE, TypeKind.STRUCT, TypeKind.ENUM):
-        if typ.kind == TypeKind.NODE and typ.bench_type is None:
+        if typ.kind == TypeKind.NODE and typ.node_type is None:
             return Node
-        assert typ.bench_type is not None, f"missing bench type for {typ!r}"
-        bench_cls = BENCH_CLASS_BY_TYPE[typ.bench_type]
-        return cast(TypeIn, bench_cls)
+        assert typ.node_type is not None, f"missing node type for {typ!r}"
+        node_cls = BENCH_CLASS_BY_TYPE[typ.node_type]
+        return cast(TypeIn, node_cls)
 
     return None  # couldn't reverse

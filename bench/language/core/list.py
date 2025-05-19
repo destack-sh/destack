@@ -12,7 +12,7 @@ from typing import (
 
 from bench.language.registry import NODE_CLASS_BY_TYPE
 
-from .const import NodeType, QueryType, SortType, active_session
+from .const import NodeType, QueryType, active_session
 
 if TYPE_CHECKING:
     from bench.language import (
@@ -162,16 +162,14 @@ class RemoteNodeList[V: Node, VD: AnyNodeData](NodeList[V]):
     #
 
     def _query(self) -> "LegacyQuery[V, VD]":
-        from bench.language import Expression, Field, LegacyQuery, SelectOptions, Table
+        from bench.language import Field, LegacyQuery, SelectOptions, Table
 
         assert isinstance(self._node, Table), f"cannot query from: {self._node!r}"
-        created_at = self._child_node_cls.get_property("created_at")
         query = LegacyQuery(
             type=QueryType.SEARCH,
             node_type=self._child_node_type,
             base_type=self._node,
             # sort by created_at by default (earliest first)
-            sort=[Expression(type=SortType.ASCENDING, property=created_at)],
             # select all fields by default
             select=SelectOptions(select_fields=list(self._node.get_children(Field))),
         )

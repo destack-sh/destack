@@ -906,7 +906,7 @@ def value_equals(
     elif typ.kind == TypeKind.ENUM:
         # compare enums directly
         return self_value == other_value
-    elif typ.kind == TypeKind.NODE or typ.bench_type == StructType.NODE_REFERENCE:
+    elif typ.kind == TypeKind.NODE or typ.struct_type == StructType.NODE_REFERENCE:
         if not typ.is_list:
             self_value = identity_map.get(self_value.ck, self_value)
             other_value = identity_map.get(other_value.ck, other_value)

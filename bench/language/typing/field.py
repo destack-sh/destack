@@ -26,7 +26,7 @@ from bench.language.core import (
 from bench.pb2 import FieldData
 
 if TYPE_CHECKING:
-    from bench.language import Action, Agent, Flow, Icon, Scene, Schema, Table, Thread, ViewBase
+    from bench.language import Action, Agent, Flow, Icon, Scene, Schema, Table, ViewBase
 
 
 # pyright: reportIncompatibleVariableOverride=false, reportIncompatibleMethodOverride=false
@@ -48,18 +48,17 @@ class Field(
     A Field is a user-defined attribute.
     """
 
-    parent: Union[
-        "Thread", "Agent", "Action", "Schema", "Flow", "Table", "Scene", "ViewBase", None
-    ] = p_node_parent(
-        4,
-        NodeType.THREAD,
-        NodeType.AGENT,
-        NodeType.ACTION,
-        NodeType.SCHEMA,
-        NodeType.FLOW,
-        NodeType.TABLE,
-        NodeType.SCENE,
-        *VIEW_NODE_TYPES.tuple,
+    parent: Union["Agent", "Action", "Schema", "Flow", "Table", "Scene", "ViewBase", None] = (
+        p_node_parent(
+            4,
+            NodeType.AGENT,
+            NodeType.ACTION,
+            NodeType.SCHEMA,
+            NodeType.FLOW,
+            NodeType.TABLE,
+            NodeType.SCENE,
+            *VIEW_NODE_TYPES.tuple,
+        )
     )
     type: FieldType = p_internal(30)
     icon: Optional["Icon"] = p_regular(35)
@@ -113,7 +112,7 @@ class Field(
         constraint: TypeConstraintIn | TypeConstraint | None = None,
         **kwargs,
     ) -> "Field":
-        return Field.new(name, type=FieldType.MEMBER, typ=typ, constraint=constraint, **kwargs)
+        return Field.new(name, type=FieldType.VARIABLE, typ=typ, constraint=constraint, **kwargs)
 
     @staticmethod
     def input(

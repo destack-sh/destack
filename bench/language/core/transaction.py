@@ -1,6 +1,6 @@
 import dataclasses
 from datetime import datetime
-from typing import TYPE_CHECKING, Any, Callable, Sequence
+from typing import TYPE_CHECKING, Any, Callable
 
 import structlog
 from fastuuid import UUID, uuid4
@@ -41,18 +41,18 @@ class Transaction:
     _touched_engine_ids: set[Any] = dataclasses.field(default_factory=set)
 
     def __str__(self):
-        return f"[id={self.id}] ({len(self._edits)} edits, {len(self._cascaded_edits)} cascaded, {len(self._pending_edit_events) + len(self._pending_edits)} pending)"
+        return f"[id={self.id}] ({len(self._edits)} edits, {len(self._cascaded_edits)} cascaded)"
 
     def __repr__(self):
         return f"<Transaction {self}>"
 
     @property
     def has_edits(self) -> bool:
-        return len(self._edits) > 0 or self.has_pending_edits
+        raise NotImplementedError
 
     @property
     def has_pending_edits(self) -> bool:
-        return len(self._pending_edit_events) > 0 or len(self._pending_edits) > 0
+        raise NotImplementedError
 
     #
     # Transaction management
@@ -73,20 +73,6 @@ class Transaction:
 
         raise NotImplementedError
 
-    def _add_pending_edits(self, edits: Sequence[EditData]):
-        """Adds full edits to the transaction directly."""
-        self._pending_edits.extend(edits)
-
-    def _track_edits(self, edits: Sequence[EditData]):
-        """Tracks edits in our logical clock (local epoch)."""
-        # assign local epoch if we have one
-        epoch = self.session._local_epoch
-        assert epoch is not None, f"no local epoch for {self.session!r}"
-        for edit in edits:
-            edit.epoch = epoch
-            epoch += 1
-        self.session._local_epoch = epoch
-
     @tracer.start_as_current_span("transaction.flush")
     async def flush(
         self, filter: Callable[[EditData], bool] | None = None
@@ -101,7 +87,4 @@ class Transaction:
 
     def reset(self):
         """Resets the transaction, any edits and connectors (without closing)."""
-        self._edits = []
-        self._cascaded_edits = []
-        self._pending_edit_events = []
-        self._touched_engine_ids.clear()
+        raise NotImplementedError

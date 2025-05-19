@@ -154,7 +154,7 @@ class SelectOptions(Struct):
         """Get the selected (member) fields for a table."""
         fields: list[Field] = []
         for field in self.select_fields:
-            if field.parent_id == table.id and field.type == FieldType.MEMBER:
+            if field.parent_id == table.id and field.type == FieldType.VARIABLE:
                 fields.append(field)
         return fields
 
