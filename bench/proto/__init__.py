@@ -1,22 +1,15 @@
 from ..pb2 import *  # noqa: F403
 from .core import (
-    Message,
     ProtoEnum,
     ProtoEnumValue,
     ProtoField,
     ProtoFieldType,
+    ProtoMessage,
     ProtoSchema,
     ProtoThing,
 )
-from .engine import (
-    PROTO_FIELD_TYPE_BY_PRIMITIVE_TYPE,
-    generate_proto_schema,
-    map_bench_property_to_proto,
-    map_builtin_enum_to_proto,
-    map_builtin_object_to_proto,
-    map_object_type_to_proto,
-)
 from .health import HealthService
+from .map import PROTO_FIELD_TYPE_BY_PRIMITIVE_TYPE, generate_proto_schema
 from .network import (
     COMPUTER_ENVIRONMENT,
     IS_IN_DOCKER,
@@ -58,13 +51,13 @@ __all__ = [
     "PROTO_FIELD_TYPE_BY_PRIMITIVE_TYPE",
     "GrpcServer",
     "HealthService",
-    "Message",
     "Network",
     "NullNetwork",
     "ProtoEnum",
     "ProtoEnumValue",
     "ProtoField",
     "ProtoFieldType",
+    "ProtoMessage",
     "ProtoSchema",
     "ProtoThing",
     "RealNetwork",
@@ -75,10 +68,6 @@ __all__ = [
     "get_rpc_headers",
     "get_rpc_metadata",
     "localize_url",
-    "map_bench_property_to_proto",
-    "map_builtin_enum_to_proto",
-    "map_builtin_object_to_proto",
-    "map_object_type_to_proto",
     "minikubeify_url",
     "pack_and_set_object_prop",
     "pack_builtin_object",

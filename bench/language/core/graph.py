@@ -15,7 +15,7 @@ import structlog
 from fastuuid import UUID
 from opentelemetry import trace
 
-from bench.pb2 import AnyNodeData, GraphScopeData
+from bench.pb2 import AnyNodeData, ScopeData
 
 from .const import EMPTY_LIST, NodeType, ObjectType, bittuple
 
@@ -49,7 +49,7 @@ class _GraphBase[K: str | UUID, V: AnyNodeData | Node](abc.ABC):
 
     def __init__(
         self,
-        scope: GraphScopeData,
+        scope: ScopeData,
         node_types: Collection[NodeType],
         *,
         nodes: Collection[V] | None = None,
@@ -375,7 +375,7 @@ class Graph(_GraphBase[UUID, "Node"]):
 
     def __init__(
         self,
-        scope: GraphScopeData,
+        scope: ScopeData,
         node_types: Collection[NodeType],
         supergraph: "Supergraph",
         *,

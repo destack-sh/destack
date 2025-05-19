@@ -28,7 +28,6 @@ from bench.language.registry import (
     CHILD_NODE_TYPES,
     DESCENDANT_NODE_TYPES,
     HAS_CHILD_NODE_TYPES,
-    NODE_CLASS_BY_NAME,
     NODE_CLASS_BY_TYPE,
 )
 from bench.pb2 import AnyNodeData, NodeReferenceData
@@ -142,7 +141,6 @@ def node_component_(
                     f"node class conflict for {node_type}: {cls}, {NODE_CLASS_BY_TYPE[node_type]}"
                 )
             NODE_CLASS_BY_TYPE[node_type] = cls
-            NODE_CLASS_BY_NAME[cls.__name__] = cls
 
         return cls
 

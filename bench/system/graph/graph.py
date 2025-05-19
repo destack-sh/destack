@@ -59,9 +59,9 @@ from bench.proto import (
     GetNodesRequest,
     GetNodesResponse,
     GraphBase,
-    GraphScopeData,
     Network,
     NodeReferenceData,
+    ScopeData,
     SearchNodesRequest,
     SearchNodesResponse,
     ServiceBase,
@@ -112,7 +112,7 @@ class CommitScope:
     scopes_by_base_and_type: dict[tuple[UUID | None, NodeType], list[NodeReference]] = (
         dataclasses.field(default_factory=dict)
     )
-    graph_scopes: tuple[GraphScopeData, ...] = dataclasses.field(default_factory=tuple)
+    graph_scopes: tuple[ScopeData, ...] = dataclasses.field(default_factory=tuple)
 
     def add_scope(self, node_ptr: NodeReference | NodeReferenceData) -> None:
         if not isinstance(node_ptr, NodeReference):
@@ -192,7 +192,7 @@ class GraphServiceBase(ServiceBase, GraphBase, abc.ABC):
         tracer: trace.Tracer,
         network: Network,
         oracle: Oracle,
-        scope: GraphScopeData,
+        scope: ScopeData,
         on_error: Callable[[BaseException], None] | None = None,
     ):
         super().__init__(
@@ -220,7 +220,7 @@ class GraphServiceBase(ServiceBase, GraphBase, abc.ABC):
 
     def _validate_request(self, request: ProtoMessage) -> None:
         """Validate a request message for this service."""
-        scope: GraphScopeData = getattr(request, "scope", None) or EMPTY_SCOPE_DATA
+        scope: ScopeData = getattr(request, "scope", None) or EMPTY_SCOPE_DATA
         if to_uuid(scope.bench_id) != self.bench_id:
             raise GRPCError(
                 GRPCStatus.INVALID_ARGUMENT, f"scope mismatch: {scope.bench_id} != {self.bench_id}"
@@ -365,7 +365,7 @@ class GraphServiceBase(ServiceBase, GraphBase, abc.ABC):
         self,
         *,
         area: "CommitScope",
-        scope: GraphScopeData,
+        scope: ScopeData,
         supergraph: Supergraph,
         context: IsRuntime,
         edits: Sequence[EditData],
@@ -809,7 +809,7 @@ class GraphServiceBase(ServiceBase, GraphBase, abc.ABC):
         edited_node_ids: set[str] = set()
         node_types: set[NodeType] = set()
         node_scopes_by_id: dict[str, NodeReferenceData] = {}
-        graph_scopes: dict[int, GraphScopeData] = {}
+        graph_scopes: dict[int, ScopeData] = {}
         in_tx_created_nodes_ids: set[str] = set()
 
         for edit in edits:

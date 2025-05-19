@@ -1,25 +1,22 @@
 import enum
-from typing import TYPE_CHECKING, Any, Collection, Sequence, Union, cast
+from typing import TYPE_CHECKING, Any, Collection, Sequence, cast
 
 from bench.language import (
-    BENCH_CLASS_BY_TYPE,
-    FINAL_BENCH_CLASSES,
-    NODE_CLASS_BY_TYPE,
-    STRUCT_CLASS_BY_TYPE,
+    BenchType,
+    BuiltinEnum,
     BuiltinObject,
-    EnumType,
     Node,
     PrimitiveType,
 )
-from bench.language.core import BuiltinEnum
+from bench.language.registry import BENCH_CLASS_BY_TYPE
 from bench.utils.string import Casing, to_casing
 
 from .core import (
-    Message,
     ProtoEnum,
     ProtoEnumValue,
     ProtoField,
     ProtoFieldType,
+    ProtoMessage,
     ProtoSchema,
     ProtoThing,
 )
@@ -31,6 +28,8 @@ if TYPE_CHECKING:
 # Map Bench types to Proto types
 # We map and walk at the same type for simplicity (using the cache)
 #
+
+VARIABLE_PROPERTY_OFFSET = 17000
 
 PROTO_FIELD_TYPE_BY_PRIMITIVE_TYPE: dict[PrimitiveType, ProtoFieldType] = {
     PrimitiveType.BOOLEAN: ProtoFieldType.BOOL,
@@ -48,15 +47,13 @@ PROTO_FIELD_TYPE_BY_PRIMITIVE_TYPE: dict[PrimitiveType, ProtoFieldType] = {
     PrimitiveType.JSON: ProtoFieldType.VALUE,
 }
 
-_ThingType = type[Union["BuiltinObject", "Property", BuiltinEnum, enum.IntFlag]]
 
-
-def map_bench_property_to_proto(
-    prop: "Property", cache: dict[_ThingType, ProtoThing]
+def _map_bench_property_to_proto(
+    prop: "Property", cache: dict[BenchType, ProtoThing]
 ) -> ProtoField | Sequence[ProtoField]:
     assert prop.id == 1 or prop.is_wired, f"shouldn't map runtime property: {prop!r}"
     assert isinstance(prop.id, int), f"stored properties need an id: {prop!r}"
-    if prop.is_node_reference:
+    if prop.node_kind:
         return ProtoField(
             id=prop.id,
             name=prop.name,
@@ -64,9 +61,11 @@ def map_bench_property_to_proto(
             optional=prop.is_optional or prop.is_sensitive,
             repeated=prop.is_list,
         )
-    elif prop.is_struct or prop.is_enum:
-        proto_t = map_object_type_to_proto(prop.py_type, cache)
-        assert isinstance(proto_t, (ProtoEnum, Message)), f"unexpected property type: {proto_t!r}"
+    elif bench_type := prop.struct_type or prop.enum_type:
+        proto_t = _map_object_type_to_proto(bench_type, cache)
+        assert isinstance(
+            proto_t, (ProtoEnum, ProtoMessage)
+        ), f"unexpected property type: {proto_t!r}"
         return ProtoField(
             id=prop.id,
             name=prop.name,
@@ -95,24 +94,27 @@ def map_bench_property_to_proto(
         raise TypeError(f"cannot map to proto type: {prop!r}")
 
 
-def map_builtin_object_to_proto(
+def _map_builtin_object_to_proto(
+    bench_type: BenchType,
     cls: type[BuiltinObject],
-    cache: dict[_ThingType, ProtoThing],
+    cache: dict[BenchType, ProtoThing],
     alias: str | None = None,
     properties: Sequence["Property"] | None = None,
-) -> Message:
-    if cls in cache:
-        message = cache[cls]
-        assert isinstance(message, Message), f"unexpected cached {message!r} for {cls!r}"
+) -> ProtoMessage:
+    if bench_type in cache:
+        message = cache[bench_type]
+        assert isinstance(message, ProtoMessage), f"unexpected cached {message!r} for {cls!r}"
         return message
-    message = Message(name=alias or cls.__name__, reserved_names=[], reserved_ids=[], fields=[])
+    message = ProtoMessage(
+        name=alias or cls.__name__, reserved_names=[], reserved_ids=[], fields=[]
+    )
     doc = cls.__doc__ if issubclass(cls, Node) else None
     message.comment = (doc or "").strip()
-    cache[cls] = message  # to solve recursive references
+    cache[bench_type] = message  # to solve recursive references
     for prop in properties if properties is not None else cls.__properties__.values():
-        if not prop.is_wired:
+        if not prop.is_wired or prop.ptr_prop is not None:
             continue
-        fields = map_bench_property_to_proto(prop, cache)
+        fields = _map_bench_property_to_proto(prop, cache)
         if isinstance(fields, ProtoField):
             fields = [fields]
         message.fields.extend(fields)
@@ -120,9 +122,9 @@ def map_builtin_object_to_proto(
     return message
 
 
-def map_builtin_enum_to_proto(
+def _map_builtin_enum_to_proto(
     bench_t: type[BuiltinEnum] | type[enum.IntFlag],
-    cache: dict[_ThingType, ProtoThing],
+    cache: dict[BenchType, ProtoThing],
     alias: str | None = None,
 ) -> ProtoEnum:
     assert issubclass(
@@ -153,78 +155,68 @@ def map_builtin_enum_to_proto(
     return proto_t
 
 
-def map_object_type_to_proto(
-    bench_t: _ThingType, cache: dict[_ThingType, ProtoThing], alias: str | None = None
+def _map_object_type_to_proto(
+    bench_type: BenchType, cache: dict[BenchType, ProtoThing], alias: str | None = None
 ) -> ProtoThing:
     """Maps a Bench type to a Proto type. If not yet mapped, adds it to the cache."""
     from bench.language import BuiltinObject
 
-    assert isinstance(bench_t, type), f"invalid type: {bench_t!r}"
-    if bench_t in cache:
-        return cache[bench_t]
-    if issubclass(bench_t, BuiltinObject):
-        ret = map_builtin_object_to_proto(bench_t, cache, alias=alias)
-    elif issubclass(bench_t, BuiltinEnum):
-        ret = map_builtin_enum_to_proto(bench_t, cache, alias=alias)
+    bench_cls = BENCH_CLASS_BY_TYPE[bench_type]
+    if bench_type in cache:
+        return cache[bench_type]
+    if issubclass(bench_cls, BuiltinObject):
+        ret = _map_builtin_object_to_proto(bench_type, bench_cls, cache, alias=alias)
+    elif issubclass(bench_cls, BuiltinEnum):
+        ret = _map_builtin_enum_to_proto(bench_cls, cache, alias=alias)
     else:
-        raise TypeError(f"invalid bench type: {bench_t!r}")
-    cache[bench_t] = ret
+        raise TypeError(f"invalid bench type: {bench_cls!r}")
+    cache[bench_type] = ret
     return ret
 
 
 def generate_proto_schema(
     name: str,
-    unions: dict[str, tuple[str, Collection[type[Union["BuiltinObject", BuiltinEnum]]]]],
-    extras: list[ProtoEnum | Message],
+    unions: dict[str, tuple[str, Collection[BenchType]]],
+    extras: list[ProtoEnum | ProtoMessage],
     message_postfix: str,
 ) -> ProtoSchema:
-    from bench.language import Node
+    # walk all bench types to populate the cache
+    cache: dict[BenchType, ProtoThing] = {}
+    for bench_type in BENCH_CLASS_BY_TYPE:
+        cache[bench_type] = _map_object_type_to_proto(bench_type, cache)
+    assert len(cache) == len(BENCH_CLASS_BY_TYPE)
 
-    proto_types_cache: dict[_ThingType, ProtoThing] = {}
-    proto_types: list[ProtoEnum | Message] = []
-    # enums
-    for enum_t in EnumType:
-        enum_cls = cast(type[BuiltinEnum], BENCH_CLASS_BY_TYPE[enum_t])
-        proto_types.append(map_builtin_enum_to_proto(enum_cls, proto_types_cache))
-    # structs
-    for struct_cls in STRUCT_CLASS_BY_TYPE.values():
-        proto_types.append(map_builtin_object_to_proto(struct_cls, proto_types_cache))
-    # nodes
-    proto_types.append(map_builtin_object_to_proto(Node, proto_types_cache, alias="BaseNode"))
-    for node_cls in NODE_CLASS_BY_TYPE.values():
-        proto_types.append(map_builtin_object_to_proto(node_cls, proto_types_cache))
-    # additional types
-    for cls in FINAL_BENCH_CLASSES:
-        if cls not in proto_types_cache:
-            _ = map_object_type_to_proto(cls, proto_types_cache)
-    for proto_thing in proto_types_cache.values():
-        if proto_thing not in proto_types:
-            proto_types.append(proto_thing)  # type: ignore
+    # collect all proto types
+    proto_types: list[ProtoEnum | ProtoMessage] = []
+    for proto_type in cache.values():
+        if isinstance(proto_type, (ProtoEnum, ProtoMessage)):
+            proto_types.append(proto_type)
+    # sort: enum -> struct -> node (and by name within each group)
+    proto_types.sort(key=lambda t: (isinstance(t, ProtoMessage), isinstance(t, ProtoEnum), t.name))
 
     # add custom union types
     for union_name, (wrapper_field_name, unioned_types) in unions.items():
         sub_fields = [
             ProtoField(
-                id=i + 1,
-                name=to_casing(t.__name__, Casing.SNAKE),
-                type=cast(Any, map_object_type_to_proto(t, proto_types_cache)),
+                id=t.value,
+                name=to_casing(t.name, Casing.SNAKE),
+                type=cast(Any, _map_object_type_to_proto(t, cache)),
             )
-            for i, t in enumerate(unioned_types)
+            for t in unioned_types
         ]
         wrapper_field = ProtoField(
             id=None, name=wrapper_field_name, type=ProtoFieldType.ONE_OF, sub_fields=sub_fields
         )
-        wrapper_message = Message(
+        wrapper_message = ProtoMessage(
             name=union_name, reserved_names=[], reserved_ids=[], fields=[wrapper_field]
         )
         proto_types.append(wrapper_message)
-    # and other extra types
     proto_types.extend(extras)
 
     # apply postfix to messages
     if message_postfix:
         for proto_type in proto_types:
-            if isinstance(proto_type, Message) and proto_type not in extras:
+            if isinstance(proto_type, ProtoMessage) and proto_type not in extras:
                 proto_type.name += message_postfix
 
     return ProtoSchema.from_types(name, proto_types)

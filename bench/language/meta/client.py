@@ -19,7 +19,7 @@ from bench.language.core import (
     p_system,
     struct_,
 )
-from bench.pb2 import ClientData, ClientOriginData
+from bench.pb2 import ClientData, OriginData
 
 if TYPE_CHECKING:
     from bench.language import Bench, Computer, Cursor, Space, User
@@ -84,14 +84,15 @@ class Client(IsNamed, Node[ClientData]):
                 value_parts.append(value)
         return ", ".join(value_parts)
 
-    def to_origin(self, *, nonce: UUID | None) -> "ClientOrigin":
-        return ClientOrigin(type=self.type, id=self.id, nonce=nonce or self.id)
+    def to_origin(self, *, nonce: UUID | None) -> "Origin":
+        return Origin(type=self.type, id=self.id, nonce=nonce or self.id)
 
 
-@struct_(StructType.CLIENT_ORIGIN)
-class ClientOrigin(Struct[ClientOriginData]):
-    """Information to identify a Client."""
+@struct_(StructType.ORIGIN)
+class Origin(Struct[OriginData]):
+    """Origin of something."""
 
     type: ClientType = p_internal(30)
     id: Optional[UUID] = p_internal(31)
-    nonce: Optional[UUID] = p_internal(32)
+    ck: Optional[UUID] = p_internal(32)
+    nonce: Optional[UUID] = p_internal(33)

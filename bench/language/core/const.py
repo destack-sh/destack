@@ -304,7 +304,6 @@ class EnumType(BuiltinEnum):
     BENCH_TYPE = 40004
     NODE_MODE = 40005
     NODE_AREA = 40006
-    CHANGE_CATEGORY = 40009
     USER_STATUS = 40010
     ORGANIZATION_STATUS = 40011
     BENCH_STATUS = 40056
@@ -494,7 +493,7 @@ class StructType(BuiltinEnum):
     SCOPE = 20000
     EDIT = 20001
     EDIT_OPERATION = 20002
-    CLIENT_ORIGIN = 20003
+    ORIGIN = 20003
     NODE_REFERENCE = 20004
     PROPERTY_REFERENCE = 20005
     VARIABLE = 20006  # nocheckin: Variables
@@ -1237,14 +1236,6 @@ class QueryType(BuiltinEnum):
     GET = 1
     """Search all nodes."""
     SEARCH = 2
-
-
-@enum_(EnumType.CHANGE_CATEGORY)
-class ChangeCategory(BuiltinEnum):
-    """Optional classification for edits."""
-
-    SPACE = 10
-    RUNTIME = 20
 
 
 @enum_(EnumType.EDIT_OPERATION_TYPE)

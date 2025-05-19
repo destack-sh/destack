@@ -93,9 +93,9 @@ export interface BadgeInfo {
     password?: string;
 }
 /**
- * @generated from protobuf message symbol.bench.LocalNodeGraph
+ * @generated from protobuf message symbol.bench.LocalGraph
  */
-export interface LocalNodeGraph {
+export interface LocalGraph {
     /**
      * @generated from protobuf field: symbol.bench.SomeNodeData root = 1;
      */
@@ -182,9 +182,9 @@ export interface LocalStorage {
     /**
      * Any local graphs.
      *
-     * @generated from protobuf field: repeated symbol.bench.LocalNodeGraph local_graphs = 15;
+     * @generated from protobuf field: repeated symbol.bench.LocalGraph local_graphs = 15;
      */
-    localGraphs: LocalNodeGraph[];
+    localGraphs: LocalGraph[];
     // 
     // Debug
     // 
@@ -444,21 +444,21 @@ class BadgeInfo$Type extends MessageType<BadgeInfo> {
  */
 export const BadgeInfo = new BadgeInfo$Type();
 // @generated message type with reflection information, may provide speed optimized methods
-class LocalNodeGraph$Type extends MessageType<LocalNodeGraph> {
+class LocalGraph$Type extends MessageType<LocalGraph> {
     constructor() {
-        super("symbol.bench.LocalNodeGraph", [
+        super("symbol.bench.LocalGraph", [
             { no: 1, name: "root", kind: "message", T: () => SomeNodeData },
             { no: 2, name: "nodes", kind: "message", repeat: 1 /*RepeatType.PACKED*/, T: () => SomeNodeData }
         ]);
     }
-    create(value?: PartialMessage<LocalNodeGraph>): LocalNodeGraph {
+    create(value?: PartialMessage<LocalGraph>): LocalGraph {
         const message = globalThis.Object.create((this.messagePrototype!));
         message.nodes = [];
         if (value !== undefined)
-            reflectionMergePartial<LocalNodeGraph>(this, message, value);
+            reflectionMergePartial<LocalGraph>(this, message, value);
         return message;
     }
-    internalBinaryRead(reader: IBinaryReader, length: number, options: BinaryReadOptions, target?: LocalNodeGraph): LocalNodeGraph {
+    internalBinaryRead(reader: IBinaryReader, length: number, options: BinaryReadOptions, target?: LocalGraph): LocalGraph {
         let message = target ?? this.create(), end = reader.pos + length;
         while (reader.pos < end) {
             let [fieldNo, wireType] = reader.tag();
@@ -480,7 +480,7 @@ class LocalNodeGraph$Type extends MessageType<LocalNodeGraph> {
         }
         return message;
     }
-    internalBinaryWrite(message: LocalNodeGraph, writer: IBinaryWriter, options: BinaryWriteOptions): IBinaryWriter {
+    internalBinaryWrite(message: LocalGraph, writer: IBinaryWriter, options: BinaryWriteOptions): IBinaryWriter {
         /* symbol.bench.SomeNodeData root = 1; */
         if (message.root)
             SomeNodeData.internalBinaryWrite(message.root, writer.tag(1, WireType.LengthDelimited).fork(), options).join();
@@ -494,9 +494,9 @@ class LocalNodeGraph$Type extends MessageType<LocalNodeGraph> {
     }
 }
 /**
- * @generated MessageType for protobuf message symbol.bench.LocalNodeGraph
+ * @generated MessageType for protobuf message symbol.bench.LocalGraph
  */
-export const LocalNodeGraph = new LocalNodeGraph$Type();
+export const LocalGraph = new LocalGraph$Type();
 // @generated message type with reflection information, may provide speed optimized methods
 class DeveloperSettings$Type extends MessageType<DeveloperSettings> {
     constructor() {
@@ -556,7 +556,7 @@ class LocalStorage$Type extends MessageType<LocalStorage> {
             { no: 11, name: "bench_ptr", kind: "message", T: () => NodeReferenceData },
             { no: 12, name: "package_ptrs", kind: "message", repeat: 1 /*RepeatType.PACKED*/, T: () => NodeReferenceData },
             { no: 13, name: "space_ptrs", kind: "message", repeat: 1 /*RepeatType.PACKED*/, T: () => NodeReferenceData },
-            { no: 15, name: "local_graphs", kind: "message", repeat: 1 /*RepeatType.PACKED*/, T: () => LocalNodeGraph },
+            { no: 15, name: "local_graphs", kind: "message", repeat: 1 /*RepeatType.PACKED*/, T: () => LocalGraph },
             { no: 20, name: "developer_settings", kind: "message", T: () => DeveloperSettings }
         ]);
     }
@@ -599,8 +599,8 @@ class LocalStorage$Type extends MessageType<LocalStorage> {
                 case /* repeated symbol.bench.NodeReferenceData space_ptrs */ 13:
                     message.spacePtrs.push(NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options));
                     break;
-                case /* repeated symbol.bench.LocalNodeGraph local_graphs */ 15:
-                    message.localGraphs.push(LocalNodeGraph.internalBinaryRead(reader, reader.uint32(), options));
+                case /* repeated symbol.bench.LocalGraph local_graphs */ 15:
+                    message.localGraphs.push(LocalGraph.internalBinaryRead(reader, reader.uint32(), options));
                     break;
                 case /* optional symbol.bench.DeveloperSettings developer_settings */ 20:
                     message.developerSettings = DeveloperSettings.internalBinaryRead(reader, reader.uint32(), options, message.developerSettings);
@@ -641,9 +641,9 @@ class LocalStorage$Type extends MessageType<LocalStorage> {
         /* repeated symbol.bench.NodeReferenceData space_ptrs = 13; */
         for (let i = 0; i < message.spacePtrs.length; i++)
             NodeReferenceData.internalBinaryWrite(message.spacePtrs[i], writer.tag(13, WireType.LengthDelimited).fork(), options).join();
-        /* repeated symbol.bench.LocalNodeGraph local_graphs = 15; */
+        /* repeated symbol.bench.LocalGraph local_graphs = 15; */
         for (let i = 0; i < message.localGraphs.length; i++)
-            LocalNodeGraph.internalBinaryWrite(message.localGraphs[i], writer.tag(15, WireType.LengthDelimited).fork(), options).join();
+            LocalGraph.internalBinaryWrite(message.localGraphs[i], writer.tag(15, WireType.LengthDelimited).fork(), options).join();
         /* optional symbol.bench.DeveloperSettings developer_settings = 20; */
         if (message.developerSettings)
             DeveloperSettings.internalBinaryWrite(message.developerSettings, writer.tag(20, WireType.LengthDelimited).fork(), options).join();

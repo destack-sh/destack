@@ -1,4 +1,3 @@
-import dataclasses
 from datetime import datetime
 from typing import TYPE_CHECKING, Any, Collection, Optional
 
@@ -8,21 +7,19 @@ from opentelemetry import trace
 
 from bench.pb2 import (
     AnyNodeData,
-    ClientOriginData,
     EditData,
     EditOperationData,
-    GraphScopeData,
 )
 
 from .const import EditOperationType, EditType, PrimitiveType, StructType
 from .graph import Graph, GraphData
-from .node import Node, NodeReference, Subject
+from .node import Node, Subject
 from .object import Scope
 from .property import p_regular, p_system
 from .struct import Struct, struct_
 
 if TYPE_CHECKING:
-    from bench.language import ChangeCategory, ClientOrigin, Run, Supergraph
+    from bench.language import Origin, Supergraph
 
 logger = structlog.get_logger(__name__)
 tracer = trace.get_tracer(__name__)
@@ -68,34 +65,8 @@ class Edit(Struct):
     # meta
     scope: Scope = p_system(60, description="Enclosing scope of the Edit.")
     change_key: UUID | None = p_system(61, description="The Change that this Edit is part of.")
-    category: "ChangeCategory | None" = p_system(
-        62, description="Optional classification for the Edit."
-    )
     subject: Optional[Subject] = p_system(63, description="Who made the Edit.")
-    origin: "ClientOrigin | None" = p_system(64, description="Where the Edit came from.")
-
-
-@dataclasses.dataclass(slots=True)
-class EditEvent:
-    """
-    A compact representation of an Edit that we summarize into actual Edits on flush.
-    """
-
-    node: Node
-    type: EditType
-    subject_ptr: NodeReference | None
-    origin: ClientOriginData | None
-    run: "Run | None"
-    now: datetime
-    scope: GraphScopeData
-    node_data: AnyNodeData | None = None
-    operations: list[EditOperationData] | None = None
-
-    def __str__(self):
-        return f"{self.type.bench_name} {self.node!r}"
-
-    def __repr__(self):
-        return f"<EditEvent {self}>"
+    origin: Optional["Origin"] = p_system(64, description="Where the Edit came from.")
 
 
 def apply_edit_operation(node: Node, op: EditOperationData, validate: bool) -> None:

@@ -62,7 +62,7 @@ from bench.language import (
 )
 from bench.utils.string import Casing, to_casing
 
-from .engine import generate_proto_schema
+from .map import generate_proto_schema
 
 LANG_PROTO = "proto/lang.proto"
 TEMP_PY_DIR = "bench/pb2.tmp"
@@ -74,7 +74,6 @@ EXTRA_PROTO_PY_FILES = (
     "proto/health.proto",
     "proto/system.proto",
     "proto/runtime.proto",
-    "proto/computer.proto",
     "proto/google/type/date.proto",
     "proto/google/type/datetime.proto",
     "proto/google/type/timeofday.proto",
@@ -102,11 +101,9 @@ def run_shell_sync(cmd: str, check=True, **kwargs):
 
 def _gen_proto_schema() -> str:
     """Generate the .proto schema (as a string) describing the current Bench types."""
-    node_classes = list(NODE_CLASSES)
-    node_classes.sort(key=lambda cls: cls.metatype.id)
     proto = generate_proto_schema(
         name="symbol.bench",
-        unions={"SomeNode": ("node", node_classes)},
+        unions={"SomeNode": ("node", NODE_TYPES)},
         extras=[],
         message_postfix="Data",
     )
@@ -235,8 +232,6 @@ from .system_grpc import *
 from .health_grpc import *
 from .lang_pb2 import *
 from .system_pb2 import *
-from .computer_pb2 import *
-from .computer_grpc import *
 from .google.type.date_pb2 import *
 from .google.type.timeofday_pb2 import *
 from .google.type.datetime_pb2 import *
@@ -505,11 +500,8 @@ export type PropertyInfo = {
                 "isList",
                 "isRequired",
                 "isInternal",
-                "isSystem",
-                "isKernel",
                 "isAutoset",
                 "isComputed",
-                "isRuntime",
                 "isWired",
                 "isStored",
                 "isUnique",
@@ -517,9 +509,6 @@ export type PropertyInfo = {
             ):
                 if getattr(prop, to_casing(flag, Casing.SNAKE)):
                     prop_info_parts[flag] = "true"
-            for value_flag in ("isValueRuntime", "isValuePacked"):
-                if getattr(prop, to_casing(value_flag, Casing.SNAKE)):
-                    prop_info_parts[value_flag] = "true"
             if prop.node_kind:
                 prop_info_parts["referenceKind"] = f"ReferenceKind.{prop.node_kind.name}"
             if prop.node_types:

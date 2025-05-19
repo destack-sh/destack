@@ -11,7 +11,7 @@ import "proto/lang.proto";
 //
 
 message GetNodesRequest {
-  GraphScopeData scope = 1;
+  ScopeData scope = 1;
   // The 'root' nodes to get around.
   repeated NodeReferenceData roots = 2;  // must be of same type
   // The relevant base type (if any).
@@ -44,7 +44,7 @@ message GetNodesResponse {
 //  (currently we assume added/removed_nodes, then edits, then cascaded_edits for updates)
 
 message WatchGetRequest {
-  GraphScopeData scope = 1;
+  ScopeData scope = 1;
   // The connection to watch. Must already exist.
   string connection_token = 2;
   // Get any updates in between the original request and this one.
@@ -66,7 +66,7 @@ message WatchGetResponse {
 }
 
 message SearchNodesRequest {
-  GraphScopeData scope = 1;
+  ScopeData scope = 1;
   // The type of node to search.
   NodeType node_type = 2;
   // The relevant base type (if any).
@@ -102,7 +102,7 @@ message SearchNodesResponse {
 }
 
 message WatchSearchRequest {
-  GraphScopeData scope = 1;
+  ScopeData scope = 1;
   // The connection to watch. Must already exist.
   string connection_token = 2;
   // Get any updates in between the original request and this one.
@@ -129,13 +129,11 @@ message WatchSearchResponse {
 }
 
 message CommitTransactionRequest {
-  GraphScopeData scope = 1;
+  ScopeData scope = 1;
   // UUIDT of the transaction.
   string id = 2;
   // All the edits for all the changes in order.
   repeated EditData edits = 3;
-  // Extra session context (with any info not contained in EditContext, like computer/server).
-  optional ContextData context = 4;
 }
 message CommitTransactionResponse {
   // Any cascaded edits.
@@ -317,7 +315,7 @@ enum ComputerEnvironment {
 }
 
 message UploadFilesRequest {
-  GraphScopeData scope = 1;
+  ScopeData scope = 1;
   repeated FileData files = 2;
   optional ComputerEnvironment environment = 3;
 }
@@ -333,7 +331,7 @@ message UploadFilesResponse {
 }
 
 message DownloadFilesRequest {
-  GraphScopeData scope = 1;
+  ScopeData scope = 1;
   repeated NodeReferenceData files = 2;
   optional ComputerEnvironment environment = 3;
 }

@@ -19,7 +19,7 @@ class ProtoSchema(ProtoThing):
 
     name: str
     imports: list[str]
-    types: list[Union["ProtoEnum", "Message"]]
+    types: list[Union["ProtoEnum", "ProtoMessage"]]
 
     def to_proto_source(self) -> str:
         """Convert to proto source."""
@@ -32,7 +32,7 @@ class ProtoSchema(ProtoThing):
         return source
 
     @staticmethod
-    def from_types(name: str, types: list[Union["ProtoEnum", "Message"]]) -> "ProtoSchema":
+    def from_types(name: str, types: list[Union["ProtoEnum", "ProtoMessage"]]) -> "ProtoSchema":
         """Create a proto file from types. Figures out imports."""
         # just add default imports for all the well-known types we use
         imports = [
@@ -52,7 +52,7 @@ def _to_multi_line_comment(comment: str) -> str:
 
 
 @dataclass
-class Message(ProtoThing):
+class ProtoMessage(ProtoThing):
     """Proto message."""
 
     name: str
@@ -142,7 +142,7 @@ class ProtoEnumValue(ProtoThing):
 class ProtoField(ProtoThing):
     id: int | None
     name: str
-    type: ProtoFieldType | ProtoEnum | Message | str
+    type: ProtoFieldType | ProtoEnum | ProtoMessage | str
     optional: bool = False
     repeated: bool = False
     key_type: ProtoFieldType | None = None  # for map
@@ -166,7 +166,7 @@ class ProtoField(ProtoThing):
                 type += f"  {sub_field.to_proto_source()};\n"
             type += "}"
             return type  # no id for one of
-        elif isinstance(self.type, (ProtoEnum, Message)):
+        elif isinstance(self.type, (ProtoEnum, ProtoMessage)):
             type = f"{prefix}{self.type.name}"
         elif isinstance(self.type, ProtoFieldType):
             type = f"{prefix}{self.type.value}"

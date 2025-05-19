@@ -101,12 +101,6 @@ def unpack_enum[EnumT: BuiltinEnumOrUnion](enum_cls: type[EnumT], value: Any) ->
     return enum_cls(value)
 
 
-#
-# NOTE :Performance: we could generate static pack/unpack functions for each object type
-#  (all this non-linear dynamic dispatch is not very fast)
-#
-
-
 def pack_builtin_object_prop_scalar(obj: BuiltinObject, prop: Property, value: Any) -> Any:
     if value is None:
         return None
@@ -273,7 +267,6 @@ def unpack_builtin_object[T: BuiltinObject](
     expect: type[T] | None = None,
     supergraph: Supergraph | None,
     session: Session | None = None,
-    connection: "Connection | None" = None,
     # for nodes
     graph: Graph | None = None,
     # NOTE: by default new Nodes add themselves to their graph, but during
@@ -282,37 +275,7 @@ def unpack_builtin_object[T: BuiltinObject](
     skip_add_self: bool = True,
 ) -> T:
     """Unpack a builtin object and any contained structs without validating."""
-    supergraph = supergraph or NULL_SUPERGRAPH
-    assert obj_data.metatype, f"missing metatype for {type(obj_data)}: {obj_data!r}"
-    object_cls = BUILTIN_OBJECT_CLASS_BY_TYPE[obj_data.metatype]  # type: ignore
-    if expect and not issubclass(object_cls, expect):
-        raise RuntimeError(f"expected {expect} but got {object_cls}")
-    object_kwargs = {}
-    try:
-        for prop in object_cls.__wired_properties__.values():
-            if not prop.is_wired or prop.is_computed:
-                continue
-            if prop.is_optional_scalar and not obj_data.HasField(prop.name):
-                continue
-            value = getattr(obj_data, prop.name)
-            object_kwargs[prop.name] = unpack_builtin_object_prop(
-                prop, value, supergraph=supergraph
-            )
-        object_kwargs["_supergraph"] = supergraph
-        if session is not None:
-            object_kwargs["_session"] = session
-        if object_cls.__is_node__:
-            if graph is not None:
-                object_kwargs["_graph"] = graph
-            if connection is not None:
-                object_kwargs["_connection"] = connection
-            object_kwargs["_skip_add_self"] = skip_add_self
-        obj = object_cls(**object_kwargs, _skip_validate_self=not validate)
-        if session is not None and isinstance(obj, Node):
-            obj._track_self(session)
-        return cast(T, obj)
-    except (AssertionError, AttributeError, TypeError, ValueError, KeyError) as e:
-        raise ValueError(f"could not unpack {type(obj_data).__name__}: {obj_data!r}") from e
+    raise NotImplementedError
 
 
 def unpack_builtin_object_validate[T: BuiltinObject](
@@ -355,7 +318,6 @@ def unpack_graph(
     parent: Node | None = None,
     session: Session | None = None,
     exclude: set[NodeType] | tuple[NodeType, ...] | None = (),
-    connection: "Connection | None" = None,
 ) -> Graph:
     """Unpacks the node data(s) into a node graph."""
     trace.get_current_span().set_attribute("nodes", len(data_graph))
@@ -377,7 +339,6 @@ def unpack_graph(
                 node_data,
                 graph=graph,
                 supergraph=supergraph,
-                connection=connection,
                 expect=Node,
                 session=session,
             )

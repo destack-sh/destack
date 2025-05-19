@@ -1,6 +1,5 @@
 import functools
 from collections import defaultdict
-from itertools import chain
 from typing import TYPE_CHECKING, Callable, Union, cast
 
 from bench.utils.env import IS_DEV
@@ -8,6 +7,7 @@ from bench.utils.func import assert_collections_equal, get_subclasses
 
 from .core.const import (
     _ENUM_CLASS_BY_TYPE,
+    ENUM_TYPES,
     LOCAL_NODE_TYPES,
     NODE_TYPES,
     STRUCT_TYPES,
@@ -28,15 +28,11 @@ if TYPE_CHECKING:
 ENUM_CLASS_BY_TYPE = _ENUM_CLASS_BY_TYPE  # re-exported to avoid circular imports
 ENUM_TYPE_BY_CLASS: dict[type, EnumType] = {}
 NODE_CLASS_BY_TYPE: dict[NodeType, type["Node"]] = {}
-NODE_CLASS_BY_NAME: dict[str, type["Node"]] = {}
 STRUCT_CLASS_BY_TYPE: dict[StructType, type["Struct"]] = {}
 BUILTIN_OBJECT_CLASS_BY_TYPE: dict[ObjectType, type["BuiltinObject"]] = {}
 BUILTIN_OBJECT_TYPE_BY_CLASS: dict[type["BuiltinObject"], ObjectType] = {}
 BENCH_CLASS_BY_TYPE: dict[BenchType, type["Struct"] | type["Node"] | type[BuiltinEnum]] = {}
 BENCH_TYPE_BY_CLASS: dict[type[Union["BuiltinObject", BuiltinEnum]], BenchType] = {}
-FINAL_BENCH_CLASSES_BY_NAME: dict[str, type[Union["BuiltinObject", BuiltinEnum]]] = {}
-FINAL_BENCH_CLASSES: list[type[Union["BuiltinObject", BuiltinEnum]]] = []
-BENCH_CLASS_BY_NAME: dict[str, type[Union["BuiltinObject", BuiltinEnum]]] = {}
 BENCH_CLASSES: list[type[Union["BuiltinObject", BuiltinEnum]]] = []
 NODE_CLASSES: list[type["Node"]] = []
 STRUCT_CLASSES: list[type["Struct"]] = []
@@ -99,16 +95,7 @@ def _complete_bench_setup():
     #
 
     # populate known types (all nodes/classes + enums in the files they're defined in)
-    for bench_t in chain(NODE_CLASS_BY_TYPE.values(), STRUCT_CLASS_BY_TYPE.values()):
-        FINAL_BENCH_CLASSES_BY_NAME[bench_t.__name__] = bench_t
-        FINAL_BENCH_CLASSES.append(bench_t)
-    for bench_t in const.__dict__.values():
-        if isinstance(bench_t, type) and issubclass(bench_t, BuiltinEnum):
-            FINAL_BENCH_CLASSES_BY_NAME[bench_t.__name__] = bench_t
-            FINAL_BENCH_CLASSES.append(bench_t)
     BENCH_CLASSES.extend(get_subclasses(BuiltinObject))
-    for cls in BENCH_CLASSES:
-        BENCH_CLASS_BY_NAME[cls.__name__] = cls
     for node_t in NODE_TYPES:
         node_cls = NODE_CLASS_BY_TYPE[node_t]
         BUILTIN_OBJECT_CLASS_BY_TYPE[node_t] = node_cls
@@ -122,19 +109,11 @@ def _complete_bench_setup():
         BENCH_CLASS_BY_TYPE[struct_t] = STRUCT_CLASS_BY_TYPE[struct_t]
         BENCH_TYPE_BY_CLASS[STRUCT_CLASS_BY_TYPE[struct_t]] = struct_t
         STRUCT_CLASSES.append(STRUCT_CLASS_BY_TYPE[struct_t])
-
-    # check that we have all the enums & add them
-    missing_enums = set(EnumType) - set(ENUM_CLASS_BY_TYPE)
-    if missing_enums:
-        raise ValueError(f"missing enums: {missing_enums}")
-    for enum_type, enum_cls in ENUM_CLASS_BY_TYPE.items():
-        BENCH_CLASS_BY_NAME[enum_cls.__name__] = enum_cls
-        BENCH_CLASS_BY_TYPE[enum_type] = enum_cls
-        BENCH_TYPE_BY_CLASS[enum_cls] = enum_type
-        BENCH_CLASSES.append(enum_cls)
-        FINAL_BENCH_CLASSES_BY_NAME[enum_cls.__name__] = enum_cls
-        FINAL_BENCH_CLASSES.append(enum_cls)
-        ENUM_TYPE_BY_CLASS[enum_cls] = enum_type
+    for enum_type in ENUM_TYPES:
+        BENCH_CLASS_BY_TYPE[enum_type] = ENUM_CLASS_BY_TYPE[enum_type]
+        BENCH_TYPE_BY_CLASS[ENUM_CLASS_BY_TYPE[enum_type]] = enum_type
+        BENCH_CLASSES.append(ENUM_CLASS_BY_TYPE[enum_type])
+        ENUM_TYPE_BY_CLASS[ENUM_CLASS_BY_TYPE[enum_type]] = enum_type
 
     # determine node ancestry relationships (parent/child)
     parent_types: dict[NodeType, set[NodeType]] = {nt: set() for nt in NODE_TYPES}

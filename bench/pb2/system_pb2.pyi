@@ -38,7 +38,7 @@ class GetNodesRequest(_message.Message):
     NO_MEMORY_FIELD_NUMBER: _ClassVar[int]
     NO_CACHE_FIELD_NUMBER: _ClassVar[int]
     IS_OPTIONAL_FIELD_NUMBER: _ClassVar[int]
-    scope: _lang_pb2.GraphScopeData
+    scope: _lang_pb2.ScopeData
     roots: _containers.RepeatedCompositeFieldContainer[_lang_pb2.NodeReferenceData]
     base_type_ptr: _lang_pb2.NodeReferenceData
     ancestor_types: _containers.RepeatedScalarFieldContainer[_lang_pb2.NodeType]
@@ -48,7 +48,7 @@ class GetNodesRequest(_message.Message):
     no_memory: bool
     no_cache: bool
     is_optional: bool
-    def __init__(self, scope: _Optional[_Union[_lang_pb2.GraphScopeData, _Mapping]] = ..., roots: _Optional[_Iterable[_Union[_lang_pb2.NodeReferenceData, _Mapping]]] = ..., base_type_ptr: _Optional[_Union[_lang_pb2.NodeReferenceData, _Mapping]] = ..., ancestor_types: _Optional[_Iterable[_Union[_lang_pb2.NodeType, str]]] = ..., descendant_types: _Optional[_Iterable[_Union[_lang_pb2.NodeType, str]]] = ..., select: _Optional[_Union[_lang_pb2.SelectOptionsData, _Mapping]] = ..., include_removed: bool = ..., no_memory: bool = ..., no_cache: bool = ..., is_optional: bool = ...) -> None: ...
+    def __init__(self, scope: _Optional[_Union[_lang_pb2.ScopeData, _Mapping]] = ..., roots: _Optional[_Iterable[_Union[_lang_pb2.NodeReferenceData, _Mapping]]] = ..., base_type_ptr: _Optional[_Union[_lang_pb2.NodeReferenceData, _Mapping]] = ..., ancestor_types: _Optional[_Iterable[_Union[_lang_pb2.NodeType, str]]] = ..., descendant_types: _Optional[_Iterable[_Union[_lang_pb2.NodeType, str]]] = ..., select: _Optional[_Union[_lang_pb2.SelectOptionsData, _Mapping]] = ..., include_removed: bool = ..., no_memory: bool = ..., no_cache: bool = ..., is_optional: bool = ...) -> None: ...
 
 class GetNodesResponse(_message.Message):
     __slots__ = ("nodes", "epoch", "connection_token")
@@ -65,10 +65,10 @@ class WatchGetRequest(_message.Message):
     SCOPE_FIELD_NUMBER: _ClassVar[int]
     CONNECTION_TOKEN_FIELD_NUMBER: _ClassVar[int]
     SINCE_EPOCH_FIELD_NUMBER: _ClassVar[int]
-    scope: _lang_pb2.GraphScopeData
+    scope: _lang_pb2.ScopeData
     connection_token: str
     since_epoch: int
-    def __init__(self, scope: _Optional[_Union[_lang_pb2.GraphScopeData, _Mapping]] = ..., connection_token: _Optional[str] = ..., since_epoch: _Optional[int] = ...) -> None: ...
+    def __init__(self, scope: _Optional[_Union[_lang_pb2.ScopeData, _Mapping]] = ..., connection_token: _Optional[str] = ..., since_epoch: _Optional[int] = ...) -> None: ...
 
 class WatchGetResponse(_message.Message):
     __slots__ = ("edits", "cascaded_edits", "added_nodes", "removed_nodes_ptr", "epoch", "is_keepalive")
@@ -99,7 +99,7 @@ class SearchNodesRequest(_message.Message):
     COUNT_FIELD_NUMBER: _ClassVar[int]
     SELECT_FIELD_NUMBER: _ClassVar[int]
     NO_CACHE_FIELD_NUMBER: _ClassVar[int]
-    scope: _lang_pb2.GraphScopeData
+    scope: _lang_pb2.ScopeData
     node_type: _lang_pb2.NodeType
     base_type_ptr: _lang_pb2.NodeReferenceData
     filter: _lang_pb2.ExpressionData
@@ -110,7 +110,7 @@ class SearchNodesRequest(_message.Message):
     count: bool
     select: _lang_pb2.SelectOptionsData
     no_cache: bool
-    def __init__(self, scope: _Optional[_Union[_lang_pb2.GraphScopeData, _Mapping]] = ..., node_type: _Optional[_Union[_lang_pb2.NodeType, str]] = ..., base_type_ptr: _Optional[_Union[_lang_pb2.NodeReferenceData, _Mapping]] = ..., filter: _Optional[_Union[_lang_pb2.ExpressionData, _Mapping]] = ..., sort: _Optional[_Iterable[_Union[_lang_pb2.ExpressionData, _Mapping]]] = ..., ancestor_types: _Optional[_Iterable[_Union[_lang_pb2.NodeType, str]]] = ..., descendant_types: _Optional[_Iterable[_Union[_lang_pb2.NodeType, str]]] = ..., first: _Optional[int] = ..., count: bool = ..., select: _Optional[_Union[_lang_pb2.SelectOptionsData, _Mapping]] = ..., no_cache: bool = ...) -> None: ...
+    def __init__(self, scope: _Optional[_Union[_lang_pb2.ScopeData, _Mapping]] = ..., node_type: _Optional[_Union[_lang_pb2.NodeType, str]] = ..., base_type_ptr: _Optional[_Union[_lang_pb2.NodeReferenceData, _Mapping]] = ..., filter: _Optional[_Union[_lang_pb2.ExpressionData, _Mapping]] = ..., sort: _Optional[_Iterable[_Union[_lang_pb2.ExpressionData, _Mapping]]] = ..., ancestor_types: _Optional[_Iterable[_Union[_lang_pb2.NodeType, str]]] = ..., descendant_types: _Optional[_Iterable[_Union[_lang_pb2.NodeType, str]]] = ..., first: _Optional[int] = ..., count: bool = ..., select: _Optional[_Union[_lang_pb2.SelectOptionsData, _Mapping]] = ..., no_cache: bool = ...) -> None: ...
 
 class SearchNodesResponse(_message.Message):
     __slots__ = ("roots_ptr", "nodes", "total", "epoch", "connection_token")
@@ -131,10 +131,10 @@ class WatchSearchRequest(_message.Message):
     SCOPE_FIELD_NUMBER: _ClassVar[int]
     CONNECTION_TOKEN_FIELD_NUMBER: _ClassVar[int]
     SINCE_EPOCH_FIELD_NUMBER: _ClassVar[int]
-    scope: _lang_pb2.GraphScopeData
+    scope: _lang_pb2.ScopeData
     connection_token: str
     since_epoch: int
-    def __init__(self, scope: _Optional[_Union[_lang_pb2.GraphScopeData, _Mapping]] = ..., connection_token: _Optional[str] = ..., since_epoch: _Optional[int] = ...) -> None: ...
+    def __init__(self, scope: _Optional[_Union[_lang_pb2.ScopeData, _Mapping]] = ..., connection_token: _Optional[str] = ..., since_epoch: _Optional[int] = ...) -> None: ...
 
 class WatchSearchResponse(_message.Message):
     __slots__ = ("edits", "cascaded_edits", "added_nodes", "removed_nodes_ptr", "roots_ptr", "total", "epoch", "is_keepalive")
@@ -157,16 +157,14 @@ class WatchSearchResponse(_message.Message):
     def __init__(self, edits: _Optional[_Iterable[_Union[_lang_pb2.EditData, _Mapping]]] = ..., cascaded_edits: _Optional[_Iterable[_Union[_lang_pb2.EditData, _Mapping]]] = ..., added_nodes: _Optional[_Iterable[_Union[_lang_pb2.SomeNodeData, _Mapping]]] = ..., removed_nodes_ptr: _Optional[_Iterable[_Union[_lang_pb2.NodeReferenceData, _Mapping]]] = ..., roots_ptr: _Optional[_Iterable[_Union[_lang_pb2.NodeReferenceData, _Mapping]]] = ..., total: _Optional[int] = ..., epoch: _Optional[int] = ..., is_keepalive: bool = ...) -> None: ...
 
 class CommitTransactionRequest(_message.Message):
-    __slots__ = ("scope", "id", "edits", "context")
+    __slots__ = ("scope", "id", "edits")
     SCOPE_FIELD_NUMBER: _ClassVar[int]
     ID_FIELD_NUMBER: _ClassVar[int]
     EDITS_FIELD_NUMBER: _ClassVar[int]
-    CONTEXT_FIELD_NUMBER: _ClassVar[int]
-    scope: _lang_pb2.GraphScopeData
+    scope: _lang_pb2.ScopeData
     id: str
     edits: _containers.RepeatedCompositeFieldContainer[_lang_pb2.EditData]
-    context: _lang_pb2.ContextData
-    def __init__(self, scope: _Optional[_Union[_lang_pb2.GraphScopeData, _Mapping]] = ..., id: _Optional[str] = ..., edits: _Optional[_Iterable[_Union[_lang_pb2.EditData, _Mapping]]] = ..., context: _Optional[_Union[_lang_pb2.ContextData, _Mapping]] = ...) -> None: ...
+    def __init__(self, scope: _Optional[_Union[_lang_pb2.ScopeData, _Mapping]] = ..., id: _Optional[str] = ..., edits: _Optional[_Iterable[_Union[_lang_pb2.EditData, _Mapping]]] = ...) -> None: ...
 
 class CommitTransactionResponse(_message.Message):
     __slots__ = ("cascaded_edits", "epoch")
@@ -353,10 +351,10 @@ class UploadFilesRequest(_message.Message):
     SCOPE_FIELD_NUMBER: _ClassVar[int]
     FILES_FIELD_NUMBER: _ClassVar[int]
     ENVIRONMENT_FIELD_NUMBER: _ClassVar[int]
-    scope: _lang_pb2.GraphScopeData
+    scope: _lang_pb2.ScopeData
     files: _containers.RepeatedCompositeFieldContainer[_lang_pb2.FileData]
     environment: ComputerEnvironment
-    def __init__(self, scope: _Optional[_Union[_lang_pb2.GraphScopeData, _Mapping]] = ..., files: _Optional[_Iterable[_Union[_lang_pb2.FileData, _Mapping]]] = ..., environment: _Optional[_Union[ComputerEnvironment, str]] = ...) -> None: ...
+    def __init__(self, scope: _Optional[_Union[_lang_pb2.ScopeData, _Mapping]] = ..., files: _Optional[_Iterable[_Union[_lang_pb2.FileData, _Mapping]]] = ..., environment: _Optional[_Union[ComputerEnvironment, str]] = ...) -> None: ...
 
 class UploadFilesResponse(_message.Message):
     __slots__ = ("handles",)
@@ -380,10 +378,10 @@ class DownloadFilesRequest(_message.Message):
     SCOPE_FIELD_NUMBER: _ClassVar[int]
     FILES_FIELD_NUMBER: _ClassVar[int]
     ENVIRONMENT_FIELD_NUMBER: _ClassVar[int]
-    scope: _lang_pb2.GraphScopeData
+    scope: _lang_pb2.ScopeData
     files: _containers.RepeatedCompositeFieldContainer[_lang_pb2.NodeReferenceData]
     environment: ComputerEnvironment
-    def __init__(self, scope: _Optional[_Union[_lang_pb2.GraphScopeData, _Mapping]] = ..., files: _Optional[_Iterable[_Union[_lang_pb2.NodeReferenceData, _Mapping]]] = ..., environment: _Optional[_Union[ComputerEnvironment, str]] = ...) -> None: ...
+    def __init__(self, scope: _Optional[_Union[_lang_pb2.ScopeData, _Mapping]] = ..., files: _Optional[_Iterable[_Union[_lang_pb2.NodeReferenceData, _Mapping]]] = ..., environment: _Optional[_Union[ComputerEnvironment, str]] = ...) -> None: ...
 
 class DownloadFilesResponse(_message.Message):
     __slots__ = ("handles",)

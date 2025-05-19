@@ -15,14 +15,13 @@ from opentelemetry import trace
 
 from bench import pb2
 from bench.pb2 import (
-    ClientOriginData,
     EditData,
     EditOperationData,
-    GraphScopeData,
     HostClient,
+    OriginData,
     RpcMetadata,
+    ScopeData,
     SupervisorClient,
-    lang_pb2,
 )
 from bench.utils.func import uuid_to_str
 from bench.utils.oracle import Oracle
@@ -79,14 +78,14 @@ class Session:
     # ...HasRuntimeContext[80-99]
 
     # context
-    origin: ClientOriginData | None = dataclasses.field(default=None)
+    origin: OriginData | None = dataclasses.field(default=None)
     subject: Subject | None = dataclasses.field(default=None)
     _is_suspended: bool = dataclasses.field(default=False)
 
     # transaction
     _tx: Transaction | None = dataclasses.field(default=None)
     _pending_nodes_by_id: dict[UUID, Node] = dataclasses.field(default_factory=dict)
-    _default_scope: GraphScopeData = dataclasses.field(default_factory=lambda: EMPTY_SCOPE_DATA)
+    _default_scope: ScopeData = dataclasses.field(default_factory=lambda: EMPTY_SCOPE_DATA)
     _local_epoch: int | None = dataclasses.field(default=None)
     _pre_commit: CommitPrepareHook | None = dataclasses.field(default=None)
     _post_commit: CommitHook | None = dataclasses.field(default=None)
@@ -154,9 +153,9 @@ class Session:
     def active_mode(self) -> NodeMode:
         return self._runtime.active_mode if self._runtime is not None else self.mode
 
-    def _get_scope_for_node(self, n: Node) -> GraphScopeData:
+    def _get_scope_for_node(self, n: Node) -> ScopeData:
         """Get the scope for a node in this session."""
-        scope = GraphScopeData(metatype=pb2.ObjectType.OBJECT_TYPE_GRAPH_SCOPE)
+        scope = ScopeData(metatype=pb2.ObjectType.OBJECT_TYPE_SCOPE)
         if isinstance(n, BenchNode):
             scope.bench_id = uuid_to_str(n.bench_id) or self._default_scope.bench_id
         if isinstance(n, PackageNode):
@@ -165,12 +164,12 @@ class Session:
                 scope.package_ids.append(package_id)
         return scope
 
-    def _get_scope_for_query(self, query: "LegacyQuery") -> GraphScopeData:
+    def _get_scope_for_query(self, query: "LegacyQuery") -> ScopeData:
         """Get the scope for a query in this session."""
         if query._base_type is not None:
             return self._get_scope_for_node(query._base_type)
         elif query._roots:
-            scope = GraphScopeData(metatype=pb2.ObjectType.OBJECT_TYPE_GRAPH_SCOPE)
+            scope = ScopeData(metatype=pb2.ObjectType.OBJECT_TYPE_SCOPE)
             for root in query._roots:
                 if not scope.bench_id and root.bench_id:
                     scope.bench_id = str(root.bench_id)
@@ -255,123 +254,31 @@ class Session:
         operation: EditOperationData | None = None,
     ):
         """Updates an existing Node. The operation *is not* applied directly."""
-        assert self._tx is not None, f"no active transaction for {node!r} in {self!r}"
-        assert not self._is_suspended, f"cannot edit {node!r} in {self!r}"
-        self._pending_nodes_by_id[node.id] = node
-        self._tx.record_edit_event(EditType.UPDATE, node, operation=operation)
+        raise NotImplementedError
 
     def _move(self, node: Node, old_parent: Node, new_parent: Node):
         """Moves a Node to a new parent. The operation *is not* applied directly."""
-        assert self._tx is not None, f"no active transaction for {node!r} in {self!r}"
-        assert not self._is_suspended, f"cannot edit {node!r} in {self!r}"
-        from bench.language import pack_value
-        from bench.proto import pack_proto_json
-
-        parent_property = node.__parent_property__
-        assert parent_property is not None, f"{node!r} has no parent property"
-        parent_typ = parent_property._type
-        assert parent_typ is not None, f"{parent_property!r} has no type info"
-
-        self._pending_nodes_by_id[node.id] = node
-        new_value_packed = pack_value(new_parent.to_ref(), parent_typ)
-        operation = EditOperationData(
-            metatype=lang_pb2.OBJECT_TYPE_EDIT_OPERATION,
-            type=lang_pb2.EDIT_OPERATION_TYPE_SET,  # type: ignore
-            path=[parent_property.key],
-            new_value_packed=pack_proto_json(new_value_packed),
-        )
-        self._tx.record_edit_event(EditType.MOVE, node, operation=operation)
-        # also update any computed ancestor properties
-        for prop in node.__node_ancestor_properties__.values():
-            if prop.runtime_prop is not None:
-                prop = prop.runtime_prop
-            new_value = getattr(node, prop.name)
-            if new_value is not None:
-                assert isinstance(new_value, Node), f"bad {prop!r}: {new_value!r}"
-                new_value_packed = pack_value(new_value, prop.type_info)  # type: ignore
-            else:
-                new_value_packed = None
-            operation = EditOperationData(
-                metatype=lang_pb2.OBJECT_TYPE_EDIT_OPERATION,
-                type=lang_pb2.EDIT_OPERATION_TYPE_SET,  # type: ignore
-                path=[prop.key],
-                new_value_packed=pack_proto_json(new_value_packed),
-            )
-            self._tx.record_edit_event(EditType.UPDATE, node, operation=operation)
+        raise NotImplementedError
 
     def _archive(self, *nodes: Node, _now: datetime | None = None):
         """Archives a Node. The operation *is* applied directly."""
-        assert self._tx is not None, f"no active transaction for {nodes!r} in {self!r}"
-        assert not self._is_suspended, f"cannot edit {nodes!r} in {self!r}"
-
-        for node in nodes:
-            assert node.is_attached, f"cannot archive detached node {node!r}"
-            now = _now if _now is not None else self.oracle.utc()
-            self._pending_nodes_by_id[node.id] = node
-            # descendants will be removed from graph, so remember them manually
-            for descendant in node._graph.iter_descendants(node, recursive=True):
-                self._pending_nodes_by_id[descendant.id] = descendant
-            self._tx.record_edit_event(EditType.ARCHIVE, node, now=now)
-            node.archived_at = now
-            node._graph.remove(node)
+        raise NotImplementedError
 
     def _unarchive(self, *nodes: Node, _now: datetime | None = None):
         """Unarchives a Node. The operation *is* applied directly."""
-        assert self._tx is not None, f"no active transaction for {nodes!r} in {self!r}"
-        assert not self._is_suspended, f"cannot edit {nodes!r} in {self!r}"
-
-        for node in nodes:
-            assert node.is_attached, f"cannot unarchive detached node {node!r}"
-            now = _now if _now is not None else self.oracle.utc()
-            self._pending_nodes_by_id[node.id] = node
-            self._tx.record_edit_event(EditType.UNARCHIVE, node, now=now)
-            node.archived_at = None
-            node._graph.add(node)
+        raise NotImplementedError
 
     def _delete(self, *nodes: Node, _now: datetime | None = None):
         """Deletes a Node. The operation *is* applied directly."""
-        assert self._tx is not None, f"no active transaction for {nodes!r} in {self!r}"
-        assert not self._is_suspended, f"cannot edit {nodes!r} in {self!r}"
-
-        for node in nodes:
-            assert node.is_attached, f"cannot delete detached node {node!r}"
-            now = _now if _now is not None else self.oracle.utc()
-            self._pending_nodes_by_id[node.id] = node
-            # descendants will be removed from graph, so remember them manually
-            for descendant in node._graph.iter_descendants(node, recursive=True):
-                self._pending_nodes_by_id[descendant.id] = descendant
-            self._tx.record_edit_event(EditType.DELETE, node, now=now)
-            node.deleted_at = now
-            node._graph.remove(node)
+        raise NotImplementedError
 
     def _restore(self, *nodes: Node, _now: datetime | None = None):
         """Restores a deleted Node. The operation *is* applied directly."""
-        assert self._tx is not None, f"no active transaction for {nodes!r} in {self!r}"
-        assert not self._is_suspended, f"cannot edit {nodes!r} in {self!r}"
-
-        for node in nodes:
-            assert node.is_attached, f"cannot restore detached node {node!r}"
-            now = _now if _now is not None else self.oracle.utc()
-            self._pending_nodes_by_id[node.id] = node
-            self._tx.record_edit_event(EditType.RESTORE, node, now=now)
-            node.deleted_at = None
-            node._graph.add(node)
+        raise NotImplementedError
 
     def _erase(self, *nodes: Node):
         """Erases a Node. The operation *is* applied directly."""
-        assert self._tx is not None, f"no active transaction for {nodes!r} in {self!r}"
-        assert not self._is_suspended, f"cannot edit {nodes!r} in {self!r}"
-
-        for node in nodes:
-            assert node.is_attached, f"cannot erase detached node {node!r}"
-            now = self.oracle.utc()
-            self._pending_nodes_by_id[node.id] = node
-            # descendants will be removed from graph, so remember them manually
-            for descendant in node._graph.iter_descendants(node, recursive=True):
-                self._pending_nodes_by_id[descendant.id] = descendant
-            self._tx.record_edit_event(EditType.ERASE, node, now=now)
-            node.deleted_at = now
-            node._graph.remove(node)
+        raise NotImplementedError
 
     #
     # Transactions

@@ -15,7 +15,6 @@ from .package import *  # noqa: F403
 from .plan import *  # noqa: F403
 from .registry import (
     ANCESTOR_NODE_TYPES,  # noqa: F401
-    BENCH_CLASS_BY_NAME,  # noqa: F401
     BENCH_CLASS_BY_TYPE,  # noqa: F401
     BUILTIN_OBJECT_CLASS_BY_TYPE,  # noqa: F401
     BUILTIN_OBJECT_TYPE_BY_CLASS,  # noqa: F401
@@ -24,9 +23,7 @@ from .registry import (
     DESCENDANT_NODE_TYPES_IN_STORE,  # noqa: F401
     ENUM_CLASS_BY_TYPE,  # noqa: F401
     ENUM_TYPE_BY_CLASS,  # noqa: F401
-    FINAL_BENCH_CLASSES,  # noqa: F401
     HAS_CHILD_NODE_TYPES,  # noqa: F401
-    NODE_CLASS_BY_NAME,  # noqa: F401
     NODE_CLASS_BY_TYPE,  # noqa: F401
     NODE_CLASSES,  # noqa: F401
     PARENT_NODE_TYPES,  # noqa: F401

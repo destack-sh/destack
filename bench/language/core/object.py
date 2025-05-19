@@ -31,7 +31,7 @@ from bench.language.registry import (
     BUILTIN_OBJECT_CLASS_BY_TYPE,
     STRUCT_CLASS_BY_TYPE,
 )
-from bench.pb2 import AnyObjectData, AnyStructData, GraphScopeData, lang_pb2
+from bench.pb2 import AnyObjectData, AnyStructData, ScopeData, lang_pb2
 from bench.utils.code import format_code
 from bench.utils.env import IS_DEV
 from bench.utils.func import dualmethod, get_superclasses, hash_stable, is_close
@@ -862,7 +862,7 @@ def is_struct[T: Struct | Struct](obj: Any, struct_cls: type[T]) -> TypeGuard[T]
 
 
 @struct_(StructType.SCOPE)
-class Scope(Struct[GraphScopeData]):
+class Scope(Struct[ScopeData]):
     """The scope for an operation on the Bench graph."""
 
     bench_id: Optional[UUID] = p_internal(30)
@@ -872,7 +872,7 @@ class Scope(Struct[GraphScopeData]):
         return repr_scope(self)
 
 
-def repr_scope(scope: Scope | GraphScopeData) -> str:
+def repr_scope(scope: Scope | ScopeData) -> str:
     if scope.package_ids:
         return f"[bench_id={scope.bench_id}, package_ids={', '.join(str(id) for id in scope.package_ids)}]"
     elif scope.bench_id:
@@ -881,7 +881,7 @@ def repr_scope(scope: Scope | GraphScopeData) -> str:
         return "[*]"
 
 
-EMPTY_SCOPE_DATA = GraphScopeData(metatype=lang_pb2.OBJECT_TYPE_GRAPH_SCOPE)
+EMPTY_SCOPE_DATA = ScopeData(metatype=lang_pb2.OBJECT_TYPE_SCOPE)
 
 
 @struct_(StructType.PROPERTY_REFERENCE)
