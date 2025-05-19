@@ -169,7 +169,7 @@ class Interruption(IsModal, IsExtensible, PackageNode[InterruptionData]):
         assert not self.is_closed, f"{self!r} is already closed"
         assert self._session is not None, f"{self!r} has no session"
         self.status = InterruptionStatus.COMPLETED
-        self.closed_at = self._session._oracle.utc()
+        self.closed_at = self._session.oracle.utc()
         self.duration = self.closed_at - self.created_at
         runtime = self._session.runtime
         if runtime and _trigger_runtime:
@@ -181,7 +181,7 @@ class Interruption(IsModal, IsExtensible, PackageNode[InterruptionData]):
         assert not self.is_closed, f"{self!r} is already closed"
         assert self._session is not None, f"{self!r} has no session"
         self.status = InterruptionStatus.CANCELLED
-        self.closed_at = self._session._oracle.utc()
+        self.closed_at = self._session.oracle.utc()
         self.duration = self.closed_at - self.created_at
         runtime = self._session.runtime
         if runtime and _trigger_runtime:

@@ -2,9 +2,10 @@ import json
 from base64 import b64decode, b64encode
 from itertools import chain
 from typing import TYPE_CHECKING, Any, Collection, Mapping, Union, cast
-from fastuuid import UUID
+
 import pytz
 import structlog
+from fastuuid import UUID
 from google.protobuf.duration_pb2 import Duration
 from google.protobuf.message import Message as ProtoMessage
 from google.protobuf.timestamp_pb2 import Timestamp
@@ -12,7 +13,6 @@ from opentelemetry import trace
 
 from bench import pb2
 from bench.language.core import (
-    NULL_SUPERGRAPH,
     BuiltinEnumOrUnion,
     BuiltinObject,
     EditType,
@@ -35,6 +35,7 @@ from bench.utils.string import Casing, to_casing
 
 if TYPE_CHECKING:
     from bench.language.connection import Connection
+
 logger = structlog.get_logger(__name__)
 tracer = trace.get_tracer(__name__)
 

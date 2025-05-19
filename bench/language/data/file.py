@@ -817,7 +817,7 @@ async def download_file_batch(
                 file = file_ref
             else:
                 file = unpack_builtin_object(
-                    handle.file, supergraph=session._supergraph, expect=File
+                    handle.file, supergraph=session.supergraph, expect=File
                 )
             files_by_id[file.id] = file
             file._cached_get_url = handle.get_url

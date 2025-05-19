@@ -400,7 +400,7 @@ class IsProcessable(BuiltinObject):
             return
 
         # always 'touch' on update
-        now = self.active_session._oracle.utc()
+        now = self.active_session.oracle.utc()
         self.active_at = now
 
         # start as soon as any child is started
@@ -429,7 +429,7 @@ class IsProcessable(BuiltinObject):
 
     def touch(self) -> None:
         """'Touch' the Node to update the active_at timestamp."""
-        self.active_at = self.active_session._oracle.utc()
+        self.active_at = self.active_session.oracle.utc()
 
     @property
     def should_stop(self) -> bool:

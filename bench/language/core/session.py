@@ -1,6 +1,5 @@
-import asyncio
-import contextvars
-from contextlib import asynccontextmanager, suppress
+import dataclasses
+from contextlib import asynccontextmanager
 from datetime import datetime
 from typing import (
     TYPE_CHECKING,
@@ -11,15 +10,12 @@ from typing import (
 )
 
 import structlog
-from attr import dataclass
-from fastuuid import UUID, uuid4
+from fastuuid import UUID
 from opentelemetry import trace
 
 from bench import pb2
-from bench.language.registry import DESCENDANT_NODE_TYPES
 from bench.pb2 import (
     ClientOriginData,
-    ContextData,
     EditData,
     EditOperationData,
     GraphScopeData,
@@ -30,19 +26,14 @@ from bench.pb2 import (
 )
 from bench.utils.func import uuid_to_str
 from bench.utils.oracle import Oracle
-from bench.utils.sync import CriticalLock
 
 from .const import (
-    ACTIVE_SESSION,
     EditType,
     NodeMode,
-    NodeType,
-    bittuple,
 )
 from .graph import Graph, GraphData, Supergraph
 from .node import BenchNode, Node, PackageNode, Subject
 from .object import EMPTY_SCOPE_DATA
-from .property import p_node_parent, p_runtime
 from .transaction import Transaction
 
 if TYPE_CHECKING:
@@ -53,20 +44,6 @@ if TYPE_CHECKING:
 
 logger = structlog.get_logger(__name__)
 tracer = trace.get_tracer(__name__)
-
-
-@dataclass(slots=True, repr=False)
-class _CommitEvent:
-    """A commit event."""
-
-    id: int
-    new_edits: list[EditData]
-
-    def __str__(self):
-        return f"id={self.id}, edits={len(self.new_edits)}"
-
-    def __repr__(self):
-        return f"<CommitEvent {self}>"
 
 
 CommitPrepareHook = Callable[
@@ -86,66 +63,45 @@ CommitHook = Callable[
 CommitFailedHook = Callable[["Session", BaseException], Awaitable[None]]
 
 
+@dataclasses.dataclass(slots=True)
 class Session:
     """
     A managed Session for interacting with and running a Bench.
     """
 
-    parent: Optional["Bench"] = p_node_parent(4, NodeType.BENCH, is_system=True)
-
     # node
     mode: NodeMode
+    supergraph: Supergraph
+    oracle: Oracle
     bench: Optional["Bench"]
-    _supergraph: Supergraph
 
     # context
     # ...HasRuntimeContext[80-99]
 
     # context
-    _origin: ClientOriginData | None = p_runtime(default=None)
-    _subject: Subject | None = p_runtime(default=None)
-    _context_data: ContextData | None = p_runtime(default=None)
-    _is_suspended: bool = p_runtime(default=False)
+    origin: ClientOriginData | None = dataclasses.field(default=None)
+    subject: Subject | None = dataclasses.field(default=None)
+    _is_suspended: bool = dataclasses.field(default=False)
 
     # transaction
-    _tx: Transaction | None = p_runtime(default=None)
-    _tx_lock: asyncio.Lock = p_runtime(default_factory=lambda: CriticalLock(name="session"))
-    _commit_loop_task: asyncio.Task | None = p_runtime(default=None)
-    _flush_counter: int = p_runtime(default=0)
-    _commit_queue: asyncio.Queue[_CommitEvent] = p_runtime(default_factory=lambda: asyncio.Queue())
-    _pending_nodes_by_id: dict[UUID, Node] = p_runtime(default_factory=dict)
-    _default_scope: GraphScopeData = p_runtime(default_factory=lambda: EMPTY_SCOPE_DATA)
-    _local_epoch: int | None = p_runtime(default=None)
-    _pre_commit: CommitPrepareHook | None = p_runtime(default=None)
-    _post_commit: CommitHook | None = p_runtime(default=None)
-    _post_commit_failed: CommitFailedHook | None = p_runtime(default=None)
-    _on_edit_subs: dict[UUID, list[Callable[[Node], None]]] = p_runtime(default_factory=dict)
+    _tx: Transaction | None = dataclasses.field(default=None)
+    _pending_nodes_by_id: dict[UUID, Node] = dataclasses.field(default_factory=dict)
+    _default_scope: GraphScopeData = dataclasses.field(default_factory=lambda: EMPTY_SCOPE_DATA)
+    _local_epoch: int | None = dataclasses.field(default=None)
+    _pre_commit: CommitPrepareHook | None = dataclasses.field(default=None)
+    _post_commit: CommitHook | None = dataclasses.field(default=None)
+    _post_commit_failed: CommitFailedHook | None = dataclasses.field(default=None)
+    _on_edit_subs: dict[UUID, list[Callable[[Node], None]]] = dataclasses.field(
+        default_factory=dict
+    )
 
     # runtime
-    _oracle: Oracle = p_runtime()
-    _active_session_tokens: list[contextvars.Token] = p_runtime(default_factory=list)
-    _rpc_metadata: RpcMetadata | None = p_runtime(default=None)
-    _rpc_headers: dict[str, str] | None = p_runtime(default=None)
-    _runtime: Optional["Runtime"] = p_runtime(default=None)
-    _supervisor: Optional["SupervisorClient"] = p_runtime(default=None)
-    _self_host: Optional["HostClient"] = p_runtime(default=None)
-    _bench_host: Optional["HostClient"] = p_runtime(default=None)
-
-    def __content_str__(self):
-        status_strs = []
-        if self.closed_at:
-            status_strs.append("closed")
-        elif self.opened_at:
-            status_strs.append("open")
-        else:
-            status_strs.append("pending")
-        if self._is_suspended:
-            status_strs.append("suspended")
-        if self.duration is not None:
-            duration_str = f"{self.duration.total_seconds():.3f}s"
-            return f"{', '.join(status_strs)}, tx={self._tx or '<no tx>'}, duration={duration_str}s"
-        else:
-            return f"{', '.join(status_strs)}, tx={self._tx or '<no tx>'}"
+    _rpc_metadata: RpcMetadata | None = dataclasses.field(default=None)
+    _rpc_headers: dict[str, str] | None = dataclasses.field(default=None)
+    _runtime: Optional["Runtime"] = dataclasses.field(default=None)
+    _supervisor: Optional["SupervisorClient"] = dataclasses.field(default=None)
+    _self_host: Optional["HostClient"] = dataclasses.field(default=None)
+    _bench_host: Optional["HostClient"] = dataclasses.field(default=None)
 
     @property
     def tx(self) -> Transaction:
@@ -169,14 +125,6 @@ class Session:
     def has_pending_edits(self):
         """Whether this session has any pending (unflushed) edits."""
         return self._tx is not None and self._tx.has_pending_edits
-
-    @property
-    def is_open(self) -> bool:
-        return self.opened_at is not None and self.closed_at is None
-
-    @property
-    def is_active(self):
-        return len(self._active_session_tokens) > 0
 
     @property
     def is_suspended(self):
@@ -232,50 +180,11 @@ class Session:
 
     async def open(self, *, _set_in_context: bool = True):
         """Opens the session for regular business. Activates context (by default)."""
-        assert not self.closed_at, f"session already closed {self!r}"
-        assert not self.opened_at, f"session already open {self!r}"
-
-        # setup transaction
-        self.opened_at = self._oracle.utc()
-        self._session = self
-        async with self._tx_lock:
-            self._tx = Transaction(id=uuid4(), session=self)
-
-        # set context
-        if self.parent is not None:
-            self._default_scope = GraphScopeData(bench_id=uuid_to_str(self.parent.bench_id))
-        if _set_in_context:
-            self._active_session_tokens.append(ACTIVE_SESSION.set(self))
-
-        # start flush loop
-        self._commit_loop_task = asyncio.create_task(self._run_commit_loop())
-
-        logger.trace("session.open", session=self)
+        raise NotImplementedError
 
     async def close(self):
         """Closes the session, rolling back uncommitted edits. Prevents further use."""
-        assert self.opened_at, f"session not open {self!r}"
-        assert not self.closed_at, f"session already closed {self!r}"
-
-        # close transaction
-        async with self._tx_lock:
-            # stop commit loop
-            if self._commit_loop_task is not None:
-                self._commit_loop_task.cancel()
-                with suppress(asyncio.CancelledError):
-                    await self._commit_loop_task
-                self._commit_loop_task = None
-            self._tx = None
-
-        # close session
-        self.closed_at = self._oracle.utc()
-        self.duration = self.closed_at - self.opened_at
-        for token in self._active_session_tokens:
-            with suppress(ValueError):  # ignore error if token is from other context
-                ACTIVE_SESSION.reset(token)
-        self._active_session_tokens.clear()
-
-        logger.trace("session.close", session=self)
+        raise NotImplementedError
 
     #
     # Tracking
@@ -336,7 +245,7 @@ class Session:
         """Creates or updates a Node. The operation *is not* applied directly."""
         assert self._tx is not None, f"no active transaction in {self!r}"
         assert not self._is_suspended, f"cannot edit {node!r} in {self!r}"
-        now = self._oracle.utc()
+        now = self.oracle.utc()
         self._pending_nodes_by_id[node.id] = node
         self._tx.record_edit_event(EditType.UPSERT, node, now=now)
 
@@ -397,7 +306,7 @@ class Session:
 
         for node in nodes:
             assert node.is_attached, f"cannot archive detached node {node!r}"
-            now = _now if _now is not None else self._oracle.utc()
+            now = _now if _now is not None else self.oracle.utc()
             self._pending_nodes_by_id[node.id] = node
             # descendants will be removed from graph, so remember them manually
             for descendant in node._graph.iter_descendants(node, recursive=True):
@@ -413,7 +322,7 @@ class Session:
 
         for node in nodes:
             assert node.is_attached, f"cannot unarchive detached node {node!r}"
-            now = _now if _now is not None else self._oracle.utc()
+            now = _now if _now is not None else self.oracle.utc()
             self._pending_nodes_by_id[node.id] = node
             self._tx.record_edit_event(EditType.UNARCHIVE, node, now=now)
             node.archived_at = None
@@ -426,7 +335,7 @@ class Session:
 
         for node in nodes:
             assert node.is_attached, f"cannot delete detached node {node!r}"
-            now = _now if _now is not None else self._oracle.utc()
+            now = _now if _now is not None else self.oracle.utc()
             self._pending_nodes_by_id[node.id] = node
             # descendants will be removed from graph, so remember them manually
             for descendant in node._graph.iter_descendants(node, recursive=True):
@@ -442,7 +351,7 @@ class Session:
 
         for node in nodes:
             assert node.is_attached, f"cannot restore detached node {node!r}"
-            now = _now if _now is not None else self._oracle.utc()
+            now = _now if _now is not None else self.oracle.utc()
             self._pending_nodes_by_id[node.id] = node
             self._tx.record_edit_event(EditType.RESTORE, node, now=now)
             node.deleted_at = None
@@ -455,7 +364,7 @@ class Session:
 
         for node in nodes:
             assert node.is_attached, f"cannot erase detached node {node!r}"
-            now = self._oracle.utc()
+            now = self.oracle.utc()
             self._pending_nodes_by_id[node.id] = node
             # descendants will be removed from graph, so remember them manually
             for descendant in node._graph.iter_descendants(node, recursive=True):
@@ -479,96 +388,13 @@ class Session:
     @asynccontextmanager
     async def active(self):
         """Activate this session in context (as active i.e. not suspended)."""
-        was_suspended = self._is_suspended
-        was_active = self._active_session_tokens is not None
-        self.unsuspend()
-        active_session_token = ACTIVE_SESSION.set(self)
-        self._active_session_tokens.append(active_session_token)
-        try:
-            yield self
-        finally:
-            if was_suspended:
-                self.suspend()
-            elif not was_active and active_session_token in self._active_session_tokens:
-                with suppress(ValueError):  # ignore error from bad token
-                    ACTIVE_SESSION.reset(active_session_token)
-                self._active_session_tokens.remove(active_session_token)
-
-    async def _run_commit_loop(self):
-        """Commits pending edits (on request) while the session is open."""
-        while True:
-            try:
-                event = await self._commit_queue.get()
-                assert self._tx is not None, f"no active transaction in {self!r}"
-                if not self._tx.has_edits:
-                    self._commit_queue.task_done()
-                    logger.trace(
-                        "session.queue.skip",
-                        session=self,
-                        e=event,
-                        qsize=self._commit_queue.qsize(),
-                    )
-                    continue  # nothing to do
-                _ = await self._do_commit()
-                self._commit_queue.task_done()
-                logger.trace(
-                    "session.queue.tick", session=self, e=event, qsize=self._commit_queue.qsize()
-                )
-            except asyncio.CancelledError:
-                if not self._commit_queue.empty():
-                    logger.debug(
-                        "session.queue.cancel",
-                        session=self,
-                        qsize=self._commit_queue.qsize(),
-                    )
-                break
-            except BaseException as e:
-                logger.error(
-                    "session.queue.error",
-                    session=self,
-                    exc_info=e,
-                    qsize=self._commit_queue.qsize(),
-                )
-                raise
-
-    def _make_pending_graph(self) -> Graph:
-        node_types = {node.metatype for node in self._pending_nodes_by_id.values()}
-        descendant_node_types = set()  # include descendants for cascading edits
-        for node_type in node_types:
-            descendant_node_types.update(DESCENDANT_NODE_TYPES[node_type])
-        node_types = node_types | descendant_node_types
-        graph = Graph(
-            scope=self._default_scope,
-            node_types=bittuple(*node_types, enum_cls=NodeType),
-            nodes=self._pending_nodes_by_id.values(),
-            supergraph=self._supergraph,
-        )
-        self._supergraph.add_graph(graph)  # cleaned up in _do_commit
-        return graph
-
-    def _make_pending_data_graph(self) -> GraphData:
-        """Get graphs with all the pending nodes."""
-        node_types = {node.metatype for node in self._pending_nodes_by_id.values()}
-        data_graph = GraphData(
-            scope=self._default_scope, node_types=bittuple(*node_types, enum_cls=NodeType)
-        )
-        for node in self._pending_nodes_by_id.values():
-            data_graph.add(node._to_data())
-        return data_graph
+        yield
+        raise NotImplementedError
 
     @tracer.start_as_current_span("session.stage")
     def stage(self, *, include_runtime: bool = False):
         """Stage pending edits without waiting for the next background commit."""
-        # schedule a new commit
-        assert self.is_open, f"cannot commit {self!r} when closed"
-        assert self._tx is not None, f"no active transaction in {self!r}"
-        new_edits = self._preflush(include_runtime=include_runtime)
-        event = _CommitEvent(id=self._flush_counter, new_edits=new_edits)
-        if not self._tx.has_edits:
-            return [], []  # nothing to do
-        self._commit_queue.put_nowait(event)
-        logger.trace("session.stage", session=self, e=event, span="current")
-        return event.new_edits, []
+        raise NotImplementedError
 
     @tracer.start_as_current_span("session.flush.schedule")
     async def flush(self) -> tuple[list[EditData], list[EditData]]:
@@ -576,14 +402,7 @@ class Session:
         Flushes the current pending edits.
         Cascaded edits are only returned for non-optimistic flushes.
         """
-        assert self.is_open, f"cannot flush {self!r} when closed"
-        assert self._tx is not None, f"no active transaction in {self!r}"
-
-        with tracer.start_as_current_span("session.flush.wait"):
-            await self._commit_queue.join()  # wait for any pending commit
-        if not self._tx.has_pending_edits:
-            return [], []  # nothing to do
-        return await self._do_flush()
+        raise NotImplementedError
 
     @tracer.start_as_current_span("session.commit.schedule")
     async def commit(
@@ -598,18 +417,7 @@ class Session:
         If not optimistic, we wait for any pending commit to complete, then commit.
         Cascaded edits are only returned for non-optimistic commits.
         """
-        if self._tx is None or (not self._tx.has_edits and not self._tx._touched_engine_ids):
-            return [], []  # nothing to do
-
-        assert self.is_open or _ignore_open, f"cannot commit {self!r} when closed"
-
-        # wait for any pending commit, then commit directly
-        with tracer.start_as_current_span("session.commit.wait"):
-            await self._commit_queue.join()
-        if not self._tx.has_edits and not self._tx._touched_engine_ids:
-            return [], []  # nothing to do
-        new_edits, cascaded_edits = await self._do_commit(data_graph=_data_graph)
-        return new_edits, cascaded_edits
+        raise NotImplementedError
 
     async def __aenter__(self):
         await self.open()

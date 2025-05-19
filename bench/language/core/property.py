@@ -236,7 +236,6 @@ class Property(_IntoQuery if TYPE_CHECKING else object):
     node_basless: bool = False
 
     default: Any = UNSET
-    default_factory: Callable[[], Any] = UNSET
     constraint: "TypeConstraint | TypeConstraintIn | None" = None
     is_list: bool = UNSET
     is_required: bool = UNSET  # must be non-null
@@ -500,7 +499,7 @@ class Property(_IntoQuery if TYPE_CHECKING else object):
             self.node_types = tuple(node_types)
 
         # default to None if not required and no default
-        if not self.is_required and self.default is UNSET and self.default_factory is None:
+        if not self.is_required and self.default is UNSET:
             self.default = None
 
         # default to regular node references
@@ -596,7 +595,6 @@ def p_property(
     autoset: bool = False,
     description: str | None = None,
     default: Any = UNSET,
-    default_factory: Callable[[], Any] = UNSET,
     same_bench: bool = False,
     baseless: bool = False,
     ckless: bool = False,
@@ -610,7 +608,6 @@ def p_property(
     return Property(
         id=id,
         default=default,
-        default_factory=default_factory,
         primitive_type=primitive_type,
         constraint=constraint,
         is_node_data=is_node_data,
@@ -626,11 +623,7 @@ def p_property(
     )
 
 
-def p_runtime(
-    *,
-    default: Any = None,
-    default_factory: Callable[[], Any] = UNSET,
-) -> Any:
+def p_runtime(*, default: Any = None) -> Any:
     """Internal runtime-only struct/node property (not persisted)."""
     return Property(
         is_internal=True,
@@ -639,7 +632,6 @@ def p_runtime(
         is_computed=False,
         is_required=False,
         default=default,
-        default_factory=default_factory,
     )
 
 

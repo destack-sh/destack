@@ -79,8 +79,8 @@ def create_omni_session(omni_database: Database, oracle: Oracle):
         _default_scope=EMPTY_SCOPE_DATA,
         _engines=(omni_pg_engine,),
         _local_epoch=0,
-        _oracle=oracle,
-        _supergraph=Supergraph(name="Omni", root_ptr=None),
+        oracle=oracle,
+        supergraph=Supergraph(name="Omni", root_ptr=None),
     )
     return session
 
@@ -103,9 +103,9 @@ def make_session(name: str):
     graph = Graph(scope=EMPTY_SCOPE_DATA, node_types=NODE_TYPES, supergraph=supergraph)
     session = Session(
         _engines=(NullEngine(name="fake", scope=EMPTY_SCOPE_DATA, node_types=NODE_TYPES),),
-        _supergraph=supergraph,
+        supergraph=supergraph,
         _graph=graph,
-        _oracle=REAL_ORACLE,
+        oracle=REAL_ORACLE,
     )
     user = User(
         status=UserStatus.REGISTERED,

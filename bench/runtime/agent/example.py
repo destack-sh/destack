@@ -101,8 +101,8 @@ def _make_example_bench() -> tuple[Bench, Package, Session, User]:
         _default_scope=EMPTY_SCOPE_DATA,
         _engines=(NullEngine(name="fake", scope=EMPTY_SCOPE_DATA, node_types=NODE_TYPES),),
         _local_epoch=0,
-        _oracle=REAL_ORACLE,
-        _supergraph=supergraph,
+        oracle=REAL_ORACLE,
+        supergraph=supergraph,
     )
     token = ACTIVE_SESSION.set(session)
     try:

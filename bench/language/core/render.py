@@ -22,9 +22,10 @@ from fastuuid import UUID
 from opentelemetry import trace
 
 from bench.language.registry import ENUM_CLASS_BY_TYPE
+from bench.utils.code import format_code
 from bench.utils.time import timedelta_to_isoformat
 
-from .code import Code, format_code
+from .code import Code
 from .const import (
     NODE_TYPES_SET,
     PACKAGE_NODE_TYPES,

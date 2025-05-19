@@ -573,11 +573,11 @@ def create_run(
         graph = Graph(
             scope=parent._graph.scope,
             node_types=RUNTIME_NODE_TYPES | COMMUNICATION_NODE_TYPES,
-            supergraph=session._supergraph,
+            supergraph=session.supergraph,
         )
         if mode is None:
             mode = session.active_mode
-        now = session._oracle.utc()
+        now = session.oracle.utc()
         thread = Thread(
             parent=parent,
             mode=mode,
@@ -653,7 +653,7 @@ def restore_runner(runtime: "Runtime", run: Run) -> "Runner":
 
     # inputs
     if run.inputs is None and (input_type := run.input_type) is not None:
-        inputs = CustomObject.new({}, typ=input_type, supergraph=runtime.session._supergraph)
+        inputs = CustomObject.new({}, typ=input_type, supergraph=runtime.session.supergraph)
     else:
         inputs = run.inputs
 
@@ -685,7 +685,7 @@ def make_runner(
     # inputs
     input_type = node.input_type
     if inputs is None and input_type is not None:
-        inputs = CustomObject.new({}, typ=input_type, supergraph=runtime.session._supergraph)
+        inputs = CustomObject.new({}, typ=input_type, supergraph=runtime.session.supergraph)
 
     # map to runner
     if RUN_TYPE == RunType.CODE:

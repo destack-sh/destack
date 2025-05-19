@@ -137,7 +137,7 @@ class Runtime:
         self.session._graph.add_types(*COMMUNICATION_NODE_TYPES)
         self.session_ptr = session.to_ref()
         self.session_id = session.id
-        self.supergraph = session._supergraph
+        self.supergraph = session.supergraph
         self.network = network
         self.bench = session.bench
         self.oracle = oracle
@@ -256,7 +256,7 @@ class Runtime:
                         runner.outputs = CustomObject.new(
                             {},
                             runner.output_type,
-                            supergraph=self.session._supergraph,
+                            supergraph=self.session.supergraph,
                         )
                     check_value(
                         runner.outputs,
@@ -311,7 +311,7 @@ class Runtime:
         if runner.input_type is not None:
             with tracer.start_as_current_span("runtime.check_inputs"):
                 inputs = runner.inputs or CustomObject.new(
-                    {}, runner.input_type, supergraph=self.session._supergraph
+                    {}, runner.input_type, supergraph=self.session.supergraph
                 )
                 try:
                     check_value(

@@ -50,7 +50,7 @@ def _render_test(func: Callable[[Any, Any], Mapping[str, Any]]):
         def _render(defns: Mapping[str, Any]):
             # (line length 96 because it's 100 - 4 for the method indent here)
             options = RenderOptions(
-                aliasing=Aliasing(session._supergraph), format=True, line_length=96
+                aliasing=Aliasing(session.supergraph), format=True, line_length=96
             )
             renderer = Renderer(options)
             statements: list[str] = []
@@ -224,7 +224,7 @@ def test_render_simple_choice_option_ref(session: Session, package: Package):
     Page1.add_child(Choice1)
     rendered_option = render_expression(
         Choice1.child(Option, "Option2"),
-        options=RenderOptions(aliasing=Aliasing(session._supergraph)),
+        options=RenderOptions(aliasing=Aliasing(session.supergraph)),
         as_ref=True,
     )
     assert rendered_option == "Choice1.options.Option2"

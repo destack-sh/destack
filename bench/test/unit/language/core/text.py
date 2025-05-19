@@ -17,7 +17,7 @@ from bench.language import (
 def test_text_mentions(session: Session):
     Page1 = Page.new("Page1")
     Page2 = Page.new("Page2")
-    aliasing = Aliasing.new(session._supergraph, {"Page1": Page1, "Page2": Page2})
+    aliasing = Aliasing.new(session.supergraph, {"Page1": Page1, "Page2": Page2})
     my_text = text(
         "Hello it's a [@Page1] and [@Page2]",
         aliasing,

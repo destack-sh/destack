@@ -1,5 +1,7 @@
 # ruff: noqa: F405
 
+from bench.utils.oracle import REAL_ORACLE
+
 from .access import *  # noqa: F403
 from .chat import *  # noqa: F403
 from .core import *  # noqa: F403
@@ -41,7 +43,10 @@ from .view import *  # noqa: F403
 # after all the imports, we can finalize
 _complete_bench_setup()
 
-# requires finalization
+# temporary session
+_supergraph = Supergraph(name="root", root_ptr=None)
+_session = Session(mode=NodeMode.BUILTIN, supergraph=_supergraph, oracle=REAL_ORACLE, bench=None)
+ACTIVE_SESSION.set(_session)
 
 # builtin benches (pointers) :Builtins
 BENCH_PTR = NodeReference(node_type=NodeType.BENCH, id=BENCH_ID, bench_id=BENCH_ID)
@@ -54,3 +59,6 @@ SYSTEM_MAIN_PACKAGE_PTR = NodeReference(
 )
 
 BENCH_ICON = icon("https://heybench.com/favicon.ico")
+
+ACTIVE_SESSION.set(None)
+del _session, _supergraph

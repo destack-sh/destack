@@ -37,7 +37,6 @@ from bench.utils.string import Casing, to_casing, to_code_name
 from bench.utils.utils import frozendict
 
 from .const import (
-    ACTIVE_SESSION,
     BASED_NODE_TYPES,
     BENCH_NODE_TYPES,
     GLOBAL_NODE_TYPES,
@@ -74,7 +73,7 @@ from .property import (
     p_system,
 )
 from .struct import Struct, struct_
-from .trait import IsBased, IsInstantiable, IsModal, IsOrdered, Subject
+from .trait import IsBased, IsModal, IsOrdered, Subject
 
 if TYPE_CHECKING:
     from bench.language import (
@@ -272,45 +271,6 @@ class Node[NodeDataT: AnyNodeData](BuiltinObject[NodeDataT]):
     if TYPE_CHECKING:
         _skip_add_self: bool = False
 
-    def __init__(self, *, _skip_add_self: bool = False, **kwargs):
-        # inject :Tracing context
-        cls = type(self)
-        if isinstance(self, IsModal):
-            if not kwargs.get("mode"):
-                session = ACTIVE_SESSION.get()
-                if session is not None and session._runtime is not None:
-                    kwargs["mode"] = session._runtime.active_mode
-
-        # init object
-        super().__init__(**kwargs, _skip_extra_kwargs=True)
-
-        # init node
-        if isinstance(self, IsInstantiable):
-            if self.ck is None:
-                self.id = cls.__id_factory__()
-                self.ck = self.id  # type: ignore
-                self._is_new = True
-            elif self.id is None:
-                self.id = cls.__id_factory__()
-                self._is_new = True
-        elif self.id is None:
-            self.id = cls.__id_factory__()
-            self._is_new = True
-        if self.created_at is None:
-            assert self._session is not None, f"{self!r} is not in a session"
-            now = self._session._oracle.utc()
-            self.created_at = now
-            self.updated_at = now
-
-        # init graph (nodes must always be in a non-null supergraph & graph)
-        raise NotImplementedError
-        if not _skip_add_self:
-            self._graph.add(self)
-
-        # init session context
-        if self._session is not None:
-            self._track_self(self._session)
-
     @dualmethod
     def get_property(self, key: str) -> Property:  # type: ignore
         """Get a property by key from this instance."""
@@ -337,7 +297,7 @@ class Node[NodeDataT: AnyNodeData](BuiltinObject[NodeDataT]):
                 or prop.id is None
                 or prop.is_sensitive
                 or prop.id < 30
-                or prop.name in ("type", "name", "order_key")
+                or prop.name in ("type", "name", "title", "order_key")
             ):
                 continue
             prop_value = getattr(self, prop.name)
@@ -415,6 +375,35 @@ class Node[NodeDataT: AnyNodeData](BuiltinObject[NodeDataT]):
                 if recursive:
                     yield from child.iter_descendants(recursive=True)
 
+    def _do_set(
+        self,
+        key: str,
+        new_value: Any,
+        *,
+        track: bool = True,
+        validate: bool = False,
+    ):
+        """Sets *any* attribute on this Node."""
+        prop = self.__properties__.get(key)
+        if prop is None:
+            # attribute error
+            try:
+                self_str = repr(self)
+            except Exception:
+                self_str = self.__class__.__name__
+            raise AttributeError(f"{self_str} has no attribute '{key}'")
+
+        # set property
+        if not prop.is_wired:
+            object.__setattr__(self, key, new_value)
+            return
+        raise NotImplementedError("nocheckin: flat edits")
+
+    if not TYPE_CHECKING:
+        # NOTE: __setattr__/__getattr__ confuses type checking, so only define it at runtime
+        #  (we don't need it since dynamic access is meant for Values at runtime)
+        __setattr__ = _do_set
+
     @override
     def clone(
         self,
@@ -439,7 +428,7 @@ class Node[NodeDataT: AnyNodeData](BuiltinObject[NodeDataT]):
             copy_kwargs["_graph"] = Graph(
                 scope=self._graph.scope,
                 node_types=self._graph.node_types,
-                supergraph=active_session()._supergraph,
+                supergraph=active_session().supergraph,
             )
         clone = self.__class__(**copy_kwargs, _is_new=True)
 
@@ -517,20 +506,6 @@ class Node[NodeDataT: AnyNodeData](BuiltinObject[NodeDataT]):
 
     # only define __hash__ for nodes since their id is constant
     __hash__ = _stable_hash  # type: ignore
-
-    @override
-    def _do_get(self, key: str):
-        """Called if an attribute doesn't exist in __dict__ / the usual places."""
-
-        # attribute error
-        try:
-            self_str = repr(self)
-        except Exception:
-            self_str = self.__class__.__name__
-        raise AttributeError(f"{self_str} has no attribute '{key}'")
-
-    if not TYPE_CHECKING:  # (see above in BuiltinObject)
-        __getattr__ = _do_get
 
     @property
     def connection(self):

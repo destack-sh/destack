@@ -15,17 +15,10 @@ from .bench import (
     AgentPage,
     BenchAgent,
     BenchAgentPage,
-    ComputerDesktopService,
-    ComputerPage,
-    ComputerTerminalService,
-    IComputerDesktop,
-    IComputerTerminal,
     IInternetService,
     InternetPage,
     InternetService,
     ThreadPage,
-    UbuntuComputerTemplate,
-    UbuntuHeadlessComputerTemplate,
 )
 from .core import assign_builtin_ids, get_stable_builtin_path, sync_node
 
@@ -35,7 +28,7 @@ BenchPackage = Package(
     slug=BENCH_BENCH_PACKAGE_SLUG,
     _is_new=True,
 )
-BenchPackage.add_children(ComputerPage, ThreadPage, AgentPage, InternetPage)
+BenchPackage.add_children(ThreadPage, AgentPage, InternetPage)
 
 # finalize
 supergraph = Supergraph(
@@ -53,15 +46,8 @@ __all__ = [
     "BenchAgent",
     "BenchAgentPage",
     "BenchPackage",
-    "ComputerDesktopService",
-    "ComputerPage",
-    "ComputerTerminalService",
-    "IComputerDesktop",
-    "IComputerTerminal",
     "IInternetService",
     "InternetService",
-    "UbuntuComputerTemplate",
-    "UbuntuHeadlessComputerTemplate",
     "assign_builtin_ids",
     "get_stable_builtin_path",
     "sync_node",

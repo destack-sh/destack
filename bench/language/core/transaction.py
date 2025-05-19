@@ -78,77 +78,7 @@ class Transaction:
         We try to be efficient and record minimal information quickly and only as needed.
         """
 
-        # peephole optimization for successive updates to same node:
-        #  if the last edit was also an update to the same node, merge immediately
-        if (
-            (type == EditType.UPDATE or type == EditType.MOVE)
-            and len(self._pending_edit_events) > 0
-            and self._pending_edit_events[-1].node.id == node.id
-            and (
-                self._pending_edit_events[-1].type == EditType.UPDATE
-                or self._pending_edit_events[-1].type == EditType.MOVE
-            )
-        ):
-            # merge operation
-            prev_edit = self._pending_edit_events[-1]
-            assert prev_edit.operations is not None, f"missing operations for {prev_edit!r}"
-            assert operation is not None, f"missing operation for {prev_edit!r}"
-            prev_edit.operations.append(operation)
-            # fire subscriptions
-            subs = self.session._on_edit_subs.get(node.id)
-            if subs is not None:
-                for sub in subs:
-                    sub(node)
-            return  # already handled
-
-        # context
-        session = self.session
-        if now is None:
-            now = session._oracle.utc()
-        run = session._runtime.active_run if session._runtime is not None else None
-        if run is not None and run.agent_ptr is not None:
-            subject_ptr = run.agent_ptr
-        elif session._subject is not None:
-            subject_ptr = session._subject.to_ref()
-        else:
-            subject_ptr = None
-
-        # make edit event
-        scope = session._get_scope_for_node(node)
-        edit_event = EditEvent(
-            node=node,
-            type=type,
-            subject_ptr=subject_ptr,
-            origin=session._origin,
-            run=run,
-            now=now,
-            scope=scope,
-        )
-        if operation is not None:
-            edit_event.operations = [operation]
-        if type in (
-            EditType.ARCHIVE,
-            EditType.UNARCHIVE,
-            EditType.DELETE,
-            EditType.RESTORE,
-            EditType.ERASE,
-        ):
-            node_data = node._to_data()
-            if node._is_new:
-                # find previous create event and set node_data now to 'fresh' node
-                for e in self._pending_edit_events:
-                    if e.node == node and e.type == EditType.CREATE:
-                        edit_event.node_data = node_data
-                        break
-            edit_event.node_data = node_data
-            node._is_new = False
-        self._pending_edit_events.append(edit_event)
-
-        # fire subscriptions
-        subs = self.session._on_edit_subs.get(node.id)
-        if subs is not None:
-            for sub in subs:
-                sub(node)
+        raise NotImplementedError
 
     def _add_pending_edits(self, edits: Sequence[EditData]):
         """Adds full edits to the transaction directly."""

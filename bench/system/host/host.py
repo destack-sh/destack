@@ -444,9 +444,9 @@ class HostService(GraphServiceBase, HostBase):
             _engines=self._engines,
             _pre_commit=self._pre_commit_hook,
             _post_commit=self._post_commit_hook,
-            _supergraph=self._bench._supergraph,
+            supergraph=self._bench._supergraph,
             _split_read=True,
-            _oracle=self.oracle,
+            oracle=self.oracle,
             _skip_add_self=True,
         )
         self._bench._track_rec(self._session)
@@ -626,7 +626,7 @@ class HostService(GraphServiceBase, HostBase):
         commit = unpack_commit(
             session=session,
             graph=graph,
-            supergraph=session._supergraph,  # use original session's supergraph
+            supergraph=session.supergraph,  # use original session's supergraph
             edits=edits,
             cascaded_edits=cascaded_edits,
             epoch=self._local_epoch,
@@ -655,7 +655,7 @@ class HostService(GraphServiceBase, HostBase):
             commit = unpack_commit(
                 session=self._session,
                 graph=graph,
-                supergraph=session._supergraph,  # use original session's supergraph
+                supergraph=session.supergraph,  # use original session's supergraph
                 edits=edits,
                 cascaded_edits=cascaded_edits,
                 epoch=self._local_epoch,

@@ -1,11 +1,10 @@
 from datetime import timedelta
-from typing import TYPE_CHECKING, Any, Collection, Optional, Sequence, Union, assert_never, cast
+from typing import TYPE_CHECKING, Any, Optional, Sequence, Union, cast
 
 from fastuuid import UUID
 
 from bench.language.core import (
     TERMINAL_PROCESS_STATUSES,
-    Expression,
     IsBased,
     IsComputable,
     IsExtensible,
@@ -230,17 +229,17 @@ class Run(
     def pause(self):
         """Mark this Run as paused."""
         assert self._session is not None, f"{self!r} has no session"
-        self.requested_pause_at = self._session._oracle.utc()
+        self.requested_pause_at = self._session.oracle.utc()
 
     def resume(self, _trigger_runtime: bool = True):
         """Mark this Run as resumed."""
         assert self._session is not None, f"{self!r} has no session"
-        self.requested_resume_at = self._session._oracle.utc()
+        self.requested_resume_at = self._session.oracle.utc()
 
     def stop(self, _trigger_runtime: bool = True):
         """Mark this Run as stopped."""
         assert self._session is not None, f"{self!r} has no session"
-        self.requested_stop_at = self._session._oracle.utc()
+        self.requested_stop_at = self._session.oracle.utc()
 
     def _mark_terminated(self):
         """Mark this Run as stopped."""
@@ -249,7 +248,7 @@ class Run(
             return  # already terminated
 
         # run
-        self.terminated_at = self._session._oracle.utc()
+        self.terminated_at = self._session.oracle.utc()
         if self.started_at:
             self.duration = self.terminated_at - self.started_at
         self.status = ProcessStatus.ABORTED if self.status.is_active else ProcessStatus.CANCELLED
@@ -272,49 +271,3 @@ class Run(
     async def wait_until_terminated(self, timeout: timedelta | None = None):
         """Wait until this Run is terminated."""
         await self.wait_until(lambda self: self.status.is_terminal, timeout=timeout)
-
-    @staticmethod
-    async def get_run_of(
-        node: "Runnable",
-        where: Optional[Expression] | Collection[ProcessStatus] = None,
-        timeout: timedelta | None = None,
-    ) -> "Run":
-        """Get the Run of a Node (waiting if necessary)."""
-        from bench.language import Action, Flow, FlowEdge
-
-        if where is None:
-            where = Run.get_property("status").gte(ProcessStatus.QUEUED)
-        elif isinstance(where, Collection):
-            where = Run.get_property("status").in_(*where)
-
-        if isinstance(node, Agent):
-            base_query = Run.get_property("agent").eq(node)
-        elif isinstance(node, Action):
-            base_query = Run.get_property("action").eq(node)
-        elif isinstance(node, FlowEdge):
-            base_query = Run.get_property("link").eq(node)
-        elif isinstance(node, Flow):
-            base_query = (
-                Run.get_property("flow").eq(node)
-                & Run.get_property("action").is_none()
-                & Run.get_property("link").is_none()
-            )
-        else:
-            assert_never(node)
-
-        query = Run.order_by(Run.get_property("created_at").desc()).limit(1)
-        query = query.where(where & base_query) if where is not None else query.where(base_query)
-        _, connection = await query.search_connection(live=True)
-
-        if connection.result.roots:
-            connection.close()
-            await connection.wait_closed()
-            return connection.result.roots[0]
-
-        # subscribe to only that Run
-        await connection.wait_until(lambda: len(connection.result.roots) > 0, timeout=timeout)
-        connection.close()
-        await connection.wait_closed()
-        run = connection.result.roots[0]
-        run = await Run.get(run.to_ref(), live=True)
-        return run

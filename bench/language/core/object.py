@@ -2,7 +2,8 @@ import abc
 import base64
 import contextvars
 import inspect
-from enum import IntEnum
+import textwrap
+from enum import Enum, IntEnum
 from sys import intern
 from typing import (
     TYPE_CHECKING,
@@ -31,10 +32,13 @@ from bench.language.registry import (
     STRUCT_CLASS_BY_TYPE,
 )
 from bench.pb2 import AnyObjectData, AnyStructData, GraphScopeData, lang_pb2
+from bench.utils.code import format_code
+from bench.utils.env import IS_DEV
 from bench.utils.func import dualmethod, get_superclasses, hash_stable, is_close
 from bench.utils.utils import frozendict
 
 from .const import (
+    ACTIVE_SESSION,
     EMPTY_DICT,
     FLOAT_EPSILON,
     UNSET,
@@ -100,6 +104,122 @@ def get_tk_b64_from_ck(ck: UUID) -> str:
 _processed_classes: dict[type["BuiltinObject"], type["BuiltinObject"]] = {}
 
 
+def _generate_init_for_cls[ObjectT: BuiltinObject](
+    cls: type[ObjectT], is_node: bool, header_properties: dict[str, Property]
+) -> str:
+    """Generates an __init__ for a BuiltinObject class."""
+
+    # prune properties
+    original_properties = header_properties
+
+    # sort properties (by id, runtime by alpha)
+    properties_in_order = list(header_properties.values())
+    properties_in_order.sort(key=lambda p: (p.id is None, p.id, p.name))
+
+    # header
+    method_header_lines = ["def __init__(self, *"]
+    for prop in properties_in_order:
+        if prop.is_computed:
+            continue
+        if prop.default is UNSET:
+            default_str = "UNSET"
+        elif isinstance(prop.default, Enum):
+            default_str = repr(prop.default.value)
+        else:
+            default_str = repr(prop.default)
+        method_header_lines.append(f"{prop.name}={default_str}")
+    method_header_lines.append(")")
+    method_header = ", ".join(method_header_lines)
+
+    # body
+    body_properties = dict(original_properties)
+    body_properties.pop("_session")
+    body_properties.pop("_supergraph")
+    method_body_lines = [
+        # general setup
+        """\
+# session / supergraph
+if _session is None:
+    self._session = ACTIVE_SESSION.get()
+    if self._session is None:
+        raise RuntimeError("no session")
+if _supergraph is None:
+    self._supergraph = self._session.supergraph
+"""
+    ]
+
+    # node setup
+    if is_node:
+        body_properties.pop("id")
+        body_properties.pop("ck", None)
+        body_properties.pop("created_at")
+        body_properties.pop("updated_at")
+        body_properties.pop("_is_new")
+        body_properties.pop("_graph")
+        # node init
+        if "ck" not in original_properties:
+            method_body_lines.append("""\
+# init node
+if id is None:
+    self.id = uuid4()
+    now = self._session._oracle.utc()
+    self.created_at = now
+    self.updated_at = now
+    self._is_new = True
+""")
+        else:
+            method_body_lines.append("""\
+# init node
+if id is None:
+    self.id = uuid4()
+    self.ck = self.id
+    now = self._session._oracle.utc()
+    self.created_at = now
+    self.updated_at = now
+    self._is_new = True
+""")
+
+        # node graph
+        method_body_lines.append("""\
+# init graph
+self._graph = _graph
+    """)
+
+    # property assignments
+    method_body_lines.append("# properties")
+    body_properties_in_order = list(body_properties.values())
+    body_properties_in_order.sort(key=lambda p: (p.id is None, p.id, p.name))
+    for prop in body_properties_in_order:
+        if prop.is_computed:
+            # computed, can't assign
+            continue
+        elif (ptr_prop := prop.ptr_prop) is not None:
+            # set ptr_prop from prop if prop is set
+            if not prop.is_list:
+                method_body_lines.append(f"""\
+if {prop.name} is not None:
+    {ptr_prop.name} = {prop.name}.to_ref()""")
+            else:
+                method_body_lines.append(f"""\
+if {prop.name}:
+    {ptr_prop.name} = tuple(x.to_ref() for x in {prop.name})""")
+        else:
+            # regular assignment
+            method_body_lines.append(f"self.{prop.name} = {prop.name}")
+    method_body = "\n".join(method_body_lines)
+    method_body = textwrap.indent(method_body, "    ")
+
+    init_str = f"{method_header}:\n{method_body}"
+    if IS_DEV:
+        init_str = format_code(init_str)
+    print("=" * 80)
+    print(cls.__name__)
+    print("=" * 80)
+    print(init_str)
+    print("=" * 80)
+    return init_str
+
+
 def _process_object_cls[ObjectT: BuiltinObject](
     cls: type[ObjectT],
     object_type: ObjectType | None,
@@ -143,7 +263,7 @@ def _process_object_cls[ObjectT: BuiltinObject](
     cls.__declared_properties__ = frozendict(properties)
 
     # collect properties from ancestor components (closest first)
-    for component in components[1:]:
+    for component in reversed(components[1:]):
         for name, prop in component.__declared_properties__.items():
             existing = properties.get(name)
             if existing is not None:
@@ -162,7 +282,43 @@ def _process_object_cls[ObjectT: BuiltinObject](
         if prop.ptr_prop is not None:
             properties[prop.ptr_prop.name] = prop.ptr_prop
 
-    # define slots & __init__
+    # index properties
+    cls.__properties__ = frozendict(properties)
+    properties_by_id: dict[int, Property] = {}
+    for prop in properties.values():
+        if prop.id is not None and prop.id is not UNSET and not prop.runtime_prop:
+            existing = properties_by_id.get(prop.id, None)
+            if existing is None:
+                properties_by_id[prop.id] = prop
+            elif not prop.runtime_prop:
+                # contributed reference properties can share an id
+                raise ValueError(f"property id conflict: {prop!r}, {existing!r}")
+    props = properties.values()
+    cls.__properties_by_id__ = frozendict(properties_by_id)
+    cls.__properties_name_by_id__ = frozendict(
+        {p.id: p.name for p in properties_by_id.values() if p.id is not None}
+    )
+    cls.__node_properties__ = frozendict(
+        {p.name: p for p in props if p.is_node_reference and not p.runtime_prop}
+    )
+    cls.__struct_properties__ = frozendict({p.name: p for p in props if p.is_struct is True})
+    cls.__wired_properties__ = frozendict({p.name: p for p in props if p.is_wired is True})
+    cls.__stored_properties__ = frozendict({p.name: p for p in props if p.is_stored is True})
+
+    # assign property ordinals
+    cls.__properties_in_order__ = tuple(sorted(properties_by_id.values(), key=lambda p: p.id))
+    for i, prop in enumerate(cls.__properties_in_order__):
+        prop.component = cls
+        prop.ord = i
+        if prop.ptr_prop:
+            prop.ptr_prop.ord = i
+    cls.__properties_id_in_order__ = tuple(p.id for p in cls.__properties_in_order__)
+    cls.__max_property_ord__ = len(cls.__properties_in_order__) - 1
+    cls.__properties_mask_set__ = bitarray(cls.__max_property_ord__ + 1)
+    cls.__properties_mask_set__.setall(True)
+    cls.__properties_mask_unset__ = bitarray(cls.__max_property_ord__ + 1)
+
+    # define slots & __init__ (in leaf classes, otherwise their slots might clash)
     if is_concrete:
         cls_dict = dict(cls.__dict__)
         cls_dict.pop("__dict__", None)
@@ -170,6 +326,8 @@ def _process_object_cls[ObjectT: BuiltinObject](
         for prop in properties.values():
             cls_dict.pop(prop.name, None)
         cls_dict["__slots__"] = tuple(cls.__declared_properties__.keys())
+        init_str = _generate_init_for_cls(cls, is_node=is_node, header_properties=properties)
+        exec(init_str, {"ACTIVE_SESSION": ACTIVE_SESSION}, cls_dict)
 
         # create the new class
         _original_cls = cls
@@ -209,42 +367,6 @@ def _process_object_cls[ObjectT: BuiltinObject](
                     if obj_key == "type" and (not prop.node_types or len(prop.node_types) <= 1):
                         continue  # no need for *_type if only one possible node type
                     setattr(cls, f"{prop.name}_{obj_key}", _object_node_ref_attr(ptr_key, prop))
-
-    # index properties
-    cls.__properties__ = frozendict(properties)
-    properties_by_id: dict[int, Property] = {}
-    for prop in properties.values():
-        if prop.id is not None and prop.id is not UNSET and not prop.runtime_prop:
-            existing = properties_by_id.get(prop.id, None)
-            if existing is None:
-                properties_by_id[prop.id] = prop
-            elif not prop.runtime_prop:
-                # contributed reference properties can share an id
-                raise ValueError(f"property id conflict: {prop!r}, {existing!r}")
-    props = properties.values()
-    cls.__properties_by_id__ = frozendict(properties_by_id)
-    cls.__properties_name_by_id__ = frozendict(
-        {p.id: p.name for p in properties_by_id.values() if p.id is not None}
-    )
-    cls.__node_properties__ = frozendict(
-        {p.name: p for p in props if p.is_node_reference and not p.runtime_prop}
-    )
-    cls.__struct_properties__ = frozendict({p.name: p for p in props if p.is_struct is True})
-    cls.__wired_properties__ = frozendict({p.name: p for p in props if p.is_wired is True})
-    cls.__stored_properties__ = frozendict({p.name: p for p in props if p.is_stored is True})
-
-    # assign property ordinals
-    cls.__properties_in_order__ = tuple(sorted(properties_by_id.values(), key=lambda p: p.id))
-    for i, prop in enumerate(cls.__properties_in_order__):
-        prop.component = cls
-        prop.ord = i
-        if prop.ptr_prop:
-            prop.ptr_prop.ord = i
-    cls.__properties_id_in_order__ = tuple(p.id for p in cls.__properties_in_order__)
-    cls.__max_property_ord__ = len(cls.__properties_in_order__) - 1
-    cls.__properties_mask_set__ = bitarray(cls.__max_property_ord__ + 1)
-    cls.__properties_mask_set__.setall(True)
-    cls.__properties_mask_unset__ = bitarray(cls.__max_property_ord__ + 1)
 
     return cls, properties  # type: ignore
 
@@ -291,12 +413,6 @@ def struct_[_ObjectT: BuiltinObject](struct_type: StructType):
         return cast(type[_ObjectT], cls)
 
     return decorate
-
-
-# NOTE: we don't track the inner _do_set in these computed properties because they're called
-#  via BuiltinObject._do_set already (it's called for every set), which applies the
-#  track/validate level at the outer level if they are required.
-#  (this is quite neat because it means we don't need to propagate the track/validate flags)
 
 
 def _object_property_ref(prop: Property) -> property:
@@ -516,9 +632,6 @@ class BuiltinObject[ObjectDataT: AnyObjectData](abc.ABC):
     _session: "Session" = p_runtime()
     _supergraph: "Supergraph" = p_runtime()
 
-    def __init__(self, **kwargs):
-        raise NotImplementedError("nocheckin: generate __init__")
-
     def __content_str__(self) -> str:
         return ""  # empty by default
 
@@ -574,59 +687,6 @@ class BuiltinObject[ObjectDataT: AnyObjectData](abc.ABC):
                 else:
                     content_props.append(prop_value)
         return hash_stable(content_props)
-
-    def _patch_from(self, other: Self):
-        """Patches this Node *in place* from another Node."""
-        for prop in self.__wired_properties__.values():
-            if prop.is_computed:
-                continue  # ignore computed properties
-            prop_value = getattr(other, prop.name)
-            self._do_set(prop.name, prop_value, track=False)
-
-    def _do_get(self, key):
-        """Called if an attribute doesn't exist in __dict__ / the usual places."""
-
-        # attribute error
-        # NOTE: we only try to repr once in a call chain to prevent recursive repr errors
-        #  (this is rare, but can happen for instance when an init partially fails)
-        self_str = self.__class__.__name__
-        if not _HANDLING_ATTRIBUTE_ERROR.get():
-            _handling_token = _HANDLING_ATTRIBUTE_ERROR.set(True)
-            try:
-                self_str = repr(self)
-            finally:
-                _HANDLING_ATTRIBUTE_ERROR.reset(_handling_token)
-        raise AttributeError(f"{self_str} has no attribute '{key}'")
-
-    def _do_set(
-        self,
-        key: str,
-        new_value: Any,
-        *,
-        track: bool = True,
-        validate: bool = False,
-    ):
-        """Sets *any* attribute on this builtin object."""
-        prop = self.__properties__.get(key)
-        if prop is None:
-            # attribute error
-            try:
-                self_str = repr(self)
-            except Exception:
-                self_str = self.__class__.__name__
-            raise AttributeError(f"{self_str} has no attribute '{key}'")
-
-        # set regular property
-        if not prop.is_wired:
-            object.__setattr__(self, key, new_value)
-            return
-        raise NotImplementedError("nocheckin: flat edits")
-
-    if not TYPE_CHECKING:
-        # NOTE: __setattr__/__getattr__ confuses type checking, so only define it at runtime
-        #  (we don't need it since dynamic access is meant for Values at runtime)
-        __getattr__ = _do_get
-        __setattr__ = _do_set
 
     def is_set(self, key: Property, value: Any = UNSET) -> bool:
         """Whether a key is set on this object."""

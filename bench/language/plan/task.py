@@ -57,11 +57,11 @@ class Task(
 
     def start(self) -> None:
         self.status = ProcessStatus.RUNNING
-        self.started_at = self.active_session._oracle.utc()
+        self.started_at = self.active_session.oracle.utc()
 
     def complete(self) -> None:
         self.status = ProcessStatus.COMPLETED
-        self.terminated_at = self.active_session._oracle.utc()
+        self.terminated_at = self.active_session.oracle.utc()
         if self.started_at is not None:
             self.duration = self.terminated_at - self.started_at
 
