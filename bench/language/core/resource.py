@@ -132,20 +132,20 @@ class ProvisionableResourceBase[NodeDataT: AnyNodeData](ResourceBase[NodeDataT])
 
     def provision(self) -> None:
         """Request to provision this Resource."""
-        self.requested_activate_at = self.active_session._oracle.utc()
+        self.requested_activate_at = self.active_session.oracle.utc()
 
     def decommission(self) -> None:
         """Request to decommission this Resource."""
-        self.requested_decommission_at = self.active_session._oracle.utc()
+        self.requested_decommission_at = self.active_session.oracle.utc()
 
     def update_status(self, status: ResourceStatus) -> None:
         """Set the actual current status of this Resource."""
         self.status = status
         if status == ResourceStatus.FAILED or status == ResourceStatus.RETRYING:
-            self.failed_at = self.active_session._oracle.utc()
+            self.failed_at = self.active_session.oracle.utc()
             self.failed_attempts += 1
         elif status.is_extant:
-            self.active_at = self.active_session._oracle.utc()
+            self.active_at = self.active_session.oracle.utc()
             self.failed_attempts = 0
 
     async def wait_until_status(

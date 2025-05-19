@@ -61,7 +61,7 @@ def test_node_subtype_pack_unpack(session: "Session"):
     # pack/unpack wiring
     block_data = block._to_data()
     unpacked_block = cast(
-        Block, unpack_builtin_object(block_data, expect=Block, supergraph=session._supergraph)
+        Block, unpack_builtin_object(block_data, expect=Block, supergraph=session.supergraph)
     )
     assert unpacked_block.equals(block)
     assert unpacked_block.line is not None and unpacked_block.line.spans[0].content == "Hello!"
@@ -93,7 +93,7 @@ def test_node_pointers_consistency(session: "Session"):
     assert computer_a.bench_id == bench_a.id
     client_a = Client(
         parent=bench_a,
-        seen_at=session._oracle.utc(),
+        seen_at=session.oracle.utc(),
         type=ClientType.MOBILE,
         name="Testificate's iPhone",
     )

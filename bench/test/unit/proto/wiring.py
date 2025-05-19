@@ -16,7 +16,7 @@ def test_roundtrip_builtin_object_bytes(obj: BuiltinObject[AnyObjectData], sessi
     unpacked_obj_data.ParseFromString(packed_bytes)
     unpacked_obj = wiring.unpack_builtin_object(
         unpacked_obj_data,
-        supergraph=session._supergraph,
+        supergraph=session.supergraph,
         graph=session._graph,
         session=session,
     )

@@ -524,6 +524,3 @@ class NullSuperGraph(Supergraph):
 
     def remove_graph(self, graph: Graph):
         raise RuntimeError("cannot remove graph from null supergraph")
-
-
-NULL_SUPERGRAPH = NullSuperGraph(name="<NULL>", root_ptr=None)

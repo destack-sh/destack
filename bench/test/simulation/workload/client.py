@@ -69,7 +69,7 @@ class ClientWorkload[SpecT: ClientWorkloadSpec](Workload[SpecT], abc.ABC):
             oracle=self.oracle,
             system=self.spec.system,
         )
-        self.supergraph = self.session._supergraph
+        self.supergraph = self.session.supergraph
 
         await self.session.open(_set_in_context=False)
         async with self.session.active():

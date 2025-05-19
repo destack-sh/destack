@@ -1,4 +1,4 @@
-from .code import Code, CodeType, code, format_code
+from .code import Code, CodeType, code
 from .const import (
     ACTIVE_PROCESS_STATUSES,
     ACTIVE_SESSION,
@@ -124,7 +124,6 @@ from .expression import (
     evaluate_sort,
 )
 from .graph import (
-    NULL_SUPERGRAPH,
     Graph,
     GraphConsistencyError,
     GraphData,
@@ -341,7 +340,6 @@ __all__ = [
     "NODE_TYPES_BY_AREA",
     "NODE_TYPES_SET",
     "NONCE",
-    "NULL_SUPERGRAPH",
     "OBJECT_TYPES",
     "OBJECT_TYPES_SET",
     "OWNABLE_NODE_TYPES",
@@ -528,7 +526,6 @@ __all__ = [
     "enum_",
     "evaluate_conditional",
     "evaluate_sort",
-    "format_code",
     "generate_node_name",
     "get_active_aliasing",
     "get_active_session",

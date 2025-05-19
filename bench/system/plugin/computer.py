@@ -162,7 +162,7 @@ class ComputerProvisioner(Provisioner[Computer, Computer]):
                     name=resource.name,
                     access_token=generate_access_token(ACCESS_TOKEN_LENGTH),
                     computer=resource,
-                    seen_at=session._oracle.utc(),
+                    seen_at=session.oracle.utc(),
                 )
                 session._create(client)
                 resource.client = client

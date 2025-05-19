@@ -78,7 +78,7 @@ def assign_builtin_ids(graph: Graph, ignore: Collection[Node] = ()) -> None:
         if node in ignore:
             continue
         old_node_id = node.id
-        node.id = uuid5(namespace=UUID_NAMESPACE, name=path_by_node[node])
+        node.id = uuid5(namespace=UUID_NAMESPACE, name=path_by_node[node].encode("utf-8"))
         if isinstance(node, IsInstantiable):
             cast(IsInstantiable, node).ck = node.id
         node_ptr = node.to_ref()

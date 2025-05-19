@@ -4,7 +4,7 @@ from typing import TYPE_CHECKING, Any, Collection, Optional, cast
 
 import pytz
 import structlog
-from fastuuid import UUID, uuid4
+from fastuuid import UUID
 from opentelemetry import trace
 
 from bench import pb2
@@ -33,15 +33,11 @@ logger = structlog.get_logger(__name__)
 tracer = trace.get_tracer(__name__)
 
 
-def new_edit_id() -> str:
-    return str(uuid4())
-
-
 @struct_(StructType.EDIT_OPERATION)
 class EditOperation(Struct):
     """An edit operation."""
 
-    type: EditOperationType = p_system(30, default=EditOperationType.SET)
+    type: EditOperationType = p_system(30)
     key: str = p_system(31)
 
     new_value_packed: Any | None = p_regular(40, primitive_type=PrimitiveType.JSON)
@@ -56,7 +52,6 @@ class Edit(Struct):
     # core
     id: str = p_system(
         2,
-        default_factory=new_edit_id,
         description="Unique identifier for the Edit within a Session.",
     )
     type: EditType = p_system(30, description="Type of Edit.")

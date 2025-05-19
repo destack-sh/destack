@@ -282,9 +282,9 @@ class GraphServiceBase(ServiceBase, GraphBase, abc.ABC):
             _pre_commit=self._pre_commit_hook if not raw_commit else None,
             _post_commit=self._post_commit_hook if not raw_commit else None,
             _post_commit_failed=self._post_commit_failed_hook if not raw_commit else None,
-            _supergraph=supergraph,
+            supergraph=supergraph,
             _split_read=self.split_reads,
-            _oracle=self.oracle,
+            oracle=self.oracle,
             _skip_add_self=True,
         )
 
@@ -685,11 +685,11 @@ class GraphServiceBase(ServiceBase, GraphBase, abc.ABC):
                 else:
                     table = None
                 filter = wiring.unpack_builtin_object_validate_maybe(
-                    request.filter, supergraph=session._supergraph, expect=Expression
+                    request.filter, supergraph=session.supergraph, expect=Expression
                 )
                 sort = [
                     wiring.unpack_builtin_object_validate(
-                        s, supergraph=session._supergraph, expect=Expression
+                        s, supergraph=session.supergraph, expect=Expression
                     )
                     for s in request.sort
                 ] or []

@@ -49,7 +49,7 @@ assert _is_setup_complete(), "NOTE: import this file after import is complete"
 
 
 def get_system_prompt(agent: Agent, model_settings: "ModelSettings"):
-    oracle = agent.active_session._oracle
+    oracle = agent.active_session.oracle
     now = oracle.utc()
     return f"""\
 You are a generalist agent in a Python shell on the Bench software platform.
@@ -257,7 +257,7 @@ async def build_agent_prompt(  # noqa: RUF029
     #  (like parts of PDF files, queries into Tables.. as Cursors or as temporary context or..?)
 
     # context
-    now = runner.session._oracle.utc()
+    now = runner.session.oracle.utc()
     run = runner.tracked_run
     assert run is not None, f"{runner!r} must be tracked"
     thread = runner.thread

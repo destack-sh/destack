@@ -169,8 +169,8 @@ class RuntimeServiceBase(ServiceBase, abc.ABC):
             _engines=self._engines,
             _supervisor=self._supervisor,
             _self_host=self._self_host,
-            _supergraph=self._supergraph,
-            _oracle=self.oracle,
+            supergraph=self._supergraph,
+            oracle=self.oracle,
         )
         await self._session.open(_set_in_context=False)
 
@@ -200,12 +200,12 @@ class RuntimeServiceBase(ServiceBase, abc.ABC):
         self._session.computer = self._computer
         if isinstance(self._client.parent, User):
             self._session.user = self._client.parent
-            self._session._subject = self._client.parent
+            self._session.subject = self._client.parent
         elif isinstance(self._client.parent, Bench):
-            self._session._subject = self._client.computer
+            self._session.subject = self._client.computer
         else:
             raise ValueError(f"unknown client parent {self._client.parent!r} in {self!r}")
-        self._session._origin = (
+        self._session.origin = (
             self._client.to_origin(nonce=NONCE)._to_data() if self._client else None
         )
 

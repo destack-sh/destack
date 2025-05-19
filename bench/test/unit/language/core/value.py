@@ -49,7 +49,7 @@ def test_custom_object_with_builtin_properties(session: Session, package: Packag
 
     # pack/unpack
     obj_packed = pack_custom_object(obj, Flow1Output)
-    obj_unpacked = unpack_custom_object(obj_packed, Flow1Output, supergraph=session._supergraph)
+    obj_unpacked = unpack_custom_object(obj_packed, Flow1Output, supergraph=session.supergraph)
     assert obj_unpacked.equals(obj)
 
 
@@ -97,7 +97,7 @@ def test_roundtrip_builtin_object_value_data(
     unpacked_wire_obj = unpack_builtin_object_data(packed_json)
     unpacked_obj = wiring.unpack_builtin_object(
         unpacked_wire_obj,
-        supergraph=session._supergraph,
+        supergraph=session.supergraph,
         graph=session._graph,
         session=session,
     )
@@ -110,7 +110,7 @@ def test_roundtrip_builtin_object_value_data(
 def test_roundtrip_builtin_object_value(obj: BuiltinObject, session: Session, package: Package):
     packed_json = pack_builtin_object(obj)
     unpacked_obj = unpack_builtin_object(
-        packed_json, session=session, supergraph=session._supergraph
+        packed_json, session=session, supergraph=session.supergraph
     )
     assert unpacked_obj.equals(obj), f"{unpacked_obj!r} != {obj!r}"
 

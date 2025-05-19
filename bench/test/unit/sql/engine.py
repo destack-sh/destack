@@ -199,19 +199,19 @@ async def test_cascade_edits(omni_session: Session):
         client_1_a = Client(
             parent=user_1,
             type=ClientType.WEB,
-            seen_at=session._oracle.utc(),
+            seen_at=session.oracle.utc(),
             name="Rabbit's Web",
         )
         client_1_b = Client(
             parent=user_1,
             type=ClientType.MOBILE,
-            seen_at=session._oracle.utc(),
+            seen_at=session.oracle.utc(),
             name="Rabbit's iPhone",
         )
         client_1_c = Client(
             parent=user_1,
             type=ClientType.MOBILE,
-            seen_at=session._oracle.utc(),
+            seen_at=session.oracle.utc(),
             name="Rabbit's Android",
         )
         session._create(client_1_a)
@@ -302,7 +302,7 @@ async def test_crud_node_pointers(omni_session: Session):
         client = Client(
             parent=bench,
             type=ClientType.MOBILE,
-            seen_at=session._oracle.utc(),
+            seen_at=session.oracle.utc(),
             name="Testificate's iPhone",
         )
         session._create(client)

@@ -134,7 +134,7 @@ def global_session(
         _default_scope=EMPTY_SCOPE_DATA,
         _engines=engines,
         _local_epoch=epoch,
-        _supergraph=supergraph,
-        _oracle=oracle,
+        supergraph=supergraph,
+        oracle=oracle,
         _split_read=split_read,
     )

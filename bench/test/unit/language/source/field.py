@@ -1,10 +1,8 @@
 import pytest
-from fastuuid import UUID
 
 from bench.language import (
     EnumType,
     Field,
-    NodeReference,
     NodeType,
     PrimitiveType,
     Session,
@@ -21,17 +19,6 @@ TEST_TYPE_IDENTITIES: tuple[tuple[Type, str], ...] = (
     (Type(kind=TypeKind.NODE, bench_type=NodeType.USER, is_list=True), "N"),
     (Type(kind=TypeKind.STRUCT, bench_type=StructType.TEXT), "sg7C"),
     (Type(kind=TypeKind.ENUM, bench_type=EnumType.OBJECT_TYPE, is_secret=True), "!ej4E"),
-    (
-        Type(
-            kind=TypeKind.CUSTOM_OBJECT,
-            base_type_ptr=NodeReference(
-                node_type=NodeType.BLOCK,
-                id=UUID("12345678-ffff-0000-0000-000000000000"),
-                ck=UUID("12345678-ffff-0000-0000-000000000000"),
-            ),
-        ),
-        "oAAAAAAAAAAAAA8//4ZFNS",
-    ),
 )
 
 

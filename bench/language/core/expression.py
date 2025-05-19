@@ -15,9 +15,7 @@ from bench.utils.string import Casing, to_casing
 
 from .const import (
     AggregationType,
-    BuiltinEnum,
     ConditionalType,
-    EnumType,
     ExpressionKind,
     ExpressionType,
     FieldType,
@@ -27,7 +25,6 @@ from .const import (
     SortType,
     StructType,
     TypeKind,
-    enum_,
 )
 from .node import Node, NodeReference
 from .object import Property, PropertyReference
@@ -78,20 +75,9 @@ _CONDITIONAL_OP_SIGN: dict[ConditionalType, str] = {
 }
 
 
-@enum_(EnumType.SELECTION_TYPE)
-class SelectionType(BuiltinEnum):
-    LIST = 1
-    RANGE = 2
-    SCOPE = 3
-    TAG = 4
-    COMBINATION = 10
-
-
 @struct_(StructType.SELECTION)
 class Selection(Struct):
     """A selection of Nodes."""
-
-    type: SelectionType = p_regular(30, default=SelectionType.LIST)
 
     nodes: list[Node] = p_regular(50)
     fields: list["Field"] = p_regular(51)

@@ -62,10 +62,10 @@ class Prompt:
     ):
         self.subject = subject
         self.session = session
-        self.now = session._oracle.utc()
+        self.now = session.oracle.utc()
         self.node = node
         self.model_settings = model_settings
-        self.aliasing = aliasing or Aliasing(session._supergraph)
+        self.aliasing = aliasing or Aliasing(session.supergraph)
         self.renderer = renderer or Renderer(options=RenderOptions(aliasing=self.aliasing))
         self.pieces: list[Piece] = components or []
         self.system_prompt: str = system_prompt
