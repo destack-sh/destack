@@ -7,11 +7,9 @@ from bench.language.core import (
     IsModal,
     IsNamed,
     IsOrdered,
-    NodeMode,
     NodeType,
     PackageNode,
     Property,
-    PropertyReference,
     TypeBase,
     TypeConstraint,
     TypeConstraintIn,
@@ -65,9 +63,6 @@ class Field(
     )
     type: FieldType = p_internal(30)
     icon: Optional["Icon"] = p_regular(35)
-    property: Optional[Property] = p_regular(36)
-    if TYPE_CHECKING:
-        property_ptr: Optional["PropertyReference"] = None
 
     # type identity
     # ...TypeInfo[40-69]
@@ -96,17 +91,10 @@ class Field(
     def new(
         name: str,
         type: FieldType,
-        typ: TypeIn | Property,
+        typ: TypeIn,
         constraint: TypeConstraintIn | TypeConstraint | None = None,
         **kwargs,
     ) -> "Field":
-        if isinstance(typ, Property):
-            property = typ
-            typ = typ.type_info
-            mode = NodeMode.BUILTIN
-        else:
-            property = None
-            mode = None
         typ = to_type_scalar(typ)
         for prop in TypeBase.__declared_properties__.values():
             if prop.name not in kwargs:
@@ -115,15 +103,13 @@ class Field(
             if isinstance(constraint, TypeConstraintIn):
                 constraint = constraint.into()
             kwargs["constraint"] = constraint
-        field = Field(name=name, type=type, property=property, **kwargs)
-        if mode is not None:
-            field.mode = mode
+        field = Field(name=name, type=type, **kwargs)
         return field
 
     @staticmethod
     def member(
         name: str,
-        typ: TypeIn | Property,
+        typ: TypeIn,
         constraint: TypeConstraintIn | TypeConstraint | None = None,
         **kwargs,
     ) -> "Field":

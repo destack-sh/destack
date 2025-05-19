@@ -2,7 +2,6 @@ import typing
 from typing import (
     TYPE_CHECKING,
     Any,
-    NamedTuple,
     Optional,
     Sequence,
     Union,
@@ -68,21 +67,7 @@ TYPE_KIND_BY_LETTER: dict[str, TypeKind] = {
 }
 
 
-class TypeIdentity(NamedTuple):
-    kind: TypeKind
-    primitive_type: Optional[PrimitiveType] = None
-    bench_type: Optional[BenchType] = None
-    base_type_ptr: Optional[NodeReference] = None
-    base_field_types: list["FieldType"] | None = None
-    property_field_types: list["FieldType"] | None = None
-    is_required: bool = False
-    is_list: bool = False
-    is_secret: bool = False
-    format: Optional[TypeFormat] = None
-    constraint: Optional["TypeConstraint"] = None
-
-
-def encode_type_identity(typ: "TypeBase | TypeIdentity") -> str:
+def encode_type_identity(typ: "TypeBase") -> str:
     """
     Encodes the type identity into a key for storage & implicit typing.
     Format is <kind>[id] (with id encoded as base64).
@@ -108,7 +93,7 @@ def encode_type_identity(typ: "TypeBase | TypeIdentity") -> str:
     return f"{prefix}{value}"
 
 
-def decode_type_identity(key: str) -> "TypeIdentity":
+def decode_type_identity(key: str) -> "TypeBase":
     """Decodes the type-related info back from the identity key. See encode. :TypeInfoEncoding"""
     # prefix
     if key[0] == "!":
@@ -127,7 +112,7 @@ def decode_type_identity(key: str) -> "TypeIdentity":
     # value
     if kind == TypeKind.PRIMITIVE.value:
         primitive_type = PrimitiveType(decode_b64vlq(value))
-        return TypeIdentity(
+        return Type(
             kind=TypeKind.PRIMITIVE,
             primitive_type=primitive_type,
             is_list=is_list,
@@ -135,11 +120,11 @@ def decode_type_identity(key: str) -> "TypeIdentity":
         )
     elif kind == TypeKind.STRUCT.value or kind == TypeKind.ENUM.value:
         bench_type = BenchType(decode_b64vlq(value))  # type: ignore
-        return TypeIdentity(
+        return Type(
             kind=TypeKind(kind), bench_type=bench_type, is_list=is_list, is_secret=is_secret
         )
     elif kind == TypeKind.NODE.value:
-        return TypeIdentity(kind=TypeKind(kind), is_list=is_list, is_secret=is_secret)
+        return Type(kind=TypeKind(kind), is_list=is_list, is_secret=is_secret)
 
     raise ValueError(f"unsupported type kind {kind} for {key!r}")
 
@@ -196,30 +181,13 @@ class TypeConstraint(Struct):
 constraint = TypeConstraintIn
 
 
-# nocheckin: revamp Type, TypeConstraint cascading Type bases
+# nocheckin: revamp Type, TypeConstraint cascading Type bases, Maps, ...
 #  TypeConstraint.node_subtypes feels wrong, need Node-specific constraints?
 #  specific node/struct/custom constraints?
 @object_()
 class TypeBase(BuiltinObject):
     """
-    A Type describes the properties and shape of a value.
-
-    A Type is of one of:
-       1. Primitive (= column type, value is scalar, like int32, string, bool, datetime)
-       2. Struct (Struct like Expression, File, Path, Text, Code)
-       3. Node (NodeReference, like Package, Block, Field, Record, Run, Signal)
-       4. Enum (builtin BuiltinEnum, like FieldKind, NodeType, BenchType, EnumType)
-       5. Based Node (NodeReference,  an 'instance' of the block)
-       6. Custom Object (value is CustomObject, like Action outputs, Record value)
-       7. Partial Object (value is a CustomObject + partial Node, like Record partials, CreateActions)
-       8. Literal (only allowable value is the type itself / or some constant value)
-       9. Union (type is union of Field children with oneof=self)
-
-    Types may also specify:
-       - field type, narrowing the Fields included from the base type (if any)
-       - condition which instances must satisfy
-       - constraints (simple conditions the value must satisfy)
-       - combination flags for arrays, optionals
+    A Type describes the shape of a value.
     """
 
     # type identity

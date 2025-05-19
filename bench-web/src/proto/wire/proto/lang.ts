@@ -2682,10 +2682,6 @@ export interface ExpressionData {
      */
     type: ExpressionType;
     /**
-     * @generated from protobuf field: optional symbol.bench.PropertyReferenceData property_ptr = 31;
-     */
-    propertyPtr?: PropertyReferenceData;
-    /**
      * @generated from protobuf field: optional symbol.bench.NodeReferenceData field_ptr = 32;
      */
     fieldPtr?: NodeReferenceData;
@@ -2784,10 +2780,6 @@ export interface FieldData {
      * @generated from protobuf field: optional symbol.bench.IconData icon = 35;
      */
     icon?: IconData;
-    /**
-     * @generated from protobuf field: optional symbol.bench.PropertyReferenceData property_ptr = 36;
-     */
-    propertyPtr?: PropertyReferenceData;
     /**
      * @generated from protobuf field: symbol.bench.TypeKind kind = 40;
      */
@@ -20835,7 +20827,6 @@ class ExpressionData$Type extends MessageType$<ExpressionData> {
         super("symbol.bench.ExpressionData", [
             { no: 1, name: "metatype", kind: "enum", T: () => ["symbol.bench.ObjectType", ObjectType, "OBJECT_TYPE_"] },
             { no: 30, name: "type", kind: "enum", T: () => ["symbol.bench.ExpressionType", ExpressionType, "EXPRESSION_TYPE_"] },
-            { no: 31, name: "property_ptr", kind: "message", T: () => PropertyReferenceData },
             { no: 32, name: "field_ptr", kind: "message", T: () => NodeReferenceData },
             { no: 40, name: "clauses", kind: "message", repeat: 1 /*RepeatType.PACKED*/, T: () => ExpressionData },
             { no: 46, name: "value", kind: "message", T: () => ValueData },
@@ -20862,9 +20853,6 @@ class ExpressionData$Type extends MessageType$<ExpressionData> {
                     break;
                 case /* symbol.bench.ExpressionType type */ 30:
                     message.type = reader.int32();
-                    break;
-                case /* optional symbol.bench.PropertyReferenceData property_ptr */ 31:
-                    message.propertyPtr = PropertyReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.propertyPtr);
                     break;
                 case /* optional symbol.bench.NodeReferenceData field_ptr */ 32:
                     message.fieldPtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.fieldPtr);
@@ -20899,9 +20887,6 @@ class ExpressionData$Type extends MessageType$<ExpressionData> {
         /* symbol.bench.ExpressionType type = 30; */
         if (message.type !== 0)
             writer.tag(30, WireType.Varint).int32(message.type);
-        /* optional symbol.bench.PropertyReferenceData property_ptr = 31; */
-        if (message.propertyPtr)
-            PropertyReferenceData.internalBinaryWrite(message.propertyPtr, writer.tag(31, WireType.LengthDelimited).fork(), options).join();
         /* optional symbol.bench.NodeReferenceData field_ptr = 32; */
         if (message.fieldPtr)
             NodeReferenceData.internalBinaryWrite(message.fieldPtr, writer.tag(32, WireType.LengthDelimited).fork(), options).join();
@@ -20949,7 +20934,6 @@ class FieldData$Type extends MessageType$<FieldData> {
             { no: 31, name: "name", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
             { no: 33, name: "order_key", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
             { no: 35, name: "icon", kind: "message", T: () => IconData },
-            { no: 36, name: "property_ptr", kind: "message", T: () => PropertyReferenceData },
             { no: 40, name: "kind", kind: "enum", T: () => ["symbol.bench.TypeKind", TypeKind, "TYPE_KIND_"] },
             { no: 41, name: "primitive_type", kind: "enum", opt: true, T: () => ["symbol.bench.PrimitiveType", PrimitiveType, "PRIMITIVE_TYPE_"] },
             { no: 42, name: "bench_type", kind: "enum", opt: true, T: () => ["symbol.bench.BenchType", BenchType, "BENCH_TYPE_"] },
@@ -21036,9 +21020,6 @@ class FieldData$Type extends MessageType$<FieldData> {
                     break;
                 case /* optional symbol.bench.IconData icon */ 35:
                     message.icon = IconData.internalBinaryRead(reader, reader.uint32(), options, message.icon);
-                    break;
-                case /* optional symbol.bench.PropertyReferenceData property_ptr */ 36:
-                    message.propertyPtr = PropertyReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.propertyPtr);
                     break;
                 case /* symbol.bench.TypeKind kind */ 40:
                     message.kind = reader.int32();
@@ -21136,9 +21117,6 @@ class FieldData$Type extends MessageType$<FieldData> {
         /* optional symbol.bench.IconData icon = 35; */
         if (message.icon)
             IconData.internalBinaryWrite(message.icon, writer.tag(35, WireType.LengthDelimited).fork(), options).join();
-        /* optional symbol.bench.PropertyReferenceData property_ptr = 36; */
-        if (message.propertyPtr)
-            PropertyReferenceData.internalBinaryWrite(message.propertyPtr, writer.tag(36, WireType.LengthDelimited).fork(), options).join();
         /* symbol.bench.TypeKind kind = 40; */
         if (message.kind !== 0)
             writer.tag(40, WireType.Varint).int32(message.kind);
@@ -36604,7 +36582,6 @@ export enum FieldProperty {
   name = 31,
   orderKey = 33,
   icon = 35,
-  propertyPtr = 36,
   kind = 40,
   primitiveType = 41,
   benchType = 42,
@@ -38140,7 +38117,6 @@ export enum IconProperty {
 export enum ExpressionProperty {
   metatype = 1,
   type = 30,
-  propertyPtr = 31,
   fieldPtr = 32,
   clauses = 40,
   value = 46,
@@ -39184,8 +39160,6 @@ export const FieldDataInfo: Record<FieldProperty, PropertyInfo> = {
   [FieldProperty.name]: { id: 31, name: 'name', component: ObjectType.FIELD, kind: 'primitive', primitiveType: PrimitiveType.STRING, constraint: { minLength: 0, maxLength: 128, nodeTypes: [] }, isWired: true, isStored: true },
   [FieldProperty.orderKey]: { id: 33, name: 'order_key', component: ObjectType.FIELD, kind: 'primitive', primitiveType: PrimitiveType.STRING, default: "a0", isRequired: true, isInternal: true, isWired: true, isStored: true },
   [FieldProperty.icon]: { id: 35, name: 'icon', component: ObjectType.FIELD, kind: 'primitive', primitiveType: PrimitiveType.JSON, isWired: true, isStored: true, referenceStruct: StructType.ICON },
-  [FieldProperty.property]: { id: 36, name: 'property', component: ObjectType.FIELD, kind: 'primitive', isWired: true, isStored: true, referenceStruct: StructType.PROPERTY_REFERENCE },
-  [FieldProperty.propertyPtr]: { id: 36, name: 'property_ptr', component: ObjectType.FIELD, kind: 'primitive', primitiveType: PrimitiveType.JSON, isWired: true, isStored: true, referenceStruct: StructType.PROPERTY_REFERENCE },
   [FieldProperty.kind]: { id: 40, name: 'kind', component: ObjectType.FIELD, enumType: EnumType.TYPE_KIND, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isInternal: true, isWired: true, isStored: true },
   [FieldProperty.primitiveType]: { id: 41, name: 'primitive_type', component: ObjectType.FIELD, enumType: EnumType.PRIMITIVE_TYPE, kind: 'enum', primitiveType: PrimitiveType.INT16, isWired: true, isStored: true },
   [FieldProperty.benchType]: { id: 42, name: 'bench_type', component: ObjectType.FIELD, enumType: EnumType.BENCH_TYPE, kind: 'enum', primitiveType: PrimitiveType.INT16, isWired: true, isStored: true },
@@ -41052,8 +41026,6 @@ export const IconDataInfo: Record<IconProperty, PropertyInfo> = {
 export const ExpressionDataInfo: Record<ExpressionProperty, PropertyInfo> = {
   [ExpressionProperty.metatype]: { id: 1, name: 'metatype', component: ObjectType.EXPRESSION, enumType: EnumType.OBJECT_TYPE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isInternal: true, isComputed: true, isWired: true },
   [ExpressionProperty.type]: { id: 30, name: 'type', component: ObjectType.EXPRESSION, enumType: EnumType.EXPRESSION_TYPE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isWired: true, isStored: true },
-  [ExpressionProperty.property]: { id: 31, name: 'property', component: ObjectType.EXPRESSION, kind: 'primitive', isWired: true, isStored: true, referenceStruct: StructType.PROPERTY_REFERENCE },
-  [ExpressionProperty.propertyPtr]: { id: 31, name: 'property_ptr', component: ObjectType.EXPRESSION, kind: 'primitive', primitiveType: PrimitiveType.JSON, isWired: true, isStored: true, referenceStruct: StructType.PROPERTY_REFERENCE },
   [ExpressionProperty.field]: { id: 32, name: 'field', component: ObjectType.EXPRESSION, kind: 'reference', isWired: true, isStored: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.FIELD] },
   [ExpressionProperty.fieldPtr]: { id: 32, name: 'field_ptr', component: ObjectType.EXPRESSION, kind: 'reference', isWired: true, isStored: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.FIELD], referenceStruct: StructType.NODE_REFERENCE },
   [ExpressionProperty.clauses]: { id: 40, name: 'clauses', component: ObjectType.EXPRESSION, kind: 'primitive', primitiveType: PrimitiveType.JSON, isList: true, isWired: true, isStored: true, referenceStruct: StructType.EXPRESSION },

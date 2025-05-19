@@ -30,7 +30,6 @@ from .service import ServiceBase
 from .wiring import (
     pack_and_set_object_prop,
     pack_builtin_object,
-    pack_builtin_object_maybe,
     pack_enum,
     pack_proto_json,
     pack_rpc_headers,
@@ -71,7 +70,6 @@ __all__ = [
     "minikubeify_url",
     "pack_and_set_object_prop",
     "pack_builtin_object",
-    "pack_builtin_object_maybe",
     "pack_enum",
     "pack_proto_json",
     "pack_rpc_headers",

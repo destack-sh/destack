@@ -94,7 +94,7 @@ class Expression(Struct):  # nocheckin: unravel Expressions (new Queries?)
     """
 
     type: ExpressionType = p_regular(30)
-    property: Optional[Property] = p_regular(31)
+    # property: Optional[Property] = p_regular(31)
     field: Optional["Field"] = p_regular(32)
     if TYPE_CHECKING:
         property_ptr: Optional[PropertyReference] = None
