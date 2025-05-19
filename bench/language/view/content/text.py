@@ -19,5 +19,4 @@ class TextView(ContentViewBase[TextViewData]):
     color: VariableProperty["Fill"] = p_regular(67)
 
     # text
-    # nocheckin: TextView.text - what type?
     text: VariableProperty[str] = p_regular(100)

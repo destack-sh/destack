@@ -1471,25 +1471,95 @@ export interface ComponentViewData {
      */
     layout?: Layout;
     /**
-     * @generated from protobuf field: symbol.bench.Direction direction = 51;
+     * @generated from protobuf oneof: direction
      */
-    direction: Direction;
+    direction: {
+        oneofKind: "directionValue";
+        /**
+         * @generated from protobuf field: symbol.bench.Direction direction_value = 51;
+         */
+        directionValue: Direction;
+    } | {
+        oneofKind: "directionVariable";
+        /**
+         * @generated from protobuf field: symbol.bench.VariableData direction_variable = 17051;
+         */
+        directionVariable: VariableData;
+    } | {
+        oneofKind: undefined;
+    };
     /**
-     * @generated from protobuf field: symbol.bench.Distribute distribute = 52;
+     * @generated from protobuf oneof: distribute
      */
-    distribute: Distribute;
+    distribute: {
+        oneofKind: "distributeValue";
+        /**
+         * @generated from protobuf field: symbol.bench.Distribute distribute_value = 52;
+         */
+        distributeValue: Distribute;
+    } | {
+        oneofKind: "distributeVariable";
+        /**
+         * @generated from protobuf field: symbol.bench.VariableData distribute_variable = 17052;
+         */
+        distributeVariable: VariableData;
+    } | {
+        oneofKind: undefined;
+    };
     /**
-     * @generated from protobuf field: symbol.bench.Align align = 53;
+     * @generated from protobuf oneof: align
      */
-    align: Align;
+    align: {
+        oneofKind: "alignValue";
+        /**
+         * @generated from protobuf field: symbol.bench.Align align_value = 53;
+         */
+        alignValue: Align;
+    } | {
+        oneofKind: "alignVariable";
+        /**
+         * @generated from protobuf field: symbol.bench.VariableData align_variable = 17053;
+         */
+        alignVariable: VariableData;
+    } | {
+        oneofKind: undefined;
+    };
     /**
-     * @generated from protobuf field: symbol.bench.Axis2Data gap = 54;
+     * @generated from protobuf oneof: gap
      */
-    gap?: Axis2Data;
+    gap: {
+        oneofKind: "gapValue";
+        /**
+         * @generated from protobuf field: symbol.bench.Axis2Data gap_value = 54;
+         */
+        gapValue: Axis2Data;
+    } | {
+        oneofKind: "gapVariable";
+        /**
+         * @generated from protobuf field: symbol.bench.VariableData gap_variable = 17054;
+         */
+        gapVariable: VariableData;
+    } | {
+        oneofKind: undefined;
+    };
     /**
-     * @generated from protobuf field: symbol.bench.InsetsData padding = 55;
+     * @generated from protobuf oneof: padding
      */
-    padding?: InsetsData;
+    padding: {
+        oneofKind: "paddingValue";
+        /**
+         * @generated from protobuf field: symbol.bench.InsetsData padding_value = 55;
+         */
+        paddingValue: InsetsData;
+    } | {
+        oneofKind: "paddingVariable";
+        /**
+         * @generated from protobuf field: symbol.bench.VariableData padding_variable = 17055;
+         */
+        paddingVariable: VariableData;
+    } | {
+        oneofKind: undefined;
+    };
     /**
      * @generated from protobuf field: optional symbol.bench.GridData grid = 56;
      */
@@ -1507,41 +1577,167 @@ export interface ComponentViewData {
      */
     isWrap?: boolean;
     /**
-     * @generated from protobuf field: bool is_visible = 60;
+     * @generated from protobuf oneof: is_visible
      */
-    isVisible: boolean;
+    isVisible: {
+        oneofKind: "isVisibleValue";
+        /**
+         * @generated from protobuf field: bool is_visible_value = 60;
+         */
+        isVisibleValue: boolean;
+    } | {
+        oneofKind: "isVisibleVariable";
+        /**
+         * @generated from protobuf field: symbol.bench.VariableData is_visible_variable = 17060;
+         */
+        isVisibleVariable: VariableData;
+    } | {
+        oneofKind: undefined;
+    };
     /**
-     * @generated from protobuf field: float opacity = 61;
+     * @generated from protobuf oneof: opacity
      */
-    opacity: number;
+    opacity: {
+        oneofKind: "opacityValue";
+        /**
+         * @generated from protobuf field: float opacity_value = 61;
+         */
+        opacityValue: number;
+    } | {
+        oneofKind: "opacityVariable";
+        /**
+         * @generated from protobuf field: symbol.bench.VariableData opacity_variable = 17061;
+         */
+        opacityVariable: VariableData;
+    } | {
+        oneofKind: undefined;
+    };
     /**
-     * @generated from protobuf field: symbol.bench.FillData fill = 62;
+     * @generated from protobuf oneof: fill
      */
-    fill?: FillData;
+    fill: {
+        oneofKind: "fillValue";
+        /**
+         * @generated from protobuf field: symbol.bench.FillData fill_value = 62;
+         */
+        fillValue: FillData;
+    } | {
+        oneofKind: "fillVariable";
+        /**
+         * @generated from protobuf field: symbol.bench.VariableData fill_variable = 17062;
+         */
+        fillVariable: VariableData;
+    } | {
+        oneofKind: undefined;
+    };
     /**
-     * @generated from protobuf field: symbol.bench.Axis3Data rotation = 63;
+     * @generated from protobuf oneof: rotation
      */
-    rotation?: Axis3Data;
+    rotation: {
+        oneofKind: "rotationValue";
+        /**
+         * @generated from protobuf field: symbol.bench.Axis3Data rotation_value = 63;
+         */
+        rotationValue: Axis3Data;
+    } | {
+        oneofKind: "rotationVariable";
+        /**
+         * @generated from protobuf field: symbol.bench.VariableData rotation_variable = 17063;
+         */
+        rotationVariable: VariableData;
+    } | {
+        oneofKind: undefined;
+    };
     /**
-     * @generated from protobuf field: symbol.bench.Vector2Data skew = 64;
+     * @generated from protobuf oneof: skew
      */
-    skew?: Vector2Data;
+    skew: {
+        oneofKind: "skewValue";
+        /**
+         * @generated from protobuf field: symbol.bench.Vector2Data skew_value = 64;
+         */
+        skewValue: Vector2Data;
+    } | {
+        oneofKind: "skewVariable";
+        /**
+         * @generated from protobuf field: symbol.bench.VariableData skew_variable = 17064;
+         */
+        skewVariable: VariableData;
+    } | {
+        oneofKind: undefined;
+    };
     /**
-     * @generated from protobuf field: float scale = 65;
+     * @generated from protobuf oneof: scale
      */
-    scale: number;
+    scale: {
+        oneofKind: "scaleValue";
+        /**
+         * @generated from protobuf field: float scale_value = 65;
+         */
+        scaleValue: number;
+    } | {
+        oneofKind: "scaleVariable";
+        /**
+         * @generated from protobuf field: symbol.bench.VariableData scale_variable = 17065;
+         */
+        scaleVariable: VariableData;
+    } | {
+        oneofKind: undefined;
+    };
     /**
-     * @generated from protobuf field: symbol.bench.ShadowData shadow = 66;
+     * @generated from protobuf oneof: shadow
      */
-    shadow?: ShadowData;
+    shadow: {
+        oneofKind: "shadowValue";
+        /**
+         * @generated from protobuf field: symbol.bench.ShadowData shadow_value = 66;
+         */
+        shadowValue: ShadowData;
+    } | {
+        oneofKind: "shadowVariable";
+        /**
+         * @generated from protobuf field: symbol.bench.VariableData shadow_variable = 17066;
+         */
+        shadowVariable: VariableData;
+    } | {
+        oneofKind: undefined;
+    };
     /**
-     * @generated from protobuf field: symbol.bench.BorderData border = 67;
+     * @generated from protobuf oneof: border
      */
-    border?: BorderData;
+    border: {
+        oneofKind: "borderValue";
+        /**
+         * @generated from protobuf field: symbol.bench.BorderData border_value = 67;
+         */
+        borderValue: BorderData;
+    } | {
+        oneofKind: "borderVariable";
+        /**
+         * @generated from protobuf field: symbol.bench.VariableData border_variable = 17067;
+         */
+        borderVariable: VariableData;
+    } | {
+        oneofKind: undefined;
+    };
     /**
-     * @generated from protobuf field: symbol.bench.CornersData radius = 68;
+     * @generated from protobuf oneof: radius
      */
-    radius?: CornersData;
+    radius: {
+        oneofKind: "radiusValue";
+        /**
+         * @generated from protobuf field: symbol.bench.CornersData radius_value = 68;
+         */
+        radiusValue: CornersData;
+    } | {
+        oneofKind: "radiusVariable";
+        /**
+         * @generated from protobuf field: symbol.bench.VariableData radius_variable = 17068;
+         */
+        radiusVariable: VariableData;
+    } | {
+        oneofKind: undefined;
+    };
 }
 /**
  * A Computer provides physical compute.
@@ -3342,25 +3538,95 @@ export interface FrameViewData {
      */
     layout?: Layout;
     /**
-     * @generated from protobuf field: symbol.bench.Direction direction = 51;
+     * @generated from protobuf oneof: direction
      */
-    direction: Direction;
+    direction: {
+        oneofKind: "directionValue";
+        /**
+         * @generated from protobuf field: symbol.bench.Direction direction_value = 51;
+         */
+        directionValue: Direction;
+    } | {
+        oneofKind: "directionVariable";
+        /**
+         * @generated from protobuf field: symbol.bench.VariableData direction_variable = 17051;
+         */
+        directionVariable: VariableData;
+    } | {
+        oneofKind: undefined;
+    };
     /**
-     * @generated from protobuf field: symbol.bench.Distribute distribute = 52;
+     * @generated from protobuf oneof: distribute
      */
-    distribute: Distribute;
+    distribute: {
+        oneofKind: "distributeValue";
+        /**
+         * @generated from protobuf field: symbol.bench.Distribute distribute_value = 52;
+         */
+        distributeValue: Distribute;
+    } | {
+        oneofKind: "distributeVariable";
+        /**
+         * @generated from protobuf field: symbol.bench.VariableData distribute_variable = 17052;
+         */
+        distributeVariable: VariableData;
+    } | {
+        oneofKind: undefined;
+    };
     /**
-     * @generated from protobuf field: symbol.bench.Align align = 53;
+     * @generated from protobuf oneof: align
      */
-    align: Align;
+    align: {
+        oneofKind: "alignValue";
+        /**
+         * @generated from protobuf field: symbol.bench.Align align_value = 53;
+         */
+        alignValue: Align;
+    } | {
+        oneofKind: "alignVariable";
+        /**
+         * @generated from protobuf field: symbol.bench.VariableData align_variable = 17053;
+         */
+        alignVariable: VariableData;
+    } | {
+        oneofKind: undefined;
+    };
     /**
-     * @generated from protobuf field: symbol.bench.Axis2Data gap = 54;
+     * @generated from protobuf oneof: gap
      */
-    gap?: Axis2Data;
+    gap: {
+        oneofKind: "gapValue";
+        /**
+         * @generated from protobuf field: symbol.bench.Axis2Data gap_value = 54;
+         */
+        gapValue: Axis2Data;
+    } | {
+        oneofKind: "gapVariable";
+        /**
+         * @generated from protobuf field: symbol.bench.VariableData gap_variable = 17054;
+         */
+        gapVariable: VariableData;
+    } | {
+        oneofKind: undefined;
+    };
     /**
-     * @generated from protobuf field: symbol.bench.InsetsData padding = 55;
+     * @generated from protobuf oneof: padding
      */
-    padding?: InsetsData;
+    padding: {
+        oneofKind: "paddingValue";
+        /**
+         * @generated from protobuf field: symbol.bench.InsetsData padding_value = 55;
+         */
+        paddingValue: InsetsData;
+    } | {
+        oneofKind: "paddingVariable";
+        /**
+         * @generated from protobuf field: symbol.bench.VariableData padding_variable = 17055;
+         */
+        paddingVariable: VariableData;
+    } | {
+        oneofKind: undefined;
+    };
     /**
      * @generated from protobuf field: optional symbol.bench.GridData grid = 56;
      */
@@ -3378,41 +3644,167 @@ export interface FrameViewData {
      */
     isWrap?: boolean;
     /**
-     * @generated from protobuf field: bool is_visible = 60;
+     * @generated from protobuf oneof: is_visible
      */
-    isVisible: boolean;
+    isVisible: {
+        oneofKind: "isVisibleValue";
+        /**
+         * @generated from protobuf field: bool is_visible_value = 60;
+         */
+        isVisibleValue: boolean;
+    } | {
+        oneofKind: "isVisibleVariable";
+        /**
+         * @generated from protobuf field: symbol.bench.VariableData is_visible_variable = 17060;
+         */
+        isVisibleVariable: VariableData;
+    } | {
+        oneofKind: undefined;
+    };
     /**
-     * @generated from protobuf field: float opacity = 61;
+     * @generated from protobuf oneof: opacity
      */
-    opacity: number;
+    opacity: {
+        oneofKind: "opacityValue";
+        /**
+         * @generated from protobuf field: float opacity_value = 61;
+         */
+        opacityValue: number;
+    } | {
+        oneofKind: "opacityVariable";
+        /**
+         * @generated from protobuf field: symbol.bench.VariableData opacity_variable = 17061;
+         */
+        opacityVariable: VariableData;
+    } | {
+        oneofKind: undefined;
+    };
     /**
-     * @generated from protobuf field: symbol.bench.FillData fill = 62;
+     * @generated from protobuf oneof: fill
      */
-    fill?: FillData;
+    fill: {
+        oneofKind: "fillValue";
+        /**
+         * @generated from protobuf field: symbol.bench.FillData fill_value = 62;
+         */
+        fillValue: FillData;
+    } | {
+        oneofKind: "fillVariable";
+        /**
+         * @generated from protobuf field: symbol.bench.VariableData fill_variable = 17062;
+         */
+        fillVariable: VariableData;
+    } | {
+        oneofKind: undefined;
+    };
     /**
-     * @generated from protobuf field: symbol.bench.Axis3Data rotation = 63;
+     * @generated from protobuf oneof: rotation
      */
-    rotation?: Axis3Data;
+    rotation: {
+        oneofKind: "rotationValue";
+        /**
+         * @generated from protobuf field: symbol.bench.Axis3Data rotation_value = 63;
+         */
+        rotationValue: Axis3Data;
+    } | {
+        oneofKind: "rotationVariable";
+        /**
+         * @generated from protobuf field: symbol.bench.VariableData rotation_variable = 17063;
+         */
+        rotationVariable: VariableData;
+    } | {
+        oneofKind: undefined;
+    };
     /**
-     * @generated from protobuf field: symbol.bench.Vector2Data skew = 64;
+     * @generated from protobuf oneof: skew
      */
-    skew?: Vector2Data;
+    skew: {
+        oneofKind: "skewValue";
+        /**
+         * @generated from protobuf field: symbol.bench.Vector2Data skew_value = 64;
+         */
+        skewValue: Vector2Data;
+    } | {
+        oneofKind: "skewVariable";
+        /**
+         * @generated from protobuf field: symbol.bench.VariableData skew_variable = 17064;
+         */
+        skewVariable: VariableData;
+    } | {
+        oneofKind: undefined;
+    };
     /**
-     * @generated from protobuf field: float scale = 65;
+     * @generated from protobuf oneof: scale
      */
-    scale: number;
+    scale: {
+        oneofKind: "scaleValue";
+        /**
+         * @generated from protobuf field: float scale_value = 65;
+         */
+        scaleValue: number;
+    } | {
+        oneofKind: "scaleVariable";
+        /**
+         * @generated from protobuf field: symbol.bench.VariableData scale_variable = 17065;
+         */
+        scaleVariable: VariableData;
+    } | {
+        oneofKind: undefined;
+    };
     /**
-     * @generated from protobuf field: symbol.bench.ShadowData shadow = 66;
+     * @generated from protobuf oneof: shadow
      */
-    shadow?: ShadowData;
+    shadow: {
+        oneofKind: "shadowValue";
+        /**
+         * @generated from protobuf field: symbol.bench.ShadowData shadow_value = 66;
+         */
+        shadowValue: ShadowData;
+    } | {
+        oneofKind: "shadowVariable";
+        /**
+         * @generated from protobuf field: symbol.bench.VariableData shadow_variable = 17066;
+         */
+        shadowVariable: VariableData;
+    } | {
+        oneofKind: undefined;
+    };
     /**
-     * @generated from protobuf field: symbol.bench.BorderData border = 67;
+     * @generated from protobuf oneof: border
      */
-    border?: BorderData;
+    border: {
+        oneofKind: "borderValue";
+        /**
+         * @generated from protobuf field: symbol.bench.BorderData border_value = 67;
+         */
+        borderValue: BorderData;
+    } | {
+        oneofKind: "borderVariable";
+        /**
+         * @generated from protobuf field: symbol.bench.VariableData border_variable = 17067;
+         */
+        borderVariable: VariableData;
+    } | {
+        oneofKind: undefined;
+    };
     /**
-     * @generated from protobuf field: symbol.bench.CornersData radius = 68;
+     * @generated from protobuf oneof: radius
      */
-    radius?: CornersData;
+    radius: {
+        oneofKind: "radiusValue";
+        /**
+         * @generated from protobuf field: symbol.bench.CornersData radius_value = 68;
+         */
+        radiusValue: CornersData;
+    } | {
+        oneofKind: "radiusVariable";
+        /**
+         * @generated from protobuf field: symbol.bench.VariableData radius_variable = 17068;
+         */
+        radiusVariable: VariableData;
+    } | {
+        oneofKind: undefined;
+    };
 }
 /**
  * @generated from protobuf message symbol.bench.GradientData
@@ -3987,25 +4379,95 @@ export interface LabelViewData {
      */
     layout?: Layout;
     /**
-     * @generated from protobuf field: symbol.bench.Direction direction = 51;
+     * @generated from protobuf oneof: direction
      */
-    direction: Direction;
+    direction: {
+        oneofKind: "directionValue";
+        /**
+         * @generated from protobuf field: symbol.bench.Direction direction_value = 51;
+         */
+        directionValue: Direction;
+    } | {
+        oneofKind: "directionVariable";
+        /**
+         * @generated from protobuf field: symbol.bench.VariableData direction_variable = 17051;
+         */
+        directionVariable: VariableData;
+    } | {
+        oneofKind: undefined;
+    };
     /**
-     * @generated from protobuf field: symbol.bench.Distribute distribute = 52;
+     * @generated from protobuf oneof: distribute
      */
-    distribute: Distribute;
+    distribute: {
+        oneofKind: "distributeValue";
+        /**
+         * @generated from protobuf field: symbol.bench.Distribute distribute_value = 52;
+         */
+        distributeValue: Distribute;
+    } | {
+        oneofKind: "distributeVariable";
+        /**
+         * @generated from protobuf field: symbol.bench.VariableData distribute_variable = 17052;
+         */
+        distributeVariable: VariableData;
+    } | {
+        oneofKind: undefined;
+    };
     /**
-     * @generated from protobuf field: symbol.bench.Align align = 53;
+     * @generated from protobuf oneof: align
      */
-    align: Align;
+    align: {
+        oneofKind: "alignValue";
+        /**
+         * @generated from protobuf field: symbol.bench.Align align_value = 53;
+         */
+        alignValue: Align;
+    } | {
+        oneofKind: "alignVariable";
+        /**
+         * @generated from protobuf field: symbol.bench.VariableData align_variable = 17053;
+         */
+        alignVariable: VariableData;
+    } | {
+        oneofKind: undefined;
+    };
     /**
-     * @generated from protobuf field: symbol.bench.Axis2Data gap = 54;
+     * @generated from protobuf oneof: gap
      */
-    gap?: Axis2Data;
+    gap: {
+        oneofKind: "gapValue";
+        /**
+         * @generated from protobuf field: symbol.bench.Axis2Data gap_value = 54;
+         */
+        gapValue: Axis2Data;
+    } | {
+        oneofKind: "gapVariable";
+        /**
+         * @generated from protobuf field: symbol.bench.VariableData gap_variable = 17054;
+         */
+        gapVariable: VariableData;
+    } | {
+        oneofKind: undefined;
+    };
     /**
-     * @generated from protobuf field: symbol.bench.InsetsData padding = 55;
+     * @generated from protobuf oneof: padding
      */
-    padding?: InsetsData;
+    padding: {
+        oneofKind: "paddingValue";
+        /**
+         * @generated from protobuf field: symbol.bench.InsetsData padding_value = 55;
+         */
+        paddingValue: InsetsData;
+    } | {
+        oneofKind: "paddingVariable";
+        /**
+         * @generated from protobuf field: symbol.bench.VariableData padding_variable = 17055;
+         */
+        paddingVariable: VariableData;
+    } | {
+        oneofKind: undefined;
+    };
     /**
      * @generated from protobuf field: optional symbol.bench.GridData grid = 56;
      */
@@ -4023,41 +4485,167 @@ export interface LabelViewData {
      */
     isWrap?: boolean;
     /**
-     * @generated from protobuf field: bool is_visible = 60;
+     * @generated from protobuf oneof: is_visible
      */
-    isVisible: boolean;
+    isVisible: {
+        oneofKind: "isVisibleValue";
+        /**
+         * @generated from protobuf field: bool is_visible_value = 60;
+         */
+        isVisibleValue: boolean;
+    } | {
+        oneofKind: "isVisibleVariable";
+        /**
+         * @generated from protobuf field: symbol.bench.VariableData is_visible_variable = 17060;
+         */
+        isVisibleVariable: VariableData;
+    } | {
+        oneofKind: undefined;
+    };
     /**
-     * @generated from protobuf field: float opacity = 61;
+     * @generated from protobuf oneof: opacity
      */
-    opacity: number;
+    opacity: {
+        oneofKind: "opacityValue";
+        /**
+         * @generated from protobuf field: float opacity_value = 61;
+         */
+        opacityValue: number;
+    } | {
+        oneofKind: "opacityVariable";
+        /**
+         * @generated from protobuf field: symbol.bench.VariableData opacity_variable = 17061;
+         */
+        opacityVariable: VariableData;
+    } | {
+        oneofKind: undefined;
+    };
     /**
-     * @generated from protobuf field: symbol.bench.FillData fill = 62;
+     * @generated from protobuf oneof: fill
      */
-    fill?: FillData;
+    fill: {
+        oneofKind: "fillValue";
+        /**
+         * @generated from protobuf field: symbol.bench.FillData fill_value = 62;
+         */
+        fillValue: FillData;
+    } | {
+        oneofKind: "fillVariable";
+        /**
+         * @generated from protobuf field: symbol.bench.VariableData fill_variable = 17062;
+         */
+        fillVariable: VariableData;
+    } | {
+        oneofKind: undefined;
+    };
     /**
-     * @generated from protobuf field: symbol.bench.Axis3Data rotation = 63;
+     * @generated from protobuf oneof: rotation
      */
-    rotation?: Axis3Data;
+    rotation: {
+        oneofKind: "rotationValue";
+        /**
+         * @generated from protobuf field: symbol.bench.Axis3Data rotation_value = 63;
+         */
+        rotationValue: Axis3Data;
+    } | {
+        oneofKind: "rotationVariable";
+        /**
+         * @generated from protobuf field: symbol.bench.VariableData rotation_variable = 17063;
+         */
+        rotationVariable: VariableData;
+    } | {
+        oneofKind: undefined;
+    };
     /**
-     * @generated from protobuf field: symbol.bench.Vector2Data skew = 64;
+     * @generated from protobuf oneof: skew
      */
-    skew?: Vector2Data;
+    skew: {
+        oneofKind: "skewValue";
+        /**
+         * @generated from protobuf field: symbol.bench.Vector2Data skew_value = 64;
+         */
+        skewValue: Vector2Data;
+    } | {
+        oneofKind: "skewVariable";
+        /**
+         * @generated from protobuf field: symbol.bench.VariableData skew_variable = 17064;
+         */
+        skewVariable: VariableData;
+    } | {
+        oneofKind: undefined;
+    };
     /**
-     * @generated from protobuf field: float scale = 65;
+     * @generated from protobuf oneof: scale
      */
-    scale: number;
+    scale: {
+        oneofKind: "scaleValue";
+        /**
+         * @generated from protobuf field: float scale_value = 65;
+         */
+        scaleValue: number;
+    } | {
+        oneofKind: "scaleVariable";
+        /**
+         * @generated from protobuf field: symbol.bench.VariableData scale_variable = 17065;
+         */
+        scaleVariable: VariableData;
+    } | {
+        oneofKind: undefined;
+    };
     /**
-     * @generated from protobuf field: symbol.bench.ShadowData shadow = 66;
+     * @generated from protobuf oneof: shadow
      */
-    shadow?: ShadowData;
+    shadow: {
+        oneofKind: "shadowValue";
+        /**
+         * @generated from protobuf field: symbol.bench.ShadowData shadow_value = 66;
+         */
+        shadowValue: ShadowData;
+    } | {
+        oneofKind: "shadowVariable";
+        /**
+         * @generated from protobuf field: symbol.bench.VariableData shadow_variable = 17066;
+         */
+        shadowVariable: VariableData;
+    } | {
+        oneofKind: undefined;
+    };
     /**
-     * @generated from protobuf field: symbol.bench.BorderData border = 67;
+     * @generated from protobuf oneof: border
      */
-    border?: BorderData;
+    border: {
+        oneofKind: "borderValue";
+        /**
+         * @generated from protobuf field: symbol.bench.BorderData border_value = 67;
+         */
+        borderValue: BorderData;
+    } | {
+        oneofKind: "borderVariable";
+        /**
+         * @generated from protobuf field: symbol.bench.VariableData border_variable = 17067;
+         */
+        borderVariable: VariableData;
+    } | {
+        oneofKind: undefined;
+    };
     /**
-     * @generated from protobuf field: symbol.bench.CornersData radius = 68;
+     * @generated from protobuf oneof: radius
      */
-    radius?: CornersData;
+    radius: {
+        oneofKind: "radiusValue";
+        /**
+         * @generated from protobuf field: symbol.bench.CornersData radius_value = 68;
+         */
+        radiusValue: CornersData;
+    } | {
+        oneofKind: "radiusVariable";
+        /**
+         * @generated from protobuf field: symbol.bench.VariableData radius_variable = 17068;
+         */
+        radiusVariable: VariableData;
+    } | {
+        oneofKind: undefined;
+    };
 }
 /**
  * @generated from protobuf message symbol.bench.LengthData
@@ -4640,13 +5228,41 @@ export interface NumberInputViewData {
      */
     maxHeight?: DimensionData;
     /**
-     * @generated from protobuf field: bool is_visible = 60;
+     * @generated from protobuf oneof: is_visible
      */
-    isVisible: boolean;
+    isVisible: {
+        oneofKind: "isVisibleValue";
+        /**
+         * @generated from protobuf field: bool is_visible_value = 60;
+         */
+        isVisibleValue: boolean;
+    } | {
+        oneofKind: "isVisibleVariable";
+        /**
+         * @generated from protobuf field: symbol.bench.VariableData is_visible_variable = 17060;
+         */
+        isVisibleVariable: VariableData;
+    } | {
+        oneofKind: undefined;
+    };
     /**
-     * @generated from protobuf field: float opacity = 61;
+     * @generated from protobuf oneof: opacity
      */
-    opacity: number;
+    opacity: {
+        oneofKind: "opacityValue";
+        /**
+         * @generated from protobuf field: float opacity_value = 61;
+         */
+        opacityValue: number;
+    } | {
+        oneofKind: "opacityVariable";
+        /**
+         * @generated from protobuf field: symbol.bench.VariableData opacity_variable = 17061;
+         */
+        opacityVariable: VariableData;
+    } | {
+        oneofKind: undefined;
+    };
     /**
      * @generated from protobuf field: optional string value = 100;
      */
@@ -6268,13 +6884,41 @@ export interface SliderInputViewData {
      */
     maxHeight?: DimensionData;
     /**
-     * @generated from protobuf field: bool is_visible = 60;
+     * @generated from protobuf oneof: is_visible
      */
-    isVisible: boolean;
+    isVisible: {
+        oneofKind: "isVisibleValue";
+        /**
+         * @generated from protobuf field: bool is_visible_value = 60;
+         */
+        isVisibleValue: boolean;
+    } | {
+        oneofKind: "isVisibleVariable";
+        /**
+         * @generated from protobuf field: symbol.bench.VariableData is_visible_variable = 17060;
+         */
+        isVisibleVariable: VariableData;
+    } | {
+        oneofKind: undefined;
+    };
     /**
-     * @generated from protobuf field: float opacity = 61;
+     * @generated from protobuf oneof: opacity
      */
-    opacity: number;
+    opacity: {
+        oneofKind: "opacityValue";
+        /**
+         * @generated from protobuf field: float opacity_value = 61;
+         */
+        opacityValue: number;
+    } | {
+        oneofKind: "opacityVariable";
+        /**
+         * @generated from protobuf field: symbol.bench.VariableData opacity_variable = 17061;
+         */
+        opacityVariable: VariableData;
+    } | {
+        oneofKind: undefined;
+    };
     /**
      * @generated from protobuf field: optional float value = 100;
      */
@@ -6638,25 +7282,95 @@ export interface SplitViewData {
      */
     layout?: Layout;
     /**
-     * @generated from protobuf field: symbol.bench.Direction direction = 51;
+     * @generated from protobuf oneof: direction
      */
-    direction: Direction;
+    direction: {
+        oneofKind: "directionValue";
+        /**
+         * @generated from protobuf field: symbol.bench.Direction direction_value = 51;
+         */
+        directionValue: Direction;
+    } | {
+        oneofKind: "directionVariable";
+        /**
+         * @generated from protobuf field: symbol.bench.VariableData direction_variable = 17051;
+         */
+        directionVariable: VariableData;
+    } | {
+        oneofKind: undefined;
+    };
     /**
-     * @generated from protobuf field: symbol.bench.Distribute distribute = 52;
+     * @generated from protobuf oneof: distribute
      */
-    distribute: Distribute;
+    distribute: {
+        oneofKind: "distributeValue";
+        /**
+         * @generated from protobuf field: symbol.bench.Distribute distribute_value = 52;
+         */
+        distributeValue: Distribute;
+    } | {
+        oneofKind: "distributeVariable";
+        /**
+         * @generated from protobuf field: symbol.bench.VariableData distribute_variable = 17052;
+         */
+        distributeVariable: VariableData;
+    } | {
+        oneofKind: undefined;
+    };
     /**
-     * @generated from protobuf field: symbol.bench.Align align = 53;
+     * @generated from protobuf oneof: align
      */
-    align: Align;
+    align: {
+        oneofKind: "alignValue";
+        /**
+         * @generated from protobuf field: symbol.bench.Align align_value = 53;
+         */
+        alignValue: Align;
+    } | {
+        oneofKind: "alignVariable";
+        /**
+         * @generated from protobuf field: symbol.bench.VariableData align_variable = 17053;
+         */
+        alignVariable: VariableData;
+    } | {
+        oneofKind: undefined;
+    };
     /**
-     * @generated from protobuf field: symbol.bench.Axis2Data gap = 54;
+     * @generated from protobuf oneof: gap
      */
-    gap?: Axis2Data;
+    gap: {
+        oneofKind: "gapValue";
+        /**
+         * @generated from protobuf field: symbol.bench.Axis2Data gap_value = 54;
+         */
+        gapValue: Axis2Data;
+    } | {
+        oneofKind: "gapVariable";
+        /**
+         * @generated from protobuf field: symbol.bench.VariableData gap_variable = 17054;
+         */
+        gapVariable: VariableData;
+    } | {
+        oneofKind: undefined;
+    };
     /**
-     * @generated from protobuf field: symbol.bench.InsetsData padding = 55;
+     * @generated from protobuf oneof: padding
      */
-    padding?: InsetsData;
+    padding: {
+        oneofKind: "paddingValue";
+        /**
+         * @generated from protobuf field: symbol.bench.InsetsData padding_value = 55;
+         */
+        paddingValue: InsetsData;
+    } | {
+        oneofKind: "paddingVariable";
+        /**
+         * @generated from protobuf field: symbol.bench.VariableData padding_variable = 17055;
+         */
+        paddingVariable: VariableData;
+    } | {
+        oneofKind: undefined;
+    };
     /**
      * @generated from protobuf field: optional symbol.bench.GridData grid = 56;
      */
@@ -6674,41 +7388,167 @@ export interface SplitViewData {
      */
     isWrap?: boolean;
     /**
-     * @generated from protobuf field: bool is_visible = 60;
+     * @generated from protobuf oneof: is_visible
      */
-    isVisible: boolean;
+    isVisible: {
+        oneofKind: "isVisibleValue";
+        /**
+         * @generated from protobuf field: bool is_visible_value = 60;
+         */
+        isVisibleValue: boolean;
+    } | {
+        oneofKind: "isVisibleVariable";
+        /**
+         * @generated from protobuf field: symbol.bench.VariableData is_visible_variable = 17060;
+         */
+        isVisibleVariable: VariableData;
+    } | {
+        oneofKind: undefined;
+    };
     /**
-     * @generated from protobuf field: float opacity = 61;
+     * @generated from protobuf oneof: opacity
      */
-    opacity: number;
+    opacity: {
+        oneofKind: "opacityValue";
+        /**
+         * @generated from protobuf field: float opacity_value = 61;
+         */
+        opacityValue: number;
+    } | {
+        oneofKind: "opacityVariable";
+        /**
+         * @generated from protobuf field: symbol.bench.VariableData opacity_variable = 17061;
+         */
+        opacityVariable: VariableData;
+    } | {
+        oneofKind: undefined;
+    };
     /**
-     * @generated from protobuf field: symbol.bench.FillData fill = 62;
+     * @generated from protobuf oneof: fill
      */
-    fill?: FillData;
+    fill: {
+        oneofKind: "fillValue";
+        /**
+         * @generated from protobuf field: symbol.bench.FillData fill_value = 62;
+         */
+        fillValue: FillData;
+    } | {
+        oneofKind: "fillVariable";
+        /**
+         * @generated from protobuf field: symbol.bench.VariableData fill_variable = 17062;
+         */
+        fillVariable: VariableData;
+    } | {
+        oneofKind: undefined;
+    };
     /**
-     * @generated from protobuf field: symbol.bench.Axis3Data rotation = 63;
+     * @generated from protobuf oneof: rotation
      */
-    rotation?: Axis3Data;
+    rotation: {
+        oneofKind: "rotationValue";
+        /**
+         * @generated from protobuf field: symbol.bench.Axis3Data rotation_value = 63;
+         */
+        rotationValue: Axis3Data;
+    } | {
+        oneofKind: "rotationVariable";
+        /**
+         * @generated from protobuf field: symbol.bench.VariableData rotation_variable = 17063;
+         */
+        rotationVariable: VariableData;
+    } | {
+        oneofKind: undefined;
+    };
     /**
-     * @generated from protobuf field: symbol.bench.Vector2Data skew = 64;
+     * @generated from protobuf oneof: skew
      */
-    skew?: Vector2Data;
+    skew: {
+        oneofKind: "skewValue";
+        /**
+         * @generated from protobuf field: symbol.bench.Vector2Data skew_value = 64;
+         */
+        skewValue: Vector2Data;
+    } | {
+        oneofKind: "skewVariable";
+        /**
+         * @generated from protobuf field: symbol.bench.VariableData skew_variable = 17064;
+         */
+        skewVariable: VariableData;
+    } | {
+        oneofKind: undefined;
+    };
     /**
-     * @generated from protobuf field: float scale = 65;
+     * @generated from protobuf oneof: scale
      */
-    scale: number;
+    scale: {
+        oneofKind: "scaleValue";
+        /**
+         * @generated from protobuf field: float scale_value = 65;
+         */
+        scaleValue: number;
+    } | {
+        oneofKind: "scaleVariable";
+        /**
+         * @generated from protobuf field: symbol.bench.VariableData scale_variable = 17065;
+         */
+        scaleVariable: VariableData;
+    } | {
+        oneofKind: undefined;
+    };
     /**
-     * @generated from protobuf field: symbol.bench.ShadowData shadow = 66;
+     * @generated from protobuf oneof: shadow
      */
-    shadow?: ShadowData;
+    shadow: {
+        oneofKind: "shadowValue";
+        /**
+         * @generated from protobuf field: symbol.bench.ShadowData shadow_value = 66;
+         */
+        shadowValue: ShadowData;
+    } | {
+        oneofKind: "shadowVariable";
+        /**
+         * @generated from protobuf field: symbol.bench.VariableData shadow_variable = 17066;
+         */
+        shadowVariable: VariableData;
+    } | {
+        oneofKind: undefined;
+    };
     /**
-     * @generated from protobuf field: symbol.bench.BorderData border = 67;
+     * @generated from protobuf oneof: border
      */
-    border?: BorderData;
+    border: {
+        oneofKind: "borderValue";
+        /**
+         * @generated from protobuf field: symbol.bench.BorderData border_value = 67;
+         */
+        borderValue: BorderData;
+    } | {
+        oneofKind: "borderVariable";
+        /**
+         * @generated from protobuf field: symbol.bench.VariableData border_variable = 17067;
+         */
+        borderVariable: VariableData;
+    } | {
+        oneofKind: undefined;
+    };
     /**
-     * @generated from protobuf field: symbol.bench.CornersData radius = 68;
+     * @generated from protobuf oneof: radius
      */
-    radius?: CornersData;
+    radius: {
+        oneofKind: "radiusValue";
+        /**
+         * @generated from protobuf field: symbol.bench.CornersData radius_value = 68;
+         */
+        radiusValue: CornersData;
+    } | {
+        oneofKind: "radiusVariable";
+        /**
+         * @generated from protobuf field: symbol.bench.VariableData radius_variable = 17068;
+         */
+        radiusVariable: VariableData;
+    } | {
+        oneofKind: undefined;
+    };
 }
 /**
  * A Table of Records.
@@ -7269,13 +8109,41 @@ export interface TextViewData {
      */
     align?: Align;
     /**
-     * @generated from protobuf field: bool is_visible = 60;
+     * @generated from protobuf oneof: is_visible
      */
-    isVisible: boolean;
+    isVisible: {
+        oneofKind: "isVisibleValue";
+        /**
+         * @generated from protobuf field: bool is_visible_value = 60;
+         */
+        isVisibleValue: boolean;
+    } | {
+        oneofKind: "isVisibleVariable";
+        /**
+         * @generated from protobuf field: symbol.bench.VariableData is_visible_variable = 17060;
+         */
+        isVisibleVariable: VariableData;
+    } | {
+        oneofKind: undefined;
+    };
     /**
-     * @generated from protobuf field: float opacity = 61;
+     * @generated from protobuf oneof: opacity
      */
-    opacity: number;
+    opacity: {
+        oneofKind: "opacityValue";
+        /**
+         * @generated from protobuf field: float opacity_value = 61;
+         */
+        opacityValue: number;
+    } | {
+        oneofKind: "opacityVariable";
+        /**
+         * @generated from protobuf field: symbol.bench.VariableData opacity_variable = 17061;
+         */
+        opacityVariable: VariableData;
+    } | {
+        oneofKind: undefined;
+    };
     /**
      * @generated from protobuf field: optional bool user_select = 65;
      */
@@ -7285,13 +8153,41 @@ export interface TextViewData {
      */
     font?: FontData;
     /**
-     * @generated from protobuf field: symbol.bench.FillData color = 67;
+     * @generated from protobuf oneof: color
      */
-    color?: FillData;
+    color: {
+        oneofKind: "colorValue";
+        /**
+         * @generated from protobuf field: symbol.bench.FillData color_value = 67;
+         */
+        colorValue: FillData;
+    } | {
+        oneofKind: "colorVariable";
+        /**
+         * @generated from protobuf field: symbol.bench.VariableData color_variable = 17067;
+         */
+        colorVariable: VariableData;
+    } | {
+        oneofKind: undefined;
+    };
     /**
-     * @generated from protobuf field: string text = 100;
+     * @generated from protobuf oneof: text
      */
-    text: string;
+    text: {
+        oneofKind: "textValue";
+        /**
+         * @generated from protobuf field: string text_value = 100;
+         */
+        textValue: string;
+    } | {
+        oneofKind: "textVariable";
+        /**
+         * @generated from protobuf field: symbol.bench.VariableData text_variable = 17100;
+         */
+        textVariable: VariableData;
+    } | {
+        oneofKind: undefined;
+    };
 }
 /**
  * A Theme with common styles.
@@ -17390,24 +18286,38 @@ class ComponentViewData$Type extends MessageType$<ComponentViewData> {
             { no: 45, name: "max_width", kind: "message", T: () => DimensionData },
             { no: 46, name: "max_height", kind: "message", T: () => DimensionData },
             { no: 50, name: "layout", kind: "enum", opt: true, T: () => ["symbol.bench.Layout", Layout, "LAYOUT_"] },
-            { no: 51, name: "direction", kind: "enum", T: () => ["symbol.bench.Direction", Direction, "DIRECTION_"] },
-            { no: 52, name: "distribute", kind: "enum", T: () => ["symbol.bench.Distribute", Distribute, "DISTRIBUTE_"] },
-            { no: 53, name: "align", kind: "enum", T: () => ["symbol.bench.Align", Align, "ALIGN_"] },
-            { no: 54, name: "gap", kind: "message", T: () => Axis2Data },
-            { no: 55, name: "padding", kind: "message", T: () => InsetsData },
+            { no: 51, name: "direction_value", kind: "enum", oneof: "direction", T: () => ["symbol.bench.Direction", Direction, "DIRECTION_"] },
+            { no: 17051, name: "direction_variable", kind: "message", oneof: "direction", T: () => VariableData },
+            { no: 52, name: "distribute_value", kind: "enum", oneof: "distribute", T: () => ["symbol.bench.Distribute", Distribute, "DISTRIBUTE_"] },
+            { no: 17052, name: "distribute_variable", kind: "message", oneof: "distribute", T: () => VariableData },
+            { no: 53, name: "align_value", kind: "enum", oneof: "align", T: () => ["symbol.bench.Align", Align, "ALIGN_"] },
+            { no: 17053, name: "align_variable", kind: "message", oneof: "align", T: () => VariableData },
+            { no: 54, name: "gap_value", kind: "message", oneof: "gap", T: () => Axis2Data },
+            { no: 17054, name: "gap_variable", kind: "message", oneof: "gap", T: () => VariableData },
+            { no: 55, name: "padding_value", kind: "message", oneof: "padding", T: () => InsetsData },
+            { no: 17055, name: "padding_variable", kind: "message", oneof: "padding", T: () => VariableData },
             { no: 56, name: "grid", kind: "message", T: () => GridData },
             { no: 57, name: "grid_span", kind: "message", T: () => GridSpanData },
             { no: 58, name: "aspect_ratio", kind: "scalar", opt: true, T: 2 /*ScalarType.FLOAT*/ },
             { no: 59, name: "is_wrap", kind: "scalar", opt: true, T: 8 /*ScalarType.BOOL*/ },
-            { no: 60, name: "is_visible", kind: "scalar", T: 8 /*ScalarType.BOOL*/ },
-            { no: 61, name: "opacity", kind: "scalar", T: 2 /*ScalarType.FLOAT*/ },
-            { no: 62, name: "fill", kind: "message", T: () => FillData },
-            { no: 63, name: "rotation", kind: "message", T: () => Axis3Data },
-            { no: 64, name: "skew", kind: "message", T: () => Vector2Data },
-            { no: 65, name: "scale", kind: "scalar", T: 2 /*ScalarType.FLOAT*/ },
-            { no: 66, name: "shadow", kind: "message", T: () => ShadowData },
-            { no: 67, name: "border", kind: "message", T: () => BorderData },
-            { no: 68, name: "radius", kind: "message", T: () => CornersData }
+            { no: 60, name: "is_visible_value", kind: "scalar", oneof: "isVisible", T: 8 /*ScalarType.BOOL*/ },
+            { no: 17060, name: "is_visible_variable", kind: "message", oneof: "isVisible", T: () => VariableData },
+            { no: 61, name: "opacity_value", kind: "scalar", oneof: "opacity", T: 2 /*ScalarType.FLOAT*/ },
+            { no: 17061, name: "opacity_variable", kind: "message", oneof: "opacity", T: () => VariableData },
+            { no: 62, name: "fill_value", kind: "message", oneof: "fill", T: () => FillData },
+            { no: 17062, name: "fill_variable", kind: "message", oneof: "fill", T: () => VariableData },
+            { no: 63, name: "rotation_value", kind: "message", oneof: "rotation", T: () => Axis3Data },
+            { no: 17063, name: "rotation_variable", kind: "message", oneof: "rotation", T: () => VariableData },
+            { no: 64, name: "skew_value", kind: "message", oneof: "skew", T: () => Vector2Data },
+            { no: 17064, name: "skew_variable", kind: "message", oneof: "skew", T: () => VariableData },
+            { no: 65, name: "scale_value", kind: "scalar", oneof: "scale", T: 2 /*ScalarType.FLOAT*/ },
+            { no: 17065, name: "scale_variable", kind: "message", oneof: "scale", T: () => VariableData },
+            { no: 66, name: "shadow_value", kind: "message", oneof: "shadow", T: () => ShadowData },
+            { no: 17066, name: "shadow_variable", kind: "message", oneof: "shadow", T: () => VariableData },
+            { no: 67, name: "border_value", kind: "message", oneof: "border", T: () => BorderData },
+            { no: 17067, name: "border_variable", kind: "message", oneof: "border", T: () => VariableData },
+            { no: 68, name: "radius_value", kind: "message", oneof: "radius", T: () => CornersData },
+            { no: 17068, name: "radius_variable", kind: "message", oneof: "radius", T: () => VariableData }
         ]);
     }
     create(value?: PartialMessage<ComponentViewData>): ComponentViewData {
@@ -17417,12 +18327,20 @@ class ComponentViewData$Type extends MessageType$<ComponentViewData> {
         message.ck = "";
         message.mode = 0;
         message.orderKey = "";
-        message.direction = 0;
-        message.distribute = 0;
-        message.align = 0;
-        message.isVisible = false;
-        message.opacity = 0;
-        message.scale = 0;
+        message.direction = { oneofKind: undefined };
+        message.distribute = { oneofKind: undefined };
+        message.align = { oneofKind: undefined };
+        message.gap = { oneofKind: undefined };
+        message.padding = { oneofKind: undefined };
+        message.isVisible = { oneofKind: undefined };
+        message.opacity = { oneofKind: undefined };
+        message.fill = { oneofKind: undefined };
+        message.rotation = { oneofKind: undefined };
+        message.skew = { oneofKind: undefined };
+        message.scale = { oneofKind: undefined };
+        message.shadow = { oneofKind: undefined };
+        message.border = { oneofKind: undefined };
+        message.radius = { oneofKind: undefined };
         if (value !== undefined)
             reflectionMergePartial<ComponentViewData>(this, message, value);
         return message;
@@ -17510,20 +18428,65 @@ class ComponentViewData$Type extends MessageType$<ComponentViewData> {
                 case /* optional symbol.bench.Layout layout */ 50:
                     message.layout = reader.int32();
                     break;
-                case /* symbol.bench.Direction direction */ 51:
-                    message.direction = reader.int32();
+                case /* symbol.bench.Direction direction_value */ 51:
+                    message.direction = {
+                        oneofKind: "directionValue",
+                        directionValue: reader.int32()
+                    };
                     break;
-                case /* symbol.bench.Distribute distribute */ 52:
-                    message.distribute = reader.int32();
+                case /* symbol.bench.VariableData direction_variable */ 17051:
+                    message.direction = {
+                        oneofKind: "directionVariable",
+                        directionVariable: VariableData.internalBinaryRead(reader, reader.uint32(), options, (message.direction as any).directionVariable)
+                    };
                     break;
-                case /* symbol.bench.Align align */ 53:
-                    message.align = reader.int32();
+                case /* symbol.bench.Distribute distribute_value */ 52:
+                    message.distribute = {
+                        oneofKind: "distributeValue",
+                        distributeValue: reader.int32()
+                    };
                     break;
-                case /* symbol.bench.Axis2Data gap */ 54:
-                    message.gap = Axis2Data.internalBinaryRead(reader, reader.uint32(), options, message.gap);
+                case /* symbol.bench.VariableData distribute_variable */ 17052:
+                    message.distribute = {
+                        oneofKind: "distributeVariable",
+                        distributeVariable: VariableData.internalBinaryRead(reader, reader.uint32(), options, (message.distribute as any).distributeVariable)
+                    };
                     break;
-                case /* symbol.bench.InsetsData padding */ 55:
-                    message.padding = InsetsData.internalBinaryRead(reader, reader.uint32(), options, message.padding);
+                case /* symbol.bench.Align align_value */ 53:
+                    message.align = {
+                        oneofKind: "alignValue",
+                        alignValue: reader.int32()
+                    };
+                    break;
+                case /* symbol.bench.VariableData align_variable */ 17053:
+                    message.align = {
+                        oneofKind: "alignVariable",
+                        alignVariable: VariableData.internalBinaryRead(reader, reader.uint32(), options, (message.align as any).alignVariable)
+                    };
+                    break;
+                case /* symbol.bench.Axis2Data gap_value */ 54:
+                    message.gap = {
+                        oneofKind: "gapValue",
+                        gapValue: Axis2Data.internalBinaryRead(reader, reader.uint32(), options, (message.gap as any).gapValue)
+                    };
+                    break;
+                case /* symbol.bench.VariableData gap_variable */ 17054:
+                    message.gap = {
+                        oneofKind: "gapVariable",
+                        gapVariable: VariableData.internalBinaryRead(reader, reader.uint32(), options, (message.gap as any).gapVariable)
+                    };
+                    break;
+                case /* symbol.bench.InsetsData padding_value */ 55:
+                    message.padding = {
+                        oneofKind: "paddingValue",
+                        paddingValue: InsetsData.internalBinaryRead(reader, reader.uint32(), options, (message.padding as any).paddingValue)
+                    };
+                    break;
+                case /* symbol.bench.VariableData padding_variable */ 17055:
+                    message.padding = {
+                        oneofKind: "paddingVariable",
+                        paddingVariable: VariableData.internalBinaryRead(reader, reader.uint32(), options, (message.padding as any).paddingVariable)
+                    };
                     break;
                 case /* optional symbol.bench.GridData grid */ 56:
                     message.grid = GridData.internalBinaryRead(reader, reader.uint32(), options, message.grid);
@@ -17537,32 +18500,113 @@ class ComponentViewData$Type extends MessageType$<ComponentViewData> {
                 case /* optional bool is_wrap */ 59:
                     message.isWrap = reader.bool();
                     break;
-                case /* bool is_visible */ 60:
-                    message.isVisible = reader.bool();
+                case /* bool is_visible_value */ 60:
+                    message.isVisible = {
+                        oneofKind: "isVisibleValue",
+                        isVisibleValue: reader.bool()
+                    };
                     break;
-                case /* float opacity */ 61:
-                    message.opacity = reader.float();
+                case /* symbol.bench.VariableData is_visible_variable */ 17060:
+                    message.isVisible = {
+                        oneofKind: "isVisibleVariable",
+                        isVisibleVariable: VariableData.internalBinaryRead(reader, reader.uint32(), options, (message.isVisible as any).isVisibleVariable)
+                    };
                     break;
-                case /* symbol.bench.FillData fill */ 62:
-                    message.fill = FillData.internalBinaryRead(reader, reader.uint32(), options, message.fill);
+                case /* float opacity_value */ 61:
+                    message.opacity = {
+                        oneofKind: "opacityValue",
+                        opacityValue: reader.float()
+                    };
                     break;
-                case /* symbol.bench.Axis3Data rotation */ 63:
-                    message.rotation = Axis3Data.internalBinaryRead(reader, reader.uint32(), options, message.rotation);
+                case /* symbol.bench.VariableData opacity_variable */ 17061:
+                    message.opacity = {
+                        oneofKind: "opacityVariable",
+                        opacityVariable: VariableData.internalBinaryRead(reader, reader.uint32(), options, (message.opacity as any).opacityVariable)
+                    };
                     break;
-                case /* symbol.bench.Vector2Data skew */ 64:
-                    message.skew = Vector2Data.internalBinaryRead(reader, reader.uint32(), options, message.skew);
+                case /* symbol.bench.FillData fill_value */ 62:
+                    message.fill = {
+                        oneofKind: "fillValue",
+                        fillValue: FillData.internalBinaryRead(reader, reader.uint32(), options, (message.fill as any).fillValue)
+                    };
                     break;
-                case /* float scale */ 65:
-                    message.scale = reader.float();
+                case /* symbol.bench.VariableData fill_variable */ 17062:
+                    message.fill = {
+                        oneofKind: "fillVariable",
+                        fillVariable: VariableData.internalBinaryRead(reader, reader.uint32(), options, (message.fill as any).fillVariable)
+                    };
                     break;
-                case /* symbol.bench.ShadowData shadow */ 66:
-                    message.shadow = ShadowData.internalBinaryRead(reader, reader.uint32(), options, message.shadow);
+                case /* symbol.bench.Axis3Data rotation_value */ 63:
+                    message.rotation = {
+                        oneofKind: "rotationValue",
+                        rotationValue: Axis3Data.internalBinaryRead(reader, reader.uint32(), options, (message.rotation as any).rotationValue)
+                    };
                     break;
-                case /* symbol.bench.BorderData border */ 67:
-                    message.border = BorderData.internalBinaryRead(reader, reader.uint32(), options, message.border);
+                case /* symbol.bench.VariableData rotation_variable */ 17063:
+                    message.rotation = {
+                        oneofKind: "rotationVariable",
+                        rotationVariable: VariableData.internalBinaryRead(reader, reader.uint32(), options, (message.rotation as any).rotationVariable)
+                    };
                     break;
-                case /* symbol.bench.CornersData radius */ 68:
-                    message.radius = CornersData.internalBinaryRead(reader, reader.uint32(), options, message.radius);
+                case /* symbol.bench.Vector2Data skew_value */ 64:
+                    message.skew = {
+                        oneofKind: "skewValue",
+                        skewValue: Vector2Data.internalBinaryRead(reader, reader.uint32(), options, (message.skew as any).skewValue)
+                    };
+                    break;
+                case /* symbol.bench.VariableData skew_variable */ 17064:
+                    message.skew = {
+                        oneofKind: "skewVariable",
+                        skewVariable: VariableData.internalBinaryRead(reader, reader.uint32(), options, (message.skew as any).skewVariable)
+                    };
+                    break;
+                case /* float scale_value */ 65:
+                    message.scale = {
+                        oneofKind: "scaleValue",
+                        scaleValue: reader.float()
+                    };
+                    break;
+                case /* symbol.bench.VariableData scale_variable */ 17065:
+                    message.scale = {
+                        oneofKind: "scaleVariable",
+                        scaleVariable: VariableData.internalBinaryRead(reader, reader.uint32(), options, (message.scale as any).scaleVariable)
+                    };
+                    break;
+                case /* symbol.bench.ShadowData shadow_value */ 66:
+                    message.shadow = {
+                        oneofKind: "shadowValue",
+                        shadowValue: ShadowData.internalBinaryRead(reader, reader.uint32(), options, (message.shadow as any).shadowValue)
+                    };
+                    break;
+                case /* symbol.bench.VariableData shadow_variable */ 17066:
+                    message.shadow = {
+                        oneofKind: "shadowVariable",
+                        shadowVariable: VariableData.internalBinaryRead(reader, reader.uint32(), options, (message.shadow as any).shadowVariable)
+                    };
+                    break;
+                case /* symbol.bench.BorderData border_value */ 67:
+                    message.border = {
+                        oneofKind: "borderValue",
+                        borderValue: BorderData.internalBinaryRead(reader, reader.uint32(), options, (message.border as any).borderValue)
+                    };
+                    break;
+                case /* symbol.bench.VariableData border_variable */ 17067:
+                    message.border = {
+                        oneofKind: "borderVariable",
+                        borderVariable: VariableData.internalBinaryRead(reader, reader.uint32(), options, (message.border as any).borderVariable)
+                    };
+                    break;
+                case /* symbol.bench.CornersData radius_value */ 68:
+                    message.radius = {
+                        oneofKind: "radiusValue",
+                        radiusValue: CornersData.internalBinaryRead(reader, reader.uint32(), options, (message.radius as any).radiusValue)
+                    };
+                    break;
+                case /* symbol.bench.VariableData radius_variable */ 17068:
+                    message.radius = {
+                        oneofKind: "radiusVariable",
+                        radiusVariable: VariableData.internalBinaryRead(reader, reader.uint32(), options, (message.radius as any).radiusVariable)
+                    };
                     break;
                 default:
                     let u = options.readUnknownField;
@@ -17654,21 +18698,36 @@ class ComponentViewData$Type extends MessageType$<ComponentViewData> {
         /* optional symbol.bench.Layout layout = 50; */
         if (message.layout !== undefined)
             writer.tag(50, WireType.Varint).int32(message.layout);
-        /* symbol.bench.Direction direction = 51; */
-        if (message.direction !== 0)
-            writer.tag(51, WireType.Varint).int32(message.direction);
-        /* symbol.bench.Distribute distribute = 52; */
-        if (message.distribute !== 0)
-            writer.tag(52, WireType.Varint).int32(message.distribute);
-        /* symbol.bench.Align align = 53; */
-        if (message.align !== 0)
-            writer.tag(53, WireType.Varint).int32(message.align);
-        /* symbol.bench.Axis2Data gap = 54; */
-        if (message.gap)
-            Axis2Data.internalBinaryWrite(message.gap, writer.tag(54, WireType.LengthDelimited).fork(), options).join();
-        /* symbol.bench.InsetsData padding = 55; */
-        if (message.padding)
-            InsetsData.internalBinaryWrite(message.padding, writer.tag(55, WireType.LengthDelimited).fork(), options).join();
+        /* symbol.bench.Direction direction_value = 51; */
+        if (message.direction.oneofKind === "directionValue")
+            writer.tag(51, WireType.Varint).int32(message.direction.directionValue);
+        /* symbol.bench.VariableData direction_variable = 17051; */
+        if (message.direction.oneofKind === "directionVariable")
+            VariableData.internalBinaryWrite(message.direction.directionVariable, writer.tag(17051, WireType.LengthDelimited).fork(), options).join();
+        /* symbol.bench.Distribute distribute_value = 52; */
+        if (message.distribute.oneofKind === "distributeValue")
+            writer.tag(52, WireType.Varint).int32(message.distribute.distributeValue);
+        /* symbol.bench.VariableData distribute_variable = 17052; */
+        if (message.distribute.oneofKind === "distributeVariable")
+            VariableData.internalBinaryWrite(message.distribute.distributeVariable, writer.tag(17052, WireType.LengthDelimited).fork(), options).join();
+        /* symbol.bench.Align align_value = 53; */
+        if (message.align.oneofKind === "alignValue")
+            writer.tag(53, WireType.Varint).int32(message.align.alignValue);
+        /* symbol.bench.VariableData align_variable = 17053; */
+        if (message.align.oneofKind === "alignVariable")
+            VariableData.internalBinaryWrite(message.align.alignVariable, writer.tag(17053, WireType.LengthDelimited).fork(), options).join();
+        /* symbol.bench.Axis2Data gap_value = 54; */
+        if (message.gap.oneofKind === "gapValue")
+            Axis2Data.internalBinaryWrite(message.gap.gapValue, writer.tag(54, WireType.LengthDelimited).fork(), options).join();
+        /* symbol.bench.VariableData gap_variable = 17054; */
+        if (message.gap.oneofKind === "gapVariable")
+            VariableData.internalBinaryWrite(message.gap.gapVariable, writer.tag(17054, WireType.LengthDelimited).fork(), options).join();
+        /* symbol.bench.InsetsData padding_value = 55; */
+        if (message.padding.oneofKind === "paddingValue")
+            InsetsData.internalBinaryWrite(message.padding.paddingValue, writer.tag(55, WireType.LengthDelimited).fork(), options).join();
+        /* symbol.bench.VariableData padding_variable = 17055; */
+        if (message.padding.oneofKind === "paddingVariable")
+            VariableData.internalBinaryWrite(message.padding.paddingVariable, writer.tag(17055, WireType.LengthDelimited).fork(), options).join();
         /* optional symbol.bench.GridData grid = 56; */
         if (message.grid)
             GridData.internalBinaryWrite(message.grid, writer.tag(56, WireType.LengthDelimited).fork(), options).join();
@@ -17681,33 +18740,60 @@ class ComponentViewData$Type extends MessageType$<ComponentViewData> {
         /* optional bool is_wrap = 59; */
         if (message.isWrap !== undefined)
             writer.tag(59, WireType.Varint).bool(message.isWrap);
-        /* bool is_visible = 60; */
-        if (message.isVisible !== false)
-            writer.tag(60, WireType.Varint).bool(message.isVisible);
-        /* float opacity = 61; */
-        if (message.opacity !== 0)
-            writer.tag(61, WireType.Bit32).float(message.opacity);
-        /* symbol.bench.FillData fill = 62; */
-        if (message.fill)
-            FillData.internalBinaryWrite(message.fill, writer.tag(62, WireType.LengthDelimited).fork(), options).join();
-        /* symbol.bench.Axis3Data rotation = 63; */
-        if (message.rotation)
-            Axis3Data.internalBinaryWrite(message.rotation, writer.tag(63, WireType.LengthDelimited).fork(), options).join();
-        /* symbol.bench.Vector2Data skew = 64; */
-        if (message.skew)
-            Vector2Data.internalBinaryWrite(message.skew, writer.tag(64, WireType.LengthDelimited).fork(), options).join();
-        /* float scale = 65; */
-        if (message.scale !== 0)
-            writer.tag(65, WireType.Bit32).float(message.scale);
-        /* symbol.bench.ShadowData shadow = 66; */
-        if (message.shadow)
-            ShadowData.internalBinaryWrite(message.shadow, writer.tag(66, WireType.LengthDelimited).fork(), options).join();
-        /* symbol.bench.BorderData border = 67; */
-        if (message.border)
-            BorderData.internalBinaryWrite(message.border, writer.tag(67, WireType.LengthDelimited).fork(), options).join();
-        /* symbol.bench.CornersData radius = 68; */
-        if (message.radius)
-            CornersData.internalBinaryWrite(message.radius, writer.tag(68, WireType.LengthDelimited).fork(), options).join();
+        /* bool is_visible_value = 60; */
+        if (message.isVisible.oneofKind === "isVisibleValue")
+            writer.tag(60, WireType.Varint).bool(message.isVisible.isVisibleValue);
+        /* symbol.bench.VariableData is_visible_variable = 17060; */
+        if (message.isVisible.oneofKind === "isVisibleVariable")
+            VariableData.internalBinaryWrite(message.isVisible.isVisibleVariable, writer.tag(17060, WireType.LengthDelimited).fork(), options).join();
+        /* float opacity_value = 61; */
+        if (message.opacity.oneofKind === "opacityValue")
+            writer.tag(61, WireType.Bit32).float(message.opacity.opacityValue);
+        /* symbol.bench.VariableData opacity_variable = 17061; */
+        if (message.opacity.oneofKind === "opacityVariable")
+            VariableData.internalBinaryWrite(message.opacity.opacityVariable, writer.tag(17061, WireType.LengthDelimited).fork(), options).join();
+        /* symbol.bench.FillData fill_value = 62; */
+        if (message.fill.oneofKind === "fillValue")
+            FillData.internalBinaryWrite(message.fill.fillValue, writer.tag(62, WireType.LengthDelimited).fork(), options).join();
+        /* symbol.bench.VariableData fill_variable = 17062; */
+        if (message.fill.oneofKind === "fillVariable")
+            VariableData.internalBinaryWrite(message.fill.fillVariable, writer.tag(17062, WireType.LengthDelimited).fork(), options).join();
+        /* symbol.bench.Axis3Data rotation_value = 63; */
+        if (message.rotation.oneofKind === "rotationValue")
+            Axis3Data.internalBinaryWrite(message.rotation.rotationValue, writer.tag(63, WireType.LengthDelimited).fork(), options).join();
+        /* symbol.bench.VariableData rotation_variable = 17063; */
+        if (message.rotation.oneofKind === "rotationVariable")
+            VariableData.internalBinaryWrite(message.rotation.rotationVariable, writer.tag(17063, WireType.LengthDelimited).fork(), options).join();
+        /* symbol.bench.Vector2Data skew_value = 64; */
+        if (message.skew.oneofKind === "skewValue")
+            Vector2Data.internalBinaryWrite(message.skew.skewValue, writer.tag(64, WireType.LengthDelimited).fork(), options).join();
+        /* symbol.bench.VariableData skew_variable = 17064; */
+        if (message.skew.oneofKind === "skewVariable")
+            VariableData.internalBinaryWrite(message.skew.skewVariable, writer.tag(17064, WireType.LengthDelimited).fork(), options).join();
+        /* float scale_value = 65; */
+        if (message.scale.oneofKind === "scaleValue")
+            writer.tag(65, WireType.Bit32).float(message.scale.scaleValue);
+        /* symbol.bench.VariableData scale_variable = 17065; */
+        if (message.scale.oneofKind === "scaleVariable")
+            VariableData.internalBinaryWrite(message.scale.scaleVariable, writer.tag(17065, WireType.LengthDelimited).fork(), options).join();
+        /* symbol.bench.ShadowData shadow_value = 66; */
+        if (message.shadow.oneofKind === "shadowValue")
+            ShadowData.internalBinaryWrite(message.shadow.shadowValue, writer.tag(66, WireType.LengthDelimited).fork(), options).join();
+        /* symbol.bench.VariableData shadow_variable = 17066; */
+        if (message.shadow.oneofKind === "shadowVariable")
+            VariableData.internalBinaryWrite(message.shadow.shadowVariable, writer.tag(17066, WireType.LengthDelimited).fork(), options).join();
+        /* symbol.bench.BorderData border_value = 67; */
+        if (message.border.oneofKind === "borderValue")
+            BorderData.internalBinaryWrite(message.border.borderValue, writer.tag(67, WireType.LengthDelimited).fork(), options).join();
+        /* symbol.bench.VariableData border_variable = 17067; */
+        if (message.border.oneofKind === "borderVariable")
+            VariableData.internalBinaryWrite(message.border.borderVariable, writer.tag(17067, WireType.LengthDelimited).fork(), options).join();
+        /* symbol.bench.CornersData radius_value = 68; */
+        if (message.radius.oneofKind === "radiusValue")
+            CornersData.internalBinaryWrite(message.radius.radiusValue, writer.tag(68, WireType.LengthDelimited).fork(), options).join();
+        /* symbol.bench.VariableData radius_variable = 17068; */
+        if (message.radius.oneofKind === "radiusVariable")
+            VariableData.internalBinaryWrite(message.radius.radiusVariable, writer.tag(17068, WireType.LengthDelimited).fork(), options).join();
         let u = options.writeUnknownFields;
         if (u !== false)
             (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
@@ -21365,24 +22451,38 @@ class FrameViewData$Type extends MessageType$<FrameViewData> {
             { no: 45, name: "max_width", kind: "message", T: () => DimensionData },
             { no: 46, name: "max_height", kind: "message", T: () => DimensionData },
             { no: 50, name: "layout", kind: "enum", opt: true, T: () => ["symbol.bench.Layout", Layout, "LAYOUT_"] },
-            { no: 51, name: "direction", kind: "enum", T: () => ["symbol.bench.Direction", Direction, "DIRECTION_"] },
-            { no: 52, name: "distribute", kind: "enum", T: () => ["symbol.bench.Distribute", Distribute, "DISTRIBUTE_"] },
-            { no: 53, name: "align", kind: "enum", T: () => ["symbol.bench.Align", Align, "ALIGN_"] },
-            { no: 54, name: "gap", kind: "message", T: () => Axis2Data },
-            { no: 55, name: "padding", kind: "message", T: () => InsetsData },
+            { no: 51, name: "direction_value", kind: "enum", oneof: "direction", T: () => ["symbol.bench.Direction", Direction, "DIRECTION_"] },
+            { no: 17051, name: "direction_variable", kind: "message", oneof: "direction", T: () => VariableData },
+            { no: 52, name: "distribute_value", kind: "enum", oneof: "distribute", T: () => ["symbol.bench.Distribute", Distribute, "DISTRIBUTE_"] },
+            { no: 17052, name: "distribute_variable", kind: "message", oneof: "distribute", T: () => VariableData },
+            { no: 53, name: "align_value", kind: "enum", oneof: "align", T: () => ["symbol.bench.Align", Align, "ALIGN_"] },
+            { no: 17053, name: "align_variable", kind: "message", oneof: "align", T: () => VariableData },
+            { no: 54, name: "gap_value", kind: "message", oneof: "gap", T: () => Axis2Data },
+            { no: 17054, name: "gap_variable", kind: "message", oneof: "gap", T: () => VariableData },
+            { no: 55, name: "padding_value", kind: "message", oneof: "padding", T: () => InsetsData },
+            { no: 17055, name: "padding_variable", kind: "message", oneof: "padding", T: () => VariableData },
             { no: 56, name: "grid", kind: "message", T: () => GridData },
             { no: 57, name: "grid_span", kind: "message", T: () => GridSpanData },
             { no: 58, name: "aspect_ratio", kind: "scalar", opt: true, T: 2 /*ScalarType.FLOAT*/ },
             { no: 59, name: "is_wrap", kind: "scalar", opt: true, T: 8 /*ScalarType.BOOL*/ },
-            { no: 60, name: "is_visible", kind: "scalar", T: 8 /*ScalarType.BOOL*/ },
-            { no: 61, name: "opacity", kind: "scalar", T: 2 /*ScalarType.FLOAT*/ },
-            { no: 62, name: "fill", kind: "message", T: () => FillData },
-            { no: 63, name: "rotation", kind: "message", T: () => Axis3Data },
-            { no: 64, name: "skew", kind: "message", T: () => Vector2Data },
-            { no: 65, name: "scale", kind: "scalar", T: 2 /*ScalarType.FLOAT*/ },
-            { no: 66, name: "shadow", kind: "message", T: () => ShadowData },
-            { no: 67, name: "border", kind: "message", T: () => BorderData },
-            { no: 68, name: "radius", kind: "message", T: () => CornersData }
+            { no: 60, name: "is_visible_value", kind: "scalar", oneof: "isVisible", T: 8 /*ScalarType.BOOL*/ },
+            { no: 17060, name: "is_visible_variable", kind: "message", oneof: "isVisible", T: () => VariableData },
+            { no: 61, name: "opacity_value", kind: "scalar", oneof: "opacity", T: 2 /*ScalarType.FLOAT*/ },
+            { no: 17061, name: "opacity_variable", kind: "message", oneof: "opacity", T: () => VariableData },
+            { no: 62, name: "fill_value", kind: "message", oneof: "fill", T: () => FillData },
+            { no: 17062, name: "fill_variable", kind: "message", oneof: "fill", T: () => VariableData },
+            { no: 63, name: "rotation_value", kind: "message", oneof: "rotation", T: () => Axis3Data },
+            { no: 17063, name: "rotation_variable", kind: "message", oneof: "rotation", T: () => VariableData },
+            { no: 64, name: "skew_value", kind: "message", oneof: "skew", T: () => Vector2Data },
+            { no: 17064, name: "skew_variable", kind: "message", oneof: "skew", T: () => VariableData },
+            { no: 65, name: "scale_value", kind: "scalar", oneof: "scale", T: 2 /*ScalarType.FLOAT*/ },
+            { no: 17065, name: "scale_variable", kind: "message", oneof: "scale", T: () => VariableData },
+            { no: 66, name: "shadow_value", kind: "message", oneof: "shadow", T: () => ShadowData },
+            { no: 17066, name: "shadow_variable", kind: "message", oneof: "shadow", T: () => VariableData },
+            { no: 67, name: "border_value", kind: "message", oneof: "border", T: () => BorderData },
+            { no: 17067, name: "border_variable", kind: "message", oneof: "border", T: () => VariableData },
+            { no: 68, name: "radius_value", kind: "message", oneof: "radius", T: () => CornersData },
+            { no: 17068, name: "radius_variable", kind: "message", oneof: "radius", T: () => VariableData }
         ]);
     }
     create(value?: PartialMessage<FrameViewData>): FrameViewData {
@@ -21392,12 +22492,20 @@ class FrameViewData$Type extends MessageType$<FrameViewData> {
         message.ck = "";
         message.mode = 0;
         message.orderKey = "";
-        message.direction = 0;
-        message.distribute = 0;
-        message.align = 0;
-        message.isVisible = false;
-        message.opacity = 0;
-        message.scale = 0;
+        message.direction = { oneofKind: undefined };
+        message.distribute = { oneofKind: undefined };
+        message.align = { oneofKind: undefined };
+        message.gap = { oneofKind: undefined };
+        message.padding = { oneofKind: undefined };
+        message.isVisible = { oneofKind: undefined };
+        message.opacity = { oneofKind: undefined };
+        message.fill = { oneofKind: undefined };
+        message.rotation = { oneofKind: undefined };
+        message.skew = { oneofKind: undefined };
+        message.scale = { oneofKind: undefined };
+        message.shadow = { oneofKind: undefined };
+        message.border = { oneofKind: undefined };
+        message.radius = { oneofKind: undefined };
         if (value !== undefined)
             reflectionMergePartial<FrameViewData>(this, message, value);
         return message;
@@ -21485,20 +22593,65 @@ class FrameViewData$Type extends MessageType$<FrameViewData> {
                 case /* optional symbol.bench.Layout layout */ 50:
                     message.layout = reader.int32();
                     break;
-                case /* symbol.bench.Direction direction */ 51:
-                    message.direction = reader.int32();
+                case /* symbol.bench.Direction direction_value */ 51:
+                    message.direction = {
+                        oneofKind: "directionValue",
+                        directionValue: reader.int32()
+                    };
                     break;
-                case /* symbol.bench.Distribute distribute */ 52:
-                    message.distribute = reader.int32();
+                case /* symbol.bench.VariableData direction_variable */ 17051:
+                    message.direction = {
+                        oneofKind: "directionVariable",
+                        directionVariable: VariableData.internalBinaryRead(reader, reader.uint32(), options, (message.direction as any).directionVariable)
+                    };
                     break;
-                case /* symbol.bench.Align align */ 53:
-                    message.align = reader.int32();
+                case /* symbol.bench.Distribute distribute_value */ 52:
+                    message.distribute = {
+                        oneofKind: "distributeValue",
+                        distributeValue: reader.int32()
+                    };
                     break;
-                case /* symbol.bench.Axis2Data gap */ 54:
-                    message.gap = Axis2Data.internalBinaryRead(reader, reader.uint32(), options, message.gap);
+                case /* symbol.bench.VariableData distribute_variable */ 17052:
+                    message.distribute = {
+                        oneofKind: "distributeVariable",
+                        distributeVariable: VariableData.internalBinaryRead(reader, reader.uint32(), options, (message.distribute as any).distributeVariable)
+                    };
                     break;
-                case /* symbol.bench.InsetsData padding */ 55:
-                    message.padding = InsetsData.internalBinaryRead(reader, reader.uint32(), options, message.padding);
+                case /* symbol.bench.Align align_value */ 53:
+                    message.align = {
+                        oneofKind: "alignValue",
+                        alignValue: reader.int32()
+                    };
+                    break;
+                case /* symbol.bench.VariableData align_variable */ 17053:
+                    message.align = {
+                        oneofKind: "alignVariable",
+                        alignVariable: VariableData.internalBinaryRead(reader, reader.uint32(), options, (message.align as any).alignVariable)
+                    };
+                    break;
+                case /* symbol.bench.Axis2Data gap_value */ 54:
+                    message.gap = {
+                        oneofKind: "gapValue",
+                        gapValue: Axis2Data.internalBinaryRead(reader, reader.uint32(), options, (message.gap as any).gapValue)
+                    };
+                    break;
+                case /* symbol.bench.VariableData gap_variable */ 17054:
+                    message.gap = {
+                        oneofKind: "gapVariable",
+                        gapVariable: VariableData.internalBinaryRead(reader, reader.uint32(), options, (message.gap as any).gapVariable)
+                    };
+                    break;
+                case /* symbol.bench.InsetsData padding_value */ 55:
+                    message.padding = {
+                        oneofKind: "paddingValue",
+                        paddingValue: InsetsData.internalBinaryRead(reader, reader.uint32(), options, (message.padding as any).paddingValue)
+                    };
+                    break;
+                case /* symbol.bench.VariableData padding_variable */ 17055:
+                    message.padding = {
+                        oneofKind: "paddingVariable",
+                        paddingVariable: VariableData.internalBinaryRead(reader, reader.uint32(), options, (message.padding as any).paddingVariable)
+                    };
                     break;
                 case /* optional symbol.bench.GridData grid */ 56:
                     message.grid = GridData.internalBinaryRead(reader, reader.uint32(), options, message.grid);
@@ -21512,32 +22665,113 @@ class FrameViewData$Type extends MessageType$<FrameViewData> {
                 case /* optional bool is_wrap */ 59:
                     message.isWrap = reader.bool();
                     break;
-                case /* bool is_visible */ 60:
-                    message.isVisible = reader.bool();
+                case /* bool is_visible_value */ 60:
+                    message.isVisible = {
+                        oneofKind: "isVisibleValue",
+                        isVisibleValue: reader.bool()
+                    };
                     break;
-                case /* float opacity */ 61:
-                    message.opacity = reader.float();
+                case /* symbol.bench.VariableData is_visible_variable */ 17060:
+                    message.isVisible = {
+                        oneofKind: "isVisibleVariable",
+                        isVisibleVariable: VariableData.internalBinaryRead(reader, reader.uint32(), options, (message.isVisible as any).isVisibleVariable)
+                    };
                     break;
-                case /* symbol.bench.FillData fill */ 62:
-                    message.fill = FillData.internalBinaryRead(reader, reader.uint32(), options, message.fill);
+                case /* float opacity_value */ 61:
+                    message.opacity = {
+                        oneofKind: "opacityValue",
+                        opacityValue: reader.float()
+                    };
                     break;
-                case /* symbol.bench.Axis3Data rotation */ 63:
-                    message.rotation = Axis3Data.internalBinaryRead(reader, reader.uint32(), options, message.rotation);
+                case /* symbol.bench.VariableData opacity_variable */ 17061:
+                    message.opacity = {
+                        oneofKind: "opacityVariable",
+                        opacityVariable: VariableData.internalBinaryRead(reader, reader.uint32(), options, (message.opacity as any).opacityVariable)
+                    };
                     break;
-                case /* symbol.bench.Vector2Data skew */ 64:
-                    message.skew = Vector2Data.internalBinaryRead(reader, reader.uint32(), options, message.skew);
+                case /* symbol.bench.FillData fill_value */ 62:
+                    message.fill = {
+                        oneofKind: "fillValue",
+                        fillValue: FillData.internalBinaryRead(reader, reader.uint32(), options, (message.fill as any).fillValue)
+                    };
                     break;
-                case /* float scale */ 65:
-                    message.scale = reader.float();
+                case /* symbol.bench.VariableData fill_variable */ 17062:
+                    message.fill = {
+                        oneofKind: "fillVariable",
+                        fillVariable: VariableData.internalBinaryRead(reader, reader.uint32(), options, (message.fill as any).fillVariable)
+                    };
                     break;
-                case /* symbol.bench.ShadowData shadow */ 66:
-                    message.shadow = ShadowData.internalBinaryRead(reader, reader.uint32(), options, message.shadow);
+                case /* symbol.bench.Axis3Data rotation_value */ 63:
+                    message.rotation = {
+                        oneofKind: "rotationValue",
+                        rotationValue: Axis3Data.internalBinaryRead(reader, reader.uint32(), options, (message.rotation as any).rotationValue)
+                    };
                     break;
-                case /* symbol.bench.BorderData border */ 67:
-                    message.border = BorderData.internalBinaryRead(reader, reader.uint32(), options, message.border);
+                case /* symbol.bench.VariableData rotation_variable */ 17063:
+                    message.rotation = {
+                        oneofKind: "rotationVariable",
+                        rotationVariable: VariableData.internalBinaryRead(reader, reader.uint32(), options, (message.rotation as any).rotationVariable)
+                    };
                     break;
-                case /* symbol.bench.CornersData radius */ 68:
-                    message.radius = CornersData.internalBinaryRead(reader, reader.uint32(), options, message.radius);
+                case /* symbol.bench.Vector2Data skew_value */ 64:
+                    message.skew = {
+                        oneofKind: "skewValue",
+                        skewValue: Vector2Data.internalBinaryRead(reader, reader.uint32(), options, (message.skew as any).skewValue)
+                    };
+                    break;
+                case /* symbol.bench.VariableData skew_variable */ 17064:
+                    message.skew = {
+                        oneofKind: "skewVariable",
+                        skewVariable: VariableData.internalBinaryRead(reader, reader.uint32(), options, (message.skew as any).skewVariable)
+                    };
+                    break;
+                case /* float scale_value */ 65:
+                    message.scale = {
+                        oneofKind: "scaleValue",
+                        scaleValue: reader.float()
+                    };
+                    break;
+                case /* symbol.bench.VariableData scale_variable */ 17065:
+                    message.scale = {
+                        oneofKind: "scaleVariable",
+                        scaleVariable: VariableData.internalBinaryRead(reader, reader.uint32(), options, (message.scale as any).scaleVariable)
+                    };
+                    break;
+                case /* symbol.bench.ShadowData shadow_value */ 66:
+                    message.shadow = {
+                        oneofKind: "shadowValue",
+                        shadowValue: ShadowData.internalBinaryRead(reader, reader.uint32(), options, (message.shadow as any).shadowValue)
+                    };
+                    break;
+                case /* symbol.bench.VariableData shadow_variable */ 17066:
+                    message.shadow = {
+                        oneofKind: "shadowVariable",
+                        shadowVariable: VariableData.internalBinaryRead(reader, reader.uint32(), options, (message.shadow as any).shadowVariable)
+                    };
+                    break;
+                case /* symbol.bench.BorderData border_value */ 67:
+                    message.border = {
+                        oneofKind: "borderValue",
+                        borderValue: BorderData.internalBinaryRead(reader, reader.uint32(), options, (message.border as any).borderValue)
+                    };
+                    break;
+                case /* symbol.bench.VariableData border_variable */ 17067:
+                    message.border = {
+                        oneofKind: "borderVariable",
+                        borderVariable: VariableData.internalBinaryRead(reader, reader.uint32(), options, (message.border as any).borderVariable)
+                    };
+                    break;
+                case /* symbol.bench.CornersData radius_value */ 68:
+                    message.radius = {
+                        oneofKind: "radiusValue",
+                        radiusValue: CornersData.internalBinaryRead(reader, reader.uint32(), options, (message.radius as any).radiusValue)
+                    };
+                    break;
+                case /* symbol.bench.VariableData radius_variable */ 17068:
+                    message.radius = {
+                        oneofKind: "radiusVariable",
+                        radiusVariable: VariableData.internalBinaryRead(reader, reader.uint32(), options, (message.radius as any).radiusVariable)
+                    };
                     break;
                 default:
                     let u = options.readUnknownField;
@@ -21629,21 +22863,36 @@ class FrameViewData$Type extends MessageType$<FrameViewData> {
         /* optional symbol.bench.Layout layout = 50; */
         if (message.layout !== undefined)
             writer.tag(50, WireType.Varint).int32(message.layout);
-        /* symbol.bench.Direction direction = 51; */
-        if (message.direction !== 0)
-            writer.tag(51, WireType.Varint).int32(message.direction);
-        /* symbol.bench.Distribute distribute = 52; */
-        if (message.distribute !== 0)
-            writer.tag(52, WireType.Varint).int32(message.distribute);
-        /* symbol.bench.Align align = 53; */
-        if (message.align !== 0)
-            writer.tag(53, WireType.Varint).int32(message.align);
-        /* symbol.bench.Axis2Data gap = 54; */
-        if (message.gap)
-            Axis2Data.internalBinaryWrite(message.gap, writer.tag(54, WireType.LengthDelimited).fork(), options).join();
-        /* symbol.bench.InsetsData padding = 55; */
-        if (message.padding)
-            InsetsData.internalBinaryWrite(message.padding, writer.tag(55, WireType.LengthDelimited).fork(), options).join();
+        /* symbol.bench.Direction direction_value = 51; */
+        if (message.direction.oneofKind === "directionValue")
+            writer.tag(51, WireType.Varint).int32(message.direction.directionValue);
+        /* symbol.bench.VariableData direction_variable = 17051; */
+        if (message.direction.oneofKind === "directionVariable")
+            VariableData.internalBinaryWrite(message.direction.directionVariable, writer.tag(17051, WireType.LengthDelimited).fork(), options).join();
+        /* symbol.bench.Distribute distribute_value = 52; */
+        if (message.distribute.oneofKind === "distributeValue")
+            writer.tag(52, WireType.Varint).int32(message.distribute.distributeValue);
+        /* symbol.bench.VariableData distribute_variable = 17052; */
+        if (message.distribute.oneofKind === "distributeVariable")
+            VariableData.internalBinaryWrite(message.distribute.distributeVariable, writer.tag(17052, WireType.LengthDelimited).fork(), options).join();
+        /* symbol.bench.Align align_value = 53; */
+        if (message.align.oneofKind === "alignValue")
+            writer.tag(53, WireType.Varint).int32(message.align.alignValue);
+        /* symbol.bench.VariableData align_variable = 17053; */
+        if (message.align.oneofKind === "alignVariable")
+            VariableData.internalBinaryWrite(message.align.alignVariable, writer.tag(17053, WireType.LengthDelimited).fork(), options).join();
+        /* symbol.bench.Axis2Data gap_value = 54; */
+        if (message.gap.oneofKind === "gapValue")
+            Axis2Data.internalBinaryWrite(message.gap.gapValue, writer.tag(54, WireType.LengthDelimited).fork(), options).join();
+        /* symbol.bench.VariableData gap_variable = 17054; */
+        if (message.gap.oneofKind === "gapVariable")
+            VariableData.internalBinaryWrite(message.gap.gapVariable, writer.tag(17054, WireType.LengthDelimited).fork(), options).join();
+        /* symbol.bench.InsetsData padding_value = 55; */
+        if (message.padding.oneofKind === "paddingValue")
+            InsetsData.internalBinaryWrite(message.padding.paddingValue, writer.tag(55, WireType.LengthDelimited).fork(), options).join();
+        /* symbol.bench.VariableData padding_variable = 17055; */
+        if (message.padding.oneofKind === "paddingVariable")
+            VariableData.internalBinaryWrite(message.padding.paddingVariable, writer.tag(17055, WireType.LengthDelimited).fork(), options).join();
         /* optional symbol.bench.GridData grid = 56; */
         if (message.grid)
             GridData.internalBinaryWrite(message.grid, writer.tag(56, WireType.LengthDelimited).fork(), options).join();
@@ -21656,33 +22905,60 @@ class FrameViewData$Type extends MessageType$<FrameViewData> {
         /* optional bool is_wrap = 59; */
         if (message.isWrap !== undefined)
             writer.tag(59, WireType.Varint).bool(message.isWrap);
-        /* bool is_visible = 60; */
-        if (message.isVisible !== false)
-            writer.tag(60, WireType.Varint).bool(message.isVisible);
-        /* float opacity = 61; */
-        if (message.opacity !== 0)
-            writer.tag(61, WireType.Bit32).float(message.opacity);
-        /* symbol.bench.FillData fill = 62; */
-        if (message.fill)
-            FillData.internalBinaryWrite(message.fill, writer.tag(62, WireType.LengthDelimited).fork(), options).join();
-        /* symbol.bench.Axis3Data rotation = 63; */
-        if (message.rotation)
-            Axis3Data.internalBinaryWrite(message.rotation, writer.tag(63, WireType.LengthDelimited).fork(), options).join();
-        /* symbol.bench.Vector2Data skew = 64; */
-        if (message.skew)
-            Vector2Data.internalBinaryWrite(message.skew, writer.tag(64, WireType.LengthDelimited).fork(), options).join();
-        /* float scale = 65; */
-        if (message.scale !== 0)
-            writer.tag(65, WireType.Bit32).float(message.scale);
-        /* symbol.bench.ShadowData shadow = 66; */
-        if (message.shadow)
-            ShadowData.internalBinaryWrite(message.shadow, writer.tag(66, WireType.LengthDelimited).fork(), options).join();
-        /* symbol.bench.BorderData border = 67; */
-        if (message.border)
-            BorderData.internalBinaryWrite(message.border, writer.tag(67, WireType.LengthDelimited).fork(), options).join();
-        /* symbol.bench.CornersData radius = 68; */
-        if (message.radius)
-            CornersData.internalBinaryWrite(message.radius, writer.tag(68, WireType.LengthDelimited).fork(), options).join();
+        /* bool is_visible_value = 60; */
+        if (message.isVisible.oneofKind === "isVisibleValue")
+            writer.tag(60, WireType.Varint).bool(message.isVisible.isVisibleValue);
+        /* symbol.bench.VariableData is_visible_variable = 17060; */
+        if (message.isVisible.oneofKind === "isVisibleVariable")
+            VariableData.internalBinaryWrite(message.isVisible.isVisibleVariable, writer.tag(17060, WireType.LengthDelimited).fork(), options).join();
+        /* float opacity_value = 61; */
+        if (message.opacity.oneofKind === "opacityValue")
+            writer.tag(61, WireType.Bit32).float(message.opacity.opacityValue);
+        /* symbol.bench.VariableData opacity_variable = 17061; */
+        if (message.opacity.oneofKind === "opacityVariable")
+            VariableData.internalBinaryWrite(message.opacity.opacityVariable, writer.tag(17061, WireType.LengthDelimited).fork(), options).join();
+        /* symbol.bench.FillData fill_value = 62; */
+        if (message.fill.oneofKind === "fillValue")
+            FillData.internalBinaryWrite(message.fill.fillValue, writer.tag(62, WireType.LengthDelimited).fork(), options).join();
+        /* symbol.bench.VariableData fill_variable = 17062; */
+        if (message.fill.oneofKind === "fillVariable")
+            VariableData.internalBinaryWrite(message.fill.fillVariable, writer.tag(17062, WireType.LengthDelimited).fork(), options).join();
+        /* symbol.bench.Axis3Data rotation_value = 63; */
+        if (message.rotation.oneofKind === "rotationValue")
+            Axis3Data.internalBinaryWrite(message.rotation.rotationValue, writer.tag(63, WireType.LengthDelimited).fork(), options).join();
+        /* symbol.bench.VariableData rotation_variable = 17063; */
+        if (message.rotation.oneofKind === "rotationVariable")
+            VariableData.internalBinaryWrite(message.rotation.rotationVariable, writer.tag(17063, WireType.LengthDelimited).fork(), options).join();
+        /* symbol.bench.Vector2Data skew_value = 64; */
+        if (message.skew.oneofKind === "skewValue")
+            Vector2Data.internalBinaryWrite(message.skew.skewValue, writer.tag(64, WireType.LengthDelimited).fork(), options).join();
+        /* symbol.bench.VariableData skew_variable = 17064; */
+        if (message.skew.oneofKind === "skewVariable")
+            VariableData.internalBinaryWrite(message.skew.skewVariable, writer.tag(17064, WireType.LengthDelimited).fork(), options).join();
+        /* float scale_value = 65; */
+        if (message.scale.oneofKind === "scaleValue")
+            writer.tag(65, WireType.Bit32).float(message.scale.scaleValue);
+        /* symbol.bench.VariableData scale_variable = 17065; */
+        if (message.scale.oneofKind === "scaleVariable")
+            VariableData.internalBinaryWrite(message.scale.scaleVariable, writer.tag(17065, WireType.LengthDelimited).fork(), options).join();
+        /* symbol.bench.ShadowData shadow_value = 66; */
+        if (message.shadow.oneofKind === "shadowValue")
+            ShadowData.internalBinaryWrite(message.shadow.shadowValue, writer.tag(66, WireType.LengthDelimited).fork(), options).join();
+        /* symbol.bench.VariableData shadow_variable = 17066; */
+        if (message.shadow.oneofKind === "shadowVariable")
+            VariableData.internalBinaryWrite(message.shadow.shadowVariable, writer.tag(17066, WireType.LengthDelimited).fork(), options).join();
+        /* symbol.bench.BorderData border_value = 67; */
+        if (message.border.oneofKind === "borderValue")
+            BorderData.internalBinaryWrite(message.border.borderValue, writer.tag(67, WireType.LengthDelimited).fork(), options).join();
+        /* symbol.bench.VariableData border_variable = 17067; */
+        if (message.border.oneofKind === "borderVariable")
+            VariableData.internalBinaryWrite(message.border.borderVariable, writer.tag(17067, WireType.LengthDelimited).fork(), options).join();
+        /* symbol.bench.CornersData radius_value = 68; */
+        if (message.radius.oneofKind === "radiusValue")
+            CornersData.internalBinaryWrite(message.radius.radiusValue, writer.tag(68, WireType.LengthDelimited).fork(), options).join();
+        /* symbol.bench.VariableData radius_variable = 17068; */
+        if (message.radius.oneofKind === "radiusVariable")
+            VariableData.internalBinaryWrite(message.radius.radiusVariable, writer.tag(17068, WireType.LengthDelimited).fork(), options).join();
         let u = options.writeUnknownFields;
         if (u !== false)
             (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
@@ -22850,24 +24126,38 @@ class LabelViewData$Type extends MessageType$<LabelViewData> {
             { no: 45, name: "max_width", kind: "message", T: () => DimensionData },
             { no: 46, name: "max_height", kind: "message", T: () => DimensionData },
             { no: 50, name: "layout", kind: "enum", opt: true, T: () => ["symbol.bench.Layout", Layout, "LAYOUT_"] },
-            { no: 51, name: "direction", kind: "enum", T: () => ["symbol.bench.Direction", Direction, "DIRECTION_"] },
-            { no: 52, name: "distribute", kind: "enum", T: () => ["symbol.bench.Distribute", Distribute, "DISTRIBUTE_"] },
-            { no: 53, name: "align", kind: "enum", T: () => ["symbol.bench.Align", Align, "ALIGN_"] },
-            { no: 54, name: "gap", kind: "message", T: () => Axis2Data },
-            { no: 55, name: "padding", kind: "message", T: () => InsetsData },
+            { no: 51, name: "direction_value", kind: "enum", oneof: "direction", T: () => ["symbol.bench.Direction", Direction, "DIRECTION_"] },
+            { no: 17051, name: "direction_variable", kind: "message", oneof: "direction", T: () => VariableData },
+            { no: 52, name: "distribute_value", kind: "enum", oneof: "distribute", T: () => ["symbol.bench.Distribute", Distribute, "DISTRIBUTE_"] },
+            { no: 17052, name: "distribute_variable", kind: "message", oneof: "distribute", T: () => VariableData },
+            { no: 53, name: "align_value", kind: "enum", oneof: "align", T: () => ["symbol.bench.Align", Align, "ALIGN_"] },
+            { no: 17053, name: "align_variable", kind: "message", oneof: "align", T: () => VariableData },
+            { no: 54, name: "gap_value", kind: "message", oneof: "gap", T: () => Axis2Data },
+            { no: 17054, name: "gap_variable", kind: "message", oneof: "gap", T: () => VariableData },
+            { no: 55, name: "padding_value", kind: "message", oneof: "padding", T: () => InsetsData },
+            { no: 17055, name: "padding_variable", kind: "message", oneof: "padding", T: () => VariableData },
             { no: 56, name: "grid", kind: "message", T: () => GridData },
             { no: 57, name: "grid_span", kind: "message", T: () => GridSpanData },
             { no: 58, name: "aspect_ratio", kind: "scalar", opt: true, T: 2 /*ScalarType.FLOAT*/ },
             { no: 59, name: "is_wrap", kind: "scalar", opt: true, T: 8 /*ScalarType.BOOL*/ },
-            { no: 60, name: "is_visible", kind: "scalar", T: 8 /*ScalarType.BOOL*/ },
-            { no: 61, name: "opacity", kind: "scalar", T: 2 /*ScalarType.FLOAT*/ },
-            { no: 62, name: "fill", kind: "message", T: () => FillData },
-            { no: 63, name: "rotation", kind: "message", T: () => Axis3Data },
-            { no: 64, name: "skew", kind: "message", T: () => Vector2Data },
-            { no: 65, name: "scale", kind: "scalar", T: 2 /*ScalarType.FLOAT*/ },
-            { no: 66, name: "shadow", kind: "message", T: () => ShadowData },
-            { no: 67, name: "border", kind: "message", T: () => BorderData },
-            { no: 68, name: "radius", kind: "message", T: () => CornersData }
+            { no: 60, name: "is_visible_value", kind: "scalar", oneof: "isVisible", T: 8 /*ScalarType.BOOL*/ },
+            { no: 17060, name: "is_visible_variable", kind: "message", oneof: "isVisible", T: () => VariableData },
+            { no: 61, name: "opacity_value", kind: "scalar", oneof: "opacity", T: 2 /*ScalarType.FLOAT*/ },
+            { no: 17061, name: "opacity_variable", kind: "message", oneof: "opacity", T: () => VariableData },
+            { no: 62, name: "fill_value", kind: "message", oneof: "fill", T: () => FillData },
+            { no: 17062, name: "fill_variable", kind: "message", oneof: "fill", T: () => VariableData },
+            { no: 63, name: "rotation_value", kind: "message", oneof: "rotation", T: () => Axis3Data },
+            { no: 17063, name: "rotation_variable", kind: "message", oneof: "rotation", T: () => VariableData },
+            { no: 64, name: "skew_value", kind: "message", oneof: "skew", T: () => Vector2Data },
+            { no: 17064, name: "skew_variable", kind: "message", oneof: "skew", T: () => VariableData },
+            { no: 65, name: "scale_value", kind: "scalar", oneof: "scale", T: 2 /*ScalarType.FLOAT*/ },
+            { no: 17065, name: "scale_variable", kind: "message", oneof: "scale", T: () => VariableData },
+            { no: 66, name: "shadow_value", kind: "message", oneof: "shadow", T: () => ShadowData },
+            { no: 17066, name: "shadow_variable", kind: "message", oneof: "shadow", T: () => VariableData },
+            { no: 67, name: "border_value", kind: "message", oneof: "border", T: () => BorderData },
+            { no: 17067, name: "border_variable", kind: "message", oneof: "border", T: () => VariableData },
+            { no: 68, name: "radius_value", kind: "message", oneof: "radius", T: () => CornersData },
+            { no: 17068, name: "radius_variable", kind: "message", oneof: "radius", T: () => VariableData }
         ]);
     }
     create(value?: PartialMessage<LabelViewData>): LabelViewData {
@@ -22877,12 +24167,20 @@ class LabelViewData$Type extends MessageType$<LabelViewData> {
         message.ck = "";
         message.mode = 0;
         message.orderKey = "";
-        message.direction = 0;
-        message.distribute = 0;
-        message.align = 0;
-        message.isVisible = false;
-        message.opacity = 0;
-        message.scale = 0;
+        message.direction = { oneofKind: undefined };
+        message.distribute = { oneofKind: undefined };
+        message.align = { oneofKind: undefined };
+        message.gap = { oneofKind: undefined };
+        message.padding = { oneofKind: undefined };
+        message.isVisible = { oneofKind: undefined };
+        message.opacity = { oneofKind: undefined };
+        message.fill = { oneofKind: undefined };
+        message.rotation = { oneofKind: undefined };
+        message.skew = { oneofKind: undefined };
+        message.scale = { oneofKind: undefined };
+        message.shadow = { oneofKind: undefined };
+        message.border = { oneofKind: undefined };
+        message.radius = { oneofKind: undefined };
         if (value !== undefined)
             reflectionMergePartial<LabelViewData>(this, message, value);
         return message;
@@ -22970,20 +24268,65 @@ class LabelViewData$Type extends MessageType$<LabelViewData> {
                 case /* optional symbol.bench.Layout layout */ 50:
                     message.layout = reader.int32();
                     break;
-                case /* symbol.bench.Direction direction */ 51:
-                    message.direction = reader.int32();
+                case /* symbol.bench.Direction direction_value */ 51:
+                    message.direction = {
+                        oneofKind: "directionValue",
+                        directionValue: reader.int32()
+                    };
                     break;
-                case /* symbol.bench.Distribute distribute */ 52:
-                    message.distribute = reader.int32();
+                case /* symbol.bench.VariableData direction_variable */ 17051:
+                    message.direction = {
+                        oneofKind: "directionVariable",
+                        directionVariable: VariableData.internalBinaryRead(reader, reader.uint32(), options, (message.direction as any).directionVariable)
+                    };
                     break;
-                case /* symbol.bench.Align align */ 53:
-                    message.align = reader.int32();
+                case /* symbol.bench.Distribute distribute_value */ 52:
+                    message.distribute = {
+                        oneofKind: "distributeValue",
+                        distributeValue: reader.int32()
+                    };
                     break;
-                case /* symbol.bench.Axis2Data gap */ 54:
-                    message.gap = Axis2Data.internalBinaryRead(reader, reader.uint32(), options, message.gap);
+                case /* symbol.bench.VariableData distribute_variable */ 17052:
+                    message.distribute = {
+                        oneofKind: "distributeVariable",
+                        distributeVariable: VariableData.internalBinaryRead(reader, reader.uint32(), options, (message.distribute as any).distributeVariable)
+                    };
                     break;
-                case /* symbol.bench.InsetsData padding */ 55:
-                    message.padding = InsetsData.internalBinaryRead(reader, reader.uint32(), options, message.padding);
+                case /* symbol.bench.Align align_value */ 53:
+                    message.align = {
+                        oneofKind: "alignValue",
+                        alignValue: reader.int32()
+                    };
+                    break;
+                case /* symbol.bench.VariableData align_variable */ 17053:
+                    message.align = {
+                        oneofKind: "alignVariable",
+                        alignVariable: VariableData.internalBinaryRead(reader, reader.uint32(), options, (message.align as any).alignVariable)
+                    };
+                    break;
+                case /* symbol.bench.Axis2Data gap_value */ 54:
+                    message.gap = {
+                        oneofKind: "gapValue",
+                        gapValue: Axis2Data.internalBinaryRead(reader, reader.uint32(), options, (message.gap as any).gapValue)
+                    };
+                    break;
+                case /* symbol.bench.VariableData gap_variable */ 17054:
+                    message.gap = {
+                        oneofKind: "gapVariable",
+                        gapVariable: VariableData.internalBinaryRead(reader, reader.uint32(), options, (message.gap as any).gapVariable)
+                    };
+                    break;
+                case /* symbol.bench.InsetsData padding_value */ 55:
+                    message.padding = {
+                        oneofKind: "paddingValue",
+                        paddingValue: InsetsData.internalBinaryRead(reader, reader.uint32(), options, (message.padding as any).paddingValue)
+                    };
+                    break;
+                case /* symbol.bench.VariableData padding_variable */ 17055:
+                    message.padding = {
+                        oneofKind: "paddingVariable",
+                        paddingVariable: VariableData.internalBinaryRead(reader, reader.uint32(), options, (message.padding as any).paddingVariable)
+                    };
                     break;
                 case /* optional symbol.bench.GridData grid */ 56:
                     message.grid = GridData.internalBinaryRead(reader, reader.uint32(), options, message.grid);
@@ -22997,32 +24340,113 @@ class LabelViewData$Type extends MessageType$<LabelViewData> {
                 case /* optional bool is_wrap */ 59:
                     message.isWrap = reader.bool();
                     break;
-                case /* bool is_visible */ 60:
-                    message.isVisible = reader.bool();
+                case /* bool is_visible_value */ 60:
+                    message.isVisible = {
+                        oneofKind: "isVisibleValue",
+                        isVisibleValue: reader.bool()
+                    };
                     break;
-                case /* float opacity */ 61:
-                    message.opacity = reader.float();
+                case /* symbol.bench.VariableData is_visible_variable */ 17060:
+                    message.isVisible = {
+                        oneofKind: "isVisibleVariable",
+                        isVisibleVariable: VariableData.internalBinaryRead(reader, reader.uint32(), options, (message.isVisible as any).isVisibleVariable)
+                    };
                     break;
-                case /* symbol.bench.FillData fill */ 62:
-                    message.fill = FillData.internalBinaryRead(reader, reader.uint32(), options, message.fill);
+                case /* float opacity_value */ 61:
+                    message.opacity = {
+                        oneofKind: "opacityValue",
+                        opacityValue: reader.float()
+                    };
                     break;
-                case /* symbol.bench.Axis3Data rotation */ 63:
-                    message.rotation = Axis3Data.internalBinaryRead(reader, reader.uint32(), options, message.rotation);
+                case /* symbol.bench.VariableData opacity_variable */ 17061:
+                    message.opacity = {
+                        oneofKind: "opacityVariable",
+                        opacityVariable: VariableData.internalBinaryRead(reader, reader.uint32(), options, (message.opacity as any).opacityVariable)
+                    };
                     break;
-                case /* symbol.bench.Vector2Data skew */ 64:
-                    message.skew = Vector2Data.internalBinaryRead(reader, reader.uint32(), options, message.skew);
+                case /* symbol.bench.FillData fill_value */ 62:
+                    message.fill = {
+                        oneofKind: "fillValue",
+                        fillValue: FillData.internalBinaryRead(reader, reader.uint32(), options, (message.fill as any).fillValue)
+                    };
                     break;
-                case /* float scale */ 65:
-                    message.scale = reader.float();
+                case /* symbol.bench.VariableData fill_variable */ 17062:
+                    message.fill = {
+                        oneofKind: "fillVariable",
+                        fillVariable: VariableData.internalBinaryRead(reader, reader.uint32(), options, (message.fill as any).fillVariable)
+                    };
                     break;
-                case /* symbol.bench.ShadowData shadow */ 66:
-                    message.shadow = ShadowData.internalBinaryRead(reader, reader.uint32(), options, message.shadow);
+                case /* symbol.bench.Axis3Data rotation_value */ 63:
+                    message.rotation = {
+                        oneofKind: "rotationValue",
+                        rotationValue: Axis3Data.internalBinaryRead(reader, reader.uint32(), options, (message.rotation as any).rotationValue)
+                    };
                     break;
-                case /* symbol.bench.BorderData border */ 67:
-                    message.border = BorderData.internalBinaryRead(reader, reader.uint32(), options, message.border);
+                case /* symbol.bench.VariableData rotation_variable */ 17063:
+                    message.rotation = {
+                        oneofKind: "rotationVariable",
+                        rotationVariable: VariableData.internalBinaryRead(reader, reader.uint32(), options, (message.rotation as any).rotationVariable)
+                    };
                     break;
-                case /* symbol.bench.CornersData radius */ 68:
-                    message.radius = CornersData.internalBinaryRead(reader, reader.uint32(), options, message.radius);
+                case /* symbol.bench.Vector2Data skew_value */ 64:
+                    message.skew = {
+                        oneofKind: "skewValue",
+                        skewValue: Vector2Data.internalBinaryRead(reader, reader.uint32(), options, (message.skew as any).skewValue)
+                    };
+                    break;
+                case /* symbol.bench.VariableData skew_variable */ 17064:
+                    message.skew = {
+                        oneofKind: "skewVariable",
+                        skewVariable: VariableData.internalBinaryRead(reader, reader.uint32(), options, (message.skew as any).skewVariable)
+                    };
+                    break;
+                case /* float scale_value */ 65:
+                    message.scale = {
+                        oneofKind: "scaleValue",
+                        scaleValue: reader.float()
+                    };
+                    break;
+                case /* symbol.bench.VariableData scale_variable */ 17065:
+                    message.scale = {
+                        oneofKind: "scaleVariable",
+                        scaleVariable: VariableData.internalBinaryRead(reader, reader.uint32(), options, (message.scale as any).scaleVariable)
+                    };
+                    break;
+                case /* symbol.bench.ShadowData shadow_value */ 66:
+                    message.shadow = {
+                        oneofKind: "shadowValue",
+                        shadowValue: ShadowData.internalBinaryRead(reader, reader.uint32(), options, (message.shadow as any).shadowValue)
+                    };
+                    break;
+                case /* symbol.bench.VariableData shadow_variable */ 17066:
+                    message.shadow = {
+                        oneofKind: "shadowVariable",
+                        shadowVariable: VariableData.internalBinaryRead(reader, reader.uint32(), options, (message.shadow as any).shadowVariable)
+                    };
+                    break;
+                case /* symbol.bench.BorderData border_value */ 67:
+                    message.border = {
+                        oneofKind: "borderValue",
+                        borderValue: BorderData.internalBinaryRead(reader, reader.uint32(), options, (message.border as any).borderValue)
+                    };
+                    break;
+                case /* symbol.bench.VariableData border_variable */ 17067:
+                    message.border = {
+                        oneofKind: "borderVariable",
+                        borderVariable: VariableData.internalBinaryRead(reader, reader.uint32(), options, (message.border as any).borderVariable)
+                    };
+                    break;
+                case /* symbol.bench.CornersData radius_value */ 68:
+                    message.radius = {
+                        oneofKind: "radiusValue",
+                        radiusValue: CornersData.internalBinaryRead(reader, reader.uint32(), options, (message.radius as any).radiusValue)
+                    };
+                    break;
+                case /* symbol.bench.VariableData radius_variable */ 17068:
+                    message.radius = {
+                        oneofKind: "radiusVariable",
+                        radiusVariable: VariableData.internalBinaryRead(reader, reader.uint32(), options, (message.radius as any).radiusVariable)
+                    };
                     break;
                 default:
                     let u = options.readUnknownField;
@@ -23114,21 +24538,36 @@ class LabelViewData$Type extends MessageType$<LabelViewData> {
         /* optional symbol.bench.Layout layout = 50; */
         if (message.layout !== undefined)
             writer.tag(50, WireType.Varint).int32(message.layout);
-        /* symbol.bench.Direction direction = 51; */
-        if (message.direction !== 0)
-            writer.tag(51, WireType.Varint).int32(message.direction);
-        /* symbol.bench.Distribute distribute = 52; */
-        if (message.distribute !== 0)
-            writer.tag(52, WireType.Varint).int32(message.distribute);
-        /* symbol.bench.Align align = 53; */
-        if (message.align !== 0)
-            writer.tag(53, WireType.Varint).int32(message.align);
-        /* symbol.bench.Axis2Data gap = 54; */
-        if (message.gap)
-            Axis2Data.internalBinaryWrite(message.gap, writer.tag(54, WireType.LengthDelimited).fork(), options).join();
-        /* symbol.bench.InsetsData padding = 55; */
-        if (message.padding)
-            InsetsData.internalBinaryWrite(message.padding, writer.tag(55, WireType.LengthDelimited).fork(), options).join();
+        /* symbol.bench.Direction direction_value = 51; */
+        if (message.direction.oneofKind === "directionValue")
+            writer.tag(51, WireType.Varint).int32(message.direction.directionValue);
+        /* symbol.bench.VariableData direction_variable = 17051; */
+        if (message.direction.oneofKind === "directionVariable")
+            VariableData.internalBinaryWrite(message.direction.directionVariable, writer.tag(17051, WireType.LengthDelimited).fork(), options).join();
+        /* symbol.bench.Distribute distribute_value = 52; */
+        if (message.distribute.oneofKind === "distributeValue")
+            writer.tag(52, WireType.Varint).int32(message.distribute.distributeValue);
+        /* symbol.bench.VariableData distribute_variable = 17052; */
+        if (message.distribute.oneofKind === "distributeVariable")
+            VariableData.internalBinaryWrite(message.distribute.distributeVariable, writer.tag(17052, WireType.LengthDelimited).fork(), options).join();
+        /* symbol.bench.Align align_value = 53; */
+        if (message.align.oneofKind === "alignValue")
+            writer.tag(53, WireType.Varint).int32(message.align.alignValue);
+        /* symbol.bench.VariableData align_variable = 17053; */
+        if (message.align.oneofKind === "alignVariable")
+            VariableData.internalBinaryWrite(message.align.alignVariable, writer.tag(17053, WireType.LengthDelimited).fork(), options).join();
+        /* symbol.bench.Axis2Data gap_value = 54; */
+        if (message.gap.oneofKind === "gapValue")
+            Axis2Data.internalBinaryWrite(message.gap.gapValue, writer.tag(54, WireType.LengthDelimited).fork(), options).join();
+        /* symbol.bench.VariableData gap_variable = 17054; */
+        if (message.gap.oneofKind === "gapVariable")
+            VariableData.internalBinaryWrite(message.gap.gapVariable, writer.tag(17054, WireType.LengthDelimited).fork(), options).join();
+        /* symbol.bench.InsetsData padding_value = 55; */
+        if (message.padding.oneofKind === "paddingValue")
+            InsetsData.internalBinaryWrite(message.padding.paddingValue, writer.tag(55, WireType.LengthDelimited).fork(), options).join();
+        /* symbol.bench.VariableData padding_variable = 17055; */
+        if (message.padding.oneofKind === "paddingVariable")
+            VariableData.internalBinaryWrite(message.padding.paddingVariable, writer.tag(17055, WireType.LengthDelimited).fork(), options).join();
         /* optional symbol.bench.GridData grid = 56; */
         if (message.grid)
             GridData.internalBinaryWrite(message.grid, writer.tag(56, WireType.LengthDelimited).fork(), options).join();
@@ -23141,33 +24580,60 @@ class LabelViewData$Type extends MessageType$<LabelViewData> {
         /* optional bool is_wrap = 59; */
         if (message.isWrap !== undefined)
             writer.tag(59, WireType.Varint).bool(message.isWrap);
-        /* bool is_visible = 60; */
-        if (message.isVisible !== false)
-            writer.tag(60, WireType.Varint).bool(message.isVisible);
-        /* float opacity = 61; */
-        if (message.opacity !== 0)
-            writer.tag(61, WireType.Bit32).float(message.opacity);
-        /* symbol.bench.FillData fill = 62; */
-        if (message.fill)
-            FillData.internalBinaryWrite(message.fill, writer.tag(62, WireType.LengthDelimited).fork(), options).join();
-        /* symbol.bench.Axis3Data rotation = 63; */
-        if (message.rotation)
-            Axis3Data.internalBinaryWrite(message.rotation, writer.tag(63, WireType.LengthDelimited).fork(), options).join();
-        /* symbol.bench.Vector2Data skew = 64; */
-        if (message.skew)
-            Vector2Data.internalBinaryWrite(message.skew, writer.tag(64, WireType.LengthDelimited).fork(), options).join();
-        /* float scale = 65; */
-        if (message.scale !== 0)
-            writer.tag(65, WireType.Bit32).float(message.scale);
-        /* symbol.bench.ShadowData shadow = 66; */
-        if (message.shadow)
-            ShadowData.internalBinaryWrite(message.shadow, writer.tag(66, WireType.LengthDelimited).fork(), options).join();
-        /* symbol.bench.BorderData border = 67; */
-        if (message.border)
-            BorderData.internalBinaryWrite(message.border, writer.tag(67, WireType.LengthDelimited).fork(), options).join();
-        /* symbol.bench.CornersData radius = 68; */
-        if (message.radius)
-            CornersData.internalBinaryWrite(message.radius, writer.tag(68, WireType.LengthDelimited).fork(), options).join();
+        /* bool is_visible_value = 60; */
+        if (message.isVisible.oneofKind === "isVisibleValue")
+            writer.tag(60, WireType.Varint).bool(message.isVisible.isVisibleValue);
+        /* symbol.bench.VariableData is_visible_variable = 17060; */
+        if (message.isVisible.oneofKind === "isVisibleVariable")
+            VariableData.internalBinaryWrite(message.isVisible.isVisibleVariable, writer.tag(17060, WireType.LengthDelimited).fork(), options).join();
+        /* float opacity_value = 61; */
+        if (message.opacity.oneofKind === "opacityValue")
+            writer.tag(61, WireType.Bit32).float(message.opacity.opacityValue);
+        /* symbol.bench.VariableData opacity_variable = 17061; */
+        if (message.opacity.oneofKind === "opacityVariable")
+            VariableData.internalBinaryWrite(message.opacity.opacityVariable, writer.tag(17061, WireType.LengthDelimited).fork(), options).join();
+        /* symbol.bench.FillData fill_value = 62; */
+        if (message.fill.oneofKind === "fillValue")
+            FillData.internalBinaryWrite(message.fill.fillValue, writer.tag(62, WireType.LengthDelimited).fork(), options).join();
+        /* symbol.bench.VariableData fill_variable = 17062; */
+        if (message.fill.oneofKind === "fillVariable")
+            VariableData.internalBinaryWrite(message.fill.fillVariable, writer.tag(17062, WireType.LengthDelimited).fork(), options).join();
+        /* symbol.bench.Axis3Data rotation_value = 63; */
+        if (message.rotation.oneofKind === "rotationValue")
+            Axis3Data.internalBinaryWrite(message.rotation.rotationValue, writer.tag(63, WireType.LengthDelimited).fork(), options).join();
+        /* symbol.bench.VariableData rotation_variable = 17063; */
+        if (message.rotation.oneofKind === "rotationVariable")
+            VariableData.internalBinaryWrite(message.rotation.rotationVariable, writer.tag(17063, WireType.LengthDelimited).fork(), options).join();
+        /* symbol.bench.Vector2Data skew_value = 64; */
+        if (message.skew.oneofKind === "skewValue")
+            Vector2Data.internalBinaryWrite(message.skew.skewValue, writer.tag(64, WireType.LengthDelimited).fork(), options).join();
+        /* symbol.bench.VariableData skew_variable = 17064; */
+        if (message.skew.oneofKind === "skewVariable")
+            VariableData.internalBinaryWrite(message.skew.skewVariable, writer.tag(17064, WireType.LengthDelimited).fork(), options).join();
+        /* float scale_value = 65; */
+        if (message.scale.oneofKind === "scaleValue")
+            writer.tag(65, WireType.Bit32).float(message.scale.scaleValue);
+        /* symbol.bench.VariableData scale_variable = 17065; */
+        if (message.scale.oneofKind === "scaleVariable")
+            VariableData.internalBinaryWrite(message.scale.scaleVariable, writer.tag(17065, WireType.LengthDelimited).fork(), options).join();
+        /* symbol.bench.ShadowData shadow_value = 66; */
+        if (message.shadow.oneofKind === "shadowValue")
+            ShadowData.internalBinaryWrite(message.shadow.shadowValue, writer.tag(66, WireType.LengthDelimited).fork(), options).join();
+        /* symbol.bench.VariableData shadow_variable = 17066; */
+        if (message.shadow.oneofKind === "shadowVariable")
+            VariableData.internalBinaryWrite(message.shadow.shadowVariable, writer.tag(17066, WireType.LengthDelimited).fork(), options).join();
+        /* symbol.bench.BorderData border_value = 67; */
+        if (message.border.oneofKind === "borderValue")
+            BorderData.internalBinaryWrite(message.border.borderValue, writer.tag(67, WireType.LengthDelimited).fork(), options).join();
+        /* symbol.bench.VariableData border_variable = 17067; */
+        if (message.border.oneofKind === "borderVariable")
+            VariableData.internalBinaryWrite(message.border.borderVariable, writer.tag(17067, WireType.LengthDelimited).fork(), options).join();
+        /* symbol.bench.CornersData radius_value = 68; */
+        if (message.radius.oneofKind === "radiusValue")
+            CornersData.internalBinaryWrite(message.radius.radiusValue, writer.tag(68, WireType.LengthDelimited).fork(), options).join();
+        /* symbol.bench.VariableData radius_variable = 17068; */
+        if (message.radius.oneofKind === "radiusVariable")
+            VariableData.internalBinaryWrite(message.radius.radiusVariable, writer.tag(17068, WireType.LengthDelimited).fork(), options).join();
         let u = options.writeUnknownFields;
         if (u !== false)
             (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
@@ -24231,8 +25697,10 @@ class NumberInputViewData$Type extends MessageType$<NumberInputViewData> {
             { no: 44, name: "min_height", kind: "message", T: () => DimensionData },
             { no: 45, name: "max_width", kind: "message", T: () => DimensionData },
             { no: 46, name: "max_height", kind: "message", T: () => DimensionData },
-            { no: 60, name: "is_visible", kind: "scalar", T: 8 /*ScalarType.BOOL*/ },
-            { no: 61, name: "opacity", kind: "scalar", T: 2 /*ScalarType.FLOAT*/ },
+            { no: 60, name: "is_visible_value", kind: "scalar", oneof: "isVisible", T: 8 /*ScalarType.BOOL*/ },
+            { no: 17060, name: "is_visible_variable", kind: "message", oneof: "isVisible", T: () => VariableData },
+            { no: 61, name: "opacity_value", kind: "scalar", oneof: "opacity", T: 2 /*ScalarType.FLOAT*/ },
+            { no: 17061, name: "opacity_variable", kind: "message", oneof: "opacity", T: () => VariableData },
             { no: 100, name: "value", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
             { no: 101, name: "placeholder", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ }
         ]);
@@ -24244,8 +25712,8 @@ class NumberInputViewData$Type extends MessageType$<NumberInputViewData> {
         message.ck = "";
         message.mode = 0;
         message.orderKey = "";
-        message.isVisible = false;
-        message.opacity = 0;
+        message.isVisible = { oneofKind: undefined };
+        message.opacity = { oneofKind: undefined };
         if (value !== undefined)
             reflectionMergePartial<NumberInputViewData>(this, message, value);
         return message;
@@ -24330,11 +25798,29 @@ class NumberInputViewData$Type extends MessageType$<NumberInputViewData> {
                 case /* optional symbol.bench.DimensionData max_height */ 46:
                     message.maxHeight = DimensionData.internalBinaryRead(reader, reader.uint32(), options, message.maxHeight);
                     break;
-                case /* bool is_visible */ 60:
-                    message.isVisible = reader.bool();
+                case /* bool is_visible_value */ 60:
+                    message.isVisible = {
+                        oneofKind: "isVisibleValue",
+                        isVisibleValue: reader.bool()
+                    };
                     break;
-                case /* float opacity */ 61:
-                    message.opacity = reader.float();
+                case /* symbol.bench.VariableData is_visible_variable */ 17060:
+                    message.isVisible = {
+                        oneofKind: "isVisibleVariable",
+                        isVisibleVariable: VariableData.internalBinaryRead(reader, reader.uint32(), options, (message.isVisible as any).isVisibleVariable)
+                    };
+                    break;
+                case /* float opacity_value */ 61:
+                    message.opacity = {
+                        oneofKind: "opacityValue",
+                        opacityValue: reader.float()
+                    };
+                    break;
+                case /* symbol.bench.VariableData opacity_variable */ 17061:
+                    message.opacity = {
+                        oneofKind: "opacityVariable",
+                        opacityVariable: VariableData.internalBinaryRead(reader, reader.uint32(), options, (message.opacity as any).opacityVariable)
+                    };
                     break;
                 case /* optional string value */ 100:
                     message.value = reader.string();
@@ -24429,12 +25915,18 @@ class NumberInputViewData$Type extends MessageType$<NumberInputViewData> {
         /* optional symbol.bench.DimensionData max_height = 46; */
         if (message.maxHeight)
             DimensionData.internalBinaryWrite(message.maxHeight, writer.tag(46, WireType.LengthDelimited).fork(), options).join();
-        /* bool is_visible = 60; */
-        if (message.isVisible !== false)
-            writer.tag(60, WireType.Varint).bool(message.isVisible);
-        /* float opacity = 61; */
-        if (message.opacity !== 0)
-            writer.tag(61, WireType.Bit32).float(message.opacity);
+        /* bool is_visible_value = 60; */
+        if (message.isVisible.oneofKind === "isVisibleValue")
+            writer.tag(60, WireType.Varint).bool(message.isVisible.isVisibleValue);
+        /* symbol.bench.VariableData is_visible_variable = 17060; */
+        if (message.isVisible.oneofKind === "isVisibleVariable")
+            VariableData.internalBinaryWrite(message.isVisible.isVisibleVariable, writer.tag(17060, WireType.LengthDelimited).fork(), options).join();
+        /* float opacity_value = 61; */
+        if (message.opacity.oneofKind === "opacityValue")
+            writer.tag(61, WireType.Bit32).float(message.opacity.opacityValue);
+        /* symbol.bench.VariableData opacity_variable = 17061; */
+        if (message.opacity.oneofKind === "opacityVariable")
+            VariableData.internalBinaryWrite(message.opacity.opacityVariable, writer.tag(17061, WireType.LengthDelimited).fork(), options).join();
         /* optional string value = 100; */
         if (message.value !== undefined)
             writer.tag(100, WireType.LengthDelimited).string(message.value);
@@ -27949,8 +29441,10 @@ class SliderInputViewData$Type extends MessageType$<SliderInputViewData> {
             { no: 44, name: "min_height", kind: "message", T: () => DimensionData },
             { no: 45, name: "max_width", kind: "message", T: () => DimensionData },
             { no: 46, name: "max_height", kind: "message", T: () => DimensionData },
-            { no: 60, name: "is_visible", kind: "scalar", T: 8 /*ScalarType.BOOL*/ },
-            { no: 61, name: "opacity", kind: "scalar", T: 2 /*ScalarType.FLOAT*/ },
+            { no: 60, name: "is_visible_value", kind: "scalar", oneof: "isVisible", T: 8 /*ScalarType.BOOL*/ },
+            { no: 17060, name: "is_visible_variable", kind: "message", oneof: "isVisible", T: () => VariableData },
+            { no: 61, name: "opacity_value", kind: "scalar", oneof: "opacity", T: 2 /*ScalarType.FLOAT*/ },
+            { no: 17061, name: "opacity_variable", kind: "message", oneof: "opacity", T: () => VariableData },
             { no: 100, name: "value", kind: "scalar", opt: true, T: 2 /*ScalarType.FLOAT*/ },
             { no: 101, name: "min_value", kind: "scalar", opt: true, T: 2 /*ScalarType.FLOAT*/ },
             { no: 102, name: "max_value", kind: "scalar", opt: true, T: 2 /*ScalarType.FLOAT*/ },
@@ -27964,8 +29458,8 @@ class SliderInputViewData$Type extends MessageType$<SliderInputViewData> {
         message.ck = "";
         message.mode = 0;
         message.orderKey = "";
-        message.isVisible = false;
-        message.opacity = 0;
+        message.isVisible = { oneofKind: undefined };
+        message.opacity = { oneofKind: undefined };
         if (value !== undefined)
             reflectionMergePartial<SliderInputViewData>(this, message, value);
         return message;
@@ -28050,11 +29544,29 @@ class SliderInputViewData$Type extends MessageType$<SliderInputViewData> {
                 case /* optional symbol.bench.DimensionData max_height */ 46:
                     message.maxHeight = DimensionData.internalBinaryRead(reader, reader.uint32(), options, message.maxHeight);
                     break;
-                case /* bool is_visible */ 60:
-                    message.isVisible = reader.bool();
+                case /* bool is_visible_value */ 60:
+                    message.isVisible = {
+                        oneofKind: "isVisibleValue",
+                        isVisibleValue: reader.bool()
+                    };
                     break;
-                case /* float opacity */ 61:
-                    message.opacity = reader.float();
+                case /* symbol.bench.VariableData is_visible_variable */ 17060:
+                    message.isVisible = {
+                        oneofKind: "isVisibleVariable",
+                        isVisibleVariable: VariableData.internalBinaryRead(reader, reader.uint32(), options, (message.isVisible as any).isVisibleVariable)
+                    };
+                    break;
+                case /* float opacity_value */ 61:
+                    message.opacity = {
+                        oneofKind: "opacityValue",
+                        opacityValue: reader.float()
+                    };
+                    break;
+                case /* symbol.bench.VariableData opacity_variable */ 17061:
+                    message.opacity = {
+                        oneofKind: "opacityVariable",
+                        opacityVariable: VariableData.internalBinaryRead(reader, reader.uint32(), options, (message.opacity as any).opacityVariable)
+                    };
                     break;
                 case /* optional float value */ 100:
                     message.value = reader.float();
@@ -28155,12 +29667,18 @@ class SliderInputViewData$Type extends MessageType$<SliderInputViewData> {
         /* optional symbol.bench.DimensionData max_height = 46; */
         if (message.maxHeight)
             DimensionData.internalBinaryWrite(message.maxHeight, writer.tag(46, WireType.LengthDelimited).fork(), options).join();
-        /* bool is_visible = 60; */
-        if (message.isVisible !== false)
-            writer.tag(60, WireType.Varint).bool(message.isVisible);
-        /* float opacity = 61; */
-        if (message.opacity !== 0)
-            writer.tag(61, WireType.Bit32).float(message.opacity);
+        /* bool is_visible_value = 60; */
+        if (message.isVisible.oneofKind === "isVisibleValue")
+            writer.tag(60, WireType.Varint).bool(message.isVisible.isVisibleValue);
+        /* symbol.bench.VariableData is_visible_variable = 17060; */
+        if (message.isVisible.oneofKind === "isVisibleVariable")
+            VariableData.internalBinaryWrite(message.isVisible.isVisibleVariable, writer.tag(17060, WireType.LengthDelimited).fork(), options).join();
+        /* float opacity_value = 61; */
+        if (message.opacity.oneofKind === "opacityValue")
+            writer.tag(61, WireType.Bit32).float(message.opacity.opacityValue);
+        /* symbol.bench.VariableData opacity_variable = 17061; */
+        if (message.opacity.oneofKind === "opacityVariable")
+            VariableData.internalBinaryWrite(message.opacity.opacityVariable, writer.tag(17061, WireType.LengthDelimited).fork(), options).join();
         /* optional float value = 100; */
         if (message.value !== undefined)
             writer.tag(100, WireType.Bit32).float(message.value);
@@ -28686,24 +30204,38 @@ class SplitViewData$Type extends MessageType$<SplitViewData> {
             { no: 45, name: "max_width", kind: "message", T: () => DimensionData },
             { no: 46, name: "max_height", kind: "message", T: () => DimensionData },
             { no: 50, name: "layout", kind: "enum", opt: true, T: () => ["symbol.bench.Layout", Layout, "LAYOUT_"] },
-            { no: 51, name: "direction", kind: "enum", T: () => ["symbol.bench.Direction", Direction, "DIRECTION_"] },
-            { no: 52, name: "distribute", kind: "enum", T: () => ["symbol.bench.Distribute", Distribute, "DISTRIBUTE_"] },
-            { no: 53, name: "align", kind: "enum", T: () => ["symbol.bench.Align", Align, "ALIGN_"] },
-            { no: 54, name: "gap", kind: "message", T: () => Axis2Data },
-            { no: 55, name: "padding", kind: "message", T: () => InsetsData },
+            { no: 51, name: "direction_value", kind: "enum", oneof: "direction", T: () => ["symbol.bench.Direction", Direction, "DIRECTION_"] },
+            { no: 17051, name: "direction_variable", kind: "message", oneof: "direction", T: () => VariableData },
+            { no: 52, name: "distribute_value", kind: "enum", oneof: "distribute", T: () => ["symbol.bench.Distribute", Distribute, "DISTRIBUTE_"] },
+            { no: 17052, name: "distribute_variable", kind: "message", oneof: "distribute", T: () => VariableData },
+            { no: 53, name: "align_value", kind: "enum", oneof: "align", T: () => ["symbol.bench.Align", Align, "ALIGN_"] },
+            { no: 17053, name: "align_variable", kind: "message", oneof: "align", T: () => VariableData },
+            { no: 54, name: "gap_value", kind: "message", oneof: "gap", T: () => Axis2Data },
+            { no: 17054, name: "gap_variable", kind: "message", oneof: "gap", T: () => VariableData },
+            { no: 55, name: "padding_value", kind: "message", oneof: "padding", T: () => InsetsData },
+            { no: 17055, name: "padding_variable", kind: "message", oneof: "padding", T: () => VariableData },
             { no: 56, name: "grid", kind: "message", T: () => GridData },
             { no: 57, name: "grid_span", kind: "message", T: () => GridSpanData },
             { no: 58, name: "aspect_ratio", kind: "scalar", opt: true, T: 2 /*ScalarType.FLOAT*/ },
             { no: 59, name: "is_wrap", kind: "scalar", opt: true, T: 8 /*ScalarType.BOOL*/ },
-            { no: 60, name: "is_visible", kind: "scalar", T: 8 /*ScalarType.BOOL*/ },
-            { no: 61, name: "opacity", kind: "scalar", T: 2 /*ScalarType.FLOAT*/ },
-            { no: 62, name: "fill", kind: "message", T: () => FillData },
-            { no: 63, name: "rotation", kind: "message", T: () => Axis3Data },
-            { no: 64, name: "skew", kind: "message", T: () => Vector2Data },
-            { no: 65, name: "scale", kind: "scalar", T: 2 /*ScalarType.FLOAT*/ },
-            { no: 66, name: "shadow", kind: "message", T: () => ShadowData },
-            { no: 67, name: "border", kind: "message", T: () => BorderData },
-            { no: 68, name: "radius", kind: "message", T: () => CornersData }
+            { no: 60, name: "is_visible_value", kind: "scalar", oneof: "isVisible", T: 8 /*ScalarType.BOOL*/ },
+            { no: 17060, name: "is_visible_variable", kind: "message", oneof: "isVisible", T: () => VariableData },
+            { no: 61, name: "opacity_value", kind: "scalar", oneof: "opacity", T: 2 /*ScalarType.FLOAT*/ },
+            { no: 17061, name: "opacity_variable", kind: "message", oneof: "opacity", T: () => VariableData },
+            { no: 62, name: "fill_value", kind: "message", oneof: "fill", T: () => FillData },
+            { no: 17062, name: "fill_variable", kind: "message", oneof: "fill", T: () => VariableData },
+            { no: 63, name: "rotation_value", kind: "message", oneof: "rotation", T: () => Axis3Data },
+            { no: 17063, name: "rotation_variable", kind: "message", oneof: "rotation", T: () => VariableData },
+            { no: 64, name: "skew_value", kind: "message", oneof: "skew", T: () => Vector2Data },
+            { no: 17064, name: "skew_variable", kind: "message", oneof: "skew", T: () => VariableData },
+            { no: 65, name: "scale_value", kind: "scalar", oneof: "scale", T: 2 /*ScalarType.FLOAT*/ },
+            { no: 17065, name: "scale_variable", kind: "message", oneof: "scale", T: () => VariableData },
+            { no: 66, name: "shadow_value", kind: "message", oneof: "shadow", T: () => ShadowData },
+            { no: 17066, name: "shadow_variable", kind: "message", oneof: "shadow", T: () => VariableData },
+            { no: 67, name: "border_value", kind: "message", oneof: "border", T: () => BorderData },
+            { no: 17067, name: "border_variable", kind: "message", oneof: "border", T: () => VariableData },
+            { no: 68, name: "radius_value", kind: "message", oneof: "radius", T: () => CornersData },
+            { no: 17068, name: "radius_variable", kind: "message", oneof: "radius", T: () => VariableData }
         ]);
     }
     create(value?: PartialMessage<SplitViewData>): SplitViewData {
@@ -28713,12 +30245,20 @@ class SplitViewData$Type extends MessageType$<SplitViewData> {
         message.ck = "";
         message.mode = 0;
         message.orderKey = "";
-        message.direction = 0;
-        message.distribute = 0;
-        message.align = 0;
-        message.isVisible = false;
-        message.opacity = 0;
-        message.scale = 0;
+        message.direction = { oneofKind: undefined };
+        message.distribute = { oneofKind: undefined };
+        message.align = { oneofKind: undefined };
+        message.gap = { oneofKind: undefined };
+        message.padding = { oneofKind: undefined };
+        message.isVisible = { oneofKind: undefined };
+        message.opacity = { oneofKind: undefined };
+        message.fill = { oneofKind: undefined };
+        message.rotation = { oneofKind: undefined };
+        message.skew = { oneofKind: undefined };
+        message.scale = { oneofKind: undefined };
+        message.shadow = { oneofKind: undefined };
+        message.border = { oneofKind: undefined };
+        message.radius = { oneofKind: undefined };
         if (value !== undefined)
             reflectionMergePartial<SplitViewData>(this, message, value);
         return message;
@@ -28806,20 +30346,65 @@ class SplitViewData$Type extends MessageType$<SplitViewData> {
                 case /* optional symbol.bench.Layout layout */ 50:
                     message.layout = reader.int32();
                     break;
-                case /* symbol.bench.Direction direction */ 51:
-                    message.direction = reader.int32();
+                case /* symbol.bench.Direction direction_value */ 51:
+                    message.direction = {
+                        oneofKind: "directionValue",
+                        directionValue: reader.int32()
+                    };
                     break;
-                case /* symbol.bench.Distribute distribute */ 52:
-                    message.distribute = reader.int32();
+                case /* symbol.bench.VariableData direction_variable */ 17051:
+                    message.direction = {
+                        oneofKind: "directionVariable",
+                        directionVariable: VariableData.internalBinaryRead(reader, reader.uint32(), options, (message.direction as any).directionVariable)
+                    };
                     break;
-                case /* symbol.bench.Align align */ 53:
-                    message.align = reader.int32();
+                case /* symbol.bench.Distribute distribute_value */ 52:
+                    message.distribute = {
+                        oneofKind: "distributeValue",
+                        distributeValue: reader.int32()
+                    };
                     break;
-                case /* symbol.bench.Axis2Data gap */ 54:
-                    message.gap = Axis2Data.internalBinaryRead(reader, reader.uint32(), options, message.gap);
+                case /* symbol.bench.VariableData distribute_variable */ 17052:
+                    message.distribute = {
+                        oneofKind: "distributeVariable",
+                        distributeVariable: VariableData.internalBinaryRead(reader, reader.uint32(), options, (message.distribute as any).distributeVariable)
+                    };
                     break;
-                case /* symbol.bench.InsetsData padding */ 55:
-                    message.padding = InsetsData.internalBinaryRead(reader, reader.uint32(), options, message.padding);
+                case /* symbol.bench.Align align_value */ 53:
+                    message.align = {
+                        oneofKind: "alignValue",
+                        alignValue: reader.int32()
+                    };
+                    break;
+                case /* symbol.bench.VariableData align_variable */ 17053:
+                    message.align = {
+                        oneofKind: "alignVariable",
+                        alignVariable: VariableData.internalBinaryRead(reader, reader.uint32(), options, (message.align as any).alignVariable)
+                    };
+                    break;
+                case /* symbol.bench.Axis2Data gap_value */ 54:
+                    message.gap = {
+                        oneofKind: "gapValue",
+                        gapValue: Axis2Data.internalBinaryRead(reader, reader.uint32(), options, (message.gap as any).gapValue)
+                    };
+                    break;
+                case /* symbol.bench.VariableData gap_variable */ 17054:
+                    message.gap = {
+                        oneofKind: "gapVariable",
+                        gapVariable: VariableData.internalBinaryRead(reader, reader.uint32(), options, (message.gap as any).gapVariable)
+                    };
+                    break;
+                case /* symbol.bench.InsetsData padding_value */ 55:
+                    message.padding = {
+                        oneofKind: "paddingValue",
+                        paddingValue: InsetsData.internalBinaryRead(reader, reader.uint32(), options, (message.padding as any).paddingValue)
+                    };
+                    break;
+                case /* symbol.bench.VariableData padding_variable */ 17055:
+                    message.padding = {
+                        oneofKind: "paddingVariable",
+                        paddingVariable: VariableData.internalBinaryRead(reader, reader.uint32(), options, (message.padding as any).paddingVariable)
+                    };
                     break;
                 case /* optional symbol.bench.GridData grid */ 56:
                     message.grid = GridData.internalBinaryRead(reader, reader.uint32(), options, message.grid);
@@ -28833,32 +30418,113 @@ class SplitViewData$Type extends MessageType$<SplitViewData> {
                 case /* optional bool is_wrap */ 59:
                     message.isWrap = reader.bool();
                     break;
-                case /* bool is_visible */ 60:
-                    message.isVisible = reader.bool();
+                case /* bool is_visible_value */ 60:
+                    message.isVisible = {
+                        oneofKind: "isVisibleValue",
+                        isVisibleValue: reader.bool()
+                    };
                     break;
-                case /* float opacity */ 61:
-                    message.opacity = reader.float();
+                case /* symbol.bench.VariableData is_visible_variable */ 17060:
+                    message.isVisible = {
+                        oneofKind: "isVisibleVariable",
+                        isVisibleVariable: VariableData.internalBinaryRead(reader, reader.uint32(), options, (message.isVisible as any).isVisibleVariable)
+                    };
                     break;
-                case /* symbol.bench.FillData fill */ 62:
-                    message.fill = FillData.internalBinaryRead(reader, reader.uint32(), options, message.fill);
+                case /* float opacity_value */ 61:
+                    message.opacity = {
+                        oneofKind: "opacityValue",
+                        opacityValue: reader.float()
+                    };
                     break;
-                case /* symbol.bench.Axis3Data rotation */ 63:
-                    message.rotation = Axis3Data.internalBinaryRead(reader, reader.uint32(), options, message.rotation);
+                case /* symbol.bench.VariableData opacity_variable */ 17061:
+                    message.opacity = {
+                        oneofKind: "opacityVariable",
+                        opacityVariable: VariableData.internalBinaryRead(reader, reader.uint32(), options, (message.opacity as any).opacityVariable)
+                    };
                     break;
-                case /* symbol.bench.Vector2Data skew */ 64:
-                    message.skew = Vector2Data.internalBinaryRead(reader, reader.uint32(), options, message.skew);
+                case /* symbol.bench.FillData fill_value */ 62:
+                    message.fill = {
+                        oneofKind: "fillValue",
+                        fillValue: FillData.internalBinaryRead(reader, reader.uint32(), options, (message.fill as any).fillValue)
+                    };
                     break;
-                case /* float scale */ 65:
-                    message.scale = reader.float();
+                case /* symbol.bench.VariableData fill_variable */ 17062:
+                    message.fill = {
+                        oneofKind: "fillVariable",
+                        fillVariable: VariableData.internalBinaryRead(reader, reader.uint32(), options, (message.fill as any).fillVariable)
+                    };
                     break;
-                case /* symbol.bench.ShadowData shadow */ 66:
-                    message.shadow = ShadowData.internalBinaryRead(reader, reader.uint32(), options, message.shadow);
+                case /* symbol.bench.Axis3Data rotation_value */ 63:
+                    message.rotation = {
+                        oneofKind: "rotationValue",
+                        rotationValue: Axis3Data.internalBinaryRead(reader, reader.uint32(), options, (message.rotation as any).rotationValue)
+                    };
                     break;
-                case /* symbol.bench.BorderData border */ 67:
-                    message.border = BorderData.internalBinaryRead(reader, reader.uint32(), options, message.border);
+                case /* symbol.bench.VariableData rotation_variable */ 17063:
+                    message.rotation = {
+                        oneofKind: "rotationVariable",
+                        rotationVariable: VariableData.internalBinaryRead(reader, reader.uint32(), options, (message.rotation as any).rotationVariable)
+                    };
                     break;
-                case /* symbol.bench.CornersData radius */ 68:
-                    message.radius = CornersData.internalBinaryRead(reader, reader.uint32(), options, message.radius);
+                case /* symbol.bench.Vector2Data skew_value */ 64:
+                    message.skew = {
+                        oneofKind: "skewValue",
+                        skewValue: Vector2Data.internalBinaryRead(reader, reader.uint32(), options, (message.skew as any).skewValue)
+                    };
+                    break;
+                case /* symbol.bench.VariableData skew_variable */ 17064:
+                    message.skew = {
+                        oneofKind: "skewVariable",
+                        skewVariable: VariableData.internalBinaryRead(reader, reader.uint32(), options, (message.skew as any).skewVariable)
+                    };
+                    break;
+                case /* float scale_value */ 65:
+                    message.scale = {
+                        oneofKind: "scaleValue",
+                        scaleValue: reader.float()
+                    };
+                    break;
+                case /* symbol.bench.VariableData scale_variable */ 17065:
+                    message.scale = {
+                        oneofKind: "scaleVariable",
+                        scaleVariable: VariableData.internalBinaryRead(reader, reader.uint32(), options, (message.scale as any).scaleVariable)
+                    };
+                    break;
+                case /* symbol.bench.ShadowData shadow_value */ 66:
+                    message.shadow = {
+                        oneofKind: "shadowValue",
+                        shadowValue: ShadowData.internalBinaryRead(reader, reader.uint32(), options, (message.shadow as any).shadowValue)
+                    };
+                    break;
+                case /* symbol.bench.VariableData shadow_variable */ 17066:
+                    message.shadow = {
+                        oneofKind: "shadowVariable",
+                        shadowVariable: VariableData.internalBinaryRead(reader, reader.uint32(), options, (message.shadow as any).shadowVariable)
+                    };
+                    break;
+                case /* symbol.bench.BorderData border_value */ 67:
+                    message.border = {
+                        oneofKind: "borderValue",
+                        borderValue: BorderData.internalBinaryRead(reader, reader.uint32(), options, (message.border as any).borderValue)
+                    };
+                    break;
+                case /* symbol.bench.VariableData border_variable */ 17067:
+                    message.border = {
+                        oneofKind: "borderVariable",
+                        borderVariable: VariableData.internalBinaryRead(reader, reader.uint32(), options, (message.border as any).borderVariable)
+                    };
+                    break;
+                case /* symbol.bench.CornersData radius_value */ 68:
+                    message.radius = {
+                        oneofKind: "radiusValue",
+                        radiusValue: CornersData.internalBinaryRead(reader, reader.uint32(), options, (message.radius as any).radiusValue)
+                    };
+                    break;
+                case /* symbol.bench.VariableData radius_variable */ 17068:
+                    message.radius = {
+                        oneofKind: "radiusVariable",
+                        radiusVariable: VariableData.internalBinaryRead(reader, reader.uint32(), options, (message.radius as any).radiusVariable)
+                    };
                     break;
                 default:
                     let u = options.readUnknownField;
@@ -28950,21 +30616,36 @@ class SplitViewData$Type extends MessageType$<SplitViewData> {
         /* optional symbol.bench.Layout layout = 50; */
         if (message.layout !== undefined)
             writer.tag(50, WireType.Varint).int32(message.layout);
-        /* symbol.bench.Direction direction = 51; */
-        if (message.direction !== 0)
-            writer.tag(51, WireType.Varint).int32(message.direction);
-        /* symbol.bench.Distribute distribute = 52; */
-        if (message.distribute !== 0)
-            writer.tag(52, WireType.Varint).int32(message.distribute);
-        /* symbol.bench.Align align = 53; */
-        if (message.align !== 0)
-            writer.tag(53, WireType.Varint).int32(message.align);
-        /* symbol.bench.Axis2Data gap = 54; */
-        if (message.gap)
-            Axis2Data.internalBinaryWrite(message.gap, writer.tag(54, WireType.LengthDelimited).fork(), options).join();
-        /* symbol.bench.InsetsData padding = 55; */
-        if (message.padding)
-            InsetsData.internalBinaryWrite(message.padding, writer.tag(55, WireType.LengthDelimited).fork(), options).join();
+        /* symbol.bench.Direction direction_value = 51; */
+        if (message.direction.oneofKind === "directionValue")
+            writer.tag(51, WireType.Varint).int32(message.direction.directionValue);
+        /* symbol.bench.VariableData direction_variable = 17051; */
+        if (message.direction.oneofKind === "directionVariable")
+            VariableData.internalBinaryWrite(message.direction.directionVariable, writer.tag(17051, WireType.LengthDelimited).fork(), options).join();
+        /* symbol.bench.Distribute distribute_value = 52; */
+        if (message.distribute.oneofKind === "distributeValue")
+            writer.tag(52, WireType.Varint).int32(message.distribute.distributeValue);
+        /* symbol.bench.VariableData distribute_variable = 17052; */
+        if (message.distribute.oneofKind === "distributeVariable")
+            VariableData.internalBinaryWrite(message.distribute.distributeVariable, writer.tag(17052, WireType.LengthDelimited).fork(), options).join();
+        /* symbol.bench.Align align_value = 53; */
+        if (message.align.oneofKind === "alignValue")
+            writer.tag(53, WireType.Varint).int32(message.align.alignValue);
+        /* symbol.bench.VariableData align_variable = 17053; */
+        if (message.align.oneofKind === "alignVariable")
+            VariableData.internalBinaryWrite(message.align.alignVariable, writer.tag(17053, WireType.LengthDelimited).fork(), options).join();
+        /* symbol.bench.Axis2Data gap_value = 54; */
+        if (message.gap.oneofKind === "gapValue")
+            Axis2Data.internalBinaryWrite(message.gap.gapValue, writer.tag(54, WireType.LengthDelimited).fork(), options).join();
+        /* symbol.bench.VariableData gap_variable = 17054; */
+        if (message.gap.oneofKind === "gapVariable")
+            VariableData.internalBinaryWrite(message.gap.gapVariable, writer.tag(17054, WireType.LengthDelimited).fork(), options).join();
+        /* symbol.bench.InsetsData padding_value = 55; */
+        if (message.padding.oneofKind === "paddingValue")
+            InsetsData.internalBinaryWrite(message.padding.paddingValue, writer.tag(55, WireType.LengthDelimited).fork(), options).join();
+        /* symbol.bench.VariableData padding_variable = 17055; */
+        if (message.padding.oneofKind === "paddingVariable")
+            VariableData.internalBinaryWrite(message.padding.paddingVariable, writer.tag(17055, WireType.LengthDelimited).fork(), options).join();
         /* optional symbol.bench.GridData grid = 56; */
         if (message.grid)
             GridData.internalBinaryWrite(message.grid, writer.tag(56, WireType.LengthDelimited).fork(), options).join();
@@ -28977,33 +30658,60 @@ class SplitViewData$Type extends MessageType$<SplitViewData> {
         /* optional bool is_wrap = 59; */
         if (message.isWrap !== undefined)
             writer.tag(59, WireType.Varint).bool(message.isWrap);
-        /* bool is_visible = 60; */
-        if (message.isVisible !== false)
-            writer.tag(60, WireType.Varint).bool(message.isVisible);
-        /* float opacity = 61; */
-        if (message.opacity !== 0)
-            writer.tag(61, WireType.Bit32).float(message.opacity);
-        /* symbol.bench.FillData fill = 62; */
-        if (message.fill)
-            FillData.internalBinaryWrite(message.fill, writer.tag(62, WireType.LengthDelimited).fork(), options).join();
-        /* symbol.bench.Axis3Data rotation = 63; */
-        if (message.rotation)
-            Axis3Data.internalBinaryWrite(message.rotation, writer.tag(63, WireType.LengthDelimited).fork(), options).join();
-        /* symbol.bench.Vector2Data skew = 64; */
-        if (message.skew)
-            Vector2Data.internalBinaryWrite(message.skew, writer.tag(64, WireType.LengthDelimited).fork(), options).join();
-        /* float scale = 65; */
-        if (message.scale !== 0)
-            writer.tag(65, WireType.Bit32).float(message.scale);
-        /* symbol.bench.ShadowData shadow = 66; */
-        if (message.shadow)
-            ShadowData.internalBinaryWrite(message.shadow, writer.tag(66, WireType.LengthDelimited).fork(), options).join();
-        /* symbol.bench.BorderData border = 67; */
-        if (message.border)
-            BorderData.internalBinaryWrite(message.border, writer.tag(67, WireType.LengthDelimited).fork(), options).join();
-        /* symbol.bench.CornersData radius = 68; */
-        if (message.radius)
-            CornersData.internalBinaryWrite(message.radius, writer.tag(68, WireType.LengthDelimited).fork(), options).join();
+        /* bool is_visible_value = 60; */
+        if (message.isVisible.oneofKind === "isVisibleValue")
+            writer.tag(60, WireType.Varint).bool(message.isVisible.isVisibleValue);
+        /* symbol.bench.VariableData is_visible_variable = 17060; */
+        if (message.isVisible.oneofKind === "isVisibleVariable")
+            VariableData.internalBinaryWrite(message.isVisible.isVisibleVariable, writer.tag(17060, WireType.LengthDelimited).fork(), options).join();
+        /* float opacity_value = 61; */
+        if (message.opacity.oneofKind === "opacityValue")
+            writer.tag(61, WireType.Bit32).float(message.opacity.opacityValue);
+        /* symbol.bench.VariableData opacity_variable = 17061; */
+        if (message.opacity.oneofKind === "opacityVariable")
+            VariableData.internalBinaryWrite(message.opacity.opacityVariable, writer.tag(17061, WireType.LengthDelimited).fork(), options).join();
+        /* symbol.bench.FillData fill_value = 62; */
+        if (message.fill.oneofKind === "fillValue")
+            FillData.internalBinaryWrite(message.fill.fillValue, writer.tag(62, WireType.LengthDelimited).fork(), options).join();
+        /* symbol.bench.VariableData fill_variable = 17062; */
+        if (message.fill.oneofKind === "fillVariable")
+            VariableData.internalBinaryWrite(message.fill.fillVariable, writer.tag(17062, WireType.LengthDelimited).fork(), options).join();
+        /* symbol.bench.Axis3Data rotation_value = 63; */
+        if (message.rotation.oneofKind === "rotationValue")
+            Axis3Data.internalBinaryWrite(message.rotation.rotationValue, writer.tag(63, WireType.LengthDelimited).fork(), options).join();
+        /* symbol.bench.VariableData rotation_variable = 17063; */
+        if (message.rotation.oneofKind === "rotationVariable")
+            VariableData.internalBinaryWrite(message.rotation.rotationVariable, writer.tag(17063, WireType.LengthDelimited).fork(), options).join();
+        /* symbol.bench.Vector2Data skew_value = 64; */
+        if (message.skew.oneofKind === "skewValue")
+            Vector2Data.internalBinaryWrite(message.skew.skewValue, writer.tag(64, WireType.LengthDelimited).fork(), options).join();
+        /* symbol.bench.VariableData skew_variable = 17064; */
+        if (message.skew.oneofKind === "skewVariable")
+            VariableData.internalBinaryWrite(message.skew.skewVariable, writer.tag(17064, WireType.LengthDelimited).fork(), options).join();
+        /* float scale_value = 65; */
+        if (message.scale.oneofKind === "scaleValue")
+            writer.tag(65, WireType.Bit32).float(message.scale.scaleValue);
+        /* symbol.bench.VariableData scale_variable = 17065; */
+        if (message.scale.oneofKind === "scaleVariable")
+            VariableData.internalBinaryWrite(message.scale.scaleVariable, writer.tag(17065, WireType.LengthDelimited).fork(), options).join();
+        /* symbol.bench.ShadowData shadow_value = 66; */
+        if (message.shadow.oneofKind === "shadowValue")
+            ShadowData.internalBinaryWrite(message.shadow.shadowValue, writer.tag(66, WireType.LengthDelimited).fork(), options).join();
+        /* symbol.bench.VariableData shadow_variable = 17066; */
+        if (message.shadow.oneofKind === "shadowVariable")
+            VariableData.internalBinaryWrite(message.shadow.shadowVariable, writer.tag(17066, WireType.LengthDelimited).fork(), options).join();
+        /* symbol.bench.BorderData border_value = 67; */
+        if (message.border.oneofKind === "borderValue")
+            BorderData.internalBinaryWrite(message.border.borderValue, writer.tag(67, WireType.LengthDelimited).fork(), options).join();
+        /* symbol.bench.VariableData border_variable = 17067; */
+        if (message.border.oneofKind === "borderVariable")
+            VariableData.internalBinaryWrite(message.border.borderVariable, writer.tag(17067, WireType.LengthDelimited).fork(), options).join();
+        /* symbol.bench.CornersData radius_value = 68; */
+        if (message.radius.oneofKind === "radiusValue")
+            CornersData.internalBinaryWrite(message.radius.radiusValue, writer.tag(68, WireType.LengthDelimited).fork(), options).join();
+        /* symbol.bench.VariableData radius_variable = 17068; */
+        if (message.radius.oneofKind === "radiusVariable")
+            VariableData.internalBinaryWrite(message.radius.radiusVariable, writer.tag(17068, WireType.LengthDelimited).fork(), options).join();
         let u = options.writeUnknownFields;
         if (u !== false)
             (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
@@ -30022,12 +31730,16 @@ class TextViewData$Type extends MessageType$<TextViewData> {
             { no: 45, name: "max_width", kind: "message", T: () => DimensionData },
             { no: 46, name: "max_height", kind: "message", T: () => DimensionData },
             { no: 53, name: "align", kind: "enum", opt: true, T: () => ["symbol.bench.Align", Align, "ALIGN_"] },
-            { no: 60, name: "is_visible", kind: "scalar", T: 8 /*ScalarType.BOOL*/ },
-            { no: 61, name: "opacity", kind: "scalar", T: 2 /*ScalarType.FLOAT*/ },
+            { no: 60, name: "is_visible_value", kind: "scalar", oneof: "isVisible", T: 8 /*ScalarType.BOOL*/ },
+            { no: 17060, name: "is_visible_variable", kind: "message", oneof: "isVisible", T: () => VariableData },
+            { no: 61, name: "opacity_value", kind: "scalar", oneof: "opacity", T: 2 /*ScalarType.FLOAT*/ },
+            { no: 17061, name: "opacity_variable", kind: "message", oneof: "opacity", T: () => VariableData },
             { no: 65, name: "user_select", kind: "scalar", opt: true, T: 8 /*ScalarType.BOOL*/ },
             { no: 66, name: "font", kind: "message", T: () => FontData },
-            { no: 67, name: "color", kind: "message", T: () => FillData },
-            { no: 100, name: "text", kind: "scalar", T: 9 /*ScalarType.STRING*/ }
+            { no: 67, name: "color_value", kind: "message", oneof: "color", T: () => FillData },
+            { no: 17067, name: "color_variable", kind: "message", oneof: "color", T: () => VariableData },
+            { no: 100, name: "text_value", kind: "scalar", oneof: "text", T: 9 /*ScalarType.STRING*/ },
+            { no: 17100, name: "text_variable", kind: "message", oneof: "text", T: () => VariableData }
         ]);
     }
     create(value?: PartialMessage<TextViewData>): TextViewData {
@@ -30037,9 +31749,10 @@ class TextViewData$Type extends MessageType$<TextViewData> {
         message.ck = "";
         message.mode = 0;
         message.orderKey = "";
-        message.isVisible = false;
-        message.opacity = 0;
-        message.text = "";
+        message.isVisible = { oneofKind: undefined };
+        message.opacity = { oneofKind: undefined };
+        message.color = { oneofKind: undefined };
+        message.text = { oneofKind: undefined };
         if (value !== undefined)
             reflectionMergePartial<TextViewData>(this, message, value);
         return message;
@@ -30127,11 +31840,29 @@ class TextViewData$Type extends MessageType$<TextViewData> {
                 case /* optional symbol.bench.Align align */ 53:
                     message.align = reader.int32();
                     break;
-                case /* bool is_visible */ 60:
-                    message.isVisible = reader.bool();
+                case /* bool is_visible_value */ 60:
+                    message.isVisible = {
+                        oneofKind: "isVisibleValue",
+                        isVisibleValue: reader.bool()
+                    };
                     break;
-                case /* float opacity */ 61:
-                    message.opacity = reader.float();
+                case /* symbol.bench.VariableData is_visible_variable */ 17060:
+                    message.isVisible = {
+                        oneofKind: "isVisibleVariable",
+                        isVisibleVariable: VariableData.internalBinaryRead(reader, reader.uint32(), options, (message.isVisible as any).isVisibleVariable)
+                    };
+                    break;
+                case /* float opacity_value */ 61:
+                    message.opacity = {
+                        oneofKind: "opacityValue",
+                        opacityValue: reader.float()
+                    };
+                    break;
+                case /* symbol.bench.VariableData opacity_variable */ 17061:
+                    message.opacity = {
+                        oneofKind: "opacityVariable",
+                        opacityVariable: VariableData.internalBinaryRead(reader, reader.uint32(), options, (message.opacity as any).opacityVariable)
+                    };
                     break;
                 case /* optional bool user_select */ 65:
                     message.userSelect = reader.bool();
@@ -30139,11 +31870,29 @@ class TextViewData$Type extends MessageType$<TextViewData> {
                 case /* optional symbol.bench.FontData font */ 66:
                     message.font = FontData.internalBinaryRead(reader, reader.uint32(), options, message.font);
                     break;
-                case /* symbol.bench.FillData color */ 67:
-                    message.color = FillData.internalBinaryRead(reader, reader.uint32(), options, message.color);
+                case /* symbol.bench.FillData color_value */ 67:
+                    message.color = {
+                        oneofKind: "colorValue",
+                        colorValue: FillData.internalBinaryRead(reader, reader.uint32(), options, (message.color as any).colorValue)
+                    };
                     break;
-                case /* string text */ 100:
-                    message.text = reader.string();
+                case /* symbol.bench.VariableData color_variable */ 17067:
+                    message.color = {
+                        oneofKind: "colorVariable",
+                        colorVariable: VariableData.internalBinaryRead(reader, reader.uint32(), options, (message.color as any).colorVariable)
+                    };
+                    break;
+                case /* string text_value */ 100:
+                    message.text = {
+                        oneofKind: "textValue",
+                        textValue: reader.string()
+                    };
+                    break;
+                case /* symbol.bench.VariableData text_variable */ 17100:
+                    message.text = {
+                        oneofKind: "textVariable",
+                        textVariable: VariableData.internalBinaryRead(reader, reader.uint32(), options, (message.text as any).textVariable)
+                    };
                     break;
                 default:
                     let u = options.readUnknownField;
@@ -30235,24 +31984,36 @@ class TextViewData$Type extends MessageType$<TextViewData> {
         /* optional symbol.bench.Align align = 53; */
         if (message.align !== undefined)
             writer.tag(53, WireType.Varint).int32(message.align);
-        /* bool is_visible = 60; */
-        if (message.isVisible !== false)
-            writer.tag(60, WireType.Varint).bool(message.isVisible);
-        /* float opacity = 61; */
-        if (message.opacity !== 0)
-            writer.tag(61, WireType.Bit32).float(message.opacity);
+        /* bool is_visible_value = 60; */
+        if (message.isVisible.oneofKind === "isVisibleValue")
+            writer.tag(60, WireType.Varint).bool(message.isVisible.isVisibleValue);
+        /* symbol.bench.VariableData is_visible_variable = 17060; */
+        if (message.isVisible.oneofKind === "isVisibleVariable")
+            VariableData.internalBinaryWrite(message.isVisible.isVisibleVariable, writer.tag(17060, WireType.LengthDelimited).fork(), options).join();
+        /* float opacity_value = 61; */
+        if (message.opacity.oneofKind === "opacityValue")
+            writer.tag(61, WireType.Bit32).float(message.opacity.opacityValue);
+        /* symbol.bench.VariableData opacity_variable = 17061; */
+        if (message.opacity.oneofKind === "opacityVariable")
+            VariableData.internalBinaryWrite(message.opacity.opacityVariable, writer.tag(17061, WireType.LengthDelimited).fork(), options).join();
         /* optional bool user_select = 65; */
         if (message.userSelect !== undefined)
             writer.tag(65, WireType.Varint).bool(message.userSelect);
         /* optional symbol.bench.FontData font = 66; */
         if (message.font)
             FontData.internalBinaryWrite(message.font, writer.tag(66, WireType.LengthDelimited).fork(), options).join();
-        /* symbol.bench.FillData color = 67; */
-        if (message.color)
-            FillData.internalBinaryWrite(message.color, writer.tag(67, WireType.LengthDelimited).fork(), options).join();
-        /* string text = 100; */
-        if (message.text !== "")
-            writer.tag(100, WireType.LengthDelimited).string(message.text);
+        /* symbol.bench.FillData color_value = 67; */
+        if (message.color.oneofKind === "colorValue")
+            FillData.internalBinaryWrite(message.color.colorValue, writer.tag(67, WireType.LengthDelimited).fork(), options).join();
+        /* symbol.bench.VariableData color_variable = 17067; */
+        if (message.color.oneofKind === "colorVariable")
+            VariableData.internalBinaryWrite(message.color.colorVariable, writer.tag(17067, WireType.LengthDelimited).fork(), options).join();
+        /* string text_value = 100; */
+        if (message.text.oneofKind === "textValue")
+            writer.tag(100, WireType.LengthDelimited).string(message.text.textValue);
+        /* symbol.bench.VariableData text_variable = 17100; */
+        if (message.text.oneofKind === "textVariable")
+            VariableData.internalBinaryWrite(message.text.textVariable, writer.tag(17100, WireType.LengthDelimited).fork(), options).join();
         let u = options.writeUnknownFields;
         if (u !== false)
             (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
@@ -37235,7 +38996,7 @@ export const DatabaseDataInfo: Record<DatabaseProperty, PropertyInfo> = {
   [DatabaseProperty.failedAttempts]: { id: 48, name: 'failed_attempts', component: ObjectType.DATABASE, kind: 'primitive', primitiveType: PrimitiveType.INT32, default: 0, isRequired: true, isInternal: true, isWired: true, isStored: true },
   [DatabaseProperty.scaler]: { id: 49, name: 'scaler', component: ObjectType.DATABASE, kind: 'reference', isInternal: true, isWired: true, isStored: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.SCALER] },
   [DatabaseProperty.scalerPtr]: { id: 49, name: 'scaler_ptr', component: ObjectType.DATABASE, kind: 'reference', isWired: true, isStored: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.SCALER], referenceStruct: StructType.NODE_REFERENCE },
-  [DatabaseProperty.version]: { id: 60, name: 'version', component: ObjectType.DATABASE, kind: 'primitive', primitiveType: PrimitiveType.STRING, default: "2025.05.16.0", isRequired: true, isInternal: true, isWired: true, isStored: true },
+  [DatabaseProperty.version]: { id: 60, name: 'version', component: ObjectType.DATABASE, kind: 'primitive', primitiveType: PrimitiveType.STRING, default: "2025.05.19.0", isRequired: true, isInternal: true, isWired: true, isStored: true },
   [DatabaseProperty.externalName]: { id: 62, name: 'external_name', component: ObjectType.DATABASE, kind: 'primitive', primitiveType: PrimitiveType.STRING, isInternal: true, isWired: true, isStored: true, isSensitive: true },
   [DatabaseProperty.externalId]: { id: 63, name: 'external_id', component: ObjectType.DATABASE, kind: 'primitive', primitiveType: PrimitiveType.STRING, isInternal: true, isWired: true, isStored: true, isSensitive: true },
   [DatabaseProperty.sqlUrl]: { id: 64, name: 'sql_url', component: ObjectType.DATABASE, kind: 'primitive', primitiveType: PrimitiveType.STRING, isInternal: true, isWired: true, isStored: true, isSensitive: true },
@@ -37283,7 +39044,7 @@ export const ComputerDataInfo: Record<ComputerProperty, PropertyInfo> = {
   [ComputerProperty.failedAttempts]: { id: 48, name: 'failed_attempts', component: ObjectType.COMPUTER, kind: 'primitive', primitiveType: PrimitiveType.INT32, default: 0, isRequired: true, isInternal: true, isWired: true, isStored: true },
   [ComputerProperty.scaler]: { id: 49, name: 'scaler', component: ObjectType.COMPUTER, kind: 'reference', isInternal: true, isWired: true, isStored: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.SCALER] },
   [ComputerProperty.scalerPtr]: { id: 49, name: 'scaler_ptr', component: ObjectType.COMPUTER, kind: 'reference', isWired: true, isStored: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.SCALER], referenceStruct: StructType.NODE_REFERENCE },
-  [ComputerProperty.version]: { id: 60, name: 'version', component: ObjectType.COMPUTER, kind: 'primitive', primitiveType: PrimitiveType.STRING, default: "2025.05.16.0", isRequired: true, isInternal: true, isWired: true, isStored: true },
+  [ComputerProperty.version]: { id: 60, name: 'version', component: ObjectType.COMPUTER, kind: 'primitive', primitiveType: PrimitiveType.STRING, default: "2025.05.19.0", isRequired: true, isInternal: true, isWired: true, isStored: true },
   [ComputerProperty.externalName]: { id: 62, name: 'external_name', component: ObjectType.COMPUTER, kind: 'primitive', primitiveType: PrimitiveType.STRING, isInternal: true, isWired: true, isStored: true, isSensitive: true },
   [ComputerProperty.externalId]: { id: 63, name: 'external_id', component: ObjectType.COMPUTER, kind: 'primitive', primitiveType: PrimitiveType.STRING, isInternal: true, isWired: true, isStored: true, isSensitive: true },
   [ComputerProperty.imageId]: { id: 64, name: 'image_id', component: ObjectType.COMPUTER, kind: 'primitive', primitiveType: PrimitiveType.STRING, isInternal: true, isWired: true, isStored: true, isSensitive: true },
@@ -38469,24 +40230,24 @@ export const FrameViewDataInfo: Record<FrameViewProperty, PropertyInfo> = {
   [FrameViewProperty.maxWidth]: { id: 45, name: 'max_width', component: ObjectType.FRAME_VIEW, kind: 'primitive', primitiveType: PrimitiveType.JSON, isWired: true, isStored: true, referenceStruct: StructType.DIMENSION },
   [FrameViewProperty.maxHeight]: { id: 46, name: 'max_height', component: ObjectType.FRAME_VIEW, kind: 'primitive', primitiveType: PrimitiveType.JSON, isWired: true, isStored: true, referenceStruct: StructType.DIMENSION },
   [FrameViewProperty.layout]: { id: 50, name: 'layout', component: ObjectType.FRAME_VIEW, enumType: EnumType.LAYOUT, kind: 'enum', primitiveType: PrimitiveType.INT16, isWired: true, isStored: true },
-  [FrameViewProperty.direction]: { id: 51, name: 'direction', component: ObjectType.FRAME_VIEW, enumType: EnumType.DIRECTION, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isWired: true, isStored: true },
-  [FrameViewProperty.distribute]: { id: 52, name: 'distribute', component: ObjectType.FRAME_VIEW, enumType: EnumType.DISTRIBUTE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isWired: true, isStored: true },
-  [FrameViewProperty.align]: { id: 53, name: 'align', component: ObjectType.FRAME_VIEW, enumType: EnumType.ALIGN, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isWired: true, isStored: true },
-  [FrameViewProperty.gap]: { id: 54, name: 'gap', component: ObjectType.FRAME_VIEW, kind: 'primitive', primitiveType: PrimitiveType.JSON, isRequired: true, isWired: true, isStored: true, referenceStruct: StructType.AXIS2 },
-  [FrameViewProperty.padding]: { id: 55, name: 'padding', component: ObjectType.FRAME_VIEW, kind: 'primitive', primitiveType: PrimitiveType.JSON, isRequired: true, isWired: true, isStored: true, referenceStruct: StructType.INSETS },
+  [FrameViewProperty.direction]: { id: 51, name: 'direction', component: ObjectType.FRAME_VIEW, enumType: EnumType.DIRECTION, kind: 'enum', primitiveType: PrimitiveType.INT16, isWired: true, isStored: true },
+  [FrameViewProperty.distribute]: { id: 52, name: 'distribute', component: ObjectType.FRAME_VIEW, enumType: EnumType.DISTRIBUTE, kind: 'enum', primitiveType: PrimitiveType.INT16, isWired: true, isStored: true },
+  [FrameViewProperty.align]: { id: 53, name: 'align', component: ObjectType.FRAME_VIEW, enumType: EnumType.ALIGN, kind: 'enum', primitiveType: PrimitiveType.INT16, isWired: true, isStored: true },
+  [FrameViewProperty.gap]: { id: 54, name: 'gap', component: ObjectType.FRAME_VIEW, kind: 'primitive', primitiveType: PrimitiveType.JSON, isWired: true, isStored: true, referenceStruct: StructType.AXIS2 },
+  [FrameViewProperty.padding]: { id: 55, name: 'padding', component: ObjectType.FRAME_VIEW, kind: 'primitive', primitiveType: PrimitiveType.JSON, isWired: true, isStored: true, referenceStruct: StructType.INSETS },
   [FrameViewProperty.grid]: { id: 56, name: 'grid', component: ObjectType.FRAME_VIEW, kind: 'primitive', primitiveType: PrimitiveType.JSON, isWired: true, isStored: true, referenceStruct: StructType.GRID },
   [FrameViewProperty.gridSpan]: { id: 57, name: 'grid_span', component: ObjectType.FRAME_VIEW, kind: 'primitive', primitiveType: PrimitiveType.JSON, isWired: true, isStored: true, referenceStruct: StructType.GRID_SPAN },
   [FrameViewProperty.aspectRatio]: { id: 58, name: 'aspect_ratio', component: ObjectType.FRAME_VIEW, kind: 'primitive', primitiveType: PrimitiveType.FLOAT32, isWired: true, isStored: true },
   [FrameViewProperty.isWrap]: { id: 59, name: 'is_wrap', component: ObjectType.FRAME_VIEW, kind: 'primitive', primitiveType: PrimitiveType.BOOLEAN, isWired: true, isStored: true },
-  [FrameViewProperty.isVisible]: { id: 60, name: 'is_visible', component: ObjectType.FRAME_VIEW, kind: 'primitive', primitiveType: PrimitiveType.BOOLEAN, isRequired: true, isWired: true, isStored: true },
-  [FrameViewProperty.opacity]: { id: 61, name: 'opacity', component: ObjectType.FRAME_VIEW, kind: 'primitive', primitiveType: PrimitiveType.FLOAT32, isRequired: true, isWired: true, isStored: true },
-  [FrameViewProperty.fill]: { id: 62, name: 'fill', component: ObjectType.FRAME_VIEW, kind: 'primitive', primitiveType: PrimitiveType.JSON, isRequired: true, isWired: true, isStored: true, referenceStruct: StructType.FILL },
-  [FrameViewProperty.rotation]: { id: 63, name: 'rotation', component: ObjectType.FRAME_VIEW, kind: 'primitive', primitiveType: PrimitiveType.JSON, isRequired: true, isWired: true, isStored: true, referenceStruct: StructType.AXIS3 },
-  [FrameViewProperty.skew]: { id: 64, name: 'skew', component: ObjectType.FRAME_VIEW, kind: 'primitive', primitiveType: PrimitiveType.JSON, isRequired: true, isWired: true, isStored: true, referenceStruct: StructType.VECTOR2 },
-  [FrameViewProperty.scale]: { id: 65, name: 'scale', component: ObjectType.FRAME_VIEW, kind: 'primitive', primitiveType: PrimitiveType.FLOAT32, isRequired: true, isWired: true, isStored: true },
-  [FrameViewProperty.shadow]: { id: 66, name: 'shadow', component: ObjectType.FRAME_VIEW, kind: 'primitive', primitiveType: PrimitiveType.JSON, isRequired: true, isWired: true, isStored: true, referenceStruct: StructType.SHADOW },
-  [FrameViewProperty.border]: { id: 67, name: 'border', component: ObjectType.FRAME_VIEW, kind: 'primitive', primitiveType: PrimitiveType.JSON, isRequired: true, isWired: true, isStored: true, referenceStruct: StructType.BORDER },
-  [FrameViewProperty.radius]: { id: 68, name: 'radius', component: ObjectType.FRAME_VIEW, kind: 'primitive', primitiveType: PrimitiveType.JSON, isRequired: true, isWired: true, isStored: true, referenceStruct: StructType.CORNERS },
+  [FrameViewProperty.isVisible]: { id: 60, name: 'is_visible', component: ObjectType.FRAME_VIEW, kind: 'primitive', primitiveType: PrimitiveType.BOOLEAN, isWired: true, isStored: true },
+  [FrameViewProperty.opacity]: { id: 61, name: 'opacity', component: ObjectType.FRAME_VIEW, kind: 'primitive', primitiveType: PrimitiveType.FLOAT32, isWired: true, isStored: true },
+  [FrameViewProperty.fill]: { id: 62, name: 'fill', component: ObjectType.FRAME_VIEW, kind: 'primitive', primitiveType: PrimitiveType.JSON, isWired: true, isStored: true, referenceStruct: StructType.FILL },
+  [FrameViewProperty.rotation]: { id: 63, name: 'rotation', component: ObjectType.FRAME_VIEW, kind: 'primitive', primitiveType: PrimitiveType.JSON, isWired: true, isStored: true, referenceStruct: StructType.AXIS3 },
+  [FrameViewProperty.skew]: { id: 64, name: 'skew', component: ObjectType.FRAME_VIEW, kind: 'primitive', primitiveType: PrimitiveType.JSON, isWired: true, isStored: true, referenceStruct: StructType.VECTOR2 },
+  [FrameViewProperty.scale]: { id: 65, name: 'scale', component: ObjectType.FRAME_VIEW, kind: 'primitive', primitiveType: PrimitiveType.FLOAT32, isWired: true, isStored: true },
+  [FrameViewProperty.shadow]: { id: 66, name: 'shadow', component: ObjectType.FRAME_VIEW, kind: 'primitive', primitiveType: PrimitiveType.JSON, isWired: true, isStored: true, referenceStruct: StructType.SHADOW },
+  [FrameViewProperty.border]: { id: 67, name: 'border', component: ObjectType.FRAME_VIEW, kind: 'primitive', primitiveType: PrimitiveType.JSON, isWired: true, isStored: true, referenceStruct: StructType.BORDER },
+  [FrameViewProperty.radius]: { id: 68, name: 'radius', component: ObjectType.FRAME_VIEW, kind: 'primitive', primitiveType: PrimitiveType.JSON, isWired: true, isStored: true, referenceStruct: StructType.CORNERS },
 }
 export const LabelViewDataInfo: Record<LabelViewProperty, PropertyInfo> = {
   [LabelViewProperty.metatype]: { id: 1, name: 'metatype', component: ObjectType.LABEL_VIEW, enumType: EnumType.OBJECT_TYPE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isInternal: true, isComputed: true, isWired: true },
@@ -38522,24 +40283,24 @@ export const LabelViewDataInfo: Record<LabelViewProperty, PropertyInfo> = {
   [LabelViewProperty.maxWidth]: { id: 45, name: 'max_width', component: ObjectType.LABEL_VIEW, kind: 'primitive', primitiveType: PrimitiveType.JSON, isWired: true, isStored: true, referenceStruct: StructType.DIMENSION },
   [LabelViewProperty.maxHeight]: { id: 46, name: 'max_height', component: ObjectType.LABEL_VIEW, kind: 'primitive', primitiveType: PrimitiveType.JSON, isWired: true, isStored: true, referenceStruct: StructType.DIMENSION },
   [LabelViewProperty.layout]: { id: 50, name: 'layout', component: ObjectType.LABEL_VIEW, enumType: EnumType.LAYOUT, kind: 'enum', primitiveType: PrimitiveType.INT16, isWired: true, isStored: true },
-  [LabelViewProperty.direction]: { id: 51, name: 'direction', component: ObjectType.LABEL_VIEW, enumType: EnumType.DIRECTION, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isWired: true, isStored: true },
-  [LabelViewProperty.distribute]: { id: 52, name: 'distribute', component: ObjectType.LABEL_VIEW, enumType: EnumType.DISTRIBUTE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isWired: true, isStored: true },
-  [LabelViewProperty.align]: { id: 53, name: 'align', component: ObjectType.LABEL_VIEW, enumType: EnumType.ALIGN, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isWired: true, isStored: true },
-  [LabelViewProperty.gap]: { id: 54, name: 'gap', component: ObjectType.LABEL_VIEW, kind: 'primitive', primitiveType: PrimitiveType.JSON, isRequired: true, isWired: true, isStored: true, referenceStruct: StructType.AXIS2 },
-  [LabelViewProperty.padding]: { id: 55, name: 'padding', component: ObjectType.LABEL_VIEW, kind: 'primitive', primitiveType: PrimitiveType.JSON, isRequired: true, isWired: true, isStored: true, referenceStruct: StructType.INSETS },
+  [LabelViewProperty.direction]: { id: 51, name: 'direction', component: ObjectType.LABEL_VIEW, enumType: EnumType.DIRECTION, kind: 'enum', primitiveType: PrimitiveType.INT16, isWired: true, isStored: true },
+  [LabelViewProperty.distribute]: { id: 52, name: 'distribute', component: ObjectType.LABEL_VIEW, enumType: EnumType.DISTRIBUTE, kind: 'enum', primitiveType: PrimitiveType.INT16, isWired: true, isStored: true },
+  [LabelViewProperty.align]: { id: 53, name: 'align', component: ObjectType.LABEL_VIEW, enumType: EnumType.ALIGN, kind: 'enum', primitiveType: PrimitiveType.INT16, isWired: true, isStored: true },
+  [LabelViewProperty.gap]: { id: 54, name: 'gap', component: ObjectType.LABEL_VIEW, kind: 'primitive', primitiveType: PrimitiveType.JSON, isWired: true, isStored: true, referenceStruct: StructType.AXIS2 },
+  [LabelViewProperty.padding]: { id: 55, name: 'padding', component: ObjectType.LABEL_VIEW, kind: 'primitive', primitiveType: PrimitiveType.JSON, isWired: true, isStored: true, referenceStruct: StructType.INSETS },
   [LabelViewProperty.grid]: { id: 56, name: 'grid', component: ObjectType.LABEL_VIEW, kind: 'primitive', primitiveType: PrimitiveType.JSON, isWired: true, isStored: true, referenceStruct: StructType.GRID },
   [LabelViewProperty.gridSpan]: { id: 57, name: 'grid_span', component: ObjectType.LABEL_VIEW, kind: 'primitive', primitiveType: PrimitiveType.JSON, isWired: true, isStored: true, referenceStruct: StructType.GRID_SPAN },
   [LabelViewProperty.aspectRatio]: { id: 58, name: 'aspect_ratio', component: ObjectType.LABEL_VIEW, kind: 'primitive', primitiveType: PrimitiveType.FLOAT32, isWired: true, isStored: true },
   [LabelViewProperty.isWrap]: { id: 59, name: 'is_wrap', component: ObjectType.LABEL_VIEW, kind: 'primitive', primitiveType: PrimitiveType.BOOLEAN, isWired: true, isStored: true },
-  [LabelViewProperty.isVisible]: { id: 60, name: 'is_visible', component: ObjectType.LABEL_VIEW, kind: 'primitive', primitiveType: PrimitiveType.BOOLEAN, isRequired: true, isWired: true, isStored: true },
-  [LabelViewProperty.opacity]: { id: 61, name: 'opacity', component: ObjectType.LABEL_VIEW, kind: 'primitive', primitiveType: PrimitiveType.FLOAT32, isRequired: true, isWired: true, isStored: true },
-  [LabelViewProperty.fill]: { id: 62, name: 'fill', component: ObjectType.LABEL_VIEW, kind: 'primitive', primitiveType: PrimitiveType.JSON, isRequired: true, isWired: true, isStored: true, referenceStruct: StructType.FILL },
-  [LabelViewProperty.rotation]: { id: 63, name: 'rotation', component: ObjectType.LABEL_VIEW, kind: 'primitive', primitiveType: PrimitiveType.JSON, isRequired: true, isWired: true, isStored: true, referenceStruct: StructType.AXIS3 },
-  [LabelViewProperty.skew]: { id: 64, name: 'skew', component: ObjectType.LABEL_VIEW, kind: 'primitive', primitiveType: PrimitiveType.JSON, isRequired: true, isWired: true, isStored: true, referenceStruct: StructType.VECTOR2 },
-  [LabelViewProperty.scale]: { id: 65, name: 'scale', component: ObjectType.LABEL_VIEW, kind: 'primitive', primitiveType: PrimitiveType.FLOAT32, isRequired: true, isWired: true, isStored: true },
-  [LabelViewProperty.shadow]: { id: 66, name: 'shadow', component: ObjectType.LABEL_VIEW, kind: 'primitive', primitiveType: PrimitiveType.JSON, isRequired: true, isWired: true, isStored: true, referenceStruct: StructType.SHADOW },
-  [LabelViewProperty.border]: { id: 67, name: 'border', component: ObjectType.LABEL_VIEW, kind: 'primitive', primitiveType: PrimitiveType.JSON, isRequired: true, isWired: true, isStored: true, referenceStruct: StructType.BORDER },
-  [LabelViewProperty.radius]: { id: 68, name: 'radius', component: ObjectType.LABEL_VIEW, kind: 'primitive', primitiveType: PrimitiveType.JSON, isRequired: true, isWired: true, isStored: true, referenceStruct: StructType.CORNERS },
+  [LabelViewProperty.isVisible]: { id: 60, name: 'is_visible', component: ObjectType.LABEL_VIEW, kind: 'primitive', primitiveType: PrimitiveType.BOOLEAN, isWired: true, isStored: true },
+  [LabelViewProperty.opacity]: { id: 61, name: 'opacity', component: ObjectType.LABEL_VIEW, kind: 'primitive', primitiveType: PrimitiveType.FLOAT32, isWired: true, isStored: true },
+  [LabelViewProperty.fill]: { id: 62, name: 'fill', component: ObjectType.LABEL_VIEW, kind: 'primitive', primitiveType: PrimitiveType.JSON, isWired: true, isStored: true, referenceStruct: StructType.FILL },
+  [LabelViewProperty.rotation]: { id: 63, name: 'rotation', component: ObjectType.LABEL_VIEW, kind: 'primitive', primitiveType: PrimitiveType.JSON, isWired: true, isStored: true, referenceStruct: StructType.AXIS3 },
+  [LabelViewProperty.skew]: { id: 64, name: 'skew', component: ObjectType.LABEL_VIEW, kind: 'primitive', primitiveType: PrimitiveType.JSON, isWired: true, isStored: true, referenceStruct: StructType.VECTOR2 },
+  [LabelViewProperty.scale]: { id: 65, name: 'scale', component: ObjectType.LABEL_VIEW, kind: 'primitive', primitiveType: PrimitiveType.FLOAT32, isWired: true, isStored: true },
+  [LabelViewProperty.shadow]: { id: 66, name: 'shadow', component: ObjectType.LABEL_VIEW, kind: 'primitive', primitiveType: PrimitiveType.JSON, isWired: true, isStored: true, referenceStruct: StructType.SHADOW },
+  [LabelViewProperty.border]: { id: 67, name: 'border', component: ObjectType.LABEL_VIEW, kind: 'primitive', primitiveType: PrimitiveType.JSON, isWired: true, isStored: true, referenceStruct: StructType.BORDER },
+  [LabelViewProperty.radius]: { id: 68, name: 'radius', component: ObjectType.LABEL_VIEW, kind: 'primitive', primitiveType: PrimitiveType.JSON, isWired: true, isStored: true, referenceStruct: StructType.CORNERS },
 }
 export const ComponentViewDataInfo: Record<ComponentViewProperty, PropertyInfo> = {
   [ComponentViewProperty.metatype]: { id: 1, name: 'metatype', component: ObjectType.COMPONENT_VIEW, enumType: EnumType.OBJECT_TYPE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isInternal: true, isComputed: true, isWired: true },
@@ -38575,24 +40336,24 @@ export const ComponentViewDataInfo: Record<ComponentViewProperty, PropertyInfo> 
   [ComponentViewProperty.maxWidth]: { id: 45, name: 'max_width', component: ObjectType.COMPONENT_VIEW, kind: 'primitive', primitiveType: PrimitiveType.JSON, isWired: true, isStored: true, referenceStruct: StructType.DIMENSION },
   [ComponentViewProperty.maxHeight]: { id: 46, name: 'max_height', component: ObjectType.COMPONENT_VIEW, kind: 'primitive', primitiveType: PrimitiveType.JSON, isWired: true, isStored: true, referenceStruct: StructType.DIMENSION },
   [ComponentViewProperty.layout]: { id: 50, name: 'layout', component: ObjectType.COMPONENT_VIEW, enumType: EnumType.LAYOUT, kind: 'enum', primitiveType: PrimitiveType.INT16, isWired: true, isStored: true },
-  [ComponentViewProperty.direction]: { id: 51, name: 'direction', component: ObjectType.COMPONENT_VIEW, enumType: EnumType.DIRECTION, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isWired: true, isStored: true },
-  [ComponentViewProperty.distribute]: { id: 52, name: 'distribute', component: ObjectType.COMPONENT_VIEW, enumType: EnumType.DISTRIBUTE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isWired: true, isStored: true },
-  [ComponentViewProperty.align]: { id: 53, name: 'align', component: ObjectType.COMPONENT_VIEW, enumType: EnumType.ALIGN, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isWired: true, isStored: true },
-  [ComponentViewProperty.gap]: { id: 54, name: 'gap', component: ObjectType.COMPONENT_VIEW, kind: 'primitive', primitiveType: PrimitiveType.JSON, isRequired: true, isWired: true, isStored: true, referenceStruct: StructType.AXIS2 },
-  [ComponentViewProperty.padding]: { id: 55, name: 'padding', component: ObjectType.COMPONENT_VIEW, kind: 'primitive', primitiveType: PrimitiveType.JSON, isRequired: true, isWired: true, isStored: true, referenceStruct: StructType.INSETS },
+  [ComponentViewProperty.direction]: { id: 51, name: 'direction', component: ObjectType.COMPONENT_VIEW, enumType: EnumType.DIRECTION, kind: 'enum', primitiveType: PrimitiveType.INT16, isWired: true, isStored: true },
+  [ComponentViewProperty.distribute]: { id: 52, name: 'distribute', component: ObjectType.COMPONENT_VIEW, enumType: EnumType.DISTRIBUTE, kind: 'enum', primitiveType: PrimitiveType.INT16, isWired: true, isStored: true },
+  [ComponentViewProperty.align]: { id: 53, name: 'align', component: ObjectType.COMPONENT_VIEW, enumType: EnumType.ALIGN, kind: 'enum', primitiveType: PrimitiveType.INT16, isWired: true, isStored: true },
+  [ComponentViewProperty.gap]: { id: 54, name: 'gap', component: ObjectType.COMPONENT_VIEW, kind: 'primitive', primitiveType: PrimitiveType.JSON, isWired: true, isStored: true, referenceStruct: StructType.AXIS2 },
+  [ComponentViewProperty.padding]: { id: 55, name: 'padding', component: ObjectType.COMPONENT_VIEW, kind: 'primitive', primitiveType: PrimitiveType.JSON, isWired: true, isStored: true, referenceStruct: StructType.INSETS },
   [ComponentViewProperty.grid]: { id: 56, name: 'grid', component: ObjectType.COMPONENT_VIEW, kind: 'primitive', primitiveType: PrimitiveType.JSON, isWired: true, isStored: true, referenceStruct: StructType.GRID },
   [ComponentViewProperty.gridSpan]: { id: 57, name: 'grid_span', component: ObjectType.COMPONENT_VIEW, kind: 'primitive', primitiveType: PrimitiveType.JSON, isWired: true, isStored: true, referenceStruct: StructType.GRID_SPAN },
   [ComponentViewProperty.aspectRatio]: { id: 58, name: 'aspect_ratio', component: ObjectType.COMPONENT_VIEW, kind: 'primitive', primitiveType: PrimitiveType.FLOAT32, isWired: true, isStored: true },
   [ComponentViewProperty.isWrap]: { id: 59, name: 'is_wrap', component: ObjectType.COMPONENT_VIEW, kind: 'primitive', primitiveType: PrimitiveType.BOOLEAN, isWired: true, isStored: true },
-  [ComponentViewProperty.isVisible]: { id: 60, name: 'is_visible', component: ObjectType.COMPONENT_VIEW, kind: 'primitive', primitiveType: PrimitiveType.BOOLEAN, isRequired: true, isWired: true, isStored: true },
-  [ComponentViewProperty.opacity]: { id: 61, name: 'opacity', component: ObjectType.COMPONENT_VIEW, kind: 'primitive', primitiveType: PrimitiveType.FLOAT32, isRequired: true, isWired: true, isStored: true },
-  [ComponentViewProperty.fill]: { id: 62, name: 'fill', component: ObjectType.COMPONENT_VIEW, kind: 'primitive', primitiveType: PrimitiveType.JSON, isRequired: true, isWired: true, isStored: true, referenceStruct: StructType.FILL },
-  [ComponentViewProperty.rotation]: { id: 63, name: 'rotation', component: ObjectType.COMPONENT_VIEW, kind: 'primitive', primitiveType: PrimitiveType.JSON, isRequired: true, isWired: true, isStored: true, referenceStruct: StructType.AXIS3 },
-  [ComponentViewProperty.skew]: { id: 64, name: 'skew', component: ObjectType.COMPONENT_VIEW, kind: 'primitive', primitiveType: PrimitiveType.JSON, isRequired: true, isWired: true, isStored: true, referenceStruct: StructType.VECTOR2 },
-  [ComponentViewProperty.scale]: { id: 65, name: 'scale', component: ObjectType.COMPONENT_VIEW, kind: 'primitive', primitiveType: PrimitiveType.FLOAT32, isRequired: true, isWired: true, isStored: true },
-  [ComponentViewProperty.shadow]: { id: 66, name: 'shadow', component: ObjectType.COMPONENT_VIEW, kind: 'primitive', primitiveType: PrimitiveType.JSON, isRequired: true, isWired: true, isStored: true, referenceStruct: StructType.SHADOW },
-  [ComponentViewProperty.border]: { id: 67, name: 'border', component: ObjectType.COMPONENT_VIEW, kind: 'primitive', primitiveType: PrimitiveType.JSON, isRequired: true, isWired: true, isStored: true, referenceStruct: StructType.BORDER },
-  [ComponentViewProperty.radius]: { id: 68, name: 'radius', component: ObjectType.COMPONENT_VIEW, kind: 'primitive', primitiveType: PrimitiveType.JSON, isRequired: true, isWired: true, isStored: true, referenceStruct: StructType.CORNERS },
+  [ComponentViewProperty.isVisible]: { id: 60, name: 'is_visible', component: ObjectType.COMPONENT_VIEW, kind: 'primitive', primitiveType: PrimitiveType.BOOLEAN, isWired: true, isStored: true },
+  [ComponentViewProperty.opacity]: { id: 61, name: 'opacity', component: ObjectType.COMPONENT_VIEW, kind: 'primitive', primitiveType: PrimitiveType.FLOAT32, isWired: true, isStored: true },
+  [ComponentViewProperty.fill]: { id: 62, name: 'fill', component: ObjectType.COMPONENT_VIEW, kind: 'primitive', primitiveType: PrimitiveType.JSON, isWired: true, isStored: true, referenceStruct: StructType.FILL },
+  [ComponentViewProperty.rotation]: { id: 63, name: 'rotation', component: ObjectType.COMPONENT_VIEW, kind: 'primitive', primitiveType: PrimitiveType.JSON, isWired: true, isStored: true, referenceStruct: StructType.AXIS3 },
+  [ComponentViewProperty.skew]: { id: 64, name: 'skew', component: ObjectType.COMPONENT_VIEW, kind: 'primitive', primitiveType: PrimitiveType.JSON, isWired: true, isStored: true, referenceStruct: StructType.VECTOR2 },
+  [ComponentViewProperty.scale]: { id: 65, name: 'scale', component: ObjectType.COMPONENT_VIEW, kind: 'primitive', primitiveType: PrimitiveType.FLOAT32, isWired: true, isStored: true },
+  [ComponentViewProperty.shadow]: { id: 66, name: 'shadow', component: ObjectType.COMPONENT_VIEW, kind: 'primitive', primitiveType: PrimitiveType.JSON, isWired: true, isStored: true, referenceStruct: StructType.SHADOW },
+  [ComponentViewProperty.border]: { id: 67, name: 'border', component: ObjectType.COMPONENT_VIEW, kind: 'primitive', primitiveType: PrimitiveType.JSON, isWired: true, isStored: true, referenceStruct: StructType.BORDER },
+  [ComponentViewProperty.radius]: { id: 68, name: 'radius', component: ObjectType.COMPONENT_VIEW, kind: 'primitive', primitiveType: PrimitiveType.JSON, isWired: true, isStored: true, referenceStruct: StructType.CORNERS },
 }
 export const SplitViewDataInfo: Record<SplitViewProperty, PropertyInfo> = {
   [SplitViewProperty.metatype]: { id: 1, name: 'metatype', component: ObjectType.SPLIT_VIEW, enumType: EnumType.OBJECT_TYPE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isInternal: true, isComputed: true, isWired: true },
@@ -38628,24 +40389,24 @@ export const SplitViewDataInfo: Record<SplitViewProperty, PropertyInfo> = {
   [SplitViewProperty.maxWidth]: { id: 45, name: 'max_width', component: ObjectType.SPLIT_VIEW, kind: 'primitive', primitiveType: PrimitiveType.JSON, isWired: true, isStored: true, referenceStruct: StructType.DIMENSION },
   [SplitViewProperty.maxHeight]: { id: 46, name: 'max_height', component: ObjectType.SPLIT_VIEW, kind: 'primitive', primitiveType: PrimitiveType.JSON, isWired: true, isStored: true, referenceStruct: StructType.DIMENSION },
   [SplitViewProperty.layout]: { id: 50, name: 'layout', component: ObjectType.SPLIT_VIEW, enumType: EnumType.LAYOUT, kind: 'enum', primitiveType: PrimitiveType.INT16, isWired: true, isStored: true },
-  [SplitViewProperty.direction]: { id: 51, name: 'direction', component: ObjectType.SPLIT_VIEW, enumType: EnumType.DIRECTION, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isWired: true, isStored: true },
-  [SplitViewProperty.distribute]: { id: 52, name: 'distribute', component: ObjectType.SPLIT_VIEW, enumType: EnumType.DISTRIBUTE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isWired: true, isStored: true },
-  [SplitViewProperty.align]: { id: 53, name: 'align', component: ObjectType.SPLIT_VIEW, enumType: EnumType.ALIGN, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isWired: true, isStored: true },
-  [SplitViewProperty.gap]: { id: 54, name: 'gap', component: ObjectType.SPLIT_VIEW, kind: 'primitive', primitiveType: PrimitiveType.JSON, isRequired: true, isWired: true, isStored: true, referenceStruct: StructType.AXIS2 },
-  [SplitViewProperty.padding]: { id: 55, name: 'padding', component: ObjectType.SPLIT_VIEW, kind: 'primitive', primitiveType: PrimitiveType.JSON, isRequired: true, isWired: true, isStored: true, referenceStruct: StructType.INSETS },
+  [SplitViewProperty.direction]: { id: 51, name: 'direction', component: ObjectType.SPLIT_VIEW, enumType: EnumType.DIRECTION, kind: 'enum', primitiveType: PrimitiveType.INT16, isWired: true, isStored: true },
+  [SplitViewProperty.distribute]: { id: 52, name: 'distribute', component: ObjectType.SPLIT_VIEW, enumType: EnumType.DISTRIBUTE, kind: 'enum', primitiveType: PrimitiveType.INT16, isWired: true, isStored: true },
+  [SplitViewProperty.align]: { id: 53, name: 'align', component: ObjectType.SPLIT_VIEW, enumType: EnumType.ALIGN, kind: 'enum', primitiveType: PrimitiveType.INT16, isWired: true, isStored: true },
+  [SplitViewProperty.gap]: { id: 54, name: 'gap', component: ObjectType.SPLIT_VIEW, kind: 'primitive', primitiveType: PrimitiveType.JSON, isWired: true, isStored: true, referenceStruct: StructType.AXIS2 },
+  [SplitViewProperty.padding]: { id: 55, name: 'padding', component: ObjectType.SPLIT_VIEW, kind: 'primitive', primitiveType: PrimitiveType.JSON, isWired: true, isStored: true, referenceStruct: StructType.INSETS },
   [SplitViewProperty.grid]: { id: 56, name: 'grid', component: ObjectType.SPLIT_VIEW, kind: 'primitive', primitiveType: PrimitiveType.JSON, isWired: true, isStored: true, referenceStruct: StructType.GRID },
   [SplitViewProperty.gridSpan]: { id: 57, name: 'grid_span', component: ObjectType.SPLIT_VIEW, kind: 'primitive', primitiveType: PrimitiveType.JSON, isWired: true, isStored: true, referenceStruct: StructType.GRID_SPAN },
   [SplitViewProperty.aspectRatio]: { id: 58, name: 'aspect_ratio', component: ObjectType.SPLIT_VIEW, kind: 'primitive', primitiveType: PrimitiveType.FLOAT32, isWired: true, isStored: true },
   [SplitViewProperty.isWrap]: { id: 59, name: 'is_wrap', component: ObjectType.SPLIT_VIEW, kind: 'primitive', primitiveType: PrimitiveType.BOOLEAN, isWired: true, isStored: true },
-  [SplitViewProperty.isVisible]: { id: 60, name: 'is_visible', component: ObjectType.SPLIT_VIEW, kind: 'primitive', primitiveType: PrimitiveType.BOOLEAN, isRequired: true, isWired: true, isStored: true },
-  [SplitViewProperty.opacity]: { id: 61, name: 'opacity', component: ObjectType.SPLIT_VIEW, kind: 'primitive', primitiveType: PrimitiveType.FLOAT32, isRequired: true, isWired: true, isStored: true },
-  [SplitViewProperty.fill]: { id: 62, name: 'fill', component: ObjectType.SPLIT_VIEW, kind: 'primitive', primitiveType: PrimitiveType.JSON, isRequired: true, isWired: true, isStored: true, referenceStruct: StructType.FILL },
-  [SplitViewProperty.rotation]: { id: 63, name: 'rotation', component: ObjectType.SPLIT_VIEW, kind: 'primitive', primitiveType: PrimitiveType.JSON, isRequired: true, isWired: true, isStored: true, referenceStruct: StructType.AXIS3 },
-  [SplitViewProperty.skew]: { id: 64, name: 'skew', component: ObjectType.SPLIT_VIEW, kind: 'primitive', primitiveType: PrimitiveType.JSON, isRequired: true, isWired: true, isStored: true, referenceStruct: StructType.VECTOR2 },
-  [SplitViewProperty.scale]: { id: 65, name: 'scale', component: ObjectType.SPLIT_VIEW, kind: 'primitive', primitiveType: PrimitiveType.FLOAT32, isRequired: true, isWired: true, isStored: true },
-  [SplitViewProperty.shadow]: { id: 66, name: 'shadow', component: ObjectType.SPLIT_VIEW, kind: 'primitive', primitiveType: PrimitiveType.JSON, isRequired: true, isWired: true, isStored: true, referenceStruct: StructType.SHADOW },
-  [SplitViewProperty.border]: { id: 67, name: 'border', component: ObjectType.SPLIT_VIEW, kind: 'primitive', primitiveType: PrimitiveType.JSON, isRequired: true, isWired: true, isStored: true, referenceStruct: StructType.BORDER },
-  [SplitViewProperty.radius]: { id: 68, name: 'radius', component: ObjectType.SPLIT_VIEW, kind: 'primitive', primitiveType: PrimitiveType.JSON, isRequired: true, isWired: true, isStored: true, referenceStruct: StructType.CORNERS },
+  [SplitViewProperty.isVisible]: { id: 60, name: 'is_visible', component: ObjectType.SPLIT_VIEW, kind: 'primitive', primitiveType: PrimitiveType.BOOLEAN, isWired: true, isStored: true },
+  [SplitViewProperty.opacity]: { id: 61, name: 'opacity', component: ObjectType.SPLIT_VIEW, kind: 'primitive', primitiveType: PrimitiveType.FLOAT32, isWired: true, isStored: true },
+  [SplitViewProperty.fill]: { id: 62, name: 'fill', component: ObjectType.SPLIT_VIEW, kind: 'primitive', primitiveType: PrimitiveType.JSON, isWired: true, isStored: true, referenceStruct: StructType.FILL },
+  [SplitViewProperty.rotation]: { id: 63, name: 'rotation', component: ObjectType.SPLIT_VIEW, kind: 'primitive', primitiveType: PrimitiveType.JSON, isWired: true, isStored: true, referenceStruct: StructType.AXIS3 },
+  [SplitViewProperty.skew]: { id: 64, name: 'skew', component: ObjectType.SPLIT_VIEW, kind: 'primitive', primitiveType: PrimitiveType.JSON, isWired: true, isStored: true, referenceStruct: StructType.VECTOR2 },
+  [SplitViewProperty.scale]: { id: 65, name: 'scale', component: ObjectType.SPLIT_VIEW, kind: 'primitive', primitiveType: PrimitiveType.FLOAT32, isWired: true, isStored: true },
+  [SplitViewProperty.shadow]: { id: 66, name: 'shadow', component: ObjectType.SPLIT_VIEW, kind: 'primitive', primitiveType: PrimitiveType.JSON, isWired: true, isStored: true, referenceStruct: StructType.SHADOW },
+  [SplitViewProperty.border]: { id: 67, name: 'border', component: ObjectType.SPLIT_VIEW, kind: 'primitive', primitiveType: PrimitiveType.JSON, isWired: true, isStored: true, referenceStruct: StructType.BORDER },
+  [SplitViewProperty.radius]: { id: 68, name: 'radius', component: ObjectType.SPLIT_VIEW, kind: 'primitive', primitiveType: PrimitiveType.JSON, isWired: true, isStored: true, referenceStruct: StructType.CORNERS },
 }
 export const TextViewDataInfo: Record<TextViewProperty, PropertyInfo> = {
   [TextViewProperty.metatype]: { id: 1, name: 'metatype', component: ObjectType.TEXT_VIEW, enumType: EnumType.OBJECT_TYPE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isInternal: true, isComputed: true, isWired: true },
@@ -38681,12 +40442,12 @@ export const TextViewDataInfo: Record<TextViewProperty, PropertyInfo> = {
   [TextViewProperty.maxWidth]: { id: 45, name: 'max_width', component: ObjectType.TEXT_VIEW, kind: 'primitive', primitiveType: PrimitiveType.JSON, isWired: true, isStored: true, referenceStruct: StructType.DIMENSION },
   [TextViewProperty.maxHeight]: { id: 46, name: 'max_height', component: ObjectType.TEXT_VIEW, kind: 'primitive', primitiveType: PrimitiveType.JSON, isWired: true, isStored: true, referenceStruct: StructType.DIMENSION },
   [TextViewProperty.align]: { id: 53, name: 'align', component: ObjectType.TEXT_VIEW, enumType: EnumType.ALIGN, kind: 'enum', primitiveType: PrimitiveType.INT16, isWired: true, isStored: true },
-  [TextViewProperty.isVisible]: { id: 60, name: 'is_visible', component: ObjectType.TEXT_VIEW, kind: 'primitive', primitiveType: PrimitiveType.BOOLEAN, isRequired: true, isWired: true, isStored: true },
-  [TextViewProperty.opacity]: { id: 61, name: 'opacity', component: ObjectType.TEXT_VIEW, kind: 'primitive', primitiveType: PrimitiveType.FLOAT32, isRequired: true, isWired: true, isStored: true },
+  [TextViewProperty.isVisible]: { id: 60, name: 'is_visible', component: ObjectType.TEXT_VIEW, kind: 'primitive', primitiveType: PrimitiveType.BOOLEAN, isWired: true, isStored: true },
+  [TextViewProperty.opacity]: { id: 61, name: 'opacity', component: ObjectType.TEXT_VIEW, kind: 'primitive', primitiveType: PrimitiveType.FLOAT32, isWired: true, isStored: true },
   [TextViewProperty.userSelect]: { id: 65, name: 'user_select', component: ObjectType.TEXT_VIEW, kind: 'primitive', primitiveType: PrimitiveType.BOOLEAN, isWired: true, isStored: true },
   [TextViewProperty.font]: { id: 66, name: 'font', component: ObjectType.TEXT_VIEW, kind: 'primitive', primitiveType: PrimitiveType.JSON, isWired: true, isStored: true, referenceStruct: StructType.FONT },
-  [TextViewProperty.color]: { id: 67, name: 'color', component: ObjectType.TEXT_VIEW, kind: 'primitive', primitiveType: PrimitiveType.JSON, isRequired: true, isWired: true, isStored: true, referenceStruct: StructType.FILL },
-  [TextViewProperty.text]: { id: 100, name: 'text', component: ObjectType.TEXT_VIEW, kind: 'primitive', primitiveType: PrimitiveType.STRING, isRequired: true, isWired: true, isStored: true },
+  [TextViewProperty.color]: { id: 67, name: 'color', component: ObjectType.TEXT_VIEW, kind: 'primitive', primitiveType: PrimitiveType.JSON, isWired: true, isStored: true, referenceStruct: StructType.FILL },
+  [TextViewProperty.text]: { id: 100, name: 'text', component: ObjectType.TEXT_VIEW, kind: 'primitive', primitiveType: PrimitiveType.STRING, isWired: true, isStored: true },
 }
 export const NumberInputViewDataInfo: Record<NumberInputViewProperty, PropertyInfo> = {
   [NumberInputViewProperty.metatype]: { id: 1, name: 'metatype', component: ObjectType.NUMBER_INPUT_VIEW, enumType: EnumType.OBJECT_TYPE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isInternal: true, isComputed: true, isWired: true },
@@ -38721,8 +40482,8 @@ export const NumberInputViewDataInfo: Record<NumberInputViewProperty, PropertyIn
   [NumberInputViewProperty.minHeight]: { id: 44, name: 'min_height', component: ObjectType.NUMBER_INPUT_VIEW, kind: 'primitive', primitiveType: PrimitiveType.JSON, isWired: true, isStored: true, referenceStruct: StructType.DIMENSION },
   [NumberInputViewProperty.maxWidth]: { id: 45, name: 'max_width', component: ObjectType.NUMBER_INPUT_VIEW, kind: 'primitive', primitiveType: PrimitiveType.JSON, isWired: true, isStored: true, referenceStruct: StructType.DIMENSION },
   [NumberInputViewProperty.maxHeight]: { id: 46, name: 'max_height', component: ObjectType.NUMBER_INPUT_VIEW, kind: 'primitive', primitiveType: PrimitiveType.JSON, isWired: true, isStored: true, referenceStruct: StructType.DIMENSION },
-  [NumberInputViewProperty.isVisible]: { id: 60, name: 'is_visible', component: ObjectType.NUMBER_INPUT_VIEW, kind: 'primitive', primitiveType: PrimitiveType.BOOLEAN, isRequired: true, isWired: true, isStored: true },
-  [NumberInputViewProperty.opacity]: { id: 61, name: 'opacity', component: ObjectType.NUMBER_INPUT_VIEW, kind: 'primitive', primitiveType: PrimitiveType.FLOAT32, isRequired: true, isWired: true, isStored: true },
+  [NumberInputViewProperty.isVisible]: { id: 60, name: 'is_visible', component: ObjectType.NUMBER_INPUT_VIEW, kind: 'primitive', primitiveType: PrimitiveType.BOOLEAN, isWired: true, isStored: true },
+  [NumberInputViewProperty.opacity]: { id: 61, name: 'opacity', component: ObjectType.NUMBER_INPUT_VIEW, kind: 'primitive', primitiveType: PrimitiveType.FLOAT32, isWired: true, isStored: true },
   [NumberInputViewProperty.value]: { id: 100, name: 'value', component: ObjectType.NUMBER_INPUT_VIEW, kind: 'primitive', primitiveType: PrimitiveType.STRING, isWired: true, isStored: true },
   [NumberInputViewProperty.placeholder]: { id: 101, name: 'placeholder', component: ObjectType.NUMBER_INPUT_VIEW, kind: 'primitive', primitiveType: PrimitiveType.STRING, isWired: true, isStored: true },
 }
@@ -38759,8 +40520,8 @@ export const SliderInputViewDataInfo: Record<SliderInputViewProperty, PropertyIn
   [SliderInputViewProperty.minHeight]: { id: 44, name: 'min_height', component: ObjectType.SLIDER_INPUT_VIEW, kind: 'primitive', primitiveType: PrimitiveType.JSON, isWired: true, isStored: true, referenceStruct: StructType.DIMENSION },
   [SliderInputViewProperty.maxWidth]: { id: 45, name: 'max_width', component: ObjectType.SLIDER_INPUT_VIEW, kind: 'primitive', primitiveType: PrimitiveType.JSON, isWired: true, isStored: true, referenceStruct: StructType.DIMENSION },
   [SliderInputViewProperty.maxHeight]: { id: 46, name: 'max_height', component: ObjectType.SLIDER_INPUT_VIEW, kind: 'primitive', primitiveType: PrimitiveType.JSON, isWired: true, isStored: true, referenceStruct: StructType.DIMENSION },
-  [SliderInputViewProperty.isVisible]: { id: 60, name: 'is_visible', component: ObjectType.SLIDER_INPUT_VIEW, kind: 'primitive', primitiveType: PrimitiveType.BOOLEAN, isRequired: true, isWired: true, isStored: true },
-  [SliderInputViewProperty.opacity]: { id: 61, name: 'opacity', component: ObjectType.SLIDER_INPUT_VIEW, kind: 'primitive', primitiveType: PrimitiveType.FLOAT32, isRequired: true, isWired: true, isStored: true },
+  [SliderInputViewProperty.isVisible]: { id: 60, name: 'is_visible', component: ObjectType.SLIDER_INPUT_VIEW, kind: 'primitive', primitiveType: PrimitiveType.BOOLEAN, isWired: true, isStored: true },
+  [SliderInputViewProperty.opacity]: { id: 61, name: 'opacity', component: ObjectType.SLIDER_INPUT_VIEW, kind: 'primitive', primitiveType: PrimitiveType.FLOAT32, isWired: true, isStored: true },
   [SliderInputViewProperty.value]: { id: 100, name: 'value', component: ObjectType.SLIDER_INPUT_VIEW, kind: 'primitive', primitiveType: PrimitiveType.FLOAT32, isWired: true, isStored: true },
   [SliderInputViewProperty.minValue]: { id: 101, name: 'min_value', component: ObjectType.SLIDER_INPUT_VIEW, kind: 'primitive', primitiveType: PrimitiveType.FLOAT32, isWired: true, isStored: true },
   [SliderInputViewProperty.maxValue]: { id: 102, name: 'max_value', component: ObjectType.SLIDER_INPUT_VIEW, kind: 'primitive', primitiveType: PrimitiveType.FLOAT32, isWired: true, isStored: true },

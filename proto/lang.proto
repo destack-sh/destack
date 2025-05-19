@@ -2078,24 +2078,66 @@ message ComponentViewData {
   optional DimensionData max_width = 45;
   optional DimensionData max_height = 46;
   optional Layout layout = 50;
-  Direction direction = 51;
-  Distribute distribute = 52;
-  Align align = 53;
-  Axis2Data gap = 54;
-  InsetsData padding = 55;
+  oneof direction {
+    Direction direction_value = 51;
+    VariableData direction_variable = 17051;
+  };
+  oneof distribute {
+    Distribute distribute_value = 52;
+    VariableData distribute_variable = 17052;
+  };
+  oneof align {
+    Align align_value = 53;
+    VariableData align_variable = 17053;
+  };
+  oneof gap {
+    Axis2Data gap_value = 54;
+    VariableData gap_variable = 17054;
+  };
+  oneof padding {
+    InsetsData padding_value = 55;
+    VariableData padding_variable = 17055;
+  };
   optional GridData grid = 56;
   optional GridSpanData grid_span = 57;
   optional float aspect_ratio = 58;
   optional bool is_wrap = 59;
-  bool is_visible = 60;
-  float opacity = 61;
-  FillData fill = 62;
-  Axis3Data rotation = 63;
-  Vector2Data skew = 64;
-  float scale = 65;
-  ShadowData shadow = 66;
-  BorderData border = 67;
-  CornersData radius = 68;
+  oneof is_visible {
+    bool is_visible_value = 60;
+    VariableData is_visible_variable = 17060;
+  };
+  oneof opacity {
+    float opacity_value = 61;
+    VariableData opacity_variable = 17061;
+  };
+  oneof fill {
+    FillData fill_value = 62;
+    VariableData fill_variable = 17062;
+  };
+  oneof rotation {
+    Axis3Data rotation_value = 63;
+    VariableData rotation_variable = 17063;
+  };
+  oneof skew {
+    Vector2Data skew_value = 64;
+    VariableData skew_variable = 17064;
+  };
+  oneof scale {
+    float scale_value = 65;
+    VariableData scale_variable = 17065;
+  };
+  oneof shadow {
+    ShadowData shadow_value = 66;
+    VariableData shadow_variable = 17066;
+  };
+  oneof border {
+    BorderData border_value = 67;
+    VariableData border_variable = 17067;
+  };
+  oneof radius {
+    CornersData radius_value = 68;
+    VariableData radius_variable = 17068;
+  };
 }
 
 // A Computer provides physical compute.
@@ -2590,24 +2632,66 @@ message FrameViewData {
   optional DimensionData max_width = 45;
   optional DimensionData max_height = 46;
   optional Layout layout = 50;
-  Direction direction = 51;
-  Distribute distribute = 52;
-  Align align = 53;
-  Axis2Data gap = 54;
-  InsetsData padding = 55;
+  oneof direction {
+    Direction direction_value = 51;
+    VariableData direction_variable = 17051;
+  };
+  oneof distribute {
+    Distribute distribute_value = 52;
+    VariableData distribute_variable = 17052;
+  };
+  oneof align {
+    Align align_value = 53;
+    VariableData align_variable = 17053;
+  };
+  oneof gap {
+    Axis2Data gap_value = 54;
+    VariableData gap_variable = 17054;
+  };
+  oneof padding {
+    InsetsData padding_value = 55;
+    VariableData padding_variable = 17055;
+  };
   optional GridData grid = 56;
   optional GridSpanData grid_span = 57;
   optional float aspect_ratio = 58;
   optional bool is_wrap = 59;
-  bool is_visible = 60;
-  float opacity = 61;
-  FillData fill = 62;
-  Axis3Data rotation = 63;
-  Vector2Data skew = 64;
-  float scale = 65;
-  ShadowData shadow = 66;
-  BorderData border = 67;
-  CornersData radius = 68;
+  oneof is_visible {
+    bool is_visible_value = 60;
+    VariableData is_visible_variable = 17060;
+  };
+  oneof opacity {
+    float opacity_value = 61;
+    VariableData opacity_variable = 17061;
+  };
+  oneof fill {
+    FillData fill_value = 62;
+    VariableData fill_variable = 17062;
+  };
+  oneof rotation {
+    Axis3Data rotation_value = 63;
+    VariableData rotation_variable = 17063;
+  };
+  oneof skew {
+    Vector2Data skew_value = 64;
+    VariableData skew_variable = 17064;
+  };
+  oneof scale {
+    float scale_value = 65;
+    VariableData scale_variable = 17065;
+  };
+  oneof shadow {
+    ShadowData shadow_value = 66;
+    VariableData shadow_variable = 17066;
+  };
+  oneof border {
+    BorderData border_value = 67;
+    VariableData border_variable = 17067;
+  };
+  oneof radius {
+    CornersData radius_value = 68;
+    VariableData radius_variable = 17068;
+  };
 }
 
 message GradientData {
@@ -2773,24 +2857,66 @@ message LabelViewData {
   optional DimensionData max_width = 45;
   optional DimensionData max_height = 46;
   optional Layout layout = 50;
-  Direction direction = 51;
-  Distribute distribute = 52;
-  Align align = 53;
-  Axis2Data gap = 54;
-  InsetsData padding = 55;
+  oneof direction {
+    Direction direction_value = 51;
+    VariableData direction_variable = 17051;
+  };
+  oneof distribute {
+    Distribute distribute_value = 52;
+    VariableData distribute_variable = 17052;
+  };
+  oneof align {
+    Align align_value = 53;
+    VariableData align_variable = 17053;
+  };
+  oneof gap {
+    Axis2Data gap_value = 54;
+    VariableData gap_variable = 17054;
+  };
+  oneof padding {
+    InsetsData padding_value = 55;
+    VariableData padding_variable = 17055;
+  };
   optional GridData grid = 56;
   optional GridSpanData grid_span = 57;
   optional float aspect_ratio = 58;
   optional bool is_wrap = 59;
-  bool is_visible = 60;
-  float opacity = 61;
-  FillData fill = 62;
-  Axis3Data rotation = 63;
-  Vector2Data skew = 64;
-  float scale = 65;
-  ShadowData shadow = 66;
-  BorderData border = 67;
-  CornersData radius = 68;
+  oneof is_visible {
+    bool is_visible_value = 60;
+    VariableData is_visible_variable = 17060;
+  };
+  oneof opacity {
+    float opacity_value = 61;
+    VariableData opacity_variable = 17061;
+  };
+  oneof fill {
+    FillData fill_value = 62;
+    VariableData fill_variable = 17062;
+  };
+  oneof rotation {
+    Axis3Data rotation_value = 63;
+    VariableData rotation_variable = 17063;
+  };
+  oneof skew {
+    Vector2Data skew_value = 64;
+    VariableData skew_variable = 17064;
+  };
+  oneof scale {
+    float scale_value = 65;
+    VariableData scale_variable = 17065;
+  };
+  oneof shadow {
+    ShadowData shadow_value = 66;
+    VariableData shadow_variable = 17066;
+  };
+  oneof border {
+    BorderData border_value = 67;
+    VariableData border_variable = 17067;
+  };
+  oneof radius {
+    CornersData radius_value = 68;
+    VariableData radius_variable = 17068;
+  };
 }
 
 message LengthData {
@@ -2951,8 +3077,14 @@ message NumberInputViewData {
   optional DimensionData min_height = 44;
   optional DimensionData max_width = 45;
   optional DimensionData max_height = 46;
-  bool is_visible = 60;
-  float opacity = 61;
+  oneof is_visible {
+    bool is_visible_value = 60;
+    VariableData is_visible_variable = 17060;
+  };
+  oneof opacity {
+    float opacity_value = 61;
+    VariableData opacity_variable = 17061;
+  };
   optional string value = 100;
   optional string placeholder = 101;
 }
@@ -3407,8 +3539,14 @@ message SliderInputViewData {
   optional DimensionData min_height = 44;
   optional DimensionData max_width = 45;
   optional DimensionData max_height = 46;
-  bool is_visible = 60;
-  float opacity = 61;
+  oneof is_visible {
+    bool is_visible_value = 60;
+    VariableData is_visible_variable = 17060;
+  };
+  oneof opacity {
+    float opacity_value = 61;
+    VariableData opacity_variable = 17061;
+  };
   optional float value = 100;
   optional float min_value = 101;
   optional float max_value = 102;
@@ -3507,24 +3645,66 @@ message SplitViewData {
   optional DimensionData max_width = 45;
   optional DimensionData max_height = 46;
   optional Layout layout = 50;
-  Direction direction = 51;
-  Distribute distribute = 52;
-  Align align = 53;
-  Axis2Data gap = 54;
-  InsetsData padding = 55;
+  oneof direction {
+    Direction direction_value = 51;
+    VariableData direction_variable = 17051;
+  };
+  oneof distribute {
+    Distribute distribute_value = 52;
+    VariableData distribute_variable = 17052;
+  };
+  oneof align {
+    Align align_value = 53;
+    VariableData align_variable = 17053;
+  };
+  oneof gap {
+    Axis2Data gap_value = 54;
+    VariableData gap_variable = 17054;
+  };
+  oneof padding {
+    InsetsData padding_value = 55;
+    VariableData padding_variable = 17055;
+  };
   optional GridData grid = 56;
   optional GridSpanData grid_span = 57;
   optional float aspect_ratio = 58;
   optional bool is_wrap = 59;
-  bool is_visible = 60;
-  float opacity = 61;
-  FillData fill = 62;
-  Axis3Data rotation = 63;
-  Vector2Data skew = 64;
-  float scale = 65;
-  ShadowData shadow = 66;
-  BorderData border = 67;
-  CornersData radius = 68;
+  oneof is_visible {
+    bool is_visible_value = 60;
+    VariableData is_visible_variable = 17060;
+  };
+  oneof opacity {
+    float opacity_value = 61;
+    VariableData opacity_variable = 17061;
+  };
+  oneof fill {
+    FillData fill_value = 62;
+    VariableData fill_variable = 17062;
+  };
+  oneof rotation {
+    Axis3Data rotation_value = 63;
+    VariableData rotation_variable = 17063;
+  };
+  oneof skew {
+    Vector2Data skew_value = 64;
+    VariableData skew_variable = 17064;
+  };
+  oneof scale {
+    float scale_value = 65;
+    VariableData scale_variable = 17065;
+  };
+  oneof shadow {
+    ShadowData shadow_value = 66;
+    VariableData shadow_variable = 17066;
+  };
+  oneof border {
+    BorderData border_value = 67;
+    VariableData border_variable = 17067;
+  };
+  oneof radius {
+    CornersData radius_value = 68;
+    VariableData radius_variable = 17068;
+  };
 }
 
 // A Table of Records.
@@ -3679,12 +3859,24 @@ message TextViewData {
   optional DimensionData max_width = 45;
   optional DimensionData max_height = 46;
   optional Align align = 53;
-  bool is_visible = 60;
-  float opacity = 61;
+  oneof is_visible {
+    bool is_visible_value = 60;
+    VariableData is_visible_variable = 17060;
+  };
+  oneof opacity {
+    float opacity_value = 61;
+    VariableData opacity_variable = 17061;
+  };
   optional bool user_select = 65;
   optional FontData font = 66;
-  FillData color = 67;
-  string text = 100;
+  oneof color {
+    FillData color_value = 67;
+    VariableData color_variable = 17067;
+  };
+  oneof text {
+    string text_value = 100;
+    VariableData text_variable = 17100;
+  };
 }
 
 // A Theme with common styles.

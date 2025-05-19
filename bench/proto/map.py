@@ -2,6 +2,7 @@ import enum
 from typing import TYPE_CHECKING, Any, Collection, Sequence, cast
 
 from bench.language import (
+    UNSET,
     BenchType,
     BuiltinEnum,
     BuiltinObject,
@@ -48,13 +49,13 @@ PROTO_FIELD_TYPE_BY_PRIMITIVE_TYPE: dict[PrimitiveType, ProtoFieldType] = {
 }
 
 
-def _map_bench_property_to_proto(
+def _map_bench_property_to_proto_field(
     prop: "Property", cache: dict[BenchType, ProtoThing]
-) -> ProtoField | Sequence[ProtoField]:
+) -> Sequence[ProtoField]:
     assert prop.id == 1 or prop.is_wired, f"shouldn't map runtime property: {prop!r}"
     assert isinstance(prop.id, int), f"stored properties need an id: {prop!r}"
     if prop.node_kind:
-        return ProtoField(
+        field = ProtoField(
             id=prop.id,
             name=prop.name,
             type="NodeReferenceData",
@@ -66,16 +67,18 @@ def _map_bench_property_to_proto(
         assert isinstance(
             proto_t, (ProtoEnum, ProtoMessage)
         ), f"unexpected property type: {proto_t!r}"
-        return ProtoField(
+        field = ProtoField(
             id=prop.id,
             name=prop.name,
             type=proto_t,
             optional=prop.is_optional or prop.is_sensitive,
             repeated=prop.is_list,
         )
-    elif prop.primitive_type in PROTO_FIELD_TYPE_BY_PRIMITIVE_TYPE:
-        field_type = PROTO_FIELD_TYPE_BY_PRIMITIVE_TYPE[prop.primitive_type]
-        return ProtoField(
+    elif (
+        prop.primitive_type
+        and (field_type := PROTO_FIELD_TYPE_BY_PRIMITIVE_TYPE.get(prop.primitive_type)) is not None
+    ):
+        field = ProtoField(
             id=prop.id,
             name=prop.name,
             type=field_type,
@@ -83,7 +86,7 @@ def _map_bench_property_to_proto(
             repeated=prop.is_list,
         )
     elif prop.is_node_data:
-        return ProtoField(
+        field = ProtoField(
             id=prop.id,
             name=prop.name,
             type="SomeNodeData",
@@ -93,8 +96,28 @@ def _map_bench_property_to_proto(
     else:
         raise TypeError(f"cannot map to proto type: {prop!r}")
 
+    assert prop.is_variable is not UNSET, f"undetermined variable: {prop!r}"
+    if prop.is_variable is True:
+        field.optional = False  # proto fields in oneof cannot have labels
+        variable_field = ProtoField(
+            id=prop.id + VARIABLE_PROPERTY_OFFSET,
+            name=f"{prop.name}_variable",
+            type="VariableData",
+            repeated=prop.is_list,
+        )
+        wrapper_field = ProtoField(
+            id=prop.id,
+            name=field.name,
+            type=ProtoFieldType.ONE_OF,
+            sub_fields=(field, variable_field),
+        )
+        field.name = f"{field.name}_value"
+        return (wrapper_field,)
+    else:
+        return (field,)
 
-def _map_builtin_object_to_proto(
+
+def _map_builtin_object_to_proto_message(
     bench_type: BenchType,
     cls: type[BuiltinObject],
     cache: dict[BenchType, ProtoThing],
@@ -114,16 +137,14 @@ def _map_builtin_object_to_proto(
     for prop in properties if properties is not None else cls.__properties__.values():
         if not prop.is_wired or prop.ptr_prop is not None:
             continue
-        fields = _map_bench_property_to_proto(prop, cache)
-        if isinstance(fields, ProtoField):
-            fields = [fields]
+        fields = _map_bench_property_to_proto_field(prop, cache)
         message.fields.extend(fields)
     message.fields.sort(key=lambda f: cast(int, f.id))
     return message
 
 
-def _map_builtin_enum_to_proto(
-    bench_t: type[BuiltinEnum] | type[enum.IntFlag],
+def _map_builtin_enum_to_proto_enum(
+    bench_t: type[BuiltinEnum],
     cache: dict[BenchType, ProtoThing],
     alias: str | None = None,
 ) -> ProtoEnum:
@@ -165,9 +186,9 @@ def _map_object_type_to_proto(
     if bench_type in cache:
         return cache[bench_type]
     if issubclass(bench_cls, BuiltinObject):
-        ret = _map_builtin_object_to_proto(bench_type, bench_cls, cache, alias=alias)
+        ret = _map_builtin_object_to_proto_message(bench_type, bench_cls, cache, alias=alias)
     elif issubclass(bench_cls, BuiltinEnum):
-        ret = _map_builtin_enum_to_proto(bench_cls, cache, alias=alias)
+        ret = _map_builtin_enum_to_proto_enum(bench_cls, cache, alias=alias)
     else:
         raise TypeError(f"invalid bench type: {bench_cls!r}")
     cache[bench_type] = ret

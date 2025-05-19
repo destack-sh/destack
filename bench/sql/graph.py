@@ -139,10 +139,10 @@ def map_builtin_object_to_sql_table(
             assert not prop.is_list, f"node ptr {prop!r} is a list"
             assert not prop.is_unique, f"node ptr {prop!r} is unique"
             # id
-            id_column = SqlColumn(
+            column = SqlColumn(
                 name=f"{prop.name}_id", type=PrimitiveType.UUID, is_nullable=not prop.is_required
             )
-            columns.append(id_column)
+            columns.append(column)
             # ck
             if "ck" not in prop.node_exclude and any(
                 "ck" in NODE_CLASS_BY_TYPE[node_type].__properties__
@@ -225,6 +225,15 @@ def map_builtin_object_to_sql_table(
                     _source=prop.id,
                 )
                 constraints.append(constraint)
+
+        # variable properties
+        assert prop.is_variable is not UNSET, f"undetermined variable: {prop!r}"
+        if prop.is_variable:
+            column.is_nullable = True
+            variable_column = SqlColumn(
+                name=f"{prop.name}_variable", type=PrimitiveType.JSON, is_nullable=True
+            )
+            columns.append(variable_column)
 
     # extras
     for index in node.__indexes__:
