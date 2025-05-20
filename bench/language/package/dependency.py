@@ -24,7 +24,7 @@ class Dependency(IsTemplatable, IsModal, PackageNode[DependencyData]):
     # NOTE :Incomplete: Dependency doesn't actually do anything yet
     #  (we just hardcode a dependency on the builtin Bench package)
 
-    parent: Union["Package", None] = p_node_parent(4, NodeType.PACKAGE)
+    parent: Union["Package", None] = p_node_parent(4)
 
     dependency: Union["Package", "Bench"] = p_regular(
         40,

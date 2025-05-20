@@ -35,7 +35,7 @@ class Channel(IsInstantiable, IsProcessable, IsJoinable, IsModal, IsNamed, PageN
     """
 
     # meta
-    parent: Union["Page", "Package", None] = p_node_parent(4, NodeType.PAGE, NodeType.PACKAGE)
+    parent: Union["Page", "Package", None] = p_node_parent(4)
     # type: ChannelType? (text, voice, etc.)
 
     # ...IsProcessable[80-]

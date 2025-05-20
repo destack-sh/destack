@@ -37,7 +37,7 @@ class Page(
     """A Page of Blocks laying out rich Text, data, logic, resources -- anything software needs."""
 
     # meta
-    parent: Union["Package", "Page", None] = p_node_parent(4, NodeType.PACKAGE, NodeType.PAGE)
+    parent: Union["Package", "Page", None] = p_node_parent(4)
     # NOTE: :Architecture: maybe some PageNodes should have their own Page? or is that confusing?
     # app? scene? plugin? Page/Record/View/... tying? :NodeTying
 

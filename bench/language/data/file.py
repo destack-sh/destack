@@ -488,16 +488,7 @@ class File(ResourceBase[FileData]):
         "Message",
         "Run",
         None,
-    ] = p_node_parent(
-        4,
-        NodeType.PACKAGE,
-        NodeType.PAGE,
-        NodeType.TABLE,
-        NodeType.CHANNEL,
-        NodeType.THREAD,
-        NodeType.MESSAGE,
-        NodeType.RUN,
-    )
+    ] = p_node_parent(4)
 
     type: FileType = p_regular(30)
 

@@ -57,11 +57,9 @@ class Run(
     """
 
     # meta
-    parent: Union["Thread", "Agent", "Run", None] = p_node_parent(
-        4, NodeType.THREAD, NodeType.AGENT, NodeType.RUN
-    )
+    parent: Union["Thread", "Agent", "Run", None] = p_node_parent(4)
     type: RunType = p_system(30)
-    root: "Run | None" = p_node_ancestor(33, NodeType.RUN, require=False, store=True, wire=True)
+    root: "Run | None" = p_node_ancestor(33, require=False, store=True, wire=True)
     thread: Optional["Thread"] = p_internal(
         38,
         node_bench_from="self",

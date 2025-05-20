@@ -39,7 +39,7 @@ class Space(IsOwnable, IsTemplatable, IsModal, IsOrdered, PackageNode[SpaceData]
     Spaces to all Benches are stored in the owning User's Bench.
     """
 
-    parent: Optional["Package"] = p_node_parent(4, NodeType.PACKAGE)
+    parent: Optional["Package"] = p_node_parent(4)
 
     type: SpaceType = p_regular(30)
     name: str | None = p_regular(31, constraint=NAME_CONSTRAINT)

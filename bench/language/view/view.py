@@ -1,11 +1,9 @@
 from typing import TYPE_CHECKING, Optional, Union
 
 from bench.language.core import (
-    VIEW_NODE_TYPES,
     IsInstantiable,
     IsModal,
     IsNamed,
-    NodeType,
     PageNode,
     node_component_,
     p_node_parent,
@@ -28,9 +26,7 @@ class ViewBase[NodeDataT: AnyNodeData](
 ):
     """A View is a graphical interface."""
 
-    parent: Union["Space", "ViewBase", "Page", None] = p_node_parent(
-        4, NodeType.SPACE, *VIEW_NODE_TYPES.tuple, NodeType.PAGE
-    )
+    parent: Union["Space", "ViewBase", "Page", None] = p_node_parent(4)
     # variant_of, ...
 
     # sizing

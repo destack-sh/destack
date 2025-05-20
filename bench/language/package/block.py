@@ -70,7 +70,7 @@ class Block(IsTemplatable, IsModal, IsNamed, IsOrdered, PackageNode[BlockData]):
     A Block on a Page.
     """
 
-    parent: Union["Page", "Block", None] = p_node_parent(4, NodeType.PAGE, NodeType.BLOCK)
+    parent: Union["Page", "Block", None] = p_node_parent(4)
 
     # meta
     type: BlockType = p_regular(30, description="The type of block.")

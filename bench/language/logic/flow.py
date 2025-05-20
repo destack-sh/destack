@@ -60,7 +60,7 @@ class Flow(
 ):
     """A Flow orchestrates a sequence of steps (like Actions)."""
 
-    parent: Union["Page", "Agent", None] = p_node_parent(4, NodeType.PAGE, NodeType.AGENT)
+    parent: Union["Page", "Agent", None] = p_node_parent(4)
     type: FlowType = p_regular(30, default=FlowType.ACTION)
 
     def __content_str__(self):
@@ -93,7 +93,7 @@ class FlowEdge(
     A Transition between nodes in a Flow (source = outgoing, target = incoming).
     """
 
-    parent: Union["Flow", None] = p_node_parent(4, NodeType.FLOW)
+    parent: Union["Flow", None] = p_node_parent(4)
 
     # meta
     type: FlowEdgeType = p_internal(30)

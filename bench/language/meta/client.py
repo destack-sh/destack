@@ -32,11 +32,11 @@ class Client(IsNamed, Node[ClientData]):
     """A Client to connect with the system."""
 
     # meta
-    bench: "Bench | None" = p_node_ancestor(5, NodeType.BENCH, require=False, store=True, wire=True)
+    bench: "Bench | None" = p_node_ancestor(5, require=False, store=True, wire=True)
     type: ClientType = p_regular(30)
     space: Optional["Space"] = p_system(35)
     computer: Optional["Computer"] = p_system(36)
-    user: "User | None" = p_node_ancestor(37, NodeType.USER, require=False, store=True, wire=True)
+    user: "User | None" = p_node_ancestor(37, require=False, store=True, wire=True)
     if TYPE_CHECKING:
         bench_id: Optional[UUID] = None
         bench_ptr: Optional[NodeReference] = None

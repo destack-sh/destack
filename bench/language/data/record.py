@@ -43,7 +43,7 @@ class Record(
     """
 
     # meta
-    parent: Union["Table", "Record", None] = p_node_parent(4, NodeType.TABLE, NodeType.RECORD)
+    parent: Union["Table", "Record", None] = p_node_parent(4)
     # type: RecordType?
     icon: Optional["Icon"] = p_regular(34)
     table: "Table" = p_system(36, description="The Table this Record is from.")

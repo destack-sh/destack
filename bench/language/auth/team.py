@@ -28,9 +28,7 @@ class Team(IsInstantiable, IsJoinable, IsModal, IsNamed, PageNode[TeamData]):
     A Team of Users or Identities.
     """
 
-    parent: Union["Package", "Page", "Team", None] = p_node_parent(
-        4, NodeType.PACKAGE, NodeType.PAGE, NodeType.TEAM
-    )
+    parent: Union["Package", "Page", "Team", None] = p_node_parent(4)
     organization: "Organization | None" = p_regular(40)
     team: Optional["Team"] = p_regular(41)
     if TYPE_CHECKING:

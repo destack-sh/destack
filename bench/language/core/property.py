@@ -617,12 +617,11 @@ def p_runtime(*, default: Any = None) -> Any:
     )
 
 
-def p_node_parent(id: int, *node_type: NodeType, is_system: bool = False) -> Any:
+def p_node_parent(id: int, is_system: bool = False) -> Any:
     """The parent of a node, must be of one of the given types."""
     return Property(
         id=id,
         node_kind=NodeReferenceKind.NODE_PARENT,
-        node_types=tuple(node_type),
         default=None,
         is_internal=True,
         is_wired=True,
@@ -636,7 +635,6 @@ def p_node_parent(id: int, *node_type: NodeType, is_system: bool = False) -> Any
 
 def _p_node_ancestor(
     id: int,
-    node_type: NodeType,
     kind: NodeReferenceKind,
     store: bool = False,
     wire: bool = False,
@@ -646,7 +644,6 @@ def _p_node_ancestor(
     return Property(
         id=id,
         node_kind=kind,
-        node_types=(node_type,),
         is_list=False,
         is_internal=True,
         is_computed=True,
