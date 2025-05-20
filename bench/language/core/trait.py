@@ -17,6 +17,7 @@ from .const import (
     ProcessStatus,
     bittuple,
 )
+from .graph import attach_node
 from .object import BuiltinObject, object_
 from .property import p_internal, p_node_template, p_regular, p_system
 from .validation import NAME_CONSTRAINT

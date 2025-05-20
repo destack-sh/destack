@@ -8,7 +8,7 @@ from bench.language.core import (
     PageNode,
     Type,
     TypeBase,
-    TypeKind,
+    TypeType,
     node_,
     p_node_parent,
 )
@@ -35,7 +35,7 @@ class Choice(
         return ""
 
     def to_type_maybe(self, of: Literal["instance", "value"] = "instance") -> "TypeBase | None":
-        return Type(kind=TypeKind.NODE, base_type=self, node_type=NodeType.OPTION)
+        return Type(kind=TypeType.NODE, base_type=self, node_type=NodeType.OPTION)
 
     def to_type(self) -> "TypeBase":
         typ = self.to_type_maybe()

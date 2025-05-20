@@ -1,4 +1,3 @@
-import typing
 from typing import (
     TYPE_CHECKING,
     Any,
@@ -13,16 +12,13 @@ from fastuuid import UUID
 from opentelemetry import trace
 
 from bench.language.registry import BENCH_CLASS_BY_TYPE, BENCH_TYPE_BY_CLASS
-from bench.utils.func import decode_b64vlq, encode_b64vlq
 
 from .const import (
-    CK_LENGTH_B64,
     PRIMITIVE_TYPE_BY_PY_TYPE,
     PY_TYPE_BY_PRIMITIVE_TYPE,
     BenchType,
     BuiltinEnum,
     EnumType,
-    NodeMode,
     NodeType,
     PrimitiveType,
     PrimitiveValue,
@@ -38,7 +34,7 @@ from .property import p_internal, p_regular
 from .struct import Struct, struct_
 from .validation import TypeConstraintIn
 
-if typing.TYPE_CHECKING:
+if TYPE_CHECKING:
     from bench.language import Field, FileType, Value
 
 # pyright: reportIncompatibleVariableOverride=false, reportIncompatibleMethodOverride=false
@@ -47,28 +43,14 @@ logger = structlog.get_logger(__name__)
 tracer = trace.get_tracer(__name__)
 
 
-@enum_(EnumType.TYPE_KIND)
-class TypeKind(BuiltinEnum):
+@enum_(EnumType.TYPE_TYPE)
+class TypeType(BuiltinEnum):
     """The 'kind' of a Type."""
 
     PRIMITIVE = 1
     STRUCT = 2
     NODE = 3
     ENUM = 4
-
-
-LETTER_BY_TYPE_KIND: dict[TypeKind, str] = {
-    TypeKind.PRIMITIVE: "p",
-    TypeKind.STRUCT: "s",
-    TypeKind.NODE: "n",
-    TypeKind.ENUM: "e",
-}
-TYPE_KIND_BY_LETTER: dict[str, TypeKind] = {
-    "p": TypeKind.PRIMITIVE,
-    "s": TypeKind.STRUCT,
-    "n": TypeKind.NODE,
-    "e": TypeKind.ENUM,
-}
 
 
 def encode_type_identity(typ: "TypeBase") -> str:
@@ -78,62 +60,12 @@ def encode_type_identity(typ: "TypeBase") -> str:
     :TypeInfoEncoding
     """
 
-    value: str
-    if typ.kind == TypeKind.PRIMITIVE:
-        assert typ.primitive_type is not None, f"missing primitive type for {typ!r}"
-        value = encode_b64vlq(typ.primitive_type.id)
-    elif typ.kind == TypeKind.NODE:
-        value = ""  # joint type identity for nodes
-    elif typ.kind == TypeKind.STRUCT or typ.kind == TypeKind.ENUM:
-        assert typ.bench_type is not None, f"missing bench type for {typ!r}"
-        value = encode_b64vlq(typ.bench_type.id)
-    else:
-        raise ValueError(f"unsupported type kind {typ.kind.bench_name} for {typ!r}")
-
-    prefix: str
-    prefix = LETTER_BY_TYPE_KIND[typ.kind].upper() if typ.is_list else LETTER_BY_TYPE_KIND[typ.kind]
-    if typ.is_secret:
-        prefix = "!" + prefix
-    return f"{prefix}{value}"
+    raise NotImplementedError
 
 
 def decode_type_identity(key: str) -> "TypeBase":
     """Decodes the type-related info back from the identity key. See encode. :TypeInfoEncoding"""
-    # prefix
-    if key[0] == "!":
-        key = key[1:]
-        is_secret = True
-    else:
-        is_secret = False
-    if key[0].isupper():
-        is_list = True
-        kind = TYPE_KIND_BY_LETTER.get(key[0].lower())
-    else:
-        is_list = False
-        kind = TYPE_KIND_BY_LETTER.get(key[0])
-    value = key[1:]
-
-    # value
-    if kind == TypeKind.PRIMITIVE.value:
-        primitive_type = PrimitiveType(decode_b64vlq(value))
-        return Type(
-            kind=TypeKind.PRIMITIVE,
-            primitive_type=primitive_type,
-            is_list=is_list,
-            is_secret=is_secret,
-        )
-    elif kind == TypeKind.STRUCT.value or kind == TypeKind.ENUM.value:
-        bench_type = BenchType(decode_b64vlq(value))  # type: ignore
-        return Type(
-            kind=TypeKind(kind), bench_type=bench_type, is_list=is_list, is_secret=is_secret
-        )
-    elif kind == TypeKind.NODE.value:
-        return Type(kind=TypeKind(kind), is_list=is_list, is_secret=is_secret)
-
-    raise ValueError(f"unsupported type kind {kind} for {key!r}")
-
-
-STORAGE_KEY_PREFIX_LENGTH = CK_LENGTH_B64 + 1
+    raise NotImplementedError
 
 
 def encode_storage_key(field: "Field") -> str:
@@ -160,9 +92,7 @@ class TypeConstraint(Struct):
     starts_with: Optional[str] = p_regular(61)
     ends_with: Optional[str] = p_regular(62)
     # node-ish
-    node_mode: Optional[NodeMode] = p_regular(70)
     node_types: list["NodeType"] = p_regular(71)
-    node_scope: list["Node"] = p_regular(72)
     node_max_depth: Optional[int] = p_regular(73)
     # e.g., for Text (number of lines), ...
 
@@ -170,7 +100,7 @@ class TypeConstraint(Struct):
 constraint = TypeConstraintIn
 
 
-# nocheckin: revamp Type, TypeConstraint cascading Type bases, Maps, ...
+# nocheckin: revamp Type, TypeFormat, TypeConstraint cascading Type bases, Maps, ...
 #  TypeConstraint.node_subtypes feels wrong, need Node-specific constraints?
 #  specific node/struct/custom constraints?
 @object_()
@@ -180,7 +110,7 @@ class TypeBase(BuiltinObject):
     """
 
     # type identity
-    kind: TypeKind = p_internal(40)
+    kind: TypeType = p_internal(40)
     primitive_type: Optional[PrimitiveType] = p_regular(41)
     node_type: Optional[NodeType] = p_regular(42)
     struct_type: Optional[StructType] = p_regular(43)
@@ -198,37 +128,6 @@ class TypeBase(BuiltinObject):
     is_required: bool = p_regular(60, default=False)
     is_list: bool = p_regular(61, default=False)
     is_secret: bool = p_regular(62, default=False)
-
-    def __content_str__(self) -> str:
-        base_type = self.base_type
-        if base_type is not None:
-            if self.bench_type is not None:
-                info_str = f"{self.bench_type.bench_name}->{base_type.absolute_path}"
-            else:
-                info_str = f"{self.kind.bench_name}->{base_type.absolute_path}"
-        elif self.bench_type is not None:
-            info_str = self.bench_type.bench_name
-        elif self.primitive_type is not None:
-            info_str = self.primitive_type.bench_name
-        else:
-            info_str = self.kind.bench_name
-
-        clauses = []
-        if self.is_list:
-            clauses.append("is_list")
-        if self.is_required:
-            clauses.append("is_required")
-        if self.is_secret:
-            clauses.append("is_secret")
-        if self.constraint is not None:
-            constraint_str = self.constraint.__content_str__()
-            if constraint_str:
-                clauses.append(constraint_str)
-
-        if clauses:
-            info_str += f" [{', '.join(clauses)}]"
-
-        return info_str
 
     def morph_to(
         self,
@@ -249,8 +148,8 @@ class TypeBase(BuiltinObject):
     def supports_list(self) -> bool:  # :ListableTypes
         """Whether this type supports lists."""
         if self.kind in (  # noqa: SIM114
-            TypeKind.NODE,
-            TypeKind.ENUM,
+            TypeType.NODE,
+            TypeType.ENUM,
         ):
             return True
         elif self.primitive_type in (  # noqa: SIM103
@@ -356,28 +255,28 @@ def to_type_scalar(type_in: TypeIn) -> "Type":
             assert isinstance(type_scalar, Type), f"expected Type, got {type_scalar!r}"
             return type_scalar
     elif isinstance(type_in, PrimitiveType):
-        return Type(kind=TypeKind.PRIMITIVE, primitive_type=type_in)
+        return Type(kind=TypeType.PRIMITIVE, primitive_type=type_in)
     elif isinstance(type_in, (NodeType, StructType, EnumType, BenchType)):
         if is_node_type(type_in):
-            return Type(kind=TypeKind.NODE, node_type=type_in)
+            return Type(kind=TypeType.NODE, node_type=type_in)
         elif is_struct_type(type_in):
-            return Type(kind=TypeKind.STRUCT, struct_type=type_in)
+            return Type(kind=TypeType.STRUCT, struct_type=type_in)
         elif is_enum_type(type_in):
-            return Type(kind=TypeKind.ENUM, enum_type=type_in)
+            return Type(kind=TypeType.ENUM, enum_type=type_in)
     elif isinstance(type_in, type):
         primitive_type = PRIMITIVE_TYPE_BY_PY_TYPE.get(type_in)
         if primitive_type:
-            return Type(kind=TypeKind.PRIMITIVE, primitive_type=primitive_type)
+            return Type(kind=TypeType.PRIMITIVE, primitive_type=primitive_type)
         bench_type = BENCH_TYPE_BY_CLASS.get(cast(Any, type_in))
         if bench_type is not None:
             if is_node_type(bench_type):
-                return Type(kind=TypeKind.NODE, node_type=bench_type)
+                return Type(kind=TypeType.NODE, node_type=bench_type)
             elif is_struct_type(bench_type):
-                return Type(kind=TypeKind.STRUCT, struct_type=bench_type)
+                return Type(kind=TypeType.STRUCT, struct_type=bench_type)
             elif is_enum_type(bench_type):
-                return Type(kind=TypeKind.ENUM, enum_type=bench_type)
+                return Type(kind=TypeType.ENUM, enum_type=bench_type)
         elif type_in == Node:
-            return Type(kind=TypeKind.NODE)
+            return Type(kind=TypeType.NODE)
 
     raise ValueError(f"unsupported type {type_in!r}")
 
@@ -404,15 +303,15 @@ def reverse_type_scalar(typ: TypeBase) -> TypeIn | None:
     Reverses a Type into a TypeIn as closely as possible.
     Does not consider non-scalar properties (is_list, is_required, etc.)
     """
-    if typ.kind == TypeKind.PRIMITIVE:
+    if typ.kind == TypeType.PRIMITIVE:
         assert typ.primitive_type is not None, f"missing primitive type for {typ!r}"
         primitive_cls = PY_TYPE_BY_PRIMITIVE_TYPE.get(typ.primitive_type)
         if primitive_cls and PRIMITIVE_TYPE_BY_PY_TYPE.get(primitive_cls) == typ.primitive_type:
             return primitive_cls
         else:
             return typ.primitive_type
-    elif typ.kind in (TypeKind.NODE, TypeKind.STRUCT, TypeKind.ENUM):
-        if typ.kind == TypeKind.NODE and typ.node_type is None:
+    elif typ.kind in (TypeType.NODE, TypeType.STRUCT, TypeType.ENUM):
+        if typ.kind == TypeType.NODE and typ.node_type is None:
             return Node
         assert typ.node_type is not None, f"missing node type for {typ!r}"
         node_cls = BENCH_CLASS_BY_TYPE[typ.node_type]

@@ -6,13 +6,14 @@ from bench.language.core import (
     IsTemplatable,
     NodeType,
     PageNode,
+    TypeBase,
     node_,
     p_node_parent,
 )
 from bench.pb2 import BlockData
 
 if TYPE_CHECKING:
-    from bench.language import Field, Page
+    from bench.language import Page
 
 # pyright: reportIncompatibleVariableOverride=false
 
@@ -22,18 +23,9 @@ class Schema(
     IsTemplatable,
     IsModal,
     IsNamed,
+    TypeBase,
     PageNode[BlockData],
 ):
-    """A Schema with Fields."""
+    """A Schema for a specific Type."""
 
     parent: Union["Page", None] = p_node_parent(4, NodeType.PAGE)
-
-    def __content_str__(self):
-        return ""
-
-    @staticmethod
-    def new(name: str, *fields: "Field", **kwargs) -> "Schema":
-        cls = Schema(name=name, **kwargs)
-        for field in fields:
-            cls.add_child(field)
-        return cls

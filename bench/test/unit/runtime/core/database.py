@@ -15,7 +15,7 @@ from bench.language import (
     Table,
     Text,
     TypeBase,
-    TypeKind,
+    TypeType,
     text,
 )
 from bench.language.core.query import NodeNotFoundError
@@ -36,7 +36,7 @@ class SampleGenerator:
             return [self.generate_scalar(typ) for _ in range(self.random.randint(1, 3))]
 
     def generate_scalar(self, typ: TypeBase) -> Any:
-        if typ.kind == TypeKind.PRIMITIVE:
+        if typ.kind == TypeType.PRIMITIVE:
             assert typ.primitive_type is not None, f"primitive type is None for {typ!r}"
             if typ.primitive_type == PrimitiveType.STRING:
                 return self.random.choice(("a", "b", "c"))

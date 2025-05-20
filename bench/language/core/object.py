@@ -880,11 +880,11 @@ def value_equals(
     identity_map: Mapping[UUID, "NodeReference"] = EMPTY_DICT,
 ) -> bool:
     """Checks whether two values for a given type are equal (recursively)."""
-    from .type import TypeKind
+    from .type import TypeType
 
     if self_value is None or other_value is None:
         return self_value is other_value
-    elif typ.kind == TypeKind.PRIMITIVE:
+    elif typ.kind == TypeType.PRIMITIVE:
         # compare primitives directly with is_close
         is_float = typ.primitive_type is not None and typ.primitive_type.is_float
         if not typ.is_list:
@@ -902,10 +902,10 @@ def value_equals(
                 ):
                     return False  # unequal list
             return True
-    elif typ.kind == TypeKind.ENUM:
+    elif typ.kind == TypeType.ENUM:
         # compare enums directly
         return self_value == other_value
-    elif typ.kind == TypeKind.NODE or typ.struct_type == StructType.NODE_REFERENCE:
+    elif typ.kind == TypeType.NODE or typ.struct_type == StructType.NODE_REFERENCE:
         if not typ.is_list:
             self_value = identity_map.get(self_value.ck, self_value)
             other_value = identity_map.get(other_value.ck, other_value)
@@ -919,7 +919,7 @@ def value_equals(
                 if self_element.id != other_element.id:
                     return False  # unequal list
             return True
-    elif typ.kind == TypeKind.STRUCT:
+    elif typ.kind == TypeType.STRUCT:
         # compare struct recursively
         if not typ.is_list:
             if type(self_value) is not type(other_value) or (
