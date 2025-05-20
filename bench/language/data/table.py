@@ -1,4 +1,4 @@
-from typing import TYPE_CHECKING, override
+from typing import TYPE_CHECKING, Any
 
 from bench.language.core import (
     IsClaimable,
@@ -8,42 +8,14 @@ from bench.language.core import (
     IsOwnable,
     NodeType,
     PageNode,
-    RemoteNodeList,
     node_,
-    p_runtime,
 )
-from bench.language.core.list import attach_node
-from bench.pb2 import RecordData, TableData
+from bench.pb2 import TableData
 
 if TYPE_CHECKING:
-    from bench.language import Field, Record
+    from bench.language import Field
 
 # pyright: reportIncompatibleVariableOverride=false
-
-
-class RecordNodeList(RemoteNodeList["Record", RecordData]):
-    """
-    A RemoteNodeList that is backed by a Table.
-    Automatically sets 'table' as needed.
-    """
-
-    @override
-    def add_child(self, node: "Record", move: bool = False) -> "Record":
-        parent = self._get_parent()
-        graph = self._get_child_graph(parent)
-        attach_node(node, parent=parent, graph=graph, move=move)
-        if getattr(node, "table_id") != self._node.id:
-            node._do_set("table", self._node)
-        return node
-
-    @override
-    def add_children(self, *nodes: "Record", move: bool = False) -> None:
-        parent = self._get_parent()
-        graph = self._get_child_graph(parent)
-        for node in nodes:
-            attach_node(node, parent=parent, graph=graph, move=move)
-            if getattr(node, "table_id") != self._node.id:
-                node._do_set("table", self._node)
 
 
 @node_(NodeType.TABLE)
@@ -57,13 +29,9 @@ class Table(
 ):
     """A Table of Records."""
 
-    _record: RecordNodeList | None = p_runtime()
-
     @property
-    def records(self) -> RecordNodeList:
-        if self._record is None:
-            self._record = RecordNodeList(self, NodeType.RECORD)
-        return self._record
+    def records(self) -> Any:
+        raise NotImplementedError
 
     def __content_str__(self):
         return ""

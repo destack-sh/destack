@@ -14,8 +14,6 @@ from hypothesis.strategies._internal.utils import cacheable, defines_strategy
 from bench.language import (
     BUILTIN_OBJECT_CLASS_BY_TYPE,
     ENUM_CLASS_BY_TYPE,
-    MAX_VALUE_BY_PRIMITIVE_TYPE,
-    MIN_VALUE_BY_PRIMITIVE_TYPE,
     NODE_CLASS_BY_TYPE,
     NODE_TYPES,
     BuiltinObject,

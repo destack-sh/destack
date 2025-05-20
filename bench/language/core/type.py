@@ -28,8 +28,7 @@ from .const import (
     PrimitiveType,
     PrimitiveValue,
     StructType,
-    TypeFormat,
-    TypeKind,
+    enum_,
     is_enum_type,
     is_node_type,
     is_struct_type,
@@ -39,18 +38,24 @@ from .object import BuiltinObject, get_tk_b64_from_ck, object_
 from .property import p_internal, p_regular
 from .struct import Struct, struct_
 from .validation import TypeConstraintIn
-from .value import Value
 
 if typing.TYPE_CHECKING:
-    from bench.language import (
-        Field,
-        FileType,
-    )
+    from bench.language import Field, FileType, Value
 
 # pyright: reportIncompatibleVariableOverride=false, reportIncompatibleMethodOverride=false
 
 logger = structlog.get_logger(__name__)
 tracer = trace.get_tracer(__name__)
+
+
+@enum_(EnumType.TYPE_KIND)
+class TypeKind(BuiltinEnum):
+    """The 'kind' of a Type."""
+
+    PRIMITIVE = 1
+    STRUCT = 2
+    NODE = 3
+    ENUM = 4
 
 
 LETTER_BY_TYPE_KIND: dict[TypeKind, str] = {
@@ -202,8 +207,7 @@ class TypeBase(BuiltinObject):
         base_type_ptr: Optional["NodeReference"] = None
 
     # metadata
-    default: Value | None = p_regular(50)
-    format: Optional["TypeFormat"] = p_regular(53)
+    default: Optional["Value"] = p_regular(50)
     constraint: Optional["TypeConstraint"] = p_regular(55)
 
     # flags
@@ -335,7 +339,6 @@ TypeIn = Union[
     "BuiltinEnum",
     "PrimitiveType",
     "BenchType",
-    "TypeFormat",
     "FileType",
     type["Struct"],
     type["Node"],
@@ -377,8 +380,6 @@ def to_type_scalar(type_in: TypeIn) -> "Type":
             return Type(kind=TypeKind.STRUCT, struct_type=type_in)
         elif is_enum_type(type_in):
             return Type(kind=TypeKind.ENUM, enum_type=type_in)
-    elif isinstance(type_in, TypeFormat):
-        return Type(kind=TypeKind.PRIMITIVE, primitive_type=type_in.primitive_type, format=type_in)
     elif isinstance(type_in, type):
         primitive_type = PRIMITIVE_TYPE_BY_PY_TYPE.get(type_in)
         if primitive_type:
@@ -421,8 +422,6 @@ def reverse_type_scalar(typ: TypeBase) -> TypeIn | None:
     """
     if typ.kind == TypeKind.PRIMITIVE:
         assert typ.primitive_type is not None, f"missing primitive type for {typ!r}"
-        if typ.format is not None:
-            return typ.format
         primitive_cls = PY_TYPE_BY_PRIMITIVE_TYPE.get(typ.primitive_type)
         if primitive_cls and PRIMITIVE_TYPE_BY_PY_TYPE.get(primitive_cls) == typ.primitive_type:
             return primitive_cls

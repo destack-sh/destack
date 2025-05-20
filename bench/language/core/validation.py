@@ -4,7 +4,7 @@ from typing import TYPE_CHECKING, Any, Callable, Collection, Optional, TypedDict
 
 import regex
 
-from .const import BenchError, NodeType, TypeFormat
+from .const import BenchError, NodeType
 
 if TYPE_CHECKING:
     from bench.language import Node, Property, TypeBase, TypeConstraint
@@ -121,11 +121,3 @@ def constraint(
         ends_with=ends_with,
         node_types=node_types if node_types is not None else [],
     )
-
-
-TYPE_CONSTRAINT_BY_FORMAT: dict[TypeFormat, TypeConstraintIn] = {  # :TypeFormat
-    TypeFormat.URL: TypeConstraintIn(regex=URL_REGEX),
-    TypeFormat.EMAIL: TypeConstraintIn(regex=EMAIL_REGEX),
-    TypeFormat.PHONE_NUMBER: TypeConstraintIn(regex=PHONE_NUMBER_REGEX),
-    TypeFormat.SLUG: TypeConstraintIn(regex=SLUG_REGEX),
-}

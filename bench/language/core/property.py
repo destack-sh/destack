@@ -33,7 +33,6 @@ from .const import (
     ObjectType,
     PrimitiveType,
     StructType,
-    TypeKind,
 )
 
 if TYPE_CHECKING:
@@ -45,7 +44,7 @@ if TYPE_CHECKING:
         TypeConstraintIn,
     )
 
-    from .expression import _IntoQuery
+    from .expression import IsQueryable
 
 
 class NodeReferenceMeta(enum.IntEnum):
@@ -211,7 +210,7 @@ def get_class_name(py_type: type | typing.ForwardRef | str) -> str | None:
 
 
 @dataclass(eq=False, slots=True)
-class Property(_IntoQuery if TYPE_CHECKING else object):
+class Property(IsQueryable if TYPE_CHECKING else object):
     """A system-defined attribute of a BuiltinObject (Struct or Node)."""
 
     # NOTE: yes cast(int, None) is a bit evil but we almost always immediately assign it here and
@@ -528,7 +527,7 @@ class Property(_IntoQuery if TYPE_CHECKING else object):
 
     def _to_type(self) -> "Type":
         """Create the Type for this Property."""
-        from bench.language.core import Type, TypeConstraintIn
+        from bench.language.core import Type, TypeConstraintIn, TypeKind
 
         if isinstance(self.constraint, TypeConstraintIn):
             constraint = self.constraint.into()
@@ -564,9 +563,9 @@ class Property(_IntoQuery if TYPE_CHECKING else object):
 
 @_on_completing_setup
 def _add_property_expression_base():
-    from .expression import _IntoQuery
+    from .expression import IsQueryable
 
-    for name, attr in _IntoQuery.__dict__.items():
+    for name, attr in IsQueryable.__dict__.items():
         if name not in Property.__dict__ and name not in ("__annotations__", "__dict__"):
             setattr(Property, name, attr)
 

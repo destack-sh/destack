@@ -17,7 +17,6 @@ from .const import (
     ProcessStatus,
     bittuple,
 )
-from .list import attach_node
 from .object import BuiltinObject, object_
 from .property import p_internal, p_node_template, p_regular, p_system
 from .validation import NAME_CONSTRAINT
@@ -56,6 +55,7 @@ if TYPE_CHECKING:
         TextLine,
         Thread,
         User,
+        Value,
     )
 
 Ownable = Union[
@@ -353,6 +353,7 @@ class IsExtensible(BuiltinObject):
     """A Node that can be extended with Fields."""
 
     # nocheckin: IsExtensible.value
+    value: "Value | None" = p_regular(26)
 
 
 @object_()
