@@ -88,13 +88,13 @@ class HostRouterService(ServiceBase, HostBase):
         self.hosts_lock = asyncio.Lock()
         self._global_database = global_database
         self._global_pg_engine = pg_engine_from_database(
-            "pg-global", global_database, NodeArea.GLOBAL
+            "pg-global", global_database, NodeArea.GLOBAL_DB
         )
         self._regional_database = regional_database
         self._regional_pg_engine = pg_engine_from_database(
             f"pg-regional-{regional_database.region.name.lower()}",
             regional_database,
-            NodeArea.REGIONAL,
+            NodeArea.REGIONAL_DB,
         )
 
     def __str__(self):

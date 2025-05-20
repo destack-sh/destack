@@ -23,10 +23,7 @@ from bench.pb2 import (
 )
 from bench.utils.oracle import Oracle
 
-from .const import (
-    EditType,
-    NodeMode,
-)
+from .const import EditType, NodeMode
 from .graph import GraphData, Supergraph
 from .node import Node, Subject
 from .object import EMPTY_SCOPE_DATA
@@ -138,9 +135,9 @@ class Session:
         """Closes the session, rolling back uncommitted edits. Prevents further use."""
         raise NotImplementedError
 
-    #
-    # Tracking
-    #
+    def get_scope(self, node: Node | None = None) -> ScopeData:
+        """Get the scope for a node."""
+        raise NotImplementedError
 
     def _track(self, node: Node):
         """Start tracking the Node in this session."""

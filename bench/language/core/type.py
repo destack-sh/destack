@@ -22,7 +22,6 @@ from .const import (
     BenchType,
     BuiltinEnum,
     EnumType,
-    FieldType,
     NodeMode,
     NodeType,
     PrimitiveType,
@@ -134,27 +133,12 @@ def decode_type_identity(key: str) -> "TypeBase":
     raise ValueError(f"unsupported type kind {kind} for {key!r}")
 
 
-LETTER_BY_FIELD_TYPE: dict[FieldType, str] = {
-    FieldType.VARIABLE: "M",
-    FieldType.INPUT: "I",
-    FieldType.OUTPUT: "O",
-}
-FIELD_TYPE_BY_LETTER: dict[str, FieldType] = {
-    "M": FieldType.VARIABLE,
-    "I": FieldType.INPUT,
-    "O": FieldType.OUTPUT,
-}
-
 STORAGE_KEY_PREFIX_LENGTH = CK_LENGTH_B64 + 1
 
 
 def encode_storage_key(field: "Field") -> str:
     """Gets the key used to identify values of this field in storage. :FieldStorageKey"""
-    return f"{LETTER_BY_FIELD_TYPE[field.type]}{get_tk_b64_from_ck(field.ck)}{field.identity_key}"
-
-
-def get_field_type(storage_key: str) -> FieldType:
-    return FIELD_TYPE_BY_LETTER[storage_key[0]]
+    return f"{get_tk_b64_from_ck(field.ck)}{field.identity_key}"
 
 
 @struct_(StructType.TYPE_CONSTRAINT)

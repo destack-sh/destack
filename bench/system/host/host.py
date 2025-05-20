@@ -139,13 +139,13 @@ class HostService(GraphServiceBase, HostBase):
         )
         self._global_database = global_database
         self._global_pg_engine_unscoped = pg_engine_from_database(
-            "pg-global", global_database, NodeArea.GLOBAL
+            "pg-global", global_database, NodeArea.GLOBAL_DB
         )
         self._regional_database = regional_database
         self._regional_pg_engine_unscoped = pg_engine_from_database(
             f"pg-regional-{regional_database.region.name.lower()}",
             regional_database,
-            NodeArea.REGIONAL,
+            NodeArea.REGIONAL_DB,
         )
         self._supergraph = Supergraph(name="Host", root_ptr=self.bench_ptr)
         self._client_cache = ClientCache(ttl=60, supergraph=self._supergraph)
@@ -545,7 +545,7 @@ class HostService(GraphServiceBase, HostBase):
         if (
             self._bench is not None
             and NodeType.BENCH in query._node_cls.__root_types__
-            and query._node_cls.__area__ != NodeArea.LOCAL
+            and query._node_cls.__area__ != NodeArea.LOCAL_DB
         ):
             query = query.where(query._node_cls.get_property("bench").eq(self._bench.to_ref()))
 

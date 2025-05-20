@@ -13,13 +13,13 @@ from bench.language import (
     Field,
     GraphData,
     IsBased,
-    LegacyQuery,
     Node,
     NodeArea,
     NodeReferenceKind,
     NodeType,
     PrimitiveType,
     Property,
+    Query,
     Record,
     Table,
     TypeKind,
@@ -290,7 +290,7 @@ def map_table_to_sql_table(table: Table, prev_sql_table: SqlTable | None) -> Sql
 
 @_trace_pg_span
 async def pg_graph_select(
-    *, cur: psycopg.AsyncCursor, ctx: SqlContext, query: LegacyQuery
+    *, cur: psycopg.AsyncCursor, ctx: SqlContext, query: Query
 ) -> list[AnyNodeData]:
     """
     Selects the nodes from the graph matching the given query.
@@ -300,13 +300,13 @@ async def pg_graph_select(
 
 
 @_trace_pg_span
-async def pg_graph_count(*, cur: psycopg.AsyncCursor, ctx: SqlContext, query: LegacyQuery) -> int:
+async def pg_graph_count(*, cur: psycopg.AsyncCursor, ctx: SqlContext, query: Query) -> int:
     """Counts the nodes from the graph matching the given query. Ignores pagination parameters."""
     raise NotImplementedError
 
 
 @_trace_pg_span
-async def pg_graph_exists(*, cur: psycopg.AsyncCursor, ctx: SqlContext, query: LegacyQuery) -> bool:
+async def pg_graph_exists(*, cur: psycopg.AsyncCursor, ctx: SqlContext, query: Query) -> bool:
     """Checks if nodes from the graph matching the given query exist."""
     raise NotImplementedError
 
@@ -316,7 +316,7 @@ async def pg_graph_get(
     *,
     cur: psycopg.AsyncCursor,
     ctx: SqlContext,
-    query: LegacyQuery,
+    query: Query,
     visited_graph: GraphData,
 ) -> None:
     """
@@ -331,7 +331,7 @@ async def pg_graph_search(
     cur: psycopg.AsyncCursor,
     ctx: SqlContext,
     scope: ScopeData,
-    query: LegacyQuery,
+    query: Query,
     count: bool,
 ) -> tuple[list[AnyNodeData], GraphData, int | None]:
     """
@@ -372,29 +372,29 @@ BUILTIN_NODE_TABLES: tuple[SqlTable, ...] = tuple(BUILTIN_TABLE_BY_NODE_TYPE.val
 BUILTIN_GLOBAL_TABLES: tuple[SqlTable, ...] = DEFAULT_GLOBAL_TABLES + tuple(
     BUILTIN_TABLE_BY_NODE_TYPE[node.metatype]
     for node in NODE_CLASSES
-    if node.__area__ == NodeArea.GLOBAL and node.metatype in BUILTIN_TABLE_BY_NODE_TYPE
+    if node.__area__ == NodeArea.GLOBAL_DB and node.metatype in BUILTIN_TABLE_BY_NODE_TYPE
 )
 BUILTIN_REGIONAL_TABLES: tuple[SqlTable, ...] = DEFAULT_REGIONAL_TABLES + tuple(
     BUILTIN_TABLE_BY_NODE_TYPE[node.metatype]
     for node in NODE_CLASSES
-    if node.__area__ == NodeArea.REGIONAL and node.metatype in BUILTIN_TABLE_BY_NODE_TYPE
+    if node.__area__ == NodeArea.REGIONAL_DB and node.metatype in BUILTIN_TABLE_BY_NODE_TYPE
 )
 BUILTIN_LOCAL_TABLES: tuple[SqlTable, ...] = DEFAULT_LOCAL_TABLES + tuple(
     BUILTIN_TABLE_BY_NODE_TYPE[node.metatype]
     for node in NODE_CLASSES
-    if node.__area__ == NodeArea.LOCAL and node.metatype in BUILTIN_TABLE_BY_NODE_TYPE
+    if node.__area__ == NodeArea.LOCAL_DB and node.metatype in BUILTIN_TABLE_BY_NODE_TYPE
 )
 BUILTIN_TABLES_BY_AREA: dict[NodeArea, tuple[SqlTable, ...]] = {
-    NodeArea.GLOBAL: BUILTIN_GLOBAL_TABLES,
-    NodeArea.REGIONAL: BUILTIN_REGIONAL_TABLES,
-    NodeArea.LOCAL: BUILTIN_LOCAL_TABLES,
+    NodeArea.GLOBAL_DB: BUILTIN_GLOBAL_TABLES,
+    NodeArea.REGIONAL_DB: BUILTIN_REGIONAL_TABLES,
+    NodeArea.LOCAL_DB: BUILTIN_LOCAL_TABLES,
 }
 
 BUILTIN_GLOBAL_SCHEMA = SqlSchema(GLOBAL_EXTENSIONS, BUILTIN_GLOBAL_TABLES)
 BUILTIN_REGIONAL_SCHEMA = SqlSchema(REGIONAL_EXTENSIONS, BUILTIN_REGIONAL_TABLES)
 BUILTIN_LOCAL_SCHEMA = SqlSchema(LOCAL_EXTENSIONS, BUILTIN_LOCAL_TABLES)
 BUILTIN_SCHEMA_BY_AREA: dict[NodeArea, SqlSchema] = {
-    NodeArea.GLOBAL: BUILTIN_GLOBAL_SCHEMA,
-    NodeArea.REGIONAL: BUILTIN_REGIONAL_SCHEMA,
-    NodeArea.LOCAL: BUILTIN_LOCAL_SCHEMA,
+    NodeArea.GLOBAL_DB: BUILTIN_GLOBAL_SCHEMA,
+    NodeArea.REGIONAL_DB: BUILTIN_REGIONAL_SCHEMA,
+    NodeArea.LOCAL_DB: BUILTIN_LOCAL_SCHEMA,
 }

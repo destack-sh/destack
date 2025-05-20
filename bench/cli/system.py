@@ -36,10 +36,12 @@ async def bootstrap(
     )
 
     global_database = global_database_from_env()
-    global_pg_engine = pg_engine_from_database("pg-global", global_database, NodeArea.GLOBAL)
+    global_pg_engine = pg_engine_from_database("pg-global", global_database, NodeArea.GLOBAL_DB)
     regional_database = regional_database_from_env(region=region)
     regional_pg_engine = pg_engine_from_database(
-        f"pg-regional-{regional_database.region.name.lower()}", regional_database, NodeArea.REGIONAL
+        f"pg-regional-{regional_database.region.name.lower()}",
+        regional_database,
+        NodeArea.REGIONAL_DB,
     )
 
     await create_system_benches(
@@ -82,10 +84,12 @@ async def make_local_computer_runtime(
     )
 
     global_database = global_database_from_env()
-    global_pg_engine = pg_engine_from_database("pg-global", global_database, NodeArea.GLOBAL)
+    global_pg_engine = pg_engine_from_database("pg-global", global_database, NodeArea.GLOBAL_DB)
     regional_database = regional_database_from_env(region=region)
     regional_pg_engine = pg_engine_from_database(
-        f"pg-regional-{regional_database.region.name.lower()}", regional_database, NodeArea.REGIONAL
+        f"pg-regional-{regional_database.region.name.lower()}",
+        regional_database,
+        NodeArea.REGIONAL_DB,
     )
     async with global_session(
         global_database, (global_pg_engine, regional_pg_engine), REAL_ORACLE, epoch=0

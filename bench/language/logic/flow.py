@@ -1,11 +1,10 @@
-from typing import TYPE_CHECKING, Literal, Optional, Union
+from typing import TYPE_CHECKING, Optional, Union
 
 from fastuuid import UUID
 
 from bench.language.core import (
     BuiltinEnum,
     EnumType,
-    FieldType,
     IsClaimable,
     IsExtensible,
     IsModal,
@@ -17,7 +16,6 @@ from bench.language.core import (
     NodeType,
     PackageNode,
     PageNode,
-    TypeBase,
     enum_,
     node_,
     p_internal,
@@ -29,7 +27,6 @@ from bench.pb2 import FlowData, FlowEdgeData
 if TYPE_CHECKING:
     from bench.language import (
         Action,
-        Claim,
         Flow,
         NodeReference,
     )
@@ -37,7 +34,7 @@ if TYPE_CHECKING:
 # pyright: reportIncompatibleVariableOverride=false
 
 if TYPE_CHECKING:
-    from bench.language import Action, Agent, Claim, FlowEdge, Page
+    from bench.language import Action, Agent, FlowEdge, Page
 
 # pyright: reportIncompatibleVariableOverride=false
 
@@ -127,29 +124,6 @@ class FlowEdge(
             if isinstance(parent, Flow):
                 return parent
         return None
-
-    @property
-    def claims(self) -> tuple["Claim", ...]:
-        return ()
-
-    def to_type_maybe(
-        self,
-        of: Literal["instance", "value"] = "instance",
-        field_types: list[FieldType] | None = None,
-    ) -> "TypeBase | None":
-        return None
-
-    @property
-    def resource_type(self) -> "TypeBase | None":
-        return None  # Links don't have resources (?)
-
-    @property
-    def input_type(self) -> "TypeBase | None":
-        return None  # Links don't have inputs (?)
-
-    @property
-    def output_type(self) -> "TypeBase | None":
-        return None  # Links don't have outputs (?)
 
     @staticmethod
     def new(type: FlowEdgeType, name: str, **kwargs) -> "FlowEdge":

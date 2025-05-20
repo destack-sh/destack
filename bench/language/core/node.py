@@ -49,17 +49,11 @@ from .const import (
     NodeReferenceKind,
     NodeType,
     ObjectType,
-    QueryType,
     StructType,
     active_session,
 )
-from .graph import Graph, GraphData
-from .object import (
-    BuiltinObject,
-    FieldOrProperty,
-    NodeTypeOrClass,
-    _process_object_cls,
-)
+from .graph import Graph, GraphData, attach_node
+from .object import BuiltinObject, _process_object_cls
 from .property import (
     _PROPERTY_SPECIFIERS,
     Property,
@@ -77,6 +71,7 @@ if TYPE_CHECKING:
     from bench.language import (
         Bench,
         Block,
+        Condition,
         Expression,
         Field,
         Icon,
@@ -169,11 +164,11 @@ def node_(
         cls.__is_local__ = is_local
 
         if node_type in GLOBAL_NODE_TYPES:
-            cls.__area__ = NodeArea.GLOBAL
+            cls.__area__ = NodeArea.GLOBAL_DB
         elif node_type in REGIONAL_NODE_TYPES:
-            cls.__area__ = NodeArea.REGIONAL
+            cls.__area__ = NodeArea.REGIONAL_DB
         elif node_type in LOCAL_NODE_TYPES:
-            cls.__area__ = NodeArea.LOCAL
+            cls.__area__ = NodeArea.LOCAL_DB
         else:
             raise ValueError(f"unknown node store for {node_type}")
 
@@ -208,10 +203,12 @@ class Node[NodeDataT: AnyNodeData](BuiltinObject[NodeDataT]):
     __is_local__: ClassVar[bool] = False  # custom storage logic (for records)
     __is_in_bench__: ClassVar[bool] = UNSET  # part of a Bench
     __is_in_package__: ClassVar[bool] = UNSET  # part of a Package
+
     __root_type__: ClassVar[NodeType | None] = UNSET
     __parent_types__: ClassVar[tuple[NodeType, ...]] = ()
     __parent_property__: ClassVar[Property] = UNSET
     __node_ancestor_properties__: ClassVar[dict[str, Property]] = frozendict()
+
     __id_factory__: ClassVar[Callable[[], UUID]] = UUID
     __area__: ClassVar[NodeArea]
     __indexes__: ClassVar[tuple[IndexIn, ...]] = ()
@@ -226,9 +223,9 @@ class Node[NodeDataT: AnyNodeData](BuiltinObject[NodeDataT]):
         parent_id: Optional[UUID] = None
         parent_ck: Optional[UUID] = None
         parent_ptr: Optional[NodeReference] = None
-    # BenchNode.bench: 5
-    # PackageNode.package: 6
-    # .organization/team/user: 7-9
+    # Node.area?
+    # BenchNode.bench: 6
+    # PackageNode.package: 7
 
     # 10-29: node tracking
     created_at: datetime = p_system(10, autoset=True)
@@ -818,42 +815,14 @@ class Node[NodeDataT: AnyNodeData](BuiltinObject[NodeDataT]):
     #
 
     @classmethod
-    def _query(cls) -> "Query[Self]":
-        return LegacyQuery(type=QueryType.SEARCH, node_type=cls.metatype)
-
-    @classmethod
-    def where(cls, filter: Optional["Expression"] = None, **kwargs) -> "Query[Self]":
-        return cls._query().where(filter, **kwargs)
+    def where(cls, filter: Optional["Condition"] = None, **kwargs) -> "Query[Self]":
+        raise NotImplementedError
 
     @classmethod
     def order_by(
         cls, sort: "Optional[Expression] | str | Field | Property" = None, *args: str
     ) -> "Query[Self]":
-        return cls._query().order_by(sort, *args)
-
-    @classmethod
-    def include(cls, *properties: Property) -> "Query[Self]":
-        return cls._query().include(*properties)
-
-    @classmethod
-    def select(cls, *keys: FieldOrProperty) -> "Query[Self]":
-        return cls._query().select(*keys)
-
-    @classmethod
-    def select_all(cls) -> "Query[Self]":
-        return cls._query().select_all()
-
-    @classmethod
-    def deselect(cls, *properties: FieldOrProperty) -> "Query[Self]":
-        return cls._query().deselect(*properties)
-
-    @classmethod
-    def include_ancestors(cls, *node_types: NodeTypeOrClass) -> "Query[Self]":
-        return cls._query().include_ancestors(*node_types)
-
-    @classmethod
-    def include_descendants(cls, *node_types: NodeTypeOrClass) -> "Query[Self]":
-        return cls._query().include_descendants(*node_types)
+        raise NotImplementedError
 
     @overload
     @classmethod
@@ -875,15 +844,15 @@ class Node[NodeDataT: AnyNodeData](BuiltinObject[NodeDataT]):
         live: bool = False,
         **kwargs,
     ) -> Self | list[Self]:
-        return await cls._query().get(filter, live=live, **kwargs)
+        raise NotImplementedError
 
     @classmethod
-    async def search(cls, filter: Optional["Expression"] = None, **kwargs) -> list[Self]:
-        return await cls._query().search(filter, **kwargs)
+    async def search(cls, filter: Optional["Condition"] = None, **kwargs) -> list[Self]:
+        raise NotImplementedError
 
     @classmethod
     def first(cls, count: int) -> "Query[Self]":
-        return cls._query().first(count)
+        raise NotImplementedError
 
 
 @node_component_()
@@ -891,7 +860,7 @@ class BenchNode[NodeDataT: AnyNodeData](Node[NodeDataT]):
     """A Node inside a Bench."""
 
     bench: "Bench | None" = p_node_ancestor_with_self(
-        5, NodeType.BENCH, require=True, store=True, wire=True
+        6, NodeType.BENCH, require=True, store=True, wire=True
     )
     if TYPE_CHECKING:
         bench_id: Optional[UUID] = None
@@ -907,7 +876,7 @@ class PackageNode[NodeDataT: AnyNodeData](BenchNode[NodeDataT]):
     """A Node in a Package."""
 
     package: "Package | None" = p_node_ancestor_with_self(
-        9, NodeType.PACKAGE, require=True, store=True, wire=True
+        7, NodeType.PACKAGE, require=True, store=True, wire=True
     )
     if TYPE_CHECKING:
         package_id: Optional[UUID] = None
