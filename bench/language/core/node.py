@@ -30,7 +30,7 @@ from bench.language.registry import (
     NODE_CLASS_BY_TYPE,
 )
 from bench.pb2 import AnyNodeData, NodeReferenceData
-from bench.utils.func import dualmethod, hash_stable
+from bench.utils.func import hash_stable
 from bench.utils.string import Casing, to_casing, to_code_name
 from bench.utils.utils import frozendict
 
@@ -266,22 +266,6 @@ class Node[NodeDataT: AnyNodeData](BuiltinObject[NodeDataT]):
 
     if TYPE_CHECKING:
         _skip_add_self: bool = False
-
-    @dualmethod
-    def get_property(self, key: str) -> Property:  # type: ignore
-        """Get a property by key from this instance."""
-        prop = self.__properties__.get(key)
-        if prop is None:
-            raise ValueError(f"no property '{key}' in {self.__class__.__name__}")
-        return prop
-
-    @get_property.cls
-    def get_property_cls(cls, key: str) -> Property:  # type: ignore  # noqa: N805
-        """Get a property by key from the class."""
-        prop = cls.__properties__.get(key)
-        if prop is None:
-            raise ValueError(f"no property '{key}' in {cls.__name__}")
-        return prop
 
     def __default_content_str__(self) -> str:
         """Default __content_str__ for Nodes with all set properties (incl. subtypes)."""
@@ -823,17 +807,15 @@ class Node[NodeDataT: AnyNodeData](BuiltinObject[NodeDataT]):
         where: Optional["Condition"] = None,
         **subqueries: "Query",
     ) -> "Query[Self]":
-        from .expression import Query, QueryType, TableReference
+        from .query import Query, QueryType, RelationReference, to_subqueries
 
-        for name, subquery in subqueries.items():
-            subquery.name = name
         return Query(
             type=QueryType.GET,
-            table=TableReference(node_type=cls.metatype),
+            relation=RelationReference(node_type=cls.metatype),
             name=name,
             join=join,
             where=where,
-            subqueries=list(subqueries.values()),
+            subqueries=to_subqueries(subqueries),
         )
 
     @classmethod
@@ -851,13 +833,11 @@ class Node[NodeDataT: AnyNodeData](BuiltinObject[NodeDataT]):
         count: bool = False,
         **subqueries: "Query",
     ) -> "Query[Self]":
-        from .expression import Query, QueryType, TableReference
+        from .query import Query, QueryType, RelationReference, to_subqueries
 
-        for name, subquery in subqueries.items():
-            subquery.name = name
         return Query(
             type=QueryType.SEARCH,
-            table=TableReference(node_type=cls.metatype),
+            relation=RelationReference(node_type=cls.metatype),
             name=name,
             join=join,
             where=where,
@@ -868,7 +848,7 @@ class Node[NodeDataT: AnyNodeData](BuiltinObject[NodeDataT]):
             limit=limit,
             offset=offset,
             count=count,
-            subqueries=list(subqueries.values()),
+            subqueries=to_subqueries(subqueries),
         )
 
     @classmethod
@@ -885,13 +865,11 @@ class Node[NodeDataT: AnyNodeData](BuiltinObject[NodeDataT]):
         count: bool = False,
         **subqueries: "Query",
     ) -> "Query[Self]":
-        from .expression import Query, QueryType, TableReference
+        from .query import Query, QueryType, RelationReference, to_subqueries
 
-        for name, subquery in subqueries.items():
-            subquery.name = name
         return Query(
             type=QueryType.AGGREGATE,
-            table=TableReference(node_type=cls.metatype),
+            relation=RelationReference(node_type=cls.metatype),
             name=name,
             join=join,
             where=where,
@@ -901,7 +879,7 @@ class Node[NodeDataT: AnyNodeData](BuiltinObject[NodeDataT]):
             limit=limit,
             offset=offset,
             count=count,
-            subqueries=list(subqueries.values()),
+            subqueries=to_subqueries(subqueries),
         )
 
     @classmethod
@@ -1019,6 +997,7 @@ class NodeReference(Struct[NodeReferenceData]):
     ck: Optional[UUID] = p_internal(32)
     bench_id: Optional[UUID] = p_internal(33)
     base_id: Optional[UUID] = p_internal(34)
+    # area? external_id?
 
     def __content_str__(self):
         content_parts = []

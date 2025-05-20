@@ -96,18 +96,18 @@ async def make_local_computer_runtime(
     ) as session:
         bench = await Bench.include_descendants(NodeType.CLIENT).select_all().get(slug=bench_slug)
         computers = await Computer.where(
-            Computer.get_property("bench").eq(bench)
-            & Computer.get_property("type").eq(ComputerType.RUNTIME)
-            & Computer.get_property("status").neq(ResourceStatus.OFFLINE)
+            Computer.property("bench").eq(bench)
+            & Computer.property("type").eq(ComputerType.RUNTIME)
+            & Computer.property("status").neq(ResourceStatus.OFFLINE)
         ).to_list()
         computer = first(computers, None)
         if computer is None:
             raise ValueError(f"{bench!r} has no runtime computers")
         clients = (
             await Client.where(
-                Client.get_property("parent").eq(bench)
-                & Client.get_property("computer").eq(computer)
-                & Client.get_property("type").eq(ClientType.COMPUTER)
+                Client.property("parent").eq(bench)
+                & Client.property("computer").eq(computer)
+                & Client.property("type").eq(ClientType.COMPUTER)
             )
             .select_all()
             .to_list()

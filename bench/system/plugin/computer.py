@@ -279,7 +279,7 @@ class KubernetesComputerProvisioner(ComputerProvisioner):
 
     async def _get_computer_by_external_name(self, external_name: str) -> Computer | None:
         """Gets the Computer with the given external name."""
-        computer_query = Computer.where(Computer.get_property("external_name").eq(external_name))
+        computer_query = Computer.where(Computer.property("external_name").eq(external_name))
         computer_query._include_memory = False
         computer = await computer_query.one_or_none()
         return computer

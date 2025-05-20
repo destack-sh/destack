@@ -176,9 +176,9 @@ def hello_world():
 @_render_test
 def test_render_property(session: Session, package: Package):
     """Property references should be rendered with `get_property`."""
-    prop_1 = Node.get_property("id")
-    prop_2 = Page.get_property("title")
-    prop_3 = Run.get_property("outputs")
+    prop_1 = Node.property("id")
+    prop_2 = Page.property("title")
+    prop_3 = Run.property("outputs")
     return {"prop_1": prop_1, "prop_2": prop_2, "prop_3": prop_3}
 
 
