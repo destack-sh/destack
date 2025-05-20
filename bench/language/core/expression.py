@@ -1,6 +1,6 @@
 # ruff: noqa: RUF012
 
-from typing import TYPE_CHECKING, Any, Optional, Union
+from typing import TYPE_CHECKING, Any, Optional, Union, assert_never
 
 from fastuuid import UUID
 
@@ -12,9 +12,11 @@ from .struct import Struct, struct_
 from .value import Value
 
 if TYPE_CHECKING:
-    from bench.language import Field, Node, Table, TypeBase
+    from bench.language import *
 
 # pyright: reportIncompatibleVariableOverride=false
+# nocheckin
+# ruff: noqa: F405
 
 
 @struct_(StructType.TABLE_REFERENCE)
@@ -28,6 +30,20 @@ class TableReference(Struct):
         table_ptr: Optional[NodeReference] = None  # convenience only
 
 
+def table_ref(base: "NodeType | type[Node] | Table") -> TableReference:
+    from .node import Node
+
+    if isinstance(base, NodeType):
+        return TableReference(node_type=base)
+    elif isinstance(base, type):
+        assert issubclass(base, Node), f"{base!r} is not a Node"
+        return TableReference(node_type=base.metatype)
+    elif isinstance(base, Table):
+        return TableReference(table=base)
+    else:
+        assert_never(base)
+
+
 @struct_(StructType.FIELD_REFERENCE)
 class FieldReference(Struct):
     """Reference to a Field or Property."""
@@ -35,6 +51,15 @@ class FieldReference(Struct):
     field: Optional["Field"] = p_regular(32)
     prop: Optional["Property"] = p_regular(33)
     table: Optional[TableReference] = p_regular(34)
+
+
+def field_ref(field: "Field | Property") -> FieldReference:
+    if isinstance(field, Field):
+        return FieldReference(field=field)
+    elif isinstance(field, Property):
+        return FieldReference(prop=field)
+    else:
+        assert_never(field)
 
 
 @enum_(EnumType.FUNCTION_TYPE)
@@ -52,6 +77,14 @@ class Function(Struct):
     type: FunctionType = p_regular(30)
     left: "Expression" = p_regular(31)
     right: Optional["Expression"] = p_regular(32)
+
+
+def function(
+    type: FunctionType,
+    left: "Expression",
+    right: Optional["Expression"] = None,
+) -> Function:
+    return Function(type=type, left=left, right=right)
 
 
 @enum_(EnumType.CONDITIONAL_TYPE)
@@ -90,6 +123,14 @@ class Condition(Struct):
     right: Optional["Expression"] = p_regular(32)
 
 
+def condition(
+    column: Union["Field", "Property"],
+    type: ConditionalType = ConditionalType.EQUALS,
+    value: Any = None,
+) -> Condition:
+    raise NotImplementedError
+
+
 @enum_(EnumType.AGGREGATION_TYPE)
 class AggregationType(BuiltinEnum):
     EXISTS = 1
@@ -113,6 +154,13 @@ class Aggregation(Struct):
     # over, ...
 
 
+def aggregation(
+    type: AggregationType,
+    operand: Optional["Expression"] = None,
+) -> Aggregation:
+    return Aggregation(type=type, operand=operand)
+
+
 @enum_(EnumType.EXPRESSION_TYPE)
 class ExpressionType(BuiltinEnum):
     LITERAL = 1
@@ -134,6 +182,23 @@ class Expression(Struct):
     function: Optional[Function] = p_regular(34)
     aggregation: Optional[Aggregation] = p_regular(35)
     # subquery?
+
+
+def expression(
+    thing: "Value | FieldReference | Condition | Function | Aggregation",
+) -> Expression:
+    if isinstance(thing, Value):
+        return Expression(type=ExpressionType.LITERAL, literal=thing)
+    elif isinstance(thing, FieldReference):
+        return Expression(type=ExpressionType.COLUMN, column=thing)
+    elif isinstance(thing, Condition):
+        return Expression(type=ExpressionType.CONDITION, condition=thing)
+    elif isinstance(thing, Function):
+        return Expression(type=ExpressionType.FUNCTION, function=thing)
+    elif isinstance(thing, Aggregation):
+        return Expression(type=ExpressionType.AGGREGATION, aggregation=thing)
+    else:
+        assert_never(thing)
 
 
 @enum_(EnumType.SORT_TYPE)
@@ -160,17 +225,19 @@ class Sort(Struct):
     mode: Optional[SortMode] = p_regular(32)
 
 
+def sort(column: Union["Field", "Property"], type: SortType = SortType.ASCENDING) -> Sort:
+    return Sort(
+        type=type,
+        by=Expression(type=ExpressionType.COLUMN, column=field_ref(column)),
+    )
+
+
 @enum_(EnumType.JOIN_TYPE)
 class JoinType(BuiltinEnum):
-    INNER = 1
-    LEFT = 2
-    RIGHT = 3
-    OUTER = 4
-    CROSS = 5
+    LEFT = 1
+    # RIGHT, INNER, OUTER, CROSS?
     PARENT = 10
     CHILD = 11
-    ANCESTOR = 12
-    DESCENDANT = 13
 
 
 @struct_(StructType.JOIN)
@@ -180,12 +247,27 @@ class Join(Struct):
     type: JoinType = p_regular(30)
     table: Optional[TableReference] = p_regular(31)
     on: Optional[Condition] = p_regular(32)
+    recursive: bool = p_regular(33)
+
+
+def join(
+    type: JoinType,
+    table: "NodeType | type[Node] | Table | None" = None,
+    on: Optional[Condition] = None,
+    recursive: bool = False,
+) -> Join:
+    return Join(
+        type=type,
+        table=table_ref(table) if table is not None else None,
+        on=on,
+        recursive=recursive,
+    )
 
 
 @enum_(EnumType.QUERY_TYPE)
 class QueryType(BuiltinEnum):
     GET = 1
-    LIST = 2
+    SEARCH = 2
     AGGREGATE = 3
 
 
@@ -195,7 +277,7 @@ class Query[T: "Node"](Struct):
 
     id: UUID = p_regular(2)
     type: QueryType = p_regular(30)
-    name: str = p_regular(
+    name: str | None = p_regular(
         31, description="Name for this subquery. Must be unique within the containing Query."
     )
     table: TableReference = p_regular(35)
@@ -208,75 +290,145 @@ class Query[T: "Node"](Struct):
     group_by: list[Expression] = p_regular(42)
     aggregation: Optional[Aggregation] = p_regular(43)
 
-    order_by: list[Sort] = p_regular(50)
+    sort: list[Sort] = p_regular(50)
     limit: Optional[int] = p_regular(51)
     offset: Optional[int] = p_regular(52)
     count: bool = p_regular(53)
 
 
-def condition(
-    op: ConditionalType, column: Union["Field", "Property"], value: Any = None
-) -> Condition:
-    raise NotImplementedError
+def get[T: Node](
+    node_cls: type[T] | NodeType,
+    name: str,
+    join: Optional[Join] = None,
+    where: Optional[Condition] = None,
+    **subqueries: Query,
+) -> Query[T]:
+    """Create a Get Query."""
+    for name, subquery in subqueries.items():
+        subquery.name = name
+    return Query(
+        type=QueryType.GET,
+        table=table_ref(node_cls),
+        name=name,
+        join=join,
+        where=where,
+        subqueries=list(subqueries.values()),
+    )
 
 
-def sort(op: SortType, column: Union["Field", "Property"]) -> Sort:
-    raise NotImplementedError
+def search[T: Node](
+    node_cls: type[T],
+    name: str,
+    join: Optional[Join] = None,
+    where: Optional[Condition] = None,
+    having: Optional[Condition] = None,
+    sort: Optional[list[Sort]] = None,
+    group_by: Optional[list[Expression]] = None,
+    aggregation: Optional[Aggregation] = None,
+    limit: Optional[int] = None,
+    offset: Optional[int] = None,
+    count: bool = False,
+    **subqueries: Query,
+) -> Query[T]:
+    """Create a Search Query."""
+    for name, subquery in subqueries.items():
+        subquery.name = name
+    return Query(
+        type=QueryType.SEARCH,
+        table=table_ref(node_cls),
+        name=name,
+        join=join,
+        where=where,
+        having=having,
+        group_by=group_by or [],
+        aggregation=aggregation,
+        sort=sort or [],
+        limit=limit,
+        offset=offset,
+        count=count,
+        subqueries=list(subqueries.values()),
+    )
+
+
+def aggregate[T: Node](
+    node_cls: type[T],
+    name: str,
+    join: Optional[Join] = None,
+    where: Optional[Condition] = None,
+    group_by: Optional[list[Expression]] = None,
+    aggregation: Optional[Aggregation] = None,
+    sort: Optional[list[Sort]] = None,
+    limit: Optional[int] = None,
+    offset: Optional[int] = None,
+    count: bool = False,
+    **subqueries: Query,
+) -> Query[T]:
+    """Create an Aggregate Query."""
+    for name, subquery in subqueries.items():
+        subquery.name = name
+    return Query(
+        type=QueryType.AGGREGATE,
+        table=table_ref(node_cls),
+        name=name,
+        join=join,
+        where=where,
+        group_by=group_by or [],
+        aggregation=aggregation,
+        sort=sort or [],
+        limit=limit,
+        offset=offset,
+        count=count,
+        subqueries=list(subqueries.values()),
+    )
 
 
 #
 # Example Queries
 #
 
-# Bench->GET[id=...]
-#    Package->LIST
-#        Page->LIST[sort=last_edited_at, limit=10, count=True]
-#        "Owner"->GET[join=User, on=Page.owned_by]
-#    Membership->LIST[sort=joined_at, limit=10, count=True]
-#        Member->GET[join=Subject]
-#    Page->LIST[count=True]
-# Q(
-#     Bench,
-#     subqueries=[
-#         Q(Package)
-#     ]
-#     )
+q = Bench.get(
+    "Bench",
+    where=Bench.get_property("id").eq(5),
+    Packages=Package.search(
+        Pages=Page.search(limit=10, count=True),
+        Memberships=Membership.search(
+            sort=Membership.get_property("joined_at"),
+            limit=10,
+            count=True,
+        ),
+    ),
+    Pages=Page.search(count=True),
+)
 
-# Page->GET[id=...]
-#    Block->LIST[recursive=true]
-#    *PageNode->LIST
 
-# Thread->GET[limit=20, count=True, order_by=last_active_at]
-#    Message->LIST[sort=created_at, limit=100, count=True]
-#        "Author"->GET[join=User, on=Message.created_by]
+q = Thread.get(
+    where=Thread.get_property("id").eq(5),
+    order_by=Thread.get_property("last_active_at"),
+    Messages=Message.search(sort=Message.get_property("created_at"), limit=100, count=True),
+)
 
-# Thread->LIST[sort=last_active_at, limit=20, count=True]
-#    "Cursor"->GET[join=Cursor, on=Cursor.target & Cursor.owner=...]
-#        "UnreadCount"->AGGREGATE[count(distinct Message where read_at >= "Cursor".last_read_at)]
-#    "Banner"->GET[join=Banner]
-#        File->GET[join=File]
+q = Thread.search(
+    sort=Thread.get_property("last_active_at"),
+    limit=20,
+    count=True,
+    Cursor=Cursor.get(
+        join=Cursor,
+        on=Cursor.get_property("target") & Cursor.get_property("owner"),
+        UnreadCount=Message.aggregate(),
+    ),
+)
 
-# Record.Event->LIST[sort=date, count=True]
-#    "RSVPCount"->AGGREGATE[count(distinct Record.EventResponse where response = 'yes')]
-#    "CreatedBy"->GET[join=User, on=Record.Event.created_by]
-#    "Speakers"->LIST[join=Record.EventSpeaker]
-#    "Responses"->AGGREGATE[group_by=response, count(distinct Record.EventResponse)]
-#        "Responder"->GET[join=User, on=Record.EventResponse.responded_by]
-#    Record.EventResponse->LIST[sort=created_at, limit=3, count=True]
 
-# Space->GET[id=...]
-#     Scene->LIST
-#         Field->LIST
-#         Theme->LIST
-#         *ViewBase->LIST[recursive=True]
-#            Field->LIST
-#         *StyleBase->LIST[recursive=True]
-#            Field->LIST
-#     Route->LIST
-
-# Reaction->AGGREGATE[parent=..., sort=created_at, group_by=Reaction.type, limit=100, count=True]
-#    "Reaction"->GET[join=Reaction]
-#    "CreatedBy"->GET[join=User, on=Reaction.created_by]
+q = Space.get(
+    where=Space.get_property("id").eq(5),
+    Scenes=Scene.search(
+        Fields=Field.search(),
+        Themes=Theme.search(),
+        Views=ViewBase.search(join=join(JoinType.PARENT, recursive=True)),
+        Styles=StyleBase.search(join=join(JoinType.PARENT, recursive=True)),
+    ),
+    Route=Route.search(),
+)
 
 
 class IsQueryable:
@@ -287,22 +439,22 @@ class IsQueryable:
     def is_equal(self: Any, value: Any) -> "Condition":
         if value is None:
             return self.not_exists()
-        return condition(ConditionalType.EQUALS, self, value=value)
+        return condition(self, ConditionalType.EQUALS, value=value)
 
     def not_equal(self: Any, value: Any) -> "Condition":
-        return condition(ConditionalType.NOT_EQUALS, self, value=value)
+        return condition(self, ConditionalType.NOT_EQUALS, value=value)
 
     def greater_than(self: Any, value: Any) -> "Condition":
-        return condition(ConditionalType.GREATER_THAN, self, value=value)
+        return condition(self, ConditionalType.GREATER_THAN, value=value)
 
     def greater_than_or_equals(self: Any, value: Any) -> "Condition":
-        return condition(ConditionalType.GREATER_THAN_OR_EQUALS, self, value=value)
+        return condition(self, ConditionalType.GREATER_THAN_OR_EQUALS, value=value)
 
     def less_than(self: Any, value: Any) -> "Condition":
-        return condition(ConditionalType.LESS_THAN, self, value=value)
+        return condition(self, ConditionalType.LESS_THAN, value=value)
 
     def less_than_or_equals(self: Any, value: Any) -> "Condition":
-        return condition(ConditionalType.LESS_THAN_OR_EQUALS, self, value=value)
+        return condition(self, ConditionalType.LESS_THAN_OR_EQUALS, value=value)
 
     eq = is_equal
     neq = not_equal
@@ -312,54 +464,63 @@ class IsQueryable:
     gte = greater_than_or_equals
 
     def starts_with(self: Any, value: str) -> "Condition":
-        return condition(ConditionalType.STARTS_WITH, self, value=value)
+        return condition(self, ConditionalType.STARTS_WITH, value=value)
 
     startswith = starts_with
 
     def ends_with(self: Any, value: str) -> "Condition":
-        return condition(ConditionalType.ENDS_WITH, self, value=value)
+        return condition(self, ConditionalType.ENDS_WITH, value=value)
 
     endswith = ends_with
 
     def in_(self: Any, *values: list[Any]) -> "Condition":
-        return condition(ConditionalType.IN, self, value=values)
+        return condition(self, ConditionalType.IN, value=values)
 
     def not_in(self: Any, *values: list[Any]) -> "Condition":
-        return condition(ConditionalType.NOT_IN, self, value=values)
+        return condition(self, ConditionalType.NOT_IN, value=values)
 
     def contains(self: Any, value: Any) -> "Condition":
-        return condition(ConditionalType.CONTAINS, self, value=value)
+        return condition(self, ConditionalType.CONTAINS, value=value)
 
     def not_contains(self: Any, value: Any) -> "Condition":
-        return condition(ConditionalType.NOT_CONTAINS, self, value=value)
+        return condition(self, ConditionalType.NOT_CONTAINS, value=value)
 
     def exists(self: Any) -> "Condition":
-        return condition(ConditionalType.EXISTS, self)
+        return condition(self, ConditionalType.EXISTS)
 
     def is_not_none(self: Any) -> "Condition":
-        return condition(ConditionalType.EXISTS, self)
+        return condition(self, ConditionalType.EXISTS)
 
     def not_exists(self: Any) -> "Condition":
-        return condition(ConditionalType.NOT_EXISTS, self)
+        return condition(self, ConditionalType.NOT_EXISTS)
 
     def is_none(self: Any) -> "Condition":
-        return condition(ConditionalType.NOT_EXISTS, self)
+        return condition(self, ConditionalType.NOT_EXISTS)
 
     def asc(self: Any) -> "Sort":
-        return sort(SortType.ASCENDING, self)
+        return sort(self, SortType.ASCENDING)
 
     ascending = asc
 
     def desc(self: Any) -> "Sort":
-        return sort(SortType.DESCENDING, self)
+        return sort(self, SortType.DESCENDING)
 
     descending = desc
 
-    #
-    # Aggregation
-    #
+    def sum(self: Any) -> "Aggregation":
+        return aggregation(AggregationType.SUM, operand=self)
 
-    ...
+    def min(self: Any) -> "Aggregation":
+        return aggregation(AggregationType.MIN, operand=self)
+
+    def max(self: Any) -> "Aggregation":
+        return aggregation(AggregationType.MAX, operand=self)
+
+    def average(self: Any) -> "Aggregation":
+        return aggregation(AggregationType.AVERAGE, operand=self)
+
+    def median(self: Any) -> "Aggregation":
+        return aggregation(AggregationType.MEDIAN, operand=self)
 
 
 @struct_(StructType.SELECTION)
