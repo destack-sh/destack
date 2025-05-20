@@ -34,20 +34,14 @@ from .const import (
     PrimitiveType,
     PrimitiveValue,
     StructType,
-    TypeKind,
 )
 from .graph import Supergraph
 from .property import Property
 from .struct import Struct, struct_
+from .type import TypeKind
 
 if TYPE_CHECKING:
-    from bench.language import (
-        BuiltinObject,
-        Node,
-        NodeReference,
-        Session,
-        TypeBase,
-    )
+    from bench.language import BuiltinObject, Node, NodeReference, Session, TypeBase
 
 
 # pyright: reportIncompatibleVariableOverride=false

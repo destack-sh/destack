@@ -7,6 +7,7 @@ from bench.language.core import (
     IsModal,
     IsNamed,
     IsOrdered,
+    IsQueryable,
     NodeType,
     PackageNode,
     Property,
@@ -14,7 +15,6 @@ from bench.language.core import (
     TypeConstraint,
     TypeConstraintIn,
     TypeIn,
-    _IntoQuery,
     encode_storage_key,
     node_,
     p_internal,
@@ -42,7 +42,7 @@ class Field(
     IsOrdered,
     TypeBase,
     PackageNode[FieldData],
-    _IntoQuery,
+    IsQueryable,
 ):
     """
     A Field is a user-defined attribute.
@@ -72,7 +72,7 @@ class Field(
         return TypeBase.__content_str__(self)
 
     def __eq__(self, other):  # type: ignore
-        return _IntoQuery.__eq__(self, other)  # override to avoid recursion
+        return IsQueryable.__eq__(self, other)  # override to avoid recursion
 
     __hash__ = PackageNode.__hash__  # type: ignore
 

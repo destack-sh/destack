@@ -46,10 +46,8 @@ from .const import (
     NodeType,
     ObjectType,
     StructType,
-    TypeKind,
 )
 from .graph import Supergraph
-from .list import RemoteNodeList
 from .property import (
     _PROPERTY_SPECIFIERS,
     METATYPE_PROPERTY,
@@ -684,8 +682,6 @@ class BuiltinObject[ObjectDataT: AnyObjectData](abc.ABC):
                 if new_node is not None:
                     setattr(self, prop.name, new_node)
             else:
-                if type(prop_value) is RemoteNodeList or len(prop_value) == 0:
-                    continue
                 new_nodes = [new_node_by_id.get(node.id) for node in prop_value]
                 prop_value.set(new_nodes)
 
@@ -883,6 +879,8 @@ def value_equals(
     identity_map: Mapping[UUID, "NodeReference"] = EMPTY_DICT,
 ) -> bool:
     """Checks whether two values for a given type are equal (recursively)."""
+    from .type import TypeKind
+
     if self_value is None or other_value is None:
         return self_value is other_value
     elif typ.kind == TypeKind.PRIMITIVE:

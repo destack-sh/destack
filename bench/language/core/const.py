@@ -11,7 +11,6 @@ from typing import (
     Collection,
     Generator,
     Iterable,
-    Mapping,
     Optional,
     TypeGuard,
     TypeVar,
@@ -307,13 +306,21 @@ class EnumType(BuiltinEnum):
     USER_STATUS = 40010
     ORGANIZATION_STATUS = 40011
     BENCH_STATUS = 40056
-    ERROR_KIND = 40100
-    ERROR_TYPE = 40101
-    SEVERITY = 40102
-    VARIABLE_TYPE = 40110
-    EDIT_TYPE = 40120
-    EDIT_OPERATION_TYPE = 40121
+    ERROR_KIND = 40060
+    ERROR_TYPE = 40061
+    SEVERITY = 40062
+    VARIABLE_TYPE = 40063
+    EDIT_TYPE = 40070
+    EDIT_OPERATION_TYPE = 40071
     # PROFILE, CREDENTIAL, FRIENDSHIP, ...
+    # query
+    CONDITIONAL_TYPE = 40102
+    AGGREGATION_TYPE = 40103
+    SORT_MODE = 40104
+    SORT_TYPE = 40105
+    JOIN_TYPE = 40106
+    FUNCTION_TYPE = 40107
+    EXPRESSION_TYPE = 40108
 
     # package [41000-41200]
     PACKAGE_TYPE = 40050
@@ -333,7 +340,7 @@ class EnumType(BuiltinEnum):
     CLIENT_TYPE = 41221
     # VAULT, CACHE, ENDPOINT, DEPLOYMENT, NETWORK, ...
 
-    # type [41400-41600]
+    # data [41400-41600]
     TEXT_LINE_TYPE = 41400
     TEXT_SPAN_TYPE = 41401
     CODE_TYPE = 41410
@@ -344,23 +351,12 @@ class EnumType(BuiltinEnum):
     ICON_TYPE = 41430
     LINK_TYPE = 41440
     # SCHEMA, UNION, TAG, ...
-
-    # data [41600-41800]
-    PRIMITIVE_TYPE = 41600
-    FIELD_TYPE = 41601
-    TYPE_KIND = 41602
-    TYPE_FORMAT = 41603
-    DAY = 41610
-    MONTH = 41611
-    TIME_INTERVAL = 41612
-    EXPRESSION_KIND = 41640
-    EXPRESSION_TYPE = 41641
-    LITERAL_TYPE = 41642
-    FUNCTIONAL_TYPE = 41643
-    CONDITIONAL_TYPE = 41644
-    AGGREGATION_TYPE = 41645
-    SORT_MODE = 41650
-    SORT_TYPE = 41651
+    PRIMITIVE_TYPE = 41500
+    FIELD_TYPE = 41501
+    TYPE_KIND = 41502
+    DAY = 41510
+    MONTH = 41511
+    TIME_INTERVAL = 41512
     # ...
 
     # chat [41800-42000]
@@ -380,8 +376,8 @@ class EnumType(BuiltinEnum):
 
     # logic [42200-42400]
     ACTION_TYPE = 42220
-    FLOW_EDGE_TYPE = 42222
-    FLOW_TYPE = 42223
+    FLOW_TYPE = 42222
+    FLOW_EDGE_TYPE = 42223
     #  ...
 
     # qa [42400-42600]
@@ -497,6 +493,15 @@ class StructType(BuiltinEnum):
     NODE_REFERENCE = 20004
     PROPERTY_REFERENCE = 20005
     VARIABLE = 20006
+    EXPRESSION = 20100
+    FUNCTION = 20101
+    JOIN = 20102
+    AGGREGATION = 20103
+    CONDITION = 20104
+    SORT = 20105
+    QUERY = 20106
+    TABLE_REFERENCE = 20110
+    COLUMN_REFERENCE = 20111
 
     # package [21000-21200]
     # APP, PLUGIN, ...
@@ -504,18 +509,17 @@ class StructType(BuiltinEnum):
     # infra [21200-21400]
     # VAULT, CACHE, ENDPOINT, DEPLOYMENT, NETWORK, ...
 
-    # type [21400-21600]
+    # data [21400-21600]
     TYPE = 21400
     TYPE_CONSTRAINT = 21401
     VALUE = 21410
     # SCHEMA, UNION, TAG, ...
-
-    # data [21600-21800]
-    TEXT = 21600, None, None, "fas fa-text"
-    TEXT_LINE = 21601, None, None, "fas fa-text"
-    TEXT_SPAN = 21602, None, None, "fas fa-text"
-    CODE = 21610, None, None, "fas fa-code"
-    ICON = 21430
+    TEXT = 21500, None, None, "fas fa-text"
+    TEXT_LINE = 21501, None, None, "fas fa-text"
+    TEXT_SPAN = 21502, None, None, "fas fa-text"
+    CODE = 21510, None, None, "fas fa-code"
+    ICON = 21530
+    SELECTION = 21470
     # ...
 
     # chat [21800-22000]
@@ -525,10 +529,6 @@ class StructType(BuiltinEnum):
     # ...
 
     # logic [22200-22400]
-    EXPRESSION = 22200
-    AGGREGATION_RESULT = 22201
-    SELECTION = 22210
-    SELECT_OPTIONS = 22220
     SCHEDULE = 21440
     # ...
 
@@ -639,18 +639,16 @@ class NodeType(BuiltinEnum):
     SCALER = 1250, "Scaler", "Autoscale Resources", "fas fa-scale-unbalanced"
     # VAULT, CACHE, ENDPOINT, DEPLOYMENT, NETWORK, ...
 
-    # type [1400-1600]
+    # data [1400-1600]
     SCHEMA = 1410, "Schema", "Schema", "fas fa-shapes"
     CHOICE = 1400, "Choice", "Choice between Options", "fas fa-circle-chevron-down"
     FIELD = 1420, "Field", "Field", "fas fa-triangle"
     OPTION = 1430, "Option", "Option", "far fa-square-check"
     # SCHEMA, UNION, TAG, ...
-
-    # data [1600-1800]
-    TABLE = 1600, "Table", "Table of Records", "fas fa-table"
-    RECORD = 1610, "Record", "Record in a Database", "fas fa-database"
-    FILE = 1620, "File", "File", "fas fa-file"
-    LINK = 1650, "Link", "Link to something", "fas fa-link"
+    TABLE = 1500, "Table", "Table of Records", "fas fa-table"
+    RECORD = 1510, "Record", "Record in a Database", "fas fa-database"
+    FILE = 1520, "File", "File", "fas fa-file"
+    LINK = 1550, "Link", "Link to something", "fas fa-link"
     # STREAM, SECRET, INDEX, CONSTRAINT, ...
 
     # chat [1800-2000]
@@ -662,9 +660,8 @@ class NodeType(BuiltinEnum):
 
     # plan [2000-2200]
     TASK = 2000, "Task", "To-do item", "far fa-square-check"
-    CLAIM = 2010, "Claim", "Control over something", "fas fa-stamp"
     CURSOR = 2020, "Cursor", "Position in something", "fas fa-mouse"
-    # JOB, PLAN, ENTITLEMENT, POOL, LOCK, BARRIER, ...
+    # JOB, PLAN, LOCK, ...
 
     # logic [2200-2400]
     SERVICE = 2200, "Service", "Service", "fas fa-screwdriver-wrench"
@@ -674,7 +671,7 @@ class NodeType(BuiltinEnum):
     AGENT = 2250, "Agent", "Identity for an AI", "fas fa-robot"
     # TRIGGER, TIMER, BREAKPOINT, ...
 
-    # qa [2400-2600]
+    # test/qa [2400-2600]
     # ...
 
     # runtime [2600-2800]
@@ -683,15 +680,14 @@ class NodeType(BuiltinEnum):
     INTERRUPTION = 2630, "Interruption", "Interruption", "fas fa-hand"
     # EVENT, SIGNAL, ...
 
-    # identity [2800-3000]
+    # auth [2800-3000]
     MEMBERSHIP = 2800, "Membership", "Membership to something", "fas fa-users"
     INVITE = 2810, "Invite", "Invite to something", "fas fa-user-plus"
     TEAM = 2820, "Team", "Group of Users or Agents", "fas fa-users"
     ROLE = 2830, "Role", "Role", "fas fa-user-tag"
     # PROFILE? (for User, or maybe global?)
-
-    # access [3000-3200]
-    # CHALLENGE, BADGE, POLICY, RULE, ...
+    CLAIM = 2840, "Claim", "Control over something", "fas fa-stamp"
+    # CHALLENGE, BADGE, ENTITLEMENT, POLICY, RULE, ...
 
     # version [3200-3400]
     # CHANGE, HISTORY, BRANCH, ...
@@ -1355,32 +1351,6 @@ PRIMITIVE_TYPE_BY_PY_TYPE: dict[type, PrimitiveType] = {
 }
 
 
-@enum_(EnumType.TYPE_FORMAT)
-class TypeFormat(BuiltinEnum):  # :TypeFormat
-    """The fine-grained format of some Type."""
-
-    # strings
-    URL = 2000, "Url", "Web address", "fas fa-link"
-    EMAIL = 2001, "Email", "Email address", "fas fa-at"
-    EMOJI = 2002, "Emoji", "Emoji", "fas fa-smile"
-    PHONE_NUMBER = 2003, "Phone number", "Phone number", "fas fa-phone"
-    SLUG = 2004, "Slug", "Slug", "fas fa-at"
-
-    @property
-    def primitive_type(self) -> PrimitiveType:
-        return PrimitiveType(self // 100)
-
-
-@enum_(EnumType.TYPE_KIND)
-class TypeKind(BuiltinEnum):
-    """The 'kind' of a Type."""
-
-    PRIMITIVE = 1
-    STRUCT = 2
-    NODE = 3
-    ENUM = 4
-
-
 @enum_(EnumType.FIELD_TYPE)
 class FieldType(BuiltinEnum):
     """The type of a Field within its Block. Overlaps with ObjectKind."""
@@ -1524,135 +1494,6 @@ INTERRUPTED_PROCESS_STATUSES = bittuple(*(s for s in ProcessStatus if s.is_inter
 ACTIVE_PROCESS_STATUSES = bittuple(*(s for s in ProcessStatus if s.is_active))
 INACTIVE_PROCESS_STATUSES = bittuple(*(s for s in ProcessStatus if s.is_inactive))
 TERMINAL_PROCESS_STATUSES = bittuple(*(s for s in ProcessStatus if s.is_terminal))
-
-
-@enum_(EnumType.EXPRESSION_KIND)
-class ExpressionKind(BuiltinEnum):
-    LITERAL = 1
-    FUNCTIONAL = 2
-    CONDITIONAL = 3
-    SORT = 4
-    AGGREGATION = 5
-
-
-@enum_(EnumType.LITERAL_TYPE)
-class LiteralType(BuiltinEnum):
-    VALUE = 100  # any freeform value
-    NONE = 101
-    TRUE = 102
-    FALSE = 103
-
-    @property
-    def kind(self) -> "ExpressionKind":
-        return ExpressionKind.LITERAL
-
-
-@enum_(EnumType.FUNCTIONAL_TYPE)
-class FunctionalType(BuiltinEnum):
-    # math
-    ADD = 200
-    SUBTRACT = 201
-    MULTIPLY = 202
-    DIVIDE = 203
-    MODULO = 204
-    POWER = 205
-    # ...
-
-    @property
-    def kind(self) -> "ExpressionKind":
-        return ExpressionKind.FUNCTIONAL
-
-
-@enum_(EnumType.CONDITIONAL_TYPE)
-class ConditionalType(BuiltinEnum):
-    # logical
-    NOT = 301
-    AND = 302
-    OR = 303
-    # basic comparison
-    EQUALS = 310
-    NOT_EQUALS = 311
-    GREATER_THAN = 312
-    GREATER_THAN_OR_EQUALS = 313
-    LESS_THAN = 314
-    LESS_THAN_OR_EQUALS = 315
-    # string comparison
-    MATCHES = 320
-    STARTS_WITH = 321
-    ENDS_WITH = 322
-    MATCHES_REGEX = 323
-    # collections
-    CONTAINS = 330
-    NOT_CONTAINS = 331
-    IN = 332
-    NOT_IN = 333
-    # existence
-    EXISTS = 340
-    NOT_EXISTS = 341
-    # vector
-    NEAR = 350
-
-    @property
-    def kind(self) -> "ExpressionKind":
-        return ExpressionKind.CONDITIONAL
-
-
-@enum_(EnumType.AGGREGATION_TYPE)
-class AggregationType(BuiltinEnum):
-    EXISTENCE = 400
-    COUNT = 401
-    SUM = 402
-    MIN = 403
-    MAX = 404
-    AVERAGE = 405
-    MEDIAN = 406
-    HISTOGRAM = 407
-
-    @property
-    def kind(self) -> "ExpressionKind":
-        return ExpressionKind.AGGREGATION
-
-
-@enum_(EnumType.SORT_TYPE)
-class SortType(BuiltinEnum):
-    ASCENDING = 500
-    DESCENDING = 501
-
-    @property
-    def kind(self) -> "ExpressionKind":
-        return ExpressionKind.SORT
-
-
-@enum_(EnumType.SORT_MODE)
-class SortMode(BuiltinEnum):
-    MAX = 1
-    MIN = 2
-    AVERAGE = 3
-    SUM = 4
-    MEDIAN = 5
-
-
-EXPRESSION_OPS_BY_KIND: Mapping[ExpressionKind, bittuple["ExpressionType"]] = {  # type: ignore
-    ExpressionKind.LITERAL: bittuple(*LiteralType),
-    ExpressionKind.FUNCTIONAL: bittuple(*FunctionalType),
-    ExpressionKind.CONDITIONAL: bittuple(*ConditionalType),
-    ExpressionKind.AGGREGATION: bittuple(*AggregationType),
-    ExpressionKind.SORT: bittuple(*SortType),
-}
-EXPRESSION_KIND_BY_OP: Mapping["ExpressionType", ExpressionKind] = {  # type: ignore
-    op: kind
-    for kind, ops in EXPRESSION_OPS_BY_KIND.items()  # type: ignore
-    for op in ops
-}
-
-if typing.TYPE_CHECKING:
-    ExpressionType = LiteralType | FunctionalType | ConditionalType | AggregationType | SortType
-else:
-    ExpressionType = BuiltinEnum.combine(
-        "ExpressionType", LiteralType, FunctionalType, ConditionalType, AggregationType, SortType
-    )
-    ExpressionType.kind = property(lambda self: EXPRESSION_KIND_BY_OP[self])
-    enum_(EnumType.EXPRESSION_TYPE)(ExpressionType)
 
 
 @enum_(EnumType.CLIENT_TYPE)

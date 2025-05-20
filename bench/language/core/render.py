@@ -34,8 +34,6 @@ from .const import (
     ObjectType,
     PrimitiveType,
     StructType,
-    TypeFormat,
-    TypeKind,
     is_node_type,
 )
 from .graph import Supergraph
@@ -45,7 +43,7 @@ from .object import BuiltinObject, PropertyReference
 from .property import NodeReferenceKind, Property
 from .struct import Struct
 from .text import Text, TextLine, text_line_to_markdown, text_to_markdown
-from .type import TypeBase, TypeConstraint, reverse_type_scalar
+from .type import TypeBase, TypeConstraint, TypeKind, reverse_type_scalar
 from .value import ScalarValue, SomeValue
 
 if TYPE_CHECKING:
@@ -423,8 +421,6 @@ def _deconstruct_type_in(
     kwargs = {**kwargs}
     for key in ("kind", "primitive_type", "bench_type", "base_type"):
         kwargs.pop(key, None)
-    if isinstance(type_in, TypeFormat):
-        kwargs.pop("format", None)
     return rendered_type, kwargs
 
 
