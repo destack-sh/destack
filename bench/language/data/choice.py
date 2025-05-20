@@ -29,7 +29,7 @@ class Choice(
 ):
     """A Choice of Options."""
 
-    parent: Union["Page", "Table", None] = p_node_parent(4, NodeType.PAGE, NodeType.TABLE)
+    parent: Union["Page", "Table", None] = p_node_parent(4)
 
     def __content_str__(self):
         return ""

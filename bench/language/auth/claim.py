@@ -80,16 +80,7 @@ class Claim(
     """
 
     # meta
-    parent: Union["Service", "Flow", "Action", "Agent", "Thread", "Run", None] = p_node_parent(
-        4,
-        NodeType.SERVICE,
-        NodeType.FLOW,
-        NodeType.ACTION,
-        NodeType.AGENT,
-        NodeType.ROLE,
-        NodeType.THREAD,
-        NodeType.RUN,
-    )
+    parent: Union["Service", "Flow", "Action", "Agent", "Thread", "Run", None] = p_node_parent(4)
     type: ClaimType = p_regular(30)
 
     # status

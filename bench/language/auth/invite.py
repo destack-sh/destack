@@ -1,7 +1,6 @@
 from typing import TYPE_CHECKING, Optional, Union
 
 from bench.language.core import (
-    JOINABLE_NODE_TYPES,
     BenchNode,
     Joinable,
     NodeType,
@@ -24,7 +23,7 @@ class Invite(BenchNode[InviteData]):
     An Invite to become a member of something.
     """
 
-    parent: Union[Joinable, None] = p_node_parent(4, *JOINABLE_NODE_TYPES)
+    parent: Union[Joinable, None] = p_node_parent(4)
 
     # content
     member: Optional[Subject] = p_regular(40, node_exclude=("ck", "base_id"))

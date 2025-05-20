@@ -1,7 +1,6 @@
 from typing import TYPE_CHECKING, Optional, Union
 
 from bench.language.core import (
-    VIEW_NODE_TYPES,
     BuiltinEnum,
     EnumType,
     IsInstantiable,
@@ -65,16 +64,7 @@ class Field(
     """
 
     parent: Union["Agent", "Action", "Schema", "Flow", "Table", "Scene", "ViewBase", None] = (
-        p_node_parent(
-            4,
-            NodeType.AGENT,
-            NodeType.ACTION,
-            NodeType.SCHEMA,
-            NodeType.FLOW,
-            NodeType.TABLE,
-            NodeType.SCENE,
-            *VIEW_NODE_TYPES.tuple,
-        )
+        p_node_parent(4)
     )
     type: FieldType = p_internal(30)
     icon: Optional["Icon"] = p_regular(35)

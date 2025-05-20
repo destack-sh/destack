@@ -68,13 +68,7 @@ class Cursor(IsOwnable, IsModal, IsTitled, PackageNode):
     """
 
     # meta
-    parent: Union["Space", "Agent", "Thread", "Run", None] = p_node_parent(
-        4,
-        NodeType.SPACE,
-        NodeType.AGENT,
-        NodeType.THREAD,
-        NodeType.RUN,
-    )
+    parent: Union["Space", "Agent", "Thread", "Run", None] = p_node_parent(4)
     type: CursorType = p_regular(30)
 
     # status?

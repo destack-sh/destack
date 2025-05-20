@@ -39,7 +39,6 @@ from .const import (
     BENCH_NODE_TYPES,
     GLOBAL_NODE_TYPES,
     LOCAL_NODE_TYPES,
-    NODE_TYPES,
     PACKAGE_NODE_TYPES,
     REGIONAL_NODE_TYPES,
     UNSET,
@@ -897,9 +896,7 @@ class Node[NodeDataT: AnyNodeData](BuiltinObject[NodeDataT]):
 class BenchNode[NodeDataT: AnyNodeData](Node[NodeDataT]):
     """A Node inside a Bench."""
 
-    bench: "Bench | None" = p_node_ancestor_with_self(
-        6, NodeType.BENCH, require=True, store=True, wire=True
-    )
+    bench: "Bench | None" = p_node_ancestor_with_self(6, require=True, store=True, wire=True)
     if TYPE_CHECKING:
         bench_id: Optional[UUID] = None
         bench_ptr: Optional[NodeReference] = None
@@ -913,9 +910,7 @@ class BenchNode[NodeDataT: AnyNodeData](Node[NodeDataT]):
 class PackageNode[NodeDataT: AnyNodeData](BenchNode[NodeDataT]):
     """A Node in a Package."""
 
-    package: "Package | None" = p_node_ancestor_with_self(
-        7, NodeType.PACKAGE, require=True, store=True, wire=True
-    )
+    package: "Package | None" = p_node_ancestor_with_self(7, require=True, store=True, wire=True)
     if TYPE_CHECKING:
         package_id: Optional[UUID] = None
         package_ptr: Optional[NodeReference] = None
@@ -925,7 +920,7 @@ class PackageNode[NodeDataT: AnyNodeData](BenchNode[NodeDataT]):
 class PageNode[NodeDataT: AnyNodeData](IsOrdered, PackageNode[NodeDataT]):
     """A Node that can (but may not be) be inline on a Page."""
 
-    parent: Union["Page", None] = p_node_parent(4, NodeType.PAGE)
+    parent: Union["Page", None] = p_node_parent(4)
     # name: 31
     # title: 32
     # order_key: 33
@@ -1065,7 +1060,7 @@ class NodeReference(Struct[NodeReferenceData]):
 class Empty(Node):
     """An empty node."""
 
-    parent: Node = p_node_parent(4, *NODE_TYPES.tuple)
+    parent: Node = p_node_parent(4)
 
 
 # NOTE: import from .value later to avoid circular import

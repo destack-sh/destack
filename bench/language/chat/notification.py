@@ -47,7 +47,7 @@ class Notification(IsTitled, IsModal, PackageNode[NotificationData]):
     """
 
     # meta
-    parent: Union["Package", None] = p_node_parent(4, NodeType.PACKAGE)
+    parent: Union["Package", None] = p_node_parent(4)
     type: NotificationType = p_regular(30)
     channel: Optional["Channel"] = p_system(
         33,

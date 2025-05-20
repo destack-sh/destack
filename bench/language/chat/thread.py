@@ -62,9 +62,7 @@ class Thread(
     """
 
     # meta
-    parent: Union["Package", "Page", "Channel", "Thread", None] = p_node_parent(
-        4, NodeType.PACKAGE, NodeType.PAGE, NodeType.CHANNEL, NodeType.THREAD
-    )
+    parent: Union["Package", "Page", "Channel", "Thread", None] = p_node_parent(4)
     channel: Optional["Channel"] = p_system(40, node_bench_from="self")
     if TYPE_CHECKING:
         channel_ptr: Optional[NodeReference] = None

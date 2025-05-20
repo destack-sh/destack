@@ -41,7 +41,7 @@ class Task(
     """A Task is like a to do item."""
 
     # meta
-    parent: Union["Page", "Task", None] = p_node_parent(4, NodeType.PAGE, NodeType.TASK)
+    parent: Union["Page", "Task", None] = p_node_parent(4)
     # type?
     # priority?
 

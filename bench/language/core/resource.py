@@ -5,7 +5,7 @@ from fastuuid import UUID
 
 from bench.pb2 import AnyNodeData
 
-from .const import REGION, BuiltinEnum, EnumType, NodeType, Region, enum_
+from .const import REGION, BuiltinEnum, EnumType, Region, enum_
 from .node import Node, NodeReference, PageNode, node_component_
 from .property import p_internal, p_node_parent, p_system
 from .trait import IsClaimable, IsInstantiable, IsModal, IsNamed, IsOwnable
@@ -64,9 +64,7 @@ class ResourceBase[NodeDataT: AnyNodeData](
     """
 
     # meta
-    parent: Union["Package", "Page", "Thread", None] = p_node_parent(
-        4, NodeType.PACKAGE, NodeType.PAGE, NodeType.THREAD
-    )
+    parent: Union["Package", "Page", "Thread", None] = p_node_parent(4)
     # ... space for type/name/...
     region: Region = p_system(38, default=REGION)
 

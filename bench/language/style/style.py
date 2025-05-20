@@ -1,11 +1,9 @@
 from typing import TYPE_CHECKING, Union
 
 from bench.language.core import (
-    VIEW_NODE_TYPES,
     IsModal,
     IsNamed,
     IsTemplatable,
-    NodeType,
     PageNode,
     node_component_,
     p_node_parent,
@@ -27,6 +25,4 @@ class StyleBase[NodeDataT: AnyNodeData](
 ):
     """A Style is a graphical interface."""
 
-    parent: Union["Space", "ViewBase", "Page", None] = p_node_parent(
-        4, NodeType.SPACE, *VIEW_NODE_TYPES.tuple, NodeType.PAGE
-    )
+    parent: Union["Space", "ViewBase", "Page", None] = p_node_parent(4)

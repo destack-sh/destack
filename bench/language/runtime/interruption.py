@@ -80,9 +80,9 @@ class Interruption(IsModal, IsExtensible, PackageNode[InterruptionData]):
     """An Interruption in the processing or execution of something."""
 
     # meta
-    parent: Optional["Run"] = p_node_parent(4, NodeType.RUN)
+    parent: Optional["Run"] = p_node_parent(4)
     type: InterruptionType = p_regular(30)
-    root: "Run | None" = p_node_ancestor(31, NodeType.RUN, require=False, store=True, wire=True)
+    root: "Run | None" = p_node_ancestor(31, require=False, store=True, wire=True)
     flow: Optional["Flow"] = p_internal(33)
     action: Optional["Action"] = p_internal(34)
     link: Optional["FlowEdge"] = p_internal(35)

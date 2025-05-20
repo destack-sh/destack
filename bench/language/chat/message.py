@@ -66,7 +66,7 @@ class Message(
     """
 
     # meta
-    parent: Union["Channel", "Thread", None] = p_node_parent(4, NodeType.CHANNEL, NodeType.THREAD)
+    parent: Union["Channel", "Thread", None] = p_node_parent(4)
     type: MessageType = p_regular(30, default=MessageType.DEFAULT)
     # platform? source?
     channel: Optional["Channel"] = p_regular(34, node_bench_from="self")

@@ -27,7 +27,7 @@ class Option(IsInstantiable, IsModal, IsNamed, IsOrdered, PackageNode[OptionData
     An Option in a Choice or Field.
     """
 
-    parent: Union["Choice", "Field", None] = p_node_parent(4, NodeType.CHOICE, NodeType.FIELD)
+    parent: Union["Choice", "Field", None] = p_node_parent(4)
     icon: Optional["Icon"] = p_regular(34)
 
     @staticmethod

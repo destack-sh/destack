@@ -52,15 +52,7 @@ class Link(IsTitled, ResourceBase[LinkData]):
         "Message",
         "Run",
         None,
-    ] = p_node_parent(
-        4,
-        NodeType.PACKAGE,
-        NodeType.PAGE,
-        NodeType.TABLE,
-        NodeType.LINK,
-        NodeType.THREAD,
-        NodeType.RUN,
-    )
+    ] = p_node_parent(4)
     type: LinkType = p_regular(30)
 
     # content

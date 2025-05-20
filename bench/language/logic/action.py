@@ -79,7 +79,7 @@ class Action(
     May defer to a builtin or some other service in a separate system.
     """
 
-    parent: Union["Flow", "Service", None] = p_node_parent(4, NodeType.FLOW, NodeType.SERVICE)
+    parent: Union["Flow", "Service", None] = p_node_parent(4)
 
     # common
     type: ActionType = p_regular(30, description="Type of this Action. Only dynamic for tools.")

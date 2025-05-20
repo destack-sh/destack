@@ -3,7 +3,6 @@ from typing import TYPE_CHECKING, Union, override
 from fastuuid import UUID
 
 from bench.language.core import (
-    JOINABLE_NODE_TYPES,
     IsInstantiable,
     IsModal,
     Joinable,
@@ -30,7 +29,7 @@ class Membership(IsInstantiable, IsModal, PackageNode[MembershipData]):
     """
 
     # meta
-    parent: Union[Joinable, None] = p_node_parent(4, *JOINABLE_NODE_TYPES)
+    parent: Union[Joinable, None] = p_node_parent(4)
 
     # content
     member: Subject = p_regular(41)

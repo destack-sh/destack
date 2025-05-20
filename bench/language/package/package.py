@@ -37,7 +37,7 @@ class Package(IsOwnable, IsJoinable, IsTemplatable, IsModal, IsNamed, PackageNod
     """A Package is a semi-isolated area of a Bench."""
 
     # meta
-    parent: Optional["Bench"] = p_node_parent(4, NodeType.BENCH)
+    parent: Optional["Bench"] = p_node_parent(4)
     type: PackageType = p_regular(30)
     slug: str | None = p_regular(34, constraint=SLUG_CONSTRAINT)
     icon: Optional["Icon"] = p_regular(35)
