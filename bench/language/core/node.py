@@ -14,7 +14,6 @@ from typing import (
     cast,
     dataclass_transform,
     final,
-    overload,
     override,
 )
 
@@ -69,17 +68,20 @@ from .trait import IsBased, IsModal, IsOrdered, Subject
 
 if TYPE_CHECKING:
     from bench.language import (
+        Aggregation,
         Bench,
         Block,
         Condition,
         Expression,
         Field,
         Icon,
+        Join,
         NodeReference,
         Package,
         Page,
         Query,
         Session,
+        Sort,
         TextLine,
     )
 
@@ -813,6 +815,94 @@ class Node[NodeDataT: AnyNodeData](BuiltinObject[NodeDataT]):
     #
     # Querying
     #
+    @classmethod
+    def get(
+        cls: type["Self"],
+        name: str | None = None,
+        join: Optional["Join"] = None,
+        where: Optional["Condition"] = None,
+        **subqueries: "Query",
+    ) -> "Query[Self]":
+        from .expression import Query, QueryType, TableReference
+
+        for name, subquery in subqueries.items():
+            subquery.name = name
+        return Query(
+            type=QueryType.GET,
+            table=TableReference(node_type=cls.metatype),
+            name=name,
+            join=join,
+            where=where,
+            subqueries=list(subqueries.values()),
+        )
+
+    @classmethod
+    def search(
+        cls: type["Self"],
+        name: str | None = None,
+        join: Optional["Join"] = None,
+        where: Optional["Condition"] = None,
+        having: Optional["Condition"] = None,
+        sort: Optional[list["Sort"]] = None,
+        group_by: Optional[list["Expression"]] = None,
+        aggregation: Optional["Aggregation"] = None,
+        limit: Optional[int] = None,
+        offset: Optional[int] = None,
+        count: bool = False,
+        **subqueries: "Query",
+    ) -> "Query[Self]":
+        from .expression import Query, QueryType, TableReference
+
+        for name, subquery in subqueries.items():
+            subquery.name = name
+        return Query(
+            type=QueryType.SEARCH,
+            table=TableReference(node_type=cls.metatype),
+            name=name,
+            join=join,
+            where=where,
+            having=having,
+            group_by=group_by or [],
+            aggregation=aggregation,
+            sort=sort or [],
+            limit=limit,
+            offset=offset,
+            count=count,
+            subqueries=list(subqueries.values()),
+        )
+
+    @classmethod
+    def aggregate(
+        cls: type["Self"],
+        name: str | None = None,
+        join: Optional["Join"] = None,
+        where: Optional["Condition"] = None,
+        group_by: Optional[list["Expression"]] = None,
+        aggregation: Optional["Aggregation"] = None,
+        sort: Optional[list["Sort"]] = None,
+        limit: Optional[int] = None,
+        offset: Optional[int] = None,
+        count: bool = False,
+        **subqueries: "Query",
+    ) -> "Query[Self]":
+        from .expression import Query, QueryType, TableReference
+
+        for name, subquery in subqueries.items():
+            subquery.name = name
+        return Query(
+            type=QueryType.AGGREGATE,
+            table=TableReference(node_type=cls.metatype),
+            name=name,
+            join=join,
+            where=where,
+            group_by=group_by or [],
+            aggregation=aggregation,
+            sort=sort or [],
+            limit=limit,
+            offset=offset,
+            count=count,
+            subqueries=list(subqueries.values()),
+        )
 
     @classmethod
     def where(cls, filter: Optional["Condition"] = None, **kwargs) -> "Query[Self]":
@@ -822,36 +912,6 @@ class Node[NodeDataT: AnyNodeData](BuiltinObject[NodeDataT]):
     def order_by(
         cls, sort: "Optional[Expression] | str | Field | Property" = None, *args: str
     ) -> "Query[Self]":
-        raise NotImplementedError
-
-    @overload
-    @classmethod
-    async def get(
-        cls,
-        filter: Optional["Expression | NodeReference | None"] = None,
-        live: bool = False,
-        **kwargs,
-    ) -> Self: ...
-    @overload
-    @classmethod
-    async def get(
-        cls, filter: Sequence["NodeReference"], live: bool = False, **kwargs
-    ) -> list[Self]: ...
-    @classmethod
-    async def get(
-        cls,
-        filter: Optional["Expression | NodeReference | Sequence[NodeReference] | None"] = None,
-        live: bool = False,
-        **kwargs,
-    ) -> Self | list[Self]:
-        raise NotImplementedError
-
-    @classmethod
-    async def search(cls, filter: Optional["Condition"] = None, **kwargs) -> list[Self]:
-        raise NotImplementedError
-
-    @classmethod
-    def first(cls, count: int) -> "Query[Self]":
         raise NotImplementedError
 
 
