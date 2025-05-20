@@ -42,7 +42,7 @@ class Edit(Struct):
     """
 
     # core
-    id: str = p_system(
+    id: UUID = p_system(
         2,
         description="Unique identifier for the Edit within a Session.",
     )

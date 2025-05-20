@@ -2,7 +2,8 @@ from typing import TYPE_CHECKING, Optional, Union
 
 from bench.language.core import (
     VIEW_NODE_TYPES,
-    FieldType,
+    BuiltinEnum,
+    EnumType,
     IsInstantiable,
     IsModal,
     IsNamed,
@@ -16,6 +17,7 @@ from bench.language.core import (
     TypeConstraintIn,
     TypeIn,
     encode_storage_key,
+    enum_,
     node_,
     p_internal,
     p_node_parent,
@@ -31,7 +33,21 @@ if TYPE_CHECKING:
 
 # pyright: reportIncompatibleVariableOverride=false, reportIncompatibleMethodOverride=false
 
-property_ = property
+
+@enum_(EnumType.CASCADE_ACTION)
+class CascadeAction(BuiltinEnum):
+    CASCADE = 1
+    SELF = 2
+    NONE = 3
+
+
+@enum_(EnumType.FIELD_TYPE)
+class FieldType(BuiltinEnum):
+    """The type of a Field within its Block. Overlaps with ObjectKind."""
+
+    VARIABLE = 20, "Variable", "Variable", "fas fa-arrow-down"
+    INPUT = 30, "Input to a runnable", "fas fa-arrow-down"
+    OUTPUT = 40, "Output from a runnable", "fas fa-arrow-up"
 
 
 @node_(NodeType.FIELD)
@@ -40,9 +56,9 @@ class Field(
     IsModal,
     IsNamed,
     IsOrdered,
+    IsQueryable,
     TypeBase,
     PackageNode[FieldData],
-    IsQueryable,
 ):
     """
     A Field is a user-defined attribute.
@@ -76,11 +92,11 @@ class Field(
 
     __hash__ = PackageNode.__hash__  # type: ignore
 
-    @property_
+    @property
     def type_info(self) -> TypeBase:
         return self
 
-    @property_
+    @property
     def storage_key(self) -> str:
         return encode_storage_key(self)
 

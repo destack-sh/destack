@@ -5,9 +5,9 @@ package symbol.bench;
 import "google/protobuf/timestamp.proto";
 import "google/protobuf/duration.proto";
 import "google/protobuf/struct.proto";
-import "proto/google/type/datetime.proto";
-import "proto/google/type/date.proto";
-import "proto/google/type/timeofday.proto";
+import "google/type/datetime.proto";
+import "google/type/date.proto";
+import "google/type/timeofday.proto";
 
 enum ActionType {
   ACTION_TYPE_UNSPECIFIED = 0;

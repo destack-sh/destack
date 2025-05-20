@@ -2,6 +2,8 @@
 
 from typing import TYPE_CHECKING, Any, Optional, Union
 
+from fastuuid import UUID
+
 from .const import BuiltinEnum, EnumType, NodeType, StructType, enum_
 from .node import Node, NodeReference
 from .object import Property
@@ -17,7 +19,7 @@ if TYPE_CHECKING:
 
 @struct_(StructType.TABLE_REFERENCE)
 class TableReference(Struct):
-    """Reference to a SQL table (built-in or custom)."""
+    """Reference to a Node "table"."""
 
     node_type: NodeType = p_regular(31)
     table: Optional["Table"] = p_regular(32)
@@ -26,8 +28,8 @@ class TableReference(Struct):
         table_ptr: Optional[NodeReference] = None  # convenience only
 
 
-@struct_(StructType.COLUMN_REFERENCE)
-class ColumnReference(Struct):
+@struct_(StructType.FIELD_REFERENCE)
+class FieldReference(Struct):
     """Reference to a Field or Property."""
 
     field: Optional["Field"] = p_regular(32)
@@ -116,9 +118,9 @@ class ExpressionType(BuiltinEnum):
     LITERAL = 1
     COLUMN = 2
     CONDITION = 3
-    BINARY = 4
+    FUNCTION = 4
     AGGREGATION = 5
-    SUBQUERY = 10
+    # SUBQUERY?
 
 
 @struct_(StructType.EXPRESSION)
@@ -127,11 +129,11 @@ class Expression(Struct):
 
     type: ExpressionType = p_regular(30)
     literal: Optional[Value] = p_regular(31)
-    column: Optional[ColumnReference] = p_regular(32)
-    function: Optional[Function] = p_regular(33)
-    condition: Optional[Condition] = p_regular(34)
+    column: Optional[FieldReference] = p_regular(32)
+    condition: Optional[Condition] = p_regular(33)
+    function: Optional[Function] = p_regular(34)
     aggregation: Optional[Aggregation] = p_regular(35)
-    subquery: Optional["Query"] = p_regular(36)
+    # subquery?
 
 
 @enum_(EnumType.SORT_TYPE)
@@ -165,6 +167,10 @@ class JoinType(BuiltinEnum):
     RIGHT = 3
     OUTER = 4
     CROSS = 5
+    PARENT = 10
+    CHILD = 11
+    ANCESTOR = 12
+    DESCENDANT = 13
 
 
 @struct_(StructType.JOIN)
@@ -172,61 +178,130 @@ class Join(Struct):
     """JOIN clause with ON expression."""
 
     type: JoinType = p_regular(30)
-    table: TableReference = p_regular(31)
+    table: Optional[TableReference] = p_regular(31)
     on: Optional[Condition] = p_regular(32)
+
+
+@enum_(EnumType.QUERY_TYPE)
+class QueryType(BuiltinEnum):
+    GET = 1
+    LIST = 2
+    AGGREGATE = 3
 
 
 @struct_(StructType.QUERY)
 class Query[T: "Node"](Struct):
-    """A SELECT-only query supporting joins, grouping, aggregation and paging."""
+    """A GraphQL-inspired Query node with subqueries."""
 
-    table: TableReference = p_regular(31)
-    columns: list[ColumnReference] = p_regular(32)
-    joins: list[Join] = p_regular(33)
-    where: Optional[Expression] = p_regular(34)
-    group_by: list[Expression] = p_regular(35)
-    having: Optional[Expression] = p_regular(36)
-    order_by: list[Sort] = p_regular(37)
-    limit: Optional[int] = p_regular(38)
-    offset: Optional[int] = p_regular(39)
+    id: UUID = p_regular(2)
+    type: QueryType = p_regular(30)
+    name: str = p_regular(
+        31, description="Name for this subquery. Must be unique within the containing Query."
+    )
+    table: TableReference = p_regular(35)
+    join: Optional[Join] = p_regular(36, description="Relative to parent Query.")
+    subqueries: list["Query"] = p_regular(37)
+    # fields, ...
+
+    where: Optional[Condition] = p_regular(40)
+    having: Optional[Condition] = p_regular(41)
+    group_by: list[Expression] = p_regular(42)
+    aggregation: Optional[Aggregation] = p_regular(43)
+
+    order_by: list[Sort] = p_regular(50)
+    limit: Optional[int] = p_regular(51)
+    offset: Optional[int] = p_regular(52)
+    count: bool = p_regular(53)
 
 
-def condition(op: ConditionalType, column: Union["Field", "Property"], value: Any = None):
+def condition(
+    op: ConditionalType, column: Union["Field", "Property"], value: Any = None
+) -> Condition:
     raise NotImplementedError
 
 
-def sort(op: SortType, column: Union["Field", "Property"]):
+def sort(op: SortType, column: Union["Field", "Property"]) -> Sort:
     raise NotImplementedError
+
+
+#
+# Example Queries
+#
+
+# Bench->GET[id=...]
+#    Package->LIST
+#        Page->LIST[sort=last_edited_at, limit=10, count=True]
+#        "Owner"->GET[join=User, on=Page.owned_by]
+#    Membership->LIST[sort=joined_at, limit=10, count=True]
+#        Member->GET[join=Subject]
+#    Page->LIST[count=True]
+# Q(
+#     Bench,
+#     subqueries=[
+#         Q(Package)
+#     ]
+#     )
+
+# Page->GET[id=...]
+#    Block->LIST[recursive=true]
+#    *PageNode->LIST
+
+# Thread->GET[limit=20, count=True, order_by=last_active_at]
+#    Message->LIST[sort=created_at, limit=100, count=True]
+#        "Author"->GET[join=User, on=Message.created_by]
+
+# Thread->LIST[sort=last_active_at, limit=20, count=True]
+#    "Cursor"->GET[join=Cursor, on=Cursor.target & Cursor.owner=...]
+#        "UnreadCount"->AGGREGATE[count(distinct Message where read_at >= "Cursor".last_read_at)]
+#    "Banner"->GET[join=Banner]
+#        File->GET[join=File]
+
+# Record.Event->LIST[sort=date, count=True]
+#    "RSVPCount"->AGGREGATE[count(distinct Record.EventResponse where response = 'yes')]
+#    "CreatedBy"->GET[join=User, on=Record.Event.created_by]
+#    "Speakers"->LIST[join=Record.EventSpeaker]
+#    "Responses"->AGGREGATE[group_by=response, count(distinct Record.EventResponse)]
+#        "Responder"->GET[join=User, on=Record.EventResponse.responded_by]
+#    Record.EventResponse->LIST[sort=created_at, limit=3, count=True]
+
+# Space->GET[id=...]
+#     Scene->LIST
+#         Field->LIST
+#         Theme->LIST
+#         *ViewBase->LIST[recursive=True]
+#            Field->LIST
+#         *StyleBase->LIST[recursive=True]
+#            Field->LIST
+#     Route->LIST
+
+# Reaction->AGGREGATE[parent=..., sort=created_at, group_by=Reaction.type, limit=100, count=True]
+#    "Reaction"->GET[join=Reaction]
+#    "CreatedBy"->GET[join=User, on=Reaction.created_by]
 
 
 class IsQueryable:
-    """
-    Base for field-like  on a field-like class.
-    We define this here to use it for Property and Field.
-    """
-
     @property
     def type_info(self) -> "TypeBase":
         raise NotImplementedError(f"{self!r} does not implement type")
 
-    def is_equal(self: Any, value: Any) -> "Expression":
+    def is_equal(self: Any, value: Any) -> "Condition":
         if value is None:
             return self.not_exists()
         return condition(ConditionalType.EQUALS, self, value=value)
 
-    def not_equal(self: Any, value: Any) -> "Expression":
+    def not_equal(self: Any, value: Any) -> "Condition":
         return condition(ConditionalType.NOT_EQUALS, self, value=value)
 
-    def greater_than(self: Any, value: Any) -> "Expression":
+    def greater_than(self: Any, value: Any) -> "Condition":
         return condition(ConditionalType.GREATER_THAN, self, value=value)
 
-    def greater_than_or_equals(self: Any, value: Any) -> "Expression":
+    def greater_than_or_equals(self: Any, value: Any) -> "Condition":
         return condition(ConditionalType.GREATER_THAN_OR_EQUALS, self, value=value)
 
-    def less_than(self: Any, value: Any) -> "Expression":
+    def less_than(self: Any, value: Any) -> "Condition":
         return condition(ConditionalType.LESS_THAN, self, value=value)
 
-    def less_than_or_equals(self: Any, value: Any) -> "Expression":
+    def less_than_or_equals(self: Any, value: Any) -> "Condition":
         return condition(ConditionalType.LESS_THAN_OR_EQUALS, self, value=value)
 
     eq = is_equal
@@ -236,46 +311,46 @@ class IsQueryable:
     gt = greater_than
     gte = greater_than_or_equals
 
-    def starts_with(self: Any, value: str) -> "Expression":
+    def starts_with(self: Any, value: str) -> "Condition":
         return condition(ConditionalType.STARTS_WITH, self, value=value)
 
     startswith = starts_with
 
-    def ends_with(self: Any, value: str) -> "Expression":
+    def ends_with(self: Any, value: str) -> "Condition":
         return condition(ConditionalType.ENDS_WITH, self, value=value)
 
     endswith = ends_with
 
-    def in_(self: Any, *values: list[Any]) -> "Expression":
+    def in_(self: Any, *values: list[Any]) -> "Condition":
         return condition(ConditionalType.IN, self, value=values)
 
-    def not_in(self: Any, *values: list[Any]) -> "Expression":
+    def not_in(self: Any, *values: list[Any]) -> "Condition":
         return condition(ConditionalType.NOT_IN, self, value=values)
 
-    def contains(self: Any, value: Any) -> "Expression":
+    def contains(self: Any, value: Any) -> "Condition":
         return condition(ConditionalType.CONTAINS, self, value=value)
 
-    def not_contains(self: Any, value: Any) -> "Expression":
+    def not_contains(self: Any, value: Any) -> "Condition":
         return condition(ConditionalType.NOT_CONTAINS, self, value=value)
 
-    def exists(self: Any) -> "Expression":
+    def exists(self: Any) -> "Condition":
         return condition(ConditionalType.EXISTS, self)
 
-    def is_not_none(self: Any) -> "Expression":
+    def is_not_none(self: Any) -> "Condition":
         return condition(ConditionalType.EXISTS, self)
 
-    def not_exists(self: Any) -> "Expression":
+    def not_exists(self: Any) -> "Condition":
         return condition(ConditionalType.NOT_EXISTS, self)
 
-    def is_none(self: Any) -> "Expression":
+    def is_none(self: Any) -> "Condition":
         return condition(ConditionalType.NOT_EXISTS, self)
 
-    def asc(self: Any) -> "Expression":
+    def asc(self: Any) -> "Sort":
         return sort(SortType.ASCENDING, self)
 
     ascending = asc
 
-    def desc(self: Any) -> "Expression":
+    def desc(self: Any) -> "Sort":
         return sort(SortType.DESCENDING, self)
 
     descending = desc
@@ -289,8 +364,6 @@ class IsQueryable:
 
 @struct_(StructType.SELECTION)
 class Selection(Struct):
-    """A selection of Nodes."""
+    """A selection of fields from a Node."""
 
-    nodes: list[Node] = p_regular(50)
-    fields: list["Field"] = p_regular(51)
-    properties: list[Property] = p_regular(52)
+    nodes: list[Node] = p_regular(40)

@@ -562,7 +562,7 @@ class Property(IsQueryable if TYPE_CHECKING else object):
 
 
 @_on_completing_setup
-def _add_property_expression_base():
+def _add_property_queryable():
     from .expression import IsQueryable
 
     for name, attr in IsQueryable.__dict__.items():

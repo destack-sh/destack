@@ -33,19 +33,19 @@ class Client(IsNamed, Node[ClientData]):
 
     # meta
     bench: "Bench | None" = p_node_ancestor(5, NodeType.BENCH, require=False, store=True, wire=True)
-    user: "User | None" = p_node_ancestor(7, NodeType.USER, require=False, store=True, wire=True)
     type: ClientType = p_regular(30)
     space: Optional["Space"] = p_system(35)
     computer: Optional["Computer"] = p_system(36)
+    user: "User | None" = p_node_ancestor(37, NodeType.USER, require=False, store=True, wire=True)
     if TYPE_CHECKING:
         bench_id: Optional[UUID] = None
         bench_ptr: Optional[NodeReference] = None
-        user_id: Optional[UUID] = None
-        user_ptr: Optional[NodeReference] = None
         space_id: Optional[UUID] = None
         space_ptr: Optional[NodeReference] = None
         computer_id: Optional[UUID] = None
         computer_ptr: Optional[NodeReference] = None
+        user_id: Optional[UUID] = None
+        user_ptr: Optional[NodeReference] = None
 
     # status
     access_token: Optional[str] = p_kernel(50, unique=True, sensitive=True)

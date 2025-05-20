@@ -11,8 +11,8 @@ from bench.language.core import (
     NodeType,
     PageNode,
     node_,
-    p_node_ancestor,
     p_node_parent,
+    p_regular,
 )
 from bench.pb2 import TeamData
 
@@ -31,10 +31,8 @@ class Team(IsInstantiable, IsJoinable, IsModal, IsNamed, PageNode[TeamData]):
     parent: Union["Package", "Page", "Team", None] = p_node_parent(
         4, NodeType.PACKAGE, NodeType.PAGE, NodeType.TEAM
     )
-    organization: "Organization | None" = p_node_ancestor(
-        7, NodeType.ORGANIZATION, require=False, store=True, wire=True
-    )
-    team: Optional["Team"] = p_node_ancestor(8, NodeType.TEAM, require=False, store=True, wire=True)
+    organization: "Organization | None" = p_regular(40)
+    team: Optional["Team"] = p_regular(41)
     if TYPE_CHECKING:
         team_id: Optional[UUID] = None
         team_ptr: Optional[NodeReference] = None

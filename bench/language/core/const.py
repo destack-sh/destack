@@ -352,11 +352,12 @@ class EnumType(BuiltinEnum):
     LINK_TYPE = 41440
     # SCHEMA, UNION, TAG, ...
     PRIMITIVE_TYPE = 41500
-    FIELD_TYPE = 41501
-    TYPE_KIND = 41502
-    DAY = 41510
-    MONTH = 41511
-    TIME_INTERVAL = 41512
+    TYPE_KIND = 41501
+    FIELD_TYPE = 41510
+    CASCADE_ACTION = 41511
+    DAY = 41530
+    MONTH = 41531
+    TIME_INTERVAL = 41532
     # ...
 
     # chat [41800-42000]
@@ -393,11 +394,8 @@ class EnumType(BuiltinEnum):
     INTERRUPTION_RESPONSE = 42622
     # EVENT, SIGNAL, ...
 
-    # identity [42800-43000]
+    # auth [42800-43000]
     QUERY_TYPE = 42850
-    # PROFILE? (for User, or maybe global?)
-
-    # access [43000-43200]
     # ...
 
     # version [43200-43400]
@@ -501,7 +499,7 @@ class StructType(BuiltinEnum):
     SORT = 20105
     QUERY = 20106
     TABLE_REFERENCE = 20110
-    COLUMN_REFERENCE = 20111
+    FIELD_REFERENCE = 20111
 
     # package [21000-21200]
     # APP, PLUGIN, ...
@@ -509,7 +507,7 @@ class StructType(BuiltinEnum):
     # infra [21200-21400]
     # VAULT, CACHE, ENDPOINT, DEPLOYMENT, NETWORK, ...
 
-    # data [21400-21600]
+    # data [21400-21800]
     TYPE = 21400
     TYPE_CONSTRAINT = 21401
     VALUE = 21410
@@ -525,11 +523,8 @@ class StructType(BuiltinEnum):
     # chat [21800-22000]
     # ...
 
-    # plan [22000-22200]
-    # ...
-
-    # logic [22200-22400]
-    SCHEDULE = 21440
+    # logic [22000-22400]
+    SCHEDULE = 22000
     # ...
 
     # qa [22400-22600]
@@ -541,11 +536,8 @@ class StructType(BuiltinEnum):
     RUN_FRAME = 22604
     # EVENT, SIGNAL, ...
 
-    # identity [22800-23000]
+    # auth [22800-23000]
     # PROFILE? (for User, or maybe global?)
-
-    # access [23000-23200]
-    # ...
 
     # version [23200-23400]
     # ...
@@ -623,7 +615,6 @@ class NodeType(BuiltinEnum):
     USER = 10, "User", "User", "fas fa-user"
     ORGANIZATION = 20, "Organization", "Organization", "fas fa-building"
     CLIENT = 50, "Client", "Client to a Bench", "fas fa-desktop"
-    # PROFILE, CREDENTIAL, FRIENDSHIP, ...
 
     # package [1000-1200]
     PACKAGE = 1000, "Package", "Isolated sub-Bench", "fas fa-box-open"
@@ -639,7 +630,7 @@ class NodeType(BuiltinEnum):
     SCALER = 1250, "Scaler", "Autoscale Resources", "fas fa-scale-unbalanced"
     # VAULT, CACHE, ENDPOINT, DEPLOYMENT, NETWORK, ...
 
-    # data [1400-1600]
+    # data [1400-1800]
     SCHEMA = 1410, "Schema", "Schema", "fas fa-shapes"
     CHOICE = 1400, "Choice", "Choice between Options", "fas fa-circle-chevron-down"
     FIELD = 1420, "Field", "Field", "fas fa-triangle"
@@ -649,7 +640,7 @@ class NodeType(BuiltinEnum):
     RECORD = 1510, "Record", "Record in a Database", "fas fa-database"
     FILE = 1520, "File", "File", "fas fa-file"
     LINK = 1550, "Link", "Link to something", "fas fa-link"
-    # STREAM, SECRET, INDEX, CONSTRAINT, ...
+    # STREAM, SECRET, INDEX, CONSTRAINT, MIGRATION, ...
 
     # chat [1800-2000]
     CHANNEL = 1800, "Channel", "Channel", "fas fa-hashtag"
@@ -658,17 +649,15 @@ class NodeType(BuiltinEnum):
     NOTIFICATION = 1850, "Notification", "Notification", "fas fa-bell"
     # POLL, VOTE, RATING, REACTION, ...
 
-    # plan [2000-2200]
-    TASK = 2000, "Task", "To-do item", "far fa-square-check"
-    CURSOR = 2020, "Cursor", "Position in something", "fas fa-mouse"
-    # JOB, PLAN, LOCK, ...
-
-    # logic [2200-2400]
-    SERVICE = 2200, "Service", "Service", "fas fa-screwdriver-wrench"
-    ACTION = 2210, "Action", "Action", "fas fa-step-forward"
-    FLOW = 2220, "Flow", "Sequence Actions", "fas fa-diagram-project"
-    FLOW_EDGE = 2221, "Flow Edge", "Edge between Actions", "fas fa-link"
-    AGENT = 2250, "Agent", "Identity for an AI", "fas fa-robot"
+    # logic [2000-2400]
+    SERVICE = 2000, "Service", "Service", "fas fa-screwdriver-wrench"
+    ACTION = 2010, "Action", "Action", "fas fa-step-forward"
+    FLOW = 2020, "Flow", "Sequence Actions", "fas fa-diagram-project"
+    FLOW_EDGE = 2021, "Flow Edge", "Edge between Actions", "fas fa-link"
+    AGENT = 2050, "Agent", "Identity for an AI", "fas fa-robot"
+    TASK = 2200, "Task", "To-do item", "far fa-square-check"
+    CURSOR = 2220, "Cursor", "Position in something", "fas fa-mouse"
+    # ROOM, JOB, PLAN, LOCK, ...
     # TRIGGER, TIMER, BREAKPOINT, ...
 
     # test/qa [2400-2600]
@@ -687,7 +676,7 @@ class NodeType(BuiltinEnum):
     ROLE = 2830, "Role", "Role", "fas fa-user-tag"
     # PROFILE? (for User, or maybe global?)
     CLAIM = 2840, "Claim", "Control over something", "fas fa-stamp"
-    # CHALLENGE, BADGE, ENTITLEMENT, POLICY, RULE, ...
+    # CHALLENGE, FRIENDSHIP, BADGE, ENTITLEMENT, POLICY, RULE, ...
 
     # version [3200-3400]
     # CHANGE, HISTORY, BRANCH, ...
@@ -782,8 +771,8 @@ class NodeType(BuiltinEnum):
     EFFECT_STYLE = 9016, "Effect Style", "Effect Style", "fas fa-sparkle"
     # VARIANT :RichGraph
 
-    # canvas?
-    # CANVAS/DRAWING, SHAPE, BRUSH, ...
+    # canvas/drawing?
+    # CANVAS, BRUSH, SHAPE, ...
 
     # audio/media?
     # SOUND, ...?
@@ -797,9 +786,9 @@ class NodeType(BuiltinEnum):
 
 @enum_(EnumType.NODE_AREA)
 class NodeArea(BuiltinEnum):
-    GLOBAL = 1
-    REGIONAL = 2
-    LOCAL = 3
+    GLOBAL_DB = 100
+    REGIONAL_DB = 200
+    LOCAL_DB = 300
 
 
 @enum_(EnumType.NODE_MODE)
@@ -838,14 +827,14 @@ GLOBAL_NODE_TYPES = _get_node_types(None, 1000)
 LOCAL_NODE_TYPES = bittuple(NodeType.RECORD)
 REGIONAL_NODE_TYPES = _get_node_types(1000, 10000) - LOCAL_NODE_TYPES
 AREA_BY_NODE_TYPE = {
-    **dict.fromkeys(GLOBAL_NODE_TYPES, NodeArea.GLOBAL),
-    **dict.fromkeys(REGIONAL_NODE_TYPES, NodeArea.REGIONAL),
-    **dict.fromkeys(LOCAL_NODE_TYPES, NodeArea.LOCAL),
+    **dict.fromkeys(GLOBAL_NODE_TYPES, NodeArea.GLOBAL_DB),
+    **dict.fromkeys(REGIONAL_NODE_TYPES, NodeArea.REGIONAL_DB),
+    **dict.fromkeys(LOCAL_NODE_TYPES, NodeArea.LOCAL_DB),
 }
 NODE_TYPES_BY_AREA = {
-    NodeArea.GLOBAL: GLOBAL_NODE_TYPES,
-    NodeArea.REGIONAL: REGIONAL_NODE_TYPES,
-    NodeArea.LOCAL: LOCAL_NODE_TYPES,
+    NodeArea.GLOBAL_DB: GLOBAL_NODE_TYPES,
+    NodeArea.REGIONAL_DB: REGIONAL_NODE_TYPES,
+    NodeArea.LOCAL_DB: LOCAL_NODE_TYPES,
 }
 ROOT_NODE_TYPES = bittuple(NodeType.BENCH, NodeType.USER, NodeType.ORGANIZATION)
 RESOURCE_NODE_TYPES = bittuple(
@@ -1224,16 +1213,6 @@ class EditType(BuiltinEnum):
     ERASE = 28
 
 
-@enum_(EnumType.QUERY_TYPE)
-class QueryType(BuiltinEnum):
-    """Ways to read nodes."""
-
-    """Any direct read for specific nodes."""
-    GET = 1
-    """Search all nodes."""
-    SEARCH = 2
-
-
 @enum_(EnumType.EDIT_OPERATION_TYPE)
 class EditOperationType(BuiltinEnum):
     """The type of edit operation."""
@@ -1349,15 +1328,6 @@ PRIMITIVE_TYPE_BY_PY_TYPE: dict[type, PrimitiveType] = {
     time: PrimitiveType.TIME,
     timedelta: PrimitiveType.DURATION,
 }
-
-
-@enum_(EnumType.FIELD_TYPE)
-class FieldType(BuiltinEnum):
-    """The type of a Field within its Block. Overlaps with ObjectKind."""
-
-    VARIABLE = 20, "Variable", "Variable", "fas fa-arrow-down"
-    INPUT = 30, "Input to a runnable", "fas fa-arrow-down"
-    OUTPUT = 40, "Output from a runnable", "fas fa-arrow-up"
 
 
 @enum_(EnumType.TIME_INTERVAL)

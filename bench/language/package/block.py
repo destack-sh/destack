@@ -80,7 +80,6 @@ class Block(IsTemplatable, IsModal, IsNamed, IsOrdered, PackageNode[BlockData]):
     line: Optional["TextLine"] = p_regular(40)
     node: Optional["Node"] = p_regular(41, node_exclude=("base_id",))
     view: Optional["ViewBase"] = p_regular(42, node_exclude=("base_id",))
-    # view? (specific view of that node, e.g. TableView for a Table)
     # size?
     if TYPE_CHECKING:
         node_id: Optional[UUID] = None

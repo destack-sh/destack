@@ -11,7 +11,6 @@ from .infra import *  # noqa: F403
 from .logic import *  # noqa: F403
 from .meta import *  # noqa: F403
 from .package import *  # noqa: F403
-from .plan import *  # noqa: F403
 from .registry import (
     ANCESTOR_NODE_TYPES,  # noqa: F401
     BENCH_CLASS_BY_TYPE,  # noqa: F401

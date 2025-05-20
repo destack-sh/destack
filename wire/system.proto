@@ -1,0 +1,369 @@
+syntax = "proto3";
+
+package symbol.bench;
+
+import "google/protobuf/struct.proto";
+import "common.proto";
+import "lang.proto";
+
+//
+// Graph
+//
+
+message GetNodesRequest {
+  ScopeData scope = 1;
+  // The 'root' nodes to get around.
+  repeated NodeReferenceData roots = 2;  // must be of same type
+  // The relevant base type (if any).
+  optional NodeReferenceData base_type_ptr = 3;
+  // Ancestor nodes to include.
+  repeated NodeType ancestor_types = 10;
+  // Descendant nodes to include.
+  repeated NodeType descendant_types = 11;
+  // Which properties/fields to select.
+  optional SelectOptionsData select = 20;
+  // Whether to include deleted and archived nodes.
+  optional bool include_removed = 21;
+  // Whether to include memory.
+  optional bool no_memory = 22;
+  // Whether to sideline the cache.
+  optional bool no_cache = 30; 
+  // Whether the roots are considered optional (if not found, return empty result instead of error).
+  optional bool is_optional = 31;
+}
+message GetNodesResponse {
+  // Nodes are in pre-order (parent before children) traversal.
+  repeated SomeNodeData nodes = 1;
+  // Current epoch.
+  uint64 epoch = 10;
+  // Token to watch updates.
+  string connection_token = 11;
+}
+
+// NOTE :Architecture: the :ConnectionUpdateOrdering here is not strictly correct
+//  (currently we assume added/removed_nodes, then edits, then cascaded_edits for updates)
+
+message WatchGetRequest {
+  ScopeData scope = 1;
+  // The connection to watch. Must already exist.
+  string connection_token = 2;
+  // Get any updates in between the original request and this one.
+  uint64 since_epoch = 3;
+}
+message WatchGetResponse {
+  // Edits to current result set.
+  repeated EditData edits = 1;
+  // Cascaded edits to current result set.
+  repeated EditData cascaded_edits = 2;
+  // New nodes added to the result set.
+  repeated SomeNodeData added_nodes = 3;
+  // Nodes removed from the result set.
+  repeated NodeReferenceData removed_nodes_ptr = 4;
+  // Current epoch.
+  uint64 epoch = 10;
+  // Whether this is a keepalive stub.
+  optional bool is_keepalive = 11;
+}
+
+message SearchNodesRequest {
+  ScopeData scope = 1;
+  // The type of node to search.
+  NodeType node_type = 2;
+  // The relevant base type (if any).
+  optional NodeReferenceData base_type_ptr = 3;
+  // Filter for the search.
+  optional ExpressionData filter = 4;
+  // Sort order for the search.
+  repeated ExpressionData sort = 5;
+  // Ancestor nodes to include.
+  repeated NodeType ancestor_types = 10;
+  // Descendant nodes to include.
+  repeated NodeType descendant_types = 11;
+  // Limit result set.
+  optional int32 first = 20;
+  // Whether to get the total count.
+  optional bool count = 22;
+  // Which properties/fields to select.
+  optional SelectOptionsData select = 23;
+  // Whether to sideline the cache.
+  optional bool no_cache = 30;
+}
+message SearchNodesResponse {
+  // The 'root' result set for the search.
+  repeated NodeReferenceData roots_ptr = 1;
+  // All nodes in pre-order (parent before children) traversal.
+  repeated SomeNodeData nodes = 2;
+  // Total number of nodes in the result set.
+  optional int32 total = 5;
+  // Current epoch.
+  uint64 epoch = 10;
+  // Token to watch updates.
+  string connection_token = 11;
+}
+
+message WatchSearchRequest {
+  ScopeData scope = 1;
+  // The connection to watch. Must already exist.
+  string connection_token = 2;
+  // Get any updates in between the original request and this one.
+  uint64 since_epoch = 3;
+}
+message WatchSearchResponse {
+  // Edits to current result set.
+  repeated EditData edits = 1;
+  // Cascaded edits to current result set.
+  repeated EditData cascaded_edits = 2;
+  // Nodes added to the result set.
+  repeated SomeNodeData added_nodes = 3;
+  // Nodes removed from the result set.
+  repeated NodeReferenceData removed_nodes_ptr = 4;
+  // New roots in the result set.
+  // NOTE :Performance: make watch search root update incremental 
+  repeated NodeReferenceData roots_ptr = 5;
+  // New total count.
+  optional int32 total = 7;
+  // Current epoch.
+  uint64 epoch = 10;
+  // Whether this is a keepalive stub.
+  optional bool is_keepalive = 11;
+}
+
+message CommitTransactionRequest {
+  ScopeData scope = 1;
+  // UUIDT of the transaction.
+  string id = 2;
+  // All the edits for all the changes in order.
+  repeated EditData edits = 3;
+}
+message CommitTransactionResponse {
+  // Any cascaded edits.
+  repeated EditData cascaded_edits = 2; 
+  // Current epoch.
+  uint64 epoch = 3;
+}
+
+// Common service definition for global and bench-local :Graph
+// TODO :Architecture: Graph interface should just be Query + Subscribe + Commit :RichGraph
+//  (or maybe instead of Query + Subscribe -> Query + QueryAndSubscribe?)
+//  (and maybe some special methods for :ExclusiveOwnership acquisition/release (of Runs/Resources?)
+service Graph {
+  // Get nodes (of the same root type) in this graph. 
+  rpc GetNodes(GetNodesRequest) returns (GetNodesResponse);
+  // Receive any relevant node edits for a get query.
+  rpc WatchGet(WatchGetRequest) returns (stream WatchGetResponse);
+  // Search nodes in this graph.
+  rpc SearchNodes(SearchNodesRequest) returns (SearchNodesResponse);
+  // Receive any relevant node edits or result set updates for a search query.
+  rpc WatchSearch(WatchSearchRequest) returns (stream WatchSearchResponse);
+  // Commit a transaction to this graph.
+  rpc CommitTransaction(CommitTransactionRequest) returns (CommitTransactionResponse);
+}
+
+
+//
+// Supervisor
+//
+
+message ClientDataIn {
+  optional string id = 2;
+  ClientType type = 30;
+  optional string name = 32;
+  optional string device_type = 40;
+  optional string device_name = 41;
+  optional string operating_system = 42;
+  optional string browser_name = 43;
+  optional string browser_version = 44;
+  optional string place_id = 45;
+  optional string access_token = 50;
+  optional NodeReferenceData space_ptr = 60;
+}
+
+message SignupUserRequest {
+  optional string id = 1;
+  string slug = 2;
+  optional string name = 3;
+  string email = 4 [(sensitive) = true];
+  string password = 5 [(sensitive) = true];
+  Region region = 6;
+  ClientDataIn client = 9;
+  optional bool activate = 10;
+}
+message SignupUserResponse {
+  UserData user = 1;
+  ClientData client = 2;
+  string access_token = 3 [(sensitive) = true];
+}
+
+message ChangeUserPasswordRequest {
+  string old_password = 1 [(sensitive) = true];
+  string new_password = 2 [(sensitive) = true];
+}
+message ChangeUserPasswordResponse {
+  UserData user = 1;
+  uint64 epoch = 2;
+}
+
+message LoginUserRequest {
+  oneof user {
+    string id = 1;
+    string slug = 2;
+    string email = 3 [(sensitive) = true];
+  }
+  string password = 4 [(sensitive) = true];
+  ClientDataIn client = 5;
+}
+message LoginUserResponse {
+  UserData user = 1;
+  ClientData client = 2;
+  string access_token = 3 [(sensitive) = true];
+}
+
+message LogoutUserRequest {
+  // If specified, log out only the specified clients (instead of the current client).
+  repeated NodeReferenceData clients = 1;
+  // If specified, log out all clients (incl. current).
+  optional bool logout_all = 2;
+}
+message LogoutUserResponse {
+}
+
+message CreateOrganizationRequest {
+  OrganizationData organization = 1;
+}
+message CreateOrganizationResponse {
+  OrganizationData organization = 1;
+  uint64 epoch = 2;
+}
+
+message CreateBenchRequest {
+  NodeReferenceData owner = 1;
+  string slug = 2;
+  Region region = 3;
+  bool is_main = 4;
+}
+message CreateBenchResponse {
+  BenchData bench = 1;
+}
+
+message ResolveHostsRequest {
+  message BenchKey {
+    oneof bench {
+      string id = 1;
+      string slug = 2;
+    }
+  }
+  repeated BenchKey benches = 1;
+}
+message ResolveHostsResponse {
+  message HostInfo {
+    string domain = 1;
+    int32 grpc_port = 2;
+    int32 grpc_web_port = 3;
+    bool ssl = 4;
+    NodeReferenceData bench = 5;
+  }
+  repeated HostInfo hosts = 1;
+}
+
+// Control plane: create & manage the global stuff like Benches, Users, etc..
+service Supervisor {
+  option (kind) = PUBLIC; // :ServiceKind
+
+  //
+  // 'Global' IO for non-source nodes outside Benches :Graph :RichGraph
+  // NOTE :Architecture: should Supervisor really have subscription methods? 
+  //  (how to handle inevitable? overlap between Supervisor and Hosts in :RichGraph?)
+  //
+
+  rpc GetNodes(GetNodesRequest) returns (GetNodesResponse);
+  rpc WatchGet(WatchGetRequest) returns (stream WatchGetResponse);
+  rpc SearchNodes(SearchNodesRequest) returns (SearchNodesResponse);
+  rpc WatchSearch(WatchSearchRequest) returns (stream WatchSearchResponse);
+  rpc CommitTransaction(CommitTransactionRequest) returns (CommitTransactionResponse);
+
+  //
+  // User management
+  //
+
+  // Create User.
+  rpc SignupUser(SignupUserRequest) returns (SignupUserResponse);
+  // Change User.password.
+  rpc ChangeUserPassword(ChangeUserPasswordRequest) returns (ChangeUserPasswordResponse);
+  // Login User with a new or existing Client.
+  rpc LoginUser(LoginUserRequest) returns (LoginUserResponse);
+  // Logout User with the current or other owned Clients.
+  rpc LogoutUser(LogoutUserRequest) returns (LogoutUserResponse);
+
+  //
+  // Bench management
+  //
+
+  // Create a Bench. If this is the first Bench for the owner, we activate the User/Organization.
+  rpc CreateBench(CreateBenchRequest) returns (CreateBenchResponse);
+  // Gets Bench host information.
+  rpc ResolveHosts(ResolveHostsRequest) returns (ResolveHostsResponse);
+}
+
+//
+// Host
+//
+
+enum ComputerEnvironment {
+  REGULAR = 0;
+  DOCKER = 1;
+  MINIKUBE = 2;
+}
+
+message UploadFilesRequest {
+  ScopeData scope = 1;
+  repeated FileData files = 2;
+  optional ComputerEnvironment environment = 3;
+}
+
+message UploadFilesResponse {
+  message UploadHandle {
+    FileData file = 1;
+    string post_url = 2;
+    google.protobuf.Struct fields = 3;
+    string get_url = 4;
+  }
+  repeated UploadHandle handles = 1; // handles for each valid file upload
+}
+
+message DownloadFilesRequest {
+  ScopeData scope = 1;
+  repeated NodeReferenceData files = 2;
+  optional ComputerEnvironment environment = 3;
+}
+
+message DownloadFilesResponse {
+  message DownloadHandle {
+    FileData file = 1;
+    string get_url = 2;
+  }
+  repeated DownloadHandle handles = 1; // handles for each valid file download
+}
+
+// A Host provides the operating system of a Bench.
+service Host {
+  option (kind) = PUBLIC; // :ServiceKind
+  
+  //
+  // General IO for nodes in this Bench (only) :Graph
+  //
+
+  rpc GetNodes(GetNodesRequest) returns (GetNodesResponse);
+  rpc WatchGet(WatchGetRequest) returns (stream WatchGetResponse);
+  rpc SearchNodes(SearchNodesRequest) returns (SearchNodesResponse);
+  rpc WatchSearch(WatchSearchRequest) returns (stream WatchSearchResponse);
+  rpc CommitTransaction(CommitTransactionRequest) returns (CommitTransactionResponse);
+
+  // 
+  // Misc 
+  //
+
+  // 'Upload' some files (get URLs to upload them to). Handles may be incomplete.
+  rpc UploadFiles(UploadFilesRequest) returns (UploadFilesResponse);
+  // 'Download' some files (get URLs to download them from). Handles may be incomplete.
+  rpc DownloadFiles(DownloadFilesRequest) returns (DownloadFilesResponse);
+}

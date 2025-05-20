@@ -1,5 +1,5 @@
 from .choice import Choice
-from .field import Field
+from .field import Field, FieldType
 from .file import (
     FILE_FORMAT_BY_EXTENSION,
     FILE_FORMAT_BY_MIME_TYPE,
@@ -32,6 +32,7 @@ __all__ = [
     "MIME_TYPE_CONSTRAINT",
     "Choice",
     "Field",
+    "FieldType",
     "File",
     "FileFormat",
     "FileIn",

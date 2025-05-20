@@ -742,7 +742,7 @@ async def upload_file_batch(
         tracer, "file.prepare_upload", SpanType.FILE_PREPARE_UPLOAD, level=Severity.DEBUG
     ):
         upload_req = UploadFilesRequest(
-            scope=session._get_scope_for_node(files[0]),
+            scope=session.get_scope(files[0]),
             files=[f._to_data() for f in files],
             environment=COMPUTER_ENVIRONMENT,
         )
@@ -797,7 +797,7 @@ async def download_file_batch(
     # get download URLs
     with capture_span(tracer, "file.prepare_download", SpanType.FILE_PREPARE_DOWNLOAD):
         download_req = DownloadFilesRequest(
-            scope=session._get_scope_for_node(session),
+            scope=session.get_scope(file_refs[0]),
             files=[(f.to_ref() if isinstance(f, File) else f)._to_data() for f in file_refs],
             environment=COMPUTER_ENVIRONMENT,
         )

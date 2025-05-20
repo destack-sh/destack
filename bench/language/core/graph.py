@@ -35,6 +35,12 @@ class GraphConsistencyError(GraphError):
     pass
 
 
+def attach_node(
+    node: "Node", parent: "Node | None", graph: "Graph", move: bool = False, create: bool = True
+):
+    raise NotImplementedError
+
+
 class _GraphBase[K: str | UUID, V: AnyNodeData | Node](abc.ABC):
     __slots__ = (
         "_nodes_by_id",

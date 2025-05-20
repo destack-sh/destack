@@ -21,12 +21,10 @@ from bench.language import (
     PackageType,
     Region,
     Scope,
-    Session,
     Supergraph,
 )
 from bench.proto import ScopeData
 from bench.sql import BenchSqlContext
-from bench.system.graph.postgres import PostgresEngine
 from bench.utils.oracle import Oracle
 from bench.utils.utils import get_from_env
 
@@ -109,7 +107,7 @@ def local_pg_engine_from_database(name: str, database: Database):
     return pg_engine_from_database(
         name=name,
         database=database,
-        area=NodeArea.LOCAL,
+        area=NodeArea.LOCAL_DB,
         scope=Scope(bench_id=database.bench.id)._to_data(),
     )
 
@@ -125,16 +123,4 @@ def global_session(
     split_read: bool = True,
 ):
     """Create a Session in a global database"""
-    if node is None:
-        assert supergraph is not None, "must provide supergraph if no node"
-    else:
-        supergraph = node._supergraph.instance(name="Global")
-    return Session(
-        parent=None,
-        _default_scope=EMPTY_SCOPE_DATA,
-        _engines=engines,
-        _local_epoch=epoch,
-        supergraph=supergraph,
-        oracle=oracle,
-        _split_read=split_read,
-    )
+    raise NotImplementedError

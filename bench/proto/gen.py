@@ -47,7 +47,6 @@ from bench.language import (
     STYLE_NODE_TYPES,
     SUBJECT_NODE_TYPES,
     TEMPLATABLE_NODE_TYPES,
-    TYPE_CONSTRAINT_BY_FORMAT,
     UNSET,
     VERSION,
     VIEW_NODE_TYPES,
@@ -58,7 +57,6 @@ from bench.language import (
     ResourceBase,
     TypeConstraint,
     TypeConstraintIn,
-    TypeFormat,
 )
 from bench.utils.string import Casing, to_casing
 
@@ -628,18 +626,6 @@ export const MIME_TYPE_BY_FILE_FORMAT: Partial<Record<FileFormat, string>> = Obj
 {file_format_by_mime_type_str}
 """
 
-    # type formats :TypeFormat
-    type_formats_str_inner = "\n".join(
-        f"  [TypeFormat.{t.name.upper()}]: {_render_js_constraint(TYPE_CONSTRAINT_BY_FORMAT[t])},"
-        for t in TypeFormat
-        if t in TYPE_CONSTRAINT_BY_FORMAT
-    )
-    type_formats_str = f"""
-export const TYPE_CONSTRAINT_BY_FORMAT: Partial<Record<TypeFormat, TypeConstraintIn>> = {{
-{type_formats_str_inner}
-}}
-"""
-
     # node types
     node_types_str_parts: list[str] = []
     for name, node_types in (
@@ -735,7 +721,6 @@ export type AnyPropertyType = {' | '.join('typeof ' + cls.__name__ + 'Property' 
 
 // Misc
 {file_mapping_enums_str}
-{type_formats_str}
     """
     lang_ts = Path(TEMP_TS_DIR + "/proto/lang.ts").read_text()
     Path(TEMP_TS_DIR + "/proto/lang.ts").write_text(lang_ts + "\n\n" + patch_postfix_code)
