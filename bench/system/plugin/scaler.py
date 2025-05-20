@@ -57,10 +57,10 @@ class ScalerProvisioner[WT: ProvisionableResourceBase](Provisioner[Scaler, Scale
             provision_cls = cast(type[WT], NODE_CLASS_BY_TYPE[scale_type])
             resources_query = (
                 provision_cls.where(
-                    provision_cls.get_property("bench").eq(self.bench)
-                    & provision_cls.get_property("scaler").is_not_none()
-                    & provision_cls.get_property("mode").lt(NodeMode.TEMPLATE)
-                    & provision_cls.get_property("status").lt(ResourceStatus.OFFLINE)
+                    provision_cls.property("bench").eq(self.bench)
+                    & provision_cls.property("scaler").is_not_none()
+                    & provision_cls.property("mode").lt(NodeMode.TEMPLATE)
+                    & provision_cls.property("status").lt(ResourceStatus.OFFLINE)
                 )
                 .include_ancestors()
                 .select_all()

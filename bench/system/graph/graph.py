@@ -840,7 +840,7 @@ class GraphServiceBase(ServiceBase, GraphBase, abc.ABC):
                         if op.path[0] == "4":
                             parent_ptr = unpack_value_scalar_data(
                                 unpack_proto_json(op.new_value_packed),
-                                Node.get_property("parent_ptr").type_info,
+                                Node.property("parent_ptr").type_info,
                             )
                             parent_ptr = cast(NodeReferenceData, parent_ptr)
                             break

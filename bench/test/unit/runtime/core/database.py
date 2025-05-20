@@ -69,7 +69,7 @@ async def test_create_record_kwargs(simulation: Simulation, runtime: RuntimeLamb
     """Create a Record with keyword arguments (into value)."""
     Table1 = Table.new(
         "Table1",
-        Field.member("name", Field.get_property("name")),  # internal property
+        Field.member("name", Field.property("name")),  # internal property
         Field.member("Name", str),
         Field.member("Age", int),
         Field.member("Aliases", str, is_list=True),
@@ -130,7 +130,7 @@ async def test_update_record(simulation: Simulation, runtime: RuntimeLambdaWorkl
     """Update a record with a simple Field and query it."""
     Table1 = Table.new(
         "Table1",
-        Field.member("name", Field.get_property("name")),  # internal property
+        Field.member("name", Field.property("name")),  # internal property
         Field.member("Name", str),
     )
     runtime.page().add_child(Table1)

@@ -279,9 +279,7 @@ class SupervisorService(GraphServiceBase, SupervisorBase):
             if key_value is None:
                 raise GRPCError(GRPCStatus.INVALID_ARGUMENT, "no user provided")
             user = (
-                await User.include(
-                    User.get_property("password_salt"), User.get_property("password_hash")
-                )
+                await User.include(User.property("password_salt"), User.property("password_hash"))
                 .include_descendants(NodeType.CLIENT)
                 .get(User.__properties__[key_name] == key_value)
             )

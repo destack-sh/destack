@@ -714,10 +714,11 @@ class BuiltinObject[ObjectDataT: AnyObjectData](abc.ABC):
         return pack_builtin_object(self)  # type: ignore
 
     @classmethod
-    def get_property(cls, key: str) -> Property:
-        prop = cls.__properties__.get(key)
+    def property(cls, name: str) -> Property:
+        """Get a Property by name."""
+        prop = cls.__properties__.get(name)
         if prop is None:
-            raise ValueError(f"no property '{key}' in {cls.__name__}")
+            raise ValueError(f"no property '{name}' in {cls.__name__}")
         return prop
 
     @classmethod

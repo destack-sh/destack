@@ -18,11 +18,22 @@ if TYPE_CHECKING:
 # nocheckin
 # ruff: noqa: F405
 
+#
+# Relations/Attributes
+#
 
-@struct_(StructType.TABLE_REFERENCE)
-class TableReference(Struct):
-    """Reference to a Node "table"."""
 
+@enum_(EnumType.RELATION_TYPE)
+class RelationType(BuiltinEnum):
+    BUILTIN_NODE = 1
+    CUSTOM_NODE = 2
+
+
+@struct_(StructType.RELATION_REFERENCE)
+class RelationReference(Struct):
+    """Reference to a Node "table" or base somewhere."""
+
+    type: RelationType = p_regular(30)
     node_type: NodeType = p_regular(31)
     table: Optional["Table"] = p_regular(32)
 
@@ -30,36 +41,52 @@ class TableReference(Struct):
         table_ptr: Optional[NodeReference] = None  # convenience only
 
 
-def table_ref(base: "NodeType | type[Node] | Table") -> TableReference:
+def relation_ref(base: "NodeType | type[Node] | Table") -> RelationReference:
     from .node import Node
 
     if isinstance(base, NodeType):
-        return TableReference(node_type=base)
+        return RelationReference(type=RelationType.BUILTIN_NODE, node_type=base)
     elif isinstance(base, type):
         assert issubclass(base, Node), f"{base!r} is not a Node"
-        return TableReference(node_type=base.metatype)
+        return RelationReference(type=RelationType.BUILTIN_NODE, node_type=base.metatype)
     elif isinstance(base, Table):
-        return TableReference(table=base)
+        return RelationReference(type=RelationType.CUSTOM_NODE, node_type=base.metatype)
     else:
         assert_never(base)
 
 
-@struct_(StructType.FIELD_REFERENCE)
-class FieldReference(Struct):
+@enum_(EnumType.ATTRIBUTE_TYPE)
+class AttributeType(BuiltinEnum):
+    PROPERTY = 1
+    FIELD = 2
+    QUERY = 3
+
+
+@struct_(StructType.ATTRIBUTE_REFERENCE)
+class AttributeReference(Struct):
     """Reference to a Field or Property."""
 
+    type: AttributeType = p_regular(30)
+    name: str | None = p_regular(31, description="Named attribute from another Query.")
     field: Optional["Field"] = p_regular(32)
     prop: Optional["Property"] = p_regular(33)
-    table: Optional[TableReference] = p_regular(34)
+    table: Optional[RelationReference] = p_regular(34)
 
 
-def field_ref(field: "Field | Property") -> FieldReference:
-    if isinstance(field, Field):
-        return FieldReference(field=field)
+def attribute_ref(field: "str | Field | Property") -> AttributeReference:
+    if isinstance(field, str):
+        return AttributeReference(type=AttributeType.QUERY, name=field)
+    elif isinstance(field, Field):
+        return AttributeReference(type=AttributeType.FIELD, field=field)
     elif isinstance(field, Property):
-        return FieldReference(prop=field)
+        return AttributeReference(type=AttributeType.PROPERTY, prop=field)
     else:
         assert_never(field)
+
+
+#
+# Functions
+#
 
 
 @enum_(EnumType.FUNCTION_TYPE)
@@ -85,6 +112,11 @@ def function(
     right: Optional["Expression"] = None,
 ) -> Function:
     return Function(type=type, left=left, right=right)
+
+
+#
+# Conditional
+#
 
 
 @enum_(EnumType.CONDITIONAL_TYPE)
@@ -131,6 +163,11 @@ def condition(
     raise NotImplementedError
 
 
+#
+# Aggregation
+#
+
+
 @enum_(EnumType.AGGREGATION_TYPE)
 class AggregationType(BuiltinEnum):
     EXISTS = 1
@@ -161,6 +198,11 @@ def aggregation(
     return Aggregation(type=type, operand=operand)
 
 
+#
+# Expression
+#
+
+
 @enum_(EnumType.EXPRESSION_TYPE)
 class ExpressionType(BuiltinEnum):
     LITERAL = 1
@@ -177,7 +219,7 @@ class Expression(Struct):
 
     type: ExpressionType = p_regular(30)
     literal: Optional[Value] = p_regular(31)
-    column: Optional[FieldReference] = p_regular(32)
+    column: Optional[AttributeReference] = p_regular(32)
     condition: Optional[Condition] = p_regular(33)
     function: Optional[Function] = p_regular(34)
     aggregation: Optional[Aggregation] = p_regular(35)
@@ -185,11 +227,11 @@ class Expression(Struct):
 
 
 def expression(
-    thing: "Value | FieldReference | Condition | Function | Aggregation",
+    thing: "Value | AttributeReference | Condition | Function | Aggregation",
 ) -> Expression:
     if isinstance(thing, Value):
         return Expression(type=ExpressionType.LITERAL, literal=thing)
-    elif isinstance(thing, FieldReference):
+    elif isinstance(thing, AttributeReference):
         return Expression(type=ExpressionType.COLUMN, column=thing)
     elif isinstance(thing, Condition):
         return Expression(type=ExpressionType.CONDITION, condition=thing)
@@ -201,10 +243,15 @@ def expression(
         assert_never(thing)
 
 
+#
+# Sort
+#
+
+
 @enum_(EnumType.SORT_TYPE)
 class SortType(BuiltinEnum):
-    ASCENDING = 500
-    DESCENDING = 501
+    ASCENDING = 1
+    DESCENDING = 2
 
 
 @enum_(EnumType.SORT_MODE)
@@ -225,11 +272,21 @@ class Sort(Struct):
     mode: Optional[SortMode] = p_regular(32)
 
 
-def sort(column: Union["Field", "Property"], type: SortType = SortType.ASCENDING) -> Sort:
-    return Sort(
-        type=type,
-        by=Expression(type=ExpressionType.COLUMN, column=field_ref(column)),
-    )
+SortIn = Union[Sort, "Expression", "Field", "Property"]
+
+
+def sort(sort: SortIn, type: SortType = SortType.ASCENDING) -> Sort:
+    if isinstance(sort, Sort):
+        return sort
+    elif isinstance(sort, Expression):
+        return Sort(type=type, by=sort)
+    else:
+        return Sort(type=type, by=expression(attribute_ref(sort)))
+
+
+#
+# Join
+#
 
 
 @enum_(EnumType.JOIN_TYPE)
@@ -245,23 +302,34 @@ class Join(Struct):
     """JOIN clause with ON expression."""
 
     type: JoinType = p_regular(30)
-    table: Optional[TableReference] = p_regular(31)
+    table: Optional[RelationReference] = p_regular(31)
     on: Optional[Condition] = p_regular(32)
-    recursive: bool = p_regular(33)
+    recursive: bool = p_regular(33)  # for parent/child joins
+
+
+JoinIn = Union[Join, "JoinType"]
 
 
 def join(
-    type: JoinType,
+    join: JoinIn,
     table: "NodeType | type[Node] | Table | None" = None,
     on: Optional[Condition] = None,
     recursive: bool = False,
 ) -> Join:
-    return Join(
-        type=type,
-        table=table_ref(table) if table is not None else None,
-        on=on,
-        recursive=recursive,
-    )
+    if isinstance(join, Join):
+        return join
+    else:
+        return Join(
+            type=join,
+            table=relation_ref(table) if table is not None else None,
+            on=on,
+            recursive=recursive,
+        )
+
+
+#
+# Query
+#
 
 
 @enum_(EnumType.QUERY_TYPE)
@@ -280,7 +348,7 @@ class Query[T: "Node"](Struct):
     name: str | None = p_regular(
         31, description="Name for this subquery. Must be unique within the containing Query."
     )
-    table: TableReference = p_regular(35)
+    relation: RelationReference = p_regular(35)
     join: Optional[Join] = p_regular(36, description="Relative to parent Query.")
     subqueries: list["Query"] = p_regular(37)
     # fields, ...
@@ -289,11 +357,21 @@ class Query[T: "Node"](Struct):
     having: Optional[Condition] = p_regular(41)
     group_by: list[Expression] = p_regular(42)
     aggregation: Optional[Aggregation] = p_regular(43)
+    sort: list[Sort] = p_regular(44)
 
-    sort: list[Sort] = p_regular(50)
-    limit: Optional[int] = p_regular(51)
-    offset: Optional[int] = p_regular(52)
-    count: bool = p_regular(53)
+    limit: Optional[int] = p_regular(50)
+    offset: Optional[int] = p_regular(51)
+    count: bool = p_regular(52)
+
+
+def to_subqueries(subqueries: dict[str, "Query"]) -> list["Query"]:
+    """Turn Queries into subqueries with default names & parent joins."""
+    for name, subquery in subqueries.items():
+        assert subquery.name is None, f"subquery {subquery!r} already has a name"
+        if subquery.join is None:
+            subquery.join = join(JoinType.PARENT)
+        subquery.name = name
+    return list(subqueries.values())
 
 
 def get[T: Node](
@@ -304,15 +382,13 @@ def get[T: Node](
     **subqueries: Query,
 ) -> Query[T]:
     """Create a Get Query."""
-    for name, subquery in subqueries.items():
-        subquery.name = name
     return Query(
         type=QueryType.GET,
-        table=table_ref(node_cls),
+        relation=relation_ref(node_cls),
         name=name,
         join=join,
         where=where,
-        subqueries=list(subqueries.values()),
+        subqueries=to_subqueries(subqueries),
     )
 
 
@@ -331,11 +407,9 @@ def search[T: Node](
     **subqueries: Query,
 ) -> Query[T]:
     """Create a Search Query."""
-    for name, subquery in subqueries.items():
-        subquery.name = name
     return Query(
         type=QueryType.SEARCH,
-        table=table_ref(node_cls),
+        relation=relation_ref(node_cls),
         name=name,
         join=join,
         where=where,
@@ -346,7 +420,7 @@ def search[T: Node](
         limit=limit,
         offset=offset,
         count=count,
-        subqueries=list(subqueries.values()),
+        subqueries=to_subqueries(subqueries),
     )
 
 
@@ -368,7 +442,7 @@ def aggregate[T: Node](
         subquery.name = name
     return Query(
         type=QueryType.AGGREGATE,
-        table=table_ref(node_cls),
+        relation=relation_ref(node_cls),
         name=name,
         join=join,
         where=where,
@@ -378,7 +452,7 @@ def aggregate[T: Node](
         limit=limit,
         offset=offset,
         count=count,
-        subqueries=list(subqueries.values()),
+        subqueries=to_subqueries(subqueries),
     )
 
 
@@ -386,13 +460,21 @@ def aggregate[T: Node](
 # Example Queries
 #
 
+q = User.get(
+    where=User.property("id").eq(5),
+    BenchMemberships=Membership.search(
+        where=Membership.property("parent").eq(NodeType.BENCH),
+        sort=[Membership.property("created_at").desc()],
+    ),
+)
+
 q = Bench.get(
     "Bench",
-    where=Bench.get_property("id").eq(5),
+    where=Bench.property("id").eq(5),
     Packages=Package.search(
         Pages=Page.search(limit=10, count=True),
         Memberships=Membership.search(
-            sort=Membership.get_property("joined_at"),
+            sort=[Membership.property("created_at").desc()],
             limit=10,
             count=True,
         ),
@@ -402,25 +484,29 @@ q = Bench.get(
 
 
 q = Thread.get(
-    where=Thread.get_property("id").eq(5),
-    order_by=Thread.get_property("last_active_at"),
-    Messages=Message.search(sort=Message.get_property("created_at"), limit=100, count=True),
-)
-
-q = Thread.search(
-    sort=Thread.get_property("last_active_at"),
-    limit=20,
-    count=True,
-    Cursor=Cursor.get(
-        join=Cursor,
-        on=Cursor.get_property("target") & Cursor.get_property("owner"),
-        UnreadCount=Message.aggregate(),
+    where=Thread.property("id").eq(5),
+    Messages=Message.search(
+        sort=[Message.property("created_at").asc()],
+        limit=100,
+        count=True,
     ),
 )
 
+q = Thread.search(
+    sort=[Thread.property("last_active_at").asc()],
+    limit=25,
+    count=True,
+    Cursor=Cursor.get(
+        on=Cursor.property("owned_by").eq(5),
+        UnreadCount=Message.aggregate(
+            where=Message.property("read_at").greater_than(attribute_ref("Cursor.last_read_at")),
+            aggregation=Aggregation(type=AggregationType.COUNT),
+        ),
+    ),
+)
 
 q = Space.get(
-    where=Space.get_property("id").eq(5),
+    where=Space.property("id").eq(5),
     Scenes=Scene.search(
         Fields=Field.search(),
         Themes=Theme.search(),
@@ -429,6 +515,20 @@ q = Space.get(
     ),
     Route=Route.search(),
 )
+
+
+#
+# Query result
+#
+
+
+class QueryResult:
+    query: Query
+
+
+#
+# Queryable
+#
 
 
 class IsQueryable:

@@ -44,7 +44,7 @@ if TYPE_CHECKING:
         TypeConstraintIn,
     )
 
-    from .expression import IsQueryable
+    from .query import IsQueryable
 
 
 class NodeReferenceMeta(enum.IntEnum):
@@ -563,7 +563,7 @@ class Property(IsQueryable if TYPE_CHECKING else object):
 
 @_on_completing_setup
 def _add_property_queryable():
-    from .expression import IsQueryable
+    from .query import IsQueryable
 
     for name, attr in IsQueryable.__dict__.items():
         if name not in Property.__dict__ and name not in ("__annotations__", "__dict__"):

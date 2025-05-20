@@ -98,8 +98,8 @@ class RuntimePlugin[N: Node, O: RuntimeOp = RuntimeOp](HostPlugin[N], abc.ABC):
         #  (we try to reach a dead Computer, which obviously doesn't work;
         #   so instead we just load it all from the DB, which is slower but more reliable)
         computer_query = Computer.where(
-            Computer.get_property("type").eq(ComputerType.RUNTIME)
-            & Computer.get_property("status").eq(ResourceStatus.AVAILABLE)
+            Computer.property("type").eq(ComputerType.RUNTIME)
+            & Computer.property("status").eq(ResourceStatus.AVAILABLE)
         )
         computer_query._include_memory = False
         available_computers = await computer_query.to_list()

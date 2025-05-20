@@ -16,7 +16,7 @@ from bench.language.core import (
     p_node_parent,
     p_regular,
 )
-from bench.language.core.expression import Expression
+from bench.language.core.query import Expression
 
 if TYPE_CHECKING:
     from bench.language import Agent, Run, Space, Thread

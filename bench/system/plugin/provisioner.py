@@ -49,9 +49,9 @@ class Provisioner[PT: ProvisionableResourceBase, WT: ProvisionableResourceBase](
         provision_cls = cast(type[PT], NODE_CLASS_BY_TYPE[self.provision_type])
         resources_query = (
             provision_cls.where(
-                provision_cls.get_property("bench").eq(self.bench)
-                & provision_cls.get_property("mode").lt(NodeMode.TEMPLATE)
-                & provision_cls.get_property("status").lt(ResourceStatus.OFFLINE)
+                provision_cls.property("bench").eq(self.bench)
+                & provision_cls.property("mode").lt(NodeMode.TEMPLATE)
+                & provision_cls.property("status").lt(ResourceStatus.OFFLINE)
             )
             .include_ancestors()
             .select_all()

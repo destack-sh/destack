@@ -744,8 +744,8 @@ class Runtime:
                 thread._graph.add_types(*COMMUNICATION_NODE_TYPES)
 
                 _, messages_connection = (
-                    await Message.where(Message.get_property("thread").eq(thread_ptr))
-                    .order_by(Message.get_property("created_at").asc())
+                    await Message.where(Message.property("thread").eq(thread_ptr))
+                    .order_by(Message.property("created_at").asc())
                     .search_connection(live=True)
                 )
                 messages_connection.on_update(lambda _, update: self.on_external_update(update))
