@@ -563,6 +563,7 @@ FIELD_TABLE = SqlTable(
         SqlColumn("is_required", PrimitiveType.BOOLEAN),
         SqlColumn("is_list", PrimitiveType.BOOLEAN),
         SqlColumn("is_secret", PrimitiveType.BOOLEAN),
+        SqlColumn("cascade", PrimitiveType.INT16, is_nullable=True),
     ),
     indexes=(SqlIndex("bench_idx_parent_id", SqlIndexType.BTREE, ("parent_id",), cover=("id",)),),
 )

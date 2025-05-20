@@ -54,6 +54,13 @@ enum Area {
   AREA_AUSTRALIA_SOUTH = 7000;
 }
 
+enum AttributeType {
+  ATTRIBUTE_TYPE_UNSPECIFIED = 0;
+  ATTRIBUTE_TYPE_PROPERTY = 1;
+  ATTRIBUTE_TYPE_FIELD = 2;
+  ATTRIBUTE_TYPE_QUERY = 3;
+}
+
 // The status of a Bench
 enum BenchStatus {
   BENCH_STATUS_UNSPECIFIED = 0;
@@ -138,8 +145,8 @@ enum BenchType {
   BENCH_TYPE_CONDITION = 20104;
   BENCH_TYPE_SORT = 20105;
   BENCH_TYPE_QUERY = 20106;
-  BENCH_TYPE_TABLE_REFERENCE = 20110;
-  BENCH_TYPE_FIELD_REFERENCE = 20111;
+  BENCH_TYPE_RELATION_REFERENCE = 20110;
+  BENCH_TYPE_ATTRIBUTE_REFERENCE = 20111;
   BENCH_TYPE_TYPE = 21400;
   BENCH_TYPE_TYPE_CONSTRAINT = 21401;
   BENCH_TYPE_VALUE = 21410;
@@ -197,6 +204,8 @@ enum BenchType {
   BENCH_TYPE_JOIN_TYPE = 40106;
   BENCH_TYPE_FUNCTION_TYPE = 40107;
   BENCH_TYPE_EXPRESSION_TYPE = 40108;
+  BENCH_TYPE_RELATION_TYPE = 40109;
+  BENCH_TYPE_ATTRIBUTE_TYPE = 40110;
   BENCH_TYPE_PACKAGE_TYPE = 40050;
   BENCH_TYPE_RESOURCE_STATUS = 41000;
   BENCH_TYPE_BLOCK_TYPE = 41010;
@@ -591,6 +600,8 @@ enum EnumType {
   ENUM_TYPE_JOIN_TYPE = 40106;
   ENUM_TYPE_FUNCTION_TYPE = 40107;
   ENUM_TYPE_EXPRESSION_TYPE = 40108;
+  ENUM_TYPE_RELATION_TYPE = 40109;
+  ENUM_TYPE_ATTRIBUTE_TYPE = 40110;
   ENUM_TYPE_PACKAGE_TYPE = 40050;
   ENUM_TYPE_RESOURCE_STATUS = 41000;
   ENUM_TYPE_BLOCK_TYPE = 41010;
@@ -965,15 +976,9 @@ enum InterruptionType {
 
 enum JoinType {
   JOIN_TYPE_UNSPECIFIED = 0;
-  JOIN_TYPE_INNER = 1;
-  JOIN_TYPE_LEFT = 2;
-  JOIN_TYPE_RIGHT = 3;
-  JOIN_TYPE_OUTER = 4;
-  JOIN_TYPE_CROSS = 5;
+  JOIN_TYPE_LEFT = 1;
   JOIN_TYPE_PARENT = 10;
   JOIN_TYPE_CHILD = 11;
-  JOIN_TYPE_ANCESTOR = 12;
-  JOIN_TYPE_DESCENDANT = 13;
 }
 
 // The layout of a View.
@@ -1215,8 +1220,8 @@ enum ObjectType {
   OBJECT_TYPE_CONDITION = 20104;
   OBJECT_TYPE_SORT = 20105;
   OBJECT_TYPE_QUERY = 20106;
-  OBJECT_TYPE_TABLE_REFERENCE = 20110;
-  OBJECT_TYPE_FIELD_REFERENCE = 20111;
+  OBJECT_TYPE_RELATION_REFERENCE = 20110;
+  OBJECT_TYPE_ATTRIBUTE_REFERENCE = 20111;
   OBJECT_TYPE_TYPE = 21400;
   OBJECT_TYPE_TYPE_CONSTRAINT = 21401;
   OBJECT_TYPE_VALUE = 21410;
@@ -1335,7 +1340,7 @@ enum ProcessStatus {
 enum QueryType {
   QUERY_TYPE_UNSPECIFIED = 0;
   QUERY_TYPE_GET = 1;
-  QUERY_TYPE_LIST = 2;
+  QUERY_TYPE_SEARCH = 2;
   QUERY_TYPE_AGGREGATE = 3;
 }
 
@@ -1353,6 +1358,12 @@ enum Region {
   REGION_SINGAPORE = 6200;
   REGION_TOKYO = 6400;
   REGION_SYDNEY = 7000;
+}
+
+enum RelationType {
+  RELATION_TYPE_UNSPECIFIED = 0;
+  RELATION_TYPE_BUILTIN_NODE = 1;
+  RELATION_TYPE_CUSTOM_NODE = 2;
 }
 
 enum RepeatType {
@@ -1442,8 +1453,8 @@ enum SortMode {
 
 enum SortType {
   SORT_TYPE_UNSPECIFIED = 0;
-  SORT_TYPE_ASCENDING = 500;
-  SORT_TYPE_DESCENDING = 501;
+  SORT_TYPE_ASCENDING = 1;
+  SORT_TYPE_DESCENDING = 2;
 }
 
 enum SpaceType {
@@ -1492,8 +1503,8 @@ enum StructType {
   STRUCT_TYPE_CONDITION = 20104;
   STRUCT_TYPE_SORT = 20105;
   STRUCT_TYPE_QUERY = 20106;
-  STRUCT_TYPE_TABLE_REFERENCE = 20110;
-  STRUCT_TYPE_FIELD_REFERENCE = 20111;
+  STRUCT_TYPE_RELATION_REFERENCE = 20110;
+  STRUCT_TYPE_ATTRIBUTE_REFERENCE = 20111;
   STRUCT_TYPE_TYPE = 21400;
   STRUCT_TYPE_TYPE_CONSTRAINT = 21401;
   STRUCT_TYPE_VALUE = 21410;
@@ -1759,6 +1770,15 @@ message ApplicationData {
   optional NodeReferenceData definition_ptr = 35;
   optional NodeReferenceData main_scene_ptr = 50;
   optional NodeReferenceData error_scene_ptr = 53;
+}
+
+message AttributeReferenceData {
+  ObjectType metatype = 1;
+  AttributeType type = 30;
+  optional string name = 31;
+  optional NodeReferenceData field_ptr = 32;
+  optional PropertyReferenceData prop_ptr = 33;
+  optional RelationReferenceData table = 34;
 }
 
 message Axis2Data {
@@ -2280,20 +2300,16 @@ message EditData {
   EditType type = 30;
   NodeReferenceData node_ptr = 31;
   google.protobuf.Timestamp edited_at = 33;
-  optional google.protobuf.Timestamp old_edited_at = 34;
+  optional string change_key = 34;
   optional SomeNodeData node_data = 40;
   repeated EditOperationData operations = 41;
-  ScopeData scope = 60;
-  optional string change_key = 61;
-  optional NodeReferenceData subject_ptr = 63;
-  optional OriginData origin = 64;
 }
 
 message EditOperationData {
   ObjectType metatype = 1;
   EditOperationType type = 30;
   string key = 31;
-  optional google.protobuf.Value new_value_packed = 40;
+  optional ValueData new_value = 35;
 }
 
 message EffectData {
@@ -2382,7 +2398,7 @@ message ExpressionData {
   ObjectType metatype = 1;
   ExpressionType type = 30;
   optional ValueData literal = 31;
-  optional FieldReferenceData column = 32;
+  optional AttributeReferenceData column = 32;
   optional ConditionData condition = 33;
   optional FunctionData function = 34;
   optional AggregationData aggregation = 35;
@@ -2419,13 +2435,7 @@ message FieldData {
   bool is_required = 60;
   bool is_list = 61;
   bool is_secret = 62;
-}
-
-message FieldReferenceData {
-  ObjectType metatype = 1;
-  optional NodeReferenceData field_ptr = 32;
-  optional PropertyReferenceData prop_ptr = 33;
-  optional TableReferenceData table = 34;
+  optional CascadeAction cascade = 70;
 }
 
 // A File stored somewhere.
@@ -2827,8 +2837,9 @@ message InviteData {
 message JoinData {
   ObjectType metatype = 1;
   JoinType type = 30;
-  optional TableReferenceData table = 31;
+  optional RelationReferenceData table = 31;
   optional ConditionData on = 32;
+  bool recursive = 33;
 }
 
 // A label container View for form-like input views.
@@ -3205,17 +3216,18 @@ message QueryData {
   ObjectType metatype = 1;
   string id = 2;
   QueryType type = 30;
-  optional JoinData join = 31;
-  TableReferenceData table = 32;
-  repeated FieldReferenceData fields = 33;
+  optional string name = 31;
+  RelationReferenceData relation = 35;
+  optional JoinData join = 36;
+  repeated QueryData subqueries = 37;
   optional ConditionData where = 40;
   optional ConditionData having = 41;
   repeated ExpressionData group_by = 42;
   optional AggregationData aggregation = 43;
-  repeated SortData order_by = 50;
-  optional int32 limit = 51;
-  optional int32 offset = 52;
-  bool count = 53;
+  repeated SortData sort = 44;
+  optional int32 limit = 50;
+  optional int32 offset = 51;
+  bool count = 52;
 }
 
 // A Record in a Table.
@@ -3239,6 +3251,13 @@ message RecordData {
   string order_key = 33;
   optional IconData icon = 34;
   NodeReferenceData table_ptr = 36;
+}
+
+message RelationReferenceData {
+  ObjectType metatype = 1;
+  RelationType type = 30;
+  NodeType node_type = 31;
+  optional NodeReferenceData table_ptr = 32;
 }
 
 // A Role to assign to something.
@@ -3746,12 +3765,6 @@ message TableData {
   string order_key = 33;
   optional IconData icon = 34;
   optional NodeReferenceData definition_ptr = 35;
-}
-
-message TableReferenceData {
-  ObjectType metatype = 1;
-  NodeType node_type = 31;
-  optional NodeReferenceData table_ptr = 32;
 }
 
 // A Task is like a to do item.

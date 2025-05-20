@@ -1,5 +1,5 @@
 from datetime import datetime
-from typing import TYPE_CHECKING, Any, Collection, Optional
+from typing import TYPE_CHECKING, Collection
 
 import structlog
 from fastuuid import UUID
@@ -11,15 +11,14 @@ from bench.pb2 import (
     EditOperationData,
 )
 
-from .const import EditOperationType, EditType, PrimitiveType, StructType
+from .const import EditOperationType, EditType, StructType
 from .graph import Graph, GraphData
-from .node import Node, Subject
-from .object import Scope
+from .node import Node
 from .property import p_regular, p_system
 from .struct import Struct, struct_
 
 if TYPE_CHECKING:
-    from bench.language import Origin, Supergraph
+    from bench.language import Supergraph, Value
 
 logger = structlog.get_logger(__name__)
 tracer = trace.get_tracer(__name__)
@@ -31,8 +30,7 @@ class EditOperation(Struct):
 
     type: EditOperationType = p_system(30)
     key: str = p_system(31)
-
-    new_value_packed: Any | None = p_regular(40, primitive_type=PrimitiveType.JSON)
+    new_value: "Value | None" = p_regular(35)
 
 
 @struct_(StructType.EDIT)
@@ -49,11 +47,7 @@ class Edit(Struct):
     type: EditType = p_system(30, description="Type of Edit.")
     node: Node = p_system(31, description="Which Node.")
     edited_at: datetime = p_system(33, description="When the Edit was made.")
-    old_edited_at: Optional[datetime] = p_system(
-        34,
-        default=None,
-        description="The timestamp of the Edit being undone with this Edit.",
-    )
+    change_key: UUID | None = p_system(34, description="The Change that this Edit is part of.")
 
     # content
     node_data: AnyNodeData | None = p_system(40, primitive_type=None, is_node_data=True)
@@ -61,12 +55,6 @@ class Edit(Struct):
         41,
         description="The operations to perform on the Node",
     )
-
-    # meta
-    scope: Scope = p_system(60, description="Enclosing scope of the Edit.")
-    change_key: UUID | None = p_system(61, description="The Change that this Edit is part of.")
-    subject: Optional[Subject] = p_system(63, description="Who made the Edit.")
-    origin: Optional["Origin"] = p_system(64, description="Where the Edit came from.")
 
 
 def apply_edit_operation(node: Node, op: EditOperationData, validate: bool) -> None:

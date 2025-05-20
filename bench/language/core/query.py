@@ -1,5 +1,6 @@
 # ruff: noqa: RUF012
 
+from dataclasses import dataclass
 from typing import TYPE_CHECKING, Any, Optional, Union, assert_never
 
 from fastuuid import UUID
@@ -12,11 +13,9 @@ from .struct import Struct, struct_
 from .value import Value
 
 if TYPE_CHECKING:
-    from bench.language import *
+    from bench.language import Field, Table
 
 # pyright: reportIncompatibleVariableOverride=false
-# nocheckin
-# ruff: noqa: F405
 
 #
 # Relations/Attributes
@@ -457,71 +456,68 @@ def aggregate[T: Node](
 
 
 #
-# Example Queries
-#
-
-q = User.get(
-    where=User.property("id").eq(5),
-    BenchMemberships=Membership.search(
-        where=Membership.property("parent").eq(NodeType.BENCH),
-        sort=[Membership.property("created_at").desc()],
-    ),
-)
-
-q = Bench.get(
-    "Bench",
-    where=Bench.property("id").eq(5),
-    Packages=Package.search(
-        Pages=Page.search(limit=10, count=True),
-        Memberships=Membership.search(
-            sort=[Membership.property("created_at").desc()],
-            limit=10,
-            count=True,
-        ),
-    ),
-    Pages=Page.search(count=True),
-)
-
-
-q = Thread.get(
-    where=Thread.property("id").eq(5),
-    Messages=Message.search(
-        sort=[Message.property("created_at").asc()],
-        limit=100,
-        count=True,
-    ),
-)
-
-q = Thread.search(
-    sort=[Thread.property("last_active_at").asc()],
-    limit=25,
-    count=True,
-    Cursor=Cursor.get(
-        on=Cursor.property("owned_by").eq(5),
-        UnreadCount=Message.aggregate(
-            where=Message.property("read_at").greater_than(attribute_ref("Cursor.last_read_at")),
-            aggregation=Aggregation(type=AggregationType.COUNT),
-        ),
-    ),
-)
-
-q = Space.get(
-    where=Space.property("id").eq(5),
-    Scenes=Scene.search(
-        Fields=Field.search(),
-        Themes=Theme.search(),
-        Views=ViewBase.search(join=join(JoinType.PARENT, recursive=True)),
-        Styles=StyleBase.search(join=join(JoinType.PARENT, recursive=True)),
-    ),
-    Route=Route.search(),
-)
-
-
-#
 # Query result
+# nocheckin: QueryResult
 #
 
+# q = User.get(
+#     where=User.property("id").eq(5),
+#     BenchMemberships=Membership.search(
+#         where=Membership.property("parent").eq(NodeType.BENCH),
+#         sort=[Membership.property("created_at").desc()],
+#     ),
+# )
 
+# q = Bench.get(
+#     "Bench",
+#     where=Bench.property("id").eq(5),
+#     Packages=Package.search(
+#         Pages=Page.search(limit=10, count=True),
+#         Memberships=Membership.search(
+#             sort=[Membership.property("created_at").desc()],
+#             limit=10,
+#             count=True,
+#         ),
+#     ),
+#     Pages=Page.search(count=True),
+# )
+
+
+# q = Thread.get(
+#     where=Thread.property("id").eq(5),
+#     Messages=Message.search(
+#         sort=[Message.property("created_at").asc()],
+#         limit=100,
+#         count=True,
+#     ),
+# )
+
+# q = Thread.search(
+#     sort=[Thread.property("last_active_at").asc()],
+#     limit=25,
+#     count=True,
+#     Cursor=Cursor.get(
+#         on=Cursor.property("owned_by").eq(5),
+#         UnreadCount=Message.aggregate(
+#             where=Message.property("read_at").greater_than(attribute_ref("Cursor.last_read_at")),
+#             aggregation=Aggregation(type=AggregationType.COUNT),
+#         ),
+#     ),
+# )
+
+# q = Space.get(
+#     where=Space.property("id").eq(5),
+#     Scenes=Scene.search(
+#         Fields=Field.search(),
+#         Themes=Theme.search(),
+#         Views=ViewBase.search(join=join(JoinType.PARENT, recursive=True)),
+#         Styles=StyleBase.search(join=join(JoinType.PARENT, recursive=True)),
+#     ),
+#     Route=Route.search(),
+# )
+
+
+@dataclass(slots=True)
 class QueryResult:
     query: Query
 
@@ -532,10 +528,6 @@ class QueryResult:
 
 
 class IsQueryable:
-    @property
-    def type_info(self) -> "TypeBase":
-        raise NotImplementedError(f"{self!r} does not implement type")
-
     def is_equal(self: Any, value: Any) -> "Condition":
         if value is None:
             return self.not_exists()

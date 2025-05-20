@@ -80,7 +80,9 @@ class Field(
     icon: Optional["Icon"] = p_regular(35)
 
     # type identity
-    # ...TypeInfo[40-69]
+    # ...TypeBase[40-69]
+
+    cascade: Optional[CascadeAction] = p_regular(70)
 
     _introspected_from: Optional[Property] = p_runtime(default=None)  # should match Field.property
 

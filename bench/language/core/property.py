@@ -485,11 +485,11 @@ class Property(IsQueryable if TYPE_CHECKING else object):
         elif annotation.union_types:
             node_types: list[NodeType] = []
             for union_type in annotation.union_types:
-                class_name = get_class_name(union_type)
-                new_node_types = _resolve_node_types(class_name) if class_name else None
+                union_class_name = get_class_name(union_type)
+                new_node_types = _resolve_node_types(union_class_name) if union_class_name else None
                 assert (
                     new_node_types is not None
-                ), f"unexpected {class_name!r} in {self!r} (raw={self.py_type_raw!r}, annotation={annotation!r})"
+                ), f"unexpected {union_class_name!r} in {self!r} (raw={self.py_type_raw!r}, annotation={annotation!r})"
                 node_types.extend(new_node_types)
             self.node_types = tuple(node_types)
 
@@ -527,7 +527,7 @@ class Property(IsQueryable if TYPE_CHECKING else object):
 
     def _to_type(self) -> "Type":
         """Create the Type for this Property."""
-        from bench.language.core import Type, TypeConstraintIn, TypeKind
+        from bench.language.core import Type, TypeConstraintIn, TypeType
 
         if isinstance(self.constraint, TypeConstraintIn):
             constraint = self.constraint.into()
@@ -535,14 +535,14 @@ class Property(IsQueryable if TYPE_CHECKING else object):
             constraint = self.constraint or TypeConstraintIn()
 
         if self.node_types and not self.runtime_prop:
-            kind = TypeKind.NODE
+            kind = TypeType.NODE
             constraint.node_types = list(self.node_types)
         elif self.struct_type:
-            kind = TypeKind.STRUCT
+            kind = TypeType.STRUCT
         elif self.enum_type:
-            kind = TypeKind.ENUM
+            kind = TypeType.ENUM
         elif self.primitive_type:
-            kind = TypeKind.PRIMITIVE
+            kind = TypeType.PRIMITIVE
         else:
             raise ValueError(f"cannot determine type info for {self!r}")
 

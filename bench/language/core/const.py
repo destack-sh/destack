@@ -354,7 +354,7 @@ class EnumType(BuiltinEnum):
     LINK_TYPE = 41440
     # SCHEMA, UNION, TAG, ...
     PRIMITIVE_TYPE = 41500
-    TYPE_KIND = 41501
+    TYPE_TYPE = 41501
     FIELD_TYPE = 41510
     CASCADE_ACTION = 41511
     DAY = 41530

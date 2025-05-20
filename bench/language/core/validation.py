@@ -63,21 +63,7 @@ class TypeConstraintIn:
     node_max_depth: Optional[int] = None
 
     def into(self) -> "TypeConstraint":
-        from bench.language.core import TypeConstraint
-
-        return TypeConstraint(
-            min_value=float(self.min_value) if self.min_value is not None else None,
-            max_value=float(self.max_value) if self.max_value is not None else None,
-            step_value=float(self.step_value) if self.step_value is not None else None,
-            min_length=self.min_length,
-            max_length=self.max_length,
-            regex=self.regex,
-            starts_with=self.starts_with,
-            ends_with=self.ends_with,
-            node_types=self.node_types,
-            node_scope=self.node_scope,
-            node_max_depth=self.node_max_depth,
-        )
+        raise NotImplementedError
 
 
 SLUG_REGEX_CHAR = r"a-z0-9-"
