@@ -72,6 +72,7 @@ class StringFormat(BuiltinEnum):
     UUID = 10
     URL = 11
     EMOJI = 12
+    MIME = 13
     BASE64 = 20
 
 
@@ -130,12 +131,14 @@ class NodeConstraint(Struct):
 
 Format = Union[NumberFormat, StringFormat]
 Constraint = Union[NumberConstraint, NodeConstraint, StringConstraint, CollectionConstraint]
+type Json = Any
 
 
 @object_()
 class TypeBase(BuiltinObject):
     """
     A Type describes the shape of a value.
+    For lists and maps, the scalar type describes the element/value type.
     """
 
     cardinality: TypeCardinality = p_internal(40)
@@ -152,8 +155,7 @@ class TypeBase(BuiltinObject):
 
     # collection
     base_type: Optional["Node"] = p_regular(50)
-    key_type: Optional["Type"] = p_regular(51)
-    element_type: Optional["Type"] = p_regular(52)
+    key_type: Optional["Type"] = p_regular(51)  # for maps
     if TYPE_CHECKING:
         base_type_id: Optional[UUID] = None
         base_type_ptr: Optional["NodeReference"] = None

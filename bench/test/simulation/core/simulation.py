@@ -23,12 +23,6 @@ from bench.proto import SupervisorClient
 from bench.sql.client import get_pg_pool_by_external_name, pg_connection
 from bench.sql.engine import sqlstr
 from bench.sql.graph import BUILTIN_GLOBAL_SCHEMA, BUILTIN_REGIONAL_SCHEMA
-from bench.system import (
-    DatabaseMap,
-    create_system_benches,
-    global_database_from_env,
-    pg_engine_from_database,
-)
 from bench.utils.oracle import REAL_ORACLE
 from bench.utils.task import TaskManager
 
@@ -54,6 +48,7 @@ from .transport import SimulatedChannel
 from .user import UserHandle
 
 if TYPE_CHECKING:
+    from bench.system import DatabaseMap
     from bench.test.simulation.workload import Workload, WorkloadSpec
 
 logger = structlog.get_logger(__name__)
@@ -74,8 +69,10 @@ class Simulation:
         spec: SimulationSpec,
         global_database: Database,
         regional_database: Database,
-        database_map: DatabaseMap,
+        database_map: "DatabaseMap",
     ):
+        from bench.system import pg_engine_from_database
+
         self.id = id
         self.spec = spec
         self.global_database = global_database

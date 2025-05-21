@@ -2,7 +2,7 @@ import dataclasses
 import enum
 import textwrap
 from dataclasses import dataclass
-from typing import Sequence, Union
+from typing import Literal, Sequence, Union
 
 
 class ProtoThing:
@@ -145,9 +145,11 @@ class ProtoField(ProtoThing):
     type: ProtoFieldType | ProtoEnum | ProtoMessage | str
     optional: bool = False
     repeated: bool = False
-    key_type: ProtoFieldType | None = None  # for map
-    value_type: ProtoFieldType | None = None  # for map
-    sub_fields: Sequence["ProtoField"] | None = None  # for one of
+    key_type: Literal[ProtoFieldType.STRING, ProtoFieldType.INT32, ProtoFieldType.INT64] | None = (
+        None
+    )
+    value_type: ProtoFieldType | ProtoEnum | ProtoMessage | str | None = None
+    sub_fields: Sequence["ProtoField"] | None = None
 
     def to_proto_source(self) -> str:
         """Convert to proto source."""
@@ -159,7 +161,17 @@ class ProtoField(ProtoThing):
         if self.type == ProtoFieldType.REPEATED:
             type = f"{prefix}{self.value_type}[]"
         elif self.type == ProtoFieldType.MAP:
-            type = f"{prefix}map<{self.key_type}, {self.value_type}>"
+            assert self.key_type is not None, f"invalid map: {self!r}"
+            assert self.value_type is not None, f"invalid map: {self!r}"
+            if isinstance(self.value_type, ProtoFieldType):
+                value_name = self.value_type.value
+            elif isinstance(self.value_type, (ProtoEnum, ProtoMessage)):
+                value_name = self.value_type.name
+            elif isinstance(self.value_type, str):
+                value_name = self.value_type
+            else:
+                raise TypeError(f"invalid value type: {self.value_type!r}")
+            type = f"{prefix}map<{self.key_type.value}, {value_name}>"
         elif self.type == ProtoFieldType.ONE_OF:
             type = f"{prefix}oneof {self.name} {{\n"
             for sub_field in self.sub_fields or ():

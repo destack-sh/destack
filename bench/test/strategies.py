@@ -29,7 +29,6 @@ from bench.language import (
     StructType,
     Type,
     TypeBase,
-    TypeConstraint,
     TypeCardinality,
     ValidationError,
 )
@@ -335,10 +334,10 @@ STRATEGY_BY_OBJECT_PROPERTY: dict[tuple[ObjectType, str], st.SearchStrategy] = {
     },
 }
 
-SIMPLE_TYPE_KINDS = st.sampled_from((TypeCardinality.PRIMITIVE, TypeCardinality.ENUM, TypeCardinality.STRUCT))
 
-
-def draw_type_info_base_dict(draw: st.DrawFn, kinds: st.SearchStrategy[TypeCardinality]) -> dict[str, Any]:
+def draw_type_info_base_dict(
+    draw: st.DrawFn, kinds: st.SearchStrategy[TypeCardinality]
+) -> dict[str, Any]:
     kind = draw(kinds)
     primitive_type = None
     bench_type = None

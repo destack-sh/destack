@@ -3,7 +3,6 @@ from dataclasses import dataclass
 from typing import Any, Awaitable, Callable, override
 
 from bench.language import NodeMode, ProcessStatus, Run, Runnable
-from bench.runtime import Runner, Runtime, create_run
 from bench.test.simulation.core import Simulation
 
 from .client import ClientWorkload, ClientWorkloadSpec
@@ -33,7 +32,7 @@ class RuntimeWorkload[SpecT: RuntimeWorkloadSpec](ClientWorkload[SpecT], abc.ABC
         inputs: Any | None = None,
         mode: NodeMode | None = None,
         return_error: bool = False,
-    ) -> Runner:
+    ) -> "Runner":
         """Run something in the Runtime."""
         if not isinstance(run, Run):
             run, _ = create_run(

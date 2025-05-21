@@ -4,21 +4,22 @@ from fastuuid import UUID
 
 from bench.language import Region
 from bench.proto import SupervisorClient
-from bench.system import CreateBenchOptions, HostInfo, HostMap, SupervisorService
 
 from .service import ServiceHandle
 from .spec import SupervisorSpec
 from .transport import SimulatedChannel
 
 if TYPE_CHECKING:
+    from bench.system import CreateBenchOptions, HostInfo, SupervisorService
+
     from .simulation import Simulation
 
 
-class SimulatedHostMap(HostMap):
+class SimulatedHostMap:
     def __init__(self, simulation: "Simulation"):
         self.simulation = simulation
 
-    def get(self, bench_id: UUID, region: Region) -> HostInfo:
+    def get(self, bench_id: UUID, region: Region) -> "HostInfo":
         bench = self.simulation.get_bench(bench_id)
         host = self.simulation.get_host(bench.name)
         domain = f"{host.id}"  # :SimulatedNetwork
@@ -26,17 +27,17 @@ class SimulatedHostMap(HostMap):
 
 
 @final
-class SupervisorHandle(ServiceHandle[SupervisorSpec, SupervisorService, SupervisorClient]):
+class SupervisorHandle(ServiceHandle[SupervisorSpec, "SupervisorService", SupervisorClient]):
     """A global Supervisor"""
 
-    service_cls = SupervisorService
+    service_cls = "SupervisorService"
     client_cls = SupervisorClient
 
     def __repr__(self) -> str:
         return "<SupervisorHandle>"
 
     @override
-    async def start(self) -> SupervisorService:
+    async def start(self) -> "SupervisorService":
         self._service = SupervisorService(
             id=self.id,
             global_database=self.simulation.global_database,

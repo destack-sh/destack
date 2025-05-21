@@ -29,6 +29,8 @@ class Table(
 ):
     """A Table of Records."""
 
+    # type?
+
     @property
     def records(self) -> Any:
         raise NotImplementedError

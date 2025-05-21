@@ -13,7 +13,6 @@ from bench.language.core import (
     StringFormat,
     enum_,
     node_,
-    p_node_parent,
     p_regular,
     p_system,
 )
@@ -47,7 +46,6 @@ class Bench(IsOwnable, BenchNode[BenchData]):
     A Bench is the OS for personal software.
     """
 
-    parent: None = p_node_parent(4)
     handle: Optional["Handle"] = p_system(31, node_bench_from="self")
     slug: str = p_system(32, unique=True, format=StringFormat.SLUG)  # must match main handle
     name: str = p_regular(33, format=StringFormat.NAME)

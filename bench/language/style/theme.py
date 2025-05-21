@@ -38,7 +38,7 @@ class Theme(IsInstantiable, IsModal, IsNamed, PageNode[ThemeData]):
     """A Theme with common styles."""
 
     # colors
-    colors: dict[ThemeColor, Color] = p_regular(50)
+    colors: dict[ThemeColor, "Color"] = p_regular(50)
 
     # fonts
     # ...

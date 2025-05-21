@@ -55,8 +55,6 @@ from bench.language import (
     PageNode,
     ProvisionableResourceBase,
     ResourceBase,
-    TypeConstraint,
-    TypeConstraintIn,
 )
 from bench.utils.string import Casing, to_casing
 
@@ -126,19 +124,6 @@ def _render_js_value(value: Any) -> str:
         return f"{value.__class__.__name__}.{value.name}"
     else:
         raise RuntimeError(f"unexpected value: {value}")
-
-
-def _render_js_constraint(constraint: TypeConstraint | TypeConstraintIn) -> str:
-    constraint_parts = []
-    for p in TypeConstraint.__declared_properties__.values():
-        if p.ptr_prop:
-            p = p.ptr_prop
-        p_value = getattr(constraint, p.name, None)
-        if p_value is not None:
-            js_value = _render_js_value(p_value)
-            constraint_parts.append(f"{to_casing(p.name, Casing.LOWER_CAMEL)}: {js_value}")
-    constraint_js = "{ " + ", ".join(constraint_parts) + " }"
-    return constraint_js
 
 
 def _gen_proto(schema_str: str) -> None:
@@ -491,8 +476,6 @@ export type PropertyInfo = {
                 prop_info_parts["primitiveType"] = f"PrimitiveType.{prop.primitive_type.name}"
             if prop.default is not None and prop.default is not UNSET:
                 prop_info_parts["default"] = _render_js_value(prop.default)
-            if prop.constraint:
-                prop_info_parts["constraint"] = _render_js_constraint(prop.constraint)
 
             for flag in (
                 "isList",

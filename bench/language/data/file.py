@@ -24,7 +24,6 @@ from PIL import Image
 from bench.language.core import (
     BuiltinEnum,
     EnumType,
-    NodeReference,
     NodeType,
     PrimitiveType,
     ResourceBase,
@@ -32,7 +31,6 @@ from bench.language.core import (
     SpanType,
     active_session,
     capture_span,
-    constraint,
     enum_,
     node_,
     p_internal,
@@ -69,8 +67,6 @@ MAX_FILE_SIZE = get_from_env(
     "MAX_FILE_SIZE", typ=int, default=1024 * 1024 * 128, description="Max file size (in bytes)"
 )
 
-MIME_TYPE_CONSTRAINT = constraint(min_length=1, max_length=255)
-SHA256_CONSTRAINT = constraint(min_length=FILE_HASH_LENGTH, max_length=FILE_HASH_LENGTH)
 
 # pyright: reportIncompatibleVariableOverride=false
 
@@ -494,10 +490,10 @@ class File(ResourceBase[FileData]):
 
     # meta
     source: FileSource = p_regular(60)
-    mime_type: str | None = p_regular(61, constraint=MIME_TYPE_CONSTRAINT)
+    mime_type: str | None = p_regular(61)
     format: FileFormat | None = p_regular(62)
     size: int | None = p_regular(63, primitive_type=PrimitiveType.INT64)
-    sha256: str | None = p_internal(64, constraint=SHA256_CONSTRAINT)
+    sha256: str | None = p_internal(64)
     width: int | None = p_regular(65)
     height: int | None = p_regular(66)
     aspect_ratio: float | None = p_regular(67)
@@ -772,9 +768,9 @@ async def upload_file_batch(
 
 @capture_span(tracer, "file.download_batch", SpanType.FILE_DOWNLOAD)
 async def download_file_batch(
-    file_refs: Sequence[NodeReference | File],
+    file_refs: Sequence[File],
     *,
-    include_content: bool | Collection[NodeReference | File],
+    include_content: bool | Collection[File],
     session: "Session | None" = None,
 ) -> list[File]:
     """Downloads the given Files from their Host."""

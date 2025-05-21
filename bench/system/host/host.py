@@ -1,10 +1,9 @@
 import asyncio
 from contextlib import asynccontextmanager
-from typing import TYPE_CHECKING, Any, Callable, Mapping, Sequence, cast, override
+from typing import TYPE_CHECKING, Any, Callable, Mapping, override
 
 import structlog
 from fastuuid import UUID
-from google.protobuf.message import Message as ProtoMessage
 from google.protobuf.struct_pb2 import Struct as ProtoStruct
 from grpclib import GRPCError
 from grpclib import Status as GRPCStatus
@@ -16,71 +15,46 @@ from bench.language import (
     BENCH_NODE_TYPES,
     CLOUD,
     EMPTY_SCOPE_DATA,
-    LOADED_PACKAGE_NODE_TYPES,
     LOCAL_NODE_TYPES,
     REGIONAL_NODE_TYPES,
     Bench,
     BenchStatus,
-    C,
     ConditionalType,
     Database,
-    EditType,
-    Engine,
     File,
-    FileBase,
     FileSource,
     Graph,
-    GraphData,
-    LegacyQuery,
-    MemoryEngine,
-    Node,
     NodeArea,
     NodeReference,
     NodeType,
-    Ownable,
     Package,
-    PageNode,
-    PolicySubject,
-    QueryType,
     Scope,
     Session,
     Supergraph,
-    User,
     bittuple,
-    edit_data_graph,
-    edit_graph,
     pack_value_scalar,
-    patch_graph,
 )
-from bench.language.core.const import AUTOLOAD_DESCENDANT_TYPES
-from bench.pb2 import MessageData
 from bench.proto import (
     DownloadFilesRequest,
     DownloadFilesResponse,
-    EditData,
     HostBase,
     Network,
-    RpcMetadata,
     ScopeData,
     ServiceKind,
     UploadFilesRequest,
     UploadFilesResponse,
     unpack_builtin_object_validate,
 )
-from bench.proto.wiring import unwrap_some_node
 from bench.system.core import (
-    ClientCache,
     get_s3_client_for_presigning,
     global_session,
     local_pg_engine_from_database,
     pg_engine_from_database,
 )
-from bench.system.graph import GraphServiceBase, PostgresEngine, is_edit_in_scope
 from bench.utils.env import ENV, Env
 from bench.utils.oracle import Oracle
 from bench.utils.utils import get_from_env
 
-from .commit import unpack_commit
 from .plugin import HostPlugin
 
 if TYPE_CHECKING:
@@ -96,12 +70,8 @@ FILE_DOWNLOAD_URL_EXPIRY = get_from_env(
     description="File download URL expiry (in seconds)",
 )
 
-BENCH_QUERY = Bench.include_descendants(
-    NodeType.HANDLE, NodeType.PACKAGE, *LOADED_PACKAGE_NODE_TYPES
-).select_all()
 
-
-class HostService(GraphServiceBase, HostBase):
+class HostService(HostBase):
     """
     Host for a Bench, providing the OS-level functionality (lifecycle, resources, scheduling, etc.).
     There is only one Host per Bench. Clients interact with the Bench exclusively via its Host.
@@ -192,20 +162,6 @@ class HostService(GraphServiceBase, HostBase):
         assert self._main_package is not None, f"main package not loaded in {self!r}"
         return self._bench._graph, self._main_package._graph
 
-    @override
-    def get_engines(self) -> tuple[Engine, ...]:
-        return self._engines
-
-    @property
-    @override
-    def request_session_parent(self):
-        return self._bench
-
-    @property
-    @override
-    def split_reads(self):
-        return True
-
     @property
     def global_database(self) -> Database:
         return self._global_database
@@ -233,70 +189,6 @@ class HostService(GraphServiceBase, HostBase):
             yield self._session
             if commit:
                 await self._session.commit()
-
-    @tracer.start_as_current_span("host.get_request_subject")
-    async def get_request_subject(
-        self, request: ProtoMessage, metadata: RpcMetadata
-    ) -> PolicySubject:
-        assert self._bench is not None, f"bench not loaded in {self!r}"
-        assert self._session is not None, f"session not ready in {self!r}"
-
-        # get client
-        is_staff = False
-        user_ptr: NodeReference | None = None
-        computer_ptr: NodeReference | None = None
-        owned: list[Ownable] = []
-        if metadata.client_id and metadata.client_access_token:
-            if not metadata.client_type:
-                raise GRPCError(GRPCStatus.UNAUTHENTICATED, "missing client type")
-            client_id = UUID(metadata.client_id)
-            if self._client_cache.has(client_id):
-                client = await self._client_cache.get_and_check(
-                    client_id, metadata.client_access_token
-                )
-            else:
-                async with self.global_session():
-                    client = await self._client_cache.get_and_check(
-                        client_id, metadata.client_access_token
-                    )
-            if isinstance(client.parent, User):
-                if client.parent.bench_id == self._bench.id:
-                    owned = [client.parent, self._bench]  # type: ignore
-                else:
-                    owned = [client.parent]  # type: ignore
-                is_staff = client.parent.is_staff
-                user_ptr = client.parent_ptr
-            elif isinstance(client.parent, Bench):
-                computer_ptr = client.computer_ptr
-                owned = [self._bench]  # NOTE :Security: Computers own their Benches for now
-            else:
-                raise GRPCError(GRPCStatus.UNAUTHENTICATED, "invalid client parent")
-        else:
-            client = None
-
-        # NOTE :Incomplete: get roles/memberships/... for subject in this bench
-
-        # use new supergraph instance for session
-        supergraph = self._supergraph.instance(name="Request")
-        subject = PolicySubject(
-            is_authenticated=client is not None,
-            is_staff=is_staff,
-            client=client,
-            user_ptr=user_ptr,
-            computer_ptr=computer_ptr,
-            owned=owned,  # type: ignore
-            _supergraph=supergraph,
-        )
-        return subject
-
-    @override
-    async def resolve_request_base(self, node_ptr: NodeReference | UUID) -> Node | None:
-        base_id = node_ptr.id if isinstance(node_ptr, NodeReference) else node_ptr
-        assert base_id, f"no base id in {node_ptr!r}"
-        node = self.main_package._graph.get(base_id)
-        if not isinstance(node, PageNode):
-            return None
-        return node
 
     def get_provisioners(self: "HostService", bench: Bench) -> list["Provisioner"]:
         """Gets all available provisioners for the Bench in *this* environment"""
@@ -513,192 +405,6 @@ class HostService(GraphServiceBase, HostBase):
         await asyncio.gather(*(plugin.wait_closed() for plugin in self._plugins))
         if self._session is not None:
             await self._session.close()
-
-    #
-    # Graph
-    #
-
-    @override
-    @tracer.start_as_current_span("host.prepare_commit")
-    def _parse_commit(self, context: IsRuntime, edits: Sequence[EditData]):
-        assert self._main_package is not None, f"package not loaded in {self!r}"
-
-        scope = self._extract_commit_scope(edits)
-
-        # add any threads
-        # NOTE :Cleanup: manually loading more stuff for Thread feels wrong :AutoLoading :RichGraph
-        #  (also it only works when we're creating Nodes and thus have Edit.node_data)
-        for edit in edits:
-            if edit.node_ptr.node_type == NodeType.MESSAGE:
-                if edit.HasField("node_data"):
-                    message = cast(MessageData, unwrap_some_node(edit.node_data))
-                    scope.add_scope(message.thread_ptr)
-
-        return scope
-
-    @override
-    def _adapt_read_query(self, query: LegacyQuery) -> LegacyQuery:
-        query = super()._adapt_read_query(query)
-
-        # restrict to this bench if it's an in-bench query
-        #  (non-local because those are already in-bench only)
-        if (
-            self._bench is not None
-            and NodeType.BENCH in query._node_cls.__root_types__
-            and query._node_cls.__area__ != NodeArea.LOCAL_DB
-        ):
-            query = query.where(query._node_cls.get_property("bench").eq(self._bench.to_ref()))
-
-        # always load members for joinables
-        if query._type == QueryType.GET and (
-            descendant_types := AUTOLOAD_DESCENDANT_TYPES.get(query._node_type)
-        ):
-            query = query.include_descendants(*descendant_types)
-
-        return query
-
-    def _update_loaded_graphs(
-        self,
-        *,
-        edits: Sequence[EditData],
-        cascaded_edits: Sequence[EditData],
-    ) -> None:
-        """
-        Applies the given edits to our unpacked or data (or both) graphs.
-        NOTE :Architecture :Cleanup: Host loaded graphs feels very similar to system Connections
-        """
-        assert self._bench is not None, f"bench not loaded in {self!r}"
-        assert self._main_package is not None, f"package not loaded in {self!r}"
-        bench_graph = self._bench._graph
-        bench_data_graph = self._bench._data_graph
-
-        def _apply_edit(edit: EditData):
-            # filter the in memory edits to only those with an origin (we = system has origin = null)
-            if edit.origin.id:
-                edit_graph(
-                    graph=bench_graph,
-                    supergraph=self._supergraph,
-                    edits=(edit,),
-                    include_removed=False,
-                    validate=False,
-                )
-            edit_data_graph(
-                graph=bench_data_graph,
-                edits=(edit,),
-                include_removed=False,
-            )
-
-        bench_id = str(self._bench.id)
-        for edit in edits:
-            if is_edit_in_scope(edit, bench_data_graph, root_id=bench_id):
-                _apply_edit(edit)
-        for edit in cascaded_edits:
-            if edit.type in (EditType.ARCHIVE, EditType.DELETE, EditType.ERASE):
-                continue  # remove cascades are implicit
-            if is_edit_in_scope(edit, bench_data_graph, root_id=bench_id):
-                _apply_edit(edit)
-
-    @override
-    @tracer.start_as_current_span("host.pre_commit")
-    async def pre_commit(
-        self,
-        session: Session,
-        graph: Graph,
-        data_graph: GraphData,
-        context: IsRuntime | None,
-        edits: Sequence[EditData],
-        cascaded_edits: Sequence[EditData],
-    ) -> None:
-        assert self._bench is not None, f"bench not loaded in {self!r}"
-        assert self._main_package is not None, f"package not loaded in {self!r}"
-
-        # optimistically apply commit :ConcurrentHost
-        self._update_loaded_graphs(edits=edits, cascaded_edits=cascaded_edits)
-
-        # replace copied source nodes in the temporary 'graph' with our loaded originals
-        #  (this ensure that we have all the descendants for source nodes loaded)
-        for copied_node in graph.nodes:
-            original_node = self._main_package._graph.get(copied_node.id)
-            if original_node is not None:
-                graph.update(original_node)
-
-        # run plugins
-        commit = unpack_commit(
-            session=session,
-            graph=graph,
-            supergraph=session.supergraph,  # use original session's supergraph
-            edits=edits,
-            cascaded_edits=cascaded_edits,
-            epoch=self._local_epoch,
-        )
-        for plugin in self._plugins:
-            if plugin.watch_types is None or commit.edited_types & plugin.watch_types:
-                await plugin.pre_commit(session, commit)
-
-    @override
-    @tracer.start_as_current_span("host.post_commit")
-    async def post_commit(
-        self,
-        session: Session,
-        graph: Graph,
-        data_graph: GraphData,
-        edits: Sequence[EditData],
-        cascaded_edits: Sequence[EditData],
-    ):
-        await super().post_commit(session, graph, data_graph, edits, cascaded_edits)
-
-        assert self._session is not None, f"session not ready in {self!r}"
-
-        # run plugins on commit (in main session)
-        async with self._session.active():
-            self._session._track_many(*graph.nodes, force=True)  # may come from other session
-            commit = unpack_commit(
-                session=self._session,
-                graph=graph,
-                supergraph=session.supergraph,  # use original session's supergraph
-                edits=edits,
-                cascaded_edits=cascaded_edits,
-                epoch=self._local_epoch,
-            )
-            for plugin in self._plugins:
-                if plugin.watch_types is None or commit.edited_types & plugin.watch_types:
-                    with tracer.start_as_current_span(
-                        "host.post_commit.plugin", attributes={"plugin": plugin.name}
-                    ):
-                        if plugin.watch_types is not None:
-                            trimmed_commit = commit.trim_to(plugin.watch_types)
-                        else:
-                            trimmed_commit = commit
-                        await plugin.post_commit(self._session, trimmed_commit)
-                        logger.trace(
-                            "host.post_commit.plugin",
-                            host=self,
-                            plugin=plugin,
-                            commit=trimmed_commit,
-                            span="current",
-                        )
-            await self._session.commit()
-        logger.info(
-            "host.post_commit",
-            host=self,
-            added=commit.added,
-            updated=commit.updated,
-            removed=commit.removed,
-            span="current",
-        )
-
-    @override
-    async def post_commit_failed(self, session: Session, exc: BaseException):
-        # reload graphs (discard optimistic edits)
-        assert self._session is not None, f"session not ready in {self!r}"
-        assert self._bench is not None, f"bench not loaded in {self!r}"
-        async with self._session.active():
-            bench = await BENCH_QUERY.get(self.bench_ptr, mode="both")
-            patch_graph(old_graph=self._bench._graph, new_graph=bench._graph)
-
-        # run plugins
-        for plugin in self._plugins:
-            await plugin.post_commit_failed(session, exc)
 
     #
     # Files

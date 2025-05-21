@@ -4,8 +4,6 @@ from fastuuid import UUID
 
 from bench.language import ClientType
 from bench.pb2 import RuntimeClient
-from bench.runtime import RuntimeService
-from bench.runtime.base import RuntimeProcessMode
 from bench.utils.oracle import Oracle
 
 from .service import ServiceHandle
@@ -13,12 +11,14 @@ from .spec import RuntimeSpec
 from .transport import SimulatedChannel
 
 if TYPE_CHECKING:
+    from bench.runtime import RuntimeService
+
     from .client import ClientHandle
     from .simulation import Simulation
 
 
 @final
-class RuntimeHandle(ServiceHandle[RuntimeSpec, RuntimeService, RuntimeClient]):
+class RuntimeHandle(ServiceHandle[RuntimeSpec, "RuntimeService", RuntimeClient]):
     """A (Runtime) Computer in a Bench"""
 
     def __init__(
@@ -33,7 +33,7 @@ class RuntimeHandle(ServiceHandle[RuntimeSpec, RuntimeService, RuntimeClient]):
     def __repr__(self):
         return f"<{self.__class__.__name__} {self!s}>"
 
-    async def start(self) -> RuntimeService:
+    async def start(self) -> "RuntimeService":
         computer = self.simulation.get_computer(self.spec.computer)
         supervisor = await self.simulation.supervisor.connect(self.spec.name)
         self._service = RuntimeService(

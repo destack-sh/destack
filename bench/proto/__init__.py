@@ -28,7 +28,6 @@ from .network import (
 from .server import GrpcServer
 from .service import ServiceBase
 from .wiring import (
-    pack_and_set_object_prop,
     pack_builtin_object,
     pack_enum,
     pack_proto_json,
@@ -68,7 +67,6 @@ __all__ = [
     "get_rpc_metadata",
     "localize_url",
     "minikubeify_url",
-    "pack_and_set_object_prop",
     "pack_builtin_object",
     "pack_enum",
     "pack_proto_json",

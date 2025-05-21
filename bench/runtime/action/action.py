@@ -9,7 +9,6 @@ from bench.language import (
     ActionType,
     Agent,
     Aliasing,
-    CustomObject,
     Run,
     Runnable,
     RunType,
@@ -17,7 +16,6 @@ from bench.language import (
     SpanType,
     TypeBase,
     code,
-    coerce_custom_object_scalar,
 )
 from bench.runtime.core import RunIn, Runner, Runtime, make_runner
 

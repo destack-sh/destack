@@ -26,7 +26,6 @@ from typing import (
 
 import regex
 import structlog
-from cachetools import cached
 from fastuuid import UUID
 
 from bench.utils.base58 import base58_encode
@@ -113,7 +112,6 @@ def try_to_uuid(id: UUID | str) -> UUID | str:
         return id
 
 
-@cached(cache={})
 def to_uuid(id: str | UUID | None) -> UUID | None:
     if not id:
         return None  # ignore empty strings
@@ -128,7 +126,6 @@ def to_uuid(id: str | UUID | None) -> UUID | None:
         assert_never(id)
 
 
-@cached(cache={})
 def uuid_to_str(id: UUID | str | None) -> str | None:
     if not id:
         return None  # ignore empty strings

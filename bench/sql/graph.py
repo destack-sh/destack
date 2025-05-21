@@ -15,14 +15,13 @@ from bench.language import (
     IsBased,
     Node,
     NodeArea,
-    NodeReferenceKind,
     NodeType,
     PrimitiveType,
     Property,
     Query,
     Record,
+    ScalarType,
     Table,
-    TypeCardinality,
     bittuple,
 )
 from bench.language.registry import HAS_CHILD_NODE_TYPES, NODE_CLASS_BY_TYPE
@@ -38,7 +37,6 @@ from .core import (
     GLOBAL_EXTENSIONS,
     LOCAL_EXTENSIONS,
     REGIONAL_EXTENSIONS,
-    SqlCascadeAction,
     SqlColumn,
     SqlConstraint,
     SqlConstraintType,
@@ -107,11 +105,11 @@ def map_builtin_object_to_sql_table(
         if not prop.is_stored or prop.ptr_prop is not None:
             continue
 
-        if prop.node_kind is not None:
+        if prop.scalar_type == "node":
             # node ptr property
             assert prop.runtime_prop is not None, f"no runtime prop for {prop!r}"
             prop = prop.runtime_prop
-            assert not prop.is_list, f"node ptr {prop!r} is a list"
+            assert prop.cardinality == "scalar", f"non-scalar {prop!r}"
             assert not prop.is_unique, f"node ptr {prop!r} is unique"
             # id
             column = SqlColumn(
@@ -152,36 +150,16 @@ def map_builtin_object_to_sql_table(
                 columns.append(bench_id_column)
         else:
             # regular column
-            assert (
-                prop.primitive_type is not UNSET and prop.primitive_type is not None
-            ), f"undetermined type for {prop!r}"
+            assert prop.primitive_type is not None, f"undetermined type for {prop!r}"
             column = SqlColumn(
                 name=prop.name,
                 type=prop.primitive_type,
-                is_array=prop.is_list,
+                is_array=prop.cardinality == "list",
                 is_nullable=not prop.is_required,
                 is_primary_key=prop.name == "id",
                 is_unique=prop.is_unique,
             )
             columns.append(column)
-            # FKs
-            reference_nodes = (
-                prop.node_types or () if prop.node_types != "any" else NODE_TYPES.tuple
-            )
-            if (
-                prop.node_kind == NodeReferenceKind.NODE_PARENT
-                and reference_nodes
-                and all(r.area == node.__area__ for r in reference_nodes)
-            ):
-                assert len(reference_nodes) == 1, f"stored prop {prop!r} has multiple references"
-                column.is_foreign_key_to = get_node_table_name(reference_nodes[0])
-                if prop.node_kind in (
-                    NodeReferenceKind.NODE_PARENT,
-                    NodeReferenceKind.NODE_ANCESTOR,
-                ):
-                    column.on_delete = SqlCascadeAction.CASCADE
-                else:
-                    column.on_delete = SqlCascadeAction.SET_NULL
             # unique
             if prop.is_unique:
                 index = SqlIndex(
@@ -249,15 +227,17 @@ def map_table_to_sql_table(table: Table, prev_sql_table: SqlTable | None) -> Sql
 
     # map fields into columns
     for field in table.get_children(Field):
-        if field.cardinality == TypeCardinality.PRIMITIVE:
+        if field.cardinality == "map":
+            primitive_type = PrimitiveType.JSON
+        elif field.scalar_type == ScalarType.PRIMITIVE:
             assert field.primitive_type is not None, f"no primitive type for {field!r}"
             primitive_type = field.primitive_type
-        elif field.cardinality == TypeCardinality.NODE:
+        elif field.scalar_type == ScalarType.NODE:
             # NOTE :Architecture: unravel custom field node refs like in builtin objects?
             primitive_type = PrimitiveType.JSON
-        elif field.cardinality == TypeCardinality.STRUCT:
+        elif field.scalar_type == ScalarType.STRUCT:
             primitive_type = PrimitiveType.JSON
-        elif field.cardinality == TypeCardinality.ENUM:
+        elif field.scalar_type == ScalarType.ENUM:
             primitive_type = PrimitiveType.INT16
         else:
             raise TypeError(f"cannot store field in {table!r}: {field!r}")
@@ -265,7 +245,7 @@ def map_table_to_sql_table(table: Table, prev_sql_table: SqlTable | None) -> Sql
         column = SqlColumn(
             name=get_record_field_name(field),
             type=primitive_type,
-            is_array=field.is_list,
+            is_array=field.cardinality == "list",
             is_nullable=True,  # NOTE :Incomplete: support field constraints in table
             is_primary_key=False,
             _field=field,

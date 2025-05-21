@@ -10,7 +10,6 @@ from bench.language import (
     Block,
     BlockType,
     BuiltinObject,
-    Choice,
     Client,
     ClientType,
     Code,
@@ -21,10 +20,10 @@ from bench.language import (
     Message,
     NodeReference,
     NodeType,
-    Option,
     Package,
     PackageType,
     Page,
+    Schema,
     Session,
     Table,
     Text,
@@ -172,54 +171,54 @@ def test_builtin_object_clone(obj: BuiltinObject, session: Session):
 
 @simulated_runtime()
 async def test_add_detached_subtree(simulation: Simulation, runtime: RuntimeLambdaWorkload):
-    choice = Choice.new("Letter")
+    schema = Schema(name="Letter")
     for i in range(0, 26):
         letter = chr(65 + i)
-        choice.add_child(Option.new(letter))
-    runtime.page().add_child(choice)
+        schema.add_child(Field(name=letter))
+    runtime.page().add_child(schema)
     await runtime.commit()
 
 
 @simulated_runtime()
 async def test_clone(simulation: Simulation, runtime: RuntimeLambdaWorkload):
     """Clone a Node subtree."""
-    choice = Choice.new("Letter")
+    schema = Schema(name="Letter")
     for i in range(0, 26):
         letter = chr(65 + i)
-        choice.add_child(Option.new(letter))
-    runtime.page().add_child(choice)
+        schema.add_child(Field(name=letter))
+    runtime.page().add_child(schema)
     await runtime.commit()
 
-    choice_clone = choice.clone()
-    for option, option_clone in zip(choice.get_children(Option), choice_clone.get_children(Option)):
-        assert option is not option_clone
-        assert option.id != option_clone.id
-        assert option.equals(option_clone)
+    schema_clone = schema.clone()
+    for field, field_clone in zip(schema.get_children(Field), schema_clone.get_children(Field)):
+        assert field is not field_clone
+        assert field.id != field_clone.id
+        assert field.equals(field_clone)
     await runtime.commit()
 
 
 @simulated_runtime()
 async def test_clone_with_cross_references(simulation: Simulation, runtime: RuntimeLambdaWorkload):
     """Clone consistency test with references."""
-    choice = Choice.new("Letter", options=[Option.new("A"), Option.new("B")])
+    schema = Schema.new("Letter", fields=[Field.new("A"), Field.new("B")])
     flow = Flow.new("Flow")
     action = Action.new(
         ActionType.CODE,
         "Action",
-        fields=[Field.input("Text", Text), Field.output("Choice", choice)],
+        fields=[Field.input("Text", Text), Field.output("Schema", schema)],
     )
     flow.add_child(action)
     table = Table.new("Table", fields=[Field.member("Text", Text)])
     page = runtime.page()
-    choice_block = page.add_child(choice)
+    schema_block = page.add_child(schema)
     flow_block = page.add_child(flow)
     _ = page.add_child(table)
     await runtime.commit()
 
     # cloning an inline node should be consistent with its definition counterpart
-    choice_block_clone = choice_block.clone()
-    assert choice_block_clone.node is not choice
-    assert choice_block_clone.get_node_as(Choice).definition is choice_block_clone
+    schema_block_clone = schema_block.clone()
+    assert schema_block_clone.node is not schema
+    assert schema_block_clone.get_node_as(Schema).definition is schema_block_clone
     # other way around
     flow_clone = flow.clone()
     assert flow_clone.definition is not None
@@ -230,11 +229,11 @@ async def test_clone_with_cross_references(simulation: Simulation, runtime: Runt
     page_clone = page.clone()
     flow_clone = page_clone.child(Block, "Flow").get_node_as(Flow)
     assert flow_clone is not None
-    choice_clone = page_clone.child(Block, "Letter").get_node_as(Choice)
-    assert choice_clone is not None
+    schema_clone = page_clone.child(Block, "Letter").get_node_as(Schema)
+    assert schema_clone is not None
     action_clone = flow_clone.child(Action, "Action")
     assert action_clone is not None
-    assert action_clone.child(Field, "Choice").base_type == choice_clone
+    assert action_clone.child(Field, "Schema").base_type == schema_clone
     table_clone = page_clone.child(Block, "Table").get_node_as(Table)
     assert table_clone is not None
     await runtime.commit()
@@ -243,24 +242,24 @@ async def test_clone_with_cross_references(simulation: Simulation, runtime: Runt
 @simulated_runtime()
 async def test_instance(simulation: Simulation, runtime: RuntimeLambdaWorkload):
     """Instance a subtree."""
-    choice = Choice.new("Letter")
+    schema = Schema.new("Letter")
     for i in range(0, 26):
         letter = chr(65 + i)
-        choice.add_child(Option.new(letter))
-    runtime.page().add_child(choice)
+        schema.add_child(Field.new(letter))
+    runtime.page().add_child(schema)
     await runtime.commit()
 
-    choice_instance = choice.instance()
-    assert choice_instance.equals(choice)
-    assert choice_instance.id != choice.id
-    assert choice_instance.template_id == choice.id
-    for option, option_instance in zip(
-        choice.get_children(Option), choice_instance.get_children(Option)
+    schema_instance = schema.instance()
+    assert schema_instance.equals(schema)
+    assert schema_instance.id != schema.id
+    assert schema_instance.template_id == schema.id
+    for field, field_instance in zip(
+        schema.get_children(Field), schema_instance.get_children(Field)
     ):
-        assert option_instance.id != option.id
-        assert option_instance.ck == option.ck
-        assert option_instance.template_id == option.id
-        assert option.equals(option_instance)
+        assert field_instance.id != field.id
+        assert field_instance.ck == field.ck
+        assert field_instance.template_id == field.id
+        assert field.equals(field_instance)
     await runtime.commit()
 
 
@@ -269,17 +268,17 @@ async def test_instance_with_cross_references(
     simulation: Simulation, runtime: RuntimeLambdaWorkload
 ):
     """Instance a subtree with cross references."""
-    choice = Choice.new("Letter", options=[Option.new("A"), Option.new("B")])
+    schema = Schema.new("Letter", fields=[Field.new("A"), Field.new("B")])
     flow = Flow.new("Flow")
     action = Action.new(
         ActionType.CODE,
         "Action",
-        fields=[Field.input("Text", Text), Field.output("Choice", choice)],
+        fields=[Field.input("Text", Text), Field.output("Schema", schema)],
     )
     flow.add_child(action)
     table = Table.new("Table", fields=[Field.member("Text", Text)])
     page = runtime.page()
-    _ = page.add_child(choice)
+    _ = page.add_child(schema)
     _ = page.add_child(flow)
     _ = page.add_child(table)
     await runtime.commit()
@@ -290,15 +289,15 @@ async def test_instance_with_cross_references(
     assert flow_instance is not None
     assert flow_instance is not flow
     assert flow_instance.template is flow
-    choice_instance = page_instance.child(Block, "Letter").get_node_as(Choice)
-    assert choice_instance is not None
-    assert choice_instance is not choice
-    assert choice_instance.template is choice
+    schema_instance = page_instance.child(Block, "Letter").get_node_as(Schema)
+    assert schema_instance is not None
+    assert schema_instance is not schema
+    assert schema_instance.template is schema
     action_instance = flow_instance.child(Action, "Action")
     assert action_instance is not None
     assert action_instance is not action
     assert action_instance.template is action
-    assert action_instance.child(Field, "Choice").base_type == choice_instance
+    assert action_instance.child(Field, "Schema").base_type == schema_instance
     table_instance = page_instance.child(Block, "Table").get_node_as(Table)
     assert table_instance is not None
     assert table_instance is not table
@@ -311,9 +310,9 @@ async def test_move_subtree(simulation: Simulation, runtime: RuntimeLambdaWorklo
     """Move Nodes between parents (within a Package)."""
     Page1 = runtime.page("Page1")
     Page2 = runtime.page("Page2")
-    Block1 = Page1.add_child(Choice.new("Block1", options=[Option.new("A"), Option.new("B")]))
+    Block1 = Page1.add_child(Schema.new("Block1", fields=[Field.new("A"), Field.new("B")]))
     Block2 = Page1.add_child(
-        Flow.new("Block2", fields=[Field.input("Text", Text), Field.output("Choice", Block1)])
+        Flow.new("Block2", fields=[Field.input("Text", Text), Field.output("Schema", Block1)])
     )
     Block3 = Page1.add_child(Table.new("Block3", fields=[Field.member("Text", Text)]))
     await runtime.commit()

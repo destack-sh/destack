@@ -4,11 +4,8 @@ from .access import (
     PASSWORD_MAX_LENGTH,
     PASSWORD_MIN_LENGTH,
     SALT_LENGTH,
-    ClientCache,
     check_password,
-    get_client_or_error,
     hash_password,
-    purge_client_caches,
 )
 from .aws import (
     get_s3_client,
@@ -42,14 +39,12 @@ __all__ = [
     "PASSWORD_MAX_LENGTH",
     "PASSWORD_MIN_LENGTH",
     "SALT_LENGTH",
-    "ClientCache",
     "DatabaseInfo",
     "DatabaseMap",
     "HostInfo",
     "HostMap",
     "StaticHostMap",
     "check_password",
-    "get_client_or_error",
     "get_s3_client",
     "get_s3_client_for_presigning",
     "global_database_from_env",
@@ -58,6 +53,5 @@ __all__ = [
     "local_pg_engine_from_database",
     "make_system_database",
     "pg_engine_from_database",
-    "purge_client_caches",
     "regional_database_from_env",
 ]
