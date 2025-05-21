@@ -43,6 +43,7 @@ from .const import (
     NodeReferenceKind,
     NodeType,
     ObjectType,
+    Region,
     StructType,
 )
 from .graph import Supergraph
@@ -50,7 +51,6 @@ from .property import (
     _PROPERTY_SPECIFIERS,
     METATYPE_PROPERTY,
     Property,
-    p_internal,
     p_regular,
     p_runtime,
 )
@@ -747,8 +747,9 @@ def is_struct[T: Struct | Struct](obj: Any, struct_cls: type[T]) -> TypeGuard[T]
 class Scope(Struct[ScopeData]):
     """The scope for an operation on the Bench graph."""
 
-    bench_id: Optional[UUID] = p_internal(30)
-    package_ids: list[UUID] = p_internal(31)
+    region: Optional[Region] = p_regular(30)
+    bench_id: Optional[UUID] = p_regular(31)
+    package_ids: list[UUID] = p_regular(32)
 
     def __content_str__(self) -> str:
         return repr_scope(self)

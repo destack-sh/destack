@@ -266,9 +266,7 @@ class Node[NodeDataT: AnyNodeData](BuiltinObject[NodeDataT]):
     if TYPE_CHECKING:
         _skip_add_self: bool = False
 
-    def __default_content_str__(self) -> str:
-        """Default __content_str__ for Nodes with all set properties (incl. subtypes)."""
-        return ""  # nocheckin: generate BuiltinObject str
+    # nocheckin: generate BuiltinObject str
 
     @final
     def __str__(self):  # type: ignore
@@ -773,7 +771,7 @@ class Node[NodeDataT: AnyNodeData](BuiltinObject[NodeDataT]):
         return Query(
             type=QueryType.GET,
             relation=RelationReference(node_type=cls.metatype),
-            name=name,
+            name=name or cls.metatype.bench_name,
             join=join,
             where=where,
             subqueries=to_subqueries(subqueries),
@@ -799,7 +797,7 @@ class Node[NodeDataT: AnyNodeData](BuiltinObject[NodeDataT]):
         return Query(
             type=QueryType.SEARCH,
             relation=RelationReference(node_type=cls.metatype),
-            name=name,
+            name=name or cls.metatype.bench_name,
             join=join,
             where=where,
             having=having,
@@ -824,14 +822,13 @@ class Node[NodeDataT: AnyNodeData](BuiltinObject[NodeDataT]):
         limit: Optional[int] = None,
         offset: Optional[int] = None,
         count: bool = False,
-        **subqueries: "Query",
     ) -> "Query[Self]":
-        from .query import Query, QueryType, RelationReference, to_subqueries
+        from .query import Query, QueryType, RelationReference
 
         return Query(
             type=QueryType.AGGREGATE,
             relation=RelationReference(node_type=cls.metatype),
-            name=name,
+            name=name or cls.metatype.bench_name,
             join=join,
             where=where,
             group_by=group_by or [],
@@ -840,7 +837,6 @@ class Node[NodeDataT: AnyNodeData](BuiltinObject[NodeDataT]):
             limit=limit,
             offset=offset,
             count=count,
-            subqueries=to_subqueries(subqueries),
         )
 
     @classmethod

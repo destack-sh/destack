@@ -6,7 +6,7 @@ from fastuuid import UUID
 from bench.pb2 import AnyNodeData
 
 from .const import REGION, BuiltinEnum, EnumType, Region, enum_
-from .node import Node, NodeReference, PageNode, node_component_
+from .node import NodeReference, PageNode, node_component_
 from .property import p_internal, p_node_parent, p_system
 from .trait import IsClaimable, IsInstantiable, IsModal, IsNamed, IsOwnable
 
@@ -89,9 +89,6 @@ class ProvisionableResourceBase[NodeDataT: AnyNodeData](ResourceBase[NodeDataT])
     if TYPE_CHECKING:
         scaler_ptr: Optional[NodeReference] = None
         scaler_id: Optional[UUID] = None
-
-    def __content_str__(self):
-        return Node.__default_content_str__(self)
 
     @property
     def should_retry(self) -> bool:

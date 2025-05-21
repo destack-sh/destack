@@ -3501,8 +3501,9 @@ message SchemaData {
 
 message ScopeData {
   ObjectType metatype = 1;
-  optional string bench_id = 30;
-  repeated string package_ids = 31;
+  optional Region region = 30;
+  optional string bench_id = 31;
+  repeated string package_ids = 32;
 }
 
 message SelectionData {
@@ -3979,7 +3980,7 @@ message ThemeData {
   string order_key = 33;
   optional IconData icon = 34;
   optional NodeReferenceData definition_ptr = 35;
-  map<INT32, ColorData> colors = 50;
+  map<int32, ColorData> colors = 50;
 }
 
 // A Thread for communicating with Messages.
@@ -4151,7 +4152,7 @@ message UserData {
 
 message ValueData {
   ObjectType metatype = 1;
-  map<STRING, google.protobuf.Value> value = 35;
+  map<string, google.protobuf.Value> value = 35;
 }
 
 message VariableData {
