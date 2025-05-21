@@ -353,12 +353,12 @@ class EnumType(BuiltinEnum):
     ICON_TYPE = 41430
     LINK_TYPE = 41440
     PRIMITIVE_TYPE = 41500
-    TYPE_KIND = 41501
-    STRING_FORMAT = 41502
-    NUMBER_FORMAT = 41503
-
-    FIELD_TYPE = 41510
-    CASCADE_ACTION = 41511
+    TYPE_CARDINALITY = 41501
+    SCALAR_TYPE = 41502
+    STRING_FORMAT = 41510
+    NUMBER_FORMAT = 41511
+    FIELD_TYPE = 41520
+    CASCADE_ACTION = 41521
     DAY = 41530
     MONTH = 41531
     TIME_INTERVAL = 41532
@@ -1189,51 +1189,6 @@ class NodeReferenceProperty(BuiltinEnum):
     NODE_CK = 32
     NODE_BENCH_ID = 33
     NODE_BASE_ID = 34
-
-
-#
-# Access
-# Access types are loosely ranked by access/destructiveness across and within types.
-#
-
-
-@enum_(EnumType.EDIT_TYPE)
-class EditType(BuiltinEnum):
-    """Ways to edit nodes."""
-
-    CREATE = 20
-    UPSERT = 21
-    UPDATE = 22
-    MOVE = 23
-    ARCHIVE = 24
-    UNARCHIVE = 25
-    DELETE = 26
-    RESTORE = 27
-    ERASE = 28
-
-
-@enum_(EnumType.EDIT_OPERATION_TYPE)
-class EditOperationType(BuiltinEnum):
-    """The type of edit operation."""
-
-    # direct
-    SET = 1
-    CLEAR = 2
-
-    # list
-    # LIST_APPEND, LIST_APPEND_IF_MISSING, LIST_REMOVE, ...
-
-    # map
-    # MAP_SET_KEY, MAP_REMOVE_KEY, ...
-
-    # math
-    # NUMBER_ADD, NUMBER_SUBTRACT, ...
-
-    # text
-    # ...
-
-
-EDIT_TYPES: bittuple[EditType] = bittuple(*EditType)
 
 
 @enum_(EnumType.SEVERITY)

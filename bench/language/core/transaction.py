@@ -11,7 +11,7 @@ from bench.pb2 import (
     EditOperationData,
 )
 
-from .const import EditType
+from .edit import EditType
 from .node import Node
 
 if TYPE_CHECKING:

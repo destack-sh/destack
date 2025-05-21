@@ -65,8 +65,6 @@ from .const import (
     Cloud,
     Continent,
     Day,
-    EditOperationType,
-    EditType,
     EnumType,
     ErrorKind,
     Month,
@@ -97,7 +95,7 @@ from .const import (
     new_struct_id,
     repr_enums,
 )
-from .edit import Edit, EditOperation, edit_data_graph, edit_graph
+from .edit import Edit, EditOperation, EditOperationType, EditType, edit_data_graph, edit_graph
 from .graph import (
     Graph,
     GraphConsistencyError,
@@ -130,9 +128,8 @@ from .object import (
     repr_scope,
 )
 from .property import (
-    PROPERTY_META_KEY_BY_TYPE,
-    NodeReferenceMeta,
     Property,
+    TypeAnnotation,
     p_internal,
     p_kernel,
     p_node_ancestor,
@@ -226,6 +223,7 @@ from .transaction import Transaction
 from .type import (
     CollectionConstraint,
     Constraint,
+    Format,
     NodeConstraint,
     NumberConstraint,
     NumberFormat,
@@ -233,8 +231,8 @@ from .type import (
     StringFormat,
     Type,
     TypeBase,
+    TypeCardinality,
     TypeIn,
-    TypeKind,
     decode_type_identity,
     encode_storage_key,
     encode_type_identity,
@@ -311,7 +309,6 @@ __all__ = [
     "PAGE_NODE_TYPES",
     "PRIMITIVE_TYPE_BY_PY_TYPE",
     "PROCESSABLE_NODE_TYPES",
-    "PROPERTY_META_KEY_BY_TYPE",
     "PROVISIONABLE_RESOURCE_NODE_TYPES",
     "PUBLIC_NODE_TYPES",
     "PY_TYPE_BY_PRIMITIVE_TYPE",
@@ -367,6 +364,7 @@ __all__ = [
     "ErrorKind",
     "Expression",
     "ExpressionType",
+    "Format",
     "Function",
     "FunctionType",
     "Graph",
@@ -404,7 +402,6 @@ __all__ = [
     "NodeMode",
     "NodeReference",
     "NodeReferenceKind",
-    "NodeReferenceMeta",
     "NodeType",
     "NumberConstraint",
     "NumberFormat",
@@ -453,9 +450,10 @@ __all__ = [
     "TimeInterval",
     "Transaction",
     "Type",
+    "TypeAnnotation",
     "TypeBase",
+    "TypeCardinality",
     "TypeIn",
-    "TypeKind",
     "ValidationError",
     "Value",
     "Variable",

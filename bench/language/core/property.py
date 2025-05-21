@@ -1,5 +1,4 @@
 import dataclasses
-import enum
 import functools
 import types
 import typing
@@ -10,6 +9,7 @@ from typing import (
     Any,
     Callable,
     Literal,
+    Mapping,
     Optional,
     cast,
 )
@@ -39,6 +39,8 @@ if TYPE_CHECKING:
     from bench.language import (
         BuiltinObject,
         CollectionConstraint,
+        Constraint,
+        Format,
         NodeConstraint,
         NumberConstraint,
         NumberFormat,
@@ -49,24 +51,6 @@ if TYPE_CHECKING:
     )
 
     from .query import IsQueryable
-
-
-class NodeReferenceMeta(enum.IntEnum):
-    ID = 1
-    CK = 2
-    BENCH_ID = 3
-    BASE_ID = 4
-    NODE_TYPE = 6
-
-
-PROPERTY_META_KEY_BY_TYPE = {
-    NodeReferenceMeta.ID: "id",
-    NodeReferenceMeta.CK: "ck",
-    NodeReferenceMeta.BENCH_ID: "bench_id",
-    NodeReferenceMeta.BASE_ID: "base_id",
-    NodeReferenceMeta.NODE_TYPE: "node_type",
-}
-PROPERTY_TYPE_BY_META_KEY = {v: k for k, v in PROPERTY_META_KEY_BY_TYPE.items()}
 
 
 def _resolve_enum_type(class_name: str) -> EnumType | None:
@@ -124,15 +108,18 @@ def _resolve_node_types(class_name: str) -> tuple[NodeType, ...] | None:
 class TypeAnnotation(typing.NamedTuple):
     """Type annotation for a property."""
 
+    cardinality: Literal["scalar", "list", "map", "union"]
     type: typing.Type | str
-    union_types: tuple[typing.Type | str, ...]
-    is_union: bool
-    is_optional: bool
-    is_list: bool
-    is_variable: bool
+    union_types: tuple["TypeAnnotation", ...] = ()
+    key_type: "TypeAnnotation | None" = None
+    element_type: "TypeAnnotation | None" = None
+    is_required: bool = True
+    is_variable: bool = False
 
 
-def _try_resolve(py_type: type | str | typing.ForwardRef, type_map: dict[str, type]) -> type | str:
+def _try_resolve(
+    py_type: type | str | typing.ForwardRef, type_map: Mapping[str, type]
+) -> type | str:
     """Resolves the py type."""
     if isinstance(py_type, str):
         return type_map.get(py_type, py_type)
@@ -143,62 +130,82 @@ def _try_resolve(py_type: type | str | typing.ForwardRef, type_map: dict[str, ty
 
 
 def parse_type_annotation(
-    py_type: type | str | typing.ForwardRef, type_map: dict[str, type]
+    py_type: type | str | typing.ForwardRef, type_map: Mapping[str, type] = EMPTY_DICT
 ) -> TypeAnnotation:
     """Parses the type information from a given py type. Uses type map to resolve forward refs."""
-    is_union = False
-    is_optional = False
-    is_list = False
+    is_required = True
     is_variable = False
-    union_types = ()
+
     # unwrap VariableProperty[...]
     if (
         isinstance(origin_cls := typing.get_origin(py_type), typing.TypeAliasType)
         and origin_cls.__name__ == "VariableProperty"
     ):
         is_variable = True
-        is_optional = True  # variable Properties are automatically optional
+        is_required = False  # variable Properties are automatically optional
         py_type = typing.get_args(py_type)[0]
-    # resolve
+
+    # try to resolve
     if not isinstance(py_type, type):
         if isinstance(py_type, typing.ForwardRef):
             py_type = py_type.__forward_arg__
         if isinstance(py_type, str):
             if py_type.endswith(" | None"):
-                is_optional = True
+                is_required = False
                 py_type = py_type[:-7]
         py_type = _try_resolve(py_type, type_map)
-    # list (outer)
+
+    # unwrap list
     if typing.get_origin(py_type) in (list, tuple):
-        py_type = typing.get_args(py_type)[0]
-        py_type = _try_resolve(py_type, type_map)
-        is_list = True
-    # union/optional
+        element_type = parse_type_annotation(typing.get_args(py_type)[0], type_map)
+        return TypeAnnotation(
+            cardinality="list",
+            type=py_type,
+            element_type=element_type,
+            is_required=is_required,
+            is_variable=is_variable,
+        )
+
+    # unwrap union/optional
     if typing.get_origin(py_type) in (typing.Union, types.UnionType):
-        union_types = typing.get_args(py_type)
-        is_optional = any(t is type(None) for t in union_types)
-        union_types = tuple(t for t in union_types if t is not type(None))
-        is_union = len(union_types) > 1
-        # reconstitute type annotation
-        if is_union:
-            union_types = tuple(_try_resolve(t, type_map) for t in union_types)
-            py_type = cast(type, typing.Union[union_types])  # type: ignore
+        union_args = typing.get_args(py_type)
+        is_required = not any(t is type(None) for t in union_args)
+        non_none_types = tuple(t for t in union_args if t is not type(None))
+        assert len(non_none_types) > 0, f"empty union: {py_type!r}"
+
+        if len(non_none_types) == 1:
+            # If there's only one non-None type, it's just an optional of that type
+            result = parse_type_annotation(non_none_types[0], type_map)
+            result = result._replace(is_required=is_required)
+            return result
         else:
-            py_type = union_types[0]
-            py_type = _try_resolve(py_type, type_map)
-    # list (inner)
-    if typing.get_origin(py_type) in (list, tuple):
-        assert not is_list, f"double list: {py_type!r}"
-        py_type = typing.get_args(py_type)[0]
-        py_type = _try_resolve(py_type, type_map)
-        is_list = True
+            # It's a true union type
+            union_types = tuple(parse_type_annotation(t, type_map) for t in non_none_types)
+            return TypeAnnotation(
+                cardinality="union",
+                type=py_type,
+                union_types=union_types,
+                is_required=is_required,
+                is_variable=is_variable,
+            )
+
+    # unwrap map (dict)
+    if typing.get_origin(py_type) is dict:
+        key_type_arg, value_type_arg = typing.get_args(py_type)
+        key_type = parse_type_annotation(key_type_arg, type_map)
+        element_type = parse_type_annotation(value_type_arg, type_map)
+        return TypeAnnotation(
+            cardinality="map",
+            type=py_type,
+            key_type=key_type,
+            element_type=element_type,
+            is_required=is_required,
+            is_variable=is_variable,
+        )
+
+    # default: scalar
     return TypeAnnotation(
-        type=py_type,
-        union_types=union_types,
-        is_union=is_union,
-        is_optional=is_optional,
-        is_list=is_list,
-        is_variable=is_variable,
+        cardinality="scalar", type=py_type, is_required=is_required, is_variable=is_variable
     )
 
 
@@ -224,7 +231,7 @@ class Property(IsQueryable if TYPE_CHECKING else object):
     key: str = UNSET  # str(id)
     ord: int = cast(int, None)  # noqa: RUF009
     name: str = UNSET  # name from LHS of assignment
-    component: type["BuiltinObject"] = UNSET  # source component class
+    component: type["BuiltinObject"] = UNSET  # builtin object component
     py_type_raw: Any = None  # type annotation on LHS of assignment
     py_type: Any = UNSET  # clean type annotation
     primitive_type: PrimitiveType | None = UNSET  # primitive representation
@@ -239,10 +246,10 @@ class Property(IsQueryable if TYPE_CHECKING else object):
     node_bench_from: Literal["self"] | None = None
     node_exclude: tuple[Literal["ck", "base_id"], ...] = ()
 
+    cardinality: Literal["scalar", "list", "map"] = UNSET
     default: Any = UNSET
-    format: "NumberFormat | StringFormat | None" = None
-    constraint: "NumberConstraint | NodeConstraint | StringConstraint | CollectionConstraint | None" = None
-    is_list: bool = UNSET
+    format: "Format | None" = None
+    constraint: "Constraint | None" = None
     is_required: bool = UNSET  # must be non-null
     is_variable: bool = UNSET  # may be wrapped in an indirect Variable lookup
 
@@ -285,8 +292,8 @@ class Property(IsQueryable if TYPE_CHECKING else object):
             non_default.append(self.enum_type.bench_name)
         elif self.primitive_type and self.primitive_type is not UNSET:
             non_default.append(self.primitive_type.bench_name)
-        if self.is_list is True:
-            non_default.append("list")
+        if self.cardinality != "scalar":
+            non_default.append(self.cardinality)
         if self.is_required is True:
             non_default.append("required")
         if self.is_variable is True:
@@ -365,7 +372,7 @@ class Property(IsQueryable if TYPE_CHECKING else object):
 
     @property
     def is_optional_scalar(self) -> bool:
-        return self.is_optional and not self.is_list
+        return self.is_optional and self.cardinality == "scalar"
 
     @property
     def is_enum(self):
@@ -392,7 +399,7 @@ class Property(IsQueryable if TYPE_CHECKING else object):
 
         # property reference
         if self.is_property_reference:
-            assert self.is_list is not UNSET, f"must set is_list on {self!r}"
+            assert self.cardinality in ("scalar", "list"), f"invalid property reference: {self!r}"
             assert self.is_required is not UNSET, f"must set is_required on {self!r}"
             ptr_prop = Property(
                 id=self.id,
@@ -404,7 +411,6 @@ class Property(IsQueryable if TYPE_CHECKING else object):
                 is_wired=True,
                 is_stored=True,
                 is_required=self.is_required,
-                is_list=self.is_list,
                 is_variable=self.is_variable,
                 default=None,
                 runtime_prop=self,
@@ -468,8 +474,8 @@ class Property(IsQueryable if TYPE_CHECKING else object):
         # parse annotation
         annotation = parse_type_annotation(self.py_type_raw, EMPTY_DICT)
         self.py_type = annotation.type
-        self.is_required = not annotation.is_optional
-        self.is_list = annotation.is_list
+        self.cardinality = annotation.cardinality
+        self.is_required = annotation.is_required
         self.is_variable = annotation.is_variable
         # determine type
         class_name = get_class_name(annotation.type)
@@ -532,34 +538,28 @@ class Property(IsQueryable if TYPE_CHECKING else object):
 
     def _to_type(self) -> "Type":
         """Create the Type for this Property."""
-        from bench.language.core import Type, TypeConstraintIn, TypeKind
-
-        if isinstance(self.constraint, TypeConstraintIn):
-            constraint = self.constraint.into()
-        else:
-            constraint = self.constraint or TypeConstraintIn()
+        from bench.language.core import Type, TypeCardinality
 
         if self.node_types and not self.runtime_prop:
-            kind = TypeKind.NODE
-            constraint.node_types = list(self.node_types)
+            kind = TypeCardinality.NODE
         elif self.struct_type:
-            kind = TypeKind.STRUCT
+            kind = TypeCardinality.STRUCT
         elif self.enum_type:
-            kind = TypeKind.ENUM
+            kind = TypeCardinality.ENUM
         elif self.primitive_type:
-            kind = TypeKind.PRIMITIVE
+            kind = TypeCardinality.PRIMITIVE
         else:
             raise ValueError(f"cannot determine type info for {self!r}")
 
         typ = Type(
-            kind=kind,
+            cardinality=kind,
             primitive_type=self.primitive_type,
             node_type=self.node_type,
             struct_type=self.struct_type,
             enum_type=self.enum_type,
             is_list=self.is_list,
             is_required=self.is_required,
-            constraint=constraint,
+            constraint=self.constraint,
         )
         return typ
 
@@ -631,7 +631,6 @@ def p_node_parent(id: int, is_system: bool = False) -> Any:
         is_internal=True,
         is_wired=True,
         is_stored=False,
-        is_list=False,
         is_required=False,
         node_bench_from="self",
         node_exclude=("ck", "base_id"),
@@ -649,7 +648,6 @@ def _p_node_ancestor(
     return Property(
         id=id,
         node_kind=kind,
-        is_list=False,
         is_internal=True,
         is_computed=True,
         is_stored=store,
@@ -674,7 +672,6 @@ def p_node_template(id: int) -> Any:
         is_internal=True,
         is_stored=True,
         is_wired=True,
-        is_list=False,
     )
 
 
@@ -692,11 +689,11 @@ METATYPE_PROPERTY = Property(
     default=None,
     py_type_raw=ObjectType,
     is_internal=True,
+    cardinality="scalar",
     is_required=True,
     is_computed=True,  # is set statically by class decorator
     is_wired=True,
     is_stored=False,
-    is_list=False,
     primitive_type=PrimitiveType.INT16,
     enum_type=EnumType.OBJECT_TYPE,
 )

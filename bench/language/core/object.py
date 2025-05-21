@@ -14,7 +14,6 @@ from typing import (
     Mapping,
     Optional,
     Self,
-    Sequence,
     TypeGuard,
     Union,
     cast,
@@ -195,7 +194,7 @@ self._graph = _graph
             continue
         elif (ptr_prop := prop.ptr_prop) is not None:
             # set ptr_prop from prop if prop is set
-            if not prop.is_list:
+            if prop.cardinality == "scalar":
                 method_body_lines.append(f"""\
 if {prop.name} is not None:
     {ptr_prop.name} = {prop.name}.to_ref()""")
@@ -221,7 +220,7 @@ def _generate_property_property(prop: Property) -> str:
     ptr_prop = prop.ptr_prop
     assert ptr_prop is not None, f"no wired prop for {prop!r}"
 
-    if not prop.is_list:
+    if prop.cardinality == "scalar":
         # property scalar
         return f"""\
 @property
@@ -260,7 +259,7 @@ def _generate_node_property(prop: Property) -> str:
     ptr_prop = prop.ptr_prop
     assert ptr_prop is not None, f"no wired prop for {prop!r}"
 
-    if not prop.is_list:
+    if prop.cardinality == "scalar":
         return f"""\
 @property
 def {prop.name}(self: "BuiltinObject") -> "Node | None":
@@ -297,7 +296,7 @@ def _generate_node_key_property(obj_key: str, ptr_key: str, prop: Property) -> s
     ptr_prop = prop.ptr_prop
     assert ptr_prop is not None, f"no wired prop for {prop!r}"
 
-    if not ptr_prop.is_list:
+    if prop.cardinality == "scalar":
         return f"""\
 @property
 def {prop.name}_{obj_key}(self: "BuiltinObject") -> "Node | None":
@@ -591,24 +590,12 @@ class BuiltinObject[ObjectDataT: AnyObjectData](abc.ABC):
         identity_map: Mapping[UUID, "NodeReference"] = EMPTY_DICT,
     ) -> bool:
         """Checks if the content of the two objects is equal (recursively)."""
-        # nocheckin: generate equals & hash for BuiltinObjects
+        # nocheckin: generate equals & hash for Structs
         raise NotImplementedError
 
     def _stable_hash(self) -> int:
         """Hash of content properties."""
         raise NotImplementedError
-
-    def is_set(self, key: Property, value: Any = UNSET) -> bool:
-        """Whether a key is set on this object."""
-        if value is UNSET:
-            value = getattr(self, key.name)
-        if not key.is_list:
-            if value is not None and (key.default is None or value != key.default):
-                return True
-        else:
-            if type(value) is list and len(value) > 0:
-                return True
-        return False
 
     def _clone_kwargs(self, reset: bool = True):
         """Clone kwargs for a new instance."""
@@ -618,17 +605,22 @@ class BuiltinObject[ObjectDataT: AnyObjectData](abc.ABC):
             if reset and prop.id < 30:
                 continue  # ignore tracking/autoset properties
             if prop.is_struct:
-                if prop.is_list:
+                if prop.cardinality == "list":
                     if prop_value:
                         copy_kwargs[prop.name] = [item.clone() for item in prop_value]
-                elif prop_value is not None:
-                    copy_kwargs[prop.name] = prop_value.clone()
+                elif prop.cardinality == "scalar":
+                    if prop_value is not None:
+                        copy_kwargs[prop.name] = prop_value.clone()
+                else:
+                    raise RuntimeError(f"unsupported property: {prop.cardinality}")
             else:
-                if prop.is_list:
+                if prop.cardinality == "list":
                     if prop_value:
                         copy_kwargs[prop.name] = list(prop_value)
-                else:
+                elif prop.cardinality == "scalar":
                     copy_kwargs[prop.name] = prop_value
+                else:
+                    raise RuntimeError(f"unsupported property: {prop.cardinality}")
         return copy_kwargs
 
     def clone(self, *, reset: bool = True, **kwargs) -> Self:
@@ -649,15 +641,17 @@ class BuiltinObject[ObjectDataT: AnyObjectData](abc.ABC):
             if prop.node_kind in exclude:
                 continue
             prop_value = getattr(self, prop.name)
-            if not prop.is_list:
+            if prop.cardinality == "scalar":
                 if prop_value is None:
                     continue
                 new_node = new_node_by_id.get(prop_value.id)
                 if new_node is not None:
                     setattr(self, prop.name, new_node)
-            else:
+            elif prop.cardinality == "list":
                 new_nodes = [new_node_by_id.get(node.id) for node in prop_value]
                 prop_value.set(new_nodes)
+            else:
+                raise RuntimeError(f"unsupported property: {prop.cardinality}")
 
     @property
     def active_session(self) -> "Session":
@@ -671,9 +665,9 @@ class BuiltinObject[ObjectDataT: AnyObjectData](abc.ABC):
             value: Struct | list[Struct] | None = getattr(self, prop.name)
             if value is None:
                 continue
-            elif not prop.is_list:
+            elif prop.cardinality == "scalar":
                 yield from (cast(Struct, value))._walk_struct()
-            elif len(cast(list, value)) > 0:
+            elif prop.cardinality == "list":
                 for item in cast(list, value):
                     yield from cast(Struct, item)._walk_struct()
 
@@ -726,27 +720,6 @@ class Struct[StructDataT: AnyStructData](BuiltinObject[StructDataT], abc.ABC):
     metatype: ClassVar[StructType]  # type: ignore
 
     __is_struct__: ClassVar[bool] = True
-
-    def __content_str__(self) -> str:
-        # default __content_str__ for Structs with all set properties
-        value_strs = []
-        for prop in self.__declared_properties__.values():
-            prop_value = getattr(self, prop.name)
-            if prop_value is not None and not (isinstance(prop_value, Sequence) and not prop_value):
-                if prop.is_enum:
-                    if prop.is_list:
-                        prop_value_str = "|".join(p.bench_name for p in prop_value)
-                    else:
-                        prop_value_str = prop_value.bench_name  # type: ignore
-                elif prop.struct_type:
-                    if prop.is_list:
-                        prop_value_str = f"{prop.struct_type.bench_name}[{len(prop_value)}]"
-                    else:
-                        prop_value_str = f"<{prop.struct_type.bench_name} ...>"
-                else:
-                    prop_value_str = repr(prop_value)
-                value_strs.append(f"{prop.name}={prop_value_str}")
-        return ", ".join(value_strs)
 
     @final
     def __repr__(self):

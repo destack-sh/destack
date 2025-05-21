@@ -44,8 +44,8 @@ class FieldType(BuiltinEnum):
     """The type of a Field within its Block. Overlaps with ObjectKind."""
 
     VARIABLE = 20, "Variable", "Variable", "fas fa-arrow-down"
-    INPUT = 30, "Input to a runnable", "fas fa-arrow-down"
-    OUTPUT = 40, "Output from a runnable", "fas fa-arrow-up"
+    INPUT = 30, "Input", "Input", "fas fa-arrow-down"
+    OUTPUT = 40, "Output", "Output", "fas fa-arrow-up"
 
 
 @node_(NodeType.FIELD)

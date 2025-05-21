@@ -43,7 +43,7 @@ from .object import BuiltinObject, PropertyReference
 from .property import NodeReferenceKind, Property
 from .struct import Struct
 from .text import Text, TextLine, text_line_to_markdown, text_to_markdown
-from .type import TypeBase, TypeKind, reverse_type_scalar
+from .type import TypeBase, TypeCardinality, reverse_type_scalar
 from .value import ScalarValue, SomeValue
 
 if TYPE_CHECKING:
@@ -232,7 +232,7 @@ class Renderer:
 
     def render_value_scalar(self, value: "ScalarValue", typ: "TypeBase") -> str:
         """Renders single scalar value into an expression."""
-        if typ.kind == TypeKind.PRIMITIVE:
+        if typ.cardinality == TypeCardinality.PRIMITIVE:
             if typ.primitive_type == PrimitiveType.BYTES:
                 value_b64 = base64.b64encode(cast(bytes, value)).decode("utf-8")
                 return f"base64.b64decode({value_b64!r})"
@@ -254,16 +254,16 @@ class Renderer:
                 return f"UUID({value!r})"
             else:
                 return str(value)
-        elif typ.kind == TypeKind.NODE:
+        elif typ.cardinality == TypeCardinality.NODE:
             assert isinstance(
                 value, (Node, NodeReference)
             ), f"{value!r} is not a node or node reference, expected {typ!r}"
             return self.render_node_ref(value)
-        elif typ.kind == TypeKind.ENUM:
+        elif typ.cardinality == TypeCardinality.ENUM:
             enum_cls = ENUM_CLASS_BY_TYPE[cast(EnumType, typ.enum_type)]
             value = enum_cls(cast(int, value))
             return f"{enum_cls.__name__}.{value.name}"
-        elif typ.kind == TypeKind.STRUCT:
+        elif typ.cardinality == TypeCardinality.STRUCT:
             if isinstance(value, Property):
                 return f"{value.component.__name__}.get_property({value.name!r})"
             else:
