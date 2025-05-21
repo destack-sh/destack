@@ -1,4 +1,3 @@
-from .choice import Choice
 from .field import Field, FieldType
 from .file import (
     FILE_FORMAT_BY_EXTENSION,
@@ -19,7 +18,6 @@ from .file import (
     upload_file_batch,
 )
 from .link import Link, LinkType
-from .option import Option
 from .record import Record
 from .schema import Schema
 from .table import Table
@@ -30,7 +28,6 @@ __all__ = [
     "MIME_TYPES_BY_FILE_FORMAT",
     "MIME_TYPE_BY_FORMAT",
     "MIME_TYPE_CONSTRAINT",
-    "Choice",
     "Field",
     "FieldType",
     "File",
@@ -41,7 +38,6 @@ __all__ = [
     "FileType",
     "Link",
     "LinkType",
-    "Option",
     "Record",
     "Schema",
     "Table",

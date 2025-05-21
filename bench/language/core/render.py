@@ -43,20 +43,18 @@ from .object import BuiltinObject, PropertyReference
 from .property import NodeReferenceKind, Property
 from .struct import Struct
 from .text import Text, TextLine, text_line_to_markdown, text_to_markdown
-from .type import TypeBase, TypeConstraint, TypeType, reverse_type_scalar
+from .type import TypeBase, TypeKind, reverse_type_scalar
 from .value import ScalarValue, SomeValue
 
 if TYPE_CHECKING:
     from bench.language import (
         Action,
         Block,
-        Choice,
         Claim,
         Field,
         Flow,
         FlowEdge,
         Message,
-        Option,
         Page,
         Schema,
         Table,
@@ -234,7 +232,7 @@ class Renderer:
 
     def render_value_scalar(self, value: "ScalarValue", typ: "TypeBase") -> str:
         """Renders single scalar value into an expression."""
-        if typ.kind == TypeType.PRIMITIVE:
+        if typ.kind == TypeKind.PRIMITIVE:
             if typ.primitive_type == PrimitiveType.BYTES:
                 value_b64 = base64.b64encode(cast(bytes, value)).decode("utf-8")
                 return f"base64.b64decode({value_b64!r})"
@@ -256,16 +254,16 @@ class Renderer:
                 return f"UUID({value!r})"
             else:
                 return str(value)
-        elif typ.kind == TypeType.NODE:
+        elif typ.kind == TypeKind.NODE:
             assert isinstance(
                 value, (Node, NodeReference)
             ), f"{value!r} is not a node or node reference, expected {typ!r}"
             return self.render_node_ref(value)
-        elif typ.kind == TypeType.ENUM:
+        elif typ.kind == TypeKind.ENUM:
             enum_cls = ENUM_CLASS_BY_TYPE[cast(EnumType, typ.enum_type)]
             value = enum_cls(cast(int, value))
             return f"{enum_cls.__name__}.{value.name}"
-        elif typ.kind == TypeType.STRUCT:
+        elif typ.kind == TypeKind.STRUCT:
             if isinstance(value, Property):
                 return f"{value.component.__name__}.get_property({value.name!r})"
             else:
@@ -598,29 +596,6 @@ class FlowEdgeRenderer(PackageNodeRenderer["FlowEdge"]):
             return f"Link.new({renderer.render_args(*args)})"
 
 
-@_renderer(NodeType.CHOICE)
-class ChoiceRenderer(PackageNodeRenderer["Choice"]):
-    @override
-    def _render_constructor(
-        self,
-        renderer: "Renderer",
-        obj: "Choice",
-        kwargs: dict[Property, Any],
-        rendered_kwargs: dict[str, str],
-    ) -> str:
-        # inline name and options (like Choice.new(name, *options))
-        options_refs = [
-            renderer.render_builtin_object(option) for option in obj.get_children(Option)
-        ]
-        rendered_kwargs.pop("options", None)
-        args = (
-            rendered_kwargs.pop("name"),
-            *options_refs,
-            renderer.render_kwargs(**rendered_kwargs) or None,
-        )
-        return f"Choice.new({renderer.render_args(*args)})"
-
-
 @_renderer(NodeType.SCHEMA)
 class SchemaRenderer(PackageNodeRenderer["Schema"]):
     @override
@@ -711,24 +686,6 @@ class FieldRenderer(PackageNodeRenderer["Field"]):
         return f"Field.{constructor_name}({field_args})"
 
 
-@_renderer(NodeType.OPTION)
-class OptionRenderer(PackageNodeRenderer["Option"]):
-    @override
-    def _render_constructor(
-        self,
-        renderer: "Renderer",
-        obj: "Option",
-        kwargs: dict[Property, Any],
-        rendered_kwargs: dict[str, str],
-    ) -> str:
-        # inline name only for now
-        args = (
-            rendered_kwargs.pop("name"),
-            renderer.render_kwargs(**rendered_kwargs) or None,
-        )
-        return f"Option.new({renderer.render_args(*args)})"
-
-
 @_renderer(NodeType.TASK)
 class TaskRenderer(NodeRenderer["Task"]):
     @override
@@ -799,15 +756,6 @@ class TypeRenderer(BuiltinObjectRenderer[TypeBase]):
         else:
             type_args = renderer.render_args(renderer.render_kwargs(**rendered_kwargs) or None)
         return f"to_type({type_args})"
-
-
-@_renderer(StructType.TYPE_CONSTRAINT)
-class TypeConstraintRenderer(BuiltinObjectRenderer[TypeConstraint]):
-    @override
-    def render(self, renderer: "Renderer", obj: TypeConstraint, options: RenderOptions) -> str:
-        kwargs = _deconstruct_builtin_object(obj, options=options)
-        rendered_kwargs = _render_builtin_object_kwargs(renderer, obj, kwargs)
-        return f"constraint({renderer.render_kwargs(**rendered_kwargs)})"
 
 
 @_renderer(StructType.TEXT_LINE)

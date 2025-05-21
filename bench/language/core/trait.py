@@ -20,7 +20,7 @@ from .const import (
 from .graph import attach_node
 from .object import BuiltinObject, object_
 from .property import p_internal, p_node_template, p_regular, p_system
-from .validation import NAME_CONSTRAINT
+from .type import StringFormat
 
 if TYPE_CHECKING:
     from bench.language import (
@@ -317,7 +317,7 @@ class IsBased(BuiltinObject):
 class IsNamed(BuiltinObject):
     """A Node with a plain name."""
 
-    name: str | None = p_regular(31, constraint=NAME_CONSTRAINT)
+    name: str | None = p_regular(31, format=StringFormat.NAME)
 
 
 @object_()

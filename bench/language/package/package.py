@@ -1,7 +1,6 @@
 from typing import TYPE_CHECKING, Optional
 
 from bench.language.core import (
-    SLUG_CONSTRAINT,
     BuiltinEnum,
     EnumType,
     IndexIn,
@@ -12,6 +11,7 @@ from bench.language.core import (
     IsTemplatable,
     NodeType,
     PackageNode,
+    StringFormat,
     enum_,
     node_,
     p_node_parent,
@@ -39,7 +39,7 @@ class Package(IsOwnable, IsJoinable, IsTemplatable, IsModal, IsNamed, PackageNod
     # meta
     parent: Optional["Bench"] = p_node_parent(4)
     type: PackageType = p_regular(30)
-    slug: str | None = p_regular(34, constraint=SLUG_CONSTRAINT)
+    slug: str | None = p_regular(34, format=StringFormat.SLUG)
     icon: Optional["Icon"] = p_regular(35)
 
     @property

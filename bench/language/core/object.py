@@ -34,13 +34,12 @@ from bench.language.registry import (
 from bench.pb2 import AnyObjectData, AnyStructData, ScopeData, lang_pb2
 from bench.utils.code import format_code
 from bench.utils.env import IS_DEV
-from bench.utils.func import dualmethod, get_superclasses, hash_stable, is_close
+from bench.utils.func import dualmethod, get_superclasses
 from bench.utils.utils import frozendict
 
 from .const import (
     ACTIVE_SESSION,
     EMPTY_DICT,
-    FLOAT_EPSILON,
     UNSET,
     NodeReferenceKind,
     NodeType,
@@ -58,7 +57,7 @@ from .property import (
 )
 
 if TYPE_CHECKING:
-    from bench.language import Field, Node, NodeReference, PropertyReference, Session, TypeBase
+    from bench.language import Field, Node, NodeReference, PropertyReference, Session
 
 # pyright: reportIncompatibleVariableOverride=false
 
@@ -154,6 +153,7 @@ if _supergraph is None:
         body_properties.pop("updated_at")
         body_properties.pop("_is_new")
         body_properties.pop("_graph")
+        body_properties.pop("_hash")
         # node init
         if "ck" not in original_properties:
             method_body_lines.append("""\
@@ -164,6 +164,7 @@ if id is None:
     self.created_at = now
     self.updated_at = now
     self._is_new = True
+self._hash = self.id.int
 """)
         else:
             method_body_lines.append("""\
@@ -175,6 +176,7 @@ if id is None:
     self.created_at = now
     self.updated_at = now
     self._is_new = True
+self._hash = self.id.int
 """)
 
         # node graph
@@ -589,40 +591,12 @@ class BuiltinObject[ObjectDataT: AnyObjectData](abc.ABC):
         identity_map: Mapping[UUID, "NodeReference"] = EMPTY_DICT,
     ) -> bool:
         """Checks if the content of the two objects is equal (recursively)."""
-        if other is None or self.metatype != getattr(other, "metatype", None):
-            return False
-        for prop in self.__wired_properties__.values():
-            if (
-                prop.id < 30
-                or prop.name == "order_key"  # implicitly checked in lists
-                or prop._type is None
-            ):
-                continue  # ignore identity/tracking
-            self_value = getattr(self, prop.name)
-            other_value = getattr(other, prop.name)
-            if not value_equals(prop._type, self_value, other_value, identity_map):
-                return False
-        return True
+        # nocheckin: generate equals & hash for BuiltinObjects
+        raise NotImplementedError
 
     def _stable_hash(self) -> int:
         """Hash of content properties."""
-        content_props = []
-        for prop in self.__wired_properties__.values():
-            if prop.id < 30:
-                continue
-            prop_value = getattr(self, prop.name)
-            if prop.is_list and prop_value:
-                for item in prop_value:
-                    if isinstance(item, BuiltinObject):
-                        content_props.append(item._stable_hash())
-                    else:
-                        content_props.append(item)
-            else:
-                if isinstance(prop_value, BuiltinObject):
-                    content_props.append(prop_value._stable_hash())
-                else:
-                    content_props.append(prop_value)
-        return hash_stable(content_props)
+        raise NotImplementedError
 
     def is_set(self, key: Property, value: Any = UNSET) -> bool:
         """Whether a key is set on this object."""
@@ -871,71 +845,3 @@ class PropertyReference(Struct):
         object_cls = self.object_cls
         prop = (object_cls or Node).__properties_by_id__.get(self.id)
         return prop
-
-
-def value_equals(
-    typ: "TypeBase",
-    self_value: Any,
-    other_value: Any,
-    identity_map: Mapping[UUID, "NodeReference"] = EMPTY_DICT,
-) -> bool:
-    """Checks whether two values for a given type are equal (recursively)."""
-    from .type import TypeType
-
-    if self_value is None or other_value is None:
-        return self_value is other_value
-    elif typ.kind == TypeType.PRIMITIVE:
-        # compare primitives directly with is_close
-        is_float = typ.primitive_type is not None and typ.primitive_type.is_float
-        if not typ.is_list:
-            return self_value == other_value or (
-                is_float and is_close(self_value, other_value, FLOAT_EPSILON)
-            )
-        else:
-            if len(self_value) != len(other_value):
-                return False  # unequal list
-            for i in range(len(self_value)):
-                self_el = self_value[i]
-                other_el = other_value[i]
-                if self_el != other_el or (
-                    is_float and not is_close(self_el, other_el, FLOAT_EPSILON)
-                ):
-                    return False  # unequal list
-            return True
-    elif typ.kind == TypeType.ENUM:
-        # compare enums directly
-        return self_value == other_value
-    elif typ.kind == TypeType.NODE or typ.struct_type == StructType.NODE_REFERENCE:
-        if not typ.is_list:
-            self_value = identity_map.get(self_value.ck, self_value)
-            other_value = identity_map.get(other_value.ck, other_value)
-            return self_value.id == other_value.id
-        else:
-            if len(self_value) != len(other_value):
-                return False  # unequal list
-            for i in range(len(self_value)):
-                self_element = identity_map.get(self_value[i].ck, self_value[i])
-                other_element = identity_map.get(other_value[i].ck, other_value[i])
-                if self_element.id != other_element.id:
-                    return False  # unequal list
-            return True
-    elif typ.kind == TypeType.STRUCT:
-        # compare struct recursively
-        if not typ.is_list:
-            if type(self_value) is not type(other_value) or (
-                self_value is not None
-                and not cast(Struct, self_value).equals(other_value, identity_map=identity_map)
-            ):
-                return False  # unequal struct
-        else:
-            if (
-                not isinstance(self_value, Sequence)
-                or not isinstance(other_value, Sequence)
-                or len(self_value) != len(other_value)
-            ):
-                return False  # unequal list
-            for i in range(len(self_value)):
-                if not self_value[i].equals(other_value[i], identity_map=identity_map):
-                    return False  # unequal struct
-
-    return True

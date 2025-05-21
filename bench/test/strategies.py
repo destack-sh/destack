@@ -30,7 +30,7 @@ from bench.language import (
     Type,
     TypeBase,
     TypeConstraint,
-    TypeType,
+    TypeKind,
     ValidationError,
 )
 from bench.utils.fractional import INTEGER_ZERO
@@ -88,7 +88,7 @@ PROPERTY_STRATEGY = st.sampled_from(ALL_DECLARED_PROPERTIES)
 NAME_STRATEGY = st.text(alphabet=ascii_lowercase, min_size=1, max_size=64)
 SLUG_STRATEGY = st.text(alphabet=ascii_lowercase, min_size=1, max_size=64)
 
-TYPE_KIND_STRATEGY = st.sampled_from(TypeType)
+TYPE_KIND_STRATEGY = st.sampled_from(TypeKind)
 PRIMITIVE_TYPE_STRATEGY = st.sampled_from(PrimitiveType)
 ENUM_TYPE_STRATEGY = st.sampled_from(EnumType)
 STRUCT_TYPE_STRATEGY = st.sampled_from(StructType)
@@ -112,7 +112,7 @@ def properties(object_type: ObjectType | None = None):
 def from_type_info_scalar(typ: TypeBase) -> st.SearchStrategy[Any]:
     """Turns a type into a strategy for a scalar. Considers constraints. See check_value_scalar."""
     constraint = typ.constraint or TypeConstraint()
-    if typ.kind == TypeType.PRIMITIVE:
+    if typ.kind == TypeKind.PRIMITIVE:
         # apply constraints to primitive types
         assert typ.primitive_type is not None, f"{typ!r} has no primitive type"
         if typ.primitive_type in (PrimitiveType.INT16, PrimitiveType.INT32, PrimitiveType.INT64):
@@ -154,11 +154,11 @@ def from_type_info_scalar(typ: TypeBase) -> st.SearchStrategy[Any]:
                 return st.text(min_size=constraint.min_length or 1, max_size=constraint.max_length)
         else:
             return STRATEGY_BY_PRIMITIVE_TYPE[typ.primitive_type]
-    elif typ.kind == TypeType.ENUM:
+    elif typ.kind == TypeKind.ENUM:
         assert typ.bench_type is not None, f"{typ!r} has no enum type"
         enum_cls = ENUM_CLASS_BY_TYPE[cast(EnumType, typ.bench_type)]
         return st.sampled_from(enum_cls)
-    elif typ.kind == TypeType.STRUCT:
+    elif typ.kind == TypeKind.STRUCT:
         assert typ.bench_type is not None, f"{typ!r} has no struct type"
         return from_object_type(cast(StructType, typ.bench_type))
     else:
@@ -313,10 +313,7 @@ STRATEGY_BY_PRIMITIVE_TYPE: dict[PrimitiveType, st.SearchStrategy] = {
     PrimitiveType.JSON: JSON_STRATEGY,
     PrimitiveType.BYTES: st.binary(),
     PrimitiveType.DATETIME: st.datetimes(timezones=st.just(pytz.utc)),
-    PrimitiveType.DURATION: st.timedeltas(
-        min_value=MIN_VALUE_BY_PRIMITIVE_TYPE[PrimitiveType.DURATION],
-        max_value=MAX_VALUE_BY_PRIMITIVE_TYPE[PrimitiveType.DURATION],
-    ),
+    PrimitiveType.DURATION: st.timedeltas(),
 }
 STRATEGY_BY_PROPERTY: dict[str, st.SearchStrategy] = {
     "order_key": ORDER_KEY_STRATEGY,
@@ -338,22 +335,22 @@ STRATEGY_BY_OBJECT_PROPERTY: dict[tuple[ObjectType, str], st.SearchStrategy] = {
     },
 }
 
-SIMPLE_TYPE_KINDS = st.sampled_from((TypeType.PRIMITIVE, TypeType.ENUM, TypeType.STRUCT))
+SIMPLE_TYPE_KINDS = st.sampled_from((TypeKind.PRIMITIVE, TypeKind.ENUM, TypeKind.STRUCT))
 
 
-def draw_type_info_base_dict(draw: st.DrawFn, kinds: st.SearchStrategy[TypeType]) -> dict[str, Any]:
+def draw_type_info_base_dict(draw: st.DrawFn, kinds: st.SearchStrategy[TypeKind]) -> dict[str, Any]:
     kind = draw(kinds)
     primitive_type = None
     bench_type = None
     base_type = None
-    if kind == TypeType.PRIMITIVE:
+    if kind == TypeKind.PRIMITIVE:
         primitive_type = draw(PRIMITIVE_TYPE_STRATEGY)
-    elif kind == TypeType.ENUM:
+    elif kind == TypeKind.ENUM:
         bench_type = draw(ENUM_TYPE_STRATEGY)
-    elif kind == TypeType.STRUCT:
+    elif kind == TypeKind.STRUCT:
         bench_type = draw(STRUCT_TYPE_STRATEGY)
     else:
-        raise NotImplementedError(f"TypeType {kind!r} not implemented")
+        raise NotImplementedError(f"TypeKind {kind!r} not implemented")
     return {
         "kind": kind,
         "primitive_type": primitive_type,
@@ -367,13 +364,13 @@ def draw_type_info_base_dict(draw: st.DrawFn, kinds: st.SearchStrategy[TypeType]
 
 @cacheable
 @st.composite
-def type_infos(draw: st.DrawFn, kinds: st.SearchStrategy[TypeType]):
+def type_infos(draw: st.DrawFn, kinds: st.SearchStrategy[TypeKind]):
     base_dict = draw_type_info_base_dict(draw, kinds)
     return Type(**base_dict)
 
 
 @st.composite
-def fields(draw: st.DrawFn, kinds: st.SearchStrategy[TypeType]):
+def fields(draw: st.DrawFn, kinds: st.SearchStrategy[TypeKind]):
     type_info_base_dict = draw_type_info_base_dict(draw, kinds)
     naive_base_dict = get_naive_object_strategy(NodeType.FIELD)
     naive_base_dict["type"] = st.just(FieldType.INPUT)

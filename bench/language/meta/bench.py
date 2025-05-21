@@ -3,15 +3,14 @@ from typing import TYPE_CHECKING, Optional
 from fastuuid import UUID
 
 from bench.language.core import (
-    NAME_CONSTRAINT,
     REGION,
-    SLUG_CONSTRAINT,
     BenchNode,
     BuiltinEnum,
     EnumType,
     IsOwnable,
     NodeType,
     Region,
+    StringFormat,
     enum_,
     node_,
     p_node_parent,
@@ -50,8 +49,8 @@ class Bench(IsOwnable, BenchNode[BenchData]):
 
     parent: None = p_node_parent(4)
     handle: Optional["Handle"] = p_system(31, node_bench_from="self")
-    slug: str = p_system(32, unique=True, constraint=SLUG_CONSTRAINT)  # must match main handle
-    name: str = p_regular(33, constraint=NAME_CONSTRAINT)
+    slug: str = p_system(32, unique=True, format=StringFormat.SLUG)  # must match main handle
+    name: str = p_regular(33, format=StringFormat.NAME)
     line: Optional["TextLine"] = p_regular(34)
     icon: Optional["Icon"] = p_regular(35)
     region: "Region" = p_system(37, default=REGION)

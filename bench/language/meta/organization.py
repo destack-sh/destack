@@ -3,7 +3,6 @@ from typing import TYPE_CHECKING, Optional
 from fastuuid import UUID
 
 from bench.language.core import (
-    NAME_CONSTRAINT,
     BuiltinEnum,
     EnumType,
     IsSubject,
@@ -11,6 +10,7 @@ from bench.language.core import (
     NodeReference,
     NodeType,
     Region,
+    StringFormat,
     enum_,
     node_,
     p_regular,
@@ -37,8 +37,10 @@ class Organization(IsSubject, Node[OrganizationData]):
     """
 
     # parent: Organization for nesting?
-    slug: Optional[str] = p_system(32, unique=True)  # must match main handle
-    name: str = p_regular(33, constraint=NAME_CONSTRAINT)
+    slug: Optional[str] = p_system(
+        32, unique=True, format=StringFormat.SLUG
+    )  # must match main handle
+    name: str = p_regular(33, format=StringFormat.NAME)
     icon: Optional["Icon"] = p_regular(35)
     line: Optional["TextLine"] = p_regular(34)
     region: "Region" = p_system(37)

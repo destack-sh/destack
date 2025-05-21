@@ -352,9 +352,11 @@ class EnumType(BuiltinEnum):
     FILE_FORMAT = 41423
     ICON_TYPE = 41430
     LINK_TYPE = 41440
-    # SCHEMA, UNION, TAG, ...
     PRIMITIVE_TYPE = 41500
-    TYPE_TYPE = 41501
+    TYPE_KIND = 41501
+    STRING_FORMAT = 41502
+    NUMBER_FORMAT = 41503
+
     FIELD_TYPE = 41510
     CASCADE_ACTION = 41511
     DAY = 41530
@@ -511,7 +513,11 @@ class StructType(BuiltinEnum):
 
     # data [21400-21800]
     TYPE = 21400
-    TYPE_CONSTRAINT = 21401
+    NUMBER_CONSTRAINT = 21401
+    STRING_CONSTRAINT = 21402
+    COLLECTION_CONSTRAINT = 21403
+    NODE_CONSTRAINT = 21404
+
     VALUE = 21410
     # SCHEMA, UNION, TAG, ...
     TEXT = 21500, None, None, "fas fa-text"
@@ -633,11 +639,8 @@ class NodeType(BuiltinEnum):
     # VAULT, CACHE, ENDPOINT, DEPLOYMENT, NETWORK, ...
 
     # data [1400-1800]
-    SCHEMA = 1410, "Schema", "Schema", "fas fa-shapes"
-    CHOICE = 1400, "Choice", "Choice between Options", "fas fa-circle-chevron-down"
-    FIELD = 1420, "Field", "Field", "fas fa-triangle"
-    OPTION = 1430, "Option", "Option", "far fa-square-check"
-    # SCHEMA, UNION, TAG, ...
+    SCHEMA = 1400, "Schema", "Schema", "fas fa-shapes"
+    FIELD = 1410, "Field", "Field", "fas fa-triangle"
     TABLE = 1500, "Table", "Table of Records", "fas fa-table"
     RECORD = 1510, "Record", "Record in a Database", "fas fa-database"
     FILE = 1520, "File", "File", "fas fa-file"
@@ -870,7 +873,6 @@ PAGE_NODE_TYPES = bittuple(
     *VIEW_NODE_TYPES,
     *STYLE_NODE_TYPES,
     NodeType.APPLICATION,
-    NodeType.CHOICE,
     NodeType.SCHEMA,
     NodeType.TABLE,
     NodeType.FLOW,
@@ -892,7 +894,6 @@ INSTANTIABLE_NODE_TYPES = bittuple(
     NodeType.APPLICATION,
     NodeType.ACTION,
     NodeType.FIELD,
-    NodeType.OPTION,
     NodeType.TABLE,
     NodeType.TASK,
     NodeType.THREAD,
@@ -914,10 +915,8 @@ TEMPLATABLE_NODE_TYPES = bittuple(
     NodeType.DEPENDENCY,
     NodeType.PAGE,
     NodeType.BLOCK,
-    NodeType.CHOICE,
     NodeType.SCHEMA,
     NodeType.FIELD,
-    NodeType.OPTION,
     NodeType.SERVICE,
     NodeType.ACTION,
     NodeType.FLOW,
@@ -938,10 +937,8 @@ LOADED_PACKAGE_NODE_TYPES = bittuple(
     NodeType.DEPENDENCY,
     NodeType.PAGE,
     NodeType.BLOCK,
-    NodeType.CHOICE,
     NodeType.SCHEMA,
     NodeType.FIELD,
-    NodeType.OPTION,
     NodeType.SERVICE,
     NodeType.ACTION,
     NodeType.FLOW,
@@ -1253,7 +1250,6 @@ class Severity(BuiltinEnum):
 class PrimitiveType(BuiltinEnum):
     """
     Fundamental column / storage types we support (subset of SQL types, used directly in sql/core).
-    NOTE: the ids here are used in type identity keys, so any change is breaking.
     """
 
     BOOLEAN = 1, "Boolean", "Yes or no", "fas fa-toggle-large-on"

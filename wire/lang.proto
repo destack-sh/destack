@@ -1625,7 +1625,7 @@ enum TransitionType {
 }
 
 // The 'kind' of a Type.
-enum TypeType {
+enum TypeKind {
   TYPE_KIND_UNSPECIFIED = 0;
   TYPE_KIND_PRIMITIVE = 1;
   TYPE_KIND_STRUCT = 2;
@@ -2408,7 +2408,7 @@ message FieldData {
   optional string name = 31;
   string order_key = 33;
   optional IconData icon = 35;
-  TypeType kind = 40;
+  TypeKind kind = 40;
   optional PrimitiveType primitive_type = 41;
   optional NodeType node_type = 42;
   optional StructType struct_type = 43;
@@ -4054,7 +4054,7 @@ message TransitionStyleData {
 
 message TypeData {
   ObjectType metatype = 1;
-  TypeType kind = 40;
+  TypeKind kind = 40;
   optional PrimitiveType primitive_type = 41;
   optional NodeType node_type = 42;
   optional StructType struct_type = 43;

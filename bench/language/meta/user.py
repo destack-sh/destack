@@ -4,14 +4,13 @@ from typing import TYPE_CHECKING, Optional
 from fastuuid import UUID
 
 from bench.language.core import (
-    EMAIL_CONSTRAINT,
-    NAME_CONSTRAINT,
     BuiltinEnum,
     EnumType,
     IsSubject,
     Node,
     NodeType,
     Region,
+    StringFormat,
     enum_,
     node_,
     p_kernel,
@@ -39,8 +38,10 @@ class UserStatus(BuiltinEnum):
 class User(IsSubject, Node[UserData]):
     """A User is a human using Bench."""
 
-    slug: Optional[str] = p_system(31, unique=True)  # must match main handle
-    name: str = p_regular(32, constraint=NAME_CONSTRAINT)
+    slug: Optional[str] = p_system(
+        31, unique=True, format=StringFormat.SLUG
+    )  # must match main handle
+    name: str = p_regular(32, format=StringFormat.NAME)
     icon: Optional["Icon"] = p_regular(33)
     line: Optional["TextLine"] = p_regular(34)
     region: "Region" = p_system(35)
@@ -65,7 +66,7 @@ class User(IsSubject, Node[UserData]):
 
     # auth
     # NOTE :Incomplete: factor out authentication, Credentials & Challenges for Users/Client
-    email: str | None = p_system(60, unique=True, sensitive=True, constraint=EMAIL_CONSTRAINT)
+    email: str | None = p_system(60, unique=True, sensitive=True, format=StringFormat.EMAIL)
     password_salt: Optional[bytes] = p_kernel(61, sensitive=True)
     password_hash: Optional[bytes] = p_kernel(62, sensitive=True)
     # challenges?

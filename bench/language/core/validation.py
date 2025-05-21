@@ -1,13 +1,11 @@
-import dataclasses
-from dataclasses import dataclass
 from typing import TYPE_CHECKING, Any, Callable, Collection, Optional, TypedDict, Union
 
 import regex
 
-from .const import BenchError, NodeType
+from .const import BenchError
 
 if TYPE_CHECKING:
-    from bench.language import Node, Property, TypeBase, TypeConstraint
+    from bench.language import Property, TypeBase
 
     from .value import SomeValue
 
@@ -42,68 +40,6 @@ def on_invalid_raise(value: Any, message: Optional[str], site: ValidationSite | 
     raise ValidationError(value, message, site)
 
 
-@dataclass(slots=True)
-class TypeConstraintIn:
-    """A mini-TypeConstraint so we can define constraints without having to import :TypeConstraint."""
-
-    # numeric
-    min_value: float | None = None
-    max_value: float | None = None
-    step_value: float | None = None
-    # sequence-ish
-    min_length: int | None = None
-    max_length: int | None = None
-    # string-ish
-    regex: str | None = None
-    starts_with: str | None = None
-    ends_with: str | None = None
-    # node-ish
-    node_types: "list[NodeType]" = dataclasses.field(default_factory=list)
-    node_scope: "list[Node]" = dataclasses.field(default_factory=list)
-    node_max_depth: Optional[int] = None
-
-    def into(self) -> "TypeConstraint":
-        raise NotImplementedError
-
-
-SLUG_REGEX_CHAR = r"a-z0-9-"
-SLUG_REGEX = rf"^[{SLUG_REGEX_CHAR}]{{3,}}$"
-EMAIL_REGEX = r"^[a-zA-Z0-9_.+\-]+@[a-zA-Z0-9\-]+\.[a-zA-Z0-9\-.]+$"
-URL_REGEX = r"^(?:[a-z]+:\/\/)?[\w.-]+\.[a-z]{2,}(?:\/\S*)?$"
-PHONE_NUMBER_REGEX = r"^\+?(\d{1,3})?[-.\s]?(\(?\d{1,4}\)?)?[-.\s]?\d{1,4}[-.\s]?\d{1,9}$"
-NAME_CONSTRAINT = TypeConstraintIn(min_length=0, max_length=128)
-SLUG_CONSTRAINT = TypeConstraintIn(regex=SLUG_REGEX)
-EMAIL_CONSTRAINT = TypeConstraintIn(regex=EMAIL_REGEX)
-URL_CONSTRAINT = TypeConstraintIn(regex=URL_REGEX)
-PHONE_NUMBER_CONSTRAINT = TypeConstraintIn(regex=PHONE_NUMBER_REGEX)
-CPU_CONSTRAINT = TypeConstraintIn(min_value=0.1, max_value=16.0, step_value=0.1)
-RAM_CONSTRAINT = TypeConstraintIn(min_value=0.1, max_value=256.0, step_value=0.1)
-
-
 def clean_name(name: str, sub="-") -> str:
     """Strip any invalid characters from a name."""
     return regex.sub(r"[^\p{L}0-9 _,;.\-'`˚ ]", sub, name)
-
-
-def constraint(
-    min_value: float | None = None,
-    max_value: float | None = None,
-    step_value: float | None = None,
-    min_length: int | None = None,
-    max_length: int | None = None,
-    regex: str | None = None,
-    starts_with: str | None = None,
-    ends_with: str | None = None,
-    node_types: "list[NodeType] | None" = None,
-) -> "TypeConstraintIn":
-    return TypeConstraintIn(
-        min_value=min_value,
-        max_value=max_value,
-        step_value=step_value,
-        min_length=min_length,
-        max_length=max_length,
-        regex=regex,
-        starts_with=starts_with,
-        ends_with=ends_with,
-        node_types=node_types if node_types is not None else [],
-    )
