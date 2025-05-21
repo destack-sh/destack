@@ -1,11 +1,12 @@
 import pytest
 
 from bench.language import Region
-from bench.system.plugin.neon import NEON_API_KEY, NEON_BASE_URL, NeonApiRemote
 
 
 @pytest.mark.asyncio
 async def test_neon_provisioner():
+    from bench.system.plugin.neon import NEON_API_KEY, NEON_BASE_URL, NeonApiRemote
+
     neon_api = NeonApiRemote(url=NEON_BASE_URL, api_key=NEON_API_KEY)
 
     create_project_rep = None

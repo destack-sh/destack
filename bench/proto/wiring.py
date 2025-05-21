@@ -7,7 +7,6 @@ import pytz
 import structlog
 from fastuuid import UUID
 from google.protobuf.duration_pb2 import Duration
-from google.protobuf.message import Message as ProtoMessage
 from google.protobuf.timestamp_pb2 import Timestamp
 from opentelemetry import trace
 
@@ -167,89 +166,11 @@ def unpack_builtin_object_prop_scalar(prop: Property, value: Any, *, supergraph:
         ) from e
 
 
-def unpack_builtin_object_prop(prop: Property, value: Any, *, supergraph: Supergraph) -> Any:
-    if value is None:
-        return None
-    elif not prop.is_list:
-        return unpack_builtin_object_prop_scalar(prop, value, supergraph=supergraph)
-    else:
-        return [unpack_builtin_object_prop_scalar(prop, v, supergraph=supergraph) for v in value]
-
-
-def get_object_prop(obj_data: AnyStructData | AnyNodeData, prop: Property) -> Any:
-    """Gets the value of the given property from the given data object."""
-    if prop.ptr_prop is not None:
-        prop = prop.ptr_prop
-    prop_name = prop.name
-    if prop.is_optional_scalar and not obj_data.HasField(prop_name):
-        return None
-    return getattr(obj_data, prop_name)
-
-
-def pack_and_set_object_prop(
-    obj: BuiltinObject, obj_data: AnyStructData | AnyNodeData, prop: Property, value: Any
-):
-    """Pack and set the given property on the given data object."""
-    if not prop.is_list:  # scalar
-        packed_value = pack_builtin_object_prop_scalar(obj, prop, value)
-        if isinstance(packed_value, ProtoMessage):  # message field
-            getattr(obj_data, prop.name).CopyFrom(packed_value)
-        elif prop.is_struct:  # empty message field
-            assert value is None, f"unexpected non-proto struct value for {prop!r}: {value!r}"
-            obj_data.ClearField(prop.name)
-        elif value is None:
-            obj_data.ClearField(prop.name)
-        else:  # primitive field
-            setattr(obj_data, prop.name, packed_value)
-    elif len(value) > 0:  # list
-        obj_data.ClearField(prop.name)
-        packed_value = getattr(obj_data, prop.name)
-        if prop.is_struct:
-            for item in value:
-                packed_item = packed_value.add()
-                _ = pack_builtin_object(item, into=packed_item)
-        else:
-            for item in value:
-                packed_item = pack_builtin_object_prop_scalar(obj, prop, item)
-                packed_value.append(packed_item)
-
-
-def set_builtin_object_prop(obj_data: AnyStructData | AnyNodeData, prop: Property, value: Any):
-    """Set the packed property on the given data object."""
-    if not prop.is_list:  # scalar
-        if isinstance(value, ProtoMessage):  # message field
-            getattr(obj_data, prop.name).CopyFrom(value)
-        elif prop.is_struct:  # empty message field
-            assert value is None, f"unexpected non-proto struct value for {prop!r}: {value!r}"
-            obj_data.ClearField(prop.name)
-        elif value is None:
-            obj_data.ClearField(prop.name)
-        else:  # primitive field
-            setattr(obj_data, prop.name, value)
-    else:  # list
-        obj_data.ClearField(prop.name)
-        if len(value) > 0:
-            getattr(obj_data, prop.name).extend(value)
-
-
 def pack_builtin_object[T: AnyStructData | AnyNodeData](
     obj: BuiltinObject, expect: type[T] | None = None, into: T | None = None
 ) -> T:
     """Pack a struct and any contained structs."""
-    data_cls = PROTO_CLASS_BY_TYPE[obj.metatype]
-    metatype = pack_enum(ObjectType, obj.metatype)  # type: ignore
-    if expect is not None and not issubclass(data_cls, expect):
-        raise RuntimeError(f"expected {expect.__name__} but got {data_cls}")
-    obj_data = into if into is not None else data_cls(metatype=metatype)  # type: ignore
-    try:
-        for prop in obj.__wired_properties__.values():
-            value = getattr(obj, prop.name)
-            if value is None:
-                continue
-            pack_and_set_object_prop(obj, obj_data, prop, value)
-        return cast(T, obj_data)
-    except (AssertionError, AttributeError, TypeError, ValueError, KeyError) as e:
-        raise ValueError(f"could not pack {obj.metatype.name}: {obj!r}") from e
+    raise NotImplementedError
 
 
 # nocheckin: generate proto pack/unpack for BuiltinObjects

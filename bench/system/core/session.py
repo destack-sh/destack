@@ -12,7 +12,6 @@ from bench.language import (
     Bench,
     BenchStatus,
     Database,
-    Engine,
     Node,
     NodeArea,
     NodeReference,
@@ -114,7 +113,6 @@ def local_pg_engine_from_database(name: str, database: Database):
 
 def global_session(
     node: Node | None,
-    engines: tuple[Engine, ...],
     oracle: Oracle,
     *,
     supergraph: Supergraph | None = None,

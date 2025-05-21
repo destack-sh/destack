@@ -8,7 +8,6 @@ import pytest
 import structlog
 from fastuuid import UUID
 
-from bench.language.core.const import SYSTEM_SYSTEM_PACKAGE_ID
 from bench.test.conftest import _setup_test_env
 
 # NOTE: must run setup before importing from bench
@@ -18,6 +17,7 @@ from opentelemetry import trace
 
 from bench.language import (
     SYSTEM_ID,
+    SYSTEM_SYSTEM_PACKAGE_ID,
     VERSION,
     Bench,
     BenchStatus,
@@ -47,7 +47,6 @@ from bench.sql import (
     pg_connection,
     sqlstr,
 )
-from bench.system import BEGINNING_OF_TIME, global_database_from_env
 from bench.utils.utils import get_from_env
 
 logger = structlog.get_logger(__name__)
@@ -56,6 +55,7 @@ tracer = trace.get_tracer(__name__)
 
 def make_global_database(name: str):
     """Creates a global database for testing.."""
+    from bench.system import BEGINNING_OF_TIME
 
     pg = get_from_env("GLOBAL_PG_URL", description="Global Postgres connection string")
     pg_url_parsed = urlparse(pg)
@@ -98,6 +98,7 @@ def make_global_database(name: str):
 
 def make_regional_database(name: str):
     """Creates a regional database for testing."""
+    from bench.system import BEGINNING_OF_TIME
 
     assert len(name) < 64, f"name must be less than 64 characters: {name!r}"
     pg = get_from_env("GLOBAL_PG_URL", description="Regional Postgres connection string")
@@ -141,6 +142,8 @@ def make_regional_database(name: str):
 
 async def create_blank_test_db(database: Database):
     """Creates a blank postgres database"""
+    from bench.system import global_database_from_env
+
     async with pg_connection(global_database_from_env(), owner=database, autocommit=True) as conn:
         await conn.execute(sqlstr(f'DROP DATABASE IF EXISTS "{database.external_name}"'))
         await conn.execute(sqlstr(f'CREATE DATABASE "{database.external_name}"'))
@@ -162,6 +165,8 @@ async def create_test_db(database: Database, schema: SqlSchema):
 
 async def delete_test_db(database: Database):
     """Deletes a postgres DB with one of our schemas"""
+    from bench.system import global_database_from_env
+
     await get_pg_pool(database).close()
     async with pg_connection(global_database_from_env(), owner=database, autocommit=True) as conn:
         await conn.execute(sqlstr(f'DROP DATABASE IF EXISTS "{database.external_name}"'))

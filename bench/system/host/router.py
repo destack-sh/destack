@@ -14,7 +14,6 @@ from bench.language import (
     Bench,
     Database,
     NodeArea,
-    PolicySubject,
 )
 from bench.proto import (
     CommitTransactionRequest,
@@ -149,12 +148,6 @@ class HostRouterService(ServiceBase, HostBase):
                 if host is None:
                     host = await self._start_host(bench_id)
         return host
-
-    async def get_request_subject(
-        self, request: ProtoMessage, metadata: RpcMetadata
-    ) -> PolicySubject:
-        host = await self._get_host(request)
-        return await host.get_request_subject(request, metadata)
 
     @override
     def _wrap_rpc_func(

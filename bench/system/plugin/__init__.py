@@ -4,7 +4,6 @@ from .database import DatabaseProvisioner, LocalhostDatabaseProvisioner, NeonDat
 from .message import MessagePlugin
 from .provisioner import Provisioner
 from .runtime import RunPlugin, WakePlugin
-from .scaler import ScalerProvisioner
 from .table import TablePlugin
 
 __all__ = [
@@ -17,7 +16,6 @@ __all__ = [
     "NeonDatabaseProvisioner",
     "Provisioner",
     "RunPlugin",
-    "ScalerProvisioner",
     "TablePlugin",
     "WakePlugin",
 ]

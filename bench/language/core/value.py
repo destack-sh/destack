@@ -21,8 +21,6 @@ from google.protobuf.timestamp_pb2 import Timestamp
 from opentelemetry import trace
 
 from bench.language.registry import (
-    BENCH_TYPE_BY_CLASS,
-    BUILTIN_OBJECT_CLASS_BY_TYPE,
     ENUM_CLASS_BY_TYPE,
 )
 from bench.pb2 import AnyNodeData, AnyStructData, Date, NodeReferenceData, TimeOfDay
@@ -30,7 +28,6 @@ from bench.utils.time import timedelta_from_isoformat, timedelta_to_isoformat
 
 from .const import (
     EnumType,
-    ObjectType,
     PrimitiveType,
     PrimitiveValue,
     StructType,
@@ -38,7 +35,7 @@ from .const import (
 from .graph import Supergraph
 from .property import Property, p_regular
 from .struct import Struct, struct_
-from .type import TypeCardinality
+from .type import Json, ScalarType, TypeCardinality
 
 if TYPE_CHECKING:
     from bench.language import BuiltinObject, Node, NodeReference, Session, TypeBase
@@ -74,14 +71,14 @@ JsonValue = Union[JsonPrimitive, dict[str, "JsonValue"], list["JsonValue"]]
 class Value(Struct):
     """A value of any type."""
 
-    value: dict[str, Any] | None = p_regular(35)
+    value: dict[str, Json] | None = p_regular(35)
 
 
 def pack_value_scalar(value: ScalarValue | ScalarValueData, typ: "TypeBase") -> JsonValue:
     """
     Packs the given scalar runtime or data value into a JSON-able representation.
     """
-    if typ.cardinality == TypeCardinality.PRIMITIVE:
+    if typ.scalar_type == ScalarType.PRIMITIVE:
         if typ.primitive_type == PrimitiveType.BYTES:
             return base64.b64encode(cast(bytes, value)).decode()
         elif typ.primitive_type == PrimitiveType.UUID:
@@ -115,7 +112,7 @@ def pack_value_scalar(value: ScalarValue | ScalarValueData, typ: "TypeBase") -> 
                 return timedelta_to_isoformat(cast(timedelta, value))
         else:
             return cast(JsonValue, value)
-    elif typ.cardinality == TypeCardinality.NODE:
+    elif typ.scalar_type == ScalarType.NODE:
         if cast("Struct | AnyStructData", value).metatype != StructType.NODE_REFERENCE:
             ref = cast("Node", value).to_ref()
         else:
@@ -123,9 +120,9 @@ def pack_value_scalar(value: ScalarValue | ScalarValueData, typ: "TypeBase") -> 
         if isinstance(ref, BuiltinObject):
             ref = ref._to_data()
         return pack_builtin_object_data(ref)
-    elif typ.cardinality == TypeCardinality.ENUM:
+    elif typ.scalar_type == ScalarType.ENUM:
         return int(cast(Any, value))
-    elif typ.cardinality == TypeCardinality.STRUCT:
+    elif typ.scalar_type == ScalarType.STRUCT:
         if isinstance(value, BuiltinObject):
             return pack_builtin_object(value)
         else:
@@ -143,7 +140,7 @@ def unpack_value_scalar(
     """
     Unpacks the given scalar value into its runtime representation.
     """
-    if typ.cardinality == TypeCardinality.PRIMITIVE:
+    if typ.scalar_type == ScalarType.PRIMITIVE:
         if typ.primitive_type == PrimitiveType.BYTES:
             return base64.b64decode(cast(str, value_packed))
         elif typ.primitive_type in (PrimitiveType.INT16, PrimitiveType.INT32, PrimitiveType.INT64):
@@ -160,10 +157,10 @@ def unpack_value_scalar(
             return timedelta_from_isoformat(cast(str, value_packed))
         else:
             return cast(PrimitiveValue, value_packed)
-    elif typ.cardinality == TypeCardinality.ENUM:
+    elif typ.scalar_type == ScalarType.ENUM:
         enum_cls = ENUM_CLASS_BY_TYPE[cast(EnumType, typ.enum_type)]
         return enum_cls(cast(int, value_packed))
-    elif typ.cardinality in (TypeCardinality.NODE, TypeCardinality.STRUCT):
+    elif typ.scalar_type in (ScalarType.NODE, ScalarType.STRUCT):
         assert isinstance(value_packed, dict), f"{value_packed!r} is not a dict, expected {typ!r}"
         return unpack_builtin_object(value_packed, supergraph=supergraph)
     else:
@@ -174,7 +171,7 @@ def unpack_value_scalar_data(value_packed: JsonValue, typ: "TypeBase") -> Scalar
     """
     Unpacks the given scalar value into its proto data representation. See above.
     """
-    if typ.cardinality == TypeCardinality.PRIMITIVE:
+    if typ.scalar_type == ScalarType.PRIMITIVE:
         if typ.primitive_type == PrimitiveType.BYTES:
             return base64.b64decode(cast(str, value_packed))
         elif typ.primitive_type in (PrimitiveType.INT16, PrimitiveType.INT32, PrimitiveType.INT64):
@@ -199,10 +196,10 @@ def unpack_value_scalar_data(value_packed: JsonValue, typ: "TypeBase") -> Scalar
             return dur
         else:
             return cast(PrimitiveValue, value_packed)
-    elif typ.cardinality == TypeCardinality.ENUM:
+    elif typ.scalar_type == ScalarType.ENUM:
         enum_cls = ENUM_CLASS_BY_TYPE[cast(EnumType, typ.enum_type)]
         return enum_cls(cast(int, value_packed))
-    elif typ.cardinality in (TypeCardinality.NODE, TypeCardinality.STRUCT):
+    elif typ.scalar_type in (ScalarType.NODE, ScalarType.STRUCT):
         assert isinstance(value_packed, dict), f"{value_packed!r} is not a dict, expected {typ!r}"
         return unpack_builtin_object_data(value_packed)
     else:
@@ -213,22 +210,7 @@ def pack_builtin_object(
     value: "BuiltinObject", only: Collection[Property] | None = None
 ) -> dict[str, JsonValue]:
     """Packs a BuiltinObject into a JSON representation."""
-    value_packed: dict[str, JsonValue] = {}
-    object_cls = BUILTIN_OBJECT_CLASS_BY_TYPE[value.metatype]
-    for prop in only if only is not None else object_cls.__wired_properties__.values():
-        if prop.ptr_prop is not None:
-            prop = prop.ptr_prop
-        prop_name = prop.name
-        prop_value = getattr(value, prop_name)
-        if prop_value is None or (prop.is_list and len(prop_value) == 0):
-            continue
-        elif prop.is_list:
-            prop_type = prop.type_info
-            prop_value_packed = [pack_value_scalar(e, prop_type) for e in prop_value]
-        else:
-            prop_value_packed = pack_value_scalar(prop_value, prop.type_info)
-        value_packed[prop.key] = prop_value_packed
-    return value_packed
+    raise NotImplementedError
 
 
 def unpack_builtin_object[T: BuiltinObject = BuiltinObject](
@@ -240,36 +222,7 @@ def unpack_builtin_object[T: BuiltinObject = BuiltinObject](
 ) -> T:
     """Unpacks a BuiltinObject from a JSON representation."""
 
-    if expect is None:
-        object_type = value_packed.get("1")
-        assert object_type is not None, f"{value_packed!r} has no object type and none given"
-        object_type = cast(ObjectType, int(object_type))  # type: ignore
-    else:
-        object_type = BENCH_TYPE_BY_CLASS[expect]
-    object_cls = BUILTIN_OBJECT_CLASS_BY_TYPE[cast(ObjectType, object_type)]
-    assert not object_cls.__is_node__, f"cannot unpack {object_cls.__name__} from value"
-
-    object_kwargs = {}
-    for prop in object_cls.__wired_properties__.values():
-        if prop.ptr_prop is not None:
-            prop = prop.ptr_prop
-        prop_value_packed = value_packed.get(prop.key)
-        if prop_value_packed is None:
-            continue
-        elif prop.is_list:
-            prop_type = prop.type_info
-            object_kwargs[prop.name] = [
-                unpack_value_scalar(e, prop_type, supergraph=supergraph) for e in prop_value_packed
-            ]
-        else:
-            object_kwargs[prop.name] = unpack_value_scalar(
-                prop_value_packed, prop.type_info, supergraph=supergraph
-            )
-    if session is not None:
-        object_kwargs["_session"] = session
-
-    obj = object_cls(**object_kwargs)
-    return cast(T, obj)
+    raise NotImplementedError
 
 
 def pack_builtin_object_data(
@@ -277,24 +230,7 @@ def pack_builtin_object_data(
     only: Collection[Property] | None = None,
 ) -> dict[str, JsonValue]:
     """Packs a single struct/node data value into a JSON representation."""
-    value_packed: dict[str, JsonValue] = {}
-    builtin_object_cls = BUILTIN_OBJECT_CLASS_BY_TYPE[value.metatype]  # type: ignore
-    for prop in only if only is not None else builtin_object_cls.__wired_properties__.values():
-        if prop.ptr_prop is not None:
-            prop = prop.ptr_prop
-        prop_name = prop.name
-        if prop.is_optional_scalar and not value.HasField(prop_name):
-            continue
-        prop_value = getattr(value, prop_name)
-        if prop_value is None or (prop.is_list and len(prop_value) == 0):
-            continue
-        elif prop.is_list:
-            prop_type = prop.type_info
-            prop_value_packed = [pack_value_scalar(element, prop_type) for element in prop_value]
-        else:
-            prop_value_packed = pack_value_scalar(prop_value, prop.type_info)
-        value_packed[prop.key] = prop_value_packed
-    return value_packed
+    raise NotImplementedError
 
 
 def unpack_builtin_object_data[T: AnyStructData | AnyNodeData](
@@ -303,33 +239,7 @@ def unpack_builtin_object_data[T: AnyStructData | AnyNodeData](
     into: T | None = None,
 ) -> AnyStructData | AnyNodeData:
     """Unpacks a single struct/node data value from a JSON representation."""
-    from bench.proto import wiring
-
-    if expect is None:
-        object_type = value_packed.get("1")
-        assert object_type is not None, f"{value_packed!r} has no object type and none given"
-        object_type = cast(ObjectType, int(object_type))
-    else:
-        object_type = wiring.OBJECT_TYPE_BY_PROTO_CLASS[expect]
-    object_cls = BUILTIN_OBJECT_CLASS_BY_TYPE[object_type]
-    proto_cls = wiring.PROTO_CLASS_BY_TYPE[object_type]
-
-    value = into if into is not None else proto_cls(metatype=object_type)  # type: ignore
-    for prop in object_cls.__wired_properties__.values():
-        if prop.ptr_prop is not None:
-            prop = prop.ptr_prop
-        prop_value_packed = value_packed.get(prop.key)
-        if prop_value_packed is None or (prop.is_list and len(prop_value_packed) == 0):
-            continue
-        elif prop.is_list:
-            prop_type = prop.type_info
-            prop_value = [
-                unpack_value_scalar_data(element, prop_type) for element in prop_value_packed
-            ]
-        else:
-            prop_value = unpack_value_scalar_data(prop_value_packed, prop.type_info)
-        wiring.set_builtin_object_prop(value, prop, prop_value)
-    return value
+    raise NotImplementedError
 
 
 def pack_value(value: SomeValue | None, typ: "TypeBase", *, wrap: bool = False) -> JsonValue:
@@ -341,10 +251,12 @@ def pack_value(value: SomeValue | None, typ: "TypeBase", *, wrap: bool = False) 
     value_packed: JsonValue
     if value is None:
         value_packed = None  # no value
-    elif not typ.is_list:
+    elif typ.cardinality == TypeCardinality.SCALAR:
         value_packed = pack_value_scalar(cast(ScalarValue, value), typ)
-    else:
+    elif typ.cardinality == TypeCardinality.LIST:
         value_packed = [pack_value_scalar(element, typ) for element in cast(list, value)]
+    else:
+        raise NotImplementedError(f"cannot pack value of type {typ!r}")
     if wrap:
         from bench.language.core import TypeBase
 
@@ -359,10 +271,12 @@ def pack_value_data(value: SomeValueData, typ: "TypeBase", wrap: bool = False) -
     value_packed: JsonValue
     if value is None:
         value_packed = None
-    elif not typ.is_list:
+    elif typ.cardinality == TypeCardinality.SCALAR:
         value_packed = pack_value_scalar(cast(ScalarValueData, value), typ)
-    else:
+    elif typ.cardinality == TypeCardinality.LIST:
         value_packed = [pack_value_scalar(element, typ) for element in cast(list, value)]
+    else:
+        raise NotImplementedError(f"cannot pack value of type {typ!r}")
     if wrap:
         from bench.language.core import TypeBase
 
@@ -390,14 +304,16 @@ def unpack_value(
         value_packed = value_packed.get(typ.identity_key)
     if value_packed is None:
         return None
-    elif not typ.is_list:
+    elif typ.cardinality == TypeCardinality.SCALAR:
         return unpack_value_scalar(value_packed, typ, supergraph=supergraph)
-    else:
+    elif typ.cardinality == TypeCardinality.LIST:
         if not isinstance(value_packed, list):
             raise TypeError(f"{value_packed!r} is not a list, expected {typ!r}")
         return [
             unpack_value_scalar(element, typ, supergraph=supergraph) for element in value_packed
         ]
+    else:
+        raise NotImplementedError(f"cannot unpack value of type {typ!r}")
 
 
 def unpack_value_data(
@@ -414,12 +330,14 @@ def unpack_value_data(
         value_packed = value_packed.get(typ.identity_key)
     if value_packed is None:
         return None
-    elif not typ.is_list:
+    elif typ.cardinality == TypeCardinality.SCALAR:
         return unpack_value_scalar_data(value_packed, typ)
-    else:
+    elif typ.cardinality == TypeCardinality.LIST:
         if not isinstance(value_packed, list):
             raise TypeError(f"expected list for {typ!r}, got {value_packed!r}")
         return [unpack_value_scalar_data(v, typ) for v in value_packed]
+    else:
+        raise NotImplementedError(f"cannot unpack value of type {typ!r}")
 
 
 #

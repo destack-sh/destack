@@ -1,7 +1,5 @@
 import pytest
 
-from bench.system.core.sharding import get_host_map_from_string, host_map_to_string
-
 
 @pytest.mark.parametrize(
     "host_map_str",
@@ -11,6 +9,8 @@ from bench.system.core.sharding import get_host_map_from_string, host_map_to_str
     ],
 )
 def test_roundtrip_hostmap(host_map_str: str):
+    from bench.system.core.sharding import get_host_map_from_string, host_map_to_string
+
     host_map = get_host_map_from_string(host_map_str)
     rendered = host_map_to_string(host_map)
     assert rendered == host_map_str

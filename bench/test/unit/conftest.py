@@ -9,6 +9,7 @@ import pytest
 import structlog
 from opentelemetry import trace
 
+from bench.language.core.const import NodeMode
 from bench.test.conftest import _setup_test_env
 
 # NOTE: must run setup before importing from bench
@@ -19,24 +20,18 @@ from bench.language import (
     ACTIVE_SESSION,
     EMPTY_SCOPE_DATA,
     NODE_TYPES,
-    OBJECT_TYPES,
     STRUCT_TYPES,
     Bench,
     BenchStatus,
     BuiltinObject,
     Database,
     Graph,
-    NullEngine,
     ObjectType,
     Package,
     PackageType,
-    Region,
     Session,
     Supergraph,
-    User,
-    UserStatus,
 )
-from bench.system import pg_engine_from_database
 from bench.test.conftest import _setup_test_env
 from bench.test.simulation.core import (
     BenchSpec,
@@ -58,7 +53,6 @@ from bench.test.simulation.workload import (
     WorkloadSpec,
     WorkloadType,
 )
-from bench.test.strategies import draw_direct, from_object_type
 from bench.utils.oracle import REAL_ORACLE, Oracle
 
 logger = structlog.get_logger(__name__)
@@ -101,23 +95,7 @@ def make_session(name: str):
     """Make a 'fake' session for context"""
     supergraph = Supergraph(name=name, root_ptr=None)
     graph = Graph(scope=EMPTY_SCOPE_DATA, node_types=NODE_TYPES, supergraph=supergraph)
-    session = Session(
-        _engines=(NullEngine(name="fake", scope=EMPTY_SCOPE_DATA, node_types=NODE_TYPES),),
-        supergraph=supergraph,
-        _graph=graph,
-        oracle=REAL_ORACLE,
-    )
-    user = User(
-        status=UserStatus.REGISTERED,
-        region=Region.ZURICH,
-        slug="test",
-        email="test@symbolx.com",
-        name=name,
-        _graph=graph,
-        _supergraph=supergraph,
-        _session=session,
-    )
-    supergraph._root_ptr = user.to_ref()
+    session = Session(bench=None, mode=NodeMode.TEST, supergraph=supergraph, oracle=REAL_ORACLE)
     return session
 
 
@@ -164,8 +142,8 @@ SHARED_SESSION = make_session("shared")
 with warnings.catch_warnings(action="ignore"):
     ACTIVE_SESSION.set(SHARED_SESSION)
     BUILTIN_OBJECTS = [
-        draw_direct(from_object_type(object_type, reject_invalid=False))
-        for object_type in OBJECT_TYPES
+        # draw_direct(from_object_type(object_type, reject_invalid=False))
+        # for object_type in OBJECT_TYPES
     ]
     ACTIVE_SESSION.set(None)
 

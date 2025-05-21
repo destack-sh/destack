@@ -85,7 +85,7 @@ class Edit(Struct):
     change_key: UUID | None = p_system(34, description="The Change that this Edit is part of.")
 
     # content
-    node_data: AnyNodeData | None = p_system(40, primitive_type=None, is_node_data=True)
+    # node_data: AnyNodeData | None = p_system(40, primitive_type=None, is_node_data=True)
     operations: list[EditOperation] = p_system(
         41,
         description="The operations to perform on the Node",

@@ -3,7 +3,6 @@ from typing import TYPE_CHECKING, final, override
 from bench.language import Database
 from bench.proto import HostClient
 from bench.sql import pg_connection, sqlstr
-from bench.system import HostService
 from bench.utils.oracle import Oracle
 
 from .service import ServiceHandle
@@ -15,7 +14,7 @@ if TYPE_CHECKING:
 
 
 @final
-class HostHandle(ServiceHandle[HostSpec, HostService, HostClient]):
+class HostHandle(ServiceHandle[HostSpec, "HostService", HostClient]):
     """A Host for a Bench"""
 
     def __init__(self, id: str, spec: HostSpec, oracle: Oracle, simulation: "Simulation"):
@@ -28,7 +27,7 @@ class HostHandle(ServiceHandle[HostSpec, HostService, HostClient]):
         return f"<HostHandle {self!s}>"
 
     @override
-    async def start(self) -> HostService:
+    async def start(self) -> "HostService":
         self._service = HostService(
             id=self.id,
             bench_id=self.simulation.get_bench_id(self.spec.bench),

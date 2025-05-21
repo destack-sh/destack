@@ -83,10 +83,8 @@ enum BenchType {
   BENCH_TYPE_DATABASE = 1200;
   BENCH_TYPE_COMPUTER = 1210;
   BENCH_TYPE_SCALER = 1250;
-  BENCH_TYPE_SCHEMA = 1410;
-  BENCH_TYPE_CHOICE = 1400;
-  BENCH_TYPE_FIELD = 1420;
-  BENCH_TYPE_OPTION = 1430;
+  BENCH_TYPE_SCHEMA = 1400;
+  BENCH_TYPE_FIELD = 1410;
   BENCH_TYPE_TABLE = 1500;
   BENCH_TYPE_RECORD = 1510;
   BENCH_TYPE_FILE = 1520;
@@ -148,7 +146,10 @@ enum BenchType {
   BENCH_TYPE_RELATION_REFERENCE = 20110;
   BENCH_TYPE_ATTRIBUTE_REFERENCE = 20111;
   BENCH_TYPE_TYPE = 21400;
-  BENCH_TYPE_TYPE_CONSTRAINT = 21401;
+  BENCH_TYPE_NUMBER_CONSTRAINT = 21401;
+  BENCH_TYPE_STRING_CONSTRAINT = 21402;
+  BENCH_TYPE_COLLECTION_CONSTRAINT = 21403;
+  BENCH_TYPE_NODE_CONSTRAINT = 21404;
   BENCH_TYPE_VALUE = 21410;
   BENCH_TYPE_TEXT = 21500;
   BENCH_TYPE_TEXT_LINE = 21501;
@@ -228,9 +229,12 @@ enum BenchType {
   BENCH_TYPE_ICON_TYPE = 41430;
   BENCH_TYPE_LINK_TYPE = 41440;
   BENCH_TYPE_PRIMITIVE_TYPE = 41500;
-  BENCH_TYPE_TYPE_KIND = 41501;
-  BENCH_TYPE_FIELD_TYPE = 41510;
-  BENCH_TYPE_CASCADE_ACTION = 41511;
+  BENCH_TYPE_TYPE_CARDINALITY = 41501;
+  BENCH_TYPE_SCALAR_TYPE = 41502;
+  BENCH_TYPE_STRING_FORMAT = 41510;
+  BENCH_TYPE_NUMBER_FORMAT = 41511;
+  BENCH_TYPE_FIELD_TYPE = 41520;
+  BENCH_TYPE_CASCADE_ACTION = 41521;
   BENCH_TYPE_DAY = 41530;
   BENCH_TYPE_MONTH = 41531;
   BENCH_TYPE_TIME_INTERVAL = 41532;
@@ -543,6 +547,8 @@ enum EditOperationType {
   EDIT_OPERATION_TYPE_UNSPECIFIED = 0;
   EDIT_OPERATION_TYPE_SET = 1;
   EDIT_OPERATION_TYPE_CLEAR = 2;
+  EDIT_OPERATION_TYPE_MAP_SET = 20;
+  EDIT_OPERATION_TYPE_MAP_REMOVE = 21;
 }
 
 // Ways to edit nodes.
@@ -624,9 +630,12 @@ enum EnumType {
   ENUM_TYPE_ICON_TYPE = 41430;
   ENUM_TYPE_LINK_TYPE = 41440;
   ENUM_TYPE_PRIMITIVE_TYPE = 41500;
-  ENUM_TYPE_TYPE_KIND = 41501;
-  ENUM_TYPE_FIELD_TYPE = 41510;
-  ENUM_TYPE_CASCADE_ACTION = 41511;
+  ENUM_TYPE_TYPE_CARDINALITY = 41501;
+  ENUM_TYPE_SCALAR_TYPE = 41502;
+  ENUM_TYPE_STRING_FORMAT = 41510;
+  ENUM_TYPE_NUMBER_FORMAT = 41511;
+  ENUM_TYPE_FIELD_TYPE = 41520;
+  ENUM_TYPE_CASCADE_ACTION = 41521;
   ENUM_TYPE_DAY = 41530;
   ENUM_TYPE_MONTH = 41531;
   ENUM_TYPE_TIME_INTERVAL = 41532;
@@ -1079,10 +1088,8 @@ enum NodeType {
   NODE_TYPE_DATABASE = 1200;
   NODE_TYPE_COMPUTER = 1210;
   NODE_TYPE_SCALER = 1250;
-  NODE_TYPE_SCHEMA = 1410;
-  NODE_TYPE_CHOICE = 1400;
-  NODE_TYPE_FIELD = 1420;
-  NODE_TYPE_OPTION = 1430;
+  NODE_TYPE_SCHEMA = 1400;
+  NODE_TYPE_FIELD = 1410;
   NODE_TYPE_TABLE = 1500;
   NODE_TYPE_RECORD = 1510;
   NODE_TYPE_FILE = 1520;
@@ -1143,6 +1150,13 @@ enum NotificationType {
   NOTIFICATION_TYPE_MESSAGE = 100;
 }
 
+// The format of a number.
+enum NumberFormat {
+  NUMBER_FORMAT_UNSPECIFIED = 0;
+  NUMBER_FORMAT_INTEGER = 1;
+  NUMBER_FORMAT_FLOAT = 2;
+}
+
 enum ObjectType {
   OBJECT_TYPE_UNSPECIFIED = 0;
   OBJECT_TYPE_BENCH = 1;
@@ -1158,10 +1172,8 @@ enum ObjectType {
   OBJECT_TYPE_DATABASE = 1200;
   OBJECT_TYPE_COMPUTER = 1210;
   OBJECT_TYPE_SCALER = 1250;
-  OBJECT_TYPE_SCHEMA = 1410;
-  OBJECT_TYPE_CHOICE = 1400;
-  OBJECT_TYPE_FIELD = 1420;
-  OBJECT_TYPE_OPTION = 1430;
+  OBJECT_TYPE_SCHEMA = 1400;
+  OBJECT_TYPE_FIELD = 1410;
   OBJECT_TYPE_TABLE = 1500;
   OBJECT_TYPE_RECORD = 1510;
   OBJECT_TYPE_FILE = 1520;
@@ -1223,7 +1235,10 @@ enum ObjectType {
   OBJECT_TYPE_RELATION_REFERENCE = 20110;
   OBJECT_TYPE_ATTRIBUTE_REFERENCE = 20111;
   OBJECT_TYPE_TYPE = 21400;
-  OBJECT_TYPE_TYPE_CONSTRAINT = 21401;
+  OBJECT_TYPE_NUMBER_CONSTRAINT = 21401;
+  OBJECT_TYPE_STRING_CONSTRAINT = 21402;
+  OBJECT_TYPE_COLLECTION_CONSTRAINT = 21403;
+  OBJECT_TYPE_NODE_CONSTRAINT = 21404;
   OBJECT_TYPE_VALUE = 21410;
   OBJECT_TYPE_TEXT = 21500;
   OBJECT_TYPE_TEXT_LINE = 21501;
@@ -1296,7 +1311,6 @@ enum PositionType {
 }
 
 // Fundamental column / storage types we support (subset of SQL types, used directly in sql/core).
-// NOTE: the ids here are used in type identity keys, so any change is breaking.
 enum PrimitiveType {
   PRIMITIVE_TYPE_UNSPECIFIED = 0;
   PRIMITIVE_TYPE_BOOLEAN = 1;
@@ -1395,6 +1409,15 @@ enum RunType {
   RUN_TYPE_AGENT = 15;
 }
 
+// The type of a scalar.
+enum ScalarType {
+  SCALAR_TYPE_UNSPECIFIED = 0;
+  SCALAR_TYPE_PRIMITIVE = 1;
+  SCALAR_TYPE_ENUM = 2;
+  SCALAR_TYPE_NODE = 3;
+  SCALAR_TYPE_STRUCT = 4;
+}
+
 enum ScalerStrategy {
   SCALER_STRATEGY_UNSPECIFIED = 0;
   SCALER_STRATEGY_MANUAL = 1;
@@ -1487,6 +1510,19 @@ enum SpringType {
   SPRING_TYPE_PHYSICS = 2;
 }
 
+// The format of a string.
+enum StringFormat {
+  STRING_FORMAT_UNSPECIFIED = 0;
+  STRING_FORMAT_NAME = 1;
+  STRING_FORMAT_SLUG = 2;
+  STRING_FORMAT_EMAIL = 3;
+  STRING_FORMAT_UUID = 10;
+  STRING_FORMAT_URL = 11;
+  STRING_FORMAT_EMOJI = 12;
+  STRING_FORMAT_MIME = 13;
+  STRING_FORMAT_BASE64 = 20;
+}
+
 enum StructType {
   STRUCT_TYPE_UNSPECIFIED = 0;
   STRUCT_TYPE_SCOPE = 20000;
@@ -1506,7 +1542,10 @@ enum StructType {
   STRUCT_TYPE_RELATION_REFERENCE = 20110;
   STRUCT_TYPE_ATTRIBUTE_REFERENCE = 20111;
   STRUCT_TYPE_TYPE = 21400;
-  STRUCT_TYPE_TYPE_CONSTRAINT = 21401;
+  STRUCT_TYPE_NUMBER_CONSTRAINT = 21401;
+  STRUCT_TYPE_STRING_CONSTRAINT = 21402;
+  STRUCT_TYPE_COLLECTION_CONSTRAINT = 21403;
+  STRUCT_TYPE_NODE_CONSTRAINT = 21404;
   STRUCT_TYPE_VALUE = 21410;
   STRUCT_TYPE_TEXT = 21500;
   STRUCT_TYPE_TEXT_LINE = 21501;
@@ -1637,11 +1676,10 @@ enum TransitionType {
 
 // The 'kind' of a Type.
 enum TypeCardinality {
-  TYPE_KIND_UNSPECIFIED = 0;
-  TYPE_KIND_PRIMITIVE = 1;
-  TYPE_KIND_STRUCT = 2;
-  TYPE_KIND_NODE = 3;
-  TYPE_KIND_ENUM = 4;
+  TYPE_CARDINALITY_UNSPECIFIED = 0;
+  TYPE_CARDINALITY_SCALAR = 1;
+  TYPE_CARDINALITY_LIST = 2;
+  TYPE_CARDINALITY_MAP = 3;
 }
 
 enum UserStatus {
@@ -1800,7 +1838,7 @@ message Axis3Data {
 message BenchData {
   ObjectType metatype = 1;
   string id = 2;
-  NodeReferenceData parent_ptr = 4;
+  optional NodeReferenceData parent_ptr = 4;
   optional NodeReferenceData bench_ptr = 6;
   google.protobuf.Timestamp created_at = 10;
   optional NodeReferenceData created_by_ptr = 11;
@@ -1912,27 +1950,6 @@ message ChannelData {
   optional google.protobuf.Timestamp requested_resume_at = 92;
 }
 
-// A Choice of Options.
-message ChoiceData {
-  ObjectType metatype = 1;
-  string id = 2;
-  optional NodeReferenceData parent_ptr = 4;
-  optional NodeReferenceData bench_ptr = 6;
-  optional NodeReferenceData package_ptr = 7;
-  google.protobuf.Timestamp created_at = 10;
-  optional NodeReferenceData created_by_ptr = 11;
-  google.protobuf.Timestamp updated_at = 12;
-  optional NodeReferenceData updated_by_ptr = 13;
-  optional google.protobuf.Timestamp archived_at = 14;
-  optional google.protobuf.Timestamp deleted_at = 15;
-  optional NodeReferenceData template_ptr = 16;
-  NodeMode mode = 25;
-  optional string name = 31;
-  string order_key = 33;
-  optional IconData icon = 34;
-  optional NodeReferenceData definition_ptr = 35;
-}
-
 // A Claim on something (like a Resource, runnable tool Node for a 'tool', or some other Node).
 // Depending on the claim, a Claim may be instantiated and granted/rejected at runtime.
 message ClaimData {
@@ -1997,6 +2014,12 @@ message CodeData {
   ObjectType metatype = 1;
   optional string language = 32;
   optional string content = 40;
+}
+
+message CollectionConstraintData {
+  ObjectType metatype = 1;
+  optional int32 min_length = 41;
+  optional int32 max_length = 42;
 }
 
 message ColorData {
@@ -2301,7 +2324,6 @@ message EditData {
   NodeReferenceData node_ptr = 31;
   google.protobuf.Timestamp edited_at = 33;
   optional string change_key = 34;
-  optional SomeNodeData node_data = 40;
   repeated EditOperationData operations = 41;
 }
 
@@ -2309,7 +2331,8 @@ message EditOperationData {
   ObjectType metatype = 1;
   EditOperationType type = 30;
   string key = 31;
-  optional ValueData new_value = 35;
+  optional ValueData new_value = 40;
+  optional ValueData key_value = 41;
 }
 
 message EffectData {
@@ -2424,17 +2447,21 @@ message FieldData {
   optional string name = 31;
   string order_key = 33;
   optional IconData icon = 35;
-  TypeCardinality kind = 40;
-  optional PrimitiveType primitive_type = 41;
-  optional NodeType node_type = 42;
-  optional StructType struct_type = 43;
-  optional EnumType enum_type = 44;
-  optional NodeReferenceData base_type_ptr = 45;
-  optional ValueData default = 50;
-  optional TypeConstraintData constraint = 55;
-  bool is_required = 60;
-  bool is_list = 61;
-  bool is_secret = 62;
+  TypeCardinality cardinality = 40;
+  ScalarType scalar_type = 41;
+  optional PrimitiveType primitive_type = 42;
+  optional EnumType enum_type = 43;
+  optional NodeType node_type = 44;
+  optional StructType struct_type = 45;
+  optional ValueData default = 46;
+  bool is_required = 47;
+  bool is_variable = 48;
+  optional NodeReferenceData base_type_ptr = 50;
+  optional TypeData key_type = 51;
+  optional CollectionConstraintData collection_constraint = 60;
+  optional StringConstraintData string_constraint = 61;
+  optional NumberConstraintData number_constraint = 62;
+  optional NodeConstraintData node_constraint = 63;
   optional CascadeAction cascade = 70;
 }
 
@@ -2465,7 +2492,7 @@ message FileData {
   FileSource source = 60;
   optional string mime_type = 61;
   optional FileFormat format = 62;
-  optional int64 size = 63;
+  optional int32 size = 63;
   optional string sha256 = 64;
   optional int32 width = 65;
   optional int32 height = 66;
@@ -3028,6 +3055,11 @@ message MessageData {
   optional string model_name = 103;
 }
 
+message NodeConstraintData {
+  ObjectType metatype = 1;
+  repeated NodeType node_types = 41;
+}
+
 message NodeReferenceData {
   ObjectType metatype = 1;
   NodeType node_type = 30;
@@ -3061,6 +3093,16 @@ message NotificationData {
   optional google.protobuf.Timestamp received_at = 44;
   optional google.protobuf.Timestamp read_at = 45;
   optional TextData text = 51;
+}
+
+message NumberConstraintData {
+  ObjectType metatype = 1;
+  optional NumberFormat format = 40;
+  optional float min_value = 41;
+  optional float max_value = 42;
+  optional float step_value = 43;
+  optional int32 precision = 44;
+  optional int32 scale = 45;
 }
 
 // A general number input View.
@@ -3100,27 +3142,6 @@ message NumberInputViewData {
   };
   optional string value = 100;
   optional string placeholder = 101;
-}
-
-// An Option in a Choice or Field.
-message OptionData {
-  ObjectType metatype = 1;
-  string id = 2;
-  string ck = 3;
-  optional NodeReferenceData parent_ptr = 4;
-  optional NodeReferenceData bench_ptr = 6;
-  optional NodeReferenceData package_ptr = 7;
-  google.protobuf.Timestamp created_at = 10;
-  optional NodeReferenceData created_by_ptr = 11;
-  google.protobuf.Timestamp updated_at = 12;
-  optional NodeReferenceData updated_by_ptr = 13;
-  optional google.protobuf.Timestamp archived_at = 14;
-  optional google.protobuf.Timestamp deleted_at = 15;
-  optional NodeReferenceData template_ptr = 16;
-  NodeMode mode = 25;
-  optional string name = 31;
-  string order_key = 33;
-  optional IconData icon = 34;
 }
 
 // An Organization with Users and Teams.
@@ -3442,7 +3463,7 @@ message ScheduleData {
   repeated int32 by_second = 45;
 }
 
-// A Schema with Fields.
+// A Schema for a specific Type.
 message SchemaData {
   ObjectType metatype = 1;
   string id = 2;
@@ -3461,6 +3482,21 @@ message SchemaData {
   string order_key = 33;
   optional IconData icon = 34;
   optional NodeReferenceData definition_ptr = 35;
+  TypeCardinality cardinality = 40;
+  ScalarType scalar_type = 41;
+  optional PrimitiveType primitive_type = 42;
+  optional EnumType enum_type = 43;
+  optional NodeType node_type = 44;
+  optional StructType struct_type = 45;
+  optional ValueData default = 46;
+  bool is_required = 47;
+  bool is_variable = 48;
+  optional NodeReferenceData base_type_ptr = 50;
+  optional TypeData key_type = 51;
+  optional CollectionConstraintData collection_constraint = 60;
+  optional StringConstraintData string_constraint = 61;
+  optional NumberConstraintData number_constraint = 62;
+  optional NodeConstraintData node_constraint = 63;
 }
 
 message ScopeData {
@@ -3743,6 +3779,14 @@ message SplitViewData {
   };
 }
 
+message StringConstraintData {
+  ObjectType metatype = 1;
+  optional StringFormat format = 40;
+  optional string regex = 41;
+  optional string starts_with = 42;
+  optional string ends_with = 43;
+}
+
 // A Table of Records.
 message TableData {
   ObjectType metatype = 1;
@@ -3935,13 +3979,7 @@ message ThemeData {
   string order_key = 33;
   optional IconData icon = 34;
   optional NodeReferenceData definition_ptr = 35;
-  optional ColorData primary_color = 50;
-  optional ColorData secondary_color = 51;
-  optional ColorData accent_color = 52;
-  optional ColorData muted_color = 53;
-  optional ColorData success_color = 54;
-  optional ColorData warning_color = 55;
-  optional ColorData error_color = 56;
+  map<INT32, ColorData> colors = 50;
 }
 
 // A Thread for communicating with Messages.
@@ -4067,33 +4105,21 @@ message TransitionStyleData {
 
 message TypeData {
   ObjectType metatype = 1;
-  TypeCardinality kind = 40;
-  optional PrimitiveType primitive_type = 41;
-  optional NodeType node_type = 42;
-  optional StructType struct_type = 43;
-  optional EnumType enum_type = 44;
-  optional NodeReferenceData base_type_ptr = 45;
-  optional ValueData default = 50;
-  optional TypeConstraintData constraint = 55;
-  bool is_required = 60;
-  bool is_list = 61;
-  bool is_secret = 62;
-}
-
-message TypeConstraintData {
-  ObjectType metatype = 1;
-  optional float min_value = 40;
-  optional float max_value = 41;
-  optional float step_value = 42;
-  optional int32 min_length = 50;
-  optional int32 max_length = 51;
-  optional string regex = 60;
-  optional string starts_with = 61;
-  optional string ends_with = 62;
-  optional NodeMode node_mode = 70;
-  repeated NodeType node_types = 71;
-  repeated NodeReferenceData node_scope_ptr = 72;
-  optional int32 node_max_depth = 73;
+  TypeCardinality cardinality = 40;
+  ScalarType scalar_type = 41;
+  optional PrimitiveType primitive_type = 42;
+  optional EnumType enum_type = 43;
+  optional NodeType node_type = 44;
+  optional StructType struct_type = 45;
+  optional ValueData default = 46;
+  bool is_required = 47;
+  bool is_variable = 48;
+  optional NodeReferenceData base_type_ptr = 50;
+  optional TypeData key_type = 51;
+  optional CollectionConstraintData collection_constraint = 60;
+  optional StringConstraintData string_constraint = 61;
+  optional NumberConstraintData number_constraint = 62;
+  optional NodeConstraintData node_constraint = 63;
 }
 
 // A User is a human using Bench.
@@ -4125,6 +4151,7 @@ message UserData {
 
 message ValueData {
   ObjectType metatype = 1;
+  map<STRING, google.protobuf.Value> value = 35;
 }
 
 message VariableData {
@@ -4197,10 +4224,8 @@ message SomeNodeData {
     DatabaseData database = 1200;
     ComputerData computer = 1210;
     ScalerData scaler = 1250;
-    SchemaData schema = 1410;
-    ChoiceData choice = 1400;
-    FieldData field = 1420;
-    OptionData option = 1430;
+    SchemaData schema = 1400;
+    FieldData field = 1410;
     TableData table = 1500;
     RecordData record = 1510;
     FileData file = 1520;

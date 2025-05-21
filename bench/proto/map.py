@@ -1,8 +1,6 @@
-import enum
 from typing import TYPE_CHECKING, Any, Collection, Sequence, cast
 
 from bench.language import (
-    UNSET,
     BenchType,
     BuiltinEnum,
     BuiltinObject,
@@ -51,59 +49,93 @@ PROTO_FIELD_TYPE_BY_PRIMITIVE_TYPE: dict[PrimitiveType, ProtoFieldType] = {
 
 def _map_bench_property_to_proto_field(
     prop: "Property", cache: dict[BenchType, ProtoThing]
-) -> Sequence[ProtoField]:
-    assert prop.id == 1 or prop.is_wired, f"shouldn't map runtime property: {prop!r}"
-    assert isinstance(prop.id, int), f"stored properties need an id: {prop!r}"
-    if prop.node_kind:
+) -> ProtoField:
+    assert prop.id == 1 or prop.is_wired, f"not a wired property: {prop!r}"
+    assert isinstance(prop.id, int), f"invalid id: {prop!r}"
+
+    # base field
+    if prop.scalar_type == "node":
         field = ProtoField(
             id=prop.id,
             name=prop.name,
             type="NodeReferenceData",
             optional=prop.is_optional or prop.is_sensitive,
-            repeated=prop.is_list,
+            repeated=prop.cardinality == "list",
         )
-    elif bench_type := prop.struct_type or prop.enum_type:
-        proto_t = _map_object_type_to_proto(bench_type, cache)
-        assert isinstance(
-            proto_t, (ProtoEnum, ProtoMessage)
-        ), f"unexpected property type: {proto_t!r}"
+    elif prop.scalar_type == "struct":
+        assert prop.struct_type is not None, f"invalid struct: {prop!r}"
+        proto_t = _map_object_type_to_proto(prop.struct_type, cache)
+        assert isinstance(proto_t, ProtoMessage), f"unexpected property type: {proto_t!r}"
         field = ProtoField(
             id=prop.id,
             name=prop.name,
             type=proto_t,
             optional=prop.is_optional or prop.is_sensitive,
-            repeated=prop.is_list,
+            repeated=prop.cardinality == "list",
         )
-    elif (
-        prop.primitive_type
-        and (field_type := PROTO_FIELD_TYPE_BY_PRIMITIVE_TYPE.get(prop.primitive_type)) is not None
-    ):
+    elif prop.scalar_type == "enum":
+        assert prop.enum_type is not None, f"invalid enum: {prop!r}"
+        proto_t = _map_object_type_to_proto(prop.enum_type, cache)
+        assert isinstance(proto_t, ProtoEnum), f"unexpected property type: {proto_t!r}"
+        field = ProtoField(
+            id=prop.id,
+            name=prop.name,
+            type=proto_t,
+            optional=prop.is_optional or prop.is_sensitive,
+            repeated=prop.cardinality == "list",
+        )
+    elif prop.scalar_type == "primitive":
+        assert prop.primitive_type is not None, f"invalid primitive: {prop!r}"
+        field_type = PROTO_FIELD_TYPE_BY_PRIMITIVE_TYPE.get(prop.primitive_type)
+        assert field_type is not None, f"invalid primitive type: {prop.primitive_type!r}"
         field = ProtoField(
             id=prop.id,
             name=prop.name,
             type=field_type,
             optional=prop.is_optional or prop.is_sensitive,
-            repeated=prop.is_list,
+            repeated=prop.cardinality == "list",
         )
     elif prop.is_node_data:
         field = ProtoField(
-            id=prop.id,
-            name=prop.name,
-            type="SomeNodeData",
-            optional=prop.is_optional,
-            repeated=prop.is_list,
+            id=prop.id, name=prop.name, type="SomeNodeData", optional=prop.is_optional
         )
     else:
         raise TypeError(f"cannot map to proto type: {prop!r}")
 
-    assert prop.is_variable is not UNSET, f"undetermined variable: {prop!r}"
-    if prop.is_variable is True:
+    # map
+    if prop.cardinality == "map":
+        assert prop.key_type is not None, f"invalid map: {prop!r}"
+        assert prop.key_type.cardinality == "scalar", f"invalid key: {prop.key_type!r}"
+        value_field = field
+        if prop.key_type.scalar_type == "enum":
+            key_field = ProtoFieldType.INT32
+        elif prop.key_type.scalar_type == "primitive":
+            assert prop.key_type.primitive_type is not None, f"invalid key type: {prop.key_type!r}"
+            key_field = PROTO_FIELD_TYPE_BY_PRIMITIVE_TYPE.get(prop.key_type.primitive_type)
+            assert key_field in (
+                ProtoFieldType.INT32,
+                ProtoFieldType.INT64,
+                ProtoFieldType.STRING,
+            ), f"invalid key type: {prop.key_type!r}"
+        else:
+            raise TypeError(f"invalid key type: {prop.key_type!r}")
+        wrapper_field = ProtoField(
+            id=prop.id,
+            name=field.name,
+            type=ProtoFieldType.MAP,
+            key_type=key_field,
+            value_type=value_field.type,
+        )
+        return wrapper_field
+
+    # variable
+    if prop.is_variable:
         field.optional = False  # proto fields in oneof cannot have labels
         variable_field = ProtoField(
             id=prop.id + VARIABLE_PROPERTY_OFFSET,
             name=f"{prop.name}_variable",
             type="VariableData",
-            repeated=prop.is_list,
+            repeated=prop.cardinality == "list",
         )
         wrapper_field = ProtoField(
             id=prop.id,
@@ -112,9 +144,9 @@ def _map_bench_property_to_proto_field(
             sub_fields=(field, variable_field),
         )
         field.name = f"{field.name}_value"
-        return (wrapper_field,)
-    else:
-        return (field,)
+        return wrapper_field
+
+    return field
 
 
 def _map_builtin_object_to_proto_message(
@@ -137,8 +169,8 @@ def _map_builtin_object_to_proto_message(
     for prop in properties if properties is not None else cls.__properties__.values():
         if not prop.is_wired or prop.ptr_prop is not None:
             continue
-        fields = _map_bench_property_to_proto_field(prop, cache)
-        message.fields.extend(fields)
+        field = _map_bench_property_to_proto_field(prop, cache)
+        message.fields.append(field)
     message.fields.sort(key=lambda f: cast(int, f.id))
     return message
 
@@ -148,22 +180,11 @@ def _map_builtin_enum_to_proto_enum(
     cache: dict[BenchType, ProtoThing],
     alias: str | None = None,
 ) -> ProtoEnum:
-    assert issubclass(
-        bench_t, (BuiltinEnum, enum.IntEnum, enum.IntFlag)
-    ), f"invalid enum: {bench_t!r}"
+    assert issubclass(bench_t, BuiltinEnum), f"invalid enum: {bench_t!r}"
     enum_prefix = to_casing(alias or bench_t.__name__, Casing.ALL_CAPS) + "_"
-    if issubclass(bench_t, BuiltinEnum):
-        enum_values = [
-            ProtoEnumValue(id=member.id, name=enum_prefix + member.name) for member in bench_t
-        ]
-    elif issubclass(bench_t, (enum.IntFlag, enum.IntEnum)):
-        # use int values as ids
-        enum_values = [
-            ProtoEnumValue(id=name, name=enum_prefix + id_)
-            for id_, name in bench_t.__members__.items()
-        ]
-    else:
-        raise TypeError(f"invalid enum type: {bench_t!r}")
+    enum_values = [
+        ProtoEnumValue(id=member.id, name=enum_prefix + member.name) for member in bench_t
+    ]
     # add unset if not already present
     if not any(v.id == 0 for v in enum_values):
         enum_values = [ProtoEnumValue(id=0, name=enum_prefix + "UNSPECIFIED"), *enum_values]

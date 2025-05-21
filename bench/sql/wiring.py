@@ -54,16 +54,6 @@ def _pack_builtin_object_data_prop_scalar(prop: Property, value: Any) -> SqlPrim
         return value
 
 
-def _pack_builtin_object_data_prop(prop: Property, value: Any) -> SqlPrimitive:
-    """Packs the value of a BuiltinObject property for storage in Postgres."""
-    if value is None:
-        return None
-    elif not prop.is_list:
-        return _pack_builtin_object_data_prop_scalar(prop, value)
-    else:
-        return [_pack_builtin_object_data_prop_scalar(prop, v) for v in value]
-
-
 def _pack_builtin_object_value_prop_scalar(prop: Property, value: Any) -> SqlPrimitive:
     """Packs the JSON-value-packed value of a BuiltinObject for storage in Postgres."""
     if prop.is_struct:
@@ -84,16 +74,6 @@ def _pack_builtin_object_value_prop_scalar(prop: Property, value: Any) -> SqlPri
         return timedelta_from_isoformat(value)
     else:
         return value
-
-
-def _pack_builtin_object_value_prop(prop: Property, value: Any) -> SqlPrimitive:
-    """Packs the JSON-value-packed value of a BuiltinObject for storage in Postgres."""
-    if value is None:
-        return None
-    elif not prop.is_list:
-        return _pack_builtin_object_value_prop_scalar(prop, value)
-    else:
-        return [_pack_builtin_object_value_prop_scalar(prop, v) for v in value]
 
 
 def _unpack_builtin_object_data_prop_scalar(

@@ -13,7 +13,6 @@ from bench.language import (
     ResourceStatus,
 )
 from bench.pb2 import ClientData, ComputerData
-from bench.system import ACCESS_TOKEN_LENGTH
 from bench.utils.func import generate_access_token
 from bench.utils.oracle import Oracle
 
@@ -63,6 +62,8 @@ class ComputerHandle:
 
     async def prepare(self):
         """Create the Computer and Client."""
+        from bench.system import ACCESS_TOKEN_LENGTH
+
         from .session import make_pg_session
 
         # root session
