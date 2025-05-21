@@ -38,7 +38,7 @@ from .const import (
 from .graph import Supergraph
 from .property import Property, p_regular
 from .struct import Struct, struct_
-from .type import TypeType
+from .type import TypeKind
 
 if TYPE_CHECKING:
     from bench.language import BuiltinObject, Node, NodeReference, Session, TypeBase
@@ -81,7 +81,7 @@ def pack_value_scalar(value: ScalarValue | ScalarValueData, typ: "TypeBase") -> 
     """
     Packs the given scalar runtime or data value into a JSON-able representation.
     """
-    if typ.kind == TypeType.PRIMITIVE:
+    if typ.kind == TypeKind.PRIMITIVE:
         if typ.primitive_type == PrimitiveType.BYTES:
             return base64.b64encode(cast(bytes, value)).decode()
         elif typ.primitive_type == PrimitiveType.UUID:
@@ -115,7 +115,7 @@ def pack_value_scalar(value: ScalarValue | ScalarValueData, typ: "TypeBase") -> 
                 return timedelta_to_isoformat(cast(timedelta, value))
         else:
             return cast(JsonValue, value)
-    elif typ.kind == TypeType.NODE:
+    elif typ.kind == TypeKind.NODE:
         if cast("Struct | AnyStructData", value).metatype != StructType.NODE_REFERENCE:
             ref = cast("Node", value).to_ref()
         else:
@@ -123,9 +123,9 @@ def pack_value_scalar(value: ScalarValue | ScalarValueData, typ: "TypeBase") -> 
         if isinstance(ref, BuiltinObject):
             ref = ref._to_data()
         return pack_builtin_object_data(ref)
-    elif typ.kind == TypeType.ENUM:
+    elif typ.kind == TypeKind.ENUM:
         return int(cast(Any, value))
-    elif typ.kind == TypeType.STRUCT:
+    elif typ.kind == TypeKind.STRUCT:
         if isinstance(value, BuiltinObject):
             return pack_builtin_object(value)
         else:
@@ -143,7 +143,7 @@ def unpack_value_scalar(
     """
     Unpacks the given scalar value into its runtime representation.
     """
-    if typ.kind == TypeType.PRIMITIVE:
+    if typ.kind == TypeKind.PRIMITIVE:
         if typ.primitive_type == PrimitiveType.BYTES:
             return base64.b64decode(cast(str, value_packed))
         elif typ.primitive_type in (PrimitiveType.INT16, PrimitiveType.INT32, PrimitiveType.INT64):
@@ -160,10 +160,10 @@ def unpack_value_scalar(
             return timedelta_from_isoformat(cast(str, value_packed))
         else:
             return cast(PrimitiveValue, value_packed)
-    elif typ.kind == TypeType.ENUM:
+    elif typ.kind == TypeKind.ENUM:
         enum_cls = ENUM_CLASS_BY_TYPE[cast(EnumType, typ.enum_type)]
         return enum_cls(cast(int, value_packed))
-    elif typ.kind in (TypeType.NODE, TypeType.STRUCT):
+    elif typ.kind in (TypeKind.NODE, TypeKind.STRUCT):
         assert isinstance(value_packed, dict), f"{value_packed!r} is not a dict, expected {typ!r}"
         return unpack_builtin_object(value_packed, supergraph=supergraph)
     else:
@@ -174,7 +174,7 @@ def unpack_value_scalar_data(value_packed: JsonValue, typ: "TypeBase") -> Scalar
     """
     Unpacks the given scalar value into its proto data representation. See above.
     """
-    if typ.kind == TypeType.PRIMITIVE:
+    if typ.kind == TypeKind.PRIMITIVE:
         if typ.primitive_type == PrimitiveType.BYTES:
             return base64.b64decode(cast(str, value_packed))
         elif typ.primitive_type in (PrimitiveType.INT16, PrimitiveType.INT32, PrimitiveType.INT64):
@@ -199,10 +199,10 @@ def unpack_value_scalar_data(value_packed: JsonValue, typ: "TypeBase") -> Scalar
             return dur
         else:
             return cast(PrimitiveValue, value_packed)
-    elif typ.kind == TypeType.ENUM:
+    elif typ.kind == TypeKind.ENUM:
         enum_cls = ENUM_CLASS_BY_TYPE[cast(EnumType, typ.enum_type)]
         return enum_cls(cast(int, value_packed))
-    elif typ.kind in (TypeType.NODE, TypeType.STRUCT):
+    elif typ.kind in (TypeKind.NODE, TypeKind.STRUCT):
         assert isinstance(value_packed, dict), f"{value_packed!r} is not a dict, expected {typ!r}"
         return unpack_builtin_object_data(value_packed)
     else:

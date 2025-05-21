@@ -3,8 +3,6 @@ from typing import TYPE_CHECKING, Optional
 from fastuuid import UUID
 
 from bench.language.core import (
-    CPU_CONSTRAINT,
-    RAM_CONSTRAINT,
     VERSION,
     BuiltinEnum,
     EnumType,
@@ -56,8 +54,8 @@ class Computer(IsSubject, ProvisionableResourceBase[ComputerData]):
         client_ptr: Optional[NodeReference] = None
         client_id: Optional[UUID] = None
 
-    cpu: float = p_system(70, description="vCPU count", default=1.0, constraint=CPU_CONSTRAINT)
-    ram: float = p_system(71, description="GB", default=1.0, constraint=RAM_CONSTRAINT)
+    cpu: float = p_system(70, description="vCPU count", default=1.0)
+    ram: float = p_system(71, description="GB", default=1.0)
     width: int = p_system(75, default=1280)
     height: int = p_system(76, default=960)
     is_headless: bool = p_system(77, default=False)

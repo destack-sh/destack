@@ -38,10 +38,14 @@ from .const import (
 if TYPE_CHECKING:
     from bench.language import (
         BuiltinObject,
+        CollectionConstraint,
+        NodeConstraint,
+        NumberConstraint,
+        NumberFormat,
         PropertyReference,
+        StringConstraint,
+        StringFormat,
         Type,
-        TypeConstraint,
-        TypeConstraintIn,
     )
 
     from .query import IsQueryable
@@ -236,7 +240,8 @@ class Property(IsQueryable if TYPE_CHECKING else object):
     node_exclude: tuple[Literal["ck", "base_id"], ...] = ()
 
     default: Any = UNSET
-    constraint: "TypeConstraint | TypeConstraintIn | None" = None
+    format: "NumberFormat | StringFormat | None" = None
+    constraint: "NumberConstraint | NodeConstraint | StringConstraint | CollectionConstraint | None" = None
     is_list: bool = UNSET
     is_required: bool = UNSET  # must be non-null
     is_variable: bool = UNSET  # may be wrapped in an indirect Variable lookup
@@ -527,7 +532,7 @@ class Property(IsQueryable if TYPE_CHECKING else object):
 
     def _to_type(self) -> "Type":
         """Create the Type for this Property."""
-        from bench.language.core import Type, TypeConstraintIn, TypeType
+        from bench.language.core import Type, TypeConstraintIn, TypeKind
 
         if isinstance(self.constraint, TypeConstraintIn):
             constraint = self.constraint.into()
@@ -535,14 +540,14 @@ class Property(IsQueryable if TYPE_CHECKING else object):
             constraint = self.constraint or TypeConstraintIn()
 
         if self.node_types and not self.runtime_prop:
-            kind = TypeType.NODE
+            kind = TypeKind.NODE
             constraint.node_types = list(self.node_types)
         elif self.struct_type:
-            kind = TypeType.STRUCT
+            kind = TypeKind.STRUCT
         elif self.enum_type:
-            kind = TypeType.ENUM
+            kind = TypeKind.ENUM
         elif self.primitive_type:
-            kind = TypeType.PRIMITIVE
+            kind = TypeKind.PRIMITIVE
         else:
             raise ValueError(f"cannot determine type info for {self!r}")
 
@@ -554,9 +559,7 @@ class Property(IsQueryable if TYPE_CHECKING else object):
             enum_type=self.enum_type,
             is_list=self.is_list,
             is_required=self.is_required,
-            constraint=constraint.into()
-            if isinstance(constraint, TypeConstraintIn)
-            else constraint,
+            constraint=constraint,
         )
         return typ
 
@@ -575,7 +578,8 @@ def p_property(
     *,
     default: Any = UNSET,
     primitive_type: PrimitiveType | None = UNSET,
-    constraint: "TypeConstraint | TypeConstraintIn | None" = None,
+    format: "NumberFormat | StringFormat | None" = None,
+    constraint: "NumberConstraint | NodeConstraint | StringConstraint | CollectionConstraint | None" = None,
     is_node_data: bool = False,
     node_bench_from: Literal["self"] | None = None,
     node_exclude: tuple[Literal["ck", "base_id"], ...] = (),
@@ -592,6 +596,7 @@ def p_property(
         id=id,
         default=default,
         primitive_type=primitive_type,
+        format=format,
         constraint=constraint,
         is_node_data=is_node_data,
         node_bench_from=node_bench_from,

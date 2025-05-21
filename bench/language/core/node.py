@@ -30,7 +30,6 @@ from bench.language.registry import (
     NODE_CLASS_BY_TYPE,
 )
 from bench.pb2 import AnyNodeData, NodeReferenceData
-from bench.utils.func import hash_stable
 from bench.utils.string import Casing, to_casing, to_code_name
 from bench.utils.utils import frozendict
 
@@ -262,6 +261,7 @@ class Node[NodeDataT: AnyNodeData](BuiltinObject[NodeDataT]):
 
     _graph: "Graph" = p_runtime(default=None)
     _is_new: bool = p_runtime(default=False)
+    _hash: int = p_runtime(default=None)
 
     if TYPE_CHECKING:
         _skip_add_self: bool = False
@@ -477,11 +477,11 @@ class Node[NodeDataT: AnyNodeData](BuiltinObject[NodeDataT]):
 
     def __eq__(self, other: Any):
         """Equals the Node's identity."""
-        return self is other or (type(self) is type(other) and (self.id == other.id))
+        return type(self) is type(other) and (self.id == other.id)
 
     def _stable_hash(self):
         """Hash the Node's identity."""
-        return hash_stable((self.metatype, self.id))
+        return self._hash
 
     # only define __hash__ for nodes since their id is constant
     __hash__ = _stable_hash  # type: ignore

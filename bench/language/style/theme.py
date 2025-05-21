@@ -1,4 +1,4 @@
-from typing import TYPE_CHECKING, Optional
+from typing import TYPE_CHECKING
 
 from bench.language.core import (
     BuiltinEnum,
@@ -38,13 +38,7 @@ class Theme(IsInstantiable, IsModal, IsNamed, PageNode[ThemeData]):
     """A Theme with common styles."""
 
     # colors
-    primary_color: Optional["Color"] = p_regular(50)
-    secondary_color: Optional["Color"] = p_regular(51)
-    accent_color: Optional["Color"] = p_regular(52)
-    muted_color: Optional["Color"] = p_regular(53)
-    success_color: Optional["Color"] = p_regular(54)
-    warning_color: Optional["Color"] = p_regular(55)
-    error_color: Optional["Color"] = p_regular(56)
+    colors: dict[ThemeColor, Color] = p_regular(50)
 
     # fonts
     # ...

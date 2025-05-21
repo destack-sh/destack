@@ -1,7 +1,6 @@
 from typing import TYPE_CHECKING, Optional
 
 from bench.language.core import (
-    NAME_CONSTRAINT,
     BuiltinEnum,
     EnumType,
     IsModal,
@@ -12,6 +11,7 @@ from bench.language.core import (
     NodeType,
     PackageNode,
     Selection,
+    StringFormat,
     enum_,
     node_,
     p_node_parent,
@@ -42,35 +42,19 @@ class Space(IsOwnable, IsTemplatable, IsModal, IsOrdered, PackageNode[SpaceData]
     parent: Optional["Package"] = p_node_parent(4)
 
     type: SpaceType = p_regular(30)
-    name: str | None = p_regular(31, constraint=NAME_CONSTRAINT)
+    name: str | None = p_regular(31, format=StringFormat.NAME)
 
     selection: Optional[Selection] = p_regular(
         70,
         default=None,
         description="The current selection of the Space.",
     )
-    focus: Optional[Node] = p_regular(
-        71,
-        default=None,
-        description="The current main focus.",
-    )
+    focus: Optional[Node] = p_regular(71, default=None, description="The current main focus.")
     inspection: Optional[Node] = p_regular(
-        72,
-        default=None,
-        description="The current inspected Node.",
+        72, default=None, description="The current inspected Node."
     )
     container: Optional[Node] = p_regular(
-        73,
-        default=None,
-        description="The current 'root' container Node.",
+        73, default=None, description="The current 'root' container Node."
     )
-    page: Optional["Page"] = p_regular(
-        74,
-        default=None,
-        description="The current Page.",
-    )
-    thread: Optional["Thread"] = p_regular(
-        75,
-        default=None,
-        description="The current Thread.",
-    )
+    page: Optional["Page"] = p_regular(74, default=None, description="The current Page.")
+    thread: Optional["Thread"] = p_regular(75, default=None, description="The current Thread.")

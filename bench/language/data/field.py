@@ -2,6 +2,7 @@ from typing import TYPE_CHECKING, Optional, Union
 
 from bench.language.core import (
     BuiltinEnum,
+    Constraint,
     EnumType,
     IsInstantiable,
     IsModal,
@@ -12,8 +13,6 @@ from bench.language.core import (
     PackageNode,
     Property,
     TypeBase,
-    TypeConstraint,
-    TypeConstraintIn,
     TypeIn,
     encode_storage_key,
     enum_,
@@ -99,7 +98,7 @@ class Field(
         name: str,
         type: FieldType,
         typ: TypeIn,
-        constraint: TypeConstraintIn | TypeConstraint | None = None,
+        constraint: Constraint | None = None,
         **kwargs,
     ) -> "Field":
         typ = to_type_scalar(typ)
@@ -107,8 +106,6 @@ class Field(
             if prop.name not in kwargs:
                 kwargs[prop.name] = getattr(typ, prop.name)
         if constraint is not None:
-            if isinstance(constraint, TypeConstraintIn):
-                constraint = constraint.into()
             kwargs["constraint"] = constraint
         field = Field(name=name, type=type, **kwargs)
         return field
@@ -117,7 +114,7 @@ class Field(
     def member(
         name: str,
         typ: TypeIn,
-        constraint: TypeConstraintIn | TypeConstraint | None = None,
+        constraint: Constraint | None = None,
         **kwargs,
     ) -> "Field":
         return Field.new(name, type=FieldType.VARIABLE, typ=typ, constraint=constraint, **kwargs)
@@ -126,7 +123,7 @@ class Field(
     def input(
         name: str,
         typ: TypeIn,
-        constraint: TypeConstraintIn | TypeConstraint | None = None,
+        constraint: Constraint | None = None,
         **kwargs,
     ) -> "Field":
         return Field.new(name, type=FieldType.INPUT, typ=typ, constraint=constraint, **kwargs)
@@ -135,7 +132,7 @@ class Field(
     def output(
         name: str,
         typ: TypeIn,
-        constraint: TypeConstraintIn | TypeConstraint | None = None,
+        constraint: Constraint | None = None,
         **kwargs,
     ) -> "Field":
         return Field.new(name, type=FieldType.OUTPUT, typ=typ, constraint=constraint, **kwargs)
