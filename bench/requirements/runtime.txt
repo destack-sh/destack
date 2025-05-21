@@ -23,6 +23,8 @@ anyio==4.9.0
     #   httpx
     #   openai
     #   watchfiles
+asyncpg==0.30.0
+    # via -r bench/requirements/runtime.in
 attrs==25.3.0
     # via
     #   aiohttp
@@ -344,12 +346,6 @@ protobuf==5.28.3
     #   proto-plus
 psutil==5.9.2
     # via livekit-agents
-psycopg==3.2.3
-    # via -r bench/requirements/runtime.in
-psycopg-binary==3.2.3
-    # via psycopg
-psycopg-pool==3.2.6
-    # via psycopg
 pyairtable==2.3.5
     # via -r bench/requirements/runtime.in
 pyarrow==18.0.0
@@ -506,7 +502,6 @@ typing-extensions==4.13.2
     #   livekit-agents
     #   openai
     #   opentelemetry-sdk
-    #   psycopg-pool
     #   pyairtable
     #   pydantic
     #   pydantic-core

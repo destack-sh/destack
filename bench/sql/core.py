@@ -1,13 +1,10 @@
 import dataclasses
 import enum
 from dataclasses import dataclass
-from datetime import date, datetime, time, timedelta
 from itertools import chain
 from typing import TYPE_CHECKING, Any, ClassVar, Self, Union, cast
 
-from fastuuid import UUID
 from more_itertools import first
-from psycopg.types.json import Jsonb
 
 from bench.language import ConditionalType, IndexIn, PrimitiveType, SortType
 from bench.utils.func import hash_stable
@@ -212,12 +209,6 @@ class SqlTableObject(SqlObject):
     def clone(self) -> "Self":
         """Deep copy this table object without any external references."""
         return dataclasses.replace(self, _table=None)
-
-
-SqlPrimitiveScalar = Union[
-    str, int, float, bool, datetime, date, time, timedelta, UUID, bytes, type(None), Jsonb
-]
-SqlPrimitive = Union[SqlPrimitiveScalar, list["SqlPrimitive"], dict[str, SqlPrimitiveScalar]]
 
 
 class SqlCascadeAction(enum.StrEnum):

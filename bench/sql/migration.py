@@ -18,12 +18,11 @@ from typing import (
     cast,
 )
 
-import psycopg
+import asyncpg
 import regex
 import structlog
 from more_itertools import first
 from opentelemetry import trace
-from psycopg import sql
 
 from bench.language import NodeArea
 from bench.utils.env import REPOSITORY_PATH
@@ -49,15 +48,6 @@ from .core import (
     SqlTable,
     SqlTableObject,
 )
-from .engine import (
-    SqlUndefinedObjectError,
-    pg_delete,
-    pg_select,
-    pg_select_raw,
-    pg_upsert,
-    sqlstr,
-)
-from .graph import GLOBAL_CONTEXT
 
 if TYPE_CHECKING:
     from bench.language import Database
@@ -67,6 +57,69 @@ MIGRATIONS_TEMPLATE_PATH = REPOSITORY_PATH / "bench/migrations/0000_template.py"
 
 logger = structlog.get_logger(__name__)
 tracer = trace.get_tracer(__name__)
+
+
+# Helper functions for asyncpg
+async def pg_select(
+    conn: asyncpg.Connection,
+    ctx: Any,
+    table: str,
+    where: Optional[str] = None,
+    order_by: Optional[str] = None,
+) -> list[dict[str, Any]]:
+    query = f"SELECT * FROM {table}"
+    if where:
+        query += f" WHERE {where}"
+    if order_by:
+        query += f" ORDER BY {order_by}"
+    return await pg_select_raw(conn, query)
+
+
+async def pg_select_raw(conn: asyncpg.Connection, query: str) -> list[dict[str, Any]]:
+    rows = await conn.fetch(query)
+    return [dict(row) for row in rows]
+
+
+async def pg_upsert(
+    conn: asyncpg.Connection, ctx: Any, table: str, rows: list[dict[str, Any]]
+) -> None:
+    if not rows:
+        return
+
+    # Get column names from first row
+    columns = list(rows[0].keys())
+    column_str = ", ".join(columns)
+
+    # Create placeholders for values
+    for i, row in enumerate(rows):
+        placeholders = ", ".join(f"${j + 1}" for j in range(len(columns)))
+        values = [row[col] for col in columns]
+
+        # For upsert, we need to determine the primary key
+        # For simplicity, assuming 'id' is the primary key
+        upsert_clause = "ON CONFLICT (id) DO UPDATE SET " + ", ".join(
+            f"{col} = EXCLUDED.{col}" for col in columns if col != "id"
+        )
+
+        query = f"INSERT INTO {table} ({column_str}) VALUES ({placeholders}) {upsert_clause}"
+        await conn.execute(query, *values)
+
+
+async def pg_delete(conn: asyncpg.Connection, ctx: Any, table: str, where: str) -> int:
+    query = f"DELETE FROM {table} WHERE {where}"
+    return await conn.execute(query)
+
+
+def sqlstr(s: str) -> str:
+    return s
+
+
+class SqlUndefinedObjectError(Exception):
+    pass
+
+
+# Global context placeholder
+GLOBAL_CONTEXT = {}
 
 
 #
@@ -99,7 +152,7 @@ class Migration:
         )
 
 
-MigratorFunc = Callable[[psycopg.AsyncConnection], Awaitable[None]]
+MigratorFunc = Callable[[asyncpg.Connection], Awaitable[None]]
 
 
 @dataclass
@@ -131,44 +184,45 @@ def unpack_migration_row(row: Mapping[str, Any]) -> Migration:
 
 
 async def read_migrations_from_pg(
-    cur: psycopg.AsyncCursor, *, applied: bool | None = None
+    conn: asyncpg.Connection, *, applied: bool | None = None
 ) -> list[Migration]:
     """Reads the 'bench_migration' table (if it exists) and returns the corresponding Migration."""
     try:
+        where = None
         if applied is not None:
-            where = sql.SQL("applied_at IS NOT NULL") if applied else sql.SQL("applied_at IS NULL")
-        else:
-            where = None
+            where = "applied_at IS NOT NULL" if applied else "applied_at IS NULL"
+
         migrations_rows = await pg_select(
-            cur=cur, ctx=GLOBAL_CONTEXT, table=MIGRATION_TABLE, where=where, order_by=sql.SQL("id")
+            conn=conn, ctx=GLOBAL_CONTEXT, table=MIGRATION_TABLE, where=where, order_by="id"
         )
         migrations = [unpack_migration_row(row) for row in migrations_rows]
         return migrations
-    except SqlUndefinedObjectError:
-        await cur.connection.rollback()
+    except Exception:
+        # Assuming this is a table not found error
+        await conn.rollback()
         return []
 
 
-async def _write_migrations_to_pg(cur: psycopg.AsyncCursor, migrations: list[Migration]):
+async def _write_migrations_to_pg(conn: asyncpg.Connection, migrations: list[Migration]):
     """Upserts the given migrations into the table. Errors if the table doesn't exist."""
     migrations_rows = [pack_migration_row(m) for m in migrations]
-    await pg_upsert(cur=cur, ctx=GLOBAL_CONTEXT, table=MIGRATION_TABLE, rows=migrations_rows)
+    await pg_upsert(conn=conn, ctx=GLOBAL_CONTEXT, table=MIGRATION_TABLE, rows=migrations_rows)
 
 
-async def delete_migrations_in_pg(cur: psycopg.AsyncCursor, from_id: int, to_id: int) -> None:
+async def delete_migrations_in_pg(conn: asyncpg.Connection, from_id: int, to_id: int) -> None:
     """Deletes migrations from the database."""
     migrations_rows = await pg_select(
-        cur=cur,
+        conn=conn,
         ctx=GLOBAL_CONTEXT,
         table=MIGRATION_TABLE,
-        where=sqlstr(f"id >= {from_id} AND id <= {to_id}"),
+        where=f"id >= {from_id} AND id <= {to_id}",
     )
     migrations = [unpack_migration_row(row) for row in migrations_rows]
     _ = await pg_delete(
-        cur=cur,
+        conn=conn,
         ctx=GLOBAL_CONTEXT,
         table=MIGRATION_TABLE,
-        where=sqlstr(f"id >= {from_id} AND id <= {to_id}"),
+        where=f"id >= {from_id} AND id <= {to_id}",
     )
     if migrations:
         logger.warning("migration.delete", migrations=migrations)
@@ -241,7 +295,7 @@ def _load_migration_from_path(migration: Migration) -> MigrationFile:
 
 @tracer.start_as_current_span("sql.migrate")
 async def sql_migrate(
-    cur: psycopg.AsyncCursor,
+    conn: asyncpg.Connection,
     target: str | int | None,
     oracle: Oracle,
     *,
@@ -267,7 +321,7 @@ async def sql_migrate(
         target_migration = MIGRATIONS[-1]
 
     logger.trace("migrations.load", target_migration=target_migration, area=area, database=database)
-    databased_migrations = await read_migrations_from_pg(cur)
+    databased_migrations = await read_migrations_from_pg(conn)
     is_upgrade = all(target_migration.id > m.id for m in databased_migrations if m.applied_at)
     log = logger.bind(
         target_migration=target_migration, is_upgrade=is_upgrade, area=area, database=database
@@ -292,14 +346,14 @@ async def sql_migrate(
         return []
     else:
         await _do_sql_migrate(
-            cur,
+            conn,
             migrations_to_apply,
             oracle=oracle,
             is_upgrade=is_upgrade,
             area=area,
             database=database,
         )
-        log.debug("migrations.apply", cur=cur, migrations=migrations_to_apply, database=database)
+        log.debug("migrations.apply", conn=conn, migrations=migrations_to_apply, database=database)
 
     # update the migration table (applied + missing)
     missing_migrations = [
@@ -310,13 +364,13 @@ async def sql_migrate(
     ]
     migrations_to_update = [*migrations_to_apply, *missing_migrations]
     if migrations_to_update:
-        await _write_migrations_to_pg(cur, migrations_to_update)
+        await _write_migrations_to_pg(conn, migrations_to_update)
 
     return migrations_to_apply
 
 
 async def _do_sql_migrate(
-    cur: psycopg.AsyncCursor,
+    conn: asyncpg.Connection,
     migrations: Collection[Migration],
     oracle: Oracle,
     *,
@@ -333,11 +387,11 @@ async def _do_sql_migrate(
             migration_file = _load_migration_from_path(migration)
             func = getattr(migration_file.module, func_name)
             try:
-                await func(cur)
+                await func(conn)
             except Exception as e:
                 logger.error(
                     "migration.apply.error",
-                    cur=cur,
+                    conn=conn,
                     migration=migration,
                     database=database,
                     error=e,
@@ -349,7 +403,7 @@ async def _do_sql_migrate(
             else:
                 migration.applied_at = None
             logger.trace(
-                "migration.apply", cur=cur, migration=migration, database=database, span="current"
+                "migration.apply", conn=conn, migration=migration, database=database, span="current"
             )
 
 
@@ -676,7 +730,7 @@ def _render_migration_body(ops: list[MigrationOp] | None) -> str:
             line = line.replace(subquery, f"{{{var_name}}}")
             subquery = _wrap_statement(subquery[1:-1])
             wrapped_lines.append(
-                f"await cur.execute({subquery})\n{var_name} = (await cur.fetchone())['{selected_columns[0]}']"
+                f"await conn.execute({subquery})\n{var_name} = (await conn.fetchrow({subquery}))['{selected_columns[0]}']"
             )
 
         # wrap with execute
@@ -684,7 +738,7 @@ def _render_migration_body(ops: list[MigrationOp] | None) -> str:
             # suppress type warning because f string is not a literal
             wrapped_lines.append("# noinspection PyTypeChecker")
             line = "f" + line
-        wrapped_lines.append(f"await cur.execute({line})")
+        wrapped_lines.append(f"await conn.execute({line})")
     method_body = "\n".join(wrapped_lines)
 
     if not method_body.strip():
@@ -694,29 +748,29 @@ def _render_migration_body(ops: list[MigrationOp] | None) -> str:
 
 
 @tracer.start_as_current_span("sql.apply_migration_ops")
-async def apply_sql_migration_ops(cur: psycopg.AsyncCursor, ops: list[MigrationOp]) -> None:
+async def apply_sql_migration_ops(conn: asyncpg.Connection, ops: list[MigrationOp]) -> None:
     """Directly apply the given migration ops."""
     method_body = _render_migration_body(ops)
     method_body = format_python(method_body)
 
     # turn it into an async callable
-    method = f"async def _apply_inline(cur):\n{indent(method_body, '    ')}"
+    method = f"async def _apply_inline(conn):\n{indent(method_body, '    ')}"
     method_locals: dict[str, Any] = {}
     exec(method, method_locals)
     _apply_inline = method_locals["_apply_inline"]
     try:
-        await _apply_inline(cur)
-        logger.debug("sql.apply_migration_ops", ops=ops, cur=cur, span="current")
+        await _apply_inline(conn)
+        logger.debug("sql.apply_migration_ops", ops=ops, conn=conn, span="current")
     except Exception as e:
-        logger.error("sql.apply_migration_ops.error", ops=ops, cur=cur, span="current", error=e)
+        logger.error("sql.apply_migration_ops.error", ops=ops, conn=conn, span="current", error=e)
         raise
 
 
-async def force_create_schema(cur: psycopg.AsyncCursor, schema: SqlSchema) -> None:
+async def force_create_schema(conn: asyncpg.Connection, schema: SqlSchema) -> None:
     """Creates and applies the migrations to create the given objects in the database."""
     # ignore existing tables
     ops = generate_sql_migration_ops(old_schema=SqlSchema.blank(), new_schema=schema)
-    await apply_sql_migration_ops(cur, ops)
+    await apply_sql_migration_ops(conn, ops)
 
 
 def add_migration_to_fs(migration: Migration, code: str, *, overwrite: bool = False):
@@ -865,9 +919,15 @@ def _render_migration_op(op: MigrationOp) -> str | None:
 #
 
 
+async def pg_select_raw(conn: asyncpg.Connection, query: str) -> list[dict[str, Any]]:
+    """Execute a SELECT query and return the results as a list of dicts."""
+    records = await conn.fetch(query)
+    return [dict(record) for record in records]
+
+
 @tracer.start_as_current_span("sql.introspect_sql_schema")
 async def introspect_sql_schema(
-    cur: psycopg.AsyncCursor,
+    conn: asyncpg.Connection,
     *,
     include_columns: bool = True,
     include_constraints: bool = True,
@@ -884,7 +944,7 @@ async def introspect_sql_schema(
         pg_extension
     """
     if include_extensions:
-        extensions_rows = await pg_select_raw(cur=cur, query=extensions_query)
+        extensions_rows = await pg_select_raw(conn=conn, query=extensions_query)
         extensions = tuple(SqlExtension(name=row["extname"]) for row in extensions_rows)
     else:
         extensions = ()
@@ -911,7 +971,7 @@ async def introspect_sql_schema(
         exclude_patterns = ", ".join(f"'{prefix}%'" for prefix in exclude_table_prefixes)
         tables_query += f" AND table_name NOT LIKE ANY (ARRAY[{exclude_patterns}])"
 
-    tables_rows = await pg_select_raw(cur=cur, query=tables_query)
+    tables_rows = await pg_select_raw(conn=conn, query=tables_query)
     tables_names: list[str] = [str(row["table_name"]) for row in tables_rows]
 
     # columns
@@ -945,13 +1005,14 @@ LEFT JOIN
    information_schema.referential_constraints rc 
    ON tc.constraint_name = rc.constraint_name AND tc.table_schema = rc.constraint_schema
 WHERE 
-   col.table_schema = 'public' AND col.table_name = ANY({})
+   col.table_schema = 'public' AND col.table_name = ANY($1)
 -- deduplicate rows (may have multiple constraints)
 GROUP BY 
     col.table_name, col.column_name, col.data_type, col.udt_name, col.is_nullable, col.column_default;
                """
-        columns_query = sql.SQL(columns_query).format(sql.Literal(tables_names))
-        columns_rows = await pg_select_raw(cur=cur, query=columns_query)
+        columns_rows = await pg_select_raw(
+            conn=conn, query=await conn.prepare(columns_query).format(tables_names)
+        )
         columns_by_table: dict[str, list[SqlColumn]] = defaultdict(list)
         for row in columns_rows:
             udt_name = row["udt_name"]
@@ -1028,16 +1089,15 @@ LEFT JOIN
     ON tc.constraint_name = chk.constraint_name AND tc.table_schema = chk.constraint_schema
 WHERE 
     tc.table_schema = 'public' 
-    AND tc.table_name = ANY({})
+    AND tc.table_name = ANY($1)
     AND tc.constraint_type IS NOT NULL
     AND tc.constraint_type NOT IN ('PRIMARY KEY', 'FOREIGN KEY')
     AND (chk.check_clause IS NULL OR chk.check_clause NOT LIKE '% IS NOT NULL')
 GROUP BY 
     tc.table_name, tc.constraint_name, tc.constraint_type, chk.check_clause;
         """
-        constraints_query = sql.SQL(constraints_query).format(sql.Literal(tables_names))
-        constraints_rows: list[dict[str, str]] = await pg_select_raw(
-            cur=cur, query=constraints_query
+        constraints_rows = await pg_select_raw(
+            conn=conn, query=await conn.prepare(constraints_query).format(tables_names)
         )
         constraints_by_table: dict[str, list[SqlConstraint]] = defaultdict(list)
         for row in constraints_rows:
@@ -1069,10 +1129,11 @@ SELECT
 FROM 
     pg_indexes idx
 WHERE 
-    idx.schemaname = 'public' AND idx.tablename = ANY({});
+    idx.schemaname = 'public' AND idx.tablename = ANY($1);
             """
-        indexes_query = sql.SQL(indexes_query).format(sql.Literal(tables_names))
-        indexes_rows: list[dict[str, str]] = await pg_select_raw(cur=cur, query=indexes_query)
+        indexes_rows = await pg_select_raw(
+            conn=conn, query=await conn.prepare(indexes_query).format(tables_names)
+        )
         for row in indexes_rows:
             definition = row["index_definition"]
             columns_str = definition.split("(")[1].split(")")[0]
@@ -1135,6 +1196,6 @@ WHERE
         )
         tables.append(table)
 
-    logger.trace("sql.introspect", cur=cur, tables=tables, span="current")
+    logger.trace("sql.introspect", conn=conn, tables=tables, span="current")
 
     return SqlSchema(extensions=extensions, tables=tuple(tables))

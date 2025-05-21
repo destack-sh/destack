@@ -30,6 +30,8 @@ anyio==4.9.0
     #   watchfiles
 asttokens==3.0.0
     # via stack-data
+asyncpg==0.30.0
+    # via -r bench/requirements/system.in
 attrs==25.3.0
     # via
     #   aiohttp
@@ -385,12 +387,6 @@ protobuf==5.28.3
     #   proto-plus
 psutil==5.9.8
     # via livekit-agents
-psycopg==3.2.3
-    # via -r bench/requirements/system.in
-psycopg-binary==3.2.3
-    # via psycopg
-psycopg-pool==3.2.6
-    # via psycopg
 ptyprocess==0.7.0
     # via pexpect
 pure-eval==0.2.3
@@ -589,7 +585,6 @@ typing-extensions==4.13.2
     #   livekit-agents
     #   openai
     #   opentelemetry-sdk
-    #   psycopg-pool
     #   pydantic
     #   pydantic-core
     #   pyright

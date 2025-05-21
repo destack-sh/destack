@@ -1,5 +1,5 @@
 # <Header>
-import psycopg
+import asyncpg
 
 ID = "<ID>"
 VERSION = "<VERSION>"
@@ -13,11 +13,11 @@ HAS_LOCAL = "<HAS_LOCAL>"
 #
 
 
-async def upgrade_global(cur: psycopg.AsyncCursor):
+async def upgrade_global(cur: asyncpg.Connection):
     pass  # <upgrade_global>
 
 
-async def downgrade_global(cur: psycopg.AsyncCursor):
+async def downgrade_global(cur: asyncpg.Connection):
     pass  # <downgrade_global>
 
 
@@ -26,11 +26,11 @@ async def downgrade_global(cur: psycopg.AsyncCursor):
 #
 
 
-async def upgrade_regional(cur: psycopg.AsyncCursor):
+async def upgrade_regional(cur: asyncpg.Connection):
     pass  # <upgrade_regional>
 
 
-async def downgrade_regional(cur: psycopg.AsyncCursor):
+async def downgrade_regional(cur: asyncpg.Connection):
     pass  # <downgrade_regional>
 
 
@@ -39,9 +39,9 @@ async def downgrade_regional(cur: psycopg.AsyncCursor):
 #
 
 
-async def upgrade_local(cur: psycopg.AsyncCursor):
+async def upgrade_local(cur: asyncpg.Connection):
     pass  # <upgrade_local>
 
 
-async def downgrade_local(cur: psycopg.AsyncCursor):
+async def downgrade_local(cur: asyncpg.Connection):
     pass  # <downgrade_local>
