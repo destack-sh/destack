@@ -1,31 +1,23 @@
-from dataclasses import dataclass
-
-import psycopg
-
 from bench.language import (
     NODE_CLASSES,
     NODE_TYPES,
     RUNTIME_NODE_TYPES,
     UNSET,
-    Bench,
     BenchNode,
     EditType,
     Field,
-    GraphData,
     IsBased,
     Node,
     NodeArea,
     NodeType,
     PrimitiveType,
     Property,
-    Query,
     Record,
     ScalarType,
     Table,
     bittuple,
 )
 from bench.language.registry import HAS_CHILD_NODE_TYPES, NODE_CLASS_BY_TYPE
-from bench.pb2 import AnyNodeData, EditData, ScopeData
 from bench.utils.base58 import base58_encode
 from bench.utils.string import Casing, to_casing
 
@@ -45,9 +37,7 @@ from .core import (
     SqlSchema,
 )
 from .core import SqlTable as SqlTable
-from .engine import SqlContext, _trace_pg_span
 
-GLOBAL_CONTEXT = SqlContext()
 BENCH_TABLE_PREFIX = "bench_"
 BENCH_RECORD_TABLE_PREFIX = "bench_record_"
 BENCH_RECORD_VALUE_PREFIX = "value_"
@@ -61,13 +51,6 @@ CASCADING_EDIT_TYPES: bittuple[EditType] = bittuple(
 )
 CASCADING_PARENT_NODE_TYPES = HAS_CHILD_NODE_TYPES
 CASCADING_CHILD_NODE_TYPES = NODE_TYPES - RUNTIME_NODE_TYPES - bittuple(NodeType.MESSAGE)
-
-
-@dataclass(slots=True)
-class BenchSqlContext(SqlContext):
-    """Host context for SQL operations (with custom tables)."""
-
-    bench: Bench
 
 
 #
@@ -266,72 +249,6 @@ def map_table_to_sql_table(table: Table, prev_sql_table: SqlTable | None) -> Sql
         constraints=tuple(constraints),
         indexes=tuple(indexes),
     )
-
-
-@_trace_pg_span
-async def pg_graph_select(
-    *, cur: psycopg.AsyncCursor, ctx: SqlContext, query: Query
-) -> list[AnyNodeData]:
-    """
-    Selects the nodes from the graph matching the given query.
-    Only the given node type is selected, no joins are performed (up/down or sideways).
-    """
-    raise NotImplementedError
-
-
-@_trace_pg_span
-async def pg_graph_count(*, cur: psycopg.AsyncCursor, ctx: SqlContext, query: Query) -> int:
-    """Counts the nodes from the graph matching the given query. Ignores pagination parameters."""
-    raise NotImplementedError
-
-
-@_trace_pg_span
-async def pg_graph_exists(*, cur: psycopg.AsyncCursor, ctx: SqlContext, query: Query) -> bool:
-    """Checks if nodes from the graph matching the given query exist."""
-    raise NotImplementedError
-
-
-@_trace_pg_span
-async def pg_graph_get(
-    *,
-    cur: psycopg.AsyncCursor,
-    ctx: SqlContext,
-    query: Query,
-    visited_graph: GraphData,
-) -> None:
-    """
-    Gets the 'root' nodes from a Query (Query.roots) and recursively reads up/down the graph.
-    Also performs any additional joins needed for the query.
-    """
-    raise NotImplementedError
-
-
-@_trace_pg_span
-async def pg_graph_search(
-    cur: psycopg.AsyncCursor,
-    ctx: SqlContext,
-    scope: ScopeData,
-    query: Query,
-    count: bool,
-) -> tuple[list[AnyNodeData], GraphData, int | None]:
-    """
-    Search for roots matching the filter and then get the graph up/down/joined from there.
-    """
-    raise NotImplementedError
-
-
-# TODO :Performance!: use psycopg3/postgres pipelining to batch edits
-
-
-@_trace_pg_span
-async def pg_graph_edit(
-    *,
-    cur: psycopg.AsyncCursor,
-    ctx: SqlContext,
-    edits: list[EditData] | tuple[EditData, ...],
-) -> list[EditData]:
-    """Apply graph edits, cascading as needed. Returns the cascaded edits."""
-    raise NotImplementedError
 
 
 #

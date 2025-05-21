@@ -1,7 +1,7 @@
 from bench.language import NODE_CLASS_BY_TYPE, VERSION, NodeType
 from bench.utils.utils import format_python
 
-from .graph import map_builtin_object_to_sql_table
+from .map import map_builtin_object_to_sql_table
 
 
 def _gen_sql_schema():

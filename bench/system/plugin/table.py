@@ -17,7 +17,7 @@ from bench.sql import (
     introspect_sql_schema,
 )
 from bench.sql import SqlTable as SqlTable
-from bench.sql.graph import map_table_to_sql_table
+from bench.sql.map import map_table_to_sql_table
 from bench.system.host import Commit, HostPlugin
 
 if TYPE_CHECKING:
