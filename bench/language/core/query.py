@@ -381,10 +381,11 @@ def get[T: Node](
     **subqueries: Query,
 ) -> Query[T]:
     """Create a Get Query."""
+    metatype = node_cls if isinstance(node_cls, NodeType) else node_cls.metatype
     return Query(
         type=QueryType.GET,
-        relation=relation_ref(node_cls),
-        name=name,
+        relation=relation_ref(metatype),
+        name=name or metatype.bench_name,
         join=join,
         where=where,
         subqueries=to_subqueries(subqueries),
@@ -392,7 +393,7 @@ def get[T: Node](
 
 
 def search[T: Node](
-    node_cls: type[T],
+    node_cls: type[T] | NodeType,
     name: str,
     join: Optional[Join] = None,
     where: Optional[Condition] = None,
@@ -406,10 +407,11 @@ def search[T: Node](
     **subqueries: Query,
 ) -> Query[T]:
     """Create a Search Query."""
+    metatype = node_cls if isinstance(node_cls, NodeType) else node_cls.metatype
     return Query(
         type=QueryType.SEARCH,
-        relation=relation_ref(node_cls),
-        name=name,
+        relation=relation_ref(metatype),
+        name=name or metatype.bench_name,
         join=join,
         where=where,
         having=having,
@@ -424,7 +426,7 @@ def search[T: Node](
 
 
 def aggregate[T: Node](
-    node_cls: type[T],
+    node_cls: type[T] | NodeType,
     name: str,
     join: Optional[Join] = None,
     where: Optional[Condition] = None,
@@ -434,15 +436,13 @@ def aggregate[T: Node](
     limit: Optional[int] = None,
     offset: Optional[int] = None,
     count: bool = False,
-    **subqueries: Query,
 ) -> Query[T]:
     """Create an Aggregate Query."""
-    for name, subquery in subqueries.items():
-        subquery.name = name
+    metatype = node_cls if isinstance(node_cls, NodeType) else node_cls.metatype
     return Query(
         type=QueryType.AGGREGATE,
-        relation=relation_ref(node_cls),
-        name=name,
+        relation=relation_ref(metatype),
+        name=name or metatype.bench_name,
         join=join,
         where=where,
         group_by=group_by or [],
@@ -451,17 +451,19 @@ def aggregate[T: Node](
         limit=limit,
         offset=offset,
         count=count,
-        subqueries=to_subqueries(subqueries),
     )
 
 
 #
 # Query result
 # nocheckin: QueryResult
+#  GraphData, ..
+#  GetResult/SearchResult/AggregateResult, ...
 #
 
 # q = User.get(
 #     where=User.property("id").eq(5),
+#     Clients=Client.search(),
 #     BenchMemberships=Membership.search(
 #         where=Membership.property("parent").eq(NodeType.BENCH),
 #         sort=[Membership.property("created_at").desc()],

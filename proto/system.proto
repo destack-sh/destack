@@ -7,160 +7,6 @@ import "proto/common.proto";
 import "proto/lang.proto";
 
 //
-// Graph
-//
-
-message GetNodesRequest {
-  ScopeData scope = 1;
-  // The 'root' nodes to get around.
-  repeated NodeReferenceData roots = 2;  // must be of same type
-  // The relevant base type (if any).
-  optional NodeReferenceData base_type_ptr = 3;
-  // Ancestor nodes to include.
-  repeated NodeType ancestor_types = 10;
-  // Descendant nodes to include.
-  repeated NodeType descendant_types = 11;
-  // Which properties/fields to select.
-  optional SelectOptionsData select = 20;
-  // Whether to include deleted and archived nodes.
-  optional bool include_removed = 21;
-  // Whether to include memory.
-  optional bool no_memory = 22;
-  // Whether to sideline the cache.
-  optional bool no_cache = 30; 
-  // Whether the roots are considered optional (if not found, return empty result instead of error).
-  optional bool is_optional = 31;
-}
-message GetNodesResponse {
-  // Nodes are in pre-order (parent before children) traversal.
-  repeated SomeNodeData nodes = 1;
-  // Current epoch.
-  uint64 epoch = 10;
-  // Token to watch updates.
-  string connection_token = 11;
-}
-
-// NOTE :Architecture: the :ConnectionUpdateOrdering here is not strictly correct
-//  (currently we assume added/removed_nodes, then edits, then cascaded_edits for updates)
-
-message WatchGetRequest {
-  ScopeData scope = 1;
-  // The connection to watch. Must already exist.
-  string connection_token = 2;
-  // Get any updates in between the original request and this one.
-  uint64 since_epoch = 3;
-}
-message WatchGetResponse {
-  // Edits to current result set.
-  repeated EditData edits = 1;
-  // Cascaded edits to current result set.
-  repeated EditData cascaded_edits = 2;
-  // New nodes added to the result set.
-  repeated SomeNodeData added_nodes = 3;
-  // Nodes removed from the result set.
-  repeated NodeReferenceData removed_nodes_ptr = 4;
-  // Current epoch.
-  uint64 epoch = 10;
-  // Whether this is a keepalive stub.
-  optional bool is_keepalive = 11;
-}
-
-message SearchNodesRequest {
-  ScopeData scope = 1;
-  // The type of node to search.
-  NodeType node_type = 2;
-  // The relevant base type (if any).
-  optional NodeReferenceData base_type_ptr = 3;
-  // Filter for the search.
-  optional ExpressionData filter = 4;
-  // Sort order for the search.
-  repeated ExpressionData sort = 5;
-  // Ancestor nodes to include.
-  repeated NodeType ancestor_types = 10;
-  // Descendant nodes to include.
-  repeated NodeType descendant_types = 11;
-  // Limit result set.
-  optional int32 first = 20;
-  // Whether to get the total count.
-  optional bool count = 22;
-  // Which properties/fields to select.
-  optional SelectOptionsData select = 23;
-  // Whether to sideline the cache.
-  optional bool no_cache = 30;
-}
-message SearchNodesResponse {
-  // The 'root' result set for the search.
-  repeated NodeReferenceData roots_ptr = 1;
-  // All nodes in pre-order (parent before children) traversal.
-  repeated SomeNodeData nodes = 2;
-  // Total number of nodes in the result set.
-  optional int32 total = 5;
-  // Current epoch.
-  uint64 epoch = 10;
-  // Token to watch updates.
-  string connection_token = 11;
-}
-
-message WatchSearchRequest {
-  ScopeData scope = 1;
-  // The connection to watch. Must already exist.
-  string connection_token = 2;
-  // Get any updates in between the original request and this one.
-  uint64 since_epoch = 3;
-}
-message WatchSearchResponse {
-  // Edits to current result set.
-  repeated EditData edits = 1;
-  // Cascaded edits to current result set.
-  repeated EditData cascaded_edits = 2;
-  // Nodes added to the result set.
-  repeated SomeNodeData added_nodes = 3;
-  // Nodes removed from the result set.
-  repeated NodeReferenceData removed_nodes_ptr = 4;
-  // New roots in the result set.
-  // NOTE :Performance: make watch search root update incremental 
-  repeated NodeReferenceData roots_ptr = 5;
-  // New total count.
-  optional int32 total = 7;
-  // Current epoch.
-  uint64 epoch = 10;
-  // Whether this is a keepalive stub.
-  optional bool is_keepalive = 11;
-}
-
-message CommitTransactionRequest {
-  ScopeData scope = 1;
-  // UUIDT of the transaction.
-  string id = 2;
-  // All the edits for all the changes in order.
-  repeated EditData edits = 3;
-}
-message CommitTransactionResponse {
-  // Any cascaded edits.
-  repeated EditData cascaded_edits = 2; 
-  // Current epoch.
-  uint64 epoch = 3;
-}
-
-// Common service definition for global and bench-local :Graph
-// TODO :Architecture: Graph interface should just be Query + Subscribe + Commit :RichGraph
-//  (or maybe instead of Query + Subscribe -> Query + QueryAndSubscribe?)
-//  (and maybe some special methods for :ExclusiveOwnership acquisition/release (of Runs/Resources?)
-service Graph {
-  // Get nodes (of the same root type) in this graph. 
-  rpc GetNodes(GetNodesRequest) returns (GetNodesResponse);
-  // Receive any relevant node edits for a get query.
-  rpc WatchGet(WatchGetRequest) returns (stream WatchGetResponse);
-  // Search nodes in this graph.
-  rpc SearchNodes(SearchNodesRequest) returns (SearchNodesResponse);
-  // Receive any relevant node edits or result set updates for a search query.
-  rpc WatchSearch(WatchSearchRequest) returns (stream WatchSearchResponse);
-  // Commit a transaction to this graph.
-  rpc CommitTransaction(CommitTransactionRequest) returns (CommitTransactionResponse);
-}
-
-
-//
 // Supervisor
 //
 
@@ -270,18 +116,6 @@ service Supervisor {
   option (kind) = PUBLIC; // :ServiceKind
 
   //
-  // 'Global' IO for non-source nodes outside Benches :Graph :RichGraph
-  // NOTE :Architecture: should Supervisor really have subscription methods? 
-  //  (how to handle inevitable? overlap between Supervisor and Hosts in :RichGraph?)
-  //
-
-  rpc GetNodes(GetNodesRequest) returns (GetNodesResponse);
-  rpc WatchGet(WatchGetRequest) returns (stream WatchGetResponse);
-  rpc SearchNodes(SearchNodesRequest) returns (SearchNodesResponse);
-  rpc WatchSearch(WatchSearchRequest) returns (stream WatchSearchResponse);
-  rpc CommitTransaction(CommitTransactionRequest) returns (CommitTransactionResponse);
-
-  //
   // User management
   //
 
@@ -308,16 +142,41 @@ service Supervisor {
 // Host
 //
 
-enum ComputerEnvironment {
-  REGULAR = 0;
-  DOCKER = 1;
-  MINIKUBE = 2;
+message QueryRequest {
+  ScopeData scope = 1;
+  // The Query to execute.
+  QueryData query = 2;
+}
+message QueryResponse {
+  // The result of the Query.
+  // QueryResultData result = 1;
+}
+
+message SubscribeRequest {
+  string query_id = 1;
+}
+message SubscribeResponse {
+}
+
+message CommitRequest {
+  ScopeData scope = 1;
+  // UUID of the transaction.
+  string id = 2;
+  // All the Edits in order.
+  repeated EditData edits = 3;
+}
+message CommitResponse {
+  // The actual Edits that were applied.
+  repeated EditData edits = 1;
+  // Any cascaded edits.
+  repeated EditData cascaded_edits = 2; 
+  // Current epoch.
+  uint64 epoch = 3;
 }
 
 message UploadFilesRequest {
   ScopeData scope = 1;
   repeated FileData files = 2;
-  optional ComputerEnvironment environment = 3;
 }
 
 message UploadFilesResponse {
@@ -333,7 +192,6 @@ message UploadFilesResponse {
 message DownloadFilesRequest {
   ScopeData scope = 1;
   repeated NodeReferenceData files = 2;
-  optional ComputerEnvironment environment = 3;
 }
 
 message DownloadFilesResponse {
@@ -349,17 +207,15 @@ service Host {
   option (kind) = PUBLIC; // :ServiceKind
   
   //
-  // General IO for nodes in this Bench (only) :Graph
+  // Graph
   //
 
-  rpc GetNodes(GetNodesRequest) returns (GetNodesResponse);
-  rpc WatchGet(WatchGetRequest) returns (stream WatchGetResponse);
-  rpc SearchNodes(SearchNodesRequest) returns (SearchNodesResponse);
-  rpc WatchSearch(WatchSearchRequest) returns (stream WatchSearchResponse);
-  rpc CommitTransaction(CommitTransactionRequest) returns (CommitTransactionResponse);
+  rpc Query(QueryRequest) returns (QueryResponse);
+  rpc Subscribe(SubscribeRequest) returns (stream SubscribeResponse);
+  rpc Commit(CommitRequest) returns (CommitResponse);
 
   // 
-  // Misc 
+  // Files? 
   //
 
   // 'Upload' some files (get URLs to upload them to). Handles may be incomplete.
