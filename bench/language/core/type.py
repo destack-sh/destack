@@ -11,11 +11,10 @@ import structlog
 from fastuuid import UUID
 from opentelemetry import trace
 
-from bench.language.registry import BENCH_CLASS_BY_TYPE, BENCH_TYPE_BY_CLASS
+from bench.language.registry import BENCH_TYPE_BY_CLASS
 
 from .const import (
     PRIMITIVE_TYPE_BY_PY_TYPE,
-    PY_TYPE_BY_PRIMITIVE_TYPE,
     BenchType,
     BuiltinEnum,
     EnumType,
@@ -41,20 +40,26 @@ logger = structlog.get_logger(__name__)
 tracer = trace.get_tracer(__name__)
 
 
-@enum_(EnumType.TYPE_KIND)
-class TypeKind(BuiltinEnum):
+@enum_(EnumType.TYPE_CARDINALITY)
+class TypeCardinality(BuiltinEnum):
     """The 'kind' of a Type."""
 
-    SCHEMA = 2
-    PRIMITIVE = 10
-    STRUCT = 11
-    NODE = 12
-    ENUM = 13
-    LIST = 20
-    MAP = 21
-    OPTION = 22
-    # LITERAL = 23
-    # UNION = 24
+    SCALAR = 1
+    LIST = 2
+    MAP = 3
+    # OPTION = 4
+    # LITERAL = 5
+    # UNION = 6
+
+
+@enum_(EnumType.SCALAR_TYPE)
+class ScalarType(BuiltinEnum):
+    """The type of a scalar."""
+
+    PRIMITIVE = 1
+    ENUM = 2
+    NODE = 3
+    STRUCT = 4
 
 
 @enum_(EnumType.STRING_FORMAT)
@@ -120,8 +125,10 @@ class NodeConstraint(Struct):
     """The constraint of a node."""
 
     node_types: list["NodeType"] = p_regular(41)
+    # node_traits, page/thread/base/bench, ...
 
 
+Format = Union[NumberFormat, StringFormat]
 Constraint = Union[NumberConstraint, NodeConstraint, StringConstraint, CollectionConstraint]
 
 
@@ -131,27 +138,31 @@ class TypeBase(BuiltinObject):
     A Type describes the shape of a value.
     """
 
-    # type identity
-    kind: TypeKind = p_internal(40)
+    cardinality: TypeCardinality = p_internal(40)
+
+    # scalar
+    scalar_type: ScalarType = p_internal(41)
     primitive_type: Optional[PrimitiveType] = p_regular(42)
-    node_type: Optional[NodeType] = p_regular(43)
-    struct_type: Optional[StructType] = p_regular(44)
-    enum_type: Optional[EnumType] = p_regular(45)
-    base_type: Optional["Node"] = p_regular(46)
+    enum_type: Optional[EnumType] = p_regular(43)
+    node_type: Optional[NodeType] = p_regular(44)
+    struct_type: Optional[StructType] = p_regular(45)
+    default: Optional["Value"] = p_regular(46)
+    is_required: bool = p_regular(47, default=False)
+    is_variable: bool = p_regular(48, default=False)
+
+    # collection
+    base_type: Optional["Node"] = p_regular(50)
+    key_type: Optional["Type"] = p_regular(51)
+    element_type: Optional["Type"] = p_regular(52)
     if TYPE_CHECKING:
         base_type_id: Optional[UUID] = None
         base_type_ptr: Optional["NodeReference"] = None
 
-    default: Optional["Value"] = p_regular(50)
-    key_type: Optional["Type"] = p_regular(51)
-    element_type: Optional["Type"] = p_regular(52)
-
     # constraints
-    is_required: bool = p_regular(60, default=False)
-    collection_constraint: Optional["CollectionConstraint"] = p_regular(65)
-    string_constraint: Optional["StringConstraint"] = p_regular(66)
-    number_constraint: Optional["NumberConstraint"] = p_regular(67)
-    node_constraint: Optional["NodeConstraint"] = p_regular(68)
+    collection_constraint: Optional["CollectionConstraint"] = p_regular(60)
+    string_constraint: Optional["StringConstraint"] = p_regular(61)
+    number_constraint: Optional["NumberConstraint"] = p_regular(62)
+    node_constraint: Optional["NodeConstraint"] = p_regular(63)
 
     def morph_to(
         self,
@@ -256,28 +267,59 @@ def to_type_scalar(type_in: TypeIn) -> "Type":
             assert isinstance(type_scalar, Type), f"expected Type, got {type_scalar!r}"
             return type_scalar
     elif isinstance(type_in, PrimitiveType):
-        return Type(kind=TypeKind.PRIMITIVE, primitive_type=type_in)
+        return Type(
+            cardinality=TypeCardinality.SCALAR,
+            scalar_type=ScalarType.PRIMITIVE,
+            primitive_type=type_in,
+        )
     elif isinstance(type_in, (NodeType, StructType, EnumType, BenchType)):
         if is_node_type(type_in):
-            return Type(kind=TypeKind.NODE, node_type=type_in)
+            return Type(
+                cardinality=TypeCardinality.SCALAR,
+                scalar_type=ScalarType.NODE,
+                node_type=type_in,
+            )
         elif is_struct_type(type_in):
-            return Type(kind=TypeKind.STRUCT, struct_type=type_in)
+            return Type(
+                cardinality=TypeCardinality.SCALAR,
+                scalar_type=ScalarType.STRUCT,
+                struct_type=type_in,
+            )
         elif is_enum_type(type_in):
-            return Type(kind=TypeKind.ENUM, enum_type=type_in)
+            return Type(
+                cardinality=TypeCardinality.SCALAR,
+                scalar_type=ScalarType.ENUM,
+                enum_type=type_in,
+            )
     elif isinstance(type_in, type):
         primitive_type = PRIMITIVE_TYPE_BY_PY_TYPE.get(type_in)
         if primitive_type:
-            return Type(kind=TypeKind.PRIMITIVE, primitive_type=primitive_type)
+            return Type(
+                cardinality=TypeCardinality.SCALAR,
+                scalar_type=ScalarType.PRIMITIVE,
+                primitive_type=primitive_type,
+            )
         bench_type = BENCH_TYPE_BY_CLASS.get(cast(Any, type_in))
         if bench_type is not None:
             if is_node_type(bench_type):
-                return Type(kind=TypeKind.NODE, node_type=bench_type)
+                return Type(
+                    cardinality=TypeCardinality.SCALAR,
+                    scalar_type=ScalarType.NODE,
+                    node_type=bench_type,
+                )
             elif is_struct_type(bench_type):
-                return Type(kind=TypeKind.STRUCT, struct_type=bench_type)
+                return Type(
+                    cardinality=TypeCardinality.SCALAR,
+                    scalar_type=ScalarType.STRUCT,
+                    struct_type=bench_type,
+                )
             elif is_enum_type(bench_type):
-                return Type(kind=TypeKind.ENUM, enum_type=bench_type)
-        elif type_in == Node:
-            return Type(kind=TypeKind.NODE)
+                return Type(
+                    cardinality=TypeCardinality.SCALAR,
+                    scalar_type=ScalarType.ENUM,
+                    enum_type=bench_type,
+                )
+            return Type(cardinality=TypeCardinality.SCALAR, scalar_type=ScalarType.NODE)
 
     raise ValueError(f"unsupported type {type_in!r}")
 
@@ -298,18 +340,4 @@ def reverse_type_scalar(typ: TypeBase) -> TypeIn | None:
     Reverses a Type into a TypeIn as closely as possible.
     Does not consider non-scalar properties (is_list, is_required, etc.)
     """
-    if typ.kind == TypeKind.PRIMITIVE:
-        assert typ.primitive_type is not None, f"missing primitive type for {typ!r}"
-        primitive_cls = PY_TYPE_BY_PRIMITIVE_TYPE.get(typ.primitive_type)
-        if primitive_cls and PRIMITIVE_TYPE_BY_PY_TYPE.get(primitive_cls) == typ.primitive_type:
-            return primitive_cls
-        else:
-            return typ.primitive_type
-    elif typ.kind in (TypeKind.NODE, TypeKind.STRUCT, TypeKind.ENUM):
-        if typ.kind == TypeKind.NODE and typ.node_type is None:
-            return Node
-        assert typ.node_type is not None, f"missing node type for {typ!r}"
-        node_cls = BENCH_CLASS_BY_TYPE[typ.node_type]
-        return cast(TypeIn, node_cls)
-
-    return None  # couldn't reverse
+    raise NotImplementedError

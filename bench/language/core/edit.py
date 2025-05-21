@@ -5,13 +5,9 @@ import structlog
 from fastuuid import UUID
 from opentelemetry import trace
 
-from bench.pb2 import (
-    AnyNodeData,
-    EditData,
-    EditOperationData,
-)
+from bench.pb2 import AnyNodeData, EditData, EditOperationData
 
-from .const import EditOperationType, EditType, StructType
+from .const import BuiltinEnum, EnumType, StructType, enum_
 from .graph import Graph, GraphData
 from .node import Node
 from .property import p_regular, p_system
@@ -24,13 +20,52 @@ logger = structlog.get_logger(__name__)
 tracer = trace.get_tracer(__name__)
 
 
+@enum_(EnumType.EDIT_TYPE)
+class EditType(BuiltinEnum):
+    """Ways to edit nodes."""
+
+    CREATE = 20
+    UPSERT = 21
+    UPDATE = 22
+    MOVE = 23
+    ARCHIVE = 24
+    UNARCHIVE = 25
+    DELETE = 26
+    RESTORE = 27
+    ERASE = 28
+
+
+@enum_(EnumType.EDIT_OPERATION_TYPE)
+class EditOperationType(BuiltinEnum):
+    """The type of edit operation."""
+
+    # direct
+    SET = 1
+    CLEAR = 2
+
+    # list
+    # LIST_APPEND, LIST_APPEND_IF_MISSING, LIST_REMOVE, ...
+
+    # map
+    MAP_SET = 20
+    MAP_REMOVE = 21
+    # MAP_SET, MAP_REMOVE, ...
+
+    # math
+    # NUMBER_ADD, NUMBER_SUBTRACT, ...
+
+    # text
+    # ...
+
+
 @struct_(StructType.EDIT_OPERATION)
 class EditOperation(Struct):
     """An edit operation."""
 
     type: EditOperationType = p_system(30)
     key: str = p_system(31)
-    new_value: "Value | None" = p_regular(35)
+    new_value: "Value | None" = p_regular(40)
+    key_value: "Value | None" = p_regular(41)  # for map operations
 
 
 @struct_(StructType.EDIT)

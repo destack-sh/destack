@@ -22,7 +22,7 @@ from bench.language import (
     Query,
     Record,
     Table,
-    TypeKind,
+    TypeCardinality,
     bittuple,
 )
 from bench.language.registry import HAS_CHILD_NODE_TYPES, NODE_CLASS_BY_TYPE
@@ -249,15 +249,15 @@ def map_table_to_sql_table(table: Table, prev_sql_table: SqlTable | None) -> Sql
 
     # map fields into columns
     for field in table.get_children(Field):
-        if field.kind == TypeKind.PRIMITIVE:
+        if field.cardinality == TypeCardinality.PRIMITIVE:
             assert field.primitive_type is not None, f"no primitive type for {field!r}"
             primitive_type = field.primitive_type
-        elif field.kind == TypeKind.NODE:
+        elif field.cardinality == TypeCardinality.NODE:
             # NOTE :Architecture: unravel custom field node refs like in builtin objects?
             primitive_type = PrimitiveType.JSON
-        elif field.kind == TypeKind.STRUCT:
+        elif field.cardinality == TypeCardinality.STRUCT:
             primitive_type = PrimitiveType.JSON
-        elif field.kind == TypeKind.ENUM:
+        elif field.cardinality == TypeCardinality.ENUM:
             primitive_type = PrimitiveType.INT16
         else:
             raise TypeError(f"cannot store field in {table!r}: {field!r}")

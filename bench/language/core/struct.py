@@ -2,7 +2,6 @@ import abc
 from typing import (
     TYPE_CHECKING,
     ClassVar,
-    Sequence,
     cast,
     dataclass_transform,
     final,
@@ -49,27 +48,6 @@ class Struct[StructDataT: AnyStructData](BuiltinObject[StructDataT], abc.ABC):
     metatype: ClassVar[StructType]  # type: ignore
 
     __is_struct__: ClassVar[bool] = True
-
-    def __content_str__(self) -> str:
-        # default __content_str__ for Structs with all set properties
-        value_strs = []
-        for prop in self.__declared_properties__.values():
-            prop_value = getattr(self, prop.name)
-            if prop_value is not None and not (isinstance(prop_value, Sequence) and not prop_value):
-                if prop.is_enum:
-                    if prop.is_list:
-                        prop_value_str = "|".join(p.bench_name for p in prop_value)
-                    else:
-                        prop_value_str = prop_value.bench_name  # type: ignore
-                elif prop.struct_type:
-                    if prop.is_list:
-                        prop_value_str = f"{prop.struct_type.bench_name}[{len(prop_value)}]"
-                    else:
-                        prop_value_str = f"<{prop.struct_type.bench_name} ...>"
-                else:
-                    prop_value_str = repr(prop_value)
-                value_strs.append(f"{prop.name}={prop_value_str}")
-        return ", ".join(value_strs)
 
     @final
     def __repr__(self):

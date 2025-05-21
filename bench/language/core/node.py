@@ -268,45 +268,7 @@ class Node[NodeDataT: AnyNodeData](BuiltinObject[NodeDataT]):
 
     def __default_content_str__(self) -> str:
         """Default __content_str__ for Nodes with all set properties (incl. subtypes)."""
-        value_strs = []
-        properties = self.__declared_properties__.values()
-        for prop in properties:
-            if (
-                prop.id is UNSET
-                or prop.id is None
-                or prop.is_sensitive
-                or prop.id < 30
-                or prop.name in ("type", "name", "title", "order_key")
-            ):
-                continue
-            prop_value = getattr(self, prop.name)
-            if (
-                prop_value is None
-                or (isinstance(prop_value, Sequence) and not prop_value)
-                or (
-                    not isinstance(prop.default, BuiltinObject)
-                    and type(prop_value) is type(prop.default)
-                    and prop_value == prop.default
-                )
-            ):
-                continue
-            elif prop.is_enum:
-                if prop.is_list:
-                    prop_value_str = "|".join(p.bench_name for p in prop_value)
-                else:
-                    prop_value_str = prop_value.bench_name  # type: ignore
-            elif isinstance(prop_value, Node):
-                prop_value_str = f"<{prop_value._ident_key} ...>"
-            elif (
-                isinstance(prop_value, (list, tuple))
-                and prop_value
-                and isinstance(prop_value[0], Node)
-            ):
-                prop_value_str = f"[{', '.join(f'<{node.ident_str} ...>' for node in prop_value)}]"
-            else:
-                prop_value_str = repr(prop_value)
-            value_strs.append(f"{prop.name}={prop_value_str}")
-        return ", ".join(value_strs)
+        return ""  # nocheckin: generate BuiltinObject str
 
     @final
     def __str__(self):  # type: ignore

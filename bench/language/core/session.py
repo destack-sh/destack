@@ -23,7 +23,8 @@ from bench.pb2 import (
 )
 from bench.utils.oracle import Oracle
 
-from .const import EditType, NodeMode
+from .const import NodeMode
+from .edit import EditType
 from .graph import GraphData, Supergraph
 from .node import Node, Subject
 from .object import EMPTY_SCOPE_DATA
