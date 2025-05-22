@@ -27,7 +27,7 @@ from bench.language.core import (
 from bench.pb2 import BlockData
 
 if TYPE_CHECKING:
-    from bench.language import Page, ViewBase
+    from bench.language import IsView, Page
 
 # pyright: reportIncompatibleVariableOverride=false
 
@@ -85,7 +85,7 @@ class Block(
     # NOTE: maybe there should be a general mechanism for tying Nodes like Blocks? :NodeTying
     line: Optional["TextLine"] = p_regular(40)
     node: Optional["Node"] = p_regular(41, node_exclude=("base_id",))
-    view: Optional["ViewBase"] = p_regular(42, node_exclude=("base_id",))
+    view: Optional["IsView"] = p_regular(42, node_exclude=("base_id",))
     # size?
     if TYPE_CHECKING:
         node_id: Optional[UUID] = None

@@ -281,7 +281,7 @@ class EnumType(BuiltinEnum):
     ENUM_TYPE = 40000
     NODE_TYPE = 40001
     STRUCT_TYPE = 40002
-    NODE_TRAIT = 40004
+    TRAIT = 40004
     NODE_MODE = 40005
     NODE_AREA = 40006
     USER_STATUS = 40010
@@ -616,8 +616,6 @@ class NodeType(BuiltinEnum):
 
     # package [1000-1200]
     PACKAGE = 1000, "Package", "Isolated sub-Bench", "fas fa-box-open"
-    PACKAGE_MEMBERSHIP = 1001, "Package Membership", "Membership in a Package", "fas fa-user-group"
-    PACKAGE_INVITE = 1002, "Package Invite", "Invite to a Package", "fas fa-user-plus"
     DEPENDENCY = 1010, "Dependency", "Dependency to something", "fas fa-turn-down-right"
     PAGE = 1020, "Page", "Page of Blocks", "far fa-file"
     BLOCK = 1030, "Block", "Rich Block on a Page", "fas fa-cube"
@@ -714,7 +712,7 @@ class NodeType(BuiltinEnum):
     FRAME_VIEW = 8100, "Frame View", "Fixed Container", "fas fa-frame"
     LABEL_VIEW = 8101, "Label View", "Label Container", "fas fa-font-case"
     # FORM_VIEW, MENU_VIEW, EMAIL_VIEW, ...
-    COMPONENT_VIEW = 8110, "Component View", "Component Container", "fas fa-cube"
+    # COMPONENT_VIEW = 8110, "Component View", "Component Container", "fas fa-cube"
     SPLIT_VIEW = 8120, "Split View", "Split Container", "fas fa-columns"
     # TAB_VIEW = 8120, "Tab Container View", "Tab Container", "fas fa-tabs"
     # DRAWER_VIEW, SPLIT_DRAWER_VIEW, GRID/GRID_ELEMENT_VIEW, ...
@@ -777,8 +775,8 @@ class NodeType(BuiltinEnum):
     # SOUND, ...?
 
 
-@enum_(EnumType.NODE_TRAIT)
-class NodeTrait(BuiltinEnum):
+@enum_(EnumType.TRAIT)
+class Trait(BuiltinEnum):
     # bench [1-200]
     GLOBAL = 1, "Global", "Is global", "fas fa-globe"
     LOCAL = 3, "Local", "Is local", "fas fa-globe"

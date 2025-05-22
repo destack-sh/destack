@@ -29,6 +29,7 @@ from .const import (
     NodeType,
     PrimitiveType,
     StructType,
+    Trait,
 )
 
 if TYPE_CHECKING:
@@ -42,12 +43,11 @@ if TYPE_CHECKING:
         TypeCardinality,
     )
 
-    from .query import IsQueryable
+    from .query import IntoQuery
 
 
 def _resolve_enum_type(class_name: str) -> EnumType | None:
     """Get the EnumType for the given enum name."""
-    assert class_name
     enum_name = to_casing(class_name, Casing.ALL_CAPS)
     if enum_type := EnumType.__members__.get(enum_name):
         return enum_type
@@ -59,7 +59,6 @@ def _resolve_enum_type(class_name: str) -> EnumType | None:
 
 def _resolve_struct_type(class_name: str) -> StructType | None:
     """Get the StructType for the given struct name."""
-    assert class_name
     enum_name = to_casing(class_name, Casing.ALL_CAPS)
     if struct_type := StructType.__members__.get(enum_name):
         return struct_type
@@ -69,24 +68,21 @@ def _resolve_struct_type(class_name: str) -> StructType | None:
     return None
 
 
-def _resolve_node_types(class_name: str) -> tuple[NodeType, ...] | None:
+def _resolve_node_types(class_name: str) -> tuple[NodeType | Trait, ...] | None:
     """Get the NodeType for the given node name."""
-    assert class_name
 
-    # try both (like Vector2->VECTOR_2 and Vector2->VECTOR2)
+    if class_name.startswith("Is"):
+        class_name = class_name[2:]
     enum_name = to_casing(class_name, Casing.ALL_CAPS)
     if node_type := NodeType.__members__.get(enum_name):
         return (node_type,)
-    enum_name = class_name.upper()
-    if node_type := NodeType.__members__.get(enum_name):
+    if trait := Trait.__members__.get(enum_name):
+        return (trait,)
+    if node_type := NodeType.__members__.get(class_name.upper()):
         return (node_type,)
-
-    # special node collections
-    match class_name:
-        case "Node":
-            return NODE_TYPES.tuple
-        case _:
-            return None
+    if class_name == "Node":
+        return NODE_TYPES.tuple
+    return None
 
 
 def _try_resolve(
@@ -111,7 +107,7 @@ class TypeAnnotation:
     primitive_type: PrimitiveType | None = None
     enum_type: EnumType | None = None
     struct_type: StructType | None = None
-    node_types: tuple[NodeType, ...] = ()  # for node scalar nodes
+    node_types: tuple[NodeType | Trait, ...] = ()  # for node scalar nodes
     key_type: "TypeAnnotation | None" = None
     is_required: bool = True
     is_variable: bool = False
@@ -264,7 +260,7 @@ def get_class_name(py_type: type | typing.ForwardRef | str) -> str | None:
 
 
 @dataclass(eq=False, slots=True)
-class Property(IsQueryable if TYPE_CHECKING else object):
+class Property(IntoQuery if TYPE_CHECKING else object):
     """A system-defined attribute of a BuiltinObject (Struct or Node)."""
 
     # NOTE: yes cast(int, None) is a bit evil but we almost always immediately assign it here and
@@ -294,7 +290,7 @@ class Property(IsQueryable if TYPE_CHECKING else object):
 
     ptr_prop: Optional["Property"] = None  # wired representation for pointers
     runtime_prop: Optional["Property"] = None  # for the proto property
-    node_types: tuple[NodeType, ...] = ()  # for node relations
+    node_types: tuple[NodeType | Trait, ...] = ()  # for node relations
     node_kind: NodeReferenceKind | None = None
     node_bench_from: Literal["self"] | None = None
     node_exclude: tuple[Literal["ck", "base_id"], ...] = ()
@@ -675,9 +671,9 @@ class Property(IsQueryable if TYPE_CHECKING else object):
 
 @_on_completing_setup
 def _add_property_queryable():
-    from .query import IsQueryable
+    from .query import IntoQuery
 
-    for name, attr in IsQueryable.__dict__.items():
+    for name, attr in IntoQuery.__dict__.items():
         if name not in Property.__dict__ and name not in ("__annotations__", "__dict__"):
             setattr(Property, name, attr)
 

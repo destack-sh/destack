@@ -16,7 +16,7 @@ from bench.language.core import (
 )
 from bench.pb2 import FontStyleData
 
-from .core import IsVariable, Length
+from .core import Length
 from .fill import Fill
 from .style import IsStyle
 
@@ -87,7 +87,7 @@ class TextTransform(BuiltinEnum):
 
 
 @object_()
-class FontBase(IsVariable, BuiltinObject):
+class FontBase(BuiltinObject):
     """A text style value."""
 
     type: FontType = p_regular(30, default=FontType.SANS)

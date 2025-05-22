@@ -512,7 +512,7 @@ def aggregate[T: Node](
 #     Scenes=Scene.search(
 #         Fields=Field.search(),
 #         Themes=Theme.search(),
-#         Views=ViewBase.search(join=join(JoinType.PARENT, recursive=True)),
+#         Views=IsView.search(join=join(JoinType.PARENT, recursive=True)),
 #         Styles=IsStyle.search(join=join(JoinType.PARENT, recursive=True)),
 #     ),
 #     Route=Route.search(),
@@ -529,7 +529,7 @@ class QueryResult:
 #
 
 
-class IsQueryable:
+class IntoQuery:
     def is_equal(self: Any, value: Any) -> "Condition":
         if value is None:
             return self.not_exists()

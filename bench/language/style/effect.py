@@ -17,7 +17,7 @@ from bench.language.core import (
 )
 from bench.pb2 import EffectStyleData
 
-from .core import Axis3, IsVariable, Vector2
+from .core import Axis3, Vector2
 from .style import IsStyle
 from .transition import Transition
 
@@ -69,7 +69,7 @@ class OffscreenBehavior(BuiltinEnum):
 
 
 @object_()
-class EffectBase(IsVariable, BuiltinObject):
+class EffectBase(BuiltinObject):
     """A base class for effects."""
 
     type: EffectType = p_regular(30)

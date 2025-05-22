@@ -1,6 +1,6 @@
 from typing import TYPE_CHECKING, Optional
 
-from bench.language.core import NodeType, VariableProperty, node_, p_regular
+from bench.language.core import Node, NodeType, VariableProperty, node_, p_regular
 from bench.pb2 import TextViewData
 
 from .content import IsContentView
@@ -8,9 +8,11 @@ from .content import IsContentView
 if TYPE_CHECKING:
     from bench.language import Fill, Font
 
+# pyright: reportIncompatibleVariableOverride=false
+
 
 @node_(NodeType.TEXT_VIEW)
-class TextView(IsContentView[TextViewData]):
+class TextView(IsContentView, Node[TextViewData]):
     """A (rich) text view."""
 
     # appearance

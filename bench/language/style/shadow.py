@@ -17,7 +17,7 @@ from bench.language.core import (
 from bench.pb2 import ShadowStyleData
 
 from .color import Color
-from .core import Axis2, IsVariable
+from .core import Axis2
 from .style import IsStyle
 
 if TYPE_CHECKING:
@@ -45,7 +45,7 @@ class ShadowPosition(BuiltinEnum):
 
 
 @object_()
-class ShadowBase(IsVariable, BuiltinObject):
+class ShadowBase(BuiltinObject):
     type: ShadowType = p_regular(30, default=ShadowType.BOX)
     style: Optional["ShadowStyle"] = p_regular(41)
     color: Optional["Color"] = p_regular(50)

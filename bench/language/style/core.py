@@ -1,28 +1,19 @@
-from typing import TYPE_CHECKING, Optional
+from typing import TYPE_CHECKING
 
 from bench.language.core import (
     BuiltinEnum,
-    BuiltinObject,
     EnumType,
     Struct,
     StructType,
     enum_,
-    object_,
     p_regular,
     struct_,
 )
 
 if TYPE_CHECKING:
-    from bench.language import Field
+    pass
 
 # pyright: reportIncompatibleVariableOverride=false
-
-
-@object_()
-class IsVariable(BuiltinObject):
-    """A value that can be tied to a Field."""
-
-    field: Optional["Field"] = p_regular(40)
 
 
 @enum_(EnumType.LAYOUT)

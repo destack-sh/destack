@@ -1,9 +1,9 @@
 from typing import TYPE_CHECKING, Optional
 
-from bench.language.core import NodeTrait, VariableProperty, node_trait_, p_regular
+from bench.language.core import Trait, VariableProperty, p_regular, trait_
 from bench.pb2 import AnyNodeData
 
-from ..view import ViewBase
+from ..view import IsView
 
 if TYPE_CHECKING:
     from bench.language import Align
@@ -11,8 +11,8 @@ if TYPE_CHECKING:
 # pyright: reportIncompatibleVariableOverride=false
 
 
-@node_trait_(NodeTrait.CONTENT_VIEW)
-class IsContentView[NodeDataT: AnyNodeData](ViewBase[NodeDataT]):
+@trait_(Trait.CONTENT_VIEW)
+class IsContentView[NodeDataT: AnyNodeData](IsView[NodeDataT]):
     """A content View."""
 
     # layout

@@ -4,12 +4,12 @@ from bench.language.core import (
     BuiltinEnum,
     Constraint,
     EnumType,
+    IntoQuery,
     IsInPackage,
     IsInstantiable,
     IsModal,
     IsNamed,
     IsOrdered,
-    IsQueryable,
     Node,
     NodeType,
     Property,
@@ -27,7 +27,7 @@ from bench.language.core import (
 from bench.pb2 import FieldData
 
 if TYPE_CHECKING:
-    from bench.language import Action, Agent, Flow, Icon, Scene, Schema, Table, ViewBase
+    from bench.language import Action, Agent, Flow, Icon, IsView, Scene, Schema, Table
 
 
 # pyright: reportIncompatibleVariableOverride=false, reportIncompatibleMethodOverride=false
@@ -55,7 +55,7 @@ class Field(
     IsModal,
     IsNamed,
     IsOrdered,
-    IsQueryable,
+    IntoQuery,
     TypeBase,
     IsInPackage,
     Node[FieldData],
@@ -64,7 +64,7 @@ class Field(
     A Field is a user-defined attribute.
     """
 
-    parent: Union["Agent", "Action", "Schema", "Flow", "Table", "Scene", "ViewBase", None] = (
+    parent: Union["Agent", "Action", "Schema", "Flow", "Table", "Scene", "IsView", None] = (
         p_node_parent()
     )
     type: FieldType = p_internal(30)
@@ -81,7 +81,7 @@ class Field(
         return TypeBase.__content_str__(self)
 
     def __eq__(self, other):  # type: ignore
-        return IsQueryable.__eq__(self, other)  # override to avoid recursion
+        return IntoQuery.__eq__(self, other)  # override to avoid recursion
 
     __hash__ = IsInPackage.__hash__  # type: ignore
 

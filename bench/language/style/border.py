@@ -17,7 +17,7 @@ from bench.language.core import (
 from bench.pb2 import BorderStyleData
 
 from .color import Color
-from .core import Insets, IsVariable
+from .core import Insets
 from .style import IsStyle
 
 if TYPE_CHECKING:
@@ -41,7 +41,7 @@ class BorderType(BuiltinEnum):
 
 
 @object_()
-class BorderBase(IsVariable, BuiltinObject):
+class BorderBase(BuiltinObject):
     type: BorderType = p_regular(30, default=BorderType.SOLID)
     style: Optional["BorderStyle"] = p_regular(41)
     color: Optional["Color"] = p_regular(50)

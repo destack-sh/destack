@@ -7,11 +7,12 @@ from .core.const import (
     ENUM_TYPES,
     NODE_TYPES,
     STRUCT_TYPES,
+    UNSET,
     BuiltinEnum,
     EnumType,
-    NodeTrait,
     NodeType,
     StructType,
+    Trait,
 )
 
 if TYPE_CHECKING:
@@ -20,7 +21,8 @@ if TYPE_CHECKING:
 ENUM_CLASS_BY_TYPE = _ENUM_CLASS_BY_TYPE  # re-exported to avoid circular imports
 ENUM_TYPE_BY_CLASS: dict[type, EnumType] = {}
 NODE_CLASS_BY_TYPE: dict[NodeType, type["Node"]] = {}
-NODE_CLASS_BY_TRAIT: dict[NodeTrait, type["BuiltinObject"]] = {}
+NODE_CLASS_BY_TRAIT: dict[Trait, type["BuiltinObject"]] = {}
+NODE_TYPES_BY_TRAIT: dict[Trait, tuple[NodeType, ...]] = {}
 STRUCT_CLASS_BY_TYPE: dict[StructType, type["Struct"]] = {}
 
 BUILTIN_OBJECT_CLASS_BY_TYPE: dict[NodeType | StructType, type["BuiltinObject"]] = {}
@@ -48,6 +50,7 @@ def _on_completing_setup(func: Callable | None = None):
 def _complete_bench_setup():
     """Finalize setup of all language constructs after everything is imported."""
     from bench.language.core.object import _is_setup_complete, _set_setup_complete
+    from bench.language.core.trait import expand_node_types
 
     if _is_setup_complete():
         return
@@ -68,6 +71,19 @@ def _complete_bench_setup():
         BENCH_CLASS_BY_TYPE[enum_type] = ENUM_CLASS_BY_TYPE[enum_type]
         BENCH_TYPE_BY_CLASS[ENUM_CLASS_BY_TYPE[enum_type]] = enum_type
         ENUM_TYPE_BY_CLASS[ENUM_CLASS_BY_TYPE[enum_type]] = enum_type
+
+    # index node types by trait
+    node_types_by_trait: dict[Trait, list[NodeType]] = defaultdict(list)
+    for node_cls in NODE_CLASS_BY_TYPE.values():
+        for trait in node_cls.__traits__:
+            node_types_by_trait[trait].append(node_cls.metatype)
+    for trait, node_types in node_types_by_trait.items():
+        NODE_TYPES_BY_TRAIT[trait] = tuple(node_types)
+
+    # index parent types
+    for node_cls in NODE_CLASS_BY_TYPE.values():
+        assert node_cls.__parent_property__ is not UNSET
+        node_cls.__parent_types__ = expand_node_types(node_cls.__parent_property__.node_types)
 
     # index child types
     child_types_by_parent: dict[NodeType, list[NodeType]] = defaultdict(list)

@@ -328,15 +328,15 @@ enum EditOperationType {
 // Ways to edit nodes.
 enum EditType {
   EDIT_TYPE_UNSPECIFIED = 0;
-  EDIT_TYPE_CREATE = 20;
-  EDIT_TYPE_UPSERT = 21;
-  EDIT_TYPE_UPDATE = 22;
-  EDIT_TYPE_MOVE = 23;
-  EDIT_TYPE_ARCHIVE = 24;
-  EDIT_TYPE_UNARCHIVE = 25;
-  EDIT_TYPE_DELETE = 26;
-  EDIT_TYPE_RESTORE = 27;
-  EDIT_TYPE_ERASE = 28;
+  EDIT_TYPE_CREATE = 1;
+  EDIT_TYPE_UPSERT = 2;
+  EDIT_TYPE_UPDATE = 3;
+  EDIT_TYPE_MOVE = 4;
+  EDIT_TYPE_ARCHIVE = 5;
+  EDIT_TYPE_UNARCHIVE = 6;
+  EDIT_TYPE_DELETE = 7;
+  EDIT_TYPE_RESTORE = 8;
+  EDIT_TYPE_ERASE = 9;
 }
 
 // When the effect fires.
@@ -360,6 +360,7 @@ enum EnumType {
   ENUM_TYPE_ENUM_TYPE = 40000;
   ENUM_TYPE_NODE_TYPE = 40001;
   ENUM_TYPE_STRUCT_TYPE = 40002;
+  ENUM_TYPE_TRAIT = 40004;
   ENUM_TYPE_NODE_MODE = 40005;
   ENUM_TYPE_NODE_AREA = 40006;
   ENUM_TYPE_USER_STATUS = 40010;
@@ -847,10 +848,14 @@ enum NodeMode {
 
 enum NodeType {
   NODE_TYPE_UNSPECIFIED = 0;
-  NODE_TYPE_BENCH = 1;
-  NODE_TYPE_HANDLE = 2;
-  NODE_TYPE_USER = 10;
-  NODE_TYPE_ORGANIZATION = 20;
+  NODE_TYPE_BENCH = 10;
+  NODE_TYPE_BENCH_MEMBERSHIP = 11;
+  NODE_TYPE_BENCH_INVITE = 12;
+  NODE_TYPE_HANDLE = 20;
+  NODE_TYPE_USER = 30;
+  NODE_TYPE_ORGANIZATION = 40;
+  NODE_TYPE_ORGANIZATION_MEMBERSHIP = 41;
+  NODE_TYPE_ORGANIZATION_INVITE = 42;
   NODE_TYPE_CLIENT = 50;
   NODE_TYPE_PACKAGE = 1000;
   NODE_TYPE_DEPENDENCY = 1010;
@@ -871,17 +876,15 @@ enum NodeType {
   NODE_TYPE_MESSAGE = 1820;
   NODE_TYPE_NOTIFICATION = 1850;
   NODE_TYPE_SERVICE = 2000;
-  NODE_TYPE_ACTION = 2010;
-  NODE_TYPE_FLOW = 2020;
-  NODE_TYPE_FLOW_EDGE = 2021;
-  NODE_TYPE_AGENT = 2050;
+  NODE_TYPE_ACTION = 2020;
+  NODE_TYPE_FLOW = 2040;
+  NODE_TYPE_FLOW_EDGE = 2041;
+  NODE_TYPE_AGENT = 2100;
   NODE_TYPE_TASK = 2200;
   NODE_TYPE_CURSOR = 2220;
   NODE_TYPE_RUN = 2610;
   NODE_TYPE_SPAN = 2620;
   NODE_TYPE_INTERRUPTION = 2630;
-  NODE_TYPE_MEMBERSHIP = 2800;
-  NODE_TYPE_INVITE = 2810;
   NODE_TYPE_TEAM = 2820;
   NODE_TYPE_ROLE = 2830;
   NODE_TYPE_CLAIM = 2840;
@@ -890,7 +893,6 @@ enum NodeType {
   NODE_TYPE_ROUTE = 8020;
   NODE_TYPE_FRAME_VIEW = 8100;
   NODE_TYPE_LABEL_VIEW = 8101;
-  NODE_TYPE_COMPONENT_VIEW = 8110;
   NODE_TYPE_SPLIT_VIEW = 8120;
   NODE_TYPE_TEXT_VIEW = 8200;
   NODE_TYPE_NUMBER_INPUT_VIEW = 8300;
@@ -905,7 +907,6 @@ enum NodeType {
   NODE_TYPE_GRADIENT_STYLE = 9014;
   NODE_TYPE_TRANSITION_STYLE = 9015;
   NODE_TYPE_EFFECT_STYLE = 9016;
-  NODE_TYPE_EMPTY = 9999;
 }
 
 enum NotificationStatus {
@@ -1321,6 +1322,44 @@ enum TimeInterval {
   TIME_INTERVAL_YEAR = 8;
 }
 
+enum Trait {
+  TRAIT_UNSPECIFIED = 0;
+  TRAIT_GLOBAL = 1;
+  TRAIT_LOCAL = 3;
+  TRAIT_MODAL = 10;
+  TRAIT_NAMED = 11;
+  TRAIT_TITLED = 12;
+  TRAIT_ORDERED = 13;
+  TRAIT_ARCHIVABLE = 14;
+  TRAIT_DELETABLE = 15;
+  TRAIT_TEMPLATABLE = 20;
+  TRAIT_INSTANTIABLE = 21;
+  TRAIT_EXTENSIBLE = 22;
+  TRAIT_BASED = 23;
+  TRAIT_IN_BENCH = 30;
+  TRAIT_IN_PACKAGE = 31;
+  TRAIT_RESOURCE = 40;
+  TRAIT_PROVISIONABLE = 41;
+  TRAIT_PAGEABLE = 1020;
+  TRAIT_BLOCKABLE = 1030;
+  TRAIT_RUNNABLE = 2000;
+  TRAIT_PROCESSABLE = 2001;
+  TRAIT_COMPUTABLE = 2002;
+  TRAIT_OWNABLE = 2800;
+  TRAIT_CLAIMABLE = 2801;
+  TRAIT_JOINABLE = 2802;
+  TRAIT_SUBJECT = 2805;
+  TRAIT_MEMBERSHIP = 2810;
+  TRAIT_INVITE = 2811;
+  TRAIT_VIEW = 8001;
+  TRAIT_CONTAINER_VIEW = 8100;
+  TRAIT_CONTENT_VIEW = 8200;
+  TRAIT_INPUT_VIEW = 8300;
+  TRAIT_NODE_VIEW = 8400;
+  TRAIT_INTERNAL_VIEW = 8500;
+  TRAIT_STYLE = 9000;
+}
+
 // Built-in transition types.
 enum TransitionType {
   TRANSITION_TYPE_UNSPECIFIED = 0;
@@ -1366,8 +1405,6 @@ message ActionData {
   optional NodeReferenceData created_by_ptr = 11;
   google.protobuf.Timestamp updated_at = 12;
   optional NodeReferenceData updated_by_ptr = 13;
-  optional google.protobuf.Timestamp archived_at = 14;
-  optional google.protobuf.Timestamp deleted_at = 15;
   optional NodeReferenceData template_ptr = 16;
   optional NodeReferenceData claimed_by_ptr = 18;
   NodeMode mode = 25;
@@ -1400,8 +1437,6 @@ message AgentData {
   optional NodeReferenceData created_by_ptr = 11;
   google.protobuf.Timestamp updated_at = 12;
   optional NodeReferenceData updated_by_ptr = 13;
-  optional google.protobuf.Timestamp archived_at = 14;
-  optional google.protobuf.Timestamp deleted_at = 15;
   optional NodeReferenceData template_ptr = 16;
   optional NodeReferenceData owned_by_ptr = 17;
   optional NodeReferenceData claimed_by_ptr = 18;
@@ -1454,8 +1489,6 @@ message ApplicationData {
   optional NodeReferenceData created_by_ptr = 11;
   google.protobuf.Timestamp updated_at = 12;
   optional NodeReferenceData updated_by_ptr = 13;
-  optional google.protobuf.Timestamp archived_at = 14;
-  optional google.protobuf.Timestamp deleted_at = 15;
   optional NodeReferenceData template_ptr = 16;
   NodeMode mode = 25;
   optional string name = 31;
@@ -1500,8 +1533,6 @@ message BenchData {
   optional NodeReferenceData created_by_ptr = 11;
   google.protobuf.Timestamp updated_at = 12;
   optional NodeReferenceData updated_by_ptr = 13;
-  optional google.protobuf.Timestamp archived_at = 14;
-  optional google.protobuf.Timestamp deleted_at = 15;
   optional NodeReferenceData owned_by_ptr = 17;
   optional NodeReferenceData handle_ptr = 31;
   string slug = 32;
@@ -1512,6 +1543,30 @@ message BenchData {
   BenchStatus status = 40;
   optional NodeReferenceData database_ptr = 50;
   optional NodeReferenceData package_ptr = 51;
+}
+
+// A BenchInvite is an invite to a Bench.
+message BenchInviteData {
+  NodeType metatype = 1;
+  string id = 2;
+  NodeReferenceData parent_ptr = 4;
+  google.protobuf.Timestamp created_at = 10;
+  optional NodeReferenceData created_by_ptr = 11;
+  google.protobuf.Timestamp updated_at = 12;
+  optional NodeReferenceData updated_by_ptr = 13;
+}
+
+// A BenchMembership is a membership to a Bench.
+message BenchMembershipData {
+  NodeType metatype = 1;
+  string id = 2;
+  NodeReferenceData parent_ptr = 4;
+  optional NodeReferenceData bench_ptr = 6;
+  google.protobuf.Timestamp created_at = 10;
+  optional NodeReferenceData created_by_ptr = 11;
+  google.protobuf.Timestamp updated_at = 12;
+  optional NodeReferenceData updated_by_ptr = 13;
+  optional NodeReferenceData member_ptr = 40;
 }
 
 // A Block on a Page.
@@ -1525,8 +1580,6 @@ message BlockData {
   optional NodeReferenceData created_by_ptr = 11;
   google.protobuf.Timestamp updated_at = 12;
   optional NodeReferenceData updated_by_ptr = 13;
-  optional google.protobuf.Timestamp archived_at = 14;
-  optional google.protobuf.Timestamp deleted_at = 15;
   optional NodeReferenceData template_ptr = 16;
   NodeMode mode = 25;
   BlockType type = 30;
@@ -1540,7 +1593,6 @@ message BlockData {
 message BorderData {
   StructType metatype = 1;
   BorderType type = 30;
-  optional NodeReferenceData field_ptr = 40;
   optional NodeReferenceData style_ptr = 41;
   optional ColorData color = 50;
   optional InsetsData width = 51;
@@ -1557,8 +1609,6 @@ message BorderStyleData {
   optional NodeReferenceData created_by_ptr = 11;
   google.protobuf.Timestamp updated_at = 12;
   optional NodeReferenceData updated_by_ptr = 13;
-  optional google.protobuf.Timestamp archived_at = 14;
-  optional google.protobuf.Timestamp deleted_at = 15;
   optional NodeReferenceData template_ptr = 16;
   NodeMode mode = 25;
   BorderType type = 30;
@@ -1566,7 +1616,6 @@ message BorderStyleData {
   string order_key = 33;
   optional IconData icon = 34;
   optional NodeReferenceData definition_ptr = 35;
-  optional NodeReferenceData field_ptr = 40;
   optional NodeReferenceData style_ptr = 41;
   optional ColorData color = 50;
   optional InsetsData width = 51;
@@ -1584,8 +1633,6 @@ message ChannelData {
   optional NodeReferenceData created_by_ptr = 11;
   google.protobuf.Timestamp updated_at = 12;
   optional NodeReferenceData updated_by_ptr = 13;
-  optional google.protobuf.Timestamp archived_at = 14;
-  optional google.protobuf.Timestamp deleted_at = 15;
   optional NodeReferenceData template_ptr = 16;
   NodeMode mode = 25;
   optional string name = 31;
@@ -1619,8 +1666,6 @@ message ClaimData {
   optional NodeReferenceData created_by_ptr = 11;
   google.protobuf.Timestamp updated_at = 12;
   optional NodeReferenceData updated_by_ptr = 13;
-  optional google.protobuf.Timestamp archived_at = 14;
-  optional google.protobuf.Timestamp deleted_at = 15;
   optional NodeReferenceData template_ptr = 16;
   optional NodeReferenceData owned_by_ptr = 17;
   NodeMode mode = 25;
@@ -1648,8 +1693,6 @@ message ClientData {
   optional NodeReferenceData created_by_ptr = 11;
   google.protobuf.Timestamp updated_at = 12;
   optional NodeReferenceData updated_by_ptr = 13;
-  optional google.protobuf.Timestamp archived_at = 14;
-  optional google.protobuf.Timestamp deleted_at = 15;
   ClientType type = 30;
   optional string name = 31;
   optional NodeReferenceData space_ptr = 35;
@@ -1681,7 +1724,6 @@ message CollectionConstraintData {
 message ColorData {
   StructType metatype = 1;
   ColorType type = 30;
-  optional NodeReferenceData field_ptr = 40;
   optional NodeReferenceData style_ptr = 42;
   optional ColorHue hue = 50;
   optional ColorShade shade = 51;
@@ -1702,8 +1744,6 @@ message ColorStyleData {
   optional NodeReferenceData created_by_ptr = 11;
   google.protobuf.Timestamp updated_at = 12;
   optional NodeReferenceData updated_by_ptr = 13;
-  optional google.protobuf.Timestamp archived_at = 14;
-  optional google.protobuf.Timestamp deleted_at = 15;
   optional NodeReferenceData template_ptr = 16;
   NodeMode mode = 25;
   ColorType type = 30;
@@ -1711,7 +1751,6 @@ message ColorStyleData {
   string order_key = 33;
   optional IconData icon = 34;
   optional NodeReferenceData definition_ptr = 35;
-  optional NodeReferenceData field_ptr = 40;
   optional NodeReferenceData style_ptr = 42;
   optional ColorHue hue = 50;
   optional ColorShade shade = 51;
@@ -1720,96 +1759,6 @@ message ColorStyleData {
   optional float z = 54;
   optional float alpha = 55;
   optional ColorData dark = 60;
-}
-
-// A component View.
-message ComponentViewData {
-  NodeType metatype = 1;
-  string id = 2;
-  string ck = 3;
-  optional NodeReferenceData parent_ptr = 4;
-  optional NodeReferenceData bench_ptr = 6;
-  optional NodeReferenceData package_ptr = 7;
-  google.protobuf.Timestamp created_at = 10;
-  optional NodeReferenceData created_by_ptr = 11;
-  google.protobuf.Timestamp updated_at = 12;
-  optional NodeReferenceData updated_by_ptr = 13;
-  optional google.protobuf.Timestamp archived_at = 14;
-  optional google.protobuf.Timestamp deleted_at = 15;
-  optional NodeReferenceData template_ptr = 16;
-  NodeMode mode = 25;
-  optional string name = 31;
-  string order_key = 33;
-  optional IconData icon = 34;
-  optional NodeReferenceData definition_ptr = 35;
-  optional PositionData position = 40;
-  optional DimensionData width = 41;
-  optional DimensionData height = 42;
-  optional DimensionData min_width = 43;
-  optional DimensionData min_height = 44;
-  optional DimensionData max_width = 45;
-  optional DimensionData max_height = 46;
-  optional Layout layout = 50;
-  oneof direction {
-    Direction direction_value = 51;
-    VariableData direction_variable = 17051;
-  };
-  oneof distribute {
-    Distribute distribute_value = 52;
-    VariableData distribute_variable = 17052;
-  };
-  oneof align {
-    Align align_value = 53;
-    VariableData align_variable = 17053;
-  };
-  oneof gap {
-    Axis2Data gap_value = 54;
-    VariableData gap_variable = 17054;
-  };
-  oneof padding {
-    InsetsData padding_value = 55;
-    VariableData padding_variable = 17055;
-  };
-  optional GridData grid = 56;
-  optional GridSpanData grid_span = 57;
-  optional float aspect_ratio = 58;
-  optional bool is_wrap = 59;
-  oneof is_visible {
-    bool is_visible_value = 60;
-    VariableData is_visible_variable = 17060;
-  };
-  oneof opacity {
-    float opacity_value = 61;
-    VariableData opacity_variable = 17061;
-  };
-  oneof fill {
-    FillData fill_value = 62;
-    VariableData fill_variable = 17062;
-  };
-  oneof rotation {
-    Axis3Data rotation_value = 63;
-    VariableData rotation_variable = 17063;
-  };
-  oneof skew {
-    Vector2Data skew_value = 64;
-    VariableData skew_variable = 17064;
-  };
-  oneof scale {
-    float scale_value = 65;
-    VariableData scale_variable = 17065;
-  };
-  oneof shadow {
-    ShadowData shadow_value = 66;
-    VariableData shadow_variable = 17066;
-  };
-  oneof border {
-    BorderData border_value = 67;
-    VariableData border_variable = 17067;
-  };
-  oneof radius {
-    CornersData radius_value = 68;
-    VariableData radius_variable = 17068;
-  };
 }
 
 // A Computer provides physical compute.
@@ -1825,8 +1774,6 @@ message ComputerData {
   optional NodeReferenceData created_by_ptr = 11;
   google.protobuf.Timestamp updated_at = 12;
   optional NodeReferenceData updated_by_ptr = 13;
-  optional google.protobuf.Timestamp archived_at = 14;
-  optional google.protobuf.Timestamp deleted_at = 15;
   optional NodeReferenceData template_ptr = 16;
   optional NodeReferenceData owned_by_ptr = 17;
   optional NodeReferenceData claimed_by_ptr = 18;
@@ -1836,7 +1783,7 @@ message ComputerData {
   string order_key = 33;
   optional IconData icon = 34;
   optional NodeReferenceData definition_ptr = 35;
-  Region region = 38;
+  optional Region region = 38;
   ResourceStatus status = 40;
   optional google.protobuf.Timestamp requested_activate_at = 41;
   optional google.protobuf.Timestamp requested_deactivate_at = 42;
@@ -1889,8 +1836,6 @@ message CursorData {
   optional NodeReferenceData created_by_ptr = 11;
   google.protobuf.Timestamp updated_at = 12;
   optional NodeReferenceData updated_by_ptr = 13;
-  optional google.protobuf.Timestamp archived_at = 14;
-  optional google.protobuf.Timestamp deleted_at = 15;
   optional NodeReferenceData owned_by_ptr = 17;
   NodeMode mode = 25;
   CursorType type = 30;
@@ -1920,8 +1865,6 @@ message DatabaseData {
   optional NodeReferenceData created_by_ptr = 11;
   google.protobuf.Timestamp updated_at = 12;
   optional NodeReferenceData updated_by_ptr = 13;
-  optional google.protobuf.Timestamp archived_at = 14;
-  optional google.protobuf.Timestamp deleted_at = 15;
   optional NodeReferenceData template_ptr = 16;
   optional NodeReferenceData owned_by_ptr = 17;
   optional NodeReferenceData claimed_by_ptr = 18;
@@ -1931,7 +1874,7 @@ message DatabaseData {
   string order_key = 33;
   optional IconData icon = 34;
   optional NodeReferenceData definition_ptr = 35;
-  Region region = 38;
+  optional Region region = 38;
   ResourceStatus status = 40;
   optional google.protobuf.Timestamp requested_activate_at = 41;
   optional google.protobuf.Timestamp requested_deactivate_at = 42;
@@ -1959,8 +1902,6 @@ message DependencyData {
   optional NodeReferenceData created_by_ptr = 11;
   google.protobuf.Timestamp updated_at = 12;
   optional NodeReferenceData updated_by_ptr = 13;
-  optional google.protobuf.Timestamp archived_at = 14;
-  optional google.protobuf.Timestamp deleted_at = 15;
   optional NodeReferenceData template_ptr = 16;
   NodeMode mode = 25;
   NodeReferenceData dependency_ptr = 40;
@@ -1994,7 +1935,6 @@ message EditOperationData {
 message EffectData {
   StructType metatype = 1;
   EffectType type = 30;
-  optional NodeReferenceData field_ptr = 40;
   optional NodeReferenceData style_ptr = 41;
   optional float opacity = 50;
   optional Vector2Data offset = 51;
@@ -2023,8 +1963,6 @@ message EffectStyleData {
   optional NodeReferenceData created_by_ptr = 11;
   google.protobuf.Timestamp updated_at = 12;
   optional NodeReferenceData updated_by_ptr = 13;
-  optional google.protobuf.Timestamp archived_at = 14;
-  optional google.protobuf.Timestamp deleted_at = 15;
   optional NodeReferenceData template_ptr = 16;
   NodeMode mode = 25;
   EffectType type = 30;
@@ -2032,7 +1970,6 @@ message EffectStyleData {
   string order_key = 33;
   optional IconData icon = 34;
   optional NodeReferenceData definition_ptr = 35;
-  optional NodeReferenceData field_ptr = 40;
   optional NodeReferenceData style_ptr = 41;
   optional float opacity = 50;
   optional Vector2Data offset = 51;
@@ -2048,19 +1985,6 @@ message EffectStyleData {
   optional TextSplitType split = 61;
   optional OffscreenBehavior offscreen = 62;
   optional TransitionData transition = 70;
-}
-
-// An empty node.
-message EmptyData {
-  NodeType metatype = 1;
-  string id = 2;
-  NodeReferenceData parent_ptr = 4;
-  google.protobuf.Timestamp created_at = 10;
-  optional NodeReferenceData created_by_ptr = 11;
-  google.protobuf.Timestamp updated_at = 12;
-  optional NodeReferenceData updated_by_ptr = 13;
-  optional google.protobuf.Timestamp archived_at = 14;
-  optional google.protobuf.Timestamp deleted_at = 15;
 }
 
 message ErrorData {
@@ -2095,8 +2019,6 @@ message FieldData {
   optional NodeReferenceData created_by_ptr = 11;
   google.protobuf.Timestamp updated_at = 12;
   optional NodeReferenceData updated_by_ptr = 13;
-  optional google.protobuf.Timestamp archived_at = 14;
-  optional google.protobuf.Timestamp deleted_at = 15;
   optional NodeReferenceData template_ptr = 16;
   NodeMode mode = 25;
   FieldType type = 30;
@@ -2133,8 +2055,6 @@ message FileData {
   optional NodeReferenceData created_by_ptr = 11;
   google.protobuf.Timestamp updated_at = 12;
   optional NodeReferenceData updated_by_ptr = 13;
-  optional google.protobuf.Timestamp archived_at = 14;
-  optional google.protobuf.Timestamp deleted_at = 15;
   optional NodeReferenceData template_ptr = 16;
   optional NodeReferenceData owned_by_ptr = 17;
   optional NodeReferenceData claimed_by_ptr = 18;
@@ -2144,7 +2064,7 @@ message FileData {
   string order_key = 33;
   optional IconData icon = 34;
   optional NodeReferenceData definition_ptr = 35;
-  Region region = 38;
+  optional Region region = 38;
   FileSource source = 60;
   optional string mime_type = 61;
   optional FileFormat format = 62;
@@ -2187,8 +2107,6 @@ message FlowData {
   optional NodeReferenceData created_by_ptr = 11;
   google.protobuf.Timestamp updated_at = 12;
   optional NodeReferenceData updated_by_ptr = 13;
-  optional google.protobuf.Timestamp archived_at = 14;
-  optional google.protobuf.Timestamp deleted_at = 15;
   optional NodeReferenceData template_ptr = 16;
   optional NodeReferenceData owned_by_ptr = 17;
   optional NodeReferenceData claimed_by_ptr = 18;
@@ -2219,8 +2137,6 @@ message FlowEdgeData {
   optional NodeReferenceData created_by_ptr = 11;
   google.protobuf.Timestamp updated_at = 12;
   optional NodeReferenceData updated_by_ptr = 13;
-  optional google.protobuf.Timestamp archived_at = 14;
-  optional google.protobuf.Timestamp deleted_at = 15;
   optional NodeReferenceData template_ptr = 16;
   NodeMode mode = 25;
   FlowEdgeType type = 30;
@@ -2240,7 +2156,6 @@ message FlowEdgeData {
 message FontData {
   StructType metatype = 1;
   FontType type = 30;
-  optional NodeReferenceData field_ptr = 40;
   optional NodeReferenceData style_ptr = 41;
   optional FontWeight weight = 50;
   optional FillData color = 51;
@@ -2263,8 +2178,6 @@ message FontStyleData {
   optional NodeReferenceData created_by_ptr = 11;
   google.protobuf.Timestamp updated_at = 12;
   optional NodeReferenceData updated_by_ptr = 13;
-  optional google.protobuf.Timestamp archived_at = 14;
-  optional google.protobuf.Timestamp deleted_at = 15;
   optional NodeReferenceData template_ptr = 16;
   NodeMode mode = 25;
   FontType type = 30;
@@ -2272,7 +2185,6 @@ message FontStyleData {
   string order_key = 33;
   optional IconData icon = 34;
   optional NodeReferenceData definition_ptr = 35;
-  optional NodeReferenceData field_ptr = 40;
   optional NodeReferenceData style_ptr = 41;
   optional FontWeight weight = 50;
   optional FillData color = 51;
@@ -2296,8 +2208,6 @@ message FrameViewData {
   optional NodeReferenceData created_by_ptr = 11;
   google.protobuf.Timestamp updated_at = 12;
   optional NodeReferenceData updated_by_ptr = 13;
-  optional google.protobuf.Timestamp archived_at = 14;
-  optional google.protobuf.Timestamp deleted_at = 15;
   optional NodeReferenceData template_ptr = 16;
   NodeMode mode = 25;
   optional string name = 31;
@@ -2407,8 +2317,6 @@ message GradientStyleData {
   optional NodeReferenceData created_by_ptr = 11;
   google.protobuf.Timestamp updated_at = 12;
   optional NodeReferenceData updated_by_ptr = 13;
-  optional google.protobuf.Timestamp archived_at = 14;
-  optional google.protobuf.Timestamp deleted_at = 15;
   optional NodeReferenceData template_ptr = 16;
   NodeMode mode = 25;
   GradientType type = 30;
@@ -2448,8 +2356,6 @@ message HandleData {
   optional NodeReferenceData created_by_ptr = 11;
   google.protobuf.Timestamp updated_at = 12;
   optional NodeReferenceData updated_by_ptr = 13;
-  optional google.protobuf.Timestamp archived_at = 14;
-  optional google.protobuf.Timestamp deleted_at = 15;
   string slug = 30;
 }
 
@@ -2484,15 +2390,11 @@ message InterruptionData {
   optional NodeReferenceData created_by_ptr = 11;
   google.protobuf.Timestamp updated_at = 12;
   optional NodeReferenceData updated_by_ptr = 13;
-  optional google.protobuf.Timestamp archived_at = 14;
-  optional google.protobuf.Timestamp deleted_at = 15;
   NodeMode mode = 25;
   optional ValueData value = 26;
   InterruptionType type = 30;
   optional NodeReferenceData root_ptr = 31;
-  optional NodeReferenceData flow_ptr = 33;
-  optional NodeReferenceData action_ptr = 34;
-  optional NodeReferenceData link_ptr = 35;
+  optional NodeReferenceData runnable_ptr = 32;
   optional NodeReferenceData span_ptr = 37;
   InterruptionStatus status = 40;
   optional google.protobuf.Duration duration = 41;
@@ -2500,21 +2402,6 @@ message InterruptionData {
   optional InterruptionResponse response = 54;
   optional NodeReferenceData message_ptr = 55;
   optional NodeReferenceData task_ptr = 56;
-}
-
-// An Invite to become a member of something.
-message InviteData {
-  NodeType metatype = 1;
-  string id = 2;
-  optional NodeReferenceData parent_ptr = 4;
-  optional NodeReferenceData bench_ptr = 6;
-  google.protobuf.Timestamp created_at = 10;
-  optional NodeReferenceData created_by_ptr = 11;
-  google.protobuf.Timestamp updated_at = 12;
-  optional NodeReferenceData updated_by_ptr = 13;
-  optional google.protobuf.Timestamp archived_at = 14;
-  optional google.protobuf.Timestamp deleted_at = 15;
-  optional NodeReferenceData member_ptr = 40;
 }
 
 message JoinData {
@@ -2537,8 +2424,6 @@ message LabelViewData {
   optional NodeReferenceData created_by_ptr = 11;
   google.protobuf.Timestamp updated_at = 12;
   optional NodeReferenceData updated_by_ptr = 13;
-  optional google.protobuf.Timestamp archived_at = 14;
-  optional google.protobuf.Timestamp deleted_at = 15;
   optional NodeReferenceData template_ptr = 16;
   NodeMode mode = 25;
   optional string name = 31;
@@ -2633,8 +2518,6 @@ message LinkData {
   optional NodeReferenceData created_by_ptr = 11;
   google.protobuf.Timestamp updated_at = 12;
   optional NodeReferenceData updated_by_ptr = 13;
-  optional google.protobuf.Timestamp archived_at = 14;
-  optional google.protobuf.Timestamp deleted_at = 15;
   optional NodeReferenceData template_ptr = 16;
   optional NodeReferenceData owned_by_ptr = 17;
   optional NodeReferenceData claimed_by_ptr = 18;
@@ -2645,7 +2528,7 @@ message LinkData {
   string order_key = 33;
   optional IconData icon = 34;
   optional NodeReferenceData definition_ptr = 35;
-  Region region = 38;
+  optional Region region = 38;
   optional string url = 50;
   optional string domain = 51;
   optional string content_url = 52;
@@ -2661,25 +2544,6 @@ message LinkData {
   repeated string image_urls = 70;
 }
 
-// A Membership of a Subject to a Joinable.
-message MembershipData {
-  NodeType metatype = 1;
-  string id = 2;
-  string ck = 3;
-  optional NodeReferenceData parent_ptr = 4;
-  optional NodeReferenceData bench_ptr = 6;
-  optional NodeReferenceData package_ptr = 7;
-  google.protobuf.Timestamp created_at = 10;
-  optional NodeReferenceData created_by_ptr = 11;
-  google.protobuf.Timestamp updated_at = 12;
-  optional NodeReferenceData updated_by_ptr = 13;
-  optional google.protobuf.Timestamp archived_at = 14;
-  optional google.protobuf.Timestamp deleted_at = 15;
-  optional NodeReferenceData template_ptr = 16;
-  NodeMode mode = 25;
-  NodeReferenceData member_ptr = 41;
-}
-
 // A Message about something (usually in a Thread or a Channel).
 message MessageData {
   NodeType metatype = 1;
@@ -2691,8 +2555,6 @@ message MessageData {
   optional NodeReferenceData created_by_ptr = 11;
   google.protobuf.Timestamp updated_at = 12;
   optional NodeReferenceData updated_by_ptr = 13;
-  optional google.protobuf.Timestamp archived_at = 14;
-  optional google.protobuf.Timestamp deleted_at = 15;
   optional NodeReferenceData owned_by_ptr = 17;
   NodeMode mode = 25;
   MessageType type = 30;
@@ -2714,6 +2576,7 @@ message MessageData {
 message NodeConstraintData {
   StructType metatype = 1;
   repeated NodeType node_types = 41;
+  repeated Trait node_traits = 42;
 }
 
 message NodeReferenceData {
@@ -2736,8 +2599,6 @@ message NotificationData {
   optional NodeReferenceData created_by_ptr = 11;
   google.protobuf.Timestamp updated_at = 12;
   optional NodeReferenceData updated_by_ptr = 13;
-  optional google.protobuf.Timestamp archived_at = 14;
-  optional google.protobuf.Timestamp deleted_at = 15;
   NodeMode mode = 25;
   NotificationType type = 30;
   optional TextLineData title = 32;
@@ -2773,8 +2634,6 @@ message NumberInputViewData {
   optional NodeReferenceData created_by_ptr = 11;
   google.protobuf.Timestamp updated_at = 12;
   optional NodeReferenceData updated_by_ptr = 13;
-  optional google.protobuf.Timestamp archived_at = 14;
-  optional google.protobuf.Timestamp deleted_at = 15;
   optional NodeReferenceData template_ptr = 16;
   NodeMode mode = 25;
   optional string name = 31;
@@ -2809,8 +2668,6 @@ message OrganizationData {
   optional NodeReferenceData created_by_ptr = 11;
   google.protobuf.Timestamp updated_at = 12;
   optional NodeReferenceData updated_by_ptr = 13;
-  optional google.protobuf.Timestamp archived_at = 14;
-  optional google.protobuf.Timestamp deleted_at = 15;
   optional string slug = 32;
   string name = 33;
   optional TextLineData line = 34;
@@ -2819,6 +2676,29 @@ message OrganizationData {
   OrganizationStatus status = 38;
   optional NodeReferenceData bench_ptr = 40;
   optional NodeReferenceData handle_ptr = 41;
+}
+
+// An OrganizationInvite is an invite to an Organization.
+message OrganizationInviteData {
+  NodeType metatype = 1;
+  string id = 2;
+  NodeReferenceData parent_ptr = 4;
+  google.protobuf.Timestamp created_at = 10;
+  optional NodeReferenceData created_by_ptr = 11;
+  google.protobuf.Timestamp updated_at = 12;
+  optional NodeReferenceData updated_by_ptr = 13;
+}
+
+// An OrganizationMembership is a membership to an Organization.
+message OrganizationMembershipData {
+  NodeType metatype = 1;
+  string id = 2;
+  NodeReferenceData parent_ptr = 4;
+  google.protobuf.Timestamp created_at = 10;
+  optional NodeReferenceData created_by_ptr = 11;
+  google.protobuf.Timestamp updated_at = 12;
+  optional NodeReferenceData updated_by_ptr = 13;
+  optional NodeReferenceData member_ptr = 40;
 }
 
 message OriginData {
@@ -2840,8 +2720,6 @@ message PackageData {
   optional NodeReferenceData created_by_ptr = 11;
   google.protobuf.Timestamp updated_at = 12;
   optional NodeReferenceData updated_by_ptr = 13;
-  optional google.protobuf.Timestamp archived_at = 14;
-  optional google.protobuf.Timestamp deleted_at = 15;
   optional NodeReferenceData template_ptr = 16;
   optional NodeReferenceData owned_by_ptr = 17;
   NodeMode mode = 25;
@@ -2862,8 +2740,6 @@ message PageData {
   optional NodeReferenceData created_by_ptr = 11;
   google.protobuf.Timestamp updated_at = 12;
   optional NodeReferenceData updated_by_ptr = 13;
-  optional google.protobuf.Timestamp archived_at = 14;
-  optional google.protobuf.Timestamp deleted_at = 15;
   optional NodeReferenceData template_ptr = 16;
   optional NodeReferenceData owned_by_ptr = 17;
   optional NodeReferenceData claimed_by_ptr = 18;
@@ -2919,8 +2795,6 @@ message RecordData {
   optional NodeReferenceData created_by_ptr = 11;
   google.protobuf.Timestamp updated_at = 12;
   optional NodeReferenceData updated_by_ptr = 13;
-  optional google.protobuf.Timestamp archived_at = 14;
-  optional google.protobuf.Timestamp deleted_at = 15;
   optional NodeReferenceData owned_by_ptr = 17;
   optional NodeReferenceData claimed_by_ptr = 18;
   NodeMode mode = 25;
@@ -2949,8 +2823,6 @@ message RoleData {
   optional NodeReferenceData created_by_ptr = 11;
   google.protobuf.Timestamp updated_at = 12;
   optional NodeReferenceData updated_by_ptr = 13;
-  optional google.protobuf.Timestamp archived_at = 14;
-  optional google.protobuf.Timestamp deleted_at = 15;
   optional NodeReferenceData template_ptr = 16;
   NodeMode mode = 25;
   optional string name = 31;
@@ -2971,8 +2843,6 @@ message RouteData {
   optional NodeReferenceData created_by_ptr = 11;
   google.protobuf.Timestamp updated_at = 12;
   optional NodeReferenceData updated_by_ptr = 13;
-  optional google.protobuf.Timestamp archived_at = 14;
-  optional google.protobuf.Timestamp deleted_at = 15;
   optional NodeReferenceData template_ptr = 16;
   optional NodeReferenceData owned_by_ptr = 17;
   NodeMode mode = 25;
@@ -2994,8 +2864,6 @@ message RunData {
   optional NodeReferenceData created_by_ptr = 11;
   google.protobuf.Timestamp updated_at = 12;
   optional NodeReferenceData updated_by_ptr = 13;
-  optional google.protobuf.Timestamp archived_at = 14;
-  optional google.protobuf.Timestamp deleted_at = 15;
   NodeMode mode = 25;
   optional ValueData value = 26;
   RunType type = 30;
@@ -3003,11 +2871,7 @@ message RunData {
   optional NodeReferenceData root_ptr = 33;
   optional NodeReferenceData thread_ptr = 38;
   optional CodeData code = 66;
-  optional NodeReferenceData agent_ptr = 70;
-  optional NodeReferenceData flow_ptr = 71;
-  optional NodeReferenceData service_ptr = 72;
-  optional NodeReferenceData action_ptr = 73;
-  optional NodeReferenceData task_ptr = 78;
+  optional NodeReferenceData runnable_ptr = 67;
   ProcessStatus status = 80;
   optional google.protobuf.Duration duration = 81;
   optional ErrorData error = 82;
@@ -3035,7 +2899,7 @@ message RunTraceData {
   repeated RunFrameData frames = 30;
 }
 
-// A Scaler automatically scales another Resource.
+// A Scaler automatically scales another provisionable Resource.
 message ScalerData {
   NodeType metatype = 1;
   string id = 2;
@@ -3047,8 +2911,6 @@ message ScalerData {
   optional NodeReferenceData created_by_ptr = 11;
   google.protobuf.Timestamp updated_at = 12;
   optional NodeReferenceData updated_by_ptr = 13;
-  optional google.protobuf.Timestamp archived_at = 14;
-  optional google.protobuf.Timestamp deleted_at = 15;
   optional NodeReferenceData template_ptr = 16;
   optional NodeReferenceData owned_by_ptr = 17;
   optional NodeReferenceData claimed_by_ptr = 18;
@@ -3058,7 +2920,7 @@ message ScalerData {
   string order_key = 33;
   optional IconData icon = 34;
   optional NodeReferenceData definition_ptr = 35;
-  Region region = 38;
+  optional Region region = 38;
   ResourceStatus status = 40;
   optional google.protobuf.Timestamp requested_activate_at = 41;
   optional google.protobuf.Timestamp requested_deactivate_at = 42;
@@ -3088,8 +2950,6 @@ message SceneData {
   optional NodeReferenceData created_by_ptr = 11;
   google.protobuf.Timestamp updated_at = 12;
   optional NodeReferenceData updated_by_ptr = 13;
-  optional google.protobuf.Timestamp archived_at = 14;
-  optional google.protobuf.Timestamp deleted_at = 15;
   optional NodeReferenceData template_ptr = 16;
   optional NodeReferenceData owned_by_ptr = 17;
   NodeMode mode = 25;
@@ -3131,8 +2991,6 @@ message SchemaData {
   optional NodeReferenceData created_by_ptr = 11;
   google.protobuf.Timestamp updated_at = 12;
   optional NodeReferenceData updated_by_ptr = 13;
-  optional google.protobuf.Timestamp archived_at = 14;
-  optional google.protobuf.Timestamp deleted_at = 15;
   optional NodeReferenceData template_ptr = 16;
   NodeMode mode = 25;
   optional string name = 31;
@@ -3168,7 +3026,7 @@ message SelectionData {
   repeated NodeReferenceData nodes_ptr = 40;
 }
 
-// A Kit of Actions for a Node.
+// A set of Actions for a Node.
 message ServiceData {
   NodeType metatype = 1;
   string id = 2;
@@ -3179,8 +3037,6 @@ message ServiceData {
   optional NodeReferenceData created_by_ptr = 11;
   google.protobuf.Timestamp updated_at = 12;
   optional NodeReferenceData updated_by_ptr = 13;
-  optional google.protobuf.Timestamp archived_at = 14;
-  optional google.protobuf.Timestamp deleted_at = 15;
   optional NodeReferenceData template_ptr = 16;
   optional NodeReferenceData owned_by_ptr = 17;
   optional NodeReferenceData claimed_by_ptr = 18;
@@ -3189,13 +3045,18 @@ message ServiceData {
   string order_key = 33;
   optional IconData icon = 34;
   optional NodeReferenceData definition_ptr = 35;
-  optional NodeReferenceData target_ptr = 40;
+  optional ModelDeveloper model_developer = 100;
+  optional ModelProvider model_provider = 101;
+  optional string model_id = 102;
+  optional string model_name = 103;
+  optional int32 max_attempts = 110;
+  optional google.protobuf.Duration retry_interval = 111;
+  optional float backoff = 112;
 }
 
 message ShadowData {
   StructType metatype = 1;
   ShadowType type = 30;
-  optional NodeReferenceData field_ptr = 40;
   optional NodeReferenceData style_ptr = 41;
   optional ColorData color = 50;
   ShadowPosition position = 51;
@@ -3216,8 +3077,6 @@ message ShadowStyleData {
   optional NodeReferenceData created_by_ptr = 11;
   google.protobuf.Timestamp updated_at = 12;
   optional NodeReferenceData updated_by_ptr = 13;
-  optional google.protobuf.Timestamp archived_at = 14;
-  optional google.protobuf.Timestamp deleted_at = 15;
   optional NodeReferenceData template_ptr = 16;
   NodeMode mode = 25;
   ShadowType type = 30;
@@ -3225,7 +3084,6 @@ message ShadowStyleData {
   string order_key = 33;
   optional IconData icon = 34;
   optional NodeReferenceData definition_ptr = 35;
-  optional NodeReferenceData field_ptr = 40;
   optional NodeReferenceData style_ptr = 41;
   optional ColorData color = 50;
   ShadowPosition position = 51;
@@ -3247,8 +3105,6 @@ message SliderInputViewData {
   optional NodeReferenceData created_by_ptr = 11;
   google.protobuf.Timestamp updated_at = 12;
   optional NodeReferenceData updated_by_ptr = 13;
-  optional google.protobuf.Timestamp archived_at = 14;
-  optional google.protobuf.Timestamp deleted_at = 15;
   optional NodeReferenceData template_ptr = 16;
   NodeMode mode = 25;
   optional string name = 31;
@@ -3295,8 +3151,6 @@ message SpaceData {
   optional NodeReferenceData created_by_ptr = 11;
   google.protobuf.Timestamp updated_at = 12;
   optional NodeReferenceData updated_by_ptr = 13;
-  optional google.protobuf.Timestamp archived_at = 14;
-  optional google.protobuf.Timestamp deleted_at = 15;
   optional NodeReferenceData template_ptr = 16;
   optional NodeReferenceData owned_by_ptr = 17;
   NodeMode mode = 25;
@@ -3322,17 +3176,10 @@ message SpanData {
   optional NodeReferenceData created_by_ptr = 11;
   google.protobuf.Timestamp updated_at = 12;
   optional NodeReferenceData updated_by_ptr = 13;
-  optional google.protobuf.Timestamp archived_at = 14;
-  optional google.protobuf.Timestamp deleted_at = 15;
   NodeMode mode = 25;
   SpanType type = 30;
   optional NodeReferenceData root_ptr = 31;
   optional string title = 60;
-  optional NodeReferenceData agent_ptr = 70;
-  optional NodeReferenceData flow_ptr = 71;
-  optional NodeReferenceData service_ptr = 72;
-  optional NodeReferenceData action_ptr = 73;
-  optional NodeReferenceData task_ptr = 78;
   ProcessStatus status = 80;
   optional google.protobuf.Duration duration = 81;
   optional ErrorData error = 82;
@@ -3359,8 +3206,6 @@ message SplitViewData {
   optional NodeReferenceData created_by_ptr = 11;
   google.protobuf.Timestamp updated_at = 12;
   optional NodeReferenceData updated_by_ptr = 13;
-  optional google.protobuf.Timestamp archived_at = 14;
-  optional google.protobuf.Timestamp deleted_at = 15;
   optional NodeReferenceData template_ptr = 16;
   NodeMode mode = 25;
   optional string name = 31;
@@ -3457,8 +3302,6 @@ message TableData {
   optional NodeReferenceData created_by_ptr = 11;
   google.protobuf.Timestamp updated_at = 12;
   optional NodeReferenceData updated_by_ptr = 13;
-  optional google.protobuf.Timestamp archived_at = 14;
-  optional google.protobuf.Timestamp deleted_at = 15;
   optional NodeReferenceData template_ptr = 16;
   optional NodeReferenceData owned_by_ptr = 17;
   optional NodeReferenceData claimed_by_ptr = 18;
@@ -3481,8 +3324,6 @@ message TaskData {
   optional NodeReferenceData created_by_ptr = 11;
   google.protobuf.Timestamp updated_at = 12;
   optional NodeReferenceData updated_by_ptr = 13;
-  optional google.protobuf.Timestamp archived_at = 14;
-  optional google.protobuf.Timestamp deleted_at = 15;
   optional NodeReferenceData template_ptr = 16;
   optional NodeReferenceData owned_by_ptr = 17;
   optional NodeReferenceData claimed_by_ptr = 18;
@@ -3519,8 +3360,6 @@ message TeamData {
   optional NodeReferenceData created_by_ptr = 11;
   google.protobuf.Timestamp updated_at = 12;
   optional NodeReferenceData updated_by_ptr = 13;
-  optional google.protobuf.Timestamp archived_at = 14;
-  optional google.protobuf.Timestamp deleted_at = 15;
   optional NodeReferenceData template_ptr = 16;
   NodeMode mode = 25;
   optional string name = 31;
@@ -3581,8 +3420,6 @@ message TextViewData {
   optional NodeReferenceData created_by_ptr = 11;
   google.protobuf.Timestamp updated_at = 12;
   optional NodeReferenceData updated_by_ptr = 13;
-  optional google.protobuf.Timestamp archived_at = 14;
-  optional google.protobuf.Timestamp deleted_at = 15;
   optional NodeReferenceData template_ptr = 16;
   NodeMode mode = 25;
   optional string name = 31;
@@ -3629,8 +3466,6 @@ message ThemeData {
   optional NodeReferenceData created_by_ptr = 11;
   google.protobuf.Timestamp updated_at = 12;
   optional NodeReferenceData updated_by_ptr = 13;
-  optional google.protobuf.Timestamp archived_at = 14;
-  optional google.protobuf.Timestamp deleted_at = 15;
   optional NodeReferenceData template_ptr = 16;
   NodeMode mode = 25;
   optional string name = 31;
@@ -3654,8 +3489,6 @@ message ThreadData {
   optional NodeReferenceData created_by_ptr = 11;
   google.protobuf.Timestamp updated_at = 12;
   optional NodeReferenceData updated_by_ptr = 13;
-  optional google.protobuf.Timestamp archived_at = 14;
-  optional google.protobuf.Timestamp deleted_at = 15;
   optional NodeReferenceData template_ptr = 16;
   optional NodeReferenceData owned_by_ptr = 17;
   NodeMode mode = 25;
@@ -3695,8 +3528,6 @@ message ThreadViewData {
   optional NodeReferenceData created_by_ptr = 11;
   google.protobuf.Timestamp updated_at = 12;
   optional NodeReferenceData updated_by_ptr = 13;
-  optional google.protobuf.Timestamp archived_at = 14;
-  optional google.protobuf.Timestamp deleted_at = 15;
   optional NodeReferenceData template_ptr = 16;
   NodeMode mode = 25;
   optional string name = 31;
@@ -3717,7 +3548,6 @@ message ThreadViewData {
 message TransitionData {
   StructType metatype = 1;
   TransitionType type = 30;
-  optional NodeReferenceData field_ptr = 40;
   optional NodeReferenceData style_ptr = 41;
   optional float delay = 50;
   optional float duration = 51;
@@ -3740,8 +3570,6 @@ message TransitionStyleData {
   optional NodeReferenceData created_by_ptr = 11;
   google.protobuf.Timestamp updated_at = 12;
   optional NodeReferenceData updated_by_ptr = 13;
-  optional google.protobuf.Timestamp archived_at = 14;
-  optional google.protobuf.Timestamp deleted_at = 15;
   optional NodeReferenceData template_ptr = 16;
   NodeMode mode = 25;
   TransitionType type = 30;
@@ -3749,7 +3577,6 @@ message TransitionStyleData {
   string order_key = 33;
   optional IconData icon = 34;
   optional NodeReferenceData definition_ptr = 35;
-  optional NodeReferenceData field_ptr = 40;
   optional NodeReferenceData style_ptr = 41;
   optional float delay = 50;
   optional float duration = 51;
@@ -3789,8 +3616,6 @@ message UserData {
   optional NodeReferenceData created_by_ptr = 11;
   google.protobuf.Timestamp updated_at = 12;
   optional NodeReferenceData updated_by_ptr = 13;
-  optional google.protobuf.Timestamp archived_at = 14;
-  optional google.protobuf.Timestamp deleted_at = 15;
   optional string slug = 31;
   string name = 32;
   optional IconData icon = 33;
@@ -3850,8 +3675,6 @@ message WizardViewData {
   optional NodeReferenceData created_by_ptr = 11;
   google.protobuf.Timestamp updated_at = 12;
   optional NodeReferenceData updated_by_ptr = 13;
-  optional google.protobuf.Timestamp archived_at = 14;
-  optional google.protobuf.Timestamp deleted_at = 15;
   optional NodeReferenceData template_ptr = 16;
   NodeMode mode = 25;
   optional string name = 31;
@@ -3869,10 +3692,14 @@ message WizardViewData {
 
 message SomeNodeData {
   oneof node {
-    BenchData bench = 1;
-    HandleData handle = 2;
-    UserData user = 10;
-    OrganizationData organization = 20;
+    BenchData bench = 10;
+    BenchMembershipData bench_membership = 11;
+    BenchInviteData bench_invite = 12;
+    HandleData handle = 20;
+    UserData user = 30;
+    OrganizationData organization = 40;
+    OrganizationMembershipData organization_membership = 41;
+    OrganizationInviteData organization_invite = 42;
     ClientData client = 50;
     PackageData package = 1000;
     DependencyData dependency = 1010;
@@ -3893,17 +3720,15 @@ message SomeNodeData {
     MessageData message = 1820;
     NotificationData notification = 1850;
     ServiceData service = 2000;
-    ActionData action = 2010;
-    FlowData flow = 2020;
-    FlowEdgeData flow_edge = 2021;
-    AgentData agent = 2050;
+    ActionData action = 2020;
+    FlowData flow = 2040;
+    FlowEdgeData flow_edge = 2041;
+    AgentData agent = 2100;
     TaskData task = 2200;
     CursorData cursor = 2220;
     RunData run = 2610;
     SpanData span = 2620;
     InterruptionData interruption = 2630;
-    MembershipData membership = 2800;
-    InviteData invite = 2810;
     TeamData team = 2820;
     RoleData role = 2830;
     ClaimData claim = 2840;
@@ -3912,7 +3737,6 @@ message SomeNodeData {
     RouteData route = 8020;
     FrameViewData frame_view = 8100;
     LabelViewData label_view = 8101;
-    ComponentViewData component_view = 8110;
     SplitViewData split_view = 8120;
     TextViewData text_view = 8200;
     NumberInputViewData number_input_view = 8300;
@@ -3927,7 +3751,6 @@ message SomeNodeData {
     GradientStyleData gradient_style = 9014;
     TransitionStyleData transition_style = 9015;
     EffectStyleData effect_style = 9016;
-    EmptyData empty = 9999;
   };
 }
 

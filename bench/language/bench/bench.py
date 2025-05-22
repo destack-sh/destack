@@ -8,9 +8,9 @@ from bench.language.core import (
     EnumType,
     IsGlobal,
     IsInBench,
+    IsInvite,
     IsMembership,
     IsOwnable,
-    IsSubject,
     Node,
     NodeType,
     Region,
@@ -21,7 +21,7 @@ from bench.language.core import (
     p_regular,
     p_system,
 )
-from bench.pb2 import BenchData
+from bench.pb2 import BenchData, BenchInviteData, BenchMembershipData
 
 if TYPE_CHECKING:
     from bench.language import (
@@ -76,12 +76,19 @@ class Bench(IsGlobal, IsOwnable, IsInBench, Node[BenchData]):
         return True
 
 
+@node_(NodeType.BENCH_INVITE)
+class BenchInvite(IsInvite, Node[BenchInviteData]):
+    """
+    A BenchInvite is an invite to a Bench.
+    """
+
+    parent: "Bench" = p_node_parent()
+
+
 @node_(NodeType.BENCH_MEMBERSHIP)
-class BenchMembership(IsMembership, IsInBench, Node["BenchMembershipData"]):
+class BenchMembership(IsMembership, IsInBench, Node[BenchMembershipData]):
     """
     A BenchMembership is a membership to a Bench.
     """
 
     parent: "Bench" = p_node_parent()
-
-    member: IsSubject = p_regular(40)

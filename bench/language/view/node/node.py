@@ -1,8 +1,8 @@
 from typing import TYPE_CHECKING
 
-from bench.language.core import NodeTrait, node_trait_
+from bench.language.core import Trait, trait_
 
-from ..view import ViewBase
+from ..view import IsView
 
 if TYPE_CHECKING:
     pass
@@ -10,6 +10,6 @@ if TYPE_CHECKING:
 # pyright: reportIncompatibleVariableOverride=false
 
 
-@node_trait_(NodeTrait.NODE_VIEW)
-class IsNodeView(ViewBase):
+@trait_(Trait.NODE_VIEW)
+class IsNodeView(IsView):
     """A node View."""

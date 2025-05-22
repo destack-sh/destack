@@ -6,6 +6,8 @@ from bench.language.core import (
     BuiltinEnum,
     EnumType,
     IsGlobal,
+    IsInvite,
+    IsMembership,
     IsSubject,
     Node,
     NodeReference,
@@ -14,10 +16,11 @@ from bench.language.core import (
     StringFormat,
     enum_,
     node_,
+    p_node_parent,
     p_regular,
     p_system,
 )
-from bench.pb2 import OrganizationData
+from bench.pb2 import OrganizationData, OrganizationInviteData, OrganizationMembershipData
 
 if TYPE_CHECKING:
     from bench.language import Bench, Handle, Icon, TextLine
@@ -54,3 +57,21 @@ class Organization(IsGlobal, IsSubject, Node[OrganizationData]):
         bench_ptr: Optional[NodeReference] = None
         handle_id: Optional[UUID] = None
         handle_ptr: Optional[NodeReference] = None
+
+
+@node_(NodeType.ORGANIZATION_INVITE)
+class OrganizationInvite(IsInvite, Node[OrganizationInviteData]):
+    """
+    An OrganizationInvite is an invite to an Organization.
+    """
+
+    parent: "Organization" = p_node_parent()
+
+
+@node_(NodeType.ORGANIZATION_MEMBERSHIP)
+class OrganizationMembership(IsMembership, Node[OrganizationMembershipData]):
+    """
+    An OrganizationMembership is a membership to an Organization.
+    """
+
+    parent: "Organization" = p_node_parent()
