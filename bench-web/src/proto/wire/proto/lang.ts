@@ -23,9 +23,9 @@ import { Timestamp } from "../google/protobuf/timestamp";
  */
 export interface ActionData {
     /**
-     * @generated from protobuf field: symbol.bench.ObjectType metatype = 1;
+     * @generated from protobuf field: symbol.bench.NodeType metatype = 1;
      */
-    metatype: ObjectType;
+    metatype: NodeType;
     /**
      * @generated from protobuf field: string id = 2;
      */
@@ -150,9 +150,9 @@ export interface ActionData {
  */
 export interface AgentData {
     /**
-     * @generated from protobuf field: symbol.bench.ObjectType metatype = 1;
+     * @generated from protobuf field: symbol.bench.NodeType metatype = 1;
      */
-    metatype: ObjectType;
+    metatype: NodeType;
     /**
      * @generated from protobuf field: string id = 2;
      */
@@ -323,9 +323,9 @@ export interface AgentData {
  */
 export interface AggregationData {
     /**
-     * @generated from protobuf field: symbol.bench.ObjectType metatype = 1;
+     * @generated from protobuf field: symbol.bench.StructType metatype = 1;
      */
-    metatype: ObjectType;
+    metatype: StructType;
     /**
      * @generated from protobuf field: symbol.bench.AggregationType type = 30;
      */
@@ -350,9 +350,9 @@ export interface AggregationData {
  */
 export interface ApplicationData {
     /**
-     * @generated from protobuf field: symbol.bench.ObjectType metatype = 1;
+     * @generated from protobuf field: symbol.bench.NodeType metatype = 1;
      */
-    metatype: ObjectType;
+    metatype: NodeType;
     /**
      * @generated from protobuf field: string id = 2;
      */
@@ -435,9 +435,9 @@ export interface ApplicationData {
  */
 export interface AttributeReferenceData {
     /**
-     * @generated from protobuf field: symbol.bench.ObjectType metatype = 1;
+     * @generated from protobuf field: symbol.bench.StructType metatype = 1;
      */
-    metatype: ObjectType;
+    metatype: StructType;
     /**
      * @generated from protobuf field: symbol.bench.AttributeType type = 30;
      */
@@ -464,9 +464,9 @@ export interface AttributeReferenceData {
  */
 export interface Axis2Data {
     /**
-     * @generated from protobuf field: symbol.bench.ObjectType metatype = 1;
+     * @generated from protobuf field: symbol.bench.StructType metatype = 1;
      */
-    metatype: ObjectType;
+    metatype: StructType;
     /**
      * @generated from protobuf field: optional float base = 50;
      */
@@ -485,9 +485,9 @@ export interface Axis2Data {
  */
 export interface Axis3Data {
     /**
-     * @generated from protobuf field: symbol.bench.ObjectType metatype = 1;
+     * @generated from protobuf field: symbol.bench.StructType metatype = 1;
      */
-    metatype: ObjectType;
+    metatype: StructType;
     /**
      * @generated from protobuf field: optional float base = 50;
      */
@@ -512,9 +512,9 @@ export interface Axis3Data {
  */
 export interface BenchData {
     /**
-     * @generated from protobuf field: symbol.bench.ObjectType metatype = 1;
+     * @generated from protobuf field: symbol.bench.NodeType metatype = 1;
      */
-    metatype: ObjectType;
+    metatype: NodeType;
     /**
      * @generated from protobuf field: string id = 2;
      */
@@ -599,9 +599,9 @@ export interface BenchData {
  */
 export interface BlockData {
     /**
-     * @generated from protobuf field: symbol.bench.ObjectType metatype = 1;
+     * @generated from protobuf field: symbol.bench.NodeType metatype = 1;
      */
-    metatype: ObjectType;
+    metatype: NodeType;
     /**
      * @generated from protobuf field: string id = 2;
      */
@@ -680,9 +680,9 @@ export interface BlockData {
  */
 export interface BorderData {
     /**
-     * @generated from protobuf field: symbol.bench.ObjectType metatype = 1;
+     * @generated from protobuf field: symbol.bench.StructType metatype = 1;
      */
-    metatype: ObjectType;
+    metatype: StructType;
     /**
      * @generated from protobuf field: symbol.bench.BorderType type = 30;
      */
@@ -711,9 +711,9 @@ export interface BorderData {
  */
 export interface BorderStyleData {
     /**
-     * @generated from protobuf field: symbol.bench.ObjectType metatype = 1;
+     * @generated from protobuf field: symbol.bench.NodeType metatype = 1;
      */
-    metatype: ObjectType;
+    metatype: NodeType;
     /**
      * @generated from protobuf field: string id = 2;
      */
@@ -806,9 +806,9 @@ export interface BorderStyleData {
  */
 export interface ChannelData {
     /**
-     * @generated from protobuf field: symbol.bench.ObjectType metatype = 1;
+     * @generated from protobuf field: symbol.bench.NodeType metatype = 1;
      */
-    metatype: ObjectType;
+    metatype: NodeType;
     /**
      * @generated from protobuf field: string id = 2;
      */
@@ -934,9 +934,9 @@ export interface ChannelData {
  */
 export interface ClaimData {
     /**
-     * @generated from protobuf field: symbol.bench.ObjectType metatype = 1;
+     * @generated from protobuf field: symbol.bench.NodeType metatype = 1;
      */
-    metatype: ObjectType;
+    metatype: NodeType;
     /**
      * @generated from protobuf field: string id = 2;
      */
@@ -1049,9 +1049,9 @@ export interface ClaimData {
  */
 export interface ClientData {
     /**
-     * @generated from protobuf field: symbol.bench.ObjectType metatype = 1;
+     * @generated from protobuf field: symbol.bench.NodeType metatype = 1;
      */
-    metatype: ObjectType;
+    metatype: NodeType;
     /**
      * @generated from protobuf field: string id = 2;
      */
@@ -1150,9 +1150,9 @@ export interface ClientData {
  */
 export interface CodeData {
     /**
-     * @generated from protobuf field: symbol.bench.ObjectType metatype = 1;
+     * @generated from protobuf field: symbol.bench.StructType metatype = 1;
      */
-    metatype: ObjectType;
+    metatype: StructType;
     /**
      * @generated from protobuf field: optional string language = 32;
      */
@@ -1167,9 +1167,9 @@ export interface CodeData {
  */
 export interface CollectionConstraintData {
     /**
-     * @generated from protobuf field: symbol.bench.ObjectType metatype = 1;
+     * @generated from protobuf field: symbol.bench.StructType metatype = 1;
      */
-    metatype: ObjectType;
+    metatype: StructType;
     /**
      * @generated from protobuf field: optional int32 min_length = 41;
      */
@@ -1184,9 +1184,9 @@ export interface CollectionConstraintData {
  */
 export interface ColorData {
     /**
-     * @generated from protobuf field: symbol.bench.ObjectType metatype = 1;
+     * @generated from protobuf field: symbol.bench.StructType metatype = 1;
      */
-    metatype: ObjectType;
+    metatype: StructType;
     /**
      * @generated from protobuf field: symbol.bench.ColorType type = 30;
      */
@@ -1231,9 +1231,9 @@ export interface ColorData {
  */
 export interface ColorStyleData {
     /**
-     * @generated from protobuf field: symbol.bench.ObjectType metatype = 1;
+     * @generated from protobuf field: symbol.bench.NodeType metatype = 1;
      */
-    metatype: ObjectType;
+    metatype: NodeType;
     /**
      * @generated from protobuf field: string id = 2;
      */
@@ -1346,9 +1346,9 @@ export interface ColorStyleData {
  */
 export interface ComponentViewData {
     /**
-     * @generated from protobuf field: symbol.bench.ObjectType metatype = 1;
+     * @generated from protobuf field: symbol.bench.NodeType metatype = 1;
      */
-    metatype: ObjectType;
+    metatype: NodeType;
     /**
      * @generated from protobuf field: string id = 2;
      */
@@ -1726,9 +1726,9 @@ export interface ComponentViewData {
  */
 export interface ComputerData {
     /**
-     * @generated from protobuf field: symbol.bench.ObjectType metatype = 1;
+     * @generated from protobuf field: symbol.bench.NodeType metatype = 1;
      */
-    metatype: ObjectType;
+    metatype: NodeType;
     /**
      * @generated from protobuf field: string id = 2;
      */
@@ -1907,9 +1907,9 @@ export interface ComputerData {
  */
 export interface ConditionData {
     /**
-     * @generated from protobuf field: symbol.bench.ObjectType metatype = 1;
+     * @generated from protobuf field: symbol.bench.StructType metatype = 1;
      */
-    metatype: ObjectType;
+    metatype: StructType;
     /**
      * @generated from protobuf field: symbol.bench.ConditionalType type = 30;
      */
@@ -1928,9 +1928,9 @@ export interface ConditionData {
  */
 export interface CornersData {
     /**
-     * @generated from protobuf field: symbol.bench.ObjectType metatype = 1;
+     * @generated from protobuf field: symbol.bench.StructType metatype = 1;
      */
-    metatype: ObjectType;
+    metatype: StructType;
     /**
      * @generated from protobuf field: optional int32 base = 50;
      */
@@ -1960,9 +1960,9 @@ export interface CornersData {
  */
 export interface CursorData {
     /**
-     * @generated from protobuf field: symbol.bench.ObjectType metatype = 1;
+     * @generated from protobuf field: symbol.bench.NodeType metatype = 1;
      */
-    metatype: ObjectType;
+    metatype: NodeType;
     /**
      * @generated from protobuf field: string id = 2;
      */
@@ -2071,9 +2071,9 @@ export interface CursorData {
  */
 export interface DatabaseData {
     /**
-     * @generated from protobuf field: symbol.bench.ObjectType metatype = 1;
+     * @generated from protobuf field: symbol.bench.NodeType metatype = 1;
      */
-    metatype: ObjectType;
+    metatype: NodeType;
     /**
      * @generated from protobuf field: string id = 2;
      */
@@ -2222,9 +2222,9 @@ export interface DatabaseData {
  */
 export interface DependencyData {
     /**
-     * @generated from protobuf field: symbol.bench.ObjectType metatype = 1;
+     * @generated from protobuf field: symbol.bench.NodeType metatype = 1;
      */
-    metatype: ObjectType;
+    metatype: NodeType;
     /**
      * @generated from protobuf field: string id = 2;
      */
@@ -2283,9 +2283,9 @@ export interface DependencyData {
  */
 export interface DimensionData {
     /**
-     * @generated from protobuf field: symbol.bench.ObjectType metatype = 1;
+     * @generated from protobuf field: symbol.bench.StructType metatype = 1;
      */
-    metatype: ObjectType;
+    metatype: StructType;
     /**
      * @generated from protobuf field: symbol.bench.DimensionType type = 30;
      */
@@ -2304,9 +2304,9 @@ export interface DimensionData {
  */
 export interface EditData {
     /**
-     * @generated from protobuf field: symbol.bench.ObjectType metatype = 1;
+     * @generated from protobuf field: symbol.bench.StructType metatype = 1;
      */
-    metatype: ObjectType;
+    metatype: StructType;
     /**
      * @generated from protobuf field: string id = 2;
      */
@@ -2337,9 +2337,9 @@ export interface EditData {
  */
 export interface EditOperationData {
     /**
-     * @generated from protobuf field: symbol.bench.ObjectType metatype = 1;
+     * @generated from protobuf field: symbol.bench.StructType metatype = 1;
      */
-    metatype: ObjectType;
+    metatype: StructType;
     /**
      * @generated from protobuf field: symbol.bench.EditOperationType type = 30;
      */
@@ -2362,9 +2362,9 @@ export interface EditOperationData {
  */
 export interface EffectData {
     /**
-     * @generated from protobuf field: symbol.bench.ObjectType metatype = 1;
+     * @generated from protobuf field: symbol.bench.StructType metatype = 1;
      */
-    metatype: ObjectType;
+    metatype: StructType;
     /**
      * @generated from protobuf field: symbol.bench.EffectType type = 30;
      */
@@ -2441,9 +2441,9 @@ export interface EffectData {
  */
 export interface EffectStyleData {
     /**
-     * @generated from protobuf field: symbol.bench.ObjectType metatype = 1;
+     * @generated from protobuf field: symbol.bench.NodeType metatype = 1;
      */
-    metatype: ObjectType;
+    metatype: NodeType;
     /**
      * @generated from protobuf field: string id = 2;
      */
@@ -2584,9 +2584,9 @@ export interface EffectStyleData {
  */
 export interface EmptyData {
     /**
-     * @generated from protobuf field: symbol.bench.ObjectType metatype = 1;
+     * @generated from protobuf field: symbol.bench.NodeType metatype = 1;
      */
-    metatype: ObjectType;
+    metatype: NodeType;
     /**
      * @generated from protobuf field: string id = 2;
      */
@@ -2625,9 +2625,9 @@ export interface EmptyData {
  */
 export interface ErrorData {
     /**
-     * @generated from protobuf field: symbol.bench.ObjectType metatype = 1;
+     * @generated from protobuf field: symbol.bench.StructType metatype = 1;
      */
-    metatype: ObjectType;
+    metatype: StructType;
     /**
      * @generated from protobuf field: symbol.bench.ErrorKind kind = 30;
      */
@@ -2658,9 +2658,9 @@ export interface ErrorData {
  */
 export interface ExpressionData {
     /**
-     * @generated from protobuf field: symbol.bench.ObjectType metatype = 1;
+     * @generated from protobuf field: symbol.bench.StructType metatype = 1;
      */
-    metatype: ObjectType;
+    metatype: StructType;
     /**
      * @generated from protobuf field: symbol.bench.ExpressionType type = 30;
      */
@@ -2693,9 +2693,9 @@ export interface ExpressionData {
  */
 export interface FieldData {
     /**
-     * @generated from protobuf field: symbol.bench.ObjectType metatype = 1;
+     * @generated from protobuf field: symbol.bench.NodeType metatype = 1;
      */
-    metatype: ObjectType;
+    metatype: NodeType;
     /**
      * @generated from protobuf field: string id = 2;
      */
@@ -2836,9 +2836,9 @@ export interface FieldData {
  */
 export interface FileData {
     /**
-     * @generated from protobuf field: symbol.bench.ObjectType metatype = 1;
+     * @generated from protobuf field: symbol.bench.NodeType metatype = 1;
      */
-    metatype: ObjectType;
+    metatype: NodeType;
     /**
      * @generated from protobuf field: string id = 2;
      */
@@ -3005,9 +3005,9 @@ export interface FileData {
  */
 export interface FillData {
     /**
-     * @generated from protobuf field: symbol.bench.ObjectType metatype = 1;
+     * @generated from protobuf field: symbol.bench.StructType metatype = 1;
      */
-    metatype: ObjectType;
+    metatype: StructType;
     /**
      * @generated from protobuf field: symbol.bench.FillType type = 30;
      */
@@ -3040,9 +3040,9 @@ export interface FillData {
  */
 export interface FlowData {
     /**
-     * @generated from protobuf field: symbol.bench.ObjectType metatype = 1;
+     * @generated from protobuf field: symbol.bench.NodeType metatype = 1;
      */
-    metatype: ObjectType;
+    metatype: NodeType;
     /**
      * @generated from protobuf field: string id = 2;
      */
@@ -3159,9 +3159,9 @@ export interface FlowData {
  */
 export interface FlowEdgeData {
     /**
-     * @generated from protobuf field: symbol.bench.ObjectType metatype = 1;
+     * @generated from protobuf field: symbol.bench.NodeType metatype = 1;
      */
-    metatype: ObjectType;
+    metatype: NodeType;
     /**
      * @generated from protobuf field: string id = 2;
      */
@@ -3264,9 +3264,9 @@ export interface FlowEdgeData {
  */
 export interface FontData {
     /**
-     * @generated from protobuf field: symbol.bench.ObjectType metatype = 1;
+     * @generated from protobuf field: symbol.bench.StructType metatype = 1;
      */
-    metatype: ObjectType;
+    metatype: StructType;
     /**
      * @generated from protobuf field: symbol.bench.FontType type = 30;
      */
@@ -3319,9 +3319,9 @@ export interface FontData {
  */
 export interface FontStyleData {
     /**
-     * @generated from protobuf field: symbol.bench.ObjectType metatype = 1;
+     * @generated from protobuf field: symbol.bench.NodeType metatype = 1;
      */
-    metatype: ObjectType;
+    metatype: NodeType;
     /**
      * @generated from protobuf field: string id = 2;
      */
@@ -3438,9 +3438,9 @@ export interface FontStyleData {
  */
 export interface FrameViewData {
     /**
-     * @generated from protobuf field: symbol.bench.ObjectType metatype = 1;
+     * @generated from protobuf field: symbol.bench.NodeType metatype = 1;
      */
-    metatype: ObjectType;
+    metatype: NodeType;
     /**
      * @generated from protobuf field: string id = 2;
      */
@@ -3815,9 +3815,9 @@ export interface FrameViewData {
  */
 export interface FunctionData {
     /**
-     * @generated from protobuf field: symbol.bench.ObjectType metatype = 1;
+     * @generated from protobuf field: symbol.bench.StructType metatype = 1;
      */
-    metatype: ObjectType;
+    metatype: StructType;
     /**
      * @generated from protobuf field: symbol.bench.FunctionType type = 30;
      */
@@ -3836,9 +3836,9 @@ export interface FunctionData {
  */
 export interface GradientData {
     /**
-     * @generated from protobuf field: symbol.bench.ObjectType metatype = 1;
+     * @generated from protobuf field: symbol.bench.StructType metatype = 1;
      */
-    metatype: ObjectType;
+    metatype: StructType;
     /**
      * @generated from protobuf field: symbol.bench.GradientType type = 30;
      */
@@ -3865,9 +3865,9 @@ export interface GradientData {
  */
 export interface GradientStopData {
     /**
-     * @generated from protobuf field: symbol.bench.ObjectType metatype = 1;
+     * @generated from protobuf field: symbol.bench.StructType metatype = 1;
      */
-    metatype: ObjectType;
+    metatype: StructType;
     /**
      * @generated from protobuf field: optional symbol.bench.ColorData color = 50;
      */
@@ -3884,9 +3884,9 @@ export interface GradientStopData {
  */
 export interface GradientStyleData {
     /**
-     * @generated from protobuf field: symbol.bench.ObjectType metatype = 1;
+     * @generated from protobuf field: symbol.bench.NodeType metatype = 1;
      */
-    metatype: ObjectType;
+    metatype: NodeType;
     /**
      * @generated from protobuf field: string id = 2;
      */
@@ -3981,9 +3981,9 @@ export interface GradientStyleData {
  */
 export interface GridData {
     /**
-     * @generated from protobuf field: symbol.bench.ObjectType metatype = 1;
+     * @generated from protobuf field: symbol.bench.StructType metatype = 1;
      */
-    metatype: ObjectType;
+    metatype: StructType;
     /**
      * @generated from protobuf field: int32 columns = 50;
      */
@@ -4010,9 +4010,9 @@ export interface GridData {
  */
 export interface GridSpanData {
     /**
-     * @generated from protobuf field: symbol.bench.ObjectType metatype = 1;
+     * @generated from protobuf field: symbol.bench.StructType metatype = 1;
      */
-    metatype: ObjectType;
+    metatype: StructType;
     /**
      * @generated from protobuf field: int32 columns = 50;
      */
@@ -4029,9 +4029,9 @@ export interface GridSpanData {
  */
 export interface HandleData {
     /**
-     * @generated from protobuf field: symbol.bench.ObjectType metatype = 1;
+     * @generated from protobuf field: symbol.bench.NodeType metatype = 1;
      */
-    metatype: ObjectType;
+    metatype: NodeType;
     /**
      * @generated from protobuf field: string id = 2;
      */
@@ -4078,9 +4078,9 @@ export interface HandleData {
  */
 export interface IconData {
     /**
-     * @generated from protobuf field: symbol.bench.ObjectType metatype = 1;
+     * @generated from protobuf field: symbol.bench.StructType metatype = 1;
      */
-    metatype: ObjectType;
+    metatype: StructType;
     /**
      * @generated from protobuf field: symbol.bench.IconType type = 30;
      */
@@ -4115,9 +4115,9 @@ export interface IconData {
  */
 export interface InsetsData {
     /**
-     * @generated from protobuf field: symbol.bench.ObjectType metatype = 1;
+     * @generated from protobuf field: symbol.bench.StructType metatype = 1;
      */
-    metatype: ObjectType;
+    metatype: StructType;
     /**
      * @generated from protobuf field: optional int32 base = 50;
      */
@@ -4146,9 +4146,9 @@ export interface InsetsData {
  */
 export interface InterruptionData {
     /**
-     * @generated from protobuf field: symbol.bench.ObjectType metatype = 1;
+     * @generated from protobuf field: symbol.bench.NodeType metatype = 1;
      */
-    metatype: ObjectType;
+    metatype: NodeType;
     /**
      * @generated from protobuf field: string id = 2;
      */
@@ -4253,9 +4253,9 @@ export interface InterruptionData {
  */
 export interface InviteData {
     /**
-     * @generated from protobuf field: symbol.bench.ObjectType metatype = 1;
+     * @generated from protobuf field: symbol.bench.NodeType metatype = 1;
      */
-    metatype: ObjectType;
+    metatype: NodeType;
     /**
      * @generated from protobuf field: string id = 2;
      */
@@ -4302,9 +4302,9 @@ export interface InviteData {
  */
 export interface JoinData {
     /**
-     * @generated from protobuf field: symbol.bench.ObjectType metatype = 1;
+     * @generated from protobuf field: symbol.bench.StructType metatype = 1;
      */
-    metatype: ObjectType;
+    metatype: StructType;
     /**
      * @generated from protobuf field: symbol.bench.JoinType type = 30;
      */
@@ -4329,9 +4329,9 @@ export interface JoinData {
  */
 export interface LabelViewData {
     /**
-     * @generated from protobuf field: symbol.bench.ObjectType metatype = 1;
+     * @generated from protobuf field: symbol.bench.NodeType metatype = 1;
      */
-    metatype: ObjectType;
+    metatype: NodeType;
     /**
      * @generated from protobuf field: string id = 2;
      */
@@ -4706,9 +4706,9 @@ export interface LabelViewData {
  */
 export interface LengthData {
     /**
-     * @generated from protobuf field: symbol.bench.ObjectType metatype = 1;
+     * @generated from protobuf field: symbol.bench.StructType metatype = 1;
      */
-    metatype: ObjectType;
+    metatype: StructType;
     /**
      * @generated from protobuf field: symbol.bench.LengthUnit unit = 50;
      */
@@ -4725,9 +4725,9 @@ export interface LengthData {
  */
 export interface LinkData {
     /**
-     * @generated from protobuf field: symbol.bench.ObjectType metatype = 1;
+     * @generated from protobuf field: symbol.bench.NodeType metatype = 1;
      */
-    metatype: ObjectType;
+    metatype: NodeType;
     /**
      * @generated from protobuf field: string id = 2;
      */
@@ -4876,9 +4876,9 @@ export interface LinkData {
  */
 export interface MembershipData {
     /**
-     * @generated from protobuf field: symbol.bench.ObjectType metatype = 1;
+     * @generated from protobuf field: symbol.bench.NodeType metatype = 1;
      */
-    metatype: ObjectType;
+    metatype: NodeType;
     /**
      * @generated from protobuf field: string id = 2;
      */
@@ -4943,9 +4943,9 @@ export interface MembershipData {
  */
 export interface MessageData {
     /**
-     * @generated from protobuf field: symbol.bench.ObjectType metatype = 1;
+     * @generated from protobuf field: symbol.bench.NodeType metatype = 1;
      */
-    metatype: ObjectType;
+    metatype: NodeType;
     /**
      * @generated from protobuf field: string id = 2;
      */
@@ -5056,9 +5056,9 @@ export interface MessageData {
  */
 export interface NodeConstraintData {
     /**
-     * @generated from protobuf field: symbol.bench.ObjectType metatype = 1;
+     * @generated from protobuf field: symbol.bench.StructType metatype = 1;
      */
-    metatype: ObjectType;
+    metatype: StructType;
     /**
      * @generated from protobuf field: repeated symbol.bench.NodeType node_types = 41;
      */
@@ -5069,9 +5069,9 @@ export interface NodeConstraintData {
  */
 export interface NodeReferenceData {
     /**
-     * @generated from protobuf field: symbol.bench.ObjectType metatype = 1;
+     * @generated from protobuf field: symbol.bench.StructType metatype = 1;
      */
-    metatype: ObjectType;
+    metatype: StructType;
     /**
      * @generated from protobuf field: symbol.bench.NodeType node_type = 30;
      */
@@ -5100,9 +5100,9 @@ export interface NodeReferenceData {
  */
 export interface NotificationData {
     /**
-     * @generated from protobuf field: symbol.bench.ObjectType metatype = 1;
+     * @generated from protobuf field: symbol.bench.NodeType metatype = 1;
      */
-    metatype: ObjectType;
+    metatype: NodeType;
     /**
      * @generated from protobuf field: string id = 2;
      */
@@ -5193,9 +5193,9 @@ export interface NotificationData {
  */
 export interface NumberConstraintData {
     /**
-     * @generated from protobuf field: symbol.bench.ObjectType metatype = 1;
+     * @generated from protobuf field: symbol.bench.StructType metatype = 1;
      */
-    metatype: ObjectType;
+    metatype: StructType;
     /**
      * @generated from protobuf field: optional symbol.bench.NumberFormat format = 40;
      */
@@ -5228,9 +5228,9 @@ export interface NumberConstraintData {
  */
 export interface NumberInputViewData {
     /**
-     * @generated from protobuf field: symbol.bench.ObjectType metatype = 1;
+     * @generated from protobuf field: symbol.bench.NodeType metatype = 1;
      */
-    metatype: ObjectType;
+    metatype: NodeType;
     /**
      * @generated from protobuf field: string id = 2;
      */
@@ -5379,9 +5379,9 @@ export interface NumberInputViewData {
  */
 export interface OrganizationData {
     /**
-     * @generated from protobuf field: symbol.bench.ObjectType metatype = 1;
+     * @generated from protobuf field: symbol.bench.NodeType metatype = 1;
      */
-    metatype: ObjectType;
+    metatype: NodeType;
     /**
      * @generated from protobuf field: string id = 2;
      */
@@ -5452,9 +5452,9 @@ export interface OrganizationData {
  */
 export interface OriginData {
     /**
-     * @generated from protobuf field: symbol.bench.ObjectType metatype = 1;
+     * @generated from protobuf field: symbol.bench.StructType metatype = 1;
      */
-    metatype: ObjectType;
+    metatype: StructType;
     /**
      * @generated from protobuf field: symbol.bench.ClientType type = 30;
      */
@@ -5479,9 +5479,9 @@ export interface OriginData {
  */
 export interface PackageData {
     /**
-     * @generated from protobuf field: symbol.bench.ObjectType metatype = 1;
+     * @generated from protobuf field: symbol.bench.NodeType metatype = 1;
      */
-    metatype: ObjectType;
+    metatype: NodeType;
     /**
      * @generated from protobuf field: string id = 2;
      */
@@ -5558,9 +5558,9 @@ export interface PackageData {
  */
 export interface PageData {
     /**
-     * @generated from protobuf field: symbol.bench.ObjectType metatype = 1;
+     * @generated from protobuf field: symbol.bench.NodeType metatype = 1;
      */
-    metatype: ObjectType;
+    metatype: NodeType;
     /**
      * @generated from protobuf field: string id = 2;
      */
@@ -5639,9 +5639,9 @@ export interface PageData {
  */
 export interface PositionData {
     /**
-     * @generated from protobuf field: symbol.bench.ObjectType metatype = 1;
+     * @generated from protobuf field: symbol.bench.StructType metatype = 1;
      */
-    metatype: ObjectType;
+    metatype: StructType;
     /**
      * @generated from protobuf field: symbol.bench.PositionType type = 30;
      */
@@ -5668,15 +5668,19 @@ export interface PositionData {
  */
 export interface PropertyReferenceData {
     /**
-     * @generated from protobuf field: symbol.bench.ObjectType metatype = 1;
+     * @generated from protobuf field: symbol.bench.StructType metatype = 1;
      */
-    metatype: ObjectType;
+    metatype: StructType;
     /**
-     * @generated from protobuf field: optional symbol.bench.ObjectType object_type = 30;
+     * @generated from protobuf field: optional symbol.bench.NodeType node_type = 30;
      */
-    objectType?: ObjectType;
+    nodeType?: NodeType;
     /**
-     * @generated from protobuf field: int32 id = 31;
+     * @generated from protobuf field: optional symbol.bench.StructType struct_type = 31;
+     */
+    structType?: StructType;
+    /**
+     * @generated from protobuf field: int32 id = 32;
      */
     id: number;
 }
@@ -5685,9 +5689,9 @@ export interface PropertyReferenceData {
  */
 export interface QueryData {
     /**
-     * @generated from protobuf field: symbol.bench.ObjectType metatype = 1;
+     * @generated from protobuf field: symbol.bench.StructType metatype = 1;
      */
-    metatype: ObjectType;
+    metatype: StructType;
     /**
      * @generated from protobuf field: string id = 2;
      */
@@ -5752,9 +5756,9 @@ export interface QueryData {
  */
 export interface RecordData {
     /**
-     * @generated from protobuf field: symbol.bench.ObjectType metatype = 1;
+     * @generated from protobuf field: symbol.bench.NodeType metatype = 1;
      */
-    metatype: ObjectType;
+    metatype: NodeType;
     /**
      * @generated from protobuf field: string id = 2;
      */
@@ -5833,9 +5837,9 @@ export interface RecordData {
  */
 export interface RelationReferenceData {
     /**
-     * @generated from protobuf field: symbol.bench.ObjectType metatype = 1;
+     * @generated from protobuf field: symbol.bench.StructType metatype = 1;
      */
-    metatype: ObjectType;
+    metatype: StructType;
     /**
      * @generated from protobuf field: symbol.bench.RelationType type = 30;
      */
@@ -5856,9 +5860,9 @@ export interface RelationReferenceData {
  */
 export interface RoleData {
     /**
-     * @generated from protobuf field: symbol.bench.ObjectType metatype = 1;
+     * @generated from protobuf field: symbol.bench.NodeType metatype = 1;
      */
-    metatype: ObjectType;
+    metatype: NodeType;
     /**
      * @generated from protobuf field: string id = 2;
      */
@@ -5931,9 +5935,9 @@ export interface RoleData {
  */
 export interface RouteData {
     /**
-     * @generated from protobuf field: symbol.bench.ObjectType metatype = 1;
+     * @generated from protobuf field: symbol.bench.NodeType metatype = 1;
      */
-    metatype: ObjectType;
+    metatype: NodeType;
     /**
      * @generated from protobuf field: string id = 2;
      */
@@ -6018,9 +6022,9 @@ export interface RouteData {
  */
 export interface RunData {
     /**
-     * @generated from protobuf field: symbol.bench.ObjectType metatype = 1;
+     * @generated from protobuf field: symbol.bench.NodeType metatype = 1;
      */
-    metatype: ObjectType;
+    metatype: NodeType;
     /**
      * @generated from protobuf field: string id = 2;
      */
@@ -6179,18 +6183,18 @@ export interface RunData {
  */
 export interface RunFrameData {
     /**
-     * @generated from protobuf field: symbol.bench.ObjectType metatype = 1;
+     * @generated from protobuf field: symbol.bench.StructType metatype = 1;
      */
-    metatype: ObjectType;
+    metatype: StructType;
 }
 /**
  * @generated from protobuf message symbol.bench.RunTraceData
  */
 export interface RunTraceData {
     /**
-     * @generated from protobuf field: symbol.bench.ObjectType metatype = 1;
+     * @generated from protobuf field: symbol.bench.StructType metatype = 1;
      */
-    metatype: ObjectType;
+    metatype: StructType;
     /**
      * @generated from protobuf field: repeated symbol.bench.RunFrameData frames = 30;
      */
@@ -6203,9 +6207,9 @@ export interface RunTraceData {
  */
 export interface ScalerData {
     /**
-     * @generated from protobuf field: symbol.bench.ObjectType metatype = 1;
+     * @generated from protobuf field: symbol.bench.NodeType metatype = 1;
      */
-    metatype: ObjectType;
+    metatype: NodeType;
     /**
      * @generated from protobuf field: string id = 2;
      */
@@ -6358,9 +6362,9 @@ export interface ScalerData {
  */
 export interface SceneData {
     /**
-     * @generated from protobuf field: symbol.bench.ObjectType metatype = 1;
+     * @generated from protobuf field: symbol.bench.NodeType metatype = 1;
      */
-    metatype: ObjectType;
+    metatype: NodeType;
     /**
      * @generated from protobuf field: string id = 2;
      */
@@ -6443,9 +6447,9 @@ export interface SceneData {
  */
 export interface ScheduleData {
     /**
-     * @generated from protobuf field: symbol.bench.ObjectType metatype = 1;
+     * @generated from protobuf field: symbol.bench.StructType metatype = 1;
      */
-    metatype: ObjectType;
+    metatype: StructType;
     /**
      * @generated from protobuf field: symbol.bench.ScheduleFrequency frequency = 30;
      */
@@ -6518,9 +6522,9 @@ export interface ScheduleData {
  */
 export interface SchemaData {
     /**
-     * @generated from protobuf field: symbol.bench.ObjectType metatype = 1;
+     * @generated from protobuf field: symbol.bench.NodeType metatype = 1;
      */
-    metatype: ObjectType;
+    metatype: NodeType;
     /**
      * @generated from protobuf field: string id = 2;
      */
@@ -6651,9 +6655,9 @@ export interface SchemaData {
  */
 export interface ScopeData {
     /**
-     * @generated from protobuf field: symbol.bench.ObjectType metatype = 1;
+     * @generated from protobuf field: symbol.bench.StructType metatype = 1;
      */
-    metatype: ObjectType;
+    metatype: StructType;
     /**
      * @generated from protobuf field: optional symbol.bench.Region region = 30;
      */
@@ -6672,9 +6676,9 @@ export interface ScopeData {
  */
 export interface SelectionData {
     /**
-     * @generated from protobuf field: symbol.bench.ObjectType metatype = 1;
+     * @generated from protobuf field: symbol.bench.StructType metatype = 1;
      */
-    metatype: ObjectType;
+    metatype: StructType;
     /**
      * @generated from protobuf field: repeated symbol.bench.NodeReferenceData nodes_ptr = 40;
      */
@@ -6687,9 +6691,9 @@ export interface SelectionData {
  */
 export interface ServiceData {
     /**
-     * @generated from protobuf field: symbol.bench.ObjectType metatype = 1;
+     * @generated from protobuf field: symbol.bench.NodeType metatype = 1;
      */
-    metatype: ObjectType;
+    metatype: NodeType;
     /**
      * @generated from protobuf field: string id = 2;
      */
@@ -6772,9 +6776,9 @@ export interface ServiceData {
  */
 export interface ShadowData {
     /**
-     * @generated from protobuf field: symbol.bench.ObjectType metatype = 1;
+     * @generated from protobuf field: symbol.bench.StructType metatype = 1;
      */
-    metatype: ObjectType;
+    metatype: StructType;
     /**
      * @generated from protobuf field: symbol.bench.ShadowType type = 30;
      */
@@ -6819,9 +6823,9 @@ export interface ShadowData {
  */
 export interface ShadowStyleData {
     /**
-     * @generated from protobuf field: symbol.bench.ObjectType metatype = 1;
+     * @generated from protobuf field: symbol.bench.NodeType metatype = 1;
      */
-    metatype: ObjectType;
+    metatype: NodeType;
     /**
      * @generated from protobuf field: string id = 2;
      */
@@ -6930,9 +6934,9 @@ export interface ShadowStyleData {
  */
 export interface SliderInputViewData {
     /**
-     * @generated from protobuf field: symbol.bench.ObjectType metatype = 1;
+     * @generated from protobuf field: symbol.bench.NodeType metatype = 1;
      */
-    metatype: ObjectType;
+    metatype: NodeType;
     /**
      * @generated from protobuf field: string id = 2;
      */
@@ -7087,9 +7091,9 @@ export interface SliderInputViewData {
  */
 export interface SortData {
     /**
-     * @generated from protobuf field: symbol.bench.ObjectType metatype = 1;
+     * @generated from protobuf field: symbol.bench.StructType metatype = 1;
      */
-    metatype: ObjectType;
+    metatype: StructType;
     /**
      * @generated from protobuf field: symbol.bench.SortType type = 30;
      */
@@ -7111,9 +7115,9 @@ export interface SortData {
  */
 export interface SpaceData {
     /**
-     * @generated from protobuf field: symbol.bench.ObjectType metatype = 1;
+     * @generated from protobuf field: symbol.bench.NodeType metatype = 1;
      */
-    metatype: ObjectType;
+    metatype: NodeType;
     /**
      * @generated from protobuf field: string id = 2;
      */
@@ -7210,9 +7214,9 @@ export interface SpaceData {
  */
 export interface SpanData {
     /**
-     * @generated from protobuf field: symbol.bench.ObjectType metatype = 1;
+     * @generated from protobuf field: symbol.bench.NodeType metatype = 1;
      */
-    metatype: ObjectType;
+    metatype: NodeType;
     /**
      * @generated from protobuf field: string id = 2;
      */
@@ -7345,9 +7349,9 @@ export interface SpanData {
  */
 export interface SplitViewData {
     /**
-     * @generated from protobuf field: symbol.bench.ObjectType metatype = 1;
+     * @generated from protobuf field: symbol.bench.NodeType metatype = 1;
      */
-    metatype: ObjectType;
+    metatype: NodeType;
     /**
      * @generated from protobuf field: string id = 2;
      */
@@ -7722,9 +7726,9 @@ export interface SplitViewData {
  */
 export interface StringConstraintData {
     /**
-     * @generated from protobuf field: symbol.bench.ObjectType metatype = 1;
+     * @generated from protobuf field: symbol.bench.StructType metatype = 1;
      */
-    metatype: ObjectType;
+    metatype: StructType;
     /**
      * @generated from protobuf field: optional symbol.bench.StringFormat format = 40;
      */
@@ -7749,9 +7753,9 @@ export interface StringConstraintData {
  */
 export interface TableData {
     /**
-     * @generated from protobuf field: symbol.bench.ObjectType metatype = 1;
+     * @generated from protobuf field: symbol.bench.NodeType metatype = 1;
      */
-    metatype: ObjectType;
+    metatype: NodeType;
     /**
      * @generated from protobuf field: string id = 2;
      */
@@ -7836,9 +7840,9 @@ export interface TableData {
  */
 export interface TaskData {
     /**
-     * @generated from protobuf field: symbol.bench.ObjectType metatype = 1;
+     * @generated from protobuf field: symbol.bench.NodeType metatype = 1;
      */
-    metatype: ObjectType;
+    metatype: NodeType;
     /**
      * @generated from protobuf field: string id = 2;
      */
@@ -7979,9 +7983,9 @@ export interface TaskData {
  */
 export interface TeamData {
     /**
-     * @generated from protobuf field: symbol.bench.ObjectType metatype = 1;
+     * @generated from protobuf field: symbol.bench.NodeType metatype = 1;
      */
-    metatype: ObjectType;
+    metatype: NodeType;
     /**
      * @generated from protobuf field: string id = 2;
      */
@@ -8064,9 +8068,9 @@ export interface TeamData {
  */
 export interface TextData {
     /**
-     * @generated from protobuf field: symbol.bench.ObjectType metatype = 1;
+     * @generated from protobuf field: symbol.bench.StructType metatype = 1;
      */
-    metatype: ObjectType;
+    metatype: StructType;
     /**
      * @generated from protobuf field: repeated symbol.bench.TextLineData lines = 32;
      */
@@ -8077,9 +8081,9 @@ export interface TextData {
  */
 export interface TextLineData {
     /**
-     * @generated from protobuf field: symbol.bench.ObjectType metatype = 1;
+     * @generated from protobuf field: symbol.bench.StructType metatype = 1;
      */
-    metatype: ObjectType;
+    metatype: StructType;
     /**
      * @generated from protobuf field: symbol.bench.TextLineType type = 30;
      */
@@ -8134,9 +8138,9 @@ export interface TextLineData {
  */
 export interface TextSpanData {
     /**
-     * @generated from protobuf field: symbol.bench.ObjectType metatype = 1;
+     * @generated from protobuf field: symbol.bench.StructType metatype = 1;
      */
-    metatype: ObjectType;
+    metatype: StructType;
     /**
      * @generated from protobuf field: symbol.bench.TextSpanType type = 30;
      */
@@ -8197,9 +8201,9 @@ export interface TextSpanData {
  */
 export interface TextViewData {
     /**
-     * @generated from protobuf field: symbol.bench.ObjectType metatype = 1;
+     * @generated from protobuf field: symbol.bench.NodeType metatype = 1;
      */
-    metatype: ObjectType;
+    metatype: NodeType;
     /**
      * @generated from protobuf field: string id = 2;
      */
@@ -8388,9 +8392,9 @@ export interface TextViewData {
  */
 export interface ThemeData {
     /**
-     * @generated from protobuf field: symbol.bench.ObjectType metatype = 1;
+     * @generated from protobuf field: symbol.bench.NodeType metatype = 1;
      */
-    metatype: ObjectType;
+    metatype: NodeType;
     /**
      * @generated from protobuf field: string id = 2;
      */
@@ -8475,9 +8479,9 @@ export interface ThemeData {
  */
 export interface ThreadData {
     /**
-     * @generated from protobuf field: symbol.bench.ObjectType metatype = 1;
+     * @generated from protobuf field: symbol.bench.NodeType metatype = 1;
      */
-    metatype: ObjectType;
+    metatype: NodeType;
     /**
      * @generated from protobuf field: string id = 2;
      */
@@ -8630,9 +8634,9 @@ export interface ThreadData {
  */
 export interface ThreadViewData {
     /**
-     * @generated from protobuf field: symbol.bench.ObjectType metatype = 1;
+     * @generated from protobuf field: symbol.bench.NodeType metatype = 1;
      */
-    metatype: ObjectType;
+    metatype: NodeType;
     /**
      * @generated from protobuf field: string id = 2;
      */
@@ -8743,9 +8747,9 @@ export interface ThreadViewData {
  */
 export interface TransitionData {
     /**
-     * @generated from protobuf field: symbol.bench.ObjectType metatype = 1;
+     * @generated from protobuf field: symbol.bench.StructType metatype = 1;
      */
-    metatype: ObjectType;
+    metatype: StructType;
     /**
      * @generated from protobuf field: symbol.bench.TransitionType type = 30;
      */
@@ -8798,9 +8802,9 @@ export interface TransitionData {
  */
 export interface TransitionStyleData {
     /**
-     * @generated from protobuf field: symbol.bench.ObjectType metatype = 1;
+     * @generated from protobuf field: symbol.bench.NodeType metatype = 1;
      */
-    metatype: ObjectType;
+    metatype: NodeType;
     /**
      * @generated from protobuf field: string id = 2;
      */
@@ -8915,9 +8919,9 @@ export interface TransitionStyleData {
  */
 export interface TypeData {
     /**
-     * @generated from protobuf field: symbol.bench.ObjectType metatype = 1;
+     * @generated from protobuf field: symbol.bench.StructType metatype = 1;
      */
-    metatype: ObjectType;
+    metatype: StructType;
     /**
      * @generated from protobuf field: symbol.bench.TypeCardinality cardinality = 40;
      */
@@ -8986,9 +8990,9 @@ export interface TypeData {
  */
 export interface UserData {
     /**
-     * @generated from protobuf field: symbol.bench.ObjectType metatype = 1;
+     * @generated from protobuf field: symbol.bench.NodeType metatype = 1;
      */
-    metatype: ObjectType;
+    metatype: NodeType;
     /**
      * @generated from protobuf field: string id = 2;
      */
@@ -9083,9 +9087,9 @@ export interface UserData {
  */
 export interface ValueData {
     /**
-     * @generated from protobuf field: symbol.bench.ObjectType metatype = 1;
+     * @generated from protobuf field: symbol.bench.StructType metatype = 1;
      */
-    metatype: ObjectType;
+    metatype: StructType;
     /**
      * @generated from protobuf field: map<string, google.protobuf.Value> value = 35;
      */
@@ -9098,9 +9102,9 @@ export interface ValueData {
  */
 export interface VariableData {
     /**
-     * @generated from protobuf field: symbol.bench.ObjectType metatype = 1;
+     * @generated from protobuf field: symbol.bench.StructType metatype = 1;
      */
-    metatype: ObjectType;
+    metatype: StructType;
     /**
      * @generated from protobuf field: optional symbol.bench.NodeReferenceData field_ptr = 40;
      */
@@ -9115,9 +9119,9 @@ export interface VariableData {
  */
 export interface Vector2Data {
     /**
-     * @generated from protobuf field: symbol.bench.ObjectType metatype = 1;
+     * @generated from protobuf field: symbol.bench.StructType metatype = 1;
      */
-    metatype: ObjectType;
+    metatype: StructType;
     /**
      * @generated from protobuf field: float x = 50;
      */
@@ -9132,9 +9136,9 @@ export interface Vector2Data {
  */
 export interface Vector3Data {
     /**
-     * @generated from protobuf field: symbol.bench.ObjectType metatype = 1;
+     * @generated from protobuf field: symbol.bench.StructType metatype = 1;
      */
-    metatype: ObjectType;
+    metatype: StructType;
     /**
      * @generated from protobuf field: float x = 50;
      */
@@ -9153,9 +9157,9 @@ export interface Vector3Data {
  */
 export interface Vector4Data {
     /**
-     * @generated from protobuf field: symbol.bench.ObjectType metatype = 1;
+     * @generated from protobuf field: symbol.bench.StructType metatype = 1;
      */
-    metatype: ObjectType;
+    metatype: StructType;
     /**
      * @generated from protobuf field: float x = 50;
      */
@@ -9178,9 +9182,9 @@ export interface Vector4Data {
  */
 export interface WizardViewData {
     /**
-     * @generated from protobuf field: symbol.bench.ObjectType metatype = 1;
+     * @generated from protobuf field: symbol.bench.NodeType metatype = 1;
      */
-    metatype: ObjectType;
+    metatype: NodeType;
     /**
      * @generated from protobuf field: string id = 2;
      */
@@ -9830,903 +9834,6 @@ export enum BenchStatus {
      * @generated from protobuf enum value: BENCH_STATUS_ACTIVATED = 50;
      */
     ACTIVATED = 50
-}
-/**
- * @generated from protobuf enum symbol.bench.BenchType
- */
-export enum BenchType {
-    /**
-     * @generated from protobuf enum value: BENCH_TYPE_UNSPECIFIED = 0;
-     */
-    UNSPECIFIED = 0,
-    /**
-     * @generated from protobuf enum value: BENCH_TYPE_BENCH = 1;
-     */
-    BENCH = 1,
-    /**
-     * @generated from protobuf enum value: BENCH_TYPE_HANDLE = 2;
-     */
-    HANDLE = 2,
-    /**
-     * @generated from protobuf enum value: BENCH_TYPE_USER = 10;
-     */
-    USER = 10,
-    /**
-     * @generated from protobuf enum value: BENCH_TYPE_ORGANIZATION = 20;
-     */
-    ORGANIZATION = 20,
-    /**
-     * @generated from protobuf enum value: BENCH_TYPE_CLIENT = 50;
-     */
-    CLIENT = 50,
-    /**
-     * @generated from protobuf enum value: BENCH_TYPE_PACKAGE = 1000;
-     */
-    PACKAGE = 1000,
-    /**
-     * @generated from protobuf enum value: BENCH_TYPE_DEPENDENCY = 1010;
-     */
-    DEPENDENCY = 1010,
-    /**
-     * @generated from protobuf enum value: BENCH_TYPE_PAGE = 1020;
-     */
-    PAGE = 1020,
-    /**
-     * @generated from protobuf enum value: BENCH_TYPE_BLOCK = 1030;
-     */
-    BLOCK = 1030,
-    /**
-     * @generated from protobuf enum value: BENCH_TYPE_APPLICATION = 1040;
-     */
-    APPLICATION = 1040,
-    /**
-     * @generated from protobuf enum value: BENCH_TYPE_DATABASE = 1200;
-     */
-    DATABASE = 1200,
-    /**
-     * @generated from protobuf enum value: BENCH_TYPE_COMPUTER = 1210;
-     */
-    COMPUTER = 1210,
-    /**
-     * @generated from protobuf enum value: BENCH_TYPE_SCALER = 1250;
-     */
-    SCALER = 1250,
-    /**
-     * @generated from protobuf enum value: BENCH_TYPE_SCHEMA = 1400;
-     */
-    SCHEMA = 1400,
-    /**
-     * @generated from protobuf enum value: BENCH_TYPE_FIELD = 1410;
-     */
-    FIELD = 1410,
-    /**
-     * @generated from protobuf enum value: BENCH_TYPE_TABLE = 1500;
-     */
-    TABLE = 1500,
-    /**
-     * @generated from protobuf enum value: BENCH_TYPE_RECORD = 1510;
-     */
-    RECORD = 1510,
-    /**
-     * @generated from protobuf enum value: BENCH_TYPE_FILE = 1520;
-     */
-    FILE = 1520,
-    /**
-     * @generated from protobuf enum value: BENCH_TYPE_LINK = 1550;
-     */
-    LINK = 1550,
-    /**
-     * @generated from protobuf enum value: BENCH_TYPE_CHANNEL = 1800;
-     */
-    CHANNEL = 1800,
-    /**
-     * @generated from protobuf enum value: BENCH_TYPE_THREAD = 1810;
-     */
-    THREAD = 1810,
-    /**
-     * @generated from protobuf enum value: BENCH_TYPE_MESSAGE = 1820;
-     */
-    MESSAGE = 1820,
-    /**
-     * @generated from protobuf enum value: BENCH_TYPE_NOTIFICATION = 1850;
-     */
-    NOTIFICATION = 1850,
-    /**
-     * @generated from protobuf enum value: BENCH_TYPE_SERVICE = 2000;
-     */
-    SERVICE = 2000,
-    /**
-     * @generated from protobuf enum value: BENCH_TYPE_ACTION = 2010;
-     */
-    ACTION = 2010,
-    /**
-     * @generated from protobuf enum value: BENCH_TYPE_FLOW = 2020;
-     */
-    FLOW = 2020,
-    /**
-     * @generated from protobuf enum value: BENCH_TYPE_FLOW_EDGE = 2021;
-     */
-    FLOW_EDGE = 2021,
-    /**
-     * @generated from protobuf enum value: BENCH_TYPE_AGENT = 2050;
-     */
-    AGENT = 2050,
-    /**
-     * @generated from protobuf enum value: BENCH_TYPE_TASK = 2200;
-     */
-    TASK = 2200,
-    /**
-     * @generated from protobuf enum value: BENCH_TYPE_CURSOR = 2220;
-     */
-    CURSOR = 2220,
-    /**
-     * @generated from protobuf enum value: BENCH_TYPE_RUN = 2610;
-     */
-    RUN = 2610,
-    /**
-     * @generated from protobuf enum value: BENCH_TYPE_SPAN = 2620;
-     */
-    SPAN = 2620,
-    /**
-     * @generated from protobuf enum value: BENCH_TYPE_INTERRUPTION = 2630;
-     */
-    INTERRUPTION = 2630,
-    /**
-     * @generated from protobuf enum value: BENCH_TYPE_MEMBERSHIP = 2800;
-     */
-    MEMBERSHIP = 2800,
-    /**
-     * @generated from protobuf enum value: BENCH_TYPE_INVITE = 2810;
-     */
-    INVITE = 2810,
-    /**
-     * @generated from protobuf enum value: BENCH_TYPE_TEAM = 2820;
-     */
-    TEAM = 2820,
-    /**
-     * @generated from protobuf enum value: BENCH_TYPE_ROLE = 2830;
-     */
-    ROLE = 2830,
-    /**
-     * @generated from protobuf enum value: BENCH_TYPE_CLAIM = 2840;
-     */
-    CLAIM = 2840,
-    /**
-     * @generated from protobuf enum value: BENCH_TYPE_SPACE = 8000;
-     */
-    SPACE = 8000,
-    /**
-     * @generated from protobuf enum value: BENCH_TYPE_SCENE = 8010;
-     */
-    SCENE = 8010,
-    /**
-     * @generated from protobuf enum value: BENCH_TYPE_ROUTE = 8020;
-     */
-    ROUTE = 8020,
-    /**
-     * @generated from protobuf enum value: BENCH_TYPE_FRAME_VIEW = 8100;
-     */
-    FRAME_VIEW = 8100,
-    /**
-     * @generated from protobuf enum value: BENCH_TYPE_LABEL_VIEW = 8101;
-     */
-    LABEL_VIEW = 8101,
-    /**
-     * @generated from protobuf enum value: BENCH_TYPE_COMPONENT_VIEW = 8110;
-     */
-    COMPONENT_VIEW = 8110,
-    /**
-     * @generated from protobuf enum value: BENCH_TYPE_SPLIT_VIEW = 8120;
-     */
-    SPLIT_VIEW = 8120,
-    /**
-     * @generated from protobuf enum value: BENCH_TYPE_TEXT_VIEW = 8200;
-     */
-    TEXT_VIEW = 8200,
-    /**
-     * @generated from protobuf enum value: BENCH_TYPE_NUMBER_INPUT_VIEW = 8300;
-     */
-    NUMBER_INPUT_VIEW = 8300,
-    /**
-     * @generated from protobuf enum value: BENCH_TYPE_SLIDER_INPUT_VIEW = 8301;
-     */
-    SLIDER_INPUT_VIEW = 8301,
-    /**
-     * @generated from protobuf enum value: BENCH_TYPE_THREAD_VIEW = 8430;
-     */
-    THREAD_VIEW = 8430,
-    /**
-     * @generated from protobuf enum value: BENCH_TYPE_WIZARD_VIEW = 8500;
-     */
-    WIZARD_VIEW = 8500,
-    /**
-     * @generated from protobuf enum value: BENCH_TYPE_THEME = 9000;
-     */
-    THEME = 9000,
-    /**
-     * @generated from protobuf enum value: BENCH_TYPE_COLOR_STYLE = 9010;
-     */
-    COLOR_STYLE = 9010,
-    /**
-     * @generated from protobuf enum value: BENCH_TYPE_FONT_STYLE = 9011;
-     */
-    FONT_STYLE = 9011,
-    /**
-     * @generated from protobuf enum value: BENCH_TYPE_BORDER_STYLE = 9012;
-     */
-    BORDER_STYLE = 9012,
-    /**
-     * @generated from protobuf enum value: BENCH_TYPE_SHADOW_STYLE = 9013;
-     */
-    SHADOW_STYLE = 9013,
-    /**
-     * @generated from protobuf enum value: BENCH_TYPE_GRADIENT_STYLE = 9014;
-     */
-    GRADIENT_STYLE = 9014,
-    /**
-     * @generated from protobuf enum value: BENCH_TYPE_TRANSITION_STYLE = 9015;
-     */
-    TRANSITION_STYLE = 9015,
-    /**
-     * @generated from protobuf enum value: BENCH_TYPE_EFFECT_STYLE = 9016;
-     */
-    EFFECT_STYLE = 9016,
-    /**
-     * @generated from protobuf enum value: BENCH_TYPE_EMPTY = 9999;
-     */
-    EMPTY = 9999,
-    /**
-     * @generated from protobuf enum value: BENCH_TYPE_SCOPE = 20000;
-     */
-    SCOPE = 20000,
-    /**
-     * @generated from protobuf enum value: BENCH_TYPE_EDIT = 20001;
-     */
-    EDIT = 20001,
-    /**
-     * @generated from protobuf enum value: BENCH_TYPE_EDIT_OPERATION = 20002;
-     */
-    EDIT_OPERATION = 20002,
-    /**
-     * @generated from protobuf enum value: BENCH_TYPE_ORIGIN = 20003;
-     */
-    ORIGIN = 20003,
-    /**
-     * @generated from protobuf enum value: BENCH_TYPE_NODE_REFERENCE = 20004;
-     */
-    NODE_REFERENCE = 20004,
-    /**
-     * @generated from protobuf enum value: BENCH_TYPE_PROPERTY_REFERENCE = 20005;
-     */
-    PROPERTY_REFERENCE = 20005,
-    /**
-     * @generated from protobuf enum value: BENCH_TYPE_VARIABLE = 20006;
-     */
-    VARIABLE = 20006,
-    /**
-     * @generated from protobuf enum value: BENCH_TYPE_EXPRESSION = 20100;
-     */
-    EXPRESSION = 20100,
-    /**
-     * @generated from protobuf enum value: BENCH_TYPE_FUNCTION = 20101;
-     */
-    FUNCTION = 20101,
-    /**
-     * @generated from protobuf enum value: BENCH_TYPE_JOIN = 20102;
-     */
-    JOIN = 20102,
-    /**
-     * @generated from protobuf enum value: BENCH_TYPE_AGGREGATION = 20103;
-     */
-    AGGREGATION = 20103,
-    /**
-     * @generated from protobuf enum value: BENCH_TYPE_CONDITION = 20104;
-     */
-    CONDITION = 20104,
-    /**
-     * @generated from protobuf enum value: BENCH_TYPE_SORT = 20105;
-     */
-    SORT = 20105,
-    /**
-     * @generated from protobuf enum value: BENCH_TYPE_QUERY = 20106;
-     */
-    QUERY = 20106,
-    /**
-     * @generated from protobuf enum value: BENCH_TYPE_RELATION_REFERENCE = 20110;
-     */
-    RELATION_REFERENCE = 20110,
-    /**
-     * @generated from protobuf enum value: BENCH_TYPE_ATTRIBUTE_REFERENCE = 20111;
-     */
-    ATTRIBUTE_REFERENCE = 20111,
-    /**
-     * @generated from protobuf enum value: BENCH_TYPE_TYPE = 21400;
-     */
-    TYPE = 21400,
-    /**
-     * @generated from protobuf enum value: BENCH_TYPE_NUMBER_CONSTRAINT = 21401;
-     */
-    NUMBER_CONSTRAINT = 21401,
-    /**
-     * @generated from protobuf enum value: BENCH_TYPE_STRING_CONSTRAINT = 21402;
-     */
-    STRING_CONSTRAINT = 21402,
-    /**
-     * @generated from protobuf enum value: BENCH_TYPE_COLLECTION_CONSTRAINT = 21403;
-     */
-    COLLECTION_CONSTRAINT = 21403,
-    /**
-     * @generated from protobuf enum value: BENCH_TYPE_NODE_CONSTRAINT = 21404;
-     */
-    NODE_CONSTRAINT = 21404,
-    /**
-     * @generated from protobuf enum value: BENCH_TYPE_VALUE = 21410;
-     */
-    VALUE = 21410,
-    /**
-     * @generated from protobuf enum value: BENCH_TYPE_TEXT = 21500;
-     */
-    TEXT = 21500,
-    /**
-     * @generated from protobuf enum value: BENCH_TYPE_TEXT_LINE = 21501;
-     */
-    TEXT_LINE = 21501,
-    /**
-     * @generated from protobuf enum value: BENCH_TYPE_TEXT_SPAN = 21502;
-     */
-    TEXT_SPAN = 21502,
-    /**
-     * @generated from protobuf enum value: BENCH_TYPE_CODE = 21510;
-     */
-    CODE = 21510,
-    /**
-     * @generated from protobuf enum value: BENCH_TYPE_ICON = 21530;
-     */
-    ICON = 21530,
-    /**
-     * @generated from protobuf enum value: BENCH_TYPE_SELECTION = 21470;
-     */
-    SELECTION = 21470,
-    /**
-     * @generated from protobuf enum value: BENCH_TYPE_SCHEDULE = 22000;
-     */
-    SCHEDULE = 22000,
-    /**
-     * @generated from protobuf enum value: BENCH_TYPE_ERROR = 22600;
-     */
-    ERROR = 22600,
-    /**
-     * @generated from protobuf enum value: BENCH_TYPE_RUN_TRACE = 22603;
-     */
-    RUN_TRACE = 22603,
-    /**
-     * @generated from protobuf enum value: BENCH_TYPE_RUN_FRAME = 22604;
-     */
-    RUN_FRAME = 22604,
-    /**
-     * @generated from protobuf enum value: BENCH_TYPE_VECTOR2 = 29000;
-     */
-    VECTOR2 = 29000,
-    /**
-     * @generated from protobuf enum value: BENCH_TYPE_VECTOR3 = 29002;
-     */
-    VECTOR3 = 29002,
-    /**
-     * @generated from protobuf enum value: BENCH_TYPE_VECTOR4 = 29004;
-     */
-    VECTOR4 = 29004,
-    /**
-     * @generated from protobuf enum value: BENCH_TYPE_AXIS2 = 29006;
-     */
-    AXIS2 = 29006,
-    /**
-     * @generated from protobuf enum value: BENCH_TYPE_AXIS3 = 29008;
-     */
-    AXIS3 = 29008,
-    /**
-     * @generated from protobuf enum value: BENCH_TYPE_COLOR = 29010;
-     */
-    COLOR = 29010,
-    /**
-     * @generated from protobuf enum value: BENCH_TYPE_SHADOW = 29011;
-     */
-    SHADOW = 29011,
-    /**
-     * @generated from protobuf enum value: BENCH_TYPE_BORDER = 29012;
-     */
-    BORDER = 29012,
-    /**
-     * @generated from protobuf enum value: BENCH_TYPE_FONT = 29013;
-     */
-    FONT = 29013,
-    /**
-     * @generated from protobuf enum value: BENCH_TYPE_GRADIENT_STOP = 29014;
-     */
-    GRADIENT_STOP = 29014,
-    /**
-     * @generated from protobuf enum value: BENCH_TYPE_GRADIENT = 29015;
-     */
-    GRADIENT = 29015,
-    /**
-     * @generated from protobuf enum value: BENCH_TYPE_FILL = 29016;
-     */
-    FILL = 29016,
-    /**
-     * @generated from protobuf enum value: BENCH_TYPE_LENGTH = 29017;
-     */
-    LENGTH = 29017,
-    /**
-     * @generated from protobuf enum value: BENCH_TYPE_POSITION = 29019;
-     */
-    POSITION = 29019,
-    /**
-     * @generated from protobuf enum value: BENCH_TYPE_DIMENSION = 29021;
-     */
-    DIMENSION = 29021,
-    /**
-     * @generated from protobuf enum value: BENCH_TYPE_TRANSITION = 29023;
-     */
-    TRANSITION = 29023,
-    /**
-     * @generated from protobuf enum value: BENCH_TYPE_EFFECT = 29024;
-     */
-    EFFECT = 29024,
-    /**
-     * @generated from protobuf enum value: BENCH_TYPE_GRID = 29025;
-     */
-    GRID = 29025,
-    /**
-     * @generated from protobuf enum value: BENCH_TYPE_GRID_SPAN = 29027;
-     */
-    GRID_SPAN = 29027,
-    /**
-     * @generated from protobuf enum value: BENCH_TYPE_INSETS = 29029;
-     */
-    INSETS = 29029,
-    /**
-     * @generated from protobuf enum value: BENCH_TYPE_CORNERS = 29031;
-     */
-    CORNERS = 29031,
-    /**
-     * @generated from protobuf enum value: BENCH_TYPE_ENUM_TYPE = 40000;
-     */
-    ENUM_TYPE = 40000,
-    /**
-     * @generated from protobuf enum value: BENCH_TYPE_NODE_TYPE = 40001;
-     */
-    NODE_TYPE = 40001,
-    /**
-     * @generated from protobuf enum value: BENCH_TYPE_STRUCT_TYPE = 40002;
-     */
-    STRUCT_TYPE = 40002,
-    /**
-     * @generated from protobuf enum value: BENCH_TYPE_OBJECT_TYPE = 40003;
-     */
-    OBJECT_TYPE = 40003,
-    /**
-     * @generated from protobuf enum value: BENCH_TYPE_BENCH_TYPE = 40004;
-     */
-    BENCH_TYPE = 40004,
-    /**
-     * @generated from protobuf enum value: BENCH_TYPE_NODE_MODE = 40005;
-     */
-    NODE_MODE = 40005,
-    /**
-     * @generated from protobuf enum value: BENCH_TYPE_NODE_AREA = 40006;
-     */
-    NODE_AREA = 40006,
-    /**
-     * @generated from protobuf enum value: BENCH_TYPE_USER_STATUS = 40010;
-     */
-    USER_STATUS = 40010,
-    /**
-     * @generated from protobuf enum value: BENCH_TYPE_ORGANIZATION_STATUS = 40011;
-     */
-    ORGANIZATION_STATUS = 40011,
-    /**
-     * @generated from protobuf enum value: BENCH_TYPE_BENCH_STATUS = 40056;
-     */
-    BENCH_STATUS = 40056,
-    /**
-     * @generated from protobuf enum value: BENCH_TYPE_ERROR_KIND = 40060;
-     */
-    ERROR_KIND = 40060,
-    /**
-     * @generated from protobuf enum value: BENCH_TYPE_ERROR_TYPE = 40061;
-     */
-    ERROR_TYPE = 40061,
-    /**
-     * @generated from protobuf enum value: BENCH_TYPE_SEVERITY = 40062;
-     */
-    SEVERITY = 40062,
-    /**
-     * @generated from protobuf enum value: BENCH_TYPE_VARIABLE_TYPE = 40063;
-     */
-    VARIABLE_TYPE = 40063,
-    /**
-     * @generated from protobuf enum value: BENCH_TYPE_EDIT_TYPE = 40070;
-     */
-    EDIT_TYPE = 40070,
-    /**
-     * @generated from protobuf enum value: BENCH_TYPE_EDIT_OPERATION_TYPE = 40071;
-     */
-    EDIT_OPERATION_TYPE = 40071,
-    /**
-     * @generated from protobuf enum value: BENCH_TYPE_CONDITIONAL_TYPE = 40102;
-     */
-    CONDITIONAL_TYPE = 40102,
-    /**
-     * @generated from protobuf enum value: BENCH_TYPE_AGGREGATION_TYPE = 40103;
-     */
-    AGGREGATION_TYPE = 40103,
-    /**
-     * @generated from protobuf enum value: BENCH_TYPE_SORT_MODE = 40104;
-     */
-    SORT_MODE = 40104,
-    /**
-     * @generated from protobuf enum value: BENCH_TYPE_SORT_TYPE = 40105;
-     */
-    SORT_TYPE = 40105,
-    /**
-     * @generated from protobuf enum value: BENCH_TYPE_JOIN_TYPE = 40106;
-     */
-    JOIN_TYPE = 40106,
-    /**
-     * @generated from protobuf enum value: BENCH_TYPE_FUNCTION_TYPE = 40107;
-     */
-    FUNCTION_TYPE = 40107,
-    /**
-     * @generated from protobuf enum value: BENCH_TYPE_EXPRESSION_TYPE = 40108;
-     */
-    EXPRESSION_TYPE = 40108,
-    /**
-     * @generated from protobuf enum value: BENCH_TYPE_RELATION_TYPE = 40109;
-     */
-    RELATION_TYPE = 40109,
-    /**
-     * @generated from protobuf enum value: BENCH_TYPE_ATTRIBUTE_TYPE = 40110;
-     */
-    ATTRIBUTE_TYPE = 40110,
-    /**
-     * @generated from protobuf enum value: BENCH_TYPE_PACKAGE_TYPE = 40050;
-     */
-    PACKAGE_TYPE = 40050,
-    /**
-     * @generated from protobuf enum value: BENCH_TYPE_RESOURCE_STATUS = 41000;
-     */
-    RESOURCE_STATUS = 41000,
-    /**
-     * @generated from protobuf enum value: BENCH_TYPE_BLOCK_TYPE = 41010;
-     */
-    BLOCK_TYPE = 41010,
-    /**
-     * @generated from protobuf enum value: BENCH_TYPE_CLOUD = 40051;
-     */
-    CLOUD = 40051,
-    /**
-     * @generated from protobuf enum value: BENCH_TYPE_REGION = 40052;
-     */
-    REGION = 40052,
-    /**
-     * @generated from protobuf enum value: BENCH_TYPE_AREA = 40054;
-     */
-    AREA = 40054,
-    /**
-     * @generated from protobuf enum value: BENCH_TYPE_CONTINENT = 40055;
-     */
-    CONTINENT = 40055,
-    /**
-     * @generated from protobuf enum value: BENCH_TYPE_SCALER_TYPE = 41200;
-     */
-    SCALER_TYPE = 41200,
-    /**
-     * @generated from protobuf enum value: BENCH_TYPE_SCALER_STRATEGY = 41201;
-     */
-    SCALER_STRATEGY = 41201,
-    /**
-     * @generated from protobuf enum value: BENCH_TYPE_COMPUTER_TYPE = 41210;
-     */
-    COMPUTER_TYPE = 41210,
-    /**
-     * @generated from protobuf enum value: BENCH_TYPE_DATABASE_TYPE = 41220;
-     */
-    DATABASE_TYPE = 41220,
-    /**
-     * @generated from protobuf enum value: BENCH_TYPE_CLIENT_TYPE = 41221;
-     */
-    CLIENT_TYPE = 41221,
-    /**
-     * @generated from protobuf enum value: BENCH_TYPE_TEXT_LINE_TYPE = 41400;
-     */
-    TEXT_LINE_TYPE = 41400,
-    /**
-     * @generated from protobuf enum value: BENCH_TYPE_TEXT_SPAN_TYPE = 41401;
-     */
-    TEXT_SPAN_TYPE = 41401,
-    /**
-     * @generated from protobuf enum value: BENCH_TYPE_CODE_TYPE = 41410;
-     */
-    CODE_TYPE = 41410,
-    /**
-     * @generated from protobuf enum value: BENCH_TYPE_FILE_RETENTION_MODE = 41420;
-     */
-    FILE_RETENTION_MODE = 41420,
-    /**
-     * @generated from protobuf enum value: BENCH_TYPE_FILE_SOURCE = 41421;
-     */
-    FILE_SOURCE = 41421,
-    /**
-     * @generated from protobuf enum value: BENCH_TYPE_FILE_TYPE = 41422;
-     */
-    FILE_TYPE = 41422,
-    /**
-     * @generated from protobuf enum value: BENCH_TYPE_FILE_FORMAT = 41423;
-     */
-    FILE_FORMAT = 41423,
-    /**
-     * @generated from protobuf enum value: BENCH_TYPE_ICON_TYPE = 41430;
-     */
-    ICON_TYPE = 41430,
-    /**
-     * @generated from protobuf enum value: BENCH_TYPE_LINK_TYPE = 41440;
-     */
-    LINK_TYPE = 41440,
-    /**
-     * @generated from protobuf enum value: BENCH_TYPE_PRIMITIVE_TYPE = 41500;
-     */
-    PRIMITIVE_TYPE = 41500,
-    /**
-     * @generated from protobuf enum value: BENCH_TYPE_TYPE_CARDINALITY = 41501;
-     */
-    TYPE_CARDINALITY = 41501,
-    /**
-     * @generated from protobuf enum value: BENCH_TYPE_SCALAR_TYPE = 41502;
-     */
-    SCALAR_TYPE = 41502,
-    /**
-     * @generated from protobuf enum value: BENCH_TYPE_STRING_FORMAT = 41510;
-     */
-    STRING_FORMAT = 41510,
-    /**
-     * @generated from protobuf enum value: BENCH_TYPE_NUMBER_FORMAT = 41511;
-     */
-    NUMBER_FORMAT = 41511,
-    /**
-     * @generated from protobuf enum value: BENCH_TYPE_FIELD_TYPE = 41520;
-     */
-    FIELD_TYPE = 41520,
-    /**
-     * @generated from protobuf enum value: BENCH_TYPE_CASCADE_ACTION = 41521;
-     */
-    CASCADE_ACTION = 41521,
-    /**
-     * @generated from protobuf enum value: BENCH_TYPE_DAY = 41530;
-     */
-    DAY = 41530,
-    /**
-     * @generated from protobuf enum value: BENCH_TYPE_MONTH = 41531;
-     */
-    MONTH = 41531,
-    /**
-     * @generated from protobuf enum value: BENCH_TYPE_TIME_INTERVAL = 41532;
-     */
-    TIME_INTERVAL = 41532,
-    /**
-     * @generated from protobuf enum value: BENCH_TYPE_CHANNEL_STATUS = 41800;
-     */
-    CHANNEL_STATUS = 41800,
-    /**
-     * @generated from protobuf enum value: BENCH_TYPE_THREAD_STATUS = 41801;
-     */
-    THREAD_STATUS = 41801,
-    /**
-     * @generated from protobuf enum value: BENCH_TYPE_MESSAGE_TYPE = 41802;
-     */
-    MESSAGE_TYPE = 41802,
-    /**
-     * @generated from protobuf enum value: BENCH_TYPE_NOTIFICATION_TYPE = 41810;
-     */
-    NOTIFICATION_TYPE = 41810,
-    /**
-     * @generated from protobuf enum value: BENCH_TYPE_NOTIFICATION_STATUS = 41811;
-     */
-    NOTIFICATION_STATUS = 41811,
-    /**
-     * @generated from protobuf enum value: BENCH_TYPE_CLAIM_TYPE = 42000;
-     */
-    CLAIM_TYPE = 42000,
-    /**
-     * @generated from protobuf enum value: BENCH_TYPE_CLAIM_STATUS = 42001;
-     */
-    CLAIM_STATUS = 42001,
-    /**
-     * @generated from protobuf enum value: BENCH_TYPE_CURSOR_TYPE = 42010;
-     */
-    CURSOR_TYPE = 42010,
-    /**
-     * @generated from protobuf enum value: BENCH_TYPE_CURSOR_STATUS = 42011;
-     */
-    CURSOR_STATUS = 42011,
-    /**
-     * @generated from protobuf enum value: BENCH_TYPE_ACTION_TYPE = 42220;
-     */
-    ACTION_TYPE = 42220,
-    /**
-     * @generated from protobuf enum value: BENCH_TYPE_FLOW_TYPE = 42222;
-     */
-    FLOW_TYPE = 42222,
-    /**
-     * @generated from protobuf enum value: BENCH_TYPE_FLOW_EDGE_TYPE = 42223;
-     */
-    FLOW_EDGE_TYPE = 42223,
-    /**
-     * @generated from protobuf enum value: BENCH_TYPE_PROCESS_STATUS = 42600;
-     */
-    PROCESS_STATUS = 42600,
-    /**
-     * @generated from protobuf enum value: BENCH_TYPE_RUN_TYPE = 42601;
-     */
-    RUN_TYPE = 42601,
-    /**
-     * @generated from protobuf enum value: BENCH_TYPE_SPAN_TYPE = 42602;
-     */
-    SPAN_TYPE = 42602,
-    /**
-     * @generated from protobuf enum value: BENCH_TYPE_SCHEDULE_FREQUENCY = 42610;
-     */
-    SCHEDULE_FREQUENCY = 42610,
-    /**
-     * @generated from protobuf enum value: BENCH_TYPE_INTERRUPTION_TYPE = 42620;
-     */
-    INTERRUPTION_TYPE = 42620,
-    /**
-     * @generated from protobuf enum value: BENCH_TYPE_INTERRUPTION_STATUS = 42621;
-     */
-    INTERRUPTION_STATUS = 42621,
-    /**
-     * @generated from protobuf enum value: BENCH_TYPE_INTERRUPTION_RESPONSE = 42622;
-     */
-    INTERRUPTION_RESPONSE = 42622,
-    /**
-     * @generated from protobuf enum value: BENCH_TYPE_QUERY_TYPE = 42850;
-     */
-    QUERY_TYPE = 42850,
-    /**
-     * @generated from protobuf enum value: BENCH_TYPE_MODEL_DEVELOPER = 44000;
-     */
-    MODEL_DEVELOPER = 44000,
-    /**
-     * @generated from protobuf enum value: BENCH_TYPE_MODEL_PROVIDER = 44001;
-     */
-    MODEL_PROVIDER = 44001,
-    /**
-     * @generated from protobuf enum value: BENCH_TYPE_SPACE_TYPE = 48000;
-     */
-    SPACE_TYPE = 48000,
-    /**
-     * @generated from protobuf enum value: BENCH_TYPE_POSITION_TYPE = 49000;
-     */
-    POSITION_TYPE = 49000,
-    /**
-     * @generated from protobuf enum value: BENCH_TYPE_COLOR_TYPE = 49010;
-     */
-    COLOR_TYPE = 49010,
-    /**
-     * @generated from protobuf enum value: BENCH_TYPE_COLOR_SHADE = 49011;
-     */
-    COLOR_SHADE = 49011,
-    /**
-     * @generated from protobuf enum value: BENCH_TYPE_COLOR_HUE = 49012;
-     */
-    COLOR_HUE = 49012,
-    /**
-     * @generated from protobuf enum value: BENCH_TYPE_FONT_WEIGHT = 49021;
-     */
-    FONT_WEIGHT = 49021,
-    /**
-     * @generated from protobuf enum value: BENCH_TYPE_FONT_SIZE = 49022;
-     */
-    FONT_SIZE = 49022,
-    /**
-     * @generated from protobuf enum value: BENCH_TYPE_FONT_TYPE = 49023;
-     */
-    FONT_TYPE = 49023,
-    /**
-     * @generated from protobuf enum value: BENCH_TYPE_TEXT_ALIGN = 49024;
-     */
-    TEXT_ALIGN = 49024,
-    /**
-     * @generated from protobuf enum value: BENCH_TYPE_TEXT_DECORATION = 49025;
-     */
-    TEXT_DECORATION = 49025,
-    /**
-     * @generated from protobuf enum value: BENCH_TYPE_TEXT_TRANSFORM = 49026;
-     */
-    TEXT_TRANSFORM = 49026,
-    /**
-     * @generated from protobuf enum value: BENCH_TYPE_SHADOW_TYPE = 49030;
-     */
-    SHADOW_TYPE = 49030,
-    /**
-     * @generated from protobuf enum value: BENCH_TYPE_SHADOW_POSITION = 49031;
-     */
-    SHADOW_POSITION = 49031,
-    /**
-     * @generated from protobuf enum value: BENCH_TYPE_BORDER_TYPE = 49040;
-     */
-    BORDER_TYPE = 49040,
-    /**
-     * @generated from protobuf enum value: BENCH_TYPE_GRADIENT_TYPE = 49050;
-     */
-    GRADIENT_TYPE = 49050,
-    /**
-     * @generated from protobuf enum value: BENCH_TYPE_FILL_TYPE = 49060;
-     */
-    FILL_TYPE = 49060,
-    /**
-     * @generated from protobuf enum value: BENCH_TYPE_FILL_POSITION = 49061;
-     */
-    FILL_POSITION = 49061,
-    /**
-     * @generated from protobuf enum value: BENCH_TYPE_FILL_SIZE = 49062;
-     */
-    FILL_SIZE = 49062,
-    /**
-     * @generated from protobuf enum value: BENCH_TYPE_LENGTH_UNIT = 49070;
-     */
-    LENGTH_UNIT = 49070,
-    /**
-     * @generated from protobuf enum value: BENCH_TYPE_LAYOUT = 49071;
-     */
-    LAYOUT = 49071,
-    /**
-     * @generated from protobuf enum value: BENCH_TYPE_DISTRIBUTE = 49072;
-     */
-    DISTRIBUTE = 49072,
-    /**
-     * @generated from protobuf enum value: BENCH_TYPE_ALIGN = 49073;
-     */
-    ALIGN = 49073,
-    /**
-     * @generated from protobuf enum value: BENCH_TYPE_DIRECTION = 49074;
-     */
-    DIRECTION = 49074,
-    /**
-     * @generated from protobuf enum value: BENCH_TYPE_OVERFLOW = 49075;
-     */
-    OVERFLOW = 49075,
-    /**
-     * @generated from protobuf enum value: BENCH_TYPE_TRANSITION_TYPE = 49076;
-     */
-    TRANSITION_TYPE = 49076,
-    /**
-     * @generated from protobuf enum value: BENCH_TYPE_SPRING_TYPE = 49077;
-     */
-    SPRING_TYPE = 49077,
-    /**
-     * @generated from protobuf enum value: BENCH_TYPE_DIMENSION_TYPE = 49078;
-     */
-    DIMENSION_TYPE = 49078,
-    /**
-     * @generated from protobuf enum value: BENCH_TYPE_THEME_COLOR = 49079;
-     */
-    THEME_COLOR = 49079,
-    /**
-     * @generated from protobuf enum value: BENCH_TYPE_EFFECT_TYPE = 49080;
-     */
-    EFFECT_TYPE = 49080,
-    /**
-     * @generated from protobuf enum value: BENCH_TYPE_REPEAT_TYPE = 49081;
-     */
-    REPEAT_TYPE = 49081,
-    /**
-     * @generated from protobuf enum value: BENCH_TYPE_TEXT_SPLIT_TYPE = 49083;
-     */
-    TEXT_SPLIT_TYPE = 49083,
-    /**
-     * @generated from protobuf enum value: BENCH_TYPE_OFFSCREEN_BEHAVIOR = 49084;
-     */
-    OFFSCREEN_BEHAVIOR = 49084
 }
 /**
  * @generated from protobuf enum symbol.bench.BlockType
@@ -11688,14 +10795,6 @@ export enum EnumType {
      * @generated from protobuf enum value: ENUM_TYPE_STRUCT_TYPE = 40002;
      */
     STRUCT_TYPE = 40002,
-    /**
-     * @generated from protobuf enum value: ENUM_TYPE_OBJECT_TYPE = 40003;
-     */
-    OBJECT_TYPE = 40003,
-    /**
-     * @generated from protobuf enum value: ENUM_TYPE_BENCH_TYPE = 40004;
-     */
-    BENCH_TYPE = 40004,
     /**
      * @generated from protobuf enum value: ENUM_TYPE_NODE_MODE = 40005;
      */
@@ -13344,17 +12443,17 @@ export enum NodeArea {
      */
     UNSPECIFIED = 0,
     /**
-     * @generated from protobuf enum value: NODE_AREA_GLOBAL_DB = 100;
+     * @generated from protobuf enum value: NODE_AREA_GLOBAL_POSTGRES = 100;
      */
-    GLOBAL_DB = 100,
+    GLOBAL_POSTGRES = 100,
     /**
-     * @generated from protobuf enum value: NODE_AREA_REGIONAL_DB = 200;
+     * @generated from protobuf enum value: NODE_AREA_REGIONAL_POSTGRES = 200;
      */
-    REGIONAL_DB = 200,
+    REGIONAL_POSTGRES = 200,
     /**
-     * @generated from protobuf enum value: NODE_AREA_LOCAL_DB = 300;
+     * @generated from protobuf enum value: NODE_AREA_LOCAL_POSTGRES = 300;
      */
-    LOCAL_DB = 300
+    LOCAL_POSTGRES = 300
 }
 /**
  * @generated from protobuf enum symbol.bench.NodeMode
@@ -13698,463 +12797,6 @@ export enum NumberFormat {
      * @generated from protobuf enum value: NUMBER_FORMAT_FLOAT = 2;
      */
     FLOAT = 2
-}
-/**
- * @generated from protobuf enum symbol.bench.ObjectType
- */
-export enum ObjectType {
-    /**
-     * @generated from protobuf enum value: OBJECT_TYPE_UNSPECIFIED = 0;
-     */
-    UNSPECIFIED = 0,
-    /**
-     * @generated from protobuf enum value: OBJECT_TYPE_BENCH = 1;
-     */
-    BENCH = 1,
-    /**
-     * @generated from protobuf enum value: OBJECT_TYPE_HANDLE = 2;
-     */
-    HANDLE = 2,
-    /**
-     * @generated from protobuf enum value: OBJECT_TYPE_USER = 10;
-     */
-    USER = 10,
-    /**
-     * @generated from protobuf enum value: OBJECT_TYPE_ORGANIZATION = 20;
-     */
-    ORGANIZATION = 20,
-    /**
-     * @generated from protobuf enum value: OBJECT_TYPE_CLIENT = 50;
-     */
-    CLIENT = 50,
-    /**
-     * @generated from protobuf enum value: OBJECT_TYPE_PACKAGE = 1000;
-     */
-    PACKAGE = 1000,
-    /**
-     * @generated from protobuf enum value: OBJECT_TYPE_DEPENDENCY = 1010;
-     */
-    DEPENDENCY = 1010,
-    /**
-     * @generated from protobuf enum value: OBJECT_TYPE_PAGE = 1020;
-     */
-    PAGE = 1020,
-    /**
-     * @generated from protobuf enum value: OBJECT_TYPE_BLOCK = 1030;
-     */
-    BLOCK = 1030,
-    /**
-     * @generated from protobuf enum value: OBJECT_TYPE_APPLICATION = 1040;
-     */
-    APPLICATION = 1040,
-    /**
-     * @generated from protobuf enum value: OBJECT_TYPE_DATABASE = 1200;
-     */
-    DATABASE = 1200,
-    /**
-     * @generated from protobuf enum value: OBJECT_TYPE_COMPUTER = 1210;
-     */
-    COMPUTER = 1210,
-    /**
-     * @generated from protobuf enum value: OBJECT_TYPE_SCALER = 1250;
-     */
-    SCALER = 1250,
-    /**
-     * @generated from protobuf enum value: OBJECT_TYPE_SCHEMA = 1400;
-     */
-    SCHEMA = 1400,
-    /**
-     * @generated from protobuf enum value: OBJECT_TYPE_FIELD = 1410;
-     */
-    FIELD = 1410,
-    /**
-     * @generated from protobuf enum value: OBJECT_TYPE_TABLE = 1500;
-     */
-    TABLE = 1500,
-    /**
-     * @generated from protobuf enum value: OBJECT_TYPE_RECORD = 1510;
-     */
-    RECORD = 1510,
-    /**
-     * @generated from protobuf enum value: OBJECT_TYPE_FILE = 1520;
-     */
-    FILE = 1520,
-    /**
-     * @generated from protobuf enum value: OBJECT_TYPE_LINK = 1550;
-     */
-    LINK = 1550,
-    /**
-     * @generated from protobuf enum value: OBJECT_TYPE_CHANNEL = 1800;
-     */
-    CHANNEL = 1800,
-    /**
-     * @generated from protobuf enum value: OBJECT_TYPE_THREAD = 1810;
-     */
-    THREAD = 1810,
-    /**
-     * @generated from protobuf enum value: OBJECT_TYPE_MESSAGE = 1820;
-     */
-    MESSAGE = 1820,
-    /**
-     * @generated from protobuf enum value: OBJECT_TYPE_NOTIFICATION = 1850;
-     */
-    NOTIFICATION = 1850,
-    /**
-     * @generated from protobuf enum value: OBJECT_TYPE_SERVICE = 2000;
-     */
-    SERVICE = 2000,
-    /**
-     * @generated from protobuf enum value: OBJECT_TYPE_ACTION = 2010;
-     */
-    ACTION = 2010,
-    /**
-     * @generated from protobuf enum value: OBJECT_TYPE_FLOW = 2020;
-     */
-    FLOW = 2020,
-    /**
-     * @generated from protobuf enum value: OBJECT_TYPE_FLOW_EDGE = 2021;
-     */
-    FLOW_EDGE = 2021,
-    /**
-     * @generated from protobuf enum value: OBJECT_TYPE_AGENT = 2050;
-     */
-    AGENT = 2050,
-    /**
-     * @generated from protobuf enum value: OBJECT_TYPE_TASK = 2200;
-     */
-    TASK = 2200,
-    /**
-     * @generated from protobuf enum value: OBJECT_TYPE_CURSOR = 2220;
-     */
-    CURSOR = 2220,
-    /**
-     * @generated from protobuf enum value: OBJECT_TYPE_RUN = 2610;
-     */
-    RUN = 2610,
-    /**
-     * @generated from protobuf enum value: OBJECT_TYPE_SPAN = 2620;
-     */
-    SPAN = 2620,
-    /**
-     * @generated from protobuf enum value: OBJECT_TYPE_INTERRUPTION = 2630;
-     */
-    INTERRUPTION = 2630,
-    /**
-     * @generated from protobuf enum value: OBJECT_TYPE_MEMBERSHIP = 2800;
-     */
-    MEMBERSHIP = 2800,
-    /**
-     * @generated from protobuf enum value: OBJECT_TYPE_INVITE = 2810;
-     */
-    INVITE = 2810,
-    /**
-     * @generated from protobuf enum value: OBJECT_TYPE_TEAM = 2820;
-     */
-    TEAM = 2820,
-    /**
-     * @generated from protobuf enum value: OBJECT_TYPE_ROLE = 2830;
-     */
-    ROLE = 2830,
-    /**
-     * @generated from protobuf enum value: OBJECT_TYPE_CLAIM = 2840;
-     */
-    CLAIM = 2840,
-    /**
-     * @generated from protobuf enum value: OBJECT_TYPE_SPACE = 8000;
-     */
-    SPACE = 8000,
-    /**
-     * @generated from protobuf enum value: OBJECT_TYPE_SCENE = 8010;
-     */
-    SCENE = 8010,
-    /**
-     * @generated from protobuf enum value: OBJECT_TYPE_ROUTE = 8020;
-     */
-    ROUTE = 8020,
-    /**
-     * @generated from protobuf enum value: OBJECT_TYPE_FRAME_VIEW = 8100;
-     */
-    FRAME_VIEW = 8100,
-    /**
-     * @generated from protobuf enum value: OBJECT_TYPE_LABEL_VIEW = 8101;
-     */
-    LABEL_VIEW = 8101,
-    /**
-     * @generated from protobuf enum value: OBJECT_TYPE_COMPONENT_VIEW = 8110;
-     */
-    COMPONENT_VIEW = 8110,
-    /**
-     * @generated from protobuf enum value: OBJECT_TYPE_SPLIT_VIEW = 8120;
-     */
-    SPLIT_VIEW = 8120,
-    /**
-     * @generated from protobuf enum value: OBJECT_TYPE_TEXT_VIEW = 8200;
-     */
-    TEXT_VIEW = 8200,
-    /**
-     * @generated from protobuf enum value: OBJECT_TYPE_NUMBER_INPUT_VIEW = 8300;
-     */
-    NUMBER_INPUT_VIEW = 8300,
-    /**
-     * @generated from protobuf enum value: OBJECT_TYPE_SLIDER_INPUT_VIEW = 8301;
-     */
-    SLIDER_INPUT_VIEW = 8301,
-    /**
-     * @generated from protobuf enum value: OBJECT_TYPE_THREAD_VIEW = 8430;
-     */
-    THREAD_VIEW = 8430,
-    /**
-     * @generated from protobuf enum value: OBJECT_TYPE_WIZARD_VIEW = 8500;
-     */
-    WIZARD_VIEW = 8500,
-    /**
-     * @generated from protobuf enum value: OBJECT_TYPE_THEME = 9000;
-     */
-    THEME = 9000,
-    /**
-     * @generated from protobuf enum value: OBJECT_TYPE_COLOR_STYLE = 9010;
-     */
-    COLOR_STYLE = 9010,
-    /**
-     * @generated from protobuf enum value: OBJECT_TYPE_FONT_STYLE = 9011;
-     */
-    FONT_STYLE = 9011,
-    /**
-     * @generated from protobuf enum value: OBJECT_TYPE_BORDER_STYLE = 9012;
-     */
-    BORDER_STYLE = 9012,
-    /**
-     * @generated from protobuf enum value: OBJECT_TYPE_SHADOW_STYLE = 9013;
-     */
-    SHADOW_STYLE = 9013,
-    /**
-     * @generated from protobuf enum value: OBJECT_TYPE_GRADIENT_STYLE = 9014;
-     */
-    GRADIENT_STYLE = 9014,
-    /**
-     * @generated from protobuf enum value: OBJECT_TYPE_TRANSITION_STYLE = 9015;
-     */
-    TRANSITION_STYLE = 9015,
-    /**
-     * @generated from protobuf enum value: OBJECT_TYPE_EFFECT_STYLE = 9016;
-     */
-    EFFECT_STYLE = 9016,
-    /**
-     * @generated from protobuf enum value: OBJECT_TYPE_EMPTY = 9999;
-     */
-    EMPTY = 9999,
-    /**
-     * @generated from protobuf enum value: OBJECT_TYPE_SCOPE = 20000;
-     */
-    SCOPE = 20000,
-    /**
-     * @generated from protobuf enum value: OBJECT_TYPE_EDIT = 20001;
-     */
-    EDIT = 20001,
-    /**
-     * @generated from protobuf enum value: OBJECT_TYPE_EDIT_OPERATION = 20002;
-     */
-    EDIT_OPERATION = 20002,
-    /**
-     * @generated from protobuf enum value: OBJECT_TYPE_ORIGIN = 20003;
-     */
-    ORIGIN = 20003,
-    /**
-     * @generated from protobuf enum value: OBJECT_TYPE_NODE_REFERENCE = 20004;
-     */
-    NODE_REFERENCE = 20004,
-    /**
-     * @generated from protobuf enum value: OBJECT_TYPE_PROPERTY_REFERENCE = 20005;
-     */
-    PROPERTY_REFERENCE = 20005,
-    /**
-     * @generated from protobuf enum value: OBJECT_TYPE_VARIABLE = 20006;
-     */
-    VARIABLE = 20006,
-    /**
-     * @generated from protobuf enum value: OBJECT_TYPE_EXPRESSION = 20100;
-     */
-    EXPRESSION = 20100,
-    /**
-     * @generated from protobuf enum value: OBJECT_TYPE_FUNCTION = 20101;
-     */
-    FUNCTION = 20101,
-    /**
-     * @generated from protobuf enum value: OBJECT_TYPE_JOIN = 20102;
-     */
-    JOIN = 20102,
-    /**
-     * @generated from protobuf enum value: OBJECT_TYPE_AGGREGATION = 20103;
-     */
-    AGGREGATION = 20103,
-    /**
-     * @generated from protobuf enum value: OBJECT_TYPE_CONDITION = 20104;
-     */
-    CONDITION = 20104,
-    /**
-     * @generated from protobuf enum value: OBJECT_TYPE_SORT = 20105;
-     */
-    SORT = 20105,
-    /**
-     * @generated from protobuf enum value: OBJECT_TYPE_QUERY = 20106;
-     */
-    QUERY = 20106,
-    /**
-     * @generated from protobuf enum value: OBJECT_TYPE_RELATION_REFERENCE = 20110;
-     */
-    RELATION_REFERENCE = 20110,
-    /**
-     * @generated from protobuf enum value: OBJECT_TYPE_ATTRIBUTE_REFERENCE = 20111;
-     */
-    ATTRIBUTE_REFERENCE = 20111,
-    /**
-     * @generated from protobuf enum value: OBJECT_TYPE_TYPE = 21400;
-     */
-    TYPE = 21400,
-    /**
-     * @generated from protobuf enum value: OBJECT_TYPE_NUMBER_CONSTRAINT = 21401;
-     */
-    NUMBER_CONSTRAINT = 21401,
-    /**
-     * @generated from protobuf enum value: OBJECT_TYPE_STRING_CONSTRAINT = 21402;
-     */
-    STRING_CONSTRAINT = 21402,
-    /**
-     * @generated from protobuf enum value: OBJECT_TYPE_COLLECTION_CONSTRAINT = 21403;
-     */
-    COLLECTION_CONSTRAINT = 21403,
-    /**
-     * @generated from protobuf enum value: OBJECT_TYPE_NODE_CONSTRAINT = 21404;
-     */
-    NODE_CONSTRAINT = 21404,
-    /**
-     * @generated from protobuf enum value: OBJECT_TYPE_VALUE = 21410;
-     */
-    VALUE = 21410,
-    /**
-     * @generated from protobuf enum value: OBJECT_TYPE_TEXT = 21500;
-     */
-    TEXT = 21500,
-    /**
-     * @generated from protobuf enum value: OBJECT_TYPE_TEXT_LINE = 21501;
-     */
-    TEXT_LINE = 21501,
-    /**
-     * @generated from protobuf enum value: OBJECT_TYPE_TEXT_SPAN = 21502;
-     */
-    TEXT_SPAN = 21502,
-    /**
-     * @generated from protobuf enum value: OBJECT_TYPE_CODE = 21510;
-     */
-    CODE = 21510,
-    /**
-     * @generated from protobuf enum value: OBJECT_TYPE_ICON = 21530;
-     */
-    ICON = 21530,
-    /**
-     * @generated from protobuf enum value: OBJECT_TYPE_SELECTION = 21470;
-     */
-    SELECTION = 21470,
-    /**
-     * @generated from protobuf enum value: OBJECT_TYPE_SCHEDULE = 22000;
-     */
-    SCHEDULE = 22000,
-    /**
-     * @generated from protobuf enum value: OBJECT_TYPE_ERROR = 22600;
-     */
-    ERROR = 22600,
-    /**
-     * @generated from protobuf enum value: OBJECT_TYPE_RUN_TRACE = 22603;
-     */
-    RUN_TRACE = 22603,
-    /**
-     * @generated from protobuf enum value: OBJECT_TYPE_RUN_FRAME = 22604;
-     */
-    RUN_FRAME = 22604,
-    /**
-     * @generated from protobuf enum value: OBJECT_TYPE_VECTOR2 = 29000;
-     */
-    VECTOR2 = 29000,
-    /**
-     * @generated from protobuf enum value: OBJECT_TYPE_VECTOR3 = 29002;
-     */
-    VECTOR3 = 29002,
-    /**
-     * @generated from protobuf enum value: OBJECT_TYPE_VECTOR4 = 29004;
-     */
-    VECTOR4 = 29004,
-    /**
-     * @generated from protobuf enum value: OBJECT_TYPE_AXIS2 = 29006;
-     */
-    AXIS2 = 29006,
-    /**
-     * @generated from protobuf enum value: OBJECT_TYPE_AXIS3 = 29008;
-     */
-    AXIS3 = 29008,
-    /**
-     * @generated from protobuf enum value: OBJECT_TYPE_COLOR = 29010;
-     */
-    COLOR = 29010,
-    /**
-     * @generated from protobuf enum value: OBJECT_TYPE_SHADOW = 29011;
-     */
-    SHADOW = 29011,
-    /**
-     * @generated from protobuf enum value: OBJECT_TYPE_BORDER = 29012;
-     */
-    BORDER = 29012,
-    /**
-     * @generated from protobuf enum value: OBJECT_TYPE_FONT = 29013;
-     */
-    FONT = 29013,
-    /**
-     * @generated from protobuf enum value: OBJECT_TYPE_GRADIENT_STOP = 29014;
-     */
-    GRADIENT_STOP = 29014,
-    /**
-     * @generated from protobuf enum value: OBJECT_TYPE_GRADIENT = 29015;
-     */
-    GRADIENT = 29015,
-    /**
-     * @generated from protobuf enum value: OBJECT_TYPE_FILL = 29016;
-     */
-    FILL = 29016,
-    /**
-     * @generated from protobuf enum value: OBJECT_TYPE_LENGTH = 29017;
-     */
-    LENGTH = 29017,
-    /**
-     * @generated from protobuf enum value: OBJECT_TYPE_POSITION = 29019;
-     */
-    POSITION = 29019,
-    /**
-     * @generated from protobuf enum value: OBJECT_TYPE_DIMENSION = 29021;
-     */
-    DIMENSION = 29021,
-    /**
-     * @generated from protobuf enum value: OBJECT_TYPE_TRANSITION = 29023;
-     */
-    TRANSITION = 29023,
-    /**
-     * @generated from protobuf enum value: OBJECT_TYPE_EFFECT = 29024;
-     */
-    EFFECT = 29024,
-    /**
-     * @generated from protobuf enum value: OBJECT_TYPE_GRID = 29025;
-     */
-    GRID = 29025,
-    /**
-     * @generated from protobuf enum value: OBJECT_TYPE_GRID_SPAN = 29027;
-     */
-    GRID_SPAN = 29027,
-    /**
-     * @generated from protobuf enum value: OBJECT_TYPE_INSETS = 29029;
-     */
-    INSETS = 29029,
-    /**
-     * @generated from protobuf enum value: OBJECT_TYPE_CORNERS = 29031;
-     */
-    CORNERS = 29031
 }
 /**
  * What happens when the element is offscreen.
@@ -15546,7 +14188,7 @@ export enum VariableType {
 class ActionData$Type extends MessageType$<ActionData> {
     constructor() {
         super("symbol.bench.ActionData", [
-            { no: 1, name: "metatype", kind: "enum", T: () => ["symbol.bench.ObjectType", ObjectType, "OBJECT_TYPE_"] },
+            { no: 1, name: "metatype", kind: "enum", T: () => ["symbol.bench.NodeType", NodeType, "NODE_TYPE_"] },
             { no: 2, name: "id", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
             { no: 3, name: "ck", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
             { no: 4, name: "parent_ptr", kind: "message", T: () => NodeReferenceData },
@@ -15595,7 +14237,7 @@ class ActionData$Type extends MessageType$<ActionData> {
         while (reader.pos < end) {
             let [fieldNo, wireType] = reader.tag();
             switch (fieldNo) {
-                case /* symbol.bench.ObjectType metatype */ 1:
+                case /* symbol.bench.NodeType metatype */ 1:
                     message.metatype = reader.int32();
                     break;
                 case /* string id */ 2:
@@ -15697,7 +14339,7 @@ class ActionData$Type extends MessageType$<ActionData> {
         return message;
     }
     internalBinaryWrite(message: ActionData, writer: IBinaryWriter, options: BinaryWriteOptions): IBinaryWriter {
-        /* symbol.bench.ObjectType metatype = 1; */
+        /* symbol.bench.NodeType metatype = 1; */
         if (message.metatype !== 0)
             writer.tag(1, WireType.Varint).int32(message.metatype);
         /* string id = 2; */
@@ -15801,7 +14443,7 @@ export const ActionData = new ActionData$Type();
 class AgentData$Type extends MessageType$<AgentData> {
     constructor() {
         super("symbol.bench.AgentData", [
-            { no: 1, name: "metatype", kind: "enum", T: () => ["symbol.bench.ObjectType", ObjectType, "OBJECT_TYPE_"] },
+            { no: 1, name: "metatype", kind: "enum", T: () => ["symbol.bench.NodeType", NodeType, "NODE_TYPE_"] },
             { no: 2, name: "id", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
             { no: 3, name: "ck", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
             { no: 4, name: "parent_ptr", kind: "message", T: () => NodeReferenceData },
@@ -15862,7 +14504,7 @@ class AgentData$Type extends MessageType$<AgentData> {
         while (reader.pos < end) {
             let [fieldNo, wireType] = reader.tag();
             switch (fieldNo) {
-                case /* symbol.bench.ObjectType metatype */ 1:
+                case /* symbol.bench.NodeType metatype */ 1:
                     message.metatype = reader.int32();
                     break;
                 case /* string id */ 2:
@@ -16000,7 +14642,7 @@ class AgentData$Type extends MessageType$<AgentData> {
         return message;
     }
     internalBinaryWrite(message: AgentData, writer: IBinaryWriter, options: BinaryWriteOptions): IBinaryWriter {
-        /* symbol.bench.ObjectType metatype = 1; */
+        /* symbol.bench.NodeType metatype = 1; */
         if (message.metatype !== 0)
             writer.tag(1, WireType.Varint).int32(message.metatype);
         /* string id = 2; */
@@ -16140,7 +14782,7 @@ export const AgentData = new AgentData$Type();
 class AggregationData$Type extends MessageType$<AggregationData> {
     constructor() {
         super("symbol.bench.AggregationData", [
-            { no: 1, name: "metatype", kind: "enum", T: () => ["symbol.bench.ObjectType", ObjectType, "OBJECT_TYPE_"] },
+            { no: 1, name: "metatype", kind: "enum", T: () => ["symbol.bench.StructType", StructType, "STRUCT_TYPE_"] },
             { no: 30, name: "type", kind: "enum", T: () => ["symbol.bench.AggregationType", AggregationType, "AGGREGATION_TYPE_"] },
             { no: 31, name: "operand", kind: "message", T: () => ExpressionData },
             { no: 32, name: "alias", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
@@ -16161,7 +14803,7 @@ class AggregationData$Type extends MessageType$<AggregationData> {
         while (reader.pos < end) {
             let [fieldNo, wireType] = reader.tag();
             switch (fieldNo) {
-                case /* symbol.bench.ObjectType metatype */ 1:
+                case /* symbol.bench.StructType metatype */ 1:
                     message.metatype = reader.int32();
                     break;
                 case /* symbol.bench.AggregationType type */ 30:
@@ -16188,7 +14830,7 @@ class AggregationData$Type extends MessageType$<AggregationData> {
         return message;
     }
     internalBinaryWrite(message: AggregationData, writer: IBinaryWriter, options: BinaryWriteOptions): IBinaryWriter {
-        /* symbol.bench.ObjectType metatype = 1; */
+        /* symbol.bench.StructType metatype = 1; */
         if (message.metatype !== 0)
             writer.tag(1, WireType.Varint).int32(message.metatype);
         /* symbol.bench.AggregationType type = 30; */
@@ -16217,7 +14859,7 @@ export const AggregationData = new AggregationData$Type();
 class ApplicationData$Type extends MessageType$<ApplicationData> {
     constructor() {
         super("symbol.bench.ApplicationData", [
-            { no: 1, name: "metatype", kind: "enum", T: () => ["symbol.bench.ObjectType", ObjectType, "OBJECT_TYPE_"] },
+            { no: 1, name: "metatype", kind: "enum", T: () => ["symbol.bench.NodeType", NodeType, "NODE_TYPE_"] },
             { no: 2, name: "id", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
             { no: 3, name: "ck", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
             { no: 4, name: "parent_ptr", kind: "message", T: () => NodeReferenceData },
@@ -16255,7 +14897,7 @@ class ApplicationData$Type extends MessageType$<ApplicationData> {
         while (reader.pos < end) {
             let [fieldNo, wireType] = reader.tag();
             switch (fieldNo) {
-                case /* symbol.bench.ObjectType metatype */ 1:
+                case /* symbol.bench.NodeType metatype */ 1:
                     message.metatype = reader.int32();
                     break;
                 case /* string id */ 2:
@@ -16327,7 +14969,7 @@ class ApplicationData$Type extends MessageType$<ApplicationData> {
         return message;
     }
     internalBinaryWrite(message: ApplicationData, writer: IBinaryWriter, options: BinaryWriteOptions): IBinaryWriter {
-        /* symbol.bench.ObjectType metatype = 1; */
+        /* symbol.bench.NodeType metatype = 1; */
         if (message.metatype !== 0)
             writer.tag(1, WireType.Varint).int32(message.metatype);
         /* string id = 2; */
@@ -16401,7 +15043,7 @@ export const ApplicationData = new ApplicationData$Type();
 class AttributeReferenceData$Type extends MessageType$<AttributeReferenceData> {
     constructor() {
         super("symbol.bench.AttributeReferenceData", [
-            { no: 1, name: "metatype", kind: "enum", T: () => ["symbol.bench.ObjectType", ObjectType, "OBJECT_TYPE_"] },
+            { no: 1, name: "metatype", kind: "enum", T: () => ["symbol.bench.StructType", StructType, "STRUCT_TYPE_"] },
             { no: 30, name: "type", kind: "enum", T: () => ["symbol.bench.AttributeType", AttributeType, "ATTRIBUTE_TYPE_"] },
             { no: 31, name: "name", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
             { no: 32, name: "field_ptr", kind: "message", T: () => NodeReferenceData },
@@ -16422,7 +15064,7 @@ class AttributeReferenceData$Type extends MessageType$<AttributeReferenceData> {
         while (reader.pos < end) {
             let [fieldNo, wireType] = reader.tag();
             switch (fieldNo) {
-                case /* symbol.bench.ObjectType metatype */ 1:
+                case /* symbol.bench.StructType metatype */ 1:
                     message.metatype = reader.int32();
                     break;
                 case /* symbol.bench.AttributeType type */ 30:
@@ -16452,7 +15094,7 @@ class AttributeReferenceData$Type extends MessageType$<AttributeReferenceData> {
         return message;
     }
     internalBinaryWrite(message: AttributeReferenceData, writer: IBinaryWriter, options: BinaryWriteOptions): IBinaryWriter {
-        /* symbol.bench.ObjectType metatype = 1; */
+        /* symbol.bench.StructType metatype = 1; */
         if (message.metatype !== 0)
             writer.tag(1, WireType.Varint).int32(message.metatype);
         /* symbol.bench.AttributeType type = 30; */
@@ -16484,7 +15126,7 @@ export const AttributeReferenceData = new AttributeReferenceData$Type();
 class Axis2Data$Type extends MessageType$<Axis2Data> {
     constructor() {
         super("symbol.bench.Axis2Data", [
-            { no: 1, name: "metatype", kind: "enum", T: () => ["symbol.bench.ObjectType", ObjectType, "OBJECT_TYPE_"] },
+            { no: 1, name: "metatype", kind: "enum", T: () => ["symbol.bench.StructType", StructType, "STRUCT_TYPE_"] },
             { no: 50, name: "base", kind: "scalar", opt: true, T: 2 /*ScalarType.FLOAT*/ },
             { no: 51, name: "x", kind: "scalar", opt: true, T: 2 /*ScalarType.FLOAT*/ },
             { no: 52, name: "y", kind: "scalar", opt: true, T: 2 /*ScalarType.FLOAT*/ }
@@ -16502,7 +15144,7 @@ class Axis2Data$Type extends MessageType$<Axis2Data> {
         while (reader.pos < end) {
             let [fieldNo, wireType] = reader.tag();
             switch (fieldNo) {
-                case /* symbol.bench.ObjectType metatype */ 1:
+                case /* symbol.bench.StructType metatype */ 1:
                     message.metatype = reader.int32();
                     break;
                 case /* optional float base */ 50:
@@ -16526,7 +15168,7 @@ class Axis2Data$Type extends MessageType$<Axis2Data> {
         return message;
     }
     internalBinaryWrite(message: Axis2Data, writer: IBinaryWriter, options: BinaryWriteOptions): IBinaryWriter {
-        /* symbol.bench.ObjectType metatype = 1; */
+        /* symbol.bench.StructType metatype = 1; */
         if (message.metatype !== 0)
             writer.tag(1, WireType.Varint).int32(message.metatype);
         /* optional float base = 50; */
@@ -16552,7 +15194,7 @@ export const Axis2Data = new Axis2Data$Type();
 class Axis3Data$Type extends MessageType$<Axis3Data> {
     constructor() {
         super("symbol.bench.Axis3Data", [
-            { no: 1, name: "metatype", kind: "enum", T: () => ["symbol.bench.ObjectType", ObjectType, "OBJECT_TYPE_"] },
+            { no: 1, name: "metatype", kind: "enum", T: () => ["symbol.bench.StructType", StructType, "STRUCT_TYPE_"] },
             { no: 50, name: "base", kind: "scalar", opt: true, T: 2 /*ScalarType.FLOAT*/ },
             { no: 51, name: "x", kind: "scalar", opt: true, T: 2 /*ScalarType.FLOAT*/ },
             { no: 52, name: "y", kind: "scalar", opt: true, T: 2 /*ScalarType.FLOAT*/ },
@@ -16571,7 +15213,7 @@ class Axis3Data$Type extends MessageType$<Axis3Data> {
         while (reader.pos < end) {
             let [fieldNo, wireType] = reader.tag();
             switch (fieldNo) {
-                case /* symbol.bench.ObjectType metatype */ 1:
+                case /* symbol.bench.StructType metatype */ 1:
                     message.metatype = reader.int32();
                     break;
                 case /* optional float base */ 50:
@@ -16598,7 +15240,7 @@ class Axis3Data$Type extends MessageType$<Axis3Data> {
         return message;
     }
     internalBinaryWrite(message: Axis3Data, writer: IBinaryWriter, options: BinaryWriteOptions): IBinaryWriter {
-        /* symbol.bench.ObjectType metatype = 1; */
+        /* symbol.bench.StructType metatype = 1; */
         if (message.metatype !== 0)
             writer.tag(1, WireType.Varint).int32(message.metatype);
         /* optional float base = 50; */
@@ -16627,7 +15269,7 @@ export const Axis3Data = new Axis3Data$Type();
 class BenchData$Type extends MessageType$<BenchData> {
     constructor() {
         super("symbol.bench.BenchData", [
-            { no: 1, name: "metatype", kind: "enum", T: () => ["symbol.bench.ObjectType", ObjectType, "OBJECT_TYPE_"] },
+            { no: 1, name: "metatype", kind: "enum", T: () => ["symbol.bench.NodeType", NodeType, "NODE_TYPE_"] },
             { no: 2, name: "id", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
             { no: 4, name: "parent_ptr", kind: "message", T: () => NodeReferenceData },
             { no: 6, name: "bench_ptr", kind: "message", T: () => NodeReferenceData },
@@ -16666,7 +15308,7 @@ class BenchData$Type extends MessageType$<BenchData> {
         while (reader.pos < end) {
             let [fieldNo, wireType] = reader.tag();
             switch (fieldNo) {
-                case /* symbol.bench.ObjectType metatype */ 1:
+                case /* symbol.bench.NodeType metatype */ 1:
                     message.metatype = reader.int32();
                     break;
                 case /* string id */ 2:
@@ -16738,7 +15380,7 @@ class BenchData$Type extends MessageType$<BenchData> {
         return message;
     }
     internalBinaryWrite(message: BenchData, writer: IBinaryWriter, options: BinaryWriteOptions): IBinaryWriter {
-        /* symbol.bench.ObjectType metatype = 1; */
+        /* symbol.bench.NodeType metatype = 1; */
         if (message.metatype !== 0)
             writer.tag(1, WireType.Varint).int32(message.metatype);
         /* string id = 2; */
@@ -16812,7 +15454,7 @@ export const BenchData = new BenchData$Type();
 class BlockData$Type extends MessageType$<BlockData> {
     constructor() {
         super("symbol.bench.BlockData", [
-            { no: 1, name: "metatype", kind: "enum", T: () => ["symbol.bench.ObjectType", ObjectType, "OBJECT_TYPE_"] },
+            { no: 1, name: "metatype", kind: "enum", T: () => ["symbol.bench.NodeType", NodeType, "NODE_TYPE_"] },
             { no: 2, name: "id", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
             { no: 4, name: "parent_ptr", kind: "message", T: () => NodeReferenceData },
             { no: 6, name: "bench_ptr", kind: "message", T: () => NodeReferenceData },
@@ -16849,7 +15491,7 @@ class BlockData$Type extends MessageType$<BlockData> {
         while (reader.pos < end) {
             let [fieldNo, wireType] = reader.tag();
             switch (fieldNo) {
-                case /* symbol.bench.ObjectType metatype */ 1:
+                case /* symbol.bench.NodeType metatype */ 1:
                     message.metatype = reader.int32();
                     break;
                 case /* string id */ 2:
@@ -16918,7 +15560,7 @@ class BlockData$Type extends MessageType$<BlockData> {
         return message;
     }
     internalBinaryWrite(message: BlockData, writer: IBinaryWriter, options: BinaryWriteOptions): IBinaryWriter {
-        /* symbol.bench.ObjectType metatype = 1; */
+        /* symbol.bench.NodeType metatype = 1; */
         if (message.metatype !== 0)
             writer.tag(1, WireType.Varint).int32(message.metatype);
         /* string id = 2; */
@@ -16989,7 +15631,7 @@ export const BlockData = new BlockData$Type();
 class BorderData$Type extends MessageType$<BorderData> {
     constructor() {
         super("symbol.bench.BorderData", [
-            { no: 1, name: "metatype", kind: "enum", T: () => ["symbol.bench.ObjectType", ObjectType, "OBJECT_TYPE_"] },
+            { no: 1, name: "metatype", kind: "enum", T: () => ["symbol.bench.StructType", StructType, "STRUCT_TYPE_"] },
             { no: 30, name: "type", kind: "enum", T: () => ["symbol.bench.BorderType", BorderType, "BORDER_TYPE_"] },
             { no: 40, name: "field_ptr", kind: "message", T: () => NodeReferenceData },
             { no: 41, name: "style_ptr", kind: "message", T: () => NodeReferenceData },
@@ -17010,7 +15652,7 @@ class BorderData$Type extends MessageType$<BorderData> {
         while (reader.pos < end) {
             let [fieldNo, wireType] = reader.tag();
             switch (fieldNo) {
-                case /* symbol.bench.ObjectType metatype */ 1:
+                case /* symbol.bench.StructType metatype */ 1:
                     message.metatype = reader.int32();
                     break;
                 case /* symbol.bench.BorderType type */ 30:
@@ -17040,7 +15682,7 @@ class BorderData$Type extends MessageType$<BorderData> {
         return message;
     }
     internalBinaryWrite(message: BorderData, writer: IBinaryWriter, options: BinaryWriteOptions): IBinaryWriter {
-        /* symbol.bench.ObjectType metatype = 1; */
+        /* symbol.bench.StructType metatype = 1; */
         if (message.metatype !== 0)
             writer.tag(1, WireType.Varint).int32(message.metatype);
         /* symbol.bench.BorderType type = 30; */
@@ -17072,7 +15714,7 @@ export const BorderData = new BorderData$Type();
 class BorderStyleData$Type extends MessageType$<BorderStyleData> {
     constructor() {
         super("symbol.bench.BorderStyleData", [
-            { no: 1, name: "metatype", kind: "enum", T: () => ["symbol.bench.ObjectType", ObjectType, "OBJECT_TYPE_"] },
+            { no: 1, name: "metatype", kind: "enum", T: () => ["symbol.bench.NodeType", NodeType, "NODE_TYPE_"] },
             { no: 2, name: "id", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
             { no: 4, name: "parent_ptr", kind: "message", T: () => NodeReferenceData },
             { no: 6, name: "bench_ptr", kind: "message", T: () => NodeReferenceData },
@@ -17112,7 +15754,7 @@ class BorderStyleData$Type extends MessageType$<BorderStyleData> {
         while (reader.pos < end) {
             let [fieldNo, wireType] = reader.tag();
             switch (fieldNo) {
-                case /* symbol.bench.ObjectType metatype */ 1:
+                case /* symbol.bench.NodeType metatype */ 1:
                     message.metatype = reader.int32();
                     break;
                 case /* string id */ 2:
@@ -17190,7 +15832,7 @@ class BorderStyleData$Type extends MessageType$<BorderStyleData> {
         return message;
     }
     internalBinaryWrite(message: BorderStyleData, writer: IBinaryWriter, options: BinaryWriteOptions): IBinaryWriter {
-        /* symbol.bench.ObjectType metatype = 1; */
+        /* symbol.bench.NodeType metatype = 1; */
         if (message.metatype !== 0)
             writer.tag(1, WireType.Varint).int32(message.metatype);
         /* string id = 2; */
@@ -17270,7 +15912,7 @@ export const BorderStyleData = new BorderStyleData$Type();
 class ChannelData$Type extends MessageType$<ChannelData> {
     constructor() {
         super("symbol.bench.ChannelData", [
-            { no: 1, name: "metatype", kind: "enum", T: () => ["symbol.bench.ObjectType", ObjectType, "OBJECT_TYPE_"] },
+            { no: 1, name: "metatype", kind: "enum", T: () => ["symbol.bench.NodeType", NodeType, "NODE_TYPE_"] },
             { no: 2, name: "id", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
             { no: 3, name: "ck", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
             { no: 4, name: "parent_ptr", kind: "message", T: () => NodeReferenceData },
@@ -17319,7 +15961,7 @@ class ChannelData$Type extends MessageType$<ChannelData> {
         while (reader.pos < end) {
             let [fieldNo, wireType] = reader.tag();
             switch (fieldNo) {
-                case /* symbol.bench.ObjectType metatype */ 1:
+                case /* symbol.bench.NodeType metatype */ 1:
                     message.metatype = reader.int32();
                     break;
                 case /* string id */ 2:
@@ -17421,7 +16063,7 @@ class ChannelData$Type extends MessageType$<ChannelData> {
         return message;
     }
     internalBinaryWrite(message: ChannelData, writer: IBinaryWriter, options: BinaryWriteOptions): IBinaryWriter {
-        /* symbol.bench.ObjectType metatype = 1; */
+        /* symbol.bench.NodeType metatype = 1; */
         if (message.metatype !== 0)
             writer.tag(1, WireType.Varint).int32(message.metatype);
         /* string id = 2; */
@@ -17525,7 +16167,7 @@ export const ChannelData = new ChannelData$Type();
 class ClaimData$Type extends MessageType$<ClaimData> {
     constructor() {
         super("symbol.bench.ClaimData", [
-            { no: 1, name: "metatype", kind: "enum", T: () => ["symbol.bench.ObjectType", ObjectType, "OBJECT_TYPE_"] },
+            { no: 1, name: "metatype", kind: "enum", T: () => ["symbol.bench.NodeType", NodeType, "NODE_TYPE_"] },
             { no: 2, name: "id", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
             { no: 3, name: "ck", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
             { no: 4, name: "parent_ptr", kind: "message", T: () => NodeReferenceData },
@@ -17573,7 +16215,7 @@ class ClaimData$Type extends MessageType$<ClaimData> {
         while (reader.pos < end) {
             let [fieldNo, wireType] = reader.tag();
             switch (fieldNo) {
-                case /* symbol.bench.ObjectType metatype */ 1:
+                case /* symbol.bench.NodeType metatype */ 1:
                     message.metatype = reader.int32();
                     break;
                 case /* string id */ 2:
@@ -17666,7 +16308,7 @@ class ClaimData$Type extends MessageType$<ClaimData> {
         return message;
     }
     internalBinaryWrite(message: ClaimData, writer: IBinaryWriter, options: BinaryWriteOptions): IBinaryWriter {
-        /* symbol.bench.ObjectType metatype = 1; */
+        /* symbol.bench.NodeType metatype = 1; */
         if (message.metatype !== 0)
             writer.tag(1, WireType.Varint).int32(message.metatype);
         /* string id = 2; */
@@ -17761,7 +16403,7 @@ export const ClaimData = new ClaimData$Type();
 class ClientData$Type extends MessageType$<ClientData> {
     constructor() {
         super("symbol.bench.ClientData", [
-            { no: 1, name: "metatype", kind: "enum", T: () => ["symbol.bench.ObjectType", ObjectType, "OBJECT_TYPE_"] },
+            { no: 1, name: "metatype", kind: "enum", T: () => ["symbol.bench.NodeType", NodeType, "NODE_TYPE_"] },
             { no: 2, name: "id", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
             { no: 4, name: "parent_ptr", kind: "message", T: () => NodeReferenceData },
             { no: 5, name: "bench_ptr", kind: "message", T: () => NodeReferenceData },
@@ -17801,7 +16443,7 @@ class ClientData$Type extends MessageType$<ClientData> {
         while (reader.pos < end) {
             let [fieldNo, wireType] = reader.tag();
             switch (fieldNo) {
-                case /* symbol.bench.ObjectType metatype */ 1:
+                case /* symbol.bench.NodeType metatype */ 1:
                     message.metatype = reader.int32();
                     break;
                 case /* string id */ 2:
@@ -17885,7 +16527,7 @@ class ClientData$Type extends MessageType$<ClientData> {
         return message;
     }
     internalBinaryWrite(message: ClientData, writer: IBinaryWriter, options: BinaryWriteOptions): IBinaryWriter {
-        /* symbol.bench.ObjectType metatype = 1; */
+        /* symbol.bench.NodeType metatype = 1; */
         if (message.metatype !== 0)
             writer.tag(1, WireType.Varint).int32(message.metatype);
         /* string id = 2; */
@@ -17971,7 +16613,7 @@ export const ClientData = new ClientData$Type();
 class CodeData$Type extends MessageType$<CodeData> {
     constructor() {
         super("symbol.bench.CodeData", [
-            { no: 1, name: "metatype", kind: "enum", T: () => ["symbol.bench.ObjectType", ObjectType, "OBJECT_TYPE_"] },
+            { no: 1, name: "metatype", kind: "enum", T: () => ["symbol.bench.StructType", StructType, "STRUCT_TYPE_"] },
             { no: 32, name: "language", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
             { no: 40, name: "content", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ }
         ]);
@@ -17988,7 +16630,7 @@ class CodeData$Type extends MessageType$<CodeData> {
         while (reader.pos < end) {
             let [fieldNo, wireType] = reader.tag();
             switch (fieldNo) {
-                case /* symbol.bench.ObjectType metatype */ 1:
+                case /* symbol.bench.StructType metatype */ 1:
                     message.metatype = reader.int32();
                     break;
                 case /* optional string language */ 32:
@@ -18009,7 +16651,7 @@ class CodeData$Type extends MessageType$<CodeData> {
         return message;
     }
     internalBinaryWrite(message: CodeData, writer: IBinaryWriter, options: BinaryWriteOptions): IBinaryWriter {
-        /* symbol.bench.ObjectType metatype = 1; */
+        /* symbol.bench.StructType metatype = 1; */
         if (message.metatype !== 0)
             writer.tag(1, WireType.Varint).int32(message.metatype);
         /* optional string language = 32; */
@@ -18032,7 +16674,7 @@ export const CodeData = new CodeData$Type();
 class CollectionConstraintData$Type extends MessageType$<CollectionConstraintData> {
     constructor() {
         super("symbol.bench.CollectionConstraintData", [
-            { no: 1, name: "metatype", kind: "enum", T: () => ["symbol.bench.ObjectType", ObjectType, "OBJECT_TYPE_"] },
+            { no: 1, name: "metatype", kind: "enum", T: () => ["symbol.bench.StructType", StructType, "STRUCT_TYPE_"] },
             { no: 41, name: "min_length", kind: "scalar", opt: true, T: 5 /*ScalarType.INT32*/ },
             { no: 42, name: "max_length", kind: "scalar", opt: true, T: 5 /*ScalarType.INT32*/ }
         ]);
@@ -18049,7 +16691,7 @@ class CollectionConstraintData$Type extends MessageType$<CollectionConstraintDat
         while (reader.pos < end) {
             let [fieldNo, wireType] = reader.tag();
             switch (fieldNo) {
-                case /* symbol.bench.ObjectType metatype */ 1:
+                case /* symbol.bench.StructType metatype */ 1:
                     message.metatype = reader.int32();
                     break;
                 case /* optional int32 min_length */ 41:
@@ -18070,7 +16712,7 @@ class CollectionConstraintData$Type extends MessageType$<CollectionConstraintDat
         return message;
     }
     internalBinaryWrite(message: CollectionConstraintData, writer: IBinaryWriter, options: BinaryWriteOptions): IBinaryWriter {
-        /* symbol.bench.ObjectType metatype = 1; */
+        /* symbol.bench.StructType metatype = 1; */
         if (message.metatype !== 0)
             writer.tag(1, WireType.Varint).int32(message.metatype);
         /* optional int32 min_length = 41; */
@@ -18093,7 +16735,7 @@ export const CollectionConstraintData = new CollectionConstraintData$Type();
 class ColorData$Type extends MessageType$<ColorData> {
     constructor() {
         super("symbol.bench.ColorData", [
-            { no: 1, name: "metatype", kind: "enum", T: () => ["symbol.bench.ObjectType", ObjectType, "OBJECT_TYPE_"] },
+            { no: 1, name: "metatype", kind: "enum", T: () => ["symbol.bench.StructType", StructType, "STRUCT_TYPE_"] },
             { no: 30, name: "type", kind: "enum", T: () => ["symbol.bench.ColorType", ColorType, "COLOR_TYPE_"] },
             { no: 40, name: "field_ptr", kind: "message", T: () => NodeReferenceData },
             { no: 42, name: "style_ptr", kind: "message", T: () => NodeReferenceData },
@@ -18118,7 +16760,7 @@ class ColorData$Type extends MessageType$<ColorData> {
         while (reader.pos < end) {
             let [fieldNo, wireType] = reader.tag();
             switch (fieldNo) {
-                case /* symbol.bench.ObjectType metatype */ 1:
+                case /* symbol.bench.StructType metatype */ 1:
                     message.metatype = reader.int32();
                     break;
                 case /* symbol.bench.ColorType type */ 30:
@@ -18160,7 +16802,7 @@ class ColorData$Type extends MessageType$<ColorData> {
         return message;
     }
     internalBinaryWrite(message: ColorData, writer: IBinaryWriter, options: BinaryWriteOptions): IBinaryWriter {
-        /* symbol.bench.ObjectType metatype = 1; */
+        /* symbol.bench.StructType metatype = 1; */
         if (message.metatype !== 0)
             writer.tag(1, WireType.Varint).int32(message.metatype);
         /* symbol.bench.ColorType type = 30; */
@@ -18204,7 +16846,7 @@ export const ColorData = new ColorData$Type();
 class ColorStyleData$Type extends MessageType$<ColorStyleData> {
     constructor() {
         super("symbol.bench.ColorStyleData", [
-            { no: 1, name: "metatype", kind: "enum", T: () => ["symbol.bench.ObjectType", ObjectType, "OBJECT_TYPE_"] },
+            { no: 1, name: "metatype", kind: "enum", T: () => ["symbol.bench.NodeType", NodeType, "NODE_TYPE_"] },
             { no: 2, name: "id", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
             { no: 4, name: "parent_ptr", kind: "message", T: () => NodeReferenceData },
             { no: 6, name: "bench_ptr", kind: "message", T: () => NodeReferenceData },
@@ -18249,7 +16891,7 @@ class ColorStyleData$Type extends MessageType$<ColorStyleData> {
         while (reader.pos < end) {
             let [fieldNo, wireType] = reader.tag();
             switch (fieldNo) {
-                case /* symbol.bench.ObjectType metatype */ 1:
+                case /* symbol.bench.NodeType metatype */ 1:
                     message.metatype = reader.int32();
                     break;
                 case /* string id */ 2:
@@ -18342,7 +16984,7 @@ class ColorStyleData$Type extends MessageType$<ColorStyleData> {
         return message;
     }
     internalBinaryWrite(message: ColorStyleData, writer: IBinaryWriter, options: BinaryWriteOptions): IBinaryWriter {
-        /* symbol.bench.ObjectType metatype = 1; */
+        /* symbol.bench.NodeType metatype = 1; */
         if (message.metatype !== 0)
             writer.tag(1, WireType.Varint).int32(message.metatype);
         /* string id = 2; */
@@ -18437,7 +17079,7 @@ export const ColorStyleData = new ColorStyleData$Type();
 class ComponentViewData$Type extends MessageType$<ComponentViewData> {
     constructor() {
         super("symbol.bench.ComponentViewData", [
-            { no: 1, name: "metatype", kind: "enum", T: () => ["symbol.bench.ObjectType", ObjectType, "OBJECT_TYPE_"] },
+            { no: 1, name: "metatype", kind: "enum", T: () => ["symbol.bench.NodeType", NodeType, "NODE_TYPE_"] },
             { no: 2, name: "id", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
             { no: 3, name: "ck", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
             { no: 4, name: "parent_ptr", kind: "message", T: () => NodeReferenceData },
@@ -18527,7 +17169,7 @@ class ComponentViewData$Type extends MessageType$<ComponentViewData> {
         while (reader.pos < end) {
             let [fieldNo, wireType] = reader.tag();
             switch (fieldNo) {
-                case /* symbol.bench.ObjectType metatype */ 1:
+                case /* symbol.bench.NodeType metatype */ 1:
                     message.metatype = reader.int32();
                     break;
                 case /* string id */ 2:
@@ -18797,7 +17439,7 @@ class ComponentViewData$Type extends MessageType$<ComponentViewData> {
         return message;
     }
     internalBinaryWrite(message: ComponentViewData, writer: IBinaryWriter, options: BinaryWriteOptions): IBinaryWriter {
-        /* symbol.bench.ObjectType metatype = 1; */
+        /* symbol.bench.NodeType metatype = 1; */
         if (message.metatype !== 0)
             writer.tag(1, WireType.Varint).int32(message.metatype);
         /* string id = 2; */
@@ -18985,7 +17627,7 @@ export const ComponentViewData = new ComponentViewData$Type();
 class ComputerData$Type extends MessageType$<ComputerData> {
     constructor() {
         super("symbol.bench.ComputerData", [
-            { no: 1, name: "metatype", kind: "enum", T: () => ["symbol.bench.ObjectType", ObjectType, "OBJECT_TYPE_"] },
+            { no: 1, name: "metatype", kind: "enum", T: () => ["symbol.bench.NodeType", NodeType, "NODE_TYPE_"] },
             { no: 2, name: "id", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
             { no: 3, name: "ck", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
             { no: 4, name: "parent_ptr", kind: "message", T: () => NodeReferenceData },
@@ -19057,7 +17699,7 @@ class ComputerData$Type extends MessageType$<ComputerData> {
         while (reader.pos < end) {
             let [fieldNo, wireType] = reader.tag();
             switch (fieldNo) {
-                case /* symbol.bench.ObjectType metatype */ 1:
+                case /* symbol.bench.NodeType metatype */ 1:
                     message.metatype = reader.int32();
                     break;
                 case /* string id */ 2:
@@ -19201,7 +17843,7 @@ class ComputerData$Type extends MessageType$<ComputerData> {
         return message;
     }
     internalBinaryWrite(message: ComputerData, writer: IBinaryWriter, options: BinaryWriteOptions): IBinaryWriter {
-        /* symbol.bench.ObjectType metatype = 1; */
+        /* symbol.bench.NodeType metatype = 1; */
         if (message.metatype !== 0)
             writer.tag(1, WireType.Varint).int32(message.metatype);
         /* string id = 2; */
@@ -19347,7 +17989,7 @@ export const ComputerData = new ComputerData$Type();
 class ConditionData$Type extends MessageType$<ConditionData> {
     constructor() {
         super("symbol.bench.ConditionData", [
-            { no: 1, name: "metatype", kind: "enum", T: () => ["symbol.bench.ObjectType", ObjectType, "OBJECT_TYPE_"] },
+            { no: 1, name: "metatype", kind: "enum", T: () => ["symbol.bench.StructType", StructType, "STRUCT_TYPE_"] },
             { no: 30, name: "type", kind: "enum", T: () => ["symbol.bench.ConditionalType", ConditionalType, "CONDITIONAL_TYPE_"] },
             { no: 31, name: "left", kind: "message", T: () => ExpressionData },
             { no: 32, name: "right", kind: "message", T: () => ExpressionData }
@@ -19366,7 +18008,7 @@ class ConditionData$Type extends MessageType$<ConditionData> {
         while (reader.pos < end) {
             let [fieldNo, wireType] = reader.tag();
             switch (fieldNo) {
-                case /* symbol.bench.ObjectType metatype */ 1:
+                case /* symbol.bench.StructType metatype */ 1:
                     message.metatype = reader.int32();
                     break;
                 case /* symbol.bench.ConditionalType type */ 30:
@@ -19390,7 +18032,7 @@ class ConditionData$Type extends MessageType$<ConditionData> {
         return message;
     }
     internalBinaryWrite(message: ConditionData, writer: IBinaryWriter, options: BinaryWriteOptions): IBinaryWriter {
-        /* symbol.bench.ObjectType metatype = 1; */
+        /* symbol.bench.StructType metatype = 1; */
         if (message.metatype !== 0)
             writer.tag(1, WireType.Varint).int32(message.metatype);
         /* symbol.bench.ConditionalType type = 30; */
@@ -19416,7 +18058,7 @@ export const ConditionData = new ConditionData$Type();
 class CornersData$Type extends MessageType$<CornersData> {
     constructor() {
         super("symbol.bench.CornersData", [
-            { no: 1, name: "metatype", kind: "enum", T: () => ["symbol.bench.ObjectType", ObjectType, "OBJECT_TYPE_"] },
+            { no: 1, name: "metatype", kind: "enum", T: () => ["symbol.bench.StructType", StructType, "STRUCT_TYPE_"] },
             { no: 50, name: "base", kind: "scalar", opt: true, T: 5 /*ScalarType.INT32*/ },
             { no: 51, name: "top_left", kind: "scalar", opt: true, T: 5 /*ScalarType.INT32*/ },
             { no: 52, name: "top_right", kind: "scalar", opt: true, T: 5 /*ScalarType.INT32*/ },
@@ -19436,7 +18078,7 @@ class CornersData$Type extends MessageType$<CornersData> {
         while (reader.pos < end) {
             let [fieldNo, wireType] = reader.tag();
             switch (fieldNo) {
-                case /* symbol.bench.ObjectType metatype */ 1:
+                case /* symbol.bench.StructType metatype */ 1:
                     message.metatype = reader.int32();
                     break;
                 case /* optional int32 base */ 50:
@@ -19466,7 +18108,7 @@ class CornersData$Type extends MessageType$<CornersData> {
         return message;
     }
     internalBinaryWrite(message: CornersData, writer: IBinaryWriter, options: BinaryWriteOptions): IBinaryWriter {
-        /* symbol.bench.ObjectType metatype = 1; */
+        /* symbol.bench.StructType metatype = 1; */
         if (message.metatype !== 0)
             writer.tag(1, WireType.Varint).int32(message.metatype);
         /* optional int32 base = 50; */
@@ -19498,7 +18140,7 @@ export const CornersData = new CornersData$Type();
 class CursorData$Type extends MessageType$<CursorData> {
     constructor() {
         super("symbol.bench.CursorData", [
-            { no: 1, name: "metatype", kind: "enum", T: () => ["symbol.bench.ObjectType", ObjectType, "OBJECT_TYPE_"] },
+            { no: 1, name: "metatype", kind: "enum", T: () => ["symbol.bench.NodeType", NodeType, "NODE_TYPE_"] },
             { no: 2, name: "id", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
             { no: 4, name: "parent_ptr", kind: "message", T: () => NodeReferenceData },
             { no: 6, name: "bench_ptr", kind: "message", T: () => NodeReferenceData },
@@ -19543,7 +18185,7 @@ class CursorData$Type extends MessageType$<CursorData> {
         while (reader.pos < end) {
             let [fieldNo, wireType] = reader.tag();
             switch (fieldNo) {
-                case /* symbol.bench.ObjectType metatype */ 1:
+                case /* symbol.bench.NodeType metatype */ 1:
                     message.metatype = reader.int32();
                     break;
                 case /* string id */ 2:
@@ -19633,7 +18275,7 @@ class CursorData$Type extends MessageType$<CursorData> {
         return message;
     }
     internalBinaryWrite(message: CursorData, writer: IBinaryWriter, options: BinaryWriteOptions): IBinaryWriter {
-        /* symbol.bench.ObjectType metatype = 1; */
+        /* symbol.bench.NodeType metatype = 1; */
         if (message.metatype !== 0)
             writer.tag(1, WireType.Varint).int32(message.metatype);
         /* string id = 2; */
@@ -19725,7 +18367,7 @@ export const CursorData = new CursorData$Type();
 class DatabaseData$Type extends MessageType$<DatabaseData> {
     constructor() {
         super("symbol.bench.DatabaseData", [
-            { no: 1, name: "metatype", kind: "enum", T: () => ["symbol.bench.ObjectType", ObjectType, "OBJECT_TYPE_"] },
+            { no: 1, name: "metatype", kind: "enum", T: () => ["symbol.bench.NodeType", NodeType, "NODE_TYPE_"] },
             { no: 2, name: "id", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
             { no: 3, name: "ck", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
             { no: 4, name: "parent_ptr", kind: "message", T: () => NodeReferenceData },
@@ -19784,7 +18426,7 @@ class DatabaseData$Type extends MessageType$<DatabaseData> {
         while (reader.pos < end) {
             let [fieldNo, wireType] = reader.tag();
             switch (fieldNo) {
-                case /* symbol.bench.ObjectType metatype */ 1:
+                case /* symbol.bench.NodeType metatype */ 1:
                     message.metatype = reader.int32();
                     break;
                 case /* string id */ 2:
@@ -19904,7 +18546,7 @@ class DatabaseData$Type extends MessageType$<DatabaseData> {
         return message;
     }
     internalBinaryWrite(message: DatabaseData, writer: IBinaryWriter, options: BinaryWriteOptions): IBinaryWriter {
-        /* symbol.bench.ObjectType metatype = 1; */
+        /* symbol.bench.NodeType metatype = 1; */
         if (message.metatype !== 0)
             writer.tag(1, WireType.Varint).int32(message.metatype);
         /* string id = 2; */
@@ -20026,7 +18668,7 @@ export const DatabaseData = new DatabaseData$Type();
 class DependencyData$Type extends MessageType$<DependencyData> {
     constructor() {
         super("symbol.bench.DependencyData", [
-            { no: 1, name: "metatype", kind: "enum", T: () => ["symbol.bench.ObjectType", ObjectType, "OBJECT_TYPE_"] },
+            { no: 1, name: "metatype", kind: "enum", T: () => ["symbol.bench.NodeType", NodeType, "NODE_TYPE_"] },
             { no: 2, name: "id", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
             { no: 4, name: "parent_ptr", kind: "message", T: () => NodeReferenceData },
             { no: 6, name: "bench_ptr", kind: "message", T: () => NodeReferenceData },
@@ -20056,7 +18698,7 @@ class DependencyData$Type extends MessageType$<DependencyData> {
         while (reader.pos < end) {
             let [fieldNo, wireType] = reader.tag();
             switch (fieldNo) {
-                case /* symbol.bench.ObjectType metatype */ 1:
+                case /* symbol.bench.NodeType metatype */ 1:
                     message.metatype = reader.int32();
                     break;
                 case /* string id */ 2:
@@ -20110,7 +18752,7 @@ class DependencyData$Type extends MessageType$<DependencyData> {
         return message;
     }
     internalBinaryWrite(message: DependencyData, writer: IBinaryWriter, options: BinaryWriteOptions): IBinaryWriter {
-        /* symbol.bench.ObjectType metatype = 1; */
+        /* symbol.bench.NodeType metatype = 1; */
         if (message.metatype !== 0)
             writer.tag(1, WireType.Varint).int32(message.metatype);
         /* string id = 2; */
@@ -20166,7 +18808,7 @@ export const DependencyData = new DependencyData$Type();
 class DimensionData$Type extends MessageType$<DimensionData> {
     constructor() {
         super("symbol.bench.DimensionData", [
-            { no: 1, name: "metatype", kind: "enum", T: () => ["symbol.bench.ObjectType", ObjectType, "OBJECT_TYPE_"] },
+            { no: 1, name: "metatype", kind: "enum", T: () => ["symbol.bench.StructType", StructType, "STRUCT_TYPE_"] },
             { no: 30, name: "type", kind: "enum", T: () => ["symbol.bench.DimensionType", DimensionType, "DIMENSION_TYPE_"] },
             { no: 50, name: "unit", kind: "enum", T: () => ["symbol.bench.LengthUnit", LengthUnit, "LENGTH_UNIT_"] },
             { no: 51, name: "value", kind: "scalar", T: 2 /*ScalarType.FLOAT*/ }
@@ -20187,7 +18829,7 @@ class DimensionData$Type extends MessageType$<DimensionData> {
         while (reader.pos < end) {
             let [fieldNo, wireType] = reader.tag();
             switch (fieldNo) {
-                case /* symbol.bench.ObjectType metatype */ 1:
+                case /* symbol.bench.StructType metatype */ 1:
                     message.metatype = reader.int32();
                     break;
                 case /* symbol.bench.DimensionType type */ 30:
@@ -20211,7 +18853,7 @@ class DimensionData$Type extends MessageType$<DimensionData> {
         return message;
     }
     internalBinaryWrite(message: DimensionData, writer: IBinaryWriter, options: BinaryWriteOptions): IBinaryWriter {
-        /* symbol.bench.ObjectType metatype = 1; */
+        /* symbol.bench.StructType metatype = 1; */
         if (message.metatype !== 0)
             writer.tag(1, WireType.Varint).int32(message.metatype);
         /* symbol.bench.DimensionType type = 30; */
@@ -20237,7 +18879,7 @@ export const DimensionData = new DimensionData$Type();
 class EditData$Type extends MessageType$<EditData> {
     constructor() {
         super("symbol.bench.EditData", [
-            { no: 1, name: "metatype", kind: "enum", T: () => ["symbol.bench.ObjectType", ObjectType, "OBJECT_TYPE_"] },
+            { no: 1, name: "metatype", kind: "enum", T: () => ["symbol.bench.StructType", StructType, "STRUCT_TYPE_"] },
             { no: 2, name: "id", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
             { no: 30, name: "type", kind: "enum", T: () => ["symbol.bench.EditType", EditType, "EDIT_TYPE_"] },
             { no: 31, name: "node_ptr", kind: "message", T: () => NodeReferenceData },
@@ -20261,7 +18903,7 @@ class EditData$Type extends MessageType$<EditData> {
         while (reader.pos < end) {
             let [fieldNo, wireType] = reader.tag();
             switch (fieldNo) {
-                case /* symbol.bench.ObjectType metatype */ 1:
+                case /* symbol.bench.StructType metatype */ 1:
                     message.metatype = reader.int32();
                     break;
                 case /* string id */ 2:
@@ -20294,7 +18936,7 @@ class EditData$Type extends MessageType$<EditData> {
         return message;
     }
     internalBinaryWrite(message: EditData, writer: IBinaryWriter, options: BinaryWriteOptions): IBinaryWriter {
-        /* symbol.bench.ObjectType metatype = 1; */
+        /* symbol.bench.StructType metatype = 1; */
         if (message.metatype !== 0)
             writer.tag(1, WireType.Varint).int32(message.metatype);
         /* string id = 2; */
@@ -20329,7 +18971,7 @@ export const EditData = new EditData$Type();
 class EditOperationData$Type extends MessageType$<EditOperationData> {
     constructor() {
         super("symbol.bench.EditOperationData", [
-            { no: 1, name: "metatype", kind: "enum", T: () => ["symbol.bench.ObjectType", ObjectType, "OBJECT_TYPE_"] },
+            { no: 1, name: "metatype", kind: "enum", T: () => ["symbol.bench.StructType", StructType, "STRUCT_TYPE_"] },
             { no: 30, name: "type", kind: "enum", T: () => ["symbol.bench.EditOperationType", EditOperationType, "EDIT_OPERATION_TYPE_"] },
             { no: 31, name: "key", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
             { no: 40, name: "new_value", kind: "message", T: () => ValueData },
@@ -20350,7 +18992,7 @@ class EditOperationData$Type extends MessageType$<EditOperationData> {
         while (reader.pos < end) {
             let [fieldNo, wireType] = reader.tag();
             switch (fieldNo) {
-                case /* symbol.bench.ObjectType metatype */ 1:
+                case /* symbol.bench.StructType metatype */ 1:
                     message.metatype = reader.int32();
                     break;
                 case /* symbol.bench.EditOperationType type */ 30:
@@ -20377,7 +19019,7 @@ class EditOperationData$Type extends MessageType$<EditOperationData> {
         return message;
     }
     internalBinaryWrite(message: EditOperationData, writer: IBinaryWriter, options: BinaryWriteOptions): IBinaryWriter {
-        /* symbol.bench.ObjectType metatype = 1; */
+        /* symbol.bench.StructType metatype = 1; */
         if (message.metatype !== 0)
             writer.tag(1, WireType.Varint).int32(message.metatype);
         /* symbol.bench.EditOperationType type = 30; */
@@ -20406,7 +19048,7 @@ export const EditOperationData = new EditOperationData$Type();
 class EffectData$Type extends MessageType$<EffectData> {
     constructor() {
         super("symbol.bench.EffectData", [
-            { no: 1, name: "metatype", kind: "enum", T: () => ["symbol.bench.ObjectType", ObjectType, "OBJECT_TYPE_"] },
+            { no: 1, name: "metatype", kind: "enum", T: () => ["symbol.bench.StructType", StructType, "STRUCT_TYPE_"] },
             { no: 30, name: "type", kind: "enum", T: () => ["symbol.bench.EffectType", EffectType, "EFFECT_TYPE_"] },
             { no: 40, name: "field_ptr", kind: "message", T: () => NodeReferenceData },
             { no: 41, name: "style_ptr", kind: "message", T: () => NodeReferenceData },
@@ -20439,7 +19081,7 @@ class EffectData$Type extends MessageType$<EffectData> {
         while (reader.pos < end) {
             let [fieldNo, wireType] = reader.tag();
             switch (fieldNo) {
-                case /* symbol.bench.ObjectType metatype */ 1:
+                case /* symbol.bench.StructType metatype */ 1:
                     message.metatype = reader.int32();
                     break;
                 case /* symbol.bench.EffectType type */ 30:
@@ -20505,7 +19147,7 @@ class EffectData$Type extends MessageType$<EffectData> {
         return message;
     }
     internalBinaryWrite(message: EffectData, writer: IBinaryWriter, options: BinaryWriteOptions): IBinaryWriter {
-        /* symbol.bench.ObjectType metatype = 1; */
+        /* symbol.bench.StructType metatype = 1; */
         if (message.metatype !== 0)
             writer.tag(1, WireType.Varint).int32(message.metatype);
         /* symbol.bench.EffectType type = 30; */
@@ -20573,7 +19215,7 @@ export const EffectData = new EffectData$Type();
 class EffectStyleData$Type extends MessageType$<EffectStyleData> {
     constructor() {
         super("symbol.bench.EffectStyleData", [
-            { no: 1, name: "metatype", kind: "enum", T: () => ["symbol.bench.ObjectType", ObjectType, "OBJECT_TYPE_"] },
+            { no: 1, name: "metatype", kind: "enum", T: () => ["symbol.bench.NodeType", NodeType, "NODE_TYPE_"] },
             { no: 2, name: "id", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
             { no: 4, name: "parent_ptr", kind: "message", T: () => NodeReferenceData },
             { no: 6, name: "bench_ptr", kind: "message", T: () => NodeReferenceData },
@@ -20625,7 +19267,7 @@ class EffectStyleData$Type extends MessageType$<EffectStyleData> {
         while (reader.pos < end) {
             let [fieldNo, wireType] = reader.tag();
             switch (fieldNo) {
-                case /* symbol.bench.ObjectType metatype */ 1:
+                case /* symbol.bench.NodeType metatype */ 1:
                     message.metatype = reader.int32();
                     break;
                 case /* string id */ 2:
@@ -20739,7 +19381,7 @@ class EffectStyleData$Type extends MessageType$<EffectStyleData> {
         return message;
     }
     internalBinaryWrite(message: EffectStyleData, writer: IBinaryWriter, options: BinaryWriteOptions): IBinaryWriter {
-        /* symbol.bench.ObjectType metatype = 1; */
+        /* symbol.bench.NodeType metatype = 1; */
         if (message.metatype !== 0)
             writer.tag(1, WireType.Varint).int32(message.metatype);
         /* string id = 2; */
@@ -20855,7 +19497,7 @@ export const EffectStyleData = new EffectStyleData$Type();
 class EmptyData$Type extends MessageType$<EmptyData> {
     constructor() {
         super("symbol.bench.EmptyData", [
-            { no: 1, name: "metatype", kind: "enum", T: () => ["symbol.bench.ObjectType", ObjectType, "OBJECT_TYPE_"] },
+            { no: 1, name: "metatype", kind: "enum", T: () => ["symbol.bench.NodeType", NodeType, "NODE_TYPE_"] },
             { no: 2, name: "id", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
             { no: 4, name: "parent_ptr", kind: "message", T: () => NodeReferenceData },
             { no: 10, name: "created_at", kind: "message", T: () => Timestamp },
@@ -20879,7 +19521,7 @@ class EmptyData$Type extends MessageType$<EmptyData> {
         while (reader.pos < end) {
             let [fieldNo, wireType] = reader.tag();
             switch (fieldNo) {
-                case /* symbol.bench.ObjectType metatype */ 1:
+                case /* symbol.bench.NodeType metatype */ 1:
                     message.metatype = reader.int32();
                     break;
                 case /* string id */ 2:
@@ -20918,7 +19560,7 @@ class EmptyData$Type extends MessageType$<EmptyData> {
         return message;
     }
     internalBinaryWrite(message: EmptyData, writer: IBinaryWriter, options: BinaryWriteOptions): IBinaryWriter {
-        /* symbol.bench.ObjectType metatype = 1; */
+        /* symbol.bench.NodeType metatype = 1; */
         if (message.metatype !== 0)
             writer.tag(1, WireType.Varint).int32(message.metatype);
         /* string id = 2; */
@@ -20959,7 +19601,7 @@ export const EmptyData = new EmptyData$Type();
 class ErrorData$Type extends MessageType$<ErrorData> {
     constructor() {
         super("symbol.bench.ErrorData", [
-            { no: 1, name: "metatype", kind: "enum", T: () => ["symbol.bench.ObjectType", ObjectType, "OBJECT_TYPE_"] },
+            { no: 1, name: "metatype", kind: "enum", T: () => ["symbol.bench.StructType", StructType, "STRUCT_TYPE_"] },
             { no: 30, name: "kind", kind: "enum", T: () => ["symbol.bench.ErrorKind", ErrorKind, "ERROR_KIND_"] },
             { no: 31, name: "type", kind: "enum", T: () => ["symbol.bench.ErrorType", ErrorType, "ERROR_TYPE_"] },
             { no: 32, name: "title", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
@@ -20983,7 +19625,7 @@ class ErrorData$Type extends MessageType$<ErrorData> {
         while (reader.pos < end) {
             let [fieldNo, wireType] = reader.tag();
             switch (fieldNo) {
-                case /* symbol.bench.ObjectType metatype */ 1:
+                case /* symbol.bench.StructType metatype */ 1:
                     message.metatype = reader.int32();
                     break;
                 case /* symbol.bench.ErrorKind kind */ 30:
@@ -21016,7 +19658,7 @@ class ErrorData$Type extends MessageType$<ErrorData> {
         return message;
     }
     internalBinaryWrite(message: ErrorData, writer: IBinaryWriter, options: BinaryWriteOptions): IBinaryWriter {
-        /* symbol.bench.ObjectType metatype = 1; */
+        /* symbol.bench.StructType metatype = 1; */
         if (message.metatype !== 0)
             writer.tag(1, WireType.Varint).int32(message.metatype);
         /* symbol.bench.ErrorKind kind = 30; */
@@ -21051,7 +19693,7 @@ export const ErrorData = new ErrorData$Type();
 class ExpressionData$Type extends MessageType$<ExpressionData> {
     constructor() {
         super("symbol.bench.ExpressionData", [
-            { no: 1, name: "metatype", kind: "enum", T: () => ["symbol.bench.ObjectType", ObjectType, "OBJECT_TYPE_"] },
+            { no: 1, name: "metatype", kind: "enum", T: () => ["symbol.bench.StructType", StructType, "STRUCT_TYPE_"] },
             { no: 30, name: "type", kind: "enum", T: () => ["symbol.bench.ExpressionType", ExpressionType, "EXPRESSION_TYPE_"] },
             { no: 31, name: "literal", kind: "message", T: () => ValueData },
             { no: 32, name: "column", kind: "message", T: () => AttributeReferenceData },
@@ -21073,7 +19715,7 @@ class ExpressionData$Type extends MessageType$<ExpressionData> {
         while (reader.pos < end) {
             let [fieldNo, wireType] = reader.tag();
             switch (fieldNo) {
-                case /* symbol.bench.ObjectType metatype */ 1:
+                case /* symbol.bench.StructType metatype */ 1:
                     message.metatype = reader.int32();
                     break;
                 case /* symbol.bench.ExpressionType type */ 30:
@@ -21106,7 +19748,7 @@ class ExpressionData$Type extends MessageType$<ExpressionData> {
         return message;
     }
     internalBinaryWrite(message: ExpressionData, writer: IBinaryWriter, options: BinaryWriteOptions): IBinaryWriter {
-        /* symbol.bench.ObjectType metatype = 1; */
+        /* symbol.bench.StructType metatype = 1; */
         if (message.metatype !== 0)
             writer.tag(1, WireType.Varint).int32(message.metatype);
         /* symbol.bench.ExpressionType type = 30; */
@@ -21141,7 +19783,7 @@ export const ExpressionData = new ExpressionData$Type();
 class FieldData$Type extends MessageType$<FieldData> {
     constructor() {
         super("symbol.bench.FieldData", [
-            { no: 1, name: "metatype", kind: "enum", T: () => ["symbol.bench.ObjectType", ObjectType, "OBJECT_TYPE_"] },
+            { no: 1, name: "metatype", kind: "enum", T: () => ["symbol.bench.NodeType", NodeType, "NODE_TYPE_"] },
             { no: 2, name: "id", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
             { no: 3, name: "ck", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
             { no: 4, name: "parent_ptr", kind: "message", T: () => NodeReferenceData },
@@ -21198,7 +19840,7 @@ class FieldData$Type extends MessageType$<FieldData> {
         while (reader.pos < end) {
             let [fieldNo, wireType] = reader.tag();
             switch (fieldNo) {
-                case /* symbol.bench.ObjectType metatype */ 1:
+                case /* symbol.bench.NodeType metatype */ 1:
                     message.metatype = reader.int32();
                     break;
                 case /* string id */ 2:
@@ -21312,7 +19954,7 @@ class FieldData$Type extends MessageType$<FieldData> {
         return message;
     }
     internalBinaryWrite(message: FieldData, writer: IBinaryWriter, options: BinaryWriteOptions): IBinaryWriter {
-        /* symbol.bench.ObjectType metatype = 1; */
+        /* symbol.bench.NodeType metatype = 1; */
         if (message.metatype !== 0)
             writer.tag(1, WireType.Varint).int32(message.metatype);
         /* string id = 2; */
@@ -21428,7 +20070,7 @@ export const FieldData = new FieldData$Type();
 class FileData$Type extends MessageType$<FileData> {
     constructor() {
         super("symbol.bench.FileData", [
-            { no: 1, name: "metatype", kind: "enum", T: () => ["symbol.bench.ObjectType", ObjectType, "OBJECT_TYPE_"] },
+            { no: 1, name: "metatype", kind: "enum", T: () => ["symbol.bench.NodeType", NodeType, "NODE_TYPE_"] },
             { no: 2, name: "id", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
             { no: 3, name: "ck", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
             { no: 4, name: "parent_ptr", kind: "message", T: () => NodeReferenceData },
@@ -21491,7 +20133,7 @@ class FileData$Type extends MessageType$<FileData> {
         while (reader.pos < end) {
             let [fieldNo, wireType] = reader.tag();
             switch (fieldNo) {
-                case /* symbol.bench.ObjectType metatype */ 1:
+                case /* symbol.bench.NodeType metatype */ 1:
                     message.metatype = reader.int32();
                     break;
                 case /* string id */ 2:
@@ -21626,7 +20268,7 @@ class FileData$Type extends MessageType$<FileData> {
         return message;
     }
     internalBinaryWrite(message: FileData, writer: IBinaryWriter, options: BinaryWriteOptions): IBinaryWriter {
-        /* symbol.bench.ObjectType metatype = 1; */
+        /* symbol.bench.NodeType metatype = 1; */
         if (message.metatype !== 0)
             writer.tag(1, WireType.Varint).int32(message.metatype);
         /* string id = 2; */
@@ -21763,7 +20405,7 @@ export const FileData = new FileData$Type();
 class FillData$Type extends MessageType$<FillData> {
     constructor() {
         super("symbol.bench.FillData", [
-            { no: 1, name: "metatype", kind: "enum", T: () => ["symbol.bench.ObjectType", ObjectType, "OBJECT_TYPE_"] },
+            { no: 1, name: "metatype", kind: "enum", T: () => ["symbol.bench.StructType", StructType, "STRUCT_TYPE_"] },
             { no: 30, name: "type", kind: "enum", T: () => ["symbol.bench.FillType", FillType, "FILL_TYPE_"] },
             { no: 40, name: "color", kind: "message", T: () => ColorData },
             { no: 41, name: "gradient", kind: "message", T: () => GradientData },
@@ -21785,7 +20427,7 @@ class FillData$Type extends MessageType$<FillData> {
         while (reader.pos < end) {
             let [fieldNo, wireType] = reader.tag();
             switch (fieldNo) {
-                case /* symbol.bench.ObjectType metatype */ 1:
+                case /* symbol.bench.StructType metatype */ 1:
                     message.metatype = reader.int32();
                     break;
                 case /* symbol.bench.FillType type */ 30:
@@ -21818,7 +20460,7 @@ class FillData$Type extends MessageType$<FillData> {
         return message;
     }
     internalBinaryWrite(message: FillData, writer: IBinaryWriter, options: BinaryWriteOptions): IBinaryWriter {
-        /* symbol.bench.ObjectType metatype = 1; */
+        /* symbol.bench.StructType metatype = 1; */
         if (message.metatype !== 0)
             writer.tag(1, WireType.Varint).int32(message.metatype);
         /* symbol.bench.FillType type = 30; */
@@ -21853,7 +20495,7 @@ export const FillData = new FillData$Type();
 class FlowData$Type extends MessageType$<FlowData> {
     constructor() {
         super("symbol.bench.FlowData", [
-            { no: 1, name: "metatype", kind: "enum", T: () => ["symbol.bench.ObjectType", ObjectType, "OBJECT_TYPE_"] },
+            { no: 1, name: "metatype", kind: "enum", T: () => ["symbol.bench.NodeType", NodeType, "NODE_TYPE_"] },
             { no: 2, name: "id", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
             { no: 4, name: "parent_ptr", kind: "message", T: () => NodeReferenceData },
             { no: 6, name: "bench_ptr", kind: "message", T: () => NodeReferenceData },
@@ -21899,7 +20541,7 @@ class FlowData$Type extends MessageType$<FlowData> {
         while (reader.pos < end) {
             let [fieldNo, wireType] = reader.tag();
             switch (fieldNo) {
-                case /* symbol.bench.ObjectType metatype */ 1:
+                case /* symbol.bench.NodeType metatype */ 1:
                     message.metatype = reader.int32();
                     break;
                 case /* string id */ 2:
@@ -21995,7 +20637,7 @@ class FlowData$Type extends MessageType$<FlowData> {
         return message;
     }
     internalBinaryWrite(message: FlowData, writer: IBinaryWriter, options: BinaryWriteOptions): IBinaryWriter {
-        /* symbol.bench.ObjectType metatype = 1; */
+        /* symbol.bench.NodeType metatype = 1; */
         if (message.metatype !== 0)
             writer.tag(1, WireType.Varint).int32(message.metatype);
         /* string id = 2; */
@@ -22093,7 +20735,7 @@ export const FlowData = new FlowData$Type();
 class FlowEdgeData$Type extends MessageType$<FlowEdgeData> {
     constructor() {
         super("symbol.bench.FlowEdgeData", [
-            { no: 1, name: "metatype", kind: "enum", T: () => ["symbol.bench.ObjectType", ObjectType, "OBJECT_TYPE_"] },
+            { no: 1, name: "metatype", kind: "enum", T: () => ["symbol.bench.NodeType", NodeType, "NODE_TYPE_"] },
             { no: 2, name: "id", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
             { no: 4, name: "parent_ptr", kind: "message", T: () => NodeReferenceData },
             { no: 6, name: "bench_ptr", kind: "message", T: () => NodeReferenceData },
@@ -22136,7 +20778,7 @@ class FlowEdgeData$Type extends MessageType$<FlowEdgeData> {
         while (reader.pos < end) {
             let [fieldNo, wireType] = reader.tag();
             switch (fieldNo) {
-                case /* symbol.bench.ObjectType metatype */ 1:
+                case /* symbol.bench.NodeType metatype */ 1:
                     message.metatype = reader.int32();
                     break;
                 case /* string id */ 2:
@@ -22223,7 +20865,7 @@ class FlowEdgeData$Type extends MessageType$<FlowEdgeData> {
         return message;
     }
     internalBinaryWrite(message: FlowEdgeData, writer: IBinaryWriter, options: BinaryWriteOptions): IBinaryWriter {
-        /* symbol.bench.ObjectType metatype = 1; */
+        /* symbol.bench.NodeType metatype = 1; */
         if (message.metatype !== 0)
             writer.tag(1, WireType.Varint).int32(message.metatype);
         /* string id = 2; */
@@ -22312,7 +20954,7 @@ export const FlowEdgeData = new FlowEdgeData$Type();
 class FontData$Type extends MessageType$<FontData> {
     constructor() {
         super("symbol.bench.FontData", [
-            { no: 1, name: "metatype", kind: "enum", T: () => ["symbol.bench.ObjectType", ObjectType, "OBJECT_TYPE_"] },
+            { no: 1, name: "metatype", kind: "enum", T: () => ["symbol.bench.StructType", StructType, "STRUCT_TYPE_"] },
             { no: 30, name: "type", kind: "enum", T: () => ["symbol.bench.FontType", FontType, "FONT_TYPE_"] },
             { no: 40, name: "field_ptr", kind: "message", T: () => NodeReferenceData },
             { no: 41, name: "style_ptr", kind: "message", T: () => NodeReferenceData },
@@ -22339,7 +20981,7 @@ class FontData$Type extends MessageType$<FontData> {
         while (reader.pos < end) {
             let [fieldNo, wireType] = reader.tag();
             switch (fieldNo) {
-                case /* symbol.bench.ObjectType metatype */ 1:
+                case /* symbol.bench.StructType metatype */ 1:
                     message.metatype = reader.int32();
                     break;
                 case /* symbol.bench.FontType type */ 30:
@@ -22387,7 +21029,7 @@ class FontData$Type extends MessageType$<FontData> {
         return message;
     }
     internalBinaryWrite(message: FontData, writer: IBinaryWriter, options: BinaryWriteOptions): IBinaryWriter {
-        /* symbol.bench.ObjectType metatype = 1; */
+        /* symbol.bench.StructType metatype = 1; */
         if (message.metatype !== 0)
             writer.tag(1, WireType.Varint).int32(message.metatype);
         /* symbol.bench.FontType type = 30; */
@@ -22437,7 +21079,7 @@ export const FontData = new FontData$Type();
 class FontStyleData$Type extends MessageType$<FontStyleData> {
     constructor() {
         super("symbol.bench.FontStyleData", [
-            { no: 1, name: "metatype", kind: "enum", T: () => ["symbol.bench.ObjectType", ObjectType, "OBJECT_TYPE_"] },
+            { no: 1, name: "metatype", kind: "enum", T: () => ["symbol.bench.NodeType", NodeType, "NODE_TYPE_"] },
             { no: 2, name: "id", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
             { no: 4, name: "parent_ptr", kind: "message", T: () => NodeReferenceData },
             { no: 6, name: "bench_ptr", kind: "message", T: () => NodeReferenceData },
@@ -22483,7 +21125,7 @@ class FontStyleData$Type extends MessageType$<FontStyleData> {
         while (reader.pos < end) {
             let [fieldNo, wireType] = reader.tag();
             switch (fieldNo) {
-                case /* symbol.bench.ObjectType metatype */ 1:
+                case /* symbol.bench.NodeType metatype */ 1:
                     message.metatype = reader.int32();
                     break;
                 case /* string id */ 2:
@@ -22579,7 +21221,7 @@ class FontStyleData$Type extends MessageType$<FontStyleData> {
         return message;
     }
     internalBinaryWrite(message: FontStyleData, writer: IBinaryWriter, options: BinaryWriteOptions): IBinaryWriter {
-        /* symbol.bench.ObjectType metatype = 1; */
+        /* symbol.bench.NodeType metatype = 1; */
         if (message.metatype !== 0)
             writer.tag(1, WireType.Varint).int32(message.metatype);
         /* string id = 2; */
@@ -22677,7 +21319,7 @@ export const FontStyleData = new FontStyleData$Type();
 class FrameViewData$Type extends MessageType$<FrameViewData> {
     constructor() {
         super("symbol.bench.FrameViewData", [
-            { no: 1, name: "metatype", kind: "enum", T: () => ["symbol.bench.ObjectType", ObjectType, "OBJECT_TYPE_"] },
+            { no: 1, name: "metatype", kind: "enum", T: () => ["symbol.bench.NodeType", NodeType, "NODE_TYPE_"] },
             { no: 2, name: "id", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
             { no: 3, name: "ck", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
             { no: 4, name: "parent_ptr", kind: "message", T: () => NodeReferenceData },
@@ -22767,7 +21409,7 @@ class FrameViewData$Type extends MessageType$<FrameViewData> {
         while (reader.pos < end) {
             let [fieldNo, wireType] = reader.tag();
             switch (fieldNo) {
-                case /* symbol.bench.ObjectType metatype */ 1:
+                case /* symbol.bench.NodeType metatype */ 1:
                     message.metatype = reader.int32();
                     break;
                 case /* string id */ 2:
@@ -23037,7 +21679,7 @@ class FrameViewData$Type extends MessageType$<FrameViewData> {
         return message;
     }
     internalBinaryWrite(message: FrameViewData, writer: IBinaryWriter, options: BinaryWriteOptions): IBinaryWriter {
-        /* symbol.bench.ObjectType metatype = 1; */
+        /* symbol.bench.NodeType metatype = 1; */
         if (message.metatype !== 0)
             writer.tag(1, WireType.Varint).int32(message.metatype);
         /* string id = 2; */
@@ -23225,7 +21867,7 @@ export const FrameViewData = new FrameViewData$Type();
 class FunctionData$Type extends MessageType$<FunctionData> {
     constructor() {
         super("symbol.bench.FunctionData", [
-            { no: 1, name: "metatype", kind: "enum", T: () => ["symbol.bench.ObjectType", ObjectType, "OBJECT_TYPE_"] },
+            { no: 1, name: "metatype", kind: "enum", T: () => ["symbol.bench.StructType", StructType, "STRUCT_TYPE_"] },
             { no: 30, name: "type", kind: "enum", T: () => ["symbol.bench.FunctionType", FunctionType, "FUNCTION_TYPE_"] },
             { no: 31, name: "left", kind: "message", T: () => ExpressionData },
             { no: 32, name: "right", kind: "message", T: () => ExpressionData }
@@ -23244,7 +21886,7 @@ class FunctionData$Type extends MessageType$<FunctionData> {
         while (reader.pos < end) {
             let [fieldNo, wireType] = reader.tag();
             switch (fieldNo) {
-                case /* symbol.bench.ObjectType metatype */ 1:
+                case /* symbol.bench.StructType metatype */ 1:
                     message.metatype = reader.int32();
                     break;
                 case /* symbol.bench.FunctionType type */ 30:
@@ -23268,7 +21910,7 @@ class FunctionData$Type extends MessageType$<FunctionData> {
         return message;
     }
     internalBinaryWrite(message: FunctionData, writer: IBinaryWriter, options: BinaryWriteOptions): IBinaryWriter {
-        /* symbol.bench.ObjectType metatype = 1; */
+        /* symbol.bench.StructType metatype = 1; */
         if (message.metatype !== 0)
             writer.tag(1, WireType.Varint).int32(message.metatype);
         /* symbol.bench.FunctionType type = 30; */
@@ -23294,7 +21936,7 @@ export const FunctionData = new FunctionData$Type();
 class GradientData$Type extends MessageType$<GradientData> {
     constructor() {
         super("symbol.bench.GradientData", [
-            { no: 1, name: "metatype", kind: "enum", T: () => ["symbol.bench.ObjectType", ObjectType, "OBJECT_TYPE_"] },
+            { no: 1, name: "metatype", kind: "enum", T: () => ["symbol.bench.StructType", StructType, "STRUCT_TYPE_"] },
             { no: 30, name: "type", kind: "enum", T: () => ["symbol.bench.GradientType", GradientType, "GRADIENT_TYPE_"] },
             { no: 40, name: "style_ptr", kind: "message", T: () => NodeReferenceData },
             { no: 50, name: "angle", kind: "scalar", opt: true, T: 2 /*ScalarType.FLOAT*/ },
@@ -23316,7 +21958,7 @@ class GradientData$Type extends MessageType$<GradientData> {
         while (reader.pos < end) {
             let [fieldNo, wireType] = reader.tag();
             switch (fieldNo) {
-                case /* symbol.bench.ObjectType metatype */ 1:
+                case /* symbol.bench.StructType metatype */ 1:
                     message.metatype = reader.int32();
                     break;
                 case /* symbol.bench.GradientType type */ 30:
@@ -23346,7 +21988,7 @@ class GradientData$Type extends MessageType$<GradientData> {
         return message;
     }
     internalBinaryWrite(message: GradientData, writer: IBinaryWriter, options: BinaryWriteOptions): IBinaryWriter {
-        /* symbol.bench.ObjectType metatype = 1; */
+        /* symbol.bench.StructType metatype = 1; */
         if (message.metatype !== 0)
             writer.tag(1, WireType.Varint).int32(message.metatype);
         /* symbol.bench.GradientType type = 30; */
@@ -23378,7 +22020,7 @@ export const GradientData = new GradientData$Type();
 class GradientStopData$Type extends MessageType$<GradientStopData> {
     constructor() {
         super("symbol.bench.GradientStopData", [
-            { no: 1, name: "metatype", kind: "enum", T: () => ["symbol.bench.ObjectType", ObjectType, "OBJECT_TYPE_"] },
+            { no: 1, name: "metatype", kind: "enum", T: () => ["symbol.bench.StructType", StructType, "STRUCT_TYPE_"] },
             { no: 50, name: "color", kind: "message", T: () => ColorData },
             { no: 51, name: "position", kind: "scalar", T: 2 /*ScalarType.FLOAT*/ }
         ]);
@@ -23396,7 +22038,7 @@ class GradientStopData$Type extends MessageType$<GradientStopData> {
         while (reader.pos < end) {
             let [fieldNo, wireType] = reader.tag();
             switch (fieldNo) {
-                case /* symbol.bench.ObjectType metatype */ 1:
+                case /* symbol.bench.StructType metatype */ 1:
                     message.metatype = reader.int32();
                     break;
                 case /* optional symbol.bench.ColorData color */ 50:
@@ -23417,7 +22059,7 @@ class GradientStopData$Type extends MessageType$<GradientStopData> {
         return message;
     }
     internalBinaryWrite(message: GradientStopData, writer: IBinaryWriter, options: BinaryWriteOptions): IBinaryWriter {
-        /* symbol.bench.ObjectType metatype = 1; */
+        /* symbol.bench.StructType metatype = 1; */
         if (message.metatype !== 0)
             writer.tag(1, WireType.Varint).int32(message.metatype);
         /* optional symbol.bench.ColorData color = 50; */
@@ -23440,7 +22082,7 @@ export const GradientStopData = new GradientStopData$Type();
 class GradientStyleData$Type extends MessageType$<GradientStyleData> {
     constructor() {
         super("symbol.bench.GradientStyleData", [
-            { no: 1, name: "metatype", kind: "enum", T: () => ["symbol.bench.ObjectType", ObjectType, "OBJECT_TYPE_"] },
+            { no: 1, name: "metatype", kind: "enum", T: () => ["symbol.bench.NodeType", NodeType, "NODE_TYPE_"] },
             { no: 2, name: "id", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
             { no: 4, name: "parent_ptr", kind: "message", T: () => NodeReferenceData },
             { no: 6, name: "bench_ptr", kind: "message", T: () => NodeReferenceData },
@@ -23482,7 +22124,7 @@ class GradientStyleData$Type extends MessageType$<GradientStyleData> {
         while (reader.pos < end) {
             let [fieldNo, wireType] = reader.tag();
             switch (fieldNo) {
-                case /* symbol.bench.ObjectType metatype */ 1:
+                case /* symbol.bench.NodeType metatype */ 1:
                     message.metatype = reader.int32();
                     break;
                 case /* string id */ 2:
@@ -23563,7 +22205,7 @@ class GradientStyleData$Type extends MessageType$<GradientStyleData> {
         return message;
     }
     internalBinaryWrite(message: GradientStyleData, writer: IBinaryWriter, options: BinaryWriteOptions): IBinaryWriter {
-        /* symbol.bench.ObjectType metatype = 1; */
+        /* symbol.bench.NodeType metatype = 1; */
         if (message.metatype !== 0)
             writer.tag(1, WireType.Varint).int32(message.metatype);
         /* string id = 2; */
@@ -23646,7 +22288,7 @@ export const GradientStyleData = new GradientStyleData$Type();
 class GridData$Type extends MessageType$<GridData> {
     constructor() {
         super("symbol.bench.GridData", [
-            { no: 1, name: "metatype", kind: "enum", T: () => ["symbol.bench.ObjectType", ObjectType, "OBJECT_TYPE_"] },
+            { no: 1, name: "metatype", kind: "enum", T: () => ["symbol.bench.StructType", StructType, "STRUCT_TYPE_"] },
             { no: 50, name: "columns", kind: "scalar", T: 5 /*ScalarType.INT32*/ },
             { no: 51, name: "rows", kind: "scalar", T: 5 /*ScalarType.INT32*/ },
             { no: 52, name: "column_width", kind: "message", T: () => DimensionData },
@@ -23668,7 +22310,7 @@ class GridData$Type extends MessageType$<GridData> {
         while (reader.pos < end) {
             let [fieldNo, wireType] = reader.tag();
             switch (fieldNo) {
-                case /* symbol.bench.ObjectType metatype */ 1:
+                case /* symbol.bench.StructType metatype */ 1:
                     message.metatype = reader.int32();
                     break;
                 case /* int32 columns */ 50:
@@ -23698,7 +22340,7 @@ class GridData$Type extends MessageType$<GridData> {
         return message;
     }
     internalBinaryWrite(message: GridData, writer: IBinaryWriter, options: BinaryWriteOptions): IBinaryWriter {
-        /* symbol.bench.ObjectType metatype = 1; */
+        /* symbol.bench.StructType metatype = 1; */
         if (message.metatype !== 0)
             writer.tag(1, WireType.Varint).int32(message.metatype);
         /* int32 columns = 50; */
@@ -23730,7 +22372,7 @@ export const GridData = new GridData$Type();
 class GridSpanData$Type extends MessageType$<GridSpanData> {
     constructor() {
         super("symbol.bench.GridSpanData", [
-            { no: 1, name: "metatype", kind: "enum", T: () => ["symbol.bench.ObjectType", ObjectType, "OBJECT_TYPE_"] },
+            { no: 1, name: "metatype", kind: "enum", T: () => ["symbol.bench.StructType", StructType, "STRUCT_TYPE_"] },
             { no: 50, name: "columns", kind: "scalar", T: 5 /*ScalarType.INT32*/ },
             { no: 51, name: "rows", kind: "scalar", T: 5 /*ScalarType.INT32*/ }
         ]);
@@ -23749,7 +22391,7 @@ class GridSpanData$Type extends MessageType$<GridSpanData> {
         while (reader.pos < end) {
             let [fieldNo, wireType] = reader.tag();
             switch (fieldNo) {
-                case /* symbol.bench.ObjectType metatype */ 1:
+                case /* symbol.bench.StructType metatype */ 1:
                     message.metatype = reader.int32();
                     break;
                 case /* int32 columns */ 50:
@@ -23770,7 +22412,7 @@ class GridSpanData$Type extends MessageType$<GridSpanData> {
         return message;
     }
     internalBinaryWrite(message: GridSpanData, writer: IBinaryWriter, options: BinaryWriteOptions): IBinaryWriter {
-        /* symbol.bench.ObjectType metatype = 1; */
+        /* symbol.bench.StructType metatype = 1; */
         if (message.metatype !== 0)
             writer.tag(1, WireType.Varint).int32(message.metatype);
         /* int32 columns = 50; */
@@ -23793,7 +22435,7 @@ export const GridSpanData = new GridSpanData$Type();
 class HandleData$Type extends MessageType$<HandleData> {
     constructor() {
         super("symbol.bench.HandleData", [
-            { no: 1, name: "metatype", kind: "enum", T: () => ["symbol.bench.ObjectType", ObjectType, "OBJECT_TYPE_"] },
+            { no: 1, name: "metatype", kind: "enum", T: () => ["symbol.bench.NodeType", NodeType, "NODE_TYPE_"] },
             { no: 2, name: "id", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
             { no: 4, name: "parent_ptr", kind: "message", T: () => NodeReferenceData },
             { no: 6, name: "bench_ptr", kind: "message", T: () => NodeReferenceData },
@@ -23820,7 +22462,7 @@ class HandleData$Type extends MessageType$<HandleData> {
         while (reader.pos < end) {
             let [fieldNo, wireType] = reader.tag();
             switch (fieldNo) {
-                case /* symbol.bench.ObjectType metatype */ 1:
+                case /* symbol.bench.NodeType metatype */ 1:
                     message.metatype = reader.int32();
                     break;
                 case /* string id */ 2:
@@ -23865,7 +22507,7 @@ class HandleData$Type extends MessageType$<HandleData> {
         return message;
     }
     internalBinaryWrite(message: HandleData, writer: IBinaryWriter, options: BinaryWriteOptions): IBinaryWriter {
-        /* symbol.bench.ObjectType metatype = 1; */
+        /* symbol.bench.NodeType metatype = 1; */
         if (message.metatype !== 0)
             writer.tag(1, WireType.Varint).int32(message.metatype);
         /* string id = 2; */
@@ -23912,7 +22554,7 @@ export const HandleData = new HandleData$Type();
 class IconData$Type extends MessageType$<IconData> {
     constructor() {
         super("symbol.bench.IconData", [
-            { no: 1, name: "metatype", kind: "enum", T: () => ["symbol.bench.ObjectType", ObjectType, "OBJECT_TYPE_"] },
+            { no: 1, name: "metatype", kind: "enum", T: () => ["symbol.bench.StructType", StructType, "STRUCT_TYPE_"] },
             { no: 30, name: "type", kind: "enum", T: () => ["symbol.bench.IconType", IconType, "ICON_TYPE_"] },
             { no: 31, name: "emoji", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
             { no: 33, name: "fa_name", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
@@ -23935,7 +22577,7 @@ class IconData$Type extends MessageType$<IconData> {
         while (reader.pos < end) {
             let [fieldNo, wireType] = reader.tag();
             switch (fieldNo) {
-                case /* symbol.bench.ObjectType metatype */ 1:
+                case /* symbol.bench.StructType metatype */ 1:
                     message.metatype = reader.int32();
                     break;
                 case /* symbol.bench.IconType type */ 30:
@@ -23971,7 +22613,7 @@ class IconData$Type extends MessageType$<IconData> {
         return message;
     }
     internalBinaryWrite(message: IconData, writer: IBinaryWriter, options: BinaryWriteOptions): IBinaryWriter {
-        /* symbol.bench.ObjectType metatype = 1; */
+        /* symbol.bench.StructType metatype = 1; */
         if (message.metatype !== 0)
             writer.tag(1, WireType.Varint).int32(message.metatype);
         /* symbol.bench.IconType type = 30; */
@@ -24009,7 +22651,7 @@ export const IconData = new IconData$Type();
 class InsetsData$Type extends MessageType$<InsetsData> {
     constructor() {
         super("symbol.bench.InsetsData", [
-            { no: 1, name: "metatype", kind: "enum", T: () => ["symbol.bench.ObjectType", ObjectType, "OBJECT_TYPE_"] },
+            { no: 1, name: "metatype", kind: "enum", T: () => ["symbol.bench.StructType", StructType, "STRUCT_TYPE_"] },
             { no: 50, name: "base", kind: "scalar", opt: true, T: 5 /*ScalarType.INT32*/ },
             { no: 51, name: "top", kind: "scalar", opt: true, T: 5 /*ScalarType.INT32*/ },
             { no: 52, name: "left", kind: "scalar", opt: true, T: 5 /*ScalarType.INT32*/ },
@@ -24029,7 +22671,7 @@ class InsetsData$Type extends MessageType$<InsetsData> {
         while (reader.pos < end) {
             let [fieldNo, wireType] = reader.tag();
             switch (fieldNo) {
-                case /* symbol.bench.ObjectType metatype */ 1:
+                case /* symbol.bench.StructType metatype */ 1:
                     message.metatype = reader.int32();
                     break;
                 case /* optional int32 base */ 50:
@@ -24059,7 +22701,7 @@ class InsetsData$Type extends MessageType$<InsetsData> {
         return message;
     }
     internalBinaryWrite(message: InsetsData, writer: IBinaryWriter, options: BinaryWriteOptions): IBinaryWriter {
-        /* symbol.bench.ObjectType metatype = 1; */
+        /* symbol.bench.StructType metatype = 1; */
         if (message.metatype !== 0)
             writer.tag(1, WireType.Varint).int32(message.metatype);
         /* optional int32 base = 50; */
@@ -24091,7 +22733,7 @@ export const InsetsData = new InsetsData$Type();
 class InterruptionData$Type extends MessageType$<InterruptionData> {
     constructor() {
         super("symbol.bench.InterruptionData", [
-            { no: 1, name: "metatype", kind: "enum", T: () => ["symbol.bench.ObjectType", ObjectType, "OBJECT_TYPE_"] },
+            { no: 1, name: "metatype", kind: "enum", T: () => ["symbol.bench.NodeType", NodeType, "NODE_TYPE_"] },
             { no: 2, name: "id", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
             { no: 4, name: "parent_ptr", kind: "message", T: () => NodeReferenceData },
             { no: 6, name: "bench_ptr", kind: "message", T: () => NodeReferenceData },
@@ -24134,7 +22776,7 @@ class InterruptionData$Type extends MessageType$<InterruptionData> {
         while (reader.pos < end) {
             let [fieldNo, wireType] = reader.tag();
             switch (fieldNo) {
-                case /* symbol.bench.ObjectType metatype */ 1:
+                case /* symbol.bench.NodeType metatype */ 1:
                     message.metatype = reader.int32();
                     break;
                 case /* string id */ 2:
@@ -24221,7 +22863,7 @@ class InterruptionData$Type extends MessageType$<InterruptionData> {
         return message;
     }
     internalBinaryWrite(message: InterruptionData, writer: IBinaryWriter, options: BinaryWriteOptions): IBinaryWriter {
-        /* symbol.bench.ObjectType metatype = 1; */
+        /* symbol.bench.NodeType metatype = 1; */
         if (message.metatype !== 0)
             writer.tag(1, WireType.Varint).int32(message.metatype);
         /* string id = 2; */
@@ -24310,7 +22952,7 @@ export const InterruptionData = new InterruptionData$Type();
 class InviteData$Type extends MessageType$<InviteData> {
     constructor() {
         super("symbol.bench.InviteData", [
-            { no: 1, name: "metatype", kind: "enum", T: () => ["symbol.bench.ObjectType", ObjectType, "OBJECT_TYPE_"] },
+            { no: 1, name: "metatype", kind: "enum", T: () => ["symbol.bench.NodeType", NodeType, "NODE_TYPE_"] },
             { no: 2, name: "id", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
             { no: 4, name: "parent_ptr", kind: "message", T: () => NodeReferenceData },
             { no: 6, name: "bench_ptr", kind: "message", T: () => NodeReferenceData },
@@ -24336,7 +22978,7 @@ class InviteData$Type extends MessageType$<InviteData> {
         while (reader.pos < end) {
             let [fieldNo, wireType] = reader.tag();
             switch (fieldNo) {
-                case /* symbol.bench.ObjectType metatype */ 1:
+                case /* symbol.bench.NodeType metatype */ 1:
                     message.metatype = reader.int32();
                     break;
                 case /* string id */ 2:
@@ -24381,7 +23023,7 @@ class InviteData$Type extends MessageType$<InviteData> {
         return message;
     }
     internalBinaryWrite(message: InviteData, writer: IBinaryWriter, options: BinaryWriteOptions): IBinaryWriter {
-        /* symbol.bench.ObjectType metatype = 1; */
+        /* symbol.bench.NodeType metatype = 1; */
         if (message.metatype !== 0)
             writer.tag(1, WireType.Varint).int32(message.metatype);
         /* string id = 2; */
@@ -24428,7 +23070,7 @@ export const InviteData = new InviteData$Type();
 class JoinData$Type extends MessageType$<JoinData> {
     constructor() {
         super("symbol.bench.JoinData", [
-            { no: 1, name: "metatype", kind: "enum", T: () => ["symbol.bench.ObjectType", ObjectType, "OBJECT_TYPE_"] },
+            { no: 1, name: "metatype", kind: "enum", T: () => ["symbol.bench.StructType", StructType, "STRUCT_TYPE_"] },
             { no: 30, name: "type", kind: "enum", T: () => ["symbol.bench.JoinType", JoinType, "JOIN_TYPE_"] },
             { no: 31, name: "table", kind: "message", T: () => RelationReferenceData },
             { no: 32, name: "on", kind: "message", T: () => ConditionData },
@@ -24449,7 +23091,7 @@ class JoinData$Type extends MessageType$<JoinData> {
         while (reader.pos < end) {
             let [fieldNo, wireType] = reader.tag();
             switch (fieldNo) {
-                case /* symbol.bench.ObjectType metatype */ 1:
+                case /* symbol.bench.StructType metatype */ 1:
                     message.metatype = reader.int32();
                     break;
                 case /* symbol.bench.JoinType type */ 30:
@@ -24476,7 +23118,7 @@ class JoinData$Type extends MessageType$<JoinData> {
         return message;
     }
     internalBinaryWrite(message: JoinData, writer: IBinaryWriter, options: BinaryWriteOptions): IBinaryWriter {
-        /* symbol.bench.ObjectType metatype = 1; */
+        /* symbol.bench.StructType metatype = 1; */
         if (message.metatype !== 0)
             writer.tag(1, WireType.Varint).int32(message.metatype);
         /* symbol.bench.JoinType type = 30; */
@@ -24505,7 +23147,7 @@ export const JoinData = new JoinData$Type();
 class LabelViewData$Type extends MessageType$<LabelViewData> {
     constructor() {
         super("symbol.bench.LabelViewData", [
-            { no: 1, name: "metatype", kind: "enum", T: () => ["symbol.bench.ObjectType", ObjectType, "OBJECT_TYPE_"] },
+            { no: 1, name: "metatype", kind: "enum", T: () => ["symbol.bench.NodeType", NodeType, "NODE_TYPE_"] },
             { no: 2, name: "id", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
             { no: 3, name: "ck", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
             { no: 4, name: "parent_ptr", kind: "message", T: () => NodeReferenceData },
@@ -24595,7 +23237,7 @@ class LabelViewData$Type extends MessageType$<LabelViewData> {
         while (reader.pos < end) {
             let [fieldNo, wireType] = reader.tag();
             switch (fieldNo) {
-                case /* symbol.bench.ObjectType metatype */ 1:
+                case /* symbol.bench.NodeType metatype */ 1:
                     message.metatype = reader.int32();
                     break;
                 case /* string id */ 2:
@@ -24865,7 +23507,7 @@ class LabelViewData$Type extends MessageType$<LabelViewData> {
         return message;
     }
     internalBinaryWrite(message: LabelViewData, writer: IBinaryWriter, options: BinaryWriteOptions): IBinaryWriter {
-        /* symbol.bench.ObjectType metatype = 1; */
+        /* symbol.bench.NodeType metatype = 1; */
         if (message.metatype !== 0)
             writer.tag(1, WireType.Varint).int32(message.metatype);
         /* string id = 2; */
@@ -25053,7 +23695,7 @@ export const LabelViewData = new LabelViewData$Type();
 class LengthData$Type extends MessageType$<LengthData> {
     constructor() {
         super("symbol.bench.LengthData", [
-            { no: 1, name: "metatype", kind: "enum", T: () => ["symbol.bench.ObjectType", ObjectType, "OBJECT_TYPE_"] },
+            { no: 1, name: "metatype", kind: "enum", T: () => ["symbol.bench.StructType", StructType, "STRUCT_TYPE_"] },
             { no: 50, name: "unit", kind: "enum", T: () => ["symbol.bench.LengthUnit", LengthUnit, "LENGTH_UNIT_"] },
             { no: 51, name: "value", kind: "scalar", T: 2 /*ScalarType.FLOAT*/ }
         ]);
@@ -25072,7 +23714,7 @@ class LengthData$Type extends MessageType$<LengthData> {
         while (reader.pos < end) {
             let [fieldNo, wireType] = reader.tag();
             switch (fieldNo) {
-                case /* symbol.bench.ObjectType metatype */ 1:
+                case /* symbol.bench.StructType metatype */ 1:
                     message.metatype = reader.int32();
                     break;
                 case /* symbol.bench.LengthUnit unit */ 50:
@@ -25093,7 +23735,7 @@ class LengthData$Type extends MessageType$<LengthData> {
         return message;
     }
     internalBinaryWrite(message: LengthData, writer: IBinaryWriter, options: BinaryWriteOptions): IBinaryWriter {
-        /* symbol.bench.ObjectType metatype = 1; */
+        /* symbol.bench.StructType metatype = 1; */
         if (message.metatype !== 0)
             writer.tag(1, WireType.Varint).int32(message.metatype);
         /* symbol.bench.LengthUnit unit = 50; */
@@ -25116,7 +23758,7 @@ export const LengthData = new LengthData$Type();
 class LinkData$Type extends MessageType$<LinkData> {
     constructor() {
         super("symbol.bench.LinkData", [
-            { no: 1, name: "metatype", kind: "enum", T: () => ["symbol.bench.ObjectType", ObjectType, "OBJECT_TYPE_"] },
+            { no: 1, name: "metatype", kind: "enum", T: () => ["symbol.bench.NodeType", NodeType, "NODE_TYPE_"] },
             { no: 2, name: "id", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
             { no: 3, name: "ck", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
             { no: 4, name: "parent_ptr", kind: "message", T: () => NodeReferenceData },
@@ -25173,7 +23815,7 @@ class LinkData$Type extends MessageType$<LinkData> {
         while (reader.pos < end) {
             let [fieldNo, wireType] = reader.tag();
             switch (fieldNo) {
-                case /* symbol.bench.ObjectType metatype */ 1:
+                case /* symbol.bench.NodeType metatype */ 1:
                     message.metatype = reader.int32();
                     break;
                 case /* string id */ 2:
@@ -25293,7 +23935,7 @@ class LinkData$Type extends MessageType$<LinkData> {
         return message;
     }
     internalBinaryWrite(message: LinkData, writer: IBinaryWriter, options: BinaryWriteOptions): IBinaryWriter {
-        /* symbol.bench.ObjectType metatype = 1; */
+        /* symbol.bench.NodeType metatype = 1; */
         if (message.metatype !== 0)
             writer.tag(1, WireType.Varint).int32(message.metatype);
         /* string id = 2; */
@@ -25415,7 +24057,7 @@ export const LinkData = new LinkData$Type();
 class MembershipData$Type extends MessageType$<MembershipData> {
     constructor() {
         super("symbol.bench.MembershipData", [
-            { no: 1, name: "metatype", kind: "enum", T: () => ["symbol.bench.ObjectType", ObjectType, "OBJECT_TYPE_"] },
+            { no: 1, name: "metatype", kind: "enum", T: () => ["symbol.bench.NodeType", NodeType, "NODE_TYPE_"] },
             { no: 2, name: "id", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
             { no: 3, name: "ck", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
             { no: 4, name: "parent_ptr", kind: "message", T: () => NodeReferenceData },
@@ -25447,7 +24089,7 @@ class MembershipData$Type extends MessageType$<MembershipData> {
         while (reader.pos < end) {
             let [fieldNo, wireType] = reader.tag();
             switch (fieldNo) {
-                case /* symbol.bench.ObjectType metatype */ 1:
+                case /* symbol.bench.NodeType metatype */ 1:
                     message.metatype = reader.int32();
                     break;
                 case /* string id */ 2:
@@ -25504,7 +24146,7 @@ class MembershipData$Type extends MessageType$<MembershipData> {
         return message;
     }
     internalBinaryWrite(message: MembershipData, writer: IBinaryWriter, options: BinaryWriteOptions): IBinaryWriter {
-        /* symbol.bench.ObjectType metatype = 1; */
+        /* symbol.bench.NodeType metatype = 1; */
         if (message.metatype !== 0)
             writer.tag(1, WireType.Varint).int32(message.metatype);
         /* string id = 2; */
@@ -25563,7 +24205,7 @@ export const MembershipData = new MembershipData$Type();
 class MessageData$Type extends MessageType$<MessageData> {
     constructor() {
         super("symbol.bench.MessageData", [
-            { no: 1, name: "metatype", kind: "enum", T: () => ["symbol.bench.ObjectType", ObjectType, "OBJECT_TYPE_"] },
+            { no: 1, name: "metatype", kind: "enum", T: () => ["symbol.bench.NodeType", NodeType, "NODE_TYPE_"] },
             { no: 2, name: "id", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
             { no: 4, name: "parent_ptr", kind: "message", T: () => NodeReferenceData },
             { no: 6, name: "bench_ptr", kind: "message", T: () => NodeReferenceData },
@@ -25607,7 +24249,7 @@ class MessageData$Type extends MessageType$<MessageData> {
         while (reader.pos < end) {
             let [fieldNo, wireType] = reader.tag();
             switch (fieldNo) {
-                case /* symbol.bench.ObjectType metatype */ 1:
+                case /* symbol.bench.NodeType metatype */ 1:
                     message.metatype = reader.int32();
                     break;
                 case /* string id */ 2:
@@ -25700,7 +24342,7 @@ class MessageData$Type extends MessageType$<MessageData> {
         return message;
     }
     internalBinaryWrite(message: MessageData, writer: IBinaryWriter, options: BinaryWriteOptions): IBinaryWriter {
-        /* symbol.bench.ObjectType metatype = 1; */
+        /* symbol.bench.NodeType metatype = 1; */
         if (message.metatype !== 0)
             writer.tag(1, WireType.Varint).int32(message.metatype);
         /* string id = 2; */
@@ -25795,7 +24437,7 @@ export const MessageData = new MessageData$Type();
 class NodeConstraintData$Type extends MessageType$<NodeConstraintData> {
     constructor() {
         super("symbol.bench.NodeConstraintData", [
-            { no: 1, name: "metatype", kind: "enum", T: () => ["symbol.bench.ObjectType", ObjectType, "OBJECT_TYPE_"] },
+            { no: 1, name: "metatype", kind: "enum", T: () => ["symbol.bench.StructType", StructType, "STRUCT_TYPE_"] },
             { no: 41, name: "node_types", kind: "enum", repeat: 1 /*RepeatType.PACKED*/, T: () => ["symbol.bench.NodeType", NodeType, "NODE_TYPE_"] }
         ]);
     }
@@ -25812,7 +24454,7 @@ class NodeConstraintData$Type extends MessageType$<NodeConstraintData> {
         while (reader.pos < end) {
             let [fieldNo, wireType] = reader.tag();
             switch (fieldNo) {
-                case /* symbol.bench.ObjectType metatype */ 1:
+                case /* symbol.bench.StructType metatype */ 1:
                     message.metatype = reader.int32();
                     break;
                 case /* repeated symbol.bench.NodeType node_types */ 41:
@@ -25834,7 +24476,7 @@ class NodeConstraintData$Type extends MessageType$<NodeConstraintData> {
         return message;
     }
     internalBinaryWrite(message: NodeConstraintData, writer: IBinaryWriter, options: BinaryWriteOptions): IBinaryWriter {
-        /* symbol.bench.ObjectType metatype = 1; */
+        /* symbol.bench.StructType metatype = 1; */
         if (message.metatype !== 0)
             writer.tag(1, WireType.Varint).int32(message.metatype);
         /* repeated symbol.bench.NodeType node_types = 41; */
@@ -25858,7 +24500,7 @@ export const NodeConstraintData = new NodeConstraintData$Type();
 class NodeReferenceData$Type extends MessageType$<NodeReferenceData> {
     constructor() {
         super("symbol.bench.NodeReferenceData", [
-            { no: 1, name: "metatype", kind: "enum", T: () => ["symbol.bench.ObjectType", ObjectType, "OBJECT_TYPE_"] },
+            { no: 1, name: "metatype", kind: "enum", T: () => ["symbol.bench.StructType", StructType, "STRUCT_TYPE_"] },
             { no: 30, name: "node_type", kind: "enum", T: () => ["symbol.bench.NodeType", NodeType, "NODE_TYPE_"] },
             { no: 31, name: "id", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
             { no: 32, name: "ck", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
@@ -25880,7 +24522,7 @@ class NodeReferenceData$Type extends MessageType$<NodeReferenceData> {
         while (reader.pos < end) {
             let [fieldNo, wireType] = reader.tag();
             switch (fieldNo) {
-                case /* symbol.bench.ObjectType metatype */ 1:
+                case /* symbol.bench.StructType metatype */ 1:
                     message.metatype = reader.int32();
                     break;
                 case /* symbol.bench.NodeType node_type */ 30:
@@ -25910,7 +24552,7 @@ class NodeReferenceData$Type extends MessageType$<NodeReferenceData> {
         return message;
     }
     internalBinaryWrite(message: NodeReferenceData, writer: IBinaryWriter, options: BinaryWriteOptions): IBinaryWriter {
-        /* symbol.bench.ObjectType metatype = 1; */
+        /* symbol.bench.StructType metatype = 1; */
         if (message.metatype !== 0)
             writer.tag(1, WireType.Varint).int32(message.metatype);
         /* symbol.bench.NodeType node_type = 30; */
@@ -25942,7 +24584,7 @@ export const NodeReferenceData = new NodeReferenceData$Type();
 class NotificationData$Type extends MessageType$<NotificationData> {
     constructor() {
         super("symbol.bench.NotificationData", [
-            { no: 1, name: "metatype", kind: "enum", T: () => ["symbol.bench.ObjectType", ObjectType, "OBJECT_TYPE_"] },
+            { no: 1, name: "metatype", kind: "enum", T: () => ["symbol.bench.NodeType", NodeType, "NODE_TYPE_"] },
             { no: 2, name: "id", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
             { no: 4, name: "parent_ptr", kind: "message", T: () => NodeReferenceData },
             { no: 6, name: "bench_ptr", kind: "message", T: () => NodeReferenceData },
@@ -25982,7 +24624,7 @@ class NotificationData$Type extends MessageType$<NotificationData> {
         while (reader.pos < end) {
             let [fieldNo, wireType] = reader.tag();
             switch (fieldNo) {
-                case /* symbol.bench.ObjectType metatype */ 1:
+                case /* symbol.bench.NodeType metatype */ 1:
                     message.metatype = reader.int32();
                     break;
                 case /* string id */ 2:
@@ -26060,7 +24702,7 @@ class NotificationData$Type extends MessageType$<NotificationData> {
         return message;
     }
     internalBinaryWrite(message: NotificationData, writer: IBinaryWriter, options: BinaryWriteOptions): IBinaryWriter {
-        /* symbol.bench.ObjectType metatype = 1; */
+        /* symbol.bench.NodeType metatype = 1; */
         if (message.metatype !== 0)
             writer.tag(1, WireType.Varint).int32(message.metatype);
         /* string id = 2; */
@@ -26140,7 +24782,7 @@ export const NotificationData = new NotificationData$Type();
 class NumberConstraintData$Type extends MessageType$<NumberConstraintData> {
     constructor() {
         super("symbol.bench.NumberConstraintData", [
-            { no: 1, name: "metatype", kind: "enum", T: () => ["symbol.bench.ObjectType", ObjectType, "OBJECT_TYPE_"] },
+            { no: 1, name: "metatype", kind: "enum", T: () => ["symbol.bench.StructType", StructType, "STRUCT_TYPE_"] },
             { no: 40, name: "format", kind: "enum", opt: true, T: () => ["symbol.bench.NumberFormat", NumberFormat, "NUMBER_FORMAT_"] },
             { no: 41, name: "min_value", kind: "scalar", opt: true, T: 2 /*ScalarType.FLOAT*/ },
             { no: 42, name: "max_value", kind: "scalar", opt: true, T: 2 /*ScalarType.FLOAT*/ },
@@ -26161,7 +24803,7 @@ class NumberConstraintData$Type extends MessageType$<NumberConstraintData> {
         while (reader.pos < end) {
             let [fieldNo, wireType] = reader.tag();
             switch (fieldNo) {
-                case /* symbol.bench.ObjectType metatype */ 1:
+                case /* symbol.bench.StructType metatype */ 1:
                     message.metatype = reader.int32();
                     break;
                 case /* optional symbol.bench.NumberFormat format */ 40:
@@ -26194,7 +24836,7 @@ class NumberConstraintData$Type extends MessageType$<NumberConstraintData> {
         return message;
     }
     internalBinaryWrite(message: NumberConstraintData, writer: IBinaryWriter, options: BinaryWriteOptions): IBinaryWriter {
-        /* symbol.bench.ObjectType metatype = 1; */
+        /* symbol.bench.StructType metatype = 1; */
         if (message.metatype !== 0)
             writer.tag(1, WireType.Varint).int32(message.metatype);
         /* optional symbol.bench.NumberFormat format = 40; */
@@ -26229,7 +24871,7 @@ export const NumberConstraintData = new NumberConstraintData$Type();
 class NumberInputViewData$Type extends MessageType$<NumberInputViewData> {
     constructor() {
         super("symbol.bench.NumberInputViewData", [
-            { no: 1, name: "metatype", kind: "enum", T: () => ["symbol.bench.ObjectType", ObjectType, "OBJECT_TYPE_"] },
+            { no: 1, name: "metatype", kind: "enum", T: () => ["symbol.bench.NodeType", NodeType, "NODE_TYPE_"] },
             { no: 2, name: "id", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
             { no: 3, name: "ck", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
             { no: 4, name: "parent_ptr", kind: "message", T: () => NodeReferenceData },
@@ -26280,7 +24922,7 @@ class NumberInputViewData$Type extends MessageType$<NumberInputViewData> {
         while (reader.pos < end) {
             let [fieldNo, wireType] = reader.tag();
             switch (fieldNo) {
-                case /* symbol.bench.ObjectType metatype */ 1:
+                case /* symbol.bench.NodeType metatype */ 1:
                     message.metatype = reader.int32();
                     break;
                 case /* string id */ 2:
@@ -26397,7 +25039,7 @@ class NumberInputViewData$Type extends MessageType$<NumberInputViewData> {
         return message;
     }
     internalBinaryWrite(message: NumberInputViewData, writer: IBinaryWriter, options: BinaryWriteOptions): IBinaryWriter {
-        /* symbol.bench.ObjectType metatype = 1; */
+        /* symbol.bench.NodeType metatype = 1; */
         if (message.metatype !== 0)
             writer.tag(1, WireType.Varint).int32(message.metatype);
         /* string id = 2; */
@@ -26504,7 +25146,7 @@ export const NumberInputViewData = new NumberInputViewData$Type();
 class OrganizationData$Type extends MessageType$<OrganizationData> {
     constructor() {
         super("symbol.bench.OrganizationData", [
-            { no: 1, name: "metatype", kind: "enum", T: () => ["symbol.bench.ObjectType", ObjectType, "OBJECT_TYPE_"] },
+            { no: 1, name: "metatype", kind: "enum", T: () => ["symbol.bench.NodeType", NodeType, "NODE_TYPE_"] },
             { no: 2, name: "id", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
             { no: 4, name: "parent_ptr", kind: "message", T: () => NodeReferenceData },
             { no: 10, name: "created_at", kind: "message", T: () => Timestamp },
@@ -26539,7 +25181,7 @@ class OrganizationData$Type extends MessageType$<OrganizationData> {
         while (reader.pos < end) {
             let [fieldNo, wireType] = reader.tag();
             switch (fieldNo) {
-                case /* symbol.bench.ObjectType metatype */ 1:
+                case /* symbol.bench.NodeType metatype */ 1:
                     message.metatype = reader.int32();
                     break;
                 case /* string id */ 2:
@@ -26602,7 +25244,7 @@ class OrganizationData$Type extends MessageType$<OrganizationData> {
         return message;
     }
     internalBinaryWrite(message: OrganizationData, writer: IBinaryWriter, options: BinaryWriteOptions): IBinaryWriter {
-        /* symbol.bench.ObjectType metatype = 1; */
+        /* symbol.bench.NodeType metatype = 1; */
         if (message.metatype !== 0)
             writer.tag(1, WireType.Varint).int32(message.metatype);
         /* string id = 2; */
@@ -26667,7 +25309,7 @@ export const OrganizationData = new OrganizationData$Type();
 class OriginData$Type extends MessageType$<OriginData> {
     constructor() {
         super("symbol.bench.OriginData", [
-            { no: 1, name: "metatype", kind: "enum", T: () => ["symbol.bench.ObjectType", ObjectType, "OBJECT_TYPE_"] },
+            { no: 1, name: "metatype", kind: "enum", T: () => ["symbol.bench.StructType", StructType, "STRUCT_TYPE_"] },
             { no: 30, name: "type", kind: "enum", T: () => ["symbol.bench.ClientType", ClientType, "CLIENT_TYPE_"] },
             { no: 31, name: "id", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
             { no: 32, name: "ck", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
@@ -26687,7 +25329,7 @@ class OriginData$Type extends MessageType$<OriginData> {
         while (reader.pos < end) {
             let [fieldNo, wireType] = reader.tag();
             switch (fieldNo) {
-                case /* symbol.bench.ObjectType metatype */ 1:
+                case /* symbol.bench.StructType metatype */ 1:
                     message.metatype = reader.int32();
                     break;
                 case /* symbol.bench.ClientType type */ 30:
@@ -26714,7 +25356,7 @@ class OriginData$Type extends MessageType$<OriginData> {
         return message;
     }
     internalBinaryWrite(message: OriginData, writer: IBinaryWriter, options: BinaryWriteOptions): IBinaryWriter {
-        /* symbol.bench.ObjectType metatype = 1; */
+        /* symbol.bench.StructType metatype = 1; */
         if (message.metatype !== 0)
             writer.tag(1, WireType.Varint).int32(message.metatype);
         /* symbol.bench.ClientType type = 30; */
@@ -26743,7 +25385,7 @@ export const OriginData = new OriginData$Type();
 class PackageData$Type extends MessageType$<PackageData> {
     constructor() {
         super("symbol.bench.PackageData", [
-            { no: 1, name: "metatype", kind: "enum", T: () => ["symbol.bench.ObjectType", ObjectType, "OBJECT_TYPE_"] },
+            { no: 1, name: "metatype", kind: "enum", T: () => ["symbol.bench.NodeType", NodeType, "NODE_TYPE_"] },
             { no: 2, name: "id", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
             { no: 4, name: "parent_ptr", kind: "message", T: () => NodeReferenceData },
             { no: 6, name: "bench_ptr", kind: "message", T: () => NodeReferenceData },
@@ -26778,7 +25420,7 @@ class PackageData$Type extends MessageType$<PackageData> {
         while (reader.pos < end) {
             let [fieldNo, wireType] = reader.tag();
             switch (fieldNo) {
-                case /* symbol.bench.ObjectType metatype */ 1:
+                case /* symbol.bench.NodeType metatype */ 1:
                     message.metatype = reader.int32();
                     break;
                 case /* string id */ 2:
@@ -26844,7 +25486,7 @@ class PackageData$Type extends MessageType$<PackageData> {
         return message;
     }
     internalBinaryWrite(message: PackageData, writer: IBinaryWriter, options: BinaryWriteOptions): IBinaryWriter {
-        /* symbol.bench.ObjectType metatype = 1; */
+        /* symbol.bench.NodeType metatype = 1; */
         if (message.metatype !== 0)
             writer.tag(1, WireType.Varint).int32(message.metatype);
         /* string id = 2; */
@@ -26912,7 +25554,7 @@ export const PackageData = new PackageData$Type();
 class PageData$Type extends MessageType$<PageData> {
     constructor() {
         super("symbol.bench.PageData", [
-            { no: 1, name: "metatype", kind: "enum", T: () => ["symbol.bench.ObjectType", ObjectType, "OBJECT_TYPE_"] },
+            { no: 1, name: "metatype", kind: "enum", T: () => ["symbol.bench.NodeType", NodeType, "NODE_TYPE_"] },
             { no: 2, name: "id", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
             { no: 4, name: "parent_ptr", kind: "message", T: () => NodeReferenceData },
             { no: 6, name: "bench_ptr", kind: "message", T: () => NodeReferenceData },
@@ -26948,7 +25590,7 @@ class PageData$Type extends MessageType$<PageData> {
         while (reader.pos < end) {
             let [fieldNo, wireType] = reader.tag();
             switch (fieldNo) {
-                case /* symbol.bench.ObjectType metatype */ 1:
+                case /* symbol.bench.NodeType metatype */ 1:
                     message.metatype = reader.int32();
                     break;
                 case /* string id */ 2:
@@ -27017,7 +25659,7 @@ class PageData$Type extends MessageType$<PageData> {
         return message;
     }
     internalBinaryWrite(message: PageData, writer: IBinaryWriter, options: BinaryWriteOptions): IBinaryWriter {
-        /* symbol.bench.ObjectType metatype = 1; */
+        /* symbol.bench.NodeType metatype = 1; */
         if (message.metatype !== 0)
             writer.tag(1, WireType.Varint).int32(message.metatype);
         /* string id = 2; */
@@ -27088,7 +25730,7 @@ export const PageData = new PageData$Type();
 class PositionData$Type extends MessageType$<PositionData> {
     constructor() {
         super("symbol.bench.PositionData", [
-            { no: 1, name: "metatype", kind: "enum", T: () => ["symbol.bench.ObjectType", ObjectType, "OBJECT_TYPE_"] },
+            { no: 1, name: "metatype", kind: "enum", T: () => ["symbol.bench.StructType", StructType, "STRUCT_TYPE_"] },
             { no: 30, name: "type", kind: "enum", T: () => ["symbol.bench.PositionType", PositionType, "POSITION_TYPE_"] },
             { no: 50, name: "top", kind: "message", T: () => LengthData },
             { no: 51, name: "left", kind: "message", T: () => LengthData },
@@ -27109,7 +25751,7 @@ class PositionData$Type extends MessageType$<PositionData> {
         while (reader.pos < end) {
             let [fieldNo, wireType] = reader.tag();
             switch (fieldNo) {
-                case /* symbol.bench.ObjectType metatype */ 1:
+                case /* symbol.bench.StructType metatype */ 1:
                     message.metatype = reader.int32();
                     break;
                 case /* symbol.bench.PositionType type */ 30:
@@ -27139,7 +25781,7 @@ class PositionData$Type extends MessageType$<PositionData> {
         return message;
     }
     internalBinaryWrite(message: PositionData, writer: IBinaryWriter, options: BinaryWriteOptions): IBinaryWriter {
-        /* symbol.bench.ObjectType metatype = 1; */
+        /* symbol.bench.StructType metatype = 1; */
         if (message.metatype !== 0)
             writer.tag(1, WireType.Varint).int32(message.metatype);
         /* symbol.bench.PositionType type = 30; */
@@ -27171,9 +25813,10 @@ export const PositionData = new PositionData$Type();
 class PropertyReferenceData$Type extends MessageType$<PropertyReferenceData> {
     constructor() {
         super("symbol.bench.PropertyReferenceData", [
-            { no: 1, name: "metatype", kind: "enum", T: () => ["symbol.bench.ObjectType", ObjectType, "OBJECT_TYPE_"] },
-            { no: 30, name: "object_type", kind: "enum", opt: true, T: () => ["symbol.bench.ObjectType", ObjectType, "OBJECT_TYPE_"] },
-            { no: 31, name: "id", kind: "scalar", T: 5 /*ScalarType.INT32*/ }
+            { no: 1, name: "metatype", kind: "enum", T: () => ["symbol.bench.StructType", StructType, "STRUCT_TYPE_"] },
+            { no: 30, name: "node_type", kind: "enum", opt: true, T: () => ["symbol.bench.NodeType", NodeType, "NODE_TYPE_"] },
+            { no: 31, name: "struct_type", kind: "enum", opt: true, T: () => ["symbol.bench.StructType", StructType, "STRUCT_TYPE_"] },
+            { no: 32, name: "id", kind: "scalar", T: 5 /*ScalarType.INT32*/ }
         ]);
     }
     create(value?: PartialMessage<PropertyReferenceData>): PropertyReferenceData {
@@ -27189,13 +25832,16 @@ class PropertyReferenceData$Type extends MessageType$<PropertyReferenceData> {
         while (reader.pos < end) {
             let [fieldNo, wireType] = reader.tag();
             switch (fieldNo) {
-                case /* symbol.bench.ObjectType metatype */ 1:
+                case /* symbol.bench.StructType metatype */ 1:
                     message.metatype = reader.int32();
                     break;
-                case /* optional symbol.bench.ObjectType object_type */ 30:
-                    message.objectType = reader.int32();
+                case /* optional symbol.bench.NodeType node_type */ 30:
+                    message.nodeType = reader.int32();
                     break;
-                case /* int32 id */ 31:
+                case /* optional symbol.bench.StructType struct_type */ 31:
+                    message.structType = reader.int32();
+                    break;
+                case /* int32 id */ 32:
                     message.id = reader.int32();
                     break;
                 default:
@@ -27210,15 +25856,18 @@ class PropertyReferenceData$Type extends MessageType$<PropertyReferenceData> {
         return message;
     }
     internalBinaryWrite(message: PropertyReferenceData, writer: IBinaryWriter, options: BinaryWriteOptions): IBinaryWriter {
-        /* symbol.bench.ObjectType metatype = 1; */
+        /* symbol.bench.StructType metatype = 1; */
         if (message.metatype !== 0)
             writer.tag(1, WireType.Varint).int32(message.metatype);
-        /* optional symbol.bench.ObjectType object_type = 30; */
-        if (message.objectType !== undefined)
-            writer.tag(30, WireType.Varint).int32(message.objectType);
-        /* int32 id = 31; */
+        /* optional symbol.bench.NodeType node_type = 30; */
+        if (message.nodeType !== undefined)
+            writer.tag(30, WireType.Varint).int32(message.nodeType);
+        /* optional symbol.bench.StructType struct_type = 31; */
+        if (message.structType !== undefined)
+            writer.tag(31, WireType.Varint).int32(message.structType);
+        /* int32 id = 32; */
         if (message.id !== 0)
-            writer.tag(31, WireType.Varint).int32(message.id);
+            writer.tag(32, WireType.Varint).int32(message.id);
         let u = options.writeUnknownFields;
         if (u !== false)
             (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
@@ -27233,7 +25882,7 @@ export const PropertyReferenceData = new PropertyReferenceData$Type();
 class QueryData$Type extends MessageType$<QueryData> {
     constructor() {
         super("symbol.bench.QueryData", [
-            { no: 1, name: "metatype", kind: "enum", T: () => ["symbol.bench.ObjectType", ObjectType, "OBJECT_TYPE_"] },
+            { no: 1, name: "metatype", kind: "enum", T: () => ["symbol.bench.StructType", StructType, "STRUCT_TYPE_"] },
             { no: 2, name: "id", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
             { no: 30, name: "type", kind: "enum", T: () => ["symbol.bench.QueryType", QueryType, "QUERY_TYPE_"] },
             { no: 31, name: "name", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
@@ -27268,7 +25917,7 @@ class QueryData$Type extends MessageType$<QueryData> {
         while (reader.pos < end) {
             let [fieldNo, wireType] = reader.tag();
             switch (fieldNo) {
-                case /* symbol.bench.ObjectType metatype */ 1:
+                case /* symbol.bench.StructType metatype */ 1:
                     message.metatype = reader.int32();
                     break;
                 case /* string id */ 2:
@@ -27325,7 +25974,7 @@ class QueryData$Type extends MessageType$<QueryData> {
         return message;
     }
     internalBinaryWrite(message: QueryData, writer: IBinaryWriter, options: BinaryWriteOptions): IBinaryWriter {
-        /* symbol.bench.ObjectType metatype = 1; */
+        /* symbol.bench.StructType metatype = 1; */
         if (message.metatype !== 0)
             writer.tag(1, WireType.Varint).int32(message.metatype);
         /* string id = 2; */
@@ -27384,7 +26033,7 @@ export const QueryData = new QueryData$Type();
 class RecordData$Type extends MessageType$<RecordData> {
     constructor() {
         super("symbol.bench.RecordData", [
-            { no: 1, name: "metatype", kind: "enum", T: () => ["symbol.bench.ObjectType", ObjectType, "OBJECT_TYPE_"] },
+            { no: 1, name: "metatype", kind: "enum", T: () => ["symbol.bench.NodeType", NodeType, "NODE_TYPE_"] },
             { no: 2, name: "id", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
             { no: 4, name: "parent_ptr", kind: "message", T: () => NodeReferenceData },
             { no: 6, name: "bench_ptr", kind: "message", T: () => NodeReferenceData },
@@ -27420,7 +26069,7 @@ class RecordData$Type extends MessageType$<RecordData> {
         while (reader.pos < end) {
             let [fieldNo, wireType] = reader.tag();
             switch (fieldNo) {
-                case /* symbol.bench.ObjectType metatype */ 1:
+                case /* symbol.bench.NodeType metatype */ 1:
                     message.metatype = reader.int32();
                     break;
                 case /* string id */ 2:
@@ -27489,7 +26138,7 @@ class RecordData$Type extends MessageType$<RecordData> {
         return message;
     }
     internalBinaryWrite(message: RecordData, writer: IBinaryWriter, options: BinaryWriteOptions): IBinaryWriter {
-        /* symbol.bench.ObjectType metatype = 1; */
+        /* symbol.bench.NodeType metatype = 1; */
         if (message.metatype !== 0)
             writer.tag(1, WireType.Varint).int32(message.metatype);
         /* string id = 2; */
@@ -27560,7 +26209,7 @@ export const RecordData = new RecordData$Type();
 class RelationReferenceData$Type extends MessageType$<RelationReferenceData> {
     constructor() {
         super("symbol.bench.RelationReferenceData", [
-            { no: 1, name: "metatype", kind: "enum", T: () => ["symbol.bench.ObjectType", ObjectType, "OBJECT_TYPE_"] },
+            { no: 1, name: "metatype", kind: "enum", T: () => ["symbol.bench.StructType", StructType, "STRUCT_TYPE_"] },
             { no: 30, name: "type", kind: "enum", T: () => ["symbol.bench.RelationType", RelationType, "RELATION_TYPE_"] },
             { no: 31, name: "node_type", kind: "enum", T: () => ["symbol.bench.NodeType", NodeType, "NODE_TYPE_"] },
             { no: 32, name: "table_ptr", kind: "message", T: () => NodeReferenceData }
@@ -27580,7 +26229,7 @@ class RelationReferenceData$Type extends MessageType$<RelationReferenceData> {
         while (reader.pos < end) {
             let [fieldNo, wireType] = reader.tag();
             switch (fieldNo) {
-                case /* symbol.bench.ObjectType metatype */ 1:
+                case /* symbol.bench.StructType metatype */ 1:
                     message.metatype = reader.int32();
                     break;
                 case /* symbol.bench.RelationType type */ 30:
@@ -27604,7 +26253,7 @@ class RelationReferenceData$Type extends MessageType$<RelationReferenceData> {
         return message;
     }
     internalBinaryWrite(message: RelationReferenceData, writer: IBinaryWriter, options: BinaryWriteOptions): IBinaryWriter {
-        /* symbol.bench.ObjectType metatype = 1; */
+        /* symbol.bench.StructType metatype = 1; */
         if (message.metatype !== 0)
             writer.tag(1, WireType.Varint).int32(message.metatype);
         /* symbol.bench.RelationType type = 30; */
@@ -27630,7 +26279,7 @@ export const RelationReferenceData = new RelationReferenceData$Type();
 class RoleData$Type extends MessageType$<RoleData> {
     constructor() {
         super("symbol.bench.RoleData", [
-            { no: 1, name: "metatype", kind: "enum", T: () => ["symbol.bench.ObjectType", ObjectType, "OBJECT_TYPE_"] },
+            { no: 1, name: "metatype", kind: "enum", T: () => ["symbol.bench.NodeType", NodeType, "NODE_TYPE_"] },
             { no: 2, name: "id", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
             { no: 4, name: "parent_ptr", kind: "message", T: () => NodeReferenceData },
             { no: 6, name: "bench_ptr", kind: "message", T: () => NodeReferenceData },
@@ -27664,7 +26313,7 @@ class RoleData$Type extends MessageType$<RoleData> {
         while (reader.pos < end) {
             let [fieldNo, wireType] = reader.tag();
             switch (fieldNo) {
-                case /* symbol.bench.ObjectType metatype */ 1:
+                case /* symbol.bench.NodeType metatype */ 1:
                     message.metatype = reader.int32();
                     break;
                 case /* string id */ 2:
@@ -27727,7 +26376,7 @@ class RoleData$Type extends MessageType$<RoleData> {
         return message;
     }
     internalBinaryWrite(message: RoleData, writer: IBinaryWriter, options: BinaryWriteOptions): IBinaryWriter {
-        /* symbol.bench.ObjectType metatype = 1; */
+        /* symbol.bench.NodeType metatype = 1; */
         if (message.metatype !== 0)
             writer.tag(1, WireType.Varint).int32(message.metatype);
         /* string id = 2; */
@@ -27792,7 +26441,7 @@ export const RoleData = new RoleData$Type();
 class RouteData$Type extends MessageType$<RouteData> {
     constructor() {
         super("symbol.bench.RouteData", [
-            { no: 1, name: "metatype", kind: "enum", T: () => ["symbol.bench.ObjectType", ObjectType, "OBJECT_TYPE_"] },
+            { no: 1, name: "metatype", kind: "enum", T: () => ["symbol.bench.NodeType", NodeType, "NODE_TYPE_"] },
             { no: 2, name: "id", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
             { no: 3, name: "ck", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
             { no: 4, name: "parent_ptr", kind: "message", T: () => NodeReferenceData },
@@ -27830,7 +26479,7 @@ class RouteData$Type extends MessageType$<RouteData> {
         while (reader.pos < end) {
             let [fieldNo, wireType] = reader.tag();
             switch (fieldNo) {
-                case /* symbol.bench.ObjectType metatype */ 1:
+                case /* symbol.bench.NodeType metatype */ 1:
                     message.metatype = reader.int32();
                     break;
                 case /* string id */ 2:
@@ -27902,7 +26551,7 @@ class RouteData$Type extends MessageType$<RouteData> {
         return message;
     }
     internalBinaryWrite(message: RouteData, writer: IBinaryWriter, options: BinaryWriteOptions): IBinaryWriter {
-        /* symbol.bench.ObjectType metatype = 1; */
+        /* symbol.bench.NodeType metatype = 1; */
         if (message.metatype !== 0)
             writer.tag(1, WireType.Varint).int32(message.metatype);
         /* string id = 2; */
@@ -27976,7 +26625,7 @@ export const RouteData = new RouteData$Type();
 class RunData$Type extends MessageType$<RunData> {
     constructor() {
         super("symbol.bench.RunData", [
-            { no: 1, name: "metatype", kind: "enum", T: () => ["symbol.bench.ObjectType", ObjectType, "OBJECT_TYPE_"] },
+            { no: 1, name: "metatype", kind: "enum", T: () => ["symbol.bench.NodeType", NodeType, "NODE_TYPE_"] },
             { no: 2, name: "id", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
             { no: 4, name: "parent_ptr", kind: "message", T: () => NodeReferenceData },
             { no: 6, name: "bench_ptr", kind: "message", T: () => NodeReferenceData },
@@ -28033,7 +26682,7 @@ class RunData$Type extends MessageType$<RunData> {
         while (reader.pos < end) {
             let [fieldNo, wireType] = reader.tag();
             switch (fieldNo) {
-                case /* symbol.bench.ObjectType metatype */ 1:
+                case /* symbol.bench.NodeType metatype */ 1:
                     message.metatype = reader.int32();
                     break;
                 case /* string id */ 2:
@@ -28162,7 +26811,7 @@ class RunData$Type extends MessageType$<RunData> {
         return message;
     }
     internalBinaryWrite(message: RunData, writer: IBinaryWriter, options: BinaryWriteOptions): IBinaryWriter {
-        /* symbol.bench.ObjectType metatype = 1; */
+        /* symbol.bench.NodeType metatype = 1; */
         if (message.metatype !== 0)
             writer.tag(1, WireType.Varint).int32(message.metatype);
         /* string id = 2; */
@@ -28293,7 +26942,7 @@ export const RunData = new RunData$Type();
 class RunFrameData$Type extends MessageType$<RunFrameData> {
     constructor() {
         super("symbol.bench.RunFrameData", [
-            { no: 1, name: "metatype", kind: "enum", T: () => ["symbol.bench.ObjectType", ObjectType, "OBJECT_TYPE_"] }
+            { no: 1, name: "metatype", kind: "enum", T: () => ["symbol.bench.StructType", StructType, "STRUCT_TYPE_"] }
         ]);
     }
     create(value?: PartialMessage<RunFrameData>): RunFrameData {
@@ -28308,7 +26957,7 @@ class RunFrameData$Type extends MessageType$<RunFrameData> {
         while (reader.pos < end) {
             let [fieldNo, wireType] = reader.tag();
             switch (fieldNo) {
-                case /* symbol.bench.ObjectType metatype */ 1:
+                case /* symbol.bench.StructType metatype */ 1:
                     message.metatype = reader.int32();
                     break;
                 default:
@@ -28323,7 +26972,7 @@ class RunFrameData$Type extends MessageType$<RunFrameData> {
         return message;
     }
     internalBinaryWrite(message: RunFrameData, writer: IBinaryWriter, options: BinaryWriteOptions): IBinaryWriter {
-        /* symbol.bench.ObjectType metatype = 1; */
+        /* symbol.bench.StructType metatype = 1; */
         if (message.metatype !== 0)
             writer.tag(1, WireType.Varint).int32(message.metatype);
         let u = options.writeUnknownFields;
@@ -28340,7 +26989,7 @@ export const RunFrameData = new RunFrameData$Type();
 class RunTraceData$Type extends MessageType$<RunTraceData> {
     constructor() {
         super("symbol.bench.RunTraceData", [
-            { no: 1, name: "metatype", kind: "enum", T: () => ["symbol.bench.ObjectType", ObjectType, "OBJECT_TYPE_"] },
+            { no: 1, name: "metatype", kind: "enum", T: () => ["symbol.bench.StructType", StructType, "STRUCT_TYPE_"] },
             { no: 30, name: "frames", kind: "message", repeat: 1 /*RepeatType.PACKED*/, T: () => RunFrameData }
         ]);
     }
@@ -28357,7 +27006,7 @@ class RunTraceData$Type extends MessageType$<RunTraceData> {
         while (reader.pos < end) {
             let [fieldNo, wireType] = reader.tag();
             switch (fieldNo) {
-                case /* symbol.bench.ObjectType metatype */ 1:
+                case /* symbol.bench.StructType metatype */ 1:
                     message.metatype = reader.int32();
                     break;
                 case /* repeated symbol.bench.RunFrameData frames */ 30:
@@ -28375,7 +27024,7 @@ class RunTraceData$Type extends MessageType$<RunTraceData> {
         return message;
     }
     internalBinaryWrite(message: RunTraceData, writer: IBinaryWriter, options: BinaryWriteOptions): IBinaryWriter {
-        /* symbol.bench.ObjectType metatype = 1; */
+        /* symbol.bench.StructType metatype = 1; */
         if (message.metatype !== 0)
             writer.tag(1, WireType.Varint).int32(message.metatype);
         /* repeated symbol.bench.RunFrameData frames = 30; */
@@ -28395,7 +27044,7 @@ export const RunTraceData = new RunTraceData$Type();
 class ScalerData$Type extends MessageType$<ScalerData> {
     constructor() {
         super("symbol.bench.ScalerData", [
-            { no: 1, name: "metatype", kind: "enum", T: () => ["symbol.bench.ObjectType", ObjectType, "OBJECT_TYPE_"] },
+            { no: 1, name: "metatype", kind: "enum", T: () => ["symbol.bench.NodeType", NodeType, "NODE_TYPE_"] },
             { no: 2, name: "id", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
             { no: 3, name: "ck", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
             { no: 4, name: "parent_ptr", kind: "message", T: () => NodeReferenceData },
@@ -28458,7 +27107,7 @@ class ScalerData$Type extends MessageType$<ScalerData> {
         while (reader.pos < end) {
             let [fieldNo, wireType] = reader.tag();
             switch (fieldNo) {
-                case /* symbol.bench.ObjectType metatype */ 1:
+                case /* symbol.bench.NodeType metatype */ 1:
                     message.metatype = reader.int32();
                     break;
                 case /* string id */ 2:
@@ -28581,7 +27230,7 @@ class ScalerData$Type extends MessageType$<ScalerData> {
         return message;
     }
     internalBinaryWrite(message: ScalerData, writer: IBinaryWriter, options: BinaryWriteOptions): IBinaryWriter {
-        /* symbol.bench.ObjectType metatype = 1; */
+        /* symbol.bench.NodeType metatype = 1; */
         if (message.metatype !== 0)
             writer.tag(1, WireType.Varint).int32(message.metatype);
         /* string id = 2; */
@@ -28706,7 +27355,7 @@ export const ScalerData = new ScalerData$Type();
 class SceneData$Type extends MessageType$<SceneData> {
     constructor() {
         super("symbol.bench.SceneData", [
-            { no: 1, name: "metatype", kind: "enum", T: () => ["symbol.bench.ObjectType", ObjectType, "OBJECT_TYPE_"] },
+            { no: 1, name: "metatype", kind: "enum", T: () => ["symbol.bench.NodeType", NodeType, "NODE_TYPE_"] },
             { no: 2, name: "id", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
             { no: 3, name: "ck", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
             { no: 4, name: "parent_ptr", kind: "message", T: () => NodeReferenceData },
@@ -28744,7 +27393,7 @@ class SceneData$Type extends MessageType$<SceneData> {
         while (reader.pos < end) {
             let [fieldNo, wireType] = reader.tag();
             switch (fieldNo) {
-                case /* symbol.bench.ObjectType metatype */ 1:
+                case /* symbol.bench.NodeType metatype */ 1:
                     message.metatype = reader.int32();
                     break;
                 case /* string id */ 2:
@@ -28816,7 +27465,7 @@ class SceneData$Type extends MessageType$<SceneData> {
         return message;
     }
     internalBinaryWrite(message: SceneData, writer: IBinaryWriter, options: BinaryWriteOptions): IBinaryWriter {
-        /* symbol.bench.ObjectType metatype = 1; */
+        /* symbol.bench.NodeType metatype = 1; */
         if (message.metatype !== 0)
             writer.tag(1, WireType.Varint).int32(message.metatype);
         /* string id = 2; */
@@ -28890,7 +27539,7 @@ export const SceneData = new SceneData$Type();
 class ScheduleData$Type extends MessageType$<ScheduleData> {
     constructor() {
         super("symbol.bench.ScheduleData", [
-            { no: 1, name: "metatype", kind: "enum", T: () => ["symbol.bench.ObjectType", ObjectType, "OBJECT_TYPE_"] },
+            { no: 1, name: "metatype", kind: "enum", T: () => ["symbol.bench.StructType", StructType, "STRUCT_TYPE_"] },
             { no: 30, name: "frequency", kind: "enum", T: () => ["symbol.bench.ScheduleFrequency", ScheduleFrequency, "SCHEDULE_FREQUENCY_"] },
             { no: 31, name: "interval", kind: "scalar", T: 5 /*ScalarType.INT32*/ },
             { no: 32, name: "start", kind: "message", T: () => Timestamp },
@@ -28933,7 +27582,7 @@ class ScheduleData$Type extends MessageType$<ScheduleData> {
         while (reader.pos < end) {
             let [fieldNo, wireType] = reader.tag();
             switch (fieldNo) {
-                case /* symbol.bench.ObjectType metatype */ 1:
+                case /* symbol.bench.StructType metatype */ 1:
                     message.metatype = reader.int32();
                     break;
                 case /* symbol.bench.ScheduleFrequency frequency */ 30:
@@ -29036,7 +27685,7 @@ class ScheduleData$Type extends MessageType$<ScheduleData> {
         return message;
     }
     internalBinaryWrite(message: ScheduleData, writer: IBinaryWriter, options: BinaryWriteOptions): IBinaryWriter {
-        /* symbol.bench.ObjectType metatype = 1; */
+        /* symbol.bench.StructType metatype = 1; */
         if (message.metatype !== 0)
             writer.tag(1, WireType.Varint).int32(message.metatype);
         /* symbol.bench.ScheduleFrequency frequency = 30; */
@@ -29141,7 +27790,7 @@ export const ScheduleData = new ScheduleData$Type();
 class SchemaData$Type extends MessageType$<SchemaData> {
     constructor() {
         super("symbol.bench.SchemaData", [
-            { no: 1, name: "metatype", kind: "enum", T: () => ["symbol.bench.ObjectType", ObjectType, "OBJECT_TYPE_"] },
+            { no: 1, name: "metatype", kind: "enum", T: () => ["symbol.bench.NodeType", NodeType, "NODE_TYPE_"] },
             { no: 2, name: "id", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
             { no: 4, name: "parent_ptr", kind: "message", T: () => NodeReferenceData },
             { no: 6, name: "bench_ptr", kind: "message", T: () => NodeReferenceData },
@@ -29194,7 +27843,7 @@ class SchemaData$Type extends MessageType$<SchemaData> {
         while (reader.pos < end) {
             let [fieldNo, wireType] = reader.tag();
             switch (fieldNo) {
-                case /* symbol.bench.ObjectType metatype */ 1:
+                case /* symbol.bench.NodeType metatype */ 1:
                     message.metatype = reader.int32();
                     break;
                 case /* string id */ 2:
@@ -29302,7 +27951,7 @@ class SchemaData$Type extends MessageType$<SchemaData> {
         return message;
     }
     internalBinaryWrite(message: SchemaData, writer: IBinaryWriter, options: BinaryWriteOptions): IBinaryWriter {
-        /* symbol.bench.ObjectType metatype = 1; */
+        /* symbol.bench.NodeType metatype = 1; */
         if (message.metatype !== 0)
             writer.tag(1, WireType.Varint).int32(message.metatype);
         /* string id = 2; */
@@ -29412,7 +28061,7 @@ export const SchemaData = new SchemaData$Type();
 class ScopeData$Type extends MessageType$<ScopeData> {
     constructor() {
         super("symbol.bench.ScopeData", [
-            { no: 1, name: "metatype", kind: "enum", T: () => ["symbol.bench.ObjectType", ObjectType, "OBJECT_TYPE_"] },
+            { no: 1, name: "metatype", kind: "enum", T: () => ["symbol.bench.StructType", StructType, "STRUCT_TYPE_"] },
             { no: 30, name: "region", kind: "enum", opt: true, T: () => ["symbol.bench.Region", Region, "REGION_"] },
             { no: 31, name: "bench_id", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
             { no: 32, name: "package_ids", kind: "scalar", repeat: 2 /*RepeatType.UNPACKED*/, T: 9 /*ScalarType.STRING*/ }
@@ -29431,7 +28080,7 @@ class ScopeData$Type extends MessageType$<ScopeData> {
         while (reader.pos < end) {
             let [fieldNo, wireType] = reader.tag();
             switch (fieldNo) {
-                case /* symbol.bench.ObjectType metatype */ 1:
+                case /* symbol.bench.StructType metatype */ 1:
                     message.metatype = reader.int32();
                     break;
                 case /* optional symbol.bench.Region region */ 30:
@@ -29455,7 +28104,7 @@ class ScopeData$Type extends MessageType$<ScopeData> {
         return message;
     }
     internalBinaryWrite(message: ScopeData, writer: IBinaryWriter, options: BinaryWriteOptions): IBinaryWriter {
-        /* symbol.bench.ObjectType metatype = 1; */
+        /* symbol.bench.StructType metatype = 1; */
         if (message.metatype !== 0)
             writer.tag(1, WireType.Varint).int32(message.metatype);
         /* optional symbol.bench.Region region = 30; */
@@ -29481,7 +28130,7 @@ export const ScopeData = new ScopeData$Type();
 class SelectionData$Type extends MessageType$<SelectionData> {
     constructor() {
         super("symbol.bench.SelectionData", [
-            { no: 1, name: "metatype", kind: "enum", T: () => ["symbol.bench.ObjectType", ObjectType, "OBJECT_TYPE_"] },
+            { no: 1, name: "metatype", kind: "enum", T: () => ["symbol.bench.StructType", StructType, "STRUCT_TYPE_"] },
             { no: 40, name: "nodes_ptr", kind: "message", repeat: 1 /*RepeatType.PACKED*/, T: () => NodeReferenceData }
         ]);
     }
@@ -29498,7 +28147,7 @@ class SelectionData$Type extends MessageType$<SelectionData> {
         while (reader.pos < end) {
             let [fieldNo, wireType] = reader.tag();
             switch (fieldNo) {
-                case /* symbol.bench.ObjectType metatype */ 1:
+                case /* symbol.bench.StructType metatype */ 1:
                     message.metatype = reader.int32();
                     break;
                 case /* repeated symbol.bench.NodeReferenceData nodes_ptr */ 40:
@@ -29516,7 +28165,7 @@ class SelectionData$Type extends MessageType$<SelectionData> {
         return message;
     }
     internalBinaryWrite(message: SelectionData, writer: IBinaryWriter, options: BinaryWriteOptions): IBinaryWriter {
-        /* symbol.bench.ObjectType metatype = 1; */
+        /* symbol.bench.StructType metatype = 1; */
         if (message.metatype !== 0)
             writer.tag(1, WireType.Varint).int32(message.metatype);
         /* repeated symbol.bench.NodeReferenceData nodes_ptr = 40; */
@@ -29536,7 +28185,7 @@ export const SelectionData = new SelectionData$Type();
 class ServiceData$Type extends MessageType$<ServiceData> {
     constructor() {
         super("symbol.bench.ServiceData", [
-            { no: 1, name: "metatype", kind: "enum", T: () => ["symbol.bench.ObjectType", ObjectType, "OBJECT_TYPE_"] },
+            { no: 1, name: "metatype", kind: "enum", T: () => ["symbol.bench.NodeType", NodeType, "NODE_TYPE_"] },
             { no: 2, name: "id", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
             { no: 4, name: "parent_ptr", kind: "message", T: () => NodeReferenceData },
             { no: 6, name: "bench_ptr", kind: "message", T: () => NodeReferenceData },
@@ -29573,7 +28222,7 @@ class ServiceData$Type extends MessageType$<ServiceData> {
         while (reader.pos < end) {
             let [fieldNo, wireType] = reader.tag();
             switch (fieldNo) {
-                case /* symbol.bench.ObjectType metatype */ 1:
+                case /* symbol.bench.NodeType metatype */ 1:
                     message.metatype = reader.int32();
                     break;
                 case /* string id */ 2:
@@ -29645,7 +28294,7 @@ class ServiceData$Type extends MessageType$<ServiceData> {
         return message;
     }
     internalBinaryWrite(message: ServiceData, writer: IBinaryWriter, options: BinaryWriteOptions): IBinaryWriter {
-        /* symbol.bench.ObjectType metatype = 1; */
+        /* symbol.bench.NodeType metatype = 1; */
         if (message.metatype !== 0)
             writer.tag(1, WireType.Varint).int32(message.metatype);
         /* string id = 2; */
@@ -29719,7 +28368,7 @@ export const ServiceData = new ServiceData$Type();
 class ShadowData$Type extends MessageType$<ShadowData> {
     constructor() {
         super("symbol.bench.ShadowData", [
-            { no: 1, name: "metatype", kind: "enum", T: () => ["symbol.bench.ObjectType", ObjectType, "OBJECT_TYPE_"] },
+            { no: 1, name: "metatype", kind: "enum", T: () => ["symbol.bench.StructType", StructType, "STRUCT_TYPE_"] },
             { no: 30, name: "type", kind: "enum", T: () => ["symbol.bench.ShadowType", ShadowType, "SHADOW_TYPE_"] },
             { no: 40, name: "field_ptr", kind: "message", T: () => NodeReferenceData },
             { no: 41, name: "style_ptr", kind: "message", T: () => NodeReferenceData },
@@ -29745,7 +28394,7 @@ class ShadowData$Type extends MessageType$<ShadowData> {
         while (reader.pos < end) {
             let [fieldNo, wireType] = reader.tag();
             switch (fieldNo) {
-                case /* symbol.bench.ObjectType metatype */ 1:
+                case /* symbol.bench.StructType metatype */ 1:
                     message.metatype = reader.int32();
                     break;
                 case /* symbol.bench.ShadowType type */ 30:
@@ -29787,7 +28436,7 @@ class ShadowData$Type extends MessageType$<ShadowData> {
         return message;
     }
     internalBinaryWrite(message: ShadowData, writer: IBinaryWriter, options: BinaryWriteOptions): IBinaryWriter {
-        /* symbol.bench.ObjectType metatype = 1; */
+        /* symbol.bench.StructType metatype = 1; */
         if (message.metatype !== 0)
             writer.tag(1, WireType.Varint).int32(message.metatype);
         /* symbol.bench.ShadowType type = 30; */
@@ -29831,7 +28480,7 @@ export const ShadowData = new ShadowData$Type();
 class ShadowStyleData$Type extends MessageType$<ShadowStyleData> {
     constructor() {
         super("symbol.bench.ShadowStyleData", [
-            { no: 1, name: "metatype", kind: "enum", T: () => ["symbol.bench.ObjectType", ObjectType, "OBJECT_TYPE_"] },
+            { no: 1, name: "metatype", kind: "enum", T: () => ["symbol.bench.NodeType", NodeType, "NODE_TYPE_"] },
             { no: 2, name: "id", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
             { no: 4, name: "parent_ptr", kind: "message", T: () => NodeReferenceData },
             { no: 6, name: "bench_ptr", kind: "message", T: () => NodeReferenceData },
@@ -29876,7 +28525,7 @@ class ShadowStyleData$Type extends MessageType$<ShadowStyleData> {
         while (reader.pos < end) {
             let [fieldNo, wireType] = reader.tag();
             switch (fieldNo) {
-                case /* symbol.bench.ObjectType metatype */ 1:
+                case /* symbol.bench.NodeType metatype */ 1:
                     message.metatype = reader.int32();
                     break;
                 case /* string id */ 2:
@@ -29966,7 +28615,7 @@ class ShadowStyleData$Type extends MessageType$<ShadowStyleData> {
         return message;
     }
     internalBinaryWrite(message: ShadowStyleData, writer: IBinaryWriter, options: BinaryWriteOptions): IBinaryWriter {
-        /* symbol.bench.ObjectType metatype = 1; */
+        /* symbol.bench.NodeType metatype = 1; */
         if (message.metatype !== 0)
             writer.tag(1, WireType.Varint).int32(message.metatype);
         /* string id = 2; */
@@ -30058,7 +28707,7 @@ export const ShadowStyleData = new ShadowStyleData$Type();
 class SliderInputViewData$Type extends MessageType$<SliderInputViewData> {
     constructor() {
         super("symbol.bench.SliderInputViewData", [
-            { no: 1, name: "metatype", kind: "enum", T: () => ["symbol.bench.ObjectType", ObjectType, "OBJECT_TYPE_"] },
+            { no: 1, name: "metatype", kind: "enum", T: () => ["symbol.bench.NodeType", NodeType, "NODE_TYPE_"] },
             { no: 2, name: "id", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
             { no: 3, name: "ck", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
             { no: 4, name: "parent_ptr", kind: "message", T: () => NodeReferenceData },
@@ -30111,7 +28760,7 @@ class SliderInputViewData$Type extends MessageType$<SliderInputViewData> {
         while (reader.pos < end) {
             let [fieldNo, wireType] = reader.tag();
             switch (fieldNo) {
-                case /* symbol.bench.ObjectType metatype */ 1:
+                case /* symbol.bench.NodeType metatype */ 1:
                     message.metatype = reader.int32();
                     break;
                 case /* string id */ 2:
@@ -30234,7 +28883,7 @@ class SliderInputViewData$Type extends MessageType$<SliderInputViewData> {
         return message;
     }
     internalBinaryWrite(message: SliderInputViewData, writer: IBinaryWriter, options: BinaryWriteOptions): IBinaryWriter {
-        /* symbol.bench.ObjectType metatype = 1; */
+        /* symbol.bench.NodeType metatype = 1; */
         if (message.metatype !== 0)
             writer.tag(1, WireType.Varint).int32(message.metatype);
         /* string id = 2; */
@@ -30347,7 +28996,7 @@ export const SliderInputViewData = new SliderInputViewData$Type();
 class SortData$Type extends MessageType$<SortData> {
     constructor() {
         super("symbol.bench.SortData", [
-            { no: 1, name: "metatype", kind: "enum", T: () => ["symbol.bench.ObjectType", ObjectType, "OBJECT_TYPE_"] },
+            { no: 1, name: "metatype", kind: "enum", T: () => ["symbol.bench.StructType", StructType, "STRUCT_TYPE_"] },
             { no: 30, name: "type", kind: "enum", T: () => ["symbol.bench.SortType", SortType, "SORT_TYPE_"] },
             { no: 31, name: "by", kind: "message", T: () => ExpressionData },
             { no: 32, name: "mode", kind: "enum", opt: true, T: () => ["symbol.bench.SortMode", SortMode, "SORT_MODE_"] }
@@ -30366,7 +29015,7 @@ class SortData$Type extends MessageType$<SortData> {
         while (reader.pos < end) {
             let [fieldNo, wireType] = reader.tag();
             switch (fieldNo) {
-                case /* symbol.bench.ObjectType metatype */ 1:
+                case /* symbol.bench.StructType metatype */ 1:
                     message.metatype = reader.int32();
                     break;
                 case /* symbol.bench.SortType type */ 30:
@@ -30390,7 +29039,7 @@ class SortData$Type extends MessageType$<SortData> {
         return message;
     }
     internalBinaryWrite(message: SortData, writer: IBinaryWriter, options: BinaryWriteOptions): IBinaryWriter {
-        /* symbol.bench.ObjectType metatype = 1; */
+        /* symbol.bench.StructType metatype = 1; */
         if (message.metatype !== 0)
             writer.tag(1, WireType.Varint).int32(message.metatype);
         /* symbol.bench.SortType type = 30; */
@@ -30416,7 +29065,7 @@ export const SortData = new SortData$Type();
 class SpaceData$Type extends MessageType$<SpaceData> {
     constructor() {
         super("symbol.bench.SpaceData", [
-            { no: 1, name: "metatype", kind: "enum", T: () => ["symbol.bench.ObjectType", ObjectType, "OBJECT_TYPE_"] },
+            { no: 1, name: "metatype", kind: "enum", T: () => ["symbol.bench.NodeType", NodeType, "NODE_TYPE_"] },
             { no: 2, name: "id", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
             { no: 4, name: "parent_ptr", kind: "message", T: () => NodeReferenceData },
             { no: 6, name: "bench_ptr", kind: "message", T: () => NodeReferenceData },
@@ -30457,7 +29106,7 @@ class SpaceData$Type extends MessageType$<SpaceData> {
         while (reader.pos < end) {
             let [fieldNo, wireType] = reader.tag();
             switch (fieldNo) {
-                case /* symbol.bench.ObjectType metatype */ 1:
+                case /* symbol.bench.NodeType metatype */ 1:
                     message.metatype = reader.int32();
                     break;
                 case /* string id */ 2:
@@ -30538,7 +29187,7 @@ class SpaceData$Type extends MessageType$<SpaceData> {
         return message;
     }
     internalBinaryWrite(message: SpaceData, writer: IBinaryWriter, options: BinaryWriteOptions): IBinaryWriter {
-        /* symbol.bench.ObjectType metatype = 1; */
+        /* symbol.bench.NodeType metatype = 1; */
         if (message.metatype !== 0)
             writer.tag(1, WireType.Varint).int32(message.metatype);
         /* string id = 2; */
@@ -30621,7 +29270,7 @@ export const SpaceData = new SpaceData$Type();
 class SpanData$Type extends MessageType$<SpanData> {
     constructor() {
         super("symbol.bench.SpanData", [
-            { no: 1, name: "metatype", kind: "enum", T: () => ["symbol.bench.ObjectType", ObjectType, "OBJECT_TYPE_"] },
+            { no: 1, name: "metatype", kind: "enum", T: () => ["symbol.bench.NodeType", NodeType, "NODE_TYPE_"] },
             { no: 2, name: "id", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
             { no: 4, name: "parent_ptr", kind: "message", T: () => NodeReferenceData },
             { no: 6, name: "bench_ptr", kind: "message", T: () => NodeReferenceData },
@@ -30671,7 +29320,7 @@ class SpanData$Type extends MessageType$<SpanData> {
         while (reader.pos < end) {
             let [fieldNo, wireType] = reader.tag();
             switch (fieldNo) {
-                case /* symbol.bench.ObjectType metatype */ 1:
+                case /* symbol.bench.NodeType metatype */ 1:
                     message.metatype = reader.int32();
                     break;
                 case /* string id */ 2:
@@ -30779,7 +29428,7 @@ class SpanData$Type extends MessageType$<SpanData> {
         return message;
     }
     internalBinaryWrite(message: SpanData, writer: IBinaryWriter, options: BinaryWriteOptions): IBinaryWriter {
-        /* symbol.bench.ObjectType metatype = 1; */
+        /* symbol.bench.NodeType metatype = 1; */
         if (message.metatype !== 0)
             writer.tag(1, WireType.Varint).int32(message.metatype);
         /* string id = 2; */
@@ -30889,7 +29538,7 @@ export const SpanData = new SpanData$Type();
 class SplitViewData$Type extends MessageType$<SplitViewData> {
     constructor() {
         super("symbol.bench.SplitViewData", [
-            { no: 1, name: "metatype", kind: "enum", T: () => ["symbol.bench.ObjectType", ObjectType, "OBJECT_TYPE_"] },
+            { no: 1, name: "metatype", kind: "enum", T: () => ["symbol.bench.NodeType", NodeType, "NODE_TYPE_"] },
             { no: 2, name: "id", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
             { no: 3, name: "ck", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
             { no: 4, name: "parent_ptr", kind: "message", T: () => NodeReferenceData },
@@ -30979,7 +29628,7 @@ class SplitViewData$Type extends MessageType$<SplitViewData> {
         while (reader.pos < end) {
             let [fieldNo, wireType] = reader.tag();
             switch (fieldNo) {
-                case /* symbol.bench.ObjectType metatype */ 1:
+                case /* symbol.bench.NodeType metatype */ 1:
                     message.metatype = reader.int32();
                     break;
                 case /* string id */ 2:
@@ -31249,7 +29898,7 @@ class SplitViewData$Type extends MessageType$<SplitViewData> {
         return message;
     }
     internalBinaryWrite(message: SplitViewData, writer: IBinaryWriter, options: BinaryWriteOptions): IBinaryWriter {
-        /* symbol.bench.ObjectType metatype = 1; */
+        /* symbol.bench.NodeType metatype = 1; */
         if (message.metatype !== 0)
             writer.tag(1, WireType.Varint).int32(message.metatype);
         /* string id = 2; */
@@ -31437,7 +30086,7 @@ export const SplitViewData = new SplitViewData$Type();
 class StringConstraintData$Type extends MessageType$<StringConstraintData> {
     constructor() {
         super("symbol.bench.StringConstraintData", [
-            { no: 1, name: "metatype", kind: "enum", T: () => ["symbol.bench.ObjectType", ObjectType, "OBJECT_TYPE_"] },
+            { no: 1, name: "metatype", kind: "enum", T: () => ["symbol.bench.StructType", StructType, "STRUCT_TYPE_"] },
             { no: 40, name: "format", kind: "enum", opt: true, T: () => ["symbol.bench.StringFormat", StringFormat, "STRING_FORMAT_"] },
             { no: 41, name: "regex", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
             { no: 42, name: "starts_with", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
@@ -31456,7 +30105,7 @@ class StringConstraintData$Type extends MessageType$<StringConstraintData> {
         while (reader.pos < end) {
             let [fieldNo, wireType] = reader.tag();
             switch (fieldNo) {
-                case /* symbol.bench.ObjectType metatype */ 1:
+                case /* symbol.bench.StructType metatype */ 1:
                     message.metatype = reader.int32();
                     break;
                 case /* optional symbol.bench.StringFormat format */ 40:
@@ -31483,7 +30132,7 @@ class StringConstraintData$Type extends MessageType$<StringConstraintData> {
         return message;
     }
     internalBinaryWrite(message: StringConstraintData, writer: IBinaryWriter, options: BinaryWriteOptions): IBinaryWriter {
-        /* symbol.bench.ObjectType metatype = 1; */
+        /* symbol.bench.StructType metatype = 1; */
         if (message.metatype !== 0)
             writer.tag(1, WireType.Varint).int32(message.metatype);
         /* optional symbol.bench.StringFormat format = 40; */
@@ -31512,7 +30161,7 @@ export const StringConstraintData = new StringConstraintData$Type();
 class TableData$Type extends MessageType$<TableData> {
     constructor() {
         super("symbol.bench.TableData", [
-            { no: 1, name: "metatype", kind: "enum", T: () => ["symbol.bench.ObjectType", ObjectType, "OBJECT_TYPE_"] },
+            { no: 1, name: "metatype", kind: "enum", T: () => ["symbol.bench.NodeType", NodeType, "NODE_TYPE_"] },
             { no: 2, name: "id", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
             { no: 3, name: "ck", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
             { no: 4, name: "parent_ptr", kind: "message", T: () => NodeReferenceData },
@@ -31550,7 +30199,7 @@ class TableData$Type extends MessageType$<TableData> {
         while (reader.pos < end) {
             let [fieldNo, wireType] = reader.tag();
             switch (fieldNo) {
-                case /* symbol.bench.ObjectType metatype */ 1:
+                case /* symbol.bench.NodeType metatype */ 1:
                     message.metatype = reader.int32();
                     break;
                 case /* string id */ 2:
@@ -31622,7 +30271,7 @@ class TableData$Type extends MessageType$<TableData> {
         return message;
     }
     internalBinaryWrite(message: TableData, writer: IBinaryWriter, options: BinaryWriteOptions): IBinaryWriter {
-        /* symbol.bench.ObjectType metatype = 1; */
+        /* symbol.bench.NodeType metatype = 1; */
         if (message.metatype !== 0)
             writer.tag(1, WireType.Varint).int32(message.metatype);
         /* string id = 2; */
@@ -31696,7 +30345,7 @@ export const TableData = new TableData$Type();
 class TaskData$Type extends MessageType$<TaskData> {
     constructor() {
         super("symbol.bench.TaskData", [
-            { no: 1, name: "metatype", kind: "enum", T: () => ["symbol.bench.ObjectType", ObjectType, "OBJECT_TYPE_"] },
+            { no: 1, name: "metatype", kind: "enum", T: () => ["symbol.bench.NodeType", NodeType, "NODE_TYPE_"] },
             { no: 2, name: "id", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
             { no: 3, name: "ck", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
             { no: 4, name: "parent_ptr", kind: "message", T: () => NodeReferenceData },
@@ -31749,7 +30398,7 @@ class TaskData$Type extends MessageType$<TaskData> {
         while (reader.pos < end) {
             let [fieldNo, wireType] = reader.tag();
             switch (fieldNo) {
-                case /* symbol.bench.ObjectType metatype */ 1:
+                case /* symbol.bench.NodeType metatype */ 1:
                     message.metatype = reader.int32();
                     break;
                 case /* string id */ 2:
@@ -31863,7 +30512,7 @@ class TaskData$Type extends MessageType$<TaskData> {
         return message;
     }
     internalBinaryWrite(message: TaskData, writer: IBinaryWriter, options: BinaryWriteOptions): IBinaryWriter {
-        /* symbol.bench.ObjectType metatype = 1; */
+        /* symbol.bench.NodeType metatype = 1; */
         if (message.metatype !== 0)
             writer.tag(1, WireType.Varint).int32(message.metatype);
         /* string id = 2; */
@@ -31979,7 +30628,7 @@ export const TaskData = new TaskData$Type();
 class TeamData$Type extends MessageType$<TeamData> {
     constructor() {
         super("symbol.bench.TeamData", [
-            { no: 1, name: "metatype", kind: "enum", T: () => ["symbol.bench.ObjectType", ObjectType, "OBJECT_TYPE_"] },
+            { no: 1, name: "metatype", kind: "enum", T: () => ["symbol.bench.NodeType", NodeType, "NODE_TYPE_"] },
             { no: 2, name: "id", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
             { no: 3, name: "ck", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
             { no: 4, name: "parent_ptr", kind: "message", T: () => NodeReferenceData },
@@ -32017,7 +30666,7 @@ class TeamData$Type extends MessageType$<TeamData> {
         while (reader.pos < end) {
             let [fieldNo, wireType] = reader.tag();
             switch (fieldNo) {
-                case /* symbol.bench.ObjectType metatype */ 1:
+                case /* symbol.bench.NodeType metatype */ 1:
                     message.metatype = reader.int32();
                     break;
                 case /* string id */ 2:
@@ -32089,7 +30738,7 @@ class TeamData$Type extends MessageType$<TeamData> {
         return message;
     }
     internalBinaryWrite(message: TeamData, writer: IBinaryWriter, options: BinaryWriteOptions): IBinaryWriter {
-        /* symbol.bench.ObjectType metatype = 1; */
+        /* symbol.bench.NodeType metatype = 1; */
         if (message.metatype !== 0)
             writer.tag(1, WireType.Varint).int32(message.metatype);
         /* string id = 2; */
@@ -32163,7 +30812,7 @@ export const TeamData = new TeamData$Type();
 class TextData$Type extends MessageType$<TextData> {
     constructor() {
         super("symbol.bench.TextData", [
-            { no: 1, name: "metatype", kind: "enum", T: () => ["symbol.bench.ObjectType", ObjectType, "OBJECT_TYPE_"] },
+            { no: 1, name: "metatype", kind: "enum", T: () => ["symbol.bench.StructType", StructType, "STRUCT_TYPE_"] },
             { no: 32, name: "lines", kind: "message", repeat: 1 /*RepeatType.PACKED*/, T: () => TextLineData }
         ]);
     }
@@ -32180,7 +30829,7 @@ class TextData$Type extends MessageType$<TextData> {
         while (reader.pos < end) {
             let [fieldNo, wireType] = reader.tag();
             switch (fieldNo) {
-                case /* symbol.bench.ObjectType metatype */ 1:
+                case /* symbol.bench.StructType metatype */ 1:
                     message.metatype = reader.int32();
                     break;
                 case /* repeated symbol.bench.TextLineData lines */ 32:
@@ -32198,7 +30847,7 @@ class TextData$Type extends MessageType$<TextData> {
         return message;
     }
     internalBinaryWrite(message: TextData, writer: IBinaryWriter, options: BinaryWriteOptions): IBinaryWriter {
-        /* symbol.bench.ObjectType metatype = 1; */
+        /* symbol.bench.StructType metatype = 1; */
         if (message.metatype !== 0)
             writer.tag(1, WireType.Varint).int32(message.metatype);
         /* repeated symbol.bench.TextLineData lines = 32; */
@@ -32218,7 +30867,7 @@ export const TextData = new TextData$Type();
 class TextLineData$Type extends MessageType$<TextLineData> {
     constructor() {
         super("symbol.bench.TextLineData", [
-            { no: 1, name: "metatype", kind: "enum", T: () => ["symbol.bench.ObjectType", ObjectType, "OBJECT_TYPE_"] },
+            { no: 1, name: "metatype", kind: "enum", T: () => ["symbol.bench.StructType", StructType, "STRUCT_TYPE_"] },
             { no: 30, name: "type", kind: "enum", T: () => ["symbol.bench.TextLineType", TextLineType, "TEXT_LINE_TYPE_"] },
             { no: 33, name: "spans", kind: "message", repeat: 1 /*RepeatType.PACKED*/, T: () => TextSpanData },
             { no: 34, name: "content", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
@@ -32247,7 +30896,7 @@ class TextLineData$Type extends MessageType$<TextLineData> {
         while (reader.pos < end) {
             let [fieldNo, wireType] = reader.tag();
             switch (fieldNo) {
-                case /* symbol.bench.ObjectType metatype */ 1:
+                case /* symbol.bench.StructType metatype */ 1:
                     message.metatype = reader.int32();
                     break;
                 case /* symbol.bench.TextLineType type */ 30:
@@ -32298,7 +30947,7 @@ class TextLineData$Type extends MessageType$<TextLineData> {
         return message;
     }
     internalBinaryWrite(message: TextLineData, writer: IBinaryWriter, options: BinaryWriteOptions): IBinaryWriter {
-        /* symbol.bench.ObjectType metatype = 1; */
+        /* symbol.bench.StructType metatype = 1; */
         if (message.metatype !== 0)
             writer.tag(1, WireType.Varint).int32(message.metatype);
         /* symbol.bench.TextLineType type = 30; */
@@ -32351,7 +31000,7 @@ export const TextLineData = new TextLineData$Type();
 class TextSpanData$Type extends MessageType$<TextSpanData> {
     constructor() {
         super("symbol.bench.TextSpanData", [
-            { no: 1, name: "metatype", kind: "enum", T: () => ["symbol.bench.ObjectType", ObjectType, "OBJECT_TYPE_"] },
+            { no: 1, name: "metatype", kind: "enum", T: () => ["symbol.bench.StructType", StructType, "STRUCT_TYPE_"] },
             { no: 30, name: "type", kind: "enum", T: () => ["symbol.bench.TextSpanType", TextSpanType, "TEXT_SPAN_TYPE_"] },
             { no: 33, name: "content", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
             { no: 34, name: "node_ptr", kind: "message", T: () => NodeReferenceData },
@@ -32380,7 +31029,7 @@ class TextSpanData$Type extends MessageType$<TextSpanData> {
         while (reader.pos < end) {
             let [fieldNo, wireType] = reader.tag();
             switch (fieldNo) {
-                case /* symbol.bench.ObjectType metatype */ 1:
+                case /* symbol.bench.StructType metatype */ 1:
                     message.metatype = reader.int32();
                     break;
                 case /* symbol.bench.TextSpanType type */ 30:
@@ -32434,7 +31083,7 @@ class TextSpanData$Type extends MessageType$<TextSpanData> {
         return message;
     }
     internalBinaryWrite(message: TextSpanData, writer: IBinaryWriter, options: BinaryWriteOptions): IBinaryWriter {
-        /* symbol.bench.ObjectType metatype = 1; */
+        /* symbol.bench.StructType metatype = 1; */
         if (message.metatype !== 0)
             writer.tag(1, WireType.Varint).int32(message.metatype);
         /* symbol.bench.TextSpanType type = 30; */
@@ -32490,7 +31139,7 @@ export const TextSpanData = new TextSpanData$Type();
 class TextViewData$Type extends MessageType$<TextViewData> {
     constructor() {
         super("symbol.bench.TextViewData", [
-            { no: 1, name: "metatype", kind: "enum", T: () => ["symbol.bench.ObjectType", ObjectType, "OBJECT_TYPE_"] },
+            { no: 1, name: "metatype", kind: "enum", T: () => ["symbol.bench.NodeType", NodeType, "NODE_TYPE_"] },
             { no: 2, name: "id", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
             { no: 3, name: "ck", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
             { no: 4, name: "parent_ptr", kind: "message", T: () => NodeReferenceData },
@@ -32548,7 +31197,7 @@ class TextViewData$Type extends MessageType$<TextViewData> {
         while (reader.pos < end) {
             let [fieldNo, wireType] = reader.tag();
             switch (fieldNo) {
-                case /* symbol.bench.ObjectType metatype */ 1:
+                case /* symbol.bench.NodeType metatype */ 1:
                     message.metatype = reader.int32();
                     break;
                 case /* string id */ 2:
@@ -32692,7 +31341,7 @@ class TextViewData$Type extends MessageType$<TextViewData> {
         return message;
     }
     internalBinaryWrite(message: TextViewData, writer: IBinaryWriter, options: BinaryWriteOptions): IBinaryWriter {
-        /* symbol.bench.ObjectType metatype = 1; */
+        /* symbol.bench.NodeType metatype = 1; */
         if (message.metatype !== 0)
             writer.tag(1, WireType.Varint).int32(message.metatype);
         /* string id = 2; */
@@ -32814,7 +31463,7 @@ export const TextViewData = new TextViewData$Type();
 class ThemeData$Type extends MessageType$<ThemeData> {
     constructor() {
         super("symbol.bench.ThemeData", [
-            { no: 1, name: "metatype", kind: "enum", T: () => ["symbol.bench.ObjectType", ObjectType, "OBJECT_TYPE_"] },
+            { no: 1, name: "metatype", kind: "enum", T: () => ["symbol.bench.NodeType", NodeType, "NODE_TYPE_"] },
             { no: 2, name: "id", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
             { no: 3, name: "ck", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
             { no: 4, name: "parent_ptr", kind: "message", T: () => NodeReferenceData },
@@ -32852,7 +31501,7 @@ class ThemeData$Type extends MessageType$<ThemeData> {
         while (reader.pos < end) {
             let [fieldNo, wireType] = reader.tag();
             switch (fieldNo) {
-                case /* symbol.bench.ObjectType metatype */ 1:
+                case /* symbol.bench.NodeType metatype */ 1:
                     message.metatype = reader.int32();
                     break;
                 case /* string id */ 2:
@@ -32937,7 +31586,7 @@ class ThemeData$Type extends MessageType$<ThemeData> {
         map[key ?? 0] = val ?? ColorData.create();
     }
     internalBinaryWrite(message: ThemeData, writer: IBinaryWriter, options: BinaryWriteOptions): IBinaryWriter {
-        /* symbol.bench.ObjectType metatype = 1; */
+        /* symbol.bench.NodeType metatype = 1; */
         if (message.metatype !== 0)
             writer.tag(1, WireType.Varint).int32(message.metatype);
         /* string id = 2; */
@@ -33012,7 +31661,7 @@ export const ThemeData = new ThemeData$Type();
 class ThreadData$Type extends MessageType$<ThreadData> {
     constructor() {
         super("symbol.bench.ThreadData", [
-            { no: 1, name: "metatype", kind: "enum", T: () => ["symbol.bench.ObjectType", ObjectType, "OBJECT_TYPE_"] },
+            { no: 1, name: "metatype", kind: "enum", T: () => ["symbol.bench.NodeType", NodeType, "NODE_TYPE_"] },
             { no: 2, name: "id", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
             { no: 3, name: "ck", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
             { no: 4, name: "parent_ptr", kind: "message", T: () => NodeReferenceData },
@@ -33068,7 +31717,7 @@ class ThreadData$Type extends MessageType$<ThreadData> {
         while (reader.pos < end) {
             let [fieldNo, wireType] = reader.tag();
             switch (fieldNo) {
-                case /* symbol.bench.ObjectType metatype */ 1:
+                case /* symbol.bench.NodeType metatype */ 1:
                     message.metatype = reader.int32();
                     break;
                 case /* string id */ 2:
@@ -33191,7 +31840,7 @@ class ThreadData$Type extends MessageType$<ThreadData> {
         return message;
     }
     internalBinaryWrite(message: ThreadData, writer: IBinaryWriter, options: BinaryWriteOptions): IBinaryWriter {
-        /* symbol.bench.ObjectType metatype = 1; */
+        /* symbol.bench.NodeType metatype = 1; */
         if (message.metatype !== 0)
             writer.tag(1, WireType.Varint).int32(message.metatype);
         /* string id = 2; */
@@ -33316,7 +31965,7 @@ export const ThreadData = new ThreadData$Type();
 class ThreadViewData$Type extends MessageType$<ThreadViewData> {
     constructor() {
         super("symbol.bench.ThreadViewData", [
-            { no: 1, name: "metatype", kind: "enum", T: () => ["symbol.bench.ObjectType", ObjectType, "OBJECT_TYPE_"] },
+            { no: 1, name: "metatype", kind: "enum", T: () => ["symbol.bench.NodeType", NodeType, "NODE_TYPE_"] },
             { no: 2, name: "id", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
             { no: 3, name: "ck", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
             { no: 4, name: "parent_ptr", kind: "message", T: () => NodeReferenceData },
@@ -33361,7 +32010,7 @@ class ThreadViewData$Type extends MessageType$<ThreadViewData> {
         while (reader.pos < end) {
             let [fieldNo, wireType] = reader.tag();
             switch (fieldNo) {
-                case /* symbol.bench.ObjectType metatype */ 1:
+                case /* symbol.bench.NodeType metatype */ 1:
                     message.metatype = reader.int32();
                     break;
                 case /* string id */ 2:
@@ -33454,7 +32103,7 @@ class ThreadViewData$Type extends MessageType$<ThreadViewData> {
         return message;
     }
     internalBinaryWrite(message: ThreadViewData, writer: IBinaryWriter, options: BinaryWriteOptions): IBinaryWriter {
-        /* symbol.bench.ObjectType metatype = 1; */
+        /* symbol.bench.NodeType metatype = 1; */
         if (message.metatype !== 0)
             writer.tag(1, WireType.Varint).int32(message.metatype);
         /* string id = 2; */
@@ -33549,7 +32198,7 @@ export const ThreadViewData = new ThreadViewData$Type();
 class TransitionData$Type extends MessageType$<TransitionData> {
     constructor() {
         super("symbol.bench.TransitionData", [
-            { no: 1, name: "metatype", kind: "enum", T: () => ["symbol.bench.ObjectType", ObjectType, "OBJECT_TYPE_"] },
+            { no: 1, name: "metatype", kind: "enum", T: () => ["symbol.bench.StructType", StructType, "STRUCT_TYPE_"] },
             { no: 30, name: "type", kind: "enum", T: () => ["symbol.bench.TransitionType", TransitionType, "TRANSITION_TYPE_"] },
             { no: 40, name: "field_ptr", kind: "message", T: () => NodeReferenceData },
             { no: 41, name: "style_ptr", kind: "message", T: () => NodeReferenceData },
@@ -33577,7 +32226,7 @@ class TransitionData$Type extends MessageType$<TransitionData> {
         while (reader.pos < end) {
             let [fieldNo, wireType] = reader.tag();
             switch (fieldNo) {
-                case /* symbol.bench.ObjectType metatype */ 1:
+                case /* symbol.bench.StructType metatype */ 1:
                     message.metatype = reader.int32();
                     break;
                 case /* symbol.bench.TransitionType type */ 30:
@@ -33629,7 +32278,7 @@ class TransitionData$Type extends MessageType$<TransitionData> {
         return message;
     }
     internalBinaryWrite(message: TransitionData, writer: IBinaryWriter, options: BinaryWriteOptions): IBinaryWriter {
-        /* symbol.bench.ObjectType metatype = 1; */
+        /* symbol.bench.StructType metatype = 1; */
         if (message.metatype !== 0)
             writer.tag(1, WireType.Varint).int32(message.metatype);
         /* symbol.bench.TransitionType type = 30; */
@@ -33683,7 +32332,7 @@ export const TransitionData = new TransitionData$Type();
 class TransitionStyleData$Type extends MessageType$<TransitionStyleData> {
     constructor() {
         super("symbol.bench.TransitionStyleData", [
-            { no: 1, name: "metatype", kind: "enum", T: () => ["symbol.bench.ObjectType", ObjectType, "OBJECT_TYPE_"] },
+            { no: 1, name: "metatype", kind: "enum", T: () => ["symbol.bench.NodeType", NodeType, "NODE_TYPE_"] },
             { no: 2, name: "id", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
             { no: 4, name: "parent_ptr", kind: "message", T: () => NodeReferenceData },
             { no: 6, name: "bench_ptr", kind: "message", T: () => NodeReferenceData },
@@ -33730,7 +32379,7 @@ class TransitionStyleData$Type extends MessageType$<TransitionStyleData> {
         while (reader.pos < end) {
             let [fieldNo, wireType] = reader.tag();
             switch (fieldNo) {
-                case /* symbol.bench.ObjectType metatype */ 1:
+                case /* symbol.bench.NodeType metatype */ 1:
                     message.metatype = reader.int32();
                     break;
                 case /* string id */ 2:
@@ -33830,7 +32479,7 @@ class TransitionStyleData$Type extends MessageType$<TransitionStyleData> {
         return message;
     }
     internalBinaryWrite(message: TransitionStyleData, writer: IBinaryWriter, options: BinaryWriteOptions): IBinaryWriter {
-        /* symbol.bench.ObjectType metatype = 1; */
+        /* symbol.bench.NodeType metatype = 1; */
         if (message.metatype !== 0)
             writer.tag(1, WireType.Varint).int32(message.metatype);
         /* string id = 2; */
@@ -33932,7 +32581,7 @@ export const TransitionStyleData = new TransitionStyleData$Type();
 class TypeData$Type extends MessageType$<TypeData> {
     constructor() {
         super("symbol.bench.TypeData", [
-            { no: 1, name: "metatype", kind: "enum", T: () => ["symbol.bench.ObjectType", ObjectType, "OBJECT_TYPE_"] },
+            { no: 1, name: "metatype", kind: "enum", T: () => ["symbol.bench.StructType", StructType, "STRUCT_TYPE_"] },
             { no: 40, name: "cardinality", kind: "enum", T: () => ["symbol.bench.TypeCardinality", TypeCardinality, "TYPE_CARDINALITY_"] },
             { no: 41, name: "scalar_type", kind: "enum", T: () => ["symbol.bench.ScalarType", ScalarType, "SCALAR_TYPE_"] },
             { no: 42, name: "primitive_type", kind: "enum", opt: true, T: () => ["symbol.bench.PrimitiveType", PrimitiveType, "PRIMITIVE_TYPE_"] },
@@ -33966,7 +32615,7 @@ class TypeData$Type extends MessageType$<TypeData> {
         while (reader.pos < end) {
             let [fieldNo, wireType] = reader.tag();
             switch (fieldNo) {
-                case /* symbol.bench.ObjectType metatype */ 1:
+                case /* symbol.bench.StructType metatype */ 1:
                     message.metatype = reader.int32();
                     break;
                 case /* symbol.bench.TypeCardinality cardinality */ 40:
@@ -34026,7 +32675,7 @@ class TypeData$Type extends MessageType$<TypeData> {
         return message;
     }
     internalBinaryWrite(message: TypeData, writer: IBinaryWriter, options: BinaryWriteOptions): IBinaryWriter {
-        /* symbol.bench.ObjectType metatype = 1; */
+        /* symbol.bench.StructType metatype = 1; */
         if (message.metatype !== 0)
             writer.tag(1, WireType.Varint).int32(message.metatype);
         /* symbol.bench.TypeCardinality cardinality = 40; */
@@ -34088,7 +32737,7 @@ export const TypeData = new TypeData$Type();
 class UserData$Type extends MessageType$<UserData> {
     constructor() {
         super("symbol.bench.UserData", [
-            { no: 1, name: "metatype", kind: "enum", T: () => ["symbol.bench.ObjectType", ObjectType, "OBJECT_TYPE_"] },
+            { no: 1, name: "metatype", kind: "enum", T: () => ["symbol.bench.NodeType", NodeType, "NODE_TYPE_"] },
             { no: 2, name: "id", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
             { no: 4, name: "parent_ptr", kind: "message", T: () => NodeReferenceData },
             { no: 10, name: "created_at", kind: "message", T: () => Timestamp },
@@ -34130,7 +32779,7 @@ class UserData$Type extends MessageType$<UserData> {
         while (reader.pos < end) {
             let [fieldNo, wireType] = reader.tag();
             switch (fieldNo) {
-                case /* symbol.bench.ObjectType metatype */ 1:
+                case /* symbol.bench.NodeType metatype */ 1:
                     message.metatype = reader.int32();
                     break;
                 case /* string id */ 2:
@@ -34211,7 +32860,7 @@ class UserData$Type extends MessageType$<UserData> {
         return message;
     }
     internalBinaryWrite(message: UserData, writer: IBinaryWriter, options: BinaryWriteOptions): IBinaryWriter {
-        /* symbol.bench.ObjectType metatype = 1; */
+        /* symbol.bench.NodeType metatype = 1; */
         if (message.metatype !== 0)
             writer.tag(1, WireType.Varint).int32(message.metatype);
         /* string id = 2; */
@@ -34294,7 +32943,7 @@ export const UserData = new UserData$Type();
 class ValueData$Type extends MessageType$<ValueData> {
     constructor() {
         super("symbol.bench.ValueData", [
-            { no: 1, name: "metatype", kind: "enum", T: () => ["symbol.bench.ObjectType", ObjectType, "OBJECT_TYPE_"] },
+            { no: 1, name: "metatype", kind: "enum", T: () => ["symbol.bench.StructType", StructType, "STRUCT_TYPE_"] },
             { no: 35, name: "value", kind: "map", K: 9 /*ScalarType.STRING*/, V: { kind: "message", T: () => Value } }
         ]);
     }
@@ -34311,7 +32960,7 @@ class ValueData$Type extends MessageType$<ValueData> {
         while (reader.pos < end) {
             let [fieldNo, wireType] = reader.tag();
             switch (fieldNo) {
-                case /* symbol.bench.ObjectType metatype */ 1:
+                case /* symbol.bench.StructType metatype */ 1:
                     message.metatype = reader.int32();
                     break;
                 case /* map<string, google.protobuf.Value> value */ 35:
@@ -34345,7 +32994,7 @@ class ValueData$Type extends MessageType$<ValueData> {
         map[key ?? ""] = val ?? Value.create();
     }
     internalBinaryWrite(message: ValueData, writer: IBinaryWriter, options: BinaryWriteOptions): IBinaryWriter {
-        /* symbol.bench.ObjectType metatype = 1; */
+        /* symbol.bench.StructType metatype = 1; */
         if (message.metatype !== 0)
             writer.tag(1, WireType.Varint).int32(message.metatype);
         /* map<string, google.protobuf.Value> value = 35; */
@@ -34369,7 +33018,7 @@ export const ValueData = new ValueData$Type();
 class VariableData$Type extends MessageType$<VariableData> {
     constructor() {
         super("symbol.bench.VariableData", [
-            { no: 1, name: "metatype", kind: "enum", T: () => ["symbol.bench.ObjectType", ObjectType, "OBJECT_TYPE_"] },
+            { no: 1, name: "metatype", kind: "enum", T: () => ["symbol.bench.StructType", StructType, "STRUCT_TYPE_"] },
             { no: 40, name: "field_ptr", kind: "message", T: () => NodeReferenceData },
             { no: 41, name: "node_ptr", kind: "message", T: () => NodeReferenceData }
         ]);
@@ -34386,7 +33035,7 @@ class VariableData$Type extends MessageType$<VariableData> {
         while (reader.pos < end) {
             let [fieldNo, wireType] = reader.tag();
             switch (fieldNo) {
-                case /* symbol.bench.ObjectType metatype */ 1:
+                case /* symbol.bench.StructType metatype */ 1:
                     message.metatype = reader.int32();
                     break;
                 case /* optional symbol.bench.NodeReferenceData field_ptr */ 40:
@@ -34407,7 +33056,7 @@ class VariableData$Type extends MessageType$<VariableData> {
         return message;
     }
     internalBinaryWrite(message: VariableData, writer: IBinaryWriter, options: BinaryWriteOptions): IBinaryWriter {
-        /* symbol.bench.ObjectType metatype = 1; */
+        /* symbol.bench.StructType metatype = 1; */
         if (message.metatype !== 0)
             writer.tag(1, WireType.Varint).int32(message.metatype);
         /* optional symbol.bench.NodeReferenceData field_ptr = 40; */
@@ -34430,7 +33079,7 @@ export const VariableData = new VariableData$Type();
 class Vector2Data$Type extends MessageType$<Vector2Data> {
     constructor() {
         super("symbol.bench.Vector2Data", [
-            { no: 1, name: "metatype", kind: "enum", T: () => ["symbol.bench.ObjectType", ObjectType, "OBJECT_TYPE_"] },
+            { no: 1, name: "metatype", kind: "enum", T: () => ["symbol.bench.StructType", StructType, "STRUCT_TYPE_"] },
             { no: 50, name: "x", kind: "scalar", T: 2 /*ScalarType.FLOAT*/ },
             { no: 51, name: "y", kind: "scalar", T: 2 /*ScalarType.FLOAT*/ }
         ]);
@@ -34449,7 +33098,7 @@ class Vector2Data$Type extends MessageType$<Vector2Data> {
         while (reader.pos < end) {
             let [fieldNo, wireType] = reader.tag();
             switch (fieldNo) {
-                case /* symbol.bench.ObjectType metatype */ 1:
+                case /* symbol.bench.StructType metatype */ 1:
                     message.metatype = reader.int32();
                     break;
                 case /* float x */ 50:
@@ -34470,7 +33119,7 @@ class Vector2Data$Type extends MessageType$<Vector2Data> {
         return message;
     }
     internalBinaryWrite(message: Vector2Data, writer: IBinaryWriter, options: BinaryWriteOptions): IBinaryWriter {
-        /* symbol.bench.ObjectType metatype = 1; */
+        /* symbol.bench.StructType metatype = 1; */
         if (message.metatype !== 0)
             writer.tag(1, WireType.Varint).int32(message.metatype);
         /* float x = 50; */
@@ -34493,7 +33142,7 @@ export const Vector2Data = new Vector2Data$Type();
 class Vector3Data$Type extends MessageType$<Vector3Data> {
     constructor() {
         super("symbol.bench.Vector3Data", [
-            { no: 1, name: "metatype", kind: "enum", T: () => ["symbol.bench.ObjectType", ObjectType, "OBJECT_TYPE_"] },
+            { no: 1, name: "metatype", kind: "enum", T: () => ["symbol.bench.StructType", StructType, "STRUCT_TYPE_"] },
             { no: 50, name: "x", kind: "scalar", T: 2 /*ScalarType.FLOAT*/ },
             { no: 51, name: "y", kind: "scalar", T: 2 /*ScalarType.FLOAT*/ },
             { no: 52, name: "z", kind: "scalar", T: 2 /*ScalarType.FLOAT*/ }
@@ -34514,7 +33163,7 @@ class Vector3Data$Type extends MessageType$<Vector3Data> {
         while (reader.pos < end) {
             let [fieldNo, wireType] = reader.tag();
             switch (fieldNo) {
-                case /* symbol.bench.ObjectType metatype */ 1:
+                case /* symbol.bench.StructType metatype */ 1:
                     message.metatype = reader.int32();
                     break;
                 case /* float x */ 50:
@@ -34538,7 +33187,7 @@ class Vector3Data$Type extends MessageType$<Vector3Data> {
         return message;
     }
     internalBinaryWrite(message: Vector3Data, writer: IBinaryWriter, options: BinaryWriteOptions): IBinaryWriter {
-        /* symbol.bench.ObjectType metatype = 1; */
+        /* symbol.bench.StructType metatype = 1; */
         if (message.metatype !== 0)
             writer.tag(1, WireType.Varint).int32(message.metatype);
         /* float x = 50; */
@@ -34564,7 +33213,7 @@ export const Vector3Data = new Vector3Data$Type();
 class Vector4Data$Type extends MessageType$<Vector4Data> {
     constructor() {
         super("symbol.bench.Vector4Data", [
-            { no: 1, name: "metatype", kind: "enum", T: () => ["symbol.bench.ObjectType", ObjectType, "OBJECT_TYPE_"] },
+            { no: 1, name: "metatype", kind: "enum", T: () => ["symbol.bench.StructType", StructType, "STRUCT_TYPE_"] },
             { no: 50, name: "x", kind: "scalar", T: 2 /*ScalarType.FLOAT*/ },
             { no: 51, name: "y", kind: "scalar", T: 2 /*ScalarType.FLOAT*/ },
             { no: 52, name: "z", kind: "scalar", T: 2 /*ScalarType.FLOAT*/ },
@@ -34587,7 +33236,7 @@ class Vector4Data$Type extends MessageType$<Vector4Data> {
         while (reader.pos < end) {
             let [fieldNo, wireType] = reader.tag();
             switch (fieldNo) {
-                case /* symbol.bench.ObjectType metatype */ 1:
+                case /* symbol.bench.StructType metatype */ 1:
                     message.metatype = reader.int32();
                     break;
                 case /* float x */ 50:
@@ -34614,7 +33263,7 @@ class Vector4Data$Type extends MessageType$<Vector4Data> {
         return message;
     }
     internalBinaryWrite(message: Vector4Data, writer: IBinaryWriter, options: BinaryWriteOptions): IBinaryWriter {
-        /* symbol.bench.ObjectType metatype = 1; */
+        /* symbol.bench.StructType metatype = 1; */
         if (message.metatype !== 0)
             writer.tag(1, WireType.Varint).int32(message.metatype);
         /* float x = 50; */
@@ -34643,7 +33292,7 @@ export const Vector4Data = new Vector4Data$Type();
 class WizardViewData$Type extends MessageType$<WizardViewData> {
     constructor() {
         super("symbol.bench.WizardViewData", [
-            { no: 1, name: "metatype", kind: "enum", T: () => ["symbol.bench.ObjectType", ObjectType, "OBJECT_TYPE_"] },
+            { no: 1, name: "metatype", kind: "enum", T: () => ["symbol.bench.NodeType", NodeType, "NODE_TYPE_"] },
             { no: 2, name: "id", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
             { no: 3, name: "ck", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
             { no: 4, name: "parent_ptr", kind: "message", T: () => NodeReferenceData },
@@ -34686,7 +33335,7 @@ class WizardViewData$Type extends MessageType$<WizardViewData> {
         while (reader.pos < end) {
             let [fieldNo, wireType] = reader.tag();
             switch (fieldNo) {
-                case /* symbol.bench.ObjectType metatype */ 1:
+                case /* symbol.bench.NodeType metatype */ 1:
                     message.metatype = reader.int32();
                     break;
                 case /* string id */ 2:
@@ -34773,7 +33422,7 @@ class WizardViewData$Type extends MessageType$<WizardViewData> {
         return message;
     }
     internalBinaryWrite(message: WizardViewData, writer: IBinaryWriter, options: BinaryWriteOptions): IBinaryWriter {
-        /* symbol.bench.ObjectType metatype = 1; */
+        /* symbol.bench.NodeType metatype = 1; */
         if (message.metatype !== 0)
             writer.tag(1, WireType.Varint).int32(message.metatype);
         /* string id = 2; */

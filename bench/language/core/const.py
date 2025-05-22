@@ -154,25 +154,8 @@ class BuiltinEnum(enum.IntEnum):
         """Get the maximum ord."""
         return len(cls)
 
-    def to(self, combined_type: Union["BuiltinEnumT", "BuiltinEnumOrUnion"]) -> "BuiltinEnumT":
-        return combined_type(self.id)  # type: ignore
-
-    @staticmethod
-    def combine(name: str, *enums: type["BuiltinEnum"]) -> type["BuiltinEnum"]:
-        combined_ids = {}
-        for e in enums:
-            for t in e:
-                if t.name in combined_ids:
-                    raise ValueError(f"duplicate enum name: {t.name} from {enums}")
-                combined_ids[t.name] = t.id
-        combined = BuiltinEnum(name, combined_ids)
-        return typing.cast(type["BuiltinEnum"], combined)
-
 
 BuiltinEnumOrUnion = Union[BuiltinEnum, Union[BuiltinEnum, Any]]
-# NOTE: BuiltinEnumOrOnion is intended for stuff like AccessType = BuiltinEnum.combine("AccessType", ReadType, ...)
-#  But for type checking we have it as AccessType = ReadType | ...
-#  So we make these methods accept 'Any' for compliance. Not great but it's a small footprint.
 EnumT = TypeVar("EnumT", bound=BuiltinEnum)
 _ENUM_MEMBERS_BY_ORD: dict[type[BuiltinEnum], list[BuiltinEnum]] = {}
 
@@ -299,8 +282,6 @@ class EnumType(BuiltinEnum):
     ENUM_TYPE = 40000
     NODE_TYPE = 40001
     STRUCT_TYPE = 40002
-    OBJECT_TYPE = 40003
-    BENCH_TYPE = 40004
     NODE_MODE = 40005
     NODE_AREA = 40006
     USER_STATUS = 40010
@@ -791,9 +772,9 @@ class NodeType(BuiltinEnum):
 
 @enum_(EnumType.NODE_AREA)
 class NodeArea(BuiltinEnum):
-    GLOBAL_DB = 100
-    REGIONAL_DB = 200
-    LOCAL_DB = 300
+    GLOBAL_POSTGRES = 100
+    REGIONAL_POSTGRES = 200
+    LOCAL_POSTGRES = 300
 
 
 @enum_(EnumType.NODE_MODE)
@@ -832,14 +813,14 @@ GLOBAL_NODE_TYPES = _get_node_types(None, 1000)
 LOCAL_NODE_TYPES = bittuple(NodeType.RECORD)
 REGIONAL_NODE_TYPES = _get_node_types(1000, 10000) - LOCAL_NODE_TYPES
 AREA_BY_NODE_TYPE = {
-    **dict.fromkeys(GLOBAL_NODE_TYPES, NodeArea.GLOBAL_DB),
-    **dict.fromkeys(REGIONAL_NODE_TYPES, NodeArea.REGIONAL_DB),
-    **dict.fromkeys(LOCAL_NODE_TYPES, NodeArea.LOCAL_DB),
+    **dict.fromkeys(GLOBAL_NODE_TYPES, NodeArea.GLOBAL_POSTGRES),
+    **dict.fromkeys(REGIONAL_NODE_TYPES, NodeArea.REGIONAL_POSTGRES),
+    **dict.fromkeys(LOCAL_NODE_TYPES, NodeArea.LOCAL_POSTGRES),
 }
 NODE_TYPES_BY_AREA = {
-    NodeArea.GLOBAL_DB: GLOBAL_NODE_TYPES,
-    NodeArea.REGIONAL_DB: REGIONAL_NODE_TYPES,
-    NodeArea.LOCAL_DB: LOCAL_NODE_TYPES,
+    NodeArea.GLOBAL_POSTGRES: GLOBAL_NODE_TYPES,
+    NodeArea.REGIONAL_POSTGRES: REGIONAL_NODE_TYPES,
+    NodeArea.LOCAL_POSTGRES: LOCAL_NODE_TYPES,
 }
 ROOT_NODE_TYPES = bittuple(NodeType.BENCH, NodeType.USER, NodeType.ORGANIZATION)
 RESOURCE_NODE_TYPES = bittuple(
@@ -970,19 +951,6 @@ AUTOLOAD_DESCENDANT_TYPES: dict[NodeType, tuple[NodeType, ...]] = {
 STRUCT_TYPES: bittuple[StructType] = bittuple(*StructType)
 STRUCT_TYPES_SET: frozenset[StructType] = frozenset(STRUCT_TYPES)
 
-if typing.TYPE_CHECKING:
-    ObjectType = NodeType | StructType
-    BenchType = NodeType | StructType | EnumType
-else:
-    ObjectType = BuiltinEnum.combine("ObjectType", NodeType, StructType)
-    enum_(EnumType.OBJECT_TYPE)(ObjectType)
-    BenchType = BuiltinEnum.combine("BenchType", NodeType, StructType, EnumType)
-    enum_(EnumType.BENCH_TYPE)(BenchType)
-
-OBJECT_TYPES: bittuple[ObjectType] = bittuple(*ObjectType)  # type: ignore
-OBJECT_TYPES_SET: frozenset[ObjectType] = frozenset(OBJECT_TYPES)
-BENCH_TYPES: bittuple[BenchType] = bittuple(*BenchType)  # type: ignore
-
 
 def is_node_type(obj: BuiltinEnum | int | Any) -> TypeGuard[NodeType]:
     return isinstance(obj, int) and obj in NODE_TYPES_SET
@@ -990,10 +958,6 @@ def is_node_type(obj: BuiltinEnum | int | Any) -> TypeGuard[NodeType]:
 
 def is_struct_type(obj: BuiltinEnum | int | Any) -> TypeGuard[StructType]:
     return isinstance(obj, int) and obj in STRUCT_TYPES_SET
-
-
-def is_object_type(obj: BuiltinEnum | int | Any) -> TypeGuard[ObjectType]:
-    return isinstance(obj, int) and obj in OBJECT_TYPES_SET
 
 
 def is_enum_type(obj: BuiltinEnum | int | Any) -> TypeGuard[EnumType]:

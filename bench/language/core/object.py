@@ -40,20 +40,15 @@ from .const import (
     ACTIVE_SESSION,
     EMPTY_DICT,
     UNSET,
+    EnumType,
     NodeReferenceKind,
     NodeType,
-    ObjectType,
+    PrimitiveType,
     Region,
     StructType,
 )
 from .graph import Supergraph
-from .property import (
-    _PROPERTY_SPECIFIERS,
-    METATYPE_PROPERTY,
-    Property,
-    p_regular,
-    p_runtime,
-)
+from .property import _PROPERTY_SPECIFIERS, Property, p_regular, p_runtime
 
 if TYPE_CHECKING:
     from bench.language import Field, Node, NodeReference, PropertyReference, Session
@@ -316,7 +311,7 @@ def {prop.name}_{obj_key}(self: "BuiltinObject") -> tuple["Node", ...]:
 """
 
 
-def _generate_ancestor_property(object_type: ObjectType, prop: Property) -> str:
+def _generate_ancestor_property(object_type: NodeType | StructType, prop: Property) -> str:
     """The computer get property for Node ancestors."""
 
     node_types_str = ", ".join(str(t.value) for t in prop.node_types)
@@ -342,7 +337,7 @@ def {prop.name}(self: "Node") -> "Node | None":
 
 def _process_object_cls[ObjectT: BuiltinObject](
     cls: type[ObjectT],
-    object_type: ObjectType | None,
+    object_type: NodeType | StructType | None,
     is_concrete: bool = False,
     is_struct: bool = False,
     is_node: bool = False,
@@ -351,8 +346,21 @@ def _process_object_cls[ObjectT: BuiltinObject](
     assert isinstance(cls, type), f"expected type, got {cls} ({type(cls)})"
     assert cls not in _processed_classes, f"class {cls.__name__} has already been processed"
 
-    metatype = METATYPE_PROPERTY.clone()
-    metatype.component = cls
+    metatype = Property(
+        id=1,
+        name="metatype",
+        default=None,
+        py_type_raw=NodeType if is_node else StructType,
+        is_internal=True,
+        cardinality="scalar",
+        is_required=True,
+        is_computed=True,  # is set statically by class decorator
+        is_wired=True,
+        is_stored=False,
+        primitive_type=PrimitiveType.INT16,
+        enum_type=EnumType.NODE_TYPE if is_node else EnumType.STRUCT_TYPE,
+        component=cls,
+    )
 
     # collect all components from class hierarchy (including self)
     components: list[type[BuiltinObject]] = []
@@ -545,8 +553,6 @@ _HANDLING_ATTRIBUTE_ERROR = contextvars.ContextVar("handling_attribute_error", d
 @object_()
 class BuiltinObject[ObjectDataT: AnyObjectData](abc.ABC):
     """The base for all intrinsic objects like Structs and Nodes and all their derivatives."""
-
-    metatype: ClassVar[ObjectType]
 
     __is_struct__: ClassVar[bool] = False
     __is_node__: ClassVar[bool] = False
@@ -764,7 +770,7 @@ def repr_scope(scope: Scope | ScopeData) -> str:
         return "[*]"
 
 
-EMPTY_SCOPE_DATA = ScopeData(metatype=lang_pb2.OBJECT_TYPE_SCOPE)
+EMPTY_SCOPE_DATA = ScopeData(metatype=lang_pb2.StructType.STRUCT_TYPE_SCOPE)
 
 
 @struct_(StructType.PROPERTY_REFERENCE)
@@ -774,36 +780,28 @@ class PropertyReference(Struct):
     If type is unset, this refers to a base property in one of the base BuiltinObject types.
     """
 
-    object_type: ObjectType | None = p_regular(30)
-    id: int = p_regular(31)
+    node_type: NodeType | None = p_regular(30)
+    struct_type: StructType | None = p_regular(31)
+    id: int = p_regular(32)
 
     def __content_str__(self):
-        if self.object_type is None:
-            from .node import Node
-
-            object_cls = Node
-        else:
-            object_cls = BUILTIN_OBJECT_CLASS_BY_TYPE.get(self.object_type)
+        object_cls = self.object_cls
         if object_cls is None:
-            if self.object_type is None:
-                return f"Node.??? [id={self.id}]"
-            else:
-                return f"{self.object_type.name}.??? [id={self.id}]"
+            return "???"
+        prop = object_cls.__properties_by_id__.get(self.id)
+        if prop is None:
+            return f"{object_cls.__name__}.??? [id={self.id}]"
         else:
-            prop = object_cls.__properties_by_id__.get(self.id)
-            if prop is None:
-                return f"{object_cls.__name__}.??? [id={self.id}]"
-            else:
-                return f"{object_cls.__name__}.{prop.name} [id={self.id}]"
+            return f"{object_cls.__name__}.{prop.name} [id={self.id}]"
 
     @property
     def object_cls(self) -> type[BuiltinObject] | None:
-        if self.object_type is None:
-            from .node import Node
-
-            return Node
+        if self.node_type is not None:
+            return BUILTIN_OBJECT_CLASS_BY_TYPE.get(self.node_type)
+        elif self.struct_type is not None:
+            return BUILTIN_OBJECT_CLASS_BY_TYPE.get(self.struct_type)
         else:
-            return BUILTIN_OBJECT_CLASS_BY_TYPE.get(self.object_type)
+            return None
 
     def resolve_or_error(self) -> Property:
         """Resolves the property reference to a Property."""

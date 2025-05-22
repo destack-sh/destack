@@ -1,11 +1,13 @@
 from typing import TYPE_CHECKING, Any, Collection, Sequence, cast
 
 from bench.language import (
-    BenchType,
     BuiltinEnum,
     BuiltinObject,
+    EnumType,
     Node,
+    NodeType,
     PrimitiveType,
+    StructType,
 )
 from bench.language.registry import BENCH_CLASS_BY_TYPE
 from bench.utils.string import Casing, to_casing
@@ -48,7 +50,7 @@ PROTO_FIELD_TYPE_BY_PRIMITIVE_TYPE: dict[PrimitiveType, ProtoFieldType] = {
 
 
 def _map_bench_property_to_proto_field(
-    prop: "Property", cache: dict[BenchType, ProtoThing]
+    prop: "Property", cache: dict[EnumType | NodeType | StructType, ProtoThing]
 ) -> ProtoField:
     assert prop.id == 1 or prop.is_wired, f"not a wired property: {prop!r}"
     assert isinstance(prop.id, int), f"invalid id: {prop!r}"
@@ -150,9 +152,9 @@ def _map_bench_property_to_proto_field(
 
 
 def _map_builtin_object_to_proto_message(
-    bench_type: BenchType,
+    bench_type: EnumType | NodeType | StructType,
     cls: type[BuiltinObject],
-    cache: dict[BenchType, ProtoThing],
+    cache: dict[EnumType | NodeType | StructType, ProtoThing],
     alias: str | None = None,
     properties: Sequence["Property"] | None = None,
 ) -> ProtoMessage:
@@ -177,7 +179,7 @@ def _map_builtin_object_to_proto_message(
 
 def _map_builtin_enum_to_proto_enum(
     bench_t: type[BuiltinEnum],
-    cache: dict[BenchType, ProtoThing],
+    cache: dict[EnumType | NodeType | StructType, ProtoThing],
     alias: str | None = None,
 ) -> ProtoEnum:
     assert issubclass(bench_t, BuiltinEnum), f"invalid enum: {bench_t!r}"
@@ -198,7 +200,9 @@ def _map_builtin_enum_to_proto_enum(
 
 
 def _map_object_type_to_proto(
-    bench_type: BenchType, cache: dict[BenchType, ProtoThing], alias: str | None = None
+    bench_type: EnumType | NodeType | StructType,
+    cache: dict[EnumType | NodeType | StructType, ProtoThing],
+    alias: str | None = None,
 ) -> ProtoThing:
     """Maps a Bench type to a Proto type. If not yet mapped, adds it to the cache."""
     from bench.language import BuiltinObject
@@ -218,12 +222,12 @@ def _map_object_type_to_proto(
 
 def generate_proto_schema(
     name: str,
-    unions: dict[str, tuple[str, Collection[BenchType]]],
+    unions: dict[str, tuple[str, Collection[EnumType | NodeType | StructType]]],
     extras: list[ProtoEnum | ProtoMessage],
     message_postfix: str,
 ) -> ProtoSchema:
     # walk all bench types to populate the cache
-    cache: dict[BenchType, ProtoThing] = {}
+    cache: dict[EnumType | NodeType | StructType, ProtoThing] = {}
     for bench_type in BENCH_CLASS_BY_TYPE:
         cache[bench_type] = _map_object_type_to_proto(bench_type, cache)
     assert len(cache) == len(BENCH_CLASS_BY_TYPE)

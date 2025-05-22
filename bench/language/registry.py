@@ -11,11 +11,9 @@ from .core.const import (
     LOCAL_NODE_TYPES,
     NODE_TYPES,
     STRUCT_TYPES,
-    BenchType,
     BuiltinEnum,
     EnumType,
     NodeType,
-    ObjectType,
     StructType,
     bittuple,
 )
@@ -29,10 +27,14 @@ ENUM_CLASS_BY_TYPE = _ENUM_CLASS_BY_TYPE  # re-exported to avoid circular import
 ENUM_TYPE_BY_CLASS: dict[type, EnumType] = {}
 NODE_CLASS_BY_TYPE: dict[NodeType, type["Node"]] = {}
 STRUCT_CLASS_BY_TYPE: dict[StructType, type["Struct"]] = {}
-BUILTIN_OBJECT_CLASS_BY_TYPE: dict[ObjectType, type["BuiltinObject"]] = {}
-BUILTIN_OBJECT_TYPE_BY_CLASS: dict[type["BuiltinObject"], ObjectType] = {}
-BENCH_CLASS_BY_TYPE: dict[BenchType, type["Struct"] | type["Node"] | type[BuiltinEnum]] = {}
-BENCH_TYPE_BY_CLASS: dict[type[Union["BuiltinObject", BuiltinEnum]], BenchType] = {}
+BUILTIN_OBJECT_CLASS_BY_TYPE: dict[NodeType | StructType, type["BuiltinObject"]] = {}
+BUILTIN_OBJECT_TYPE_BY_CLASS: dict[type["BuiltinObject"], NodeType | StructType] = {}
+BENCH_CLASS_BY_TYPE: dict[
+    EnumType | NodeType | StructType, type["Struct"] | type["Node"] | type[BuiltinEnum]
+] = {}
+BENCH_TYPE_BY_CLASS: dict[
+    type[Union["BuiltinObject", BuiltinEnum]], EnumType | NodeType | StructType
+] = {}
 BENCH_CLASSES: list[type[Union["BuiltinObject", BuiltinEnum]]] = []
 NODE_CLASSES: list[type["Node"]] = []
 STRUCT_CLASSES: list[type["Struct"]] = []

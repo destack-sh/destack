@@ -109,13 +109,13 @@ class HostService(HostBase):
         )
         self._global_database = global_database
         self._global_pg_engine_unscoped = pg_engine_from_database(
-            "pg-global", global_database, NodeArea.GLOBAL_DB
+            "pg-global", global_database, NodeArea.GLOBAL_POSTGRES
         )
         self._regional_database = regional_database
         self._regional_pg_engine_unscoped = pg_engine_from_database(
             f"pg-regional-{regional_database.region.name.lower()}",
             regional_database,
-            NodeArea.REGIONAL_DB,
+            NodeArea.REGIONAL_POSTGRES,
         )
         self._supergraph = Supergraph(name="Host", root_ptr=self.bench_ptr)
         self._client_cache = ClientCache(ttl=60, supergraph=self._supergraph)

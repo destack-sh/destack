@@ -31,7 +31,6 @@ from .const import (
     EnumType,
     NodeReferenceKind,
     NodeType,
-    ObjectType,
     PrimitiveType,
     StructType,
 )
@@ -385,19 +384,20 @@ class Property(IsQueryable if TYPE_CHECKING else object):
             assert self.component is not None, f"{self!r} is not finalized"
             from .object import PropertyReference
 
-            ref = PropertyReference(
-                object_type=getattr(self.component, "metatype", None), id=self.id
-            )
+            if self.component.__is_node__:
+                ref = PropertyReference(
+                    node_type=getattr(self.component, "metatype", None), id=self.id
+                )
+            else:
+                ref = PropertyReference(
+                    struct_type=getattr(self.component, "metatype", None), id=self.id
+                )
             self._ref = ref
         return self._ref
 
     @property
     def code_name(self) -> str:
         return self.name
-
-    @property
-    def type(self) -> Optional[ObjectType]:
-        return self.component.metatype
 
     @property
     def has_id(self) -> int:
@@ -521,7 +521,7 @@ class Property(IsQueryable if TYPE_CHECKING else object):
 
             return ptr_prop
 
-    def finalize(self, object_type: ObjectType | None) -> None:
+    def finalize(self, object_type: NodeType | StructType | None) -> None:
         """Determine type information from annotation, add _ptr property if needed."""
         if self.is_wired is False:  # runtime only
             return  # nothing to do
@@ -804,20 +804,6 @@ p_kernel = functools.partial(p_property, internal=True, system=True, sensitive=T
 if TYPE_CHECKING:
     p_regular = p_internal = p_system = p_kernel = p_property  # type: ignore
 
-METATYPE_PROPERTY = Property(
-    id=1,
-    name="metatype",
-    default=None,
-    py_type_raw=ObjectType,
-    is_internal=True,
-    cardinality="scalar",
-    is_required=True,
-    is_computed=True,  # is set statically by class decorator
-    is_wired=True,
-    is_stored=False,
-    primitive_type=PrimitiveType.INT16,
-    enum_type=EnumType.OBJECT_TYPE,
-)
 _PROPERTY_SPECIFIERS: tuple[Callable, ...] = (
     p_property,
     p_runtime,

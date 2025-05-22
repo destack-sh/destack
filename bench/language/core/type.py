@@ -15,7 +15,6 @@ from bench.language.registry import BENCH_TYPE_BY_CLASS
 
 from .const import (
     PRIMITIVE_TYPE_BY_PY_TYPE,
-    BenchType,
     BuiltinEnum,
     EnumType,
     NodeType,
@@ -236,7 +235,6 @@ TypeIn = Union[
     "Node",
     "BuiltinEnum",
     "PrimitiveType",
-    "BenchType",
     "FileType",
     type["Struct"],
     type["Node"],
@@ -274,7 +272,7 @@ def to_type_scalar(type_in: TypeIn) -> "Type":
             scalar_type=ScalarType.PRIMITIVE,
             primitive_type=type_in,
         )
-    elif isinstance(type_in, (NodeType, StructType, EnumType, BenchType)):
+    elif isinstance(type_in, (NodeType, StructType, EnumType)):
         if is_node_type(type_in):
             return Type(
                 cardinality=TypeCardinality.SCALAR,

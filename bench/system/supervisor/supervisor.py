@@ -99,7 +99,7 @@ class SupervisorService(GraphServiceBase, SupervisorBase):
         )
         self._global_database = global_database
         self._global_pg_engine = pg_engine_from_database(
-            "pg-global", global_database, NodeArea.GLOBAL_DB
+            "pg-global", global_database, NodeArea.GLOBAL_POSTGRES
         )
         self._database_map = database_map
         self._host_map = host_map
@@ -178,7 +178,7 @@ class SupervisorService(GraphServiceBase, SupervisorBase):
         regional_pg_engine = pg_engine_from_database(
             name=f"pg-regional-{regional_database.region.name.lower()}",
             database=regional_database,
-            area=NodeArea.REGIONAL_DB,
+            area=NodeArea.REGIONAL_POSTGRES,
         )
 
         async with self.new_request_session(
@@ -374,7 +374,7 @@ class SupervisorService(GraphServiceBase, SupervisorBase):
         regional_pg_engine = pg_engine_from_database(
             name=f"pg-regional-{regional_database.region.name.lower()}",
             database=regional_database,
-            area=NodeArea.REGIONAL_DB,
+            area=NodeArea.REGIONAL_POSTGRES,
         )
 
         # create bench

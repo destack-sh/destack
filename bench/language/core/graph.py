@@ -17,7 +17,7 @@ from opentelemetry import trace
 
 from bench.pb2 import AnyNodeData, ScopeData
 
-from .const import EMPTY_LIST, NodeType, ObjectType, bittuple
+from .const import EMPTY_LIST, NodeType, bittuple
 
 if TYPE_CHECKING:
     from bench.language import Node, NodeReference
@@ -66,7 +66,7 @@ class _GraphBase[K: str | UUID, V: AnyNodeData | Node](abc.ABC):
         )
 
         self._nodes_by_id: dict[K, V] = {}
-        self._nodes_by_parent: dict[K, dict[ObjectType, list[V]]] = {}
+        self._nodes_by_parent: dict[K, dict[NodeType, list[V]]] = {}
         # (nodes may be edited in place, so we remember the last parent id we know manually)
         self._parent_by_node: dict[K, K] = {}
 
@@ -184,7 +184,7 @@ class _GraphBase[K: str | UUID, V: AnyNodeData | Node](abc.ABC):
         if old is None:
             raise GraphConsistencyError(f"node {node!r} does not exist in {self!r}")
         self._nodes_by_id[node.id] = node
-        metatype = cast(ObjectType, node.metatype)
+        metatype = node.metatype
 
         # update parent if changed
         # (the instance may be edited in place, so we remember the last parent by identity as well)
@@ -236,7 +236,7 @@ class _GraphBase[K: str | UUID, V: AnyNodeData | Node](abc.ABC):
         parent_id = cast(K, node_parent_ptr.id)
         if parent_id not in self._nodes_by_parent:
             self._nodes_by_parent[parent_id] = {}
-        metatype = cast(ObjectType, node.metatype)
+        metatype = cast(NodeType, node.metatype)
         if metatype not in self._nodes_by_parent[parent_id]:
             self._nodes_by_parent[parent_id][metatype] = []
         self._nodes_by_parent[parent_id][metatype].append(node)

@@ -31,7 +31,6 @@ from .const import (
     PACKAGE_NODE_TYPES,
     EnumType,
     NodeType,
-    ObjectType,
     PrimitiveType,
     StructType,
     is_node_type,
@@ -68,8 +67,8 @@ tracer = trace.get_tracer(__name__)
 @dataclass(slots=True)
 class RenderOptions:
     aliasing: "Aliasing"
-    include_properties: Mapping[ObjectType, Collection[Property]] | None = None
-    exclude_properties: Mapping[ObjectType, Collection[Property]] | None = None
+    include_properties: Mapping[NodeType | StructType, Collection[Property]] | None = None
+    exclude_properties: Mapping[NodeType | StructType, Collection[Property]] | None = None
     node_types: Collection[NodeType] = NODE_TYPES_SET
     # formatting
     statement_separator: str = "\n"
@@ -427,10 +426,10 @@ def _deconstruct_type_in(
 #
 
 
-_renderers: dict[ObjectType, "BuiltinObjectRenderer"] = {}
+_renderers: dict[NodeType | StructType, "BuiltinObjectRenderer"] = {}
 
 
-def _renderer(object_type: ObjectType):
+def _renderer(object_type: NodeType | StructType):
     """Decorator to register a Rewriter for a specific ObjectType."""
 
     def decorator(cls):
@@ -441,7 +440,7 @@ def _renderer(object_type: ObjectType):
     return decorator
 
 
-def _get_renderer(object_type: ObjectType) -> "BuiltinObjectRenderer":
+def _get_renderer(object_type: NodeType | StructType) -> "BuiltinObjectRenderer":
     renderer = _renderers.get(object_type)
     if renderer is None:
         if is_node_type(object_type):
