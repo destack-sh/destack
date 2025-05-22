@@ -5,6 +5,7 @@ from fastuuid import UUID
 from bench.language.core import (
     BuiltinEnum,
     EnumType,
+    IsGlobal,
     IsSubject,
     Node,
     NodeReference,
@@ -31,7 +32,7 @@ class OrganizationStatus(BuiltinEnum):
 
 
 @node_(NodeType.ORGANIZATION, root_type=None)
-class Organization(IsSubject, Node[OrganizationData]):
+class Organization(IsGlobal, IsSubject, Node[OrganizationData]):
     """
     An Organization with Users and Teams.
     """

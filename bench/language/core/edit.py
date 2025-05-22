@@ -68,7 +68,7 @@ class EditOperationType(BuiltinEnum):
 
 
 @struct_(StructType.EDIT_OPERATION)
-class EditOperation(Struct):
+class EditOperation(Struct):  # nocheckin: merge EditOperation into Edit
     """An edit operation."""
 
     type: EditOperationType = p_system(30)

@@ -1,4 +1,5 @@
 from bench.language import NODE_CLASS_BY_TYPE, VERSION, NodeType
+from bench.language.core.const import NodeTrait
 from bench.utils.utils import format_python
 
 from .map import map_builtin_object_to_sql_table
@@ -13,7 +14,7 @@ def _gen_sql_schema():
     ]
     for node_t in NodeType:
         node_cls = NODE_CLASS_BY_TYPE[node_t]
-        if not node_cls.__is_custom__:
+        if NodeTrait.LOCAL not in node_cls.__traits__:
             table = map_builtin_object_to_sql_table(node_cls)
             const_name = f"{node_cls.metatype.name}_TABLE"
             table_def = f"{const_name} = {table.source_repr()}"

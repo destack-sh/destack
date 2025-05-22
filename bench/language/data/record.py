@@ -7,6 +7,7 @@ from bench.language.core import (
     IsClaimable,
     IsExtensible,
     IsInPackage,
+    IsLocal,
     IsModal,
     IsOrdered,
     IsOwnable,
@@ -28,8 +29,9 @@ if TYPE_CHECKING:
 logger = structlog.get_logger(__name__)
 
 
-@node_(NodeType.RECORD, is_custom=True)
+@node_(NodeType.RECORD)
 class Record(
+    IsLocal,
     IsBased,
     IsModal,
     IsOwnable,

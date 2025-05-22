@@ -16,6 +16,7 @@ from fastuuid import UUID
 from bench.language.registry import NODE_CLASS_BY_TRAIT
 from bench.pb2 import AnyNodeData, NodeReferenceData
 from bench.utils.fractional import INTEGER_ZERO
+from bench.utils.string import Casing, to_casing
 from bench.utils.tenacity import RetryOptions
 
 from .const import (
@@ -74,6 +75,17 @@ class IndexIn(NamedTuple):
     name: str | None = None
 
 
+def get_trait_by_name(name: str) -> NodeTrait:
+    """Get a trait by name."""
+    if name.startswith("Is"):
+        name = name[3:]
+    name = to_casing(name, Casing.ALL_CAPS)
+    trait = NodeTrait.__members__.get(name)
+    if trait is None:
+        raise LookupError(f"unknown trait: {name}")
+    return trait
+
+
 @dataclass_transform(kw_only_default=True, field_specifiers=_PROPERTY_SPECIFIERS)
 def node_trait_(
     node_trait: NodeTrait,
@@ -91,6 +103,20 @@ def node_trait_(
         return cls
 
     return decorate
+
+
+@node_trait_(NodeTrait.GLOBAL)
+class IsGlobal(Node if TYPE_CHECKING else BuiltinObject):
+    """A Node that is global."""
+
+    pass
+
+
+@node_trait_(NodeTrait.LOCAL)
+class IsLocal(Node if TYPE_CHECKING else BuiltinObject):
+    """A Node that is local."""
+
+    pass
 
 
 @node_trait_(NodeTrait.MODAL)

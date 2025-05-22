@@ -235,7 +235,7 @@ def get_naive_object_strategy(object_type: ObjectType):
         elif prop.is_node_data:
             object_kwargs[prop.name] = st.none()  # nothing meaningful to generate?
         else:
-            object_kwargs[prop.name] = from_type_info(prop.type_info)
+            object_kwargs[prop.name] = from_type_info(prop.type)
     return object_kwargs
 
 

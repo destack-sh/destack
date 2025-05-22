@@ -3,13 +3,12 @@
 from bench.utils.oracle import REAL_ORACLE
 
 from .auth import *  # noqa: F403
-from .chat import *  # noqa: F403
+from .bench import *  # noqa: F403
 from .core import *  # noqa: F403
 from .data import *  # noqa: F403
 from .finance import *  # noqa: F403
 from .infra import *  # noqa: F403
 from .logic import *  # noqa: F403
-from .meta import *  # noqa: F403
 from .package import *  # noqa: F403
 from .registry import (
     BENCH_CLASS_BY_TYPE,  # noqa: F401
@@ -22,6 +21,7 @@ from .registry import (
     _complete_bench_setup,
 )
 from .runtime import *  # noqa: F403
+from .social import *  # noqa: F403
 from .space import *  # noqa: F403
 from .style import *  # noqa: F403
 from .view import *  # noqa: F403
