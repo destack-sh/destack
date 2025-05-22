@@ -426,7 +426,7 @@ class Property(IsQueryable if TYPE_CHECKING else object):
         return self.enum_type is not None
 
     @property
-    def type_info(self) -> "Type":
+    def type(self) -> "Type":
         """The type info for this property (can't extend TypeInfo because circles)."""
         if self._type is None:
             self._type = self._to_type()

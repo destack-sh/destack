@@ -19,12 +19,10 @@ from fastuuid import UUID
 from opentelemetry import trace
 
 from bench.pb2 import AnyNodeData, NodeReferenceData
+from bench.utils.func import get_superclasses
 from bench.utils.string import to_code_name
 
 from .const import (
-    GLOBAL_NODE_TYPES,
-    LOCAL_NODE_TYPES,
-    REGIONAL_NODE_TYPES,
     UNSET,
     NodeArea,
     NodeReferenceKind,
@@ -44,7 +42,7 @@ from .property import (
     p_system,
 )
 from .struct import Struct, struct_
-from .trait import IndexIn, IsBased, IsBlockable, IsInBench, IsModal, IsSubject
+from .trait import IndexIn, IsBased, IsBlockable, IsInBench, IsModal, IsSubject, get_trait_by_name
 
 if TYPE_CHECKING:
     from bench.language import (
@@ -71,7 +69,6 @@ tracer = trace.get_tracer(__name__)
 @dataclass_transform(kw_only_default=True, field_specifiers=_PROPERTY_SPECIFIERS)
 def node_(
     node_type: NodeType | None,
-    is_custom: bool = False,
     root_type: NodeType | None = NodeType.BENCH,
     index: tuple[IndexIn, ...] = (),
 ):
@@ -88,19 +85,15 @@ def node_(
             is_concrete=node_type is not None,
             is_node=True,
         )
-        cls.__is_custom__ = is_custom
-
-        if node_type is not None:
-            if node_type in GLOBAL_NODE_TYPES:
-                cls.__area__ = NodeArea.GLOBAL_POSTGRES
-            elif node_type in REGIONAL_NODE_TYPES:
-                cls.__area__ = NodeArea.REGIONAL_POSTGRES
-            elif node_type in LOCAL_NODE_TYPES:
-                cls.__area__ = NodeArea.LOCAL_POSTGRES
-            else:
-                raise ValueError(f"unknown node store for {node_type}")
-
         cls.__indexes__ = index
+
+        # traits
+        if node_type is not None:
+            traits = set()
+            for superclass in get_superclasses(cls):
+                if superclass.__name__.startswith("Is"):
+                    traits.add(get_trait_by_name(superclass.__name__))
+            cls.__traits__ = tuple(traits)
 
         parent_property = cls.__properties__.get("parent", None)
         assert parent_property is not None, f"missing parent property for {node_type}"
@@ -124,7 +117,6 @@ class Node[NodeDataT: AnyNodeData](BuiltinObject[NodeDataT]):
     metatype: ClassVar[NodeType]  # type: ignore
 
     __is_node__: ClassVar[bool] = True
-    __is_custom__: ClassVar[bool] = False  # custom storage logic (for records)
     __traits__: ClassVar[tuple[NodeTrait, ...]] = ()
     __id_factory__: ClassVar[Callable[[], UUID]] = UUID
     __area__: ClassVar[NodeArea]

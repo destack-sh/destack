@@ -6,6 +6,7 @@ from fastuuid import UUID
 from bench.language.core import (
     BuiltinEnum,
     EnumType,
+    IsGlobal,
     IsSubject,
     Node,
     NodeType,
@@ -35,7 +36,7 @@ class UserStatus(BuiltinEnum):
 
 
 @node_(NodeType.USER, root_type=None)
-class User(IsSubject, Node[UserData]):
+class User(IsGlobal, IsSubject, Node[UserData]):
     """A User is a human using Bench."""
 
     slug: Optional[str] = p_system(

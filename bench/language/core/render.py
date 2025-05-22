@@ -27,7 +27,7 @@ from bench.utils.time import timedelta_to_isoformat
 
 from .code import Code
 from .const import (
-    NODE_TYPES_SET,
+    NODE_TYPES,
     EnumType,
     NodeType,
     PrimitiveType,
@@ -46,19 +46,7 @@ from .type import TypeBase, TypeCardinality, reverse_type_scalar
 from .value import ScalarValue, SomeValue
 
 if TYPE_CHECKING:
-    from bench.language import (
-        Action,
-        Block,
-        Claim,
-        Field,
-        Flow,
-        FlowEdge,
-        Message,
-        Page,
-        Schema,
-        Table,
-        Task,
-    )
+    pass
 
 logger = structlog.get_logger(__name__)
 tracer = trace.get_tracer(__name__)
@@ -69,7 +57,7 @@ class RenderOptions:
     aliasing: "Aliasing"
     include_properties: Mapping[NodeType | StructType, Collection[Property]] | None = None
     exclude_properties: Mapping[NodeType | StructType, Collection[Property]] | None = None
-    node_types: Collection[NodeType] = NODE_TYPES_SET
+    node_types: Collection[NodeType] = NODE_TYPES
     # formatting
     statement_separator: str = "\n"
     format: bool = True
@@ -396,7 +384,7 @@ def _render_builtin_object_kwargs(
 ) -> dict[str, str]:
     rendered_kwargs: dict[str, str] = {}
     for prop, value in kwargs.items():
-        rendered_kwargs[prop.name] = renderer.render_value(value, prop.type_info)
+        rendered_kwargs[prop.name] = renderer.render_value(value, prop.type)
     return rendered_kwargs
 
 
@@ -502,238 +490,6 @@ class IsInPackageRenderer[T: IsInPackage](NodeRenderer[T]):
 NODE_RENDERER = NodeRenderer[Node]()
 PACKAGE_NODE_RENDERER = IsInPackageRenderer[IsInPackage]()
 BUILTIN_OBJECT_RENDERER = BuiltinObjectRenderer[BuiltinObject]()
-
-
-@_renderer(NodeType.BLOCK)
-class BlockRenderer(IsInPackageRenderer["Block"]):
-    @override
-    def _render_constructor(
-        self,
-        renderer: "Renderer",
-        obj: "Block",
-        kwargs: dict[Property, Any],
-        rendered_kwargs: dict[str, str],
-    ) -> str:
-        block_args = renderer.render_args(
-            rendered_kwargs.pop("type"),
-            rendered_kwargs.pop("name"),
-            renderer.render_kwargs(**rendered_kwargs) or None,
-        )
-        return f"Block.new({block_args})"
-
-
-@_renderer(NodeType.FLOW)
-class FlowRenderer(IsInPackageRenderer["Flow"]):
-    @override
-    def _render_constructor(
-        self,
-        renderer: "Renderer",
-        obj: "Flow",
-        kwargs: dict[Property, Any],
-        rendered_kwargs: dict[str, str],
-    ) -> str:
-        # inline name only for now
-        args = (
-            rendered_kwargs.pop("name"),
-            renderer.render_kwargs(**rendered_kwargs) or None,
-        )
-        return f"Flow.new({renderer.render_args(*args)})"
-
-
-@_renderer(NodeType.ACTION)
-class ActionRenderer(IsInPackageRenderer["Action"]):
-    @override
-    def _render_constructor(
-        self,
-        renderer: "Renderer",
-        obj: "Action",
-        kwargs: dict[Property, Any],
-        rendered_kwargs: dict[str, str],
-    ) -> str:
-        action_args = renderer.render_args(
-            rendered_kwargs.pop("type"),
-            rendered_kwargs.pop("name"),
-            renderer.render_kwargs(**rendered_kwargs) or None,
-        )
-        return f"Action.new({action_args})"
-
-
-@_renderer(NodeType.FLOW_EDGE)
-class FlowEdgeRenderer(IsInPackageRenderer["FlowEdge"]):
-    @override
-    def _render_constructor(
-        self,
-        renderer: "Renderer",
-        obj: "FlowEdge",
-        kwargs: dict[Property, Any],
-        rendered_kwargs: dict[str, str],
-    ) -> str:
-        if (
-            (obj.parent) is not None
-            and (source := obj.source) is not None
-            and (target := obj.target) is not None
-        ):
-            source_ref = renderer.render_node_ref(source)
-            target_ref = renderer.render_node_ref(target)
-            rendered_kwargs.pop("type", None)
-            rendered_kwargs.pop("source", None)
-            rendered_kwargs.pop("target", None)
-            rendered_kwargs.pop("name", None)
-            args = (
-                f"TransitionType.{obj.type.name}",
-                target_ref,
-                repr(obj.name),
-                renderer.render_kwargs(**rendered_kwargs) or None,
-            )
-            return f"{source_ref}.connect({renderer.render_args(*args)})"
-        else:
-            args = (
-                rendered_kwargs.pop("type"),
-                rendered_kwargs.pop("name"),
-                renderer.render_kwargs(**rendered_kwargs) or None,
-            )
-            return f"Link.new({renderer.render_args(*args)})"
-
-
-@_renderer(NodeType.SCHEMA)
-class SchemaRenderer(IsInPackageRenderer["Schema"]):
-    @override
-    def _render_constructor(
-        self,
-        renderer: "Renderer",
-        obj: "Schema",
-        kwargs: dict[Property, Any],
-        rendered_kwargs: dict[str, str],
-    ) -> str:
-        # inline name and fields (like Class.new(name, *fields))
-        fields_refs = [renderer.render_builtin_object(field) for field in obj.get_children(Field)]
-        rendered_kwargs.pop("fields", None)
-        args = (
-            rendered_kwargs.pop("name"),
-            *fields_refs,
-            renderer.render_kwargs(**rendered_kwargs) or None,
-        )
-        return f"Schema.new({renderer.render_args(*args)})"
-
-
-@_renderer(NodeType.TABLE)
-class TableRenderer(IsInPackageRenderer["Table"]):
-    @override
-    def _render_constructor(
-        self,
-        renderer: "Renderer",
-        obj: "Table",
-        kwargs: dict[Property, Any],
-        rendered_kwargs: dict[str, str],
-    ) -> str:
-        from bench.language import Field
-
-        # inline name and fields (like Table.new(name, *fields))
-        fields_refs = [renderer.render_builtin_object(field) for field in obj.get_children(Field)]
-        rendered_kwargs.pop("fields", None)
-        args = (
-            rendered_kwargs.pop("name"),
-            *fields_refs,
-            renderer.render_kwargs(**rendered_kwargs) or None,
-        )
-        return f"Table.new({renderer.render_args(*args)})"
-
-
-@_renderer(NodeType.PAGE)
-class PageRenderer(IsInPackageRenderer["Page"]):
-    @override
-    def _render_constructor(
-        self,
-        renderer: "Renderer",
-        obj: "Page",
-        kwargs: dict[Property, Any],
-        rendered_kwargs: dict[str, str],
-    ) -> str:
-        # inline name only for now
-        args = (
-            rendered_kwargs.pop("title", None),
-            renderer.render_kwargs(**rendered_kwargs) or None,
-        )
-        return f"Page.new({renderer.render_args(*args)})"
-
-
-@_renderer(NodeType.FIELD)
-class FieldRenderer(IsInPackageRenderer["Field"]):
-    @override
-    def _render_constructor(
-        self,
-        renderer: "Renderer",
-        obj: "Field",
-        kwargs: dict[Property, Any],
-        rendered_kwargs: dict[str, str],
-    ) -> str:
-        # remap back to type in if possible
-        type_in, rendered_kwargs = _deconstruct_type_in(renderer, obj, rendered_kwargs)
-
-        constructor_name = obj.type.name.lower()
-        rendered_kwargs.pop("type", None)
-        if type_in is not None:
-            field_args = renderer.render_args(
-                rendered_kwargs.pop("name"),
-                type_in,
-                renderer.render_kwargs(**rendered_kwargs) or None,
-            )
-        else:
-            field_args = renderer.render_args(
-                rendered_kwargs.pop("name"), renderer.render_kwargs(**rendered_kwargs) or None
-            )
-        return f"Field.{constructor_name}({field_args})"
-
-
-@_renderer(NodeType.TASK)
-class TaskRenderer(NodeRenderer["Task"]):
-    @override
-    def render(self, renderer: "Renderer", obj: "Task", options: RenderOptions) -> str:
-        kwargs = _deconstruct_builtin_object(obj, options=options)
-        rendered_kwargs = _render_builtin_object_kwargs(renderer, obj, kwargs)
-        args = renderer.render_args(
-            rendered_kwargs.pop("title", None),
-            renderer.render_kwargs(**rendered_kwargs) or None,
-        )
-        return f"Task.new({args})"
-
-
-@_renderer(NodeType.CLAIM)
-class ClaimRenderer(NodeRenderer["Claim"]):
-    @override
-    def _render_constructor(
-        self,
-        renderer: "Renderer",
-        obj: "Claim",
-        kwargs: dict[Property, Any],
-        rendered_kwargs: dict[str, str],
-    ) -> str:
-        # inline type and name
-        rendered_kwargs.pop("type", None)
-        args = (
-            rendered_kwargs.pop("name"),
-            rendered_kwargs.pop("target"),
-            renderer.render_kwargs(**rendered_kwargs) or None,
-        )
-        return f"Claim.{obj.type.name.lower()}({renderer.render_args(*args)})"
-
-
-@_renderer(NodeType.MESSAGE)
-class MessageRenderer(NodeRenderer["Message"]):
-    @override
-    def _render_constructor(
-        self,
-        renderer: "Renderer",
-        obj: "Message",
-        kwargs: dict[Property, Any],
-        rendered_kwargs: dict[str, str],
-    ) -> str:
-        # inline text and title
-        args = (
-            rendered_kwargs.pop("text", None),
-            renderer.render_kwargs(**rendered_kwargs) or None,
-        )
-        return f"Message.new({renderer.render_args(*args)})"
 
 
 #

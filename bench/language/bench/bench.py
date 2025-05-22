@@ -6,6 +6,7 @@ from bench.language.core import (
     REGION,
     BuiltinEnum,
     EnumType,
+    IsGlobal,
     IsInBench,
     IsMembership,
     IsOwnable,
@@ -45,7 +46,7 @@ class BenchStatus(BuiltinEnum):
 
 
 @node_(NodeType.BENCH)
-class Bench(IsOwnable, IsInBench, Node[BenchData]):
+class Bench(IsGlobal, IsOwnable, IsInBench, Node[BenchData]):
     """
     A Bench is the OS for personal software.
     """

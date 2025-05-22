@@ -277,7 +277,7 @@ class bittuple(typing.Generic[EnumT], Collection[EnumT]):  # noqa: N801
 
 
 class EnumType(BuiltinEnum):
-    # meta [40000-40200]
+    # bench [40000-40200]
     ENUM_TYPE = 40000
     NODE_TYPE = 40001
     STRUCT_TYPE = 40002
@@ -366,7 +366,7 @@ class EnumType(BuiltinEnum):
     FLOW_EDGE_TYPE = 42223
     #  ...
 
-    # qa [42400-42600]
+    # quality [42400-42600]
     # ...
 
     # runtime [42600-42800]
@@ -468,7 +468,7 @@ enum_(EnumType.ENUM_TYPE)(EnumType)
 
 @enum_(EnumType.STRUCT_TYPE)
 class StructType(BuiltinEnum):
-    # meta [20000-20200]
+    # bench [20000-20200]
     SCOPE = 20000
     EDIT = 20001
     EDIT_OPERATION = 20002
@@ -509,14 +509,14 @@ class StructType(BuiltinEnum):
     SELECTION = 21470
     # ...
 
-    # chat [21800-22000]
+    # social [21800-22000]
     # ...
 
     # logic [22000-22400]
     SCHEDULE = 22000
     # ...
 
-    # qa [22400-22600]
+    # quality [22400-22600]
     # ...
 
     # runtime [22600-22800]
@@ -598,7 +598,7 @@ class StructType(BuiltinEnum):
 
 @enum_(EnumType.NODE_TYPE)
 class NodeType(BuiltinEnum):
-    # meta [1-200]
+    # bench [1-200]
     BENCH = 10, "Bench", "Universal workbench", "https://heybench.com/favicon.ico"
     BENCH_MEMBERSHIP = 11, "Bench Membership", "Membership in a Bench", "fas fa-user-group"
     BENCH_INVITE = 12, "Bench Invite", "Invite to a Bench", "fas fa-user-plus"
@@ -639,7 +639,7 @@ class NodeType(BuiltinEnum):
     LINK = 1550, "Link", "Link to something", "fas fa-link"
     # STREAM, SECRET, INDEX, CONSTRAINT, MIGRATION, ...
 
-    # chat [1800-2000]
+    # social [1800-2000]
     CHANNEL = 1800, "Channel", "Channel", "fas fa-hashtag"
     THREAD = 1810, "Thread", "Thread", "fas fa-reel"
     MESSAGE = 1820, "Message", "Message", "fas fa-message"
@@ -658,8 +658,9 @@ class NodeType(BuiltinEnum):
     # TRAIT, INTERFACE, ...
     # TRIGGER, TIMER, BREAKPOINT, ...
 
-    # test/qa [2400-2600]
-    # ...
+    # quality [2400-2600]
+    # TEST, TEST_SUITE, TEST_CASE, TEST_RESULT, ...
+    # ROLLOUT, ...
 
     # runtime [2600-2800]
     RUN = 2610, "Run", "Run", "fas fa-play"
@@ -775,28 +776,26 @@ class NodeType(BuiltinEnum):
     # audio/media?
     # SOUND, ...?
 
-    @property
-    def area(self) -> "NodeArea":
-        return AREA_BY_NODE_TYPE[self]
-
 
 @enum_(EnumType.NODE_TRAIT)
 class NodeTrait(BuiltinEnum):
-    # meta [1-200]
-    MODAL = 1, "Modal", "Has a mode", "fas fa-window-maximize"
-    NAMED = 2, "Named", "Has a name", "fas fa-font-case"
-    TITLED = 3, "Titled", "Has a title", "fas fa-font-case"
-    ORDERED = 4, "Ordered", "Has an order", "fas fa-sort"
-    ARCHIVABLE = 5, "Archivable", "Can be archived", "fas fa-box-archive"
-    DELETABLE = 6, "Deletable", "Can be deleted", "fas fa-trash"
-    TEMPLATABLE = 10, "Templatable", "Can be templated", "fas fa-puzzle-piece"
-    INSTANTIABLE = 11, "Instantiable", "Can be instantiated", "fas fa-clone"
-    EXTENSIBLE = 12, "Extensible", "Can be extended", "fas fa-expand"
-    BASED = 13, "Based", "Can be based on", "fas fa-baseball-bat-ball"
-    IN_BENCH = 20, "Bench", "In a Bench", "fas fa-bench"
-    IN_PACKAGE = 21, "Package", "In a Package", "fas fa-box"
-    RESOURCE = 30, "Resource", "Is a Resource"
-    PROVISIONABLE = 31, "Provisionable", "Can be provisioned", "fas fa-server"
+    # bench [1-200]
+    GLOBAL = 1, "Global", "Is global", "fas fa-globe"
+    LOCAL = 3, "Local", "Is local", "fas fa-globe"
+    MODAL = 10, "Modal", "Has a mode", "fas fa-window-maximize"
+    NAMED = 11, "Named", "Has a name", "fas fa-font-case"
+    TITLED = 12, "Titled", "Has a title", "fas fa-font-case"
+    ORDERED = 13, "Ordered", "Has an order", "fas fa-sort"
+    ARCHIVABLE = 14, "Archivable", "Can be archived", "fas fa-box-archive"
+    DELETABLE = 15, "Deletable", "Can be deleted", "fas fa-trash"
+    TEMPLATABLE = 20, "Templatable", "Can be templated", "fas fa-puzzle-piece"
+    INSTANTIABLE = 21, "Instantiable", "Can be instantiated", "fas fa-clone"
+    EXTENSIBLE = 22, "Extensible", "Can be extended", "fas fa-expand"
+    BASED = 23, "Based", "Can be based on", "fas fa-baseball-bat-ball"
+    IN_BENCH = 30, "Bench", "In a Bench", "fas fa-bench"
+    IN_PACKAGE = 31, "Package", "In a Package", "fas fa-box"
+    RESOURCE = 40, "Resource", "Is a Resource"
+    PROVISIONABLE = 41, "Provisionable", "Can be provisioned", "fas fa-server"
     # package [1000-1200]
     PAGEABLE = 1020, "Page", "In a Page", "far fa-file"
     BLOCKABLE = 1030, "Block", "Can be a Block on a Page", "fas fa-cube"
@@ -841,56 +840,21 @@ class NodeMode(BuiltinEnum):
     ARCHIVE = 50, "Archive", "Inactive and hidden", "fas fa-box-archive"
 
 
-def _get_node_types(
-    start: int | None = None, end: int | None = None, *extra_node_types: NodeType
-) -> bittuple[NodeType]:
-    if start is None:
-        start = 0
-    if end is None:
-        end = 10000
-    node_types = bittuple(
-        *tuple(nt for nt in NODE_TYPES if nt.id >= start and nt.id < end), enum_cls=NodeType
-    )
-    if extra_node_types:
-        node_types = node_types | bittuple(*extra_node_types)
-    return node_types
-
-
 ENUM_TYPES: bittuple[EnumType] = bittuple(*EnumType)
-ENUM_TYPES_SET: frozenset[EnumType] = frozenset(ENUM_TYPES)
-
 NODE_TYPES = bittuple(*NodeType)
-NODE_TYPES_SET: frozenset[NodeType] = frozenset(NODE_TYPES)
-
-GLOBAL_NODE_TYPES = _get_node_types(None, 1000)
-LOCAL_NODE_TYPES = bittuple(NodeType.RECORD)
-REGIONAL_NODE_TYPES = _get_node_types(1000, 10000) - LOCAL_NODE_TYPES
-AREA_BY_NODE_TYPE = {
-    **dict.fromkeys(GLOBAL_NODE_TYPES, NodeArea.GLOBAL_POSTGRES),
-    **dict.fromkeys(REGIONAL_NODE_TYPES, NodeArea.REGIONAL_POSTGRES),
-    **dict.fromkeys(LOCAL_NODE_TYPES, NodeArea.LOCAL_POSTGRES),
-}
-NODE_TYPES_BY_AREA = {
-    NodeArea.GLOBAL_POSTGRES: GLOBAL_NODE_TYPES,
-    NodeArea.REGIONAL_POSTGRES: REGIONAL_NODE_TYPES,
-    NodeArea.LOCAL_POSTGRES: LOCAL_NODE_TYPES,
-}
-
-
 STRUCT_TYPES: bittuple[StructType] = bittuple(*StructType)
-STRUCT_TYPES_SET: frozenset[StructType] = frozenset(STRUCT_TYPES)
 
 
 def is_node_type(obj: BuiltinEnum | int | Any) -> TypeGuard[NodeType]:
-    return isinstance(obj, int) and obj in NODE_TYPES_SET
+    return isinstance(obj, int) and obj in NODE_TYPES
 
 
 def is_struct_type(obj: BuiltinEnum | int | Any) -> TypeGuard[StructType]:
-    return isinstance(obj, int) and obj in STRUCT_TYPES_SET
+    return isinstance(obj, int) and obj in STRUCT_TYPES
 
 
 def is_enum_type(obj: BuiltinEnum | int | Any) -> TypeGuard[EnumType]:
-    return isinstance(obj, int) and obj in ENUM_TYPES_SET
+    return isinstance(obj, int) and obj in ENUM_TYPES
 
 
 @enum_(EnumType.CLOUD)
