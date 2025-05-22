@@ -714,8 +714,6 @@ async def upload_file_batch(
     files: list[File], file_contents: list[bytes], session: "Session | None" = None
 ):
     """Uploads the given Files to their Host."""
-    from bench.proto import COMPUTER_ENVIRONMENT
-
     assert len(files) == len(
         file_contents
     ), f"unexpected files: {len(files)} != {len(file_contents)}"
@@ -729,9 +727,7 @@ async def upload_file_batch(
         tracer, "file.prepare_upload", SpanType.FILE_PREPARE_UPLOAD, level=Severity.DEBUG
     ):
         upload_req = UploadFilesRequest(
-            scope=session.get_scope(files[0]),
-            files=[f._to_data() for f in files],
-            environment=COMPUTER_ENVIRONMENT,
+            scope=session.get_scope(files[0]), files=[f._to_data() for f in files]
         )
         upload_rep = await session.self_host.upload_files(upload_req, metadata=session._rpc_headers)
         assert len(upload_rep.handles) == len(
@@ -774,7 +770,7 @@ async def download_file_batch(
     session: "Session | None" = None,
 ) -> list[File]:
     """Downloads the given Files from their Host."""
-    from bench.proto import COMPUTER_ENVIRONMENT, unpack_builtin_object
+    from bench.proto import unpack_builtin_object
 
     if not file_refs:
         return []
@@ -786,7 +782,6 @@ async def download_file_batch(
         download_req = DownloadFilesRequest(
             scope=session.get_scope(file_refs[0]),
             files=[(f.to_ref() if isinstance(f, File) else f)._to_data() for f in file_refs],
-            environment=COMPUTER_ENVIRONMENT,
         )
         download_rep = await session.self_host.download_files(
             download_req, metadata=session._rpc_headers

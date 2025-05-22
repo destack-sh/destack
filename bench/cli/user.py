@@ -22,7 +22,9 @@ async def unwaitlist(user_slug: str):
     )
 
     global_database = global_database_from_env()
-    global_pg_engine = pg_engine_from_database("pg-global", global_database, NodeArea.GLOBAL_DB)
+    global_pg_engine = pg_engine_from_database(
+        "pg-global", global_database, NodeArea.GLOBAL_POSTGRES
+    )
     async with global_session(
         global_database, (global_pg_engine,), REAL_ORACLE, epoch=0
     ) as session:
@@ -46,7 +48,9 @@ async def set_password(user_slug: str, new_password: str):
     )
 
     global_database = global_database_from_env()
-    global_pg_engine = pg_engine_from_database("pg-global", global_database, NodeArea.GLOBAL_DB)
+    global_pg_engine = pg_engine_from_database(
+        "pg-global", global_database, NodeArea.GLOBAL_POSTGRES
+    )
     async with global_session(
         global_database, (global_pg_engine,), REAL_ORACLE, epoch=0
     ) as session:

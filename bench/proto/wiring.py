@@ -20,10 +20,10 @@ from bench.language.core import (
     Node,
     NodeReference,
     NodeType,
-    ObjectType,
     PrimitiveType,
     Property,
     Session,
+    StructType,
     Supergraph,
     pack_proto_json,
     unpack_proto_json,
@@ -39,12 +39,12 @@ logger = structlog.get_logger(__name__)
 tracer = trace.get_tracer(__name__)
 
 
-PROTO_CLASS_BY_TYPE: dict[ObjectType, type[Union[AnyNodeData, AnyStructData]]] = {
+PROTO_CLASS_BY_TYPE: dict[NodeType | StructType, type[Union[AnyNodeData, AnyStructData]]] = {
     object_type: getattr(pb2, object_type.bench_name + "Data")
-    for object_type in ObjectType  # type: ignore
+    for object_type in chain(NodeType, StructType)
     if hasattr(pb2, object_type.bench_name + "Data")  # may just be creating a new class
 }
-OBJECT_TYPE_BY_PROTO_CLASS: dict[type[Union[AnyNodeData, AnyStructData]], ObjectType] = {
+OBJECT_TYPE_BY_PROTO_CLASS: dict[type[Union[AnyNodeData, AnyStructData]], NodeType | StructType] = {
     cls: object_type for object_type, cls in PROTO_CLASS_BY_TYPE.items()
 }
 BENCH_CLASS_BY_PROTO_CLASS: dict[type[Union[AnyNodeData, AnyStructData]], type[BuiltinObject]] = {
@@ -87,7 +87,7 @@ def describe_edit(edit: EditData) -> str:
 
 def copy_struct[T: AnyStructData | AnyNodeData](data: T) -> T:
     """Deepcopy a struct data object."""
-    copy = type(data)(metatype=data.metatype)
+    copy = type(data)(metatype=data.metatype)  # type: ignore
     copy.CopyFrom(data)  # type: ignore
     return copy
 
@@ -112,7 +112,7 @@ def pack_builtin_object_prop_scalar(obj: BuiltinObject, prop: Property, value: A
     elif prop.node_kind is not None and not prop.node_kind.is_struct_tree:
         value_id = str(value.id)
         return NodeReferenceData(
-            metatype=pb2.ObjectType.OBJECT_TYPE_NODE_REFERENCE,
+            metatype=pb2.StructType.STRUCT_TYPE_NODE_REFERENCE,
             node_type=pack_enum(NodeType, value.type),
             id=value_id,
             ck=str(value.ck) if value.ck is not None else value_id,

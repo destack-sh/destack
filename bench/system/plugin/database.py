@@ -31,7 +31,7 @@ class DatabaseProvisioner(Provisioner[Database, Database]):
             await sql_migrate(
                 conn.cursor,
                 target=resource.version,
-                area=NodeArea.LOCAL_DB,
+                area=NodeArea.LOCAL_POSTGRES,
                 database=resource,
                 oracle=self.host.oracle,
             )

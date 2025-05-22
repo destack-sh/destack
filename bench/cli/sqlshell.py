@@ -36,17 +36,19 @@ async def shell(
     )
 
     global_database = global_database_from_env()
-    global_pg_engine = pg_engine_from_database("pg-global", global_database, NodeArea.GLOBAL_DB)
+    global_pg_engine = pg_engine_from_database(
+        "pg-global", global_database, NodeArea.GLOBAL_POSTGRES
+    )
     regional_database = regional_database_from_env(region)
     regional_pg_engine = pg_engine_from_database(
-        f"pg-regional-{region.name.lower()}", regional_database, NodeArea.REGIONAL_DB
+        f"pg-regional-{region.name.lower()}", regional_database, NodeArea.REGIONAL_POSTGRES
     )
 
-    if area == NodeArea.GLOBAL_DB:
+    if area == NodeArea.GLOBAL_POSTGRES:
         database = global_database
-    elif area == NodeArea.REGIONAL_DB:
+    elif area == NodeArea.REGIONAL_POSTGRES:
         database = regional_database
-    elif area == NodeArea.LOCAL_DB:
+    elif area == NodeArea.LOCAL_POSTGRES:
         assert bench is not None, "bench is required for local area"
         async with global_session(
             global_database, (global_pg_engine, regional_pg_engine), REAL_ORACLE

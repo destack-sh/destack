@@ -62,12 +62,14 @@ async def make(
 
     start = time.time()
     global_database = global_database_from_env()
-    global_pg_engine = pg_engine_from_database("pg-global", global_database, NodeArea.GLOBAL_DB)
+    global_pg_engine = pg_engine_from_database(
+        "pg-global", global_database, NodeArea.GLOBAL_POSTGRES
+    )
     regional_database = regional_database_from_env(region)
     regional_pg_engine = pg_engine_from_database(
         f"pg-regional-{regional_database.region.name.lower()}",
         regional_database,
-        NodeArea.REGIONAL_DB,
+        NodeArea.REGIONAL_POSTGRES,
     )
 
     # check existing migrations for inconsistencies
@@ -93,7 +95,7 @@ async def make(
         )
 
     # diff local
-    if area in (None, NodeArea.LOCAL_DB):
+    if area in (None, NodeArea.LOCAL_POSTGRES):
         if not from_scratch:
             try:
                 async with global_session(
@@ -120,7 +122,7 @@ async def make(
         local_migration_ops = []
 
     # diff regional
-    if area in (None, NodeArea.REGIONAL_DB):
+    if area in (None, NodeArea.REGIONAL_POSTGRES):
         async with pg_connection(regional_database) as conn:
             old_regional_schema = await introspect_sql_schema(
                 conn.cursor,
@@ -134,7 +136,7 @@ async def make(
         regional_migration_ops = []
 
     # diff global
-    if area in (None, NodeArea.GLOBAL_DB):
+    if area in (None, NodeArea.GLOBAL_POSTGRES):
         async with pg_connection(global_database) as conn:
             old_global_schema = await introspect_sql_schema(
                 conn.cursor,
@@ -207,16 +209,18 @@ async def apply(
 
     start = time.time()
     global_database = global_database_from_env()
-    global_pg_engine = pg_engine_from_database("pg-global", global_database, NodeArea.GLOBAL_DB)
+    global_pg_engine = pg_engine_from_database(
+        "pg-global", global_database, NodeArea.GLOBAL_POSTGRES
+    )
     regional_database = regional_database_from_env(region or REGION)
     regional_pg_engine = pg_engine_from_database(
         f"pg-regional-{regional_database.region.name.lower()}",
         regional_database,
-        NodeArea.REGIONAL_DB,
+        NodeArea.REGIONAL_POSTGRES,
     )
 
     # resolve databases to migrate
-    if area == NodeArea.LOCAL_DB:
+    if area == NodeArea.LOCAL_POSTGRES:
         assert bench is not None, "bench is required for local area"
         async with global_session(
             global_database, (global_pg_engine, regional_pg_engine), REAL_ORACLE
@@ -231,9 +235,9 @@ async def apply(
                 for bench_node in benches:
                     assert bench_node.package, f"{bench_node!r} has no main package"
                     databases.extend(bench_node.package.get_children(Database))
-    elif area == NodeArea.REGIONAL_DB:
+    elif area == NodeArea.REGIONAL_POSTGRES:
         databases = [regional_database]
-    elif area == NodeArea.GLOBAL_DB:
+    elif area == NodeArea.GLOBAL_POSTGRES:
         databases = [global_database]
     else:
         raise RuntimeError(f"invalid area: {area!r}")

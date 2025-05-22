@@ -78,12 +78,12 @@ class Simulation:
         self.global_database = global_database
         self.regional_database = regional_database
         self.global_pg_engine = pg_engine_from_database(
-            "pg-global", global_database, NodeArea.GLOBAL_DB
+            "pg-global", global_database, NodeArea.GLOBAL_POSTGRES
         )
         self.regional_pg_engine = pg_engine_from_database(
             f"pg-regional-{regional_database.region.name.lower()}",
             regional_database,
-            NodeArea.REGIONAL_DB,
+            NodeArea.REGIONAL_POSTGRES,
         )
         self.database_map = database_map
 

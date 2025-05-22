@@ -23,9 +23,7 @@ from opentelemetry import trace
 
 from bench import pb2
 from bench.language.registry import (
-    BUILTIN_OBJECT_CLASS_BY_TYPE,
     CHILD_NODE_TYPES,
-    DESCENDANT_NODE_TYPES,
     HAS_CHILD_NODE_TYPES,
     NODE_CLASS_BY_TYPE,
 )
@@ -45,7 +43,6 @@ from .const import (
     NodeArea,
     NodeReferenceKind,
     NodeType,
-    ObjectType,
     StructType,
     active_session,
 )
@@ -164,11 +161,11 @@ def node_(
         cls.__is_local__ = is_local
 
         if node_type in GLOBAL_NODE_TYPES:
-            cls.__area__ = NodeArea.GLOBAL_DB
+            cls.__area__ = NodeArea.GLOBAL_POSTGRES
         elif node_type in REGIONAL_NODE_TYPES:
-            cls.__area__ = NodeArea.REGIONAL_DB
+            cls.__area__ = NodeArea.REGIONAL_POSTGRES
         elif node_type in LOCAL_NODE_TYPES:
-            cls.__area__ = NodeArea.LOCAL_DB
+            cls.__area__ = NodeArea.LOCAL_POSTGRES
         else:
             raise ValueError(f"unknown node store for {node_type}")
 
@@ -643,21 +640,7 @@ class Node[NodeDataT: AnyNodeData](BuiltinObject[NodeDataT]):
 
     def add_child[T: Node](self, child: T, move: bool = False) -> T:
         """Append a Node as a child of this Node."""
-        if self.metatype in child.__parent_types__:
-            if child.metatype in self._graph.node_types:
-                graph = self._graph
-            else:
-                # have parent graph but it's not the right one :IsolatedGraph
-                graph = Graph(
-                    scope=self._graph.scope,
-                    node_types=(child.metatype, *DESCENDANT_NODE_TYPES[child.metatype]),
-                    supergraph=self._supergraph,
-                )
-                self._supergraph.add_graph(graph)
-            attach_node(child, self, move=move, graph=graph)
-        else:
-            raise ValueError(f"cannot append {child!r} to {self!r}")
-        return child
+        raise NotImplementedError
 
     def add_children[T: Node](self, *children: T, move: bool = False) -> Sequence[T]:
         """Append multiple Nodes as children of this Node."""
@@ -991,9 +974,9 @@ class NodeReference(Struct[NodeReferenceData]):
 
     @staticmethod
     def _ref_data_from_node_data(node_data: AnyNodeData) -> "NodeReferenceData":
-        node_cls = BUILTIN_OBJECT_CLASS_BY_TYPE[cast(ObjectType, node_data.metatype)]
+        node_cls = NODE_CLASS_BY_TYPE[NodeType(node_data.metatype)]
         reference = NodeReferenceData(
-            metatype=pb2.OBJECT_TYPE_NODE_REFERENCE,
+            metatype=pb2.StructType.STRUCT_TYPE_NODE_REFERENCE,
             node_type=cast(pb2.NodeType, node_data.metatype),
             id=node_data.id,
             ck=getattr(node_data, "ck", node_data.id),

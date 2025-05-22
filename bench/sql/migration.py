@@ -146,9 +146,9 @@ class Migration:
 
     def has_area(self, area: NodeArea) -> bool:
         return (
-            (area == NodeArea.GLOBAL_DB and self.has_global)
-            or (area == NodeArea.REGIONAL_DB and self.has_regional)
-            or (area == NodeArea.LOCAL_DB and self.has_local)
+            (area == NodeArea.GLOBAL_POSTGRES and self.has_global)
+            or (area == NodeArea.REGIONAL_POSTGRES and self.has_regional)
+            or (area == NodeArea.LOCAL_POSTGRES and self.has_local)
         )
 
 

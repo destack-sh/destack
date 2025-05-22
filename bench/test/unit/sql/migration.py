@@ -30,14 +30,14 @@ async def _do_test_stored_migrations(cur: psycopg.AsyncCursor, *, area: NodeArea
 
 async def test_stored_migrations_global(blank_cur: psycopg.AsyncCursor):
     """Existing global migrations against a blank table."""
-    await _do_test_stored_migrations(blank_cur, area=NodeArea.GLOBAL_DB)
+    await _do_test_stored_migrations(blank_cur, area=NodeArea.GLOBAL_POSTGRES)
 
 
 async def test_stored_migrations_regional(blank_cur: psycopg.AsyncCursor):
     """Existing regional migrations against a blank table."""
-    await _do_test_stored_migrations(blank_cur, area=NodeArea.REGIONAL_DB)
+    await _do_test_stored_migrations(blank_cur, area=NodeArea.REGIONAL_POSTGRES)
 
 
 async def test_stored_migrations_local(blank_cur: psycopg.AsyncCursor):
     """Existing local migrations against a blank table."""
-    await _do_test_stored_migrations(blank_cur, area=NodeArea.LOCAL_DB)
+    await _do_test_stored_migrations(blank_cur, area=NodeArea.LOCAL_POSTGRES)
