@@ -599,14 +599,25 @@ class StructType(BuiltinEnum):
 @enum_(EnumType.NODE_TYPE)
 class NodeType(BuiltinEnum):
     # meta [1-200]
-    BENCH = 1, "Bench", "Universal workbench", "https://heybench.com/favicon.ico"
-    HANDLE = 2, "Handle", "Unique identifier", "fas fa-at"
-    USER = 10, "User", "User", "fas fa-user"
-    ORGANIZATION = 20, "Organization", "Organization", "fas fa-building"
+    BENCH = 10, "Bench", "Universal workbench", "https://heybench.com/favicon.ico"
+    BENCH_MEMBERSHIP = 11, "Bench Membership", "Membership in a Bench", "fas fa-user-group"
+    BENCH_INVITE = 12, "Bench Invite", "Invite to a Bench", "fas fa-user-plus"
+    HANDLE = 20, "Handle", "Unique identifier", "fas fa-at"
+    USER = 30, "User", "User", "fas fa-user"
+    ORGANIZATION = 40, "Organization", "Organization", "fas fa-building"
+    ORGANIZATION_MEMBERSHIP = (
+        41,
+        "Organization Membership",
+        "Membership in an Organization",
+        "fas fa-user-group",
+    )
+    ORGANIZATION_INVITE = 42, "Organization Invite", "Invite to an Organization", "fas fa-user-plus"
     CLIENT = 50, "Client", "Client to a Bench", "fas fa-desktop"
 
     # package [1000-1200]
     PACKAGE = 1000, "Package", "Isolated sub-Bench", "fas fa-box-open"
+    PACKAGE_MEMBERSHIP = 1001, "Package Membership", "Membership in a Package", "fas fa-user-group"
+    PACKAGE_INVITE = 1002, "Package Invite", "Invite to a Package", "fas fa-user-plus"
     DEPENDENCY = 1010, "Dependency", "Dependency to something", "fas fa-turn-down-right"
     PAGE = 1020, "Page", "Page of Blocks", "far fa-file"
     BLOCK = 1030, "Block", "Rich Block on a Page", "fas fa-cube"
@@ -644,7 +655,8 @@ class NodeType(BuiltinEnum):
     TASK = 2200, "Task", "To-do item", "far fa-square-check"
     CURSOR = 2220, "Cursor", "Position in something", "fas fa-mouse"
     # ROOM, JOB, PLAN, LOCK, ...
-    # INTERFACE, TRIGGER, TIMER, BREAKPOINT, ...
+    # TRAIT, INTERFACE, ...
+    # TRIGGER, TIMER, BREAKPOINT, ...
 
     # test/qa [2400-2600]
     # ...
@@ -656,12 +668,11 @@ class NodeType(BuiltinEnum):
     # EVENT, SIGNAL, ...
 
     # auth [2800-3000]
-    MEMBERSHIP = 2800, "Membership", "Membership to something", "fas fa-users"
-    INVITE = 2810, "Invite", "Invite to something", "fas fa-user-plus"
     TEAM = 2820, "Team", "Group of Users or Agents", "fas fa-users"
     ROLE = 2830, "Role", "Role", "fas fa-user-tag"
     # PROFILE? (for User, or maybe global?)
     CLAIM = 2840, "Claim", "Control over something", "fas fa-stamp"
+    # PERMISSION, PERMISSION_GROUP, ...
     # CHALLENGE, FRIENDSHIP, BADGE, ENTITLEMENT, POLICY, RULE, ...
     # KICK/BAN, ...
 
@@ -769,7 +780,6 @@ class NodeType(BuiltinEnum):
         return AREA_BY_NODE_TYPE[self]
 
 
-# nocheckin: NodeTraits
 @enum_(EnumType.NODE_TRAIT)
 class NodeTrait(BuiltinEnum):
     # meta [1-200]
@@ -777,14 +787,16 @@ class NodeTrait(BuiltinEnum):
     NAMED = 2, "Named", "Has a name", "fas fa-font-case"
     TITLED = 3, "Titled", "Has a title", "fas fa-font-case"
     ORDERED = 4, "Ordered", "Has an order", "fas fa-sort"
-    TEMPLATABLE = 5, "Templatable", "Can be templated", "fas fa-puzzle-piece"
-    INSTANTIABLE = 6, "Instantiable", "Can be instantiated", "fas fa-clone"
-    EXTENSIBLE = 7, "Extensible", "Can be extended", "fas fa-expand"
-    BASED = 8, "Based", "Can be based on", "fas fa-baseball-bat-ball"
-    IN_BENCH = 10, "Bench", "In a Bench", "fas fa-bench"
-    IN_PACKAGE = 11, "Package", "In a Package", "fas fa-box"
-    RESOURCE = 20, "Resource", "Is a Resource"
-    PROVISIONABLE = 21, "Provisionable", "Can be provisioned", "fas fa-server"
+    ARCHIVABLE = 5, "Archivable", "Can be archived", "fas fa-box-archive"
+    DELETABLE = 6, "Deletable", "Can be deleted", "fas fa-trash"
+    TEMPLATABLE = 10, "Templatable", "Can be templated", "fas fa-puzzle-piece"
+    INSTANTIABLE = 11, "Instantiable", "Can be instantiated", "fas fa-clone"
+    EXTENSIBLE = 12, "Extensible", "Can be extended", "fas fa-expand"
+    BASED = 13, "Based", "Can be based on", "fas fa-baseball-bat-ball"
+    IN_BENCH = 20, "Bench", "In a Bench", "fas fa-bench"
+    IN_PACKAGE = 21, "Package", "In a Package", "fas fa-box"
+    RESOURCE = 30, "Resource", "Is a Resource"
+    PROVISIONABLE = 31, "Provisionable", "Can be provisioned", "fas fa-server"
     # package [1000-1200]
     PAGEABLE = 1020, "Page", "In a Page", "far fa-file"
     BLOCKABLE = 1030, "Block", "Can be a Block on a Page", "fas fa-cube"
@@ -796,7 +808,9 @@ class NodeTrait(BuiltinEnum):
     OWNABLE = 2800, "Ownable", "Can be owned", "fas fa-user"
     CLAIMABLE = 2801, "Claimable", "Can be claimed", "fas fa-stamp"
     JOINABLE = 2802, "Joinable", "Can be joined", "fas fa-users"
-    SUBJECT = 2803, "Subject", "Can be a subject", "fas fa-user"
+    SUBJECT = 2805, "Subject", "Is a Subject", "fas fa-user"
+    MEMBERSHIP = 2810, "Membership", "Is a Membership", "fas fa-users"
+    INVITE = 2811, "Invite", "Is an Invite", "fas fa-envelope"
     # ui [8000-10000]
     VIEW = 8001, "View", "Is a View", "fas fa-eye"
     CONTAINER_VIEW = 8100, "Container View", "Is a Container View", "fas fa-container"

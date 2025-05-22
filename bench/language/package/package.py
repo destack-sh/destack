@@ -46,7 +46,7 @@ class Package(
     """A Package is a semi-isolated area of a Bench."""
 
     # meta
-    parent: Optional["Bench"] = p_node_parent(4)
+    parent: Optional["Bench"] = p_node_parent()
     type: PackageType = p_regular(30)
     slug: str | None = p_regular(34, format=StringFormat.SLUG)
     icon: Optional["Icon"] = p_regular(35)

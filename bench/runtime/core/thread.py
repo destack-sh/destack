@@ -10,12 +10,12 @@ from bench.language import (
     Cursor,
     GetConnection,
     GraphCapture,
+    IsSubject,
     Message,
     MessageType,
     NodeReference,
     ResourceStatus,
     SearchConnection,
-    Subject,
     Thread,
 )
 from bench.pb2 import ComputerClient
@@ -132,7 +132,7 @@ class ThreadHandle:
 
     def has_new_messages_for(
         self,
-        owner: Subject,
+        owner: IsSubject,
         cursor: Cursor | None,
         ignore_types: Collection[MessageType] = (MessageType.JOIN, MessageType.LEAVE),
     ) -> bool:
@@ -150,11 +150,7 @@ class ThreadHandle:
 
     async def get_computer_client(self, computer: Computer) -> ComputerClient:
         """Get a ComputerClient for the given Computer and display."""
-        if (
-            computer.grpc_url is None
-            or not computer.is_active
-            or computer.status != ResourceStatus.AVAILABLE
-        ):
+        if computer.grpc_url is None or computer.status != ResourceStatus.AVAILABLE:
             raise ValueError(f"{computer!r} has no connection info")
 
         if computer.grpc_url not in self._computer_clients_by_uri:

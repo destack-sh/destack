@@ -1,4 +1,3 @@
-from datetime import datetime
 from typing import TYPE_CHECKING, Optional, Union, override
 
 from fastuuid import UUID
@@ -77,7 +76,7 @@ class Block(
     A Block on a Page.
     """
 
-    parent: Union["Page", "Block", None] = p_node_parent(4)
+    parent: Union["Page", "Block", None] = p_node_parent()
 
     # meta
     type: BlockType = p_regular(30, description="The type of block.")
@@ -138,28 +137,6 @@ class Block(
         if isinstance(node := self.node, IsNamed):
             return node.code_name
         return None
-
-    @override
-    def delete(self, _now: datetime | None = None):
-        super().delete(_now=_now)
-        # also delete linked Node (if any)
-        if (
-            isinstance(node := self.node, IsBlockable)
-            and node.definition_id == self.id
-            and not node.is_deleted
-        ):
-            node.delete(_now=_now)
-
-    @override
-    def restore(self, _now: datetime | None = None):
-        super().restore(_now=_now)
-        # also restore linked Node (if any)
-        if (
-            isinstance(node := self.node, IsBlockable)
-            and node.definition_id == self.id
-            and node.is_deleted
-        ):
-            node.restore(_now=_now)
 
     def get_node_as[T: IsBlockable](self, node_cls: _type[T]) -> T:
         """Get the Inline Node as a specific type (error if wrong type)."""

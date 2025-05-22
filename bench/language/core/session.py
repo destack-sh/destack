@@ -26,7 +26,7 @@ from bench.utils.oracle import Oracle
 from .const import NodeMode
 from .edit import EditType
 from .graph import GraphData, Supergraph
-from .node import Node, Subject
+from .node import IsSubject, Node
 from .object import EMPTY_SCOPE_DATA
 from .transaction import Transaction
 
@@ -57,7 +57,7 @@ class Session:
 
     # context
     origin: OriginData | None = dataclasses.field(default=None)
-    subject: Subject | None = dataclasses.field(default=None)
+    subject: IsSubject | None = dataclasses.field(default=None)
     _is_suspended: bool = dataclasses.field(default=False)
 
     # transaction

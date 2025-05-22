@@ -28,7 +28,7 @@ if TYPE_CHECKING:
 logger = structlog.get_logger(__name__)
 
 
-@node_(NodeType.RECORD, is_local=True)
+@node_(NodeType.RECORD, is_custom=True)
 class Record(
     IsBased,
     IsModal,
@@ -45,7 +45,7 @@ class Record(
     """
 
     # meta
-    parent: Union["Table", "Record", None] = p_node_parent(4)
+    parent: Union["Table", "Record", None] = p_node_parent()
     # type: RecordType?
     icon: Optional["Icon"] = p_regular(34)
     table: "Table" = p_system(36, description="The Table this Record is from.")

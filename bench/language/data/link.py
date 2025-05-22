@@ -53,7 +53,7 @@ class Link(IsTitled, IsResource, Node[LinkData]):
         "Message",
         "Run",
         None,
-    ] = p_node_parent(4)
+    ] = p_node_parent()
     type: LinkType = p_regular(30)
 
     # content

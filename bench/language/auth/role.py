@@ -22,4 +22,4 @@ if TYPE_CHECKING:
 class Role(IsTemplatable, IsModal, IsNamed, IsBlockable, Node[RoleData]):
     """A Role to assign to something."""
 
-    parent: Union["Team", "Page", None] = p_node_parent(4)
+    parent: Union["Team", "Page", None] = p_node_parent()

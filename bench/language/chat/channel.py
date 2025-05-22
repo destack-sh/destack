@@ -44,7 +44,7 @@ class Channel(
     """
 
     # meta
-    parent: Union["Page", "Package", None] = p_node_parent(4)
+    parent: Union["Page", "Package", None] = p_node_parent()
     # type: ChannelType? (text, voice, etc.)
 
     # ...IsProcessable[80-]

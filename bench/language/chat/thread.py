@@ -12,11 +12,11 @@ from bench.language.core import (
     IsModal,
     IsOwnable,
     IsProcessable,
+    IsSubject,
     IsTitled,
     Node,
     NodeReference,
     NodeType,
-    Subject,
     TextLineIn,
     enum_,
     node_,
@@ -64,7 +64,7 @@ class Thread(
     """
 
     # meta
-    parent: Union["Package", "Page", "Channel", "Thread", None] = p_node_parent(4)
+    parent: Union["Package", "Page", "Channel", "Thread", None] = p_node_parent()
     channel: Optional["Channel"] = p_system(40, node_bench_from="self")
     if TYPE_CHECKING:
         channel_ptr: Optional[NodeReference] = None
@@ -97,7 +97,7 @@ class Thread(
         )
         return thread
 
-    def get_cursor(self, *, type: "CursorType", owned_by: "Subject | None") -> "Cursor | None":
+    def get_cursor(self, *, type: "CursorType", owned_by: "IsSubject | None") -> "Cursor | None":
         """Get a Cursor of the given type."""
         for cursor in self.get_children(Cursor):
             if cursor.type == type and (owned_by is None or cursor.owned_by_id == owned_by.id):

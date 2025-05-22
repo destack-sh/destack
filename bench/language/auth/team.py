@@ -36,7 +36,7 @@ class Team(
     A Team of Users or Identities.
     """
 
-    parent: Union["Package", "Page", "Team", None] = p_node_parent(4)
+    parent: Union["Package", "Page", "Team", None] = p_node_parent()
     organization: "Organization | None" = p_regular(40)
     team: Optional["Team"] = p_regular(41)
     if TYPE_CHECKING:

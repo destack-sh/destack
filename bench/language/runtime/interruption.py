@@ -9,11 +9,11 @@ from bench.language.core import (
     IsExtensible,
     IsInPackage,
     IsModal,
+    IsRunnable,
     Node,
     NodeReference,
     NodeType,
     ProcessStatus,
-    Runnable,
     enum_,
     node_,
     p_internal,
@@ -25,9 +25,6 @@ from bench.pb2 import InterruptionData
 
 if TYPE_CHECKING:
     from bench.language import (
-        Action,
-        Flow,
-        FlowEdge,
         Message,
         Run,
         Span,
@@ -86,20 +83,16 @@ class Interruption(
     """An Interruption in the processing or execution of something."""
 
     # meta
-    parent: Optional["Run"] = p_node_parent(4)
+    parent: Optional["Run"] = p_node_parent()
     type: InterruptionType = p_regular(30)
     root: "Run | None" = p_node_ancestor(31, require=False, store=True, wire=True)
-    flow: Optional["Flow"] = p_internal(33)
-    action: Optional["Action"] = p_internal(34)
-    link: Optional["FlowEdge"] = p_internal(35)
-    if TYPE_CHECKING:
-        flow_ptr: Optional[NodeReference] = None
-        action_ptr: Optional[NodeReference] = None
-        link_ptr: Optional[NodeReference] = None
+    runnable: Optional["IsRunnable"] = p_internal(32)
     span: Optional["Span"] = p_internal(37)
     if TYPE_CHECKING:
         root_id: Optional[UUID] = None
         root_ptr: Optional[NodeReference] = None
+        runnable_ptr: Optional[NodeReference] = None
+        runnable_id: Optional[UUID] = None
         page_id: Optional[UUID] = None
         page_ptr: Optional[NodeReference] = None
         flow_id: Optional[UUID] = None
@@ -144,15 +137,6 @@ class Interruption(
             return f"{self.type.bench_name}:{path}, {self.status.bench_name}"
 
     @property
-    def runnable(self):
-        if self.link_ptr:
-            return self.link
-        elif self.action_ptr:
-            return self.action
-        else:
-            return self.flow
-
-    @property
     def is_open(self) -> bool:
         return self.status == InterruptionStatus.OPEN
 
@@ -160,7 +144,7 @@ class Interruption(
     def is_closed(self) -> bool:
         return self.status == InterruptionStatus.COMPLETED
 
-    def is_in(self, *nodes: Runnable) -> bool:
+    def is_in(self, *nodes: IsRunnable) -> bool:
         """Whether the Interruption is a descendant of a Run of any of the given Nodes."""
         if (parent := self.parent) is None:
             return False
@@ -200,8 +184,7 @@ class Interruption(
         return Interruption(
             type=kind,
             parent=run,
-            flow=run.flow,
-            action=run.action,
+            runnable=run.runnable,
             span=span,
             mode=run.mode,
         )

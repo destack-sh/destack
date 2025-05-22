@@ -464,7 +464,7 @@ def aggregate[T: Node](
 # q = User.get(
 #     where=User.property("id").eq(5),
 #     Clients=Client.search(),
-#     BenchMemberships=Membership.search(
+#     BenchMemberships=BenchMembership.search(
 #         where=Membership.property("parent").eq(NodeType.BENCH),
 #         sort=[Membership.property("created_at").desc()],
 #     ),
@@ -475,8 +475,8 @@ def aggregate[T: Node](
 #     where=Bench.property("id").eq(5),
 #     Packages=Package.search(
 #         Pages=Page.search(limit=10, count=True),
-#         Memberships=Membership.search(
-#             sort=[Membership.property("created_at").desc()],
+#         Memberships=PackageMembership.search(
+#             sort=[PackageMembership.property("created_at").desc()],
 #             limit=10,
 #             count=True,
 #         ),

@@ -5,11 +5,11 @@ from opentelemetry import trace
 
 from bench.language import (
     Aliasing,
+    IsSubject,
     Renderer,
     RenderOptions,
     Runnable,
     Session,
-    Subject,
     _is_setup_complete,
 )
 from bench.utils.env import IS_DEV, IS_TEST
@@ -50,7 +50,7 @@ assert _is_setup_complete(), "NOTE: import this file after import is complete"
 class Prompt:
     def __init__(
         self,
-        subject: Subject,
+        subject: IsSubject,
         session: Session,
         node: Runnable,
         *,

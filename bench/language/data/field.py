@@ -65,7 +65,7 @@ class Field(
     """
 
     parent: Union["Agent", "Action", "Schema", "Flow", "Table", "Scene", "ViewBase", None] = (
-        p_node_parent(4)
+        p_node_parent()
     )
     type: FieldType = p_internal(30)
     icon: Optional["Icon"] = p_regular(35)
