@@ -9,7 +9,7 @@ from bench.language.core import (
     StructType,
     enum_,
     node_,
-    node_component_,
+    object_,
     p_regular,
     struct_,
 )
@@ -41,7 +41,7 @@ class ShadowPosition(BuiltinEnum):
     INSIDE = 2
 
 
-@node_component_()
+@object_()
 class ShadowBase(IsVariable, BuiltinObject):
     type: ShadowType = p_regular(30, default=ShadowType.BOX)
     style: Optional["ShadowStyle"] = p_regular(41)

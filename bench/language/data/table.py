@@ -1,13 +1,14 @@
 from typing import TYPE_CHECKING, Any
 
 from bench.language.core import (
+    IsBlockable,
     IsClaimable,
     IsInstantiable,
     IsModal,
     IsNamed,
     IsOwnable,
+    Node,
     NodeType,
-    PageNode,
     node_,
 )
 from bench.pb2 import TableData
@@ -25,7 +26,8 @@ class Table(
     IsNamed,
     IsOwnable,
     IsClaimable,
-    PageNode[TableData],
+    IsBlockable,
+    Node[TableData],
 ):
     """A Table of Records."""
 

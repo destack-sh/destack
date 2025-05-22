@@ -8,11 +8,12 @@ from bench.language.core import (
     IsBased,
     IsComputable,
     IsExtensible,
+    IsInPackage,
     IsModal,
     IsProcessable,
     IsTitled,
+    Node,
     NodeType,
-    PackageNode,
     ProcessStatus,
     RunType,
     SpanType,
@@ -50,7 +51,8 @@ class Run(
     IsExtensible,
     IsTitled,
     IsRun,
-    PackageNode[RunData],
+    IsInPackage,
+    Node[RunData],
 ):
     """
     Run something somewhere, somehow.

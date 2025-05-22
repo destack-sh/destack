@@ -5,6 +5,7 @@ from fastuuid import UUID
 from bench.language.core import (
     BuiltinEnum,
     EnumType,
+    IsBlockable,
     IsComputable,
     IsInstantiable,
     IsJoinable,
@@ -12,9 +13,9 @@ from bench.language.core import (
     IsOwnable,
     IsProcessable,
     IsTitled,
+    Node,
     NodeReference,
     NodeType,
-    PageNode,
     Subject,
     TextLineIn,
     enum_,
@@ -53,7 +54,8 @@ class Thread(
     IsTitled,
     IsModal,
     IsInstantiable,
-    PageNode[ThreadData],
+    IsBlockable,
+    Node[ThreadData],
 ):
     """
     A Thread for communicating with Messages.

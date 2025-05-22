@@ -6,10 +6,11 @@ import structlog
 from bench.language.core import (
     BuiltinEnum,
     EnumType,
+    IsInPackage,
     IsModal,
     IsTitled,
+    Node,
     NodeType,
-    PackageNode,
     enum_,
     node_,
     p_node_parent,
@@ -41,7 +42,12 @@ class NotificationStatus(BuiltinEnum):
 
 
 @node_(NodeType.NOTIFICATION)
-class Notification(IsTitled, IsModal, PackageNode[NotificationData]):
+class Notification(
+    IsTitled,
+    IsModal,
+    IsInPackage,
+    Node[NotificationData],
+):
     """
     A Notification about something.
     """

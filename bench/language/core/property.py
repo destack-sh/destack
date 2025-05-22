@@ -20,14 +20,10 @@ from bench.utils.func import hash_stable
 from bench.utils.string import Casing, to_casing
 
 from .const import (
-    CONTAINER_VIEW_NODE_TYPES,
     EMPTY_DICT,
     NODE_TYPES,
-    PAGE_NODE_TYPES,
     PRIMITIVE_TYPE_BY_PY_TYPE,
-    RESOURCE_NODE_TYPES,
     UNSET,
-    VIEW_NODE_TYPES,
     EnumType,
     NodeReferenceKind,
     NodeType,
@@ -89,7 +85,7 @@ def _resolve_node_types(class_name: str) -> tuple[NodeType, ...] | None:
     match class_name:
         case "Node":
             return NODE_TYPES.tuple
-        case "PageNode":
+        case "IsBlockable":
             return PAGE_NODE_TYPES.tuple
         case "ViewBase":
             return VIEW_NODE_TYPES.tuple

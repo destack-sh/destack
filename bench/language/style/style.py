@@ -1,13 +1,15 @@
 from typing import TYPE_CHECKING, Union
 
 from bench.language.core import (
+    IsBlockable,
     IsModal,
     IsNamed,
     IsTemplatable,
-    PageNode,
-    node_component_,
+    Node,
     p_node_parent,
 )
+from bench.language.core.const import NodeTrait
+from bench.language.core.node import node_trait_
 from bench.pb2 import AnyNodeData
 
 if TYPE_CHECKING:
@@ -16,12 +18,13 @@ if TYPE_CHECKING:
 # pyright: reportIncompatibleVariableOverride=false
 
 
-@node_component_()
+@node_trait_(NodeTrait.STYLE)
 class StyleBase[NodeDataT: AnyNodeData](
     IsTemplatable,
     IsModal,
     IsNamed,
-    PageNode[NodeDataT],
+    IsBlockable,
+    Node if TYPE_CHECKING else object,
 ):
     """A Style is a graphical interface."""
 

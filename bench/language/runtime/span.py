@@ -3,10 +3,11 @@ from typing import TYPE_CHECKING, Optional, Union
 from fastuuid import UUID
 
 from bench.language.core import (
+    IsInPackage,
     IsModal,
     IsProcessable,
+    Node,
     NodeType,
-    PackageNode,
     SpanType,
     node_,
     p_node_ancestor,
@@ -29,7 +30,8 @@ class Span(
     IsModal,
     IsRun,
     IsProcessable,
-    PackageNode[SpanData],
+    IsInPackage,
+    Node[SpanData],
 ):
     """
     A Span is a sub-part of a Run that represents a small, isolated unit of work inside a Run.

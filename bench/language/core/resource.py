@@ -6,7 +6,7 @@ from fastuuid import UUID
 from bench.pb2 import AnyNodeData
 
 from .const import REGION, BuiltinEnum, EnumType, Region, enum_
-from .node import NodeReference, PageNode, node_component_
+from .node import IsBlockable, NodeReference, node_component_
 from .property import p_internal, p_node_parent, p_system
 from .trait import IsClaimable, IsInstantiable, IsModal, IsNamed, IsOwnable
 
@@ -57,7 +57,7 @@ class ResourceStatus(BuiltinEnum):
 
 @node_component_()
 class ResourceBase[NodeDataT: AnyNodeData](
-    IsModal, IsInstantiable, IsOwnable, IsNamed, IsClaimable, PageNode[NodeDataT]
+    IsModal, IsInstantiable, IsOwnable, IsNamed, IsClaimable, IsBlockable[NodeDataT]
 ):
     """
     A Resource in a Bench.

@@ -3,13 +3,14 @@ from typing import TYPE_CHECKING, Union
 from bench.language.core import (
     BuiltinEnum,
     EnumType,
+    IsBlockable,
     IsInstantiable,
     IsJoinable,
     IsModal,
     IsNamed,
     IsProcessable,
+    Node,
     NodeType,
-    PageNode,
     enum_,
     node_,
     p_node_parent,
@@ -29,7 +30,15 @@ class ChannelStatus(BuiltinEnum):
 
 
 @node_(NodeType.CHANNEL)
-class Channel(IsInstantiable, IsProcessable, IsJoinable, IsModal, IsNamed, PageNode[ChannelData]):
+class Channel(
+    IsInstantiable,
+    IsProcessable,
+    IsJoinable,
+    IsModal,
+    IsNamed,
+    IsBlockable,
+    Node[ChannelData],
+):
     """
     A Channel for organizing Messages and Threads.
     """

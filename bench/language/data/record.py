@@ -6,12 +6,13 @@ from bench.language.core import (
     IsBased,
     IsClaimable,
     IsExtensible,
+    IsInPackage,
     IsModal,
     IsOrdered,
     IsOwnable,
     IsTitled,
+    Node,
     NodeType,
-    PackageNode,
     node_,
     p_node_parent,
     p_regular,
@@ -36,7 +37,8 @@ class Record(
     IsOrdered,
     IsExtensible,
     IsTitled,
-    PackageNode[RecordData],
+    IsInPackage,
+    Node[RecordData],
 ):
     """
     A Record in a Table.

@@ -25,8 +25,8 @@ from bench.language import (
     TEMPLATABLE_NODE_TYPES,
     VERSION,
     VIEW_NODE_TYPES,
-    BenchNode,
-    PageNode,
+    IsInBench,
+    IsBlockable,
     ProvisionableResourceBase,
     ResourceBase,
 )
@@ -197,9 +197,9 @@ from .google.type.datetime_pb2 import *
 AnyNodeData = Union[{', '.join([cls.__name__ + 'Data' for cls in NODE_CLASSES])}]
 AnyStructData = Union[{', '.join([cls.__name__ + 'Data' for cls in STRUCT_CLASSES])}]
 AnyObjectData = AnyNodeData | AnyStructData
-BenchNodeData = Union[{', '.join([cls.__name__ + 'Data' for cls in NODE_CLASSES if issubclass(cls, BenchNode)])}]
+IsInBenchData = Union[{', '.join([cls.__name__ + 'Data' for cls in NODE_CLASSES if issubclass(cls, IsInBench)])}]
 ResourceNodeData = Union[{', '.join([cls.__name__ + 'Data' for cls in NODE_CLASSES if issubclass(cls, ResourceBase)])}]
-PageNodeData = Union[{', '.join([cls.__name__ + 'Data' for cls in NODE_CLASSES if issubclass(cls, PageNode)])}]
+IsBlockableData = Union[{', '.join([cls.__name__ + 'Data' for cls in NODE_CLASSES if issubclass(cls, IsBlockable)])}]
 SubjectNodeData = Union[{', '.join([cls.__name__ + 'Data' for cls in NODE_CLASSES if cls.metatype in SUBJECT_NODE_TYPES])}]
 JoinableNodeData = Union[{', '.join([cls.__name__ + 'Data' for cls in NODE_CLASSES if cls.metatype in JOINABLE_NODE_TYPES])}]
 ClaimableNodeData = Union[{', '.join([cls.__name__ + 'Data' for cls in NODE_CLASSES if cls.metatype in CLAIMABLE_NODE_TYPES])}]
@@ -278,9 +278,9 @@ export type AnyNodeData = {' | '.join(cls.__name__ + 'Data' for cls in NODE_CLAS
 export type AnyStructData = {' | '.join(cls.__name__ + 'Data' for cls in STRUCT_CLASSES)}
 export type AnyNodeDataType = {' | '.join('typeof ' + cls.__name__ + 'Data' for cls in NODE_CLASSES)}
 export type AnyStructDataType = {' | '.join('typeof ' + cls.__name__ + 'Data' for cls in STRUCT_CLASSES)}
-export type BenchNodeData = {' | '.join(cls.__name__ + 'Data' for cls in NODE_CLASSES if issubclass(cls, BenchNode))}
+export type IsInBenchData = {' | '.join(cls.__name__ + 'Data' for cls in NODE_CLASSES if issubclass(cls, IsInBench))}
 export type ClaimableNodeData = {' | '.join(cls.__name__ + 'Data' for cls in NODE_CLASSES if cls.metatype in CLAIMABLE_NODE_TYPES)}
-export type PageNodeData = {' | '.join(cls.__name__ + 'Data' for cls in NODE_CLASSES if issubclass(cls, PageNode))}
+export type IsBlockableData = {' | '.join(cls.__name__ + 'Data' for cls in NODE_CLASSES if issubclass(cls, IsBlockable))}
 export type JoinableNodeData = {' | '.join(cls.__name__ + 'Data' for cls in NODE_CLASSES if cls.metatype in JOINABLE_NODE_TYPES)}
 export type OwnableNodeData = {' | '.join(cls.__name__ + 'Data' for cls in NODE_CLASSES if cls.metatype in OWNABLE_NODE_TYPES)}
 export type TemplatableNodeData = {' | '.join(cls.__name__ + 'Data' for cls in NODE_CLASSES if cls.metatype in TEMPLATABLE_NODE_TYPES)}

@@ -3,13 +3,14 @@ from typing import TYPE_CHECKING, Optional, Union
 from fastuuid import UUID
 
 from bench.language.core import (
+    IsBlockable,
     IsInstantiable,
     IsJoinable,
     IsModal,
     IsNamed,
+    Node,
     NodeReference,
     NodeType,
-    PageNode,
     node_,
     p_node_parent,
     p_regular,
@@ -23,7 +24,14 @@ if TYPE_CHECKING:
 
 
 @node_(NodeType.TEAM)
-class Team(IsInstantiable, IsJoinable, IsModal, IsNamed, PageNode[TeamData]):
+class Team(
+    IsInstantiable,
+    IsJoinable,
+    IsModal,
+    IsNamed,
+    IsBlockable,
+    Node[TeamData],
+):
     """
     A Team of Users or Identities.
     """

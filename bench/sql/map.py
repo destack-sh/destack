@@ -3,10 +3,10 @@ from bench.language import (
     NODE_TYPES,
     RUNTIME_NODE_TYPES,
     UNSET,
-    BenchNode,
     EditType,
     Field,
     IsBased,
+    IsInBench,
     Node,
     NodeArea,
     NodeType,
@@ -122,7 +122,7 @@ def map_builtin_object_to_sql_table(
                 columns.append(base_id_column)
             # bench_id
             if prop.node_bench_from is None and any(
-                issubclass(NODE_CLASS_BY_TYPE[node_type], BenchNode)
+                issubclass(NODE_CLASS_BY_TYPE[node_type], IsInBench)
                 for node_type in prop.node_types
             ):
                 bench_id_column = SqlColumn(

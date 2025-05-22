@@ -10,7 +10,7 @@ from bench.language.core import (
     StructType,
     enum_,
     node_,
-    node_component_,
+    object_,
     p_regular,
     struct_,
 )
@@ -64,7 +64,7 @@ class OffscreenBehavior(BuiltinEnum):
     PAUSE = 2, "Pause", "Pause the animation"
 
 
-@node_component_()
+@object_()
 class EffectBase(IsVariable, BuiltinObject):
     """A base class for effects."""
 

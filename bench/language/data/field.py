@@ -4,13 +4,14 @@ from bench.language.core import (
     BuiltinEnum,
     Constraint,
     EnumType,
+    IsInPackage,
     IsInstantiable,
     IsModal,
     IsNamed,
     IsOrdered,
     IsQueryable,
+    Node,
     NodeType,
-    PackageNode,
     Property,
     TypeBase,
     TypeIn,
@@ -56,7 +57,8 @@ class Field(
     IsOrdered,
     IsQueryable,
     TypeBase,
-    PackageNode[FieldData],
+    IsInPackage,
+    Node[FieldData],
 ):
     """
     A Field is a user-defined attribute.
@@ -81,7 +83,7 @@ class Field(
     def __eq__(self, other):  # type: ignore
         return IsQueryable.__eq__(self, other)  # override to avoid recursion
 
-    __hash__ = PackageNode.__hash__  # type: ignore
+    __hash__ = IsInPackage.__hash__  # type: ignore
 
     @property
     def type_info(self) -> TypeBase:

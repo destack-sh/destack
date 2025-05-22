@@ -9,7 +9,7 @@ from bench.language.core import (
     StructType,
     enum_,
     node_,
-    node_component_,
+    object_,
     p_regular,
     struct_,
 )
@@ -40,7 +40,7 @@ class SpringType(BuiltinEnum):
     PHYSICS = 2
 
 
-@node_component_()
+@object_()
 class TransitionBase(IsVariable, BuiltinObject):
     type: TransitionType = p_regular(30, default=TransitionType.TWEEN)
     style: Optional["TransitionStyle"] = p_regular(41)

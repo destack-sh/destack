@@ -33,7 +33,6 @@ if TYPE_CHECKING:
         Session,
         Span,
         SpanType,
-        Transaction,
     )
     from bench.runtime import Runner
 
@@ -282,6 +281,7 @@ class EnumType(BuiltinEnum):
     ENUM_TYPE = 40000
     NODE_TYPE = 40001
     STRUCT_TYPE = 40002
+    NODE_TRAIT = 40004
     NODE_MODE = 40005
     NODE_AREA = 40006
     USER_STATUS = 40010
@@ -663,6 +663,7 @@ class NodeType(BuiltinEnum):
     # PROFILE? (for User, or maybe global?)
     CLAIM = 2840, "Claim", "Control over something", "fas fa-stamp"
     # CHALLENGE, FRIENDSHIP, BADGE, ENTITLEMENT, POLICY, RULE, ...
+    # KICK/BAN, ...
 
     # version [3200-3400]
     # CHANGE, HISTORY, BRANCH, ...
@@ -763,18 +764,48 @@ class NodeType(BuiltinEnum):
     # audio/media?
     # SOUND, ...?
 
-    EMPTY = 9999
-
     @property
     def area(self) -> "NodeArea":
         return AREA_BY_NODE_TYPE[self]
+
+
+# nocheckin: NodeTraits
+@enum_(EnumType.NODE_TRAIT)
+class NodeTrait(BuiltinEnum):
+    OWNABLE = 1
+    CLAIMABLE = 2
+    JOINABLE = 3
+    SUBJECT = 4
+    TEMPLATABLE = 7
+    INSTANTIABLE = 8
+    NAMED = 9
+    ORDERED = 10
+    MODAL = 11
+    EXTENSIBLE = 12
+    BASED = 14
+    IN_BENCH = 15, "Bench", "In a Bench"
+    IN_PACKAGE = 16, "Package", "In a Package"
+    PAGEABLE = 24, "Page", "In a Page"
+    BLOCKABLE = 25
+    RESOURCE = 17
+    PROVISIONABLE = 18
+    RUNNABLE = 5
+    PROCESSABLE = 6
+    COMPUTABLE = 13
+    # VIEW = 19
+    # STYLE = 20
+    # INPUT_VIEW = 21
+    # CONTENT_VIEW = 22
+    # INTERNAL_VIEW = 23
 
 
 @enum_(EnumType.NODE_AREA)
 class NodeArea(BuiltinEnum):
     GLOBAL_POSTGRES = 100
     REGIONAL_POSTGRES = 200
+    # REGIONAL_REDIS, REGIONAL_ELASTICSEARCH, ...
     LOCAL_POSTGRES = 300
+    # LOCAL_REDIS, LOCAL_ELASTICSEARCH, ...
 
 
 @enum_(EnumType.NODE_MODE)
@@ -821,130 +852,6 @@ NODE_TYPES_BY_AREA = {
     NodeArea.GLOBAL_POSTGRES: GLOBAL_NODE_TYPES,
     NodeArea.REGIONAL_POSTGRES: REGIONAL_NODE_TYPES,
     NodeArea.LOCAL_POSTGRES: LOCAL_NODE_TYPES,
-}
-ROOT_NODE_TYPES = bittuple(NodeType.BENCH, NodeType.USER, NodeType.ORGANIZATION)
-RESOURCE_NODE_TYPES = bittuple(
-    NodeType.DATABASE, NodeType.COMPUTER, NodeType.SCALER, NodeType.FILE, NodeType.LINK
-)
-PROVISIONABLE_RESOURCE_NODE_TYPES = bittuple(NodeType.SCALER, NodeType.DATABASE, NodeType.COMPUTER)
-COMMUNICATION_NODE_TYPES = _get_node_types(5500, 5600)
-RUNTIME_NODE_TYPES = _get_node_types(2400, 2500)
-PACKAGE_NODE_TYPES = _get_node_types(1000, 9000)
-BENCH_NODE_TYPES = _get_node_types(
-    1000,
-    10000,
-    NodeType.BENCH,
-    NodeType.PACKAGE,
-    NodeType.HANDLE,
-    NodeType.MEMBERSHIP,
-    NodeType.INVITE,
-    NodeType.CLIENT,
-)
-PUBLIC_NODE_TYPES = bittuple(NodeType.USER, NodeType.ORGANIZATION, NodeType.BENCH)
-# NOTE: these traits should also be in trait.py but we need the constants in property.py
-#  (which also depends on trait.py, and we can't have a circular dependency)
-BASED_NODE_TYPES = bittuple(NodeType.RECORD, NodeType.MESSAGE, NodeType.RUN)
-VIEW_NODE_TYPES = bittuple(*(n for n in NODE_TYPES if n.name.endswith("VIEW")))
-CONTAINER_VIEW_NODE_TYPES = _get_node_types(8100, 8200)
-CONTENT_VIEW_NODE_TYPES = _get_node_types(8200, 8300)
-INPUT_VIEW_NODE_TYPES = _get_node_types(8300, 8400)
-STYLE_NODE_TYPES = bittuple(*(n for n in NODE_TYPES if n.name.endswith("STYLE")))
-PAGE_NODE_TYPES = bittuple(
-    *RESOURCE_NODE_TYPES,
-    *VIEW_NODE_TYPES,
-    *STYLE_NODE_TYPES,
-    NodeType.APPLICATION,
-    NodeType.SCHEMA,
-    NodeType.TABLE,
-    NodeType.FLOW,
-    NodeType.SERVICE,
-    NodeType.PAGE,
-    NodeType.ROLE,
-    NodeType.TASK,
-    NodeType.THREAD,
-    NodeType.CHANNEL,
-    NodeType.TEAM,
-    NodeType.AGENT,
-    NodeType.THEME,
-    NodeType.ROUTE,
-    NodeType.SCENE,
-)
-INSTANTIABLE_NODE_TYPES = bittuple(
-    *RESOURCE_NODE_TYPES,
-    *VIEW_NODE_TYPES,
-    NodeType.APPLICATION,
-    NodeType.ACTION,
-    NodeType.FIELD,
-    NodeType.TABLE,
-    NodeType.TASK,
-    NodeType.THREAD,
-    NodeType.CLAIM,
-    NodeType.CHANNEL,
-    NodeType.TEAM,
-    NodeType.AGENT,
-    NodeType.MEMBERSHIP,
-    NodeType.ROUTE,
-    NodeType.SCENE,
-    NodeType.THEME,
-)
-TEMPLATABLE_NODE_TYPES = bittuple(
-    *RESOURCE_NODE_TYPES,
-    *INSTANTIABLE_NODE_TYPES,
-    *VIEW_NODE_TYPES,
-    *STYLE_NODE_TYPES,
-    NodeType.PACKAGE,
-    NodeType.DEPENDENCY,
-    NodeType.PAGE,
-    NodeType.BLOCK,
-    NodeType.SCHEMA,
-    NodeType.FIELD,
-    NodeType.SERVICE,
-    NodeType.ACTION,
-    NodeType.FLOW,
-    NodeType.FLOW_EDGE,
-    NodeType.TABLE,
-    NodeType.CHANNEL,
-    NodeType.ROLE,
-    NodeType.SPACE,
-)
-
-
-# TODO :Broken: :Performance: we load too much and too coarsely :NodeOverload :RichGraph
-UNLOADED_RESOURCE_NODE_TYPES = bittuple(NodeType.FILE)
-LOADED_PACKAGE_NODE_TYPES = bittuple(
-    *(RESOURCE_NODE_TYPES - UNLOADED_RESOURCE_NODE_TYPES),
-    *VIEW_NODE_TYPES,
-    NodeType.PACKAGE,
-    NodeType.DEPENDENCY,
-    NodeType.PAGE,
-    NodeType.BLOCK,
-    NodeType.SCHEMA,
-    NodeType.FIELD,
-    NodeType.SERVICE,
-    NodeType.ACTION,
-    NodeType.FLOW,
-    NodeType.FLOW_EDGE,
-    NodeType.TABLE,
-    NodeType.CHANNEL,
-    NodeType.TEAM,
-    NodeType.MEMBERSHIP,
-    NodeType.ROLE,
-    NodeType.AGENT,
-    NodeType.TASK,
-    NodeType.CLAIM,
-    NodeType.SPACE,
-)
-
-
-# automatically included descendants :AutoLoading :RichGraph
-AUTOLOAD_DESCENDANT_TYPES: dict[NodeType, tuple[NodeType, ...]] = {
-    NodeType.THREAD: (
-        NodeType.FILE,
-        NodeType.MEMBERSHIP,
-        NodeType.CLAIM,
-        NodeType.AGENT,
-        NodeType.CURSOR,
-    ),
 }
 
 
@@ -1426,22 +1333,6 @@ def active_session() -> "Session":
 def get_active_session() -> Optional["Session"]:
     """Gets the currently active Session (if any)."""
     return ACTIVE_SESSION.get()
-
-
-def active_tx() -> "Transaction":
-    """Gets the currently active Transaction (error if none)."""
-    session = ACTIVE_SESSION.get()
-    assert session is not None, "no active session"
-    assert session._tx is not None, f"no active transaction in {session!r}"
-    return session._tx
-
-
-def get_active_tx() -> Optional["Transaction"]:
-    """Gets the currently active Transaction (if any)."""
-    session = ACTIVE_SESSION.get()
-    if session is None:
-        return None
-    return session._tx
 
 
 @_agnosticcontextmanager

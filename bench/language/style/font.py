@@ -9,7 +9,7 @@ from bench.language.core import (
     StructType,
     enum_,
     node_,
-    node_component_,
+    object_,
     p_regular,
     struct_,
 )
@@ -83,7 +83,7 @@ class TextTransform(BuiltinEnum):
     CAPITALIZE = 4
 
 
-@node_component_()
+@object_()
 class FontBase(IsVariable, BuiltinObject):
     """A text style value."""
 

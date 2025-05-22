@@ -9,7 +9,7 @@ from bench.language.core import (
     StructType,
     enum_,
     node_,
-    node_component_,
+    object_,
     p_regular,
     struct_,
 )
@@ -36,7 +36,7 @@ class BorderType(BuiltinEnum):
     DOUBLE = 13
 
 
-@node_component_()
+@object_()
 class BorderBase(IsVariable, BuiltinObject):
     type: BorderType = p_regular(30, default=BorderType.SOLID)
     style: Optional["BorderStyle"] = p_regular(41)

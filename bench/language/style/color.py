@@ -9,7 +9,7 @@ from bench.language.core import (
     StructType,
     enum_,
     node_,
-    node_component_,
+    object_,
     p_regular,
     struct_,
 )
@@ -76,7 +76,7 @@ class ColorShade(BuiltinEnum):
     S950 = 950
 
 
-@node_component_()
+@object_()
 class ColorBase(IsVariable, BuiltinObject):
     """A color value (x, y, z, alpha in 0-1)."""
 

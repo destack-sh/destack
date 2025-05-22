@@ -10,12 +10,12 @@ from bench.language.core import (
     EnumType,
     IsBased,
     IsComputable,
+    IsInPackage,
     IsModal,
     IsOwnable,
     IsTitled,
     Node,
     NodeType,
-    PackageNode,
     ResourceStatus,
     Subject,
     Text,
@@ -59,7 +59,8 @@ class Message(
     IsOwnable,
     IsTitled,
     IsModal,
-    PackageNode[MessageData],
+    IsInPackage,
+    Node[MessageData],
 ):
     """
     A Message about something (usually in a Thread or a Channel).

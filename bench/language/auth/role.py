@@ -1,11 +1,12 @@
 from typing import TYPE_CHECKING, Union
 
 from bench.language.core import (
+    IsBlockable,
     IsModal,
     IsNamed,
     IsTemplatable,
+    Node,
     NodeType,
-    PageNode,
     node_,
     p_node_parent,
 )
@@ -18,7 +19,7 @@ if TYPE_CHECKING:
 
 
 @node_(NodeType.ROLE)
-class Role(IsTemplatable, IsModal, IsNamed, PageNode[RoleData]):
+class Role(IsTemplatable, IsModal, IsNamed, IsBlockable, Node[RoleData]):
     """A Role to assign to something."""
 
     parent: Union["Team", "Page", None] = p_node_parent(4)

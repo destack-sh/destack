@@ -37,7 +37,7 @@ from .const import (
 )
 from .graph import Supergraph
 from .icon import Icon, reverse_icon
-from .node import Node, NodeReference, PackageNode
+from .node import IsInPackage, Node, NodeReference
 from .object import BuiltinObject, PropertyReference
 from .property import NodeReferenceKind, Property
 from .struct import Struct
@@ -489,8 +489,8 @@ class NodeRenderer[T: Node](BuiltinObjectRenderer[T]):
         return self._render_constructor(renderer, obj, kwargs, rendered_kwargs)
 
 
-class PackageNodeRenderer[T: PackageNode](NodeRenderer[T]):
-    """The base renderer for a PackageNode."""
+class IsInPackageRenderer[T: IsInPackage](NodeRenderer[T]):
+    """The base renderer for a IsInPackage."""
 
     @override
     def render(self, renderer: Renderer, obj: T, options: RenderOptions) -> str:
@@ -500,12 +500,12 @@ class PackageNodeRenderer[T: PackageNode](NodeRenderer[T]):
 
 
 NODE_RENDERER = NodeRenderer[Node]()
-PACKAGE_NODE_RENDERER = PackageNodeRenderer[PackageNode]()
+PACKAGE_NODE_RENDERER = IsInPackageRenderer[IsInPackage]()
 BUILTIN_OBJECT_RENDERER = BuiltinObjectRenderer[BuiltinObject]()
 
 
 @_renderer(NodeType.BLOCK)
-class BlockRenderer(PackageNodeRenderer["Block"]):
+class BlockRenderer(IsInPackageRenderer["Block"]):
     @override
     def _render_constructor(
         self,
@@ -523,7 +523,7 @@ class BlockRenderer(PackageNodeRenderer["Block"]):
 
 
 @_renderer(NodeType.FLOW)
-class FlowRenderer(PackageNodeRenderer["Flow"]):
+class FlowRenderer(IsInPackageRenderer["Flow"]):
     @override
     def _render_constructor(
         self,
@@ -541,7 +541,7 @@ class FlowRenderer(PackageNodeRenderer["Flow"]):
 
 
 @_renderer(NodeType.ACTION)
-class ActionRenderer(PackageNodeRenderer["Action"]):
+class ActionRenderer(IsInPackageRenderer["Action"]):
     @override
     def _render_constructor(
         self,
@@ -559,7 +559,7 @@ class ActionRenderer(PackageNodeRenderer["Action"]):
 
 
 @_renderer(NodeType.FLOW_EDGE)
-class FlowEdgeRenderer(PackageNodeRenderer["FlowEdge"]):
+class FlowEdgeRenderer(IsInPackageRenderer["FlowEdge"]):
     @override
     def _render_constructor(
         self,
@@ -596,7 +596,7 @@ class FlowEdgeRenderer(PackageNodeRenderer["FlowEdge"]):
 
 
 @_renderer(NodeType.SCHEMA)
-class SchemaRenderer(PackageNodeRenderer["Schema"]):
+class SchemaRenderer(IsInPackageRenderer["Schema"]):
     @override
     def _render_constructor(
         self,
@@ -617,7 +617,7 @@ class SchemaRenderer(PackageNodeRenderer["Schema"]):
 
 
 @_renderer(NodeType.TABLE)
-class TableRenderer(PackageNodeRenderer["Table"]):
+class TableRenderer(IsInPackageRenderer["Table"]):
     @override
     def _render_constructor(
         self,
@@ -640,7 +640,7 @@ class TableRenderer(PackageNodeRenderer["Table"]):
 
 
 @_renderer(NodeType.PAGE)
-class PageRenderer(PackageNodeRenderer["Page"]):
+class PageRenderer(IsInPackageRenderer["Page"]):
     @override
     def _render_constructor(
         self,
@@ -658,7 +658,7 @@ class PageRenderer(PackageNodeRenderer["Page"]):
 
 
 @_renderer(NodeType.FIELD)
-class FieldRenderer(PackageNodeRenderer["Field"]):
+class FieldRenderer(IsInPackageRenderer["Field"]):
     @override
     def _render_constructor(
         self,
