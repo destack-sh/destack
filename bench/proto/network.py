@@ -1,14 +1,15 @@
 import abc
 from typing import TYPE_CHECKING, AsyncIterator, Optional, cast, override
 from urllib.parse import urlparse
-from fastuuid import UUID
+
 import cachetools
 import grpclib
 import grpclib.client
+from fastuuid import UUID
 from grpclib.client import Channel
 
 from bench import pb2
-from bench.pb2 import ComputerEnvironment, RpcMetadata
+from bench.pb2 import RpcMetadata
 from bench.proto.wiring import pack_rpc_headers
 from bench.utils.telemetry import collect_propagation_context
 from bench.utils.utils import get_from_env
@@ -23,12 +24,6 @@ IS_IN_DOCKER = get_from_env(
 IS_IN_MINIKUBE = get_from_env(
     "IS_IN_MINIKUBE", typ=bool, default=False, description="Whether we're running in Minikube"
 )
-if IS_IN_DOCKER:
-    COMPUTER_ENVIRONMENT = ComputerEnvironment.DOCKER
-elif IS_IN_MINIKUBE:
-    COMPUTER_ENVIRONMENT = ComputerEnvironment.MINIKUBE
-else:
-    COMPUTER_ENVIRONMENT = ComputerEnvironment.REGULAR
 
 
 def localize_url(domain: str) -> str:

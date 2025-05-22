@@ -11,7 +11,6 @@ from .core import (
 from .health import HealthService
 from .map import PROTO_FIELD_TYPE_BY_PRIMITIVE_TYPE, generate_proto_schema
 from .network import (
-    COMPUTER_ENVIRONMENT,
     IS_IN_DOCKER,
     IS_IN_MINIKUBE,
     Network,
@@ -43,7 +42,6 @@ from .wiring import (
 )
 
 __all__ = [
-    "COMPUTER_ENVIRONMENT",
     "IS_IN_DOCKER",
     "IS_IN_MINIKUBE",
     "PROTO_FIELD_TYPE_BY_PRIMITIVE_TYPE",

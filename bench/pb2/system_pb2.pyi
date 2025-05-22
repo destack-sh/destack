@@ -10,169 +10,11 @@ from google.protobuf import struct_pb2 as _struct_pb2
 from . import common_pb2 as _common_pb2
 from . import lang_pb2 as _lang_pb2
 from google.protobuf.internal import containers as _containers
-from google.protobuf.internal import enum_type_wrapper as _enum_type_wrapper
 from google.protobuf import descriptor as _descriptor
 from google.protobuf import message as _message
 from typing import ClassVar as _ClassVar, Iterable as _Iterable, Mapping as _Mapping, Optional as _Optional, Union as _Union
 
 DESCRIPTOR: _descriptor.FileDescriptor
-
-class ComputerEnvironment(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
-    __slots__ = ()
-    REGULAR: _ClassVar[ComputerEnvironment]
-    DOCKER: _ClassVar[ComputerEnvironment]
-    MINIKUBE: _ClassVar[ComputerEnvironment]
-REGULAR: ComputerEnvironment
-DOCKER: ComputerEnvironment
-MINIKUBE: ComputerEnvironment
-
-class GetNodesRequest(_message.Message):
-    __slots__ = ("scope", "roots", "base_type_ptr", "ancestor_types", "descendant_types", "select", "include_removed", "no_memory", "no_cache", "is_optional")
-    SCOPE_FIELD_NUMBER: _ClassVar[int]
-    ROOTS_FIELD_NUMBER: _ClassVar[int]
-    BASE_TYPE_PTR_FIELD_NUMBER: _ClassVar[int]
-    ANCESTOR_TYPES_FIELD_NUMBER: _ClassVar[int]
-    DESCENDANT_TYPES_FIELD_NUMBER: _ClassVar[int]
-    SELECT_FIELD_NUMBER: _ClassVar[int]
-    INCLUDE_REMOVED_FIELD_NUMBER: _ClassVar[int]
-    NO_MEMORY_FIELD_NUMBER: _ClassVar[int]
-    NO_CACHE_FIELD_NUMBER: _ClassVar[int]
-    IS_OPTIONAL_FIELD_NUMBER: _ClassVar[int]
-    scope: _lang_pb2.ScopeData
-    roots: _containers.RepeatedCompositeFieldContainer[_lang_pb2.NodeReferenceData]
-    base_type_ptr: _lang_pb2.NodeReferenceData
-    ancestor_types: _containers.RepeatedScalarFieldContainer[_lang_pb2.NodeType]
-    descendant_types: _containers.RepeatedScalarFieldContainer[_lang_pb2.NodeType]
-    select: _lang_pb2.SelectOptionsData
-    include_removed: bool
-    no_memory: bool
-    no_cache: bool
-    is_optional: bool
-    def __init__(self, scope: _Optional[_Union[_lang_pb2.ScopeData, _Mapping]] = ..., roots: _Optional[_Iterable[_Union[_lang_pb2.NodeReferenceData, _Mapping]]] = ..., base_type_ptr: _Optional[_Union[_lang_pb2.NodeReferenceData, _Mapping]] = ..., ancestor_types: _Optional[_Iterable[_Union[_lang_pb2.NodeType, str]]] = ..., descendant_types: _Optional[_Iterable[_Union[_lang_pb2.NodeType, str]]] = ..., select: _Optional[_Union[_lang_pb2.SelectOptionsData, _Mapping]] = ..., include_removed: bool = ..., no_memory: bool = ..., no_cache: bool = ..., is_optional: bool = ...) -> None: ...
-
-class GetNodesResponse(_message.Message):
-    __slots__ = ("nodes", "epoch", "connection_token")
-    NODES_FIELD_NUMBER: _ClassVar[int]
-    EPOCH_FIELD_NUMBER: _ClassVar[int]
-    CONNECTION_TOKEN_FIELD_NUMBER: _ClassVar[int]
-    nodes: _containers.RepeatedCompositeFieldContainer[_lang_pb2.SomeNodeData]
-    epoch: int
-    connection_token: str
-    def __init__(self, nodes: _Optional[_Iterable[_Union[_lang_pb2.SomeNodeData, _Mapping]]] = ..., epoch: _Optional[int] = ..., connection_token: _Optional[str] = ...) -> None: ...
-
-class WatchGetRequest(_message.Message):
-    __slots__ = ("scope", "connection_token", "since_epoch")
-    SCOPE_FIELD_NUMBER: _ClassVar[int]
-    CONNECTION_TOKEN_FIELD_NUMBER: _ClassVar[int]
-    SINCE_EPOCH_FIELD_NUMBER: _ClassVar[int]
-    scope: _lang_pb2.ScopeData
-    connection_token: str
-    since_epoch: int
-    def __init__(self, scope: _Optional[_Union[_lang_pb2.ScopeData, _Mapping]] = ..., connection_token: _Optional[str] = ..., since_epoch: _Optional[int] = ...) -> None: ...
-
-class WatchGetResponse(_message.Message):
-    __slots__ = ("edits", "cascaded_edits", "added_nodes", "removed_nodes_ptr", "epoch", "is_keepalive")
-    EDITS_FIELD_NUMBER: _ClassVar[int]
-    CASCADED_EDITS_FIELD_NUMBER: _ClassVar[int]
-    ADDED_NODES_FIELD_NUMBER: _ClassVar[int]
-    REMOVED_NODES_PTR_FIELD_NUMBER: _ClassVar[int]
-    EPOCH_FIELD_NUMBER: _ClassVar[int]
-    IS_KEEPALIVE_FIELD_NUMBER: _ClassVar[int]
-    edits: _containers.RepeatedCompositeFieldContainer[_lang_pb2.EditData]
-    cascaded_edits: _containers.RepeatedCompositeFieldContainer[_lang_pb2.EditData]
-    added_nodes: _containers.RepeatedCompositeFieldContainer[_lang_pb2.SomeNodeData]
-    removed_nodes_ptr: _containers.RepeatedCompositeFieldContainer[_lang_pb2.NodeReferenceData]
-    epoch: int
-    is_keepalive: bool
-    def __init__(self, edits: _Optional[_Iterable[_Union[_lang_pb2.EditData, _Mapping]]] = ..., cascaded_edits: _Optional[_Iterable[_Union[_lang_pb2.EditData, _Mapping]]] = ..., added_nodes: _Optional[_Iterable[_Union[_lang_pb2.SomeNodeData, _Mapping]]] = ..., removed_nodes_ptr: _Optional[_Iterable[_Union[_lang_pb2.NodeReferenceData, _Mapping]]] = ..., epoch: _Optional[int] = ..., is_keepalive: bool = ...) -> None: ...
-
-class SearchNodesRequest(_message.Message):
-    __slots__ = ("scope", "node_type", "base_type_ptr", "filter", "sort", "ancestor_types", "descendant_types", "first", "count", "select", "no_cache")
-    SCOPE_FIELD_NUMBER: _ClassVar[int]
-    NODE_TYPE_FIELD_NUMBER: _ClassVar[int]
-    BASE_TYPE_PTR_FIELD_NUMBER: _ClassVar[int]
-    FILTER_FIELD_NUMBER: _ClassVar[int]
-    SORT_FIELD_NUMBER: _ClassVar[int]
-    ANCESTOR_TYPES_FIELD_NUMBER: _ClassVar[int]
-    DESCENDANT_TYPES_FIELD_NUMBER: _ClassVar[int]
-    FIRST_FIELD_NUMBER: _ClassVar[int]
-    COUNT_FIELD_NUMBER: _ClassVar[int]
-    SELECT_FIELD_NUMBER: _ClassVar[int]
-    NO_CACHE_FIELD_NUMBER: _ClassVar[int]
-    scope: _lang_pb2.ScopeData
-    node_type: _lang_pb2.NodeType
-    base_type_ptr: _lang_pb2.NodeReferenceData
-    filter: _lang_pb2.ExpressionData
-    sort: _containers.RepeatedCompositeFieldContainer[_lang_pb2.ExpressionData]
-    ancestor_types: _containers.RepeatedScalarFieldContainer[_lang_pb2.NodeType]
-    descendant_types: _containers.RepeatedScalarFieldContainer[_lang_pb2.NodeType]
-    first: int
-    count: bool
-    select: _lang_pb2.SelectOptionsData
-    no_cache: bool
-    def __init__(self, scope: _Optional[_Union[_lang_pb2.ScopeData, _Mapping]] = ..., node_type: _Optional[_Union[_lang_pb2.NodeType, str]] = ..., base_type_ptr: _Optional[_Union[_lang_pb2.NodeReferenceData, _Mapping]] = ..., filter: _Optional[_Union[_lang_pb2.ExpressionData, _Mapping]] = ..., sort: _Optional[_Iterable[_Union[_lang_pb2.ExpressionData, _Mapping]]] = ..., ancestor_types: _Optional[_Iterable[_Union[_lang_pb2.NodeType, str]]] = ..., descendant_types: _Optional[_Iterable[_Union[_lang_pb2.NodeType, str]]] = ..., first: _Optional[int] = ..., count: bool = ..., select: _Optional[_Union[_lang_pb2.SelectOptionsData, _Mapping]] = ..., no_cache: bool = ...) -> None: ...
-
-class SearchNodesResponse(_message.Message):
-    __slots__ = ("roots_ptr", "nodes", "total", "epoch", "connection_token")
-    ROOTS_PTR_FIELD_NUMBER: _ClassVar[int]
-    NODES_FIELD_NUMBER: _ClassVar[int]
-    TOTAL_FIELD_NUMBER: _ClassVar[int]
-    EPOCH_FIELD_NUMBER: _ClassVar[int]
-    CONNECTION_TOKEN_FIELD_NUMBER: _ClassVar[int]
-    roots_ptr: _containers.RepeatedCompositeFieldContainer[_lang_pb2.NodeReferenceData]
-    nodes: _containers.RepeatedCompositeFieldContainer[_lang_pb2.SomeNodeData]
-    total: int
-    epoch: int
-    connection_token: str
-    def __init__(self, roots_ptr: _Optional[_Iterable[_Union[_lang_pb2.NodeReferenceData, _Mapping]]] = ..., nodes: _Optional[_Iterable[_Union[_lang_pb2.SomeNodeData, _Mapping]]] = ..., total: _Optional[int] = ..., epoch: _Optional[int] = ..., connection_token: _Optional[str] = ...) -> None: ...
-
-class WatchSearchRequest(_message.Message):
-    __slots__ = ("scope", "connection_token", "since_epoch")
-    SCOPE_FIELD_NUMBER: _ClassVar[int]
-    CONNECTION_TOKEN_FIELD_NUMBER: _ClassVar[int]
-    SINCE_EPOCH_FIELD_NUMBER: _ClassVar[int]
-    scope: _lang_pb2.ScopeData
-    connection_token: str
-    since_epoch: int
-    def __init__(self, scope: _Optional[_Union[_lang_pb2.ScopeData, _Mapping]] = ..., connection_token: _Optional[str] = ..., since_epoch: _Optional[int] = ...) -> None: ...
-
-class WatchSearchResponse(_message.Message):
-    __slots__ = ("edits", "cascaded_edits", "added_nodes", "removed_nodes_ptr", "roots_ptr", "total", "epoch", "is_keepalive")
-    EDITS_FIELD_NUMBER: _ClassVar[int]
-    CASCADED_EDITS_FIELD_NUMBER: _ClassVar[int]
-    ADDED_NODES_FIELD_NUMBER: _ClassVar[int]
-    REMOVED_NODES_PTR_FIELD_NUMBER: _ClassVar[int]
-    ROOTS_PTR_FIELD_NUMBER: _ClassVar[int]
-    TOTAL_FIELD_NUMBER: _ClassVar[int]
-    EPOCH_FIELD_NUMBER: _ClassVar[int]
-    IS_KEEPALIVE_FIELD_NUMBER: _ClassVar[int]
-    edits: _containers.RepeatedCompositeFieldContainer[_lang_pb2.EditData]
-    cascaded_edits: _containers.RepeatedCompositeFieldContainer[_lang_pb2.EditData]
-    added_nodes: _containers.RepeatedCompositeFieldContainer[_lang_pb2.SomeNodeData]
-    removed_nodes_ptr: _containers.RepeatedCompositeFieldContainer[_lang_pb2.NodeReferenceData]
-    roots_ptr: _containers.RepeatedCompositeFieldContainer[_lang_pb2.NodeReferenceData]
-    total: int
-    epoch: int
-    is_keepalive: bool
-    def __init__(self, edits: _Optional[_Iterable[_Union[_lang_pb2.EditData, _Mapping]]] = ..., cascaded_edits: _Optional[_Iterable[_Union[_lang_pb2.EditData, _Mapping]]] = ..., added_nodes: _Optional[_Iterable[_Union[_lang_pb2.SomeNodeData, _Mapping]]] = ..., removed_nodes_ptr: _Optional[_Iterable[_Union[_lang_pb2.NodeReferenceData, _Mapping]]] = ..., roots_ptr: _Optional[_Iterable[_Union[_lang_pb2.NodeReferenceData, _Mapping]]] = ..., total: _Optional[int] = ..., epoch: _Optional[int] = ..., is_keepalive: bool = ...) -> None: ...
-
-class CommitTransactionRequest(_message.Message):
-    __slots__ = ("scope", "id", "edits")
-    SCOPE_FIELD_NUMBER: _ClassVar[int]
-    ID_FIELD_NUMBER: _ClassVar[int]
-    EDITS_FIELD_NUMBER: _ClassVar[int]
-    scope: _lang_pb2.ScopeData
-    id: str
-    edits: _containers.RepeatedCompositeFieldContainer[_lang_pb2.EditData]
-    def __init__(self, scope: _Optional[_Union[_lang_pb2.ScopeData, _Mapping]] = ..., id: _Optional[str] = ..., edits: _Optional[_Iterable[_Union[_lang_pb2.EditData, _Mapping]]] = ...) -> None: ...
-
-class CommitTransactionResponse(_message.Message):
-    __slots__ = ("cascaded_edits", "epoch")
-    CASCADED_EDITS_FIELD_NUMBER: _ClassVar[int]
-    EPOCH_FIELD_NUMBER: _ClassVar[int]
-    cascaded_edits: _containers.RepeatedCompositeFieldContainer[_lang_pb2.EditData]
-    epoch: int
-    def __init__(self, cascaded_edits: _Optional[_Iterable[_Union[_lang_pb2.EditData, _Mapping]]] = ..., epoch: _Optional[int] = ...) -> None: ...
 
 class ClientDataIn(_message.Message):
     __slots__ = ("id", "type", "name", "device_type", "device_name", "operating_system", "browser_name", "browser_version", "place_id", "access_token", "space_ptr")
@@ -346,15 +188,55 @@ class ResolveHostsResponse(_message.Message):
     hosts: _containers.RepeatedCompositeFieldContainer[ResolveHostsResponse.HostInfo]
     def __init__(self, hosts: _Optional[_Iterable[_Union[ResolveHostsResponse.HostInfo, _Mapping]]] = ...) -> None: ...
 
+class QueryRequest(_message.Message):
+    __slots__ = ("scope", "query")
+    SCOPE_FIELD_NUMBER: _ClassVar[int]
+    QUERY_FIELD_NUMBER: _ClassVar[int]
+    scope: _lang_pb2.ScopeData
+    query: _lang_pb2.QueryData
+    def __init__(self, scope: _Optional[_Union[_lang_pb2.ScopeData, _Mapping]] = ..., query: _Optional[_Union[_lang_pb2.QueryData, _Mapping]] = ...) -> None: ...
+
+class QueryResponse(_message.Message):
+    __slots__ = ()
+    def __init__(self) -> None: ...
+
+class SubscribeRequest(_message.Message):
+    __slots__ = ("query_id",)
+    QUERY_ID_FIELD_NUMBER: _ClassVar[int]
+    query_id: str
+    def __init__(self, query_id: _Optional[str] = ...) -> None: ...
+
+class SubscribeResponse(_message.Message):
+    __slots__ = ()
+    def __init__(self) -> None: ...
+
+class CommitRequest(_message.Message):
+    __slots__ = ("scope", "id", "edits")
+    SCOPE_FIELD_NUMBER: _ClassVar[int]
+    ID_FIELD_NUMBER: _ClassVar[int]
+    EDITS_FIELD_NUMBER: _ClassVar[int]
+    scope: _lang_pb2.ScopeData
+    id: str
+    edits: _containers.RepeatedCompositeFieldContainer[_lang_pb2.EditData]
+    def __init__(self, scope: _Optional[_Union[_lang_pb2.ScopeData, _Mapping]] = ..., id: _Optional[str] = ..., edits: _Optional[_Iterable[_Union[_lang_pb2.EditData, _Mapping]]] = ...) -> None: ...
+
+class CommitResponse(_message.Message):
+    __slots__ = ("edits", "cascaded_edits", "epoch")
+    EDITS_FIELD_NUMBER: _ClassVar[int]
+    CASCADED_EDITS_FIELD_NUMBER: _ClassVar[int]
+    EPOCH_FIELD_NUMBER: _ClassVar[int]
+    edits: _containers.RepeatedCompositeFieldContainer[_lang_pb2.EditData]
+    cascaded_edits: _containers.RepeatedCompositeFieldContainer[_lang_pb2.EditData]
+    epoch: int
+    def __init__(self, edits: _Optional[_Iterable[_Union[_lang_pb2.EditData, _Mapping]]] = ..., cascaded_edits: _Optional[_Iterable[_Union[_lang_pb2.EditData, _Mapping]]] = ..., epoch: _Optional[int] = ...) -> None: ...
+
 class UploadFilesRequest(_message.Message):
-    __slots__ = ("scope", "files", "environment")
+    __slots__ = ("scope", "files")
     SCOPE_FIELD_NUMBER: _ClassVar[int]
     FILES_FIELD_NUMBER: _ClassVar[int]
-    ENVIRONMENT_FIELD_NUMBER: _ClassVar[int]
     scope: _lang_pb2.ScopeData
     files: _containers.RepeatedCompositeFieldContainer[_lang_pb2.FileData]
-    environment: ComputerEnvironment
-    def __init__(self, scope: _Optional[_Union[_lang_pb2.ScopeData, _Mapping]] = ..., files: _Optional[_Iterable[_Union[_lang_pb2.FileData, _Mapping]]] = ..., environment: _Optional[_Union[ComputerEnvironment, str]] = ...) -> None: ...
+    def __init__(self, scope: _Optional[_Union[_lang_pb2.ScopeData, _Mapping]] = ..., files: _Optional[_Iterable[_Union[_lang_pb2.FileData, _Mapping]]] = ...) -> None: ...
 
 class UploadFilesResponse(_message.Message):
     __slots__ = ("handles",)
@@ -374,14 +256,12 @@ class UploadFilesResponse(_message.Message):
     def __init__(self, handles: _Optional[_Iterable[_Union[UploadFilesResponse.UploadHandle, _Mapping]]] = ...) -> None: ...
 
 class DownloadFilesRequest(_message.Message):
-    __slots__ = ("scope", "files", "environment")
+    __slots__ = ("scope", "files")
     SCOPE_FIELD_NUMBER: _ClassVar[int]
     FILES_FIELD_NUMBER: _ClassVar[int]
-    ENVIRONMENT_FIELD_NUMBER: _ClassVar[int]
     scope: _lang_pb2.ScopeData
     files: _containers.RepeatedCompositeFieldContainer[_lang_pb2.NodeReferenceData]
-    environment: ComputerEnvironment
-    def __init__(self, scope: _Optional[_Union[_lang_pb2.ScopeData, _Mapping]] = ..., files: _Optional[_Iterable[_Union[_lang_pb2.NodeReferenceData, _Mapping]]] = ..., environment: _Optional[_Union[ComputerEnvironment, str]] = ...) -> None: ...
+    def __init__(self, scope: _Optional[_Union[_lang_pb2.ScopeData, _Mapping]] = ..., files: _Optional[_Iterable[_Union[_lang_pb2.NodeReferenceData, _Mapping]]] = ...) -> None: ...
 
 class DownloadFilesResponse(_message.Message):
     __slots__ = ("handles",)
