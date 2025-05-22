@@ -1,14 +1,15 @@
 from typing import TYPE_CHECKING, Optional, Union
 
 from bench.language.core import (
+    IsBlockable,
     IsInstantiable,
     IsModal,
     IsNamed,
-    PageNode,
-    node_component_,
+    node_trait_,
     p_node_parent,
     p_regular,
 )
+from bench.language.core.const import NodeTrait
 from bench.pb2 import AnyNodeData
 
 if TYPE_CHECKING:
@@ -17,12 +18,12 @@ if TYPE_CHECKING:
 # pyright: reportIncompatibleVariableOverride=false
 
 
-@node_component_()
+@node_trait_(NodeTrait.VIEW)
 class ViewBase[NodeDataT: AnyNodeData](
     IsInstantiable,
     IsModal,
     IsNamed,
-    PageNode[NodeDataT],
+    IsBlockable[NodeDataT],
 ):
     """A View is a graphical interface."""
 

@@ -7,14 +7,15 @@ from bench.language.core import (
     EnumType,
     IsClaimable,
     IsExtensible,
+    IsInPackage,
     IsInstantiable,
     IsModal,
     IsNamed,
     IsOrdered,
     IsRunnable,
+    Node,
     NodeReference,
     NodeType,
-    PackageNode,
     RunType,
     enum_,
     node_,
@@ -72,7 +73,8 @@ class Action(
     IsModal,
     IsOrdered,
     IsRunnable,
-    PackageNode[ActionData],
+    IsInPackage,
+    Node[ActionData],
 ):
     """
     An implementation of a unit of work, usually expressed with Code or some tool.

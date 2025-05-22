@@ -137,7 +137,7 @@ AnyStructData = Union[
     CornersData,
 ]
 AnyObjectData = AnyNodeData | AnyStructData
-BenchNodeData = Union[
+IsInBenchData = Union[
     BenchData,
     HandleData,
     PackageData,
@@ -195,7 +195,7 @@ BenchNodeData = Union[
     EffectStyleData,
 ]
 ResourceNodeData = Union[DatabaseData, ComputerData, ScalerData, FileData, LinkData]
-PageNodeData = Union[
+IsBlockableData = Union[
     PageData,
     ApplicationData,
     DatabaseData,

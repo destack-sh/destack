@@ -5,16 +5,17 @@ from fastuuid import UUID
 
 from bench.language.core import (
     BuiltinEnum,
-    Claimable,
     EnumType,
+    IsClaimable,
+    IsInPackage,
     IsInstantiable,
     IsModal,
     IsNamed,
     IsOrdered,
     IsOwnable,
+    Node,
     NodeReference,
     NodeType,
-    PackageNode,
     enum_,
     node_,
     p_internal,
@@ -72,7 +73,8 @@ class Claim(
     IsInstantiable,
     IsOrdered,
     IsNamed,
-    PackageNode[ClaimData],
+    IsInPackage,
+    Node[ClaimData],
 ):
     """
     A Claim on something (like a Resource, runnable tool Node for a 'tool', or some other Node).
@@ -92,11 +94,11 @@ class Claim(
     terminated_at: Optional[datetime] = p_internal(55)
 
     # content
-    target: Optional[Claimable] = p_regular(
+    target: Optional[IsClaimable] = p_regular(
         60,
         description="The target Node this claim is about.",
     )
-    target_template: Optional[Claimable] = p_regular(
+    target_template: Optional[IsClaimable] = p_regular(
         61,
         description="The template for a target Node.",
     )
@@ -109,11 +111,11 @@ class Claim(
         target_template_id: Optional[UUID] = None
 
     @staticmethod
-    def read(name: str, target: Claimable, **kwargs) -> "Claim":
+    def read(name: str, target: IsClaimable, **kwargs) -> "Claim":
         claim = Claim(type=ClaimType.READ, name=name, target=target, **kwargs)
         return claim
 
     @staticmethod
-    def write(name: str, target: Claimable, **kwargs) -> "Claim":
+    def write(name: str, target: IsClaimable, **kwargs) -> "Claim":
         claim = Claim(type=ClaimType.WRITE, name=name, target=target, **kwargs)
         return claim

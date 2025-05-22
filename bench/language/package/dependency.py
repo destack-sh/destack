@@ -1,10 +1,11 @@
 from typing import TYPE_CHECKING, Union
 
 from bench.language.core import (
+    IsInPackage,
     IsModal,
     IsTemplatable,
+    Node,
     NodeType,
-    PackageNode,
     node_,
     p_node_parent,
     p_regular,
@@ -18,7 +19,12 @@ if TYPE_CHECKING:
 
 
 @node_(NodeType.DEPENDENCY)
-class Dependency(IsTemplatable, IsModal, PackageNode[DependencyData]):
+class Dependency(
+    IsTemplatable,
+    IsModal,
+    IsInPackage,
+    Node[DependencyData],
+):
     """A Dependency on another Package or Bench."""
 
     # NOTE :Incomplete: Dependency doesn't actually do anything yet

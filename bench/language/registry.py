@@ -65,6 +65,7 @@ def _complete_bench_setup():
     from bench.language import (
         BuiltinObject,
         IsBased,
+        IsBlockable,
         IsClaimable,
         IsInstantiable,
         IsJoinable,
@@ -74,7 +75,6 @@ def _complete_bench_setup():
         IsSubject,
         IsTemplatable,
         Node,
-        PageNode,
         ProvisionableResourceBase,
         ResourceBase,
         StyleBase,
@@ -170,7 +170,7 @@ def _complete_bench_setup():
     if IS_DEV:
         # check that node type collections are consistent with their respective base classes
         for base_cls, node_types_tuple in [
-            (PageNode, const.PAGE_NODE_TYPES.tuple),
+            (IsBlockable, const.PAGE_NODE_TYPES.tuple),
             (ResourceBase, const.RESOURCE_NODE_TYPES.tuple),
             (ProvisionableResourceBase, const.PROVISIONABLE_RESOURCE_NODE_TYPES.tuple),
             (ViewBase, const.VIEW_NODE_TYPES.tuple),

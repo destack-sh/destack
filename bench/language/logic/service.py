@@ -1,15 +1,16 @@
-from typing import TYPE_CHECKING, Optional
+from typing import TYPE_CHECKING
 
 from bench.language.core import (
+    IsBlockable,
     IsClaimable,
     IsModal,
     IsNamed,
     IsOwnable,
+    IsRunnable,
     IsTemplatable,
+    Node,
     NodeType,
-    PageNode,
     node_,
-    p_regular,
 )
 from bench.pb2 import ServiceData
 
@@ -27,13 +28,13 @@ class Service(
     IsClaimable,
     IsModal,
     IsNamed,
-    PageNode[ServiceData],
+    IsRunnable,
+    IsBlockable,
+    Node[ServiceData],
 ):
     """
-    A Kit of Actions for a Node.
+    A set of Actions for a Node.
     """
-
-    target: Optional["PageNode"] = p_regular(40)
 
     @staticmethod
     def new(name: str, **kwargs) -> "Service":

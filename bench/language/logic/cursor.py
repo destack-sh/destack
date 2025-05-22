@@ -4,12 +4,12 @@ from typing import TYPE_CHECKING, Optional, Union, override
 from bench.language.core import (
     BuiltinEnum,
     EnumType,
+    IsInPackage,
     IsModal,
     IsOwnable,
     IsTitled,
     Node,
     NodeType,
-    PackageNode,
     Selection,
     enum_,
     node_,
@@ -61,7 +61,7 @@ class CursorStatus(BuiltinEnum):
 
 
 @node_(NodeType.CURSOR)
-class Cursor(IsOwnable, IsModal, IsTitled, PackageNode):
+class Cursor(IsOwnable, IsModal, IsTitled, IsInPackage):
     """
     A Cursor is the current logical or physical 'position' or 'focus' of its owner.
      (e.g., editing Blocks on a Page or processing a specific Record in a Database.)

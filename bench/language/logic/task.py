@@ -4,14 +4,15 @@ from typing import TYPE_CHECKING, Optional, Union
 from fastuuid import UUID
 
 from bench.language.core import (
+    IsBlockable,
     IsClaimable,
     IsInstantiable,
     IsModal,
     IsOwnable,
     IsProcessable,
     IsTitled,
+    Node,
     NodeType,
-    PageNode,
     ProcessStatus,
     Subject,
     TextLineIn,
@@ -36,7 +37,8 @@ class Task(
     IsModal,
     IsTitled,
     IsInstantiable,
-    PageNode[TaskData],
+    IsBlockable,
+    Node[TaskData],
 ):
     """A Task is like a to do item."""
 

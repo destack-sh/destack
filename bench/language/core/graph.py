@@ -162,112 +162,15 @@ class _GraphBase[K: str | UUID, V: AnyNodeData | Node](abc.ABC):
 
     def add(self, node: V):
         """Add a node to the graph (error if node already exists, *no* descendants)"""
-        assert isinstance(
-            node.id, self.key_type
-        ), f"cannot add {node!r} with id {node.id!r} in {self!r}"
-        assert node.metatype in self.node_types, f"{node!r} does not belong in in {self!r}"
-        if node.id in self._nodes_by_id:
-            existing = self._nodes_by_id[node.id]
-            raise GraphConsistencyError(
-                f"node {node!r} (id={node.id}) already exists in {self!r}: {existing!r} (id={existing.id})"
-            )
-        self._nodes_by_id[node.id] = node
-        if self._get_parent_ptr(node) is not None:
-            self._add_to_parent(node)
+        raise NotImplementedError
 
     def update(self, node: V, _force_update_parent: bool = False):
         """Updates an existing node in this graph (must exist)"""
-        assert isinstance(
-            node.id, self.key_type
-        ), f"cannot update {node!r} with id {node.id!r} in {self!r}"
-        old = self._nodes_by_id.get(node.id)
-        if old is None:
-            raise GraphConsistencyError(f"node {node!r} does not exist in {self!r}")
-        self._nodes_by_id[node.id] = node
-        metatype = node.metatype
-
-        # update parent if changed
-        # (the instance may be edited in place, so we remember the last parent by identity as well)
-        old_parent_ptr = self._get_parent_ptr(old)
-        old_parent_id = self._parent_by_node.get(
-            node.id, old_parent_ptr.id if old_parent_ptr is not None else None
-        )
-        node_parent_ptr = self._get_parent_ptr(node)
-        new_parent_id = node_parent_ptr.id if node_parent_ptr is not None else None
-        if old_parent_id != new_parent_id or _force_update_parent:
-            if old_parent_id is not None and not _force_update_parent:
-                self._remove_from_parent(old)
-            if new_parent_id is not None:
-                self._add_to_parent(node)
-        elif old_parent_id is not None:
-            # update in parent list (identity may have changed)
-            assert isinstance(old_parent_id, self.key_type), f"bad {old_parent_id!r} for {self!r}"
-            for i, child in enumerate(self._nodes_by_parent[old_parent_id][metatype]):
-                if child.id == node.id:
-                    self._nodes_by_parent[old_parent_id][metatype][i] = node
-                    break
-            else:
-                raise GraphConsistencyError(
-                    f"node {node!r} not in {self!r} (should be in {self._nodes_by_parent[old_parent_id][metatype]}, was {old!r})"
-                )
+        raise NotImplementedError
 
     def remove(self, node: V, recursive: bool = True):
         """Remove a node from the graph (incl. all descendants)"""
-        assert isinstance(
-            node.id, self.key_type
-        ), f"cannot remove {node!r} with id {node.id!r} in {self!r}"
-        existing = self._nodes_by_id.pop(node.id, None)
-        if existing is None:
-            raise GraphConsistencyError(f"node {node!r} does not exist in {self!r}")
-        if self._get_parent_ptr(node) is not None:
-            self._remove_from_parent(node)
-        # descend
-        if recursive and node.id in self._nodes_by_parent:
-            for child_type in tuple(self._nodes_by_parent[node.id]):
-                for child in tuple(self._nodes_by_parent[node.id][child_type]):
-                    self.remove(child)
-                if node.id not in self._nodes_by_parent:
-                    break  # may have been removed
-
-    def _add_to_parent(self, node: V):
-        """Adds the node to our parent index for that parent/type pair"""
-        node_parent_ptr = self._get_parent_ptr(node)
-        assert node_parent_ptr is not None, f"{node!r} has no parent for {self!r}"
-        parent_id = cast(K, node_parent_ptr.id)
-        if parent_id not in self._nodes_by_parent:
-            self._nodes_by_parent[parent_id] = {}
-        metatype = cast(NodeType, node.metatype)
-        if metatype not in self._nodes_by_parent[parent_id]:
-            self._nodes_by_parent[parent_id][metatype] = []
-        self._nodes_by_parent[parent_id][metatype].append(node)
-        self._parent_by_node[cast(K, node.id)] = parent_id
-
-    def _remove_from_parent(self, node: V):
-        """Removes the node from our parent index, cleaning up child containers if empty"""
-        node_parent_ptr = self._get_parent_ptr(node)
-        assert node_parent_ptr is not None, f"{node!r} has no parent for {self!r}"
-        parent_id = self._parent_by_node.get(cast(K, node.id))
-        if parent_id is None:
-            parent_id = cast(K | None, node_parent_ptr.id)
-            assert parent_id, f"{node!r} has no parent for {self!r}"
-        else:
-            del self._parent_by_node[cast(K, node.id)]
-        if parent_id not in self._nodes_by_parent:
-            return  # we don't have this parent
-        metatype = node.metatype
-        assert metatype in self._nodes_by_parent[parent_id], f"{node!r} not in {self!r}"
-        # node may be different instance, find by id
-        our_node = None
-        for n in self._nodes_by_parent[parent_id][metatype]:
-            if n.id == node.id:
-                our_node = n
-                break
-        assert our_node is not None, f"node {node!r} not in {self!r}"
-        self._nodes_by_parent[parent_id][metatype].remove(our_node)
-        if len(self._nodes_by_parent[parent_id][metatype]) == 0:
-            self._nodes_by_parent[parent_id].pop(metatype)
-        if len(self._nodes_by_parent[parent_id]) == 0:
-            self._nodes_by_parent.pop(parent_id)
+        raise NotImplementedError
 
     def find_roots(self) -> tuple[V, ...]:
         """Finds all root nodes in *this* graph"""

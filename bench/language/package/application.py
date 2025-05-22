@@ -1,11 +1,12 @@
 from typing import TYPE_CHECKING, Optional
 
 from bench.language.core import (
+    IsBlockable,
     IsInstantiable,
     IsModal,
     IsNamed,
+    Node,
     NodeType,
-    PageNode,
     node_,
     p_regular,
 )
@@ -18,7 +19,7 @@ if TYPE_CHECKING:
 
 
 @node_(NodeType.APPLICATION)
-class Application(IsInstantiable, IsNamed, IsModal, PageNode[ApplicationData]):
+class Application(IsInstantiable, IsNamed, IsModal, IsBlockable, Node[ApplicationData]):
     """An Application is an interactive set of Scenes for some purpose."""
 
     main_scene: Optional["Scene"] = p_regular(

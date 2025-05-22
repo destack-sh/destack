@@ -7,10 +7,11 @@ from bench.language.core import (
     BuiltinEnum,
     EnumType,
     IsExtensible,
+    IsInPackage,
     IsModal,
+    Node,
     NodeReference,
     NodeType,
-    PackageNode,
     ProcessStatus,
     Runnable,
     enum_,
@@ -76,7 +77,12 @@ class InterruptionResponse(BuiltinEnum):
 
 
 @node_(NodeType.INTERRUPTION)
-class Interruption(IsModal, IsExtensible, PackageNode[InterruptionData]):
+class Interruption(
+    IsModal,
+    IsExtensible,
+    IsInPackage,
+    Node[InterruptionData],
+):
     """An Interruption in the processing or execution of something."""
 
     # meta

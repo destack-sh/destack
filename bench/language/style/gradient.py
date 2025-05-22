@@ -9,7 +9,7 @@ from bench.language.core import (
     StructType,
     enum_,
     node_,
-    node_component_,
+    object_,
     p_regular,
     struct_,
 )
@@ -38,7 +38,7 @@ class GradientStop(Struct):
     position: float = p_regular(51)
 
 
-@node_component_()
+@object_()
 class GradientBase(BuiltinObject):
     type: GradientType = p_regular(30, default=GradientType.LINEAR)
     style: Optional["GradientStyle"] = p_regular(40)

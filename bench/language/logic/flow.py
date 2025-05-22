@@ -5,17 +5,18 @@ from fastuuid import UUID
 from bench.language.core import (
     BuiltinEnum,
     EnumType,
+    IsBlockable,
     IsClaimable,
     IsExtensible,
+    IsInPackage,
     IsModal,
     IsNamed,
     IsOrdered,
     IsOwnable,
     IsRunnable,
     IsTemplatable,
+    Node,
     NodeType,
-    PackageNode,
-    PageNode,
     enum_,
     node_,
     p_internal,
@@ -56,7 +57,8 @@ class Flow(
     IsNamed,
     IsExtensible,
     IsRunnable,
-    PageNode[FlowData],
+    IsBlockable,
+    Node[FlowData],
 ):
     """A Flow orchestrates a sequence of steps (like Actions)."""
 
@@ -87,7 +89,8 @@ class FlowEdge(
     IsRunnable,
     IsNamed,
     IsOrdered,
-    PackageNode[FlowEdgeData],
+    IsInPackage,
+    Node[FlowEdgeData],
 ):
     """
     A Transition between nodes in a Flow (source = outgoing, target = incoming).

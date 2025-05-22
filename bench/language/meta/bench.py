@@ -4,10 +4,11 @@ from fastuuid import UUID
 
 from bench.language.core import (
     REGION,
-    BenchNode,
     BuiltinEnum,
     EnumType,
+    IsInBench,
     IsOwnable,
+    Node,
     NodeType,
     Region,
     StringFormat,
@@ -41,7 +42,7 @@ class BenchStatus(BuiltinEnum):
 
 
 @node_(NodeType.BENCH)
-class Bench(IsOwnable, BenchNode[BenchData]):
+class Bench(IsOwnable, IsInBench, Node[BenchData]):
     """
     A Bench is the OS for personal software.
     """

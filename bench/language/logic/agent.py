@@ -3,6 +3,7 @@ from typing import TYPE_CHECKING, Optional
 from fastuuid import UUID
 
 from bench.language.core import (
+    IsBlockable,
     IsClaimable,
     IsExtensible,
     IsInstantiable,
@@ -12,9 +13,9 @@ from bench.language.core import (
     IsProcessable,
     IsRunnable,
     IsSubject,
+    Node,
     NodeReference,
     NodeType,
-    PageNode,
     node_,
     p_regular,
 )
@@ -37,7 +38,8 @@ class Agent(
     IsSubject,
     IsExtensible,
     IsNamed,
-    PageNode[AgentData],
+    IsBlockable,
+    Node[AgentData],
 ):
     """
     An Agent is an autonomous entity.

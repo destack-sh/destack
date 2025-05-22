@@ -1,6 +1,6 @@
 import abc
 from datetime import datetime, timedelta
-from typing import TYPE_CHECKING, Any, Optional, Self, Union, cast
+from typing import TYPE_CHECKING, Any, Optional, Self, Union, cast, override
 
 from fastuuid import UUID
 
@@ -10,16 +10,23 @@ from bench.utils.fractional import INTEGER_ZERO
 from bench.utils.tenacity import RetryOptions
 
 from .const import (
-    RESOURCE_NODE_TYPES,
     NodeMode,
     NodeReferenceKind,
+    NodeTrait,
     NodeType,
     ProcessStatus,
-    bittuple,
 )
 from .graph import attach_node
+from .node import node_trait_
 from .object import BuiltinObject, object_
-from .property import p_internal, p_node_template, p_regular, p_system
+from .property import (
+    p_internal,
+    p_node_ancestor_with_self,
+    p_node_parent,
+    p_node_template,
+    p_regular,
+    p_system,
+)
 from .type import StringFormat
 
 if TYPE_CHECKING:
@@ -27,16 +34,15 @@ if TYPE_CHECKING:
         Action,
         Agent,
         Bench,
-        BenchNode,
+        Block,
         Channel,
         Claim,
         Computer,
-        Cursor,
         Error,
         Flow,
         FlowEdge,
+        Icon,
         Interruption,
-        Message,
         ModelDeveloper,
         ModelProvider,
         Node,
@@ -44,109 +50,20 @@ if TYPE_CHECKING:
         Organization,
         Package,
         Page,
-        Record,
-        ResourceBase,
         Run,
-        Service,
-        Space,
         Span,
-        Table,
         Task,
-        Team,
         TextLine,
         Thread,
         User,
         Value,
     )
 
-Ownable = Union[
-    "Bench",
-    "ResourceBase",
-    "Package",
-    "Space",
-    "Page",
-    "Flow",
-    "Service",
-    "Table",
-    "Thread",
-    "Task",
-    "Claim",
-    "Agent",
-    "Record",
-    "Message",
-    "Cursor",
-]
-OWNABLE_NODE_TYPES = bittuple(
-    NodeType.BENCH,
-    *RESOURCE_NODE_TYPES.tuple,
-    NodeType.PACKAGE,
-    NodeType.SPACE,
-    NodeType.PAGE,
-    NodeType.FLOW,
-    NodeType.SERVICE,
-    NodeType.TABLE,
-    NodeType.THREAD,
-    NodeType.TASK,
-    NodeType.CLAIM,
-    NodeType.AGENT,
-    NodeType.RECORD,
-    NodeType.MESSAGE,
-    NodeType.CURSOR,
-    NodeType.ROUTE,
-    NodeType.SCENE,
-)
-
-Claimable = Union[
-    "ResourceBase",
-    "Page",
-    "Flow",
-    "Action",
-    "Service",
-    "Table",
-    "Task",
-    "Agent",
-    "Record",
-]
-CLAIMABLE_NODE_TYPES = bittuple(
-    *RESOURCE_NODE_TYPES.tuple,
-    NodeType.PAGE,
-    NodeType.FLOW,
-    NodeType.ACTION,
-    NodeType.SERVICE,
-    NodeType.TABLE,
-    NodeType.TASK,
-    NodeType.AGENT,
-    NodeType.RECORD,
-)
-
-Joinable = Union["Package", "Team", "Channel", "Thread"]
-JOINABLE_NODE_TYPES = bittuple(
-    NodeType.PACKAGE,
-    NodeType.TEAM,
-    NodeType.CHANNEL,
-    NodeType.THREAD,
-)
-
 Subject = Union["User", "Organization", "Computer", "Agent"]
-SUBJECT_NODE_TYPES = bittuple(
-    NodeType.USER,
-    NodeType.ORGANIZATION,
-    NodeType.COMPUTER,
-    NodeType.AGENT,
-)
 
 Runnable = Union["Agent", "Flow", "Action", "FlowEdge"]
-RUNNABLE_NODE_TYPES = bittuple(NodeType.AGENT, NodeType.FLOW, NodeType.ACTION, NodeType.FLOW_EDGE)
 
 Processable = Union["Channel", "Thread", "Agent", "Task", "Run", "Span"]
-PROCESSABLE_NODE_TYPES = bittuple(
-    NodeType.CHANNEL,
-    NodeType.THREAD,
-    NodeType.AGENT,
-    NodeType.RUN,
-    NodeType.TASK,
-    NodeType.SPAN,
-)
 
 
 @object_()
@@ -298,7 +215,7 @@ class IsBased(BuiltinObject):
 
     @property
     @abc.abstractmethod
-    def base(self) -> Optional["BenchNode"]: ...
+    def base(self) -> Optional["IsInBench"]: ...
 
     @property
     def base_id(self) -> Optional[UUID]:
@@ -310,7 +227,7 @@ class IsBased(BuiltinObject):
 
     @staticmethod
     @abc.abstractmethod
-    def get_base_from_partial(data: dict[str, Any]) -> Optional["BenchNode"]: ...
+    def get_base_from_partial(data: dict[str, Any]) -> Optional["IsInBench"]: ...
 
 
 @object_()
@@ -397,42 +314,6 @@ class IsProcessable(BuiltinObject):
         interruption_ptr: Optional[NodeReference] = None
         interruption_id: Optional[UUID] = None
 
-    def update_status_from(self, *children: Processable) -> None:
-        """
-        Update this Node as a parent of other Processables.
-        """
-        if not children:
-            self.status = ProcessStatus.IDLE
-            return
-
-        # always 'touch' on update
-        now = self.active_session.oracle.utc()
-        self.active_at = now
-
-        # start as soon as any child is started
-        for child in children:
-            if child.started_at is not None and (
-                self.started_at is None or child.started_at < self.started_at
-            ):
-                self.started_at = child.started_at
-
-        # status
-        if any(c.status.is_bad for c in children):
-            self.status = ProcessStatus.FAILING
-        elif any(c.status.is_active or c.status.is_interrupted for c in children):
-            self.status = ProcessStatus.RUNNING
-        elif self.should_stop and all(c.status.is_terminal for c in children):
-            self.terminated_at = now
-            self.status = ProcessStatus.COMPLETED
-        else:
-            self.status = ProcessStatus.IDLE
-
-        # duration
-        if self.started_at is not None and self.terminated_at is not None:
-            duration = self.terminated_at - self.started_at
-            if self.duration != duration:
-                self.duration = duration
-
     def touch(self) -> None:
         """'Touch' the Node to update the active_at timestamp."""
         self.active_at = self.active_session.oracle.utc()
@@ -494,3 +375,75 @@ class IsRunnable(IsComputable):
             backoff=self.backoff or 22,
             max_retry_interval=max(30, retry_interval * 5),
         )
+
+
+@node_trait_(NodeTrait.IN_BENCH)
+class IsInBench(Node if TYPE_CHECKING else object):
+    """A Node inside a Bench."""
+
+    bench: "Bench | None" = p_node_ancestor_with_self(6, require=True, store=True, wire=True)
+    if TYPE_CHECKING:
+        bench_id: Optional[UUID] = None
+        bench_ptr: Optional[NodeReference] = None
+
+    @property
+    def is_attached(self) -> bool:
+        return self.parent_ptr is not None and self.bench is not None
+
+
+@node_trait_(NodeTrait.IN_PACKAGE)
+class IsInPackage(IsInBench):
+    """A Node in a Package."""
+
+    package: "Package | None" = p_node_ancestor_with_self(7, require=True, store=True, wire=True)
+    if TYPE_CHECKING:
+        package_id: Optional[UUID] = None
+        package_ptr: Optional[NodeReference] = None
+
+
+@node_trait_(NodeTrait.BLOCKABLE)
+class IsBlockable(IsOrdered, IsInPackage):
+    """A Node that can (but may not be) be inline on a Page as a Block."""
+
+    parent: Union["Page", None] = p_node_parent(4)
+    # name: 31
+    # title: 32
+    # order_key: 33
+    icon: Optional["Icon"] = p_regular(34)
+    definition: "Block | None" = p_internal(
+        35,
+        node_bench_from="self",
+        description="The Block where this Node is 'defined'.",
+    )
+    if TYPE_CHECKING:
+        definition_id: Optional[UUID] = None
+        definition_ck: Optional[UUID] = None
+        definition_ptr: Optional[NodeReference] = None
+
+    @override
+    def delete(self, _now: datetime | None = None):
+        super().delete(_now=_now)
+        # also delete defining Block (if any)
+        if (
+            (definition := self.definition) is not None
+            and definition.node_id == self.id
+            and not definition.is_deleted
+        ):
+            definition.delete(_now=_now)
+
+    @override
+    def restore(self, _now: datetime | None = None):
+        super().restore(_now=_now)
+        # also restore defining Block (if any)
+        if (
+            (definition := self.definition) is not None
+            and definition.node_id == self.id
+            and definition.is_deleted
+        ):
+            definition.restore(_now=_now)
+
+    def wrap_in_block(self) -> "Block":
+        """Wrap this Node in a *new* Block."""
+        from bench.language import Block
+
+        return Block.wrap(self)

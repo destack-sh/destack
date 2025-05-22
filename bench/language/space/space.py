@@ -3,13 +3,13 @@ from typing import TYPE_CHECKING, Optional
 from bench.language.core import (
     BuiltinEnum,
     EnumType,
+    IsInPackage,
     IsModal,
     IsOrdered,
     IsOwnable,
     IsTemplatable,
     Node,
     NodeType,
-    PackageNode,
     Selection,
     StringFormat,
     enum_,
@@ -33,7 +33,14 @@ class SpaceType(BuiltinEnum):
 
 
 @node_(NodeType.SPACE)
-class Space(IsOwnable, IsTemplatable, IsModal, IsOrdered, PackageNode[SpaceData]):
+class Space(
+    IsOwnable,
+    IsTemplatable,
+    IsModal,
+    IsOrdered,
+    IsInPackage,
+    Node[SpaceData],
+):
     """
     A Space for a User to interact with a Bench.
     Spaces to all Benches are stored in the owning User's Bench.

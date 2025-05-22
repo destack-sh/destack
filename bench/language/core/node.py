@@ -4,13 +4,11 @@ from typing import (
     Any,
     Callable,
     ClassVar,
-    Collection,
     Iterable,
     NamedTuple,
     Optional,
     Self,
     Sequence,
-    Union,
     cast,
     dataclass_transform,
     final,
@@ -28,20 +26,17 @@ from bench.language.registry import (
     NODE_CLASS_BY_TYPE,
 )
 from bench.pb2 import AnyNodeData, NodeReferenceData
-from bench.utils.string import Casing, to_casing, to_code_name
+from bench.utils.string import to_code_name
 from bench.utils.utils import frozendict
 
 from .const import (
-    BASED_NODE_TYPES,
-    BENCH_NODE_TYPES,
     GLOBAL_NODE_TYPES,
     LOCAL_NODE_TYPES,
-    PACKAGE_NODE_TYPES,
     REGIONAL_NODE_TYPES,
     UNSET,
-    BuiltinEnum,
     NodeArea,
     NodeReferenceKind,
+    NodeTrait,
     NodeType,
     StructType,
     active_session,
@@ -52,28 +47,23 @@ from .property import (
     _PROPERTY_SPECIFIERS,
     Property,
     p_internal,
-    p_node_ancestor_with_self,
     p_node_parent,
-    p_regular,
     p_runtime,
     p_system,
 )
 from .struct import Struct, struct_
-from .trait import IsBased, IsModal, IsOrdered, Subject
+from .trait import IsBased, IsModal, Subject
 
 if TYPE_CHECKING:
     from bench.language import (
         Aggregation,
         Bench,
-        Block,
         Condition,
         Expression,
         Field,
-        Icon,
         Join,
         NodeReference,
         Package,
-        Page,
         Query,
         Session,
         Sort,
@@ -97,9 +87,8 @@ class IndexIn(NamedTuple):
 
 
 @dataclass_transform(kw_only_default=True, field_specifiers=_PROPERTY_SPECIFIERS)
-def node_component_(
+def _node_component_(
     node_type: NodeType | None = None,
-    is_root: bool = False,
     is_concrete: bool = False,
     is_subtype: bool = False,
 ):
@@ -139,6 +128,18 @@ def node_component_(
 
 
 @dataclass_transform(kw_only_default=True, field_specifiers=_PROPERTY_SPECIFIERS)
+def node_trait_(
+    node_trait: NodeTrait,
+):
+    """Register a class as a node trait."""
+
+    def decorate(cls: type["Node"]) -> type["Node"]:
+        return cls
+
+    return decorate
+
+
+@dataclass_transform(kw_only_default=True, field_specifiers=_PROPERTY_SPECIFIERS)
 def node_(
     node_type: NodeType,
     stored: bool = True,
@@ -148,15 +149,12 @@ def node_(
 ):
     """Register a class as a concrete node for the given node type."""
 
-    in_package = node_type in PACKAGE_NODE_TYPES
-    in_bench = node_type in BENCH_NODE_TYPES
-
     # default index for nodes with parents
     if root_type:
         index = (*index, IndexIn(columns=("parent_id",), cover=("id",)))
 
     def decorate(cls: type["Node"]) -> type["Node"]:
-        cls = node_component_(node_type=node_type, is_root=root_type is None, is_concrete=True)(cls)
+        cls = _node_component_(node_type=node_type, is_concrete=True)(cls)
         cls.__is_stored__ = stored
         cls.__is_local__ = is_local
 
@@ -177,15 +175,13 @@ def node_(
         cls.__parent_types__ = parent_property.node_types or ()
 
         cls.__root_type__ = root_type
-        cls.__is_in_package__ = in_package
-        cls.__is_in_bench__ = in_bench
 
         return cls
 
     return decorate
 
 
-@node_component_()
+@_node_component_()
 class Node[NodeDataT: AnyNodeData](BuiltinObject[NodeDataT]):
     """
     A Node with properties and an identity.
@@ -196,10 +192,8 @@ class Node[NodeDataT: AnyNodeData](BuiltinObject[NodeDataT]):
     metatype: ClassVar[NodeType]  # type: ignore
 
     __is_node__: ClassVar[bool] = True
-    __is_stored__: ClassVar[bool] = False  # stored in primary store (runtime or local)
+    __is_stored__: ClassVar[bool] = False  # stored in primary database
     __is_local__: ClassVar[bool] = False  # custom storage logic (for records)
-    __is_in_bench__: ClassVar[bool] = UNSET  # part of a Bench
-    __is_in_package__: ClassVar[bool] = UNSET  # part of a Package
 
     __root_type__: ClassVar[NodeType | None] = UNSET
     __parent_types__: ClassVar[tuple[NodeType, ...]] = ()
@@ -221,8 +215,8 @@ class Node[NodeDataT: AnyNodeData](BuiltinObject[NodeDataT]):
         parent_ck: Optional[UUID] = None
         parent_ptr: Optional[NodeReference] = None
     # Node.area?
-    # BenchNode.bench: 6
-    # PackageNode.package: 7
+    # IsInBench.bench: 6
+    # IsInPackage.package: 7
 
     # 10-29: node tracking
     created_at: datetime = p_system(10, autoset=True)
@@ -380,7 +374,7 @@ class Node[NodeDataT: AnyNodeData](BuiltinObject[NodeDataT]):
             if clone_parent is None and not detach:
                 clone_parent = self.parent
             if isinstance(self, Block):
-                if isinstance(node := self.node, PageNode) and node.definition_id == self.id:
+                if isinstance(node := self.node, IsBlockable) and node.definition_id == self.id:
                     assert clone_parent is not None, f"cannot clone detached {self!r}"
                     cloned_node = node.clone(
                         reset=reset,
@@ -392,7 +386,7 @@ class Node[NodeDataT: AnyNodeData](BuiltinObject[NodeDataT]):
                     )
                     cast(Block, clone).node_ptr = cloned_node.to_ref()
                     cloned_node.definition_ptr = clone.to_ref()
-            elif isinstance(self, PageNode) and (definition := self.definition) is not None:
+            elif isinstance(self, IsBlockable) and (definition := self.definition) is not None:
                 assert clone_parent is not None, f"cannot clone detached {self!r}"
                 cloned_node = definition.clone(
                     reset=reset,
@@ -402,7 +396,7 @@ class Node[NodeDataT: AnyNodeData](BuiltinObject[NodeDataT]):
                     _is_nested=True,
                     _ignore_definition=True,
                 )
-                cast(PageNode, clone).definition_ptr = cloned_node.to_ref()
+                cast(IsBlockable, clone).definition_ptr = cloned_node.to_ref()
                 cloned_node.node_ptr = clone.to_ref()
 
         # clone children and append to self (recursive)
@@ -833,90 +827,6 @@ class Node[NodeDataT: AnyNodeData](BuiltinObject[NodeDataT]):
         raise NotImplementedError
 
 
-@node_component_()
-class BenchNode[NodeDataT: AnyNodeData](Node[NodeDataT]):
-    """A Node inside a Bench."""
-
-    bench: "Bench | None" = p_node_ancestor_with_self(6, require=True, store=True, wire=True)
-    if TYPE_CHECKING:
-        bench_id: Optional[UUID] = None
-        bench_ptr: Optional[NodeReference] = None
-
-    @property
-    def is_attached(self) -> bool:
-        return self.parent_ptr is not None and self.bench is not None
-
-
-@node_component_()
-class PackageNode[NodeDataT: AnyNodeData](BenchNode[NodeDataT]):
-    """A Node in a Package."""
-
-    package: "Package | None" = p_node_ancestor_with_self(7, require=True, store=True, wire=True)
-    if TYPE_CHECKING:
-        package_id: Optional[UUID] = None
-        package_ptr: Optional[NodeReference] = None
-
-
-@node_component_()
-class PageNode[NodeDataT: AnyNodeData](IsOrdered, PackageNode[NodeDataT]):
-    """A Node that can (but may not be) be inline on a Page."""
-
-    parent: Union["Page", None] = p_node_parent(4)
-    # name: 31
-    # title: 32
-    # order_key: 33
-    icon: Optional["Icon"] = p_regular(34)
-    definition: "Block | None" = p_internal(
-        35,
-        node_bench_from="self",
-        description="The Block where this Node is 'defined'.",
-    )
-    if TYPE_CHECKING:
-        definition_id: Optional[UUID] = None
-        definition_ck: Optional[UUID] = None
-        definition_ptr: Optional[NodeReference] = None
-
-    @property
-    def containing_page(self) -> "Page | None":
-        """Gets the containing ancestor Page (if any)"""
-        from bench.language import Page
-
-        parent = self.parent
-        while parent is not None:
-            if isinstance(parent, Page):
-                return parent
-            parent = parent.parent
-        return None
-
-    @override
-    def delete(self, _now: datetime | None = None):
-        super().delete(_now=_now)
-        # also delete defining Block (if any)
-        if (
-            (definition := self.definition) is not None
-            and definition.node_id == self.id
-            and not definition.is_deleted
-        ):
-            definition.delete(_now=_now)
-
-    @override
-    def restore(self, _now: datetime | None = None):
-        super().restore(_now=_now)
-        # also restore defining Block (if any)
-        if (
-            (definition := self.definition) is not None
-            and definition.node_id == self.id
-            and definition.is_deleted
-        ):
-            definition.restore(_now=_now)
-
-    def wrap_in_block(self) -> "Block":
-        """Wrap this Node in a *new* Block."""
-        from bench.language import Block
-
-        return Block.wrap(self)
-
-
 #
 # Utility types
 #
@@ -960,7 +870,7 @@ class NodeReference(Struct[NodeReferenceData]):
         if node.metatype == NodeType.BENCH:
             bench_id = node.id
         elif node.__root_type__ == NodeType.BENCH:
-            bench_id = cast(BenchNode, node).bench_id
+            bench_id = cast(IsInBench, node).bench_id
 
         # base
         base_id: UUID | None = None
@@ -995,44 +905,6 @@ class NodeReference(Struct[NodeReferenceData]):
                 reference.base_id = base.id
 
         return reference
-
-
-@node_(NodeType.EMPTY, stored=False)
-class Empty(Node):
-    """An empty node."""
-
-    parent: Node = p_node_parent(4)
-
-
-# NOTE: import from .value later to avoid circular import
-#  (but import at top level to avoid import in critical path)
-
-
-def extract_name_id(name: str) -> Optional[int]:
-    """Extracts the last (potentially multi-digit) characters as an integer."""
-    for i in range(len(name), 0, -1):
-        if not name[i - 1].isdigit():
-            return None if i == len(name) else int(name[i:])
-    return int(name)
-
-
-def generate_node_name(
-    metatype: NodeType, type: Optional[Any], siblings: Collection["Node"]
-) -> str:
-    """Generates a new name for the given node based on its siblings. :AutoNaming"""
-    if metatype == NodeType.BLOCK or metatype == NodeType.ACTION:
-        assert isinstance(type, BuiltinEnum), f"expected type for {metatype!r}, got {type!r}"
-        base_name = to_casing(type.name, Casing.CAMEL)
-        type_siblings = tuple(n for n in siblings if getattr(n, "type") == type)
-    else:
-        base_name = to_casing(metatype.name, Casing.CAMEL)
-        type_siblings = tuple(n for n in siblings if n.metatype == metatype)
-
-    if len(type_siblings) == 0:
-        max_id = 0
-    else:
-        max_id = max((extract_name_id(getattr(n, "name")) or 0) for n in type_siblings)
-    return f"{base_name}{max_id + 1}"
 
 
 def patch_graph(*, old_graph: Graph, new_graph: Graph) -> None:

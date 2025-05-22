@@ -1,12 +1,13 @@
 from typing import TYPE_CHECKING, Optional
 
 from bench.language.core import (
+    IsBlockable,
     IsInstantiable,
     IsModal,
     IsNamed,
     IsOwnable,
+    Node,
     NodeType,
-    PageNode,
     node_,
     p_regular,
 )
@@ -19,7 +20,14 @@ if TYPE_CHECKING:
 
 
 @node_(NodeType.ROUTE)
-class Route(IsOwnable, IsInstantiable, IsNamed, IsModal, PageNode[RouteData]):
+class Route(
+    IsOwnable,
+    IsInstantiable,
+    IsNamed,
+    IsModal,
+    IsBlockable,
+    Node[RouteData],
+):
     """A Route is a path to a Scene."""
 
     scene: Optional["Scene"] = p_regular(

@@ -1,12 +1,13 @@
 from typing import TYPE_CHECKING, Optional
 
 from bench.language.core import (
+    IsBlockable,
     IsInstantiable,
     IsModal,
     IsNamed,
     IsOwnable,
+    Node,
     NodeType,
-    PageNode,
     node_,
     p_regular,
 )
@@ -19,7 +20,14 @@ if TYPE_CHECKING:
 
 
 @node_(NodeType.SCENE)
-class Scene(IsOwnable, IsInstantiable, IsNamed, IsModal, PageNode[SceneData]):
+class Scene(
+    IsOwnable,
+    IsInstantiable,
+    IsNamed,
+    IsModal,
+    IsBlockable,
+    Node[SceneData],
+):
     """A Scene is a container for a specific interaction point."""
 
     root_view: Optional["ContainerViewBase"] = p_regular(

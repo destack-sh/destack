@@ -1,16 +1,17 @@
 from typing import TYPE_CHECKING, Union
 
 from bench.language.core import (
+    IsBlockable,
     IsModal,
     IsNamed,
     IsTemplatable,
+    Node,
     NodeType,
-    PageNode,
     TypeBase,
     node_,
     p_node_parent,
 )
-from bench.pb2 import BlockData
+from bench.pb2 import SchemaData
 
 if TYPE_CHECKING:
     from bench.language import Page
@@ -24,7 +25,8 @@ class Schema(
     IsModal,
     IsNamed,
     TypeBase,
-    PageNode[BlockData],
+    IsBlockable,
+    Node[SchemaData],
 ):
     """A Schema for a specific Type."""
 
