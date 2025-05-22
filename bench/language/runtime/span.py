@@ -35,7 +35,7 @@ class Span(
     """
 
     # meta
-    parent: Union["Run", None] = p_node_parent(4)
+    parent: Union["Run", None] = p_node_parent()
     type: SpanType = p_regular(30)
     root: "Run | None" = p_node_ancestor(31, require=False, store=True, wire=True)
     if TYPE_CHECKING:

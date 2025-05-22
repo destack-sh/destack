@@ -27,7 +27,7 @@ class ViewBase[NodeDataT: AnyNodeData](
 ):
     """A View is a graphical interface."""
 
-    parent: Union["Space", "ViewBase", "Page", None] = p_node_parent(4)
+    parent: Union["Space", "ViewBase", "Page", None] = p_node_parent()
     # variant_of, ...
 
     # sizing

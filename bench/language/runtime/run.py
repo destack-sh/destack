@@ -1,5 +1,5 @@
 from datetime import timedelta
-from typing import TYPE_CHECKING, Any, Optional, Sequence, Union, cast
+from typing import TYPE_CHECKING, Optional, Sequence, Union, cast
 
 from fastuuid import UUID
 
@@ -23,19 +23,15 @@ from bench.language.core import (
     p_regular,
     p_system,
 )
-from bench.pb2 import AnyNodeData, NodeReferenceData, RunData
+from bench.pb2 import RunData
 
 if TYPE_CHECKING:
     from bench.language import (
-        Action,
         Agent,
         Code,
-        Flow,
+        IsRunnable,
         NodeReference,
-        Runnable,
-        Service,
         Span,
-        Task,
         Thread,
     )
 
@@ -59,7 +55,7 @@ class Run(
     """
 
     # meta
-    parent: Union["Thread", "Agent", "Run", None] = p_node_parent(4)
+    parent: Union["Thread", "Agent", "Run", None] = p_node_parent()
     type: RunType = p_system(30)
     root: "Run | None" = p_node_ancestor(33, require=False, store=True, wire=True)
     thread: Optional["Thread"] = p_internal(
@@ -75,44 +71,10 @@ class Run(
 
     # content
     code: Optional["Code"] = p_regular(66)
-
-    agent: Optional["Agent"] = p_internal(
-        70,
-        node_bench_from="self",
-        description="The Agent we're running as.",
-    )
-    flow: Optional["Flow"] = p_internal(
-        71,
-        node_bench_from="self",
-        description="The Flow the Action is in.",
-    )
-    service: Optional["Service"] = p_internal(
-        72,
-        node_bench_from="self",
-        description="The Service the Action is in.",
-    )
-    action: Optional["Action"] = p_internal(
-        73,
-        node_bench_from="self",
-        description="The Action this Run is executing.",
-    )
-    task: Optional["Task"] = p_internal(
-        78,
-        node_bench_from="self",
-        description="The Task this Run is executing.",
-    )
+    runnable: Optional[IsRunnable] = p_regular(67)
     if TYPE_CHECKING:
-        agent_ptr: Optional[NodeReference] = None
-        agent_id: Optional[UUID] = None
-        flow_ptr: Optional[NodeReference] = None
-        flow_id: Optional[UUID] = None
-        service_ptr: Optional[NodeReference] = None
-        service_id: Optional[UUID] = None
-        action_ptr: Optional[NodeReference] = None
-        action_id: Optional[UUID] = None
-        action_ck: Optional[UUID] = None
-        task_ptr: Optional[NodeReference] = None
-        task_id: Optional[UUID] = None
+        runnable_ptr: Optional[NodeReference] = None
+        runnable_id: Optional[UUID] = None
 
     # ...IsProcessable[80-]
 
@@ -128,82 +90,11 @@ class Run(
             return f"{self.type.bench_name}:{path}, {self.status.bench_name}"
 
     @property
-    def runnable(self) -> Optional["Runnable"]:
-        if self.type == RunType.ACTION:
-            return self.action
-        elif self.type == RunType.FLOW:
-            return self.flow
-        elif self.type == RunType.AGENT:
-            return self.agent
-        else:
-            return None
-
-    @property
-    def runnable_ptr(self) -> "NodeReference | None":
-        if self.type == RunType.ACTION:
-            return self.action_ptr
-        elif self.type == RunType.FLOW:
-            return self.flow_ptr
-        elif self.type == RunType.AGENT:
-            return self.agent_ptr
-        else:
-            return None
-
-    @property
-    def base_ptr(self) -> Optional["NodeReference"]:
-        if self.type == RunType.ACTION:
-            return self.action_ptr
-        elif self.type == RunType.FLOW:
-            return self.flow_ptr
-        elif self.type == RunType.AGENT:
-            return self.agent_ptr
-        else:
-            return None
-
-    @property
-    def base(self) -> Optional["Runnable"]:
-        if self.type == RunType.ACTION:
-            return self.action
-        elif self.type == RunType.FLOW:
-            return self.flow
-        elif self.type == RunType.AGENT:
-            return self.agent
-        else:
-            return None
-
-    @staticmethod
-    def get_base_from_data(data: AnyNodeData) -> Optional[NodeReferenceData]:
-        run_data = cast(RunData, data)
-        if run_data.action_ptr.metatype != 0:
-            return run_data.action_ptr
-        elif run_data.flow_ptr.metatype != 0:
-            return run_data.flow_ptr
-        elif run_data.agent_ptr.metatype != 0:
-            return run_data.agent_ptr
-        else:
-            return None
-
-    @staticmethod
-    def get_base_from_partial(data: dict[str, Any]) -> Optional["Runnable"]:
-        if "action" in data:
-            return data["action"]
-        elif "flow" in data:
-            return data["flow"]
-        elif "agent" in data:
-            return data["agent"]
-        else:
-            return None
-
-    @property
     def ancestors(self):
         parent = self.parent
         while isinstance(parent, Run):
             yield parent
             parent = parent.parent
-
-    @property
-    def is_active(self) -> bool:
-        return self.status.is_terminal
 
     @property
     def attempts(self) -> Sequence["Span"]:
@@ -216,7 +107,7 @@ class Run(
                 return span
         return None
 
-    def has(self, *nodes: "Runnable", recursive: bool = True) -> bool:
+    def has(self, *nodes: "IsRunnable", recursive: bool = True) -> bool:
         """Whether the Run has any of the given Nodes."""
         nodes_id = tuple(n.id for n in nodes)
         if (runnable_ptr := self.runnable_ptr) is not None and runnable_ptr.id in nodes_id:
@@ -227,7 +118,7 @@ class Run(
                 return True
         return False
 
-    def is_in(self, *nodes: "Runnable") -> bool:
+    def is_in(self, *nodes: "IsRunnable") -> bool:
         """Whether the Run is a descendant of a Run of any of the given Nodes."""
         run = self
         while isinstance(run, Run):
@@ -238,7 +129,7 @@ class Run(
             run = run.parent
         return False
 
-    def get_runs(self, runnable: "Runnable", recursive: bool = True) -> list["Run"]:
+    def get_runs(self, runnable: "IsRunnable", recursive: bool = True) -> list["Run"]:
         """Find all Runs of a Node in this Run."""
         matching_runs: list[Run] = []
         if (runnable_ptr := self.runnable_ptr) is not None and runnable_ptr.id == runnable.id:
@@ -253,7 +144,7 @@ class Run(
         )
         return matching_runs
 
-    def get_latest_run(self, runnable: "Runnable") -> "Run | None":
+    def get_latest_run(self, runnable: "IsRunnable") -> "Run | None":
         """Find the latest Run of a Node in this Run."""
         matching_runs = self.get_runs(runnable)
         return matching_runs[0] if matching_runs else None

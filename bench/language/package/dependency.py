@@ -30,7 +30,7 @@ class Dependency(
     # NOTE :Incomplete: Dependency doesn't actually do anything yet
     #  (we just hardcode a dependency on the builtin Bench package)
 
-    parent: Union["Package", None] = p_node_parent(4)
+    parent: Union["Package", None] = p_node_parent()
 
     dependency: Union["Package", "Bench"] = p_regular(
         40,

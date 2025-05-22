@@ -34,7 +34,7 @@ from .const import (
     active_session,
 )
 from .graph import Graph, GraphData, attach_node
-from .object import BuiltinObject
+from .object import BuiltinObject, _process_object_cls
 from .property import (
     _PROPERTY_SPECIFIERS,
     Property,
@@ -44,7 +44,7 @@ from .property import (
     p_system,
 )
 from .struct import Struct, struct_
-from .trait import IndexIn, IsBased, IsBlockable, IsInBench, IsModal, Subject, _node_component_
+from .trait import IndexIn, IsBased, IsBlockable, IsInBench, IsModal, IsSubject
 
 if TYPE_CHECKING:
     from bench.language import (
@@ -70,8 +70,8 @@ tracer = trace.get_tracer(__name__)
 
 @dataclass_transform(kw_only_default=True, field_specifiers=_PROPERTY_SPECIFIERS)
 def node_(
-    node_type: NodeType,
-    is_local: bool = False,
+    node_type: NodeType | None,
+    is_custom: bool = False,
     root_type: NodeType | None = NodeType.BENCH,
     index: tuple[IndexIn, ...] = (),
 ):
@@ -82,17 +82,23 @@ def node_(
         index = (*index, IndexIn(columns=("parent_id",), cover=("id",)))
 
     def decorate(cls: type["Node"]) -> type["Node"]:
-        cls = _node_component_(metatype=node_type)(cls)
-        cls.__is_local__ = is_local
+        cls, _ = _process_object_cls(
+            cls=cls,
+            object_type=node_type,
+            is_concrete=node_type is not None,
+            is_node=True,
+        )
+        cls.__is_custom__ = is_custom
 
-        if node_type in GLOBAL_NODE_TYPES:
-            cls.__area__ = NodeArea.GLOBAL_POSTGRES
-        elif node_type in REGIONAL_NODE_TYPES:
-            cls.__area__ = NodeArea.REGIONAL_POSTGRES
-        elif node_type in LOCAL_NODE_TYPES:
-            cls.__area__ = NodeArea.LOCAL_POSTGRES
-        else:
-            raise ValueError(f"unknown node store for {node_type}")
+        if node_type is not None:
+            if node_type in GLOBAL_NODE_TYPES:
+                cls.__area__ = NodeArea.GLOBAL_POSTGRES
+            elif node_type in REGIONAL_NODE_TYPES:
+                cls.__area__ = NodeArea.REGIONAL_POSTGRES
+            elif node_type in LOCAL_NODE_TYPES:
+                cls.__area__ = NodeArea.LOCAL_POSTGRES
+            else:
+                raise ValueError(f"unknown node store for {node_type}")
 
         cls.__indexes__ = index
 
@@ -100,7 +106,6 @@ def node_(
         assert parent_property is not None, f"missing parent property for {node_type}"
         cls.__parent_property__ = parent_property
         cls.__parent_types__ = parent_property.node_types or ()
-
         cls.__root_type__ = root_type
 
         return cls
@@ -108,7 +113,7 @@ def node_(
     return decorate
 
 
-@_node_component_()
+@node_(node_type=None, root_type=None)
 class Node[NodeDataT: AnyNodeData](BuiltinObject[NodeDataT]):
     """
     A Node with properties and an identity.
@@ -119,13 +124,13 @@ class Node[NodeDataT: AnyNodeData](BuiltinObject[NodeDataT]):
     metatype: ClassVar[NodeType]  # type: ignore
 
     __is_node__: ClassVar[bool] = True
-    __is_local__: ClassVar[bool] = False  # custom storage logic (for records)
+    __is_custom__: ClassVar[bool] = False  # custom storage logic (for records)
     __traits__: ClassVar[tuple[NodeTrait, ...]] = ()
     __id_factory__: ClassVar[Callable[[], UUID]] = UUID
     __area__: ClassVar[NodeArea]
     __indexes__: ClassVar[tuple[IndexIn, ...]] = ()
 
-    __root_type__: ClassVar[NodeType | None] = UNSET
+    __root_type__: ClassVar[NodeType | None] = None
     __parent_types__: ClassVar[tuple[NodeType, ...]] = ()
     __parent_property__: ClassVar[Property] = UNSET
     __child_types__: ClassVar[tuple[NodeType, ...]] = ()
@@ -134,7 +139,7 @@ class Node[NodeDataT: AnyNodeData](BuiltinObject[NodeDataT]):
     # Node.metatype: 1
     id: UUID = p_system(2, autoset=True)
     # IsTemplatable.ck: 3
-    parent: Optional["Node"] = p_node_parent(4)  # type: ignore
+    parent: Optional["Node"] = p_node_parent()  # type: ignore
     if TYPE_CHECKING:
         parent_type: NodeType | None = None
         parent_id: Optional[UUID] = None
@@ -146,7 +151,7 @@ class Node[NodeDataT: AnyNodeData](BuiltinObject[NodeDataT]):
 
     # 10-29: node tracking
     created_at: datetime = p_system(10, autoset=True)
-    created_by: Optional[Subject] = p_system(  # type: ignore (pyright is wrong, Subject is a type)
+    created_by: Optional[IsSubject] = p_system(  # type: ignore (pyright is wrong, Subject is a type)
         11,
         default=None,
         autoset=True,
@@ -154,11 +159,9 @@ class Node[NodeDataT: AnyNodeData](BuiltinObject[NodeDataT]):
         node_exclude=("ck", "base_id"),
     )
     updated_at: datetime = p_system(12, autoset=True)
-    updated_by: Optional[Subject] = p_system(  # type: ignore (see above)
+    updated_by: Optional[IsSubject] = p_system(  # type: ignore (see above)
         13, default=None, autoset=True, node_bench_from="self", node_exclude=("ck", "base_id")
     )
-    archived_at: Optional[datetime] = p_system(14, autoset=True)
-    deleted_at: Optional[datetime] = p_system(15, autoset=True)
     if TYPE_CHECKING:
         created_by_id: Optional[UUID] = None
         created_by_type: NodeType | None = None
@@ -166,6 +169,8 @@ class Node[NodeDataT: AnyNodeData](BuiltinObject[NodeDataT]):
         updated_by_id: Optional[UUID] = None
         updated_by_type: NodeType | None = None
         updated_by_ptr: Optional[NodeReference] = None
+    # IsArchivable.archived_at: 14
+    # IsDeletable.deleted_at: 15
     # IsTemplatable.template: 16
     # IsOwnable.owned_by: 17
     # IsClaimable.claimed_by: 18
@@ -191,13 +196,7 @@ class Node[NodeDataT: AnyNodeData](BuiltinObject[NodeDataT]):
         content_str = self.__content_str__()
         if content_str:
             content_str = f" ({content_str})"
-        if self.deleted_at is not None:
-            status_str = " [deleted]"
-        elif self.archived_at is not None:
-            status_str = " [archived]"
-        else:
-            status_str = ""
-        return f"{self._ident_key}{content_str}{status_str}"
+        return f"{self._ident_key}{content_str}"
 
     @final
     def __repr__(self):  # type: ignore
@@ -505,50 +504,6 @@ class Node[NodeDataT: AnyNodeData](BuiltinObject[NodeDataT]):
     def _to_ref_data(self) -> "NodeReferenceData":
         """Gets a data reference to this node. May be rich in subclasses."""
         return NodeReference._ref_from_node(self)._to_data()
-
-    #
-    # Lifecycle
-    #
-
-    @property
-    def is_extant(self):
-        return self.deleted_at is None and self.archived_at is None
-
-    @property
-    def is_active(self) -> bool:
-        return self.deleted_at is None and self.archived_at is None
-
-    @property
-    def is_archived(self) -> bool:
-        return self.archived_at is not None or (
-            (parent := self.parent) is not None and parent.is_archived
-        )
-
-    @property
-    def is_deleted(self) -> bool:
-        return self.deleted_at is not None or (
-            (parent := self.parent) is not None and parent.is_deleted
-        )
-
-    def archive(self, _now: datetime | None = None):
-        """Archive this Node."""
-        assert not self.archived_at, f"{self!r} is already archived"
-        self.active_session._archive(self, _now=_now)
-
-    def unarchive(self, _now: datetime | None = None):
-        """Unarchive this Node."""
-        assert self.archived_at, f"{self!r} is not archived"
-        self.active_session._unarchive(self, _now=_now)
-
-    def delete(self, _now: datetime | None = None):
-        """Delete this Node."""
-        assert not self.deleted_at, f"{self!r} is already deleted"
-        self.active_session._delete(self, _now=_now)
-
-    def restore(self, _now: datetime | None = None):
-        """Restore this deleted Node from the trash."""
-        assert self.deleted_at, f"{self!r} is not deleted"
-        self.active_session._restore(self, _now=_now)
 
     def erase(self):
         """Wipe this Node from this cosmos forever."""

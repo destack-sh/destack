@@ -7,13 +7,16 @@ from bench.language.core import (
     BuiltinEnum,
     EnumType,
     IsInBench,
+    IsMembership,
     IsOwnable,
+    IsSubject,
     Node,
     NodeType,
     Region,
     StringFormat,
     enum_,
     node_,
+    p_node_parent,
     p_regular,
     p_system,
 )
@@ -70,3 +73,14 @@ class Bench(IsOwnable, IsInBench, Node[BenchData]):
     @property
     def is_attached(self) -> bool:
         return True
+
+
+@node_(NodeType.BENCH_MEMBERSHIP)
+class BenchMembership(IsMembership, IsInBench, Node["BenchMembershipData"]):
+    """
+    A BenchMembership is a membership to a Bench.
+    """
+
+    parent: "Bench" = p_node_parent()
+
+    member: IsSubject = p_regular(40)

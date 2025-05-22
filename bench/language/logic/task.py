@@ -10,11 +10,11 @@ from bench.language.core import (
     IsModal,
     IsOwnable,
     IsProcessable,
+    IsSubject,
     IsTitled,
     Node,
     NodeType,
     ProcessStatus,
-    Subject,
     TextLineIn,
     node_,
     p_node_parent,
@@ -43,13 +43,13 @@ class Task(
     """A Task is like a to do item."""
 
     # meta
-    parent: Union["Page", "Task", None] = p_node_parent(4)
+    parent: Union["Page", "Task", None] = p_node_parent()
     # type?
     # priority?
 
     # routing
     due_at: Optional[datetime] = p_regular(50)
-    assigned_to: Optional[Subject] = p_regular(51)
+    assigned_to: Optional[IsSubject] = p_regular(51)
     if TYPE_CHECKING:
         assigned_to_ptr: Optional[NodeReference] = None
         assigned_to_id: Optional[UUID] = None

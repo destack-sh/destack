@@ -30,4 +30,4 @@ class Schema(
 ):
     """A Schema for a specific Type."""
 
-    parent: Union["Page", None] = p_node_parent(4)
+    parent: Union["Page", None] = p_node_parent()

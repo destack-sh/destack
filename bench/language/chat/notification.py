@@ -53,7 +53,7 @@ class Notification(
     """
 
     # meta
-    parent: Union["Package", None] = p_node_parent(4)
+    parent: Union["Package", None] = p_node_parent()
     type: NotificationType = p_regular(30)
     channel: Optional["Channel"] = p_system(
         33,

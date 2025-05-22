@@ -46,7 +46,7 @@ class Space(
     Spaces to all Benches are stored in the owning User's Bench.
     """
 
-    parent: Optional["Package"] = p_node_parent(4)
+    parent: Optional["Package"] = p_node_parent()
 
     type: SpaceType = p_regular(30)
     name: str | None = p_regular(31, format=StringFormat.NAME)

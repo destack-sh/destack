@@ -7,15 +7,13 @@ from typing import (
     Optional,
     Self,
     Union,
-    assert_never,
     cast,
     dataclass_transform,
-    override,
 )
 
 from fastuuid import UUID
 
-from bench.language.registry import NODE_CLASS_BY_TRAIT, NODE_CLASS_BY_TYPE
+from bench.language.registry import NODE_CLASS_BY_TRAIT
 from bench.pb2 import AnyNodeData, NodeReferenceData
 from bench.utils.fractional import INTEGER_ZERO
 from bench.utils.tenacity import RetryOptions
@@ -45,40 +43,25 @@ from .type import StringFormat
 
 if TYPE_CHECKING:
     from bench.language import (
-        Action,
-        Agent,
         Bench,
         Block,
-        Channel,
         Claim,
-        Computer,
         Error,
-        Flow,
-        FlowEdge,
         Icon,
         Interruption,
         ModelDeveloper,
         ModelProvider,
         Node,
         NodeReference,
-        Organization,
         Package,
         Page,
-        Run,
         Scaler,
-        Span,
-        Task,
         TextLine,
         Thread,
-        User,
         Value,
     )
 
 # pyright: reportIncompatibleVariableOverride=false
-
-Subject = Union["User", "Organization", "Computer", "Agent"]
-Runnable = Union["Agent", "Flow", "Action", "FlowEdge"]
-Processable = Union["Channel", "Thread", "Agent", "Task", "Run", "Span"]
 
 
 class IndexIn(NamedTuple):
@@ -92,43 +75,88 @@ class IndexIn(NamedTuple):
 
 
 @dataclass_transform(kw_only_default=True, field_specifiers=_PROPERTY_SPECIFIERS)
-def _node_component_(
-    metatype: NodeType | NodeTrait | None = None,
-):
-    """Mark a class as a node component (or concrete node for a NodeType)."""
-
-    def decorate(cls: type["Node"]) -> type["Node"]:
-        cls, _ = _process_object_cls(
-            cls=cls,
-            object_type=metatype if isinstance(metatype, NodeType) else None,
-            is_concrete=isinstance(metatype, NodeType),
-            is_node=True,
-        )
-
-        # register as concrete node class for metatype
-        if isinstance(metatype, NodeType):
-            cls.metatype = metatype
-            NODE_CLASS_BY_TYPE[metatype] = cls
-        elif isinstance(metatype, NodeTrait):
-            NODE_CLASS_BY_TRAIT[metatype] = cls
-        elif metatype is not None:
-            assert_never(metatype)
-
-        return cls
-
-    return decorate
-
-
-@dataclass_transform(kw_only_default=True, field_specifiers=_PROPERTY_SPECIFIERS)
 def node_trait_(
     node_trait: NodeTrait,
 ):
     """Register a class as a node trait."""
 
     def decorate(cls: type["Node"]) -> type["Node"]:
+        cls, _ = _process_object_cls(
+            cls=cls,
+            object_type=None,
+            is_concrete=False,
+            is_node=True,
+        )
+        NODE_CLASS_BY_TRAIT[node_trait] = cls
         return cls
 
     return decorate
+
+
+@node_trait_(NodeTrait.MODAL)
+class IsModal(Node if TYPE_CHECKING else BuiltinObject):
+    """A Node that can be in different modes."""
+
+    mode: NodeMode = p_internal(25, default=NodeMode.MAIN)
+
+
+@node_trait_(NodeTrait.NAMED)
+class IsNamed(Node if TYPE_CHECKING else BuiltinObject):
+    """A Node with a plain name."""
+
+    name: str | None = p_regular(31, format=StringFormat.NAME)
+
+
+@node_trait_(NodeTrait.TITLED)
+class IsTitled(Node if TYPE_CHECKING else BuiltinObject):
+    """A Node with a rich title."""
+
+    title: Optional["TextLine"] = p_regular(32)
+
+
+@node_trait_(NodeTrait.ORDERED)
+class IsOrdered(Node if TYPE_CHECKING else BuiltinObject):
+    """A Node that can be ordered."""
+
+    order_key: str = p_internal(33, default=INTEGER_ZERO)
+
+
+@node_trait_(NodeTrait.ARCHIVABLE)
+class IsArchivable(Node if TYPE_CHECKING else BuiltinObject):
+    """A Node that can be archived."""
+
+    archived_at: Optional[datetime] = p_system(14)
+
+    @property
+    def is_archived(self) -> bool:
+        return self.archived_at is not None
+
+    def archive(self, _now: datetime | None = None):
+        """Archive this Node."""
+        assert not self.archived_at, f"{self!r} is already archived"
+        self.active_session._archive(self, _now=_now)
+
+    def unarchive(self, _now: datetime | None = None):
+        """Unarchive this Node."""
+        assert self.archived_at, f"{self!r} is not archived"
+        self.active_session._unarchive(self, _now=_now)
+
+
+@node_trait_(NodeTrait.DELETABLE)
+class IsDeletable(Node if TYPE_CHECKING else BuiltinObject):
+    """A Node that can be deleted."""
+
+    deleted_at: Optional[datetime] = p_system(15)
+
+    def delete(self, _now: datetime | None = None):
+        """Delete this Node."""
+        assert not self.deleted_at, f"{self!r} is already deleted"
+        self.active_session._delete(self, _now=_now)
+
+    def restore(self, _now: datetime | None = None):
+        """Restore this deleted Node from the trash."""
+        assert self.deleted_at, f"{self!r} is not deleted"
+        self.active_session._restore(self, _now=_now)
 
 
 @node_trait_(NodeTrait.TEMPLATABLE)
@@ -232,43 +260,12 @@ class IsInstantiable(IsTemplatable):
         return self.ck != cast("Node", self).id
 
 
-@node_trait_(NodeTrait.SUBJECT)
-class IsSubject(Node if TYPE_CHECKING else BuiltinObject):
-    """A Node that can be a Subject."""
+@node_trait_(NodeTrait.EXTENSIBLE)
+class IsExtensible(Node if TYPE_CHECKING else BuiltinObject):
+    """A Node that can be extended with Fields."""
 
-    pass
-
-
-@node_trait_(NodeTrait.OWNABLE)
-class IsOwnable(Node if TYPE_CHECKING else BuiltinObject):
-    """A Node that can be owned by another Node."""
-
-    owned_by: Optional[Subject] = p_internal(
-        17,
-        node_bench_from="self",
-        node_exclude=("ck", "base_id"),
-    )
-    if TYPE_CHECKING:
-        owned_by_id: Optional[UUID] = None
-        owned_by_type: Optional[NodeType] = None
-        owned_by_ptr: Optional[NodeReference] = None
-
-
-@node_trait_(NodeTrait.JOINABLE)
-class IsJoinable(Node if TYPE_CHECKING else BuiltinObject):
-    """A Node that can be joined by a Subject."""
-
-    pass
-
-
-@node_trait_(NodeTrait.CLAIMABLE)
-class IsClaimable(Node if TYPE_CHECKING else BuiltinObject):
-    """A Node that can be claimed with a Claim."""
-
-    claimed_by: Optional["Claim"] = p_internal(18, node_bench_from="self")
-    if TYPE_CHECKING:
-        claimed_by_id: Optional[UUID] = None
-        claimed_by_ptr: Optional[NodeReference] = None
+    # nocheckin: IsExtensible.value
+    value: "Value | None" = p_regular(26)
 
 
 @node_trait_(NodeTrait.BASED)
@@ -295,48 +292,94 @@ class IsBased(Node if TYPE_CHECKING else BuiltinObject):
     def get_base_from_partial(data: dict[str, Any]) -> Optional["IsInBench"]: ...
 
 
-@node_trait_(NodeTrait.NAMED)
-class IsNamed(Node if TYPE_CHECKING else BuiltinObject):
-    """A Node with a plain name."""
+@node_trait_(NodeTrait.IN_BENCH)
+class IsInBench(Node if TYPE_CHECKING else BuiltinObject):
+    """A Node inside a Bench."""
 
-    name: str | None = p_regular(31, format=StringFormat.NAME)
-
-
-@node_trait_(NodeTrait.TITLED)
-class IsTitled(Node if TYPE_CHECKING else BuiltinObject):
-    """A Node with a rich title."""
-
-    title: Optional["TextLine"] = p_regular(32)
-
-
-@node_trait_(NodeTrait.ORDERED)
-class IsOrdered(Node if TYPE_CHECKING else BuiltinObject):
-    """A Node that can be ordered."""
-
-    order_key: str = p_internal(33, default=INTEGER_ZERO)
-
-
-@node_trait_(NodeTrait.MODAL)
-class IsModal(Node if TYPE_CHECKING else BuiltinObject):
-    """A Node that can be in different modes."""
-
-    mode: NodeMode = p_internal(25, default=NodeMode.MAIN)
+    bench: "Bench | None" = p_node_ancestor_with_self(6, require=True, store=True, wire=True)
+    if TYPE_CHECKING:
+        bench_id: Optional[UUID] = None
+        bench_ptr: Optional[NodeReference] = None
 
     @property
-    def is_active(self) -> bool:
-        return (
-            self.deleted_at is None  # type: ignore
-            and self.archived_at is None  # type: ignore
-            and self.mode < NodeMode.TEMPLATE
+    def is_attached(self) -> bool:
+        return self.parent_ptr is not None and self.bench is not None
+
+
+@node_trait_(NodeTrait.IN_PACKAGE)
+class IsInPackage(IsInBench):
+    """A Node in a Package."""
+
+    package: "Package | None" = p_node_ancestor_with_self(7, require=True, store=True, wire=True)
+    if TYPE_CHECKING:
+        package_id: Optional[UUID] = None
+        package_ptr: Optional[NodeReference] = None
+
+
+@node_trait_(NodeTrait.PAGEABLE)
+class IsPageable(Node if TYPE_CHECKING else BuiltinObject):
+    """A Node that can be in a Page."""
+
+    pass
+
+
+@node_trait_(NodeTrait.BLOCKABLE)
+class IsBlockable(IsOrdered, IsInPackage):
+    """A Node that can (but may not be) be inline on a Page as a Block."""
+
+    parent: Union["Page", None] = p_node_parent()
+    # name: 31
+    # title: 32
+    # order_key: 33
+    icon: Optional["Icon"] = p_regular(34)
+    definition: "Block | None" = p_internal(
+        35,
+        node_bench_from="self",
+        description="The Block where this Node is 'defined'.",
+    )
+    if TYPE_CHECKING:
+        definition_id: Optional[UUID] = None
+        definition_ck: Optional[UUID] = None
+        definition_ptr: Optional[NodeReference] = None
+
+    def wrap_in_block(self) -> "Block":
+        """Wrap this Node in a *new* Block."""
+        from bench.language import Block
+
+        return Block.wrap(self)
+
+
+@node_trait_(NodeTrait.COMPUTABLE)
+class IsComputable(Node if TYPE_CHECKING else BuiltinObject):
+    """A Node that can have computation applied to it somehow."""
+
+    # model
+    # NOTE :Incomplete: IsComputable.model_id should probably be plural (model_ids?)
+    model_developer: Optional["ModelDeveloper"] = p_internal(100)
+    model_provider: Optional["ModelProvider"] = p_internal(101)
+    model_id: Optional[str] = p_internal(102)
+    model_name: Optional[str] = p_internal(103)
+    # compute/cost/effort/budget/'juice'...?
+
+
+@node_trait_(NodeTrait.RUNNABLE)
+class IsRunnable(IsComputable):
+    """A Node that can be run (at runtime in a Run)."""
+
+    # control
+    max_attempts: Optional[int] = p_regular(110)
+    retry_interval: Optional[timedelta] = p_regular(111)
+    backoff: Optional[float] = p_regular(112)
+
+    def to_retry(self) -> RetryOptions:
+        """Turns the options into our RetryOptions."""
+        retry_interval = self.retry_interval.total_seconds() if self.retry_interval else 1
+        return RetryOptions(
+            max_attempts=self.max_attempts or 1,
+            retry_interval=retry_interval,
+            backoff=self.backoff or 22,
+            max_retry_interval=max(30, retry_interval * 5),
         )
-
-
-@node_trait_(NodeTrait.EXTENSIBLE)
-class IsExtensible(Node if TYPE_CHECKING else BuiltinObject):
-    """A Node that can be extended with Fields."""
-
-    # nocheckin: IsExtensible.value
-    value: "Value | None" = p_regular(26)
 
 
 @node_trait_(NodeTrait.PROCESSABLE)
@@ -409,118 +452,66 @@ class IsProcessable(Node if TYPE_CHECKING else BuiltinObject):
         )
 
 
-@node_trait_(NodeTrait.COMPUTABLE)
-class IsComputable(BuiltinObject):
-    """A Node that can have computation applied to it somehow."""
+@node_trait_(NodeTrait.OWNABLE)
+class IsOwnable(Node if TYPE_CHECKING else BuiltinObject):
+    """A Node that can be owned by another Node."""
 
-    # model
-    # NOTE :Incomplete: IsComputable.model_id should probably be plural (model_ids?)
-    model_developer: Optional["ModelDeveloper"] = p_internal(100)
-    model_provider: Optional["ModelProvider"] = p_internal(101)
-    model_id: Optional[str] = p_internal(102)
-    model_name: Optional[str] = p_internal(103)
-    # compute/cost/effort/budget/'juice'...?
-
-
-@node_trait_(NodeTrait.RUNNABLE)
-class IsRunnable(IsComputable):
-    """A Node that can be run (at runtime in a Run)."""
-
-    # control
-    max_attempts: Optional[int] = p_regular(110)
-    retry_interval: Optional[timedelta] = p_regular(111)
-    backoff: Optional[float] = p_regular(112)
-
-    def to_retry(self) -> RetryOptions:
-        """Turns the options into our RetryOptions."""
-        retry_interval = self.retry_interval.total_seconds() if self.retry_interval else 1
-        return RetryOptions(
-            max_attempts=self.max_attempts or 1,
-            retry_interval=retry_interval,
-            backoff=self.backoff or 22,
-            max_retry_interval=max(30, retry_interval * 5),
-        )
-
-
-@node_trait_(NodeTrait.IN_BENCH)
-class IsInBench(Node if TYPE_CHECKING else BuiltinObject):
-    """A Node inside a Bench."""
-
-    bench: "Bench | None" = p_node_ancestor_with_self(6, require=True, store=True, wire=True)
-    if TYPE_CHECKING:
-        bench_id: Optional[UUID] = None
-        bench_ptr: Optional[NodeReference] = None
-
-    @property
-    def is_attached(self) -> bool:
-        return self.parent_ptr is not None and self.bench is not None
-
-
-@node_trait_(NodeTrait.IN_PACKAGE)
-class IsInPackage(IsInBench):
-    """A Node in a Package."""
-
-    package: "Package | None" = p_node_ancestor_with_self(7, require=True, store=True, wire=True)
-    if TYPE_CHECKING:
-        package_id: Optional[UUID] = None
-        package_ptr: Optional[NodeReference] = None
-
-
-@node_trait_(NodeTrait.BLOCKABLE)
-class IsBlockable(IsOrdered, IsInPackage):
-    """A Node that can (but may not be) be inline on a Page as a Block."""
-
-    parent: Union["Page", None] = p_node_parent(4)
-    # name: 31
-    # title: 32
-    # order_key: 33
-    icon: Optional["Icon"] = p_regular(34)
-    definition: "Block | None" = p_internal(
-        35,
+    owned_by: Optional["IsSubject"] = p_internal(
+        17,
         node_bench_from="self",
-        description="The Block where this Node is 'defined'.",
+        node_exclude=("ck", "base_id"),
     )
     if TYPE_CHECKING:
-        definition_id: Optional[UUID] = None
-        definition_ck: Optional[UUID] = None
-        definition_ptr: Optional[NodeReference] = None
+        owned_by_id: Optional[UUID] = None
+        owned_by_type: Optional[NodeType] = None
+        owned_by_ptr: Optional[NodeReference] = None
 
-    @override
-    def delete(self, _now: datetime | None = None):
-        super().delete(_now=_now)
-        # also delete defining Block (if any)
-        if (
-            (definition := self.definition) is not None
-            and definition.node_id == self.id
-            and not definition.is_deleted
-        ):
-            definition.delete(_now=_now)
 
-    @override
-    def restore(self, _now: datetime | None = None):
-        super().restore(_now=_now)
-        # also restore defining Block (if any)
-        if (
-            (definition := self.definition) is not None
-            and definition.node_id == self.id
-            and definition.is_deleted
-        ):
-            definition.restore(_now=_now)
+@node_trait_(NodeTrait.CLAIMABLE)
+class IsClaimable(Node if TYPE_CHECKING else BuiltinObject):
+    """A Node that can be claimed with a Claim."""
 
-    def wrap_in_block(self) -> "Block":
-        """Wrap this Node in a *new* Block."""
-        from bench.language import Block
+    claimed_by: Optional["Claim"] = p_internal(18, node_bench_from="self")
+    if TYPE_CHECKING:
+        claimed_by_id: Optional[UUID] = None
+        claimed_by_ptr: Optional[NodeReference] = None
 
-        return Block.wrap(self)
+
+@node_trait_(NodeTrait.JOINABLE)
+class IsJoinable(Node if TYPE_CHECKING else BuiltinObject):
+    """A Node that can be joined by a Subject."""
+
+    pass
+
+
+@node_trait_(NodeTrait.SUBJECT)
+class IsSubject(Node if TYPE_CHECKING else BuiltinObject):
+    """A Node that can be a Subject."""
+
+    pass
+
+
+@node_trait_(NodeTrait.MEMBERSHIP)
+class IsMembership(Node if TYPE_CHECKING else BuiltinObject):
+    """A Node that represents a Membership."""
+
+    pass
+
+
+@node_trait_(NodeTrait.INVITE)
+class IsInvite(Node if TYPE_CHECKING else BuiltinObject):
+    """A Node that represents an Invite."""
+
+    pass
 
 
 @node_trait_(NodeTrait.RESOURCE)
 class IsResource(IsModal, IsInstantiable, IsOwnable, IsNamed, IsClaimable, IsBlockable):
     """
-    A Resource in a Bench.
+    A Resource in a Bench, typically representing some external object.
     """
 
-    parent: Union["Package", "Page", "Thread", None] = p_node_parent(4)
+    parent: Union["Package", "Page", "Thread", None] = p_node_parent()
     region: Region | None = p_system(38, default=REGION)
 
 

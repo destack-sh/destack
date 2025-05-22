@@ -397,7 +397,7 @@ def _process_object_cls[ObjectT: BuiltinObject](
             if existing is not None:
                 if existing.name in ("metatype", "parent"):
                     continue  # may be narrowed
-                raise ValueError(
+                raise RuntimeError(
                     f"property '{name}' from '{component.__name__}' conflicts with '{cls.__name__}': {prop!r}, {existing!r}"
                 )
             prop = prop.clone()

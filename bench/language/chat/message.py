@@ -13,11 +13,11 @@ from bench.language.core import (
     IsInPackage,
     IsModal,
     IsOwnable,
+    IsSubject,
     IsTitled,
     Node,
     NodeType,
     ResourceStatus,
-    Subject,
     Text,
     TextIn,
     TextLine,
@@ -67,7 +67,7 @@ class Message(
     """
 
     # meta
-    parent: Union["Channel", "Thread", None] = p_node_parent(4)
+    parent: Union["Channel", "Thread", None] = p_node_parent()
     type: MessageType = p_regular(30, default=MessageType.DEFAULT)
     # platform? source?
     channel: Optional["Channel"] = p_regular(34, node_bench_from="self")
@@ -134,7 +134,7 @@ class Message(
         *,
         type: MessageType = MessageType.DEFAULT,
         title: TextLine | None = None,
-        owned_by: Optional[Subject] = None,
+        owned_by: Optional[IsSubject] = None,
         reply_to: Optional["Message"] = None,
         node: Optional["Node"] = None,
         **kwargs,

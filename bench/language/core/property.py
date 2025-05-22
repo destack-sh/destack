@@ -731,7 +731,7 @@ def p_runtime(*, default: Any = None) -> Any:
     )
 
 
-def p_node_parent(id: int, is_system: bool = False) -> Any:
+def p_node_parent(id: int = 4, is_system: bool = False) -> Any:
     """The parent of a node, must be of one of the given types."""
     return Property(
         id=id,

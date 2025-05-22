@@ -38,7 +38,7 @@ class Page(
     """A Page of Blocks laying out rich Text, data, logic, resources -- anything software needs."""
 
     # meta
-    parent: Union["Package", "Page", None] = p_node_parent(4)
+    parent: Union["Package", "Page", None] = p_node_parent()
     # NOTE: :Architecture: maybe some IsBlockables should have their own Page? or is that confusing?
     # app? scene? plugin? Page/Record/View/... tying? :NodeTying
 
