@@ -1,7 +1,13 @@
 from typing import TYPE_CHECKING, Optional
 
-from bench.language.core import Trait, VariableProperty, p_regular, trait_
-from bench.pb2 import AnyNodeData
+from bench.language.core import (
+    IsArchivable,
+    IsDeletable,
+    Trait,
+    VariableProperty,
+    p_regular,
+    trait_,
+)
 
 from ..view import IsView
 
@@ -12,7 +18,7 @@ if TYPE_CHECKING:
 
 
 @trait_(Trait.CONTENT_VIEW)
-class IsContentView[NodeDataT: AnyNodeData](IsView[NodeDataT]):
+class IsContentView(IsView, IsDeletable, IsArchivable):
     """A content View."""
 
     # layout

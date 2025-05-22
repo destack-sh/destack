@@ -4,6 +4,8 @@ from bench.language.core import (
     BuiltinEnum,
     BuiltinObject,
     EnumType,
+    IsArchivable,
+    IsDeletable,
     Node,
     NodeType,
     Struct,
@@ -64,7 +66,13 @@ class Shadow(ShadowBase, Struct):
 
 
 @node_(NodeType.SHADOW_STYLE)
-class ShadowStyle(ShadowBase, IsStyle, Node[ShadowStyleData]):
+class ShadowStyle(
+    ShadowBase,
+    IsStyle,
+    IsDeletable,
+    IsArchivable,
+    Node[ShadowStyleData],
+):
     """A shadow style."""
 
     pass

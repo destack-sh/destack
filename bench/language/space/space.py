@@ -3,6 +3,8 @@ from typing import TYPE_CHECKING, Optional
 from bench.language.core import (
     BuiltinEnum,
     EnumType,
+    IsArchivable,
+    IsDeletable,
     IsInPackage,
     IsModal,
     IsOrdered,
@@ -39,6 +41,8 @@ class Space(
     IsModal,
     IsOrdered,
     IsInPackage,
+    IsDeletable,
+    IsArchivable,
     Node[SpaceData],
 ):
     """

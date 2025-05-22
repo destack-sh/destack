@@ -1,8 +1,10 @@
 from typing import TYPE_CHECKING, Any
 
 from bench.language.core import (
+    IsArchivable,
     IsBlockable,
     IsClaimable,
+    IsDeletable,
     IsInstantiable,
     IsModal,
     IsNamed,
@@ -27,6 +29,8 @@ class Table(
     IsOwnable,
     IsClaimable,
     IsBlockable,
+    IsArchivable,
+    IsDeletable,
     Node[TableData],
 ):
     """A Table of Records."""

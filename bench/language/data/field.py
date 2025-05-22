@@ -5,6 +5,8 @@ from bench.language.core import (
     Constraint,
     EnumType,
     IntoQuery,
+    IsArchivable,
+    IsDeletable,
     IsInPackage,
     IsInstantiable,
     IsModal,
@@ -55,9 +57,11 @@ class Field(
     IsModal,
     IsNamed,
     IsOrdered,
+    IsDeletable,
+    IsArchivable,
+    IsInPackage,
     IntoQuery,
     TypeBase,
-    IsInPackage,
     Node[FieldData],
 ):
     """

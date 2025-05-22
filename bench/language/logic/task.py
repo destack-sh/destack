@@ -4,8 +4,10 @@ from typing import TYPE_CHECKING, Optional, Union
 from fastuuid import UUID
 
 from bench.language.core import (
+    IsArchivable,
     IsBlockable,
     IsClaimable,
+    IsDeletable,
     IsInstantiable,
     IsModal,
     IsOwnable,
@@ -38,6 +40,8 @@ class Task(
     IsTitled,
     IsInstantiable,
     IsBlockable,
+    IsDeletable,
+    IsArchivable,
     Node[TaskData],
 ):
     """A Task is like a to do item."""

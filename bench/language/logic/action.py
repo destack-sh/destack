@@ -5,7 +5,9 @@ from fastuuid import UUID
 from bench.language.core import (
     BuiltinEnum,
     EnumType,
+    IsArchivable,
     IsClaimable,
+    IsDeletable,
     IsExtensible,
     IsInPackage,
     IsInstantiable,
@@ -72,6 +74,8 @@ class Action(
     IsNamed,
     IsModal,
     IsOrdered,
+    IsArchivable,
+    IsDeletable,
     IsRunnable,
     IsInPackage,
     Node[ActionData],

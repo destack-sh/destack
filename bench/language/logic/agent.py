@@ -3,8 +3,10 @@ from typing import TYPE_CHECKING, Optional
 from fastuuid import UUID
 
 from bench.language.core import (
+    IsArchivable,
     IsBlockable,
     IsClaimable,
+    IsDeletable,
     IsExtensible,
     IsInstantiable,
     IsModal,
@@ -36,6 +38,8 @@ class Agent(
     IsRunnable,
     IsProcessable,
     IsSubject,
+    IsDeletable,
+    IsArchivable,
     IsExtensible,
     IsNamed,
     IsBlockable,

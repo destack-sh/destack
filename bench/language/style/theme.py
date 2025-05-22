@@ -3,7 +3,9 @@ from typing import TYPE_CHECKING
 from bench.language.core import (
     BuiltinEnum,
     EnumType,
+    IsArchivable,
     IsBlockable,
+    IsDeletable,
     IsInstantiable,
     IsModal,
     IsNamed,
@@ -35,7 +37,15 @@ class ThemeColor(BuiltinEnum):
 
 
 @node_(NodeType.THEME)
-class Theme(IsInstantiable, IsModal, IsNamed, IsBlockable, Node[ThemeData]):
+class Theme(
+    IsInstantiable,
+    IsModal,
+    IsNamed,
+    IsBlockable,
+    IsDeletable,
+    IsArchivable,
+    Node[ThemeData],
+):
     """A Theme with common styles."""
 
     # colors

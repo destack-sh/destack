@@ -6,6 +6,7 @@ import structlog
 from bench.language.core import (
     BuiltinEnum,
     EnumType,
+    IsDeletable,
     IsInPackage,
     IsModal,
     IsTitled,
@@ -46,6 +47,7 @@ class Notification(
     IsTitled,
     IsModal,
     IsInPackage,
+    IsDeletable,
     Node[NotificationData],
 ):
     """

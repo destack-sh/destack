@@ -1,7 +1,9 @@
 from typing import TYPE_CHECKING, Optional
 
 from bench.language.core import (
+    IsArchivable,
     IsBlockable,
+    IsDeletable,
     IsInstantiable,
     IsModal,
     IsNamed,
@@ -26,6 +28,8 @@ class Scene(
     IsNamed,
     IsModal,
     IsBlockable,
+    IsArchivable,
+    IsDeletable,
     Node[SceneData],
 ):
     """A Scene is a container for a specific interaction point."""

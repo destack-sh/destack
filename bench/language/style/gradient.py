@@ -4,6 +4,8 @@ from bench.language.core import (
     BuiltinEnum,
     BuiltinObject,
     EnumType,
+    IsArchivable,
+    IsDeletable,
     Node,
     NodeType,
     Struct,
@@ -58,7 +60,13 @@ class Gradient(GradientBase, Struct):
 
 
 @node_(NodeType.GRADIENT_STYLE)
-class GradientStyle(GradientBase, IsStyle, Node[GradientStyleData]):
+class GradientStyle(
+    GradientBase,
+    IsStyle,
+    IsDeletable,
+    IsArchivable,
+    Node[GradientStyleData],
+):
     """A gradient style."""
 
     dark: Gradient | None = p_regular(60)

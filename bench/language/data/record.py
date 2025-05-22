@@ -3,12 +3,15 @@ from typing import TYPE_CHECKING, Optional, Union, final
 import structlog
 
 from bench.language.core import (
+    IsArchivable,
     IsBased,
     IsClaimable,
+    IsDeletable,
     IsExtensible,
     IsInPackage,
     IsLocal,
     IsModal,
+    IsNamed,
     IsOrdered,
     IsOwnable,
     IsTitled,
@@ -38,7 +41,10 @@ class Record(
     IsClaimable,
     IsOrdered,
     IsExtensible,
+    IsNamed,
     IsTitled,
+    IsDeletable,
+    IsArchivable,
     IsInPackage,
     Node[RecordData],
 ):

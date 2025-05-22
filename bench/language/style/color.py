@@ -4,6 +4,8 @@ from bench.language.core import (
     BuiltinEnum,
     BuiltinObject,
     EnumType,
+    IsArchivable,
+    IsDeletable,
     Node,
     NodeType,
     Struct,
@@ -113,7 +115,13 @@ class Color(ColorBase, Struct):
 
 
 @node_(NodeType.COLOR_STYLE)
-class ColorStyle(ColorBase, IsStyle, Node[ColorStyleData]):
+class ColorStyle(
+    ColorBase,
+    IsStyle,
+    IsDeletable,
+    IsArchivable,
+    Node[ColorStyleData],
+):
     """A color style, with an optional dark variant."""
 
     dark: Color | None = p_regular(60)

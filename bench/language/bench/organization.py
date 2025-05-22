@@ -5,6 +5,7 @@ from fastuuid import UUID
 from bench.language.core import (
     BuiltinEnum,
     EnumType,
+    IsDeletable,
     IsGlobal,
     IsInvite,
     IsMembership,
@@ -60,7 +61,7 @@ class Organization(IsGlobal, IsSubject, Node[OrganizationData]):
 
 
 @node_(NodeType.ORGANIZATION_INVITE)
-class OrganizationInvite(IsInvite, Node[OrganizationInviteData]):
+class OrganizationInvite(IsInvite, IsDeletable, Node[OrganizationInviteData]):
     """
     An OrganizationInvite is an invite to an Organization.
     """
@@ -69,7 +70,7 @@ class OrganizationInvite(IsInvite, Node[OrganizationInviteData]):
 
 
 @node_(NodeType.ORGANIZATION_MEMBERSHIP)
-class OrganizationMembership(IsMembership, Node[OrganizationMembershipData]):
+class OrganizationMembership(IsMembership, IsDeletable, Node[OrganizationMembershipData]):
     """
     An OrganizationMembership is a membership to an Organization.
     """

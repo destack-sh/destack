@@ -5,8 +5,10 @@ from fastuuid import UUID
 from bench.language.core import (
     BuiltinEnum,
     EnumType,
+    IsArchivable,
     IsBlockable,
     IsClaimable,
+    IsDeletable,
     IsExtensible,
     IsInPackage,
     IsModal,
@@ -58,6 +60,8 @@ class Flow(
     IsExtensible,
     IsRunnable,
     IsBlockable,
+    IsDeletable,
+    IsArchivable,
     Node[FlowData],
 ):
     """A Flow orchestrates a sequence of steps (like Actions)."""

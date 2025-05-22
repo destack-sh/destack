@@ -1,4 +1,4 @@
-from bench.language.core import Node, NodeType, node_
+from bench.language.core import IsArchivable, IsDeletable, Node, NodeType, node_
 from bench.pb2 import FrameViewData
 
 from .container import IsContainerView
@@ -7,5 +7,10 @@ from .container import IsContainerView
 
 
 @node_(NodeType.FRAME_VIEW)
-class FrameView(IsContainerView, Node[FrameViewData]):
+class FrameView(
+    IsContainerView,
+    IsDeletable,
+    IsArchivable,
+    Node[FrameViewData],
+):
     """A frame container View."""

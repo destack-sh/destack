@@ -5,7 +5,6 @@ from bench.language.core import (
     IsModal,
     IsNamed,
     IsTemplatable,
-    Node,
     Trait,
     p_node_parent,
     trait_,
@@ -23,7 +22,6 @@ class IsStyle(
     IsModal,
     IsNamed,
     IsBlockable,
-    Node if TYPE_CHECKING else object,
 ):
     """A Style is a graphical interface."""
 

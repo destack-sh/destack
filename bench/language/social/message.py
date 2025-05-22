@@ -1,5 +1,5 @@
 from datetime import datetime
-from typing import TYPE_CHECKING, Any, Optional, Union, cast
+from typing import TYPE_CHECKING, Optional, Union
 
 import structlog
 from fastuuid import UUID
@@ -10,6 +10,7 @@ from bench.language.core import (
     EnumType,
     IsBased,
     IsComputable,
+    IsDeletable,
     IsInPackage,
     IsModal,
     IsOwnable,
@@ -26,10 +27,9 @@ from bench.language.core import (
     p_internal,
     p_node_parent,
     p_regular,
-    text_line,
     to_text,
 )
-from bench.pb2 import AnyNodeData, MessageData, NodeReferenceData
+from bench.pb2 import MessageData
 
 if TYPE_CHECKING:
     from bench.language import Channel, NodeReference, Thread
@@ -57,6 +57,7 @@ class Message(
     IsComputable,
     IsBased,
     IsOwnable,
+    IsDeletable,
     IsTitled,
     IsModal,
     IsInPackage,
@@ -106,21 +107,6 @@ class Message(
         else:
             return "<empty>"
 
-    @property
-    def base(self):
-        return self.thread
-
-    @staticmethod
-    def get_base_from_data(data: AnyNodeData) -> Optional[NodeReferenceData]:
-        return cast("MessageData", data).thread_ptr
-
-    @staticmethod
-    def get_base_from_partial(data: dict[str, Any]) -> Optional["Thread"]:
-        if "thread" in data:
-            return data["thread"]
-        else:
-            return None
-
     def edit(self, text: TextIn, nodes: list["Node"] = UNSET):
         """Edit the Message with new Text."""
         self.text = to_text(text)
@@ -139,14 +125,4 @@ class Message(
         node: Optional["Node"] = None,
         **kwargs,
     ) -> "Message":
-        message = Message(
-            type=type,
-            title=text_line(title) if title is not None else None,
-            text=to_text(text) if text is not None else None,
-            reply_to=reply_to,
-            owned_by=owned_by,
-            **kwargs,
-        )
-        if node is not None:
-            message.node = node
-        return message
+        raise NotImplementedError
