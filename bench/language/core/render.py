@@ -28,7 +28,6 @@ from bench.utils.time import timedelta_to_isoformat
 from .code import Code
 from .const import (
     NODE_TYPES_SET,
-    PACKAGE_NODE_TYPES,
     EnumType,
     NodeType,
     PrimitiveType,
@@ -37,11 +36,12 @@ from .const import (
 )
 from .graph import Supergraph
 from .icon import Icon, reverse_icon
-from .node import IsInPackage, Node, NodeReference
+from .node import Node, NodeReference
 from .object import BuiltinObject, PropertyReference
 from .property import NodeReferenceKind, Property
 from .struct import Struct
 from .text import Text, TextLine, text_line_to_markdown, text_to_markdown
+from .trait import IsInPackage
 from .type import TypeBase, TypeCardinality, reverse_type_scalar
 from .value import ScalarValue, SomeValue
 

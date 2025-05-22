@@ -1,5 +1,5 @@
-from .input import InputViewBase
+from .input import IsInputView
 from .number import NumberInputView
 from .slider import SliderInputView
 
-__all__ = ["InputViewBase", "NumberInputView", "SliderInputView"]
+__all__ = ["IsInputView", "NumberInputView", "SliderInputView"]

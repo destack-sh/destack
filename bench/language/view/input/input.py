@@ -1,7 +1,6 @@
 from typing import TYPE_CHECKING
 
-from bench.language.core import VariableProperty, node_component_, p_regular
-from bench.pb2 import AnyNodeData
+from bench.language.core import NodeTrait, VariableProperty, node_trait_, p_regular
 
 from ..view import ViewBase
 
@@ -11,8 +10,8 @@ if TYPE_CHECKING:
 # pyright: reportIncompatibleVariableOverride=false
 
 
-@node_component_()
-class InputViewBase[NodeDataT: AnyNodeData](ViewBase[NodeDataT]):
+@node_trait_(NodeTrait.INPUT_VIEW)
+class IsInputView(ViewBase):
     """An input View."""
 
     # appearance

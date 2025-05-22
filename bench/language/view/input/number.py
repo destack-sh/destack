@@ -1,13 +1,15 @@
 from typing import Optional
 
-from bench.language.core import NodeType, node_, p_regular
+from bench.language.core import Node, NodeType, node_, p_regular
 from bench.pb2 import NumberInputViewData
 
-from .input import InputViewBase
+from .input import IsInputView
+
+# pyright: reportIncompatibleVariableOverride=false
 
 
 @node_(NodeType.NUMBER_INPUT_VIEW)
-class NumberInputView(InputViewBase[NumberInputViewData]):
+class NumberInputView(IsInputView, Node[NumberInputViewData]):
     """A general number input View."""
 
     value: Optional[str] = p_regular(100)

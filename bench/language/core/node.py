@@ -5,7 +5,6 @@ from typing import (
     Callable,
     ClassVar,
     Iterable,
-    NamedTuple,
     Optional,
     Self,
     Sequence,
@@ -19,15 +18,8 @@ import structlog
 from fastuuid import UUID
 from opentelemetry import trace
 
-from bench import pb2
-from bench.language.registry import (
-    CHILD_NODE_TYPES,
-    HAS_CHILD_NODE_TYPES,
-    NODE_CLASS_BY_TYPE,
-)
 from bench.pb2 import AnyNodeData, NodeReferenceData
 from bench.utils.string import to_code_name
-from bench.utils.utils import frozendict
 
 from .const import (
     GLOBAL_NODE_TYPES,
@@ -42,7 +34,7 @@ from .const import (
     active_session,
 )
 from .graph import Graph, GraphData, attach_node
-from .object import BuiltinObject, _process_object_cls
+from .object import BuiltinObject
 from .property import (
     _PROPERTY_SPECIFIERS,
     Property,
@@ -52,7 +44,7 @@ from .property import (
     p_system,
 )
 from .struct import Struct, struct_
-from .trait import IsBased, IsModal, Subject
+from .trait import IndexIn, IsBased, IsBlockable, IsInBench, IsModal, Subject, _node_component_
 
 if TYPE_CHECKING:
     from bench.language import (
@@ -76,73 +68,9 @@ logger = structlog.get_logger(__name__)
 tracer = trace.get_tracer(__name__)
 
 
-class IndexIn(NamedTuple):
-    """Index to be turned into a SQL Index."""
-
-    columns: tuple[str, ...]
-    cover: tuple[str, ...] = ()
-    is_unique: bool = False
-    condition: str | None = None
-    name: str | None = None
-
-
-@dataclass_transform(kw_only_default=True, field_specifiers=_PROPERTY_SPECIFIERS)
-def _node_component_(
-    node_type: NodeType | None = None,
-    is_concrete: bool = False,
-    is_subtype: bool = False,
-):
-    """Mark a class as a node component (or concrete node for a NodeType)."""
-
-    def decorate(cls: type["Node"]) -> type["Node"]:
-        cls, properties = _process_object_cls(
-            cls=cls,
-            object_type=node_type,
-            is_concrete=is_concrete,
-            is_node=True,
-        )
-
-        # register node properties
-        ancestor_properties: dict[str, Property] = {}
-        for prop in properties.values():
-            if (
-                prop.node_kind == NodeReferenceKind.NODE_ANCESTOR
-                or prop.node_kind == NodeReferenceKind.NODE_ANCESTOR_OR_SELF
-            ):
-                ancestor_properties[prop.name] = prop
-        cls.__node_ancestor_properties__ = frozendict(ancestor_properties)
-
-        # register as concrete node class for node_type
-        if node_type:
-            cls.metatype = node_type
-        if node_type and not is_subtype:
-            if node_type in NODE_CLASS_BY_TYPE:
-                raise ValueError(
-                    f"node class conflict for {node_type}: {cls}, {NODE_CLASS_BY_TYPE[node_type]}"
-                )
-            NODE_CLASS_BY_TYPE[node_type] = cls
-
-        return cls
-
-    return decorate
-
-
-@dataclass_transform(kw_only_default=True, field_specifiers=_PROPERTY_SPECIFIERS)
-def node_trait_(
-    node_trait: NodeTrait,
-):
-    """Register a class as a node trait."""
-
-    def decorate(cls: type["Node"]) -> type["Node"]:
-        return cls
-
-    return decorate
-
-
 @dataclass_transform(kw_only_default=True, field_specifiers=_PROPERTY_SPECIFIERS)
 def node_(
     node_type: NodeType,
-    stored: bool = True,
     is_local: bool = False,
     root_type: NodeType | None = NodeType.BENCH,
     index: tuple[IndexIn, ...] = (),
@@ -154,8 +82,7 @@ def node_(
         index = (*index, IndexIn(columns=("parent_id",), cover=("id",)))
 
     def decorate(cls: type["Node"]) -> type["Node"]:
-        cls = _node_component_(node_type=node_type, is_concrete=True)(cls)
-        cls.__is_stored__ = stored
+        cls = _node_component_(metatype=node_type)(cls)
         cls.__is_local__ = is_local
 
         if node_type in GLOBAL_NODE_TYPES:
@@ -192,17 +119,16 @@ class Node[NodeDataT: AnyNodeData](BuiltinObject[NodeDataT]):
     metatype: ClassVar[NodeType]  # type: ignore
 
     __is_node__: ClassVar[bool] = True
-    __is_stored__: ClassVar[bool] = False  # stored in primary database
     __is_local__: ClassVar[bool] = False  # custom storage logic (for records)
+    __traits__: ClassVar[tuple[NodeTrait, ...]] = ()
+    __id_factory__: ClassVar[Callable[[], UUID]] = UUID
+    __area__: ClassVar[NodeArea]
+    __indexes__: ClassVar[tuple[IndexIn, ...]] = ()
 
     __root_type__: ClassVar[NodeType | None] = UNSET
     __parent_types__: ClassVar[tuple[NodeType, ...]] = ()
     __parent_property__: ClassVar[Property] = UNSET
-    __node_ancestor_properties__: ClassVar[dict[str, Property]] = frozendict()
-
-    __id_factory__: ClassVar[Callable[[], UUID]] = UUID
-    __area__: ClassVar[NodeArea]
-    __indexes__: ClassVar[tuple[IndexIn, ...]] = ()
+    __child_types__: ClassVar[tuple[NodeType, ...]] = ()
 
     # 1-9: node identity
     # Node.metatype: 1
@@ -299,7 +225,7 @@ class Node[NodeDataT: AnyNodeData](BuiltinObject[NodeDataT]):
 
     def iter_descendants(self, recursive: bool = False) -> Iterable["Node"]:
         """Iterate over all descendants of this node."""
-        for child_type in CHILD_NODE_TYPES[self.metatype]:
+        for child_type in self.__child_types__:
             for child in self._graph.iter_descendants(self, child_type):
                 yield child
                 if recursive:
@@ -401,7 +327,7 @@ class Node[NodeDataT: AnyNodeData](BuiltinObject[NodeDataT]):
 
         # clone children and append to self (recursive)
         if recursive:
-            for child_type in CHILD_NODE_TYPES[self.metatype]:
+            for child_type in self.__child_types__:
                 for child in self._graph.iter_descendants(self, child_type):
                     child_clone = child.clone(
                         reset=reset,
@@ -473,7 +399,7 @@ class Node[NodeDataT: AnyNodeData](BuiltinObject[NodeDataT]):
     @final
     def _walk_descendants(self) -> Iterable["Node"]:
         yield self
-        if self.metatype in HAS_CHILD_NODE_TYPES:
+        if self.__child_types__:
             yield from self._graph.get_descendants(self, recursive=True)
 
     @final
@@ -869,13 +795,13 @@ class NodeReference(Struct[NodeReferenceData]):
         bench_id: UUID | None = None
         if node.metatype == NodeType.BENCH:
             bench_id = node.id
-        elif node.__root_type__ == NodeType.BENCH:
-            bench_id = cast(IsInBench, node).bench_id
+        elif isinstance(node, IsInBench):
+            bench_id = node.bench_id
 
         # base
         base_id: UUID | None = None
-        if node.metatype in BASED_NODE_TYPES:
-            base_id = cast(IsBased, node).base_id
+        if isinstance(node, IsBased):
+            base_id = node.base_id
 
         reference = NodeReference(
             node_type=node.metatype, id=node.id, ck=node.ck, bench_id=bench_id, base_id=base_id
@@ -884,27 +810,7 @@ class NodeReference(Struct[NodeReferenceData]):
 
     @staticmethod
     def _ref_data_from_node_data(node_data: AnyNodeData) -> "NodeReferenceData":
-        node_cls = NODE_CLASS_BY_TYPE[NodeType(node_data.metatype)]
-        reference = NodeReferenceData(
-            metatype=pb2.StructType.STRUCT_TYPE_NODE_REFERENCE,
-            node_type=cast(pb2.NodeType, node_data.metatype),
-            id=node_data.id,
-            ck=getattr(node_data, "ck", node_data.id),
-        )
-
-        # bench
-        if node_data.metatype == NodeType.BENCH:
-            if node_data.id:
-                reference.bench_id = node_data.id
-        elif "bench" in node_cls.__properties__ and node_data.parent_ptr.bench_id:
-            reference.bench_id = node_data.parent_ptr.bench_id
-        # base
-        if NodeType(node_data.metatype) in BASED_NODE_TYPES:
-            base = cast("IsBased", node_cls).get_base_from_data(node_data)
-            if base is not None:
-                reference.base_id = base.id
-
-        return reference
+        raise NotImplementedError
 
 
 def patch_graph(*, old_graph: Graph, new_graph: Graph) -> None:

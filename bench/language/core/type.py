@@ -17,6 +17,7 @@ from .const import (
     PRIMITIVE_TYPE_BY_PY_TYPE,
     BuiltinEnum,
     EnumType,
+    NodeTrait,
     NodeType,
     PrimitiveType,
     PrimitiveValue,
@@ -125,7 +126,8 @@ class NodeConstraint(Struct):
     """The constraint of a node."""
 
     node_types: list["NodeType"] = p_regular(41)
-    # node_traits, page/thread/base/bench, ...
+    node_traits: list["NodeTrait"] = p_regular(42)
+    # page/thread/base/bench, ...
 
 
 Format = Union[NumberFormat, StringFormat]

@@ -52,7 +52,7 @@ from .font import (
 )
 from .gradient import Gradient, GradientStop, GradientStyle, GradientType
 from .shadow import Shadow, ShadowBase, ShadowStyle, ShadowType
-from .style import StyleBase
+from .style import IsStyle
 from .theme import Theme
 from .transition import Transition, TransitionBase, TransitionStyle, TransitionType
 
@@ -95,6 +95,7 @@ __all__ = [
     "Grid",
     "GridSpan",
     "Insets",
+    "IsStyle",
     "Layout",
     "Length",
     "LengthUnit",
@@ -105,7 +106,6 @@ __all__ = [
     "ShadowBase",
     "ShadowStyle",
     "ShadowType",
-    "StyleBase",
     "TextDecoration",
     "TextTransform",
     "Theme",

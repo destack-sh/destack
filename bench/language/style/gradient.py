@@ -4,6 +4,7 @@ from bench.language.core import (
     BuiltinEnum,
     BuiltinObject,
     EnumType,
+    Node,
     NodeType,
     Struct,
     StructType,
@@ -17,7 +18,9 @@ from bench.pb2 import GradientStyleData
 
 from .color import Color
 from .core import Axis2
-from .style import StyleBase
+from .style import IsStyle
+
+# pyright: reportIncompatibleVariableOverride=false
 
 
 @enum_(EnumType.GRADIENT_TYPE)
@@ -55,7 +58,7 @@ class Gradient(GradientBase, Struct):
 
 
 @node_(NodeType.GRADIENT_STYLE)
-class GradientStyle(GradientBase, StyleBase[GradientStyleData]):
+class GradientStyle(GradientBase, IsStyle, Node[GradientStyleData]):
     """A gradient style."""
 
     dark: Gradient | None = p_regular(60)

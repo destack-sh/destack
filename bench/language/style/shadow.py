@@ -4,6 +4,7 @@ from bench.language.core import (
     BuiltinEnum,
     BuiltinObject,
     EnumType,
+    Node,
     NodeType,
     Struct,
     StructType,
@@ -17,10 +18,12 @@ from bench.pb2 import ShadowStyleData
 
 from .color import Color
 from .core import Axis2, IsVariable
-from .style import StyleBase
+from .style import IsStyle
 
 if TYPE_CHECKING:
     pass
+
+# pyright: reportIncompatibleVariableOverride=false
 
 
 @enum_(EnumType.SHADOW_TYPE)
@@ -61,7 +64,7 @@ class Shadow(ShadowBase, Struct):
 
 
 @node_(NodeType.SHADOW_STYLE)
-class ShadowStyle(ShadowBase, StyleBase[ShadowStyleData]):
+class ShadowStyle(ShadowBase, IsStyle, Node[ShadowStyleData]):
     """A shadow style."""
 
     pass

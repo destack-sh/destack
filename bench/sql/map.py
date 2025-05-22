@@ -1,9 +1,6 @@
 from bench.language import (
-    NODE_CLASSES,
     NODE_TYPES,
-    RUNTIME_NODE_TYPES,
     UNSET,
-    EditType,
     Field,
     IsBased,
     IsInBench,
@@ -15,9 +12,8 @@ from bench.language import (
     Record,
     ScalarType,
     Table,
-    bittuple,
 )
-from bench.language.registry import HAS_CHILD_NODE_TYPES, NODE_CLASS_BY_TYPE
+from bench.language.registry import NODE_CLASS_BY_TYPE
 from bench.utils.base58 import base58_encode
 from bench.utils.string import Casing, to_casing
 
@@ -41,21 +37,6 @@ from .core import SqlTable as SqlTable
 BENCH_TABLE_PREFIX = "bench_"
 BENCH_RECORD_TABLE_PREFIX = "bench_record_"
 BENCH_RECORD_VALUE_PREFIX = "value_"
-
-CASCADING_EDIT_TYPES: bittuple[EditType] = bittuple(
-    EditType.ARCHIVE,
-    EditType.UNARCHIVE,
-    EditType.DELETE,
-    EditType.RESTORE,
-    EditType.ERASE,
-)
-CASCADING_PARENT_NODE_TYPES = HAS_CHILD_NODE_TYPES
-CASCADING_CHILD_NODE_TYPES = NODE_TYPES - RUNTIME_NODE_TYPES - bittuple(NodeType.MESSAGE)
-
-
-#
-# Mapping
-#
 
 
 def get_node_table_name(node_type: NodeType) -> str:
@@ -268,17 +249,17 @@ BUILTIN_NODE_TABLES: tuple[SqlTable, ...] = tuple(BUILTIN_TABLE_BY_NODE_TYPE.val
 
 BUILTIN_GLOBAL_TABLES: tuple[SqlTable, ...] = DEFAULT_GLOBAL_TABLES + tuple(
     BUILTIN_TABLE_BY_NODE_TYPE[node.metatype]
-    for node in NODE_CLASSES
+    for node in NODE_CLASS_BY_TYPE.values()
     if node.__area__ == NodeArea.GLOBAL_POSTGRES and node.metatype in BUILTIN_TABLE_BY_NODE_TYPE
 )
 BUILTIN_REGIONAL_TABLES: tuple[SqlTable, ...] = DEFAULT_REGIONAL_TABLES + tuple(
     BUILTIN_TABLE_BY_NODE_TYPE[node.metatype]
-    for node in NODE_CLASSES
+    for node in NODE_CLASS_BY_TYPE.values()
     if node.__area__ == NodeArea.REGIONAL_POSTGRES and node.metatype in BUILTIN_TABLE_BY_NODE_TYPE
 )
 BUILTIN_LOCAL_TABLES: tuple[SqlTable, ...] = DEFAULT_LOCAL_TABLES + tuple(
     BUILTIN_TABLE_BY_NODE_TYPE[node.metatype]
-    for node in NODE_CLASSES
+    for node in NODE_CLASS_BY_TYPE.values()
     if node.__area__ == NodeArea.LOCAL_POSTGRES and node.metatype in BUILTIN_TABLE_BY_NODE_TYPE
 )
 BUILTIN_TABLES_BY_AREA: dict[NodeArea, tuple[SqlTable, ...]] = {

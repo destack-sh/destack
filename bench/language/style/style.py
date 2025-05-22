@@ -6,11 +6,10 @@ from bench.language.core import (
     IsNamed,
     IsTemplatable,
     Node,
+    NodeTrait,
+    node_trait_,
     p_node_parent,
 )
-from bench.language.core.const import NodeTrait
-from bench.language.core.node import node_trait_
-from bench.pb2 import AnyNodeData
 
 if TYPE_CHECKING:
     from bench.language import Page, Space, ViewBase
@@ -19,7 +18,7 @@ if TYPE_CHECKING:
 
 
 @node_trait_(NodeTrait.STYLE)
-class StyleBase[NodeDataT: AnyNodeData](
+class IsStyle(
     IsTemplatable,
     IsModal,
     IsNamed,

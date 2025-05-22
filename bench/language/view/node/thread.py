@@ -1,16 +1,18 @@
 from typing import TYPE_CHECKING, Optional
 
-from bench.language.core import NodeType, Text, node_, p_regular
+from bench.language.core import Node, NodeType, Text, node_, p_regular
 from bench.pb2 import ThreadData
 
-from .node import NodeViewBase
+from .node import IsNodeView
 
 if TYPE_CHECKING:
     from bench.language import Message
 
+# pyright: reportIncompatibleVariableOverride=false
+
 
 @node_(NodeType.THREAD_VIEW)
-class ThreadView(NodeViewBase[ThreadData]):
+class ThreadView(IsNodeView, Node[ThreadData]):
     """A Thread view."""
 
     draft_text: Optional[Text] = p_regular(100)

@@ -24,9 +24,10 @@ from PIL import Image
 from bench.language.core import (
     BuiltinEnum,
     EnumType,
+    IsResource,
+    Node,
     NodeType,
     PrimitiveType,
-    ResourceBase,
     Severity,
     SpanType,
     active_session,
@@ -469,7 +470,7 @@ MIME_TYPE_BY_FORMAT: dict[FileFormat, str] = {v: k for k, v in FILE_FORMAT_BY_MI
 
 
 @node_(NodeType.FILE)
-class File(ResourceBase[FileData]):
+class File(IsResource, Node[FileData]):
     """
     A File stored somewhere.
     """

@@ -1,11 +1,11 @@
-from bench.language.core import NodeType, node_
+from bench.language.core import Node, NodeType, node_
 from bench.pb2 import WizardViewData
 
-from .internal import InternalViewBase
+from .internal import IsInternalView
 
 # pyright: reportIncompatibleVariableOverride=false
 
 
 @node_(NodeType.WIZARD_VIEW)
-class WizardView(InternalViewBase[WizardViewData]):
+class WizardView(IsInternalView, Node[WizardViewData]):
     pass

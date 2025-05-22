@@ -4,7 +4,6 @@ from typing import TYPE_CHECKING, Any, Optional, Sequence, Union, cast
 from fastuuid import UUID
 
 from bench.language.core import (
-    TERMINAL_PROCESS_STATUSES,
     IsBased,
     IsComputable,
     IsExtensible,
@@ -26,15 +25,17 @@ from bench.language.core import (
 )
 from bench.pb2 import AnyNodeData, NodeReferenceData, RunData
 
-from .context import IsRun
-
 if TYPE_CHECKING:
     from bench.language import (
+        Action,
         Agent,
         Code,
+        Flow,
         NodeReference,
         Runnable,
+        Service,
         Span,
+        Task,
         Thread,
     )
 
@@ -50,7 +51,6 @@ class Run(
     IsBased,
     IsExtensible,
     IsTitled,
-    IsRun,
     IsInPackage,
     Node[RunData],
 ):
@@ -75,6 +75,44 @@ class Run(
 
     # content
     code: Optional["Code"] = p_regular(66)
+
+    agent: Optional["Agent"] = p_internal(
+        70,
+        node_bench_from="self",
+        description="The Agent we're running as.",
+    )
+    flow: Optional["Flow"] = p_internal(
+        71,
+        node_bench_from="self",
+        description="The Flow the Action is in.",
+    )
+    service: Optional["Service"] = p_internal(
+        72,
+        node_bench_from="self",
+        description="The Service the Action is in.",
+    )
+    action: Optional["Action"] = p_internal(
+        73,
+        node_bench_from="self",
+        description="The Action this Run is executing.",
+    )
+    task: Optional["Task"] = p_internal(
+        78,
+        node_bench_from="self",
+        description="The Task this Run is executing.",
+    )
+    if TYPE_CHECKING:
+        agent_ptr: Optional[NodeReference] = None
+        agent_id: Optional[UUID] = None
+        flow_ptr: Optional[NodeReference] = None
+        flow_id: Optional[UUID] = None
+        service_ptr: Optional[NodeReference] = None
+        service_id: Optional[UUID] = None
+        action_ptr: Optional[NodeReference] = None
+        action_id: Optional[UUID] = None
+        action_ck: Optional[UUID] = None
+        task_ptr: Optional[NodeReference] = None
+        task_id: Optional[UUID] = None
 
     # ...IsProcessable[80-]
 
@@ -165,7 +203,7 @@ class Run(
 
     @property
     def is_active(self) -> bool:
-        return self.status not in TERMINAL_PROCESS_STATUSES
+        return self.status.is_terminal
 
     @property
     def attempts(self) -> Sequence["Span"]:

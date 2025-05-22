@@ -5,6 +5,7 @@ from bench.language.core import (
     BuiltinEnum,
     BuiltinObject,
     EnumType,
+    Node,
     NodeType,
     Struct,
     StructType,
@@ -17,11 +18,14 @@ from bench.language.core import (
 from bench.pb2 import EffectStyleData
 
 from .core import Axis3, IsVariable, Vector2
-from .style import StyleBase
+from .style import IsStyle
 from .transition import Transition
 
 if TYPE_CHECKING:
     pass
+
+
+# pyright: reportIncompatibleVariableOverride=false
 
 
 @enum_(EnumType.EFFECT_TYPE)
@@ -96,7 +100,7 @@ class Effect(EffectBase, Struct):
 
 
 @node_(NodeType.EFFECT_STYLE)
-class EffectStyle(EffectBase, StyleBase[EffectStyleData]):
+class EffectStyle(EffectBase, IsStyle, Node[EffectStyleData]):
     """An effect style."""
 
     pass

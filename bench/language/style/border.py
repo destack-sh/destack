@@ -4,6 +4,7 @@ from bench.language.core import (
     BuiltinEnum,
     BuiltinObject,
     EnumType,
+    Node,
     NodeType,
     Struct,
     StructType,
@@ -17,10 +18,13 @@ from bench.pb2 import BorderStyleData
 
 from .color import Color
 from .core import Insets, IsVariable
-from .style import StyleBase
+from .style import IsStyle
 
 if TYPE_CHECKING:
     pass
+
+
+# pyright: reportIncompatibleVariableOverride=false
 
 
 @enum_(EnumType.BORDER_TYPE)
@@ -52,7 +56,7 @@ class Border(BorderBase, Struct):
 
 
 @node_(NodeType.BORDER_STYLE)
-class BorderStyle(BorderBase, StyleBase[BorderStyleData]):
+class BorderStyle(BorderBase, IsStyle, Node[BorderStyleData]):
     """A border style."""
 
     pass

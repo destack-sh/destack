@@ -23,7 +23,7 @@ class ViewBase[NodeDataT: AnyNodeData](
     IsInstantiable,
     IsModal,
     IsNamed,
-    IsBlockable[NodeDataT],
+    IsBlockable,
 ):
     """A View is a graphical interface."""
 

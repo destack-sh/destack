@@ -7,7 +7,7 @@ from opentelemetry import trace
 
 from bench.pb2 import AnyNodeData, EditData, EditOperationData
 
-from .const import BuiltinEnum, EnumType, StructType, enum_
+from .const import BuiltinEnum, EnumType, StructType, bittuple, enum_
 from .graph import Graph, GraphData
 from .node import Node
 from .property import p_regular, p_system
@@ -24,15 +24,24 @@ tracer = trace.get_tracer(__name__)
 class EditType(BuiltinEnum):
     """Ways to edit nodes."""
 
-    CREATE = 20
-    UPSERT = 21
-    UPDATE = 22
-    MOVE = 23
-    ARCHIVE = 24
-    UNARCHIVE = 25
-    DELETE = 26
-    RESTORE = 27
-    ERASE = 28
+    CREATE = 1
+    UPSERT = 2
+    UPDATE = 3
+    MOVE = 4
+    ARCHIVE = 5
+    UNARCHIVE = 6
+    DELETE = 7
+    RESTORE = 8
+    ERASE = 9
+
+
+CASCADING_EDIT_TYPES: bittuple[EditType] = bittuple(
+    EditType.ARCHIVE,
+    EditType.UNARCHIVE,
+    EditType.DELETE,
+    EditType.RESTORE,
+    EditType.ERASE,
+)
 
 
 @enum_(EnumType.EDIT_OPERATION_TYPE)

@@ -395,8 +395,8 @@ def _process_object_cls[ObjectT: BuiltinObject](
         for name, prop in component.__declared_properties__.items():
             existing = properties.get(name)
             if existing is not None:
-                if existing.id == 1 or existing.id == 4:
-                    continue  # metatype, parent, runtime-only may be overridden
+                if existing.name in ("metatype", "parent"):
+                    continue  # may be narrowed
                 raise ValueError(
                     f"property '{name}' from '{component.__name__}' conflicts with '{cls.__name__}': {prop!r}, {existing!r}"
                 )

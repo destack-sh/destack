@@ -8,11 +8,11 @@ from opentelemetry import trace
 from bench.language import (
     NODE_CLASS_BY_TYPE,
     Bench,
+    IsProvisionable,
     Message,
     MessageType,
     NodeMode,
     NodeType,
-    ProvisionableResourceBase,
     ResourceStatus,
     Thread,
 )
@@ -25,9 +25,7 @@ logger = structlog.get_logger(__name__)
 tracer = trace.get_tracer(__name__)
 
 
-class Provisioner[PT: ProvisionableResourceBase, WT: ProvisionableResourceBase](
-    DeferredHostPlugin[WT], abc.ABC
-):
+class Provisioner[PT: IsProvisionable, WT: IsProvisionable](DeferredHostPlugin[WT], abc.ABC):
     """
     A provisioner for some type of Resource.
     Synchronizes the declared state of Resources with their actual (external) state (bidirectionally).

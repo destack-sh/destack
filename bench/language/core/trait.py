@@ -1,25 +1,39 @@
 import abc
 from datetime import datetime, timedelta
-from typing import TYPE_CHECKING, Any, Optional, Self, Union, cast, override
+from typing import (
+    TYPE_CHECKING,
+    Any,
+    NamedTuple,
+    Optional,
+    Self,
+    Union,
+    assert_never,
+    cast,
+    dataclass_transform,
+    override,
+)
 
 from fastuuid import UUID
 
-from bench.language.registry import CHILD_NODE_TYPES
+from bench.language.registry import NODE_CLASS_BY_TRAIT, NODE_CLASS_BY_TYPE
 from bench.pb2 import AnyNodeData, NodeReferenceData
 from bench.utils.fractional import INTEGER_ZERO
 from bench.utils.tenacity import RetryOptions
 
 from .const import (
+    REGION,
     NodeMode,
     NodeReferenceKind,
     NodeTrait,
     NodeType,
     ProcessStatus,
+    Region,
+    ResourceStatus,
 )
 from .graph import attach_node
-from .node import node_trait_
-from .object import BuiltinObject, object_
+from .object import BuiltinObject, _process_object_cls
 from .property import (
+    _PROPERTY_SPECIFIERS,
     p_internal,
     p_node_ancestor_with_self,
     p_node_parent,
@@ -51,6 +65,7 @@ if TYPE_CHECKING:
         Package,
         Page,
         Run,
+        Scaler,
         Span,
         Task,
         TextLine,
@@ -59,15 +74,65 @@ if TYPE_CHECKING:
         Value,
     )
 
+# pyright: reportIncompatibleVariableOverride=false
+
 Subject = Union["User", "Organization", "Computer", "Agent"]
-
 Runnable = Union["Agent", "Flow", "Action", "FlowEdge"]
-
 Processable = Union["Channel", "Thread", "Agent", "Task", "Run", "Span"]
 
 
-@object_()
-class IsTemplatable(BuiltinObject):
+class IndexIn(NamedTuple):
+    """Index to be turned into a SQL Index."""
+
+    columns: tuple[str, ...]
+    cover: tuple[str, ...] = ()
+    is_unique: bool = False
+    condition: str | None = None
+    name: str | None = None
+
+
+@dataclass_transform(kw_only_default=True, field_specifiers=_PROPERTY_SPECIFIERS)
+def _node_component_(
+    metatype: NodeType | NodeTrait | None = None,
+):
+    """Mark a class as a node component (or concrete node for a NodeType)."""
+
+    def decorate(cls: type["Node"]) -> type["Node"]:
+        cls, _ = _process_object_cls(
+            cls=cls,
+            object_type=metatype if isinstance(metatype, NodeType) else None,
+            is_concrete=isinstance(metatype, NodeType),
+            is_node=True,
+        )
+
+        # register as concrete node class for metatype
+        if isinstance(metatype, NodeType):
+            cls.metatype = metatype
+            NODE_CLASS_BY_TYPE[metatype] = cls
+        elif isinstance(metatype, NodeTrait):
+            NODE_CLASS_BY_TRAIT[metatype] = cls
+        elif metatype is not None:
+            assert_never(metatype)
+
+        return cls
+
+    return decorate
+
+
+@dataclass_transform(kw_only_default=True, field_specifiers=_PROPERTY_SPECIFIERS)
+def node_trait_(
+    node_trait: NodeTrait,
+):
+    """Register a class as a node trait."""
+
+    def decorate(cls: type["Node"]) -> type["Node"]:
+        return cls
+
+    return decorate
+
+
+@node_trait_(NodeTrait.TEMPLATABLE)
+class IsTemplatable(Node if TYPE_CHECKING else BuiltinObject):
     """A Node that can be templated (we can create Nodes that are derived from 'templates')."""
 
     template: Optional["Node"] = p_node_template(16)
@@ -115,7 +180,7 @@ class IsTemplatable(BuiltinObject):
 
         # instance children and append to self
         if recursive:
-            for child_type in CHILD_NODE_TYPES[self.metatype]:
+            for child_type in self.__child_types__:
                 for child in self._graph.iter_descendants(self, child_type):
                     if isinstance(child, IsTemplatable):
                         # instance child
@@ -154,7 +219,7 @@ class IsTemplatable(BuiltinObject):
         return instance
 
 
-@object_()
+@node_trait_(NodeTrait.INSTANTIABLE)
 class IsInstantiable(IsTemplatable):
     """A Node that can be instanced (we can create Nodes that are 'instances' of this Node)."""
 
@@ -167,15 +232,15 @@ class IsInstantiable(IsTemplatable):
         return self.ck != cast("Node", self).id
 
 
-@object_()
-class IsSubject(BuiltinObject):
+@node_trait_(NodeTrait.SUBJECT)
+class IsSubject(Node if TYPE_CHECKING else BuiltinObject):
     """A Node that can be a Subject."""
 
     pass
 
 
-@object_()
-class IsOwnable(BuiltinObject):
+@node_trait_(NodeTrait.OWNABLE)
+class IsOwnable(Node if TYPE_CHECKING else BuiltinObject):
     """A Node that can be owned by another Node."""
 
     owned_by: Optional[Subject] = p_internal(
@@ -189,15 +254,15 @@ class IsOwnable(BuiltinObject):
         owned_by_ptr: Optional[NodeReference] = None
 
 
-@object_()
-class IsJoinable(BuiltinObject):
+@node_trait_(NodeTrait.JOINABLE)
+class IsJoinable(Node if TYPE_CHECKING else BuiltinObject):
     """A Node that can be joined by a Subject."""
 
     pass
 
 
-@object_()
-class IsClaimable(BuiltinObject):
+@node_trait_(NodeTrait.CLAIMABLE)
+class IsClaimable(Node if TYPE_CHECKING else BuiltinObject):
     """A Node that can be claimed with a Claim."""
 
     claimed_by: Optional["Claim"] = p_internal(18, node_bench_from="self")
@@ -206,8 +271,8 @@ class IsClaimable(BuiltinObject):
         claimed_by_ptr: Optional[NodeReference] = None
 
 
-@object_()
-class IsBased(BuiltinObject):
+@node_trait_(NodeTrait.BASED)
+class IsBased(Node if TYPE_CHECKING else BuiltinObject):
     """
     A Node which may have a 'base' in another Node (e.g., its type definition).
     We almost always want to load them together, so it's useful to have this relationship.
@@ -230,29 +295,29 @@ class IsBased(BuiltinObject):
     def get_base_from_partial(data: dict[str, Any]) -> Optional["IsInBench"]: ...
 
 
-@object_()
-class IsNamed(BuiltinObject):
+@node_trait_(NodeTrait.NAMED)
+class IsNamed(Node if TYPE_CHECKING else BuiltinObject):
     """A Node with a plain name."""
 
     name: str | None = p_regular(31, format=StringFormat.NAME)
 
 
-@object_()
-class IsTitled(BuiltinObject):
+@node_trait_(NodeTrait.TITLED)
+class IsTitled(Node if TYPE_CHECKING else BuiltinObject):
     """A Node with a rich title."""
 
     title: Optional["TextLine"] = p_regular(32)
 
 
-@object_()
-class IsOrdered(BuiltinObject):
+@node_trait_(NodeTrait.ORDERED)
+class IsOrdered(Node if TYPE_CHECKING else BuiltinObject):
     """A Node that can be ordered."""
 
     order_key: str = p_internal(33, default=INTEGER_ZERO)
 
 
-@object_()
-class IsModal(BuiltinObject):
+@node_trait_(NodeTrait.MODAL)
+class IsModal(Node if TYPE_CHECKING else BuiltinObject):
     """A Node that can be in different modes."""
 
     mode: NodeMode = p_internal(25, default=NodeMode.MAIN)
@@ -266,16 +331,16 @@ class IsModal(BuiltinObject):
         )
 
 
-@object_()
-class IsExtensible(BuiltinObject):
+@node_trait_(NodeTrait.EXTENSIBLE)
+class IsExtensible(Node if TYPE_CHECKING else BuiltinObject):
     """A Node that can be extended with Fields."""
 
     # nocheckin: IsExtensible.value
     value: "Value | None" = p_regular(26)
 
 
-@object_()
-class IsProcessable(BuiltinObject):
+@node_trait_(NodeTrait.PROCESSABLE)
+class IsProcessable(Node if TYPE_CHECKING else BuiltinObject):
     """A Node that can be processed somehow."""
 
     status: ProcessStatus = p_regular(80, default=ProcessStatus.CREATED)
@@ -344,7 +409,7 @@ class IsProcessable(BuiltinObject):
         )
 
 
-@object_()
+@node_trait_(NodeTrait.COMPUTABLE)
 class IsComputable(BuiltinObject):
     """A Node that can have computation applied to it somehow."""
 
@@ -357,7 +422,7 @@ class IsComputable(BuiltinObject):
     # compute/cost/effort/budget/'juice'...?
 
 
-@object_()
+@node_trait_(NodeTrait.RUNNABLE)
 class IsRunnable(IsComputable):
     """A Node that can be run (at runtime in a Run)."""
 
@@ -378,7 +443,7 @@ class IsRunnable(IsComputable):
 
 
 @node_trait_(NodeTrait.IN_BENCH)
-class IsInBench(Node if TYPE_CHECKING else object):
+class IsInBench(Node if TYPE_CHECKING else BuiltinObject):
     """A Node inside a Bench."""
 
     bench: "Bench | None" = p_node_ancestor_with_self(6, require=True, store=True, wire=True)
@@ -447,3 +512,98 @@ class IsBlockable(IsOrdered, IsInPackage):
         from bench.language import Block
 
         return Block.wrap(self)
+
+
+@node_trait_(NodeTrait.RESOURCE)
+class IsResource(IsModal, IsInstantiable, IsOwnable, IsNamed, IsClaimable, IsBlockable):
+    """
+    A Resource in a Bench.
+    """
+
+    parent: Union["Package", "Page", "Thread", None] = p_node_parent(4)
+    region: Region | None = p_system(38, default=REGION)
+
+
+@node_trait_(NodeTrait.PROVISIONABLE)
+class IsProvisionable(IsResource):
+    """
+    A Resource that can be provisioned.
+    """
+
+    # status
+    status: ResourceStatus = p_system(40, default=ResourceStatus.PENDING)
+    requested_activate_at: Optional[datetime] = p_internal(41)
+    requested_deactivate_at: Optional[datetime] = p_internal(42)
+    requested_reset_at: Optional[datetime] = p_internal(43)
+    requested_suspend_at: Optional[datetime] = p_internal(44)
+    requested_decommission_at: Optional[datetime] = p_internal(45)
+    active_at: Optional[datetime] = p_system(46)
+    failed_at: Optional[datetime] = p_system(47)
+    failed_attempts: int = p_system(48, default=0)
+    scaler: Optional["Scaler"] = p_system(49)
+    if TYPE_CHECKING:
+        scaler_ptr: Optional[NodeReference] = None
+        scaler_id: Optional[UUID] = None
+
+    @property
+    def should_retry(self) -> bool:
+        """Whether this Resource should be retried."""
+        return self.failed_at is None or (
+            self.requested_reset_at is not None and self.requested_reset_at > self.failed_at
+        )
+
+    @property
+    def should_reset(self) -> bool:
+        """Whether this Resource should be reset."""
+        return (
+            self.status.is_extant
+            and self.requested_reset_at is not None
+            and self.requested_activate_at is not None
+            and self.requested_reset_at > self.requested_activate_at
+        )
+
+    @property
+    def target_status(self) -> ResourceStatus:
+        """The implied target status of this Resource."""
+        if self.requested_decommission_at is not None:
+            return ResourceStatus.OFFLINE
+        elif self.requested_suspend_at is not None and not (
+            self.requested_activate_at is not None
+            and self.requested_activate_at > self.requested_suspend_at
+        ):
+            return ResourceStatus.SLEEPING
+        elif self.requested_deactivate_at is not None and not (
+            self.requested_activate_at is not None
+            and self.requested_activate_at > self.requested_deactivate_at
+        ):
+            return ResourceStatus.UNAVAILABLE
+        else:
+            return ResourceStatus.AVAILABLE
+
+    def provision(self) -> None:
+        """Request to provision this Resource."""
+        self.requested_activate_at = self.active_session.oracle.utc()
+
+    def decommission(self) -> None:
+        """Request to decommission this Resource."""
+        self.requested_decommission_at = self.active_session.oracle.utc()
+
+    def update_status(self, status: ResourceStatus) -> None:
+        """Set the actual current status of this Resource."""
+        self.status = status
+        if status == ResourceStatus.FAILED or status == ResourceStatus.RETRYING:
+            self.failed_at = self.active_session.oracle.utc()
+            self.failed_attempts += 1
+        elif status.is_extant:
+            self.active_at = self.active_session.oracle.utc()
+            self.failed_attempts = 0
+
+    async def wait_until_status(
+        self, status: ResourceStatus, timeout: timedelta | None = None
+    ) -> None:
+        """Wait until this Resource reaches the given status."""
+        await self.wait_until(lambda r: r.status == status, timeout=timeout)
+
+    async def wait_until_ready(self, timeout: timedelta | None = None) -> None:
+        """Wait until this Resource is ready."""
+        await self.wait_until(lambda r: r.status == ResourceStatus.AVAILABLE, timeout=timeout)

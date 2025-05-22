@@ -1,4 +1,4 @@
-from .internal import InternalViewBase
+from .internal import IsInternalView
 from .wizard import WizardView
 
-__all__ = ["InternalViewBase", "WizardView"]
+__all__ = ["IsInternalView", "WizardView"]
