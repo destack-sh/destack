@@ -4,6 +4,7 @@ from typing import TYPE_CHECKING, Optional, Union, override
 from bench.language.core import (
     BuiltinEnum,
     EnumType,
+    Expression,
     IsInPackage,
     IsModal,
     IsOwnable,
@@ -16,7 +17,7 @@ from bench.language.core import (
     p_node_parent,
     p_regular,
 )
-from bench.language.core.query import Expression
+from bench.pb2 import CursorData
 
 if TYPE_CHECKING:
     from bench.language import Agent, Run, Space, Thread
@@ -61,7 +62,7 @@ class CursorStatus(BuiltinEnum):
 
 
 @node_(NodeType.CURSOR)
-class Cursor(IsOwnable, IsModal, IsTitled, IsInPackage):
+class Cursor(IsOwnable, IsModal, IsTitled, IsInPackage, Node[CursorData]):
     """
     A Cursor is the current logical or physical 'position' or 'focus' of its owner.
      (e.g., editing Blocks on a Page or processing a specific Record in a Database.)

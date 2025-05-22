@@ -16,7 +16,6 @@ from bench.language.core import (
 )
 from bench.pb2 import ColorStyleData
 
-from .core import IsVariable
 from .style import IsStyle
 
 if TYPE_CHECKING:
@@ -81,7 +80,7 @@ class ColorShade(BuiltinEnum):
 
 
 @object_()
-class ColorBase(IsVariable, BuiltinObject):
+class ColorBase(BuiltinObject):
     """A color value (x, y, z, alpha in 0-1)."""
 
     type: ColorType = p_regular(30)

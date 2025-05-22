@@ -5,11 +5,11 @@ from bench.language.core import (
     IsInstantiable,
     IsModal,
     IsNamed,
-    node_trait_,
     p_node_parent,
     p_regular,
+    trait_,
 )
-from bench.language.core.const import NodeTrait
+from bench.language.core.const import Trait
 from bench.pb2 import AnyNodeData
 
 if TYPE_CHECKING:
@@ -18,8 +18,8 @@ if TYPE_CHECKING:
 # pyright: reportIncompatibleVariableOverride=false
 
 
-@node_trait_(NodeTrait.VIEW)
-class ViewBase[NodeDataT: AnyNodeData](
+@trait_(Trait.VIEW)
+class IsView[NodeDataT: AnyNodeData](
     IsInstantiable,
     IsModal,
     IsNamed,
@@ -27,7 +27,7 @@ class ViewBase[NodeDataT: AnyNodeData](
 ):
     """A View is a graphical interface."""
 
-    parent: Union["Space", "ViewBase", "Page", None] = p_node_parent()
+    parent: Union["Space", "IsView", "Page", None] = p_node_parent()
     # variant_of, ...
 
     # sizing

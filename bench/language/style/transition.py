@@ -16,7 +16,6 @@ from bench.language.core import (
 )
 from bench.pb2 import TransitionStyleData
 
-from .core import IsVariable
 from .style import IsStyle
 
 if TYPE_CHECKING:
@@ -45,7 +44,7 @@ class SpringType(BuiltinEnum):
 
 
 @object_()
-class TransitionBase(IsVariable, BuiltinObject):
+class TransitionBase(BuiltinObject):
     type: TransitionType = p_regular(30, default=TransitionType.TWEEN)
     style: Optional["TransitionStyle"] = p_regular(41)
     delay: float | None = p_regular(50)

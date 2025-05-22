@@ -10,6 +10,7 @@ from bench.language.core import (
     IsInPackage,
     IsModal,
     IsProcessable,
+    IsRunnable,
     IsTitled,
     Node,
     NodeType,
@@ -26,14 +27,7 @@ from bench.language.core import (
 from bench.pb2 import RunData
 
 if TYPE_CHECKING:
-    from bench.language import (
-        Agent,
-        Code,
-        IsRunnable,
-        NodeReference,
-        Span,
-        Thread,
-    )
+    from bench.language import Agent, Code, NodeReference, Span, Thread
 
 
 # pyright: reportIncompatibleVariableOverride=false

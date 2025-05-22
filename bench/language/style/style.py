@@ -6,18 +6,18 @@ from bench.language.core import (
     IsNamed,
     IsTemplatable,
     Node,
-    NodeTrait,
-    node_trait_,
+    Trait,
     p_node_parent,
+    trait_,
 )
 
 if TYPE_CHECKING:
-    from bench.language import Page, Space, ViewBase
+    from bench.language import IsView, Page, Space
 
 # pyright: reportIncompatibleVariableOverride=false
 
 
-@node_trait_(NodeTrait.STYLE)
+@trait_(Trait.STYLE)
 class IsStyle(
     IsTemplatable,
     IsModal,
@@ -27,4 +27,4 @@ class IsStyle(
 ):
     """A Style is a graphical interface."""
 
-    parent: Union["Space", "ViewBase", "Page", None] = p_node_parent()
+    parent: Union["Space", "IsView", "Page", None] = p_node_parent()

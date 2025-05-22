@@ -17,11 +17,11 @@ from .const import (
     PRIMITIVE_TYPE_BY_PY_TYPE,
     BuiltinEnum,
     EnumType,
-    NodeTrait,
     NodeType,
     PrimitiveType,
     PrimitiveValue,
     StructType,
+    Trait,
     enum_,
     is_enum_type,
     is_node_type,
@@ -126,7 +126,7 @@ class NodeConstraint(Struct):
     """The constraint of a node."""
 
     node_types: list["NodeType"] = p_regular(41)
-    node_traits: list["NodeTrait"] = p_regular(42)
+    node_traits: list["Trait"] = p_regular(42)
     # page/thread/base/bench, ...
 
 
