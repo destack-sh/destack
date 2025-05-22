@@ -293,8 +293,7 @@ class IsInstantiable(IsTemplatable):
     """A Node that can be instanced (we can create Nodes that are 'instances' of this Node)."""
 
     ck: UUID = p_system(3, autoset=True)  # type: ignore
-
-    # nocheckin: proper templating/instancing (for views/Variants)
+    # nocheckin: proper templating/instancing (for views/Variants/overrides/branches/...)
 
     @property
     def is_instance(self) -> bool:

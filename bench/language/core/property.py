@@ -290,7 +290,7 @@ class Property(IntoQuery if TYPE_CHECKING else object):
 
     ptr_prop: Optional["Property"] = None  # wired representation for pointers
     runtime_prop: Optional["Property"] = None  # for the proto property
-    node_types: tuple[NodeType | Trait, ...] = ()  # for node relations
+    nodes: tuple[NodeType | Trait, ...] = ()  # for node relations
     node_kind: NodeReferenceKind | None = None
     node_bench_from: Literal["self"] | None = None
     node_exclude: tuple[Literal["ck", "base_id"], ...] = ()
@@ -323,9 +323,9 @@ class Property(IntoQuery if TYPE_CHECKING else object):
             non_default.append(str(self.id))
         if self.node_kind is not None:
             non_default.append(self.node_kind.bench_name)
-            if self.node_types:
-                node_type_names = [t.bench_name for t in self.node_types[:3]]
-                if len(self.node_types) > 3:
+            if self.nodes:
+                node_type_names = [t.bench_name for t in self.nodes[:3]]
+                if len(self.nodes) > 3:
                     node_type_names.append("...")
                 non_default.append("|".join(node_type_names))
             elif self.struct_type:
@@ -480,9 +480,9 @@ class Property(IntoQuery if TYPE_CHECKING else object):
                 name=self.name + "_ptr",
                 component=self.component,
                 node_kind=self.node_kind,
-                node_types=self.node_types,
+                nodes=self.nodes,
                 runtime_prop=self,
-                scalar_type="struct",
+                scalar_type="node",
                 struct_type=StructType.NODE_REFERENCE,
                 primitive_type=PrimitiveType.JSON,
                 is_wired=True,
@@ -523,7 +523,7 @@ class Property(IntoQuery if TYPE_CHECKING else object):
         self.primitive_type = annotation.primitive_type
         self.enum_type = annotation.enum_type
         self.struct_type = annotation.struct_type
-        self.node_types = annotation.node_types
+        self.nodes = annotation.node_types
         self.key_type = annotation.key_type
         self.is_required = annotation.is_required
         self.is_variable = annotation.is_variable
@@ -538,7 +538,7 @@ class Property(IntoQuery if TYPE_CHECKING else object):
 
         # node templates always point to their own type
         if self.node_kind == NodeReferenceKind.NODE_TEMPLATE and object_type is not None:
-            self.node_types = (NodeType(object_type),)
+            self.nodes = (NodeType(object_type),)
 
         # references get a _ptr property (which is wired/stored)
         if self.node_kind is not None or self.is_property_reference:

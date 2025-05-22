@@ -4,6 +4,8 @@ from bench.language.core import (
     BuiltinEnum,
     BuiltinObject,
     EnumType,
+    IsArchivable,
+    IsDeletable,
     Node,
     NodeType,
     Struct,
@@ -110,7 +112,13 @@ class Font(FontBase, Struct):
 
 
 @node_(NodeType.FONT_STYLE)
-class FontStyle(FontBase, IsStyle, Node[FontStyleData]):
+class FontStyle(
+    FontBase,
+    IsStyle,
+    IsDeletable,
+    IsArchivable,
+    Node[FontStyleData],
+):
     """A font style."""
 
     pass

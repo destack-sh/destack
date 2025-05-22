@@ -5,7 +5,9 @@ from fastuuid import UUID
 from bench.language.core import (
     BuiltinEnum,
     EnumType,
+    IsArchivable,
     IsBlockable,
+    IsDeletable,
     IsInPackage,
     IsModal,
     IsNamed,
@@ -70,6 +72,8 @@ class Block(
     IsNamed,
     IsOrdered,
     IsInPackage,
+    IsArchivable,
+    IsDeletable,
     Node[BlockData],
 ):
     """

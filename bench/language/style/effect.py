@@ -5,6 +5,8 @@ from bench.language.core import (
     BuiltinEnum,
     BuiltinObject,
     EnumType,
+    IsArchivable,
+    IsDeletable,
     Node,
     NodeType,
     Struct,
@@ -100,7 +102,13 @@ class Effect(EffectBase, Struct):
 
 
 @node_(NodeType.EFFECT_STYLE)
-class EffectStyle(EffectBase, IsStyle, Node[EffectStyleData]):
+class EffectStyle(
+    EffectBase,
+    IsStyle,
+    IsDeletable,
+    IsArchivable,
+    Node[EffectStyleData],
+):
     """An effect style."""
 
     pass

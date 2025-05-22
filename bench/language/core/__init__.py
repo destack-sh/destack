@@ -180,6 +180,7 @@ from .trait import (
     IsSubject,
     IsTemplatable,
     IsTitled,
+    expand_node_types,
     trait_,
 )
 from .transaction import Transaction
@@ -402,6 +403,7 @@ __all__ = [
     "encode_storage_key",
     "encode_type_identity",
     "enum_",
+    "expand_node_types",
     "get_active_aliasing",
     "get_active_session",
     "icon",

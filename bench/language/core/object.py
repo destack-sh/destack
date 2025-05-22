@@ -314,9 +314,9 @@ def {prop.name}_{obj_key}(self: "BuiltinObject") -> tuple["Node", ...]:
 def _generate_ancestor_property(object_type: NodeType | StructType, prop: Property) -> str:
     """The computer get property for Node ancestors."""
 
-    node_types_str = ", ".join(str(t.value) for t in prop.node_types)
+    node_types_str = ", ".join(str(t.value) for t in prop.nodes)
 
-    if prop.node_kind == NodeReferenceKind.NODE_ANCESTOR_OR_SELF and object_type in prop.node_types:
+    if prop.node_kind == NodeReferenceKind.NODE_ANCESTOR_OR_SELF and object_type in prop.nodes:
         return f"""\
 @property
 def {prop.name}(self: "Node") -> "Node":
@@ -485,7 +485,7 @@ def _process_object_cls[ObjectT: BuiltinObject](
             # computed _x node reference properties (e.g., parent_id, node_ck, node_type, ...)
             if prop.is_node_reference:
                 for obj_key, ptr_key in (("id", "id"), ("ck", "ck"), ("type", "node_type")):
-                    if obj_key == "type" and (not prop.node_types or len(prop.node_types) <= 1):
+                    if obj_key == "type" and (not prop.nodes or len(prop.nodes) <= 1):
                         continue  # no need for *_type if only one possible node type
                     node_key_property_str = _generate_node_key_property(obj_key, ptr_key, prop)
                     exec(node_key_property_str, {}, cls_dict)

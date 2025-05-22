@@ -4,6 +4,8 @@ from bench.language.core import (
     BuiltinEnum,
     BuiltinObject,
     EnumType,
+    IsArchivable,
+    IsDeletable,
     Node,
     NodeType,
     Struct,
@@ -65,7 +67,13 @@ class Transition(TransitionBase, Struct):
 
 
 @node_(NodeType.TRANSITION_STYLE)
-class TransitionStyle(TransitionBase, IsStyle, Node[TransitionStyleData]):
+class TransitionStyle(
+    TransitionBase,
+    IsStyle,
+    IsDeletable,
+    IsArchivable,
+    Node[TransitionStyleData],
+):
     """A transition style."""
 
     pass

@@ -1,6 +1,14 @@
 from typing import TYPE_CHECKING, Optional
 
-from bench.language.core import Node, NodeType, VariableProperty, node_, p_regular
+from bench.language.core import (
+    IsArchivable,
+    IsDeletable,
+    Node,
+    NodeType,
+    VariableProperty,
+    node_,
+    p_regular,
+)
 from bench.pb2 import TextViewData
 
 from .content import IsContentView
@@ -12,7 +20,12 @@ if TYPE_CHECKING:
 
 
 @node_(NodeType.TEXT_VIEW)
-class TextView(IsContentView, Node[TextViewData]):
+class TextView(
+    IsContentView,
+    IsDeletable,
+    IsArchivable,
+    Node[TextViewData],
+):
     """A (rich) text view."""
 
     # appearance

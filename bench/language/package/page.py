@@ -1,8 +1,10 @@
 from typing import TYPE_CHECKING, Optional, Sequence, Union, cast, overload
 
 from bench.language.core import (
+    IsArchivable,
     IsBlockable,
     IsClaimable,
+    IsDeletable,
     IsModal,
     IsOwnable,
     IsTemplatable,
@@ -33,6 +35,8 @@ class Page(
     IsOwnable,
     IsClaimable,
     IsBlockable,
+    IsDeletable,
+    IsArchivable,
     Node[BlockData],
 ):
     """A Page of Blocks laying out rich Text, data, logic, resources -- anything software needs."""

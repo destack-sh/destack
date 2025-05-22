@@ -5,8 +5,9 @@ from fastuuid import UUID
 from bench.language.core import (
     BuiltinEnum,
     EnumType,
-    IsBlockable,
+    IsArchivable,
     IsComputable,
+    IsDeletable,
     IsInstantiable,
     IsJoinable,
     IsModal,
@@ -47,14 +48,15 @@ class ThreadStatus(BuiltinEnum):
 
 @node_(NodeType.THREAD)
 class Thread(
+    IsArchivable,
     IsComputable,
+    IsDeletable,
+    IsInstantiable,
+    IsJoinable,
+    IsModal,
     IsOwnable,
     IsProcessable,
-    IsJoinable,
     IsTitled,
-    IsModal,
-    IsInstantiable,
-    IsBlockable,
     Node[ThreadData],
 ):
     """

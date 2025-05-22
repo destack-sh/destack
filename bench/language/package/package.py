@@ -4,6 +4,8 @@ from bench.language.core import (
     BuiltinEnum,
     EnumType,
     IndexIn,
+    IsArchivable,
+    IsDeletable,
     IsInPackage,
     IsJoinable,
     IsModal,
@@ -41,6 +43,8 @@ class Package(
     IsModal,
     IsNamed,
     IsInPackage,
+    IsDeletable,
+    IsArchivable,
     Node[PackageData],
 ):
     """A Package is a semi-isolated area of a Bench."""

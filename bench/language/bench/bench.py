@@ -6,6 +6,7 @@ from bench.language.core import (
     REGION,
     BuiltinEnum,
     EnumType,
+    IsDeletable,
     IsGlobal,
     IsInBench,
     IsInvite,
@@ -77,7 +78,7 @@ class Bench(IsGlobal, IsOwnable, IsInBench, Node[BenchData]):
 
 
 @node_(NodeType.BENCH_INVITE)
-class BenchInvite(IsInvite, Node[BenchInviteData]):
+class BenchInvite(IsInvite, IsDeletable, IsInBench, Node[BenchInviteData]):
     """
     A BenchInvite is an invite to a Bench.
     """
@@ -86,7 +87,7 @@ class BenchInvite(IsInvite, Node[BenchInviteData]):
 
 
 @node_(NodeType.BENCH_MEMBERSHIP)
-class BenchMembership(IsMembership, IsInBench, Node[BenchMembershipData]):
+class BenchMembership(IsMembership, IsDeletable, IsInBench, Node[BenchMembershipData]):
     """
     A BenchMembership is a membership to a Bench.
     """

@@ -4,6 +4,7 @@ from bench.language import (
     Field,
     IsBased,
     IsInBench,
+    IsInstantiable,
     Node,
     NodeArea,
     NodeType,
@@ -12,6 +13,7 @@ from bench.language import (
     Record,
     ScalarType,
     Table,
+    expand_node_types,
 )
 from bench.language.registry import NODE_CLASS_BY_TYPE
 from bench.utils.base58 import base58_encode
@@ -80,10 +82,11 @@ def map_builtin_object_to_sql_table(
                 name=f"{prop.name}_id", type=PrimitiveType.UUID, is_nullable=not prop.is_required
             )
             columns.append(column)
+            node_types = expand_node_types(prop.nodes)
             # ck
             if "ck" not in prop.node_exclude and any(
-                "ck" in NODE_CLASS_BY_TYPE[node_type].__properties__
-                for node_type in prop.node_types
+                issubclass(NODE_CLASS_BY_TYPE[node_type], IsInstantiable)
+                for node_type in node_types
             ):
                 ck_column = SqlColumn(
                     name=f"{prop.name}_ck",
@@ -93,7 +96,7 @@ def map_builtin_object_to_sql_table(
                 columns.append(ck_column)
             # base_id
             if "base_id" not in prop.node_exclude and any(
-                issubclass(NODE_CLASS_BY_TYPE[node_type], IsBased) for node_type in prop.node_types
+                issubclass(NODE_CLASS_BY_TYPE[node_type], IsBased) for node_type in node_types
             ):
                 base_id_column = SqlColumn(
                     name=f"{prop.name}_base_id",
@@ -103,8 +106,7 @@ def map_builtin_object_to_sql_table(
                 columns.append(base_id_column)
             # bench_id
             if prop.node_bench_from is None and any(
-                issubclass(NODE_CLASS_BY_TYPE[node_type], IsInBench)
-                for node_type in prop.node_types
+                issubclass(NODE_CLASS_BY_TYPE[node_type], IsInBench) for node_type in node_types
             ):
                 bench_id_column = SqlColumn(
                     name=f"{prop.name}_bench_id",
@@ -114,6 +116,7 @@ def map_builtin_object_to_sql_table(
                 columns.append(bench_id_column)
         else:
             # regular column
+            assert not prop.name.endswith("_ptr"), f"unexpected regular ptr: {prop!r}"
             assert prop.primitive_type is not None, f"undetermined type for {prop!r}"
             column = SqlColumn(
                 name=prop.name,

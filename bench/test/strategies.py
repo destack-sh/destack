@@ -218,11 +218,11 @@ def get_naive_object_strategy(object_type: ObjectType):
         elif prop.name in STRATEGY_BY_PROPERTY:
             object_kwargs[prop.name] = STRATEGY_BY_PROPERTY[prop.name]
         elif prop.is_node_reference:
-            if not prop.node_types:
+            if not prop.nodes:
                 continue  # nothing to do
             # generate random reference instead of node (sometimes this is enough)
             assert prop.ptr_prop is not None, f"{prop!r} has no wired ptr"
-            reference_nodes = prop.node_types if prop.node_types != "any" else NODE_TYPES.tuple
+            reference_nodes = prop.nodes if prop.nodes != "any" else NODE_TYPES.tuple
             object_kwargs[prop.ptr_prop.name] = wrap_value_scalar(
                 node_references(st.sampled_from(reference_nodes)),
                 is_required=prop.is_required,

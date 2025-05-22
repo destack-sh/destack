@@ -1,7 +1,9 @@
 from typing import TYPE_CHECKING, Union
 
 from bench.language.core import (
+    IsArchivable,
     IsBlockable,
+    IsDeletable,
     IsModal,
     IsNamed,
     IsTemplatable,
@@ -24,8 +26,10 @@ class Schema(
     IsTemplatable,
     IsModal,
     IsNamed,
-    TypeBase,
     IsBlockable,
+    IsDeletable,
+    IsArchivable,
+    TypeBase,
     Node[SchemaData],
 ):
     """A Schema for a specific Type."""

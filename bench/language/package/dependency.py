@@ -1,6 +1,8 @@
 from typing import TYPE_CHECKING, Union
 
 from bench.language.core import (
+    IsArchivable,
+    IsDeletable,
     IsInPackage,
     IsModal,
     IsTemplatable,
@@ -23,6 +25,8 @@ class Dependency(
     IsTemplatable,
     IsModal,
     IsInPackage,
+    IsDeletable,
+    IsArchivable,
     Node[DependencyData],
 ):
     """A Dependency on another Package or Bench."""

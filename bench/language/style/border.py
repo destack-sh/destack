@@ -4,6 +4,8 @@ from bench.language.core import (
     BuiltinEnum,
     BuiltinObject,
     EnumType,
+    IsArchivable,
+    IsDeletable,
     Node,
     NodeType,
     Struct,
@@ -56,7 +58,13 @@ class Border(BorderBase, Struct):
 
 
 @node_(NodeType.BORDER_STYLE)
-class BorderStyle(BorderBase, IsStyle, Node[BorderStyleData]):
+class BorderStyle(
+    BorderBase,
+    IsStyle,
+    IsDeletable,
+    IsArchivable,
+    Node[BorderStyleData],
+):
     """A border style."""
 
     pass

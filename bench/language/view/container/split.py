@@ -1,4 +1,4 @@
-from bench.language.core import Node, NodeType, node_
+from bench.language.core import IsArchivable, IsDeletable, Node, NodeType, node_
 from bench.pb2 import SplitViewData
 
 from .container import IsContainerView
@@ -7,5 +7,10 @@ from .container import IsContainerView
 
 
 @node_(NodeType.SPLIT_VIEW)
-class SplitView(IsContainerView, Node[SplitViewData]):
+class SplitView(
+    IsContainerView,
+    IsDeletable,
+    IsArchivable,
+    Node[SplitViewData],
+):
     """A split container View."""
