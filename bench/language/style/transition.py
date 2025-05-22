@@ -4,6 +4,7 @@ from bench.language.core import (
     BuiltinEnum,
     BuiltinObject,
     EnumType,
+    Node,
     NodeType,
     Struct,
     StructType,
@@ -16,10 +17,13 @@ from bench.language.core import (
 from bench.pb2 import TransitionStyleData
 
 from .core import IsVariable
-from .style import StyleBase
+from .style import IsStyle
 
 if TYPE_CHECKING:
     pass
+
+
+# pyright: reportIncompatibleVariableOverride=false
 
 
 @enum_(EnumType.TRANSITION_TYPE)
@@ -62,7 +66,7 @@ class Transition(TransitionBase, Struct):
 
 
 @node_(NodeType.TRANSITION_STYLE)
-class TransitionStyle(TransitionBase, StyleBase[TransitionStyleData]):
+class TransitionStyle(TransitionBase, IsStyle, Node[TransitionStyleData]):
     """A transition style."""
 
     pass

@@ -1,4 +1,4 @@
-from .node import NodeViewBase
+from .node import IsNodeView
 from .thread import ThreadView
 
-__all__ = ["NodeViewBase", "ThreadView"]
+__all__ = ["IsNodeView", "ThreadView"]

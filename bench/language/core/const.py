@@ -637,14 +637,14 @@ class NodeType(BuiltinEnum):
 
     # logic [2000-2400]
     SERVICE = 2000, "Service", "Service", "fas fa-screwdriver-wrench"
-    ACTION = 2010, "Action", "Action", "fas fa-step-forward"
-    FLOW = 2020, "Flow", "Sequence Actions", "fas fa-diagram-project"
-    FLOW_EDGE = 2021, "Flow Edge", "Edge between Actions", "fas fa-link"
-    AGENT = 2050, "Agent", "Identity for an AI", "fas fa-robot"
+    ACTION = 2020, "Action", "Action", "fas fa-step-forward"
+    FLOW = 2040, "Flow", "Sequence Actions", "fas fa-diagram-project"
+    FLOW_EDGE = 2041, "Flow Edge", "Edge between Actions", "fas fa-link"
+    AGENT = 2100, "Agent", "Identity for an AI", "fas fa-robot"
     TASK = 2200, "Task", "To-do item", "far fa-square-check"
     CURSOR = 2220, "Cursor", "Position in something", "fas fa-mouse"
     # ROOM, JOB, PLAN, LOCK, ...
-    # TRIGGER, TIMER, BREAKPOINT, ...
+    # INTERFACE, TRIGGER, TIMER, BREAKPOINT, ...
 
     # test/qa [2400-2600]
     # ...
@@ -772,31 +772,39 @@ class NodeType(BuiltinEnum):
 # nocheckin: NodeTraits
 @enum_(EnumType.NODE_TRAIT)
 class NodeTrait(BuiltinEnum):
-    OWNABLE = 1
-    CLAIMABLE = 2
-    JOINABLE = 3
-    SUBJECT = 4
-    TEMPLATABLE = 7
-    INSTANTIABLE = 8
-    NAMED = 9
-    ORDERED = 10
-    MODAL = 11
-    EXTENSIBLE = 12
-    BASED = 14
-    IN_BENCH = 15, "Bench", "In a Bench"
-    IN_PACKAGE = 16, "Package", "In a Package"
-    PAGEABLE = 24, "Page", "In a Page"
-    BLOCKABLE = 25
-    RESOURCE = 17
-    PROVISIONABLE = 18
-    RUNNABLE = 5
-    PROCESSABLE = 6
-    COMPUTABLE = 13
-    # VIEW = 19
-    # STYLE = 20
-    # INPUT_VIEW = 21
-    # CONTENT_VIEW = 22
-    # INTERNAL_VIEW = 23
+    # meta [1-200]
+    MODAL = 1, "Modal", "Has a mode", "fas fa-window-maximize"
+    NAMED = 2, "Named", "Has a name", "fas fa-font-case"
+    TITLED = 3, "Titled", "Has a title", "fas fa-font-case"
+    ORDERED = 4, "Ordered", "Has an order", "fas fa-sort"
+    TEMPLATABLE = 5, "Templatable", "Can be templated", "fas fa-puzzle-piece"
+    INSTANTIABLE = 6, "Instantiable", "Can be instantiated", "fas fa-clone"
+    EXTENSIBLE = 7, "Extensible", "Can be extended", "fas fa-expand"
+    BASED = 8, "Based", "Can be based on", "fas fa-baseball-bat-ball"
+    IN_BENCH = 10, "Bench", "In a Bench", "fas fa-bench"
+    IN_PACKAGE = 11, "Package", "In a Package", "fas fa-box"
+    RESOURCE = 20, "Resource", "Is a Resource"
+    PROVISIONABLE = 21, "Provisionable", "Can be provisioned", "fas fa-server"
+    # package [1000-1200]
+    PAGEABLE = 1020, "Page", "In a Page", "far fa-file"
+    BLOCKABLE = 1030, "Block", "Can be a Block on a Page", "fas fa-cube"
+    # logic [2000-2400]
+    RUNNABLE = 2000, "Runnable", "Can be run", "fas fa-play"
+    PROCESSABLE = 2001, "Processable", "Can be processed", "fas fa-cogs"
+    COMPUTABLE = 2002, "Computable", "Can be computed", "fas fa-calculator"
+    # auth [2800-3000]
+    OWNABLE = 2800, "Ownable", "Can be owned", "fas fa-user"
+    CLAIMABLE = 2801, "Claimable", "Can be claimed", "fas fa-stamp"
+    JOINABLE = 2802, "Joinable", "Can be joined", "fas fa-users"
+    SUBJECT = 2803, "Subject", "Can be a subject", "fas fa-user"
+    # ui [8000-10000]
+    VIEW = 8001, "View", "Is a View", "fas fa-eye"
+    CONTAINER_VIEW = 8100, "Container View", "Is a Container View", "fas fa-container"
+    CONTENT_VIEW = 8200, "Content View", "Is a Content View", "fas fa-content"
+    INPUT_VIEW = 8300, "Input View", "Is an Input View", "fas fa-input"
+    NODE_VIEW = 8400, "Node View", "Is a Node View", "fas fa-node"
+    INTERNAL_VIEW = 8500, "Internal View", "Is an Internal View", "fas fa-internal"
+    STYLE = 9000, "Style", "Is a Style", "fas fa-palette"
 
 
 @enum_(EnumType.NODE_AREA)
@@ -1235,6 +1243,45 @@ class ErrorKind(BuiltinEnum):
     RUNTIME = 5
 
 
+@enum_(EnumType.RESOURCE_STATUS)
+class ResourceStatus(BuiltinEnum):
+    """Generalized status of a Resource in its lifecycle."""
+
+    # pre
+    PENDING = (1, "Pending", "Waiting for provisioning", "fas fa-hourglass-start")
+    CREATING = (2, "Creating", "Actively provisioning", "fas fa-hourglass-start")
+    RETRYING = (3, "Retrying", "Retrying provisioning", "fas fa-exclamation-triangle")
+
+    # active states
+    AVAILABLE = (10, "Available", "Operational and available", "fas fa-check-circle")
+    SLEEPING = (11, "Sleeping", "Available but not running", "fas fa-moon")
+    UNAVAILABLE = (15, "Unavailable", "Unavailable or not responding", "fas fa-plug-circle-xmark")
+    IMPAIRED = (
+        16,
+        "Impaired",
+        "Operational but experiencing issues",
+        "fas fa-exclamation-triangle",
+    )
+    # terminal
+    OFFLINE = (30, "Offline", "Decommissioned and unavailable", "fas fa-power-off")
+    FAILED = (31, "Failed", "Failed to provision", "fas fa-exclamation-triangle")
+
+    @property
+    def is_pre(self) -> bool:
+        """Whether this Resource is in the pre-provisioning state."""
+        return 1 <= self.value < 10
+
+    @property
+    def is_extant(self) -> bool:
+        """Whether this Resource does/should exist."""
+        return 10 <= self.value <= 20
+
+    @property
+    def is_terminal(self) -> bool:
+        """Whether this Resource is terminal."""
+        return 30 <= self.value <= 40
+
+
 @enum_(EnumType.PROCESS_STATUS)
 class ProcessStatus(BuiltinEnum):
     # pre
@@ -1282,12 +1329,6 @@ class ProcessStatus(BuiltinEnum):
     @property
     def is_bad(self) -> bool:
         return self in (ProcessStatus.FAILED, ProcessStatus.ABORTED, ProcessStatus.CANCELLED)
-
-
-INTERRUPTED_PROCESS_STATUSES = bittuple(*(s for s in ProcessStatus if s.is_interrupted))
-ACTIVE_PROCESS_STATUSES = bittuple(*(s for s in ProcessStatus if s.is_active))
-INACTIVE_PROCESS_STATUSES = bittuple(*(s for s in ProcessStatus if s.is_inactive))
-TERMINAL_PROCESS_STATUSES = bittuple(*(s for s in ProcessStatus if s.is_terminal))
 
 
 @enum_(EnumType.CLIENT_TYPE)
@@ -1364,7 +1405,7 @@ def capture_span(
             yield
     else:
         span = Span(type=type, title=title, started_at=runtime.oracle.utc())
-        run._copy_context_to(span)
+        # run._copy_context_to(span)
         run.add_child(span)
         try:
             with tracer.start_as_current_span(key):

@@ -11,9 +11,10 @@ from opentelemetry import trace
 from bench.language.core import (
     BuiltinEnum,
     EnumType,
+    IsResource,
     IsTitled,
+    Node,
     NodeType,
-    ResourceBase,
     enum_,
     node_,
     p_node_parent,
@@ -37,7 +38,7 @@ class LinkType(BuiltinEnum):
 
 
 @node_(NodeType.LINK)
-class Link(IsTitled, ResourceBase[LinkData]):
+class Link(IsTitled, IsResource, Node[LinkData]):
     """
     A Link to an external resource (like a web URL, or anything that doesn't fit into other Nodes).
     """

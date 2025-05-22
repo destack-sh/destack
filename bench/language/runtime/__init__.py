@@ -1,4 +1,3 @@
-from .context import IsRun
 from .error import Error, ErrorType
 from .interruption import (
     INTERRUPTION_TYPE_BY_PROCESS_STATUS,
@@ -21,7 +20,6 @@ __all__ = [
     "InterruptionResponse",
     "InterruptionStatus",
     "InterruptionType",
-    "IsRun",
     "ModelDeveloper",
     "ModelProvider",
     "Run",

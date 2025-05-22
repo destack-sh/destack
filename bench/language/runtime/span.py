@@ -16,8 +16,6 @@ from bench.language.core import (
 )
 from bench.pb2 import SpanData
 
-from .context import IsRun
-
 if TYPE_CHECKING:
     from bench.language import NodeReference, Run
 
@@ -28,7 +26,6 @@ if TYPE_CHECKING:
 @node_(NodeType.SPAN)
 class Span(
     IsModal,
-    IsRun,
     IsProcessable,
     IsInPackage,
     Node[SpanData],

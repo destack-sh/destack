@@ -14,7 +14,7 @@ from bench.language.core import (
 from bench.pb2 import SceneData
 
 if TYPE_CHECKING:
-    from bench.language import ContainerViewBase
+    from bench.language import IsContainerView
 
 # pyright: reportIncompatibleVariableOverride=false
 
@@ -30,6 +30,6 @@ class Scene(
 ):
     """A Scene is a container for a specific interaction point."""
 
-    root_view: Optional["ContainerViewBase"] = p_regular(
+    root_view: Optional["IsContainerView"] = p_regular(
         40, description="The root view of the Scene."
     )

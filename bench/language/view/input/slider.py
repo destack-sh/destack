@@ -1,13 +1,15 @@
 from typing import Optional
 
-from bench.language.core import NodeType, node_, p_regular
+from bench.language.core import Node, NodeType, node_, p_regular
 from bench.pb2 import SliderInputViewData
 
-from .input import InputViewBase
+from .input import IsInputView
+
+# pyright: reportIncompatibleVariableOverride=false
 
 
 @node_(NodeType.SLIDER_INPUT_VIEW)
-class SliderInputView(InputViewBase[SliderInputViewData]):
+class SliderInputView(IsInputView, Node[SliderInputViewData]):
     """A slider input View."""
 
     value: Optional[float] = p_regular(100)

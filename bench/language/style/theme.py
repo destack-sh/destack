@@ -7,6 +7,7 @@ from bench.language.core import (
     IsInstantiable,
     IsModal,
     IsNamed,
+    Node,
     NodeType,
     enum_,
     node_,
@@ -34,7 +35,7 @@ class ThemeColor(BuiltinEnum):
 
 
 @node_(NodeType.THEME)
-class Theme(IsInstantiable, IsModal, IsNamed, IsBlockable[ThemeData]):
+class Theme(IsInstantiable, IsModal, IsNamed, IsBlockable, Node[ThemeData]):
     """A Theme with common styles."""
 
     # colors

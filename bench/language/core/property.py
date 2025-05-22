@@ -85,14 +85,6 @@ def _resolve_node_types(class_name: str) -> tuple[NodeType, ...] | None:
     match class_name:
         case "Node":
             return NODE_TYPES.tuple
-        case "IsBlockable":
-            return PAGE_NODE_TYPES.tuple
-        case "ViewBase":
-            return VIEW_NODE_TYPES.tuple
-        case "ContainerViewBase":
-            return CONTAINER_VIEW_NODE_TYPES.tuple
-        case "ResourceBase":
-            return RESOURCE_NODE_TYPES.tuple
         case _:
             return None
 
@@ -331,9 +323,9 @@ class Property(IsQueryable if TYPE_CHECKING else object):
 
     def __repr__(self):
         non_default = []
-        if self.id is not None:
+        if self.id is not None and self.id is not UNSET:
             non_default.append(str(self.id))
-        if self.node_kind:
+        if self.node_kind is not None:
             non_default.append(self.node_kind.bench_name)
             if self.node_types:
                 node_type_names = [t.bench_name for t in self.node_types[:3]]
@@ -342,11 +334,11 @@ class Property(IsQueryable if TYPE_CHECKING else object):
                 non_default.append("|".join(node_type_names))
             elif self.struct_type:
                 non_default.append(self.struct_type.bench_name)
-        elif self.enum_type:
+        elif self.enum_type is not None:
             non_default.append(self.enum_type.bench_name)
-        elif self.primitive_type and self.primitive_type is not UNSET:
+        elif self.primitive_type is not None:
             non_default.append(self.primitive_type.bench_name)
-        if self.cardinality != "scalar":
+        if self.cardinality is not UNSET:
             non_default.append(self.cardinality)
         if self.is_required is True:
             non_default.append("required")

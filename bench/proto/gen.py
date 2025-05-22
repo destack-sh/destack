@@ -11,25 +11,10 @@ import structlog
 import typer
 
 from bench.language import (
-    CLAIMABLE_NODE_TYPES,
-    INSTANTIABLE_NODE_TYPES,
-    JOINABLE_NODE_TYPES,
-    NODE_CLASSES,
     NODE_TYPES,
-    OWNABLE_NODE_TYPES,
-    PROCESSABLE_NODE_TYPES,
-    RUNNABLE_NODE_TYPES,
-    STRUCT_CLASSES,
-    STYLE_NODE_TYPES,
-    SUBJECT_NODE_TYPES,
-    TEMPLATABLE_NODE_TYPES,
     VERSION,
-    VIEW_NODE_TYPES,
-    IsInBench,
-    IsBlockable,
-    ProvisionableResourceBase,
-    ResourceBase,
 )
+from bench.language.registry import NODE_CLASS_BY_TYPE, STRUCT_CLASS_BY_TYPE
 from bench.utils.string import Casing, to_casing
 
 from .map import generate_proto_schema
@@ -194,18 +179,9 @@ from .google.type.timeofday_pb2 import *
 from .google.type.datetime_pb2 import *
 
 # extra utility types
-AnyNodeData = Union[{', '.join([cls.__name__ + 'Data' for cls in NODE_CLASSES])}]
-AnyStructData = Union[{', '.join([cls.__name__ + 'Data' for cls in STRUCT_CLASSES])}]
+AnyNodeData = Union[{', '.join([cls.__name__ + 'Data' for cls in NODE_CLASS_BY_TYPE.values()])}]
+AnyStructData = Union[{', '.join([cls.__name__ + 'Data' for cls in STRUCT_CLASS_BY_TYPE.values()])}]
 AnyObjectData = AnyNodeData | AnyStructData
-IsInBenchData = Union[{', '.join([cls.__name__ + 'Data' for cls in NODE_CLASSES if issubclass(cls, IsInBench)])}]
-ResourceNodeData = Union[{', '.join([cls.__name__ + 'Data' for cls in NODE_CLASSES if issubclass(cls, ResourceBase)])}]
-IsBlockableData = Union[{', '.join([cls.__name__ + 'Data' for cls in NODE_CLASSES if issubclass(cls, IsBlockable)])}]
-SubjectNodeData = Union[{', '.join([cls.__name__ + 'Data' for cls in NODE_CLASSES if cls.metatype in SUBJECT_NODE_TYPES])}]
-JoinableNodeData = Union[{', '.join([cls.__name__ + 'Data' for cls in NODE_CLASSES if cls.metatype in JOINABLE_NODE_TYPES])}]
-ClaimableNodeData = Union[{', '.join([cls.__name__ + 'Data' for cls in NODE_CLASSES if cls.metatype in CLAIMABLE_NODE_TYPES])}]
-OwnableNodeData = Union[{', '.join([cls.__name__ + 'Data' for cls in NODE_CLASSES if cls.metatype in OWNABLE_NODE_TYPES])}]
-ViewNodeData = Union[{', '.join([cls.__name__ + 'Data' for cls in NODE_CLASSES if cls.metatype in VIEW_NODE_TYPES])}]
-StyleNodeData = Union[{', '.join([cls.__name__ + 'Data' for cls in NODE_CLASSES if cls.metatype in STYLE_NODE_TYPES])}]
 """)
     on_apply.append(lambda: shutil.rmtree(TARGET_PY_DIR, ignore_errors=True))  # noqa: FURB113
     on_apply.append(lambda: shutil.copytree(TEMP_PY_DIR, TARGET_PY_DIR))
@@ -274,24 +250,8 @@ export type JsonValue = JsonPrimitive | { [key: string]: JsonValue } | JsonValue
 //
 
 // Any...
-export type AnyNodeData = {' | '.join(cls.__name__ + 'Data' for cls in NODE_CLASSES)}
-export type AnyStructData = {' | '.join(cls.__name__ + 'Data' for cls in STRUCT_CLASSES)}
-export type AnyNodeDataType = {' | '.join('typeof ' + cls.__name__ + 'Data' for cls in NODE_CLASSES)}
-export type AnyStructDataType = {' | '.join('typeof ' + cls.__name__ + 'Data' for cls in STRUCT_CLASSES)}
-export type IsInBenchData = {' | '.join(cls.__name__ + 'Data' for cls in NODE_CLASSES if issubclass(cls, IsInBench))}
-export type ClaimableNodeData = {' | '.join(cls.__name__ + 'Data' for cls in NODE_CLASSES if cls.metatype in CLAIMABLE_NODE_TYPES)}
-export type IsBlockableData = {' | '.join(cls.__name__ + 'Data' for cls in NODE_CLASSES if issubclass(cls, IsBlockable))}
-export type JoinableNodeData = {' | '.join(cls.__name__ + 'Data' for cls in NODE_CLASSES if cls.metatype in JOINABLE_NODE_TYPES)}
-export type OwnableNodeData = {' | '.join(cls.__name__ + 'Data' for cls in NODE_CLASSES if cls.metatype in OWNABLE_NODE_TYPES)}
-export type TemplatableNodeData = {' | '.join(cls.__name__ + 'Data' for cls in NODE_CLASSES if cls.metatype in TEMPLATABLE_NODE_TYPES)}
-export type InstantiableNodeData = {' | '.join(cls.__name__ + 'Data' for cls in NODE_CLASSES if cls.metatype in INSTANTIABLE_NODE_TYPES)}
-export type ProcessableNodeData = {' | '.join(cls.__name__ + 'Data' for cls in NODE_CLASSES if cls.metatype in PROCESSABLE_NODE_TYPES)}
-export type ResourceNodeData = {' | '.join(cls.__name__ + 'Data' for cls in NODE_CLASSES if issubclass(cls, ResourceBase))}
-export type ProvisionableNodeData = {' | '.join(cls.__name__ + 'Data' for cls in NODE_CLASSES if issubclass(cls, ProvisionableResourceBase))}
-export type ViewNodeData = {' | '.join(cls.__name__ + 'Data' for cls in NODE_CLASSES if cls.metatype in VIEW_NODE_TYPES)}
-export type StyleNodeData = {' | '.join(cls.__name__ + 'Data' for cls in NODE_CLASSES if cls.metatype in STYLE_NODE_TYPES)}
-export type RunnableNodeData = {' | '.join(cls.__name__ + 'Data' for cls in NODE_CLASSES if cls.metatype in RUNNABLE_NODE_TYPES)}
-export type SubjectNodeData = {' | '.join(cls.__name__ + 'Data' for cls in NODE_CLASSES if cls.metatype in SUBJECT_NODE_TYPES)}
+export type AnyNodeData = {' | '.join(cls.__name__ + 'Data' for cls in NODE_CLASS_BY_TYPE.values())}
+export type AnyStructData = {' | '.join(cls.__name__ + 'Data' for cls in STRUCT_CLASS_BY_TYPE.values())}
 
     """
     lang_ts = Path(TEMP_TS_DIR + "/proto/lang.ts").read_text()

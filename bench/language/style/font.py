@@ -4,6 +4,7 @@ from bench.language.core import (
     BuiltinEnum,
     BuiltinObject,
     EnumType,
+    Node,
     NodeType,
     Struct,
     StructType,
@@ -17,10 +18,12 @@ from bench.pb2 import FontStyleData
 
 from .core import IsVariable, Length
 from .fill import Fill
-from .style import StyleBase
+from .style import IsStyle
 
 if TYPE_CHECKING:
     pass
+
+# pyright: reportIncompatibleVariableOverride=false
 
 
 @enum_(EnumType.FONT_TYPE)
@@ -107,7 +110,7 @@ class Font(FontBase, Struct):
 
 
 @node_(NodeType.FONT_STYLE)
-class FontStyle(FontBase, StyleBase[FontStyleData]):
+class FontStyle(FontBase, IsStyle, Node[FontStyleData]):
     """A font style."""
 
     pass

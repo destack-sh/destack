@@ -1,7 +1,6 @@
 from typing import TYPE_CHECKING, Optional
 
-from bench.language.core import VariableProperty, node_component_, p_regular
-from bench.pb2 import AnyNodeData
+from bench.language.core import NodeTrait, VariableProperty, node_trait_, p_regular
 
 from ..view import ViewBase
 
@@ -23,9 +22,11 @@ if TYPE_CHECKING:
         Vector2,
     )
 
+# pyright: reportIncompatibleVariableOverride=false
 
-@node_component_()
-class ContainerViewBase[NodeDataT: AnyNodeData](ViewBase[NodeDataT]):
+
+@node_trait_(NodeTrait.CONTAINER_VIEW)
+class IsContainerView(ViewBase):
     """A container View contains other Views."""
 
     # layout

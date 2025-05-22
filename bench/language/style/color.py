@@ -4,6 +4,7 @@ from bench.language.core import (
     BuiltinEnum,
     BuiltinObject,
     EnumType,
+    Node,
     NodeType,
     Struct,
     StructType,
@@ -16,10 +17,13 @@ from bench.language.core import (
 from bench.pb2 import ColorStyleData
 
 from .core import IsVariable
-from .style import StyleBase
+from .style import IsStyle
 
 if TYPE_CHECKING:
     pass
+
+
+# pyright: reportIncompatibleVariableOverride=false
 
 
 @enum_(EnumType.COLOR_TYPE)
@@ -110,7 +114,7 @@ class Color(ColorBase, Struct):
 
 
 @node_(NodeType.COLOR_STYLE)
-class ColorStyle(ColorBase, StyleBase[ColorStyleData]):
+class ColorStyle(ColorBase, IsStyle, Node[ColorStyleData]):
     """A color style, with an optional dark variant."""
 
     dark: Color | None = p_regular(60)

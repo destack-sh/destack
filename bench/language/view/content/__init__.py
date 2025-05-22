@@ -1,4 +1,4 @@
-from .content import ContentViewBase
+from .content import IsContentView
 from .text import TextView
 
-__all__ = ["ContentViewBase", "TextView"]
+__all__ = ["IsContentView", "TextView"]

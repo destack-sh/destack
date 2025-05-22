@@ -1,52 +1,37 @@
 import functools
 from collections import defaultdict
-from typing import TYPE_CHECKING, Callable, Union, cast
-
-from bench.utils.env import IS_DEV
-from bench.utils.func import assert_collections_equal, get_subclasses
+from typing import TYPE_CHECKING, Callable, Union
 
 from .core.const import (
     _ENUM_CLASS_BY_TYPE,
     ENUM_TYPES,
-    LOCAL_NODE_TYPES,
     NODE_TYPES,
     STRUCT_TYPES,
     BuiltinEnum,
     EnumType,
+    NodeTrait,
     NodeType,
     StructType,
-    bittuple,
 )
 
 if TYPE_CHECKING:
     from bench.language import BuiltinObject, Node, Struct
 
-# some global indexes for language types/classes
-# NOTE :Cleanup: organize global type/class indexes better
 ENUM_CLASS_BY_TYPE = _ENUM_CLASS_BY_TYPE  # re-exported to avoid circular imports
 ENUM_TYPE_BY_CLASS: dict[type, EnumType] = {}
 NODE_CLASS_BY_TYPE: dict[NodeType, type["Node"]] = {}
+NODE_CLASS_BY_TRAIT: dict[NodeTrait, type["BuiltinObject"]] = {}
 STRUCT_CLASS_BY_TYPE: dict[StructType, type["Struct"]] = {}
+
 BUILTIN_OBJECT_CLASS_BY_TYPE: dict[NodeType | StructType, type["BuiltinObject"]] = {}
 BUILTIN_OBJECT_TYPE_BY_CLASS: dict[type["BuiltinObject"], NodeType | StructType] = {}
+
 BENCH_CLASS_BY_TYPE: dict[
     EnumType | NodeType | StructType, type["Struct"] | type["Node"] | type[BuiltinEnum]
 ] = {}
 BENCH_TYPE_BY_CLASS: dict[
     type[Union["BuiltinObject", BuiltinEnum]], EnumType | NodeType | StructType
 ] = {}
-BENCH_CLASSES: list[type[Union["BuiltinObject", BuiltinEnum]]] = []
-NODE_CLASSES: list[type["Node"]] = []
-STRUCT_CLASSES: list[type["Struct"]] = []
-
-# direct parent/child
-PARENT_NODE_TYPES: dict[NodeType, bittuple[NodeType]] = {}
-CHILD_NODE_TYPES: dict[NodeType, bittuple[NodeType]] = {}
-HAS_CHILD_NODE_TYPES: bittuple[NodeType] = bittuple(enum_cls=NodeType)
-# transient parent/child
-ANCESTOR_NODE_TYPES: dict[NodeType, bittuple[NodeType]] = {}
-DESCENDANT_NODE_TYPES: dict[NodeType, bittuple[NodeType]] = {}
-DESCENDANT_NODE_TYPES_IN_STORE: dict[NodeType, bittuple[NodeType]] = {}
 
 
 _setup_hooks: list[Callable] = []
@@ -62,133 +47,38 @@ def _on_completing_setup(func: Callable | None = None):
 
 def _complete_bench_setup():
     """Finalize setup of all language constructs after everything is imported."""
-    from bench.language import (
-        BuiltinObject,
-        IsBased,
-        IsBlockable,
-        IsClaimable,
-        IsInstantiable,
-        IsJoinable,
-        IsOwnable,
-        IsProcessable,
-        IsRunnable,
-        IsSubject,
-        IsTemplatable,
-        Node,
-        ProvisionableResourceBase,
-        ResourceBase,
-        StyleBase,
-        ViewBase,
-    )
-    from bench.language.core import (
-        const,
-        trait,
-    )
-    from bench.language.core.object import (
-        _is_setup_complete,
-        _set_setup_complete,
-    )
+    from bench.language.core.object import _is_setup_complete, _set_setup_complete
 
     if _is_setup_complete():
         return
 
-    #
-    # Index
-    #
-
-    # populate known types (all nodes/classes + enums in the files they're defined in)
-    BENCH_CLASSES.extend(get_subclasses(BuiltinObject))
+    # populate known types
     for node_t in NODE_TYPES:
         node_cls = NODE_CLASS_BY_TYPE[node_t]
         BUILTIN_OBJECT_CLASS_BY_TYPE[node_t] = node_cls
         BUILTIN_OBJECT_TYPE_BY_CLASS[node_cls] = node_t
         BENCH_CLASS_BY_TYPE[node_t] = node_cls
         BENCH_TYPE_BY_CLASS[node_cls] = node_t
-        NODE_CLASSES.append(node_cls)
     for struct_t in STRUCT_TYPES:
         BUILTIN_OBJECT_CLASS_BY_TYPE[struct_t] = STRUCT_CLASS_BY_TYPE[struct_t]
         BUILTIN_OBJECT_TYPE_BY_CLASS[STRUCT_CLASS_BY_TYPE[struct_t]] = struct_t
         BENCH_CLASS_BY_TYPE[struct_t] = STRUCT_CLASS_BY_TYPE[struct_t]
         BENCH_TYPE_BY_CLASS[STRUCT_CLASS_BY_TYPE[struct_t]] = struct_t
-        STRUCT_CLASSES.append(STRUCT_CLASS_BY_TYPE[struct_t])
     for enum_type in ENUM_TYPES:
         BENCH_CLASS_BY_TYPE[enum_type] = ENUM_CLASS_BY_TYPE[enum_type]
         BENCH_TYPE_BY_CLASS[ENUM_CLASS_BY_TYPE[enum_type]] = enum_type
-        BENCH_CLASSES.append(ENUM_CLASS_BY_TYPE[enum_type])
         ENUM_TYPE_BY_CLASS[ENUM_CLASS_BY_TYPE[enum_type]] = enum_type
 
-    # determine node ancestry relationships (parent/child)
-    parent_types: dict[NodeType, set[NodeType]] = {nt: set() for nt in NODE_TYPES}
-    child_types: dict[NodeType, set[NodeType]] = {nt: set() for nt in NODE_TYPES}
+    # index child types
+    child_types_by_parent: dict[NodeType, list[NodeType]] = defaultdict(list)
     for node_cls in NODE_CLASS_BY_TYPE.values():
-        assert node_cls.__parent_property__.node_types != "any"
-        for parent_type in node_cls.__parent_property__.node_types or ():
-            parent_types[node_cls.metatype].add(parent_type)
-            child_types[parent_type].add(node_cls.metatype)
-    # ancestor/descendant: extend parent/child transitively
-    ancestor_types: dict[NodeType, set[NodeType]] = defaultdict(set)
-    descendant_types: dict[NodeType, set[NodeType]] = defaultdict(set)
-    for node_type in NODE_TYPES:
-        new_parents = list(parent_types[node_type])
-        while new_parents:
-            new_parent = new_parents.pop()
-            ancestor_types[node_type].add(new_parent)
-            ancestor_types[node_type] |= ancestor_types[new_parent]
-            new_parents.extend(parent_types[new_parent] - ancestor_types[node_type])
-        new_children = list(child_types[node_type])
-        while new_children:
-            new_child = new_children.pop()
-            descendant_types[node_type].add(new_child)
-            descendant_types[node_type] |= descendant_types[new_child]
-            new_children.extend(child_types[new_child] - descendant_types[node_type])
-    global \
-        ANCESTOR_NODE_TYPES, \
-        DESCENDANT_NODE_TYPES, \
-        PARENT_NODE_TYPES, \
-        CHILD_NODE_TYPES, \
-        DESCENDANT_NODE_TYPES_IN_STORE, \
-        HAS_CHILD_NODE_TYPES
-    for node_type in NODE_TYPES:
-        is_local = node_type in LOCAL_NODE_TYPES
-        ANCESTOR_NODE_TYPES[node_type] = bittuple(*ancestor_types[node_type], enum_cls=NodeType)
-        DESCENDANT_NODE_TYPES[node_type] = bittuple(*descendant_types[node_type], enum_cls=NodeType)
-        DESCENDANT_NODE_TYPES_IN_STORE[node_type] = bittuple(
-            *(t for t in descendant_types[node_type] if (t in LOCAL_NODE_TYPES) == (is_local)),
-            enum_cls=NodeType,
-        )
-        PARENT_NODE_TYPES[node_type] = bittuple(*parent_types[node_type], enum_cls=NodeType)
-        CHILD_NODE_TYPES[node_type] = bittuple(*child_types[node_type], enum_cls=NodeType)
-        if child_types[node_type]:
-            HAS_CHILD_NODE_TYPES.bits[node_type.ord] = True
+        for parent_type in node_cls.__parent_types__:
+            child_types_by_parent[parent_type].append(node_cls.metatype)
+    for node_cls in NODE_CLASS_BY_TYPE.values():
+        node_cls.__child_types__ = tuple(child_types_by_parent[node_cls.metatype])
 
     _set_setup_complete()
 
     # run completion hooks
     for hook in _setup_hooks:
         hook()
-
-    if IS_DEV:
-        # check that node type collections are consistent with their respective base classes
-        for base_cls, node_types_tuple in [
-            (IsBlockable, const.PAGE_NODE_TYPES.tuple),
-            (ResourceBase, const.RESOURCE_NODE_TYPES.tuple),
-            (ProvisionableResourceBase, const.PROVISIONABLE_RESOURCE_NODE_TYPES.tuple),
-            (ViewBase, const.VIEW_NODE_TYPES.tuple),
-            (StyleBase, const.STYLE_NODE_TYPES.tuple),
-            (IsTemplatable, const.TEMPLATABLE_NODE_TYPES.tuple),
-            (IsInstantiable, const.INSTANTIABLE_NODE_TYPES.tuple),
-            (IsTemplatable, const.TEMPLATABLE_NODE_TYPES.tuple),
-            (IsBased, const.BASED_NODE_TYPES.tuple),
-            (IsJoinable, trait.JOINABLE_NODE_TYPES.tuple),
-            (IsClaimable, trait.CLAIMABLE_NODE_TYPES.tuple),
-            (IsSubject, trait.SUBJECT_NODE_TYPES.tuple),
-            (IsOwnable, trait.OWNABLE_NODE_TYPES.tuple),
-            (IsProcessable, trait.PROCESSABLE_NODE_TYPES.tuple),
-            (IsRunnable, trait.RUNNABLE_NODE_TYPES.tuple),
-        ]:
-            actual_node_types = [
-                cast(Node, n).metatype
-                for n in get_subclasses(base_cls)
-                if getattr(n, "metatype", None)
-            ]
-            assert_collections_equal(base_cls.__name__, actual_node_types, node_types_tuple)

@@ -513,7 +513,7 @@ def aggregate[T: Node](
 #         Fields=Field.search(),
 #         Themes=Theme.search(),
 #         Views=ViewBase.search(join=join(JoinType.PARENT, recursive=True)),
-#         Styles=StyleBase.search(join=join(JoinType.PARENT, recursive=True)),
+#         Styles=IsStyle.search(join=join(JoinType.PARENT, recursive=True)),
 #     ),
 #     Route=Route.search(),
 # )

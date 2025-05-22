@@ -1,8 +1,9 @@
 from bench.language.core import (
     BuiltinEnum,
     EnumType,
+    IsProvisionable,
+    Node,
     NodeType,
-    ProvisionableResourceBase,
     enum_,
     node_,
     p_regular,
@@ -26,9 +27,9 @@ class ScalerStrategy(BuiltinEnum):
 
 
 @node_(NodeType.SCALER)
-class Scaler(ProvisionableResourceBase[ScalerData]):
+class Scaler(IsProvisionable, Node[ScalerData]):
     """
-    A Scaler automatically scales another Resource.
+    A Scaler automatically scales another provisionable Resource.
     """
 
     type: ScalerType = p_system(30)
