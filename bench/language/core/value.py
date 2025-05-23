@@ -33,7 +33,7 @@ from .const import (
     StructType,
 )
 from .graph import Supergraph
-from .property import Property, p_regular
+from .property import Property, property_
 from .struct import Struct, struct_
 from .type import Json, ScalarType, TypeCardinality
 
@@ -71,7 +71,7 @@ JsonValue = Union[JsonPrimitive, dict[str, "JsonValue"], list["JsonValue"]]
 class Value(Struct):
     """A value of any type."""
 
-    value: dict[str, Json] | None = p_regular(35)
+    value: dict[str, Json] | None = property_(35)
 
 
 def pack_value_scalar(value: ScalarValue | ScalarValueData, typ: "TypeBase") -> JsonValue:

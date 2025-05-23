@@ -8,7 +8,7 @@ from fastuuid import UUID
 from .const import BuiltinEnum, EnumType, NodeType, StructType, enum_
 from .node import Node, NodeReference
 from .object import Property
-from .property import p_regular
+from .property import property_
 from .struct import Struct, struct_
 from .value import Value
 
@@ -32,9 +32,9 @@ class RelationType(BuiltinEnum):
 class RelationReference(Struct):
     """Reference to a Node "table" or base somewhere."""
 
-    type: RelationType = p_regular(30)
-    node_type: NodeType = p_regular(31)
-    table: Optional["Table"] = p_regular(32)
+    type: RelationType = property_(30)
+    node_type: NodeType = property_(31)
+    table: Optional["Table"] = property_(32)
 
     if TYPE_CHECKING:
         table_ptr: Optional[NodeReference] = None  # convenience only
@@ -65,11 +65,11 @@ class AttributeType(BuiltinEnum):
 class AttributeReference(Struct):
     """Reference to a Field or Property."""
 
-    type: AttributeType = p_regular(30)
-    name: str | None = p_regular(31, description="Named attribute from another Query.")
-    field: Optional["Field"] = p_regular(32)
-    prop: Optional["Property"] = p_regular(33)
-    table: Optional[RelationReference] = p_regular(34)
+    type: AttributeType = property_(30)
+    name: str | None = property_(31, description="Named attribute from another Query.")
+    field: Optional["Field"] = property_(32)
+    prop: Optional["Property"] = property_(33)
+    table: Optional[RelationReference] = property_(34)
 
 
 def attribute_ref(field: "str | Field | Property") -> AttributeReference:
@@ -100,9 +100,9 @@ class FunctionType(BuiltinEnum):
 
 @struct_(StructType.FUNCTION)
 class Function(Struct):
-    type: FunctionType = p_regular(30)
-    left: "Expression" = p_regular(31)
-    right: Optional["Expression"] = p_regular(32)
+    type: FunctionType = property_(30)
+    left: "Expression" = property_(31)
+    right: Optional["Expression"] = property_(32)
 
 
 def function(
@@ -149,9 +149,9 @@ class ConditionalType(BuiltinEnum):
 class Condition(Struct):
     """Boolean predicate (AND, =, <, etc.)."""
 
-    type: ConditionalType = p_regular(30)
-    left: "Expression" = p_regular(31)
-    right: Optional["Expression"] = p_regular(32)
+    type: ConditionalType = property_(30)
+    left: "Expression" = property_(31)
+    right: Optional["Expression"] = property_(32)
 
 
 def condition(
@@ -183,10 +183,10 @@ class AggregationType(BuiltinEnum):
 class Aggregation(Struct):
     """Aggregate expression like COUNT(col) DISTINCT OVER ( … ) AS total."""
 
-    type: AggregationType = p_regular(30)
-    operand: Optional["Expression"] = p_regular(31)  # COUNT(*) → arg=None
-    alias: Optional[str] = p_regular(32)  # result key
-    distinct: bool = p_regular(33)  # DISTINCT flag
+    type: AggregationType = property_(30)
+    operand: Optional["Expression"] = property_(31)  # COUNT(*) → arg=None
+    alias: Optional[str] = property_(32)  # result key
+    distinct: bool = property_(33)  # DISTINCT flag
     # over, ...
 
 
@@ -216,12 +216,12 @@ class ExpressionType(BuiltinEnum):
 class Expression(Struct):
     """Wrapper to unify any scalar / boolean / aggregate sub-tree."""
 
-    type: ExpressionType = p_regular(30)
-    literal: Optional[Value] = p_regular(31)
-    column: Optional[AttributeReference] = p_regular(32)
-    condition: Optional[Condition] = p_regular(33)
-    function: Optional[Function] = p_regular(34)
-    aggregation: Optional[Aggregation] = p_regular(35)
+    type: ExpressionType = property_(30)
+    literal: Optional[Value] = property_(31)
+    column: Optional[AttributeReference] = property_(32)
+    condition: Optional[Condition] = property_(33)
+    function: Optional[Function] = property_(34)
+    aggregation: Optional[Aggregation] = property_(35)
     # subquery?
 
 
@@ -266,9 +266,9 @@ class SortMode(BuiltinEnum):
 class Sort(Struct):
     """ORDER BY specification."""
 
-    type: SortType = p_regular(30)
-    by: Expression = p_regular(31)
-    mode: Optional[SortMode] = p_regular(32)
+    type: SortType = property_(30)
+    by: Expression = property_(31)
+    mode: Optional[SortMode] = property_(32)
 
 
 SortIn = Union[Sort, "Expression", "Field", "Property"]
@@ -300,10 +300,10 @@ class JoinType(BuiltinEnum):
 class Join(Struct):
     """JOIN clause with ON expression."""
 
-    type: JoinType = p_regular(30)
-    table: Optional[RelationReference] = p_regular(31)
-    on: Optional[Condition] = p_regular(32)
-    recursive: bool = p_regular(33)  # for parent/child joins
+    type: JoinType = property_(30)
+    table: Optional[RelationReference] = property_(31)
+    on: Optional[Condition] = property_(32)
+    recursive: bool = property_(33)  # for parent/child joins
 
 
 JoinIn = Union[Join, "JoinType"]
@@ -342,25 +342,25 @@ class QueryType(BuiltinEnum):
 class Query[T: "Node"](Struct):
     """A GraphQL-inspired Query node with subqueries."""
 
-    id: UUID = p_regular(2)
-    type: QueryType = p_regular(30)
-    name: str | None = p_regular(
+    id: UUID = property_(2)
+    type: QueryType = property_(30)
+    name: str | None = property_(
         31, description="Name for this subquery. Must be unique within the containing Query."
     )
-    relation: RelationReference = p_regular(35)
-    join: Optional[Join] = p_regular(36, description="Relative to parent Query.")
-    subqueries: list["Query"] = p_regular(37)
+    relation: RelationReference = property_(35)
+    join: Optional[Join] = property_(36, description="Relative to parent Query.")
+    subqueries: list["Query"] = property_(37)
     # fields, ...
 
-    where: Optional[Condition] = p_regular(40)
-    having: Optional[Condition] = p_regular(41)
-    group_by: list[Expression] = p_regular(42)
-    aggregation: Optional[Aggregation] = p_regular(43)
-    sort: list[Sort] = p_regular(44)
+    where: Optional[Condition] = property_(40)
+    having: Optional[Condition] = property_(41)
+    group_by: list[Expression] = property_(42)
+    aggregation: Optional[Aggregation] = property_(43)
+    sort: list[Sort] = property_(44)
 
-    limit: Optional[int] = p_regular(50)
-    offset: Optional[int] = p_regular(51)
-    count: bool = p_regular(52)
+    limit: Optional[int] = property_(50)
+    offset: Optional[int] = property_(51)
+    count: bool = property_(52)
 
 
 def to_subqueries(subqueries: dict[str, "Query"]) -> list["Query"]:
@@ -621,4 +621,4 @@ class IntoQuery:
 class Selection(Struct):
     """A selection of fields from a Node."""
 
-    nodes: list[Node] = p_regular(40)
+    nodes: list[Node] = property_(40)

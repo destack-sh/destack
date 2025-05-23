@@ -4,14 +4,16 @@ from bench.language.core import (
     IsArchivable,
     IsBlockable,
     IsDeletable,
+    IsIcon,
     IsInstantiable,
     IsModal,
     IsNamed,
     IsOwnable,
+    IsSlug,
     Node,
     NodeType,
     node_,
-    p_regular,
+    property_,
 )
 from bench.pb2 import RouteData
 
@@ -24,6 +26,8 @@ if TYPE_CHECKING:
 @node_(NodeType.ROUTE)
 class Route(
     IsArchivable,
+    IsIcon,
+    IsSlug,
     IsDeletable,
     IsOwnable,
     IsInstantiable,
@@ -34,7 +38,7 @@ class Route(
 ):
     """A Route is a path to a Scene."""
 
-    scene: Optional["Scene"] = p_regular(
+    scene: Optional["Scene"] = property_(
         40,
         description="The Scene to route to.",
     )

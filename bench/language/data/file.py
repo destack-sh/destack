@@ -24,6 +24,7 @@ from PIL import Image
 from bench.language.core import (
     BuiltinEnum,
     EnumType,
+    IsRegional,
     IsResource,
     Node,
     NodeType,
@@ -36,9 +37,8 @@ from bench.language.core import (
     node_,
     p_internal,
     p_node_parent,
-    p_regular,
-    p_runtime,
     p_system,
+    property_,
 )
 from bench.pb2 import DownloadFilesRequest, FileData, UploadFilesRequest
 from bench.utils.func import group_by
@@ -470,7 +470,7 @@ MIME_TYPE_BY_FORMAT: dict[FileFormat, str] = {v: k for k, v in FILE_FORMAT_BY_MI
 
 
 @node_(NodeType.FILE)
-class File(IsResource, Node[FileData]):
+class File(IsResource, IsRegional, Node[FileData]):
     """
     A File stored somewhere.
     """
@@ -487,37 +487,37 @@ class File(IsResource, Node[FileData]):
         None,
     ] = p_node_parent()
 
-    type: FileType = p_regular(30)
+    type: FileType = property_(30)
 
     # meta
-    source: FileSource = p_regular(60)
-    mime_type: str | None = p_regular(61)
-    format: FileFormat | None = p_regular(62)
-    size: int | None = p_regular(63, primitive_type=PrimitiveType.INT64)
+    source: FileSource = property_(60)
+    mime_type: str | None = property_(61)
+    format: FileFormat | None = property_(62)
+    size: int | None = property_(63, primitive_type=PrimitiveType.INT64)
     sha256: str | None = p_internal(64)
-    width: int | None = p_regular(65)
-    height: int | None = p_regular(66)
-    aspect_ratio: float | None = p_regular(67)
-    codec: str | None = p_regular(68)
-    duration: Optional[timedelta] = p_regular(69)
+    width: int | None = property_(65)
+    height: int | None = property_(66)
+    aspect_ratio: float | None = property_(67)
+    codec: str | None = property_(68)
+    duration: Optional[timedelta] = property_(69)
 
     # content
-    url: str | None = p_regular(70)  # if external
-    content_url: str | None = p_regular(71)  # if external
-    thumbnail_url: str | None = p_regular(72)  # if external
-    favicon_url: str | None = p_regular(73)
-    thumbnail_width: int | None = p_regular(74)
-    thumbnail_height: int | None = p_regular(75)
-    content: bytes | None = p_regular(76)
+    url: str | None = property_(70)  # if external
+    content_url: str | None = property_(71)  # if external
+    thumbnail_url: str | None = property_(72)  # if external
+    favicon_url: str | None = property_(73)
+    thumbnail_width: int | None = property_(74)
+    thumbnail_height: int | None = property_(75)
+    content: bytes | None = property_(76)
     retention: FileRetentionMode = p_system(80, default=FileRetentionMode.AUTOMATIC)
     expires_at: Optional[datetime] = p_system(81)
 
     # cached content
-    _original: Optional["File"] = p_runtime(default=None)  # if converted
-    _cached_get_url: Optional[str] = p_runtime(default=None)
-    _cached_tmp_path: Optional[str] = p_runtime(default=None)
-    _cached_content: Optional[bytes] = p_runtime(default=None)
-    _cached_image: Optional[Image.Image] = p_runtime(default=None)
+    _original: Optional["File"] = property_(default=None)  # if converted
+    _cached_get_url: Optional[str] = property_(default=None)
+    _cached_tmp_path: Optional[str] = property_(default=None)
+    _cached_content: Optional[bytes] = property_(default=None)
+    _cached_image: Optional[Image.Image] = property_(default=None)
 
     def __content_str__(self) -> str:
         content_parts = [self.source.bench_name, f"'{self.name}'"]

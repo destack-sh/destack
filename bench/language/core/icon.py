@@ -1,7 +1,7 @@
 from typing import TYPE_CHECKING, Optional, Union
 
 from .const import BuiltinEnum, EnumType, StructType, enum_
-from .property import p_regular
+from .property import property_
 from .struct import Struct, struct_
 
 if TYPE_CHECKING:
@@ -28,15 +28,15 @@ class IconType(BuiltinEnum):
 class Icon(Struct):
     """An icon to be displayed in some view."""
 
-    type: IconType = p_regular(30, default=False)
+    type: IconType = property_(30, default=False)
     # content
-    emoji: str | None = p_regular(31)
-    fa_name: str | None = p_regular(33)
-    vsc_name: str | None = p_regular(34)
-    file: Optional["File"] = p_regular(35)
-    file_url: str | None = p_regular(36)
+    emoji: str | None = property_(31)
+    fa_name: str | None = property_(33)
+    vsc_name: str | None = property_(34)
+    file: Optional["File"] = property_(35)
+    file_url: str | None = property_(36)
     # style
-    color: Optional["Color"] = p_regular(40)
+    color: Optional["Color"] = property_(40)
 
     @staticmethod
     def new(icon: "IconIn", color: "ColorIn | None" = None) -> "Icon":

@@ -22,8 +22,8 @@ from bench.language.core import (
     enum_,
     node_,
     p_node_parent,
-    p_regular,
     p_system,
+    property_,
     to_text_line,
 )
 from bench.pb2 import ThreadData
@@ -73,7 +73,7 @@ class Thread(
         channel_id: Optional[UUID] = None
 
     # content
-    page: Optional["Page"] = p_regular(60, node_bench_from="self")
+    page: Optional["Page"] = property_(60, node_bench_from="self")
     if TYPE_CHECKING:
         page_ptr: Optional[NodeReference] = None
         page_id: Optional[UUID] = None

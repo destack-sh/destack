@@ -3,24 +3,25 @@ from typing import TYPE_CHECKING, Optional
 from fastuuid import UUID
 
 from bench.language.core import (
-    REGION,
     BuiltinEnum,
     EnumType,
     IsDeletable,
     IsGlobal,
+    IsIcon,
     IsInBench,
     IsInvite,
     IsMembership,
+    IsNamed,
     IsOwnable,
+    IsRegional,
+    IsSlug,
     Node,
     NodeType,
-    Region,
-    StringFormat,
     enum_,
     node_,
     p_node_parent,
-    p_regular,
     p_system,
+    property_,
 )
 from bench.pb2 import BenchData, BenchInviteData, BenchMembershipData
 
@@ -28,10 +29,8 @@ if TYPE_CHECKING:
     from bench.language import (
         Database,
         Handle,
-        Icon,
         NodeReference,
         Package,
-        Region,
         TextLine,
     )
 
@@ -47,17 +46,22 @@ class BenchStatus(BuiltinEnum):
 
 
 @node_(NodeType.BENCH)
-class Bench(IsGlobal, IsOwnable, IsInBench, Node[BenchData]):
+class Bench(
+    IsGlobal,
+    IsOwnable,
+    IsInBench,
+    IsNamed,
+    IsSlug,
+    IsIcon,
+    IsRegional,
+    Node[BenchData],
+):
     """
     A Bench is the OS for personal software.
     """
 
     handle: Optional["Handle"] = p_system(31, node_bench_from="self")
-    slug: str = p_system(32, unique=True, format=StringFormat.SLUG)  # must match main handle
-    name: str = p_regular(33, format=StringFormat.NAME)
-    line: Optional["TextLine"] = p_regular(34)
-    icon: Optional["Icon"] = p_regular(35)
-    region: "Region" = p_system(37, default=REGION)
+    line: Optional["TextLine"] = property_(54)
     # TODO :Security: Bench.encryption_key (DEK) or put it into a Vault (Bench.vault) :RealSecrets
 
     # status
@@ -65,7 +69,7 @@ class Bench(IsGlobal, IsOwnable, IsInBench, Node[BenchData]):
 
     # content
     database: Optional["Database"] = p_system(50, node_bench_from="self")
-    package: Optional["Package"] = p_regular(51, node_bench_from="self")
+    package: Optional["Package"] = property_(51, node_bench_from="self")
     if TYPE_CHECKING:
         database_ptr: Optional[NodeReference] = None
         database_id: Optional[UUID] = None

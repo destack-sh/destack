@@ -18,8 +18,8 @@ from bench.language.core import (
     enum_,
     node_,
     p_node_parent,
-    p_regular,
     p_system,
+    property_,
 )
 from bench.pb2 import OrganizationData, OrganizationInviteData, OrganizationMembershipData
 
@@ -42,12 +42,10 @@ class Organization(IsGlobal, IsSubject, Node[OrganizationData]):
     """
 
     # parent: Organization for nesting?
-    slug: Optional[str] = p_system(
-        32, unique=True, format=StringFormat.SLUG
-    )  # must match main handle
-    name: str = p_regular(33, format=StringFormat.NAME)
-    icon: Optional["Icon"] = p_regular(35)
-    line: Optional["TextLine"] = p_regular(34)
+    slug: Optional[str] = p_system(32, unique=True, format=StringFormat.SLUG)
+    name: str = property_(33, format=StringFormat.NAME)
+    icon: Optional["Icon"] = property_(35)
+    line: Optional["TextLine"] = property_(34)
     region: "Region" = p_system(37)
     status: OrganizationStatus = p_system(38)
 

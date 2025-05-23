@@ -7,7 +7,7 @@ from bench.language.core import (
     NodeType,
     VariableProperty,
     node_,
-    p_regular,
+    property_,
 )
 from bench.pb2 import TextViewData
 
@@ -29,9 +29,9 @@ class TextView(
     """A (rich) text view."""
 
     # appearance
-    user_select: Optional[bool] = p_regular(65)
-    font: Optional["Font"] = p_regular(66)
-    color: VariableProperty["Fill"] = p_regular(67)
+    user_select: Optional[bool] = property_(65)
+    font: Optional["Font"] = property_(66)
+    color: VariableProperty["Fill"] = property_(67)
 
     # text
-    text: VariableProperty[str] = p_regular(100)
+    text: VariableProperty[str] = property_(100)

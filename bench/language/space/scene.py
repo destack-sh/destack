@@ -4,14 +4,16 @@ from bench.language.core import (
     IsArchivable,
     IsBlockable,
     IsDeletable,
+    IsIcon,
     IsInstantiable,
     IsModal,
     IsNamed,
     IsOwnable,
+    IsSlug,
     Node,
     NodeType,
     node_,
-    p_regular,
+    property_,
 )
 from bench.pb2 import SceneData
 
@@ -30,10 +32,12 @@ class Scene(
     IsBlockable,
     IsArchivable,
     IsDeletable,
+    IsSlug,
+    IsIcon,
     Node[SceneData],
 ):
     """A Scene is a container for a specific interaction point."""
 
-    root_view: Optional["IsContainerView"] = p_regular(
+    root_view: Optional["IsContainerView"] = property_(
         40, description="The root view of the Scene."
     )

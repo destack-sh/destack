@@ -6,7 +6,7 @@ from bench.language.core import (
     IsModal,
     IsNamed,
     p_node_parent,
-    p_regular,
+    property_,
     trait_,
 )
 from bench.language.core.const import Trait
@@ -31,10 +31,10 @@ class IsView[NodeDataT: AnyNodeData](
     # variant_of, ...
 
     # sizing
-    position: Optional["Position"] = p_regular(40)
-    width: Optional["Dimension"] = p_regular(41)
-    height: Optional["Dimension"] = p_regular(42)
-    min_width: Optional["Dimension"] = p_regular(43)
-    min_height: Optional["Dimension"] = p_regular(44)
-    max_width: Optional["Dimension"] = p_regular(45)
-    max_height: Optional["Dimension"] = p_regular(46)
+    position: Optional["Position"] = property_(40)
+    width: Optional["Dimension"] = property_(41)
+    height: Optional["Dimension"] = property_(42)
+    min_width: Optional["Dimension"] = property_(43)
+    min_height: Optional["Dimension"] = property_(44)
+    max_width: Optional["Dimension"] = property_(45)
+    max_height: Optional["Dimension"] = property_(46)

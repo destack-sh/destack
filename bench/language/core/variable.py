@@ -7,7 +7,7 @@ from bench.language.core import (
     Struct,
     StructType,
     enum_,
-    p_regular,
+    property_,
     struct_,
 )
 
@@ -26,8 +26,8 @@ class VariableType(BuiltinEnum):
 class Variable[T: Any](Struct):
     """A variable value / reference (to be resolved at runtime)."""
 
-    field: Optional["Field"] = p_regular(40)
-    node: Optional["Node"] = p_regular(41)
+    field: Optional["Field"] = property_(40)
+    node: Optional["Node"] = property_(41)
 
     def read(self) -> T | None:
         """Read the value of the variable."""

@@ -7,21 +7,23 @@ from bench.language.core import (
     BuiltinEnum,
     EnumType,
     IsGlobal,
+    IsIcon,
+    IsNamed,
+    IsSlug,
     IsSubject,
     Node,
     NodeType,
-    Region,
     StringFormat,
     enum_,
     node_,
     p_kernel,
-    p_regular,
     p_system,
+    property_,
 )
 from bench.pb2 import UserData
 
 if TYPE_CHECKING:
-    from bench.language import Bench, Cursor, Handle, Icon, NodeReference, TextLine, User
+    from bench.language import Bench, Cursor, Handle, NodeReference, TextLine, User
 
 # pyright: reportIncompatibleVariableOverride=false
 
@@ -36,16 +38,10 @@ class UserStatus(BuiltinEnum):
 
 
 @node_(NodeType.USER, root_type=None)
-class User(IsGlobal, IsSubject, Node[UserData]):
+class User(IsGlobal, IsSubject, IsNamed, IsIcon, IsSlug, Node[UserData]):
     """A User is a human using Bench."""
 
-    slug: Optional[str] = p_system(
-        31, unique=True, format=StringFormat.SLUG
-    )  # must match main handle
-    name: str = p_regular(32, format=StringFormat.NAME)
-    icon: Optional["Icon"] = p_regular(33)
-    line: Optional["TextLine"] = p_regular(34)
-    region: "Region" = p_system(35)
+    line: Optional["TextLine"] = property_(35)
     is_staff: bool = p_system(39, default=False)
 
     # status
@@ -56,7 +52,7 @@ class User(IsGlobal, IsSubject, Node[UserData]):
 
     bench: Optional["Bench"] = p_system(50)
     handle: Optional["Handle"] = p_system(51)
-    cursor: Optional["Cursor"] = p_regular(52)
+    cursor: Optional["Cursor"] = property_(52)
     if TYPE_CHECKING:
         bench_id: Optional[UUID] = None
         bench_ptr: Optional[NodeReference] = None

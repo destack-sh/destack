@@ -23,7 +23,7 @@ from bench.language.core import (
     node_,
     p_internal,
     p_node_parent,
-    p_regular,
+    property_,
 )
 from bench.pb2 import ActionData
 
@@ -35,7 +35,6 @@ if TYPE_CHECKING:
         Flow,
         FlowEdge,
         FlowEdgeType,
-        Icon,
         NodeReference,
         Service,
         Text,
@@ -88,9 +87,8 @@ class Action(
     parent: Union["Flow", "Service", None] = p_node_parent()
 
     # common
-    type: ActionType = p_regular(30, description="Type of this Action. Only dynamic for tools.")
-    icon: Optional["Icon"] = p_regular(35)
-    text: Optional["Text"] = p_regular(36)
+    type: ActionType = property_(30, description="Type of this Action. Only dynamic for tools.")
+    text: Optional["Text"] = property_(36)
 
     # content
     code: Optional["Code"] = p_internal(
@@ -98,7 +96,7 @@ class Action(
         default=None,
         description="The implementation code for this action.",
     )
-    tool: Union["Agent", "Flow", "Action", None] = p_regular(
+    tool: Union["Agent", "Flow", "Action", None] = property_(
         53,
         description="The implementation for this action.",
     )

@@ -2,11 +2,13 @@ from typing import TYPE_CHECKING, Optional, Union
 
 from bench.language.core import (
     BuiltinEnum,
+    CascadeAction,
     Constraint,
     EnumType,
     IntoQuery,
     IsArchivable,
     IsDeletable,
+    IsIcon,
     IsInPackage,
     IsInstantiable,
     IsModal,
@@ -22,24 +24,16 @@ from bench.language.core import (
     node_,
     p_internal,
     p_node_parent,
-    p_regular,
-    p_runtime,
+    property_,
     to_type_scalar,
 )
 from bench.pb2 import FieldData
 
 if TYPE_CHECKING:
-    from bench.language import Action, Agent, Flow, Icon, IsView, Scene, Schema, Table
+    from bench.language import Action, Agent, Flow, IsView, Scene, Schema, Table
 
 
 # pyright: reportIncompatibleVariableOverride=false, reportIncompatibleMethodOverride=false
-
-
-@enum_(EnumType.CASCADE_ACTION)
-class CascadeAction(BuiltinEnum):
-    CASCADE = 1
-    SELF = 2
-    NONE = 3
 
 
 @enum_(EnumType.FIELD_TYPE)
@@ -61,6 +55,7 @@ class Field(
     IsArchivable,
     IsInPackage,
     IntoQuery,
+    IsIcon,
     TypeBase,
     Node[FieldData],
 ):
@@ -72,14 +67,13 @@ class Field(
         p_node_parent()
     )
     type: FieldType = p_internal(30)
-    icon: Optional["Icon"] = p_regular(35)
 
     # type identity
     # ...TypeBase[40-69]
 
-    cascade: Optional[CascadeAction] = p_regular(70)
+    cascade: Optional[CascadeAction] = property_(70)
 
-    _introspected_from: Optional[Property] = p_runtime(default=None)  # should match Field.property
+    _introspected_from: Optional[Property] = property_(default=None)  # should match Field.property
 
     def __content_str__(self) -> str:
         return TypeBase.__content_str__(self)

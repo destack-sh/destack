@@ -1,4 +1,4 @@
-from typing import TYPE_CHECKING, Optional, Union, final
+from typing import TYPE_CHECKING, Union, final
 
 import structlog
 
@@ -8,6 +8,7 @@ from bench.language.core import (
     IsClaimable,
     IsDeletable,
     IsExtensible,
+    IsIcon,
     IsInPackage,
     IsLocal,
     IsModal,
@@ -19,13 +20,12 @@ from bench.language.core import (
     NodeType,
     node_,
     p_node_parent,
-    p_regular,
     p_system,
 )
 from bench.pb2 import RecordData
 
 if TYPE_CHECKING:
-    from bench.language import Icon, Table
+    from bench.language import Table
 
 # pyright: reportIncompatibleVariableOverride=false
 
@@ -43,6 +43,7 @@ class Record(
     IsExtensible,
     IsNamed,
     IsTitled,
+    IsIcon,
     IsDeletable,
     IsArchivable,
     IsInPackage,
@@ -55,7 +56,6 @@ class Record(
     # meta
     parent: Union["Table", "Record", None] = p_node_parent()
     # type: RecordType?
-    icon: Optional["Icon"] = p_regular(34)
     table: "Table" = p_system(36, description="The Table this Record is from.")
 
     # target: Page/Task/...? (tie Record to a Page for a Notion-like experience in some Tables)

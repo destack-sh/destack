@@ -9,7 +9,7 @@ from bench.language.core.code import Code
 from .const import BuiltinEnum, EnumType, StructType, enum_
 from .node import Node, NodeReference
 from .object import BuiltinObject, object_
-from .property import p_regular
+from .property import property_
 from .struct import Struct, struct_
 
 if TYPE_CHECKING:
@@ -18,15 +18,15 @@ if TYPE_CHECKING:
 
 @object_()
 class TextOptionsBase(BuiltinObject):
-    color: Optional["ColorHue"] = p_regular(50)
-    background_color: Optional["ColorHue"] = p_regular(51)
-    is_bold: Optional[bool] = p_regular(60)
-    is_italic: Optional[bool] = p_regular(61)
-    is_strikethrough: Optional[bool] = p_regular(62)
-    is_underline: Optional[bool] = p_regular(63)
-    is_code: Optional[bool] = p_regular(64)
-    is_spoiler: Optional[bool] = p_regular(65)
-    language: Optional[str] = p_regular(70)
+    color: Optional["ColorHue"] = property_(50)
+    background_color: Optional["ColorHue"] = property_(51)
+    is_bold: Optional[bool] = property_(60)
+    is_italic: Optional[bool] = property_(61)
+    is_strikethrough: Optional[bool] = property_(62)
+    is_underline: Optional[bool] = property_(63)
+    is_code: Optional[bool] = property_(64)
+    is_spoiler: Optional[bool] = property_(65)
+    language: Optional[str] = property_(70)
 
     def _to_option_kwargs(self):
         kwargs = {}
@@ -77,14 +77,14 @@ class TextSpanType(BuiltinEnum):
 class TextSpan(TextOptionsBase, Struct):
     """A span of text with optional formatting"""
 
-    type: TextSpanType = p_regular(30, default=TextSpanType.TEXT)
-    content: Optional[str] = p_regular(33)
-    node: Optional[Node] = p_regular(34)
+    type: TextSpanType = property_(30, default=TextSpanType.TEXT)
+    content: Optional[str] = property_(33)
+    node: Optional[Node] = property_(34)
     if TYPE_CHECKING:
         node_id: Optional[UUID] = None
         node_ck: Optional[UUID] = None
         node_ptr: Optional[NodeReference] = None
-    url: Optional[str] = p_regular(35)
+    url: Optional[str] = property_(35)
 
     def __content_str__(self) -> str:
         return _render_inline((self,))
@@ -128,9 +128,9 @@ class TextLine(TextOptionsBase, Struct):
     A single line of text; may contain inline TextSpans, or hold a TextTable or such.
     """
 
-    type: TextLineType = p_regular(30, default=TextLineType.PARAGRAPH)
-    spans: List[TextSpan] = p_regular(33)
-    content: Optional[str] = p_regular(34)
+    type: TextLineType = property_(30, default=TextLineType.PARAGRAPH)
+    spans: List[TextSpan] = property_(33)
+    content: Optional[str] = property_(34)
 
     def __content_str__(self) -> str:
         return text_line_to_markdown(self)
@@ -264,7 +264,7 @@ class Text(Struct):
     Rich Text; composed of TextLines with many markdown+ goodies.
     """
 
-    lines: List[TextLine] = p_regular(32)
+    lines: List[TextLine] = property_(32)
 
     def __contains__(self, item: str | Node) -> bool:
         return any(item in line for line in self.lines)

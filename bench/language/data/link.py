@@ -18,8 +18,8 @@ from bench.language.core import (
     enum_,
     node_,
     p_node_parent,
-    p_regular,
     p_system,
+    property_,
 )
 from bench.pb2 import LinkData
 
@@ -54,22 +54,22 @@ class Link(IsTitled, IsResource, Node[LinkData]):
         "Run",
         None,
     ] = p_node_parent()
-    type: LinkType = p_regular(30)
+    type: LinkType = property_(30)
 
     # content
-    url: str | None = p_regular(50)
-    domain: str | None = p_regular(51)
-    content_url: str | None = p_regular(52)
-    thumbnail_url: str | None = p_regular(53)
-    favicon_url: str | None = p_regular(54)
-    thumbnail_width: int | None = p_regular(55)
-    thumbnail_height: int | None = p_regular(56)
-    content: str | None = p_regular(60)
-    attribution: str | None = p_regular(62)
-    attribution_tag: str | None = p_regular(63)
+    url: str | None = property_(50)
+    domain: str | None = property_(51)
+    content_url: str | None = property_(52)
+    thumbnail_url: str | None = property_(53)
+    favicon_url: str | None = property_(54)
+    thumbnail_width: int | None = property_(55)
+    thumbnail_height: int | None = property_(56)
+    content: str | None = property_(60)
+    attribution: str | None = property_(62)
+    attribution_tag: str | None = property_(63)
     published_at: Optional[datetime] = p_system(64)
     expires_at: Optional[datetime] = p_system(65)
-    image_urls: list[str] = p_regular(70)
+    image_urls: list[str] = property_(70)
 
     def __content_str__(self):
         content_parts: list[str] = [self.type.bench_name]

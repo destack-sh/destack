@@ -14,8 +14,8 @@ from bench.language.core import (
     enum_,
     node_,
     p_kernel,
-    p_regular,
     p_system,
+    property_,
 )
 from bench.pb2 import ComputerData
 
@@ -41,7 +41,7 @@ class Computer(IsSubject, IsProvisionable, Node[ComputerData]):
     NOTE :RichComputing: Computers also need Deployments/Endpoints/...?
     """
 
-    type: ComputerType = p_regular(30, default=ComputerType.RUNTIME)
+    type: ComputerType = property_(30, default=ComputerType.RUNTIME)
 
     version: str = p_system(60, default=VERSION)
     external_name: Optional[str] = p_kernel(62, sensitive=True)

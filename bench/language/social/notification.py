@@ -15,8 +15,8 @@ from bench.language.core import (
     enum_,
     node_,
     p_node_parent,
-    p_regular,
     p_system,
+    property_,
 )
 from bench.pb2 import NotificationData
 
@@ -56,25 +56,25 @@ class Notification(
 
     # meta
     parent: Union["Package", None] = p_node_parent()
-    type: NotificationType = p_regular(30)
+    type: NotificationType = property_(30)
     channel: Optional["Channel"] = p_system(
         33,
         node_bench_from="self",
     )
-    thread: Optional["Thread"] = p_regular(
+    thread: Optional["Thread"] = property_(
         34,
         node_bench_from="self",
     )
 
     # status
-    status: NotificationStatus = p_regular(40, default=NotificationStatus.SENT)
+    status: NotificationStatus = property_(40, default=NotificationStatus.SENT)
     failed_at: Optional[datetime] = p_system(42)
     sent_at: Optional[datetime] = p_system(43)
     received_at: Optional[datetime] = p_system(44)
     read_at: Optional[datetime] = p_system(45)
 
     # content
-    text: Optional["Text"] = p_regular(51)
+    text: Optional["Text"] = property_(51)
 
     def __content_str__(self) -> str:
         if self.title:

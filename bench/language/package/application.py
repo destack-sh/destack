@@ -10,7 +10,7 @@ from bench.language.core import (
     Node,
     NodeType,
     node_,
-    p_regular,
+    property_,
 )
 from bench.pb2 import ApplicationData
 
@@ -32,12 +32,12 @@ class Application(
 ):
     """An Application is an interactive set of Scenes for some purpose."""
 
-    main_scene: Optional["Scene"] = p_regular(
+    main_scene: Optional["Scene"] = property_(
         50,
         description="The main scene of the Application.",
         node_bench_from="self",
     )
-    error_scene: Optional["Scene"] = p_regular(
+    error_scene: Optional["Scene"] = property_(
         53,
         description="The error scene of the Application.",
         node_bench_from="self",

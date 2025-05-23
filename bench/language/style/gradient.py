@@ -13,7 +13,7 @@ from bench.language.core import (
     enum_,
     node_,
     object_,
-    p_regular,
+    property_,
     struct_,
 )
 from bench.pb2 import GradientStyleData
@@ -39,17 +39,17 @@ class GradientType(BuiltinEnum):
 class GradientStop(Struct):
     """A gradient stop with color and position."""
 
-    color: Optional["Color"] = p_regular(50)
-    position: float = p_regular(51)
+    color: Optional["Color"] = property_(50)
+    position: float = property_(51)
 
 
 @object_()
 class GradientBase(BuiltinObject):
-    type: GradientType = p_regular(30, default=GradientType.LINEAR)
-    style: Optional["GradientStyle"] = p_regular(40)
-    angle: Optional[float] = p_regular(50)
-    stops: list[GradientStop] = p_regular(51)
-    center_anchor: Optional[Axis2] = p_regular(52)
+    type: GradientType = property_(30, default=GradientType.LINEAR)
+    style: Optional["GradientStyle"] = property_(40)
+    angle: Optional[float] = property_(50)
+    stops: list[GradientStop] = property_(51)
+    center_anchor: Optional[Axis2] = property_(52)
 
 
 @struct_(StructType.GRADIENT)
@@ -69,4 +69,4 @@ class GradientStyle(
 ):
     """A gradient style."""
 
-    dark: Gradient | None = p_regular(60)
+    dark: Gradient | None = property_(60)

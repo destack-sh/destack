@@ -13,7 +13,7 @@ from bench.language.core import (
     enum_,
     node_,
     object_,
-    p_regular,
+    property_,
     struct_,
 )
 from bench.pb2 import FontStyleData
@@ -92,16 +92,16 @@ class TextTransform(BuiltinEnum):
 class FontBase(BuiltinObject):
     """A text style value."""
 
-    type: FontType = p_regular(30, default=FontType.SANS)
-    style: Optional["FontStyle"] = p_regular(41)
-    weight: Optional[FontWeight] = p_regular(50, default=FontWeight.NORMAL)
-    color: Optional[Fill] = p_regular(51)
-    size: Optional[FontSize] = p_regular(52, default=FontSize.BASE)
-    align: Optional[TextAlign] = p_regular(53, default=TextAlign.LEFT)
-    line_height: Optional[Length] = p_regular(54)
-    letter_spacing: Optional[Length] = p_regular(55)
-    decoration: Optional[TextDecoration] = p_regular(56, default=TextDecoration.NONE)
-    transform: Optional[TextTransform] = p_regular(57, default=TextTransform.NONE)
+    type: FontType = property_(30, default=FontType.SANS)
+    style: Optional["FontStyle"] = property_(41)
+    weight: Optional[FontWeight] = property_(50, default=FontWeight.NORMAL)
+    color: Optional[Fill] = property_(51)
+    size: Optional[FontSize] = property_(52, default=FontSize.BASE)
+    align: Optional[TextAlign] = property_(53, default=TextAlign.LEFT)
+    line_height: Optional[Length] = property_(54)
+    letter_spacing: Optional[Length] = property_(55)
+    decoration: Optional[TextDecoration] = property_(56, default=TextDecoration.NONE)
+    transform: Optional[TextTransform] = property_(57, default=TextTransform.NONE)
 
 
 @struct_(StructType.FONT)

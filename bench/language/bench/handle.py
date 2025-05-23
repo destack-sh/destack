@@ -1,6 +1,6 @@
 from typing import TYPE_CHECKING
 
-from bench.language.core import IsGlobal, IsInBench, Node, NodeType, StringFormat, node_, p_system
+from bench.language.core import IsGlobal, IsInBench, IsSlug, Node, NodeType, node_
 from bench.pb2 import HandleData
 
 if TYPE_CHECKING:
@@ -10,10 +10,8 @@ if TYPE_CHECKING:
 
 
 @node_(NodeType.HANDLE)
-class Handle(IsGlobal, IsInBench, Node[HandleData]):
+class Handle(IsGlobal, IsSlug, IsInBench, Node[HandleData]):
     """A Bench @handle."""
-
-    slug: str = p_system(30, unique=True, format=StringFormat.SLUG)
 
     @property
     def is_attached(self) -> bool:

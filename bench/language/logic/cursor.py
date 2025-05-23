@@ -16,7 +16,7 @@ from bench.language.core import (
     enum_,
     node_,
     p_node_parent,
-    p_regular,
+    property_,
 )
 from bench.pb2 import CursorData
 
@@ -78,24 +78,24 @@ class Cursor(
 
     # meta
     parent: Union["Space", "Agent", "Thread", "Run", None] = p_node_parent()
-    type: CursorType = p_regular(30)
+    type: CursorType = property_(30)
 
     # status?
-    status: CursorStatus = p_regular(40, default=CursorStatus.CREATED)
-    started_at: Optional[datetime] = p_regular(41)
-    active_at: Optional[datetime] = p_regular(42)
-    seen_at: Optional[datetime] = p_regular(43)
-    terminated_at: Optional[datetime] = p_regular(45)
+    status: CursorStatus = property_(40, default=CursorStatus.CREATED)
+    started_at: Optional[datetime] = property_(41)
+    active_at: Optional[datetime] = property_(42)
+    seen_at: Optional[datetime] = property_(43)
+    terminated_at: Optional[datetime] = property_(45)
 
     # content
-    target: Optional[Node] = p_regular(
+    target: Optional[Node] = property_(
         50,
     )
-    selection: Optional[Selection] = p_regular(51)
-    focus: Optional[Selection] = p_regular(52)
-    filter: Optional[Expression] = p_regular(53)
-    sort: list[Expression] = p_regular(54)
-    url: Optional[str] = p_regular(55)
+    selection: Optional[Selection] = property_(51)
+    focus: Optional[Selection] = property_(52)
+    filter: Optional[Expression] = property_(53)
+    sort: list[Expression] = property_(54)
+    url: Optional[str] = property_(55)
 
     @override
     def __content_str__(self) -> str:

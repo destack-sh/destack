@@ -17,7 +17,7 @@ from bench.language.core import (
     enum_,
     node_,
     p_node_parent,
-    p_regular,
+    property_,
 )
 from bench.pb2 import SpaceData
 
@@ -52,20 +52,20 @@ class Space(
 
     parent: Optional["Package"] = p_node_parent()
 
-    type: SpaceType = p_regular(30)
-    name: str | None = p_regular(31, format=StringFormat.NAME)
+    type: SpaceType = property_(30)
+    name: str | None = property_(31, format=StringFormat.NAME)
 
-    selection: Optional[Selection] = p_regular(
+    selection: Optional[Selection] = property_(
         70,
         default=None,
         description="The current selection of the Space.",
     )
-    focus: Optional[Node] = p_regular(71, default=None, description="The current main focus.")
-    inspection: Optional[Node] = p_regular(
+    focus: Optional[Node] = property_(71, default=None, description="The current main focus.")
+    inspection: Optional[Node] = property_(
         72, default=None, description="The current inspected Node."
     )
-    container: Optional[Node] = p_regular(
+    container: Optional[Node] = property_(
         73, default=None, description="The current 'root' container Node."
     )
-    page: Optional["Page"] = p_regular(74, default=None, description="The current Page.")
-    thread: Optional["Thread"] = p_regular(75, default=None, description="The current Thread.")
+    page: Optional["Page"] = property_(74, default=None, description="The current Page.")
+    thread: Optional["Thread"] = property_(75, default=None, description="The current Thread.")

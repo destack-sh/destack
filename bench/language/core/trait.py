@@ -39,8 +39,8 @@ from .property import (
     p_node_ancestor_with_self,
     p_node_parent,
     p_node_template,
-    p_regular,
     p_system,
+    property_,
 )
 from .type import StringFormat
 
@@ -138,28 +138,42 @@ class IsLocal(Node if TYPE_CHECKING else BuiltinObject):
 class IsModal(Node if TYPE_CHECKING else BuiltinObject):
     """A Node that can be in different modes."""
 
-    mode: NodeMode = p_internal(25, default=NodeMode.MAIN)
+    mode: NodeMode = property_(20, default=NodeMode.MAIN)
 
 
 @trait_(Trait.NAMED)
 class IsNamed(Node if TYPE_CHECKING else BuiltinObject):
     """A Node with a plain name."""
 
-    name: str | None = p_regular(31, format=StringFormat.NAME)
+    name: str | None = property_(31, format=StringFormat.NAME)
 
 
 @trait_(Trait.TITLED)
 class IsTitled(Node if TYPE_CHECKING else BuiltinObject):
     """A Node with a rich title."""
 
-    title: Optional["TextLine"] = p_regular(32)
+    title: Optional["TextLine"] = property_(32)
+
+
+@trait_(Trait.SLUG)
+class IsSlug(Node if TYPE_CHECKING else BuiltinObject):
+    """A Node with a slug."""
+
+    slug: str | None = property_(33, format=StringFormat.SLUG)
+
+
+@trait_(Trait.ICON)
+class IsIcon(Node if TYPE_CHECKING else BuiltinObject):
+    """A Node with an icon."""
+
+    icon: Optional["Icon"] = property_(34)
 
 
 @trait_(Trait.ORDERED)
 class IsOrdered(Node if TYPE_CHECKING else BuiltinObject):
     """A Node that can be ordered."""
 
-    order_key: str = p_internal(33, default=INTEGER_ZERO)
+    order_key: str | None = p_internal(22, default=INTEGER_ZERO)
 
 
 @trait_(Trait.ARCHIVABLE)
@@ -305,7 +319,7 @@ class IsExtensible(Node if TYPE_CHECKING else BuiltinObject):
     """A Node that can be extended with Fields."""
 
     # nocheckin: IsExtensible.value
-    value: "Value | None" = p_regular(26)
+    value: "Value | None" = property_(21)
 
 
 @trait_(Trait.BASED)
@@ -340,6 +354,7 @@ class IsInBench(Node if TYPE_CHECKING else BuiltinObject):
     if TYPE_CHECKING:
         bench_id: Optional[UUID] = None
         bench_ptr: Optional[NodeReference] = None
+    _bench: Optional["Bench"] = property_(default=None)  # :CachedAncestors
 
     @property
     def is_attached(self) -> bool:
@@ -368,10 +383,6 @@ class IsBlockable(IsOrdered, IsInPackage):
     """A Node that can (but may not be) be inline on a Page as a Block."""
 
     parent: Union["Page", None] = p_node_parent()
-    # name: 31
-    # title: 32
-    # order_key: 33
-    icon: Optional["Icon"] = p_regular(34)
     definition: "Block | None" = p_internal(
         35,
         node_bench_from="self",
@@ -407,9 +418,9 @@ class IsRunnable(IsComputable):
     """A Node that can be run (at runtime in a Run)."""
 
     # control
-    max_attempts: Optional[int] = p_regular(110)
-    retry_interval: Optional[timedelta] = p_regular(111)
-    backoff: Optional[float] = p_regular(112)
+    max_attempts: Optional[int] = property_(110)
+    retry_interval: Optional[timedelta] = property_(111)
+    backoff: Optional[float] = property_(112)
 
     def to_retry(self) -> RetryOptions:
         """Turns the options into our RetryOptions."""
@@ -426,7 +437,7 @@ class IsRunnable(IsComputable):
 class IsProcessable(Node if TYPE_CHECKING else BuiltinObject):
     """A Node that can be processed somehow."""
 
-    status: ProcessStatus = p_regular(80, default=ProcessStatus.CREATED)
+    status: ProcessStatus = property_(80, default=ProcessStatus.CREATED)
     duration: Optional[timedelta] = p_internal(
         81,
         default=None,
@@ -449,13 +460,13 @@ class IsProcessable(Node if TYPE_CHECKING else BuiltinObject):
     terminated_at: Optional[datetime] = p_internal(
         89, description="When the Node was last terminated."
     )
-    requested_stop_at: Optional[datetime] = p_regular(
+    requested_stop_at: Optional[datetime] = property_(
         90, description="When the Node was requested to stop."
     )
-    requested_pause_at: Optional[datetime] = p_regular(
+    requested_pause_at: Optional[datetime] = property_(
         91, description="When the Node was requested to pause."
     )
-    requested_resume_at: Optional[datetime] = p_regular(
+    requested_resume_at: Optional[datetime] = property_(
         92, description="When the Node was requested to resume."
     )
     if TYPE_CHECKING:
@@ -535,7 +546,7 @@ class IsSubject(Node if TYPE_CHECKING else BuiltinObject):
 class IsMembership(Node if TYPE_CHECKING else BuiltinObject):
     """A Node that represents a Membership."""
 
-    member: "IsSubject" = p_node_ancestor_with_self(40, require=True, store=True, wire=True)
+    member: "IsSubject" = property_(40)
 
 
 @trait_(Trait.INVITE)
@@ -545,6 +556,13 @@ class IsInvite(Node if TYPE_CHECKING else BuiltinObject):
     pass
 
 
+@trait_(Trait.REGIONAL)
+class IsRegional(Node if TYPE_CHECKING else BuiltinObject):
+    """A Node that is regional."""
+
+    region: Region | None = property_(23, default=REGION)
+
+
 @trait_(Trait.RESOURCE)
 class IsResource(IsModal, IsInstantiable, IsOwnable, IsNamed, IsClaimable, IsBlockable):
     """
@@ -552,7 +570,6 @@ class IsResource(IsModal, IsInstantiable, IsOwnable, IsNamed, IsClaimable, IsBlo
     """
 
     parent: Union["Package", "Page", "Thread", None] = p_node_parent()
-    region: Region | None = p_system(38, default=REGION)
 
 
 @trait_(Trait.PROVISIONABLE)

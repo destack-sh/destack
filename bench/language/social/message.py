@@ -26,7 +26,7 @@ from bench.language.core import (
     node_,
     p_internal,
     p_node_parent,
-    p_regular,
+    property_,
     to_text,
 )
 from bench.pb2 import MessageData
@@ -69,10 +69,10 @@ class Message(
 
     # meta
     parent: Union["Channel", "Thread", None] = p_node_parent()
-    type: MessageType = p_regular(30, default=MessageType.DEFAULT)
+    type: MessageType = property_(30, default=MessageType.DEFAULT)
     # platform? source?
-    channel: Optional["Channel"] = p_regular(34, node_bench_from="self")
-    thread: Optional["Thread"] = p_regular(35, node_bench_from="self")
+    channel: Optional["Channel"] = property_(34, node_bench_from="self")
+    thread: Optional["Thread"] = property_(35, node_bench_from="self")
     if TYPE_CHECKING:
         channel_id: Optional[UUID] = None
         channel_ptr: Optional[NodeReference] = None
@@ -83,8 +83,8 @@ class Message(
     edited_at: Optional[datetime] = p_internal(40)
 
     # routing
-    reply_to: Optional["Message"] = p_regular(50)
-    forwarded_from: Optional["Message"] = p_regular(51)
+    reply_to: Optional["Message"] = property_(50)
+    forwarded_from: Optional["Message"] = property_(51)
     if TYPE_CHECKING:
         reply_to_ptr: Optional[NodeReference] = None
         reply_to_id: Optional[UUID] = None
@@ -92,12 +92,12 @@ class Message(
         forwarded_from_id: Optional[UUID] = None
 
     # content
-    text: Optional["Text"] = p_regular(61)
-    node: Optional["Node"] = p_regular(62)
+    text: Optional["Text"] = property_(61)
+    node: Optional["Node"] = property_(62)
     if TYPE_CHECKING:
         node_ptr: Optional[NodeReference] = None
         node_id: Optional[UUID] = None
-    resource_status: Optional[ResourceStatus] = p_regular(64)
+    resource_status: Optional[ResourceStatus] = property_(64)
 
     def __content_str__(self) -> str:
         if self.title:

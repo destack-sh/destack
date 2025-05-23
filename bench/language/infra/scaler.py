@@ -6,8 +6,8 @@ from bench.language.core import (
     NodeType,
     enum_,
     node_,
-    p_regular,
     p_system,
+    property_,
 )
 from bench.pb2.lang_pb2 import ScalerData
 
@@ -35,8 +35,8 @@ class Scaler(IsProvisionable, Node[ScalerData]):
     type: ScalerType = p_system(30)
 
     # content
-    strategy: ScalerStrategy = p_regular(60, default=ScalerStrategy.AUTO)
-    target_count: int = p_regular(61, default=0)
-    min_count: int = p_regular(62, default=0)
-    max_count: int = p_regular(63, default=16)
-    name_template: str | None = p_regular(65)
+    strategy: ScalerStrategy = property_(60, default=ScalerStrategy.AUTO)
+    target_count: int = property_(61, default=0)
+    min_count: int = property_(62, default=0)
+    max_count: int = property_(63, default=16)
+    name_template: str | None = property_(65)

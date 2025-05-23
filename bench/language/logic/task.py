@@ -20,7 +20,7 @@ from bench.language.core import (
     TextLineIn,
     node_,
     p_node_parent,
-    p_regular,
+    property_,
     text_line,
 )
 from bench.pb2 import TaskData
@@ -52,8 +52,8 @@ class Task(
     # priority?
 
     # routing
-    due_at: Optional[datetime] = p_regular(50)
-    assigned_to: Optional[IsSubject] = p_regular(51)
+    due_at: Optional[datetime] = property_(50)
+    assigned_to: Optional[IsSubject] = property_(51)
     if TYPE_CHECKING:
         assigned_to_ptr: Optional[NodeReference] = None
         assigned_to_id: Optional[UUID] = None

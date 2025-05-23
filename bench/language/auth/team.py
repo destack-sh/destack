@@ -13,7 +13,7 @@ from bench.language.core import (
     NodeType,
     node_,
     p_node_parent,
-    p_regular,
+    property_,
 )
 from bench.pb2 import TeamData
 
@@ -37,8 +37,8 @@ class Team(
     """
 
     parent: Union["Package", "Page", "Team", None] = p_node_parent()
-    organization: "Organization | None" = p_regular(40)
-    team: Optional["Team"] = p_regular(41)
+    organization: "Organization | None" = property_(40)
+    team: Optional["Team"] = property_(41)
     if TYPE_CHECKING:
         team_id: Optional[UUID] = None
         team_ptr: Optional[NodeReference] = None

@@ -5,7 +5,7 @@ from bench.language.core import (
     IsDeletable,
     Trait,
     VariableProperty,
-    p_regular,
+    property_,
     trait_,
 )
 
@@ -22,8 +22,8 @@ class IsContentView(IsView, IsDeletable, IsArchivable):
     """A content View."""
 
     # layout
-    align: Optional["Align"] = p_regular(53)
+    align: Optional["Align"] = property_(53)
 
     # appearance
-    is_visible: VariableProperty[bool] = p_regular(60)
-    opacity: VariableProperty[float] = p_regular(61)
+    is_visible: VariableProperty[bool] = property_(60)
+    opacity: VariableProperty[float] = property_(61)

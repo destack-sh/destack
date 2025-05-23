@@ -6,24 +6,25 @@ from bench.language.core import (
     IndexIn,
     IsArchivable,
     IsDeletable,
+    IsIcon,
     IsInPackage,
     IsJoinable,
     IsModal,
     IsNamed,
     IsOwnable,
+    IsSlug,
     IsTemplatable,
     Node,
     NodeType,
-    StringFormat,
     enum_,
     node_,
     p_node_parent,
-    p_regular,
+    property_,
 )
 from bench.pb2 import PackageData
 
 if TYPE_CHECKING:
-    from bench.language import Bench, Icon
+    from bench.language import Bench
 
 # pyright: reportIncompatibleVariableOverride=false
 
@@ -40,6 +41,8 @@ class Package(
     IsOwnable,
     IsJoinable,
     IsTemplatable,
+    IsIcon,
+    IsSlug,
     IsModal,
     IsNamed,
     IsInPackage,
@@ -51,9 +54,7 @@ class Package(
 
     # meta
     parent: Optional["Bench"] = p_node_parent()
-    type: PackageType = p_regular(30)
-    slug: str | None = p_regular(34, format=StringFormat.SLUG)
-    icon: Optional["Icon"] = p_regular(35)
+    type: PackageType = property_(30)
 
     @property
     def package(self):

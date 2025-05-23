@@ -48,7 +48,7 @@ from .const import (
     StructType,
 )
 from .graph import Supergraph
-from .property import _PROPERTY_SPECIFIERS, Property, p_regular, p_runtime
+from .property import _PROPERTY_SPECIFIERS, Property, property_
 
 if TYPE_CHECKING:
     from bench.language import Field, Node, NodeReference, PropertyReference, Session
@@ -572,8 +572,8 @@ class BuiltinObject[ObjectDataT: AnyObjectData](abc.ABC):
     __properties_mask_set__: ClassVar[bitarray] = UNSET
     __properties_mask_unset__: ClassVar[bitarray] = UNSET
 
-    _session: "Session" = p_runtime()
-    _supergraph: "Supergraph" = p_runtime()
+    _session: "Session" = property_()
+    _supergraph: "Supergraph" = property_()
 
     def __content_str__(self) -> str:
         return ""  # empty by default
@@ -582,21 +582,18 @@ class BuiltinObject[ObjectDataT: AnyObjectData](abc.ABC):
     def __str__(self):
         return self.__content_str__()
 
-    def __eq__(self, other):
-        if other is self:
-            return True
-        elif other is None:
-            return False
-        else:
-            return self.equals(other)
-
     def equals(
         self,
         other: Self | Any,
         identity_map: Mapping[UUID, "NodeReference"] = EMPTY_DICT,
     ) -> bool:
         """Checks if the content of the two objects is equal (recursively)."""
-        # nocheckin: generate equals & hash for Structs
+        # nocheckin: generate equals for BuiltinObject (and hash for Structs)
+        raise NotImplementedError
+
+    def validate(self) -> None:
+        """Validate the object."""
+        # nocheckin: genreate validate for BuiltinObject
         raise NotImplementedError
 
     def _stable_hash(self) -> int:
@@ -608,7 +605,7 @@ class BuiltinObject[ObjectDataT: AnyObjectData](abc.ABC):
         copy_kwargs = {}
         for prop in self.__wired_properties__.values():
             prop_value = getattr(self, prop.name)
-            if reset and prop.id < 30:
+            if reset and (prop.id is None or prop.id < 30):
                 continue  # ignore tracking/autoset properties
             if prop.is_struct:
                 if prop.cardinality == "list":
@@ -707,6 +704,7 @@ class BuiltinObject[ObjectDataT: AnyObjectData](abc.ABC):
     def _mask_properties(cls, properties: Collection[Property]) -> bitarray:
         mask = bitarray(cls.__max_property_ord__ + 1)
         for prop in properties:
+            assert prop.ord is not None, f"{prop!r} has no ordinal"
             mask[prop.ord] = True
         return mask
 
@@ -715,6 +713,7 @@ class BuiltinObject[ObjectDataT: AnyObjectData](abc.ABC):
         mask = bitarray(cls.__max_property_ord__ + 1)
         for prop_id in properties:
             prop = cls.__properties_by_id__[prop_id]
+            assert prop.ord is not None, f"{prop!r} has no ordinal"
             mask[prop.ord] = True
         return mask
 
@@ -735,6 +734,14 @@ class Struct[StructDataT: AnyStructData](BuiltinObject[StructDataT], abc.ABC):
         else:
             return f"<{self.__class__.__name__}>"
 
+    def __eq__(self, other):
+        if other is self:
+            return True
+        elif other is None:
+            return False
+        else:
+            return self.equals(other)
+
 
 def is_node[T: Node](obj: Any, node_cls: type[T]) -> TypeGuard[T]:
     return isinstance(obj, Node) and obj.metatype == node_cls.metatype
@@ -753,9 +760,9 @@ def is_struct[T: Struct | Struct](obj: Any, struct_cls: type[T]) -> TypeGuard[T]
 class Scope(Struct[ScopeData]):
     """The scope for an operation on the Bench graph."""
 
-    region: Optional[Region] = p_regular(30)
-    bench_id: Optional[UUID] = p_regular(31)
-    package_ids: list[UUID] = p_regular(32)
+    region: Optional[Region] = property_(30)
+    bench_id: Optional[UUID] = property_(31)
+    package_ids: list[UUID] = property_(32)
 
     def __content_str__(self) -> str:
         return repr_scope(self)
@@ -780,9 +787,9 @@ class PropertyReference(Struct):
     If type is unset, this refers to a base property in one of the base BuiltinObject types.
     """
 
-    node_type: NodeType | None = p_regular(30)
-    struct_type: StructType | None = p_regular(31)
-    id: int = p_regular(32)
+    node_type: NodeType | None = property_(30)
+    struct_type: StructType | None = property_(31)
+    id: int = property_(32)
 
     def __content_str__(self):
         object_cls = self.object_cls
