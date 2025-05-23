@@ -705,7 +705,6 @@ MESSAGE_TABLE = SqlTable(
         SqlColumn("forwarded_from_id", PrimitiveType.UUID, is_nullable=True),
         SqlColumn("text", PrimitiveType.JSON, is_nullable=True),
         SqlColumn("node_id", PrimitiveType.UUID, is_nullable=True),
-        SqlColumn("resource_status", PrimitiveType.INT16, is_nullable=True),
         SqlColumn("model_developer", PrimitiveType.INT16, is_nullable=True),
         SqlColumn("model_provider", PrimitiveType.INT16, is_nullable=True),
         SqlColumn("model_id", PrimitiveType.STRING, is_nullable=True),

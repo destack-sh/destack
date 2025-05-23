@@ -31,14 +31,8 @@ class CodeType(BuiltinEnum):
 class Code(Struct):
     """Code in some language."""
 
-    language: Optional[str] = property_(32)
+    language: Optional[str] = property_(32, is_repr=True)
     content: Optional[str] = property_(40)
-
-    def __content_str__(self) -> str:
-        preview_str = self.content or ""
-        if len(preview_str) > 100:
-            preview_str = preview_str[:100] + "..."
-        return f"'{preview_str}'"
 
     def __len__(self) -> int:
         return len(self.content or "")

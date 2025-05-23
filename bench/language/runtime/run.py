@@ -47,7 +47,7 @@ class Run(
 
     # meta
     parent: Union["Thread", "Agent", "Run", None] = property_parent_()
-    type: RunType = property_(30, can_write="system")
+    type: RunType = property_(30, can_write="system", is_repr=True)
     thread: Optional["Thread"] = property_(
         38,
         node_bench_from="self",
@@ -65,17 +65,6 @@ class Run(
         runnable_id: Optional[UUID] = None
 
     # ...IsProcessable[80-]
-
-    def __content_str__(self):
-        node = self.runnable
-        path = node.absolute_path if node else "???"
-        if self.duration is not None:
-            duration_str = f"{self.duration.total_seconds():.3f}s"
-            return (
-                f"{self.type.bench_name}:{path}, {self.status.bench_name}, duration={duration_str}"
-            )
-        else:
-            return f"{self.type.bench_name}:{path}, {self.status.bench_name}"
 
     @property
     def ancestors(self):

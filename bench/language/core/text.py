@@ -86,9 +86,6 @@ class TextSpan(TextOptionsBase, Struct):
         node_ptr: Optional[NodeReference] = None
     url: Optional[str] = property_(35)
 
-    def __content_str__(self) -> str:
-        return _render_inline((self,))
-
     @staticmethod
     def hard_break() -> "TextSpan":
         return TextSpan(type=TextSpanType.HARD_BREAK)
@@ -131,9 +128,6 @@ class TextLine(TextOptionsBase, Struct):
     type: TextLineType = property_(30, default=TextLineType.PARAGRAPH)
     spans: List[TextSpan] = property_(33)
     content: Optional[str] = property_(34)
-
-    def __content_str__(self) -> str:
-        return text_line_to_markdown(self)
 
     def __contains__(self, item: str | Node) -> bool:
         if isinstance(item, str):
@@ -787,10 +781,8 @@ def _render_inline_raw(spans: Sequence[TextSpan], aliasing: "Aliasing | None" = 
             for flag in reversed(current_state):
                 result.append(MARKER_CLOSE[flag])
             if (node := span.node) is not None:
-                if aliasing is not None:
-                    alias = aliasing.get_or_add(node)
-                else:
-                    alias = node.code_name or "???"
+                assert aliasing is not None, f"no aliasing for {node!r} in {spans!r}"
+                alias = aliasing.get_or_add(node)
                 result.append(f"[@{alias}]")
             elif span.content:
                 result.append(f"[@{span.content}]")

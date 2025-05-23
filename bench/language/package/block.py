@@ -1,4 +1,4 @@
-from typing import TYPE_CHECKING, Optional, Union, override
+from typing import TYPE_CHECKING, Optional, Union
 
 from fastuuid import UUID
 
@@ -83,38 +83,18 @@ class Block(
     parent: Union["Page", "Block", None] = property_parent_()
 
     # meta
-    type: BlockType = property_(30, description="The type of block.")
+    type: BlockType = property_(30, description="The type of block.", is_repr=True)
 
     # content
     # NOTE: maybe there should be a general mechanism for tying Nodes like Blocks? :NodeTying
     line: Optional["TextLine"] = property_(40)
-    node: Optional["Node"] = property_(41, node_exclude=("base_id",))
+    node: Optional["Node"] = property_(41, node_exclude=("base_id",), is_repr=True)
     view: Optional["IsView"] = property_(42, node_exclude=("base_id",))
     # size?
     if TYPE_CHECKING:
         node_id: Optional[UUID] = None
         node_ck: Optional[UUID] = None
         node_ptr: Optional[NodeReference] = None
-
-    def __content_str__(self):
-        if self.node_ptr is not None and (node := self.node) is not None:
-            return node.__content_str__()
-        elif (line := self.line) is not None:
-            return line.__content_str__()
-        else:
-            return ""
-
-    @property
-    @override
-    def _path_key(self) -> str:
-        if (
-            (node := self.node) is not None
-            and node.parent_id == self.parent_id
-            and (node_ident := node._ident) is not None
-        ):
-            return f"Block[{node_ident}]"
-
-        return f"{self.metatype.bench_name}[id={self.id}]"
 
     @property
     def page(self) -> "Page | None":
@@ -126,20 +106,6 @@ class Block(
             if isinstance(parent, Page):
                 return parent
             parent = parent.parent
-        return None
-
-    @property
-    def name(self) -> str | None:
-        """The name of the delegate (if any)."""
-        if isinstance(node := self.node, IsNamed):
-            return node.name
-        return None
-
-    @property
-    def code_name(self) -> str | None:
-        """The code name of the delegate (if any)."""
-        if isinstance(node := self.node, IsNamed):
-            return node.code_name
         return None
 
     def get_node_as[T: IsBlockable](self, node_cls: _type[T]) -> T:

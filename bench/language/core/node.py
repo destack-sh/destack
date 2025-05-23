@@ -21,7 +21,6 @@ from opentelemetry import trace
 from bench.language.registry import NODE_CLASS_BY_TYPE
 from bench.pb2 import AnyNodeData, NodeReferenceData
 from bench.utils.func import get_superclasses
-from bench.utils.string import to_code_name
 
 from .const import (
     UNSET,
@@ -32,7 +31,7 @@ from .const import (
     Trait,
     active_session,
 )
-from .graph import Graph, GraphData, attach_node
+from .graph import Graph, attach_node
 from .object import BuiltinObject, _process_object_cls
 from .property import (
     _PROPERTY_SPECIFIERS,
@@ -55,9 +54,7 @@ if TYPE_CHECKING:
         NodeReference,
         Package,
         Query,
-        Session,
         Sort,
-        TextLine,
     )
 
 # pyright: reportIncompatibleVariableOverride=false
@@ -195,24 +192,18 @@ class Node[NodeDataT: AnyNodeData](BuiltinObject[NodeDataT]):
     _is_new: bool = property_runtime_(default=False)
     _is_attached: bool = property_runtime_(default=False)  # :CachedAncestors
     _hash: int = property_runtime_(default=None)
-
-    if TYPE_CHECKING:
-        _skip_add_self: bool = False
-
-    # nocheckin: generate BuiltinObject str
+    _ref: "Optional[NodeReference]" = property_runtime_(default=None)
 
     @final
     def __str__(self):  # type: ignore
         # override the default __str__ for nodes
-        content_str = self.__content_str__()
-        if content_str:
-            content_str = f" ({content_str})"
-        return f"{self._ident_key}{content_str}"
-
-    @final
-    def __repr__(self):  # type: ignore
-        # override the default __repr__ for nodes
-        return f"<{self.__class__.__name__} {self!s}>"
+        if self.__parent_property__ is not None:
+            ident_str = self.path
+        else:
+            ident_str = self.code_name
+            if ident_str is None:
+                ident_str = str(self.id)
+        return f"<{self.__class__.__name__} {ident_str}>"
 
     @property
     def ck(self):
@@ -266,8 +257,7 @@ class Node[NodeDataT: AnyNodeData](BuiltinObject[NodeDataT]):
         raise NotImplementedError("nocheckin: edits (flat and otherwise)")
 
     if not TYPE_CHECKING:
-        # NOTE: __setattr__/__getattr__ confuses type checking, so only define it at runtime
-        #  (we don't need it since dynamic access is meant for Values at runtime)
+        # NOTE: __setattr__ obscures type checking, so only define it at runtime
         __setattr__ = _do_set
 
     @override
@@ -373,32 +363,6 @@ class Node[NodeDataT: AnyNodeData](BuiltinObject[NodeDataT]):
     # only define __hash__ for nodes since their id is constant
     __hash__ = _stable_hash  # type: ignore
 
-    @property
-    def connection(self):
-        """The currently active connection (errors if none)"""
-        raise NotImplementedError
-
-    @property
-    def _is_live(self) -> bool:
-        """Whether this Node is live."""
-        raise NotImplementedError
-
-    @property
-    def _data_graph(self) -> "GraphData":
-        raise NotImplementedError
-
-    @final
-    def _track_self(self, session: "Session"):
-        """Track this object in the given session."""
-        if self._session is not None and self._session is not session:
-            raise RuntimeError(f"{self!r} is already in {self._session!r}, not {session!r}")
-        self._session = session
-
-    @final
-    def _untrack_self(self) -> None:
-        """Stop tracking this object."""
-        raise NotImplementedError(f"{self!r}._untrack_self() is no longer supported")
-
     @final
     def _walk_ancestors(self) -> Iterable["Node"]:
         current = self.parent
@@ -411,33 +375,6 @@ class Node[NodeDataT: AnyNodeData](BuiltinObject[NodeDataT]):
         yield self
         if self.__child_types__:
             yield from self._graph.get_descendants(self, recursive=True)
-
-    @final
-    def _track_rec(self, session: "Session"):
-        for inner_node in self._walk_descendants():
-            inner_node._track_self(session)
-
-    @final
-    def _untrack_rec(self):
-        for inner_node in self._walk_descendants():
-            inner_node._untrack_self()
-
-    @property
-    def _ident(self) -> Optional[str]:
-        """The Bench identifier of this node (slug if exists, else name if exists)."""
-        if "slug" in self.__properties__:
-            slug = getattr(self, "slug")
-            if slug:  # prefer slug as ident
-                return slug
-        if "name" in self.__properties__:
-            return getattr(self, "name")
-        if "title" in self.__properties__:
-            title = getattr(self, "title")
-            if type(title) is str:
-                return title
-            elif title is not None:
-                return cast("TextLine", title).to_plain()
-        return None
 
     @property
     def _path_key(self) -> str:
@@ -452,37 +389,7 @@ class Node[NodeDataT: AnyNodeData](BuiltinObject[NodeDataT]):
             return f"{self.metatype.bench_name}[id={self.id}]"
 
     @property
-    def _ident_key(self) -> str:
-        """Get the identifier string for this node."""
-        ident_str = self.code_name
-        if ident_str is None:
-            ident_str = str(self.id)
-        if self.__parent_property__ is not None:
-            return self.absolute_path
-        return ident_str
-
-    @property
-    def code_name(self) -> Optional[str]:
-        """The python-compatible identifier of this node."""
-        if "slug" in self.__properties__:
-            slug = getattr(self, "slug", None)
-            if slug:  # prefer slug as ident
-                return slug
-        if "name" in self.__properties__:
-            name = getattr(self, "name", None)
-            if name:
-                return to_code_name(name)
-        if "title" in self.__properties__:
-            title = getattr(self, "title", None)
-            if title is not None:
-                if type(title) is str and title:
-                    return to_code_name(title)
-                else:
-                    return to_code_name(cast("TextLine", title).to_plain())
-        return None
-
-    @property
-    def absolute_path(self) -> str:
+    def path(self) -> str:
         if not self.__parent_types__:
             # this is a root node
             ident = self._ident
@@ -553,7 +460,7 @@ class Node[NodeDataT: AnyNodeData](BuiltinObject[NodeDataT]):
         if isinstance(node_type, type):
             node_type = node_type.metatype
         for child in self._graph.get_descendants(self, node_type=node_type, recursive=False):
-            if child.code_name == key or getattr(child, "name", None) == key:
+            if getattr(child, "name", None) == key:
                 return cast(N, child)
         return None
 
@@ -728,28 +635,12 @@ class NodeReference(Struct[NodeReferenceData]):
     A reference to a Node.
     """
 
-    node_type: NodeType = property_(30)
-    id: UUID = property_(31)
-    ck: Optional[UUID] = property_(32)
-    bench_id: Optional[UUID] = property_(33)
-    base_id: Optional[UUID] = property_(34)
+    node_type: NodeType = property_(30, is_repr=True)
+    id: UUID = property_(31, is_repr=True)
+    ck: Optional[UUID] = property_(32, is_repr=True)
+    bench_id: Optional[UUID] = property_(33, is_repr=True)
+    base_id: Optional[UUID] = property_(34, is_repr=True)
     # area? external_id?
-
-    def __content_str__(self):
-        content_parts = []
-        if self.id is not None:
-            content_parts.append(f"id={self.id}")
-        if self.ck is not None:
-            if self.ck == self.id:
-                content_parts.append("ck=id")
-            else:
-                content_parts.append(f"ck={self.ck}")
-        if self.bench_id is not None:
-            content_parts.append(f"bench_id={self.bench_id}")
-        if self.base_id is not None:
-            content_parts.append(f"base_id={self.base_id}")
-        selector_str = ", ".join(content_parts)
-        return f"{self.node_type.bench_name}:[{selector_str}]"
 
     @staticmethod
     def _ref_from_node(node: Node) -> "NodeReference":

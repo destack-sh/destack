@@ -1,4 +1,4 @@
-from typing import TYPE_CHECKING, Union, final
+from typing import TYPE_CHECKING, Union
 
 import structlog
 
@@ -60,10 +60,3 @@ class Record(
 
     # target: Page/Task/...? (tie Record to a Page for a Notion-like experience in some Tables)
     # ... general Record/Page/Block 'tying'? :NodeTying
-
-    @final
-    def __repr__(self):  # type: ignore
-        # override the default __repr__ for records
-        table = self.table
-        type_name = table.code_name if table is not None else "???"
-        return f"<{type_name}Record {self!s}>"

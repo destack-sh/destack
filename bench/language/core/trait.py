@@ -438,22 +438,26 @@ class IsRunnable(IsComputable):
 class IsProcessable(Node if TYPE_CHECKING else BuiltinObject):
     """A Node that can be processed somehow."""
 
-    status: ProcessStatus = property_(80, default=ProcessStatus.CREATED)
+    status: ProcessStatus = property_(80, default=ProcessStatus.CREATED, is_repr=True)
     duration: Optional[timedelta] = property_(
         81,
         default=None,
         description="Duration from first attempt start to last attempt termination.",
+        is_repr=True,
     )
-    error: Optional["Error"] = property_(82)
+    error: Optional["Error"] = property_(82, is_repr=True)
     interruption: Optional["Interruption"] = property_(
         83,
         node_bench_from="self",
         description="The latest Interruption concerning the Node.",
+        is_repr=True,
     )
     scheduled_at: Optional[datetime] = property_(
         85, description="When the Node is scheduled to start."
     )
-    started_at: Optional[datetime] = property_(86, description="When the Node first started.")
+    started_at: Optional[datetime] = property_(
+        86, description="When the Node first started.", is_repr=True
+    )
     active_at: Optional[datetime] = property_(87, description="When the Node was last active.")
     interrupted_at: Optional[datetime] = property_(88, description="When the Node was interrupted.")
     terminated_at: Optional[datetime] = property_(

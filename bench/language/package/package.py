@@ -61,14 +61,6 @@ class Package(
         return self
 
     @property
-    def absolute_path(self) -> str:
-        bench = self.bench
-        if bench is not None:
-            return f"{bench.slug}:{self.slug}"
-        else:
-            return f"<detached>:{self.slug}"
-
-    @property
     def package_id(self):
         return self.id
 

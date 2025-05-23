@@ -52,9 +52,6 @@ class Schedule(Struct):
     by_minute: list[int] = property_(44)
     by_second: list[int] = property_(45)
 
-    def __content_str__(self) -> str:
-        return render_schedule_as_rrule(self)
-
     @staticmethod
     def from_rrule(rrule: rrule) -> "Schedule":
         """Converts an rrule to a Schedule."""

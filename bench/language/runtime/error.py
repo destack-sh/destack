@@ -70,18 +70,11 @@ class Error(Struct, BenchError):
     """An error that occurred in the context of a Run."""
 
     kind: ErrorKind = property_(30)
-    type: ErrorType = property_(31)
-    title: str | None = property_(32)
+    type: ErrorType = property_(31, is_repr=True)
+    title: str | None = property_(32, is_repr=True)
     text: str | None = property_(33)
     nodes: list["Node"] = property_(34)
     trace: Optional[RunTrace] = property_(35)
-
-    def __content_str__(self) -> str:
-        parts = [self.kind.bench_name]
-        if self.type is not None:
-            parts.append(self.type.bench_name)
-        parts.append(self.title or "<no title>")
-        return ", ".join(parts)
 
     @property
     def is_retryable(self) -> bool:

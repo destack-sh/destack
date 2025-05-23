@@ -1,5 +1,5 @@
 from datetime import datetime
-from typing import TYPE_CHECKING, Optional, Union, override
+from typing import TYPE_CHECKING, Optional, Union
 
 from bench.language.core import (
     BuiltinEnum,
@@ -78,10 +78,10 @@ class Cursor(
 
     # meta
     parent: Union["Space", "Agent", "Thread", "Run", None] = property_parent_()
-    type: CursorType = property_(30)
+    type: CursorType = property_(30, is_repr=True)
 
     # status?
-    status: CursorStatus = property_(40, default=CursorStatus.CREATED)
+    status: CursorStatus = property_(40, default=CursorStatus.CREATED, is_repr=True)
     started_at: Optional[datetime] = property_(41)
     active_at: Optional[datetime] = property_(42)
     seen_at: Optional[datetime] = property_(43)
@@ -96,14 +96,3 @@ class Cursor(
     filter: Optional[Expression] = property_(53)
     sort: list[Expression] = property_(54)
     url: Optional[str] = property_(55)
-
-    @override
-    def __content_str__(self) -> str:
-        content_parts: list[str] = [self.status.bench_name]
-        if (target := self.target) is not None:
-            content_parts.append(f"target={target.absolute_path}")
-        if self.active_at is not None:
-            content_parts.append(f"active={self.active_at.isoformat()}")
-        if self.seen_at is not None:
-            content_parts.append(f"seen={self.seen_at.isoformat()}")
-        return ", ".join(content_parts)
