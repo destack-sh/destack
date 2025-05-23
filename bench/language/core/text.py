@@ -125,7 +125,7 @@ class TextLine(TextOptionsBase, Struct):
     A single line of text; may contain inline TextSpans, or hold a TextTable or such.
     """
 
-    type: TextLineType = property_(30, default=TextLineType.PARAGRAPH)
+    type: TextLineType = property_(30, default=TextLineType.PARAGRAPH, is_repr=True)
     spans: List[TextSpan] = property_(33)
     content: Optional[str] = property_(34)
 

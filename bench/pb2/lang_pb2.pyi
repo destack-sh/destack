@@ -359,7 +359,6 @@ class EnumType(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     ENUM_TYPE_USER_STATUS: _ClassVar[EnumType]
     ENUM_TYPE_ORGANIZATION_STATUS: _ClassVar[EnumType]
     ENUM_TYPE_BENCH_STATUS: _ClassVar[EnumType]
-    ENUM_TYPE_ERROR_KIND: _ClassVar[EnumType]
     ENUM_TYPE_ERROR_TYPE: _ClassVar[EnumType]
     ENUM_TYPE_SEVERITY: _ClassVar[EnumType]
     ENUM_TYPE_VARIABLE_TYPE: _ClassVar[EnumType]
@@ -458,12 +457,6 @@ class EnumType(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     ENUM_TYPE_TEXT_SPLIT_TYPE: _ClassVar[EnumType]
     ENUM_TYPE_OFFSCREEN_BEHAVIOR: _ClassVar[EnumType]
 
-class ErrorKind(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
-    __slots__ = ()
-    ERROR_KIND_UNSPECIFIED: _ClassVar[ErrorKind]
-    ERROR_KIND_INTERNAL: _ClassVar[ErrorKind]
-    ERROR_KIND_RUNTIME: _ClassVar[ErrorKind]
-
 class ErrorType(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     __slots__ = ()
     ERROR_TYPE_UNSPECIFIED: _ClassVar[ErrorType]
@@ -478,12 +471,6 @@ class ErrorType(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     ERROR_TYPE_INCAPABLE: _ClassVar[ErrorType]
     ERROR_TYPE_REFUSED: _ClassVar[ErrorType]
     ERROR_TYPE_NON_RETRYABLE: _ClassVar[ErrorType]
-    ERROR_TYPE_MODEL_FAILED: _ClassVar[ErrorType]
-    ERROR_TYPE_INVALID_CONTINUATION: _ClassVar[ErrorType]
-    ERROR_TYPE_INVALID_CALL: _ClassVar[ErrorType]
-    ERROR_TYPE_INVALID_PLAN: _ClassVar[ErrorType]
-    ERROR_TYPE_INTERRUPTION_CANCELLED: _ClassVar[ErrorType]
-    ERROR_TYPE_RETRYABLE: _ClassVar[ErrorType]
 
 class ExpressionType(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     __slots__ = ()
@@ -1172,8 +1159,6 @@ class StructType(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     STRUCT_TYPE_SELECTION: _ClassVar[StructType]
     STRUCT_TYPE_SCHEDULE: _ClassVar[StructType]
     STRUCT_TYPE_ERROR: _ClassVar[StructType]
-    STRUCT_TYPE_RUN_TRACE: _ClassVar[StructType]
-    STRUCT_TYPE_RUN_FRAME: _ClassVar[StructType]
     STRUCT_TYPE_VECTOR2: _ClassVar[StructType]
     STRUCT_TYPE_VECTOR3: _ClassVar[StructType]
     STRUCT_TYPE_VECTOR4: _ClassVar[StructType]
@@ -1593,7 +1578,6 @@ ENUM_TYPE_NODE_AREA: EnumType
 ENUM_TYPE_USER_STATUS: EnumType
 ENUM_TYPE_ORGANIZATION_STATUS: EnumType
 ENUM_TYPE_BENCH_STATUS: EnumType
-ENUM_TYPE_ERROR_KIND: EnumType
 ENUM_TYPE_ERROR_TYPE: EnumType
 ENUM_TYPE_SEVERITY: EnumType
 ENUM_TYPE_VARIABLE_TYPE: EnumType
@@ -1691,9 +1675,6 @@ ENUM_TYPE_EFFECT_TYPE: EnumType
 ENUM_TYPE_REPEAT_TYPE: EnumType
 ENUM_TYPE_TEXT_SPLIT_TYPE: EnumType
 ENUM_TYPE_OFFSCREEN_BEHAVIOR: EnumType
-ERROR_KIND_UNSPECIFIED: ErrorKind
-ERROR_KIND_INTERNAL: ErrorKind
-ERROR_KIND_RUNTIME: ErrorKind
 ERROR_TYPE_UNSPECIFIED: ErrorType
 ERROR_TYPE_ABORTED: ErrorType
 ERROR_TYPE_RUNTIME_UNAVAILABLE: ErrorType
@@ -1706,12 +1687,6 @@ ERROR_TYPE_TEXT_INVALID: ErrorType
 ERROR_TYPE_INCAPABLE: ErrorType
 ERROR_TYPE_REFUSED: ErrorType
 ERROR_TYPE_NON_RETRYABLE: ErrorType
-ERROR_TYPE_MODEL_FAILED: ErrorType
-ERROR_TYPE_INVALID_CONTINUATION: ErrorType
-ERROR_TYPE_INVALID_CALL: ErrorType
-ERROR_TYPE_INVALID_PLAN: ErrorType
-ERROR_TYPE_INTERRUPTION_CANCELLED: ErrorType
-ERROR_TYPE_RETRYABLE: ErrorType
 EXPRESSION_TYPE_UNSPECIFIED: ExpressionType
 EXPRESSION_TYPE_LITERAL: ExpressionType
 EXPRESSION_TYPE_COLUMN: ExpressionType
@@ -2223,8 +2198,6 @@ STRUCT_TYPE_ICON: StructType
 STRUCT_TYPE_SELECTION: StructType
 STRUCT_TYPE_SCHEDULE: StructType
 STRUCT_TYPE_ERROR: StructType
-STRUCT_TYPE_RUN_TRACE: StructType
-STRUCT_TYPE_RUN_FRAME: StructType
 STRUCT_TYPE_VECTOR2: StructType
 STRUCT_TYPE_VECTOR3: StructType
 STRUCT_TYPE_VECTOR4: StructType
@@ -3444,22 +3417,18 @@ class EffectStyleData(_message.Message):
     def __init__(self, metatype: _Optional[_Union[NodeType, str]] = ..., id: _Optional[str] = ..., parent_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., bench_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., package_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., created_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., created_by_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., updated_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., updated_by_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., archived_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., deleted_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., template_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., mode: _Optional[_Union[NodeMode, str]] = ..., order_key: _Optional[str] = ..., type: _Optional[_Union[EffectType, str]] = ..., name: _Optional[str] = ..., definition_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., style_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., opacity: _Optional[float] = ..., offset: _Optional[_Union[Vector2Data, _Mapping]] = ..., scale: _Optional[float] = ..., rotate: _Optional[_Union[Axis3Data, _Mapping]] = ..., skew: _Optional[_Union[Vector2Data, _Mapping]] = ..., perspective: _Optional[float] = ..., delay: _Optional[_Union[_duration_pb2.Duration, _Mapping]] = ..., duration: _Optional[float] = ..., threshold: _Optional[float] = ..., once: bool = ..., repeat: _Optional[_Union[RepeatType, str]] = ..., split: _Optional[_Union[TextSplitType, str]] = ..., offscreen: _Optional[_Union[OffscreenBehavior, str]] = ..., transition: _Optional[_Union[TransitionData, _Mapping]] = ...) -> None: ...
 
 class ErrorData(_message.Message):
-    __slots__ = ("metatype", "kind", "type", "title", "text", "nodes_ptr", "trace")
+    __slots__ = ("metatype", "type", "title", "text", "nodes_ptr")
     METATYPE_FIELD_NUMBER: _ClassVar[int]
-    KIND_FIELD_NUMBER: _ClassVar[int]
     TYPE_FIELD_NUMBER: _ClassVar[int]
     TITLE_FIELD_NUMBER: _ClassVar[int]
     TEXT_FIELD_NUMBER: _ClassVar[int]
     NODES_PTR_FIELD_NUMBER: _ClassVar[int]
-    TRACE_FIELD_NUMBER: _ClassVar[int]
     metatype: StructType
-    kind: ErrorKind
     type: ErrorType
     title: str
     text: str
     nodes_ptr: _containers.RepeatedCompositeFieldContainer[NodeReferenceData]
-    trace: RunTraceData
-    def __init__(self, metatype: _Optional[_Union[StructType, str]] = ..., kind: _Optional[_Union[ErrorKind, str]] = ..., type: _Optional[_Union[ErrorType, str]] = ..., title: _Optional[str] = ..., text: _Optional[str] = ..., nodes_ptr: _Optional[_Iterable[_Union[NodeReferenceData, _Mapping]]] = ..., trace: _Optional[_Union[RunTraceData, _Mapping]] = ...) -> None: ...
+    def __init__(self, metatype: _Optional[_Union[StructType, str]] = ..., type: _Optional[_Union[ErrorType, str]] = ..., title: _Optional[str] = ..., text: _Optional[str] = ..., nodes_ptr: _Optional[_Iterable[_Union[NodeReferenceData, _Mapping]]] = ...) -> None: ...
 
 class ExpressionData(_message.Message):
     __slots__ = ("metatype", "type", "literal", "column", "condition", "function", "aggregation")
@@ -5026,20 +4995,6 @@ class RunData(_message.Message):
     model_id: str
     model_name: str
     def __init__(self, metatype: _Optional[_Union[NodeType, str]] = ..., id: _Optional[str] = ..., parent_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., bench_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., package_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., created_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., created_by_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., updated_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., updated_by_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., mode: _Optional[_Union[NodeMode, str]] = ..., value: _Optional[_Union[ValueData, _Mapping]] = ..., type: _Optional[_Union[RunType, str]] = ..., title: _Optional[_Union[TextLineData, _Mapping]] = ..., thread_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., code: _Optional[_Union[CodeData, _Mapping]] = ..., runnable_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., status: _Optional[_Union[ProcessStatus, str]] = ..., duration: _Optional[_Union[_duration_pb2.Duration, _Mapping]] = ..., error: _Optional[_Union[ErrorData, _Mapping]] = ..., interruption_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., scheduled_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., started_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., active_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., interrupted_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., terminated_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., requested_stop_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., requested_pause_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., requested_resume_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., model_developer: _Optional[_Union[ModelDeveloper, str]] = ..., model_provider: _Optional[_Union[ModelProvider, str]] = ..., model_id: _Optional[str] = ..., model_name: _Optional[str] = ...) -> None: ...
-
-class RunFrameData(_message.Message):
-    __slots__ = ("metatype",)
-    METATYPE_FIELD_NUMBER: _ClassVar[int]
-    metatype: StructType
-    def __init__(self, metatype: _Optional[_Union[StructType, str]] = ...) -> None: ...
-
-class RunTraceData(_message.Message):
-    __slots__ = ("metatype", "frames")
-    METATYPE_FIELD_NUMBER: _ClassVar[int]
-    FRAMES_FIELD_NUMBER: _ClassVar[int]
-    metatype: StructType
-    frames: _containers.RepeatedCompositeFieldContainer[RunFrameData]
-    def __init__(self, metatype: _Optional[_Union[StructType, str]] = ..., frames: _Optional[_Iterable[_Union[RunFrameData, _Mapping]]] = ...) -> None: ...
 
 class SceneData(_message.Message):
     __slots__ = ("metatype", "id", "ck", "parent_ptr", "bench_ptr", "package_ptr", "created_at", "created_by_ptr", "updated_at", "updated_by_ptr", "archived_at", "deleted_at", "template_ptr", "owned_by_ptr", "mode", "order_key", "name", "slug", "icon", "definition_ptr", "root_view_ptr")

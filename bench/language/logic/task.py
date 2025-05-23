@@ -16,7 +16,6 @@ from bench.language.core import (
     IsTitled,
     Node,
     NodeType,
-    ProcessStatus,
     TextLineIn,
     node_,
     property_,
@@ -60,25 +59,6 @@ class Task(
         assigned_to_type: Optional[NodeType] = None
 
     # ...IsProcessable[80-]
-
-    def start(self) -> None:
-        self.status = ProcessStatus.RUNNING
-        self.started_at = self.active_session.oracle.utc()
-
-    def complete(self) -> None:
-        self.status = ProcessStatus.COMPLETED
-        self.terminated_at = self.active_session.oracle.utc()
-        if self.started_at is not None:
-            self.duration = self.terminated_at - self.started_at
-
-    def reset(self) -> None:
-        self.status = ProcessStatus.ASSIGNED if self.assigned_to_ptr else ProcessStatus.CREATED
-        self.started_at = None
-        self.terminated_at = None
-        self.duration = None
-
-    def fail(self) -> None:
-        self.status = ProcessStatus.FAILED
 
     @staticmethod
     def new(

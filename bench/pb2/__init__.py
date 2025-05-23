@@ -109,8 +109,6 @@ AnyStructData = Union[
     VariableData,
     OriginData,
     ScheduleData,
-    RunTraceData,
-    RunFrameData,
     ErrorData,
     ColorData,
     LengthData,

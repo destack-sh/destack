@@ -366,7 +366,6 @@ enum EnumType {
   ENUM_TYPE_USER_STATUS = 40010;
   ENUM_TYPE_ORGANIZATION_STATUS = 40011;
   ENUM_TYPE_BENCH_STATUS = 40056;
-  ENUM_TYPE_ERROR_KIND = 40060;
   ENUM_TYPE_ERROR_TYPE = 40061;
   ENUM_TYPE_SEVERITY = 40062;
   ENUM_TYPE_VARIABLE_TYPE = 40063;
@@ -466,12 +465,6 @@ enum EnumType {
   ENUM_TYPE_OFFSCREEN_BEHAVIOR = 49084;
 }
 
-enum ErrorKind {
-  ERROR_KIND_UNSPECIFIED = 0;
-  ERROR_KIND_INTERNAL = 1;
-  ERROR_KIND_RUNTIME = 5;
-}
-
 enum ErrorType {
   ERROR_TYPE_UNSPECIFIED = 0;
   ERROR_TYPE_ABORTED = 2;
@@ -485,12 +478,6 @@ enum ErrorType {
   ERROR_TYPE_INCAPABLE = 100;
   ERROR_TYPE_REFUSED = 101;
   ERROR_TYPE_NON_RETRYABLE = 499;
-  ERROR_TYPE_MODEL_FAILED = 500;
-  ERROR_TYPE_INVALID_CONTINUATION = 502;
-  ERROR_TYPE_INVALID_CALL = 503;
-  ERROR_TYPE_INVALID_PLAN = 504;
-  ERROR_TYPE_INTERRUPTION_CANCELLED = 510;
-  ERROR_TYPE_RETRYABLE = 999;
 }
 
 enum ExpressionType {
@@ -1197,8 +1184,6 @@ enum StructType {
   STRUCT_TYPE_SELECTION = 21470;
   STRUCT_TYPE_SCHEDULE = 22000;
   STRUCT_TYPE_ERROR = 22600;
-  STRUCT_TYPE_RUN_TRACE = 22603;
-  STRUCT_TYPE_RUN_FRAME = 22604;
   STRUCT_TYPE_VECTOR2 = 29000;
   STRUCT_TYPE_VECTOR3 = 29002;
   STRUCT_TYPE_VECTOR4 = 29004;
@@ -1975,12 +1960,10 @@ message EffectStyleData {
 
 message ErrorData {
   StructType metatype = 1;
-  ErrorKind kind = 30;
-  ErrorType type = 31;
+  ErrorType type = 30;
   optional string title = 32;
   optional string text = 33;
   repeated NodeReferenceData nodes_ptr = 34;
-  optional RunTraceData trace = 35;
 }
 
 message ExpressionData {
@@ -2890,15 +2873,6 @@ message RunData {
   optional ModelProvider model_provider = 101;
   optional string model_id = 102;
   optional string model_name = 103;
-}
-
-message RunFrameData {
-  StructType metatype = 1;
-}
-
-message RunTraceData {
-  StructType metatype = 1;
-  repeated RunFrameData frames = 30;
 }
 
 // A Scene is a container for a specific interaction point.

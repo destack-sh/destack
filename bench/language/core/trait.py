@@ -186,12 +186,12 @@ class IsArchivable(Node if TYPE_CHECKING else BuiltinObject):
     def archive(self, _now: datetime | None = None):
         """Archive this Node."""
         assert not self.archived_at, f"{self!r} is already archived"
-        self.active_session._archive(self, _now=_now)
+        self._session._archive(self, _now=_now)
 
     def unarchive(self, _now: datetime | None = None):
         """Unarchive this Node."""
         assert self.archived_at, f"{self!r} is not archived"
-        self.active_session._unarchive(self, _now=_now)
+        self._session._unarchive(self, _now=_now)
 
 
 @trait_(Trait.DELETABLE)
@@ -203,12 +203,12 @@ class IsDeletable(Node if TYPE_CHECKING else BuiltinObject):
     def delete(self, _now: datetime | None = None):
         """Delete this Node."""
         assert not self.deleted_at, f"{self!r} is already deleted"
-        self.active_session._delete(self, _now=_now)
+        self._session._delete(self, _now=_now)
 
     def restore(self, _now: datetime | None = None):
         """Restore this deleted Node from the trash."""
         assert self.deleted_at, f"{self!r} is not deleted"
-        self.active_session._restore(self, _now=_now)
+        self._session._restore(self, _now=_now)
 
 
 @trait_(Trait.TEMPLATABLE)
@@ -245,7 +245,7 @@ class IsTemplatable(Node if TYPE_CHECKING else BuiltinObject):
         # instance self
         instance_kwargs = self._clone_kwargs(reset=True)
         if self.mode == NodeMode.TEMPLATE:
-            instance_kwargs["mode"] = self.active_session.mode
+            instance_kwargs["mode"] = self._session.mode
         else:
             instance_kwargs["mode"] = self.mode
         instance_kwargs.update(kwargs)
@@ -319,7 +319,7 @@ class IsInstantiable(IsTemplatable):
 class IsExtensible(Node if TYPE_CHECKING else BuiltinObject):
     """A Node that can be extended with Fields."""
 
-    # nocheckin: IsExtensible.value
+    # nocheckin: Value / IsExtensible.value (custom Nodes?)
     value: "Value | None" = property_(21)
 
 
@@ -356,10 +356,6 @@ class IsInBench(Node if TYPE_CHECKING else BuiltinObject):
         bench_id: Optional[UUID] = None
         bench_ptr: Optional[NodeReference] = None
     _bench: Optional["Bench"] = property_runtime_(default=None)  # :CachedAncestors
-
-    @property
-    def is_attached(self) -> bool:
-        return self.parent_ptr is not None and self.bench is not None
 
 
 @trait_(Trait.IN_PACKAGE)
@@ -478,7 +474,7 @@ class IsProcessable(Node if TYPE_CHECKING else BuiltinObject):
 
     def touch(self) -> None:
         """'Touch' the Node to update the active_at timestamp."""
-        self.active_at = self.active_session.oracle.utc()
+        self.active_at = self._session.oracle.utc()
 
     @property
     def should_stop(self) -> bool:
@@ -632,20 +628,20 @@ class IsProvisionable(IsResource):
 
     def provision(self) -> None:
         """Request to provision this Resource."""
-        self.requested_activate_at = self.active_session.oracle.utc()
+        self.requested_activate_at = self._session.oracle.utc()
 
     def decommission(self) -> None:
         """Request to decommission this Resource."""
-        self.requested_decommission_at = self.active_session.oracle.utc()
+        self.requested_decommission_at = self._session.oracle.utc()
 
     def update_status(self, status: ResourceStatus) -> None:
         """Set the actual current status of this Resource."""
         self.status = status
         if status == ResourceStatus.FAILED or status == ResourceStatus.RETRYING:
-            self.failed_at = self.active_session.oracle.utc()
+            self.failed_at = self._session.oracle.utc()
             self.failed_attempts += 1
         elif status.is_extant:
-            self.active_at = self.active_session.oracle.utc()
+            self.active_at = self._session.oracle.utc()
             self.failed_attempts = 0
 
     async def wait_until_status(

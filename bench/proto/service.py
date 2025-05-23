@@ -24,7 +24,7 @@ from grpclib import Status as GRPCStatus
 from grpclib.client import ServiceMethod
 from opentelemetry import trace
 
-from bench.language.core import BenchError, ValidationError
+from bench.language.core import BenchError
 from bench.pb2 import ServiceKind
 from bench.utils.env import IS_DEV, IS_TEST
 from bench.utils.oracle import Oracle
@@ -49,16 +49,9 @@ RpcCallable = Union[UnaryRpcCallable, StreamRpcCallable]
 ServiceStubT = TypeVar("ServiceStubT")
 StubT = TypeVar("StubT")
 
-# nocheckin: proper builtin Errors
-GRPC_STATUS_BY_BENCH_ERROR_CLASS: Mapping[type, GRPCStatus] = {
-    NotImplementedError: GRPCStatus.UNIMPLEMENTED,
-    ValidationError: GRPCStatus.INVALID_ARGUMENT,
-}
-
 
 def get_grpc_status_from_bench_error(e: BenchError) -> GRPCStatus:
-    status = GRPC_STATUS_BY_BENCH_ERROR_CLASS.get(e.__class__, GRPCStatus.INVALID_ARGUMENT)
-    return status
+    raise NotImplementedError
 
 
 class ServiceBase(abc.ABC):
