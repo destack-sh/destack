@@ -14,7 +14,6 @@ from opentelemetry import trace
 
 from bench.pb2 import (
     EditData,
-    EditOperationData,
     HostClient,
     OriginData,
     RpcMetadata,
@@ -24,7 +23,6 @@ from bench.pb2 import (
 from bench.utils.oracle import Oracle
 
 from .const import NodeMode
-from .edit import EditType
 from .graph import GraphData, Supergraph
 from .node import IsSubject, Node
 from .object import EMPTY_SCOPE_DATA
@@ -186,23 +184,15 @@ class Session:
 
     def _create(self, node: Node):
         """Creates a new Node. The operation *is not* applied directly."""
-        assert self._tx is not None, f"no active transaction for {node!r} in {self!r}"
-        assert not self._is_suspended, f"cannot edit {node!r} in {self!r}"
-        self._pending_nodes_by_id[node.id] = node
-        self._tx.record_edit_event(EditType.CREATE, node)
+        raise NotImplementedError
 
     def _upsert(self, node: Node):
         """Creates or updates a Node. The operation *is not* applied directly."""
-        assert self._tx is not None, f"no active transaction in {self!r}"
-        assert not self._is_suspended, f"cannot edit {node!r} in {self!r}"
-        now = self.oracle.utc()
-        self._pending_nodes_by_id[node.id] = node
-        self._tx.record_edit_event(EditType.UPSERT, node, now=now)
+        raise NotImplementedError
 
     def _update(
         self,
         node: Node,
-        operation: EditOperationData | None = None,
     ):
         """Updates an existing Node. The operation *is not* applied directly."""
         raise NotImplementedError

@@ -1951,42 +1951,25 @@ export interface EditData {
      */
     nodePtr?: NodeReferenceData;
     /**
-     * @generated from protobuf field: google.protobuf.Timestamp edited_at = 33;
+     * @generated from protobuf field: optional string key = 32;
      */
-    editedAt?: Timestamp;
+    key?: string;
     /**
-     * @generated from protobuf field: optional string change_key = 34;
+     * @generated from protobuf field: optional symbol.bench.EditOperation operation = 40;
      */
-    changeKey?: string;
+    operation?: EditOperation;
     /**
-     * @generated from protobuf field: repeated symbol.bench.EditOperationData operations = 41;
-     */
-    operations: EditOperationData[];
-}
-/**
- * @generated from protobuf message symbol.bench.EditOperationData
- */
-export interface EditOperationData {
-    /**
-     * @generated from protobuf field: symbol.bench.StructType metatype = 1;
-     */
-    metatype: StructType;
-    /**
-     * @generated from protobuf field: symbol.bench.EditOperationType type = 30;
-     */
-    type: EditOperationType;
-    /**
-     * @generated from protobuf field: string key = 31;
-     */
-    key: string;
-    /**
-     * @generated from protobuf field: optional symbol.bench.ValueData new_value = 40;
+     * @generated from protobuf field: optional symbol.bench.ValueData new_value = 42;
      */
     newValue?: ValueData;
     /**
-     * @generated from protobuf field: optional symbol.bench.ValueData key_value = 41;
+     * @generated from protobuf field: optional symbol.bench.ValueData key_value = 43;
      */
     keyValue?: ValueData;
+    /**
+     * @generated from protobuf field: google.protobuf.Timestamp edited_at = 50;
+     */
+    editedAt?: Timestamp;
 }
 /**
  * @generated from protobuf message symbol.bench.EffectData
@@ -10033,27 +10016,27 @@ export enum Distribute {
 /**
  * The type of edit operation.
  *
- * @generated from protobuf enum symbol.bench.EditOperationType
+ * @generated from protobuf enum symbol.bench.EditOperation
  */
-export enum EditOperationType {
+export enum EditOperation {
     /**
-     * @generated from protobuf enum value: EDIT_OPERATION_TYPE_UNSPECIFIED = 0;
+     * @generated from protobuf enum value: EDIT_OPERATION_UNSPECIFIED = 0;
      */
     UNSPECIFIED = 0,
     /**
-     * @generated from protobuf enum value: EDIT_OPERATION_TYPE_SET = 1;
+     * @generated from protobuf enum value: EDIT_OPERATION_SET = 1;
      */
     SET = 1,
     /**
-     * @generated from protobuf enum value: EDIT_OPERATION_TYPE_CLEAR = 2;
+     * @generated from protobuf enum value: EDIT_OPERATION_CLEAR = 2;
      */
     CLEAR = 2,
     /**
-     * @generated from protobuf enum value: EDIT_OPERATION_TYPE_MAP_SET = 20;
+     * @generated from protobuf enum value: EDIT_OPERATION_MAP_SET = 20;
      */
     MAP_SET = 20,
     /**
-     * @generated from protobuf enum value: EDIT_OPERATION_TYPE_MAP_REMOVE = 21;
+     * @generated from protobuf enum value: EDIT_OPERATION_MAP_REMOVE = 21;
      */
     MAP_REMOVE = 21
 }
@@ -10224,9 +10207,9 @@ export enum EnumType {
      */
     EDIT_TYPE = 40070,
     /**
-     * @generated from protobuf enum value: ENUM_TYPE_EDIT_OPERATION_TYPE = 40071;
+     * @generated from protobuf enum value: ENUM_TYPE_EDIT_OPERATION = 40071;
      */
-    EDIT_OPERATION_TYPE = 40071,
+    EDIT_OPERATION = 40071,
     /**
      * @generated from protobuf enum value: ENUM_TYPE_CONDITIONAL_TYPE = 40102;
      */
@@ -12998,10 +12981,6 @@ export enum StructType {
      * @generated from protobuf enum value: STRUCT_TYPE_EDIT = 20001;
      */
     EDIT = 20001,
-    /**
-     * @generated from protobuf enum value: STRUCT_TYPE_EDIT_OPERATION = 20002;
-     */
-    EDIT_OPERATION = 20002,
     /**
      * @generated from protobuf enum value: STRUCT_TYPE_ORIGIN = 20003;
      */
@@ -17940,9 +17919,11 @@ class EditData$Type extends MessageType$<EditData> {
             { no: 2, name: "id", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
             { no: 30, name: "type", kind: "enum", T: () => ["symbol.bench.EditType", EditType, "EDIT_TYPE_"] },
             { no: 31, name: "node_ptr", kind: "message", T: () => NodeReferenceData },
-            { no: 33, name: "edited_at", kind: "message", T: () => Timestamp },
-            { no: 34, name: "change_key", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
-            { no: 41, name: "operations", kind: "message", repeat: 1 /*RepeatType.PACKED*/, T: () => EditOperationData }
+            { no: 32, name: "key", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
+            { no: 40, name: "operation", kind: "enum", opt: true, T: () => ["symbol.bench.EditOperation", EditOperation, "EDIT_OPERATION_"] },
+            { no: 42, name: "new_value", kind: "message", T: () => ValueData },
+            { no: 43, name: "key_value", kind: "message", T: () => ValueData },
+            { no: 50, name: "edited_at", kind: "message", T: () => Timestamp }
         ]);
     }
     create(value?: PartialMessage<EditData>): EditData {
@@ -17950,7 +17931,6 @@ class EditData$Type extends MessageType$<EditData> {
         message.metatype = 0;
         message.id = "";
         message.type = 0;
-        message.operations = [];
         if (value !== undefined)
             reflectionMergePartial<EditData>(this, message, value);
         return message;
@@ -17972,14 +17952,20 @@ class EditData$Type extends MessageType$<EditData> {
                 case /* symbol.bench.NodeReferenceData node_ptr */ 31:
                     message.nodePtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.nodePtr);
                     break;
-                case /* google.protobuf.Timestamp edited_at */ 33:
+                case /* optional string key */ 32:
+                    message.key = reader.string();
+                    break;
+                case /* optional symbol.bench.EditOperation operation */ 40:
+                    message.operation = reader.int32();
+                    break;
+                case /* optional symbol.bench.ValueData new_value */ 42:
+                    message.newValue = ValueData.internalBinaryRead(reader, reader.uint32(), options, message.newValue);
+                    break;
+                case /* optional symbol.bench.ValueData key_value */ 43:
+                    message.keyValue = ValueData.internalBinaryRead(reader, reader.uint32(), options, message.keyValue);
+                    break;
+                case /* google.protobuf.Timestamp edited_at */ 50:
                     message.editedAt = Timestamp.internalBinaryRead(reader, reader.uint32(), options, message.editedAt);
-                    break;
-                case /* optional string change_key */ 34:
-                    message.changeKey = reader.string();
-                    break;
-                case /* repeated symbol.bench.EditOperationData operations */ 41:
-                    message.operations.push(EditOperationData.internalBinaryRead(reader, reader.uint32(), options));
                     break;
                 default:
                     let u = options.readUnknownField;
@@ -18005,15 +17991,21 @@ class EditData$Type extends MessageType$<EditData> {
         /* symbol.bench.NodeReferenceData node_ptr = 31; */
         if (message.nodePtr)
             NodeReferenceData.internalBinaryWrite(message.nodePtr, writer.tag(31, WireType.LengthDelimited).fork(), options).join();
-        /* google.protobuf.Timestamp edited_at = 33; */
+        /* optional string key = 32; */
+        if (message.key !== undefined)
+            writer.tag(32, WireType.LengthDelimited).string(message.key);
+        /* optional symbol.bench.EditOperation operation = 40; */
+        if (message.operation !== undefined)
+            writer.tag(40, WireType.Varint).int32(message.operation);
+        /* optional symbol.bench.ValueData new_value = 42; */
+        if (message.newValue)
+            ValueData.internalBinaryWrite(message.newValue, writer.tag(42, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbol.bench.ValueData key_value = 43; */
+        if (message.keyValue)
+            ValueData.internalBinaryWrite(message.keyValue, writer.tag(43, WireType.LengthDelimited).fork(), options).join();
+        /* google.protobuf.Timestamp edited_at = 50; */
         if (message.editedAt)
-            Timestamp.internalBinaryWrite(message.editedAt, writer.tag(33, WireType.LengthDelimited).fork(), options).join();
-        /* optional string change_key = 34; */
-        if (message.changeKey !== undefined)
-            writer.tag(34, WireType.LengthDelimited).string(message.changeKey);
-        /* repeated symbol.bench.EditOperationData operations = 41; */
-        for (let i = 0; i < message.operations.length; i++)
-            EditOperationData.internalBinaryWrite(message.operations[i], writer.tag(41, WireType.LengthDelimited).fork(), options).join();
+            Timestamp.internalBinaryWrite(message.editedAt, writer.tag(50, WireType.LengthDelimited).fork(), options).join();
         let u = options.writeUnknownFields;
         if (u !== false)
             (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
@@ -18024,83 +18016,6 @@ class EditData$Type extends MessageType$<EditData> {
  * @generated MessageType for protobuf message symbol.bench.EditData
  */
 export const EditData = new EditData$Type();
-// @generated message type with reflection information, may provide speed optimized methods
-class EditOperationData$Type extends MessageType$<EditOperationData> {
-    constructor() {
-        super("symbol.bench.EditOperationData", [
-            { no: 1, name: "metatype", kind: "enum", T: () => ["symbol.bench.StructType", StructType, "STRUCT_TYPE_"] },
-            { no: 30, name: "type", kind: "enum", T: () => ["symbol.bench.EditOperationType", EditOperationType, "EDIT_OPERATION_TYPE_"] },
-            { no: 31, name: "key", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
-            { no: 40, name: "new_value", kind: "message", T: () => ValueData },
-            { no: 41, name: "key_value", kind: "message", T: () => ValueData }
-        ]);
-    }
-    create(value?: PartialMessage<EditOperationData>): EditOperationData {
-        const message = globalThis.Object.create((this.messagePrototype!));
-        message.metatype = 0;
-        message.type = 0;
-        message.key = "";
-        if (value !== undefined)
-            reflectionMergePartial<EditOperationData>(this, message, value);
-        return message;
-    }
-    internalBinaryRead(reader: IBinaryReader, length: number, options: BinaryReadOptions, target?: EditOperationData): EditOperationData {
-        let message = target ?? this.create(), end = reader.pos + length;
-        while (reader.pos < end) {
-            let [fieldNo, wireType] = reader.tag();
-            switch (fieldNo) {
-                case /* symbol.bench.StructType metatype */ 1:
-                    message.metatype = reader.int32();
-                    break;
-                case /* symbol.bench.EditOperationType type */ 30:
-                    message.type = reader.int32();
-                    break;
-                case /* string key */ 31:
-                    message.key = reader.string();
-                    break;
-                case /* optional symbol.bench.ValueData new_value */ 40:
-                    message.newValue = ValueData.internalBinaryRead(reader, reader.uint32(), options, message.newValue);
-                    break;
-                case /* optional symbol.bench.ValueData key_value */ 41:
-                    message.keyValue = ValueData.internalBinaryRead(reader, reader.uint32(), options, message.keyValue);
-                    break;
-                default:
-                    let u = options.readUnknownField;
-                    if (u === "throw")
-                        throw new globalThis.Error(`Unknown field ${fieldNo} (wire type ${wireType}) for ${this.typeName}`);
-                    let d = reader.skip(wireType);
-                    if (u !== false)
-                        (u === true ? UnknownFieldHandler.onRead : u)(this.typeName, message, fieldNo, wireType, d);
-            }
-        }
-        return message;
-    }
-    internalBinaryWrite(message: EditOperationData, writer: IBinaryWriter, options: BinaryWriteOptions): IBinaryWriter {
-        /* symbol.bench.StructType metatype = 1; */
-        if (message.metatype !== 0)
-            writer.tag(1, WireType.Varint).int32(message.metatype);
-        /* symbol.bench.EditOperationType type = 30; */
-        if (message.type !== 0)
-            writer.tag(30, WireType.Varint).int32(message.type);
-        /* string key = 31; */
-        if (message.key !== "")
-            writer.tag(31, WireType.LengthDelimited).string(message.key);
-        /* optional symbol.bench.ValueData new_value = 40; */
-        if (message.newValue)
-            ValueData.internalBinaryWrite(message.newValue, writer.tag(40, WireType.LengthDelimited).fork(), options).join();
-        /* optional symbol.bench.ValueData key_value = 41; */
-        if (message.keyValue)
-            ValueData.internalBinaryWrite(message.keyValue, writer.tag(41, WireType.LengthDelimited).fork(), options).join();
-        let u = options.writeUnknownFields;
-        if (u !== false)
-            (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
-        return writer;
-    }
-}
-/**
- * @generated MessageType for protobuf message symbol.bench.EditOperationData
- */
-export const EditOperationData = new EditOperationData$Type();
 // @generated message type with reflection information, may provide speed optimized methods
 class EffectData$Type extends MessageType$<EffectData> {
     constructor() {
@@ -32745,6 +32660,6 @@ export const SomeNodeData = new SomeNodeData$Type();
 
 // Any...
 export type AnyNodeData = ClaimData | RoleData | TeamData | BenchData | BenchInviteData | BenchMembershipData | ClientData | HandleData | OrganizationData | OrganizationInviteData | OrganizationMembershipData | UserData | FieldData | FileData | LinkData | RecordData | SchemaData | TableData | ComputerData | DatabaseData | ScalerData | ActionData | AgentData | CursorData | FlowData | FlowEdgeData | ServiceData | TaskData | ApplicationData | BlockData | DependencyData | PackageData | PageData | InterruptionData | RunData | SpanData | ChannelData | MessageData | NotificationData | ThreadData | RouteData | SceneData | SpaceData | ColorStyleData | BorderStyleData | TransitionStyleData | EffectStyleData | GradientStyleData | FontStyleData | ShadowStyleData | ThemeData | FrameViewData | LabelViewData | SplitViewData | TextViewData | NumberInputViewData | SliderInputViewData | WizardViewData | ThreadViewData
-export type AnyStructData = ScopeData | PropertyReferenceData | CodeData | StringConstraintData | NumberConstraintData | CollectionConstraintData | NodeConstraintData | TypeData | NodeReferenceData | EditOperationData | EditData | IconData | ValueData | RelationReferenceData | AttributeReferenceData | FunctionData | ConditionData | AggregationData | ExpressionData | SortData | JoinData | QueryData | SelectionData | TextSpanData | TextLineData | TextData | VariableData | OriginData | ScheduleData | RunTraceData | RunFrameData | ErrorData | ColorData | LengthData | PositionData | DimensionData | InsetsData | CornersData | Axis2Data | Axis3Data | Vector2Data | Vector3Data | Vector4Data | GridData | GridSpanData | BorderData | TransitionData | EffectData | GradientStopData | GradientData | FillData | FontData | ShadowData
+export type AnyStructData = ScopeData | PropertyReferenceData | CodeData | StringConstraintData | NumberConstraintData | CollectionConstraintData | NodeConstraintData | TypeData | NodeReferenceData | EditData | IconData | ValueData | RelationReferenceData | AttributeReferenceData | FunctionData | ConditionData | AggregationData | ExpressionData | SortData | JoinData | QueryData | SelectionData | TextSpanData | TextLineData | TextData | VariableData | OriginData | ScheduleData | RunTraceData | RunFrameData | ErrorData | ColorData | LengthData | PositionData | DimensionData | InsetsData | CornersData | Axis2Data | Axis3Data | Vector2Data | Vector3Data | Vector4Data | GridData | GridSpanData | BorderData | TransitionData | EffectData | GradientStopData | GradientData | FillData | FontData | ShadowData
 
     

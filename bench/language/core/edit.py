@@ -5,7 +5,7 @@ import structlog
 from fastuuid import UUID
 from opentelemetry import trace
 
-from bench.pb2 import AnyNodeData, EditData, EditOperationData
+from bench.pb2 import AnyNodeData, EditData
 
 from .const import BuiltinEnum, EnumType, StructType, bittuple, enum_
 from .graph import Graph, GraphData
@@ -44,8 +44,8 @@ CASCADING_EDIT_TYPES: bittuple[EditType] = bittuple(
 )
 
 
-@enum_(EnumType.EDIT_OPERATION_TYPE)
-class EditOperationType(BuiltinEnum):
+@enum_(EnumType.EDIT_OPERATION)
+class EditOperation(BuiltinEnum):
     """The type of edit operation."""
 
     # direct
@@ -67,16 +67,6 @@ class EditOperationType(BuiltinEnum):
     # ...
 
 
-@struct_(StructType.EDIT_OPERATION)
-class EditOperation(Struct):  # nocheckin: merge EditOperation into Edit
-    """An edit operation."""
-
-    type: EditOperationType = p_system(30)
-    key: str = p_system(31)
-    new_value: "Value | None" = p_regular(40)
-    key_value: "Value | None" = p_regular(41)  # for map operations
-
-
 @struct_(StructType.EDIT)
 class Edit(Struct):
     """
@@ -90,18 +80,19 @@ class Edit(Struct):
     )
     type: EditType = p_system(30, description="Type of Edit.")
     node: Node = p_system(31, description="Which Node.")
-    edited_at: datetime = p_system(33, description="When the Edit was made.")
-    change_key: UUID | None = p_system(34, description="The Change that this Edit is part of.")
+    key: str | None = p_regular(32)
 
     # content
+    operation: EditOperation | None = p_system(40)
     # node_data: AnyNodeData | None = p_system(40, primitive_type=None, is_node_data=True)
-    operations: list[EditOperation] = p_system(
-        41,
-        description="The operations to perform on the Node",
-    )
+    new_value: "Value | None" = p_regular(42)
+    key_value: "Value | None" = p_regular(43)  # for map operations
+
+    edited_at: datetime = p_system(50, description="When the Edit was made.")
+    # change_key?
 
 
-def apply_edit_operation(node: Node, op: EditOperationData, validate: bool) -> None:
+def apply_edit_operation(node: Node, op: EditData, validate: bool) -> None:
     raise NotImplementedError
 
 
@@ -119,7 +110,7 @@ def edit_graph(
     raise NotImplementedError
 
 
-def apply_edit_operation_data(node: AnyNodeData, op: EditOperationData, is_prepass: bool) -> None:
+def apply_edit_operation_data(node: AnyNodeData, op: EditData) -> None:
     raise NotImplementedError
 
 
@@ -129,7 +120,6 @@ def edit_data_graph(
     edits: Collection[EditData],
     *,
     include_removed: bool,
-    is_prepass: bool = False,
     ignore_missing: bool = False,
 ) -> list[EditData] | None:
     """

@@ -317,12 +317,12 @@ enum Distribute {
 }
 
 // The type of edit operation.
-enum EditOperationType {
-  EDIT_OPERATION_TYPE_UNSPECIFIED = 0;
-  EDIT_OPERATION_TYPE_SET = 1;
-  EDIT_OPERATION_TYPE_CLEAR = 2;
-  EDIT_OPERATION_TYPE_MAP_SET = 20;
-  EDIT_OPERATION_TYPE_MAP_REMOVE = 21;
+enum EditOperation {
+  EDIT_OPERATION_UNSPECIFIED = 0;
+  EDIT_OPERATION_SET = 1;
+  EDIT_OPERATION_CLEAR = 2;
+  EDIT_OPERATION_MAP_SET = 20;
+  EDIT_OPERATION_MAP_REMOVE = 21;
 }
 
 // Ways to edit nodes.
@@ -371,7 +371,7 @@ enum EnumType {
   ENUM_TYPE_SEVERITY = 40062;
   ENUM_TYPE_VARIABLE_TYPE = 40063;
   ENUM_TYPE_EDIT_TYPE = 40070;
-  ENUM_TYPE_EDIT_OPERATION_TYPE = 40071;
+  ENUM_TYPE_EDIT_OPERATION = 40071;
   ENUM_TYPE_CONDITIONAL_TYPE = 40102;
   ENUM_TYPE_AGGREGATION_TYPE = 40103;
   ENUM_TYPE_SORT_MODE = 40104;
@@ -1184,7 +1184,6 @@ enum StructType {
   STRUCT_TYPE_UNSPECIFIED = 0;
   STRUCT_TYPE_SCOPE = 20000;
   STRUCT_TYPE_EDIT = 20001;
-  STRUCT_TYPE_EDIT_OPERATION = 20002;
   STRUCT_TYPE_ORIGIN = 20003;
   STRUCT_TYPE_NODE_REFERENCE = 20004;
   STRUCT_TYPE_PROPERTY_REFERENCE = 20005;
@@ -1934,17 +1933,11 @@ message EditData {
   string id = 2;
   EditType type = 30;
   NodeReferenceData node_ptr = 31;
-  google.protobuf.Timestamp edited_at = 33;
-  optional string change_key = 34;
-  repeated EditOperationData operations = 41;
-}
-
-message EditOperationData {
-  StructType metatype = 1;
-  EditOperationType type = 30;
-  string key = 31;
-  optional ValueData new_value = 40;
-  optional ValueData key_value = 41;
+  optional string key = 32;
+  optional EditOperation operation = 40;
+  optional ValueData new_value = 42;
+  optional ValueData key_value = 43;
+  google.protobuf.Timestamp edited_at = 50;
 }
 
 message EffectData {

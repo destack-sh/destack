@@ -65,7 +65,7 @@ from .const import (
     new_struct_id,
     repr_enums,
 )
-from .edit import Edit, EditOperation, EditOperationType, EditType, edit_data_graph, edit_graph
+from .edit import Edit, EditOperation, EditType, edit_data_graph, edit_graph
 from .graph import (
     Graph,
     GraphConsistencyError,
@@ -285,7 +285,6 @@ __all__ = [
     "Day",
     "Edit",
     "EditOperation",
-    "EditOperationType",
     "EditType",
     "EnumType",
     "ErrorKind",
