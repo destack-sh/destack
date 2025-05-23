@@ -80,7 +80,7 @@ async def create_system_benches(
                 region=region,
                 session=session,
                 options=CreateBenchOptions(
-                    create_computer_scaler=False,
+                    create_machine_scaler=False,
                     bench_id=SYSTEM_ID,
                     main_package_slug=SYSTEM_SYSTEM_PACKAGE_SLUG,
                     main_package_id=SYSTEM_SYSTEM_PACKAGE_ID,
@@ -106,7 +106,7 @@ async def create_system_benches(
                     main_package_slug=BENCH_BENCH_PACKAGE_SLUG,
                     main_package_id=BENCH_BENCH_PACKAGE_ID,
                     main_package_name="Builtin Package",
-                    create_computer_scaler=False,
+                    create_machine_scaler=False,
                 ),
             )
             logger.debug("system.bootstrap.create", bench_bench=bench_bench)

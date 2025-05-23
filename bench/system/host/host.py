@@ -196,19 +196,19 @@ class HostService(HostBase):
         provisioners: list[type[Provisioner]]
         if ENV == Env.TEST or ENV == Env.DEV:
             from bench.system.plugin import (
-                DockerComputerProvisioner,
+                DockerMachineProvisioner,
                 LocalhostDatabaseProvisioner,
                 ScalerProvisioner,
             )
 
             provisioners = [
                 ScalerProvisioner,
-                DockerComputerProvisioner,
+                DockerMachineProvisioner,
                 LocalhostDatabaseProvisioner,
             ]
         elif ENV == Env.STAGE or ENV == Env.PROD:
             from bench.system.plugin import (
-                KubernetesComputerProvisioner,
+                KubernetesMachineProvisioner,
                 NeonDatabaseProvisioner,
                 ScalerProvisioner,
             )
@@ -216,7 +216,7 @@ class HostService(HostBase):
             provisioners = [
                 ScalerProvisioner,
                 NeonDatabaseProvisioner,
-                KubernetesComputerProvisioner,
+                KubernetesMachineProvisioner,
             ]
         else:
             raise RuntimeError(f"unexpected environment: {ENV!r}")

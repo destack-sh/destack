@@ -315,7 +315,7 @@ class EnumType(BuiltinEnum):
     REGION = 40052
     AREA = 40054
     CONTINENT = 40055
-    COMPUTER_TYPE = 41210
+    MACHINE_TYPE = 41210
     DATABASE_TYPE = 41220
     CLIENT_TYPE = 41221
     # VAULT, CACHE, ENDPOINT, DEPLOYMENT, NETWORK, ...
@@ -618,7 +618,7 @@ class NodeType(BuiltinEnum):
 
     # infra [1200-1400]
     DATABASE = 1200, "Store", "Store custom data", "fas fa-database"
-    COMPUTER = 1210, "Computer", "Machine for computing", "fas fa-computer-classic"
+    MACHINE = 1210, "Machine", "Machine for computing", "fas fa-machine-classic"
     # VAULT, CACHE, ENDPOINT, DEPLOYMENT, NETWORK, AUTOSCALER, ...
 
     # data [1400-1800]
@@ -1314,7 +1314,7 @@ class ClientType(BuiltinEnum):
     MOBILE = 4
 
     # system
-    COMPUTER = 10
+    MACHINE = 10
 
 
 #

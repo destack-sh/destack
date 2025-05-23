@@ -37,7 +37,7 @@ async def supervisor_service(global_database: Database, regional_database: Datab
         oracle=REAL_ORACLE,
         host_map=StaticHostMap({}),
         database_map=DatabaseMap({"*": regional_database}),
-        create_bench_options=CreateBenchOptions(create_computer_scaler=False),
+        create_bench_options=CreateBenchOptions(create_machine_scaler=False),
     )
     await supervisor_service.start()
     yield supervisor_service

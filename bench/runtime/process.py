@@ -50,7 +50,7 @@ class RuntimeProcess(RuntimeServiceBase, RuntimeBase):
         client_type: ClientType,
         client_id: UUID,
         client_access_token: str,
-        computer_id: UUID | None,
+        machine_id: UUID | None,
         mode: "RuntimeProcessMode",
         on_error: Callable[[BaseException], None] | None = None,
     ):
@@ -65,7 +65,7 @@ class RuntimeProcess(RuntimeServiceBase, RuntimeBase):
             client_type=client_type,
             client_id=client_id,
             client_access_token=client_access_token,
-            computer_id=computer_id,
+            machine_id=machine_id,
             mode=mode,
             on_error=on_error,
         )
@@ -83,7 +83,7 @@ class RuntimeProcess(RuntimeServiceBase, RuntimeBase):
         return {
             "bench_id": self._bench_id,
             "client_id": self._client_id,
-            "computer_id": self._computer_id,
+            "machine_id": self._machine_id,
             "process_id": self.id,
         }
 
@@ -91,7 +91,7 @@ class RuntimeProcess(RuntimeServiceBase, RuntimeBase):
         set_baggage(
             bench_id=self._bench_id,
             client_id=self._client_id,
-            computer_id=self._computer_id,
+            machine_id=self._machine_id,
             process_id=self.id,
             process_nonce=NONCE,
         )

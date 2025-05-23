@@ -90,6 +90,7 @@ USER_TABLE = SqlTable(
         SqlColumn("created_by_id", PrimitiveType.UUID, is_nullable=True),
         SqlColumn("updated_at", PrimitiveType.DATETIME),
         SqlColumn("updated_by_id", PrimitiveType.UUID, is_nullable=True),
+        SqlColumn("region", PrimitiveType.INT16, is_nullable=True),
         SqlColumn("name", PrimitiveType.STRING, is_nullable=True),
         SqlColumn("slug", PrimitiveType.STRING, is_nullable=True),
         SqlColumn("icon", PrimitiveType.JSON, is_nullable=True),
@@ -174,7 +175,7 @@ CLIENT_TABLE = SqlTable(
         SqlColumn("type", PrimitiveType.INT16),
         SqlColumn("name", PrimitiveType.STRING, is_nullable=True),
         SqlColumn("space_id", PrimitiveType.UUID, is_nullable=True),
-        SqlColumn("computer_id", PrimitiveType.UUID, is_nullable=True),
+        SqlColumn("machine_id", PrimitiveType.UUID, is_nullable=True),
         SqlColumn("user_id", PrimitiveType.UUID, is_nullable=True),
         SqlColumn("device_type", PrimitiveType.STRING, is_nullable=True),
         SqlColumn("device_name", PrimitiveType.STRING, is_nullable=True),
@@ -371,8 +372,8 @@ DATABASE_TABLE = SqlTable(
     indexes=(SqlIndex("bench_idx_parent_id", SqlIndexType.BTREE, ("parent_id",), cover=("id",)),),
 )
 
-COMPUTER_TABLE = SqlTable(
-    "bench_computer",
+MACHINE_TABLE = SqlTable(
+    "bench_machine",
     (
         SqlColumn("id", PrimitiveType.UUID, is_primary_key=True),
         SqlColumn("ck", PrimitiveType.UUID),

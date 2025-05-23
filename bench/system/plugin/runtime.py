@@ -10,11 +10,11 @@ from opentelemetry import trace
 
 from bench.language import (
     Bench,
-    Computer,
-    ComputerType,
     Error,
     ErrorKind,
     ErrorType,
+    Machine,
+    MachineType,
     Message,
     Node,
     NodeType,
@@ -73,11 +73,11 @@ class RuntimePlugin[N: Node, O: RuntimeOp = RuntimeOp](HostPlugin[N], abc.ABC):
     @override
     async def start(self) -> None:
         # TODO :Cleanup: mark abandoned Runs as dead
-        #  (like Runs 'stuck' on dead or since restarted Computers)
+        #  (like Runs 'stuck' on dead or since restarted Machines)
         self.tasks.start_queue(self._queue, self._send_op, skip_errors=True)
 
     @abc.abstractmethod
-    async def _send_in_runtime(self, op: O, computer: Computer, runtime: RuntimeClient) -> None:
+    async def _send_in_runtime(self, op: O, machine: Machine, runtime: RuntimeClient) -> None:
         """Do stuff in a Runtime."""
         ...
 
@@ -92,32 +92,32 @@ class RuntimePlugin[N: Node, O: RuntimeOp = RuntimeOp](HostPlugin[N], abc.ABC):
         op.retry.on_attempt()
         log = logger.bind(host=self, op=op, retry=op.retry)
 
-        # select computers to send run on :RuntimeRouting
-        assert NodeType.COMPUTER in self.bench._graph.node_types, f"not loaded in {self.bench!r}"
-        # TODO :Broken :RuntimeRouting :RichGraph: sometimes available_computers is locally out of sync?
-        #  (we try to reach a dead Computer, which obviously doesn't work;
+        # select machines to send run on :RuntimeRouting
+        assert NodeType.MACHINE in self.bench._graph.node_types, f"not loaded in {self.bench!r}"
+        # TODO :Broken :RuntimeRouting :RichGraph: sometimes available_machines is locally out of sync?
+        #  (we try to reach a dead Machine, which obviously doesn't work;
         #   so instead we just load it all from the DB, which is slower but more reliable)
-        computer_query = Computer.where(
-            Computer.property("type").eq(ComputerType.RUNTIME)
-            & Computer.property("status").eq(ResourceStatus.AVAILABLE)
+        machine_query = Machine.where(
+            Machine.property("type").eq(MachineType.RUNTIME)
+            & Machine.property("status").eq(ResourceStatus.AVAILABLE)
         )
-        computer_query._include_memory = False
-        available_computers = await computer_query.to_list()
+        machine_query._include_memory = False
+        available_machines = await machine_query.to_list()
 
-        # contact computers
-        for computer in available_computers:
+        # contact machines
+        for machine in available_machines:
             try:
-                assert computer.grpc_url, f"missing GRPC URL for {computer!r}"
-                channel = await self.network.get_channel(computer.grpc_url, source_id=self.host.id)
+                assert machine.grpc_url, f"missing GRPC URL for {machine!r}"
+                channel = await self.network.get_channel(machine.grpc_url, source_id=self.host.id)
                 runtime = RuntimeClient(channel)
-                await self._send_in_runtime(op, computer, runtime)
-                log.trace(f"{self.name}.send", computer=computer, channel=channel, span="current")
+                await self._send_in_runtime(op, machine, runtime)
+                log.trace(f"{self.name}.send", machine=machine, channel=channel, span="current")
                 return  # success
             except Exception as e:
                 log.error(
                     f"{self.name}.send.error",
-                    computer=computer,
-                    grpc_url=computer.grpc_url,
+                    machine=machine,
+                    grpc_url=machine.grpc_url,
                     exc_info=e,
                 )
                 op.retry.on_error(e)
@@ -131,12 +131,12 @@ class RuntimePlugin[N: Node, O: RuntimeOp = RuntimeOp](HostPlugin[N], abc.ABC):
                 kind=ErrorKind.RUNTIME,
                 type=ErrorType.RUNTIME_UNAVAILABLE,
                 title="Failed to send",
-                text="Could not reach any available Computer.",
+                text="Could not reach any available Machine.",
             )
             await self._on_failed(op, error)
             log.error(
                 f"{self.name}.send.failed",
-                computers=available_computers,
+                machines=available_machines,
                 error=error,
                 span="current",
             )
@@ -150,7 +150,7 @@ class RuntimePlugin[N: Node, O: RuntimeOp = RuntimeOp](HostPlugin[N], abc.ABC):
             )
             log.trace(
                 "runtime_plugin.process.retry",
-                computers=available_computers,
+                machines=available_machines,
                 interval=op.retry.get_wait_interval,
                 retry=op.retry,
                 span="current",
@@ -193,12 +193,12 @@ class RunPlugin(RuntimePlugin[Run, RunOp]):
                 self._queue_run(run.root or run)
 
     @override
-    async def _send_in_runtime(self, op: RunOp, computer: Computer, runtime: RuntimeClient) -> None:
+    async def _send_in_runtime(self, op: RunOp, machine: Machine, runtime: RuntimeClient) -> None:
         # should be batched and routed per Thread :RuntimeRouting
         assert op.run.thread_ptr, f"missing thread for run {op.run!r}"
         request = RunRequest(
             scope=Scope(bench_id=self.bench.id)._to_data(),
-            computer_ptr=computer._to_ref_data(),
+            machine_ptr=machine._to_ref_data(),
             thread_ptr=op.run.thread_ptr._to_data(),
             run_ptrs=[op.run._to_ref_data()],
         )
@@ -257,12 +257,10 @@ class WakePlugin(RuntimePlugin[Thread | Message, WakeOp]):
             self._queue_wake(thread)
 
     @override
-    async def _send_in_runtime(
-        self, op: WakeOp, computer: Computer, runtime: RuntimeClient
-    ) -> None:
+    async def _send_in_runtime(self, op: WakeOp, machine: Machine, runtime: RuntimeClient) -> None:
         request = WakeRequest(
             scope=Scope(bench_id=self.bench.id)._to_data(),
-            computer_ptr=computer._to_ref_data(),
+            machine_ptr=machine._to_ref_data(),
             thread_ptrs=[op.thread._to_ref_data()],
         )
         await runtime.wake(request)

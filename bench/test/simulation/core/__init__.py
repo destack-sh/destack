@@ -1,6 +1,6 @@
 from .client import ClientHandle
-from .computer import ComputerHandle
 from .host import HostHandle
+from .machine import MachineHandle
 from .oracle import SimulatedEventLoop, SimulatedEventLoopPolicy, SimulatedOracle
 from .runtime import RuntimeHandle
 from .sample import Samplable, SampledFloat, SampledInt, SampledValue, to_value
@@ -10,8 +10,8 @@ from .simulation import Simulation, get_simulation_id, run_simulation
 from .spec import (
     BenchSpec,
     ClientSpec,
-    ComputerSpec,
     HostSpec,
+    MachineSpec,
     NetworkSpec,
     RuntimeSpec,
     ServiceSpec,
@@ -27,10 +27,10 @@ __all__ = [
     "BenchSpec",
     "ClientHandle",
     "ClientSpec",
-    "ComputerHandle",
-    "ComputerSpec",
     "HostHandle",
     "HostSpec",
+    "MachineHandle",
+    "MachineSpec",
     "NetworkSpec",
     "RuntimeHandle",
     "RuntimeSpec",

@@ -46,8 +46,8 @@ class SupervisorHandle(ServiceHandle[SupervisorSpec, "SupervisorService", Superv
             oracle=self.oracle,
             host_map=SimulatedHostMap(self.simulation),
             on_error=self.simulation.on_error,
-            # we create Computers manually (via ComputerHandle) in simulation
-            create_bench_options=CreateBenchOptions(create_computer_scaler=False),
+            # we create Machines manually (via MachineHandle) in simulation
+            create_bench_options=CreateBenchOptions(create_machine_scaler=False),
         )
         await self._service.start()
         return self._service

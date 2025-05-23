@@ -9,6 +9,7 @@ from bench.language.core import (
     IsGlobal,
     IsIcon,
     IsNamed,
+    IsRegional,
     IsSlug,
     IsSubject,
     Node,
@@ -36,7 +37,15 @@ class UserStatus(BuiltinEnum):
 
 
 @node_(NodeType.USER, root_type=None)
-class User(IsGlobal, IsSubject, IsNamed, IsIcon, IsSlug, Node[UserData]):
+class User(
+    IsGlobal,
+    IsSubject,
+    IsNamed,
+    IsIcon,
+    IsSlug,
+    IsRegional,
+    Node[UserData],
+):
     """A User is a human using Bench."""
 
     line: Optional["TextLine"] = property_(35)

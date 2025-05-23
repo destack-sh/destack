@@ -46,8 +46,8 @@ push_with_retry() {
 
 # build all images
 # image names and their corresponding Dockerfiles
-IMAGES=("bench-system" "bench-computer-runtime")
-DOCKERFILES=("bench-infra/docker/Dockerfile.system" "bench-infra/docker/Dockerfile.computer-runtime")
+IMAGES=("bench-system" "bench-machine-runtime")
+DOCKERFILES=("bench-infra/docker/Dockerfile.system" "bench-infra/docker/Dockerfile.machine-runtime")
 
 for i in "${!IMAGES[@]}"; do
   IMAGE="${IMAGES[$i]}"

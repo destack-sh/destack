@@ -6,17 +6,17 @@ from bench.language import (
     Bench,
     Client,
     ClientType,
-    Computer,
-    ComputerType,
+    Machine,
+    MachineType,
     NodeType,
     Package,
     ResourceStatus,
 )
-from bench.pb2 import ClientData, ComputerData
+from bench.pb2 import ClientData, MachineData
 from bench.utils.func import generate_access_token
 from bench.utils.oracle import Oracle
 
-from .spec import ComputerSpec
+from .spec import MachineSpec
 
 if TYPE_CHECKING:
     from .client import ClientHandle
@@ -24,11 +24,11 @@ if TYPE_CHECKING:
 
 
 @final
-class ComputerHandle:
-    """A (Runtime) Computer in a Bench"""
+class MachineHandle:
+    """A (Runtime) Machine in a Bench"""
 
     def __init__(
-        self, id: str, spec: ComputerSpec, oracle: Oracle, simulation: "Simulation"
+        self, id: str, spec: MachineSpec, oracle: Oracle, simulation: "Simulation"
     ) -> None:
         self.id = id
         self.spec = spec
@@ -36,7 +36,7 @@ class ComputerHandle:
         self.simulation = simulation
         self.clients_by_name: dict[str, ClientHandle] = {}
         self._client_data: ClientData | None = None
-        self._computer_data: ComputerData | None = None
+        self._machine_data: MachineData | None = None
         self._access_token: str | None = None
 
     def __str__(self):
@@ -46,9 +46,9 @@ class ComputerHandle:
         return f"<{self.__class__.__name__} {self!s}>"
 
     @property
-    def computer_data(self) -> ComputerData:
-        assert self._computer_data is not None, f"{self!r} not ready"
-        return self._computer_data
+    def machine_data(self) -> MachineData:
+        assert self._machine_data is not None, f"{self!r} not ready"
+        return self._machine_data
 
     @property
     def client_data(self) -> ClientData:
@@ -61,7 +61,7 @@ class ComputerHandle:
         return self._access_token
 
     async def prepare(self):
-        """Create the Computer and Client."""
+        """Create the Machine and Client."""
         from bench.system import ACCESS_TOKEN_LENGTH
 
         from .session import make_pg_session
@@ -69,14 +69,14 @@ class ComputerHandle:
         # root session
         session = make_pg_session(self.simulation)
         async with session:
-            # create computer and client
+            # create machine and client
             bench = await Bench.select_all().include_descendants(Package).get(slug=self.spec.bench)
-            bench._graph.add_types(NodeType.COMPUTER, NodeType.CLIENT)
+            bench._graph.add_types(NodeType.MACHINE, NodeType.CLIENT)
             runtime = first(
                 (
                     runtime
                     for runtime in self.simulation.runtimes_by_name.values()
-                    if runtime.spec.computer == self.spec.name
+                    if runtime.spec.machine == self.spec.name
                 ),
                 None,
             )
@@ -84,27 +84,27 @@ class ComputerHandle:
             grpc_url = f"simulation://{runtime.id}:0" if runtime else None
             package = bench.package
             assert package is not None, f"no main package for {bench!r}"
-            computer = Computer(
+            machine = Machine(
                 parent=package,
                 name=self.spec.name,
-                type=ComputerType.RUNTIME,
+                type=MachineType.RUNTIME,
                 status=ResourceStatus.AVAILABLE,
                 grpc_url=grpc_url,
             )
-            session._create(computer)
+            session._create(machine)
             client = Client(
                 parent=bench,
-                type=ClientType.COMPUTER,
+                type=ClientType.MACHINE,
                 name=self.spec.name,
                 access_token=generate_access_token(ACCESS_TOKEN_LENGTH),
-                computer=computer,
+                machine=machine,
                 seen_at=self.simulation.oracle.utc(),
             )
             session._create(client)
-            computer.client = client
+            machine.client = client
             await session.commit()
         self._access_token = client.access_token
         self._client_data = client._to_data()
         self._client_data.ClearField("parent_ptr")  # type: ignore
-        self._computer_data = computer._to_data()
-        self._computer_data.ClearField("parent_ptr")  # type: ignore
+        self._machine_data = machine._to_data()
+        self._machine_data.ClearField("parent_ptr")  # type: ignore

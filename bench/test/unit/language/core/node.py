@@ -13,10 +13,10 @@ from bench.language import (
     Client,
     ClientType,
     Code,
-    Computer,
     Database,
     Field,
     Flow,
+    Machine,
     Message,
     NodeReference,
     NodeType,
@@ -88,8 +88,8 @@ def test_node_pointers_consistency(session: "Session"):
     assert package_a.parent_ptr.id == bench_a.id
 
     # sub bench nested pointers
-    computer_a = Computer(parent=package_a, name="Main")
-    assert computer_a.bench_id == bench_a.id
+    machine_a = Machine(parent=package_a, name="Main")
+    assert machine_a.bench_id == bench_a.id
     client_a = Client(
         parent=bench_a,
         seen_at=session.oracle.utc(),

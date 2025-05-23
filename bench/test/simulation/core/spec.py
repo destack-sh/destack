@@ -26,7 +26,7 @@ class SimulationSpec:
     network: "NetworkSpec" = field(default_factory=lambda: NetworkSpec())
     users: tuple["UserSpec", ...] = ()
     benches: tuple["BenchSpec", ...] = ()
-    computers: tuple["ComputerSpec", ...] = ()
+    machines: tuple["MachineSpec", ...] = ()
     clients: tuple["ClientSpec", ...] = ()
     runtimes: tuple["RuntimeSpec", ...] = ()
     supervisor: "SupervisorSpec" = field(default_factory=lambda: SupervisorSpec())
@@ -91,8 +91,8 @@ class HostSpec(ServiceSpec):
 
 
 @dataclass
-class ComputerSpec:
-    """A Computer that's a Runtime for a Bench"""
+class MachineSpec:
+    """A Machine that's a Runtime for a Bench"""
 
     name: str = ""
     bench: str = ""
@@ -100,10 +100,10 @@ class ComputerSpec:
 
 @dataclass
 class RuntimeSpec(ServiceSpec):
-    """A Computer that's a Runtime for a Bench"""
+    """A Machine that's a Runtime for a Bench"""
 
     name: str = ""
-    computer: str = ""
+    machine: str = ""
     max_processs: int = 1
 
 
@@ -112,6 +112,6 @@ class ClientSpec:
     """A Client"""
 
     name: str
-    parent: tuple[Literal["user", "computer"], str]
+    parent: tuple[Literal["user", "machine"], str]
     type: ClientType = ClientType.DESKTOP
     time_offset: timedelta | None = None

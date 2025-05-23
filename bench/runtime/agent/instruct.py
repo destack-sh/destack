@@ -81,7 +81,7 @@ You MUST NOT branch in-code if you already know the conditional state.
 You MUST keep Python statements short (we're streaming; every full statement is run immediately).
 
 # Builtins
-Bench has its own Structs/Nodes/Enums for many things (like Computer, File, Code, Text).
+Bench has its own Structs/Nodes/Enums for many things (like Machine, File, Code, Text).
 You MUST use the relevant Bench constructs, like `text(...)` for markdown or `code(...)`
 You MUST NOT create new *Python* classes/enums/...
 You MUST NOT alias or redefine builtins (NO shadowing).

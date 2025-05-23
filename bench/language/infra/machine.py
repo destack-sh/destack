@@ -15,7 +15,7 @@ from bench.language.core import (
     node_,
     property_,
 )
-from bench.pb2 import ComputerData
+from bench.pb2 import MachineData
 
 if TYPE_CHECKING:
     from bench.language import Client
@@ -23,23 +23,23 @@ if TYPE_CHECKING:
 # pyright: reportIncompatibleVariableOverride=false
 
 
-@enum_(EnumType.COMPUTER_TYPE)
-class ComputerType(BuiltinEnum):
-    RUNTIME = 10, "Runtime", "The main Bench runtime", "fas fa-computer-classic"
-    UBUNTU = 1000, "Ubuntu", "A Linux computer running Ubuntu", "fab fa-ubuntu"
-    MAC = 1100, "Mac", "A Mac computer", "fab fa-apple"
-    WINDOWS = 1200, "Windows", "A Windows computer", "fab fa-windows"
+@enum_(EnumType.MACHINE_TYPE)
+class MachineType(BuiltinEnum):
+    RUNTIME = 10, "Runtime", "The main Bench runtime", "fas fa-machine-classic"
+    UBUNTU = 1000, "Ubuntu", "A Linux machine running Ubuntu", "fab fa-ubuntu"
+    MAC = 1100, "Mac", "A Mac machine", "fab fa-apple"
+    WINDOWS = 1200, "Windows", "A Windows machine", "fab fa-windows"
     CUSTOM = 9000, "Custom", "A custom Docker image", "fas fa-whale"
 
 
-@node_(NodeType.COMPUTER)
-class Computer(IsSubject, IsProvisionable, Node[ComputerData]):
+@node_(NodeType.MACHINE)
+class Machine(IsSubject, IsProvisionable, Node[MachineData]):
     """
-    A Computer provides physical compute.
-    NOTE :RichComputing: Computers also need Deployments/Endpoints/...?
+    A Machine provides physical compute.
+    NOTE :RichComputing: Machines also need Deployments/Endpoints/...?
     """
 
-    type: ComputerType = property_(30, default=ComputerType.RUNTIME)
+    type: MachineType = property_(30, default=MachineType.RUNTIME)
 
     version: str = property_(60, default=VERSION)
     external_name: Optional[str] = property_(62, can_read="system", can_write="system")
@@ -59,5 +59,5 @@ class Computer(IsSubject, IsProvisionable, Node[ComputerData]):
     is_headless: bool = property_(77, default=False, can_write="system")
 
     @staticmethod
-    def new(type: ComputerType, name: str, *, is_headless: bool = False) -> "Computer":
-        return Computer(type=type, name=name, is_headless=is_headless)
+    def new(type: MachineType, name: str, *, is_headless: bool = False) -> "Machine":
+        return Machine(type=type, name=name, is_headless=is_headless)
