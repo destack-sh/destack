@@ -32,6 +32,8 @@ class Application(
 ):
     """An Application is an interactive set of Scenes for some purpose."""
 
+    # NOTE: tie Application to Package? :NodeTying
+
     main_scene: Optional["Scene"] = property_(
         50,
         description="The main scene of the Application.",

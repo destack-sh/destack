@@ -300,6 +300,9 @@ class Property(IntoQuery if TYPE_CHECKING else object):
     is_stored: bool = False  # stored in DB
     is_unique: bool = False  # unique index in DB
 
+    is_repr: bool = False  # printed in repr
+    is_hash: bool = True  # included in hash
+    is_eq: bool = True  # included in equality check
     is_managed: bool = False  # set automatically by the system
     is_computed: bool = False
     can_read: Literal["any", "owner", "system"] = "any"
@@ -683,6 +686,9 @@ def property_(
     cascade: CascadeAction | None = None,
     is_managed: bool = False,
     is_unique: bool = False,
+    is_repr: bool = False,
+    is_hash: bool = True,
+    is_eq: bool = True,
     can_read: Literal["any", "owner", "system"] = "any",
     can_write: Literal["any", "owner", "system"] = "any",
 ) -> Any:
@@ -702,6 +708,9 @@ def property_(
         is_stored=True,
         is_unique=is_unique,
         is_managed=is_managed,
+        is_repr=is_repr,
+        is_hash=is_hash,
+        is_eq=is_eq,
         can_read=can_read,
         can_write=can_write,
     )
@@ -744,6 +753,9 @@ def property_runtime_(*, default: Any = UNSET) -> Any:
         is_managed=True,
         is_wired=False,
         is_stored=False,
+        is_repr=False,
+        is_hash=False,
+        is_eq=False,
         default=default,
     )
 

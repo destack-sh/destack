@@ -68,9 +68,6 @@ class Flow(
     parent: Union["Page", "Agent", None] = property_parent_()
     type: FlowType = property_(30, default=FlowType.ACTION)
 
-    def __content_str__(self):
-        return ""
-
     @staticmethod
     def new(name: str, **kwargs) -> "Flow":
         flow = Flow(name=name, **kwargs)
@@ -114,11 +111,6 @@ class FlowEdge(
     # modulation
     # is_automap? (dynamically generate inputs?)
     # is_streaming: bool = property_(80, default=False)
-
-    def __content_str__(self) -> str:
-        source = self.source
-        target = self.target
-        return f"{source.absolute_path if source else '???'} {self.type.name} {target.absolute_path if target else '???'}"
 
     @property
     def flow(self) -> "Flow | None":

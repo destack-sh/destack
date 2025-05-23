@@ -4328,10 +4328,6 @@ export interface MessageData {
      */
     nodePtr?: NodeReferenceData;
     /**
-     * @generated from protobuf field: optional symbol.bench.ResourceStatus resource_status = 64;
-     */
-    resourceStatus?: ResourceStatus;
-    /**
      * @generated from protobuf field: optional symbol.bench.ModelDeveloper model_developer = 100;
      */
     modelDeveloper?: ModelDeveloper;
@@ -22210,7 +22206,6 @@ class MessageData$Type extends MessageType$<MessageData> {
             { no: 51, name: "forwarded_from_ptr", kind: "message", T: () => NodeReferenceData },
             { no: 61, name: "text", kind: "message", T: () => TextData },
             { no: 62, name: "node_ptr", kind: "message", T: () => NodeReferenceData },
-            { no: 64, name: "resource_status", kind: "enum", opt: true, T: () => ["symbol.bench.ResourceStatus", ResourceStatus, "RESOURCE_STATUS_"] },
             { no: 100, name: "model_developer", kind: "enum", opt: true, T: () => ["symbol.bench.ModelDeveloper", ModelDeveloper, "MODEL_DEVELOPER_"] },
             { no: 101, name: "model_provider", kind: "enum", opt: true, T: () => ["symbol.bench.ModelProvider", ModelProvider, "MODEL_PROVIDER_"] },
             { no: 102, name: "model_id", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
@@ -22294,9 +22289,6 @@ class MessageData$Type extends MessageType$<MessageData> {
                     break;
                 case /* optional symbol.bench.NodeReferenceData node_ptr */ 62:
                     message.nodePtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.nodePtr);
-                    break;
-                case /* optional symbol.bench.ResourceStatus resource_status */ 64:
-                    message.resourceStatus = reader.int32();
                     break;
                 case /* optional symbol.bench.ModelDeveloper model_developer */ 100:
                     message.modelDeveloper = reader.int32();
@@ -22385,9 +22377,6 @@ class MessageData$Type extends MessageType$<MessageData> {
         /* optional symbol.bench.NodeReferenceData node_ptr = 62; */
         if (message.nodePtr)
             NodeReferenceData.internalBinaryWrite(message.nodePtr, writer.tag(62, WireType.LengthDelimited).fork(), options).join();
-        /* optional symbol.bench.ResourceStatus resource_status = 64; */
-        if (message.resourceStatus !== undefined)
-            writer.tag(64, WireType.Varint).int32(message.resourceStatus);
         /* optional symbol.bench.ModelDeveloper model_developer = 100; */
         if (message.modelDeveloper !== undefined)
             writer.tag(100, WireType.Varint).int32(message.modelDeveloper);

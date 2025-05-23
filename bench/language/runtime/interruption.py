@@ -122,17 +122,6 @@ class Interruption(
     # context
     # ...HasRuntimeContext[80-99]
 
-    def __content_str__(self):
-        node = self.runnable
-        path = node.absolute_path if node else "???"
-        if self.duration is not None:
-            duration_str = f"{self.duration.total_seconds():.3f}s"
-            return (
-                f"{self.type.bench_name}:{path}, {self.status.bench_name}, duration={duration_str}"
-            )
-        else:
-            return f"{self.type.bench_name}:{path}, {self.status.bench_name}"
-
     @property
     def is_open(self) -> bool:
         return self.status == InterruptionStatus.OPEN

@@ -53,11 +53,11 @@ class Link(IsTitled, IsResource, Node[LinkData]):
         "Run",
         None,
     ] = property_parent_()
-    type: LinkType = property_(30)
+    type: LinkType = property_(30, is_repr=True)
 
     # content
-    url: str | None = property_(50)
-    domain: str | None = property_(51)
+    url: str | None = property_(50, is_repr=True)
+    domain: str | None = property_(51, is_repr=True)
     content_url: str | None = property_(52)
     thumbnail_url: str | None = property_(53)
     favicon_url: str | None = property_(54)
@@ -69,13 +69,3 @@ class Link(IsTitled, IsResource, Node[LinkData]):
     published_at: Optional[datetime] = property_(64)
     expires_at: Optional[datetime] = property_(65)
     image_urls: list[str] = property_(70)
-
-    def __content_str__(self):
-        content_parts: list[str] = [self.type.bench_name]
-        if self.url:
-            content_parts.append(self.url)
-        if self.content_url:
-            content_parts.append(self.content_url)
-        if self.content:
-            content_parts.append(self.content[:100] + "...")
-        return ", ".join(content_parts)

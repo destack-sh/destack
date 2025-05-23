@@ -18,7 +18,6 @@ from bench.language.core import (
     IsTitled,
     Node,
     NodeType,
-    ResourceStatus,
     Text,
     TextIn,
     TextLine,
@@ -68,7 +67,7 @@ class Message(
 
     # meta
     parent: Union["Channel", "Thread", None] = property_parent_()
-    type: MessageType = property_(30, default=MessageType.DEFAULT)
+    type: MessageType = property_(30, default=MessageType.DEFAULT, is_repr=True)
     # platform? source?
     channel: Optional["Channel"] = property_(34, node_bench_from="self")
     thread: Optional["Thread"] = property_(35, node_bench_from="self")
@@ -96,15 +95,6 @@ class Message(
     if TYPE_CHECKING:
         node_ptr: Optional[NodeReference] = None
         node_id: Optional[UUID] = None
-    resource_status: Optional[ResourceStatus] = property_(64)
-
-    def __content_str__(self) -> str:
-        if self.title:
-            return self.title.to_plain(max_characters=100)
-        elif self.text:
-            return self.text.to_plain(max_characters=100)
-        else:
-            return "<empty>"
 
     def edit(self, text: TextIn, nodes: list["Node"] = UNSET):
         """Edit the Message with new Text."""

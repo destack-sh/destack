@@ -41,9 +41,6 @@ class Table(
     def records(self) -> Any:
         raise NotImplementedError
 
-    def __content_str__(self):
-        return ""
-
     @staticmethod
     def new(name: str, *fields: "Field", **kwargs) -> "Table":
         table = Table(name=name, **kwargs)

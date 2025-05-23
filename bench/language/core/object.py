@@ -130,7 +130,7 @@ def _generate_init_for_cls[ObjectT: BuiltinObject](
 if _session is None:
     self._session = ACTIVE_SESSION.get()
     if self._session is None:
-        raise RuntimeError("no session")
+        raise RuntimeError("no current session")
 if _supergraph is None:
     self._supergraph = self._session.supergraph
 """
@@ -204,6 +204,23 @@ if {prop.name}:
     if IS_DEV:
         init_str = format_code(init_str)
     return init_str
+
+
+def _generate_strs_for_cls[ObjectT: BuiltinObject](cls: type[ObjectT]) -> str:
+    """Generates repr, str, path and identifier methods for a BuiltinObject class."""
+    repr_content_str_parts = """\
+content_p
+"""
+
+
+def _generate_equals_for_cls[ObjectT: BuiltinObject](cls: type[ObjectT]) -> str:
+    """Generates an equals method for a BuiltinObject class."""
+    return ""
+
+
+def _generate_validate_for_cls[ObjectT: BuiltinObject](cls: type[ObjectT]) -> str:
+    """Generates a validate method for a BuiltinObject class."""
+    return ""
 
 
 def _generate_property_property(prop: Property) -> str:
@@ -456,6 +473,12 @@ def _process_object_cls[ObjectT: BuiltinObject](
         cls_dict["__slots__"] = tuple(cls.__wired_properties__.keys())
         init_str = _generate_init_for_cls(cls, is_node=is_node, header_properties=properties)
         exec(init_str, {"ACTIVE_SESSION": ACTIVE_SESSION}, cls_dict)
+        strs_str = _generate_strs_for_cls(cls)
+        exec(strs_str, {}, cls_dict)
+        equals_str = _generate_equals_for_cls(cls)
+        exec(equals_str, {}, cls_dict)
+        validate_str = _generate_validate_for_cls(cls)
+        exec(validate_str, {}, cls_dict)
 
         # add computed properties to concrete classes
         for prop in properties.values():
@@ -570,12 +593,7 @@ class BuiltinObject[ObjectDataT: AnyObjectData](abc.ABC):
     _session: "Session" = property_runtime_()
     _supergraph: "Supergraph" = property_runtime_()
 
-    def __content_str__(self) -> str:
-        return ""  # empty by default
-
-    @final
-    def __str__(self):
-        return self.__content_str__()
+    # nocheckin: generate BuiltinObject str
 
     def equals(
         self,
@@ -588,7 +606,7 @@ class BuiltinObject[ObjectDataT: AnyObjectData](abc.ABC):
 
     def validate(self) -> None:
         """Validate the object."""
-        # nocheckin: genreate validate for BuiltinObject
+        # nocheckin: generate validate for BuiltinObject
         raise NotImplementedError
 
     def _stable_hash(self) -> int:
@@ -755,12 +773,9 @@ def is_struct[T: Struct | Struct](obj: Any, struct_cls: type[T]) -> TypeGuard[T]
 class Scope(Struct[ScopeData]):
     """The scope for an operation on the Bench graph."""
 
-    region: Optional[Region] = property_(30)
-    bench_id: Optional[UUID] = property_(31)
-    package_ids: list[UUID] = property_(32)
-
-    def __content_str__(self) -> str:
-        return repr_scope(self)
+    region: Optional[Region] = property_(30, is_repr=True)
+    bench_id: Optional[UUID] = property_(31, is_repr=True)
+    package_ids: list[UUID] = property_(32, is_repr=True)
 
 
 def repr_scope(scope: Scope | ScopeData) -> str:
@@ -782,19 +797,9 @@ class PropertyReference(Struct):
     If type is unset, this refers to a base property in one of the base BuiltinObject types.
     """
 
-    node_type: NodeType | None = property_(30)
-    struct_type: StructType | None = property_(31)
-    id: int = property_(32)
-
-    def __content_str__(self):
-        object_cls = self.object_cls
-        if object_cls is None:
-            return "???"
-        prop = object_cls.__properties_by_id__.get(self.id)
-        if prop is None:
-            return f"{object_cls.__name__}.??? [id={self.id}]"
-        else:
-            return f"{object_cls.__name__}.{prop.name} [id={self.id}]"
+    node_type: NodeType | None = property_(30, is_repr=True)
+    struct_type: StructType | None = property_(31, is_repr=True)
+    id: int = property_(32, is_repr=True)
 
     @property
     def object_cls(self) -> type[BuiltinObject] | None:

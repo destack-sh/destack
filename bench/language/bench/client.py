@@ -56,27 +56,6 @@ class Client(IsNamed, IsInBench, Node[ClientData]):
     browser_name: Optional[str] = property_(43)
     browser_version: Optional[str] = property_(44)
 
-    @property
-    def is_attached(self) -> bool:
-        parent = self.parent
-        if parent is None:
-            return False
-        return parent.is_attached
-
-    def __content_str__(self) -> str:
-        value_parts = []
-        for prop in (
-            "device_type",
-            "device_name",
-            "operating_system",
-            "browser_name",
-            "browser_version",
-        ):
-            value = getattr(self, prop)
-            if value is not None:
-                value_parts.append(value)
-        return ", ".join(value_parts)
-
     def to_origin(self, *, nonce: UUID | None) -> "Origin":
         return Origin(type=self.type, id=self.id, nonce=nonce or self.id)
 

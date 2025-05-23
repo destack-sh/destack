@@ -41,7 +41,6 @@ from bench.language.core import (
 )
 from bench.pb2 import DownloadFilesRequest, FileData, UploadFilesRequest
 from bench.utils.func import group_by
-from bench.utils.string import humanize_bytes
 from bench.utils.utils import get_from_env
 
 if TYPE_CHECKING:
@@ -486,14 +485,14 @@ class File(IsResource, IsRegional, Node[FileData]):
         None,
     ] = property_parent_()
 
-    type: FileType = property_(30)
+    type: FileType = property_(30, is_repr=True)
 
     # meta
-    source: FileSource = property_(60)
-    mime_type: str | None = property_(61)
-    format: FileFormat | None = property_(62)
-    size: int | None = property_(63, primitive_type=PrimitiveType.INT64)
-    sha256: str | None = property_(64, can_write="system")
+    source: FileSource = property_(60, is_repr=True)
+    mime_type: str | None = property_(61, is_repr=True)
+    format: FileFormat | None = property_(62, is_repr=True)
+    size: int | None = property_(63, primitive_type=PrimitiveType.INT64, is_repr=True)
+    sha256: str | None = property_(64)
     width: int | None = property_(65)
     height: int | None = property_(66)
     aspect_ratio: float | None = property_(67)
@@ -501,7 +500,7 @@ class File(IsResource, IsRegional, Node[FileData]):
     duration: Optional[timedelta] = property_(69)
 
     # content
-    url: str | None = property_(70)  # if external
+    url: str | None = property_(70, is_repr=True)  # if external
     content_url: str | None = property_(71)  # if external
     thumbnail_url: str | None = property_(72)  # if external
     favicon_url: str | None = property_(73)
@@ -519,23 +518,6 @@ class File(IsResource, IsRegional, Node[FileData]):
     _cached_tmp_path: Optional[str] = property_runtime_(default=None)
     _cached_content: Optional[bytes] = property_runtime_(default=None)
     _cached_image: Optional[Image.Image] = property_runtime_(default=None)
-
-    def __content_str__(self) -> str:
-        content_parts = [self.source.bench_name, f"'{self.name}'"]
-        if self.size is not None:
-            content_parts.append(humanize_bytes(self.size))
-        if self.format:
-            content_parts.append(f"{self.type.bench_name}/{self.format.bench_name}")
-        else:
-            content_parts.append(self.type.bench_name)
-        if self.mime_type:
-            content_parts.append(f"'{self.mime_type}'")
-        if self.width and self.height:
-            content_parts.append(f"{self.width}x{self.height}")
-        if self.duration:
-            duration_str = f"{self.duration.total_seconds():.3f}s"
-            content_parts.append(f"{duration_str}s")
-        return ", ".join(content_parts)
 
     def get_original(self) -> "File | None":
         """The original file (if converted or self)."""

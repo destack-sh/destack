@@ -77,9 +77,6 @@ class Field(
         default=None
     )  # should match Field.property
 
-    def __content_str__(self) -> str:
-        return TypeBase.__content_str__(self)
-
     def __eq__(self, other):  # type: ignore
         return IntoQuery.__eq__(self, other)  # override to avoid recursion
 

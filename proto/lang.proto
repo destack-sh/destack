@@ -2556,7 +2556,6 @@ message MessageData {
   optional NodeReferenceData forwarded_from_ptr = 51;
   optional TextData text = 61;
   optional NodeReferenceData node_ptr = 62;
-  optional ResourceStatus resource_status = 64;
   optional ModelDeveloper model_developer = 100;
   optional ModelProvider model_provider = 101;
   optional string model_id = 102;

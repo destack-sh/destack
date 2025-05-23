@@ -225,8 +225,7 @@ def encode_storage_key(field: "Field") -> str:
 class Type(Struct, TypeBase):
     """A Type in the type system."""
 
-    # redirect so we get TypeBase.__content_str__ (not Struct.__content_str__)
-    __content_str__ = TypeBase.__content_str__  # type: ignore
+    pass
 
 
 #

@@ -50,9 +50,6 @@ class Page(
     # NOTE: :Architecture: maybe some IsBlockables should have their own Page? or is that confusing?
     # app? scene? plugin? Page/Record/View/... tying? :NodeTying
 
-    def __content_str__(self):
-        return ""
-
     @overload
     def add_child(self, child: IsBlockable, move: bool = False) -> "Block": ...
     @overload
