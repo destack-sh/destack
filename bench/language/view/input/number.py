@@ -1,6 +1,6 @@
 from typing import Optional
 
-from bench.language.core import IsArchivable, IsDeletable, Node, NodeType, node_, p_regular
+from bench.language.core import IsArchivable, IsDeletable, Node, NodeType, node_, property_
 from bench.pb2 import NumberInputViewData
 
 from .input import IsInputView
@@ -17,5 +17,5 @@ class NumberInputView(
 ):
     """A general number input View."""
 
-    value: Optional[str] = p_regular(100)
-    placeholder: Optional[str] = p_regular(101)
+    value: Optional[str] = property_(100)
+    placeholder: Optional[str] = property_(101)

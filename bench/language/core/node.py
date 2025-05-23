@@ -39,8 +39,8 @@ from .property import (
     Property,
     p_internal,
     p_node_parent,
-    p_runtime,
     p_system,
+    property_,
 )
 from .struct import Struct, struct_
 from .trait import IndexIn, IsBased, IsBlockable, IsInBench, IsModal, IsSubject, get_trait_by_name
@@ -178,15 +178,18 @@ class Node[NodeDataT: AnyNodeData](BuiltinObject[NodeDataT]):
     # IsOwnable.owned_by: 17
     # IsClaimable.claimed_by: 18
     # ...managed_by/controlled_by?
-    # IsModal.mode: 25
-    # IsExtensible.value: 26
+    # IsModal.mode: 20
+    # IsExtensible.value: 21
+    # IsOrdered.order_key: 22
+    # IsRegional.region: 23
 
     # 30+ for general properties
     # ...
 
-    _graph: "Graph" = p_runtime(default=None)
-    _is_new: bool = p_runtime(default=False)
-    _hash: int = p_runtime(default=None)
+    _graph: "Graph" = property_(default=None)
+    _is_new: bool = property_(default=False)
+    _is_attached: bool = property_(default=False)  # :CachedAncestors
+    _hash: int = property_(default=None)
 
     if TYPE_CHECKING:
         _skip_add_self: bool = False
@@ -213,8 +216,8 @@ class Node[NodeDataT: AnyNodeData](BuiltinObject[NodeDataT]):
     @property
     def is_attached(self) -> bool:
         """
-        Whether this Node is attached to a roots.
-        TODO :Performance: Node.is_attached is very inefficient
+        Whether this Node is attached to a root.
+        nocheckin: generate & cache Node.is_attached :CachedAncestors
         """
         if self.__root_type__ is None:
             return True  # always attached
@@ -255,7 +258,7 @@ class Node[NodeDataT: AnyNodeData](BuiltinObject[NodeDataT]):
         if not prop.is_wired:
             object.__setattr__(self, key, new_value)
             return
-        raise NotImplementedError("nocheckin: flat edits")
+        raise NotImplementedError("nocheckin: edits (flat and otherwise)")
 
     if not TYPE_CHECKING:
         # NOTE: __setattr__/__getattr__ confuses type checking, so only define it at runtime

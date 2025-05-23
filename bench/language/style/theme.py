@@ -6,6 +6,7 @@ from bench.language.core import (
     IsArchivable,
     IsBlockable,
     IsDeletable,
+    IsIcon,
     IsInstantiable,
     IsModal,
     IsNamed,
@@ -13,7 +14,7 @@ from bench.language.core import (
     NodeType,
     enum_,
     node_,
-    p_regular,
+    property_,
 )
 from bench.pb2 import ThemeData
 
@@ -41,6 +42,7 @@ class Theme(
     IsInstantiable,
     IsModal,
     IsNamed,
+    IsIcon,
     IsBlockable,
     IsDeletable,
     IsArchivable,
@@ -49,7 +51,7 @@ class Theme(
     """A Theme with common styles."""
 
     # colors
-    colors: dict[ThemeColor, "Color"] = p_regular(50)
+    colors: dict[ThemeColor, "Color"] = property_(50)
 
     # fonts
     # ...

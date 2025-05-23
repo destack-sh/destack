@@ -13,7 +13,7 @@ from bench.language.core import (
     enum_,
     node_,
     object_,
-    p_regular,
+    property_,
     struct_,
 )
 from bench.pb2 import ColorStyleData
@@ -85,15 +85,15 @@ class ColorShade(BuiltinEnum):
 class ColorBase(BuiltinObject):
     """A color value (x, y, z, alpha in 0-1)."""
 
-    type: ColorType = p_regular(30)
-    style: Optional["ColorStyle"] = p_regular(42)
+    type: ColorType = property_(30)
+    style: Optional["ColorStyle"] = property_(42)
 
-    hue: Optional[ColorHue] = p_regular(50)
-    shade: Optional[ColorShade] = p_regular(51)
-    x: Optional[float] = p_regular(52)
-    y: Optional[float] = p_regular(53)
-    z: Optional[float] = p_regular(54)
-    alpha: Optional[float] = p_regular(55)
+    hue: Optional[ColorHue] = property_(50)
+    shade: Optional[ColorShade] = property_(51)
+    x: Optional[float] = property_(52)
+    y: Optional[float] = property_(53)
+    z: Optional[float] = property_(54)
+    alpha: Optional[float] = property_(55)
 
 
 @struct_(StructType.COLOR)
@@ -124,7 +124,7 @@ class ColorStyle(
 ):
     """A color style, with an optional dark variant."""
 
-    dark: Color | None = p_regular(60)
+    dark: Color | None = property_(60)
 
     @staticmethod
     def from_color(color: Color, dark: Color | None = None) -> "ColorStyle":

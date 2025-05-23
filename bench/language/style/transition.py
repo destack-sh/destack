@@ -13,7 +13,7 @@ from bench.language.core import (
     enum_,
     node_,
     object_,
-    p_regular,
+    property_,
     struct_,
 )
 from bench.pb2 import TransitionStyleData
@@ -47,16 +47,16 @@ class SpringType(BuiltinEnum):
 
 @object_()
 class TransitionBase(BuiltinObject):
-    type: TransitionType = p_regular(30, default=TransitionType.TWEEN)
-    style: Optional["TransitionStyle"] = p_regular(41)
-    delay: float | None = p_regular(50)
-    duration: float | None = p_regular(51)
-    ease: list[float] | None = p_regular(52)
-    stiffness: float | None = p_regular(53)
-    damping: float | None = p_regular(54)
-    mass: float | None = p_regular(55)
-    bounce: float | None = p_regular(56)
-    spring_type: SpringType | None = p_regular(57)
+    type: TransitionType = property_(30, default=TransitionType.TWEEN)
+    style: Optional["TransitionStyle"] = property_(41)
+    delay: float | None = property_(50)
+    duration: float | None = property_(51)
+    ease: list[float] | None = property_(52)
+    stiffness: float | None = property_(53)
+    damping: float | None = property_(54)
+    mass: float | None = property_(55)
+    bounce: float | None = property_(56)
+    spring_type: SpringType | None = property_(57)
 
 
 @struct_(StructType.TRANSITION)

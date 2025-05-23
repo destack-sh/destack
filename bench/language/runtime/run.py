@@ -19,10 +19,9 @@ from bench.language.core import (
     SpanType,
     node_,
     p_internal,
-    p_node_ancestor,
     p_node_parent,
-    p_regular,
     p_system,
+    property_,
 )
 from bench.pb2 import RunData
 
@@ -51,21 +50,18 @@ class Run(
     # meta
     parent: Union["Thread", "Agent", "Run", None] = p_node_parent()
     type: RunType = p_system(30)
-    root: "Run | None" = p_node_ancestor(33, require=False, store=True, wire=True)
     thread: Optional["Thread"] = p_internal(
         38,
         node_bench_from="self",
         description="The Thread to communicate with the Run. May be shared with other Runs.",
     )
     if TYPE_CHECKING:
-        root_ptr: Optional[NodeReference] = None
-        root_id: Optional[UUID] = None
         thread_ptr: Optional[NodeReference] = None
         thread_id: Optional[UUID] = None
 
     # content
-    code: Optional["Code"] = p_regular(66)
-    runnable: Optional[IsRunnable] = p_regular(67)
+    code: Optional["Code"] = property_(66)
+    runnable: Optional[IsRunnable] = property_(67)
     if TYPE_CHECKING:
         runnable_ptr: Optional[NodeReference] = None
         runnable_id: Optional[UUID] = None

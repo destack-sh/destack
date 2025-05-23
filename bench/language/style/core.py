@@ -6,7 +6,7 @@ from bench.language.core import (
     Struct,
     StructType,
     enum_,
-    p_regular,
+    property_,
     struct_,
 )
 
@@ -76,8 +76,8 @@ class LengthUnit(BuiltinEnum):
 class Length(Struct):
     """A length value."""
 
-    unit: LengthUnit = p_regular(50)
-    value: float = p_regular(51)
+    unit: LengthUnit = property_(50)
+    value: float = property_(51)
 
 
 @enum_(EnumType.POSITION_TYPE)
@@ -94,11 +94,11 @@ class PositionType(BuiltinEnum):
 class Position(Struct):
     """A position value."""
 
-    type: PositionType = p_regular(30)
-    top: Length | None = p_regular(50)
-    left: Length | None = p_regular(51)
-    width: Length | None = p_regular(52)
-    height: Length | None = p_regular(53)
+    type: PositionType = property_(30)
+    top: Length | None = property_(50)
+    left: Length | None = property_(51)
+    width: Length | None = property_(52)
+    height: Length | None = property_(53)
 
 
 @enum_(EnumType.DIMENSION_TYPE)
@@ -112,58 +112,58 @@ class DimensionType(BuiltinEnum):
 class Dimension(Struct):
     """A dimension value (like Length but can fit or fill container)."""
 
-    type: DimensionType = p_regular(30)
-    unit: LengthUnit = p_regular(50)
-    value: float = p_regular(51)
+    type: DimensionType = property_(30)
+    unit: LengthUnit = property_(50)
+    value: float = property_(51)
 
 
 @struct_(StructType.INSETS)
 class Insets(Struct):
     """An insets value (base + top/left/right/bottom)."""
 
-    base: int | None = p_regular(50)
-    top: int | None = p_regular(51)
-    left: int | None = p_regular(52)
-    right: int | None = p_regular(53)
-    bottom: int | None = p_regular(54)
+    base: int | None = property_(50)
+    top: int | None = property_(51)
+    left: int | None = property_(52)
+    right: int | None = property_(53)
+    bottom: int | None = property_(54)
 
 
 @struct_(StructType.CORNERS)
 class Corners(Struct):
     """A corners value (base + top_left/top_right/bottom_left/bottom_right)."""
 
-    base: int | None = p_regular(50)
-    top_left: int | None = p_regular(51)
-    top_right: int | None = p_regular(52)
-    bottom_left: int | None = p_regular(53)
-    bottom_right: int | None = p_regular(54)
+    base: int | None = property_(50)
+    top_left: int | None = property_(51)
+    top_right: int | None = property_(52)
+    bottom_left: int | None = property_(53)
+    bottom_right: int | None = property_(54)
 
 
 @struct_(StructType.AXIS2)
 class Axis2(Struct):
     """A gap value (base + x/y)."""
 
-    base: float | None = p_regular(50)
-    x: float | None = p_regular(51)
-    y: float | None = p_regular(52)
+    base: float | None = property_(50)
+    x: float | None = property_(51)
+    y: float | None = property_(52)
 
 
 @struct_(StructType.AXIS3)
 class Axis3(Struct):
     """A rotation value (base + x/y/z)."""
 
-    base: float | None = p_regular(50)
-    x: float | None = p_regular(51)
-    y: float | None = p_regular(52)
-    z: float | None = p_regular(53)
+    base: float | None = property_(50)
+    x: float | None = property_(51)
+    y: float | None = property_(52)
+    z: float | None = property_(53)
 
 
 @struct_(StructType.VECTOR2)
 class Vector2(Struct):
     """A 2D vector."""
 
-    x: float = p_regular(50)
-    y: float = p_regular(51)
+    x: float = property_(50)
+    y: float = property_(51)
 
 
 def vector2(x: float, y: float) -> "Vector2":
@@ -174,9 +174,9 @@ def vector2(x: float, y: float) -> "Vector2":
 class Vector3(Struct):
     """A 3D vector."""
 
-    x: float = p_regular(50)
-    y: float = p_regular(51)
-    z: float = p_regular(52)
+    x: float = property_(50)
+    y: float = property_(51)
+    z: float = property_(52)
 
 
 def vector3(x: float, y: float, z: float) -> "Vector3":
@@ -187,10 +187,10 @@ def vector3(x: float, y: float, z: float) -> "Vector3":
 class Vector4(Struct):
     """A 4D vector."""
 
-    x: float = p_regular(50)
-    y: float = p_regular(51)
-    z: float = p_regular(52)
-    w: float = p_regular(53)
+    x: float = property_(50)
+    y: float = property_(51)
+    z: float = property_(52)
+    w: float = property_(53)
 
 
 def vector4(x: float, y: float, z: float, w: float) -> "Vector4":
@@ -201,16 +201,16 @@ def vector4(x: float, y: float, z: float, w: float) -> "Vector4":
 class Grid(Struct):
     """A grid configuration value."""
 
-    columns: int = p_regular(50)
-    rows: int = p_regular(51)
-    column_width: Dimension | None = p_regular(52)
-    column_min_width: Dimension | None = p_regular(53)
-    row_height: Dimension | None = p_regular(54)
+    columns: int = property_(50)
+    rows: int = property_(51)
+    column_width: Dimension | None = property_(52)
+    column_min_width: Dimension | None = property_(53)
+    row_height: Dimension | None = property_(54)
 
 
 @struct_(StructType.GRID_SPAN)
 class GridSpan(Struct):
     """A grid span value."""
 
-    columns: int = p_regular(50)
-    rows: int = p_regular(51)
+    columns: int = property_(50)
+    rows: int = property_(51)

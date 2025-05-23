@@ -10,7 +10,7 @@ from bench.language.core import (
     NodeType,
     node_,
     p_node_parent,
-    p_regular,
+    property_,
 )
 from bench.pb2 import DependencyData
 
@@ -36,7 +36,7 @@ class Dependency(
 
     parent: Union["Package", None] = p_node_parent()
 
-    dependency: Union["Package", "Bench"] = p_regular(
+    dependency: Union["Package", "Bench"] = property_(
         40,
         description="The Package or Bench this Dependency depends on (if Bench it's all Packages).",
     )

@@ -23,7 +23,7 @@ from bench.language.core import (
     enum_,
     node_,
     p_node_parent,
-    p_regular,
+    property_,
     text_line,
 )
 from bench.pb2 import BlockData
@@ -83,13 +83,13 @@ class Block(
     parent: Union["Page", "Block", None] = p_node_parent()
 
     # meta
-    type: BlockType = p_regular(30, description="The type of block.")
+    type: BlockType = property_(30, description="The type of block.")
 
     # content
     # NOTE: maybe there should be a general mechanism for tying Nodes like Blocks? :NodeTying
-    line: Optional["TextLine"] = p_regular(40)
-    node: Optional["Node"] = p_regular(41, node_exclude=("base_id",))
-    view: Optional["IsView"] = p_regular(42, node_exclude=("base_id",))
+    line: Optional["TextLine"] = property_(40)
+    node: Optional["Node"] = property_(41, node_exclude=("base_id",))
+    view: Optional["IsView"] = property_(42, node_exclude=("base_id",))
     # size?
     if TYPE_CHECKING:
         node_id: Optional[UUID] = None

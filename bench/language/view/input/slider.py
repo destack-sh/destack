@@ -1,6 +1,6 @@
 from typing import Optional
 
-from bench.language.core import IsArchivable, IsDeletable, Node, NodeType, node_, p_regular
+from bench.language.core import IsArchivable, IsDeletable, Node, NodeType, node_, property_
 from bench.pb2 import SliderInputViewData
 
 from .input import IsInputView
@@ -17,7 +17,7 @@ class SliderInputView(
 ):
     """A slider input View."""
 
-    value: Optional[float] = p_regular(100)
-    min_value: Optional[float] = p_regular(101)
-    max_value: Optional[float] = p_regular(102)
-    step: Optional[float] = p_regular(103)
+    value: Optional[float] = property_(100)
+    min_value: Optional[float] = property_(101)
+    max_value: Optional[float] = property_(102)
+    step: Optional[float] = property_(103)

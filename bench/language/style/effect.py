@@ -14,7 +14,7 @@ from bench.language.core import (
     enum_,
     node_,
     object_,
-    p_regular,
+    property_,
     struct_,
 )
 from bench.pb2 import EffectStyleData
@@ -74,24 +74,24 @@ class OffscreenBehavior(BuiltinEnum):
 class EffectBase(BuiltinObject):
     """A base class for effects."""
 
-    type: EffectType = p_regular(30)
-    style: Optional["EffectStyle"] = p_regular(41)
+    type: EffectType = property_(30)
+    style: Optional["EffectStyle"] = property_(41)
 
-    opacity: Optional[float] = p_regular(50)
-    offset: Optional[Vector2] = p_regular(51)
-    scale: Optional[float] = p_regular(52)
-    rotate: Optional[Axis3] = p_regular(53)
-    skew: Optional[Vector2] = p_regular(54)
-    perspective: Optional[float] = p_regular(55)
-    delay: Optional[timedelta] = p_regular(56)
-    duration: Optional[float] = p_regular(57)
-    threshold: Optional[float] = p_regular(58)
-    once: Optional[bool] = p_regular(59)
-    repeat: Optional[RepeatType] = p_regular(60)
-    split: Optional[TextSplitType] = p_regular(61)
-    offscreen: Optional[OffscreenBehavior] = p_regular(62)
+    opacity: Optional[float] = property_(50)
+    offset: Optional[Vector2] = property_(51)
+    scale: Optional[float] = property_(52)
+    rotate: Optional[Axis3] = property_(53)
+    skew: Optional[Vector2] = property_(54)
+    perspective: Optional[float] = property_(55)
+    delay: Optional[timedelta] = property_(56)
+    duration: Optional[float] = property_(57)
+    threshold: Optional[float] = property_(58)
+    once: Optional[bool] = property_(59)
+    repeat: Optional[RepeatType] = property_(60)
+    split: Optional[TextSplitType] = property_(61)
+    offscreen: Optional[OffscreenBehavior] = property_(62)
 
-    transition: Optional["Transition"] = p_regular(70)
+    transition: Optional["Transition"] = property_(70)
 
 
 @struct_(StructType.EFFECT)

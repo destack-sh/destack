@@ -28,7 +28,7 @@ from .const import (
     is_struct_type,
 )
 from .object import BuiltinObject, get_tk_b64_from_ck, object_
-from .property import p_internal, p_regular
+from .property import p_internal, property_
 from .struct import Struct, struct_
 
 if TYPE_CHECKING:
@@ -46,10 +46,11 @@ class TypeCardinality(BuiltinEnum):
 
     SCALAR = 1
     LIST = 2
-    MAP = 3
-    # OPTION = 4
-    # LITERAL = 5
-    # UNION = 6
+    # SET?
+    MAP = 5
+    # OPTION = 10
+    # LITERAL = 11
+    # UNION = 12
 
 
 @enum_(EnumType.SCALAR_TYPE)
@@ -88,10 +89,10 @@ class NumberFormat(BuiltinEnum):
 class StringConstraint(Struct):
     """The constraint of a string."""
 
-    format: Optional[StringFormat] = p_regular(40)
-    regex: Optional[str] = p_regular(41)
-    starts_with: Optional[str] = p_regular(42)
-    ends_with: Optional[str] = p_regular(43)
+    format: Optional[StringFormat] = property_(40)
+    regex: Optional[str] = property_(41)
+    starts_with: Optional[str] = property_(42)
+    ends_with: Optional[str] = property_(43)
 
 
 SLUG_REGEX_CHAR = r"a-z0-9-"
@@ -105,28 +106,28 @@ PHONE_NUMBER_REGEX = r"^\+?(\d{1,3})?[-.\s]?(\(?\d{1,4}\)?)?[-.\s]?\d{1,4}[-.\s]
 class NumberConstraint(Struct):
     """The constraint of a number."""
 
-    format: Optional[NumberFormat] = p_regular(40)
-    min_value: Optional[float] = p_regular(41)
-    max_value: Optional[float] = p_regular(42)
-    step_value: Optional[float] = p_regular(43)
-    precision: Optional[int] = p_regular(44)  # for decimals
-    scale: Optional[int] = p_regular(45)  # for decimals
+    format: Optional[NumberFormat] = property_(40)
+    min_value: Optional[float] = property_(41)
+    max_value: Optional[float] = property_(42)
+    step_value: Optional[float] = property_(43)
+    precision: Optional[int] = property_(44)  # for decimals
+    scale: Optional[int] = property_(45)  # for decimals
 
 
 @struct_(StructType.COLLECTION_CONSTRAINT)
 class CollectionConstraint(Struct):
     """The constraint of a collection."""
 
-    min_length: Optional[int] = p_regular(41)
-    max_length: Optional[int] = p_regular(42)
+    min_length: Optional[int] = property_(41)
+    max_length: Optional[int] = property_(42)
 
 
 @struct_(StructType.NODE_CONSTRAINT)
 class NodeConstraint(Struct):
     """The constraint of a node."""
 
-    node_types: list["NodeType"] = p_regular(41)
-    node_traits: list["Trait"] = p_regular(42)
+    node_types: list["NodeType"] = property_(41)
+    node_traits: list["Trait"] = property_(42)
     # page/thread/base/bench, ...
 
 
@@ -146,26 +147,26 @@ class TypeBase(BuiltinObject):
 
     # scalar
     scalar_type: ScalarType = p_internal(41)
-    primitive_type: Optional[PrimitiveType] = p_regular(42)
-    enum_type: Optional[EnumType] = p_regular(43)
-    node_type: Optional[NodeType] = p_regular(44)
-    struct_type: Optional[StructType] = p_regular(45)
-    default: Optional["Value"] = p_regular(46)
-    is_required: bool = p_regular(47, default=False)
-    is_variable: bool = p_regular(48, default=False)
+    primitive_type: Optional[PrimitiveType] = property_(42)
+    enum_type: Optional[EnumType] = property_(43)
+    node_type: Optional[NodeType] = property_(44)
+    struct_type: Optional[StructType] = property_(45)
+    default: Optional["Value"] = property_(46)
+    is_required: bool = property_(47, default=False)
+    is_variable: bool = property_(48, default=False)
 
     # collection
-    base_type: Optional["Node"] = p_regular(50)
-    key_type: Optional["Type"] = p_regular(51)  # for maps
+    base_type: Optional["Node"] = property_(50)
+    key_type: Optional["Type"] = property_(51)  # for maps
     if TYPE_CHECKING:
         base_type_id: Optional[UUID] = None
         base_type_ptr: Optional["NodeReference"] = None
 
     # constraints
-    collection_constraint: Optional["CollectionConstraint"] = p_regular(60)
-    string_constraint: Optional["StringConstraint"] = p_regular(61)
-    number_constraint: Optional["NumberConstraint"] = p_regular(62)
-    node_constraint: Optional["NodeConstraint"] = p_regular(63)
+    collection_constraint: Optional["CollectionConstraint"] = property_(60)
+    string_constraint: Optional["StringConstraint"] = property_(61)
+    number_constraint: Optional["NumberConstraint"] = property_(62)
+    node_constraint: Optional["NodeConstraint"] = property_(63)
 
     def morph_to(
         self,

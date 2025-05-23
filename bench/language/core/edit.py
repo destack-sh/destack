@@ -10,7 +10,7 @@ from bench.pb2 import AnyNodeData, EditData
 from .const import BuiltinEnum, EnumType, StructType, bittuple, enum_
 from .graph import Graph, GraphData
 from .node import Node
-from .property import p_regular, p_system
+from .property import p_system, property_
 from .struct import Struct, struct_
 
 if TYPE_CHECKING:
@@ -80,13 +80,13 @@ class Edit(Struct):
     )
     type: EditType = p_system(30, description="Type of Edit.")
     node: Node = p_system(31, description="Which Node.")
-    key: str | None = p_regular(32)
+    key: str | None = property_(32)
 
     # content
     operation: EditOperation | None = p_system(40)
     # node_data: AnyNodeData | None = p_system(40, primitive_type=None, is_node_data=True)
-    new_value: "Value | None" = p_regular(42)
-    key_value: "Value | None" = p_regular(43)  # for map operations
+    new_value: "Value | None" = property_(42)
+    key_value: "Value | None" = property_(43)  # for map operations
 
     edited_at: datetime = p_system(50, description="When the Edit was made.")
     # change_key?

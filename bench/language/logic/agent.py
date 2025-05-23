@@ -19,7 +19,7 @@ from bench.language.core import (
     NodeReference,
     NodeType,
     node_,
-    p_regular,
+    property_,
 )
 from bench.pb2 import AgentData
 
@@ -50,12 +50,12 @@ class Agent(
     """
 
     # content
-    page: Optional["Page"] = p_regular(
+    page: Optional["Page"] = property_(
         54,
         node_bench_from="self",
         description="The main Page used by this Agent.",
     )
-    cursor: Optional["Cursor"] = p_regular(
+    cursor: Optional["Cursor"] = property_(
         55,
         node_bench_from="self",
         description="The main Cursor for this Agent.",

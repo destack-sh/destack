@@ -6,7 +6,7 @@ from bench.language.core import (
     Struct,
     StructType,
     enum_,
-    p_regular,
+    property_,
     struct_,
 )
 
@@ -47,9 +47,9 @@ class FillSize(BuiltinEnum):
 
 @struct_(StructType.FILL)
 class Fill(Struct):
-    type: FillType = p_regular(30)
-    color: Color | None = p_regular(40)
-    gradient: Gradient | None = p_regular(41)
-    image: "File | None" = p_regular(50)
-    position: FillPosition | None = p_regular(60)
-    size: FillSize | None = p_regular(70)
+    type: FillType = property_(30)
+    color: Color | None = property_(40)
+    gradient: Gradient | None = property_(41)
+    image: "File | None" = property_(50)
+    position: FillPosition | None = property_(60)
+    size: FillSize | None = property_(70)

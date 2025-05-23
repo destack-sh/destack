@@ -23,7 +23,7 @@ from bench.language.core import (
     node_,
     p_internal,
     p_node_parent,
-    p_regular,
+    property_,
 )
 from bench.pb2 import FlowData, FlowEdgeData
 
@@ -67,7 +67,7 @@ class Flow(
     """A Flow orchestrates a sequence of steps (like Actions)."""
 
     parent: Union["Page", "Agent", None] = p_node_parent()
-    type: FlowType = p_regular(30, default=FlowType.ACTION)
+    type: FlowType = property_(30, default=FlowType.ACTION)
 
     def __content_str__(self):
         return ""
@@ -104,8 +104,8 @@ class FlowEdge(
 
     # meta
     type: FlowEdgeType = p_internal(30)
-    source: "Action" = p_regular(35)
-    target: "Action" = p_regular(36)
+    source: "Action" = property_(35)
+    target: "Action" = property_(36)
     if TYPE_CHECKING:
         source_ptr: Optional[NodeReference] = None
         source_id: Optional[UUID] = None
@@ -114,7 +114,7 @@ class FlowEdge(
 
     # modulation
     # is_automap? (dynamically generate inputs?)
-    # is_streaming: bool = p_regular(80, default=False)
+    # is_streaming: bool = property_(80, default=False)
 
     def __content_str__(self) -> str:
         source = self.source

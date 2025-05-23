@@ -11,7 +11,7 @@ from bench.language.core import (
     StructType,
     ValidationError,
     enum_,
-    p_regular,
+    property_,
     struct_,
 )
 from bench.utils.string import Casing, to_casing
@@ -27,7 +27,7 @@ if TYPE_CHECKING:
 class RunTrace(Struct):
     """A stacktrace for a Run."""
 
-    frames: list["RunFrame"] = p_regular(30)
+    frames: list["RunFrame"] = property_(30)
 
 
 @struct_(StructType.RUN_FRAME)
@@ -69,12 +69,12 @@ class ErrorType(BuiltinEnum):
 class Error(Struct, BenchError):
     """An error that occurred in the context of a Run."""
 
-    kind: ErrorKind = p_regular(30)
-    type: ErrorType = p_regular(31)
-    title: str | None = p_regular(32)
-    text: str | None = p_regular(33)
-    nodes: list["Node"] = p_regular(34)
-    trace: Optional[RunTrace] = p_regular(35)
+    kind: ErrorKind = property_(30)
+    type: ErrorType = property_(31)
+    title: str | None = property_(32)
+    text: str | None = property_(33)
+    nodes: list["Node"] = property_(34)
+    trace: Optional[RunTrace] = property_(35)
 
     def __content_str__(self) -> str:
         parts = [self.kind.bench_name]

@@ -17,9 +17,8 @@ from bench.language.core import (
     enum_,
     node_,
     p_internal,
-    p_node_ancestor,
     p_node_parent,
-    p_regular,
+    property_,
 )
 from bench.pb2 import InterruptionData
 
@@ -84,8 +83,7 @@ class Interruption(
 
     # meta
     parent: Optional["Run"] = p_node_parent()
-    type: InterruptionType = p_regular(30)
-    root: "Run | None" = p_node_ancestor(31, require=False, store=True, wire=True)
+    type: InterruptionType = property_(30)
     runnable: Optional["IsRunnable"] = p_internal(32)
     span: Optional["Span"] = p_internal(37)
     if TYPE_CHECKING:
@@ -105,18 +103,18 @@ class Interruption(
         span_ptr: Optional[NodeReference] = None
 
     # status
-    status: InterruptionStatus = p_regular(40, default=InterruptionStatus.OPEN)
+    status: InterruptionStatus = property_(40, default=InterruptionStatus.OPEN)
     duration: Optional[timedelta] = p_internal(41)
     closed_at: Optional[datetime] = p_internal(42)
 
     # content
     response: Optional[InterruptionResponse] = p_internal(54)
-    message: Optional["Message"] = p_regular(
+    message: Optional["Message"] = property_(
         55,
         description="The Message that was created for this Interruption.",
         node_bench_from="self",
     )
-    task: Optional["Task"] = p_regular(
+    task: Optional["Task"] = property_(
         56,
         description="The Task that was created for this Interruption.",
         node_bench_from="self",

@@ -1,6 +1,4 @@
-from typing import TYPE_CHECKING, Optional, Union
-
-from fastuuid import UUID
+from typing import TYPE_CHECKING, Union
 
 from bench.language.core import (
     IsInPackage,
@@ -10,14 +8,13 @@ from bench.language.core import (
     NodeType,
     SpanType,
     node_,
-    p_node_ancestor,
     p_node_parent,
-    p_regular,
+    property_,
 )
 from bench.pb2 import SpanData
 
 if TYPE_CHECKING:
-    from bench.language import NodeReference, Run
+    from bench.language import Run
 
 
 # pyright: reportIncompatibleVariableOverride=false
@@ -36,14 +33,9 @@ class Span(
 
     # meta
     parent: Union["Run", None] = p_node_parent()
-    type: SpanType = p_regular(30)
-    root: "Run | None" = p_node_ancestor(31, require=False, store=True, wire=True)
-    if TYPE_CHECKING:
-        root_ptr: Optional[NodeReference] = None
-        root_id: Optional[UUID] = None
-
+    type: SpanType = property_(30)
     # content
-    title: str | None = p_regular(60)
+    title: str | None = property_(60)
 
     # ...IsProcessable[80-]
 

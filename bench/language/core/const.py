@@ -641,6 +641,7 @@ class NodeType(BuiltinEnum):
     THREAD = 1810, "Thread", "Thread", "fas fa-reel"
     MESSAGE = 1820, "Message", "Message", "fas fa-message"
     NOTIFICATION = 1850, "Notification", "Notification", "fas fa-bell"
+    # FEED, FEED_ITEM, ...
     # POLL, VOTE, RATING, REACTION, ...
 
     # logic [2000-2400]
@@ -780,19 +781,22 @@ class Trait(BuiltinEnum):
     GLOBAL = 1, "Global", "Is global", "fas fa-globe"
     LOCAL = 3, "Local", "Is local", "fas fa-globe"
     MODAL = 10, "Modal", "Has a mode", "fas fa-window-maximize"
-    NAMED = 11, "Named", "Has a name", "fas fa-font-case"
-    TITLED = 12, "Titled", "Has a title", "fas fa-font-case"
-    ORDERED = 13, "Ordered", "Has an order", "fas fa-sort"
-    ARCHIVABLE = 14, "Archivable", "Can be archived", "fas fa-box-archive"
-    DELETABLE = 15, "Deletable", "Can be deleted", "fas fa-trash"
-    TEMPLATABLE = 20, "Templatable", "Can be templated", "fas fa-puzzle-piece"
-    INSTANTIABLE = 21, "Instantiable", "Can be instantiated", "fas fa-clone"
-    EXTENSIBLE = 22, "Extensible", "Can be extended", "fas fa-expand"
-    BASED = 23, "Based", "Can be based on", "fas fa-baseball-bat-ball"
-    IN_BENCH = 30, "Bench", "In a Bench", "fas fa-bench"
-    IN_PACKAGE = 31, "Package", "In a Package", "fas fa-box"
-    RESOURCE = 40, "Resource", "Is a Resource"
-    PROVISIONABLE = 41, "Provisionable", "Can be provisioned", "fas fa-server"
+    ARCHIVABLE = 11, "Archivable", "Can be archived", "fas fa-box-archive"
+    DELETABLE = 12, "Deletable", "Can be deleted", "fas fa-trash"
+    NAMED = 20, "Named", "Has a name", "fas fa-font-case"
+    TITLED = 21, "Titled", "Has a title", "fas fa-font-case"
+    SLUG = 22, "Slug", "Has a slug", "fas fa-hashtag"
+    ICON = 23, "Icon", "Has an Icon", "fas fa-icons"
+    ORDERED = 24, "Ordered", "Has an order", "fas fa-sort"
+    TEMPLATABLE = 30, "Templatable", "Can be templated", "fas fa-puzzle-piece"
+    INSTANTIABLE = 31, "Instantiable", "Can be instantiated", "fas fa-clone"
+    EXTENSIBLE = 32, "Extensible", "Can be extended", "fas fa-expand"
+    BASED = 33, "Based", "Can be based on", "fas fa-baseball-bat-ball"
+    IN_BENCH = 40, "Bench", "In a Bench", "fas fa-bench"
+    IN_PACKAGE = 41, "Package", "In a Package", "fas fa-box"
+    REGIONAL = 50, "Regional", "Is regional", "fas fa-globe"
+    RESOURCE = 51, "Resource", "Is a Resource"
+    PROVISIONABLE = 52, "Provisionable", "Can be provisioned", "fas fa-server"
     # package [1000-1200]
     PAGEABLE = 1020, "Page", "In a Page", "far fa-file"
     BLOCKABLE = 1030, "Block", "Can be a Block on a Page", "fas fa-cube"
@@ -1053,6 +1057,15 @@ class Severity(BuiltinEnum):
     WARNING = 4, None, None, "fas fa-circle-exclamation"
     ERROR = 5, None, None, "fas fa-circle-exclamation"
     PANIC = 6, None, None, "fas fa-skull"
+
+
+@enum_(EnumType.CASCADE_ACTION)
+class CascadeAction(BuiltinEnum):
+    CASCADE = 1
+    SET_NULL = 2
+    SET_DEFAULT = 3
+    SET_VALUE = 4
+    NONE = 5
 
 
 @enum_(EnumType.PRIMITIVE_TYPE)

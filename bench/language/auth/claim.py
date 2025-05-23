@@ -20,7 +20,7 @@ from bench.language.core import (
     node_,
     p_internal,
     p_node_parent,
-    p_regular,
+    property_,
 )
 from bench.pb2 import ClaimData
 
@@ -83,10 +83,10 @@ class Claim(
 
     # meta
     parent: Union["Service", "Flow", "Action", "Agent", "Thread", "Run", None] = p_node_parent()
-    type: ClaimType = p_regular(30)
+    type: ClaimType = property_(30)
 
     # status
-    status: ClaimStatus = p_regular(50, default=ClaimStatus.REQUESTED)
+    status: ClaimStatus = property_(50, default=ClaimStatus.REQUESTED)
     duration: Optional[timedelta] = p_internal(51)
     opened_at: Optional[datetime] = p_internal(52)
     paused_at: Optional[datetime] = p_internal(53)
@@ -94,16 +94,16 @@ class Claim(
     terminated_at: Optional[datetime] = p_internal(55)
 
     # content
-    target: Optional[IsClaimable] = p_regular(
+    target: Optional[IsClaimable] = property_(
         60,
         description="The target Node this claim is about.",
     )
-    target_template: Optional[IsClaimable] = p_regular(
+    target_template: Optional[IsClaimable] = property_(
         61,
         description="The template for a target Node.",
     )
     # target_selection/filter/....?
-    is_hidden: bool = p_regular(65, default=False)
+    is_hidden: bool = property_(65, default=False)
     if TYPE_CHECKING:
         target_ptr: Optional[NodeReference] = None
         target_id: Optional[UUID] = None

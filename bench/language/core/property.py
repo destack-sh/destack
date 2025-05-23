@@ -12,7 +12,6 @@ from typing import (
     Mapping,
     Optional,
     assert_never,
-    cast,
 )
 
 from bench.language.registry import _on_completing_setup
@@ -24,6 +23,7 @@ from .const import (
     NODE_TYPES,
     PRIMITIVE_TYPE_BY_PY_TYPE,
     UNSET,
+    CascadeAction,
     EnumType,
     NodeReferenceKind,
     NodeType,
@@ -263,42 +263,43 @@ def get_class_name(py_type: type | typing.ForwardRef | str) -> str | None:
 class Property(IntoQuery if TYPE_CHECKING else object):
     """A system-defined attribute of a BuiltinObject (Struct or Node)."""
 
-    # NOTE: yes cast(int, None) is a bit evil but we almost always immediately assign it here and
-    #  don't want to deal with asserting id is not None everywhere.
-    # stable id for wiring properties, must be unique per final struct/node
-    id: int = cast(int, None)  # noqa: RUF009
+    # meta
+    id: int | None = None
     key: str = UNSET  # str(id)
-    ord: int = cast(int, None)  # noqa: RUF009
+    ord: int | None = None
     name: str = UNSET  # name from LHS of assignment
     component: type["BuiltinObject"] = UNSET  # builtin object component
+
+    # type
     py_type_raw: Any = None  # type annotation on LHS of assignment
     py_type: Any = UNSET  # clean type annotation
     is_node_data: bool = False  # special case
-
     cardinality: Literal["scalar", "list", "map"] = UNSET
     scalar_type: Literal["primitive", "enum", "struct", "node"] = UNSET
     primitive_type: PrimitiveType | None = None
     enum_type: EnumType | None = None
     struct_type: StructType | None = None
-    format: "Format | None" = None
     key_type: "TypeAnnotation | None" = None
     element_type: "TypeAnnotation | None" = None
     is_required: bool = False
     is_variable: bool = False
     default: Any = UNSET
+    format: "Format | None" = None
     constraint: "Constraint | None" = None
 
+    # pointers
     ptr_prop: Optional["Property"] = None  # wired representation for pointers
     runtime_prop: Optional["Property"] = None  # for the proto property
     nodes: tuple[NodeType | Trait, ...] = ()  # for node relations
     node_kind: NodeReferenceKind | None = None
     node_bench_from: Literal["self"] | None = None
     node_exclude: tuple[Literal["ck", "base_id"], ...] = ()
+    cascade_action: CascadeAction | None = None
 
     is_wired: bool = False  # serialized onto wire (in proto)
     is_stored: bool = False  # stored in DB
     is_internal: bool = False  # managed internally (not enforced)
-    is_autoset: bool = False  # set automatically by system, cannot set directly
+
     is_computed: bool = False
     is_unique: bool = False  # unique index in DB
     is_sensitive: bool = False  # sensitive data (hide by default)
@@ -365,8 +366,10 @@ class Property(IntoQuery if TYPE_CHECKING else object):
         """A pointer to this property. `to_ref()` for consistency with `Node.to_ref()`."""
 
         if self._ref is None:
-            assert self.component is not None, f"{self!r} is not finalized"
             from .object import PropertyReference
+
+            assert self.component is not None, f"{self!r} has no component"
+            assert self.id is not None, f"{self!r} has no id"
 
             if self.component.__is_node__:
                 ref = PropertyReference(
@@ -487,7 +490,6 @@ class Property(IntoQuery if TYPE_CHECKING else object):
                 primitive_type=PrimitiveType.JSON,
                 is_wired=True,
                 is_stored=True,
-                is_autoset=self.is_autoset,
                 cardinality=self.cardinality,
                 is_computed=is_computed,
                 is_required=self.is_required,
@@ -670,7 +672,7 @@ class Property(IntoQuery if TYPE_CHECKING else object):
 
 
 @_on_completing_setup
-def _add_property_queryable():
+def _add_property_into_query():
     from .query import IntoQuery
 
     for name, attr in IntoQuery.__dict__.items():
@@ -678,8 +680,8 @@ def _add_property_queryable():
             setattr(Property, name, attr)
 
 
-def p_property(
-    id: int,
+def property_(
+    id: int | None = None,
     *,
     default: Any = UNSET,
     primitive_type: PrimitiveType | None = UNSET,
@@ -707,7 +709,6 @@ def p_property(
         node_bench_from=node_bench_from,
         node_exclude=node_exclude,
         is_internal=internal,
-        is_autoset=autoset,
         is_wired=True,
         is_stored=store,
         is_sensitive=sensitive,
@@ -780,17 +781,23 @@ def p_node_template(id: int) -> Any:
     )
 
 
-p_regular = functools.partial(p_property, internal=False, system=False)
-p_internal = functools.partial(p_property, internal=True, system=False)
-p_system = functools.partial(p_property, internal=True, system=True)
-p_kernel = functools.partial(p_property, internal=True, system=True, sensitive=True, kernel=True)
+property_ = functools.partial(property_, internal=False, system=False)
+p_internal = functools.partial(property_, internal=True, system=False)
+p_system = functools.partial(property_, internal=True, system=True)
+p_kernel = functools.partial(property_, internal=True, system=True, sensitive=True, kernel=True)
 
 if TYPE_CHECKING:
-    p_regular = p_internal = p_system = p_kernel = p_property  # type: ignore
+    property_ = p_internal = p_system = p_kernel = property_  # type: ignore
 
 _PROPERTY_SPECIFIERS: tuple[Callable, ...] = (
-    p_property,
+    property_,
     p_runtime,
     p_node_parent,
     p_node_ancestor,
+    p_node_ancestor_with_self,
+    p_node_template,
+    property_,
+    p_internal,
+    p_system,
+    p_kernel,
 )

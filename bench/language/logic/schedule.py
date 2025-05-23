@@ -11,7 +11,7 @@ from bench.language.core import (
     Struct,
     StructType,
     enum_,
-    p_regular,
+    property_,
     struct_,
 )
 
@@ -35,22 +35,22 @@ class ScheduleFrequency(BuiltinEnum):
 class Schedule(Struct):
     """The time-based schedule of something (compatible with rrule)."""
 
-    frequency: ScheduleFrequency = p_regular(30)
-    interval: int = p_regular(31, default=1)
-    start: datetime | None = p_regular(32)
-    end: datetime | None = p_regular(33)
-    count: int | None = p_regular(34)
-    week_start: Day | None = p_regular(35)
-    by_set_pos: list[int] = p_regular(36)
-    by_month: list[Month] = p_regular(37)
-    by_month_day: list[int] = p_regular(38)
-    by_year_day: list[int] = p_regular(39)
-    by_easter: list[int] = p_regular(40)
-    by_week_no: list[int] = p_regular(41)
-    by_week_day: list[Day] = p_regular(42)
-    by_hour: list[int] = p_regular(43)
-    by_minute: list[int] = p_regular(44)
-    by_second: list[int] = p_regular(45)
+    frequency: ScheduleFrequency = property_(30)
+    interval: int = property_(31, default=1)
+    start: datetime | None = property_(32)
+    end: datetime | None = property_(33)
+    count: int | None = property_(34)
+    week_start: Day | None = property_(35)
+    by_set_pos: list[int] = property_(36)
+    by_month: list[Month] = property_(37)
+    by_month_day: list[int] = property_(38)
+    by_year_day: list[int] = property_(39)
+    by_easter: list[int] = property_(40)
+    by_week_no: list[int] = property_(41)
+    by_week_day: list[Day] = property_(42)
+    by_hour: list[int] = property_(43)
+    by_minute: list[int] = property_(44)
+    by_second: list[int] = property_(45)
 
     def __content_str__(self) -> str:
         return render_schedule_as_rrule(self)

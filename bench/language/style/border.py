@@ -13,7 +13,7 @@ from bench.language.core import (
     enum_,
     node_,
     object_,
-    p_regular,
+    property_,
     struct_,
 )
 from bench.pb2 import BorderStyleData
@@ -44,10 +44,10 @@ class BorderType(BuiltinEnum):
 
 @object_()
 class BorderBase(BuiltinObject):
-    type: BorderType = p_regular(30, default=BorderType.SOLID)
-    style: Optional["BorderStyle"] = p_regular(41)
-    color: Optional["Color"] = p_regular(50)
-    width: Optional[Insets] = p_regular(51)
+    type: BorderType = property_(30, default=BorderType.SOLID)
+    style: Optional["BorderStyle"] = property_(41)
+    color: Optional["Color"] = property_(50)
+    width: Optional[Insets] = property_(51)
 
 
 @struct_(StructType.BORDER)

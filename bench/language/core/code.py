@@ -5,7 +5,7 @@ import structlog
 from opentelemetry import trace
 
 from .const import BuiltinEnum, EnumType, StructType, enum_
-from .property import p_regular
+from .property import property_
 from .struct import Struct, struct_
 
 if TYPE_CHECKING:
@@ -31,8 +31,8 @@ class CodeType(BuiltinEnum):
 class Code(Struct):
     """Code in some language."""
 
-    language: Optional[str] = p_regular(32)
-    content: Optional[str] = p_regular(40)
+    language: Optional[str] = property_(32)
+    content: Optional[str] = property_(40)
 
     def __content_str__(self) -> str:
         preview_str = self.content or ""

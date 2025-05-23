@@ -13,7 +13,7 @@ from bench.language.core import (
     enum_,
     node_,
     object_,
-    p_regular,
+    property_,
     struct_,
 )
 from bench.pb2 import ShadowStyleData
@@ -48,14 +48,14 @@ class ShadowPosition(BuiltinEnum):
 
 @object_()
 class ShadowBase(BuiltinObject):
-    type: ShadowType = p_regular(30, default=ShadowType.BOX)
-    style: Optional["ShadowStyle"] = p_regular(41)
-    color: Optional["Color"] = p_regular(50)
-    position: ShadowPosition = p_regular(51, default=ShadowPosition.OUTSIDE)
-    offset: Optional[Axis2] = p_regular(52)
-    blur: int | None = p_regular(53)
-    spread: int | None = p_regular(54)
-    diffusion: float | None = p_regular(55)
+    type: ShadowType = property_(30, default=ShadowType.BOX)
+    style: Optional["ShadowStyle"] = property_(41)
+    color: Optional["Color"] = property_(50)
+    position: ShadowPosition = property_(51, default=ShadowPosition.OUTSIDE)
+    offset: Optional[Axis2] = property_(52)
+    blur: int | None = property_(53)
+    spread: int | None = property_(54)
+    diffusion: float | None = property_(55)
 
 
 @struct_(StructType.SHADOW)
