@@ -1,18 +1,11 @@
 import dataclasses
-from datetime import datetime
 from typing import TYPE_CHECKING, Any, Callable
 
 import structlog
 from fastuuid import UUID, uuid4
 from opentelemetry import trace
 
-from bench.pb2 import (
-    EditData,
-    EditOperationData,
-)
-
-from .edit import EditType
-from .node import Node
+from bench.pb2 import EditData
 
 if TYPE_CHECKING:
     from bench.language import Session
@@ -52,25 +45,6 @@ class Transaction:
 
     @property
     def has_pending_edits(self) -> bool:
-        raise NotImplementedError
-
-    #
-    # Transaction management
-    #
-
-    def record_edit_event(
-        self,
-        type: EditType,
-        node: Node,
-        *,
-        now: datetime | None = None,
-        operation: EditOperationData | None = None,
-    ):
-        """
-        Records an edit event (which are later summed into actual edits).
-        We try to be efficient and record minimal information quickly and only as needed.
-        """
-
         raise NotImplementedError
 
     @tracer.start_as_current_span("transaction.flush")
