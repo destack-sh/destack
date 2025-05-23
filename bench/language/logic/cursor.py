@@ -15,8 +15,8 @@ from bench.language.core import (
     Selection,
     enum_,
     node_,
-    p_node_parent,
     property_,
+    property_parent_,
 )
 from bench.pb2 import CursorData
 
@@ -77,7 +77,7 @@ class Cursor(
     """
 
     # meta
-    parent: Union["Space", "Agent", "Thread", "Run", None] = p_node_parent()
+    parent: Union["Space", "Agent", "Thread", "Run", None] = property_parent_()
     type: CursorType = property_(30)
 
     # status?

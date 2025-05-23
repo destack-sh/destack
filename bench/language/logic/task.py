@@ -19,8 +19,8 @@ from bench.language.core import (
     ProcessStatus,
     TextLineIn,
     node_,
-    p_node_parent,
     property_,
+    property_parent_,
     text_line,
 )
 from bench.pb2 import TaskData
@@ -47,7 +47,7 @@ class Task(
     """A Task is like a to do item."""
 
     # meta
-    parent: Union["Page", "Task", None] = p_node_parent()
+    parent: Union["Page", "Task", None] = property_parent_()
     # type?
     # priority?
 

@@ -6,7 +6,7 @@ from bench.language.core import (
     IsNamed,
     IsTemplatable,
     Trait,
-    p_node_parent,
+    property_parent_,
     trait_,
 )
 
@@ -25,4 +25,4 @@ class IsStyle(
 ):
     """A Style is a graphical interface."""
 
-    parent: Union["Space", "IsView", "Page", None] = p_node_parent()
+    parent: Union["Space", "IsView", "Page", None] = property_parent_()

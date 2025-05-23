@@ -22,8 +22,8 @@ from bench.language.core import (
     TextLineType,
     enum_,
     node_,
-    p_node_parent,
     property_,
+    property_parent_,
     text_line,
 )
 from bench.pb2 import BlockData
@@ -80,7 +80,7 @@ class Block(
     A Block on a Page.
     """
 
-    parent: Union["Page", "Block", None] = p_node_parent()
+    parent: Union["Page", "Block", None] = property_parent_()
 
     # meta
     type: BlockType = property_(30, description="The type of block.")

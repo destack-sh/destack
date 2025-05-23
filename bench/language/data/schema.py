@@ -11,7 +11,7 @@ from bench.language.core import (
     NodeType,
     TypeBase,
     node_,
-    p_node_parent,
+    property_parent_,
 )
 from bench.pb2 import SchemaData
 
@@ -34,4 +34,4 @@ class Schema(
 ):
     """A Schema for a specific Type."""
 
-    parent: Union["Page", None] = p_node_parent()
+    parent: Union["Page", None] = property_parent_()

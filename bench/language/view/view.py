@@ -5,8 +5,8 @@ from bench.language.core import (
     IsInstantiable,
     IsModal,
     IsNamed,
-    p_node_parent,
     property_,
+    property_parent_,
     trait_,
 )
 from bench.language.core.const import Trait
@@ -27,7 +27,7 @@ class IsView[NodeDataT: AnyNodeData](
 ):
     """A View is a graphical interface."""
 
-    parent: Union["Space", "IsView", "Page", None] = p_node_parent()
+    parent: Union["Space", "IsView", "Page", None] = property_parent_()
     # variant_of, ...
 
     # sizing

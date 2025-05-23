@@ -16,8 +16,8 @@ from bench.language.core import (
     StringFormat,
     enum_,
     node_,
-    p_node_parent,
     property_,
+    property_parent_,
 )
 from bench.pb2 import SpaceData
 
@@ -50,7 +50,7 @@ class Space(
     Spaces to all Benches are stored in the owning User's Bench.
     """
 
-    parent: Optional["Package"] = p_node_parent()
+    parent: Optional["Package"] = property_parent_()
 
     type: SpaceType = property_(30)
     name: str | None = property_(31, format=StringFormat.NAME)

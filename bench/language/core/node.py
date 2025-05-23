@@ -37,10 +37,9 @@ from .object import BuiltinObject, _process_object_cls
 from .property import (
     _PROPERTY_SPECIFIERS,
     Property,
-    p_internal,
-    p_node_parent,
-    p_system,
     property_,
+    property_parent_,
+    property_runtime_,
 )
 from .struct import Struct, struct_
 from .trait import IndexIn, IsBased, IsBlockable, IsInBench, IsModal, IsSubject, get_trait_by_name
@@ -140,9 +139,9 @@ class Node[NodeDataT: AnyNodeData](BuiltinObject[NodeDataT]):
 
     # 1-9: node identity
     # Node.metatype: 1
-    id: UUID = p_system(2, autoset=True)
+    id: UUID = property_(2, is_managed=True, can_write="system")
     # IsTemplatable.ck: 3
-    parent: Optional["Node"] = p_node_parent()  # type: ignore
+    parent: Optional["Node"] = property_parent_()  # type: ignore
     if TYPE_CHECKING:
         parent_type: NodeType | None = None
         parent_id: Optional[UUID] = None
@@ -153,17 +152,23 @@ class Node[NodeDataT: AnyNodeData](BuiltinObject[NodeDataT]):
     # IsInPackage.package: 7
 
     # 10-29: node tracking
-    created_at: datetime = p_system(10, autoset=True)
-    created_by: Optional[IsSubject] = p_system(  # type: ignore (pyright is wrong, Subject is a type)
+    created_at: datetime = property_(10, is_managed=True, can_write="system")
+    created_by: Optional[IsSubject] = property_(  # type: ignore (pyright is wrong, Subject is a type)
         11,
         default=None,
-        autoset=True,
+        is_managed=True,
         node_bench_from="self",
         node_exclude=("ck", "base_id"),
+        can_write="system",
     )
-    updated_at: datetime = p_system(12, autoset=True)
-    updated_by: Optional[IsSubject] = p_system(  # type: ignore (see above)
-        13, default=None, autoset=True, node_bench_from="self", node_exclude=("ck", "base_id")
+    updated_at: datetime = property_(12, is_managed=True, can_write="system")
+    updated_by: Optional[IsSubject] = property_(  # type: ignore (see above)
+        13,
+        default=None,
+        is_managed=True,
+        node_bench_from="self",
+        node_exclude=("ck", "base_id"),
+        can_write="system",
     )
     if TYPE_CHECKING:
         created_by_id: Optional[UUID] = None
@@ -186,10 +191,10 @@ class Node[NodeDataT: AnyNodeData](BuiltinObject[NodeDataT]):
     # 30+ for general properties
     # ...
 
-    _graph: "Graph" = property_(default=None)
-    _is_new: bool = property_(default=False)
-    _is_attached: bool = property_(default=False)  # :CachedAncestors
-    _hash: int = property_(default=None)
+    _graph: "Graph" = property_runtime_(default=None)
+    _is_new: bool = property_runtime_(default=False)
+    _is_attached: bool = property_runtime_(default=False)  # :CachedAncestors
+    _hash: int = property_runtime_(default=None)
 
     if TYPE_CHECKING:
         _skip_add_self: bool = False
@@ -531,9 +536,7 @@ class Node[NodeDataT: AnyNodeData](BuiltinObject[NodeDataT]):
 
     def remove_child(self, child: "Node"):
         """Remove a child from this Node."""
-        if self._session is not None:
-            self._session._delete(child)
-        self._graph.remove(child)
+        self._graph.remove(child)  # type: ignore
         child.parent_ptr = None
 
     def get_children[N: Node = Node](
@@ -725,11 +728,11 @@ class NodeReference(Struct[NodeReferenceData]):
     A reference to a Node.
     """
 
-    node_type: NodeType = p_internal(30)
-    id: UUID = p_internal(31)
-    ck: Optional[UUID] = p_internal(32)
-    bench_id: Optional[UUID] = p_internal(33)
-    base_id: Optional[UUID] = p_internal(34)
+    node_type: NodeType = property_(30)
+    id: UUID = property_(31)
+    ck: Optional[UUID] = property_(32)
+    bench_id: Optional[UUID] = property_(33)
+    base_id: Optional[UUID] = property_(34)
     # area? external_id?
 
     def __content_str__(self):

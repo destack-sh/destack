@@ -9,8 +9,7 @@ from bench.language.core import (
     NodeType,
     enum_,
     node_,
-    p_kernel,
-    p_system,
+    property_,
 )
 from bench.pb2 import DatabaseData
 
@@ -26,10 +25,10 @@ class DatabaseType(BuiltinEnum):
 class Database(IsProvisionable, Node[DatabaseData]):
     """A trusty Postgres-compatible database."""
 
-    type: DatabaseType = p_system(30, default=DatabaseType.POSTGRES)
+    type: DatabaseType = property_(30, default=DatabaseType.POSTGRES)
 
-    version: str = p_system(60, default=VERSION)
-    external_name: Optional[str] = p_kernel(62, sensitive=True)
-    external_id: Optional[str] = p_kernel(63, sensitive=True)
-    sql_url: Optional[str] = p_kernel(64, sensitive=True)
+    version: str = property_(60, default=VERSION)
+    external_name: Optional[str] = property_(62, can_read="system", can_write="system")
+    external_id: Optional[str] = property_(63, can_read="system", can_write="system")
+    sql_url: Optional[str] = property_(64, can_read="system", can_write="system")
     # Database.sql_url should probably be :RealSecrets

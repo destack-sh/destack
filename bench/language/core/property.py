@@ -1,5 +1,4 @@
 import dataclasses
-import functools
 import types
 import typing
 from dataclasses import dataclass
@@ -268,6 +267,7 @@ class Property(IntoQuery if TYPE_CHECKING else object):
     key: str = UNSET  # str(id)
     ord: int | None = None
     name: str = UNSET  # name from LHS of assignment
+    description: str | None = None
     component: type["BuiltinObject"] = UNSET  # builtin object component
 
     # type
@@ -294,15 +294,16 @@ class Property(IntoQuery if TYPE_CHECKING else object):
     node_kind: NodeReferenceKind | None = None
     node_bench_from: Literal["self"] | None = None
     node_exclude: tuple[Literal["ck", "base_id"], ...] = ()
-    cascade_action: CascadeAction | None = None
+    cascade: CascadeAction | None = None
 
     is_wired: bool = False  # serialized onto wire (in proto)
     is_stored: bool = False  # stored in DB
-    is_internal: bool = False  # managed internally (not enforced)
-
-    is_computed: bool = False
     is_unique: bool = False  # unique index in DB
-    is_sensitive: bool = False  # sensitive data (hide by default)
+
+    is_managed: bool = False  # set automatically by the system
+    is_computed: bool = False
+    can_read: Literal["any", "owner", "system"] = "any"
+    can_write: Literal["any", "owner", "system"] = "any"
 
     _ref: Optional["PropertyReference"] = None
     _type: Optional["Type"] = None
@@ -345,8 +346,6 @@ class Property(IntoQuery if TYPE_CHECKING else object):
             non_default.append("computed")
         if self.is_unique is True:
             non_default.append("unique")
-        if self.is_sensitive is True:
-            non_default.append("sensitive")
         attrs_str = ", ".join(non_default)
         attrs_str = f" ({attrs_str})" if attrs_str else ""
         return f"<{self.__class__.__name__} {self!s}{attrs_str}>"
@@ -449,7 +448,6 @@ class Property(IntoQuery if TYPE_CHECKING else object):
                 scalar_type="struct",
                 struct_type=StructType.PROPERTY_REFERENCE,
                 cardinality=self.cardinality,
-                is_internal=self.is_internal,
                 is_wired=True,
                 is_stored=True,
                 is_required=self.is_required,
@@ -463,19 +461,13 @@ class Property(IntoQuery if TYPE_CHECKING else object):
         elif self.node_kind:
             if self.node_kind == NodeReferenceKind.NODE_PARENT:
                 is_computed = False
-                is_internal = True
-            elif self.node_kind in (
-                NodeReferenceKind.NODE_ANCESTOR_OR_SELF,
-                NodeReferenceKind.NODE_ANCESTOR,
-            ):
+            elif self.node_kind == NodeReferenceKind.NODE_ANCESTOR:
                 is_computed = True
-                is_internal = True
             elif self.node_kind in (
                 NodeReferenceKind.NODE_REGULAR,
                 NodeReferenceKind.NODE_TEMPLATE,
             ):
                 is_computed = False
-                is_internal = False
             else:
                 raise ValueError(f"unexpected reference kind {self.node_kind!r} for {self!r}")
             ptr_prop = Property(
@@ -494,14 +486,10 @@ class Property(IntoQuery if TYPE_CHECKING else object):
                 is_computed=is_computed,
                 is_required=self.is_required,
                 is_variable=self.is_variable,
-                is_internal=is_internal,
                 default=None,
                 constraint=self.constraint,
             )
-            if (
-                self.node_kind == NodeReferenceKind.NODE_ANCESTOR
-                or self.node_kind == NodeReferenceKind.NODE_ANCESTOR_OR_SELF
-            ):
+            if self.node_kind == NodeReferenceKind.NODE_ANCESTOR:
                 # wired ancestors are not required (even though stored ancestors are)
                 ptr_prop.is_required = False
 
@@ -509,8 +497,8 @@ class Property(IntoQuery if TYPE_CHECKING else object):
 
     def finalize(self, object_type: NodeType | StructType | None) -> None:
         """Determine type information from annotation, add _ptr property if needed."""
-        if self.is_wired is False:  # runtime only
-            return  # nothing to do
+        if not self.is_wired:
+            return  # runtime only, nothing to do
 
         # parse annotation
         try:
@@ -683,6 +671,7 @@ def _add_property_into_query():
 def property_(
     id: int | None = None,
     *,
+    description: str | None = None,
     default: Any = UNSET,
     primitive_type: PrimitiveType | None = UNSET,
     format: "Format | None" = None,
@@ -690,17 +679,16 @@ def property_(
     is_node_data: bool = False,
     node_bench_from: Literal["self"] | None = None,
     node_exclude: tuple[Literal["ck", "base_id"], ...] = (),
-    internal: bool = False,
-    autoset: bool = False,
-    system: bool = False,
-    kernel: bool = False,
-    description: str | None = None,
-    store: bool = True,
-    unique: bool = False,
-    sensitive: bool = False,
+    node_kind: NodeReferenceKind | None = None,
+    cascade: CascadeAction | None = None,
+    is_managed: bool = False,
+    is_unique: bool = False,
+    can_read: Literal["any", "owner", "system"] = "any",
+    can_write: Literal["any", "owner", "system"] = "any",
 ) -> Any:
     return Property(
         id=id,
+        description=description,
         default=default,
         primitive_type=primitive_type,
         format=format,
@@ -708,33 +696,23 @@ def property_(
         is_node_data=is_node_data,
         node_bench_from=node_bench_from,
         node_exclude=node_exclude,
-        is_internal=internal,
+        node_kind=node_kind,
+        cascade=cascade,
         is_wired=True,
-        is_stored=store,
-        is_sensitive=sensitive,
-        is_unique=unique,
+        is_stored=True,
+        is_unique=is_unique,
+        is_managed=is_managed,
+        can_read=can_read,
+        can_write=can_write,
     )
 
 
-def p_runtime(*, default: Any = None) -> Any:
-    """Internal runtime-only struct/node property (not persisted)."""
-    return Property(
-        is_internal=True,
-        is_wired=False,
-        is_stored=False,
-        is_computed=False,
-        is_required=False,
-        default=default,
-    )
-
-
-def p_node_parent(id: int = 4, is_system: bool = False) -> Any:
+def property_parent_(id: int = 4, is_system: bool = False) -> Any:
     """The parent of a node, must be of one of the given types."""
     return Property(
         id=id,
         node_kind=NodeReferenceKind.NODE_PARENT,
         default=None,
-        is_internal=True,
         is_wired=True,
         is_stored=False,
         is_required=False,
@@ -743,61 +721,36 @@ def p_node_parent(id: int = 4, is_system: bool = False) -> Any:
     )
 
 
-def _p_node_ancestor(
+def property_ancestor_(
     id: int,
-    kind: NodeReferenceKind,
-    store: bool = False,
-    wire: bool = False,
-    require: bool = UNSET,
+    is_required: bool,
 ) -> Any:
     """Computed nearest or farthest ancestor of the given type."""
     return Property(
         id=id,
-        node_kind=kind,
-        is_internal=True,
+        node_kind=NodeReferenceKind.NODE_ANCESTOR,
         is_computed=True,
-        is_stored=store,
-        is_wired=wire,
-        is_required=require,
+        is_required=is_required,
+        is_wired=True,
+        is_stored=True,
         node_bench_from="self",
     )
 
 
-p_node_ancestor = functools.partial(_p_node_ancestor, kind=NodeReferenceKind.NODE_ANCESTOR)
-p_node_ancestor_with_self = functools.partial(
-    p_node_ancestor, kind=NodeReferenceKind.NODE_ANCESTOR_OR_SELF
-)
-
-
-def p_node_template(id: int) -> Any:
-    """Template property for a node."""
+def property_runtime_(*, default: Any = UNSET) -> Any:
+    """A property that is only used at runtime."""
     return Property(
-        id=id,
-        node_kind=NodeReferenceKind.NODE_TEMPLATE,
-        node_exclude=("base_id",),
-        is_internal=True,
-        is_stored=True,
-        is_wired=True,
+        id=None,
+        is_managed=True,
+        is_wired=False,
+        is_stored=False,
+        default=default,
     )
 
 
-property_ = functools.partial(property_, internal=False, system=False)
-p_internal = functools.partial(property_, internal=True, system=False)
-p_system = functools.partial(property_, internal=True, system=True)
-p_kernel = functools.partial(property_, internal=True, system=True, sensitive=True, kernel=True)
-
-if TYPE_CHECKING:
-    property_ = p_internal = p_system = p_kernel = property_  # type: ignore
-
 _PROPERTY_SPECIFIERS: tuple[Callable, ...] = (
     property_,
-    p_runtime,
-    p_node_parent,
-    p_node_ancestor,
-    p_node_ancestor_with_self,
-    p_node_template,
-    property_,
-    p_internal,
-    p_system,
-    p_kernel,
+    property_parent_,
+    property_ancestor_,
+    property_runtime_,
 )

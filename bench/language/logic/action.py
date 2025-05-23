@@ -21,9 +21,8 @@ from bench.language.core import (
     RunType,
     enum_,
     node_,
-    p_internal,
-    p_node_parent,
     property_,
+    property_parent_,
 )
 from bench.pb2 import ActionData
 
@@ -84,14 +83,14 @@ class Action(
     May defer to a builtin or some other service in a separate system.
     """
 
-    parent: Union["Flow", "Service", None] = p_node_parent()
+    parent: Union["Flow", "Service", None] = property_parent_()
 
     # common
     type: ActionType = property_(30, description="Type of this Action. Only dynamic for tools.")
     text: Optional["Text"] = property_(36)
 
     # content
-    code: Optional["Code"] = p_internal(
+    code: Optional["Code"] = property_(
         52,
         default=None,
         description="The implementation code for this action.",

@@ -12,8 +12,8 @@ from bench.language.core import (
     NodeReference,
     NodeType,
     node_,
-    p_node_parent,
     property_,
+    property_parent_,
 )
 from bench.pb2 import TeamData
 
@@ -36,7 +36,7 @@ class Team(
     A Team of Users or Identities.
     """
 
-    parent: Union["Package", "Page", "Team", None] = p_node_parent()
+    parent: Union["Package", "Page", "Team", None] = property_parent_()
     organization: "Organization | None" = property_(40)
     team: Optional["Team"] = property_(41)
     if TYPE_CHECKING:

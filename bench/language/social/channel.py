@@ -14,7 +14,7 @@ from bench.language.core import (
     NodeType,
     enum_,
     node_,
-    p_node_parent,
+    property_parent_,
 )
 from bench.pb2 import ChannelData
 
@@ -46,7 +46,7 @@ class Channel(
     """
 
     # meta
-    parent: Union["Page", "Package", None] = p_node_parent()
+    parent: Union["Page", "Package", None] = property_parent_()
     # type: ChannelType? (text, voice, etc.)
 
     # ...IsProcessable[80-]

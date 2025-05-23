@@ -19,16 +19,14 @@ from bench.language.core import (
     NodeType,
     enum_,
     node_,
-    p_node_parent,
-    p_system,
     property_,
+    property_parent_,
 )
 from bench.pb2 import BenchData, BenchInviteData, BenchMembershipData
 
 if TYPE_CHECKING:
     from bench.language import (
         Database,
-        Handle,
         NodeReference,
         Package,
         TextLine,
@@ -60,16 +58,16 @@ class Bench(
     A Bench is the OS for personal software.
     """
 
-    handle: Optional["Handle"] = p_system(31, node_bench_from="self")
-    line: Optional["TextLine"] = property_(54)
-    # TODO :Security: Bench.encryption_key (DEK) or put it into a Vault (Bench.vault) :RealSecrets
-
-    # status
-    status: BenchStatus = p_system(40, default=BenchStatus.RESERVED)
+    line: Optional["TextLine"] = property_(40)
+    status: BenchStatus = property_(41, default=BenchStatus.RESERVED)
 
     # content
-    database: Optional["Database"] = p_system(50, node_bench_from="self")
-    package: Optional["Package"] = property_(51, node_bench_from="self")
+    database: Optional["Database"] = property_(
+        50, node_bench_from="self", can_write="system", description="The Database."
+    )
+    package: Optional["Package"] = property_(
+        51, node_bench_from="self", can_write="system", description="The Main Package."
+    )
     if TYPE_CHECKING:
         database_ptr: Optional[NodeReference] = None
         database_id: Optional[UUID] = None
@@ -87,7 +85,7 @@ class BenchInvite(IsInvite, IsDeletable, IsInBench, Node[BenchInviteData]):
     A BenchInvite is an invite to a Bench.
     """
 
-    parent: "Bench" = p_node_parent()
+    parent: "Bench" = property_parent_()
 
 
 @node_(NodeType.BENCH_MEMBERSHIP)
@@ -96,4 +94,4 @@ class BenchMembership(IsMembership, IsDeletable, IsInBench, Node[BenchMembership
     A BenchMembership is a membership to a Bench.
     """
 
-    parent: "Bench" = p_node_parent()
+    parent: "Bench" = property_parent_()

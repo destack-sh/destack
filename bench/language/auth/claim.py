@@ -18,9 +18,8 @@ from bench.language.core import (
     NodeType,
     enum_,
     node_,
-    p_internal,
-    p_node_parent,
     property_,
+    property_parent_,
 )
 from bench.pb2 import ClaimData
 
@@ -82,16 +81,16 @@ class Claim(
     """
 
     # meta
-    parent: Union["Service", "Flow", "Action", "Agent", "Thread", "Run", None] = p_node_parent()
+    parent: Union["Service", "Flow", "Action", "Agent", "Thread", "Run", None] = property_parent_()
     type: ClaimType = property_(30)
 
     # status
     status: ClaimStatus = property_(50, default=ClaimStatus.REQUESTED)
-    duration: Optional[timedelta] = p_internal(51)
-    opened_at: Optional[datetime] = p_internal(52)
-    paused_at: Optional[datetime] = p_internal(53)
-    resumed_at: Optional[datetime] = p_internal(54)
-    terminated_at: Optional[datetime] = p_internal(55)
+    duration: Optional[timedelta] = property_(51)
+    opened_at: Optional[datetime] = property_(52)
+    paused_at: Optional[datetime] = property_(53)
+    resumed_at: Optional[datetime] = property_(54)
+    terminated_at: Optional[datetime] = property_(55)
 
     # content
     target: Optional[IsClaimable] = property_(

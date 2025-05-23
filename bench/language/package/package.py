@@ -18,8 +18,8 @@ from bench.language.core import (
     NodeType,
     enum_,
     node_,
-    p_node_parent,
     property_,
+    property_parent_,
 )
 from bench.pb2 import PackageData
 
@@ -53,7 +53,7 @@ class Package(
     """A Package is a semi-isolated area of a Bench."""
 
     # meta
-    parent: Optional["Bench"] = p_node_parent()
+    parent: Optional["Bench"] = property_parent_()
     type: PackageType = property_(30)
 
     @property

@@ -208,7 +208,7 @@ def get_naive_object_strategy(object_type: ObjectType):
             # ignore contributed wired properties (they're derived from the generated one)
             or (prop.runtime_prop is not None)
             # ignore autoset properties (ids, timestamps)
-            or prop.is_autoset
+            or prop.is_managed
             # ignore node data properties
             or prop.is_node_data
         ):

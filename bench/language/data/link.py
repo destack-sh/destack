@@ -17,9 +17,8 @@ from bench.language.core import (
     NodeType,
     enum_,
     node_,
-    p_node_parent,
-    p_system,
     property_,
+    property_parent_,
 )
 from bench.pb2 import LinkData
 
@@ -53,7 +52,7 @@ class Link(IsTitled, IsResource, Node[LinkData]):
         "Message",
         "Run",
         None,
-    ] = p_node_parent()
+    ] = property_parent_()
     type: LinkType = property_(30)
 
     # content
@@ -67,8 +66,8 @@ class Link(IsTitled, IsResource, Node[LinkData]):
     content: str | None = property_(60)
     attribution: str | None = property_(62)
     attribution_tag: str | None = property_(63)
-    published_at: Optional[datetime] = p_system(64)
-    expires_at: Optional[datetime] = p_system(65)
+    published_at: Optional[datetime] = property_(64)
+    expires_at: Optional[datetime] = property_(65)
     image_urls: list[str] = property_(70)
 
     def __content_str__(self):

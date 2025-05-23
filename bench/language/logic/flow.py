@@ -21,9 +21,8 @@ from bench.language.core import (
     NodeType,
     enum_,
     node_,
-    p_internal,
-    p_node_parent,
     property_,
+    property_parent_,
 )
 from bench.pb2 import FlowData, FlowEdgeData
 
@@ -66,7 +65,7 @@ class Flow(
 ):
     """A Flow orchestrates a sequence of steps (like Actions)."""
 
-    parent: Union["Page", "Agent", None] = p_node_parent()
+    parent: Union["Page", "Agent", None] = property_parent_()
     type: FlowType = property_(30, default=FlowType.ACTION)
 
     def __content_str__(self):
@@ -100,10 +99,10 @@ class FlowEdge(
     A Transition between nodes in a Flow (source = outgoing, target = incoming).
     """
 
-    parent: Union["Flow", None] = p_node_parent()
+    parent: Union["Flow", None] = property_parent_()
 
     # meta
-    type: FlowEdgeType = p_internal(30)
+    type: FlowEdgeType = property_(30)
     source: "Action" = property_(35)
     target: "Action" = property_(36)
     if TYPE_CHECKING:

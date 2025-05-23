@@ -13,9 +13,6 @@ from bench.language.core import (
     Struct,
     StructType,
     node_,
-    p_internal,
-    p_kernel,
-    p_system,
     property_,
     struct_,
 )
@@ -33,9 +30,9 @@ class Client(IsNamed, IsInBench, Node[ClientData]):
 
     # meta
     type: ClientType = property_(30)
-    space: Optional["Space"] = p_system(35)
-    computer: Optional["Computer"] = p_system(36)
-    user: Optional["User"] = property_(37)
+    space: Optional["Space"] = property_(35, can_write="system")
+    computer: Optional["Computer"] = property_(36, can_write="system")
+    user: Optional["User"] = property_(37, can_write="system")
     if TYPE_CHECKING:
         space_id: Optional[UUID] = None
         space_ptr: Optional[NodeReference] = None
@@ -45,9 +42,11 @@ class Client(IsNamed, IsInBench, Node[ClientData]):
         user_ptr: Optional[NodeReference] = None
 
     # status
-    access_token: Optional[str] = p_kernel(50, unique=True, sensitive=True)
-    seen_at: Optional[datetime] = p_system(51)
-    logged_in_at: Optional[datetime] = p_system(52)
+    access_token: Optional[str] = property_(
+        50, is_unique=True, can_read="system", can_write="system"
+    )
+    seen_at: Optional[datetime] = property_(51, can_write="system")
+    logged_in_at: Optional[datetime] = property_(52, can_write="system")
     cursor: Optional["Cursor"] = property_(55)
 
     # details
@@ -86,7 +85,7 @@ class Client(IsNamed, IsInBench, Node[ClientData]):
 class Origin(Struct[OriginData]):
     """Origin of something."""
 
-    type: ClientType = p_internal(30)
-    id: Optional[UUID] = p_internal(31)
-    ck: Optional[UUID] = p_internal(32)
-    nonce: Optional[UUID] = p_internal(33)
+    type: ClientType = property_(30)
+    id: Optional[UUID] = property_(31)
+    ck: Optional[UUID] = property_(32)
+    nonce: Optional[UUID] = property_(33)
