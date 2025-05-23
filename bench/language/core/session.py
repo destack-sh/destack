@@ -138,32 +138,6 @@ class Session:
         """Get the scope for a node."""
         raise NotImplementedError
 
-    def _track(self, node: Node):
-        """Start tracking the Node in this session."""
-        if node._session != self:
-            node._track_rec(self)
-
-    def _track_many(self, *nodes: Node | None, force: bool = False):
-        """Start tracking the Nodes in this session."""
-        for n in nodes:
-            if n is None:
-                continue
-            if force and n._session is not None:
-                n._untrack_rec()
-            if n._session is not self:
-                n._track_rec(self)
-
-    def _untrack(self, node: Node):
-        """Stop tracking the Node in this session."""
-        for n in node._walk_descendants():
-            n._untrack_rec()
-
-    def _untrack_many(self, *nodes: Node | None):
-        """Stop tracking the Nodes in this session."""
-        for n in nodes:
-            if n is not None:
-                self._untrack(n)
-
     #
     # Edits
     #
