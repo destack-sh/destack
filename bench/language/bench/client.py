@@ -19,7 +19,7 @@ from bench.language.core import (
 from bench.pb2 import ClientData, OriginData
 
 if TYPE_CHECKING:
-    from bench.language import Computer, Cursor, Space, User
+    from bench.language import Cursor, Machine, Space, User
 
 # pyright: reportIncompatibleVariableOverride=false
 
@@ -31,13 +31,13 @@ class Client(IsNamed, IsInBench, Node[ClientData]):
     # meta
     type: ClientType = property_(30)
     space: Optional["Space"] = property_(35, can_write="system")
-    computer: Optional["Computer"] = property_(36, can_write="system")
+    machine: Optional["Machine"] = property_(36, can_write="system")
     user: Optional["User"] = property_(37, can_write="system")
     if TYPE_CHECKING:
         space_id: Optional[UUID] = None
         space_ptr: Optional[NodeReference] = None
-        computer_id: Optional[UUID] = None
-        computer_ptr: Optional[NodeReference] = None
+        machine_id: Optional[UUID] = None
+        machine_ptr: Optional[NodeReference] = None
         user_id: Optional[UUID] = None
         user_ptr: Optional[NodeReference] = None
 

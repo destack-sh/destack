@@ -360,7 +360,7 @@ class Query[T: "Node"](Struct):
 
     limit: Optional[int] = property_(50)
     offset: Optional[int] = property_(51)
-    count: bool = property_(52)
+    count: bool | None = property_(52)
 
 
 def to_subqueries(subqueries: dict[str, "Query"]) -> list["Query"]:

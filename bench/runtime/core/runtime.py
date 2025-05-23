@@ -662,8 +662,8 @@ class Runtime:
             node.session_ptr = self.session_ptr
         if node.client_id != self.session.client_id:
             node.client_ptr = self.session.client_ptr
-        if node.computer_id != self.session.computer_id:
-            node.computer_ptr = self.session.computer_ptr
+        if node.machine_id != self.session.machine_id:
+            node.machine_ptr = self.session.machine_ptr
 
     def on_external_update(self, update: WatchGetUpdate | WatchSearchUpdate):
         """React to updates on Runtime nodes from outside this Runtime."""

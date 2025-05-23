@@ -464,7 +464,7 @@ def {prop.name}_{obj_key}(self: "BuiltinObject") -> tuple["Node", ...]:
 
 
 def _generate_ancestor_property_impl(object_type: NodeType | StructType, prop: Property) -> str:
-    """The computer get property for Node ancestors."""
+    """The machine get property for Node ancestors."""
 
     node_types_str = ", ".join(str(t.value) for t in prop.nodes)
 

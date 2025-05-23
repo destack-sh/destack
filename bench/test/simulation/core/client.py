@@ -16,7 +16,7 @@ from bench.proto import (
 from .spec import ClientSpec
 
 if TYPE_CHECKING:
-    from .computer import ComputerHandle
+    from .machine import MachineHandle
     from .simulation import Simulation
     from .user import UserHandle
 
@@ -29,7 +29,7 @@ class ClientHandle:
         self,
         id: str,
         spec: ClientSpec,
-        parent: "UserHandle | ComputerHandle",
+        parent: "UserHandle | MachineHandle",
         simulation: "Simulation",
     ):
         self.id = id
@@ -71,7 +71,7 @@ class ClientHandle:
         return self._rpc_headers
 
     async def prepare(self, supervisor_client: SupervisorClient):
-        from .computer import ComputerHandle
+        from .machine import MachineHandle
         from .user import UserHandle
 
         if isinstance(self.parent, UserHandle):
@@ -86,7 +86,7 @@ class ClientHandle:
             login_rep = await supervisor_client.login_user(login_req)
             self._client_data = login_rep.client
             self._access_token = login_rep.access_token
-        elif isinstance(self.parent, ComputerHandle):
+        elif isinstance(self.parent, MachineHandle):
             self._client_data = self.parent.client_data
             self._access_token = self.parent.access_token
         else:

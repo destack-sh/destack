@@ -19,7 +19,7 @@ if TYPE_CHECKING:
 
 @final
 class RuntimeHandle(ServiceHandle[RuntimeSpec, "RuntimeService", RuntimeClient]):
-    """A (Runtime) Computer in a Bench"""
+    """A (Runtime) Machine in a Bench"""
 
     def __init__(
         self, id: str, spec: RuntimeSpec, oracle: Oracle, simulation: "Simulation"
@@ -34,18 +34,18 @@ class RuntimeHandle(ServiceHandle[RuntimeSpec, "RuntimeService", RuntimeClient])
         return f"<{self.__class__.__name__} {self!s}>"
 
     async def start(self) -> "RuntimeService":
-        computer = self.simulation.get_computer(self.spec.computer)
+        machine = self.simulation.get_machine(self.spec.machine)
         supervisor = await self.simulation.supervisor.connect(self.spec.name)
         self._service = RuntimeService(
             id=self.id,
             supervisor=supervisor,
             network=self.simulation.network.network,
             oracle=self.simulation.oracle,
-            bench_id=self.simulation.get_bench_id(computer.spec.bench),
-            client_type=ClientType.COMPUTER,
-            client_id=UUID(computer.client_data.id),
-            client_access_token=computer.access_token,
-            computer_id=UUID(computer.computer_data.id),
+            bench_id=self.simulation.get_bench_id(machine.spec.bench),
+            client_type=ClientType.MACHINE,
+            client_id=UUID(machine.client_data.id),
+            client_access_token=machine.access_token,
+            machine_id=UUID(machine.machine_data.id),
             max_processs=self.spec.max_processs,
             mode=RuntimeProcessMode.LOCAL,
             on_error=self.simulation.on_error,

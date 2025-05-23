@@ -15,7 +15,7 @@ locals {
     LOG_LEVEL                     = "DEBUG"
     LOG_MODE                      = "JSON"
     KUBERNETES_NAMESPACE          = "default"
-    KUBERNETES_COMPUTER_APP_LABEL = "bench-computer"
+    KUBERNETES_MACHINE_APP_LABEL = "bench-machine"
     KUBERNETES_IMAGE_PULL_SECRET  = kubernetes_secret.image_pull_secret.metadata[0].name
 
     SUPERVISOR_URL = local.supervisor_url
@@ -25,11 +25,11 @@ locals {
       ]
     ]))
 
-    COMPUTER_RUNTIME_IMAGE         = "ghcr.io/symbolx/bench-computer-runtime"
-    COMPUTER_UBUNTU_DESKTOP_IMAGE  = "ghcr.io/symbolx/bench-computer-ubuntu-desktop"
-    COMPUTER_UBUNTU_TERMINAL_IMAGE = "ghcr.io/symbolx/bench-computer-ubuntu-terminal"
-    COMPUTER_GRPC_PORT             = 5432
-    COMPUTER_VNC_PORT              = 6080
+    MACHINE_RUNTIME_IMAGE         = "ghcr.io/symbolx/bench-machine-runtime"
+    MACHINE_UBUNTU_DESKTOP_IMAGE  = "ghcr.io/symbolx/bench-machine-ubuntu-desktop"
+    MACHINE_UBUNTU_TERMINAL_IMAGE = "ghcr.io/symbolx/bench-machine-ubuntu-terminal"
+    MACHINE_GRPC_PORT             = 5432
+    MACHINE_VNC_PORT              = 6080
   }
   host_secret_env_vars = {
     "${kubernetes_secret.db_secret.metadata[0].name}" = [

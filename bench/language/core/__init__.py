@@ -112,6 +112,9 @@ from .query import (
     Sort,
     SortMode,
     SortType,
+    aggregate,
+    get,
+    search,
 )
 from .render import (
     ACTIVE_ALIASING,
@@ -388,6 +391,7 @@ __all__ = [
     "VariableType",
     "_is_setup_complete",
     "active_session",
+    "aggregate",
     "bittuple",
     "capture_span",
     "clean_name",
@@ -399,6 +403,7 @@ __all__ = [
     "encode_type_identity",
     "enum_",
     "expand_node_types",
+    "get",
     "get_active_aliasing",
     "get_active_session",
     "icon",
@@ -434,6 +439,7 @@ __all__ = [
     "repr_scope",
     "reverse_icon",
     "reverse_type_scalar",
+    "search",
     "struct_",
     "text",
     "text_line",

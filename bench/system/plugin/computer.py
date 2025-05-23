@@ -14,8 +14,8 @@ from bench.language import (
     Bench,
     Client,
     ClientType,
-    Computer,
-    ComputerType,
+    Machine,
+    MachineType,
     NodeType,
     ResourceStatus,
     bittuple,
@@ -37,35 +37,35 @@ logger = structlog.get_logger(__name__)
 tracer = trace.get_tracer(__name__)
 
 
-COMPUTER_RUNTIME_IMAGE = get_from_env(
-    "COMPUTER_RUNTIME_IMAGE", description="Runtime container image for computer"
+MACHINE_RUNTIME_IMAGE = get_from_env(
+    "MACHINE_RUNTIME_IMAGE", description="Runtime container image for machine"
 )
-COMPUTER_UBUNTU_DESKTOP_IMAGE = get_from_env(
-    "COMPUTER_UBUNTU_DESKTOP_IMAGE", description="Ubuntu desktop container image for computer"
+MACHINE_UBUNTU_DESKTOP_IMAGE = get_from_env(
+    "MACHINE_UBUNTU_DESKTOP_IMAGE", description="Ubuntu desktop container image for machine"
 )
-COMPUTER_UBUNTU_TERMINAL_IMAGE = get_from_env(
-    "COMPUTER_UBUNTU_TERMINAL_IMAGE", description="Ubuntu terminal container image for computer"
+MACHINE_UBUNTU_TERMINAL_IMAGE = get_from_env(
+    "MACHINE_UBUNTU_TERMINAL_IMAGE", description="Ubuntu terminal container image for machine"
 )
-COMPUTER_OVERCOMMITMENT = get_from_env(
-    "COMPUTER_OVERCOMMITMENT",
+MACHINE_OVERCOMMITMENT = get_from_env(
+    "MACHINE_OVERCOMMITMENT",
     default=2.0,
     typ=float,
     description="By how much to over-commit resources",
 )
-COMPUTER_GRPC_PORT = get_from_env(
-    "COMPUTER_GRPC_PORT",
+MACHINE_GRPC_PORT = get_from_env(
+    "MACHINE_GRPC_PORT",
     typ=int,
-    description="Port to expose for the computer's GRPC service",
+    description="Port to expose for the machine's GRPC service",
 )
-COMPUTER_VNC_PORT = get_from_env(
-    "COMPUTER_VNC_PORT",
+MACHINE_VNC_PORT = get_from_env(
+    "MACHINE_VNC_PORT",
     typ=int,
-    description="Port to expose for the computer's VNC service (ws)",
+    description="Port to expose for the machine's VNC service (ws)",
 )
 
-# TODO :Security!: review keys to pass to semi-trusted computers (proxy/sidecar?)
+# TODO :Security!: review keys to pass to semi-trusted machines (proxy/sidecar?)
 #  (also should if anything pass them as k8 secret key refs?)
-COMPUTER_SECRET_ENV_KEYS = (
+MACHINE_SECRET_ENV_KEYS = (
     "ANTHROPIC_API_KEY",
     "OPENAI_API_KEY",
     "GEMINI_API_KEY",
@@ -78,36 +78,36 @@ COMPUTER_SECRET_ENV_KEYS = (
 )
 
 
-def _get_computer_env_vars(
-    computer: Computer,
+def _get_machine_env_vars(
+    machine: Machine,
     client: Client,
     *,
     is_in_docker: bool = False,
     is_in_minikube: bool = False,
 ) -> dict[str, str]:
-    """Gets the environment variables for a Computer."""
+    """Gets the environment variables for a Machine."""
     supervisor_url = get_from_env("SUPERVISOR_URL", description="Supervisor URL")
     if is_in_docker:
         supervisor_url = dockerify_url(supervisor_url)
     elif is_in_minikube:
         supervisor_url = minikubeify_url(supervisor_url)
-    bench = computer.bench
-    assert bench is not None, f"missing bench for {computer!r}"
+    bench = machine.bench
+    assert bench is not None, f"missing bench for {machine!r}"
 
     # env vars
     env_vars: dict[str, str | None] = {
         # hosting
-        "SERVICE_NAME": "bench-computer",
+        "SERVICE_NAME": "bench-machine",
         "ENVIRONMENT": ENV.value,
         "CLOUD": CLOUD.slug,
-        "REGION": computer.region.slug,
-        "VERSION": computer.version,
+        "REGION": machine.region.slug,
+        "VERSION": machine.version,
         "SUPERVISOR_URL": supervisor_url,
         "IS_IN_DOCKER": "1" if is_in_docker else None,
         "IS_IN_MINIKUBE": "1" if is_in_minikube else None,
         # bench
         "BENCH_ID": str(bench.id),
-        "COMPUTER_ID": str(computer.id),
+        "MACHINE_ID": str(machine.id),
         "CLIENT_ID": str(client.id),
         "CLIENT_TYPE": str(client.type.value),
         "CLIENT_ACCESS_TOKEN": client.access_token,
@@ -116,11 +116,11 @@ def _get_computer_env_vars(
         "TRACING": "1",
         "LOG_LEVEL": "DEBUG",
         "LOG_MODE": "JSON",
-        "DISPLAY_SIZE": f"{computer.width}x{computer.height}x24",
+        "DISPLAY_SIZE": f"{machine.width}x{machine.height}x24",
     }
 
     # add secret keys
-    for key in COMPUTER_SECRET_ENV_KEYS:
+    for key in MACHINE_SECRET_ENV_KEYS:
         env_vars[key] = get_from_env_maybe(key)
 
     return {k: v for k, v in env_vars.items() if v}
@@ -133,35 +133,35 @@ def _get_bench_dir() -> str:
     return bench_dir
 
 
-def _get_computer_image(computer: Computer) -> str:
-    """Gets the Docker image for the given Computer."""
-    if computer.type == ComputerType.RUNTIME:
-        return f"{COMPUTER_RUNTIME_IMAGE}:{computer.version}"
-    elif computer.type == ComputerType.UBUNTU:
-        if computer.is_headless:
-            return f"{COMPUTER_UBUNTU_TERMINAL_IMAGE}:{computer.version}"
+def _get_machine_image(machine: Machine) -> str:
+    """Gets the Docker image for the given Machine."""
+    if machine.type == MachineType.RUNTIME:
+        return f"{MACHINE_RUNTIME_IMAGE}:{machine.version}"
+    elif machine.type == MachineType.UBUNTU:
+        if machine.is_headless:
+            return f"{MACHINE_UBUNTU_TERMINAL_IMAGE}:{machine.version}"
         else:
-            return f"{COMPUTER_UBUNTU_DESKTOP_IMAGE}:{computer.version}"
+            return f"{MACHINE_UBUNTU_DESKTOP_IMAGE}:{machine.version}"
     else:
-        raise NotImplementedError(f"cannot provision {computer!r}")
+        raise NotImplementedError(f"cannot provision {machine!r}")
 
 
-class ComputerProvisioner(Provisioner[Computer, Computer]):
-    """Provision Computers."""
+class MachineProvisioner(Provisioner[Machine, Machine]):
+    """Provision Machines."""
 
-    watch_types = bittuple(NodeType.COMPUTER)
-    provision_type = NodeType.COMPUTER
+    watch_types = bittuple(NodeType.MACHINE)
+    provision_type = NodeType.MACHINE
 
-    async def _get_or_create_client(self, resource: Computer) -> Client:
-        """Gets or creates a Client for the given Computer."""
+    async def _get_or_create_client(self, resource: Machine) -> Client:
+        """Gets or creates a Client for the given Machine."""
         if resource.client_ptr is None:
             async with self.host.session(commit=True) as session:
                 client = Client(
                     parent=resource.bench,
-                    type=ClientType.COMPUTER,
+                    type=ClientType.MACHINE,
                     name=resource.name,
                     access_token=generate_access_token(ACCESS_TOKEN_LENGTH),
-                    computer=resource,
+                    machine=resource,
                     seen_at=session.oracle.utc(),
                 )
                 session._create(client)
@@ -171,14 +171,14 @@ class ComputerProvisioner(Provisioner[Computer, Computer]):
         return client
 
 
-class DockerComputerProvisioner(ComputerProvisioner):
+class DockerMachineProvisioner(MachineProvisioner):
     """
-    Provision Computers as containers in a Docker installation.
+    Provision Machines as containers in a Docker installation.
     TODO :Dev: use Kubernetes locally too (drop Docker compose & Docker provisioning)
     """
 
-    watch_types = bittuple(NodeType.COMPUTER)
-    provision_type = NodeType.COMPUTER
+    watch_types = bittuple(NodeType.MACHINE)
+    provision_type = NodeType.MACHINE
 
     def __init__(self, host: "HostService", bench: Bench):
         super().__init__(host, bench)
@@ -186,26 +186,26 @@ class DockerComputerProvisioner(ComputerProvisioner):
 
     @override
     async def _do_start(self) -> None:
-        computers = await self._get_resources()
+        machines = await self._get_resources()
         containers = await self._docker_client.containers.list(all=True)
         containers_by_id = {c.id: c for c in containers}
         async with self.host.session(commit=True):
-            for computer in computers:
-                if computer.external_id is None:
+            for machine in machines:
+                if machine.external_id is None:
                     continue
-                container = containers_by_id.get(computer.external_id)
+                container = containers_by_id.get(machine.external_id)
                 if container is None:
-                    computer.update_status(ResourceStatus.PENDING)
+                    machine.update_status(ResourceStatus.PENDING)
 
     @override
-    async def _do_provision(self, resource: Computer):
+    async def _do_provision(self, resource: Machine):
         client = await self._get_or_create_client(resource)
         grpc_port = random.randint(60100, 65000)
         vnc_port = random.randint(60100, 65000)
-        env_vars = _get_computer_env_vars(computer=resource, client=client, is_in_docker=True)
-        computer_id_prefix = str(resource.id).split("-")[0]
-        external_name = f"bench-{ENV.value}-{CLOUD.slug}-{resource.region.slug}-{resource.type.name.lower()}-computer-{computer_id_prefix}"
-        image = _get_computer_image(resource)
+        env_vars = _get_machine_env_vars(machine=resource, client=client, is_in_docker=True)
+        machine_id_prefix = str(resource.id).split("-")[0]
+        external_name = f"bench-{ENV.value}-{CLOUD.slug}-{resource.region.slug}-{resource.type.name.lower()}-machine-{machine_id_prefix}"
+        image = _get_machine_image(resource)
         config = {
             "Image": image,
             "Env": [f"{key}={value}" for key, value in env_vars.items()],
@@ -229,11 +229,11 @@ class DockerComputerProvisioner(ComputerProvisioner):
             self._set_resource_status(resource, ResourceStatus.AVAILABLE)
 
     @override
-    async def _do_update(self, resource: Computer):
+    async def _do_update(self, resource: Machine):
         pass  # nothing to do?
 
     @override
-    async def _do_decommission(self, resource: Computer):
+    async def _do_decommission(self, resource: Machine):
         # remove container with same external_id if exists
         assert resource.external_id is not None, f"{resource!r} has no external id"
         container = await self._docker_client.containers.get(resource.external_id)
@@ -250,14 +250,14 @@ class DockerComputerProvisioner(ComputerProvisioner):
             await self._docker_client.close()
 
 
-class KubernetesComputerProvisioner(ComputerProvisioner):
+class KubernetesMachineProvisioner(MachineProvisioner):
     """
-    Provision Computers as Pods on Kubernetes.
-    NOTE :Incomplete :RichComputing: Computers should really be in k8 Deployments/Services?
+    Provision Machines as Pods on Kubernetes.
+    NOTE :Incomplete :RichComputing: Machines should really be in k8 Deployments/Services?
     """
 
-    watch_types = bittuple(NodeType.COMPUTER)
-    provision_type = NodeType.COMPUTER
+    watch_types = bittuple(NodeType.MACHINE)
+    provision_type = NodeType.MACHINE
 
     def __init__(self, host: "HostService", bench: Bench):
         super().__init__(host, bench)
@@ -269,33 +269,33 @@ class KubernetesComputerProvisioner(ComputerProvisioner):
         assert self._kubernetes_api is not None, "no kubernetes api"
         return self._kubernetes_api
 
-    def _get_external_name(self, computer: Computer) -> str:
-        """Gets the external name of the given Computer."""
-        computer_id_prefix = str(computer.id).split("-")[0]
+    def _get_external_name(self, machine: Machine) -> str:
+        """Gets the external name of the given Machine."""
+        machine_id_prefix = str(machine.id).split("-")[0]
         # NOTE: kubernetes resource names must be valid DNS labels (<= 63 chars)
-        external_name = f"bench-{ENV.value}-{CLOUD.slug}-{computer.region.slug}-computer-{computer.type.name.lower()}-{computer_id_prefix}"
+        external_name = f"bench-{ENV.value}-{CLOUD.slug}-{machine.region.slug}-machine-{machine.type.name.lower()}-{machine_id_prefix}"
         assert len(external_name) <= 63, f"external name too long: {external_name!r}"
         return external_name
 
-    async def _get_computer_by_external_name(self, external_name: str) -> Computer | None:
-        """Gets the Computer with the given external name."""
-        computer_query = Computer.where(Computer.property("external_name").eq(external_name))
-        computer_query._include_memory = False
-        computer = await computer_query.one_or_none()
-        return computer
+    async def _get_machine_by_external_name(self, external_name: str) -> Machine | None:
+        """Gets the Machine with the given external name."""
+        machine_query = Machine.where(Machine.property("external_name").eq(external_name))
+        machine_query._include_memory = False
+        machine = await machine_query.one_or_none()
+        return machine
 
-    def _get_pod_resources_requests(self, computer: Computer) -> dict[str, str]:
-        """Gets the resource requests for the given Computer."""
+    def _get_pod_resources_requests(self, machine: Machine) -> dict[str, str]:
+        """Gets the resource requests for the given Machine."""
         return {
-            "cpu": f"{round((computer.cpu / COMPUTER_OVERCOMMITMENT) * 1000)}m",
-            "memory": f"{round((computer.ram / COMPUTER_OVERCOMMITMENT) * 1000)}Mi",
+            "cpu": f"{round((machine.cpu / MACHINE_OVERCOMMITMENT) * 1000)}m",
+            "memory": f"{round((machine.ram / MACHINE_OVERCOMMITMENT) * 1000)}Mi",
         }
 
-    def _get_pod_resources_limits(self, computer: Computer) -> dict[str, str]:
-        """Gets the resource limits for the given Computer."""
+    def _get_pod_resources_limits(self, machine: Machine) -> dict[str, str]:
+        """Gets the resource limits for the given Machine."""
         return {
-            "cpu": f"{round(computer.cpu * 1000)}m",
-            "memory": f"{round(computer.ram * 1000)}Mi",
+            "cpu": f"{round(machine.cpu * 1000)}m",
+            "memory": f"{round(machine.ram * 1000)}Mi",
         }
 
     def _parse_pod_resource_scalar(self, scalar: str) -> float | None:
@@ -310,27 +310,27 @@ class KubernetesComputerProvisioner(ComputerProvisioner):
         except Exception:
             return None
 
-    def _make_pod_from_computer(self, computer: Computer, client: Client):
-        """Creates a Kubernetes Pod for the Computer."""
+    def _make_pod_from_machine(self, machine: Machine, client: Client):
+        """Creates a Kubernetes Pod for the Machine."""
 
         # context
         labels = {
-            "app": f"bench-computer-{computer.type.name.lower()}",
+            "app": f"bench-machine-{machine.type.name.lower()}",
             "bench_id": str(self.bench.id),
-            "computer_id": str(computer.id),
-            "version": computer.version,
+            "machine_id": str(machine.id),
+            "version": machine.version,
             "env": ENV.value,
             "cloud": CLOUD.slug,
-            "region": computer.region.slug,
+            "region": machine.region.slug,
         }
-        env_vars = _get_computer_env_vars(
-            computer=computer, client=client, is_in_minikube=IS_DEV or IS_TEST
+        env_vars = _get_machine_env_vars(
+            machine=machine, client=client, is_in_minikube=IS_DEV or IS_TEST
         )
 
         # pod
         resources = k8.V1ResourceRequirements(
-            requests=self._get_pod_resources_requests(computer),
-            limits=self._get_pod_resources_limits(computer),
+            requests=self._get_pod_resources_requests(machine),
+            limits=self._get_pod_resources_limits(machine),
         )
         health_probe = k8.V1Probe(
             grpc=k8.V1GRPCAction(port=5432, service="runtime"),
@@ -338,7 +338,7 @@ class KubernetesComputerProvisioner(ComputerProvisioner):
             period_seconds=10,
             failure_threshold=3,
         )
-        image = _get_computer_image(computer)
+        image = _get_machine_image(machine)
         env = [
             *(k8.V1EnvVar(name=k, value=v) for k, v in env_vars.items()),
             k8.V1EnvVar(
@@ -350,17 +350,17 @@ class KubernetesComputerProvisioner(ComputerProvisioner):
         ]
 
         # container
-        if computer.type == ComputerType.RUNTIME:
-            ports = [k8.V1ContainerPort(container_port=5432, host_port=COMPUTER_GRPC_PORT)]
-        elif computer.type == ComputerType.UBUNTU:
+        if machine.type == MachineType.RUNTIME:
+            ports = [k8.V1ContainerPort(container_port=5432, host_port=MACHINE_GRPC_PORT)]
+        elif machine.type == MachineType.UBUNTU:
             ports = [
-                k8.V1ContainerPort(container_port=5432, host_port=COMPUTER_GRPC_PORT),
-                k8.V1ContainerPort(container_port=6080, host_port=COMPUTER_VNC_PORT),
+                k8.V1ContainerPort(container_port=5432, host_port=MACHINE_GRPC_PORT),
+                k8.V1ContainerPort(container_port=6080, host_port=MACHINE_VNC_PORT),
             ]
         else:
-            raise NotImplementedError(f"cannot provision {computer!r}")
+            raise NotImplementedError(f"cannot provision {machine!r}")
         main_container = k8.V1Container(
-            name=f"computer-{computer.type.name.lower()}",
+            name=f"machine-{machine.type.name.lower()}",
             image=image,
             env=env,
             ports=ports,
@@ -372,7 +372,7 @@ class KubernetesComputerProvisioner(ComputerProvisioner):
             "KUBERNETES_IMAGE_PULL_SECRET", description="Name of the image pull secret"
         )
         pod = k8.V1Pod(
-            metadata=k8.V1ObjectMeta(name=self._get_external_name(computer), labels=labels),
+            metadata=k8.V1ObjectMeta(name=self._get_external_name(machine), labels=labels),
             spec=k8.V1PodSpec(
                 containers=[main_container],
                 image_pull_secrets=[k8.V1LocalObjectReference(name=image_pull_secret)],
@@ -381,91 +381,91 @@ class KubernetesComputerProvisioner(ComputerProvisioner):
         )
         return pod
 
-    def _update_computer_from_pod(self, computer: Computer, pod: k8.V1Pod):
-        """Updates the current state of the Computer from its respective Pod."""
+    def _update_machine_from_pod(self, machine: Machine, pod: k8.V1Pod):
+        """Updates the current state of the Machine from its respective Pod."""
         # resources
         resources_limits = cast(dict, pod.spec.containers[0].resources.limits)  # type: ignore
         cpu = self._parse_pod_resource_scalar(resources_limits["cpu"])
-        if cpu is not None and computer.cpu != cpu:
-            computer.cpu = cpu
+        if cpu is not None and machine.cpu != cpu:
+            machine.cpu = cpu
         ram = self._parse_pod_resource_scalar(resources_limits["memory"])
-        if ram is not None and computer.ram != ram:
-            computer.ram = ram
+        if ram is not None and machine.ram != ram:
+            machine.ram = ram
 
         # version
         version = cast(str, pod.metadata.labels.get("version"))  # type: ignore
-        if version is not None and computer.version != version:
-            computer.version = version
+        if version is not None and machine.version != version:
+            machine.version = version
 
         # status
         pod_phase = pod.status.phase if pod.status else None
         status = ResourceStatus.AVAILABLE if pod_phase == "Running" else ResourceStatus.UNAVAILABLE
-        computer.update_status(status)
+        machine.update_status(status)
 
         # connection urls (using pod ip, only works inside cluster for now)
         if pod.status and pod.status.pod_ip:
-            grpc_url = f"http://{pod.status.pod_ip}:{COMPUTER_GRPC_PORT}"
-            if computer.grpc_url != grpc_url:
-                computer.grpc_url = grpc_url
-            if not computer.is_headless:
-                vnc_url = f"ws://{pod.status.pod_ip}:{COMPUTER_VNC_PORT}"
+            grpc_url = f"http://{pod.status.pod_ip}:{MACHINE_GRPC_PORT}"
+            if machine.grpc_url != grpc_url:
+                machine.grpc_url = grpc_url
+            if not machine.is_headless:
+                vnc_url = f"ws://{pod.status.pod_ip}:{MACHINE_VNC_PORT}"
             else:
                 vnc_url = None
-            if computer.vnc_url != vnc_url:
-                computer.vnc_url = vnc_url
+            if machine.vnc_url != vnc_url:
+                machine.vnc_url = vnc_url
 
     async def _do_watch_pods(self, *, label_selector: str, resource_version: str | None) -> None:
-        """Watches for changes to these Pods, update corresponding Computers."""
+        """Watches for changes to these Pods, update corresponding Machines."""
         async for event_type, pod in self.kubernetes_api.watch_pods(
             label_selector=label_selector, resource_version=resource_version
         ):
             async with self._lock:
                 assert pod.metadata is not None, f"missing metadata for pod {pod!r}"
-                computer = await self._get_computer_by_external_name(pod.metadata.name)
-                if computer is None:
+                machine = await self._get_machine_by_external_name(pod.metadata.name)
+                if machine is None:
                     continue  # ignore
                 if event_type == "ADDED" or event_type == "MODIFIED":
                     self._kubernetes_pods_by_name[pod.metadata.name] = pod
                     async with self.host.session(commit=True):
-                        self._update_computer_from_pod(computer, pod)
+                        self._update_machine_from_pod(machine, pod)
                 elif event_type == "DELETED":
                     self._kubernetes_pods_by_name.pop(pod.metadata.name, None)
                     async with self.host.session(commit=True):
-                        computer.update_status(ResourceStatus.OFFLINE)
+                        machine.update_status(ResourceStatus.OFFLINE)
                 else:
                     assert_never(event_type)
 
     @override
     async def _do_start(self) -> None:
-        computers = await self._get_resources()
-        computers_by_external_name: dict[str, Computer] = {
-            m.external_name or self._get_external_name(m): m for m in computers
+        machines = await self._get_resources()
+        machines_by_external_name: dict[str, Machine] = {
+            m.external_name or self._get_external_name(m): m for m in machines
         }
 
         self._kubernetes_api = KubernetesApi(namespace=KUBERNETES_NAMESPACE)
         await self._kubernetes_api.start()
 
-        # sync computers with current pods
-        computer_labels = [f"bench-computer-{computer.type.name.lower()}" for computer in computers]
-        pod_selector = f"app in ({','.join(computer_labels)}),bench_id={self.bench.id}"
+        # sync machines with current pods
+        machine_labels = [f"bench-machine-{machine.type.name.lower()}" for machine in machines]
+        pod_selector = f"app in ({','.join(machine_labels)}),bench_id={self.bench.id}"
         pods, _ = await self._kubernetes_api.get_pods(label_selector=pod_selector)
         for pod in pods:
             assert pod.metadata is not None, f"missing metadata for pod {pod!r}"
             self._kubernetes_pods_by_name[pod.metadata.name] = pod
-            computer = computers_by_external_name.get(pod.metadata.name)
-            if computer is None:
-                # delete pod for removed computer
+            machine = machines_by_external_name.get(pod.metadata.name)
+            if machine is None:
+                # delete pod for removed machine
                 await self._kubernetes_api.delete_pod(pod.metadata.name)
             else:
                 async with self.host.session(commit=True):
-                    self._update_computer_from_pod(computer, pod)
+                    self._update_machine_from_pod(machine, pod)
         async with self.host.session(commit=True):
-            for computer in computers:
+            for machine in machines:
                 if (
-                    computer.external_name
-                    and computer.external_name not in self._kubernetes_pods_by_name
+                    machine.external_name
+                    and machine.external_name not in self._kubernetes_pods_by_name
                 ):
-                    computer.update_status(ResourceStatus.PENDING)
+                    machine.update_status(ResourceStatus.PENDING)
 
         # and keep watching for pod changes (we don't pass resource_version as it may be too old)
         self.tasks.run_forever(
@@ -475,16 +475,16 @@ class KubernetesComputerProvisioner(ComputerProvisioner):
         )
 
     @override
-    async def _do_provision(self, resource: Computer):
+    async def _do_provision(self, resource: Machine):
         client = await self._get_or_create_client(resource)
-        pod = self._make_pod_from_computer(resource, client)
+        pod = self._make_pod_from_machine(resource, client)
         await self.kubernetes_api.create_pod(pod)
         async with self.host.session(commit=True):
             resource.external_name = self._get_external_name(resource)
-            self._update_computer_from_pod(resource, pod)
+            self._update_machine_from_pod(resource, pod)
 
     @override
-    async def _do_update(self, resource: Computer):
+    async def _do_update(self, resource: Machine):
         if resource.should_reset or resource.version != VERSION:
             # 'restart' by deleting it (to be recreated)
             assert resource.external_name is not None, f"{resource!r} has no external name"
@@ -492,16 +492,16 @@ class KubernetesComputerProvisioner(ComputerProvisioner):
                 await self.kubernetes_api.delete_pod(resource.external_name)
             except k8.ApiException as e:
                 # probably already gone
-                logger.warn("computer.delete.error", resource=resource, exc_info=e)
+                logger.warn("machine.delete.error", resource=resource, exc_info=e)
 
     @override
-    async def _do_decommission(self, resource: Computer):
+    async def _do_decommission(self, resource: Machine):
         if resource.external_name:
             try:
                 await self.kubernetes_api.delete_pod(resource.external_name)
             except k8.ApiException as e:
                 # probably already gone
-                logger.warn("computer.decommission.error", resource=resource, exc_info=e)
+                logger.warn("machine.decommission.error", resource=resource, exc_info=e)
         async with self.host.session(commit=True):
             self._set_resource_status(resource, ResourceStatus.OFFLINE)
 

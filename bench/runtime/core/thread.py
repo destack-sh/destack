@@ -6,11 +6,11 @@ from fastuuid import UUID
 from opentelemetry import trace
 
 from bench.language import (
-    Computer,
     Cursor,
     GetConnection,
     GraphCapture,
     IsSubject,
+    Machine,
     Message,
     MessageType,
     NodeReference,
@@ -18,7 +18,7 @@ from bench.language import (
     SearchConnection,
     Thread,
 )
-from bench.pb2 import ComputerClient
+from bench.pb2 import MachineClient
 
 if TYPE_CHECKING:
     from bench.runtime import Runtime
@@ -35,7 +35,7 @@ class ThreadHandle:
     """
 
     __slots__ = (
-        "_computer_clients_by_uri",
+        "_machine_clients_by_uri",
         "_messages",
         "_messages_connection",
         "_optimistic_messages",
@@ -59,7 +59,7 @@ class ThreadHandle:
         self.runtime = runtime
         self.capture = capture
         self.thread_ptr = thread_ptr
-        self._computer_clients_by_uri: dict[str, ComputerClient] = {}
+        self._machine_clients_by_uri: dict[str, MachineClient] = {}
         self._thread_connection: GetConnection | SearchConnection = thread_connection
         self._messages_connection = messages_connection
         self._messages: list[Message] | None = None
@@ -148,18 +148,18 @@ class ThreadHandle:
         if self.capture is not None:
             self.capture.close_and_detach()
 
-    async def get_computer_client(self, computer: Computer) -> ComputerClient:
-        """Get a ComputerClient for the given Computer and display."""
-        if computer.grpc_url is None or computer.status != ResourceStatus.AVAILABLE:
-            raise ValueError(f"{computer!r} has no connection info")
+    async def get_machine_client(self, machine: Machine) -> MachineClient:
+        """Get a MachineClient for the given Machine and display."""
+        if machine.grpc_url is None or machine.status != ResourceStatus.AVAILABLE:
+            raise ValueError(f"{machine!r} has no connection info")
 
-        if computer.grpc_url not in self._computer_clients_by_uri:
-            computer_client = ComputerClient(
-                await self.runtime.network.get_channel(computer.grpc_url, source_id="runtime")
+        if machine.grpc_url not in self._machine_clients_by_uri:
+            machine_client = MachineClient(
+                await self.runtime.network.get_channel(machine.grpc_url, source_id="runtime")
             )
-            self._computer_clients_by_uri[computer.grpc_url] = computer_client
-            logger.debug("thread_handle.connect", computer=computer)
+            self._machine_clients_by_uri[machine.grpc_url] = machine_client
+            logger.debug("thread_handle.connect", machine=machine)
         else:
-            computer_client = self._computer_clients_by_uri[computer.grpc_url]
+            machine_client = self._machine_clients_by_uri[machine.grpc_url]
 
-        return computer_client
+        return machine_client

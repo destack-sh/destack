@@ -191,8 +191,8 @@ async def runtime(host: str, port: int, *, process_id: int = -1, watch: bool = F
     client_type = get_from_env("CLIENT_TYPE", typ=ClientType, description="Type of client")
     client_id = get_from_env("CLIENT_ID", typ=UUID, description="Node id of current client")
     client_access_token = get_from_env("CLIENT_ACCESS_TOKEN", description="Access token for client")
-    computer_id = get_from_env_maybe(
-        "COMPUTER_ID", typ=UUID, description="Node id of current computer"
+    machine_id = get_from_env_maybe(
+        "MACHINE_ID", typ=UUID, description="Node id of current machine"
     )
     max_processs = get_from_env(
         "RUNTIME_PROCESSS", typ=int, default=1, description="Maximum number of runtime processs"
@@ -218,7 +218,7 @@ async def runtime(host: str, port: int, *, process_id: int = -1, watch: bool = F
             client_type=client_type,
             client_id=client_id,
             client_access_token=client_access_token,
-            computer_id=computer_id,
+            machine_id=machine_id,
             max_processs=max_processs,
             mode=mode,
             on_error=capture_exception,
@@ -234,7 +234,7 @@ async def runtime(host: str, port: int, *, process_id: int = -1, watch: bool = F
             client_type=client_type,
             client_id=client_id,
             client_access_token=client_access_token,
-            computer_id=computer_id,
+            machine_id=machine_id,
             mode=mode,
             on_error=capture_exception,
         )

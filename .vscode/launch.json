@@ -104,7 +104,7 @@
       "env": {
         "ENVIRONMENT": "dev",
         "PYTHONUNBUFFERED": "1",
-        "SERVICE_NAME": "bench-computer-runtime",
+        "SERVICE_NAME": "bench-machine-runtime",
         "SUPERVISOR_URL": "http://localhost:60061",
       },
       "console": "integratedTerminal",
@@ -113,21 +113,21 @@
       "python": "${workspaceFolder}/venv-runtime/bin/python"
     },
     {
-      "name": "bench.computer",
+      "name": "bench.machine",
       "type": "debugpy",
       "request": "launch",
       "program": "${workspaceFolder}/bench.py",
-      "args": ["serve", "computer", "--watch", "0.0.0.0", "60063"],
+      "args": ["serve", "machine", "--watch", "0.0.0.0", "60063"],
       "env": {
         "ENVIRONMENT": "dev",
         "PYTHONUNBUFFERED": "1",
-        "SERVICE_NAME": "bench-computer-desktop",
+        "SERVICE_NAME": "bench-machine-desktop",
         "SUPERVISOR_URL": "http://localhost:60061",
       },
       "console": "integratedTerminal",
       "cwd": "${workspaceFolder}",
       "justMyCode": true,
-      "python": "${workspaceFolder}/venv-computer/bin/python"
+      "python": "${workspaceFolder}/venv-machine/bin/python"
     },
   ],
   "compounds": [

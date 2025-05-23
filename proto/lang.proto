@@ -129,7 +129,7 @@ enum ClientType {
   CLIENT_TYPE_BROWSER_PLUGIN = 2;
   CLIENT_TYPE_DESKTOP = 3;
   CLIENT_TYPE_MOBILE = 4;
-  CLIENT_TYPE_COMPUTER = 10;
+  CLIENT_TYPE_MACHINE = 10;
 }
 
 // The cloud provider.
@@ -203,15 +203,6 @@ enum ColorType {
   COLOR_TYPE_RGB = 10;
   COLOR_TYPE_HSL = 11;
   COLOR_TYPE_P3 = 12;
-}
-
-enum ComputerType {
-  COMPUTER_TYPE_UNSPECIFIED = 0;
-  COMPUTER_TYPE_RUNTIME = 10;
-  COMPUTER_TYPE_UBUNTU = 1000;
-  COMPUTER_TYPE_MAC = 1100;
-  COMPUTER_TYPE_WINDOWS = 1200;
-  COMPUTER_TYPE_CUSTOM = 9000;
 }
 
 enum ConditionalType {
@@ -387,7 +378,7 @@ enum EnumType {
   ENUM_TYPE_REGION = 40052;
   ENUM_TYPE_AREA = 40054;
   ENUM_TYPE_CONTINENT = 40055;
-  ENUM_TYPE_COMPUTER_TYPE = 41210;
+  ENUM_TYPE_MACHINE_TYPE = 41210;
   ENUM_TYPE_DATABASE_TYPE = 41220;
   ENUM_TYPE_CLIENT_TYPE = 41221;
   ENUM_TYPE_TEXT_LINE_TYPE = 41400;
@@ -769,6 +760,15 @@ enum LinkType {
   LINK_TYPE_WEB = 1;
 }
 
+enum MachineType {
+  MACHINE_TYPE_UNSPECIFIED = 0;
+  MACHINE_TYPE_RUNTIME = 10;
+  MACHINE_TYPE_UBUNTU = 1000;
+  MACHINE_TYPE_MAC = 1100;
+  MACHINE_TYPE_WINDOWS = 1200;
+  MACHINE_TYPE_CUSTOM = 9000;
+}
+
 enum MessageType {
   MESSAGE_TYPE_UNSPECIFIED = 0;
   MESSAGE_TYPE_DEFAULT = 1;
@@ -848,7 +848,7 @@ enum NodeType {
   NODE_TYPE_BLOCK = 1030;
   NODE_TYPE_APPLICATION = 1040;
   NODE_TYPE_DATABASE = 1200;
-  NODE_TYPE_COMPUTER = 1210;
+  NODE_TYPE_MACHINE = 1210;
   NODE_TYPE_SCHEMA = 1400;
   NODE_TYPE_FIELD = 1410;
   NODE_TYPE_TABLE = 1500;
@@ -1674,7 +1674,7 @@ message ClientData {
   ClientType type = 30;
   optional string name = 31;
   optional NodeReferenceData space_ptr = 35;
-  optional NodeReferenceData computer_ptr = 36;
+  optional NodeReferenceData machine_ptr = 36;
   optional NodeReferenceData user_ptr = 37;
   optional string device_type = 40;
   optional string device_name = 41;
@@ -1738,50 +1738,6 @@ message ColorStyleData {
   optional float z = 54;
   optional float alpha = 55;
   optional ColorData dark = 60;
-}
-
-// A Computer provides physical compute.
-// NOTE :RichComputing: Computers also need Deployments/Endpoints/...?
-message ComputerData {
-  NodeType metatype = 1;
-  string id = 2;
-  string ck = 3;
-  optional NodeReferenceData parent_ptr = 4;
-  optional NodeReferenceData bench_ptr = 6;
-  optional NodeReferenceData package_ptr = 7;
-  google.protobuf.Timestamp created_at = 10;
-  optional NodeReferenceData created_by_ptr = 11;
-  google.protobuf.Timestamp updated_at = 12;
-  optional NodeReferenceData updated_by_ptr = 13;
-  optional NodeReferenceData template_ptr = 16;
-  optional NodeReferenceData owned_by_ptr = 17;
-  optional NodeReferenceData claimed_by_ptr = 18;
-  NodeMode mode = 20;
-  optional string order_key = 22;
-  ComputerType type = 30;
-  optional string name = 31;
-  optional NodeReferenceData definition_ptr = 35;
-  ResourceStatus status = 40;
-  optional google.protobuf.Timestamp requested_activate_at = 41;
-  optional google.protobuf.Timestamp requested_deactivate_at = 42;
-  optional google.protobuf.Timestamp requested_reset_at = 43;
-  optional google.protobuf.Timestamp requested_suspend_at = 44;
-  optional google.protobuf.Timestamp requested_decommission_at = 45;
-  optional google.protobuf.Timestamp active_at = 46;
-  optional google.protobuf.Timestamp failed_at = 47;
-  int32 failed_attempts = 48;
-  string version = 60;
-  optional string external_name = 62;
-  optional string external_id = 63;
-  optional string image_id = 64;
-  optional string grpc_url = 65;
-  optional string vnc_url = 66;
-  optional NodeReferenceData client_ptr = 69;
-  float cpu = 70;
-  float ram = 71;
-  int32 width = 75;
-  int32 height = 76;
-  bool is_headless = 77;
 }
 
 message ConditionData {
@@ -2516,6 +2472,50 @@ message LinkData {
   repeated string image_urls = 70;
 }
 
+// A Machine provides physical compute.
+// NOTE :RichComputing: Machines also need Deployments/Endpoints/...?
+message MachineData {
+  NodeType metatype = 1;
+  string id = 2;
+  string ck = 3;
+  optional NodeReferenceData parent_ptr = 4;
+  optional NodeReferenceData bench_ptr = 6;
+  optional NodeReferenceData package_ptr = 7;
+  google.protobuf.Timestamp created_at = 10;
+  optional NodeReferenceData created_by_ptr = 11;
+  google.protobuf.Timestamp updated_at = 12;
+  optional NodeReferenceData updated_by_ptr = 13;
+  optional NodeReferenceData template_ptr = 16;
+  optional NodeReferenceData owned_by_ptr = 17;
+  optional NodeReferenceData claimed_by_ptr = 18;
+  NodeMode mode = 20;
+  optional string order_key = 22;
+  MachineType type = 30;
+  optional string name = 31;
+  optional NodeReferenceData definition_ptr = 35;
+  ResourceStatus status = 40;
+  optional google.protobuf.Timestamp requested_activate_at = 41;
+  optional google.protobuf.Timestamp requested_deactivate_at = 42;
+  optional google.protobuf.Timestamp requested_reset_at = 43;
+  optional google.protobuf.Timestamp requested_suspend_at = 44;
+  optional google.protobuf.Timestamp requested_decommission_at = 45;
+  optional google.protobuf.Timestamp active_at = 46;
+  optional google.protobuf.Timestamp failed_at = 47;
+  int32 failed_attempts = 48;
+  string version = 60;
+  optional string external_name = 62;
+  optional string external_id = 63;
+  optional string image_id = 64;
+  optional string grpc_url = 65;
+  optional string vnc_url = 66;
+  optional NodeReferenceData client_ptr = 69;
+  float cpu = 70;
+  float ram = 71;
+  int32 width = 75;
+  int32 height = 76;
+  bool is_headless = 77;
+}
+
 // A Message about something (usually in a Thread or a Channel).
 message MessageData {
   NodeType metatype = 1;
@@ -2762,7 +2762,7 @@ message QueryData {
   repeated SortData sort = 44;
   optional int32 limit = 50;
   optional int32 offset = 51;
-  bool count = 52;
+  optional bool count = 52;
 }
 
 // A Record in a Table.
@@ -3565,6 +3565,7 @@ message UserData {
   optional NodeReferenceData created_by_ptr = 11;
   google.protobuf.Timestamp updated_at = 12;
   optional NodeReferenceData updated_by_ptr = 13;
+  optional Region region = 23;
   optional string name = 31;
   optional string slug = 33;
   optional IconData icon = 34;
@@ -3656,7 +3657,7 @@ message SomeNodeData {
     BlockData block = 1030;
     ApplicationData application = 1040;
     DatabaseData database = 1200;
-    ComputerData computer = 1210;
+    MachineData machine = 1210;
     SchemaData schema = 1400;
     FieldData field = 1410;
     TableData table = 1500;

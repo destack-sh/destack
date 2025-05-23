@@ -57,22 +57,22 @@ async def bootstrap(
 
 
 @app.command(
-    name="make-local-computer-runtime",
-    help="gets or creates a local runtime Computer (and Client) for a Bench",
+    name="make-local-machine-runtime",
+    help="gets or creates a local runtime Machine (and Client) for a Bench",
 )
 @async_to_sync
-async def make_local_computer_runtime(
+async def make_local_machine_runtime(
     bench_slug: str,
-    title: str = "Local Runtime Computer",
+    title: str = "Local Runtime Machine",
     region: Annotated[Region, typer.Option(parser=parse_region)] = REGION,
-    local_computer_url: str = "http://localhost:60062",
+    local_machine_url: str = "http://localhost:60062",
 ):
     from bench.language import (
         Bench,
         Client,
         ClientType,
-        Computer,
-        ComputerType,
+        Machine,
+        MachineType,
         NodeArea,
         NodeType,
         ResourceStatus,
@@ -99,19 +99,19 @@ async def make_local_computer_runtime(
         global_database, (global_pg_engine, regional_pg_engine), REAL_ORACLE, epoch=0
     ) as session:
         bench = await Bench.include_descendants(NodeType.CLIENT).select_all().get(slug=bench_slug)
-        computers = await Computer.where(
-            Computer.property("bench").eq(bench)
-            & Computer.property("type").eq(ComputerType.RUNTIME)
-            & Computer.property("status").neq(ResourceStatus.OFFLINE)
+        machines = await Machine.where(
+            Machine.property("bench").eq(bench)
+            & Machine.property("type").eq(MachineType.RUNTIME)
+            & Machine.property("status").neq(ResourceStatus.OFFLINE)
         ).to_list()
-        computer = first(computers, None)
-        if computer is None:
-            raise ValueError(f"{bench!r} has no runtime computers")
+        machine = first(machines, None)
+        if machine is None:
+            raise ValueError(f"{bench!r} has no runtime machines")
         clients = (
             await Client.where(
                 Client.property("parent").eq(bench)
-                & Client.property("computer").eq(computer)
-                & Client.property("type").eq(ClientType.COMPUTER)
+                & Client.property("machine").eq(machine)
+                & Client.property("type").eq(ClientType.MACHINE)
             )
             .select_all()
             .to_list()
@@ -120,26 +120,26 @@ async def make_local_computer_runtime(
         if client is None:
             client = Client(
                 parent=bench,
-                type=ClientType.COMPUTER,
+                type=ClientType.MACHINE,
                 name=title,
                 access_token=generate_access_token(ACCESS_TOKEN_LENGTH),
-                computer=computer,
+                machine=machine,
                 seen_at=REAL_ORACLE.utc(),
             )
             session._create(client)
-        computer.client = client
-        computer.update_status(ResourceStatus.AVAILABLE)
-        computer.grpc_url = local_computer_url
+        machine.client = client
+        machine.update_status(ResourceStatus.AVAILABLE)
+        machine.grpc_url = local_machine_url
 
         client_env = {
             "BENCH_ID": str(bench.id),
-            "COMPUTER_ID": str(computer.id),
+            "MACHINE_ID": str(machine.id),
             "CLIENT_TYPE": str(int(client.type)),
             "CLIENT_ID": str(client.id),
             "CLIENT_ACCESS_TOKEN": client.access_token,
         }
         print("----------------------")
-        print(f"Computer: {computer!r}")
+        print(f"Machine: {machine!r}")
         print(f"Client: {client!r}")
         print("--- .env.dev.local ---")
         for k, v in client_env.items():

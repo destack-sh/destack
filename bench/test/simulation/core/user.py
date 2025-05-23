@@ -61,7 +61,7 @@ class UserHandle:
     async def prepare(self, supervisor_client: SupervisorClient):
         """Creates the User"""
         client_in = ClientDataIn(
-            type=pb2.ClientType.CLIENT_TYPE_COMPUTER,
+            type=pb2.ClientType.CLIENT_TYPE_MACHINE,
             name=f"{self.name}-signup",
             device_name="test",
         )

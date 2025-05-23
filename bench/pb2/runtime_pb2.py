@@ -23,7 +23,7 @@ from . import lang_pb2 as lang__pb2
 
 
 DESCRIPTOR = _descriptor_pool.Default().AddSerializedFile(
-    b'\n\rruntime.proto\x12\x0csymbol.bench\x1a\x0c\x63ommon.proto\x1a\nlang.proto"\xa2\x01\n\x0bWakeRequest\x12&\n\x05scope\x18\x01 \x01(\x0b\x32\x17.symbol.bench.ScopeData\x12\x35\n\x0c\x63omputer_ptr\x18\x02 \x01(\x0b\x32\x1f.symbol.bench.NodeReferenceData\x12\x34\n\x0bthread_ptrs\x18\x03 \x03(\x0b\x32\x1f.symbol.bench.NodeReferenceData"\x0e\n\x0cWakeResponse"\xd3\x01\n\nRunRequest\x12&\n\x05scope\x18\x01 \x01(\x0b\x32\x17.symbol.bench.ScopeData\x12\x35\n\x0c\x63omputer_ptr\x18\x02 \x01(\x0b\x32\x1f.symbol.bench.NodeReferenceData\x12\x33\n\nthread_ptr\x18\x03 \x01(\x0b\x32\x1f.symbol.bench.NodeReferenceData\x12\x31\n\x08run_ptrs\x18\n \x03(\x0b\x32\x1f.symbol.bench.NodeReferenceData"\r\n\x0bRunResponse2\x8a\x01\n\x07Runtime\x12:\n\x03Run\x12\x18.symbol.bench.RunRequest\x1a\x19.symbol.bench.RunResponse\x12=\n\x04Wake\x12\x19.symbol.bench.WakeRequest\x1a\x1a.symbol.bench.WakeResponse\x1a\x04\x80\xb5\x18\x01\x62\x06proto3'
+    b'\n\rruntime.proto\x12\x0csymbol.bench\x1a\x0c\x63ommon.proto\x1a\nlang.proto"\xa1\x01\n\x0bWakeRequest\x12&\n\x05scope\x18\x01 \x01(\x0b\x32\x17.symbol.bench.ScopeData\x12\x34\n\x0bmachine_ptr\x18\x02 \x01(\x0b\x32\x1f.symbol.bench.NodeReferenceData\x12\x34\n\x0bthread_ptrs\x18\x03 \x03(\x0b\x32\x1f.symbol.bench.NodeReferenceData"\x0e\n\x0cWakeResponse"\xd2\x01\n\nRunRequest\x12&\n\x05scope\x18\x01 \x01(\x0b\x32\x17.symbol.bench.ScopeData\x12\x34\n\x0bmachine_ptr\x18\x02 \x01(\x0b\x32\x1f.symbol.bench.NodeReferenceData\x12\x33\n\nthread_ptr\x18\x03 \x01(\x0b\x32\x1f.symbol.bench.NodeReferenceData\x12\x31\n\x08run_ptrs\x18\n \x03(\x0b\x32\x1f.symbol.bench.NodeReferenceData"\r\n\x0bRunResponse2\x8a\x01\n\x07Runtime\x12:\n\x03Run\x12\x18.symbol.bench.RunRequest\x1a\x19.symbol.bench.RunResponse\x12=\n\x04Wake\x12\x19.symbol.bench.WakeRequest\x1a\x1a.symbol.bench.WakeResponse\x1a\x04\x80\xb5\x18\x01\x62\x06proto3'
 )
 
 _globals = globals()
@@ -34,13 +34,13 @@ if not _descriptor._USE_C_DESCRIPTORS:
     _globals["_RUNTIME"]._loaded_options = None
     _globals["_RUNTIME"]._serialized_options = b"\200\265\030\001"
     _globals["_WAKEREQUEST"]._serialized_start = 58
-    _globals["_WAKEREQUEST"]._serialized_end = 220
-    _globals["_WAKERESPONSE"]._serialized_start = 222
-    _globals["_WAKERESPONSE"]._serialized_end = 236
-    _globals["_RUNREQUEST"]._serialized_start = 239
-    _globals["_RUNREQUEST"]._serialized_end = 450
-    _globals["_RUNRESPONSE"]._serialized_start = 452
-    _globals["_RUNRESPONSE"]._serialized_end = 465
-    _globals["_RUNTIME"]._serialized_start = 468
-    _globals["_RUNTIME"]._serialized_end = 606
+    _globals["_WAKEREQUEST"]._serialized_end = 219
+    _globals["_WAKERESPONSE"]._serialized_start = 221
+    _globals["_WAKERESPONSE"]._serialized_end = 235
+    _globals["_RUNREQUEST"]._serialized_start = 238
+    _globals["_RUNREQUEST"]._serialized_end = 448
+    _globals["_RUNRESPONSE"]._serialized_start = 450
+    _globals["_RUNRESPONSE"]._serialized_end = 463
+    _globals["_RUNTIME"]._serialized_start = 466
+    _globals["_RUNTIME"]._serialized_end = 604
 # @@protoc_insertion_point(module_scope)

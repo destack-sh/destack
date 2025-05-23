@@ -7,7 +7,6 @@ from grpclib import Status as GRPCStatus
 from opentelemetry import trace
 
 from bench.language import (
-    EMPTY_SCOPE_DATA,
     Bench,
     Client,
     ClientType,
@@ -51,9 +50,7 @@ from bench.system.core import (
     check_password,
     hash_password,
     pg_engine_from_database,
-    purge_client_caches,
 )
-from bench.system.graph import GraphServiceBase
 from bench.utils.func import generate_access_token, generate_salt, to_uuid
 from bench.utils.oracle import Oracle
 
@@ -71,7 +68,7 @@ SUPERVISOR_NODE_TYPES = bittuple(
 )
 
 
-class SupervisorService(GraphServiceBase, SupervisorBase):
+class SupervisorService(SupervisorBase):
     kind = ServiceKind.PUBLIC  # :ServiceKind
     name = "supervisor"
 
@@ -86,17 +83,6 @@ class SupervisorService(GraphServiceBase, SupervisorBase):
         create_bench_options: CreateBenchOptions,
         on_error: Callable[[Exception], None] | None = None,
     ):
-        GraphServiceBase.__init__(
-            self,
-            id=id,
-            bench_id=None,
-            node_types=SUPERVISOR_NODE_TYPES,
-            logger=logger,
-            tracer=tracer,
-            network=network,
-            oracle=oracle,
-            scope=EMPTY_SCOPE_DATA,
-        )
         self._global_database = global_database
         self._global_pg_engine = pg_engine_from_database(
             "pg-global", global_database, NodeArea.GLOBAL_POSTGRES
@@ -429,10 +415,6 @@ class SupervisorService(GraphServiceBase, SupervisorBase):
                 raise RuntimeError(f"unexpected owner/owner status: {owner!r}")
 
             await session.commit()
-
-        # update user with new bench (supervisor and host may be in same process)
-        if isinstance(owner, User):
-            purge_client_caches(owner)
 
         logger.info("supervisor.create_bench", bench=bench, span="current")
         return CreateBenchResponse(bench=bench._to_data())

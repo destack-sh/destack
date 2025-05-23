@@ -39,7 +39,7 @@ AnyNodeData = Union[
     RecordData,
     SchemaData,
     TableData,
-    ComputerData,
+    MachineData,
     DatabaseData,
     ActionData,
     AgentData,

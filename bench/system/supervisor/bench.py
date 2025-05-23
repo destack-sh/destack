@@ -26,7 +26,7 @@ class CreateBenchOptions(NamedTuple):
     main_package_name: str = "Main"
     main_package_slug: str = "main"
     local_database_name: str = "Local"
-    create_computer_scaler: bool = True
+    create_machine_scaler: bool = True
 
 
 async def create_default_bench(  # noqa: RUF029
@@ -77,13 +77,13 @@ async def create_default_bench(  # noqa: RUF029
     bench.database = database
     session.stage()
 
-    if options.create_computer_scaler:
+    if options.create_machine_scaler:
         scaler = Scaler(
-            type=ScalerType.COMPUTER,
+            type=ScalerType.MACHINE,
             mode=NodeMode.BUILTIN,
             strategy=ScalerStrategy.AUTO,
             name="Runtime Scaler",
-            name_template="Runtime Computer",
+            name_template="Runtime Machine",
             min_count=1,
             target_count=1,
             max_count=4,

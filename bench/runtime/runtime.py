@@ -98,7 +98,7 @@ class RuntimeProcessHandle:
                 client_type=self.service._client_type,
                 client_id=self.service._client_id,
                 client_access_token=self.service._client_access_token,
-                computer_id=self.service._computer_id,
+                machine_id=self.service._machine_id,
                 oracle=self.service.oracle,
                 mode=self.service._mode,
                 on_error=self.service.on_error,
@@ -229,7 +229,7 @@ class RuntimeService(RuntimeServiceBase, RuntimeBase):
         client_type: ClientType,
         client_id: UUID,
         client_access_token: str,
-        computer_id: UUID | None,
+        machine_id: UUID | None,
         max_processs: int,
         mode: RuntimeProcessMode,
         on_error: Callable[[BaseException], None] | None,
@@ -245,7 +245,7 @@ class RuntimeService(RuntimeServiceBase, RuntimeBase):
             client_type=client_type,
             client_id=client_id,
             client_access_token=client_access_token,
-            computer_id=computer_id,
+            machine_id=machine_id,
             mode=mode,
             on_error=on_error,
         )
@@ -263,7 +263,7 @@ class RuntimeService(RuntimeServiceBase, RuntimeBase):
         return {
             "bench_id": self._bench_id,
             "client_id": self._client_id,
-            "computer_id": self._computer_id,
+            "machine_id": self._machine_id,
         }
 
     @property

@@ -36,8 +36,8 @@ from bench.test.conftest import _setup_test_env
 from bench.test.simulation.core import (
     BenchSpec,
     ClientSpec,
-    ComputerSpec,
     HostSpec,
+    MachineSpec,
     NetworkSpec,
     RuntimeSpec,
     SimulatedEventLoopPolicy,
@@ -161,7 +161,7 @@ def make_simulation_spec(
     func: Callable,
     network: NetworkSpec | None = None,
     users: tuple[UserSpec, ...] = (),
-    computers: tuple[ComputerSpec, ...] = (),
+    machines: tuple[MachineSpec, ...] = (),
     clients: tuple[ClientSpec, ...] = (),
     supervisor: SupervisorSpec | None = None,
     benches: tuple[BenchSpec, ...] = (),
@@ -171,10 +171,10 @@ def make_simulation_spec(
     system: bool = False,
 ) -> SimulationSpec:
     users = users or (UserSpec(name="alice"),)
-    computers = computers or (ComputerSpec(name="alice-computer", bench="alice"),)
+    machines = machines or (MachineSpec(name="alice-machine", bench="alice"),)
     clients = clients or (
         ClientSpec(name="alice-client", parent=("user", "alice")),
-        ClientSpec(name="alice-computer-client", parent=("computer", "alice-computer")),
+        ClientSpec(name="alice-machine-client", parent=("machine", "alice-machine")),
     )
     benches = benches or (BenchSpec(name="alice", owner="alice"),)
     hosts = hosts or (HostSpec(bench="alice"),)
@@ -183,7 +183,7 @@ def make_simulation_spec(
         description=func.__doc__ or "",
         network=network or NetworkSpec(),
         users=users,
-        computers=computers,
+        machines=machines,
         clients=clients,
         supervisor=supervisor or SupervisorSpec(),
         benches=benches,
@@ -199,7 +199,7 @@ def simulated_runtime(
     *,
     network: NetworkSpec | None = None,
     users: tuple[UserSpec, ...] = (),
-    computers: tuple[ComputerSpec, ...] = (),
+    machines: tuple[MachineSpec, ...] = (),
     clients: tuple[ClientSpec, ...] = (),
     supervisor: SupervisorSpec | None = None,
     benches: tuple[BenchSpec, ...] = (),
@@ -207,13 +207,13 @@ def simulated_runtime(
     system: bool = False,
     runtimes: tuple[RuntimeSpec, ...] | Literal[True] = (),
 ):
-    """Run a 'lambda workload' test as a Computer's Runtime inside a Simulation."""
+    """Run a 'lambda workload' test as a Machine's Runtime inside a Simulation."""
     if runtimes is True:
-        runtimes = (RuntimeSpec(name="alice-runtime", computer="alice-computer"),)
+        runtimes = (RuntimeSpec(name="alice-runtime", machine="alice-machine"),)
 
     def decorator(test_func: Callable[[Simulation, RuntimeLambdaWorkload], Awaitable[None]]):
         lambda_workload = RuntimeLambdaWorkloadSpec(
-            client="alice-computer-client",
+            client="alice-machine-client",
             bench="alice",
             name=test_func.__name__,
             type=WorkloadType.RUNTIME_LAMBDA,
@@ -224,7 +224,7 @@ def simulated_runtime(
             func=test_func,
             network=network,
             users=users,
-            computers=computers,
+            machines=machines,
             clients=clients,
             supervisor=supervisor,
             benches=benches,

@@ -28,8 +28,8 @@ from bench.utils.task import TaskManager
 
 from .bench import BenchHandle
 from .client import ClientHandle
-from .computer import ComputerHandle
 from .host import HostHandle
+from .machine import MachineHandle
 from .network import NetworkHandle
 from .oracle import SimulatedEventLoop, SimulatedOracle
 from .runtime import RuntimeHandle
@@ -37,8 +37,8 @@ from .service import ServiceHandle
 from .spec import (
     BenchSpec,
     ClientSpec,
-    ComputerSpec,
     HostSpec,
+    MachineSpec,
     RuntimeSpec,
     SimulationSpec,
     UserSpec,
@@ -104,7 +104,7 @@ class Simulation:
         self.benches_by_id: dict[UUID, BenchHandle] = {}
         self.hosts_by_name: dict[str, HostHandle] = {}
         self.users_by_name: dict[str, UserHandle] = {}
-        self.computers_by_name: dict[str, ComputerHandle] = {}
+        self.machines_by_name: dict[str, MachineHandle] = {}
         self.runtimes_by_name: dict[str, RuntimeHandle] = {}
         self.clients_by_name: dict[str, ClientHandle] = {}
         self.workloads: list[Workload] = []
@@ -171,13 +171,13 @@ class Simulation:
             )
         return bench
 
-    def get_computer(self, name: str) -> "ComputerHandle":
-        computer = self.computers_by_name.get(name)
-        if computer is None:
+    def get_machine(self, name: str) -> "MachineHandle":
+        machine = self.machines_by_name.get(name)
+        if machine is None:
             raise LookupError(
-                f"{self!r} has no computer: '{name}' (available: {list(self.computers_by_name)})"
+                f"{self!r} has no machine: '{name}' (available: {list(self.machines_by_name)})"
             )
-        return computer
+        return machine
 
     def get_runtime(self, name: str) -> "RuntimeHandle":
         runtime = self.runtimes_by_name.get(name)
@@ -236,18 +236,18 @@ class Simulation:
             self.users_by_name[user_spec.name] = user
             return user
 
-        def add_computer(computer_spec: ComputerSpec) -> ComputerHandle:
-            """Add a Computer to the simulation."""
-            if computer_spec.name in self.computers_by_name:
-                raise ValueError(f"duplicate computer name: {computer_spec.name} in {self!r}")
-            computer = ComputerHandle(
-                id=f"computer:{computer_spec.name}",
-                spec=computer_spec,
+        def add_machine(machine_spec: MachineSpec) -> MachineHandle:
+            """Add a Machine to the simulation."""
+            if machine_spec.name in self.machines_by_name:
+                raise ValueError(f"duplicate machine name: {machine_spec.name} in {self!r}")
+            machine = MachineHandle(
+                id=f"machine:{machine_spec.name}",
+                spec=machine_spec,
                 oracle=self.oracle,
                 simulation=self,
             )
-            self.computers_by_name[computer_spec.name] = computer
-            return computer
+            self.machines_by_name[machine_spec.name] = machine
+            return machine
 
         def add_client(client_spec: ClientSpec) -> ClientHandle:
             """Add a Client to the simulation."""
@@ -255,8 +255,8 @@ class Simulation:
                 raise ValueError(f"duplicate client name: {client_spec.name} in {self!r}")
             if client_spec.parent[0] == "user":
                 parent = self.users_by_name[client_spec.parent[1]]
-            elif client_spec.parent[0] == "computer":
-                parent = self.computers_by_name[client_spec.parent[1]]
+            elif client_spec.parent[0] == "machine":
+                parent = self.machines_by_name[client_spec.parent[1]]
             else:
                 raise ValueError(f"invalid client parent: {client_spec.parent} in {self!r}")
             client = ClientHandle(
@@ -336,8 +336,8 @@ class Simulation:
             add_user(user)
         for bench in self.spec.benches:
             add_bench(bench)
-        for computer in self.spec.computers:
-            add_computer(computer)
+        for machine in self.spec.machines:
+            add_machine(machine)
         for runtime in self.spec.runtimes:
             add_runtime(runtime)
         for client in self.spec.clients:
@@ -396,11 +396,11 @@ class Simulation:
                 user = self.users_by_name.get(bench.spec.owner)
                 await bench.prepare(supervisor_client, user.some_client if user else None)
                 self.benches_by_id[bench.bench_id] = bench
-            # prepare computers and their clients
-            for computer in self.computers_by_name.values():
-                await computer.prepare()
+            # prepare machines and their clients
+            for machine in self.machines_by_name.values():
+                await machine.prepare()
             for client in self.clients_by_name.values():
-                if isinstance(client.parent, ComputerHandle):
+                if isinstance(client.parent, MachineHandle):
                     await client.prepare(supervisor_client)
 
         # start hosts

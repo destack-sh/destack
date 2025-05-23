@@ -30,7 +30,7 @@ class Overflow(BuiltinEnum):
 
     HIDDEN = 2, "Hidden", "Hidden", "fas fa-eye-slash"
     VISIBLE = 3, "Visible", "Visible", "fas fa-eye"
-    SCROLL = 4, "Scroll", "Scroll", "fas fa-computer-mouse-scrollwheel"
+    SCROLL = 4, "Scroll", "Scroll", "fas fa-machine-mouse-scrollwheel"
 
 
 @enum_(EnumType.DIRECTION)

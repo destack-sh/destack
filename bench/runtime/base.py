@@ -20,7 +20,7 @@ from bench.language import (
     Bench,
     Client,
     ClientType,
-    Computer,
+    Machine,
     NodeReference,
     NodeType,
     Package,
@@ -67,15 +67,15 @@ class RuntimeServiceBase(ServiceBase, abc.ABC):
         client_type: ClientType,
         client_id: UUID,
         client_access_token: str,
-        computer_id: UUID | None,
+        machine_id: UUID | None,
         mode: "RuntimeProcessMode",
         on_error: Callable[[BaseException], None] | None = None,
     ):
         super().__init__(
             id=id, logger=logger, tracer=tracer, network=network, oracle=oracle, on_error=on_error
         )
-        if client_type == ClientType.COMPUTER and computer_id is None:
-            raise ValueError(f"missing computer_id for {client_type} {client_id}")
+        if client_type == ClientType.MACHINE and machine_id is None:
+            raise ValueError(f"missing machine_id for {client_type} {client_id}")
 
         # services
         self._supervisor = supervisor
@@ -105,8 +105,8 @@ class RuntimeServiceBase(ServiceBase, abc.ABC):
         self._tx_lock: asyncio.Lock = CriticalLock(
             name=f"{self.__class__.__name__}_{self._bench_id or ''}"
         )
-        self._computer_id = computer_id
-        self._computer: Computer | None = None
+        self._machine_id = machine_id
+        self._machine: Machine | None = None
         self._client_id = client_id
         self._client: Client | None = None
         self._engines: tuple[RemoteEngine, ...] = ()
@@ -185,24 +185,24 @@ class RuntimeServiceBase(ServiceBase, abc.ABC):
             self._bench_bench = await BENCH_QUERY.get(BENCH_PTR, live=False)
             self._client = await Client.get(id=self._client_id)
             assert self._client, f"{self._bench!r} has no client {self._client_id}"
-            if self._computer_id:
-                computer = self._bench._graph.get(self._computer_id)
+            if self._machine_id:
+                machine = self._bench._graph.get(self._machine_id)
                 assert isinstance(
-                    computer, Computer
-                ), f"{self._bench!r} has no computer {self._computer_id}"
-                self._computer = computer
+                    machine, Machine
+                ), f"{self._bench!r} has no machine {self._machine_id}"
+                self._machine = machine
 
         # NOTE :Architecture: set builtin Bench supergraph/refs to self._bench_bench?
         #  (otherwise they're all 'detached'?)
 
         # update session context
         self._session.client = self._client
-        self._session.computer = self._computer
+        self._session.machine = self._machine
         if isinstance(self._client.parent, User):
             self._session.user = self._client.parent
             self._session.subject = self._client.parent
         elif isinstance(self._client.parent, Bench):
-            self._session.subject = self._client.computer
+            self._session.subject = self._client.machine
         else:
             raise ValueError(f"unknown client parent {self._client.parent!r} in {self!r}")
         self._session.origin = (
