@@ -101,7 +101,7 @@ class Message(
         self.text = to_text(text)
         if nodes is not UNSET:
             self.nodes = nodes or []
-        self.edited_at = self.active_session.oracle.utc()
+        self.edited_at = self._session.oracle.utc()
 
     @staticmethod
     def new(

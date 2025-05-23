@@ -555,9 +555,7 @@ class File(IsResource, IsRegional, Node[FileData]):
                 return self._cached_content
         elif self._cached_get_url is not None:
             return self._cached_get_url
-        await download_file_batch(
-            [self], include_content=include_content, session=self.active_session
-        )
+        await download_file_batch([self], include_content=include_content, session=self._session)
         if include_content:
             assert self._cached_content is not None, f"content not ready for {self!r}"
             return self._cached_content

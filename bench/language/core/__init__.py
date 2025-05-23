@@ -38,7 +38,6 @@ from .const import (
     Continent,
     Day,
     EnumType,
-    ErrorKind,
     Month,
     NodeArea,
     NodeMode,
@@ -75,13 +74,7 @@ from .graph import (
     Supergraph,
 )
 from .icon import Icon, IconIn, IconType, icon, reverse_icon, to_icon
-from .node import (
-    IndexIn,
-    Node,
-    NodeReference,
-    node_,
-    patch_graph,
-)
+from .node import IndexIn, Node, NodeReference, node_
 from .object import (
     EMPTY_SCOPE_DATA,
     BuiltinObject,
@@ -288,7 +281,6 @@ __all__ = [
     "EditOperation",
     "EditType",
     "EnumType",
-    "ErrorKind",
     "Expression",
     "ExpressionType",
     "Format",
@@ -428,7 +420,6 @@ __all__ = [
     "pack_value_data",
     "pack_value_scalar",
     "parse_type_annotation",
-    "patch_graph",
     "property_",
     "property_ancestor_",
     "property_ancestor_",

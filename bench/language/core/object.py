@@ -48,7 +48,7 @@ from .graph import Supergraph
 from .property import _PROPERTY_SPECIFIERS, Property, property_, property_runtime_
 
 if TYPE_CHECKING:
-    from bench.language import Field, Node, NodeReference, PropertyReference, Session
+    from bench.language import Field, Node, NodeReference, PropertyReference
 
 # pyright: reportIncompatibleVariableOverride=false
 
@@ -121,60 +121,78 @@ def _generate_init_for_cls[ObjectT: BuiltinObject](
 
     # body
     body_properties = dict(original_properties)
-    body_properties.pop("_session")
     body_properties.pop("_supergraph")
-    method_body_lines = [
-        # general setup
-        """\
-# session / supergraph
-if _session is None:
-    self._session = ACTIVE_SESSION.get()
-    if self._session is None:
-        raise RuntimeError("no current session")
-if _supergraph is None:
-    self._supergraph = self._session.supergraph
-"""
-    ]
+    method_body_lines = []
 
-    # node setup
+    # setup
     if is_node:
+        # node setup
         body_properties.pop("id")
         body_properties.pop("ck", None)
         body_properties.pop("created_at")
         body_properties.pop("updated_at")
         body_properties.pop("_is_new")
+        body_properties.pop("_session")
         body_properties.pop("_graph")
         body_properties.pop("_hash")
-        # node init
+        method_body_lines.append("""\
+# init session
+if _session is None:
+    _session = ACTIVE_SESSION.get()
+    if _session is None:
+        raise RuntimeError("no active session for {cls.__name__}")
+object.__setattr__(self, "_session", _session)
+if _supergraph is None:
+    _supergraph = _session.supergraph
+object.__setattr__(self, "_supergraph", _supergraph)
+""")
         if "ck" not in original_properties:
             method_body_lines.append("""\
-# init node
+# init node with id only
 if id is None:
-    self.id = uuid4()
+    id = uuid4()
     now = self._session._oracle.utc()
-    self.created_at = now
-    self.updated_at = now
-    self._is_new = True
-self._hash = self.id.int
+    created_at = now
+    updated_at = now
+    object.__setattr__(self, "_is_new", True)
+object.__setattr__(self, "id", id)
+object.__setattr__(self, "created_at", created_at)
+object.__setattr__(self, "updated_at", updated_at)
+object.__setattr__(self, "_hash", id.int)
 """)
         else:
             method_body_lines.append("""\
-# init node
+# init node with id and ck
 if id is None:
-    self.id = uuid4()
-    self.ck = self.id
+    id = uuid4()
+    if ck is None:
+        ck = id
     now = self._session._oracle.utc()
-    self.created_at = now
-    self.updated_at = now
-    self._is_new = True
-self._hash = self.id.int
+    created_at = now
+    updated_at = now
+    is_new = True
+object.__setattr__(self, "id", id)
+object.__setattr__(self, "ck", ck)
+object.__setattr__(self, "created_at", created_at)
+object.__setattr__(self, "updated_at", updated_at)
+object.__setattr__(self, "_is_new", is_new)
+object.__setattr__(self, "_hash", id.int)
 """)
 
         # node graph
         method_body_lines.append("""\
 # init graph
-self._graph = _graph
+object.__setattr__(self, "_graph", _graph)
     """)
+    else:
+        # struct setup
+        method_body_lines.append("""\
+# init struct
+if _supergraph is None:
+    if (session := ACTIVE_SESSION.get()) is not None:
+        _supergraph = session.supergraph
+object.__setattr__(self, "_supergraph", _supergraph)
+""")
 
     # property assignments
     method_body_lines.append("# properties")
@@ -196,8 +214,8 @@ if {prop.name}:
     {ptr_prop.name} = tuple(x.to_ref() for x in {prop.name})""")
         else:
             # regular assignment
-            method_body_lines.append(f"self.{prop.name} = {prop.name}")
-    method_body = "\n".join(method_body_lines)
+            method_body_lines.append(f"object.__setattr__(self, '{prop.name}', {prop.name})")
+    method_body = "\n".join(method_body_lines) or "pass"
     method_body = textwrap.indent(method_body, "    ")
 
     init_str = f"{method_header}:\n{method_body}"
@@ -242,7 +260,7 @@ __str__ = __repr__
 """
 
 
-def _generate_path_for_cls[NodeT: Node](cls: type[NodeT]) -> str:
+def _generate_path_impl[NodeT: Node](cls: type[NodeT]) -> str:
     """Generates Node.path property (and Node._path_key helper)."""
     assert cls.__is_node__, f"{cls.__name__} is not a Node"
 
@@ -297,17 +315,25 @@ def path(self) -> str:
     return f"{path_key_str}\n{path_str}"
 
 
-def _generate_equals_for_cls[ObjectT: BuiltinObject](cls: type[ObjectT]) -> str:
+def _generate_equals_impl[ObjectT: BuiltinObject](cls: type[ObjectT]) -> str:
     """Generates BuiltinObject.equals method."""
-    return ""
+    return """\
+def equals(self, other, identity_map: dict["UUID", "NodeReference"] = EMPTY_DICT) -> bool:
+    if type(other) is not type(self):
+        return False
+    raise NotImplementedError
+"""
 
 
-def _generate_validate_for_cls[ObjectT: BuiltinObject](cls: type[ObjectT]) -> str:
+def _generate_validate_impl[ObjectT: BuiltinObject](cls: type[ObjectT]) -> str:
     """Generates BuiltinObject.validate method."""
-    return ""
+    return """\
+def validate(self) -> None:
+    raise NotImplementedError
+"""
 
 
-def _generate_property_property(prop: Property) -> str:
+def _generate_property_property_impl(prop: Property) -> str:
     """The computed get/set property for a property reference."""
 
     ptr_prop = prop.ptr_prop
@@ -331,7 +357,7 @@ def {prop.name}(self: "BuiltinObject", value: "Property | None"):
     else:
         {ptr_prop.name} = value.to_ref()
 """
-    else:
+    elif prop.cardinality == "list":
         # property list
         return f"""\
 @property
@@ -344,46 +370,74 @@ def {prop.name}(self: "BuiltinObject") -> tuple["Property", ...]:
 def {prop.name}(self: "BuiltinObject", values: list["Property"]):
     self.{ptr_prop.name} = [p.to_ref() for p in values]
 """
+    else:
+        raise RuntimeError(f"unsupported cardinality: {prop.cardinality}")
 
 
-def _generate_node_property(prop: Property) -> str:
+def _generate_node_property_impl(prop: Property) -> str:
     """The computed get/set property for a node reference. Resolved against the active supergraph."""
 
     ptr_prop = prop.ptr_prop
     assert ptr_prop is not None, f"no wired prop for {prop!r}"
+    is_node = prop.component.__is_node__
 
     if prop.cardinality == "scalar":
-        return f"""\
+        if is_node:
+            getter = f"""\
 @property
 def {prop.name}(self: "BuiltinObject") -> "Node | None":
     node_ptr: NodeReference | None = self.{ptr_prop.name}
     if node_ptr is not None:
         return self._supergraph.get(node_ptr)
     else:
-        return None
+        return None"""
+        else:
+            getter = f"""\
+@property
+def {prop.name}(self: "BuiltinObject") -> "Node | None":
+    assert self._supergraph is not None
+    node_ptr: NodeReference | None = self.{ptr_prop.name}
+    if node_ptr is not None:
+        return self._supergraph.get(node_ptr)
+    else:
+        return None"""
 
+        setter = f"""\
 @{prop.name}.setter
 def {prop.name}(self: "BuiltinObject", value: "Node | None"):
     if value is None:
         self.{ptr_prop.name} = None
     else:
-        self.{ptr_prop.name} = value.to_ref()
-"""
-    else:
-        return f"""\
+        self.{ptr_prop.name} = value.to_ref()"""
+
+    elif prop.cardinality == "list":
+        if is_node:
+            getter = f"""\
 @property
 def {prop.name}(self: "BuiltinObject") -> tuple["Node", ...]:
     node_ptrs: list[NodeReference] = self.{ptr_prop.name}
     assert type(node_ptrs) is list, f"invalid {prop}: {{node_ptrs!r}}"
-    return tuple(self._supergraph.get(p) for p in node_ptrs)
+    return tuple(self._supergraph.get(p) for p in node_ptrs)"""
+        else:
+            getter = f"""\
+@property
+def {prop.name}(self: "BuiltinObject") -> tuple["Node", ...]:
+    assert self._supergraph is not None
+    node_ptrs: list[NodeReference] = self.{ptr_prop.name}
+    assert type(node_ptrs) is list, f"invalid {prop}: {{node_ptrs!r}}"
+    return tuple(self._supergraph.get(p) for p in node_ptrs)"""
 
+        setter = f"""\
 @{prop.name}.setter
 def {prop.name}(self: "BuiltinObject", nodes: list["Node"]):
-    self.{ptr_prop.name} = [n.to_ref() for n in nodes]
-"""
+    self.{ptr_prop.name} = [n.to_ref() for n in nodes]"""
+    else:
+        raise RuntimeError(f"unsupported cardinality: {prop.cardinality}")
+
+    return getter + "\n\n" + setter
 
 
-def _generate_node_key_property(obj_key: str, ptr_key: str, prop: Property) -> str:
+def _generate_node_key_property_impl(obj_key: str, ptr_key: str, prop: Property) -> str:
     """The computed get property from a specific attribute of a node pointer."""
 
     ptr_prop = prop.ptr_prop
@@ -409,7 +463,7 @@ def {prop.name}_{obj_key}(self: "BuiltinObject") -> tuple["Node", ...]:
 """
 
 
-def _generate_ancestor_property(object_type: NodeType | StructType, prop: Property) -> str:
+def _generate_ancestor_property_impl(object_type: NodeType | StructType, prop: Property) -> str:
     """The computer get property for Node ancestors."""
 
     node_types_str = ", ".join(str(t.value) for t in prop.nodes)
@@ -492,7 +546,7 @@ def _process_object_cls[ObjectT: BuiltinObject](
         for name, prop in component.__declared_properties__.items():
             existing = properties.get(name)
             if existing is not None:
-                if existing.name in ("metatype", "parent"):
+                if existing.name in ("metatype", "parent", "_supergraph"):
                     continue  # may be narrowed
                 raise RuntimeError(
                     f"property '{name}' from '{component.__name__}' conflicts with '{cls.__name__}': {prop!r}, {existing!r}"
@@ -560,11 +614,11 @@ def _process_object_cls[ObjectT: BuiltinObject](
         repr_str = _generate_repr_for_cls(cls)
         exec(repr_str, {}, cls_dict)
         if is_node:
-            path_str = _generate_path_for_cls(cast(type["Node"], cls))
+            path_str = _generate_path_impl(cast(type["Node"], cls))
             exec(path_str, {}, cls_dict)
-        equals_str = _generate_equals_for_cls(cls)
-        exec(equals_str, {}, cls_dict)
-        validate_str = _generate_validate_for_cls(cls)
+        equals_str = _generate_equals_impl(cls)
+        exec(equals_str, {"EMPTY_DICT": EMPTY_DICT}, cls_dict)
+        validate_str = _generate_validate_impl(cls)
         exec(validate_str, {}, cls_dict)
 
         # add computed properties to concrete classes
@@ -573,7 +627,7 @@ def _process_object_cls[ObjectT: BuiltinObject](
                 continue  # not a contributed property
             # computed property property
             if prop.is_property_reference:
-                property_property_str = _generate_property_property(prop)
+                property_property_str = _generate_property_property_impl(prop)
                 exec(property_property_str, {}, cls_dict)
             # computed node property
             elif prop.node_kind in (
@@ -581,18 +635,18 @@ def _process_object_cls[ObjectT: BuiltinObject](
                 NodeReferenceKind.NODE_REGULAR,
                 NodeReferenceKind.NODE_TEMPLATE,
             ):
-                node_property_str = _generate_node_property(prop)
+                node_property_str = _generate_node_property_impl(prop)
                 exec(node_property_str, {}, cls_dict)
             # computed node ancestor property
             elif prop.node_kind == NodeReferenceKind.NODE_ANCESTOR:
-                ancestor_property_str = _generate_ancestor_property(object_type, prop)
+                ancestor_property_str = _generate_ancestor_property_impl(object_type, prop)
                 exec(ancestor_property_str, {}, cls_dict)
             # computed _x node reference properties (e.g., parent_id, node_ck, node_type, ...)
             if prop.is_node_reference:
                 for obj_key, ptr_key in (("id", "id"), ("ck", "ck"), ("type", "node_type")):
                     if obj_key == "type" and (not prop.nodes or len(prop.nodes) <= 1):
                         continue  # no need for *_type if only one possible node type
-                    node_key_property_str = _generate_node_key_property(obj_key, ptr_key, prop)
+                    node_key_property_str = _generate_node_key_property_impl(obj_key, ptr_key, prop)
                     exec(node_key_property_str, {}, cls_dict)
 
         # create the new class
@@ -677,8 +731,7 @@ class BuiltinObject[ObjectDataT: AnyObjectData](abc.ABC):
     __properties_mask_set__: ClassVar[bitarray] = UNSET
     __properties_mask_unset__: ClassVar[bitarray] = UNSET
 
-    _session: "Session" = property_runtime_()
-    _supergraph: "Supergraph" = property_runtime_()
+    _supergraph: "Supergraph | None" = property_runtime_()
 
     def equals(
         self,
@@ -751,12 +804,6 @@ class BuiltinObject[ObjectDataT: AnyObjectData](abc.ABC):
                 prop_value.set(new_nodes)
             else:
                 raise RuntimeError(f"unsupported property: {prop.cardinality}")
-
-    @property
-    def active_session(self) -> "Session":
-        """The currently active session (errors if none)"""
-        assert self._session is not None, f"no session for {self!r}"
-        return self._session
 
     def _walk_struct(self) -> Iterable["BuiltinObject"]:
         yield self

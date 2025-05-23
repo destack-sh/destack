@@ -74,10 +74,6 @@ class Bench(
         package_ptr: Optional[NodeReference] = None
         package_id: Optional[UUID] = None
 
-    @property
-    def is_attached(self) -> bool:
-        return True
-
 
 @node_(NodeType.BENCH_INVITE)
 class BenchInvite(IsInvite, IsDeletable, IsInBench, Node[BenchInviteData]):

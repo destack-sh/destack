@@ -13,6 +13,4 @@ if TYPE_CHECKING:
 class Handle(IsGlobal, IsSlug, IsInBench, Node[HandleData]):
     """A Bench @handle."""
 
-    @property
-    def is_attached(self) -> bool:
-        return self.parent is not None  # bench may not be present if it's not in a bench
+    pass

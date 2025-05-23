@@ -287,7 +287,6 @@ class EnumType(BuiltinEnum):
     USER_STATUS = 40010
     ORGANIZATION_STATUS = 40011
     BENCH_STATUS = 40056
-    ERROR_KIND = 40060
     ERROR_TYPE = 40061
     SEVERITY = 40062
     VARIABLE_TYPE = 40063
@@ -518,8 +517,6 @@ class StructType(BuiltinEnum):
 
     # runtime [22600-22800]
     ERROR = 22600
-    RUN_TRACE = 22603
-    RUN_FRAME = 22604
     # EVENT, SIGNAL, ...
 
     # auth [22800-23000]
@@ -1218,12 +1215,6 @@ class SpanType(BuiltinEnum):
     FILE_DOWNLOAD = 502, None, None, "fas fa-download"
     FILE_PREPARE_DOWNLOAD = 503, None, None, "fas fa-download"
     # ...
-
-
-@enum_(EnumType.ERROR_KIND)
-class ErrorKind(BuiltinEnum):
-    INTERNAL = 1
-    RUNTIME = 5
 
 
 @enum_(EnumType.RESOURCE_STATUS)

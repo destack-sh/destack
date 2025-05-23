@@ -51,7 +51,9 @@ if TYPE_CHECKING:
         Join,
         NodeReference,
         Query,
+        Session,
         Sort,
+        Supergraph,
     )
 
 # pyright: reportIncompatibleVariableOverride=false
@@ -185,11 +187,14 @@ class Node[NodeDataT: AnyNodeData](BuiltinObject[NodeDataT]):
     # 30+ for general properties
     # ...
 
-    _graph: "Graph" = property_runtime_(default=None)
-    _is_new: bool = property_runtime_(default=False)
-    _is_attached: bool = property_runtime_(default=False)  # :CachedAncestors
+    _session: "Session" = property_runtime_()
     _hash: int = property_runtime_(default=None)
     _ref: "Optional[NodeReference]" = property_runtime_(default=None)
+    _supergraph: "Supergraph" = property_runtime_()
+    _graph: "Graph" = property_runtime_(default=None)
+    _is_attached: bool = property_runtime_(default=False)  # :CachedAncestors
+    _is_new: bool = property_runtime_(default=False)
+    _dirty: int | None = property_runtime_(default=None)
 
     @property
     def ck(self):
@@ -199,8 +204,9 @@ class Node[NodeDataT: AnyNodeData](BuiltinObject[NodeDataT]):
     def is_attached(self) -> bool:
         """
         Whether this Node is attached to a root.
-        nocheckin: generate & cache Node.is_attached :CachedAncestors
+        TODO: generate & cache Node.is_attached/_is_attached :CachedAncestors
         """
+        raise NotImplementedError
         if self.__root_type__ is None:
             return True  # always attached
         parent = self
@@ -217,34 +223,6 @@ class Node[NodeDataT: AnyNodeData](BuiltinObject[NodeDataT]):
                 yield child
                 if recursive:
                     yield from child.iter_descendants(recursive=True)
-
-    def _do_set(
-        self,
-        key: str,
-        new_value: Any,
-        *,
-        track: bool = True,
-        validate: bool = False,
-    ):
-        """Sets *any* attribute on this Node."""
-        prop = self.__properties__.get(key)
-        if prop is None:
-            # attribute error
-            try:
-                self_str = repr(self)
-            except Exception:
-                self_str = self.__class__.__name__
-            raise AttributeError(f"{self_str} has no attribute '{key}'")
-
-        # set property
-        if not prop.is_wired:
-            object.__setattr__(self, key, new_value)
-            return
-        raise NotImplementedError("nocheckin: edits (flat and otherwise)")
-
-    if not TYPE_CHECKING:
-        # NOTE: __setattr__ obscures type checking, so only define it at runtime
-        __setattr__ = _do_set
 
     @override
     def clone(
@@ -349,21 +327,29 @@ class Node[NodeDataT: AnyNodeData](BuiltinObject[NodeDataT]):
     # only define __hash__ for nodes since their id is constant
     __hash__ = _stable_hash  # type: ignore
 
+    def _do_set(self, key: str, value: Any):
+        """Set a property on this Node."""
+        raise NotImplementedError
+
+    if not TYPE_CHECKING:
+        __setattr__ = _do_set
+
     @property
     def path(self) -> str:
         raise NotImplementedError  # generated automatically
 
     def to_ref(self) -> "NodeReference":
         """Gets a reference to this node. May be rich in subclasses."""
-        return NodeReference._ref_from_node(self)
+        # TODO: cache Node._ref/Node._ref_data?
+        raise NotImplementedError
 
     def _to_ref_data(self) -> "NodeReferenceData":
         """Gets a data reference to this node. May be rich in subclasses."""
-        return NodeReference._ref_from_node(self)._to_data()
+        raise NotImplementedError
 
     def erase(self):
         """Wipe this Node from this cosmos forever."""
-        self.active_session._erase(self)
+        self._session._erase(self)
 
     def move(self, to: "Node"):
         """Move this Node to a new parent."""
@@ -604,26 +590,3 @@ class NodeReference(Struct[NodeReferenceData]):
     @staticmethod
     def _ref_data_from_node_data(node_data: AnyNodeData) -> "NodeReferenceData":
         raise NotImplementedError
-
-
-def patch_graph(*, old_graph: Graph, new_graph: Graph) -> None:
-    """Patches the old graph *in place* from the new graph."""
-    for existing_node in tuple(old_graph.nodes):
-        if existing_node.id not in new_graph:
-            # node removed: leave as is, remove from existing graph
-            if existing_node in old_graph._nodes_by_id:
-                old_graph.remove(existing_node)  # may be a child
-            continue
-        else:
-            # node updated: patch in place
-            patch_node = new_graph.get(existing_node.id)
-            for prop in existing_node.__wired_properties__.values():
-                if prop.is_computed:
-                    continue  # ignore computed properties
-                prop_value = getattr(existing_node, prop.name)
-                existing_node._do_set(prop.name, prop_value, track=False)
-    for patch_node in tuple(new_graph.nodes):
-        if patch_node.id not in old_graph:
-            # node added: add to existing graph
-            if patch_node.id not in old_graph._nodes_by_id:
-                old_graph.add(patch_node)

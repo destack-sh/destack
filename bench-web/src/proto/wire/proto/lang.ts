@@ -2140,11 +2140,7 @@ export interface ErrorData {
      */
     metatype: StructType;
     /**
-     * @generated from protobuf field: symbol.bench.ErrorKind kind = 30;
-     */
-    kind: ErrorKind;
-    /**
-     * @generated from protobuf field: symbol.bench.ErrorType type = 31;
+     * @generated from protobuf field: symbol.bench.ErrorType type = 30;
      */
     type: ErrorType;
     /**
@@ -2159,10 +2155,6 @@ export interface ErrorData {
      * @generated from protobuf field: repeated symbol.bench.NodeReferenceData nodes_ptr = 34;
      */
     nodesPtr: NodeReferenceData[];
-    /**
-     * @generated from protobuf field: optional symbol.bench.RunTraceData trace = 35;
-     */
-    trace?: RunTraceData;
 }
 /**
  * @generated from protobuf message symbol.bench.ExpressionData
@@ -5512,28 +5504,6 @@ export interface RunData {
      * @generated from protobuf field: optional string model_name = 103;
      */
     modelName?: string;
-}
-/**
- * @generated from protobuf message symbol.bench.RunFrameData
- */
-export interface RunFrameData {
-    /**
-     * @generated from protobuf field: symbol.bench.StructType metatype = 1;
-     */
-    metatype: StructType;
-}
-/**
- * @generated from protobuf message symbol.bench.RunTraceData
- */
-export interface RunTraceData {
-    /**
-     * @generated from protobuf field: symbol.bench.StructType metatype = 1;
-     */
-    metatype: StructType;
-    /**
-     * @generated from protobuf field: repeated symbol.bench.RunFrameData frames = 30;
-     */
-    frames: RunFrameData[];
 }
 /**
  * A Scene is a container for a specific interaction point.
@@ -9886,10 +9856,6 @@ export enum EnumType {
      */
     BENCH_STATUS = 40056,
     /**
-     * @generated from protobuf enum value: ENUM_TYPE_ERROR_KIND = 40060;
-     */
-    ERROR_KIND = 40060,
-    /**
      * @generated from protobuf enum value: ENUM_TYPE_ERROR_TYPE = 40061;
      */
     ERROR_TYPE = 40061,
@@ -10279,23 +10245,6 @@ export enum EnumType {
     OFFSCREEN_BEHAVIOR = 49084
 }
 /**
- * @generated from protobuf enum symbol.bench.ErrorKind
- */
-export enum ErrorKind {
-    /**
-     * @generated from protobuf enum value: ERROR_KIND_UNSPECIFIED = 0;
-     */
-    UNSPECIFIED = 0,
-    /**
-     * @generated from protobuf enum value: ERROR_KIND_INTERNAL = 1;
-     */
-    INTERNAL = 1,
-    /**
-     * @generated from protobuf enum value: ERROR_KIND_RUNTIME = 5;
-     */
-    RUNTIME = 5
-}
-/**
  * @generated from protobuf enum symbol.bench.ErrorType
  */
 export enum ErrorType {
@@ -10346,31 +10295,7 @@ export enum ErrorType {
     /**
      * @generated from protobuf enum value: ERROR_TYPE_NON_RETRYABLE = 499;
      */
-    NON_RETRYABLE = 499,
-    /**
-     * @generated from protobuf enum value: ERROR_TYPE_MODEL_FAILED = 500;
-     */
-    MODEL_FAILED = 500,
-    /**
-     * @generated from protobuf enum value: ERROR_TYPE_INVALID_CONTINUATION = 502;
-     */
-    INVALID_CONTINUATION = 502,
-    /**
-     * @generated from protobuf enum value: ERROR_TYPE_INVALID_CALL = 503;
-     */
-    INVALID_CALL = 503,
-    /**
-     * @generated from protobuf enum value: ERROR_TYPE_INVALID_PLAN = 504;
-     */
-    INVALID_PLAN = 504,
-    /**
-     * @generated from protobuf enum value: ERROR_TYPE_INTERRUPTION_CANCELLED = 510;
-     */
-    INTERRUPTION_CANCELLED = 510,
-    /**
-     * @generated from protobuf enum value: ERROR_TYPE_RETRYABLE = 999;
-     */
-    RETRYABLE = 999
+    NON_RETRYABLE = 499
 }
 /**
  * @generated from protobuf enum symbol.bench.ExpressionType
@@ -12746,14 +12671,6 @@ export enum StructType {
      * @generated from protobuf enum value: STRUCT_TYPE_ERROR = 22600;
      */
     ERROR = 22600,
-    /**
-     * @generated from protobuf enum value: STRUCT_TYPE_RUN_TRACE = 22603;
-     */
-    RUN_TRACE = 22603,
-    /**
-     * @generated from protobuf enum value: STRUCT_TYPE_RUN_FRAME = 22604;
-     */
-    RUN_FRAME = 22604,
     /**
      * @generated from protobuf enum value: STRUCT_TYPE_VECTOR2 = 29000;
      */
@@ -18021,18 +17938,15 @@ class ErrorData$Type extends MessageType$<ErrorData> {
     constructor() {
         super("symbol.bench.ErrorData", [
             { no: 1, name: "metatype", kind: "enum", T: () => ["symbol.bench.StructType", StructType, "STRUCT_TYPE_"] },
-            { no: 30, name: "kind", kind: "enum", T: () => ["symbol.bench.ErrorKind", ErrorKind, "ERROR_KIND_"] },
-            { no: 31, name: "type", kind: "enum", T: () => ["symbol.bench.ErrorType", ErrorType, "ERROR_TYPE_"] },
+            { no: 30, name: "type", kind: "enum", T: () => ["symbol.bench.ErrorType", ErrorType, "ERROR_TYPE_"] },
             { no: 32, name: "title", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
             { no: 33, name: "text", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
-            { no: 34, name: "nodes_ptr", kind: "message", repeat: 1 /*RepeatType.PACKED*/, T: () => NodeReferenceData },
-            { no: 35, name: "trace", kind: "message", T: () => RunTraceData }
+            { no: 34, name: "nodes_ptr", kind: "message", repeat: 1 /*RepeatType.PACKED*/, T: () => NodeReferenceData }
         ]);
     }
     create(value?: PartialMessage<ErrorData>): ErrorData {
         const message = globalThis.Object.create((this.messagePrototype!));
         message.metatype = 0;
-        message.kind = 0;
         message.type = 0;
         message.nodesPtr = [];
         if (value !== undefined)
@@ -18047,10 +17961,7 @@ class ErrorData$Type extends MessageType$<ErrorData> {
                 case /* symbol.bench.StructType metatype */ 1:
                     message.metatype = reader.int32();
                     break;
-                case /* symbol.bench.ErrorKind kind */ 30:
-                    message.kind = reader.int32();
-                    break;
-                case /* symbol.bench.ErrorType type */ 31:
+                case /* symbol.bench.ErrorType type */ 30:
                     message.type = reader.int32();
                     break;
                 case /* optional string title */ 32:
@@ -18061,9 +17972,6 @@ class ErrorData$Type extends MessageType$<ErrorData> {
                     break;
                 case /* repeated symbol.bench.NodeReferenceData nodes_ptr */ 34:
                     message.nodesPtr.push(NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options));
-                    break;
-                case /* optional symbol.bench.RunTraceData trace */ 35:
-                    message.trace = RunTraceData.internalBinaryRead(reader, reader.uint32(), options, message.trace);
                     break;
                 default:
                     let u = options.readUnknownField;
@@ -18080,12 +17988,9 @@ class ErrorData$Type extends MessageType$<ErrorData> {
         /* symbol.bench.StructType metatype = 1; */
         if (message.metatype !== 0)
             writer.tag(1, WireType.Varint).int32(message.metatype);
-        /* symbol.bench.ErrorKind kind = 30; */
-        if (message.kind !== 0)
-            writer.tag(30, WireType.Varint).int32(message.kind);
-        /* symbol.bench.ErrorType type = 31; */
+        /* symbol.bench.ErrorType type = 30; */
         if (message.type !== 0)
-            writer.tag(31, WireType.Varint).int32(message.type);
+            writer.tag(30, WireType.Varint).int32(message.type);
         /* optional string title = 32; */
         if (message.title !== undefined)
             writer.tag(32, WireType.LengthDelimited).string(message.title);
@@ -18095,9 +18000,6 @@ class ErrorData$Type extends MessageType$<ErrorData> {
         /* repeated symbol.bench.NodeReferenceData nodes_ptr = 34; */
         for (let i = 0; i < message.nodesPtr.length; i++)
             NodeReferenceData.internalBinaryWrite(message.nodesPtr[i], writer.tag(34, WireType.LengthDelimited).fork(), options).join();
-        /* optional symbol.bench.RunTraceData trace = 35; */
-        if (message.trace)
-            RunTraceData.internalBinaryWrite(message.trace, writer.tag(35, WireType.LengthDelimited).fork(), options).join();
         let u = options.writeUnknownFields;
         if (u !== false)
             (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
@@ -25038,108 +24940,6 @@ class RunData$Type extends MessageType$<RunData> {
  */
 export const RunData = new RunData$Type();
 // @generated message type with reflection information, may provide speed optimized methods
-class RunFrameData$Type extends MessageType$<RunFrameData> {
-    constructor() {
-        super("symbol.bench.RunFrameData", [
-            { no: 1, name: "metatype", kind: "enum", T: () => ["symbol.bench.StructType", StructType, "STRUCT_TYPE_"] }
-        ]);
-    }
-    create(value?: PartialMessage<RunFrameData>): RunFrameData {
-        const message = globalThis.Object.create((this.messagePrototype!));
-        message.metatype = 0;
-        if (value !== undefined)
-            reflectionMergePartial<RunFrameData>(this, message, value);
-        return message;
-    }
-    internalBinaryRead(reader: IBinaryReader, length: number, options: BinaryReadOptions, target?: RunFrameData): RunFrameData {
-        let message = target ?? this.create(), end = reader.pos + length;
-        while (reader.pos < end) {
-            let [fieldNo, wireType] = reader.tag();
-            switch (fieldNo) {
-                case /* symbol.bench.StructType metatype */ 1:
-                    message.metatype = reader.int32();
-                    break;
-                default:
-                    let u = options.readUnknownField;
-                    if (u === "throw")
-                        throw new globalThis.Error(`Unknown field ${fieldNo} (wire type ${wireType}) for ${this.typeName}`);
-                    let d = reader.skip(wireType);
-                    if (u !== false)
-                        (u === true ? UnknownFieldHandler.onRead : u)(this.typeName, message, fieldNo, wireType, d);
-            }
-        }
-        return message;
-    }
-    internalBinaryWrite(message: RunFrameData, writer: IBinaryWriter, options: BinaryWriteOptions): IBinaryWriter {
-        /* symbol.bench.StructType metatype = 1; */
-        if (message.metatype !== 0)
-            writer.tag(1, WireType.Varint).int32(message.metatype);
-        let u = options.writeUnknownFields;
-        if (u !== false)
-            (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
-        return writer;
-    }
-}
-/**
- * @generated MessageType for protobuf message symbol.bench.RunFrameData
- */
-export const RunFrameData = new RunFrameData$Type();
-// @generated message type with reflection information, may provide speed optimized methods
-class RunTraceData$Type extends MessageType$<RunTraceData> {
-    constructor() {
-        super("symbol.bench.RunTraceData", [
-            { no: 1, name: "metatype", kind: "enum", T: () => ["symbol.bench.StructType", StructType, "STRUCT_TYPE_"] },
-            { no: 30, name: "frames", kind: "message", repeat: 1 /*RepeatType.PACKED*/, T: () => RunFrameData }
-        ]);
-    }
-    create(value?: PartialMessage<RunTraceData>): RunTraceData {
-        const message = globalThis.Object.create((this.messagePrototype!));
-        message.metatype = 0;
-        message.frames = [];
-        if (value !== undefined)
-            reflectionMergePartial<RunTraceData>(this, message, value);
-        return message;
-    }
-    internalBinaryRead(reader: IBinaryReader, length: number, options: BinaryReadOptions, target?: RunTraceData): RunTraceData {
-        let message = target ?? this.create(), end = reader.pos + length;
-        while (reader.pos < end) {
-            let [fieldNo, wireType] = reader.tag();
-            switch (fieldNo) {
-                case /* symbol.bench.StructType metatype */ 1:
-                    message.metatype = reader.int32();
-                    break;
-                case /* repeated symbol.bench.RunFrameData frames */ 30:
-                    message.frames.push(RunFrameData.internalBinaryRead(reader, reader.uint32(), options));
-                    break;
-                default:
-                    let u = options.readUnknownField;
-                    if (u === "throw")
-                        throw new globalThis.Error(`Unknown field ${fieldNo} (wire type ${wireType}) for ${this.typeName}`);
-                    let d = reader.skip(wireType);
-                    if (u !== false)
-                        (u === true ? UnknownFieldHandler.onRead : u)(this.typeName, message, fieldNo, wireType, d);
-            }
-        }
-        return message;
-    }
-    internalBinaryWrite(message: RunTraceData, writer: IBinaryWriter, options: BinaryWriteOptions): IBinaryWriter {
-        /* symbol.bench.StructType metatype = 1; */
-        if (message.metatype !== 0)
-            writer.tag(1, WireType.Varint).int32(message.metatype);
-        /* repeated symbol.bench.RunFrameData frames = 30; */
-        for (let i = 0; i < message.frames.length; i++)
-            RunFrameData.internalBinaryWrite(message.frames[i], writer.tag(30, WireType.LengthDelimited).fork(), options).join();
-        let u = options.writeUnknownFields;
-        if (u !== false)
-            (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
-        return writer;
-    }
-}
-/**
- * @generated MessageType for protobuf message symbol.bench.RunTraceData
- */
-export const RunTraceData = new RunTraceData$Type();
-// @generated message type with reflection information, may provide speed optimized methods
 class SceneData$Type extends MessageType$<SceneData> {
     constructor() {
         super("symbol.bench.SceneData", [
@@ -31717,6 +31517,6 @@ export const SomeNodeData = new SomeNodeData$Type();
 
 // Any...
 export type AnyNodeData = ClaimData | RoleData | TeamData | BenchData | BenchInviteData | BenchMembershipData | ClientData | HandleData | OrganizationData | OrganizationInviteData | OrganizationMembershipData | UserData | FieldData | FileData | LinkData | RecordData | SchemaData | TableData | ComputerData | DatabaseData | ActionData | AgentData | CursorData | FlowData | FlowEdgeData | ServiceData | TaskData | ApplicationData | BlockData | DependencyData | PackageData | PageData | InterruptionData | RunData | SpanData | ChannelData | MessageData | NotificationData | ThreadData | RouteData | SceneData | SpaceData | ColorStyleData | BorderStyleData | TransitionStyleData | EffectStyleData | GradientStyleData | FontStyleData | ShadowStyleData | ThemeData | FrameViewData | LabelViewData | SplitViewData | TextViewData | NumberInputViewData | SliderInputViewData | WizardViewData | ThreadViewData
-export type AnyStructData = ScopeData | PropertyReferenceData | CodeData | StringConstraintData | NumberConstraintData | CollectionConstraintData | NodeConstraintData | TypeData | NodeReferenceData | EditData | IconData | ValueData | RelationReferenceData | AttributeReferenceData | FunctionData | ConditionData | AggregationData | ExpressionData | SortData | JoinData | QueryData | SelectionData | TextSpanData | TextLineData | TextData | VariableData | OriginData | ScheduleData | RunTraceData | RunFrameData | ErrorData | ColorData | LengthData | PositionData | DimensionData | InsetsData | CornersData | Axis2Data | Axis3Data | Vector2Data | Vector3Data | Vector4Data | GridData | GridSpanData | BorderData | TransitionData | EffectData | GradientStopData | GradientData | FillData | FontData | ShadowData
+export type AnyStructData = ScopeData | PropertyReferenceData | CodeData | StringConstraintData | NumberConstraintData | CollectionConstraintData | NodeConstraintData | TypeData | NodeReferenceData | EditData | IconData | ValueData | RelationReferenceData | AttributeReferenceData | FunctionData | ConditionData | AggregationData | ExpressionData | SortData | JoinData | QueryData | SelectionData | TextSpanData | TextLineData | TextData | VariableData | OriginData | ScheduleData | ErrorData | ColorData | LengthData | PositionData | DimensionData | InsetsData | CornersData | Axis2Data | Axis3Data | Vector2Data | Vector3Data | Vector4Data | GridData | GridSpanData | BorderData | TransitionData | EffectData | GradientStopData | GradientData | FillData | FontData | ShadowData
 
     
