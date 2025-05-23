@@ -26,10 +26,7 @@ from bitarray import bitarray
 from fastuuid import UUID
 from opentelemetry import trace
 
-from bench.language.registry import (
-    BUILTIN_OBJECT_CLASS_BY_TYPE,
-    STRUCT_CLASS_BY_TYPE,
-)
+from bench.language.registry import BUILTIN_OBJECT_CLASS_BY_TYPE, STRUCT_CLASS_BY_TYPE
 from bench.pb2 import AnyObjectData, AnyStructData, ScopeData, lang_pb2
 from bench.utils.code import format_code
 from bench.utils.env import IS_DEV
@@ -48,7 +45,7 @@ from .const import (
     StructType,
 )
 from .graph import Supergraph
-from .property import _PROPERTY_SPECIFIERS, Property, property_
+from .property import _PROPERTY_SPECIFIERS, Property, property_, property_runtime_
 
 if TYPE_CHECKING:
     from bench.language import Field, Node, NodeReference, PropertyReference, Session
@@ -316,7 +313,7 @@ def _generate_ancestor_property(object_type: NodeType | StructType, prop: Proper
 
     node_types_str = ", ".join(str(t.value) for t in prop.nodes)
 
-    if prop.node_kind == NodeReferenceKind.NODE_ANCESTOR_OR_SELF and object_type in prop.nodes:
+    if prop.node_kind == NodeReferenceKind.NODE_ANCESTOR and object_type in prop.nodes:
         return f"""\
 @property
 def {prop.name}(self: "Node") -> "Node":
@@ -351,7 +348,6 @@ def _process_object_cls[ObjectT: BuiltinObject](
         name="metatype",
         default=None,
         py_type_raw=NodeType if is_node else StructType,
-        is_internal=True,
         cardinality="scalar",
         is_required=True,
         is_computed=True,  # is set statically by class decorator
@@ -414,7 +410,7 @@ def _process_object_cls[ObjectT: BuiltinObject](
     cls.__properties__ = frozendict(properties)
     properties_by_id: dict[int, Property] = {}
     for prop in properties.values():
-        if prop.id is not None and prop.id is not UNSET and not prop.runtime_prop:
+        if prop.id is not None and prop.runtime_prop is None:
             existing = properties_by_id.get(prop.id, None)
             if existing is None:
                 properties_by_id[prop.id] = prop
@@ -435,13 +431,15 @@ def _process_object_cls[ObjectT: BuiltinObject](
     )
 
     # assign property ordinals
-    cls.__properties_in_order__ = tuple(sorted(properties_by_id.values(), key=lambda p: p.id))
+    cls.__properties_in_order__ = tuple(
+        sorted(properties_by_id.values(), key=lambda p: cast(int, p.id))
+    )
     for i, prop in enumerate(cls.__properties_in_order__):
         prop.component = cls
         prop.ord = i
         if prop.ptr_prop:
             prop.ptr_prop.ord = i
-    cls.__properties_id_in_order__ = tuple(p.id for p in cls.__properties_in_order__)
+    cls.__properties_id_in_order__ = tuple(cast(int, p.id) for p in cls.__properties_in_order__)
     cls.__max_property_ord__ = len(cls.__properties_in_order__) - 1
     cls.__properties_mask_set__ = bitarray(cls.__max_property_ord__ + 1)
     cls.__properties_mask_set__.setall(True)
@@ -476,10 +474,7 @@ def _process_object_cls[ObjectT: BuiltinObject](
                 node_property_str = _generate_node_property(prop)
                 exec(node_property_str, {}, cls_dict)
             # computed node ancestor property
-            elif prop.node_kind in (
-                NodeReferenceKind.NODE_ANCESTOR,
-                NodeReferenceKind.NODE_ANCESTOR_OR_SELF,
-            ):
+            elif prop.node_kind == NodeReferenceKind.NODE_ANCESTOR:
                 ancestor_property_str = _generate_ancestor_property(object_type, prop)
                 exec(ancestor_property_str, {}, cls_dict)
             # computed _x node reference properties (e.g., parent_id, node_ck, node_type, ...)
@@ -572,8 +567,8 @@ class BuiltinObject[ObjectDataT: AnyObjectData](abc.ABC):
     __properties_mask_set__: ClassVar[bitarray] = UNSET
     __properties_mask_unset__: ClassVar[bitarray] = UNSET
 
-    _session: "Session" = property_()
-    _supergraph: "Supergraph" = property_()
+    _session: "Session" = property_runtime_()
+    _supergraph: "Supergraph" = property_runtime_()
 
     def __content_str__(self) -> str:
         return ""  # empty by default

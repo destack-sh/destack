@@ -24,9 +24,8 @@ from bench.language.core import (
     TextLine,
     enum_,
     node_,
-    p_internal,
-    p_node_parent,
     property_,
+    property_parent_,
     to_text,
 )
 from bench.pb2 import MessageData
@@ -68,7 +67,7 @@ class Message(
     """
 
     # meta
-    parent: Union["Channel", "Thread", None] = p_node_parent()
+    parent: Union["Channel", "Thread", None] = property_parent_()
     type: MessageType = property_(30, default=MessageType.DEFAULT)
     # platform? source?
     channel: Optional["Channel"] = property_(34, node_bench_from="self")
@@ -80,7 +79,7 @@ class Message(
         thread_ptr: Optional[NodeReference] = None
 
     # status
-    edited_at: Optional[datetime] = p_internal(40)
+    edited_at: Optional[datetime] = property_(40)
 
     # routing
     reply_to: Optional["Message"] = property_(50)

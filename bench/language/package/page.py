@@ -16,7 +16,7 @@ from bench.language.core import (
     TextIn,
     TextLineIn,
     node_,
-    p_node_parent,
+    property_parent_,
     text_line,
     to_text,
 )
@@ -46,7 +46,7 @@ class Page(
     """A Page of Blocks laying out rich Text, data, logic, resources -- anything software needs."""
 
     # meta
-    parent: Union["Package", "Page", None] = p_node_parent()
+    parent: Union["Package", "Page", None] = property_parent_()
     # NOTE: :Architecture: maybe some IsBlockables should have their own Page? or is that confusing?
     # app? scene? plugin? Page/Record/View/... tying? :NodeTying
 

@@ -35,12 +35,10 @@ from .graph import attach_node
 from .object import BuiltinObject, _process_object_cls
 from .property import (
     _PROPERTY_SPECIFIERS,
-    p_internal,
-    p_node_ancestor_with_self,
-    p_node_parent,
-    p_node_template,
-    p_system,
     property_,
+    property_ancestor_,
+    property_parent_,
+    property_runtime_,
 )
 from .type import StringFormat
 
@@ -58,7 +56,6 @@ if TYPE_CHECKING:
         NodeReference,
         Package,
         Page,
-        Scaler,
         TextLine,
         Thread,
         Value,
@@ -138,7 +135,7 @@ class IsLocal(Node if TYPE_CHECKING else BuiltinObject):
 class IsModal(Node if TYPE_CHECKING else BuiltinObject):
     """A Node that can be in different modes."""
 
-    mode: NodeMode = property_(20, default=NodeMode.MAIN)
+    mode: NodeMode = property_(20, is_managed=True, default=NodeMode.MAIN)
 
 
 @trait_(Trait.NAMED)
@@ -173,14 +170,14 @@ class IsIcon(Node if TYPE_CHECKING else BuiltinObject):
 class IsOrdered(Node if TYPE_CHECKING else BuiltinObject):
     """A Node that can be ordered."""
 
-    order_key: str | None = p_internal(22, default=INTEGER_ZERO)
+    order_key: str | None = property_(22, is_managed=True, default=INTEGER_ZERO)
 
 
 @trait_(Trait.ARCHIVABLE)
 class IsArchivable(Node if TYPE_CHECKING else BuiltinObject):
     """A Node that can be archived."""
 
-    archived_at: Optional[datetime] = p_system(14)
+    archived_at: Optional[datetime] = property_(14, is_managed=True)
 
     @property
     def is_archived(self) -> bool:
@@ -201,7 +198,7 @@ class IsArchivable(Node if TYPE_CHECKING else BuiltinObject):
 class IsDeletable(Node if TYPE_CHECKING else BuiltinObject):
     """A Node that can be deleted."""
 
-    deleted_at: Optional[datetime] = p_system(15)
+    deleted_at: Optional[datetime] = property_(15, is_managed=True)
 
     def delete(self, _now: datetime | None = None):
         """Delete this Node."""
@@ -218,7 +215,11 @@ class IsDeletable(Node if TYPE_CHECKING else BuiltinObject):
 class IsTemplatable(Node if TYPE_CHECKING else BuiltinObject):
     """A Node that can be templated (we can create Nodes that are derived from 'templates')."""
 
-    template: Optional["Node"] = p_node_template(16)
+    template: Optional["Node"] = property_(
+        16,
+        node_kind=NodeReferenceKind.NODE_TEMPLATE,
+        node_exclude=("base_id",),
+    )
     if TYPE_CHECKING:
         template_id: Optional[UUID] = None
         template_ptr: Optional["NodeReference"] = None
@@ -306,7 +307,7 @@ class IsTemplatable(Node if TYPE_CHECKING else BuiltinObject):
 class IsInstantiable(IsTemplatable):
     """A Node that can be instanced (we can create Nodes that are 'instances' of this Node)."""
 
-    ck: UUID = p_system(3, autoset=True)  # type: ignore
+    ck: UUID = property_(3, is_managed=True)  # type: ignore
     # nocheckin: proper templating/instancing (for views/Variants/overrides/branches/...)
 
     @property
@@ -350,11 +351,11 @@ class IsBased(Node if TYPE_CHECKING else BuiltinObject):
 class IsInBench(Node if TYPE_CHECKING else BuiltinObject):
     """A Node inside a Bench."""
 
-    bench: "Bench | None" = p_node_ancestor_with_self(6, require=True, store=True, wire=True)
+    bench: "Bench | None" = property_ancestor_(6, is_required=True)
     if TYPE_CHECKING:
         bench_id: Optional[UUID] = None
         bench_ptr: Optional[NodeReference] = None
-    _bench: Optional["Bench"] = property_(default=None)  # :CachedAncestors
+    _bench: Optional["Bench"] = property_runtime_(default=None)  # :CachedAncestors
 
     @property
     def is_attached(self) -> bool:
@@ -365,7 +366,7 @@ class IsInBench(Node if TYPE_CHECKING else BuiltinObject):
 class IsInPackage(IsInBench):
     """A Node in a Package."""
 
-    package: "Package | None" = p_node_ancestor_with_self(7, require=True, store=True, wire=True)
+    package: "Package | None" = property_ancestor_(7, is_required=False)
     if TYPE_CHECKING:
         package_id: Optional[UUID] = None
         package_ptr: Optional[NodeReference] = None
@@ -382,8 +383,8 @@ class IsPageable(Node if TYPE_CHECKING else BuiltinObject):
 class IsBlockable(IsOrdered, IsInPackage):
     """A Node that can (but may not be) be inline on a Page as a Block."""
 
-    parent: Union["Page", None] = p_node_parent()
-    definition: "Block | None" = p_internal(
+    parent: Union["Page", None] = property_parent_()
+    definition: "Block | None" = property_(
         35,
         node_bench_from="self",
         description="The Block where this Node is 'defined'.",
@@ -406,10 +407,10 @@ class IsComputable(Node if TYPE_CHECKING else BuiltinObject):
 
     # model
     # NOTE :Incomplete: IsComputable.model_id should probably be plural (model_ids?)
-    model_developer: Optional["ModelDeveloper"] = p_internal(100)
-    model_provider: Optional["ModelProvider"] = p_internal(101)
-    model_id: Optional[str] = p_internal(102)
-    model_name: Optional[str] = p_internal(103)
+    model_developer: Optional["ModelDeveloper"] = property_(100)
+    model_provider: Optional["ModelProvider"] = property_(101)
+    model_id: Optional[str] = property_(102)
+    model_name: Optional[str] = property_(103)
     # compute/cost/effort/budget/'juice'...?
 
 
@@ -438,26 +439,24 @@ class IsProcessable(Node if TYPE_CHECKING else BuiltinObject):
     """A Node that can be processed somehow."""
 
     status: ProcessStatus = property_(80, default=ProcessStatus.CREATED)
-    duration: Optional[timedelta] = p_internal(
+    duration: Optional[timedelta] = property_(
         81,
         default=None,
         description="Duration from first attempt start to last attempt termination.",
     )
-    error: Optional["Error"] = p_internal(82)
-    interruption: Optional["Interruption"] = p_internal(
+    error: Optional["Error"] = property_(82)
+    interruption: Optional["Interruption"] = property_(
         83,
         node_bench_from="self",
         description="The latest Interruption concerning the Node.",
     )
-    scheduled_at: Optional[datetime] = p_internal(
+    scheduled_at: Optional[datetime] = property_(
         85, description="When the Node is scheduled to start."
     )
-    started_at: Optional[datetime] = p_internal(86, description="When the Node first started.")
-    active_at: Optional[datetime] = p_internal(87, description="When the Node was last active.")
-    interrupted_at: Optional[datetime] = p_internal(
-        88, description="When the Node was interrupted."
-    )
-    terminated_at: Optional[datetime] = p_internal(
+    started_at: Optional[datetime] = property_(86, description="When the Node first started.")
+    active_at: Optional[datetime] = property_(87, description="When the Node was last active.")
+    interrupted_at: Optional[datetime] = property_(88, description="When the Node was interrupted.")
+    terminated_at: Optional[datetime] = property_(
         89, description="When the Node was last terminated."
     )
     requested_stop_at: Optional[datetime] = property_(
@@ -507,7 +506,7 @@ class IsProcessable(Node if TYPE_CHECKING else BuiltinObject):
 class IsOwnable(Node if TYPE_CHECKING else BuiltinObject):
     """A Node that can be owned by another Node."""
 
-    owned_by: Optional["IsSubject"] = p_internal(
+    owned_by: Optional["IsSubject"] = property_(
         17,
         node_bench_from="self",
         node_exclude=("ck", "base_id"),
@@ -522,7 +521,7 @@ class IsOwnable(Node if TYPE_CHECKING else BuiltinObject):
 class IsClaimable(Node if TYPE_CHECKING else BuiltinObject):
     """A Node that can be claimed with a Claim."""
 
-    claimed_by: Optional["Claim"] = p_internal(18, node_bench_from="self")
+    claimed_by: Optional["Claim"] = property_(18, node_bench_from="self")
     if TYPE_CHECKING:
         claimed_by_id: Optional[UUID] = None
         claimed_by_ptr: Optional[NodeReference] = None
@@ -569,7 +568,7 @@ class IsResource(IsModal, IsInstantiable, IsOwnable, IsNamed, IsClaimable, IsBlo
     A Resource in a Bench, typically representing some external object.
     """
 
-    parent: Union["Package", "Page", "Thread", None] = p_node_parent()
+    parent: Union["Package", "Page", "Thread", None] = property_parent_()
 
 
 @trait_(Trait.PROVISIONABLE)
@@ -579,16 +578,15 @@ class IsProvisionable(IsResource):
     """
 
     # status
-    status: ResourceStatus = p_system(40, default=ResourceStatus.PENDING)
-    requested_activate_at: Optional[datetime] = p_internal(41)
-    requested_deactivate_at: Optional[datetime] = p_internal(42)
-    requested_reset_at: Optional[datetime] = p_internal(43)
-    requested_suspend_at: Optional[datetime] = p_internal(44)
-    requested_decommission_at: Optional[datetime] = p_internal(45)
-    active_at: Optional[datetime] = p_system(46)
-    failed_at: Optional[datetime] = p_system(47)
-    failed_attempts: int = p_system(48, default=0)
-    scaler: Optional["Scaler"] = p_system(49)
+    status: ResourceStatus = property_(40, default=ResourceStatus.PENDING)
+    requested_activate_at: Optional[datetime] = property_(41)
+    requested_deactivate_at: Optional[datetime] = property_(42)
+    requested_reset_at: Optional[datetime] = property_(43)
+    requested_suspend_at: Optional[datetime] = property_(44)
+    requested_decommission_at: Optional[datetime] = property_(45)
+    active_at: Optional[datetime] = property_(46, can_write="system")
+    failed_at: Optional[datetime] = property_(47, can_write="system")
+    failed_attempts: int = property_(48, default=0, can_write="system")
     if TYPE_CHECKING:
         scaler_ptr: Optional[NodeReference] = None
         scaler_id: Optional[UUID] = None

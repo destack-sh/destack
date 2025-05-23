@@ -22,9 +22,9 @@ from bench.language.core import (
     encode_storage_key,
     enum_,
     node_,
-    p_internal,
-    p_node_parent,
     property_,
+    property_parent_,
+    property_runtime_,
     to_type_scalar,
 )
 from bench.pb2 import FieldData
@@ -64,16 +64,18 @@ class Field(
     """
 
     parent: Union["Agent", "Action", "Schema", "Flow", "Table", "Scene", "IsView", None] = (
-        p_node_parent()
+        property_parent_()
     )
-    type: FieldType = p_internal(30)
+    type: FieldType = property_(30)
 
     # type identity
     # ...TypeBase[40-69]
 
     cascade: Optional[CascadeAction] = property_(70)
 
-    _introspected_from: Optional[Property] = property_(default=None)  # should match Field.property
+    _introspected_from: Optional[Property] = property_runtime_(
+        default=None
+    )  # should match Field.property
 
     def __content_str__(self) -> str:
         return TypeBase.__content_str__(self)

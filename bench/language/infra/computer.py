@@ -13,8 +13,6 @@ from bench.language.core import (
     NodeType,
     enum_,
     node_,
-    p_kernel,
-    p_system,
     property_,
 )
 from bench.pb2 import ComputerData
@@ -43,23 +41,22 @@ class Computer(IsSubject, IsProvisionable, Node[ComputerData]):
 
     type: ComputerType = property_(30, default=ComputerType.RUNTIME)
 
-    version: str = p_system(60, default=VERSION)
-    external_name: Optional[str] = p_kernel(62, sensitive=True)
-    external_id: Optional[str] = p_kernel(63, sensitive=True)
-    image_id: Optional[str] = p_kernel(64, sensitive=True)
-    # NOTE :Security: Computer.grpc_url/vnc_url should maybe be :RealSecrets
-    grpc_url: Optional[str] = p_kernel(65, sensitive=True)
-    vnc_url: Optional[str] = p_kernel(66, sensitive=True)
-    client: Optional["Client"] = p_system(69, node_bench_from="self")
+    version: str = property_(60, default=VERSION)
+    external_name: Optional[str] = property_(62, can_read="system", can_write="system")
+    external_id: Optional[str] = property_(63, can_read="system", can_write="system")
+    image_id: Optional[str] = property_(64, can_read="system", can_write="system")
+    grpc_url: Optional[str] = property_(65, can_read="system", can_write="system")
+    vnc_url: Optional[str] = property_(66, can_read="system", can_write="system")
+    client: Optional["Client"] = property_(69, node_bench_from="self")
     if TYPE_CHECKING:
         client_ptr: Optional[NodeReference] = None
         client_id: Optional[UUID] = None
 
-    cpu: float = p_system(70, description="vCPU count", default=1.0)
-    ram: float = p_system(71, description="GB", default=1.0)
-    width: int = p_system(75, default=1280)
-    height: int = p_system(76, default=960)
-    is_headless: bool = p_system(77, default=False)
+    cpu: float = property_(70, description="vCPU count", default=1.0, can_write="system")
+    ram: float = property_(71, description="GB", default=1.0, can_write="system")
+    width: int = property_(75, default=1280, can_write="system")
+    height: int = property_(76, default=960, can_write="system")
+    is_headless: bool = property_(77, default=False, can_write="system")
 
     @staticmethod
     def new(type: ComputerType, name: str, *, is_headless: bool = False) -> "Computer":

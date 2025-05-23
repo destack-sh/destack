@@ -8,8 +8,8 @@ from bench.language.core import (
     NodeType,
     SpanType,
     node_,
-    p_node_parent,
     property_,
+    property_parent_,
 )
 from bench.pb2 import SpanData
 
@@ -32,7 +32,7 @@ class Span(
     """
 
     # meta
-    parent: Union["Run", None] = p_node_parent()
+    parent: Union["Run", None] = property_parent_()
     type: SpanType = property_(30)
     # content
     title: str | None = property_(60)

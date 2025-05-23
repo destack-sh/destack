@@ -21,9 +21,8 @@ from bench.language.core import (
     TextLineIn,
     enum_,
     node_,
-    p_node_parent,
-    p_system,
     property_,
+    property_parent_,
     to_text_line,
 )
 from bench.pb2 import ThreadData
@@ -66,8 +65,8 @@ class Thread(
     """
 
     # meta
-    parent: Union["Package", "Page", "Channel", "Thread", None] = p_node_parent()
-    channel: Optional["Channel"] = p_system(40, node_bench_from="self")
+    parent: Union["Package", "Page", "Channel", "Thread", None] = property_parent_()
+    channel: Optional["Channel"] = property_(40, node_bench_from="self", can_write="system")
     if TYPE_CHECKING:
         channel_ptr: Optional[NodeReference] = None
         channel_id: Optional[UUID] = None

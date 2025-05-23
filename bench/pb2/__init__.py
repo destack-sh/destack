@@ -41,7 +41,6 @@ AnyNodeData = Union[
     TableData,
     ComputerData,
     DatabaseData,
-    ScalerData,
     ActionData,
     AgentData,
     CursorData,

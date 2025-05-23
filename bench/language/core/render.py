@@ -362,10 +362,8 @@ def _deconstruct_builtin_object(
             pass  # include
         elif (
             prop.id is None
-            or prop.is_internal
             or prop.runtime_prop
             or prop.node_kind == NodeReferenceKind.NODE_ANCESTOR
-            or prop.node_kind == NodeReferenceKind.NODE_ANCESTOR_OR_SELF
         ):
             continue  # ignore internal properties
         prop_value = getattr(obj, prop.name)

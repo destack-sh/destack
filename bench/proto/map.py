@@ -61,7 +61,7 @@ def _map_bench_property_to_proto_field(
             id=prop.id,
             name=prop.name,
             type="NodeReferenceData",
-            optional=prop.is_optional or prop.is_sensitive,
+            optional=prop.is_optional,
             repeated=prop.cardinality == "list",
         )
     elif prop.scalar_type == "struct":
@@ -72,7 +72,7 @@ def _map_bench_property_to_proto_field(
             id=prop.id,
             name=prop.name,
             type=proto_t,
-            optional=prop.is_optional or prop.is_sensitive,
+            optional=prop.is_optional,
             repeated=prop.cardinality == "list",
         )
     elif prop.scalar_type == "enum":
@@ -83,7 +83,7 @@ def _map_bench_property_to_proto_field(
             id=prop.id,
             name=prop.name,
             type=proto_t,
-            optional=prop.is_optional or prop.is_sensitive,
+            optional=prop.is_optional,
             repeated=prop.cardinality == "list",
         )
     elif prop.scalar_type == "primitive":
@@ -94,7 +94,7 @@ def _map_bench_property_to_proto_field(
             id=prop.id,
             name=prop.name,
             type=field_type,
-            optional=prop.is_optional or prop.is_sensitive,
+            optional=prop.is_optional,
             repeated=prop.cardinality == "list",
         )
     elif prop.is_node_data:

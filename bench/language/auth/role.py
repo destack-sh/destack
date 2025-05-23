@@ -8,7 +8,7 @@ from bench.language.core import (
     Node,
     NodeType,
     node_,
-    p_node_parent,
+    property_parent_,
 )
 from bench.pb2 import RoleData
 
@@ -22,4 +22,4 @@ if TYPE_CHECKING:
 class Role(IsTemplatable, IsModal, IsNamed, IsBlockable, Node[RoleData]):
     """A Role to assign to something."""
 
-    parent: Union["Team", "Page", None] = p_node_parent()
+    parent: Union["Team", "Page", None] = property_parent_()

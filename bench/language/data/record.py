@@ -19,8 +19,8 @@ from bench.language.core import (
     Node,
     NodeType,
     node_,
-    p_node_parent,
-    p_system,
+    property_,
+    property_parent_,
 )
 from bench.pb2 import RecordData
 
@@ -54,9 +54,9 @@ class Record(
     """
 
     # meta
-    parent: Union["Table", "Record", None] = p_node_parent()
+    parent: Union["Table", "Record", None] = property_parent_()
     # type: RecordType?
-    table: "Table" = p_system(36, description="The Table this Record is from.")
+    table: "Table" = property_(36, description="The Table this Record is from.")
 
     # target: Page/Task/...? (tie Record to a Page for a Notion-like experience in some Tables)
     # ... general Record/Page/Block 'tying'? :NodeTying

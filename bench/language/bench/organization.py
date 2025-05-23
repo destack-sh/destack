@@ -7,24 +7,25 @@ from bench.language.core import (
     EnumType,
     IsDeletable,
     IsGlobal,
+    IsIcon,
     IsInvite,
     IsMembership,
+    IsNamed,
+    IsRegional,
+    IsSlug,
     IsSubject,
     Node,
     NodeReference,
     NodeType,
-    Region,
-    StringFormat,
     enum_,
     node_,
-    p_node_parent,
-    p_system,
     property_,
+    property_parent_,
 )
 from bench.pb2 import OrganizationData, OrganizationInviteData, OrganizationMembershipData
 
 if TYPE_CHECKING:
-    from bench.language import Bench, Handle, Icon, TextLine
+    from bench.language import Bench, Handle, TextLine
 
 # pyright: reportIncompatibleVariableOverride=false
 
@@ -36,21 +37,25 @@ class OrganizationStatus(BuiltinEnum):
 
 
 @node_(NodeType.ORGANIZATION, root_type=None)
-class Organization(IsGlobal, IsSubject, Node[OrganizationData]):
+class Organization(
+    IsGlobal,
+    IsSubject,
+    IsSlug,
+    IsIcon,
+    IsNamed,
+    IsRegional,
+    Node[OrganizationData],
+):
     """
     An Organization with Users and Teams.
     """
 
     # parent: Organization for nesting?
-    slug: Optional[str] = p_system(32, unique=True, format=StringFormat.SLUG)
-    name: str = property_(33, format=StringFormat.NAME)
-    icon: Optional["Icon"] = property_(35)
-    line: Optional["TextLine"] = property_(34)
-    region: "Region" = p_system(37)
-    status: OrganizationStatus = p_system(38)
+    line: Optional["TextLine"] = property_(35)
+    status: OrganizationStatus = property_(38, can_write="system")
 
-    bench: Optional["Bench"] = p_system(40)
-    handle: Optional["Handle"] = p_system(41)
+    bench: Optional["Bench"] = property_(40, can_write="system")
+    handle: Optional["Handle"] = property_(41, can_write="system")
     if TYPE_CHECKING:
         bench_id: Optional[UUID] = None
         bench_ptr: Optional[NodeReference] = None
@@ -64,7 +69,7 @@ class OrganizationInvite(IsInvite, IsDeletable, Node[OrganizationInviteData]):
     An OrganizationInvite is an invite to an Organization.
     """
 
-    parent: "Organization" = p_node_parent()
+    parent: "Organization" = property_parent_()
 
 
 @node_(NodeType.ORGANIZATION_MEMBERSHIP)
@@ -73,4 +78,4 @@ class OrganizationMembership(IsMembership, IsDeletable, Node[OrganizationMembers
     An OrganizationMembership is a membership to an Organization.
     """
 
-    parent: "Organization" = p_node_parent()
+    parent: "Organization" = property_parent_()

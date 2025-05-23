@@ -316,8 +316,6 @@ class EnumType(BuiltinEnum):
     REGION = 40052
     AREA = 40054
     CONTINENT = 40055
-    SCALER_TYPE = 41200
-    SCALER_STRATEGY = 41201
     COMPUTER_TYPE = 41210
     DATABASE_TYPE = 41220
     CLIENT_TYPE = 41221
@@ -624,8 +622,7 @@ class NodeType(BuiltinEnum):
     # infra [1200-1400]
     DATABASE = 1200, "Store", "Store custom data", "fas fa-database"
     COMPUTER = 1210, "Computer", "Machine for computing", "fas fa-computer-classic"
-    SCALER = 1250, "Scaler", "Autoscale Resources", "fas fa-scale-unbalanced"
-    # VAULT, CACHE, ENDPOINT, DEPLOYMENT, NETWORK, ...
+    # VAULT, CACHE, ENDPOINT, DEPLOYMENT, NETWORK, AUTOSCALER, ...
 
     # data [1400-1800]
     SCHEMA = 1400, "Schema", "Schema", "fas fa-shapes"
@@ -1022,9 +1019,8 @@ REGION_BY_SLUG = {r.slug: r for r in Region}
 
 
 class NodeReferenceKind(BuiltinEnum):
-    NODE_ANCESTOR = 1
-    NODE_ANCESTOR_OR_SELF = 2
-    NODE_PARENT = 3
+    NODE_PARENT = 1
+    NODE_ANCESTOR = 2
     NODE_REGULAR = 5
     NODE_TEMPLATE = 6
 
@@ -1061,11 +1057,10 @@ class Severity(BuiltinEnum):
 
 @enum_(EnumType.CASCADE_ACTION)
 class CascadeAction(BuiltinEnum):
-    CASCADE = 1
-    SET_NULL = 2
-    SET_DEFAULT = 3
-    SET_VALUE = 4
-    NONE = 5
+    RESTRICT = 1
+    CASCADE = 2
+    SET_NULL = 3
+    # SET_DEFAULT, NONE, ...
 
 
 @enum_(EnumType.PRIMITIVE_TYPE)

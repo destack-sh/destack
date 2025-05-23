@@ -16,8 +16,6 @@ from bench.language.core import (
     StringFormat,
     enum_,
     node_,
-    p_kernel,
-    p_system,
     property_,
 )
 from bench.pb2 import UserData
@@ -42,17 +40,17 @@ class User(IsGlobal, IsSubject, IsNamed, IsIcon, IsSlug, Node[UserData]):
     """A User is a human using Bench."""
 
     line: Optional["TextLine"] = property_(35)
-    is_staff: bool = p_system(39, default=False)
+    is_staff: bool = property_(39, default=False, can_write="system")
 
     # status
-    status: UserStatus = p_system(40)
-    last_logged_in_at: Optional[datetime] = p_system(41)
+    status: UserStatus = property_(40, can_write="system")
+    last_logged_in_at: Optional[datetime] = property_(41, can_write="system")
     # last_active_at: Optional[datetime] = ...
     # seen_at: Optional[datetime] = ...
 
-    bench: Optional["Bench"] = p_system(50)
-    handle: Optional["Handle"] = p_system(51)
-    cursor: Optional["Cursor"] = property_(52)
+    bench: Optional["Bench"] = property_(50, can_write="system")
+    handle: Optional["Handle"] = property_(51, can_write="system")
+    cursor: Optional["Cursor"] = property_(52, can_write="system")
     if TYPE_CHECKING:
         bench_id: Optional[UUID] = None
         bench_ptr: Optional[NodeReference] = None
@@ -63,8 +61,10 @@ class User(IsGlobal, IsSubject, IsNamed, IsIcon, IsSlug, Node[UserData]):
 
     # auth
     # NOTE :Incomplete: factor out authentication, Credentials & Challenges for Users/Client
-    email: str | None = p_system(60, unique=True, sensitive=True, format=StringFormat.EMAIL)
-    password_salt: Optional[bytes] = p_kernel(61, sensitive=True)
-    password_hash: Optional[bytes] = p_kernel(62, sensitive=True)
+    email: str | None = property_(
+        60, is_unique=True, format=StringFormat.EMAIL, can_read="owner", can_write="system"
+    )
+    password_salt: Optional[bytes] = property_(61, can_read="system", can_write="system")
+    password_hash: Optional[bytes] = property_(62, can_read="system", can_write="system")
     # challenges?
     # password_reset_token, email_confirmation_token, ...

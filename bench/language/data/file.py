@@ -35,10 +35,9 @@ from bench.language.core import (
     capture_span,
     enum_,
     node_,
-    p_internal,
-    p_node_parent,
-    p_system,
     property_,
+    property_parent_,
+    property_runtime_,
 )
 from bench.pb2 import DownloadFilesRequest, FileData, UploadFilesRequest
 from bench.utils.func import group_by
@@ -485,7 +484,7 @@ class File(IsResource, IsRegional, Node[FileData]):
         "Message",
         "Run",
         None,
-    ] = p_node_parent()
+    ] = property_parent_()
 
     type: FileType = property_(30)
 
@@ -494,7 +493,7 @@ class File(IsResource, IsRegional, Node[FileData]):
     mime_type: str | None = property_(61)
     format: FileFormat | None = property_(62)
     size: int | None = property_(63, primitive_type=PrimitiveType.INT64)
-    sha256: str | None = p_internal(64)
+    sha256: str | None = property_(64, can_write="system")
     width: int | None = property_(65)
     height: int | None = property_(66)
     aspect_ratio: float | None = property_(67)
@@ -509,15 +508,17 @@ class File(IsResource, IsRegional, Node[FileData]):
     thumbnail_width: int | None = property_(74)
     thumbnail_height: int | None = property_(75)
     content: bytes | None = property_(76)
-    retention: FileRetentionMode = p_system(80, default=FileRetentionMode.AUTOMATIC)
-    expires_at: Optional[datetime] = p_system(81)
+    retention: FileRetentionMode = property_(
+        80, default=FileRetentionMode.AUTOMATIC, can_write="system"
+    )
+    expires_at: Optional[datetime] = property_(81)
 
     # cached content
-    _original: Optional["File"] = property_(default=None)  # if converted
-    _cached_get_url: Optional[str] = property_(default=None)
-    _cached_tmp_path: Optional[str] = property_(default=None)
-    _cached_content: Optional[bytes] = property_(default=None)
-    _cached_image: Optional[Image.Image] = property_(default=None)
+    _original: Optional["File"] = property_runtime_(default=None)  # if converted
+    _cached_get_url: Optional[str] = property_runtime_(default=None)
+    _cached_tmp_path: Optional[str] = property_runtime_(default=None)
+    _cached_content: Optional[bytes] = property_runtime_(default=None)
+    _cached_image: Optional[Image.Image] = property_runtime_(default=None)
 
     def __content_str__(self) -> str:
         content_parts = [self.source.bench_name, f"'{self.name}'"]

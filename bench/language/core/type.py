@@ -28,7 +28,7 @@ from .const import (
     is_struct_type,
 )
 from .object import BuiltinObject, get_tk_b64_from_ck, object_
-from .property import p_internal, property_
+from .property import property_
 from .struct import Struct, struct_
 
 if TYPE_CHECKING:
@@ -143,10 +143,10 @@ class TypeBase(BuiltinObject):
     For lists and maps, the scalar type describes the element/value type.
     """
 
-    cardinality: TypeCardinality = p_internal(40)
+    cardinality: TypeCardinality = property_(40)
 
     # scalar
-    scalar_type: ScalarType = p_internal(41)
+    scalar_type: ScalarType = property_(41)
     primitive_type: Optional[PrimitiveType] = property_(42)
     enum_type: Optional[EnumType] = property_(43)
     node_type: Optional[NodeType] = property_(44)
