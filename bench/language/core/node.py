@@ -10,7 +10,6 @@ from typing import (
     Sequence,
     cast,
     dataclass_transform,
-    final,
     override,
 )
 
@@ -46,13 +45,11 @@ from .trait import IndexIn, IsBased, IsBlockable, IsInBench, IsModal, IsSubject,
 if TYPE_CHECKING:
     from bench.language import (
         Aggregation,
-        Bench,
         Condition,
         Expression,
         Field,
         Join,
         NodeReference,
-        Package,
         Query,
         Sort,
     )
@@ -193,17 +190,6 @@ class Node[NodeDataT: AnyNodeData](BuiltinObject[NodeDataT]):
     _is_attached: bool = property_runtime_(default=False)  # :CachedAncestors
     _hash: int = property_runtime_(default=None)
     _ref: "Optional[NodeReference]" = property_runtime_(default=None)
-
-    @final
-    def __str__(self):  # type: ignore
-        # override the default __str__ for nodes
-        if self.__parent_property__ is not None:
-            ident_str = self.path
-        else:
-            ident_str = self.code_name
-            if ident_str is None:
-                ident_str = str(self.id)
-        return f"<{self.__class__.__name__} {ident_str}>"
 
     @property
     def ck(self):
@@ -363,57 +349,9 @@ class Node[NodeDataT: AnyNodeData](BuiltinObject[NodeDataT]):
     # only define __hash__ for nodes since their id is constant
     __hash__ = _stable_hash  # type: ignore
 
-    @final
-    def _walk_ancestors(self) -> Iterable["Node"]:
-        current = self.parent
-        while current is not None:
-            yield current
-            current = current.parent
-
-    @final
-    def _walk_descendants(self) -> Iterable["Node"]:
-        yield self
-        if self.__child_types__:
-            yield from self._graph.get_descendants(self, recursive=True)
-
-    @property
-    def _path_key(self) -> str:
-        """The Bench *path* identifier of this node (prefers bench_ident, ck/id filter otherwise)"""
-        bench_ident = self._ident
-        if bench_ident is not None:
-            if self.metatype == NodeType.BENCH:
-                return f"@{bench_ident}"
-            else:
-                return bench_ident
-        else:
-            return f"{self.metatype.bench_name}[id={self.id}]"
-
     @property
     def path(self) -> str:
-        if not self.__parent_types__:
-            # this is a root node
-            ident = self._ident
-            assert ident is not None, f"no identifier for {self!r}"
-            return ident
-        else:
-            # assemble path (like in Path.render)
-            path_parts: list[str] = []
-            current = self
-            while current is not None:
-                if current.metatype == NodeType.PACKAGE:
-                    bench = cast("Bench | Package", current).bench
-                    if bench is not None:
-                        path_parts.append(f"{bench._path_key}:{current._path_key}")
-                        break
-
-                path_parts.append(current._path_key)
-                next_parent = current.parent
-                if next_parent is None and current.metatype == self.__root_type__:
-                    break  # reached the root
-                current = next_parent
-            else:
-                path_parts.append("<detached>")
-            return "/".join(reversed(path_parts))
+        raise NotImplementedError  # generated automatically
 
     def to_ref(self) -> "NodeReference":
         """Gets a reference to this node. May be rich in subclasses."""

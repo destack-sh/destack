@@ -206,20 +206,104 @@ if {prop.name}:
     return init_str
 
 
-def _generate_strs_for_cls[ObjectT: BuiltinObject](cls: type[ObjectT]) -> str:
-    """Generates repr, str, path and identifier methods for a BuiltinObject class."""
-    repr_content_str_parts = """\
-content_p
+def _generate_repr_for_cls[ObjectT: BuiltinObject](cls: type[ObjectT]) -> str:
+    """Generates BuiltinObject.__repr__."""
+    repr_content_str_parts: list[str] = []
+    for prop in cls.__properties__.values():
+        if prop.is_repr:
+            repr_content_str_parts.append(f"{prop.name}={{repr(self.{prop.name})}}")
+    repr_content_str = ", ".join(repr_content_str_parts)
+
+    if cls.__is_node__:
+        if repr_content_str:
+            return f"""\
+def __repr__(self) -> str:
+    return f"<{cls.__name__} {{self.path}} {repr_content_str}>"
+__str__ = __repr__
+"""
+        else:
+            return f"""\
+def __repr__(self) -> str:
+    return f"<{cls.__name__} {{self.path}}>"
+__str__ = __repr__
+"""
+    else:
+        if repr_content_str:
+            return f"""\
+def __repr__(self) -> str:
+    return f"<{cls.__name__} {repr_content_str}>"
+__str__ = __repr__
+"""
+        else:
+            return f"""\
+def __repr__(self) -> str:
+    return f"<{cls.__name__}>"
+__str__ = __repr__
 """
 
 
+def _generate_path_for_cls[NodeT: Node](cls: type[NodeT]) -> str:
+    """Generates Node.path property (and Node._path_key helper)."""
+    assert cls.__is_node__, f"{cls.__name__} is not a Node"
+
+    # Node._path_key
+    if "slug" in cls.__properties__:
+        path_key_str = """\
+@property
+def _path_key(self) -> str:
+    return self.slug
+"""
+    elif "name" in cls.__properties__:
+        path_key_str = """\
+@property
+def _path_key(self) -> str:
+    return self.name
+"""
+    elif "title" in cls.__properties__:
+        path_key_str = """\
+@property
+def _path_key(self) -> str:
+    return self.title
+"""
+    else:
+        path_key_str = """\
+@property
+def _path_key(self) -> str:
+    return f"{self.metatype.bench_name}[id={self.id}]"
+"""
+
+    # Node.path
+    if cls.__root_type__ is None:
+        path_str = """\
+path = _path_key
+"""
+    else:
+        path_str = """\
+@property
+def path(self) -> str:
+    path_parts: list[str] = []
+    node = self
+    is_attached = False
+    while node is not None:
+        if node.__root_type__ is None:
+            is_attached = True
+        path_parts.append(node._path_key)
+        node = node.parent
+    if not is_attached:
+        path_parts.append("<detached>")
+    return "/".join(reversed(path_parts))
+"""
+
+    return f"{path_key_str}\n{path_str}"
+
+
 def _generate_equals_for_cls[ObjectT: BuiltinObject](cls: type[ObjectT]) -> str:
-    """Generates an equals method for a BuiltinObject class."""
+    """Generates BuiltinObject.equals method."""
     return ""
 
 
 def _generate_validate_for_cls[ObjectT: BuiltinObject](cls: type[ObjectT]) -> str:
-    """Generates a validate method for a BuiltinObject class."""
+    """Generates BuiltinObject.validate method."""
     return ""
 
 
@@ -473,8 +557,11 @@ def _process_object_cls[ObjectT: BuiltinObject](
         cls_dict["__slots__"] = tuple(cls.__wired_properties__.keys())
         init_str = _generate_init_for_cls(cls, is_node=is_node, header_properties=properties)
         exec(init_str, {"ACTIVE_SESSION": ACTIVE_SESSION}, cls_dict)
-        strs_str = _generate_strs_for_cls(cls)
-        exec(strs_str, {}, cls_dict)
+        repr_str = _generate_repr_for_cls(cls)
+        exec(repr_str, {}, cls_dict)
+        if is_node:
+            path_str = _generate_path_for_cls(cast(type["Node"], cls))
+            exec(path_str, {}, cls_dict)
         equals_str = _generate_equals_for_cls(cls)
         exec(equals_str, {}, cls_dict)
         validate_str = _generate_validate_for_cls(cls)
@@ -593,25 +680,21 @@ class BuiltinObject[ObjectDataT: AnyObjectData](abc.ABC):
     _session: "Session" = property_runtime_()
     _supergraph: "Supergraph" = property_runtime_()
 
-    # nocheckin: generate BuiltinObject str
-
     def equals(
         self,
         other: Self | Any,
         identity_map: Mapping[UUID, "NodeReference"] = EMPTY_DICT,
     ) -> bool:
         """Checks if the content of the two objects is equal (recursively)."""
-        # nocheckin: generate equals for BuiltinObject (and hash for Structs)
-        raise NotImplementedError
+        raise NotImplementedError  # generated
 
     def validate(self) -> None:
         """Validate the object."""
-        # nocheckin: generate validate for BuiltinObject
-        raise NotImplementedError
+        raise NotImplementedError  # generated
 
     def _stable_hash(self) -> int:
         """Hash of content properties."""
-        raise NotImplementedError
+        raise NotImplementedError  # generated
 
     def _clone_kwargs(self, reset: bool = True):
         """Clone kwargs for a new instance."""
