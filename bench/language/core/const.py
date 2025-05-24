@@ -12,7 +12,6 @@ from typing import (
     Generator,
     Iterable,
     Optional,
-    TypeGuard,
     TypeVar,
     Union,
     cast,
@@ -287,12 +286,13 @@ class EnumType(BuiltinEnum):
     USER_STATUS = 40010
     ORGANIZATION_STATUS = 40011
     BENCH_STATUS = 40056
+    PACKAGE_TYPE = 40050
     ERROR_TYPE = 40061
     SEVERITY = 40062
     VARIABLE_TYPE = 40063
     EDIT_TYPE = 40070
     EDIT_OPERATION = 40071
-    # PROFILE, CREDENTIAL, FRIENDSHIP, ...
+
     # query
     CONDITIONAL_TYPE = 40102
     AGGREGATION_TYPE = 40103
@@ -303,107 +303,95 @@ class EnumType(BuiltinEnum):
     EXPRESSION_TYPE = 40108
     RELATION_TYPE = 40109
     ATTRIBUTE_TYPE = 40110
+    QUERY_TYPE = 40850
 
-    # package [41000-41200]
-    PACKAGE_TYPE = 40050
-    RESOURCE_STATUS = 41000
-    BLOCK_TYPE = 41010
-    # APP, PLUGIN, ...
+    # auth [40200-40600]
+    # ...
 
-    # infra [41200-41400]
+    # space [40600-40800]
+    SPACE_TYPE = 40600
+    BLOCK_TYPE = 40610
+    # ...
+
+    # history [40800-41000]
+    # ...
+
+    # infra [41000-41200]
     CLOUD = 40051
     REGION = 40052
     AREA = 40054
     CONTINENT = 40055
-    MACHINE_TYPE = 41210
-    DATABASE_TYPE = 41220
-    CLIENT_TYPE = 41221
-    # VAULT, CACHE, ENDPOINT, DEPLOYMENT, NETWORK, ...
-
-    # data [41400-41600]
-    TEXT_LINE_TYPE = 41400
-    TEXT_SPAN_TYPE = 41401
-    CODE_TYPE = 41410
-    FILE_RETENTION_MODE = 41420
-    FILE_SOURCE = 41421
-    FILE_TYPE = 41422
-    FILE_FORMAT = 41423
-    ICON_TYPE = 41430
-    LINK_TYPE = 41440
-    PRIMITIVE_TYPE = 41500
-    TYPE_CARDINALITY = 41501
-    SCALAR_TYPE = 41502
-    STRING_FORMAT = 41510
-    NUMBER_FORMAT = 41511
-    FIELD_TYPE = 41520
-    CASCADE_ACTION = 41521
-    DAY = 41530
-    MONTH = 41531
-    TIME_INTERVAL = 41532
+    MACHINE_TYPE = 41010
+    DATABASE_TYPE = 41020
+    CLIENT_TYPE = 41021
     # ...
 
-    # chat [41800-42000]
-    THREAD_STATUS = 41801
-    MESSAGE_TYPE = 41802
-    NOTIFICATION_TYPE = 41810
-    NOTIFICATION_STATUS = 41811
+    # logic [41200-41600]
+    ACTION_TYPE = 41220
+    FLOW_TYPE = 41240
+    FLOW_EDGE_TYPE = 41241
+    CURSOR_TYPE = 41320
+    CURSOR_STATUS = 41321
     # ...
 
-    # plan [42000-42200]
-    CURSOR_TYPE = 42010
-    CURSOR_STATUS = 42011
+    # runtime [41600-42000]
+    PROCESS_STATUS = 41610
+    RUN_TYPE = 41611
+    SPAN_TYPE = 41620
+    SCHEDULE_FREQUENCY = 41630
+    INTERRUPTION_TYPE = 41631
+    INTERRUPTION_STATUS = 41632
+    INTERRUPTION_RESPONSE = 41633
     # ...
 
-    # logic [42200-42400]
-    ACTION_TYPE = 42220
-    FLOW_TYPE = 42222
-    FLOW_EDGE_TYPE = 42223
-    #  ...
-
-    # quality [42400-42600]
+    # data [42000-42400]
+    TEXT_LINE_TYPE = 42000
+    TEXT_SPAN_TYPE = 42001
+    CODE_TYPE = 42010
+    FILE_RETENTION_MODE = 42020
+    FILE_SOURCE = 42021
+    FILE_TYPE = 42022
+    FILE_FORMAT = 42023
+    ICON_TYPE = 42030
+    LINK_TYPE = 42050
+    PRIMITIVE_TYPE = 42100
+    TYPE_CARDINALITY = 42101
+    SCALAR_TYPE = 42102
+    STRING_FORMAT = 42110
+    NUMBER_FORMAT = 42111
+    FIELD_TYPE = 42120
+    CASCADE_ACTION = 42121
+    DAY = 42130
+    MONTH = 42131
+    TIME_INTERVAL = 42132
+    RESOURCE_STATUS = 42200
     # ...
 
-    # runtime [42600-42800]
-    PROCESS_STATUS = 42600
-    RUN_TYPE = 42601
-    SPAN_TYPE = 42602
-    SCHEDULE_FREQUENCY = 42610
-    INTERRUPTION_TYPE = 42620
-    INTERRUPTION_STATUS = 42621
-    INTERRUPTION_RESPONSE = 42622
-    # EVENT, SIGNAL, ...
-
-    # auth [42800-43000]
-    QUERY_TYPE = 42850
+    # social [42400-42800]
+    THREAD_STATUS = 42401
+    MESSAGE_TYPE = 42420
     # ...
 
-    # version [43200-43400]
+    # product [42800-43200]
     # ...
 
-    # publish [43400-43600]
+    # finance [43200-43600]
     # ...
 
-    # analytics [43600-43800]
+    # locale [43600-44000]
     # ...
 
-    # locale [43800-44000]
+    # web [44000-44200]
     # ...
 
-    # model [44000-44200]
-    MODEL_DEVELOPER = 44000
-    MODEL_PROVIDER = 44001
-
-    # finance [44200-44400]
+    # world [44200-44400]
     # ...
 
-    # web [44400-44600]
-    # ...
-
-    # world [44600-44800]
-    # ...
+    # model [44400-44600]
+    MODEL_DEVELOPER = 44400
+    MODEL_PROVIDER = 44401
 
     # ui [48000-50000]
-    SPACE_TYPE = 48000
 
     # space [48000-48100]
     # ...
@@ -411,13 +399,19 @@ class EnumType(BuiltinEnum):
     # container views [48100-48200]
     # ...
 
-    # content views [48200-48400]
+    # content views [48200-48300]
+    # ...
+
+    # input views [48300-48400]
     # ...
 
     # node views [48400-48500]
     # ...
 
-    # style [49000-49200]
+    # internal views [48500-48600]
+    # ...
+
+    # style [49000-49100]
     POSITION_TYPE = 49000
     COLOR_TYPE = 49010
     COLOR_SHADE = 49011
@@ -479,68 +473,59 @@ class StructType(BuiltinEnum):
     RELATION_REFERENCE = 20110
     ATTRIBUTE_REFERENCE = 20111
 
-    # package [21000-21200]
-    # APP, PLUGIN, ...
-
-    # infra [21200-21400]
-    # VAULT, CACHE, ENDPOINT, DEPLOYMENT, NETWORK, ...
-
-    # data [21400-21800]
-    TYPE = 21400
-    NUMBER_CONSTRAINT = 21401
-    STRING_CONSTRAINT = 21402
-    COLLECTION_CONSTRAINT = 21403
-    NODE_CONSTRAINT = 21404
-
-    VALUE = 21410
-    # SCHEMA, UNION, TAG, ...
-    TEXT = 21500, None, None, "fas fa-text"
-    TEXT_LINE = 21501, None, None, "fas fa-text"
-    TEXT_SPAN = 21502, None, None, "fas fa-text"
-    CODE = 21510, None, None, "fas fa-code"
-    ICON = 21530
-    SELECTION = 21470
-    # ...
-
-    # social [21800-22000]
-    # ...
-
-    # logic [22000-22400]
-    SCHEDULE = 22000
-    # ...
-
-    # quality [22400-22600]
-    # ...
-
-    # runtime [22600-22800]
-    ERROR = 22600
-    # EVENT, SIGNAL, ...
-
-    # auth [22800-23000]
+    # auth [20200-20600]
     # PROFILE? (for User, or maybe global?)
 
-    # version [23200-23400]
+    # space [20600-20800]
     # ...
 
-    # publish [23400-23600]
+    # history [20800-21000]
     # ...
 
-    # analytics [23600-23800]
+    # infra [21000-21200]
+    # VAULT, CACHE, ENDPOINT, DEPLOYMENT, NETWORK, ...
+
+    # logic [21200-21600]
+    SCHEDULE = 21200
     # ...
 
-    # locale [23800-24000]
+    # runtime [21600-22000]
+    ERROR = 21600
+    # EVENT, SIGNAL, ...
+
+    # data [22000-22400]
+    TYPE = 22000
+    NUMBER_CONSTRAINT = 22001
+    STRING_CONSTRAINT = 22002
+    COLLECTION_CONSTRAINT = 22003
+    NODE_CONSTRAINT = 22004
+
+    VALUE = 22010
+    # SCHEMA, UNION, TAG, ...
+    TEXT = 22100, None, None, "fas fa-text"
+    TEXT_LINE = 22101, None, None, "fas fa-text"
+    TEXT_SPAN = 22102, None, None, "fas fa-text"
+    CODE = 22110, None, None, "fas fa-code"
+    ICON = 22130
+    SELECTION = 22070
     # ...
 
-    # model [24000-24200]
+    # social [22400-22800]
     # ...
 
-    # finance [24200-24400]
+    # product [22800-23200]
     # ...
 
-    # web [24400-24600]
+    # finance [23200-23600]
     # ...
 
-    # world [24600-24800]
+    # locale [23600-24000]
+    # ...
+
+    # web [24000-24200]
+    # ...
+
+    # world [24200-24400]
     # ...
 
     # ui [28000-30000]
@@ -551,10 +536,16 @@ class StructType(BuiltinEnum):
     # container views [28100-28200]
     # ...
 
-    # content views [28200-28400]
+    # content views [28200-28300]
+    # ...
+
+    # input views [28300-28400]
     # ...
 
     # node views [28400-28500]
+    # ...
+
+    # internal views [28500-28600]
     # ...
 
     # style [29000-29100]
@@ -580,24 +571,28 @@ class StructType(BuiltinEnum):
     INSETS = 29029, None, None, "fas fa-corner"
     CORNERS = 29031, None, None, "fas fa-corner"
 
-    # drawing
-    # ...
+    # canvas/drawing?
+    # CANVAS, BRUSH, SHAPE, ...
 
-    # audio/media
-    # ...
+    # audio/media?
+    # SOUND, ...?
 
 
 @enum_(EnumType.NODE_TYPE)
 class NodeType(BuiltinEnum):
     # bench [1-200]
-    BENCH = 10, "Bench", "Universal workbench", "https://heybench.com/favicon.ico"
-    BENCH_MEMBERSHIP = 11, "Bench Membership", "Membership in a Bench", "fas fa-user-group"
-    BENCH_INVITE = 12, "Bench Invite", "Invite to a Bench", "fas fa-user-plus"
+    BENCH = 1, "Bench", "Universal workbench", "https://heybench.com/favicon.ico"
+    BENCH_MEMBERSHIP = 2, "Bench Membership", "Membership in a Bench", "fas fa-user-group"
+    BENCH_INVITE = 3, "Bench Invite", "Invite to a Bench", "fas fa-user-plus"
+    PACKAGE = 20, "Package", "Isolated sub-Bench", "fas fa-box-open"
+    PACKAGE_MEMBERSHIP = 21, "Package Membership", "Membership in a Package", "fas fa-user-group"
+    PACKAGE_INVITE = 22, "Package Invite", "Invite to a Package", "fas fa-user-plus"
     HANDLE = 50, "Handle", "Unique @handle", "fas fa-at"
+    # DEPENDENCY, PLUGIN, ...
 
-    # auth [200-400]
+    # auth [200-600]
     USER = 200, "User", "User", "fas fa-user"
-    CLIENT = 250, "Client", "Client to a Bench", "fas fa-desktop"
+    CLIENT = 210, "Client", "Client to a Bench", "fas fa-desktop"
     ORGANIZATION = 300, "Organization", "Organization", "fas fa-building"
     ORGANIZATION_MEMBERSHIP = (
         301,
@@ -611,94 +606,86 @@ class NodeType(BuiltinEnum):
         "Invite to an Organization",
         "fas fa-user-plus",
     )
-    # PROFILE? (for User, or maybe global?)
+    # TEAM
+    # ACCOUNT, PROFILE, ...
     # PERMISSION, PERMISSION_GROUP, ...
-    # CHALLENGE, FRIENDSHIP, BADGE, ENTITLEMENT, POLICY, RULE, ...
-    # KICK/BAN, ...
+    # CHALLENGE, FRIENDSHIP, ENTITLEMENT, POLICY, RULE, KICK/BAN, ...
 
-    # package [1000-1200]
-    PACKAGE = 1000, "Package", "Isolated sub-Bench", "fas fa-box-open"
-    DEPENDENCY = 1010, "Dependency", "Dependency to something", "fas fa-turn-down-right"
-    PAGE = 1020, "Page", "Page of Blocks", "far fa-file"
-    BLOCK = 1030, "Block", "Rich Block on a Page", "fas fa-cube"
-    APPLICATION = 1050, "Application", "Interactive Application", "fas fa-app"
-    # PLUGIN, ...
+    # space [600-800]
+    SPACE = 600, "Space", "Space", "fas fa-galaxy"
+    SCENE = 610, "Scene", "Scene of an Application", "fas fa-masks-theater"
+    ROUTE = 620, "Route", "Route to a Scene", "fas fa-route"
+    # COMMAND, OVERLAY, WIDGET, ...
+    PAGE = 700, "Page", "Page of Blocks", "far fa-file"
+    BLOCK = 701, "Block", "Rich Block on a Page", "fas fa-cube"
 
-    # infra [1200-1400]
-    DATABASE = 1200, "Store", "Store custom data", "fas fa-database"
-    MACHINE = 1210, "Machine", "Machine for computing", "fas fa-machine-classic"
+    # history [800-1000]
+    # CHANGE, HISTORY, OVERLAY, BRANCH, ...
+
+    # infra [1000-1200]
+    DATABASE = 1000, "Store", "Store custom data", "fas fa-database"
+    MACHINE = 1010, "Machine", "Machine for computing", "fas fa-machine-classic"
     # VAULT, CACHE, ENDPOINT, DEPLOYMENT, NETWORK, AUTOSCALER, ...
 
-    # data [1400-1800]
-    SCHEMA = 1400, "Schema", "Schema", "fas fa-shapes"
-    FIELD = 1410, "Field", "Field", "fas fa-triangle"
-    TABLE = 1500, "Table", "Table of Records", "fas fa-table"
-    RECORD = 1510, "Record", "Record in a Database", "fas fa-database"
-    FILE = 1520, "File", "File", "fas fa-file"
-    LINK = 1550, "Link", "Link to something", "fas fa-link"
-    # STREAM, SECRET, INDEX, CONSTRAINT, MIGRATION, ...
-
-    # social [1800-2000]
-    THREAD = 1800, "Thread", "Thread", "fas fa-reel"
-    MESSAGE = 1820, "Message", "Message", "fas fa-message"
-    NOTIFICATION = 1850, "Notification", "Notification", "fas fa-bell"
-    # FOLLOW, FEED, FEED_ITEM, ...
-    # POLL, VOTE, RATING, REACTION, ...
-
-    # logic [2000-2400]
-    SERVICE = 2000, "Service", "Service", "fas fa-screwdriver-wrench"
-    ACTION = 2020, "Action", "Action", "fas fa-step-forward"
-    FLOW = 2040, "Flow", "Sequence Actions", "fas fa-diagram-project"
-    FLOW_EDGE = 2041, "Flow Edge", "Edge between Actions", "fas fa-link"
-    AGENT = 2100, "Agent", "Identity for an AI", "fas fa-robot"
-    TASK = 2200, "Task", "To-do item", "far fa-square-check"
-    CURSOR = 2220, "Cursor", "Position in something", "fas fa-mouse"
+    # logic [1200-1600]
+    SERVICE = 1200, "Service", "Service", "fas fa-screwdriver-wrench"
+    ACTION = 1220, "Action", "Action", "fas fa-step-forward"
+    FLOW = 1240, "Flow", "Sequence Actions", "fas fa-diagram-project"
+    FLOW_EDGE = 1241, "Flow Edge", "Edge between Actions", "fas fa-link"
+    AGENT = 1300, "Agent", "Identity for an AI", "fas fa-robot"
+    TASK = 1310, "Task", "To-do item", "far fa-square-check"
+    CURSOR = 1320, "Cursor", "Position in something", "fas fa-mouse"
     # ROOM, JOB, PLAN, LOCK, ...
-    # TRAIT, INTERFACE, ...
+    # TRAIT/INTERFACE, ...
     # TRIGGER, TIMER, BREAKPOINT, ...
-
-    # quality [2400-2600]
     # TEST, TEST_SUITE, TEST_CASE, TEST_RESULT, ...
-    # ROLLOUT, ...
 
-    # runtime [2600-2800]
-    RUN = 2610, "Run", "Run", "fas fa-play"
-    SPAN = 2620, "Span", "Span", "fas fa-ruler-horizontal"
-    INTERRUPTION = 2630, "Interruption", "Interruption", "fas fa-hand"
-    # EVENT, SIGNAL, ...
+    # runtime [1600-2000]
+    RUN = 1610, "Run", "Run", "fas fa-play"
+    SPAN = 1620, "Span", "Span", "fas fa-ruler-horizontal"
+    INTERRUPTION = 1630, "Interruption", "Interruption", "fas fa-hand"
+    # EVENT, SIGNAL, TRACE, LOG, ...
 
-    # version [3200-3400]
-    # CHANGE, HISTORY, BRANCH, ...
+    # data [2000-2400]
+    SCHEMA = 2000, "Schema", "Schema", "fas fa-shapes"
+    FIELD = 2010, "Field", "Field", "fas fa-triangle"
+    FILE = 2020, "File", "File", "fas fa-file"
+    LINK = 2050, "Link", "Link to something", "fas fa-link"
+    # STREAM, SECRET, INDEX, CONSTRAINT, MIGRATION, ...
+    TABLE = 2200, "Table", "Table of Records", "fas fa-table"
+    RECORD = 2210, "Record", "Record in a Database", "fas fa-database"
 
-    # publish [3400-3600]
-    # PUBLICATION, PREVIEW, RELEASE, WISHLIST/WATCHLIST, ...
+    # social [2400-2800]
+    THREAD = 2400, "Thread", "Thread", "fas fa-reel"
+    MESSAGE = 2420, "Message", "Message", "fas fa-message"
+    # POLL, STAR, VOTE, REVIEW, RATING, REACTION, ...
+    # FOLLOW, FEED, FEED_ITEM, ...
+    # CHANNEL, NOTIFICATION, ...
+    # WISHLIST/WATCHLIST, ...
 
-    # analytics [3600-3800]
-    # METER, METRIC, SURVEY, REPLAY, ...
+    # product [2800-3200]
+    # PREVIEW, RELEASE, ROLLOUT, ...
+    # METER, METRIC, RECORDING/REPLAY, SURVEY, ...
+    # TOUR, FUNNEL, JOURNEY, ..
+    # SEGMENT, EXPERIMENT, FEATURE, FEATURE_FLAG, FEATURE_GATE, ...
 
-    # locale [3800-4000]
-    # LOCALE, TRANSLATION, ...
-
-    # model [4000-4200]
-    # MODEL, FINETUNE, ...
-
-    # finance [4200-4400] (also see Stripe API?)
+    # finance [3200-3600]
     # WALLET, BALANCE, BUDGET, TRANSFER, CREDIT, ...
     # TIER, SUBSCRIPTION, PRODUCT, PRICE, ORDER, INVOICE, DISCOUNT, DISPUTE, REFUND, ...
 
-    # web [4400-4600]
-    # ACCOUNT, DOMAIN, EMAIL, ...
+    # locale [3600-4000]
+    # LOCALE, STRING, TRANSLATION, ...
 
-    # world [4600-4800]
+    # web [4000-4200]
+    # DOMAIN, ...
+    # EMAIL, EMAIL_ATTEMPT, ...
+
+    # world [4200-4400]
     # PHONE, ADDRESS, ...
 
     # ui [8000-10000]
 
     # space [8000-8100]
-    SPACE = 8000, "Space", "Space", "fas fa-galaxy"
-    SCENE = 8010, "Scene", "Scene of an Application", "fas fa-masks-theater"
-    ROUTE = 8020, "Route", "Route to a Scene", "fas fa-route"
-    # COMMAND, OVERLAY, WIDGET, ...
 
     # container views [8100-8200]
     FRAME_VIEW = 8100, "Frame View", "Fixed Container", "fas fa-frame"
@@ -789,20 +776,56 @@ class TraitType(BuiltinEnum):
     REGIONAL = 50, "Regional", "Is regional", "fas fa-globe"
     RESOURCE = 51, "Resource", "Is a Resource"
     PROVISIONABLE = 52, "Provisionable", "Can be provisioned", "fas fa-server"
-    # package [1000-1200]
-    PAGEABLE = 1020, "Page", "In a Page", "far fa-file"
-    BLOCKABLE = 1030, "Block", "Can be a Block on a Page", "fas fa-cube"
-    # logic [2000-2400]
-    RUNNABLE = 2000, "Runnable", "Can be run", "fas fa-play"
-    PROCESSABLE = 2001, "Processable", "Can be processed", "fas fa-cogs"
-    COMPUTABLE = 2002, "Computable", "Can be computed", "fas fa-calculator"
-    # auth [2800-3000]
-    OWNABLE = 2800, "Ownable", "Can be owned", "fas fa-user"
-    JOINABLE = 2802, "Joinable", "Can be joined", "fas fa-users"
-    SUBJECT = 2805, "Subject", "Is a Subject", "fas fa-user"
-    MEMBERSHIP = 2810, "Membership", "Is a Membership", "fas fa-users"
-    INVITE = 2811, "Invite", "Is an Invite", "fas fa-envelope"
-    ROLE = 2812, "Role", "Is a Role", "fas fa-user-tag"
+    # TAG, TAGGABLE, ...
+
+    # auth [200-600]
+    OWNABLE = 200, "Ownable", "Can be owned", "fas fa-user"
+    JOINABLE = 202, "Joinable", "Can be joined", "fas fa-users"
+    SUBJECT = 205, "Subject", "Is a Subject", "fas fa-user"
+    MEMBERSHIP = 210, "Membership", "Is a Membership", "fas fa-users"
+    INVITE = 211, "Invite", "Is an Invite", "fas fa-envelope"
+    ROLE = 212, "Role", "Is a Role", "fas fa-user-tag"
+
+    # space [600-800]
+    BLOCKABLE = 630, "Block", "Can be a Block on a Page", "fas fa-cube"
+
+    # history [800-1000]
+    # ...
+
+    # infra [1000-1200]
+    # ...
+
+    # logic [1200-1600]
+    RUNNABLE = 1200, "Runnable", "Can be run", "fas fa-play"
+    PROCESSABLE = 1201, "Processable", "Can be processed", "fas fa-cogs"
+    COMPUTABLE = 1202, "Computable", "Can be computed", "fas fa-calculator"
+
+    # runtime [1600-2000]
+    # ...
+
+    # data [2000-2400]
+    # ...
+
+    # social [2400-2800]
+    # MESSAGE, THREAD, ...
+    # STARRABLE, RATEABLE, REACTABLE, VOTABLE, ..
+    # ASSIGNABLE, MESSAGEABLE, CLOSABLE, LOCKABLE, ...
+
+    # product [2800-3200]
+    # ...
+
+    # finance [3200-3600]
+    # ...
+
+    # locale [3600-4000]
+    # ...
+
+    # web [4000-4200]
+    # ...
+
+    # world [4200-4400]
+    # ...
+
     # ui [8000-10000]
     VIEW = 8001, "View", "Is a View", "fas fa-eye"
     CONTAINER_VIEW = 8100, "Container View", "Is a Container View", "fas fa-container"
@@ -836,18 +859,6 @@ class NodeMode(BuiltinEnum):
 ENUM_TYPES: bittuple[EnumType] = bittuple(*EnumType)
 NODE_TYPES = bittuple(*NodeType)
 STRUCT_TYPES: bittuple[StructType] = bittuple(*StructType)
-
-
-def is_node_type(obj: BuiltinEnum | int | Any) -> TypeGuard[NodeType]:
-    return isinstance(obj, int) and obj in NODE_TYPES
-
-
-def is_struct_type(obj: BuiltinEnum | int | Any) -> TypeGuard[StructType]:
-    return isinstance(obj, int) and obj in STRUCT_TYPES
-
-
-def is_enum_type(obj: BuiltinEnum | int | Any) -> TypeGuard[EnumType]:
-    return isinstance(obj, int) and obj in ENUM_TYPES
 
 
 @enum_(EnumType.CLOUD)

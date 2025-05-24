@@ -66,7 +66,7 @@ class Bench(
     database: Optional["Database"] = property_(
         50, node_bench_from="self", can_write="system", description="The Database."
     )
-    package: Optional["Package"] = property_(
+    main_package: Optional["Package"] = property_(
         51, node_bench_from="self", can_write="system", description="The Main Package."
     )
     if TYPE_CHECKING:
@@ -77,7 +77,13 @@ class Bench(
 
 
 @node_(NodeType.BENCH_INVITE)
-class BenchInvite(IsInvite, IsDeletable, IsInBench, Node[BenchInviteData]):
+class BenchInvite(
+    IsGlobal,
+    IsInvite,
+    IsDeletable,
+    IsInBench,
+    Node[BenchInviteData],
+):
     """
     A BenchInvite is an invite to a Bench.
     """
@@ -86,7 +92,13 @@ class BenchInvite(IsInvite, IsDeletable, IsInBench, Node[BenchInviteData]):
 
 
 @node_(NodeType.BENCH_MEMBERSHIP)
-class BenchMembership(IsMembership, IsDeletable, IsInBench, Node[BenchMembershipData]):
+class BenchMembership(
+    IsGlobal,
+    IsMembership,
+    IsDeletable,
+    IsInBench,
+    Node[BenchMembershipData],
+):
     """
     A BenchMembership is a membership to a Bench.
     """

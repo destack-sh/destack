@@ -1,6 +1,5 @@
 # ruff: noqa: RUF012
 
-from dataclasses import dataclass
 from typing import TYPE_CHECKING, Any, Optional, Union, assert_never
 
 from fastuuid import UUID
@@ -480,12 +479,13 @@ def aggregate[T: Node](
 #  GetResult/SearchResult/AggregateResult, ...
 #
 
+# from bench.language import *
+
 # q = User.get(
 #     where=User.property("id").eq(5),
 #     Clients=Client.search(),
 #     BenchMemberships=BenchMembership.search(
-#         where=Membership.property("parent").eq(NodeType.BENCH),
-#         sort=[Membership.property("created_at").desc()],
+#         sort=[BenchMembership.property("created_at").desc()],
 #     ),
 # )
 
@@ -494,11 +494,6 @@ def aggregate[T: Node](
 #     where=Bench.property("id").eq(5),
 #     Packages=Package.search(
 #         Pages=Page.search(limit=10, count=True),
-#         Memberships=PackageMembership.search(
-#             sort=[PackageMembership.property("created_at").desc()],
-#             limit=10,
-#             count=True,
-#         ),
 #     ),
 #     Pages=Page.search(count=True),
 # )
@@ -538,9 +533,11 @@ def aggregate[T: Node](
 # )
 
 
-@dataclass(slots=True)
 class QueryResult:
-    query: Query
+    __slots__ = ("query",)
+
+    def __init__(self, query: Query):
+        self.query = query
 
 
 #

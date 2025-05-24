@@ -32,7 +32,6 @@ from .const import (
     NodeType,
     PrimitiveType,
     StructType,
-    is_node_type,
 )
 from .graph import Supergraph
 from .icon import Icon, reverse_icon

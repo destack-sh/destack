@@ -5,6 +5,7 @@ from fastuuid import UUID
 
 from bench.language.core import (
     ClientType,
+    IsGlobal,
     IsInBench,
     IsNamed,
     Node,
@@ -25,7 +26,7 @@ if TYPE_CHECKING:
 
 
 @node_(NodeType.CLIENT)
-class Client(IsNamed, IsInBench, Node[ClientData]):
+class Client(IsNamed, IsInBench, IsGlobal, Node[ClientData]):
     """A Client to connect with the system."""
 
     # meta

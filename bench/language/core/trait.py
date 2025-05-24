@@ -367,13 +367,6 @@ class IsInPackage(IsInBench):
         package_ptr: Optional[NodeReference] = None
 
 
-@trait_(TraitType.PAGEABLE)
-class IsPageable(Node if TYPE_CHECKING else BuiltinObject):
-    """A Node that can be in a Page."""
-
-    pass
-
-
 @trait_(TraitType.BLOCKABLE)
 class IsBlockable(IsOrdered, IsInPackage):
     """A Node that can (but may not be) be inline on a Page as a Block."""

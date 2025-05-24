@@ -1,0 +1,89 @@
+from typing import TYPE_CHECKING, Optional
+
+from bench.language.core import (
+    BuiltinEnum,
+    EnumType,
+    IndexIn,
+    IsArchivable,
+    IsDeletable,
+    IsGlobal,
+    IsIcon,
+    IsInPackage,
+    IsInvite,
+    IsJoinable,
+    IsMembership,
+    IsModal,
+    IsNamed,
+    IsOwnable,
+    IsSlug,
+    IsTemplatable,
+    Node,
+    NodeType,
+    enum_,
+    node_,
+    property_,
+    property_parent_,
+)
+from bench.pb2 import PackageData, PackageInviteData, PackageMembershipData
+
+if TYPE_CHECKING:
+    from bench.language import Bench, Page, Scene
+
+# pyright: reportIncompatibleVariableOverride=false
+
+
+@enum_(EnumType.PACKAGE_TYPE)
+class PackageType(BuiltinEnum):
+    HOME = 10
+    APPLICATION = 20
+    # TEMPLATE, LIBRARY, ...
+
+
+@node_(NodeType.PACKAGE, index=(IndexIn(columns=("bench_id", "slug"), is_unique=True),))
+class Package(
+    IsGlobal,
+    IsOwnable,
+    IsJoinable,
+    IsTemplatable,
+    IsIcon,
+    IsSlug,
+    IsModal,
+    IsNamed,
+    IsInPackage,
+    IsDeletable,
+    IsArchivable,
+    Node[PackageData],
+):
+    """A Package is a semi-isolated area of a Bench."""
+
+    parent: Optional["Bench"] = property_parent_()
+    type: PackageType = property_(30, is_repr=True)
+
+    main_page: Optional["Page"] = property_(40)
+    main_scene: Optional["Scene"] = property_(41)
+
+
+@node_(NodeType.PACKAGE_MEMBERSHIP)
+class PackageMembership(
+    IsGlobal,
+    IsMembership,
+    IsDeletable,
+    IsInPackage,
+    Node[PackageMembershipData],
+):
+    """A PackageMembership is a membership to a Package."""
+
+    parent: "Package" = property_parent_()
+
+
+@node_(NodeType.PACKAGE_INVITE)
+class PackageInvite(
+    IsGlobal,
+    IsInvite,
+    IsDeletable,
+    IsInPackage,
+    Node[PackageInviteData],
+):
+    """A PackageInvite is an invite to a Package."""
+
+    parent: "Package" = property_parent_()

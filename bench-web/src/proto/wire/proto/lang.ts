@@ -324,89 +324,6 @@ export interface AggregationData {
     distinct: boolean;
 }
 /**
- * An Application is an interactive set of Scenes for some purpose.
- *
- * @generated from protobuf message symbol.bench.ApplicationData
- */
-export interface ApplicationData {
-    /**
-     * @generated from protobuf field: symbol.bench.NodeType metatype = 1;
-     */
-    metatype: NodeType;
-    /**
-     * @generated from protobuf field: string id = 2;
-     */
-    id: string;
-    /**
-     * @generated from protobuf field: string ck = 3;
-     */
-    ck: string;
-    /**
-     * @generated from protobuf field: optional symbol.bench.NodeReferenceData parent_ptr = 4;
-     */
-    parentPtr?: NodeReferenceData;
-    /**
-     * @generated from protobuf field: optional symbol.bench.NodeReferenceData bench_ptr = 6;
-     */
-    benchPtr?: NodeReferenceData;
-    /**
-     * @generated from protobuf field: optional symbol.bench.NodeReferenceData package_ptr = 7;
-     */
-    packagePtr?: NodeReferenceData;
-    /**
-     * @generated from protobuf field: google.protobuf.Timestamp created_at = 10;
-     */
-    createdAt?: Timestamp;
-    /**
-     * @generated from protobuf field: optional symbol.bench.NodeReferenceData created_by_ptr = 11;
-     */
-    createdByPtr?: NodeReferenceData;
-    /**
-     * @generated from protobuf field: google.protobuf.Timestamp updated_at = 12;
-     */
-    updatedAt?: Timestamp;
-    /**
-     * @generated from protobuf field: optional symbol.bench.NodeReferenceData updated_by_ptr = 13;
-     */
-    updatedByPtr?: NodeReferenceData;
-    /**
-     * @generated from protobuf field: optional google.protobuf.Timestamp archived_at = 14;
-     */
-    archivedAt?: Timestamp;
-    /**
-     * @generated from protobuf field: optional google.protobuf.Timestamp deleted_at = 15;
-     */
-    deletedAt?: Timestamp;
-    /**
-     * @generated from protobuf field: optional symbol.bench.NodeReferenceData template_ptr = 16;
-     */
-    templatePtr?: NodeReferenceData;
-    /**
-     * @generated from protobuf field: symbol.bench.NodeMode mode = 20;
-     */
-    mode: NodeMode;
-    /**
-     * @generated from protobuf field: optional string order_key = 22;
-     */
-    orderKey?: string;
-    /**
-     * @generated from protobuf field: optional string name = 31;
-     */
-    name?: string;
-    /**
-     * @generated from protobuf field: optional symbol.bench.NodeReferenceData definition_ptr = 35;
-     */
-    definitionPtr?: NodeReferenceData;
-    /**
-     * @generated from protobuf field: optional symbol.bench.NodeReferenceData main_scene_ptr = 50;
-     */
-    mainScenePtr?: NodeReferenceData;
-    /**
-     * @generated from protobuf field: optional symbol.bench.NodeReferenceData error_scene_ptr = 53;
-     */
-    errorScenePtr?: NodeReferenceData;
-}
-/**
  * @generated from protobuf message symbol.bench.AttributeReferenceData
  */
 export interface AttributeReferenceData {
@@ -556,9 +473,9 @@ export interface BenchData {
      */
     databasePtr?: NodeReferenceData;
     /**
-     * @generated from protobuf field: optional symbol.bench.NodeReferenceData package_ptr = 51;
+     * @generated from protobuf field: optional symbol.bench.NodeReferenceData main_package_ptr = 51;
      */
-    packagePtr?: NodeReferenceData;
+    mainPackagePtr?: NodeReferenceData;
 }
 /**
  * A BenchInvite is an invite to a Bench.
@@ -1410,69 +1327,6 @@ export interface DatabaseData {
      * @generated from protobuf field: optional string sql_url = 64;
      */
     sqlUrl?: string;
-}
-/**
- * A Dependency on another Package or Bench.
- *
- * @generated from protobuf message symbol.bench.DependencyData
- */
-export interface DependencyData {
-    /**
-     * @generated from protobuf field: symbol.bench.NodeType metatype = 1;
-     */
-    metatype: NodeType;
-    /**
-     * @generated from protobuf field: string id = 2;
-     */
-    id: string;
-    /**
-     * @generated from protobuf field: optional symbol.bench.NodeReferenceData parent_ptr = 4;
-     */
-    parentPtr?: NodeReferenceData;
-    /**
-     * @generated from protobuf field: optional symbol.bench.NodeReferenceData bench_ptr = 6;
-     */
-    benchPtr?: NodeReferenceData;
-    /**
-     * @generated from protobuf field: optional symbol.bench.NodeReferenceData package_ptr = 7;
-     */
-    packagePtr?: NodeReferenceData;
-    /**
-     * @generated from protobuf field: google.protobuf.Timestamp created_at = 10;
-     */
-    createdAt?: Timestamp;
-    /**
-     * @generated from protobuf field: optional symbol.bench.NodeReferenceData created_by_ptr = 11;
-     */
-    createdByPtr?: NodeReferenceData;
-    /**
-     * @generated from protobuf field: google.protobuf.Timestamp updated_at = 12;
-     */
-    updatedAt?: Timestamp;
-    /**
-     * @generated from protobuf field: optional symbol.bench.NodeReferenceData updated_by_ptr = 13;
-     */
-    updatedByPtr?: NodeReferenceData;
-    /**
-     * @generated from protobuf field: optional google.protobuf.Timestamp archived_at = 14;
-     */
-    archivedAt?: Timestamp;
-    /**
-     * @generated from protobuf field: optional google.protobuf.Timestamp deleted_at = 15;
-     */
-    deletedAt?: Timestamp;
-    /**
-     * @generated from protobuf field: optional symbol.bench.NodeReferenceData template_ptr = 16;
-     */
-    templatePtr?: NodeReferenceData;
-    /**
-     * @generated from protobuf field: symbol.bench.NodeMode mode = 20;
-     */
-    mode: NodeMode;
-    /**
-     * @generated from protobuf field: symbol.bench.NodeReferenceData dependency_ptr = 40;
-     */
-    dependencyPtr?: NodeReferenceData;
 }
 /**
  * @generated from protobuf message symbol.bench.DimensionData
@@ -4140,93 +3994,6 @@ export interface NodeReferenceData {
     baseId?: string;
 }
 /**
- * A Notification about something.
- *
- * @generated from protobuf message symbol.bench.NotificationData
- */
-export interface NotificationData {
-    /**
-     * @generated from protobuf field: symbol.bench.NodeType metatype = 1;
-     */
-    metatype: NodeType;
-    /**
-     * @generated from protobuf field: string id = 2;
-     */
-    id: string;
-    /**
-     * @generated from protobuf field: optional symbol.bench.NodeReferenceData parent_ptr = 4;
-     */
-    parentPtr?: NodeReferenceData;
-    /**
-     * @generated from protobuf field: optional symbol.bench.NodeReferenceData bench_ptr = 6;
-     */
-    benchPtr?: NodeReferenceData;
-    /**
-     * @generated from protobuf field: optional symbol.bench.NodeReferenceData package_ptr = 7;
-     */
-    packagePtr?: NodeReferenceData;
-    /**
-     * @generated from protobuf field: google.protobuf.Timestamp created_at = 10;
-     */
-    createdAt?: Timestamp;
-    /**
-     * @generated from protobuf field: optional symbol.bench.NodeReferenceData created_by_ptr = 11;
-     */
-    createdByPtr?: NodeReferenceData;
-    /**
-     * @generated from protobuf field: google.protobuf.Timestamp updated_at = 12;
-     */
-    updatedAt?: Timestamp;
-    /**
-     * @generated from protobuf field: optional symbol.bench.NodeReferenceData updated_by_ptr = 13;
-     */
-    updatedByPtr?: NodeReferenceData;
-    /**
-     * @generated from protobuf field: optional google.protobuf.Timestamp deleted_at = 15;
-     */
-    deletedAt?: Timestamp;
-    /**
-     * @generated from protobuf field: symbol.bench.NodeMode mode = 20;
-     */
-    mode: NodeMode;
-    /**
-     * @generated from protobuf field: symbol.bench.NotificationType type = 30;
-     */
-    type: NotificationType;
-    /**
-     * @generated from protobuf field: optional symbol.bench.TextLineData title = 32;
-     */
-    title?: TextLineData;
-    /**
-     * @generated from protobuf field: optional symbol.bench.NodeReferenceData thread_ptr = 34;
-     */
-    threadPtr?: NodeReferenceData;
-    /**
-     * @generated from protobuf field: symbol.bench.NotificationStatus status = 40;
-     */
-    status: NotificationStatus;
-    /**
-     * @generated from protobuf field: optional google.protobuf.Timestamp failed_at = 42;
-     */
-    failedAt?: Timestamp;
-    /**
-     * @generated from protobuf field: optional google.protobuf.Timestamp sent_at = 43;
-     */
-    sentAt?: Timestamp;
-    /**
-     * @generated from protobuf field: optional google.protobuf.Timestamp received_at = 44;
-     */
-    receivedAt?: Timestamp;
-    /**
-     * @generated from protobuf field: optional google.protobuf.Timestamp read_at = 45;
-     */
-    readAt?: Timestamp;
-    /**
-     * @generated from protobuf field: optional symbol.bench.TextData text = 51;
-     */
-    text?: TextData;
-}
-/**
  * @generated from protobuf message symbol.bench.NumberConstraintData
  */
 export interface NumberConstraintData {
@@ -4658,6 +4425,112 @@ export interface PackageData {
      * @generated from protobuf field: optional symbol.bench.IconData icon = 34;
      */
     icon?: IconData;
+    /**
+     * @generated from protobuf field: optional symbol.bench.NodeReferenceData main_page_ptr = 40;
+     */
+    mainPagePtr?: NodeReferenceData;
+    /**
+     * @generated from protobuf field: optional symbol.bench.NodeReferenceData main_scene_ptr = 41;
+     */
+    mainScenePtr?: NodeReferenceData;
+}
+/**
+ * A PackageInvite is an invite to a Package.
+ *
+ * @generated from protobuf message symbol.bench.PackageInviteData
+ */
+export interface PackageInviteData {
+    /**
+     * @generated from protobuf field: symbol.bench.NodeType metatype = 1;
+     */
+    metatype: NodeType;
+    /**
+     * @generated from protobuf field: string id = 2;
+     */
+    id: string;
+    /**
+     * @generated from protobuf field: symbol.bench.NodeReferenceData parent_ptr = 4;
+     */
+    parentPtr?: NodeReferenceData;
+    /**
+     * @generated from protobuf field: optional symbol.bench.NodeReferenceData bench_ptr = 6;
+     */
+    benchPtr?: NodeReferenceData;
+    /**
+     * @generated from protobuf field: optional symbol.bench.NodeReferenceData package_ptr = 7;
+     */
+    packagePtr?: NodeReferenceData;
+    /**
+     * @generated from protobuf field: google.protobuf.Timestamp created_at = 10;
+     */
+    createdAt?: Timestamp;
+    /**
+     * @generated from protobuf field: optional symbol.bench.NodeReferenceData created_by_ptr = 11;
+     */
+    createdByPtr?: NodeReferenceData;
+    /**
+     * @generated from protobuf field: google.protobuf.Timestamp updated_at = 12;
+     */
+    updatedAt?: Timestamp;
+    /**
+     * @generated from protobuf field: optional symbol.bench.NodeReferenceData updated_by_ptr = 13;
+     */
+    updatedByPtr?: NodeReferenceData;
+    /**
+     * @generated from protobuf field: optional google.protobuf.Timestamp deleted_at = 15;
+     */
+    deletedAt?: Timestamp;
+}
+/**
+ * A PackageMembership is a membership to a Package.
+ *
+ * @generated from protobuf message symbol.bench.PackageMembershipData
+ */
+export interface PackageMembershipData {
+    /**
+     * @generated from protobuf field: symbol.bench.NodeType metatype = 1;
+     */
+    metatype: NodeType;
+    /**
+     * @generated from protobuf field: string id = 2;
+     */
+    id: string;
+    /**
+     * @generated from protobuf field: symbol.bench.NodeReferenceData parent_ptr = 4;
+     */
+    parentPtr?: NodeReferenceData;
+    /**
+     * @generated from protobuf field: optional symbol.bench.NodeReferenceData bench_ptr = 6;
+     */
+    benchPtr?: NodeReferenceData;
+    /**
+     * @generated from protobuf field: optional symbol.bench.NodeReferenceData package_ptr = 7;
+     */
+    packagePtr?: NodeReferenceData;
+    /**
+     * @generated from protobuf field: google.protobuf.Timestamp created_at = 10;
+     */
+    createdAt?: Timestamp;
+    /**
+     * @generated from protobuf field: optional symbol.bench.NodeReferenceData created_by_ptr = 11;
+     */
+    createdByPtr?: NodeReferenceData;
+    /**
+     * @generated from protobuf field: google.protobuf.Timestamp updated_at = 12;
+     */
+    updatedAt?: Timestamp;
+    /**
+     * @generated from protobuf field: optional symbol.bench.NodeReferenceData updated_by_ptr = 13;
+     */
+    updatedByPtr?: NodeReferenceData;
+    /**
+     * @generated from protobuf field: optional google.protobuf.Timestamp deleted_at = 15;
+     */
+    deletedAt?: Timestamp;
+    /**
+     * @generated from protobuf field: symbol.bench.NodeReferenceData member_ptr = 40;
+     */
+    memberPtr?: NodeReferenceData;
 }
 /**
  * A Page of Blocks laying out rich Text, data, logic, resources -- anything software needs.
@@ -7929,21 +7802,39 @@ export interface SomeNodeData {
     node: {
         oneofKind: "bench";
         /**
-         * @generated from protobuf field: symbol.bench.BenchData bench = 10;
+         * @generated from protobuf field: symbol.bench.BenchData bench = 1;
          */
         bench: BenchData;
     } | {
         oneofKind: "benchMembership";
         /**
-         * @generated from protobuf field: symbol.bench.BenchMembershipData bench_membership = 11;
+         * @generated from protobuf field: symbol.bench.BenchMembershipData bench_membership = 2;
          */
         benchMembership: BenchMembershipData;
     } | {
         oneofKind: "benchInvite";
         /**
-         * @generated from protobuf field: symbol.bench.BenchInviteData bench_invite = 12;
+         * @generated from protobuf field: symbol.bench.BenchInviteData bench_invite = 3;
          */
         benchInvite: BenchInviteData;
+    } | {
+        oneofKind: "package";
+        /**
+         * @generated from protobuf field: symbol.bench.PackageData package = 20;
+         */
+        package: PackageData;
+    } | {
+        oneofKind: "packageMembership";
+        /**
+         * @generated from protobuf field: symbol.bench.PackageMembershipData package_membership = 21;
+         */
+        packageMembership: PackageMembershipData;
+    } | {
+        oneofKind: "packageInvite";
+        /**
+         * @generated from protobuf field: symbol.bench.PackageInviteData package_invite = 22;
+         */
+        packageInvite: PackageInviteData;
     } | {
         oneofKind: "handle";
         /**
@@ -7959,7 +7850,7 @@ export interface SomeNodeData {
     } | {
         oneofKind: "client";
         /**
-         * @generated from protobuf field: symbol.bench.ClientData client = 250;
+         * @generated from protobuf field: symbol.bench.ClientData client = 210;
          */
         client: ClientData;
     } | {
@@ -7981,179 +7872,155 @@ export interface SomeNodeData {
          */
         organizationInvite: OrganizationInviteData;
     } | {
-        oneofKind: "package";
-        /**
-         * @generated from protobuf field: symbol.bench.PackageData package = 1000;
-         */
-        package: PackageData;
-    } | {
-        oneofKind: "dependency";
-        /**
-         * @generated from protobuf field: symbol.bench.DependencyData dependency = 1010;
-         */
-        dependency: DependencyData;
-    } | {
-        oneofKind: "page";
-        /**
-         * @generated from protobuf field: symbol.bench.PageData page = 1020;
-         */
-        page: PageData;
-    } | {
-        oneofKind: "block";
-        /**
-         * @generated from protobuf field: symbol.bench.BlockData block = 1030;
-         */
-        block: BlockData;
-    } | {
-        oneofKind: "application";
-        /**
-         * @generated from protobuf field: symbol.bench.ApplicationData application = 1050;
-         */
-        application: ApplicationData;
-    } | {
-        oneofKind: "database";
-        /**
-         * @generated from protobuf field: symbol.bench.DatabaseData database = 1200;
-         */
-        database: DatabaseData;
-    } | {
-        oneofKind: "machine";
-        /**
-         * @generated from protobuf field: symbol.bench.MachineData machine = 1210;
-         */
-        machine: MachineData;
-    } | {
-        oneofKind: "schema";
-        /**
-         * @generated from protobuf field: symbol.bench.SchemaData schema = 1400;
-         */
-        schema: SchemaData;
-    } | {
-        oneofKind: "field";
-        /**
-         * @generated from protobuf field: symbol.bench.FieldData field = 1410;
-         */
-        field: FieldData;
-    } | {
-        oneofKind: "table";
-        /**
-         * @generated from protobuf field: symbol.bench.TableData table = 1500;
-         */
-        table: TableData;
-    } | {
-        oneofKind: "record";
-        /**
-         * @generated from protobuf field: symbol.bench.RecordData record = 1510;
-         */
-        record: RecordData;
-    } | {
-        oneofKind: "file";
-        /**
-         * @generated from protobuf field: symbol.bench.FileData file = 1520;
-         */
-        file: FileData;
-    } | {
-        oneofKind: "link";
-        /**
-         * @generated from protobuf field: symbol.bench.LinkData link = 1550;
-         */
-        link: LinkData;
-    } | {
-        oneofKind: "thread";
-        /**
-         * @generated from protobuf field: symbol.bench.ThreadData thread = 1800;
-         */
-        thread: ThreadData;
-    } | {
-        oneofKind: "message";
-        /**
-         * @generated from protobuf field: symbol.bench.MessageData message = 1820;
-         */
-        message: MessageData;
-    } | {
-        oneofKind: "notification";
-        /**
-         * @generated from protobuf field: symbol.bench.NotificationData notification = 1850;
-         */
-        notification: NotificationData;
-    } | {
-        oneofKind: "service";
-        /**
-         * @generated from protobuf field: symbol.bench.ServiceData service = 2000;
-         */
-        service: ServiceData;
-    } | {
-        oneofKind: "action";
-        /**
-         * @generated from protobuf field: symbol.bench.ActionData action = 2020;
-         */
-        action: ActionData;
-    } | {
-        oneofKind: "flow";
-        /**
-         * @generated from protobuf field: symbol.bench.FlowData flow = 2040;
-         */
-        flow: FlowData;
-    } | {
-        oneofKind: "flowEdge";
-        /**
-         * @generated from protobuf field: symbol.bench.FlowEdgeData flow_edge = 2041;
-         */
-        flowEdge: FlowEdgeData;
-    } | {
-        oneofKind: "agent";
-        /**
-         * @generated from protobuf field: symbol.bench.AgentData agent = 2100;
-         */
-        agent: AgentData;
-    } | {
-        oneofKind: "task";
-        /**
-         * @generated from protobuf field: symbol.bench.TaskData task = 2200;
-         */
-        task: TaskData;
-    } | {
-        oneofKind: "cursor";
-        /**
-         * @generated from protobuf field: symbol.bench.CursorData cursor = 2220;
-         */
-        cursor: CursorData;
-    } | {
-        oneofKind: "run";
-        /**
-         * @generated from protobuf field: symbol.bench.RunData run = 2610;
-         */
-        run: RunData;
-    } | {
-        oneofKind: "span";
-        /**
-         * @generated from protobuf field: symbol.bench.SpanData span = 2620;
-         */
-        span: SpanData;
-    } | {
-        oneofKind: "interruption";
-        /**
-         * @generated from protobuf field: symbol.bench.InterruptionData interruption = 2630;
-         */
-        interruption: InterruptionData;
-    } | {
         oneofKind: "space";
         /**
-         * @generated from protobuf field: symbol.bench.SpaceData space = 8000;
+         * @generated from protobuf field: symbol.bench.SpaceData space = 600;
          */
         space: SpaceData;
     } | {
         oneofKind: "scene";
         /**
-         * @generated from protobuf field: symbol.bench.SceneData scene = 8010;
+         * @generated from protobuf field: symbol.bench.SceneData scene = 610;
          */
         scene: SceneData;
     } | {
         oneofKind: "route";
         /**
-         * @generated from protobuf field: symbol.bench.RouteData route = 8020;
+         * @generated from protobuf field: symbol.bench.RouteData route = 620;
          */
         route: RouteData;
+    } | {
+        oneofKind: "page";
+        /**
+         * @generated from protobuf field: symbol.bench.PageData page = 700;
+         */
+        page: PageData;
+    } | {
+        oneofKind: "block";
+        /**
+         * @generated from protobuf field: symbol.bench.BlockData block = 701;
+         */
+        block: BlockData;
+    } | {
+        oneofKind: "database";
+        /**
+         * @generated from protobuf field: symbol.bench.DatabaseData database = 1000;
+         */
+        database: DatabaseData;
+    } | {
+        oneofKind: "machine";
+        /**
+         * @generated from protobuf field: symbol.bench.MachineData machine = 1010;
+         */
+        machine: MachineData;
+    } | {
+        oneofKind: "service";
+        /**
+         * @generated from protobuf field: symbol.bench.ServiceData service = 1200;
+         */
+        service: ServiceData;
+    } | {
+        oneofKind: "action";
+        /**
+         * @generated from protobuf field: symbol.bench.ActionData action = 1220;
+         */
+        action: ActionData;
+    } | {
+        oneofKind: "flow";
+        /**
+         * @generated from protobuf field: symbol.bench.FlowData flow = 1240;
+         */
+        flow: FlowData;
+    } | {
+        oneofKind: "flowEdge";
+        /**
+         * @generated from protobuf field: symbol.bench.FlowEdgeData flow_edge = 1241;
+         */
+        flowEdge: FlowEdgeData;
+    } | {
+        oneofKind: "agent";
+        /**
+         * @generated from protobuf field: symbol.bench.AgentData agent = 1300;
+         */
+        agent: AgentData;
+    } | {
+        oneofKind: "task";
+        /**
+         * @generated from protobuf field: symbol.bench.TaskData task = 1310;
+         */
+        task: TaskData;
+    } | {
+        oneofKind: "cursor";
+        /**
+         * @generated from protobuf field: symbol.bench.CursorData cursor = 1320;
+         */
+        cursor: CursorData;
+    } | {
+        oneofKind: "run";
+        /**
+         * @generated from protobuf field: symbol.bench.RunData run = 1610;
+         */
+        run: RunData;
+    } | {
+        oneofKind: "span";
+        /**
+         * @generated from protobuf field: symbol.bench.SpanData span = 1620;
+         */
+        span: SpanData;
+    } | {
+        oneofKind: "interruption";
+        /**
+         * @generated from protobuf field: symbol.bench.InterruptionData interruption = 1630;
+         */
+        interruption: InterruptionData;
+    } | {
+        oneofKind: "schema";
+        /**
+         * @generated from protobuf field: symbol.bench.SchemaData schema = 2000;
+         */
+        schema: SchemaData;
+    } | {
+        oneofKind: "field";
+        /**
+         * @generated from protobuf field: symbol.bench.FieldData field = 2010;
+         */
+        field: FieldData;
+    } | {
+        oneofKind: "file";
+        /**
+         * @generated from protobuf field: symbol.bench.FileData file = 2020;
+         */
+        file: FileData;
+    } | {
+        oneofKind: "link";
+        /**
+         * @generated from protobuf field: symbol.bench.LinkData link = 2050;
+         */
+        link: LinkData;
+    } | {
+        oneofKind: "table";
+        /**
+         * @generated from protobuf field: symbol.bench.TableData table = 2200;
+         */
+        table: TableData;
+    } | {
+        oneofKind: "record";
+        /**
+         * @generated from protobuf field: symbol.bench.RecordData record = 2210;
+         */
+        record: RecordData;
+    } | {
+        oneofKind: "thread";
+        /**
+         * @generated from protobuf field: symbol.bench.ThreadData thread = 2400;
+         */
+        thread: ThreadData;
+    } | {
+        oneofKind: "message";
+        /**
+         * @generated from protobuf field: symbol.bench.MessageData message = 2420;
+         */
+        message: MessageData;
     } | {
         oneofKind: "frameView";
         /**
@@ -9335,6 +9202,10 @@ export enum EnumType {
      */
     BENCH_STATUS = 40056,
     /**
+     * @generated from protobuf enum value: ENUM_TYPE_PACKAGE_TYPE = 40050;
+     */
+    PACKAGE_TYPE = 40050,
+    /**
      * @generated from protobuf enum value: ENUM_TYPE_ERROR_TYPE = 40061;
      */
     ERROR_TYPE = 40061,
@@ -9391,17 +9262,17 @@ export enum EnumType {
      */
     ATTRIBUTE_TYPE = 40110,
     /**
-     * @generated from protobuf enum value: ENUM_TYPE_PACKAGE_TYPE = 40050;
+     * @generated from protobuf enum value: ENUM_TYPE_QUERY_TYPE = 40850;
      */
-    PACKAGE_TYPE = 40050,
+    QUERY_TYPE = 40850,
     /**
-     * @generated from protobuf enum value: ENUM_TYPE_RESOURCE_STATUS = 41000;
+     * @generated from protobuf enum value: ENUM_TYPE_SPACE_TYPE = 40600;
      */
-    RESOURCE_STATUS = 41000,
+    SPACE_TYPE = 40600,
     /**
-     * @generated from protobuf enum value: ENUM_TYPE_BLOCK_TYPE = 41010;
+     * @generated from protobuf enum value: ENUM_TYPE_BLOCK_TYPE = 40610;
      */
-    BLOCK_TYPE = 41010,
+    BLOCK_TYPE = 40610,
     /**
      * @generated from protobuf enum value: ENUM_TYPE_CLOUD = 40051;
      */
@@ -9419,173 +9290,161 @@ export enum EnumType {
      */
     CONTINENT = 40055,
     /**
-     * @generated from protobuf enum value: ENUM_TYPE_MACHINE_TYPE = 41210;
+     * @generated from protobuf enum value: ENUM_TYPE_MACHINE_TYPE = 41010;
      */
-    MACHINE_TYPE = 41210,
+    MACHINE_TYPE = 41010,
     /**
-     * @generated from protobuf enum value: ENUM_TYPE_DATABASE_TYPE = 41220;
+     * @generated from protobuf enum value: ENUM_TYPE_DATABASE_TYPE = 41020;
      */
-    DATABASE_TYPE = 41220,
+    DATABASE_TYPE = 41020,
     /**
-     * @generated from protobuf enum value: ENUM_TYPE_CLIENT_TYPE = 41221;
+     * @generated from protobuf enum value: ENUM_TYPE_CLIENT_TYPE = 41021;
      */
-    CLIENT_TYPE = 41221,
+    CLIENT_TYPE = 41021,
     /**
-     * @generated from protobuf enum value: ENUM_TYPE_TEXT_LINE_TYPE = 41400;
+     * @generated from protobuf enum value: ENUM_TYPE_ACTION_TYPE = 41220;
      */
-    TEXT_LINE_TYPE = 41400,
+    ACTION_TYPE = 41220,
     /**
-     * @generated from protobuf enum value: ENUM_TYPE_TEXT_SPAN_TYPE = 41401;
+     * @generated from protobuf enum value: ENUM_TYPE_FLOW_TYPE = 41240;
      */
-    TEXT_SPAN_TYPE = 41401,
+    FLOW_TYPE = 41240,
     /**
-     * @generated from protobuf enum value: ENUM_TYPE_CODE_TYPE = 41410;
+     * @generated from protobuf enum value: ENUM_TYPE_FLOW_EDGE_TYPE = 41241;
      */
-    CODE_TYPE = 41410,
+    FLOW_EDGE_TYPE = 41241,
     /**
-     * @generated from protobuf enum value: ENUM_TYPE_FILE_RETENTION_MODE = 41420;
+     * @generated from protobuf enum value: ENUM_TYPE_CURSOR_TYPE = 41320;
      */
-    FILE_RETENTION_MODE = 41420,
+    CURSOR_TYPE = 41320,
     /**
-     * @generated from protobuf enum value: ENUM_TYPE_FILE_SOURCE = 41421;
+     * @generated from protobuf enum value: ENUM_TYPE_CURSOR_STATUS = 41321;
      */
-    FILE_SOURCE = 41421,
+    CURSOR_STATUS = 41321,
     /**
-     * @generated from protobuf enum value: ENUM_TYPE_FILE_TYPE = 41422;
+     * @generated from protobuf enum value: ENUM_TYPE_PROCESS_STATUS = 41610;
      */
-    FILE_TYPE = 41422,
+    PROCESS_STATUS = 41610,
     /**
-     * @generated from protobuf enum value: ENUM_TYPE_FILE_FORMAT = 41423;
+     * @generated from protobuf enum value: ENUM_TYPE_RUN_TYPE = 41611;
      */
-    FILE_FORMAT = 41423,
+    RUN_TYPE = 41611,
     /**
-     * @generated from protobuf enum value: ENUM_TYPE_ICON_TYPE = 41430;
+     * @generated from protobuf enum value: ENUM_TYPE_SPAN_TYPE = 41620;
      */
-    ICON_TYPE = 41430,
+    SPAN_TYPE = 41620,
     /**
-     * @generated from protobuf enum value: ENUM_TYPE_LINK_TYPE = 41440;
+     * @generated from protobuf enum value: ENUM_TYPE_SCHEDULE_FREQUENCY = 41630;
      */
-    LINK_TYPE = 41440,
+    SCHEDULE_FREQUENCY = 41630,
     /**
-     * @generated from protobuf enum value: ENUM_TYPE_PRIMITIVE_TYPE = 41500;
+     * @generated from protobuf enum value: ENUM_TYPE_INTERRUPTION_TYPE = 41631;
      */
-    PRIMITIVE_TYPE = 41500,
+    INTERRUPTION_TYPE = 41631,
     /**
-     * @generated from protobuf enum value: ENUM_TYPE_TYPE_CARDINALITY = 41501;
+     * @generated from protobuf enum value: ENUM_TYPE_INTERRUPTION_STATUS = 41632;
      */
-    TYPE_CARDINALITY = 41501,
+    INTERRUPTION_STATUS = 41632,
     /**
-     * @generated from protobuf enum value: ENUM_TYPE_SCALAR_TYPE = 41502;
+     * @generated from protobuf enum value: ENUM_TYPE_INTERRUPTION_RESPONSE = 41633;
      */
-    SCALAR_TYPE = 41502,
+    INTERRUPTION_RESPONSE = 41633,
     /**
-     * @generated from protobuf enum value: ENUM_TYPE_STRING_FORMAT = 41510;
+     * @generated from protobuf enum value: ENUM_TYPE_TEXT_LINE_TYPE = 42000;
      */
-    STRING_FORMAT = 41510,
+    TEXT_LINE_TYPE = 42000,
     /**
-     * @generated from protobuf enum value: ENUM_TYPE_NUMBER_FORMAT = 41511;
+     * @generated from protobuf enum value: ENUM_TYPE_TEXT_SPAN_TYPE = 42001;
      */
-    NUMBER_FORMAT = 41511,
+    TEXT_SPAN_TYPE = 42001,
     /**
-     * @generated from protobuf enum value: ENUM_TYPE_FIELD_TYPE = 41520;
+     * @generated from protobuf enum value: ENUM_TYPE_CODE_TYPE = 42010;
      */
-    FIELD_TYPE = 41520,
+    CODE_TYPE = 42010,
     /**
-     * @generated from protobuf enum value: ENUM_TYPE_CASCADE_ACTION = 41521;
+     * @generated from protobuf enum value: ENUM_TYPE_FILE_RETENTION_MODE = 42020;
      */
-    CASCADE_ACTION = 41521,
+    FILE_RETENTION_MODE = 42020,
     /**
-     * @generated from protobuf enum value: ENUM_TYPE_DAY = 41530;
+     * @generated from protobuf enum value: ENUM_TYPE_FILE_SOURCE = 42021;
      */
-    DAY = 41530,
+    FILE_SOURCE = 42021,
     /**
-     * @generated from protobuf enum value: ENUM_TYPE_MONTH = 41531;
+     * @generated from protobuf enum value: ENUM_TYPE_FILE_TYPE = 42022;
      */
-    MONTH = 41531,
+    FILE_TYPE = 42022,
     /**
-     * @generated from protobuf enum value: ENUM_TYPE_TIME_INTERVAL = 41532;
+     * @generated from protobuf enum value: ENUM_TYPE_FILE_FORMAT = 42023;
      */
-    TIME_INTERVAL = 41532,
+    FILE_FORMAT = 42023,
     /**
-     * @generated from protobuf enum value: ENUM_TYPE_THREAD_STATUS = 41801;
+     * @generated from protobuf enum value: ENUM_TYPE_ICON_TYPE = 42030;
      */
-    THREAD_STATUS = 41801,
+    ICON_TYPE = 42030,
     /**
-     * @generated from protobuf enum value: ENUM_TYPE_MESSAGE_TYPE = 41802;
+     * @generated from protobuf enum value: ENUM_TYPE_LINK_TYPE = 42050;
      */
-    MESSAGE_TYPE = 41802,
+    LINK_TYPE = 42050,
     /**
-     * @generated from protobuf enum value: ENUM_TYPE_NOTIFICATION_TYPE = 41810;
+     * @generated from protobuf enum value: ENUM_TYPE_PRIMITIVE_TYPE = 42100;
      */
-    NOTIFICATION_TYPE = 41810,
+    PRIMITIVE_TYPE = 42100,
     /**
-     * @generated from protobuf enum value: ENUM_TYPE_NOTIFICATION_STATUS = 41811;
+     * @generated from protobuf enum value: ENUM_TYPE_TYPE_CARDINALITY = 42101;
      */
-    NOTIFICATION_STATUS = 41811,
+    TYPE_CARDINALITY = 42101,
     /**
-     * @generated from protobuf enum value: ENUM_TYPE_CURSOR_TYPE = 42010;
+     * @generated from protobuf enum value: ENUM_TYPE_SCALAR_TYPE = 42102;
      */
-    CURSOR_TYPE = 42010,
+    SCALAR_TYPE = 42102,
     /**
-     * @generated from protobuf enum value: ENUM_TYPE_CURSOR_STATUS = 42011;
+     * @generated from protobuf enum value: ENUM_TYPE_STRING_FORMAT = 42110;
      */
-    CURSOR_STATUS = 42011,
+    STRING_FORMAT = 42110,
     /**
-     * @generated from protobuf enum value: ENUM_TYPE_ACTION_TYPE = 42220;
+     * @generated from protobuf enum value: ENUM_TYPE_NUMBER_FORMAT = 42111;
      */
-    ACTION_TYPE = 42220,
+    NUMBER_FORMAT = 42111,
     /**
-     * @generated from protobuf enum value: ENUM_TYPE_FLOW_TYPE = 42222;
+     * @generated from protobuf enum value: ENUM_TYPE_FIELD_TYPE = 42120;
      */
-    FLOW_TYPE = 42222,
+    FIELD_TYPE = 42120,
     /**
-     * @generated from protobuf enum value: ENUM_TYPE_FLOW_EDGE_TYPE = 42223;
+     * @generated from protobuf enum value: ENUM_TYPE_CASCADE_ACTION = 42121;
      */
-    FLOW_EDGE_TYPE = 42223,
+    CASCADE_ACTION = 42121,
     /**
-     * @generated from protobuf enum value: ENUM_TYPE_PROCESS_STATUS = 42600;
+     * @generated from protobuf enum value: ENUM_TYPE_DAY = 42130;
      */
-    PROCESS_STATUS = 42600,
+    DAY = 42130,
     /**
-     * @generated from protobuf enum value: ENUM_TYPE_RUN_TYPE = 42601;
+     * @generated from protobuf enum value: ENUM_TYPE_MONTH = 42131;
      */
-    RUN_TYPE = 42601,
+    MONTH = 42131,
     /**
-     * @generated from protobuf enum value: ENUM_TYPE_SPAN_TYPE = 42602;
+     * @generated from protobuf enum value: ENUM_TYPE_TIME_INTERVAL = 42132;
      */
-    SPAN_TYPE = 42602,
+    TIME_INTERVAL = 42132,
     /**
-     * @generated from protobuf enum value: ENUM_TYPE_SCHEDULE_FREQUENCY = 42610;
+     * @generated from protobuf enum value: ENUM_TYPE_RESOURCE_STATUS = 42200;
      */
-    SCHEDULE_FREQUENCY = 42610,
+    RESOURCE_STATUS = 42200,
     /**
-     * @generated from protobuf enum value: ENUM_TYPE_INTERRUPTION_TYPE = 42620;
+     * @generated from protobuf enum value: ENUM_TYPE_THREAD_STATUS = 42401;
      */
-    INTERRUPTION_TYPE = 42620,
+    THREAD_STATUS = 42401,
     /**
-     * @generated from protobuf enum value: ENUM_TYPE_INTERRUPTION_STATUS = 42621;
+     * @generated from protobuf enum value: ENUM_TYPE_MESSAGE_TYPE = 42420;
      */
-    INTERRUPTION_STATUS = 42621,
+    MESSAGE_TYPE = 42420,
     /**
-     * @generated from protobuf enum value: ENUM_TYPE_INTERRUPTION_RESPONSE = 42622;
+     * @generated from protobuf enum value: ENUM_TYPE_MODEL_DEVELOPER = 44400;
      */
-    INTERRUPTION_RESPONSE = 42622,
+    MODEL_DEVELOPER = 44400,
     /**
-     * @generated from protobuf enum value: ENUM_TYPE_QUERY_TYPE = 42850;
+     * @generated from protobuf enum value: ENUM_TYPE_MODEL_PROVIDER = 44401;
      */
-    QUERY_TYPE = 42850,
-    /**
-     * @generated from protobuf enum value: ENUM_TYPE_MODEL_DEVELOPER = 44000;
-     */
-    MODEL_DEVELOPER = 44000,
-    /**
-     * @generated from protobuf enum value: ENUM_TYPE_MODEL_PROVIDER = 44001;
-     */
-    MODEL_PROVIDER = 44001,
-    /**
-     * @generated from protobuf enum value: ENUM_TYPE_SPACE_TYPE = 48000;
-     */
-    SPACE_TYPE = 48000,
+    MODEL_PROVIDER = 44401,
     /**
      * @generated from protobuf enum value: ENUM_TYPE_POSITION_TYPE = 49000;
      */
@@ -10984,17 +10843,29 @@ export enum NodeType {
      */
     UNSPECIFIED = 0,
     /**
-     * @generated from protobuf enum value: NODE_TYPE_BENCH = 10;
+     * @generated from protobuf enum value: NODE_TYPE_BENCH = 1;
      */
-    BENCH = 10,
+    BENCH = 1,
     /**
-     * @generated from protobuf enum value: NODE_TYPE_BENCH_MEMBERSHIP = 11;
+     * @generated from protobuf enum value: NODE_TYPE_BENCH_MEMBERSHIP = 2;
      */
-    BENCH_MEMBERSHIP = 11,
+    BENCH_MEMBERSHIP = 2,
     /**
-     * @generated from protobuf enum value: NODE_TYPE_BENCH_INVITE = 12;
+     * @generated from protobuf enum value: NODE_TYPE_BENCH_INVITE = 3;
      */
-    BENCH_INVITE = 12,
+    BENCH_INVITE = 3,
+    /**
+     * @generated from protobuf enum value: NODE_TYPE_PACKAGE = 20;
+     */
+    PACKAGE = 20,
+    /**
+     * @generated from protobuf enum value: NODE_TYPE_PACKAGE_MEMBERSHIP = 21;
+     */
+    PACKAGE_MEMBERSHIP = 21,
+    /**
+     * @generated from protobuf enum value: NODE_TYPE_PACKAGE_INVITE = 22;
+     */
+    PACKAGE_INVITE = 22,
     /**
      * @generated from protobuf enum value: NODE_TYPE_HANDLE = 50;
      */
@@ -11004,9 +10875,9 @@ export enum NodeType {
      */
     USER = 200,
     /**
-     * @generated from protobuf enum value: NODE_TYPE_CLIENT = 250;
+     * @generated from protobuf enum value: NODE_TYPE_CLIENT = 210;
      */
-    CLIENT = 250,
+    CLIENT = 210,
     /**
      * @generated from protobuf enum value: NODE_TYPE_ORGANIZATION = 300;
      */
@@ -11020,121 +10891,105 @@ export enum NodeType {
      */
     ORGANIZATION_INVITE = 302,
     /**
-     * @generated from protobuf enum value: NODE_TYPE_PACKAGE = 1000;
+     * @generated from protobuf enum value: NODE_TYPE_SPACE = 600;
      */
-    PACKAGE = 1000,
+    SPACE = 600,
     /**
-     * @generated from protobuf enum value: NODE_TYPE_DEPENDENCY = 1010;
+     * @generated from protobuf enum value: NODE_TYPE_SCENE = 610;
      */
-    DEPENDENCY = 1010,
+    SCENE = 610,
     /**
-     * @generated from protobuf enum value: NODE_TYPE_PAGE = 1020;
+     * @generated from protobuf enum value: NODE_TYPE_ROUTE = 620;
      */
-    PAGE = 1020,
+    ROUTE = 620,
     /**
-     * @generated from protobuf enum value: NODE_TYPE_BLOCK = 1030;
+     * @generated from protobuf enum value: NODE_TYPE_PAGE = 700;
      */
-    BLOCK = 1030,
+    PAGE = 700,
     /**
-     * @generated from protobuf enum value: NODE_TYPE_APPLICATION = 1050;
+     * @generated from protobuf enum value: NODE_TYPE_BLOCK = 701;
      */
-    APPLICATION = 1050,
+    BLOCK = 701,
     /**
-     * @generated from protobuf enum value: NODE_TYPE_DATABASE = 1200;
+     * @generated from protobuf enum value: NODE_TYPE_DATABASE = 1000;
      */
-    DATABASE = 1200,
+    DATABASE = 1000,
     /**
-     * @generated from protobuf enum value: NODE_TYPE_MACHINE = 1210;
+     * @generated from protobuf enum value: NODE_TYPE_MACHINE = 1010;
      */
-    MACHINE = 1210,
+    MACHINE = 1010,
     /**
-     * @generated from protobuf enum value: NODE_TYPE_SCHEMA = 1400;
+     * @generated from protobuf enum value: NODE_TYPE_SERVICE = 1200;
      */
-    SCHEMA = 1400,
+    SERVICE = 1200,
     /**
-     * @generated from protobuf enum value: NODE_TYPE_FIELD = 1410;
+     * @generated from protobuf enum value: NODE_TYPE_ACTION = 1220;
      */
-    FIELD = 1410,
+    ACTION = 1220,
     /**
-     * @generated from protobuf enum value: NODE_TYPE_TABLE = 1500;
+     * @generated from protobuf enum value: NODE_TYPE_FLOW = 1240;
      */
-    TABLE = 1500,
+    FLOW = 1240,
     /**
-     * @generated from protobuf enum value: NODE_TYPE_RECORD = 1510;
+     * @generated from protobuf enum value: NODE_TYPE_FLOW_EDGE = 1241;
      */
-    RECORD = 1510,
+    FLOW_EDGE = 1241,
     /**
-     * @generated from protobuf enum value: NODE_TYPE_FILE = 1520;
+     * @generated from protobuf enum value: NODE_TYPE_AGENT = 1300;
      */
-    FILE = 1520,
+    AGENT = 1300,
     /**
-     * @generated from protobuf enum value: NODE_TYPE_LINK = 1550;
+     * @generated from protobuf enum value: NODE_TYPE_TASK = 1310;
      */
-    LINK = 1550,
+    TASK = 1310,
     /**
-     * @generated from protobuf enum value: NODE_TYPE_THREAD = 1800;
+     * @generated from protobuf enum value: NODE_TYPE_CURSOR = 1320;
      */
-    THREAD = 1800,
+    CURSOR = 1320,
     /**
-     * @generated from protobuf enum value: NODE_TYPE_MESSAGE = 1820;
+     * @generated from protobuf enum value: NODE_TYPE_RUN = 1610;
      */
-    MESSAGE = 1820,
+    RUN = 1610,
     /**
-     * @generated from protobuf enum value: NODE_TYPE_NOTIFICATION = 1850;
+     * @generated from protobuf enum value: NODE_TYPE_SPAN = 1620;
      */
-    NOTIFICATION = 1850,
+    SPAN = 1620,
     /**
-     * @generated from protobuf enum value: NODE_TYPE_SERVICE = 2000;
+     * @generated from protobuf enum value: NODE_TYPE_INTERRUPTION = 1630;
      */
-    SERVICE = 2000,
+    INTERRUPTION = 1630,
     /**
-     * @generated from protobuf enum value: NODE_TYPE_ACTION = 2020;
+     * @generated from protobuf enum value: NODE_TYPE_SCHEMA = 2000;
      */
-    ACTION = 2020,
+    SCHEMA = 2000,
     /**
-     * @generated from protobuf enum value: NODE_TYPE_FLOW = 2040;
+     * @generated from protobuf enum value: NODE_TYPE_FIELD = 2010;
      */
-    FLOW = 2040,
+    FIELD = 2010,
     /**
-     * @generated from protobuf enum value: NODE_TYPE_FLOW_EDGE = 2041;
+     * @generated from protobuf enum value: NODE_TYPE_FILE = 2020;
      */
-    FLOW_EDGE = 2041,
+    FILE = 2020,
     /**
-     * @generated from protobuf enum value: NODE_TYPE_AGENT = 2100;
+     * @generated from protobuf enum value: NODE_TYPE_LINK = 2050;
      */
-    AGENT = 2100,
+    LINK = 2050,
     /**
-     * @generated from protobuf enum value: NODE_TYPE_TASK = 2200;
+     * @generated from protobuf enum value: NODE_TYPE_TABLE = 2200;
      */
-    TASK = 2200,
+    TABLE = 2200,
     /**
-     * @generated from protobuf enum value: NODE_TYPE_CURSOR = 2220;
+     * @generated from protobuf enum value: NODE_TYPE_RECORD = 2210;
      */
-    CURSOR = 2220,
+    RECORD = 2210,
     /**
-     * @generated from protobuf enum value: NODE_TYPE_RUN = 2610;
+     * @generated from protobuf enum value: NODE_TYPE_THREAD = 2400;
      */
-    RUN = 2610,
+    THREAD = 2400,
     /**
-     * @generated from protobuf enum value: NODE_TYPE_SPAN = 2620;
+     * @generated from protobuf enum value: NODE_TYPE_MESSAGE = 2420;
      */
-    SPAN = 2620,
-    /**
-     * @generated from protobuf enum value: NODE_TYPE_INTERRUPTION = 2630;
-     */
-    INTERRUPTION = 2630,
-    /**
-     * @generated from protobuf enum value: NODE_TYPE_SPACE = 8000;
-     */
-    SPACE = 8000,
-    /**
-     * @generated from protobuf enum value: NODE_TYPE_SCENE = 8010;
-     */
-    SCENE = 8010,
-    /**
-     * @generated from protobuf enum value: NODE_TYPE_ROUTE = 8020;
-     */
-    ROUTE = 8020,
+    MESSAGE = 2420,
     /**
      * @generated from protobuf enum value: NODE_TYPE_FRAME_VIEW = 8100;
      */
@@ -11199,48 +11054,6 @@ export enum NodeType {
      * @generated from protobuf enum value: NODE_TYPE_EFFECT_STYLE = 9016;
      */
     EFFECT_STYLE = 9016
-}
-/**
- * @generated from protobuf enum symbol.bench.NotificationStatus
- */
-export enum NotificationStatus {
-    /**
-     * @generated from protobuf enum value: NOTIFICATION_STATUS_UNSPECIFIED = 0;
-     */
-    UNSPECIFIED = 0,
-    /**
-     * @generated from protobuf enum value: NOTIFICATION_STATUS_SENDING = 20;
-     */
-    SENDING = 20,
-    /**
-     * @generated from protobuf enum value: NOTIFICATION_STATUS_SENT = 30;
-     */
-    SENT = 30,
-    /**
-     * @generated from protobuf enum value: NOTIFICATION_STATUS_FAILED = 40;
-     */
-    FAILED = 40,
-    /**
-     * @generated from protobuf enum value: NOTIFICATION_STATUS_RECEIVED = 50;
-     */
-    RECEIVED = 50,
-    /**
-     * @generated from protobuf enum value: NOTIFICATION_STATUS_READ = 60;
-     */
-    READ = 60
-}
-/**
- * @generated from protobuf enum symbol.bench.NotificationType
- */
-export enum NotificationType {
-    /**
-     * @generated from protobuf enum value: NOTIFICATION_TYPE_UNSPECIFIED = 0;
-     */
-    UNSPECIFIED = 0,
-    /**
-     * @generated from protobuf enum value: NOTIFICATION_TYPE_MESSAGE = 100;
-     */
-    MESSAGE = 100
 }
 /**
  * The format of a number.
@@ -11329,17 +11142,13 @@ export enum PackageType {
      */
     UNSPECIFIED = 0,
     /**
-     * @generated from protobuf enum value: PACKAGE_TYPE_OPEN = 1;
+     * @generated from protobuf enum value: PACKAGE_TYPE_HOME = 10;
      */
-    OPEN = 1,
+    HOME = 10,
     /**
-     * @generated from protobuf enum value: PACKAGE_TYPE_CLOSED = 2;
+     * @generated from protobuf enum value: PACKAGE_TYPE_APPLICATION = 20;
      */
-    CLOSED = 2,
-    /**
-     * @generated from protobuf enum value: PACKAGE_TYPE_PRIVATE = 3;
-     */
-    PRIVATE = 3
+    APPLICATION = 20
 }
 /**
  * The position type of a View.
@@ -12096,61 +11905,61 @@ export enum StructType {
      */
     ATTRIBUTE_REFERENCE = 20111,
     /**
-     * @generated from protobuf enum value: STRUCT_TYPE_TYPE = 21400;
+     * @generated from protobuf enum value: STRUCT_TYPE_SCHEDULE = 21200;
      */
-    TYPE = 21400,
+    SCHEDULE = 21200,
     /**
-     * @generated from protobuf enum value: STRUCT_TYPE_NUMBER_CONSTRAINT = 21401;
+     * @generated from protobuf enum value: STRUCT_TYPE_ERROR = 21600;
      */
-    NUMBER_CONSTRAINT = 21401,
+    ERROR = 21600,
     /**
-     * @generated from protobuf enum value: STRUCT_TYPE_STRING_CONSTRAINT = 21402;
+     * @generated from protobuf enum value: STRUCT_TYPE_TYPE = 22000;
      */
-    STRING_CONSTRAINT = 21402,
+    TYPE = 22000,
     /**
-     * @generated from protobuf enum value: STRUCT_TYPE_COLLECTION_CONSTRAINT = 21403;
+     * @generated from protobuf enum value: STRUCT_TYPE_NUMBER_CONSTRAINT = 22001;
      */
-    COLLECTION_CONSTRAINT = 21403,
+    NUMBER_CONSTRAINT = 22001,
     /**
-     * @generated from protobuf enum value: STRUCT_TYPE_NODE_CONSTRAINT = 21404;
+     * @generated from protobuf enum value: STRUCT_TYPE_STRING_CONSTRAINT = 22002;
      */
-    NODE_CONSTRAINT = 21404,
+    STRING_CONSTRAINT = 22002,
     /**
-     * @generated from protobuf enum value: STRUCT_TYPE_VALUE = 21410;
+     * @generated from protobuf enum value: STRUCT_TYPE_COLLECTION_CONSTRAINT = 22003;
      */
-    VALUE = 21410,
+    COLLECTION_CONSTRAINT = 22003,
     /**
-     * @generated from protobuf enum value: STRUCT_TYPE_TEXT = 21500;
+     * @generated from protobuf enum value: STRUCT_TYPE_NODE_CONSTRAINT = 22004;
      */
-    TEXT = 21500,
+    NODE_CONSTRAINT = 22004,
     /**
-     * @generated from protobuf enum value: STRUCT_TYPE_TEXT_LINE = 21501;
+     * @generated from protobuf enum value: STRUCT_TYPE_VALUE = 22010;
      */
-    TEXT_LINE = 21501,
+    VALUE = 22010,
     /**
-     * @generated from protobuf enum value: STRUCT_TYPE_TEXT_SPAN = 21502;
+     * @generated from protobuf enum value: STRUCT_TYPE_TEXT = 22100;
      */
-    TEXT_SPAN = 21502,
+    TEXT = 22100,
     /**
-     * @generated from protobuf enum value: STRUCT_TYPE_CODE = 21510;
+     * @generated from protobuf enum value: STRUCT_TYPE_TEXT_LINE = 22101;
      */
-    CODE = 21510,
+    TEXT_LINE = 22101,
     /**
-     * @generated from protobuf enum value: STRUCT_TYPE_ICON = 21530;
+     * @generated from protobuf enum value: STRUCT_TYPE_TEXT_SPAN = 22102;
      */
-    ICON = 21530,
+    TEXT_SPAN = 22102,
     /**
-     * @generated from protobuf enum value: STRUCT_TYPE_SELECTION = 21470;
+     * @generated from protobuf enum value: STRUCT_TYPE_CODE = 22110;
      */
-    SELECTION = 21470,
+    CODE = 22110,
     /**
-     * @generated from protobuf enum value: STRUCT_TYPE_SCHEDULE = 22000;
+     * @generated from protobuf enum value: STRUCT_TYPE_ICON = 22130;
      */
-    SCHEDULE = 22000,
+    ICON = 22130,
     /**
-     * @generated from protobuf enum value: STRUCT_TYPE_ERROR = 22600;
+     * @generated from protobuf enum value: STRUCT_TYPE_SELECTION = 22070;
      */
-    ERROR = 22600,
+    SELECTION = 22070,
     /**
      * @generated from protobuf enum value: STRUCT_TYPE_VECTOR2 = 29000;
      */
@@ -12596,49 +12405,45 @@ export enum TraitType {
      */
     PROVISIONABLE = 52,
     /**
-     * @generated from protobuf enum value: TRAIT_TYPE_PAGEABLE = 1020;
+     * @generated from protobuf enum value: TRAIT_TYPE_OWNABLE = 200;
      */
-    PAGEABLE = 1020,
+    OWNABLE = 200,
     /**
-     * @generated from protobuf enum value: TRAIT_TYPE_BLOCKABLE = 1030;
+     * @generated from protobuf enum value: TRAIT_TYPE_JOINABLE = 202;
      */
-    BLOCKABLE = 1030,
+    JOINABLE = 202,
     /**
-     * @generated from protobuf enum value: TRAIT_TYPE_RUNNABLE = 2000;
+     * @generated from protobuf enum value: TRAIT_TYPE_SUBJECT = 205;
      */
-    RUNNABLE = 2000,
+    SUBJECT = 205,
     /**
-     * @generated from protobuf enum value: TRAIT_TYPE_PROCESSABLE = 2001;
+     * @generated from protobuf enum value: TRAIT_TYPE_MEMBERSHIP = 210;
      */
-    PROCESSABLE = 2001,
+    MEMBERSHIP = 210,
     /**
-     * @generated from protobuf enum value: TRAIT_TYPE_COMPUTABLE = 2002;
+     * @generated from protobuf enum value: TRAIT_TYPE_INVITE = 211;
      */
-    COMPUTABLE = 2002,
+    INVITE = 211,
     /**
-     * @generated from protobuf enum value: TRAIT_TYPE_OWNABLE = 2800;
+     * @generated from protobuf enum value: TRAIT_TYPE_ROLE = 212;
      */
-    OWNABLE = 2800,
+    ROLE = 212,
     /**
-     * @generated from protobuf enum value: TRAIT_TYPE_JOINABLE = 2802;
+     * @generated from protobuf enum value: TRAIT_TYPE_BLOCKABLE = 630;
      */
-    JOINABLE = 2802,
+    BLOCKABLE = 630,
     /**
-     * @generated from protobuf enum value: TRAIT_TYPE_SUBJECT = 2805;
+     * @generated from protobuf enum value: TRAIT_TYPE_RUNNABLE = 1200;
      */
-    SUBJECT = 2805,
+    RUNNABLE = 1200,
     /**
-     * @generated from protobuf enum value: TRAIT_TYPE_MEMBERSHIP = 2810;
+     * @generated from protobuf enum value: TRAIT_TYPE_PROCESSABLE = 1201;
      */
-    MEMBERSHIP = 2810,
+    PROCESSABLE = 1201,
     /**
-     * @generated from protobuf enum value: TRAIT_TYPE_INVITE = 2811;
+     * @generated from protobuf enum value: TRAIT_TYPE_COMPUTABLE = 1202;
      */
-    INVITE = 2811,
-    /**
-     * @generated from protobuf enum value: TRAIT_TYPE_ROLE = 2812;
-     */
-    ROLE = 2812,
+    COMPUTABLE = 1202,
     /**
      * @generated from protobuf enum value: TRAIT_TYPE_VIEW = 8001;
      */
@@ -13389,182 +13194,6 @@ class AggregationData$Type extends MessageType$<AggregationData> {
  */
 export const AggregationData = new AggregationData$Type();
 // @generated message type with reflection information, may provide speed optimized methods
-class ApplicationData$Type extends MessageType$<ApplicationData> {
-    constructor() {
-        super("symbol.bench.ApplicationData", [
-            { no: 1, name: "metatype", kind: "enum", T: () => ["symbol.bench.NodeType", NodeType, "NODE_TYPE_"] },
-            { no: 2, name: "id", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
-            { no: 3, name: "ck", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
-            { no: 4, name: "parent_ptr", kind: "message", T: () => NodeReferenceData },
-            { no: 6, name: "bench_ptr", kind: "message", T: () => NodeReferenceData },
-            { no: 7, name: "package_ptr", kind: "message", T: () => NodeReferenceData },
-            { no: 10, name: "created_at", kind: "message", T: () => Timestamp },
-            { no: 11, name: "created_by_ptr", kind: "message", T: () => NodeReferenceData },
-            { no: 12, name: "updated_at", kind: "message", T: () => Timestamp },
-            { no: 13, name: "updated_by_ptr", kind: "message", T: () => NodeReferenceData },
-            { no: 14, name: "archived_at", kind: "message", T: () => Timestamp },
-            { no: 15, name: "deleted_at", kind: "message", T: () => Timestamp },
-            { no: 16, name: "template_ptr", kind: "message", T: () => NodeReferenceData },
-            { no: 20, name: "mode", kind: "enum", T: () => ["symbol.bench.NodeMode", NodeMode, "NODE_MODE_"] },
-            { no: 22, name: "order_key", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
-            { no: 31, name: "name", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
-            { no: 35, name: "definition_ptr", kind: "message", T: () => NodeReferenceData },
-            { no: 50, name: "main_scene_ptr", kind: "message", T: () => NodeReferenceData },
-            { no: 53, name: "error_scene_ptr", kind: "message", T: () => NodeReferenceData }
-        ]);
-    }
-    create(value?: PartialMessage<ApplicationData>): ApplicationData {
-        const message = globalThis.Object.create((this.messagePrototype!));
-        message.metatype = 0;
-        message.id = "";
-        message.ck = "";
-        message.mode = 0;
-        if (value !== undefined)
-            reflectionMergePartial<ApplicationData>(this, message, value);
-        return message;
-    }
-    internalBinaryRead(reader: IBinaryReader, length: number, options: BinaryReadOptions, target?: ApplicationData): ApplicationData {
-        let message = target ?? this.create(), end = reader.pos + length;
-        while (reader.pos < end) {
-            let [fieldNo, wireType] = reader.tag();
-            switch (fieldNo) {
-                case /* symbol.bench.NodeType metatype */ 1:
-                    message.metatype = reader.int32();
-                    break;
-                case /* string id */ 2:
-                    message.id = reader.string();
-                    break;
-                case /* string ck */ 3:
-                    message.ck = reader.string();
-                    break;
-                case /* optional symbol.bench.NodeReferenceData parent_ptr */ 4:
-                    message.parentPtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.parentPtr);
-                    break;
-                case /* optional symbol.bench.NodeReferenceData bench_ptr */ 6:
-                    message.benchPtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.benchPtr);
-                    break;
-                case /* optional symbol.bench.NodeReferenceData package_ptr */ 7:
-                    message.packagePtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.packagePtr);
-                    break;
-                case /* google.protobuf.Timestamp created_at */ 10:
-                    message.createdAt = Timestamp.internalBinaryRead(reader, reader.uint32(), options, message.createdAt);
-                    break;
-                case /* optional symbol.bench.NodeReferenceData created_by_ptr */ 11:
-                    message.createdByPtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.createdByPtr);
-                    break;
-                case /* google.protobuf.Timestamp updated_at */ 12:
-                    message.updatedAt = Timestamp.internalBinaryRead(reader, reader.uint32(), options, message.updatedAt);
-                    break;
-                case /* optional symbol.bench.NodeReferenceData updated_by_ptr */ 13:
-                    message.updatedByPtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.updatedByPtr);
-                    break;
-                case /* optional google.protobuf.Timestamp archived_at */ 14:
-                    message.archivedAt = Timestamp.internalBinaryRead(reader, reader.uint32(), options, message.archivedAt);
-                    break;
-                case /* optional google.protobuf.Timestamp deleted_at */ 15:
-                    message.deletedAt = Timestamp.internalBinaryRead(reader, reader.uint32(), options, message.deletedAt);
-                    break;
-                case /* optional symbol.bench.NodeReferenceData template_ptr */ 16:
-                    message.templatePtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.templatePtr);
-                    break;
-                case /* symbol.bench.NodeMode mode */ 20:
-                    message.mode = reader.int32();
-                    break;
-                case /* optional string order_key */ 22:
-                    message.orderKey = reader.string();
-                    break;
-                case /* optional string name */ 31:
-                    message.name = reader.string();
-                    break;
-                case /* optional symbol.bench.NodeReferenceData definition_ptr */ 35:
-                    message.definitionPtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.definitionPtr);
-                    break;
-                case /* optional symbol.bench.NodeReferenceData main_scene_ptr */ 50:
-                    message.mainScenePtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.mainScenePtr);
-                    break;
-                case /* optional symbol.bench.NodeReferenceData error_scene_ptr */ 53:
-                    message.errorScenePtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.errorScenePtr);
-                    break;
-                default:
-                    let u = options.readUnknownField;
-                    if (u === "throw")
-                        throw new globalThis.Error(`Unknown field ${fieldNo} (wire type ${wireType}) for ${this.typeName}`);
-                    let d = reader.skip(wireType);
-                    if (u !== false)
-                        (u === true ? UnknownFieldHandler.onRead : u)(this.typeName, message, fieldNo, wireType, d);
-            }
-        }
-        return message;
-    }
-    internalBinaryWrite(message: ApplicationData, writer: IBinaryWriter, options: BinaryWriteOptions): IBinaryWriter {
-        /* symbol.bench.NodeType metatype = 1; */
-        if (message.metatype !== 0)
-            writer.tag(1, WireType.Varint).int32(message.metatype);
-        /* string id = 2; */
-        if (message.id !== "")
-            writer.tag(2, WireType.LengthDelimited).string(message.id);
-        /* string ck = 3; */
-        if (message.ck !== "")
-            writer.tag(3, WireType.LengthDelimited).string(message.ck);
-        /* optional symbol.bench.NodeReferenceData parent_ptr = 4; */
-        if (message.parentPtr)
-            NodeReferenceData.internalBinaryWrite(message.parentPtr, writer.tag(4, WireType.LengthDelimited).fork(), options).join();
-        /* optional symbol.bench.NodeReferenceData bench_ptr = 6; */
-        if (message.benchPtr)
-            NodeReferenceData.internalBinaryWrite(message.benchPtr, writer.tag(6, WireType.LengthDelimited).fork(), options).join();
-        /* optional symbol.bench.NodeReferenceData package_ptr = 7; */
-        if (message.packagePtr)
-            NodeReferenceData.internalBinaryWrite(message.packagePtr, writer.tag(7, WireType.LengthDelimited).fork(), options).join();
-        /* google.protobuf.Timestamp created_at = 10; */
-        if (message.createdAt)
-            Timestamp.internalBinaryWrite(message.createdAt, writer.tag(10, WireType.LengthDelimited).fork(), options).join();
-        /* optional symbol.bench.NodeReferenceData created_by_ptr = 11; */
-        if (message.createdByPtr)
-            NodeReferenceData.internalBinaryWrite(message.createdByPtr, writer.tag(11, WireType.LengthDelimited).fork(), options).join();
-        /* google.protobuf.Timestamp updated_at = 12; */
-        if (message.updatedAt)
-            Timestamp.internalBinaryWrite(message.updatedAt, writer.tag(12, WireType.LengthDelimited).fork(), options).join();
-        /* optional symbol.bench.NodeReferenceData updated_by_ptr = 13; */
-        if (message.updatedByPtr)
-            NodeReferenceData.internalBinaryWrite(message.updatedByPtr, writer.tag(13, WireType.LengthDelimited).fork(), options).join();
-        /* optional google.protobuf.Timestamp archived_at = 14; */
-        if (message.archivedAt)
-            Timestamp.internalBinaryWrite(message.archivedAt, writer.tag(14, WireType.LengthDelimited).fork(), options).join();
-        /* optional google.protobuf.Timestamp deleted_at = 15; */
-        if (message.deletedAt)
-            Timestamp.internalBinaryWrite(message.deletedAt, writer.tag(15, WireType.LengthDelimited).fork(), options).join();
-        /* optional symbol.bench.NodeReferenceData template_ptr = 16; */
-        if (message.templatePtr)
-            NodeReferenceData.internalBinaryWrite(message.templatePtr, writer.tag(16, WireType.LengthDelimited).fork(), options).join();
-        /* symbol.bench.NodeMode mode = 20; */
-        if (message.mode !== 0)
-            writer.tag(20, WireType.Varint).int32(message.mode);
-        /* optional string order_key = 22; */
-        if (message.orderKey !== undefined)
-            writer.tag(22, WireType.LengthDelimited).string(message.orderKey);
-        /* optional string name = 31; */
-        if (message.name !== undefined)
-            writer.tag(31, WireType.LengthDelimited).string(message.name);
-        /* optional symbol.bench.NodeReferenceData definition_ptr = 35; */
-        if (message.definitionPtr)
-            NodeReferenceData.internalBinaryWrite(message.definitionPtr, writer.tag(35, WireType.LengthDelimited).fork(), options).join();
-        /* optional symbol.bench.NodeReferenceData main_scene_ptr = 50; */
-        if (message.mainScenePtr)
-            NodeReferenceData.internalBinaryWrite(message.mainScenePtr, writer.tag(50, WireType.LengthDelimited).fork(), options).join();
-        /* optional symbol.bench.NodeReferenceData error_scene_ptr = 53; */
-        if (message.errorScenePtr)
-            NodeReferenceData.internalBinaryWrite(message.errorScenePtr, writer.tag(53, WireType.LengthDelimited).fork(), options).join();
-        let u = options.writeUnknownFields;
-        if (u !== false)
-            (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
-        return writer;
-    }
-}
-/**
- * @generated MessageType for protobuf message symbol.bench.ApplicationData
- */
-export const ApplicationData = new ApplicationData$Type();
-// @generated message type with reflection information, may provide speed optimized methods
 class AttributeReferenceData$Type extends MessageType$<AttributeReferenceData> {
     constructor() {
         super("symbol.bench.AttributeReferenceData", [
@@ -13811,7 +13440,7 @@ class BenchData$Type extends MessageType$<BenchData> {
             { no: 41, name: "status", kind: "enum", T: () => ["symbol.bench.BenchStatus", BenchStatus, "BENCH_STATUS_"] },
             { no: 42, name: "handle_ptr", kind: "message", T: () => NodeReferenceData },
             { no: 50, name: "database_ptr", kind: "message", T: () => NodeReferenceData },
-            { no: 51, name: "package_ptr", kind: "message", T: () => NodeReferenceData }
+            { no: 51, name: "main_package_ptr", kind: "message", T: () => NodeReferenceData }
         ]);
     }
     create(value?: PartialMessage<BenchData>): BenchData {
@@ -13880,8 +13509,8 @@ class BenchData$Type extends MessageType$<BenchData> {
                 case /* optional symbol.bench.NodeReferenceData database_ptr */ 50:
                     message.databasePtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.databasePtr);
                     break;
-                case /* optional symbol.bench.NodeReferenceData package_ptr */ 51:
-                    message.packagePtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.packagePtr);
+                case /* optional symbol.bench.NodeReferenceData main_package_ptr */ 51:
+                    message.mainPackagePtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.mainPackagePtr);
                     break;
                 default:
                     let u = options.readUnknownField;
@@ -13946,9 +13575,9 @@ class BenchData$Type extends MessageType$<BenchData> {
         /* optional symbol.bench.NodeReferenceData database_ptr = 50; */
         if (message.databasePtr)
             NodeReferenceData.internalBinaryWrite(message.databasePtr, writer.tag(50, WireType.LengthDelimited).fork(), options).join();
-        /* optional symbol.bench.NodeReferenceData package_ptr = 51; */
-        if (message.packagePtr)
-            NodeReferenceData.internalBinaryWrite(message.packagePtr, writer.tag(51, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbol.bench.NodeReferenceData main_package_ptr = 51; */
+        if (message.mainPackagePtr)
+            NodeReferenceData.internalBinaryWrite(message.mainPackagePtr, writer.tag(51, WireType.LengthDelimited).fork(), options).join();
         let u = options.writeUnknownFields;
         if (u !== false)
             (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
@@ -15885,146 +15514,6 @@ class DatabaseData$Type extends MessageType$<DatabaseData> {
  * @generated MessageType for protobuf message symbol.bench.DatabaseData
  */
 export const DatabaseData = new DatabaseData$Type();
-// @generated message type with reflection information, may provide speed optimized methods
-class DependencyData$Type extends MessageType$<DependencyData> {
-    constructor() {
-        super("symbol.bench.DependencyData", [
-            { no: 1, name: "metatype", kind: "enum", T: () => ["symbol.bench.NodeType", NodeType, "NODE_TYPE_"] },
-            { no: 2, name: "id", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
-            { no: 4, name: "parent_ptr", kind: "message", T: () => NodeReferenceData },
-            { no: 6, name: "bench_ptr", kind: "message", T: () => NodeReferenceData },
-            { no: 7, name: "package_ptr", kind: "message", T: () => NodeReferenceData },
-            { no: 10, name: "created_at", kind: "message", T: () => Timestamp },
-            { no: 11, name: "created_by_ptr", kind: "message", T: () => NodeReferenceData },
-            { no: 12, name: "updated_at", kind: "message", T: () => Timestamp },
-            { no: 13, name: "updated_by_ptr", kind: "message", T: () => NodeReferenceData },
-            { no: 14, name: "archived_at", kind: "message", T: () => Timestamp },
-            { no: 15, name: "deleted_at", kind: "message", T: () => Timestamp },
-            { no: 16, name: "template_ptr", kind: "message", T: () => NodeReferenceData },
-            { no: 20, name: "mode", kind: "enum", T: () => ["symbol.bench.NodeMode", NodeMode, "NODE_MODE_"] },
-            { no: 40, name: "dependency_ptr", kind: "message", T: () => NodeReferenceData }
-        ]);
-    }
-    create(value?: PartialMessage<DependencyData>): DependencyData {
-        const message = globalThis.Object.create((this.messagePrototype!));
-        message.metatype = 0;
-        message.id = "";
-        message.mode = 0;
-        if (value !== undefined)
-            reflectionMergePartial<DependencyData>(this, message, value);
-        return message;
-    }
-    internalBinaryRead(reader: IBinaryReader, length: number, options: BinaryReadOptions, target?: DependencyData): DependencyData {
-        let message = target ?? this.create(), end = reader.pos + length;
-        while (reader.pos < end) {
-            let [fieldNo, wireType] = reader.tag();
-            switch (fieldNo) {
-                case /* symbol.bench.NodeType metatype */ 1:
-                    message.metatype = reader.int32();
-                    break;
-                case /* string id */ 2:
-                    message.id = reader.string();
-                    break;
-                case /* optional symbol.bench.NodeReferenceData parent_ptr */ 4:
-                    message.parentPtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.parentPtr);
-                    break;
-                case /* optional symbol.bench.NodeReferenceData bench_ptr */ 6:
-                    message.benchPtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.benchPtr);
-                    break;
-                case /* optional symbol.bench.NodeReferenceData package_ptr */ 7:
-                    message.packagePtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.packagePtr);
-                    break;
-                case /* google.protobuf.Timestamp created_at */ 10:
-                    message.createdAt = Timestamp.internalBinaryRead(reader, reader.uint32(), options, message.createdAt);
-                    break;
-                case /* optional symbol.bench.NodeReferenceData created_by_ptr */ 11:
-                    message.createdByPtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.createdByPtr);
-                    break;
-                case /* google.protobuf.Timestamp updated_at */ 12:
-                    message.updatedAt = Timestamp.internalBinaryRead(reader, reader.uint32(), options, message.updatedAt);
-                    break;
-                case /* optional symbol.bench.NodeReferenceData updated_by_ptr */ 13:
-                    message.updatedByPtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.updatedByPtr);
-                    break;
-                case /* optional google.protobuf.Timestamp archived_at */ 14:
-                    message.archivedAt = Timestamp.internalBinaryRead(reader, reader.uint32(), options, message.archivedAt);
-                    break;
-                case /* optional google.protobuf.Timestamp deleted_at */ 15:
-                    message.deletedAt = Timestamp.internalBinaryRead(reader, reader.uint32(), options, message.deletedAt);
-                    break;
-                case /* optional symbol.bench.NodeReferenceData template_ptr */ 16:
-                    message.templatePtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.templatePtr);
-                    break;
-                case /* symbol.bench.NodeMode mode */ 20:
-                    message.mode = reader.int32();
-                    break;
-                case /* symbol.bench.NodeReferenceData dependency_ptr */ 40:
-                    message.dependencyPtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.dependencyPtr);
-                    break;
-                default:
-                    let u = options.readUnknownField;
-                    if (u === "throw")
-                        throw new globalThis.Error(`Unknown field ${fieldNo} (wire type ${wireType}) for ${this.typeName}`);
-                    let d = reader.skip(wireType);
-                    if (u !== false)
-                        (u === true ? UnknownFieldHandler.onRead : u)(this.typeName, message, fieldNo, wireType, d);
-            }
-        }
-        return message;
-    }
-    internalBinaryWrite(message: DependencyData, writer: IBinaryWriter, options: BinaryWriteOptions): IBinaryWriter {
-        /* symbol.bench.NodeType metatype = 1; */
-        if (message.metatype !== 0)
-            writer.tag(1, WireType.Varint).int32(message.metatype);
-        /* string id = 2; */
-        if (message.id !== "")
-            writer.tag(2, WireType.LengthDelimited).string(message.id);
-        /* optional symbol.bench.NodeReferenceData parent_ptr = 4; */
-        if (message.parentPtr)
-            NodeReferenceData.internalBinaryWrite(message.parentPtr, writer.tag(4, WireType.LengthDelimited).fork(), options).join();
-        /* optional symbol.bench.NodeReferenceData bench_ptr = 6; */
-        if (message.benchPtr)
-            NodeReferenceData.internalBinaryWrite(message.benchPtr, writer.tag(6, WireType.LengthDelimited).fork(), options).join();
-        /* optional symbol.bench.NodeReferenceData package_ptr = 7; */
-        if (message.packagePtr)
-            NodeReferenceData.internalBinaryWrite(message.packagePtr, writer.tag(7, WireType.LengthDelimited).fork(), options).join();
-        /* google.protobuf.Timestamp created_at = 10; */
-        if (message.createdAt)
-            Timestamp.internalBinaryWrite(message.createdAt, writer.tag(10, WireType.LengthDelimited).fork(), options).join();
-        /* optional symbol.bench.NodeReferenceData created_by_ptr = 11; */
-        if (message.createdByPtr)
-            NodeReferenceData.internalBinaryWrite(message.createdByPtr, writer.tag(11, WireType.LengthDelimited).fork(), options).join();
-        /* google.protobuf.Timestamp updated_at = 12; */
-        if (message.updatedAt)
-            Timestamp.internalBinaryWrite(message.updatedAt, writer.tag(12, WireType.LengthDelimited).fork(), options).join();
-        /* optional symbol.bench.NodeReferenceData updated_by_ptr = 13; */
-        if (message.updatedByPtr)
-            NodeReferenceData.internalBinaryWrite(message.updatedByPtr, writer.tag(13, WireType.LengthDelimited).fork(), options).join();
-        /* optional google.protobuf.Timestamp archived_at = 14; */
-        if (message.archivedAt)
-            Timestamp.internalBinaryWrite(message.archivedAt, writer.tag(14, WireType.LengthDelimited).fork(), options).join();
-        /* optional google.protobuf.Timestamp deleted_at = 15; */
-        if (message.deletedAt)
-            Timestamp.internalBinaryWrite(message.deletedAt, writer.tag(15, WireType.LengthDelimited).fork(), options).join();
-        /* optional symbol.bench.NodeReferenceData template_ptr = 16; */
-        if (message.templatePtr)
-            NodeReferenceData.internalBinaryWrite(message.templatePtr, writer.tag(16, WireType.LengthDelimited).fork(), options).join();
-        /* symbol.bench.NodeMode mode = 20; */
-        if (message.mode !== 0)
-            writer.tag(20, WireType.Varint).int32(message.mode);
-        /* symbol.bench.NodeReferenceData dependency_ptr = 40; */
-        if (message.dependencyPtr)
-            NodeReferenceData.internalBinaryWrite(message.dependencyPtr, writer.tag(40, WireType.LengthDelimited).fork(), options).join();
-        let u = options.writeUnknownFields;
-        if (u !== false)
-            (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
-        return writer;
-    }
-}
-/**
- * @generated MessageType for protobuf message symbol.bench.DependencyData
- */
-export const DependencyData = new DependencyData$Type();
 // @generated message type with reflection information, may provide speed optimized methods
 class DimensionData$Type extends MessageType$<DimensionData> {
     constructor() {
@@ -21451,190 +20940,6 @@ class NodeReferenceData$Type extends MessageType$<NodeReferenceData> {
  */
 export const NodeReferenceData = new NodeReferenceData$Type();
 // @generated message type with reflection information, may provide speed optimized methods
-class NotificationData$Type extends MessageType$<NotificationData> {
-    constructor() {
-        super("symbol.bench.NotificationData", [
-            { no: 1, name: "metatype", kind: "enum", T: () => ["symbol.bench.NodeType", NodeType, "NODE_TYPE_"] },
-            { no: 2, name: "id", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
-            { no: 4, name: "parent_ptr", kind: "message", T: () => NodeReferenceData },
-            { no: 6, name: "bench_ptr", kind: "message", T: () => NodeReferenceData },
-            { no: 7, name: "package_ptr", kind: "message", T: () => NodeReferenceData },
-            { no: 10, name: "created_at", kind: "message", T: () => Timestamp },
-            { no: 11, name: "created_by_ptr", kind: "message", T: () => NodeReferenceData },
-            { no: 12, name: "updated_at", kind: "message", T: () => Timestamp },
-            { no: 13, name: "updated_by_ptr", kind: "message", T: () => NodeReferenceData },
-            { no: 15, name: "deleted_at", kind: "message", T: () => Timestamp },
-            { no: 20, name: "mode", kind: "enum", T: () => ["symbol.bench.NodeMode", NodeMode, "NODE_MODE_"] },
-            { no: 30, name: "type", kind: "enum", T: () => ["symbol.bench.NotificationType", NotificationType, "NOTIFICATION_TYPE_"] },
-            { no: 32, name: "title", kind: "message", T: () => TextLineData },
-            { no: 34, name: "thread_ptr", kind: "message", T: () => NodeReferenceData },
-            { no: 40, name: "status", kind: "enum", T: () => ["symbol.bench.NotificationStatus", NotificationStatus, "NOTIFICATION_STATUS_"] },
-            { no: 42, name: "failed_at", kind: "message", T: () => Timestamp },
-            { no: 43, name: "sent_at", kind: "message", T: () => Timestamp },
-            { no: 44, name: "received_at", kind: "message", T: () => Timestamp },
-            { no: 45, name: "read_at", kind: "message", T: () => Timestamp },
-            { no: 51, name: "text", kind: "message", T: () => TextData }
-        ]);
-    }
-    create(value?: PartialMessage<NotificationData>): NotificationData {
-        const message = globalThis.Object.create((this.messagePrototype!));
-        message.metatype = 0;
-        message.id = "";
-        message.mode = 0;
-        message.type = 0;
-        message.status = 0;
-        if (value !== undefined)
-            reflectionMergePartial<NotificationData>(this, message, value);
-        return message;
-    }
-    internalBinaryRead(reader: IBinaryReader, length: number, options: BinaryReadOptions, target?: NotificationData): NotificationData {
-        let message = target ?? this.create(), end = reader.pos + length;
-        while (reader.pos < end) {
-            let [fieldNo, wireType] = reader.tag();
-            switch (fieldNo) {
-                case /* symbol.bench.NodeType metatype */ 1:
-                    message.metatype = reader.int32();
-                    break;
-                case /* string id */ 2:
-                    message.id = reader.string();
-                    break;
-                case /* optional symbol.bench.NodeReferenceData parent_ptr */ 4:
-                    message.parentPtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.parentPtr);
-                    break;
-                case /* optional symbol.bench.NodeReferenceData bench_ptr */ 6:
-                    message.benchPtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.benchPtr);
-                    break;
-                case /* optional symbol.bench.NodeReferenceData package_ptr */ 7:
-                    message.packagePtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.packagePtr);
-                    break;
-                case /* google.protobuf.Timestamp created_at */ 10:
-                    message.createdAt = Timestamp.internalBinaryRead(reader, reader.uint32(), options, message.createdAt);
-                    break;
-                case /* optional symbol.bench.NodeReferenceData created_by_ptr */ 11:
-                    message.createdByPtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.createdByPtr);
-                    break;
-                case /* google.protobuf.Timestamp updated_at */ 12:
-                    message.updatedAt = Timestamp.internalBinaryRead(reader, reader.uint32(), options, message.updatedAt);
-                    break;
-                case /* optional symbol.bench.NodeReferenceData updated_by_ptr */ 13:
-                    message.updatedByPtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.updatedByPtr);
-                    break;
-                case /* optional google.protobuf.Timestamp deleted_at */ 15:
-                    message.deletedAt = Timestamp.internalBinaryRead(reader, reader.uint32(), options, message.deletedAt);
-                    break;
-                case /* symbol.bench.NodeMode mode */ 20:
-                    message.mode = reader.int32();
-                    break;
-                case /* symbol.bench.NotificationType type */ 30:
-                    message.type = reader.int32();
-                    break;
-                case /* optional symbol.bench.TextLineData title */ 32:
-                    message.title = TextLineData.internalBinaryRead(reader, reader.uint32(), options, message.title);
-                    break;
-                case /* optional symbol.bench.NodeReferenceData thread_ptr */ 34:
-                    message.threadPtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.threadPtr);
-                    break;
-                case /* symbol.bench.NotificationStatus status */ 40:
-                    message.status = reader.int32();
-                    break;
-                case /* optional google.protobuf.Timestamp failed_at */ 42:
-                    message.failedAt = Timestamp.internalBinaryRead(reader, reader.uint32(), options, message.failedAt);
-                    break;
-                case /* optional google.protobuf.Timestamp sent_at */ 43:
-                    message.sentAt = Timestamp.internalBinaryRead(reader, reader.uint32(), options, message.sentAt);
-                    break;
-                case /* optional google.protobuf.Timestamp received_at */ 44:
-                    message.receivedAt = Timestamp.internalBinaryRead(reader, reader.uint32(), options, message.receivedAt);
-                    break;
-                case /* optional google.protobuf.Timestamp read_at */ 45:
-                    message.readAt = Timestamp.internalBinaryRead(reader, reader.uint32(), options, message.readAt);
-                    break;
-                case /* optional symbol.bench.TextData text */ 51:
-                    message.text = TextData.internalBinaryRead(reader, reader.uint32(), options, message.text);
-                    break;
-                default:
-                    let u = options.readUnknownField;
-                    if (u === "throw")
-                        throw new globalThis.Error(`Unknown field ${fieldNo} (wire type ${wireType}) for ${this.typeName}`);
-                    let d = reader.skip(wireType);
-                    if (u !== false)
-                        (u === true ? UnknownFieldHandler.onRead : u)(this.typeName, message, fieldNo, wireType, d);
-            }
-        }
-        return message;
-    }
-    internalBinaryWrite(message: NotificationData, writer: IBinaryWriter, options: BinaryWriteOptions): IBinaryWriter {
-        /* symbol.bench.NodeType metatype = 1; */
-        if (message.metatype !== 0)
-            writer.tag(1, WireType.Varint).int32(message.metatype);
-        /* string id = 2; */
-        if (message.id !== "")
-            writer.tag(2, WireType.LengthDelimited).string(message.id);
-        /* optional symbol.bench.NodeReferenceData parent_ptr = 4; */
-        if (message.parentPtr)
-            NodeReferenceData.internalBinaryWrite(message.parentPtr, writer.tag(4, WireType.LengthDelimited).fork(), options).join();
-        /* optional symbol.bench.NodeReferenceData bench_ptr = 6; */
-        if (message.benchPtr)
-            NodeReferenceData.internalBinaryWrite(message.benchPtr, writer.tag(6, WireType.LengthDelimited).fork(), options).join();
-        /* optional symbol.bench.NodeReferenceData package_ptr = 7; */
-        if (message.packagePtr)
-            NodeReferenceData.internalBinaryWrite(message.packagePtr, writer.tag(7, WireType.LengthDelimited).fork(), options).join();
-        /* google.protobuf.Timestamp created_at = 10; */
-        if (message.createdAt)
-            Timestamp.internalBinaryWrite(message.createdAt, writer.tag(10, WireType.LengthDelimited).fork(), options).join();
-        /* optional symbol.bench.NodeReferenceData created_by_ptr = 11; */
-        if (message.createdByPtr)
-            NodeReferenceData.internalBinaryWrite(message.createdByPtr, writer.tag(11, WireType.LengthDelimited).fork(), options).join();
-        /* google.protobuf.Timestamp updated_at = 12; */
-        if (message.updatedAt)
-            Timestamp.internalBinaryWrite(message.updatedAt, writer.tag(12, WireType.LengthDelimited).fork(), options).join();
-        /* optional symbol.bench.NodeReferenceData updated_by_ptr = 13; */
-        if (message.updatedByPtr)
-            NodeReferenceData.internalBinaryWrite(message.updatedByPtr, writer.tag(13, WireType.LengthDelimited).fork(), options).join();
-        /* optional google.protobuf.Timestamp deleted_at = 15; */
-        if (message.deletedAt)
-            Timestamp.internalBinaryWrite(message.deletedAt, writer.tag(15, WireType.LengthDelimited).fork(), options).join();
-        /* symbol.bench.NodeMode mode = 20; */
-        if (message.mode !== 0)
-            writer.tag(20, WireType.Varint).int32(message.mode);
-        /* symbol.bench.NotificationType type = 30; */
-        if (message.type !== 0)
-            writer.tag(30, WireType.Varint).int32(message.type);
-        /* optional symbol.bench.TextLineData title = 32; */
-        if (message.title)
-            TextLineData.internalBinaryWrite(message.title, writer.tag(32, WireType.LengthDelimited).fork(), options).join();
-        /* optional symbol.bench.NodeReferenceData thread_ptr = 34; */
-        if (message.threadPtr)
-            NodeReferenceData.internalBinaryWrite(message.threadPtr, writer.tag(34, WireType.LengthDelimited).fork(), options).join();
-        /* symbol.bench.NotificationStatus status = 40; */
-        if (message.status !== 0)
-            writer.tag(40, WireType.Varint).int32(message.status);
-        /* optional google.protobuf.Timestamp failed_at = 42; */
-        if (message.failedAt)
-            Timestamp.internalBinaryWrite(message.failedAt, writer.tag(42, WireType.LengthDelimited).fork(), options).join();
-        /* optional google.protobuf.Timestamp sent_at = 43; */
-        if (message.sentAt)
-            Timestamp.internalBinaryWrite(message.sentAt, writer.tag(43, WireType.LengthDelimited).fork(), options).join();
-        /* optional google.protobuf.Timestamp received_at = 44; */
-        if (message.receivedAt)
-            Timestamp.internalBinaryWrite(message.receivedAt, writer.tag(44, WireType.LengthDelimited).fork(), options).join();
-        /* optional google.protobuf.Timestamp read_at = 45; */
-        if (message.readAt)
-            Timestamp.internalBinaryWrite(message.readAt, writer.tag(45, WireType.LengthDelimited).fork(), options).join();
-        /* optional symbol.bench.TextData text = 51; */
-        if (message.text)
-            TextData.internalBinaryWrite(message.text, writer.tag(51, WireType.LengthDelimited).fork(), options).join();
-        let u = options.writeUnknownFields;
-        if (u !== false)
-            (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
-        return writer;
-    }
-}
-/**
- * @generated MessageType for protobuf message symbol.bench.NotificationData
- */
-export const NotificationData = new NotificationData$Type();
-// @generated message type with reflection information, may provide speed optimized methods
 class NumberConstraintData$Type extends MessageType$<NumberConstraintData> {
     constructor() {
         super("symbol.bench.NumberConstraintData", [
@@ -22436,7 +21741,9 @@ class PackageData$Type extends MessageType$<PackageData> {
             { no: 30, name: "type", kind: "enum", T: () => ["symbol.bench.PackageType", PackageType, "PACKAGE_TYPE_"] },
             { no: 31, name: "name", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
             { no: 33, name: "slug", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
-            { no: 34, name: "icon", kind: "message", T: () => IconData }
+            { no: 34, name: "icon", kind: "message", T: () => IconData },
+            { no: 40, name: "main_page_ptr", kind: "message", T: () => NodeReferenceData },
+            { no: 41, name: "main_scene_ptr", kind: "message", T: () => NodeReferenceData }
         ]);
     }
     create(value?: PartialMessage<PackageData>): PackageData {
@@ -22508,6 +21815,12 @@ class PackageData$Type extends MessageType$<PackageData> {
                 case /* optional symbol.bench.IconData icon */ 34:
                     message.icon = IconData.internalBinaryRead(reader, reader.uint32(), options, message.icon);
                     break;
+                case /* optional symbol.bench.NodeReferenceData main_page_ptr */ 40:
+                    message.mainPagePtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.mainPagePtr);
+                    break;
+                case /* optional symbol.bench.NodeReferenceData main_scene_ptr */ 41:
+                    message.mainScenePtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.mainScenePtr);
+                    break;
                 default:
                     let u = options.readUnknownField;
                     if (u === "throw")
@@ -22574,6 +21887,12 @@ class PackageData$Type extends MessageType$<PackageData> {
         /* optional symbol.bench.IconData icon = 34; */
         if (message.icon)
             IconData.internalBinaryWrite(message.icon, writer.tag(34, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbol.bench.NodeReferenceData main_page_ptr = 40; */
+        if (message.mainPagePtr)
+            NodeReferenceData.internalBinaryWrite(message.mainPagePtr, writer.tag(40, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbol.bench.NodeReferenceData main_scene_ptr = 41; */
+        if (message.mainScenePtr)
+            NodeReferenceData.internalBinaryWrite(message.mainScenePtr, writer.tag(41, WireType.LengthDelimited).fork(), options).join();
         let u = options.writeUnknownFields;
         if (u !== false)
             (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
@@ -22584,6 +21903,235 @@ class PackageData$Type extends MessageType$<PackageData> {
  * @generated MessageType for protobuf message symbol.bench.PackageData
  */
 export const PackageData = new PackageData$Type();
+// @generated message type with reflection information, may provide speed optimized methods
+class PackageInviteData$Type extends MessageType$<PackageInviteData> {
+    constructor() {
+        super("symbol.bench.PackageInviteData", [
+            { no: 1, name: "metatype", kind: "enum", T: () => ["symbol.bench.NodeType", NodeType, "NODE_TYPE_"] },
+            { no: 2, name: "id", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
+            { no: 4, name: "parent_ptr", kind: "message", T: () => NodeReferenceData },
+            { no: 6, name: "bench_ptr", kind: "message", T: () => NodeReferenceData },
+            { no: 7, name: "package_ptr", kind: "message", T: () => NodeReferenceData },
+            { no: 10, name: "created_at", kind: "message", T: () => Timestamp },
+            { no: 11, name: "created_by_ptr", kind: "message", T: () => NodeReferenceData },
+            { no: 12, name: "updated_at", kind: "message", T: () => Timestamp },
+            { no: 13, name: "updated_by_ptr", kind: "message", T: () => NodeReferenceData },
+            { no: 15, name: "deleted_at", kind: "message", T: () => Timestamp }
+        ]);
+    }
+    create(value?: PartialMessage<PackageInviteData>): PackageInviteData {
+        const message = globalThis.Object.create((this.messagePrototype!));
+        message.metatype = 0;
+        message.id = "";
+        if (value !== undefined)
+            reflectionMergePartial<PackageInviteData>(this, message, value);
+        return message;
+    }
+    internalBinaryRead(reader: IBinaryReader, length: number, options: BinaryReadOptions, target?: PackageInviteData): PackageInviteData {
+        let message = target ?? this.create(), end = reader.pos + length;
+        while (reader.pos < end) {
+            let [fieldNo, wireType] = reader.tag();
+            switch (fieldNo) {
+                case /* symbol.bench.NodeType metatype */ 1:
+                    message.metatype = reader.int32();
+                    break;
+                case /* string id */ 2:
+                    message.id = reader.string();
+                    break;
+                case /* symbol.bench.NodeReferenceData parent_ptr */ 4:
+                    message.parentPtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.parentPtr);
+                    break;
+                case /* optional symbol.bench.NodeReferenceData bench_ptr */ 6:
+                    message.benchPtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.benchPtr);
+                    break;
+                case /* optional symbol.bench.NodeReferenceData package_ptr */ 7:
+                    message.packagePtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.packagePtr);
+                    break;
+                case /* google.protobuf.Timestamp created_at */ 10:
+                    message.createdAt = Timestamp.internalBinaryRead(reader, reader.uint32(), options, message.createdAt);
+                    break;
+                case /* optional symbol.bench.NodeReferenceData created_by_ptr */ 11:
+                    message.createdByPtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.createdByPtr);
+                    break;
+                case /* google.protobuf.Timestamp updated_at */ 12:
+                    message.updatedAt = Timestamp.internalBinaryRead(reader, reader.uint32(), options, message.updatedAt);
+                    break;
+                case /* optional symbol.bench.NodeReferenceData updated_by_ptr */ 13:
+                    message.updatedByPtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.updatedByPtr);
+                    break;
+                case /* optional google.protobuf.Timestamp deleted_at */ 15:
+                    message.deletedAt = Timestamp.internalBinaryRead(reader, reader.uint32(), options, message.deletedAt);
+                    break;
+                default:
+                    let u = options.readUnknownField;
+                    if (u === "throw")
+                        throw new globalThis.Error(`Unknown field ${fieldNo} (wire type ${wireType}) for ${this.typeName}`);
+                    let d = reader.skip(wireType);
+                    if (u !== false)
+                        (u === true ? UnknownFieldHandler.onRead : u)(this.typeName, message, fieldNo, wireType, d);
+            }
+        }
+        return message;
+    }
+    internalBinaryWrite(message: PackageInviteData, writer: IBinaryWriter, options: BinaryWriteOptions): IBinaryWriter {
+        /* symbol.bench.NodeType metatype = 1; */
+        if (message.metatype !== 0)
+            writer.tag(1, WireType.Varint).int32(message.metatype);
+        /* string id = 2; */
+        if (message.id !== "")
+            writer.tag(2, WireType.LengthDelimited).string(message.id);
+        /* symbol.bench.NodeReferenceData parent_ptr = 4; */
+        if (message.parentPtr)
+            NodeReferenceData.internalBinaryWrite(message.parentPtr, writer.tag(4, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbol.bench.NodeReferenceData bench_ptr = 6; */
+        if (message.benchPtr)
+            NodeReferenceData.internalBinaryWrite(message.benchPtr, writer.tag(6, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbol.bench.NodeReferenceData package_ptr = 7; */
+        if (message.packagePtr)
+            NodeReferenceData.internalBinaryWrite(message.packagePtr, writer.tag(7, WireType.LengthDelimited).fork(), options).join();
+        /* google.protobuf.Timestamp created_at = 10; */
+        if (message.createdAt)
+            Timestamp.internalBinaryWrite(message.createdAt, writer.tag(10, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbol.bench.NodeReferenceData created_by_ptr = 11; */
+        if (message.createdByPtr)
+            NodeReferenceData.internalBinaryWrite(message.createdByPtr, writer.tag(11, WireType.LengthDelimited).fork(), options).join();
+        /* google.protobuf.Timestamp updated_at = 12; */
+        if (message.updatedAt)
+            Timestamp.internalBinaryWrite(message.updatedAt, writer.tag(12, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbol.bench.NodeReferenceData updated_by_ptr = 13; */
+        if (message.updatedByPtr)
+            NodeReferenceData.internalBinaryWrite(message.updatedByPtr, writer.tag(13, WireType.LengthDelimited).fork(), options).join();
+        /* optional google.protobuf.Timestamp deleted_at = 15; */
+        if (message.deletedAt)
+            Timestamp.internalBinaryWrite(message.deletedAt, writer.tag(15, WireType.LengthDelimited).fork(), options).join();
+        let u = options.writeUnknownFields;
+        if (u !== false)
+            (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
+        return writer;
+    }
+}
+/**
+ * @generated MessageType for protobuf message symbol.bench.PackageInviteData
+ */
+export const PackageInviteData = new PackageInviteData$Type();
+// @generated message type with reflection information, may provide speed optimized methods
+class PackageMembershipData$Type extends MessageType$<PackageMembershipData> {
+    constructor() {
+        super("symbol.bench.PackageMembershipData", [
+            { no: 1, name: "metatype", kind: "enum", T: () => ["symbol.bench.NodeType", NodeType, "NODE_TYPE_"] },
+            { no: 2, name: "id", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
+            { no: 4, name: "parent_ptr", kind: "message", T: () => NodeReferenceData },
+            { no: 6, name: "bench_ptr", kind: "message", T: () => NodeReferenceData },
+            { no: 7, name: "package_ptr", kind: "message", T: () => NodeReferenceData },
+            { no: 10, name: "created_at", kind: "message", T: () => Timestamp },
+            { no: 11, name: "created_by_ptr", kind: "message", T: () => NodeReferenceData },
+            { no: 12, name: "updated_at", kind: "message", T: () => Timestamp },
+            { no: 13, name: "updated_by_ptr", kind: "message", T: () => NodeReferenceData },
+            { no: 15, name: "deleted_at", kind: "message", T: () => Timestamp },
+            { no: 40, name: "member_ptr", kind: "message", T: () => NodeReferenceData }
+        ]);
+    }
+    create(value?: PartialMessage<PackageMembershipData>): PackageMembershipData {
+        const message = globalThis.Object.create((this.messagePrototype!));
+        message.metatype = 0;
+        message.id = "";
+        if (value !== undefined)
+            reflectionMergePartial<PackageMembershipData>(this, message, value);
+        return message;
+    }
+    internalBinaryRead(reader: IBinaryReader, length: number, options: BinaryReadOptions, target?: PackageMembershipData): PackageMembershipData {
+        let message = target ?? this.create(), end = reader.pos + length;
+        while (reader.pos < end) {
+            let [fieldNo, wireType] = reader.tag();
+            switch (fieldNo) {
+                case /* symbol.bench.NodeType metatype */ 1:
+                    message.metatype = reader.int32();
+                    break;
+                case /* string id */ 2:
+                    message.id = reader.string();
+                    break;
+                case /* symbol.bench.NodeReferenceData parent_ptr */ 4:
+                    message.parentPtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.parentPtr);
+                    break;
+                case /* optional symbol.bench.NodeReferenceData bench_ptr */ 6:
+                    message.benchPtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.benchPtr);
+                    break;
+                case /* optional symbol.bench.NodeReferenceData package_ptr */ 7:
+                    message.packagePtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.packagePtr);
+                    break;
+                case /* google.protobuf.Timestamp created_at */ 10:
+                    message.createdAt = Timestamp.internalBinaryRead(reader, reader.uint32(), options, message.createdAt);
+                    break;
+                case /* optional symbol.bench.NodeReferenceData created_by_ptr */ 11:
+                    message.createdByPtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.createdByPtr);
+                    break;
+                case /* google.protobuf.Timestamp updated_at */ 12:
+                    message.updatedAt = Timestamp.internalBinaryRead(reader, reader.uint32(), options, message.updatedAt);
+                    break;
+                case /* optional symbol.bench.NodeReferenceData updated_by_ptr */ 13:
+                    message.updatedByPtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.updatedByPtr);
+                    break;
+                case /* optional google.protobuf.Timestamp deleted_at */ 15:
+                    message.deletedAt = Timestamp.internalBinaryRead(reader, reader.uint32(), options, message.deletedAt);
+                    break;
+                case /* symbol.bench.NodeReferenceData member_ptr */ 40:
+                    message.memberPtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.memberPtr);
+                    break;
+                default:
+                    let u = options.readUnknownField;
+                    if (u === "throw")
+                        throw new globalThis.Error(`Unknown field ${fieldNo} (wire type ${wireType}) for ${this.typeName}`);
+                    let d = reader.skip(wireType);
+                    if (u !== false)
+                        (u === true ? UnknownFieldHandler.onRead : u)(this.typeName, message, fieldNo, wireType, d);
+            }
+        }
+        return message;
+    }
+    internalBinaryWrite(message: PackageMembershipData, writer: IBinaryWriter, options: BinaryWriteOptions): IBinaryWriter {
+        /* symbol.bench.NodeType metatype = 1; */
+        if (message.metatype !== 0)
+            writer.tag(1, WireType.Varint).int32(message.metatype);
+        /* string id = 2; */
+        if (message.id !== "")
+            writer.tag(2, WireType.LengthDelimited).string(message.id);
+        /* symbol.bench.NodeReferenceData parent_ptr = 4; */
+        if (message.parentPtr)
+            NodeReferenceData.internalBinaryWrite(message.parentPtr, writer.tag(4, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbol.bench.NodeReferenceData bench_ptr = 6; */
+        if (message.benchPtr)
+            NodeReferenceData.internalBinaryWrite(message.benchPtr, writer.tag(6, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbol.bench.NodeReferenceData package_ptr = 7; */
+        if (message.packagePtr)
+            NodeReferenceData.internalBinaryWrite(message.packagePtr, writer.tag(7, WireType.LengthDelimited).fork(), options).join();
+        /* google.protobuf.Timestamp created_at = 10; */
+        if (message.createdAt)
+            Timestamp.internalBinaryWrite(message.createdAt, writer.tag(10, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbol.bench.NodeReferenceData created_by_ptr = 11; */
+        if (message.createdByPtr)
+            NodeReferenceData.internalBinaryWrite(message.createdByPtr, writer.tag(11, WireType.LengthDelimited).fork(), options).join();
+        /* google.protobuf.Timestamp updated_at = 12; */
+        if (message.updatedAt)
+            Timestamp.internalBinaryWrite(message.updatedAt, writer.tag(12, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbol.bench.NodeReferenceData updated_by_ptr = 13; */
+        if (message.updatedByPtr)
+            NodeReferenceData.internalBinaryWrite(message.updatedByPtr, writer.tag(13, WireType.LengthDelimited).fork(), options).join();
+        /* optional google.protobuf.Timestamp deleted_at = 15; */
+        if (message.deletedAt)
+            Timestamp.internalBinaryWrite(message.deletedAt, writer.tag(15, WireType.LengthDelimited).fork(), options).join();
+        /* symbol.bench.NodeReferenceData member_ptr = 40; */
+        if (message.memberPtr)
+            NodeReferenceData.internalBinaryWrite(message.memberPtr, writer.tag(40, WireType.LengthDelimited).fork(), options).join();
+        let u = options.writeUnknownFields;
+        if (u !== false)
+            (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
+        return writer;
+    }
+}
+/**
+ * @generated MessageType for protobuf message symbol.bench.PackageMembershipData
+ */
+export const PackageMembershipData = new PackageMembershipData$Type();
 // @generated message type with reflection information, may provide speed optimized methods
 class PageData$Type extends MessageType$<PageData> {
     constructor() {
@@ -29535,44 +29083,43 @@ export const WizardViewData = new WizardViewData$Type();
 class SomeNodeData$Type extends MessageType$<SomeNodeData> {
     constructor() {
         super("symbol.bench.SomeNodeData", [
-            { no: 10, name: "bench", kind: "message", oneof: "node", T: () => BenchData },
-            { no: 11, name: "bench_membership", kind: "message", oneof: "node", T: () => BenchMembershipData },
-            { no: 12, name: "bench_invite", kind: "message", oneof: "node", T: () => BenchInviteData },
+            { no: 1, name: "bench", kind: "message", oneof: "node", T: () => BenchData },
+            { no: 2, name: "bench_membership", kind: "message", oneof: "node", T: () => BenchMembershipData },
+            { no: 3, name: "bench_invite", kind: "message", oneof: "node", T: () => BenchInviteData },
+            { no: 20, name: "package", kind: "message", oneof: "node", T: () => PackageData },
+            { no: 21, name: "package_membership", kind: "message", oneof: "node", T: () => PackageMembershipData },
+            { no: 22, name: "package_invite", kind: "message", oneof: "node", T: () => PackageInviteData },
             { no: 50, name: "handle", kind: "message", oneof: "node", T: () => HandleData },
             { no: 200, name: "user", kind: "message", oneof: "node", T: () => UserData },
-            { no: 250, name: "client", kind: "message", oneof: "node", T: () => ClientData },
+            { no: 210, name: "client", kind: "message", oneof: "node", T: () => ClientData },
             { no: 300, name: "organization", kind: "message", oneof: "node", T: () => OrganizationData },
             { no: 301, name: "organization_membership", kind: "message", oneof: "node", T: () => OrganizationMembershipData },
             { no: 302, name: "organization_invite", kind: "message", oneof: "node", T: () => OrganizationInviteData },
-            { no: 1000, name: "package", kind: "message", oneof: "node", T: () => PackageData },
-            { no: 1010, name: "dependency", kind: "message", oneof: "node", T: () => DependencyData },
-            { no: 1020, name: "page", kind: "message", oneof: "node", T: () => PageData },
-            { no: 1030, name: "block", kind: "message", oneof: "node", T: () => BlockData },
-            { no: 1050, name: "application", kind: "message", oneof: "node", T: () => ApplicationData },
-            { no: 1200, name: "database", kind: "message", oneof: "node", T: () => DatabaseData },
-            { no: 1210, name: "machine", kind: "message", oneof: "node", T: () => MachineData },
-            { no: 1400, name: "schema", kind: "message", oneof: "node", T: () => SchemaData },
-            { no: 1410, name: "field", kind: "message", oneof: "node", T: () => FieldData },
-            { no: 1500, name: "table", kind: "message", oneof: "node", T: () => TableData },
-            { no: 1510, name: "record", kind: "message", oneof: "node", T: () => RecordData },
-            { no: 1520, name: "file", kind: "message", oneof: "node", T: () => FileData },
-            { no: 1550, name: "link", kind: "message", oneof: "node", T: () => LinkData },
-            { no: 1800, name: "thread", kind: "message", oneof: "node", T: () => ThreadData },
-            { no: 1820, name: "message", kind: "message", oneof: "node", T: () => MessageData },
-            { no: 1850, name: "notification", kind: "message", oneof: "node", T: () => NotificationData },
-            { no: 2000, name: "service", kind: "message", oneof: "node", T: () => ServiceData },
-            { no: 2020, name: "action", kind: "message", oneof: "node", T: () => ActionData },
-            { no: 2040, name: "flow", kind: "message", oneof: "node", T: () => FlowData },
-            { no: 2041, name: "flow_edge", kind: "message", oneof: "node", T: () => FlowEdgeData },
-            { no: 2100, name: "agent", kind: "message", oneof: "node", T: () => AgentData },
-            { no: 2200, name: "task", kind: "message", oneof: "node", T: () => TaskData },
-            { no: 2220, name: "cursor", kind: "message", oneof: "node", T: () => CursorData },
-            { no: 2610, name: "run", kind: "message", oneof: "node", T: () => RunData },
-            { no: 2620, name: "span", kind: "message", oneof: "node", T: () => SpanData },
-            { no: 2630, name: "interruption", kind: "message", oneof: "node", T: () => InterruptionData },
-            { no: 8000, name: "space", kind: "message", oneof: "node", T: () => SpaceData },
-            { no: 8010, name: "scene", kind: "message", oneof: "node", T: () => SceneData },
-            { no: 8020, name: "route", kind: "message", oneof: "node", T: () => RouteData },
+            { no: 600, name: "space", kind: "message", oneof: "node", T: () => SpaceData },
+            { no: 610, name: "scene", kind: "message", oneof: "node", T: () => SceneData },
+            { no: 620, name: "route", kind: "message", oneof: "node", T: () => RouteData },
+            { no: 700, name: "page", kind: "message", oneof: "node", T: () => PageData },
+            { no: 701, name: "block", kind: "message", oneof: "node", T: () => BlockData },
+            { no: 1000, name: "database", kind: "message", oneof: "node", T: () => DatabaseData },
+            { no: 1010, name: "machine", kind: "message", oneof: "node", T: () => MachineData },
+            { no: 1200, name: "service", kind: "message", oneof: "node", T: () => ServiceData },
+            { no: 1220, name: "action", kind: "message", oneof: "node", T: () => ActionData },
+            { no: 1240, name: "flow", kind: "message", oneof: "node", T: () => FlowData },
+            { no: 1241, name: "flow_edge", kind: "message", oneof: "node", T: () => FlowEdgeData },
+            { no: 1300, name: "agent", kind: "message", oneof: "node", T: () => AgentData },
+            { no: 1310, name: "task", kind: "message", oneof: "node", T: () => TaskData },
+            { no: 1320, name: "cursor", kind: "message", oneof: "node", T: () => CursorData },
+            { no: 1610, name: "run", kind: "message", oneof: "node", T: () => RunData },
+            { no: 1620, name: "span", kind: "message", oneof: "node", T: () => SpanData },
+            { no: 1630, name: "interruption", kind: "message", oneof: "node", T: () => InterruptionData },
+            { no: 2000, name: "schema", kind: "message", oneof: "node", T: () => SchemaData },
+            { no: 2010, name: "field", kind: "message", oneof: "node", T: () => FieldData },
+            { no: 2020, name: "file", kind: "message", oneof: "node", T: () => FileData },
+            { no: 2050, name: "link", kind: "message", oneof: "node", T: () => LinkData },
+            { no: 2200, name: "table", kind: "message", oneof: "node", T: () => TableData },
+            { no: 2210, name: "record", kind: "message", oneof: "node", T: () => RecordData },
+            { no: 2400, name: "thread", kind: "message", oneof: "node", T: () => ThreadData },
+            { no: 2420, name: "message", kind: "message", oneof: "node", T: () => MessageData },
             { no: 8100, name: "frame_view", kind: "message", oneof: "node", T: () => FrameViewData },
             { no: 8101, name: "label_view", kind: "message", oneof: "node", T: () => LabelViewData },
             { no: 8120, name: "split_view", kind: "message", oneof: "node", T: () => SplitViewData },
@@ -29603,22 +29150,40 @@ class SomeNodeData$Type extends MessageType$<SomeNodeData> {
         while (reader.pos < end) {
             let [fieldNo, wireType] = reader.tag();
             switch (fieldNo) {
-                case /* symbol.bench.BenchData bench */ 10:
+                case /* symbol.bench.BenchData bench */ 1:
                     message.node = {
                         oneofKind: "bench",
                         bench: BenchData.internalBinaryRead(reader, reader.uint32(), options, (message.node as any).bench)
                     };
                     break;
-                case /* symbol.bench.BenchMembershipData bench_membership */ 11:
+                case /* symbol.bench.BenchMembershipData bench_membership */ 2:
                     message.node = {
                         oneofKind: "benchMembership",
                         benchMembership: BenchMembershipData.internalBinaryRead(reader, reader.uint32(), options, (message.node as any).benchMembership)
                     };
                     break;
-                case /* symbol.bench.BenchInviteData bench_invite */ 12:
+                case /* symbol.bench.BenchInviteData bench_invite */ 3:
                     message.node = {
                         oneofKind: "benchInvite",
                         benchInvite: BenchInviteData.internalBinaryRead(reader, reader.uint32(), options, (message.node as any).benchInvite)
+                    };
+                    break;
+                case /* symbol.bench.PackageData package */ 20:
+                    message.node = {
+                        oneofKind: "package",
+                        package: PackageData.internalBinaryRead(reader, reader.uint32(), options, (message.node as any).package)
+                    };
+                    break;
+                case /* symbol.bench.PackageMembershipData package_membership */ 21:
+                    message.node = {
+                        oneofKind: "packageMembership",
+                        packageMembership: PackageMembershipData.internalBinaryRead(reader, reader.uint32(), options, (message.node as any).packageMembership)
+                    };
+                    break;
+                case /* symbol.bench.PackageInviteData package_invite */ 22:
+                    message.node = {
+                        oneofKind: "packageInvite",
+                        packageInvite: PackageInviteData.internalBinaryRead(reader, reader.uint32(), options, (message.node as any).packageInvite)
                     };
                     break;
                 case /* symbol.bench.HandleData handle */ 50:
@@ -29633,7 +29198,7 @@ class SomeNodeData$Type extends MessageType$<SomeNodeData> {
                         user: UserData.internalBinaryRead(reader, reader.uint32(), options, (message.node as any).user)
                     };
                     break;
-                case /* symbol.bench.ClientData client */ 250:
+                case /* symbol.bench.ClientData client */ 210:
                     message.node = {
                         oneofKind: "client",
                         client: ClientData.internalBinaryRead(reader, reader.uint32(), options, (message.node as any).client)
@@ -29657,178 +29222,154 @@ class SomeNodeData$Type extends MessageType$<SomeNodeData> {
                         organizationInvite: OrganizationInviteData.internalBinaryRead(reader, reader.uint32(), options, (message.node as any).organizationInvite)
                     };
                     break;
-                case /* symbol.bench.PackageData package */ 1000:
-                    message.node = {
-                        oneofKind: "package",
-                        package: PackageData.internalBinaryRead(reader, reader.uint32(), options, (message.node as any).package)
-                    };
-                    break;
-                case /* symbol.bench.DependencyData dependency */ 1010:
-                    message.node = {
-                        oneofKind: "dependency",
-                        dependency: DependencyData.internalBinaryRead(reader, reader.uint32(), options, (message.node as any).dependency)
-                    };
-                    break;
-                case /* symbol.bench.PageData page */ 1020:
-                    message.node = {
-                        oneofKind: "page",
-                        page: PageData.internalBinaryRead(reader, reader.uint32(), options, (message.node as any).page)
-                    };
-                    break;
-                case /* symbol.bench.BlockData block */ 1030:
-                    message.node = {
-                        oneofKind: "block",
-                        block: BlockData.internalBinaryRead(reader, reader.uint32(), options, (message.node as any).block)
-                    };
-                    break;
-                case /* symbol.bench.ApplicationData application */ 1050:
-                    message.node = {
-                        oneofKind: "application",
-                        application: ApplicationData.internalBinaryRead(reader, reader.uint32(), options, (message.node as any).application)
-                    };
-                    break;
-                case /* symbol.bench.DatabaseData database */ 1200:
-                    message.node = {
-                        oneofKind: "database",
-                        database: DatabaseData.internalBinaryRead(reader, reader.uint32(), options, (message.node as any).database)
-                    };
-                    break;
-                case /* symbol.bench.MachineData machine */ 1210:
-                    message.node = {
-                        oneofKind: "machine",
-                        machine: MachineData.internalBinaryRead(reader, reader.uint32(), options, (message.node as any).machine)
-                    };
-                    break;
-                case /* symbol.bench.SchemaData schema */ 1400:
-                    message.node = {
-                        oneofKind: "schema",
-                        schema: SchemaData.internalBinaryRead(reader, reader.uint32(), options, (message.node as any).schema)
-                    };
-                    break;
-                case /* symbol.bench.FieldData field */ 1410:
-                    message.node = {
-                        oneofKind: "field",
-                        field: FieldData.internalBinaryRead(reader, reader.uint32(), options, (message.node as any).field)
-                    };
-                    break;
-                case /* symbol.bench.TableData table */ 1500:
-                    message.node = {
-                        oneofKind: "table",
-                        table: TableData.internalBinaryRead(reader, reader.uint32(), options, (message.node as any).table)
-                    };
-                    break;
-                case /* symbol.bench.RecordData record */ 1510:
-                    message.node = {
-                        oneofKind: "record",
-                        record: RecordData.internalBinaryRead(reader, reader.uint32(), options, (message.node as any).record)
-                    };
-                    break;
-                case /* symbol.bench.FileData file */ 1520:
-                    message.node = {
-                        oneofKind: "file",
-                        file: FileData.internalBinaryRead(reader, reader.uint32(), options, (message.node as any).file)
-                    };
-                    break;
-                case /* symbol.bench.LinkData link */ 1550:
-                    message.node = {
-                        oneofKind: "link",
-                        link: LinkData.internalBinaryRead(reader, reader.uint32(), options, (message.node as any).link)
-                    };
-                    break;
-                case /* symbol.bench.ThreadData thread */ 1800:
-                    message.node = {
-                        oneofKind: "thread",
-                        thread: ThreadData.internalBinaryRead(reader, reader.uint32(), options, (message.node as any).thread)
-                    };
-                    break;
-                case /* symbol.bench.MessageData message */ 1820:
-                    message.node = {
-                        oneofKind: "message",
-                        message: MessageData.internalBinaryRead(reader, reader.uint32(), options, (message.node as any).message)
-                    };
-                    break;
-                case /* symbol.bench.NotificationData notification */ 1850:
-                    message.node = {
-                        oneofKind: "notification",
-                        notification: NotificationData.internalBinaryRead(reader, reader.uint32(), options, (message.node as any).notification)
-                    };
-                    break;
-                case /* symbol.bench.ServiceData service */ 2000:
-                    message.node = {
-                        oneofKind: "service",
-                        service: ServiceData.internalBinaryRead(reader, reader.uint32(), options, (message.node as any).service)
-                    };
-                    break;
-                case /* symbol.bench.ActionData action */ 2020:
-                    message.node = {
-                        oneofKind: "action",
-                        action: ActionData.internalBinaryRead(reader, reader.uint32(), options, (message.node as any).action)
-                    };
-                    break;
-                case /* symbol.bench.FlowData flow */ 2040:
-                    message.node = {
-                        oneofKind: "flow",
-                        flow: FlowData.internalBinaryRead(reader, reader.uint32(), options, (message.node as any).flow)
-                    };
-                    break;
-                case /* symbol.bench.FlowEdgeData flow_edge */ 2041:
-                    message.node = {
-                        oneofKind: "flowEdge",
-                        flowEdge: FlowEdgeData.internalBinaryRead(reader, reader.uint32(), options, (message.node as any).flowEdge)
-                    };
-                    break;
-                case /* symbol.bench.AgentData agent */ 2100:
-                    message.node = {
-                        oneofKind: "agent",
-                        agent: AgentData.internalBinaryRead(reader, reader.uint32(), options, (message.node as any).agent)
-                    };
-                    break;
-                case /* symbol.bench.TaskData task */ 2200:
-                    message.node = {
-                        oneofKind: "task",
-                        task: TaskData.internalBinaryRead(reader, reader.uint32(), options, (message.node as any).task)
-                    };
-                    break;
-                case /* symbol.bench.CursorData cursor */ 2220:
-                    message.node = {
-                        oneofKind: "cursor",
-                        cursor: CursorData.internalBinaryRead(reader, reader.uint32(), options, (message.node as any).cursor)
-                    };
-                    break;
-                case /* symbol.bench.RunData run */ 2610:
-                    message.node = {
-                        oneofKind: "run",
-                        run: RunData.internalBinaryRead(reader, reader.uint32(), options, (message.node as any).run)
-                    };
-                    break;
-                case /* symbol.bench.SpanData span */ 2620:
-                    message.node = {
-                        oneofKind: "span",
-                        span: SpanData.internalBinaryRead(reader, reader.uint32(), options, (message.node as any).span)
-                    };
-                    break;
-                case /* symbol.bench.InterruptionData interruption */ 2630:
-                    message.node = {
-                        oneofKind: "interruption",
-                        interruption: InterruptionData.internalBinaryRead(reader, reader.uint32(), options, (message.node as any).interruption)
-                    };
-                    break;
-                case /* symbol.bench.SpaceData space */ 8000:
+                case /* symbol.bench.SpaceData space */ 600:
                     message.node = {
                         oneofKind: "space",
                         space: SpaceData.internalBinaryRead(reader, reader.uint32(), options, (message.node as any).space)
                     };
                     break;
-                case /* symbol.bench.SceneData scene */ 8010:
+                case /* symbol.bench.SceneData scene */ 610:
                     message.node = {
                         oneofKind: "scene",
                         scene: SceneData.internalBinaryRead(reader, reader.uint32(), options, (message.node as any).scene)
                     };
                     break;
-                case /* symbol.bench.RouteData route */ 8020:
+                case /* symbol.bench.RouteData route */ 620:
                     message.node = {
                         oneofKind: "route",
                         route: RouteData.internalBinaryRead(reader, reader.uint32(), options, (message.node as any).route)
+                    };
+                    break;
+                case /* symbol.bench.PageData page */ 700:
+                    message.node = {
+                        oneofKind: "page",
+                        page: PageData.internalBinaryRead(reader, reader.uint32(), options, (message.node as any).page)
+                    };
+                    break;
+                case /* symbol.bench.BlockData block */ 701:
+                    message.node = {
+                        oneofKind: "block",
+                        block: BlockData.internalBinaryRead(reader, reader.uint32(), options, (message.node as any).block)
+                    };
+                    break;
+                case /* symbol.bench.DatabaseData database */ 1000:
+                    message.node = {
+                        oneofKind: "database",
+                        database: DatabaseData.internalBinaryRead(reader, reader.uint32(), options, (message.node as any).database)
+                    };
+                    break;
+                case /* symbol.bench.MachineData machine */ 1010:
+                    message.node = {
+                        oneofKind: "machine",
+                        machine: MachineData.internalBinaryRead(reader, reader.uint32(), options, (message.node as any).machine)
+                    };
+                    break;
+                case /* symbol.bench.ServiceData service */ 1200:
+                    message.node = {
+                        oneofKind: "service",
+                        service: ServiceData.internalBinaryRead(reader, reader.uint32(), options, (message.node as any).service)
+                    };
+                    break;
+                case /* symbol.bench.ActionData action */ 1220:
+                    message.node = {
+                        oneofKind: "action",
+                        action: ActionData.internalBinaryRead(reader, reader.uint32(), options, (message.node as any).action)
+                    };
+                    break;
+                case /* symbol.bench.FlowData flow */ 1240:
+                    message.node = {
+                        oneofKind: "flow",
+                        flow: FlowData.internalBinaryRead(reader, reader.uint32(), options, (message.node as any).flow)
+                    };
+                    break;
+                case /* symbol.bench.FlowEdgeData flow_edge */ 1241:
+                    message.node = {
+                        oneofKind: "flowEdge",
+                        flowEdge: FlowEdgeData.internalBinaryRead(reader, reader.uint32(), options, (message.node as any).flowEdge)
+                    };
+                    break;
+                case /* symbol.bench.AgentData agent */ 1300:
+                    message.node = {
+                        oneofKind: "agent",
+                        agent: AgentData.internalBinaryRead(reader, reader.uint32(), options, (message.node as any).agent)
+                    };
+                    break;
+                case /* symbol.bench.TaskData task */ 1310:
+                    message.node = {
+                        oneofKind: "task",
+                        task: TaskData.internalBinaryRead(reader, reader.uint32(), options, (message.node as any).task)
+                    };
+                    break;
+                case /* symbol.bench.CursorData cursor */ 1320:
+                    message.node = {
+                        oneofKind: "cursor",
+                        cursor: CursorData.internalBinaryRead(reader, reader.uint32(), options, (message.node as any).cursor)
+                    };
+                    break;
+                case /* symbol.bench.RunData run */ 1610:
+                    message.node = {
+                        oneofKind: "run",
+                        run: RunData.internalBinaryRead(reader, reader.uint32(), options, (message.node as any).run)
+                    };
+                    break;
+                case /* symbol.bench.SpanData span */ 1620:
+                    message.node = {
+                        oneofKind: "span",
+                        span: SpanData.internalBinaryRead(reader, reader.uint32(), options, (message.node as any).span)
+                    };
+                    break;
+                case /* symbol.bench.InterruptionData interruption */ 1630:
+                    message.node = {
+                        oneofKind: "interruption",
+                        interruption: InterruptionData.internalBinaryRead(reader, reader.uint32(), options, (message.node as any).interruption)
+                    };
+                    break;
+                case /* symbol.bench.SchemaData schema */ 2000:
+                    message.node = {
+                        oneofKind: "schema",
+                        schema: SchemaData.internalBinaryRead(reader, reader.uint32(), options, (message.node as any).schema)
+                    };
+                    break;
+                case /* symbol.bench.FieldData field */ 2010:
+                    message.node = {
+                        oneofKind: "field",
+                        field: FieldData.internalBinaryRead(reader, reader.uint32(), options, (message.node as any).field)
+                    };
+                    break;
+                case /* symbol.bench.FileData file */ 2020:
+                    message.node = {
+                        oneofKind: "file",
+                        file: FileData.internalBinaryRead(reader, reader.uint32(), options, (message.node as any).file)
+                    };
+                    break;
+                case /* symbol.bench.LinkData link */ 2050:
+                    message.node = {
+                        oneofKind: "link",
+                        link: LinkData.internalBinaryRead(reader, reader.uint32(), options, (message.node as any).link)
+                    };
+                    break;
+                case /* symbol.bench.TableData table */ 2200:
+                    message.node = {
+                        oneofKind: "table",
+                        table: TableData.internalBinaryRead(reader, reader.uint32(), options, (message.node as any).table)
+                    };
+                    break;
+                case /* symbol.bench.RecordData record */ 2210:
+                    message.node = {
+                        oneofKind: "record",
+                        record: RecordData.internalBinaryRead(reader, reader.uint32(), options, (message.node as any).record)
+                    };
+                    break;
+                case /* symbol.bench.ThreadData thread */ 2400:
+                    message.node = {
+                        oneofKind: "thread",
+                        thread: ThreadData.internalBinaryRead(reader, reader.uint32(), options, (message.node as any).thread)
+                    };
+                    break;
+                case /* symbol.bench.MessageData message */ 2420:
+                    message.node = {
+                        oneofKind: "message",
+                        message: MessageData.internalBinaryRead(reader, reader.uint32(), options, (message.node as any).message)
                     };
                     break;
                 case /* symbol.bench.FrameViewData frame_view */ 8100:
@@ -29939,24 +29480,33 @@ class SomeNodeData$Type extends MessageType$<SomeNodeData> {
         return message;
     }
     internalBinaryWrite(message: SomeNodeData, writer: IBinaryWriter, options: BinaryWriteOptions): IBinaryWriter {
-        /* symbol.bench.BenchData bench = 10; */
+        /* symbol.bench.BenchData bench = 1; */
         if (message.node.oneofKind === "bench")
-            BenchData.internalBinaryWrite(message.node.bench, writer.tag(10, WireType.LengthDelimited).fork(), options).join();
-        /* symbol.bench.BenchMembershipData bench_membership = 11; */
+            BenchData.internalBinaryWrite(message.node.bench, writer.tag(1, WireType.LengthDelimited).fork(), options).join();
+        /* symbol.bench.BenchMembershipData bench_membership = 2; */
         if (message.node.oneofKind === "benchMembership")
-            BenchMembershipData.internalBinaryWrite(message.node.benchMembership, writer.tag(11, WireType.LengthDelimited).fork(), options).join();
-        /* symbol.bench.BenchInviteData bench_invite = 12; */
+            BenchMembershipData.internalBinaryWrite(message.node.benchMembership, writer.tag(2, WireType.LengthDelimited).fork(), options).join();
+        /* symbol.bench.BenchInviteData bench_invite = 3; */
         if (message.node.oneofKind === "benchInvite")
-            BenchInviteData.internalBinaryWrite(message.node.benchInvite, writer.tag(12, WireType.LengthDelimited).fork(), options).join();
+            BenchInviteData.internalBinaryWrite(message.node.benchInvite, writer.tag(3, WireType.LengthDelimited).fork(), options).join();
+        /* symbol.bench.PackageData package = 20; */
+        if (message.node.oneofKind === "package")
+            PackageData.internalBinaryWrite(message.node.package, writer.tag(20, WireType.LengthDelimited).fork(), options).join();
+        /* symbol.bench.PackageMembershipData package_membership = 21; */
+        if (message.node.oneofKind === "packageMembership")
+            PackageMembershipData.internalBinaryWrite(message.node.packageMembership, writer.tag(21, WireType.LengthDelimited).fork(), options).join();
+        /* symbol.bench.PackageInviteData package_invite = 22; */
+        if (message.node.oneofKind === "packageInvite")
+            PackageInviteData.internalBinaryWrite(message.node.packageInvite, writer.tag(22, WireType.LengthDelimited).fork(), options).join();
         /* symbol.bench.HandleData handle = 50; */
         if (message.node.oneofKind === "handle")
             HandleData.internalBinaryWrite(message.node.handle, writer.tag(50, WireType.LengthDelimited).fork(), options).join();
         /* symbol.bench.UserData user = 200; */
         if (message.node.oneofKind === "user")
             UserData.internalBinaryWrite(message.node.user, writer.tag(200, WireType.LengthDelimited).fork(), options).join();
-        /* symbol.bench.ClientData client = 250; */
+        /* symbol.bench.ClientData client = 210; */
         if (message.node.oneofKind === "client")
-            ClientData.internalBinaryWrite(message.node.client, writer.tag(250, WireType.LengthDelimited).fork(), options).join();
+            ClientData.internalBinaryWrite(message.node.client, writer.tag(210, WireType.LengthDelimited).fork(), options).join();
         /* symbol.bench.OrganizationData organization = 300; */
         if (message.node.oneofKind === "organization")
             OrganizationData.internalBinaryWrite(message.node.organization, writer.tag(300, WireType.LengthDelimited).fork(), options).join();
@@ -29966,93 +29516,81 @@ class SomeNodeData$Type extends MessageType$<SomeNodeData> {
         /* symbol.bench.OrganizationInviteData organization_invite = 302; */
         if (message.node.oneofKind === "organizationInvite")
             OrganizationInviteData.internalBinaryWrite(message.node.organizationInvite, writer.tag(302, WireType.LengthDelimited).fork(), options).join();
-        /* symbol.bench.PackageData package = 1000; */
-        if (message.node.oneofKind === "package")
-            PackageData.internalBinaryWrite(message.node.package, writer.tag(1000, WireType.LengthDelimited).fork(), options).join();
-        /* symbol.bench.DependencyData dependency = 1010; */
-        if (message.node.oneofKind === "dependency")
-            DependencyData.internalBinaryWrite(message.node.dependency, writer.tag(1010, WireType.LengthDelimited).fork(), options).join();
-        /* symbol.bench.PageData page = 1020; */
-        if (message.node.oneofKind === "page")
-            PageData.internalBinaryWrite(message.node.page, writer.tag(1020, WireType.LengthDelimited).fork(), options).join();
-        /* symbol.bench.BlockData block = 1030; */
-        if (message.node.oneofKind === "block")
-            BlockData.internalBinaryWrite(message.node.block, writer.tag(1030, WireType.LengthDelimited).fork(), options).join();
-        /* symbol.bench.ApplicationData application = 1050; */
-        if (message.node.oneofKind === "application")
-            ApplicationData.internalBinaryWrite(message.node.application, writer.tag(1050, WireType.LengthDelimited).fork(), options).join();
-        /* symbol.bench.DatabaseData database = 1200; */
-        if (message.node.oneofKind === "database")
-            DatabaseData.internalBinaryWrite(message.node.database, writer.tag(1200, WireType.LengthDelimited).fork(), options).join();
-        /* symbol.bench.MachineData machine = 1210; */
-        if (message.node.oneofKind === "machine")
-            MachineData.internalBinaryWrite(message.node.machine, writer.tag(1210, WireType.LengthDelimited).fork(), options).join();
-        /* symbol.bench.SchemaData schema = 1400; */
-        if (message.node.oneofKind === "schema")
-            SchemaData.internalBinaryWrite(message.node.schema, writer.tag(1400, WireType.LengthDelimited).fork(), options).join();
-        /* symbol.bench.FieldData field = 1410; */
-        if (message.node.oneofKind === "field")
-            FieldData.internalBinaryWrite(message.node.field, writer.tag(1410, WireType.LengthDelimited).fork(), options).join();
-        /* symbol.bench.TableData table = 1500; */
-        if (message.node.oneofKind === "table")
-            TableData.internalBinaryWrite(message.node.table, writer.tag(1500, WireType.LengthDelimited).fork(), options).join();
-        /* symbol.bench.RecordData record = 1510; */
-        if (message.node.oneofKind === "record")
-            RecordData.internalBinaryWrite(message.node.record, writer.tag(1510, WireType.LengthDelimited).fork(), options).join();
-        /* symbol.bench.FileData file = 1520; */
-        if (message.node.oneofKind === "file")
-            FileData.internalBinaryWrite(message.node.file, writer.tag(1520, WireType.LengthDelimited).fork(), options).join();
-        /* symbol.bench.LinkData link = 1550; */
-        if (message.node.oneofKind === "link")
-            LinkData.internalBinaryWrite(message.node.link, writer.tag(1550, WireType.LengthDelimited).fork(), options).join();
-        /* symbol.bench.ThreadData thread = 1800; */
-        if (message.node.oneofKind === "thread")
-            ThreadData.internalBinaryWrite(message.node.thread, writer.tag(1800, WireType.LengthDelimited).fork(), options).join();
-        /* symbol.bench.MessageData message = 1820; */
-        if (message.node.oneofKind === "message")
-            MessageData.internalBinaryWrite(message.node.message, writer.tag(1820, WireType.LengthDelimited).fork(), options).join();
-        /* symbol.bench.NotificationData notification = 1850; */
-        if (message.node.oneofKind === "notification")
-            NotificationData.internalBinaryWrite(message.node.notification, writer.tag(1850, WireType.LengthDelimited).fork(), options).join();
-        /* symbol.bench.ServiceData service = 2000; */
-        if (message.node.oneofKind === "service")
-            ServiceData.internalBinaryWrite(message.node.service, writer.tag(2000, WireType.LengthDelimited).fork(), options).join();
-        /* symbol.bench.ActionData action = 2020; */
-        if (message.node.oneofKind === "action")
-            ActionData.internalBinaryWrite(message.node.action, writer.tag(2020, WireType.LengthDelimited).fork(), options).join();
-        /* symbol.bench.FlowData flow = 2040; */
-        if (message.node.oneofKind === "flow")
-            FlowData.internalBinaryWrite(message.node.flow, writer.tag(2040, WireType.LengthDelimited).fork(), options).join();
-        /* symbol.bench.FlowEdgeData flow_edge = 2041; */
-        if (message.node.oneofKind === "flowEdge")
-            FlowEdgeData.internalBinaryWrite(message.node.flowEdge, writer.tag(2041, WireType.LengthDelimited).fork(), options).join();
-        /* symbol.bench.AgentData agent = 2100; */
-        if (message.node.oneofKind === "agent")
-            AgentData.internalBinaryWrite(message.node.agent, writer.tag(2100, WireType.LengthDelimited).fork(), options).join();
-        /* symbol.bench.TaskData task = 2200; */
-        if (message.node.oneofKind === "task")
-            TaskData.internalBinaryWrite(message.node.task, writer.tag(2200, WireType.LengthDelimited).fork(), options).join();
-        /* symbol.bench.CursorData cursor = 2220; */
-        if (message.node.oneofKind === "cursor")
-            CursorData.internalBinaryWrite(message.node.cursor, writer.tag(2220, WireType.LengthDelimited).fork(), options).join();
-        /* symbol.bench.RunData run = 2610; */
-        if (message.node.oneofKind === "run")
-            RunData.internalBinaryWrite(message.node.run, writer.tag(2610, WireType.LengthDelimited).fork(), options).join();
-        /* symbol.bench.SpanData span = 2620; */
-        if (message.node.oneofKind === "span")
-            SpanData.internalBinaryWrite(message.node.span, writer.tag(2620, WireType.LengthDelimited).fork(), options).join();
-        /* symbol.bench.InterruptionData interruption = 2630; */
-        if (message.node.oneofKind === "interruption")
-            InterruptionData.internalBinaryWrite(message.node.interruption, writer.tag(2630, WireType.LengthDelimited).fork(), options).join();
-        /* symbol.bench.SpaceData space = 8000; */
+        /* symbol.bench.SpaceData space = 600; */
         if (message.node.oneofKind === "space")
-            SpaceData.internalBinaryWrite(message.node.space, writer.tag(8000, WireType.LengthDelimited).fork(), options).join();
-        /* symbol.bench.SceneData scene = 8010; */
+            SpaceData.internalBinaryWrite(message.node.space, writer.tag(600, WireType.LengthDelimited).fork(), options).join();
+        /* symbol.bench.SceneData scene = 610; */
         if (message.node.oneofKind === "scene")
-            SceneData.internalBinaryWrite(message.node.scene, writer.tag(8010, WireType.LengthDelimited).fork(), options).join();
-        /* symbol.bench.RouteData route = 8020; */
+            SceneData.internalBinaryWrite(message.node.scene, writer.tag(610, WireType.LengthDelimited).fork(), options).join();
+        /* symbol.bench.RouteData route = 620; */
         if (message.node.oneofKind === "route")
-            RouteData.internalBinaryWrite(message.node.route, writer.tag(8020, WireType.LengthDelimited).fork(), options).join();
+            RouteData.internalBinaryWrite(message.node.route, writer.tag(620, WireType.LengthDelimited).fork(), options).join();
+        /* symbol.bench.PageData page = 700; */
+        if (message.node.oneofKind === "page")
+            PageData.internalBinaryWrite(message.node.page, writer.tag(700, WireType.LengthDelimited).fork(), options).join();
+        /* symbol.bench.BlockData block = 701; */
+        if (message.node.oneofKind === "block")
+            BlockData.internalBinaryWrite(message.node.block, writer.tag(701, WireType.LengthDelimited).fork(), options).join();
+        /* symbol.bench.DatabaseData database = 1000; */
+        if (message.node.oneofKind === "database")
+            DatabaseData.internalBinaryWrite(message.node.database, writer.tag(1000, WireType.LengthDelimited).fork(), options).join();
+        /* symbol.bench.MachineData machine = 1010; */
+        if (message.node.oneofKind === "machine")
+            MachineData.internalBinaryWrite(message.node.machine, writer.tag(1010, WireType.LengthDelimited).fork(), options).join();
+        /* symbol.bench.ServiceData service = 1200; */
+        if (message.node.oneofKind === "service")
+            ServiceData.internalBinaryWrite(message.node.service, writer.tag(1200, WireType.LengthDelimited).fork(), options).join();
+        /* symbol.bench.ActionData action = 1220; */
+        if (message.node.oneofKind === "action")
+            ActionData.internalBinaryWrite(message.node.action, writer.tag(1220, WireType.LengthDelimited).fork(), options).join();
+        /* symbol.bench.FlowData flow = 1240; */
+        if (message.node.oneofKind === "flow")
+            FlowData.internalBinaryWrite(message.node.flow, writer.tag(1240, WireType.LengthDelimited).fork(), options).join();
+        /* symbol.bench.FlowEdgeData flow_edge = 1241; */
+        if (message.node.oneofKind === "flowEdge")
+            FlowEdgeData.internalBinaryWrite(message.node.flowEdge, writer.tag(1241, WireType.LengthDelimited).fork(), options).join();
+        /* symbol.bench.AgentData agent = 1300; */
+        if (message.node.oneofKind === "agent")
+            AgentData.internalBinaryWrite(message.node.agent, writer.tag(1300, WireType.LengthDelimited).fork(), options).join();
+        /* symbol.bench.TaskData task = 1310; */
+        if (message.node.oneofKind === "task")
+            TaskData.internalBinaryWrite(message.node.task, writer.tag(1310, WireType.LengthDelimited).fork(), options).join();
+        /* symbol.bench.CursorData cursor = 1320; */
+        if (message.node.oneofKind === "cursor")
+            CursorData.internalBinaryWrite(message.node.cursor, writer.tag(1320, WireType.LengthDelimited).fork(), options).join();
+        /* symbol.bench.RunData run = 1610; */
+        if (message.node.oneofKind === "run")
+            RunData.internalBinaryWrite(message.node.run, writer.tag(1610, WireType.LengthDelimited).fork(), options).join();
+        /* symbol.bench.SpanData span = 1620; */
+        if (message.node.oneofKind === "span")
+            SpanData.internalBinaryWrite(message.node.span, writer.tag(1620, WireType.LengthDelimited).fork(), options).join();
+        /* symbol.bench.InterruptionData interruption = 1630; */
+        if (message.node.oneofKind === "interruption")
+            InterruptionData.internalBinaryWrite(message.node.interruption, writer.tag(1630, WireType.LengthDelimited).fork(), options).join();
+        /* symbol.bench.SchemaData schema = 2000; */
+        if (message.node.oneofKind === "schema")
+            SchemaData.internalBinaryWrite(message.node.schema, writer.tag(2000, WireType.LengthDelimited).fork(), options).join();
+        /* symbol.bench.FieldData field = 2010; */
+        if (message.node.oneofKind === "field")
+            FieldData.internalBinaryWrite(message.node.field, writer.tag(2010, WireType.LengthDelimited).fork(), options).join();
+        /* symbol.bench.FileData file = 2020; */
+        if (message.node.oneofKind === "file")
+            FileData.internalBinaryWrite(message.node.file, writer.tag(2020, WireType.LengthDelimited).fork(), options).join();
+        /* symbol.bench.LinkData link = 2050; */
+        if (message.node.oneofKind === "link")
+            LinkData.internalBinaryWrite(message.node.link, writer.tag(2050, WireType.LengthDelimited).fork(), options).join();
+        /* symbol.bench.TableData table = 2200; */
+        if (message.node.oneofKind === "table")
+            TableData.internalBinaryWrite(message.node.table, writer.tag(2200, WireType.LengthDelimited).fork(), options).join();
+        /* symbol.bench.RecordData record = 2210; */
+        if (message.node.oneofKind === "record")
+            RecordData.internalBinaryWrite(message.node.record, writer.tag(2210, WireType.LengthDelimited).fork(), options).join();
+        /* symbol.bench.ThreadData thread = 2400; */
+        if (message.node.oneofKind === "thread")
+            ThreadData.internalBinaryWrite(message.node.thread, writer.tag(2400, WireType.LengthDelimited).fork(), options).join();
+        /* symbol.bench.MessageData message = 2420; */
+        if (message.node.oneofKind === "message")
+            MessageData.internalBinaryWrite(message.node.message, writer.tag(2420, WireType.LengthDelimited).fork(), options).join();
         /* symbol.bench.FrameViewData frame_view = 8100; */
         if (message.node.oneofKind === "frameView")
             FrameViewData.internalBinaryWrite(message.node.frameView, writer.tag(8100, WireType.LengthDelimited).fork(), options).join();
@@ -30119,7 +29657,7 @@ export const SomeNodeData = new SomeNodeData$Type();
 //
 
 // Any...
-export type AnyNodeData = ClientData | OrganizationData | OrganizationInviteData | OrganizationMembershipData | UserData | BenchData | BenchInviteData | BenchMembershipData | HandleData | FieldData | FileData | LinkData | RecordData | SchemaData | TableData | DatabaseData | MachineData | ActionData | AgentData | CursorData | FlowData | FlowEdgeData | ServiceData | TaskData | ApplicationData | BlockData | DependencyData | PackageData | PageData | InterruptionData | RunData | SpanData | MessageData | NotificationData | ThreadData | RouteData | SceneData | SpaceData | ColorStyleData | BorderStyleData | TransitionStyleData | EffectStyleData | GradientStyleData | FontStyleData | ShadowStyleData | ThemeData | FrameViewData | LabelViewData | SplitViewData | TextViewData | NumberInputViewData | SliderInputViewData | WizardViewData | ThreadViewData
+export type AnyNodeData = ClientData | OrganizationData | OrganizationInviteData | OrganizationMembershipData | UserData | BenchData | BenchInviteData | BenchMembershipData | HandleData | PackageData | PackageMembershipData | PackageInviteData | FieldData | FileData | LinkData | RecordData | SchemaData | TableData | DatabaseData | MachineData | ActionData | AgentData | CursorData | FlowData | FlowEdgeData | ServiceData | TaskData | InterruptionData | RunData | SpanData | MessageData | ThreadData | BlockData | PageData | RouteData | SceneData | SpaceData | ColorStyleData | BorderStyleData | TransitionStyleData | EffectStyleData | GradientStyleData | FontStyleData | ShadowStyleData | ThemeData | FrameViewData | LabelViewData | SplitViewData | TextViewData | NumberInputViewData | SliderInputViewData | WizardViewData | ThreadViewData
 export type AnyStructData = ScopeData | PropertyReferenceData | CodeData | StringConstraintData | NumberConstraintData | CollectionConstraintData | NodeConstraintData | TypeData | NodeReferenceData | EditData | IconData | ValueData | RelationReferenceData | AttributeReferenceData | FunctionData | ConditionData | AggregationData | ExpressionData | SortData | JoinData | QueryData | SelectionData | TextSpanData | TextLineData | TextData | VariableData | OriginData | ScheduleData | ErrorData | ColorData | LengthData | PositionData | DimensionData | InsetsData | CornersData | Axis2Data | Axis3Data | Vector2Data | Vector3Data | Vector4Data | GridData | GridSpanData | BorderData | TransitionData | EffectData | GradientStopData | GradientData | FillData | FontData | ShadowData
 
     
