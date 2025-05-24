@@ -38,7 +38,7 @@ def make_system_database(region: Region, pg_url: str) -> Database:
         name="System",
         slug="system",
         region=region,
-        status=BenchStatus.ACTIVATED,
+        status=BenchStatus.ACTIVE,
         _supergraph=supergraph,
         created_at=BEGINNING_OF_TIME,
         updated_at=BEGINNING_OF_TIME,

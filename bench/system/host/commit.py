@@ -3,24 +3,18 @@ from typing import (
     TYPE_CHECKING,
     Callable,
     Collection,
-    Sequence,
 )
 
-import bitarray
 import structlog
 from fastuuid import UUID
 from opentelemetry import trace
 
 from bench.language import (
-    EditType,
-    Graph,
     Node,
     NodeType,
-    Session,
-    Supergraph,
     bittuple,
 )
-from bench.proto import EditData, wiring
+from bench.proto import EditData
 
 if TYPE_CHECKING:
     pass
@@ -117,101 +111,3 @@ class Commit[T: Node]:
                 edited_by_id=edited_by_id,
                 epoch=self.epoch,
             )
-
-
-def unpack_commit(
-    session: Session,
-    graph: Graph,
-    supergraph: Supergraph,  # graph may not be in supergraph :StaleNodes
-    edits: Sequence[EditData],
-    cascaded_edits: Sequence[EditData],
-    epoch: int,
-) -> Commit:
-    """
-    Get the summarized, unpacked nodes that change in the given edits.
-    Successive edits cancel each other out (create X -> delete X, no X in the change).
-    Archived/soft-deleted nodes are treated as removed.
-    The first graph containing the node is used.
-    """
-
-    edited_types = bitarray.bitarray(NodeType.get_max_ord())
-    added: dict[UUID, Node] = {}
-    updated: dict[UUID, Node] = {}
-    removed: dict[UUID, Node] = {}
-
-    def _add_edit(edit: EditData, node: Node):
-        if edit.type in (EditType.CREATE, EditType.UNARCHIVE, EditType.RESTORE):
-            # NOTE :Broken: not sure how to handle upsert here yet (just error for now)
-            removed.pop(node.id, None)
-            added[node.id] = node
-        elif edit.type in (EditType.MOVE, EditType.UPDATE):
-            if node.id not in added:
-                updated[node.id] = node
-        elif edit.type in (EditType.ARCHIVE, EditType.DELETE, EditType.ERASE):
-            added.pop(node.id, None)
-            updated.pop(node.id, None)
-            removed[node.id] = node
-        else:
-            raise RuntimeError(f"unexpected edit type {edit.type} in {edit!r}")
-
-    # the nodes edited in 'edits' are expected to be in one of the graphs
-    for edit in edits:
-        node_type = NodeType(edit.node_ptr.node_type)
-        edited_types[node_type.ord] = True
-        # unpack
-        node_id = UUID(edit.node_ptr.id)
-        node = graph.get(node_id) or supergraph.get(node_id)
-        if node is None:
-            raise RuntimeError(
-                f"missing node {node_id!r} in {supergraph!r} for {wiring.describe_edit(edit)}"
-            )
-        # map
-        _add_edit(edit, node)
-
-    # any cascaded edits are expected to be full trusted nodes
-    for edit in cascaded_edits:
-        node_type = NodeType(edit.node_ptr.node_type)
-        edited_types[node_type.ord] = True
-        # unpack
-        if edit.type in (EditType.ARCHIVE, EditType.DELETE, EditType.ERASE):
-            assert edit.HasField("node_data"), f"missing node_data for {wiring.describe_edit(edit)}"
-            node = wiring.unwrap_some_node(edit.node_data)
-        elif edit.type in (EditType.UNARCHIVE, EditType.RESTORE):
-            assert edit.HasField("node_data"), f"missing node_data for {wiring.describe_edit(edit)}"
-            node = wiring.copy_struct(wiring.unwrap_some_node(edit.node_data))
-            if edit.type == EditType.UNARCHIVE:
-                node.ClearField("archived_at")
-            elif edit.type == EditType.RESTORE:
-                node.ClearField("deleted_at")
-        else:
-            raise RuntimeError(
-                f"unexpected cascaded edit type {edit.type} in {wiring.describe_edit(edit)}"
-            )
-        # cascaded nodes may also be regularly edited nodes, so we add/update them
-        node = wiring.unpack_builtin_object(
-            node, supergraph=supergraph, session=session, expect=Node
-        )
-        if node.id not in graph:
-            graph.add(node)
-        else:
-            graph.update(node)
-
-        # map
-        _add_edit(edit, node)
-
-    edited = {}
-    edited.update(added)
-    edited.update(updated)
-    edited.update(removed)
-    commit = Commit(
-        edits=edits,
-        cascaded_edits=cascaded_edits,
-        edited_types=bittuple.from_ord(NodeType, edited_types),
-        added=tuple(added.values()),
-        updated=tuple(updated.values()),
-        removed=tuple(removed.values()),
-        edited=tuple(edited.values()),
-        edited_by_id=edited,
-        epoch=epoch,
-    )
-    return commit

@@ -27,7 +27,7 @@ from .const import (
     NodeReferenceKind,
     NodeType,
     StructType,
-    Trait,
+    TraitType,
     active_session,
 )
 from .graph import Graph, attach_node
@@ -47,7 +47,6 @@ if TYPE_CHECKING:
         Aggregation,
         Condition,
         Expression,
-        Field,
         Join,
         NodeReference,
         Query,
@@ -94,9 +93,9 @@ def node_(
                     traits.add(get_trait_by_name(superclass.__name__))
             cls.__traits__ = tuple(traits)
             # area
-            if Trait.GLOBAL in traits:
+            if TraitType.GLOBAL in traits:
                 cls.__area__ = NodeArea.GLOBAL_POSTGRES
-            elif Trait.LOCAL in traits:
+            elif TraitType.LOCAL in traits:
                 cls.__area__ = NodeArea.LOCAL_POSTGRES
             else:
                 cls.__area__ = NodeArea.REGIONAL_POSTGRES
@@ -123,7 +122,7 @@ class Node[NodeDataT: AnyNodeData](BuiltinObject[NodeDataT]):
     metatype: ClassVar[NodeType]  # type: ignore
 
     __is_node__: ClassVar[bool] = True
-    __traits__: ClassVar[tuple[Trait, ...]] = ()
+    __traits__: ClassVar[tuple[TraitType, ...]] = ()
     __id_factory__: ClassVar[Callable[[], UUID]] = UUID
     __area__: ClassVar[NodeArea]
     __indexes__: ClassVar[tuple[IndexIn, ...]] = ()
@@ -536,16 +535,6 @@ class Node[NodeDataT: AnyNodeData](BuiltinObject[NodeDataT]):
             offset=offset,
             count=count,
         )
-
-    @classmethod
-    def where(cls, filter: Optional["Condition"] = None, **kwargs) -> "Query[Self]":
-        raise NotImplementedError
-
-    @classmethod
-    def order_by(
-        cls, sort: "Optional[Expression] | str | Field | Property" = None, *args: str
-    ) -> "Query[Self]":
-        raise NotImplementedError
 
 
 #

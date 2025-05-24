@@ -29,7 +29,7 @@ async def unwaitlist(user_slug: str):
         global_database, (global_pg_engine,), REAL_ORACLE, epoch=0
     ) as session:
         user = await User.get(slug=user_slug)
-        if user.status != UserStatus.WAITLISTED:
+        if user.status != UserStatus.WAITLIST:
             raise ValueError(f"{user!r} is not in the waitlist")
         user.status = UserStatus.REGISTERED
         logger.info("user.unwaitlist", user=user)

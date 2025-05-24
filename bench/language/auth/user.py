@@ -29,11 +29,9 @@ if TYPE_CHECKING:
 
 @enum_(EnumType.USER_STATUS)
 class UserStatus(BuiltinEnum):
-    INVITED = 10  # invited via email
-    RESERVED = 20  # reserved a handle, unconfirmed
-    WAITLISTED = 30  # got handle, waiting
-    REGISTERED = 40  # got handle, ready to activate
-    ACTIVATED = 50  # has bench, all ready to go
+    WAITLIST = 30
+    REGISTERED = 40
+    ACTIVE = 50
 
 
 @node_(NodeType.USER, root_type=None)

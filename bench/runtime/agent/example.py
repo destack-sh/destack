@@ -111,7 +111,7 @@ def _make_example_bench() -> tuple[Bench, Package, Session, User]:
             name="Example",
             slug="example",
             region=REGION,
-            status=BenchStatus.ACTIVATED,
+            status=BenchStatus.ACTIVE,
             created_at=now,
             updated_at=now,
             _supergraph=supergraph,

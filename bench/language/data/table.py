@@ -3,7 +3,6 @@ from typing import TYPE_CHECKING, Any
 from bench.language.core import (
     IsArchivable,
     IsBlockable,
-    IsClaimable,
     IsDeletable,
     IsInstantiable,
     IsModal,
@@ -27,7 +26,6 @@ class Table(
     IsModal,
     IsNamed,
     IsOwnable,
-    IsClaimable,
     IsBlockable,
     IsArchivable,
     IsDeletable,

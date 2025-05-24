@@ -100,9 +100,9 @@ class FunctionType(BuiltinEnum):
 
 @struct_(StructType.FUNCTION)
 class Function(Struct):
-    type: FunctionType = property_(30)
-    left: "Expression" = property_(31)
-    right: Optional["Expression"] = property_(32)
+    type: FunctionType = property_(30, is_repr=True)
+    left: "Expression" = property_(31, is_repr=True)
+    right: Optional["Expression"] = property_(32, is_repr=True)
 
 
 def function(
@@ -149,17 +149,23 @@ class ConditionalType(BuiltinEnum):
 class Condition(Struct):
     """Boolean predicate (AND, =, <, etc.)."""
 
-    type: ConditionalType = property_(30)
-    left: "Expression" = property_(31)
-    right: Optional["Expression"] = property_(32)
+    type: ConditionalType = property_(30, is_repr=True)
+    left: "Expression" = property_(31, is_repr=True)
+    right: Optional["Expression"] = property_(32, is_repr=True)
+
+    def __or__(self, other: "Condition") -> "Condition":
+        return Condition(type=ConditionalType.OR, left=expression(self), right=expression(other))
+
+    def __and__(self, other: "Condition") -> "Condition":
+        return Condition(type=ConditionalType.AND, left=expression(self), right=expression(other))
 
 
 def condition(
-    column: Union["Field", "Property"],
+    attribute: Union["Field", "Property"],
     type: ConditionalType = ConditionalType.EQUALS,
     value: Any = None,
 ) -> Condition:
-    raise NotImplementedError
+    return Condition(type=type, left=expression(attribute_ref(attribute)), right=expression(value))
 
 
 #
@@ -183,10 +189,9 @@ class AggregationType(BuiltinEnum):
 class Aggregation(Struct):
     """Aggregate expression like COUNT(col) DISTINCT OVER ( … ) AS total."""
 
-    type: AggregationType = property_(30)
-    operand: Optional["Expression"] = property_(31)  # COUNT(*) → arg=None
-    alias: Optional[str] = property_(32)  # result key
-    distinct: bool = property_(33)  # DISTINCT flag
+    type: AggregationType = property_(30, is_repr=True)
+    operand: Optional["Expression"] = property_(31, is_repr=True)
+    distinct: bool = property_(33, is_repr=True)
     # over, ...
 
 
@@ -216,12 +221,12 @@ class ExpressionType(BuiltinEnum):
 class Expression(Struct):
     """Wrapper to unify any scalar / boolean / aggregate sub-tree."""
 
-    type: ExpressionType = property_(30)
-    literal: Optional[Value] = property_(31)
-    column: Optional[AttributeReference] = property_(32)
-    condition: Optional[Condition] = property_(33)
-    function: Optional[Function] = property_(34)
-    aggregation: Optional[Aggregation] = property_(35)
+    type: ExpressionType = property_(30, is_repr=True)
+    literal: Optional[Value] = property_(31, is_repr=True)
+    column: Optional[AttributeReference] = property_(32, is_repr=True)
+    condition: Optional[Condition] = property_(33, is_repr=True)
+    function: Optional[Function] = property_(34, is_repr=True)
+    aggregation: Optional[Aggregation] = property_(35, is_repr=True)
     # subquery?
 
 
@@ -266,9 +271,9 @@ class SortMode(BuiltinEnum):
 class Sort(Struct):
     """ORDER BY specification."""
 
-    type: SortType = property_(30)
-    by: Expression = property_(31)
-    mode: Optional[SortMode] = property_(32)
+    type: SortType = property_(30, is_repr=True)
+    by: Expression = property_(31, is_repr=True)
+    mode: Optional[SortMode] = property_(32, is_repr=True)
 
 
 SortIn = Union[Sort, "Expression", "Field", "Property"]
@@ -300,10 +305,10 @@ class JoinType(BuiltinEnum):
 class Join(Struct):
     """JOIN clause with ON expression."""
 
-    type: JoinType = property_(30)
-    table: Optional[RelationReference] = property_(31)
-    on: Optional[Condition] = property_(32)
-    recursive: bool = property_(33)  # for parent/child joins
+    type: JoinType = property_(30, is_repr=True)
+    relation: Optional[RelationReference] = property_(31, is_repr=True)
+    on: Optional[Condition] = property_(32, is_repr=True)
+    recursive: bool = property_(33, is_repr=True)  # for parent/child joins
 
 
 JoinIn = Union[Join, "JoinType"]
@@ -311,7 +316,7 @@ JoinIn = Union[Join, "JoinType"]
 
 def join(
     join: JoinIn,
-    table: "NodeType | type[Node] | Table | None" = None,
+    relation: "NodeType | type[Node] | Table | None" = None,
     on: Optional[Condition] = None,
     recursive: bool = False,
 ) -> Join:
@@ -320,7 +325,7 @@ def join(
     else:
         return Join(
             type=join,
-            table=relation_ref(table) if table is not None else None,
+            relation=relation_ref(relation) if relation is not None else None,
             on=on,
             recursive=recursive,
         )
@@ -342,25 +347,39 @@ class QueryType(BuiltinEnum):
 class Query[T: "Node"](Struct):
     """A GraphQL-inspired Query node with subqueries."""
 
-    id: UUID = property_(2)
-    type: QueryType = property_(30)
+    id: UUID = property_(2, is_repr=True)
+    type: QueryType = property_(30, is_repr=True)
     name: str | None = property_(
-        31, description="Name for this subquery. Must be unique within the containing Query."
+        31,
+        description="Name for this subquery. Must be unique within the containing Query.",
+        is_repr=True,
     )
-    relation: RelationReference = property_(35)
-    join: Optional[Join] = property_(36, description="Relative to parent Query.")
+    relation: RelationReference = property_(35, is_repr=True)
+    join: Optional[Join] = property_(36, description="Relative to parent Query.", is_repr=True)
     subqueries: list["Query"] = property_(37)
     # fields, ...
 
-    where: Optional[Condition] = property_(40)
-    having: Optional[Condition] = property_(41)
-    group_by: list[Expression] = property_(42)
-    aggregation: Optional[Aggregation] = property_(43)
-    sort: list[Sort] = property_(44)
+    where: Optional[Condition] = property_(40, is_repr=True)
+    having: Optional[Condition] = property_(41, is_repr=True)
+    group_by: list[Expression] = property_(42, is_repr=True)
+    aggregation: Optional[Aggregation] = property_(43, is_repr=True)
+    sort: list[Sort] = property_(44, is_repr=True)
 
-    limit: Optional[int] = property_(50)
-    offset: Optional[int] = property_(51)
-    count: bool | None = property_(52)
+    limit: Optional[int] = property_(50, is_repr=True)
+    offset: Optional[int] = property_(51, is_repr=True)
+    count: bool | None = property_(52, is_repr=True)
+
+    async def execute(self) -> "QueryResult":
+        raise NotImplementedError
+
+    async def execute_one_or_none(self) -> Optional[T]:
+        raise NotImplementedError
+
+    async def execute_one(self) -> T:
+        raise NotImplementedError
+
+    async def execute_list(self) -> list[T]:
+        raise NotImplementedError
 
 
 def to_subqueries(subqueries: dict[str, "Query"]) -> list["Query"]:

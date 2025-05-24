@@ -6,7 +6,7 @@ from typing import TYPE_CHECKING, ClassVar, final, override
 import structlog
 from opentelemetry import trace
 
-from bench.language import Bench, Node, NodeType, Package, Session, bittuple
+from bench.language import Bench, Node, NodeType, Session, bittuple
 from bench.proto import Network
 from bench.utils.oracle import Oracle
 from bench.utils.string import Casing, to_casing
@@ -29,7 +29,6 @@ class HostPlugin[T: Node]:
      of the individual plugins - that would also make it easier to reset on error.
      We probably also want to load in/out Packages at some point (?)
      Also consider plugins that affect 'external' state like the TablePlugin.
-     Host needs to be more 'multithreaded' in general, see :ConcurrentHost.
     """
 
     watch_types: ClassVar[bittuple[NodeType] | None] = None
@@ -66,10 +65,6 @@ class HostPlugin[T: Node]:
     @property
     def network(self) -> Network:
         return self.host.network
-
-    @property
-    def main_package(self) -> Package:
-        return self.host.main_package
 
     #
     # Lifecycle
@@ -122,17 +117,6 @@ class HostPlugin[T: Node]:
         pass
 
 
-def _patch_node(target: Node, reference: Node, track: bool = True) -> None:
-    """Patch the target node *in place* from the reference node."""
-    for prop in target.__wired_properties__.values():
-        if prop.id < 30 or prop.is_computed:
-            continue  # ignore internal properties
-        target_value = getattr(target, prop.name)
-        reference_value = getattr(reference, prop.name)
-        if target_value != reference_value:
-            target._do_set(prop.name, reference_value, track=track)
-
-
 class DeferredHostPlugin[T: Node](HostPlugin, abc.ABC):
     """A Host plugin with async event handlers."""
 
@@ -155,24 +139,11 @@ class DeferredHostPlugin[T: Node](HostPlugin, abc.ABC):
         """Filter a commit before adding it to the queue."""
         return True
 
-    def _patch_commit(self, new_commit: Commit, old_commit: Commit) -> None:
-        """Patch the commit based on the old commit."""
-        for new_node in new_commit.edited:
-            old_node = old_commit.edited_by_id.get(new_node.id)
-            if old_node is not None:
-                _patch_node(old_node, new_node, track=False)
-
     @override
     async def post_commit(self, session: Session, commit: Commit) -> None:
         # queue commit if relevant
         if self.filter_commit(commit):
             self._commit_queue.put_nowait(commit)
-
-        # patch nodes we're currently committing
-        for old_commit in self._commit_queue._queue:  # type: ignore
-            self._patch_commit(commit, old_commit)
-        if self._processing_commit is not None:
-            self._patch_commit(commit, self._processing_commit)
 
     @final
     async def wait_idle(self, timeout: float) -> None:

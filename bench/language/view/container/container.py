@@ -1,6 +1,6 @@
 from typing import TYPE_CHECKING, Optional
 
-from bench.language.core import Trait, VariableProperty, property_, trait_
+from bench.language.core import TraitType, VariableProperty, property_, trait_
 
 from ..view import IsView
 
@@ -25,7 +25,7 @@ if TYPE_CHECKING:
 # pyright: reportIncompatibleVariableOverride=false
 
 
-@trait_(Trait.CONTAINER_VIEW)
+@trait_(TraitType.CONTAINER_VIEW)
 class IsContainerView(IsView):
     """A container View contains other Views."""
 

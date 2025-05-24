@@ -20,7 +20,7 @@ from bench.language.core import (
 from bench.pb2 import NotificationData
 
 if TYPE_CHECKING:
-    from bench.language import Channel, Package, Text, Thread
+    from bench.language import Package, Text, Thread
 
 # pyright: reportIncompatibleVariableOverride=false
 
@@ -56,7 +56,6 @@ class Notification(
     # meta
     parent: Union["Package", None] = property_parent_()
     type: NotificationType = property_(30)
-    channel: Optional["Channel"] = property_(33, node_bench_from="self", can_write="system")
     thread: Optional["Thread"] = property_(34, node_bench_from="self", can_write="system")
 
     # status

@@ -3,7 +3,6 @@ from typing import TYPE_CHECKING, Optional, Sequence, Union, cast, overload
 from bench.language.core import (
     IsArchivable,
     IsBlockable,
-    IsClaimable,
     IsDeletable,
     IsIcon,
     IsModal,
@@ -36,7 +35,6 @@ class Page(
     IsTitled,
     IsIcon,
     IsOwnable,
-    IsClaimable,
     IsSlug,
     IsBlockable,
     IsDeletable,

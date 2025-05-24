@@ -3,7 +3,7 @@ from typing import TYPE_CHECKING, Optional
 from bench.language.core import (
     IsArchivable,
     IsDeletable,
-    Trait,
+    TraitType,
     VariableProperty,
     property_,
     trait_,
@@ -17,7 +17,7 @@ if TYPE_CHECKING:
 # pyright: reportIncompatibleVariableOverride=false
 
 
-@trait_(Trait.CONTENT_VIEW)
+@trait_(TraitType.CONTENT_VIEW)
 class IsContentView(IsView, IsDeletable, IsArchivable):
     """A content View."""
 

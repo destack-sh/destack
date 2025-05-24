@@ -27,6 +27,7 @@ from bench.pb2 import BenchData, BenchInviteData, BenchMembershipData
 if TYPE_CHECKING:
     from bench.language import (
         Database,
+        Handle,
         NodeReference,
         Package,
         TextLine,
@@ -39,8 +40,7 @@ if TYPE_CHECKING:
 class BenchStatus(BuiltinEnum):
     """The status of a Bench"""
 
-    RESERVED = 20  # not yet initialized
-    ACTIVATED = 50
+    ACTIVE = 50
 
 
 @node_(NodeType.BENCH)
@@ -59,7 +59,8 @@ class Bench(
     """
 
     line: Optional["TextLine"] = property_(40)
-    status: BenchStatus = property_(41, default=BenchStatus.RESERVED)
+    status: BenchStatus = property_(41)
+    handle: Optional["Handle"] = property_(42, can_write="system")
 
     # content
     database: Optional["Database"] = property_(

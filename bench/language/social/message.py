@@ -30,7 +30,7 @@ from bench.language.core import (
 from bench.pb2 import MessageData
 
 if TYPE_CHECKING:
-    from bench.language import Channel, NodeReference, Thread
+    from bench.language import NodeReference, Thread
 
 # pyright: reportIncompatibleVariableOverride=false
 
@@ -66,14 +66,11 @@ class Message(
     """
 
     # meta
-    parent: Union["Channel", "Thread", None] = property_parent_()
+    parent: Union["Thread", None] = property_parent_()
     type: MessageType = property_(30, default=MessageType.DEFAULT, is_repr=True)
     # platform? source?
-    channel: Optional["Channel"] = property_(34, node_bench_from="self")
     thread: Optional["Thread"] = property_(35, node_bench_from="self")
     if TYPE_CHECKING:
-        channel_id: Optional[UUID] = None
-        channel_ptr: Optional[NodeReference] = None
         thread_id: Optional[UUID] = None
         thread_ptr: Optional[NodeReference] = None
 

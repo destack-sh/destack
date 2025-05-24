@@ -3,7 +3,6 @@ from typing import TYPE_CHECKING
 from bench.language.core import (
     IsArchivable,
     IsBlockable,
-    IsClaimable,
     IsDeletable,
     IsModal,
     IsNamed,
@@ -27,7 +26,6 @@ if TYPE_CHECKING:
 class Service(
     IsTemplatable,
     IsOwnable,
-    IsClaimable,
     IsDeletable,
     IsArchivable,
     IsModal,

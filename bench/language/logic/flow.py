@@ -7,7 +7,6 @@ from bench.language.core import (
     EnumType,
     IsArchivable,
     IsBlockable,
-    IsClaimable,
     IsDeletable,
     IsExtensible,
     IsInPackage,
@@ -53,7 +52,6 @@ class FlowType(BuiltinEnum):
 class Flow(
     IsTemplatable,
     IsOwnable,
-    IsClaimable,
     IsModal,
     IsNamed,
     IsExtensible,
