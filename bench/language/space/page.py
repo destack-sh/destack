@@ -19,7 +19,6 @@ from bench.language.core import (
     text_line,
     to_text,
 )
-from bench.language.package.block import Block
 from bench.pb2 import BlockData
 
 if TYPE_CHECKING:
@@ -78,7 +77,7 @@ class Page(
 
     def add_text(
         self, text: TextIn, after: Optional["Block"] = None, before: Optional["Block"] = None
-    ) -> list[Block]:
+    ) -> list["Block"]:
         """Add text to the Page."""
         text = to_text(text)
         blocks = Block.from_text(text)

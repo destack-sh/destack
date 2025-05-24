@@ -9,7 +9,6 @@ from .data import *  # noqa: F403
 from .finance import *  # noqa: F403
 from .infra import *  # noqa: F403
 from .logic import *  # noqa: F403
-from .package import *  # noqa: F403
 from .registry import (
     BENCH_CLASS_BY_TYPE,  # noqa: F401
     BUILTIN_OBJECT_CLASS_BY_TYPE,  # noqa: F401

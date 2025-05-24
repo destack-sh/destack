@@ -58,7 +58,7 @@ async def create_default_bench(  # noqa: RUF029
     )
     session._create(main_package)
     session.stage()
-    bench.package = main_package
+    bench.main_package = main_package
 
     # main Database
     database = Database(

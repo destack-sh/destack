@@ -47,7 +47,6 @@ if TYPE_CHECKING:
     from magika import Magika
 
     from bench.language import (
-        Channel,
         File,
         Message,
         Package,
@@ -478,7 +477,6 @@ class File(IsResource, IsRegional, Node[FileData]):
         "Package",
         "Page",
         "Table",
-        "Channel",
         "Thread",
         "Message",
         "Run",
@@ -950,7 +948,7 @@ async def upload_file(
     mime_type: str | None = None,
     type: FileType | None = None,
     format: FileFormat | str | None = None,
-    parent: Union["Package", "Page", "Table", "Channel", "Thread", "Run", None] = None,
+    parent: Union["Package", "Page", "Table", "Thread", "Run", None] = None,
     session: "Session | None" = None,
 ) -> "File":
     """Uploads the given file to the given (or current) session."""
@@ -968,7 +966,7 @@ async def upload_file(
         if session._runtime is not None and (runner := session._runtime.active_runner) is not None:
             parent = runner.thread.thread
         else:
-            package = bench.package if bench is not None else None
+            package = bench.main_package if bench is not None else None
             if package is None:
                 raise ValueError(f"no Package to upload file {name!r} to in {session!r}")
             parent = package

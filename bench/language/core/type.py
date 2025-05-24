@@ -23,9 +23,6 @@ from .const import (
     StructType,
     TraitType,
     enum_,
-    is_enum_type,
-    is_node_type,
-    is_struct_type,
 )
 from .object import BuiltinObject, get_tk_b64_from_ck, object_
 from .property import property_
@@ -275,19 +272,19 @@ def to_type_scalar(type_in: TypeIn) -> "Type":
             primitive_type=type_in,
         )
     elif isinstance(type_in, (NodeType, StructType, EnumType)):
-        if is_node_type(type_in):
+        if isinstance(type_in, NodeType):
             return Type(
                 cardinality=TypeCardinality.SCALAR,
                 scalar_type=ScalarType.NODE,
                 node_type=type_in,
             )
-        elif is_struct_type(type_in):
+        elif isinstance(type_in, StructType):
             return Type(
                 cardinality=TypeCardinality.SCALAR,
                 scalar_type=ScalarType.STRUCT,
                 struct_type=type_in,
             )
-        elif is_enum_type(type_in):
+        elif isinstance(type_in, EnumType):
             return Type(
                 cardinality=TypeCardinality.SCALAR,
                 scalar_type=ScalarType.ENUM,
@@ -303,19 +300,19 @@ def to_type_scalar(type_in: TypeIn) -> "Type":
             )
         bench_type = BENCH_TYPE_BY_CLASS.get(cast(Any, type_in))
         if bench_type is not None:
-            if is_node_type(bench_type):
+            if isinstance(bench_type, NodeType):
                 return Type(
                     cardinality=TypeCardinality.SCALAR,
                     scalar_type=ScalarType.NODE,
                     node_type=bench_type,
                 )
-            elif is_struct_type(bench_type):
+            elif isinstance(bench_type, StructType):
                 return Type(
                     cardinality=TypeCardinality.SCALAR,
                     scalar_type=ScalarType.STRUCT,
                     struct_type=bench_type,
                 )
-            elif is_enum_type(bench_type):
+            elif isinstance(bench_type, EnumType):
                 return Type(
                     cardinality=TypeCardinality.SCALAR,
                     scalar_type=ScalarType.ENUM,

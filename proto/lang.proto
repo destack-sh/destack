@@ -336,6 +336,7 @@ enum EnumType {
   ENUM_TYPE_USER_STATUS = 40010;
   ENUM_TYPE_ORGANIZATION_STATUS = 40011;
   ENUM_TYPE_BENCH_STATUS = 40056;
+  ENUM_TYPE_PACKAGE_TYPE = 40050;
   ENUM_TYPE_ERROR_TYPE = 40061;
   ENUM_TYPE_SEVERITY = 40062;
   ENUM_TYPE_VARIABLE_TYPE = 40063;
@@ -350,55 +351,52 @@ enum EnumType {
   ENUM_TYPE_EXPRESSION_TYPE = 40108;
   ENUM_TYPE_RELATION_TYPE = 40109;
   ENUM_TYPE_ATTRIBUTE_TYPE = 40110;
-  ENUM_TYPE_PACKAGE_TYPE = 40050;
-  ENUM_TYPE_RESOURCE_STATUS = 41000;
-  ENUM_TYPE_BLOCK_TYPE = 41010;
+  ENUM_TYPE_QUERY_TYPE = 40850;
+  ENUM_TYPE_SPACE_TYPE = 40600;
+  ENUM_TYPE_BLOCK_TYPE = 40610;
   ENUM_TYPE_CLOUD = 40051;
   ENUM_TYPE_REGION = 40052;
   ENUM_TYPE_AREA = 40054;
   ENUM_TYPE_CONTINENT = 40055;
-  ENUM_TYPE_MACHINE_TYPE = 41210;
-  ENUM_TYPE_DATABASE_TYPE = 41220;
-  ENUM_TYPE_CLIENT_TYPE = 41221;
-  ENUM_TYPE_TEXT_LINE_TYPE = 41400;
-  ENUM_TYPE_TEXT_SPAN_TYPE = 41401;
-  ENUM_TYPE_CODE_TYPE = 41410;
-  ENUM_TYPE_FILE_RETENTION_MODE = 41420;
-  ENUM_TYPE_FILE_SOURCE = 41421;
-  ENUM_TYPE_FILE_TYPE = 41422;
-  ENUM_TYPE_FILE_FORMAT = 41423;
-  ENUM_TYPE_ICON_TYPE = 41430;
-  ENUM_TYPE_LINK_TYPE = 41440;
-  ENUM_TYPE_PRIMITIVE_TYPE = 41500;
-  ENUM_TYPE_TYPE_CARDINALITY = 41501;
-  ENUM_TYPE_SCALAR_TYPE = 41502;
-  ENUM_TYPE_STRING_FORMAT = 41510;
-  ENUM_TYPE_NUMBER_FORMAT = 41511;
-  ENUM_TYPE_FIELD_TYPE = 41520;
-  ENUM_TYPE_CASCADE_ACTION = 41521;
-  ENUM_TYPE_DAY = 41530;
-  ENUM_TYPE_MONTH = 41531;
-  ENUM_TYPE_TIME_INTERVAL = 41532;
-  ENUM_TYPE_THREAD_STATUS = 41801;
-  ENUM_TYPE_MESSAGE_TYPE = 41802;
-  ENUM_TYPE_NOTIFICATION_TYPE = 41810;
-  ENUM_TYPE_NOTIFICATION_STATUS = 41811;
-  ENUM_TYPE_CURSOR_TYPE = 42010;
-  ENUM_TYPE_CURSOR_STATUS = 42011;
-  ENUM_TYPE_ACTION_TYPE = 42220;
-  ENUM_TYPE_FLOW_TYPE = 42222;
-  ENUM_TYPE_FLOW_EDGE_TYPE = 42223;
-  ENUM_TYPE_PROCESS_STATUS = 42600;
-  ENUM_TYPE_RUN_TYPE = 42601;
-  ENUM_TYPE_SPAN_TYPE = 42602;
-  ENUM_TYPE_SCHEDULE_FREQUENCY = 42610;
-  ENUM_TYPE_INTERRUPTION_TYPE = 42620;
-  ENUM_TYPE_INTERRUPTION_STATUS = 42621;
-  ENUM_TYPE_INTERRUPTION_RESPONSE = 42622;
-  ENUM_TYPE_QUERY_TYPE = 42850;
-  ENUM_TYPE_MODEL_DEVELOPER = 44000;
-  ENUM_TYPE_MODEL_PROVIDER = 44001;
-  ENUM_TYPE_SPACE_TYPE = 48000;
+  ENUM_TYPE_MACHINE_TYPE = 41010;
+  ENUM_TYPE_DATABASE_TYPE = 41020;
+  ENUM_TYPE_CLIENT_TYPE = 41021;
+  ENUM_TYPE_ACTION_TYPE = 41220;
+  ENUM_TYPE_FLOW_TYPE = 41240;
+  ENUM_TYPE_FLOW_EDGE_TYPE = 41241;
+  ENUM_TYPE_CURSOR_TYPE = 41320;
+  ENUM_TYPE_CURSOR_STATUS = 41321;
+  ENUM_TYPE_PROCESS_STATUS = 41610;
+  ENUM_TYPE_RUN_TYPE = 41611;
+  ENUM_TYPE_SPAN_TYPE = 41620;
+  ENUM_TYPE_SCHEDULE_FREQUENCY = 41630;
+  ENUM_TYPE_INTERRUPTION_TYPE = 41631;
+  ENUM_TYPE_INTERRUPTION_STATUS = 41632;
+  ENUM_TYPE_INTERRUPTION_RESPONSE = 41633;
+  ENUM_TYPE_TEXT_LINE_TYPE = 42000;
+  ENUM_TYPE_TEXT_SPAN_TYPE = 42001;
+  ENUM_TYPE_CODE_TYPE = 42010;
+  ENUM_TYPE_FILE_RETENTION_MODE = 42020;
+  ENUM_TYPE_FILE_SOURCE = 42021;
+  ENUM_TYPE_FILE_TYPE = 42022;
+  ENUM_TYPE_FILE_FORMAT = 42023;
+  ENUM_TYPE_ICON_TYPE = 42030;
+  ENUM_TYPE_LINK_TYPE = 42050;
+  ENUM_TYPE_PRIMITIVE_TYPE = 42100;
+  ENUM_TYPE_TYPE_CARDINALITY = 42101;
+  ENUM_TYPE_SCALAR_TYPE = 42102;
+  ENUM_TYPE_STRING_FORMAT = 42110;
+  ENUM_TYPE_NUMBER_FORMAT = 42111;
+  ENUM_TYPE_FIELD_TYPE = 42120;
+  ENUM_TYPE_CASCADE_ACTION = 42121;
+  ENUM_TYPE_DAY = 42130;
+  ENUM_TYPE_MONTH = 42131;
+  ENUM_TYPE_TIME_INTERVAL = 42132;
+  ENUM_TYPE_RESOURCE_STATUS = 42200;
+  ENUM_TYPE_THREAD_STATUS = 42401;
+  ENUM_TYPE_MESSAGE_TYPE = 42420;
+  ENUM_TYPE_MODEL_DEVELOPER = 44400;
+  ENUM_TYPE_MODEL_PROVIDER = 44401;
   ENUM_TYPE_POSITION_TYPE = 49000;
   ENUM_TYPE_COLOR_TYPE = 49010;
   ENUM_TYPE_COLOR_SHADE = 49011;
@@ -809,44 +807,43 @@ enum NodeMode {
 
 enum NodeType {
   NODE_TYPE_UNSPECIFIED = 0;
-  NODE_TYPE_BENCH = 10;
-  NODE_TYPE_BENCH_MEMBERSHIP = 11;
-  NODE_TYPE_BENCH_INVITE = 12;
+  NODE_TYPE_BENCH = 1;
+  NODE_TYPE_BENCH_MEMBERSHIP = 2;
+  NODE_TYPE_BENCH_INVITE = 3;
+  NODE_TYPE_PACKAGE = 20;
+  NODE_TYPE_PACKAGE_MEMBERSHIP = 21;
+  NODE_TYPE_PACKAGE_INVITE = 22;
   NODE_TYPE_HANDLE = 50;
   NODE_TYPE_USER = 200;
-  NODE_TYPE_CLIENT = 250;
+  NODE_TYPE_CLIENT = 210;
   NODE_TYPE_ORGANIZATION = 300;
   NODE_TYPE_ORGANIZATION_MEMBERSHIP = 301;
   NODE_TYPE_ORGANIZATION_INVITE = 302;
-  NODE_TYPE_PACKAGE = 1000;
-  NODE_TYPE_DEPENDENCY = 1010;
-  NODE_TYPE_PAGE = 1020;
-  NODE_TYPE_BLOCK = 1030;
-  NODE_TYPE_APPLICATION = 1050;
-  NODE_TYPE_DATABASE = 1200;
-  NODE_TYPE_MACHINE = 1210;
-  NODE_TYPE_SCHEMA = 1400;
-  NODE_TYPE_FIELD = 1410;
-  NODE_TYPE_TABLE = 1500;
-  NODE_TYPE_RECORD = 1510;
-  NODE_TYPE_FILE = 1520;
-  NODE_TYPE_LINK = 1550;
-  NODE_TYPE_THREAD = 1800;
-  NODE_TYPE_MESSAGE = 1820;
-  NODE_TYPE_NOTIFICATION = 1850;
-  NODE_TYPE_SERVICE = 2000;
-  NODE_TYPE_ACTION = 2020;
-  NODE_TYPE_FLOW = 2040;
-  NODE_TYPE_FLOW_EDGE = 2041;
-  NODE_TYPE_AGENT = 2100;
-  NODE_TYPE_TASK = 2200;
-  NODE_TYPE_CURSOR = 2220;
-  NODE_TYPE_RUN = 2610;
-  NODE_TYPE_SPAN = 2620;
-  NODE_TYPE_INTERRUPTION = 2630;
-  NODE_TYPE_SPACE = 8000;
-  NODE_TYPE_SCENE = 8010;
-  NODE_TYPE_ROUTE = 8020;
+  NODE_TYPE_SPACE = 600;
+  NODE_TYPE_SCENE = 610;
+  NODE_TYPE_ROUTE = 620;
+  NODE_TYPE_PAGE = 700;
+  NODE_TYPE_BLOCK = 701;
+  NODE_TYPE_DATABASE = 1000;
+  NODE_TYPE_MACHINE = 1010;
+  NODE_TYPE_SERVICE = 1200;
+  NODE_TYPE_ACTION = 1220;
+  NODE_TYPE_FLOW = 1240;
+  NODE_TYPE_FLOW_EDGE = 1241;
+  NODE_TYPE_AGENT = 1300;
+  NODE_TYPE_TASK = 1310;
+  NODE_TYPE_CURSOR = 1320;
+  NODE_TYPE_RUN = 1610;
+  NODE_TYPE_SPAN = 1620;
+  NODE_TYPE_INTERRUPTION = 1630;
+  NODE_TYPE_SCHEMA = 2000;
+  NODE_TYPE_FIELD = 2010;
+  NODE_TYPE_FILE = 2020;
+  NODE_TYPE_LINK = 2050;
+  NODE_TYPE_TABLE = 2200;
+  NODE_TYPE_RECORD = 2210;
+  NODE_TYPE_THREAD = 2400;
+  NODE_TYPE_MESSAGE = 2420;
   NODE_TYPE_FRAME_VIEW = 8100;
   NODE_TYPE_LABEL_VIEW = 8101;
   NODE_TYPE_SPLIT_VIEW = 8120;
@@ -863,20 +860,6 @@ enum NodeType {
   NODE_TYPE_GRADIENT_STYLE = 9014;
   NODE_TYPE_TRANSITION_STYLE = 9015;
   NODE_TYPE_EFFECT_STYLE = 9016;
-}
-
-enum NotificationStatus {
-  NOTIFICATION_STATUS_UNSPECIFIED = 0;
-  NOTIFICATION_STATUS_SENDING = 20;
-  NOTIFICATION_STATUS_SENT = 30;
-  NOTIFICATION_STATUS_FAILED = 40;
-  NOTIFICATION_STATUS_RECEIVED = 50;
-  NOTIFICATION_STATUS_READ = 60;
-}
-
-enum NotificationType {
-  NOTIFICATION_TYPE_UNSPECIFIED = 0;
-  NOTIFICATION_TYPE_MESSAGE = 100;
 }
 
 // The format of a number.
@@ -909,9 +892,8 @@ enum Overflow {
 
 enum PackageType {
   PACKAGE_TYPE_UNSPECIFIED = 0;
-  PACKAGE_TYPE_OPEN = 1;
-  PACKAGE_TYPE_CLOSED = 2;
-  PACKAGE_TYPE_PRIVATE = 3;
+  PACKAGE_TYPE_HOME = 10;
+  PACKAGE_TYPE_APPLICATION = 20;
 }
 
 // The position type of a View.
@@ -1142,20 +1124,20 @@ enum StructType {
   STRUCT_TYPE_QUERY = 20106;
   STRUCT_TYPE_RELATION_REFERENCE = 20110;
   STRUCT_TYPE_ATTRIBUTE_REFERENCE = 20111;
-  STRUCT_TYPE_TYPE = 21400;
-  STRUCT_TYPE_NUMBER_CONSTRAINT = 21401;
-  STRUCT_TYPE_STRING_CONSTRAINT = 21402;
-  STRUCT_TYPE_COLLECTION_CONSTRAINT = 21403;
-  STRUCT_TYPE_NODE_CONSTRAINT = 21404;
-  STRUCT_TYPE_VALUE = 21410;
-  STRUCT_TYPE_TEXT = 21500;
-  STRUCT_TYPE_TEXT_LINE = 21501;
-  STRUCT_TYPE_TEXT_SPAN = 21502;
-  STRUCT_TYPE_CODE = 21510;
-  STRUCT_TYPE_ICON = 21530;
-  STRUCT_TYPE_SELECTION = 21470;
-  STRUCT_TYPE_SCHEDULE = 22000;
-  STRUCT_TYPE_ERROR = 22600;
+  STRUCT_TYPE_SCHEDULE = 21200;
+  STRUCT_TYPE_ERROR = 21600;
+  STRUCT_TYPE_TYPE = 22000;
+  STRUCT_TYPE_NUMBER_CONSTRAINT = 22001;
+  STRUCT_TYPE_STRING_CONSTRAINT = 22002;
+  STRUCT_TYPE_COLLECTION_CONSTRAINT = 22003;
+  STRUCT_TYPE_NODE_CONSTRAINT = 22004;
+  STRUCT_TYPE_VALUE = 22010;
+  STRUCT_TYPE_TEXT = 22100;
+  STRUCT_TYPE_TEXT_LINE = 22101;
+  STRUCT_TYPE_TEXT_SPAN = 22102;
+  STRUCT_TYPE_CODE = 22110;
+  STRUCT_TYPE_ICON = 22130;
+  STRUCT_TYPE_SELECTION = 22070;
   STRUCT_TYPE_VECTOR2 = 29000;
   STRUCT_TYPE_VECTOR3 = 29002;
   STRUCT_TYPE_VECTOR4 = 29004;
@@ -1285,17 +1267,16 @@ enum TraitType {
   TRAIT_TYPE_REGIONAL = 50;
   TRAIT_TYPE_RESOURCE = 51;
   TRAIT_TYPE_PROVISIONABLE = 52;
-  TRAIT_TYPE_PAGEABLE = 1020;
-  TRAIT_TYPE_BLOCKABLE = 1030;
-  TRAIT_TYPE_RUNNABLE = 2000;
-  TRAIT_TYPE_PROCESSABLE = 2001;
-  TRAIT_TYPE_COMPUTABLE = 2002;
-  TRAIT_TYPE_OWNABLE = 2800;
-  TRAIT_TYPE_JOINABLE = 2802;
-  TRAIT_TYPE_SUBJECT = 2805;
-  TRAIT_TYPE_MEMBERSHIP = 2810;
-  TRAIT_TYPE_INVITE = 2811;
-  TRAIT_TYPE_ROLE = 2812;
+  TRAIT_TYPE_OWNABLE = 200;
+  TRAIT_TYPE_JOINABLE = 202;
+  TRAIT_TYPE_SUBJECT = 205;
+  TRAIT_TYPE_MEMBERSHIP = 210;
+  TRAIT_TYPE_INVITE = 211;
+  TRAIT_TYPE_ROLE = 212;
+  TRAIT_TYPE_BLOCKABLE = 630;
+  TRAIT_TYPE_RUNNABLE = 1200;
+  TRAIT_TYPE_PROCESSABLE = 1201;
+  TRAIT_TYPE_COMPUTABLE = 1202;
   TRAIT_TYPE_VIEW = 8001;
   TRAIT_TYPE_CONTAINER_VIEW = 8100;
   TRAIT_TYPE_CONTENT_VIEW = 8200;
@@ -1419,29 +1400,6 @@ message AggregationData {
   bool distinct = 33;
 }
 
-// An Application is an interactive set of Scenes for some purpose.
-message ApplicationData {
-  NodeType metatype = 1;
-  string id = 2;
-  string ck = 3;
-  optional NodeReferenceData parent_ptr = 4;
-  optional NodeReferenceData bench_ptr = 6;
-  optional NodeReferenceData package_ptr = 7;
-  google.protobuf.Timestamp created_at = 10;
-  optional NodeReferenceData created_by_ptr = 11;
-  google.protobuf.Timestamp updated_at = 12;
-  optional NodeReferenceData updated_by_ptr = 13;
-  optional google.protobuf.Timestamp archived_at = 14;
-  optional google.protobuf.Timestamp deleted_at = 15;
-  optional NodeReferenceData template_ptr = 16;
-  NodeMode mode = 20;
-  optional string order_key = 22;
-  optional string name = 31;
-  optional NodeReferenceData definition_ptr = 35;
-  optional NodeReferenceData main_scene_ptr = 50;
-  optional NodeReferenceData error_scene_ptr = 53;
-}
-
 message AttributeReferenceData {
   StructType metatype = 1;
   AttributeType type = 30;
@@ -1485,7 +1443,7 @@ message BenchData {
   BenchStatus status = 41;
   optional NodeReferenceData handle_ptr = 42;
   optional NodeReferenceData database_ptr = 50;
-  optional NodeReferenceData package_ptr = 51;
+  optional NodeReferenceData main_package_ptr = 51;
 }
 
 // A BenchInvite is an invite to a Bench.
@@ -1728,24 +1686,6 @@ message DatabaseData {
   optional string external_name = 62;
   optional string external_id = 63;
   optional string sql_url = 64;
-}
-
-// A Dependency on another Package or Bench.
-message DependencyData {
-  NodeType metatype = 1;
-  string id = 2;
-  optional NodeReferenceData parent_ptr = 4;
-  optional NodeReferenceData bench_ptr = 6;
-  optional NodeReferenceData package_ptr = 7;
-  google.protobuf.Timestamp created_at = 10;
-  optional NodeReferenceData created_by_ptr = 11;
-  google.protobuf.Timestamp updated_at = 12;
-  optional NodeReferenceData updated_by_ptr = 13;
-  optional google.protobuf.Timestamp archived_at = 14;
-  optional google.protobuf.Timestamp deleted_at = 15;
-  optional NodeReferenceData template_ptr = 16;
-  NodeMode mode = 20;
-  NodeReferenceData dependency_ptr = 40;
 }
 
 message DimensionData {
@@ -2464,30 +2404,6 @@ message NodeReferenceData {
   optional string base_id = 34;
 }
 
-// A Notification about something.
-message NotificationData {
-  NodeType metatype = 1;
-  string id = 2;
-  optional NodeReferenceData parent_ptr = 4;
-  optional NodeReferenceData bench_ptr = 6;
-  optional NodeReferenceData package_ptr = 7;
-  google.protobuf.Timestamp created_at = 10;
-  optional NodeReferenceData created_by_ptr = 11;
-  google.protobuf.Timestamp updated_at = 12;
-  optional NodeReferenceData updated_by_ptr = 13;
-  optional google.protobuf.Timestamp deleted_at = 15;
-  NodeMode mode = 20;
-  NotificationType type = 30;
-  optional TextLineData title = 32;
-  optional NodeReferenceData thread_ptr = 34;
-  NotificationStatus status = 40;
-  optional google.protobuf.Timestamp failed_at = 42;
-  optional google.protobuf.Timestamp sent_at = 43;
-  optional google.protobuf.Timestamp received_at = 44;
-  optional google.protobuf.Timestamp read_at = 45;
-  optional TextData text = 51;
-}
-
 message NumberConstraintData {
   StructType metatype = 1;
   optional NumberFormat format = 40;
@@ -2608,6 +2524,37 @@ message PackageData {
   optional string name = 31;
   optional string slug = 33;
   optional IconData icon = 34;
+  optional NodeReferenceData main_page_ptr = 40;
+  optional NodeReferenceData main_scene_ptr = 41;
+}
+
+// A PackageInvite is an invite to a Package.
+message PackageInviteData {
+  NodeType metatype = 1;
+  string id = 2;
+  NodeReferenceData parent_ptr = 4;
+  optional NodeReferenceData bench_ptr = 6;
+  optional NodeReferenceData package_ptr = 7;
+  google.protobuf.Timestamp created_at = 10;
+  optional NodeReferenceData created_by_ptr = 11;
+  google.protobuf.Timestamp updated_at = 12;
+  optional NodeReferenceData updated_by_ptr = 13;
+  optional google.protobuf.Timestamp deleted_at = 15;
+}
+
+// A PackageMembership is a membership to a Package.
+message PackageMembershipData {
+  NodeType metatype = 1;
+  string id = 2;
+  NodeReferenceData parent_ptr = 4;
+  optional NodeReferenceData bench_ptr = 6;
+  optional NodeReferenceData package_ptr = 7;
+  google.protobuf.Timestamp created_at = 10;
+  optional NodeReferenceData created_by_ptr = 11;
+  google.protobuf.Timestamp updated_at = 12;
+  optional NodeReferenceData updated_by_ptr = 13;
+  optional google.protobuf.Timestamp deleted_at = 15;
+  NodeReferenceData member_ptr = 40;
 }
 
 // A Page of Blocks laying out rich Text, data, logic, resources -- anything software needs.
@@ -3500,44 +3447,43 @@ message WizardViewData {
 
 message SomeNodeData {
   oneof node {
-    BenchData bench = 10;
-    BenchMembershipData bench_membership = 11;
-    BenchInviteData bench_invite = 12;
+    BenchData bench = 1;
+    BenchMembershipData bench_membership = 2;
+    BenchInviteData bench_invite = 3;
+    PackageData package = 20;
+    PackageMembershipData package_membership = 21;
+    PackageInviteData package_invite = 22;
     HandleData handle = 50;
     UserData user = 200;
-    ClientData client = 250;
+    ClientData client = 210;
     OrganizationData organization = 300;
     OrganizationMembershipData organization_membership = 301;
     OrganizationInviteData organization_invite = 302;
-    PackageData package = 1000;
-    DependencyData dependency = 1010;
-    PageData page = 1020;
-    BlockData block = 1030;
-    ApplicationData application = 1050;
-    DatabaseData database = 1200;
-    MachineData machine = 1210;
-    SchemaData schema = 1400;
-    FieldData field = 1410;
-    TableData table = 1500;
-    RecordData record = 1510;
-    FileData file = 1520;
-    LinkData link = 1550;
-    ThreadData thread = 1800;
-    MessageData message = 1820;
-    NotificationData notification = 1850;
-    ServiceData service = 2000;
-    ActionData action = 2020;
-    FlowData flow = 2040;
-    FlowEdgeData flow_edge = 2041;
-    AgentData agent = 2100;
-    TaskData task = 2200;
-    CursorData cursor = 2220;
-    RunData run = 2610;
-    SpanData span = 2620;
-    InterruptionData interruption = 2630;
-    SpaceData space = 8000;
-    SceneData scene = 8010;
-    RouteData route = 8020;
+    SpaceData space = 600;
+    SceneData scene = 610;
+    RouteData route = 620;
+    PageData page = 700;
+    BlockData block = 701;
+    DatabaseData database = 1000;
+    MachineData machine = 1010;
+    ServiceData service = 1200;
+    ActionData action = 1220;
+    FlowData flow = 1240;
+    FlowEdgeData flow_edge = 1241;
+    AgentData agent = 1300;
+    TaskData task = 1310;
+    CursorData cursor = 1320;
+    RunData run = 1610;
+    SpanData span = 1620;
+    InterruptionData interruption = 1630;
+    SchemaData schema = 2000;
+    FieldData field = 2010;
+    FileData file = 2020;
+    LinkData link = 2050;
+    TableData table = 2200;
+    RecordData record = 2210;
+    ThreadData thread = 2400;
+    MessageData message = 2420;
     FrameViewData frame_view = 8100;
     LabelViewData label_view = 8101;
     SplitViewData split_view = 8120;
