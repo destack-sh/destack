@@ -48,6 +48,7 @@ BENCH_MEMBERSHIP_TABLE = SqlTable(
         SqlColumn("updated_by_id", PrimitiveType.UUID, is_nullable=True),
         SqlColumn("deleted_at", PrimitiveType.DATETIME, is_nullable=True),
         SqlColumn("member_id", PrimitiveType.UUID),
+        SqlColumn("role", PrimitiveType.INT16),
     ),
     indexes=(SqlIndex("bench_idx_parent_id", SqlIndexType.BTREE, ("parent_id",), cover=("id",)),),
 )
@@ -63,6 +64,7 @@ BENCH_INVITE_TABLE = SqlTable(
         SqlColumn("updated_at", PrimitiveType.DATETIME),
         SqlColumn("updated_by_id", PrimitiveType.UUID, is_nullable=True),
         SqlColumn("deleted_at", PrimitiveType.DATETIME, is_nullable=True),
+        SqlColumn("role", PrimitiveType.INT16),
     ),
     indexes=(SqlIndex("bench_idx_parent_id", SqlIndexType.BTREE, ("parent_id",), cover=("id",)),),
 )
@@ -112,6 +114,7 @@ PACKAGE_MEMBERSHIP_TABLE = SqlTable(
         SqlColumn("updated_by_id", PrimitiveType.UUID, is_nullable=True),
         SqlColumn("deleted_at", PrimitiveType.DATETIME, is_nullable=True),
         SqlColumn("member_id", PrimitiveType.UUID),
+        SqlColumn("role", PrimitiveType.INT16),
     ),
     indexes=(SqlIndex("bench_idx_parent_id", SqlIndexType.BTREE, ("parent_id",), cover=("id",)),),
 )
@@ -128,6 +131,7 @@ PACKAGE_INVITE_TABLE = SqlTable(
         SqlColumn("updated_at", PrimitiveType.DATETIME),
         SqlColumn("updated_by_id", PrimitiveType.UUID, is_nullable=True),
         SqlColumn("deleted_at", PrimitiveType.DATETIME, is_nullable=True),
+        SqlColumn("role", PrimitiveType.INT16),
     ),
     indexes=(SqlIndex("bench_idx_parent_id", SqlIndexType.BTREE, ("parent_id",), cover=("id",)),),
 )
@@ -249,6 +253,7 @@ ORGANIZATION_MEMBERSHIP_TABLE = SqlTable(
         SqlColumn("updated_by_id", PrimitiveType.UUID, is_nullable=True),
         SqlColumn("deleted_at", PrimitiveType.DATETIME, is_nullable=True),
         SqlColumn("member_id", PrimitiveType.UUID),
+        SqlColumn("role", PrimitiveType.INT16),
     ),
     indexes=(SqlIndex("bench_idx_parent_id", SqlIndexType.BTREE, ("parent_id",), cover=("id",)),),
 )
@@ -263,6 +268,7 @@ ORGANIZATION_INVITE_TABLE = SqlTable(
         SqlColumn("updated_at", PrimitiveType.DATETIME),
         SqlColumn("updated_by_id", PrimitiveType.UUID, is_nullable=True),
         SqlColumn("deleted_at", PrimitiveType.DATETIME, is_nullable=True),
+        SqlColumn("role", PrimitiveType.INT16),
     ),
     indexes=(SqlIndex("bench_idx_parent_id", SqlIndexType.BTREE, ("parent_id",), cover=("id",)),),
 )

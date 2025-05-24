@@ -4,7 +4,6 @@ import structlog
 from opentelemetry import trace
 
 from bench.language import VERSION, Bench, Database, NodeArea, NodeType, ResourceStatus, bittuple
-from bench.sql import pg_connection, sql_migrate, sqlstr
 from bench.utils.env import ENV, IS_DEV, IS_TEST
 
 from .neon import neon_api

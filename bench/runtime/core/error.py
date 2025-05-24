@@ -16,8 +16,6 @@ class RuntimeError(BenchError, RuntimeError):
 class RetryableError(RuntimeError):
     """An error we can retry "immediately" at runtime (in the same runtime)."""
 
-    run_error_type = ErrorType.RETRYABLE
-
 
 class NonRetryableError(RuntimeError):
     """An error we cannot retry "immediately" at runtime (in the same runtime)."""

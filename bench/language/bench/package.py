@@ -63,6 +63,12 @@ class Package(
     main_scene: Optional["Scene"] = property_(41)
 
 
+@enum_(EnumType.PACKAGE_ROLE_TYPE)
+class PackageRoleType(BuiltinEnum):
+    MEMBER = 10
+    ADMIN = 50
+
+
 @node_(NodeType.PACKAGE_MEMBERSHIP)
 class PackageMembership(
     IsGlobal,
@@ -74,6 +80,8 @@ class PackageMembership(
     """A PackageMembership is a membership to a Package."""
 
     parent: "Package" = property_parent_()
+
+    role: PackageRoleType = property_(45)
 
 
 @node_(NodeType.PACKAGE_INVITE)
@@ -87,3 +95,5 @@ class PackageInvite(
     """A PackageInvite is an invite to a Package."""
 
     parent: "Package" = property_parent_()
+
+    role: PackageRoleType = property_(45)

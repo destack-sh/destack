@@ -24,7 +24,7 @@ from bench.utils.func import get_superclasses
 from .const import (
     UNSET,
     NodeArea,
-    NodeReferenceKind,
+    NodeEdgeKind,
     NodeType,
     StructType,
     TraitType,
@@ -35,12 +35,13 @@ from .object import BuiltinObject, _process_object_cls
 from .property import (
     _PROPERTY_SPECIFIERS,
     Property,
+    _resolve_trait_type,
     property_,
     property_parent_,
     property_runtime_,
 )
 from .struct import Struct, struct_
-from .trait import IndexIn, IsBased, IsBlockable, IsInBench, IsModal, IsSubject, get_trait_by_name
+from .trait import IndexIn, IsBased, IsBlockable, IsInBench, IsModal, IsSubject
 
 if TYPE_CHECKING:
     from bench.language import (
@@ -89,8 +90,8 @@ def node_(
             NODE_CLASS_BY_TYPE[node_type] = cls
             traits = set()
             for superclass in get_superclasses(cls):
-                if superclass.__name__.startswith("Is"):
-                    traits.add(get_trait_by_name(superclass.__name__))
+                if trait := _resolve_trait_type(superclass.__name__):
+                    traits.add(trait)
             cls.__traits__ = tuple(traits)
             # area
             if TraitType.GLOBAL in traits:
@@ -305,7 +306,7 @@ class Node[NodeDataT: AnyNodeData](BuiltinObject[NodeDataT]):
         # map new identities (at root)
         if not _is_nested and type(_map) is dict:
             for node in _map.values():
-                node.replace_references(_map, exclude=(NodeReferenceKind.NODE_PARENT,))
+                node.replace_references(_map, exclude=(NodeEdgeKind.NODE_PARENT,))
 
         # append to our parent to re-attach
         parent = self.parent

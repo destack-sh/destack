@@ -24,7 +24,7 @@ from .const import (
     UNSET,
     CascadeAction,
     EnumType,
-    NodeReferenceKind,
+    NodeEdgeKind,
     NodeType,
     PrimitiveType,
     StructType,
@@ -67,15 +67,23 @@ def _resolve_struct_type(class_name: str) -> StructType | None:
     return None
 
 
+def _resolve_trait_type(name: str) -> TraitType | None:
+    """Get a trait by name."""
+    if name.startswith("Is"):
+        name = name[2:]
+    elif name.startswith("Has"):
+        name = name[3:]
+    name = to_casing(name, Casing.ALL_CAPS)
+    trait = TraitType.__members__.get(name)
+    return trait
+
+
 def _resolve_node_types(class_name: str) -> tuple[NodeType | TraitType, ...] | None:
     """Get the NodeType for the given node name."""
-
-    if class_name.startswith("Is"):
-        class_name = class_name[2:]
     enum_name = to_casing(class_name, Casing.ALL_CAPS)
     if node_type := NodeType.__members__.get(enum_name):
         return (node_type,)
-    if trait := TraitType.__members__.get(enum_name):
+    if trait := _resolve_trait_type(class_name):
         return (trait,)
     if node_type := NodeType.__members__.get(class_name.upper()):
         return (node_type,)
@@ -291,7 +299,7 @@ class Property(IntoQuery if TYPE_CHECKING else object):
     ptr_prop: Optional["Property"] = None  # wired representation for pointers
     runtime_prop: Optional["Property"] = None  # for the proto property
     nodes: tuple[NodeType | TraitType, ...] = ()  # for node relations
-    node_kind: NodeReferenceKind | None = None
+    node_kind: NodeEdgeKind | None = None
     node_bench_from: Literal["self"] | None = None
     node_exclude: tuple[Literal["ck", "base_id"], ...] = ()
     cascade: CascadeAction | None = None
@@ -462,13 +470,13 @@ class Property(IntoQuery if TYPE_CHECKING else object):
 
         # node reference
         elif self.node_kind:
-            if self.node_kind == NodeReferenceKind.NODE_PARENT:
+            if self.node_kind == NodeEdgeKind.NODE_PARENT:
                 is_computed = False
-            elif self.node_kind == NodeReferenceKind.NODE_ANCESTOR:
+            elif self.node_kind == NodeEdgeKind.NODE_ANCESTOR:
                 is_computed = True
             elif self.node_kind in (
-                NodeReferenceKind.NODE_REGULAR,
-                NodeReferenceKind.NODE_TEMPLATE,
+                NodeEdgeKind.NODE_REGULAR,
+                NodeEdgeKind.NODE_TEMPLATE,
             ):
                 is_computed = False
             else:
@@ -492,7 +500,7 @@ class Property(IntoQuery if TYPE_CHECKING else object):
                 default=None,
                 constraint=self.constraint,
             )
-            if self.node_kind == NodeReferenceKind.NODE_ANCESTOR:
+            if self.node_kind == NodeEdgeKind.NODE_ANCESTOR:
                 # wired ancestors are not required (even though stored ancestors are)
                 ptr_prop.is_required = False
 
@@ -527,10 +535,10 @@ class Property(IntoQuery if TYPE_CHECKING else object):
 
         # default to regular node references
         if self.scalar_type == "node" and self.node_kind is None:
-            self.node_kind = NodeReferenceKind.NODE_REGULAR
+            self.node_kind = NodeEdgeKind.NODE_REGULAR
 
         # node templates always point to their own type
-        if self.node_kind == NodeReferenceKind.NODE_TEMPLATE and object_type is not None:
+        if self.node_kind == NodeEdgeKind.NODE_TEMPLATE and object_type is not None:
             self.nodes = (NodeType(object_type),)
 
         # references get a _ptr property (which is wired/stored)
@@ -682,7 +690,7 @@ def property_(
     is_node_data: bool = False,
     node_bench_from: Literal["self"] | None = None,
     node_exclude: tuple[Literal["ck", "base_id"], ...] = (),
-    node_kind: NodeReferenceKind | None = None,
+    node_kind: NodeEdgeKind | None = None,
     cascade: CascadeAction | None = None,
     is_managed: bool = False,
     is_unique: bool = False,
@@ -720,7 +728,7 @@ def property_parent_(id: int = 4, is_system: bool = False) -> Any:
     """The parent of a node, must be of one of the given types."""
     return Property(
         id=id,
-        node_kind=NodeReferenceKind.NODE_PARENT,
+        node_kind=NodeEdgeKind.NODE_PARENT,
         default=None,
         is_wired=True,
         is_stored=False,
@@ -737,7 +745,7 @@ def property_ancestor_(
     """Computed nearest or farthest ancestor of the given type."""
     return Property(
         id=id,
-        node_kind=NodeReferenceKind.NODE_ANCESTOR,
+        node_kind=NodeEdgeKind.NODE_ANCESTOR,
         is_computed=True,
         is_required=is_required,
         is_wired=True,

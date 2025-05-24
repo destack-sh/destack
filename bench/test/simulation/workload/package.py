@@ -10,7 +10,6 @@ from bench.language import (
     Page,
     repr_enums,
 )
-from bench.language.core.const import RESOURCE_NODE_TYPES
 from bench.test.simulation.core import (
     SampledFloat,
     SampledInt,

@@ -6,7 +6,6 @@ from fastuuid import UUID
 from bench.language import (
     EMPTY_SCOPE_DATA,
     NODE_TYPES,
-    NODE_TYPES_BY_AREA,
     REGION,
     VERSION,
     Bench,
@@ -23,7 +22,6 @@ from bench.language import (
     Supergraph,
 )
 from bench.proto import ScopeData
-from bench.sql import BenchSqlContext
 from bench.utils.oracle import Oracle
 from bench.utils.utils import get_from_env
 

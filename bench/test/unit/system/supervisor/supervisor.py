@@ -5,10 +5,9 @@ from fastuuid import uuid4
 from grpclib import Status as GRPCStatus
 
 from bench import pb2
-from bench.language import EMPTY_SCOPE_DATA, Database, NodeReference, Property, SelectOptions, User
+from bench.language import EMPTY_SCOPE_DATA, Database, NodeReference, Property, User
 from bench.proto import (
     ClientDataIn,
-    GetNodesRequest,
     LoginUserRequest,
     LogoutUserRequest,
     NullNetwork,
@@ -18,7 +17,6 @@ from bench.proto import (
     UserData,
     pack_rpc_headers,
 )
-from bench.system import CreateBenchOptions, DatabaseMap, StaticHostMap, SupervisorService
 from bench.test.fixtures import raises_grpc_error
 from bench.test.simulation.core import SimulatedChannel
 from bench.utils.oracle import REAL_ORACLE
@@ -30,6 +28,8 @@ from bench.utils.oracle import REAL_ORACLE
 
 @pytest.fixture
 async def supervisor_service(global_database: Database, regional_database: Database):
+    from bench.system import DatabaseMap, StaticHostMap, SupervisorService
+
     supervisor_service = SupervisorService(
         id="supervisor",
         global_database=global_database,
@@ -37,7 +37,6 @@ async def supervisor_service(global_database: Database, regional_database: Datab
         oracle=REAL_ORACLE,
         host_map=StaticHostMap({}),
         database_map=DatabaseMap({"*": regional_database}),
-        create_bench_options=CreateBenchOptions(create_machine_scaler=False),
     )
     await supervisor_service.start()
     yield supervisor_service

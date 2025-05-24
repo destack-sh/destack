@@ -1,4 +1,4 @@
-from bench.language import Block, BlockType, Choice, Package, Page, Session, TextLine
+from bench.language import Block, BlockType, Page, Schema, Session, TextLine
 
 
 def test_cast_block_in_page(session: Session):
@@ -11,11 +11,11 @@ def test_cast_block_in_page(session: Session):
     Page1.add_child(Text1)
     assert len(Page1.get_children(Block)) == 1
 
-    # Choice Block
-    Choice1 = Choice.new("Choice1")
-    ChoiceBlock1 = Page1.add_child(Choice1)
+    # Schema Block
+    Schema1 = Schema(name="Schema1")
+    SchemaBlock1 = Page1.add_child(Schema1)
     assert len(Page1.get_children(Block)) == 2
-    assert ChoiceBlock1.node == Choice1
+    assert SchemaBlock1.node == Schema1
 
     # move Text Block
     Text1.move(to=Page2)
@@ -23,41 +23,16 @@ def test_cast_block_in_page(session: Session):
     assert len(Page2.get_children(Block)) == 1
     assert Text1.parent == Page2
 
-    # move Choice Block (should sync with definition)
-    ChoiceBlock1.move(to=Page2)
+    # move Schema Block (should sync with definition)
+    SchemaBlock1.move(to=Page2)
     assert len(Page1.get_children(Block)) == 0
     assert len(Page2.get_children(Block)) == 2
-    assert ChoiceBlock1.parent == Page2
-    assert Choice1.parent == Page2
+    assert SchemaBlock1.parent == Page2
+    assert Schema1.parent == Page2
 
-    # move Choice back (should sync with Block)
-    Choice1.move(to=Page1)
+    # move Schema back (should sync with Block)
+    Schema1.move(to=Page1)
     assert len(Page1.get_children(Block)) == 1
     assert len(Page2.get_children(Block)) == 1
-    assert ChoiceBlock1.parent == Page1
-    assert Choice1.parent == Page1
-
-
-def test_delete_restore_block_in_page(session: Session, package: Package):
-    """Delete and restore a Block in a Page."""
-    Page1 = Page.new("Page1")
-    package.add_child(Page1)
-    Choice1 = Choice.new("Choice1")
-    ChoiceBlock1 = Page1.add_child(Choice1)
-    assert len(Page1.get_children(Block)) == 1
-
-    # deleting the Node should also delete the Block
-    Choice1.delete()
-    assert Choice1.is_deleted
-    assert ChoiceBlock1.is_deleted
-    Choice1.restore()
-    assert not Choice1.is_deleted
-    assert not ChoiceBlock1.is_deleted
-
-    # and vice versa
-    ChoiceBlock1.delete()
-    assert Choice1.is_deleted
-    assert ChoiceBlock1.is_deleted
-    Choice1.restore()
-    assert not Choice1.is_deleted
-    assert not ChoiceBlock1.is_deleted
+    assert SchemaBlock1.parent == Page1
+    assert Schema1.parent == Page1

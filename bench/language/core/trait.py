@@ -18,13 +18,12 @@ from fastuuid import UUID
 from bench.language.registry import NODE_CLASS_BY_TRAIT, NODE_TYPES_BY_TRAIT
 from bench.pb2 import AnyNodeData, NodeReferenceData
 from bench.utils.fractional import INTEGER_ZERO
-from bench.utils.string import Casing, to_casing
 from bench.utils.tenacity import RetryOptions
 
 from .const import (
     REGION,
+    NodeEdgeKind,
     NodeMode,
-    NodeReferenceKind,
     NodeType,
     ProcessStatus,
     Region,
@@ -73,17 +72,6 @@ class IndexIn(NamedTuple):
     name: str | None = None
 
 
-def get_trait_by_name(name: str) -> TraitType:
-    """Get a trait by name."""
-    if name.startswith("Is"):
-        name = name[2:]
-    name = to_casing(name, Casing.ALL_CAPS)
-    trait = TraitType.__members__.get(name)
-    if trait is None:
-        raise LookupError(f"unknown trait: {name}")
-    return trait
-
-
 def expand_node_types(types: Collection[NodeType | TraitType]) -> tuple[NodeType, ...]:
     """Expand a collection of NodeTypes and Traits into a flat collection of NodeTypes."""
     node_types: set[NodeType] = set()
@@ -91,7 +79,7 @@ def expand_node_types(types: Collection[NodeType | TraitType]) -> tuple[NodeType
         if isinstance(typ, NodeType):
             node_types.add(typ)
         elif isinstance(typ, TraitType):
-            node_types.update(NODE_TYPES_BY_TRAIT[typ])
+            node_types.update(NODE_TYPES_BY_TRAIT.get(typ, ()))
         else:
             assert_never(typ)
     return tuple(node_types)
@@ -216,7 +204,7 @@ class IsTemplatable(Node if TYPE_CHECKING else BuiltinObject):
 
     template: Optional["Node"] = property_(
         16,
-        node_kind=NodeReferenceKind.NODE_TEMPLATE,
+        node_kind=NodeEdgeKind.NODE_TEMPLATE,
         node_exclude=("base_id",),
     )
     if TYPE_CHECKING:
@@ -290,7 +278,7 @@ class IsTemplatable(Node if TYPE_CHECKING else BuiltinObject):
             for node in _map.values():
                 node.replace_references(
                     _map,
-                    exclude=(NodeReferenceKind.NODE_PARENT, NodeReferenceKind.NODE_TEMPLATE),
+                    exclude=(NodeEdgeKind.NODE_PARENT, NodeEdgeKind.NODE_TEMPLATE),
                 )
 
         # append to our parent to re-attach

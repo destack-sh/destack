@@ -20,8 +20,6 @@ from bench.language import (
     NodeArea,
 )
 from bench.proto import SupervisorClient
-from bench.sql.client import get_pg_pool_by_external_name, pg_connection
-from bench.sql.engine import sqlstr
 from bench.sql.map import BUILTIN_GLOBAL_SCHEMA, BUILTIN_REGIONAL_SCHEMA
 from bench.utils.oracle import REAL_ORACLE
 from bench.utils.task import TaskManager

@@ -9,7 +9,6 @@ import pytest
 import structlog
 from opentelemetry import trace
 
-from bench.language.core.const import NodeMode
 from bench.test.conftest import _setup_test_env
 
 # NOTE: must run setup before importing from bench
@@ -26,10 +25,12 @@ from bench.language import (
     BuiltinObject,
     Database,
     Graph,
-    ObjectType,
+    NodeMode,
+    NodeType,
     Package,
     PackageType,
     Session,
+    StructType,
     Supergraph,
 )
 from bench.test.conftest import _setup_test_env
@@ -115,7 +116,7 @@ async def session_async(request):
 
 def make_package(session: Session):
     bench = Bench(name="test", slug="test", status=BenchStatus.ACTIVE)
-    package = bench.add_child(Package(type=PackageType.OPEN, name="Main", slug="main"))
+    package = bench.add_child(Package(type=PackageType.HOME, name="Home", slug="home"))
     bench.database = package.add_child(Database(name="Database"))
     session.parent = bench
     session._graph.update(session, _force_update_parent=True)
@@ -147,7 +148,7 @@ with warnings.catch_warnings(action="ignore"):
     ]
     ACTIVE_SESSION.set(None)
 
-BUILTIN_OBJECTS_BY_TYPE: Mapping[ObjectType, BuiltinObject] = {
+BUILTIN_OBJECTS_BY_TYPE: Mapping[StructType | NodeType, BuiltinObject] = {
     obj.metatype: obj for obj in BUILTIN_OBJECTS
 }
 STRUCTS = [BUILTIN_OBJECTS_BY_TYPE[t] for t in STRUCT_TYPES if t in BUILTIN_OBJECTS_BY_TYPE]

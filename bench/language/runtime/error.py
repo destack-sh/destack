@@ -34,6 +34,8 @@ class ErrorType(BuiltinEnum):
     INCAPABLE = 100
     REFUSED = 101
     NON_RETRYABLE = 499
+    INTERRUPTION_CANCELLED = 500
+    MODEL_FAILED = 501
 
     @property
     def is_retryable(self) -> bool:

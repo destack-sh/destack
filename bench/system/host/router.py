@@ -1,6 +1,6 @@
 import asyncio
 import functools
-from typing import AsyncIterator, Callable, Mapping, override
+from typing import Callable, override
 
 import grpclib.server
 import structlog
@@ -16,26 +16,12 @@ from bench.language import (
     NodeArea,
 )
 from bench.proto import (
-    CommitTransactionRequest,
-    CommitTransactionResponse,
-    DownloadFilesRequest,
-    DownloadFilesResponse,
-    GetNodesRequest,
-    GetNodesResponse,
     HostBase,
     Network,
     RpcMetadata,
     ScopeData,
-    SearchNodesRequest,
-    SearchNodesResponse,
     ServiceBase,
     ServiceKind,
-    UploadFilesRequest,
-    UploadFilesResponse,
-    WatchGetRequest,
-    WatchGetResponse,
-    WatchSearchRequest,
-    WatchSearchResponse,
 )
 from bench.system.core import global_session, pg_engine_from_database
 from bench.utils.func import to_uuid
@@ -102,7 +88,7 @@ class HostRouterService(ServiceBase, HostBase):
     async def start(self) -> None:
         await super().start()
         async with global_session(self._global_database, (self._global_pg_engine,), self.oracle):
-            benches: list[Bench] = await Bench.search()
+            benches: list[Bench] = await Bench.search().execute_list()
         await asyncio.gather(*(self._start_host(bench.id) for bench in benches))
 
     def stop(self) -> None:
@@ -178,47 +164,3 @@ class HostRouterService(ServiceBase, HostBase):
 
         else:
             raise NotImplementedError(f"unexpected cardinality in {method_name}: {cardinality}")
-
-    #
-    # Stub methods (implemented by HostService, forwarded in _wrap_rpc)
-    #
-
-    @override
-    async def get_nodes(self, request: "GetNodesRequest", headers: Mapping) -> "GetNodesResponse":
-        raise GRPCError(GRPCStatus.UNIMPLEMENTED)
-
-    def watch_get(
-        self, request: "WatchGetRequest", headers: Mapping
-    ) -> AsyncIterator["WatchGetResponse"]:
-        raise GRPCError(GRPCStatus.UNIMPLEMENTED)
-        yield WatchGetResponse()  # unreachable
-
-    @override
-    async def search_nodes(
-        self, request: "SearchNodesRequest", headers: Mapping
-    ) -> "SearchNodesResponse":
-        raise GRPCError(GRPCStatus.UNIMPLEMENTED)
-
-    def watch_search(
-        self, request: "WatchSearchRequest", headers: Mapping
-    ) -> AsyncIterator["WatchSearchResponse"]:
-        raise GRPCError(GRPCStatus.UNIMPLEMENTED)
-        yield WatchSearchResponse()  # unreachable
-
-    @override
-    async def commit_transaction(
-        self, request: "CommitTransactionRequest", headers: Mapping
-    ) -> "CommitTransactionResponse":
-        raise GRPCError(GRPCStatus.UNIMPLEMENTED)
-
-    @override
-    async def upload_files(
-        self, request: "UploadFilesRequest", headers: Mapping
-    ) -> "UploadFilesResponse":
-        raise GRPCError(GRPCStatus.UNIMPLEMENTED)
-
-    @override
-    async def download_files(
-        self, request: "DownloadFilesRequest", headers: Mapping
-    ) -> "DownloadFilesResponse":
-        raise GRPCError(GRPCStatus.UNIMPLEMENTED)

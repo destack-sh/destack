@@ -42,10 +42,7 @@ from bench.sql import (
     SqlSchema,
     apply_sql_migration_ops,
     generate_sql_migration_ops,
-    get_pg_pool,
     introspect_sql_schema,
-    pg_connection,
-    sqlstr,
 )
 from bench.utils.utils import get_from_env
 
@@ -75,10 +72,10 @@ def make_global_database(name: str):
     )
     system_package_stub = Package(
         parent=system_bench_stub,
-        type=PackageType.OPEN,
+        type=PackageType.HOME,
         id=SYSTEM_SYSTEM_PACKAGE_ID,
-        name="Main",
-        slug="main",
+        name="Home",
+        slug="home",
         _supergraph=supergraph,
         created_at=BEGINNING_OF_TIME,
         updated_at=BEGINNING_OF_TIME,
@@ -119,10 +116,10 @@ def make_regional_database(name: str):
     )
     system_package_stub = Package(
         parent=system_bench_stub,
-        type=PackageType.OPEN,
+        type=PackageType.HOME,
         id=SYSTEM_SYSTEM_PACKAGE_ID,
-        name="Main",
-        slug="main",
+        name="Home",
+        slug="home",
         _supergraph=supergraph,
         created_at=BEGINNING_OF_TIME,
         updated_at=BEGINNING_OF_TIME,

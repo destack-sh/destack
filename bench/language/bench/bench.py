@@ -76,6 +76,14 @@ class Bench(
         package_id: Optional[UUID] = None
 
 
+@enum_(EnumType.BENCH_ROLE_TYPE)
+class BenchRoleType(BuiltinEnum):
+    """The role of a Bench"""
+
+    ADMIN = 10
+    MEMBER = 50
+
+
 @node_(NodeType.BENCH_INVITE)
 class BenchInvite(
     IsGlobal,
@@ -89,6 +97,7 @@ class BenchInvite(
     """
 
     parent: "Bench" = property_parent_()
+    role: BenchRoleType = property_(45)
 
 
 @node_(NodeType.BENCH_MEMBERSHIP)
@@ -104,3 +113,4 @@ class BenchMembership(
     """
 
     parent: "Bench" = property_parent_()
+    role: BenchRoleType = property_(45)
