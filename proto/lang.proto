@@ -64,8 +64,7 @@ enum AttributeType {
 // The status of a Bench
 enum BenchStatus {
   BENCH_STATUS_UNSPECIFIED = 0;
-  BENCH_STATUS_RESERVED = 20;
-  BENCH_STATUS_ACTIVATED = 50;
+  BENCH_STATUS_ACTIVE = 50;
 }
 
 enum BlockType {
@@ -101,26 +100,6 @@ enum CascadeAction {
   CASCADE_ACTION_RESTRICT = 1;
   CASCADE_ACTION_CASCADE = 2;
   CASCADE_ACTION_SET_NULL = 3;
-}
-
-enum ChannelStatus {
-  CHANNEL_STATUS_UNSPECIFIED = 0;
-  CHANNEL_STATUS_OPEN = 10;
-  CHANNEL_STATUS_CLOSED = 30;
-}
-
-enum ClaimStatus {
-  CLAIM_STATUS_UNSPECIFIED = 0;
-  CLAIM_STATUS_REQUESTED = 1;
-  CLAIM_STATUS_OPEN = 10;
-  CLAIM_STATUS_PAUSED = 20;
-  CLAIM_STATUS_CLOSED = 30;
-}
-
-enum ClaimType {
-  CLAIM_TYPE_UNSPECIFIED = 0;
-  CLAIM_TYPE_READ = 20;
-  CLAIM_TYPE_WRITE = 40;
 }
 
 enum ClientType {
@@ -351,7 +330,7 @@ enum EnumType {
   ENUM_TYPE_ENUM_TYPE = 40000;
   ENUM_TYPE_NODE_TYPE = 40001;
   ENUM_TYPE_STRUCT_TYPE = 40002;
-  ENUM_TYPE_TRAIT = 40004;
+  ENUM_TYPE_TRAIT_TYPE = 40004;
   ENUM_TYPE_NODE_MODE = 40005;
   ENUM_TYPE_NODE_AREA = 40006;
   ENUM_TYPE_USER_STATUS = 40010;
@@ -400,13 +379,10 @@ enum EnumType {
   ENUM_TYPE_DAY = 41530;
   ENUM_TYPE_MONTH = 41531;
   ENUM_TYPE_TIME_INTERVAL = 41532;
-  ENUM_TYPE_CHANNEL_STATUS = 41800;
   ENUM_TYPE_THREAD_STATUS = 41801;
   ENUM_TYPE_MESSAGE_TYPE = 41802;
   ENUM_TYPE_NOTIFICATION_TYPE = 41810;
   ENUM_TYPE_NOTIFICATION_STATUS = 41811;
-  ENUM_TYPE_CLAIM_TYPE = 42000;
-  ENUM_TYPE_CLAIM_STATUS = 42001;
   ENUM_TYPE_CURSOR_TYPE = 42010;
   ENUM_TYPE_CURSOR_STATUS = 42011;
   ENUM_TYPE_ACTION_TYPE = 42220;
@@ -836,17 +812,17 @@ enum NodeType {
   NODE_TYPE_BENCH = 10;
   NODE_TYPE_BENCH_MEMBERSHIP = 11;
   NODE_TYPE_BENCH_INVITE = 12;
-  NODE_TYPE_HANDLE = 20;
-  NODE_TYPE_USER = 30;
-  NODE_TYPE_ORGANIZATION = 40;
-  NODE_TYPE_ORGANIZATION_MEMBERSHIP = 41;
-  NODE_TYPE_ORGANIZATION_INVITE = 42;
-  NODE_TYPE_CLIENT = 50;
+  NODE_TYPE_HANDLE = 50;
+  NODE_TYPE_USER = 200;
+  NODE_TYPE_CLIENT = 250;
+  NODE_TYPE_ORGANIZATION = 300;
+  NODE_TYPE_ORGANIZATION_MEMBERSHIP = 301;
+  NODE_TYPE_ORGANIZATION_INVITE = 302;
   NODE_TYPE_PACKAGE = 1000;
   NODE_TYPE_DEPENDENCY = 1010;
   NODE_TYPE_PAGE = 1020;
   NODE_TYPE_BLOCK = 1030;
-  NODE_TYPE_APPLICATION = 1040;
+  NODE_TYPE_APPLICATION = 1050;
   NODE_TYPE_DATABASE = 1200;
   NODE_TYPE_MACHINE = 1210;
   NODE_TYPE_SCHEMA = 1400;
@@ -855,8 +831,7 @@ enum NodeType {
   NODE_TYPE_RECORD = 1510;
   NODE_TYPE_FILE = 1520;
   NODE_TYPE_LINK = 1550;
-  NODE_TYPE_CHANNEL = 1800;
-  NODE_TYPE_THREAD = 1810;
+  NODE_TYPE_THREAD = 1800;
   NODE_TYPE_MESSAGE = 1820;
   NODE_TYPE_NOTIFICATION = 1850;
   NODE_TYPE_SERVICE = 2000;
@@ -869,9 +844,6 @@ enum NodeType {
   NODE_TYPE_RUN = 2610;
   NODE_TYPE_SPAN = 2620;
   NODE_TYPE_INTERRUPTION = 2630;
-  NODE_TYPE_TEAM = 2820;
-  NODE_TYPE_ROLE = 2830;
-  NODE_TYPE_CLAIM = 2840;
   NODE_TYPE_SPACE = 8000;
   NODE_TYPE_SCENE = 8010;
   NODE_TYPE_ROUTE = 8020;
@@ -1292,45 +1264,45 @@ enum TimeInterval {
   TIME_INTERVAL_YEAR = 8;
 }
 
-enum Trait {
-  TRAIT_UNSPECIFIED = 0;
-  TRAIT_GLOBAL = 1;
-  TRAIT_LOCAL = 3;
-  TRAIT_MODAL = 10;
-  TRAIT_ARCHIVABLE = 11;
-  TRAIT_DELETABLE = 12;
-  TRAIT_NAMED = 20;
-  TRAIT_TITLED = 21;
-  TRAIT_SLUG = 22;
-  TRAIT_ICON = 23;
-  TRAIT_ORDERED = 24;
-  TRAIT_TEMPLATABLE = 30;
-  TRAIT_INSTANTIABLE = 31;
-  TRAIT_EXTENSIBLE = 32;
-  TRAIT_BASED = 33;
-  TRAIT_IN_BENCH = 40;
-  TRAIT_IN_PACKAGE = 41;
-  TRAIT_REGIONAL = 50;
-  TRAIT_RESOURCE = 51;
-  TRAIT_PROVISIONABLE = 52;
-  TRAIT_PAGEABLE = 1020;
-  TRAIT_BLOCKABLE = 1030;
-  TRAIT_RUNNABLE = 2000;
-  TRAIT_PROCESSABLE = 2001;
-  TRAIT_COMPUTABLE = 2002;
-  TRAIT_OWNABLE = 2800;
-  TRAIT_CLAIMABLE = 2801;
-  TRAIT_JOINABLE = 2802;
-  TRAIT_SUBJECT = 2805;
-  TRAIT_MEMBERSHIP = 2810;
-  TRAIT_INVITE = 2811;
-  TRAIT_VIEW = 8001;
-  TRAIT_CONTAINER_VIEW = 8100;
-  TRAIT_CONTENT_VIEW = 8200;
-  TRAIT_INPUT_VIEW = 8300;
-  TRAIT_NODE_VIEW = 8400;
-  TRAIT_INTERNAL_VIEW = 8500;
-  TRAIT_STYLE = 9000;
+enum TraitType {
+  TRAIT_TYPE_UNSPECIFIED = 0;
+  TRAIT_TYPE_GLOBAL = 1;
+  TRAIT_TYPE_LOCAL = 3;
+  TRAIT_TYPE_MODAL = 10;
+  TRAIT_TYPE_ARCHIVABLE = 11;
+  TRAIT_TYPE_DELETABLE = 12;
+  TRAIT_TYPE_NAMED = 20;
+  TRAIT_TYPE_TITLED = 21;
+  TRAIT_TYPE_SLUG = 22;
+  TRAIT_TYPE_ICON = 23;
+  TRAIT_TYPE_ORDERED = 24;
+  TRAIT_TYPE_TEMPLATABLE = 30;
+  TRAIT_TYPE_INSTANTIABLE = 31;
+  TRAIT_TYPE_EXTENSIBLE = 32;
+  TRAIT_TYPE_BASED = 33;
+  TRAIT_TYPE_IN_BENCH = 40;
+  TRAIT_TYPE_IN_PACKAGE = 41;
+  TRAIT_TYPE_REGIONAL = 50;
+  TRAIT_TYPE_RESOURCE = 51;
+  TRAIT_TYPE_PROVISIONABLE = 52;
+  TRAIT_TYPE_PAGEABLE = 1020;
+  TRAIT_TYPE_BLOCKABLE = 1030;
+  TRAIT_TYPE_RUNNABLE = 2000;
+  TRAIT_TYPE_PROCESSABLE = 2001;
+  TRAIT_TYPE_COMPUTABLE = 2002;
+  TRAIT_TYPE_OWNABLE = 2800;
+  TRAIT_TYPE_JOINABLE = 2802;
+  TRAIT_TYPE_SUBJECT = 2805;
+  TRAIT_TYPE_MEMBERSHIP = 2810;
+  TRAIT_TYPE_INVITE = 2811;
+  TRAIT_TYPE_ROLE = 2812;
+  TRAIT_TYPE_VIEW = 8001;
+  TRAIT_TYPE_CONTAINER_VIEW = 8100;
+  TRAIT_TYPE_CONTENT_VIEW = 8200;
+  TRAIT_TYPE_INPUT_VIEW = 8300;
+  TRAIT_TYPE_NODE_VIEW = 8400;
+  TRAIT_TYPE_INTERNAL_VIEW = 8500;
+  TRAIT_TYPE_STYLE = 9000;
 }
 
 // Built-in transition types.
@@ -1352,11 +1324,9 @@ enum TypeCardinality {
 
 enum UserStatus {
   USER_STATUS_UNSPECIFIED = 0;
-  USER_STATUS_INVITED = 10;
-  USER_STATUS_RESERVED = 20;
-  USER_STATUS_WAITLISTED = 30;
+  USER_STATUS_WAITLIST = 30;
   USER_STATUS_REGISTERED = 40;
-  USER_STATUS_ACTIVATED = 50;
+  USER_STATUS_ACTIVE = 50;
 }
 
 // The type of a variable.
@@ -1381,7 +1351,6 @@ message ActionData {
   optional google.protobuf.Timestamp archived_at = 14;
   optional google.protobuf.Timestamp deleted_at = 15;
   optional NodeReferenceData template_ptr = 16;
-  optional NodeReferenceData claimed_by_ptr = 18;
   NodeMode mode = 20;
   optional ValueData value = 21;
   optional string order_key = 22;
@@ -1415,7 +1384,6 @@ message AgentData {
   optional google.protobuf.Timestamp deleted_at = 15;
   optional NodeReferenceData template_ptr = 16;
   optional NodeReferenceData owned_by_ptr = 17;
-  optional NodeReferenceData claimed_by_ptr = 18;
   NodeMode mode = 20;
   optional ValueData value = 21;
   optional string order_key = 22;
@@ -1448,7 +1416,6 @@ message AggregationData {
   StructType metatype = 1;
   AggregationType type = 30;
   optional ExpressionData operand = 31;
-  optional string alias = 32;
   bool distinct = 33;
 }
 
@@ -1510,12 +1477,13 @@ message BenchData {
   google.protobuf.Timestamp updated_at = 12;
   optional NodeReferenceData updated_by_ptr = 13;
   optional NodeReferenceData owned_by_ptr = 17;
-  optional Region region = 23;
+  Region region = 23;
   optional string name = 31;
   optional string slug = 33;
   optional IconData icon = 34;
   optional TextLineData line = 40;
   BenchStatus status = 41;
+  optional NodeReferenceData handle_ptr = 42;
   optional NodeReferenceData database_ptr = 50;
   optional NodeReferenceData package_ptr = 51;
 }
@@ -1600,65 +1568,6 @@ message BorderStyleData {
   optional NodeReferenceData style_ptr = 41;
   optional ColorData color = 50;
   optional InsetsData width = 51;
-}
-
-// A Channel for organizing Messages and Threads.
-message ChannelData {
-  NodeType metatype = 1;
-  string id = 2;
-  string ck = 3;
-  optional NodeReferenceData parent_ptr = 4;
-  google.protobuf.Timestamp created_at = 10;
-  optional NodeReferenceData created_by_ptr = 11;
-  google.protobuf.Timestamp updated_at = 12;
-  optional NodeReferenceData updated_by_ptr = 13;
-  optional google.protobuf.Timestamp archived_at = 14;
-  optional google.protobuf.Timestamp deleted_at = 15;
-  optional NodeReferenceData template_ptr = 16;
-  NodeMode mode = 20;
-  optional string name = 31;
-  ProcessStatus status = 80;
-  optional google.protobuf.Duration duration = 81;
-  optional ErrorData error = 82;
-  optional NodeReferenceData interruption_ptr = 83;
-  optional google.protobuf.Timestamp scheduled_at = 85;
-  optional google.protobuf.Timestamp started_at = 86;
-  optional google.protobuf.Timestamp active_at = 87;
-  optional google.protobuf.Timestamp interrupted_at = 88;
-  optional google.protobuf.Timestamp terminated_at = 89;
-  optional google.protobuf.Timestamp requested_stop_at = 90;
-  optional google.protobuf.Timestamp requested_pause_at = 91;
-  optional google.protobuf.Timestamp requested_resume_at = 92;
-}
-
-// A Claim on something (like a Resource, runnable tool Node for a 'tool', or some other Node).
-// Depending on the claim, a Claim may be instantiated and granted/rejected at runtime.
-message ClaimData {
-  NodeType metatype = 1;
-  string id = 2;
-  string ck = 3;
-  optional NodeReferenceData parent_ptr = 4;
-  optional NodeReferenceData bench_ptr = 6;
-  optional NodeReferenceData package_ptr = 7;
-  google.protobuf.Timestamp created_at = 10;
-  optional NodeReferenceData created_by_ptr = 11;
-  google.protobuf.Timestamp updated_at = 12;
-  optional NodeReferenceData updated_by_ptr = 13;
-  optional NodeReferenceData template_ptr = 16;
-  optional NodeReferenceData owned_by_ptr = 17;
-  NodeMode mode = 20;
-  optional string order_key = 22;
-  ClaimType type = 30;
-  optional string name = 31;
-  ClaimStatus status = 50;
-  optional google.protobuf.Duration duration = 51;
-  optional google.protobuf.Timestamp opened_at = 52;
-  optional google.protobuf.Timestamp paused_at = 53;
-  optional google.protobuf.Timestamp resumed_at = 54;
-  optional google.protobuf.Timestamp terminated_at = 55;
-  optional NodeReferenceData target_ptr = 60;
-  optional NodeReferenceData target_template_ptr = 61;
-  bool is_hidden = 65;
 }
 
 // A Client to connect with the system.
@@ -1800,9 +1709,9 @@ message DatabaseData {
   optional NodeReferenceData updated_by_ptr = 13;
   optional NodeReferenceData template_ptr = 16;
   optional NodeReferenceData owned_by_ptr = 17;
-  optional NodeReferenceData claimed_by_ptr = 18;
   NodeMode mode = 20;
   optional string order_key = 22;
+  Region region = 23;
   DatabaseType type = 30;
   optional string name = 31;
   optional NodeReferenceData definition_ptr = 35;
@@ -1984,10 +1893,9 @@ message FileData {
   optional NodeReferenceData updated_by_ptr = 13;
   optional NodeReferenceData template_ptr = 16;
   optional NodeReferenceData owned_by_ptr = 17;
-  optional NodeReferenceData claimed_by_ptr = 18;
   NodeMode mode = 20;
   optional string order_key = 22;
-  optional Region region = 23;
+  Region region = 23;
   FileType type = 30;
   optional string name = 31;
   optional NodeReferenceData definition_ptr = 35;
@@ -2037,7 +1945,6 @@ message FlowData {
   optional google.protobuf.Timestamp deleted_at = 15;
   optional NodeReferenceData template_ptr = 16;
   optional NodeReferenceData owned_by_ptr = 17;
-  optional NodeReferenceData claimed_by_ptr = 18;
   NodeMode mode = 20;
   optional ValueData value = 21;
   optional string order_key = 22;
@@ -2336,7 +2243,7 @@ message InterruptionData {
 message JoinData {
   StructType metatype = 1;
   JoinType type = 30;
-  optional RelationReferenceData table = 31;
+  optional RelationReferenceData relation = 31;
   optional ConditionData on = 32;
   bool recursive = 33;
 }
@@ -2450,7 +2357,6 @@ message LinkData {
   optional NodeReferenceData updated_by_ptr = 13;
   optional NodeReferenceData template_ptr = 16;
   optional NodeReferenceData owned_by_ptr = 17;
-  optional NodeReferenceData claimed_by_ptr = 18;
   NodeMode mode = 20;
   optional string order_key = 22;
   LinkType type = 30;
@@ -2487,7 +2393,6 @@ message MachineData {
   optional NodeReferenceData updated_by_ptr = 13;
   optional NodeReferenceData template_ptr = 16;
   optional NodeReferenceData owned_by_ptr = 17;
-  optional NodeReferenceData claimed_by_ptr = 18;
   NodeMode mode = 20;
   optional string order_key = 22;
   MachineType type = 30;
@@ -2532,7 +2437,6 @@ message MessageData {
   NodeMode mode = 20;
   MessageType type = 30;
   optional TextLineData title = 32;
-  optional NodeReferenceData channel_ptr = 34;
   optional NodeReferenceData thread_ptr = 35;
   optional google.protobuf.Timestamp edited_at = 40;
   optional NodeReferenceData reply_to_ptr = 50;
@@ -2548,7 +2452,7 @@ message MessageData {
 message NodeConstraintData {
   StructType metatype = 1;
   repeated NodeType node_types = 41;
-  repeated Trait node_traits = 42;
+  repeated TraitType node_traits = 42;
 }
 
 message NodeReferenceData {
@@ -2575,7 +2479,6 @@ message NotificationData {
   NodeMode mode = 20;
   NotificationType type = 30;
   optional TextLineData title = 32;
-  optional NodeReferenceData channel_ptr = 33;
   optional NodeReferenceData thread_ptr = 34;
   NotificationStatus status = 40;
   optional google.protobuf.Timestamp failed_at = 42;
@@ -2642,7 +2545,7 @@ message OrganizationData {
   optional NodeReferenceData created_by_ptr = 11;
   google.protobuf.Timestamp updated_at = 12;
   optional NodeReferenceData updated_by_ptr = 13;
-  optional Region region = 23;
+  Region region = 23;
   optional string name = 31;
   optional string slug = 33;
   optional IconData icon = 34;
@@ -2722,7 +2625,6 @@ message PageData {
   optional google.protobuf.Timestamp deleted_at = 15;
   optional NodeReferenceData template_ptr = 16;
   optional NodeReferenceData owned_by_ptr = 17;
-  optional NodeReferenceData claimed_by_ptr = 18;
   NodeMode mode = 20;
   optional string order_key = 22;
   optional TextLineData title = 32;
@@ -2779,7 +2681,6 @@ message RecordData {
   optional google.protobuf.Timestamp archived_at = 14;
   optional google.protobuf.Timestamp deleted_at = 15;
   optional NodeReferenceData owned_by_ptr = 17;
-  optional NodeReferenceData claimed_by_ptr = 18;
   NodeMode mode = 20;
   optional ValueData value = 21;
   optional string order_key = 22;
@@ -2794,24 +2695,6 @@ message RelationReferenceData {
   RelationType type = 30;
   NodeType node_type = 31;
   optional NodeReferenceData table_ptr = 32;
-}
-
-// A Role to assign to something.
-message RoleData {
-  NodeType metatype = 1;
-  string id = 2;
-  optional NodeReferenceData parent_ptr = 4;
-  optional NodeReferenceData bench_ptr = 6;
-  optional NodeReferenceData package_ptr = 7;
-  google.protobuf.Timestamp created_at = 10;
-  optional NodeReferenceData created_by_ptr = 11;
-  google.protobuf.Timestamp updated_at = 12;
-  optional NodeReferenceData updated_by_ptr = 13;
-  optional NodeReferenceData template_ptr = 16;
-  NodeMode mode = 20;
-  optional string order_key = 22;
-  optional string name = 31;
-  optional NodeReferenceData definition_ptr = 35;
 }
 
 // A Route is a path to a Scene.
@@ -2982,7 +2865,6 @@ message ServiceData {
   optional google.protobuf.Timestamp deleted_at = 15;
   optional NodeReferenceData template_ptr = 16;
   optional NodeReferenceData owned_by_ptr = 17;
-  optional NodeReferenceData claimed_by_ptr = 18;
   NodeMode mode = 20;
   optional string order_key = 22;
   optional string name = 31;
@@ -3252,7 +3134,6 @@ message TableData {
   optional google.protobuf.Timestamp deleted_at = 15;
   optional NodeReferenceData template_ptr = 16;
   optional NodeReferenceData owned_by_ptr = 17;
-  optional NodeReferenceData claimed_by_ptr = 18;
   NodeMode mode = 20;
   optional string order_key = 22;
   optional string name = 31;
@@ -3275,7 +3156,6 @@ message TaskData {
   optional google.protobuf.Timestamp deleted_at = 15;
   optional NodeReferenceData template_ptr = 16;
   optional NodeReferenceData owned_by_ptr = 17;
-  optional NodeReferenceData claimed_by_ptr = 18;
   NodeMode mode = 20;
   optional string order_key = 22;
   optional TextLineData title = 32;
@@ -3294,27 +3174,6 @@ message TaskData {
   optional google.protobuf.Timestamp requested_stop_at = 90;
   optional google.protobuf.Timestamp requested_pause_at = 91;
   optional google.protobuf.Timestamp requested_resume_at = 92;
-}
-
-// A Team of Users or Identities.
-message TeamData {
-  NodeType metatype = 1;
-  string id = 2;
-  string ck = 3;
-  optional NodeReferenceData parent_ptr = 4;
-  optional NodeReferenceData bench_ptr = 6;
-  optional NodeReferenceData package_ptr = 7;
-  google.protobuf.Timestamp created_at = 10;
-  optional NodeReferenceData created_by_ptr = 11;
-  google.protobuf.Timestamp updated_at = 12;
-  optional NodeReferenceData updated_by_ptr = 13;
-  optional NodeReferenceData template_ptr = 16;
-  NodeMode mode = 20;
-  optional string order_key = 22;
-  optional string name = 31;
-  optional NodeReferenceData definition_ptr = 35;
-  optional NodeReferenceData organization_ptr = 40;
-  optional NodeReferenceData team_ptr = 41;
 }
 
 message TextData {
@@ -3427,7 +3286,7 @@ message ThemeData {
 
 // A Thread for communicating with Messages.
 // Threads may be nested to organize conversations and work.
-// TODO :Incomplete: multiple Channels, nested Threads, ThreadType & "monologue" Threads, ...?
+// NOTE :Incomplete: multiple Channels, nested Threads, ThreadType & "monologue" Threads, ...?
 message ThreadData {
   NodeType metatype = 1;
   string id = 2;
@@ -3443,7 +3302,6 @@ message ThreadData {
   optional NodeReferenceData owned_by_ptr = 17;
   NodeMode mode = 20;
   optional TextLineData title = 32;
-  optional NodeReferenceData channel_ptr = 40;
   optional NodeReferenceData page_ptr = 60;
   ProcessStatus status = 80;
   optional google.protobuf.Duration duration = 81;
@@ -3565,7 +3423,7 @@ message UserData {
   optional NodeReferenceData created_by_ptr = 11;
   google.protobuf.Timestamp updated_at = 12;
   optional NodeReferenceData updated_by_ptr = 13;
-  optional Region region = 23;
+  Region region = 23;
   optional string name = 31;
   optional string slug = 33;
   optional IconData icon = 34;
@@ -3645,17 +3503,17 @@ message SomeNodeData {
     BenchData bench = 10;
     BenchMembershipData bench_membership = 11;
     BenchInviteData bench_invite = 12;
-    HandleData handle = 20;
-    UserData user = 30;
-    OrganizationData organization = 40;
-    OrganizationMembershipData organization_membership = 41;
-    OrganizationInviteData organization_invite = 42;
-    ClientData client = 50;
+    HandleData handle = 50;
+    UserData user = 200;
+    ClientData client = 250;
+    OrganizationData organization = 300;
+    OrganizationMembershipData organization_membership = 301;
+    OrganizationInviteData organization_invite = 302;
     PackageData package = 1000;
     DependencyData dependency = 1010;
     PageData page = 1020;
     BlockData block = 1030;
-    ApplicationData application = 1040;
+    ApplicationData application = 1050;
     DatabaseData database = 1200;
     MachineData machine = 1210;
     SchemaData schema = 1400;
@@ -3664,8 +3522,7 @@ message SomeNodeData {
     RecordData record = 1510;
     FileData file = 1520;
     LinkData link = 1550;
-    ChannelData channel = 1800;
-    ThreadData thread = 1810;
+    ThreadData thread = 1800;
     MessageData message = 1820;
     NotificationData notification = 1850;
     ServiceData service = 2000;
@@ -3678,9 +3535,6 @@ message SomeNodeData {
     RunData run = 2610;
     SpanData span = 2620;
     InterruptionData interruption = 2630;
-    TeamData team = 2820;
-    RoleData role = 2830;
-    ClaimData claim = 2840;
     SpaceData space = 8000;
     SceneData scene = 8010;
     RouteData route = 8020;

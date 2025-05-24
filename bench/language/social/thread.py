@@ -28,13 +28,7 @@ from bench.language.core import (
 from bench.pb2 import ThreadData
 
 if TYPE_CHECKING:
-    from bench.language import (
-        Channel,
-        Cursor,
-        CursorType,
-        Package,
-        Page,
-    )
+    from bench.language import Cursor, CursorType, Package, Page
 
 # pyright: reportIncompatibleVariableOverride=false
 
@@ -61,15 +55,11 @@ class Thread(
     """
     A Thread for communicating with Messages.
     Threads may be nested to organize conversations and work.
-    TODO :Incomplete: multiple Channels, nested Threads, ThreadType & "monologue" Threads, ...?
+    NOTE :Incomplete: multiple Channels, nested Threads, ThreadType & "monologue" Threads, ...?
     """
 
     # meta
-    parent: Union["Package", "Page", "Channel", "Thread", None] = property_parent_()
-    channel: Optional["Channel"] = property_(40, node_bench_from="self", can_write="system")
-    if TYPE_CHECKING:
-        channel_ptr: Optional[NodeReference] = None
-        channel_id: Optional[UUID] = None
+    parent: Union["Package", "Page", "Thread", None] = property_parent_()
 
     # content
     page: Optional["Page"] = property_(60, node_bench_from="self")
@@ -86,13 +76,11 @@ class Thread(
     def new(
         title: TextLineIn | None = None,
         *,
-        channel: Optional["Channel"] = None,
         page: Optional["Page"] = None,
         **kwargs,
     ) -> "Thread":
         thread = Thread(
             title=to_text_line(title) if title is not None else None,
-            channel=channel,
             page=page,
             **kwargs,
         )

@@ -6,7 +6,6 @@ from fastuuid import UUID
 from bench.language.core import (
     IsArchivable,
     IsBlockable,
-    IsClaimable,
     IsDeletable,
     IsInstantiable,
     IsModal,
@@ -33,7 +32,6 @@ if TYPE_CHECKING:
 @node_(NodeType.TASK)
 class Task(
     IsOwnable,
-    IsClaimable,
     IsProcessable,
     IsModal,
     IsTitled,

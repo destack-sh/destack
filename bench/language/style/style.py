@@ -5,7 +5,7 @@ from bench.language.core import (
     IsModal,
     IsNamed,
     IsTemplatable,
-    Trait,
+    TraitType,
     property_parent_,
     trait_,
 )
@@ -16,7 +16,7 @@ if TYPE_CHECKING:
 # pyright: reportIncompatibleVariableOverride=false
 
 
-@trait_(Trait.STYLE)
+@trait_(TraitType.STYLE)
 class IsStyle(
     IsTemplatable,
     IsModal,

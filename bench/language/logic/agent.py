@@ -5,7 +5,6 @@ from fastuuid import UUID
 from bench.language.core import (
     IsArchivable,
     IsBlockable,
-    IsClaimable,
     IsDeletable,
     IsExtensible,
     IsInstantiable,
@@ -33,7 +32,6 @@ if TYPE_CHECKING:
 class Agent(
     IsInstantiable,
     IsOwnable,
-    IsClaimable,
     IsModal,
     IsRunnable,
     IsProcessable,

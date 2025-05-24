@@ -13,11 +13,11 @@ HAS_LOCAL = "<HAS_LOCAL>"
 #
 
 
-async def upgrade_global(cur: asyncpg.Connection):
+async def upgrade_global(conn: asyncpg.Connection):
     pass  # <upgrade_global>
 
 
-async def downgrade_global(cur: asyncpg.Connection):
+async def downgrade_global(conn: asyncpg.Connection):
     pass  # <downgrade_global>
 
 
@@ -26,11 +26,11 @@ async def downgrade_global(cur: asyncpg.Connection):
 #
 
 
-async def upgrade_regional(cur: asyncpg.Connection):
+async def upgrade_regional(conn: asyncpg.Connection):
     pass  # <upgrade_regional>
 
 
-async def downgrade_regional(cur: asyncpg.Connection):
+async def downgrade_regional(conn: asyncpg.Connection):
     pass  # <downgrade_regional>
 
 
@@ -39,9 +39,9 @@ async def downgrade_regional(cur: asyncpg.Connection):
 #
 
 
-async def upgrade_local(cur: asyncpg.Connection):
+async def upgrade_local(conn: asyncpg.Connection):
     pass  # <upgrade_local>
 
 
-async def downgrade_local(cur: asyncpg.Connection):
+async def downgrade_local(conn: asyncpg.Connection):
     pass  # <downgrade_local>

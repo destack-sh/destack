@@ -21,7 +21,7 @@ from .const import (
     PrimitiveType,
     PrimitiveValue,
     StructType,
-    Trait,
+    TraitType,
     enum_,
     is_enum_type,
     is_node_type,
@@ -127,7 +127,7 @@ class NodeConstraint(Struct):
     """The constraint of a node."""
 
     node_types: list["NodeType"] = property_(41)
-    node_traits: list["Trait"] = property_(42)
+    node_traits: list["TraitType"] = property_(42)
     # page/thread/base/bench, ...
 
 

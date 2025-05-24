@@ -5,7 +5,6 @@ import structlog
 from bench.language.core import (
     IsArchivable,
     IsBased,
-    IsClaimable,
     IsDeletable,
     IsExtensible,
     IsIcon,
@@ -38,7 +37,6 @@ class Record(
     IsBased,
     IsModal,
     IsOwnable,
-    IsClaimable,
     IsOrdered,
     IsExtensible,
     IsNamed,

@@ -7,12 +7,10 @@ from grpclib import Status as GRPCStatus
 from opentelemetry import trace
 
 from bench.language import (
-    Bench,
     Client,
     ClientType,
     Database,
     Handle,
-    Node,
     NodeArea,
     NodeReference,
     NodeType,
@@ -83,6 +81,9 @@ class SupervisorService(SupervisorBase):
         create_bench_options: CreateBenchOptions,
         on_error: Callable[[Exception], None] | None = None,
     ):
+        self.id = id
+        self.network = network
+        self.oracle = oracle
         self._global_database = global_database
         self._global_pg_engine = pg_engine_from_database(
             "pg-global", global_database, NodeArea.GLOBAL_POSTGRES
@@ -96,21 +97,13 @@ class SupervisorService(SupervisorBase):
         return ""
 
     async def start(self) -> None:
-        await super().start()
+        raise NotImplementedError
 
     def stop(self) -> None:
-        super().stop()
+        raise NotImplementedError
 
     async def wait_stopped(self) -> None:
-        await super().wait_stopped()
-
-    @override
-    def get_engines(self):
-        return (self._global_pg_engine,)
-
-    @override
-    async def resolve_request_base(self, node_ptr: UUID | NodeReference) -> Node | None:
-        raise RuntimeError("supervisor does not support database-level requests")
+        raise NotImplementedError
 
     #
     # User management
@@ -210,7 +203,7 @@ class SupervisorService(SupervisorBase):
                     options=self._create_bench_options,
                 )
                 user.bench = bench
-                user.status = UserStatus.ACTIVATED
+                user.status = UserStatus.ACTIVE
                 await session.commit()
 
         logger.info("supervisor.signup_user", user=user, client=client, span="current")
@@ -244,7 +237,6 @@ class SupervisorService(SupervisorBase):
             user.password_hash = hash_password(request.new_password, user.password_salt)
             await session.commit()
 
-        purge_client_caches(user)
         logger.info("supervisor.change_user_password", user=user, span="current")
         return ChangeUserPasswordResponse(user=user._to_data())
 
@@ -290,7 +282,6 @@ class SupervisorService(SupervisorBase):
             await session.commit()
 
         logger.info("supervisor.login_user", user=user, client=client, span="current")
-        purge_client_caches(user)
         return LoginUserResponse(
             user=user._to_data(),
             client=client._to_data(),
@@ -329,7 +320,6 @@ class SupervisorService(SupervisorBase):
                 client.seen_at = self.oracle.utc()
             await session.commit()
 
-        purge_client_caches(subject.user)
         logger.info("supervisor.logout_user", user=subject.user, clients=clients, span="current")
         return LogoutUserResponse()
 
@@ -351,7 +341,7 @@ class SupervisorService(SupervisorBase):
             raise GRPCError(GRPCStatus.INVALID_ARGUMENT, "slug not specified")
         if not request.region:
             raise GRPCError(GRPCStatus.INVALID_ARGUMENT, "region not specified")
-        if user.status == UserStatus.WAITLISTED:
+        if user.status == UserStatus.WAITLIST:
             raise GRPCError(GRPCStatus.PERMISSION_DENIED, "cannot create bench for waitlisted user")
         region = wiring.unpack_enum(Region, request.region)
 
@@ -391,7 +381,7 @@ class SupervisorService(SupervisorBase):
                 raise GRPCError(GRPCStatus.FAILED_PRECONDITION, "owner not registered")
 
             # create bench (assumes it's the primary bench)
-            if owner.status == UserStatus.ACTIVATED:
+            if owner.status == UserStatus.ACTIVE:
                 raise GRPCError(GRPCStatus.ALREADY_EXISTS, "cannot create secondary Benches (yet)")
             if owner.slug != request.slug:
                 raise GRPCError(GRPCStatus.INVALID_ARGUMENT, "slug mismatch")
@@ -405,9 +395,9 @@ class SupervisorService(SupervisorBase):
             )
 
             # 'activate' owner
-            if isinstance(owner, User) and owner.status != UserStatus.ACTIVATED:
+            if isinstance(owner, User) and owner.status != UserStatus.ACTIVE:
                 owner.bench = bench
-                owner.status = UserStatus.ACTIVATED
+                owner.status = UserStatus.ACTIVE
             elif isinstance(owner, Organization) and owner.status != OrganizationStatus.ACTIVATED:
                 owner.bench = bench
                 owner.status = OrganizationStatus.ACTIVATED
@@ -423,27 +413,4 @@ class SupervisorService(SupervisorBase):
     async def resolve_hosts(
         self, request: "ResolveHostsRequest", headers: Mapping
     ) -> "ResolveHostsResponse":
-        metadata = wiring.unpack_rpc_headers(headers)
-        subject = await self.get_request_subject(request, metadata)
-        async with self.new_request_session(supergraph=subject._supergraph):
-            hosts: list[ResolveHostsResponse.HostInfo] = []
-            for bench_key in request.benches:
-                # NOTE :Performance: batch resolve_hosts lookups
-                key = bench_key.WhichOneof("bench")
-                value = getattr(bench_key, key)
-                if key == "id":
-                    bench = await Bench.get(id=to_uuid(value))
-                elif key == "slug":
-                    bench = await Bench.get(slug=value)
-                else:
-                    raise GRPCError(GRPCStatus.INVALID_ARGUMENT, "no bench specified")
-                host_info = self._host_map.get(bench.id, bench.region)
-                host_info = ResolveHostsResponse.HostInfo(
-                    domain=host_info.host_domain,
-                    grpc_port=host_info.grpc_port,
-                    grpc_web_port=host_info.grpc_web_port,
-                    ssl=host_info.ssl,
-                    bench=bench._to_ref_data(),
-                )
-                hosts.append(host_info)
-        return ResolveHostsResponse(hosts=hosts)
+        raise NotImplementedError

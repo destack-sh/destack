@@ -7,10 +7,7 @@ from .access import (
     check_password,
     hash_password,
 )
-from .aws import (
-    get_s3_client,
-    get_s3_client_for_presigning,
-)
+from .aws import get_s3_client
 from .session import (
     BEGINNING_OF_TIME,
     global_database_from_env,
@@ -46,7 +43,6 @@ __all__ = [
     "StaticHostMap",
     "check_password",
     "get_s3_client",
-    "get_s3_client_for_presigning",
     "global_database_from_env",
     "global_session",
     "hash_password",

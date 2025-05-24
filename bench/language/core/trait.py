@@ -29,7 +29,7 @@ from .const import (
     ProcessStatus,
     Region,
     ResourceStatus,
-    Trait,
+    TraitType,
 )
 from .graph import attach_node
 from .object import BuiltinObject, _process_object_cls
@@ -46,7 +46,6 @@ if TYPE_CHECKING:
     from bench.language import (
         Bench,
         Block,
-        Claim,
         Error,
         Icon,
         Interruption,
@@ -74,24 +73,24 @@ class IndexIn(NamedTuple):
     name: str | None = None
 
 
-def get_trait_by_name(name: str) -> Trait:
+def get_trait_by_name(name: str) -> TraitType:
     """Get a trait by name."""
     if name.startswith("Is"):
         name = name[2:]
     name = to_casing(name, Casing.ALL_CAPS)
-    trait = Trait.__members__.get(name)
+    trait = TraitType.__members__.get(name)
     if trait is None:
         raise LookupError(f"unknown trait: {name}")
     return trait
 
 
-def expand_node_types(types: Collection[NodeType | Trait]) -> tuple[NodeType, ...]:
+def expand_node_types(types: Collection[NodeType | TraitType]) -> tuple[NodeType, ...]:
     """Expand a collection of NodeTypes and Traits into a flat collection of NodeTypes."""
     node_types: set[NodeType] = set()
     for typ in types:
         if isinstance(typ, NodeType):
             node_types.add(typ)
-        elif isinstance(typ, Trait):
+        elif isinstance(typ, TraitType):
             node_types.update(NODE_TYPES_BY_TRAIT[typ])
         else:
             assert_never(typ)
@@ -100,7 +99,7 @@ def expand_node_types(types: Collection[NodeType | Trait]) -> tuple[NodeType, ..
 
 @dataclass_transform(kw_only_default=True, field_specifiers=_PROPERTY_SPECIFIERS)
 def trait_(
-    node_trait: Trait,
+    node_trait: TraitType,
 ):
     """Register a class as a node trait."""
 
@@ -117,63 +116,63 @@ def trait_(
     return decorate
 
 
-@trait_(Trait.GLOBAL)
+@trait_(TraitType.GLOBAL)
 class IsGlobal(Node if TYPE_CHECKING else BuiltinObject):
     """A Node that is global."""
 
     pass
 
 
-@trait_(Trait.LOCAL)
+@trait_(TraitType.LOCAL)
 class IsLocal(Node if TYPE_CHECKING else BuiltinObject):
     """A Node that is local."""
 
     pass
 
 
-@trait_(Trait.MODAL)
+@trait_(TraitType.MODAL)
 class IsModal(Node if TYPE_CHECKING else BuiltinObject):
     """A Node that can be in different modes."""
 
     mode: NodeMode = property_(20, is_managed=True, default=NodeMode.MAIN)
 
 
-@trait_(Trait.NAMED)
+@trait_(TraitType.NAMED)
 class IsNamed(Node if TYPE_CHECKING else BuiltinObject):
     """A Node with a plain name."""
 
     name: str | None = property_(31, format=StringFormat.NAME)
 
 
-@trait_(Trait.TITLED)
+@trait_(TraitType.TITLED)
 class IsTitled(Node if TYPE_CHECKING else BuiltinObject):
     """A Node with a rich title."""
 
     title: Optional["TextLine"] = property_(32)
 
 
-@trait_(Trait.SLUG)
+@trait_(TraitType.SLUG)
 class IsSlug(Node if TYPE_CHECKING else BuiltinObject):
     """A Node with a slug."""
 
     slug: str | None = property_(33, format=StringFormat.SLUG)
 
 
-@trait_(Trait.ICON)
+@trait_(TraitType.ICON)
 class IsIcon(Node if TYPE_CHECKING else BuiltinObject):
     """A Node with an icon."""
 
     icon: Optional["Icon"] = property_(34)
 
 
-@trait_(Trait.ORDERED)
+@trait_(TraitType.ORDERED)
 class IsOrdered(Node if TYPE_CHECKING else BuiltinObject):
     """A Node that can be ordered."""
 
     order_key: str | None = property_(22, is_managed=True, default=INTEGER_ZERO)
 
 
-@trait_(Trait.ARCHIVABLE)
+@trait_(TraitType.ARCHIVABLE)
 class IsArchivable(Node if TYPE_CHECKING else BuiltinObject):
     """A Node that can be archived."""
 
@@ -194,7 +193,7 @@ class IsArchivable(Node if TYPE_CHECKING else BuiltinObject):
         self._session._unarchive(self, _now=_now)
 
 
-@trait_(Trait.DELETABLE)
+@trait_(TraitType.DELETABLE)
 class IsDeletable(Node if TYPE_CHECKING else BuiltinObject):
     """A Node that can be deleted."""
 
@@ -211,7 +210,7 @@ class IsDeletable(Node if TYPE_CHECKING else BuiltinObject):
         self._session._restore(self, _now=_now)
 
 
-@trait_(Trait.TEMPLATABLE)
+@trait_(TraitType.TEMPLATABLE)
 class IsTemplatable(Node if TYPE_CHECKING else BuiltinObject):
     """A Node that can be templated (we can create Nodes that are derived from 'templates')."""
 
@@ -303,7 +302,7 @@ class IsTemplatable(Node if TYPE_CHECKING else BuiltinObject):
         return instance
 
 
-@trait_(Trait.INSTANTIABLE)
+@trait_(TraitType.INSTANTIABLE)
 class IsInstantiable(IsTemplatable):
     """A Node that can be instanced (we can create Nodes that are 'instances' of this Node)."""
 
@@ -315,7 +314,7 @@ class IsInstantiable(IsTemplatable):
         return self.ck != cast("Node", self).id
 
 
-@trait_(Trait.EXTENSIBLE)
+@trait_(TraitType.EXTENSIBLE)
 class IsExtensible(Node if TYPE_CHECKING else BuiltinObject):
     """A Node that can be extended with Fields."""
 
@@ -323,7 +322,7 @@ class IsExtensible(Node if TYPE_CHECKING else BuiltinObject):
     value: "Value | None" = property_(21)
 
 
-@trait_(Trait.BASED)
+@trait_(TraitType.BASED)
 class IsBased(Node if TYPE_CHECKING else BuiltinObject):
     """
     A Node which may have a 'base' in another Node (e.g., its type definition).
@@ -347,7 +346,7 @@ class IsBased(Node if TYPE_CHECKING else BuiltinObject):
     def get_base_from_partial(data: dict[str, Any]) -> Optional["IsInBench"]: ...
 
 
-@trait_(Trait.IN_BENCH)
+@trait_(TraitType.IN_BENCH)
 class IsInBench(Node if TYPE_CHECKING else BuiltinObject):
     """A Node inside a Bench."""
 
@@ -358,7 +357,7 @@ class IsInBench(Node if TYPE_CHECKING else BuiltinObject):
     _bench: Optional["Bench"] = property_runtime_(default=None)  # :CachedAncestors
 
 
-@trait_(Trait.IN_PACKAGE)
+@trait_(TraitType.IN_PACKAGE)
 class IsInPackage(IsInBench):
     """A Node in a Package."""
 
@@ -368,14 +367,14 @@ class IsInPackage(IsInBench):
         package_ptr: Optional[NodeReference] = None
 
 
-@trait_(Trait.PAGEABLE)
+@trait_(TraitType.PAGEABLE)
 class IsPageable(Node if TYPE_CHECKING else BuiltinObject):
     """A Node that can be in a Page."""
 
     pass
 
 
-@trait_(Trait.BLOCKABLE)
+@trait_(TraitType.BLOCKABLE)
 class IsBlockable(IsOrdered, IsInPackage):
     """A Node that can (but may not be) be inline on a Page as a Block."""
 
@@ -397,7 +396,7 @@ class IsBlockable(IsOrdered, IsInPackage):
         return Block.wrap(self)
 
 
-@trait_(Trait.COMPUTABLE)
+@trait_(TraitType.COMPUTABLE)
 class IsComputable(Node if TYPE_CHECKING else BuiltinObject):
     """A Node that can have computation applied to it somehow."""
 
@@ -410,7 +409,7 @@ class IsComputable(Node if TYPE_CHECKING else BuiltinObject):
     # compute/cost/effort/budget/'juice'...?
 
 
-@trait_(Trait.RUNNABLE)
+@trait_(TraitType.RUNNABLE)
 class IsRunnable(IsComputable):
     """A Node that can be run (at runtime in a Run)."""
 
@@ -430,7 +429,7 @@ class IsRunnable(IsComputable):
         )
 
 
-@trait_(Trait.PROCESSABLE)
+@trait_(TraitType.PROCESSABLE)
 class IsProcessable(Node if TYPE_CHECKING else BuiltinObject):
     """A Node that can be processed somehow."""
 
@@ -502,7 +501,7 @@ class IsProcessable(Node if TYPE_CHECKING else BuiltinObject):
         )
 
 
-@trait_(Trait.OWNABLE)
+@trait_(TraitType.OWNABLE)
 class IsOwnable(Node if TYPE_CHECKING else BuiltinObject):
     """A Node that can be owned by another Node."""
 
@@ -517,53 +516,50 @@ class IsOwnable(Node if TYPE_CHECKING else BuiltinObject):
         owned_by_ptr: Optional[NodeReference] = None
 
 
-@trait_(Trait.CLAIMABLE)
-class IsClaimable(Node if TYPE_CHECKING else BuiltinObject):
-    """A Node that can be claimed with a Claim."""
-
-    claimed_by: Optional["Claim"] = property_(18, node_bench_from="self")
-    if TYPE_CHECKING:
-        claimed_by_id: Optional[UUID] = None
-        claimed_by_ptr: Optional[NodeReference] = None
-
-
-@trait_(Trait.JOINABLE)
+@trait_(TraitType.JOINABLE)
 class IsJoinable(Node if TYPE_CHECKING else BuiltinObject):
     """A Node that can be joined by a Subject."""
 
     pass
 
 
-@trait_(Trait.SUBJECT)
+@trait_(TraitType.SUBJECT)
 class IsSubject(Node if TYPE_CHECKING else BuiltinObject):
     """A Node that can be a Subject."""
 
     pass
 
 
-@trait_(Trait.MEMBERSHIP)
+@trait_(TraitType.MEMBERSHIP)
 class IsMembership(Node if TYPE_CHECKING else BuiltinObject):
     """A Node that represents a Membership."""
 
     member: "IsSubject" = property_(40)
 
 
-@trait_(Trait.INVITE)
+@trait_(TraitType.INVITE)
 class IsInvite(Node if TYPE_CHECKING else BuiltinObject):
     """A Node that represents an Invite."""
 
     pass
 
 
-@trait_(Trait.REGIONAL)
+@trait_(TraitType.ROLE)
+class IsRole(Node if TYPE_CHECKING else BuiltinObject):
+    """A Node that represents a Role."""
+
+    pass
+
+
+@trait_(TraitType.REGIONAL)
 class IsRegional(Node if TYPE_CHECKING else BuiltinObject):
     """A Node that is regional."""
 
-    region: Region | None = property_(23, default=REGION)
+    region: Region = property_(23, default=REGION)
 
 
-@trait_(Trait.RESOURCE)
-class IsResource(IsModal, IsInstantiable, IsOwnable, IsNamed, IsClaimable, IsBlockable):
+@trait_(TraitType.RESOURCE)
+class IsResource(IsModal, IsInstantiable, IsOwnable, IsNamed, IsBlockable):
     """
     A Resource in a Bench, typically representing some external object.
     """
@@ -571,7 +567,7 @@ class IsResource(IsModal, IsInstantiable, IsOwnable, IsNamed, IsClaimable, IsBlo
     parent: Union["Package", "Page", "Thread", None] = property_parent_()
 
 
-@trait_(Trait.PROVISIONABLE)
+@trait_(TraitType.PROVISIONABLE)
 class IsProvisionable(IsResource):
     """
     A Resource that can be provisioned.

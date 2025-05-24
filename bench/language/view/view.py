@@ -9,7 +9,7 @@ from bench.language.core import (
     property_parent_,
     trait_,
 )
-from bench.language.core.const import Trait
+from bench.language.core.const import TraitType
 from bench.pb2 import AnyNodeData
 
 if TYPE_CHECKING:
@@ -18,7 +18,7 @@ if TYPE_CHECKING:
 # pyright: reportIncompatibleVariableOverride=false
 
 
-@trait_(Trait.VIEW)
+@trait_(TraitType.VIEW)
 class IsView[NodeDataT: AnyNodeData](
     IsInstantiable,
     IsModal,

@@ -11,7 +11,6 @@ from opentelemetry import trace
 from bench.language import (
     Bench,
     Error,
-    ErrorKind,
     ErrorType,
     Machine,
     MachineType,
@@ -93,16 +92,10 @@ class RuntimePlugin[N: Node, O: RuntimeOp = RuntimeOp](HostPlugin[N], abc.ABC):
         log = logger.bind(host=self, op=op, retry=op.retry)
 
         # select machines to send run on :RuntimeRouting
-        assert NodeType.MACHINE in self.bench._graph.node_types, f"not loaded in {self.bench!r}"
-        # TODO :Broken :RuntimeRouting :RichGraph: sometimes available_machines is locally out of sync?
-        #  (we try to reach a dead Machine, which obviously doesn't work;
-        #   so instead we just load it all from the DB, which is slower but more reliable)
-        machine_query = Machine.where(
-            Machine.property("type").eq(MachineType.RUNTIME)
+        available_machines = await Machine.search(
+            where=Machine.property("type").eq(MachineType.RUNTIME)
             & Machine.property("status").eq(ResourceStatus.AVAILABLE)
-        )
-        machine_query._include_memory = False
-        available_machines = await machine_query.to_list()
+        ).execute_list()
 
         # contact machines
         for machine in available_machines:
@@ -128,7 +121,6 @@ class RuntimePlugin[N: Node, O: RuntimeOp = RuntimeOp](HostPlugin[N], abc.ABC):
         if not op.retry.should_retry:
             # give up
             error = Error(
-                kind=ErrorKind.RUNTIME,
                 type=ErrorType.RUNTIME_UNAVAILABLE,
                 title="Failed to send",
                 text="Could not reach any available Machine.",

@@ -69,7 +69,7 @@ def make_global_database(name: str):
         slug="system",
         region=Region.ZURICH,
         _supergraph=supergraph,
-        status=BenchStatus.ACTIVATED,
+        status=BenchStatus.ACTIVE,
         created_at=BEGINNING_OF_TIME,
         updated_at=BEGINNING_OF_TIME,
     )
@@ -113,7 +113,7 @@ def make_regional_database(name: str):
         slug="system",
         region=Region.ZURICH,
         _supergraph=supergraph,
-        status=BenchStatus.ACTIVATED,
+        status=BenchStatus.ACTIVE,
         created_at=BEGINNING_OF_TIME,
         updated_at=BEGINNING_OF_TIME,
     )

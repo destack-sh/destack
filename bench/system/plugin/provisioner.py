@@ -46,8 +46,8 @@ class Provisioner[PT: IsProvisionable, WT: IsProvisionable](DeferredHostPlugin[W
         """Gets all Resource for this Provisioner."""
         provision_cls = cast(type[PT], NODE_CLASS_BY_TYPE[self.provision_type])
         resources_query = (
-            provision_cls.where(
-                provision_cls.property("bench").eq(self.bench)
+            provision_cls.get(
+                where=provision_cls.property("bench").eq(self.bench)
                 & provision_cls.property("mode").lt(NodeMode.TEMPLATE)
                 & provision_cls.property("status").lt(ResourceStatus.OFFLINE)
             )

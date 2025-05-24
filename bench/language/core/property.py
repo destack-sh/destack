@@ -28,7 +28,7 @@ from .const import (
     NodeType,
     PrimitiveType,
     StructType,
-    Trait,
+    TraitType,
 )
 
 if TYPE_CHECKING:
@@ -67,7 +67,7 @@ def _resolve_struct_type(class_name: str) -> StructType | None:
     return None
 
 
-def _resolve_node_types(class_name: str) -> tuple[NodeType | Trait, ...] | None:
+def _resolve_node_types(class_name: str) -> tuple[NodeType | TraitType, ...] | None:
     """Get the NodeType for the given node name."""
 
     if class_name.startswith("Is"):
@@ -75,7 +75,7 @@ def _resolve_node_types(class_name: str) -> tuple[NodeType | Trait, ...] | None:
     enum_name = to_casing(class_name, Casing.ALL_CAPS)
     if node_type := NodeType.__members__.get(enum_name):
         return (node_type,)
-    if trait := Trait.__members__.get(enum_name):
+    if trait := TraitType.__members__.get(enum_name):
         return (trait,)
     if node_type := NodeType.__members__.get(class_name.upper()):
         return (node_type,)
@@ -106,7 +106,7 @@ class TypeAnnotation:
     primitive_type: PrimitiveType | None = None
     enum_type: EnumType | None = None
     struct_type: StructType | None = None
-    node_types: tuple[NodeType | Trait, ...] = ()  # for node scalar nodes
+    node_types: tuple[NodeType | TraitType, ...] = ()  # for node scalar nodes
     key_type: "TypeAnnotation | None" = None
     is_required: bool = True
     is_variable: bool = False
@@ -290,7 +290,7 @@ class Property(IntoQuery if TYPE_CHECKING else object):
     # pointers
     ptr_prop: Optional["Property"] = None  # wired representation for pointers
     runtime_prop: Optional["Property"] = None  # for the proto property
-    nodes: tuple[NodeType | Trait, ...] = ()  # for node relations
+    nodes: tuple[NodeType | TraitType, ...] = ()  # for node relations
     node_kind: NodeReferenceKind | None = None
     node_bench_from: Literal["self"] | None = None
     node_exclude: tuple[Literal["ck", "base_id"], ...] = ()

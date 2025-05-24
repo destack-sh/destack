@@ -281,7 +281,7 @@ class EnumType(BuiltinEnum):
     ENUM_TYPE = 40000
     NODE_TYPE = 40001
     STRUCT_TYPE = 40002
-    TRAIT = 40004
+    TRAIT_TYPE = 40004
     NODE_MODE = 40005
     NODE_AREA = 40006
     USER_STATUS = 40010
@@ -343,7 +343,6 @@ class EnumType(BuiltinEnum):
     # ...
 
     # chat [41800-42000]
-    CHANNEL_STATUS = 41800
     THREAD_STATUS = 41801
     MESSAGE_TYPE = 41802
     NOTIFICATION_TYPE = 41810
@@ -351,8 +350,6 @@ class EnumType(BuiltinEnum):
     # ...
 
     # plan [42000-42200]
-    CLAIM_TYPE = 42000
-    CLAIM_STATUS = 42001
     CURSOR_TYPE = 42010
     CURSOR_STATUS = 42011
     # ...
@@ -596,24 +593,35 @@ class NodeType(BuiltinEnum):
     BENCH = 10, "Bench", "Universal workbench", "https://heybench.com/favicon.ico"
     BENCH_MEMBERSHIP = 11, "Bench Membership", "Membership in a Bench", "fas fa-user-group"
     BENCH_INVITE = 12, "Bench Invite", "Invite to a Bench", "fas fa-user-plus"
-    HANDLE = 20, "Handle", "Unique identifier", "fas fa-at"
-    USER = 30, "User", "User", "fas fa-user"
-    ORGANIZATION = 40, "Organization", "Organization", "fas fa-building"
+    HANDLE = 50, "Handle", "Unique @handle", "fas fa-at"
+
+    # auth [200-400]
+    USER = 200, "User", "User", "fas fa-user"
+    CLIENT = 250, "Client", "Client to a Bench", "fas fa-desktop"
+    ORGANIZATION = 300, "Organization", "Organization", "fas fa-building"
     ORGANIZATION_MEMBERSHIP = (
-        41,
+        301,
         "Organization Membership",
         "Membership in an Organization",
         "fas fa-user-group",
     )
-    ORGANIZATION_INVITE = 42, "Organization Invite", "Invite to an Organization", "fas fa-user-plus"
-    CLIENT = 50, "Client", "Client to a Bench", "fas fa-desktop"
+    ORGANIZATION_INVITE = (
+        302,
+        "Organization Invite",
+        "Invite to an Organization",
+        "fas fa-user-plus",
+    )
+    # PROFILE? (for User, or maybe global?)
+    # PERMISSION, PERMISSION_GROUP, ...
+    # CHALLENGE, FRIENDSHIP, BADGE, ENTITLEMENT, POLICY, RULE, ...
+    # KICK/BAN, ...
 
     # package [1000-1200]
     PACKAGE = 1000, "Package", "Isolated sub-Bench", "fas fa-box-open"
     DEPENDENCY = 1010, "Dependency", "Dependency to something", "fas fa-turn-down-right"
     PAGE = 1020, "Page", "Page of Blocks", "far fa-file"
     BLOCK = 1030, "Block", "Rich Block on a Page", "fas fa-cube"
-    APPLICATION = 1040, "Application", "Interactive Application", "fas fa-app"
+    APPLICATION = 1050, "Application", "Interactive Application", "fas fa-app"
     # PLUGIN, ...
 
     # infra [1200-1400]
@@ -631,11 +639,10 @@ class NodeType(BuiltinEnum):
     # STREAM, SECRET, INDEX, CONSTRAINT, MIGRATION, ...
 
     # social [1800-2000]
-    CHANNEL = 1800, "Channel", "Channel", "fas fa-hashtag"
-    THREAD = 1810, "Thread", "Thread", "fas fa-reel"
+    THREAD = 1800, "Thread", "Thread", "fas fa-reel"
     MESSAGE = 1820, "Message", "Message", "fas fa-message"
     NOTIFICATION = 1850, "Notification", "Notification", "fas fa-bell"
-    # FEED, FEED_ITEM, ...
+    # FOLLOW, FEED, FEED_ITEM, ...
     # POLL, VOTE, RATING, REACTION, ...
 
     # logic [2000-2400]
@@ -659,15 +666,6 @@ class NodeType(BuiltinEnum):
     SPAN = 2620, "Span", "Span", "fas fa-ruler-horizontal"
     INTERRUPTION = 2630, "Interruption", "Interruption", "fas fa-hand"
     # EVENT, SIGNAL, ...
-
-    # auth [2800-3000]
-    TEAM = 2820, "Team", "Group of Users or Agents", "fas fa-users"
-    ROLE = 2830, "Role", "Role", "fas fa-user-tag"
-    # PROFILE? (for User, or maybe global?)
-    CLAIM = 2840, "Claim", "Control over something", "fas fa-stamp"
-    # PERMISSION, PERMISSION_GROUP, ...
-    # CHALLENGE, FRIENDSHIP, BADGE, ENTITLEMENT, POLICY, RULE, ...
-    # KICK/BAN, ...
 
     # version [3200-3400]
     # CHANGE, HISTORY, BRANCH, ...
@@ -769,8 +767,8 @@ class NodeType(BuiltinEnum):
     # SOUND, ...?
 
 
-@enum_(EnumType.TRAIT)
-class Trait(BuiltinEnum):
+@enum_(EnumType.TRAIT_TYPE)
+class TraitType(BuiltinEnum):
     # bench [1-200]
     GLOBAL = 1, "Global", "Is global", "fas fa-globe"
     LOCAL = 3, "Local", "Is local", "fas fa-globe"
@@ -800,11 +798,11 @@ class Trait(BuiltinEnum):
     COMPUTABLE = 2002, "Computable", "Can be computed", "fas fa-calculator"
     # auth [2800-3000]
     OWNABLE = 2800, "Ownable", "Can be owned", "fas fa-user"
-    CLAIMABLE = 2801, "Claimable", "Can be claimed", "fas fa-stamp"
     JOINABLE = 2802, "Joinable", "Can be joined", "fas fa-users"
     SUBJECT = 2805, "Subject", "Is a Subject", "fas fa-user"
     MEMBERSHIP = 2810, "Membership", "Is a Membership", "fas fa-users"
     INVITE = 2811, "Invite", "Is an Invite", "fas fa-envelope"
+    ROLE = 2812, "Role", "Is a Role", "fas fa-user-tag"
     # ui [8000-10000]
     VIEW = 8001, "View", "Is a View", "fas fa-eye"
     CONTAINER_VIEW = 8100, "Container View", "Is a Container View", "fas fa-container"

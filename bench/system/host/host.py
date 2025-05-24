@@ -1,57 +1,29 @@
 import asyncio
-from contextlib import asynccontextmanager
 from typing import TYPE_CHECKING, Any, Callable, Mapping, override
 
 import structlog
 from fastuuid import UUID
-from google.protobuf.struct_pb2 import Struct as ProtoStruct
-from grpclib import GRPCError
-from grpclib import Status as GRPCStatus
-from more_itertools import first
 from opentelemetry import trace
 
 from bench.language import (
-    BENCH_ID,
-    BENCH_NODE_TYPES,
     CLOUD,
-    EMPTY_SCOPE_DATA,
-    LOCAL_NODE_TYPES,
-    REGIONAL_NODE_TYPES,
     Bench,
-    BenchStatus,
-    ConditionalType,
     Database,
-    File,
-    FileSource,
-    Graph,
-    NodeArea,
     NodeReference,
     NodeType,
-    Package,
     Scope,
-    Session,
-    Supergraph,
-    bittuple,
-    pack_value_scalar,
 )
 from bench.proto import (
     DownloadFilesRequest,
     DownloadFilesResponse,
     HostBase,
     Network,
-    ScopeData,
     ServiceKind,
     UploadFilesRequest,
     UploadFilesResponse,
-    unpack_builtin_object_validate,
 )
-from bench.system.core import (
-    get_s3_client_for_presigning,
-    global_session,
-    local_pg_engine_from_database,
-    pg_engine_from_database,
-)
-from bench.utils.env import ENV, Env
+from bench.proto.service import ServiceBase
+from bench.utils.env import ENV
 from bench.utils.oracle import Oracle
 from bench.utils.utils import get_from_env
 
@@ -71,7 +43,7 @@ FILE_DOWNLOAD_URL_EXPIRY = get_from_env(
 )
 
 
-class HostService(HostBase):
+class HostService(ServiceBase, HostBase):
     """
     Host for a Bench, providing the OS-level functionality (lifecycle, resources, scheduling, etc.).
     There is only one Host per Bench. Clients interact with the Bench exclusively via its Host.
@@ -90,310 +62,28 @@ class HostService(HostBase):
         oracle: Oracle,
         on_error: Callable[[BaseException], None] | None,
     ):
-        GraphServiceBase.__init__(
-            self,
-            id=id,
-            bench_id=bench_id,
-            node_types=BENCH_NODE_TYPES,
-            logger=logger,
-            tracer=tracer,
-            network=network,
-            oracle=oracle,
-            scope=Scope(bench_id=bench_id)._to_data(),
-            on_error=on_error,
-        )
-
         self.bench_id = bench_id
         self.bench_ptr = NodeReference(
             node_type=NodeType.BENCH, id=bench_id, ck=bench_id, bench_id=bench_id
         )
-        self._global_database = global_database
-        self._global_pg_engine_unscoped = pg_engine_from_database(
-            "pg-global", global_database, NodeArea.GLOBAL_POSTGRES
-        )
-        self._regional_database = regional_database
-        self._regional_pg_engine_unscoped = pg_engine_from_database(
-            f"pg-regional-{regional_database.region.name.lower()}",
-            regional_database,
-            NodeArea.REGIONAL_POSTGRES,
-        )
-        self._supergraph = Supergraph(name="Host", root_ptr=self.bench_ptr)
-        self._client_cache = ClientCache(ttl=60, supergraph=self._supergraph)
-        self._bench: Bench | None = None
-        self._main_package: Package | None = None
-        self._global_pg_engine: PostgresEngine | None = None
-        self._regional_pg_engine: PostgresEngine | None = None
-        self._local_pg_engine: PostgresEngine | None = None
-        self._engines: tuple[Engine, ...] = ()
-        self._local_epoch = 0
-        self._session: Session | None = None
+        self.scope = Scope(bench_id=bench_id)._to_data()
         self._provisioners: tuple[Provisioner, ...] = ()
         self._plugins: tuple[HostPlugin, ...] = ()  # incl. provisioners
 
     def __str__(self):
-        return f"{self._bench or self.bench_id}"
+        return f"{self.bench_id}"
 
     @override
     def get_service_baggage(self) -> dict[str, Any]:
         return {"bench_id": self.bench_id}
 
     @property
-    def scope(self) -> ScopeData:
-        return self._scope
-
-    @property
     def is_idle(self) -> bool:
         """Check if the Host is idle (no pending requests or processing)."""
         return all(plugin.is_idle for plugin in self._plugins) and super().is_idle
 
-    @property
-    def bench(self) -> Bench:
-        assert self._bench is not None, f"bench not loaded in {self}"
-        return self._bench
-
-    @property
-    def main_package(self) -> Package:
-        assert self._main_package is not None, f"main package not loaded in {self}"
-        return self._main_package
-
-    @property
-    def graphs(self) -> tuple[Graph, ...]:
-        assert self._bench is not None, f"bench not loaded in {self!r}"
-        assert self._main_package is not None, f"main package not loaded in {self!r}"
-        return self._bench._graph, self._main_package._graph
-
-    @property
-    def global_database(self) -> Database:
-        return self._global_database
-
-    def global_session(self, readonly: bool = False):
-        return global_session(
-            node=None,
-            engines=(self._global_pg_engine_unscoped, self._regional_pg_engine_unscoped),
-            supergraph=self._supergraph,
-            oracle=self.oracle,
-            readonly=readonly,
-        )
-
-    @override
-    @asynccontextmanager
-    async def session(self, *, readonly: bool = False, commit: bool = False):
-        """Gets exclusive query and edit access to the main session. :ExclusiveHostSession"""
-        assert self._session is not None, f"no session for {self!r}"
-        if readonly:  # noqa: SIM108
-            graph_lock_ctx = self._graph_lock.read("all")
-        else:
-            graph_lock_ctx = self._graph_lock.write("all")
-        async with graph_lock_ctx, self._session.active():
-            self._session._local_epoch = self._local_epoch
-            yield self._session
-            if commit:
-                await self._session.commit()
-
-    def get_provisioners(self: "HostService", bench: Bench) -> list["Provisioner"]:
-        """Gets all available provisioners for the Bench in *this* environment"""
-
-        provisioners: list[type[Provisioner]]
-        if ENV == Env.TEST or ENV == Env.DEV:
-            from bench.system.plugin import (
-                DockerMachineProvisioner,
-                LocalhostDatabaseProvisioner,
-                ScalerProvisioner,
-            )
-
-            provisioners = [
-                ScalerProvisioner,
-                DockerMachineProvisioner,
-                LocalhostDatabaseProvisioner,
-            ]
-        elif ENV == Env.STAGE or ENV == Env.PROD:
-            from bench.system.plugin import (
-                KubernetesMachineProvisioner,
-                NeonDatabaseProvisioner,
-                ScalerProvisioner,
-            )
-
-            provisioners = [
-                ScalerProvisioner,
-                NeonDatabaseProvisioner,
-                KubernetesMachineProvisioner,
-            ]
-        else:
-            raise RuntimeError(f"unexpected environment: {ENV!r}")
-
-        return [provisioner(self, bench) for provisioner in provisioners]
-
-    async def _activate(self, session: Session, bench: Bench) -> None:
-        """Initializes the given Bench for the first time."""
-        from bench.system.plugin import DatabaseProvisioner
-
-        assert bench.status == BenchStatus.RESERVED, f"{bench!r} has unexpected status"
-        assert bench.database is not None, f"{bench!r} has no main database"
-
-        # use temporary session in HostService during setup
-        session.parent = bench
-        self._session = session
-
-        # immediately provision local Database
-        provisioners = self.get_provisioners(bench)
-        database_provisioner = first(
-            (p for p in provisioners if isinstance(p, DatabaseProvisioner)), None
-        )
-        assert database_provisioner is not None, f"{bench!r} has no database provisioner"
-        await database_provisioner.provision(bench.database)
-        for provisioner in provisioners:
-            provisioner.close()
-        await asyncio.gather(*(provisioner.wait_closed() for provisioner in provisioners))
-
-        # commit
-        bench.status = BenchStatus.ACTIVATED
-        await session.commit()
-        self._session = None
-        logger.info("host.activate", host=self, bench=bench)
-
     async def start(self) -> None:
-        from bench.system.plugin import (
-            ClaimPlugin,
-            MessagePlugin,
-            RunPlugin,
-            TablePlugin,
-            WakePlugin,
-        )
-
-        # start base service
-        trace.get_current_span().set_attribute("bench_id", str(self.bench_id))
-        await super().start()
-
-        # load bench
-        #  (in different session because we don't have the local engines yet)
-        async with self.global_session() as session:
-            # load our bench
-            self._bench = await BENCH_QUERY.get(self.bench_ptr, mode="both")
-            assert self._bench.database is not None, f"{self._bench!r} has no main database"
-            assert self._bench.package is not None, f"{self._bench!r} has no main package"
-            self._main_package = self._bench.package
-            session.parent = self._bench  # patch in bench for pg context
-            session._default_scope = Scope(bench_id=self.bench_id)._to_data()
-            session._engines += (
-                local_pg_engine_from_database(
-                    name=f"pg-local-{self._bench.slug}", database=self._bench.database
-                ),
-            )
-
-            # activate if needed
-            if self._bench.status < BenchStatus.ACTIVATED:
-                await self._activate(session, self._bench)
-
-            # cleanup
-            self._bench._untrack_rec()
-
-        # setup main engines
-        # (overwrite global pg engine now that we have t he full bench as context)
-        database_plugin = TablePlugin(self, self._bench, self._main_package)
-        self._global_pg_engine = PostgresEngine(
-            name="pg-global",
-            database=self.global_database,
-            bench=self._bench,
-            scope=EMPTY_SCOPE_DATA,
-            node_types=bittuple(NodeType.BENCH, NodeType.CLIENT, NodeType.USER),
-            context=database_plugin.context,
-        )
-        self._regional_pg_engine = PostgresEngine(
-            name=f"pg-regional-{self._bench.database.region.name.lower()}",
-            database=self._regional_database,
-            bench=self._bench,
-            scope=self._scope,
-            node_types=REGIONAL_NODE_TYPES,
-            context=database_plugin.context,
-        )
-        self._local_pg_engine = PostgresEngine(
-            name=f"pg-local-{self._bench.slug}",
-            database=self._bench.database,
-            bench=self._bench,
-            scope=self._scope,
-            node_types=LOCAL_NODE_TYPES,
-            context=database_plugin.context,
-        )
-        inmemory_engines = (
-            MemoryEngine(
-                name="inmemory-bench",
-                scope=self._scope,
-                node_types=bittuple(*BENCH_QUERY.all_node_types),
-                graph=self._bench._data_graph,
-                include_removed=False,
-            ),
-        )
-        self._engines = (
-            *inmemory_engines,  # prefer in memory engines
-            self._global_pg_engine,
-            self._regional_pg_engine,
-            self._local_pg_engine,
-        )
-        # we open one Session for the entire lifecycle of the Host
-        self._session = Session(
-            parent=self._bench,
-            _default_scope=self.scope,
-            _engines=self._engines,
-            _pre_commit=self._pre_commit_hook,
-            _post_commit=self._post_commit_hook,
-            supergraph=self._bench._supergraph,
-            _split_read=True,
-            oracle=self.oracle,
-            _skip_add_self=True,
-        )
-        self._bench._track_rec(self._session)
-        await self._session.open(_set_in_context=True)
-        self._session.suspend()
-
-        # start plugins
-        self._provisioners = tuple(self.get_provisioners(self._bench))
-        self._plugins = (
-            database_plugin,
-            *self._provisioners,
-            MessagePlugin(self, self._bench),
-            RunPlugin(self, self._bench),
-            WakePlugin(self, self._bench),
-            ClaimPlugin(self, self._bench),
-        )
-        await asyncio.gather(*(plugin.start() for plugin in self._plugins))
-        await asyncio.gather(*(plugin.wait_idle(timeout=10) for plugin in self._plugins))
-
-        # handle builtin bench
-        if self.bench_id == BENCH_ID:
-            # sync builtins if we're the builtin bench
-            from bench.builtin import BenchPackage, sync_node
-
-            async with self.session(readonly=False) as session:
-                sync_node(
-                    parent=self._bench,
-                    target=self._main_package,
-                    reference=BenchPackage,
-                    recursive=True,
-                )
-                edits, _ = await session.commit()
-                logger.info(
-                    "host.sync_builtins",
-                    host=self,
-                    bench=self._bench,
-                    main_package=self._main_package,
-                    builtin_package=BenchPackage,
-                    edits=len(edits),
-                )
-        else:
-            # add builtin bench directly to every bench
-            from bench.builtin import BenchPackage
-
-            BuiltinPackageGraph = BenchPackage._graph.copy()
-            BuiltinPackageGraph.supergraph = self._supergraph
-            self._supergraph.add_graph(BuiltinPackageGraph)
-
-        logger.info(
-            "host.start",
-            host=self,
-            bench=self._bench,
-            main_package=self._main_package,
-            plugins=self._plugins,
-        )
+        raise NotImplementedError
 
     def stop(self) -> None:
         super().stop()
@@ -403,8 +93,6 @@ class HostService(HostBase):
     async def wait_stopped(self) -> None:
         await super().wait_stopped()
         await asyncio.gather(*(plugin.wait_closed() for plugin in self._plugins))
-        if self._session is not None:
-            await self._session.close()
 
     #
     # Files
@@ -413,109 +101,12 @@ class HostService(HostBase):
     async def upload_files(
         self, request: UploadFilesRequest, headers: Mapping
     ) -> UploadFilesResponse:
-        # TODO :Security: evaluate file upload access
-        s3_client = get_s3_client_for_presigning(request.environment)
-        handles: list[UploadFilesResponse.UploadHandle] = []
-        for file_data in request.files:
-            # get drive (from in-memory graph)
-            if file_data.source != FileSource.BENCH or not file_data.sha256:
-                raise GRPCError(
-                    GRPCStatus.INVALID_ARGUMENT,
-                    f"unexpected file: {file_data!r} (source={file_data.source}, sha256={file_data.sha256})",
-                )
-            if file_data.parent_ptr.metatype != 0:
-                if file_data.parent_ptr.bench_id != str(self.bench.id):
-                    raise GRPCError(
-                        GRPCStatus.INVALID_ARGUMENT,
-                        f"unexpected parent: {file_data.parent_ptr!r}->{self.bench!r}",
-                    )
-            else:  # default to main drive
-                file_data.parent_ptr.CopyFrom(self.main_package._to_ref_data())
-
-            # presign post URL
-            file_key = get_file_key(self.bench, file_data.sha256, file_data.name)
-            file_metadata: dict[str, str] = {"2": file_data.id}
-            for prop in FileBase.__declared_properties__.values():
-                if prop.id is None or prop.id < 50:
-                    continue  # exclude content
-                prop_value = getattr(file_data, prop.name)
-                if prop_value is not None:
-                    packed_value = pack_value_scalar(prop_value, prop.type_info)
-                    if not isinstance(packed_value, str):
-                        packed_value = str(packed_value)
-                    file_metadata[prop.key] = packed_value
-            file_fields = {
-                f"x-amz-meta-{k.lower().replace('_', '-')}": v for k, v in file_metadata.items()
-            }
-            if file_data.mime_type:
-                file_fields["Content-Type"] = file_data.mime_type
-            file_fields["Content-Length"] = str(file_data.size)
-            presigned_post: dict = s3_client.generate_presigned_post(
-                Bucket=get_drive_bucket(self.bench),
-                Key=file_key,
-                Fields=file_fields,
-                Conditions=[{k: v} for k, v in file_fields.items()],
-                ExpiresIn=FILE_DOWNLOAD_URL_EXPIRY,
-            )
-            fields = ProtoStruct()
-            fields.update(presigned_post["fields"])
-            get_url = s3_client.generate_presigned_url(
-                "get_object",
-                Params={"Bucket": get_drive_bucket(self.bench), "Key": file_key},
-                ExpiresIn=FILE_DOWNLOAD_URL_EXPIRY,
-            )
-            handle = UploadFilesResponse.UploadHandle(
-                file=file_data, post_url=presigned_post["url"], fields=fields, get_url=get_url
-            )
-            handles.append(handle)
-
-        return UploadFilesResponse(handles=handles)
+        raise NotImplementedError
 
     async def download_files(
         self, request: DownloadFilesRequest, headers: Mapping
     ) -> DownloadFilesResponse:
-        # TODO :Security!: evaluate file download access
-        s3_client = get_s3_client_for_presigning(request.environment)
-
-        # get files
-        async with self.session():
-            files_refs = [
-                unpack_builtin_object_validate(ref, supergraph=None, expect=NodeReference)
-                for ref in request.files
-            ]
-            files = await File.search(
-                C(ConditionalType.IN, property=File.id, value=[f.id for f in files_refs])
-            )
-
-        # get pre-signed URLs
-        handles: list[DownloadFilesResponse.DownloadHandle] = []
-        for file in files:
-            if file.source == FileSource.BENCH:
-                if not file.sha256:
-                    raise GRPCError(
-                        GRPCStatus.INVALID_ARGUMENT,
-                        f"cannot download file: {file!r} (no sha256)",
-                    )
-                bucket = get_drive_bucket(self.bench)
-                file_key = get_file_key(self.bench, file.sha256, file.name)
-                read_url = s3_client.generate_presigned_url(
-                    "get_object",
-                    Params={"Bucket": bucket, "Key": file_key},
-                    ExpiresIn=FILE_DOWNLOAD_URL_EXPIRY,
-                )
-            elif file.source == FileSource.INLINE:
-                read_url = file.read_url()
-            elif file.source == FileSource.EXTERNAL:
-                read_url = file.url
-            else:
-                raise GRPCError(
-                    GRPCStatus.INVALID_ARGUMENT,
-                    f"cannot download file: {file!r}",
-                )
-            handle = DownloadFilesResponse.DownloadHandle(file=file._to_data(), get_url=read_url)
-            handles.append(handle)
-
-        return DownloadFilesResponse(handles=handles)
+        raise NotImplementedError
 
 
 def get_drive_bucket(bench: Bench) -> str:

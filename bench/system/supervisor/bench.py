@@ -6,15 +6,11 @@ from bench.language import (
     Bench,
     Database,
     Handle,
-    Membership,
     NodeMode,
     Organization,
     Package,
     PackageType,
     Region,
-    Scaler,
-    ScalerStrategy,
-    ScalerType,
     Session,
     User,
 )
@@ -23,10 +19,9 @@ from bench.language import (
 class CreateBenchOptions(NamedTuple):
     bench_id: UUID | None = None
     main_package_id: UUID | None = None
-    main_package_name: str = "Main"
-    main_package_slug: str = "main"
+    main_package_name: str = "Home"
+    main_package_slug: str = "home"
     local_database_name: str = "Local"
-    create_machine_scaler: bool = True
 
 
 async def create_default_bench(  # noqa: RUF029
@@ -61,7 +56,6 @@ async def create_default_bench(  # noqa: RUF029
         slug=options.main_package_slug,
         _is_new=True,
     )
-    main_package.add_child(Membership.new(owned_by, mode=NodeMode.BUILTIN))
     session._create(main_package)
     session.stage()
     bench.package = main_package
@@ -76,19 +70,5 @@ async def create_default_bench(  # noqa: RUF029
     session.stage()
     bench.database = database
     session.stage()
-
-    if options.create_machine_scaler:
-        scaler = Scaler(
-            type=ScalerType.MACHINE,
-            mode=NodeMode.BUILTIN,
-            strategy=ScalerStrategy.AUTO,
-            name="Runtime Scaler",
-            name_template="Runtime Machine",
-            min_count=1,
-            target_count=1,
-            max_count=4,
-        )
-        main_package.add_child(scaler)
-        session.stage()
 
     return bench

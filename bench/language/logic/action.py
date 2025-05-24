@@ -6,7 +6,6 @@ from bench.language.core import (
     BuiltinEnum,
     EnumType,
     IsArchivable,
-    IsClaimable,
     IsDeletable,
     IsExtensible,
     IsInPackage,
@@ -66,7 +65,6 @@ class ActionType(BuiltinEnum):
 
 @node_(NodeType.ACTION)
 class Action(
-    IsClaimable,
     IsInstantiable,
     IsExtensible,
     IsNamed,

@@ -48,9 +48,9 @@ async def create_system_benches(
     async with global_session(
         None, (global_pg_engine, regional_pg_engine), REAL_ORACLE, supergraph=supergraph, epoch=0
     ) as session:
-        system_user = (
-            await User.where(slug=SYSTEM_SLUG).include_descendants(NodeType.HANDLE).one_or_none()
-        )
+        system_user = await User.get(
+            where=Bench.property("slug").eq(SYSTEM_SLUG)
+        ).execute_one_or_none()
         if system_user is None:
             # system user
             system_user = User(
@@ -72,7 +72,9 @@ async def create_system_benches(
             logger.debug("system.bootstrap.exists", system_user=system_user)
 
         # builtin benches :Builtins
-        system_bench = await Bench.where(id=SYSTEM_ID).one_or_none()
+        system_bench = await Bench.get(
+            where=Bench.property("id").eq(SYSTEM_ID)
+        ).execute_one_or_none()
         if system_bench is None:
             system_bench = await create_default_bench(
                 handle=system_user.handle,
@@ -92,7 +94,7 @@ async def create_system_benches(
             assert system_bench.handle, f"{system_bench!r} has no main handle"
             logger.debug("system.bootstrap.exists", system_bench=system_bench)
 
-        bench_bench = await Bench.where(id=BENCH_ID).one_or_none()
+        bench_bench = await Bench.get(where=Bench.property("id").eq(BENCH_ID)).execute_one_or_none()
         if bench_bench is None:
             bench_bench_handle = Handle(slug=BENCH_SLUG)
             system_user.add_child(bench_bench_handle)

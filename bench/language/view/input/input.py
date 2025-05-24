@@ -1,6 +1,6 @@
 from typing import TYPE_CHECKING
 
-from bench.language.core import Trait, VariableProperty, property_, trait_
+from bench.language.core import TraitType, VariableProperty, property_, trait_
 
 from ..view import IsView
 
@@ -10,7 +10,7 @@ if TYPE_CHECKING:
 # pyright: reportIncompatibleVariableOverride=false
 
 
-@trait_(Trait.INPUT_VIEW)
+@trait_(TraitType.INPUT_VIEW)
 class IsInputView(IsView):
     """An input View."""
 
