@@ -3,13 +3,11 @@ import asyncio
 import pytest
 
 from bench.language import (
-    TERMINAL_PROCESS_STATUSES,
     Action,
     ActionType,
     Agent,
     Flow,
     FlowEdgeType,
-    Membership,
     Message,
     Node,
     Package,
@@ -20,7 +18,6 @@ from bench.language import (
     code,
     text,
 )
-from bench.runtime import create_run
 from bench.test.simulation.core import Simulation
 from bench.test.simulation.workload import RuntimeLambdaWorkload
 from bench.test.unit.conftest import simulated_runtime
@@ -68,9 +65,6 @@ async def test_builtin_package(simulation: Simulation, runtime: RuntimeLambdaWor
     if (main_database := loaded_bench_bench.database) is not None:
         BuiltinPackageLoadedGraph.remove(main_database)
     BuiltinPackageLoadedGraph.remove(loaded_bench_bench, recursive=False)
-    for node in BuiltinPackageLoaded._graph.nodes:
-        if isinstance(node, Membership):
-            BuiltinPackageLoadedGraph.remove(node, recursive=False)
     assert_graph_equals(BuiltinPackageRaw._graph, BuiltinPackageLoadedGraph)
 
 

@@ -45,17 +45,11 @@ class Provisioner[PT: IsProvisionable, WT: IsProvisionable](DeferredHostPlugin[W
     async def _get_resources(self) -> list[PT]:
         """Gets all Resource for this Provisioner."""
         provision_cls = cast(type[PT], NODE_CLASS_BY_TYPE[self.provision_type])
-        resources_query = (
-            provision_cls.get(
-                where=provision_cls.property("bench").eq(self.bench)
-                & provision_cls.property("mode").lt(NodeMode.TEMPLATE)
-                & provision_cls.property("status").lt(ResourceStatus.OFFLINE)
-            )
-            .include_ancestors()
-            .select_all()
-        )
-        resources_query._include_memory = False
-        resources = await resources_query.tolist()
+        resources = await provision_cls.search(
+            where=provision_cls.property("bench").eq(self.bench)
+            & provision_cls.property("mode").lt(NodeMode.TEMPLATE)
+            & provision_cls.property("status").lt(ResourceStatus.OFFLINE)
+        ).execute_list()
         return resources
 
     def _set_resource_status(self, resource: PT, status: ResourceStatus) -> None:

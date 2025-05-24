@@ -398,9 +398,9 @@ class SupervisorService(SupervisorBase):
             if isinstance(owner, User) and owner.status != UserStatus.ACTIVE:
                 owner.bench = bench
                 owner.status = UserStatus.ACTIVE
-            elif isinstance(owner, Organization) and owner.status != OrganizationStatus.ACTIVATED:
+            elif isinstance(owner, Organization) and owner.status != OrganizationStatus.ACTIVE:
                 owner.bench = bench
-                owner.status = OrganizationStatus.ACTIVATED
+                owner.status = OrganizationStatus.ACTIVE
             else:
                 raise RuntimeError(f"unexpected owner/owner status: {owner!r}")
 

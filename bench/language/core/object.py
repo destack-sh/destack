@@ -38,7 +38,7 @@ from .const import (
     EMPTY_DICT,
     UNSET,
     EnumType,
-    NodeReferenceKind,
+    NodeEdgeKind,
     NodeType,
     PrimitiveType,
     Region,
@@ -468,7 +468,7 @@ def _generate_ancestor_property_impl(object_type: NodeType | StructType, prop: P
 
     node_types_str = ", ".join(str(t.value) for t in prop.nodes)
 
-    if prop.node_kind == NodeReferenceKind.NODE_ANCESTOR and object_type in prop.nodes:
+    if prop.node_kind == NodeEdgeKind.NODE_ANCESTOR and object_type in prop.nodes:
         return f"""\
 @property
 def {prop.name}(self: "Node") -> "Node":
@@ -631,14 +631,14 @@ def _process_object_cls[ObjectT: BuiltinObject](
                 exec(property_property_str, {}, cls_dict)
             # computed node property
             elif prop.node_kind in (
-                NodeReferenceKind.NODE_PARENT,
-                NodeReferenceKind.NODE_REGULAR,
-                NodeReferenceKind.NODE_TEMPLATE,
+                NodeEdgeKind.NODE_PARENT,
+                NodeEdgeKind.NODE_REGULAR,
+                NodeEdgeKind.NODE_TEMPLATE,
             ):
                 node_property_str = _generate_node_property_impl(prop)
                 exec(node_property_str, {}, cls_dict)
             # computed node ancestor property
-            elif prop.node_kind == NodeReferenceKind.NODE_ANCESTOR:
+            elif prop.node_kind == NodeEdgeKind.NODE_ANCESTOR:
                 ancestor_property_str = _generate_ancestor_property_impl(object_type, prop)
                 exec(ancestor_property_str, {}, cls_dict)
             # computed _x node reference properties (e.g., parent_id, node_ck, node_type, ...)
@@ -786,7 +786,7 @@ class BuiltinObject[ObjectDataT: AnyObjectData](abc.ABC):
     def replace_references(
         self,
         new_node_by_id: Mapping[UUID, "Node"],
-        exclude: Collection[NodeReferenceKind],
+        exclude: Collection[NodeEdgeKind],
     ):
         """Replaces Node references with new Nodes. Missing Nodes are kept as is."""
         for prop in self.__node_properties__.values():

@@ -74,7 +74,6 @@ async def make_local_machine_runtime(
         Machine,
         MachineType,
         NodeArea,
-        NodeType,
         ResourceStatus,
     )
     from bench.system import (
@@ -98,24 +97,20 @@ async def make_local_machine_runtime(
     async with global_session(
         global_database, (global_pg_engine, regional_pg_engine), REAL_ORACLE, epoch=0
     ) as session:
-        bench = await Bench.include_descendants(NodeType.CLIENT).select_all().get(slug=bench_slug)
-        machines = await Machine.where(
-            Machine.property("bench").eq(bench)
+        bench = await Bench.search(where=Bench.property("slug").eq(bench_slug)).execute_one()
+        machines = await Machine.search(
+            where=Machine.property("bench").eq(bench)
             & Machine.property("type").eq(MachineType.RUNTIME)
             & Machine.property("status").neq(ResourceStatus.OFFLINE)
-        ).to_list()
+        ).execute_list()
         machine = first(machines, None)
         if machine is None:
             raise ValueError(f"{bench!r} has no runtime machines")
-        clients = (
-            await Client.where(
-                Client.property("parent").eq(bench)
-                & Client.property("machine").eq(machine)
-                & Client.property("type").eq(ClientType.MACHINE)
-            )
-            .select_all()
-            .to_list()
-        )
+        clients = await Client.search(
+            where=Client.property("parent").eq(bench)
+            & Client.property("machine").eq(machine)
+            & Client.property("type").eq(ClientType.MACHINE)
+        ).execute_list()
         client = first(clients, None)
         if client is None:
             client = Client(

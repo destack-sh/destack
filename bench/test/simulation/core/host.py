@@ -2,7 +2,6 @@ from typing import TYPE_CHECKING, final, override
 
 from bench.language import Database
 from bench.proto import HostClient
-from bench.sql import pg_connection, sqlstr
 from bench.utils.oracle import Oracle
 
 from .service import ServiceHandle

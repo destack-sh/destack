@@ -12,29 +12,23 @@ from bench.language import (
     ActionType,
     Aliasing,
     BuiltinObject,
-    Choice,
-    Field,
     Flow,
     FlowEdgeType,
     Message,
     Node,
     NodeReference,
-    Option,
     Package,
     Page,
     Property,
     Renderer,
     RenderOptions,
     Run,
-    Schema,
     Session,
     code,
-    format_code,
-    render_expression,
     text,
     to_type,
 )
-from bench.runtime.code import BUILTIN_GLOBALS, STATIC_CODE_GLOBALS
+from bench.utils.code import format_code
 
 
 def _render_test(func: Callable[[Any, Any], Mapping[str, Any]]):
@@ -46,6 +40,8 @@ def _render_test(func: Callable[[Any, Any], Mapping[str, Any]]):
         package: Package,
     ) -> None:
         """Common logic for rendering and checking rendered code matches original."""
+
+        from bench.runtime.code import BUILTIN_GLOBALS, STATIC_CODE_GLOBALS
 
         def _render(defns: Mapping[str, Any]):
             # (line length 96 because it's 100 - 4 for the method indent here)
@@ -191,16 +187,6 @@ def test_render_type_in(session: Session, package: Package):
 
 
 @_render_test
-def test_render_class(session: Session, package: Package):
-    """Message types should be rendered inline."""
-    Choice1 = Choice.new(
-        "Choice1", Option.new("Option1"), Option.new("Option2"), Option.new("Option3")
-    )
-    Class1 = Schema.new("Class1", Field.member("field1", Choice1))
-    return {"Choice1": Choice1, "Class1": Class1}
-
-
-@_render_test
 def test_render_flow_simple(session: Session, package: Package):
     """Flows should create Links with `connect`."""
     Flow1 = Flow.new("Flow1")
@@ -209,22 +195,3 @@ def test_render_flow_simple(session: Session, package: Package):
     Flow1.add_children(Action1, Action2)
     Transition1 = Action1.connect(FlowEdgeType.REQUIRE, Action2, "Transition1")
     return {"Flow1": Flow1, "Action1": Action1, "Action2": Action2, "Transition1": Transition1}
-
-
-def test_render_simple_choice_option_ref(session: Session, package: Package):
-    """Rendered node ref in sibling scope should be simplified"""
-    Page1 = Page.new("Page")
-    package.add_child(Page1)
-    Choice1 = Choice.new(
-        "Choice1",
-        Option.new("Option1"),
-        Option.new("Option2"),
-        Option.new("Option3"),
-    )
-    Page1.add_child(Choice1)
-    rendered_option = render_expression(
-        Choice1.child(Option, "Option2"),
-        options=RenderOptions(aliasing=Aliasing(session.supergraph)),
-        as_ref=True,
-    )
-    assert rendered_option == "Choice1.options.Option2"

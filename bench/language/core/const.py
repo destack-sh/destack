@@ -292,7 +292,6 @@ class EnumType(BuiltinEnum):
     VARIABLE_TYPE = 40063
     EDIT_TYPE = 40070
     EDIT_OPERATION = 40071
-
     # query
     CONDITIONAL_TYPE = 40102
     AGGREGATION_TYPE = 40103
@@ -303,9 +302,12 @@ class EnumType(BuiltinEnum):
     EXPRESSION_TYPE = 40108
     RELATION_TYPE = 40109
     ATTRIBUTE_TYPE = 40110
-    QUERY_TYPE = 40850
+    QUERY_TYPE = 40820
 
     # auth [40200-40600]
+    BENCH_ROLE_TYPE = 40200
+    ORGANIZATION_ROLE_TYPE = 40210
+    PACKAGE_ROLE_TYPE = 40220
     # ...
 
     # space [40600-40800]
@@ -606,8 +608,8 @@ class NodeType(BuiltinEnum):
         "Invite to an Organization",
         "fas fa-user-plus",
     )
-    # TEAM
-    # ACCOUNT, PROFILE, ...
+    # TEAM, ...
+    # CREDENTIAL, ACCOUNT, PROFILE, ...
     # PERMISSION, PERMISSION_GROUP, ...
     # CHALLENGE, FRIENDSHIP, ENTITLEMENT, POLICY, RULE, KICK/BAN, ...
 
@@ -1024,7 +1026,7 @@ class Region(BuiltinEnum):
 REGION_BY_SLUG = {r.slug: r for r in Region}
 
 
-class NodeReferenceKind(BuiltinEnum):
+class NodeEdgeKind(BuiltinEnum):
     NODE_PARENT = 1
     NODE_ANCESTOR = 2
     NODE_REGULAR = 5

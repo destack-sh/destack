@@ -9,7 +9,6 @@ from opentelemetry import trace
 from bench.language import (
     BENCH_PTR,
     BENCH_SLUG,
-    LOADED_PACKAGE_NODE_TYPES,
     Bench,
     NodeReference,
     NodeType,

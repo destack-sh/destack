@@ -32,8 +32,7 @@ if TYPE_CHECKING:
 
 @enum_(EnumType.ORGANIZATION_STATUS)
 class OrganizationStatus(BuiltinEnum):
-    REGISTERED = 20  # created org
-    ACTIVATED = 50  # has main bench
+    ACTIVE = 50
 
 
 @node_(NodeType.ORGANIZATION, root_type=None)
@@ -63,6 +62,12 @@ class Organization(
         handle_ptr: Optional[NodeReference] = None
 
 
+@enum_(EnumType.ORGANIZATION_ROLE_TYPE)
+class OrganizationRoleType(BuiltinEnum):
+    ADMIN = 10
+    MEMBER = 50
+
+
 @node_(NodeType.ORGANIZATION_INVITE)
 class OrganizationInvite(IsInvite, IsDeletable, Node[OrganizationInviteData]):
     """
@@ -70,6 +75,8 @@ class OrganizationInvite(IsInvite, IsDeletable, Node[OrganizationInviteData]):
     """
 
     parent: "Organization" = property_parent_()
+
+    role: OrganizationRoleType = property_(45)
 
 
 @node_(NodeType.ORGANIZATION_MEMBERSHIP)
@@ -79,3 +86,5 @@ class OrganizationMembership(IsMembership, IsDeletable, Node[OrganizationMembers
     """
 
     parent: "Organization" = property_parent_()
+
+    role: OrganizationRoleType = property_(45)

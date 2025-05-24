@@ -519,6 +519,10 @@ export interface BenchInviteData {
      * @generated from protobuf field: optional google.protobuf.Timestamp deleted_at = 15;
      */
     deletedAt?: Timestamp;
+    /**
+     * @generated from protobuf field: symbol.bench.BenchRoleType role = 45;
+     */
+    role: BenchRoleType;
 }
 /**
  * A BenchMembership is a membership to a Bench.
@@ -566,6 +570,10 @@ export interface BenchMembershipData {
      * @generated from protobuf field: symbol.bench.NodeReferenceData member_ptr = 40;
      */
     memberPtr?: NodeReferenceData;
+    /**
+     * @generated from protobuf field: symbol.bench.BenchRoleType role = 45;
+     */
+    role: BenchRoleType;
 }
 /**
  * A Block on a Page.
@@ -4278,6 +4286,10 @@ export interface OrganizationInviteData {
      * @generated from protobuf field: optional google.protobuf.Timestamp deleted_at = 15;
      */
     deletedAt?: Timestamp;
+    /**
+     * @generated from protobuf field: symbol.bench.OrganizationRoleType role = 45;
+     */
+    role: OrganizationRoleType;
 }
 /**
  * An OrganizationMembership is a membership to an Organization.
@@ -4321,6 +4333,10 @@ export interface OrganizationMembershipData {
      * @generated from protobuf field: symbol.bench.NodeReferenceData member_ptr = 40;
      */
     memberPtr?: NodeReferenceData;
+    /**
+     * @generated from protobuf field: symbol.bench.OrganizationRoleType role = 45;
+     */
+    role: OrganizationRoleType;
 }
 /**
  * @generated from protobuf message symbol.bench.OriginData
@@ -4480,6 +4496,10 @@ export interface PackageInviteData {
      * @generated from protobuf field: optional google.protobuf.Timestamp deleted_at = 15;
      */
     deletedAt?: Timestamp;
+    /**
+     * @generated from protobuf field: symbol.bench.PackageRoleType role = 45;
+     */
+    role: PackageRoleType;
 }
 /**
  * A PackageMembership is a membership to a Package.
@@ -4531,6 +4551,10 @@ export interface PackageMembershipData {
      * @generated from protobuf field: symbol.bench.NodeReferenceData member_ptr = 40;
      */
     memberPtr?: NodeReferenceData;
+    /**
+     * @generated from protobuf field: symbol.bench.PackageRoleType role = 45;
+     */
+    role: PackageRoleType;
 }
 /**
  * A Page of Blocks laying out rich Text, data, logic, resources -- anything software needs.
@@ -8291,6 +8315,25 @@ export enum AttributeType {
     QUERY = 3
 }
 /**
+ * The role of a Bench
+ *
+ * @generated from protobuf enum symbol.bench.BenchRoleType
+ */
+export enum BenchRoleType {
+    /**
+     * @generated from protobuf enum value: BENCH_ROLE_TYPE_UNSPECIFIED = 0;
+     */
+    UNSPECIFIED = 0,
+    /**
+     * @generated from protobuf enum value: BENCH_ROLE_TYPE_ADMIN = 10;
+     */
+    ADMIN = 10,
+    /**
+     * @generated from protobuf enum value: BENCH_ROLE_TYPE_MEMBER = 50;
+     */
+    MEMBER = 50
+}
+/**
  * The status of a Bench
  *
  * @generated from protobuf enum symbol.bench.BenchStatus
@@ -9262,9 +9305,21 @@ export enum EnumType {
      */
     ATTRIBUTE_TYPE = 40110,
     /**
-     * @generated from protobuf enum value: ENUM_TYPE_QUERY_TYPE = 40850;
+     * @generated from protobuf enum value: ENUM_TYPE_QUERY_TYPE = 40820;
      */
-    QUERY_TYPE = 40850,
+    QUERY_TYPE = 40820,
+    /**
+     * @generated from protobuf enum value: ENUM_TYPE_BENCH_ROLE_TYPE = 40200;
+     */
+    BENCH_ROLE_TYPE = 40200,
+    /**
+     * @generated from protobuf enum value: ENUM_TYPE_ORGANIZATION_ROLE_TYPE = 40210;
+     */
+    ORGANIZATION_ROLE_TYPE = 40210,
+    /**
+     * @generated from protobuf enum value: ENUM_TYPE_PACKAGE_ROLE_TYPE = 40220;
+     */
+    PACKAGE_ROLE_TYPE = 40220,
     /**
      * @generated from protobuf enum value: ENUM_TYPE_SPACE_TYPE = 40600;
      */
@@ -11094,6 +11149,23 @@ export enum OffscreenBehavior {
     PAUSE = 2
 }
 /**
+ * @generated from protobuf enum symbol.bench.OrganizationRoleType
+ */
+export enum OrganizationRoleType {
+    /**
+     * @generated from protobuf enum value: ORGANIZATION_ROLE_TYPE_UNSPECIFIED = 0;
+     */
+    UNSPECIFIED = 0,
+    /**
+     * @generated from protobuf enum value: ORGANIZATION_ROLE_TYPE_ADMIN = 10;
+     */
+    ADMIN = 10,
+    /**
+     * @generated from protobuf enum value: ORGANIZATION_ROLE_TYPE_MEMBER = 50;
+     */
+    MEMBER = 50
+}
+/**
  * @generated from protobuf enum symbol.bench.OrganizationStatus
  */
 export enum OrganizationStatus {
@@ -11102,13 +11174,9 @@ export enum OrganizationStatus {
      */
     UNSPECIFIED = 0,
     /**
-     * @generated from protobuf enum value: ORGANIZATION_STATUS_REGISTERED = 20;
+     * @generated from protobuf enum value: ORGANIZATION_STATUS_ACTIVE = 50;
      */
-    REGISTERED = 20,
-    /**
-     * @generated from protobuf enum value: ORGANIZATION_STATUS_ACTIVATED = 50;
-     */
-    ACTIVATED = 50
+    ACTIVE = 50
 }
 /**
  * The overflow behavior of a View.
@@ -11132,6 +11200,23 @@ export enum Overflow {
      * @generated from protobuf enum value: OVERFLOW_SCROLL = 4;
      */
     SCROLL = 4
+}
+/**
+ * @generated from protobuf enum symbol.bench.PackageRoleType
+ */
+export enum PackageRoleType {
+    /**
+     * @generated from protobuf enum value: PACKAGE_ROLE_TYPE_UNSPECIFIED = 0;
+     */
+    UNSPECIFIED = 0,
+    /**
+     * @generated from protobuf enum value: PACKAGE_ROLE_TYPE_MEMBER = 10;
+     */
+    MEMBER = 10,
+    /**
+     * @generated from protobuf enum value: PACKAGE_ROLE_TYPE_ADMIN = 50;
+     */
+    ADMIN = 50
 }
 /**
  * @generated from protobuf enum symbol.bench.PackageType
@@ -13600,13 +13685,15 @@ class BenchInviteData$Type extends MessageType$<BenchInviteData> {
             { no: 11, name: "created_by_ptr", kind: "message", T: () => NodeReferenceData },
             { no: 12, name: "updated_at", kind: "message", T: () => Timestamp },
             { no: 13, name: "updated_by_ptr", kind: "message", T: () => NodeReferenceData },
-            { no: 15, name: "deleted_at", kind: "message", T: () => Timestamp }
+            { no: 15, name: "deleted_at", kind: "message", T: () => Timestamp },
+            { no: 45, name: "role", kind: "enum", T: () => ["symbol.bench.BenchRoleType", BenchRoleType, "BENCH_ROLE_TYPE_"] }
         ]);
     }
     create(value?: PartialMessage<BenchInviteData>): BenchInviteData {
         const message = globalThis.Object.create((this.messagePrototype!));
         message.metatype = 0;
         message.id = "";
+        message.role = 0;
         if (value !== undefined)
             reflectionMergePartial<BenchInviteData>(this, message, value);
         return message;
@@ -13642,6 +13729,9 @@ class BenchInviteData$Type extends MessageType$<BenchInviteData> {
                     break;
                 case /* optional google.protobuf.Timestamp deleted_at */ 15:
                     message.deletedAt = Timestamp.internalBinaryRead(reader, reader.uint32(), options, message.deletedAt);
+                    break;
+                case /* symbol.bench.BenchRoleType role */ 45:
+                    message.role = reader.int32();
                     break;
                 default:
                     let u = options.readUnknownField;
@@ -13682,6 +13772,9 @@ class BenchInviteData$Type extends MessageType$<BenchInviteData> {
         /* optional google.protobuf.Timestamp deleted_at = 15; */
         if (message.deletedAt)
             Timestamp.internalBinaryWrite(message.deletedAt, writer.tag(15, WireType.LengthDelimited).fork(), options).join();
+        /* symbol.bench.BenchRoleType role = 45; */
+        if (message.role !== 0)
+            writer.tag(45, WireType.Varint).int32(message.role);
         let u = options.writeUnknownFields;
         if (u !== false)
             (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
@@ -13705,13 +13798,15 @@ class BenchMembershipData$Type extends MessageType$<BenchMembershipData> {
             { no: 12, name: "updated_at", kind: "message", T: () => Timestamp },
             { no: 13, name: "updated_by_ptr", kind: "message", T: () => NodeReferenceData },
             { no: 15, name: "deleted_at", kind: "message", T: () => Timestamp },
-            { no: 40, name: "member_ptr", kind: "message", T: () => NodeReferenceData }
+            { no: 40, name: "member_ptr", kind: "message", T: () => NodeReferenceData },
+            { no: 45, name: "role", kind: "enum", T: () => ["symbol.bench.BenchRoleType", BenchRoleType, "BENCH_ROLE_TYPE_"] }
         ]);
     }
     create(value?: PartialMessage<BenchMembershipData>): BenchMembershipData {
         const message = globalThis.Object.create((this.messagePrototype!));
         message.metatype = 0;
         message.id = "";
+        message.role = 0;
         if (value !== undefined)
             reflectionMergePartial<BenchMembershipData>(this, message, value);
         return message;
@@ -13750,6 +13845,9 @@ class BenchMembershipData$Type extends MessageType$<BenchMembershipData> {
                     break;
                 case /* symbol.bench.NodeReferenceData member_ptr */ 40:
                     message.memberPtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.memberPtr);
+                    break;
+                case /* symbol.bench.BenchRoleType role */ 45:
+                    message.role = reader.int32();
                     break;
                 default:
                     let u = options.readUnknownField;
@@ -13793,6 +13891,9 @@ class BenchMembershipData$Type extends MessageType$<BenchMembershipData> {
         /* symbol.bench.NodeReferenceData member_ptr = 40; */
         if (message.memberPtr)
             NodeReferenceData.internalBinaryWrite(message.memberPtr, writer.tag(40, WireType.LengthDelimited).fork(), options).join();
+        /* symbol.bench.BenchRoleType role = 45; */
+        if (message.role !== 0)
+            writer.tag(45, WireType.Varint).int32(message.role);
         let u = options.writeUnknownFields;
         if (u !== false)
             (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
@@ -21454,13 +21555,15 @@ class OrganizationInviteData$Type extends MessageType$<OrganizationInviteData> {
             { no: 11, name: "created_by_ptr", kind: "message", T: () => NodeReferenceData },
             { no: 12, name: "updated_at", kind: "message", T: () => Timestamp },
             { no: 13, name: "updated_by_ptr", kind: "message", T: () => NodeReferenceData },
-            { no: 15, name: "deleted_at", kind: "message", T: () => Timestamp }
+            { no: 15, name: "deleted_at", kind: "message", T: () => Timestamp },
+            { no: 45, name: "role", kind: "enum", T: () => ["symbol.bench.OrganizationRoleType", OrganizationRoleType, "ORGANIZATION_ROLE_TYPE_"] }
         ]);
     }
     create(value?: PartialMessage<OrganizationInviteData>): OrganizationInviteData {
         const message = globalThis.Object.create((this.messagePrototype!));
         message.metatype = 0;
         message.id = "";
+        message.role = 0;
         if (value !== undefined)
             reflectionMergePartial<OrganizationInviteData>(this, message, value);
         return message;
@@ -21493,6 +21596,9 @@ class OrganizationInviteData$Type extends MessageType$<OrganizationInviteData> {
                     break;
                 case /* optional google.protobuf.Timestamp deleted_at */ 15:
                     message.deletedAt = Timestamp.internalBinaryRead(reader, reader.uint32(), options, message.deletedAt);
+                    break;
+                case /* symbol.bench.OrganizationRoleType role */ 45:
+                    message.role = reader.int32();
                     break;
                 default:
                     let u = options.readUnknownField;
@@ -21530,6 +21636,9 @@ class OrganizationInviteData$Type extends MessageType$<OrganizationInviteData> {
         /* optional google.protobuf.Timestamp deleted_at = 15; */
         if (message.deletedAt)
             Timestamp.internalBinaryWrite(message.deletedAt, writer.tag(15, WireType.LengthDelimited).fork(), options).join();
+        /* symbol.bench.OrganizationRoleType role = 45; */
+        if (message.role !== 0)
+            writer.tag(45, WireType.Varint).int32(message.role);
         let u = options.writeUnknownFields;
         if (u !== false)
             (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
@@ -21552,13 +21661,15 @@ class OrganizationMembershipData$Type extends MessageType$<OrganizationMembershi
             { no: 12, name: "updated_at", kind: "message", T: () => Timestamp },
             { no: 13, name: "updated_by_ptr", kind: "message", T: () => NodeReferenceData },
             { no: 15, name: "deleted_at", kind: "message", T: () => Timestamp },
-            { no: 40, name: "member_ptr", kind: "message", T: () => NodeReferenceData }
+            { no: 40, name: "member_ptr", kind: "message", T: () => NodeReferenceData },
+            { no: 45, name: "role", kind: "enum", T: () => ["symbol.bench.OrganizationRoleType", OrganizationRoleType, "ORGANIZATION_ROLE_TYPE_"] }
         ]);
     }
     create(value?: PartialMessage<OrganizationMembershipData>): OrganizationMembershipData {
         const message = globalThis.Object.create((this.messagePrototype!));
         message.metatype = 0;
         message.id = "";
+        message.role = 0;
         if (value !== undefined)
             reflectionMergePartial<OrganizationMembershipData>(this, message, value);
         return message;
@@ -21594,6 +21705,9 @@ class OrganizationMembershipData$Type extends MessageType$<OrganizationMembershi
                     break;
                 case /* symbol.bench.NodeReferenceData member_ptr */ 40:
                     message.memberPtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.memberPtr);
+                    break;
+                case /* symbol.bench.OrganizationRoleType role */ 45:
+                    message.role = reader.int32();
                     break;
                 default:
                     let u = options.readUnknownField;
@@ -21634,6 +21748,9 @@ class OrganizationMembershipData$Type extends MessageType$<OrganizationMembershi
         /* symbol.bench.NodeReferenceData member_ptr = 40; */
         if (message.memberPtr)
             NodeReferenceData.internalBinaryWrite(message.memberPtr, writer.tag(40, WireType.LengthDelimited).fork(), options).join();
+        /* symbol.bench.OrganizationRoleType role = 45; */
+        if (message.role !== 0)
+            writer.tag(45, WireType.Varint).int32(message.role);
         let u = options.writeUnknownFields;
         if (u !== false)
             (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
@@ -21916,13 +22033,15 @@ class PackageInviteData$Type extends MessageType$<PackageInviteData> {
             { no: 11, name: "created_by_ptr", kind: "message", T: () => NodeReferenceData },
             { no: 12, name: "updated_at", kind: "message", T: () => Timestamp },
             { no: 13, name: "updated_by_ptr", kind: "message", T: () => NodeReferenceData },
-            { no: 15, name: "deleted_at", kind: "message", T: () => Timestamp }
+            { no: 15, name: "deleted_at", kind: "message", T: () => Timestamp },
+            { no: 45, name: "role", kind: "enum", T: () => ["symbol.bench.PackageRoleType", PackageRoleType, "PACKAGE_ROLE_TYPE_"] }
         ]);
     }
     create(value?: PartialMessage<PackageInviteData>): PackageInviteData {
         const message = globalThis.Object.create((this.messagePrototype!));
         message.metatype = 0;
         message.id = "";
+        message.role = 0;
         if (value !== undefined)
             reflectionMergePartial<PackageInviteData>(this, message, value);
         return message;
@@ -21961,6 +22080,9 @@ class PackageInviteData$Type extends MessageType$<PackageInviteData> {
                     break;
                 case /* optional google.protobuf.Timestamp deleted_at */ 15:
                     message.deletedAt = Timestamp.internalBinaryRead(reader, reader.uint32(), options, message.deletedAt);
+                    break;
+                case /* symbol.bench.PackageRoleType role */ 45:
+                    message.role = reader.int32();
                     break;
                 default:
                     let u = options.readUnknownField;
@@ -22004,6 +22126,9 @@ class PackageInviteData$Type extends MessageType$<PackageInviteData> {
         /* optional google.protobuf.Timestamp deleted_at = 15; */
         if (message.deletedAt)
             Timestamp.internalBinaryWrite(message.deletedAt, writer.tag(15, WireType.LengthDelimited).fork(), options).join();
+        /* symbol.bench.PackageRoleType role = 45; */
+        if (message.role !== 0)
+            writer.tag(45, WireType.Varint).int32(message.role);
         let u = options.writeUnknownFields;
         if (u !== false)
             (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
@@ -22028,13 +22153,15 @@ class PackageMembershipData$Type extends MessageType$<PackageMembershipData> {
             { no: 12, name: "updated_at", kind: "message", T: () => Timestamp },
             { no: 13, name: "updated_by_ptr", kind: "message", T: () => NodeReferenceData },
             { no: 15, name: "deleted_at", kind: "message", T: () => Timestamp },
-            { no: 40, name: "member_ptr", kind: "message", T: () => NodeReferenceData }
+            { no: 40, name: "member_ptr", kind: "message", T: () => NodeReferenceData },
+            { no: 45, name: "role", kind: "enum", T: () => ["symbol.bench.PackageRoleType", PackageRoleType, "PACKAGE_ROLE_TYPE_"] }
         ]);
     }
     create(value?: PartialMessage<PackageMembershipData>): PackageMembershipData {
         const message = globalThis.Object.create((this.messagePrototype!));
         message.metatype = 0;
         message.id = "";
+        message.role = 0;
         if (value !== undefined)
             reflectionMergePartial<PackageMembershipData>(this, message, value);
         return message;
@@ -22076,6 +22203,9 @@ class PackageMembershipData$Type extends MessageType$<PackageMembershipData> {
                     break;
                 case /* symbol.bench.NodeReferenceData member_ptr */ 40:
                     message.memberPtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.memberPtr);
+                    break;
+                case /* symbol.bench.PackageRoleType role */ 45:
+                    message.role = reader.int32();
                     break;
                 default:
                     let u = options.readUnknownField;
@@ -22122,6 +22252,9 @@ class PackageMembershipData$Type extends MessageType$<PackageMembershipData> {
         /* symbol.bench.NodeReferenceData member_ptr = 40; */
         if (message.memberPtr)
             NodeReferenceData.internalBinaryWrite(message.memberPtr, writer.tag(40, WireType.LengthDelimited).fork(), options).join();
+        /* symbol.bench.PackageRoleType role = 45; */
+        if (message.role !== 0)
+            writer.tag(45, WireType.Varint).int32(message.role);
         let u = options.writeUnknownFields;
         if (u !== false)
             (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);

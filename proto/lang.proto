@@ -61,6 +61,13 @@ enum AttributeType {
   ATTRIBUTE_TYPE_QUERY = 3;
 }
 
+// The role of a Bench
+enum BenchRoleType {
+  BENCH_ROLE_TYPE_UNSPECIFIED = 0;
+  BENCH_ROLE_TYPE_ADMIN = 10;
+  BENCH_ROLE_TYPE_MEMBER = 50;
+}
+
 // The status of a Bench
 enum BenchStatus {
   BENCH_STATUS_UNSPECIFIED = 0;
@@ -351,7 +358,10 @@ enum EnumType {
   ENUM_TYPE_EXPRESSION_TYPE = 40108;
   ENUM_TYPE_RELATION_TYPE = 40109;
   ENUM_TYPE_ATTRIBUTE_TYPE = 40110;
-  ENUM_TYPE_QUERY_TYPE = 40850;
+  ENUM_TYPE_QUERY_TYPE = 40820;
+  ENUM_TYPE_BENCH_ROLE_TYPE = 40200;
+  ENUM_TYPE_ORGANIZATION_ROLE_TYPE = 40210;
+  ENUM_TYPE_PACKAGE_ROLE_TYPE = 40220;
   ENUM_TYPE_SPACE_TYPE = 40600;
   ENUM_TYPE_BLOCK_TYPE = 40610;
   ENUM_TYPE_CLOUD = 40051;
@@ -876,10 +886,15 @@ enum OffscreenBehavior {
   OFFSCREEN_BEHAVIOR_PAUSE = 2;
 }
 
+enum OrganizationRoleType {
+  ORGANIZATION_ROLE_TYPE_UNSPECIFIED = 0;
+  ORGANIZATION_ROLE_TYPE_ADMIN = 10;
+  ORGANIZATION_ROLE_TYPE_MEMBER = 50;
+}
+
 enum OrganizationStatus {
   ORGANIZATION_STATUS_UNSPECIFIED = 0;
-  ORGANIZATION_STATUS_REGISTERED = 20;
-  ORGANIZATION_STATUS_ACTIVATED = 50;
+  ORGANIZATION_STATUS_ACTIVE = 50;
 }
 
 // The overflow behavior of a View.
@@ -888,6 +903,12 @@ enum Overflow {
   OVERFLOW_HIDDEN = 2;
   OVERFLOW_VISIBLE = 3;
   OVERFLOW_SCROLL = 4;
+}
+
+enum PackageRoleType {
+  PACKAGE_ROLE_TYPE_UNSPECIFIED = 0;
+  PACKAGE_ROLE_TYPE_MEMBER = 10;
+  PACKAGE_ROLE_TYPE_ADMIN = 50;
 }
 
 enum PackageType {
@@ -1457,6 +1478,7 @@ message BenchInviteData {
   google.protobuf.Timestamp updated_at = 12;
   optional NodeReferenceData updated_by_ptr = 13;
   optional google.protobuf.Timestamp deleted_at = 15;
+  BenchRoleType role = 45;
 }
 
 // A BenchMembership is a membership to a Bench.
@@ -1471,6 +1493,7 @@ message BenchMembershipData {
   optional NodeReferenceData updated_by_ptr = 13;
   optional google.protobuf.Timestamp deleted_at = 15;
   NodeReferenceData member_ptr = 40;
+  BenchRoleType role = 45;
 }
 
 // A Block on a Page.
@@ -2481,6 +2504,7 @@ message OrganizationInviteData {
   google.protobuf.Timestamp updated_at = 12;
   optional NodeReferenceData updated_by_ptr = 13;
   optional google.protobuf.Timestamp deleted_at = 15;
+  OrganizationRoleType role = 45;
 }
 
 // An OrganizationMembership is a membership to an Organization.
@@ -2494,6 +2518,7 @@ message OrganizationMembershipData {
   optional NodeReferenceData updated_by_ptr = 13;
   optional google.protobuf.Timestamp deleted_at = 15;
   NodeReferenceData member_ptr = 40;
+  OrganizationRoleType role = 45;
 }
 
 message OriginData {
@@ -2540,6 +2565,7 @@ message PackageInviteData {
   google.protobuf.Timestamp updated_at = 12;
   optional NodeReferenceData updated_by_ptr = 13;
   optional google.protobuf.Timestamp deleted_at = 15;
+  PackageRoleType role = 45;
 }
 
 // A PackageMembership is a membership to a Package.
@@ -2555,6 +2581,7 @@ message PackageMembershipData {
   optional NodeReferenceData updated_by_ptr = 13;
   optional google.protobuf.Timestamp deleted_at = 15;
   NodeReferenceData member_ptr = 40;
+  PackageRoleType role = 45;
 }
 
 // A Page of Blocks laying out rich Text, data, logic, resources -- anything software needs.
