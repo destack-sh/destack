@@ -453,6 +453,8 @@ enum ErrorType {
   ERROR_TYPE_INCAPABLE = 100;
   ERROR_TYPE_REFUSED = 101;
   ERROR_TYPE_NON_RETRYABLE = 499;
+  ERROR_TYPE_INTERRUPTION_CANCELLED = 500;
+  ERROR_TYPE_MODEL_FAILED = 501;
 }
 
 enum ExpressionType {
@@ -1723,10 +1725,11 @@ message EditData {
   string id = 2;
   EditType type = 30;
   NodeReferenceData node_ptr = 31;
-  optional string key = 32;
-  optional EditOperation operation = 40;
+  optional string key = 40;
+  optional EditOperation operation = 41;
   optional ValueData new_value = 42;
   optional ValueData key_value = 43;
+  optional NodeReferenceData new_parent_ptr = 44;
   google.protobuf.Timestamp edited_at = 50;
 }
 

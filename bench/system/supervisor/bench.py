@@ -44,7 +44,7 @@ async def create_default_bench(  # noqa: RUF029
         region=region,
         _is_new=True,
     )
-    session._create(bench)
+    session.create(bench)
     session.stage()
 
     # main Package
@@ -56,7 +56,7 @@ async def create_default_bench(  # noqa: RUF029
         slug=options.main_package_slug,
         _is_new=True,
     )
-    session._create(main_package)
+    session.create(main_package)
     session.stage()
     bench.main_package = main_package
 

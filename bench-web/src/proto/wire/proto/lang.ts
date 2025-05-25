@@ -1378,11 +1378,11 @@ export interface EditData {
      */
     nodePtr?: NodeReferenceData;
     /**
-     * @generated from protobuf field: optional string key = 32;
+     * @generated from protobuf field: optional string key = 40;
      */
     key?: string;
     /**
-     * @generated from protobuf field: optional symbol.bench.EditOperation operation = 40;
+     * @generated from protobuf field: optional symbol.bench.EditOperation operation = 41;
      */
     operation?: EditOperation;
     /**
@@ -1393,6 +1393,10 @@ export interface EditData {
      * @generated from protobuf field: optional symbol.bench.ValueData key_value = 43;
      */
     keyValue?: ValueData;
+    /**
+     * @generated from protobuf field: optional symbol.bench.NodeReferenceData new_parent_ptr = 44;
+     */
+    newParentPtr?: NodeReferenceData;
     /**
      * @generated from protobuf field: google.protobuf.Timestamp edited_at = 50;
      */
@@ -9676,7 +9680,15 @@ export enum ErrorType {
     /**
      * @generated from protobuf enum value: ERROR_TYPE_NON_RETRYABLE = 499;
      */
-    NON_RETRYABLE = 499
+    NON_RETRYABLE = 499,
+    /**
+     * @generated from protobuf enum value: ERROR_TYPE_INTERRUPTION_CANCELLED = 500;
+     */
+    INTERRUPTION_CANCELLED = 500,
+    /**
+     * @generated from protobuf enum value: ERROR_TYPE_MODEL_FAILED = 501;
+     */
+    MODEL_FAILED = 501
 }
 /**
  * @generated from protobuf enum symbol.bench.ExpressionType
@@ -15694,10 +15706,11 @@ class EditData$Type extends MessageType$<EditData> {
             { no: 2, name: "id", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
             { no: 30, name: "type", kind: "enum", T: () => ["symbol.bench.EditType", EditType, "EDIT_TYPE_"] },
             { no: 31, name: "node_ptr", kind: "message", T: () => NodeReferenceData },
-            { no: 32, name: "key", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
-            { no: 40, name: "operation", kind: "enum", opt: true, T: () => ["symbol.bench.EditOperation", EditOperation, "EDIT_OPERATION_"] },
+            { no: 40, name: "key", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
+            { no: 41, name: "operation", kind: "enum", opt: true, T: () => ["symbol.bench.EditOperation", EditOperation, "EDIT_OPERATION_"] },
             { no: 42, name: "new_value", kind: "message", T: () => ValueData },
             { no: 43, name: "key_value", kind: "message", T: () => ValueData },
+            { no: 44, name: "new_parent_ptr", kind: "message", T: () => NodeReferenceData },
             { no: 50, name: "edited_at", kind: "message", T: () => Timestamp }
         ]);
     }
@@ -15727,10 +15740,10 @@ class EditData$Type extends MessageType$<EditData> {
                 case /* symbol.bench.NodeReferenceData node_ptr */ 31:
                     message.nodePtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.nodePtr);
                     break;
-                case /* optional string key */ 32:
+                case /* optional string key */ 40:
                     message.key = reader.string();
                     break;
-                case /* optional symbol.bench.EditOperation operation */ 40:
+                case /* optional symbol.bench.EditOperation operation */ 41:
                     message.operation = reader.int32();
                     break;
                 case /* optional symbol.bench.ValueData new_value */ 42:
@@ -15738,6 +15751,9 @@ class EditData$Type extends MessageType$<EditData> {
                     break;
                 case /* optional symbol.bench.ValueData key_value */ 43:
                     message.keyValue = ValueData.internalBinaryRead(reader, reader.uint32(), options, message.keyValue);
+                    break;
+                case /* optional symbol.bench.NodeReferenceData new_parent_ptr */ 44:
+                    message.newParentPtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.newParentPtr);
                     break;
                 case /* google.protobuf.Timestamp edited_at */ 50:
                     message.editedAt = Timestamp.internalBinaryRead(reader, reader.uint32(), options, message.editedAt);
@@ -15766,18 +15782,21 @@ class EditData$Type extends MessageType$<EditData> {
         /* symbol.bench.NodeReferenceData node_ptr = 31; */
         if (message.nodePtr)
             NodeReferenceData.internalBinaryWrite(message.nodePtr, writer.tag(31, WireType.LengthDelimited).fork(), options).join();
-        /* optional string key = 32; */
+        /* optional string key = 40; */
         if (message.key !== undefined)
-            writer.tag(32, WireType.LengthDelimited).string(message.key);
-        /* optional symbol.bench.EditOperation operation = 40; */
+            writer.tag(40, WireType.LengthDelimited).string(message.key);
+        /* optional symbol.bench.EditOperation operation = 41; */
         if (message.operation !== undefined)
-            writer.tag(40, WireType.Varint).int32(message.operation);
+            writer.tag(41, WireType.Varint).int32(message.operation);
         /* optional symbol.bench.ValueData new_value = 42; */
         if (message.newValue)
             ValueData.internalBinaryWrite(message.newValue, writer.tag(42, WireType.LengthDelimited).fork(), options).join();
         /* optional symbol.bench.ValueData key_value = 43; */
         if (message.keyValue)
             ValueData.internalBinaryWrite(message.keyValue, writer.tag(43, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbol.bench.NodeReferenceData new_parent_ptr = 44; */
+        if (message.newParentPtr)
+            NodeReferenceData.internalBinaryWrite(message.newParentPtr, writer.tag(44, WireType.LengthDelimited).fork(), options).join();
         /* google.protobuf.Timestamp edited_at = 50; */
         if (message.editedAt)
             Timestamp.internalBinaryWrite(message.editedAt, writer.tag(50, WireType.LengthDelimited).fork(), options).join();

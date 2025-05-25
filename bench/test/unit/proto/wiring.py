@@ -17,7 +17,6 @@ def test_roundtrip_builtin_object_bytes(obj: BuiltinObject[AnyObjectData], sessi
     unpacked_obj = wiring.unpack_builtin_object(
         unpacked_obj_data,
         supergraph=session.supergraph,
-        graph=session._graph,
         session=session,
     )
     assert unpacked_obj.equals(obj), f"{unpacked_obj!r} != {obj!r}"

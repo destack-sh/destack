@@ -975,7 +975,7 @@ async def upload_file(
 
     # upload file, then create in session
     await upload_file_batch(files=[file], file_contents=[content], session=session)
-    session._create(file)
+    session.create(file)
 
     return file
 

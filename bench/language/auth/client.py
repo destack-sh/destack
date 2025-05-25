@@ -61,7 +61,7 @@ class Client(IsNamed, IsInBench, IsGlobal, Node[ClientData]):
         return Origin(type=self.type, id=self.id, nonce=nonce or self.id)
 
 
-@struct_(StructType.ORIGIN)
+@struct_(StructType.ORIGIN, is_frozen=True)
 class Origin(Struct[OriginData]):
     """Origin of something."""
 

@@ -17,14 +17,12 @@ _setup_test_env()
 
 from bench.language import (
     ACTIVE_SESSION,
-    EMPTY_SCOPE_DATA,
     NODE_TYPES,
     STRUCT_TYPES,
     Bench,
     BenchStatus,
     BuiltinObject,
     Database,
-    Graph,
     NodeMode,
     NodeType,
     Package,
@@ -54,7 +52,7 @@ from bench.test.simulation.workload import (
     WorkloadSpec,
     WorkloadType,
 )
-from bench.utils.oracle import REAL_ORACLE, Oracle
+from bench.utils.oracle import REAL_ORACLE
 
 logger = structlog.get_logger(__name__)
 tracer = trace.get_tracer(__name__)
@@ -66,20 +64,6 @@ def event_loop_policy():
     return SimulatedEventLoopPolicy()
 
 
-def create_omni_session(omni_database: Database, oracle: Oracle):
-    """Gets direct access to a per test global engine"""
-
-    omni_pg_engine = pg_engine_from_database(name="pg-omni", database=omni_database, area=None)
-    session = Session(
-        _default_scope=EMPTY_SCOPE_DATA,
-        _engines=(omni_pg_engine,),
-        _local_epoch=0,
-        oracle=oracle,
-        supergraph=Supergraph(name="Omni", root_ptr=None),
-    )
-    return session
-
-
 @pytest.fixture
 def omni_session(omni_database: Database):
     """
@@ -89,13 +73,12 @@ def omni_session(omni_database: Database):
     (see https://github.com/pytest-dev/pytest-asyncio/issues/127#issuecomment-1777004844)
     """
 
-    return create_omni_session(omni_database, REAL_ORACLE)
+    raise NotImplementedError
 
 
 def make_session(name: str):
     """Make a 'fake' session for context"""
     supergraph = Supergraph(name=name, root_ptr=None)
-    graph = Graph(scope=EMPTY_SCOPE_DATA, node_types=NODE_TYPES, supergraph=supergraph)
     session = Session(bench=None, mode=NodeMode.TEST, supergraph=supergraph, oracle=REAL_ORACLE)
     return session
 
@@ -118,8 +101,7 @@ def make_package(session: Session):
     bench = Bench(name="test", slug="test", status=BenchStatus.ACTIVE)
     package = bench.add_child(Package(type=PackageType.HOME, name="Home", slug="home"))
     bench.database = package.add_child(Database(name="Database"))
-    session.parent = bench
-    session._graph.update(session, _force_update_parent=True)
+    session.bench = bench
     return package
 
 

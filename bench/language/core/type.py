@@ -82,7 +82,7 @@ class NumberFormat(BuiltinEnum):
     FLOAT = 2
 
 
-@struct_(StructType.STRING_CONSTRAINT)
+@struct_(StructType.STRING_CONSTRAINT, is_frozen=True)
 class StringConstraint(Struct):
     """The constraint of a string."""
 
@@ -99,7 +99,7 @@ URL_REGEX = r"^(?:[a-z]+:\/\/)?[\w.-]+\.[a-z]{2,}(?:\/\S*)?$"
 PHONE_NUMBER_REGEX = r"^\+?(\d{1,3})?[-.\s]?(\(?\d{1,4}\)?)?[-.\s]?\d{1,4}[-.\s]?\d{1,9}$"
 
 
-@struct_(StructType.NUMBER_CONSTRAINT)
+@struct_(StructType.NUMBER_CONSTRAINT, is_frozen=True)
 class NumberConstraint(Struct):
     """The constraint of a number."""
 
@@ -111,7 +111,7 @@ class NumberConstraint(Struct):
     scale: Optional[int] = property_(45)  # for decimals
 
 
-@struct_(StructType.COLLECTION_CONSTRAINT)
+@struct_(StructType.COLLECTION_CONSTRAINT, is_frozen=True)
 class CollectionConstraint(Struct):
     """The constraint of a collection."""
 
@@ -119,7 +119,7 @@ class CollectionConstraint(Struct):
     max_length: Optional[int] = property_(42)
 
 
-@struct_(StructType.NODE_CONSTRAINT)
+@struct_(StructType.NODE_CONSTRAINT, is_frozen=True)
 class NodeConstraint(Struct):
     """The constraint of a node."""
 
@@ -218,7 +218,7 @@ def encode_storage_key(field: "Field") -> str:
     return f"{get_tk_b64_from_ck(field.ck)}{field.identity_key}"
 
 
-@struct_(StructType.TYPE)
+@struct_(StructType.TYPE, is_frozen=True)
 class Type(Struct, TypeBase):
     """A Type in the type system."""
 

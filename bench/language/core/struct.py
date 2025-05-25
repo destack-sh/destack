@@ -27,11 +27,13 @@ tracer = trace.get_tracer(__name__)
 
 
 @dataclass_transform(kw_only_default=True, field_specifiers=_PROPERTY_SPECIFIERS)
-def struct_[_ObjectT: BuiltinObject](struct_type: StructType):
+def struct_[_ObjectT: BuiltinObject](struct_type: StructType, is_frozen: bool = False):
     """Register a class as a concrete struct for the given struct type."""
 
     def decorate(cls: type[_ObjectT]) -> type[_ObjectT]:
-        cls = object_(struct_type=struct_type, is_concrete=True, is_struct=True)(cls)
+        cls = object_(
+            struct_type=struct_type, is_concrete=True, is_struct=True, is_frozen=is_frozen
+        )(cls)
         if IS_DEV and cls.__name__ != "Struct" and cls.__name__ != "Struct":
             if not issubclass(cls, (Struct, Struct)):
                 raise ValueError(f"{cls} is not a struct")

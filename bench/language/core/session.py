@@ -1,9 +1,7 @@
 import dataclasses
-from contextlib import asynccontextmanager
 from datetime import datetime
 from typing import (
     TYPE_CHECKING,
-    Callable,
     Optional,
     Sequence,
 )
@@ -23,9 +21,8 @@ from bench.pb2 import (
 from bench.utils.oracle import Oracle
 
 from .const import NodeMode
-from .graph import GraphData, Supergraph
+from .graph import Supergraph
 from .node import IsSubject, Node
-from .object import EMPTY_SCOPE_DATA
 from .transaction import Transaction
 
 if TYPE_CHECKING:
@@ -54,53 +51,38 @@ class Session:
     # ...HasRuntimeContext[80-99]
 
     # context
-    origin: OriginData | None = dataclasses.field(default=None)
-    subject: IsSubject | None = dataclasses.field(default=None)
-    _is_suspended: bool = dataclasses.field(default=False)
+    origin: OriginData | None = None
+    subject: IsSubject | None = None
 
     # transaction
-    _tx: Transaction | None = dataclasses.field(default=None)
-    _pending_nodes_by_id: dict[UUID, Node] = dataclasses.field(default_factory=dict)
-    _default_scope: ScopeData = dataclasses.field(default_factory=lambda: EMPTY_SCOPE_DATA)
-    _local_epoch: int | None = dataclasses.field(default=None)
-    _on_edit_subs: dict[UUID, list[Callable[[Node], None]]] = dataclasses.field(
-        default_factory=dict
-    )
+    tx: Transaction | None = None
+    pending: dict[UUID, Node] = dataclasses.field(default_factory=dict)
 
     # runtime
-    _rpc_metadata: RpcMetadata | None = dataclasses.field(default=None)
-    _rpc_headers: dict[str, str] | None = dataclasses.field(default=None)
-    _runtime: Optional["Runtime"] = dataclasses.field(default=None)
-    _supervisor: Optional["SupervisorClient"] = dataclasses.field(default=None)
-    _self_host: Optional["HostClient"] = dataclasses.field(default=None)
-    _bench_host: Optional["HostClient"] = dataclasses.field(default=None)
-
-    @property
-    def tx(self) -> Transaction:
-        assert self._tx is not None, f"no active transaction in {self!r}"
-        return self._tx
+    _rpc_metadata: RpcMetadata | None = None
+    _rpc_headers: dict[str, str] | None = None
+    _runtime: Optional["Runtime"] = None
+    _supervisor: Optional["SupervisorClient"] = None
+    _self_host: Optional["HostClient"] = None
+    _bench_host: Optional["HostClient"] = None
 
     @property
     def edits(self) -> Sequence[EditData]:
-        return self._tx._edits if self._tx is not None else ()
+        return self.tx._edits if self.tx is not None else ()
 
     @property
     def cascaded_edits(self) -> Sequence[EditData]:
-        return self._tx._cascaded_edits if self._tx is not None else ()
+        return self.tx._cascaded_edits if self.tx is not None else ()
 
     @property
     def has_edits(self) -> bool:
         """Whether this session has any non-session edits."""
-        return self._tx is not None and self._tx.has_edits
+        return self.tx is not None and self.tx.has_edits
 
     @property
     def has_pending_edits(self):
         """Whether this session has any pending (unflushed) edits."""
-        return self._tx is not None and self._tx.has_pending_edits
-
-    @property
-    def is_suspended(self):
-        return self._is_suspended
+        return self.tx is not None and self.tx.has_pending_edits
 
     @property
     def runtime(self) -> "Runtime":
@@ -142,75 +124,43 @@ class Session:
     # Edits
     #
 
-    def on_edit(self, node: Node, sub: Callable[[Node], None]) -> Callable[[], None]:
-        """Subscribe to edits on a node."""
-        if node.id not in self._on_edit_subs:
-            self._on_edit_subs[node.id] = []
-        self._on_edit_subs[node.id].append(sub)
-        return lambda: self._unsubscribe_on_edit(node, sub)
-
-    def _unsubscribe_on_edit(self, node: Node, sub: Callable[[Node], None]) -> None:
-        """Unsubscribe from edits on a node."""
-        if node.id in self._on_edit_subs:
-            self._on_edit_subs[node.id].remove(sub)
-            if not self._on_edit_subs[node.id]:
-                del self._on_edit_subs[node.id]
-
-    def _create(self, node: Node):
+    def create(self, node: Node):
         """Creates a new Node. The operation *is not* applied directly."""
         raise NotImplementedError
 
-    def _upsert(self, node: Node):
+    def upsert(self, node: Node):
         """Creates or updates a Node. The operation *is not* applied directly."""
         raise NotImplementedError
 
-    def _update(
+    def update(
         self,
         node: Node,
     ):
         """Updates an existing Node. The operation *is not* applied directly."""
         raise NotImplementedError
 
-    def _move(self, node: Node, old_parent: Node, new_parent: Node):
+    def move(self, node: Node, old_parent: Node, new_parent: Node):
         """Moves a Node to a new parent. The operation *is not* applied directly."""
         raise NotImplementedError
 
-    def _archive(self, *nodes: Node, _now: datetime | None = None):
+    def archive(self, *nodes: Node, _now: datetime | None = None):
         """Archives a Node. The operation *is* applied directly."""
         raise NotImplementedError
 
-    def _unarchive(self, *nodes: Node, _now: datetime | None = None):
+    def unarchive(self, *nodes: Node, _now: datetime | None = None):
         """Unarchives a Node. The operation *is* applied directly."""
         raise NotImplementedError
 
-    def _delete(self, *nodes: Node, _now: datetime | None = None):
+    def delete(self, *nodes: Node, _now: datetime | None = None):
         """Deletes a Node. The operation *is* applied directly."""
         raise NotImplementedError
 
-    def _restore(self, *nodes: Node, _now: datetime | None = None):
+    def restore(self, *nodes: Node, _now: datetime | None = None):
         """Restores a deleted Node. The operation *is* applied directly."""
         raise NotImplementedError
 
-    def _erase(self, *nodes: Node):
+    def erase(self, *nodes: Node):
         """Erases a Node. The operation *is* applied directly."""
-        raise NotImplementedError
-
-    #
-    # Transactions
-    #
-
-    def suspend(self):
-        """Suspend the session, *erroring* on further edits."""
-        self._is_suspended = True
-
-    def unsuspend(self):
-        """Stop suspending the session, allowing further edits."""
-        self._is_suspended = False
-
-    @asynccontextmanager
-    async def active(self):
-        """Activate this session in context (as active i.e. not suspended)."""
-        yield
         raise NotImplementedError
 
     @tracer.start_as_current_span("session.stage")
@@ -218,21 +168,8 @@ class Session:
         """Stage pending edits without waiting for the next background commit."""
         raise NotImplementedError
 
-    @tracer.start_as_current_span("session.flush.schedule")
-    async def flush(self) -> tuple[list[EditData], list[EditData]]:
-        """
-        Flushes the current pending edits.
-        Cascaded edits are only returned for non-optimistic flushes.
-        """
-        raise NotImplementedError
-
     @tracer.start_as_current_span("session.commit.schedule")
-    async def commit(
-        self,
-        *,
-        _data_graph: GraphData | None = None,
-        _ignore_open: bool = False,
-    ) -> tuple[list[EditData], list[EditData]]:
+    async def commit(self) -> tuple[list[EditData], list[EditData]]:
         """
         Commits all edits. Returns *all* edits & cascaded edits. Resets tx state.
         If optimistic, we schedule a new commit and return immediately.

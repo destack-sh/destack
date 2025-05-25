@@ -487,9 +487,18 @@ def {prop.name}(self: "Node") -> "Node | None":
 """
 
 
+def _generate_frozen_setattr_impl(cls: type["BuiltinObject"]) -> str:
+    """Generates BuiltinObject.__setattr__ method for frozen objects."""
+    return f"""\
+def __setattr__(self, key: str, value):
+    raise RuntimeError(f"cannot set {{key!r}} on frozen class {cls.__name__}")
+"""
+
+
 def _process_object_cls[ObjectT: BuiltinObject](
     cls: type[ObjectT],
     object_type: NodeType | StructType | None,
+    is_frozen: bool = False,
     is_concrete: bool = False,
     is_struct: bool = False,
     is_node: bool = False,
@@ -649,6 +658,11 @@ def _process_object_cls[ObjectT: BuiltinObject](
                     node_key_property_str = _generate_node_key_property_impl(obj_key, ptr_key, prop)
                     exec(node_key_property_str, {}, cls_dict)
 
+        # freeze
+        if is_frozen:
+            frozen_setattr_str = _generate_frozen_setattr_impl(cls)
+            exec(frozen_setattr_str, {}, cls_dict)
+
         # create the new class
         _original_cls = cls
         cls = cast(type[ObjectT], type(cls.__name__, cls.__bases__, cls_dict))
@@ -665,6 +679,7 @@ def _process_object_cls[ObjectT: BuiltinObject](
 @dataclass_transform(kw_only_default=True, field_specifiers=_PROPERTY_SPECIFIERS)
 def object_[_ObjectT: BuiltinObject](
     struct_type: StructType | None = None,
+    is_frozen: bool = False,
     is_concrete: bool = False,
     is_struct: bool = False,
     is_node: bool = False,
@@ -677,6 +692,7 @@ def object_[_ObjectT: BuiltinObject](
         cls, _properties = _process_object_cls(
             cls=cast(Any, cls_in),
             object_type=struct_type,
+            is_frozen=is_frozen,
             is_concrete=is_concrete,
             is_struct=is_struct,
             is_node=is_node,
@@ -696,11 +712,11 @@ def object_[_ObjectT: BuiltinObject](
 
 
 @dataclass_transform(kw_only_default=True, field_specifiers=_PROPERTY_SPECIFIERS)
-def struct_[_ObjectT: BuiltinObject](struct_type: StructType):
+def struct_[_ObjectT: BuiltinObject](struct_type: StructType, is_frozen: bool = False):
     """Register a class as a concrete struct for the given struct type."""
 
     def decorate(cls: type[_ObjectT]) -> type[_ObjectT]:
-        cls = object_(struct_type=struct_type, is_concrete=True)(cls)
+        cls = object_(struct_type=struct_type, is_concrete=True, is_frozen=is_frozen)(cls)
         return cast(type[_ObjectT], cls)
 
     return decorate
@@ -713,6 +729,7 @@ _HANDLING_ATTRIBUTE_ERROR = contextvars.ContextVar("handling_attribute_error", d
 class BuiltinObject[ObjectDataT: AnyObjectData](abc.ABC):
     """The base for all intrinsic objects like Structs and Nodes and all their derivatives."""
 
+    __is_frozen__: ClassVar[bool] = False
     __is_struct__: ClassVar[bool] = False
     __is_node__: ClassVar[bool] = False
 
@@ -899,7 +916,7 @@ def is_struct[T: Struct | Struct](obj: Any, struct_cls: type[T]) -> TypeGuard[T]
 #
 
 
-@struct_(StructType.SCOPE)
+@struct_(StructType.SCOPE, is_frozen=True)
 class Scope(Struct[ScopeData]):
     """The scope for an operation on the Bench graph."""
 
@@ -920,7 +937,7 @@ def repr_scope(scope: Scope | ScopeData) -> str:
 EMPTY_SCOPE_DATA = ScopeData(metatype=lang_pb2.StructType.STRUCT_TYPE_SCOPE)
 
 
-@struct_(StructType.PROPERTY_REFERENCE)
+@struct_(StructType.PROPERTY_REFERENCE, is_frozen=True)
 class PropertyReference(Struct):
     """
     A reference to a builtin object's Property.

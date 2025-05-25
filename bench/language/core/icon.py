@@ -24,7 +24,7 @@ class IconType(BuiltinEnum):
     FILE_URL = 11
 
 
-@struct_(StructType.ICON)
+@struct_(StructType.ICON, is_frozen=True)
 class Icon(Struct):
     """An icon to be displayed in some view."""
 
