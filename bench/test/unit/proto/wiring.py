@@ -1,14 +1,14 @@
 from fastuuid import uuid4
 from hypothesis import HealthCheck, given, settings
 
-from bench.language import BuiltinObject, NodeReference, NodeType, Session
+from bench.language import BuiltinObject, NodeReference, NodeType, Session, User
 from bench.proto import AnyObjectData
 from bench.test.strategies import builtin_objects, examples
 from bench.test.unit.conftest import BUILTIN_OBJECTS
 
 
-def test_roundtrip_node_reference_bytes():
-    """Pack and unpack a NodeReference."""
+def test_roundtrip_node_reference_proto():
+    """Pack and unpack a NodeReference as proto."""
     node_ref = NodeReference(
         node_type=NodeType.PAGE, id=uuid4(), ck=uuid4(), bench_id=uuid4(), base_id=uuid4()
     )
@@ -23,13 +23,20 @@ def test_roundtrip_node_reference_bytes():
 
 
 def test_roundtrip_node_reference_value():
-    """Pack and unpack a NodeReference."""
+    """Pack and unpack a NodeReference as value."""
     node_ref = NodeReference(
         node_type=NodeType.PAGE, id=uuid4(), ck=uuid4(), bench_id=uuid4(), base_id=uuid4()
     )
     node_ref_value = node_ref.to_value()
     unpacked_node_ref = NodeReference.from_value(node_ref_value)
     assert unpacked_node_ref.equals(node_ref), f"{unpacked_node_ref!r} != {node_ref!r}"
+
+
+def test_roundtrip_user_proto():
+    """Pack and unpack a User as proto."""
+    user = User()
+    user_data = user.to_proto()
+    assert user.to_proto() is user_data  # cached (frozen Struct)
 
 
 @given(obj=builtin_objects())

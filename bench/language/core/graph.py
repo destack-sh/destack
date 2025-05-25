@@ -6,7 +6,6 @@ from typing import (
     Collection,
     Iterable,
     Optional,
-    Self,
     cast,
     override,
 )
@@ -78,21 +77,10 @@ class _GraphBase[K: str | UUID, V: AnyNodeData | Node](abc.ABC):
             raise ValueError(f"expected nodes, got {nodes!r}")
 
     def __str__(self):
-        node_types_str = "|".join(nt.bench_name for nt in self.node_types)
-        if self.scope.package_ids:
-            scope_str = f"[bench={self.scope.bench_id}, packages={', '.join(str(id) for id in self.scope.package_ids)}]"
-        elif self.scope.bench_id:
-            scope_str = f"[bench={self.scope.bench_id}]"
-        else:
-            scope_str = "[*]"
-        return f"{len(self.nodes)} nodes, {node_types_str} {scope_str}"
+        return f"{len(self.nodes)} nodes"
 
     def __repr__(self):
         return f"<{self.__class__.__name__} {self}>"
-
-    def copy(self) -> Self:
-        """Copy the graph"""
-        return self.__class__(self.scope, self.node_types, nodes=self.nodes)
 
     @property
     def nodes(self) -> Collection[V]:
@@ -102,15 +90,6 @@ class _GraphBase[K: str | UUID, V: AnyNodeData | Node](abc.ABC):
     def nodes_of_type[T: Node](self, node_type: type[T]) -> tuple[T, ...]:
         """All nodes of a certain type in the graph"""
         return tuple(n for n in self.nodes if isinstance(n, node_type))
-
-    def nodes_bfs(self, node_type: NodeType | None = None) -> Iterable[V]:
-        """Iterate through nodes in BFS order"""
-        roots = self.find_roots()
-        queue = deque(roots)
-        while queue:
-            node = queue.popleft()
-            yield node
-            queue.extend(self.get_descendants(node, node_type=node_type))
 
     def __len__(self):
         """Number of nodes in the graph"""
@@ -132,19 +111,6 @@ class _GraphBase[K: str | UUID, V: AnyNodeData | Node](abc.ABC):
             raise KeyError(f"node {node_key!r} not found in {self!r}")
         return node
 
-    def get_by_name(self, name: str, node_type: NodeType | None = None) -> V | None:
-        """Gets a node by name"""
-        # NOTE :Performance: index node names :NodeNameIndexing
-        if node_type is None:
-            for node in self._nodes_by_id.values():
-                if getattr(node, "name", None) == name:
-                    return node
-        else:
-            for node in self._nodes_by_id.values():
-                if node.metatype == node_type and getattr(node, "name", None) == name:
-                    return node
-        return None
-
     def clear(self):
         """Clear the graph"""
         self._nodes_by_id.clear()
@@ -152,13 +118,6 @@ class _GraphBase[K: str | UUID, V: AnyNodeData | Node](abc.ABC):
 
     @abc.abstractmethod
     def _get_parent_ptr(self, node: V) -> "NodeReferenceData | NodeReference | None": ...
-
-    def _reindex(self):
-        """Discoard and rebuild all indexes (internal use when node identities change)."""
-        nodes = tuple(self._nodes_by_id.values())
-        self.clear()
-        for node in nodes:
-            self.add(node)
 
     def add(self, node: V):
         """Add a node to the graph (error if node already exists, *no* descendants)"""
@@ -259,11 +218,6 @@ class _GraphBase[K: str | UUID, V: AnyNodeData | Node](abc.ABC):
             ancestors.append(cur)
         return ancestors
 
-    # utilities
-
-    def __contains__(self, item: K):
-        return self.get(item) is not None
-
     def __bool__(self):
         return True  # not empty
 
@@ -292,11 +246,6 @@ class Graph(_GraphBase[UUID, "Node"]):
     ):
         super().__init__(scope, node_types, nodes=nodes)
         self.supergraph = supergraph
-
-    @override
-    def copy(self) -> Self:
-        """Copy the graph"""
-        return self.__class__(self.scope, self.node_types, self.supergraph, nodes=self.nodes)
 
     @override
     def _get_parent_ptr(self, node: "Node") -> "NodeReferenceData | NodeReference | None":
@@ -338,14 +287,6 @@ class Supergraph:
         self._graphs_by_node_type: dict[NodeType, tuple[Graph, ...]] = {}
         self._base = base
 
-    def instance(self, name: str) -> "Supergraph":
-        """Clone the supergraph, but not the graphs."""
-        instance = Supergraph(name, self._root_ptr)
-        instance._base = self
-        instance._graphs = self._graphs
-        instance._graphs_by_node_type = {**self._graphs_by_node_type}
-        return instance
-
     def __str__(self):
         return f"{len(self._graphs)} graphs"
 
@@ -361,68 +302,17 @@ class Supergraph:
     def has(self, other: "Supergraph"):
         return self is other or (self._base is not None and self._base.has(other))
 
-    @property
-    def root(self) -> "Node":
-        assert self._root_ptr is not None, f"{self!r} has no root"
-        return self.get_or_error(self._root_ptr)
-
     def add_graph(self, graph: Graph):
         """Add a graph to this supergraph."""
-        if graph.supergraph is None:
-            graph.supergraph = self
-        elif graph.supergraph is not self:
-            raise RuntimeError(f"{graph!r} is already in {graph.supergraph!r}, not {self!r}")
-        assert graph not in self._graphs, f"{graph!r} already in {self!r}"
-        self._graphs = (*self._graphs, graph)
-        for node_type in graph.node_types:
-            if node_type not in self._graphs_by_node_type:
-                self._graphs_by_node_type[node_type] = (graph,)
-            else:
-                self._graphs_by_node_type[node_type] = (
-                    *self._graphs_by_node_type[node_type],
-                    graph,
-                )
+        raise NotImplementedError
 
     def remove_graph(self, graph: Graph):
         """Remove a graph from this supergraph."""
-        assert graph in self._graphs, f"{graph!r} not in {self!r}"
-        self._graphs = tuple(g for g in self._graphs if g is not graph)
-        for node_type in graph.node_types:
-            self._graphs_by_node_type[node_type] = tuple(
-                g for g in self._graphs_by_node_type[node_type] if g is not graph
-            )
+        raise NotImplementedError
 
     def get(self, ptr: "UUID | NodeReference") -> Optional["Node"]:
         """Get a node by some key."""
-        if isinstance(ptr, UUID):
-            # check all graphs :c
-            for graph in self._graphs:
-                node = graph.get(ptr)
-                if node is not None:
-                    return node
-            return None
-        else:
-            # check only graphs that have the node type
-            graphs = self._graphs_by_node_type.get(ptr.node_type, ())
-            for graph in graphs:
-                node = graph.get(ptr.id)
-                if node is not None:
-                    return node
-            return None
-
-    def get_or_error(self, ptr: "UUID | NodeReference") -> "Node":
-        """Get a node by some key (error if not exists)."""
-        node = self.get(ptr)
-        if node is None:
-            raise KeyError(f"node {ptr!r} not found in {self!r}")
-        return node
-
-    def get_graphs(self, node_type: NodeType) -> tuple[Graph, ...]:
-        """Get all graphs that have a certain node type."""
-        return self._graphs_by_node_type.get(node_type, ())
-
-    def __contains__(self, ptr: "UUID | NodeReference") -> bool:
-        return self.get(ptr) is not None
+        raise NotImplementedError
 
 
 class NullSuperGraph(Supergraph):

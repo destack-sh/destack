@@ -201,7 +201,7 @@ from .type import (
     to_type,
     to_type_scalar,
 )
-from .validation import ValidationError, clean_name, on_invalid_raise
+from .validation import ValidationError, on_invalid_raise
 from .value import (
     ScalarValue,
     SomeValue,
@@ -385,7 +385,6 @@ __all__ = [
     "aggregate",
     "bittuple",
     "capture_span",
-    "clean_name",
     "code",
     "decode_type_identity",
     "edit_data_graph",

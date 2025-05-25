@@ -89,9 +89,7 @@ def make_session(name: str):
 
 @pytest.fixture  # :PytestAsyncContext
 async def session_async(request):
-    from bench.language import clean_name
-
-    session = make_session(clean_name(request.node.name))
+    session = make_session(request.node.name)
     await session.open(_set_in_context=False)
     yield session
     await session.close()

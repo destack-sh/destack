@@ -110,11 +110,11 @@ class Session:
 
     async def open(self, *, _set_in_context: bool = True):
         """Opens the session for regular business. Activates context (by default)."""
-        raise NotImplementedError
+        pass
 
     async def close(self):
         """Closes the session, rolling back uncommitted edits. Prevents further use."""
-        raise NotImplementedError
+        pass
 
     def get_scope(self, node: Node | None = None) -> ScopeData:
         """Get the scope for a node."""
@@ -132,10 +132,7 @@ class Session:
         """Creates or updates a Node. The operation *is not* applied directly."""
         raise NotImplementedError
 
-    def update(
-        self,
-        node: Node,
-    ):
+    def update(self, node: Node):
         """Updates an existing Node. The operation *is not* applied directly."""
         raise NotImplementedError
 

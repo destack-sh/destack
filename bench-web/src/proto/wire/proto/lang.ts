@@ -5399,10 +5399,6 @@ export interface ScopeData {
      * @generated from protobuf field: optional string bench_id = 31;
      */
     benchId?: string;
-    /**
-     * @generated from protobuf field: repeated string package_ids = 32;
-     */
-    packageIds: string[];
 }
 /**
  * @generated from protobuf message symbol.bench.SelectionData
@@ -9257,10 +9253,6 @@ export enum EnumType {
      */
     ERROR_TYPE = 40061,
     /**
-     * @generated from protobuf enum value: ENUM_TYPE_SEVERITY = 40062;
-     */
-    SEVERITY = 40062,
-    /**
      * @generated from protobuf enum value: ENUM_TYPE_VARIABLE_TYPE = 40063;
      */
     VARIABLE_TYPE = 40063,
@@ -11667,39 +11659,6 @@ export enum ScheduleFrequency {
      * @generated from protobuf enum value: SCHEDULE_FREQUENCY_MINUTE = 6;
      */
     MINUTE = 6
-}
-/**
- * @generated from protobuf enum symbol.bench.Severity
- */
-export enum Severity {
-    /**
-     * @generated from protobuf enum value: SEVERITY_UNSPECIFIED = 0;
-     */
-    UNSPECIFIED = 0,
-    /**
-     * @generated from protobuf enum value: SEVERITY_TRACE = 1;
-     */
-    TRACE = 1,
-    /**
-     * @generated from protobuf enum value: SEVERITY_DEBUG = 2;
-     */
-    DEBUG = 2,
-    /**
-     * @generated from protobuf enum value: SEVERITY_INFO = 3;
-     */
-    INFO = 3,
-    /**
-     * @generated from protobuf enum value: SEVERITY_WARNING = 4;
-     */
-    WARNING = 4,
-    /**
-     * @generated from protobuf enum value: SEVERITY_ERROR = 5;
-     */
-    ERROR = 5,
-    /**
-     * @generated from protobuf enum value: SEVERITY_PANIC = 6;
-     */
-    PANIC = 6
 }
 /**
  * Built-in shadow positions.
@@ -24174,14 +24133,12 @@ class ScopeData$Type extends MessageType$<ScopeData> {
         super("symbol.bench.ScopeData", [
             { no: 1, name: "metatype", kind: "enum", T: () => ["symbol.bench.StructType", StructType, "STRUCT_TYPE_"] },
             { no: 30, name: "region", kind: "enum", opt: true, T: () => ["symbol.bench.Region", Region, "REGION_"] },
-            { no: 31, name: "bench_id", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
-            { no: 32, name: "package_ids", kind: "scalar", repeat: 2 /*RepeatType.UNPACKED*/, T: 9 /*ScalarType.STRING*/ }
+            { no: 31, name: "bench_id", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ }
         ]);
     }
     create(value?: PartialMessage<ScopeData>): ScopeData {
         const message = globalThis.Object.create((this.messagePrototype!));
         message.metatype = 0;
-        message.packageIds = [];
         if (value !== undefined)
             reflectionMergePartial<ScopeData>(this, message, value);
         return message;
@@ -24199,9 +24156,6 @@ class ScopeData$Type extends MessageType$<ScopeData> {
                     break;
                 case /* optional string bench_id */ 31:
                     message.benchId = reader.string();
-                    break;
-                case /* repeated string package_ids */ 32:
-                    message.packageIds.push(reader.string());
                     break;
                 default:
                     let u = options.readUnknownField;
@@ -24224,9 +24178,6 @@ class ScopeData$Type extends MessageType$<ScopeData> {
         /* optional string bench_id = 31; */
         if (message.benchId !== undefined)
             writer.tag(31, WireType.LengthDelimited).string(message.benchId);
-        /* repeated string package_ids = 32; */
-        for (let i = 0; i < message.packageIds.length; i++)
-            writer.tag(32, WireType.LengthDelimited).string(message.packageIds[i]);
         let u = options.writeUnknownFields;
         if (u !== false)
             (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);

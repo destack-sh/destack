@@ -132,7 +132,7 @@ def _generate_init_for_cls[ObjectT: BuiltinObject](
         body_properties.pop("_session")
         body_properties.pop("_graph")
         body_properties.pop("_hash")
-        method_body_lines.append("""\
+        method_body_lines.append(f"""\
 # init session
 if _session is None:
     _session = ACTIVE_SESSION.get()
