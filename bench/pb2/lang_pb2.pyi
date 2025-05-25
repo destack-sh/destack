@@ -445,6 +445,8 @@ class ErrorType(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     ERROR_TYPE_INCAPABLE: _ClassVar[ErrorType]
     ERROR_TYPE_REFUSED: _ClassVar[ErrorType]
     ERROR_TYPE_NON_RETRYABLE: _ClassVar[ErrorType]
+    ERROR_TYPE_INTERRUPTION_CANCELLED: _ClassVar[ErrorType]
+    ERROR_TYPE_MODEL_FAILED: _ClassVar[ErrorType]
 
 class ExpressionType(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     __slots__ = ()
@@ -1641,6 +1643,8 @@ ERROR_TYPE_TEXT_INVALID: ErrorType
 ERROR_TYPE_INCAPABLE: ErrorType
 ERROR_TYPE_REFUSED: ErrorType
 ERROR_TYPE_NON_RETRYABLE: ErrorType
+ERROR_TYPE_INTERRUPTION_CANCELLED: ErrorType
+ERROR_TYPE_MODEL_FAILED: ErrorType
 EXPRESSION_TYPE_UNSPECIFIED: ExpressionType
 EXPRESSION_TYPE_LITERAL: ExpressionType
 EXPRESSION_TYPE_COLUMN: ExpressionType
@@ -2973,7 +2977,7 @@ class DimensionData(_message.Message):
     def __init__(self, metatype: _Optional[_Union[StructType, str]] = ..., type: _Optional[_Union[DimensionType, str]] = ..., unit: _Optional[_Union[LengthUnit, str]] = ..., value: _Optional[float] = ...) -> None: ...
 
 class EditData(_message.Message):
-    __slots__ = ("metatype", "id", "type", "node_ptr", "key", "operation", "new_value", "key_value", "edited_at")
+    __slots__ = ("metatype", "id", "type", "node_ptr", "key", "operation", "new_value", "key_value", "new_parent_ptr", "edited_at")
     METATYPE_FIELD_NUMBER: _ClassVar[int]
     ID_FIELD_NUMBER: _ClassVar[int]
     TYPE_FIELD_NUMBER: _ClassVar[int]
@@ -2982,6 +2986,7 @@ class EditData(_message.Message):
     OPERATION_FIELD_NUMBER: _ClassVar[int]
     NEW_VALUE_FIELD_NUMBER: _ClassVar[int]
     KEY_VALUE_FIELD_NUMBER: _ClassVar[int]
+    NEW_PARENT_PTR_FIELD_NUMBER: _ClassVar[int]
     EDITED_AT_FIELD_NUMBER: _ClassVar[int]
     metatype: StructType
     id: str
@@ -2991,8 +2996,9 @@ class EditData(_message.Message):
     operation: EditOperation
     new_value: ValueData
     key_value: ValueData
+    new_parent_ptr: NodeReferenceData
     edited_at: _timestamp_pb2.Timestamp
-    def __init__(self, metatype: _Optional[_Union[StructType, str]] = ..., id: _Optional[str] = ..., type: _Optional[_Union[EditType, str]] = ..., node_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., key: _Optional[str] = ..., operation: _Optional[_Union[EditOperation, str]] = ..., new_value: _Optional[_Union[ValueData, _Mapping]] = ..., key_value: _Optional[_Union[ValueData, _Mapping]] = ..., edited_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ...) -> None: ...
+    def __init__(self, metatype: _Optional[_Union[StructType, str]] = ..., id: _Optional[str] = ..., type: _Optional[_Union[EditType, str]] = ..., node_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., key: _Optional[str] = ..., operation: _Optional[_Union[EditOperation, str]] = ..., new_value: _Optional[_Union[ValueData, _Mapping]] = ..., key_value: _Optional[_Union[ValueData, _Mapping]] = ..., new_parent_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., edited_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ...) -> None: ...
 
 class EffectData(_message.Message):
     __slots__ = ("metatype", "type", "style_ptr", "opacity", "offset", "scale", "rotate", "skew", "perspective", "delay", "duration", "threshold", "once", "repeat", "split", "offscreen", "transition")

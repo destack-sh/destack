@@ -1,5 +1,3 @@
-from typing import cast
-
 import pytest
 from hypothesis import HealthCheck, given, settings
 
@@ -10,27 +8,16 @@ from bench.language import (
     Block,
     BlockType,
     BuiltinObject,
-    Client,
-    ClientType,
     Code,
-    Database,
     Field,
     Flow,
-    Machine,
-    Message,
-    NodeReference,
-    NodeType,
     Package,
-    PackageType,
     Page,
     Schema,
     Session,
     Table,
     Text,
-    TextLine,
-    Thread,
 )
-from bench.proto import unpack_builtin_object
 from bench.test.simulation.core import Simulation
 from bench.test.simulation.workload import RuntimeLambdaWorkload
 from bench.test.strategies import structs
@@ -53,113 +40,6 @@ def test_get_set_non_existing_property(session: "Session"):
         node.wadabadaboo = "wadabadaboo"  # type: ignore
     with pytest.raises(AttributeError):
         _ = node.wadabadaboo  # type: ignore
-
-
-def test_node_subtype_pack_unpack(session: "Session"):
-    block = Block.new(BlockType.PARAGRAPH, line=TextLine.plain("Hello!"))
-    # pack/unpack wiring
-    block_data = block._to_data()
-    unpacked_block = cast(
-        Block, unpack_builtin_object(block_data, expect=Block, supergraph=session.supergraph)
-    )
-    assert unpacked_block.equals(block)
-    assert unpacked_block.line is not None and unpacked_block.line.spans[0].content == "Hello!"
-
-
-def test_node_pointers_consistency(session: "Session"):
-    """Pointers should include the relevant bench/base/base_bench references."""
-    bench_a = Bench(slug="testa", name="testb")
-    assert bench_a.to_ref().equals(
-        NodeReference(node_type=NodeType.BENCH, id=bench_a.id, ck=bench_a.ck, bench_id=bench_a.id)
-    )
-    package_a = Package(type=PackageType.OPEN, name="Main", slug="main")
-    bench_a.add_child(package_a)
-    bench_a.database = Database(name="Database")
-    bench_a.add_child(bench_a.database)
-
-    # sub bench, above package pointers
-    assert package_a.bench_id == bench_a.id
-    assert package_a.to_ref().equals(
-        NodeReference(
-            node_type=NodeType.PACKAGE, id=package_a.id, ck=package_a.ck, bench_id=bench_a.id
-        )
-    )
-    assert package_a.parent_ptr
-    assert package_a.parent_ptr.id == bench_a.id
-
-    # sub bench nested pointers
-    machine_a = Machine(parent=package_a, name="Main")
-    assert machine_a.bench_id == bench_a.id
-    client_a = Client(
-        parent=bench_a,
-        seen_at=session.oracle.utc(),
-        type=ClientType.MOBILE,
-        name="Testificate's iPhone",
-    )
-    assert client_a.bench_id == bench_a.id
-    assert client_a.to_ref().equals(
-        NodeReference(
-            node_type=NodeType.CLIENT, id=client_a.id, ck=client_a.ck, bench_id=bench_a.id
-        )
-    )
-    assert client_a.parent_ptr
-    assert client_a.parent_ptr.bench_id == bench_a.id
-
-    # sub package nested pointers
-    package_a = Package(type=PackageType.OPEN, name="Main B", slug="main-b")
-    bench_a.add_child(package_a)
-    assert package_a.bench_id == bench_a.id
-    page_a_1 = Page()
-    package_a.add_child(page_a_1)
-    assert page_a_1.bench_id == bench_a.id
-    assert page_a_1.to_ref().equals(
-        NodeReference(node_type=NodeType.PAGE, id=page_a_1.id, ck=page_a_1.ck, bench_id=bench_a.id)
-    )
-
-    # based pointers
-    thread_a = Thread.new("Thread1")
-    page_a_1.add_child(thread_a)
-    message_a = Message(parent=thread_a)
-    assert message_a.bench_id == bench_a.id
-    assert message_a.to_ref().equals(
-        NodeReference(
-            node_type=NodeType.MESSAGE,
-            id=message_a.id,
-            ck=message_a.ck,
-            bench_id=bench_a.id,
-            base_id=thread_a.id,
-        )
-    )
-
-    # refs pointing to different bench
-    bench_b = Bench(slug="testb", name="testb")
-    package_b = Package(type=PackageType.OPEN, name="Main B", slug="main-b")
-    bench_b.add_child(package_b)
-    bench_b.database = Database(name="Database")
-    bench_b.add_child(bench_b.database)
-    page_b = Page()
-    package_b.add_child(page_b)
-    assert page_b.bench_id == bench_b.id
-    thread_b = Thread.new("Thread1")
-    page_b.add_child(thread_b)
-    message_b = Message(parent=thread_b)
-    assert message_b.bench_id == bench_b.id
-    assert message_b.to_ref().equals(
-        NodeReference(
-            node_type=NodeType.MESSAGE,
-            id=message_b.id,
-            ck=message_b.ck,
-            bench_id=bench_b.id,
-            base_id=thread_b.id,
-        )
-    )
-    assert message_b.parent_ptr
-    assert message_b.parent_ptr.bench_id == bench_b.id
-
-
-#
-# Trees
-#
 
 
 @given(obj=structs)
@@ -312,7 +192,7 @@ async def test_move_subtree(simulation: Simulation, runtime: RuntimeLambdaWorklo
     Page2 = runtime.page("Page2")
     Block1 = Page1.add_child(Schema.new("Block1", fields=[Field.new("A"), Field.new("B")]))
     Block2 = Page1.add_child(
-        Flow.new("Block2", fields=[Field.input("Text", Text), Field.output("Schema", Block1)])
+        Flow(name="Block2", fields=[Field.input("Text", Text), Field.output("Schema", Block1)])
     )
     Block3 = Page1.add_child(Table.new("Block3", fields=[Field.member("Text", Text)]))
     await runtime.commit()

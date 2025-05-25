@@ -91,7 +91,7 @@ class MachineHandle:
                 status=ResourceStatus.AVAILABLE,
                 grpc_url=grpc_url,
             )
-            session._create(machine)
+            session.create(machine)
             client = Client(
                 parent=bench,
                 type=ClientType.MACHINE,
@@ -100,7 +100,7 @@ class MachineHandle:
                 machine=machine,
                 seen_at=self.simulation.oracle.utc(),
             )
-            session._create(client)
+            session.create(client)
             machine.client = client
             await session.commit()
         self._access_token = client.access_token

@@ -1,10 +1,10 @@
 import abc
+from dataclasses import dataclass
 from datetime import datetime, timedelta
 from typing import (
     TYPE_CHECKING,
     Any,
     Collection,
-    NamedTuple,
     Optional,
     Self,
     Union,
@@ -62,7 +62,8 @@ if TYPE_CHECKING:
 # pyright: reportIncompatibleVariableOverride=false
 
 
-class IndexIn(NamedTuple):
+@dataclass(slots=True, frozen=True)
+class IndexIn:
     """Index to be turned into a SQL Index."""
 
     columns: tuple[str, ...]
@@ -173,12 +174,12 @@ class IsArchivable(Node if TYPE_CHECKING else BuiltinObject):
     def archive(self, _now: datetime | None = None):
         """Archive this Node."""
         assert not self.archived_at, f"{self!r} is already archived"
-        self._session._archive(self, _now=_now)
+        self._session.archive(self, _now=_now)
 
     def unarchive(self, _now: datetime | None = None):
         """Unarchive this Node."""
         assert self.archived_at, f"{self!r} is not archived"
-        self._session._unarchive(self, _now=_now)
+        self._session.unarchive(self, _now=_now)
 
 
 @trait_(TraitType.DELETABLE)
@@ -190,12 +191,12 @@ class IsDeletable(Node if TYPE_CHECKING else BuiltinObject):
     def delete(self, _now: datetime | None = None):
         """Delete this Node."""
         assert not self.deleted_at, f"{self!r} is already deleted"
-        self._session._delete(self, _now=_now)
+        self._session.delete(self, _now=_now)
 
     def restore(self, _now: datetime | None = None):
         """Restore this deleted Node from the trash."""
         assert self.deleted_at, f"{self!r} is not deleted"
-        self._session._restore(self, _now=_now)
+        self._session.restore(self, _now=_now)
 
 
 @trait_(TraitType.TEMPLATABLE)

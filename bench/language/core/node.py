@@ -349,7 +349,7 @@ class Node[NodeDataT: AnyNodeData](BuiltinObject[NodeDataT]):
 
     def erase(self):
         """Wipe this Node from this cosmos forever."""
-        self._session._erase(self)
+        self._session.erase(self)
 
     def move(self, to: "Node"):
         """Move this Node to a new parent."""
@@ -543,7 +543,7 @@ class Node[NodeDataT: AnyNodeData](BuiltinObject[NodeDataT]):
 #
 
 
-@struct_(StructType.NODE_REFERENCE)
+@struct_(StructType.NODE_REFERENCE, is_frozen=True)
 class NodeReference(Struct[NodeReferenceData]):
     """
     A reference to a Node.
@@ -573,7 +573,11 @@ class NodeReference(Struct[NodeReferenceData]):
             base_id = node.base_id
 
         reference = NodeReference(
-            node_type=node.metatype, id=node.id, ck=node.ck, bench_id=bench_id, base_id=base_id
+            node_type=node.metatype,
+            id=node.id,
+            ck=node.ck,
+            bench_id=bench_id,
+            base_id=base_id,
         )
         return reference
 

@@ -27,7 +27,7 @@ class RelationType(BuiltinEnum):
     CUSTOM_NODE = 2
 
 
-@struct_(StructType.RELATION_REFERENCE)
+@struct_(StructType.RELATION_REFERENCE, is_frozen=True)
 class RelationReference(Struct):
     """Reference to a Node "table" or base somewhere."""
 
@@ -60,7 +60,7 @@ class AttributeType(BuiltinEnum):
     QUERY = 3
 
 
-@struct_(StructType.ATTRIBUTE_REFERENCE)
+@struct_(StructType.ATTRIBUTE_REFERENCE, is_frozen=True)
 class AttributeReference(Struct):
     """Reference to a Field or Property."""
 
@@ -97,7 +97,7 @@ class FunctionType(BuiltinEnum):
     POWER = 6  # ^ / **
 
 
-@struct_(StructType.FUNCTION)
+@struct_(StructType.FUNCTION, is_frozen=True)
 class Function(Struct):
     type: FunctionType = property_(30, is_repr=True)
     left: "Expression" = property_(31, is_repr=True)
@@ -144,7 +144,7 @@ class ConditionalType(BuiltinEnum):
     NOT_EXISTS = 31
 
 
-@struct_(StructType.CONDITION)
+@struct_(StructType.CONDITION, is_frozen=True)
 class Condition(Struct):
     """Boolean predicate (AND, =, <, etc.)."""
 
@@ -216,7 +216,7 @@ class ExpressionType(BuiltinEnum):
     # SUBQUERY?
 
 
-@struct_(StructType.EXPRESSION)
+@struct_(StructType.EXPRESSION, is_frozen=True)
 class Expression(Struct):
     """Wrapper to unify any scalar / boolean / aggregate sub-tree."""
 
@@ -266,7 +266,7 @@ class SortMode(BuiltinEnum):
     MEDIAN = 5
 
 
-@struct_(StructType.SORT)
+@struct_(StructType.SORT, is_frozen=True)
 class Sort(Struct):
     """ORDER BY specification."""
 
@@ -300,7 +300,7 @@ class JoinType(BuiltinEnum):
     CHILD = 11
 
 
-@struct_(StructType.JOIN)
+@struct_(StructType.JOIN, is_frozen=True)
 class Join(Struct):
     """JOIN clause with ON expression."""
 
@@ -633,7 +633,7 @@ class IntoQuery:
         return aggregation(AggregationType.MEDIAN, operand=self)
 
 
-@struct_(StructType.SELECTION)
+@struct_(StructType.SELECTION, is_frozen=True)
 class Selection(Struct):
     """A selection of fields from a Node."""
 

@@ -247,7 +247,7 @@ class Runner[N: Runnable = Runnable](abc.ABC):
                     parent=parent_run, type=run, status=self.status, mode=self.mode, agent=agent
                 )
                 parent_run._copy_context_to(tracked_span)
-                self.session._create(tracked_span)
+                self.session.create(tracked_span)
             else:
                 tracked_span = cast(Span, run)
             self.tracked_run = None
@@ -440,7 +440,7 @@ class Runner[N: Runnable = Runnable](abc.ABC):
             ):
                 return interruption
         interruption = Interruption.from_run(kind, run, span=self.tracked_span)
-        self.session._create(interruption)
+        self.session.create(interruption)
         return interruption
 
     def _trap_interruption(
@@ -586,7 +586,7 @@ def create_run(
             active_at=now,
             status=ProcessStatus.IDLE,
         )
-        session._create(thread)
+        session.create(thread)
         parent = thread
     elif isinstance(parent, Thread):
         thread = parent
@@ -640,7 +640,7 @@ def create_run(
         inputs = coerce_custom_object_scalar(inputs, input_type)
         run.inputs = inputs
 
-    session._create(run)
+    session.create(run)
 
     return run, thread
 

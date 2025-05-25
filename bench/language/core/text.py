@@ -73,7 +73,7 @@ class TextSpanType(BuiltinEnum):
     EQUATION = 20, "TeX equation"
 
 
-@struct_(StructType.TEXT_SPAN)
+@struct_(StructType.TEXT_SPAN, is_frozen=True)
 class TextSpan(TextOptionsBase, Struct):
     """A span of text with optional formatting"""
 
@@ -119,7 +119,7 @@ class TextSpan(TextOptionsBase, Struct):
         )
 
 
-@struct_(StructType.TEXT_LINE)
+@struct_(StructType.TEXT_LINE, is_frozen=True)
 class TextLine(TextOptionsBase, Struct):
     """
     A single line of text; may contain inline TextSpans, or hold a TextTable or such.

@@ -67,7 +67,7 @@ class EditOperation(BuiltinEnum):
     # ...
 
 
-@struct_(StructType.EDIT)
+@struct_(StructType.EDIT, is_frozen=True)
 class Edit(Struct):
     """
     An Edit to a Node.
@@ -79,14 +79,13 @@ class Edit(Struct):
         description="Unique identifier for the Edit within a Session.",
     )
     type: EditType = property_(30, description="Type of Edit.")
-    node: Node = property_(31, description="Which Node.")
-    key: str | None = property_(32)
-
-    # content
-    operation: EditOperation | None = property_(40)
+    node: Node = property_(31)
+    key: str | None = property_(40)
+    operation: EditOperation | None = property_(41)
     # node_data: AnyNodeData | None = property_(40, primitive_type=None, is_node_data=True)
     new_value: "Value | None" = property_(42)
     key_value: "Value | None" = property_(43)  # for map operations
+    new_parent: Node | None = property_(44)  # for move
 
     edited_at: datetime = property_(50, description="When the Edit was made.")
     # change_key?

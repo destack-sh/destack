@@ -196,7 +196,7 @@ class Runtime:
         assert self.session.status == SessionStatus.PENDING, f"{self.session!r} is not pending"
         self.session.status = SessionStatus.OPEN
         self.session.opened_at = self.oracle.utc()
-        self.session._create(self.session)
+        self.session.create(self.session)
         await self.session.commit()
 
         # start tasks
@@ -365,7 +365,7 @@ class Runtime:
                     current_attempt = Span(
                         parent=run, type=SpanType.ATTEMPT, status=ProcessStatus.RUNNING
                     )
-                    self.session._create(current_attempt)
+                    self.session.create(current_attempt)
                 last_attempt = current_attempt
                 try:
                     await self._attempt_run(
