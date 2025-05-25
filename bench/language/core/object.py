@@ -10,11 +10,8 @@ from typing import (
     Any,
     ClassVar,
     Collection,
-    Iterable,
     Mapping,
-    Optional,
     Self,
-    TypeGuard,
     Union,
     cast,
     dataclass_transform,
@@ -26,8 +23,8 @@ from bitarray import bitarray
 from fastuuid import UUID
 from opentelemetry import trace
 
-from bench.language.registry import BUILTIN_OBJECT_CLASS_BY_TYPE, STRUCT_CLASS_BY_TYPE
-from bench.pb2 import AnyObjectData, AnyStructData, ScopeData, lang_pb2
+from bench.language.registry import STRUCT_CLASS_BY_TYPE
+from bench.pb2 import AnyObjectData
 from bench.utils.code import format_code
 from bench.utils.env import IS_DEV
 from bench.utils.func import dualmethod, get_superclasses
@@ -41,14 +38,13 @@ from .const import (
     NodeEdgeKind,
     NodeType,
     PrimitiveType,
-    Region,
     StructType,
 )
 from .graph import Supergraph
-from .property import _PROPERTY_SPECIFIERS, Property, property_, property_runtime_
+from .property import _PROPERTY_SPECIFIERS, Property, property_runtime_
 
 if TYPE_CHECKING:
-    from bench.language import Field, Node, NodeReference, PropertyReference
+    from bench.language import Field, Node, NodeReference
 
 # pyright: reportIncompatibleVariableOverride=false
 
@@ -491,7 +487,29 @@ def _generate_frozen_setattr_impl(cls: type["BuiltinObject"]) -> str:
     """Generates BuiltinObject.__setattr__ method for frozen objects."""
     return f"""\
 def __setattr__(self, key: str, value):
-    raise RuntimeError(f"cannot set {{key!r}} on frozen class {cls.__name__}")
+    if key.startswith("_"):
+        object.__setattr__(self, key, value)
+    else:
+        raise RuntimeError(f"cannot set {{key!r}} on frozen class {cls.__name__}")
+"""
+
+
+def _generate_pack_value_impl(cls: type["BuiltinObject"]) -> str:
+    """Generate BuiltinObject.__pack_value__ and __unpack_value__ class methods."""
+
+    pack_value_parts: list[str] = []
+    unpack_value_parts: list[str] = []
+    pack_value = textwrap.indent("\n".join(pack_value_parts), "    ")
+    unpack_value = textwrap.indent("\n".join(unpack_value_parts), "    ")
+
+    return f"""
+@classmethod
+def __pack_value__(cls, object: "Self") -> dict:
+    {pack_value}
+
+@classmethod
+def __unpack_value__(cls, object_value: dict) -> "Self":
+    {unpack_value}
 """
 
 
@@ -506,6 +524,10 @@ def _process_object_cls[ObjectT: BuiltinObject](
     """Process a BuiltinObject base class and return the processed class and its properties."""
     assert isinstance(cls, type), f"expected type, got {cls} ({type(cls)})"
     assert cls not in _processed_classes, f"class {cls.__name__} has already been processed"
+
+    cls.__is_struct__ = is_struct
+    cls.__is_node__ = is_node
+    cls.__is_frozen__ = is_frozen
 
     metatype = Property(
         id=1,
@@ -613,29 +635,38 @@ def _process_object_cls[ObjectT: BuiltinObject](
     if is_concrete:
         assert object_type is not None, f"concrete objects need a type: {cls.__name__}"
         cls_dict = dict(cls.__dict__)
+
+        # slots
         cls_dict.pop("__dict__", None)
         cls_dict.pop("__weakref__", None)
         for prop in properties.values():
             cls_dict.pop(prop.name, None)
         cls_dict["__slots__"] = tuple(cls.__wired_properties__.keys())
+
+        # __init__
         init_str = _generate_init_for_cls(cls, is_node=is_node, header_properties=properties)
         exec(init_str, {"ACTIVE_SESSION": ACTIVE_SESSION}, cls_dict)
+        # __repr__
         repr_str = _generate_repr_for_cls(cls)
         exec(repr_str, {}, cls_dict)
+        # path
         if is_node:
             path_str = _generate_path_impl(cast(type["Node"], cls))
             exec(path_str, {}, cls_dict)
+        # equals
         equals_str = _generate_equals_impl(cls)
         exec(equals_str, {"EMPTY_DICT": EMPTY_DICT}, cls_dict)
+        # validate
         validate_str = _generate_validate_impl(cls)
         exec(validate_str, {}, cls_dict)
+        # pack/unpack are generated after setup because we need all classes
 
         # add computed properties to concrete classes
         for prop in properties.values():
             if prop.runtime_prop is not None:
                 continue  # not a contributed property
             # computed property property
-            if prop.is_property_reference:
+            if prop.is_property:
                 property_property_str = _generate_property_property_impl(prop)
                 exec(property_property_str, {}, cls_dict)
             # computed node property
@@ -758,6 +789,7 @@ class BuiltinObject[ObjectDataT: AnyObjectData](abc.ABC):
         """Checks if the content of the two objects is equal (recursively)."""
         raise NotImplementedError  # generated
 
+    @final
     def validate(self) -> None:
         """Validate the object."""
         raise NotImplementedError  # generated
@@ -822,27 +854,48 @@ class BuiltinObject[ObjectDataT: AnyObjectData](abc.ABC):
             else:
                 raise RuntimeError(f"unsupported property: {prop.cardinality}")
 
-    def _walk_struct(self) -> Iterable["BuiltinObject"]:
-        yield self
-        for prop in self.__struct_properties__.values():
-            value: Struct | list[Struct] | None = getattr(self, prop.name)
-            if value is None:
-                continue
-            elif prop.cardinality == "scalar":
-                yield from (cast(Struct, value))._walk_struct()
-            elif prop.cardinality == "list":
-                for item in cast(list, value):
-                    yield from cast(Struct, item)._walk_struct()
-
     def __bool__(self):
         return True  # support truthy checks for objects
 
-    @final
-    def _to_data(self) -> ObjectDataT:
+    @classmethod
+    def __pack_proto__(cls, object: Self) -> ObjectDataT:
         """Convert to wire format"""
-        from bench.proto.wiring import pack_builtin_object
+        raise NotImplementedError  # generated
 
-        return pack_builtin_object(self)  # type: ignore
+    @classmethod
+    def __unpack_proto__(cls, object_data: ObjectDataT) -> Self:
+        """Convert from wire format"""
+        raise NotImplementedError  # generated
+
+    @final
+    def _to_proto(self) -> ObjectDataT:
+        """Convert to wire format"""
+        raise NotImplementedError  # generated (usually = __pack_proto__)
+
+    @classmethod
+    def _from_proto(cls, object_data: ObjectDataT) -> Self:
+        """Convert from wire format"""
+        raise NotImplementedError  # generated
+
+    @classmethod
+    def __pack_value__(cls, object: Self) -> dict:
+        """Convert to value format"""
+        raise NotImplementedError  # generated
+
+    @classmethod
+    def __unpack_value__(cls, object_value: dict) -> Self:
+        """Convert from value format"""
+        raise NotImplementedError  # generated
+
+    @final
+    def _to_value(self) -> dict:
+        """Convert to value format"""
+        raise NotImplementedError  # generated (usually = __pack_value__)
+
+    @classmethod
+    def _from_value(cls, object_value: dict) -> Self:
+        """Convert from value format"""
+        raise NotImplementedError  # generated
 
     @classmethod
     def property(cls, name: str) -> Property:
@@ -876,98 +929,3 @@ class BuiltinObject[ObjectDataT: AnyObjectData](abc.ABC):
             assert prop.ord is not None, f"{prop!r} has no ordinal"
             mask[prop.ord] = True
         return mask
-
-
-@object_()
-class Struct[StructDataT: AnyStructData](BuiltinObject[StructDataT], abc.ABC):
-    """A Struct is a value with some properties."""
-
-    metatype: ClassVar[StructType]  # type: ignore
-
-    __is_struct__: ClassVar[bool] = True
-
-    @final
-    def __repr__(self):
-        content_str = str(self)
-        if content_str:
-            return f"<{self.__class__.__name__} {content_str}>"
-        else:
-            return f"<{self.__class__.__name__}>"
-
-    def __eq__(self, other):
-        if other is self:
-            return True
-        elif other is None:
-            return False
-        else:
-            return self.equals(other)
-
-
-def is_node[T: Node](obj: Any, node_cls: type[T]) -> TypeGuard[T]:
-    return isinstance(obj, Node) and obj.metatype == node_cls.metatype
-
-
-def is_struct[T: Struct | Struct](obj: Any, struct_cls: type[T]) -> TypeGuard[T]:
-    return isinstance(obj, (Struct, Struct)) and obj.metatype == struct_cls.metatype
-
-
-#
-# Utility types
-#
-
-
-@struct_(StructType.SCOPE, is_frozen=True)
-class Scope(Struct[ScopeData]):
-    """The scope for an operation on the Bench graph."""
-
-    region: Optional[Region] = property_(30, is_repr=True)
-    bench_id: Optional[UUID] = property_(31, is_repr=True)
-    package_ids: list[UUID] = property_(32, is_repr=True)
-
-
-def repr_scope(scope: Scope | ScopeData) -> str:
-    if scope.package_ids:
-        return f"[bench_id={scope.bench_id}, package_ids={', '.join(str(id) for id in scope.package_ids)}]"
-    elif scope.bench_id:
-        return f"[bench_id={scope.bench_id}]"
-    else:
-        return "[*]"
-
-
-EMPTY_SCOPE_DATA = ScopeData(metatype=lang_pb2.StructType.STRUCT_TYPE_SCOPE)
-
-
-@struct_(StructType.PROPERTY_REFERENCE, is_frozen=True)
-class PropertyReference(Struct):
-    """
-    A reference to a builtin object's Property.
-    If type is unset, this refers to a base property in one of the base BuiltinObject types.
-    """
-
-    node_type: NodeType | None = property_(30, is_repr=True)
-    struct_type: StructType | None = property_(31, is_repr=True)
-    id: int = property_(32, is_repr=True)
-
-    @property
-    def object_cls(self) -> type[BuiltinObject] | None:
-        if self.node_type is not None:
-            return BUILTIN_OBJECT_CLASS_BY_TYPE.get(self.node_type)
-        elif self.struct_type is not None:
-            return BUILTIN_OBJECT_CLASS_BY_TYPE.get(self.struct_type)
-        else:
-            return None
-
-    def resolve_or_error(self) -> Property:
-        """Resolves the property reference to a Property."""
-        resolved = self.resolve()
-        if resolved is None:
-            raise ValueError(f"could not resolve {self!r}")
-        return resolved
-
-    def resolve(self) -> Property | None:
-        """Resolves the property reference to a Property."""
-        from .node import Node
-
-        object_cls = self.object_cls
-        prop = (object_cls or Node).__properties_by_id__.get(self.id)
-        return prop

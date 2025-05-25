@@ -208,7 +208,7 @@ class SupervisorService(SupervisorBase):
 
         logger.info("supervisor.signup_user", user=user, client=client, span="current")
         return SignupUserResponse(
-            user=user._to_data(), client=client._to_data(), access_token=client.access_token
+            user=user._to_proto(), client=client._to_proto(), access_token=client.access_token
         )
 
     @override
@@ -238,7 +238,7 @@ class SupervisorService(SupervisorBase):
             await session.commit()
 
         logger.info("supervisor.change_user_password", user=user, span="current")
-        return ChangeUserPasswordResponse(user=user._to_data())
+        return ChangeUserPasswordResponse(user=user._to_proto())
 
     @override
     async def login_user(
@@ -283,8 +283,8 @@ class SupervisorService(SupervisorBase):
 
         logger.info("supervisor.login_user", user=user, client=client, span="current")
         return LoginUserResponse(
-            user=user._to_data(),
-            client=client._to_data(),
+            user=user._to_proto(),
+            client=client._to_proto(),
             access_token=client.access_token,
         )
 
@@ -343,7 +343,7 @@ class SupervisorService(SupervisorBase):
             raise GRPCError(GRPCStatus.INVALID_ARGUMENT, "region not specified")
         if user.status == UserStatus.WAITLIST:
             raise GRPCError(GRPCStatus.PERMISSION_DENIED, "cannot create bench for waitlisted user")
-        region = wiring.unpack_enum(Region, request.region)
+        region = Region(request.region)
 
         # get regional database
         regional_database = self._database_map.get(region=region)
@@ -407,7 +407,7 @@ class SupervisorService(SupervisorBase):
             await session.commit()
 
         logger.info("supervisor.create_bench", bench=bench, span="current")
-        return CreateBenchResponse(bench=bench._to_data())
+        return CreateBenchResponse(bench=bench._to_proto())
 
     @override
     async def resolve_hosts(

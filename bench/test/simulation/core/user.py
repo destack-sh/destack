@@ -9,7 +9,6 @@ from bench.proto import (
     SignupUserRequest,
     SupervisorClient,
     UserData,
-    unpack_builtin_object,
 )
 from bench.utils.oracle import Oracle
 
@@ -76,8 +75,6 @@ class UserHandle:
         )
         signup_rep = await supervisor_client.signup_user(signup_req)
         self._user_data = signup_rep.user
-        self._user_ptr = unpack_builtin_object(
-            NodeReference._ref_data_from_node_data(self._user_data),
-            expect=NodeReference,
-            supergraph=None,
+        self._user_ptr = NodeReference.__unpack_proto__(
+            NodeReference._ref_data_from_node_data(self._user_data)
         )

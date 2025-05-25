@@ -1,7 +1,6 @@
 from typing import TYPE_CHECKING, final
 
 from bench import pb2
-from bench.language import ClientType
 from bench.proto import (
     ClientData,
     ClientDataIn,
@@ -9,7 +8,6 @@ from bench.proto import (
     OriginData,
     RpcMetadata,
     SupervisorClient,
-    pack_enum,
     pack_rpc_headers,
 )
 
@@ -76,7 +74,7 @@ class ClientHandle:
 
         if isinstance(self.parent, UserHandle):
             client_in = ClientDataIn(
-                type=pack_enum(ClientType, self.spec.type),
+                type=self.spec.type,
                 name=self.spec.name,
                 device_name=self.spec.name,
             )

@@ -376,7 +376,7 @@ class Property(IntoQuery if TYPE_CHECKING else object):
         """A pointer to this property. `to_ref()` for consistency with `Node.to_ref()`."""
 
         if self._ref is None:
-            from .object import PropertyReference
+            from .struct import PropertyReference
 
             assert self.component is not None, f"{self!r} has no component"
             assert self.id is not None, f"{self!r} has no id"
@@ -401,38 +401,24 @@ class Property(IntoQuery if TYPE_CHECKING else object):
         return self.id is not None and self.id is not UNSET
 
     @property
-    def is_tree_reference(self) -> bool:
-        """Whether this is a tree relation property (parent/child/ancestor)."""
-        return self.node_kind is not None and self.node_kind.is_node_tree
-
-    @property
     def is_node_reference(self):
-        return self.node_kind is not None and self.node_kind.is_node
-
-    @property
-    def is_struct_reference(self):
-        """Whether this is a reference to a parent struct/value. *Not* an inlined Struct."""
-        return self.node_kind is not None and self.node_kind.is_struct_tree
+        return self.scalar_type == "node"
 
     @property
     def is_struct(self) -> bool:
-        return self.struct_type is not None
+        return self.scalar_type == "struct"
 
     @property
-    def is_property_reference(self) -> bool:
+    def is_enum(self):
+        return self.scalar_type == "enum"
+
+    @property
+    def is_property(self) -> bool:
         return self.struct_type == StructType.PROPERTY_REFERENCE
 
     @property
     def is_optional(self) -> bool:
         return not self.is_required
-
-    @property
-    def is_optional_scalar(self) -> bool:
-        return self.is_optional and self.cardinality == "scalar"
-
-    @property
-    def is_enum(self):
-        return self.enum_type is not None
 
     @property
     def type(self) -> "Type":
@@ -448,7 +434,7 @@ class Property(IntoQuery if TYPE_CHECKING else object):
         """
 
         # property reference
-        if self.is_property_reference:
+        if self.is_property:
             assert self.cardinality in ("scalar", "list"), f"invalid property reference: {self!r}"
             assert self.is_required is not UNSET, f"must set is_required on {self!r}"
             ptr_prop = Property(
@@ -542,7 +528,7 @@ class Property(IntoQuery if TYPE_CHECKING else object):
             self.nodes = (NodeType(object_type),)
 
         # references get a _ptr property (which is wired/stored)
-        if self.node_kind is not None or self.is_property_reference:
+        if self.node_kind is not None or self.is_property:
             # (don't want lists of Node references or Property references in Nodes, it's a mess)
             assert (
                 self.cardinality == "scalar" or not self.component.__is_node__
