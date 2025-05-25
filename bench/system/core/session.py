@@ -105,7 +105,7 @@ def local_pg_engine_from_database(name: str, database: Database):
         name=name,
         database=database,
         area=NodeArea.LOCAL_POSTGRES,
-        scope=Scope(bench_id=database.bench.id)._to_data(),
+        scope=Scope(bench_id=database.bench.id)._to_proto(),
     )
 
 

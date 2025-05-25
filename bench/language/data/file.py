@@ -29,7 +29,6 @@ from bench.language.core import (
     Node,
     NodeType,
     PrimitiveType,
-    Severity,
     SpanType,
     active_session,
     capture_span,
@@ -703,11 +702,9 @@ async def upload_file_batch(
         session = active_session()
 
     # get upload URLs
-    with capture_span(
-        tracer, "file.prepare_upload", SpanType.FILE_PREPARE_UPLOAD, level=Severity.DEBUG
-    ):
+    with capture_span(tracer, "file.prepare_upload", SpanType.FILE_PREPARE_UPLOAD):
         upload_req = UploadFilesRequest(
-            scope=session.get_scope(files[0]), files=[f._to_data() for f in files]
+            scope=session.get_scope(files[0]), files=[f._to_proto() for f in files]
         )
         upload_rep = await session.self_host.upload_files(upload_req, metadata=session._rpc_headers)
         assert len(upload_rep.handles) == len(
@@ -761,7 +758,7 @@ async def download_file_batch(
     with capture_span(tracer, "file.prepare_download", SpanType.FILE_PREPARE_DOWNLOAD):
         download_req = DownloadFilesRequest(
             scope=session.get_scope(file_refs[0]),
-            files=[(f.to_ref() if isinstance(f, File) else f)._to_data() for f in file_refs],
+            files=[(f.to_ref() if isinstance(f, File) else f)._to_proto() for f in file_refs],
         )
         download_rep = await session.self_host.download_files(
             download_req, metadata=session._rpc_headers
@@ -940,7 +937,7 @@ def guess_file_info(
     return file
 
 
-@capture_span(tracer, "file.upload", SpanType.FILE_UPLOAD, level=Severity.DEBUG)
+@capture_span(tracer, "file.upload", SpanType.FILE_UPLOAD)
 async def upload_file(
     file_in: FileIn,
     name: str,

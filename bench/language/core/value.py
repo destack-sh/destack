@@ -20,9 +20,7 @@ from google.protobuf.struct_pb2 import Value as ProtoValue
 from google.protobuf.timestamp_pb2 import Timestamp
 from opentelemetry import trace
 
-from bench.language.registry import (
-    ENUM_CLASS_BY_TYPE,
-)
+from bench.language.registry import ENUM_CLASS_BY_TYPE
 from bench.pb2 import AnyNodeData, AnyStructData, Date, NodeReferenceData, TimeOfDay
 from bench.utils.time import timedelta_from_isoformat, timedelta_to_isoformat
 
@@ -118,7 +116,7 @@ def pack_value_scalar(value: ScalarValue | ScalarValueData, typ: "TypeBase") -> 
         else:
             ref = cast("NodeReference | NodeReferenceData", value)
         if isinstance(ref, BuiltinObject):
-            ref = ref._to_data()
+            ref = ref._to_proto()
         return pack_builtin_object_data(ref)
     elif typ.scalar_type == ScalarType.ENUM:
         return int(cast(Any, value))
@@ -340,13 +338,6 @@ def unpack_value_data(
         raise NotImplementedError(f"cannot unpack value of type {typ!r}")
 
 
-#
-# Common proto stuff
-#
-
-# NOTE :Performance: packing/unpacking proto JSON could probably be much more efficient
-
-
 def pack_proto_date(value: date) -> Date:
     return Date(year=value.year, month=value.month, day=value.day)
 
@@ -416,4 +407,4 @@ def unpack_proto_json(value: ProtoValue) -> JsonValue:
 
 
 # import later to avoid circular imports (Object is used in node.py)
-from .object import BuiltinObject, Struct  # noqa: E402
+from .object import BuiltinObject  # noqa: E402

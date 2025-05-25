@@ -1,6 +1,10 @@
 import functools
 from collections import defaultdict
-from typing import TYPE_CHECKING, Callable, Union
+from typing import TYPE_CHECKING, Any, Callable, Union
+
+from fastuuid import UUID
+
+from bench import pb2
 
 from .core.const import (
     _ENUM_CLASS_BY_TYPE,
@@ -49,7 +53,10 @@ def _on_completing_setup(func: Callable | None = None):
 
 def _complete_bench_setup():
     """Finalize setup of all language constructs after everything is imported."""
-    from bench.language.core.object import _is_setup_complete, _set_setup_complete
+    from bench.language.core.object import (
+        _is_setup_complete,
+        _set_setup_complete,
+    )
     from bench.language.core.trait import expand_node_types
 
     if _is_setup_complete():
@@ -92,6 +99,33 @@ def _complete_bench_setup():
             child_types_by_parent[parent_type].append(node_cls.metatype)
     for node_cls in NODE_CLASS_BY_TYPE.values():
         node_cls.__child_types__ = tuple(child_types_by_parent[node_cls.metatype])
+
+    # generate pack/unpack methods
+    from bench.proto.wiring import _generate_pack_proto_for_cls
+
+    builtin_class_by_name: dict[str, Any] = {**pb2.__dict__, "UUID": UUID}
+    builtin_class_by_name.update({cls.__name__: cls for cls in BENCH_CLASS_BY_TYPE.values()})
+    for cls in BUILTIN_OBJECT_CLASS_BY_TYPE.values():
+        cls_dict_copy = cls.__dict__.copy()
+        # __pack_proto__/__unpack_proto__/_to_proto
+        pack_proto_str = _generate_pack_proto_for_cls(cls)
+        print("=" * 100)
+        print(cls.__name__ + ":packing")
+        print("=" * 100)
+        print(pack_proto_str)
+        print("=" * 100)
+        exec(pack_proto_str, builtin_class_by_name, cls_dict_copy)
+        setattr(cls, "__pack_proto__", cls_dict_copy["__pack_proto__"])
+        setattr(cls, "__unpack_proto__", cls_dict_copy["__unpack_proto__"])
+        setattr(cls, "_to_proto", cls_dict_copy["_to_proto"])
+        setattr(cls, "_from_proto", cls_dict_copy["_from_proto"])
+        # __pack_value__/__unpack_value__/_to_value
+        # pack_value_str = _generate_pack_value_impl(cls)
+        # exec(pack_value_str, builtin_class_by_name, cls_dict_copy)
+        # setattr(cls, "__pack_value__", cls_dict_copy["__pack_value__"])
+        # setattr(cls, "__unpack_value__", cls_dict_copy["__unpack_value__"])
+        # setattr(cls, "_to_value", cls_dict_copy["_to_value"])
+        # setattr(cls, "_from_value", cls_dict_copy["_from_value"])
 
     _set_setup_complete()
 

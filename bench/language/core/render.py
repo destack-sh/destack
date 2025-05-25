@@ -36,9 +36,9 @@ from .const import (
 from .graph import Supergraph
 from .icon import Icon, reverse_icon
 from .node import Node, NodeReference
-from .object import BuiltinObject, PropertyReference
+from .object import BuiltinObject
 from .property import NodeEdgeKind, Property
-from .struct import Struct
+from .struct import PropertyReference, Struct
 from .text import Text, TextLine, text_line_to_markdown, text_to_markdown
 from .trait import IsInPackage
 from .type import TypeBase, TypeCardinality, reverse_type_scalar

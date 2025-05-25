@@ -214,7 +214,7 @@ def get_naive_object_strategy(object_type: NodeType | StructType):
                 is_required=prop.is_required,
                 cardinality=TypeCardinality[prop.cardinality.upper()],
             )
-        elif prop.is_property_reference:
+        elif prop.is_property:
             object_kwargs[prop.name] = wrap_value_scalar(
                 properties(),
                 is_required=prop.is_required,

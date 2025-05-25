@@ -288,7 +288,6 @@ class EnumType(BuiltinEnum):
     BENCH_STATUS = 40056
     PACKAGE_TYPE = 40050
     ERROR_TYPE = 40061
-    SEVERITY = 40062
     VARIABLE_TYPE = 40063
     EDIT_TYPE = 40070
     EDIT_OPERATION = 40071
@@ -1040,10 +1039,6 @@ class NodeEdgeKind(BuiltinEnum):
     def is_node(self):
         return self.id < 10
 
-    @property
-    def is_struct_tree(self):
-        return self.id >= 10 and self.id <= 20
-
 
 class NodeReferenceProperty(BuiltinEnum):
     NODE_TYPE = 30
@@ -1051,16 +1046,6 @@ class NodeReferenceProperty(BuiltinEnum):
     NODE_CK = 32
     NODE_BENCH_ID = 33
     NODE_BASE_ID = 34
-
-
-@enum_(EnumType.SEVERITY)
-class Severity(BuiltinEnum):
-    TRACE = 1, None, None, "fas fa-bug"
-    DEBUG = 2, None, None, "fas fa-bug"
-    INFO = 3, None, None, "fas fa-circle-check"
-    WARNING = 4, None, None, "fas fa-circle-exclamation"
-    ERROR = 5, None, None, "fas fa-circle-exclamation"
-    PANIC = 6, None, None, "fas fa-skull"
 
 
 @enum_(EnumType.CASCADE_ACTION)
@@ -1367,7 +1352,6 @@ def capture_span(
     key: str,
     type: "SpanType",
     *,
-    level: "Severity | None" = None,
     title: str | None = None,
     runner: "Runner[Any] | None" = None,
 ) -> Generator["Span | None", None, None]:

@@ -49,7 +49,6 @@ from .const import (
     Region,
     ResourceStatus,
     RunType,
-    Severity,
     SpanType,
     StructType,
     TimeInterval,
@@ -73,13 +72,9 @@ from .graph import (
 from .icon import Icon, IconIn, IconType, icon, reverse_icon, to_icon
 from .node import IndexIn, Node, NodeReference, node_
 from .object import (
-    EMPTY_SCOPE_DATA,
     BuiltinObject,
-    PropertyReference,
-    Scope,
     _is_setup_complete,
     object_,
-    repr_scope,
 )
 from .property import (
     Property,
@@ -126,7 +121,14 @@ from .render import (
     render_value,
 )
 from .session import Session
-from .struct import Struct, struct_
+from .struct import (
+    EMPTY_SCOPE_DATA,
+    PropertyReference,
+    Scope,
+    Struct,
+    repr_scope,
+    struct_,
+)
 from .text import (
     Text,
     TextIn,
@@ -205,21 +207,17 @@ from .value import (
     SomeValue,
     Value,
     pack_builtin_object,
-    pack_builtin_object_data,
     pack_proto_date,
     pack_proto_json,
     pack_proto_time,
     pack_value,
-    pack_value_data,
     pack_value_scalar,
     unpack_builtin_object,
-    unpack_builtin_object_data,
     unpack_proto_date,
     unpack_proto_json,
     unpack_proto_json_struct,
     unpack_proto_time,
     unpack_value,
-    unpack_value_data,
     unpack_value_scalar,
     unpack_value_scalar_data,
 )
@@ -355,7 +353,6 @@ __all__ = [
     "Scope",
     "Selection",
     "Session",
-    "Severity",
     "SomeValue",
     "Sort",
     "SortMode",
@@ -411,12 +408,10 @@ __all__ = [
     "object_",
     "on_invalid_raise",
     "pack_builtin_object",
-    "pack_builtin_object_data",
     "pack_proto_date",
     "pack_proto_json",
     "pack_proto_time",
     "pack_value",
-    "pack_value_data",
     "pack_value_scalar",
     "parse_type_annotation",
     "property_",
@@ -446,13 +441,11 @@ __all__ = [
     "to_type_scalar",
     "trait_",
     "unpack_builtin_object",
-    "unpack_builtin_object_data",
     "unpack_proto_date",
     "unpack_proto_json",
     "unpack_proto_json_struct",
     "unpack_proto_time",
     "unpack_value",
-    "unpack_value_data",
     "unpack_value_scalar",
     "unpack_value_scalar_data",
 ]

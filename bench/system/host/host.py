@@ -66,7 +66,7 @@ class HostService(ServiceBase, HostBase):
         self.bench_ptr = NodeReference(
             node_type=NodeType.BENCH, id=bench_id, ck=bench_id, bench_id=bench_id
         )
-        self.scope = Scope(bench_id=bench_id)._to_data()
+        self.scope = Scope(bench_id=bench_id)._to_proto()
         self._provisioners: tuple[Provisioner, ...] = ()
         self._plugins: tuple[HostPlugin, ...] = ()  # incl. provisioners
 

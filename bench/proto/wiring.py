@@ -1,34 +1,23 @@
 import json
+import textwrap
 from base64 import b64decode, b64encode
 from itertools import chain
-from typing import TYPE_CHECKING, Any, Mapping, Union, cast
+from typing import TYPE_CHECKING, Mapping, Union, assert_never, cast
 
-import pytz
 import structlog
-from fastuuid import UUID
-from google.protobuf.duration_pb2 import Duration
-from google.protobuf.timestamp_pb2 import Timestamp
 from opentelemetry import trace
 
 from bench import pb2
 from bench.language.core import (
-    BuiltinEnumOrUnion,
     BuiltinObject,
     EditType,
-    Graph,
-    GraphData,
-    Node,
-    NodeReference,
     NodeType,
     PrimitiveType,
     Property,
-    Session,
     StructType,
-    Supergraph,
-    pack_proto_json,
-    unpack_proto_json,
+    TypeAnnotation,
 )
-from bench.language.registry import BUILTIN_OBJECT_CLASS_BY_TYPE
+from bench.language.registry import BUILTIN_OBJECT_CLASS_BY_TYPE, BUILTIN_OBJECT_TYPE_BY_CLASS
 from bench.pb2 import AnyNodeData, AnyStructData, EditData, NodeReferenceData, RpcMetadata
 from bench.utils.string import Casing, to_casing
 
@@ -67,7 +56,7 @@ def describe_node_ptr(ptr: NodeReferenceData) -> str:
 
 def describe_node(node: AnyNodeData) -> str:
     """Describe a node."""
-    node_type = unpack_enum(NodeType, node.metatype)
+    node_type = NodeType(node.metatype)
     node_parts: list[str] = [f"id={node.id or '???'}"]
     if node.HasField("ck"):
         node_parts.append(f"ck={node.ck or '???'}")  # type: ignore
@@ -80,7 +69,7 @@ def describe_node(node: AnyNodeData) -> str:
 
 def describe_edit(edit: EditData) -> str:
     """Describe an edit."""
-    edit_type = unpack_enum(EditType, edit.type)
+    edit_type = EditType(edit.type)
     node_str = describe_node_ptr(edit.node_ptr)
     return f"{edit_type.name}[id={edit.id}, edited_at={edit.edited_at.ToJsonString()}, node={node_str}]"
 
@@ -92,181 +81,323 @@ def copy_struct[T: AnyStructData | AnyNodeData](data: T) -> T:
     return copy
 
 
-def pack_enum[EnumT: BuiltinEnumOrUnion](enum_cls: type[EnumT], value: EnumT) -> Any:
-    return value
+def _generate_pack_proto_for_cls(cls: type["BuiltinObject"]) -> str:
+    """
+    Generate BuiltinObject.__pack_proto__ and __unpack_proto__ class methods.
+    """
+    pack_proto = textwrap.indent(_generate_pack_proto(cls), "    ")
+    unpack_proto = textwrap.indent(_generate_unpack_proto(cls), "    ")
 
-
-def unpack_enum[EnumT: BuiltinEnumOrUnion](enum_cls: type[EnumT], value: Any) -> EnumT:
-    return enum_cls(value)
-
-
-def pack_builtin_object_prop_scalar(obj: BuiltinObject, prop: Property, value: Any) -> Any:
-    if value is None:
-        return None
-    elif prop.is_struct:
-        return pack_builtin_object(value)
-    elif prop.is_node_data:
-        return wrap_some_node(value)
-    elif prop.is_enum:
-        return pack_enum(prop.py_type, value)
-    elif prop.node_kind is not None and not prop.node_kind.is_struct_tree:
-        value_id = str(value.id)
-        return NodeReferenceData(
-            metatype=pb2.StructType.STRUCT_TYPE_NODE_REFERENCE,
-            node_type=pack_enum(NodeType, value.type),
-            id=value_id,
-            ck=str(value.ck) if value.ck is not None else value_id,
-        )
-    elif prop.primitive_type == PrimitiveType.UUID:
-        return str(value)  # uuids are wired as strings
-    elif prop.primitive_type == PrimitiveType.JSON:
-        return pack_proto_json(value)
-    elif prop.primitive_type == PrimitiveType.DATETIME:
-        ts = Timestamp()
-        ts.FromDatetime(value)
-        return ts
-    elif prop.primitive_type == PrimitiveType.DURATION:
-        dur = Duration()
-        dur.FromTimedelta(value)
-        return dur
+    if cls.__is_frozen__:
+        to_proto = """\
+def _to_proto(self: "Self") -> "StructDataT":
+    if self._proto is None:
+        self._proto = self.__pack_proto__(self)
+    return self._proto
+"""
     else:
-        return value
+        to_proto = """\
+def _to_proto(self: "Self") -> "StructDataT":
+    return self.__pack_proto__(self)
+"""
+
+    return f"""
+@classmethod
+def __pack_proto__(cls, object: "Self") -> "{cls.__name__}Data":
+{pack_proto}
+
+@classmethod
+def __unpack_proto__(cls, object_data: "{cls.__name__}Data") -> "Self":
+{unpack_proto}
+
+{to_proto}
+
+_from_proto = __unpack_proto__
+"""
 
 
-def unpack_builtin_object_prop_scalar(prop: Property, value: Any, *, supergraph: Supergraph) -> Any:
-    try:
-        if value is None:
-            return None
-        elif prop.is_struct:
-            return unpack_builtin_object(value, supergraph=supergraph)
-        elif prop.is_node_data:
-            return unwrap_some_node(value)
-        elif prop.is_enum:
-            return unpack_enum(prop.py_type, value)
-        elif prop.node_kind is not None and not prop.node_kind.is_struct_tree:
-            value_id = UUID(value.id)
-            return NodeReference(
-                node_type=unpack_enum(NodeType, value.node_type),
-                id=value_id,
-                ck=UUID(value.ck) if value.ck else value_id,
-            )
-        elif prop.primitive_type == PrimitiveType.UUID:
-            return UUID(value)  # uuids are wired as strings
-        elif prop.primitive_type == PrimitiveType.JSON:
-            return unpack_proto_json(value)
-        elif prop.primitive_type == PrimitiveType.DATETIME:
-            return Timestamp.ToDatetime(value, tzinfo=pytz.utc)
-        elif prop.primitive_type == PrimitiveType.DURATION:
-            return Duration.ToTimedelta(value)
+def _generate_pack_proto(cls: type["BuiltinObject"]) -> str:
+    """Generate the BuiltinObject.__pack_proto__ method implementation."""
+    pack_method_parts: list[str] = []
+    pack_assignments: list[str] = []
+
+    for prop in cls.__wired_properties__.values():
+        if prop.name == "metatype":
+            metatype = BUILTIN_OBJECT_TYPE_BY_CLASS[cls]
+            pack_assignments.append(f"{prop.name}={metatype.value}")
+            continue
+        pack_code = _generate_pack_property(prop)
+        if pack_code:
+            if len(pack_code) == 1:
+                pack_assignments.append(f"{prop.name}={pack_code[0].split(' = ', 1)[1]}")
+            else:
+                pack_method_parts.extend(pack_code)
+                pack_assignments.append(f"{prop.name}=_packed_{prop.name}")
         else:
-            return value
-    except (AssertionError, AttributeError, TypeError, ValueError, KeyError) as e:
-        raise ValueError(
-            f"could not unpack value {type(value).__name__}: {value!r} for {prop!r}"
-        ) from e
+            pack_assignments.append(f"{prop.name}=object.{prop.name}")
+
+    pack_method_parts.append(f"return {cls.__name__}Data(")
+    for i, assignment in enumerate(pack_assignments):
+        comma = "," if i < len(pack_assignments) - 1 else ""
+        pack_method_parts.append(f"    {assignment}{comma}")
+    pack_method_parts.append(")")
+
+    return "\n".join(pack_method_parts)
 
 
-def pack_builtin_object[T: AnyStructData | AnyNodeData](
-    obj: BuiltinObject, expect: type[T] | None = None, into: T | None = None
-) -> T:
-    """Pack a struct and any contained structs."""
-    raise NotImplementedError
+def _generate_unpack_proto(cls: type["BuiltinObject"]) -> str:
+    """Generate the BuiltinObject.__unpack_proto__ method implementation."""
+    unpack_assignments: list[str] = []
+    unpack_method_parts: list[str] = []
+
+    for prop in cls.__wired_properties__.values():
+        if prop.name == "metatype":
+            continue  # set implicitly
+        unpack_code = _generate_unpack_property(prop)
+        if unpack_code:
+            if len(unpack_code) == 1:
+                unpack_assignments.append(f"{prop.name}={unpack_code[0].split(' = ', 1)[1]}")
+            else:
+                unpack_method_parts.extend(unpack_code)
+                unpack_assignments.append(f"{prop.name}=_unpacked_{prop.name}")
+        else:
+            unpack_assignments.append(f"{prop.name}=object_data.{prop.name}")
+    if cls.__is_frozen__:
+        unpack_assignments.append("_proto=object_data")
+
+    unpack_method_parts.append("return cls(")
+    for i, assignment in enumerate(unpack_assignments):
+        comma = "," if i < len(unpack_assignments) - 1 else ""
+        unpack_method_parts.append(f"    {assignment}{comma}")
+
+    unpack_method_parts.append(")")
+
+    return "\n".join(unpack_method_parts)
 
 
-# nocheckin: generate proto pack/unpack for BuiltinObjects
+def _generate_pack_property(prop: "Property") -> list[str] | None:
+    """Generate the packing code for a property value."""
+    lines: list[str] = []
+    obj_value = f"object.{prop.name}"
 
-
-def unpack_builtin_object[T: BuiltinObject](
-    obj_data: AnyStructData | AnyNodeData,
-    *,
-    expect: type[T] | None = None,
-    supergraph: Supergraph | None,
-    session: Session | None = None,
-    # for nodes
-    graph: Graph | None = None,
-    # NOTE: by default new Nodes add themselves to their graph, but during
-    #  unpacking we almost never want this (because we manage unpacking manually).
-    validate: bool = False,
-    skip_add_self: bool = True,
-) -> T:
-    """Unpack a builtin object and any contained structs without validating."""
-    raise NotImplementedError
-
-
-def unpack_builtin_object_validate[T: BuiltinObject](
-    obj_data: AnyStructData | AnyNodeData,
-    *,
-    supergraph: Supergraph | None,
-    graph: Graph | None = None,
-    expect: type[T] | None = None,
-    session: Session | None = None,
-) -> T:
-    """Unpack a builtin object and validate it."""
-    obj = unpack_builtin_object(
-        obj_data, supergraph=supergraph, graph=graph, expect=expect, session=session
-    )
-    return obj
-
-
-def unpack_builtin_object_validate_maybe[T: BuiltinObject](
-    obj_data: AnyStructData | AnyNodeData | None,
-    *,
-    supergraph: Supergraph | None,
-    expect: type[T] | None = None,
-    session: Session | None = None,
-) -> T | None:
-    if obj_data is None or obj_data.metatype is None or obj_data.metatype == 0:
-        return None
-    else:
-        return unpack_builtin_object_validate(
-            obj_data,
-            supergraph=supergraph,
-            expect=expect,
-            session=session,
+    if prop.cardinality == "scalar":
+        scalar_lines = _generate_pack_scalar(prop, obj_value, f"_packed_{prop.name}")
+        if scalar_lines:
+            lines.extend(scalar_lines)
+        else:
+            return None
+    elif prop.cardinality == "list":
+        lines.extend(
+            f"""\
+_packed_{prop.name} = []
+if {obj_value} is not None:
+    for _item in {obj_value}:""".splitlines()
         )
+        item_lines = _generate_pack_scalar(prop, "_item", "_packed_item")
+        if item_lines:
+            for line in item_lines:
+                lines.append(f"        {line}")
+            lines.append(f"        _packed_{prop.name}.append(_packed_item)")
+        else:
+            lines.append(f"        _packed_{prop.name}.append(_item)")
+    elif prop.cardinality == "map":
+        lines.extend(
+            f"""\
+_packed_{prop.name} = {{}}
+if {obj_value} is not None:
+    for _key, _value in {obj_value}.items():""".splitlines()
+        )
+        key_lines = _generate_pack_scalar(prop, "_key", "_packed_key")
+        value_lines = _generate_pack_scalar(prop, "_value", "_packed_value")
+        if key_lines and value_lines:
+            for line in key_lines + value_lines:
+                lines.append(f"        {line}")
+            lines.append(f"        _packed_{prop.name}[_packed_key] = _packed_value")
+        elif key_lines:
+            for line in key_lines:
+                lines.append(f"        {line}")
+            lines.append(f"        _packed_{prop.name}[_packed_key] = _value")
+        elif value_lines:
+            for line in value_lines:
+                lines.append(f"        {line}")
+            lines.append(f"        _packed_{prop.name}[_key] = _packed_value")
+        else:
+            lines.append(f"        _packed_{prop.name}[_key] = _value")
+    else:
+        assert_never(prop.cardinality)
+
+    return lines
 
 
-@tracer.start_as_current_span("wiring.unpack_graph")
-def unpack_graph(
-    data_graph: GraphData,
-    supergraph: Supergraph,
-    parent: Node | None = None,
-    session: Session | None = None,
-    exclude: set[NodeType] | tuple[NodeType, ...] | None = (),
-) -> Graph:
-    """Unpacks the node data(s) into a node graph."""
-    trace.get_current_span().set_attribute("nodes", len(data_graph))
+def _generate_unpack_property(prop: "Property") -> list[str] | None:
+    """Generate the unpacking code for a property value."""
 
-    exclude = exclude or ()
-    parent_id = parent.id if parent is not None else None
-    roots_data = data_graph.find_roots()
-    graph = Graph(scope=data_graph.scope, node_types=data_graph.node_types, supergraph=supergraph)
-    supergraph.add_graph(graph)
+    lines: list[str] = []
+    data_value = f"object_data.{prop.name}"
 
-    for root_data in roots_data:
-        # unpack all nodes top down (breadth first)
-        for node_data in chain(
-            (root_data,), data_graph.iter_descendants(root_data, recursive=True)
-        ):
-            if node_data.metatype in exclude:
-                continue
-            node = unpack_builtin_object(
-                node_data,
-                graph=graph,
-                supergraph=supergraph,
-                expect=Node,
-                session=session,
+    if prop.cardinality == "scalar":
+        scalar_lines = _generate_unpack_scalar(prop, data_value, f"_unpacked_{prop.name}")
+        if scalar_lines:
+            lines.extend(scalar_lines)
+        else:
+            return None
+    elif prop.cardinality == "list":
+        lines.extend(
+            f"""\
+_unpacked_{prop.name} = []
+for _item in {data_value}:""".splitlines()
+        )
+        item_lines = _generate_unpack_scalar(prop, "_item", "_unpacked_item")
+        if item_lines:
+            for line in item_lines:
+                lines.append(f"    {line}")
+            lines.append(f"    _unpacked_{prop.name}.append(_unpacked_item)")
+        else:
+            lines.append(f"    _unpacked_{prop.name}.append(_item)")
+    elif prop.cardinality == "map":
+        lines.extend(
+            f"""\
+_unpacked_{prop.name} = {{}}
+for _key, _value in {data_value}.items():""".splitlines()
+        )
+        key_lines = _generate_unpack_scalar(prop, "_key", "_unpacked_key")
+        value_lines = _generate_unpack_scalar(prop, "_value", "_unpacked_value")
+        if key_lines and value_lines:
+            for line in key_lines + value_lines:
+                lines.append(f"    {line}")
+            lines.append(f"    _unpacked_{prop.name}[_unpacked_key] = _unpacked_value")
+        elif key_lines:
+            for line in key_lines:
+                lines.append(f"    {line}")
+            lines.append(f"    _unpacked_{prop.name}[_unpacked_key] = _value")
+        elif value_lines:
+            for line in value_lines:
+                lines.append(f"    {line}")
+            lines.append(f"    _unpacked_{prop.name}[_key] = _unpacked_value")
+        else:
+            lines.append(f"    _unpacked_{prop.name}[_key] = _value")
+    else:
+        assert_never(prop.cardinality)
+
+    return lines
+
+
+def _generate_pack_scalar(
+    prop: "Property | TypeAnnotation", value_expr: str, result_var: str
+) -> list[str] | None:
+    """Generate the packing code for a scalar value."""
+    lines: list[str] = []
+
+    def _wrap_with_null_check(code: str) -> str:
+        """Wrap code with null check if property is optional."""
+        if prop.is_required:
+            return code
+        return f"{code} if {value_expr} is not None else None"
+
+    if prop.scalar_type == "primitive":
+        if prop.primitive_type == PrimitiveType.UUID:
+            lines.append(f"{result_var} = {_wrap_with_null_check(f'str({value_expr})')}")
+        elif prop.primitive_type == PrimitiveType.JSON:
+            lines.append(f"{result_var} = {_wrap_with_null_check(f'json.dumps({value_expr})')}")
+        elif prop.primitive_type == PrimitiveType.DATETIME:
+            if prop.is_required:
+                lines.extend(
+                    f"""\
+_ts = Timestamp()
+_ts.FromDatetime({value_expr})
+{result_var} = _ts""".splitlines()
+                )
+            else:
+                lines.extend(
+                    f"""\
+if {value_expr} is not None:
+    _ts = Timestamp()
+    _ts.FromDatetime({value_expr})
+    {result_var} = _ts
+else:
+    {result_var} = None""".splitlines()
+                )
+        elif prop.primitive_type == PrimitiveType.DURATION:
+            if prop.is_required:
+                lines.extend(
+                    f"""\
+_dur = Duration()
+_dur.FromTimedelta({value_expr})
+{result_var} = _dur""".splitlines()
+                )
+            else:
+                lines.extend(
+                    f"""\
+if {value_expr} is not None:
+    _dur = Duration()
+    _dur.FromTimedelta({value_expr})
+    {result_var} = _dur
+else:
+    {result_var} = None""".splitlines()
+                )
+        else:
+            return None
+    elif prop.scalar_type == "enum":
+        lines.append(f"{result_var} = {_wrap_with_null_check(f'{value_expr}.value')}")
+    elif prop.scalar_type == "struct":
+        assert prop.struct_type is not None
+        struct_cls_name = prop.struct_type.bench_name
+        lines.append(
+            f"{result_var} = {_wrap_with_null_check(f'{struct_cls_name}.__pack_proto__({value_expr})')}"
+        )
+    elif prop.scalar_type == "node":
+        lines.append(
+            f"{result_var} = {_wrap_with_null_check(f'NodeReference.__pack_proto__({value_expr})')}"
+        )
+    else:
+        assert_never(prop.scalar_type)
+
+    return lines
+
+
+def _generate_unpack_scalar(
+    prop: "Property | TypeAnnotation", value_expr: str, result_var: str
+) -> list[str] | None:
+    """Generate the unpacking code for a scalar value."""
+    lines: list[str] = []
+
+    def _wrap_with_null_check(code: str) -> str:
+        """Wrap code with null check if property is optional."""
+        if prop.is_required:
+            return code
+        return f"{code} if {value_expr} is not None else None"
+
+    if prop.scalar_type == "primitive":
+        if prop.primitive_type == PrimitiveType.UUID:
+            lines.append(f"{result_var} = {_wrap_with_null_check(f'UUID({value_expr})')}")
+        elif prop.primitive_type == PrimitiveType.JSON:
+            lines.append(f"{result_var} = {_wrap_with_null_check(f'json.loads({value_expr})')}")
+        elif prop.primitive_type == PrimitiveType.DATETIME:
+            lines.append(
+                f"{result_var} = {_wrap_with_null_check(f'{value_expr}.ToDatetime(tzinfo=pytz.utc)')}"
             )
-            graph.add(node)
+        elif prop.primitive_type == PrimitiveType.DURATION:
+            lines.append(f"{result_var} = {_wrap_with_null_check(f'{value_expr}.ToTimedelta()')}")
+        else:
+            return None
+    elif prop.scalar_type == "enum":
+        assert prop.enum_type is not None
+        enum_type_name = prop.enum_type.bench_name
+        lines.append(f"{result_var} = {_wrap_with_null_check(f'{enum_type_name}({value_expr})')}")
+    elif prop.scalar_type == "struct":
+        assert prop.struct_type is not None
+        struct_cls_name = prop.struct_type.bench_name
+        lines.append(
+            f"{result_var} = {_wrap_with_null_check(f'{struct_cls_name}.__unpack_proto__({value_expr})')}"
+        )
+    elif prop.scalar_type == "node":
+        lines.append(
+            f"{result_var} = {_wrap_with_null_check(f'NodeReference.__unpack_proto__({value_expr})')}"
+        )
+    else:
+        assert_never(prop.scalar_type)
 
-            # keep parent instance if it was passed (update it in place)
-            if node.id == parent_id:
-                for prop in (cast(Node, parent)).__properties__.values():
-                    if prop.is_wired and not prop.is_tree_reference:
-                        setattr(parent, prop.name, getattr(node, prop.name))
-                node = cast(Node, parent)
-
-    return graph
+    return lines
 
 
 def wrap_some_node(node: AnyNodeData) -> pb2.SomeNodeData:
