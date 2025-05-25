@@ -345,7 +345,6 @@ enum EnumType {
   ENUM_TYPE_BENCH_STATUS = 40056;
   ENUM_TYPE_PACKAGE_TYPE = 40050;
   ENUM_TYPE_ERROR_TYPE = 40061;
-  ENUM_TYPE_SEVERITY = 40062;
   ENUM_TYPE_VARIABLE_TYPE = 40063;
   ENUM_TYPE_EDIT_TYPE = 40070;
   ENUM_TYPE_EDIT_OPERATION = 40071;
@@ -1044,16 +1043,6 @@ enum ScheduleFrequency {
   SCHEDULE_FREQUENCY_DAY = 4;
   SCHEDULE_FREQUENCY_HOUR = 5;
   SCHEDULE_FREQUENCY_MINUTE = 6;
-}
-
-enum Severity {
-  SEVERITY_UNSPECIFIED = 0;
-  SEVERITY_TRACE = 1;
-  SEVERITY_DEBUG = 2;
-  SEVERITY_INFO = 3;
-  SEVERITY_WARNING = 4;
-  SEVERITY_ERROR = 5;
-  SEVERITY_PANIC = 6;
 }
 
 // Built-in shadow positions.
@@ -2819,7 +2808,6 @@ message ScopeData {
   StructType metatype = 1;
   optional Region region = 30;
   optional string bench_id = 31;
-  repeated string package_ids = 32;
 }
 
 message SelectionData {

@@ -28,7 +28,6 @@ from bench.language import (
     PackageType,
     Region,
     Supergraph,
-    clean_name,
 )
 from bench.sql import (
     ALL_EXTENSIONS,

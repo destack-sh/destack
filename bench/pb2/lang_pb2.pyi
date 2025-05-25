@@ -337,7 +337,6 @@ class EnumType(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     ENUM_TYPE_BENCH_STATUS: _ClassVar[EnumType]
     ENUM_TYPE_PACKAGE_TYPE: _ClassVar[EnumType]
     ENUM_TYPE_ERROR_TYPE: _ClassVar[EnumType]
-    ENUM_TYPE_SEVERITY: _ClassVar[EnumType]
     ENUM_TYPE_VARIABLE_TYPE: _ClassVar[EnumType]
     ENUM_TYPE_EDIT_TYPE: _ClassVar[EnumType]
     ENUM_TYPE_EDIT_OPERATION: _ClassVar[EnumType]
@@ -1023,16 +1022,6 @@ class ScheduleFrequency(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     SCHEDULE_FREQUENCY_HOUR: _ClassVar[ScheduleFrequency]
     SCHEDULE_FREQUENCY_MINUTE: _ClassVar[ScheduleFrequency]
 
-class Severity(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
-    __slots__ = ()
-    SEVERITY_UNSPECIFIED: _ClassVar[Severity]
-    SEVERITY_TRACE: _ClassVar[Severity]
-    SEVERITY_DEBUG: _ClassVar[Severity]
-    SEVERITY_INFO: _ClassVar[Severity]
-    SEVERITY_WARNING: _ClassVar[Severity]
-    SEVERITY_ERROR: _ClassVar[Severity]
-    SEVERITY_PANIC: _ClassVar[Severity]
-
 class ShadowPosition(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     __slots__ = ()
     SHADOW_POSITION_UNSPECIFIED: _ClassVar[ShadowPosition]
@@ -1538,7 +1527,6 @@ ENUM_TYPE_ORGANIZATION_STATUS: EnumType
 ENUM_TYPE_BENCH_STATUS: EnumType
 ENUM_TYPE_PACKAGE_TYPE: EnumType
 ENUM_TYPE_ERROR_TYPE: EnumType
-ENUM_TYPE_SEVERITY: EnumType
 ENUM_TYPE_VARIABLE_TYPE: EnumType
 ENUM_TYPE_EDIT_TYPE: EnumType
 ENUM_TYPE_EDIT_OPERATION: EnumType
@@ -2070,13 +2058,6 @@ SCHEDULE_FREQUENCY_WEEK: ScheduleFrequency
 SCHEDULE_FREQUENCY_DAY: ScheduleFrequency
 SCHEDULE_FREQUENCY_HOUR: ScheduleFrequency
 SCHEDULE_FREQUENCY_MINUTE: ScheduleFrequency
-SEVERITY_UNSPECIFIED: Severity
-SEVERITY_TRACE: Severity
-SEVERITY_DEBUG: Severity
-SEVERITY_INFO: Severity
-SEVERITY_WARNING: Severity
-SEVERITY_ERROR: Severity
-SEVERITY_PANIC: Severity
 SHADOW_POSITION_UNSPECIFIED: ShadowPosition
 SHADOW_POSITION_OUTSIDE: ShadowPosition
 SHADOW_POSITION_INSIDE: ShadowPosition
@@ -4889,16 +4870,14 @@ class SchemaData(_message.Message):
     def __init__(self, metatype: _Optional[_Union[NodeType, str]] = ..., id: _Optional[str] = ..., parent_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., bench_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., package_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., created_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., created_by_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., updated_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., updated_by_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., archived_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., deleted_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., template_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., mode: _Optional[_Union[NodeMode, str]] = ..., order_key: _Optional[str] = ..., name: _Optional[str] = ..., definition_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., cardinality: _Optional[_Union[TypeCardinality, str]] = ..., scalar_type: _Optional[_Union[ScalarType, str]] = ..., primitive_type: _Optional[_Union[PrimitiveType, str]] = ..., enum_type: _Optional[_Union[EnumType, str]] = ..., node_type: _Optional[_Union[NodeType, str]] = ..., struct_type: _Optional[_Union[StructType, str]] = ..., default: _Optional[_Union[ValueData, _Mapping]] = ..., is_required: bool = ..., is_variable: bool = ..., base_type_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., key_type: _Optional[_Union[TypeData, _Mapping]] = ..., collection_constraint: _Optional[_Union[CollectionConstraintData, _Mapping]] = ..., string_constraint: _Optional[_Union[StringConstraintData, _Mapping]] = ..., number_constraint: _Optional[_Union[NumberConstraintData, _Mapping]] = ..., node_constraint: _Optional[_Union[NodeConstraintData, _Mapping]] = ...) -> None: ...
 
 class ScopeData(_message.Message):
-    __slots__ = ("metatype", "region", "bench_id", "package_ids")
+    __slots__ = ("metatype", "region", "bench_id")
     METATYPE_FIELD_NUMBER: _ClassVar[int]
     REGION_FIELD_NUMBER: _ClassVar[int]
     BENCH_ID_FIELD_NUMBER: _ClassVar[int]
-    PACKAGE_IDS_FIELD_NUMBER: _ClassVar[int]
     metatype: StructType
     region: Region
     bench_id: str
-    package_ids: _containers.RepeatedScalarFieldContainer[str]
-    def __init__(self, metatype: _Optional[_Union[StructType, str]] = ..., region: _Optional[_Union[Region, str]] = ..., bench_id: _Optional[str] = ..., package_ids: _Optional[_Iterable[str]] = ...) -> None: ...
+    def __init__(self, metatype: _Optional[_Union[StructType, str]] = ..., region: _Optional[_Union[Region, str]] = ..., bench_id: _Optional[str] = ...) -> None: ...
 
 class SelectionData(_message.Message):
     __slots__ = ("metatype", "nodes_ptr")
