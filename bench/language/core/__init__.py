@@ -210,16 +210,13 @@ from .value import (
     pack_proto_date,
     pack_proto_json,
     pack_proto_time,
-    pack_value,
     pack_value_scalar,
     unpack_builtin_object,
     unpack_proto_date,
     unpack_proto_json,
     unpack_proto_json_struct,
     unpack_proto_time,
-    unpack_value,
     unpack_value_scalar,
-    unpack_value_scalar_data,
 )
 from .variable import Variable, VariableProperty, VariableType
 
@@ -411,7 +408,6 @@ __all__ = [
     "pack_proto_date",
     "pack_proto_json",
     "pack_proto_time",
-    "pack_value",
     "pack_value_scalar",
     "parse_type_annotation",
     "property_",
@@ -445,7 +441,5 @@ __all__ = [
     "unpack_proto_json",
     "unpack_proto_json_struct",
     "unpack_proto_time",
-    "unpack_value",
     "unpack_value_scalar",
-    "unpack_value_scalar_data",
 ]

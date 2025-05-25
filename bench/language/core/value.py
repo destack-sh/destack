@@ -5,6 +5,7 @@ from typing import (
     Any,
     Collection,
     Union,
+    assert_never,
     cast,
 )
 
@@ -20,7 +21,7 @@ from google.protobuf.struct_pb2 import Value as ProtoValue
 from google.protobuf.timestamp_pb2 import Timestamp
 from opentelemetry import trace
 
-from bench.language.registry import ENUM_CLASS_BY_TYPE
+from bench.language.registry import BUILTIN_OBJECT_TYPE_BY_CLASS, ENUM_CLASS_BY_TYPE
 from bench.pb2 import AnyNodeData, AnyStructData, Date, NodeReferenceData, TimeOfDay
 from bench.utils.time import timedelta_from_isoformat, timedelta_to_isoformat
 
@@ -33,7 +34,7 @@ from .const import (
 from .graph import Supergraph
 from .property import Property, property_
 from .struct import Struct, struct_
-from .type import Json, ScalarType, TypeCardinality
+from .type import Json, ScalarType
 
 if TYPE_CHECKING:
     from bench.language import BuiltinObject, Node, NodeReference, Session, TypeBase
@@ -60,7 +61,6 @@ ScalarValueData = Union[
     Duration,
 ]
 SomeValue = Union[ScalarValue, Collection[ScalarValue], None]
-SomeValueData = Union[ScalarValueData, Collection[ScalarValueData], None]
 JsonPrimitive = Union[str, int, float, bool, None]
 JsonValue = Union[JsonPrimitive, dict[str, "JsonValue"], list["JsonValue"]]
 
@@ -165,49 +165,10 @@ def unpack_value_scalar(
         raise TypeError(f"cannot unpack value of type {typ!r}")
 
 
-def unpack_value_scalar_data(value_packed: JsonValue, typ: "TypeBase") -> ScalarValueData:
-    """
-    Unpacks the given scalar value into its proto data representation. See above.
-    """
-    if typ.scalar_type == ScalarType.PRIMITIVE:
-        if typ.primitive_type == PrimitiveType.BYTES:
-            return base64.b64decode(cast(str, value_packed))
-        elif typ.primitive_type in (PrimitiveType.INT16, PrimitiveType.INT32, PrimitiveType.INT64):
-            return int(cast(int, value_packed))
-        elif typ.primitive_type == PrimitiveType.UUID:
-            return cast(str, value_packed)  # leave as string
-        elif typ.primitive_type == PrimitiveType.JSON:
-            return pack_proto_json(cast(Any, value_packed))
-        elif typ.primitive_type == PrimitiveType.DATETIME:
-            ts = Timestamp()
-            ts.FromDatetime(datetime.fromisoformat(cast(str, value_packed)))
-            return ts
-        elif typ.primitive_type == PrimitiveType.DATE:
-            dt = date.fromisoformat(cast(str, value_packed))
-            return pack_proto_date(dt)
-        elif typ.primitive_type == PrimitiveType.TIME:
-            dt = time.fromisoformat(cast(str, value_packed))
-            return pack_proto_time(dt)
-        elif typ.primitive_type == PrimitiveType.DURATION:
-            dur = Duration()
-            dur.FromTimedelta(timedelta_from_isoformat(cast(str, value_packed)))
-            return dur
-        else:
-            return cast(PrimitiveValue, value_packed)
-    elif typ.scalar_type == ScalarType.ENUM:
-        enum_cls = ENUM_CLASS_BY_TYPE[cast(EnumType, typ.enum_type)]
-        return enum_cls(cast(int, value_packed))
-    elif typ.scalar_type in (ScalarType.NODE, ScalarType.STRUCT):
-        assert isinstance(value_packed, dict), f"{value_packed!r} is not a dict, expected {typ!r}"
-        return unpack_builtin_object_data(value_packed)
-    else:
-        raise TypeError(f"cannot unpack value of type {typ!r}")
-
-
 def pack_builtin_object(
     value: "BuiltinObject", only: Collection[Property] | None = None
 ) -> dict[str, JsonValue]:
-    """Packs a BuiltinObject into a JSON representation."""
+    """Packs a BuiltinObject into the JSON representation."""
     raise NotImplementedError
 
 
@@ -218,8 +179,7 @@ def unpack_builtin_object[T: BuiltinObject = BuiltinObject](
     expect: type[T] | None = None,
     session: "Session | None" = None,
 ) -> T:
-    """Unpacks a BuiltinObject from a JSON representation."""
-
+    """Unpacks a BuiltinObject from the JSON representation."""
     raise NotImplementedError
 
 
@@ -227,7 +187,7 @@ def pack_builtin_object_data(
     value: AnyStructData | AnyNodeData,
     only: Collection[Property] | None = None,
 ) -> dict[str, JsonValue]:
-    """Packs a single struct/node data value into a JSON representation."""
+    """Packs a single struct/node data value into the JSON representation."""
     raise NotImplementedError
 
 
@@ -236,106 +196,298 @@ def unpack_builtin_object_data[T: AnyStructData | AnyNodeData](
     expect: type[T] | None = None,
     into: T | None = None,
 ) -> AnyStructData | AnyNodeData:
-    """Unpacks a single struct/node data value from a JSON representation."""
+    """Unpacks a single struct/node data value from the JSON representation."""
     raise NotImplementedError
 
 
-def pack_value(value: SomeValue | None, typ: "TypeBase", *, wrap: bool = False) -> JsonValue:
-    """
-    Packs a value into a JSON representation.
-    """
+def generate_pack_value_impl(cls: type["BuiltinObject"]) -> str:
+    """Generate the BuiltinObject.__pack_value__/__unpack_value__ method implementations."""
+    import textwrap
 
-    # wrap scalar
-    value_packed: JsonValue
-    if value is None:
-        value_packed = None  # no value
-    elif typ.cardinality == TypeCardinality.SCALAR:
-        value_packed = pack_value_scalar(cast(ScalarValue, value), typ)
-    elif typ.cardinality == TypeCardinality.LIST:
-        value_packed = [pack_value_scalar(element, typ) for element in cast(list, value)]
+    pack_value = textwrap.indent(_generate_pack_value(cls), "    ")
+    unpack_value = textwrap.indent(_generate_unpack_value(cls), "    ")
+
+    return f"""
+@classmethod
+def __pack_value__(cls, object: "Self") -> dict[str, "JsonValue"]:
+{pack_value}
+
+@classmethod
+def __unpack_value__(cls, object_value: dict[str, "JsonValue"]) -> "Self":
+{unpack_value}
+
+def to_value(self: "Self") -> dict[str, "JsonValue"]:
+    return self.__pack_value__(self)
+
+from_value = __unpack_value__
+"""
+
+
+def _generate_pack_value(cls: type["BuiltinObject"]) -> str:
+    """Generate the BuiltinObject.__pack_value__ method implementation."""
+    pack_method_parts: list[str] = []
+    pack_assignments: list[str] = []
+
+    for prop in cls.__wired_properties__.values():
+        if prop.name == "metatype":
+            metatype = BUILTIN_OBJECT_TYPE_BY_CLASS[cls]
+            pack_assignments.append(f'"{prop.id}": {metatype.value}')
+            continue
+        pack_code = _generate_pack_value_property(prop)
+        if pack_code:
+            if len(pack_code) == 1:
+                pack_assignments.append(f'"{prop.id}": {pack_code[0].split(" = ", 1)[1]}')
+            else:
+                pack_method_parts.extend(pack_code)
+                pack_assignments.append(f'"{prop.id}": _packed_{prop.name}')
+        else:
+            pack_assignments.append(f'"{prop.id}": object.{prop.name}')
+
+    pack_method_parts.append("return {")
+    for i, assignment in enumerate(pack_assignments):
+        comma = "," if i < len(pack_assignments) - 1 else ""
+        pack_method_parts.append(f"    {assignment}{comma}")
+    pack_method_parts.append("}")
+
+    return "\n".join(pack_method_parts)
+
+
+def _generate_unpack_value(cls: type["BuiltinObject"]) -> str:
+    """Generate the BuiltinObject.__unpack_value__ method implementation."""
+    unpack_assignments: list[str] = []
+    unpack_method_parts: list[str] = []
+
+    for prop in cls.__wired_properties__.values():
+        if prop.name == "metatype":
+            continue  # set implicitly
+        unpack_code = _generate_unpack_value_property(prop)
+        if unpack_code:
+            if len(unpack_code) == 1:
+                unpack_assignments.append(f"{prop.name}={unpack_code[0].split(' = ', 1)[1]}")
+            else:
+                unpack_method_parts.extend(unpack_code)
+                unpack_assignments.append(f"{prop.name}=_unpacked_{prop.name}")
+        else:
+            unpack_assignments.append(f'{prop.name}=object_value.get("{prop.id}")')
+
+    unpack_method_parts.append("return cls(")
+    for i, assignment in enumerate(unpack_assignments):
+        comma = "," if i < len(unpack_assignments) - 1 else ""
+        unpack_method_parts.append(f"    {assignment}{comma}")
+
+    unpack_method_parts.append(")")
+
+    return "\n".join(unpack_method_parts)
+
+
+def _generate_pack_value_property(prop: "Property") -> list[str] | None:
+    """Generate the packing code for a property value."""
+    lines: list[str] = []
+    obj_value = f"object.{prop.name}"
+
+    if prop.cardinality == "scalar":
+        scalar_lines = _generate_pack_value_scalar(prop, obj_value, f"_packed_{prop.name}")
+        if scalar_lines:
+            lines.extend(scalar_lines)
+        else:
+            return None
+    elif prop.cardinality == "list":
+        lines.extend(
+            f"""\
+_packed_{prop.name} = []
+if {obj_value} is not None:
+    for _item in {obj_value}:""".splitlines()
+        )
+        item_lines = _generate_pack_value_scalar(prop, "_item", "_packed_item")
+        if item_lines:
+            for line in item_lines:
+                lines.append(f"        {line}")
+            lines.append(f"        _packed_{prop.name}.append(_packed_item)")
+        else:
+            lines.append(f"        _packed_{prop.name}.append(_item)")
+    elif prop.cardinality == "map":
+        lines.extend(
+            f"""\
+_packed_{prop.name} = {{}}
+if {obj_value} is not None:
+    for _key, _value in {obj_value}.items():""".splitlines()
+        )
+        key_lines = _generate_pack_value_scalar(prop, "_key", "_packed_key")
+        value_lines = _generate_pack_value_scalar(prop, "_value", "_packed_value")
+        if key_lines and value_lines:
+            for line in key_lines + value_lines:
+                lines.append(f"        {line}")
+            lines.append(f"        _packed_{prop.name}[_packed_key] = _packed_value")
+        elif key_lines:
+            for line in key_lines:
+                lines.append(f"        {line}")
+            lines.append(f"        _packed_{prop.name}[_packed_key] = _value")
+        elif value_lines:
+            for line in value_lines:
+                lines.append(f"        {line}")
+            lines.append(f"        _packed_{prop.name}[_key] = _packed_value")
+        else:
+            lines.append(f"        _packed_{prop.name}[_key] = _value")
     else:
-        raise NotImplementedError(f"cannot pack value of type {typ!r}")
-    if wrap:
-        from bench.language.core import TypeBase
+        assert_never(prop.cardinality)
 
-        assert isinstance(typ, TypeBase), f"expected full Type for {typ!r}"
-        value_packed = {typ.identity_key: value_packed}
-    return value_packed
+    return lines
 
 
-def pack_value_data(value: SomeValueData, typ: "TypeBase", wrap: bool = False) -> JsonValue:
-    """Packs a data value into a JSON representation. See above."""
-    # wrap scalar
-    value_packed: JsonValue
-    if value is None:
-        value_packed = None
-    elif typ.cardinality == TypeCardinality.SCALAR:
-        value_packed = pack_value_scalar(cast(ScalarValueData, value), typ)
-    elif typ.cardinality == TypeCardinality.LIST:
-        value_packed = [pack_value_scalar(element, typ) for element in cast(list, value)]
+def _generate_unpack_value_property(prop: "Property") -> list[str] | None:
+    """Generate the unpacking code for a property value."""
+    lines: list[str] = []
+    data_value = f'object_value.get("{prop.id}")'
+
+    if prop.cardinality == "scalar":
+        scalar_lines = _generate_unpack_value_scalar(prop, data_value, f"_unpacked_{prop.name}")
+        if scalar_lines:
+            lines.extend(scalar_lines)
+        else:
+            return None
+    elif prop.cardinality == "list":
+        lines.extend(
+            f"""\
+_unpacked_{prop.name} = []
+if {data_value} is not None:
+    for _item in {data_value}:""".splitlines()
+        )
+        item_lines = _generate_unpack_value_scalar(prop, "_item", "_unpacked_item")
+        if item_lines:
+            for line in item_lines:
+                lines.append(f"        {line}")
+            lines.append(f"        _unpacked_{prop.name}.append(_unpacked_item)")
+        else:
+            lines.append(f"        _unpacked_{prop.name}.append(_item)")
+    elif prop.cardinality == "map":
+        lines.extend(
+            f"""\
+_unpacked_{prop.name} = {{}}
+if {data_value} is not None:
+    for _key, _value in {data_value}.items():""".splitlines()
+        )
+        key_lines = _generate_unpack_value_scalar(prop, "_key", "_unpacked_key")
+        value_lines = _generate_unpack_value_scalar(prop, "_value", "_unpacked_value")
+        if key_lines and value_lines:
+            for line in key_lines + value_lines:
+                lines.append(f"        {line}")
+            lines.append(f"        _unpacked_{prop.name}[_unpacked_key] = _unpacked_value")
+        elif key_lines:
+            for line in key_lines:
+                lines.append(f"    {line}")
+            lines.append(f"        _unpacked_{prop.name}[_unpacked_key] = _value")
+        elif value_lines:
+            for line in value_lines:
+                lines.append(f"        {line}")
+            lines.append(f"        _unpacked_{prop.name}[_key] = _unpacked_value")
+        else:
+            lines.append(f"        _unpacked_{prop.name}[_key] = _value")
     else:
-        raise NotImplementedError(f"cannot pack value of type {typ!r}")
-    if wrap:
-        from bench.language.core import TypeBase
+        assert_never(prop.cardinality)
 
-        assert isinstance(typ, TypeBase), f"expected full Type for {typ!r}"
-        value_packed = {typ.identity_key: value_packed}
-    return value_packed
+    return lines
 
 
-def unpack_value(
-    value_packed: JsonValue,
-    typ: "TypeBase",
-    *,
-    supergraph: Supergraph | None = None,
-    wrap: bool = False,
-) -> SomeValue | None:
-    """
-    Unpacks a value from its JSON representation.
-    """
+def _generate_pack_value_scalar(
+    prop: "Property", value_expr: str, result_var: str
+) -> list[str] | None:
+    """Generate the packing code for a scalar value."""
+    lines: list[str] = []
 
-    # unwrap scalar
-    if wrap and isinstance(value_packed, dict):
-        from bench.language.core import TypeBase
+    def _wrap_with_null_check(code: str) -> str:
+        """Wrap code with null check if property is optional."""
+        if prop.is_required:
+            return code
+        return f"{code} if {value_expr} is not None else None"
 
-        assert isinstance(typ, TypeBase), f"expected full Type for {typ!r}"
-        value_packed = value_packed.get(typ.identity_key)
-    if value_packed is None:
-        return None
-    elif typ.cardinality == TypeCardinality.SCALAR:
-        return unpack_value_scalar(value_packed, typ, supergraph=supergraph)
-    elif typ.cardinality == TypeCardinality.LIST:
-        if not isinstance(value_packed, list):
-            raise TypeError(f"{value_packed!r} is not a list, expected {typ!r}")
-        return [
-            unpack_value_scalar(element, typ, supergraph=supergraph) for element in value_packed
-        ]
+    if prop.scalar_type == "primitive":
+        if prop.primitive_type == PrimitiveType.BYTES:
+            lines.append(
+                f"{result_var} = {_wrap_with_null_check(f'base64.b64encode({value_expr}).decode()')}"
+            )
+        elif prop.primitive_type == PrimitiveType.UUID:
+            lines.append(f"{result_var} = {_wrap_with_null_check(f'str({value_expr})')}")
+        elif prop.primitive_type == PrimitiveType.JSON:
+            lines.append(f"{result_var} = {value_expr}")
+        elif prop.primitive_type in (
+            PrimitiveType.DATE,
+            PrimitiveType.TIME,
+            PrimitiveType.DATETIME,
+        ):
+            lines.append(f"{result_var} = {_wrap_with_null_check(f'{value_expr}.isoformat()')}")
+        elif prop.primitive_type == PrimitiveType.DURATION:
+            lines.append(
+                f"{result_var} = {_wrap_with_null_check(f'timedelta_to_isoformat({value_expr})')}"
+            )
+        else:
+            return None
+    elif prop.scalar_type == "enum":
+        lines.append(f"{result_var} = {_wrap_with_null_check(f'{value_expr}.value')}")
+    elif prop.scalar_type == "struct" or prop.scalar_type == "node":
+        lines.append(f"{result_var} = {_wrap_with_null_check(f'{value_expr}.to_value()')}")
     else:
-        raise NotImplementedError(f"cannot unpack value of type {typ!r}")
+        assert_never(prop.scalar_type)
+
+    return lines
 
 
-def unpack_value_data(
-    value_packed: JsonValue, typ: "TypeBase", wrap: bool = False
-) -> SomeValueData | JsonValue | None:
-    """
-    Unpacks a value from its JSON representation. Return nested objects as JSON (as is).
-    """
-    # scalar
-    if wrap and isinstance(value_packed, dict):
-        from bench.language.core import TypeBase
+def _generate_unpack_value_scalar(
+    prop: "Property", value_expr: str, result_var: str
+) -> list[str] | None:
+    """Generate the unpacking code for a scalar value."""
+    lines: list[str] = []
 
-        assert isinstance(typ, TypeBase), f"expected full Type for {typ!r}"
-        value_packed = value_packed.get(typ.identity_key)
-    if value_packed is None:
-        return None
-    elif typ.cardinality == TypeCardinality.SCALAR:
-        return unpack_value_scalar_data(value_packed, typ)
-    elif typ.cardinality == TypeCardinality.LIST:
-        if not isinstance(value_packed, list):
-            raise TypeError(f"expected list for {typ!r}, got {value_packed!r}")
-        return [unpack_value_scalar_data(v, typ) for v in value_packed]
+    def _wrap_with_null_check(code: str) -> str:
+        """Wrap code with null check if property is optional."""
+        if prop.is_required:
+            return code
+        return f"{code} if {value_expr} is not None else None"
+
+    if prop.scalar_type == "primitive":
+        if prop.primitive_type == PrimitiveType.BYTES:
+            lines.append(
+                f"{result_var} = {_wrap_with_null_check(f'base64.b64decode({value_expr})')}"
+            )
+        elif prop.primitive_type == PrimitiveType.UUID:
+            lines.append(f"{result_var} = {_wrap_with_null_check(f'UUID({value_expr})')}")
+        elif prop.primitive_type == PrimitiveType.JSON:
+            lines.append(f"{result_var} = {value_expr}")
+        elif prop.primitive_type == PrimitiveType.DATE:
+            lines.append(
+                f"{result_var} = {_wrap_with_null_check(f'date.fromisoformat({value_expr})')}"
+            )
+        elif prop.primitive_type == PrimitiveType.TIME:
+            lines.append(
+                f"{result_var} = {_wrap_with_null_check(f'time.fromisoformat({value_expr})')}"
+            )
+        elif prop.primitive_type == PrimitiveType.DATETIME:
+            lines.append(
+                f"{result_var} = {_wrap_with_null_check(f'datetime.fromisoformat({value_expr})')}"
+            )
+        elif prop.primitive_type == PrimitiveType.DURATION:
+            lines.append(
+                f"{result_var} = {_wrap_with_null_check(f'timedelta_from_isoformat({value_expr})')}"
+            )
+        else:
+            return None
+    elif prop.scalar_type == "enum":
+        assert prop.enum_type is not None
+        enum_type_name = prop.enum_type.bench_name
+        lines.append(f"{result_var} = {_wrap_with_null_check(f'{enum_type_name}({value_expr})')}")
+    elif prop.scalar_type == "struct":
+        assert prop.struct_type is not None
+        struct_cls_name = prop.struct_type.bench_name
+        lines.append(
+            f"{result_var} = {_wrap_with_null_check(f'{struct_cls_name}.from_value({value_expr})')}"
+        )
+    elif prop.scalar_type == "node":
+        lines.append(
+            f"{result_var} = {_wrap_with_null_check(f'unpack_builtin_object({value_expr}, supergraph=supergraph)')}"
+        )
     else:
-        raise NotImplementedError(f"cannot unpack value of type {typ!r}")
+        assert_never(prop.scalar_type)
+
+    return lines
 
 
 def pack_proto_date(value: date) -> Date:

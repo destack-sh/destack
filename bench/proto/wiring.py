@@ -81,7 +81,7 @@ def copy_struct[T: AnyStructData | AnyNodeData](data: T) -> T:
     return copy
 
 
-def _generate_pack_proto_impl(cls: type["BuiltinObject"]) -> str:
+def generate_pack_proto_impl(cls: type["BuiltinObject"]) -> str:
     """
     Generate BuiltinObject.__pack_proto__ and __unpack_proto__ class methods.
     """
