@@ -189,9 +189,9 @@ class RunPlugin(RuntimePlugin[Run, RunOp]):
         # should be batched and routed per Thread :RuntimeRouting
         assert op.run.thread_ptr, f"missing thread for run {op.run!r}"
         request = RunRequest(
-            scope=Scope(bench_id=self.bench.id)._to_proto(),
+            scope=Scope(bench_id=self.bench.id).to_proto(),
             machine_ptr=machine._to_ref_data(),
-            thread_ptr=op.run.thread_ptr._to_proto(),
+            thread_ptr=op.run.thread_ptr.to_proto(),
             run_ptrs=[op.run._to_ref_data()],
         )
         await runtime.run(request)
@@ -251,7 +251,7 @@ class WakePlugin(RuntimePlugin[Thread | Message, WakeOp]):
     @override
     async def _send_in_runtime(self, op: WakeOp, machine: Machine, runtime: RuntimeClient) -> None:
         request = WakeRequest(
-            scope=Scope(bench_id=self.bench.id)._to_proto(),
+            scope=Scope(bench_id=self.bench.id).to_proto(),
             machine_ptr=machine._to_ref_data(),
             thread_ptrs=[op.thread._to_ref_data()],
         )

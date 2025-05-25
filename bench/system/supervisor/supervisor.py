@@ -208,7 +208,7 @@ class SupervisorService(SupervisorBase):
 
         logger.info("supervisor.signup_user", user=user, client=client, span="current")
         return SignupUserResponse(
-            user=user._to_proto(), client=client._to_proto(), access_token=client.access_token
+            user=user.to_proto(), client=client.to_proto(), access_token=client.access_token
         )
 
     @override
@@ -238,7 +238,7 @@ class SupervisorService(SupervisorBase):
             await session.commit()
 
         logger.info("supervisor.change_user_password", user=user, span="current")
-        return ChangeUserPasswordResponse(user=user._to_proto())
+        return ChangeUserPasswordResponse(user=user.to_proto())
 
     @override
     async def login_user(
@@ -283,8 +283,8 @@ class SupervisorService(SupervisorBase):
 
         logger.info("supervisor.login_user", user=user, client=client, span="current")
         return LoginUserResponse(
-            user=user._to_proto(),
-            client=client._to_proto(),
+            user=user.to_proto(),
+            client=client.to_proto(),
             access_token=client.access_token,
         )
 
@@ -407,7 +407,7 @@ class SupervisorService(SupervisorBase):
             await session.commit()
 
         logger.info("supervisor.create_bench", bench=bench, span="current")
-        return CreateBenchResponse(bench=bench._to_proto())
+        return CreateBenchResponse(bench=bench.to_proto())
 
     @override
     async def resolve_hosts(

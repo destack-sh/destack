@@ -135,7 +135,7 @@ class Node[NodeDataT: AnyNodeData](BuiltinObject[NodeDataT]):
 
     # 1-9: node identity
     # Node.metatype: 1
-    id: UUID = property_(2, is_managed=True, can_write="system")
+    id: UUID = property_(2, is_managed=True, is_eq=False, can_write="system")
     # IsTemplatable.ck: 3
     parent: Optional["Node"] = property_parent_()  # type: ignore
     if TYPE_CHECKING:
@@ -148,20 +148,22 @@ class Node[NodeDataT: AnyNodeData](BuiltinObject[NodeDataT]):
     # IsInPackage.package: 7
 
     # 10-29: node tracking
-    created_at: datetime = property_(10, is_managed=True, can_write="system")
+    created_at: datetime = property_(10, is_managed=True, is_eq=False, can_write="system")
     created_by: Optional[IsSubject] = property_(  # type: ignore (pyright is wrong, Subject is a type)
         11,
         default=None,
         is_managed=True,
+        is_eq=False,
         node_bench_from="self",
         node_exclude=("ck", "base_id"),
         can_write="system",
     )
-    updated_at: datetime = property_(12, is_managed=True, can_write="system")
+    updated_at: datetime = property_(12, is_managed=True, is_eq=False, can_write="system")
     updated_by: Optional[IsSubject] = property_(  # type: ignore (see above)
         13,
         default=None,
         is_managed=True,
+        is_eq=False,
         node_bench_from="self",
         node_exclude=("ck", "base_id"),
         can_write="system",

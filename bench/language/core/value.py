@@ -116,7 +116,7 @@ def pack_value_scalar(value: ScalarValue | ScalarValueData, typ: "TypeBase") -> 
         else:
             ref = cast("NodeReference | NodeReferenceData", value)
         if isinstance(ref, BuiltinObject):
-            ref = ref._to_proto()
+            ref = ref.to_proto()
         return pack_builtin_object_data(ref)
     elif typ.scalar_type == ScalarType.ENUM:
         return int(cast(Any, value))

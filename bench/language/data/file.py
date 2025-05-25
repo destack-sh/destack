@@ -704,7 +704,7 @@ async def upload_file_batch(
     # get upload URLs
     with capture_span(tracer, "file.prepare_upload", SpanType.FILE_PREPARE_UPLOAD):
         upload_req = UploadFilesRequest(
-            scope=session.get_scope(files[0]), files=[f._to_proto() for f in files]
+            scope=session.get_scope(files[0]), files=[f.to_proto() for f in files]
         )
         upload_rep = await session.self_host.upload_files(upload_req, metadata=session._rpc_headers)
         assert len(upload_rep.handles) == len(
@@ -747,8 +747,6 @@ async def download_file_batch(
     session: "Session | None" = None,
 ) -> list[File]:
     """Downloads the given Files from their Host."""
-    from bench.proto import unpack_builtin_object
-
     if not file_refs:
         return []
     if session is None:
@@ -758,7 +756,7 @@ async def download_file_batch(
     with capture_span(tracer, "file.prepare_download", SpanType.FILE_PREPARE_DOWNLOAD):
         download_req = DownloadFilesRequest(
             scope=session.get_scope(file_refs[0]),
-            files=[(f.to_ref() if isinstance(f, File) else f)._to_proto() for f in file_refs],
+            files=[(f.to_ref() if isinstance(f, File) else f).to_proto() for f in file_refs],
         )
         download_rep = await session.self_host.download_files(
             download_req, metadata=session._rpc_headers
@@ -771,12 +769,7 @@ async def download_file_batch(
             handle = handles_by_id.get(str(file_ref.id))
             if handle is None:
                 raise RuntimeError(f"missing download handle for {file_ref!r}")
-            if isinstance(file_ref, File):
-                file = file_ref
-            else:
-                file = unpack_builtin_object(
-                    handle.file, supergraph=session.supergraph, expect=File
-                )
+            file = file_ref if isinstance(file_ref, File) else File.from_proto(handle.file)
             files_by_id[file.id] = file
             file._cached_get_url = handle.get_url
 
