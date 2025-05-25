@@ -13,6 +13,7 @@ from typing import (
     Mapping,
     Self,
     Union,
+    assert_never,
     cast,
     dataclass_transform,
     final,
@@ -44,7 +45,7 @@ from .graph import Supergraph
 from .property import _PROPERTY_SPECIFIERS, Property, property_runtime_
 
 if TYPE_CHECKING:
-    from bench.language import Field, Node, NodeReference
+    from bench.language import Field, Node
 
 # pyright: reportIncompatibleVariableOverride=false
 
@@ -256,6 +257,115 @@ __str__ = __repr__
 """
 
 
+#
+# Equality
+#
+
+
+def _generate_equals_impl[ObjectT: BuiltinObject](cls: type[ObjectT]) -> str:
+    """Generates BuiltinObject.equals method."""
+
+    eq_properties = [
+        prop
+        for prop in cls.__properties__.values()
+        if prop.is_eq and prop.is_wired and prop.ptr_prop is None
+    ]
+    assert eq_properties, f"{cls.__name__} has no properties to compare"
+    cmp_strs = []
+    for prop in eq_properties:
+        cmp_str = _generate_property_cmp_impl(prop)
+        cmp_strs.append(cmp_str)
+    body_str = "\n".join(cmp_strs)
+    body_str = textwrap.indent(body_str, "    ")
+
+    return f"""\
+def equals(self, other, _identity_map: dict["UUID", "UUID"] = EMPTY_DICT) -> bool:
+{body_str}
+    return True
+"""
+
+
+def _generate_property_cmp_impl(prop: Property) -> str:
+    """Generate equality check code for a single property."""
+    prop_name = prop.name
+
+    scalar_cmps_str = _generate_scalar_cmps_impl(prop)
+    if prop.cardinality == "scalar":
+        # scalar
+        if prop.is_required:
+            # required scalar
+            return f"""\
+if not ({scalar_cmps_str.format(self_val=f"self.{prop_name}", other_val=f"other.{prop_name}")}):
+    return False"""
+        else:
+            # optional scalar
+            return f"""\
+if (self.{prop_name} is None) != (other.{prop_name} is None) or (self.{prop_name} is not None and not ({scalar_cmps_str.format(self_val=f"self.{prop_name}", other_val=f"other.{prop_name}")})):
+    return False"""
+    elif prop.cardinality == "list":
+        # list (always required)
+        return f"""\
+if len(self.{prop_name}) != len(other.{prop_name}):
+    return False
+for i in range(len(self.{prop_name})):
+    if not ({scalar_cmps_str.format(self_val=f"self.{prop_name}[i]", other_val=f"other.{prop_name}[i]")}):
+        return False"""
+    elif prop.cardinality == "map":
+        # map (always required)
+        if prop.scalar_type in ("struct", "node"):
+            # maps with complex values need key-by-key comparison
+            return f"""\
+if len(self.{prop_name}) != len(other.{prop_name}):
+    return False
+for key in self.{prop_name}:
+    if key not in other.{prop_name}:
+        return False
+    if not ({scalar_cmps_str.format(self_val=f"self.{prop_name}[key]", other_val=f"other.{prop_name}[key]")}):
+        return False"""
+        else:
+            # maps with primitive/enum values can use direct comparison
+            return f"""\
+if self.{prop_name} != other.{prop_name}:
+    return False"""
+    else:
+        assert_never(prop.cardinality)
+
+
+def _generate_scalar_cmps_impl(prop: Property) -> str:
+    """Generate the core scalar comparison logic. Returns a format string with {self_val} and {other_val} placeholders."""
+    if prop.scalar_type == "primitive":
+        if prop.primitive_type and prop.primitive_type.is_float:
+            return "{self_val} == {other_val} or abs({self_val} - {other_val}) < _epsilon"
+        else:
+            return "{self_val} == {other_val}"
+    elif prop.scalar_type == "enum":
+        return "{self_val} == {other_val}"
+    elif prop.scalar_type == "node":
+        return "_identity_map.get({self_val}.id, {self_val}) == _identity_map.get({other_val}.id, {other_val})"
+    elif prop.scalar_type == "struct":
+        return "{self_val}.equals({other_val}, _identity_map=_identity_map)"
+    else:
+        assert_never(prop.scalar_type)
+
+
+#
+# Validation
+#
+
+
+def _generate_validate_impl[ObjectT: BuiltinObject](cls: type[ObjectT]) -> str:
+    """Generates BuiltinObject.validate method."""
+    return """\
+def validate(self) -> None:
+    raise NotImplementedError
+"""
+
+
+#
+# Computed
+#
+
+
 def _generate_path_impl[NodeT: Node](cls: type[NodeT]) -> str:
     """Generates Node.path property (and Node._path_key helper)."""
     assert cls.__is_node__, f"{cls.__name__} is not a Node"
@@ -309,24 +419,6 @@ def path(self) -> str:
 """
 
     return f"{path_key_str}\n{path_str}"
-
-
-def _generate_equals_impl[ObjectT: BuiltinObject](cls: type[ObjectT]) -> str:
-    """Generates BuiltinObject.equals method."""
-    return """\
-def equals(self, other, identity_map: dict["UUID", "NodeReference"] = EMPTY_DICT) -> bool:
-    if type(other) is not type(self):
-        return False
-    raise NotImplementedError
-"""
-
-
-def _generate_validate_impl[ObjectT: BuiltinObject](cls: type[ObjectT]) -> str:
-    """Generates BuiltinObject.validate method."""
-    return """\
-def validate(self) -> None:
-    raise NotImplementedError
-"""
 
 
 def _generate_property_property_impl(prop: Property) -> str:
@@ -494,25 +586,6 @@ def __setattr__(self, key: str, value):
 """
 
 
-def _generate_pack_value_impl(cls: type["BuiltinObject"]) -> str:
-    """Generate BuiltinObject.__pack_value__ and __unpack_value__ class methods."""
-
-    pack_value_parts: list[str] = []
-    unpack_value_parts: list[str] = []
-    pack_value = textwrap.indent("\n".join(pack_value_parts), "    ")
-    unpack_value = textwrap.indent("\n".join(unpack_value_parts), "    ")
-
-    return f"""
-@classmethod
-def __pack_value__(cls, object: "Self") -> dict:
-    {pack_value}
-
-@classmethod
-def __unpack_value__(cls, object_value: dict) -> "Self":
-    {unpack_value}
-"""
-
-
 def _process_object_cls[ObjectT: BuiltinObject](
     cls: type[ObjectT],
     object_type: NodeType | StructType | None,
@@ -655,6 +728,11 @@ def _process_object_cls[ObjectT: BuiltinObject](
             exec(path_str, {}, cls_dict)
         # equals
         equals_str = _generate_equals_impl(cls)
+        print("=" * 100)
+        print(cls.__name__ + ":equals")
+        print("=" * 100)
+        print(equals_str)
+        print("=" * 100)
         exec(equals_str, {"EMPTY_DICT": EMPTY_DICT}, cls_dict)
         # validate
         validate_str = _generate_validate_impl(cls)
@@ -784,7 +862,7 @@ class BuiltinObject[ObjectDataT: AnyObjectData](abc.ABC):
     def equals(
         self,
         other: Self | Any,
-        identity_map: Mapping[UUID, "NodeReference"] = EMPTY_DICT,
+        _identity_map: Mapping[UUID, UUID] = EMPTY_DICT,
     ) -> bool:
         """Checks if the content of the two objects is equal (recursively)."""
         raise NotImplementedError  # generated
@@ -868,12 +946,12 @@ class BuiltinObject[ObjectDataT: AnyObjectData](abc.ABC):
         raise NotImplementedError  # generated
 
     @final
-    def _to_proto(self) -> ObjectDataT:
+    def to_proto(self) -> ObjectDataT:
         """Convert to wire format"""
         raise NotImplementedError  # generated (usually = __pack_proto__)
 
     @classmethod
-    def _from_proto(cls, object_data: ObjectDataT) -> Self:
+    def from_proto(cls, object_data: ObjectDataT) -> Self:
         """Convert from wire format"""
         raise NotImplementedError  # generated
 
@@ -888,12 +966,12 @@ class BuiltinObject[ObjectDataT: AnyObjectData](abc.ABC):
         raise NotImplementedError  # generated
 
     @final
-    def _to_value(self) -> dict:
+    def to_value(self) -> dict:
         """Convert to value format"""
         raise NotImplementedError  # generated (usually = __pack_value__)
 
     @classmethod
-    def _from_value(cls, object_value: dict) -> Self:
+    def from_value(cls, object_value: dict) -> Self:
         """Convert from value format"""
         raise NotImplementedError  # generated
 

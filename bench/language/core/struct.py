@@ -75,13 +75,10 @@ class Scope(Struct[ScopeData]):
 
     region: Optional[Region] = property_(30, is_repr=True)
     bench_id: Optional[UUID] = property_(31, is_repr=True)
-    package_ids: list[UUID] = property_(32, is_repr=True)
 
 
 def repr_scope(scope: Scope | ScopeData) -> str:
-    if scope.package_ids:
-        return f"[bench_id={scope.bench_id}, package_ids={', '.join(str(id) for id in scope.package_ids)}]"
-    elif scope.bench_id:
+    if scope.bench_id:
         return f"[bench_id={scope.bench_id}]"
     else:
         return "[*]"

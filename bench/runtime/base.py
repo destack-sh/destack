@@ -146,7 +146,7 @@ class RuntimeServiceBase(ServiceBase, abc.ABC):
             # self bench engine
             RemoteEngine(
                 name="remote-self-bench",
-                scope=Scope(bench_id=self._bench_id)._to_proto(),
+                scope=Scope(bench_id=self._bench_id).to_proto(),
                 node_types=BENCH_NODE_TYPES,
                 remote=self._self_host,
                 write_retry=RETRY_GRPC_FOREVER,
@@ -155,7 +155,7 @@ class RuntimeServiceBase(ServiceBase, abc.ABC):
             # bench bench engine
             RemoteEngine(
                 name="remote-bench-bench",
-                scope=Scope(bench_id=BENCH_ID)._to_proto(),
+                scope=Scope(bench_id=BENCH_ID).to_proto(),
                 node_types=BENCH_NODE_TYPES,
                 remote=self._bench_host,
                 write_retry=RETRY_GRPC_FOREVER,
@@ -165,7 +165,7 @@ class RuntimeServiceBase(ServiceBase, abc.ABC):
 
         # setup session
         self._session = Session(
-            _default_scope=Scope(bench_id=self._bench_id)._to_proto(),
+            _default_scope=Scope(bench_id=self._bench_id).to_proto(),
             _engines=self._engines,
             _supervisor=self._supervisor,
             _self_host=self._self_host,
@@ -206,7 +206,7 @@ class RuntimeServiceBase(ServiceBase, abc.ABC):
         else:
             raise ValueError(f"unknown client parent {self._client.parent!r} in {self!r}")
         self._session.origin = (
-            self._client.to_origin(nonce=NONCE)._to_proto() if self._client else None
+            self._client.to_origin(nonce=NONCE).to_proto() if self._client else None
         )
 
     @cachetools.cached({})

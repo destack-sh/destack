@@ -449,6 +449,7 @@ class Property(IntoQuery if TYPE_CHECKING else object):
                 is_stored=True,
                 is_required=self.is_required,
                 is_variable=self.is_variable,
+                is_eq=self.is_eq,
                 default=None,
                 runtime_prop=self,
             )
@@ -479,6 +480,7 @@ class Property(IntoQuery if TYPE_CHECKING else object):
                 primitive_type=PrimitiveType.JSON,
                 is_wired=True,
                 is_stored=True,
+                is_eq=self.is_eq,
                 cardinality=self.cardinality,
                 is_computed=is_computed,
                 is_required=self.is_required,
@@ -719,6 +721,7 @@ def property_parent_(id: int = 4, is_system: bool = False) -> Any:
         is_wired=True,
         is_stored=False,
         is_required=False,
+        is_eq=False,
         node_bench_from="self",
         node_exclude=("ck", "base_id"),
     )

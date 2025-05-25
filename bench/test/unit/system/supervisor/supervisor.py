@@ -97,7 +97,7 @@ async def test_user_registration(supervisor: SupervisorClient):
     assert login_rep.access_token
 
     # read user with sensitive data, authorized -> success
-    select = SelectOptions(include_properties=[cast(Property, User.email)])._to_proto()
+    select = SelectOptions(include_properties=[cast(Property, User.email)]).to_proto()
     read_user_req = GetNodesRequest(
         scope=EMPTY_SCOPE_DATA,
         roots=[NodeReference._ref_data_from_node_data(signup_rep.user)],

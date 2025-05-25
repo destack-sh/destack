@@ -123,28 +123,28 @@ class IsLocal(Node if TYPE_CHECKING else BuiltinObject):
 class IsModal(Node if TYPE_CHECKING else BuiltinObject):
     """A Node that can be in different modes."""
 
-    mode: NodeMode = property_(20, is_managed=True, default=NodeMode.MAIN)
+    mode: NodeMode = property_(20, is_managed=True, is_eq=False, default=NodeMode.MAIN)
 
 
 @trait_(TraitType.NAMED)
 class IsNamed(Node if TYPE_CHECKING else BuiltinObject):
     """A Node with a plain name."""
 
-    name: str | None = property_(31, format=StringFormat.NAME)
+    name: str | None = property_(31, is_repr=True, format=StringFormat.NAME)
 
 
 @trait_(TraitType.TITLED)
 class IsTitled(Node if TYPE_CHECKING else BuiltinObject):
     """A Node with a rich title."""
 
-    title: Optional["TextLine"] = property_(32)
+    title: Optional["TextLine"] = property_(32, is_repr=True)
 
 
 @trait_(TraitType.SLUG)
 class IsSlug(Node if TYPE_CHECKING else BuiltinObject):
     """A Node with a slug."""
 
-    slug: str | None = property_(33, format=StringFormat.SLUG)
+    slug: str | None = property_(33, is_repr=True, format=StringFormat.SLUG)
 
 
 @trait_(TraitType.ICON)
@@ -158,14 +158,14 @@ class IsIcon(Node if TYPE_CHECKING else BuiltinObject):
 class IsOrdered(Node if TYPE_CHECKING else BuiltinObject):
     """A Node that can be ordered."""
 
-    order_key: str | None = property_(22, is_managed=True, default=INTEGER_ZERO)
+    order_key: str | None = property_(22, is_managed=True, is_eq=False, default=INTEGER_ZERO)
 
 
 @trait_(TraitType.ARCHIVABLE)
 class IsArchivable(Node if TYPE_CHECKING else BuiltinObject):
     """A Node that can be archived."""
 
-    archived_at: Optional[datetime] = property_(14, is_managed=True)
+    archived_at: Optional[datetime] = property_(14, is_managed=True, is_eq=False)
 
     @property
     def is_archived(self) -> bool:
@@ -186,7 +186,7 @@ class IsArchivable(Node if TYPE_CHECKING else BuiltinObject):
 class IsDeletable(Node if TYPE_CHECKING else BuiltinObject):
     """A Node that can be deleted."""
 
-    deleted_at: Optional[datetime] = property_(15, is_managed=True)
+    deleted_at: Optional[datetime] = property_(15, is_managed=True, is_eq=False)
 
     def delete(self, _now: datetime | None = None):
         """Delete this Node."""
@@ -295,7 +295,7 @@ class IsTemplatable(Node if TYPE_CHECKING else BuiltinObject):
 class IsInstantiable(IsTemplatable):
     """A Node that can be instanced (we can create Nodes that are 'instances' of this Node)."""
 
-    ck: UUID = property_(3, is_managed=True)  # type: ignore
+    ck: UUID = property_(3, is_managed=True, is_eq=False)  # type: ignore
     # nocheckin: proper templating/instancing (for views/Variants/overrides/branches/...)
 
     @property

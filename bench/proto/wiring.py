@@ -81,7 +81,7 @@ def copy_struct[T: AnyStructData | AnyNodeData](data: T) -> T:
     return copy
 
 
-def _generate_pack_proto_for_cls(cls: type["BuiltinObject"]) -> str:
+def _generate_pack_proto_impl(cls: type["BuiltinObject"]) -> str:
     """
     Generate BuiltinObject.__pack_proto__ and __unpack_proto__ class methods.
     """
@@ -90,14 +90,14 @@ def _generate_pack_proto_for_cls(cls: type["BuiltinObject"]) -> str:
 
     if cls.__is_frozen__:
         to_proto = """\
-def _to_proto(self: "Self") -> "StructDataT":
+def to_proto(self: "Self") -> "StructDataT":
     if self._proto is None:
         self._proto = self.__pack_proto__(self)
     return self._proto
 """
     else:
         to_proto = """\
-def _to_proto(self: "Self") -> "StructDataT":
+def to_proto(self: "Self") -> "StructDataT":
     return self.__pack_proto__(self)
 """
 
@@ -112,7 +112,7 @@ def __unpack_proto__(cls, object_data: "{cls.__name__}Data") -> "Self":
 
 {to_proto}
 
-_from_proto = __unpack_proto__
+from_proto = __unpack_proto__
 """
 
 
