@@ -728,11 +728,6 @@ def _process_object_cls[ObjectT: BuiltinObject](
             exec(path_str, {}, cls_dict)
         # equals
         equals_str = _generate_equals_impl(cls)
-        print("=" * 100)
-        print(cls.__name__ + ":equals")
-        print("=" * 100)
-        print(equals_str)
-        print("=" * 100)
         exec(equals_str, {"EMPTY_DICT": EMPTY_DICT}, cls_dict)
         # validate
         validate_str = _generate_validate_impl(cls)
