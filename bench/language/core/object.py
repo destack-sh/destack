@@ -10,6 +10,7 @@ from typing import (
     Any,
     ClassVar,
     Collection,
+    Literal,
     Mapping,
     Self,
     Union,
@@ -265,37 +266,114 @@ if {prop.name} is None:
 
 def _generate_repr_impl[ObjectT: BuiltinObject](cls: type[ObjectT]) -> str:
     """Generates BuiltinObject.__repr__."""
-    repr_content_str_parts: list[str] = []
-    for prop in cls.__properties__.values():
-        if not prop.is_repr:
-            continue
-        repr_content_str_parts.append(f"{prop.name}={{self.{prop.name}!r}}")
-    repr_content_str = ", ".join(repr_content_str_parts)
-
-    if cls.__is_node__:
-        if repr_content_str:
-            return f"""\
-def __repr__(self) -> str:
-    return f"<{cls.__name__} {{self.path}} {repr_content_str}>"
-__str__ = __repr__
-"""
-        else:
+    repr_properties = [prop for prop in cls.__properties__.values() if prop.is_repr]
+    if not repr_properties:
+        # No repr properties
+        if cls.__is_node__:
             return f"""\
 def __repr__(self) -> str:
     return f"<{cls.__name__} {{self.path}}>"
-__str__ = __repr__
-"""
-    else:
-        if repr_content_str:
-            return f"""\
-def __repr__(self) -> str:
-    return f"<{cls.__name__} {repr_content_str}>"
 __str__ = __repr__
 """
         else:
             return f"""\
 def __repr__(self) -> str:
     return f"<{cls.__name__}>"
+__str__ = __repr__
+"""
+
+    def get_scalar_repr(
+        scalar_type: Literal["enum", "primitive", "struct", "node"], value_expr: str
+    ) -> str:
+        """Get repr expression for a scalar value."""
+        if scalar_type == "enum":
+            return f"{value_expr}.name"
+        elif scalar_type in ("primitive", "struct", "node"):
+            return f"{value_expr}!r"
+        else:
+            assert_never(scalar_type)
+
+    # property parts
+    repr_parts_lines: list[str] = []
+    repr_parts_lines.append("property_reprs = []")
+    has_required_repr_props = False
+
+    for prop in repr_properties:
+        prop_name = prop.name
+        if prop.cardinality == "scalar":
+            if prop.is_required:
+                scalar_expr = get_scalar_repr(prop.scalar_type, f"self.{prop_name}")
+                repr_parts_lines.append(f"property_reprs.append(f'{prop_name}={{{scalar_expr}}}')")
+                has_required_repr_props = True
+            else:
+                scalar_expr = get_scalar_repr(prop.scalar_type, f"{prop_name}")
+                repr_parts_lines.extend(
+                    f"""\
+if ({prop_name} := self.{prop_name}) is not None:
+    property_reprs.append(f'{prop_name}={{{scalar_expr}}}')""".splitlines()
+                )
+        elif prop.cardinality == "list":
+            if prop.scalar_type == "enum":
+                list_expr = f"'[' + ', '.join(x.name for x in self.{prop_name}) + ']'"
+            else:
+                list_expr = f"self.{prop_name}!r"
+            repr_parts_lines.extend(
+                f"""\
+if self.{prop_name}:
+    property_reprs.append(f'{prop_name}={{{list_expr}}}')""".splitlines()
+            )
+        elif prop.cardinality == "map":
+            assert prop.key_type is not None, f"{prop!r} has no key type"
+            if prop.key_type.scalar_type == "enum":
+                key_repr = get_scalar_repr(prop.key_type.scalar_type, "k")
+                value_repr = get_scalar_repr(prop.scalar_type, "v")
+                map_expr = f"'{{' + ', '.join(f'{{{key_repr}}}: {{{value_repr}}}' for k, v in self.{prop_name}.items()) + '}}'"
+            else:
+                map_expr = f"self.{prop_name}!r"
+            repr_parts_lines.extend(
+                f"""\
+if self.{prop_name}:
+    property_reprs.append(f'{prop_name}={{{map_expr}}}')""".splitlines()
+            )
+        else:
+            assert_never(prop.cardinality)
+
+    # wrap in repr
+    repr_parts_str = "\n    ".join(repr_parts_lines)
+    if cls.__is_node__:
+        if has_required_repr_props:
+            return f"""\
+def __repr__(self) -> str:
+    {repr_parts_str}
+    return f"<{cls.__name__} {{self.path}} {{', '.join(property_reprs)}}>"
+__str__ = __repr__
+"""
+        else:
+            return f"""\
+def __repr__(self) -> str:
+    {repr_parts_str}
+    if property_reprs:
+        return f"<{cls.__name__} {{self.path}} {{', '.join(property_reprs)}}>"
+    else:
+        return f"<{cls.__name__} {{self.path}}>"
+__str__ = __repr__
+"""
+    else:
+        if has_required_repr_props:
+            return f"""\
+def __repr__(self) -> str:
+    {repr_parts_str}
+    return f"<{cls.__name__} {{', '.join(property_reprs)}}>"
+__str__ = __repr__
+"""
+        else:
+            return f"""\
+def __repr__(self) -> str:
+    {repr_parts_str}
+    if property_reprs:
+        return f"<{cls.__name__} {{', '.join(property_reprs)}}>"
+    else:
+        return f"<{cls.__name__}>"
 __str__ = __repr__
 """
 
@@ -526,9 +604,10 @@ def {prop.name}(self: "BuiltinObject") -> "Node | None":
             getter = f"""\
 @property
 def {prop.name}(self: "BuiltinObject") -> "Node | None":
-    assert self._supergraph is not None
     node_ptr: NodeReference | None = self.{ptr_prop.name}
     if node_ptr is not None:
+        if self._supergraph is None:
+            return None
         return self._supergraph.get(node_ptr)
     else:
         return None"""
@@ -547,15 +626,14 @@ def {prop.name}(self: "BuiltinObject", value: "Node | None"):
 @property
 def {prop.name}(self: "BuiltinObject") -> tuple["Node", ...]:
     node_ptrs: list[NodeReference] = self.{ptr_prop.name}
-    assert type(node_ptrs) is list, f"invalid {prop}: {{node_ptrs!r}}"
     return tuple(self._supergraph.get(p) for p in node_ptrs)"""
         else:
             getter = f"""\
 @property
 def {prop.name}(self: "BuiltinObject") -> tuple["Node", ...]:
-    assert self._supergraph is not None
     node_ptrs: list[NodeReference] = self.{ptr_prop.name}
-    assert type(node_ptrs) is list, f"invalid {prop}: {{node_ptrs!r}}"
+    if self._supergraph is None:
+        return ()
     return tuple(self._supergraph.get(p) for p in node_ptrs)"""
 
         setter = f"""\
@@ -589,7 +667,6 @@ def {prop.name}_{obj_key}(self: "BuiltinObject") -> "Node | None":
 @property
 def {prop.name}_{obj_key}(self: "BuiltinObject") -> tuple["Node", ...]:
     node_ptrs: list[NodeReference] = self.{ptr_prop.name}
-    assert type(node_ptrs) is list, f"invalid {prop}: {{node_ptrs!r}}"
     return tuple(node_ptr.{ptr_key} for node_ptr in node_ptrs)
 """
 
@@ -769,18 +846,9 @@ def _process_object_cls[ObjectT: BuiltinObject](
         init_str = _generate_init_impl(
             cls, is_node=is_node, is_frozen=is_frozen, properties=properties
         )
-        print("=" * 100)
-        print(cls.__name__ + ":init")
-        print(init_str)
-        print("=" * 100)
         exec(init_str, glbls, cls_dict)
         # __repr__
         repr_str = _generate_repr_impl(cls)
-        print("=" * 100)
-        print(cls.__name__ + ":repr")
-        print("=" * 100)
-        print(repr_str)
-        print("=" * 100)
         exec(repr_str, glbls, cls_dict)
         # path
         if is_node:
