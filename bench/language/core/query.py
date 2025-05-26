@@ -31,9 +31,9 @@ class RelationType(BuiltinEnum):
 class RelationReference(Struct):
     """Reference to a Node "table" or base somewhere."""
 
-    type: RelationType = property_(30)
-    node_type: NodeType = property_(31)
-    table: Optional["Table"] = property_(32)
+    type: RelationType = property_(30, is_repr=True)
+    node_type: NodeType = property_(31, is_repr=True)
+    table: Optional["Table"] = property_(32, is_repr=True)
 
     if TYPE_CHECKING:
         table_ptr: Optional[NodeReference] = None  # convenience only
@@ -64,11 +64,13 @@ class AttributeType(BuiltinEnum):
 class AttributeReference(Struct):
     """Reference to a Field or Property."""
 
-    type: AttributeType = property_(30)
-    name: str | None = property_(31, description="Named attribute from another Query.")
-    field: Optional["Field"] = property_(32)
-    prop: Optional["Property"] = property_(33)
-    table: Optional[RelationReference] = property_(34)
+    type: AttributeType = property_(30, is_repr=True)
+    name: str | None = property_(
+        31, description="Named attribute from another Query.", is_repr=True
+    )
+    field: Optional["Field"] = property_(32, is_repr=True)
+    prop: Optional["Property"] = property_(33, is_repr=True)
+    table: Optional[RelationReference] = property_(34, is_repr=True)
 
 
 def attribute_ref(field: "str | Field | Property") -> AttributeReference:

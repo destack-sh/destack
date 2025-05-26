@@ -1,6 +1,4 @@
-from typing import TYPE_CHECKING, Optional, Union
-
-from fastuuid import UUID
+from typing import TYPE_CHECKING, Union
 
 from bench.language.core import (
     BuiltinEnum,
@@ -16,14 +14,10 @@ from bench.language.core import (
     IsSubject,
     IsTitled,
     Node,
-    NodeReference,
     NodeType,
-    TextLineIn,
     enum_,
     node_,
-    property_,
     property_parent_,
-    to_text_line,
 )
 from bench.pb2 import ThreadData
 
@@ -61,30 +55,7 @@ class Thread(
     # meta
     parent: Union["Package", "Page", "Thread", None] = property_parent_()
 
-    # content
-    page: Optional["Page"] = property_(60, node_bench_from="self")
-    if TYPE_CHECKING:
-        page_ptr: Optional[NodeReference] = None
-        page_id: Optional[UUID] = None
-        plan_ptr: Optional[NodeReference] = None
-        plan_id: Optional[UUID] = None
-        plan_ck: Optional[UUID] = None
-
     # ...IsProcessable[80-]
-
-    @staticmethod
-    def new(
-        title: TextLineIn | None = None,
-        *,
-        page: Optional["Page"] = None,
-        **kwargs,
-    ) -> "Thread":
-        thread = Thread(
-            title=to_text_line(title) if title is not None else None,
-            page=page,
-            **kwargs,
-        )
-        return thread
 
     def get_cursor(self, *, type: "CursorType", owned_by: "IsSubject | None") -> "Cursor | None":
         """Get a Cursor of the given type."""
