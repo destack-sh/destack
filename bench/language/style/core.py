@@ -72,7 +72,7 @@ class LengthUnit(BuiltinEnum):
     FR = 4, "Fr", "fr"
 
 
-@struct_(StructType.LENGTH)
+@struct_(StructType.LENGTH, is_frozen=True)
 class Length(Struct):
     """A length value."""
 
@@ -90,7 +90,7 @@ class PositionType(BuiltinEnum):
     STICKY = 4, "Sticky", "Sticky"
 
 
-@struct_(StructType.POSITION)
+@struct_(StructType.POSITION, is_frozen=True)
 class Position(Struct):
     """A position value."""
 
@@ -108,7 +108,7 @@ class DimensionType(BuiltinEnum):
     FILL = 4, "Fill", "Fill", "fas fa-arrows-from-dotted-line"
 
 
-@struct_(StructType.DIMENSION)
+@struct_(StructType.DIMENSION, is_frozen=True)
 class Dimension(Struct):
     """A dimension value (like Length but can fit or fill container)."""
 
@@ -117,7 +117,7 @@ class Dimension(Struct):
     value: float = property_(51)
 
 
-@struct_(StructType.INSETS)
+@struct_(StructType.INSETS, is_frozen=True)
 class Insets(Struct):
     """An insets value (base + top/left/right/bottom)."""
 
@@ -128,7 +128,7 @@ class Insets(Struct):
     bottom: int | None = property_(54)
 
 
-@struct_(StructType.CORNERS)
+@struct_(StructType.CORNERS, is_frozen=True)
 class Corners(Struct):
     """A corners value (base + top_left/top_right/bottom_left/bottom_right)."""
 
@@ -139,7 +139,7 @@ class Corners(Struct):
     bottom_right: int | None = property_(54)
 
 
-@struct_(StructType.AXIS2)
+@struct_(StructType.AXIS2, is_frozen=True)
 class Axis2(Struct):
     """A gap value (base + x/y)."""
 
@@ -148,7 +148,7 @@ class Axis2(Struct):
     y: float | None = property_(52)
 
 
-@struct_(StructType.AXIS3)
+@struct_(StructType.AXIS3, is_frozen=True)
 class Axis3(Struct):
     """A rotation value (base + x/y/z)."""
 
@@ -158,7 +158,7 @@ class Axis3(Struct):
     z: float | None = property_(53)
 
 
-@struct_(StructType.VECTOR2)
+@struct_(StructType.VECTOR2, is_frozen=True)
 class Vector2(Struct):
     """A 2D vector."""
 
@@ -170,7 +170,7 @@ def vector2(x: float, y: float) -> "Vector2":
     return Vector2(x=float(x), y=float(y))
 
 
-@struct_(StructType.VECTOR3)
+@struct_(StructType.VECTOR3, is_frozen=True)
 class Vector3(Struct):
     """A 3D vector."""
 
@@ -183,7 +183,7 @@ def vector3(x: float, y: float, z: float) -> "Vector3":
     return Vector3(x=float(x), y=float(y), z=float(z))
 
 
-@struct_(StructType.VECTOR4)
+@struct_(StructType.VECTOR4, is_frozen=True)
 class Vector4(Struct):
     """A 4D vector."""
 
@@ -197,7 +197,7 @@ def vector4(x: float, y: float, z: float, w: float) -> "Vector4":
     return Vector4(x=float(x), y=float(y), z=float(z), w=float(w))
 
 
-@struct_(StructType.GRID)
+@struct_(StructType.GRID, is_frozen=True)
 class Grid(Struct):
     """A grid configuration value."""
 
@@ -208,7 +208,7 @@ class Grid(Struct):
     row_height: Dimension | None = property_(54)
 
 
-@struct_(StructType.GRID_SPAN)
+@struct_(StructType.GRID_SPAN, is_frozen=True)
 class GridSpan(Struct):
     """A grid span value."""
 

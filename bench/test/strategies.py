@@ -28,6 +28,7 @@ from bench.language import (
     PrimitiveType,
     ScalarType,
     StructType,
+    ThemeColor,
     Type,
     TypeCardinality,
     expand_node_types,
@@ -310,6 +311,9 @@ STRATEGY_BY_PROPERTY: dict[str, st.SearchStrategy] = {
     "slug": SLUG_STRATEGY,
 }
 STRATEGY_BY_OBJECT_PROPERTY: dict[tuple[NodeType | StructType, str], st.SearchStrategy] = {
+    (NodeType.THEME, "colors"): st.dictionaries(
+        keys=st.sampled_from(ThemeColor), values=from_object_type(StructType.COLOR)
+    ),
     (NodeType.FILE, "inline_content"): BYTES_STRATEGY,
     (StructType.CODE, "content"): st.text(min_size=1, max_size=64, alphabet=ascii_lowercase),
     # Text is pretty limited right now :CrummyMarkdown
