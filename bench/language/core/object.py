@@ -839,10 +839,11 @@ def _process_object_cls[ObjectT: BuiltinObject](
     cls.__properties_mask_set__.setall(True)
     cls.__properties_mask_unset__ = bitarray(cls.__max_property_ord__ + 1)
 
-    # define slots & __init__ (in leaf classes, otherwise their slots might clash)
+    cls_dict = dict(cls.__dict__)
+
+    # define final methods in leaf classes
     if is_concrete:
         assert object_type is not None, f"concrete objects need a type: {cls.__name__}"
-        cls_dict = dict(cls.__dict__)
 
         # __init__
         glbls = {
@@ -854,11 +855,6 @@ def _process_object_cls[ObjectT: BuiltinObject](
         init_str, init_glbls = _generate_init_impl(
             cls, is_node=is_node, is_frozen=is_frozen, properties=properties
         )
-        print("=" * 100)
-        print(cls.__name__ + ":init")
-        print("=" * 100)
-        print(init_str)
-        print("=" * 100)
         exec(init_str, {**glbls, **init_glbls}, cls_dict)
         # __repr__
         repr_str, repr_glbls = _generate_repr_impl(cls)
@@ -905,24 +901,27 @@ def _process_object_cls[ObjectT: BuiltinObject](
 
         # freeze
         if is_frozen:
-            pass  # do nothing since freezing with a custom setattr is bad for performance
+            pass  # do nothing since freezing with a custom setattr is bad for :Performance?
 
-        # slots
-        cls_dict.pop("__dict__", None)
-        cls_dict.pop("__weakref__", None)
-        for prop in properties.values():
-            cls_dict.pop(prop.name, None)
+    # slots
+    cls_dict.pop("__dict__", None)
+    cls_dict.pop("__weakref__", None)
+    for prop in properties.values():
+        cls_dict.pop(prop.name, None)
+    if is_concrete:  # (only define actual slots in leaf, otherwise slots clash)
         cls_dict["__slots__"] = tuple(cls.__properties__.keys())
+    else:
+        cls_dict["__slots__"] = ()
 
-        # create the new class
-        _original_cls = cls
-        cls = cast(type[ObjectT], type(cls.__name__, cls.__bases__, cls_dict))
-        _processed_classes[_original_cls] = cls
-        del _original_cls
+    # create the new class
+    _original_cls = cls
+    cls = cast(type[ObjectT], type(cls.__name__, cls.__bases__, cls_dict))
+    _processed_classes[_original_cls] = cls
+    del _original_cls
 
-        # update cls references in props
-        for prop in properties.values():
-            prop.component = cls
+    # update cls references in props
+    for prop in properties.values():
+        prop.component = cls
 
     return cls, properties  # type: ignore
 

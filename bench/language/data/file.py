@@ -635,7 +635,7 @@ class File(IsResource, IsRegional, Node[FileData]):
     @staticmethod
     async def inline(
         content: bytes | str,
-        name: str | None = None,
+        name: str,
         mime_type: str | None = None,
         type: FileType | None = None,
         format: FileFormat | str | None = None,
@@ -803,7 +803,7 @@ FileIn = Union[bytes, Image.Image]
 @tracer.start_as_current_span("file.extract_info")
 async def extract_file_info(  # noqa: RUF029
     file_in: FileIn,
-    name: str | None = None,
+    name: str,
     *,
     mime_type: str | None = None,
     type: FileType | None = None,
