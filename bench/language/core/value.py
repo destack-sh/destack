@@ -1,4 +1,5 @@
 import base64
+import textwrap
 from datetime import date, datetime, time, timedelta
 from typing import (
     TYPE_CHECKING,
@@ -235,35 +236,42 @@ from_value = __unpack_value__
         "unpack_proto_time": unpack_proto_time,
         "pack_proto_json": pack_proto_json,
         "unpack_proto_json": unpack_proto_json,
+        "datetime": datetime,
+        "timedelta": timedelta,
+        "date": date,
+        "time": time,
     }
 
 
 def _generate_pack_value(cls: type["BuiltinObject"]) -> str:
     """Generate the BuiltinObject.__pack_value__ method implementation."""
     pack_method_parts: list[str] = []
-    pack_assignments: list[str] = []
+    pack_method_parts.append("result = {}")
 
-    for prop in cls.__wired_properties__.values():
+    wired_properties_in_order = list(cls.__wired_properties__.values())
+    wired_properties_in_order.sort(key=lambda p: p.id or 0)
+    for prop in wired_properties_in_order:
         if prop.name == "metatype":
             metatype = BUILTIN_OBJECT_TYPE_BY_CLASS[cls]
-            pack_assignments.append(f'"{prop.id}": {metatype.value}')
+            pack_method_parts.append(f'result["{prop.id}"] = {metatype.value}')
             continue
+
         pack_code = _generate_pack_value_property(prop)
         if pack_code:
-            if len(pack_code) == 1:
-                pack_assignments.append(f'"{prop.id}": {pack_code[0].split(" = ", 1)[1]}')
-            else:
-                pack_method_parts.extend(pack_code)
-                pack_assignments.append(f'"{prop.id}": _packed_{prop.name}')
+            pack_method_parts.extend(pack_code)
         else:
-            pack_assignments.append(f'"{prop.id}": object.{prop.name}')
+            # Simple assignment for properties that don't need special handling
+            if prop.is_required:
+                pack_method_parts.append(f'result["{prop.id}"] = object.{prop.name}')
+            else:
+                pack_method_parts.extend(
+                    [
+                        f"if object.{prop.name} is not None:",
+                        f'    result["{prop.id}"] = object.{prop.name}',
+                    ]
+                )
 
-    pack_method_parts.append("return {")
-    for i, assignment in enumerate(pack_assignments):
-        comma = "," if i < len(pack_assignments) - 1 else ""
-        pack_method_parts.append(f"    {assignment}{comma}")
-    pack_method_parts.append("}")
-
+    pack_method_parts.append("return result")
     return "\n".join(pack_method_parts)
 
 
@@ -304,45 +312,55 @@ def _generate_pack_value_property(prop: "Property") -> list[str] | None:
         scalar_lines = _generate_pack_value_scalar(prop, obj_value, f"_packed_{prop.name}")
         if scalar_lines:
             lines.extend(scalar_lines)
+            if prop.is_required:
+                lines.append(f'result["{prop.id}"] = _packed_{prop.name}')
+            else:
+                lines.extend(
+                    [
+                        f"if _packed_{prop.name} is not None:",
+                        f'    result["{prop.id}"] = _packed_{prop.name}',
+                    ]
+                )
         else:
             return None
     elif prop.cardinality == "list":
         lines.extend(
-            f"""\
-_packed_{prop.name} = []
-if {obj_value} is not None:
-    for _item in {obj_value}:""".splitlines()
+            [
+                f"if {obj_value}:",
+                f"    _packed_{prop.name} = []",
+                f"    for _item in {obj_value}:",
+            ]
         )
         item_lines = _generate_pack_value_scalar(prop, "_item", "_packed_item")
         if item_lines:
-            for line in item_lines:
-                lines.append(f"        {line}")
+            lines.extend(textwrap.indent("\n".join(item_lines), "        ").splitlines())
             lines.append(f"        _packed_{prop.name}.append(_packed_item)")
         else:
             lines.append(f"        _packed_{prop.name}.append(_item)")
+        lines.append(f'    result["{prop.id}"] = _packed_{prop.name}')
     elif prop.cardinality == "map":
         lines.extend(
-            f"""\
-_packed_{prop.name} = {{}}
-if {obj_value} is not None:
-    for _key, _value in {obj_value}.items():""".splitlines()
+            [
+                f"if {obj_value}:",
+                f"    _packed_{prop.name} = {{}}",
+                f"    for _key, _value in {obj_value}.items():",
+            ]
         )
         key_lines = _generate_pack_value_scalar(prop, "_key", "_packed_key")
         value_lines = _generate_pack_value_scalar(prop, "_value", "_packed_value")
         if key_lines and value_lines:
-            for line in key_lines + value_lines:
-                lines.append(f"        {line}")
+            combined_lines = key_lines + value_lines
+            lines.extend(textwrap.indent("\n".join(combined_lines), "        ").splitlines())
             lines.append(f"        _packed_{prop.name}[_packed_key] = _packed_value")
         elif key_lines:
-            for line in key_lines:
-                lines.append(f"        {line}")
+            lines.extend(textwrap.indent("\n".join(key_lines), "        ").splitlines())
             lines.append(f"        _packed_{prop.name}[_packed_key] = _value")
         elif value_lines:
-            for line in value_lines:
-                lines.append(f"        {line}")
+            lines.extend(textwrap.indent("\n".join(value_lines), "        ").splitlines())
             lines.append(f"        _packed_{prop.name}[_key] = _packed_value")
         else:
             lines.append(f"        _packed_{prop.name}[_key] = _value")
+        lines.append(f'    result["{prop.id}"] = _packed_{prop.name}')
     else:
         assert_never(prop.cardinality)
 
@@ -362,38 +380,37 @@ def _generate_unpack_value_property(prop: "Property") -> list[str] | None:
             return None
     elif prop.cardinality == "list":
         lines.extend(
-            f"""\
-_unpacked_{prop.name} = []
-if {data_value} is not None:
-    for _item in {data_value}:""".splitlines()
+            [
+                f"_unpacked_{prop.name} = []",
+                f"if {data_value} is not None:",
+                f"    for _item in {data_value}:",
+            ]
         )
         item_lines = _generate_unpack_value_scalar(prop, "_item", "_unpacked_item")
         if item_lines:
-            for line in item_lines:
-                lines.append(f"        {line}")
+            lines.extend(textwrap.indent("\n".join(item_lines), "        ").splitlines())
             lines.append(f"        _unpacked_{prop.name}.append(_unpacked_item)")
         else:
             lines.append(f"        _unpacked_{prop.name}.append(_item)")
     elif prop.cardinality == "map":
         lines.extend(
-            f"""\
-_unpacked_{prop.name} = {{}}
-if {data_value} is not None:
-    for _key, _value in {data_value}.items():""".splitlines()
+            [
+                f"_unpacked_{prop.name} = {{}}",
+                f"if {data_value} is not None:",
+                f"    for _key, _value in {data_value}.items():",
+            ]
         )
         key_lines = _generate_unpack_value_scalar(prop, "_key", "_unpacked_key")
         value_lines = _generate_unpack_value_scalar(prop, "_value", "_unpacked_value")
         if key_lines and value_lines:
-            for line in key_lines + value_lines:
-                lines.append(f"        {line}")
+            combined_lines = key_lines + value_lines
+            lines.extend(textwrap.indent("\n".join(combined_lines), "        ").splitlines())
             lines.append(f"        _unpacked_{prop.name}[_unpacked_key] = _unpacked_value")
         elif key_lines:
-            for line in key_lines:
-                lines.append(f"    {line}")
+            lines.extend(textwrap.indent("\n".join(key_lines), "        ").splitlines())
             lines.append(f"        _unpacked_{prop.name}[_unpacked_key] = _value")
         elif value_lines:
-            for line in value_lines:
-                lines.append(f"        {line}")
+            lines.extend(textwrap.indent("\n".join(value_lines), "        ").splitlines())
             lines.append(f"        _unpacked_{prop.name}[_key] = _unpacked_value")
         else:
             lines.append(f"        _unpacked_{prop.name}[_key] = _value")
