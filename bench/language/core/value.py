@@ -23,7 +23,7 @@ from google.protobuf.timestamp_pb2 import Timestamp
 from opentelemetry import trace
 
 from bench.language.registry import BUILTIN_OBJECT_TYPE_BY_CLASS, ENUM_CLASS_BY_TYPE
-from bench.pb2 import AnyNodeData, AnyStructData, Date, NodeReferenceData, TimeOfDay
+from bench.pb2 import AnyNodeData, AnyStructData, Date, NodeReferenceData, TimeOfDay, ValueData
 from bench.utils.time import timedelta_from_isoformat, timedelta_to_isoformat
 
 from .const import (
@@ -67,7 +67,7 @@ JsonValue = Union[JsonPrimitive, dict[str, "JsonValue"], list["JsonValue"]]
 
 
 @struct_(StructType.VALUE)
-class Value(Struct):
+class Value(Struct[ValueData]):
     """A value of any type."""
 
     value: dict[str, Json] = property_(35)
@@ -281,7 +281,7 @@ def _generate_unpack_value(cls: type["BuiltinObject"]) -> str:
     unpack_method_parts: list[str] = []
 
     for prop in cls.__wired_properties__.values():
-        if prop.name == "metatype":
+        if prop.is_computed:
             continue  # set implicitly
         unpack_code = _generate_unpack_value_property(prop)
         if unpack_code:

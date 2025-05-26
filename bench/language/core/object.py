@@ -193,12 +193,12 @@ if id is None:
     now = self._session.oracle.utc()
     created_at = now
     updated_at = now
-    is_new = True
+    _is_new = True
 __setattr__(self, "id", id)
 __setattr__(self, "ck", ck)
 __setattr__(self, "created_at", created_at)
 __setattr__(self, "updated_at", updated_at)
-__setattr__(self, "_is_new", is_new)
+__setattr__(self, "_is_new", _is_new)
 __setattr__(self, "_hash", id.int)
 """)
 
@@ -302,7 +302,7 @@ __str__ = __repr__
 """
         return repr_impl, {}
 
-    def get_scalar_repr(
+    def _get_scalar_repr(
         scalar_type: Literal["enum", "primitive", "struct", "node"], value_expr: str
     ) -> str:
         """Get repr expression for a scalar value."""
@@ -322,11 +322,11 @@ __str__ = __repr__
         prop_name = prop.name
         if prop.cardinality == "scalar":
             if prop.is_required:
-                scalar_expr = get_scalar_repr(prop.scalar_type, f"self.{prop_name}")
+                scalar_expr = _get_scalar_repr(prop.scalar_type, f"self.{prop_name}")
                 repr_parts_lines.append(f"property_reprs.append(f'{prop_name}={{{scalar_expr}}}')")
                 has_required_repr_props = True
             else:
-                scalar_expr = get_scalar_repr(prop.scalar_type, f"{prop_name}")
+                scalar_expr = _get_scalar_repr(prop.scalar_type, f"{prop_name}")
                 repr_parts_lines.extend(
                     f"""\
 if ({prop_name} := self.{prop_name}) is not None:
@@ -345,8 +345,8 @@ if self.{prop_name}:
         elif prop.cardinality == "map":
             assert prop.key_type is not None, f"{prop!r} has no key type"
             if prop.key_type.scalar_type == "enum":
-                key_repr = get_scalar_repr(prop.key_type.scalar_type, "k")
-                value_repr = get_scalar_repr(prop.scalar_type, "v")
+                key_repr = _get_scalar_repr(prop.key_type.scalar_type, "k")
+                value_repr = _get_scalar_repr(prop.scalar_type, "v")
                 map_expr = f"'{{' + ', '.join(f'{{{key_repr}}}: {{{value_repr}}}' for k, v in self.{prop_name}.items()) + '}}'"
             else:
                 map_expr = f"self.{prop_name}!r"

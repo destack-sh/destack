@@ -53,7 +53,7 @@ from .font import (
 from .gradient import Gradient, GradientStop, GradientStyle, GradientType
 from .shadow import Shadow, ShadowBase, ShadowStyle, ShadowType
 from .style import IsStyle
-from .theme import Theme
+from .theme import Theme, ThemeColor
 from .transition import Transition, TransitionBase, TransitionStyle, TransitionType
 
 __all__ = [
@@ -109,6 +109,7 @@ __all__ = [
     "TextDecoration",
     "TextTransform",
     "Theme",
+    "ThemeColor",
     "Transition",
     "TransitionBase",
     "TransitionStyle",

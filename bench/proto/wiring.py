@@ -1,6 +1,8 @@
+import calendar
 import json
 import textwrap
 from base64 import b64decode, b64encode
+from datetime import datetime, timedelta
 from itertools import chain
 from typing import TYPE_CHECKING, Any, Mapping, Union, assert_never, cast
 
@@ -128,34 +130,25 @@ from_proto = __unpack_proto__
         "pytz": pytz,
         "pack_proto_json": pack_proto_json,
         "unpack_proto_json": unpack_proto_json,
+        "pack_proto_timestamp": pack_proto_timestamp,
+        "pack_proto_duration": pack_proto_duration,
     }
 
 
 def _generate_pack_proto(cls: type["BuiltinObject"]) -> str:
     """Generate the BuiltinObject.__pack_proto__ method implementation."""
+    metatype = BUILTIN_OBJECT_TYPE_BY_CLASS[cls]
     pack_method_parts: list[str] = []
-    pack_assignments: list[str] = []
+    pack_method_parts.append(f"object_data = {cls.__name__}Data(metatype={metatype.value})")
 
     for prop in cls.__wired_properties__.values():
         if prop.name == "metatype":
-            metatype = BUILTIN_OBJECT_TYPE_BY_CLASS[cls]
-            pack_assignments.append(f"{prop.name}={metatype.value}")
-            continue
+            continue  # already set
         pack_code = _generate_pack_property(prop)
         if pack_code:
-            if len(pack_code) == 1:
-                pack_assignments.append(f"{prop.name}={pack_code[0].split(' = ', 1)[1]}")
-            else:
-                pack_method_parts.extend(pack_code)
-                pack_assignments.append(f"{prop.name}=_packed_{prop.name}")
-        else:
-            pack_assignments.append(f"{prop.name}=object.{prop.name}")
+            pack_method_parts.extend(pack_code)
 
-    pack_method_parts.append(f"return {cls.__name__}Data(")
-    for i, assignment in enumerate(pack_assignments):
-        comma = "," if i < len(pack_assignments) - 1 else ""
-        pack_method_parts.append(f"    {assignment}{comma}")
-    pack_method_parts.append(")")
+    pack_method_parts.append("return object_data")
 
     return "\n".join(pack_method_parts)
 
@@ -166,7 +159,7 @@ def _generate_unpack_proto(cls: type["BuiltinObject"]) -> str:
     unpack_method_parts: list[str] = []
 
     for prop in cls.__wired_properties__.values():
-        if prop.name == "metatype":
+        if prop.is_computed:
             continue  # set implicitly
         unpack_code = _generate_unpack_property(prop)
         if unpack_code:
@@ -189,54 +182,66 @@ def _generate_unpack_proto(cls: type["BuiltinObject"]) -> str:
     return "\n".join(unpack_method_parts)
 
 
+def _is_proto_primitive(prop: "Property | TypeAnnotation") -> bool:
+    """Check if a property is a proto primitive type."""
+    return prop.cardinality == "scalar" and (
+        prop.scalar_type == "enum"
+        or (
+            prop.scalar_type == "primitive"
+            and prop.primitive_type
+            not in (
+                PrimitiveType.DATE,
+                PrimitiveType.TIME,
+                PrimitiveType.DATETIME,
+                PrimitiveType.DURATION,
+            )
+        )
+    )
+
+
 def _generate_pack_property(prop: "Property") -> list[str] | None:
     """Generate the packing code for a property value."""
     lines: list[str] = []
     obj_value = f"object.{prop.name}"
 
     if prop.cardinality == "scalar":
-        scalar_lines = _generate_pack_scalar(prop, obj_value, f"_packed_{prop.name}")
-        if scalar_lines:
-            lines.extend(scalar_lines)
+        if not prop.is_required:
+            lines.append(f"if ({prop.name} := {obj_value}) is not None:")
+            scalar_expr = _generate_pack_scalar(prop, prop.name)
+            if _is_proto_primitive(prop):
+                lines.append(f"    object_data.{prop.name} = {scalar_expr}")
+            else:
+                lines.append(f"    object_data.{prop.name}.CopyFrom({scalar_expr})")
         else:
-            return None
+            scalar_expr = _generate_pack_scalar(prop, obj_value)
+            if _is_proto_primitive(prop):
+                lines.append(f"object_data.{prop.name} = {scalar_expr}")
+            else:
+                lines.append(f"object_data.{prop.name}.CopyFrom({scalar_expr})")
     elif prop.cardinality == "list":
         lines.extend(
             f"""\
-_packed_{prop.name} = []
 if {obj_value}:
     for _item in {obj_value}:""".splitlines()
         )
-        item_lines = _generate_pack_scalar(prop, "_item", "_packed_item")
-        if item_lines:
-            for line in item_lines:
-                lines.append(f"        {line}")
-            lines.append(f"        _packed_{prop.name}.append(_packed_item)")
+        item_expr = _generate_pack_scalar(prop, "_item")
+        if _is_proto_primitive(prop):
+            lines.append(f"        object_data.{prop.name}.append({item_expr})")
         else:
-            lines.append(f"        _packed_{prop.name}.append(_item)")
+            lines.append(f"        object_data.{prop.name}.append().CopyFrom({item_expr})")
     elif prop.cardinality == "map":
         lines.extend(
             f"""\
-_packed_{prop.name} = {{}}
 if {obj_value}:
     for _key, _value in {obj_value}.items():""".splitlines()
         )
-        key_lines = _generate_pack_scalar(prop, "_key", "_packed_key")
-        value_lines = _generate_pack_scalar(prop, "_value", "_packed_value")
-        if key_lines and value_lines:
-            for line in key_lines + value_lines:
-                lines.append(f"        {line}")
-            lines.append(f"        _packed_{prop.name}[_packed_key] = _packed_value")
-        elif key_lines:
-            for line in key_lines:
-                lines.append(f"        {line}")
-            lines.append(f"        _packed_{prop.name}[_packed_key] = _value")
-        elif value_lines:
-            for line in value_lines:
-                lines.append(f"        {line}")
-            lines.append(f"        _packed_{prop.name}[_key] = _packed_value")
+        assert prop.key_type is not None, f"no key_type for map: {prop!r}"
+        key_expr = _generate_pack_scalar(prop.key_type, "_key")
+        value_expr = _generate_pack_scalar(prop, "_value")
+        if _is_proto_primitive(prop):
+            lines.append(f"        object_data.{prop.name}[{key_expr}] = {value_expr}")
         else:
-            lines.append(f"        _packed_{prop.name}[_key] = _value")
+            lines.append(f"        object_data.{prop.name}[{key_expr}].CopyFrom({value_expr})")
     else:
         assert_never(prop.cardinality)
 
@@ -274,7 +279,8 @@ for _item in {data_value}:""".splitlines()
 _unpacked_{prop.name} = {{}}
 for _key, _value in {data_value}.items():""".splitlines()
         )
-        key_lines = _generate_unpack_scalar(prop, "_key", "_unpacked_key")
+        assert prop.key_type is not None, f"no key_type for map: {prop!r}"
+        key_lines = _generate_unpack_scalar(prop.key_type, "_key", "_unpacked_key")
         value_lines = _generate_unpack_scalar(prop, "_value", "_unpacked_value")
         if key_lines and value_lines:
             for line in key_lines + value_lines:
@@ -296,54 +302,33 @@ for _key, _value in {data_value}.items():""".splitlines()
     return lines
 
 
-def _generate_pack_scalar(
-    prop: "Property | TypeAnnotation", value_expr: str, result_var: str
-) -> list[str] | None:
+def _generate_pack_scalar(prop: "Property | TypeAnnotation", value_expr: str) -> str:
     """Generate the packing code for a scalar value."""
-    lines: list[str] = []
-
-    def _wrap_with_null_check(code: str) -> str:
-        """Wrap code with null check if property is optional."""
-        if prop.is_required:
-            return code
-        else:
-            return f"{code} if {value_expr} is not None else None"
 
     if prop.scalar_type == "primitive":
         if prop.primitive_type == PrimitiveType.UUID:
-            lines.append(f"{result_var} = {_wrap_with_null_check(f'str({value_expr})')}")
+            return f"str({value_expr})"
         elif prop.primitive_type == PrimitiveType.JSON:
-            lines.append(
-                f"{result_var} = {_wrap_with_null_check(f'pack_proto_json({value_expr})')}"
-            )
+            return f"pack_proto_json({value_expr})"
         elif prop.primitive_type == PrimitiveType.DATETIME:
-            lines.append(
-                f"{result_var} = {_wrap_with_null_check(f'Timestamp().FromDatetime({value_expr})')}"
-            )
+            return f"pack_proto_timestamp({value_expr})"
         elif prop.primitive_type == PrimitiveType.DURATION:
-            lines.append(
-                f"{result_var} = {_wrap_with_null_check(f'Duration().FromTimedelta({value_expr})')}"
-            )
+            return f"pack_proto_duration({value_expr})"
         else:
-            return None  # no special conversion
+            return value_expr
     elif prop.scalar_type == "enum":
-        lines.append(f"{result_var} = {_wrap_with_null_check(f'{value_expr}.value')}")
+        return f"{value_expr}.value"
     elif prop.scalar_type == "struct":
         assert prop.struct_type is not None
         struct_cls = STRUCT_CLASS_BY_TYPE[prop.struct_type]
         if struct_cls.__is_frozen__:
-            # use cached method
-            lines.append(f"{result_var} = {_wrap_with_null_check(f'{value_expr}.to_proto()')}")
+            return f"{value_expr}.to_proto()"  # use cached method
         else:
-            lines.append(
-                f"{result_var} = {_wrap_with_null_check(f'{struct_cls.__name__}.__pack_proto__({value_expr})')}"
-            )
+            return f"{struct_cls.__name__}.__pack_proto__({value_expr})"
     elif prop.scalar_type == "node":
-        lines.append(f"{result_var} = {_wrap_with_null_check(f'{value_expr}.to_proto()')}")
+        return f"{value_expr}.to_proto()"
     else:
         assert_never(prop.scalar_type)
-
-    return lines
 
 
 def _generate_unpack_scalar(
@@ -405,6 +390,18 @@ def _generate_unpack_scalar(
         assert_never(prop.scalar_type)
 
     return lines
+
+
+def pack_proto_timestamp(dt: datetime) -> Timestamp:
+    seconds = calendar.timegm(dt.utctimetuple())
+    nanos = dt.microsecond * 1000
+    return Timestamp(seconds=seconds, nanos=nanos)
+
+
+def pack_proto_duration(td: timedelta) -> Duration:
+    seconds = td.total_seconds()
+    nanos = td.microseconds * 1000
+    return Duration(seconds=int(seconds), nanos=nanos)
 
 
 def wrap_some_node(node: AnyNodeData) -> pb2.SomeNodeData:
