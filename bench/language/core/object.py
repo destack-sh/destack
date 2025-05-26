@@ -21,7 +21,7 @@ from typing import (
 
 import structlog
 from bitarray import bitarray
-from fastuuid import UUID
+from fastuuid import UUID, uuid4
 from opentelemetry import trace
 
 from bench.language.registry import STRUCT_CLASS_BY_TYPE
@@ -108,6 +108,7 @@ def _generate_init_impl[ObjectT: BuiltinObject](
         for p in properties_in_order
         if not p.is_computed
         and p.default is UNSET
+        and p.default_factory is None
         and not p.is_managed
         and p.cardinality == "scalar"
     ]
@@ -225,22 +226,37 @@ if {prop.name}:
             else:
                 raise RuntimeError(f"unsupported cardinality: {prop!r}")
             # (don't need to actually assign since these come before the ptr_prop in the list)
-        else:
-            # regular assignment
-            if prop.cardinality == "list":
-                # init list if unset
+            continue
+
+        # init default factory
+        if prop.default_factory is not None:
+            if prop.default_factory == "uuid":
                 method_body_lines.append(f"""\
+if {prop.name} is None:
+    {prop.name} = uuid4()""")
+            elif prop.default_factory == "now":
+                method_body_lines.append(f"""\
+if {prop.name} is None:
+    assert self_session is not None, "no session for {cls.__name__}"
+    {prop.name} = self._session._oracle.utc()""")
+            else:
+                assert_never(prop.default_factory)
+
+        # init list/map if unset
+        if prop.cardinality == "list":
+            method_body_lines.append(f"""\
 if {prop.name} is None:
     {prop.name} = {'[]' if not is_frozen else 'EMPTY_LIST'}""")
-            elif prop.cardinality == "map":
-                # init map if unset
-                method_body_lines.append(f"""\
+        elif prop.cardinality == "map":
+            method_body_lines.append(f"""\
 if {prop.name} is None:
     {prop.name} = {'{}' if not is_frozen else 'EMPTY_DICT'}""")
-            method_body_lines.append(f"object.__setattr__(self, '{prop.name}', {prop.name})")
+
+        # regular assignment
+        method_body_lines.append(f"object.__setattr__(self, '{prop.name}', {prop.name})")
+
     method_body = "\n".join(method_body_lines) or "pass"
     method_body = textwrap.indent(method_body, "    ")
-
     init_str = f"{method_header}:\n{method_body}"
     if IS_DEV:
         init_str = format_code(init_str)
@@ -748,6 +764,7 @@ def _process_object_cls[ObjectT: BuiltinObject](
             "ACTIVE_SESSION": ACTIVE_SESSION,
             "EMPTY_LIST": frozenlist(),
             "EMPTY_DICT": frozendict(),
+            "uuid4": uuid4,
         }
         init_str = _generate_init_impl(
             cls, is_node=is_node, is_frozen=is_frozen, properties=properties
