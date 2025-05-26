@@ -484,7 +484,7 @@ def _generate_scalar_cmps_impl(prop: Property) -> str:
     elif prop.scalar_type == "enum":
         return "{self_val} == {other_val}"
     elif prop.scalar_type == "node":
-        return "_identity_map.get({self_val}.id, {self_val}) == _identity_map.get({other_val}.id, {other_val}.id)"
+        return "({self_val}.id == {other_val}.id) or (_identity_map.get({self_val}.id, {self_val}.id) == _identity_map.get({other_val}.id, {other_val}.id))"
     elif prop.scalar_type == "struct":
         return "{self_val}.equals({other_val}, _identity_map=_identity_map)"
     else:
