@@ -217,7 +217,7 @@ def aggregation(
 @enum_(EnumType.EXPRESSION_TYPE)
 class ExpressionType(BuiltinEnum):
     LITERAL = 1
-    COLUMN = 2
+    ATTRIBUTE = 2
     CONDITION = 3
     FUNCTION = 4
     AGGREGATION = 5
@@ -230,7 +230,7 @@ class Expression(Struct):
 
     type: ExpressionType = property_(30, is_repr=True)
     literal: Optional[Value] = property_(31, is_repr=True)
-    column: Optional[AttributeReference] = property_(32, is_repr=True)
+    attribute: Optional[AttributeReference] = property_(32, is_repr=True)
     condition: Optional[Condition] = property_(33, is_repr=True)
     function: Optional[Function] = property_(34, is_repr=True)
     aggregation: Optional[Aggregation] = property_(35, is_repr=True)
@@ -243,7 +243,7 @@ def expression(
     if isinstance(thing, Value):
         return Expression(type=ExpressionType.LITERAL, literal=thing)
     elif isinstance(thing, AttributeReference):
-        return Expression(type=ExpressionType.COLUMN, column=thing)
+        return Expression(type=ExpressionType.ATTRIBUTE, attribute=thing)
     elif isinstance(thing, Condition):
         return Expression(type=ExpressionType.CONDITION, condition=thing)
     elif isinstance(thing, Function):

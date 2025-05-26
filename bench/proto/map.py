@@ -97,10 +97,6 @@ def _map_bench_property_to_proto_field(
             optional=prop.is_optional,
             repeated=prop.cardinality == "list",
         )
-    elif prop.is_node_data:
-        field = ProtoField(
-            id=prop.id, name=prop.name, type="SomeNodeData", optional=prop.is_optional
-        )
     else:
         raise TypeError(f"cannot map to proto type: {prop!r}")
 

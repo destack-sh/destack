@@ -95,8 +95,10 @@ def _generate_init_impl[ObjectT: BuiltinObject](
     is_node: bool,
     is_frozen: bool,
     properties: dict[str, Property],
-) -> str:
+) -> tuple[str, dict[str, Any]]:
     """Generates an __init__ for a BuiltinObject class."""
+
+    extra_glbls: set[type[Any]] = set()
 
     # sort properties (by id, runtime by alpha)
     properties_in_order = list(properties.values())
@@ -112,6 +114,7 @@ def _generate_init_impl[ObjectT: BuiltinObject](
         and p.default_factory is None
         and not p.is_managed
         and p.cardinality == "scalar"
+        and p.scalar_type != "node"  # passed either as node or node_ptr, defer check
     ]
     # first add properties without defaults that are not managed
     for prop in required_properties:
@@ -123,7 +126,8 @@ def _generate_init_impl[ObjectT: BuiltinObject](
         elif prop.default is UNSET:
             default_str = "None"
         elif isinstance(prop.default, Enum):
-            default_str = repr(prop.default.value)
+            default_str = f"{prop.default.__class__.__name__}.{prop.default.name}"
+            extra_glbls.add(prop.default.__class__)
         else:
             default_str = repr(prop.default)
         method_header_lines.append(f"{prop.name}={default_str}")
@@ -160,10 +164,10 @@ object.__setattr__(self, "_supergraph", _supergraph)
 """)
         if "ck" not in properties:
             method_body_lines.append("""\
-# init node with id only
+# init node (with id only)
 if id is None:
     id = uuid4()
-    now = self._session._oracle.utc()
+    now = self._session.oracle.utc()
     created_at = now
     updated_at = now
     object.__setattr__(self, "_is_new", True)
@@ -174,12 +178,12 @@ object.__setattr__(self, "_hash", id.int)
 """)
         else:
             method_body_lines.append("""\
-# init node with id and ck
+# init node (with id and ck)
 if id is None:
     id = uuid4()
     if ck is None:
         ck = id
-    now = self._session._oracle.utc()
+    now = self._session.oracle.utc()
     created_at = now
     updated_at = now
     is_new = True
@@ -229,6 +233,12 @@ if {prop.name}:
             # (don't need to actually assign since these come before the ptr_prop in the list)
             continue
 
+        # check if node is passed if required and scalar
+        if prop.is_required and prop.cardinality == "scalar" and prop.scalar_type == "node":
+            method_body_lines.append(f"""\
+if {prop.name} is None:
+    raise AttributeError(f"{cls.__name__}.{prop.name} is required")""")
+
         # init default factory
         if prop.default_factory is not None:
             if prop.default_factory == "uuid":
@@ -239,7 +249,7 @@ if {prop.name} is None:
                 method_body_lines.append(f"""\
 if {prop.name} is None:
     assert self_session is not None, "no session for {cls.__name__}"
-    {prop.name} = self._session._oracle.utc()""")
+    {prop.name} = self._session.oracle.utc()""")
             else:
                 assert_never(prop.default_factory)
 
@@ -261,26 +271,26 @@ if {prop.name} is None:
     init_str = f"{method_header}:\n{method_body}"
     if IS_DEV:
         init_str = format_code(init_str)
-    return init_str
+    return init_str, {c.__name__: c for c in extra_glbls}
 
 
-def _generate_repr_impl[ObjectT: BuiltinObject](cls: type[ObjectT]) -> str:
+def _generate_repr_impl[ObjectT: BuiltinObject](cls: type[ObjectT]) -> tuple[str, dict[str, Any]]:
     """Generates BuiltinObject.__repr__."""
     repr_properties = [prop for prop in cls.__properties__.values() if prop.is_repr]
     if not repr_properties:
-        # No repr properties
         if cls.__is_node__:
-            return f"""\
+            repr_impl = f"""\
 def __repr__(self) -> str:
     return f"<{cls.__name__} {{self.path}}>"
 __str__ = __repr__
 """
         else:
-            return f"""\
+            repr_impl = f"""\
 def __repr__(self) -> str:
     return f"<{cls.__name__}>"
 __str__ = __repr__
 """
+        return repr_impl, {}
 
     def get_scalar_repr(
         scalar_type: Literal["enum", "primitive", "struct", "node"], value_expr: str
@@ -342,14 +352,14 @@ if self.{prop_name}:
     repr_parts_str = "\n    ".join(repr_parts_lines)
     if cls.__is_node__:
         if has_required_repr_props:
-            return f"""\
+            repr_impl = f"""\
 def __repr__(self) -> str:
     {repr_parts_str}
     return f"<{cls.__name__} {{self.path}} {{', '.join(property_reprs)}}>"
 __str__ = __repr__
 """
         else:
-            return f"""\
+            repr_impl = f"""\
 def __repr__(self) -> str:
     {repr_parts_str}
     if property_reprs:
@@ -360,14 +370,14 @@ __str__ = __repr__
 """
     else:
         if has_required_repr_props:
-            return f"""\
+            repr_impl = f"""\
 def __repr__(self) -> str:
     {repr_parts_str}
     return f"<{cls.__name__} {{', '.join(property_reprs)}}>"
 __str__ = __repr__
 """
         else:
-            return f"""\
+            repr_impl = f"""\
 def __repr__(self) -> str:
     {repr_parts_str}
     if property_reprs:
@@ -376,6 +386,7 @@ def __repr__(self) -> str:
         return f"<{cls.__name__}>"
 __str__ = __repr__
 """
+    return repr_impl, {}
 
 
 #
@@ -383,7 +394,7 @@ __str__ = __repr__
 #
 
 
-def _generate_equals_impl[ObjectT: BuiltinObject](cls: type[ObjectT]) -> str:
+def _generate_equals_impl[ObjectT: BuiltinObject](cls: type[ObjectT]) -> tuple[str, dict[str, Any]]:
     """Generates BuiltinObject.equals method."""
 
     eq_properties = [
@@ -399,11 +410,12 @@ def _generate_equals_impl[ObjectT: BuiltinObject](cls: type[ObjectT]) -> str:
     body_str = "\n".join(cmp_strs)
     body_str = textwrap.indent(body_str, "    ")
 
-    return f"""\
+    equals_impl = f"""\
 def equals(self, other, _identity_map: dict["UUID", "UUID"] = EMPTY_DICT) -> bool:
 {body_str}
     return True
 """
+    return equals_impl, {}
 
 
 def _generate_property_cmp_impl(prop: Property) -> str:
@@ -474,12 +486,15 @@ def _generate_scalar_cmps_impl(prop: Property) -> str:
 #
 
 
-def _generate_validate_impl[ObjectT: BuiltinObject](cls: type[ObjectT]) -> str:
+def _generate_validate_impl[ObjectT: BuiltinObject](
+    cls: type[ObjectT],
+) -> tuple[str, dict[str, Any]]:
     """Generates BuiltinObject.validate method."""
-    return """\
+    validate_impl = """\
 def validate(self) -> None:
     raise NotImplementedError
 """
+    return validate_impl, {}
 
 
 #
@@ -487,7 +502,7 @@ def validate(self) -> None:
 #
 
 
-def _generate_path_impl[NodeT: Node](cls: type[NodeT]) -> str:
+def _generate_path_impl[NodeT: Node](cls: type[NodeT]) -> tuple[str, dict[str, Any]]:
     """Generates Node.path property (and Node._path_key helper)."""
     assert cls.__is_node__, f"{cls.__name__} is not a Node"
 
@@ -539,7 +554,8 @@ def path(self) -> str:
     return "/".join(reversed(path_parts))
 """
 
-    return f"{path_key_str}\n{path_str}"
+    path_impl = f"{path_key_str}\n{path_str}"
+    return path_impl, {}
 
 
 def _generate_property_property_impl(prop: Property) -> str:
@@ -843,23 +859,23 @@ def _process_object_cls[ObjectT: BuiltinObject](
             "EMPTY_DICT": frozendict(),
             "uuid4": uuid4,
         }
-        init_str = _generate_init_impl(
+        init_str, init_glbls = _generate_init_impl(
             cls, is_node=is_node, is_frozen=is_frozen, properties=properties
         )
-        exec(init_str, glbls, cls_dict)
+        exec(init_str, {**glbls, **init_glbls}, cls_dict)
         # __repr__
-        repr_str = _generate_repr_impl(cls)
-        exec(repr_str, glbls, cls_dict)
+        repr_str, repr_glbls = _generate_repr_impl(cls)
+        exec(repr_str, {**glbls, **repr_glbls}, cls_dict)
         # path
         if is_node:
-            path_str = _generate_path_impl(cast(type["Node"], cls))
-            exec(path_str, glbls, cls_dict)
+            path_str, path_glbls = _generate_path_impl(cast(type["Node"], cls))
+            exec(path_str, {**glbls, **path_glbls}, cls_dict)
         # equals
-        equals_str = _generate_equals_impl(cls)
-        exec(equals_str, glbls, cls_dict)
+        equals_str, equals_glbls = _generate_equals_impl(cls)
+        exec(equals_str, {**glbls, **equals_glbls}, cls_dict)
         # validate
-        validate_str = _generate_validate_impl(cls)
-        exec(validate_str, glbls, cls_dict)
+        validate_str, validate_glbls = _generate_validate_impl(cls)
+        exec(validate_str, {**glbls, **validate_glbls}, cls_dict)
         # pack/unpack are generated after setup because we need all classes
 
         # add computed properties to concrete classes

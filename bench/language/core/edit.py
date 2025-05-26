@@ -75,19 +75,19 @@ class Edit(Struct):
 
     # core
     id: UUID = property_(
-        2,
-        description="Unique identifier for the Edit within a Session.",
+        2, description="Unique identifier for the Edit within a Session.", default_factory="uuid"
     )
     type: EditType = property_(30, description="Type of Edit.")
     node: Node = property_(31)
     key: str | None = property_(40)
     operation: EditOperation | None = property_(41)
-    # node_data: AnyNodeData | None = property_(40, primitive_type=None, is_node_data=True)
-    new_value: "Value | None" = property_(42)
+    value: "Value | None" = property_(42)
     key_value: "Value | None" = property_(43)  # for map operations
-    new_parent: Node | None = property_(44)  # for move
+    parent: Node | None = property_(44)  # for move
 
-    edited_at: datetime = property_(50, description="When the Edit was made.")
+    edited_at: datetime = property_(
+        50, description="When the Edit was made.", default_factory="now"
+    )
     # change_key?
 
 

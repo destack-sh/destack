@@ -205,14 +205,14 @@ def unpack_builtin_object_data[T: AnyStructData | AnyNodeData](
     raise NotImplementedError
 
 
-def generate_pack_value_impl(cls: type["BuiltinObject"]) -> str:
+def generate_pack_value_impl(cls: type["BuiltinObject"]) -> tuple[str, dict[str, Any]]:
     """Generate the BuiltinObject.__pack_value__/__unpack_value__ method implementations."""
     import textwrap
 
     pack_value = textwrap.indent(_generate_pack_value(cls), "    ")
     unpack_value = textwrap.indent(_generate_unpack_value(cls), "    ")
 
-    return f"""
+    value_impl = f"""
 @classmethod
 def __pack_value__(cls, object: "Self") -> dict[str, "JsonValue"]:
 {pack_value}
@@ -226,6 +226,16 @@ def to_value(self: "Self") -> dict[str, "JsonValue"]:
 
 from_value = __unpack_value__
 """
+    return value_impl, {
+        "timedelta_from_isoformat": timedelta_from_isoformat,
+        "timedelta_to_isoformat": timedelta_to_isoformat,
+        "pack_proto_date": pack_proto_date,
+        "unpack_proto_date": unpack_proto_date,
+        "pack_proto_time": pack_proto_time,
+        "unpack_proto_time": unpack_proto_time,
+        "pack_proto_json": pack_proto_json,
+        "unpack_proto_json": unpack_proto_json,
+    }
 
 
 def _generate_pack_value(cls: type["BuiltinObject"]) -> str:

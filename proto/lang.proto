@@ -467,7 +467,7 @@ enum ErrorType {
 enum ExpressionType {
   EXPRESSION_TYPE_UNSPECIFIED = 0;
   EXPRESSION_TYPE_LITERAL = 1;
-  EXPRESSION_TYPE_COLUMN = 2;
+  EXPRESSION_TYPE_ATTRIBUTE = 2;
   EXPRESSION_TYPE_CONDITION = 3;
   EXPRESSION_TYPE_FUNCTION = 4;
   EXPRESSION_TYPE_AGGREGATION = 5;
@@ -1356,7 +1356,7 @@ message ActionData {
   optional ValueData value = 21;
   optional string order_key = 22;
   ActionType type = 30;
-  optional string name = 31;
+  string name = 31;
   optional TextData text = 36;
   optional CodeData code = 52;
   optional NodeReferenceData tool_ptr = 53;
@@ -1388,7 +1388,7 @@ message AgentData {
   NodeMode mode = 20;
   optional ValueData value = 21;
   optional string order_key = 22;
-  optional string name = 31;
+  string name = 31;
   optional NodeReferenceData definition_ptr = 35;
   optional NodeReferenceData page_ptr = 54;
   optional NodeReferenceData cursor_ptr = 55;
@@ -1456,10 +1456,9 @@ message BenchData {
   optional NodeReferenceData updated_by_ptr = 13;
   optional NodeReferenceData owned_by_ptr = 17;
   Region region = 23;
-  optional string name = 31;
-  optional string slug = 33;
+  string name = 31;
+  string slug = 33;
   optional IconData icon = 34;
-  optional TextLineData line = 40;
   BenchStatus status = 41;
   optional NodeReferenceData handle_ptr = 42;
   optional NodeReferenceData database_ptr = 50;
@@ -1470,7 +1469,7 @@ message BenchData {
 message BenchInviteData {
   NodeType metatype = 1;
   string id = 2;
-  NodeReferenceData parent_ptr = 4;
+  optional NodeReferenceData parent_ptr = 4;
   optional NodeReferenceData bench_ptr = 6;
   google.protobuf.Timestamp created_at = 10;
   optional NodeReferenceData created_by_ptr = 11;
@@ -1484,7 +1483,7 @@ message BenchInviteData {
 message BenchMembershipData {
   NodeType metatype = 1;
   string id = 2;
-  NodeReferenceData parent_ptr = 4;
+  optional NodeReferenceData parent_ptr = 4;
   optional NodeReferenceData bench_ptr = 6;
   google.protobuf.Timestamp created_at = 10;
   optional NodeReferenceData created_by_ptr = 11;
@@ -1512,7 +1511,7 @@ message BlockData {
   NodeMode mode = 20;
   optional string order_key = 22;
   BlockType type = 30;
-  optional string name = 31;
+  string name = 31;
   optional TextLineData line = 40;
   optional NodeReferenceData node_ptr = 41;
   optional NodeReferenceData view_ptr = 42;
@@ -1543,7 +1542,7 @@ message BorderStyleData {
   NodeMode mode = 20;
   optional string order_key = 22;
   BorderType type = 30;
-  optional string name = 31;
+  string name = 31;
   optional NodeReferenceData definition_ptr = 35;
   optional NodeReferenceData style_ptr = 41;
   optional ColorData color = 50;
@@ -1561,7 +1560,7 @@ message ClientData {
   google.protobuf.Timestamp updated_at = 12;
   optional NodeReferenceData updated_by_ptr = 13;
   ClientType type = 30;
-  optional string name = 31;
+  string name = 31;
   optional NodeReferenceData space_ptr = 35;
   optional NodeReferenceData machine_ptr = 36;
   optional NodeReferenceData user_ptr = 37;
@@ -1617,7 +1616,7 @@ message ColorStyleData {
   NodeMode mode = 20;
   optional string order_key = 22;
   ColorType type = 30;
-  optional string name = 31;
+  string name = 31;
   optional NodeReferenceData definition_ptr = 35;
   optional NodeReferenceData style_ptr = 42;
   optional ColorHue hue = 50;
@@ -1693,7 +1692,7 @@ message DatabaseData {
   optional string order_key = 22;
   Region region = 23;
   DatabaseType type = 30;
-  optional string name = 31;
+  string name = 31;
   optional NodeReferenceData definition_ptr = 35;
   ResourceStatus status = 40;
   optional google.protobuf.Timestamp requested_activate_at = 41;
@@ -1724,9 +1723,9 @@ message EditData {
   NodeReferenceData node_ptr = 31;
   optional string key = 40;
   optional EditOperation operation = 41;
-  optional ValueData new_value = 42;
+  optional ValueData value = 42;
   optional ValueData key_value = 43;
-  optional NodeReferenceData new_parent_ptr = 44;
+  optional NodeReferenceData parent_ptr = 44;
   google.protobuf.Timestamp edited_at = 50;
 }
 
@@ -1767,7 +1766,7 @@ message EffectStyleData {
   NodeMode mode = 20;
   optional string order_key = 22;
   EffectType type = 30;
-  optional string name = 31;
+  string name = 31;
   optional NodeReferenceData definition_ptr = 35;
   optional NodeReferenceData style_ptr = 41;
   optional float opacity = 50;
@@ -1798,7 +1797,7 @@ message ExpressionData {
   StructType metatype = 1;
   ExpressionType type = 30;
   optional ValueData literal = 31;
-  optional AttributeReferenceData column = 32;
+  optional AttributeReferenceData attribute = 32;
   optional ConditionData condition = 33;
   optional FunctionData function = 34;
   optional AggregationData aggregation = 35;
@@ -1822,7 +1821,7 @@ message FieldData {
   NodeMode mode = 20;
   optional string order_key = 22;
   FieldType type = 30;
-  optional string name = 31;
+  string name = 31;
   optional IconData icon = 34;
   TypeCardinality cardinality = 40;
   ScalarType scalar_type = 41;
@@ -1861,7 +1860,7 @@ message FileData {
   optional string order_key = 22;
   Region region = 23;
   FileType type = 30;
-  optional string name = 31;
+  string name = 31;
   optional NodeReferenceData definition_ptr = 35;
   FileSource source = 60;
   optional string mime_type = 61;
@@ -1913,7 +1912,7 @@ message FlowData {
   optional ValueData value = 21;
   optional string order_key = 22;
   FlowType type = 30;
-  optional string name = 31;
+  string name = 31;
   optional NodeReferenceData definition_ptr = 35;
   optional ModelDeveloper model_developer = 100;
   optional ModelProvider model_provider = 101;
@@ -1939,7 +1938,7 @@ message FlowEdgeData {
   NodeMode mode = 20;
   optional string order_key = 22;
   FlowEdgeType type = 30;
-  optional string name = 31;
+  string name = 31;
   NodeReferenceData source_ptr = 35;
   NodeReferenceData target_ptr = 36;
   optional ModelDeveloper model_developer = 100;
@@ -1982,7 +1981,7 @@ message FontStyleData {
   NodeMode mode = 20;
   optional string order_key = 22;
   FontType type = 30;
-  optional string name = 31;
+  string name = 31;
   optional NodeReferenceData definition_ptr = 35;
   optional NodeReferenceData style_ptr = 41;
   optional FontWeight weight = 50;
@@ -2012,7 +2011,7 @@ message FrameViewData {
   optional NodeReferenceData template_ptr = 16;
   NodeMode mode = 20;
   optional string order_key = 22;
-  optional string name = 31;
+  string name = 31;
   optional NodeReferenceData definition_ptr = 35;
   optional PositionData position = 40;
   optional DimensionData width = 41;
@@ -2123,7 +2122,7 @@ message GradientStyleData {
   NodeMode mode = 20;
   optional string order_key = 22;
   GradientType type = 30;
-  optional string name = 31;
+  string name = 31;
   optional NodeReferenceData definition_ptr = 35;
   optional NodeReferenceData style_ptr = 40;
   optional float angle = 50;
@@ -2157,7 +2156,7 @@ message HandleData {
   optional NodeReferenceData created_by_ptr = 11;
   google.protobuf.Timestamp updated_at = 12;
   optional NodeReferenceData updated_by_ptr = 13;
-  optional string slug = 33;
+  string slug = 33;
 }
 
 message IconData {
@@ -2229,7 +2228,7 @@ message LabelViewData {
   optional NodeReferenceData template_ptr = 16;
   NodeMode mode = 20;
   optional string order_key = 22;
-  optional string name = 31;
+  string name = 31;
   optional NodeReferenceData definition_ptr = 35;
   optional PositionData position = 40;
   optional DimensionData width = 41;
@@ -2324,7 +2323,7 @@ message LinkData {
   NodeMode mode = 20;
   optional string order_key = 22;
   LinkType type = 30;
-  optional string name = 31;
+  string name = 31;
   optional TextLineData title = 32;
   optional NodeReferenceData definition_ptr = 35;
   optional string url = 50;
@@ -2360,7 +2359,7 @@ message MachineData {
   NodeMode mode = 20;
   optional string order_key = 22;
   MachineType type = 30;
-  optional string name = 31;
+  string name = 31;
   optional NodeReferenceData definition_ptr = 35;
   ResourceStatus status = 40;
   optional google.protobuf.Timestamp requested_activate_at = 41;
@@ -2421,11 +2420,11 @@ message NodeConstraintData {
 
 message NodeReferenceData {
   StructType metatype = 1;
-  NodeType node_type = 30;
-  string id = 31;
-  optional string ck = 32;
-  optional string bench_id = 33;
-  optional string base_id = 34;
+  NodeType node_type = 31;
+  string id = 32;
+  optional string ck = 33;
+  optional string bench_id = 34;
+  optional string base_id = 35;
 }
 
 message NumberConstraintData {
@@ -2455,7 +2454,7 @@ message NumberInputViewData {
   optional NodeReferenceData template_ptr = 16;
   NodeMode mode = 20;
   optional string order_key = 22;
-  optional string name = 31;
+  string name = 31;
   optional NodeReferenceData definition_ptr = 35;
   optional PositionData position = 40;
   optional DimensionData width = 41;
@@ -2486,10 +2485,9 @@ message OrganizationData {
   google.protobuf.Timestamp updated_at = 12;
   optional NodeReferenceData updated_by_ptr = 13;
   Region region = 23;
-  optional string name = 31;
-  optional string slug = 33;
+  string name = 31;
+  string slug = 33;
   optional IconData icon = 34;
-  optional TextLineData line = 35;
   OrganizationStatus status = 38;
   optional NodeReferenceData bench_ptr = 40;
   optional NodeReferenceData handle_ptr = 41;
@@ -2499,7 +2497,7 @@ message OrganizationData {
 message OrganizationInviteData {
   NodeType metatype = 1;
   string id = 2;
-  NodeReferenceData parent_ptr = 4;
+  optional NodeReferenceData parent_ptr = 4;
   google.protobuf.Timestamp created_at = 10;
   optional NodeReferenceData created_by_ptr = 11;
   google.protobuf.Timestamp updated_at = 12;
@@ -2512,7 +2510,7 @@ message OrganizationInviteData {
 message OrganizationMembershipData {
   NodeType metatype = 1;
   string id = 2;
-  NodeReferenceData parent_ptr = 4;
+  optional NodeReferenceData parent_ptr = 4;
   google.protobuf.Timestamp created_at = 10;
   optional NodeReferenceData created_by_ptr = 11;
   google.protobuf.Timestamp updated_at = 12;
@@ -2547,8 +2545,8 @@ message PackageData {
   optional NodeReferenceData owned_by_ptr = 17;
   NodeMode mode = 20;
   PackageType type = 30;
-  optional string name = 31;
-  optional string slug = 33;
+  string name = 31;
+  string slug = 33;
   optional IconData icon = 34;
   optional NodeReferenceData main_page_ptr = 40;
   optional NodeReferenceData main_scene_ptr = 41;
@@ -2558,7 +2556,7 @@ message PackageData {
 message PackageInviteData {
   NodeType metatype = 1;
   string id = 2;
-  NodeReferenceData parent_ptr = 4;
+  optional NodeReferenceData parent_ptr = 4;
   optional NodeReferenceData bench_ptr = 6;
   optional NodeReferenceData package_ptr = 7;
   google.protobuf.Timestamp created_at = 10;
@@ -2573,7 +2571,7 @@ message PackageInviteData {
 message PackageMembershipData {
   NodeType metatype = 1;
   string id = 2;
-  NodeReferenceData parent_ptr = 4;
+  optional NodeReferenceData parent_ptr = 4;
   optional NodeReferenceData bench_ptr = 6;
   optional NodeReferenceData package_ptr = 7;
   google.protobuf.Timestamp created_at = 10;
@@ -2603,7 +2601,7 @@ message PageData {
   NodeMode mode = 20;
   optional string order_key = 22;
   optional TextLineData title = 32;
-  optional string slug = 33;
+  string slug = 33;
   optional IconData icon = 34;
   optional NodeReferenceData definition_ptr = 35;
 }
@@ -2619,9 +2617,9 @@ message PositionData {
 
 message PropertyReferenceData {
   StructType metatype = 1;
-  optional NodeType node_type = 30;
-  optional StructType struct_type = 31;
-  int32 id = 32;
+  optional NodeType node_type = 31;
+  optional StructType struct_type = 32;
+  int32 id = 33;
 }
 
 message QueryData {
@@ -2659,7 +2657,7 @@ message RecordData {
   NodeMode mode = 20;
   optional ValueData value = 21;
   optional string order_key = 22;
-  optional string name = 31;
+  string name = 31;
   optional TextLineData title = 32;
   optional IconData icon = 34;
   NodeReferenceData table_ptr = 36;
@@ -2690,8 +2688,8 @@ message RouteData {
   optional NodeReferenceData owned_by_ptr = 17;
   NodeMode mode = 20;
   optional string order_key = 22;
-  optional string name = 31;
-  optional string slug = 33;
+  string name = 31;
+  string slug = 33;
   optional IconData icon = 34;
   optional NodeReferenceData definition_ptr = 35;
   optional NodeReferenceData scene_ptr = 40;
@@ -2751,8 +2749,8 @@ message SceneData {
   optional NodeReferenceData owned_by_ptr = 17;
   NodeMode mode = 20;
   optional string order_key = 22;
-  optional string name = 31;
-  optional string slug = 33;
+  string name = 31;
+  string slug = 33;
   optional IconData icon = 34;
   optional NodeReferenceData definition_ptr = 35;
   optional NodeReferenceData root_view_ptr = 40;
@@ -2760,22 +2758,22 @@ message SceneData {
 
 message ScheduleData {
   StructType metatype = 1;
-  ScheduleFrequency frequency = 30;
-  int32 interval = 31;
-  optional google.protobuf.Timestamp start = 32;
-  optional google.protobuf.Timestamp end = 33;
-  optional int32 count = 34;
-  optional Day week_start = 35;
-  repeated int32 by_set_pos = 36;
-  repeated Month by_month = 37;
-  repeated int32 by_month_day = 38;
-  repeated int32 by_year_day = 39;
-  repeated int32 by_easter = 40;
-  repeated int32 by_week_no = 41;
-  repeated Day by_week_day = 42;
-  repeated int32 by_hour = 43;
-  repeated int32 by_minute = 44;
-  repeated int32 by_second = 45;
+  ScheduleFrequency frequency = 31;
+  int32 interval = 32;
+  optional google.protobuf.Timestamp start = 33;
+  optional google.protobuf.Timestamp end = 34;
+  optional int32 count = 35;
+  optional Day week_start = 36;
+  repeated int32 by_set_pos = 37;
+  repeated Month by_month = 38;
+  repeated int32 by_month_day = 39;
+  repeated int32 by_year_day = 40;
+  repeated int32 by_easter = 41;
+  repeated int32 by_week_no = 42;
+  repeated Day by_week_day = 43;
+  repeated int32 by_hour = 44;
+  repeated int32 by_minute = 45;
+  repeated int32 by_second = 46;
 }
 
 // A Schema for a specific Type.
@@ -2794,7 +2792,7 @@ message SchemaData {
   optional NodeReferenceData template_ptr = 16;
   NodeMode mode = 20;
   optional string order_key = 22;
-  optional string name = 31;
+  string name = 31;
   optional NodeReferenceData definition_ptr = 35;
   TypeCardinality cardinality = 40;
   ScalarType scalar_type = 41;
@@ -2816,8 +2814,8 @@ message SchemaData {
 
 message ScopeData {
   StructType metatype = 1;
-  optional Region region = 30;
-  optional string bench_id = 31;
+  optional Region region = 31;
+  optional string bench_id = 32;
 }
 
 message SelectionData {
@@ -2842,7 +2840,7 @@ message ServiceData {
   optional NodeReferenceData owned_by_ptr = 17;
   NodeMode mode = 20;
   optional string order_key = 22;
-  optional string name = 31;
+  string name = 31;
   optional NodeReferenceData definition_ptr = 35;
   optional ModelDeveloper model_developer = 100;
   optional ModelProvider model_provider = 101;
@@ -2882,7 +2880,7 @@ message ShadowStyleData {
   NodeMode mode = 20;
   optional string order_key = 22;
   ShadowType type = 30;
-  optional string name = 31;
+  string name = 31;
   optional NodeReferenceData definition_ptr = 35;
   optional NodeReferenceData style_ptr = 41;
   optional ColorData color = 50;
@@ -2910,7 +2908,7 @@ message SliderInputViewData {
   optional NodeReferenceData template_ptr = 16;
   NodeMode mode = 20;
   optional string order_key = 22;
-  optional string name = 31;
+  string name = 31;
   optional NodeReferenceData definition_ptr = 35;
   optional PositionData position = 40;
   optional DimensionData width = 41;
@@ -3013,7 +3011,7 @@ message SplitViewData {
   optional NodeReferenceData template_ptr = 16;
   NodeMode mode = 20;
   optional string order_key = 22;
-  optional string name = 31;
+  string name = 31;
   optional NodeReferenceData definition_ptr = 35;
   optional PositionData position = 40;
   optional DimensionData width = 41;
@@ -3111,7 +3109,7 @@ message TableData {
   optional NodeReferenceData owned_by_ptr = 17;
   NodeMode mode = 20;
   optional string order_key = 22;
-  optional string name = 31;
+  string name = 31;
   optional NodeReferenceData definition_ptr = 35;
 }
 
@@ -3206,7 +3204,7 @@ message TextViewData {
   optional NodeReferenceData template_ptr = 16;
   NodeMode mode = 20;
   optional string order_key = 22;
-  optional string name = 31;
+  string name = 31;
   optional NodeReferenceData definition_ptr = 35;
   optional PositionData position = 40;
   optional DimensionData width = 41;
@@ -3253,7 +3251,7 @@ message ThemeData {
   optional NodeReferenceData template_ptr = 16;
   NodeMode mode = 20;
   optional string order_key = 22;
-  optional string name = 31;
+  string name = 31;
   optional IconData icon = 34;
   optional NodeReferenceData definition_ptr = 35;
   map<int32, ColorData> colors = 50;
@@ -3277,7 +3275,6 @@ message ThreadData {
   optional NodeReferenceData owned_by_ptr = 17;
   NodeMode mode = 20;
   optional TextLineData title = 32;
-  optional NodeReferenceData page_ptr = 60;
   ProcessStatus status = 80;
   optional google.protobuf.Duration duration = 81;
   optional ErrorData error = 82;
@@ -3313,7 +3310,7 @@ message ThreadViewData {
   optional NodeReferenceData template_ptr = 16;
   NodeMode mode = 20;
   optional string order_key = 22;
-  optional string name = 31;
+  string name = 31;
   optional NodeReferenceData definition_ptr = 35;
   optional PositionData position = 40;
   optional DimensionData width = 41;
@@ -3357,7 +3354,7 @@ message TransitionStyleData {
   NodeMode mode = 20;
   optional string order_key = 22;
   TransitionType type = 30;
-  optional string name = 31;
+  string name = 31;
   optional NodeReferenceData definition_ptr = 35;
   optional NodeReferenceData style_ptr = 41;
   optional float delay = 50;
@@ -3400,13 +3397,12 @@ message UserData {
   google.protobuf.Timestamp updated_at = 12;
   optional NodeReferenceData updated_by_ptr = 13;
   Region region = 23;
-  optional string name = 31;
-  optional string slug = 33;
+  string name = 31;
+  string slug = 33;
   optional IconData icon = 34;
-  optional TextLineData line = 35;
-  bool is_staff = 39;
   UserStatus status = 40;
   optional google.protobuf.Timestamp last_logged_in_at = 41;
+  bool is_staff = 45;
   optional NodeReferenceData bench_ptr = 50;
   optional NodeReferenceData handle_ptr = 51;
   optional NodeReferenceData cursor_ptr = 52;
@@ -3463,7 +3459,7 @@ message WizardViewData {
   optional NodeReferenceData template_ptr = 16;
   NodeMode mode = 20;
   optional string order_key = 22;
-  optional string name = 31;
+  string name = 31;
   optional NodeReferenceData definition_ptr = 35;
   optional PositionData position = 40;
   optional DimensionData width = 41;

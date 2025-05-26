@@ -1,10 +1,10 @@
 from typing import TYPE_CHECKING, Optional, Union
 
 from bench.language.core import (
+    HasName,
     IsBlockable,
     IsInstantiable,
     IsModal,
-    IsNamed,
     property_,
     property_parent_,
     trait_,
@@ -22,7 +22,7 @@ if TYPE_CHECKING:
 class IsView[NodeDataT: AnyNodeData](
     IsInstantiable,
     IsModal,
-    IsNamed,
+    HasName,
     IsBlockable,
 ):
     """A View is a graphical interface."""

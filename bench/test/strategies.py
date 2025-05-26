@@ -1,12 +1,12 @@
 from string import ascii_lowercase
-from typing import Any, cast
+from typing import Any, assert_never, cast
 
 import hypothesis
 import more_itertools
 import pytz
 import structlog
 from cachetools import cached
-from hypothesis import example, given, reject, settings
+from hypothesis import example, given, settings
 from hypothesis import strategies as st
 from hypothesis.strategies import SearchStrategy
 from hypothesis.strategies._internal.utils import cacheable, defines_strategy
@@ -22,6 +22,7 @@ from bench.language import (
     FieldType,
     Icon,
     IconType,
+    IsInBench,
     NodeReference,
     NodeType,
     PrimitiveType,
@@ -29,9 +30,8 @@ from bench.language import (
     StructType,
     Type,
     TypeCardinality,
-    ValidationError,
+    expand_node_types,
 )
-from bench.language.core.trait import IsInBench, expand_node_types
 from bench.utils.fractional import INTEGER_ZERO
 from bench.utils.oracle import MAX_SCHEDULE_DURATION
 
@@ -186,26 +186,19 @@ def get_naive_object_strategy(object_type: NodeType | StructType):
     object_cls = BUILTIN_OBJECT_CLASS_BY_TYPE[object_type]
     object_kwargs: dict[str, st.SearchStrategy] = {}
     for prop in object_cls.__wired_properties__.values():
-        if (
-            # ignore runtime-only properties
-            prop.id is None
-            # ignore identity/tracking properties
-            or (prop.id < 30 and prop.node_kind is not None)
-            # ignore contributed wired properties (they're derived from the generated one)
-            or (prop.runtime_prop is not None)
-            # ignore autoset properties (ids, timestamps)
-            or prop.is_managed
-            # ignore node data properties
-            or prop.is_node_data
-        ):
-            continue  # :IgnoredGeneratedProperties
-        elif (object_type, prop.name) in STRATEGY_BY_OBJECT_PROPERTY:
+        if prop.id is None or (prop.id < 30) or (prop.ptr_prop is not None) or prop.is_managed:
+            continue  # ignore internal properties
+
+        # special overrides
+        if (object_type, prop.name) in STRATEGY_BY_OBJECT_PROPERTY:
             object_kwargs[prop.name] = STRATEGY_BY_OBJECT_PROPERTY[object_type, prop.name]
         elif prop.name in STRATEGY_BY_PROPERTY:
             object_kwargs[prop.name] = STRATEGY_BY_PROPERTY[prop.name]
-        elif prop.node_kind is not None:
+
+        # special handling for node properties
+        if prop.scalar_type == ScalarType.NODE:
             if not prop.nodes:
-                continue  # nothing to do
+                continue  # nothing to generate
             # generate random reference instead of node (sometimes this is enough)
             assert prop.ptr_prop is not None, f"{prop!r} has no wired ptr"
             reference_nodes = expand_node_types(prop.nodes) or NODE_TYPES.tuple
@@ -220,10 +213,7 @@ def get_naive_object_strategy(object_type: NodeType | StructType):
                 is_required=prop.is_required,
                 cardinality=TypeCardinality[prop.cardinality.upper()],
             )
-        elif prop.is_node_data:
-            object_kwargs[prop.name] = st.none()  # nothing meaningful to generate?
         else:
-            # Create a Type object from the property's type information
             prop_type = Type(
                 cardinality=TypeCardinality[prop.cardinality.upper()],
                 scalar_type=ScalarType[prop.scalar_type.upper()],
@@ -241,7 +231,6 @@ def get_naive_object_strategy(object_type: NodeType | StructType):
 def from_object_type(
     object_type: NodeType | StructType,
     /,
-    reject_invalid: bool = True,
     **custom_strategies: st.SearchStrategy,
 ) -> st.SearchStrategy[BuiltinObject]:
     # special case some types
@@ -262,20 +251,7 @@ def from_object_type(
         object_dict = {**object_dict}
         object_dict.update(custom_strategies)
 
-    if reject_invalid:
-
-        def _make_object_if_valid(**kwargs):
-            # despite best efforts, some combination of arguments may be invalid
-            #  (this may be simpler than guaranteeing that all generated objects are valid upfront)
-            try:
-                return object_cls(**kwargs)
-            except ValidationError:
-                reject()
-
-        buildf = _make_object_if_valid
-    else:
-        buildf = object_cls
-
+    buildf = object_cls
     return st.builds(buildf, **object_dict)
 
 
@@ -331,6 +307,7 @@ MAX_VALUE_BY_PRIMITIVE_TYPE: dict[PrimitiveType, int | float] = {
 STRATEGY_BY_PROPERTY: dict[str, st.SearchStrategy] = {
     "order_key": ORDER_KEY_STRATEGY,
     "name": NAME_STRATEGY,
+    "slug": SLUG_STRATEGY,
 }
 STRATEGY_BY_OBJECT_PROPERTY: dict[tuple[NodeType | StructType, str], st.SearchStrategy] = {
     (NodeType.FILE, "inline_content"): BYTES_STRATEGY,
@@ -357,7 +334,7 @@ def draw_type_base_dict(
     primitive_type = None
     enum_type = None
     struct_type = None
-    node_types = ()
+    node_type = None
 
     if scalar_type == ScalarType.PRIMITIVE:
         primitive_type = draw(PRIMITIVE_TYPE_STRATEGY)
@@ -366,7 +343,9 @@ def draw_type_base_dict(
     elif scalar_type == ScalarType.STRUCT:
         struct_type = draw(STRUCT_TYPE_STRATEGY)
     elif scalar_type == ScalarType.NODE:
-        node_types = (draw(st.sampled_from(NODE_TYPES.tuple)),)
+        node_type = draw(st.sampled_from(NODE_TYPES.tuple))
+    else:
+        assert_never(scalar_type)
 
     return {
         "cardinality": cardinality,
@@ -374,7 +353,7 @@ def draw_type_base_dict(
         "primitive_type": primitive_type,
         "enum_type": enum_type,
         "struct_type": struct_type,
-        "node_types": node_types,
+        "node_type": node_type,
         "is_required": True,
     }
 
@@ -420,7 +399,7 @@ def builtin_objects(
     draw: st.DrawFn, object_types: st.SearchStrategy[NodeType | StructType] = OBJECT_TYPE_STRATEGY
 ):
     object_type = draw(object_types)
-    return draw(from_object_type(object_type, reject_invalid=True))
+    return draw(from_object_type(object_type))
 
 
 nodes = builtin_objects(object_types=st.sampled_from(NodeType))

@@ -3,19 +3,19 @@ from typing import TYPE_CHECKING, Optional
 from bench.language.core import (
     BuiltinEnum,
     EnumType,
+    HasIcon,
+    HasName,
+    HasSlug,
     IndexIn,
     IsArchivable,
     IsDeletable,
     IsGlobal,
-    IsIcon,
     IsInPackage,
     IsInvite,
     IsJoinable,
     IsMembership,
     IsModal,
-    IsNamed,
     IsOwnable,
-    IsSlug,
     IsTemplatable,
     Node,
     NodeType,
@@ -45,10 +45,10 @@ class Package(
     IsOwnable,
     IsJoinable,
     IsTemplatable,
-    IsIcon,
-    IsSlug,
+    HasIcon,
+    HasSlug,
     IsModal,
-    IsNamed,
+    HasName,
     IsInPackage,
     IsDeletable,
     IsArchivable,
@@ -79,7 +79,7 @@ class PackageMembership(
 ):
     """A PackageMembership is a membership to a Package."""
 
-    parent: "Package" = property_parent_()
+    parent: Optional["Package"] = property_parent_()
 
     role: PackageRoleType = property_(45)
 
@@ -94,6 +94,6 @@ class PackageInvite(
 ):
     """A PackageInvite is an invite to a Package."""
 
-    parent: "Package" = property_parent_()
+    parent: Optional["Package"] = property_parent_()
 
     role: PackageRoleType = property_(45)

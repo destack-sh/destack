@@ -5,14 +5,14 @@ from fastuuid import UUID
 from bench.language.core import (
     BuiltinEnum,
     EnumType,
+    HasIcon,
+    HasName,
+    HasSlug,
     IsDeletable,
     IsGlobal,
-    IsIcon,
     IsInvite,
     IsMembership,
-    IsNamed,
     IsRegional,
-    IsSlug,
     IsSubject,
     Node,
     NodeReference,
@@ -25,7 +25,7 @@ from bench.language.core import (
 from bench.pb2 import OrganizationData, OrganizationInviteData, OrganizationMembershipData
 
 if TYPE_CHECKING:
-    from bench.language import Bench, Handle, TextLine
+    from bench.language import Bench, Handle
 
 # pyright: reportIncompatibleVariableOverride=false
 
@@ -39,9 +39,9 @@ class OrganizationStatus(BuiltinEnum):
 class Organization(
     IsGlobal,
     IsSubject,
-    IsSlug,
-    IsIcon,
-    IsNamed,
+    HasSlug,
+    HasIcon,
+    HasName,
     IsRegional,
     Node[OrganizationData],
 ):
@@ -50,8 +50,7 @@ class Organization(
     """
 
     # parent: Organization for nesting?
-    line: Optional["TextLine"] = property_(35)
-    status: OrganizationStatus = property_(38, can_write="system")
+    status: OrganizationStatus = property_(38, can_write="system", is_repr=True)
 
     bench: Optional["Bench"] = property_(40, can_write="system")
     handle: Optional["Handle"] = property_(41, can_write="system")
@@ -74,7 +73,7 @@ class OrganizationInvite(IsInvite, IsDeletable, Node[OrganizationInviteData]):
     An OrganizationInvite is an invite to an Organization.
     """
 
-    parent: "Organization" = property_parent_()
+    parent: Optional["Organization"] = property_parent_()
 
     role: OrganizationRoleType = property_(45)
 
@@ -85,6 +84,6 @@ class OrganizationMembership(IsMembership, IsDeletable, Node[OrganizationMembers
     An OrganizationMembership is a membership to an Organization.
     """
 
-    parent: "Organization" = property_parent_()
+    parent: Optional["Organization"] = property_parent_()
 
     role: OrganizationRoleType = property_(45)

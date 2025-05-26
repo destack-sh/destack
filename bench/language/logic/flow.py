@@ -5,13 +5,13 @@ from fastuuid import UUID
 from bench.language.core import (
     BuiltinEnum,
     EnumType,
+    HasName,
     IsArchivable,
     IsBlockable,
     IsDeletable,
     IsExtensible,
     IsInPackage,
     IsModal,
-    IsNamed,
     IsOrdered,
     IsOwnable,
     IsRunnable,
@@ -26,11 +26,7 @@ from bench.language.core import (
 from bench.pb2 import FlowData, FlowEdgeData
 
 if TYPE_CHECKING:
-    from bench.language import (
-        Action,
-        Flow,
-        NodeReference,
-    )
+    from bench.language import Action, Flow, NodeReference
 
 # pyright: reportIncompatibleVariableOverride=false
 
@@ -53,7 +49,7 @@ class Flow(
     IsTemplatable,
     IsOwnable,
     IsModal,
-    IsNamed,
+    HasName,
     IsExtensible,
     IsRunnable,
     IsBlockable,
@@ -85,7 +81,7 @@ class FlowEdge(
     IsTemplatable,
     IsModal,
     IsRunnable,
-    IsNamed,
+    HasName,
     IsOrdered,
     IsInPackage,
     Node[FlowEdgeData],

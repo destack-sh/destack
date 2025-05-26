@@ -1,9 +1,9 @@
 from typing import TYPE_CHECKING, Union
 
 from bench.language.core import (
+    HasName,
     IsBlockable,
     IsModal,
-    IsNamed,
     IsTemplatable,
     TraitType,
     property_parent_,
@@ -20,7 +20,7 @@ if TYPE_CHECKING:
 class IsStyle(
     IsTemplatable,
     IsModal,
-    IsNamed,
+    HasName,
     IsBlockable,
 ):
     """A Style is a graphical interface."""

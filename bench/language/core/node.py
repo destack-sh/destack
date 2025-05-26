@@ -551,11 +551,11 @@ class NodeReference(Struct[NodeReferenceData]):
     A reference to a Node.
     """
 
-    node_type: NodeType = property_(30, is_repr=True)
-    id: UUID = property_(31, is_repr=True)
-    ck: Optional[UUID] = property_(32, is_repr=True)
-    bench_id: Optional[UUID] = property_(33, is_repr=True)
-    base_id: Optional[UUID] = property_(34, is_repr=True)
+    node_type: NodeType = property_(31, is_repr=True)
+    id: UUID = property_(32, is_repr=True)
+    ck: Optional[UUID] = property_(33, is_repr=True)
+    bench_id: Optional[UUID] = property_(34, is_repr=True)
+    base_id: Optional[UUID] = property_(35, is_repr=True)
     # area? external_id?
 
     @staticmethod

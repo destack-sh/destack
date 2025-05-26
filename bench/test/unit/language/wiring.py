@@ -10,9 +10,11 @@ from bench.language import (
     Message,
     NodeReference,
     NodeType,
+    Query,
     Session,
     Thread,
     User,
+    UserStatus,
     attribute_ref,
     join,
 )
@@ -60,15 +62,35 @@ def test_roundtrip_query_proto(session: Session):
         ),
     )
 
+    # proto
+    query_data = query.to_proto()
+    query_data_bytes = query_data.SerializeToString()
+    unpacked_query_data = type(query_data)()
+    unpacked_query_data.ParseFromString(query_data_bytes)
+    unpacked_query = Query.from_proto(unpacked_query_data)
+    assert unpacked_query.equals(query), f"{unpacked_query!r} != {query!r}"
+
+    # value
+    query_value = query.to_value()
+    unpacked_query = Query.from_value(query_value)
+    assert unpacked_query.equals(query), f"{unpacked_query!r} != {query!r}"
+
 
 def test_roundtrip_user_proto(session: Session):
     """Pack and unpack a User as proto."""
-    user = User()
+    user = User(status=UserStatus.ACTIVE, name="Florian", slug="florian")
+
+    # proto
     user_data = user.to_proto()
     user_data_bytes = user_data.SerializeToString()
     unpacked_user_data = type(user_data)()
     unpacked_user_data.ParseFromString(user_data_bytes)
     unpacked_user = User.from_proto(unpacked_user_data)
+    assert unpacked_user.equals(user), f"{unpacked_user!r} != {user!r}"
+
+    # value
+    user_value = user.to_value()
+    unpacked_user = User.from_value(user_value)
     assert unpacked_user.equals(user), f"{unpacked_user!r} != {user!r}"
 
 

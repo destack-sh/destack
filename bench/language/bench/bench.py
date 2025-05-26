@@ -5,16 +5,16 @@ from fastuuid import UUID
 from bench.language.core import (
     BuiltinEnum,
     EnumType,
+    HasIcon,
+    HasName,
+    HasSlug,
     IsDeletable,
     IsGlobal,
-    IsIcon,
     IsInBench,
     IsInvite,
     IsMembership,
-    IsNamed,
     IsOwnable,
     IsRegional,
-    IsSlug,
     Node,
     NodeType,
     enum_,
@@ -30,7 +30,6 @@ if TYPE_CHECKING:
         Handle,
         NodeReference,
         Package,
-        TextLine,
     )
 
 # pyright: reportIncompatibleVariableOverride=false
@@ -48,9 +47,9 @@ class Bench(
     IsGlobal,
     IsOwnable,
     IsInBench,
-    IsNamed,
-    IsSlug,
-    IsIcon,
+    HasName,
+    HasSlug,
+    HasIcon,
     IsRegional,
     Node[BenchData],
 ):
@@ -58,8 +57,7 @@ class Bench(
     A Bench is the OS for personal software.
     """
 
-    line: Optional["TextLine"] = property_(40)
-    status: BenchStatus = property_(41)
+    status: BenchStatus = property_(41, is_repr=True)
     handle: Optional["Handle"] = property_(42, can_write="system")
 
     # content
@@ -96,8 +94,8 @@ class BenchInvite(
     A BenchInvite is an invite to a Bench.
     """
 
-    parent: "Bench" = property_parent_()
-    role: BenchRoleType = property_(45)
+    parent: Optional["Bench"] = property_parent_()
+    role: BenchRoleType = property_(45, is_repr=True)
 
 
 @node_(NodeType.BENCH_MEMBERSHIP)
@@ -112,5 +110,5 @@ class BenchMembership(
     A BenchMembership is a membership to a Bench.
     """
 
-    parent: "Bench" = property_parent_()
-    role: BenchRoleType = property_(45)
+    parent: Optional["Bench"] = property_parent_()
+    role: BenchRoleType = property_(45, is_repr=True)

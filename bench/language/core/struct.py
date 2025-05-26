@@ -73,8 +73,8 @@ class Struct[StructDataT: AnyStructData](BuiltinObject[StructDataT], abc.ABC):
 class Scope(Struct[ScopeData]):
     """The scope for an operation on the Bench graph."""
 
-    region: Optional[Region] = property_(30, is_repr=True)
-    bench_id: Optional[UUID] = property_(31, is_repr=True)
+    region: Optional[Region] = property_(31, is_repr=True)
+    bench_id: Optional[UUID] = property_(32, is_repr=True)
 
 
 def repr_scope(scope: Scope | ScopeData) -> str:
@@ -94,9 +94,9 @@ class PropertyReference(Struct):
     If type is unset, this refers to a base property in one of the base BuiltinObject types.
     """
 
-    node_type: NodeType | None = property_(30, is_repr=True)
-    struct_type: StructType | None = property_(31, is_repr=True)
-    id: int = property_(32, is_repr=True)
+    node_type: NodeType | None = property_(31, is_repr=True)
+    struct_type: StructType | None = property_(32, is_repr=True)
+    id: int = property_(33, is_repr=True)
 
     @property
     def object_cls(self) -> type[BuiltinObject] | None:

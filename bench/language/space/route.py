@@ -1,15 +1,15 @@
 from typing import TYPE_CHECKING, Optional
 
 from bench.language.core import (
+    HasIcon,
+    HasName,
+    HasSlug,
     IsArchivable,
     IsBlockable,
     IsDeletable,
-    IsIcon,
     IsInstantiable,
     IsModal,
-    IsNamed,
     IsOwnable,
-    IsSlug,
     Node,
     NodeType,
     node_,
@@ -26,12 +26,12 @@ if TYPE_CHECKING:
 @node_(NodeType.ROUTE)
 class Route(
     IsArchivable,
-    IsIcon,
-    IsSlug,
+    HasIcon,
+    HasSlug,
     IsDeletable,
     IsOwnable,
     IsInstantiable,
-    IsNamed,
+    HasName,
     IsModal,
     IsBlockable,
     Node[RouteData],
