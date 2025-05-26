@@ -3,7 +3,7 @@ import os
 import textwrap
 import typing
 from enum import Enum, StrEnum
-from typing import Optional, Type, cast
+from typing import Optional, SupportsIndex, Type, cast
 
 import cachetools
 
@@ -112,6 +112,26 @@ class frozendict(dict):  # noqa: FURB189, N801, RUF100
 
     def __delitem__(self, key):
         raise TypeError("FrozenDict does not support item deletion")
+
+
+class frozenlist(list):  # noqa: FURB189, N801, RUF100
+    def append(self, value):
+        raise TypeError("FrozenList does not support item assignment")
+
+    def extend(self, value):
+        raise TypeError("FrozenList does not support item assignment")
+
+    def insert(self, index, value):
+        raise TypeError("FrozenList does not support item assignment")
+
+    def remove(self, value):
+        raise TypeError("FrozenList does not support item deletion")
+
+    def pop(self, index: SupportsIndex = -1):
+        raise TypeError("FrozenList does not support item deletion")
+
+    def clear(self):
+        raise TypeError("FrozenList does not support item deletion")
 
 
 def freeze_dict(d: dict):

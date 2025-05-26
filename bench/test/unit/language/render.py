@@ -16,7 +16,6 @@ from bench.language import (
     FlowEdgeType,
     Message,
     Node,
-    NodeReference,
     Package,
     Page,
     Property,
@@ -99,12 +98,12 @@ def _render_test(func: Callable[[Any, Any], Mapping[str, Any]]):
         }
 
         # check that all definitions are equal
-        identity_map: dict[UUID, NodeReference] = {}
+        identity_map: dict[UUID, UUID] = {}
         for name, original_obj in original_defns.items():
             rendered_obj = rendered_defns[name]
             if isinstance(original_obj, Node):
                 assert isinstance(rendered_obj, Node)
-                identity_map[original_obj.ck] = rendered_obj.to_ref()
+                identity_map[original_obj.id] = rendered_obj.id
         for name, original_obj in original_defns.items():
             rendered_obj = rendered_defns[name]
             if isinstance(original_obj, Property):
@@ -114,7 +113,7 @@ def _render_test(func: Callable[[Any, Any], Mapping[str, Any]]):
                 )
             elif isinstance(original_obj, BuiltinObject):
                 assert cast(BuiltinObject, original_obj).equals(
-                    rendered_obj, identity_map=identity_map
+                    rendered_obj, _identity_map=identity_map
                 )
             else:
                 assert_never(original_obj)

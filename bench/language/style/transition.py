@@ -51,7 +51,7 @@ class TransitionBase(BuiltinObject):
     style: Optional["TransitionStyle"] = property_(41)
     delay: float | None = property_(50)
     duration: float | None = property_(51)
-    ease: list[float] | None = property_(52)
+    ease: list[float] = property_(52)
     stiffness: float | None = property_(53)
     damping: float | None = property_(54)
     mass: float | None = property_(55)

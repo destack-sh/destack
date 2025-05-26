@@ -69,7 +69,7 @@ JsonValue = Union[JsonPrimitive, dict[str, "JsonValue"], list["JsonValue"]]
 class Value(Struct):
     """A value of any type."""
 
-    value: dict[str, Json] | None = property_(35)
+    value: dict[str, Json] = property_(35)
 
 
 def to_value(value: Any) -> Value:

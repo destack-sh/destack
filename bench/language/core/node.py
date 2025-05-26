@@ -466,11 +466,11 @@ class Node[NodeDataT: AnyNodeData](BuiltinObject[NodeDataT]):
         where: Optional["Condition"] = None,
         **subqueries: "Query",
     ) -> "Query[Self]":
-        from .query import Query, QueryType, RelationReference, to_subqueries
+        from .query import Query, QueryType, relation_ref, to_subqueries
 
         return Query(
             type=QueryType.GET,
-            relation=RelationReference(node_type=cls.metatype),
+            relation=relation_ref(cls.metatype),
             name=name or cls.metatype.bench_name,
             join=join,
             where=where,
@@ -492,11 +492,11 @@ class Node[NodeDataT: AnyNodeData](BuiltinObject[NodeDataT]):
         count: bool = False,
         **subqueries: "Query",
     ) -> "Query[Self]":
-        from .query import Query, QueryType, RelationReference, to_subqueries
+        from .query import Query, QueryType, relation_ref, to_subqueries
 
         return Query(
             type=QueryType.SEARCH,
-            relation=RelationReference(node_type=cls.metatype),
+            relation=relation_ref(cls.metatype),
             name=name or cls.metatype.bench_name,
             join=join,
             where=where,
@@ -523,11 +523,11 @@ class Node[NodeDataT: AnyNodeData](BuiltinObject[NodeDataT]):
         offset: Optional[int] = None,
         count: bool = False,
     ) -> "Query[Self]":
-        from .query import Query, QueryType, RelationReference
+        from .query import Query, QueryType, relation_ref
 
         return Query(
             type=QueryType.AGGREGATE,
-            relation=RelationReference(node_type=cls.metatype),
+            relation=relation_ref(cls.metatype),
             name=name or cls.metatype.bench_name,
             join=join,
             where=where,

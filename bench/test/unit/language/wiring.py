@@ -6,6 +6,7 @@ from bench.language import (
     AggregationType,
     BuiltinObject,
     Cursor,
+    JoinType,
     Message,
     NodeReference,
     NodeType,
@@ -49,7 +50,7 @@ def test_roundtrip_query_proto(session: Session):
         limit=25,
         count=True,
         Cursor=Cursor.get(
-            join=join(on=Cursor.property("owned_by").eq(5)),
+            join=join(JoinType.LEFT, on=Cursor.property("owned_by").eq(5)),
             UnreadCount=Message.aggregate(
                 where=Message.property("read_at").greater_than(
                     attribute_ref("Cursor.last_read_at")
@@ -74,10 +75,16 @@ def test_roundtrip_user_proto(session: Session):
 @given(obj=builtin_objects())
 @examples([{"obj": obj} for obj in BUILTIN_OBJECTS])
 @settings(suppress_health_check=[HealthCheck.function_scoped_fixture])
-def test_roundtrip_builtin_object_bytes(obj: BuiltinObject[AnyObjectData], session: Session):
+def test_roundtrip_builtin_object(obj: BuiltinObject[AnyObjectData], session: Session):
+    # proto
     packed_obj_data: AnyObjectData = obj.to_proto()
     packed_bytes = packed_obj_data.SerializeToString()
     unpacked_obj_data = type(packed_obj_data)()
     unpacked_obj_data.ParseFromString(packed_bytes)
     unpacked_obj = obj.__unpack_proto__(unpacked_obj_data)
+    assert unpacked_obj.equals(obj), f"{unpacked_obj!r} != {obj!r}"
+
+    # value
+    packed_obj_value = obj.to_value()
+    unpacked_obj = obj.__unpack_value__(packed_obj_value)
     assert unpacked_obj.equals(obj), f"{unpacked_obj!r} != {obj!r}"

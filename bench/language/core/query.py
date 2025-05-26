@@ -350,11 +350,11 @@ class QueryType(BuiltinEnum):
 
 @struct_(StructType.QUERY)
 class Query[RootT: "Node"](Struct):
-    """A GraphQL-inspired Query node with subqueries."""
+    """A GraphQL-inspired Query node (with subqueries)."""
 
     id: UUID = property_(2, is_repr=True)
     type: QueryType = property_(30, is_repr=True)
-    name: str | None = property_(
+    name: str = property_(
         31,
         description="Name for this subquery. Must be unique within the containing Query.",
         is_repr=True,
@@ -362,7 +362,7 @@ class Query[RootT: "Node"](Struct):
     relation: RelationReference = property_(35, is_repr=True)
     join: Optional[Join] = property_(36, description="Relative to parent Query.", is_repr=True)
     subqueries: list["Query"] = property_(37)
-    # select, ...
+    # select/attributes, ...
 
     where: Optional[Condition] = property_(40, is_repr=True)
     having: Optional[Condition] = property_(41, is_repr=True)
