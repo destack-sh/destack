@@ -352,7 +352,7 @@ class QueryType(BuiltinEnum):
 class Query[RootT: "Node"](Struct):
     """A GraphQL-inspired Query node (with subqueries)."""
 
-    id: UUID = property_(2, is_repr=True)
+    id: UUID = property_(2, default_factory="uuid")
     type: QueryType = property_(30, is_repr=True)
     name: str = property_(
         31,

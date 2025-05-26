@@ -268,6 +268,13 @@ enum Day {
   DAY_SUNDAY = 7;
 }
 
+// The factory to use for default values.
+enum DefaultFactory {
+  DEFAULT_FACTORY_UNSPECIFIED = 0;
+  DEFAULT_FACTORY_UUID = 10;
+  DEFAULT_FACTORY_NOW = 20;
+}
+
 enum DimensionType {
   DIMENSION_TYPE_UNSPECIFIED = 0;
   DIMENSION_TYPE_FIXED = 2;
@@ -357,7 +364,7 @@ enum EnumType {
   ENUM_TYPE_EXPRESSION_TYPE = 40108;
   ENUM_TYPE_RELATION_TYPE = 40109;
   ENUM_TYPE_ATTRIBUTE_TYPE = 40110;
-  ENUM_TYPE_QUERY_TYPE = 40820;
+  ENUM_TYPE_QUERY_TYPE = 40811;
   ENUM_TYPE_BENCH_ROLE_TYPE = 40200;
   ENUM_TYPE_ORGANIZATION_ROLE_TYPE = 40210;
   ENUM_TYPE_PACKAGE_ROLE_TYPE = 40220;
@@ -394,6 +401,7 @@ enum EnumType {
   ENUM_TYPE_PRIMITIVE_TYPE = 42100;
   ENUM_TYPE_TYPE_CARDINALITY = 42101;
   ENUM_TYPE_SCALAR_TYPE = 42102;
+  ENUM_TYPE_DEFAULT_FACTORY = 42103;
   ENUM_TYPE_STRING_FORMAT = 42110;
   ENUM_TYPE_NUMBER_FORMAT = 42111;
   ENUM_TYPE_FIELD_TYPE = 42120;
@@ -1822,9 +1830,10 @@ message FieldData {
   optional EnumType enum_type = 43;
   optional NodeType node_type = 44;
   optional StructType struct_type = 45;
-  optional ValueData default = 46;
-  bool is_required = 47;
-  bool is_variable = 48;
+  bool is_required = 46;
+  bool is_variable = 47;
+  optional ValueData default = 48;
+  optional DefaultFactory default_factory = 49;
   optional NodeReferenceData base_type_ptr = 50;
   optional TypeData key_type = 51;
   optional CollectionConstraintData collection_constraint = 60;
@@ -2619,7 +2628,7 @@ message QueryData {
   StructType metatype = 1;
   string id = 2;
   QueryType type = 30;
-  optional string name = 31;
+  string name = 31;
   RelationReferenceData relation = 35;
   optional JoinData join = 36;
   repeated QueryData subqueries = 37;
@@ -2793,9 +2802,10 @@ message SchemaData {
   optional EnumType enum_type = 43;
   optional NodeType node_type = 44;
   optional StructType struct_type = 45;
-  optional ValueData default = 46;
-  bool is_required = 47;
-  bool is_variable = 48;
+  bool is_required = 46;
+  bool is_variable = 47;
+  optional ValueData default = 48;
+  optional DefaultFactory default_factory = 49;
   optional NodeReferenceData base_type_ptr = 50;
   optional TypeData key_type = 51;
   optional CollectionConstraintData collection_constraint = 60;
@@ -3368,9 +3378,10 @@ message TypeData {
   optional EnumType enum_type = 43;
   optional NodeType node_type = 44;
   optional StructType struct_type = 45;
-  optional ValueData default = 46;
-  bool is_required = 47;
-  bool is_variable = 48;
+  bool is_required = 46;
+  bool is_variable = 47;
+  optional ValueData default = 48;
+  optional DefaultFactory default_factory = 49;
   optional NodeReferenceData base_type_ptr = 50;
   optional TypeData key_type = 51;
   optional CollectionConstraintData collection_constraint = 60;

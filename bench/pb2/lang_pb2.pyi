@@ -264,6 +264,12 @@ class Day(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     DAY_SATURDAY: _ClassVar[Day]
     DAY_SUNDAY: _ClassVar[Day]
 
+class DefaultFactory(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
+    __slots__ = ()
+    DEFAULT_FACTORY_UNSPECIFIED: _ClassVar[DefaultFactory]
+    DEFAULT_FACTORY_UUID: _ClassVar[DefaultFactory]
+    DEFAULT_FACTORY_NOW: _ClassVar[DefaultFactory]
+
 class DimensionType(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     __slots__ = ()
     DIMENSION_TYPE_UNSPECIFIED: _ClassVar[DimensionType]
@@ -386,6 +392,7 @@ class EnumType(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     ENUM_TYPE_PRIMITIVE_TYPE: _ClassVar[EnumType]
     ENUM_TYPE_TYPE_CARDINALITY: _ClassVar[EnumType]
     ENUM_TYPE_SCALAR_TYPE: _ClassVar[EnumType]
+    ENUM_TYPE_DEFAULT_FACTORY: _ClassVar[EnumType]
     ENUM_TYPE_STRING_FORMAT: _ClassVar[EnumType]
     ENUM_TYPE_NUMBER_FORMAT: _ClassVar[EnumType]
     ENUM_TYPE_FIELD_TYPE: _ClassVar[EnumType]
@@ -1474,6 +1481,9 @@ DAY_THURSDAY: Day
 DAY_FRIDAY: Day
 DAY_SATURDAY: Day
 DAY_SUNDAY: Day
+DEFAULT_FACTORY_UNSPECIFIED: DefaultFactory
+DEFAULT_FACTORY_UUID: DefaultFactory
+DEFAULT_FACTORY_NOW: DefaultFactory
 DIMENSION_TYPE_UNSPECIFIED: DimensionType
 DIMENSION_TYPE_FIXED: DimensionType
 DIMENSION_TYPE_FIT: DimensionType
@@ -1576,6 +1586,7 @@ ENUM_TYPE_LINK_TYPE: EnumType
 ENUM_TYPE_PRIMITIVE_TYPE: EnumType
 ENUM_TYPE_TYPE_CARDINALITY: EnumType
 ENUM_TYPE_SCALAR_TYPE: EnumType
+ENUM_TYPE_DEFAULT_FACTORY: EnumType
 ENUM_TYPE_STRING_FORMAT: EnumType
 ENUM_TYPE_NUMBER_FORMAT: EnumType
 ENUM_TYPE_FIELD_TYPE: EnumType
@@ -3120,7 +3131,7 @@ class ExpressionData(_message.Message):
     def __init__(self, metatype: _Optional[_Union[StructType, str]] = ..., type: _Optional[_Union[ExpressionType, str]] = ..., literal: _Optional[_Union[ValueData, _Mapping]] = ..., column: _Optional[_Union[AttributeReferenceData, _Mapping]] = ..., condition: _Optional[_Union[ConditionData, _Mapping]] = ..., function: _Optional[_Union[FunctionData, _Mapping]] = ..., aggregation: _Optional[_Union[AggregationData, _Mapping]] = ...) -> None: ...
 
 class FieldData(_message.Message):
-    __slots__ = ("metatype", "id", "ck", "parent_ptr", "bench_ptr", "package_ptr", "created_at", "created_by_ptr", "updated_at", "updated_by_ptr", "archived_at", "deleted_at", "template_ptr", "mode", "order_key", "type", "name", "icon", "cardinality", "scalar_type", "primitive_type", "enum_type", "node_type", "struct_type", "default", "is_required", "is_variable", "base_type_ptr", "key_type", "collection_constraint", "string_constraint", "number_constraint", "node_constraint", "cascade")
+    __slots__ = ("metatype", "id", "ck", "parent_ptr", "bench_ptr", "package_ptr", "created_at", "created_by_ptr", "updated_at", "updated_by_ptr", "archived_at", "deleted_at", "template_ptr", "mode", "order_key", "type", "name", "icon", "cardinality", "scalar_type", "primitive_type", "enum_type", "node_type", "struct_type", "is_required", "is_variable", "default", "default_factory", "base_type_ptr", "key_type", "collection_constraint", "string_constraint", "number_constraint", "node_constraint", "cascade")
     METATYPE_FIELD_NUMBER: _ClassVar[int]
     ID_FIELD_NUMBER: _ClassVar[int]
     CK_FIELD_NUMBER: _ClassVar[int]
@@ -3145,9 +3156,10 @@ class FieldData(_message.Message):
     ENUM_TYPE_FIELD_NUMBER: _ClassVar[int]
     NODE_TYPE_FIELD_NUMBER: _ClassVar[int]
     STRUCT_TYPE_FIELD_NUMBER: _ClassVar[int]
-    DEFAULT_FIELD_NUMBER: _ClassVar[int]
     IS_REQUIRED_FIELD_NUMBER: _ClassVar[int]
     IS_VARIABLE_FIELD_NUMBER: _ClassVar[int]
+    DEFAULT_FIELD_NUMBER: _ClassVar[int]
+    DEFAULT_FACTORY_FIELD_NUMBER: _ClassVar[int]
     BASE_TYPE_PTR_FIELD_NUMBER: _ClassVar[int]
     KEY_TYPE_FIELD_NUMBER: _ClassVar[int]
     COLLECTION_CONSTRAINT_FIELD_NUMBER: _ClassVar[int]
@@ -3179,9 +3191,10 @@ class FieldData(_message.Message):
     enum_type: EnumType
     node_type: NodeType
     struct_type: StructType
-    default: ValueData
     is_required: bool
     is_variable: bool
+    default: ValueData
+    default_factory: DefaultFactory
     base_type_ptr: NodeReferenceData
     key_type: TypeData
     collection_constraint: CollectionConstraintData
@@ -3189,7 +3202,7 @@ class FieldData(_message.Message):
     number_constraint: NumberConstraintData
     node_constraint: NodeConstraintData
     cascade: CascadeAction
-    def __init__(self, metatype: _Optional[_Union[NodeType, str]] = ..., id: _Optional[str] = ..., ck: _Optional[str] = ..., parent_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., bench_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., package_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., created_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., created_by_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., updated_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., updated_by_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., archived_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., deleted_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., template_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., mode: _Optional[_Union[NodeMode, str]] = ..., order_key: _Optional[str] = ..., type: _Optional[_Union[FieldType, str]] = ..., name: _Optional[str] = ..., icon: _Optional[_Union[IconData, _Mapping]] = ..., cardinality: _Optional[_Union[TypeCardinality, str]] = ..., scalar_type: _Optional[_Union[ScalarType, str]] = ..., primitive_type: _Optional[_Union[PrimitiveType, str]] = ..., enum_type: _Optional[_Union[EnumType, str]] = ..., node_type: _Optional[_Union[NodeType, str]] = ..., struct_type: _Optional[_Union[StructType, str]] = ..., default: _Optional[_Union[ValueData, _Mapping]] = ..., is_required: bool = ..., is_variable: bool = ..., base_type_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., key_type: _Optional[_Union[TypeData, _Mapping]] = ..., collection_constraint: _Optional[_Union[CollectionConstraintData, _Mapping]] = ..., string_constraint: _Optional[_Union[StringConstraintData, _Mapping]] = ..., number_constraint: _Optional[_Union[NumberConstraintData, _Mapping]] = ..., node_constraint: _Optional[_Union[NodeConstraintData, _Mapping]] = ..., cascade: _Optional[_Union[CascadeAction, str]] = ...) -> None: ...
+    def __init__(self, metatype: _Optional[_Union[NodeType, str]] = ..., id: _Optional[str] = ..., ck: _Optional[str] = ..., parent_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., bench_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., package_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., created_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., created_by_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., updated_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., updated_by_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., archived_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., deleted_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., template_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., mode: _Optional[_Union[NodeMode, str]] = ..., order_key: _Optional[str] = ..., type: _Optional[_Union[FieldType, str]] = ..., name: _Optional[str] = ..., icon: _Optional[_Union[IconData, _Mapping]] = ..., cardinality: _Optional[_Union[TypeCardinality, str]] = ..., scalar_type: _Optional[_Union[ScalarType, str]] = ..., primitive_type: _Optional[_Union[PrimitiveType, str]] = ..., enum_type: _Optional[_Union[EnumType, str]] = ..., node_type: _Optional[_Union[NodeType, str]] = ..., struct_type: _Optional[_Union[StructType, str]] = ..., is_required: bool = ..., is_variable: bool = ..., default: _Optional[_Union[ValueData, _Mapping]] = ..., default_factory: _Optional[_Union[DefaultFactory, str]] = ..., base_type_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., key_type: _Optional[_Union[TypeData, _Mapping]] = ..., collection_constraint: _Optional[_Union[CollectionConstraintData, _Mapping]] = ..., string_constraint: _Optional[_Union[StringConstraintData, _Mapping]] = ..., number_constraint: _Optional[_Union[NumberConstraintData, _Mapping]] = ..., node_constraint: _Optional[_Union[NodeConstraintData, _Mapping]] = ..., cascade: _Optional[_Union[CascadeAction, str]] = ...) -> None: ...
 
 class FileData(_message.Message):
     __slots__ = ("metatype", "id", "ck", "parent_ptr", "bench_ptr", "package_ptr", "created_at", "created_by_ptr", "updated_at", "updated_by_ptr", "template_ptr", "owned_by_ptr", "mode", "order_key", "region", "type", "name", "definition_ptr", "source", "mime_type", "format", "size", "sha256", "width", "height", "aspect_ratio", "codec", "duration", "url", "content_url", "thumbnail_url", "favicon_url", "thumbnail_width", "thumbnail_height", "content", "retention", "expires_at")
@@ -4804,7 +4817,7 @@ class ScheduleData(_message.Message):
     def __init__(self, metatype: _Optional[_Union[StructType, str]] = ..., frequency: _Optional[_Union[ScheduleFrequency, str]] = ..., interval: _Optional[int] = ..., start: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., end: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., count: _Optional[int] = ..., week_start: _Optional[_Union[Day, str]] = ..., by_set_pos: _Optional[_Iterable[int]] = ..., by_month: _Optional[_Iterable[_Union[Month, str]]] = ..., by_month_day: _Optional[_Iterable[int]] = ..., by_year_day: _Optional[_Iterable[int]] = ..., by_easter: _Optional[_Iterable[int]] = ..., by_week_no: _Optional[_Iterable[int]] = ..., by_week_day: _Optional[_Iterable[_Union[Day, str]]] = ..., by_hour: _Optional[_Iterable[int]] = ..., by_minute: _Optional[_Iterable[int]] = ..., by_second: _Optional[_Iterable[int]] = ...) -> None: ...
 
 class SchemaData(_message.Message):
-    __slots__ = ("metatype", "id", "parent_ptr", "bench_ptr", "package_ptr", "created_at", "created_by_ptr", "updated_at", "updated_by_ptr", "archived_at", "deleted_at", "template_ptr", "mode", "order_key", "name", "definition_ptr", "cardinality", "scalar_type", "primitive_type", "enum_type", "node_type", "struct_type", "default", "is_required", "is_variable", "base_type_ptr", "key_type", "collection_constraint", "string_constraint", "number_constraint", "node_constraint")
+    __slots__ = ("metatype", "id", "parent_ptr", "bench_ptr", "package_ptr", "created_at", "created_by_ptr", "updated_at", "updated_by_ptr", "archived_at", "deleted_at", "template_ptr", "mode", "order_key", "name", "definition_ptr", "cardinality", "scalar_type", "primitive_type", "enum_type", "node_type", "struct_type", "is_required", "is_variable", "default", "default_factory", "base_type_ptr", "key_type", "collection_constraint", "string_constraint", "number_constraint", "node_constraint")
     METATYPE_FIELD_NUMBER: _ClassVar[int]
     ID_FIELD_NUMBER: _ClassVar[int]
     PARENT_PTR_FIELD_NUMBER: _ClassVar[int]
@@ -4827,9 +4840,10 @@ class SchemaData(_message.Message):
     ENUM_TYPE_FIELD_NUMBER: _ClassVar[int]
     NODE_TYPE_FIELD_NUMBER: _ClassVar[int]
     STRUCT_TYPE_FIELD_NUMBER: _ClassVar[int]
-    DEFAULT_FIELD_NUMBER: _ClassVar[int]
     IS_REQUIRED_FIELD_NUMBER: _ClassVar[int]
     IS_VARIABLE_FIELD_NUMBER: _ClassVar[int]
+    DEFAULT_FIELD_NUMBER: _ClassVar[int]
+    DEFAULT_FACTORY_FIELD_NUMBER: _ClassVar[int]
     BASE_TYPE_PTR_FIELD_NUMBER: _ClassVar[int]
     KEY_TYPE_FIELD_NUMBER: _ClassVar[int]
     COLLECTION_CONSTRAINT_FIELD_NUMBER: _ClassVar[int]
@@ -4858,16 +4872,17 @@ class SchemaData(_message.Message):
     enum_type: EnumType
     node_type: NodeType
     struct_type: StructType
-    default: ValueData
     is_required: bool
     is_variable: bool
+    default: ValueData
+    default_factory: DefaultFactory
     base_type_ptr: NodeReferenceData
     key_type: TypeData
     collection_constraint: CollectionConstraintData
     string_constraint: StringConstraintData
     number_constraint: NumberConstraintData
     node_constraint: NodeConstraintData
-    def __init__(self, metatype: _Optional[_Union[NodeType, str]] = ..., id: _Optional[str] = ..., parent_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., bench_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., package_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., created_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., created_by_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., updated_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., updated_by_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., archived_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., deleted_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., template_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., mode: _Optional[_Union[NodeMode, str]] = ..., order_key: _Optional[str] = ..., name: _Optional[str] = ..., definition_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., cardinality: _Optional[_Union[TypeCardinality, str]] = ..., scalar_type: _Optional[_Union[ScalarType, str]] = ..., primitive_type: _Optional[_Union[PrimitiveType, str]] = ..., enum_type: _Optional[_Union[EnumType, str]] = ..., node_type: _Optional[_Union[NodeType, str]] = ..., struct_type: _Optional[_Union[StructType, str]] = ..., default: _Optional[_Union[ValueData, _Mapping]] = ..., is_required: bool = ..., is_variable: bool = ..., base_type_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., key_type: _Optional[_Union[TypeData, _Mapping]] = ..., collection_constraint: _Optional[_Union[CollectionConstraintData, _Mapping]] = ..., string_constraint: _Optional[_Union[StringConstraintData, _Mapping]] = ..., number_constraint: _Optional[_Union[NumberConstraintData, _Mapping]] = ..., node_constraint: _Optional[_Union[NodeConstraintData, _Mapping]] = ...) -> None: ...
+    def __init__(self, metatype: _Optional[_Union[NodeType, str]] = ..., id: _Optional[str] = ..., parent_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., bench_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., package_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., created_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., created_by_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., updated_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., updated_by_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., archived_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., deleted_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., template_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., mode: _Optional[_Union[NodeMode, str]] = ..., order_key: _Optional[str] = ..., name: _Optional[str] = ..., definition_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., cardinality: _Optional[_Union[TypeCardinality, str]] = ..., scalar_type: _Optional[_Union[ScalarType, str]] = ..., primitive_type: _Optional[_Union[PrimitiveType, str]] = ..., enum_type: _Optional[_Union[EnumType, str]] = ..., node_type: _Optional[_Union[NodeType, str]] = ..., struct_type: _Optional[_Union[StructType, str]] = ..., is_required: bool = ..., is_variable: bool = ..., default: _Optional[_Union[ValueData, _Mapping]] = ..., default_factory: _Optional[_Union[DefaultFactory, str]] = ..., base_type_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., key_type: _Optional[_Union[TypeData, _Mapping]] = ..., collection_constraint: _Optional[_Union[CollectionConstraintData, _Mapping]] = ..., string_constraint: _Optional[_Union[StringConstraintData, _Mapping]] = ..., number_constraint: _Optional[_Union[NumberConstraintData, _Mapping]] = ..., node_constraint: _Optional[_Union[NodeConstraintData, _Mapping]] = ...) -> None: ...
 
 class ScopeData(_message.Message):
     __slots__ = ("metatype", "region", "bench_id")
@@ -5833,7 +5848,7 @@ class TransitionStyleData(_message.Message):
     def __init__(self, metatype: _Optional[_Union[NodeType, str]] = ..., id: _Optional[str] = ..., parent_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., bench_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., package_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., created_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., created_by_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., updated_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., updated_by_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., archived_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., deleted_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., template_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., mode: _Optional[_Union[NodeMode, str]] = ..., order_key: _Optional[str] = ..., type: _Optional[_Union[TransitionType, str]] = ..., name: _Optional[str] = ..., definition_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., style_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., delay: _Optional[float] = ..., duration: _Optional[float] = ..., ease: _Optional[_Iterable[float]] = ..., stiffness: _Optional[float] = ..., damping: _Optional[float] = ..., mass: _Optional[float] = ..., bounce: _Optional[float] = ..., spring_type: _Optional[_Union[SpringType, str]] = ...) -> None: ...
 
 class TypeData(_message.Message):
-    __slots__ = ("metatype", "cardinality", "scalar_type", "primitive_type", "enum_type", "node_type", "struct_type", "default", "is_required", "is_variable", "base_type_ptr", "key_type", "collection_constraint", "string_constraint", "number_constraint", "node_constraint")
+    __slots__ = ("metatype", "cardinality", "scalar_type", "primitive_type", "enum_type", "node_type", "struct_type", "is_required", "is_variable", "default", "default_factory", "base_type_ptr", "key_type", "collection_constraint", "string_constraint", "number_constraint", "node_constraint")
     METATYPE_FIELD_NUMBER: _ClassVar[int]
     CARDINALITY_FIELD_NUMBER: _ClassVar[int]
     SCALAR_TYPE_FIELD_NUMBER: _ClassVar[int]
@@ -5841,9 +5856,10 @@ class TypeData(_message.Message):
     ENUM_TYPE_FIELD_NUMBER: _ClassVar[int]
     NODE_TYPE_FIELD_NUMBER: _ClassVar[int]
     STRUCT_TYPE_FIELD_NUMBER: _ClassVar[int]
-    DEFAULT_FIELD_NUMBER: _ClassVar[int]
     IS_REQUIRED_FIELD_NUMBER: _ClassVar[int]
     IS_VARIABLE_FIELD_NUMBER: _ClassVar[int]
+    DEFAULT_FIELD_NUMBER: _ClassVar[int]
+    DEFAULT_FACTORY_FIELD_NUMBER: _ClassVar[int]
     BASE_TYPE_PTR_FIELD_NUMBER: _ClassVar[int]
     KEY_TYPE_FIELD_NUMBER: _ClassVar[int]
     COLLECTION_CONSTRAINT_FIELD_NUMBER: _ClassVar[int]
@@ -5857,16 +5873,17 @@ class TypeData(_message.Message):
     enum_type: EnumType
     node_type: NodeType
     struct_type: StructType
-    default: ValueData
     is_required: bool
     is_variable: bool
+    default: ValueData
+    default_factory: DefaultFactory
     base_type_ptr: NodeReferenceData
     key_type: TypeData
     collection_constraint: CollectionConstraintData
     string_constraint: StringConstraintData
     number_constraint: NumberConstraintData
     node_constraint: NodeConstraintData
-    def __init__(self, metatype: _Optional[_Union[StructType, str]] = ..., cardinality: _Optional[_Union[TypeCardinality, str]] = ..., scalar_type: _Optional[_Union[ScalarType, str]] = ..., primitive_type: _Optional[_Union[PrimitiveType, str]] = ..., enum_type: _Optional[_Union[EnumType, str]] = ..., node_type: _Optional[_Union[NodeType, str]] = ..., struct_type: _Optional[_Union[StructType, str]] = ..., default: _Optional[_Union[ValueData, _Mapping]] = ..., is_required: bool = ..., is_variable: bool = ..., base_type_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., key_type: _Optional[_Union[TypeData, _Mapping]] = ..., collection_constraint: _Optional[_Union[CollectionConstraintData, _Mapping]] = ..., string_constraint: _Optional[_Union[StringConstraintData, _Mapping]] = ..., number_constraint: _Optional[_Union[NumberConstraintData, _Mapping]] = ..., node_constraint: _Optional[_Union[NodeConstraintData, _Mapping]] = ...) -> None: ...
+    def __init__(self, metatype: _Optional[_Union[StructType, str]] = ..., cardinality: _Optional[_Union[TypeCardinality, str]] = ..., scalar_type: _Optional[_Union[ScalarType, str]] = ..., primitive_type: _Optional[_Union[PrimitiveType, str]] = ..., enum_type: _Optional[_Union[EnumType, str]] = ..., node_type: _Optional[_Union[NodeType, str]] = ..., struct_type: _Optional[_Union[StructType, str]] = ..., is_required: bool = ..., is_variable: bool = ..., default: _Optional[_Union[ValueData, _Mapping]] = ..., default_factory: _Optional[_Union[DefaultFactory, str]] = ..., base_type_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., key_type: _Optional[_Union[TypeData, _Mapping]] = ..., collection_constraint: _Optional[_Union[CollectionConstraintData, _Mapping]] = ..., string_constraint: _Optional[_Union[StringConstraintData, _Mapping]] = ..., number_constraint: _Optional[_Union[NumberConstraintData, _Mapping]] = ..., node_constraint: _Optional[_Union[NodeConstraintData, _Mapping]] = ...) -> None: ...
 
 class UserData(_message.Message):
     __slots__ = ("metatype", "id", "parent_ptr", "created_at", "created_by_ptr", "updated_at", "updated_by_ptr", "region", "name", "slug", "icon", "line", "is_staff", "status", "last_logged_in_at", "bench_ptr", "handle_ptr", "cursor_ptr", "email", "password_salt", "password_hash")

@@ -1771,17 +1771,21 @@ export interface FieldData {
      */
     structType?: StructType;
     /**
-     * @generated from protobuf field: optional symbol.bench.ValueData default = 46;
-     */
-    default?: ValueData;
-    /**
-     * @generated from protobuf field: bool is_required = 47;
+     * @generated from protobuf field: bool is_required = 46;
      */
     isRequired: boolean;
     /**
-     * @generated from protobuf field: bool is_variable = 48;
+     * @generated from protobuf field: bool is_variable = 47;
      */
     isVariable: boolean;
+    /**
+     * @generated from protobuf field: optional symbol.bench.ValueData default = 48;
+     */
+    default?: ValueData;
+    /**
+     * @generated from protobuf field: optional symbol.bench.DefaultFactory default_factory = 49;
+     */
+    defaultFactory?: DefaultFactory;
     /**
      * @generated from protobuf field: optional symbol.bench.NodeReferenceData base_type_ptr = 50;
      */
@@ -4710,9 +4714,9 @@ export interface QueryData {
      */
     type: QueryType;
     /**
-     * @generated from protobuf field: optional string name = 31;
+     * @generated from protobuf field: string name = 31;
      */
-    name?: string;
+    name: string;
     /**
      * @generated from protobuf field: symbol.bench.RelationReferenceData relation = 35;
      */
@@ -5347,17 +5351,21 @@ export interface SchemaData {
      */
     structType?: StructType;
     /**
-     * @generated from protobuf field: optional symbol.bench.ValueData default = 46;
-     */
-    default?: ValueData;
-    /**
-     * @generated from protobuf field: bool is_required = 47;
+     * @generated from protobuf field: bool is_required = 46;
      */
     isRequired: boolean;
     /**
-     * @generated from protobuf field: bool is_variable = 48;
+     * @generated from protobuf field: bool is_variable = 47;
      */
     isVariable: boolean;
+    /**
+     * @generated from protobuf field: optional symbol.bench.ValueData default = 48;
+     */
+    default?: ValueData;
+    /**
+     * @generated from protobuf field: optional symbol.bench.DefaultFactory default_factory = 49;
+     */
+    defaultFactory?: DefaultFactory;
     /**
      * @generated from protobuf field: optional symbol.bench.NodeReferenceData base_type_ptr = 50;
      */
@@ -7493,17 +7501,21 @@ export interface TypeData {
      */
     structType?: StructType;
     /**
-     * @generated from protobuf field: optional symbol.bench.ValueData default = 46;
-     */
-    default?: ValueData;
-    /**
-     * @generated from protobuf field: bool is_required = 47;
+     * @generated from protobuf field: bool is_required = 46;
      */
     isRequired: boolean;
     /**
-     * @generated from protobuf field: bool is_variable = 48;
+     * @generated from protobuf field: bool is_variable = 47;
      */
     isVariable: boolean;
+    /**
+     * @generated from protobuf field: optional symbol.bench.ValueData default = 48;
+     */
+    default?: ValueData;
+    /**
+     * @generated from protobuf field: optional symbol.bench.DefaultFactory default_factory = 49;
+     */
+    defaultFactory?: DefaultFactory;
     /**
      * @generated from protobuf field: optional symbol.bench.NodeReferenceData base_type_ptr = 50;
      */
@@ -8997,6 +9009,25 @@ export enum Day {
     SUNDAY = 7
 }
 /**
+ * The factory to use for default values.
+ *
+ * @generated from protobuf enum symbol.bench.DefaultFactory
+ */
+export enum DefaultFactory {
+    /**
+     * @generated from protobuf enum value: DEFAULT_FACTORY_UNSPECIFIED = 0;
+     */
+    UNSPECIFIED = 0,
+    /**
+     * @generated from protobuf enum value: DEFAULT_FACTORY_UUID = 10;
+     */
+    UUID = 10,
+    /**
+     * @generated from protobuf enum value: DEFAULT_FACTORY_NOW = 20;
+     */
+    NOW = 20
+}
+/**
  * @generated from protobuf enum symbol.bench.DimensionType
  */
 export enum DimensionType {
@@ -9301,9 +9332,9 @@ export enum EnumType {
      */
     ATTRIBUTE_TYPE = 40110,
     /**
-     * @generated from protobuf enum value: ENUM_TYPE_QUERY_TYPE = 40820;
+     * @generated from protobuf enum value: ENUM_TYPE_QUERY_TYPE = 40811;
      */
-    QUERY_TYPE = 40820,
+    QUERY_TYPE = 40811,
     /**
      * @generated from protobuf enum value: ENUM_TYPE_BENCH_ROLE_TYPE = 40200;
      */
@@ -9448,6 +9479,10 @@ export enum EnumType {
      * @generated from protobuf enum value: ENUM_TYPE_SCALAR_TYPE = 42102;
      */
     SCALAR_TYPE = 42102,
+    /**
+     * @generated from protobuf enum value: ENUM_TYPE_DEFAULT_FACTORY = 42103;
+     */
+    DEFAULT_FACTORY = 42103,
     /**
      * @generated from protobuf enum value: ENUM_TYPE_STRING_FORMAT = 42110;
      */
@@ -16391,9 +16426,10 @@ class FieldData$Type extends MessageType$<FieldData> {
             { no: 43, name: "enum_type", kind: "enum", opt: true, T: () => ["symbol.bench.EnumType", EnumType, "ENUM_TYPE_"] },
             { no: 44, name: "node_type", kind: "enum", opt: true, T: () => ["symbol.bench.NodeType", NodeType, "NODE_TYPE_"] },
             { no: 45, name: "struct_type", kind: "enum", opt: true, T: () => ["symbol.bench.StructType", StructType, "STRUCT_TYPE_"] },
-            { no: 46, name: "default", kind: "message", T: () => ValueData },
-            { no: 47, name: "is_required", kind: "scalar", T: 8 /*ScalarType.BOOL*/ },
-            { no: 48, name: "is_variable", kind: "scalar", T: 8 /*ScalarType.BOOL*/ },
+            { no: 46, name: "is_required", kind: "scalar", T: 8 /*ScalarType.BOOL*/ },
+            { no: 47, name: "is_variable", kind: "scalar", T: 8 /*ScalarType.BOOL*/ },
+            { no: 48, name: "default", kind: "message", T: () => ValueData },
+            { no: 49, name: "default_factory", kind: "enum", opt: true, T: () => ["symbol.bench.DefaultFactory", DefaultFactory, "DEFAULT_FACTORY_"] },
             { no: 50, name: "base_type_ptr", kind: "message", T: () => NodeReferenceData },
             { no: 51, name: "key_type", kind: "message", T: () => TypeData },
             { no: 60, name: "collection_constraint", kind: "message", T: () => CollectionConstraintData },
@@ -16495,14 +16531,17 @@ class FieldData$Type extends MessageType$<FieldData> {
                 case /* optional symbol.bench.StructType struct_type */ 45:
                     message.structType = reader.int32();
                     break;
-                case /* optional symbol.bench.ValueData default */ 46:
-                    message.default = ValueData.internalBinaryRead(reader, reader.uint32(), options, message.default);
-                    break;
-                case /* bool is_required */ 47:
+                case /* bool is_required */ 46:
                     message.isRequired = reader.bool();
                     break;
-                case /* bool is_variable */ 48:
+                case /* bool is_variable */ 47:
                     message.isVariable = reader.bool();
+                    break;
+                case /* optional symbol.bench.ValueData default */ 48:
+                    message.default = ValueData.internalBinaryRead(reader, reader.uint32(), options, message.default);
+                    break;
+                case /* optional symbol.bench.DefaultFactory default_factory */ 49:
+                    message.defaultFactory = reader.int32();
                     break;
                 case /* optional symbol.bench.NodeReferenceData base_type_ptr */ 50:
                     message.baseTypePtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.baseTypePtr);
@@ -16609,15 +16648,18 @@ class FieldData$Type extends MessageType$<FieldData> {
         /* optional symbol.bench.StructType struct_type = 45; */
         if (message.structType !== undefined)
             writer.tag(45, WireType.Varint).int32(message.structType);
-        /* optional symbol.bench.ValueData default = 46; */
-        if (message.default)
-            ValueData.internalBinaryWrite(message.default, writer.tag(46, WireType.LengthDelimited).fork(), options).join();
-        /* bool is_required = 47; */
+        /* bool is_required = 46; */
         if (message.isRequired !== false)
-            writer.tag(47, WireType.Varint).bool(message.isRequired);
-        /* bool is_variable = 48; */
+            writer.tag(46, WireType.Varint).bool(message.isRequired);
+        /* bool is_variable = 47; */
         if (message.isVariable !== false)
-            writer.tag(48, WireType.Varint).bool(message.isVariable);
+            writer.tag(47, WireType.Varint).bool(message.isVariable);
+        /* optional symbol.bench.ValueData default = 48; */
+        if (message.default)
+            ValueData.internalBinaryWrite(message.default, writer.tag(48, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbol.bench.DefaultFactory default_factory = 49; */
+        if (message.defaultFactory !== undefined)
+            writer.tag(49, WireType.Varint).int32(message.defaultFactory);
         /* optional symbol.bench.NodeReferenceData base_type_ptr = 50; */
         if (message.baseTypePtr)
             NodeReferenceData.internalBinaryWrite(message.baseTypePtr, writer.tag(50, WireType.LengthDelimited).fork(), options).join();
@@ -22577,7 +22619,7 @@ class QueryData$Type extends MessageType$<QueryData> {
             { no: 1, name: "metatype", kind: "enum", T: () => ["symbol.bench.StructType", StructType, "STRUCT_TYPE_"] },
             { no: 2, name: "id", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
             { no: 30, name: "type", kind: "enum", T: () => ["symbol.bench.QueryType", QueryType, "QUERY_TYPE_"] },
-            { no: 31, name: "name", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
+            { no: 31, name: "name", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
             { no: 35, name: "relation", kind: "message", T: () => RelationReferenceData },
             { no: 36, name: "join", kind: "message", T: () => JoinData },
             { no: 37, name: "subqueries", kind: "message", repeat: 1 /*RepeatType.PACKED*/, T: () => QueryData },
@@ -22596,6 +22638,7 @@ class QueryData$Type extends MessageType$<QueryData> {
         message.metatype = 0;
         message.id = "";
         message.type = 0;
+        message.name = "";
         message.subqueries = [];
         message.groupBy = [];
         message.sort = [];
@@ -22617,7 +22660,7 @@ class QueryData$Type extends MessageType$<QueryData> {
                 case /* symbol.bench.QueryType type */ 30:
                     message.type = reader.int32();
                     break;
-                case /* optional string name */ 31:
+                case /* string name */ 31:
                     message.name = reader.string();
                     break;
                 case /* symbol.bench.RelationReferenceData relation */ 35:
@@ -22674,8 +22717,8 @@ class QueryData$Type extends MessageType$<QueryData> {
         /* symbol.bench.QueryType type = 30; */
         if (message.type !== 0)
             writer.tag(30, WireType.Varint).int32(message.type);
-        /* optional string name = 31; */
-        if (message.name !== undefined)
+        /* string name = 31; */
+        if (message.name !== "")
             writer.tag(31, WireType.LengthDelimited).string(message.name);
         /* symbol.bench.RelationReferenceData relation = 35; */
         if (message.relation)
@@ -23890,9 +23933,10 @@ class SchemaData$Type extends MessageType$<SchemaData> {
             { no: 43, name: "enum_type", kind: "enum", opt: true, T: () => ["symbol.bench.EnumType", EnumType, "ENUM_TYPE_"] },
             { no: 44, name: "node_type", kind: "enum", opt: true, T: () => ["symbol.bench.NodeType", NodeType, "NODE_TYPE_"] },
             { no: 45, name: "struct_type", kind: "enum", opt: true, T: () => ["symbol.bench.StructType", StructType, "STRUCT_TYPE_"] },
-            { no: 46, name: "default", kind: "message", T: () => ValueData },
-            { no: 47, name: "is_required", kind: "scalar", T: 8 /*ScalarType.BOOL*/ },
-            { no: 48, name: "is_variable", kind: "scalar", T: 8 /*ScalarType.BOOL*/ },
+            { no: 46, name: "is_required", kind: "scalar", T: 8 /*ScalarType.BOOL*/ },
+            { no: 47, name: "is_variable", kind: "scalar", T: 8 /*ScalarType.BOOL*/ },
+            { no: 48, name: "default", kind: "message", T: () => ValueData },
+            { no: 49, name: "default_factory", kind: "enum", opt: true, T: () => ["symbol.bench.DefaultFactory", DefaultFactory, "DEFAULT_FACTORY_"] },
             { no: 50, name: "base_type_ptr", kind: "message", T: () => NodeReferenceData },
             { no: 51, name: "key_type", kind: "message", T: () => TypeData },
             { no: 60, name: "collection_constraint", kind: "message", T: () => CollectionConstraintData },
@@ -23985,14 +24029,17 @@ class SchemaData$Type extends MessageType$<SchemaData> {
                 case /* optional symbol.bench.StructType struct_type */ 45:
                     message.structType = reader.int32();
                     break;
-                case /* optional symbol.bench.ValueData default */ 46:
-                    message.default = ValueData.internalBinaryRead(reader, reader.uint32(), options, message.default);
-                    break;
-                case /* bool is_required */ 47:
+                case /* bool is_required */ 46:
                     message.isRequired = reader.bool();
                     break;
-                case /* bool is_variable */ 48:
+                case /* bool is_variable */ 47:
                     message.isVariable = reader.bool();
+                    break;
+                case /* optional symbol.bench.ValueData default */ 48:
+                    message.default = ValueData.internalBinaryRead(reader, reader.uint32(), options, message.default);
+                    break;
+                case /* optional symbol.bench.DefaultFactory default_factory */ 49:
+                    message.defaultFactory = reader.int32();
                     break;
                 case /* optional symbol.bench.NodeReferenceData base_type_ptr */ 50:
                     message.baseTypePtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.baseTypePtr);
@@ -24090,15 +24137,18 @@ class SchemaData$Type extends MessageType$<SchemaData> {
         /* optional symbol.bench.StructType struct_type = 45; */
         if (message.structType !== undefined)
             writer.tag(45, WireType.Varint).int32(message.structType);
-        /* optional symbol.bench.ValueData default = 46; */
-        if (message.default)
-            ValueData.internalBinaryWrite(message.default, writer.tag(46, WireType.LengthDelimited).fork(), options).join();
-        /* bool is_required = 47; */
+        /* bool is_required = 46; */
         if (message.isRequired !== false)
-            writer.tag(47, WireType.Varint).bool(message.isRequired);
-        /* bool is_variable = 48; */
+            writer.tag(46, WireType.Varint).bool(message.isRequired);
+        /* bool is_variable = 47; */
         if (message.isVariable !== false)
-            writer.tag(48, WireType.Varint).bool(message.isVariable);
+            writer.tag(47, WireType.Varint).bool(message.isVariable);
+        /* optional symbol.bench.ValueData default = 48; */
+        if (message.default)
+            ValueData.internalBinaryWrite(message.default, writer.tag(48, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbol.bench.DefaultFactory default_factory = 49; */
+        if (message.defaultFactory !== undefined)
+            writer.tag(49, WireType.Varint).int32(message.defaultFactory);
         /* optional symbol.bench.NodeReferenceData base_type_ptr = 50; */
         if (message.baseTypePtr)
             NodeReferenceData.internalBinaryWrite(message.baseTypePtr, writer.tag(50, WireType.LengthDelimited).fork(), options).join();
@@ -28286,9 +28336,10 @@ class TypeData$Type extends MessageType$<TypeData> {
             { no: 43, name: "enum_type", kind: "enum", opt: true, T: () => ["symbol.bench.EnumType", EnumType, "ENUM_TYPE_"] },
             { no: 44, name: "node_type", kind: "enum", opt: true, T: () => ["symbol.bench.NodeType", NodeType, "NODE_TYPE_"] },
             { no: 45, name: "struct_type", kind: "enum", opt: true, T: () => ["symbol.bench.StructType", StructType, "STRUCT_TYPE_"] },
-            { no: 46, name: "default", kind: "message", T: () => ValueData },
-            { no: 47, name: "is_required", kind: "scalar", T: 8 /*ScalarType.BOOL*/ },
-            { no: 48, name: "is_variable", kind: "scalar", T: 8 /*ScalarType.BOOL*/ },
+            { no: 46, name: "is_required", kind: "scalar", T: 8 /*ScalarType.BOOL*/ },
+            { no: 47, name: "is_variable", kind: "scalar", T: 8 /*ScalarType.BOOL*/ },
+            { no: 48, name: "default", kind: "message", T: () => ValueData },
+            { no: 49, name: "default_factory", kind: "enum", opt: true, T: () => ["symbol.bench.DefaultFactory", DefaultFactory, "DEFAULT_FACTORY_"] },
             { no: 50, name: "base_type_ptr", kind: "message", T: () => NodeReferenceData },
             { no: 51, name: "key_type", kind: "message", T: () => TypeData },
             { no: 60, name: "collection_constraint", kind: "message", T: () => CollectionConstraintData },
@@ -28334,14 +28385,17 @@ class TypeData$Type extends MessageType$<TypeData> {
                 case /* optional symbol.bench.StructType struct_type */ 45:
                     message.structType = reader.int32();
                     break;
-                case /* optional symbol.bench.ValueData default */ 46:
-                    message.default = ValueData.internalBinaryRead(reader, reader.uint32(), options, message.default);
-                    break;
-                case /* bool is_required */ 47:
+                case /* bool is_required */ 46:
                     message.isRequired = reader.bool();
                     break;
-                case /* bool is_variable */ 48:
+                case /* bool is_variable */ 47:
                     message.isVariable = reader.bool();
+                    break;
+                case /* optional symbol.bench.ValueData default */ 48:
+                    message.default = ValueData.internalBinaryRead(reader, reader.uint32(), options, message.default);
+                    break;
+                case /* optional symbol.bench.DefaultFactory default_factory */ 49:
+                    message.defaultFactory = reader.int32();
                     break;
                 case /* optional symbol.bench.NodeReferenceData base_type_ptr */ 50:
                     message.baseTypePtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.baseTypePtr);
@@ -28394,15 +28448,18 @@ class TypeData$Type extends MessageType$<TypeData> {
         /* optional symbol.bench.StructType struct_type = 45; */
         if (message.structType !== undefined)
             writer.tag(45, WireType.Varint).int32(message.structType);
-        /* optional symbol.bench.ValueData default = 46; */
-        if (message.default)
-            ValueData.internalBinaryWrite(message.default, writer.tag(46, WireType.LengthDelimited).fork(), options).join();
-        /* bool is_required = 47; */
+        /* bool is_required = 46; */
         if (message.isRequired !== false)
-            writer.tag(47, WireType.Varint).bool(message.isRequired);
-        /* bool is_variable = 48; */
+            writer.tag(46, WireType.Varint).bool(message.isRequired);
+        /* bool is_variable = 47; */
         if (message.isVariable !== false)
-            writer.tag(48, WireType.Varint).bool(message.isVariable);
+            writer.tag(47, WireType.Varint).bool(message.isVariable);
+        /* optional symbol.bench.ValueData default = 48; */
+        if (message.default)
+            ValueData.internalBinaryWrite(message.default, writer.tag(48, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbol.bench.DefaultFactory default_factory = 49; */
+        if (message.defaultFactory !== undefined)
+            writer.tag(49, WireType.Varint).int32(message.defaultFactory);
         /* optional symbol.bench.NodeReferenceData base_type_ptr = 50; */
         if (message.baseTypePtr)
             NodeReferenceData.internalBinaryWrite(message.baseTypePtr, writer.tag(50, WireType.LengthDelimited).fork(), options).join();

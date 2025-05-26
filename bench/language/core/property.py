@@ -602,11 +602,11 @@ class Property(IntoQuery if TYPE_CHECKING else object):
         """Create the Type for this Property."""
         from .type import (
             CollectionConstraint,
+            DefaultFactory,
             NodeConstraint,
             NumberConstraint,
             NumberFormat,
             StringConstraint,
-            DefaultFactory,
             StringFormat,
             Type,
             TypeCardinality,
@@ -687,6 +687,7 @@ def property_(
     *,
     description: str | None = None,
     default: Any = UNSET,
+    default_factory: Literal["uuid", "now"] | None = None,
     primitive_type: PrimitiveType | None = UNSET,
     format: "Format | None" = None,
     constraint: "Constraint | None" = None,
@@ -707,6 +708,7 @@ def property_(
         id=id,
         description=description,
         default=default,
+        default_factory=default_factory,
         primitive_type=primitive_type,
         format=format,
         constraint=constraint,
