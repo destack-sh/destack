@@ -27,9 +27,7 @@ async def set_password(user_slug: str, new_password: str):
     global_pg_engine = pg_engine_from_database(
         "pg-global", global_database, NodeArea.GLOBAL_POSTGRES
     )
-    async with global_session(
-        global_database, (global_pg_engine,), REAL_ORACLE, epoch=0
-    ) as session:
+    async with global_session(global_database, (global_pg_engine,), oracle=REAL_ORACLE) as session:
         user = await User.search(where=User.property("slug").eq(user_slug)).execute_one()
         session._track(user)
         user.password_salt = generate_salt(SALT_LENGTH)

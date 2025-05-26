@@ -90,7 +90,7 @@ def make_session(name: str):
 @pytest.fixture  # :PytestAsyncContext
 async def session_async(request):
     session = make_session(request.node.name)
-    await session.open(_set_in_context=False)
+    await session.open()
     yield session
     await session.close()
 

@@ -72,6 +72,11 @@ class Value(Struct):
     value: dict[str, Json] | None = property_(35)
 
 
+def to_value(value: Any) -> Value:
+    """Convert an arbitrary value to a Value."""
+    raise NotImplementedError
+
+
 def pack_value_scalar(value: ScalarValue | ScalarValueData, typ: "TypeBase") -> JsonValue:
     """
     Packs the given scalar runtime or data value into a JSON-able representation.

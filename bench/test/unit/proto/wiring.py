@@ -1,17 +1,32 @@
 from fastuuid import uuid4
 from hypothesis import HealthCheck, given, settings
 
-from bench.language import BuiltinObject, NodeReference, NodeType, Session, User
+from bench.language import (
+    Aggregation,
+    AggregationType,
+    BuiltinObject,
+    Cursor,
+    Message,
+    NodeReference,
+    NodeType,
+    Session,
+    Thread,
+    User,
+    attribute_ref,
+    join,
+)
 from bench.proto import AnyObjectData
 from bench.test.strategies import builtin_objects, examples
 from bench.test.unit.conftest import BUILTIN_OBJECTS
 
 
-def test_roundtrip_node_reference_proto():
-    """Pack and unpack a NodeReference as proto."""
+def test_roundtrip_node_reference():
+    """Pack and unpack a NodeReference as proto and value."""
     node_ref = NodeReference(
         node_type=NodeType.PAGE, id=uuid4(), ck=uuid4(), bench_id=uuid4(), base_id=uuid4()
     )
+
+    # proto
     node_ref_data = node_ref.to_proto()
     assert node_ref.to_proto() is node_ref_data  # cached (frozen Struct)
     node_ref_data_bytes = node_ref_data.SerializeToString()
@@ -21,22 +36,39 @@ def test_roundtrip_node_reference_proto():
     assert unpacked_node_ref.equals(node_ref), f"{unpacked_node_ref!r} != {node_ref!r}"
     assert unpacked_node_ref.to_proto() is unpacked_node_ref_data  # cached (frozen Struct)
 
-
-def test_roundtrip_node_reference_value():
-    """Pack and unpack a NodeReference as value."""
-    node_ref = NodeReference(
-        node_type=NodeType.PAGE, id=uuid4(), ck=uuid4(), bench_id=uuid4(), base_id=uuid4()
-    )
+    # value
     node_ref_value = node_ref.to_value()
     unpacked_node_ref = NodeReference.from_value(node_ref_value)
     assert unpacked_node_ref.equals(node_ref), f"{unpacked_node_ref!r} != {node_ref!r}"
 
 
-def test_roundtrip_user_proto():
+def test_roundtrip_query_proto(session: Session):
+    """Pack and unpack a Query as proto."""
+    query = Thread.search(
+        sort=[Thread.property("created_at").asc()],
+        limit=25,
+        count=True,
+        Cursor=Cursor.get(
+            join=join(on=Cursor.property("owned_by").eq(5)),
+            UnreadCount=Message.aggregate(
+                where=Message.property("read_at").greater_than(
+                    attribute_ref("Cursor.last_read_at")
+                ),
+                aggregation=Aggregation(type=AggregationType.COUNT),
+            ),
+        ),
+    )
+
+
+def test_roundtrip_user_proto(session: Session):
     """Pack and unpack a User as proto."""
     user = User()
     user_data = user.to_proto()
-    assert user.to_proto() is user_data  # cached (frozen Struct)
+    user_data_bytes = user_data.SerializeToString()
+    unpacked_user_data = type(user_data)()
+    unpacked_user_data.ParseFromString(user_data_bytes)
+    unpacked_user = User.from_proto(unpacked_user_data)
+    assert unpacked_user.equals(user), f"{unpacked_user!r} != {user!r}"
 
 
 @given(obj=builtin_objects())

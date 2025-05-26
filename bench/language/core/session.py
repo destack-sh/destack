@@ -108,7 +108,7 @@ class Session:
     def active_mode(self) -> NodeMode:
         return self._runtime.active_mode if self._runtime is not None else self.mode
 
-    async def open(self, *, _set_in_context: bool = True):
+    async def open(self):
         """Opens the session for regular business. Activates context (by default)."""
         pass
 
