@@ -721,6 +721,7 @@ def property_ancestor_(
         is_required=is_required,
         is_wired=True,
         is_stored=True,
+        is_eq=False,  # no point since it's derived
         node_bench_from="self",
     )
 

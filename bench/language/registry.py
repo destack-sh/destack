@@ -110,11 +110,6 @@ def _complete_bench_setup():
         cls_dict_copy = cls.__dict__.copy()
         # __pack_proto__/__unpack_proto__/_to_proto
         proto_impl, proto_glbls = generate_pack_proto_impl(cls)
-        print("=" * 100)
-        print(cls.__name__ + ":proto")
-        print("=" * 100)
-        print(proto_impl)
-        print("=" * 100)
         exec(proto_impl, {**builtin_class_by_name, **proto_glbls}, cls_dict_copy)
         setattr(cls, "__pack_proto__", cls_dict_copy["__pack_proto__"])
         setattr(cls, "__unpack_proto__", cls_dict_copy["__unpack_proto__"])

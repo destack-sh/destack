@@ -98,7 +98,7 @@ def _generate_init_impl[ObjectT: BuiltinObject](
 ) -> tuple[str, dict[str, Any]]:
     """Generates an __init__ for a BuiltinObject class."""
 
-    extra_glbls: set[type[Any]] = set()
+    extra_glbls: dict[str, Any] = {}
 
     # sort properties (by id, runtime by alpha)
     properties_in_order = list(properties.values())
@@ -127,7 +127,7 @@ def _generate_init_impl[ObjectT: BuiltinObject](
             default_str = "None"
         elif isinstance(prop.default, Enum):
             default_str = f"{prop.default.__class__.__name__}.{prop.default.name}"
-            extra_glbls.add(prop.default.__class__)
+            extra_glbls[prop.default.__class__.__name__] = prop.default.__class__
         else:
             default_str = repr(prop.default)
         method_header_lines.append(f"{prop.name}={default_str}")
@@ -136,9 +136,16 @@ def _generate_init_impl[ObjectT: BuiltinObject](
     method_header = ", ".join(method_header_lines)
 
     # body
+    # NOTE: Structs can use direct assignment, Nodes shouldn't (because of custom __setattr__)
+    extra_glbls["ACTIVE_SESSION"] = ACTIVE_SESSION
+    extra_glbls["EMPTY_LIST"] = frozenlist()
+    extra_glbls["EMPTY_DICT"] = frozendict()
+    extra_glbls["uuid4"] = uuid4
+    method_body_lines = [
+        "__setattr__ = object.__setattr__",
+    ]
     body_properties = dict(properties)
     body_properties.pop("_supergraph")
-    method_body_lines = []
 
     # setup
     if is_node:
@@ -157,10 +164,10 @@ if _session is None:
     _session = ACTIVE_SESSION.get()
     if _session is None:
         raise RuntimeError("no active session for {cls.__name__}")
-object.__setattr__(self, "_session", _session)
+__setattr__(self, "_session", _session)
 if _supergraph is None:
     _supergraph = _session.supergraph
-object.__setattr__(self, "_supergraph", _supergraph)
+__setattr__(self, "_supergraph", _supergraph)
 """)
         if "ck" not in properties:
             method_body_lines.append("""\
@@ -170,11 +177,11 @@ if id is None:
     now = self._session.oracle.utc()
     created_at = now
     updated_at = now
-    object.__setattr__(self, "_is_new", True)
-object.__setattr__(self, "id", id)
-object.__setattr__(self, "created_at", created_at)
-object.__setattr__(self, "updated_at", updated_at)
-object.__setattr__(self, "_hash", id.int)
+    __setattr__(self, "_is_new", True)
+__setattr__(self, "id", id)
+__setattr__(self, "created_at", created_at)
+__setattr__(self, "updated_at", updated_at)
+__setattr__(self, "_hash", id.int)
 """)
         else:
             method_body_lines.append("""\
@@ -187,18 +194,18 @@ if id is None:
     created_at = now
     updated_at = now
     is_new = True
-object.__setattr__(self, "id", id)
-object.__setattr__(self, "ck", ck)
-object.__setattr__(self, "created_at", created_at)
-object.__setattr__(self, "updated_at", updated_at)
-object.__setattr__(self, "_is_new", is_new)
-object.__setattr__(self, "_hash", id.int)
+__setattr__(self, "id", id)
+__setattr__(self, "ck", ck)
+__setattr__(self, "created_at", created_at)
+__setattr__(self, "updated_at", updated_at)
+__setattr__(self, "_is_new", is_new)
+__setattr__(self, "_hash", id.int)
 """)
 
         # node graph
         method_body_lines.append("""\
 # init graph
-object.__setattr__(self, "_graph", _graph)
+__setattr__(self, "_graph", _graph)
     """)
     else:
         # struct setup
@@ -207,7 +214,7 @@ object.__setattr__(self, "_graph", _graph)
 if _supergraph is None:
     if (session := ACTIVE_SESSION.get()) is not None:
         _supergraph = session.supergraph
-object.__setattr__(self, "_supergraph", _supergraph)
+self._supergraph = _supergraph
 """)
 
     # property assignments
@@ -264,14 +271,17 @@ if {prop.name} is None:
     {prop.name} = {'{}' if not is_frozen else 'EMPTY_DICT'}""")
 
         # regular assignment
-        method_body_lines.append(f"object.__setattr__(self, '{prop.name}', {prop.name})")
+        if is_node:
+            method_body_lines.append(f"__setattr__(self, '{prop.name}', {prop.name})")
+        else:
+            method_body_lines.append(f"self.{prop.name} = {prop.name}")
 
     method_body = "\n".join(method_body_lines) or "pass"
     method_body = textwrap.indent(method_body, "    ")
     init_str = f"{method_header}:\n{method_body}"
     if IS_DEV:
         init_str = format_code(init_str)
-    return init_str, {c.__name__: c for c in extra_glbls}
+    return init_str, extra_glbls
 
 
 def _generate_repr_impl[ObjectT: BuiltinObject](cls: type[ObjectT]) -> tuple[str, dict[str, Any]]:
@@ -474,7 +484,7 @@ def _generate_scalar_cmps_impl(prop: Property) -> str:
     elif prop.scalar_type == "enum":
         return "{self_val} == {other_val}"
     elif prop.scalar_type == "node":
-        return "_identity_map.get({self_val}.id, {self_val}) == _identity_map.get({other_val}.id, {other_val})"
+        return "_identity_map.get({self_val}.id, {self_val}) == _identity_map.get({other_val}.id, {other_val}.id)"
     elif prop.scalar_type == "struct":
         return "{self_val}.equals({other_val}, _identity_map=_identity_map)"
     else:
@@ -711,17 +721,6 @@ def {prop.name}(self: "Node") -> "Node | None":
 """
 
 
-def _generate_frozen_setattr_impl(cls: type["BuiltinObject"]) -> str:
-    """Generates BuiltinObject.__setattr__ method for frozen objects."""
-    return f"""\
-def __setattr__(self, key: str, value):
-    if key.startswith("_"):
-        object.__setattr__(self, key, value)
-    else:
-        raise RuntimeError(f"cannot set {{key!r}} on frozen class {cls.__name__}")
-"""
-
-
 def _process_object_cls[ObjectT: BuiltinObject](
     cls: type[ObjectT],
     object_type: NodeType | StructType | None,
@@ -845,13 +844,6 @@ def _process_object_cls[ObjectT: BuiltinObject](
         assert object_type is not None, f"concrete objects need a type: {cls.__name__}"
         cls_dict = dict(cls.__dict__)
 
-        # slots
-        cls_dict.pop("__dict__", None)
-        cls_dict.pop("__weakref__", None)
-        for prop in properties.values():
-            cls_dict.pop(prop.name, None)
-        cls_dict["__slots__"] = tuple(cls.__wired_properties__.keys())
-
         # __init__
         glbls = {
             "ACTIVE_SESSION": ACTIVE_SESSION,
@@ -862,6 +854,11 @@ def _process_object_cls[ObjectT: BuiltinObject](
         init_str, init_glbls = _generate_init_impl(
             cls, is_node=is_node, is_frozen=is_frozen, properties=properties
         )
+        print("=" * 100)
+        print(cls.__name__ + ":init")
+        print("=" * 100)
+        print(init_str)
+        print("=" * 100)
         exec(init_str, {**glbls, **init_glbls}, cls_dict)
         # __repr__
         repr_str, repr_glbls = _generate_repr_impl(cls)
@@ -908,8 +905,14 @@ def _process_object_cls[ObjectT: BuiltinObject](
 
         # freeze
         if is_frozen:
-            frozen_setattr_str = _generate_frozen_setattr_impl(cls)
-            exec(frozen_setattr_str, {}, cls_dict)
+            pass  # do nothing since freezing with a custom setattr is bad for performance
+
+        # slots
+        cls_dict.pop("__dict__", None)
+        cls_dict.pop("__weakref__", None)
+        for prop in properties.values():
+            cls_dict.pop(prop.name, None)
+        cls_dict["__slots__"] = tuple(cls.__properties__.keys())
 
         # create the new class
         _original_cls = cls
