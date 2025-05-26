@@ -74,10 +74,10 @@ class AttributeReference(Struct):
 def attribute_ref(field: "str | Field | Property") -> AttributeReference:
     if isinstance(field, str):
         return AttributeReference(type=AttributeType.QUERY, name=field)
-    elif isinstance(field, Field):
-        return AttributeReference(type=AttributeType.FIELD, field=field)
     elif isinstance(field, Property):
         return AttributeReference(type=AttributeType.PROPERTY, prop=field)
+    elif isinstance(field, Node):
+        return AttributeReference(type=AttributeType.FIELD, field=field)
     else:
         assert_never(field)
 
@@ -164,7 +164,13 @@ def condition(
     type: ConditionalType = ConditionalType.EQUALS,
     value: Any = None,
 ) -> Condition:
-    return Condition(type=type, left=expression(attribute_ref(attribute)), right=expression(value))
+    from .value import to_value
+
+    return Condition(
+        type=type,
+        left=expression(attribute_ref(attribute)),
+        right=expression(to_value(value)),
+    )
 
 
 #
@@ -343,7 +349,7 @@ class QueryType(BuiltinEnum):
 
 
 @struct_(StructType.QUERY)
-class Query[T: "Node"](Struct):
+class Query[RootT: "Node"](Struct):
     """A GraphQL-inspired Query node with subqueries."""
 
     id: UUID = property_(2, is_repr=True)
@@ -356,7 +362,7 @@ class Query[T: "Node"](Struct):
     relation: RelationReference = property_(35, is_repr=True)
     join: Optional[Join] = property_(36, description="Relative to parent Query.", is_repr=True)
     subqueries: list["Query"] = property_(37)
-    # fields, ...
+    # select, ...
 
     where: Optional[Condition] = property_(40, is_repr=True)
     having: Optional[Condition] = property_(41, is_repr=True)
@@ -369,15 +375,19 @@ class Query[T: "Node"](Struct):
     count: bool | None = property_(52, is_repr=True)
 
     async def execute(self) -> "QueryResult":
+        """Execute the Query."""
         raise NotImplementedError
 
-    async def execute_one_or_none(self) -> Optional[T]:
+    async def execute_one_or_none(self) -> Optional[RootT]:
+        """Execute the Query and return the root."""
         raise NotImplementedError
 
-    async def execute_one(self) -> T:
+    async def execute_one(self) -> RootT:
+        """Execute the Query and return the root (error if none)."""
         raise NotImplementedError
 
-    async def execute_list(self) -> list[T]:
+    async def execute_list(self) -> list[RootT]:
+        """Execute the Query and return the list of roots."""
         raise NotImplementedError
 
 
@@ -389,87 +399,6 @@ def to_subqueries(subqueries: dict[str, "Query"]) -> list["Query"]:
             subquery.join = join(JoinType.PARENT)
         subquery.name = name
     return list(subqueries.values())
-
-
-def get[T: Node](
-    node_cls: type[T] | NodeType,
-    name: str,
-    join: Optional[Join] = None,
-    where: Optional[Condition] = None,
-    **subqueries: Query,
-) -> Query[T]:
-    """Create a Get Query."""
-    metatype = node_cls if isinstance(node_cls, NodeType) else node_cls.metatype
-    return Query(
-        type=QueryType.GET,
-        relation=relation_ref(metatype),
-        name=name or metatype.bench_name,
-        join=join,
-        where=where,
-        subqueries=to_subqueries(subqueries),
-    )
-
-
-def search[T: Node](
-    node_cls: type[T] | NodeType,
-    name: str,
-    join: Optional[Join] = None,
-    where: Optional[Condition] = None,
-    having: Optional[Condition] = None,
-    sort: Optional[list[Sort]] = None,
-    group_by: Optional[list[Expression]] = None,
-    aggregation: Optional[Aggregation] = None,
-    limit: Optional[int] = None,
-    offset: Optional[int] = None,
-    count: bool = False,
-    **subqueries: Query,
-) -> Query[T]:
-    """Create a Search Query."""
-    metatype = node_cls if isinstance(node_cls, NodeType) else node_cls.metatype
-    return Query(
-        type=QueryType.SEARCH,
-        relation=relation_ref(metatype),
-        name=name or metatype.bench_name,
-        join=join,
-        where=where,
-        having=having,
-        group_by=group_by or [],
-        aggregation=aggregation,
-        sort=sort or [],
-        limit=limit,
-        offset=offset,
-        count=count,
-        subqueries=to_subqueries(subqueries),
-    )
-
-
-def aggregate[T: Node](
-    node_cls: type[T] | NodeType,
-    name: str,
-    join: Optional[Join] = None,
-    where: Optional[Condition] = None,
-    group_by: Optional[list[Expression]] = None,
-    aggregation: Optional[Aggregation] = None,
-    sort: Optional[list[Sort]] = None,
-    limit: Optional[int] = None,
-    offset: Optional[int] = None,
-    count: bool = False,
-) -> Query[T]:
-    """Create an Aggregate Query."""
-    metatype = node_cls if isinstance(node_cls, NodeType) else node_cls.metatype
-    return Query(
-        type=QueryType.AGGREGATE,
-        relation=relation_ref(metatype),
-        name=name or metatype.bench_name,
-        join=join,
-        where=where,
-        group_by=group_by or [],
-        aggregation=aggregation,
-        sort=sort or [],
-        limit=limit,
-        offset=offset,
-        count=count,
-    )
 
 
 #

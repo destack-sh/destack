@@ -51,11 +51,14 @@ async def shell(
     elif area == NodeArea.LOCAL_POSTGRES:
         assert bench is not None, "bench is required for local area"
         async with global_session(
-            global_database, (global_pg_engine, regional_pg_engine), REAL_ORACLE
+            global_database, (global_pg_engine, regional_pg_engine), oracle=REAL_ORACLE
         ):
-            bench_node = (
-                await Bench.include_descendants(Package, Database).select_all().get(slug=bench)
-            )
+            bench_node = await Bench.get(
+                where=Bench.property("slug").eq(bench),
+                Packages=Package.search(
+                    Databases=Database.search(),
+                ),
+            ).execute_one()
             assert bench_node.database is not None, f"{bench!r} has no main database"
             database = bench_node.database
     else:

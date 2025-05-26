@@ -111,8 +111,8 @@ def local_pg_engine_from_database(name: str, database: Database):
 
 def global_session(
     node: Node | None,
-    oracle: Oracle,
     *,
+    oracle: Oracle,
     supergraph: Supergraph | None = None,
     epoch: int | None = None,
     readonly: bool = False,

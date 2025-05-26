@@ -58,8 +58,6 @@ async def make(
         regional_database_from_env,
     )
 
-    BENCH_QUERY = Bench.include_descendants(Package, Database).select_all()
-
     start = time.time()
     global_database = global_database_from_env()
     global_pg_engine = pg_engine_from_database(
@@ -99,9 +97,12 @@ async def make(
         if not from_scratch:
             try:
                 async with global_session(
-                    global_database, (global_pg_engine, regional_pg_engine), REAL_ORACLE
+                    global_database, (global_pg_engine, regional_pg_engine), oracle=REAL_ORACLE
                 ):
-                    bench_node = await BENCH_QUERY.get(slug=bench)
+                    bench_node = await Bench.get(
+                        where=Bench.property("slug").eq(bench),
+                        Packages=Package.search(Databases=Database.search()),
+                    ).execute_one()
                     assert bench_node.database, f"{bench!r} has no main database"
                     async with pg_connection(bench_node.database) as conn:
                         old_local_schema = await introspect_sql_schema(
@@ -205,8 +206,6 @@ async def apply(
         regional_database_from_env,
     )
 
-    BENCH_QUERY = Bench.include_descendants(Package, Database).select_all()
-
     start = time.time()
     global_database = global_database_from_env()
     global_pg_engine = pg_engine_from_database(
@@ -226,15 +225,20 @@ async def apply(
             global_database, (global_pg_engine, regional_pg_engine), REAL_ORACLE
         ):
             if bench != "*":
-                bench_node = await BENCH_QUERY.get(slug=bench)
-                assert bench_node.package, f"{bench!r} has no main package"
-                databases = list(bench_node.package.get_children(Database))
+                bench_node = await Bench.get(
+                    where=Bench.property("slug").eq(bench),
+                    Packages=Package.search(Databases=Database.search()),
+                ).execute_one()
+                assert bench_node.main_package, f"{bench!r} has no main package"
+                databases = list(bench_node.main_package.get_children(Database))
             else:
-                benches = await BENCH_QUERY.tolist()
+                benches = await Bench.search(
+                    Packages=Package.search(Databases=Database.search()),
+                ).execute_list()
                 databases: list[Database] = []
                 for bench_node in benches:
-                    assert bench_node.package, f"{bench_node!r} has no main package"
-                    databases.extend(bench_node.package.get_children(Database))
+                    assert bench_node.main_package, f"{bench_node!r} has no main package"
+                    databases.extend(bench_node.main_package.get_children(Database))
     elif area == NodeArea.REGIONAL_POSTGRES:
         databases = [regional_database]
     elif area == NodeArea.GLOBAL_POSTGRES:
