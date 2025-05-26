@@ -5,6 +5,7 @@ from bench.language.core import (
     IsArchivable,
     IsBlockable,
     IsDeletable,
+    IsInPackage,
     IsInstantiable,
     IsModal,
     IsOwnable,
@@ -29,6 +30,7 @@ class Table(
     IsBlockable,
     IsArchivable,
     IsDeletable,
+    IsInPackage,
     Node[TableData],
 ):
     """A Table of Records."""

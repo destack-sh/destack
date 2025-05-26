@@ -4,6 +4,7 @@ from bench.language.core import (
     VERSION,
     BuiltinEnum,
     EnumType,
+    IsInPackage,
     IsProvisionable,
     IsRegional,
     Node,
@@ -23,7 +24,7 @@ class DatabaseType(BuiltinEnum):
 
 
 @node_(NodeType.DATABASE)
-class Database(IsProvisionable, IsRegional, Node[DatabaseData]):
+class Database(IsProvisionable, IsRegional, IsInPackage, Node[DatabaseData]):
     """A trusty Postgres-compatible database."""
 
     type: DatabaseType = property_(30, default=DatabaseType.POSTGRES)

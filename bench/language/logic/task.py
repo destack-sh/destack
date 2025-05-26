@@ -8,6 +8,7 @@ from bench.language.core import (
     IsArchivable,
     IsBlockable,
     IsDeletable,
+    IsInPackage,
     IsInstantiable,
     IsModal,
     IsOwnable,
@@ -39,6 +40,7 @@ class Task(
     IsBlockable,
     IsDeletable,
     IsArchivable,
+    IsInPackage,
     Node[TaskData],
 ):
     """A Task is like a to do item."""

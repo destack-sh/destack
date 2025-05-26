@@ -86,18 +86,8 @@ class Interruption(
     runnable: Optional["IsRunnable"] = property_(32)
     span: Optional["Span"] = property_(37)
     if TYPE_CHECKING:
-        root_id: Optional[UUID] = None
-        root_ptr: Optional[NodeReference] = None
         runnable_ptr: Optional[NodeReference] = None
         runnable_id: Optional[UUID] = None
-        page_id: Optional[UUID] = None
-        page_ptr: Optional[NodeReference] = None
-        flow_id: Optional[UUID] = None
-        flow_ptr: Optional[NodeReference] = None
-        action_id: Optional[UUID] = None
-        action_ptr: Optional[NodeReference] = None
-        link_id: Optional[UUID] = None
-        link_ptr: Optional[NodeReference] = None
         span_id: Optional[UUID] = None
         span_ptr: Optional[NodeReference] = None
 

@@ -348,9 +348,9 @@ export interface AttributeReferenceData {
      */
     propPtr?: PropertyReferenceData;
     /**
-     * @generated from protobuf field: optional symbol.bench.RelationReferenceData table = 34;
+     * @generated from protobuf field: optional symbol.bench.RelationReferenceData relation = 34;
      */
-    table?: RelationReferenceData;
+    relation?: RelationReferenceData;
 }
 /**
  * @generated from protobuf message symbol.bench.Axis2Data
@@ -5003,10 +5003,6 @@ export interface RunData {
      * @generated from protobuf field: symbol.bench.RunType type = 30;
      */
     type: RunType;
-    /**
-     * @generated from protobuf field: optional symbol.bench.TextLineData title = 32;
-     */
-    title?: TextLineData;
     /**
      * @generated from protobuf field: optional symbol.bench.NodeReferenceData thread_ptr = 38;
      */
@@ -13279,7 +13275,7 @@ class AttributeReferenceData$Type extends MessageType$<AttributeReferenceData> {
             { no: 31, name: "name", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
             { no: 32, name: "field_ptr", kind: "message", T: () => NodeReferenceData },
             { no: 33, name: "prop_ptr", kind: "message", T: () => PropertyReferenceData },
-            { no: 34, name: "table", kind: "message", T: () => RelationReferenceData }
+            { no: 34, name: "relation", kind: "message", T: () => RelationReferenceData }
         ]);
     }
     create(value?: PartialMessage<AttributeReferenceData>): AttributeReferenceData {
@@ -13310,8 +13306,8 @@ class AttributeReferenceData$Type extends MessageType$<AttributeReferenceData> {
                 case /* optional symbol.bench.PropertyReferenceData prop_ptr */ 33:
                     message.propPtr = PropertyReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.propPtr);
                     break;
-                case /* optional symbol.bench.RelationReferenceData table */ 34:
-                    message.table = RelationReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.table);
+                case /* optional symbol.bench.RelationReferenceData relation */ 34:
+                    message.relation = RelationReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.relation);
                     break;
                 default:
                     let u = options.readUnknownField;
@@ -13340,9 +13336,9 @@ class AttributeReferenceData$Type extends MessageType$<AttributeReferenceData> {
         /* optional symbol.bench.PropertyReferenceData prop_ptr = 33; */
         if (message.propPtr)
             PropertyReferenceData.internalBinaryWrite(message.propPtr, writer.tag(33, WireType.LengthDelimited).fork(), options).join();
-        /* optional symbol.bench.RelationReferenceData table = 34; */
-        if (message.table)
-            RelationReferenceData.internalBinaryWrite(message.table, writer.tag(34, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbol.bench.RelationReferenceData relation = 34; */
+        if (message.relation)
+            RelationReferenceData.internalBinaryWrite(message.relation, writer.tag(34, WireType.LengthDelimited).fork(), options).join();
         let u = options.writeUnknownFields;
         if (u !== false)
             (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
@@ -23214,7 +23210,6 @@ class RunData$Type extends MessageType$<RunData> {
             { no: 20, name: "mode", kind: "enum", T: () => ["symbol.bench.NodeMode", NodeMode, "NODE_MODE_"] },
             { no: 21, name: "value", kind: "message", T: () => ValueData },
             { no: 30, name: "type", kind: "enum", T: () => ["symbol.bench.RunType", RunType, "RUN_TYPE_"] },
-            { no: 32, name: "title", kind: "message", T: () => TextLineData },
             { no: 38, name: "thread_ptr", kind: "message", T: () => NodeReferenceData },
             { no: 66, name: "code", kind: "message", T: () => CodeData },
             { no: 67, name: "runnable_ptr", kind: "message", T: () => NodeReferenceData },
@@ -23287,9 +23282,6 @@ class RunData$Type extends MessageType$<RunData> {
                     break;
                 case /* symbol.bench.RunType type */ 30:
                     message.type = reader.int32();
-                    break;
-                case /* optional symbol.bench.TextLineData title */ 32:
-                    message.title = TextLineData.internalBinaryRead(reader, reader.uint32(), options, message.title);
                     break;
                 case /* optional symbol.bench.NodeReferenceData thread_ptr */ 38:
                     message.threadPtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.threadPtr);
@@ -23396,9 +23388,6 @@ class RunData$Type extends MessageType$<RunData> {
         /* symbol.bench.RunType type = 30; */
         if (message.type !== 0)
             writer.tag(30, WireType.Varint).int32(message.type);
-        /* optional symbol.bench.TextLineData title = 32; */
-        if (message.title)
-            TextLineData.internalBinaryWrite(message.title, writer.tag(32, WireType.LengthDelimited).fork(), options).join();
         /* optional symbol.bench.NodeReferenceData thread_ptr = 38; */
         if (message.threadPtr)
             NodeReferenceData.internalBinaryWrite(message.threadPtr, writer.tag(38, WireType.LengthDelimited).fork(), options).join();

@@ -3,6 +3,7 @@ from typing import TYPE_CHECKING, Union
 from bench.language.core import (
     HasName,
     IsBlockable,
+    IsInPackage,
     IsModal,
     IsTemplatable,
     TraitType,
@@ -22,6 +23,7 @@ class IsStyle(
     IsModal,
     HasName,
     IsBlockable,
+    IsInPackage,
 ):
     """A Style is a graphical interface."""
 

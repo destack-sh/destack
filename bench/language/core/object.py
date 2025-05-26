@@ -478,7 +478,7 @@ def _generate_scalar_cmps_impl(prop: Property) -> str:
     """Generate the core scalar comparison logic. Returns a format string with {self_val} and {other_val} placeholders."""
     if prop.scalar_type == "primitive":
         if prop.primitive_type and prop.primitive_type.is_float:
-            return "{self_val} == {other_val} or abs({self_val} - {other_val}) < _epsilon"
+            return "{self_val} == {other_val} or abs({self_val} - {other_val}) < 1e-10"
         else:
             return "{self_val} == {other_val}"
     elif prop.scalar_type == "enum":
@@ -697,7 +697,9 @@ def {prop.name}_{obj_key}(self: "BuiltinObject") -> tuple["Node", ...]:
 """
 
 
-def _generate_ancestor_property_impl(object_type: NodeType | StructType, prop: Property) -> str:
+def _generate_node_ancestor_property_impl(
+    object_type: NodeType | StructType, prop: Property
+) -> str:
     """The machine get property for Node ancestors."""
 
     node_types_str = ", ".join(str(t.value) for t in prop.nodes)
@@ -707,6 +709,10 @@ def _generate_ancestor_property_impl(object_type: NodeType | StructType, prop: P
 @property
 def {prop.name}(self: "Node") -> "Node":
     return self
+
+@property
+def {prop.name}_ptr(self: "Node") -> "NodeType":
+    return self.to_ref()
 """
     else:
         return f"""\
@@ -716,6 +722,15 @@ def {prop.name}(self: "Node") -> "Node | None":
     while node is not None:
         if node.metatype in ({node_types_str}):
             return node
+        node = node.parent
+    return None
+
+@property
+def {prop.name}_ptr(self: "Node") -> "NodeType":
+    node = self
+    while node is not None:
+        if node.metatype in ({node_types_str}):
+            return node.to_ref()
         node = node.parent
     return None
 """
@@ -889,7 +904,7 @@ def _process_object_cls[ObjectT: BuiltinObject](
                 exec(node_property_str, {}, cls_dict)
             # computed node ancestor property
             elif prop.node_kind == NodeEdgeKind.NODE_ANCESTOR:
-                ancestor_property_str = _generate_ancestor_property_impl(object_type, prop)
+                ancestor_property_str = _generate_node_ancestor_property_impl(object_type, prop)
                 exec(ancestor_property_str, {}, cls_dict)
             # computed _x node reference properties (e.g., parent_id, node_ck, node_type, ...)
             if prop.is_node_reference:
@@ -901,15 +916,18 @@ def _process_object_cls[ObjectT: BuiltinObject](
 
         # freeze
         if is_frozen:
-            pass  # do nothing since freezing with a custom setattr is bad for :Performance?
+            pass  # do nothing since a custom __setattr__ kills :Performance?
 
     # slots
     cls_dict.pop("__dict__", None)
     cls_dict.pop("__weakref__", None)
-    for prop in properties.values():
-        cls_dict.pop(prop.name, None)
     if is_concrete:  # (only define actual slots in leaf, otherwise slots clash)
-        cls_dict["__slots__"] = tuple(cls.__properties__.keys())
+        for prop in properties.values():
+            if isinstance(cls_dict.get(prop.name), Property):
+                cls_dict.pop(prop.name, None)
+        cls_dict["__slots__"] = tuple(
+            p.name for p in properties.values() if p.ptr_prop is None and not p.is_computed
+        )
     else:
         cls_dict["__slots__"] = ()
 

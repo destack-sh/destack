@@ -20,6 +20,7 @@ from bench.language.core import (
     StructType,
     TypeAnnotation,
 )
+from bench.language.core.value import pack_proto_json, unpack_proto_json
 from bench.language.registry import (
     BUILTIN_OBJECT_CLASS_BY_TYPE,
     BUILTIN_OBJECT_TYPE_BY_CLASS,
@@ -125,6 +126,8 @@ from_proto = __unpack_proto__
         "Timestamp": Timestamp,
         "Duration": Duration,
         "pytz": pytz,
+        "pack_proto_json": pack_proto_json,
+        "unpack_proto_json": unpack_proto_json,
     }
 
 
@@ -310,7 +313,9 @@ def _generate_pack_scalar(
         if prop.primitive_type == PrimitiveType.UUID:
             lines.append(f"{result_var} = {_wrap_with_null_check(f'str({value_expr})')}")
         elif prop.primitive_type == PrimitiveType.JSON:
-            lines.append(f"{result_var} = {_wrap_with_null_check(f'json.dumps({value_expr})')}")
+            lines.append(
+                f"{result_var} = {_wrap_with_null_check(f'pack_proto_json({value_expr})')}"
+            )
         elif prop.primitive_type == PrimitiveType.DATETIME:
             lines.append(
                 f"{result_var} = {_wrap_with_null_check(f'Timestamp().FromDatetime({value_expr})')}"
@@ -371,7 +376,9 @@ def _generate_unpack_scalar(
         if prop.primitive_type == PrimitiveType.UUID:
             lines.append(f"{result_var} = {_wrap_with_null_check(f'UUID({value_expr})')}")
         elif prop.primitive_type == PrimitiveType.JSON:
-            lines.append(f"{result_var} = {_wrap_with_null_check(f'json.loads({value_expr})')}")
+            lines.append(
+                f"{result_var} = {_wrap_with_null_check(f'unpack_proto_json({value_expr})')}"
+            )
         elif prop.primitive_type == PrimitiveType.DATETIME:
             lines.append(
                 f"{result_var} = {_wrap_with_null_check(f'{value_expr}.ToDatetime(tzinfo=pytz.utc)')}"

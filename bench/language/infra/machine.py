@@ -6,6 +6,7 @@ from bench.language.core import (
     VERSION,
     BuiltinEnum,
     EnumType,
+    IsInPackage,
     IsProvisionable,
     IsSubject,
     Node,
@@ -33,7 +34,7 @@ class MachineType(BuiltinEnum):
 
 
 @node_(NodeType.MACHINE)
-class Machine(IsSubject, IsProvisionable, Node[MachineData]):
+class Machine(IsSubject, IsProvisionable, IsInPackage, Node[MachineData]):
     """
     A Machine provides physical compute.
     NOTE :RichComputing: Machines also need Deployments/Endpoints/...?

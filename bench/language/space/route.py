@@ -7,6 +7,7 @@ from bench.language.core import (
     IsArchivable,
     IsBlockable,
     IsDeletable,
+    IsInPackage,
     IsInstantiable,
     IsModal,
     IsOwnable,
@@ -34,6 +35,7 @@ class Route(
     HasName,
     IsModal,
     IsBlockable,
+    IsInPackage,
     Node[RouteData],
 ):
     """A Route is a path to a Scene."""
