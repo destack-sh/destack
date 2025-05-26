@@ -3,13 +3,13 @@ from typing import TYPE_CHECKING, Optional
 from fastuuid import UUID
 
 from bench.language.core import (
+    HasName,
     IsArchivable,
     IsBlockable,
     IsDeletable,
     IsExtensible,
     IsInstantiable,
     IsModal,
-    IsNamed,
     IsOwnable,
     IsProcessable,
     IsRunnable,
@@ -39,7 +39,7 @@ class Agent(
     IsDeletable,
     IsArchivable,
     IsExtensible,
-    IsNamed,
+    HasName,
     IsBlockable,
     Node[AgentData],
 ):

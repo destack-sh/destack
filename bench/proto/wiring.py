@@ -2,9 +2,12 @@ import json
 import textwrap
 from base64 import b64decode, b64encode
 from itertools import chain
-from typing import TYPE_CHECKING, Mapping, Union, assert_never, cast
+from typing import TYPE_CHECKING, Any, Mapping, Union, assert_never, cast
 
+import pytz
 import structlog
+from google.protobuf.duration_pb2 import Duration
+from google.protobuf.timestamp_pb2 import Timestamp
 from opentelemetry import trace
 
 from bench import pb2
@@ -17,7 +20,11 @@ from bench.language.core import (
     StructType,
     TypeAnnotation,
 )
-from bench.language.registry import BUILTIN_OBJECT_CLASS_BY_TYPE, BUILTIN_OBJECT_TYPE_BY_CLASS
+from bench.language.registry import (
+    BUILTIN_OBJECT_CLASS_BY_TYPE,
+    BUILTIN_OBJECT_TYPE_BY_CLASS,
+    STRUCT_CLASS_BY_TYPE,
+)
 from bench.pb2 import AnyNodeData, AnyStructData, EditData, NodeReferenceData, RpcMetadata
 from bench.utils.string import Casing, to_casing
 
@@ -81,7 +88,7 @@ def copy_struct[T: AnyStructData | AnyNodeData](data: T) -> T:
     return copy
 
 
-def generate_pack_proto_impl(cls: type["BuiltinObject"]) -> str:
+def generate_pack_proto_impl(cls: type["BuiltinObject"]) -> tuple[str, dict[str, Any]]:
     """
     Generate BuiltinObject.__pack_proto__ and __unpack_proto__ class methods.
     """
@@ -101,7 +108,7 @@ def to_proto(self: "Self") -> "StructDataT":
     return self.__pack_proto__(self)
 """
 
-    return f"""
+    proto_impl = f"""
 @classmethod
 def __pack_proto__(cls, object: "Self") -> "{cls.__name__}Data":
 {pack_proto}
@@ -114,6 +121,11 @@ def __unpack_proto__(cls, object_data: "{cls.__name__}Data") -> "Self":
 
 from_proto = __unpack_proto__
 """
+    return proto_impl, {
+        "Timestamp": Timestamp,
+        "Duration": Duration,
+        "pytz": pytz,
+    }
 
 
 def _generate_pack_proto(cls: type["BuiltinObject"]) -> str:
@@ -190,7 +202,7 @@ def _generate_pack_property(prop: "Property") -> list[str] | None:
         lines.extend(
             f"""\
 _packed_{prop.name} = []
-if {obj_value} is not None:
+if {obj_value}:
     for _item in {obj_value}:""".splitlines()
         )
         item_lines = _generate_pack_scalar(prop, "_item", "_packed_item")
@@ -204,7 +216,7 @@ if {obj_value} is not None:
         lines.extend(
             f"""\
 _packed_{prop.name} = {{}}
-if {obj_value} is not None:
+if {obj_value}:
     for _key, _value in {obj_value}.items():""".splitlines()
         )
         key_lines = _generate_pack_scalar(prop, "_key", "_packed_key")
@@ -300,55 +312,29 @@ def _generate_pack_scalar(
         elif prop.primitive_type == PrimitiveType.JSON:
             lines.append(f"{result_var} = {_wrap_with_null_check(f'json.dumps({value_expr})')}")
         elif prop.primitive_type == PrimitiveType.DATETIME:
-            if prop.is_required:
-                lines.extend(
-                    f"""\
-_ts = Timestamp()
-_ts.FromDatetime({value_expr})
-{result_var} = _ts""".splitlines()
-                )
-            else:
-                lines.extend(
-                    f"""\
-if {value_expr} is not None:
-    _ts = Timestamp()
-    _ts.FromDatetime({value_expr})
-    {result_var} = _ts
-else:
-    {result_var} = None""".splitlines()
-                )
+            lines.append(
+                f"{result_var} = {_wrap_with_null_check(f'Timestamp().FromDatetime({value_expr})')}"
+            )
         elif prop.primitive_type == PrimitiveType.DURATION:
-            if prop.is_required:
-                lines.extend(
-                    f"""\
-_dur = Duration()
-_dur.FromTimedelta({value_expr})
-{result_var} = _dur""".splitlines()
-                )
-            else:
-                lines.extend(
-                    f"""\
-if {value_expr} is not None:
-    _dur = Duration()
-    _dur.FromTimedelta({value_expr})
-    {result_var} = _dur
-else:
-    {result_var} = None""".splitlines()
-                )
+            lines.append(
+                f"{result_var} = {_wrap_with_null_check(f'Duration().FromTimedelta({value_expr})')}"
+            )
         else:
-            return None
+            return None  # no special conversion
     elif prop.scalar_type == "enum":
         lines.append(f"{result_var} = {_wrap_with_null_check(f'{value_expr}.value')}")
     elif prop.scalar_type == "struct":
         assert prop.struct_type is not None
-        struct_cls_name = prop.struct_type.bench_name
-        lines.append(
-            f"{result_var} = {_wrap_with_null_check(f'{struct_cls_name}.__pack_proto__({value_expr})')}"
-        )
+        struct_cls = STRUCT_CLASS_BY_TYPE[prop.struct_type]
+        if struct_cls.__is_frozen__:
+            # use cached method
+            lines.append(f"{result_var} = {_wrap_with_null_check(f'{value_expr}.to_proto()')}")
+        else:
+            lines.append(
+                f"{result_var} = {_wrap_with_null_check(f'{struct_cls.__name__}.__pack_proto__({value_expr})')}"
+            )
     elif prop.scalar_type == "node":
-        lines.append(
-            f"{result_var} = {_wrap_with_null_check(f'NodeReference.__pack_proto__({value_expr})')}"
-        )
+        lines.append(f"{result_var} = {_wrap_with_null_check(f'{value_expr}.to_proto()')}")
     else:
         assert_never(prop.scalar_type)
 
@@ -366,6 +352,12 @@ def _generate_unpack_scalar(
         if prop.is_required:
             return code
         return f"{code} if {value_expr} is not None else None"
+
+    def _wrap_with_object_null_check(code: str) -> str:
+        """Wrap code with null check if property is optional."""
+        if prop.is_required:
+            return code
+        return f"{code} if {value_expr}.metatype != 0 else None"
 
     if prop.scalar_type == "primitive":
         if prop.primitive_type == PrimitiveType.UUID:
@@ -388,11 +380,11 @@ def _generate_unpack_scalar(
         assert prop.struct_type is not None
         struct_cls_name = prop.struct_type.bench_name
         lines.append(
-            f"{result_var} = {_wrap_with_null_check(f'{struct_cls_name}.__unpack_proto__({value_expr})')}"
+            f"{result_var} = {_wrap_with_object_null_check(f'{struct_cls_name}.__unpack_proto__({value_expr})')}"
         )
     elif prop.scalar_type == "node":
         lines.append(
-            f"{result_var} = {_wrap_with_null_check(f'NodeReference.__unpack_proto__({value_expr})')}"
+            f"{result_var} = {_wrap_with_object_null_check(f'NodeReference.__unpack_proto__({value_expr})')}"
         )
     else:
         assert_never(prop.scalar_type)

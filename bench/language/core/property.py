@@ -281,7 +281,6 @@ class Property(IntoQuery if TYPE_CHECKING else object):
     # type
     py_type_raw: Any = None  # type annotation on LHS of assignment
     py_type: Any = UNSET  # clean type annotation
-    is_node_data: bool = False  # special case
     cardinality: Literal["scalar", "list", "map"] = UNSET
     scalar_type: Literal["primitive", "enum", "struct", "node"] = UNSET
     primitive_type: PrimitiveType | None = None
@@ -330,43 +329,7 @@ class Property(IntoQuery if TYPE_CHECKING else object):
         return f"{self.component.__name__}.{self.name}"
 
     def __repr__(self):
-        non_default = []
-        if self.id is not None and self.id is not UNSET:
-            non_default.append(str(self.id))
-        if self.scalar_type == "node":
-            assert self.node_kind is not None
-            non_default.append(self.node_kind.bench_name)
-            if self.nodes:
-                node_type_names = [t.bench_name for t in self.nodes[:3]]
-                if len(self.nodes) > 3:
-                    node_type_names.append("...")
-                non_default.append("|".join(node_type_names))
-        elif self.scalar_type == "struct":
-            assert self.struct_type is not None
-            non_default.append(self.struct_type.bench_name)
-        elif self.scalar_type == "enum":
-            assert self.enum_type is not None
-            non_default.append(self.enum_type.bench_name)
-        elif self.scalar_type == "primitive":
-            assert self.primitive_type is not None
-            non_default.append(self.primitive_type.bench_name)
-        if self.cardinality is not UNSET:
-            non_default.append(self.cardinality)
-        if self.is_required:
-            non_default.append("required")
-        else:
-            non_default.append("optional")
-        if self.is_variable:
-            non_default.append("variable")
-        if self.is_computed:
-            non_default.append("computed")
-        if self.is_unique:
-            non_default.append("unique")
-        if self.is_managed:
-            non_default.append("managed")
-        attrs_str = ", ".join(non_default)
-        attrs_str = f" ({attrs_str})" if attrs_str else ""
-        return f"<{self.__class__.__name__} {self!s}{attrs_str}>"
+        return f"<{self.__class__.__name__} {self!s} ({self.id or '<unset>'})>"
 
     # see IntoQuery.__eq__ for Property==Property equality
 
@@ -527,11 +490,16 @@ class Property(IntoQuery if TYPE_CHECKING else object):
         # only scalar types can be optional
         if not self.is_required and self.cardinality != "scalar":
             raise ValueError(f"non-scalar {self!r} cannot be optional")
+        # parent must be optional
+        if self.name == "parent" and self.is_required:
+            raise ValueError(f"parent must be optional: {self!r}")
+        # 'type' must be 30
+        if (self.name == "type") != (self.id == 30):
+            raise ValueError(f"'type' must be 30: {self!r}")
 
         # default to None if not required and no default
         if not self.is_required and self.default is UNSET:
             self.default = None
-
         # default to regular node references
         if self.scalar_type == "node" and self.node_kind is None:
             self.node_kind = NodeEdgeKind.NODE_REGULAR
@@ -539,7 +507,6 @@ class Property(IntoQuery if TYPE_CHECKING else object):
         # node templates always point to their own type
         if self.node_kind == NodeEdgeKind.NODE_TEMPLATE and object_type is not None:
             self.nodes = (NodeType(object_type),)
-
         # references get a _ptr property (which is wired/stored)
         if self.node_kind is not None or self.is_property:
             # (don't want lists of Node references or Property references in Nodes, it's a mess)
@@ -691,7 +658,6 @@ def property_(
     primitive_type: PrimitiveType | None = UNSET,
     format: "Format | None" = None,
     constraint: "Constraint | None" = None,
-    is_node_data: bool = False,
     node_bench_from: Literal["self"] | None = None,
     node_exclude: tuple[Literal["ck", "base_id"], ...] = (),
     node_kind: NodeEdgeKind | None = None,
@@ -712,7 +678,6 @@ def property_(
         primitive_type=primitive_type,
         format=format,
         constraint=constraint,
-        is_node_data=is_node_data,
         node_bench_from=node_bench_from,
         node_exclude=node_exclude,
         node_kind=node_kind,
@@ -729,7 +694,7 @@ def property_(
     )
 
 
-def property_parent_(id: int = 4, is_system: bool = False) -> Any:
+def property_parent_(id: int = 4) -> Any:
     """The parent of a node, must be of one of the given types."""
     return Property(
         id=id,

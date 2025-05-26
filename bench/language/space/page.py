@@ -1,15 +1,15 @@
 from typing import TYPE_CHECKING, Optional, Sequence, Union, cast, overload
 
 from bench.language.core import (
+    HasIcon,
+    HasSlug,
+    HasTitle,
     IsArchivable,
     IsBlockable,
     IsDeletable,
-    IsIcon,
     IsModal,
     IsOwnable,
-    IsSlug,
     IsTemplatable,
-    IsTitled,
     Node,
     NodeType,
     TextIn,
@@ -31,10 +31,10 @@ if TYPE_CHECKING:
 class Page(
     IsTemplatable,
     IsModal,
-    IsTitled,
-    IsIcon,
+    HasTitle,
+    HasIcon,
     IsOwnable,
-    IsSlug,
+    HasSlug,
     IsBlockable,
     IsDeletable,
     IsArchivable,

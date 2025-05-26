@@ -1,12 +1,12 @@
 from typing import TYPE_CHECKING, Any
 
 from bench.language.core import (
+    HasName,
     IsArchivable,
     IsBlockable,
     IsDeletable,
     IsInstantiable,
     IsModal,
-    IsNamed,
     IsOwnable,
     Node,
     NodeType,
@@ -24,7 +24,7 @@ if TYPE_CHECKING:
 class Table(
     IsInstantiable,
     IsModal,
-    IsNamed,
+    HasName,
     IsOwnable,
     IsBlockable,
     IsArchivable,

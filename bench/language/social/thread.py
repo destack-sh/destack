@@ -3,6 +3,7 @@ from typing import TYPE_CHECKING, Union
 from bench.language.core import (
     BuiltinEnum,
     EnumType,
+    HasTitle,
     IsArchivable,
     IsComputable,
     IsDeletable,
@@ -12,7 +13,6 @@ from bench.language.core import (
     IsOwnable,
     IsProcessable,
     IsSubject,
-    IsTitled,
     Node,
     NodeType,
     enum_,
@@ -43,7 +43,7 @@ class Thread(
     IsModal,
     IsOwnable,
     IsProcessable,
-    IsTitled,
+    HasTitle,
     Node[ThreadData],
 ):
     """

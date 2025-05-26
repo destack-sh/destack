@@ -105,6 +105,34 @@ def trait_(
     return decorate
 
 
+@trait_(TraitType.NAMED)
+class HasName(Node if TYPE_CHECKING else BuiltinObject):
+    """A Node with a plain name."""
+
+    name: str = property_(31, format=StringFormat.NAME)
+
+
+@trait_(TraitType.TITLED)
+class HasTitle(Node if TYPE_CHECKING else BuiltinObject):
+    """A Node with a rich title."""
+
+    title: Optional["TextLine"] = property_(32)
+
+
+@trait_(TraitType.SLUG)
+class HasSlug(Node if TYPE_CHECKING else BuiltinObject):
+    """A Node with a slug."""
+
+    slug: str = property_(33, is_repr=True, format=StringFormat.SLUG)
+
+
+@trait_(TraitType.ICON)
+class HasIcon(Node if TYPE_CHECKING else BuiltinObject):
+    """A Node with an icon."""
+
+    icon: Optional["Icon"] = property_(34)
+
+
 @trait_(TraitType.GLOBAL)
 class IsGlobal(Node if TYPE_CHECKING else BuiltinObject):
     """A Node that is global."""
@@ -124,34 +152,6 @@ class IsModal(Node if TYPE_CHECKING else BuiltinObject):
     """A Node that can be in different modes."""
 
     mode: NodeMode = property_(20, is_managed=True, is_eq=False, default=NodeMode.MAIN)
-
-
-@trait_(TraitType.NAMED)
-class IsNamed(Node if TYPE_CHECKING else BuiltinObject):
-    """A Node with a plain name."""
-
-    name: str | None = property_(31, is_repr=True, format=StringFormat.NAME)
-
-
-@trait_(TraitType.TITLED)
-class IsTitled(Node if TYPE_CHECKING else BuiltinObject):
-    """A Node with a rich title."""
-
-    title: Optional["TextLine"] = property_(32, is_repr=True)
-
-
-@trait_(TraitType.SLUG)
-class IsSlug(Node if TYPE_CHECKING else BuiltinObject):
-    """A Node with a slug."""
-
-    slug: str | None = property_(33, is_repr=True, format=StringFormat.SLUG)
-
-
-@trait_(TraitType.ICON)
-class IsIcon(Node if TYPE_CHECKING else BuiltinObject):
-    """A Node with an icon."""
-
-    icon: Optional["Icon"] = property_(34)
 
 
 @trait_(TraitType.ORDERED)
@@ -541,7 +541,7 @@ class IsRegional(Node if TYPE_CHECKING else BuiltinObject):
 
 
 @trait_(TraitType.RESOURCE)
-class IsResource(IsModal, IsInstantiable, IsOwnable, IsNamed, IsBlockable):
+class IsResource(IsModal, IsInstantiable, IsOwnable, HasName, IsBlockable):
     """
     A Resource in a Bench, typically representing some external object.
     """

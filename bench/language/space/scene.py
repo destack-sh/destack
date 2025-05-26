@@ -1,15 +1,15 @@
 from typing import TYPE_CHECKING, Optional
 
 from bench.language.core import (
+    HasIcon,
+    HasName,
+    HasSlug,
     IsArchivable,
     IsBlockable,
     IsDeletable,
-    IsIcon,
     IsInstantiable,
     IsModal,
-    IsNamed,
     IsOwnable,
-    IsSlug,
     Node,
     NodeType,
     node_,
@@ -27,13 +27,13 @@ if TYPE_CHECKING:
 class Scene(
     IsOwnable,
     IsInstantiable,
-    IsNamed,
+    HasName,
     IsModal,
     IsBlockable,
     IsArchivable,
     IsDeletable,
-    IsSlug,
-    IsIcon,
+    HasSlug,
+    HasIcon,
     Node[SceneData],
 ):
     """A Scene is a container for a specific interaction point."""

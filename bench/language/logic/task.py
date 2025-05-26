@@ -4,6 +4,7 @@ from typing import TYPE_CHECKING, Optional, Union
 from fastuuid import UUID
 
 from bench.language.core import (
+    HasTitle,
     IsArchivable,
     IsBlockable,
     IsDeletable,
@@ -12,7 +13,6 @@ from bench.language.core import (
     IsOwnable,
     IsProcessable,
     IsSubject,
-    IsTitled,
     Node,
     NodeType,
     TextLineIn,
@@ -34,7 +34,7 @@ class Task(
     IsOwnable,
     IsProcessable,
     IsModal,
-    IsTitled,
+    HasTitle,
     IsInstantiable,
     IsBlockable,
     IsDeletable,

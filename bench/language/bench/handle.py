@@ -1,6 +1,6 @@
 from typing import TYPE_CHECKING
 
-from bench.language.core import IsGlobal, IsInBench, IsSlug, Node, NodeType, node_
+from bench.language.core import HasSlug, IsGlobal, IsInBench, Node, NodeType, node_
 from bench.pb2 import HandleData
 
 if TYPE_CHECKING:
@@ -10,7 +10,7 @@ if TYPE_CHECKING:
 
 
 @node_(NodeType.HANDLE)
-class Handle(IsGlobal, IsSlug, IsInBench, Node[HandleData]):
+class Handle(IsGlobal, HasSlug, IsInBench, Node[HandleData]):
     """A Bench @handle."""
 
     pass

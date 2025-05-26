@@ -6,11 +6,11 @@ from fastuuid import UUID
 from bench.language.core import (
     BuiltinEnum,
     EnumType,
+    HasIcon,
+    HasName,
+    HasSlug,
     IsGlobal,
-    IsIcon,
-    IsNamed,
     IsRegional,
-    IsSlug,
     IsSubject,
     Node,
     NodeType,
@@ -22,7 +22,7 @@ from bench.language.core import (
 from bench.pb2 import UserData
 
 if TYPE_CHECKING:
-    from bench.language import Bench, Cursor, Handle, NodeReference, TextLine, User
+    from bench.language import Bench, Cursor, Handle, NodeReference, User
 
 # pyright: reportIncompatibleVariableOverride=false
 
@@ -38,22 +38,20 @@ class UserStatus(BuiltinEnum):
 class User(
     IsGlobal,
     IsSubject,
-    IsNamed,
-    IsIcon,
-    IsSlug,
+    HasName,
+    HasIcon,
+    HasSlug,
     IsRegional,
     Node[UserData],
 ):
     """A User is a human using Bench."""
 
-    line: Optional["TextLine"] = property_(35)
-    is_staff: bool = property_(39, default=False, can_write="system")
-
     # status
-    status: UserStatus = property_(40, can_write="system")
+    status: UserStatus = property_(40, can_write="system", is_repr=True)
     last_logged_in_at: Optional[datetime] = property_(41, can_write="system")
     # last_active_at: Optional[datetime] = ...
     # seen_at: Optional[datetime] = ...
+    is_staff: bool = property_(45, default=False, can_write="system", is_repr=True)
 
     bench: Optional["Bench"] = property_(50, can_write="system")
     handle: Optional["Handle"] = property_(51, can_write="system")

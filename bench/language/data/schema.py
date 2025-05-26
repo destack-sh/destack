@@ -1,11 +1,11 @@
 from typing import TYPE_CHECKING, Union
 
 from bench.language.core import (
+    HasName,
     IsArchivable,
     IsBlockable,
     IsDeletable,
     IsModal,
-    IsNamed,
     IsTemplatable,
     Node,
     NodeType,
@@ -25,7 +25,7 @@ if TYPE_CHECKING:
 class Schema(
     IsTemplatable,
     IsModal,
-    IsNamed,
+    HasName,
     IsBlockable,
     IsDeletable,
     IsArchivable,
