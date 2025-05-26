@@ -181,7 +181,6 @@ def _generate_unpack_proto(cls: type["BuiltinObject"]) -> str:
     for i, assignment in enumerate(unpack_assignments):
         comma = "," if i < len(unpack_assignments) - 1 else ""
         unpack_method_parts.append(f"    {assignment}{comma}")
-
     unpack_method_parts.append(")")
 
     return "\n".join(unpack_method_parts)
@@ -304,7 +303,8 @@ def _generate_pack_scalar(
         """Wrap code with null check if property is optional."""
         if prop.is_required:
             return code
-        return f"{code} if {value_expr} is not None else None"
+        else:
+            return f"{code} if {value_expr} is not None else None"
 
     if prop.scalar_type == "primitive":
         if prop.primitive_type == PrimitiveType.UUID:
@@ -343,7 +343,7 @@ def _generate_pack_scalar(
 
 def _generate_unpack_scalar(
     prop: "Property | TypeAnnotation", value_expr: str, result_var: str
-) -> list[str] | None:
+) -> list[str]:
     """Generate the unpacking code for a scalar value."""
     lines: list[str] = []
 
@@ -351,13 +351,21 @@ def _generate_unpack_scalar(
         """Wrap code with null check if property is optional."""
         if prop.is_required:
             return code
-        return f"{code} if {value_expr} is not None else None"
+        else:
+            if isinstance(prop, Property):
+                return f"{code} if object_data.HasField('{prop.name}') else None"
+            else:
+                return f"{code} if {value_expr} is not None else None"
 
-    def _wrap_with_object_null_check(code: str) -> str:
+    def _wrap_with_builtin_object_null_check(code: str) -> str:
         """Wrap code with null check if property is optional."""
         if prop.is_required:
             return code
-        return f"{code} if {value_expr}.metatype != 0 else None"
+        else:
+            if isinstance(prop, Property):
+                return f"{code} if object_data.HasField('{prop.name}') else None"
+            else:
+                return f"{code} if {value_expr}.metatype != 0 else None"
 
     if prop.scalar_type == "primitive":
         if prop.primitive_type == PrimitiveType.UUID:
@@ -371,7 +379,7 @@ def _generate_unpack_scalar(
         elif prop.primitive_type == PrimitiveType.DURATION:
             lines.append(f"{result_var} = {_wrap_with_null_check(f'{value_expr}.ToTimedelta()')}")
         else:
-            return None
+            lines.append(f"{result_var} = {_wrap_with_null_check(f'{value_expr}')}")
     elif prop.scalar_type == "enum":
         assert prop.enum_type is not None
         enum_type_name = prop.enum_type.bench_name
@@ -380,11 +388,11 @@ def _generate_unpack_scalar(
         assert prop.struct_type is not None
         struct_cls_name = prop.struct_type.bench_name
         lines.append(
-            f"{result_var} = {_wrap_with_object_null_check(f'{struct_cls_name}.__unpack_proto__({value_expr})')}"
+            f"{result_var} = {_wrap_with_builtin_object_null_check(f'{struct_cls_name}.__unpack_proto__({value_expr})')}"
         )
     elif prop.scalar_type == "node":
         lines.append(
-            f"{result_var} = {_wrap_with_object_null_check(f'NodeReference.__unpack_proto__({value_expr})')}"
+            f"{result_var} = {_wrap_with_builtin_object_null_check(f'NodeReference.__unpack_proto__({value_expr})')}"
         )
     else:
         assert_never(prop.scalar_type)

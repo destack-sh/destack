@@ -1,3 +1,5 @@
+import json
+
 from fastuuid import uuid4
 from hypothesis import HealthCheck, given, settings
 
@@ -41,7 +43,10 @@ def test_roundtrip_node_reference():
 
     # value
     node_ref_value = node_ref.to_value()
-    unpacked_node_ref = NodeReference.from_value(node_ref_value)
+    node_ref_value_str = json.dumps(node_ref_value, indent=2)
+    print(node_ref_value_str)  # noqa: T201
+    unpacked_node_ref_value = json.loads(node_ref_value_str)
+    unpacked_node_ref = NodeReference.from_value(unpacked_node_ref_value)
     assert unpacked_node_ref.equals(node_ref), f"{unpacked_node_ref!r} != {node_ref!r}"
 
 
@@ -72,7 +77,10 @@ def test_roundtrip_query_proto(session: Session):
 
     # value
     query_value = query.to_value()
-    unpacked_query = Query.from_value(query_value)
+    query_value_str = json.dumps(query_value, indent=2)
+    print(query_value_str)  # noqa: T201
+    unpacked_query_value = json.loads(query_value_str)
+    unpacked_query = Query.from_value(unpacked_query_value)
     assert unpacked_query.equals(query), f"{unpacked_query!r} != {query!r}"
 
 
@@ -90,7 +98,10 @@ def test_roundtrip_user_proto(session: Session):
 
     # value
     user_value = user.to_value()
-    unpacked_user = User.from_value(user_value)
+    user_value_str = json.dumps(user_value, indent=2)
+    print(user_value_str)  # noqa: T201
+    unpacked_user_value = json.loads(user_value_str)
+    unpacked_user = User.from_value(unpacked_user_value)
     assert unpacked_user.equals(user), f"{unpacked_user!r} != {user!r}"
 
 
@@ -108,5 +119,8 @@ def test_roundtrip_builtin_object(obj: BuiltinObject[AnyObjectData], session: Se
 
     # value
     packed_obj_value = obj.to_value()
-    unpacked_obj = obj.__unpack_value__(packed_obj_value)
+    packed_obj_value_str = json.dumps(packed_obj_value, indent=2)
+    print(packed_obj_value_str)  # noqa: T201
+    unpacked_obj_value = json.loads(packed_obj_value_str)
+    unpacked_obj = obj.__unpack_value__(unpacked_obj_value)
     assert unpacked_obj.equals(obj), f"{unpacked_obj!r} != {obj!r}"
