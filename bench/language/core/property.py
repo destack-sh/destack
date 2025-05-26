@@ -292,6 +292,7 @@ class Property(IntoQuery if TYPE_CHECKING else object):
     is_required: bool = False
     is_variable: bool = False
     default: Any = UNSET
+    default_factory: Literal["uuid", "now"] | None = None
     format: "Format | None" = None
     constraint: "Constraint | None" = None
 
@@ -308,11 +309,11 @@ class Property(IntoQuery if TYPE_CHECKING else object):
     is_stored: bool = False  # stored in DB
     is_unique: bool = False  # unique index in DB
 
-    is_repr: bool = False  # printed in repr
-    is_hash: bool = True  # included in hash
-    is_eq: bool = True  # included in equality check
+    is_repr: bool = False  # printed BuiltinObject.__repr__
+    is_hash: bool = True  # included BuiltinObject.__hash__
+    is_eq: bool = True  # included BuiltinObject.equals check
     is_managed: bool = False  # set automatically by the system
-    is_computed: bool = False
+    is_computed: bool = False  # set automatically at runtime
     can_read: Literal["any", "owner", "system"] = "any"
     can_write: Literal["any", "owner", "system"] = "any"
 
@@ -320,8 +321,6 @@ class Property(IntoQuery if TYPE_CHECKING else object):
     _type: Optional["Type"] = None
 
     def __post_init__(self):
-        if self.default is UNSET:
-            self.default = None
         if self.id is not None:
             self.key = intern(str(self.id))
 
@@ -334,29 +333,37 @@ class Property(IntoQuery if TYPE_CHECKING else object):
         non_default = []
         if self.id is not None and self.id is not UNSET:
             non_default.append(str(self.id))
-        if self.node_kind is not None:
+        if self.scalar_type == "node":
+            assert self.node_kind is not None
             non_default.append(self.node_kind.bench_name)
             if self.nodes:
                 node_type_names = [t.bench_name for t in self.nodes[:3]]
                 if len(self.nodes) > 3:
                     node_type_names.append("...")
                 non_default.append("|".join(node_type_names))
-            elif self.struct_type:
-                non_default.append(self.struct_type.bench_name)
-        elif self.enum_type is not None:
+        elif self.scalar_type == "struct":
+            assert self.struct_type is not None
+            non_default.append(self.struct_type.bench_name)
+        elif self.scalar_type == "enum":
+            assert self.enum_type is not None
             non_default.append(self.enum_type.bench_name)
-        elif self.primitive_type is not None:
+        elif self.scalar_type == "primitive":
+            assert self.primitive_type is not None
             non_default.append(self.primitive_type.bench_name)
         if self.cardinality is not UNSET:
             non_default.append(self.cardinality)
-        if self.is_required is True:
+        if self.is_required:
             non_default.append("required")
-        if self.is_variable is True:
+        else:
+            non_default.append("optional")
+        if self.is_variable:
             non_default.append("variable")
-        if self.is_computed is True:
+        if self.is_computed:
             non_default.append("computed")
-        if self.is_unique is True:
+        if self.is_unique:
             non_default.append("unique")
+        if self.is_managed:
+            non_default.append("managed")
         attrs_str = ", ".join(non_default)
         attrs_str = f" ({attrs_str})" if attrs_str else ""
         return f"<{self.__class__.__name__} {self!s}{attrs_str}>"
@@ -517,6 +524,10 @@ class Property(IntoQuery if TYPE_CHECKING else object):
         self.is_required = annotation.is_required
         self.is_variable = annotation.is_variable
 
+        # only scalar types can be optional
+        if not self.is_required and self.cardinality != "scalar":
+            raise ValueError(f"non-scalar {self!r} cannot be optional")
+
         # default to None if not required and no default
         if not self.is_required and self.default is UNSET:
             self.default = None
@@ -595,6 +606,7 @@ class Property(IntoQuery if TYPE_CHECKING else object):
             NumberConstraint,
             NumberFormat,
             StringConstraint,
+            DefaultFactory,
             StringFormat,
             Type,
             TypeCardinality,
@@ -626,6 +638,9 @@ class Property(IntoQuery if TYPE_CHECKING else object):
             is_required=self.is_required,
             is_variable=self.is_variable,
             default=self.default if self.default is not UNSET else None,
+            default_factory=DefaultFactory[self.default_factory.upper()]
+            if self.default_factory
+            else None,
             key_type=key_type,
         )
 

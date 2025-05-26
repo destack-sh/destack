@@ -29,7 +29,7 @@ from bench.pb2 import AnyObjectData
 from bench.utils.code import format_code
 from bench.utils.env import IS_DEV
 from bench.utils.func import dualmethod, get_superclasses
-from bench.utils.utils import frozendict
+from bench.utils.utils import frozendict, frozenlist
 
 from .const import (
     ACTIVE_SESSION,
@@ -89,35 +89,48 @@ def get_tk_b64_from_ck(ck: UUID) -> str:
 _processed_classes: dict[type["BuiltinObject"], type["BuiltinObject"]] = {}
 
 
-def _generate_init_for_cls[ObjectT: BuiltinObject](
-    cls: type[ObjectT], is_node: bool, header_properties: dict[str, Property]
+def _generate_init_impl[ObjectT: BuiltinObject](
+    cls: type[ObjectT],
+    is_node: bool,
+    is_frozen: bool,
+    properties: dict[str, Property],
 ) -> str:
     """Generates an __init__ for a BuiltinObject class."""
 
-    # prune properties
-    original_properties = header_properties
-
     # sort properties (by id, runtime by alpha)
-    properties_in_order = list(header_properties.values())
+    properties_in_order = list(properties.values())
     properties_in_order.sort(key=lambda p: (p.id is None, p.id, p.name))
 
     # header
     method_header_lines = ["def __init__(self, *"]
+    required_properties = [
+        p
+        for p in properties_in_order
+        if not p.is_computed
+        and p.default is UNSET
+        and not p.is_managed
+        and p.cardinality == "scalar"
+    ]
+    # first add properties without defaults that are not managed
+    for prop in required_properties:
+        method_header_lines.append(prop.name)
+    # then add properties with defaults or that are managed
     for prop in properties_in_order:
-        if prop.is_computed:
+        if prop.is_computed or prop in required_properties:
             continue
-        if prop.default is UNSET:
-            default_str = "UNSET"
+        elif prop.default is UNSET:
+            default_str = "None"
         elif isinstance(prop.default, Enum):
             default_str = repr(prop.default.value)
         else:
             default_str = repr(prop.default)
         method_header_lines.append(f"{prop.name}={default_str}")
+
     method_header_lines.append(")")
     method_header = ", ".join(method_header_lines)
 
     # body
-    body_properties = dict(original_properties)
+    body_properties = dict(properties)
     body_properties.pop("_supergraph")
     method_body_lines = []
 
@@ -143,7 +156,7 @@ if _supergraph is None:
     _supergraph = _session.supergraph
 object.__setattr__(self, "_supergraph", _supergraph)
 """)
-        if "ck" not in original_properties:
+        if "ck" not in properties:
             method_body_lines.append("""\
 # init node with id only
 if id is None:
@@ -200,17 +213,30 @@ object.__setattr__(self, "_supergraph", _supergraph)
             # computed, can't assign
             continue
         elif (ptr_prop := prop.ptr_prop) is not None:
-            # set ptr_prop from prop if prop is set
+            # derive ptr_prop from prop if prop is set
             if prop.cardinality == "scalar":
                 method_body_lines.append(f"""\
 if {prop.name} is not None:
     {ptr_prop.name} = {prop.name}.to_ref()""")
-            else:
+            elif prop.cardinality == "list":
                 method_body_lines.append(f"""\
 if {prop.name}:
     {ptr_prop.name} = tuple(x.to_ref() for x in {prop.name})""")
+            else:
+                raise RuntimeError(f"unsupported cardinality: {prop!r}")
+            # (don't need to actually assign since these come before the ptr_prop in the list)
         else:
             # regular assignment
+            if prop.cardinality == "list":
+                # init list if unset
+                method_body_lines.append(f"""\
+if {prop.name} is None:
+    {prop.name} = {'[]' if not is_frozen else 'EMPTY_LIST'}""")
+            elif prop.cardinality == "map":
+                # init map if unset
+                method_body_lines.append(f"""\
+if {prop.name} is None:
+    {prop.name} = {'{}' if not is_frozen else 'EMPTY_DICT'}""")
             method_body_lines.append(f"object.__setattr__(self, '{prop.name}', {prop.name})")
     method_body = "\n".join(method_body_lines) or "pass"
     method_body = textwrap.indent(method_body, "    ")
@@ -221,12 +247,13 @@ if {prop.name}:
     return init_str
 
 
-def _generate_repr_for_cls[ObjectT: BuiltinObject](cls: type[ObjectT]) -> str:
+def _generate_repr_impl[ObjectT: BuiltinObject](cls: type[ObjectT]) -> str:
     """Generates BuiltinObject.__repr__."""
     repr_content_str_parts: list[str] = []
     for prop in cls.__properties__.values():
-        if prop.is_repr:
-            repr_content_str_parts.append(f"{prop.name}={{repr(self.{prop.name})}}")
+        if not prop.is_repr:
+            continue
+        repr_content_str_parts.append(f"{prop.name}={{self.{prop.name}!r}}")
     repr_content_str = ", ".join(repr_content_str_parts)
 
     if cls.__is_node__:
@@ -717,21 +744,37 @@ def _process_object_cls[ObjectT: BuiltinObject](
         cls_dict["__slots__"] = tuple(cls.__wired_properties__.keys())
 
         # __init__
-        init_str = _generate_init_for_cls(cls, is_node=is_node, header_properties=properties)
-        exec(init_str, {"ACTIVE_SESSION": ACTIVE_SESSION}, cls_dict)
+        glbls = {
+            "ACTIVE_SESSION": ACTIVE_SESSION,
+            "EMPTY_LIST": frozenlist(),
+            "EMPTY_DICT": frozendict(),
+        }
+        init_str = _generate_init_impl(
+            cls, is_node=is_node, is_frozen=is_frozen, properties=properties
+        )
+        print("=" * 100)
+        print(cls.__name__ + ":init")
+        print(init_str)
+        print("=" * 100)
+        exec(init_str, glbls, cls_dict)
         # __repr__
-        repr_str = _generate_repr_for_cls(cls)
-        exec(repr_str, {}, cls_dict)
+        repr_str = _generate_repr_impl(cls)
+        print("=" * 100)
+        print(cls.__name__ + ":repr")
+        print("=" * 100)
+        print(repr_str)
+        print("=" * 100)
+        exec(repr_str, glbls, cls_dict)
         # path
         if is_node:
             path_str = _generate_path_impl(cast(type["Node"], cls))
-            exec(path_str, {}, cls_dict)
+            exec(path_str, glbls, cls_dict)
         # equals
         equals_str = _generate_equals_impl(cls)
-        exec(equals_str, {"EMPTY_DICT": EMPTY_DICT}, cls_dict)
+        exec(equals_str, glbls, cls_dict)
         # validate
         validate_str = _generate_validate_impl(cls)
-        exec(validate_str, {}, cls_dict)
+        exec(validate_str, glbls, cls_dict)
         # pack/unpack are generated after setup because we need all classes
 
         # add computed properties to concrete classes

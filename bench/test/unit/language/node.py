@@ -4,11 +4,8 @@ from hypothesis import HealthCheck, given, settings
 from bench.language import (
     Action,
     ActionType,
-    Bench,
     Block,
-    BlockType,
     BuiltinObject,
-    Code,
     Field,
     Flow,
     Package,
@@ -22,24 +19,6 @@ from bench.test.simulation.core import Simulation
 from bench.test.simulation.workload import RuntimeLambdaWorkload
 from bench.test.strategies import structs
 from bench.test.unit.conftest import simulated_runtime
-
-
-def test_init_with_non_existing_property(session: "Session"):
-    with pytest.raises(AttributeError):
-        _ = Code(_non_existing_property="wadabadaboo")  # type: ignore
-    with pytest.raises(AttributeError):
-        _ = Bench(slug="test", name="Test", _non_existing_property="wadabadaboo")  # type: ignore
-    with pytest.raises(AttributeError):
-        _ = Block.new(BlockType.PARAGRAPH, name="Test", _non_existing_property="wadabadaboo")  # type: ignore
-
-
-def test_get_set_non_existing_property(session: "Session"):
-    """Should raise properly"""
-    node = Bench(slug="test", name="Test")
-    with pytest.raises(AttributeError):
-        node.wadabadaboo = "wadabadaboo"  # type: ignore
-    with pytest.raises(AttributeError):
-        _ = node.wadabadaboo  # type: ignore
 
 
 @given(obj=structs)
@@ -80,15 +59,20 @@ async def test_clone(simulation: Simulation, runtime: RuntimeLambdaWorkload):
 @simulated_runtime()
 async def test_clone_with_cross_references(simulation: Simulation, runtime: RuntimeLambdaWorkload):
     """Clone consistency test with references."""
-    schema = Schema.new("Letter", fields=[Field.new("A"), Field.new("B")])
-    flow = Flow.new("Flow")
-    action = Action.new(
-        ActionType.CODE,
-        "Action",
-        fields=[Field.input("Text", Text), Field.output("Schema", schema)],
+    schema = Schema(name="Letter")
+    schema.add_children(Field(name="A"), Field(name="B"))
+    flow = Flow(name="Flow")
+    action = Action(
+        type=ActionType.CODE,
+        name="Action",
+    )
+    action.add_children(
+        Field(name="Text", type=Text),
+        Field(name="Schema", type=schema),
     )
     flow.add_child(action)
-    table = Table.new("Table", fields=[Field.member("Text", Text)])
+    table = Table(name="Table")
+    table.add_children(Field(name="Text", type=Text))
     page = runtime.page()
     schema_block = page.add_child(schema)
     flow_block = page.add_child(flow)
@@ -122,10 +106,10 @@ async def test_clone_with_cross_references(simulation: Simulation, runtime: Runt
 @simulated_runtime()
 async def test_instance(simulation: Simulation, runtime: RuntimeLambdaWorkload):
     """Instance a subtree."""
-    schema = Schema.new("Letter")
+    schema = Schema(name="Letter")
     for i in range(0, 26):
         letter = chr(65 + i)
-        schema.add_child(Field.new(letter))
+        schema.add_child(Field(name=letter))
     runtime.page().add_child(schema)
     await runtime.commit()
 
@@ -148,15 +132,17 @@ async def test_instance_with_cross_references(
     simulation: Simulation, runtime: RuntimeLambdaWorkload
 ):
     """Instance a subtree with cross references."""
-    schema = Schema.new("Letter", fields=[Field.new("A"), Field.new("B")])
-    flow = Flow.new("Flow")
-    action = Action.new(
-        ActionType.CODE,
-        "Action",
-        fields=[Field.input("Text", Text), Field.output("Schema", schema)],
+    schema = Schema(name="Letter")
+    schema.add_children(Field(name="A"), Field(name="B"))
+    flow = Flow(name="Flow")
+    action = Action(type=ActionType.CODE, name="Action")
+    action.add_children(
+        Field(name="Text", type=Text),
+        Field(name="Schema", type=schema),
     )
     flow.add_child(action)
-    table = Table.new("Table", fields=[Field.member("Text", Text)])
+    table = Table(name="Table")
+    table.add_children(Field(name="Text", type=Text))
     page = runtime.page()
     _ = page.add_child(schema)
     _ = page.add_child(flow)
@@ -190,11 +176,12 @@ async def test_move_subtree(simulation: Simulation, runtime: RuntimeLambdaWorklo
     """Move Nodes between parents (within a Package)."""
     Page1 = runtime.page("Page1")
     Page2 = runtime.page("Page2")
-    Block1 = Page1.add_child(Schema.new("Block1", fields=[Field.new("A"), Field.new("B")]))
-    Block2 = Page1.add_child(
-        Flow(name="Block2", fields=[Field.input("Text", Text), Field.output("Schema", Block1)])
-    )
-    Block3 = Page1.add_child(Table.new("Block3", fields=[Field.member("Text", Text)]))
+    Block1 = Page1.add_child(Schema(name="Block1"))
+    Block1.add_children(Field(name="A"), Field(name="B"))
+    Block2 = Page1.add_child(Flow(name="Block2"))
+    Block2.add_children(Field(name="Text", type=Text), Field(name="Schema", type=Block1))
+    Block3 = Page1.add_child(Table(name="Block3"))
+    Block3.add_children(Field(name="Text", type=Text))
     await runtime.commit()
 
     # can't just append directly

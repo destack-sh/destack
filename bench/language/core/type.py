@@ -60,6 +60,14 @@ class ScalarType(BuiltinEnum):
     STRUCT = 4
 
 
+@enum_(EnumType.DEFAULT_FACTORY)
+class DefaultFactory(BuiltinEnum):
+    """The factory to use for default values."""
+
+    UUID = 10
+    NOW = 20
+
+
 @enum_(EnumType.STRING_FORMAT)
 class StringFormat(BuiltinEnum):
     """The format of a string."""
@@ -148,9 +156,10 @@ class TypeBase(BuiltinObject):
     enum_type: Optional[EnumType] = property_(43)
     node_type: Optional[NodeType] = property_(44)
     struct_type: Optional[StructType] = property_(45)
-    default: Optional["Value"] = property_(46)
-    is_required: bool = property_(47, default=False)
-    is_variable: bool = property_(48, default=False)
+    is_required: bool = property_(46, default=False)
+    is_variable: bool = property_(47, default=False)
+    default: Optional["Value"] = property_(48)
+    default_factory: Optional[DefaultFactory] = property_(49)
 
     # collection
     base_type: Optional["Node"] = property_(50)
