@@ -12,6 +12,7 @@ from bench.language.core import (
     BuiltinEnum,
     EnumType,
     HasTitle,
+    IsInPackage,
     IsResource,
     Node,
     NodeType,
@@ -37,7 +38,7 @@ class LinkType(BuiltinEnum):
 
 
 @node_(NodeType.LINK)
-class Link(HasTitle, IsResource, Node[LinkData]):
+class Link(HasTitle, IsResource, IsInPackage, Node[LinkData]):
     """
     A Link to an external resource (like a web URL, or anything that doesn't fit into other Nodes).
     """

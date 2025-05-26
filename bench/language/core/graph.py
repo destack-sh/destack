@@ -312,7 +312,7 @@ class Supergraph:
 
     def get(self, ptr: "UUID | NodeReference") -> Optional["Node"]:
         """Get a node by some key."""
-        raise NotImplementedError
+        return None  # nocheckin: Graph/Supergraph
 
 
 class NullSuperGraph(Supergraph):

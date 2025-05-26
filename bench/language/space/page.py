@@ -7,6 +7,7 @@ from bench.language.core import (
     IsArchivable,
     IsBlockable,
     IsDeletable,
+    IsInPackage,
     IsModal,
     IsOwnable,
     IsTemplatable,
@@ -38,6 +39,7 @@ class Page(
     IsBlockable,
     IsDeletable,
     IsArchivable,
+    IsInPackage,
     Node[BlockData],
 ):
     """A Page of Blocks laying out rich Text, data, logic, resources -- anything software needs."""

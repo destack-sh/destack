@@ -1426,7 +1426,7 @@ message AttributeReferenceData {
   optional string name = 31;
   optional NodeReferenceData field_ptr = 32;
   optional PropertyReferenceData prop_ptr = 33;
-  optional RelationReferenceData table = 34;
+  optional RelationReferenceData relation = 34;
 }
 
 message Axis2Data {
@@ -2709,7 +2709,6 @@ message RunData {
   NodeMode mode = 20;
   optional ValueData value = 21;
   RunType type = 30;
-  optional TextLineData title = 32;
   optional NodeReferenceData thread_ptr = 38;
   optional CodeData code = 66;
   optional NodeReferenceData runnable_ptr = 67;

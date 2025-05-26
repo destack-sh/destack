@@ -1,4 +1,3 @@
-import abc
 from dataclasses import dataclass
 from datetime import datetime, timedelta
 from typing import (
@@ -16,7 +15,6 @@ from typing import (
 from fastuuid import UUID
 
 from bench.language.registry import NODE_CLASS_BY_TRAIT, NODE_TYPES_BY_TRAIT
-from bench.pb2 import AnyNodeData, NodeReferenceData
 from bench.utils.fractional import INTEGER_ZERO
 from bench.utils.tenacity import RetryOptions
 
@@ -318,22 +316,6 @@ class IsBased(Node if TYPE_CHECKING else BuiltinObject):
     We almost always want to load them together, so it's useful to have this relationship.
     """
 
-    @property
-    @abc.abstractmethod
-    def base(self) -> Optional["IsInBench"]: ...
-
-    @property
-    def base_id(self) -> Optional[UUID]:
-        return self.base.id if self.base is not None else None
-
-    @staticmethod
-    @abc.abstractmethod
-    def get_base_from_data(data: AnyNodeData) -> Optional[NodeReferenceData]: ...
-
-    @staticmethod
-    @abc.abstractmethod
-    def get_base_from_partial(data: dict[str, Any]) -> Optional["IsInBench"]: ...
-
 
 @trait_(TraitType.IN_BENCH)
 class IsInBench(Node if TYPE_CHECKING else BuiltinObject):
@@ -341,9 +323,8 @@ class IsInBench(Node if TYPE_CHECKING else BuiltinObject):
 
     bench: "Bench | None" = property_ancestor_(6, is_required=True)
     if TYPE_CHECKING:
-        bench_id: Optional[UUID] = None
         bench_ptr: Optional[NodeReference] = None
-    _bench: Optional["Bench"] = property_runtime_(default=None)  # :CachedAncestors
+    _bench_ptr: Optional["NodeReference"] = property_runtime_(default=None)  # :CachedAncestors
 
 
 @trait_(TraitType.IN_PACKAGE)
@@ -352,8 +333,8 @@ class IsInPackage(IsInBench):
 
     package: "Package | None" = property_ancestor_(7, is_required=False)
     if TYPE_CHECKING:
-        package_id: Optional[UUID] = None
         package_ptr: Optional[NodeReference] = None
+    _package_ptr: Optional["NodeReference"] = property_runtime_(default=None)  # :CachedAncestors
 
 
 @trait_(TraitType.BLOCKABLE)

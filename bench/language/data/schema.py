@@ -5,6 +5,7 @@ from bench.language.core import (
     IsArchivable,
     IsBlockable,
     IsDeletable,
+    IsInPackage,
     IsModal,
     IsTemplatable,
     Node,
@@ -29,6 +30,7 @@ class Schema(
     IsBlockable,
     IsDeletable,
     IsArchivable,
+    IsInPackage,
     TypeBase,
     Node[SchemaData],
 ):

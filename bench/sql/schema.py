@@ -10,7 +10,7 @@ from .core import (
     SqlTable,
 )
 
-VERSION = "2025.05.19.0"
+VERSION = "2025.05.26.0"
 
 BENCH_TABLE = SqlTable(
     "bench_bench",
@@ -760,7 +760,6 @@ RUN_TABLE = SqlTable(
         SqlColumn("mode", PrimitiveType.INT16),
         SqlColumn("value", PrimitiveType.JSON, is_nullable=True),
         SqlColumn("type", PrimitiveType.INT16),
-        SqlColumn("title", PrimitiveType.JSON, is_nullable=True),
         SqlColumn("thread_id", PrimitiveType.UUID, is_nullable=True),
         SqlColumn("code", PrimitiveType.JSON, is_nullable=True),
         SqlColumn("runnable_id", PrimitiveType.UUID, is_nullable=True),

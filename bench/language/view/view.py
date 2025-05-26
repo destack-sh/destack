@@ -3,13 +3,14 @@ from typing import TYPE_CHECKING, Optional, Union
 from bench.language.core import (
     HasName,
     IsBlockable,
+    IsInPackage,
     IsInstantiable,
     IsModal,
+    TraitType,
     property_,
     property_parent_,
     trait_,
 )
-from bench.language.core.const import TraitType
 from bench.pb2 import AnyNodeData
 
 if TYPE_CHECKING:
@@ -24,6 +25,7 @@ class IsView[NodeDataT: AnyNodeData](
     IsModal,
     HasName,
     IsBlockable,
+    IsInPackage,
 ):
     """A View is a graphical interface."""
 

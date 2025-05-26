@@ -29,7 +29,7 @@ class RelationType(BuiltinEnum):
 
 @struct_(StructType.RELATION_REFERENCE, is_frozen=True)
 class RelationReference(Struct):
-    """Reference to a Node "table" or base somewhere."""
+    """Reference to a Node (builtin or custom)."""
 
     type: RelationType = property_(30, is_repr=True)
     node_type: NodeType = property_(31, is_repr=True)
@@ -70,7 +70,7 @@ class AttributeReference(Struct):
     )
     field: Optional["Field"] = property_(32, is_repr=True)
     prop: Optional["Property"] = property_(33, is_repr=True)
-    table: Optional[RelationReference] = property_(34, is_repr=True)
+    relation: Optional[RelationReference] = property_(34, is_repr=True)
 
 
 def attribute_ref(field: "str | Field | Property") -> AttributeReference:

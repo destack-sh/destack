@@ -7,6 +7,7 @@ from bench.language.core import (
     IsArchivable,
     IsBlockable,
     IsDeletable,
+    IsInPackage,
     IsInstantiable,
     IsModal,
     IsOwnable,
@@ -34,6 +35,7 @@ class Scene(
     IsDeletable,
     HasSlug,
     HasIcon,
+    IsInPackage,
     Node[SceneData],
 ):
     """A Scene is a container for a specific interaction point."""

@@ -41,7 +41,7 @@ from .property import (
     property_runtime_,
 )
 from .struct import Struct, struct_
-from .trait import IndexIn, IsBased, IsBlockable, IsInBench, IsModal, IsSubject
+from .trait import IndexIn, IsBlockable, IsModal, IsSubject
 
 if TYPE_CHECKING:
     from bench.language import (
@@ -338,16 +338,17 @@ class Node[NodeDataT: AnyNodeData](BuiltinObject[NodeDataT]):
 
     @property
     def path(self) -> str:
-        raise NotImplementedError  # generated automatically
+        raise NotImplementedError  # generated
+
+    def __to_ref__(self) -> "NodeReference":
+        """Gets a reference to this node. May be rich in subclasses."""
+        raise NotImplementedError  # generated
 
     def to_ref(self) -> "NodeReference":
         """Gets a reference to this node. May be rich in subclasses."""
-        # TODO: cache Node._ref/Node._ref_data?
-        raise NotImplementedError
-
-    def _to_ref_data(self) -> "NodeReferenceData":
-        """Gets a data reference to this node. May be rich in subclasses."""
-        raise NotImplementedError
+        if self._ref is None:
+            self._ref = self.__to_ref__()
+        return self._ref
 
     def erase(self):
         """Wipe this Node from this cosmos forever."""
@@ -557,32 +558,3 @@ class NodeReference(Struct[NodeReferenceData]):
     bench_id: Optional[UUID] = property_(34, is_repr=True)
     base_id: Optional[UUID] = property_(35, is_repr=True)
     # area? external_id?
-
-    @staticmethod
-    def _ref_from_node(node: Node) -> "NodeReference":
-        assert isinstance(node, Node), f"expected Node, got {node!r}"
-
-        # bench
-        bench_id: UUID | None = None
-        if node.metatype == NodeType.BENCH:
-            bench_id = node.id
-        elif isinstance(node, IsInBench):
-            bench_id = node.bench_id
-
-        # base
-        base_id: UUID | None = None
-        if isinstance(node, IsBased):
-            base_id = node.base_id
-
-        reference = NodeReference(
-            node_type=node.metatype,
-            id=node.id,
-            ck=node.ck,
-            bench_id=bench_id,
-            base_id=base_id,
-        )
-        return reference
-
-    @staticmethod
-    def _ref_data_from_node_data(node_data: AnyNodeData) -> "NodeReferenceData":
-        raise NotImplementedError
