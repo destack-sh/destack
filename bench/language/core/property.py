@@ -348,7 +348,7 @@ class Property(IntoType, IntoQuery if TYPE_CHECKING else object):
     runtime_prop: Optional["Property"] = None  # for the proto property
     edge_type: EdgeType | None = None
     node_bench_from: Literal["self"] | None = None
-    node_exclude: tuple[Literal["ck", "table_id"], ...] = ()
+    node_exclude: tuple[Literal["ck", "definition_id"], ...] = ()
     cascade: CascadeAction | None = None
 
     is_wired: bool = False  # serialized onto wire (in proto)
@@ -598,7 +598,7 @@ def property_(
     format: "Format | None" = None,
     constraint: "Constraint | None" = None,
     node_bench_from: Literal["self"] | None = None,
-    node_exclude: tuple[Literal["ck", "table_id"], ...] = (),
+    node_exclude: tuple[Literal["ck", "definition_id"], ...] = (),
     node_kind: EdgeType | None = None,
     cascade: CascadeAction | None = None,
     is_managed: bool = False,
@@ -644,7 +644,7 @@ def property_parent_(id: int = 4) -> Any:
         is_required=False,
         is_eq=False,
         node_bench_from="self",
-        node_exclude=("ck", "table_id"),
+        node_exclude=("ck", "definition_id"),
     )
 
 

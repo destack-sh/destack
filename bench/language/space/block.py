@@ -88,8 +88,8 @@ class Block(
     # content
     # NOTE: maybe there should be a general mechanism for tying Nodes like Blocks? :NodeTying
     line: Optional["TextLine"] = property_(40)
-    node: Optional["Node"] = property_(41, node_exclude=("table_id",), is_repr=True)
-    view: Optional["IsView"] = property_(42, node_exclude=("table_id",))
+    node: Optional["Node"] = property_(41, node_exclude=("definition_id",), is_repr=True)
+    view: Optional["IsView"] = property_(42, node_exclude=("definition_id",))
     # size?
     if TYPE_CHECKING:
         node_id: Optional[UUID] = None
@@ -122,8 +122,8 @@ class Block(
         except ValueError as exc:
             raise TypeError(f"cannot wrap {node!r} as a Block") from exc
         block = Block(type=block_type, node=node)
-        if node.definition_id is None:
-            node.definition = block
+        if node.block_id is None:
+            node.block = block
         return block
 
     @staticmethod

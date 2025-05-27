@@ -654,9 +654,10 @@ class NodeType(BuiltinEnum):
     FIELD = 2010, "Field", "Field", "fas fa-triangle"
     FILE = 2020, "File", "File", "fas fa-file"
     LINK = 2050, "Link", "Link to something", "fas fa-link"
-    # STREAM, SECRET, INDEX, CONSTRAINT, MIGRATION, ...
+    # STREAM, SECRET, ...
     TABLE = 2200, "Table", "Table of Records", "fas fa-table"
     RECORD = 2210, "Record", "Record in a Database", "fas fa-database"
+    # INDEX, CONSTRAINT, MIGRATION, ...
 
     # social [2400-2800]
     THREAD = 2400, "Thread", "Thread", "fas fa-reel"
@@ -773,6 +774,8 @@ class TraitType(BuiltinEnum):
     TEMPLATABLE = 30, "Templatable", "Can be templated", "fas fa-puzzle-piece"
     INSTANTIABLE = 31, "Instantiable", "Can be instantiated", "fas fa-clone"
     EXTENSIBLE = 32, "Extensible", "Can be extended", "fas fa-expand"
+    NODE_TYPE = 33, "NodeType", "Is a NodeType", "fas fa-node"
+    NODE_INSTANCE = 34, "NodeInstance", "Is a NodeInstance", "fas fa-node"
     IN_BENCH = 40, "Bench", "In a Bench", "fas fa-bench"
     IN_PACKAGE = 41, "Package", "In a Package", "fas fa-box"
     REGIONAL = 50, "Regional", "Is regional", "fas fa-globe"

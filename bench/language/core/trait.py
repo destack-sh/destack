@@ -204,7 +204,7 @@ class IsTemplatable(Node if TYPE_CHECKING else BuiltinObject):
     template: Optional["Node"] = property_(
         16,
         node_kind=EdgeType.NODE_TEMPLATE,
-        node_exclude=("table_id",),
+        node_exclude=("definition_id",),
     )
     if TYPE_CHECKING:
         template_id: Optional[UUID] = None
@@ -301,6 +301,27 @@ class IsInstantiable(IsTemplatable):
         return self.ck != cast("Node", self).id
 
 
+@trait_(TraitType.NODE_TYPE)
+class IsNodeType(Node if TYPE_CHECKING else BuiltinObject):
+    """A Node that represents a custom NodeType."""
+
+    traits: list[TraitType] = property_(40, description="Dynamic traits of the Table.")
+
+
+@trait_(TraitType.NODE_INSTANCE)
+class IsNodeInstance(Node if TYPE_CHECKING else BuiltinObject):
+    """A Node that represents an instance of a custom NodeType."""
+
+    definition: "IsNodeType" = property_(
+        40,
+        description="The NodeType this NodeInstance is an instance of.",
+        node_bench_from="self",
+    )
+    if TYPE_CHECKING:
+        definition_id: Optional[UUID] = None
+        definition_ptr: Optional[NodeReference] = None
+
+
 @trait_(TraitType.EXTENSIBLE)
 class IsExtensible(Node if TYPE_CHECKING else BuiltinObject):
     """A Node that can be extended with Fields."""
@@ -334,15 +355,15 @@ class IsBlockable(IsOrdered, IsInPackage):
     """A Node that can (but may not be) be inline on a Page as a Block."""
 
     parent: Union["Page", None] = property_parent_()
-    definition: "Block | None" = property_(
+    block: "Block | None" = property_(
         35,
         node_bench_from="self",
         description="The Block where this Node is 'defined'.",
     )
     if TYPE_CHECKING:
-        definition_id: Optional[UUID] = None
-        definition_ck: Optional[UUID] = None
-        definition_ptr: Optional[NodeReference] = None
+        block_id: Optional[UUID] = None
+        block_ck: Optional[UUID] = None
+        block_ptr: Optional[NodeReference] = None
 
     def wrap_in_block(self) -> "Block":
         """Wrap this Node in a *new* Block."""
@@ -463,7 +484,7 @@ class IsOwnable(Node if TYPE_CHECKING else BuiltinObject):
     owned_by: Optional["IsSubject"] = property_(
         17,
         node_bench_from="self",
-        node_exclude=("ck", "table_id"),
+        node_exclude=("ck", "definition_id"),
     )
     if TYPE_CHECKING:
         owned_by_id: Optional[UUID] = None

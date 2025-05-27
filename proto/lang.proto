@@ -1291,6 +1291,8 @@ enum TraitType {
   TRAIT_TYPE_TEMPLATABLE = 30;
   TRAIT_TYPE_INSTANTIABLE = 31;
   TRAIT_TYPE_EXTENSIBLE = 32;
+  TRAIT_TYPE_NODE_TYPE = 33;
+  TRAIT_TYPE_NODE_INSTANCE = 34;
   TRAIT_TYPE_IN_BENCH = 40;
   TRAIT_TYPE_IN_PACKAGE = 41;
   TRAIT_TYPE_REGIONAL = 50;
@@ -1399,7 +1401,7 @@ message AgentData {
   optional string order_key = 22;
   string name = 31;
   optional IconData icon = 34;
-  optional NodeReferenceData definition_ptr = 35;
+  optional NodeReferenceData block_ptr = 35;
   optional NodeReferenceData page_ptr = 54;
   optional NodeReferenceData cursor_ptr = 55;
   ProcessStatus status = 80;
@@ -1554,7 +1556,7 @@ message BorderStyleData {
   optional string order_key = 22;
   BorderType type = 30;
   string name = 31;
-  optional NodeReferenceData definition_ptr = 35;
+  optional NodeReferenceData block_ptr = 35;
   optional NodeReferenceData style_ptr = 41;
   optional ColorData color = 50;
   optional InsetsData width = 51;
@@ -1628,7 +1630,7 @@ message ColorStyleData {
   optional string order_key = 22;
   ColorType type = 30;
   string name = 31;
-  optional NodeReferenceData definition_ptr = 35;
+  optional NodeReferenceData block_ptr = 35;
   optional NodeReferenceData style_ptr = 42;
   optional ColorHue hue = 50;
   optional ColorShade shade = 51;
@@ -1704,7 +1706,7 @@ message DatabaseData {
   Region region = 23;
   DatabaseType type = 30;
   string name = 31;
-  optional NodeReferenceData definition_ptr = 35;
+  optional NodeReferenceData block_ptr = 35;
   ResourceStatus status = 40;
   optional google.protobuf.Timestamp requested_activate_at = 41;
   optional google.protobuf.Timestamp requested_deactivate_at = 42;
@@ -1778,7 +1780,7 @@ message EffectStyleData {
   optional string order_key = 22;
   EffectType type = 30;
   string name = 31;
-  optional NodeReferenceData definition_ptr = 35;
+  optional NodeReferenceData block_ptr = 35;
   optional NodeReferenceData style_ptr = 41;
   optional double opacity = 50;
   optional Vector2Data offset = 51;
@@ -1875,7 +1877,7 @@ message FileData {
   Region region = 23;
   FileType type = 30;
   string name = 31;
-  optional NodeReferenceData definition_ptr = 35;
+  optional NodeReferenceData block_ptr = 35;
   FileSource source = 60;
   optional string mime_type = 61;
   optional FileFormat format = 62;
@@ -1927,7 +1929,7 @@ message FlowData {
   optional string order_key = 22;
   FlowType type = 30;
   string name = 31;
-  optional NodeReferenceData definition_ptr = 35;
+  optional NodeReferenceData block_ptr = 35;
   optional ModelDeveloper model_developer = 100;
   optional ModelProvider model_provider = 101;
   optional string model_id = 102;
@@ -1996,7 +1998,7 @@ message FontStyleData {
   optional string order_key = 22;
   FontType type = 30;
   string name = 31;
-  optional NodeReferenceData definition_ptr = 35;
+  optional NodeReferenceData block_ptr = 35;
   optional NodeReferenceData style_ptr = 41;
   optional FontWeight weight = 50;
   optional FillData color = 51;
@@ -2026,7 +2028,7 @@ message FrameViewData {
   NodeMode mode = 20;
   optional string order_key = 22;
   string name = 31;
-  optional NodeReferenceData definition_ptr = 35;
+  optional NodeReferenceData block_ptr = 35;
   optional PositionData position = 40;
   optional DimensionData width = 41;
   optional DimensionData height = 42;
@@ -2137,7 +2139,7 @@ message GradientStyleData {
   optional string order_key = 22;
   GradientType type = 30;
   string name = 31;
-  optional NodeReferenceData definition_ptr = 35;
+  optional NodeReferenceData block_ptr = 35;
   optional NodeReferenceData style_ptr = 40;
   optional double angle = 50;
   repeated GradientStopData stops = 51;
@@ -2243,7 +2245,7 @@ message LabelViewData {
   NodeMode mode = 20;
   optional string order_key = 22;
   string name = 31;
-  optional NodeReferenceData definition_ptr = 35;
+  optional NodeReferenceData block_ptr = 35;
   optional PositionData position = 40;
   optional DimensionData width = 41;
   optional DimensionData height = 42;
@@ -2339,7 +2341,7 @@ message LinkData {
   LinkType type = 30;
   string name = 31;
   optional TextLineData title = 32;
-  optional NodeReferenceData definition_ptr = 35;
+  optional NodeReferenceData block_ptr = 35;
   optional string url = 50;
   optional string domain = 51;
   optional string content_url = 52;
@@ -2374,7 +2376,7 @@ message MachineData {
   optional string order_key = 22;
   MachineType type = 30;
   string name = 31;
-  optional NodeReferenceData definition_ptr = 35;
+  optional NodeReferenceData block_ptr = 35;
   ResourceStatus status = 40;
   optional google.protobuf.Timestamp requested_activate_at = 41;
   optional google.protobuf.Timestamp requested_deactivate_at = 42;
@@ -2469,7 +2471,7 @@ message NumberInputViewData {
   NodeMode mode = 20;
   optional string order_key = 22;
   string name = 31;
-  optional NodeReferenceData definition_ptr = 35;
+  optional NodeReferenceData block_ptr = 35;
   optional PositionData position = 40;
   optional DimensionData width = 41;
   optional DimensionData height = 42;
@@ -2619,7 +2621,7 @@ message PageData {
   optional TextLineData title = 32;
   string slug = 33;
   optional IconData icon = 34;
-  optional NodeReferenceData definition_ptr = 35;
+  optional NodeReferenceData block_ptr = 35;
 }
 
 message PositionData {
@@ -2670,7 +2672,7 @@ message RecordData {
   optional google.protobuf.Timestamp deleted_at = 15;
   NodeMode mode = 20;
   optional ValueData value = 21;
-  NodeReferenceData table_ptr = 36;
+  NodeReferenceData definition_ptr = 40;
 }
 
 message RelationReferenceData {
@@ -2701,7 +2703,7 @@ message RouteData {
   string name = 31;
   string slug = 33;
   optional IconData icon = 34;
-  optional NodeReferenceData definition_ptr = 35;
+  optional NodeReferenceData block_ptr = 35;
   optional NodeReferenceData scene_ptr = 40;
 }
 
@@ -2761,7 +2763,7 @@ message SceneData {
   string name = 31;
   string slug = 33;
   optional IconData icon = 34;
-  optional NodeReferenceData definition_ptr = 35;
+  optional NodeReferenceData block_ptr = 35;
   optional NodeReferenceData root_view_ptr = 40;
 }
 
@@ -2802,7 +2804,7 @@ message SchemaData {
   NodeMode mode = 20;
   optional string order_key = 22;
   string name = 31;
-  optional NodeReferenceData definition_ptr = 35;
+  optional NodeReferenceData block_ptr = 35;
   TypeCardinality cardinality = 40;
   ScalarType scalar_type = 41;
   optional PrimitiveType primitive_type = 42;
@@ -2852,7 +2854,7 @@ message ServiceData {
   NodeMode mode = 20;
   optional string order_key = 22;
   string name = 31;
-  optional NodeReferenceData definition_ptr = 35;
+  optional NodeReferenceData block_ptr = 35;
   optional ModelDeveloper model_developer = 100;
   optional ModelProvider model_provider = 101;
   optional string model_id = 102;
@@ -2892,7 +2894,7 @@ message ShadowStyleData {
   optional string order_key = 22;
   ShadowType type = 30;
   string name = 31;
-  optional NodeReferenceData definition_ptr = 35;
+  optional NodeReferenceData block_ptr = 35;
   optional NodeReferenceData style_ptr = 41;
   optional ColorData color = 50;
   ShadowPosition position = 51;
@@ -2920,7 +2922,7 @@ message SliderInputViewData {
   NodeMode mode = 20;
   optional string order_key = 22;
   string name = 31;
-  optional NodeReferenceData definition_ptr = 35;
+  optional NodeReferenceData block_ptr = 35;
   optional PositionData position = 40;
   optional DimensionData width = 41;
   optional DimensionData height = 42;
@@ -3023,7 +3025,7 @@ message SplitViewData {
   NodeMode mode = 20;
   optional string order_key = 22;
   string name = 31;
-  optional NodeReferenceData definition_ptr = 35;
+  optional NodeReferenceData block_ptr = 35;
   optional PositionData position = 40;
   optional DimensionData width = 41;
   optional DimensionData height = 42;
@@ -3103,6 +3105,9 @@ message StringConstraintData {
 }
 
 // A Table of Records, like a custom Node type with Fields as Properties.
+// NOTE :Architecture: I don't love that we call custom Node definitions "Tables",
+// but Tables / Records is a very natural way to describe the most common use case.
+// Maybe we'll abstract out the IsCustomNode and IsCustomInstance traits or something.
 message TableData {
   NodeType metatype = 1;
   string id = 2;
@@ -3121,7 +3126,7 @@ message TableData {
   NodeMode mode = 20;
   optional string order_key = 22;
   string name = 31;
-  optional NodeReferenceData definition_ptr = 35;
+  optional NodeReferenceData block_ptr = 35;
   repeated TraitType traits = 40;
 }
 
@@ -3144,7 +3149,7 @@ message TaskData {
   NodeMode mode = 20;
   optional string order_key = 22;
   optional TextLineData title = 32;
-  optional NodeReferenceData definition_ptr = 35;
+  optional NodeReferenceData block_ptr = 35;
   optional google.protobuf.Timestamp due_at = 50;
   optional NodeReferenceData assigned_to_ptr = 51;
   ProcessStatus status = 80;
@@ -3217,7 +3222,7 @@ message TextViewData {
   NodeMode mode = 20;
   optional string order_key = 22;
   string name = 31;
-  optional NodeReferenceData definition_ptr = 35;
+  optional NodeReferenceData block_ptr = 35;
   optional PositionData position = 40;
   optional DimensionData width = 41;
   optional DimensionData height = 42;
@@ -3265,7 +3270,7 @@ message ThemeData {
   optional string order_key = 22;
   string name = 31;
   optional IconData icon = 34;
-  optional NodeReferenceData definition_ptr = 35;
+  optional NodeReferenceData block_ptr = 35;
   map<int32, ColorData> colors = 50;
 }
 
@@ -3323,7 +3328,7 @@ message ThreadViewData {
   NodeMode mode = 20;
   optional string order_key = 22;
   string name = 31;
-  optional NodeReferenceData definition_ptr = 35;
+  optional NodeReferenceData block_ptr = 35;
   optional PositionData position = 40;
   optional DimensionData width = 41;
   optional DimensionData height = 42;
@@ -3367,7 +3372,7 @@ message TransitionStyleData {
   optional string order_key = 22;
   TransitionType type = 30;
   string name = 31;
-  optional NodeReferenceData definition_ptr = 35;
+  optional NodeReferenceData block_ptr = 35;
   optional NodeReferenceData style_ptr = 41;
   optional double delay = 50;
   optional double duration = 51;
@@ -3474,7 +3479,7 @@ message WizardViewData {
   NodeMode mode = 20;
   optional string order_key = 22;
   string name = 31;
-  optional NodeReferenceData definition_ptr = 35;
+  optional NodeReferenceData block_ptr = 35;
   optional PositionData position = 40;
   optional DimensionData width = 41;
   optional DimensionData height = 42;
