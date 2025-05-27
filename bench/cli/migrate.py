@@ -10,6 +10,7 @@ from rich import print
 from rich.console import Console
 
 from bench.language.core.const import REGION, NodeArea, Region
+from bench.sql.client import pg_tx
 from bench.utils.oracle import REAL_ORACLE
 
 from .utils import async_to_sync, parse_node_area, parse_region
@@ -84,7 +85,7 @@ async def make(
                 f"existing migration for version {VERSION}: {conflicting_migration!r}"
             )
     async with pg_connection(global_database) as conn:
-        databased_migrations = await read_migrations_from_pg(conn.cursor)
+        databased_migrations = await read_migrations_from_pg(conn)
     max_file_id = max(m.id for m in file_migrations) if file_migrations else 0
     max_databased_id = max(m.id for m in databased_migrations) if databased_migrations else 0
     if max_databased_id > max_file_id:
@@ -106,7 +107,7 @@ async def make(
                     assert bench_node.database, f"{bench!r} has no main database"
                     async with pg_connection(bench_node.database) as conn:
                         old_local_schema = await introspect_sql_schema(
-                            conn.cursor,
+                            conn,
                             include_table_prefixes=(BENCH_TABLE_PREFIX,),
                             exclude_table_prefixes=(BENCH_CUSTOM_NODE_PREFIX,),
                         )
@@ -126,7 +127,7 @@ async def make(
     if area in (None, NodeArea.REGIONAL_POSTGRES):
         async with pg_connection(regional_database) as conn:
             old_regional_schema = await introspect_sql_schema(
-                conn.cursor,
+                conn,
                 include_table_prefixes=(BENCH_TABLE_PREFIX,),
                 exclude_table_prefixes=(BENCH_CUSTOM_NODE_PREFIX,),
             )
@@ -140,7 +141,7 @@ async def make(
     if area in (None, NodeArea.GLOBAL_POSTGRES):
         async with pg_connection(global_database) as conn:
             old_global_schema = await introspect_sql_schema(
-                conn.cursor,
+                conn,
                 include_table_prefixes=(BENCH_TABLE_PREFIX,),
                 exclude_table_prefixes=(BENCH_CUSTOM_NODE_PREFIX,),
             )
@@ -197,7 +198,7 @@ async def apply(
     dry_run: bool = typer.Option(default=False, help="only try, don't commit"),
 ):
     from bench.language import REGION, NodeArea
-    from bench.sql import pg_connection, sql_migrate
+    from bench.sql import sql_migrate
     from bench.system import get_global_database_from_env, get_regional_database_from_env
 
     start = time.time()
@@ -213,11 +214,11 @@ async def apply(
         raise RuntimeError(f"cannot migrate area: {area!r}")
 
     for database in databases:
-        async with pg_connection(database) as conn:
-            await sql_migrate(cur=conn.cursor, target=target, area=area, oracle=REAL_ORACLE)
+        async with pg_tx(database) as (conn, tx):
+            await sql_migrate(conn=conn, target=target, area=area, oracle=REAL_ORACLE)
             if not dry_run:
-                await conn.commit()
+                await tx.commit()
             else:
-                await conn.rollback()
+                await tx.rollback()
 
     logger.info("migrate", duration=time.time() - start)

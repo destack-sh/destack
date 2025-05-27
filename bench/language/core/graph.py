@@ -1,4 +1,3 @@
-import abc
 from collections import deque
 from typing import (
     TYPE_CHECKING,
@@ -33,7 +32,7 @@ def attach_node(
     raise NotImplementedError
 
 
-class Graph(abc.ABC):
+class Graph:
     __slots__ = ("nodes_by_id", "nodes_by_parent_id")
 
     def __init__(self):

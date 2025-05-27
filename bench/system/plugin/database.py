@@ -28,7 +28,7 @@ class DatabaseProvisioner(Provisioner[Database, Database]):
         assert resource.version, f"{resource!r} has no version"
         async with pg_connection(resource, owner=self) as conn:
             await sql_migrate(
-                conn.cursor,
+                conn,
                 target=resource.version,
                 area=NodeArea.LOCAL_POSTGRES,
                 database=resource,

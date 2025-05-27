@@ -31,7 +31,6 @@ from bench.utils.oracle import Oracle
 from bench.utils.utils import format_python
 
 from .core import (
-    MIGRATION_TABLE,
     POSTGRES_TYPE_BY_UDT,
     PRIMITIVE_TYPE_BY_POSTGRES_TYPE,
     PostgresColumnType,
@@ -57,74 +56,6 @@ MIGRATIONS_TEMPLATE_PATH = REPOSITORY_PATH / "bench/migrations/0000_template.py"
 
 logger = structlog.get_logger(__name__)
 tracer = trace.get_tracer(__name__)
-
-
-# Helper functions for asyncpg
-async def pg_select(
-    conn: asyncpg.Connection,
-    ctx: Any,
-    table: str,
-    where: Optional[str] = None,
-    order_by: Optional[str] = None,
-) -> list[dict[str, Any]]:
-    query = f"SELECT * FROM {table}"
-    if where:
-        query += f" WHERE {where}"
-    if order_by:
-        query += f" ORDER BY {order_by}"
-    return await pg_select_raw(conn, query)
-
-
-async def pg_select_raw(conn: asyncpg.Connection, query: str) -> list[dict[str, Any]]:
-    rows = await conn.fetch(query)
-    return [dict(row) for row in rows]
-
-
-async def pg_upsert(
-    conn: asyncpg.Connection, ctx: Any, table: str, rows: list[dict[str, Any]]
-) -> None:
-    if not rows:
-        return
-
-    # Get column names from first row
-    columns = list(rows[0].keys())
-    column_str = ", ".join(columns)
-
-    # Create placeholders for values
-    for i, row in enumerate(rows):
-        placeholders = ", ".join(f"${j + 1}" for j in range(len(columns)))
-        values = [row[col] for col in columns]
-
-        # For upsert, we need to determine the primary key
-        # For simplicity, assuming 'id' is the primary key
-        upsert_clause = "ON CONFLICT (id) DO UPDATE SET " + ", ".join(
-            f"{col} = EXCLUDED.{col}" for col in columns if col != "id"
-        )
-
-        query = f"INSERT INTO {table} ({column_str}) VALUES ({placeholders}) {upsert_clause}"
-        await conn.execute(query, *values)
-
-
-async def pg_delete(conn: asyncpg.Connection, ctx: Any, table: str, where: str) -> int:
-    query = f"DELETE FROM {table} WHERE {where}"
-    return await conn.execute(query)
-
-
-def sqlstr(s: str) -> str:
-    return s
-
-
-class SqlUndefinedObjectError(Exception):
-    pass
-
-
-# Global context placeholder
-GLOBAL_CONTEXT = {}
-
-
-#
-# Managing migrations
-#
 
 
 @dataclass
@@ -159,73 +90,6 @@ MigratorFunc = Callable[[asyncpg.Connection], Awaitable[None]]
 class MigrationFile:
     path: Path
     module: Any
-
-
-def pack_migration_row(migration: Migration) -> dict[str, Any]:
-    return {
-        "id": migration.id,
-        "version": migration.version,
-        "has_global": migration.has_global,
-        "has_regional": migration.has_regional,
-        "has_local": migration.has_local,
-        "applied_at": migration.applied_at,
-    }
-
-
-def unpack_migration_row(row: Mapping[str, Any]) -> Migration:
-    return Migration(
-        id=row["id"],
-        version=row["version"],
-        has_global=row["has_global"],
-        has_regional=row["has_regional"],
-        has_local=row["has_local"],
-        applied_at=row["applied_at"],
-    )
-
-
-async def read_migrations_from_pg(
-    conn: asyncpg.Connection, *, applied: bool | None = None
-) -> list[Migration]:
-    """Reads the 'bench_migration' table (if it exists) and returns the corresponding Migration."""
-    try:
-        where = None
-        if applied is not None:
-            where = "applied_at IS NOT NULL" if applied else "applied_at IS NULL"
-
-        migrations_rows = await pg_select(
-            conn=conn, ctx=GLOBAL_CONTEXT, table=MIGRATION_TABLE, where=where, order_by="id"
-        )
-        migrations = [unpack_migration_row(row) for row in migrations_rows]
-        return migrations
-    except Exception:
-        # Assuming this is a table not found error
-        await conn.rollback()
-        return []
-
-
-async def _write_migrations_to_pg(conn: asyncpg.Connection, migrations: list[Migration]):
-    """Upserts the given migrations into the table. Errors if the table doesn't exist."""
-    migrations_rows = [pack_migration_row(m) for m in migrations]
-    await pg_upsert(conn=conn, ctx=GLOBAL_CONTEXT, table=MIGRATION_TABLE, rows=migrations_rows)
-
-
-async def delete_migrations_in_pg(conn: asyncpg.Connection, from_id: int, to_id: int) -> None:
-    """Deletes migrations from the database."""
-    migrations_rows = await pg_select(
-        conn=conn,
-        ctx=GLOBAL_CONTEXT,
-        table=MIGRATION_TABLE,
-        where=f"id >= {from_id} AND id <= {to_id}",
-    )
-    migrations = [unpack_migration_row(row) for row in migrations_rows]
-    _ = await pg_delete(
-        conn=conn,
-        ctx=GLOBAL_CONTEXT,
-        table=MIGRATION_TABLE,
-        where=f"id >= {from_id} AND id <= {to_id}",
-    )
-    if migrations:
-        logger.warning("migration.delete", migrations=migrations)
 
 
 def read_migrations_from_fs() -> list[Migration]:
@@ -364,7 +228,7 @@ async def sql_migrate(
     ]
     migrations_to_update = [*migrations_to_apply, *missing_migrations]
     if migrations_to_update:
-        await _write_migrations_to_pg(conn, migrations_to_update)
+        await upsert_migrations(conn, migrations_to_update)
 
     return migrations_to_apply
 
@@ -914,15 +778,98 @@ def _render_migration_op(op: MigrationOp) -> str | None:
     raise RuntimeError(f"unexpected migration op: {op!r}")
 
 
+def pack_migration_row(migration: Migration) -> dict[str, Any]:
+    return {
+        "id": migration.id,
+        "version": migration.version,
+        "has_global": migration.has_global,
+        "has_regional": migration.has_regional,
+        "has_local": migration.has_local,
+        "applied_at": migration.applied_at,
+    }
+
+
+def unpack_migration_row(row: Mapping[str, Any]) -> Migration:
+    return Migration(
+        id=row["id"],
+        version=row["version"],
+        has_global=row["has_global"],
+        has_regional=row["has_regional"],
+        has_local=row["has_local"],
+        applied_at=row["applied_at"],
+    )
+
+
+async def read_migrations_from_pg(
+    conn: asyncpg.Connection, *, applied: bool | None = None
+) -> list[Migration]:
+    """Reads the 'bench_migration' table (if it exists) and returns the corresponding Migration."""
+    try:
+        query = "SELECT id, version, has_global, has_regional, has_local, applied_at FROM bench_migration"
+        if applied is not None:
+            where_clause = "applied_at IS NOT NULL" if applied else "applied_at IS NULL"
+            query += f" WHERE {where_clause}"
+        query += " ORDER BY id"
+
+        rows = await conn.fetch(query)
+        migrations = [unpack_migration_row(dict(row)) for row in rows]
+        return migrations
+    except Exception:
+        # Assuming this is a table not found error
+        await conn.rollback()
+        return []
+
+
+async def upsert_migrations(conn: asyncpg.Connection, migrations: list[Migration]):
+    """Upserts the given migrations into the table. Errors if the table doesn't exist."""
+    if not migrations:
+        return
+
+    for migration in migrations:
+        await conn.execute(
+            """
+            INSERT INTO bench_migration (id, version, has_global, has_regional, has_local, applied_at)
+            VALUES ($1, $2, $3, $4, $5, $6)
+            ON CONFLICT (id) DO UPDATE SET
+                version = EXCLUDED.version,
+                has_global = EXCLUDED.has_global,
+                has_regional = EXCLUDED.has_regional,
+                has_local = EXCLUDED.has_local,
+                applied_at = EXCLUDED.applied_at
+            """,
+            migration.id,
+            migration.version,
+            migration.has_global,
+            migration.has_regional,
+            migration.has_local,
+            migration.applied_at,
+        )
+
+
+async def delete_migrations(conn: asyncpg.Connection, from_id: int, to_id: int) -> None:
+    """Deletes migrations from the database."""
+    # First read the migrations that will be deleted for logging
+    rows = await conn.fetch(
+        "SELECT id, version, has_global, has_regional, has_local, applied_at FROM bench_migration WHERE id >= $1 AND id <= $2",
+        from_id,
+        to_id,
+    )
+    migrations = [unpack_migration_row(dict(row)) for row in rows]
+
+    # Delete the migrations
+    await conn.execute(
+        "DELETE FROM bench_migration WHERE id >= $1 AND id <= $2",
+        from_id,
+        to_id,
+    )
+
+    if migrations:
+        logger.warning("migration.delete", migrations=migrations)
+
+
 #
 # Introspection
 #
-
-
-async def pg_select_raw(conn: asyncpg.Connection, query: str) -> list[dict[str, Any]]:
-    """Execute a SELECT query and return the results as a list of dicts."""
-    records = await conn.fetch(query)
-    return [dict(record) for record in records]
 
 
 @tracer.start_as_current_span("sql.introspect_sql_schema")
@@ -944,7 +891,7 @@ async def introspect_sql_schema(
         pg_extension
     """
     if include_extensions:
-        extensions_rows = await pg_select_raw(conn=conn, query=extensions_query)
+        extensions_rows = await conn.fetch(extensions_query)
         extensions = tuple(SqlExtension(name=row["extname"]) for row in extensions_rows)
     else:
         extensions = ()
@@ -971,7 +918,7 @@ async def introspect_sql_schema(
         exclude_patterns = ", ".join(f"'{prefix}%'" for prefix in exclude_table_prefixes)
         tables_query += f" AND table_name NOT LIKE ANY (ARRAY[{exclude_patterns}])"
 
-    tables_rows = await pg_select_raw(conn=conn, query=tables_query)
+    tables_rows = await conn.fetch(tables_query)
     tables_names: list[str] = [str(row["table_name"]) for row in tables_rows]
 
     # columns
@@ -1010,9 +957,7 @@ WHERE
 GROUP BY 
     col.table_name, col.column_name, col.data_type, col.udt_name, col.is_nullable, col.column_default;
                """
-        columns_rows = await pg_select_raw(
-            conn=conn, query=await conn.prepare(columns_query).format(tables_names)
-        )
+        columns_rows = await conn.fetch(columns_query, tables_names)
         columns_by_table: dict[str, list[SqlColumn]] = defaultdict(list)
         for row in columns_rows:
             udt_name = row["udt_name"]
@@ -1096,9 +1041,7 @@ WHERE
 GROUP BY 
     tc.table_name, tc.constraint_name, tc.constraint_type, chk.check_clause;
         """
-        constraints_rows = await pg_select_raw(
-            conn=conn, query=await conn.prepare(constraints_query).format(tables_names)
-        )
+        constraints_rows = await conn.fetch(constraints_query, tables_names)
         constraints_by_table: dict[str, list[SqlConstraint]] = defaultdict(list)
         for row in constraints_rows:
             columns = tuple(row["column_names"].split(", ")) if row["column_names"] else ()
@@ -1131,9 +1074,7 @@ FROM
 WHERE 
     idx.schemaname = 'public' AND idx.tablename = ANY($1);
             """
-        indexes_rows = await pg_select_raw(
-            conn=conn, query=await conn.prepare(indexes_query).format(tables_names)
-        )
+        indexes_rows = await conn.fetch(indexes_query, tables_names)
         for row in indexes_rows:
             definition = row["index_definition"]
             columns_str = definition.split("(")[1].split(")")[0]
