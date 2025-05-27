@@ -86,8 +86,9 @@ class StringFormat(BuiltinEnum):
 class NumberFormat(BuiltinEnum):
     """The format of a number."""
 
-    INTEGER = 1
-    FLOAT = 2
+    ANGLE = 1
+    UNIT = 2
+    CURRENCY = 3
 
 
 @struct_(StructType.STRING_CONSTRAINT, is_frozen=True)

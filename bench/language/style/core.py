@@ -94,11 +94,11 @@ class PositionType(BuiltinEnum):
 class Position(Struct):
     """A position value."""
 
-    type: PositionType = property_(30)
-    top: Length | None = property_(50)
-    left: Length | None = property_(51)
-    width: Length | None = property_(52)
-    height: Length | None = property_(53)
+    type: PositionType = property_(30, is_repr=True)
+    top: Length | None = property_(50, is_repr=True)
+    left: Length | None = property_(51, is_repr=True)
+    width: Length | None = property_(52, is_repr=True)
+    height: Length | None = property_(53, is_repr=True)
 
 
 @enum_(EnumType.DIMENSION_TYPE)
@@ -112,58 +112,58 @@ class DimensionType(BuiltinEnum):
 class Dimension(Struct):
     """A dimension value (like Length but can fit or fill container)."""
 
-    type: DimensionType = property_(30)
-    unit: LengthUnit = property_(50)
-    value: float = property_(51)
+    type: DimensionType = property_(30, is_repr=True)
+    unit: LengthUnit = property_(50, is_repr=True)
+    value: float = property_(51, is_repr=True)
 
 
 @struct_(StructType.INSETS, is_frozen=True)
 class Insets(Struct):
     """An insets value (base + top/left/right/bottom)."""
 
-    base: int | None = property_(50)
-    top: int | None = property_(51)
-    left: int | None = property_(52)
-    right: int | None = property_(53)
-    bottom: int | None = property_(54)
+    base: int | None = property_(50, is_repr=True)
+    top: int | None = property_(51, is_repr=True)
+    left: int | None = property_(52, is_repr=True)
+    right: int | None = property_(53, is_repr=True)
+    bottom: int | None = property_(54, is_repr=True)
 
 
 @struct_(StructType.CORNERS, is_frozen=True)
 class Corners(Struct):
     """A corners value (base + top_left/top_right/bottom_left/bottom_right)."""
 
-    base: int | None = property_(50)
-    top_left: int | None = property_(51)
-    top_right: int | None = property_(52)
-    bottom_left: int | None = property_(53)
-    bottom_right: int | None = property_(54)
+    base: int | None = property_(50, is_repr=True)
+    top_left: int | None = property_(51, is_repr=True)
+    top_right: int | None = property_(52, is_repr=True)
+    bottom_left: int | None = property_(53, is_repr=True)
+    bottom_right: int | None = property_(54, is_repr=True)
 
 
 @struct_(StructType.AXIS2, is_frozen=True)
 class Axis2(Struct):
     """A gap value (base + x/y)."""
 
-    base: float | None = property_(50)
-    x: float | None = property_(51)
-    y: float | None = property_(52)
+    base: float | None = property_(50, is_repr=True)
+    x: float | None = property_(51, is_repr=True)
+    y: float | None = property_(52, is_repr=True)
 
 
 @struct_(StructType.AXIS3, is_frozen=True)
 class Axis3(Struct):
     """A rotation value (base + x/y/z)."""
 
-    base: float | None = property_(50)
-    x: float | None = property_(51)
-    y: float | None = property_(52)
-    z: float | None = property_(53)
+    base: float | None = property_(50, is_repr=True)
+    x: float | None = property_(51, is_repr=True)
+    y: float | None = property_(52, is_repr=True)
+    z: float | None = property_(53, is_repr=True)
 
 
 @struct_(StructType.VECTOR2, is_frozen=True)
 class Vector2(Struct):
     """A 2D vector."""
 
-    x: float = property_(50)
-    y: float = property_(51)
+    x: float = property_(50, is_repr=True)
+    y: float = property_(51, is_repr=True)
 
 
 def vector2(x: float, y: float) -> "Vector2":
@@ -174,9 +174,9 @@ def vector2(x: float, y: float) -> "Vector2":
 class Vector3(Struct):
     """A 3D vector."""
 
-    x: float = property_(50)
-    y: float = property_(51)
-    z: float = property_(52)
+    x: float = property_(50, is_repr=True)
+    y: float = property_(51, is_repr=True)
+    z: float = property_(52, is_repr=True)
 
 
 def vector3(x: float, y: float, z: float) -> "Vector3":
@@ -187,10 +187,10 @@ def vector3(x: float, y: float, z: float) -> "Vector3":
 class Vector4(Struct):
     """A 4D vector."""
 
-    x: float = property_(50)
-    y: float = property_(51)
-    z: float = property_(52)
-    w: float = property_(53)
+    x: float = property_(50, is_repr=True)
+    y: float = property_(51, is_repr=True)
+    z: float = property_(52, is_repr=True)
+    w: float = property_(53, is_repr=True)
 
 
 def vector4(x: float, y: float, z: float, w: float) -> "Vector4":
@@ -201,16 +201,16 @@ def vector4(x: float, y: float, z: float, w: float) -> "Vector4":
 class Grid(Struct):
     """A grid configuration value."""
 
-    columns: int = property_(50)
-    rows: int = property_(51)
-    column_width: Dimension | None = property_(52)
-    column_min_width: Dimension | None = property_(53)
-    row_height: Dimension | None = property_(54)
+    columns: int = property_(50, is_repr=True)
+    rows: int = property_(51, is_repr=True)
+    column_width: Dimension | None = property_(52, is_repr=True)
+    column_min_width: Dimension | None = property_(53, is_repr=True)
+    row_height: Dimension | None = property_(54, is_repr=True)
 
 
 @struct_(StructType.GRID_SPAN, is_frozen=True)
 class GridSpan(Struct):
     """A grid span value."""
 
-    columns: int = property_(50)
-    rows: int = property_(51)
+    columns: int = property_(50, is_repr=True)
+    rows: int = property_(51, is_repr=True)

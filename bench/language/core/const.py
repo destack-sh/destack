@@ -45,7 +45,7 @@ class _Unset:
 
 
 # forever constants
-VERSION = "2025.05.26.0"
+VERSION = "2025.05.27.0"
 UUID_NAMESPACE = uuid5(UUID(int=0), b"bench")
 CK_LENGTH_B64 = 24  # 1.5 * CK_LENGTH_BYTES (must be integer)
 FLOAT_EPSILON = 1e-6
@@ -1125,9 +1125,9 @@ PY_TYPE_BY_PRIMITIVE_TYPE: dict[PrimitiveType, type] = {
 }
 PRIMITIVE_TYPE_BY_PY_TYPE: dict[type, PrimitiveType] = {
     bool: PrimitiveType.BOOLEAN,
-    int: PrimitiveType.INT32,
+    int: PrimitiveType.INT64,
     Decimal: PrimitiveType.DECIMAL,
-    float: PrimitiveType.FLOAT32,
+    float: PrimitiveType.FLOAT64,
     str: PrimitiveType.STRING,
     UUID: PrimitiveType.UUID,
     dict: PrimitiveType.JSON,

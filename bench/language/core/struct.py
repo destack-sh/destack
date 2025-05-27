@@ -5,7 +5,6 @@ from typing import (
     Optional,
     cast,
     dataclass_transform,
-    final,
 )
 
 import structlog
@@ -60,14 +59,6 @@ class Struct[StructDataT: AnyStructData](BuiltinObject[StructDataT], abc.ABC):
 
     _proto: "StructDataT | None" = property_runtime_()  # cached for frozen Structs
     # _value?
-
-    @final
-    def __repr__(self):
-        content_str = str(self)
-        if content_str:
-            return f"<{self.__class__.__name__} {content_str}>"
-        else:
-            return f"<{self.__class__.__name__}>"
 
 
 @struct_(StructType.SCOPE, is_frozen=True)

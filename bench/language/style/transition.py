@@ -47,16 +47,16 @@ class SpringType(BuiltinEnum):
 
 @object_()
 class TransitionBase(BuiltinObject):
-    type: TransitionType = property_(30, default=TransitionType.TWEEN)
-    style: Optional["TransitionStyle"] = property_(41)
-    delay: float | None = property_(50)
-    duration: float | None = property_(51)
-    ease: list[float] = property_(52)
-    stiffness: float | None = property_(53)
-    damping: float | None = property_(54)
-    mass: float | None = property_(55)
-    bounce: float | None = property_(56)
-    spring_type: SpringType | None = property_(57)
+    type: TransitionType = property_(30, default=TransitionType.TWEEN, is_repr=True)
+    style: Optional["TransitionStyle"] = property_(41, is_repr=True)
+    delay: float | None = property_(50, is_repr=True)
+    duration: float | None = property_(51, is_repr=True)
+    ease: list[float] = property_(52, is_repr=True)
+    stiffness: float | None = property_(53, is_repr=True)
+    damping: float | None = property_(54, is_repr=True)
+    mass: float | None = property_(55, is_repr=True)
+    bounce: float | None = property_(56, is_repr=True)
+    spring_type: SpringType | None = property_(57, is_repr=True)
 
 
 @struct_(StructType.TRANSITION)

@@ -123,15 +123,15 @@ export interface ActionData {
      */
     modelName?: string;
     /**
-     * @generated from protobuf field: optional int32 max_attempts = 110;
+     * @generated from protobuf field: optional int64 max_attempts = 110;
      */
-    maxAttempts?: number;
+    maxAttempts?: bigint;
     /**
      * @generated from protobuf field: optional google.protobuf.Duration retry_interval = 111;
      */
     retryInterval?: Duration;
     /**
-     * @generated from protobuf field: optional float backoff = 112;
+     * @generated from protobuf field: optional double backoff = 112;
      */
     backoff?: number;
 }
@@ -290,15 +290,15 @@ export interface AgentData {
      */
     modelName?: string;
     /**
-     * @generated from protobuf field: optional int32 max_attempts = 110;
+     * @generated from protobuf field: optional int64 max_attempts = 110;
      */
-    maxAttempts?: number;
+    maxAttempts?: bigint;
     /**
      * @generated from protobuf field: optional google.protobuf.Duration retry_interval = 111;
      */
     retryInterval?: Duration;
     /**
-     * @generated from protobuf field: optional float backoff = 112;
+     * @generated from protobuf field: optional double backoff = 112;
      */
     backoff?: number;
 }
@@ -361,15 +361,15 @@ export interface Axis2Data {
      */
     metatype: StructType;
     /**
-     * @generated from protobuf field: optional float base = 50;
+     * @generated from protobuf field: optional double base = 50;
      */
     base?: number;
     /**
-     * @generated from protobuf field: optional float x = 51;
+     * @generated from protobuf field: optional double x = 51;
      */
     x?: number;
     /**
-     * @generated from protobuf field: optional float y = 52;
+     * @generated from protobuf field: optional double y = 52;
      */
     y?: number;
 }
@@ -382,19 +382,19 @@ export interface Axis3Data {
      */
     metatype: StructType;
     /**
-     * @generated from protobuf field: optional float base = 50;
+     * @generated from protobuf field: optional double base = 50;
      */
     base?: number;
     /**
-     * @generated from protobuf field: optional float x = 51;
+     * @generated from protobuf field: optional double x = 51;
      */
     x?: number;
     /**
-     * @generated from protobuf field: optional float y = 52;
+     * @generated from protobuf field: optional double y = 52;
      */
     y?: number;
     /**
-     * @generated from protobuf field: optional float z = 53;
+     * @generated from protobuf field: optional double z = 53;
      */
     z?: number;
 }
@@ -515,6 +515,10 @@ export interface BenchInviteData {
      * @generated from protobuf field: optional google.protobuf.Timestamp deleted_at = 15;
      */
     deletedAt?: Timestamp;
+    /**
+     * @generated from protobuf field: symbol.bench.NodeReferenceData member_ptr = 40;
+     */
+    memberPtr?: NodeReferenceData;
     /**
      * @generated from protobuf field: symbol.bench.BenchRoleType role = 45;
      */
@@ -887,13 +891,13 @@ export interface CollectionConstraintData {
      */
     metatype: StructType;
     /**
-     * @generated from protobuf field: optional int32 min_length = 41;
+     * @generated from protobuf field: optional int64 min_length = 41;
      */
-    minLength?: number;
+    minLength?: bigint;
     /**
-     * @generated from protobuf field: optional int32 max_length = 42;
+     * @generated from protobuf field: optional int64 max_length = 42;
      */
-    maxLength?: number;
+    maxLength?: bigint;
 }
 /**
  * @generated from protobuf message symbol.bench.ColorData
@@ -920,19 +924,19 @@ export interface ColorData {
      */
     shade?: ColorShade;
     /**
-     * @generated from protobuf field: optional float x = 52;
+     * @generated from protobuf field: optional double x = 52;
      */
     x?: number;
     /**
-     * @generated from protobuf field: optional float y = 53;
+     * @generated from protobuf field: optional double y = 53;
      */
     y?: number;
     /**
-     * @generated from protobuf field: optional float z = 54;
+     * @generated from protobuf field: optional double z = 54;
      */
     z?: number;
     /**
-     * @generated from protobuf field: optional float alpha = 55;
+     * @generated from protobuf field: optional double alpha = 55;
      */
     alpha?: number;
 }
@@ -1023,19 +1027,19 @@ export interface ColorStyleData {
      */
     shade?: ColorShade;
     /**
-     * @generated from protobuf field: optional float x = 52;
+     * @generated from protobuf field: optional double x = 52;
      */
     x?: number;
     /**
-     * @generated from protobuf field: optional float y = 53;
+     * @generated from protobuf field: optional double y = 53;
      */
     y?: number;
     /**
-     * @generated from protobuf field: optional float z = 54;
+     * @generated from protobuf field: optional double z = 54;
      */
     z?: number;
     /**
-     * @generated from protobuf field: optional float alpha = 55;
+     * @generated from protobuf field: optional double alpha = 55;
      */
     alpha?: number;
     /**
@@ -1073,25 +1077,25 @@ export interface CornersData {
      */
     metatype: StructType;
     /**
-     * @generated from protobuf field: optional int32 base = 50;
+     * @generated from protobuf field: optional int64 base = 50;
      */
-    base?: number;
+    base?: bigint;
     /**
-     * @generated from protobuf field: optional int32 top_left = 51;
+     * @generated from protobuf field: optional int64 top_left = 51;
      */
-    topLeft?: number;
+    topLeft?: bigint;
     /**
-     * @generated from protobuf field: optional int32 top_right = 52;
+     * @generated from protobuf field: optional int64 top_right = 52;
      */
-    topRight?: number;
+    topRight?: bigint;
     /**
-     * @generated from protobuf field: optional int32 bottom_left = 53;
+     * @generated from protobuf field: optional int64 bottom_left = 53;
      */
-    bottomLeft?: number;
+    bottomLeft?: bigint;
     /**
-     * @generated from protobuf field: optional int32 bottom_right = 54;
+     * @generated from protobuf field: optional int64 bottom_right = 54;
      */
-    bottomRight?: number;
+    bottomRight?: bigint;
 }
 /**
  * A Cursor is the current logical or physical 'position' or 'focus' of its owner.
@@ -1312,9 +1316,9 @@ export interface DatabaseData {
      */
     failedAt?: Timestamp;
     /**
-     * @generated from protobuf field: int32 failed_attempts = 48;
+     * @generated from protobuf field: int64 failed_attempts = 48;
      */
-    failedAttempts: number;
+    failedAttempts: bigint;
     /**
      * @generated from protobuf field: string version = 60;
      */
@@ -1349,7 +1353,7 @@ export interface DimensionData {
      */
     unit: LengthUnit;
     /**
-     * @generated from protobuf field: float value = 51;
+     * @generated from protobuf field: double value = 51;
      */
     value: number;
 }
@@ -1415,7 +1419,7 @@ export interface EffectData {
      */
     stylePtr?: NodeReferenceData;
     /**
-     * @generated from protobuf field: optional float opacity = 50;
+     * @generated from protobuf field: optional double opacity = 50;
      */
     opacity?: number;
     /**
@@ -1423,7 +1427,7 @@ export interface EffectData {
      */
     offset?: Vector2Data;
     /**
-     * @generated from protobuf field: optional float scale = 52;
+     * @generated from protobuf field: optional double scale = 52;
      */
     scale?: number;
     /**
@@ -1435,7 +1439,7 @@ export interface EffectData {
      */
     skew?: Vector2Data;
     /**
-     * @generated from protobuf field: optional float perspective = 55;
+     * @generated from protobuf field: optional double perspective = 55;
      */
     perspective?: number;
     /**
@@ -1443,11 +1447,11 @@ export interface EffectData {
      */
     delay?: Duration;
     /**
-     * @generated from protobuf field: optional float duration = 57;
+     * @generated from protobuf field: optional double duration = 57;
      */
     duration?: number;
     /**
-     * @generated from protobuf field: optional float threshold = 58;
+     * @generated from protobuf field: optional double threshold = 58;
      */
     threshold?: number;
     /**
@@ -1550,7 +1554,7 @@ export interface EffectStyleData {
      */
     stylePtr?: NodeReferenceData;
     /**
-     * @generated from protobuf field: optional float opacity = 50;
+     * @generated from protobuf field: optional double opacity = 50;
      */
     opacity?: number;
     /**
@@ -1558,7 +1562,7 @@ export interface EffectStyleData {
      */
     offset?: Vector2Data;
     /**
-     * @generated from protobuf field: optional float scale = 52;
+     * @generated from protobuf field: optional double scale = 52;
      */
     scale?: number;
     /**
@@ -1570,7 +1574,7 @@ export interface EffectStyleData {
      */
     skew?: Vector2Data;
     /**
-     * @generated from protobuf field: optional float perspective = 55;
+     * @generated from protobuf field: optional double perspective = 55;
      */
     perspective?: number;
     /**
@@ -1578,11 +1582,11 @@ export interface EffectStyleData {
      */
     delay?: Duration;
     /**
-     * @generated from protobuf field: optional float duration = 57;
+     * @generated from protobuf field: optional double duration = 57;
      */
     duration?: number;
     /**
-     * @generated from protobuf field: optional float threshold = 58;
+     * @generated from protobuf field: optional double threshold = 58;
      */
     threshold?: number;
     /**
@@ -1902,23 +1906,23 @@ export interface FileData {
      */
     format?: FileFormat;
     /**
-     * @generated from protobuf field: optional int32 size = 63;
+     * @generated from protobuf field: optional int64 size = 63;
      */
-    size?: number;
+    size?: bigint;
     /**
      * @generated from protobuf field: optional string sha256 = 64;
      */
     sha256?: string;
     /**
-     * @generated from protobuf field: optional int32 width = 65;
+     * @generated from protobuf field: optional int64 width = 65;
      */
-    width?: number;
+    width?: bigint;
     /**
-     * @generated from protobuf field: optional int32 height = 66;
+     * @generated from protobuf field: optional int64 height = 66;
      */
-    height?: number;
+    height?: bigint;
     /**
-     * @generated from protobuf field: optional float aspect_ratio = 67;
+     * @generated from protobuf field: optional double aspect_ratio = 67;
      */
     aspectRatio?: number;
     /**
@@ -1946,13 +1950,13 @@ export interface FileData {
      */
     faviconUrl?: string;
     /**
-     * @generated from protobuf field: optional int32 thumbnail_width = 74;
+     * @generated from protobuf field: optional int64 thumbnail_width = 74;
      */
-    thumbnailWidth?: number;
+    thumbnailWidth?: bigint;
     /**
-     * @generated from protobuf field: optional int32 thumbnail_height = 75;
+     * @generated from protobuf field: optional int64 thumbnail_height = 75;
      */
-    thumbnailHeight?: number;
+    thumbnailHeight?: bigint;
     /**
      * @generated from protobuf field: optional bytes content = 76;
      */
@@ -2098,15 +2102,15 @@ export interface FlowData {
      */
     modelName?: string;
     /**
-     * @generated from protobuf field: optional int32 max_attempts = 110;
+     * @generated from protobuf field: optional int64 max_attempts = 110;
      */
-    maxAttempts?: number;
+    maxAttempts?: bigint;
     /**
      * @generated from protobuf field: optional google.protobuf.Duration retry_interval = 111;
      */
     retryInterval?: Duration;
     /**
-     * @generated from protobuf field: optional float backoff = 112;
+     * @generated from protobuf field: optional double backoff = 112;
      */
     backoff?: number;
 }
@@ -2197,15 +2201,15 @@ export interface FlowEdgeData {
      */
     modelName?: string;
     /**
-     * @generated from protobuf field: optional int32 max_attempts = 110;
+     * @generated from protobuf field: optional int64 max_attempts = 110;
      */
-    maxAttempts?: number;
+    maxAttempts?: bigint;
     /**
      * @generated from protobuf field: optional google.protobuf.Duration retry_interval = 111;
      */
     retryInterval?: Duration;
     /**
-     * @generated from protobuf field: optional float backoff = 112;
+     * @generated from protobuf field: optional double backoff = 112;
      */
     backoff?: number;
 }
@@ -2574,7 +2578,7 @@ export interface FrameViewData {
      */
     gridSpan?: GridSpanData;
     /**
-     * @generated from protobuf field: optional float aspect_ratio = 58;
+     * @generated from protobuf field: optional double aspect_ratio = 58;
      */
     aspectRatio?: number;
     /**
@@ -2605,7 +2609,7 @@ export interface FrameViewData {
     opacity: {
         oneofKind: "opacityValue";
         /**
-         * @generated from protobuf field: float opacity_value = 61;
+         * @generated from protobuf field: double opacity_value = 61;
          */
         opacityValue: number;
     } | {
@@ -2677,7 +2681,7 @@ export interface FrameViewData {
     scale: {
         oneofKind: "scaleValue";
         /**
-         * @generated from protobuf field: float scale_value = 65;
+         * @generated from protobuf field: double scale_value = 65;
          */
         scaleValue: number;
     } | {
@@ -2782,7 +2786,7 @@ export interface GradientData {
      */
     stylePtr?: NodeReferenceData;
     /**
-     * @generated from protobuf field: optional float angle = 50;
+     * @generated from protobuf field: optional double angle = 50;
      */
     angle?: number;
     /**
@@ -2807,7 +2811,7 @@ export interface GradientStopData {
      */
     color?: ColorData;
     /**
-     * @generated from protobuf field: float position = 51;
+     * @generated from protobuf field: double position = 51;
      */
     position: number;
 }
@@ -2890,7 +2894,7 @@ export interface GradientStyleData {
      */
     stylePtr?: NodeReferenceData;
     /**
-     * @generated from protobuf field: optional float angle = 50;
+     * @generated from protobuf field: optional double angle = 50;
      */
     angle?: number;
     /**
@@ -2915,13 +2919,13 @@ export interface GridData {
      */
     metatype: StructType;
     /**
-     * @generated from protobuf field: int32 columns = 50;
+     * @generated from protobuf field: int64 columns = 50;
      */
-    columns: number;
+    columns: bigint;
     /**
-     * @generated from protobuf field: int32 rows = 51;
+     * @generated from protobuf field: int64 rows = 51;
      */
-    rows: number;
+    rows: bigint;
     /**
      * @generated from protobuf field: optional symbol.bench.DimensionData column_width = 52;
      */
@@ -2944,13 +2948,13 @@ export interface GridSpanData {
      */
     metatype: StructType;
     /**
-     * @generated from protobuf field: int32 columns = 50;
+     * @generated from protobuf field: int64 columns = 50;
      */
-    columns: number;
+    columns: bigint;
     /**
-     * @generated from protobuf field: int32 rows = 51;
+     * @generated from protobuf field: int64 rows = 51;
      */
-    rows: number;
+    rows: bigint;
 }
 /**
  * A Bench @handle.
@@ -3041,25 +3045,25 @@ export interface InsetsData {
      */
     metatype: StructType;
     /**
-     * @generated from protobuf field: optional int32 base = 50;
+     * @generated from protobuf field: optional int64 base = 50;
      */
-    base?: number;
+    base?: bigint;
     /**
-     * @generated from protobuf field: optional int32 top = 51;
+     * @generated from protobuf field: optional int64 top = 51;
      */
-    top?: number;
+    top?: bigint;
     /**
-     * @generated from protobuf field: optional int32 left = 52;
+     * @generated from protobuf field: optional int64 left = 52;
      */
-    left?: number;
+    left?: bigint;
     /**
-     * @generated from protobuf field: optional int32 right = 53;
+     * @generated from protobuf field: optional int64 right = 53;
      */
-    right?: number;
+    right?: bigint;
     /**
-     * @generated from protobuf field: optional int32 bottom = 54;
+     * @generated from protobuf field: optional int64 bottom = 54;
      */
-    bottom?: number;
+    bottom?: bigint;
 }
 /**
  * An Interruption in the processing or execution of something.
@@ -3378,7 +3382,7 @@ export interface LabelViewData {
      */
     gridSpan?: GridSpanData;
     /**
-     * @generated from protobuf field: optional float aspect_ratio = 58;
+     * @generated from protobuf field: optional double aspect_ratio = 58;
      */
     aspectRatio?: number;
     /**
@@ -3409,7 +3413,7 @@ export interface LabelViewData {
     opacity: {
         oneofKind: "opacityValue";
         /**
-         * @generated from protobuf field: float opacity_value = 61;
+         * @generated from protobuf field: double opacity_value = 61;
          */
         opacityValue: number;
     } | {
@@ -3481,7 +3485,7 @@ export interface LabelViewData {
     scale: {
         oneofKind: "scaleValue";
         /**
-         * @generated from protobuf field: float scale_value = 65;
+         * @generated from protobuf field: double scale_value = 65;
          */
         scaleValue: number;
     } | {
@@ -3561,7 +3565,7 @@ export interface LengthData {
      */
     unit: LengthUnit;
     /**
-     * @generated from protobuf field: float value = 51;
+     * @generated from protobuf field: double value = 51;
      */
     value: number;
 }
@@ -3664,13 +3668,13 @@ export interface LinkData {
      */
     faviconUrl?: string;
     /**
-     * @generated from protobuf field: optional int32 thumbnail_width = 55;
+     * @generated from protobuf field: optional int64 thumbnail_width = 55;
      */
-    thumbnailWidth?: number;
+    thumbnailWidth?: bigint;
     /**
-     * @generated from protobuf field: optional int32 thumbnail_height = 56;
+     * @generated from protobuf field: optional int64 thumbnail_height = 56;
      */
-    thumbnailHeight?: number;
+    thumbnailHeight?: bigint;
     /**
      * @generated from protobuf field: optional string content = 60;
      */
@@ -3804,9 +3808,9 @@ export interface MachineData {
      */
     failedAt?: Timestamp;
     /**
-     * @generated from protobuf field: int32 failed_attempts = 48;
+     * @generated from protobuf field: int64 failed_attempts = 48;
      */
-    failedAttempts: number;
+    failedAttempts: bigint;
     /**
      * @generated from protobuf field: string version = 60;
      */
@@ -3836,21 +3840,21 @@ export interface MachineData {
      */
     clientPtr?: NodeReferenceData;
     /**
-     * @generated from protobuf field: float cpu = 70;
+     * @generated from protobuf field: double cpu = 70;
      */
     cpu: number;
     /**
-     * @generated from protobuf field: float ram = 71;
+     * @generated from protobuf field: double ram = 71;
      */
     ram: number;
     /**
-     * @generated from protobuf field: int32 width = 75;
+     * @generated from protobuf field: int64 width = 75;
      */
-    width: number;
+    width: bigint;
     /**
-     * @generated from protobuf field: int32 height = 76;
+     * @generated from protobuf field: int64 height = 76;
      */
-    height: number;
+    height: bigint;
     /**
      * @generated from protobuf field: bool is_headless = 77;
      */
@@ -4018,25 +4022,25 @@ export interface NumberConstraintData {
      */
     format?: NumberFormat;
     /**
-     * @generated from protobuf field: optional float min_value = 41;
+     * @generated from protobuf field: optional double min_value = 41;
      */
     minValue?: number;
     /**
-     * @generated from protobuf field: optional float max_value = 42;
+     * @generated from protobuf field: optional double max_value = 42;
      */
     maxValue?: number;
     /**
-     * @generated from protobuf field: optional float step_value = 43;
+     * @generated from protobuf field: optional double step_value = 43;
      */
     stepValue?: number;
     /**
-     * @generated from protobuf field: optional int32 precision = 44;
+     * @generated from protobuf field: optional int64 precision = 44;
      */
-    precision?: number;
+    precision?: bigint;
     /**
-     * @generated from protobuf field: optional int32 scale = 45;
+     * @generated from protobuf field: optional int64 scale = 45;
      */
-    scale?: number;
+    scale?: bigint;
 }
 /**
  * A general number input View.
@@ -4164,7 +4168,7 @@ export interface NumberInputViewData {
     opacity: {
         oneofKind: "opacityValue";
         /**
-         * @generated from protobuf field: float opacity_value = 61;
+         * @generated from protobuf field: double opacity_value = 61;
          */
         opacityValue: number;
     } | {
@@ -4286,6 +4290,10 @@ export interface OrganizationInviteData {
      * @generated from protobuf field: optional google.protobuf.Timestamp deleted_at = 15;
      */
     deletedAt?: Timestamp;
+    /**
+     * @generated from protobuf field: symbol.bench.NodeReferenceData member_ptr = 40;
+     */
+    memberPtr?: NodeReferenceData;
     /**
      * @generated from protobuf field: symbol.bench.OrganizationRoleType role = 45;
      */
@@ -4497,6 +4505,10 @@ export interface PackageInviteData {
      */
     deletedAt?: Timestamp;
     /**
+     * @generated from protobuf field: symbol.bench.NodeReferenceData member_ptr = 40;
+     */
+    memberPtr?: NodeReferenceData;
+    /**
      * @generated from protobuf field: symbol.bench.PackageRoleType role = 45;
      */
     role: PackageRoleType;
@@ -4685,9 +4697,9 @@ export interface PropertyReferenceData {
      */
     structType?: StructType;
     /**
-     * @generated from protobuf field: int32 id = 33;
+     * @generated from protobuf field: int64 id = 33;
      */
-    id: number;
+    id: bigint;
 }
 /**
  * @generated from protobuf message symbol.bench.QueryData
@@ -4742,13 +4754,13 @@ export interface QueryData {
      */
     sort: SortData[];
     /**
-     * @generated from protobuf field: optional int32 limit = 50;
+     * @generated from protobuf field: optional int64 limit = 50;
      */
-    limit?: number;
+    limit?: bigint;
     /**
-     * @generated from protobuf field: optional int32 offset = 51;
+     * @generated from protobuf field: optional int64 offset = 51;
      */
-    offset?: number;
+    offset?: bigint;
     /**
      * @generated from protobuf field: optional bool count = 52;
      */
@@ -5184,9 +5196,9 @@ export interface ScheduleData {
      */
     frequency: ScheduleFrequency;
     /**
-     * @generated from protobuf field: int32 interval = 32;
+     * @generated from protobuf field: int64 interval = 32;
      */
-    interval: number;
+    interval: bigint;
     /**
      * @generated from protobuf field: optional google.protobuf.Timestamp start = 33;
      */
@@ -5196,53 +5208,53 @@ export interface ScheduleData {
      */
     end?: Timestamp;
     /**
-     * @generated from protobuf field: optional int32 count = 35;
+     * @generated from protobuf field: optional int64 count = 35;
      */
-    count?: number;
+    count?: bigint;
     /**
      * @generated from protobuf field: optional symbol.bench.Day week_start = 36;
      */
     weekStart?: Day;
     /**
-     * @generated from protobuf field: repeated int32 by_set_pos = 37;
+     * @generated from protobuf field: repeated int64 by_set_pos = 37;
      */
-    bySetPos: number[];
+    bySetPos: bigint[];
     /**
      * @generated from protobuf field: repeated symbol.bench.Month by_month = 38;
      */
     byMonth: Month[];
     /**
-     * @generated from protobuf field: repeated int32 by_month_day = 39;
+     * @generated from protobuf field: repeated int64 by_month_day = 39;
      */
-    byMonthDay: number[];
+    byMonthDay: bigint[];
     /**
-     * @generated from protobuf field: repeated int32 by_year_day = 40;
+     * @generated from protobuf field: repeated int64 by_year_day = 40;
      */
-    byYearDay: number[];
+    byYearDay: bigint[];
     /**
-     * @generated from protobuf field: repeated int32 by_easter = 41;
+     * @generated from protobuf field: repeated int64 by_easter = 41;
      */
-    byEaster: number[];
+    byEaster: bigint[];
     /**
-     * @generated from protobuf field: repeated int32 by_week_no = 42;
+     * @generated from protobuf field: repeated int64 by_week_no = 42;
      */
-    byWeekNo: number[];
+    byWeekNo: bigint[];
     /**
      * @generated from protobuf field: repeated symbol.bench.Day by_week_day = 43;
      */
     byWeekDay: Day[];
     /**
-     * @generated from protobuf field: repeated int32 by_hour = 44;
+     * @generated from protobuf field: repeated int64 by_hour = 44;
      */
-    byHour: number[];
+    byHour: bigint[];
     /**
-     * @generated from protobuf field: repeated int32 by_minute = 45;
+     * @generated from protobuf field: repeated int64 by_minute = 45;
      */
-    byMinute: number[];
+    byMinute: bigint[];
     /**
-     * @generated from protobuf field: repeated int32 by_second = 46;
+     * @generated from protobuf field: repeated int64 by_second = 46;
      */
-    bySecond: number[];
+    bySecond: bigint[];
 }
 /**
  * A Schema for a specific Type.
@@ -5500,15 +5512,15 @@ export interface ServiceData {
      */
     modelName?: string;
     /**
-     * @generated from protobuf field: optional int32 max_attempts = 110;
+     * @generated from protobuf field: optional int64 max_attempts = 110;
      */
-    maxAttempts?: number;
+    maxAttempts?: bigint;
     /**
      * @generated from protobuf field: optional google.protobuf.Duration retry_interval = 111;
      */
     retryInterval?: Duration;
     /**
-     * @generated from protobuf field: optional float backoff = 112;
+     * @generated from protobuf field: optional double backoff = 112;
      */
     backoff?: number;
 }
@@ -5541,15 +5553,15 @@ export interface ShadowData {
      */
     offset?: Axis2Data;
     /**
-     * @generated from protobuf field: optional int32 blur = 53;
+     * @generated from protobuf field: optional int64 blur = 53;
      */
-    blur?: number;
+    blur?: bigint;
     /**
-     * @generated from protobuf field: optional int32 spread = 54;
+     * @generated from protobuf field: optional int64 spread = 54;
      */
-    spread?: number;
+    spread?: bigint;
     /**
-     * @generated from protobuf field: optional float diffusion = 55;
+     * @generated from protobuf field: optional double diffusion = 55;
      */
     diffusion?: number;
 }
@@ -5644,15 +5656,15 @@ export interface ShadowStyleData {
      */
     offset?: Axis2Data;
     /**
-     * @generated from protobuf field: optional int32 blur = 53;
+     * @generated from protobuf field: optional int64 blur = 53;
      */
-    blur?: number;
+    blur?: bigint;
     /**
-     * @generated from protobuf field: optional int32 spread = 54;
+     * @generated from protobuf field: optional int64 spread = 54;
      */
-    spread?: number;
+    spread?: bigint;
     /**
-     * @generated from protobuf field: optional float diffusion = 55;
+     * @generated from protobuf field: optional double diffusion = 55;
      */
     diffusion?: number;
 }
@@ -5782,7 +5794,7 @@ export interface SliderInputViewData {
     opacity: {
         oneofKind: "opacityValue";
         /**
-         * @generated from protobuf field: float opacity_value = 61;
+         * @generated from protobuf field: double opacity_value = 61;
          */
         opacityValue: number;
     } | {
@@ -5795,19 +5807,19 @@ export interface SliderInputViewData {
         oneofKind: undefined;
     };
     /**
-     * @generated from protobuf field: optional float value = 100;
+     * @generated from protobuf field: optional double value = 100;
      */
     value?: number;
     /**
-     * @generated from protobuf field: optional float min_value = 101;
+     * @generated from protobuf field: optional double min_value = 101;
      */
     minValue?: number;
     /**
-     * @generated from protobuf field: optional float max_value = 102;
+     * @generated from protobuf field: optional double max_value = 102;
      */
     maxValue?: number;
     /**
-     * @generated from protobuf field: optional float step = 103;
+     * @generated from protobuf field: optional double step = 103;
      */
     step?: number;
 }
@@ -6240,7 +6252,7 @@ export interface SplitViewData {
      */
     gridSpan?: GridSpanData;
     /**
-     * @generated from protobuf field: optional float aspect_ratio = 58;
+     * @generated from protobuf field: optional double aspect_ratio = 58;
      */
     aspectRatio?: number;
     /**
@@ -6271,7 +6283,7 @@ export interface SplitViewData {
     opacity: {
         oneofKind: "opacityValue";
         /**
-         * @generated from protobuf field: float opacity_value = 61;
+         * @generated from protobuf field: double opacity_value = 61;
          */
         opacityValue: number;
     } | {
@@ -6343,7 +6355,7 @@ export interface SplitViewData {
     scale: {
         oneofKind: "scaleValue";
         /**
-         * @generated from protobuf field: float scale_value = 65;
+         * @generated from protobuf field: double scale_value = 65;
          */
         scaleValue: number;
     } | {
@@ -6910,7 +6922,7 @@ export interface TextViewData {
     opacity: {
         oneofKind: "opacityValue";
         /**
-         * @generated from protobuf field: float opacity_value = 61;
+         * @generated from protobuf field: double opacity_value = 61;
          */
         opacityValue: number;
     } | {
@@ -7309,31 +7321,31 @@ export interface TransitionData {
      */
     stylePtr?: NodeReferenceData;
     /**
-     * @generated from protobuf field: optional float delay = 50;
+     * @generated from protobuf field: optional double delay = 50;
      */
     delay?: number;
     /**
-     * @generated from protobuf field: optional float duration = 51;
+     * @generated from protobuf field: optional double duration = 51;
      */
     duration?: number;
     /**
-     * @generated from protobuf field: repeated float ease = 52;
+     * @generated from protobuf field: repeated double ease = 52;
      */
     ease: number[];
     /**
-     * @generated from protobuf field: optional float stiffness = 53;
+     * @generated from protobuf field: optional double stiffness = 53;
      */
     stiffness?: number;
     /**
-     * @generated from protobuf field: optional float damping = 54;
+     * @generated from protobuf field: optional double damping = 54;
      */
     damping?: number;
     /**
-     * @generated from protobuf field: optional float mass = 55;
+     * @generated from protobuf field: optional double mass = 55;
      */
     mass?: number;
     /**
-     * @generated from protobuf field: optional float bounce = 56;
+     * @generated from protobuf field: optional double bounce = 56;
      */
     bounce?: number;
     /**
@@ -7420,31 +7432,31 @@ export interface TransitionStyleData {
      */
     stylePtr?: NodeReferenceData;
     /**
-     * @generated from protobuf field: optional float delay = 50;
+     * @generated from protobuf field: optional double delay = 50;
      */
     delay?: number;
     /**
-     * @generated from protobuf field: optional float duration = 51;
+     * @generated from protobuf field: optional double duration = 51;
      */
     duration?: number;
     /**
-     * @generated from protobuf field: repeated float ease = 52;
+     * @generated from protobuf field: repeated double ease = 52;
      */
     ease: number[];
     /**
-     * @generated from protobuf field: optional float stiffness = 53;
+     * @generated from protobuf field: optional double stiffness = 53;
      */
     stiffness?: number;
     /**
-     * @generated from protobuf field: optional float damping = 54;
+     * @generated from protobuf field: optional double damping = 54;
      */
     damping?: number;
     /**
-     * @generated from protobuf field: optional float mass = 55;
+     * @generated from protobuf field: optional double mass = 55;
      */
     mass?: number;
     /**
-     * @generated from protobuf field: optional float bounce = 56;
+     * @generated from protobuf field: optional double bounce = 56;
      */
     bounce?: number;
     /**
@@ -7653,11 +7665,11 @@ export interface Vector2Data {
      */
     metatype: StructType;
     /**
-     * @generated from protobuf field: float x = 50;
+     * @generated from protobuf field: double x = 50;
      */
     x: number;
     /**
-     * @generated from protobuf field: float y = 51;
+     * @generated from protobuf field: double y = 51;
      */
     y: number;
 }
@@ -7670,15 +7682,15 @@ export interface Vector3Data {
      */
     metatype: StructType;
     /**
-     * @generated from protobuf field: float x = 50;
+     * @generated from protobuf field: double x = 50;
      */
     x: number;
     /**
-     * @generated from protobuf field: float y = 51;
+     * @generated from protobuf field: double y = 51;
      */
     y: number;
     /**
-     * @generated from protobuf field: float z = 52;
+     * @generated from protobuf field: double z = 52;
      */
     z: number;
 }
@@ -7691,19 +7703,19 @@ export interface Vector4Data {
      */
     metatype: StructType;
     /**
-     * @generated from protobuf field: float x = 50;
+     * @generated from protobuf field: double x = 50;
      */
     x: number;
     /**
-     * @generated from protobuf field: float y = 51;
+     * @generated from protobuf field: double y = 51;
      */
     y: number;
     /**
-     * @generated from protobuf field: float z = 52;
+     * @generated from protobuf field: double z = 52;
      */
     z: number;
     /**
-     * @generated from protobuf field: float w = 53;
+     * @generated from protobuf field: double w = 53;
      */
     w: number;
 }
@@ -11140,13 +11152,17 @@ export enum NumberFormat {
      */
     UNSPECIFIED = 0,
     /**
-     * @generated from protobuf enum value: NUMBER_FORMAT_INTEGER = 1;
+     * @generated from protobuf enum value: NUMBER_FORMAT_ANGLE = 1;
      */
-    INTEGER = 1,
+    ANGLE = 1,
     /**
-     * @generated from protobuf enum value: NUMBER_FORMAT_FLOAT = 2;
+     * @generated from protobuf enum value: NUMBER_FORMAT_UNIT = 2;
      */
-    FLOAT = 2
+    UNIT = 2,
+    /**
+     * @generated from protobuf enum value: NUMBER_FORMAT_CURRENCY = 3;
+     */
+    CURRENCY = 3
 }
 /**
  * What happens when the element is offscreen.
@@ -12659,9 +12675,9 @@ class ActionData$Type extends MessageType$<ActionData> {
             { no: 101, name: "model_provider", kind: "enum", opt: true, T: () => ["symbol.bench.ModelProvider", ModelProvider, "MODEL_PROVIDER_"] },
             { no: 102, name: "model_id", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
             { no: 103, name: "model_name", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
-            { no: 110, name: "max_attempts", kind: "scalar", opt: true, T: 5 /*ScalarType.INT32*/ },
+            { no: 110, name: "max_attempts", kind: "scalar", opt: true, T: 3 /*ScalarType.INT64*/, L: 0 /*LongType.BIGINT*/ },
             { no: 111, name: "retry_interval", kind: "message", T: () => Duration },
-            { no: 112, name: "backoff", kind: "scalar", opt: true, T: 2 /*ScalarType.FLOAT*/ }
+            { no: 112, name: "backoff", kind: "scalar", opt: true, T: 1 /*ScalarType.DOUBLE*/ }
         ]);
     }
     create(value?: PartialMessage<ActionData>): ActionData {
@@ -12756,14 +12772,14 @@ class ActionData$Type extends MessageType$<ActionData> {
                 case /* optional string model_name */ 103:
                     message.modelName = reader.string();
                     break;
-                case /* optional int32 max_attempts */ 110:
-                    message.maxAttempts = reader.int32();
+                case /* optional int64 max_attempts */ 110:
+                    message.maxAttempts = reader.int64().toBigInt();
                     break;
                 case /* optional google.protobuf.Duration retry_interval */ 111:
                     message.retryInterval = Duration.internalBinaryRead(reader, reader.uint32(), options, message.retryInterval);
                     break;
-                case /* optional float backoff */ 112:
-                    message.backoff = reader.float();
+                case /* optional double backoff */ 112:
+                    message.backoff = reader.double();
                     break;
                 default:
                     let u = options.readUnknownField;
@@ -12852,15 +12868,15 @@ class ActionData$Type extends MessageType$<ActionData> {
         /* optional string model_name = 103; */
         if (message.modelName !== undefined)
             writer.tag(103, WireType.LengthDelimited).string(message.modelName);
-        /* optional int32 max_attempts = 110; */
+        /* optional int64 max_attempts = 110; */
         if (message.maxAttempts !== undefined)
-            writer.tag(110, WireType.Varint).int32(message.maxAttempts);
+            writer.tag(110, WireType.Varint).int64(message.maxAttempts);
         /* optional google.protobuf.Duration retry_interval = 111; */
         if (message.retryInterval)
             Duration.internalBinaryWrite(message.retryInterval, writer.tag(111, WireType.LengthDelimited).fork(), options).join();
-        /* optional float backoff = 112; */
+        /* optional double backoff = 112; */
         if (message.backoff !== undefined)
-            writer.tag(112, WireType.Bit32).float(message.backoff);
+            writer.tag(112, WireType.Bit64).double(message.backoff);
         let u = options.writeUnknownFields;
         if (u !== false)
             (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
@@ -12912,9 +12928,9 @@ class AgentData$Type extends MessageType$<AgentData> {
             { no: 101, name: "model_provider", kind: "enum", opt: true, T: () => ["symbol.bench.ModelProvider", ModelProvider, "MODEL_PROVIDER_"] },
             { no: 102, name: "model_id", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
             { no: 103, name: "model_name", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
-            { no: 110, name: "max_attempts", kind: "scalar", opt: true, T: 5 /*ScalarType.INT32*/ },
+            { no: 110, name: "max_attempts", kind: "scalar", opt: true, T: 3 /*ScalarType.INT64*/, L: 0 /*LongType.BIGINT*/ },
             { no: 111, name: "retry_interval", kind: "message", T: () => Duration },
-            { no: 112, name: "backoff", kind: "scalar", opt: true, T: 2 /*ScalarType.FLOAT*/ }
+            { no: 112, name: "backoff", kind: "scalar", opt: true, T: 1 /*ScalarType.DOUBLE*/ }
         ]);
     }
     create(value?: PartialMessage<AgentData>): AgentData {
@@ -13045,14 +13061,14 @@ class AgentData$Type extends MessageType$<AgentData> {
                 case /* optional string model_name */ 103:
                     message.modelName = reader.string();
                     break;
-                case /* optional int32 max_attempts */ 110:
-                    message.maxAttempts = reader.int32();
+                case /* optional int64 max_attempts */ 110:
+                    message.maxAttempts = reader.int64().toBigInt();
                     break;
                 case /* optional google.protobuf.Duration retry_interval */ 111:
                     message.retryInterval = Duration.internalBinaryRead(reader, reader.uint32(), options, message.retryInterval);
                     break;
-                case /* optional float backoff */ 112:
-                    message.backoff = reader.float();
+                case /* optional double backoff */ 112:
+                    message.backoff = reader.double();
                     break;
                 default:
                     let u = options.readUnknownField;
@@ -13177,15 +13193,15 @@ class AgentData$Type extends MessageType$<AgentData> {
         /* optional string model_name = 103; */
         if (message.modelName !== undefined)
             writer.tag(103, WireType.LengthDelimited).string(message.modelName);
-        /* optional int32 max_attempts = 110; */
+        /* optional int64 max_attempts = 110; */
         if (message.maxAttempts !== undefined)
-            writer.tag(110, WireType.Varint).int32(message.maxAttempts);
+            writer.tag(110, WireType.Varint).int64(message.maxAttempts);
         /* optional google.protobuf.Duration retry_interval = 111; */
         if (message.retryInterval)
             Duration.internalBinaryWrite(message.retryInterval, writer.tag(111, WireType.LengthDelimited).fork(), options).join();
-        /* optional float backoff = 112; */
+        /* optional double backoff = 112; */
         if (message.backoff !== undefined)
-            writer.tag(112, WireType.Bit32).float(message.backoff);
+            writer.tag(112, WireType.Bit64).double(message.backoff);
         let u = options.writeUnknownFields;
         if (u !== false)
             (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
@@ -13354,9 +13370,9 @@ class Axis2Data$Type extends MessageType$<Axis2Data> {
     constructor() {
         super("symbol.bench.Axis2Data", [
             { no: 1, name: "metatype", kind: "enum", T: () => ["symbol.bench.StructType", StructType, "STRUCT_TYPE_"] },
-            { no: 50, name: "base", kind: "scalar", opt: true, T: 2 /*ScalarType.FLOAT*/ },
-            { no: 51, name: "x", kind: "scalar", opt: true, T: 2 /*ScalarType.FLOAT*/ },
-            { no: 52, name: "y", kind: "scalar", opt: true, T: 2 /*ScalarType.FLOAT*/ }
+            { no: 50, name: "base", kind: "scalar", opt: true, T: 1 /*ScalarType.DOUBLE*/ },
+            { no: 51, name: "x", kind: "scalar", opt: true, T: 1 /*ScalarType.DOUBLE*/ },
+            { no: 52, name: "y", kind: "scalar", opt: true, T: 1 /*ScalarType.DOUBLE*/ }
         ]);
     }
     create(value?: PartialMessage<Axis2Data>): Axis2Data {
@@ -13374,14 +13390,14 @@ class Axis2Data$Type extends MessageType$<Axis2Data> {
                 case /* symbol.bench.StructType metatype */ 1:
                     message.metatype = reader.int32();
                     break;
-                case /* optional float base */ 50:
-                    message.base = reader.float();
+                case /* optional double base */ 50:
+                    message.base = reader.double();
                     break;
-                case /* optional float x */ 51:
-                    message.x = reader.float();
+                case /* optional double x */ 51:
+                    message.x = reader.double();
                     break;
-                case /* optional float y */ 52:
-                    message.y = reader.float();
+                case /* optional double y */ 52:
+                    message.y = reader.double();
                     break;
                 default:
                     let u = options.readUnknownField;
@@ -13398,15 +13414,15 @@ class Axis2Data$Type extends MessageType$<Axis2Data> {
         /* symbol.bench.StructType metatype = 1; */
         if (message.metatype !== 0)
             writer.tag(1, WireType.Varint).int32(message.metatype);
-        /* optional float base = 50; */
+        /* optional double base = 50; */
         if (message.base !== undefined)
-            writer.tag(50, WireType.Bit32).float(message.base);
-        /* optional float x = 51; */
+            writer.tag(50, WireType.Bit64).double(message.base);
+        /* optional double x = 51; */
         if (message.x !== undefined)
-            writer.tag(51, WireType.Bit32).float(message.x);
-        /* optional float y = 52; */
+            writer.tag(51, WireType.Bit64).double(message.x);
+        /* optional double y = 52; */
         if (message.y !== undefined)
-            writer.tag(52, WireType.Bit32).float(message.y);
+            writer.tag(52, WireType.Bit64).double(message.y);
         let u = options.writeUnknownFields;
         if (u !== false)
             (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
@@ -13422,10 +13438,10 @@ class Axis3Data$Type extends MessageType$<Axis3Data> {
     constructor() {
         super("symbol.bench.Axis3Data", [
             { no: 1, name: "metatype", kind: "enum", T: () => ["symbol.bench.StructType", StructType, "STRUCT_TYPE_"] },
-            { no: 50, name: "base", kind: "scalar", opt: true, T: 2 /*ScalarType.FLOAT*/ },
-            { no: 51, name: "x", kind: "scalar", opt: true, T: 2 /*ScalarType.FLOAT*/ },
-            { no: 52, name: "y", kind: "scalar", opt: true, T: 2 /*ScalarType.FLOAT*/ },
-            { no: 53, name: "z", kind: "scalar", opt: true, T: 2 /*ScalarType.FLOAT*/ }
+            { no: 50, name: "base", kind: "scalar", opt: true, T: 1 /*ScalarType.DOUBLE*/ },
+            { no: 51, name: "x", kind: "scalar", opt: true, T: 1 /*ScalarType.DOUBLE*/ },
+            { no: 52, name: "y", kind: "scalar", opt: true, T: 1 /*ScalarType.DOUBLE*/ },
+            { no: 53, name: "z", kind: "scalar", opt: true, T: 1 /*ScalarType.DOUBLE*/ }
         ]);
     }
     create(value?: PartialMessage<Axis3Data>): Axis3Data {
@@ -13443,17 +13459,17 @@ class Axis3Data$Type extends MessageType$<Axis3Data> {
                 case /* symbol.bench.StructType metatype */ 1:
                     message.metatype = reader.int32();
                     break;
-                case /* optional float base */ 50:
-                    message.base = reader.float();
+                case /* optional double base */ 50:
+                    message.base = reader.double();
                     break;
-                case /* optional float x */ 51:
-                    message.x = reader.float();
+                case /* optional double x */ 51:
+                    message.x = reader.double();
                     break;
-                case /* optional float y */ 52:
-                    message.y = reader.float();
+                case /* optional double y */ 52:
+                    message.y = reader.double();
                     break;
-                case /* optional float z */ 53:
-                    message.z = reader.float();
+                case /* optional double z */ 53:
+                    message.z = reader.double();
                     break;
                 default:
                     let u = options.readUnknownField;
@@ -13470,18 +13486,18 @@ class Axis3Data$Type extends MessageType$<Axis3Data> {
         /* symbol.bench.StructType metatype = 1; */
         if (message.metatype !== 0)
             writer.tag(1, WireType.Varint).int32(message.metatype);
-        /* optional float base = 50; */
+        /* optional double base = 50; */
         if (message.base !== undefined)
-            writer.tag(50, WireType.Bit32).float(message.base);
-        /* optional float x = 51; */
+            writer.tag(50, WireType.Bit64).double(message.base);
+        /* optional double x = 51; */
         if (message.x !== undefined)
-            writer.tag(51, WireType.Bit32).float(message.x);
-        /* optional float y = 52; */
+            writer.tag(51, WireType.Bit64).double(message.x);
+        /* optional double y = 52; */
         if (message.y !== undefined)
-            writer.tag(52, WireType.Bit32).float(message.y);
-        /* optional float z = 53; */
+            writer.tag(52, WireType.Bit64).double(message.y);
+        /* optional double z = 53; */
         if (message.z !== undefined)
-            writer.tag(53, WireType.Bit32).float(message.z);
+            writer.tag(53, WireType.Bit64).double(message.z);
         let u = options.writeUnknownFields;
         if (u !== false)
             (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
@@ -13669,6 +13685,7 @@ class BenchInviteData$Type extends MessageType$<BenchInviteData> {
             { no: 12, name: "updated_at", kind: "message", T: () => Timestamp },
             { no: 13, name: "updated_by_ptr", kind: "message", T: () => NodeReferenceData },
             { no: 15, name: "deleted_at", kind: "message", T: () => Timestamp },
+            { no: 40, name: "member_ptr", kind: "message", T: () => NodeReferenceData },
             { no: 45, name: "role", kind: "enum", T: () => ["symbol.bench.BenchRoleType", BenchRoleType, "BENCH_ROLE_TYPE_"] }
         ]);
     }
@@ -13713,6 +13730,9 @@ class BenchInviteData$Type extends MessageType$<BenchInviteData> {
                 case /* optional google.protobuf.Timestamp deleted_at */ 15:
                     message.deletedAt = Timestamp.internalBinaryRead(reader, reader.uint32(), options, message.deletedAt);
                     break;
+                case /* symbol.bench.NodeReferenceData member_ptr */ 40:
+                    message.memberPtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.memberPtr);
+                    break;
                 case /* symbol.bench.BenchRoleType role */ 45:
                     message.role = reader.int32();
                     break;
@@ -13755,6 +13775,9 @@ class BenchInviteData$Type extends MessageType$<BenchInviteData> {
         /* optional google.protobuf.Timestamp deleted_at = 15; */
         if (message.deletedAt)
             Timestamp.internalBinaryWrite(message.deletedAt, writer.tag(15, WireType.LengthDelimited).fork(), options).join();
+        /* symbol.bench.NodeReferenceData member_ptr = 40; */
+        if (message.memberPtr)
+            NodeReferenceData.internalBinaryWrite(message.memberPtr, writer.tag(40, WireType.LengthDelimited).fork(), options).join();
         /* symbol.bench.BenchRoleType role = 45; */
         if (message.role !== 0)
             writer.tag(45, WireType.Varint).int32(message.role);
@@ -14587,8 +14610,8 @@ class CollectionConstraintData$Type extends MessageType$<CollectionConstraintDat
     constructor() {
         super("symbol.bench.CollectionConstraintData", [
             { no: 1, name: "metatype", kind: "enum", T: () => ["symbol.bench.StructType", StructType, "STRUCT_TYPE_"] },
-            { no: 41, name: "min_length", kind: "scalar", opt: true, T: 5 /*ScalarType.INT32*/ },
-            { no: 42, name: "max_length", kind: "scalar", opt: true, T: 5 /*ScalarType.INT32*/ }
+            { no: 41, name: "min_length", kind: "scalar", opt: true, T: 3 /*ScalarType.INT64*/, L: 0 /*LongType.BIGINT*/ },
+            { no: 42, name: "max_length", kind: "scalar", opt: true, T: 3 /*ScalarType.INT64*/, L: 0 /*LongType.BIGINT*/ }
         ]);
     }
     create(value?: PartialMessage<CollectionConstraintData>): CollectionConstraintData {
@@ -14606,11 +14629,11 @@ class CollectionConstraintData$Type extends MessageType$<CollectionConstraintDat
                 case /* symbol.bench.StructType metatype */ 1:
                     message.metatype = reader.int32();
                     break;
-                case /* optional int32 min_length */ 41:
-                    message.minLength = reader.int32();
+                case /* optional int64 min_length */ 41:
+                    message.minLength = reader.int64().toBigInt();
                     break;
-                case /* optional int32 max_length */ 42:
-                    message.maxLength = reader.int32();
+                case /* optional int64 max_length */ 42:
+                    message.maxLength = reader.int64().toBigInt();
                     break;
                 default:
                     let u = options.readUnknownField;
@@ -14627,12 +14650,12 @@ class CollectionConstraintData$Type extends MessageType$<CollectionConstraintDat
         /* symbol.bench.StructType metatype = 1; */
         if (message.metatype !== 0)
             writer.tag(1, WireType.Varint).int32(message.metatype);
-        /* optional int32 min_length = 41; */
+        /* optional int64 min_length = 41; */
         if (message.minLength !== undefined)
-            writer.tag(41, WireType.Varint).int32(message.minLength);
-        /* optional int32 max_length = 42; */
+            writer.tag(41, WireType.Varint).int64(message.minLength);
+        /* optional int64 max_length = 42; */
         if (message.maxLength !== undefined)
-            writer.tag(42, WireType.Varint).int32(message.maxLength);
+            writer.tag(42, WireType.Varint).int64(message.maxLength);
         let u = options.writeUnknownFields;
         if (u !== false)
             (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
@@ -14652,10 +14675,10 @@ class ColorData$Type extends MessageType$<ColorData> {
             { no: 42, name: "style_ptr", kind: "message", T: () => NodeReferenceData },
             { no: 50, name: "hue", kind: "enum", opt: true, T: () => ["symbol.bench.ColorHue", ColorHue, "COLOR_HUE_"] },
             { no: 51, name: "shade", kind: "enum", opt: true, T: () => ["symbol.bench.ColorShade", ColorShade, "COLOR_SHADE_"] },
-            { no: 52, name: "x", kind: "scalar", opt: true, T: 2 /*ScalarType.FLOAT*/ },
-            { no: 53, name: "y", kind: "scalar", opt: true, T: 2 /*ScalarType.FLOAT*/ },
-            { no: 54, name: "z", kind: "scalar", opt: true, T: 2 /*ScalarType.FLOAT*/ },
-            { no: 55, name: "alpha", kind: "scalar", opt: true, T: 2 /*ScalarType.FLOAT*/ }
+            { no: 52, name: "x", kind: "scalar", opt: true, T: 1 /*ScalarType.DOUBLE*/ },
+            { no: 53, name: "y", kind: "scalar", opt: true, T: 1 /*ScalarType.DOUBLE*/ },
+            { no: 54, name: "z", kind: "scalar", opt: true, T: 1 /*ScalarType.DOUBLE*/ },
+            { no: 55, name: "alpha", kind: "scalar", opt: true, T: 1 /*ScalarType.DOUBLE*/ }
         ]);
     }
     create(value?: PartialMessage<ColorData>): ColorData {
@@ -14686,17 +14709,17 @@ class ColorData$Type extends MessageType$<ColorData> {
                 case /* optional symbol.bench.ColorShade shade */ 51:
                     message.shade = reader.int32();
                     break;
-                case /* optional float x */ 52:
-                    message.x = reader.float();
+                case /* optional double x */ 52:
+                    message.x = reader.double();
                     break;
-                case /* optional float y */ 53:
-                    message.y = reader.float();
+                case /* optional double y */ 53:
+                    message.y = reader.double();
                     break;
-                case /* optional float z */ 54:
-                    message.z = reader.float();
+                case /* optional double z */ 54:
+                    message.z = reader.double();
                     break;
-                case /* optional float alpha */ 55:
-                    message.alpha = reader.float();
+                case /* optional double alpha */ 55:
+                    message.alpha = reader.double();
                     break;
                 default:
                     let u = options.readUnknownField;
@@ -14725,18 +14748,18 @@ class ColorData$Type extends MessageType$<ColorData> {
         /* optional symbol.bench.ColorShade shade = 51; */
         if (message.shade !== undefined)
             writer.tag(51, WireType.Varint).int32(message.shade);
-        /* optional float x = 52; */
+        /* optional double x = 52; */
         if (message.x !== undefined)
-            writer.tag(52, WireType.Bit32).float(message.x);
-        /* optional float y = 53; */
+            writer.tag(52, WireType.Bit64).double(message.x);
+        /* optional double y = 53; */
         if (message.y !== undefined)
-            writer.tag(53, WireType.Bit32).float(message.y);
-        /* optional float z = 54; */
+            writer.tag(53, WireType.Bit64).double(message.y);
+        /* optional double z = 54; */
         if (message.z !== undefined)
-            writer.tag(54, WireType.Bit32).float(message.z);
-        /* optional float alpha = 55; */
+            writer.tag(54, WireType.Bit64).double(message.z);
+        /* optional double alpha = 55; */
         if (message.alpha !== undefined)
-            writer.tag(55, WireType.Bit32).float(message.alpha);
+            writer.tag(55, WireType.Bit64).double(message.alpha);
         let u = options.writeUnknownFields;
         if (u !== false)
             (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
@@ -14771,10 +14794,10 @@ class ColorStyleData$Type extends MessageType$<ColorStyleData> {
             { no: 42, name: "style_ptr", kind: "message", T: () => NodeReferenceData },
             { no: 50, name: "hue", kind: "enum", opt: true, T: () => ["symbol.bench.ColorHue", ColorHue, "COLOR_HUE_"] },
             { no: 51, name: "shade", kind: "enum", opt: true, T: () => ["symbol.bench.ColorShade", ColorShade, "COLOR_SHADE_"] },
-            { no: 52, name: "x", kind: "scalar", opt: true, T: 2 /*ScalarType.FLOAT*/ },
-            { no: 53, name: "y", kind: "scalar", opt: true, T: 2 /*ScalarType.FLOAT*/ },
-            { no: 54, name: "z", kind: "scalar", opt: true, T: 2 /*ScalarType.FLOAT*/ },
-            { no: 55, name: "alpha", kind: "scalar", opt: true, T: 2 /*ScalarType.FLOAT*/ },
+            { no: 52, name: "x", kind: "scalar", opt: true, T: 1 /*ScalarType.DOUBLE*/ },
+            { no: 53, name: "y", kind: "scalar", opt: true, T: 1 /*ScalarType.DOUBLE*/ },
+            { no: 54, name: "z", kind: "scalar", opt: true, T: 1 /*ScalarType.DOUBLE*/ },
+            { no: 55, name: "alpha", kind: "scalar", opt: true, T: 1 /*ScalarType.DOUBLE*/ },
             { no: 60, name: "dark", kind: "message", T: () => ColorData }
         ]);
     }
@@ -14854,17 +14877,17 @@ class ColorStyleData$Type extends MessageType$<ColorStyleData> {
                 case /* optional symbol.bench.ColorShade shade */ 51:
                     message.shade = reader.int32();
                     break;
-                case /* optional float x */ 52:
-                    message.x = reader.float();
+                case /* optional double x */ 52:
+                    message.x = reader.double();
                     break;
-                case /* optional float y */ 53:
-                    message.y = reader.float();
+                case /* optional double y */ 53:
+                    message.y = reader.double();
                     break;
-                case /* optional float z */ 54:
-                    message.z = reader.float();
+                case /* optional double z */ 54:
+                    message.z = reader.double();
                     break;
-                case /* optional float alpha */ 55:
-                    message.alpha = reader.float();
+                case /* optional double alpha */ 55:
+                    message.alpha = reader.double();
                     break;
                 case /* optional symbol.bench.ColorData dark */ 60:
                     message.dark = ColorData.internalBinaryRead(reader, reader.uint32(), options, message.dark);
@@ -14941,18 +14964,18 @@ class ColorStyleData$Type extends MessageType$<ColorStyleData> {
         /* optional symbol.bench.ColorShade shade = 51; */
         if (message.shade !== undefined)
             writer.tag(51, WireType.Varint).int32(message.shade);
-        /* optional float x = 52; */
+        /* optional double x = 52; */
         if (message.x !== undefined)
-            writer.tag(52, WireType.Bit32).float(message.x);
-        /* optional float y = 53; */
+            writer.tag(52, WireType.Bit64).double(message.x);
+        /* optional double y = 53; */
         if (message.y !== undefined)
-            writer.tag(53, WireType.Bit32).float(message.y);
-        /* optional float z = 54; */
+            writer.tag(53, WireType.Bit64).double(message.y);
+        /* optional double z = 54; */
         if (message.z !== undefined)
-            writer.tag(54, WireType.Bit32).float(message.z);
-        /* optional float alpha = 55; */
+            writer.tag(54, WireType.Bit64).double(message.z);
+        /* optional double alpha = 55; */
         if (message.alpha !== undefined)
-            writer.tag(55, WireType.Bit32).float(message.alpha);
+            writer.tag(55, WireType.Bit64).double(message.alpha);
         /* optional symbol.bench.ColorData dark = 60; */
         if (message.dark)
             ColorData.internalBinaryWrite(message.dark, writer.tag(60, WireType.LengthDelimited).fork(), options).join();
@@ -15040,11 +15063,11 @@ class CornersData$Type extends MessageType$<CornersData> {
     constructor() {
         super("symbol.bench.CornersData", [
             { no: 1, name: "metatype", kind: "enum", T: () => ["symbol.bench.StructType", StructType, "STRUCT_TYPE_"] },
-            { no: 50, name: "base", kind: "scalar", opt: true, T: 5 /*ScalarType.INT32*/ },
-            { no: 51, name: "top_left", kind: "scalar", opt: true, T: 5 /*ScalarType.INT32*/ },
-            { no: 52, name: "top_right", kind: "scalar", opt: true, T: 5 /*ScalarType.INT32*/ },
-            { no: 53, name: "bottom_left", kind: "scalar", opt: true, T: 5 /*ScalarType.INT32*/ },
-            { no: 54, name: "bottom_right", kind: "scalar", opt: true, T: 5 /*ScalarType.INT32*/ }
+            { no: 50, name: "base", kind: "scalar", opt: true, T: 3 /*ScalarType.INT64*/, L: 0 /*LongType.BIGINT*/ },
+            { no: 51, name: "top_left", kind: "scalar", opt: true, T: 3 /*ScalarType.INT64*/, L: 0 /*LongType.BIGINT*/ },
+            { no: 52, name: "top_right", kind: "scalar", opt: true, T: 3 /*ScalarType.INT64*/, L: 0 /*LongType.BIGINT*/ },
+            { no: 53, name: "bottom_left", kind: "scalar", opt: true, T: 3 /*ScalarType.INT64*/, L: 0 /*LongType.BIGINT*/ },
+            { no: 54, name: "bottom_right", kind: "scalar", opt: true, T: 3 /*ScalarType.INT64*/, L: 0 /*LongType.BIGINT*/ }
         ]);
     }
     create(value?: PartialMessage<CornersData>): CornersData {
@@ -15062,20 +15085,20 @@ class CornersData$Type extends MessageType$<CornersData> {
                 case /* symbol.bench.StructType metatype */ 1:
                     message.metatype = reader.int32();
                     break;
-                case /* optional int32 base */ 50:
-                    message.base = reader.int32();
+                case /* optional int64 base */ 50:
+                    message.base = reader.int64().toBigInt();
                     break;
-                case /* optional int32 top_left */ 51:
-                    message.topLeft = reader.int32();
+                case /* optional int64 top_left */ 51:
+                    message.topLeft = reader.int64().toBigInt();
                     break;
-                case /* optional int32 top_right */ 52:
-                    message.topRight = reader.int32();
+                case /* optional int64 top_right */ 52:
+                    message.topRight = reader.int64().toBigInt();
                     break;
-                case /* optional int32 bottom_left */ 53:
-                    message.bottomLeft = reader.int32();
+                case /* optional int64 bottom_left */ 53:
+                    message.bottomLeft = reader.int64().toBigInt();
                     break;
-                case /* optional int32 bottom_right */ 54:
-                    message.bottomRight = reader.int32();
+                case /* optional int64 bottom_right */ 54:
+                    message.bottomRight = reader.int64().toBigInt();
                     break;
                 default:
                     let u = options.readUnknownField;
@@ -15092,21 +15115,21 @@ class CornersData$Type extends MessageType$<CornersData> {
         /* symbol.bench.StructType metatype = 1; */
         if (message.metatype !== 0)
             writer.tag(1, WireType.Varint).int32(message.metatype);
-        /* optional int32 base = 50; */
+        /* optional int64 base = 50; */
         if (message.base !== undefined)
-            writer.tag(50, WireType.Varint).int32(message.base);
-        /* optional int32 top_left = 51; */
+            writer.tag(50, WireType.Varint).int64(message.base);
+        /* optional int64 top_left = 51; */
         if (message.topLeft !== undefined)
-            writer.tag(51, WireType.Varint).int32(message.topLeft);
-        /* optional int32 top_right = 52; */
+            writer.tag(51, WireType.Varint).int64(message.topLeft);
+        /* optional int64 top_right = 52; */
         if (message.topRight !== undefined)
-            writer.tag(52, WireType.Varint).int32(message.topRight);
-        /* optional int32 bottom_left = 53; */
+            writer.tag(52, WireType.Varint).int64(message.topRight);
+        /* optional int64 bottom_left = 53; */
         if (message.bottomLeft !== undefined)
-            writer.tag(53, WireType.Varint).int32(message.bottomLeft);
-        /* optional int32 bottom_right = 54; */
+            writer.tag(53, WireType.Varint).int64(message.bottomLeft);
+        /* optional int64 bottom_right = 54; */
         if (message.bottomRight !== undefined)
-            writer.tag(54, WireType.Varint).int32(message.bottomRight);
+            writer.tag(54, WireType.Varint).int64(message.bottomRight);
         let u = options.writeUnknownFields;
         if (u !== false)
             (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
@@ -15367,7 +15390,7 @@ class DatabaseData$Type extends MessageType$<DatabaseData> {
             { no: 45, name: "requested_decommission_at", kind: "message", T: () => Timestamp },
             { no: 46, name: "active_at", kind: "message", T: () => Timestamp },
             { no: 47, name: "failed_at", kind: "message", T: () => Timestamp },
-            { no: 48, name: "failed_attempts", kind: "scalar", T: 5 /*ScalarType.INT32*/ },
+            { no: 48, name: "failed_attempts", kind: "scalar", T: 3 /*ScalarType.INT64*/, L: 0 /*LongType.BIGINT*/ },
             { no: 60, name: "version", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
             { no: 62, name: "external_name", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
             { no: 63, name: "external_id", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
@@ -15384,7 +15407,7 @@ class DatabaseData$Type extends MessageType$<DatabaseData> {
         message.type = 0;
         message.name = "";
         message.status = 0;
-        message.failedAttempts = 0;
+        message.failedAttempts = 0n;
         message.version = "";
         if (value !== undefined)
             reflectionMergePartial<DatabaseData>(this, message, value);
@@ -15473,8 +15496,8 @@ class DatabaseData$Type extends MessageType$<DatabaseData> {
                 case /* optional google.protobuf.Timestamp failed_at */ 47:
                     message.failedAt = Timestamp.internalBinaryRead(reader, reader.uint32(), options, message.failedAt);
                     break;
-                case /* int32 failed_attempts */ 48:
-                    message.failedAttempts = reader.int32();
+                case /* int64 failed_attempts */ 48:
+                    message.failedAttempts = reader.int64().toBigInt();
                     break;
                 case /* string version */ 60:
                     message.version = reader.string();
@@ -15578,9 +15601,9 @@ class DatabaseData$Type extends MessageType$<DatabaseData> {
         /* optional google.protobuf.Timestamp failed_at = 47; */
         if (message.failedAt)
             Timestamp.internalBinaryWrite(message.failedAt, writer.tag(47, WireType.LengthDelimited).fork(), options).join();
-        /* int32 failed_attempts = 48; */
-        if (message.failedAttempts !== 0)
-            writer.tag(48, WireType.Varint).int32(message.failedAttempts);
+        /* int64 failed_attempts = 48; */
+        if (message.failedAttempts !== 0n)
+            writer.tag(48, WireType.Varint).int64(message.failedAttempts);
         /* string version = 60; */
         if (message.version !== "")
             writer.tag(60, WireType.LengthDelimited).string(message.version);
@@ -15610,7 +15633,7 @@ class DimensionData$Type extends MessageType$<DimensionData> {
             { no: 1, name: "metatype", kind: "enum", T: () => ["symbol.bench.StructType", StructType, "STRUCT_TYPE_"] },
             { no: 30, name: "type", kind: "enum", T: () => ["symbol.bench.DimensionType", DimensionType, "DIMENSION_TYPE_"] },
             { no: 50, name: "unit", kind: "enum", T: () => ["symbol.bench.LengthUnit", LengthUnit, "LENGTH_UNIT_"] },
-            { no: 51, name: "value", kind: "scalar", T: 2 /*ScalarType.FLOAT*/ }
+            { no: 51, name: "value", kind: "scalar", T: 1 /*ScalarType.DOUBLE*/ }
         ]);
     }
     create(value?: PartialMessage<DimensionData>): DimensionData {
@@ -15637,8 +15660,8 @@ class DimensionData$Type extends MessageType$<DimensionData> {
                 case /* symbol.bench.LengthUnit unit */ 50:
                     message.unit = reader.int32();
                     break;
-                case /* float value */ 51:
-                    message.value = reader.float();
+                case /* double value */ 51:
+                    message.value = reader.double();
                     break;
                 default:
                     let u = options.readUnknownField;
@@ -15661,9 +15684,9 @@ class DimensionData$Type extends MessageType$<DimensionData> {
         /* symbol.bench.LengthUnit unit = 50; */
         if (message.unit !== 0)
             writer.tag(50, WireType.Varint).int32(message.unit);
-        /* float value = 51; */
+        /* double value = 51; */
         if (message.value !== 0)
-            writer.tag(51, WireType.Bit32).float(message.value);
+            writer.tag(51, WireType.Bit64).double(message.value);
         let u = options.writeUnknownFields;
         if (u !== false)
             (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
@@ -15793,15 +15816,15 @@ class EffectData$Type extends MessageType$<EffectData> {
             { no: 1, name: "metatype", kind: "enum", T: () => ["symbol.bench.StructType", StructType, "STRUCT_TYPE_"] },
             { no: 30, name: "type", kind: "enum", T: () => ["symbol.bench.EffectType", EffectType, "EFFECT_TYPE_"] },
             { no: 41, name: "style_ptr", kind: "message", T: () => NodeReferenceData },
-            { no: 50, name: "opacity", kind: "scalar", opt: true, T: 2 /*ScalarType.FLOAT*/ },
+            { no: 50, name: "opacity", kind: "scalar", opt: true, T: 1 /*ScalarType.DOUBLE*/ },
             { no: 51, name: "offset", kind: "message", T: () => Vector2Data },
-            { no: 52, name: "scale", kind: "scalar", opt: true, T: 2 /*ScalarType.FLOAT*/ },
+            { no: 52, name: "scale", kind: "scalar", opt: true, T: 1 /*ScalarType.DOUBLE*/ },
             { no: 53, name: "rotate", kind: "message", T: () => Axis3Data },
             { no: 54, name: "skew", kind: "message", T: () => Vector2Data },
-            { no: 55, name: "perspective", kind: "scalar", opt: true, T: 2 /*ScalarType.FLOAT*/ },
+            { no: 55, name: "perspective", kind: "scalar", opt: true, T: 1 /*ScalarType.DOUBLE*/ },
             { no: 56, name: "delay", kind: "message", T: () => Duration },
-            { no: 57, name: "duration", kind: "scalar", opt: true, T: 2 /*ScalarType.FLOAT*/ },
-            { no: 58, name: "threshold", kind: "scalar", opt: true, T: 2 /*ScalarType.FLOAT*/ },
+            { no: 57, name: "duration", kind: "scalar", opt: true, T: 1 /*ScalarType.DOUBLE*/ },
+            { no: 58, name: "threshold", kind: "scalar", opt: true, T: 1 /*ScalarType.DOUBLE*/ },
             { no: 59, name: "once", kind: "scalar", opt: true, T: 8 /*ScalarType.BOOL*/ },
             { no: 60, name: "repeat", kind: "enum", opt: true, T: () => ["symbol.bench.RepeatType", RepeatType, "REPEAT_TYPE_"] },
             { no: 61, name: "split", kind: "enum", opt: true, T: () => ["symbol.bench.TextSplitType", TextSplitType, "TEXT_SPLIT_TYPE_"] },
@@ -15831,14 +15854,14 @@ class EffectData$Type extends MessageType$<EffectData> {
                 case /* optional symbol.bench.NodeReferenceData style_ptr */ 41:
                     message.stylePtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.stylePtr);
                     break;
-                case /* optional float opacity */ 50:
-                    message.opacity = reader.float();
+                case /* optional double opacity */ 50:
+                    message.opacity = reader.double();
                     break;
                 case /* optional symbol.bench.Vector2Data offset */ 51:
                     message.offset = Vector2Data.internalBinaryRead(reader, reader.uint32(), options, message.offset);
                     break;
-                case /* optional float scale */ 52:
-                    message.scale = reader.float();
+                case /* optional double scale */ 52:
+                    message.scale = reader.double();
                     break;
                 case /* optional symbol.bench.Axis3Data rotate */ 53:
                     message.rotate = Axis3Data.internalBinaryRead(reader, reader.uint32(), options, message.rotate);
@@ -15846,17 +15869,17 @@ class EffectData$Type extends MessageType$<EffectData> {
                 case /* optional symbol.bench.Vector2Data skew */ 54:
                     message.skew = Vector2Data.internalBinaryRead(reader, reader.uint32(), options, message.skew);
                     break;
-                case /* optional float perspective */ 55:
-                    message.perspective = reader.float();
+                case /* optional double perspective */ 55:
+                    message.perspective = reader.double();
                     break;
                 case /* optional google.protobuf.Duration delay */ 56:
                     message.delay = Duration.internalBinaryRead(reader, reader.uint32(), options, message.delay);
                     break;
-                case /* optional float duration */ 57:
-                    message.duration = reader.float();
+                case /* optional double duration */ 57:
+                    message.duration = reader.double();
                     break;
-                case /* optional float threshold */ 58:
-                    message.threshold = reader.float();
+                case /* optional double threshold */ 58:
+                    message.threshold = reader.double();
                     break;
                 case /* optional bool once */ 59:
                     message.once = reader.bool();
@@ -15894,33 +15917,33 @@ class EffectData$Type extends MessageType$<EffectData> {
         /* optional symbol.bench.NodeReferenceData style_ptr = 41; */
         if (message.stylePtr)
             NodeReferenceData.internalBinaryWrite(message.stylePtr, writer.tag(41, WireType.LengthDelimited).fork(), options).join();
-        /* optional float opacity = 50; */
+        /* optional double opacity = 50; */
         if (message.opacity !== undefined)
-            writer.tag(50, WireType.Bit32).float(message.opacity);
+            writer.tag(50, WireType.Bit64).double(message.opacity);
         /* optional symbol.bench.Vector2Data offset = 51; */
         if (message.offset)
             Vector2Data.internalBinaryWrite(message.offset, writer.tag(51, WireType.LengthDelimited).fork(), options).join();
-        /* optional float scale = 52; */
+        /* optional double scale = 52; */
         if (message.scale !== undefined)
-            writer.tag(52, WireType.Bit32).float(message.scale);
+            writer.tag(52, WireType.Bit64).double(message.scale);
         /* optional symbol.bench.Axis3Data rotate = 53; */
         if (message.rotate)
             Axis3Data.internalBinaryWrite(message.rotate, writer.tag(53, WireType.LengthDelimited).fork(), options).join();
         /* optional symbol.bench.Vector2Data skew = 54; */
         if (message.skew)
             Vector2Data.internalBinaryWrite(message.skew, writer.tag(54, WireType.LengthDelimited).fork(), options).join();
-        /* optional float perspective = 55; */
+        /* optional double perspective = 55; */
         if (message.perspective !== undefined)
-            writer.tag(55, WireType.Bit32).float(message.perspective);
+            writer.tag(55, WireType.Bit64).double(message.perspective);
         /* optional google.protobuf.Duration delay = 56; */
         if (message.delay)
             Duration.internalBinaryWrite(message.delay, writer.tag(56, WireType.LengthDelimited).fork(), options).join();
-        /* optional float duration = 57; */
+        /* optional double duration = 57; */
         if (message.duration !== undefined)
-            writer.tag(57, WireType.Bit32).float(message.duration);
-        /* optional float threshold = 58; */
+            writer.tag(57, WireType.Bit64).double(message.duration);
+        /* optional double threshold = 58; */
         if (message.threshold !== undefined)
-            writer.tag(58, WireType.Bit32).float(message.threshold);
+            writer.tag(58, WireType.Bit64).double(message.threshold);
         /* optional bool once = 59; */
         if (message.once !== undefined)
             writer.tag(59, WireType.Varint).bool(message.once);
@@ -15968,15 +15991,15 @@ class EffectStyleData$Type extends MessageType$<EffectStyleData> {
             { no: 31, name: "name", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
             { no: 35, name: "definition_ptr", kind: "message", T: () => NodeReferenceData },
             { no: 41, name: "style_ptr", kind: "message", T: () => NodeReferenceData },
-            { no: 50, name: "opacity", kind: "scalar", opt: true, T: 2 /*ScalarType.FLOAT*/ },
+            { no: 50, name: "opacity", kind: "scalar", opt: true, T: 1 /*ScalarType.DOUBLE*/ },
             { no: 51, name: "offset", kind: "message", T: () => Vector2Data },
-            { no: 52, name: "scale", kind: "scalar", opt: true, T: 2 /*ScalarType.FLOAT*/ },
+            { no: 52, name: "scale", kind: "scalar", opt: true, T: 1 /*ScalarType.DOUBLE*/ },
             { no: 53, name: "rotate", kind: "message", T: () => Axis3Data },
             { no: 54, name: "skew", kind: "message", T: () => Vector2Data },
-            { no: 55, name: "perspective", kind: "scalar", opt: true, T: 2 /*ScalarType.FLOAT*/ },
+            { no: 55, name: "perspective", kind: "scalar", opt: true, T: 1 /*ScalarType.DOUBLE*/ },
             { no: 56, name: "delay", kind: "message", T: () => Duration },
-            { no: 57, name: "duration", kind: "scalar", opt: true, T: 2 /*ScalarType.FLOAT*/ },
-            { no: 58, name: "threshold", kind: "scalar", opt: true, T: 2 /*ScalarType.FLOAT*/ },
+            { no: 57, name: "duration", kind: "scalar", opt: true, T: 1 /*ScalarType.DOUBLE*/ },
+            { no: 58, name: "threshold", kind: "scalar", opt: true, T: 1 /*ScalarType.DOUBLE*/ },
             { no: 59, name: "once", kind: "scalar", opt: true, T: 8 /*ScalarType.BOOL*/ },
             { no: 60, name: "repeat", kind: "enum", opt: true, T: () => ["symbol.bench.RepeatType", RepeatType, "REPEAT_TYPE_"] },
             { no: 61, name: "split", kind: "enum", opt: true, T: () => ["symbol.bench.TextSplitType", TextSplitType, "TEXT_SPLIT_TYPE_"] },
@@ -16054,14 +16077,14 @@ class EffectStyleData$Type extends MessageType$<EffectStyleData> {
                 case /* optional symbol.bench.NodeReferenceData style_ptr */ 41:
                     message.stylePtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.stylePtr);
                     break;
-                case /* optional float opacity */ 50:
-                    message.opacity = reader.float();
+                case /* optional double opacity */ 50:
+                    message.opacity = reader.double();
                     break;
                 case /* optional symbol.bench.Vector2Data offset */ 51:
                     message.offset = Vector2Data.internalBinaryRead(reader, reader.uint32(), options, message.offset);
                     break;
-                case /* optional float scale */ 52:
-                    message.scale = reader.float();
+                case /* optional double scale */ 52:
+                    message.scale = reader.double();
                     break;
                 case /* optional symbol.bench.Axis3Data rotate */ 53:
                     message.rotate = Axis3Data.internalBinaryRead(reader, reader.uint32(), options, message.rotate);
@@ -16069,17 +16092,17 @@ class EffectStyleData$Type extends MessageType$<EffectStyleData> {
                 case /* optional symbol.bench.Vector2Data skew */ 54:
                     message.skew = Vector2Data.internalBinaryRead(reader, reader.uint32(), options, message.skew);
                     break;
-                case /* optional float perspective */ 55:
-                    message.perspective = reader.float();
+                case /* optional double perspective */ 55:
+                    message.perspective = reader.double();
                     break;
                 case /* optional google.protobuf.Duration delay */ 56:
                     message.delay = Duration.internalBinaryRead(reader, reader.uint32(), options, message.delay);
                     break;
-                case /* optional float duration */ 57:
-                    message.duration = reader.float();
+                case /* optional double duration */ 57:
+                    message.duration = reader.double();
                     break;
-                case /* optional float threshold */ 58:
-                    message.threshold = reader.float();
+                case /* optional double threshold */ 58:
+                    message.threshold = reader.double();
                     break;
                 case /* optional bool once */ 59:
                     message.once = reader.bool();
@@ -16162,33 +16185,33 @@ class EffectStyleData$Type extends MessageType$<EffectStyleData> {
         /* optional symbol.bench.NodeReferenceData style_ptr = 41; */
         if (message.stylePtr)
             NodeReferenceData.internalBinaryWrite(message.stylePtr, writer.tag(41, WireType.LengthDelimited).fork(), options).join();
-        /* optional float opacity = 50; */
+        /* optional double opacity = 50; */
         if (message.opacity !== undefined)
-            writer.tag(50, WireType.Bit32).float(message.opacity);
+            writer.tag(50, WireType.Bit64).double(message.opacity);
         /* optional symbol.bench.Vector2Data offset = 51; */
         if (message.offset)
             Vector2Data.internalBinaryWrite(message.offset, writer.tag(51, WireType.LengthDelimited).fork(), options).join();
-        /* optional float scale = 52; */
+        /* optional double scale = 52; */
         if (message.scale !== undefined)
-            writer.tag(52, WireType.Bit32).float(message.scale);
+            writer.tag(52, WireType.Bit64).double(message.scale);
         /* optional symbol.bench.Axis3Data rotate = 53; */
         if (message.rotate)
             Axis3Data.internalBinaryWrite(message.rotate, writer.tag(53, WireType.LengthDelimited).fork(), options).join();
         /* optional symbol.bench.Vector2Data skew = 54; */
         if (message.skew)
             Vector2Data.internalBinaryWrite(message.skew, writer.tag(54, WireType.LengthDelimited).fork(), options).join();
-        /* optional float perspective = 55; */
+        /* optional double perspective = 55; */
         if (message.perspective !== undefined)
-            writer.tag(55, WireType.Bit32).float(message.perspective);
+            writer.tag(55, WireType.Bit64).double(message.perspective);
         /* optional google.protobuf.Duration delay = 56; */
         if (message.delay)
             Duration.internalBinaryWrite(message.delay, writer.tag(56, WireType.LengthDelimited).fork(), options).join();
-        /* optional float duration = 57; */
+        /* optional double duration = 57; */
         if (message.duration !== undefined)
-            writer.tag(57, WireType.Bit32).float(message.duration);
-        /* optional float threshold = 58; */
+            writer.tag(57, WireType.Bit64).double(message.duration);
+        /* optional double threshold = 58; */
         if (message.threshold !== undefined)
-            writer.tag(58, WireType.Bit32).float(message.threshold);
+            writer.tag(58, WireType.Bit64).double(message.threshold);
         /* optional bool once = 59; */
         if (message.once !== undefined)
             writer.tag(59, WireType.Varint).bool(message.once);
@@ -16700,19 +16723,19 @@ class FileData$Type extends MessageType$<FileData> {
             { no: 60, name: "source", kind: "enum", T: () => ["symbol.bench.FileSource", FileSource, "FILE_SOURCE_"] },
             { no: 61, name: "mime_type", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
             { no: 62, name: "format", kind: "enum", opt: true, T: () => ["symbol.bench.FileFormat", FileFormat, "FILE_FORMAT_"] },
-            { no: 63, name: "size", kind: "scalar", opt: true, T: 5 /*ScalarType.INT32*/ },
+            { no: 63, name: "size", kind: "scalar", opt: true, T: 3 /*ScalarType.INT64*/, L: 0 /*LongType.BIGINT*/ },
             { no: 64, name: "sha256", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
-            { no: 65, name: "width", kind: "scalar", opt: true, T: 5 /*ScalarType.INT32*/ },
-            { no: 66, name: "height", kind: "scalar", opt: true, T: 5 /*ScalarType.INT32*/ },
-            { no: 67, name: "aspect_ratio", kind: "scalar", opt: true, T: 2 /*ScalarType.FLOAT*/ },
+            { no: 65, name: "width", kind: "scalar", opt: true, T: 3 /*ScalarType.INT64*/, L: 0 /*LongType.BIGINT*/ },
+            { no: 66, name: "height", kind: "scalar", opt: true, T: 3 /*ScalarType.INT64*/, L: 0 /*LongType.BIGINT*/ },
+            { no: 67, name: "aspect_ratio", kind: "scalar", opt: true, T: 1 /*ScalarType.DOUBLE*/ },
             { no: 68, name: "codec", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
             { no: 69, name: "duration", kind: "message", T: () => Duration },
             { no: 70, name: "url", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
             { no: 71, name: "content_url", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
             { no: 72, name: "thumbnail_url", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
             { no: 73, name: "favicon_url", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
-            { no: 74, name: "thumbnail_width", kind: "scalar", opt: true, T: 5 /*ScalarType.INT32*/ },
-            { no: 75, name: "thumbnail_height", kind: "scalar", opt: true, T: 5 /*ScalarType.INT32*/ },
+            { no: 74, name: "thumbnail_width", kind: "scalar", opt: true, T: 3 /*ScalarType.INT64*/, L: 0 /*LongType.BIGINT*/ },
+            { no: 75, name: "thumbnail_height", kind: "scalar", opt: true, T: 3 /*ScalarType.INT64*/, L: 0 /*LongType.BIGINT*/ },
             { no: 76, name: "content", kind: "scalar", opt: true, T: 12 /*ScalarType.BYTES*/ },
             { no: 80, name: "retention", kind: "enum", T: () => ["symbol.bench.FileRetentionMode", FileRetentionMode, "FILE_RETENTION_MODE_"] },
             { no: 81, name: "expires_at", kind: "message", T: () => Timestamp }
@@ -16801,20 +16824,20 @@ class FileData$Type extends MessageType$<FileData> {
                 case /* optional symbol.bench.FileFormat format */ 62:
                     message.format = reader.int32();
                     break;
-                case /* optional int32 size */ 63:
-                    message.size = reader.int32();
+                case /* optional int64 size */ 63:
+                    message.size = reader.int64().toBigInt();
                     break;
                 case /* optional string sha256 */ 64:
                     message.sha256 = reader.string();
                     break;
-                case /* optional int32 width */ 65:
-                    message.width = reader.int32();
+                case /* optional int64 width */ 65:
+                    message.width = reader.int64().toBigInt();
                     break;
-                case /* optional int32 height */ 66:
-                    message.height = reader.int32();
+                case /* optional int64 height */ 66:
+                    message.height = reader.int64().toBigInt();
                     break;
-                case /* optional float aspect_ratio */ 67:
-                    message.aspectRatio = reader.float();
+                case /* optional double aspect_ratio */ 67:
+                    message.aspectRatio = reader.double();
                     break;
                 case /* optional string codec */ 68:
                     message.codec = reader.string();
@@ -16834,11 +16857,11 @@ class FileData$Type extends MessageType$<FileData> {
                 case /* optional string favicon_url */ 73:
                     message.faviconUrl = reader.string();
                     break;
-                case /* optional int32 thumbnail_width */ 74:
-                    message.thumbnailWidth = reader.int32();
+                case /* optional int64 thumbnail_width */ 74:
+                    message.thumbnailWidth = reader.int64().toBigInt();
                     break;
-                case /* optional int32 thumbnail_height */ 75:
-                    message.thumbnailHeight = reader.int32();
+                case /* optional int64 thumbnail_height */ 75:
+                    message.thumbnailHeight = reader.int64().toBigInt();
                     break;
                 case /* optional bytes content */ 76:
                     message.content = reader.bytes();
@@ -16924,21 +16947,21 @@ class FileData$Type extends MessageType$<FileData> {
         /* optional symbol.bench.FileFormat format = 62; */
         if (message.format !== undefined)
             writer.tag(62, WireType.Varint).int32(message.format);
-        /* optional int32 size = 63; */
+        /* optional int64 size = 63; */
         if (message.size !== undefined)
-            writer.tag(63, WireType.Varint).int32(message.size);
+            writer.tag(63, WireType.Varint).int64(message.size);
         /* optional string sha256 = 64; */
         if (message.sha256 !== undefined)
             writer.tag(64, WireType.LengthDelimited).string(message.sha256);
-        /* optional int32 width = 65; */
+        /* optional int64 width = 65; */
         if (message.width !== undefined)
-            writer.tag(65, WireType.Varint).int32(message.width);
-        /* optional int32 height = 66; */
+            writer.tag(65, WireType.Varint).int64(message.width);
+        /* optional int64 height = 66; */
         if (message.height !== undefined)
-            writer.tag(66, WireType.Varint).int32(message.height);
-        /* optional float aspect_ratio = 67; */
+            writer.tag(66, WireType.Varint).int64(message.height);
+        /* optional double aspect_ratio = 67; */
         if (message.aspectRatio !== undefined)
-            writer.tag(67, WireType.Bit32).float(message.aspectRatio);
+            writer.tag(67, WireType.Bit64).double(message.aspectRatio);
         /* optional string codec = 68; */
         if (message.codec !== undefined)
             writer.tag(68, WireType.LengthDelimited).string(message.codec);
@@ -16957,12 +16980,12 @@ class FileData$Type extends MessageType$<FileData> {
         /* optional string favicon_url = 73; */
         if (message.faviconUrl !== undefined)
             writer.tag(73, WireType.LengthDelimited).string(message.faviconUrl);
-        /* optional int32 thumbnail_width = 74; */
+        /* optional int64 thumbnail_width = 74; */
         if (message.thumbnailWidth !== undefined)
-            writer.tag(74, WireType.Varint).int32(message.thumbnailWidth);
-        /* optional int32 thumbnail_height = 75; */
+            writer.tag(74, WireType.Varint).int64(message.thumbnailWidth);
+        /* optional int64 thumbnail_height = 75; */
         if (message.thumbnailHeight !== undefined)
-            writer.tag(75, WireType.Varint).int32(message.thumbnailHeight);
+            writer.tag(75, WireType.Varint).int64(message.thumbnailHeight);
         /* optional bytes content = 76; */
         if (message.content !== undefined)
             writer.tag(76, WireType.LengthDelimited).bytes(message.content);
@@ -17099,9 +17122,9 @@ class FlowData$Type extends MessageType$<FlowData> {
             { no: 101, name: "model_provider", kind: "enum", opt: true, T: () => ["symbol.bench.ModelProvider", ModelProvider, "MODEL_PROVIDER_"] },
             { no: 102, name: "model_id", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
             { no: 103, name: "model_name", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
-            { no: 110, name: "max_attempts", kind: "scalar", opt: true, T: 5 /*ScalarType.INT32*/ },
+            { no: 110, name: "max_attempts", kind: "scalar", opt: true, T: 3 /*ScalarType.INT64*/, L: 0 /*LongType.BIGINT*/ },
             { no: 111, name: "retry_interval", kind: "message", T: () => Duration },
-            { no: 112, name: "backoff", kind: "scalar", opt: true, T: 2 /*ScalarType.FLOAT*/ }
+            { no: 112, name: "backoff", kind: "scalar", opt: true, T: 1 /*ScalarType.DOUBLE*/ }
         ]);
     }
     create(value?: PartialMessage<FlowData>): FlowData {
@@ -17189,14 +17212,14 @@ class FlowData$Type extends MessageType$<FlowData> {
                 case /* optional string model_name */ 103:
                     message.modelName = reader.string();
                     break;
-                case /* optional int32 max_attempts */ 110:
-                    message.maxAttempts = reader.int32();
+                case /* optional int64 max_attempts */ 110:
+                    message.maxAttempts = reader.int64().toBigInt();
                     break;
                 case /* optional google.protobuf.Duration retry_interval */ 111:
                     message.retryInterval = Duration.internalBinaryRead(reader, reader.uint32(), options, message.retryInterval);
                     break;
-                case /* optional float backoff */ 112:
-                    message.backoff = reader.float();
+                case /* optional double backoff */ 112:
+                    message.backoff = reader.double();
                     break;
                 default:
                     let u = options.readUnknownField;
@@ -17279,15 +17302,15 @@ class FlowData$Type extends MessageType$<FlowData> {
         /* optional string model_name = 103; */
         if (message.modelName !== undefined)
             writer.tag(103, WireType.LengthDelimited).string(message.modelName);
-        /* optional int32 max_attempts = 110; */
+        /* optional int64 max_attempts = 110; */
         if (message.maxAttempts !== undefined)
-            writer.tag(110, WireType.Varint).int32(message.maxAttempts);
+            writer.tag(110, WireType.Varint).int64(message.maxAttempts);
         /* optional google.protobuf.Duration retry_interval = 111; */
         if (message.retryInterval)
             Duration.internalBinaryWrite(message.retryInterval, writer.tag(111, WireType.LengthDelimited).fork(), options).join();
-        /* optional float backoff = 112; */
+        /* optional double backoff = 112; */
         if (message.backoff !== undefined)
-            writer.tag(112, WireType.Bit32).float(message.backoff);
+            writer.tag(112, WireType.Bit64).double(message.backoff);
         let u = options.writeUnknownFields;
         if (u !== false)
             (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
@@ -17322,9 +17345,9 @@ class FlowEdgeData$Type extends MessageType$<FlowEdgeData> {
             { no: 101, name: "model_provider", kind: "enum", opt: true, T: () => ["symbol.bench.ModelProvider", ModelProvider, "MODEL_PROVIDER_"] },
             { no: 102, name: "model_id", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
             { no: 103, name: "model_name", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
-            { no: 110, name: "max_attempts", kind: "scalar", opt: true, T: 5 /*ScalarType.INT32*/ },
+            { no: 110, name: "max_attempts", kind: "scalar", opt: true, T: 3 /*ScalarType.INT64*/, L: 0 /*LongType.BIGINT*/ },
             { no: 111, name: "retry_interval", kind: "message", T: () => Duration },
-            { no: 112, name: "backoff", kind: "scalar", opt: true, T: 2 /*ScalarType.FLOAT*/ }
+            { no: 112, name: "backoff", kind: "scalar", opt: true, T: 1 /*ScalarType.DOUBLE*/ }
         ]);
     }
     create(value?: PartialMessage<FlowEdgeData>): FlowEdgeData {
@@ -17403,14 +17426,14 @@ class FlowEdgeData$Type extends MessageType$<FlowEdgeData> {
                 case /* optional string model_name */ 103:
                     message.modelName = reader.string();
                     break;
-                case /* optional int32 max_attempts */ 110:
-                    message.maxAttempts = reader.int32();
+                case /* optional int64 max_attempts */ 110:
+                    message.maxAttempts = reader.int64().toBigInt();
                     break;
                 case /* optional google.protobuf.Duration retry_interval */ 111:
                     message.retryInterval = Duration.internalBinaryRead(reader, reader.uint32(), options, message.retryInterval);
                     break;
-                case /* optional float backoff */ 112:
-                    message.backoff = reader.float();
+                case /* optional double backoff */ 112:
+                    message.backoff = reader.double();
                     break;
                 default:
                     let u = options.readUnknownField;
@@ -17484,15 +17507,15 @@ class FlowEdgeData$Type extends MessageType$<FlowEdgeData> {
         /* optional string model_name = 103; */
         if (message.modelName !== undefined)
             writer.tag(103, WireType.LengthDelimited).string(message.modelName);
-        /* optional int32 max_attempts = 110; */
+        /* optional int64 max_attempts = 110; */
         if (message.maxAttempts !== undefined)
-            writer.tag(110, WireType.Varint).int32(message.maxAttempts);
+            writer.tag(110, WireType.Varint).int64(message.maxAttempts);
         /* optional google.protobuf.Duration retry_interval = 111; */
         if (message.retryInterval)
             Duration.internalBinaryWrite(message.retryInterval, writer.tag(111, WireType.LengthDelimited).fork(), options).join();
-        /* optional float backoff = 112; */
+        /* optional double backoff = 112; */
         if (message.backoff !== undefined)
-            writer.tag(112, WireType.Bit32).float(message.backoff);
+            writer.tag(112, WireType.Bit64).double(message.backoff);
         let u = options.writeUnknownFields;
         if (u !== false)
             (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
@@ -17888,11 +17911,11 @@ class FrameViewData$Type extends MessageType$<FrameViewData> {
             { no: 17055, name: "padding_variable", kind: "message", oneof: "padding", T: () => VariableData },
             { no: 56, name: "grid", kind: "message", T: () => GridData },
             { no: 57, name: "grid_span", kind: "message", T: () => GridSpanData },
-            { no: 58, name: "aspect_ratio", kind: "scalar", opt: true, T: 2 /*ScalarType.FLOAT*/ },
+            { no: 58, name: "aspect_ratio", kind: "scalar", opt: true, T: 1 /*ScalarType.DOUBLE*/ },
             { no: 59, name: "is_wrap", kind: "scalar", opt: true, T: 8 /*ScalarType.BOOL*/ },
             { no: 60, name: "is_visible_value", kind: "scalar", oneof: "isVisible", T: 8 /*ScalarType.BOOL*/ },
             { no: 17060, name: "is_visible_variable", kind: "message", oneof: "isVisible", T: () => VariableData },
-            { no: 61, name: "opacity_value", kind: "scalar", oneof: "opacity", T: 2 /*ScalarType.FLOAT*/ },
+            { no: 61, name: "opacity_value", kind: "scalar", oneof: "opacity", T: 1 /*ScalarType.DOUBLE*/ },
             { no: 17061, name: "opacity_variable", kind: "message", oneof: "opacity", T: () => VariableData },
             { no: 62, name: "fill_value", kind: "message", oneof: "fill", T: () => FillData },
             { no: 17062, name: "fill_variable", kind: "message", oneof: "fill", T: () => VariableData },
@@ -17900,7 +17923,7 @@ class FrameViewData$Type extends MessageType$<FrameViewData> {
             { no: 17063, name: "rotation_variable", kind: "message", oneof: "rotation", T: () => VariableData },
             { no: 64, name: "skew_value", kind: "message", oneof: "skew", T: () => Vector2Data },
             { no: 17064, name: "skew_variable", kind: "message", oneof: "skew", T: () => VariableData },
-            { no: 65, name: "scale_value", kind: "scalar", oneof: "scale", T: 2 /*ScalarType.FLOAT*/ },
+            { no: 65, name: "scale_value", kind: "scalar", oneof: "scale", T: 1 /*ScalarType.DOUBLE*/ },
             { no: 17065, name: "scale_variable", kind: "message", oneof: "scale", T: () => VariableData },
             { no: 66, name: "shadow_value", kind: "message", oneof: "shadow", T: () => ShadowData },
             { no: 17066, name: "shadow_variable", kind: "message", oneof: "shadow", T: () => VariableData },
@@ -18081,8 +18104,8 @@ class FrameViewData$Type extends MessageType$<FrameViewData> {
                 case /* optional symbol.bench.GridSpanData grid_span */ 57:
                     message.gridSpan = GridSpanData.internalBinaryRead(reader, reader.uint32(), options, message.gridSpan);
                     break;
-                case /* optional float aspect_ratio */ 58:
-                    message.aspectRatio = reader.float();
+                case /* optional double aspect_ratio */ 58:
+                    message.aspectRatio = reader.double();
                     break;
                 case /* optional bool is_wrap */ 59:
                     message.isWrap = reader.bool();
@@ -18099,10 +18122,10 @@ class FrameViewData$Type extends MessageType$<FrameViewData> {
                         isVisibleVariable: VariableData.internalBinaryRead(reader, reader.uint32(), options, (message.isVisible as any).isVisibleVariable)
                     };
                     break;
-                case /* float opacity_value */ 61:
+                case /* double opacity_value */ 61:
                     message.opacity = {
                         oneofKind: "opacityValue",
-                        opacityValue: reader.float()
+                        opacityValue: reader.double()
                     };
                     break;
                 case /* symbol.bench.VariableData opacity_variable */ 17061:
@@ -18147,10 +18170,10 @@ class FrameViewData$Type extends MessageType$<FrameViewData> {
                         skewVariable: VariableData.internalBinaryRead(reader, reader.uint32(), options, (message.skew as any).skewVariable)
                     };
                     break;
-                case /* float scale_value */ 65:
+                case /* double scale_value */ 65:
                     message.scale = {
                         oneofKind: "scaleValue",
-                        scaleValue: reader.float()
+                        scaleValue: reader.double()
                     };
                     break;
                 case /* symbol.bench.VariableData scale_variable */ 17065:
@@ -18318,9 +18341,9 @@ class FrameViewData$Type extends MessageType$<FrameViewData> {
         /* optional symbol.bench.GridSpanData grid_span = 57; */
         if (message.gridSpan)
             GridSpanData.internalBinaryWrite(message.gridSpan, writer.tag(57, WireType.LengthDelimited).fork(), options).join();
-        /* optional float aspect_ratio = 58; */
+        /* optional double aspect_ratio = 58; */
         if (message.aspectRatio !== undefined)
-            writer.tag(58, WireType.Bit32).float(message.aspectRatio);
+            writer.tag(58, WireType.Bit64).double(message.aspectRatio);
         /* optional bool is_wrap = 59; */
         if (message.isWrap !== undefined)
             writer.tag(59, WireType.Varint).bool(message.isWrap);
@@ -18330,9 +18353,9 @@ class FrameViewData$Type extends MessageType$<FrameViewData> {
         /* symbol.bench.VariableData is_visible_variable = 17060; */
         if (message.isVisible.oneofKind === "isVisibleVariable")
             VariableData.internalBinaryWrite(message.isVisible.isVisibleVariable, writer.tag(17060, WireType.LengthDelimited).fork(), options).join();
-        /* float opacity_value = 61; */
+        /* double opacity_value = 61; */
         if (message.opacity.oneofKind === "opacityValue")
-            writer.tag(61, WireType.Bit32).float(message.opacity.opacityValue);
+            writer.tag(61, WireType.Bit64).double(message.opacity.opacityValue);
         /* symbol.bench.VariableData opacity_variable = 17061; */
         if (message.opacity.oneofKind === "opacityVariable")
             VariableData.internalBinaryWrite(message.opacity.opacityVariable, writer.tag(17061, WireType.LengthDelimited).fork(), options).join();
@@ -18354,9 +18377,9 @@ class FrameViewData$Type extends MessageType$<FrameViewData> {
         /* symbol.bench.VariableData skew_variable = 17064; */
         if (message.skew.oneofKind === "skewVariable")
             VariableData.internalBinaryWrite(message.skew.skewVariable, writer.tag(17064, WireType.LengthDelimited).fork(), options).join();
-        /* float scale_value = 65; */
+        /* double scale_value = 65; */
         if (message.scale.oneofKind === "scaleValue")
-            writer.tag(65, WireType.Bit32).float(message.scale.scaleValue);
+            writer.tag(65, WireType.Bit64).double(message.scale.scaleValue);
         /* symbol.bench.VariableData scale_variable = 17065; */
         if (message.scale.oneofKind === "scaleVariable")
             VariableData.internalBinaryWrite(message.scale.scaleVariable, writer.tag(17065, WireType.LengthDelimited).fork(), options).join();
@@ -18464,7 +18487,7 @@ class GradientData$Type extends MessageType$<GradientData> {
             { no: 1, name: "metatype", kind: "enum", T: () => ["symbol.bench.StructType", StructType, "STRUCT_TYPE_"] },
             { no: 30, name: "type", kind: "enum", T: () => ["symbol.bench.GradientType", GradientType, "GRADIENT_TYPE_"] },
             { no: 40, name: "style_ptr", kind: "message", T: () => NodeReferenceData },
-            { no: 50, name: "angle", kind: "scalar", opt: true, T: 2 /*ScalarType.FLOAT*/ },
+            { no: 50, name: "angle", kind: "scalar", opt: true, T: 1 /*ScalarType.DOUBLE*/ },
             { no: 51, name: "stops", kind: "message", repeat: 1 /*RepeatType.PACKED*/, T: () => GradientStopData },
             { no: 52, name: "center_anchor", kind: "message", T: () => Axis2Data }
         ]);
@@ -18492,8 +18515,8 @@ class GradientData$Type extends MessageType$<GradientData> {
                 case /* optional symbol.bench.NodeReferenceData style_ptr */ 40:
                     message.stylePtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.stylePtr);
                     break;
-                case /* optional float angle */ 50:
-                    message.angle = reader.float();
+                case /* optional double angle */ 50:
+                    message.angle = reader.double();
                     break;
                 case /* repeated symbol.bench.GradientStopData stops */ 51:
                     message.stops.push(GradientStopData.internalBinaryRead(reader, reader.uint32(), options));
@@ -18522,9 +18545,9 @@ class GradientData$Type extends MessageType$<GradientData> {
         /* optional symbol.bench.NodeReferenceData style_ptr = 40; */
         if (message.stylePtr)
             NodeReferenceData.internalBinaryWrite(message.stylePtr, writer.tag(40, WireType.LengthDelimited).fork(), options).join();
-        /* optional float angle = 50; */
+        /* optional double angle = 50; */
         if (message.angle !== undefined)
-            writer.tag(50, WireType.Bit32).float(message.angle);
+            writer.tag(50, WireType.Bit64).double(message.angle);
         /* repeated symbol.bench.GradientStopData stops = 51; */
         for (let i = 0; i < message.stops.length; i++)
             GradientStopData.internalBinaryWrite(message.stops[i], writer.tag(51, WireType.LengthDelimited).fork(), options).join();
@@ -18547,7 +18570,7 @@ class GradientStopData$Type extends MessageType$<GradientStopData> {
         super("symbol.bench.GradientStopData", [
             { no: 1, name: "metatype", kind: "enum", T: () => ["symbol.bench.StructType", StructType, "STRUCT_TYPE_"] },
             { no: 50, name: "color", kind: "message", T: () => ColorData },
-            { no: 51, name: "position", kind: "scalar", T: 2 /*ScalarType.FLOAT*/ }
+            { no: 51, name: "position", kind: "scalar", T: 1 /*ScalarType.DOUBLE*/ }
         ]);
     }
     create(value?: PartialMessage<GradientStopData>): GradientStopData {
@@ -18569,8 +18592,8 @@ class GradientStopData$Type extends MessageType$<GradientStopData> {
                 case /* optional symbol.bench.ColorData color */ 50:
                     message.color = ColorData.internalBinaryRead(reader, reader.uint32(), options, message.color);
                     break;
-                case /* float position */ 51:
-                    message.position = reader.float();
+                case /* double position */ 51:
+                    message.position = reader.double();
                     break;
                 default:
                     let u = options.readUnknownField;
@@ -18590,9 +18613,9 @@ class GradientStopData$Type extends MessageType$<GradientStopData> {
         /* optional symbol.bench.ColorData color = 50; */
         if (message.color)
             ColorData.internalBinaryWrite(message.color, writer.tag(50, WireType.LengthDelimited).fork(), options).join();
-        /* float position = 51; */
+        /* double position = 51; */
         if (message.position !== 0)
-            writer.tag(51, WireType.Bit32).float(message.position);
+            writer.tag(51, WireType.Bit64).double(message.position);
         let u = options.writeUnknownFields;
         if (u !== false)
             (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
@@ -18625,7 +18648,7 @@ class GradientStyleData$Type extends MessageType$<GradientStyleData> {
             { no: 31, name: "name", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
             { no: 35, name: "definition_ptr", kind: "message", T: () => NodeReferenceData },
             { no: 40, name: "style_ptr", kind: "message", T: () => NodeReferenceData },
-            { no: 50, name: "angle", kind: "scalar", opt: true, T: 2 /*ScalarType.FLOAT*/ },
+            { no: 50, name: "angle", kind: "scalar", opt: true, T: 1 /*ScalarType.DOUBLE*/ },
             { no: 51, name: "stops", kind: "message", repeat: 1 /*RepeatType.PACKED*/, T: () => GradientStopData },
             { no: 52, name: "center_anchor", kind: "message", T: () => Axis2Data },
             { no: 60, name: "dark", kind: "message", T: () => GradientData }
@@ -18702,8 +18725,8 @@ class GradientStyleData$Type extends MessageType$<GradientStyleData> {
                 case /* optional symbol.bench.NodeReferenceData style_ptr */ 40:
                     message.stylePtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.stylePtr);
                     break;
-                case /* optional float angle */ 50:
-                    message.angle = reader.float();
+                case /* optional double angle */ 50:
+                    message.angle = reader.double();
                     break;
                 case /* repeated symbol.bench.GradientStopData stops */ 51:
                     message.stops.push(GradientStopData.internalBinaryRead(reader, reader.uint32(), options));
@@ -18780,9 +18803,9 @@ class GradientStyleData$Type extends MessageType$<GradientStyleData> {
         /* optional symbol.bench.NodeReferenceData style_ptr = 40; */
         if (message.stylePtr)
             NodeReferenceData.internalBinaryWrite(message.stylePtr, writer.tag(40, WireType.LengthDelimited).fork(), options).join();
-        /* optional float angle = 50; */
+        /* optional double angle = 50; */
         if (message.angle !== undefined)
-            writer.tag(50, WireType.Bit32).float(message.angle);
+            writer.tag(50, WireType.Bit64).double(message.angle);
         /* repeated symbol.bench.GradientStopData stops = 51; */
         for (let i = 0; i < message.stops.length; i++)
             GradientStopData.internalBinaryWrite(message.stops[i], writer.tag(51, WireType.LengthDelimited).fork(), options).join();
@@ -18807,8 +18830,8 @@ class GridData$Type extends MessageType$<GridData> {
     constructor() {
         super("symbol.bench.GridData", [
             { no: 1, name: "metatype", kind: "enum", T: () => ["symbol.bench.StructType", StructType, "STRUCT_TYPE_"] },
-            { no: 50, name: "columns", kind: "scalar", T: 5 /*ScalarType.INT32*/ },
-            { no: 51, name: "rows", kind: "scalar", T: 5 /*ScalarType.INT32*/ },
+            { no: 50, name: "columns", kind: "scalar", T: 3 /*ScalarType.INT64*/, L: 0 /*LongType.BIGINT*/ },
+            { no: 51, name: "rows", kind: "scalar", T: 3 /*ScalarType.INT64*/, L: 0 /*LongType.BIGINT*/ },
             { no: 52, name: "column_width", kind: "message", T: () => DimensionData },
             { no: 53, name: "column_min_width", kind: "message", T: () => DimensionData },
             { no: 54, name: "row_height", kind: "message", T: () => DimensionData }
@@ -18817,8 +18840,8 @@ class GridData$Type extends MessageType$<GridData> {
     create(value?: PartialMessage<GridData>): GridData {
         const message = globalThis.Object.create((this.messagePrototype!));
         message.metatype = 0;
-        message.columns = 0;
-        message.rows = 0;
+        message.columns = 0n;
+        message.rows = 0n;
         if (value !== undefined)
             reflectionMergePartial<GridData>(this, message, value);
         return message;
@@ -18831,11 +18854,11 @@ class GridData$Type extends MessageType$<GridData> {
                 case /* symbol.bench.StructType metatype */ 1:
                     message.metatype = reader.int32();
                     break;
-                case /* int32 columns */ 50:
-                    message.columns = reader.int32();
+                case /* int64 columns */ 50:
+                    message.columns = reader.int64().toBigInt();
                     break;
-                case /* int32 rows */ 51:
-                    message.rows = reader.int32();
+                case /* int64 rows */ 51:
+                    message.rows = reader.int64().toBigInt();
                     break;
                 case /* optional symbol.bench.DimensionData column_width */ 52:
                     message.columnWidth = DimensionData.internalBinaryRead(reader, reader.uint32(), options, message.columnWidth);
@@ -18861,12 +18884,12 @@ class GridData$Type extends MessageType$<GridData> {
         /* symbol.bench.StructType metatype = 1; */
         if (message.metatype !== 0)
             writer.tag(1, WireType.Varint).int32(message.metatype);
-        /* int32 columns = 50; */
-        if (message.columns !== 0)
-            writer.tag(50, WireType.Varint).int32(message.columns);
-        /* int32 rows = 51; */
-        if (message.rows !== 0)
-            writer.tag(51, WireType.Varint).int32(message.rows);
+        /* int64 columns = 50; */
+        if (message.columns !== 0n)
+            writer.tag(50, WireType.Varint).int64(message.columns);
+        /* int64 rows = 51; */
+        if (message.rows !== 0n)
+            writer.tag(51, WireType.Varint).int64(message.rows);
         /* optional symbol.bench.DimensionData column_width = 52; */
         if (message.columnWidth)
             DimensionData.internalBinaryWrite(message.columnWidth, writer.tag(52, WireType.LengthDelimited).fork(), options).join();
@@ -18891,15 +18914,15 @@ class GridSpanData$Type extends MessageType$<GridSpanData> {
     constructor() {
         super("symbol.bench.GridSpanData", [
             { no: 1, name: "metatype", kind: "enum", T: () => ["symbol.bench.StructType", StructType, "STRUCT_TYPE_"] },
-            { no: 50, name: "columns", kind: "scalar", T: 5 /*ScalarType.INT32*/ },
-            { no: 51, name: "rows", kind: "scalar", T: 5 /*ScalarType.INT32*/ }
+            { no: 50, name: "columns", kind: "scalar", T: 3 /*ScalarType.INT64*/, L: 0 /*LongType.BIGINT*/ },
+            { no: 51, name: "rows", kind: "scalar", T: 3 /*ScalarType.INT64*/, L: 0 /*LongType.BIGINT*/ }
         ]);
     }
     create(value?: PartialMessage<GridSpanData>): GridSpanData {
         const message = globalThis.Object.create((this.messagePrototype!));
         message.metatype = 0;
-        message.columns = 0;
-        message.rows = 0;
+        message.columns = 0n;
+        message.rows = 0n;
         if (value !== undefined)
             reflectionMergePartial<GridSpanData>(this, message, value);
         return message;
@@ -18912,11 +18935,11 @@ class GridSpanData$Type extends MessageType$<GridSpanData> {
                 case /* symbol.bench.StructType metatype */ 1:
                     message.metatype = reader.int32();
                     break;
-                case /* int32 columns */ 50:
-                    message.columns = reader.int32();
+                case /* int64 columns */ 50:
+                    message.columns = reader.int64().toBigInt();
                     break;
-                case /* int32 rows */ 51:
-                    message.rows = reader.int32();
+                case /* int64 rows */ 51:
+                    message.rows = reader.int64().toBigInt();
                     break;
                 default:
                     let u = options.readUnknownField;
@@ -18933,12 +18956,12 @@ class GridSpanData$Type extends MessageType$<GridSpanData> {
         /* symbol.bench.StructType metatype = 1; */
         if (message.metatype !== 0)
             writer.tag(1, WireType.Varint).int32(message.metatype);
-        /* int32 columns = 50; */
-        if (message.columns !== 0)
-            writer.tag(50, WireType.Varint).int32(message.columns);
-        /* int32 rows = 51; */
-        if (message.rows !== 0)
-            writer.tag(51, WireType.Varint).int32(message.rows);
+        /* int64 columns = 50; */
+        if (message.columns !== 0n)
+            writer.tag(50, WireType.Varint).int64(message.columns);
+        /* int64 rows = 51; */
+        if (message.rows !== 0n)
+            writer.tag(51, WireType.Varint).int64(message.rows);
         let u = options.writeUnknownFields;
         if (u !== false)
             (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
@@ -19156,11 +19179,11 @@ class InsetsData$Type extends MessageType$<InsetsData> {
     constructor() {
         super("symbol.bench.InsetsData", [
             { no: 1, name: "metatype", kind: "enum", T: () => ["symbol.bench.StructType", StructType, "STRUCT_TYPE_"] },
-            { no: 50, name: "base", kind: "scalar", opt: true, T: 5 /*ScalarType.INT32*/ },
-            { no: 51, name: "top", kind: "scalar", opt: true, T: 5 /*ScalarType.INT32*/ },
-            { no: 52, name: "left", kind: "scalar", opt: true, T: 5 /*ScalarType.INT32*/ },
-            { no: 53, name: "right", kind: "scalar", opt: true, T: 5 /*ScalarType.INT32*/ },
-            { no: 54, name: "bottom", kind: "scalar", opt: true, T: 5 /*ScalarType.INT32*/ }
+            { no: 50, name: "base", kind: "scalar", opt: true, T: 3 /*ScalarType.INT64*/, L: 0 /*LongType.BIGINT*/ },
+            { no: 51, name: "top", kind: "scalar", opt: true, T: 3 /*ScalarType.INT64*/, L: 0 /*LongType.BIGINT*/ },
+            { no: 52, name: "left", kind: "scalar", opt: true, T: 3 /*ScalarType.INT64*/, L: 0 /*LongType.BIGINT*/ },
+            { no: 53, name: "right", kind: "scalar", opt: true, T: 3 /*ScalarType.INT64*/, L: 0 /*LongType.BIGINT*/ },
+            { no: 54, name: "bottom", kind: "scalar", opt: true, T: 3 /*ScalarType.INT64*/, L: 0 /*LongType.BIGINT*/ }
         ]);
     }
     create(value?: PartialMessage<InsetsData>): InsetsData {
@@ -19178,20 +19201,20 @@ class InsetsData$Type extends MessageType$<InsetsData> {
                 case /* symbol.bench.StructType metatype */ 1:
                     message.metatype = reader.int32();
                     break;
-                case /* optional int32 base */ 50:
-                    message.base = reader.int32();
+                case /* optional int64 base */ 50:
+                    message.base = reader.int64().toBigInt();
                     break;
-                case /* optional int32 top */ 51:
-                    message.top = reader.int32();
+                case /* optional int64 top */ 51:
+                    message.top = reader.int64().toBigInt();
                     break;
-                case /* optional int32 left */ 52:
-                    message.left = reader.int32();
+                case /* optional int64 left */ 52:
+                    message.left = reader.int64().toBigInt();
                     break;
-                case /* optional int32 right */ 53:
-                    message.right = reader.int32();
+                case /* optional int64 right */ 53:
+                    message.right = reader.int64().toBigInt();
                     break;
-                case /* optional int32 bottom */ 54:
-                    message.bottom = reader.int32();
+                case /* optional int64 bottom */ 54:
+                    message.bottom = reader.int64().toBigInt();
                     break;
                 default:
                     let u = options.readUnknownField;
@@ -19208,21 +19231,21 @@ class InsetsData$Type extends MessageType$<InsetsData> {
         /* symbol.bench.StructType metatype = 1; */
         if (message.metatype !== 0)
             writer.tag(1, WireType.Varint).int32(message.metatype);
-        /* optional int32 base = 50; */
+        /* optional int64 base = 50; */
         if (message.base !== undefined)
-            writer.tag(50, WireType.Varint).int32(message.base);
-        /* optional int32 top = 51; */
+            writer.tag(50, WireType.Varint).int64(message.base);
+        /* optional int64 top = 51; */
         if (message.top !== undefined)
-            writer.tag(51, WireType.Varint).int32(message.top);
-        /* optional int32 left = 52; */
+            writer.tag(51, WireType.Varint).int64(message.top);
+        /* optional int64 left = 52; */
         if (message.left !== undefined)
-            writer.tag(52, WireType.Varint).int32(message.left);
-        /* optional int32 right = 53; */
+            writer.tag(52, WireType.Varint).int64(message.left);
+        /* optional int64 right = 53; */
         if (message.right !== undefined)
-            writer.tag(53, WireType.Varint).int32(message.right);
-        /* optional int32 bottom = 54; */
+            writer.tag(53, WireType.Varint).int64(message.right);
+        /* optional int64 bottom = 54; */
         if (message.bottom !== undefined)
-            writer.tag(54, WireType.Varint).int32(message.bottom);
+            writer.tag(54, WireType.Varint).int64(message.bottom);
         let u = options.writeUnknownFields;
         if (u !== false)
             (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
@@ -19535,11 +19558,11 @@ class LabelViewData$Type extends MessageType$<LabelViewData> {
             { no: 17055, name: "padding_variable", kind: "message", oneof: "padding", T: () => VariableData },
             { no: 56, name: "grid", kind: "message", T: () => GridData },
             { no: 57, name: "grid_span", kind: "message", T: () => GridSpanData },
-            { no: 58, name: "aspect_ratio", kind: "scalar", opt: true, T: 2 /*ScalarType.FLOAT*/ },
+            { no: 58, name: "aspect_ratio", kind: "scalar", opt: true, T: 1 /*ScalarType.DOUBLE*/ },
             { no: 59, name: "is_wrap", kind: "scalar", opt: true, T: 8 /*ScalarType.BOOL*/ },
             { no: 60, name: "is_visible_value", kind: "scalar", oneof: "isVisible", T: 8 /*ScalarType.BOOL*/ },
             { no: 17060, name: "is_visible_variable", kind: "message", oneof: "isVisible", T: () => VariableData },
-            { no: 61, name: "opacity_value", kind: "scalar", oneof: "opacity", T: 2 /*ScalarType.FLOAT*/ },
+            { no: 61, name: "opacity_value", kind: "scalar", oneof: "opacity", T: 1 /*ScalarType.DOUBLE*/ },
             { no: 17061, name: "opacity_variable", kind: "message", oneof: "opacity", T: () => VariableData },
             { no: 62, name: "fill_value", kind: "message", oneof: "fill", T: () => FillData },
             { no: 17062, name: "fill_variable", kind: "message", oneof: "fill", T: () => VariableData },
@@ -19547,7 +19570,7 @@ class LabelViewData$Type extends MessageType$<LabelViewData> {
             { no: 17063, name: "rotation_variable", kind: "message", oneof: "rotation", T: () => VariableData },
             { no: 64, name: "skew_value", kind: "message", oneof: "skew", T: () => Vector2Data },
             { no: 17064, name: "skew_variable", kind: "message", oneof: "skew", T: () => VariableData },
-            { no: 65, name: "scale_value", kind: "scalar", oneof: "scale", T: 2 /*ScalarType.FLOAT*/ },
+            { no: 65, name: "scale_value", kind: "scalar", oneof: "scale", T: 1 /*ScalarType.DOUBLE*/ },
             { no: 17065, name: "scale_variable", kind: "message", oneof: "scale", T: () => VariableData },
             { no: 66, name: "shadow_value", kind: "message", oneof: "shadow", T: () => ShadowData },
             { no: 17066, name: "shadow_variable", kind: "message", oneof: "shadow", T: () => VariableData },
@@ -19728,8 +19751,8 @@ class LabelViewData$Type extends MessageType$<LabelViewData> {
                 case /* optional symbol.bench.GridSpanData grid_span */ 57:
                     message.gridSpan = GridSpanData.internalBinaryRead(reader, reader.uint32(), options, message.gridSpan);
                     break;
-                case /* optional float aspect_ratio */ 58:
-                    message.aspectRatio = reader.float();
+                case /* optional double aspect_ratio */ 58:
+                    message.aspectRatio = reader.double();
                     break;
                 case /* optional bool is_wrap */ 59:
                     message.isWrap = reader.bool();
@@ -19746,10 +19769,10 @@ class LabelViewData$Type extends MessageType$<LabelViewData> {
                         isVisibleVariable: VariableData.internalBinaryRead(reader, reader.uint32(), options, (message.isVisible as any).isVisibleVariable)
                     };
                     break;
-                case /* float opacity_value */ 61:
+                case /* double opacity_value */ 61:
                     message.opacity = {
                         oneofKind: "opacityValue",
-                        opacityValue: reader.float()
+                        opacityValue: reader.double()
                     };
                     break;
                 case /* symbol.bench.VariableData opacity_variable */ 17061:
@@ -19794,10 +19817,10 @@ class LabelViewData$Type extends MessageType$<LabelViewData> {
                         skewVariable: VariableData.internalBinaryRead(reader, reader.uint32(), options, (message.skew as any).skewVariable)
                     };
                     break;
-                case /* float scale_value */ 65:
+                case /* double scale_value */ 65:
                     message.scale = {
                         oneofKind: "scaleValue",
-                        scaleValue: reader.float()
+                        scaleValue: reader.double()
                     };
                     break;
                 case /* symbol.bench.VariableData scale_variable */ 17065:
@@ -19965,9 +19988,9 @@ class LabelViewData$Type extends MessageType$<LabelViewData> {
         /* optional symbol.bench.GridSpanData grid_span = 57; */
         if (message.gridSpan)
             GridSpanData.internalBinaryWrite(message.gridSpan, writer.tag(57, WireType.LengthDelimited).fork(), options).join();
-        /* optional float aspect_ratio = 58; */
+        /* optional double aspect_ratio = 58; */
         if (message.aspectRatio !== undefined)
-            writer.tag(58, WireType.Bit32).float(message.aspectRatio);
+            writer.tag(58, WireType.Bit64).double(message.aspectRatio);
         /* optional bool is_wrap = 59; */
         if (message.isWrap !== undefined)
             writer.tag(59, WireType.Varint).bool(message.isWrap);
@@ -19977,9 +20000,9 @@ class LabelViewData$Type extends MessageType$<LabelViewData> {
         /* symbol.bench.VariableData is_visible_variable = 17060; */
         if (message.isVisible.oneofKind === "isVisibleVariable")
             VariableData.internalBinaryWrite(message.isVisible.isVisibleVariable, writer.tag(17060, WireType.LengthDelimited).fork(), options).join();
-        /* float opacity_value = 61; */
+        /* double opacity_value = 61; */
         if (message.opacity.oneofKind === "opacityValue")
-            writer.tag(61, WireType.Bit32).float(message.opacity.opacityValue);
+            writer.tag(61, WireType.Bit64).double(message.opacity.opacityValue);
         /* symbol.bench.VariableData opacity_variable = 17061; */
         if (message.opacity.oneofKind === "opacityVariable")
             VariableData.internalBinaryWrite(message.opacity.opacityVariable, writer.tag(17061, WireType.LengthDelimited).fork(), options).join();
@@ -20001,9 +20024,9 @@ class LabelViewData$Type extends MessageType$<LabelViewData> {
         /* symbol.bench.VariableData skew_variable = 17064; */
         if (message.skew.oneofKind === "skewVariable")
             VariableData.internalBinaryWrite(message.skew.skewVariable, writer.tag(17064, WireType.LengthDelimited).fork(), options).join();
-        /* float scale_value = 65; */
+        /* double scale_value = 65; */
         if (message.scale.oneofKind === "scaleValue")
-            writer.tag(65, WireType.Bit32).float(message.scale.scaleValue);
+            writer.tag(65, WireType.Bit64).double(message.scale.scaleValue);
         /* symbol.bench.VariableData scale_variable = 17065; */
         if (message.scale.oneofKind === "scaleVariable")
             VariableData.internalBinaryWrite(message.scale.scaleVariable, writer.tag(17065, WireType.LengthDelimited).fork(), options).join();
@@ -20041,7 +20064,7 @@ class LengthData$Type extends MessageType$<LengthData> {
         super("symbol.bench.LengthData", [
             { no: 1, name: "metatype", kind: "enum", T: () => ["symbol.bench.StructType", StructType, "STRUCT_TYPE_"] },
             { no: 50, name: "unit", kind: "enum", T: () => ["symbol.bench.LengthUnit", LengthUnit, "LENGTH_UNIT_"] },
-            { no: 51, name: "value", kind: "scalar", T: 2 /*ScalarType.FLOAT*/ }
+            { no: 51, name: "value", kind: "scalar", T: 1 /*ScalarType.DOUBLE*/ }
         ]);
     }
     create(value?: PartialMessage<LengthData>): LengthData {
@@ -20064,8 +20087,8 @@ class LengthData$Type extends MessageType$<LengthData> {
                 case /* symbol.bench.LengthUnit unit */ 50:
                     message.unit = reader.int32();
                     break;
-                case /* float value */ 51:
-                    message.value = reader.float();
+                case /* double value */ 51:
+                    message.value = reader.double();
                     break;
                 default:
                     let u = options.readUnknownField;
@@ -20085,9 +20108,9 @@ class LengthData$Type extends MessageType$<LengthData> {
         /* symbol.bench.LengthUnit unit = 50; */
         if (message.unit !== 0)
             writer.tag(50, WireType.Varint).int32(message.unit);
-        /* float value = 51; */
+        /* double value = 51; */
         if (message.value !== 0)
-            writer.tag(51, WireType.Bit32).float(message.value);
+            writer.tag(51, WireType.Bit64).double(message.value);
         let u = options.writeUnknownFields;
         if (u !== false)
             (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
@@ -20125,8 +20148,8 @@ class LinkData$Type extends MessageType$<LinkData> {
             { no: 52, name: "content_url", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
             { no: 53, name: "thumbnail_url", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
             { no: 54, name: "favicon_url", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
-            { no: 55, name: "thumbnail_width", kind: "scalar", opt: true, T: 5 /*ScalarType.INT32*/ },
-            { no: 56, name: "thumbnail_height", kind: "scalar", opt: true, T: 5 /*ScalarType.INT32*/ },
+            { no: 55, name: "thumbnail_width", kind: "scalar", opt: true, T: 3 /*ScalarType.INT64*/, L: 0 /*LongType.BIGINT*/ },
+            { no: 56, name: "thumbnail_height", kind: "scalar", opt: true, T: 3 /*ScalarType.INT64*/, L: 0 /*LongType.BIGINT*/ },
             { no: 60, name: "content", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
             { no: 62, name: "attribution", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
             { no: 63, name: "attribution_tag", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
@@ -20222,11 +20245,11 @@ class LinkData$Type extends MessageType$<LinkData> {
                 case /* optional string favicon_url */ 54:
                     message.faviconUrl = reader.string();
                     break;
-                case /* optional int32 thumbnail_width */ 55:
-                    message.thumbnailWidth = reader.int32();
+                case /* optional int64 thumbnail_width */ 55:
+                    message.thumbnailWidth = reader.int64().toBigInt();
                     break;
-                case /* optional int32 thumbnail_height */ 56:
-                    message.thumbnailHeight = reader.int32();
+                case /* optional int64 thumbnail_height */ 56:
+                    message.thumbnailHeight = reader.int64().toBigInt();
                     break;
                 case /* optional string content */ 60:
                     message.content = reader.string();
@@ -20327,12 +20350,12 @@ class LinkData$Type extends MessageType$<LinkData> {
         /* optional string favicon_url = 54; */
         if (message.faviconUrl !== undefined)
             writer.tag(54, WireType.LengthDelimited).string(message.faviconUrl);
-        /* optional int32 thumbnail_width = 55; */
+        /* optional int64 thumbnail_width = 55; */
         if (message.thumbnailWidth !== undefined)
-            writer.tag(55, WireType.Varint).int32(message.thumbnailWidth);
-        /* optional int32 thumbnail_height = 56; */
+            writer.tag(55, WireType.Varint).int64(message.thumbnailWidth);
+        /* optional int64 thumbnail_height = 56; */
         if (message.thumbnailHeight !== undefined)
-            writer.tag(56, WireType.Varint).int32(message.thumbnailHeight);
+            writer.tag(56, WireType.Varint).int64(message.thumbnailHeight);
         /* optional string content = 60; */
         if (message.content !== undefined)
             writer.tag(60, WireType.LengthDelimited).string(message.content);
@@ -20390,7 +20413,7 @@ class MachineData$Type extends MessageType$<MachineData> {
             { no: 45, name: "requested_decommission_at", kind: "message", T: () => Timestamp },
             { no: 46, name: "active_at", kind: "message", T: () => Timestamp },
             { no: 47, name: "failed_at", kind: "message", T: () => Timestamp },
-            { no: 48, name: "failed_attempts", kind: "scalar", T: 5 /*ScalarType.INT32*/ },
+            { no: 48, name: "failed_attempts", kind: "scalar", T: 3 /*ScalarType.INT64*/, L: 0 /*LongType.BIGINT*/ },
             { no: 60, name: "version", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
             { no: 62, name: "external_name", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
             { no: 63, name: "external_id", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
@@ -20398,10 +20421,10 @@ class MachineData$Type extends MessageType$<MachineData> {
             { no: 65, name: "grpc_url", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
             { no: 66, name: "vnc_url", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
             { no: 69, name: "client_ptr", kind: "message", T: () => NodeReferenceData },
-            { no: 70, name: "cpu", kind: "scalar", T: 2 /*ScalarType.FLOAT*/ },
-            { no: 71, name: "ram", kind: "scalar", T: 2 /*ScalarType.FLOAT*/ },
-            { no: 75, name: "width", kind: "scalar", T: 5 /*ScalarType.INT32*/ },
-            { no: 76, name: "height", kind: "scalar", T: 5 /*ScalarType.INT32*/ },
+            { no: 70, name: "cpu", kind: "scalar", T: 1 /*ScalarType.DOUBLE*/ },
+            { no: 71, name: "ram", kind: "scalar", T: 1 /*ScalarType.DOUBLE*/ },
+            { no: 75, name: "width", kind: "scalar", T: 3 /*ScalarType.INT64*/, L: 0 /*LongType.BIGINT*/ },
+            { no: 76, name: "height", kind: "scalar", T: 3 /*ScalarType.INT64*/, L: 0 /*LongType.BIGINT*/ },
             { no: 77, name: "is_headless", kind: "scalar", T: 8 /*ScalarType.BOOL*/ }
         ]);
     }
@@ -20414,12 +20437,12 @@ class MachineData$Type extends MessageType$<MachineData> {
         message.type = 0;
         message.name = "";
         message.status = 0;
-        message.failedAttempts = 0;
+        message.failedAttempts = 0n;
         message.version = "";
         message.cpu = 0;
         message.ram = 0;
-        message.width = 0;
-        message.height = 0;
+        message.width = 0n;
+        message.height = 0n;
         message.isHeadless = false;
         if (value !== undefined)
             reflectionMergePartial<MachineData>(this, message, value);
@@ -20505,8 +20528,8 @@ class MachineData$Type extends MessageType$<MachineData> {
                 case /* optional google.protobuf.Timestamp failed_at */ 47:
                     message.failedAt = Timestamp.internalBinaryRead(reader, reader.uint32(), options, message.failedAt);
                     break;
-                case /* int32 failed_attempts */ 48:
-                    message.failedAttempts = reader.int32();
+                case /* int64 failed_attempts */ 48:
+                    message.failedAttempts = reader.int64().toBigInt();
                     break;
                 case /* string version */ 60:
                     message.version = reader.string();
@@ -20529,17 +20552,17 @@ class MachineData$Type extends MessageType$<MachineData> {
                 case /* optional symbol.bench.NodeReferenceData client_ptr */ 69:
                     message.clientPtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.clientPtr);
                     break;
-                case /* float cpu */ 70:
-                    message.cpu = reader.float();
+                case /* double cpu */ 70:
+                    message.cpu = reader.double();
                     break;
-                case /* float ram */ 71:
-                    message.ram = reader.float();
+                case /* double ram */ 71:
+                    message.ram = reader.double();
                     break;
-                case /* int32 width */ 75:
-                    message.width = reader.int32();
+                case /* int64 width */ 75:
+                    message.width = reader.int64().toBigInt();
                     break;
-                case /* int32 height */ 76:
-                    message.height = reader.int32();
+                case /* int64 height */ 76:
+                    message.height = reader.int64().toBigInt();
                     break;
                 case /* bool is_headless */ 77:
                     message.isHeadless = reader.bool();
@@ -20631,9 +20654,9 @@ class MachineData$Type extends MessageType$<MachineData> {
         /* optional google.protobuf.Timestamp failed_at = 47; */
         if (message.failedAt)
             Timestamp.internalBinaryWrite(message.failedAt, writer.tag(47, WireType.LengthDelimited).fork(), options).join();
-        /* int32 failed_attempts = 48; */
-        if (message.failedAttempts !== 0)
-            writer.tag(48, WireType.Varint).int32(message.failedAttempts);
+        /* int64 failed_attempts = 48; */
+        if (message.failedAttempts !== 0n)
+            writer.tag(48, WireType.Varint).int64(message.failedAttempts);
         /* string version = 60; */
         if (message.version !== "")
             writer.tag(60, WireType.LengthDelimited).string(message.version);
@@ -20655,18 +20678,18 @@ class MachineData$Type extends MessageType$<MachineData> {
         /* optional symbol.bench.NodeReferenceData client_ptr = 69; */
         if (message.clientPtr)
             NodeReferenceData.internalBinaryWrite(message.clientPtr, writer.tag(69, WireType.LengthDelimited).fork(), options).join();
-        /* float cpu = 70; */
+        /* double cpu = 70; */
         if (message.cpu !== 0)
-            writer.tag(70, WireType.Bit32).float(message.cpu);
-        /* float ram = 71; */
+            writer.tag(70, WireType.Bit64).double(message.cpu);
+        /* double ram = 71; */
         if (message.ram !== 0)
-            writer.tag(71, WireType.Bit32).float(message.ram);
-        /* int32 width = 75; */
-        if (message.width !== 0)
-            writer.tag(75, WireType.Varint).int32(message.width);
-        /* int32 height = 76; */
-        if (message.height !== 0)
-            writer.tag(76, WireType.Varint).int32(message.height);
+            writer.tag(71, WireType.Bit64).double(message.ram);
+        /* int64 width = 75; */
+        if (message.width !== 0n)
+            writer.tag(75, WireType.Varint).int64(message.width);
+        /* int64 height = 76; */
+        if (message.height !== 0n)
+            writer.tag(76, WireType.Varint).int64(message.height);
         /* bool is_headless = 77; */
         if (message.isHeadless !== false)
             writer.tag(77, WireType.Varint).bool(message.isHeadless);
@@ -21060,11 +21083,11 @@ class NumberConstraintData$Type extends MessageType$<NumberConstraintData> {
         super("symbol.bench.NumberConstraintData", [
             { no: 1, name: "metatype", kind: "enum", T: () => ["symbol.bench.StructType", StructType, "STRUCT_TYPE_"] },
             { no: 40, name: "format", kind: "enum", opt: true, T: () => ["symbol.bench.NumberFormat", NumberFormat, "NUMBER_FORMAT_"] },
-            { no: 41, name: "min_value", kind: "scalar", opt: true, T: 2 /*ScalarType.FLOAT*/ },
-            { no: 42, name: "max_value", kind: "scalar", opt: true, T: 2 /*ScalarType.FLOAT*/ },
-            { no: 43, name: "step_value", kind: "scalar", opt: true, T: 2 /*ScalarType.FLOAT*/ },
-            { no: 44, name: "precision", kind: "scalar", opt: true, T: 5 /*ScalarType.INT32*/ },
-            { no: 45, name: "scale", kind: "scalar", opt: true, T: 5 /*ScalarType.INT32*/ }
+            { no: 41, name: "min_value", kind: "scalar", opt: true, T: 1 /*ScalarType.DOUBLE*/ },
+            { no: 42, name: "max_value", kind: "scalar", opt: true, T: 1 /*ScalarType.DOUBLE*/ },
+            { no: 43, name: "step_value", kind: "scalar", opt: true, T: 1 /*ScalarType.DOUBLE*/ },
+            { no: 44, name: "precision", kind: "scalar", opt: true, T: 3 /*ScalarType.INT64*/, L: 0 /*LongType.BIGINT*/ },
+            { no: 45, name: "scale", kind: "scalar", opt: true, T: 3 /*ScalarType.INT64*/, L: 0 /*LongType.BIGINT*/ }
         ]);
     }
     create(value?: PartialMessage<NumberConstraintData>): NumberConstraintData {
@@ -21085,20 +21108,20 @@ class NumberConstraintData$Type extends MessageType$<NumberConstraintData> {
                 case /* optional symbol.bench.NumberFormat format */ 40:
                     message.format = reader.int32();
                     break;
-                case /* optional float min_value */ 41:
-                    message.minValue = reader.float();
+                case /* optional double min_value */ 41:
+                    message.minValue = reader.double();
                     break;
-                case /* optional float max_value */ 42:
-                    message.maxValue = reader.float();
+                case /* optional double max_value */ 42:
+                    message.maxValue = reader.double();
                     break;
-                case /* optional float step_value */ 43:
-                    message.stepValue = reader.float();
+                case /* optional double step_value */ 43:
+                    message.stepValue = reader.double();
                     break;
-                case /* optional int32 precision */ 44:
-                    message.precision = reader.int32();
+                case /* optional int64 precision */ 44:
+                    message.precision = reader.int64().toBigInt();
                     break;
-                case /* optional int32 scale */ 45:
-                    message.scale = reader.int32();
+                case /* optional int64 scale */ 45:
+                    message.scale = reader.int64().toBigInt();
                     break;
                 default:
                     let u = options.readUnknownField;
@@ -21118,21 +21141,21 @@ class NumberConstraintData$Type extends MessageType$<NumberConstraintData> {
         /* optional symbol.bench.NumberFormat format = 40; */
         if (message.format !== undefined)
             writer.tag(40, WireType.Varint).int32(message.format);
-        /* optional float min_value = 41; */
+        /* optional double min_value = 41; */
         if (message.minValue !== undefined)
-            writer.tag(41, WireType.Bit32).float(message.minValue);
-        /* optional float max_value = 42; */
+            writer.tag(41, WireType.Bit64).double(message.minValue);
+        /* optional double max_value = 42; */
         if (message.maxValue !== undefined)
-            writer.tag(42, WireType.Bit32).float(message.maxValue);
-        /* optional float step_value = 43; */
+            writer.tag(42, WireType.Bit64).double(message.maxValue);
+        /* optional double step_value = 43; */
         if (message.stepValue !== undefined)
-            writer.tag(43, WireType.Bit32).float(message.stepValue);
-        /* optional int32 precision = 44; */
+            writer.tag(43, WireType.Bit64).double(message.stepValue);
+        /* optional int64 precision = 44; */
         if (message.precision !== undefined)
-            writer.tag(44, WireType.Varint).int32(message.precision);
-        /* optional int32 scale = 45; */
+            writer.tag(44, WireType.Varint).int64(message.precision);
+        /* optional int64 scale = 45; */
         if (message.scale !== undefined)
-            writer.tag(45, WireType.Varint).int32(message.scale);
+            writer.tag(45, WireType.Varint).int64(message.scale);
         let u = options.writeUnknownFields;
         if (u !== false)
             (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
@@ -21173,7 +21196,7 @@ class NumberInputViewData$Type extends MessageType$<NumberInputViewData> {
             { no: 46, name: "max_height", kind: "message", T: () => DimensionData },
             { no: 60, name: "is_visible_value", kind: "scalar", oneof: "isVisible", T: 8 /*ScalarType.BOOL*/ },
             { no: 17060, name: "is_visible_variable", kind: "message", oneof: "isVisible", T: () => VariableData },
-            { no: 61, name: "opacity_value", kind: "scalar", oneof: "opacity", T: 2 /*ScalarType.FLOAT*/ },
+            { no: 61, name: "opacity_value", kind: "scalar", oneof: "opacity", T: 1 /*ScalarType.DOUBLE*/ },
             { no: 17061, name: "opacity_variable", kind: "message", oneof: "opacity", T: () => VariableData },
             { no: 100, name: "value", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
             { no: 101, name: "placeholder", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ }
@@ -21281,10 +21304,10 @@ class NumberInputViewData$Type extends MessageType$<NumberInputViewData> {
                         isVisibleVariable: VariableData.internalBinaryRead(reader, reader.uint32(), options, (message.isVisible as any).isVisibleVariable)
                     };
                     break;
-                case /* float opacity_value */ 61:
+                case /* double opacity_value */ 61:
                     message.opacity = {
                         oneofKind: "opacityValue",
-                        opacityValue: reader.float()
+                        opacityValue: reader.double()
                     };
                     break;
                 case /* symbol.bench.VariableData opacity_variable */ 17061:
@@ -21389,9 +21412,9 @@ class NumberInputViewData$Type extends MessageType$<NumberInputViewData> {
         /* symbol.bench.VariableData is_visible_variable = 17060; */
         if (message.isVisible.oneofKind === "isVisibleVariable")
             VariableData.internalBinaryWrite(message.isVisible.isVisibleVariable, writer.tag(17060, WireType.LengthDelimited).fork(), options).join();
-        /* float opacity_value = 61; */
+        /* double opacity_value = 61; */
         if (message.opacity.oneofKind === "opacityValue")
-            writer.tag(61, WireType.Bit32).float(message.opacity.opacityValue);
+            writer.tag(61, WireType.Bit64).double(message.opacity.opacityValue);
         /* symbol.bench.VariableData opacity_variable = 17061; */
         if (message.opacity.oneofKind === "opacityVariable")
             VariableData.internalBinaryWrite(message.opacity.opacityVariable, writer.tag(17061, WireType.LengthDelimited).fork(), options).join();
@@ -21566,6 +21589,7 @@ class OrganizationInviteData$Type extends MessageType$<OrganizationInviteData> {
             { no: 12, name: "updated_at", kind: "message", T: () => Timestamp },
             { no: 13, name: "updated_by_ptr", kind: "message", T: () => NodeReferenceData },
             { no: 15, name: "deleted_at", kind: "message", T: () => Timestamp },
+            { no: 40, name: "member_ptr", kind: "message", T: () => NodeReferenceData },
             { no: 45, name: "role", kind: "enum", T: () => ["symbol.bench.OrganizationRoleType", OrganizationRoleType, "ORGANIZATION_ROLE_TYPE_"] }
         ]);
     }
@@ -21607,6 +21631,9 @@ class OrganizationInviteData$Type extends MessageType$<OrganizationInviteData> {
                 case /* optional google.protobuf.Timestamp deleted_at */ 15:
                     message.deletedAt = Timestamp.internalBinaryRead(reader, reader.uint32(), options, message.deletedAt);
                     break;
+                case /* symbol.bench.NodeReferenceData member_ptr */ 40:
+                    message.memberPtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.memberPtr);
+                    break;
                 case /* symbol.bench.OrganizationRoleType role */ 45:
                     message.role = reader.int32();
                     break;
@@ -21646,6 +21673,9 @@ class OrganizationInviteData$Type extends MessageType$<OrganizationInviteData> {
         /* optional google.protobuf.Timestamp deleted_at = 15; */
         if (message.deletedAt)
             Timestamp.internalBinaryWrite(message.deletedAt, writer.tag(15, WireType.LengthDelimited).fork(), options).join();
+        /* symbol.bench.NodeReferenceData member_ptr = 40; */
+        if (message.memberPtr)
+            NodeReferenceData.internalBinaryWrite(message.memberPtr, writer.tag(40, WireType.LengthDelimited).fork(), options).join();
         /* symbol.bench.OrganizationRoleType role = 45; */
         if (message.role !== 0)
             writer.tag(45, WireType.Varint).int32(message.role);
@@ -22046,6 +22076,7 @@ class PackageInviteData$Type extends MessageType$<PackageInviteData> {
             { no: 12, name: "updated_at", kind: "message", T: () => Timestamp },
             { no: 13, name: "updated_by_ptr", kind: "message", T: () => NodeReferenceData },
             { no: 15, name: "deleted_at", kind: "message", T: () => Timestamp },
+            { no: 40, name: "member_ptr", kind: "message", T: () => NodeReferenceData },
             { no: 45, name: "role", kind: "enum", T: () => ["symbol.bench.PackageRoleType", PackageRoleType, "PACKAGE_ROLE_TYPE_"] }
         ]);
     }
@@ -22093,6 +22124,9 @@ class PackageInviteData$Type extends MessageType$<PackageInviteData> {
                 case /* optional google.protobuf.Timestamp deleted_at */ 15:
                     message.deletedAt = Timestamp.internalBinaryRead(reader, reader.uint32(), options, message.deletedAt);
                     break;
+                case /* symbol.bench.NodeReferenceData member_ptr */ 40:
+                    message.memberPtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.memberPtr);
+                    break;
                 case /* symbol.bench.PackageRoleType role */ 45:
                     message.role = reader.int32();
                     break;
@@ -22138,6 +22172,9 @@ class PackageInviteData$Type extends MessageType$<PackageInviteData> {
         /* optional google.protobuf.Timestamp deleted_at = 15; */
         if (message.deletedAt)
             Timestamp.internalBinaryWrite(message.deletedAt, writer.tag(15, WireType.LengthDelimited).fork(), options).join();
+        /* symbol.bench.NodeReferenceData member_ptr = 40; */
+        if (message.memberPtr)
+            NodeReferenceData.internalBinaryWrite(message.memberPtr, writer.tag(40, WireType.LengthDelimited).fork(), options).join();
         /* symbol.bench.PackageRoleType role = 45; */
         if (message.role !== 0)
             writer.tag(45, WireType.Varint).int32(message.role);
@@ -22543,13 +22580,13 @@ class PropertyReferenceData$Type extends MessageType$<PropertyReferenceData> {
             { no: 1, name: "metatype", kind: "enum", T: () => ["symbol.bench.StructType", StructType, "STRUCT_TYPE_"] },
             { no: 31, name: "node_type", kind: "enum", opt: true, T: () => ["symbol.bench.NodeType", NodeType, "NODE_TYPE_"] },
             { no: 32, name: "struct_type", kind: "enum", opt: true, T: () => ["symbol.bench.StructType", StructType, "STRUCT_TYPE_"] },
-            { no: 33, name: "id", kind: "scalar", T: 5 /*ScalarType.INT32*/ }
+            { no: 33, name: "id", kind: "scalar", T: 3 /*ScalarType.INT64*/, L: 0 /*LongType.BIGINT*/ }
         ]);
     }
     create(value?: PartialMessage<PropertyReferenceData>): PropertyReferenceData {
         const message = globalThis.Object.create((this.messagePrototype!));
         message.metatype = 0;
-        message.id = 0;
+        message.id = 0n;
         if (value !== undefined)
             reflectionMergePartial<PropertyReferenceData>(this, message, value);
         return message;
@@ -22568,8 +22605,8 @@ class PropertyReferenceData$Type extends MessageType$<PropertyReferenceData> {
                 case /* optional symbol.bench.StructType struct_type */ 32:
                     message.structType = reader.int32();
                     break;
-                case /* int32 id */ 33:
-                    message.id = reader.int32();
+                case /* int64 id */ 33:
+                    message.id = reader.int64().toBigInt();
                     break;
                 default:
                     let u = options.readUnknownField;
@@ -22592,9 +22629,9 @@ class PropertyReferenceData$Type extends MessageType$<PropertyReferenceData> {
         /* optional symbol.bench.StructType struct_type = 32; */
         if (message.structType !== undefined)
             writer.tag(32, WireType.Varint).int32(message.structType);
-        /* int32 id = 33; */
-        if (message.id !== 0)
-            writer.tag(33, WireType.Varint).int32(message.id);
+        /* int64 id = 33; */
+        if (message.id !== 0n)
+            writer.tag(33, WireType.Varint).int64(message.id);
         let u = options.writeUnknownFields;
         if (u !== false)
             (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
@@ -22621,8 +22658,8 @@ class QueryData$Type extends MessageType$<QueryData> {
             { no: 42, name: "group_by", kind: "message", repeat: 1 /*RepeatType.PACKED*/, T: () => ExpressionData },
             { no: 43, name: "aggregation", kind: "message", T: () => AggregationData },
             { no: 44, name: "sort", kind: "message", repeat: 1 /*RepeatType.PACKED*/, T: () => SortData },
-            { no: 50, name: "limit", kind: "scalar", opt: true, T: 5 /*ScalarType.INT32*/ },
-            { no: 51, name: "offset", kind: "scalar", opt: true, T: 5 /*ScalarType.INT32*/ },
+            { no: 50, name: "limit", kind: "scalar", opt: true, T: 3 /*ScalarType.INT64*/, L: 0 /*LongType.BIGINT*/ },
+            { no: 51, name: "offset", kind: "scalar", opt: true, T: 3 /*ScalarType.INT64*/, L: 0 /*LongType.BIGINT*/ },
             { no: 52, name: "count", kind: "scalar", opt: true, T: 8 /*ScalarType.BOOL*/ }
         ]);
     }
@@ -22680,11 +22717,11 @@ class QueryData$Type extends MessageType$<QueryData> {
                 case /* repeated symbol.bench.SortData sort */ 44:
                     message.sort.push(SortData.internalBinaryRead(reader, reader.uint32(), options));
                     break;
-                case /* optional int32 limit */ 50:
-                    message.limit = reader.int32();
+                case /* optional int64 limit */ 50:
+                    message.limit = reader.int64().toBigInt();
                     break;
-                case /* optional int32 offset */ 51:
-                    message.offset = reader.int32();
+                case /* optional int64 offset */ 51:
+                    message.offset = reader.int64().toBigInt();
                     break;
                 case /* optional bool count */ 52:
                     message.count = reader.bool();
@@ -22737,12 +22774,12 @@ class QueryData$Type extends MessageType$<QueryData> {
         /* repeated symbol.bench.SortData sort = 44; */
         for (let i = 0; i < message.sort.length; i++)
             SortData.internalBinaryWrite(message.sort[i], writer.tag(44, WireType.LengthDelimited).fork(), options).join();
-        /* optional int32 limit = 50; */
+        /* optional int64 limit = 50; */
         if (message.limit !== undefined)
-            writer.tag(50, WireType.Varint).int32(message.limit);
-        /* optional int32 offset = 51; */
+            writer.tag(50, WireType.Varint).int64(message.limit);
+        /* optional int64 offset = 51; */
         if (message.offset !== undefined)
-            writer.tag(51, WireType.Varint).int32(message.offset);
+            writer.tag(51, WireType.Varint).int64(message.offset);
         /* optional bool count = 52; */
         if (message.count !== undefined)
             writer.tag(52, WireType.Varint).bool(message.count);
@@ -23653,28 +23690,28 @@ class ScheduleData$Type extends MessageType$<ScheduleData> {
         super("symbol.bench.ScheduleData", [
             { no: 1, name: "metatype", kind: "enum", T: () => ["symbol.bench.StructType", StructType, "STRUCT_TYPE_"] },
             { no: 31, name: "frequency", kind: "enum", T: () => ["symbol.bench.ScheduleFrequency", ScheduleFrequency, "SCHEDULE_FREQUENCY_"] },
-            { no: 32, name: "interval", kind: "scalar", T: 5 /*ScalarType.INT32*/ },
+            { no: 32, name: "interval", kind: "scalar", T: 3 /*ScalarType.INT64*/, L: 0 /*LongType.BIGINT*/ },
             { no: 33, name: "start", kind: "message", T: () => Timestamp },
             { no: 34, name: "end", kind: "message", T: () => Timestamp },
-            { no: 35, name: "count", kind: "scalar", opt: true, T: 5 /*ScalarType.INT32*/ },
+            { no: 35, name: "count", kind: "scalar", opt: true, T: 3 /*ScalarType.INT64*/, L: 0 /*LongType.BIGINT*/ },
             { no: 36, name: "week_start", kind: "enum", opt: true, T: () => ["symbol.bench.Day", Day, "DAY_"] },
-            { no: 37, name: "by_set_pos", kind: "scalar", repeat: 1 /*RepeatType.PACKED*/, T: 5 /*ScalarType.INT32*/ },
+            { no: 37, name: "by_set_pos", kind: "scalar", repeat: 1 /*RepeatType.PACKED*/, T: 3 /*ScalarType.INT64*/, L: 0 /*LongType.BIGINT*/ },
             { no: 38, name: "by_month", kind: "enum", repeat: 1 /*RepeatType.PACKED*/, T: () => ["symbol.bench.Month", Month, "MONTH_"] },
-            { no: 39, name: "by_month_day", kind: "scalar", repeat: 1 /*RepeatType.PACKED*/, T: 5 /*ScalarType.INT32*/ },
-            { no: 40, name: "by_year_day", kind: "scalar", repeat: 1 /*RepeatType.PACKED*/, T: 5 /*ScalarType.INT32*/ },
-            { no: 41, name: "by_easter", kind: "scalar", repeat: 1 /*RepeatType.PACKED*/, T: 5 /*ScalarType.INT32*/ },
-            { no: 42, name: "by_week_no", kind: "scalar", repeat: 1 /*RepeatType.PACKED*/, T: 5 /*ScalarType.INT32*/ },
+            { no: 39, name: "by_month_day", kind: "scalar", repeat: 1 /*RepeatType.PACKED*/, T: 3 /*ScalarType.INT64*/, L: 0 /*LongType.BIGINT*/ },
+            { no: 40, name: "by_year_day", kind: "scalar", repeat: 1 /*RepeatType.PACKED*/, T: 3 /*ScalarType.INT64*/, L: 0 /*LongType.BIGINT*/ },
+            { no: 41, name: "by_easter", kind: "scalar", repeat: 1 /*RepeatType.PACKED*/, T: 3 /*ScalarType.INT64*/, L: 0 /*LongType.BIGINT*/ },
+            { no: 42, name: "by_week_no", kind: "scalar", repeat: 1 /*RepeatType.PACKED*/, T: 3 /*ScalarType.INT64*/, L: 0 /*LongType.BIGINT*/ },
             { no: 43, name: "by_week_day", kind: "enum", repeat: 1 /*RepeatType.PACKED*/, T: () => ["symbol.bench.Day", Day, "DAY_"] },
-            { no: 44, name: "by_hour", kind: "scalar", repeat: 1 /*RepeatType.PACKED*/, T: 5 /*ScalarType.INT32*/ },
-            { no: 45, name: "by_minute", kind: "scalar", repeat: 1 /*RepeatType.PACKED*/, T: 5 /*ScalarType.INT32*/ },
-            { no: 46, name: "by_second", kind: "scalar", repeat: 1 /*RepeatType.PACKED*/, T: 5 /*ScalarType.INT32*/ }
+            { no: 44, name: "by_hour", kind: "scalar", repeat: 1 /*RepeatType.PACKED*/, T: 3 /*ScalarType.INT64*/, L: 0 /*LongType.BIGINT*/ },
+            { no: 45, name: "by_minute", kind: "scalar", repeat: 1 /*RepeatType.PACKED*/, T: 3 /*ScalarType.INT64*/, L: 0 /*LongType.BIGINT*/ },
+            { no: 46, name: "by_second", kind: "scalar", repeat: 1 /*RepeatType.PACKED*/, T: 3 /*ScalarType.INT64*/, L: 0 /*LongType.BIGINT*/ }
         ]);
     }
     create(value?: PartialMessage<ScheduleData>): ScheduleData {
         const message = globalThis.Object.create((this.messagePrototype!));
         message.metatype = 0;
         message.frequency = 0;
-        message.interval = 0;
+        message.interval = 0n;
         message.bySetPos = [];
         message.byMonth = [];
         message.byMonthDay = [];
@@ -23700,8 +23737,8 @@ class ScheduleData$Type extends MessageType$<ScheduleData> {
                 case /* symbol.bench.ScheduleFrequency frequency */ 31:
                     message.frequency = reader.int32();
                     break;
-                case /* int32 interval */ 32:
-                    message.interval = reader.int32();
+                case /* int64 interval */ 32:
+                    message.interval = reader.int64().toBigInt();
                     break;
                 case /* optional google.protobuf.Timestamp start */ 33:
                     message.start = Timestamp.internalBinaryRead(reader, reader.uint32(), options, message.start);
@@ -23709,18 +23746,18 @@ class ScheduleData$Type extends MessageType$<ScheduleData> {
                 case /* optional google.protobuf.Timestamp end */ 34:
                     message.end = Timestamp.internalBinaryRead(reader, reader.uint32(), options, message.end);
                     break;
-                case /* optional int32 count */ 35:
-                    message.count = reader.int32();
+                case /* optional int64 count */ 35:
+                    message.count = reader.int64().toBigInt();
                     break;
                 case /* optional symbol.bench.Day week_start */ 36:
                     message.weekStart = reader.int32();
                     break;
-                case /* repeated int32 by_set_pos */ 37:
+                case /* repeated int64 by_set_pos */ 37:
                     if (wireType === WireType.LengthDelimited)
                         for (let e = reader.int32() + reader.pos; reader.pos < e;)
-                            message.bySetPos.push(reader.int32());
+                            message.bySetPos.push(reader.int64().toBigInt());
                     else
-                        message.bySetPos.push(reader.int32());
+                        message.bySetPos.push(reader.int64().toBigInt());
                     break;
                 case /* repeated symbol.bench.Month by_month */ 38:
                     if (wireType === WireType.LengthDelimited)
@@ -23729,33 +23766,33 @@ class ScheduleData$Type extends MessageType$<ScheduleData> {
                     else
                         message.byMonth.push(reader.int32());
                     break;
-                case /* repeated int32 by_month_day */ 39:
+                case /* repeated int64 by_month_day */ 39:
                     if (wireType === WireType.LengthDelimited)
                         for (let e = reader.int32() + reader.pos; reader.pos < e;)
-                            message.byMonthDay.push(reader.int32());
+                            message.byMonthDay.push(reader.int64().toBigInt());
                     else
-                        message.byMonthDay.push(reader.int32());
+                        message.byMonthDay.push(reader.int64().toBigInt());
                     break;
-                case /* repeated int32 by_year_day */ 40:
+                case /* repeated int64 by_year_day */ 40:
                     if (wireType === WireType.LengthDelimited)
                         for (let e = reader.int32() + reader.pos; reader.pos < e;)
-                            message.byYearDay.push(reader.int32());
+                            message.byYearDay.push(reader.int64().toBigInt());
                     else
-                        message.byYearDay.push(reader.int32());
+                        message.byYearDay.push(reader.int64().toBigInt());
                     break;
-                case /* repeated int32 by_easter */ 41:
+                case /* repeated int64 by_easter */ 41:
                     if (wireType === WireType.LengthDelimited)
                         for (let e = reader.int32() + reader.pos; reader.pos < e;)
-                            message.byEaster.push(reader.int32());
+                            message.byEaster.push(reader.int64().toBigInt());
                     else
-                        message.byEaster.push(reader.int32());
+                        message.byEaster.push(reader.int64().toBigInt());
                     break;
-                case /* repeated int32 by_week_no */ 42:
+                case /* repeated int64 by_week_no */ 42:
                     if (wireType === WireType.LengthDelimited)
                         for (let e = reader.int32() + reader.pos; reader.pos < e;)
-                            message.byWeekNo.push(reader.int32());
+                            message.byWeekNo.push(reader.int64().toBigInt());
                     else
-                        message.byWeekNo.push(reader.int32());
+                        message.byWeekNo.push(reader.int64().toBigInt());
                     break;
                 case /* repeated symbol.bench.Day by_week_day */ 43:
                     if (wireType === WireType.LengthDelimited)
@@ -23764,26 +23801,26 @@ class ScheduleData$Type extends MessageType$<ScheduleData> {
                     else
                         message.byWeekDay.push(reader.int32());
                     break;
-                case /* repeated int32 by_hour */ 44:
+                case /* repeated int64 by_hour */ 44:
                     if (wireType === WireType.LengthDelimited)
                         for (let e = reader.int32() + reader.pos; reader.pos < e;)
-                            message.byHour.push(reader.int32());
+                            message.byHour.push(reader.int64().toBigInt());
                     else
-                        message.byHour.push(reader.int32());
+                        message.byHour.push(reader.int64().toBigInt());
                     break;
-                case /* repeated int32 by_minute */ 45:
+                case /* repeated int64 by_minute */ 45:
                     if (wireType === WireType.LengthDelimited)
                         for (let e = reader.int32() + reader.pos; reader.pos < e;)
-                            message.byMinute.push(reader.int32());
+                            message.byMinute.push(reader.int64().toBigInt());
                     else
-                        message.byMinute.push(reader.int32());
+                        message.byMinute.push(reader.int64().toBigInt());
                     break;
-                case /* repeated int32 by_second */ 46:
+                case /* repeated int64 by_second */ 46:
                     if (wireType === WireType.LengthDelimited)
                         for (let e = reader.int32() + reader.pos; reader.pos < e;)
-                            message.bySecond.push(reader.int32());
+                            message.bySecond.push(reader.int64().toBigInt());
                     else
-                        message.bySecond.push(reader.int32());
+                        message.bySecond.push(reader.int64().toBigInt());
                     break;
                 default:
                     let u = options.readUnknownField;
@@ -23803,26 +23840,26 @@ class ScheduleData$Type extends MessageType$<ScheduleData> {
         /* symbol.bench.ScheduleFrequency frequency = 31; */
         if (message.frequency !== 0)
             writer.tag(31, WireType.Varint).int32(message.frequency);
-        /* int32 interval = 32; */
-        if (message.interval !== 0)
-            writer.tag(32, WireType.Varint).int32(message.interval);
+        /* int64 interval = 32; */
+        if (message.interval !== 0n)
+            writer.tag(32, WireType.Varint).int64(message.interval);
         /* optional google.protobuf.Timestamp start = 33; */
         if (message.start)
             Timestamp.internalBinaryWrite(message.start, writer.tag(33, WireType.LengthDelimited).fork(), options).join();
         /* optional google.protobuf.Timestamp end = 34; */
         if (message.end)
             Timestamp.internalBinaryWrite(message.end, writer.tag(34, WireType.LengthDelimited).fork(), options).join();
-        /* optional int32 count = 35; */
+        /* optional int64 count = 35; */
         if (message.count !== undefined)
-            writer.tag(35, WireType.Varint).int32(message.count);
+            writer.tag(35, WireType.Varint).int64(message.count);
         /* optional symbol.bench.Day week_start = 36; */
         if (message.weekStart !== undefined)
             writer.tag(36, WireType.Varint).int32(message.weekStart);
-        /* repeated int32 by_set_pos = 37; */
+        /* repeated int64 by_set_pos = 37; */
         if (message.bySetPos.length) {
             writer.tag(37, WireType.LengthDelimited).fork();
             for (let i = 0; i < message.bySetPos.length; i++)
-                writer.int32(message.bySetPos[i]);
+                writer.int64(message.bySetPos[i]);
             writer.join();
         }
         /* repeated symbol.bench.Month by_month = 38; */
@@ -23832,32 +23869,32 @@ class ScheduleData$Type extends MessageType$<ScheduleData> {
                 writer.int32(message.byMonth[i]);
             writer.join();
         }
-        /* repeated int32 by_month_day = 39; */
+        /* repeated int64 by_month_day = 39; */
         if (message.byMonthDay.length) {
             writer.tag(39, WireType.LengthDelimited).fork();
             for (let i = 0; i < message.byMonthDay.length; i++)
-                writer.int32(message.byMonthDay[i]);
+                writer.int64(message.byMonthDay[i]);
             writer.join();
         }
-        /* repeated int32 by_year_day = 40; */
+        /* repeated int64 by_year_day = 40; */
         if (message.byYearDay.length) {
             writer.tag(40, WireType.LengthDelimited).fork();
             for (let i = 0; i < message.byYearDay.length; i++)
-                writer.int32(message.byYearDay[i]);
+                writer.int64(message.byYearDay[i]);
             writer.join();
         }
-        /* repeated int32 by_easter = 41; */
+        /* repeated int64 by_easter = 41; */
         if (message.byEaster.length) {
             writer.tag(41, WireType.LengthDelimited).fork();
             for (let i = 0; i < message.byEaster.length; i++)
-                writer.int32(message.byEaster[i]);
+                writer.int64(message.byEaster[i]);
             writer.join();
         }
-        /* repeated int32 by_week_no = 42; */
+        /* repeated int64 by_week_no = 42; */
         if (message.byWeekNo.length) {
             writer.tag(42, WireType.LengthDelimited).fork();
             for (let i = 0; i < message.byWeekNo.length; i++)
-                writer.int32(message.byWeekNo[i]);
+                writer.int64(message.byWeekNo[i]);
             writer.join();
         }
         /* repeated symbol.bench.Day by_week_day = 43; */
@@ -23867,25 +23904,25 @@ class ScheduleData$Type extends MessageType$<ScheduleData> {
                 writer.int32(message.byWeekDay[i]);
             writer.join();
         }
-        /* repeated int32 by_hour = 44; */
+        /* repeated int64 by_hour = 44; */
         if (message.byHour.length) {
             writer.tag(44, WireType.LengthDelimited).fork();
             for (let i = 0; i < message.byHour.length; i++)
-                writer.int32(message.byHour[i]);
+                writer.int64(message.byHour[i]);
             writer.join();
         }
-        /* repeated int32 by_minute = 45; */
+        /* repeated int64 by_minute = 45; */
         if (message.byMinute.length) {
             writer.tag(45, WireType.LengthDelimited).fork();
             for (let i = 0; i < message.byMinute.length; i++)
-                writer.int32(message.byMinute[i]);
+                writer.int64(message.byMinute[i]);
             writer.join();
         }
-        /* repeated int32 by_second = 46; */
+        /* repeated int64 by_second = 46; */
         if (message.bySecond.length) {
             writer.tag(46, WireType.LengthDelimited).fork();
             for (let i = 0; i < message.bySecond.length; i++)
-                writer.int32(message.bySecond[i]);
+                writer.int64(message.bySecond[i]);
             writer.join();
         }
         let u = options.writeUnknownFields;
@@ -24310,9 +24347,9 @@ class ServiceData$Type extends MessageType$<ServiceData> {
             { no: 101, name: "model_provider", kind: "enum", opt: true, T: () => ["symbol.bench.ModelProvider", ModelProvider, "MODEL_PROVIDER_"] },
             { no: 102, name: "model_id", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
             { no: 103, name: "model_name", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
-            { no: 110, name: "max_attempts", kind: "scalar", opt: true, T: 5 /*ScalarType.INT32*/ },
+            { no: 110, name: "max_attempts", kind: "scalar", opt: true, T: 3 /*ScalarType.INT64*/, L: 0 /*LongType.BIGINT*/ },
             { no: 111, name: "retry_interval", kind: "message", T: () => Duration },
-            { no: 112, name: "backoff", kind: "scalar", opt: true, T: 2 /*ScalarType.FLOAT*/ }
+            { no: 112, name: "backoff", kind: "scalar", opt: true, T: 1 /*ScalarType.DOUBLE*/ }
         ]);
     }
     create(value?: PartialMessage<ServiceData>): ServiceData {
@@ -24393,14 +24430,14 @@ class ServiceData$Type extends MessageType$<ServiceData> {
                 case /* optional string model_name */ 103:
                     message.modelName = reader.string();
                     break;
-                case /* optional int32 max_attempts */ 110:
-                    message.maxAttempts = reader.int32();
+                case /* optional int64 max_attempts */ 110:
+                    message.maxAttempts = reader.int64().toBigInt();
                     break;
                 case /* optional google.protobuf.Duration retry_interval */ 111:
                     message.retryInterval = Duration.internalBinaryRead(reader, reader.uint32(), options, message.retryInterval);
                     break;
-                case /* optional float backoff */ 112:
-                    message.backoff = reader.float();
+                case /* optional double backoff */ 112:
+                    message.backoff = reader.double();
                     break;
                 default:
                     let u = options.readUnknownField;
@@ -24477,15 +24514,15 @@ class ServiceData$Type extends MessageType$<ServiceData> {
         /* optional string model_name = 103; */
         if (message.modelName !== undefined)
             writer.tag(103, WireType.LengthDelimited).string(message.modelName);
-        /* optional int32 max_attempts = 110; */
+        /* optional int64 max_attempts = 110; */
         if (message.maxAttempts !== undefined)
-            writer.tag(110, WireType.Varint).int32(message.maxAttempts);
+            writer.tag(110, WireType.Varint).int64(message.maxAttempts);
         /* optional google.protobuf.Duration retry_interval = 111; */
         if (message.retryInterval)
             Duration.internalBinaryWrite(message.retryInterval, writer.tag(111, WireType.LengthDelimited).fork(), options).join();
-        /* optional float backoff = 112; */
+        /* optional double backoff = 112; */
         if (message.backoff !== undefined)
-            writer.tag(112, WireType.Bit32).float(message.backoff);
+            writer.tag(112, WireType.Bit64).double(message.backoff);
         let u = options.writeUnknownFields;
         if (u !== false)
             (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
@@ -24506,9 +24543,9 @@ class ShadowData$Type extends MessageType$<ShadowData> {
             { no: 50, name: "color", kind: "message", T: () => ColorData },
             { no: 51, name: "position", kind: "enum", T: () => ["symbol.bench.ShadowPosition", ShadowPosition, "SHADOW_POSITION_"] },
             { no: 52, name: "offset", kind: "message", T: () => Axis2Data },
-            { no: 53, name: "blur", kind: "scalar", opt: true, T: 5 /*ScalarType.INT32*/ },
-            { no: 54, name: "spread", kind: "scalar", opt: true, T: 5 /*ScalarType.INT32*/ },
-            { no: 55, name: "diffusion", kind: "scalar", opt: true, T: 2 /*ScalarType.FLOAT*/ }
+            { no: 53, name: "blur", kind: "scalar", opt: true, T: 3 /*ScalarType.INT64*/, L: 0 /*LongType.BIGINT*/ },
+            { no: 54, name: "spread", kind: "scalar", opt: true, T: 3 /*ScalarType.INT64*/, L: 0 /*LongType.BIGINT*/ },
+            { no: 55, name: "diffusion", kind: "scalar", opt: true, T: 1 /*ScalarType.DOUBLE*/ }
         ]);
     }
     create(value?: PartialMessage<ShadowData>): ShadowData {
@@ -24543,14 +24580,14 @@ class ShadowData$Type extends MessageType$<ShadowData> {
                 case /* optional symbol.bench.Axis2Data offset */ 52:
                     message.offset = Axis2Data.internalBinaryRead(reader, reader.uint32(), options, message.offset);
                     break;
-                case /* optional int32 blur */ 53:
-                    message.blur = reader.int32();
+                case /* optional int64 blur */ 53:
+                    message.blur = reader.int64().toBigInt();
                     break;
-                case /* optional int32 spread */ 54:
-                    message.spread = reader.int32();
+                case /* optional int64 spread */ 54:
+                    message.spread = reader.int64().toBigInt();
                     break;
-                case /* optional float diffusion */ 55:
-                    message.diffusion = reader.float();
+                case /* optional double diffusion */ 55:
+                    message.diffusion = reader.double();
                     break;
                 default:
                     let u = options.readUnknownField;
@@ -24582,15 +24619,15 @@ class ShadowData$Type extends MessageType$<ShadowData> {
         /* optional symbol.bench.Axis2Data offset = 52; */
         if (message.offset)
             Axis2Data.internalBinaryWrite(message.offset, writer.tag(52, WireType.LengthDelimited).fork(), options).join();
-        /* optional int32 blur = 53; */
+        /* optional int64 blur = 53; */
         if (message.blur !== undefined)
-            writer.tag(53, WireType.Varint).int32(message.blur);
-        /* optional int32 spread = 54; */
+            writer.tag(53, WireType.Varint).int64(message.blur);
+        /* optional int64 spread = 54; */
         if (message.spread !== undefined)
-            writer.tag(54, WireType.Varint).int32(message.spread);
-        /* optional float diffusion = 55; */
+            writer.tag(54, WireType.Varint).int64(message.spread);
+        /* optional double diffusion = 55; */
         if (message.diffusion !== undefined)
-            writer.tag(55, WireType.Bit32).float(message.diffusion);
+            writer.tag(55, WireType.Bit64).double(message.diffusion);
         let u = options.writeUnknownFields;
         if (u !== false)
             (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
@@ -24626,9 +24663,9 @@ class ShadowStyleData$Type extends MessageType$<ShadowStyleData> {
             { no: 50, name: "color", kind: "message", T: () => ColorData },
             { no: 51, name: "position", kind: "enum", T: () => ["symbol.bench.ShadowPosition", ShadowPosition, "SHADOW_POSITION_"] },
             { no: 52, name: "offset", kind: "message", T: () => Axis2Data },
-            { no: 53, name: "blur", kind: "scalar", opt: true, T: 5 /*ScalarType.INT32*/ },
-            { no: 54, name: "spread", kind: "scalar", opt: true, T: 5 /*ScalarType.INT32*/ },
-            { no: 55, name: "diffusion", kind: "scalar", opt: true, T: 2 /*ScalarType.FLOAT*/ }
+            { no: 53, name: "blur", kind: "scalar", opt: true, T: 3 /*ScalarType.INT64*/, L: 0 /*LongType.BIGINT*/ },
+            { no: 54, name: "spread", kind: "scalar", opt: true, T: 3 /*ScalarType.INT64*/, L: 0 /*LongType.BIGINT*/ },
+            { no: 55, name: "diffusion", kind: "scalar", opt: true, T: 1 /*ScalarType.DOUBLE*/ }
         ]);
     }
     create(value?: PartialMessage<ShadowStyleData>): ShadowStyleData {
@@ -24711,14 +24748,14 @@ class ShadowStyleData$Type extends MessageType$<ShadowStyleData> {
                 case /* optional symbol.bench.Axis2Data offset */ 52:
                     message.offset = Axis2Data.internalBinaryRead(reader, reader.uint32(), options, message.offset);
                     break;
-                case /* optional int32 blur */ 53:
-                    message.blur = reader.int32();
+                case /* optional int64 blur */ 53:
+                    message.blur = reader.int64().toBigInt();
                     break;
-                case /* optional int32 spread */ 54:
-                    message.spread = reader.int32();
+                case /* optional int64 spread */ 54:
+                    message.spread = reader.int64().toBigInt();
                     break;
-                case /* optional float diffusion */ 55:
-                    message.diffusion = reader.float();
+                case /* optional double diffusion */ 55:
+                    message.diffusion = reader.double();
                     break;
                 default:
                     let u = options.readUnknownField;
@@ -24795,15 +24832,15 @@ class ShadowStyleData$Type extends MessageType$<ShadowStyleData> {
         /* optional symbol.bench.Axis2Data offset = 52; */
         if (message.offset)
             Axis2Data.internalBinaryWrite(message.offset, writer.tag(52, WireType.LengthDelimited).fork(), options).join();
-        /* optional int32 blur = 53; */
+        /* optional int64 blur = 53; */
         if (message.blur !== undefined)
-            writer.tag(53, WireType.Varint).int32(message.blur);
-        /* optional int32 spread = 54; */
+            writer.tag(53, WireType.Varint).int64(message.blur);
+        /* optional int64 spread = 54; */
         if (message.spread !== undefined)
-            writer.tag(54, WireType.Varint).int32(message.spread);
-        /* optional float diffusion = 55; */
+            writer.tag(54, WireType.Varint).int64(message.spread);
+        /* optional double diffusion = 55; */
         if (message.diffusion !== undefined)
-            writer.tag(55, WireType.Bit32).float(message.diffusion);
+            writer.tag(55, WireType.Bit64).double(message.diffusion);
         let u = options.writeUnknownFields;
         if (u !== false)
             (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
@@ -24844,12 +24881,12 @@ class SliderInputViewData$Type extends MessageType$<SliderInputViewData> {
             { no: 46, name: "max_height", kind: "message", T: () => DimensionData },
             { no: 60, name: "is_visible_value", kind: "scalar", oneof: "isVisible", T: 8 /*ScalarType.BOOL*/ },
             { no: 17060, name: "is_visible_variable", kind: "message", oneof: "isVisible", T: () => VariableData },
-            { no: 61, name: "opacity_value", kind: "scalar", oneof: "opacity", T: 2 /*ScalarType.FLOAT*/ },
+            { no: 61, name: "opacity_value", kind: "scalar", oneof: "opacity", T: 1 /*ScalarType.DOUBLE*/ },
             { no: 17061, name: "opacity_variable", kind: "message", oneof: "opacity", T: () => VariableData },
-            { no: 100, name: "value", kind: "scalar", opt: true, T: 2 /*ScalarType.FLOAT*/ },
-            { no: 101, name: "min_value", kind: "scalar", opt: true, T: 2 /*ScalarType.FLOAT*/ },
-            { no: 102, name: "max_value", kind: "scalar", opt: true, T: 2 /*ScalarType.FLOAT*/ },
-            { no: 103, name: "step", kind: "scalar", opt: true, T: 2 /*ScalarType.FLOAT*/ }
+            { no: 100, name: "value", kind: "scalar", opt: true, T: 1 /*ScalarType.DOUBLE*/ },
+            { no: 101, name: "min_value", kind: "scalar", opt: true, T: 1 /*ScalarType.DOUBLE*/ },
+            { no: 102, name: "max_value", kind: "scalar", opt: true, T: 1 /*ScalarType.DOUBLE*/ },
+            { no: 103, name: "step", kind: "scalar", opt: true, T: 1 /*ScalarType.DOUBLE*/ }
         ]);
     }
     create(value?: PartialMessage<SliderInputViewData>): SliderInputViewData {
@@ -24954,10 +24991,10 @@ class SliderInputViewData$Type extends MessageType$<SliderInputViewData> {
                         isVisibleVariable: VariableData.internalBinaryRead(reader, reader.uint32(), options, (message.isVisible as any).isVisibleVariable)
                     };
                     break;
-                case /* float opacity_value */ 61:
+                case /* double opacity_value */ 61:
                     message.opacity = {
                         oneofKind: "opacityValue",
-                        opacityValue: reader.float()
+                        opacityValue: reader.double()
                     };
                     break;
                 case /* symbol.bench.VariableData opacity_variable */ 17061:
@@ -24966,17 +25003,17 @@ class SliderInputViewData$Type extends MessageType$<SliderInputViewData> {
                         opacityVariable: VariableData.internalBinaryRead(reader, reader.uint32(), options, (message.opacity as any).opacityVariable)
                     };
                     break;
-                case /* optional float value */ 100:
-                    message.value = reader.float();
+                case /* optional double value */ 100:
+                    message.value = reader.double();
                     break;
-                case /* optional float min_value */ 101:
-                    message.minValue = reader.float();
+                case /* optional double min_value */ 101:
+                    message.minValue = reader.double();
                     break;
-                case /* optional float max_value */ 102:
-                    message.maxValue = reader.float();
+                case /* optional double max_value */ 102:
+                    message.maxValue = reader.double();
                     break;
-                case /* optional float step */ 103:
-                    message.step = reader.float();
+                case /* optional double step */ 103:
+                    message.step = reader.double();
                     break;
                 default:
                     let u = options.readUnknownField;
@@ -25068,24 +25105,24 @@ class SliderInputViewData$Type extends MessageType$<SliderInputViewData> {
         /* symbol.bench.VariableData is_visible_variable = 17060; */
         if (message.isVisible.oneofKind === "isVisibleVariable")
             VariableData.internalBinaryWrite(message.isVisible.isVisibleVariable, writer.tag(17060, WireType.LengthDelimited).fork(), options).join();
-        /* float opacity_value = 61; */
+        /* double opacity_value = 61; */
         if (message.opacity.oneofKind === "opacityValue")
-            writer.tag(61, WireType.Bit32).float(message.opacity.opacityValue);
+            writer.tag(61, WireType.Bit64).double(message.opacity.opacityValue);
         /* symbol.bench.VariableData opacity_variable = 17061; */
         if (message.opacity.oneofKind === "opacityVariable")
             VariableData.internalBinaryWrite(message.opacity.opacityVariable, writer.tag(17061, WireType.LengthDelimited).fork(), options).join();
-        /* optional float value = 100; */
+        /* optional double value = 100; */
         if (message.value !== undefined)
-            writer.tag(100, WireType.Bit32).float(message.value);
-        /* optional float min_value = 101; */
+            writer.tag(100, WireType.Bit64).double(message.value);
+        /* optional double min_value = 101; */
         if (message.minValue !== undefined)
-            writer.tag(101, WireType.Bit32).float(message.minValue);
-        /* optional float max_value = 102; */
+            writer.tag(101, WireType.Bit64).double(message.minValue);
+        /* optional double max_value = 102; */
         if (message.maxValue !== undefined)
-            writer.tag(102, WireType.Bit32).float(message.maxValue);
-        /* optional float step = 103; */
+            writer.tag(102, WireType.Bit64).double(message.maxValue);
+        /* optional double step = 103; */
         if (message.step !== undefined)
-            writer.tag(103, WireType.Bit32).float(message.step);
+            writer.tag(103, WireType.Bit64).double(message.step);
         let u = options.writeUnknownFields;
         if (u !== false)
             (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
@@ -25622,11 +25659,11 @@ class SplitViewData$Type extends MessageType$<SplitViewData> {
             { no: 17055, name: "padding_variable", kind: "message", oneof: "padding", T: () => VariableData },
             { no: 56, name: "grid", kind: "message", T: () => GridData },
             { no: 57, name: "grid_span", kind: "message", T: () => GridSpanData },
-            { no: 58, name: "aspect_ratio", kind: "scalar", opt: true, T: 2 /*ScalarType.FLOAT*/ },
+            { no: 58, name: "aspect_ratio", kind: "scalar", opt: true, T: 1 /*ScalarType.DOUBLE*/ },
             { no: 59, name: "is_wrap", kind: "scalar", opt: true, T: 8 /*ScalarType.BOOL*/ },
             { no: 60, name: "is_visible_value", kind: "scalar", oneof: "isVisible", T: 8 /*ScalarType.BOOL*/ },
             { no: 17060, name: "is_visible_variable", kind: "message", oneof: "isVisible", T: () => VariableData },
-            { no: 61, name: "opacity_value", kind: "scalar", oneof: "opacity", T: 2 /*ScalarType.FLOAT*/ },
+            { no: 61, name: "opacity_value", kind: "scalar", oneof: "opacity", T: 1 /*ScalarType.DOUBLE*/ },
             { no: 17061, name: "opacity_variable", kind: "message", oneof: "opacity", T: () => VariableData },
             { no: 62, name: "fill_value", kind: "message", oneof: "fill", T: () => FillData },
             { no: 17062, name: "fill_variable", kind: "message", oneof: "fill", T: () => VariableData },
@@ -25634,7 +25671,7 @@ class SplitViewData$Type extends MessageType$<SplitViewData> {
             { no: 17063, name: "rotation_variable", kind: "message", oneof: "rotation", T: () => VariableData },
             { no: 64, name: "skew_value", kind: "message", oneof: "skew", T: () => Vector2Data },
             { no: 17064, name: "skew_variable", kind: "message", oneof: "skew", T: () => VariableData },
-            { no: 65, name: "scale_value", kind: "scalar", oneof: "scale", T: 2 /*ScalarType.FLOAT*/ },
+            { no: 65, name: "scale_value", kind: "scalar", oneof: "scale", T: 1 /*ScalarType.DOUBLE*/ },
             { no: 17065, name: "scale_variable", kind: "message", oneof: "scale", T: () => VariableData },
             { no: 66, name: "shadow_value", kind: "message", oneof: "shadow", T: () => ShadowData },
             { no: 17066, name: "shadow_variable", kind: "message", oneof: "shadow", T: () => VariableData },
@@ -25815,8 +25852,8 @@ class SplitViewData$Type extends MessageType$<SplitViewData> {
                 case /* optional symbol.bench.GridSpanData grid_span */ 57:
                     message.gridSpan = GridSpanData.internalBinaryRead(reader, reader.uint32(), options, message.gridSpan);
                     break;
-                case /* optional float aspect_ratio */ 58:
-                    message.aspectRatio = reader.float();
+                case /* optional double aspect_ratio */ 58:
+                    message.aspectRatio = reader.double();
                     break;
                 case /* optional bool is_wrap */ 59:
                     message.isWrap = reader.bool();
@@ -25833,10 +25870,10 @@ class SplitViewData$Type extends MessageType$<SplitViewData> {
                         isVisibleVariable: VariableData.internalBinaryRead(reader, reader.uint32(), options, (message.isVisible as any).isVisibleVariable)
                     };
                     break;
-                case /* float opacity_value */ 61:
+                case /* double opacity_value */ 61:
                     message.opacity = {
                         oneofKind: "opacityValue",
-                        opacityValue: reader.float()
+                        opacityValue: reader.double()
                     };
                     break;
                 case /* symbol.bench.VariableData opacity_variable */ 17061:
@@ -25881,10 +25918,10 @@ class SplitViewData$Type extends MessageType$<SplitViewData> {
                         skewVariable: VariableData.internalBinaryRead(reader, reader.uint32(), options, (message.skew as any).skewVariable)
                     };
                     break;
-                case /* float scale_value */ 65:
+                case /* double scale_value */ 65:
                     message.scale = {
                         oneofKind: "scaleValue",
-                        scaleValue: reader.float()
+                        scaleValue: reader.double()
                     };
                     break;
                 case /* symbol.bench.VariableData scale_variable */ 17065:
@@ -26052,9 +26089,9 @@ class SplitViewData$Type extends MessageType$<SplitViewData> {
         /* optional symbol.bench.GridSpanData grid_span = 57; */
         if (message.gridSpan)
             GridSpanData.internalBinaryWrite(message.gridSpan, writer.tag(57, WireType.LengthDelimited).fork(), options).join();
-        /* optional float aspect_ratio = 58; */
+        /* optional double aspect_ratio = 58; */
         if (message.aspectRatio !== undefined)
-            writer.tag(58, WireType.Bit32).float(message.aspectRatio);
+            writer.tag(58, WireType.Bit64).double(message.aspectRatio);
         /* optional bool is_wrap = 59; */
         if (message.isWrap !== undefined)
             writer.tag(59, WireType.Varint).bool(message.isWrap);
@@ -26064,9 +26101,9 @@ class SplitViewData$Type extends MessageType$<SplitViewData> {
         /* symbol.bench.VariableData is_visible_variable = 17060; */
         if (message.isVisible.oneofKind === "isVisibleVariable")
             VariableData.internalBinaryWrite(message.isVisible.isVisibleVariable, writer.tag(17060, WireType.LengthDelimited).fork(), options).join();
-        /* float opacity_value = 61; */
+        /* double opacity_value = 61; */
         if (message.opacity.oneofKind === "opacityValue")
-            writer.tag(61, WireType.Bit32).float(message.opacity.opacityValue);
+            writer.tag(61, WireType.Bit64).double(message.opacity.opacityValue);
         /* symbol.bench.VariableData opacity_variable = 17061; */
         if (message.opacity.oneofKind === "opacityVariable")
             VariableData.internalBinaryWrite(message.opacity.opacityVariable, writer.tag(17061, WireType.LengthDelimited).fork(), options).join();
@@ -26088,9 +26125,9 @@ class SplitViewData$Type extends MessageType$<SplitViewData> {
         /* symbol.bench.VariableData skew_variable = 17064; */
         if (message.skew.oneofKind === "skewVariable")
             VariableData.internalBinaryWrite(message.skew.skewVariable, writer.tag(17064, WireType.LengthDelimited).fork(), options).join();
-        /* float scale_value = 65; */
+        /* double scale_value = 65; */
         if (message.scale.oneofKind === "scaleValue")
-            writer.tag(65, WireType.Bit32).float(message.scale.scaleValue);
+            writer.tag(65, WireType.Bit64).double(message.scale.scaleValue);
         /* symbol.bench.VariableData scale_variable = 17065; */
         if (message.scale.oneofKind === "scaleVariable")
             VariableData.internalBinaryWrite(message.scale.scaleVariable, writer.tag(17065, WireType.LengthDelimited).fork(), options).join();
@@ -26993,7 +27030,7 @@ class TextViewData$Type extends MessageType$<TextViewData> {
             { no: 53, name: "align", kind: "enum", opt: true, T: () => ["symbol.bench.Align", Align, "ALIGN_"] },
             { no: 60, name: "is_visible_value", kind: "scalar", oneof: "isVisible", T: 8 /*ScalarType.BOOL*/ },
             { no: 17060, name: "is_visible_variable", kind: "message", oneof: "isVisible", T: () => VariableData },
-            { no: 61, name: "opacity_value", kind: "scalar", oneof: "opacity", T: 2 /*ScalarType.FLOAT*/ },
+            { no: 61, name: "opacity_value", kind: "scalar", oneof: "opacity", T: 1 /*ScalarType.DOUBLE*/ },
             { no: 17061, name: "opacity_variable", kind: "message", oneof: "opacity", T: () => VariableData },
             { no: 65, name: "user_select", kind: "scalar", opt: true, T: 8 /*ScalarType.BOOL*/ },
             { no: 66, name: "font", kind: "message", T: () => FontData },
@@ -27110,10 +27147,10 @@ class TextViewData$Type extends MessageType$<TextViewData> {
                         isVisibleVariable: VariableData.internalBinaryRead(reader, reader.uint32(), options, (message.isVisible as any).isVisibleVariable)
                     };
                     break;
-                case /* float opacity_value */ 61:
+                case /* double opacity_value */ 61:
                     message.opacity = {
                         oneofKind: "opacityValue",
-                        opacityValue: reader.float()
+                        opacityValue: reader.double()
                     };
                     break;
                 case /* symbol.bench.VariableData opacity_variable */ 17061:
@@ -27245,9 +27282,9 @@ class TextViewData$Type extends MessageType$<TextViewData> {
         /* symbol.bench.VariableData is_visible_variable = 17060; */
         if (message.isVisible.oneofKind === "isVisibleVariable")
             VariableData.internalBinaryWrite(message.isVisible.isVisibleVariable, writer.tag(17060, WireType.LengthDelimited).fork(), options).join();
-        /* float opacity_value = 61; */
+        /* double opacity_value = 61; */
         if (message.opacity.oneofKind === "opacityValue")
-            writer.tag(61, WireType.Bit32).float(message.opacity.opacityValue);
+            writer.tag(61, WireType.Bit64).double(message.opacity.opacityValue);
         /* symbol.bench.VariableData opacity_variable = 17061; */
         if (message.opacity.oneofKind === "opacityVariable")
             VariableData.internalBinaryWrite(message.opacity.opacityVariable, writer.tag(17061, WireType.LengthDelimited).fork(), options).join();
@@ -27964,13 +28001,13 @@ class TransitionData$Type extends MessageType$<TransitionData> {
             { no: 1, name: "metatype", kind: "enum", T: () => ["symbol.bench.StructType", StructType, "STRUCT_TYPE_"] },
             { no: 30, name: "type", kind: "enum", T: () => ["symbol.bench.TransitionType", TransitionType, "TRANSITION_TYPE_"] },
             { no: 41, name: "style_ptr", kind: "message", T: () => NodeReferenceData },
-            { no: 50, name: "delay", kind: "scalar", opt: true, T: 2 /*ScalarType.FLOAT*/ },
-            { no: 51, name: "duration", kind: "scalar", opt: true, T: 2 /*ScalarType.FLOAT*/ },
-            { no: 52, name: "ease", kind: "scalar", repeat: 1 /*RepeatType.PACKED*/, T: 2 /*ScalarType.FLOAT*/ },
-            { no: 53, name: "stiffness", kind: "scalar", opt: true, T: 2 /*ScalarType.FLOAT*/ },
-            { no: 54, name: "damping", kind: "scalar", opt: true, T: 2 /*ScalarType.FLOAT*/ },
-            { no: 55, name: "mass", kind: "scalar", opt: true, T: 2 /*ScalarType.FLOAT*/ },
-            { no: 56, name: "bounce", kind: "scalar", opt: true, T: 2 /*ScalarType.FLOAT*/ },
+            { no: 50, name: "delay", kind: "scalar", opt: true, T: 1 /*ScalarType.DOUBLE*/ },
+            { no: 51, name: "duration", kind: "scalar", opt: true, T: 1 /*ScalarType.DOUBLE*/ },
+            { no: 52, name: "ease", kind: "scalar", repeat: 1 /*RepeatType.PACKED*/, T: 1 /*ScalarType.DOUBLE*/ },
+            { no: 53, name: "stiffness", kind: "scalar", opt: true, T: 1 /*ScalarType.DOUBLE*/ },
+            { no: 54, name: "damping", kind: "scalar", opt: true, T: 1 /*ScalarType.DOUBLE*/ },
+            { no: 55, name: "mass", kind: "scalar", opt: true, T: 1 /*ScalarType.DOUBLE*/ },
+            { no: 56, name: "bounce", kind: "scalar", opt: true, T: 1 /*ScalarType.DOUBLE*/ },
             { no: 57, name: "spring_type", kind: "enum", opt: true, T: () => ["symbol.bench.SpringType", SpringType, "SPRING_TYPE_"] }
         ]);
     }
@@ -27997,30 +28034,30 @@ class TransitionData$Type extends MessageType$<TransitionData> {
                 case /* optional symbol.bench.NodeReferenceData style_ptr */ 41:
                     message.stylePtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.stylePtr);
                     break;
-                case /* optional float delay */ 50:
-                    message.delay = reader.float();
+                case /* optional double delay */ 50:
+                    message.delay = reader.double();
                     break;
-                case /* optional float duration */ 51:
-                    message.duration = reader.float();
+                case /* optional double duration */ 51:
+                    message.duration = reader.double();
                     break;
-                case /* repeated float ease */ 52:
+                case /* repeated double ease */ 52:
                     if (wireType === WireType.LengthDelimited)
                         for (let e = reader.int32() + reader.pos; reader.pos < e;)
-                            message.ease.push(reader.float());
+                            message.ease.push(reader.double());
                     else
-                        message.ease.push(reader.float());
+                        message.ease.push(reader.double());
                     break;
-                case /* optional float stiffness */ 53:
-                    message.stiffness = reader.float();
+                case /* optional double stiffness */ 53:
+                    message.stiffness = reader.double();
                     break;
-                case /* optional float damping */ 54:
-                    message.damping = reader.float();
+                case /* optional double damping */ 54:
+                    message.damping = reader.double();
                     break;
-                case /* optional float mass */ 55:
-                    message.mass = reader.float();
+                case /* optional double mass */ 55:
+                    message.mass = reader.double();
                     break;
-                case /* optional float bounce */ 56:
-                    message.bounce = reader.float();
+                case /* optional double bounce */ 56:
+                    message.bounce = reader.double();
                     break;
                 case /* optional symbol.bench.SpringType spring_type */ 57:
                     message.springType = reader.int32();
@@ -28046,31 +28083,31 @@ class TransitionData$Type extends MessageType$<TransitionData> {
         /* optional symbol.bench.NodeReferenceData style_ptr = 41; */
         if (message.stylePtr)
             NodeReferenceData.internalBinaryWrite(message.stylePtr, writer.tag(41, WireType.LengthDelimited).fork(), options).join();
-        /* optional float delay = 50; */
+        /* optional double delay = 50; */
         if (message.delay !== undefined)
-            writer.tag(50, WireType.Bit32).float(message.delay);
-        /* optional float duration = 51; */
+            writer.tag(50, WireType.Bit64).double(message.delay);
+        /* optional double duration = 51; */
         if (message.duration !== undefined)
-            writer.tag(51, WireType.Bit32).float(message.duration);
-        /* repeated float ease = 52; */
+            writer.tag(51, WireType.Bit64).double(message.duration);
+        /* repeated double ease = 52; */
         if (message.ease.length) {
             writer.tag(52, WireType.LengthDelimited).fork();
             for (let i = 0; i < message.ease.length; i++)
-                writer.float(message.ease[i]);
+                writer.double(message.ease[i]);
             writer.join();
         }
-        /* optional float stiffness = 53; */
+        /* optional double stiffness = 53; */
         if (message.stiffness !== undefined)
-            writer.tag(53, WireType.Bit32).float(message.stiffness);
-        /* optional float damping = 54; */
+            writer.tag(53, WireType.Bit64).double(message.stiffness);
+        /* optional double damping = 54; */
         if (message.damping !== undefined)
-            writer.tag(54, WireType.Bit32).float(message.damping);
-        /* optional float mass = 55; */
+            writer.tag(54, WireType.Bit64).double(message.damping);
+        /* optional double mass = 55; */
         if (message.mass !== undefined)
-            writer.tag(55, WireType.Bit32).float(message.mass);
-        /* optional float bounce = 56; */
+            writer.tag(55, WireType.Bit64).double(message.mass);
+        /* optional double bounce = 56; */
         if (message.bounce !== undefined)
-            writer.tag(56, WireType.Bit32).float(message.bounce);
+            writer.tag(56, WireType.Bit64).double(message.bounce);
         /* optional symbol.bench.SpringType spring_type = 57; */
         if (message.springType !== undefined)
             writer.tag(57, WireType.Varint).int32(message.springType);
@@ -28106,13 +28143,13 @@ class TransitionStyleData$Type extends MessageType$<TransitionStyleData> {
             { no: 31, name: "name", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
             { no: 35, name: "definition_ptr", kind: "message", T: () => NodeReferenceData },
             { no: 41, name: "style_ptr", kind: "message", T: () => NodeReferenceData },
-            { no: 50, name: "delay", kind: "scalar", opt: true, T: 2 /*ScalarType.FLOAT*/ },
-            { no: 51, name: "duration", kind: "scalar", opt: true, T: 2 /*ScalarType.FLOAT*/ },
-            { no: 52, name: "ease", kind: "scalar", repeat: 1 /*RepeatType.PACKED*/, T: 2 /*ScalarType.FLOAT*/ },
-            { no: 53, name: "stiffness", kind: "scalar", opt: true, T: 2 /*ScalarType.FLOAT*/ },
-            { no: 54, name: "damping", kind: "scalar", opt: true, T: 2 /*ScalarType.FLOAT*/ },
-            { no: 55, name: "mass", kind: "scalar", opt: true, T: 2 /*ScalarType.FLOAT*/ },
-            { no: 56, name: "bounce", kind: "scalar", opt: true, T: 2 /*ScalarType.FLOAT*/ },
+            { no: 50, name: "delay", kind: "scalar", opt: true, T: 1 /*ScalarType.DOUBLE*/ },
+            { no: 51, name: "duration", kind: "scalar", opt: true, T: 1 /*ScalarType.DOUBLE*/ },
+            { no: 52, name: "ease", kind: "scalar", repeat: 1 /*RepeatType.PACKED*/, T: 1 /*ScalarType.DOUBLE*/ },
+            { no: 53, name: "stiffness", kind: "scalar", opt: true, T: 1 /*ScalarType.DOUBLE*/ },
+            { no: 54, name: "damping", kind: "scalar", opt: true, T: 1 /*ScalarType.DOUBLE*/ },
+            { no: 55, name: "mass", kind: "scalar", opt: true, T: 1 /*ScalarType.DOUBLE*/ },
+            { no: 56, name: "bounce", kind: "scalar", opt: true, T: 1 /*ScalarType.DOUBLE*/ },
             { no: 57, name: "spring_type", kind: "enum", opt: true, T: () => ["symbol.bench.SpringType", SpringType, "SPRING_TYPE_"] }
         ]);
     }
@@ -28187,30 +28224,30 @@ class TransitionStyleData$Type extends MessageType$<TransitionStyleData> {
                 case /* optional symbol.bench.NodeReferenceData style_ptr */ 41:
                     message.stylePtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.stylePtr);
                     break;
-                case /* optional float delay */ 50:
-                    message.delay = reader.float();
+                case /* optional double delay */ 50:
+                    message.delay = reader.double();
                     break;
-                case /* optional float duration */ 51:
-                    message.duration = reader.float();
+                case /* optional double duration */ 51:
+                    message.duration = reader.double();
                     break;
-                case /* repeated float ease */ 52:
+                case /* repeated double ease */ 52:
                     if (wireType === WireType.LengthDelimited)
                         for (let e = reader.int32() + reader.pos; reader.pos < e;)
-                            message.ease.push(reader.float());
+                            message.ease.push(reader.double());
                     else
-                        message.ease.push(reader.float());
+                        message.ease.push(reader.double());
                     break;
-                case /* optional float stiffness */ 53:
-                    message.stiffness = reader.float();
+                case /* optional double stiffness */ 53:
+                    message.stiffness = reader.double();
                     break;
-                case /* optional float damping */ 54:
-                    message.damping = reader.float();
+                case /* optional double damping */ 54:
+                    message.damping = reader.double();
                     break;
-                case /* optional float mass */ 55:
-                    message.mass = reader.float();
+                case /* optional double mass */ 55:
+                    message.mass = reader.double();
                     break;
-                case /* optional float bounce */ 56:
-                    message.bounce = reader.float();
+                case /* optional double bounce */ 56:
+                    message.bounce = reader.double();
                     break;
                 case /* optional symbol.bench.SpringType spring_type */ 57:
                     message.springType = reader.int32();
@@ -28281,31 +28318,31 @@ class TransitionStyleData$Type extends MessageType$<TransitionStyleData> {
         /* optional symbol.bench.NodeReferenceData style_ptr = 41; */
         if (message.stylePtr)
             NodeReferenceData.internalBinaryWrite(message.stylePtr, writer.tag(41, WireType.LengthDelimited).fork(), options).join();
-        /* optional float delay = 50; */
+        /* optional double delay = 50; */
         if (message.delay !== undefined)
-            writer.tag(50, WireType.Bit32).float(message.delay);
-        /* optional float duration = 51; */
+            writer.tag(50, WireType.Bit64).double(message.delay);
+        /* optional double duration = 51; */
         if (message.duration !== undefined)
-            writer.tag(51, WireType.Bit32).float(message.duration);
-        /* repeated float ease = 52; */
+            writer.tag(51, WireType.Bit64).double(message.duration);
+        /* repeated double ease = 52; */
         if (message.ease.length) {
             writer.tag(52, WireType.LengthDelimited).fork();
             for (let i = 0; i < message.ease.length; i++)
-                writer.float(message.ease[i]);
+                writer.double(message.ease[i]);
             writer.join();
         }
-        /* optional float stiffness = 53; */
+        /* optional double stiffness = 53; */
         if (message.stiffness !== undefined)
-            writer.tag(53, WireType.Bit32).float(message.stiffness);
-        /* optional float damping = 54; */
+            writer.tag(53, WireType.Bit64).double(message.stiffness);
+        /* optional double damping = 54; */
         if (message.damping !== undefined)
-            writer.tag(54, WireType.Bit32).float(message.damping);
-        /* optional float mass = 55; */
+            writer.tag(54, WireType.Bit64).double(message.damping);
+        /* optional double mass = 55; */
         if (message.mass !== undefined)
-            writer.tag(55, WireType.Bit32).float(message.mass);
-        /* optional float bounce = 56; */
+            writer.tag(55, WireType.Bit64).double(message.mass);
+        /* optional double bounce = 56; */
         if (message.bounce !== undefined)
-            writer.tag(56, WireType.Bit32).float(message.bounce);
+            writer.tag(56, WireType.Bit64).double(message.bounce);
         /* optional symbol.bench.SpringType spring_type = 57; */
         if (message.springType !== undefined)
             writer.tag(57, WireType.Varint).int32(message.springType);
@@ -28809,8 +28846,8 @@ class Vector2Data$Type extends MessageType$<Vector2Data> {
     constructor() {
         super("symbol.bench.Vector2Data", [
             { no: 1, name: "metatype", kind: "enum", T: () => ["symbol.bench.StructType", StructType, "STRUCT_TYPE_"] },
-            { no: 50, name: "x", kind: "scalar", T: 2 /*ScalarType.FLOAT*/ },
-            { no: 51, name: "y", kind: "scalar", T: 2 /*ScalarType.FLOAT*/ }
+            { no: 50, name: "x", kind: "scalar", T: 1 /*ScalarType.DOUBLE*/ },
+            { no: 51, name: "y", kind: "scalar", T: 1 /*ScalarType.DOUBLE*/ }
         ]);
     }
     create(value?: PartialMessage<Vector2Data>): Vector2Data {
@@ -28830,11 +28867,11 @@ class Vector2Data$Type extends MessageType$<Vector2Data> {
                 case /* symbol.bench.StructType metatype */ 1:
                     message.metatype = reader.int32();
                     break;
-                case /* float x */ 50:
-                    message.x = reader.float();
+                case /* double x */ 50:
+                    message.x = reader.double();
                     break;
-                case /* float y */ 51:
-                    message.y = reader.float();
+                case /* double y */ 51:
+                    message.y = reader.double();
                     break;
                 default:
                     let u = options.readUnknownField;
@@ -28851,12 +28888,12 @@ class Vector2Data$Type extends MessageType$<Vector2Data> {
         /* symbol.bench.StructType metatype = 1; */
         if (message.metatype !== 0)
             writer.tag(1, WireType.Varint).int32(message.metatype);
-        /* float x = 50; */
+        /* double x = 50; */
         if (message.x !== 0)
-            writer.tag(50, WireType.Bit32).float(message.x);
-        /* float y = 51; */
+            writer.tag(50, WireType.Bit64).double(message.x);
+        /* double y = 51; */
         if (message.y !== 0)
-            writer.tag(51, WireType.Bit32).float(message.y);
+            writer.tag(51, WireType.Bit64).double(message.y);
         let u = options.writeUnknownFields;
         if (u !== false)
             (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
@@ -28872,9 +28909,9 @@ class Vector3Data$Type extends MessageType$<Vector3Data> {
     constructor() {
         super("symbol.bench.Vector3Data", [
             { no: 1, name: "metatype", kind: "enum", T: () => ["symbol.bench.StructType", StructType, "STRUCT_TYPE_"] },
-            { no: 50, name: "x", kind: "scalar", T: 2 /*ScalarType.FLOAT*/ },
-            { no: 51, name: "y", kind: "scalar", T: 2 /*ScalarType.FLOAT*/ },
-            { no: 52, name: "z", kind: "scalar", T: 2 /*ScalarType.FLOAT*/ }
+            { no: 50, name: "x", kind: "scalar", T: 1 /*ScalarType.DOUBLE*/ },
+            { no: 51, name: "y", kind: "scalar", T: 1 /*ScalarType.DOUBLE*/ },
+            { no: 52, name: "z", kind: "scalar", T: 1 /*ScalarType.DOUBLE*/ }
         ]);
     }
     create(value?: PartialMessage<Vector3Data>): Vector3Data {
@@ -28895,14 +28932,14 @@ class Vector3Data$Type extends MessageType$<Vector3Data> {
                 case /* symbol.bench.StructType metatype */ 1:
                     message.metatype = reader.int32();
                     break;
-                case /* float x */ 50:
-                    message.x = reader.float();
+                case /* double x */ 50:
+                    message.x = reader.double();
                     break;
-                case /* float y */ 51:
-                    message.y = reader.float();
+                case /* double y */ 51:
+                    message.y = reader.double();
                     break;
-                case /* float z */ 52:
-                    message.z = reader.float();
+                case /* double z */ 52:
+                    message.z = reader.double();
                     break;
                 default:
                     let u = options.readUnknownField;
@@ -28919,15 +28956,15 @@ class Vector3Data$Type extends MessageType$<Vector3Data> {
         /* symbol.bench.StructType metatype = 1; */
         if (message.metatype !== 0)
             writer.tag(1, WireType.Varint).int32(message.metatype);
-        /* float x = 50; */
+        /* double x = 50; */
         if (message.x !== 0)
-            writer.tag(50, WireType.Bit32).float(message.x);
-        /* float y = 51; */
+            writer.tag(50, WireType.Bit64).double(message.x);
+        /* double y = 51; */
         if (message.y !== 0)
-            writer.tag(51, WireType.Bit32).float(message.y);
-        /* float z = 52; */
+            writer.tag(51, WireType.Bit64).double(message.y);
+        /* double z = 52; */
         if (message.z !== 0)
-            writer.tag(52, WireType.Bit32).float(message.z);
+            writer.tag(52, WireType.Bit64).double(message.z);
         let u = options.writeUnknownFields;
         if (u !== false)
             (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
@@ -28943,10 +28980,10 @@ class Vector4Data$Type extends MessageType$<Vector4Data> {
     constructor() {
         super("symbol.bench.Vector4Data", [
             { no: 1, name: "metatype", kind: "enum", T: () => ["symbol.bench.StructType", StructType, "STRUCT_TYPE_"] },
-            { no: 50, name: "x", kind: "scalar", T: 2 /*ScalarType.FLOAT*/ },
-            { no: 51, name: "y", kind: "scalar", T: 2 /*ScalarType.FLOAT*/ },
-            { no: 52, name: "z", kind: "scalar", T: 2 /*ScalarType.FLOAT*/ },
-            { no: 53, name: "w", kind: "scalar", T: 2 /*ScalarType.FLOAT*/ }
+            { no: 50, name: "x", kind: "scalar", T: 1 /*ScalarType.DOUBLE*/ },
+            { no: 51, name: "y", kind: "scalar", T: 1 /*ScalarType.DOUBLE*/ },
+            { no: 52, name: "z", kind: "scalar", T: 1 /*ScalarType.DOUBLE*/ },
+            { no: 53, name: "w", kind: "scalar", T: 1 /*ScalarType.DOUBLE*/ }
         ]);
     }
     create(value?: PartialMessage<Vector4Data>): Vector4Data {
@@ -28968,17 +29005,17 @@ class Vector4Data$Type extends MessageType$<Vector4Data> {
                 case /* symbol.bench.StructType metatype */ 1:
                     message.metatype = reader.int32();
                     break;
-                case /* float x */ 50:
-                    message.x = reader.float();
+                case /* double x */ 50:
+                    message.x = reader.double();
                     break;
-                case /* float y */ 51:
-                    message.y = reader.float();
+                case /* double y */ 51:
+                    message.y = reader.double();
                     break;
-                case /* float z */ 52:
-                    message.z = reader.float();
+                case /* double z */ 52:
+                    message.z = reader.double();
                     break;
-                case /* float w */ 53:
-                    message.w = reader.float();
+                case /* double w */ 53:
+                    message.w = reader.double();
                     break;
                 default:
                     let u = options.readUnknownField;
@@ -28995,18 +29032,18 @@ class Vector4Data$Type extends MessageType$<Vector4Data> {
         /* symbol.bench.StructType metatype = 1; */
         if (message.metatype !== 0)
             writer.tag(1, WireType.Varint).int32(message.metatype);
-        /* float x = 50; */
+        /* double x = 50; */
         if (message.x !== 0)
-            writer.tag(50, WireType.Bit32).float(message.x);
-        /* float y = 51; */
+            writer.tag(50, WireType.Bit64).double(message.x);
+        /* double y = 51; */
         if (message.y !== 0)
-            writer.tag(51, WireType.Bit32).float(message.y);
-        /* float z = 52; */
+            writer.tag(51, WireType.Bit64).double(message.y);
+        /* double z = 52; */
         if (message.z !== 0)
-            writer.tag(52, WireType.Bit32).float(message.z);
-        /* float w = 53; */
+            writer.tag(52, WireType.Bit64).double(message.z);
+        /* double w = 53; */
         if (message.w !== 0)
-            writer.tag(53, WireType.Bit32).float(message.w);
+            writer.tag(53, WireType.Bit64).double(message.w);
         let u = options.writeUnknownFields;
         if (u !== false)
             (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);

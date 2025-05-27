@@ -44,10 +44,10 @@ class BorderType(BuiltinEnum):
 
 @object_()
 class BorderBase(BuiltinObject):
-    type: BorderType = property_(30, default=BorderType.SOLID)
-    style: Optional["BorderStyle"] = property_(41)
-    color: Optional["Color"] = property_(50)
-    width: Optional[Insets] = property_(51)
+    type: BorderType = property_(30, default=BorderType.SOLID, is_repr=True)
+    style: Optional["BorderStyle"] = property_(41, is_repr=True)
+    color: Optional["Color"] = property_(50, is_repr=True)
+    width: Optional[Insets] = property_(51, is_repr=True)
 
 
 @struct_(StructType.BORDER)

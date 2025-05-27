@@ -39,17 +39,17 @@ class GradientType(BuiltinEnum):
 class GradientStop(Struct):
     """A gradient stop with color and position."""
 
-    color: Optional["Color"] = property_(50)
-    position: float = property_(51)
+    color: Optional["Color"] = property_(50, is_repr=True)
+    position: float = property_(51, is_repr=True)
 
 
 @object_()
 class GradientBase(BuiltinObject):
-    type: GradientType = property_(30, default=GradientType.LINEAR)
-    style: Optional["GradientStyle"] = property_(40)
-    angle: Optional[float] = property_(50)
-    stops: list[GradientStop] = property_(51)
-    center_anchor: Optional[Axis2] = property_(52)
+    type: GradientType = property_(30, default=GradientType.LINEAR, is_repr=True)
+    style: Optional["GradientStyle"] = property_(40, is_repr=True)
+    angle: Optional[float] = property_(50, is_repr=True)
+    stops: list[GradientStop] = property_(51, is_repr=True)
+    center_anchor: Optional[Axis2] = property_(52, is_repr=True)
 
 
 @struct_(StructType.GRADIENT)

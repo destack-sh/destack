@@ -85,15 +85,15 @@ class ColorShade(BuiltinEnum):
 class ColorBase(BuiltinObject):
     """A color value (x, y, z, alpha in 0-1)."""
 
-    type: ColorType = property_(30)
-    style: Optional["ColorStyle"] = property_(42)
+    type: ColorType = property_(30, is_repr=True)
+    style: Optional["ColorStyle"] = property_(42, is_repr=True)
 
-    hue: Optional[ColorHue] = property_(50)
-    shade: Optional[ColorShade] = property_(51)
-    x: Optional[float] = property_(52)
-    y: Optional[float] = property_(53)
-    z: Optional[float] = property_(54)
-    alpha: Optional[float] = property_(55)
+    hue: Optional[ColorHue] = property_(50, is_repr=True)
+    shade: Optional[ColorShade] = property_(51, is_repr=True)
+    x: Optional[float] = property_(52, is_repr=True)
+    y: Optional[float] = property_(53, is_repr=True)
+    z: Optional[float] = property_(54, is_repr=True)
+    alpha: Optional[float] = property_(55, is_repr=True)
 
 
 @struct_(StructType.COLOR)

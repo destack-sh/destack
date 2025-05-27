@@ -23,7 +23,7 @@ from google.protobuf.timestamp_pb2 import Timestamp
 from opentelemetry import trace
 
 from bench.language.registry import BUILTIN_OBJECT_TYPE_BY_CLASS, ENUM_CLASS_BY_TYPE
-from bench.pb2 import AnyNodeData, AnyStructData, Date, NodeReferenceData, TimeOfDay, ValueData
+from bench.pb2 import AnyNodeData, AnyStructData, Date, TimeOfDay, ValueData
 from bench.utils.time import timedelta_from_isoformat, timedelta_to_isoformat
 
 from .const import (
@@ -33,12 +33,12 @@ from .const import (
     StructType,
 )
 from .graph import Supergraph
-from .property import Property, property_
+from .property import IntoType, Property, property_
 from .struct import Struct, struct_
 from .type import Json, ScalarType
 
 if TYPE_CHECKING:
-    from bench.language import BuiltinObject, Node, NodeReference, Session, TypeBase
+    from bench.language import BuiltinObject, TypeBase
 
 
 # ruff: noqa: FURB113
@@ -118,23 +118,11 @@ def pack_value_scalar(value: ScalarValue | ScalarValueData, typ: "TypeBase") -> 
         else:
             return cast(JsonValue, value)
     elif typ.scalar_type == ScalarType.NODE:
-        if cast("Struct | AnyStructData", value).metatype != StructType.NODE_REFERENCE:
-            ref = cast("Node", value).to_ref()
-        else:
-            ref = cast("NodeReference | NodeReferenceData", value)
-        if isinstance(ref, BuiltinObject):
-            ref = ref.to_proto()
-        return pack_builtin_object_data(ref)
+        raise NotImplementedError
     elif typ.scalar_type == ScalarType.ENUM:
         return int(cast(Any, value))
     elif typ.scalar_type == ScalarType.STRUCT:
-        if isinstance(value, BuiltinObject):
-            return pack_builtin_object(value)
-        else:
-            assert hasattr(
-                value, "metatype"
-            ), f"unexpected value {value!r} ({type(value).__name__ }) for {typ!r}"
-            return pack_builtin_object_data(cast(AnyStructData | AnyNodeData, value))
+        raise NotImplementedError
     else:
         raise TypeError(f"cannot pack value of type {typ!r}")
 
@@ -167,44 +155,9 @@ def unpack_value_scalar(
         return enum_cls(cast(int, value_packed))
     elif typ.scalar_type in (ScalarType.NODE, ScalarType.STRUCT):
         assert isinstance(value_packed, dict), f"{value_packed!r} is not a dict, expected {typ!r}"
-        return unpack_builtin_object(value_packed, supergraph=supergraph)
+        raise NotImplementedError
     else:
         raise TypeError(f"cannot unpack value of type {typ!r}")
-
-
-def pack_builtin_object(
-    value: "BuiltinObject", only: Collection[Property] | None = None
-) -> dict[str, JsonValue]:
-    """Packs a BuiltinObject into the JSON representation."""
-    raise NotImplementedError
-
-
-def unpack_builtin_object[T: BuiltinObject = BuiltinObject](
-    value_packed: dict[str, Any],
-    *,
-    supergraph: Supergraph | None,
-    expect: type[T] | None = None,
-    session: "Session | None" = None,
-) -> T:
-    """Unpacks a BuiltinObject from the JSON representation."""
-    raise NotImplementedError
-
-
-def pack_builtin_object_data(
-    value: AnyStructData | AnyNodeData,
-    only: Collection[Property] | None = None,
-) -> dict[str, JsonValue]:
-    """Packs a single struct/node data value into the JSON representation."""
-    raise NotImplementedError
-
-
-def unpack_builtin_object_data[T: AnyStructData | AnyNodeData](
-    value_packed: dict[str, Any],
-    expect: type[T] | None = None,
-    into: T | None = None,
-) -> AnyStructData | AnyNodeData:
-    """Unpacks a single struct/node data value from the JSON representation."""
-    raise NotImplementedError
 
 
 def generate_pack_value_impl(cls: type["BuiltinObject"]) -> tuple[str, dict[str, Any]]:
@@ -242,7 +195,6 @@ from_value = __unpack_value__
         "time": time,
         "base64": base64,
         "UUID": UUID,
-        "unpack_builtin_object": unpack_builtin_object,
     }
 
 
@@ -313,12 +265,13 @@ def _generate_pack_value_property(prop: "Property") -> list[str]:
         lines.append(f"        _packed_{prop.name}.append({item_expr})")
         lines.append(f'    _object_value["{prop.id}"] = _packed_{prop.name}')
     elif prop.cardinality == "map":
+        assert prop.key_type is not None, f"no key type for {prop!r}"
         lines.append(f"if {obj_value}:")
         lines.append(f"    _packed_{prop.name} = {{}}")
         lines.append(f"    for _key, _value in {obj_value}.items():")
-        key_expr = _generate_pack_value_scalar(prop, "_key")
+        key_expr = _generate_pack_value_scalar(prop.key_type, "_key")
         value_expr = _generate_pack_value_scalar(prop, "_value")
-        lines.append(f"        _packed_{prop.name}[{key_expr}] = {value_expr}")
+        lines.append(f"        _packed_{prop.name}[str({key_expr})] = {value_expr}")
         lines.append(f'    _object_value["{prop.id}"] = _packed_{prop.name}')
     else:
         assert_never(prop.cardinality)
@@ -347,10 +300,11 @@ def _generate_unpack_value_property(prop: "Property") -> list[str]:
         item_expr = _generate_unpack_value_scalar(prop, "_item")
         lines.append(f"        _unpacked_{prop.name}.append({item_expr})")
     elif prop.cardinality == "map":
+        assert prop.key_type is not None, f"no key type for {prop!r}"
         lines.append(f"_unpacked_{prop.name} = {{}}")
         lines.append(f"if {data_value} is not None:")
         lines.append(f"    for _key, _value in {data_value}.items():")
-        key_expr = _generate_unpack_value_scalar(prop, "_key")
+        key_expr = _generate_unpack_value_scalar(prop.key_type, "_key")
         value_expr = _generate_unpack_value_scalar(prop, "_value")
         lines.append(f"        _unpacked_{prop.name}[{key_expr}] = {value_expr}")
     else:
@@ -359,7 +313,7 @@ def _generate_unpack_value_property(prop: "Property") -> list[str]:
     return lines
 
 
-def _generate_pack_value_scalar(prop: "Property", value_expr: str) -> str:
+def _generate_pack_value_scalar(prop: "Property | IntoType", value_expr: str) -> str:
     """Generate the packing code for a scalar value."""
 
     if prop.scalar_type == "primitive":
@@ -387,7 +341,7 @@ def _generate_pack_value_scalar(prop: "Property", value_expr: str) -> str:
         assert_never(prop.scalar_type)
 
 
-def _generate_unpack_value_scalar(prop: "Property", value_expr: str) -> str:
+def _generate_unpack_value_scalar(prop: "Property | IntoType", value_expr: str) -> str:
     """Generate the unpacking code for a scalar value."""
 
     if prop.scalar_type == "primitive":
@@ -410,15 +364,15 @@ def _generate_unpack_value_scalar(prop: "Property", value_expr: str) -> str:
         else:
             return value_expr
     elif prop.scalar_type == "enum":
-        assert prop.enum_type is not None
+        assert prop.enum_type is not None, f"no enum type for {prop!r}"
         enum_type_name = prop.enum_type.bench_name
-        return f"{enum_type_name}({value_expr})"
+        return f"{enum_type_name}(int({value_expr}))"
     elif prop.scalar_type == "struct":
-        assert prop.struct_type is not None
+        assert prop.struct_type is not None, f"no struct type for {prop!r}"
         struct_cls_name = prop.struct_type.bench_name
         return f"{struct_cls_name}.from_value({value_expr})"
     elif prop.scalar_type == "node":
-        return f"unpack_builtin_object({value_expr}, supergraph=supergraph)"
+        return f"NodeReference.from_value({value_expr})"
     else:
         assert_never(prop.scalar_type)
 
