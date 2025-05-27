@@ -1291,7 +1291,6 @@ enum TraitType {
   TRAIT_TYPE_TEMPLATABLE = 30;
   TRAIT_TYPE_INSTANTIABLE = 31;
   TRAIT_TYPE_EXTENSIBLE = 32;
-  TRAIT_TYPE_BASED = 33;
   TRAIT_TYPE_IN_BENCH = 40;
   TRAIT_TYPE_IN_PACKAGE = 41;
   TRAIT_TYPE_REGIONAL = 50;
@@ -2439,7 +2438,7 @@ message NodeReferenceData {
   string id = 32;
   optional string ck = 33;
   optional string bench_id = 34;
-  optional string base_id = 35;
+  optional string table_id = 35;
 }
 
 message NumberConstraintData {
@@ -2657,7 +2656,7 @@ message QueryData {
   optional bool count = 52;
 }
 
-// A Record in a Table.
+// A Record in a Table, basically an instance of a custom Node.
 message RecordData {
   NodeType metatype = 1;
   string id = 2;
@@ -3103,7 +3102,7 @@ message StringConstraintData {
   optional string ends_with = 43;
 }
 
-// A Table of Records.
+// A Table of Records, like a custom Node type with Fields as Properties.
 message TableData {
   NodeType metatype = 1;
   string id = 2;

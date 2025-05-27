@@ -5,10 +5,10 @@ from typing import TYPE_CHECKING, Any, Optional, Union, assert_never
 from fastuuid import UUID
 
 from .const import BuiltinEnum, EnumType, NodeType, StructType, enum_
-from .node import Node, NodeReference
+from .node import Node
 from .object import Property
 from .property import property_
-from .struct import Struct, struct_
+from .struct import NodeReference, Struct, struct_
 from .value import Value
 
 if TYPE_CHECKING:
@@ -34,7 +34,6 @@ class RelationReference(Struct):
     type: RelationType = property_(30, is_repr=True)
     node_type: NodeType = property_(31, is_repr=True)
     table: Optional["Table"] = property_(32, is_repr=True)
-
     if TYPE_CHECKING:
         table_ptr: Optional[NodeReference] = None  # convenience only
 

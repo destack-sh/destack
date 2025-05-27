@@ -53,17 +53,16 @@ class EditOperation(BuiltinEnum):
     CLEAR = 2
 
     # list
-    # LIST_APPEND, LIST_APPEND_IF_MISSING, LIST_REMOVE, ...
+    # LIST_APPEND_IF_MISSING, LIST_REMOVE, ...
 
     # map
     MAP_SET = 20
     MAP_REMOVE = 21
-    # MAP_SET, MAP_REMOVE, ...
 
     # math
     # NUMBER_ADD, NUMBER_SUBTRACT, ...
 
-    # text
+    # text/code
     # ...
 
 
@@ -74,10 +73,8 @@ class Edit(Struct):
     """
 
     # core
-    id: UUID = property_(
-        2, description="Unique identifier for the Edit within a Session.", default_factory="uuid"
-    )
-    type: EditType = property_(30, description="Type of Edit.")
+    id: UUID = property_(2, default_factory="uuid")
+    type: EditType = property_(30)
     node: Node = property_(31)
     key: str | None = property_(40)
     operation: EditOperation | None = property_(41)

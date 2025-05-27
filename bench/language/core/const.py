@@ -773,7 +773,6 @@ class TraitType(BuiltinEnum):
     TEMPLATABLE = 30, "Templatable", "Can be templated", "fas fa-puzzle-piece"
     INSTANTIABLE = 31, "Instantiable", "Can be instantiated", "fas fa-clone"
     EXTENSIBLE = 32, "Extensible", "Can be extended", "fas fa-expand"
-    BASED = 33, "Based", "Can be based on", "fas fa-baseball-bat-ball"
     IN_BENCH = 40, "Bench", "In a Bench", "fas fa-bench"
     IN_PACKAGE = 41, "Package", "In a Package", "fas fa-box"
     REGIONAL = 50, "Regional", "Is regional", "fas fa-globe"

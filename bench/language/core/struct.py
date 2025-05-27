@@ -13,7 +13,7 @@ from opentelemetry import trace
 
 from bench import pb2
 from bench.language.registry import BUILTIN_OBJECT_CLASS_BY_TYPE
-from bench.pb2 import AnyStructData, ScopeData
+from bench.pb2 import AnyStructData, NodeReferenceData, ScopeData
 from bench.utils.env import IS_DEV
 
 from .const import NodeType, Region, StructType
@@ -113,3 +113,17 @@ class PropertyReference(Struct):
         object_cls = self.object_cls
         prop = (object_cls or Node).__properties_by_id__.get(self.id)
         return prop
+
+
+@struct_(StructType.NODE_REFERENCE, is_frozen=True)
+class NodeReference(Struct[NodeReferenceData]):
+    """
+    A reference to a Node.
+    """
+
+    node_type: NodeType = property_(31, is_repr=True)
+    id: UUID = property_(32, is_repr=True)
+    ck: Optional[UUID] = property_(33, is_repr=True)
+    bench_id: Optional[UUID] = property_(34, is_repr=True)
+    table_id: Optional[UUID] = property_(35, is_repr=True)
+    # area? external_id?

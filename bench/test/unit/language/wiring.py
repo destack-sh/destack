@@ -28,7 +28,7 @@ from bench.test.unit.conftest import BUILTIN_OBJECTS
 def test_roundtrip_node_reference():
     """Pack and unpack a NodeReference as proto and value."""
     node_ref = NodeReference(
-        node_type=NodeType.PAGE, id=uuid4(), ck=uuid4(), bench_id=uuid4(), base_id=uuid4()
+        node_type=NodeType.PAGE, id=uuid4(), ck=uuid4(), bench_id=uuid4(), table_id=uuid4()
     )
 
     # proto

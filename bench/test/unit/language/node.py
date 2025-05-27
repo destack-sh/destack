@@ -14,14 +14,16 @@ from bench.language import (
     Session,
     Table,
     Text,
+    title,
 )
 from bench.test.simulation.core import Simulation
 from bench.test.simulation.workload import RuntimeLambdaWorkload
-from bench.test.strategies import structs
-from bench.test.unit.conftest import simulated_runtime
+from bench.test.strategies import examples, structs
+from bench.test.unit.conftest import BUILTIN_OBJECTS, simulated_runtime
 
 
 @given(obj=structs)
+@examples([{"obj": obj} for obj in BUILTIN_OBJECTS])
 @settings(suppress_health_check=[HealthCheck.function_scoped_fixture])
 def test_builtin_object_clone(obj: BuiltinObject, session: Session):
     obj_clone = obj.clone()
@@ -211,7 +213,7 @@ async def test_move_subtree(simulation: Simulation, runtime: RuntimeLambdaWorklo
 
 def test_create_circular_node_ancestry(session: Session, package: Package):
     """Create a circular node ancestry. Should fail."""
-    Page1 = Page.new("Page1")
+    Page1 = Page(title=title("Page1"))
     with pytest.raises(ValueError):
         Page1.add_child(Page1)
     package.add_child(Page1)

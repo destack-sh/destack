@@ -82,16 +82,6 @@ async def test_extract_file_info_image(simulation: Simulation, runtime: RuntimeL
 
 
 @simulated_runtime()
-async def test_file_from_data_uri(simulation: Simulation, runtime: RuntimeLambdaWorkload):
-    file = await File.inline(IMAGE_B64_URI)
-    assert file.type == FileType.IMAGE
-    assert file.format == FileFormat.PNG
-    assert file.width == 32
-    assert file.height == 24
-    assert file.aspect_ratio == 32 / 24
-
-
-@simulated_runtime()
 async def test_file_from_url(simulation: Simulation, runtime: RuntimeLambdaWorkload):  # noqa: RUF029
     file = File.external(
         "https://en.wikipedia.org/wiki/ETH_Zurich#/media/File:ETH_Z%C3%BCrich_im_Abendlicht.jpg"

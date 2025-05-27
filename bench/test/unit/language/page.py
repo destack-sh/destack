@@ -1,13 +1,13 @@
-from bench.language import Block, BlockType, Page, Schema, Session, TextLine
+from bench.language import Block, BlockType, Page, Schema, Session, TextLine, title
 
 
 def test_cast_block_in_page(session: Session):
     """InlineSourceNodes should be added and moved as Blocks."""
-    Page1 = Page.new("Page1")
-    Page2 = Page.new("Page2")
+    Page1 = Page(title=title("Page1"))
+    Page2 = Page(title=title("Page2"))
 
     # plain Text Block
-    Text1 = Block.new(BlockType.PARAGRAPH, line=TextLine.plain("Hello, world!"))
+    Text1 = Block(type=BlockType.PARAGRAPH, line=TextLine.plain("Hello, world!"))
     Page1.add_child(Text1)
     assert len(Page1.get_children(Block)) == 1
 
