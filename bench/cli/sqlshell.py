@@ -29,17 +29,17 @@ async def shell(
     """Open a psql shell to either the global or a Bench-local database."""
     from bench.language import Bench, Database, NodeArea, Package
     from bench.system import (
-        global_database_from_env,
+        get_global_database_from_env,
+        get_regional_database_from_env,
         global_session,
         pg_engine_from_database,
-        regional_database_from_env,
     )
 
-    global_database = global_database_from_env()
+    global_database = get_global_database_from_env()
     global_pg_engine = pg_engine_from_database(
         "pg-global", global_database, NodeArea.GLOBAL_POSTGRES
     )
-    regional_database = regional_database_from_env(region)
+    regional_database = get_regional_database_from_env(region)
     regional_pg_engine = pg_engine_from_database(
         f"pg-regional-{region.name.lower()}", regional_database, NodeArea.REGIONAL_POSTGRES
     )

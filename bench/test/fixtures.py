@@ -1,14 +1,17 @@
+import re
 from contextlib import contextmanager
-
-# ruff: noqa: E402
 from urllib.parse import urlparse
 
 import grpclib
 import pytest
 import structlog
 
+from bench.language.core.graph import Supergraph
+from bench.language.core.session import Session
+from bench.sql.client import pg_connection
 from bench.test.conftest import _setup_test_env
 
+# ruff: noqa: E402
 # NOTE: must run setup before importing from bench
 _setup_test_env()
 
@@ -24,11 +27,10 @@ from bench.language import (
     Package,
     PackageType,
     Region,
-    Supergraph,
 )
 from bench.sql import (
     ALL_EXTENSIONS,
-    BENCH_RECORD_TABLE_PREFIX,
+    BENCH_CUSTOM_NODE_PREFIX,
     BENCH_TABLE_PREFIX,
     BUILTIN_GLOBAL_SCHEMA,
     BUILTIN_GLOBAL_TABLES,
@@ -54,16 +56,16 @@ def make_global_database(name: str):
     pg_url_parsed = urlparse(pg)
     pg_url = pg_url_parsed._replace(path=f"/{name}").geturl()
 
-    supergraph = Supergraph(name="Global")
+    system_session = Session(supergraph=Supergraph("system"))
     system_bench_stub = Bench(
         id=SYSTEM_ID,
         name="System",
         slug="system",
         region=Region.ZURICH,
-        _supergraph=supergraph,
         status=BenchStatus.ACTIVE,
         created_at=BEGINNING_OF_TIME,
         updated_at=BEGINNING_OF_TIME,
+        _session=system_session,
     )
     system_package_stub = Package(
         parent=system_bench_stub,
@@ -71,9 +73,9 @@ def make_global_database(name: str):
         id=SYSTEM_SYSTEM_PACKAGE_ID,
         name="Home",
         slug="home",
-        _supergraph=supergraph,
         created_at=BEGINNING_OF_TIME,
         updated_at=BEGINNING_OF_TIME,
+        _session=system_session,
     )
     database = Database(
         parent=system_package_stub,
@@ -81,9 +83,9 @@ def make_global_database(name: str):
         version=VERSION,
         external_name=name,
         sql_url=pg_url,
-        _supergraph=supergraph,
         created_at=BEGINNING_OF_TIME,
         updated_at=BEGINNING_OF_TIME,
+        _session=system_session,
     )
     return database
 
@@ -97,26 +99,26 @@ def make_regional_database(name: str):
     pg_url_parsed = urlparse(pg)
     pg_url = pg_url_parsed._replace(path=f"/{name}").geturl()
 
-    supergraph = Supergraph(name="Regional")
+    system_session = Session(supergraph=Supergraph("system"))
     system_bench_stub = Bench(
         id=SYSTEM_ID,
         name="System",
         slug="system",
         region=Region.ZURICH,
-        _supergraph=supergraph,
         status=BenchStatus.ACTIVE,
         created_at=BEGINNING_OF_TIME,
         updated_at=BEGINNING_OF_TIME,
+        _session=system_session,
     )
     system_package_stub = Package(
+        id=SYSTEM_SYSTEM_PACKAGE_ID,
         parent=system_bench_stub,
         type=PackageType.HOME,
-        id=SYSTEM_SYSTEM_PACKAGE_ID,
         name="Home",
         slug="home",
-        _supergraph=supergraph,
         created_at=BEGINNING_OF_TIME,
         updated_at=BEGINNING_OF_TIME,
+        _session=system_session,
     )
     database = Database(
         parent=system_package_stub,
@@ -124,30 +126,30 @@ def make_regional_database(name: str):
         version=VERSION,
         external_name=name,
         sql_url=pg_url,
-        _supergraph=supergraph,
         created_at=BEGINNING_OF_TIME,
         updated_at=BEGINNING_OF_TIME,
+        _session=system_session,
     )
     return database
 
 
 async def create_blank_test_db(database: Database):
     """Creates a blank postgres database"""
-    from bench.system import global_database_from_env
+    from bench.system import get_global_database_from_env
 
-    async with pg_connection(global_database_from_env(), owner=database, autocommit=True) as conn:
-        await conn.execute(sqlstr(f'DROP DATABASE IF EXISTS "{database.external_name}"'))
-        await conn.execute(sqlstr(f'CREATE DATABASE "{database.external_name}"'))
+    async with pg_connection(get_global_database_from_env(), autocommit=True) as conn:
+        await conn.execute(f'DROP DATABASE IF EXISTS "{database.external_name}"')
+        await conn.execute(f'CREATE DATABASE "{database.external_name}"')
 
 
 async def create_test_db(database: Database, schema: SqlSchema):
     """Creates a postgres DB with one of our schemas"""
     await create_blank_test_db(database)
-    async with pg_connection(database, owner=database, autocommit=True) as conn:
+    async with pg_connection(database, autocommit=True) as conn:
         old_schema = await introspect_sql_schema(
             conn.cursor,
             include_table_prefixes=(BENCH_TABLE_PREFIX,),
-            exclude_table_prefixes=(BENCH_RECORD_TABLE_PREFIX,),
+            exclude_table_prefixes=(BENCH_CUSTOM_NODE_PREFIX,),
         )
         migration_ops = generate_sql_migration_ops(old_schema=old_schema, new_schema=schema)
         await apply_sql_migration_ops(conn.cursor, migration_ops)
@@ -156,18 +158,22 @@ async def create_test_db(database: Database, schema: SqlSchema):
 
 async def delete_test_db(database: Database):
     """Deletes a postgres DB with one of our schemas"""
-    from bench.system import global_database_from_env
+    from bench.system import get_global_database_from_env
 
-    await get_pg_pool(database).close()
-    async with pg_connection(global_database_from_env(), owner=database, autocommit=True) as conn:
-        await conn.execute(sqlstr(f'DROP DATABASE IF EXISTS "{database.external_name}"'))
+    async with pg_connection(get_global_database_from_env(), autocommit=True) as conn:
+        await conn.execute(f'DROP DATABASE IF EXISTS "{database.external_name}"')
+
+
+def _clean_name(name: str) -> str:
+    """Turn a name into a valid Python identifier"""
+    return re.sub(r"[^a-zA-Z0-9]", "_", name)
 
 
 @pytest.fixture
 async def blank_database(request: pytest.FixtureRequest):
     """Gets the per test function blank database"""
 
-    database = make_global_database(f"test-{clean_name(request.node.name)[:32]}-blank")
+    database = make_global_database(f"test-{_clean_name(request.node.name)[:32]}-blank")
     await create_blank_test_db(database)
     try:
         yield database
@@ -179,7 +185,7 @@ async def blank_database(request: pytest.FixtureRequest):
 async def global_database(request: pytest.FixtureRequest):
     """Gets the per test function global database"""
 
-    database = make_global_database(f"test-{clean_name(request.node.name)[:32]}-global")
+    database = make_global_database(f"test-{_clean_name(request.node.name)[:32]}-global")
     await create_test_db(database, BUILTIN_GLOBAL_SCHEMA)
     try:
         yield database
@@ -191,7 +197,7 @@ async def global_database(request: pytest.FixtureRequest):
 async def regional_database(request: pytest.FixtureRequest):
     """Gets the per test function regional database"""
 
-    database = make_regional_database(f"test-{clean_name(request.node.name)[:32]}-regional")
+    database = make_regional_database(f"test-{_clean_name(request.node.name)[:32]}-regional")
     await create_test_db(database, BUILTIN_REGIONAL_SCHEMA)
     try:
         yield database
@@ -209,7 +215,7 @@ async def omni_database(request: pytest.FixtureRequest):
     ALL_TABLES = tuple(ALL_TABLES.values())
     OMNI_SCHEMA = SqlSchema(ALL_EXTENSIONS, ALL_TABLES)
 
-    database = make_global_database(f"test-{clean_name(request.node.name)[:32]}-omni")
+    database = make_global_database(f"test-{_clean_name(request.node.name)[:32]}-omni")
     await create_test_db(database, OMNI_SCHEMA)
     try:
         yield database

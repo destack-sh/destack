@@ -100,12 +100,12 @@ async def system(
         CreateBenchOptions,
         HostRouterService,
         SupervisorService,
-        global_database_from_env,
-        regional_database_from_env,
+        get_global_database_from_env,
+        get_regional_database_from_env,
     )
 
-    global_database = global_database_from_env()
-    regional_database = regional_database_from_env()
+    global_database = get_global_database_from_env()
+    regional_database = get_regional_database_from_env()
     network = RealNetwork()
     host_router = HostRouterService(
         id="host-router",
@@ -139,10 +139,10 @@ async def supervisor(host: str, port: int, watch: bool = False, no_check: bool =
         HOST_MAP,
         CreateBenchOptions,
         SupervisorService,
-        global_database_from_env,
+        get_global_database_from_env,
     )
 
-    global_database = global_database_from_env()
+    global_database = get_global_database_from_env()
     network = RealNetwork()
     supervisor = SupervisorService(
         id="supervisor",
@@ -161,10 +161,14 @@ async def supervisor(host: str, port: int, watch: bool = False, no_check: bool =
 @async_to_sync
 async def host(host: str, port: int, watch: bool = False, no_check: bool = False):
     """Serve the HostRouter."""
-    from bench.system import HostRouterService, global_database_from_env, regional_database_from_env
+    from bench.system import (
+        HostRouterService,
+        get_global_database_from_env,
+        get_regional_database_from_env,
+    )
 
-    global_database = global_database_from_env()
-    regional_database = regional_database_from_env()
+    global_database = get_global_database_from_env()
+    regional_database = get_regional_database_from_env()
     network = RealNetwork()
     host_router = HostRouterService(
         id="host-router",

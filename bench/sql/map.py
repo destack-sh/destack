@@ -37,25 +37,25 @@ from .core import (
 from .core import SqlTable as SqlTable
 
 BENCH_TABLE_PREFIX = "bench_"
-BENCH_RECORD_TABLE_PREFIX = "bench_record_"
-BENCH_RECORD_VALUE_PREFIX = "value_"
+BENCH_CUSTOM_NODE_PREFIX = "bench_custom_"
+BENCH_CUSTOM_FIELD_PREFIX = "value_"
 
 
 def get_node_table_name(node_type: NodeType) -> str:
     return f"{BENCH_TABLE_PREFIX}{node_type.name.lower()}"
 
 
-def get_record_table_name(table: Table) -> str:
-    ck_str = base58_encode(table.ck.bytes)
-    return f"{BENCH_RECORD_TABLE_PREFIX}{ck_str}"
+def get_custom_node_table_name(definition: Table) -> str:
+    ck_str = base58_encode(definition.ck.bytes)
+    return f"{BENCH_CUSTOM_NODE_PREFIX}{ck_str}"
 
 
-def get_record_field_name(field: Field) -> str:
+def get_custom_field_column_name(field: Field) -> str:
     ck_str = base58_encode(field.ck.bytes)
-    return f"{BENCH_RECORD_VALUE_PREFIX}{ck_str}{field.identity_key}"
+    return f"{BENCH_CUSTOM_FIELD_PREFIX}{ck_str}{field.identity_key}"
 
 
-def map_builtin_object_to_sql_table(
+def map_builtin_node_to_sql_table(
     node: type[Node], properties: list[Property] | None = None
 ) -> SqlTable:
     """Maps a node type into its builtin Table schema."""
@@ -175,18 +175,18 @@ def map_builtin_object_to_sql_table(
     return table
 
 
-def map_table_to_sql_table(table: Table, prev_sql_table: SqlTable | None) -> SqlTable:
+def map_custom_node_to_sql_table(table: Table, prev_sql_table: SqlTable | None) -> SqlTable:
     """
     Maps a table to its corresponding custom Record Table.
     If a previous table is passed in, all its constructs will exist in the new table
      (if they are not already present in the new table).
     """
-    base_sql_table = map_builtin_object_to_sql_table(
+    base_sql_table = map_builtin_node_to_sql_table(
         Record,
         # all stored Record properties except value, which we unfurl into columns
         properties=list(Record.__stored_properties__.values()),
     )
-    table_name = get_record_table_name(table)
+    table_name = get_custom_node_table_name(table)
     columns: list[SqlColumn] = [column.clone() for column in base_sql_table.columns]
     constraints: list[SqlConstraint] = [
         constraint.clone() for constraint in base_sql_table.constraints
@@ -211,7 +211,7 @@ def map_table_to_sql_table(table: Table, prev_sql_table: SqlTable | None) -> Sql
             raise TypeError(f"cannot store field in {table!r}: {field!r}")
 
         column = SqlColumn(
-            name=get_record_field_name(field),
+            name=get_custom_field_column_name(field),
             type=primitive_type,
             is_array=field.cardinality == "list",
             is_nullable=True,  # NOTE :Incomplete: support field constraints in table

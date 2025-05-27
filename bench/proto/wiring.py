@@ -15,7 +15,6 @@ from opentelemetry import trace
 from bench import pb2
 from bench.language.core import (
     BuiltinObject,
-    EditType,
     IntoType,
     NodeType,
     PrimitiveType,
@@ -30,7 +29,7 @@ from bench.language.registry import (
     BUILTIN_OBJECT_TYPE_BY_CLASS,
     STRUCT_CLASS_BY_TYPE,
 )
-from bench.pb2 import AnyNodeData, AnyStructData, EditData, NodeReferenceData, RpcMetadata
+from bench.pb2 import AnyNodeData, AnyStructData, RpcMetadata
 from bench.utils.string import Casing, to_casing
 
 if TYPE_CHECKING:
@@ -54,45 +53,6 @@ BENCH_CLASS_BY_PROTO_CLASS: dict[type[Union[AnyNodeData, AnyStructData]], type[B
     cls: BUILTIN_OBJECT_CLASS_BY_TYPE[object_type]
     for cls, object_type in OBJECT_TYPE_BY_PROTO_CLASS.items()
 }
-
-
-def describe_node_ptr(ptr: NodeReferenceData) -> str:
-    """Describe a pointer."""
-    try:
-        node_type_name = NodeType(ptr.node_type).name
-    except ValueError:
-        node_type_name = "???"
-    if ptr.ck:
-        return f"{node_type_name}[id={ptr.id}, ck={ptr.ck}]"
-    else:
-        return f"{node_type_name}[id={ptr.id}]"
-
-
-def describe_node(node: AnyNodeData) -> str:
-    """Describe a node."""
-    node_type = NodeType(node.metatype)
-    node_parts: list[str] = [f"id={node.id or '???'}"]
-    if node.HasField("ck"):
-        node_parts.append(f"ck={node.ck or '???'}")  # type: ignore
-    if node.HasField("name") and node.name:  # type: ignore
-        node_parts.append(f"name={node.name}")  # type: ignore
-    if node.HasField("slug") and node.slug:  # type: ignore
-        node_parts.append(f"slug={node.slug}")  # type: ignore
-    return f"{node_type.name}({', '.join(node_parts)})"
-
-
-def describe_edit(edit: EditData) -> str:
-    """Describe an edit."""
-    edit_type = EditType(edit.type)
-    node_str = describe_node_ptr(edit.node_ptr)
-    return f"{edit_type.name}[id={edit.id}, edited_at={edit.edited_at.ToJsonString()}, node={node_str}]"
-
-
-def copy_struct[T: AnyStructData | AnyNodeData](data: T) -> T:
-    """Deepcopy a struct data object."""
-    copy = type(data)(metatype=data.metatype)  # type: ignore
-    copy.CopyFrom(data)  # type: ignore
-    return copy
 
 
 def generate_pack_proto_impl(cls: type["BuiltinObject"]) -> tuple[str, dict[str, Any]]:

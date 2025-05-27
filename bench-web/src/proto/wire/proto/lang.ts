@@ -79,33 +79,21 @@ export interface ActionData {
      */
     mode: NodeMode;
     /**
-     * @generated from protobuf field: optional symbol.bench.ValueData value = 21;
-     */
-    value?: ValueData;
-    /**
      * @generated from protobuf field: optional string order_key = 22;
      */
     orderKey?: string;
-    /**
-     * @generated from protobuf field: symbol.bench.ActionType type = 30;
-     */
-    type: ActionType;
     /**
      * @generated from protobuf field: string name = 31;
      */
     name: string;
     /**
-     * @generated from protobuf field: optional symbol.bench.TextData text = 36;
+     * @generated from protobuf field: symbol.bench.ActionCardinality cardinality = 40;
+     */
+    cardinality: ActionCardinality;
+    /**
+     * @generated from protobuf field: optional symbol.bench.TextData text = 41;
      */
     text?: TextData;
-    /**
-     * @generated from protobuf field: optional symbol.bench.CodeData code = 52;
-     */
-    code?: CodeData;
-    /**
-     * @generated from protobuf field: optional symbol.bench.NodeReferenceData tool_ptr = 53;
-     */
-    toolPtr?: NodeReferenceData;
     /**
      * @generated from protobuf field: optional symbol.bench.ModelDeveloper model_developer = 100;
      */
@@ -1401,10 +1389,6 @@ export interface EditData {
      * @generated from protobuf field: optional symbol.bench.NodeReferenceData parent_ptr = 41;
      */
     parentPtr?: NodeReferenceData;
-    /**
-     * @generated from protobuf field: google.protobuf.Timestamp edited_at = 50;
-     */
-    editedAt?: Timestamp;
 }
 /**
  * @generated from protobuf message symbol.bench.EffectData
@@ -8165,33 +8149,21 @@ export interface SomeNodeData {
     };
 }
 /**
- * @generated from protobuf enum symbol.bench.ActionType
+ * @generated from protobuf enum symbol.bench.ActionCardinality
  */
-export enum ActionType {
+export enum ActionCardinality {
     /**
-     * @generated from protobuf enum value: ACTION_TYPE_UNSPECIFIED = 0;
+     * @generated from protobuf enum value: ACTION_CARDINALITY_UNSPECIFIED = 0;
      */
     UNSPECIFIED = 0,
     /**
-     * @generated from protobuf enum value: ACTION_TYPE_START = 10;
+     * @generated from protobuf enum value: ACTION_CARDINALITY_UNARY = 10;
      */
-    START = 10,
+    UNARY = 10,
     /**
-     * @generated from protobuf enum value: ACTION_TYPE_END = 20;
+     * @generated from protobuf enum value: ACTION_CARDINALITY_UNARY_STREAM = 11;
      */
-    END = 20,
-    /**
-     * @generated from protobuf enum value: ACTION_TYPE_TOOL = 100;
-     */
-    TOOL = 100,
-    /**
-     * @generated from protobuf enum value: ACTION_TYPE_CODE = 101;
-     */
-    CODE = 101,
-    /**
-     * @generated from protobuf enum value: ACTION_TYPE_BUILTIN = 102;
-     */
-    BUILTIN = 102
+    UNARY_STREAM = 11
 }
 /**
  * @generated from protobuf enum symbol.bench.AggregationType
@@ -9389,9 +9361,9 @@ export enum EnumType {
      */
     CLIENT_TYPE = 41021,
     /**
-     * @generated from protobuf enum value: ENUM_TYPE_ACTION_TYPE = 41220;
+     * @generated from protobuf enum value: ENUM_TYPE_ACTION_CARDINALITY = 41220;
      */
-    ACTION_TYPE = 41220,
+    ACTION_CARDINALITY = 41220,
     /**
      * @generated from protobuf enum value: ENUM_TYPE_FLOW_TYPE = 41240;
      */
@@ -12650,13 +12622,13 @@ export enum UpdateType {
      */
     CLEAR = 2,
     /**
-     * @generated from protobuf enum value: UPDATE_TYPE_MAP_SET = 20;
+     * @generated from protobuf enum value: UPDATE_TYPE_MAP_SET = 110;
      */
-    MAP_SET = 20,
+    MAP_SET = 110,
     /**
-     * @generated from protobuf enum value: UPDATE_TYPE_MAP_REMOVE = 21;
+     * @generated from protobuf enum value: UPDATE_TYPE_MAP_REMOVE = 111;
      */
-    MAP_REMOVE = 21
+    MAP_REMOVE = 111
 }
 /**
  * @generated from protobuf enum symbol.bench.UserStatus
@@ -12712,13 +12684,10 @@ class ActionData$Type extends MessageType$<ActionData> {
             { no: 15, name: "deleted_at", kind: "message", T: () => Timestamp },
             { no: 16, name: "template_ptr", kind: "message", T: () => NodeReferenceData },
             { no: 20, name: "mode", kind: "enum", T: () => ["symbol.bench.NodeMode", NodeMode, "NODE_MODE_"] },
-            { no: 21, name: "value", kind: "message", T: () => ValueData },
             { no: 22, name: "order_key", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
-            { no: 30, name: "type", kind: "enum", T: () => ["symbol.bench.ActionType", ActionType, "ACTION_TYPE_"] },
             { no: 31, name: "name", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
-            { no: 36, name: "text", kind: "message", T: () => TextData },
-            { no: 52, name: "code", kind: "message", T: () => CodeData },
-            { no: 53, name: "tool_ptr", kind: "message", T: () => NodeReferenceData },
+            { no: 40, name: "cardinality", kind: "enum", T: () => ["symbol.bench.ActionCardinality", ActionCardinality, "ACTION_CARDINALITY_"] },
+            { no: 41, name: "text", kind: "message", T: () => TextData },
             { no: 100, name: "model_developer", kind: "enum", opt: true, T: () => ["symbol.bench.ModelDeveloper", ModelDeveloper, "MODEL_DEVELOPER_"] },
             { no: 101, name: "model_provider", kind: "enum", opt: true, T: () => ["symbol.bench.ModelProvider", ModelProvider, "MODEL_PROVIDER_"] },
             { no: 102, name: "model_id", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
@@ -12734,8 +12703,8 @@ class ActionData$Type extends MessageType$<ActionData> {
         message.id = "";
         message.ck = "";
         message.mode = 0;
-        message.type = 0;
         message.name = "";
+        message.cardinality = 0;
         if (value !== undefined)
             reflectionMergePartial<ActionData>(this, message, value);
         return message;
@@ -12787,26 +12756,17 @@ class ActionData$Type extends MessageType$<ActionData> {
                 case /* symbol.bench.NodeMode mode */ 20:
                     message.mode = reader.int32();
                     break;
-                case /* optional symbol.bench.ValueData value */ 21:
-                    message.value = ValueData.internalBinaryRead(reader, reader.uint32(), options, message.value);
-                    break;
                 case /* optional string order_key */ 22:
                     message.orderKey = reader.string();
-                    break;
-                case /* symbol.bench.ActionType type */ 30:
-                    message.type = reader.int32();
                     break;
                 case /* string name */ 31:
                     message.name = reader.string();
                     break;
-                case /* optional symbol.bench.TextData text */ 36:
+                case /* symbol.bench.ActionCardinality cardinality */ 40:
+                    message.cardinality = reader.int32();
+                    break;
+                case /* optional symbol.bench.TextData text */ 41:
                     message.text = TextData.internalBinaryRead(reader, reader.uint32(), options, message.text);
-                    break;
-                case /* optional symbol.bench.CodeData code */ 52:
-                    message.code = CodeData.internalBinaryRead(reader, reader.uint32(), options, message.code);
-                    break;
-                case /* optional symbol.bench.NodeReferenceData tool_ptr */ 53:
-                    message.toolPtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.toolPtr);
                     break;
                 case /* optional symbol.bench.ModelDeveloper model_developer */ 100:
                     message.modelDeveloper = reader.int32();
@@ -12883,27 +12843,18 @@ class ActionData$Type extends MessageType$<ActionData> {
         /* symbol.bench.NodeMode mode = 20; */
         if (message.mode !== 0)
             writer.tag(20, WireType.Varint).int32(message.mode);
-        /* optional symbol.bench.ValueData value = 21; */
-        if (message.value)
-            ValueData.internalBinaryWrite(message.value, writer.tag(21, WireType.LengthDelimited).fork(), options).join();
         /* optional string order_key = 22; */
         if (message.orderKey !== undefined)
             writer.tag(22, WireType.LengthDelimited).string(message.orderKey);
-        /* symbol.bench.ActionType type = 30; */
-        if (message.type !== 0)
-            writer.tag(30, WireType.Varint).int32(message.type);
         /* string name = 31; */
         if (message.name !== "")
             writer.tag(31, WireType.LengthDelimited).string(message.name);
-        /* optional symbol.bench.TextData text = 36; */
+        /* symbol.bench.ActionCardinality cardinality = 40; */
+        if (message.cardinality !== 0)
+            writer.tag(40, WireType.Varint).int32(message.cardinality);
+        /* optional symbol.bench.TextData text = 41; */
         if (message.text)
-            TextData.internalBinaryWrite(message.text, writer.tag(36, WireType.LengthDelimited).fork(), options).join();
-        /* optional symbol.bench.CodeData code = 52; */
-        if (message.code)
-            CodeData.internalBinaryWrite(message.code, writer.tag(52, WireType.LengthDelimited).fork(), options).join();
-        /* optional symbol.bench.NodeReferenceData tool_ptr = 53; */
-        if (message.toolPtr)
-            NodeReferenceData.internalBinaryWrite(message.toolPtr, writer.tag(53, WireType.LengthDelimited).fork(), options).join();
+            TextData.internalBinaryWrite(message.text, writer.tag(41, WireType.LengthDelimited).fork(), options).join();
         /* optional symbol.bench.ModelDeveloper model_developer = 100; */
         if (message.modelDeveloper !== undefined)
             writer.tag(100, WireType.Varint).int32(message.modelDeveloper);
@@ -15764,8 +15715,7 @@ class EditData$Type extends MessageType$<EditData> {
             { no: 33, name: "path", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
             { no: 34, name: "key", kind: "message", T: () => ValueData },
             { no: 40, name: "value", kind: "message", T: () => ValueData },
-            { no: 41, name: "parent_ptr", kind: "message", T: () => NodeReferenceData },
-            { no: 50, name: "edited_at", kind: "message", T: () => Timestamp }
+            { no: 41, name: "parent_ptr", kind: "message", T: () => NodeReferenceData }
         ]);
     }
     create(value?: PartialMessage<EditData>): EditData {
@@ -15809,9 +15759,6 @@ class EditData$Type extends MessageType$<EditData> {
                 case /* optional symbol.bench.NodeReferenceData parent_ptr */ 41:
                     message.parentPtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.parentPtr);
                     break;
-                case /* google.protobuf.Timestamp edited_at */ 50:
-                    message.editedAt = Timestamp.internalBinaryRead(reader, reader.uint32(), options, message.editedAt);
-                    break;
                 default:
                     let u = options.readUnknownField;
                     if (u === "throw")
@@ -15851,9 +15798,6 @@ class EditData$Type extends MessageType$<EditData> {
         /* optional symbol.bench.NodeReferenceData parent_ptr = 41; */
         if (message.parentPtr)
             NodeReferenceData.internalBinaryWrite(message.parentPtr, writer.tag(41, WireType.LengthDelimited).fork(), options).join();
-        /* google.protobuf.Timestamp edited_at = 50; */
-        if (message.editedAt)
-            Timestamp.internalBinaryWrite(message.editedAt, writer.tag(50, WireType.LengthDelimited).fork(), options).join();
         let u = options.writeUnknownFields;
         if (u !== false)
             (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);

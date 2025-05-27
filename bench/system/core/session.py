@@ -1,27 +1,19 @@
 from datetime import datetime
 
-import cachetools
 from fastuuid import UUID
 
 from bench.language import (
-    EMPTY_SCOPE_DATA,
-    NODE_TYPES,
     REGION,
     VERSION,
     Bench,
     BenchStatus,
     Database,
     Node,
-    NodeArea,
-    NodeReference,
-    NodeType,
     Package,
     PackageType,
     Region,
-    Scope,
     Supergraph,
 )
-from bench.proto import ScopeData
 from bench.utils.oracle import Oracle
 from bench.utils.utils import get_from_env
 
@@ -29,25 +21,21 @@ BEGINNING_OF_TIME = datetime.fromisoformat("1970-01-01T00:00:00+00:00")
 
 
 def make_system_database(region: Region, pg_url: str) -> Database:
-    system_bench_ptr = NodeReference(node_type=NodeType.BENCH, id=UUID(int=0), ck=UUID(int=0))
-    supergraph = Supergraph(name="Global", root_ptr=system_bench_ptr)
     system_bench_stub = Bench(
         id=UUID(int=0),
         name="System",
         slug="system",
         region=region,
         status=BenchStatus.ACTIVE,
-        _supergraph=supergraph,
         created_at=BEGINNING_OF_TIME,
         updated_at=BEGINNING_OF_TIME,
     )
     system_package_stub = Package(
         parent=system_bench_stub,
-        type=PackageType.OPEN,
+        type=PackageType.HOME,
         id=UUID(int=1),
-        name="Main",
-        slug="main",
-        _supergraph=supergraph,
+        name="Home",
+        slug="home",
         created_at=BEGINNING_OF_TIME,
         updated_at=BEGINNING_OF_TIME,
     )
@@ -56,57 +44,24 @@ def make_system_database(region: Region, pg_url: str) -> Database:
         name="Database",
         version=VERSION,
         sql_url=pg_url,
-        _supergraph=supergraph,
         created_at=BEGINNING_OF_TIME,
         updated_at=BEGINNING_OF_TIME,
     )
     return database
 
 
-@cachetools.cached(cache={})
-def global_database_from_env() -> Database:
+def get_global_database_from_env() -> Database:
     """Get the default global database configured in the environment"""
     pg = get_from_env("GLOBAL_PG_URL", description="Global Postgres connection string")
     pg_url = pg.split("|", maxsplit=1)[0]
     return make_system_database(REGION, pg_url)
 
 
-def regional_database_from_env(region: Region = REGION) -> Database:
+def get_regional_database_from_env(region: Region = REGION) -> Database:
     """Get the default regional database configured in the environment"""
     from bench.system.core import DATABASE_MAP
 
     return DATABASE_MAP.get(region)
-
-
-def pg_engine_from_database(
-    name: str,
-    database: Database,
-    area: NodeArea | None,
-    *,
-    scope: ScopeData | None = None,
-):
-    """Get the postgres engine for a database"""
-    bench = database.bench
-    assert bench is not None, f"missing bench for {database!r}"
-    return PostgresEngine(
-        name=name,
-        database=database,
-        bench=bench,
-        scope=scope or EMPTY_SCOPE_DATA,
-        node_types=NODE_TYPES_BY_AREA[area] if area is not None else NODE_TYPES,
-        context=BenchSqlContext(bench),
-    )
-
-
-def local_pg_engine_from_database(name: str, database: Database):
-    """Get the postgres engine for a local database"""
-    assert database.bench is not None, f"missing bench for {database!r}"
-    return pg_engine_from_database(
-        name=name,
-        database=database,
-        area=NodeArea.LOCAL_POSTGRES,
-        scope=Scope(bench_id=database.bench.id).to_proto(),
-    )
 
 
 def global_session(

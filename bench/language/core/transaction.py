@@ -5,10 +5,8 @@ import structlog
 from fastuuid import UUID, uuid4
 from opentelemetry import trace
 
-from bench.pb2 import EditData
-
 if TYPE_CHECKING:
-    from bench.language import Session
+    from bench.language import Edit, Session
 
 logger = structlog.get_logger(__name__)
 tracer = trace.get_tracer(__name__)
@@ -28,8 +26,8 @@ class Transaction:
     session: "Session"
     is_readonly: bool = dataclasses.field(default=False)
 
-    edits: list[EditData] = dataclasses.field(default_factory=list)
-    cascaded_edits: list[EditData] = dataclasses.field(default_factory=list)
+    edits: list["Edit"] = dataclasses.field(default_factory=list)
+    cascaded_edits: list["Edit"] = dataclasses.field(default_factory=list)
 
     def __str__(self):
         return f"[id={self.id}] ({len(self.edits)} edits, {len(self.cascaded_edits)} cascaded)"
@@ -46,6 +44,6 @@ class Transaction:
         raise NotImplementedError
 
     @tracer.start_as_current_span("transaction.commit")
-    async def commit(self) -> tuple[list[EditData], list[EditData]]:
+    async def commit(self) -> tuple[list["Edit"], list["Edit"]]:
         """Commits the transaction (flushing any pending edits)."""
         raise NotImplementedError

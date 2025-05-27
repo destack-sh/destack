@@ -10,11 +10,8 @@ import structlog
 from fastuuid import UUID
 from opentelemetry import trace
 
-from bench.pb2 import (
-    EditData,
-    OriginData,
-)
-from bench.utils.oracle import Oracle
+from bench.pb2 import OriginData
+from bench.utils.oracle import REAL_ORACLE, Oracle
 
 from .const import NodeMode
 from .graph import Supergraph
@@ -22,7 +19,7 @@ from .node import IsSubject, Node
 from .transaction import Transaction
 
 if TYPE_CHECKING:
-    from bench.language import Bench
+    from bench.language import Bench, Edit
     from bench.runtime.core import Runtime
 
 # pyright: reportIncompatibleVariableOverride=false
@@ -38,10 +35,10 @@ class Session:
     """
 
     # node
-    mode: NodeMode
     supergraph: Supergraph
-    oracle: Oracle
-    bench: Optional["Bench"]
+    mode: NodeMode = NodeMode.MAIN
+    oracle: Oracle = REAL_ORACLE
+    bench: Optional["Bench"] = None
 
     # context
     # ...HasRuntimeContext[80-99]
@@ -59,11 +56,11 @@ class Session:
     _runtime: Optional["Runtime"] = None
 
     @property
-    def edits(self) -> Sequence[EditData]:
+    def edits(self) -> Sequence["Edit"]:
         return self.tx.edits if self.tx is not None else ()
 
     @property
-    def cascaded_edits(self) -> Sequence[EditData]:
+    def cascaded_edits(self) -> Sequence["Edit"]:
         return self.tx.cascaded_edits if self.tx is not None else ()
 
     @property
@@ -135,12 +132,9 @@ class Session:
         raise NotImplementedError
 
     @tracer.start_as_current_span("session.commit.schedule")
-    async def commit(self) -> tuple[list[EditData], list[EditData]]:
+    async def commit(self) -> tuple[list["Edit"], list["Edit"]]:
         """
-        Commits all edits. Returns *all* edits & cascaded edits. Resets tx state.
-        If optimistic, we schedule a new commit and return immediately.
-        If not optimistic, we wait for any pending commit to complete, then commit.
-        Cascaded edits are only returned for non-optimistic commits.
+        Commits all edits. Returns *all* edits & cascaded edits.
         """
         raise NotImplementedError
 

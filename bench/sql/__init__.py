@@ -1,3 +1,4 @@
+from .client import pg_connection
 from .core import (
     ALL_EXTENSIONS,
     BASE_EXTENSIONS,
@@ -18,8 +19,8 @@ from .core import (
 )
 from .gen import _gen_sql_schema
 from .map import (
-    BENCH_RECORD_TABLE_PREFIX,
-    BENCH_RECORD_VALUE_PREFIX,
+    BENCH_CUSTOM_FIELD_PREFIX,
+    BENCH_CUSTOM_NODE_PREFIX,
     BENCH_TABLE_PREFIX,
     BUILTIN_GLOBAL_SCHEMA,
     BUILTIN_GLOBAL_TABLES,
@@ -32,11 +33,11 @@ from .map import (
     BUILTIN_SCHEMA_BY_AREA,
     BUILTIN_TABLE_BY_NODE_TYPE,
     BUILTIN_TABLES_BY_AREA,
+    get_custom_field_column_name,
+    get_custom_node_table_name,
     get_node_table_name,
-    get_record_field_name,
-    get_record_table_name,
-    map_builtin_object_to_sql_table,
-    map_table_to_sql_table,
+    map_builtin_node_to_sql_table,
+    map_custom_node_to_sql_table,
 )
 from .migration import (
     MIGRATION_TABLE,
@@ -61,8 +62,8 @@ from .migration import (
 __all__ = [
     "ALL_EXTENSIONS",
     "BASE_EXTENSIONS",
-    "BENCH_RECORD_TABLE_PREFIX",
-    "BENCH_RECORD_VALUE_PREFIX",
+    "BENCH_CUSTOM_FIELD_PREFIX",
+    "BENCH_CUSTOM_NODE_PREFIX",
     "BENCH_TABLE_PREFIX",
     "BUILTIN_GLOBAL_SCHEMA",
     "BUILTIN_GLOBAL_TABLES",
@@ -103,12 +104,13 @@ __all__ = [
     "force_create_schema",
     "generate_sql_migration_code",
     "generate_sql_migration_ops",
+    "get_custom_field_column_name",
+    "get_custom_node_table_name",
     "get_node_table_name",
-    "get_record_field_name",
-    "get_record_table_name",
     "introspect_sql_schema",
-    "map_builtin_object_to_sql_table",
-    "map_table_to_sql_table",
+    "map_builtin_node_to_sql_table",
+    "map_custom_node_to_sql_table",
+    "pg_connection",
     "read_migrations_from_fs",
     "read_migrations_from_pg",
     "sql_migrate",
