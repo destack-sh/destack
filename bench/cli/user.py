@@ -29,7 +29,6 @@ async def set_password(user_slug: str, new_password: str):
     )
     async with global_session(global_database, (global_pg_engine,), oracle=REAL_ORACLE) as session:
         user = await User.search(where=User.property("slug").eq(user_slug)).execute_one()
-        session._track(user)
         user.password_salt = generate_salt(SALT_LENGTH)
         user.password_hash = hash_password(new_password, user.password_salt)
         logger.info("user.set_password", user=user)

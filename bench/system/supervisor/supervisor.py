@@ -11,6 +11,7 @@ from bench.language import (
     ClientType,
     Database,
     Handle,
+    IsSubject,
     NodeArea,
     NodeReference,
     NodeType,
@@ -21,6 +22,7 @@ from bench.language import (
     UserStatus,
     bittuple,
 )
+from bench.pb2.common_pb2 import RpcMetadata
 from bench.proto import (
     ChangeUserPasswordRequest,
     ChangeUserPasswordResponse,
@@ -90,7 +92,7 @@ class SupervisorService(SupervisorBase):
         )
         self._database_map = database_map
         self._host_map = host_map
-        self._create_bench_options = create_bench_options
+        self.create_bench_options = create_bench_options
         self._on_error = on_error
 
     def __str__(self):
@@ -108,6 +110,11 @@ class SupervisorService(SupervisorBase):
     #
     # User management
     #
+
+    async def resolve_client(
+        self, request, metadata: RpcMetadata
+    ) -> tuple[IsSubject | None, Client | None]:
+        raise NotImplementedError
 
     def _get_client_id(self, user: User, client_data: ClientDataIn) -> UUID | None:
         if client_data.id:
@@ -147,8 +154,8 @@ class SupervisorService(SupervisorBase):
         self, request: "SignupUserRequest", headers: Mapping
     ) -> "SignupUserResponse":
         metadata = wiring.unpack_rpc_headers(headers)
-        subject = await self.get_request_subject(request, metadata)
-        if subject.is_authenticated:
+        subject, client = await self.resolve_client(request, metadata)
+        if subject is not None:
             raise GRPCError(GRPCStatus.ALREADY_EXISTS, "already logged in")
 
         # get regional Database
@@ -180,13 +187,13 @@ class SupervisorService(SupervisorBase):
                 raise GRPCError(GRPCStatus.INVALID_ARGUMENT, "password required")
             user.password_salt = generate_salt(SALT_LENGTH)
             user.password_hash = hash_password(request.password, user.password_salt)
-            session._create(user)
+            session.create(user)
             session.stage()
 
             # create Client
             client = await self._make_client(user, request.client)
             client.access_token = generate_access_token(ACCESS_TOKEN_LENGTH)
-            session._create(client)
+            session.create(client)
             session.stage()
             assert user.slug, f"{user!r} has no slug"
             user.handle = Handle(slug=user.slug)
@@ -200,7 +207,7 @@ class SupervisorService(SupervisorBase):
                     owned_by=user,
                     region=user.region,
                     session=session,
-                    options=self._create_bench_options,
+                    options=self.create_bench_options,
                 )
                 user.bench = bench
                 user.status = UserStatus.ACTIVE
@@ -216,51 +223,42 @@ class SupervisorService(SupervisorBase):
         self, request: "ChangeUserPasswordRequest", headers: Mapping
     ) -> "ChangeUserPasswordResponse":
         metadata = wiring.unpack_rpc_headers(headers)
-        subject = await self.get_request_subject(request, metadata)
-        if not subject.user:
-            raise GRPCError(GRPCStatus.UNAUTHENTICATED, "not logged in")
-
-        async with self.new_request_session(
-            supergraph=subject._supergraph, readonly=False
-        ) as session:
-            user = subject.user
-            if user.password_salt is None or user.password_hash is None:
+        async with self.new_request_session() as session:
+            subject, client = await self.resolve_client(request, metadata)
+            if not isinstance(subject, User):
+                raise GRPCError(GRPCStatus.UNAUTHENTICATED, "not logged in")
+            if subject.password_salt is None or subject.password_hash is None:
                 raise GRPCError(GRPCStatus.FAILED_PRECONDITION, "password not set")
             if not await check_password(
-                request.old_password, user.password_salt, user.password_hash, self.oracle
+                request.old_password, subject.password_salt, subject.password_hash, self.oracle
             ):
                 raise GRPCError(GRPCStatus.UNAUTHENTICATED, "incorrect password")
 
             # set new password
-            session._track(user)  # user is from another session
-            user.password_salt = generate_salt(SALT_LENGTH)
-            user.password_hash = hash_password(request.new_password, user.password_salt)
+            subject.password_salt = generate_salt(SALT_LENGTH)
+            subject.password_hash = hash_password(request.new_password, subject.password_salt)
             await session.commit()
 
-        logger.info("supervisor.change_user_password", user=user, span="current")
-        return ChangeUserPasswordResponse(user=user.to_proto())
+        logger.info("supervisor.change_user_password", user=subject, span="current")
+        return ChangeUserPasswordResponse(user=subject.to_proto())
 
     @override
     async def login_user(
         self, request: "LoginUserRequest", headers: Mapping
     ) -> "LoginUserResponse":
         metadata = wiring.unpack_rpc_headers(headers)
-        subject = await self.get_request_subject(request, metadata)
-        if subject.is_authenticated:
-            raise GRPCError(GRPCStatus.ALREADY_EXISTS, "already logged in")
-
-        async with self.new_request_session(
-            supergraph=subject._supergraph, readonly=False
-        ) as session:
+        async with self.new_request_session() as session:
+            subject, client = await self.resolve_client(request, metadata)
+            if subject is not None:
+                raise GRPCError(GRPCStatus.ALREADY_EXISTS, "already logged in")
             key_name = request.WhichOneof("user")
             key_value = getattr(request, key_name)
             if key_value is None:
                 raise GRPCError(GRPCStatus.INVALID_ARGUMENT, "no user provided")
-            user = (
-                await User.include(User.property("password_salt"), User.property("password_hash"))
-                .include_descendants(NodeType.CLIENT)
-                .get(User.__properties__[key_name] == key_value)
-            )
+            user = await User.get(
+                where=User.property(key_name).eq(key_value),
+                Clients=Client.search(),
+            ).execute_one()
             if user.password_salt is None or user.password_hash is None:
                 raise GRPCError(GRPCStatus.FAILED_PRECONDITION, "password not set")
             if not await check_password(
@@ -292,35 +290,36 @@ class SupervisorService(SupervisorBase):
     async def logout_user(
         self, request: "LogoutUserRequest", headers: Mapping
     ) -> "LogoutUserResponse":
-        metadata = wiring.unpack_rpc_headers(headers)
-        subject = await self.get_request_subject(request, metadata)
-        if subject.client is None:
-            raise GRPCError(GRPCStatus.UNAUTHENTICATED, "not logged in")
-        if subject.user is None:
-            raise GRPCError(GRPCStatus.FAILED_PRECONDITION, "not a user")
-
         async with self.new_request_session(
             supergraph=subject._supergraph, readonly=False
         ) as session:
+            metadata = wiring.unpack_rpc_headers(headers)
+            subject, client = await self.resolve_client(request, metadata)
+            if client is None:
+                raise GRPCError(GRPCStatus.UNAUTHENTICATED, "not logged in")
+            if not isinstance(subject, User):
+                raise GRPCError(GRPCStatus.FAILED_PRECONDITION, "not a user")
+
             # log out the current or the specified clients
             if request.clients:
-                client_ids = {to_uuid(c.id) for c in request.clients}
-                clients = await Client.where(parent=subject.user, id__in=client_ids).tolist()
-                if len(clients) != len(request.clients):
-                    missing_ids = client_ids - {c.id for c in clients}
-                    raise GRPCError(GRPCStatus.NOT_FOUND, f"clients not found: {missing_ids}")
+                client_ids = [UUID(c.id) for c in request.clients]
+                clients = await Client.search(
+                    where=Client.property("parent").eq(subject)
+                    & Client.property("id").in_(client_ids),
+                ).execute_list()
             elif request.logout_all:
-                clients = await Client.where(parent=subject.user).tolist()
+                clients = await Client.search(
+                    where=Client.property("parent").eq(subject)
+                ).execute_list()
             else:
-                clients = (subject.client,)
-                session._track(subject.client)
+                clients = (client,)
             for client in clients:
                 client.logged_in_at = None
                 client.access_token = None
                 client.seen_at = self.oracle.utc()
             await session.commit()
 
-        logger.info("supervisor.logout_user", user=subject.user, clients=clients, span="current")
+        logger.info("supervisor.logout_user", user=subject, clients=clients, span="current")
         return LogoutUserResponse()
 
     #
@@ -333,16 +332,13 @@ class SupervisorService(SupervisorBase):
     ) -> "CreateBenchResponse":
         # get/check user
         metadata = wiring.unpack_rpc_headers(headers)
-        subject = await self.get_request_subject(request, metadata)
-        user: User | None = subject.user
-        if not user:
+        subject, _ = await self.resolve_client(request, metadata)
+        if not subject:
             raise GRPCError(GRPCStatus.UNAUTHENTICATED, "not logged in")
         if not request.slug:
             raise GRPCError(GRPCStatus.INVALID_ARGUMENT, "slug not specified")
         if not request.region:
             raise GRPCError(GRPCStatus.INVALID_ARGUMENT, "region not specified")
-        if user.status == UserStatus.WAITLIST:
-            raise GRPCError(GRPCStatus.PERMISSION_DENIED, "cannot create bench for waitlisted user")
         region = Region(request.region)
 
         # get regional database
@@ -354,24 +350,31 @@ class SupervisorService(SupervisorBase):
         )
 
         # create bench
-        owner_ptr = wiring.unpack_builtin_object(
-            request.owner, supergraph=None, expect=NodeReference
-        )
+        owner_ptr = NodeReference.from_proto(request.owner)
         async with self.new_request_session(
             supergraph=subject._supergraph,
             readonly=False,
             engines=(self._global_pg_engine, regional_pg_engine),
         ) as session:
+            subject, _ = await self.resolve_client(request, metadata)
+            if not isinstance(subject, User):
+                raise GRPCError(GRPCStatus.UNAUTHENTICATED, "not logged in")
+
             # check (and reload owner to get Handles)
             if owner_ptr.node_type == NodeType.USER:
-                if owner_ptr.id != user.id:
+                if owner_ptr.id != subject.id:
                     raise GRPCError(
                         GRPCStatus.PERMISSION_DENIED, "cannot create bench for other user"
                     )
-                owner = await User.include_descendants(Handle).get(id=owner_ptr.id)
+                owner = await User.get(
+                    where=User.property("id").eq(owner_ptr.id), Handles=Handle.search()
+                ).execute_one()
             elif owner_ptr.node_type == NodeType.ORGANIZATION:
-                owner = await Organization.include_descendants(Handle).get(id=owner_ptr.id)
-                if owner.created_by_id != user.id:
+                owner = await Organization.get(
+                    where=Organization.property("id").eq(owner_ptr.id),
+                    Handles=Handle.search(),
+                ).execute_one()
+                if owner.created_by_id != subject.id:
                     raise GRPCError(
                         GRPCStatus.PERMISSION_DENIED, "cannot create bench for other organization"
                     )
@@ -380,7 +383,7 @@ class SupervisorService(SupervisorBase):
             if owner.status < UserStatus.REGISTERED:
                 raise GRPCError(GRPCStatus.FAILED_PRECONDITION, "owner not registered")
 
-            # create bench (assumes it's the primary bench)
+            # create Bench (assumes it's the primary bench)
             if owner.status == UserStatus.ACTIVE:
                 raise GRPCError(GRPCStatus.ALREADY_EXISTS, "cannot create secondary Benches (yet)")
             if owner.slug != request.slug:
@@ -391,7 +394,7 @@ class SupervisorService(SupervisorBase):
                 owned_by=owner,
                 region=region,
                 session=session,
-                options=self._create_bench_options,
+                options=self.create_bench_options,
             )
 
             # 'activate' owner

@@ -328,7 +328,7 @@ class EnumType(BuiltinEnum):
     # ...
 
     # logic [41200-41600]
-    ACTION_TYPE = 41220
+    ACTION_CARDINALITY = 41220
     FLOW_TYPE = 41240
     FLOW_EDGE_TYPE = 41241
     CURSOR_TYPE = 41320

@@ -22,13 +22,12 @@ from bench.utils.func import get_superclasses
 
 from .const import (
     UNSET,
-    EdgeType,
     NodeArea,
     NodeType,
     TraitType,
     active_session,
 )
-from .graph import Graph, attach_node
+from .graph import Graph
 from .object import BuiltinObject, _process_object_cls
 from .property import (
     _PROPERTY_SPECIFIERS,
@@ -38,7 +37,7 @@ from .property import (
     property_parent_,
     property_runtime_,
 )
-from .trait import IndexIn, IsBlockable, IsModal, IsSubject
+from .trait import IndexIn, IsSubject
 
 if TYPE_CHECKING:
     from bench.language import (
@@ -227,92 +226,17 @@ class Node[NodeDataT: AnyNodeData](BuiltinObject[NodeDataT]):
         _is_nested: bool = False,
         **kwargs,
     ) -> Self:
-        from bench.language import Block
-
-        # clone self
-        copy_kwargs = self._clone_kwargs(reset=reset)
-        if isinstance(self, IsModal):
-            copy_kwargs["mode"] = self.mode  # keep mode
-        copy_kwargs.update(kwargs)
-        if detach and not reset:
-            # put the node in a new graph to isolate (because same ids)
-            copy_kwargs["_graph"] = Graph()
-        clone = self.__class__(**copy_kwargs, _is_new=True)
-
-        # remember new identities
-        if _map is True:
-            _map = {self.id: clone}
-        elif _map is not False:
-            _map[self.id] = clone
-
-        # clone blocks/definitions together
-        if not _ignore_definition:
-            clone_parent = clone.parent
-            if clone_parent is None and not detach:
-                clone_parent = self.parent
-            if isinstance(self, Block):
-                if isinstance(node := self.node, IsBlockable) and node.block_id == self.id:
-                    assert clone_parent is not None, f"cannot clone detached {self!r}"
-                    cloned_node = node.clone(
-                        reset=reset,
-                        recursive=True,
-                        detach=True,
-                        _map=_map,
-                        _is_nested=True,
-                        _ignore_definition=True,
-                    )
-                    cast(Block, clone).node_ptr = cloned_node.to_ref()
-                    cloned_node.block_ptr = clone.to_ref()
-            elif isinstance(self, IsBlockable) and (block := self.block) is not None:
-                assert clone_parent is not None, f"cannot clone detached {self!r}"
-                cloned_node = block.clone(
-                    reset=reset,
-                    recursive=True,
-                    detach=True,
-                    _map=_map,
-                    _is_nested=True,
-                    _ignore_definition=True,
-                )
-                cast(IsBlockable, clone).block_ptr = cloned_node.to_ref()
-                cloned_node.node_ptr = clone.to_ref()
-
-        # clone children and append to self (recursive)
-        if recursive:
-            for child_type in self.__child_types__:
-                for child in self.get_children(child_type):
-                    child_clone = child.clone(
-                        reset=reset,
-                        recursive=True,
-                        detach=True,
-                        _map=_map,
-                        _is_nested=True,
-                        _ignore_definition=True,  # we're the parent, so we clone both
-                    )
-                    attach_node(child_clone, clone, clone._graph, create=False)  # re-attach
-
-        # map new identities (at root)
-        if not _is_nested and type(_map) is dict:
-            for node in _map.values():
-                node.replace_references(_map, exclude=(EdgeType.NODE_PARENT,))
-
-        # append to our parent to re-attach
-        parent = self.parent
-        if detach:
-            clone.parent_ptr = None
-        elif parent:
-            parent.add_child(clone)
-        return clone
+        raise NotImplementedError  # generate
 
     def __eq__(self, other: Any):
         """Equals the Node's identity."""
         return type(self) is type(other) and (self.id == other.id)
 
-    def _stable_hash(self):
+    def hash(self):
         """Hash the Node's identity."""
         return self._hash
 
-    # only define __hash__ for nodes since their id is constant
-    __hash__ = _stable_hash  # type: ignore
+    __hash__ = hash  # type: ignore
 
     def _do_set(self, key: str, value: Any):
         """Set a property on this Node."""

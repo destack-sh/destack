@@ -53,6 +53,7 @@ class Session:
     # transaction
     tx: Transaction | None = None
     pending: dict[UUID, Node] = dataclasses.field(default_factory=dict)
+    dirty: dict[UUID, Node] = dataclasses.field(default_factory=dict)
 
     # runtime
     _runtime: Optional["Runtime"] = None

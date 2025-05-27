@@ -45,8 +45,7 @@ FILE_DOWNLOAD_URL_EXPIRY = get_from_env(
 
 class HostService(ServiceBase, HostBase):
     """
-    Host for a Bench, providing the OS-level functionality (lifecycle, resources, scheduling, etc.).
-    There is only one Host per Bench. Clients interact with the Bench exclusively via its Host.
+    Host for a Bench. There is only one Host per Bench.
     """
 
     kind = ServiceKind.PUBLIC  # :ServiceKind
