@@ -38,10 +38,6 @@ class Icon(Struct):
     # style
     color: Optional["Color"] = property_(40)
 
-    @staticmethod
-    def new(icon: "IconIn", color: "ColorIn | None" = None) -> "Icon":
-        return to_icon(icon, color)
-
 
 IconIn = Union[Icon, "File", str]
 

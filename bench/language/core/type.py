@@ -87,7 +87,7 @@ class NumberFormat(BuiltinEnum):
     """The format of a number."""
 
     ANGLE = 1
-    UNIT = 2
+    PERCENTAGE = 2
     CURRENCY = 3
 
 

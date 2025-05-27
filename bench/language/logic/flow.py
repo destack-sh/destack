@@ -62,11 +62,6 @@ class Flow(
     parent: Union["Page", "Agent", None] = property_parent_()
     type: FlowType = property_(30, default=FlowType.ACTION)
 
-    @staticmethod
-    def new(name: str, **kwargs) -> "Flow":
-        flow = Flow(name=name, **kwargs)
-        return flow
-
 
 @enum_(EnumType.FLOW_EDGE_TYPE)
 class FlowEdgeType(BuiltinEnum):
@@ -116,7 +111,3 @@ class FlowEdge(
             if isinstance(parent, Flow):
                 return parent
         return None
-
-    @staticmethod
-    def new(type: FlowEdgeType, name: str, **kwargs) -> "FlowEdge":
-        return FlowEdge(type=type, name=name, **kwargs)

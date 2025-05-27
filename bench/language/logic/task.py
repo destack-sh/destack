@@ -16,11 +16,9 @@ from bench.language.core import (
     IsSubject,
     Node,
     NodeType,
-    TextLineIn,
     node_,
     property_,
     property_parent_,
-    text_line,
 )
 from bench.pb2 import TaskData
 
@@ -59,11 +57,3 @@ class Task(
         assigned_to_type: Optional[NodeType] = None
 
     # ...IsProcessable[80-]
-
-    @staticmethod
-    def new(
-        title: "TextLineIn | None" = None,
-        **kwargs,
-    ) -> "Task":
-        task = Task(title=text_line(title) if title is not None else None, **kwargs)
-        return task

@@ -3,6 +3,7 @@ from typing import TYPE_CHECKING, Optional
 from fastuuid import UUID
 
 from bench.language.core import (
+    HasIcon,
     HasName,
     IsArchivable,
     IsBlockable,
@@ -40,6 +41,7 @@ class Agent(
     IsArchivable,
     IsExtensible,
     HasName,
+    HasIcon,
     IsBlockable,
     Node[AgentData],
 ):
@@ -65,8 +67,3 @@ class Agent(
         cursor_id: Optional[UUID] = None
 
     # ...IsProcessable[80-]
-
-    @staticmethod
-    def new(name: str, **kwargs) -> "Agent":
-        agent = Agent(name=name, **kwargs)
-        return agent

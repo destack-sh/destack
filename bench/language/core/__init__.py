@@ -71,11 +71,7 @@ from .graph import (
 )
 from .icon import Icon, IconIn, IconType, icon, reverse_icon, to_icon
 from .node import IndexIn, Node, NodeReference, node_
-from .object import (
-    BuiltinObject,
-    _is_setup_complete,
-    object_,
-)
+from .object import BuiltinObject, _is_setup_complete, object_
 from .property import (
     IntoType,
     Property,
@@ -125,14 +121,7 @@ from .render import (
     render_value,
 )
 from .session import Session
-from .struct import (
-    EMPTY_SCOPE_DATA,
-    PropertyReference,
-    Scope,
-    Struct,
-    repr_scope,
-    struct_,
-)
+from .struct import EMPTY_SCOPE_DATA, PropertyReference, Scope, Struct, repr_scope, struct_
 from .text import (
     Text,
     TextIn,
@@ -146,6 +135,7 @@ from .text import (
     text_line,
     text_line_to_markdown,
     text_to_markdown,
+    title,
     to_text,
     to_text_line,
 )
@@ -205,20 +195,16 @@ from .type import (
     to_type,
     to_type_scalar,
 )
-from .validation import ValidationError, on_invalid_raise
+from .validation import ValidationError
 from .value import (
-    ScalarValue,
-    SomeValue,
     Value,
     pack_proto_date,
     pack_proto_json,
     pack_proto_time,
-    pack_value_scalar,
     unpack_proto_date,
     unpack_proto_json,
     unpack_proto_json_struct,
     unpack_proto_time,
-    unpack_value_scalar,
 )
 from .variable import Variable, VariableProperty, VariableType
 
@@ -350,11 +336,9 @@ __all__ = [
     "ResourceStatus",
     "RunType",
     "ScalarType",
-    "ScalarValue",
     "Scope",
     "Selection",
     "Session",
-    "SomeValue",
     "Sort",
     "SortMode",
     "SortType",
@@ -408,11 +392,9 @@ __all__ = [
     "node_",
     "node_",
     "object_",
-    "on_invalid_raise",
     "pack_proto_date",
     "pack_proto_json",
     "pack_proto_time",
-    "pack_value_scalar",
     "parse_type_annotation",
     "property_",
     "property_ancestor_",
@@ -435,6 +417,7 @@ __all__ = [
     "text_line",
     "text_line_to_markdown",
     "text_to_markdown",
+    "title",
     "to_icon",
     "to_text",
     "to_text_line",
@@ -445,5 +428,4 @@ __all__ = [
     "unpack_proto_json",
     "unpack_proto_json_struct",
     "unpack_proto_time",
-    "unpack_value_scalar",
 ]
