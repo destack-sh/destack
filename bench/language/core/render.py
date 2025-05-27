@@ -37,7 +37,7 @@ from .graph import Supergraph
 from .icon import Icon, reverse_icon
 from .node import Node, NodeReference
 from .object import BuiltinObject
-from .property import NodeEdgeKind, Property
+from .property import EdgeType, Property
 from .struct import PropertyReference, Struct
 from .text import Text, TextLine, text_line_to_markdown, text_to_markdown
 from .trait import IsInPackage
@@ -358,7 +358,7 @@ def _deconstruct_builtin_object(
             continue  # exclude
         elif include_properties is not None and prop not in include_properties:
             pass  # include
-        elif prop.id is None or prop.runtime_prop or prop.node_kind == NodeEdgeKind.NODE_ANCESTOR:
+        elif prop.id is None or prop.runtime_prop or prop.edge_type == EdgeType.NODE_ANCESTOR:
             continue  # ignore internal properties
         prop_value = getattr(obj, prop.name)
         if (

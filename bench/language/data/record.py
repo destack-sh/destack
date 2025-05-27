@@ -3,18 +3,12 @@ from typing import TYPE_CHECKING, Union
 import structlog
 
 from bench.language.core import (
-    HasIcon,
-    HasName,
-    HasTitle,
-    IsArchivable,
     IsBased,
     IsDeletable,
     IsExtensible,
     IsInPackage,
     IsLocal,
     IsModal,
-    IsOrdered,
-    IsOwnable,
     Node,
     NodeType,
     node_,
@@ -36,15 +30,9 @@ class Record(
     IsLocal,
     IsBased,
     IsModal,
-    IsOwnable,
-    IsOrdered,
     IsExtensible,
-    HasName,
-    HasTitle,
-    HasIcon,
-    IsDeletable,
-    IsArchivable,
     IsInPackage,
+    IsDeletable,
     Node[RecordData],
 ):
     """

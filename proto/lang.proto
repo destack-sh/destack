@@ -271,8 +271,8 @@ enum Day {
 // The factory to use for default values.
 enum DefaultFactory {
   DEFAULT_FACTORY_UNSPECIFIED = 0;
-  DEFAULT_FACTORY_UUID = 10;
-  DEFAULT_FACTORY_NOW = 20;
+  DEFAULT_FACTORY_UUID = 1;
+  DEFAULT_FACTORY_NOW = 2;
 }
 
 enum DimensionType {
@@ -298,6 +298,14 @@ enum Distribute {
   DISTRIBUTE_SPACE_BETWEEN = 4;
   DISTRIBUTE_SPACE_AROUND = 5;
   DISTRIBUTE_SPACE_EVENLY = 6;
+}
+
+enum EdgeType {
+  EDGE_TYPE_UNSPECIFIED = 0;
+  EDGE_TYPE_NODE_PARENT = 1;
+  EDGE_TYPE_NODE_ANCESTOR = 2;
+  EDGE_TYPE_NODE_REGULAR = 5;
+  EDGE_TYPE_NODE_TEMPLATE = 6;
 }
 
 // The type of edit operation.
@@ -405,7 +413,8 @@ enum EnumType {
   ENUM_TYPE_STRING_FORMAT = 42110;
   ENUM_TYPE_NUMBER_FORMAT = 42111;
   ENUM_TYPE_FIELD_TYPE = 42120;
-  ENUM_TYPE_CASCADE_ACTION = 42121;
+  ENUM_TYPE_EDGE_TYPE = 42121;
+  ENUM_TYPE_CASCADE_ACTION = 42122;
   ENUM_TYPE_DAY = 42130;
   ENUM_TYPE_MONTH = 42131;
   ENUM_TYPE_TIME_INTERVAL = 42132;
@@ -476,9 +485,9 @@ enum ExpressionType {
 // The type of a Field within its Block. Overlaps with ObjectKind.
 enum FieldType {
   FIELD_TYPE_UNSPECIFIED = 0;
-  FIELD_TYPE_VARIABLE = 20;
-  FIELD_TYPE_INPUT = 30;
-  FIELD_TYPE_OUTPUT = 40;
+  FIELD_TYPE_VARIABLE = 1;
+  FIELD_TYPE_INPUT = 2;
+  FIELD_TYPE_OUTPUT = 3;
 }
 
 // The format of a file (roughly an extension).
@@ -884,8 +893,8 @@ enum NodeType {
 // The format of a number.
 enum NumberFormat {
   NUMBER_FORMAT_UNSPECIFIED = 0;
-  NUMBER_FORMAT_ANGLE = 1;
-  NUMBER_FORMAT_UNIT = 2;
+  NUMBER_FORMAT_PERCENTAGE = 1;
+  NUMBER_FORMAT_ANGLE = 2;
   NUMBER_FORMAT_CURRENCY = 3;
 }
 
@@ -1321,7 +1330,7 @@ enum TypeCardinality {
   TYPE_CARDINALITY_UNSPECIFIED = 0;
   TYPE_CARDINALITY_SCALAR = 1;
   TYPE_CARDINALITY_LIST = 2;
-  TYPE_CARDINALITY_MAP = 5;
+  TYPE_CARDINALITY_MAP = 4;
 }
 
 enum UserStatus {
@@ -1390,6 +1399,7 @@ message AgentData {
   optional ValueData value = 21;
   optional string order_key = 22;
   string name = 31;
+  optional IconData icon = 34;
   optional NodeReferenceData definition_ptr = 35;
   optional NodeReferenceData page_ptr = 54;
   optional NodeReferenceData cursor_ptr = 55;
@@ -1830,18 +1840,21 @@ message FieldData {
   optional PrimitiveType primitive_type = 42;
   optional EnumType enum_type = 43;
   optional NodeType node_type = 44;
-  optional StructType struct_type = 45;
-  bool is_required = 46;
-  bool is_variable = 47;
-  optional ValueData default = 48;
-  optional DefaultFactory default_factory = 49;
-  optional NodeReferenceData base_type_ptr = 50;
-  optional TypeData key_type = 51;
+  optional NodeReferenceData table_ptr = 45;
+  optional StructType struct_type = 46;
+  optional NodeReferenceData base_type_ptr = 47;
+  optional TypeData key_type = 48;
+  bool is_required = 50;
+  bool is_variable = 51;
+  bool is_external = 52;
+  optional ValueData default = 55;
+  optional DefaultFactory default_factory = 56;
   optional CollectionConstraintData collection_constraint = 60;
   optional StringConstraintData string_constraint = 61;
   optional NumberConstraintData number_constraint = 62;
   optional NodeConstraintData node_constraint = 63;
-  optional CascadeAction cascade = 70;
+  optional EdgeType edge_type = 70;
+  optional CascadeAction cascade = 71;
 }
 
 // A File stored somewhere.
@@ -2655,15 +2668,9 @@ message RecordData {
   optional NodeReferenceData created_by_ptr = 11;
   google.protobuf.Timestamp updated_at = 12;
   optional NodeReferenceData updated_by_ptr = 13;
-  optional google.protobuf.Timestamp archived_at = 14;
   optional google.protobuf.Timestamp deleted_at = 15;
-  optional NodeReferenceData owned_by_ptr = 17;
   NodeMode mode = 20;
   optional ValueData value = 21;
-  optional string order_key = 22;
-  string name = 31;
-  optional TextLineData title = 32;
-  optional IconData icon = 34;
   NodeReferenceData table_ptr = 36;
 }
 
@@ -2802,13 +2809,15 @@ message SchemaData {
   optional PrimitiveType primitive_type = 42;
   optional EnumType enum_type = 43;
   optional NodeType node_type = 44;
-  optional StructType struct_type = 45;
-  bool is_required = 46;
-  bool is_variable = 47;
-  optional ValueData default = 48;
-  optional DefaultFactory default_factory = 49;
-  optional NodeReferenceData base_type_ptr = 50;
-  optional TypeData key_type = 51;
+  optional NodeReferenceData table_ptr = 45;
+  optional StructType struct_type = 46;
+  optional NodeReferenceData base_type_ptr = 47;
+  optional TypeData key_type = 48;
+  bool is_required = 50;
+  bool is_variable = 51;
+  bool is_external = 52;
+  optional ValueData default = 55;
+  optional DefaultFactory default_factory = 56;
   optional CollectionConstraintData collection_constraint = 60;
   optional StringConstraintData string_constraint = 61;
   optional NumberConstraintData number_constraint = 62;
@@ -3114,6 +3123,7 @@ message TableData {
   optional string order_key = 22;
   string name = 31;
   optional NodeReferenceData definition_ptr = 35;
+  repeated TraitType traits = 40;
 }
 
 // A Task is like a to do item.
@@ -3377,13 +3387,15 @@ message TypeData {
   optional PrimitiveType primitive_type = 42;
   optional EnumType enum_type = 43;
   optional NodeType node_type = 44;
-  optional StructType struct_type = 45;
-  bool is_required = 46;
-  bool is_variable = 47;
-  optional ValueData default = 48;
-  optional DefaultFactory default_factory = 49;
-  optional NodeReferenceData base_type_ptr = 50;
-  optional TypeData key_type = 51;
+  optional NodeReferenceData table_ptr = 45;
+  optional StructType struct_type = 46;
+  optional NodeReferenceData base_type_ptr = 47;
+  optional TypeData key_type = 48;
+  bool is_required = 50;
+  bool is_variable = 51;
+  bool is_external = 52;
+  optional ValueData default = 55;
+  optional DefaultFactory default_factory = 56;
   optional CollectionConstraintData collection_constraint = 60;
   optional StringConstraintData string_constraint = 61;
   optional NumberConstraintData number_constraint = 62;

@@ -362,7 +362,8 @@ class EnumType(BuiltinEnum):
     STRING_FORMAT = 42110
     NUMBER_FORMAT = 42111
     FIELD_TYPE = 42120
-    CASCADE_ACTION = 42121
+    EDGE_TYPE = 42121
+    CASCADE_ACTION = 42122
     DAY = 42130
     MONTH = 42131
     TIME_INTERVAL = 42132
@@ -1026,7 +1027,8 @@ class Region(BuiltinEnum):
 REGION_BY_SLUG = {r.slug: r for r in Region}
 
 
-class NodeEdgeKind(BuiltinEnum):
+@enum_(EnumType.EDGE_TYPE)
+class EdgeType(BuiltinEnum):
     NODE_PARENT = 1
     NODE_ANCESTOR = 2
     NODE_REGULAR = 5
@@ -1039,14 +1041,6 @@ class NodeEdgeKind(BuiltinEnum):
     @property
     def is_node(self):
         return self.id < 10
-
-
-class NodeReferenceProperty(BuiltinEnum):
-    NODE_TYPE = 30
-    NODE_ID = 31
-    NODE_CK = 32
-    NODE_BENCH_ID = 33
-    NODE_BASE_ID = 34
 
 
 @enum_(EnumType.CASCADE_ACTION)

@@ -23,8 +23,8 @@ from bench.utils.func import get_superclasses
 
 from .const import (
     UNSET,
+    EdgeType,
     NodeArea,
-    NodeEdgeKind,
     NodeType,
     StructType,
     TraitType,
@@ -308,7 +308,7 @@ class Node[NodeDataT: AnyNodeData](BuiltinObject[NodeDataT]):
         # map new identities (at root)
         if not _is_nested and type(_map) is dict:
             for node in _map.values():
-                node.replace_references(_map, exclude=(NodeEdgeKind.NODE_PARENT,))
+                node.replace_references(_map, exclude=(EdgeType.NODE_PARENT,))
 
         # append to our parent to re-attach
         parent = self.parent
