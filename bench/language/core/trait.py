@@ -251,7 +251,7 @@ class IsTemplatable(Node if TYPE_CHECKING else BuiltinObject):
         # instance children and append to self
         if recursive:
             for child_type in self.__child_types__:
-                for child in self._graph.iter_descendants(self, child_type):
+                for child in self.get_children(child_type):
                     if isinstance(child, IsTemplatable):
                         # instance child
                         child_clone = child.instance(

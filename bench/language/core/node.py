@@ -4,7 +4,6 @@ from typing import (
     Any,
     Callable,
     ClassVar,
-    Iterable,
     Optional,
     Self,
     Sequence,
@@ -216,14 +215,6 @@ class Node[NodeDataT: AnyNodeData](BuiltinObject[NodeDataT]):
             parent = parent.parent
         return False
 
-    def iter_descendants(self, recursive: bool = False) -> Iterable["Node"]:
-        """Iterate over all descendants of this node."""
-        for child_type in self.__child_types__:
-            for child in self._graph.iter_descendants(self, child_type):
-                yield child
-                if recursive:
-                    yield from child.iter_descendants(recursive=True)
-
     @override
     def clone(
         self,
@@ -245,11 +236,7 @@ class Node[NodeDataT: AnyNodeData](BuiltinObject[NodeDataT]):
         copy_kwargs.update(kwargs)
         if detach and not reset:
             # put the node in a new graph to isolate (because same ids)
-            copy_kwargs["_graph"] = Graph(
-                scope=self._graph.scope,
-                node_types=self._graph.node_types,
-                supergraph=active_session().supergraph,
-            )
+            copy_kwargs["_graph"] = Graph()
         clone = self.__class__(**copy_kwargs, _is_new=True)
 
         # remember new identities
@@ -292,7 +279,7 @@ class Node[NodeDataT: AnyNodeData](BuiltinObject[NodeDataT]):
         # clone children and append to self (recursive)
         if recursive:
             for child_type in self.__child_types__:
-                for child in self._graph.iter_descendants(self, child_type):
+                for child in self.get_children(child_type):
                     child_clone = child.clone(
                         reset=reset,
                         recursive=True,

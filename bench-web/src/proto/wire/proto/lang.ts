@@ -1378,27 +1378,27 @@ export interface EditData {
      */
     type: EditType;
     /**
-     * @generated from protobuf field: symbol.bench.NodeReferenceData node_ptr = 31;
+     * @generated from protobuf field: optional symbol.bench.UpdateType operation = 31;
+     */
+    operation?: UpdateType;
+    /**
+     * @generated from protobuf field: symbol.bench.NodeReferenceData node_ptr = 32;
      */
     nodePtr?: NodeReferenceData;
     /**
-     * @generated from protobuf field: optional string key = 40;
+     * @generated from protobuf field: optional string path = 33;
      */
-    key?: string;
+    path?: string;
     /**
-     * @generated from protobuf field: optional symbol.bench.EditOperation operation = 41;
+     * @generated from protobuf field: optional symbol.bench.ValueData key = 34;
      */
-    operation?: EditOperation;
+    key?: ValueData;
     /**
-     * @generated from protobuf field: optional symbol.bench.ValueData value = 42;
+     * @generated from protobuf field: optional symbol.bench.ValueData value = 40;
      */
     value?: ValueData;
     /**
-     * @generated from protobuf field: optional symbol.bench.ValueData key_value = 43;
-     */
-    keyValue?: ValueData;
-    /**
-     * @generated from protobuf field: optional symbol.bench.NodeReferenceData parent_ptr = 44;
+     * @generated from protobuf field: optional symbol.bench.NodeReferenceData parent_ptr = 41;
      */
     parentPtr?: NodeReferenceData;
     /**
@@ -9135,33 +9135,6 @@ export enum EdgeType {
     NODE_TEMPLATE = 6
 }
 /**
- * The type of edit operation.
- *
- * @generated from protobuf enum symbol.bench.EditOperation
- */
-export enum EditOperation {
-    /**
-     * @generated from protobuf enum value: EDIT_OPERATION_UNSPECIFIED = 0;
-     */
-    UNSPECIFIED = 0,
-    /**
-     * @generated from protobuf enum value: EDIT_OPERATION_SET = 1;
-     */
-    SET = 1,
-    /**
-     * @generated from protobuf enum value: EDIT_OPERATION_CLEAR = 2;
-     */
-    CLEAR = 2,
-    /**
-     * @generated from protobuf enum value: EDIT_OPERATION_MAP_SET = 20;
-     */
-    MAP_SET = 20,
-    /**
-     * @generated from protobuf enum value: EDIT_OPERATION_MAP_REMOVE = 21;
-     */
-    MAP_REMOVE = 21
-}
-/**
  * Ways to edit nodes.
  *
  * @generated from protobuf enum symbol.bench.EditType
@@ -9324,9 +9297,9 @@ export enum EnumType {
      */
     EDIT_TYPE = 40070,
     /**
-     * @generated from protobuf enum value: ENUM_TYPE_EDIT_OPERATION = 40071;
+     * @generated from protobuf enum value: ENUM_TYPE_UPDATE_TYPE = 40071;
      */
-    EDIT_OPERATION = 40071,
+    UPDATE_TYPE = 40071,
     /**
      * @generated from protobuf enum value: ENUM_TYPE_CONDITIONAL_TYPE = 40102;
      */
@@ -12659,6 +12632,33 @@ export enum TypeCardinality {
     MAP = 4
 }
 /**
+ * The type of update operation.
+ *
+ * @generated from protobuf enum symbol.bench.UpdateType
+ */
+export enum UpdateType {
+    /**
+     * @generated from protobuf enum value: UPDATE_TYPE_UNSPECIFIED = 0;
+     */
+    UNSPECIFIED = 0,
+    /**
+     * @generated from protobuf enum value: UPDATE_TYPE_SET = 1;
+     */
+    SET = 1,
+    /**
+     * @generated from protobuf enum value: UPDATE_TYPE_CLEAR = 2;
+     */
+    CLEAR = 2,
+    /**
+     * @generated from protobuf enum value: UPDATE_TYPE_MAP_SET = 20;
+     */
+    MAP_SET = 20,
+    /**
+     * @generated from protobuf enum value: UPDATE_TYPE_MAP_REMOVE = 21;
+     */
+    MAP_REMOVE = 21
+}
+/**
  * @generated from protobuf enum symbol.bench.UserStatus
  */
 export enum UserStatus {
@@ -15759,12 +15759,12 @@ class EditData$Type extends MessageType$<EditData> {
             { no: 1, name: "metatype", kind: "enum", T: () => ["symbol.bench.StructType", StructType, "STRUCT_TYPE_"] },
             { no: 2, name: "id", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
             { no: 30, name: "type", kind: "enum", T: () => ["symbol.bench.EditType", EditType, "EDIT_TYPE_"] },
-            { no: 31, name: "node_ptr", kind: "message", T: () => NodeReferenceData },
-            { no: 40, name: "key", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
-            { no: 41, name: "operation", kind: "enum", opt: true, T: () => ["symbol.bench.EditOperation", EditOperation, "EDIT_OPERATION_"] },
-            { no: 42, name: "value", kind: "message", T: () => ValueData },
-            { no: 43, name: "key_value", kind: "message", T: () => ValueData },
-            { no: 44, name: "parent_ptr", kind: "message", T: () => NodeReferenceData },
+            { no: 31, name: "operation", kind: "enum", opt: true, T: () => ["symbol.bench.UpdateType", UpdateType, "UPDATE_TYPE_"] },
+            { no: 32, name: "node_ptr", kind: "message", T: () => NodeReferenceData },
+            { no: 33, name: "path", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
+            { no: 34, name: "key", kind: "message", T: () => ValueData },
+            { no: 40, name: "value", kind: "message", T: () => ValueData },
+            { no: 41, name: "parent_ptr", kind: "message", T: () => NodeReferenceData },
             { no: 50, name: "edited_at", kind: "message", T: () => Timestamp }
         ]);
     }
@@ -15791,22 +15791,22 @@ class EditData$Type extends MessageType$<EditData> {
                 case /* symbol.bench.EditType type */ 30:
                     message.type = reader.int32();
                     break;
-                case /* symbol.bench.NodeReferenceData node_ptr */ 31:
-                    message.nodePtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.nodePtr);
-                    break;
-                case /* optional string key */ 40:
-                    message.key = reader.string();
-                    break;
-                case /* optional symbol.bench.EditOperation operation */ 41:
+                case /* optional symbol.bench.UpdateType operation */ 31:
                     message.operation = reader.int32();
                     break;
-                case /* optional symbol.bench.ValueData value */ 42:
+                case /* symbol.bench.NodeReferenceData node_ptr */ 32:
+                    message.nodePtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.nodePtr);
+                    break;
+                case /* optional string path */ 33:
+                    message.path = reader.string();
+                    break;
+                case /* optional symbol.bench.ValueData key */ 34:
+                    message.key = ValueData.internalBinaryRead(reader, reader.uint32(), options, message.key);
+                    break;
+                case /* optional symbol.bench.ValueData value */ 40:
                     message.value = ValueData.internalBinaryRead(reader, reader.uint32(), options, message.value);
                     break;
-                case /* optional symbol.bench.ValueData key_value */ 43:
-                    message.keyValue = ValueData.internalBinaryRead(reader, reader.uint32(), options, message.keyValue);
-                    break;
-                case /* optional symbol.bench.NodeReferenceData parent_ptr */ 44:
+                case /* optional symbol.bench.NodeReferenceData parent_ptr */ 41:
                     message.parentPtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.parentPtr);
                     break;
                 case /* google.protobuf.Timestamp edited_at */ 50:
@@ -15833,24 +15833,24 @@ class EditData$Type extends MessageType$<EditData> {
         /* symbol.bench.EditType type = 30; */
         if (message.type !== 0)
             writer.tag(30, WireType.Varint).int32(message.type);
-        /* symbol.bench.NodeReferenceData node_ptr = 31; */
-        if (message.nodePtr)
-            NodeReferenceData.internalBinaryWrite(message.nodePtr, writer.tag(31, WireType.LengthDelimited).fork(), options).join();
-        /* optional string key = 40; */
-        if (message.key !== undefined)
-            writer.tag(40, WireType.LengthDelimited).string(message.key);
-        /* optional symbol.bench.EditOperation operation = 41; */
+        /* optional symbol.bench.UpdateType operation = 31; */
         if (message.operation !== undefined)
-            writer.tag(41, WireType.Varint).int32(message.operation);
-        /* optional symbol.bench.ValueData value = 42; */
+            writer.tag(31, WireType.Varint).int32(message.operation);
+        /* symbol.bench.NodeReferenceData node_ptr = 32; */
+        if (message.nodePtr)
+            NodeReferenceData.internalBinaryWrite(message.nodePtr, writer.tag(32, WireType.LengthDelimited).fork(), options).join();
+        /* optional string path = 33; */
+        if (message.path !== undefined)
+            writer.tag(33, WireType.LengthDelimited).string(message.path);
+        /* optional symbol.bench.ValueData key = 34; */
+        if (message.key)
+            ValueData.internalBinaryWrite(message.key, writer.tag(34, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbol.bench.ValueData value = 40; */
         if (message.value)
-            ValueData.internalBinaryWrite(message.value, writer.tag(42, WireType.LengthDelimited).fork(), options).join();
-        /* optional symbol.bench.ValueData key_value = 43; */
-        if (message.keyValue)
-            ValueData.internalBinaryWrite(message.keyValue, writer.tag(43, WireType.LengthDelimited).fork(), options).join();
-        /* optional symbol.bench.NodeReferenceData parent_ptr = 44; */
+            ValueData.internalBinaryWrite(message.value, writer.tag(40, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbol.bench.NodeReferenceData parent_ptr = 41; */
         if (message.parentPtr)
-            NodeReferenceData.internalBinaryWrite(message.parentPtr, writer.tag(44, WireType.LengthDelimited).fork(), options).join();
+            NodeReferenceData.internalBinaryWrite(message.parentPtr, writer.tag(41, WireType.LengthDelimited).fork(), options).join();
         /* google.protobuf.Timestamp edited_at = 50; */
         if (message.editedAt)
             Timestamp.internalBinaryWrite(message.editedAt, writer.tag(50, WireType.LengthDelimited).fork(), options).join();
