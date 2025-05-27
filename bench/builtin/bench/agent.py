@@ -1,13 +1,10 @@
-from bench.language import BENCH_ICON, Agent, ColorHue, Page
+from bench.language import BENCH_ICON, Agent, Page, title
+from bench.language.core.icon import to_icon
 
 # default Agent
-BenchAgent = Agent.new(
-    "Bench",
-    color=ColorHue.YELLOW,
-    icon=BENCH_ICON,
-)
+BenchAgent = Agent(name="Bench", icon=to_icon(BENCH_ICON))
 
-BenchAgentPage = Page.new("Bench Agent")
+BenchAgentPage = Page(title=title("Bench Agent"))
 BenchAgentPage.add_child(BenchAgent)
 BenchAgentPage.add_text(
     """\
@@ -26,5 +23,5 @@ You *should not* try to have the last word (e.g., just shut up instead of saying
         """
 )
 
-AgentPage = Page.new("Agents")
+AgentPage = Page(title=title("Agents"))
 AgentPage.add_child(BenchAgentPage)

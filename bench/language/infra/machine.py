@@ -58,7 +58,3 @@ class Machine(IsSubject, IsProvisionable, IsInPackage, Node[MachineData]):
     width: int = property_(75, default=1280, can_write="system")
     height: int = property_(76, default=960, can_write="system")
     is_headless: bool = property_(77, default=False, can_write="system")
-
-    @staticmethod
-    def new(type: MachineType, name: str, *, is_headless: bool = False) -> "Machine":
-        return Machine(type=type, name=name, is_headless=is_headless)

@@ -1,11 +1,10 @@
-from typing import TYPE_CHECKING, Any, Callable, Optional, Union
+from typing import TYPE_CHECKING, Any, Optional, Union
 
 from .const import BenchError
 
 if TYPE_CHECKING:
     from bench.language import Property, TypeBase
 
-    from .value import SomeValue
 
 ValidationSite = Union["TypeBase", tuple["Property | Any", ...]]
 
@@ -24,10 +23,3 @@ class ValidationError(BenchError, ValueError):
         self.value = value
         self.site = site
         self.message = message
-
-
-ValidationHandler = Callable[["SomeValue", Optional[str], ValidationSite | None], None]
-
-
-def on_invalid_raise(value: Any, message: Optional[str], site: ValidationSite | None):
-    raise ValidationError(value, message, site)

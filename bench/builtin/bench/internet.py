@@ -2,7 +2,7 @@ from abc import ABC, abstractmethod
 from typing import TYPE_CHECKING, Annotated, Any, Mapping
 
 from bench.builtin.core import class_to_service
-from bench.language import File, Link, Page, to_icon
+from bench.language import File, Link, Page, title, to_icon
 
 if TYPE_CHECKING:
     pass
@@ -49,5 +49,5 @@ class IInternetService(ABC):
 InternetService = class_to_service(
     IInternetService, "Internet Service", icon=to_icon("fas fa-globe")
 )
-InternetPage = Page.new("Internet")
+InternetPage = Page(title=title("Internet"))
 InternetPage.add_child(InternetService)

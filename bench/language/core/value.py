@@ -4,34 +4,30 @@ from datetime import date, datetime, time, timedelta
 from typing import (
     TYPE_CHECKING,
     Any,
-    Collection,
     Union,
     assert_never,
 )
 
 import structlog
 from fastuuid import UUID
-from google.protobuf.duration_pb2 import Duration
 from google.protobuf.json_format import MessageToDict
 from google.protobuf.struct_pb2 import NULL_VALUE as PROTO_NULL_VALUE
 from google.protobuf.struct_pb2 import ListValue as ProtoList
 from google.protobuf.struct_pb2 import Struct as ProtoStruct
 from google.protobuf.struct_pb2 import Value as ProtoValue
-from google.protobuf.timestamp_pb2 import Timestamp
 from opentelemetry import trace
 
 from bench.language.registry import BUILTIN_OBJECT_TYPE_BY_CLASS
-from bench.pb2 import AnyNodeData, AnyStructData, Date, TimeOfDay, ValueData
+from bench.pb2 import Date, TimeOfDay, ValueData
 from bench.utils.time import timedelta_from_isoformat, timedelta_to_isoformat
 
-from .const import PrimitiveType, PrimitiveValue, StructType
-from .graph import Supergraph
+from .const import PrimitiveType, StructType
 from .property import IntoType, Property, property_
 from .struct import Struct, struct_
 from .type import Json
 
 if TYPE_CHECKING:
-    from bench.language import BuiltinObject, TypeBase
+    from bench.language import BuiltinObject
 
 
 # ruff: noqa: FURB113
@@ -41,21 +37,6 @@ if TYPE_CHECKING:
 logger = structlog.get_logger(__name__)
 tracer = trace.get_tracer(__name__)
 
-ScalarValue = Union[PrimitiveValue, "BuiltinObject"]
-ScalarValueData = Union[
-    AnyNodeData,
-    AnyStructData,
-    PrimitiveValue,
-    dict[str, "ScalarValueData"],
-    list["ScalarValueData"],
-    ProtoStruct,
-    ProtoValue,
-    Timestamp,
-    Date,
-    TimeOfDay,
-    Duration,
-]
-SomeValue = Union[ScalarValue, Collection[ScalarValue], None]
 JsonPrimitive = Union[str, int, float, bool, None]
 JsonValue = Union[JsonPrimitive, dict[str, "JsonValue"], list["JsonValue"]]
 
@@ -69,22 +50,6 @@ class Value(Struct[ValueData]):
 
 def to_value(value: Any) -> Value:
     """Convert an arbitrary value to a Value."""
-    raise NotImplementedError
-
-
-def pack_value_scalar(value: ScalarValue | ScalarValueData, typ: "TypeBase") -> JsonValue:
-    """
-    Packs the given scalar runtime or data value into a JSON-able representation.
-    """
-    raise NotImplementedError
-
-
-def unpack_value_scalar(
-    value_packed: JsonValue, typ: "TypeBase", *, supergraph: Supergraph | None
-) -> ScalarValue:
-    """
-    Unpacks the given scalar value into its runtime representation.
-    """
     raise NotImplementedError
 
 

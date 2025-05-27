@@ -3,7 +3,6 @@ from typing import TYPE_CHECKING, Optional, Union
 from bench.language.core import (
     BuiltinEnum,
     CascadeAction,
-    Constraint,
     EnumType,
     HasIcon,
     HasName,
@@ -16,16 +15,12 @@ from bench.language.core import (
     IsOrdered,
     Node,
     NodeType,
-    Property,
     TypeBase,
-    TypeIn,
     encode_storage_key,
     enum_,
     node_,
     property_,
     property_parent_,
-    property_runtime_,
-    to_type_scalar,
 )
 from bench.pb2 import FieldData
 
@@ -73,10 +68,6 @@ class Field(
 
     cascade: Optional[CascadeAction] = property_(70)
 
-    _introspected_from: Optional[Property] = property_runtime_(
-        default=None
-    )  # should match Field.property
-
     def __eq__(self, other):  # type: ignore
         return IntoQuery.__eq__(self, other)  # override to avoid recursion
 
@@ -91,47 +82,3 @@ class Field(
         return encode_storage_key(self)
 
     key = storage_key
-
-    @staticmethod
-    def new(
-        name: str,
-        type: FieldType,
-        typ: TypeIn,
-        constraint: Constraint | None = None,
-        **kwargs,
-    ) -> "Field":
-        typ = to_type_scalar(typ)
-        for prop in TypeBase.__declared_properties__.values():
-            if prop.name not in kwargs:
-                kwargs[prop.name] = getattr(typ, prop.name)
-        if constraint is not None:
-            kwargs["constraint"] = constraint
-        field = Field(name=name, type=type, **kwargs)
-        return field
-
-    @staticmethod
-    def member(
-        name: str,
-        typ: TypeIn,
-        constraint: Constraint | None = None,
-        **kwargs,
-    ) -> "Field":
-        return Field.new(name, type=FieldType.VARIABLE, typ=typ, constraint=constraint, **kwargs)
-
-    @staticmethod
-    def input(
-        name: str,
-        typ: TypeIn,
-        constraint: Constraint | None = None,
-        **kwargs,
-    ) -> "Field":
-        return Field.new(name, type=FieldType.INPUT, typ=typ, constraint=constraint, **kwargs)
-
-    @staticmethod
-    def output(
-        name: str,
-        typ: TypeIn,
-        constraint: Constraint | None = None,
-        **kwargs,
-    ) -> "Field":
-        return Field.new(name, type=FieldType.OUTPUT, typ=typ, constraint=constraint, **kwargs)

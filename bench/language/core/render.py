@@ -42,7 +42,6 @@ from .struct import PropertyReference, Struct
 from .text import Text, TextLine, text_line_to_markdown, text_to_markdown
 from .trait import IsInPackage
 from .type import TypeBase, TypeCardinality, reverse_type_scalar
-from .value import ScalarValue, SomeValue
 
 if TYPE_CHECKING:
     pass
@@ -553,7 +552,7 @@ class IconRenderer(BuiltinObjectRenderer[Icon]):
 #
 
 
-def render_value(value: SomeValue, typ: TypeBase, options: RenderOptions) -> str:
+def render_value(value: "SomeValue", typ: TypeBase, options: RenderOptions) -> str:
     """Render the given value to a python expression."""
     renderer = Renderer(options)
     rendered = renderer.render_value(value, typ)

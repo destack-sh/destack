@@ -16,7 +16,7 @@ from bench.language.core import (
 from bench.pb2 import TableData
 
 if TYPE_CHECKING:
-    from bench.language import Field
+    pass
 
 # pyright: reportIncompatibleVariableOverride=false
 
@@ -40,10 +40,3 @@ class Table(
     @property
     def records(self) -> Any:
         raise NotImplementedError
-
-    @staticmethod
-    def new(name: str, *fields: "Field", **kwargs) -> "Table":
-        table = Table(name=name, **kwargs)
-        for field in fields:
-            table.add_child(field)
-        return table

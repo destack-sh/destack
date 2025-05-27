@@ -37,7 +37,3 @@ class Service(
     """
     A set of Actions for a Node.
     """
-
-    @staticmethod
-    def new(name: str, **kwargs) -> "Service":
-        return Service(name=name, **kwargs)

@@ -14,10 +14,8 @@ from bench.language.core import (
     Node,
     NodeType,
     TextIn,
-    TextLineIn,
     node_,
     property_parent_,
-    text_line,
     to_text,
 )
 from bench.pb2 import BlockData
@@ -86,10 +84,3 @@ class Page(
         raise NotImplementedError("TODO: :Incomplete: add_children(..., before=..., after=...)")
         # self.add_children(*blocks, after=after, before=before)
         return blocks
-
-    @staticmethod
-    def new(title: "TextLineIn", *nodes: "Block | IsBlockable", **kwargs) -> "Page":
-        page = Page(title=text_line(title), **kwargs)
-        for node in nodes:
-            page.add_child(node)
-        return page

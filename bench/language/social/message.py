@@ -15,12 +15,10 @@ from bench.language.core import (
     IsInPackage,
     IsModal,
     IsOwnable,
-    IsSubject,
     Node,
     NodeType,
     Text,
     TextIn,
-    TextLine,
     enum_,
     node_,
     property_,
@@ -99,16 +97,3 @@ class Message(
         if nodes is not UNSET:
             self.nodes = nodes or []
         self.edited_at = self._session.oracle.utc()
-
-    @staticmethod
-    def new(
-        text: TextIn | None = None,
-        *,
-        type: MessageType = MessageType.DEFAULT,
-        title: TextLine | None = None,
-        owned_by: Optional[IsSubject] = None,
-        reply_to: Optional["Message"] = None,
-        node: Optional["Node"] = None,
-        **kwargs,
-    ) -> "Message":
-        raise NotImplementedError

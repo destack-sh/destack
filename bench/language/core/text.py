@@ -90,34 +90,6 @@ class TextSpan(TextOptionsBase, Struct):
     def hard_break() -> "TextSpan":
         return TextSpan(type=TextSpanType.HARD_BREAK)
 
-    @staticmethod
-    def new(
-        type: TextSpanType,
-        content: str | None = None,
-        node: Node | None = None,
-        url: str | None = None,
-        is_bold: bool | None = None,
-        is_italic: bool | None = None,
-        is_strikethrough: bool | None = None,
-        is_underline: bool | None = None,
-        is_spoiler: bool | None = None,
-        color: "ColorHue | None" = None,
-        background_color: "ColorHue | None" = None,
-    ) -> "TextSpan":
-        return TextSpan(
-            type=type,
-            content=content,
-            node=node,
-            url=url,
-            is_bold=is_bold,
-            is_italic=is_italic,
-            is_strikethrough=is_strikethrough,
-            is_underline=is_underline,
-            is_spoiler=is_spoiler,
-            color=color,
-            background_color=background_color,
-        )
-
 
 @struct_(StructType.TEXT_LINE, is_frozen=True)
 class TextLine(TextOptionsBase, Struct):
@@ -222,34 +194,6 @@ class TextLine(TextOptionsBase, Struct):
     @staticmethod
     def divider() -> "TextLine":
         return TextLine(type=TextLineType.DIVIDER)
-
-    @staticmethod
-    def new(
-        type: TextLineType,
-        spans: List[TextSpan] | str | None = None,
-        is_bold: bool | None = None,
-        is_italic: bool | None = None,
-        is_strikethrough: bool | None = None,
-        is_underline: bool | None = None,
-        is_spoiler: bool | None = None,
-        color: "ColorHue | None" = None,
-    ) -> "TextLine":
-        if spans is None:
-            spans_list = []
-        elif isinstance(spans, str):
-            spans_list = _parse_inline(spans)
-        else:
-            spans_list = spans
-        return TextLine(
-            type=type,
-            spans=spans_list,
-            is_bold=is_bold,
-            is_italic=is_italic,
-            is_strikethrough=is_strikethrough,
-            is_underline=is_underline,
-            is_spoiler=is_spoiler,
-            color=color,
-        )
 
 
 @struct_(StructType.TEXT)
@@ -914,3 +858,4 @@ def text_line(text: TextLineIn, aliasing: "Aliasing | None" = None) -> TextLine:
 
 to_text = text
 to_text_line = text_line
+title = to_text_line

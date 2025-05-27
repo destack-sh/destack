@@ -101,10 +101,6 @@ class Color(ColorBase, Struct):
     """A color value."""
 
     @staticmethod
-    def new(color: "ColorIn") -> "Color":
-        return to_color(color)
-
-    @staticmethod
     def from_hex(hex: str) -> "Color":
         r, g, b, a = hex_to_rgb(hex)
         return Color(type=ColorType.RGB, x=r, y=g, z=b, alpha=a)
