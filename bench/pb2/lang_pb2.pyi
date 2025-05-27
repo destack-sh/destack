@@ -301,14 +301,6 @@ class EdgeType(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     EDGE_TYPE_NODE_REGULAR: _ClassVar[EdgeType]
     EDGE_TYPE_NODE_TEMPLATE: _ClassVar[EdgeType]
 
-class EditOperation(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
-    __slots__ = ()
-    EDIT_OPERATION_UNSPECIFIED: _ClassVar[EditOperation]
-    EDIT_OPERATION_SET: _ClassVar[EditOperation]
-    EDIT_OPERATION_CLEAR: _ClassVar[EditOperation]
-    EDIT_OPERATION_MAP_SET: _ClassVar[EditOperation]
-    EDIT_OPERATION_MAP_REMOVE: _ClassVar[EditOperation]
-
 class EditType(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     __slots__ = ()
     EDIT_TYPE_UNSPECIFIED: _ClassVar[EditType]
@@ -353,7 +345,7 @@ class EnumType(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     ENUM_TYPE_ERROR_TYPE: _ClassVar[EnumType]
     ENUM_TYPE_VARIABLE_TYPE: _ClassVar[EnumType]
     ENUM_TYPE_EDIT_TYPE: _ClassVar[EnumType]
-    ENUM_TYPE_EDIT_OPERATION: _ClassVar[EnumType]
+    ENUM_TYPE_UPDATE_TYPE: _ClassVar[EnumType]
     ENUM_TYPE_CONDITIONAL_TYPE: _ClassVar[EnumType]
     ENUM_TYPE_AGGREGATION_TYPE: _ClassVar[EnumType]
     ENUM_TYPE_SORT_MODE: _ClassVar[EnumType]
@@ -1303,6 +1295,14 @@ class TypeCardinality(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     TYPE_CARDINALITY_LIST: _ClassVar[TypeCardinality]
     TYPE_CARDINALITY_MAP: _ClassVar[TypeCardinality]
 
+class UpdateType(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
+    __slots__ = ()
+    UPDATE_TYPE_UNSPECIFIED: _ClassVar[UpdateType]
+    UPDATE_TYPE_SET: _ClassVar[UpdateType]
+    UPDATE_TYPE_CLEAR: _ClassVar[UpdateType]
+    UPDATE_TYPE_MAP_SET: _ClassVar[UpdateType]
+    UPDATE_TYPE_MAP_REMOVE: _ClassVar[UpdateType]
+
 class UserStatus(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     __slots__ = ()
     USER_STATUS_UNSPECIFIED: _ClassVar[UserStatus]
@@ -1514,11 +1514,6 @@ EDGE_TYPE_NODE_PARENT: EdgeType
 EDGE_TYPE_NODE_ANCESTOR: EdgeType
 EDGE_TYPE_NODE_REGULAR: EdgeType
 EDGE_TYPE_NODE_TEMPLATE: EdgeType
-EDIT_OPERATION_UNSPECIFIED: EditOperation
-EDIT_OPERATION_SET: EditOperation
-EDIT_OPERATION_CLEAR: EditOperation
-EDIT_OPERATION_MAP_SET: EditOperation
-EDIT_OPERATION_MAP_REMOVE: EditOperation
 EDIT_TYPE_UNSPECIFIED: EditType
 EDIT_TYPE_CREATE: EditType
 EDIT_TYPE_UPSERT: EditType
@@ -1555,7 +1550,7 @@ ENUM_TYPE_PACKAGE_TYPE: EnumType
 ENUM_TYPE_ERROR_TYPE: EnumType
 ENUM_TYPE_VARIABLE_TYPE: EnumType
 ENUM_TYPE_EDIT_TYPE: EnumType
-ENUM_TYPE_EDIT_OPERATION: EnumType
+ENUM_TYPE_UPDATE_TYPE: EnumType
 ENUM_TYPE_CONDITIONAL_TYPE: EnumType
 ENUM_TYPE_AGGREGATION_TYPE: EnumType
 ENUM_TYPE_SORT_MODE: EnumType
@@ -2288,6 +2283,11 @@ TYPE_CARDINALITY_UNSPECIFIED: TypeCardinality
 TYPE_CARDINALITY_SCALAR: TypeCardinality
 TYPE_CARDINALITY_LIST: TypeCardinality
 TYPE_CARDINALITY_MAP: TypeCardinality
+UPDATE_TYPE_UNSPECIFIED: UpdateType
+UPDATE_TYPE_SET: UpdateType
+UPDATE_TYPE_CLEAR: UpdateType
+UPDATE_TYPE_MAP_SET: UpdateType
+UPDATE_TYPE_MAP_REMOVE: UpdateType
 USER_STATUS_UNSPECIFIED: UserStatus
 USER_STATUS_WAITLIST: UserStatus
 USER_STATUS_REGISTERED: UserStatus
@@ -2990,28 +2990,28 @@ class DimensionData(_message.Message):
     def __init__(self, metatype: _Optional[_Union[StructType, str]] = ..., type: _Optional[_Union[DimensionType, str]] = ..., unit: _Optional[_Union[LengthUnit, str]] = ..., value: _Optional[float] = ...) -> None: ...
 
 class EditData(_message.Message):
-    __slots__ = ("metatype", "id", "type", "node_ptr", "key", "operation", "value", "key_value", "parent_ptr", "edited_at")
+    __slots__ = ("metatype", "id", "type", "operation", "node_ptr", "path", "key", "value", "parent_ptr", "edited_at")
     METATYPE_FIELD_NUMBER: _ClassVar[int]
     ID_FIELD_NUMBER: _ClassVar[int]
     TYPE_FIELD_NUMBER: _ClassVar[int]
-    NODE_PTR_FIELD_NUMBER: _ClassVar[int]
-    KEY_FIELD_NUMBER: _ClassVar[int]
     OPERATION_FIELD_NUMBER: _ClassVar[int]
+    NODE_PTR_FIELD_NUMBER: _ClassVar[int]
+    PATH_FIELD_NUMBER: _ClassVar[int]
+    KEY_FIELD_NUMBER: _ClassVar[int]
     VALUE_FIELD_NUMBER: _ClassVar[int]
-    KEY_VALUE_FIELD_NUMBER: _ClassVar[int]
     PARENT_PTR_FIELD_NUMBER: _ClassVar[int]
     EDITED_AT_FIELD_NUMBER: _ClassVar[int]
     metatype: StructType
     id: str
     type: EditType
+    operation: UpdateType
     node_ptr: NodeReferenceData
-    key: str
-    operation: EditOperation
+    path: str
+    key: ValueData
     value: ValueData
-    key_value: ValueData
     parent_ptr: NodeReferenceData
     edited_at: _timestamp_pb2.Timestamp
-    def __init__(self, metatype: _Optional[_Union[StructType, str]] = ..., id: _Optional[str] = ..., type: _Optional[_Union[EditType, str]] = ..., node_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., key: _Optional[str] = ..., operation: _Optional[_Union[EditOperation, str]] = ..., value: _Optional[_Union[ValueData, _Mapping]] = ..., key_value: _Optional[_Union[ValueData, _Mapping]] = ..., parent_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., edited_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ...) -> None: ...
+    def __init__(self, metatype: _Optional[_Union[StructType, str]] = ..., id: _Optional[str] = ..., type: _Optional[_Union[EditType, str]] = ..., operation: _Optional[_Union[UpdateType, str]] = ..., node_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., path: _Optional[str] = ..., key: _Optional[_Union[ValueData, _Mapping]] = ..., value: _Optional[_Union[ValueData, _Mapping]] = ..., parent_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., edited_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ...) -> None: ...
 
 class EffectData(_message.Message):
     __slots__ = ("metatype", "type", "style_ptr", "opacity", "offset", "scale", "rotate", "skew", "perspective", "delay", "duration", "threshold", "once", "repeat", "split", "offscreen", "transition")

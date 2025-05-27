@@ -12,11 +12,7 @@ from opentelemetry import trace
 
 from bench.pb2 import (
     EditData,
-    HostClient,
     OriginData,
-    RpcMetadata,
-    ScopeData,
-    SupervisorClient,
 )
 from bench.utils.oracle import Oracle
 
@@ -38,7 +34,7 @@ tracer = trace.get_tracer(__name__)
 @dataclasses.dataclass(slots=True)
 class Session:
     """
-    A managed Session for interacting with and running a Bench.
+    A managed Session for interacting with a Bench.
     """
 
     # node
@@ -59,12 +55,7 @@ class Session:
     pending: dict[UUID, Node] = dataclasses.field(default_factory=dict)
 
     # runtime
-    _rpc_metadata: RpcMetadata | None = None
-    _rpc_headers: dict[str, str] | None = None
     _runtime: Optional["Runtime"] = None
-    _supervisor: Optional["SupervisorClient"] = None
-    _self_host: Optional["HostClient"] = None
-    _bench_host: Optional["HostClient"] = None
 
     @property
     def edits(self) -> Sequence[EditData]:
@@ -89,36 +80,13 @@ class Session:
         assert self._runtime is not None, f"no active Runtime in {self!r}"
         return self._runtime
 
-    @property
-    def self_host(self) -> HostClient:
-        assert self._self_host is not None, f"no active self Host in {self!r}"
-        return self._self_host
-
-    @property
-    def bench_host(self) -> HostClient:
-        assert self._bench_host is not None, f"no active bench Host in {self!r}"
-        return self._bench_host
-
-    @property
-    def supervisor(self) -> SupervisorClient:
-        assert self._supervisor is not None, f"no active Supervisor in {self!r}"
-        return self._supervisor
-
-    @property
-    def active_mode(self) -> NodeMode:
-        return self._runtime.active_mode if self._runtime is not None else self.mode
-
     async def open(self):
-        """Opens the session for regular business. Activates context (by default)."""
+        """Opens the Session."""
         pass
 
     async def close(self):
-        """Closes the session, rolling back uncommitted edits. Prevents further use."""
+        """Closes the Session."""
         pass
-
-    def get_scope(self, node: Node | None = None) -> ScopeData:
-        """Get the scope for a node."""
-        raise NotImplementedError
 
     #
     # Edits

@@ -1,20 +1,17 @@
-from datetime import datetime
 from typing import TYPE_CHECKING, Collection
 
 import structlog
 from fastuuid import UUID
 from opentelemetry import trace
 
-from bench.pb2 import AnyNodeData, EditData
-
 from .const import BuiltinEnum, EnumType, StructType, bittuple, enum_
-from .graph import Graph, GraphData
+from .graph import Graph
 from .node import Node
 from .property import property_
 from .struct import Struct, struct_
 
 if TYPE_CHECKING:
-    from bench.language import Supergraph, Value
+    from bench.language import Value
 
 logger = structlog.get_logger(__name__)
 tracer = trace.get_tracer(__name__)
@@ -44,26 +41,27 @@ CASCADING_EDIT_TYPES: bittuple[EditType] = bittuple(
 )
 
 
-@enum_(EnumType.EDIT_OPERATION)
-class EditOperation(BuiltinEnum):
-    """The type of edit operation."""
+@enum_(EnumType.UPDATE_TYPE)
+class UpdateType(BuiltinEnum):
+    """The type of update operation."""
 
     # direct
     SET = 1
     CLEAR = 2
 
+    # number
+    # NUMBER_INCREMENT, NUMBER_DECREMENT, ...
+
+    # string
+    # STRING_INSERT, STRING_DELETE, STRING_FORMAT, ...
+
     # list
     # LIST_APPEND_IF_MISSING, LIST_REMOVE, ...
 
     # map
-    MAP_SET = 20
-    MAP_REMOVE = 21
-
-    # math
-    # NUMBER_ADD, NUMBER_SUBTRACT, ...
-
-    # text/code
-    # ...
+    MAP_SET = 110
+    MAP_REMOVE = 111
+    # MAP_INCREMENT, MAP_DECREMENT, ...
 
 
 @struct_(StructType.EDIT, is_frozen=True)
@@ -72,58 +70,27 @@ class Edit(Struct):
     An Edit to a Node.
     """
 
-    # core
+    # meta
     id: UUID = property_(2, default_factory="uuid")
-    type: EditType = property_(30)
-    node: Node = property_(31)
-    key: str | None = property_(40)
-    operation: EditOperation | None = property_(41)
-    value: "Value | None" = property_(42)
-    key_value: "Value | None" = property_(43)  # for map operations
-    parent: Node | None = property_(44)  # for move
-
-    edited_at: datetime = property_(
-        50, description="When the Edit was made.", default_factory="now"
-    )
     # change_key?
 
+    # key
+    type: EditType = property_(30)
+    operation: UpdateType | None = property_(31)
+    node: Node = property_(32)
+    path: str | None = property_(33)
+    key: "Value | None" = property_(34)  # for map operations
 
-def apply_edit_operation(node: Node, op: EditData, validate: bool) -> None:
+    # value
+    value: "Value | None" = property_(40)
+    parent: Node | None = property_(41)  # for move
+
+
+def edit_node(node: Node, edit: Edit) -> None:
+    """Applies the Edit to the Node."""
     raise NotImplementedError
 
 
-@tracer.start_as_current_span("graph.edit_graph")
-def edit_graph(
-    graph: Graph,
-    supergraph: "Supergraph",
-    edits: Collection[EditData],
-    *,
-    include_removed: bool,
-    validate: bool,
-    ignore_missing: bool = False,
-) -> None:
-    """Applies the edits to the graph (in place!)."""
-    raise NotImplementedError
-
-
-def apply_edit_operation_data(node: AnyNodeData, op: EditData) -> None:
-    raise NotImplementedError
-
-
-@tracer.start_as_current_span("graph.edit_data_graph")
-def edit_data_graph(
-    graph: GraphData,
-    edits: Collection[EditData],
-    *,
-    include_removed: bool,
-    ignore_missing: bool = False,
-) -> list[EditData] | None:
-    """
-    Applies the edits to the data graph (edited nodes are copied before update).
-    During prepass, we do some extra work (before applying the edits within in the system):
-      1. Update edits (and edit operations) with the ground truth state.
-      2. Simplify hierarchical edits into flat set/clear edits (for storage).
-    """
-    trace.get_current_span().set_attribute("edits", len(edits))
-
+def edit_graph(graph: Graph, edits: Collection[Edit]) -> None:
+    """Applies the Edits to the graph."""
     raise NotImplementedError

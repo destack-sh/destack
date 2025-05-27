@@ -49,7 +49,3 @@ class Transaction:
     async def commit(self) -> tuple[list[EditData], list[EditData]]:
         """Commits the transaction (flushing any pending edits)."""
         raise NotImplementedError
-
-    def reset(self):
-        """Resets the transaction, any edits and connectors (without closing)."""
-        raise NotImplementedError

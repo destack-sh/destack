@@ -6,7 +6,6 @@ from urllib.parse import urlparse
 import grpclib
 import pytest
 import structlog
-from fastuuid import UUID
 
 from bench.test.conftest import _setup_test_env
 
@@ -22,8 +21,6 @@ from bench.language import (
     Bench,
     BenchStatus,
     Database,
-    NodeReference,
-    NodeType,
     Package,
     PackageType,
     Region,
@@ -57,8 +54,7 @@ def make_global_database(name: str):
     pg_url_parsed = urlparse(pg)
     pg_url = pg_url_parsed._replace(path=f"/{name}").geturl()
 
-    system_bench_ptr = NodeReference(node_type=NodeType.BENCH, id=UUID(int=0), ck=UUID(int=0))
-    supergraph = Supergraph(name="Global", root_ptr=system_bench_ptr)
+    supergraph = Supergraph(name="Global")
     system_bench_stub = Bench(
         id=SYSTEM_ID,
         name="System",
@@ -101,8 +97,7 @@ def make_regional_database(name: str):
     pg_url_parsed = urlparse(pg)
     pg_url = pg_url_parsed._replace(path=f"/{name}").geturl()
 
-    system_bench_ptr = NodeReference(node_type=NodeType.BENCH, id=UUID(int=0), ck=UUID(int=0))
-    supergraph = Supergraph(name="Regional", root_ptr=system_bench_ptr)
+    supergraph = Supergraph(name="Regional")
     system_bench_stub = Bench(
         id=SYSTEM_ID,
         name="System",

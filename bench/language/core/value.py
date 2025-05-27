@@ -41,7 +41,7 @@ JsonPrimitive = Union[str, int, float, bool, None]
 JsonValue = Union[JsonPrimitive, dict[str, "JsonValue"], list["JsonValue"]]
 
 
-@struct_(StructType.VALUE)
+@struct_(StructType.VALUE, is_frozen=True)
 class Value(Struct[ValueData]):
     """A value of any type."""
 

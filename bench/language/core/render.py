@@ -101,7 +101,7 @@ class Aliasing:
 
         # try to resolve node references
         if isinstance(obj, NodeReference):
-            if (resolved := self._supergraph.get(obj)) is not None:
+            if (resolved := self._supergraph.get(obj.id)) is not None:
                 obj = resolved
 
         # make new unique alias if needed
@@ -172,7 +172,7 @@ class Aliasing:
                 pass
         # try to auto-resolve node references
         if isinstance(node, NodeReference):
-            if (resolved := self._supergraph.get(node)) is not None:
+            if (resolved := self._supergraph.get(node.id)) is not None:
                 node = resolved
         return node
 

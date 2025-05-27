@@ -308,15 +308,6 @@ enum EdgeType {
   EDGE_TYPE_NODE_TEMPLATE = 6;
 }
 
-// The type of edit operation.
-enum EditOperation {
-  EDIT_OPERATION_UNSPECIFIED = 0;
-  EDIT_OPERATION_SET = 1;
-  EDIT_OPERATION_CLEAR = 2;
-  EDIT_OPERATION_MAP_SET = 20;
-  EDIT_OPERATION_MAP_REMOVE = 21;
-}
-
 // Ways to edit nodes.
 enum EditType {
   EDIT_TYPE_UNSPECIFIED = 0;
@@ -362,7 +353,7 @@ enum EnumType {
   ENUM_TYPE_ERROR_TYPE = 40061;
   ENUM_TYPE_VARIABLE_TYPE = 40063;
   ENUM_TYPE_EDIT_TYPE = 40070;
-  ENUM_TYPE_EDIT_OPERATION = 40071;
+  ENUM_TYPE_UPDATE_TYPE = 40071;
   ENUM_TYPE_CONDITIONAL_TYPE = 40102;
   ENUM_TYPE_AGGREGATION_TYPE = 40103;
   ENUM_TYPE_SORT_MODE = 40104;
@@ -1334,6 +1325,15 @@ enum TypeCardinality {
   TYPE_CARDINALITY_MAP = 4;
 }
 
+// The type of update operation.
+enum UpdateType {
+  UPDATE_TYPE_UNSPECIFIED = 0;
+  UPDATE_TYPE_SET = 1;
+  UPDATE_TYPE_CLEAR = 2;
+  UPDATE_TYPE_MAP_SET = 20;
+  UPDATE_TYPE_MAP_REMOVE = 21;
+}
+
 enum UserStatus {
   USER_STATUS_UNSPECIFIED = 0;
   USER_STATUS_WAITLIST = 30;
@@ -1733,12 +1733,12 @@ message EditData {
   StructType metatype = 1;
   string id = 2;
   EditType type = 30;
-  NodeReferenceData node_ptr = 31;
-  optional string key = 40;
-  optional EditOperation operation = 41;
-  optional ValueData value = 42;
-  optional ValueData key_value = 43;
-  optional NodeReferenceData parent_ptr = 44;
+  optional UpdateType operation = 31;
+  NodeReferenceData node_ptr = 32;
+  optional string path = 33;
+  optional ValueData key = 34;
+  optional ValueData value = 40;
+  optional NodeReferenceData parent_ptr = 41;
   google.protobuf.Timestamp edited_at = 50;
 }
 

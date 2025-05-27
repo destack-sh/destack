@@ -61,8 +61,8 @@ from .const import (
     new_struct_id,
     repr_enums,
 )
-from .edit import Edit, EditOperation, EditType, edit_data_graph, edit_graph
-from .graph import Graph, GraphConsistencyError, GraphData, GraphError, Supergraph
+from .edit import Edit, EditType, UpdateType, edit_graph
+from .graph import Graph, GraphConsistencyError, GraphError, Supergraph
 from .icon import Icon, IconIn, IconType, icon, reverse_icon, to_icon
 from .node import IndexIn, Node, node_
 from .object import BuiltinObject, _is_setup_complete, object_
@@ -265,7 +265,6 @@ __all__ = [
     "Day",
     "EdgeType",
     "Edit",
-    "EditOperation",
     "EditType",
     "EnumType",
     "Expression",
@@ -275,7 +274,6 @@ __all__ = [
     "FunctionType",
     "Graph",
     "GraphConsistencyError",
-    "GraphData",
     "GraphError",
     "HasIcon",
     "HasName",
@@ -366,6 +364,7 @@ __all__ = [
     "TypeBase",
     "TypeCardinality",
     "TypeIn",
+    "UpdateType",
     "ValidationError",
     "Value",
     "Variable",
@@ -380,7 +379,6 @@ __all__ = [
     "code",
     "condition",
     "decode_type_identity",
-    "edit_data_graph",
     "edit_graph",
     "encode_storage_key",
     "encode_type_identity",

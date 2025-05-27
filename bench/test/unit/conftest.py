@@ -78,7 +78,7 @@ def omni_session(omni_database: Database):
 
 def make_session(name: str):
     """Make a 'fake' session for context"""
-    supergraph = Supergraph(name=name, root_ptr=None)
+    supergraph = Supergraph(name=name)
     session = Session(bench=None, mode=NodeMode.TEST, supergraph=supergraph, oracle=REAL_ORACLE)
     return session
 
