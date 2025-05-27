@@ -16,13 +16,15 @@ from bench import pb2
 from bench.language.core import (
     BuiltinObject,
     EditType,
+    IntoType,
     NodeType,
     PrimitiveType,
     Property,
     StructType,
+    Variable,
+    pack_proto_json,
+    unpack_proto_json,
 )
-from bench.language.core.property import IntoType
-from bench.language.core.value import pack_proto_json, unpack_proto_json
 from bench.language.registry import (
     BUILTIN_OBJECT_CLASS_BY_TYPE,
     BUILTIN_OBJECT_TYPE_BY_CLASS,
@@ -33,6 +35,8 @@ from bench.utils.string import Casing, to_casing
 
 if TYPE_CHECKING:
     pass
+
+# ruff: noqa: FURB113
 
 logger = structlog.get_logger(__name__)
 tracer = trace.get_tracer(__name__)
@@ -125,6 +129,7 @@ def __unpack_proto__(cls, object_data: "{cls.__name__}Data") -> "Self":
 from_proto = __unpack_proto__
 """
     return proto_impl, {
+        "Variable": Variable,
         "Timestamp": Timestamp,
         "Duration": Duration,
         "pytz": pytz,
@@ -205,7 +210,17 @@ def _generate_pack_property(prop: "Property") -> list[str] | None:
     obj_value = f"object.{prop.name}"
 
     if prop.cardinality == "scalar":
-        if not prop.is_required:
+        if prop.is_variable:
+            # write to _variable if it's a Variable, else write to _value
+            lines.append(f"if isinstance({obj_value}, Variable):")
+            lines.append(f"    object_data.{prop.name}.CopyFrom({obj_value}.to_proto())")
+            lines.append(f"elif ({prop.name} := {obj_value}) is not None:")
+            scalar_expr = _generate_pack_scalar(prop, prop.name)
+            if _is_proto_primitive(prop):
+                lines.append(f"    object_data.{prop.name}_value = {scalar_expr}")
+            else:
+                lines.append(f"    object_data.{prop.name}_value.CopyFrom({scalar_expr})")
+        elif prop.is_optional:
             lines.append(f"if ({prop.name} := {obj_value}) is not None:")
             scalar_expr = _generate_pack_scalar(prop, prop.name)
             if _is_proto_primitive(prop):
@@ -258,28 +273,41 @@ if {obj_value}:
 def _generate_unpack_property(prop: "Property") -> list[str] | None:
     """Generate the unpacking code for a property value."""
 
+    def _wrap_with_null_check(code: str) -> str:
+        """Wrap code with null check if property is optional."""
+        if prop.is_required:
+            return code
+        else:
+            return f"{code} if object_data.HasField('{prop.name}') else None"
+
     lines: list[str] = []
     data_value = f"object_data.{prop.name}"
 
     if prop.cardinality == "scalar":
-        scalar_lines = _generate_unpack_scalar(prop, data_value, f"_unpacked_{prop.name}")
-        if scalar_lines:
-            lines.extend(scalar_lines)
+        if prop.is_variable:
+            # read from _variable if it's a Variable, else read from _value
+            lines.append(f"if object_data.HasField('{prop.name}_variable'):")
+            scalar_expr_variable = _generate_unpack_scalar(prop, f"{data_value}_variable")
+            lines.append(f"    _unpacked_{prop.name} = {scalar_expr_variable}")
+            lines.append(f"elif object_data.HasField('{prop.name}_value'):")
+            scalar_expr_value = _generate_unpack_scalar(prop, f"{data_value}_value")
+            lines.append(f"    _unpacked_{prop.name} = {scalar_expr_value}")
+            lines.append("else:")
+            lines.append(f"    _unpacked_{prop.name} = None")
+        elif prop.is_optional:
+            scalar_expr = _generate_unpack_scalar(prop, data_value)
+            lines.append(f"_unpacked_{prop.name} = {_wrap_with_null_check(scalar_expr)}")
         else:
-            return None
+            scalar_expr = _generate_unpack_scalar(prop, data_value)
+            lines.append(f"_unpacked_{prop.name} = {scalar_expr}")
     elif prop.cardinality == "list":
         lines.extend(
             f"""\
 _unpacked_{prop.name} = []
 for _item in {data_value}:""".splitlines()
         )
-        item_lines = _generate_unpack_scalar(prop, "_item", "_unpacked_item")
-        if item_lines:
-            for line in item_lines:
-                lines.append(f"    {line}")
-            lines.append(f"    _unpacked_{prop.name}.append(_unpacked_item)")
-        else:
-            lines.append(f"    _unpacked_{prop.name}.append(_item)")
+        item_expr = _generate_unpack_scalar(prop, "_item")
+        lines.append(f"    _unpacked_{prop.name}.append({item_expr})")
     elif prop.cardinality == "map":
         lines.extend(
             f"""\
@@ -287,22 +315,9 @@ _unpacked_{prop.name} = {{}}
 for _key, _value in {data_value}.items():""".splitlines()
         )
         assert prop.key_type is not None, f"no key_type for map: {prop!r}"
-        key_lines = _generate_unpack_scalar(prop.key_type, "_key", "_unpacked_key")
-        value_lines = _generate_unpack_scalar(prop, "_value", "_unpacked_value")
-        if key_lines and value_lines:
-            for line in key_lines + value_lines:
-                lines.append(f"    {line}")
-            lines.append(f"    _unpacked_{prop.name}[_unpacked_key] = _unpacked_value")
-        elif key_lines:
-            for line in key_lines:
-                lines.append(f"    {line}")
-            lines.append(f"    _unpacked_{prop.name}[_unpacked_key] = _value")
-        elif value_lines:
-            for line in value_lines:
-                lines.append(f"    {line}")
-            lines.append(f"    _unpacked_{prop.name}[_key] = _unpacked_value")
-        else:
-            lines.append(f"    _unpacked_{prop.name}[_key] = _value")
+        key_expr = _generate_unpack_scalar(prop.key_type, "_key")
+        value_expr = _generate_unpack_scalar(prop, "_value")
+        lines.append(f"    _unpacked_{prop.name}[{key_expr}] = {value_expr}")
     else:
         assert_never(prop.cardinality)
 
@@ -338,65 +353,32 @@ def _generate_pack_scalar(prop: "Property | IntoType", value_expr: str) -> str:
         assert_never(prop.scalar_type)
 
 
-def _generate_unpack_scalar(
-    prop: "Property | IntoType", value_expr: str, result_var: str
-) -> list[str]:
+def _generate_unpack_scalar(prop: "Property | IntoType", value_expr: str) -> str:
     """Generate the unpacking code for a scalar value."""
-    lines: list[str] = []
-
-    def _wrap_with_null_check(code: str) -> str:
-        """Wrap code with null check if property is optional."""
-        if prop.is_required:
-            return code
-        else:
-            if isinstance(prop, Property):
-                return f"{code} if object_data.HasField('{prop.name}') else None"
-            else:
-                return f"{code} if {value_expr} is not None else None"
-
-    def _wrap_with_builtin_object_null_check(code: str) -> str:
-        """Wrap code with null check if property is optional."""
-        if prop.is_required:
-            return code
-        else:
-            if isinstance(prop, Property):
-                return f"{code} if object_data.HasField('{prop.name}') else None"
-            else:
-                return f"{code} if {value_expr}.metatype != 0 else None"
 
     if prop.scalar_type == "primitive":
         if prop.primitive_type == PrimitiveType.UUID:
-            lines.append(f"{result_var} = {_wrap_with_null_check(f'UUID({value_expr})')}")
+            return f"UUID({value_expr})"
         elif prop.primitive_type == PrimitiveType.JSON:
-            lines.append(
-                f"{result_var} = {_wrap_with_null_check(f'unpack_proto_json({value_expr})')}"
-            )
+            return f"unpack_proto_json({value_expr})"
         elif prop.primitive_type == PrimitiveType.DATETIME:
-            lines.append(
-                f"{result_var} = {_wrap_with_null_check(f'{value_expr}.ToDatetime(tzinfo=pytz.utc)')}"
-            )
+            return f"{value_expr}.ToDatetime(tzinfo=pytz.utc)"
         elif prop.primitive_type == PrimitiveType.DURATION:
-            lines.append(f"{result_var} = {_wrap_with_null_check(f'{value_expr}.ToTimedelta()')}")
+            return f"{value_expr}.ToTimedelta()"
         else:
-            lines.append(f"{result_var} = {_wrap_with_null_check(f'{value_expr}')}")
+            return f"{value_expr}"
     elif prop.scalar_type == "enum":
         assert prop.enum_type is not None
         enum_type_name = prop.enum_type.bench_name
-        lines.append(f"{result_var} = {_wrap_with_null_check(f'{enum_type_name}({value_expr})')}")
+        return f"{enum_type_name}({value_expr})"
     elif prop.scalar_type == "struct":
         assert prop.struct_type is not None
         struct_cls_name = prop.struct_type.bench_name
-        lines.append(
-            f"{result_var} = {_wrap_with_builtin_object_null_check(f'{struct_cls_name}.__unpack_proto__({value_expr})')}"
-        )
+        return f"{struct_cls_name}.__unpack_proto__({value_expr})"
     elif prop.scalar_type == "node":
-        lines.append(
-            f"{result_var} = {_wrap_with_builtin_object_null_check(f'NodeReference.__unpack_proto__({value_expr})')}"
-        )
+        return f"NodeReference.__unpack_proto__({value_expr})"
     else:
         assert_never(prop.scalar_type)
-
-    return lines
 
 
 def pack_proto_timestamp(dt: datetime) -> Timestamp:
