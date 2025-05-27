@@ -117,11 +117,11 @@ def to_proto(self: "Self") -> "StructDataT":
 
     proto_impl = f"""
 @classmethod
-def __pack_proto__(cls, object: "Self") -> "{cls.__name__}Data":
+def __pack_proto__(cls, _object: "Self") -> "{cls.__name__}Data":
 {pack_proto}
 
 @classmethod
-def __unpack_proto__(cls, object_data: "{cls.__name__}Data") -> "Self":
+def __unpack_proto__(cls, _object_data: "{cls.__name__}Data") -> "Self":
 {unpack_proto}
 
 {to_proto}
@@ -144,7 +144,7 @@ def _generate_pack_proto(cls: type["BuiltinObject"]) -> str:
     """Generate the BuiltinObject.__pack_proto__ method implementation."""
     metatype = BUILTIN_OBJECT_TYPE_BY_CLASS[cls]
     pack_method_parts: list[str] = []
-    pack_method_parts.append(f"object_data = {cls.__name__}Data(metatype={metatype.value})")
+    pack_method_parts.append(f"_object_data = {cls.__name__}Data(metatype={metatype.value})")
 
     for prop in cls.__wired_properties__.values():
         if prop.name == "metatype":
@@ -153,7 +153,7 @@ def _generate_pack_proto(cls: type["BuiltinObject"]) -> str:
         if pack_code:
             pack_method_parts.extend(pack_code)
 
-    pack_method_parts.append("return object_data")
+    pack_method_parts.append("return _object_data")
 
     return "\n".join(pack_method_parts)
 
@@ -174,9 +174,9 @@ def _generate_unpack_proto(cls: type["BuiltinObject"]) -> str:
                 unpack_method_parts.extend(unpack_code)
                 unpack_assignments.append(f"{prop.name}=_unpacked_{prop.name}")
         else:
-            unpack_assignments.append(f"{prop.name}=object_data.{prop.name}")
+            unpack_assignments.append(f"{prop.name}=_object_data.{prop.name}")
     if cls.__is_frozen__:
-        unpack_assignments.append("_proto=object_data")
+        unpack_assignments.append("_proto=_object_data")
 
     unpack_method_parts.append("return cls(")
     for i, assignment in enumerate(unpack_assignments):
@@ -207,32 +207,32 @@ def _is_proto_primitive(prop: "Property | IntoType") -> bool:
 def _generate_pack_property(prop: "Property") -> list[str] | None:
     """Generate the packing code for a property value."""
     lines: list[str] = []
-    obj_value = f"object.{prop.name}"
+    obj_value = f"_object.{prop.name}"
 
     if prop.cardinality == "scalar":
         if prop.is_variable:
             # write to _variable if it's a Variable, else write to _value
             lines.append(f"if isinstance({obj_value}, Variable):")
-            lines.append(f"    object_data.{prop.name}.CopyFrom({obj_value}.to_proto())")
+            lines.append(f"    _object_data.{prop.name}.CopyFrom({obj_value}.to_proto())")
             lines.append(f"elif ({prop.name} := {obj_value}) is not None:")
             scalar_expr = _generate_pack_scalar(prop, prop.name)
             if _is_proto_primitive(prop):
-                lines.append(f"    object_data.{prop.name}_value = {scalar_expr}")
+                lines.append(f"    _object_data.{prop.name}_value = {scalar_expr}")
             else:
-                lines.append(f"    object_data.{prop.name}_value.CopyFrom({scalar_expr})")
+                lines.append(f"    _object_data.{prop.name}_value.CopyFrom({scalar_expr})")
         elif prop.is_optional:
             lines.append(f"if ({prop.name} := {obj_value}) is not None:")
             scalar_expr = _generate_pack_scalar(prop, prop.name)
             if _is_proto_primitive(prop):
-                lines.append(f"    object_data.{prop.name} = {scalar_expr}")
+                lines.append(f"    _object_data.{prop.name} = {scalar_expr}")
             else:
-                lines.append(f"    object_data.{prop.name}.CopyFrom({scalar_expr})")
+                lines.append(f"    _object_data.{prop.name}.CopyFrom({scalar_expr})")
         else:
             scalar_expr = _generate_pack_scalar(prop, obj_value)
             if _is_proto_primitive(prop):
-                lines.append(f"object_data.{prop.name} = {scalar_expr}")
+                lines.append(f"_object_data.{prop.name} = {scalar_expr}")
             else:
-                lines.append(f"object_data.{prop.name}.CopyFrom({scalar_expr})")
+                lines.append(f"_object_data.{prop.name}.CopyFrom({scalar_expr})")
     elif prop.cardinality == "list":
         item_expr = _generate_pack_scalar(prop, "_item")
         if _is_proto_primitive(prop):
@@ -242,14 +242,14 @@ if {obj_value}:
     _packed_{prop.name} = []
     for _item in {obj_value}:
         _packed_{prop.name}.append({item_expr})
-    object_data.{prop.name} = _packed_{prop.name}""".splitlines()
+    _object_data.{prop.name} = _packed_{prop.name}""".splitlines()
             )
         else:
             lines.extend(
                 f"""\
 if {obj_value}:
     for _item in {obj_value}:
-        object_data.{prop.name}.append({item_expr})""".splitlines()
+        _object_data.{prop.name}.append({item_expr})""".splitlines()
             )
     elif prop.cardinality == "map":
         lines.extend(
@@ -261,9 +261,9 @@ if {obj_value}:
         key_expr = _generate_pack_scalar(prop.key_type, "_key")
         value_expr = _generate_pack_scalar(prop, "_value")
         if _is_proto_primitive(prop):
-            lines.append(f"        object_data.{prop.name}[{key_expr}] = {value_expr}")
+            lines.append(f"        _object_data.{prop.name}[{key_expr}] = {value_expr}")
         else:
-            lines.append(f"        object_data.{prop.name}[{key_expr}].CopyFrom({value_expr})")
+            lines.append(f"        _object_data.{prop.name}[{key_expr}].CopyFrom({value_expr})")
     else:
         assert_never(prop.cardinality)
 
@@ -278,18 +278,18 @@ def _generate_unpack_property(prop: "Property") -> list[str] | None:
         if prop.is_required:
             return code
         else:
-            return f"{code} if object_data.HasField('{prop.name}') else None"
+            return f"{code} if _object_data.HasField('{prop.name}') else None"
 
     lines: list[str] = []
-    data_value = f"object_data.{prop.name}"
+    data_value = f"_object_data.{prop.name}"
 
     if prop.cardinality == "scalar":
         if prop.is_variable:
             # read from _variable if it's a Variable, else read from _value
-            lines.append(f"if object_data.HasField('{prop.name}_variable'):")
+            lines.append(f"if _object_data.HasField('{prop.name}_variable'):")
             scalar_expr_variable = _generate_unpack_scalar(prop, f"{data_value}_variable")
             lines.append(f"    _unpacked_{prop.name} = {scalar_expr_variable}")
-            lines.append(f"elif object_data.HasField('{prop.name}_value'):")
+            lines.append(f"elif _object_data.HasField('{prop.name}_value'):")
             scalar_expr_value = _generate_unpack_scalar(prop, f"{data_value}_value")
             lines.append(f"    _unpacked_{prop.name} = {scalar_expr_value}")
             lines.append("else:")
