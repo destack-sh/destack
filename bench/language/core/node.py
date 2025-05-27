@@ -18,7 +18,7 @@ from fastuuid import UUID
 from opentelemetry import trace
 
 from bench.language.registry import NODE_CLASS_BY_TYPE
-from bench.pb2 import AnyNodeData, NodeReferenceData
+from bench.pb2 import AnyNodeData
 from bench.utils.func import get_superclasses
 
 from .const import (
@@ -26,7 +26,6 @@ from .const import (
     EdgeType,
     NodeArea,
     NodeType,
-    StructType,
     TraitType,
     active_session,
 )
@@ -40,7 +39,6 @@ from .property import (
     property_parent_,
     property_runtime_,
 )
-from .struct import Struct, struct_
 from .trait import IndexIn, IsBlockable, IsModal, IsSubject
 
 if TYPE_CHECKING:
@@ -155,7 +153,7 @@ class Node[NodeDataT: AnyNodeData](BuiltinObject[NodeDataT]):
         is_managed=True,
         is_eq=False,
         node_bench_from="self",
-        node_exclude=("ck", "base_id"),
+        node_exclude=("ck", "table_id"),
         can_write="system",
     )
     updated_at: datetime = property_(12, is_managed=True, is_eq=False, can_write="system")
@@ -165,7 +163,7 @@ class Node[NodeDataT: AnyNodeData](BuiltinObject[NodeDataT]):
         is_managed=True,
         is_eq=False,
         node_bench_from="self",
-        node_exclude=("ck", "base_id"),
+        node_exclude=("ck", "table_id"),
         can_write="system",
     )
     if TYPE_CHECKING:
@@ -431,26 +429,6 @@ class Node[NodeDataT: AnyNodeData](BuiltinObject[NodeDataT]):
         descendants = self._graph.get_descendants(self, node_type=node_type, recursive=True)
         return cast(Sequence[N], descendants)
 
-    def _move_to_graph(self, graph: Graph):
-        """Moves this Node and its descendants to a new graph."""
-        moved = self._graph.get_descendants(self, recursive=True)  # type: ignore
-        moved = (self, *moved)
-        for n in moved:
-            # add/update in new graph
-            if n.id in graph._nodes_by_id:
-                graph.update(n)
-            else:
-                graph.add(n)
-            # remove from old graph
-            if n._graph is not graph and n.id in n._graph._nodes_by_id:
-                n._graph.remove(n)
-            n._graph = graph
-        return moved
-
-    def _detach_rec(self):
-        """Removes this node from the graph / supergraph."""
-        self._graph.remove(self)  # type: ignore ("depends on itself")
-
     async def wait_until(self, condition: Callable[[Self], bool], timeout: timedelta | None = None):
         """Wait until the given condition is true."""
         runtime = active_session().runtime
@@ -539,22 +517,3 @@ class Node[NodeDataT: AnyNodeData](BuiltinObject[NodeDataT]):
             offset=offset,
             count=count,
         )
-
-
-#
-# Utility types
-#
-
-
-@struct_(StructType.NODE_REFERENCE, is_frozen=True)
-class NodeReference(Struct[NodeReferenceData]):
-    """
-    A reference to a Node.
-    """
-
-    node_type: NodeType = property_(31, is_repr=True)
-    id: UUID = property_(32, is_repr=True)
-    ck: Optional[UUID] = property_(33, is_repr=True)
-    bench_id: Optional[UUID] = property_(34, is_repr=True)
-    base_id: Optional[UUID] = property_(35, is_repr=True)
-    # area? external_id?

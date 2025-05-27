@@ -4,7 +4,6 @@ from typing import TYPE_CHECKING, Optional, Sequence, Union, cast
 from fastuuid import UUID
 
 from bench.language.core import (
-    IsBased,
     IsComputable,
     IsExtensible,
     IsInPackage,
@@ -34,7 +33,6 @@ class Run(
     IsComputable,
     IsProcessable,
     IsModal,
-    IsBased,
     IsExtensible,
     IsInPackage,
     Node[RunData],

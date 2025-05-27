@@ -11,21 +11,26 @@ from bench.language import (
     markdown_to_text,
     text,
     text_to_markdown,
+    title,
 )
 
 
 def test_text_mentions(session: Session):
-    Page1 = Page.new("Page1")
-    Page2 = Page.new("Page2")
+    Page1 = Page(title=title("Page1"))
+    Page2 = Page(title=title("Page2"))
     aliasing = Aliasing.new(session.supergraph, {"Page1": Page1, "Page2": Page2})
     my_text = text(
         "Hello it's a [@Page1] and [@Page2]",
         aliasing,
     )
-    assert my_text.lines[0].spans[0] == TextSpan.new(TextSpanType.TEXT, "Hello it's a ")
-    assert my_text.lines[0].spans[1] == TextSpan.new(TextSpanType.MENTION, "Page1", node=Page1)
-    assert my_text.lines[0].spans[2] == TextSpan.new(TextSpanType.TEXT, " and ")
-    assert my_text.lines[0].spans[3] == TextSpan.new(TextSpanType.MENTION, "Page2", node=Page2)
+    assert my_text.lines[0].spans[0] == TextSpan(type=TextSpanType.TEXT, content="Hello it's a ")
+    assert my_text.lines[0].spans[1] == TextSpan(
+        type=TextSpanType.MENTION, content="Page1", node=Page1
+    )
+    assert my_text.lines[0].spans[2] == TextSpan(type=TextSpanType.TEXT, content=" and ")
+    assert my_text.lines[0].spans[3] == TextSpan(
+        type=TextSpanType.MENTION, content="Page2", node=Page2
+    )
     assert text_to_markdown(my_text, aliasing) == "Hello it's a [@Page1] and [@Page2]"
 
 
@@ -54,11 +59,15 @@ def test_text_citation():
 This is a deferred citation[^1] and an inline citation[^Symbol25](www.symbol.com).
 """
     text = markdown_to_text(md)
-    assert text.lines[0].spans[0] == TextSpan.new(TextSpanType.TEXT, "This is a deferred citation")
-    assert text.lines[0].spans[1] == TextSpan.new(TextSpanType.CITATION, "1")
-    assert text.lines[0].spans[2] == TextSpan.new(TextSpanType.TEXT, " and an inline citation")
-    assert text.lines[0].spans[3] == TextSpan.new(
-        TextSpanType.CITATION, "Symbol25", url="www.symbol.com"
+    assert text.lines[0].spans[0] == TextSpan(
+        type=TextSpanType.TEXT, content="This is a deferred citation"
+    )
+    assert text.lines[0].spans[1] == TextSpan(type=TextSpanType.CITATION, content="1")
+    assert text.lines[0].spans[2] == TextSpan(
+        type=TextSpanType.TEXT, content=" and an inline citation"
+    )
+    assert text.lines[0].spans[3] == TextSpan(
+        type=TextSpanType.CITATION, content="Symbol25", url="www.symbol.com"
     )
 
 
@@ -73,10 +82,10 @@ def test_text_span_equation():
     md = """\
 And then he said $$E = mc^2$$ and $$F = ma$$"""
     text = markdown_to_text(md)
-    assert text.lines[0].spans[0] == TextSpan.new(TextSpanType.TEXT, "And then he said ")
-    assert text.lines[0].spans[1] == TextSpan.new(TextSpanType.EQUATION, "E = mc^2")
-    assert text.lines[0].spans[2] == TextSpan.new(TextSpanType.TEXT, " and ")
-    assert text.lines[0].spans[3] == TextSpan.new(TextSpanType.EQUATION, "F = ma")
+    assert text.lines[0].spans[0] == TextSpan(type=TextSpanType.TEXT, content="And then he said ")
+    assert text.lines[0].spans[1] == TextSpan(type=TextSpanType.EQUATION, content="E = mc^2")
+    assert text.lines[0].spans[2] == TextSpan(type=TextSpanType.TEXT, content=" and ")
+    assert text.lines[0].spans[3] == TextSpan(type=TextSpanType.EQUATION, content="F = ma")
 
 
 def test_text_span_link():
@@ -86,24 +95,26 @@ def test_text_span_link():
 https://de.wikipedia.org/wiki/Switzerland like google.com
 """
     text = markdown_to_text(md)
-    assert text.lines[0].spans[0] == TextSpan.new(
-        TextSpanType.LINK, content="link", url="https://example.com"
+    assert text.lines[0].spans[0] == TextSpan(
+        type=TextSpanType.LINK, content="link", url="https://example.com"
     )
-    assert text.lines[0].spans[1] == TextSpan.new(TextSpanType.TEXT, " and ")
-    assert text.lines[0].spans[2] == TextSpan.new(
-        TextSpanType.LINK, content="another", url="https://test.com/path?q=123#fragment"
+    assert text.lines[0].spans[1] == TextSpan(type=TextSpanType.TEXT, content=" and ")
+    assert text.lines[0].spans[2] == TextSpan(
+        type=TextSpanType.LINK, content="another", url="https://test.com/path?q=123#fragment"
     )
-    assert text.lines[1].spans[0] == TextSpan.new(
-        TextSpanType.LINK, content="Banana - Wikipedia", url="https://en.wikipedia.org/wiki/Banana"
+    assert text.lines[1].spans[0] == TextSpan(
+        type=TextSpanType.LINK,
+        content="Banana - Wikipedia",
+        url="https://en.wikipedia.org/wiki/Banana",
     )
-    assert text.lines[2].spans[0] == TextSpan.new(
-        TextSpanType.LINK,
+    assert text.lines[2].spans[0] == TextSpan(
+        type=TextSpanType.LINK,
         content="https://de.wikipedia.org/wiki/Switzerland",
         url="https://de.wikipedia.org/wiki/Switzerland",
     )
-    assert text.lines[2].spans[1] == TextSpan.new(TextSpanType.TEXT, " like ")
-    assert text.lines[2].spans[2] == TextSpan.new(
-        TextSpanType.LINK, content="google.com", url="https://google.com"
+    assert text.lines[2].spans[1] == TextSpan(type=TextSpanType.TEXT, content=" like ")
+    assert text.lines[2].spans[2] == TextSpan(
+        type=TextSpanType.LINK, content="google.com", url="https://google.com"
     )
 
 
@@ -111,9 +122,13 @@ def test_text_hard_break():
     md = """\
 This is a hard break<br>This is another line"""
     text = markdown_to_text(md)
-    assert text.lines[0].spans[0] == TextSpan.new(TextSpanType.TEXT, "This is a hard break")
-    assert text.lines[0].spans[1] == TextSpan.hard_break()
-    assert text.lines[0].spans[2] == TextSpan.new(TextSpanType.TEXT, "This is another line")
+    assert text.lines[0].spans[0] == TextSpan(
+        type=TextSpanType.TEXT, content="This is a hard break"
+    )
+    assert text.lines[0].spans[1] == TextSpan(type=TextSpanType.HARD_BREAK)
+    assert text.lines[0].spans[2] == TextSpan(
+        type=TextSpanType.TEXT, content="This is another line"
+    )
 
 
 def test_text_inline_nested():
@@ -129,11 +144,11 @@ they [yellow]can be *nested, like ~~deeply~~ nested* _and_ ~~combined~~[/yellow]
 def test_text_spoiler():
     md = "This text has ||spoiler content|| and normal text"
     text = markdown_to_text(md)
-    assert text.lines[0].spans[0] == TextSpan.new(TextSpanType.TEXT, "This text has ")
-    assert text.lines[0].spans[1] == TextSpan.new(
-        TextSpanType.TEXT, "spoiler content", is_spoiler=True
+    assert text.lines[0].spans[0] == TextSpan(type=TextSpanType.TEXT, content="This text has ")
+    assert text.lines[0].spans[1] == TextSpan(
+        type=TextSpanType.TEXT, content="spoiler content", is_spoiler=True
     )
-    assert text.lines[0].spans[2] == TextSpan.new(TextSpanType.TEXT, " and normal text")
+    assert text.lines[0].spans[2] == TextSpan(type=TextSpanType.TEXT, content=" and normal text")
     md_out = text_to_markdown(text)
     assert md_out == md
 

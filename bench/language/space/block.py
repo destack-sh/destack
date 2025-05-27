@@ -88,8 +88,8 @@ class Block(
     # content
     # NOTE: maybe there should be a general mechanism for tying Nodes like Blocks? :NodeTying
     line: Optional["TextLine"] = property_(40)
-    node: Optional["Node"] = property_(41, node_exclude=("base_id",), is_repr=True)
-    view: Optional["IsView"] = property_(42, node_exclude=("base_id",))
+    node: Optional["Node"] = property_(41, node_exclude=("table_id",), is_repr=True)
+    view: Optional["IsView"] = property_(42, node_exclude=("table_id",))
     # size?
     if TYPE_CHECKING:
         node_id: Optional[UUID] = None
@@ -121,7 +121,7 @@ class Block(
             block_type = BlockType(node.metatype)
         except ValueError as exc:
             raise TypeError(f"cannot wrap {node!r} as a Block") from exc
-        block = Block.new(block_type, node=node)
+        block = Block(type=block_type, node=node)
         if node.definition_id is None:
             node.definition = block
         return block
@@ -129,24 +129,7 @@ class Block(
     @staticmethod
     def heading(line: TextLineIn, level: int = 1) -> "Block":
         """Create a heading Block."""
-        return Block.new(BlockType.HEADING_1, line=text_line(line))
-
-    @staticmethod
-    def new[BlockT: "Block" = "Block"](
-        typ: BlockType | _type[BlockT],
-        node: Node | None = None,
-        **kwargs,
-    ) -> "BlockT":
-        # unravel subtype
-        if isinstance(typ, type):
-            typ = Block.__subtype_by_subclass__[typ]  # type: ignore
-        # make
-        block = Block(type=typ, node=node, **kwargs)  # type: ignore
-        # set the node definition for inline source nodes
-        if isinstance(node, IsBlockable):
-            if node.definition is None:
-                node.definition = block
-        return block  # type: ignore
+        return Block(type=BlockType.HEADING_1, line=text_line(line))
 
     @staticmethod
     def from_text(text: Text) -> list["Block"]:
@@ -154,5 +137,5 @@ class Block(
         blocks: list[Block] = []
         for line in text.lines:
             block_type = BlockType(line.type)
-            blocks.append(Block.new(block_type, line=line))
+            blocks.append(Block(type=block_type, line=line))
         return blocks

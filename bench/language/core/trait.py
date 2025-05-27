@@ -204,7 +204,7 @@ class IsTemplatable(Node if TYPE_CHECKING else BuiltinObject):
     template: Optional["Node"] = property_(
         16,
         node_kind=EdgeType.NODE_TEMPLATE,
-        node_exclude=("base_id",),
+        node_exclude=("table_id",),
     )
     if TYPE_CHECKING:
         template_id: Optional[UUID] = None
@@ -307,14 +307,6 @@ class IsExtensible(Node if TYPE_CHECKING else BuiltinObject):
 
     # nocheckin: Value / IsExtensible.value (custom Nodes?)
     value: "Value | None" = property_(21)
-
-
-@trait_(TraitType.BASED)
-class IsBased(Node if TYPE_CHECKING else BuiltinObject):
-    """
-    A Node which may have a 'base' in another Node (e.g., its type definition).
-    We almost always want to load them together, so it's useful to have this relationship.
-    """
 
 
 @trait_(TraitType.IN_BENCH)
@@ -471,7 +463,7 @@ class IsOwnable(Node if TYPE_CHECKING else BuiltinObject):
     owned_by: Optional["IsSubject"] = property_(
         17,
         node_bench_from="self",
-        node_exclude=("ck", "base_id"),
+        node_exclude=("ck", "table_id"),
     )
     if TYPE_CHECKING:
         owned_by_id: Optional[UUID] = None

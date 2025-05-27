@@ -1263,7 +1263,6 @@ class TraitType(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     TRAIT_TYPE_TEMPLATABLE: _ClassVar[TraitType]
     TRAIT_TYPE_INSTANTIABLE: _ClassVar[TraitType]
     TRAIT_TYPE_EXTENSIBLE: _ClassVar[TraitType]
-    TRAIT_TYPE_BASED: _ClassVar[TraitType]
     TRAIT_TYPE_IN_BENCH: _ClassVar[TraitType]
     TRAIT_TYPE_IN_PACKAGE: _ClassVar[TraitType]
     TRAIT_TYPE_REGIONAL: _ClassVar[TraitType]
@@ -2254,7 +2253,6 @@ TRAIT_TYPE_ORDERED: TraitType
 TRAIT_TYPE_TEMPLATABLE: TraitType
 TRAIT_TYPE_INSTANTIABLE: TraitType
 TRAIT_TYPE_EXTENSIBLE: TraitType
-TRAIT_TYPE_BASED: TraitType
 TRAIT_TYPE_IN_BENCH: TraitType
 TRAIT_TYPE_IN_PACKAGE: TraitType
 TRAIT_TYPE_REGIONAL: TraitType
@@ -4196,20 +4194,20 @@ class NodeConstraintData(_message.Message):
     def __init__(self, metatype: _Optional[_Union[StructType, str]] = ..., node_types: _Optional[_Iterable[_Union[NodeType, str]]] = ..., node_traits: _Optional[_Iterable[_Union[TraitType, str]]] = ...) -> None: ...
 
 class NodeReferenceData(_message.Message):
-    __slots__ = ("metatype", "node_type", "id", "ck", "bench_id", "base_id")
+    __slots__ = ("metatype", "node_type", "id", "ck", "bench_id", "table_id")
     METATYPE_FIELD_NUMBER: _ClassVar[int]
     NODE_TYPE_FIELD_NUMBER: _ClassVar[int]
     ID_FIELD_NUMBER: _ClassVar[int]
     CK_FIELD_NUMBER: _ClassVar[int]
     BENCH_ID_FIELD_NUMBER: _ClassVar[int]
-    BASE_ID_FIELD_NUMBER: _ClassVar[int]
+    TABLE_ID_FIELD_NUMBER: _ClassVar[int]
     metatype: StructType
     node_type: NodeType
     id: str
     ck: str
     bench_id: str
-    base_id: str
-    def __init__(self, metatype: _Optional[_Union[StructType, str]] = ..., node_type: _Optional[_Union[NodeType, str]] = ..., id: _Optional[str] = ..., ck: _Optional[str] = ..., bench_id: _Optional[str] = ..., base_id: _Optional[str] = ...) -> None: ...
+    table_id: str
+    def __init__(self, metatype: _Optional[_Union[StructType, str]] = ..., node_type: _Optional[_Union[NodeType, str]] = ..., id: _Optional[str] = ..., ck: _Optional[str] = ..., bench_id: _Optional[str] = ..., table_id: _Optional[str] = ...) -> None: ...
 
 class NumberConstraintData(_message.Message):
     __slots__ = ("metatype", "format", "min_value", "max_value", "step_value", "precision", "scale")

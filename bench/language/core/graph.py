@@ -269,12 +269,7 @@ class GraphData(_GraphBase[str, AnyNodeData]):
 
 
 class Supergraph:
-    """
-    A set of graphs making up the currently available graph in some context (like a session).
-    Nodes are resolved against the graphs in the order they were added.
-    If the root_ptr is None, this is the 'null' graph.
-    NOTE :Performance: we should probably just index directly by id in supergraph? (also in bench-web)
-    """
+    """ """
 
     __slots__ = ("_base", "_graphs", "_graphs_by_node_type", "_root_ptr", "name")
 
@@ -313,13 +308,3 @@ class Supergraph:
     def get(self, ptr: "UUID | NodeReference") -> Optional["Node"]:
         """Get a node by some key."""
         return None  # nocheckin: Graph/Supergraph
-
-
-class NullSuperGraph(Supergraph):
-    """A null supergraph."""
-
-    def add_graph(self, graph: Graph):
-        raise RuntimeError("cannot add graph to null supergraph")
-
-    def remove_graph(self, graph: Graph):
-        raise RuntimeError("cannot remove graph from null supergraph")

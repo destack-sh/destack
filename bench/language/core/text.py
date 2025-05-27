@@ -7,10 +7,10 @@ from fastuuid import UUID
 from bench.language.core.code import Code
 
 from .const import BuiltinEnum, EnumType, StructType, enum_
-from .node import Node, NodeReference
+from .node import Node
 from .object import BuiltinObject, object_
 from .property import property_
-from .struct import Struct, struct_
+from .struct import NodeReference, Struct, struct_
 
 if TYPE_CHECKING:
     from bench.language import Aliasing, ColorHue

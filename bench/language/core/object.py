@@ -41,6 +41,7 @@ from .const import (
     NodeType,
     PrimitiveType,
     StructType,
+    TraitType,
 )
 from .graph import Supergraph
 from .property import _PROPERTY_SPECIFIERS, Property, property_runtime_
@@ -366,7 +367,7 @@ if self.{prop_name}:
             repr_impl = f"""\
 def __repr__(self) -> str:
     {repr_parts_str}
-    return f"<{cls.__name__} {{self.path}} {{', '.join(property_reprs)}}>"
+    return f"<{cls.__name__} {{self.path}} {{' '.join(property_reprs)}}>"
 __str__ = __repr__
 """
         else:
@@ -374,7 +375,7 @@ __str__ = __repr__
 def __repr__(self) -> str:
     {repr_parts_str}
     if property_reprs:
-        return f"<{cls.__name__} {{self.path}} {{', '.join(property_reprs)}}>"
+        return f"<{cls.__name__} {{self.path}} {{' '.join(property_reprs)}}>"
     else:
         return f"<{cls.__name__} {{self.path}}>"
 __str__ = __repr__
@@ -384,7 +385,7 @@ __str__ = __repr__
             repr_impl = f"""\
 def __repr__(self) -> str:
     {repr_parts_str}
-    return f"<{cls.__name__} {{', '.join(property_reprs)}}>"
+    return f"<{cls.__name__} {{' '.join(property_reprs)}}>"
 __str__ = __repr__
 """
         else:
@@ -392,12 +393,44 @@ __str__ = __repr__
 def __repr__(self) -> str:
     {repr_parts_str}
     if property_reprs:
-        return f"<{cls.__name__} {{', '.join(property_reprs)}}>"
+        return f"<{cls.__name__} {{' '.join(property_reprs)}}>"
     else:
         return f"<{cls.__name__}>"
 __str__ = __repr__
 """
     return repr_impl, {}
+
+
+def _generate_ref_impl[NodeT: "Node"](
+    cls: type[NodeT], node_type: NodeType
+) -> tuple[str, dict[str, Any]]:
+    """Generates Node.__to_ref__ method."""
+    from .struct import NodeReference
+
+    assert cls.__is_node__, f"{cls.__name__} is not a Node"
+    if node_type == NodeType.BENCH:
+        ref_impl = f"""\
+def __to_ref__(self) -> "NodeReference":
+    return NodeReference(node_type=NodeType.{node_type.name}, id=self.id, bench_id=self.bench_id)
+"""
+    elif TraitType.INSTANTIABLE in cls.__traits__:
+        ref_impl = f"""\
+def __to_ref__(self) -> "NodeReference":
+    return NodeReference(node_type=NodeType.{node_type.name}, id=self.id, ck=self.ck, bench_id=self.bench_id)
+"""
+
+    elif TraitType.IN_BENCH in cls.__traits__:
+        ref_impl = f"""\
+def __to_ref__(self) -> "NodeReference":
+    return NodeReference(node_type=NodeType.{node_type.name}, id=self.id, bench_id=self.bench_id)
+"""
+    else:
+        ref_impl = f"""\
+def __to_ref__(self) -> "NodeReference":
+    return NodeReference(node_type=NodeType.{node_type.name}, id=self.id)
+"""
+
+    return ref_impl, {"NodeReference": NodeReference, "NodeType": NodeType}
 
 
 #
@@ -875,16 +908,19 @@ def _process_object_cls[ObjectT: BuiltinObject](
         # __repr__
         repr_str, repr_glbls = _generate_repr_impl(cls)
         exec(repr_str, {**glbls, **repr_glbls}, cls_dict)
-        # path
-        if is_node:
-            path_str, path_glbls = _generate_path_impl(cast(type["Node"], cls))
-            exec(path_str, {**glbls, **path_glbls}, cls_dict)
         # equals
         equals_str, equals_glbls = _generate_equals_impl(cls)
         exec(equals_str, {**glbls, **equals_glbls}, cls_dict)
         # validate
         validate_str, validate_glbls = _generate_validate_impl(cls)
         exec(validate_str, {**glbls, **validate_glbls}, cls_dict)
+        if is_node:
+            # __to_ref__
+            ref_str, ref_glbls = _generate_ref_impl(cast(type["Node"], cls), NodeType(object_type))
+            exec(ref_str, {**glbls, **ref_glbls}, cls_dict)
+            # path
+            path_str, path_glbls = _generate_path_impl(cast(type["Node"], cls))
+            exec(path_str, {**glbls, **path_glbls}, cls_dict)
         # pack/unpack are generated after setup because we need all classes
 
         # add computed properties to concrete classes

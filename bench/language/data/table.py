@@ -40,7 +40,7 @@ class Table(
     Node[TableData],
 ):
     """
-    A Table of Records.
+    A Table of Records, like a custom Node type with Fields as Properties.
     """
 
     # type?

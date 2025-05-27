@@ -62,15 +62,9 @@ from .const import (
     repr_enums,
 )
 from .edit import Edit, EditOperation, EditType, edit_data_graph, edit_graph
-from .graph import (
-    Graph,
-    GraphConsistencyError,
-    GraphData,
-    GraphError,
-    Supergraph,
-)
+from .graph import Graph, GraphConsistencyError, GraphData, GraphError, Supergraph
 from .icon import Icon, IconIn, IconType, icon, reverse_icon, to_icon
-from .node import IndexIn, Node, NodeReference, node_
+from .node import IndexIn, Node, node_
 from .object import BuiltinObject, _is_setup_complete, object_
 from .property import (
     IntoType,
@@ -121,7 +115,15 @@ from .render import (
     render_value,
 )
 from .session import Session
-from .struct import EMPTY_SCOPE_DATA, PropertyReference, Scope, Struct, repr_scope, struct_
+from .struct import (
+    EMPTY_SCOPE_DATA,
+    NodeReference,
+    PropertyReference,
+    Scope,
+    Struct,
+    repr_scope,
+    struct_,
+)
 from .text import (
     Text,
     TextIn,
@@ -145,7 +147,6 @@ from .trait import (
     HasSlug,
     HasTitle,
     IsArchivable,
-    IsBased,
     IsBlockable,
     IsComputable,
     IsDeletable,
@@ -286,7 +287,6 @@ __all__ = [
     "IntoType",
     "IntoType",
     "IsArchivable",
-    "IsBased",
     "IsBlockable",
     "IsComputable",
     "IsDeletable",

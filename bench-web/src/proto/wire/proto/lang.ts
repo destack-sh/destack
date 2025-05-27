@@ -4021,9 +4021,9 @@ export interface NodeReferenceData {
      */
     benchId?: string;
     /**
-     * @generated from protobuf field: optional string base_id = 35;
+     * @generated from protobuf field: optional string table_id = 35;
      */
-    baseId?: string;
+    tableId?: string;
 }
 /**
  * @generated from protobuf message symbol.bench.NumberConstraintData
@@ -4783,7 +4783,7 @@ export interface QueryData {
     count?: boolean;
 }
 /**
- * A Record in a Table.
+ * A Record in a Table, basically an instance of a custom Node.
  *
  * @generated from protobuf message symbol.bench.RecordData
  */
@@ -6448,7 +6448,7 @@ export interface StringConstraintData {
     endsWith?: string;
 }
 /**
- * A Table of Records.
+ * A Table of Records, like a custom Node type with Fields as Properties.
  *
  * @generated from protobuf message symbol.bench.TableData
  */
@@ -12508,10 +12508,6 @@ export enum TraitType {
      * @generated from protobuf enum value: TRAIT_TYPE_EXTENSIBLE = 32;
      */
     EXTENSIBLE = 32,
-    /**
-     * @generated from protobuf enum value: TRAIT_TYPE_BASED = 33;
-     */
-    BASED = 33,
     /**
      * @generated from protobuf enum value: TRAIT_TYPE_IN_BENCH = 40;
      */
@@ -21072,7 +21068,7 @@ class NodeReferenceData$Type extends MessageType$<NodeReferenceData> {
             { no: 32, name: "id", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
             { no: 33, name: "ck", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
             { no: 34, name: "bench_id", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
-            { no: 35, name: "base_id", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ }
+            { no: 35, name: "table_id", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ }
         ]);
     }
     create(value?: PartialMessage<NodeReferenceData>): NodeReferenceData {
@@ -21104,8 +21100,8 @@ class NodeReferenceData$Type extends MessageType$<NodeReferenceData> {
                 case /* optional string bench_id */ 34:
                     message.benchId = reader.string();
                     break;
-                case /* optional string base_id */ 35:
-                    message.baseId = reader.string();
+                case /* optional string table_id */ 35:
+                    message.tableId = reader.string();
                     break;
                 default:
                     let u = options.readUnknownField;
@@ -21134,9 +21130,9 @@ class NodeReferenceData$Type extends MessageType$<NodeReferenceData> {
         /* optional string bench_id = 34; */
         if (message.benchId !== undefined)
             writer.tag(34, WireType.LengthDelimited).string(message.benchId);
-        /* optional string base_id = 35; */
-        if (message.baseId !== undefined)
-            writer.tag(35, WireType.LengthDelimited).string(message.baseId);
+        /* optional string table_id = 35; */
+        if (message.tableId !== undefined)
+            writer.tag(35, WireType.LengthDelimited).string(message.tableId);
         let u = options.writeUnknownFields;
         if (u !== false)
             (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
@@ -29918,6 +29914,6 @@ export const SomeNodeData = new SomeNodeData$Type();
 
 // Any...
 export type AnyNodeData = ClientData | OrganizationData | OrganizationInviteData | OrganizationMembershipData | UserData | BenchData | BenchInviteData | BenchMembershipData | HandleData | PackageData | PackageMembershipData | PackageInviteData | FieldData | FileData | LinkData | RecordData | SchemaData | TableData | DatabaseData | MachineData | ActionData | AgentData | CursorData | FlowData | FlowEdgeData | ServiceData | TaskData | InterruptionData | RunData | SpanData | MessageData | ThreadData | BlockData | PageData | RouteData | SceneData | SpaceData | ColorStyleData | BorderStyleData | TransitionStyleData | EffectStyleData | GradientStyleData | FontStyleData | ShadowStyleData | ThemeData | FrameViewData | LabelViewData | SplitViewData | TextViewData | NumberInputViewData | SliderInputViewData | WizardViewData | ThreadViewData
-export type AnyStructData = ScopeData | PropertyReferenceData | CodeData | StringConstraintData | NumberConstraintData | CollectionConstraintData | NodeConstraintData | TypeData | NodeReferenceData | EditData | IconData | ValueData | RelationReferenceData | AttributeReferenceData | FunctionData | ConditionData | AggregationData | ExpressionData | SortData | JoinData | QueryData | SelectionData | TextSpanData | TextLineData | TextData | VariableData | OriginData | ScheduleData | ErrorData | ColorData | LengthData | PositionData | DimensionData | InsetsData | CornersData | Axis2Data | Axis3Data | Vector2Data | Vector3Data | Vector4Data | GridData | GridSpanData | BorderData | TransitionData | EffectData | GradientStopData | GradientData | FillData | FontData | ShadowData
+export type AnyStructData = ScopeData | PropertyReferenceData | NodeReferenceData | CodeData | StringConstraintData | NumberConstraintData | CollectionConstraintData | NodeConstraintData | TypeData | EditData | IconData | ValueData | RelationReferenceData | AttributeReferenceData | FunctionData | ConditionData | AggregationData | ExpressionData | SortData | JoinData | QueryData | SelectionData | TextSpanData | TextLineData | TextData | VariableData | OriginData | ScheduleData | ErrorData | ColorData | LengthData | PositionData | DimensionData | InsetsData | CornersData | Axis2Data | Axis3Data | Vector2Data | Vector3Data | Vector4Data | GridData | GridSpanData | BorderData | TransitionData | EffectData | GradientStopData | GradientData | FillData | FontData | ShadowData
 
     

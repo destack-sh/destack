@@ -3,7 +3,6 @@ from typing import TYPE_CHECKING, Union
 import structlog
 
 from bench.language.core import (
-    IsBased,
     IsDeletable,
     IsExtensible,
     IsInPackage,
@@ -28,7 +27,6 @@ logger = structlog.get_logger(__name__)
 @node_(NodeType.RECORD)
 class Record(
     IsLocal,
-    IsBased,
     IsModal,
     IsExtensible,
     IsInPackage,
@@ -36,7 +34,7 @@ class Record(
     Node[RecordData],
 ):
     """
-    A Record in a Table.
+    A Record in a Table, basically an instance of a custom Node.
     """
 
     # meta

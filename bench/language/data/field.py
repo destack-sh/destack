@@ -66,7 +66,7 @@ class Field(
     # type identity
     # ...TypeBase[40-69]
 
-    # relationship
+    # relationship (to TypeBase.table)
     edge_type: Optional[EdgeType] = property_(70)
     cascade: Optional[CascadeAction] = property_(71)
 

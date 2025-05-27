@@ -8,12 +8,8 @@ import pytest
 from fastuuid import UUID
 
 from bench.language import (
-    Action,
-    ActionType,
     Aliasing,
     BuiltinObject,
-    Flow,
-    FlowEdgeType,
     Message,
     Node,
     Package,
@@ -144,7 +140,7 @@ def test_render_text(session: Session, package: Package):
 This is a multi-line text.
 We can also include **Markdown** inside multiline text.
 """)
-    Message1 = Message.new(
+    Message1 = Message(
         text=text("""\
 Yeah, this is a long answer.
                                      
@@ -183,14 +179,3 @@ def test_render_type_in(session: Session, package: Package):
     type_1 = to_type(int)
     type_2 = to_type(str)
     return {"type_1": type_1, "type_2": type_2}
-
-
-@_render_test
-def test_render_flow_simple(session: Session, package: Package):
-    """Flows should create Links with `connect`."""
-    Flow1 = Flow.new("Flow1")
-    Action1 = Action.new(ActionType.START, "Action1")
-    Action2 = Action.new(ActionType.END, "Action2")
-    Flow1.add_children(Action1, Action2)
-    Transition1 = Action1.connect(FlowEdgeType.REQUIRE, Action2, "Transition1")
-    return {"Flow1": Flow1, "Action1": Action1, "Action2": Action2, "Transition1": Transition1}

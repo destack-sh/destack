@@ -2,7 +2,6 @@ from bench.language import (
     NODE_TYPES,
     UNSET,
     Field,
-    IsBased,
     IsInBench,
     IsInstantiable,
     Node,
@@ -94,16 +93,14 @@ def map_builtin_object_to_sql_table(
                     is_nullable=not prop.is_required,
                 )
                 columns.append(ck_column)
-            # base_id
-            if "base_id" not in prop.node_exclude and any(
-                issubclass(NODE_CLASS_BY_TYPE[node_type], IsBased) for node_type in node_types
-            ):
-                base_id_column = SqlColumn(
-                    name=f"{prop.name}_base_id",
+            # table_id
+            if "table_id" not in prop.node_exclude and NodeType.RECORD in node_types:
+                table_id_column = SqlColumn(
+                    name=f"{prop.name}_table_id",
                     type=PrimitiveType.UUID,
                     is_nullable=not prop.is_required,
                 )
-                columns.append(base_id_column)
+                columns.append(table_id_column)
             # bench_id
             if prop.node_bench_from is None and any(
                 issubclass(NODE_CLASS_BY_TYPE[node_type], IsInBench) for node_type in node_types
