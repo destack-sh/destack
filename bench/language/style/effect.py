@@ -74,24 +74,24 @@ class OffscreenBehavior(BuiltinEnum):
 class EffectBase(BuiltinObject):
     """A base class for effects."""
 
-    type: EffectType = property_(30)
-    style: Optional["EffectStyle"] = property_(41)
+    type: EffectType = property_(30, is_repr=True)
+    style: Optional["EffectStyle"] = property_(41, is_repr=True)
 
-    opacity: Optional[float] = property_(50)
-    offset: Optional[Vector2] = property_(51)
-    scale: Optional[float] = property_(52)
-    rotate: Optional[Axis3] = property_(53)
-    skew: Optional[Vector2] = property_(54)
-    perspective: Optional[float] = property_(55)
-    delay: Optional[timedelta] = property_(56)
-    duration: Optional[float] = property_(57)
-    threshold: Optional[float] = property_(58)
-    once: Optional[bool] = property_(59)
-    repeat: Optional[RepeatType] = property_(60)
-    split: Optional[TextSplitType] = property_(61)
-    offscreen: Optional[OffscreenBehavior] = property_(62)
+    opacity: Optional[float] = property_(50, is_repr=True)
+    offset: Optional[Vector2] = property_(51, is_repr=True)
+    scale: Optional[float] = property_(52, is_repr=True)
+    rotate: Optional[Axis3] = property_(53, is_repr=True)
+    skew: Optional[Vector2] = property_(54, is_repr=True)
+    perspective: Optional[float] = property_(55, is_repr=True)
+    delay: Optional[timedelta] = property_(56, is_repr=True)
+    duration: Optional[float] = property_(57, is_repr=True)
+    threshold: Optional[float] = property_(58, is_repr=True)
+    once: Optional[bool] = property_(59, is_repr=True)
+    repeat: Optional[RepeatType] = property_(60, is_repr=True)
+    split: Optional[TextSplitType] = property_(61, is_repr=True)
+    offscreen: Optional[OffscreenBehavior] = property_(62, is_repr=True)
 
-    transition: Optional["Transition"] = property_(70)
+    transition: Optional["Transition"] = property_(70, is_repr=True)
 
 
 @struct_(StructType.EFFECT)

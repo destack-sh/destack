@@ -51,7 +51,7 @@ class Theme(
     """A Theme with common styles."""
 
     # colors
-    colors: dict[ThemeColor, "Color"] = property_(50)
+    colors: dict[ThemeColor, "Color"] = property_(50, is_repr=True)
 
     # fonts
     # ...

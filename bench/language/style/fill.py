@@ -47,9 +47,9 @@ class FillSize(BuiltinEnum):
 
 @struct_(StructType.FILL)
 class Fill(Struct):
-    type: FillType = property_(30)
-    color: Color | None = property_(40)
-    gradient: Gradient | None = property_(41)
-    image: "File | None" = property_(50)
-    position: FillPosition | None = property_(60)
-    size: FillSize | None = property_(70)
+    type: FillType = property_(30, is_repr=True)
+    color: Color | None = property_(40, is_repr=True)
+    gradient: Gradient | None = property_(41, is_repr=True)
+    image: "File | None" = property_(50, is_repr=True)
+    position: FillPosition | None = property_(60, is_repr=True)
+    size: FillSize | None = property_(70, is_repr=True)

@@ -1,6 +1,7 @@
 from string import ascii_lowercase
 from typing import Any, assert_never, cast
 
+import fastuuid
 import hypothesis
 import more_itertools
 import pytz
@@ -245,6 +246,13 @@ def node_references(draw: st.DrawFn, node_types: st.SearchStrategy[NodeType]):
     return NodeReference(node_type=node_type, id=node_id, ck=node_ck, bench_id=bench_id)
 
 
+@cacheable
+@defines_strategy()
+def uuids():
+    """Draw from fastuuid.uuid4"""
+    return st.just(fastuuid.uuid4())
+
+
 STRATEGY_BY_PRIMITIVE_TYPE: dict[PrimitiveType, st.SearchStrategy] = {
     PrimitiveType.BOOLEAN: st.booleans(),
     PrimitiveType.INT16: st.integers(min_value=-(2**15), max_value=2**15 - 1),
@@ -254,7 +262,7 @@ STRATEGY_BY_PRIMITIVE_TYPE: dict[PrimitiveType, st.SearchStrategy] = {
     PrimitiveType.FLOAT32: st.floats(allow_nan=False, allow_infinity=False),
     PrimitiveType.FLOAT64: st.floats(allow_nan=False, allow_infinity=False),
     PrimitiveType.STRING: st.text(min_size=1),
-    PrimitiveType.UUID: st.uuids(),
+    PrimitiveType.UUID: uuids(),
     PrimitiveType.JSON: JSON_STRATEGY,
     PrimitiveType.BYTES: st.binary(),
     PrimitiveType.DATETIME: st.datetimes(timezones=st.just(pytz.utc)),

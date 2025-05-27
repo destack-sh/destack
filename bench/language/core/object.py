@@ -177,10 +177,11 @@ if id is None:
     now = self._session.oracle.utc()
     created_at = now
     updated_at = now
-    __setattr__(self, "_is_new", True)
+    _is_new = True
 __setattr__(self, "id", id)
 __setattr__(self, "created_at", created_at)
 __setattr__(self, "updated_at", updated_at)
+__setattr__(self, "_is_new", _is_new)
 __setattr__(self, "_hash", id.int)
 """)
         else:
@@ -432,7 +433,7 @@ def _generate_property_cmp_impl(prop: Property) -> str:
     """Generate equality check code for a single property."""
     prop_name = prop.name
 
-    scalar_cmps_str = _generate_scalar_cmps_impl(prop)
+    scalar_cmps_str = _generate_scalar_cmp_impl(prop)
     if prop.cardinality == "scalar":
         # scalar
         if prop.is_required:
@@ -474,7 +475,7 @@ if self.{prop_name} != other.{prop_name}:
         assert_never(prop.cardinality)
 
 
-def _generate_scalar_cmps_impl(prop: Property) -> str:
+def _generate_scalar_cmp_impl(prop: Property) -> str:
     """Generate the core scalar comparison logic. Returns a format string with {self_val} and {other_val} placeholders."""
     if prop.scalar_type == "primitive":
         if prop.primitive_type and prop.primitive_type.is_float:
@@ -484,7 +485,7 @@ def _generate_scalar_cmps_impl(prop: Property) -> str:
     elif prop.scalar_type == "enum":
         return "{self_val} == {other_val}"
     elif prop.scalar_type == "node":
-        return "({self_val}.id == {other_val}.id) or (_identity_map.get({self_val}.id, {self_val}.id) == _identity_map.get({other_val}.id, {other_val}.id))"
+        return "{self_val}.id == {other_val}.id or _identity_map.get({self_val}.id, {self_val}.id) == _identity_map.get({other_val}.id, {other_val}.id)"
     elif prop.scalar_type == "struct":
         return "{self_val}.equals({other_val}, _identity_map=_identity_map)"
     else:

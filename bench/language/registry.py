@@ -117,11 +117,6 @@ def _complete_bench_setup():
         setattr(cls, "from_proto", cls_dict_copy["from_proto"])
         # __pack_value__/__unpack_value__/_to_value
         value_impl, value_glbls = generate_pack_value_impl(cls)
-        print("=" * 100)
-        print(cls.__name__ + ":value")
-        print("=" * 100)
-        print(value_impl)
-        print("=" * 100)
         exec(value_impl, {**builtin_class_by_name, **value_glbls}, cls_dict_copy)
         setattr(cls, "__pack_value__", cls_dict_copy["__pack_value__"])
         setattr(cls, "__unpack_value__", cls_dict_copy["__unpack_value__"])

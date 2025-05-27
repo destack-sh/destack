@@ -48,14 +48,14 @@ class ShadowPosition(BuiltinEnum):
 
 @object_()
 class ShadowBase(BuiltinObject):
-    type: ShadowType = property_(30, default=ShadowType.BOX)
-    style: Optional["ShadowStyle"] = property_(41)
-    color: Optional["Color"] = property_(50)
-    position: ShadowPosition = property_(51, default=ShadowPosition.OUTSIDE)
-    offset: Optional[Axis2] = property_(52)
-    blur: int | None = property_(53)
-    spread: int | None = property_(54)
-    diffusion: float | None = property_(55)
+    type: ShadowType = property_(30, default=ShadowType.BOX, is_repr=True)
+    style: Optional["ShadowStyle"] = property_(41, is_repr=True)
+    color: Optional["Color"] = property_(50, is_repr=True)
+    position: ShadowPosition = property_(51, default=ShadowPosition.OUTSIDE, is_repr=True)
+    offset: Optional[Axis2] = property_(52, is_repr=True)
+    blur: int | None = property_(53, is_repr=True)
+    spread: int | None = property_(54, is_repr=True)
+    diffusion: float | None = property_(55, is_repr=True)
 
 
 @struct_(StructType.SHADOW)

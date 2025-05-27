@@ -504,7 +504,7 @@ class IsMembership(Node if TYPE_CHECKING else BuiltinObject):
 class IsInvite(Node if TYPE_CHECKING else BuiltinObject):
     """A Node that represents an Invite."""
 
-    pass
+    member: "IsSubject" = property_(40)
 
 
 @trait_(TraitType.ROLE)

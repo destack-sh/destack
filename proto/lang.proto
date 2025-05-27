@@ -884,8 +884,9 @@ enum NodeType {
 // The format of a number.
 enum NumberFormat {
   NUMBER_FORMAT_UNSPECIFIED = 0;
-  NUMBER_FORMAT_INTEGER = 1;
-  NUMBER_FORMAT_FLOAT = 2;
+  NUMBER_FORMAT_ANGLE = 1;
+  NUMBER_FORMAT_UNIT = 2;
+  NUMBER_FORMAT_CURRENCY = 3;
 }
 
 // What happens when the element is offscreen.
@@ -1364,9 +1365,9 @@ message ActionData {
   optional ModelProvider model_provider = 101;
   optional string model_id = 102;
   optional string model_name = 103;
-  optional int32 max_attempts = 110;
+  optional int64 max_attempts = 110;
   optional google.protobuf.Duration retry_interval = 111;
-  optional float backoff = 112;
+  optional double backoff = 112;
 }
 
 // An Agent is an autonomous entity.
@@ -1408,9 +1409,9 @@ message AgentData {
   optional ModelProvider model_provider = 101;
   optional string model_id = 102;
   optional string model_name = 103;
-  optional int32 max_attempts = 110;
+  optional int64 max_attempts = 110;
   optional google.protobuf.Duration retry_interval = 111;
-  optional float backoff = 112;
+  optional double backoff = 112;
 }
 
 message AggregationData {
@@ -1431,17 +1432,17 @@ message AttributeReferenceData {
 
 message Axis2Data {
   StructType metatype = 1;
-  optional float base = 50;
-  optional float x = 51;
-  optional float y = 52;
+  optional double base = 50;
+  optional double x = 51;
+  optional double y = 52;
 }
 
 message Axis3Data {
   StructType metatype = 1;
-  optional float base = 50;
-  optional float x = 51;
-  optional float y = 52;
-  optional float z = 53;
+  optional double base = 50;
+  optional double x = 51;
+  optional double y = 52;
+  optional double z = 53;
 }
 
 // A Bench is the OS for personal software.
@@ -1476,6 +1477,7 @@ message BenchInviteData {
   google.protobuf.Timestamp updated_at = 12;
   optional NodeReferenceData updated_by_ptr = 13;
   optional google.protobuf.Timestamp deleted_at = 15;
+  NodeReferenceData member_ptr = 40;
   BenchRoleType role = 45;
 }
 
@@ -1583,8 +1585,8 @@ message CodeData {
 
 message CollectionConstraintData {
   StructType metatype = 1;
-  optional int32 min_length = 41;
-  optional int32 max_length = 42;
+  optional int64 min_length = 41;
+  optional int64 max_length = 42;
 }
 
 message ColorData {
@@ -1593,10 +1595,10 @@ message ColorData {
   optional NodeReferenceData style_ptr = 42;
   optional ColorHue hue = 50;
   optional ColorShade shade = 51;
-  optional float x = 52;
-  optional float y = 53;
-  optional float z = 54;
-  optional float alpha = 55;
+  optional double x = 52;
+  optional double y = 53;
+  optional double z = 54;
+  optional double alpha = 55;
 }
 
 // A color style, with an optional dark variant.
@@ -1621,10 +1623,10 @@ message ColorStyleData {
   optional NodeReferenceData style_ptr = 42;
   optional ColorHue hue = 50;
   optional ColorShade shade = 51;
-  optional float x = 52;
-  optional float y = 53;
-  optional float z = 54;
-  optional float alpha = 55;
+  optional double x = 52;
+  optional double y = 53;
+  optional double z = 54;
+  optional double alpha = 55;
   optional ColorData dark = 60;
 }
 
@@ -1637,11 +1639,11 @@ message ConditionData {
 
 message CornersData {
   StructType metatype = 1;
-  optional int32 base = 50;
-  optional int32 top_left = 51;
-  optional int32 top_right = 52;
-  optional int32 bottom_left = 53;
-  optional int32 bottom_right = 54;
+  optional int64 base = 50;
+  optional int64 top_left = 51;
+  optional int64 top_right = 52;
+  optional int64 bottom_left = 53;
+  optional int64 bottom_right = 54;
 }
 
 // A Cursor is the current logical or physical 'position' or 'focus' of its owner.
@@ -1702,7 +1704,7 @@ message DatabaseData {
   optional google.protobuf.Timestamp requested_decommission_at = 45;
   optional google.protobuf.Timestamp active_at = 46;
   optional google.protobuf.Timestamp failed_at = 47;
-  int32 failed_attempts = 48;
+  int64 failed_attempts = 48;
   string version = 60;
   optional string external_name = 62;
   optional string external_id = 63;
@@ -1713,7 +1715,7 @@ message DimensionData {
   StructType metatype = 1;
   DimensionType type = 30;
   LengthUnit unit = 50;
-  float value = 51;
+  double value = 51;
 }
 
 message EditData {
@@ -1733,15 +1735,15 @@ message EffectData {
   StructType metatype = 1;
   EffectType type = 30;
   optional NodeReferenceData style_ptr = 41;
-  optional float opacity = 50;
+  optional double opacity = 50;
   optional Vector2Data offset = 51;
-  optional float scale = 52;
+  optional double scale = 52;
   optional Axis3Data rotate = 53;
   optional Vector2Data skew = 54;
-  optional float perspective = 55;
+  optional double perspective = 55;
   optional google.protobuf.Duration delay = 56;
-  optional float duration = 57;
-  optional float threshold = 58;
+  optional double duration = 57;
+  optional double threshold = 58;
   optional bool once = 59;
   optional RepeatType repeat = 60;
   optional TextSplitType split = 61;
@@ -1769,15 +1771,15 @@ message EffectStyleData {
   string name = 31;
   optional NodeReferenceData definition_ptr = 35;
   optional NodeReferenceData style_ptr = 41;
-  optional float opacity = 50;
+  optional double opacity = 50;
   optional Vector2Data offset = 51;
-  optional float scale = 52;
+  optional double scale = 52;
   optional Axis3Data rotate = 53;
   optional Vector2Data skew = 54;
-  optional float perspective = 55;
+  optional double perspective = 55;
   optional google.protobuf.Duration delay = 56;
-  optional float duration = 57;
-  optional float threshold = 58;
+  optional double duration = 57;
+  optional double threshold = 58;
   optional bool once = 59;
   optional RepeatType repeat = 60;
   optional TextSplitType split = 61;
@@ -1865,19 +1867,19 @@ message FileData {
   FileSource source = 60;
   optional string mime_type = 61;
   optional FileFormat format = 62;
-  optional int32 size = 63;
+  optional int64 size = 63;
   optional string sha256 = 64;
-  optional int32 width = 65;
-  optional int32 height = 66;
-  optional float aspect_ratio = 67;
+  optional int64 width = 65;
+  optional int64 height = 66;
+  optional double aspect_ratio = 67;
   optional string codec = 68;
   optional google.protobuf.Duration duration = 69;
   optional string url = 70;
   optional string content_url = 71;
   optional string thumbnail_url = 72;
   optional string favicon_url = 73;
-  optional int32 thumbnail_width = 74;
-  optional int32 thumbnail_height = 75;
+  optional int64 thumbnail_width = 74;
+  optional int64 thumbnail_height = 75;
   optional bytes content = 76;
   FileRetentionMode retention = 80;
   optional google.protobuf.Timestamp expires_at = 81;
@@ -1918,9 +1920,9 @@ message FlowData {
   optional ModelProvider model_provider = 101;
   optional string model_id = 102;
   optional string model_name = 103;
-  optional int32 max_attempts = 110;
+  optional int64 max_attempts = 110;
   optional google.protobuf.Duration retry_interval = 111;
-  optional float backoff = 112;
+  optional double backoff = 112;
 }
 
 // A Transition between nodes in a Flow (source = outgoing, target = incoming).
@@ -1945,9 +1947,9 @@ message FlowEdgeData {
   optional ModelProvider model_provider = 101;
   optional string model_id = 102;
   optional string model_name = 103;
-  optional int32 max_attempts = 110;
+  optional int64 max_attempts = 110;
   optional google.protobuf.Duration retry_interval = 111;
-  optional float backoff = 112;
+  optional double backoff = 112;
 }
 
 message FontData {
@@ -2043,14 +2045,14 @@ message FrameViewData {
   };
   optional GridData grid = 56;
   optional GridSpanData grid_span = 57;
-  optional float aspect_ratio = 58;
+  optional double aspect_ratio = 58;
   optional bool is_wrap = 59;
   oneof is_visible {
     bool is_visible_value = 60;
     VariableData is_visible_variable = 17060;
   };
   oneof opacity {
-    float opacity_value = 61;
+    double opacity_value = 61;
     VariableData opacity_variable = 17061;
   };
   oneof fill {
@@ -2066,7 +2068,7 @@ message FrameViewData {
     VariableData skew_variable = 17064;
   };
   oneof scale {
-    float scale_value = 65;
+    double scale_value = 65;
     VariableData scale_variable = 17065;
   };
   oneof shadow {
@@ -2094,7 +2096,7 @@ message GradientData {
   StructType metatype = 1;
   GradientType type = 30;
   optional NodeReferenceData style_ptr = 40;
-  optional float angle = 50;
+  optional double angle = 50;
   repeated GradientStopData stops = 51;
   optional Axis2Data center_anchor = 52;
 }
@@ -2102,7 +2104,7 @@ message GradientData {
 message GradientStopData {
   StructType metatype = 1;
   optional ColorData color = 50;
-  float position = 51;
+  double position = 51;
 }
 
 // A gradient style.
@@ -2125,7 +2127,7 @@ message GradientStyleData {
   string name = 31;
   optional NodeReferenceData definition_ptr = 35;
   optional NodeReferenceData style_ptr = 40;
-  optional float angle = 50;
+  optional double angle = 50;
   repeated GradientStopData stops = 51;
   optional Axis2Data center_anchor = 52;
   optional GradientData dark = 60;
@@ -2133,8 +2135,8 @@ message GradientStyleData {
 
 message GridData {
   StructType metatype = 1;
-  int32 columns = 50;
-  int32 rows = 51;
+  int64 columns = 50;
+  int64 rows = 51;
   optional DimensionData column_width = 52;
   optional DimensionData column_min_width = 53;
   optional DimensionData row_height = 54;
@@ -2142,8 +2144,8 @@ message GridData {
 
 message GridSpanData {
   StructType metatype = 1;
-  int32 columns = 50;
-  int32 rows = 51;
+  int64 columns = 50;
+  int64 rows = 51;
 }
 
 // A Bench @handle.
@@ -2172,11 +2174,11 @@ message IconData {
 
 message InsetsData {
   StructType metatype = 1;
-  optional int32 base = 50;
-  optional int32 top = 51;
-  optional int32 left = 52;
-  optional int32 right = 53;
-  optional int32 bottom = 54;
+  optional int64 base = 50;
+  optional int64 top = 51;
+  optional int64 left = 52;
+  optional int64 right = 53;
+  optional int64 bottom = 54;
 }
 
 // An Interruption in the processing or execution of something.
@@ -2260,14 +2262,14 @@ message LabelViewData {
   };
   optional GridData grid = 56;
   optional GridSpanData grid_span = 57;
-  optional float aspect_ratio = 58;
+  optional double aspect_ratio = 58;
   optional bool is_wrap = 59;
   oneof is_visible {
     bool is_visible_value = 60;
     VariableData is_visible_variable = 17060;
   };
   oneof opacity {
-    float opacity_value = 61;
+    double opacity_value = 61;
     VariableData opacity_variable = 17061;
   };
   oneof fill {
@@ -2283,7 +2285,7 @@ message LabelViewData {
     VariableData skew_variable = 17064;
   };
   oneof scale {
-    float scale_value = 65;
+    double scale_value = 65;
     VariableData scale_variable = 17065;
   };
   oneof shadow {
@@ -2303,7 +2305,7 @@ message LabelViewData {
 message LengthData {
   StructType metatype = 1;
   LengthUnit unit = 50;
-  float value = 51;
+  double value = 51;
 }
 
 // A Link to an external resource (like a web URL, or anything that doesn't fit into other Nodes).
@@ -2331,8 +2333,8 @@ message LinkData {
   optional string content_url = 52;
   optional string thumbnail_url = 53;
   optional string favicon_url = 54;
-  optional int32 thumbnail_width = 55;
-  optional int32 thumbnail_height = 56;
+  optional int64 thumbnail_width = 55;
+  optional int64 thumbnail_height = 56;
   optional string content = 60;
   optional string attribution = 62;
   optional string attribution_tag = 63;
@@ -2369,7 +2371,7 @@ message MachineData {
   optional google.protobuf.Timestamp requested_decommission_at = 45;
   optional google.protobuf.Timestamp active_at = 46;
   optional google.protobuf.Timestamp failed_at = 47;
-  int32 failed_attempts = 48;
+  int64 failed_attempts = 48;
   string version = 60;
   optional string external_name = 62;
   optional string external_id = 63;
@@ -2377,10 +2379,10 @@ message MachineData {
   optional string grpc_url = 65;
   optional string vnc_url = 66;
   optional NodeReferenceData client_ptr = 69;
-  float cpu = 70;
-  float ram = 71;
-  int32 width = 75;
-  int32 height = 76;
+  double cpu = 70;
+  double ram = 71;
+  int64 width = 75;
+  int64 height = 76;
   bool is_headless = 77;
 }
 
@@ -2430,11 +2432,11 @@ message NodeReferenceData {
 message NumberConstraintData {
   StructType metatype = 1;
   optional NumberFormat format = 40;
-  optional float min_value = 41;
-  optional float max_value = 42;
-  optional float step_value = 43;
-  optional int32 precision = 44;
-  optional int32 scale = 45;
+  optional double min_value = 41;
+  optional double max_value = 42;
+  optional double step_value = 43;
+  optional int64 precision = 44;
+  optional int64 scale = 45;
 }
 
 // A general number input View.
@@ -2468,7 +2470,7 @@ message NumberInputViewData {
     VariableData is_visible_variable = 17060;
   };
   oneof opacity {
-    float opacity_value = 61;
+    double opacity_value = 61;
     VariableData opacity_variable = 17061;
   };
   optional string value = 100;
@@ -2503,6 +2505,7 @@ message OrganizationInviteData {
   google.protobuf.Timestamp updated_at = 12;
   optional NodeReferenceData updated_by_ptr = 13;
   optional google.protobuf.Timestamp deleted_at = 15;
+  NodeReferenceData member_ptr = 40;
   OrganizationRoleType role = 45;
 }
 
@@ -2564,6 +2567,7 @@ message PackageInviteData {
   google.protobuf.Timestamp updated_at = 12;
   optional NodeReferenceData updated_by_ptr = 13;
   optional google.protobuf.Timestamp deleted_at = 15;
+  NodeReferenceData member_ptr = 40;
   PackageRoleType role = 45;
 }
 
@@ -2619,7 +2623,7 @@ message PropertyReferenceData {
   StructType metatype = 1;
   optional NodeType node_type = 31;
   optional StructType struct_type = 32;
-  int32 id = 33;
+  int64 id = 33;
 }
 
 message QueryData {
@@ -2635,8 +2639,8 @@ message QueryData {
   repeated ExpressionData group_by = 42;
   optional AggregationData aggregation = 43;
   repeated SortData sort = 44;
-  optional int32 limit = 50;
-  optional int32 offset = 51;
+  optional int64 limit = 50;
+  optional int64 offset = 51;
   optional bool count = 52;
 }
 
@@ -2758,21 +2762,21 @@ message SceneData {
 message ScheduleData {
   StructType metatype = 1;
   ScheduleFrequency frequency = 31;
-  int32 interval = 32;
+  int64 interval = 32;
   optional google.protobuf.Timestamp start = 33;
   optional google.protobuf.Timestamp end = 34;
-  optional int32 count = 35;
+  optional int64 count = 35;
   optional Day week_start = 36;
-  repeated int32 by_set_pos = 37;
+  repeated int64 by_set_pos = 37;
   repeated Month by_month = 38;
-  repeated int32 by_month_day = 39;
-  repeated int32 by_year_day = 40;
-  repeated int32 by_easter = 41;
-  repeated int32 by_week_no = 42;
+  repeated int64 by_month_day = 39;
+  repeated int64 by_year_day = 40;
+  repeated int64 by_easter = 41;
+  repeated int64 by_week_no = 42;
   repeated Day by_week_day = 43;
-  repeated int32 by_hour = 44;
-  repeated int32 by_minute = 45;
-  repeated int32 by_second = 46;
+  repeated int64 by_hour = 44;
+  repeated int64 by_minute = 45;
+  repeated int64 by_second = 46;
 }
 
 // A Schema for a specific Type.
@@ -2845,9 +2849,9 @@ message ServiceData {
   optional ModelProvider model_provider = 101;
   optional string model_id = 102;
   optional string model_name = 103;
-  optional int32 max_attempts = 110;
+  optional int64 max_attempts = 110;
   optional google.protobuf.Duration retry_interval = 111;
-  optional float backoff = 112;
+  optional double backoff = 112;
 }
 
 message ShadowData {
@@ -2857,9 +2861,9 @@ message ShadowData {
   optional ColorData color = 50;
   ShadowPosition position = 51;
   optional Axis2Data offset = 52;
-  optional int32 blur = 53;
-  optional int32 spread = 54;
-  optional float diffusion = 55;
+  optional int64 blur = 53;
+  optional int64 spread = 54;
+  optional double diffusion = 55;
 }
 
 // A shadow style.
@@ -2885,9 +2889,9 @@ message ShadowStyleData {
   optional ColorData color = 50;
   ShadowPosition position = 51;
   optional Axis2Data offset = 52;
-  optional int32 blur = 53;
-  optional int32 spread = 54;
-  optional float diffusion = 55;
+  optional int64 blur = 53;
+  optional int64 spread = 54;
+  optional double diffusion = 55;
 }
 
 // A slider input View.
@@ -2921,13 +2925,13 @@ message SliderInputViewData {
     VariableData is_visible_variable = 17060;
   };
   oneof opacity {
-    float opacity_value = 61;
+    double opacity_value = 61;
     VariableData opacity_variable = 17061;
   };
-  optional float value = 100;
-  optional float min_value = 101;
-  optional float max_value = 102;
-  optional float step = 103;
+  optional double value = 100;
+  optional double min_value = 101;
+  optional double max_value = 102;
+  optional double step = 103;
 }
 
 message SortData {
@@ -3042,14 +3046,14 @@ message SplitViewData {
   };
   optional GridData grid = 56;
   optional GridSpanData grid_span = 57;
-  optional float aspect_ratio = 58;
+  optional double aspect_ratio = 58;
   optional bool is_wrap = 59;
   oneof is_visible {
     bool is_visible_value = 60;
     VariableData is_visible_variable = 17060;
   };
   oneof opacity {
-    float opacity_value = 61;
+    double opacity_value = 61;
     VariableData opacity_variable = 17061;
   };
   oneof fill {
@@ -3065,7 +3069,7 @@ message SplitViewData {
     VariableData skew_variable = 17064;
   };
   oneof scale {
-    float scale_value = 65;
+    double scale_value = 65;
     VariableData scale_variable = 17065;
   };
   oneof shadow {
@@ -3218,7 +3222,7 @@ message TextViewData {
     VariableData is_visible_variable = 17060;
   };
   oneof opacity {
-    float opacity_value = 61;
+    double opacity_value = 61;
     VariableData opacity_variable = 17061;
   };
   optional bool user_select = 65;
@@ -3326,13 +3330,13 @@ message TransitionData {
   StructType metatype = 1;
   TransitionType type = 30;
   optional NodeReferenceData style_ptr = 41;
-  optional float delay = 50;
-  optional float duration = 51;
-  repeated float ease = 52;
-  optional float stiffness = 53;
-  optional float damping = 54;
-  optional float mass = 55;
-  optional float bounce = 56;
+  optional double delay = 50;
+  optional double duration = 51;
+  repeated double ease = 52;
+  optional double stiffness = 53;
+  optional double damping = 54;
+  optional double mass = 55;
+  optional double bounce = 56;
   optional SpringType spring_type = 57;
 }
 
@@ -3356,13 +3360,13 @@ message TransitionStyleData {
   string name = 31;
   optional NodeReferenceData definition_ptr = 35;
   optional NodeReferenceData style_ptr = 41;
-  optional float delay = 50;
-  optional float duration = 51;
-  repeated float ease = 52;
-  optional float stiffness = 53;
-  optional float damping = 54;
-  optional float mass = 55;
-  optional float bounce = 56;
+  optional double delay = 50;
+  optional double duration = 51;
+  repeated double ease = 52;
+  optional double stiffness = 53;
+  optional double damping = 54;
+  optional double mass = 55;
+  optional double bounce = 56;
   optional SpringType spring_type = 57;
 }
 
@@ -3423,23 +3427,23 @@ message VariableData {
 
 message Vector2Data {
   StructType metatype = 1;
-  float x = 50;
-  float y = 51;
+  double x = 50;
+  double y = 51;
 }
 
 message Vector3Data {
   StructType metatype = 1;
-  float x = 50;
-  float y = 51;
-  float z = 52;
+  double x = 50;
+  double y = 51;
+  double z = 52;
 }
 
 message Vector4Data {
   StructType metatype = 1;
-  float x = 50;
-  float y = 51;
-  float z = 52;
-  float w = 53;
+  double x = 50;
+  double y = 51;
+  double z = 52;
+  double w = 53;
 }
 
 message WizardViewData {

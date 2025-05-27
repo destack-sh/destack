@@ -92,16 +92,16 @@ class TextTransform(BuiltinEnum):
 class FontBase(BuiltinObject):
     """A text style value."""
 
-    type: FontType = property_(30, default=FontType.SANS)
-    style: Optional["FontStyle"] = property_(41)
-    weight: Optional[FontWeight] = property_(50, default=FontWeight.NORMAL)
-    color: Optional[Fill] = property_(51)
-    size: Optional[FontSize] = property_(52, default=FontSize.BASE)
-    align: Optional[TextAlign] = property_(53, default=TextAlign.LEFT)
-    line_height: Optional[Length] = property_(54)
-    letter_spacing: Optional[Length] = property_(55)
-    decoration: Optional[TextDecoration] = property_(56, default=TextDecoration.NONE)
-    transform: Optional[TextTransform] = property_(57, default=TextTransform.NONE)
+    type: FontType = property_(30, default=FontType.SANS, is_repr=True)
+    style: Optional["FontStyle"] = property_(41, is_repr=True)
+    weight: Optional[FontWeight] = property_(50, default=FontWeight.NORMAL, is_repr=True)
+    color: Optional[Fill] = property_(51, is_repr=True)
+    size: Optional[FontSize] = property_(52, default=FontSize.BASE, is_repr=True)
+    align: Optional[TextAlign] = property_(53, default=TextAlign.LEFT, is_repr=True)
+    line_height: Optional[Length] = property_(54, is_repr=True)
+    letter_spacing: Optional[Length] = property_(55, is_repr=True)
+    decoration: Optional[TextDecoration] = property_(56, default=TextDecoration.NONE, is_repr=True)
+    transform: Optional[TextTransform] = property_(57, default=TextTransform.NONE, is_repr=True)
 
 
 @struct_(StructType.FONT)
