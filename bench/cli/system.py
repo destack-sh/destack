@@ -121,7 +121,7 @@ async def make_local_machine_runtime(
                 machine=machine,
                 seen_at=REAL_ORACLE.utc(),
             )
-            session._create(client)
+            session.create(client)
         machine.client = client
         machine.update_status(ResourceStatus.AVAILABLE)
         machine.grpc_url = local_machine_url

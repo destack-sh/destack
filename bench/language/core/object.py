@@ -1094,35 +1094,13 @@ class BuiltinObject[ObjectDataT: AnyObjectData](abc.ABC):
         """Validate the object."""
         raise NotImplementedError  # generated
 
-    def _stable_hash(self) -> int:
+    def hash(self) -> int:
         """Hash of content properties."""
         raise NotImplementedError  # generated
 
     def _clone_kwargs(self, reset: bool = True):
         """Clone kwargs for a new instance."""
-        copy_kwargs = {}
-        for prop in self.__wired_properties__.values():
-            prop_value = getattr(self, prop.name)
-            if reset and (prop.id is None or prop.id < 30):
-                continue  # ignore tracking/autoset properties
-            if prop.is_struct:
-                if prop.cardinality == "list":
-                    if prop_value:
-                        copy_kwargs[prop.name] = [item.clone() for item in prop_value]
-                elif prop.cardinality == "scalar":
-                    if prop_value is not None:
-                        copy_kwargs[prop.name] = prop_value.clone()
-                else:
-                    raise RuntimeError(f"unsupported property: {prop.cardinality}")
-            else:
-                if prop.cardinality == "list":
-                    if prop_value:
-                        copy_kwargs[prop.name] = list(prop_value)
-                elif prop.cardinality == "scalar":
-                    copy_kwargs[prop.name] = prop_value
-                else:
-                    raise RuntimeError(f"unsupported property: {prop.cardinality}")
-        return copy_kwargs
+        raise NotImplementedError
 
     def clone(self, *, reset: bool = True, **kwargs) -> Self:
         """

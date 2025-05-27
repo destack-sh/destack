@@ -12,7 +12,6 @@ import typing
 from collections import OrderedDict
 from itertools import cycle, filterfalse, islice, product, tee
 from os import urandom
-from sys import intern
 from typing import (
     Any,
     Awaitable,
@@ -21,7 +20,6 @@ from typing import (
     Iterable,
     Iterator,
     Mapping,
-    assert_never,
 )
 
 import regex
@@ -101,40 +99,6 @@ def hash_stable(*args) -> int:
 
 def hash_stable_hex(*args) -> str:
     return f"{hash_stable(*args):x}"
-
-
-def try_to_uuid(id: UUID | str) -> UUID | str:
-    if isinstance(id, UUID):
-        return id
-    try:
-        return UUID(id)
-    except (ValueError, TypeError):
-        return id
-
-
-def to_uuid(id: str | UUID | None) -> UUID | None:
-    if not id:
-        return None  # ignore empty strings
-    elif isinstance(id, str):
-        try:
-            return UUID(id)
-        except ValueError as e:
-            raise ValueError(f"invalid UUID: {id!r} ({type(id)})") from e
-    elif isinstance(id, UUID):
-        return id
-    else:
-        assert_never(id)
-
-
-def uuid_to_str(id: UUID | str | None) -> str | None:
-    if not id:
-        return None  # ignore empty strings
-    elif isinstance(id, str):
-        return id
-    elif isinstance(id, UUID):
-        return intern(str(id))
-    else:
-        assert_never(id)
 
 
 def get_first(obj: dict, keys: Iterable[str]):

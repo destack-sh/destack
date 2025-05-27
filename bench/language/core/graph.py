@@ -153,11 +153,11 @@ class Supergraph:
         return f"<Supergraph {self}>"
 
     def add_graph(self, graph: Graph):
-        """Add a graph to this supergraph."""
+        """Add a Graph to this Supergraph."""
         raise NotImplementedError
 
     def remove_graph(self, graph: Graph):
-        """Remove a graph from this supergraph."""
+        """Remove a Graph from this Supergraph."""
         raise NotImplementedError
 
     def get(self, node_id: "UUID") -> Optional["Node"]:

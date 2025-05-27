@@ -4,7 +4,7 @@ import pytest
 
 from bench.language import (
     Action,
-    ActionType,
+    ActionCardinality,
     Agent,
     Flow,
     FlowEdgeType,
@@ -86,8 +86,8 @@ async def test_start_run(simulation: Simulation, runtime: RuntimeLambdaWorkload)
 async def test_start_run_from_message(simulation: Simulation, runtime: RuntimeLambdaWorkload):
     """Create a Run by messaging an Identity in a Flow."""
     Flow1 = Flow.new("Flow1")
-    Start1 = Action.new(ActionType.START, "Start1")
-    End1 = Action.new(ActionType.END, "End1")
+    Start1 = Action.new(ActionCardinality.START, "Start1")
+    End1 = Action.new(ActionCardinality.END, "End1")
     Flow1.add_children(Start1, End1)
     Start1.connect(FlowEdgeType.MANUAL, End1)
     Agent1 = Agent.new("Agent", main_flow=Flow1)
@@ -114,9 +114,9 @@ async def test_start_run_from_message(simulation: Simulation, runtime: RuntimeLa
 async def test_pause_resume_run(simulation: Simulation, runtime: RuntimeLambdaWorkload):
     """Run a long async Flow and pause it, then resume it."""
     Flow1 = Flow.new("Flow1")
-    Start = Action.new(ActionType.START, "Start")
-    Action1 = Action.new(ActionType.CODE, "Action1", code=code("await sleep(1)"))
-    End = Action.new(ActionType.END, "End")
+    Start = Action.new(ActionCardinality.START, "Start")
+    Action1 = Action.new(ActionCardinality.CODE, "Action1", code=code("await sleep(1)"))
+    End = Action.new(ActionCardinality.END, "End")
     Flow1.add_children(Start, Action1, End)
     Start.connect(FlowEdgeType.MANUAL, Action1)
     Action1.connect(FlowEdgeType.MANUAL, End)

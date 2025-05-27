@@ -4,7 +4,7 @@ from typing import Annotated, Any, cast, get_args, get_origin
 
 from bench.language import (
     Action,
-    ActionType,
+    ActionCardinality,
     Field,
     Icon,
     IconIn,
@@ -36,7 +36,7 @@ def class_to_service(
     service = Service.new(name, mode=mode, icon=to_icon(icon) if icon else None, template=template)
 
     for method_name, method in inspect.getmembers(cls, predicate=inspect.isfunction):
-        action = Action.new(ActionType.BUILTIN, name=method_name.replace("_", " "))
+        action = Action.new(ActionCardinality.BUILTIN, name=method_name.replace("_", " "))
 
         # template
         if template is not None:

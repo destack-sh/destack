@@ -24,7 +24,6 @@ from bench.proto import (
     ServiceKind,
 )
 from bench.system.core import global_session, pg_engine_from_database
-from bench.utils.func import to_uuid
 from bench.utils.oracle import Oracle
 from bench.utils.telemetry import set_baggage
 from bench.utils.utils import get_from_env
@@ -122,7 +121,7 @@ class HostRouterService(ServiceBase, HostBase):
         scope: ScopeData | None = getattr(request, "scope")
         if scope is None:
             raise GRPCError(GRPCStatus.INVALID_ARGUMENT, "missing scope")
-        bench_id = to_uuid(scope.bench_id)
+        bench_id = UUID(scope.bench_id)
         if bench_id is None:
             raise GRPCError(GRPCStatus.INVALID_ARGUMENT, "missing bench scope id")
 

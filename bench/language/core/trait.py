@@ -28,7 +28,6 @@ from .const import (
     ResourceStatus,
     TraitType,
 )
-from .graph import attach_node
 from .object import BuiltinObject, _process_object_cls
 from .property import (
     _PROPERTY_SPECIFIERS,
@@ -223,70 +222,7 @@ class IsTemplatable(Node if TYPE_CHECKING else BuiltinObject):
         Similar to Node.clone, but sets the original Nodes as the template source.
         """
 
-        from .node import Node
-
-        assert isinstance(self, Node), f"{self!r} must be a Node"
-        assert isinstance(self, IsModal), f"{self!r} must be modal"
-
-        # instance self
-        instance_kwargs = self._clone_kwargs(reset=True)
-        if self.mode == NodeMode.TEMPLATE:
-            instance_kwargs["mode"] = self._session.mode
-        else:
-            instance_kwargs["mode"] = self.mode
-        instance_kwargs.update(kwargs)
-        if isinstance(self, IsInstantiable):
-            instance_kwargs["ck"] = self.ck
-        instance_kwargs["template"] = self
-        instance = self.__class__(**instance_kwargs)
-
-        # remember new identities
-        if _map is True:
-            _map = {self.id: instance}
-        elif _map is not False:
-            _map[self.id] = instance
-
-        # NOTE: we don't instance definitions/inline nodes together (that seems meaningless?)
-
-        # instance children and append to self
-        if recursive:
-            for child_type in self.__child_types__:
-                for child in self.get_children(child_type):
-                    if isinstance(child, IsTemplatable):
-                        # instance child
-                        child_clone = child.instance(
-                            recursive=True,
-                            detach=True,
-                            _map=_map,
-                            _is_nested=True,
-                        )
-                        attach_node(child_clone, instance, instance._graph)  # re-attach
-                    else:
-                        # clone if not instantiable
-                        child_clone = child.clone(
-                            reset=True,
-                            recursive=True,
-                            detach=True,
-                            _map=_map,
-                            _is_nested=True,
-                        )
-                        attach_node(child_clone, instance, instance._graph)  # re-attach
-
-        # map new identities
-        if not _is_nested and type(_map) is dict:
-            for node in _map.values():
-                node.replace_references(
-                    _map,
-                    exclude=(EdgeType.NODE_PARENT, EdgeType.NODE_TEMPLATE),
-                )
-
-        # append to our parent to re-attach
-        parent = self.parent
-        if detach:
-            instance.parent_ptr = None
-        elif parent:
-            parent.add_child(instance)
-        return instance
+        raise NotImplementedError
 
 
 @trait_(TraitType.INSTANTIABLE)

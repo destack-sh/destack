@@ -237,7 +237,7 @@ def map_table_to_sql_table(table: Table, prev_sql_table: SqlTable | None) -> Sql
 
 
 #
-# Builtin table registry
+# Builtin SqlTables
 #
 
 BUILTIN_TABLE_BY_NODE_TYPE: dict[NodeType, SqlTable] = {
