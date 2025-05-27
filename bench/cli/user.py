@@ -17,13 +17,13 @@ logger = structlog.get_logger(__name__)
 async def set_password(user_slug: str, new_password: str):
     from bench.system import (
         SALT_LENGTH,
-        global_database_from_env,
+        get_global_database_from_env,
         global_session,
         hash_password,
         pg_engine_from_database,
     )
 
-    global_database = global_database_from_env()
+    global_database = get_global_database_from_env()
     global_pg_engine = pg_engine_from_database(
         "pg-global", global_database, NodeArea.GLOBAL_POSTGRES
     )

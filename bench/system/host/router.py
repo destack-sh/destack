@@ -10,11 +10,7 @@ from grpclib import GRPCError
 from grpclib import Status as GRPCStatus
 from opentelemetry import trace
 
-from bench.language import (
-    Bench,
-    Database,
-    NodeArea,
-)
+from bench.language import Database
 from bench.proto import (
     HostBase,
     Network,
@@ -23,7 +19,6 @@ from bench.proto import (
     ServiceBase,
     ServiceKind,
 )
-from bench.system.core import global_session, pg_engine_from_database
 from bench.utils.oracle import Oracle
 from bench.utils.telemetry import set_baggage
 from bench.utils.utils import get_from_env
@@ -44,8 +39,6 @@ S3_PRESIGNED_URL_EXPIRY = get_from_env(
 class HostRouterService(ServiceBase, HostBase):
     """
     Multiplexes requests per Bench to a Host using gRPC metadata ('bench-id').
-    Also provides some process-level shared functionality.
-    Hosts are loaded for all active Benches; new ones 'ping' the multiplexer service to add themselves.
     """
 
     kind = ServiceKind.PUBLIC  # :ServiceKind
@@ -71,24 +64,13 @@ class HostRouterService(ServiceBase, HostBase):
         self.hosts: dict[UUID, HostService] = {}
         self.hosts_lock = asyncio.Lock()
         self._global_database = global_database
-        self._global_pg_engine = pg_engine_from_database(
-            "pg-global", global_database, NodeArea.GLOBAL_POSTGRES
-        )
         self._regional_database = regional_database
-        self._regional_pg_engine = pg_engine_from_database(
-            f"pg-regional-{regional_database.region.name.lower()}",
-            regional_database,
-            NodeArea.REGIONAL_POSTGRES,
-        )
 
     def __str__(self):
         return "shards=[*]"
 
     async def start(self) -> None:
         await super().start()
-        async with global_session(self._global_database, (self._global_pg_engine,), self.oracle):
-            benches: list[Bench] = await Bench.search().execute_list()
-        await asyncio.gather(*(self._start_host(bench.id) for bench in benches))
 
     def stop(self) -> None:
         for host in self.hosts.values():

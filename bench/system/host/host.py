@@ -5,14 +5,7 @@ import structlog
 from fastuuid import UUID
 from opentelemetry import trace
 
-from bench.language import (
-    CLOUD,
-    Bench,
-    Database,
-    NodeReference,
-    NodeType,
-    Scope,
-)
+from bench.language import CLOUD, Bench, Database, NodeReference, NodeType, Scope
 from bench.proto import (
     DownloadFilesRequest,
     DownloadFilesResponse,

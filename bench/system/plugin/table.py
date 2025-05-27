@@ -7,17 +7,16 @@ from opentelemetry import trace
 
 from bench.language import Bench, Field, NodeType, Package, Session, Table, bittuple
 from bench.sql import (
-    BENCH_RECORD_TABLE_PREFIX,
-    BenchSqlContext,
+    BENCH_CUSTOM_NODE_PREFIX,
     MigrationOpType,
     SqlSchema,
     apply_sql_migration_ops,
     generate_sql_migration_ops,
-    get_record_table_name,
+    get_custom_node_table_name,
     introspect_sql_schema,
 )
 from bench.sql import SqlTable as SqlTable
-from bench.sql.map import map_table_to_sql_table
+from bench.sql.map import map_custom_node_to_sql_table
 from bench.system.host import Commit, HostPlugin
 
 if TYPE_CHECKING:
@@ -28,7 +27,7 @@ tracer = trace.get_tracer(__name__)
 
 
 @dataclass(slots=True)
-class HostSqlContext(BenchSqlContext):
+class HostSqlContext:
     """
     Host context for SQL operations (with custom tables).
     NOTE :Architecture: ideally context like this should be per-branch (and even per-tx)
@@ -72,7 +71,7 @@ class TablePlugin(HostPlugin[Table | Field]):
         """Initialize the SQL context from the current package."""
         for table in self.package._graph.nodes_of_type(Table):
             old_sql_table = self.context.sql_tables_by_table.get(table)
-            new_sql_table = map_table_to_sql_table(table, prev_sql_table=old_sql_table)
+            new_sql_table = map_custom_node_to_sql_table(table, prev_sql_table=old_sql_table)
             self.context.sql_tables_by_table[table] = new_sql_table
             self.context.tables_by_id[table.id] = table
 
@@ -92,7 +91,7 @@ class TablePlugin(HostPlugin[Table | Field]):
             )
             old_schema = await introspect_sql_schema(
                 connector.cur,
-                include_table_prefixes=(BENCH_RECORD_TABLE_PREFIX,),
+                include_table_prefixes=(BENCH_CUSTOM_NODE_PREFIX,),
                 exclude_table_prefixes=(),
                 include_extensions=False,
             )
@@ -142,7 +141,7 @@ class TablePlugin(HostPlugin[Table | Field]):
             else:
                 restored_tables.append(table)
         if restored_tables:
-            table_prefixes = tuple(get_record_table_name(table) for table in restored_tables)
+            table_prefixes = tuple(get_custom_node_table_name(table) for table in restored_tables)
             old_schema = await introspect_sql_schema(
                 connector.cur,
                 include_table_prefixes=table_prefixes,
@@ -156,9 +155,9 @@ class TablePlugin(HostPlugin[Table | Field]):
         # get new schema and migrate
         new_sql_tables_by_table: dict[Table, SqlTable] = {}
         for table in touched_tables_by_id.values():
-            table_name = get_record_table_name(table)
+            table_name = get_custom_node_table_name(table)
             old_sql_table = old_schema._tables_by_name.get(table_name)
-            new_sql_table = map_table_to_sql_table(table, prev_sql_table=old_sql_table)
+            new_sql_table = map_custom_node_to_sql_table(table, prev_sql_table=old_sql_table)
             new_sql_tables_by_table[table] = new_sql_table
         new_schema = SqlSchema(extensions=(), tables=tuple(new_sql_tables_by_table.values()))
         migration_ops = generate_sql_migration_ops(

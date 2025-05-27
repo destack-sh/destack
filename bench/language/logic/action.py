@@ -29,8 +29,8 @@ if TYPE_CHECKING:
 
 @enum_(EnumType.ACTION_CARDINALITY)
 class ActionCardinality(BuiltinEnum):
-    UNARY = 10, "Unary", "Single in, single out"
-    UNARY_STREAM = 11, "Unary Stream", "Single in, stream out"
+    UNARY = 1, "Unary", "Single in, single out"
+    # UNARY_STREAM = 2, "Unary Stream", "Single in, stream out"
 
     @property
     def is_boundary(self) -> bool:
@@ -56,7 +56,7 @@ class Action(
 
     parent: Union["Service", None] = property_parent_()
 
-    cardinality: ActionCardinality = property_(40)
+    cardinality: ActionCardinality = property_(40, default=ActionCardinality.UNARY)
     text: Optional["Text"] = property_(41)
 
     def run_type(self) -> RunType:

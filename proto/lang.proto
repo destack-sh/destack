@@ -9,13 +9,10 @@ import "proto/google/type/datetime.proto";
 import "proto/google/type/date.proto";
 import "proto/google/type/timeofday.proto";
 
-enum ActionType {
-  ACTION_TYPE_UNSPECIFIED = 0;
-  ACTION_TYPE_START = 10;
-  ACTION_TYPE_END = 20;
-  ACTION_TYPE_TOOL = 100;
-  ACTION_TYPE_CODE = 101;
-  ACTION_TYPE_BUILTIN = 102;
+enum ActionCardinality {
+  ACTION_CARDINALITY_UNSPECIFIED = 0;
+  ACTION_CARDINALITY_UNARY = 10;
+  ACTION_CARDINALITY_UNARY_STREAM = 11;
 }
 
 enum AggregationType {
@@ -376,7 +373,7 @@ enum EnumType {
   ENUM_TYPE_MACHINE_TYPE = 41010;
   ENUM_TYPE_DATABASE_TYPE = 41020;
   ENUM_TYPE_CLIENT_TYPE = 41021;
-  ENUM_TYPE_ACTION_TYPE = 41220;
+  ENUM_TYPE_ACTION_CARDINALITY = 41220;
   ENUM_TYPE_FLOW_TYPE = 41240;
   ENUM_TYPE_FLOW_EDGE_TYPE = 41241;
   ENUM_TYPE_CURSOR_TYPE = 41320;
@@ -1330,8 +1327,8 @@ enum UpdateType {
   UPDATE_TYPE_UNSPECIFIED = 0;
   UPDATE_TYPE_SET = 1;
   UPDATE_TYPE_CLEAR = 2;
-  UPDATE_TYPE_MAP_SET = 20;
-  UPDATE_TYPE_MAP_REMOVE = 21;
+  UPDATE_TYPE_MAP_SET = 110;
+  UPDATE_TYPE_MAP_REMOVE = 111;
 }
 
 enum UserStatus {
@@ -1364,13 +1361,10 @@ message ActionData {
   optional google.protobuf.Timestamp deleted_at = 15;
   optional NodeReferenceData template_ptr = 16;
   NodeMode mode = 20;
-  optional ValueData value = 21;
   optional string order_key = 22;
-  ActionType type = 30;
   string name = 31;
-  optional TextData text = 36;
-  optional CodeData code = 52;
-  optional NodeReferenceData tool_ptr = 53;
+  ActionCardinality cardinality = 40;
+  optional TextData text = 41;
   optional ModelDeveloper model_developer = 100;
   optional ModelProvider model_provider = 101;
   optional string model_id = 102;
@@ -1739,7 +1733,6 @@ message EditData {
   optional ValueData key = 34;
   optional ValueData value = 40;
   optional NodeReferenceData parent_ptr = 41;
-  google.protobuf.Timestamp edited_at = 50;
 }
 
 message EffectData {

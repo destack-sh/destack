@@ -20,14 +20,11 @@ from typing import ClassVar as _ClassVar, Iterable as _Iterable, Mapping as _Map
 
 DESCRIPTOR: _descriptor.FileDescriptor
 
-class ActionType(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
+class ActionCardinality(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     __slots__ = ()
-    ACTION_TYPE_UNSPECIFIED: _ClassVar[ActionType]
-    ACTION_TYPE_START: _ClassVar[ActionType]
-    ACTION_TYPE_END: _ClassVar[ActionType]
-    ACTION_TYPE_TOOL: _ClassVar[ActionType]
-    ACTION_TYPE_CODE: _ClassVar[ActionType]
-    ACTION_TYPE_BUILTIN: _ClassVar[ActionType]
+    ACTION_CARDINALITY_UNSPECIFIED: _ClassVar[ActionCardinality]
+    ACTION_CARDINALITY_UNARY: _ClassVar[ActionCardinality]
+    ACTION_CARDINALITY_UNARY_STREAM: _ClassVar[ActionCardinality]
 
 class AggregationType(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     __slots__ = ()
@@ -368,7 +365,7 @@ class EnumType(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     ENUM_TYPE_MACHINE_TYPE: _ClassVar[EnumType]
     ENUM_TYPE_DATABASE_TYPE: _ClassVar[EnumType]
     ENUM_TYPE_CLIENT_TYPE: _ClassVar[EnumType]
-    ENUM_TYPE_ACTION_TYPE: _ClassVar[EnumType]
+    ENUM_TYPE_ACTION_CARDINALITY: _ClassVar[EnumType]
     ENUM_TYPE_FLOW_TYPE: _ClassVar[EnumType]
     ENUM_TYPE_FLOW_EDGE_TYPE: _ClassVar[EnumType]
     ENUM_TYPE_CURSOR_TYPE: _ClassVar[EnumType]
@@ -1314,12 +1311,9 @@ class VariableType(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     __slots__ = ()
     VARIABLE_TYPE_UNSPECIFIED: _ClassVar[VariableType]
     VARIABLE_TYPE_FIELD: _ClassVar[VariableType]
-ACTION_TYPE_UNSPECIFIED: ActionType
-ACTION_TYPE_START: ActionType
-ACTION_TYPE_END: ActionType
-ACTION_TYPE_TOOL: ActionType
-ACTION_TYPE_CODE: ActionType
-ACTION_TYPE_BUILTIN: ActionType
+ACTION_CARDINALITY_UNSPECIFIED: ActionCardinality
+ACTION_CARDINALITY_UNARY: ActionCardinality
+ACTION_CARDINALITY_UNARY_STREAM: ActionCardinality
 AGGREGATION_TYPE_UNSPECIFIED: AggregationType
 AGGREGATION_TYPE_EXISTS: AggregationType
 AGGREGATION_TYPE_COUNT: AggregationType
@@ -1573,7 +1567,7 @@ ENUM_TYPE_CONTINENT: EnumType
 ENUM_TYPE_MACHINE_TYPE: EnumType
 ENUM_TYPE_DATABASE_TYPE: EnumType
 ENUM_TYPE_CLIENT_TYPE: EnumType
-ENUM_TYPE_ACTION_TYPE: EnumType
+ENUM_TYPE_ACTION_CARDINALITY: EnumType
 ENUM_TYPE_FLOW_TYPE: EnumType
 ENUM_TYPE_FLOW_EDGE_TYPE: EnumType
 ENUM_TYPE_CURSOR_TYPE: EnumType
@@ -2296,7 +2290,7 @@ VARIABLE_TYPE_UNSPECIFIED: VariableType
 VARIABLE_TYPE_FIELD: VariableType
 
 class ActionData(_message.Message):
-    __slots__ = ("metatype", "id", "ck", "parent_ptr", "bench_ptr", "package_ptr", "created_at", "created_by_ptr", "updated_at", "updated_by_ptr", "archived_at", "deleted_at", "template_ptr", "mode", "value", "order_key", "type", "name", "text", "code", "tool_ptr", "model_developer", "model_provider", "model_id", "model_name", "max_attempts", "retry_interval", "backoff")
+    __slots__ = ("metatype", "id", "ck", "parent_ptr", "bench_ptr", "package_ptr", "created_at", "created_by_ptr", "updated_at", "updated_by_ptr", "archived_at", "deleted_at", "template_ptr", "mode", "order_key", "name", "cardinality", "text", "model_developer", "model_provider", "model_id", "model_name", "max_attempts", "retry_interval", "backoff")
     METATYPE_FIELD_NUMBER: _ClassVar[int]
     ID_FIELD_NUMBER: _ClassVar[int]
     CK_FIELD_NUMBER: _ClassVar[int]
@@ -2311,13 +2305,10 @@ class ActionData(_message.Message):
     DELETED_AT_FIELD_NUMBER: _ClassVar[int]
     TEMPLATE_PTR_FIELD_NUMBER: _ClassVar[int]
     MODE_FIELD_NUMBER: _ClassVar[int]
-    VALUE_FIELD_NUMBER: _ClassVar[int]
     ORDER_KEY_FIELD_NUMBER: _ClassVar[int]
-    TYPE_FIELD_NUMBER: _ClassVar[int]
     NAME_FIELD_NUMBER: _ClassVar[int]
+    CARDINALITY_FIELD_NUMBER: _ClassVar[int]
     TEXT_FIELD_NUMBER: _ClassVar[int]
-    CODE_FIELD_NUMBER: _ClassVar[int]
-    TOOL_PTR_FIELD_NUMBER: _ClassVar[int]
     MODEL_DEVELOPER_FIELD_NUMBER: _ClassVar[int]
     MODEL_PROVIDER_FIELD_NUMBER: _ClassVar[int]
     MODEL_ID_FIELD_NUMBER: _ClassVar[int]
@@ -2339,13 +2330,10 @@ class ActionData(_message.Message):
     deleted_at: _timestamp_pb2.Timestamp
     template_ptr: NodeReferenceData
     mode: NodeMode
-    value: ValueData
     order_key: str
-    type: ActionType
     name: str
+    cardinality: ActionCardinality
     text: TextData
-    code: CodeData
-    tool_ptr: NodeReferenceData
     model_developer: ModelDeveloper
     model_provider: ModelProvider
     model_id: str
@@ -2353,7 +2341,7 @@ class ActionData(_message.Message):
     max_attempts: int
     retry_interval: _duration_pb2.Duration
     backoff: float
-    def __init__(self, metatype: _Optional[_Union[NodeType, str]] = ..., id: _Optional[str] = ..., ck: _Optional[str] = ..., parent_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., bench_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., package_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., created_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., created_by_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., updated_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., updated_by_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., archived_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., deleted_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., template_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., mode: _Optional[_Union[NodeMode, str]] = ..., value: _Optional[_Union[ValueData, _Mapping]] = ..., order_key: _Optional[str] = ..., type: _Optional[_Union[ActionType, str]] = ..., name: _Optional[str] = ..., text: _Optional[_Union[TextData, _Mapping]] = ..., code: _Optional[_Union[CodeData, _Mapping]] = ..., tool_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., model_developer: _Optional[_Union[ModelDeveloper, str]] = ..., model_provider: _Optional[_Union[ModelProvider, str]] = ..., model_id: _Optional[str] = ..., model_name: _Optional[str] = ..., max_attempts: _Optional[int] = ..., retry_interval: _Optional[_Union[_duration_pb2.Duration, _Mapping]] = ..., backoff: _Optional[float] = ...) -> None: ...
+    def __init__(self, metatype: _Optional[_Union[NodeType, str]] = ..., id: _Optional[str] = ..., ck: _Optional[str] = ..., parent_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., bench_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., package_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., created_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., created_by_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., updated_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., updated_by_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., archived_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., deleted_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., template_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., mode: _Optional[_Union[NodeMode, str]] = ..., order_key: _Optional[str] = ..., name: _Optional[str] = ..., cardinality: _Optional[_Union[ActionCardinality, str]] = ..., text: _Optional[_Union[TextData, _Mapping]] = ..., model_developer: _Optional[_Union[ModelDeveloper, str]] = ..., model_provider: _Optional[_Union[ModelProvider, str]] = ..., model_id: _Optional[str] = ..., model_name: _Optional[str] = ..., max_attempts: _Optional[int] = ..., retry_interval: _Optional[_Union[_duration_pb2.Duration, _Mapping]] = ..., backoff: _Optional[float] = ...) -> None: ...
 
 class AgentData(_message.Message):
     __slots__ = ("metatype", "id", "ck", "parent_ptr", "bench_ptr", "package_ptr", "created_at", "created_by_ptr", "updated_at", "updated_by_ptr", "archived_at", "deleted_at", "template_ptr", "owned_by_ptr", "mode", "value", "order_key", "name", "icon", "block_ptr", "page_ptr", "cursor_ptr", "status", "duration", "error", "interruption_ptr", "scheduled_at", "started_at", "active_at", "interrupted_at", "terminated_at", "requested_stop_at", "requested_pause_at", "requested_resume_at", "model_developer", "model_provider", "model_id", "model_name", "max_attempts", "retry_interval", "backoff")
@@ -2990,7 +2978,7 @@ class DimensionData(_message.Message):
     def __init__(self, metatype: _Optional[_Union[StructType, str]] = ..., type: _Optional[_Union[DimensionType, str]] = ..., unit: _Optional[_Union[LengthUnit, str]] = ..., value: _Optional[float] = ...) -> None: ...
 
 class EditData(_message.Message):
-    __slots__ = ("metatype", "id", "type", "operation", "node_ptr", "path", "key", "value", "parent_ptr", "edited_at")
+    __slots__ = ("metatype", "id", "type", "operation", "node_ptr", "path", "key", "value", "parent_ptr")
     METATYPE_FIELD_NUMBER: _ClassVar[int]
     ID_FIELD_NUMBER: _ClassVar[int]
     TYPE_FIELD_NUMBER: _ClassVar[int]
@@ -3000,7 +2988,6 @@ class EditData(_message.Message):
     KEY_FIELD_NUMBER: _ClassVar[int]
     VALUE_FIELD_NUMBER: _ClassVar[int]
     PARENT_PTR_FIELD_NUMBER: _ClassVar[int]
-    EDITED_AT_FIELD_NUMBER: _ClassVar[int]
     metatype: StructType
     id: str
     type: EditType
@@ -3010,8 +2997,7 @@ class EditData(_message.Message):
     key: ValueData
     value: ValueData
     parent_ptr: NodeReferenceData
-    edited_at: _timestamp_pb2.Timestamp
-    def __init__(self, metatype: _Optional[_Union[StructType, str]] = ..., id: _Optional[str] = ..., type: _Optional[_Union[EditType, str]] = ..., operation: _Optional[_Union[UpdateType, str]] = ..., node_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., path: _Optional[str] = ..., key: _Optional[_Union[ValueData, _Mapping]] = ..., value: _Optional[_Union[ValueData, _Mapping]] = ..., parent_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., edited_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ...) -> None: ...
+    def __init__(self, metatype: _Optional[_Union[StructType, str]] = ..., id: _Optional[str] = ..., type: _Optional[_Union[EditType, str]] = ..., operation: _Optional[_Union[UpdateType, str]] = ..., node_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., path: _Optional[str] = ..., key: _Optional[_Union[ValueData, _Mapping]] = ..., value: _Optional[_Union[ValueData, _Mapping]] = ..., parent_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ...) -> None: ...
 
 class EffectData(_message.Message):
     __slots__ = ("metatype", "type", "style_ptr", "opacity", "offset", "scale", "rotate", "skew", "perspective", "delay", "duration", "threshold", "once", "repeat", "split", "offscreen", "transition")

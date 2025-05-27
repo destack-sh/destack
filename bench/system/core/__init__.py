@@ -10,12 +10,10 @@ from .access import (
 from .aws import get_s3_client
 from .session import (
     BEGINNING_OF_TIME,
-    global_database_from_env,
+    get_global_database_from_env,
+    get_regional_database_from_env,
     global_session,
-    local_pg_engine_from_database,
     make_system_database,
-    pg_engine_from_database,
-    regional_database_from_env,
 )
 from .sharding import (
     DATABASE_MAP,
@@ -42,12 +40,10 @@ __all__ = [
     "HostMap",
     "StaticHostMap",
     "check_password",
+    "get_global_database_from_env",
+    "get_regional_database_from_env",
     "get_s3_client",
-    "global_database_from_env",
     "global_session",
     "hash_password",
-    "local_pg_engine_from_database",
     "make_system_database",
-    "pg_engine_from_database",
-    "regional_database_from_env",
 ]

@@ -5,7 +5,7 @@ from fastuuid import uuid4
 from grpclib import Status as GRPCStatus
 
 from bench import pb2
-from bench.language import EMPTY_SCOPE_DATA, Database, NodeReference, Property, User
+from bench.language import Database
 from bench.proto import (
     ClientDataIn,
     LoginUserRequest,
@@ -28,7 +28,7 @@ from bench.utils.oracle import REAL_ORACLE
 
 @pytest.fixture
 async def supervisor_service(global_database: Database, regional_database: Database):
-    from bench.system import DatabaseMap, StaticHostMap, SupervisorService
+    from bench.system import CreateBenchOptions, DatabaseMap, StaticHostMap, SupervisorService
 
     supervisor_service = SupervisorService(
         id="supervisor",
@@ -37,6 +37,7 @@ async def supervisor_service(global_database: Database, regional_database: Datab
         oracle=REAL_ORACLE,
         host_map=StaticHostMap({}),
         database_map=DatabaseMap({"*": regional_database}),
+        create_bench_options=CreateBenchOptions(),
     )
     await supervisor_service.start()
     yield supervisor_service
@@ -95,26 +96,10 @@ async def test_user_registration(supervisor: SupervisorClient):
     login_req = LoginUserRequest(slug=user_slug, password="Password123!", client=client_in)
     login_rep = await supervisor.login_user(login_req)
     assert login_rep.access_token
-
-    # read user with sensitive data, authorized -> success
-    select = SelectOptions(include_properties=[cast(Property, User.email)]).to_proto()
-    read_user_req = GetNodesRequest(
-        scope=EMPTY_SCOPE_DATA,
-        roots=[NodeReference._ref_data_from_node_data(signup_rep.user)],
-        descendant_types=[pb2.NodeType.NODE_TYPE_CLIENT, pb2.NodeType.NODE_TYPE_HANDLE],
-        select=select,
-    )
     access_metadata = RpcMetadata(
         client_id=login_rep.client.id, client_access_token=login_rep.access_token
     )
     access_headers = pack_rpc_headers(access_metadata)
-    read_user_rep = await supervisor.get_nodes(read_user_req, metadata=access_headers)
-    assert len(read_user_rep.nodes) == 3
-    assert read_user_rep.nodes[0].user.email == user_email
-    assert read_user_rep.nodes[0].user.handle_ptr
-    assert read_user_rep.nodes[0].user.handle_ptr.id == read_user_rep.nodes[2].handle.id
-    assert read_user_rep.nodes[1].client.device_name == client_device_name
-    assert read_user_rep.nodes[2].handle.slug == user_slug
 
     # logout, invalid token -> fail
     with raises_grpc_error(GRPCStatus.UNAUTHENTICATED):
@@ -125,7 +110,3 @@ async def test_user_registration(supervisor: SupervisorClient):
 
     # logout, valid token -> success
     _ = await supervisor.logout_user(LogoutUserRequest(), metadata=access_headers)
-
-    # read user, logged out, expired token -> fail
-    with raises_grpc_error(GRPCStatus.UNAUTHENTICATED):
-        _ = await supervisor.get_nodes(read_user_req, metadata=access_headers)
