@@ -20,8 +20,8 @@ from bench.language.core import (
     PrimitiveType,
     Property,
     StructType,
-    TypeAnnotation,
 )
+from bench.language.core.property import IntoType
 from bench.language.core.value import pack_proto_json, unpack_proto_json
 from bench.language.registry import (
     BUILTIN_OBJECT_CLASS_BY_TYPE,
@@ -182,7 +182,7 @@ def _generate_unpack_proto(cls: type["BuiltinObject"]) -> str:
     return "\n".join(unpack_method_parts)
 
 
-def _is_proto_primitive(prop: "Property | TypeAnnotation") -> bool:
+def _is_proto_primitive(prop: "Property | IntoType") -> bool:
     """Check if a property is a proto primitive type."""
     return prop.cardinality == "scalar" and (
         prop.scalar_type == "enum"
@@ -219,16 +219,23 @@ def _generate_pack_property(prop: "Property") -> list[str] | None:
             else:
                 lines.append(f"object_data.{prop.name}.CopyFrom({scalar_expr})")
     elif prop.cardinality == "list":
-        lines.extend(
-            f"""\
-if {obj_value}:
-    for _item in {obj_value}:""".splitlines()
-        )
         item_expr = _generate_pack_scalar(prop, "_item")
         if _is_proto_primitive(prop):
-            lines.append(f"        object_data.{prop.name}.append({item_expr})")
+            lines.extend(
+                f"""\
+if {obj_value}:
+    _packed_{prop.name} = []
+    for _item in {obj_value}:
+        _packed_{prop.name}.append({item_expr})
+    object_data.{prop.name} = _packed_{prop.name}""".splitlines()
+            )
         else:
-            lines.append(f"        object_data.{prop.name}.append().CopyFrom({item_expr})")
+            lines.extend(
+                f"""\
+if {obj_value}:
+    for _item in {obj_value}:
+        object_data.{prop.name}.append({item_expr})""".splitlines()
+            )
     elif prop.cardinality == "map":
         lines.extend(
             f"""\
@@ -302,7 +309,7 @@ for _key, _value in {data_value}.items():""".splitlines()
     return lines
 
 
-def _generate_pack_scalar(prop: "Property | TypeAnnotation", value_expr: str) -> str:
+def _generate_pack_scalar(prop: "Property | IntoType", value_expr: str) -> str:
     """Generate the packing code for a scalar value."""
 
     if prop.scalar_type == "primitive":
@@ -332,7 +339,7 @@ def _generate_pack_scalar(prop: "Property | TypeAnnotation", value_expr: str) ->
 
 
 def _generate_unpack_scalar(
-    prop: "Property | TypeAnnotation", value_expr: str, result_var: str
+    prop: "Property | IntoType", value_expr: str, result_var: str
 ) -> list[str]:
     """Generate the unpacking code for a scalar value."""
     lines: list[str] = []

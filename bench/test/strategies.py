@@ -8,7 +8,6 @@ import structlog
 from cachetools import cached
 from hypothesis import example, given, settings
 from hypothesis import strategies as st
-from hypothesis.strategies import SearchStrategy
 from hypothesis.strategies._internal.utils import cacheable, defines_strategy
 
 from bench.language import (
@@ -31,9 +30,7 @@ from bench.language import (
     ThemeColor,
     Type,
     TypeCardinality,
-    expand_node_types,
 )
-from bench.utils.fractional import INTEGER_ZERO
 from bench.utils.oracle import MAX_SCHEDULE_DURATION
 
 logger = structlog.get_logger(__name__)
@@ -82,27 +79,19 @@ DURATION_STRATEGY = st.floats(
     min_value=0, max_value=MAX_SCHEDULE_DURATION, allow_nan=False, allow_infinity=False
 )
 JSON_STRATEGY = st.none()  # not needed yet
-ORDER_KEY_STRATEGY = st.just(INTEGER_ZERO)  # NOTE :Test: generate order keys properly
+ORDER_KEY_STRATEGY = st.one_of(
+    st.just("a0"), st.just("a1"), st.just("a2"), st.just("a3"), st.just("a4")
+)
 BYTES_STRATEGY = st.binary(min_size=1, max_size=32)
-PROPERTY_STRATEGY = st.sampled_from(ALL_DECLARED_PROPERTIES)
 NAME_STRATEGY = st.text(alphabet=ascii_lowercase, min_size=1, max_size=64)
 SLUG_STRATEGY = st.text(alphabet=ascii_lowercase, min_size=1, max_size=64)
-
-TYPE_CARDINALITY_STRATEGY = st.sampled_from(TypeCardinality)
-SCALAR_TYPE_STRATEGY = st.sampled_from(ScalarType)
-PRIMITIVE_TYPE_STRATEGY = st.sampled_from(PrimitiveType)
-ENUM_TYPE_STRATEGY = st.sampled_from(EnumType)
-STRUCT_TYPE_STRATEGY = st.sampled_from(StructType)
-OBJECT_TYPE_STRATEGY: SearchStrategy[NodeType | StructType] = st.sampled_from(
-    list(NodeType) + list(StructType)
-)  # type: ignore
 
 
 @cacheable
 @defines_strategy()
 def properties(object_type: NodeType | StructType | None = None):
     if object_type is None:
-        return PROPERTY_STRATEGY
+        return st.sampled_from(ALL_DECLARED_PROPERTIES)
     else:
         object_cls = BUILTIN_OBJECT_CLASS_BY_TYPE[object_type]
         return st.sampled_from(
@@ -112,56 +101,65 @@ def properties(object_type: NodeType | StructType | None = None):
 
 @cacheable
 @defines_strategy()
-def from_type_scalar(typ: Type) -> st.SearchStrategy[Any]:
-    """Turns a type into a strategy for a scalar. Considers constraints."""
+def get_scalar_type_strategy(
+    typ: Type,
+) -> st.SearchStrategy[Any]:
+    """Get a strategy for generating scalar values based on the scalar type and specific type info."""
     if typ.scalar_type == ScalarType.PRIMITIVE:
-        # apply constraints to primitive types
-        assert typ.primitive_type is not None, f"{typ!r} has no primitive type"
-        if typ.primitive_type in (PrimitiveType.INT16, PrimitiveType.INT32, PrimitiveType.INT64):
-            min_value = cast(int, MIN_VALUE_BY_PRIMITIVE_TYPE[typ.primitive_type])
-            max_value = cast(int, MAX_VALUE_BY_PRIMITIVE_TYPE[typ.primitive_type])
-            return st.integers(min_value=min_value, max_value=max_value)
-        elif typ.primitive_type in (PrimitiveType.FLOAT32, PrimitiveType.FLOAT64):
-            min_value = cast(float, MIN_VALUE_BY_PRIMITIVE_TYPE[typ.primitive_type])
-            max_value = cast(float, MAX_VALUE_BY_PRIMITIVE_TYPE[typ.primitive_type])
-            return st.floats(
-                min_value=min_value,
-                max_value=max_value,
-                allow_nan=False,
-                allow_infinity=False,
-            )
-        elif typ.primitive_type == PrimitiveType.STRING:
-            return st.text(min_size=1)
-        else:
-            return STRATEGY_BY_PRIMITIVE_TYPE[typ.primitive_type]
+        assert typ.primitive_type is not None, "primitive_type required for PRIMITIVE scalar_type"
+        return get_primitive_strategy(typ.primitive_type)
     elif typ.scalar_type == ScalarType.ENUM:
-        assert typ.enum_type is not None, f"{typ!r} has no enum type"
+        assert typ.enum_type is not None, "enum_type required for ENUM scalar_type"
         enum_cls = ENUM_CLASS_BY_TYPE[typ.enum_type]
         return st.sampled_from(enum_cls)
     elif typ.scalar_type == ScalarType.STRUCT:
-        assert typ.struct_type is not None, f"{typ!r} has no struct type"
+        assert typ.struct_type is not None, "struct_type required for STRUCT scalar_type"
         return from_object_type(typ.struct_type)
     elif typ.scalar_type == ScalarType.NODE:
         return node_references(st.sampled_from(NODE_TYPES.tuple))
     else:
-        raise NotImplementedError(f"{typ!r} has no strategy yet")
+        assert_never(typ.scalar_type)
 
 
-def wrap_value_scalar(
+@cacheable
+@defines_strategy()
+def get_primitive_strategy(primitive_type: PrimitiveType) -> st.SearchStrategy[Any]:
+    """Get a strategy for generating primitive values with proper constraints."""
+    if primitive_type in (PrimitiveType.INT16, PrimitiveType.INT32, PrimitiveType.INT64):
+        min_value = cast(int, MIN_VALUE_BY_PRIMITIVE_TYPE[primitive_type])
+        max_value = cast(int, MAX_VALUE_BY_PRIMITIVE_TYPE[primitive_type])
+        return st.integers(min_value=min_value, max_value=max_value)
+    elif primitive_type in (PrimitiveType.FLOAT32, PrimitiveType.FLOAT64):
+        min_value = cast(float, MIN_VALUE_BY_PRIMITIVE_TYPE[primitive_type])
+        max_value = cast(float, MAX_VALUE_BY_PRIMITIVE_TYPE[primitive_type])
+        return st.floats(
+            min_value=min_value,
+            max_value=max_value,
+            allow_nan=False,
+            allow_infinity=False,
+        )
+    elif primitive_type == PrimitiveType.STRING:
+        return st.text(min_size=1)
+    else:
+        return STRATEGY_BY_PRIMITIVE_TYPE[primitive_type]
+
+
+def _wrap_value_scalar_strategy(
     strat: st.SearchStrategy,
     *,
     is_required: bool,
     cardinality: TypeCardinality,
     min_length: int = 0,
     max_length: int | None = None,
+    key_type: Type | None = None,
 ) -> st.SearchStrategy[Any]:
+    """Wrap a scalar strategy based on cardinality and requirements."""
     if cardinality == TypeCardinality.LIST:
         return st.lists(strat, min_size=min_length, max_size=max_length)
     elif cardinality == TypeCardinality.MAP:
-        # For maps, generate dictionaries with string keys
-        return st.dictionaries(
-            st.text(min_size=1, max_size=10), strat, min_size=min_length, max_size=max_length
-        )
+        assert key_type is not None, "key_type required for MAP cardinality"
+        key_strategy = get_type_strategy(key_type)
+        return st.dictionaries(key_strategy, strat, min_size=min_length, max_size=max_length)
     elif not is_required:
         return st.none() | strat
     else:
@@ -170,14 +168,16 @@ def wrap_value_scalar(
 
 @cacheable
 @defines_strategy()
-def from_type(typ: Type) -> st.SearchStrategy[Any]:
-    value_st = from_type_scalar(typ)
-    return wrap_value_scalar(
-        value_st,
+def get_type_strategy(typ: Type) -> st.SearchStrategy[Any]:
+    """Generate a strategy from a Type object, handling all cardinalities and constraints."""
+    scalar_strategy = get_scalar_type_strategy(typ)
+    return _wrap_value_scalar_strategy(
+        scalar_strategy,
         is_required=typ.is_required,
         cardinality=typ.cardinality,
         min_length=0,
         max_length=None,
+        key_type=typ.key_type,
     )
 
 
@@ -189,41 +189,13 @@ def get_naive_object_strategy(object_type: NodeType | StructType):
     for prop in object_cls.__wired_properties__.values():
         if prop.id is None or (prop.id < 30) or (prop.ptr_prop is not None) or prop.is_managed:
             continue  # ignore internal properties
-
-        # special overrides
         if (object_type, prop.name) in STRATEGY_BY_OBJECT_PROPERTY:
             object_kwargs[prop.name] = STRATEGY_BY_OBJECT_PROPERTY[object_type, prop.name]
         elif prop.name in STRATEGY_BY_PROPERTY:
             object_kwargs[prop.name] = STRATEGY_BY_PROPERTY[prop.name]
-
-        # special handling for node properties
-        if prop.scalar_type == ScalarType.NODE:
-            if not prop.nodes:
-                continue  # nothing to generate
-            # generate random reference instead of node (sometimes this is enough)
-            assert prop.ptr_prop is not None, f"{prop!r} has no wired ptr"
-            reference_nodes = expand_node_types(prop.nodes) or NODE_TYPES.tuple
-            object_kwargs[prop.ptr_prop.name] = wrap_value_scalar(
-                node_references(st.sampled_from(reference_nodes)),
-                is_required=prop.is_required,
-                cardinality=TypeCardinality[prop.cardinality.upper()],
-            )
-        elif prop.is_property:
-            object_kwargs[prop.name] = wrap_value_scalar(
-                properties(),
-                is_required=prop.is_required,
-                cardinality=TypeCardinality[prop.cardinality.upper()],
-            )
         else:
-            prop_type = Type(
-                cardinality=TypeCardinality[prop.cardinality.upper()],
-                scalar_type=ScalarType[prop.scalar_type.upper()],
-                primitive_type=prop.primitive_type,
-                enum_type=prop.enum_type,
-                struct_type=prop.struct_type,
-                is_required=prop.is_required,
-            )
-            object_kwargs[prop.name] = from_type(prop_type)
+            object_kwargs[prop.name] = get_type_strategy(prop.type)
+
     return object_kwargs
 
 
@@ -234,7 +206,7 @@ def from_object_type(
     /,
     **custom_strategies: st.SearchStrategy,
 ) -> st.SearchStrategy[BuiltinObject]:
-    # special case some types
+    # special cases
     if object_type == StructType.TYPE:
         return cast(st.SearchStrategy[BuiltinObject], types(SIMPLE_TYPE_CARDINALITIES))
     elif object_type == StructType.PROPERTY_REFERENCE:
@@ -246,12 +218,12 @@ def from_object_type(
     elif object_type == StructType.ICON:
         return cast(st.SearchStrategy[BuiltinObject], icons())
 
+    # naive strategy
     object_cls = BUILTIN_OBJECT_CLASS_BY_TYPE[object_type]
     object_dict = get_naive_object_strategy(object_type)
     if custom_strategies:
         object_dict = {**object_dict}
         object_dict.update(custom_strategies)
-
     buildf = object_cls
     return st.builds(buildf, **object_dict)
 
@@ -334,18 +306,18 @@ def draw_type_base_dict(
     draw: st.DrawFn, cardinalities: st.SearchStrategy[TypeCardinality]
 ) -> dict[str, Any]:
     cardinality = draw(cardinalities)
-    scalar_type = draw(SCALAR_TYPE_STRATEGY)
+    scalar_type = draw(st.sampled_from(ScalarType))
     primitive_type = None
     enum_type = None
     struct_type = None
     node_type = None
 
     if scalar_type == ScalarType.PRIMITIVE:
-        primitive_type = draw(PRIMITIVE_TYPE_STRATEGY)
+        primitive_type = draw(st.sampled_from(PrimitiveType))
     elif scalar_type == ScalarType.ENUM:
-        enum_type = draw(ENUM_TYPE_STRATEGY)
+        enum_type = draw(st.sampled_from(EnumType))
     elif scalar_type == ScalarType.STRUCT:
-        struct_type = draw(STRUCT_TYPE_STRATEGY)
+        struct_type = draw(st.sampled_from(StructType))
     elif scalar_type == ScalarType.NODE:
         node_type = draw(st.sampled_from(NODE_TYPES.tuple))
     else:
@@ -400,7 +372,10 @@ def icons(draw: st.DrawFn):
 @cacheable
 @st.composite
 def builtin_objects(
-    draw: st.DrawFn, object_types: st.SearchStrategy[NodeType | StructType] = OBJECT_TYPE_STRATEGY
+    draw: st.DrawFn,
+    object_types: st.SearchStrategy[NodeType | StructType] = st.sampled_from(  # noqa: B008
+        list(NodeType) + list(StructType)
+    ),
 ):
     object_type = draw(object_types)
     return draw(from_object_type(object_type))

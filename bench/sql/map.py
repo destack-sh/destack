@@ -82,7 +82,7 @@ def map_builtin_object_to_sql_table(
                 name=f"{prop.name}_id", type=PrimitiveType.UUID, is_nullable=not prop.is_required
             )
             columns.append(column)
-            node_types = expand_node_types(prop.nodes)
+            node_types = expand_node_types(prop.node_types)
             # ck
             if "ck" not in prop.node_exclude and any(
                 issubclass(NODE_CLASS_BY_TYPE[node_type], IsInstantiable)

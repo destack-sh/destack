@@ -37,9 +37,7 @@ if TYPE_CHECKING:
         Constraint,
         Format,
         PropertyReference,
-        ScalarType,
         Type,
-        TypeCardinality,
     )
 
     from .query import IntoQuery
@@ -104,25 +102,94 @@ def _try_resolve(
         return py_type
 
 
-@dataclass(eq=True, slots=True)
-class TypeAnnotation:
-    """Type annotation for a property."""
+@dataclass(slots=True)
+class IntoType:
+    """Type annotation to be turned into a Property/Type/Field."""
 
-    cardinality: Literal["scalar", "list", "map"]
-    type: typing.Type | str  # source type
-    scalar_type: Literal["primitive", "enum", "struct", "node"]
+    py_type: Any = None
+    cardinality: Literal["scalar", "list", "map"] = UNSET
+    scalar_type: Literal["primitive", "enum", "struct", "node"] = UNSET
     primitive_type: PrimitiveType | None = None
     enum_type: EnumType | None = None
     struct_type: StructType | None = None
     node_types: tuple[NodeType | TraitType, ...] = ()  # for node scalar nodes
-    key_type: "TypeAnnotation | None" = None
+    key_type: "IntoType | None" = None
     is_required: bool = True
     is_variable: bool = False
+
+    default: Any = UNSET
+    default_factory: Literal["uuid", "now"] | None = None
+    format: "Format | None" = None
+    constraint: "Constraint | None" = None
+
+    def _to_type(self) -> "Type":
+        """Create the Type for this Property."""
+        from .type import (
+            CollectionConstraint,
+            DefaultFactory,
+            NodeConstraint,
+            NumberConstraint,
+            NumberFormat,
+            ScalarType,
+            StringConstraint,
+            StringFormat,
+            Type,
+            TypeCardinality,
+        )
+
+        # type
+        type_cardinality = TypeCardinality[self.cardinality.upper()]
+        scalar_type = ScalarType[self.scalar_type.upper()]
+        default = self.default if self.default is not UNSET else None
+        default_factory = (
+            DefaultFactory[self.default_factory.upper()] if self.default_factory else None
+        )
+        type_obj = Type(
+            cardinality=type_cardinality,
+            scalar_type=scalar_type,
+            primitive_type=self.primitive_type,
+            enum_type=self.enum_type,
+            node_type=None,
+            struct_type=self.struct_type,
+            is_required=self.is_required,
+            is_variable=self.is_variable,
+            default=default,
+            default_factory=default_factory,
+            key_type=self.key_type._to_type() if self.key_type else None,
+        )
+
+        # constraints
+        if self.constraint is not None:
+            if isinstance(self.constraint, StringConstraint):
+                type_obj.string_constraint = self.constraint
+            elif isinstance(self.constraint, NumberConstraint):
+                type_obj.number_constraint = self.constraint
+            elif isinstance(self.constraint, CollectionConstraint):
+                type_obj.collection_constraint = self.constraint
+            elif isinstance(self.constraint, NodeConstraint):
+                type_obj.node_constraint = self.constraint
+            else:
+                assert_never(self.constraint)
+
+        # format
+        if self.format is not None:
+            if isinstance(self.format, StringFormat):
+                if not isinstance(self.constraint, StringConstraint):
+                    self.constraint = StringConstraint()
+                self.constraint.format = self.format
+            elif isinstance(self.format, NumberFormat):
+                if not isinstance(self.constraint, NumberConstraint):
+                    self.constraint = NumberConstraint()
+                self.constraint.format = self.format
+            else:
+                assert_never(self.format)
+
+        return type_obj
 
 
 def parse_type_annotation(
     py_type: type | str | typing.ForwardRef, type_map: Mapping[str, type] = EMPTY_DICT
-) -> TypeAnnotation:
+) -> IntoType:
     """Parses the type information from a given py type. Uses type map to resolve forward refs."""
     is_required = True
     is_variable = False
@@ -155,9 +222,9 @@ def parse_type_annotation(
         element_annotation = parse_type_annotation(typing.get_args(py_type)[0], type_map)
         assert not element_annotation.is_variable, f"variable element: {py_type!r}"
         assert element_annotation.cardinality == "scalar", f"non-scalar element: {py_type!r}"
-        return TypeAnnotation(
+        return IntoType(
             cardinality="list",
-            type=py_type,
+            py_type=py_type,
             scalar_type=element_annotation.scalar_type,
             primitive_type=element_annotation.primitive_type,
             enum_type=element_annotation.enum_type,
@@ -187,9 +254,9 @@ def parse_type_annotation(
                 if union_class_name and (new_node_types := _resolve_node_types(union_class_name)):
                     node_types.extend(new_node_types)
             assert node_types, f"non-node union: {py_type!r}"
-            return TypeAnnotation(
+            return IntoType(
                 cardinality="scalar",
-                type=py_type,
+                py_type=py_type,
                 scalar_type="node",
                 node_types=tuple(node_types),
                 is_required=is_required,
@@ -205,9 +272,9 @@ def parse_type_annotation(
         value_annotation = parse_type_annotation(value_type_arg, type_map)
         assert not value_annotation.is_variable, f"variable value: {py_type!r}"
         assert value_annotation.cardinality == "scalar", f"non-scalar value: {py_type!r}"
-        return TypeAnnotation(
+        return IntoType(
             cardinality="map",
-            type=py_type,
+            py_type=py_type,
             key_type=key_annotation,
             scalar_type=value_annotation.scalar_type,
             primitive_type=value_annotation.primitive_type,
@@ -241,9 +308,9 @@ def parse_type_annotation(
     assert scalar_type is not None, f"undetermined scalar type: {py_type!r}"
 
     # default: scalar
-    return TypeAnnotation(
+    return IntoType(
         cardinality="scalar",
-        type=py_type,
+        py_type=py_type,
         scalar_type=scalar_type,
         primitive_type=primitive_type,
         enum_type=enum_type,
@@ -267,7 +334,7 @@ def get_class_name(py_type: type | typing.ForwardRef | str) -> str | None:
 
 
 @dataclass(eq=False, slots=True)
-class Property(IntoQuery if TYPE_CHECKING else object):
+class Property(IntoType, IntoQuery if TYPE_CHECKING else object):
     """A system-defined attribute of a BuiltinObject (Struct or Node)."""
 
     # meta
@@ -278,27 +345,9 @@ class Property(IntoQuery if TYPE_CHECKING else object):
     description: str | None = None
     component: type["BuiltinObject"] = UNSET  # builtin object component
 
-    # type
-    py_type_raw: Any = None  # type annotation on LHS of assignment
-    py_type: Any = UNSET  # clean type annotation
-    cardinality: Literal["scalar", "list", "map"] = UNSET
-    scalar_type: Literal["primitive", "enum", "struct", "node"] = UNSET
-    primitive_type: PrimitiveType | None = None
-    enum_type: EnumType | None = None
-    struct_type: StructType | None = None
-    key_type: "TypeAnnotation | None" = None
-    element_type: "TypeAnnotation | None" = None
-    is_required: bool = False
-    is_variable: bool = False
-    default: Any = UNSET
-    default_factory: Literal["uuid", "now"] | None = None
-    format: "Format | None" = None
-    constraint: "Constraint | None" = None
-
     # pointers
     ptr_prop: Optional["Property"] = None  # wired representation for pointers
     runtime_prop: Optional["Property"] = None  # for the proto property
-    nodes: tuple[NodeType | TraitType, ...] = ()  # for node relations
     node_kind: NodeEdgeKind | None = None
     node_bench_from: Literal["self"] | None = None
     node_exclude: tuple[Literal["ck", "base_id"], ...] = ()
@@ -443,7 +492,7 @@ class Property(IntoQuery if TYPE_CHECKING else object):
                 name=self.name + "_ptr",
                 component=self.component,
                 node_kind=self.node_kind,
-                nodes=self.nodes,
+                node_types=self.node_types,
                 runtime_prop=self,
                 scalar_type="node",
                 struct_type=StructType.NODE_REFERENCE,
@@ -471,18 +520,17 @@ class Property(IntoQuery if TYPE_CHECKING else object):
 
         # parse annotation
         try:
-            annotation = parse_type_annotation(self.py_type_raw, EMPTY_DICT)
+            annotation = parse_type_annotation(self.py_type, EMPTY_DICT)
         except Exception as e:
             raise ValueError(
-                f"invalid type: {self.component.__name__}.{self.name} ({self.py_type_raw})"
+                f"invalid type: {self.component.__name__}.{self.name} ({self.py_type})"
             ) from e
-        self.py_type = annotation.type
         self.cardinality = annotation.cardinality
         self.scalar_type = annotation.scalar_type
         self.primitive_type = annotation.primitive_type
         self.enum_type = annotation.enum_type
         self.struct_type = annotation.struct_type
-        self.nodes = annotation.node_types
+        self.node_types = annotation.node_types
         self.key_type = annotation.key_type
         self.is_required = annotation.is_required
         self.is_variable = annotation.is_variable
@@ -506,7 +554,7 @@ class Property(IntoQuery if TYPE_CHECKING else object):
 
         # node templates always point to their own type
         if self.node_kind == NodeEdgeKind.NODE_TEMPLATE and object_type is not None:
-            self.nodes = (NodeType(object_type),)
+            self.node_types = (NodeType(object_type),)
         # references get a _ptr property (which is wired/stored)
         if self.node_kind is not None or self.is_property:
             # (don't want lists of Node references or Property references in Nodes, it's a mess)
@@ -531,113 +579,7 @@ class Property(IntoQuery if TYPE_CHECKING else object):
                 self.primitive_type = PrimitiveType.JSON
         assert (
             self.primitive_type is not None
-        ), f"undetermined type {self.py_type_raw!r} for {self!r} ({annotation!r})"
-
-    @staticmethod
-    def _to_type_cardinality(cardinality: Literal["scalar", "list", "map"]) -> "TypeCardinality":
-        """Convert the cardinality to a TypeCardinality."""
-        from .type import TypeCardinality
-
-        if cardinality == "scalar":
-            return TypeCardinality.SCALAR
-        elif cardinality == "list":
-            return TypeCardinality.LIST
-        elif cardinality == "map":
-            return TypeCardinality.MAP
-        else:
-            assert_never(cardinality)
-
-    @staticmethod
-    def _to_scalar_type(
-        scalar_type: Literal["primitive", "enum", "struct", "node"],
-    ) -> "ScalarType":
-        """Convert the scalar type to a ScalarType."""
-        from .type import ScalarType
-
-        if scalar_type == "primitive":
-            return ScalarType.PRIMITIVE
-        elif scalar_type == "enum":
-            return ScalarType.ENUM
-        elif scalar_type == "struct":
-            return ScalarType.STRUCT
-        elif scalar_type == "node":
-            return ScalarType.NODE
-        else:
-            assert_never(scalar_type)
-
-    def _to_type(self) -> "Type":
-        """Create the Type for this Property."""
-        from .type import (
-            CollectionConstraint,
-            DefaultFactory,
-            NodeConstraint,
-            NumberConstraint,
-            NumberFormat,
-            StringConstraint,
-            StringFormat,
-            Type,
-            TypeCardinality,
-        )
-
-        # key_type
-        key_type = None
-        if self.key_type is not None:
-            assert self.key_type.cardinality == "scalar", f"invalid key: {self.key_type!r}"
-            key_type = Type(
-                cardinality=TypeCardinality.SCALAR,
-                scalar_type=self._to_scalar_type(self.key_type.scalar_type),
-                primitive_type=self.key_type.primitive_type,
-                enum_type=self.key_type.enum_type,
-                struct_type=self.key_type.struct_type,
-                node_type=None,
-            )
-
-        # type
-        type_cardinality = self._to_type_cardinality(self.cardinality)
-        scalar_type = self._to_scalar_type(self.scalar_type)
-        type_obj = Type(
-            cardinality=type_cardinality,
-            scalar_type=scalar_type,
-            primitive_type=self.primitive_type,
-            enum_type=self.enum_type,
-            node_type=None,
-            struct_type=self.struct_type,
-            is_required=self.is_required,
-            is_variable=self.is_variable,
-            default=self.default if self.default is not UNSET else None,
-            default_factory=DefaultFactory[self.default_factory.upper()]
-            if self.default_factory
-            else None,
-            key_type=key_type,
-        )
-
-        # constraints
-        if self.constraint is not None:
-            if isinstance(self.constraint, StringConstraint):
-                type_obj.string_constraint = self.constraint
-            elif isinstance(self.constraint, NumberConstraint):
-                type_obj.number_constraint = self.constraint
-            elif isinstance(self.constraint, CollectionConstraint):
-                type_obj.collection_constraint = self.constraint
-            elif isinstance(self.constraint, NodeConstraint):
-                type_obj.node_constraint = self.constraint
-            else:
-                assert_never(self.constraint)
-
-        # format
-        if self.format is not None:
-            if isinstance(self.format, StringFormat):
-                if not isinstance(self.constraint, StringConstraint):
-                    self.constraint = StringConstraint()
-                self.constraint.format = self.format
-            elif isinstance(self.format, NumberFormat):
-                if not isinstance(self.constraint, NumberConstraint):
-                    self.constraint = NumberConstraint()
-                self.constraint.format = self.format
-            else:
-                assert_never(self.format)
-
-        return type_obj
+        ), f"undetermined type {self.py_type!r} for {self!r} ({annotation!r})"
 
 
 @_on_completing_setup

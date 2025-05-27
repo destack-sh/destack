@@ -702,9 +702,9 @@ def _generate_node_ancestor_property_impl(
 ) -> str:
     """The machine get property for Node ancestors."""
 
-    node_types_str = ", ".join(str(t.value) for t in prop.nodes)
+    node_types_str = ", ".join(str(t.value) for t in prop.node_types)
 
-    if prop.node_kind == NodeEdgeKind.NODE_ANCESTOR and object_type in prop.nodes:
+    if prop.node_kind == NodeEdgeKind.NODE_ANCESTOR and object_type in prop.node_types:
         return f"""\
 @property
 def {prop.name}(self: "Node") -> "Node":
@@ -756,7 +756,7 @@ def _process_object_cls[ObjectT: BuiltinObject](
         id=1,
         name="metatype",
         default=None,
-        py_type_raw=NodeType if is_node else StructType,
+        py_type=NodeType if is_node else StructType,
         cardinality="scalar",
         is_required=True,
         is_computed=True,  # is set statically by class decorator
@@ -791,7 +791,7 @@ def _process_object_cls[ObjectT: BuiltinObject](
             raise TypeError(f"{cls.__name__}.{name} is not a Property: {prop} ({type(prop)})")
         prop.name = intern(name)
         prop.component = cls
-        prop.py_type_raw = cls.__annotations__.get(name, None)
+        prop.py_type = cls.__annotations__.get(name, None)
         properties[name] = prop
     cls.__declared_properties__ = frozendict(properties)
 
@@ -909,7 +909,7 @@ def _process_object_cls[ObjectT: BuiltinObject](
             # computed _x node reference properties (e.g., parent_id, node_ck, node_type, ...)
             if prop.is_node_reference:
                 for obj_key, ptr_key in (("id", "id"), ("ck", "ck"), ("type", "node_type")):
-                    if obj_key == "type" and (not prop.nodes or len(prop.nodes) <= 1):
+                    if obj_key == "type" and (not prop.node_types or len(prop.node_types) <= 1):
                         continue  # no need for *_type if only one possible node type
                     node_key_property_str = _generate_node_key_property_impl(obj_key, ptr_key, prop)
                     exec(node_key_property_str, {}, cls_dict)
