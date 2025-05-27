@@ -136,7 +136,9 @@ from_proto = __unpack_proto__
         "pack_proto_json": pack_proto_json,
         "unpack_proto_json": unpack_proto_json,
         "pack_proto_timestamp": pack_proto_timestamp,
+        "unpack_proto_timestamp": unpack_proto_timestamp,
         "pack_proto_duration": pack_proto_duration,
+        "unpack_proto_duration": unpack_proto_duration,
     }
 
 
@@ -362,9 +364,9 @@ def _generate_unpack_scalar(prop: "Property | IntoType", value_expr: str) -> str
         elif prop.primitive_type == PrimitiveType.JSON:
             return f"unpack_proto_json({value_expr})"
         elif prop.primitive_type == PrimitiveType.DATETIME:
-            return f"{value_expr}.ToDatetime(tzinfo=pytz.utc)"
+            return f"unpack_proto_timestamp({value_expr})"
         elif prop.primitive_type == PrimitiveType.DURATION:
-            return f"{value_expr}.ToTimedelta()"
+            return f"unpack_proto_duration({value_expr})"
         else:
             return f"{value_expr}"
     elif prop.scalar_type == "enum":
@@ -381,16 +383,28 @@ def _generate_unpack_scalar(prop: "Property | IntoType", value_expr: str) -> str
         assert_never(prop.scalar_type)
 
 
+_EPOCH_DATETIME_NAIVE = datetime(1970, 1, 1, tzinfo=None)  # noqa: DTZ001
+
+
 def pack_proto_timestamp(dt: datetime) -> Timestamp:
     seconds = calendar.timegm(dt.utctimetuple())
     nanos = dt.microsecond * 1000
     return Timestamp(seconds=seconds, nanos=nanos)
 
 
+def unpack_proto_timestamp(timestamp: Timestamp) -> datetime:
+    delta = timedelta(seconds=timestamp.seconds, microseconds=timestamp.nanos // 1000)
+    return (_EPOCH_DATETIME_NAIVE + delta).replace(tzinfo=pytz.utc)
+
+
 def pack_proto_duration(td: timedelta) -> Duration:
-    seconds = td.total_seconds()
+    seconds = round(td.total_seconds() - (td.microseconds / 1000000))
     nanos = td.microseconds * 1000
-    return Duration(seconds=int(seconds), nanos=nanos)
+    return Duration(seconds=seconds, nanos=nanos)
+
+
+def unpack_proto_duration(duration: Duration) -> timedelta:
+    return timedelta(seconds=duration.seconds, microseconds=duration.nanos // 1000)
 
 
 def wrap_some_node(node: AnyNodeData) -> pb2.SomeNodeData:
@@ -399,13 +413,6 @@ def wrap_some_node(node: AnyNodeData) -> pb2.SomeNodeData:
     field_name = to_casing(cast(str, NodeType(node.metatype).name), Casing.SNAKE)
     getattr(wrapper, field_name).CopyFrom(node)
     return wrapper
-
-
-def wrap_some_node_maybe(node: AnyNodeData | None) -> pb2.SomeNodeData | None:
-    if node is None:
-        return None
-    else:
-        return wrap_some_node(node)
 
 
 def unwrap_some_node(node: pb2.SomeNodeData) -> AnyNodeData:
