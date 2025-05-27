@@ -68,11 +68,11 @@ class Session:
 
     @property
     def edits(self) -> Sequence[EditData]:
-        return self.tx._edits if self.tx is not None else ()
+        return self.tx.edits if self.tx is not None else ()
 
     @property
     def cascaded_edits(self) -> Sequence[EditData]:
-        return self.tx._cascaded_edits if self.tx is not None else ()
+        return self.tx.cascaded_edits if self.tx is not None else ()
 
     @property
     def has_edits(self) -> bool:

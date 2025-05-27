@@ -84,12 +84,12 @@ async def test_clone_with_cross_references(simulation: Simulation, runtime: Runt
     # cloning an inline node should be consistent with its definition counterpart
     schema_block_clone = schema_block.clone()
     assert schema_block_clone.node is not schema
-    assert schema_block_clone.get_node_as(Schema).definition is schema_block_clone
+    assert schema_block_clone.get_node_as(Schema).block is schema_block_clone
     # other way around
     flow_clone = flow.clone()
-    assert flow_clone.definition is not None
-    assert flow_clone.definition is not flow_block
-    assert flow_clone.definition.get_node_as(Flow) is flow_clone
+    assert flow_clone.block is not None
+    assert flow_clone.block is not flow_block
+    assert flow_clone.block.get_node_as(Flow) is flow_clone
 
     # references should be consistent within new subtree
     page_clone = page.clone()

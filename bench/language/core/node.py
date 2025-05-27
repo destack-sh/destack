@@ -153,7 +153,7 @@ class Node[NodeDataT: AnyNodeData](BuiltinObject[NodeDataT]):
         is_managed=True,
         is_eq=False,
         node_bench_from="self",
-        node_exclude=("ck", "table_id"),
+        node_exclude=("ck", "definition_id"),
         can_write="system",
     )
     updated_at: datetime = property_(12, is_managed=True, is_eq=False, can_write="system")
@@ -163,7 +163,7 @@ class Node[NodeDataT: AnyNodeData](BuiltinObject[NodeDataT]):
         is_managed=True,
         is_eq=False,
         node_bench_from="self",
-        node_exclude=("ck", "table_id"),
+        node_exclude=("ck", "definition_id"),
         can_write="system",
     )
     if TYPE_CHECKING:
@@ -264,7 +264,7 @@ class Node[NodeDataT: AnyNodeData](BuiltinObject[NodeDataT]):
             if clone_parent is None and not detach:
                 clone_parent = self.parent
             if isinstance(self, Block):
-                if isinstance(node := self.node, IsBlockable) and node.definition_id == self.id:
+                if isinstance(node := self.node, IsBlockable) and node.block_id == self.id:
                     assert clone_parent is not None, f"cannot clone detached {self!r}"
                     cloned_node = node.clone(
                         reset=reset,
@@ -275,10 +275,10 @@ class Node[NodeDataT: AnyNodeData](BuiltinObject[NodeDataT]):
                         _ignore_definition=True,
                     )
                     cast(Block, clone).node_ptr = cloned_node.to_ref()
-                    cloned_node.definition_ptr = clone.to_ref()
-            elif isinstance(self, IsBlockable) and (definition := self.definition) is not None:
+                    cloned_node.block_ptr = clone.to_ref()
+            elif isinstance(self, IsBlockable) and (block := self.block) is not None:
                 assert clone_parent is not None, f"cannot clone detached {self!r}"
-                cloned_node = definition.clone(
+                cloned_node = block.clone(
                     reset=reset,
                     recursive=True,
                     detach=True,
@@ -286,7 +286,7 @@ class Node[NodeDataT: AnyNodeData](BuiltinObject[NodeDataT]):
                     _is_nested=True,
                     _ignore_definition=True,
                 )
-                cast(IsBlockable, clone).definition_ptr = cloned_node.to_ref()
+                cast(IsBlockable, clone).block_ptr = cloned_node.to_ref()
                 cloned_node.node_ptr = clone.to_ref()
 
         # clone children and append to self (recursive)

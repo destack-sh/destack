@@ -8,10 +8,10 @@ from bench.language.core import (
     IsInPackage,
     IsLocal,
     IsModal,
+    IsNodeInstance,
     Node,
     NodeType,
     node_,
-    property_,
     property_parent_,
 )
 from bench.pb2 import RecordData
@@ -27,6 +27,7 @@ logger = structlog.get_logger(__name__)
 @node_(NodeType.RECORD)
 class Record(
     IsLocal,
+    IsNodeInstance,
     IsModal,
     IsExtensible,
     IsInPackage,
@@ -40,7 +41,6 @@ class Record(
     # meta
     parent: Union["Table", "Record", None] = property_parent_()
     # type: RecordType?
-    table: "Table" = property_(36, description="The Table this Record is from.")
 
     # target: Page/Task/...? (tie Record to a Page for a Notion-like experience in some Tables)
     # ... general Record/Page/Block 'tying'? :NodeTying

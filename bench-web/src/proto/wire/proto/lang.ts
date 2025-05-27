@@ -218,9 +218,9 @@ export interface AgentData {
      */
     icon?: IconData;
     /**
-     * @generated from protobuf field: optional symbol.bench.NodeReferenceData definition_ptr = 35;
+     * @generated from protobuf field: optional symbol.bench.NodeReferenceData block_ptr = 35;
      */
-    definitionPtr?: NodeReferenceData;
+    blockPtr?: NodeReferenceData;
     /**
      * @generated from protobuf field: optional symbol.bench.NodeReferenceData page_ptr = 54;
      */
@@ -758,9 +758,9 @@ export interface BorderStyleData {
      */
     name: string;
     /**
-     * @generated from protobuf field: optional symbol.bench.NodeReferenceData definition_ptr = 35;
+     * @generated from protobuf field: optional symbol.bench.NodeReferenceData block_ptr = 35;
      */
-    definitionPtr?: NodeReferenceData;
+    blockPtr?: NodeReferenceData;
     /**
      * @generated from protobuf field: optional symbol.bench.NodeReferenceData style_ptr = 41;
      */
@@ -1015,9 +1015,9 @@ export interface ColorStyleData {
      */
     name: string;
     /**
-     * @generated from protobuf field: optional symbol.bench.NodeReferenceData definition_ptr = 35;
+     * @generated from protobuf field: optional symbol.bench.NodeReferenceData block_ptr = 35;
      */
-    definitionPtr?: NodeReferenceData;
+    blockPtr?: NodeReferenceData;
     /**
      * @generated from protobuf field: optional symbol.bench.NodeReferenceData style_ptr = 42;
      */
@@ -1284,9 +1284,9 @@ export interface DatabaseData {
      */
     name: string;
     /**
-     * @generated from protobuf field: optional symbol.bench.NodeReferenceData definition_ptr = 35;
+     * @generated from protobuf field: optional symbol.bench.NodeReferenceData block_ptr = 35;
      */
-    definitionPtr?: NodeReferenceData;
+    blockPtr?: NodeReferenceData;
     /**
      * @generated from protobuf field: symbol.bench.ResourceStatus status = 40;
      */
@@ -1550,9 +1550,9 @@ export interface EffectStyleData {
      */
     name: string;
     /**
-     * @generated from protobuf field: optional symbol.bench.NodeReferenceData definition_ptr = 35;
+     * @generated from protobuf field: optional symbol.bench.NodeReferenceData block_ptr = 35;
      */
-    definitionPtr?: NodeReferenceData;
+    blockPtr?: NodeReferenceData;
     /**
      * @generated from protobuf field: optional symbol.bench.NodeReferenceData style_ptr = 41;
      */
@@ -1906,9 +1906,9 @@ export interface FileData {
      */
     name: string;
     /**
-     * @generated from protobuf field: optional symbol.bench.NodeReferenceData definition_ptr = 35;
+     * @generated from protobuf field: optional symbol.bench.NodeReferenceData block_ptr = 35;
      */
-    definitionPtr?: NodeReferenceData;
+    blockPtr?: NodeReferenceData;
     /**
      * @generated from protobuf field: symbol.bench.FileSource source = 60;
      */
@@ -2098,9 +2098,9 @@ export interface FlowData {
      */
     name: string;
     /**
-     * @generated from protobuf field: optional symbol.bench.NodeReferenceData definition_ptr = 35;
+     * @generated from protobuf field: optional symbol.bench.NodeReferenceData block_ptr = 35;
      */
-    definitionPtr?: NodeReferenceData;
+    blockPtr?: NodeReferenceData;
     /**
      * @generated from protobuf field: optional symbol.bench.ModelDeveloper model_developer = 100;
      */
@@ -2349,9 +2349,9 @@ export interface FontStyleData {
      */
     name: string;
     /**
-     * @generated from protobuf field: optional symbol.bench.NodeReferenceData definition_ptr = 35;
+     * @generated from protobuf field: optional symbol.bench.NodeReferenceData block_ptr = 35;
      */
-    definitionPtr?: NodeReferenceData;
+    blockPtr?: NodeReferenceData;
     /**
      * @generated from protobuf field: optional symbol.bench.NodeReferenceData style_ptr = 41;
      */
@@ -2460,9 +2460,9 @@ export interface FrameViewData {
      */
     name: string;
     /**
-     * @generated from protobuf field: optional symbol.bench.NodeReferenceData definition_ptr = 35;
+     * @generated from protobuf field: optional symbol.bench.NodeReferenceData block_ptr = 35;
      */
-    definitionPtr?: NodeReferenceData;
+    blockPtr?: NodeReferenceData;
     /**
      * @generated from protobuf field: optional symbol.bench.PositionData position = 40;
      */
@@ -2902,9 +2902,9 @@ export interface GradientStyleData {
      */
     name: string;
     /**
-     * @generated from protobuf field: optional symbol.bench.NodeReferenceData definition_ptr = 35;
+     * @generated from protobuf field: optional symbol.bench.NodeReferenceData block_ptr = 35;
      */
-    definitionPtr?: NodeReferenceData;
+    blockPtr?: NodeReferenceData;
     /**
      * @generated from protobuf field: optional symbol.bench.NodeReferenceData style_ptr = 40;
      */
@@ -3264,9 +3264,9 @@ export interface LabelViewData {
      */
     name: string;
     /**
-     * @generated from protobuf field: optional symbol.bench.NodeReferenceData definition_ptr = 35;
+     * @generated from protobuf field: optional symbol.bench.NodeReferenceData block_ptr = 35;
      */
-    definitionPtr?: NodeReferenceData;
+    blockPtr?: NodeReferenceData;
     /**
      * @generated from protobuf field: optional symbol.bench.PositionData position = 40;
      */
@@ -3660,9 +3660,9 @@ export interface LinkData {
      */
     title?: TextLineData;
     /**
-     * @generated from protobuf field: optional symbol.bench.NodeReferenceData definition_ptr = 35;
+     * @generated from protobuf field: optional symbol.bench.NodeReferenceData block_ptr = 35;
      */
-    definitionPtr?: NodeReferenceData;
+    blockPtr?: NodeReferenceData;
     /**
      * @generated from protobuf field: optional string url = 50;
      */
@@ -3788,9 +3788,9 @@ export interface MachineData {
      */
     name: string;
     /**
-     * @generated from protobuf field: optional symbol.bench.NodeReferenceData definition_ptr = 35;
+     * @generated from protobuf field: optional symbol.bench.NodeReferenceData block_ptr = 35;
      */
-    definitionPtr?: NodeReferenceData;
+    blockPtr?: NodeReferenceData;
     /**
      * @generated from protobuf field: symbol.bench.ResourceStatus status = 40;
      */
@@ -4129,9 +4129,9 @@ export interface NumberInputViewData {
      */
     name: string;
     /**
-     * @generated from protobuf field: optional symbol.bench.NodeReferenceData definition_ptr = 35;
+     * @generated from protobuf field: optional symbol.bench.NodeReferenceData block_ptr = 35;
      */
-    definitionPtr?: NodeReferenceData;
+    blockPtr?: NodeReferenceData;
     /**
      * @generated from protobuf field: optional symbol.bench.PositionData position = 40;
      */
@@ -4663,9 +4663,9 @@ export interface PageData {
      */
     icon?: IconData;
     /**
-     * @generated from protobuf field: optional symbol.bench.NodeReferenceData definition_ptr = 35;
+     * @generated from protobuf field: optional symbol.bench.NodeReferenceData block_ptr = 35;
      */
-    definitionPtr?: NodeReferenceData;
+    blockPtr?: NodeReferenceData;
 }
 /**
  * @generated from protobuf message symbol.bench.PositionData
@@ -4837,9 +4837,9 @@ export interface RecordData {
      */
     value?: ValueData;
     /**
-     * @generated from protobuf field: symbol.bench.NodeReferenceData table_ptr = 36;
+     * @generated from protobuf field: symbol.bench.NodeReferenceData definition_ptr = 40;
      */
-    tablePtr?: NodeReferenceData;
+    definitionPtr?: NodeReferenceData;
 }
 /**
  * @generated from protobuf message symbol.bench.RelationReferenceData
@@ -4945,9 +4945,9 @@ export interface RouteData {
      */
     icon?: IconData;
     /**
-     * @generated from protobuf field: optional symbol.bench.NodeReferenceData definition_ptr = 35;
+     * @generated from protobuf field: optional symbol.bench.NodeReferenceData block_ptr = 35;
      */
-    definitionPtr?: NodeReferenceData;
+    blockPtr?: NodeReferenceData;
     /**
      * @generated from protobuf field: optional symbol.bench.NodeReferenceData scene_ptr = 40;
      */
@@ -5167,9 +5167,9 @@ export interface SceneData {
      */
     icon?: IconData;
     /**
-     * @generated from protobuf field: optional symbol.bench.NodeReferenceData definition_ptr = 35;
+     * @generated from protobuf field: optional symbol.bench.NodeReferenceData block_ptr = 35;
      */
-    definitionPtr?: NodeReferenceData;
+    blockPtr?: NodeReferenceData;
     /**
      * @generated from protobuf field: optional symbol.bench.NodeReferenceData root_view_ptr = 40;
      */
@@ -5315,9 +5315,9 @@ export interface SchemaData {
      */
     name: string;
     /**
-     * @generated from protobuf field: optional symbol.bench.NodeReferenceData definition_ptr = 35;
+     * @generated from protobuf field: optional symbol.bench.NodeReferenceData block_ptr = 35;
      */
-    definitionPtr?: NodeReferenceData;
+    blockPtr?: NodeReferenceData;
     /**
      * @generated from protobuf field: symbol.bench.TypeCardinality cardinality = 40;
      */
@@ -5492,9 +5492,9 @@ export interface ServiceData {
      */
     name: string;
     /**
-     * @generated from protobuf field: optional symbol.bench.NodeReferenceData definition_ptr = 35;
+     * @generated from protobuf field: optional symbol.bench.NodeReferenceData block_ptr = 35;
      */
-    definitionPtr?: NodeReferenceData;
+    blockPtr?: NodeReferenceData;
     /**
      * @generated from protobuf field: optional symbol.bench.ModelDeveloper model_developer = 100;
      */
@@ -5636,9 +5636,9 @@ export interface ShadowStyleData {
      */
     name: string;
     /**
-     * @generated from protobuf field: optional symbol.bench.NodeReferenceData definition_ptr = 35;
+     * @generated from protobuf field: optional symbol.bench.NodeReferenceData block_ptr = 35;
      */
-    definitionPtr?: NodeReferenceData;
+    blockPtr?: NodeReferenceData;
     /**
      * @generated from protobuf field: optional symbol.bench.NodeReferenceData style_ptr = 41;
      */
@@ -5739,9 +5739,9 @@ export interface SliderInputViewData {
      */
     name: string;
     /**
-     * @generated from protobuf field: optional symbol.bench.NodeReferenceData definition_ptr = 35;
+     * @generated from protobuf field: optional symbol.bench.NodeReferenceData block_ptr = 35;
      */
-    definitionPtr?: NodeReferenceData;
+    blockPtr?: NodeReferenceData;
     /**
      * @generated from protobuf field: optional symbol.bench.PositionData position = 40;
      */
@@ -6118,9 +6118,9 @@ export interface SplitViewData {
      */
     name: string;
     /**
-     * @generated from protobuf field: optional symbol.bench.NodeReferenceData definition_ptr = 35;
+     * @generated from protobuf field: optional symbol.bench.NodeReferenceData block_ptr = 35;
      */
-    definitionPtr?: NodeReferenceData;
+    blockPtr?: NodeReferenceData;
     /**
      * @generated from protobuf field: optional symbol.bench.PositionData position = 40;
      */
@@ -6449,6 +6449,9 @@ export interface StringConstraintData {
 }
 /**
  * A Table of Records, like a custom Node type with Fields as Properties.
+ * NOTE :Architecture: I don't love that we call custom Node definitions "Tables",
+ * but Tables / Records is a very natural way to describe the most common use case.
+ * Maybe we'll abstract out the IsCustomNode and IsCustomInstance traits or something.
  *
  * @generated from protobuf message symbol.bench.TableData
  */
@@ -6522,9 +6525,9 @@ export interface TableData {
      */
     name: string;
     /**
-     * @generated from protobuf field: optional symbol.bench.NodeReferenceData definition_ptr = 35;
+     * @generated from protobuf field: optional symbol.bench.NodeReferenceData block_ptr = 35;
      */
-    definitionPtr?: NodeReferenceData;
+    blockPtr?: NodeReferenceData;
     /**
      * @generated from protobuf field: repeated symbol.bench.TraitType traits = 40;
      */
@@ -6605,9 +6608,9 @@ export interface TaskData {
      */
     title?: TextLineData;
     /**
-     * @generated from protobuf field: optional symbol.bench.NodeReferenceData definition_ptr = 35;
+     * @generated from protobuf field: optional symbol.bench.NodeReferenceData block_ptr = 35;
      */
-    definitionPtr?: NodeReferenceData;
+    blockPtr?: NodeReferenceData;
     /**
      * @generated from protobuf field: optional google.protobuf.Timestamp due_at = 50;
      */
@@ -6867,9 +6870,9 @@ export interface TextViewData {
      */
     name: string;
     /**
-     * @generated from protobuf field: optional symbol.bench.NodeReferenceData definition_ptr = 35;
+     * @generated from protobuf field: optional symbol.bench.NodeReferenceData block_ptr = 35;
      */
-    definitionPtr?: NodeReferenceData;
+    blockPtr?: NodeReferenceData;
     /**
      * @generated from protobuf field: optional symbol.bench.PositionData position = 40;
      */
@@ -7058,9 +7061,9 @@ export interface ThemeData {
      */
     icon?: IconData;
     /**
-     * @generated from protobuf field: optional symbol.bench.NodeReferenceData definition_ptr = 35;
+     * @generated from protobuf field: optional symbol.bench.NodeReferenceData block_ptr = 35;
      */
-    definitionPtr?: NodeReferenceData;
+    blockPtr?: NodeReferenceData;
     /**
      * @generated from protobuf field: map<int32, symbol.bench.ColorData> colors = 50;
      */
@@ -7268,9 +7271,9 @@ export interface ThreadViewData {
      */
     name: string;
     /**
-     * @generated from protobuf field: optional symbol.bench.NodeReferenceData definition_ptr = 35;
+     * @generated from protobuf field: optional symbol.bench.NodeReferenceData block_ptr = 35;
      */
-    definitionPtr?: NodeReferenceData;
+    blockPtr?: NodeReferenceData;
     /**
      * @generated from protobuf field: optional symbol.bench.PositionData position = 40;
      */
@@ -7428,9 +7431,9 @@ export interface TransitionStyleData {
      */
     name: string;
     /**
-     * @generated from protobuf field: optional symbol.bench.NodeReferenceData definition_ptr = 35;
+     * @generated from protobuf field: optional symbol.bench.NodeReferenceData block_ptr = 35;
      */
-    definitionPtr?: NodeReferenceData;
+    blockPtr?: NodeReferenceData;
     /**
      * @generated from protobuf field: optional symbol.bench.NodeReferenceData style_ptr = 41;
      */
@@ -7800,9 +7803,9 @@ export interface WizardViewData {
      */
     name: string;
     /**
-     * @generated from protobuf field: optional symbol.bench.NodeReferenceData definition_ptr = 35;
+     * @generated from protobuf field: optional symbol.bench.NodeReferenceData block_ptr = 35;
      */
-    definitionPtr?: NodeReferenceData;
+    blockPtr?: NodeReferenceData;
     /**
      * @generated from protobuf field: optional symbol.bench.PositionData position = 40;
      */
@@ -12509,6 +12512,14 @@ export enum TraitType {
      */
     EXTENSIBLE = 32,
     /**
+     * @generated from protobuf enum value: TRAIT_TYPE_NODE_TYPE = 33;
+     */
+    NODE_TYPE = 33,
+    /**
+     * @generated from protobuf enum value: TRAIT_TYPE_NODE_INSTANCE = 34;
+     */
+    NODE_INSTANCE = 34,
+    /**
      * @generated from protobuf enum value: TRAIT_TYPE_IN_BENCH = 40;
      */
     IN_BENCH = 40,
@@ -12947,7 +12958,7 @@ class AgentData$Type extends MessageType$<AgentData> {
             { no: 22, name: "order_key", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
             { no: 31, name: "name", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
             { no: 34, name: "icon", kind: "message", T: () => IconData },
-            { no: 35, name: "definition_ptr", kind: "message", T: () => NodeReferenceData },
+            { no: 35, name: "block_ptr", kind: "message", T: () => NodeReferenceData },
             { no: 54, name: "page_ptr", kind: "message", T: () => NodeReferenceData },
             { no: 55, name: "cursor_ptr", kind: "message", T: () => NodeReferenceData },
             { no: 80, name: "status", kind: "enum", T: () => ["symbol.bench.ProcessStatus", ProcessStatus, "PROCESS_STATUS_"] },
@@ -13045,8 +13056,8 @@ class AgentData$Type extends MessageType$<AgentData> {
                 case /* optional symbol.bench.IconData icon */ 34:
                     message.icon = IconData.internalBinaryRead(reader, reader.uint32(), options, message.icon);
                     break;
-                case /* optional symbol.bench.NodeReferenceData definition_ptr */ 35:
-                    message.definitionPtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.definitionPtr);
+                case /* optional symbol.bench.NodeReferenceData block_ptr */ 35:
+                    message.blockPtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.blockPtr);
                     break;
                 case /* optional symbol.bench.NodeReferenceData page_ptr */ 54:
                     message.pagePtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.pagePtr);
@@ -13180,9 +13191,9 @@ class AgentData$Type extends MessageType$<AgentData> {
         /* optional symbol.bench.IconData icon = 34; */
         if (message.icon)
             IconData.internalBinaryWrite(message.icon, writer.tag(34, WireType.LengthDelimited).fork(), options).join();
-        /* optional symbol.bench.NodeReferenceData definition_ptr = 35; */
-        if (message.definitionPtr)
-            NodeReferenceData.internalBinaryWrite(message.definitionPtr, writer.tag(35, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbol.bench.NodeReferenceData block_ptr = 35; */
+        if (message.blockPtr)
+            NodeReferenceData.internalBinaryWrite(message.blockPtr, writer.tag(35, WireType.LengthDelimited).fork(), options).join();
         /* optional symbol.bench.NodeReferenceData page_ptr = 54; */
         if (message.pagePtr)
             NodeReferenceData.internalBinaryWrite(message.pagePtr, writer.tag(54, WireType.LengthDelimited).fork(), options).join();
@@ -14227,7 +14238,7 @@ class BorderStyleData$Type extends MessageType$<BorderStyleData> {
             { no: 22, name: "order_key", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
             { no: 30, name: "type", kind: "enum", T: () => ["symbol.bench.BorderType", BorderType, "BORDER_TYPE_"] },
             { no: 31, name: "name", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
-            { no: 35, name: "definition_ptr", kind: "message", T: () => NodeReferenceData },
+            { no: 35, name: "block_ptr", kind: "message", T: () => NodeReferenceData },
             { no: 41, name: "style_ptr", kind: "message", T: () => NodeReferenceData },
             { no: 50, name: "color", kind: "message", T: () => ColorData },
             { no: 51, name: "width", kind: "message", T: () => InsetsData }
@@ -14297,8 +14308,8 @@ class BorderStyleData$Type extends MessageType$<BorderStyleData> {
                 case /* string name */ 31:
                     message.name = reader.string();
                     break;
-                case /* optional symbol.bench.NodeReferenceData definition_ptr */ 35:
-                    message.definitionPtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.definitionPtr);
+                case /* optional symbol.bench.NodeReferenceData block_ptr */ 35:
+                    message.blockPtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.blockPtr);
                     break;
                 case /* optional symbol.bench.NodeReferenceData style_ptr */ 41:
                     message.stylePtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.stylePtr);
@@ -14369,9 +14380,9 @@ class BorderStyleData$Type extends MessageType$<BorderStyleData> {
         /* string name = 31; */
         if (message.name !== "")
             writer.tag(31, WireType.LengthDelimited).string(message.name);
-        /* optional symbol.bench.NodeReferenceData definition_ptr = 35; */
-        if (message.definitionPtr)
-            NodeReferenceData.internalBinaryWrite(message.definitionPtr, writer.tag(35, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbol.bench.NodeReferenceData block_ptr = 35; */
+        if (message.blockPtr)
+            NodeReferenceData.internalBinaryWrite(message.blockPtr, writer.tag(35, WireType.LengthDelimited).fork(), options).join();
         /* optional symbol.bench.NodeReferenceData style_ptr = 41; */
         if (message.stylePtr)
             NodeReferenceData.internalBinaryWrite(message.stylePtr, writer.tag(41, WireType.LengthDelimited).fork(), options).join();
@@ -14834,7 +14845,7 @@ class ColorStyleData$Type extends MessageType$<ColorStyleData> {
             { no: 22, name: "order_key", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
             { no: 30, name: "type", kind: "enum", T: () => ["symbol.bench.ColorType", ColorType, "COLOR_TYPE_"] },
             { no: 31, name: "name", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
-            { no: 35, name: "definition_ptr", kind: "message", T: () => NodeReferenceData },
+            { no: 35, name: "block_ptr", kind: "message", T: () => NodeReferenceData },
             { no: 42, name: "style_ptr", kind: "message", T: () => NodeReferenceData },
             { no: 50, name: "hue", kind: "enum", opt: true, T: () => ["symbol.bench.ColorHue", ColorHue, "COLOR_HUE_"] },
             { no: 51, name: "shade", kind: "enum", opt: true, T: () => ["symbol.bench.ColorShade", ColorShade, "COLOR_SHADE_"] },
@@ -14909,8 +14920,8 @@ class ColorStyleData$Type extends MessageType$<ColorStyleData> {
                 case /* string name */ 31:
                     message.name = reader.string();
                     break;
-                case /* optional symbol.bench.NodeReferenceData definition_ptr */ 35:
-                    message.definitionPtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.definitionPtr);
+                case /* optional symbol.bench.NodeReferenceData block_ptr */ 35:
+                    message.blockPtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.blockPtr);
                     break;
                 case /* optional symbol.bench.NodeReferenceData style_ptr */ 42:
                     message.stylePtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.stylePtr);
@@ -14996,9 +15007,9 @@ class ColorStyleData$Type extends MessageType$<ColorStyleData> {
         /* string name = 31; */
         if (message.name !== "")
             writer.tag(31, WireType.LengthDelimited).string(message.name);
-        /* optional symbol.bench.NodeReferenceData definition_ptr = 35; */
-        if (message.definitionPtr)
-            NodeReferenceData.internalBinaryWrite(message.definitionPtr, writer.tag(35, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbol.bench.NodeReferenceData block_ptr = 35; */
+        if (message.blockPtr)
+            NodeReferenceData.internalBinaryWrite(message.blockPtr, writer.tag(35, WireType.LengthDelimited).fork(), options).join();
         /* optional symbol.bench.NodeReferenceData style_ptr = 42; */
         if (message.stylePtr)
             NodeReferenceData.internalBinaryWrite(message.stylePtr, writer.tag(42, WireType.LengthDelimited).fork(), options).join();
@@ -15425,7 +15436,7 @@ class DatabaseData$Type extends MessageType$<DatabaseData> {
             { no: 23, name: "region", kind: "enum", T: () => ["symbol.bench.Region", Region, "REGION_"] },
             { no: 30, name: "type", kind: "enum", T: () => ["symbol.bench.DatabaseType", DatabaseType, "DATABASE_TYPE_"] },
             { no: 31, name: "name", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
-            { no: 35, name: "definition_ptr", kind: "message", T: () => NodeReferenceData },
+            { no: 35, name: "block_ptr", kind: "message", T: () => NodeReferenceData },
             { no: 40, name: "status", kind: "enum", T: () => ["symbol.bench.ResourceStatus", ResourceStatus, "RESOURCE_STATUS_"] },
             { no: 41, name: "requested_activate_at", kind: "message", T: () => Timestamp },
             { no: 42, name: "requested_deactivate_at", kind: "message", T: () => Timestamp },
@@ -15513,8 +15524,8 @@ class DatabaseData$Type extends MessageType$<DatabaseData> {
                 case /* string name */ 31:
                     message.name = reader.string();
                     break;
-                case /* optional symbol.bench.NodeReferenceData definition_ptr */ 35:
-                    message.definitionPtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.definitionPtr);
+                case /* optional symbol.bench.NodeReferenceData block_ptr */ 35:
+                    message.blockPtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.blockPtr);
                     break;
                 case /* symbol.bench.ResourceStatus status */ 40:
                     message.status = reader.int32();
@@ -15618,9 +15629,9 @@ class DatabaseData$Type extends MessageType$<DatabaseData> {
         /* string name = 31; */
         if (message.name !== "")
             writer.tag(31, WireType.LengthDelimited).string(message.name);
-        /* optional symbol.bench.NodeReferenceData definition_ptr = 35; */
-        if (message.definitionPtr)
-            NodeReferenceData.internalBinaryWrite(message.definitionPtr, writer.tag(35, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbol.bench.NodeReferenceData block_ptr = 35; */
+        if (message.blockPtr)
+            NodeReferenceData.internalBinaryWrite(message.blockPtr, writer.tag(35, WireType.LengthDelimited).fork(), options).join();
         /* symbol.bench.ResourceStatus status = 40; */
         if (message.status !== 0)
             writer.tag(40, WireType.Varint).int32(message.status);
@@ -16033,7 +16044,7 @@ class EffectStyleData$Type extends MessageType$<EffectStyleData> {
             { no: 22, name: "order_key", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
             { no: 30, name: "type", kind: "enum", T: () => ["symbol.bench.EffectType", EffectType, "EFFECT_TYPE_"] },
             { no: 31, name: "name", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
-            { no: 35, name: "definition_ptr", kind: "message", T: () => NodeReferenceData },
+            { no: 35, name: "block_ptr", kind: "message", T: () => NodeReferenceData },
             { no: 41, name: "style_ptr", kind: "message", T: () => NodeReferenceData },
             { no: 50, name: "opacity", kind: "scalar", opt: true, T: 1 /*ScalarType.DOUBLE*/ },
             { no: 51, name: "offset", kind: "message", T: () => Vector2Data },
@@ -16115,8 +16126,8 @@ class EffectStyleData$Type extends MessageType$<EffectStyleData> {
                 case /* string name */ 31:
                     message.name = reader.string();
                     break;
-                case /* optional symbol.bench.NodeReferenceData definition_ptr */ 35:
-                    message.definitionPtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.definitionPtr);
+                case /* optional symbol.bench.NodeReferenceData block_ptr */ 35:
+                    message.blockPtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.blockPtr);
                     break;
                 case /* optional symbol.bench.NodeReferenceData style_ptr */ 41:
                     message.stylePtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.stylePtr);
@@ -16223,9 +16234,9 @@ class EffectStyleData$Type extends MessageType$<EffectStyleData> {
         /* string name = 31; */
         if (message.name !== "")
             writer.tag(31, WireType.LengthDelimited).string(message.name);
-        /* optional symbol.bench.NodeReferenceData definition_ptr = 35; */
-        if (message.definitionPtr)
-            NodeReferenceData.internalBinaryWrite(message.definitionPtr, writer.tag(35, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbol.bench.NodeReferenceData block_ptr = 35; */
+        if (message.blockPtr)
+            NodeReferenceData.internalBinaryWrite(message.blockPtr, writer.tag(35, WireType.LengthDelimited).fork(), options).join();
         /* optional symbol.bench.NodeReferenceData style_ptr = 41; */
         if (message.stylePtr)
             NodeReferenceData.internalBinaryWrite(message.stylePtr, writer.tag(41, WireType.LengthDelimited).fork(), options).join();
@@ -16785,7 +16796,7 @@ class FileData$Type extends MessageType$<FileData> {
             { no: 23, name: "region", kind: "enum", T: () => ["symbol.bench.Region", Region, "REGION_"] },
             { no: 30, name: "type", kind: "enum", T: () => ["symbol.bench.FileType", FileType, "FILE_TYPE_"] },
             { no: 31, name: "name", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
-            { no: 35, name: "definition_ptr", kind: "message", T: () => NodeReferenceData },
+            { no: 35, name: "block_ptr", kind: "message", T: () => NodeReferenceData },
             { no: 60, name: "source", kind: "enum", T: () => ["symbol.bench.FileSource", FileSource, "FILE_SOURCE_"] },
             { no: 61, name: "mime_type", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
             { no: 62, name: "format", kind: "enum", opt: true, T: () => ["symbol.bench.FileFormat", FileFormat, "FILE_FORMAT_"] },
@@ -16878,8 +16889,8 @@ class FileData$Type extends MessageType$<FileData> {
                 case /* string name */ 31:
                     message.name = reader.string();
                     break;
-                case /* optional symbol.bench.NodeReferenceData definition_ptr */ 35:
-                    message.definitionPtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.definitionPtr);
+                case /* optional symbol.bench.NodeReferenceData block_ptr */ 35:
+                    message.blockPtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.blockPtr);
                     break;
                 case /* symbol.bench.FileSource source */ 60:
                     message.source = reader.int32();
@@ -17001,9 +17012,9 @@ class FileData$Type extends MessageType$<FileData> {
         /* string name = 31; */
         if (message.name !== "")
             writer.tag(31, WireType.LengthDelimited).string(message.name);
-        /* optional symbol.bench.NodeReferenceData definition_ptr = 35; */
-        if (message.definitionPtr)
-            NodeReferenceData.internalBinaryWrite(message.definitionPtr, writer.tag(35, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbol.bench.NodeReferenceData block_ptr = 35; */
+        if (message.blockPtr)
+            NodeReferenceData.internalBinaryWrite(message.blockPtr, writer.tag(35, WireType.LengthDelimited).fork(), options).join();
         /* symbol.bench.FileSource source = 60; */
         if (message.source !== 0)
             writer.tag(60, WireType.Varint).int32(message.source);
@@ -17183,7 +17194,7 @@ class FlowData$Type extends MessageType$<FlowData> {
             { no: 22, name: "order_key", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
             { no: 30, name: "type", kind: "enum", T: () => ["symbol.bench.FlowType", FlowType, "FLOW_TYPE_"] },
             { no: 31, name: "name", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
-            { no: 35, name: "definition_ptr", kind: "message", T: () => NodeReferenceData },
+            { no: 35, name: "block_ptr", kind: "message", T: () => NodeReferenceData },
             { no: 100, name: "model_developer", kind: "enum", opt: true, T: () => ["symbol.bench.ModelDeveloper", ModelDeveloper, "MODEL_DEVELOPER_"] },
             { no: 101, name: "model_provider", kind: "enum", opt: true, T: () => ["symbol.bench.ModelProvider", ModelProvider, "MODEL_PROVIDER_"] },
             { no: 102, name: "model_id", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
@@ -17263,8 +17274,8 @@ class FlowData$Type extends MessageType$<FlowData> {
                 case /* string name */ 31:
                     message.name = reader.string();
                     break;
-                case /* optional symbol.bench.NodeReferenceData definition_ptr */ 35:
-                    message.definitionPtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.definitionPtr);
+                case /* optional symbol.bench.NodeReferenceData block_ptr */ 35:
+                    message.blockPtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.blockPtr);
                     break;
                 case /* optional symbol.bench.ModelDeveloper model_developer */ 100:
                     message.modelDeveloper = reader.int32();
@@ -17353,9 +17364,9 @@ class FlowData$Type extends MessageType$<FlowData> {
         /* string name = 31; */
         if (message.name !== "")
             writer.tag(31, WireType.LengthDelimited).string(message.name);
-        /* optional symbol.bench.NodeReferenceData definition_ptr = 35; */
-        if (message.definitionPtr)
-            NodeReferenceData.internalBinaryWrite(message.definitionPtr, writer.tag(35, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbol.bench.NodeReferenceData block_ptr = 35; */
+        if (message.blockPtr)
+            NodeReferenceData.internalBinaryWrite(message.blockPtr, writer.tag(35, WireType.LengthDelimited).fork(), options).join();
         /* optional symbol.bench.ModelDeveloper model_developer = 100; */
         if (message.modelDeveloper !== undefined)
             writer.tag(100, WireType.Varint).int32(message.modelDeveloper);
@@ -17730,7 +17741,7 @@ class FontStyleData$Type extends MessageType$<FontStyleData> {
             { no: 22, name: "order_key", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
             { no: 30, name: "type", kind: "enum", T: () => ["symbol.bench.FontType", FontType, "FONT_TYPE_"] },
             { no: 31, name: "name", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
-            { no: 35, name: "definition_ptr", kind: "message", T: () => NodeReferenceData },
+            { no: 35, name: "block_ptr", kind: "message", T: () => NodeReferenceData },
             { no: 41, name: "style_ptr", kind: "message", T: () => NodeReferenceData },
             { no: 50, name: "weight", kind: "enum", opt: true, T: () => ["symbol.bench.FontWeight", FontWeight, "FONT_WEIGHT_"] },
             { no: 51, name: "color", kind: "message", T: () => FillData },
@@ -17806,8 +17817,8 @@ class FontStyleData$Type extends MessageType$<FontStyleData> {
                 case /* string name */ 31:
                     message.name = reader.string();
                     break;
-                case /* optional symbol.bench.NodeReferenceData definition_ptr */ 35:
-                    message.definitionPtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.definitionPtr);
+                case /* optional symbol.bench.NodeReferenceData block_ptr */ 35:
+                    message.blockPtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.blockPtr);
                     break;
                 case /* optional symbol.bench.NodeReferenceData style_ptr */ 41:
                     message.stylePtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.stylePtr);
@@ -17896,9 +17907,9 @@ class FontStyleData$Type extends MessageType$<FontStyleData> {
         /* string name = 31; */
         if (message.name !== "")
             writer.tag(31, WireType.LengthDelimited).string(message.name);
-        /* optional symbol.bench.NodeReferenceData definition_ptr = 35; */
-        if (message.definitionPtr)
-            NodeReferenceData.internalBinaryWrite(message.definitionPtr, writer.tag(35, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbol.bench.NodeReferenceData block_ptr = 35; */
+        if (message.blockPtr)
+            NodeReferenceData.internalBinaryWrite(message.blockPtr, writer.tag(35, WireType.LengthDelimited).fork(), options).join();
         /* optional symbol.bench.NodeReferenceData style_ptr = 41; */
         if (message.stylePtr)
             NodeReferenceData.internalBinaryWrite(message.stylePtr, writer.tag(41, WireType.LengthDelimited).fork(), options).join();
@@ -17956,7 +17967,7 @@ class FrameViewData$Type extends MessageType$<FrameViewData> {
             { no: 20, name: "mode", kind: "enum", T: () => ["symbol.bench.NodeMode", NodeMode, "NODE_MODE_"] },
             { no: 22, name: "order_key", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
             { no: 31, name: "name", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
-            { no: 35, name: "definition_ptr", kind: "message", T: () => NodeReferenceData },
+            { no: 35, name: "block_ptr", kind: "message", T: () => NodeReferenceData },
             { no: 40, name: "position", kind: "message", T: () => PositionData },
             { no: 41, name: "width", kind: "message", T: () => DimensionData },
             { no: 42, name: "height", kind: "message", T: () => DimensionData },
@@ -18077,8 +18088,8 @@ class FrameViewData$Type extends MessageType$<FrameViewData> {
                 case /* string name */ 31:
                     message.name = reader.string();
                     break;
-                case /* optional symbol.bench.NodeReferenceData definition_ptr */ 35:
-                    message.definitionPtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.definitionPtr);
+                case /* optional symbol.bench.NodeReferenceData block_ptr */ 35:
+                    message.blockPtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.blockPtr);
                     break;
                 case /* optional symbol.bench.PositionData position */ 40:
                     message.position = PositionData.internalBinaryRead(reader, reader.uint32(), options, message.position);
@@ -18344,9 +18355,9 @@ class FrameViewData$Type extends MessageType$<FrameViewData> {
         /* string name = 31; */
         if (message.name !== "")
             writer.tag(31, WireType.LengthDelimited).string(message.name);
-        /* optional symbol.bench.NodeReferenceData definition_ptr = 35; */
-        if (message.definitionPtr)
-            NodeReferenceData.internalBinaryWrite(message.definitionPtr, writer.tag(35, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbol.bench.NodeReferenceData block_ptr = 35; */
+        if (message.blockPtr)
+            NodeReferenceData.internalBinaryWrite(message.blockPtr, writer.tag(35, WireType.LengthDelimited).fork(), options).join();
         /* optional symbol.bench.PositionData position = 40; */
         if (message.position)
             PositionData.internalBinaryWrite(message.position, writer.tag(40, WireType.LengthDelimited).fork(), options).join();
@@ -18712,7 +18723,7 @@ class GradientStyleData$Type extends MessageType$<GradientStyleData> {
             { no: 22, name: "order_key", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
             { no: 30, name: "type", kind: "enum", T: () => ["symbol.bench.GradientType", GradientType, "GRADIENT_TYPE_"] },
             { no: 31, name: "name", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
-            { no: 35, name: "definition_ptr", kind: "message", T: () => NodeReferenceData },
+            { no: 35, name: "block_ptr", kind: "message", T: () => NodeReferenceData },
             { no: 40, name: "style_ptr", kind: "message", T: () => NodeReferenceData },
             { no: 50, name: "angle", kind: "scalar", opt: true, T: 1 /*ScalarType.DOUBLE*/ },
             { no: 51, name: "stops", kind: "message", repeat: 1 /*RepeatType.PACKED*/, T: () => GradientStopData },
@@ -18785,8 +18796,8 @@ class GradientStyleData$Type extends MessageType$<GradientStyleData> {
                 case /* string name */ 31:
                     message.name = reader.string();
                     break;
-                case /* optional symbol.bench.NodeReferenceData definition_ptr */ 35:
-                    message.definitionPtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.definitionPtr);
+                case /* optional symbol.bench.NodeReferenceData block_ptr */ 35:
+                    message.blockPtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.blockPtr);
                     break;
                 case /* optional symbol.bench.NodeReferenceData style_ptr */ 40:
                     message.stylePtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.stylePtr);
@@ -18863,9 +18874,9 @@ class GradientStyleData$Type extends MessageType$<GradientStyleData> {
         /* string name = 31; */
         if (message.name !== "")
             writer.tag(31, WireType.LengthDelimited).string(message.name);
-        /* optional symbol.bench.NodeReferenceData definition_ptr = 35; */
-        if (message.definitionPtr)
-            NodeReferenceData.internalBinaryWrite(message.definitionPtr, writer.tag(35, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbol.bench.NodeReferenceData block_ptr = 35; */
+        if (message.blockPtr)
+            NodeReferenceData.internalBinaryWrite(message.blockPtr, writer.tag(35, WireType.LengthDelimited).fork(), options).join();
         /* optional symbol.bench.NodeReferenceData style_ptr = 40; */
         if (message.stylePtr)
             NodeReferenceData.internalBinaryWrite(message.stylePtr, writer.tag(40, WireType.LengthDelimited).fork(), options).join();
@@ -19603,7 +19614,7 @@ class LabelViewData$Type extends MessageType$<LabelViewData> {
             { no: 20, name: "mode", kind: "enum", T: () => ["symbol.bench.NodeMode", NodeMode, "NODE_MODE_"] },
             { no: 22, name: "order_key", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
             { no: 31, name: "name", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
-            { no: 35, name: "definition_ptr", kind: "message", T: () => NodeReferenceData },
+            { no: 35, name: "block_ptr", kind: "message", T: () => NodeReferenceData },
             { no: 40, name: "position", kind: "message", T: () => PositionData },
             { no: 41, name: "width", kind: "message", T: () => DimensionData },
             { no: 42, name: "height", kind: "message", T: () => DimensionData },
@@ -19724,8 +19735,8 @@ class LabelViewData$Type extends MessageType$<LabelViewData> {
                 case /* string name */ 31:
                     message.name = reader.string();
                     break;
-                case /* optional symbol.bench.NodeReferenceData definition_ptr */ 35:
-                    message.definitionPtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.definitionPtr);
+                case /* optional symbol.bench.NodeReferenceData block_ptr */ 35:
+                    message.blockPtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.blockPtr);
                     break;
                 case /* optional symbol.bench.PositionData position */ 40:
                     message.position = PositionData.internalBinaryRead(reader, reader.uint32(), options, message.position);
@@ -19991,9 +20002,9 @@ class LabelViewData$Type extends MessageType$<LabelViewData> {
         /* string name = 31; */
         if (message.name !== "")
             writer.tag(31, WireType.LengthDelimited).string(message.name);
-        /* optional symbol.bench.NodeReferenceData definition_ptr = 35; */
-        if (message.definitionPtr)
-            NodeReferenceData.internalBinaryWrite(message.definitionPtr, writer.tag(35, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbol.bench.NodeReferenceData block_ptr = 35; */
+        if (message.blockPtr)
+            NodeReferenceData.internalBinaryWrite(message.blockPtr, writer.tag(35, WireType.LengthDelimited).fork(), options).join();
         /* optional symbol.bench.PositionData position = 40; */
         if (message.position)
             PositionData.internalBinaryWrite(message.position, writer.tag(40, WireType.LengthDelimited).fork(), options).join();
@@ -20208,7 +20219,7 @@ class LinkData$Type extends MessageType$<LinkData> {
             { no: 30, name: "type", kind: "enum", T: () => ["symbol.bench.LinkType", LinkType, "LINK_TYPE_"] },
             { no: 31, name: "name", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
             { no: 32, name: "title", kind: "message", T: () => TextLineData },
-            { no: 35, name: "definition_ptr", kind: "message", T: () => NodeReferenceData },
+            { no: 35, name: "block_ptr", kind: "message", T: () => NodeReferenceData },
             { no: 50, name: "url", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
             { no: 51, name: "domain", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
             { no: 52, name: "content_url", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
@@ -20293,8 +20304,8 @@ class LinkData$Type extends MessageType$<LinkData> {
                 case /* optional symbol.bench.TextLineData title */ 32:
                     message.title = TextLineData.internalBinaryRead(reader, reader.uint32(), options, message.title);
                     break;
-                case /* optional symbol.bench.NodeReferenceData definition_ptr */ 35:
-                    message.definitionPtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.definitionPtr);
+                case /* optional symbol.bench.NodeReferenceData block_ptr */ 35:
+                    message.blockPtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.blockPtr);
                     break;
                 case /* optional string url */ 50:
                     message.url = reader.string();
@@ -20398,9 +20409,9 @@ class LinkData$Type extends MessageType$<LinkData> {
         /* optional symbol.bench.TextLineData title = 32; */
         if (message.title)
             TextLineData.internalBinaryWrite(message.title, writer.tag(32, WireType.LengthDelimited).fork(), options).join();
-        /* optional symbol.bench.NodeReferenceData definition_ptr = 35; */
-        if (message.definitionPtr)
-            NodeReferenceData.internalBinaryWrite(message.definitionPtr, writer.tag(35, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbol.bench.NodeReferenceData block_ptr = 35; */
+        if (message.blockPtr)
+            NodeReferenceData.internalBinaryWrite(message.blockPtr, writer.tag(35, WireType.LengthDelimited).fork(), options).join();
         /* optional string url = 50; */
         if (message.url !== undefined)
             writer.tag(50, WireType.LengthDelimited).string(message.url);
@@ -20470,7 +20481,7 @@ class MachineData$Type extends MessageType$<MachineData> {
             { no: 22, name: "order_key", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
             { no: 30, name: "type", kind: "enum", T: () => ["symbol.bench.MachineType", MachineType, "MACHINE_TYPE_"] },
             { no: 31, name: "name", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
-            { no: 35, name: "definition_ptr", kind: "message", T: () => NodeReferenceData },
+            { no: 35, name: "block_ptr", kind: "message", T: () => NodeReferenceData },
             { no: 40, name: "status", kind: "enum", T: () => ["symbol.bench.ResourceStatus", ResourceStatus, "RESOURCE_STATUS_"] },
             { no: 41, name: "requested_activate_at", kind: "message", T: () => Timestamp },
             { no: 42, name: "requested_deactivate_at", kind: "message", T: () => Timestamp },
@@ -20567,8 +20578,8 @@ class MachineData$Type extends MessageType$<MachineData> {
                 case /* string name */ 31:
                     message.name = reader.string();
                     break;
-                case /* optional symbol.bench.NodeReferenceData definition_ptr */ 35:
-                    message.definitionPtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.definitionPtr);
+                case /* optional symbol.bench.NodeReferenceData block_ptr */ 35:
+                    message.blockPtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.blockPtr);
                     break;
                 case /* symbol.bench.ResourceStatus status */ 40:
                     message.status = reader.int32();
@@ -20693,9 +20704,9 @@ class MachineData$Type extends MessageType$<MachineData> {
         /* string name = 31; */
         if (message.name !== "")
             writer.tag(31, WireType.LengthDelimited).string(message.name);
-        /* optional symbol.bench.NodeReferenceData definition_ptr = 35; */
-        if (message.definitionPtr)
-            NodeReferenceData.internalBinaryWrite(message.definitionPtr, writer.tag(35, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbol.bench.NodeReferenceData block_ptr = 35; */
+        if (message.blockPtr)
+            NodeReferenceData.internalBinaryWrite(message.blockPtr, writer.tag(35, WireType.LengthDelimited).fork(), options).join();
         /* symbol.bench.ResourceStatus status = 40; */
         if (message.status !== 0)
             writer.tag(40, WireType.Varint).int32(message.status);
@@ -21252,7 +21263,7 @@ class NumberInputViewData$Type extends MessageType$<NumberInputViewData> {
             { no: 20, name: "mode", kind: "enum", T: () => ["symbol.bench.NodeMode", NodeMode, "NODE_MODE_"] },
             { no: 22, name: "order_key", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
             { no: 31, name: "name", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
-            { no: 35, name: "definition_ptr", kind: "message", T: () => NodeReferenceData },
+            { no: 35, name: "block_ptr", kind: "message", T: () => NodeReferenceData },
             { no: 40, name: "position", kind: "message", T: () => PositionData },
             { no: 41, name: "width", kind: "message", T: () => DimensionData },
             { no: 42, name: "height", kind: "message", T: () => DimensionData },
@@ -21334,8 +21345,8 @@ class NumberInputViewData$Type extends MessageType$<NumberInputViewData> {
                 case /* string name */ 31:
                     message.name = reader.string();
                     break;
-                case /* optional symbol.bench.NodeReferenceData definition_ptr */ 35:
-                    message.definitionPtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.definitionPtr);
+                case /* optional symbol.bench.NodeReferenceData block_ptr */ 35:
+                    message.blockPtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.blockPtr);
                     break;
                 case /* optional symbol.bench.PositionData position */ 40:
                     message.position = PositionData.internalBinaryRead(reader, reader.uint32(), options, message.position);
@@ -21448,9 +21459,9 @@ class NumberInputViewData$Type extends MessageType$<NumberInputViewData> {
         /* string name = 31; */
         if (message.name !== "")
             writer.tag(31, WireType.LengthDelimited).string(message.name);
-        /* optional symbol.bench.NodeReferenceData definition_ptr = 35; */
-        if (message.definitionPtr)
-            NodeReferenceData.internalBinaryWrite(message.definitionPtr, writer.tag(35, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbol.bench.NodeReferenceData block_ptr = 35; */
+        if (message.blockPtr)
+            NodeReferenceData.internalBinaryWrite(message.blockPtr, writer.tag(35, WireType.LengthDelimited).fork(), options).join();
         /* optional symbol.bench.PositionData position = 40; */
         if (message.position)
             PositionData.internalBinaryWrite(message.position, writer.tag(40, WireType.LengthDelimited).fork(), options).join();
@@ -22402,7 +22413,7 @@ class PageData$Type extends MessageType$<PageData> {
             { no: 32, name: "title", kind: "message", T: () => TextLineData },
             { no: 33, name: "slug", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
             { no: 34, name: "icon", kind: "message", T: () => IconData },
-            { no: 35, name: "definition_ptr", kind: "message", T: () => NodeReferenceData }
+            { no: 35, name: "block_ptr", kind: "message", T: () => NodeReferenceData }
         ]);
     }
     create(value?: PartialMessage<PageData>): PageData {
@@ -22474,8 +22485,8 @@ class PageData$Type extends MessageType$<PageData> {
                 case /* optional symbol.bench.IconData icon */ 34:
                     message.icon = IconData.internalBinaryRead(reader, reader.uint32(), options, message.icon);
                     break;
-                case /* optional symbol.bench.NodeReferenceData definition_ptr */ 35:
-                    message.definitionPtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.definitionPtr);
+                case /* optional symbol.bench.NodeReferenceData block_ptr */ 35:
+                    message.blockPtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.blockPtr);
                     break;
                 default:
                     let u = options.readUnknownField;
@@ -22543,9 +22554,9 @@ class PageData$Type extends MessageType$<PageData> {
         /* optional symbol.bench.IconData icon = 34; */
         if (message.icon)
             IconData.internalBinaryWrite(message.icon, writer.tag(34, WireType.LengthDelimited).fork(), options).join();
-        /* optional symbol.bench.NodeReferenceData definition_ptr = 35; */
-        if (message.definitionPtr)
-            NodeReferenceData.internalBinaryWrite(message.definitionPtr, writer.tag(35, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbol.bench.NodeReferenceData block_ptr = 35; */
+        if (message.blockPtr)
+            NodeReferenceData.internalBinaryWrite(message.blockPtr, writer.tag(35, WireType.LengthDelimited).fork(), options).join();
         let u = options.writeUnknownFields;
         if (u !== false)
             (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
@@ -22875,7 +22886,7 @@ class RecordData$Type extends MessageType$<RecordData> {
             { no: 15, name: "deleted_at", kind: "message", T: () => Timestamp },
             { no: 20, name: "mode", kind: "enum", T: () => ["symbol.bench.NodeMode", NodeMode, "NODE_MODE_"] },
             { no: 21, name: "value", kind: "message", T: () => ValueData },
-            { no: 36, name: "table_ptr", kind: "message", T: () => NodeReferenceData }
+            { no: 40, name: "definition_ptr", kind: "message", T: () => NodeReferenceData }
         ]);
     }
     create(value?: PartialMessage<RecordData>): RecordData {
@@ -22928,8 +22939,8 @@ class RecordData$Type extends MessageType$<RecordData> {
                 case /* optional symbol.bench.ValueData value */ 21:
                     message.value = ValueData.internalBinaryRead(reader, reader.uint32(), options, message.value);
                     break;
-                case /* symbol.bench.NodeReferenceData table_ptr */ 36:
-                    message.tablePtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.tablePtr);
+                case /* symbol.bench.NodeReferenceData definition_ptr */ 40:
+                    message.definitionPtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.definitionPtr);
                     break;
                 default:
                     let u = options.readUnknownField;
@@ -22979,9 +22990,9 @@ class RecordData$Type extends MessageType$<RecordData> {
         /* optional symbol.bench.ValueData value = 21; */
         if (message.value)
             ValueData.internalBinaryWrite(message.value, writer.tag(21, WireType.LengthDelimited).fork(), options).join();
-        /* symbol.bench.NodeReferenceData table_ptr = 36; */
-        if (message.tablePtr)
-            NodeReferenceData.internalBinaryWrite(message.tablePtr, writer.tag(36, WireType.LengthDelimited).fork(), options).join();
+        /* symbol.bench.NodeReferenceData definition_ptr = 40; */
+        if (message.definitionPtr)
+            NodeReferenceData.internalBinaryWrite(message.definitionPtr, writer.tag(40, WireType.LengthDelimited).fork(), options).join();
         let u = options.writeUnknownFields;
         if (u !== false)
             (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
@@ -23085,7 +23096,7 @@ class RouteData$Type extends MessageType$<RouteData> {
             { no: 31, name: "name", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
             { no: 33, name: "slug", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
             { no: 34, name: "icon", kind: "message", T: () => IconData },
-            { no: 35, name: "definition_ptr", kind: "message", T: () => NodeReferenceData },
+            { no: 35, name: "block_ptr", kind: "message", T: () => NodeReferenceData },
             { no: 40, name: "scene_ptr", kind: "message", T: () => NodeReferenceData }
         ]);
     }
@@ -23163,8 +23174,8 @@ class RouteData$Type extends MessageType$<RouteData> {
                 case /* optional symbol.bench.IconData icon */ 34:
                     message.icon = IconData.internalBinaryRead(reader, reader.uint32(), options, message.icon);
                     break;
-                case /* optional symbol.bench.NodeReferenceData definition_ptr */ 35:
-                    message.definitionPtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.definitionPtr);
+                case /* optional symbol.bench.NodeReferenceData block_ptr */ 35:
+                    message.blockPtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.blockPtr);
                     break;
                 case /* optional symbol.bench.NodeReferenceData scene_ptr */ 40:
                     message.scenePtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.scenePtr);
@@ -23238,9 +23249,9 @@ class RouteData$Type extends MessageType$<RouteData> {
         /* optional symbol.bench.IconData icon = 34; */
         if (message.icon)
             IconData.internalBinaryWrite(message.icon, writer.tag(34, WireType.LengthDelimited).fork(), options).join();
-        /* optional symbol.bench.NodeReferenceData definition_ptr = 35; */
-        if (message.definitionPtr)
-            NodeReferenceData.internalBinaryWrite(message.definitionPtr, writer.tag(35, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbol.bench.NodeReferenceData block_ptr = 35; */
+        if (message.blockPtr)
+            NodeReferenceData.internalBinaryWrite(message.blockPtr, writer.tag(35, WireType.LengthDelimited).fork(), options).join();
         /* optional symbol.bench.NodeReferenceData scene_ptr = 40; */
         if (message.scenePtr)
             NodeReferenceData.internalBinaryWrite(message.scenePtr, writer.tag(40, WireType.LengthDelimited).fork(), options).join();
@@ -23538,7 +23549,7 @@ class SceneData$Type extends MessageType$<SceneData> {
             { no: 31, name: "name", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
             { no: 33, name: "slug", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
             { no: 34, name: "icon", kind: "message", T: () => IconData },
-            { no: 35, name: "definition_ptr", kind: "message", T: () => NodeReferenceData },
+            { no: 35, name: "block_ptr", kind: "message", T: () => NodeReferenceData },
             { no: 40, name: "root_view_ptr", kind: "message", T: () => NodeReferenceData }
         ]);
     }
@@ -23616,8 +23627,8 @@ class SceneData$Type extends MessageType$<SceneData> {
                 case /* optional symbol.bench.IconData icon */ 34:
                     message.icon = IconData.internalBinaryRead(reader, reader.uint32(), options, message.icon);
                     break;
-                case /* optional symbol.bench.NodeReferenceData definition_ptr */ 35:
-                    message.definitionPtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.definitionPtr);
+                case /* optional symbol.bench.NodeReferenceData block_ptr */ 35:
+                    message.blockPtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.blockPtr);
                     break;
                 case /* optional symbol.bench.NodeReferenceData root_view_ptr */ 40:
                     message.rootViewPtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.rootViewPtr);
@@ -23691,9 +23702,9 @@ class SceneData$Type extends MessageType$<SceneData> {
         /* optional symbol.bench.IconData icon = 34; */
         if (message.icon)
             IconData.internalBinaryWrite(message.icon, writer.tag(34, WireType.LengthDelimited).fork(), options).join();
-        /* optional symbol.bench.NodeReferenceData definition_ptr = 35; */
-        if (message.definitionPtr)
-            NodeReferenceData.internalBinaryWrite(message.definitionPtr, writer.tag(35, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbol.bench.NodeReferenceData block_ptr = 35; */
+        if (message.blockPtr)
+            NodeReferenceData.internalBinaryWrite(message.blockPtr, writer.tag(35, WireType.LengthDelimited).fork(), options).join();
         /* optional symbol.bench.NodeReferenceData root_view_ptr = 40; */
         if (message.rootViewPtr)
             NodeReferenceData.internalBinaryWrite(message.rootViewPtr, writer.tag(40, WireType.LengthDelimited).fork(), options).join();
@@ -23977,7 +23988,7 @@ class SchemaData$Type extends MessageType$<SchemaData> {
             { no: 20, name: "mode", kind: "enum", T: () => ["symbol.bench.NodeMode", NodeMode, "NODE_MODE_"] },
             { no: 22, name: "order_key", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
             { no: 31, name: "name", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
-            { no: 35, name: "definition_ptr", kind: "message", T: () => NodeReferenceData },
+            { no: 35, name: "block_ptr", kind: "message", T: () => NodeReferenceData },
             { no: 40, name: "cardinality", kind: "enum", T: () => ["symbol.bench.TypeCardinality", TypeCardinality, "TYPE_CARDINALITY_"] },
             { no: 41, name: "scalar_type", kind: "enum", T: () => ["symbol.bench.ScalarType", ScalarType, "SCALAR_TYPE_"] },
             { no: 42, name: "primitive_type", kind: "enum", opt: true, T: () => ["symbol.bench.PrimitiveType", PrimitiveType, "PRIMITIVE_TYPE_"] },
@@ -24063,8 +24074,8 @@ class SchemaData$Type extends MessageType$<SchemaData> {
                 case /* string name */ 31:
                     message.name = reader.string();
                     break;
-                case /* optional symbol.bench.NodeReferenceData definition_ptr */ 35:
-                    message.definitionPtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.definitionPtr);
+                case /* optional symbol.bench.NodeReferenceData block_ptr */ 35:
+                    message.blockPtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.blockPtr);
                     break;
                 case /* symbol.bench.TypeCardinality cardinality */ 40:
                     message.cardinality = reader.int32();
@@ -24177,9 +24188,9 @@ class SchemaData$Type extends MessageType$<SchemaData> {
         /* string name = 31; */
         if (message.name !== "")
             writer.tag(31, WireType.LengthDelimited).string(message.name);
-        /* optional symbol.bench.NodeReferenceData definition_ptr = 35; */
-        if (message.definitionPtr)
-            NodeReferenceData.internalBinaryWrite(message.definitionPtr, writer.tag(35, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbol.bench.NodeReferenceData block_ptr = 35; */
+        if (message.blockPtr)
+            NodeReferenceData.internalBinaryWrite(message.blockPtr, writer.tag(35, WireType.LengthDelimited).fork(), options).join();
         /* symbol.bench.TypeCardinality cardinality = 40; */
         if (message.cardinality !== 0)
             writer.tag(40, WireType.Varint).int32(message.cardinality);
@@ -24380,7 +24391,7 @@ class ServiceData$Type extends MessageType$<ServiceData> {
             { no: 20, name: "mode", kind: "enum", T: () => ["symbol.bench.NodeMode", NodeMode, "NODE_MODE_"] },
             { no: 22, name: "order_key", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
             { no: 31, name: "name", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
-            { no: 35, name: "definition_ptr", kind: "message", T: () => NodeReferenceData },
+            { no: 35, name: "block_ptr", kind: "message", T: () => NodeReferenceData },
             { no: 100, name: "model_developer", kind: "enum", opt: true, T: () => ["symbol.bench.ModelDeveloper", ModelDeveloper, "MODEL_DEVELOPER_"] },
             { no: 101, name: "model_provider", kind: "enum", opt: true, T: () => ["symbol.bench.ModelProvider", ModelProvider, "MODEL_PROVIDER_"] },
             { no: 102, name: "model_id", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
@@ -24453,8 +24464,8 @@ class ServiceData$Type extends MessageType$<ServiceData> {
                 case /* string name */ 31:
                     message.name = reader.string();
                     break;
-                case /* optional symbol.bench.NodeReferenceData definition_ptr */ 35:
-                    message.definitionPtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.definitionPtr);
+                case /* optional symbol.bench.NodeReferenceData block_ptr */ 35:
+                    message.blockPtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.blockPtr);
                     break;
                 case /* optional symbol.bench.ModelDeveloper model_developer */ 100:
                     message.modelDeveloper = reader.int32();
@@ -24537,9 +24548,9 @@ class ServiceData$Type extends MessageType$<ServiceData> {
         /* string name = 31; */
         if (message.name !== "")
             writer.tag(31, WireType.LengthDelimited).string(message.name);
-        /* optional symbol.bench.NodeReferenceData definition_ptr = 35; */
-        if (message.definitionPtr)
-            NodeReferenceData.internalBinaryWrite(message.definitionPtr, writer.tag(35, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbol.bench.NodeReferenceData block_ptr = 35; */
+        if (message.blockPtr)
+            NodeReferenceData.internalBinaryWrite(message.blockPtr, writer.tag(35, WireType.LengthDelimited).fork(), options).join();
         /* optional symbol.bench.ModelDeveloper model_developer = 100; */
         if (message.modelDeveloper !== undefined)
             writer.tag(100, WireType.Varint).int32(message.modelDeveloper);
@@ -24696,7 +24707,7 @@ class ShadowStyleData$Type extends MessageType$<ShadowStyleData> {
             { no: 22, name: "order_key", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
             { no: 30, name: "type", kind: "enum", T: () => ["symbol.bench.ShadowType", ShadowType, "SHADOW_TYPE_"] },
             { no: 31, name: "name", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
-            { no: 35, name: "definition_ptr", kind: "message", T: () => NodeReferenceData },
+            { no: 35, name: "block_ptr", kind: "message", T: () => NodeReferenceData },
             { no: 41, name: "style_ptr", kind: "message", T: () => NodeReferenceData },
             { no: 50, name: "color", kind: "message", T: () => ColorData },
             { no: 51, name: "position", kind: "enum", T: () => ["symbol.bench.ShadowPosition", ShadowPosition, "SHADOW_POSITION_"] },
@@ -24771,8 +24782,8 @@ class ShadowStyleData$Type extends MessageType$<ShadowStyleData> {
                 case /* string name */ 31:
                     message.name = reader.string();
                     break;
-                case /* optional symbol.bench.NodeReferenceData definition_ptr */ 35:
-                    message.definitionPtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.definitionPtr);
+                case /* optional symbol.bench.NodeReferenceData block_ptr */ 35:
+                    message.blockPtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.blockPtr);
                     break;
                 case /* optional symbol.bench.NodeReferenceData style_ptr */ 41:
                     message.stylePtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.stylePtr);
@@ -24855,9 +24866,9 @@ class ShadowStyleData$Type extends MessageType$<ShadowStyleData> {
         /* string name = 31; */
         if (message.name !== "")
             writer.tag(31, WireType.LengthDelimited).string(message.name);
-        /* optional symbol.bench.NodeReferenceData definition_ptr = 35; */
-        if (message.definitionPtr)
-            NodeReferenceData.internalBinaryWrite(message.definitionPtr, writer.tag(35, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbol.bench.NodeReferenceData block_ptr = 35; */
+        if (message.blockPtr)
+            NodeReferenceData.internalBinaryWrite(message.blockPtr, writer.tag(35, WireType.LengthDelimited).fork(), options).join();
         /* optional symbol.bench.NodeReferenceData style_ptr = 41; */
         if (message.stylePtr)
             NodeReferenceData.internalBinaryWrite(message.stylePtr, writer.tag(41, WireType.LengthDelimited).fork(), options).join();
@@ -24909,7 +24920,7 @@ class SliderInputViewData$Type extends MessageType$<SliderInputViewData> {
             { no: 20, name: "mode", kind: "enum", T: () => ["symbol.bench.NodeMode", NodeMode, "NODE_MODE_"] },
             { no: 22, name: "order_key", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
             { no: 31, name: "name", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
-            { no: 35, name: "definition_ptr", kind: "message", T: () => NodeReferenceData },
+            { no: 35, name: "block_ptr", kind: "message", T: () => NodeReferenceData },
             { no: 40, name: "position", kind: "message", T: () => PositionData },
             { no: 41, name: "width", kind: "message", T: () => DimensionData },
             { no: 42, name: "height", kind: "message", T: () => DimensionData },
@@ -24993,8 +25004,8 @@ class SliderInputViewData$Type extends MessageType$<SliderInputViewData> {
                 case /* string name */ 31:
                     message.name = reader.string();
                     break;
-                case /* optional symbol.bench.NodeReferenceData definition_ptr */ 35:
-                    message.definitionPtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.definitionPtr);
+                case /* optional symbol.bench.NodeReferenceData block_ptr */ 35:
+                    message.blockPtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.blockPtr);
                     break;
                 case /* optional symbol.bench.PositionData position */ 40:
                     message.position = PositionData.internalBinaryRead(reader, reader.uint32(), options, message.position);
@@ -25113,9 +25124,9 @@ class SliderInputViewData$Type extends MessageType$<SliderInputViewData> {
         /* string name = 31; */
         if (message.name !== "")
             writer.tag(31, WireType.LengthDelimited).string(message.name);
-        /* optional symbol.bench.NodeReferenceData definition_ptr = 35; */
-        if (message.definitionPtr)
-            NodeReferenceData.internalBinaryWrite(message.definitionPtr, writer.tag(35, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbol.bench.NodeReferenceData block_ptr = 35; */
+        if (message.blockPtr)
+            NodeReferenceData.internalBinaryWrite(message.blockPtr, writer.tag(35, WireType.LengthDelimited).fork(), options).join();
         /* optional symbol.bench.PositionData position = 40; */
         if (message.position)
             PositionData.internalBinaryWrite(message.position, writer.tag(40, WireType.LengthDelimited).fork(), options).join();
@@ -25676,7 +25687,7 @@ class SplitViewData$Type extends MessageType$<SplitViewData> {
             { no: 20, name: "mode", kind: "enum", T: () => ["symbol.bench.NodeMode", NodeMode, "NODE_MODE_"] },
             { no: 22, name: "order_key", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
             { no: 31, name: "name", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
-            { no: 35, name: "definition_ptr", kind: "message", T: () => NodeReferenceData },
+            { no: 35, name: "block_ptr", kind: "message", T: () => NodeReferenceData },
             { no: 40, name: "position", kind: "message", T: () => PositionData },
             { no: 41, name: "width", kind: "message", T: () => DimensionData },
             { no: 42, name: "height", kind: "message", T: () => DimensionData },
@@ -25797,8 +25808,8 @@ class SplitViewData$Type extends MessageType$<SplitViewData> {
                 case /* string name */ 31:
                     message.name = reader.string();
                     break;
-                case /* optional symbol.bench.NodeReferenceData definition_ptr */ 35:
-                    message.definitionPtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.definitionPtr);
+                case /* optional symbol.bench.NodeReferenceData block_ptr */ 35:
+                    message.blockPtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.blockPtr);
                     break;
                 case /* optional symbol.bench.PositionData position */ 40:
                     message.position = PositionData.internalBinaryRead(reader, reader.uint32(), options, message.position);
@@ -26064,9 +26075,9 @@ class SplitViewData$Type extends MessageType$<SplitViewData> {
         /* string name = 31; */
         if (message.name !== "")
             writer.tag(31, WireType.LengthDelimited).string(message.name);
-        /* optional symbol.bench.NodeReferenceData definition_ptr = 35; */
-        if (message.definitionPtr)
-            NodeReferenceData.internalBinaryWrite(message.definitionPtr, writer.tag(35, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbol.bench.NodeReferenceData block_ptr = 35; */
+        if (message.blockPtr)
+            NodeReferenceData.internalBinaryWrite(message.blockPtr, writer.tag(35, WireType.LengthDelimited).fork(), options).join();
         /* optional symbol.bench.PositionData position = 40; */
         if (message.position)
             PositionData.internalBinaryWrite(message.position, writer.tag(40, WireType.LengthDelimited).fork(), options).join();
@@ -26293,7 +26304,7 @@ class TableData$Type extends MessageType$<TableData> {
             { no: 20, name: "mode", kind: "enum", T: () => ["symbol.bench.NodeMode", NodeMode, "NODE_MODE_"] },
             { no: 22, name: "order_key", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
             { no: 31, name: "name", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
-            { no: 35, name: "definition_ptr", kind: "message", T: () => NodeReferenceData },
+            { no: 35, name: "block_ptr", kind: "message", T: () => NodeReferenceData },
             { no: 40, name: "traits", kind: "enum", repeat: 1 /*RepeatType.PACKED*/, T: () => ["symbol.bench.TraitType", TraitType, "TRAIT_TYPE_"] }
         ]);
     }
@@ -26365,8 +26376,8 @@ class TableData$Type extends MessageType$<TableData> {
                 case /* string name */ 31:
                     message.name = reader.string();
                     break;
-                case /* optional symbol.bench.NodeReferenceData definition_ptr */ 35:
-                    message.definitionPtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.definitionPtr);
+                case /* optional symbol.bench.NodeReferenceData block_ptr */ 35:
+                    message.blockPtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.blockPtr);
                     break;
                 case /* repeated symbol.bench.TraitType traits */ 40:
                     if (wireType === WireType.LengthDelimited)
@@ -26438,9 +26449,9 @@ class TableData$Type extends MessageType$<TableData> {
         /* string name = 31; */
         if (message.name !== "")
             writer.tag(31, WireType.LengthDelimited).string(message.name);
-        /* optional symbol.bench.NodeReferenceData definition_ptr = 35; */
-        if (message.definitionPtr)
-            NodeReferenceData.internalBinaryWrite(message.definitionPtr, writer.tag(35, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbol.bench.NodeReferenceData block_ptr = 35; */
+        if (message.blockPtr)
+            NodeReferenceData.internalBinaryWrite(message.blockPtr, writer.tag(35, WireType.LengthDelimited).fork(), options).join();
         /* repeated symbol.bench.TraitType traits = 40; */
         if (message.traits.length) {
             writer.tag(40, WireType.LengthDelimited).fork();
@@ -26479,7 +26490,7 @@ class TaskData$Type extends MessageType$<TaskData> {
             { no: 20, name: "mode", kind: "enum", T: () => ["symbol.bench.NodeMode", NodeMode, "NODE_MODE_"] },
             { no: 22, name: "order_key", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
             { no: 32, name: "title", kind: "message", T: () => TextLineData },
-            { no: 35, name: "definition_ptr", kind: "message", T: () => NodeReferenceData },
+            { no: 35, name: "block_ptr", kind: "message", T: () => NodeReferenceData },
             { no: 50, name: "due_at", kind: "message", T: () => Timestamp },
             { no: 51, name: "assigned_to_ptr", kind: "message", T: () => NodeReferenceData },
             { no: 80, name: "status", kind: "enum", T: () => ["symbol.bench.ProcessStatus", ProcessStatus, "PROCESS_STATUS_"] },
@@ -26563,8 +26574,8 @@ class TaskData$Type extends MessageType$<TaskData> {
                 case /* optional symbol.bench.TextLineData title */ 32:
                     message.title = TextLineData.internalBinaryRead(reader, reader.uint32(), options, message.title);
                     break;
-                case /* optional symbol.bench.NodeReferenceData definition_ptr */ 35:
-                    message.definitionPtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.definitionPtr);
+                case /* optional symbol.bench.NodeReferenceData block_ptr */ 35:
+                    message.blockPtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.blockPtr);
                     break;
                 case /* optional google.protobuf.Timestamp due_at */ 50:
                     message.dueAt = Timestamp.internalBinaryRead(reader, reader.uint32(), options, message.dueAt);
@@ -26671,9 +26682,9 @@ class TaskData$Type extends MessageType$<TaskData> {
         /* optional symbol.bench.TextLineData title = 32; */
         if (message.title)
             TextLineData.internalBinaryWrite(message.title, writer.tag(32, WireType.LengthDelimited).fork(), options).join();
-        /* optional symbol.bench.NodeReferenceData definition_ptr = 35; */
-        if (message.definitionPtr)
-            NodeReferenceData.internalBinaryWrite(message.definitionPtr, writer.tag(35, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbol.bench.NodeReferenceData block_ptr = 35; */
+        if (message.blockPtr)
+            NodeReferenceData.internalBinaryWrite(message.blockPtr, writer.tag(35, WireType.LengthDelimited).fork(), options).join();
         /* optional google.protobuf.Timestamp due_at = 50; */
         if (message.dueAt)
             Timestamp.internalBinaryWrite(message.dueAt, writer.tag(50, WireType.LengthDelimited).fork(), options).join();
@@ -27073,7 +27084,7 @@ class TextViewData$Type extends MessageType$<TextViewData> {
             { no: 20, name: "mode", kind: "enum", T: () => ["symbol.bench.NodeMode", NodeMode, "NODE_MODE_"] },
             { no: 22, name: "order_key", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
             { no: 31, name: "name", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
-            { no: 35, name: "definition_ptr", kind: "message", T: () => NodeReferenceData },
+            { no: 35, name: "block_ptr", kind: "message", T: () => NodeReferenceData },
             { no: 40, name: "position", kind: "message", T: () => PositionData },
             { no: 41, name: "width", kind: "message", T: () => DimensionData },
             { no: 42, name: "height", kind: "message", T: () => DimensionData },
@@ -27162,8 +27173,8 @@ class TextViewData$Type extends MessageType$<TextViewData> {
                 case /* string name */ 31:
                     message.name = reader.string();
                     break;
-                case /* optional symbol.bench.NodeReferenceData definition_ptr */ 35:
-                    message.definitionPtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.definitionPtr);
+                case /* optional symbol.bench.NodeReferenceData block_ptr */ 35:
+                    message.blockPtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.blockPtr);
                     break;
                 case /* optional symbol.bench.PositionData position */ 40:
                     message.position = PositionData.internalBinaryRead(reader, reader.uint32(), options, message.position);
@@ -27303,9 +27314,9 @@ class TextViewData$Type extends MessageType$<TextViewData> {
         /* string name = 31; */
         if (message.name !== "")
             writer.tag(31, WireType.LengthDelimited).string(message.name);
-        /* optional symbol.bench.NodeReferenceData definition_ptr = 35; */
-        if (message.definitionPtr)
-            NodeReferenceData.internalBinaryWrite(message.definitionPtr, writer.tag(35, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbol.bench.NodeReferenceData block_ptr = 35; */
+        if (message.blockPtr)
+            NodeReferenceData.internalBinaryWrite(message.blockPtr, writer.tag(35, WireType.LengthDelimited).fork(), options).join();
         /* optional symbol.bench.PositionData position = 40; */
         if (message.position)
             PositionData.internalBinaryWrite(message.position, writer.tag(40, WireType.LengthDelimited).fork(), options).join();
@@ -27391,7 +27402,7 @@ class ThemeData$Type extends MessageType$<ThemeData> {
             { no: 22, name: "order_key", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
             { no: 31, name: "name", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
             { no: 34, name: "icon", kind: "message", T: () => IconData },
-            { no: 35, name: "definition_ptr", kind: "message", T: () => NodeReferenceData },
+            { no: 35, name: "block_ptr", kind: "message", T: () => NodeReferenceData },
             { no: 50, name: "colors", kind: "map", K: 5 /*ScalarType.INT32*/, V: { kind: "message", T: () => ColorData } }
         ]);
     }
@@ -27463,8 +27474,8 @@ class ThemeData$Type extends MessageType$<ThemeData> {
                 case /* optional symbol.bench.IconData icon */ 34:
                     message.icon = IconData.internalBinaryRead(reader, reader.uint32(), options, message.icon);
                     break;
-                case /* optional symbol.bench.NodeReferenceData definition_ptr */ 35:
-                    message.definitionPtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.definitionPtr);
+                case /* optional symbol.bench.NodeReferenceData block_ptr */ 35:
+                    message.blockPtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.blockPtr);
                     break;
                 case /* map<int32, symbol.bench.ColorData> colors */ 50:
                     this.binaryReadMap50(message.colors, reader, options);
@@ -27548,9 +27559,9 @@ class ThemeData$Type extends MessageType$<ThemeData> {
         /* optional symbol.bench.IconData icon = 34; */
         if (message.icon)
             IconData.internalBinaryWrite(message.icon, writer.tag(34, WireType.LengthDelimited).fork(), options).join();
-        /* optional symbol.bench.NodeReferenceData definition_ptr = 35; */
-        if (message.definitionPtr)
-            NodeReferenceData.internalBinaryWrite(message.definitionPtr, writer.tag(35, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbol.bench.NodeReferenceData block_ptr = 35; */
+        if (message.blockPtr)
+            NodeReferenceData.internalBinaryWrite(message.blockPtr, writer.tag(35, WireType.LengthDelimited).fork(), options).join();
         /* map<int32, symbol.bench.ColorData> colors = 50; */
         for (let k of globalThis.Object.keys(message.colors)) {
             writer.tag(50, WireType.LengthDelimited).fork().tag(1, WireType.Varint).int32(parseInt(k));
@@ -27842,7 +27853,7 @@ class ThreadViewData$Type extends MessageType$<ThreadViewData> {
             { no: 20, name: "mode", kind: "enum", T: () => ["symbol.bench.NodeMode", NodeMode, "NODE_MODE_"] },
             { no: 22, name: "order_key", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
             { no: 31, name: "name", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
-            { no: 35, name: "definition_ptr", kind: "message", T: () => NodeReferenceData },
+            { no: 35, name: "block_ptr", kind: "message", T: () => NodeReferenceData },
             { no: 40, name: "position", kind: "message", T: () => PositionData },
             { no: 41, name: "width", kind: "message", T: () => DimensionData },
             { no: 42, name: "height", kind: "message", T: () => DimensionData },
@@ -27918,8 +27929,8 @@ class ThreadViewData$Type extends MessageType$<ThreadViewData> {
                 case /* string name */ 31:
                     message.name = reader.string();
                     break;
-                case /* optional symbol.bench.NodeReferenceData definition_ptr */ 35:
-                    message.definitionPtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.definitionPtr);
+                case /* optional symbol.bench.NodeReferenceData block_ptr */ 35:
+                    message.blockPtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.blockPtr);
                     break;
                 case /* optional symbol.bench.PositionData position */ 40:
                     message.position = PositionData.internalBinaryRead(reader, reader.uint32(), options, message.position);
@@ -28008,9 +28019,9 @@ class ThreadViewData$Type extends MessageType$<ThreadViewData> {
         /* string name = 31; */
         if (message.name !== "")
             writer.tag(31, WireType.LengthDelimited).string(message.name);
-        /* optional symbol.bench.NodeReferenceData definition_ptr = 35; */
-        if (message.definitionPtr)
-            NodeReferenceData.internalBinaryWrite(message.definitionPtr, writer.tag(35, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbol.bench.NodeReferenceData block_ptr = 35; */
+        if (message.blockPtr)
+            NodeReferenceData.internalBinaryWrite(message.blockPtr, writer.tag(35, WireType.LengthDelimited).fork(), options).join();
         /* optional symbol.bench.PositionData position = 40; */
         if (message.position)
             PositionData.internalBinaryWrite(message.position, writer.tag(40, WireType.LengthDelimited).fork(), options).join();
@@ -28195,7 +28206,7 @@ class TransitionStyleData$Type extends MessageType$<TransitionStyleData> {
             { no: 22, name: "order_key", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
             { no: 30, name: "type", kind: "enum", T: () => ["symbol.bench.TransitionType", TransitionType, "TRANSITION_TYPE_"] },
             { no: 31, name: "name", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
-            { no: 35, name: "definition_ptr", kind: "message", T: () => NodeReferenceData },
+            { no: 35, name: "block_ptr", kind: "message", T: () => NodeReferenceData },
             { no: 41, name: "style_ptr", kind: "message", T: () => NodeReferenceData },
             { no: 50, name: "delay", kind: "scalar", opt: true, T: 1 /*ScalarType.DOUBLE*/ },
             { no: 51, name: "duration", kind: "scalar", opt: true, T: 1 /*ScalarType.DOUBLE*/ },
@@ -28272,8 +28283,8 @@ class TransitionStyleData$Type extends MessageType$<TransitionStyleData> {
                 case /* string name */ 31:
                     message.name = reader.string();
                     break;
-                case /* optional symbol.bench.NodeReferenceData definition_ptr */ 35:
-                    message.definitionPtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.definitionPtr);
+                case /* optional symbol.bench.NodeReferenceData block_ptr */ 35:
+                    message.blockPtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.blockPtr);
                     break;
                 case /* optional symbol.bench.NodeReferenceData style_ptr */ 41:
                     message.stylePtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.stylePtr);
@@ -28366,9 +28377,9 @@ class TransitionStyleData$Type extends MessageType$<TransitionStyleData> {
         /* string name = 31; */
         if (message.name !== "")
             writer.tag(31, WireType.LengthDelimited).string(message.name);
-        /* optional symbol.bench.NodeReferenceData definition_ptr = 35; */
-        if (message.definitionPtr)
-            NodeReferenceData.internalBinaryWrite(message.definitionPtr, writer.tag(35, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbol.bench.NodeReferenceData block_ptr = 35; */
+        if (message.blockPtr)
+            NodeReferenceData.internalBinaryWrite(message.blockPtr, writer.tag(35, WireType.LengthDelimited).fork(), options).join();
         /* optional symbol.bench.NodeReferenceData style_ptr = 41; */
         if (message.stylePtr)
             NodeReferenceData.internalBinaryWrite(message.stylePtr, writer.tag(41, WireType.LengthDelimited).fork(), options).join();
@@ -29143,7 +29154,7 @@ class WizardViewData$Type extends MessageType$<WizardViewData> {
             { no: 20, name: "mode", kind: "enum", T: () => ["symbol.bench.NodeMode", NodeMode, "NODE_MODE_"] },
             { no: 22, name: "order_key", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
             { no: 31, name: "name", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
-            { no: 35, name: "definition_ptr", kind: "message", T: () => NodeReferenceData },
+            { no: 35, name: "block_ptr", kind: "message", T: () => NodeReferenceData },
             { no: 40, name: "position", kind: "message", T: () => PositionData },
             { no: 41, name: "width", kind: "message", T: () => DimensionData },
             { no: 42, name: "height", kind: "message", T: () => DimensionData },
@@ -29217,8 +29228,8 @@ class WizardViewData$Type extends MessageType$<WizardViewData> {
                 case /* string name */ 31:
                     message.name = reader.string();
                     break;
-                case /* optional symbol.bench.NodeReferenceData definition_ptr */ 35:
-                    message.definitionPtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.definitionPtr);
+                case /* optional symbol.bench.NodeReferenceData block_ptr */ 35:
+                    message.blockPtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.blockPtr);
                     break;
                 case /* optional symbol.bench.PositionData position */ 40:
                     message.position = PositionData.internalBinaryRead(reader, reader.uint32(), options, message.position);
@@ -29301,9 +29312,9 @@ class WizardViewData$Type extends MessageType$<WizardViewData> {
         /* string name = 31; */
         if (message.name !== "")
             writer.tag(31, WireType.LengthDelimited).string(message.name);
-        /* optional symbol.bench.NodeReferenceData definition_ptr = 35; */
-        if (message.definitionPtr)
-            NodeReferenceData.internalBinaryWrite(message.definitionPtr, writer.tag(35, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbol.bench.NodeReferenceData block_ptr = 35; */
+        if (message.blockPtr)
+            NodeReferenceData.internalBinaryWrite(message.blockPtr, writer.tag(35, WireType.LengthDelimited).fork(), options).join();
         /* optional symbol.bench.PositionData position = 40; */
         if (message.position)
             PositionData.internalBinaryWrite(message.position, writer.tag(40, WireType.LengthDelimited).fork(), options).join();

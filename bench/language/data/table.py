@@ -10,12 +10,11 @@ from bench.language.core import (
     IsInPackage,
     IsInstantiable,
     IsModal,
+    IsNodeType,
     IsOwnable,
     Node,
     NodeType,
-    TraitType,
     node_,
-    property_,
 )
 from bench.pb2 import TableData
 
@@ -31,6 +30,7 @@ logger = structlog.get_logger(__name__)
 class Table(
     IsInstantiable,
     IsModal,
+    IsNodeType,
     HasName,
     IsOwnable,
     IsBlockable,
@@ -41,10 +41,12 @@ class Table(
 ):
     """
     A Table of Records, like a custom Node type with Fields as Properties.
+    NOTE :Architecture: I don't love that we call custom Node definitions "Tables",
+     but Tables / Records is a very natural way to describe the most common use case.
+     Maybe we'll abstract out the IsCustomNode and IsCustomInstance traits or something.
     """
 
     # type?
-    traits: list[TraitType] = property_(40, description="Dynamic traits of the Table.")
 
     @property
     def records(self) -> Any:
