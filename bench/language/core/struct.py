@@ -59,6 +59,7 @@ class Struct[StructDataT: AnyStructData](BuiltinObject[StructDataT], abc.ABC):
     __is_struct__: ClassVar[bool] = True
 
     _proto: "StructDataT | None" = property_runtime_()  # cached for frozen Structs
+    # _value?
 
     @final
     def __repr__(self):

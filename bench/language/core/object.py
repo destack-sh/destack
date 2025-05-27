@@ -1095,12 +1095,12 @@ class BuiltinObject[ObjectDataT: AnyObjectData](abc.ABC):
         return True  # support truthy checks for objects
 
     @classmethod
-    def __pack_proto__(cls, object: Self) -> ObjectDataT:
+    def __pack_proto__(cls, _object: Self) -> ObjectDataT:
         """Convert to wire format"""
         raise NotImplementedError  # generated
 
     @classmethod
-    def __unpack_proto__(cls, object_data: ObjectDataT) -> Self:
+    def __unpack_proto__(cls, _object_data: ObjectDataT) -> Self:
         """Convert from wire format"""
         raise NotImplementedError  # generated
 
@@ -1110,17 +1110,17 @@ class BuiltinObject[ObjectDataT: AnyObjectData](abc.ABC):
         raise NotImplementedError  # generated (usually = __pack_proto__)
 
     @classmethod
-    def from_proto(cls, object_data: ObjectDataT) -> Self:
+    def from_proto(cls, _object_data: ObjectDataT) -> Self:
         """Convert from wire format"""
         raise NotImplementedError  # generated
 
     @classmethod
-    def __pack_value__(cls, object: Self) -> dict:
+    def __pack_value__(cls, _object: Self) -> dict:
         """Convert to value format"""
         raise NotImplementedError  # generated
 
     @classmethod
-    def __unpack_value__(cls, object_value: dict) -> Self:
+    def __unpack_value__(cls, _object_value: dict) -> Self:
         """Convert from value format"""
         raise NotImplementedError  # generated
 
@@ -1130,7 +1130,7 @@ class BuiltinObject[ObjectDataT: AnyObjectData](abc.ABC):
         raise NotImplementedError  # generated (usually = __pack_value__)
 
     @classmethod
-    def from_value(cls, object_value: dict) -> Self:
+    def from_value(cls, _object_value: dict) -> Self:
         """Convert from value format"""
         raise NotImplementedError  # generated
 

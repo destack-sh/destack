@@ -215,11 +215,11 @@ def generate_pack_value_impl(cls: type["BuiltinObject"]) -> tuple[str, dict[str,
 
     value_impl = f"""
 @classmethod
-def __pack_value__(cls, object: "Self") -> dict[str, "JsonValue"]:
+def __pack_value__(cls, _object: "Self") -> dict[str, "JsonValue"]:
 {pack_value}
 
 @classmethod
-def __unpack_value__(cls, object_value: dict[str, "JsonValue"]) -> "Self":
+def __unpack_value__(cls, _object_value: dict[str, "JsonValue"]) -> "Self":
 {unpack_value}
 
 def to_value(self: "Self") -> dict[str, "JsonValue"]:
@@ -246,14 +246,14 @@ from_value = __unpack_value__
 def _generate_pack_value(cls: type["BuiltinObject"]) -> str:
     """Generate the BuiltinObject.__pack_value__ method implementation."""
     pack_method_parts: list[str] = []
-    pack_method_parts.append("result = {}")
+    pack_method_parts.append("_object_value = {}")
 
     wired_properties_in_order = list(cls.__wired_properties__.values())
     wired_properties_in_order.sort(key=lambda p: p.id or 0)
     for prop in wired_properties_in_order:
         if prop.name == "metatype":
             metatype = BUILTIN_OBJECT_TYPE_BY_CLASS[cls]
-            pack_method_parts.append(f'result["{prop.id}"] = {metatype.value}')
+            pack_method_parts.append(f'_object_value["{prop.id}"] = {metatype.value}')
             continue
 
         pack_code = _generate_pack_value_property(prop)
@@ -262,16 +262,16 @@ def _generate_pack_value(cls: type["BuiltinObject"]) -> str:
         else:
             # Simple assignment for properties that don't need special handling
             if prop.is_required:
-                pack_method_parts.append(f'result["{prop.id}"] = object.{prop.name}')
+                pack_method_parts.append(f'_object_value["{prop.id}"] = _object.{prop.name}')
             else:
                 pack_method_parts.extend(
                     [
-                        f"if object.{prop.name} is not None:",
-                        f'    result["{prop.id}"] = object.{prop.name}',
+                        f"if _object.{prop.name} is not None:",
+                        f'    _object_value["{prop.id}"] = _object.{prop.name}',
                     ]
                 )
 
-    pack_method_parts.append("return result")
+    pack_method_parts.append("return _object_value")
     return "\n".join(pack_method_parts)
 
 
@@ -291,7 +291,7 @@ def _generate_unpack_value(cls: type["BuiltinObject"]) -> str:
                 unpack_method_parts.extend(unpack_code)
                 unpack_assignments.append(f"{prop.name}=_unpacked_{prop.name}")
         else:
-            unpack_assignments.append(f'{prop.name}=object_value.get("{prop.id}")')
+            unpack_assignments.append(f'{prop.name}=_object_value.get("{prop.id}")')
 
     unpack_method_parts.append("return cls(")
     for i, assignment in enumerate(unpack_assignments):
@@ -306,19 +306,19 @@ def _generate_unpack_value(cls: type["BuiltinObject"]) -> str:
 def _generate_pack_value_property(prop: "Property") -> list[str] | None:
     """Generate the packing code for a property value."""
     lines: list[str] = []
-    obj_value = f"object.{prop.name}"
+    obj_value = f"_object.{prop.name}"
 
     if prop.cardinality == "scalar":
         scalar_lines = _generate_pack_value_scalar(prop, obj_value, f"_packed_{prop.name}")
         if scalar_lines:
             lines.extend(scalar_lines)
             if prop.is_required:
-                lines.append(f'result["{prop.id}"] = _packed_{prop.name}')
+                lines.append(f'_object_value["{prop.id}"] = _packed_{prop.name}')
             else:
                 lines.extend(
                     [
                         f"if _packed_{prop.name} is not None:",
-                        f'    result["{prop.id}"] = _packed_{prop.name}',
+                        f'    _object_value["{prop.id}"] = _packed_{prop.name}',
                     ]
                 )
         else:
@@ -337,7 +337,7 @@ def _generate_pack_value_property(prop: "Property") -> list[str] | None:
             lines.append(f"        _packed_{prop.name}.append(_packed_item)")
         else:
             lines.append(f"        _packed_{prop.name}.append(_item)")
-        lines.append(f'    result["{prop.id}"] = _packed_{prop.name}')
+        lines.append(f'    _object_value["{prop.id}"] = _packed_{prop.name}')
     elif prop.cardinality == "map":
         lines.extend(
             [
@@ -360,7 +360,7 @@ def _generate_pack_value_property(prop: "Property") -> list[str] | None:
             lines.append(f"        _packed_{prop.name}[_key] = _packed_value")
         else:
             lines.append(f"        _packed_{prop.name}[_key] = _value")
-        lines.append(f'    result["{prop.id}"] = _packed_{prop.name}')
+        lines.append(f'    _object_value["{prop.id}"] = _packed_{prop.name}')
     else:
         assert_never(prop.cardinality)
 
@@ -370,7 +370,7 @@ def _generate_pack_value_property(prop: "Property") -> list[str] | None:
 def _generate_unpack_value_property(prop: "Property") -> list[str] | None:
     """Generate the unpacking code for a property value."""
     lines: list[str] = []
-    data_value = f'object_value.get("{prop.id}")'
+    data_value = f'_object_value.get("{prop.id}")'
 
     if prop.cardinality == "scalar":
         scalar_lines = _generate_unpack_value_scalar(prop, data_value, f"_unpacked_{prop.name}")
