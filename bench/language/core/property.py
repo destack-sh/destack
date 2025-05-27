@@ -544,6 +544,9 @@ class Property(IntoType, IntoQuery if TYPE_CHECKING else object):
         # 'type' must be 30
         if (self.name == "type") != (self.id == 30):
             raise ValueError(f"'type' must be 30: {self!r}")
+        # variables must be scalar on a Node
+        if self.is_variable and (self.cardinality != "scalar" or not self.component.__is_node__):
+            raise ValueError(f"variable must be scalars on a Node: {self!r}")
 
         # default to None if not required and no default
         if not self.is_required and self.default is UNSET:

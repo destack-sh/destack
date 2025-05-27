@@ -22,7 +22,7 @@ class VariableType(BuiltinEnum):
     FIELD = 10
 
 
-@struct_(StructType.VARIABLE)
+@struct_(StructType.VARIABLE, is_frozen=True)
 class Variable[T: Any](Struct):
     """A variable value / reference (to be resolved at runtime)."""
 
