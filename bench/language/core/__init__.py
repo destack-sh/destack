@@ -77,8 +77,8 @@ from .object import (
     object_,
 )
 from .property import (
+    IntoType,
     Property,
-    TypeAnnotation,
     parse_type_annotation,
     property_,
     property_ancestor_,
@@ -298,6 +298,8 @@ __all__ = [
     "IconType",
     "IndexIn",
     "IntoQuery",
+    "IntoType",
+    "IntoType",
     "IsArchivable",
     "IsBased",
     "IsBlockable",
@@ -375,7 +377,6 @@ __all__ = [
     "TraitType",
     "Transaction",
     "Type",
-    "TypeAnnotation",
     "TypeBase",
     "TypeCardinality",
     "TypeIn",

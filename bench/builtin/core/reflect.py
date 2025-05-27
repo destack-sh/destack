@@ -98,7 +98,7 @@ def class_to_service(
             type_info = parse_type_annotation(cast(Any, param_type), BENCH_CLASS_BY_NAME)
             field = Field.input(
                 name=param_name.replace("_", " "),
-                typ=cast(TypeIn, type_info.type),
+                typ=cast(TypeIn, type_info.py_type),
                 default=default_value,
                 is_list=type_info.is_list,
                 is_required=not type_info.is_optional,
@@ -116,10 +116,12 @@ def class_to_service(
             if isinstance(metadata, dict):
                 for output_name, output_type in metadata.items():
                     type_info = parse_type_annotation(output_type, BENCH_CLASS_BY_NAME)
-                    assert isinstance(type_info.type, type), f"{type_info.type!r} is not a type"
+                    assert isinstance(
+                        type_info.py_type, type
+                    ), f"{type_info.py_type!r} is not a type"
                     field = Field.output(
                         name=output_name.replace("_", " ").title(),
-                        typ=type_info.type,
+                        typ=type_info.py_type,
                         is_list=type_info.is_list,
                         is_required=not type_info.is_optional,
                     )
