@@ -240,7 +240,10 @@ class Node[NodeDataT: AnyNodeData](BuiltinObject[NodeDataT]):
 
     def _do_set(self, key: str, value: Any):
         """Set a property on this Node."""
-        raise NotImplementedError
+        prop = self.__properties__[key]
+        if prop:
+            pass  # nocheckin: record edit
+        object.__setattr__(self, key, value)
 
     if not TYPE_CHECKING:
         __setattr__ = _do_set

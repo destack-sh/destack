@@ -12,6 +12,7 @@ from bench.language import (
     Package,
     PackageType,
     Region,
+    Session,
     Supergraph,
 )
 from bench.utils.oracle import Oracle
@@ -21,6 +22,7 @@ BEGINNING_OF_TIME = datetime.fromisoformat("1970-01-01T00:00:00+00:00")
 
 
 def make_system_database(region: Region, pg_url: str) -> Database:
+    system_session = Session(supergraph=Supergraph("system"))
     system_bench_stub = Bench(
         id=UUID(int=0),
         name="System",
@@ -29,6 +31,7 @@ def make_system_database(region: Region, pg_url: str) -> Database:
         status=BenchStatus.ACTIVE,
         created_at=BEGINNING_OF_TIME,
         updated_at=BEGINNING_OF_TIME,
+        _session=system_session,
     )
     system_package_stub = Package(
         parent=system_bench_stub,
@@ -38,6 +41,7 @@ def make_system_database(region: Region, pg_url: str) -> Database:
         slug="home",
         created_at=BEGINNING_OF_TIME,
         updated_at=BEGINNING_OF_TIME,
+        _session=system_session,
     )
     database = Database(
         parent=system_package_stub,
@@ -46,6 +50,7 @@ def make_system_database(region: Region, pg_url: str) -> Database:
         sql_url=pg_url,
         created_at=BEGINNING_OF_TIME,
         updated_at=BEGINNING_OF_TIME,
+        _session=system_session,
     )
     return database
 

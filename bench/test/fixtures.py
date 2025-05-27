@@ -137,7 +137,7 @@ async def create_blank_test_db(database: Database):
     """Creates a blank postgres database"""
     from bench.system import get_global_database_from_env
 
-    async with pg_connection(get_global_database_from_env(), autocommit=True) as conn:
+    async with pg_connection(get_global_database_from_env()) as conn:
         await conn.execute(f'DROP DATABASE IF EXISTS "{database.external_name}"')
         await conn.execute(f'CREATE DATABASE "{database.external_name}"')
 
@@ -145,22 +145,21 @@ async def create_blank_test_db(database: Database):
 async def create_test_db(database: Database, schema: SqlSchema):
     """Creates a postgres DB with one of our schemas"""
     await create_blank_test_db(database)
-    async with pg_connection(database, autocommit=True) as conn:
+    async with pg_connection(database) as conn:
         old_schema = await introspect_sql_schema(
-            conn.cursor,
+            conn,
             include_table_prefixes=(BENCH_TABLE_PREFIX,),
             exclude_table_prefixes=(BENCH_CUSTOM_NODE_PREFIX,),
         )
         migration_ops = generate_sql_migration_ops(old_schema=old_schema, new_schema=schema)
-        await apply_sql_migration_ops(conn.cursor, migration_ops)
-        await conn.commit()
+        await apply_sql_migration_ops(conn, migration_ops)
 
 
 async def delete_test_db(database: Database):
     """Deletes a postgres DB with one of our schemas"""
     from bench.system import get_global_database_from_env
 
-    async with pg_connection(get_global_database_from_env(), autocommit=True) as conn:
+    async with pg_connection(get_global_database_from_env()) as conn:
         await conn.execute(f'DROP DATABASE IF EXISTS "{database.external_name}"')
 
 
