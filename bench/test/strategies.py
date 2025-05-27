@@ -20,7 +20,6 @@ from bench.language import (
     EnumType,
     Field,
     FieldType,
-    Icon,
     IconType,
     IsInBench,
     NodeReference,
@@ -31,6 +30,7 @@ from bench.language import (
     ThemeColor,
     Type,
     TypeCardinality,
+    icon,
 )
 from bench.utils.oracle import MAX_SCHEDULE_DURATION
 
@@ -372,9 +372,9 @@ def fields(draw: st.DrawFn, cardinalities: st.SearchStrategy[TypeCardinality]):
 def icons(draw: st.DrawFn):
     kind = draw(st.sampled_from(list(IconType)))
     if kind == IconType.EMOJI:
-        return Icon.new("😀")
+        return icon("😀")
     else:
-        return Icon.new("fas fa-circle-dot")
+        return icon("fas fa-circle-dot")
 
 
 @cacheable

@@ -2,7 +2,6 @@ from typing import (
     TYPE_CHECKING,
     Any,
     Optional,
-    Sequence,
     Union,
     cast,
 )
@@ -24,12 +23,12 @@ from .const import (
     TraitType,
     enum_,
 )
-from .object import BuiltinObject, get_tk_b64_from_ck, object_
+from .object import BuiltinObject, object_
 from .property import property_
 from .struct import Struct, struct_
 
 if TYPE_CHECKING:
-    from bench.language import Field, FileType, Node, NodeReference, Value
+    from bench.language import Field, FileType, Node, NodeReference, Table, Value
 
 # pyright: reportIncompatibleVariableOverride=false, reportIncompatibleMethodOverride=false
 
@@ -44,10 +43,10 @@ class TypeCardinality(BuiltinEnum):
     SCALAR = 1
     LIST = 2
     # SET?
-    MAP = 5
-    # OPTION = 10
-    # LITERAL = 11
-    # UNION = 12
+    MAP = 4
+    # OPTION = 5
+    # LITERAL = 6
+    # UNION = 7
 
 
 @enum_(EnumType.SCALAR_TYPE)
@@ -64,8 +63,8 @@ class ScalarType(BuiltinEnum):
 class DefaultFactory(BuiltinEnum):
     """The factory to use for default values."""
 
-    UUID = 10
-    NOW = 20
+    UUID = 1
+    NOW = 2
 
 
 @enum_(EnumType.STRING_FORMAT)
@@ -86,8 +85,8 @@ class StringFormat(BuiltinEnum):
 class NumberFormat(BuiltinEnum):
     """The format of a number."""
 
-    ANGLE = 1
-    PERCENTAGE = 2
+    PERCENTAGE = 1
+    ANGLE = 2
     CURRENCY = 3
 
 
@@ -149,63 +148,39 @@ class TypeBase(BuiltinObject):
     For lists and maps, the scalar type describes the element/value type.
     """
 
-    cardinality: TypeCardinality = property_(40)
-
     # scalar
+    cardinality: TypeCardinality = property_(40)
     scalar_type: ScalarType = property_(41)
     primitive_type: Optional[PrimitiveType] = property_(42)
     enum_type: Optional[EnumType] = property_(43)
     node_type: Optional[NodeType] = property_(44)
-    struct_type: Optional[StructType] = property_(45)
-    is_required: bool = property_(46, default=False)
-    is_variable: bool = property_(47, default=False)
-    default: Optional["Value"] = property_(48)
-    default_factory: Optional[DefaultFactory] = property_(49)
-
-    # collection
-    base_type: Optional["Node"] = property_(50)
-    key_type: Optional["Type"] = property_(51)  # for maps
+    table: Optional["Table"] = property_(45)  # for nodes
+    struct_type: Optional[StructType] = property_(46)
+    base_type: Optional["Node"] = property_(47)
+    key_type: Optional["Type"] = property_(48)  # for maps
     if TYPE_CHECKING:
-        base_type_id: Optional[UUID] = None
-        base_type_ptr: Optional["NodeReference"] = None
+        schema_id: Optional[UUID] = None
+        schema_ptr: Optional["NodeReference"] = None
+        table_id: Optional[UUID] = None
+        table_ptr: Optional["NodeReference"] = None
+
+    # meta
+    is_required: bool = property_(50, default=False)
+    is_variable: bool = property_(51, default=False)
+    is_external: bool = property_(
+        52,
+        default=False,
+        description="Whether this type is defined outside of Bench.",
+    )
+    # external_id, external_key, ...?
+    default: Optional["Value"] = property_(55)
+    default_factory: Optional[DefaultFactory] = property_(56)
 
     # constraints
     collection_constraint: Optional["CollectionConstraint"] = property_(60)
     string_constraint: Optional["StringConstraint"] = property_(61)
     number_constraint: Optional["NumberConstraint"] = property_(62)
     node_constraint: Optional["NodeConstraint"] = property_(63)
-
-    def morph_to(
-        self,
-        typ: "TypeIn",
-        constraint: Constraint | None = None,
-        is_required: bool = False,
-    ):
-        """Change this type to another type."""
-        typ = to_type(typ, constraint=constraint, is_required=is_required)
-        for prop in TypeBase.__declared_properties__.values():
-            new_typ_value = getattr(typ, prop.name)
-            old_typ_value = getattr(self, prop.name)
-            if new_typ_value != old_typ_value:
-                setattr(self, prop.name, new_typ_value)
-
-    @property
-    def identity_key(self) -> str:
-        """The identity of this type for packing."""
-        return encode_type_identity(self)
-
-    @property
-    def _base_fields(self) -> Sequence["Field"]:
-        if (base_type := self.base_type) is not None:
-            return cast(
-                Sequence["Field"], base_type._graph.get_descendants(base_type, NodeType.FIELD)
-            )
-        else:
-            return ()
-
-    @property
-    def _fields(self) -> Sequence["Field"]:
-        return self._base_fields
 
 
 def encode_type_identity(typ: "TypeBase") -> str:
@@ -225,7 +200,7 @@ def decode_type_identity(key: str) -> "TypeBase":
 
 def encode_storage_key(field: "Field") -> str:
     """Gets the key used to identify values of this field in storage. :FieldStorageKey"""
-    return f"{get_tk_b64_from_ck(field.ck)}{field.identity_key}"
+    raise NotImplementedError
 
 
 @struct_(StructType.TYPE, is_frozen=True)

@@ -3,6 +3,7 @@ from typing import TYPE_CHECKING, Optional, Union
 from bench.language.core import (
     BuiltinEnum,
     CascadeAction,
+    EdgeType,
     EnumType,
     HasIcon,
     HasName,
@@ -16,7 +17,6 @@ from bench.language.core import (
     Node,
     NodeType,
     TypeBase,
-    encode_storage_key,
     enum_,
     node_,
     property_,
@@ -35,9 +35,9 @@ if TYPE_CHECKING:
 class FieldType(BuiltinEnum):
     """The type of a Field within its Block. Overlaps with ObjectKind."""
 
-    VARIABLE = 20, "Variable", "Variable", "fas fa-arrow-down"
-    INPUT = 30, "Input", "Input", "fas fa-arrow-down"
-    OUTPUT = 40, "Output", "Output", "fas fa-arrow-up"
+    VARIABLE = 1, "Variable", "Variable", "fas fa-arrow-down"
+    INPUT = 2, "Input", "Input", "fas fa-arrow-down"
+    OUTPUT = 3, "Output", "Output", "fas fa-arrow-up"
 
 
 @node_(NodeType.FIELD)
@@ -66,19 +66,11 @@ class Field(
     # type identity
     # ...TypeBase[40-69]
 
-    cascade: Optional[CascadeAction] = property_(70)
+    # relationship
+    edge_type: Optional[EdgeType] = property_(70)
+    cascade: Optional[CascadeAction] = property_(71)
 
     def __eq__(self, other):  # type: ignore
         return IntoQuery.__eq__(self, other)  # override to avoid recursion
 
     __hash__ = IsInPackage.__hash__  # type: ignore
-
-    @property
-    def type_info(self) -> TypeBase:
-        return self
-
-    @property
-    def storage_key(self) -> str:
-        return encode_storage_key(self)
-
-    key = storage_key

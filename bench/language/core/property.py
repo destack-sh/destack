@@ -2,7 +2,6 @@ import dataclasses
 import types
 import typing
 from dataclasses import dataclass
-from sys import intern
 from typing import (
     TYPE_CHECKING,
     Any,
@@ -23,8 +22,8 @@ from .const import (
     PRIMITIVE_TYPE_BY_PY_TYPE,
     UNSET,
     CascadeAction,
+    EdgeType,
     EnumType,
-    NodeEdgeKind,
     NodeType,
     PrimitiveType,
     StructType,
@@ -339,7 +338,6 @@ class Property(IntoType, IntoQuery if TYPE_CHECKING else object):
 
     # meta
     id: int | None = None
-    key: str = UNSET  # str(id)
     ord: int | None = None
     name: str = UNSET  # name from LHS of assignment
     description: str | None = None
@@ -348,7 +346,7 @@ class Property(IntoType, IntoQuery if TYPE_CHECKING else object):
     # pointers
     ptr_prop: Optional["Property"] = None  # wired representation for pointers
     runtime_prop: Optional["Property"] = None  # for the proto property
-    node_kind: NodeEdgeKind | None = None
+    edge_type: EdgeType | None = None
     node_bench_from: Literal["self"] | None = None
     node_exclude: tuple[Literal["ck", "base_id"], ...] = ()
     cascade: CascadeAction | None = None
@@ -368,10 +366,6 @@ class Property(IntoType, IntoQuery if TYPE_CHECKING else object):
     _ref: Optional["PropertyReference"] = None
     _type: Optional["Type"] = None
 
-    def __post_init__(self):
-        if self.id is not None:
-            self.key = intern(str(self.id))
-
     def __str__(self):
         if self.component is None:
             return "<detached>"
@@ -389,7 +383,7 @@ class Property(IntoType, IntoQuery if TYPE_CHECKING else object):
     __hash__ = _stable_hash  # type: ignore
 
     def clone(self):
-        return dataclasses.replace(self, component=None, ptr_prop=None)
+        return dataclasses.replace(self, component=None, runtime_prop=None, ptr_prop=None)
 
     def to_ref(self) -> "PropertyReference":
         """A pointer to this property. `to_ref()` for consistency with `Node.to_ref()`."""
@@ -475,23 +469,23 @@ class Property(IntoType, IntoQuery if TYPE_CHECKING else object):
             return ptr_prop
 
         # node reference
-        elif self.node_kind:
-            if self.node_kind == NodeEdgeKind.NODE_PARENT:
+        elif self.edge_type:
+            if self.edge_type == EdgeType.NODE_PARENT:
                 is_computed = False
-            elif self.node_kind == NodeEdgeKind.NODE_ANCESTOR:
+            elif self.edge_type == EdgeType.NODE_ANCESTOR:
                 is_computed = True
-            elif self.node_kind in (
-                NodeEdgeKind.NODE_REGULAR,
-                NodeEdgeKind.NODE_TEMPLATE,
+            elif self.edge_type in (
+                EdgeType.NODE_REGULAR,
+                EdgeType.NODE_TEMPLATE,
             ):
                 is_computed = False
             else:
-                raise ValueError(f"unexpected reference kind {self.node_kind!r} for {self!r}")
+                raise ValueError(f"unexpected reference kind {self.edge_type!r} for {self!r}")
             ptr_prop = Property(
                 id=self.id,
                 name=self.name + "_ptr",
                 component=self.component,
-                node_kind=self.node_kind,
+                edge_type=self.edge_type,
                 node_types=self.node_types,
                 runtime_prop=self,
                 scalar_type="node",
@@ -507,7 +501,7 @@ class Property(IntoType, IntoQuery if TYPE_CHECKING else object):
                 default=None,
                 constraint=self.constraint,
             )
-            if self.node_kind == NodeEdgeKind.NODE_ANCESTOR:
+            if self.edge_type == EdgeType.NODE_ANCESTOR:
                 # wired ancestors are not required (even though stored ancestors are)
                 ptr_prop.is_required = False
 
@@ -552,14 +546,14 @@ class Property(IntoType, IntoQuery if TYPE_CHECKING else object):
         if not self.is_required and self.default is UNSET:
             self.default = None
         # default to regular node references
-        if self.scalar_type == "node" and self.node_kind is None:
-            self.node_kind = NodeEdgeKind.NODE_REGULAR
+        if self.scalar_type == "node" and self.edge_type is None:
+            self.edge_type = EdgeType.NODE_REGULAR
 
         # node templates always point to their own type
-        if self.node_kind == NodeEdgeKind.NODE_TEMPLATE and object_type is not None:
+        if self.edge_type == EdgeType.NODE_TEMPLATE and object_type is not None:
             self.node_types = (NodeType(object_type),)
         # references get a _ptr property (which is wired/stored)
-        if self.node_kind is not None or self.is_property:
+        if self.edge_type is not None or self.is_property:
             # (don't want lists of Node references or Property references in Nodes, it's a mess)
             assert (
                 self.cardinality == "scalar" or not self.component.__is_node__
@@ -605,7 +599,7 @@ def property_(
     constraint: "Constraint | None" = None,
     node_bench_from: Literal["self"] | None = None,
     node_exclude: tuple[Literal["ck", "base_id"], ...] = (),
-    node_kind: NodeEdgeKind | None = None,
+    node_kind: EdgeType | None = None,
     cascade: CascadeAction | None = None,
     is_managed: bool = False,
     is_unique: bool = False,
@@ -625,7 +619,7 @@ def property_(
         constraint=constraint,
         node_bench_from=node_bench_from,
         node_exclude=node_exclude,
-        node_kind=node_kind,
+        edge_type=node_kind,
         cascade=cascade,
         is_wired=True,
         is_stored=True,
@@ -643,7 +637,7 @@ def property_parent_(id: int = 4) -> Any:
     """The parent of a node, must be of one of the given types."""
     return Property(
         id=id,
-        node_kind=NodeEdgeKind.NODE_PARENT,
+        edge_type=EdgeType.NODE_PARENT,
         default=None,
         is_wired=True,
         is_stored=False,
@@ -661,7 +655,7 @@ def property_ancestor_(
     """Computed nearest or farthest ancestor of the given type."""
     return Property(
         id=id,
-        node_kind=NodeEdgeKind.NODE_ANCESTOR,
+        edge_type=EdgeType.NODE_ANCESTOR,
         is_computed=True,
         is_required=is_required,
         is_wired=True,

@@ -20,7 +20,7 @@ from bench.utils.tenacity import RetryOptions
 
 from .const import (
     REGION,
-    NodeEdgeKind,
+    EdgeType,
     NodeMode,
     NodeType,
     ProcessStatus,
@@ -203,7 +203,7 @@ class IsTemplatable(Node if TYPE_CHECKING else BuiltinObject):
 
     template: Optional["Node"] = property_(
         16,
-        node_kind=NodeEdgeKind.NODE_TEMPLATE,
+        node_kind=EdgeType.NODE_TEMPLATE,
         node_exclude=("base_id",),
     )
     if TYPE_CHECKING:
@@ -277,7 +277,7 @@ class IsTemplatable(Node if TYPE_CHECKING else BuiltinObject):
             for node in _map.values():
                 node.replace_references(
                     _map,
-                    exclude=(NodeEdgeKind.NODE_PARENT, NodeEdgeKind.NODE_TEMPLATE),
+                    exclude=(EdgeType.NODE_PARENT, EdgeType.NODE_TEMPLATE),
                 )
 
         # append to our parent to re-attach

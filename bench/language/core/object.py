@@ -36,8 +36,8 @@ from .const import (
     ACTIVE_SESSION,
     EMPTY_DICT,
     UNSET,
+    EdgeType,
     EnumType,
-    NodeEdgeKind,
     NodeType,
     PrimitiveType,
     StructType,
@@ -705,7 +705,7 @@ def _generate_node_ancestor_property_impl(
 
     node_types_str = ", ".join(str(t.value) for t in prop.node_types)
 
-    if prop.node_kind == NodeEdgeKind.NODE_ANCESTOR and object_type in prop.node_types:
+    if prop.edge_type == EdgeType.NODE_ANCESTOR and object_type in prop.node_types:
         return f"""\
 @property
 def {prop.name}(self: "Node") -> "Node":
@@ -896,15 +896,15 @@ def _process_object_cls[ObjectT: BuiltinObject](
                 property_property_str = _generate_property_property_impl(prop)
                 exec(property_property_str, {}, cls_dict)
             # computed node property
-            elif prop.node_kind in (
-                NodeEdgeKind.NODE_PARENT,
-                NodeEdgeKind.NODE_REGULAR,
-                NodeEdgeKind.NODE_TEMPLATE,
+            elif prop.edge_type in (
+                EdgeType.NODE_PARENT,
+                EdgeType.NODE_REGULAR,
+                EdgeType.NODE_TEMPLATE,
             ):
                 node_property_str = _generate_node_property_impl(prop)
                 exec(node_property_str, {}, cls_dict)
             # computed node ancestor property
-            elif prop.node_kind == NodeEdgeKind.NODE_ANCESTOR:
+            elif prop.edge_type == EdgeType.NODE_ANCESTOR:
                 ancestor_property_str = _generate_node_ancestor_property_impl(object_type, prop)
                 exec(ancestor_property_str, {}, cls_dict)
             # computed _x node reference properties (e.g., parent_id, node_ck, node_type, ...)
@@ -1073,11 +1073,11 @@ class BuiltinObject[ObjectDataT: AnyObjectData](abc.ABC):
     def replace_references(
         self,
         new_node_by_id: Mapping[UUID, "Node"],
-        exclude: Collection[NodeEdgeKind],
+        exclude: Collection[EdgeType],
     ):
         """Replaces Node references with new Nodes. Missing Nodes are kept as is."""
         for prop in self.__node_properties__.values():
-            if prop.node_kind in exclude:
+            if prop.edge_type in exclude:
                 continue
             prop_value = getattr(self, prop.name)
             if prop.cardinality == "scalar":
