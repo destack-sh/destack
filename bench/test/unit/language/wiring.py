@@ -120,7 +120,6 @@ def test_roundtrip_builtin_object(obj: BuiltinObject[AnyObjectData], session: Se
     # value
     packed_obj_value = obj.to_value()
     packed_obj_value_str = json.dumps(packed_obj_value, indent=2)
-    print(packed_obj_value_str)  # noqa: T201
     unpacked_obj_value = json.loads(packed_obj_value_str)
-    unpacked_obj = obj.__unpack_value__(unpacked_obj_value)
+    unpacked_obj = obj.from_value(unpacked_obj_value)
     assert unpacked_obj.equals(obj), f"{unpacked_obj!r} != {obj!r}"

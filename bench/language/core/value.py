@@ -7,10 +7,8 @@ from typing import (
     Collection,
     Union,
     assert_never,
-    cast,
 )
 
-import pytz
 import structlog
 from fastuuid import UUID
 from google.protobuf.duration_pb2 import Duration
@@ -22,20 +20,15 @@ from google.protobuf.struct_pb2 import Value as ProtoValue
 from google.protobuf.timestamp_pb2 import Timestamp
 from opentelemetry import trace
 
-from bench.language.registry import BUILTIN_OBJECT_TYPE_BY_CLASS, ENUM_CLASS_BY_TYPE
+from bench.language.registry import BUILTIN_OBJECT_TYPE_BY_CLASS
 from bench.pb2 import AnyNodeData, AnyStructData, Date, TimeOfDay, ValueData
 from bench.utils.time import timedelta_from_isoformat, timedelta_to_isoformat
 
-from .const import (
-    EnumType,
-    PrimitiveType,
-    PrimitiveValue,
-    StructType,
-)
+from .const import PrimitiveType, PrimitiveValue, StructType
 from .graph import Supergraph
 from .property import IntoType, Property, property_
 from .struct import Struct, struct_
-from .type import Json, ScalarType
+from .type import Json
 
 if TYPE_CHECKING:
     from bench.language import BuiltinObject, TypeBase
@@ -83,48 +76,7 @@ def pack_value_scalar(value: ScalarValue | ScalarValueData, typ: "TypeBase") -> 
     """
     Packs the given scalar runtime or data value into a JSON-able representation.
     """
-    if typ.scalar_type == ScalarType.PRIMITIVE:
-        if typ.primitive_type == PrimitiveType.BYTES:
-            return base64.b64encode(cast(bytes, value)).decode()
-        elif typ.primitive_type == PrimitiveType.UUID:
-            return str(cast(UUID, value))
-        elif typ.primitive_type == PrimitiveType.JSON:
-            if type(value) is ProtoValue:
-                return cast(JsonValue, unpack_proto_json_struct(value))
-            elif type(value) is ProtoStruct:
-                return cast(JsonValue, MessageToDict(value))
-            else:
-                return cast(JsonValue, value)
-        elif typ.primitive_type == PrimitiveType.DATETIME:
-            if type(value) is Timestamp:
-                return value.ToDatetime(tzinfo=pytz.utc).isoformat()
-            else:
-                return cast(datetime, value).isoformat()
-        elif typ.primitive_type == PrimitiveType.DATE:
-            if type(value) is Date:
-                return unpack_proto_date(value).isoformat()
-            else:
-                return cast(date, value).isoformat()
-        elif typ.primitive_type == PrimitiveType.TIME:
-            if type(value) is TimeOfDay:
-                return unpack_proto_time(value).isoformat()
-            else:
-                return cast(time, value).isoformat()
-        elif typ.primitive_type == PrimitiveType.DURATION:
-            if type(value) is Duration:
-                return timedelta_to_isoformat(value.ToTimedelta())
-            else:
-                return timedelta_to_isoformat(cast(timedelta, value))
-        else:
-            return cast(JsonValue, value)
-    elif typ.scalar_type == ScalarType.NODE:
-        raise NotImplementedError
-    elif typ.scalar_type == ScalarType.ENUM:
-        return int(cast(Any, value))
-    elif typ.scalar_type == ScalarType.STRUCT:
-        raise NotImplementedError
-    else:
-        raise TypeError(f"cannot pack value of type {typ!r}")
+    raise NotImplementedError
 
 
 def unpack_value_scalar(
@@ -133,31 +85,7 @@ def unpack_value_scalar(
     """
     Unpacks the given scalar value into its runtime representation.
     """
-    if typ.scalar_type == ScalarType.PRIMITIVE:
-        if typ.primitive_type == PrimitiveType.BYTES:
-            return base64.b64decode(cast(str, value_packed))
-        elif typ.primitive_type in (PrimitiveType.INT16, PrimitiveType.INT32, PrimitiveType.INT64):
-            return int(cast(int, value_packed))
-        elif typ.primitive_type == PrimitiveType.UUID:
-            return UUID(cast(str, value_packed))
-        elif typ.primitive_type == PrimitiveType.DATETIME:
-            return datetime.fromisoformat(cast(str, value_packed))
-        elif typ.primitive_type == PrimitiveType.DATE:
-            return datetime.fromisoformat(cast(str, value_packed)).date()
-        elif typ.primitive_type == PrimitiveType.TIME:
-            return time.fromisoformat(cast(str, value_packed))
-        elif typ.primitive_type == PrimitiveType.DURATION:
-            return timedelta_from_isoformat(cast(str, value_packed))
-        else:
-            return cast(PrimitiveValue, value_packed)
-    elif typ.scalar_type == ScalarType.ENUM:
-        enum_cls = ENUM_CLASS_BY_TYPE[cast(EnumType, typ.enum_type)]
-        return enum_cls(cast(int, value_packed))
-    elif typ.scalar_type in (ScalarType.NODE, ScalarType.STRUCT):
-        assert isinstance(value_packed, dict), f"{value_packed!r} is not a dict, expected {typ!r}"
-        raise NotImplementedError
-    else:
-        raise TypeError(f"cannot unpack value of type {typ!r}")
+    raise NotImplementedError
 
 
 def generate_pack_value_impl(cls: type["BuiltinObject"]) -> tuple[str, dict[str, Any]]:
