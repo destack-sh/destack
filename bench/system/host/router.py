@@ -1,6 +1,6 @@
 import asyncio
 import functools
-from typing import Callable, override
+from typing import Callable, Mapping, override
 
 import grpclib.server
 import structlog
@@ -11,6 +11,18 @@ from grpclib import Status as GRPCStatus
 from opentelemetry import trace
 
 from bench.language import Database
+from bench.pb2.system_pb2 import (
+    CommitRequest,
+    CommitResponse,
+    DownloadFilesRequest,
+    DownloadFilesResponse,
+    QueryRequest,
+    QueryResponse,
+    SubscribeRequest,
+    SubscribeResponse,
+    UploadFilesRequest,
+    UploadFilesResponse,
+)
 from bench.proto import (
     HostBase,
     Network,
@@ -63,8 +75,8 @@ class HostRouterService(ServiceBase, HostBase):
         )
         self.hosts: dict[UUID, HostService] = {}
         self.hosts_lock = asyncio.Lock()
-        self._global_database = global_database
-        self._regional_database = regional_database
+        self.global_database = global_database
+        self.regional_database = regional_database
 
     def __str__(self):
         return "shards=[*]"
@@ -86,8 +98,8 @@ class HostRouterService(ServiceBase, HostBase):
         host = HostService(
             id=f"host-{bench_id}",
             bench_id=bench_id,
-            global_database=self._global_database,
-            regional_database=self._regional_database,
+            global_database=self.global_database,
+            regional_database=self.regional_database,
             network=self.network,
             oracle=self.oracle,
             on_error=self.on_error,
@@ -145,3 +157,27 @@ class HostRouterService(ServiceBase, HostBase):
 
         else:
             raise NotImplementedError(f"unexpected cardinality in {method_name}: {cardinality}")
+
+    @override
+    async def query(self, request: QueryRequest, headers: Mapping) -> QueryResponse:
+        raise NotImplementedError  # implemented in wrap
+
+    @override
+    async def subscribe(self, request: SubscribeRequest, headers: Mapping) -> SubscribeResponse:
+        raise NotImplementedError  # implemented in wrap
+
+    @override
+    async def commit(self, request: CommitRequest, headers: Mapping) -> CommitResponse:
+        raise NotImplementedError  # implemented in wrap
+
+    @override
+    async def upload_files(
+        self, request: UploadFilesRequest, headers: Mapping
+    ) -> UploadFilesResponse:
+        raise NotImplementedError  # implemented in wrap
+
+    @override
+    async def download_files(
+        self, request: DownloadFilesRequest, headers: Mapping
+    ) -> DownloadFilesResponse:
+        raise NotImplementedError  # implemented in wrap

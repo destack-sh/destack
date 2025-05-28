@@ -36,6 +36,7 @@ from bench.proto import (
     Network,
     ResolveHostsRequest,
     ResolveHostsResponse,
+    ServiceBase,
     ServiceKind,
     SignupUserRequest,
     SignupUserResponse,
@@ -67,7 +68,7 @@ SUPERVISOR_NODE_TYPES = bittuple(
 )
 
 
-class SupervisorService(SupervisorBase):
+class SupervisorService(ServiceBase, SupervisorBase):
     kind = ServiceKind.PUBLIC  # :ServiceKind
     name = "supervisor"
 

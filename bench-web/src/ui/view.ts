@@ -212,7 +212,7 @@ export const FILE_TYPE_BY_VIEW_TYPE: Partial<Record<ViewType, FileType>> = Objec
 );
 
 export const VIEW_TYPE_BY_PRIMITIVE_TYPE: Partial<Record<PrimitiveType, ViewType>> = {
-  [PrimitiveType.STRING]: ViewType.STRING,
+  [PrimitiveType.STRING]: ViewType.BSTRING,
   [PrimitiveType.INT16]: ViewType.NUMBER,
   [PrimitiveType.INT32]: ViewType.NUMBER,
   [PrimitiveType.INT64]: ViewType.NUMBER,

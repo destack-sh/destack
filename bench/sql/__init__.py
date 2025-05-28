@@ -4,6 +4,7 @@ from .core import (
     BASE_EXTENSIONS,
     GLOBAL_EXTENSIONS,
     LOCAL_EXTENSIONS,
+    MIGRATION_TABLE,
     REGIONAL_EXTENSIONS,
     PostgresColumnType,
     SqlColumn,
@@ -40,7 +41,6 @@ from .map import (
     map_custom_node_to_sql_table,
 )
 from .migration import (
-    MIGRATION_TABLE,
     MIGRATIONS,
     MIGRATIONS_PATH,
     MIGRATIONS_TEMPLATE_PATH,
