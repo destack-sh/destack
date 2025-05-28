@@ -188,11 +188,6 @@ def function_macro_(
 _INJECTED_RUNNER = cast("AgentRunner", None)
 
 
-@function_macro_("FLUSH", "Flush all pending edits.", signature="() -> None")
-def FLUSH(*, runner: "AgentRunner" = _INJECTED_RUNNER):
-    runner.session.stage()
-
-
 @function_macro_(
     "SEND",
     """\
@@ -239,7 +234,6 @@ def SEND(
         cursor := runner.thread.thread.get_cursor(type=CursorType.THREAD, owned_by=runner.agent)
     ) is not None:
         cursor.seen_at = message.created_at
-    runner.session.stage()
     return message
 
 
@@ -285,8 +279,6 @@ def CALL(
         title=object_title,
     )
     runner.call(run)
-
-    runner.session.stage()
 
 
 @function_macro_(
@@ -339,7 +331,6 @@ def CREATE_PAGE(
     if add_to_context:
         claim = Claim(type=ClaimType.WRITE, target=page, owned_by=runner.agent)
         runner.thread.thread.add_child(claim)
-    runner.session.stage()
     return page
 
 
@@ -359,5 +350,4 @@ def ADD_PAGE_TEXT(
     runner: "AgentRunner" = _INJECTED_RUNNER,
 ) -> tuple[Block, ...]:
     blocks = page.add_text(text, after, before)
-    runner.session.stage()
     return tuple(blocks)

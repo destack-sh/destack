@@ -1,3 +1,4 @@
+from datetime import datetime
 from typing import TYPE_CHECKING, Collection
 
 import structlog
@@ -70,7 +71,6 @@ class Edit(StructFrozen):
 
     # meta
     id: UUID = property_(2, default_factory="uuid")
-    # change_key?
 
     # key
     type: EditType = property_(30)
@@ -87,18 +87,21 @@ class Edit(StructFrozen):
 
 @struct_(StructType.CHANGE)
 class Change(StructMutable):
-    """A Change is a related sequence of Edits."""
+    """A Change is an atomic sequence of Edits."""
 
-    id: UUID = property_(2, default_factory="uuid")
+    id: UUID = property_(2, is_managed=True, default_factory="uuid")
+    created_at: datetime = property_(10, is_managed=True)
     edits: list[Edit] = property_(40)
 
 
-@struct_(StructType.TRANSACTION)
-class Transaction(StructMutable):
-    """An atomic Transaction of related Changes."""
+@struct_(StructType.CHANGE_RESULT, frozen=True)
+class ChangeResult(StructFrozen):
+    """The result of a Change."""
 
     id: UUID = property_(2, default_factory="uuid")
-    changes: list[Change] = property_(40)
+    edits: list[Edit] = property_(40)
+    cascaded_edits: list[Edit] = property_(41)
+    epoch: int = property_(42)
 
 
 def edit_node(node: Node, edit: Edit) -> None:

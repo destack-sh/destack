@@ -10,7 +10,6 @@ from bench.language import (
     Bench,
     Client,
     Database,
-    Edit,
     IsSubject,
     NodeReference,
     NodeType,
@@ -19,6 +18,7 @@ from bench.language import (
     Session,
     Store,
 )
+from bench.language.core.edit import Change
 from bench.pb2 import (
     CommitRequest,
     CommitResponse,
@@ -153,11 +153,10 @@ class HostService(ServiceBase, HostBase):
         client: Client | None,
         metadata: RpcMetadata,
     ) -> CommitResponse:
-        edits = [Edit.from_proto(edit) for edit in request.edits]
-        edits, cascaded_edits = await self.store.commit(edits)
+        changes = [Change.from_proto(change) for change in request.changes]
+        results = await self.store.commit(changes)
         return CommitResponse(
-            edits=[edit.to_proto() for edit in edits],
-            cascaded_edits=[edit.to_proto() for edit in cascaded_edits],
+            results=[result.to_proto() for result in results],
         )
 
     @override

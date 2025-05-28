@@ -422,6 +422,7 @@ class QueryResult[RootT: "Node"](StructMutable):
 
     epoch: int = property_(40, is_repr=True)
     query: Query = property_(41, is_repr=True)
+    # nodes_data: list[NodeData] = property_(50, is_repr=True)
 
 
 @struct_(StructType.QUERY_UPDATE, frozen=True)

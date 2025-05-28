@@ -15,7 +15,8 @@ import { reflectionMergePartial } from "@protobuf-ts/runtime";
 import { MessageType } from "@protobuf-ts/runtime";
 import { Struct } from "../google/protobuf/struct";
 import { FileData } from "./lang";
-import { EditData } from "./lang";
+import { ChangeResultData } from "./lang";
+import { ChangeData } from "./lang";
 import { QueryUpdateData } from "./lang";
 import { QueryResultData } from "./lang";
 import { QueryData } from "./lang";
@@ -374,38 +375,22 @@ export interface CommitRequest {
      */
     scope?: ScopeData;
     /**
-     * @generated from protobuf field: string id = 2;
+     * @generated from protobuf field: repeated symbol.bench.ChangeData changes = 3;
      */
-    id: string;
-    /**
-     * All the Edits in order.
-     *
-     * @generated from protobuf field: repeated symbol.bench.EditData edits = 3;
-     */
-    edits: EditData[];
+    changes: ChangeData[];
 }
 /**
  * @generated from protobuf message symbol.bench.CommitResponse
  */
 export interface CommitResponse {
     /**
-     * The actual Edits that were applied.
-     *
-     * @generated from protobuf field: repeated symbol.bench.EditData edits = 1;
-     */
-    edits: EditData[];
-    /**
-     * Any cascaded edits.
-     *
-     * @generated from protobuf field: repeated symbol.bench.EditData cascaded_edits = 2;
-     */
-    cascadedEdits: EditData[];
-    /**
-     * Current epoch.
-     *
      * @generated from protobuf field: uint64 epoch = 3;
      */
     epoch: bigint;
+    /**
+     * @generated from protobuf field: repeated symbol.bench.ChangeResultData results = 4;
+     */
+    results: ChangeResultData[];
 }
 /**
  * @generated from protobuf message symbol.bench.UploadFilesRequest
@@ -1610,14 +1595,12 @@ class CommitRequest$Type extends MessageType<CommitRequest> {
     constructor() {
         super("symbol.bench.CommitRequest", [
             { no: 1, name: "scope", kind: "message", T: () => ScopeData },
-            { no: 2, name: "id", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
-            { no: 3, name: "edits", kind: "message", repeat: 1 /*RepeatType.PACKED*/, T: () => EditData }
+            { no: 3, name: "changes", kind: "message", repeat: 1 /*RepeatType.PACKED*/, T: () => ChangeData }
         ]);
     }
     create(value?: PartialMessage<CommitRequest>): CommitRequest {
         const message = globalThis.Object.create((this.messagePrototype!));
-        message.id = "";
-        message.edits = [];
+        message.changes = [];
         if (value !== undefined)
             reflectionMergePartial<CommitRequest>(this, message, value);
         return message;
@@ -1630,11 +1613,8 @@ class CommitRequest$Type extends MessageType<CommitRequest> {
                 case /* symbol.bench.ScopeData scope */ 1:
                     message.scope = ScopeData.internalBinaryRead(reader, reader.uint32(), options, message.scope);
                     break;
-                case /* string id */ 2:
-                    message.id = reader.string();
-                    break;
-                case /* repeated symbol.bench.EditData edits */ 3:
-                    message.edits.push(EditData.internalBinaryRead(reader, reader.uint32(), options));
+                case /* repeated symbol.bench.ChangeData changes */ 3:
+                    message.changes.push(ChangeData.internalBinaryRead(reader, reader.uint32(), options));
                     break;
                 default:
                     let u = options.readUnknownField;
@@ -1651,12 +1631,9 @@ class CommitRequest$Type extends MessageType<CommitRequest> {
         /* symbol.bench.ScopeData scope = 1; */
         if (message.scope)
             ScopeData.internalBinaryWrite(message.scope, writer.tag(1, WireType.LengthDelimited).fork(), options).join();
-        /* string id = 2; */
-        if (message.id !== "")
-            writer.tag(2, WireType.LengthDelimited).string(message.id);
-        /* repeated symbol.bench.EditData edits = 3; */
-        for (let i = 0; i < message.edits.length; i++)
-            EditData.internalBinaryWrite(message.edits[i], writer.tag(3, WireType.LengthDelimited).fork(), options).join();
+        /* repeated symbol.bench.ChangeData changes = 3; */
+        for (let i = 0; i < message.changes.length; i++)
+            ChangeData.internalBinaryWrite(message.changes[i], writer.tag(3, WireType.LengthDelimited).fork(), options).join();
         let u = options.writeUnknownFields;
         if (u !== false)
             (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
@@ -1671,16 +1648,14 @@ export const CommitRequest = new CommitRequest$Type();
 class CommitResponse$Type extends MessageType<CommitResponse> {
     constructor() {
         super("symbol.bench.CommitResponse", [
-            { no: 1, name: "edits", kind: "message", repeat: 1 /*RepeatType.PACKED*/, T: () => EditData },
-            { no: 2, name: "cascaded_edits", kind: "message", repeat: 1 /*RepeatType.PACKED*/, T: () => EditData },
-            { no: 3, name: "epoch", kind: "scalar", T: 4 /*ScalarType.UINT64*/, L: 0 /*LongType.BIGINT*/ }
+            { no: 3, name: "epoch", kind: "scalar", T: 4 /*ScalarType.UINT64*/, L: 0 /*LongType.BIGINT*/ },
+            { no: 4, name: "results", kind: "message", repeat: 1 /*RepeatType.PACKED*/, T: () => ChangeResultData }
         ]);
     }
     create(value?: PartialMessage<CommitResponse>): CommitResponse {
         const message = globalThis.Object.create((this.messagePrototype!));
-        message.edits = [];
-        message.cascadedEdits = [];
         message.epoch = 0n;
+        message.results = [];
         if (value !== undefined)
             reflectionMergePartial<CommitResponse>(this, message, value);
         return message;
@@ -1690,14 +1665,11 @@ class CommitResponse$Type extends MessageType<CommitResponse> {
         while (reader.pos < end) {
             let [fieldNo, wireType] = reader.tag();
             switch (fieldNo) {
-                case /* repeated symbol.bench.EditData edits */ 1:
-                    message.edits.push(EditData.internalBinaryRead(reader, reader.uint32(), options));
-                    break;
-                case /* repeated symbol.bench.EditData cascaded_edits */ 2:
-                    message.cascadedEdits.push(EditData.internalBinaryRead(reader, reader.uint32(), options));
-                    break;
                 case /* uint64 epoch */ 3:
                     message.epoch = reader.uint64().toBigInt();
+                    break;
+                case /* repeated symbol.bench.ChangeResultData results */ 4:
+                    message.results.push(ChangeResultData.internalBinaryRead(reader, reader.uint32(), options));
                     break;
                 default:
                     let u = options.readUnknownField;
@@ -1711,15 +1683,12 @@ class CommitResponse$Type extends MessageType<CommitResponse> {
         return message;
     }
     internalBinaryWrite(message: CommitResponse, writer: IBinaryWriter, options: BinaryWriteOptions): IBinaryWriter {
-        /* repeated symbol.bench.EditData edits = 1; */
-        for (let i = 0; i < message.edits.length; i++)
-            EditData.internalBinaryWrite(message.edits[i], writer.tag(1, WireType.LengthDelimited).fork(), options).join();
-        /* repeated symbol.bench.EditData cascaded_edits = 2; */
-        for (let i = 0; i < message.cascadedEdits.length; i++)
-            EditData.internalBinaryWrite(message.cascadedEdits[i], writer.tag(2, WireType.LengthDelimited).fork(), options).join();
         /* uint64 epoch = 3; */
         if (message.epoch !== 0n)
             writer.tag(3, WireType.Varint).uint64(message.epoch);
+        /* repeated symbol.bench.ChangeResultData results = 4; */
+        for (let i = 0; i < message.results.length; i++)
+            ChangeResultData.internalBinaryWrite(message.results[i], writer.tag(4, WireType.LengthDelimited).fork(), options).join();
         let u = options.writeUnknownFields;
         if (u !== false)
             (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);

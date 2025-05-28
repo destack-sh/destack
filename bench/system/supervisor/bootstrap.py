@@ -43,7 +43,7 @@ async def create_system_benches(
             is_staff=True,
         )
         session.create(system_user)
-        session.stage()
+        await session.stage()
         system_user.handle = Handle(slug=SYSTEM_SLUG)
         system_user.add_child(system_user.handle)
         logger.debug("system.bootstrap.create", system_user=system_user)

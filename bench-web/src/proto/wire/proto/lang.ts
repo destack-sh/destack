@@ -775,9 +775,38 @@ export interface ChangeData {
      */
     id: string;
     /**
+     * @generated from protobuf field: google.protobuf.Timestamp created_at = 10;
+     */
+    createdAt?: Timestamp;
+    /**
      * @generated from protobuf field: repeated symbol.bench.EditData edits = 40;
      */
     edits: EditData[];
+}
+/**
+ * @generated from protobuf message symbol.bench.ChangeResultData
+ */
+export interface ChangeResultData {
+    /**
+     * @generated from protobuf field: symbol.bench.StructType metatype = 1;
+     */
+    metatype: StructType;
+    /**
+     * @generated from protobuf field: string id = 2;
+     */
+    id: string;
+    /**
+     * @generated from protobuf field: repeated symbol.bench.EditData edits = 40;
+     */
+    edits: EditData[];
+    /**
+     * @generated from protobuf field: repeated symbol.bench.EditData cascaded_edits = 41;
+     */
+    cascadedEdits: EditData[];
+    /**
+     * @generated from protobuf field: int64 epoch = 42;
+     */
+    epoch: bigint;
 }
 /**
  * A Client to connect with the system.
@@ -7343,23 +7372,6 @@ export interface ThreadViewData {
     draftReplyToPtr?: NodeReferenceData;
 }
 /**
- * @generated from protobuf message symbol.bench.TransactionData
- */
-export interface TransactionData {
-    /**
-     * @generated from protobuf field: symbol.bench.StructType metatype = 1;
-     */
-    metatype: StructType;
-    /**
-     * @generated from protobuf field: string id = 2;
-     */
-    id: string;
-    /**
-     * @generated from protobuf field: repeated symbol.bench.ChangeData changes = 40;
-     */
-    changes: ChangeData[];
-}
-/**
  * @generated from protobuf message symbol.bench.TransitionData
  */
 export interface TransitionData {
@@ -11989,29 +12001,25 @@ export enum StructType {
      */
     ORIGIN = 20001,
     /**
-     * @generated from protobuf enum value: STRUCT_TYPE_TRANSACTION = 20002;
+     * @generated from protobuf enum value: STRUCT_TYPE_NODE_REFERENCE = 20002;
      */
-    TRANSACTION = 20002,
+    NODE_REFERENCE = 20002,
     /**
-     * @generated from protobuf enum value: STRUCT_TYPE_EDIT = 20003;
+     * @generated from protobuf enum value: STRUCT_TYPE_PROPERTY_REFERENCE = 20003;
      */
-    EDIT = 20003,
+    PROPERTY_REFERENCE = 20003,
     /**
-     * @generated from protobuf enum value: STRUCT_TYPE_CHANGE = 20004;
+     * @generated from protobuf enum value: STRUCT_TYPE_EDIT = 20010;
      */
-    CHANGE = 20004,
+    EDIT = 20010,
     /**
-     * @generated from protobuf enum value: STRUCT_TYPE_NODE_REFERENCE = 20005;
+     * @generated from protobuf enum value: STRUCT_TYPE_CHANGE = 20011;
      */
-    NODE_REFERENCE = 20005,
+    CHANGE = 20011,
     /**
-     * @generated from protobuf enum value: STRUCT_TYPE_PROPERTY_REFERENCE = 20006;
+     * @generated from protobuf enum value: STRUCT_TYPE_CHANGE_RESULT = 20012;
      */
-    PROPERTY_REFERENCE = 20006,
-    /**
-     * @generated from protobuf enum value: STRUCT_TYPE_VARIABLE = 20007;
-     */
-    VARIABLE = 20007,
+    CHANGE_RESULT = 20012,
     /**
      * @generated from protobuf enum value: STRUCT_TYPE_EXPRESSION = 20100;
      */
@@ -12056,6 +12064,10 @@ export enum StructType {
      * @generated from protobuf enum value: STRUCT_TYPE_QUERY_UPDATE = 20112;
      */
     QUERY_UPDATE = 20112,
+    /**
+     * @generated from protobuf enum value: STRUCT_TYPE_VARIABLE = 20120;
+     */
+    VARIABLE = 20120,
     /**
      * @generated from protobuf enum value: STRUCT_TYPE_SCHEDULE = 21200;
      */
@@ -14435,6 +14447,7 @@ class ChangeData$Type extends MessageType$<ChangeData> {
         super("symbol.bench.ChangeData", [
             { no: 1, name: "metatype", kind: "enum", T: () => ["symbol.bench.StructType", StructType, "STRUCT_TYPE_"] },
             { no: 2, name: "id", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
+            { no: 10, name: "created_at", kind: "message", T: () => Timestamp },
             { no: 40, name: "edits", kind: "message", repeat: 1 /*RepeatType.PACKED*/, T: () => EditData }
         ]);
     }
@@ -14458,6 +14471,9 @@ class ChangeData$Type extends MessageType$<ChangeData> {
                 case /* string id */ 2:
                     message.id = reader.string();
                     break;
+                case /* google.protobuf.Timestamp created_at */ 10:
+                    message.createdAt = Timestamp.internalBinaryRead(reader, reader.uint32(), options, message.createdAt);
+                    break;
                 case /* repeated symbol.bench.EditData edits */ 40:
                     message.edits.push(EditData.internalBinaryRead(reader, reader.uint32(), options));
                     break;
@@ -14479,6 +14495,9 @@ class ChangeData$Type extends MessageType$<ChangeData> {
         /* string id = 2; */
         if (message.id !== "")
             writer.tag(2, WireType.LengthDelimited).string(message.id);
+        /* google.protobuf.Timestamp created_at = 10; */
+        if (message.createdAt)
+            Timestamp.internalBinaryWrite(message.createdAt, writer.tag(10, WireType.LengthDelimited).fork(), options).join();
         /* repeated symbol.bench.EditData edits = 40; */
         for (let i = 0; i < message.edits.length; i++)
             EditData.internalBinaryWrite(message.edits[i], writer.tag(40, WireType.LengthDelimited).fork(), options).join();
@@ -14492,6 +14511,85 @@ class ChangeData$Type extends MessageType$<ChangeData> {
  * @generated MessageType for protobuf message symbol.bench.ChangeData
  */
 export const ChangeData = new ChangeData$Type();
+// @generated message type with reflection information, may provide speed optimized methods
+class ChangeResultData$Type extends MessageType$<ChangeResultData> {
+    constructor() {
+        super("symbol.bench.ChangeResultData", [
+            { no: 1, name: "metatype", kind: "enum", T: () => ["symbol.bench.StructType", StructType, "STRUCT_TYPE_"] },
+            { no: 2, name: "id", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
+            { no: 40, name: "edits", kind: "message", repeat: 1 /*RepeatType.PACKED*/, T: () => EditData },
+            { no: 41, name: "cascaded_edits", kind: "message", repeat: 1 /*RepeatType.PACKED*/, T: () => EditData },
+            { no: 42, name: "epoch", kind: "scalar", T: 3 /*ScalarType.INT64*/, L: 0 /*LongType.BIGINT*/ }
+        ]);
+    }
+    create(value?: PartialMessage<ChangeResultData>): ChangeResultData {
+        const message = globalThis.Object.create((this.messagePrototype!));
+        message.metatype = 0;
+        message.id = "";
+        message.edits = [];
+        message.cascadedEdits = [];
+        message.epoch = 0n;
+        if (value !== undefined)
+            reflectionMergePartial<ChangeResultData>(this, message, value);
+        return message;
+    }
+    internalBinaryRead(reader: IBinaryReader, length: number, options: BinaryReadOptions, target?: ChangeResultData): ChangeResultData {
+        let message = target ?? this.create(), end = reader.pos + length;
+        while (reader.pos < end) {
+            let [fieldNo, wireType] = reader.tag();
+            switch (fieldNo) {
+                case /* symbol.bench.StructType metatype */ 1:
+                    message.metatype = reader.int32();
+                    break;
+                case /* string id */ 2:
+                    message.id = reader.string();
+                    break;
+                case /* repeated symbol.bench.EditData edits */ 40:
+                    message.edits.push(EditData.internalBinaryRead(reader, reader.uint32(), options));
+                    break;
+                case /* repeated symbol.bench.EditData cascaded_edits */ 41:
+                    message.cascadedEdits.push(EditData.internalBinaryRead(reader, reader.uint32(), options));
+                    break;
+                case /* int64 epoch */ 42:
+                    message.epoch = reader.int64().toBigInt();
+                    break;
+                default:
+                    let u = options.readUnknownField;
+                    if (u === "throw")
+                        throw new globalThis.Error(`Unknown field ${fieldNo} (wire type ${wireType}) for ${this.typeName}`);
+                    let d = reader.skip(wireType);
+                    if (u !== false)
+                        (u === true ? UnknownFieldHandler.onRead : u)(this.typeName, message, fieldNo, wireType, d);
+            }
+        }
+        return message;
+    }
+    internalBinaryWrite(message: ChangeResultData, writer: IBinaryWriter, options: BinaryWriteOptions): IBinaryWriter {
+        /* symbol.bench.StructType metatype = 1; */
+        if (message.metatype !== 0)
+            writer.tag(1, WireType.Varint).int32(message.metatype);
+        /* string id = 2; */
+        if (message.id !== "")
+            writer.tag(2, WireType.LengthDelimited).string(message.id);
+        /* repeated symbol.bench.EditData edits = 40; */
+        for (let i = 0; i < message.edits.length; i++)
+            EditData.internalBinaryWrite(message.edits[i], writer.tag(40, WireType.LengthDelimited).fork(), options).join();
+        /* repeated symbol.bench.EditData cascaded_edits = 41; */
+        for (let i = 0; i < message.cascadedEdits.length; i++)
+            EditData.internalBinaryWrite(message.cascadedEdits[i], writer.tag(41, WireType.LengthDelimited).fork(), options).join();
+        /* int64 epoch = 42; */
+        if (message.epoch !== 0n)
+            writer.tag(42, WireType.Varint).int64(message.epoch);
+        let u = options.writeUnknownFields;
+        if (u !== false)
+            (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
+        return writer;
+    }
+}
+/**
+ * @generated MessageType for protobuf message symbol.bench.ChangeResultData
+ */
+export const ChangeResultData = new ChangeResultData$Type();
 // @generated message type with reflection information, may provide speed optimized methods
 class ClientData$Type extends MessageType$<ClientData> {
     constructor() {
@@ -28261,69 +28359,6 @@ class ThreadViewData$Type extends MessageType$<ThreadViewData> {
  */
 export const ThreadViewData = new ThreadViewData$Type();
 // @generated message type with reflection information, may provide speed optimized methods
-class TransactionData$Type extends MessageType$<TransactionData> {
-    constructor() {
-        super("symbol.bench.TransactionData", [
-            { no: 1, name: "metatype", kind: "enum", T: () => ["symbol.bench.StructType", StructType, "STRUCT_TYPE_"] },
-            { no: 2, name: "id", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
-            { no: 40, name: "changes", kind: "message", repeat: 1 /*RepeatType.PACKED*/, T: () => ChangeData }
-        ]);
-    }
-    create(value?: PartialMessage<TransactionData>): TransactionData {
-        const message = globalThis.Object.create((this.messagePrototype!));
-        message.metatype = 0;
-        message.id = "";
-        message.changes = [];
-        if (value !== undefined)
-            reflectionMergePartial<TransactionData>(this, message, value);
-        return message;
-    }
-    internalBinaryRead(reader: IBinaryReader, length: number, options: BinaryReadOptions, target?: TransactionData): TransactionData {
-        let message = target ?? this.create(), end = reader.pos + length;
-        while (reader.pos < end) {
-            let [fieldNo, wireType] = reader.tag();
-            switch (fieldNo) {
-                case /* symbol.bench.StructType metatype */ 1:
-                    message.metatype = reader.int32();
-                    break;
-                case /* string id */ 2:
-                    message.id = reader.string();
-                    break;
-                case /* repeated symbol.bench.ChangeData changes */ 40:
-                    message.changes.push(ChangeData.internalBinaryRead(reader, reader.uint32(), options));
-                    break;
-                default:
-                    let u = options.readUnknownField;
-                    if (u === "throw")
-                        throw new globalThis.Error(`Unknown field ${fieldNo} (wire type ${wireType}) for ${this.typeName}`);
-                    let d = reader.skip(wireType);
-                    if (u !== false)
-                        (u === true ? UnknownFieldHandler.onRead : u)(this.typeName, message, fieldNo, wireType, d);
-            }
-        }
-        return message;
-    }
-    internalBinaryWrite(message: TransactionData, writer: IBinaryWriter, options: BinaryWriteOptions): IBinaryWriter {
-        /* symbol.bench.StructType metatype = 1; */
-        if (message.metatype !== 0)
-            writer.tag(1, WireType.Varint).int32(message.metatype);
-        /* string id = 2; */
-        if (message.id !== "")
-            writer.tag(2, WireType.LengthDelimited).string(message.id);
-        /* repeated symbol.bench.ChangeData changes = 40; */
-        for (let i = 0; i < message.changes.length; i++)
-            ChangeData.internalBinaryWrite(message.changes[i], writer.tag(40, WireType.LengthDelimited).fork(), options).join();
-        let u = options.writeUnknownFields;
-        if (u !== false)
-            (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
-        return writer;
-    }
-}
-/**
- * @generated MessageType for protobuf message symbol.bench.TransactionData
- */
-export const TransactionData = new TransactionData$Type();
-// @generated message type with reflection information, may provide speed optimized methods
 class TransitionData$Type extends MessageType$<TransitionData> {
     constructor() {
         super("symbol.bench.TransitionData", [
@@ -30189,6 +30224,6 @@ export const SomeNodeData = new SomeNodeData$Type();
 
 // Any...
 export type AnyNodeData = ClientData | OrganizationData | OrganizationInviteData | OrganizationMembershipData | UserData | BenchData | BenchInviteData | BenchMembershipData | HandleData | PackageData | PackageMembershipData | PackageInviteData | FieldData | FileData | LinkData | RecordData | SchemaData | TableData | DatabaseData | MachineData | ActionData | AgentData | CursorData | FlowData | FlowEdgeData | ServiceData | TaskData | InterruptionData | RunData | SpanData | MessageData | ThreadData | BlockData | PageData | RouteData | SceneData | SpaceData | ColorStyleData | BorderStyleData | TransitionStyleData | EffectStyleData | GradientStyleData | FontStyleData | ShadowStyleData | ThemeData | FrameViewData | LabelViewData | SplitViewData | TextViewData | NumberInputViewData | SliderInputViewData | WizardViewData | ThreadViewData
-export type AnyStructData = ScopeData | PropertyReferenceData | NodeReferenceData | CodeData | StringConstraintData | NumberConstraintData | CollectionConstraintData | NodeConstraintData | TypeData | EditData | ChangeData | TransactionData | IconData | ValueData | RelationReferenceData | AttributeReferenceData | FunctionData | ConditionData | AggregationData | ExpressionData | SortData | JoinData | QueryData | QueryResultData | QueryUpdateData | SelectionData | TextSpanData | TextLineData | TextData | VariableData | OriginData | ScheduleData | ErrorData | ColorData | LengthData | PositionData | DimensionData | InsetsData | CornersData | Axis2Data | Axis3Data | Vector2Data | Vector3Data | Vector4Data | GridData | GridSpanData | BorderData | TransitionData | EffectData | GradientStopData | GradientData | FillData | FontData | ShadowData
+export type AnyStructData = ScopeData | PropertyReferenceData | NodeReferenceData | CodeData | StringConstraintData | NumberConstraintData | CollectionConstraintData | NodeConstraintData | TypeData | EditData | ChangeData | ChangeResultData | IconData | ValueData | RelationReferenceData | AttributeReferenceData | FunctionData | ConditionData | AggregationData | ExpressionData | SortData | JoinData | QueryData | QueryResultData | QueryUpdateData | SelectionData | TextSpanData | TextLineData | TextData | VariableData | OriginData | ScheduleData | ErrorData | ColorData | LengthData | PositionData | DimensionData | InsetsData | CornersData | Axis2Data | Axis3Data | Vector2Data | Vector3Data | Vector4Data | GridData | GridSpanData | BorderData | TransitionData | EffectData | GradientStopData | GradientData | FillData | FontData | ShadowData
 
     

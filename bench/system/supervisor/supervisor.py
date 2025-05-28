@@ -127,7 +127,6 @@ class SupervisorService(ServiceBase, SupervisorBase):
             name=name,
             type=ClientType(client_data.type),
             seen_at=self.oracle.utc(),
-            _is_new=True,  # force create
         )
         self._patch_client(client, client_data)
         return client
@@ -178,13 +177,13 @@ class SupervisorService(ServiceBase, SupervisorBase):
         user.password_salt = generate_salt(SALT_LENGTH)
         user.password_hash = hash_password(request.password, user.password_salt)
         session.create(user)
-        session.stage()
+        await session.stage()
 
         # create Client
         client = await self._make_client(user, request.client)
         client.access_token = generate_access_token(ACCESS_TOKEN_LENGTH)
         session.create(client)
-        session.stage()
+        await session.stage()
         assert user.slug, f"{user!r} has no slug"
         user.handle = Handle(slug=user.slug)
         user.add_child(user.handle)

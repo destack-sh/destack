@@ -1,4 +1,4 @@
-from typing import AsyncIterator, Mapping, override
+from typing import AsyncIterator, Mapping, Sequence, override
 
 from fastuuid import UUID
 
@@ -8,8 +8,9 @@ from bench.language import (
     VERSION,
     Bench,
     BenchStatus,
+    Change,
+    ChangeResult,
     Database,
-    Edit,
     NodeArea,
     Package,
     PackageType,
@@ -41,11 +42,7 @@ class DatabaseStore(Store):
         raise NotImplementedError
 
     @override
-    async def stage(self, edits: list[Edit]) -> list[Edit]:
-        raise NotImplementedError
-
-    @override
-    async def commit(self, edits: list[Edit]) -> tuple[list[Edit], list[Edit]]:
+    async def commit(self, changes: Sequence[Change]) -> Sequence[ChangeResult]:
         raise NotImplementedError
 
 
