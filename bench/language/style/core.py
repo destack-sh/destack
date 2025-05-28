@@ -3,12 +3,12 @@ from typing import TYPE_CHECKING
 from bench.language.core import (
     BuiltinEnum,
     EnumType,
-    Struct,
     StructType,
     enum_,
     property_,
     struct_,
 )
+from bench.language.core.struct import StructFrozen
 
 if TYPE_CHECKING:
     pass
@@ -72,8 +72,8 @@ class LengthUnit(BuiltinEnum):
     FR = 4, "Fr", "fr"
 
 
-@struct_(StructType.LENGTH, is_frozen=True)
-class Length(Struct):
+@struct_(StructType.LENGTH, frozen=True)
+class Length(StructFrozen):
     """A length value."""
 
     unit: LengthUnit = property_(50)
@@ -90,8 +90,8 @@ class PositionType(BuiltinEnum):
     STICKY = 4, "Sticky", "Sticky"
 
 
-@struct_(StructType.POSITION, is_frozen=True)
-class Position(Struct):
+@struct_(StructType.POSITION, frozen=True)
+class Position(StructFrozen):
     """A position value."""
 
     type: PositionType = property_(30, is_repr=True)
@@ -108,8 +108,8 @@ class DimensionType(BuiltinEnum):
     FILL = 4, "Fill", "Fill", "fas fa-arrows-from-dotted-line"
 
 
-@struct_(StructType.DIMENSION, is_frozen=True)
-class Dimension(Struct):
+@struct_(StructType.DIMENSION, frozen=True)
+class Dimension(StructFrozen):
     """A dimension value (like Length but can fit or fill container)."""
 
     type: DimensionType = property_(30, is_repr=True)
@@ -117,8 +117,8 @@ class Dimension(Struct):
     value: float = property_(51, is_repr=True)
 
 
-@struct_(StructType.INSETS, is_frozen=True)
-class Insets(Struct):
+@struct_(StructType.INSETS, frozen=True)
+class Insets(StructFrozen):
     """An insets value (base + top/left/right/bottom)."""
 
     base: int | None = property_(50, is_repr=True)
@@ -128,8 +128,8 @@ class Insets(Struct):
     bottom: int | None = property_(54, is_repr=True)
 
 
-@struct_(StructType.CORNERS, is_frozen=True)
-class Corners(Struct):
+@struct_(StructType.CORNERS, frozen=True)
+class Corners(StructFrozen):
     """A corners value (base + top_left/top_right/bottom_left/bottom_right)."""
 
     base: int | None = property_(50, is_repr=True)
@@ -139,8 +139,8 @@ class Corners(Struct):
     bottom_right: int | None = property_(54, is_repr=True)
 
 
-@struct_(StructType.AXIS2, is_frozen=True)
-class Axis2(Struct):
+@struct_(StructType.AXIS2, frozen=True)
+class Axis2(StructFrozen):
     """A gap value (base + x/y)."""
 
     base: float | None = property_(50, is_repr=True)
@@ -148,8 +148,8 @@ class Axis2(Struct):
     y: float | None = property_(52, is_repr=True)
 
 
-@struct_(StructType.AXIS3, is_frozen=True)
-class Axis3(Struct):
+@struct_(StructType.AXIS3, frozen=True)
+class Axis3(StructFrozen):
     """A rotation value (base + x/y/z)."""
 
     base: float | None = property_(50, is_repr=True)
@@ -158,8 +158,8 @@ class Axis3(Struct):
     z: float | None = property_(53, is_repr=True)
 
 
-@struct_(StructType.VECTOR2, is_frozen=True)
-class Vector2(Struct):
+@struct_(StructType.VECTOR2, frozen=True)
+class Vector2(StructFrozen):
     """A 2D vector."""
 
     x: float = property_(50, is_repr=True)
@@ -170,8 +170,8 @@ def vector2(x: float, y: float) -> "Vector2":
     return Vector2(x=float(x), y=float(y))
 
 
-@struct_(StructType.VECTOR3, is_frozen=True)
-class Vector3(Struct):
+@struct_(StructType.VECTOR3, frozen=True)
+class Vector3(StructFrozen):
     """A 3D vector."""
 
     x: float = property_(50, is_repr=True)
@@ -183,8 +183,8 @@ def vector3(x: float, y: float, z: float) -> "Vector3":
     return Vector3(x=float(x), y=float(y), z=float(z))
 
 
-@struct_(StructType.VECTOR4, is_frozen=True)
-class Vector4(Struct):
+@struct_(StructType.VECTOR4, frozen=True)
+class Vector4(StructFrozen):
     """A 4D vector."""
 
     x: float = property_(50, is_repr=True)
@@ -197,8 +197,8 @@ def vector4(x: float, y: float, z: float, w: float) -> "Vector4":
     return Vector4(x=float(x), y=float(y), z=float(z), w=float(w))
 
 
-@struct_(StructType.GRID, is_frozen=True)
-class Grid(Struct):
+@struct_(StructType.GRID, frozen=True)
+class Grid(StructFrozen):
     """A grid configuration value."""
 
     columns: int = property_(50, is_repr=True)
@@ -208,8 +208,8 @@ class Grid(Struct):
     row_height: Dimension | None = property_(54, is_repr=True)
 
 
-@struct_(StructType.GRID_SPAN, is_frozen=True)
-class GridSpan(Struct):
+@struct_(StructType.GRID_SPAN, frozen=True)
+class GridSpan(StructFrozen):
     """A grid span value."""
 
     columns: int = property_(50, is_repr=True)

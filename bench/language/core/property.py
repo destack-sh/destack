@@ -32,7 +32,7 @@ from .const import (
 
 if TYPE_CHECKING:
     from bench.language import (
-        BuiltinObject,
+        BuiltinObjectBase,
         Constraint,
         Format,
         PropertyReference,
@@ -175,11 +175,11 @@ class IntoType:
             if isinstance(self.format, StringFormat):
                 if not isinstance(self.constraint, StringConstraint):
                     self.constraint = StringConstraint()
-                self.constraint = self.constraint.replace(format=self.format)
+                self.constraint.format = self.format
             elif isinstance(self.format, NumberFormat):
                 if not isinstance(self.constraint, NumberConstraint):
                     self.constraint = NumberConstraint()
-                self.constraint = self.constraint.replace(format=self.format)
+                self.constraint.format = self.format
             else:
                 assert_never(self.format)
 
@@ -319,7 +319,7 @@ def parse_type_annotation(
     )
 
 
-def get_class_name(py_type: type | typing.ForwardRef | str) -> str | None:
+def get_class_name(py_type: type | typing.ForwardRef | typing.TypeAliasType | str) -> str | None:
     if isinstance(py_type, str):
         return py_type
     elif isinstance(py_type, type):  # noqa: SIM114
@@ -341,7 +341,7 @@ class Property(IntoType, IntoQuery if TYPE_CHECKING else object):
     ord: int | None = None
     name: str = UNSET  # name from LHS of assignment
     description: str | None = None
-    component: type["BuiltinObject"] = UNSET  # builtin object component
+    component: type["BuiltinObjectBase"] = UNSET  # builtin object component
 
     # pointers
     ptr_prop: Optional["Property"] = None  # wired representation for pointers

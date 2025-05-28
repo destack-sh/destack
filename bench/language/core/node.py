@@ -29,7 +29,7 @@ from .const import (
     active_session,
 )
 from .graph import Graph
-from .object import BuiltinObject, _process_object_cls
+from .object import BuiltinObjectMutable, _process_object_cls
 from .property import (
     _PROPERTY_SPECIFIERS,
     Property,
@@ -115,7 +115,7 @@ _object_set = object.__setattr__
 
 
 @node_(node_type=None, root_type=None)
-class Node[NodeDataT: AnyNodeData](BuiltinObject[NodeDataT]):
+class Node[NodeDataT: AnyNodeData](BuiltinObjectMutable[NodeDataT]):
     """
     A Node with properties and an identity.
     Conceptually, all Nodes live together happily in a single giant supergraph.

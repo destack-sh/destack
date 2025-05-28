@@ -6,7 +6,7 @@ from opentelemetry import trace
 
 from .const import BuiltinEnum, EnumType, StructType, enum_
 from .property import property_
-from .struct import Struct, struct_
+from .struct import StructMutable, struct_
 
 if TYPE_CHECKING:
     pass
@@ -28,7 +28,7 @@ class CodeType(BuiltinEnum):
 
 
 @struct_(StructType.CODE)
-class Code(Struct):
+class Code(StructMutable):
     """Code in some language."""
 
     language: Optional[str] = property_(32, is_repr=True)

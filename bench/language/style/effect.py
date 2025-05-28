@@ -3,13 +3,13 @@ from typing import TYPE_CHECKING, Optional
 
 from bench.language.core import (
     BuiltinEnum,
-    BuiltinObject,
+    BuiltinObjectMutable,
     EnumType,
     IsArchivable,
     IsDeletable,
     Node,
     NodeType,
-    Struct,
+    StructMutable,
     StructType,
     enum_,
     node_,
@@ -71,7 +71,7 @@ class OffscreenBehavior(BuiltinEnum):
 
 
 @object_()
-class EffectBase(BuiltinObject):
+class EffectBase(BuiltinObjectMutable):
     """A base class for effects."""
 
     type: EffectType = property_(30, is_repr=True)
@@ -95,7 +95,7 @@ class EffectBase(BuiltinObject):
 
 
 @struct_(StructType.EFFECT)
-class Effect(EffectBase, Struct):
+class Effect(EffectBase, StructMutable):
     """An effect value."""
 
     pass

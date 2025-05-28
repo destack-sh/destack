@@ -23,9 +23,9 @@ from .const import (
     TraitType,
     enum_,
 )
-from .object import BuiltinObject, object_
+from .object import BuiltinObjectMutable, object_
 from .property import property_
-from .struct import Struct, struct_
+from .struct import StructBase, StructMutable, struct_
 
 if TYPE_CHECKING:
     from bench.language import Field, FileType, Node, NodeReference, Table, Value
@@ -90,8 +90,8 @@ class NumberFormat(BuiltinEnum):
     CURRENCY = 3
 
 
-@struct_(StructType.STRING_CONSTRAINT, is_frozen=True)
-class StringConstraint(Struct):
+@struct_(StructType.STRING_CONSTRAINT)
+class StringConstraint(StructMutable):
     """The constraint of a string."""
 
     format: Optional[StringFormat] = property_(40)
@@ -107,8 +107,8 @@ URL_REGEX = r"^(?:[a-z]+:\/\/)?[\w.-]+\.[a-z]{2,}(?:\/\S*)?$"
 PHONE_NUMBER_REGEX = r"^\+?(\d{1,3})?[-.\s]?(\(?\d{1,4}\)?)?[-.\s]?\d{1,4}[-.\s]?\d{1,9}$"
 
 
-@struct_(StructType.NUMBER_CONSTRAINT, is_frozen=True)
-class NumberConstraint(Struct):
+@struct_(StructType.NUMBER_CONSTRAINT)
+class NumberConstraint(StructMutable):
     """The constraint of a number."""
 
     format: Optional[NumberFormat] = property_(40)
@@ -119,16 +119,16 @@ class NumberConstraint(Struct):
     scale: Optional[int] = property_(45)  # for decimals
 
 
-@struct_(StructType.COLLECTION_CONSTRAINT, is_frozen=True)
-class CollectionConstraint(Struct):
+@struct_(StructType.COLLECTION_CONSTRAINT)
+class CollectionConstraint(StructMutable):
     """The constraint of a collection."""
 
     min_length: Optional[int] = property_(41)
     max_length: Optional[int] = property_(42)
 
 
-@struct_(StructType.NODE_CONSTRAINT, is_frozen=True)
-class NodeConstraint(Struct):
+@struct_(StructType.NODE_CONSTRAINT)
+class NodeConstraint(StructMutable):
     """The constraint of a node."""
 
     node_types: list["NodeType"] = property_(41)
@@ -142,7 +142,7 @@ type Json = Any
 
 
 @object_()
-class TypeBase(BuiltinObject):
+class TypeBase(BuiltinObjectMutable):
     """
     A Type describes the shape of a value.
     For lists and maps, the scalar type describes the element/value type.
@@ -204,7 +204,7 @@ def encode_storage_key(field: "Field") -> str:
 
 
 @struct_(StructType.TYPE)
-class Type(Struct, TypeBase):
+class Type(StructMutable, TypeBase):
     """A Type in the type system."""
 
     pass
@@ -220,7 +220,7 @@ TypeIn = Union[
     "BuiltinEnum",
     "PrimitiveType",
     "FileType",
-    type["Struct"],
+    type["StructBase"],
     type["Node"],
     type[PrimitiveValue],
     type[BuiltinEnum],

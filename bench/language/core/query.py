@@ -8,7 +8,7 @@ from .const import BuiltinEnum, EnumType, NodeType, StructType, enum_
 from .node import Node
 from .object import Property
 from .property import property_
-from .struct import NodeReference, Struct, struct_
+from .struct import NodeReference, StructFrozen, StructMutable, struct_
 from .value import Value
 
 if TYPE_CHECKING:
@@ -27,8 +27,8 @@ class RelationType(BuiltinEnum):
     CUSTOM_NODE = 2
 
 
-@struct_(StructType.RELATION_REFERENCE, is_frozen=True)
-class RelationReference(Struct):
+@struct_(StructType.RELATION_REFERENCE, frozen=True)
+class RelationReference(StructFrozen):
     """Reference to a Node (builtin or custom)."""
 
     type: RelationType = property_(30, is_repr=True)
@@ -59,8 +59,8 @@ class AttributeType(BuiltinEnum):
     QUERY = 3
 
 
-@struct_(StructType.ATTRIBUTE_REFERENCE, is_frozen=True)
-class AttributeReference(Struct):
+@struct_(StructType.ATTRIBUTE_REFERENCE, frozen=True)
+class AttributeReference(StructFrozen):
     """Reference to a Field or Property."""
 
     type: AttributeType = property_(30, is_repr=True)
@@ -98,8 +98,8 @@ class FunctionType(BuiltinEnum):
     POWER = 6  # ^ / **
 
 
-@struct_(StructType.FUNCTION, is_frozen=True)
-class Function(Struct):
+@struct_(StructType.FUNCTION, frozen=True)
+class Function(StructFrozen):
     type: FunctionType = property_(30, is_repr=True)
     left: "Expression" = property_(31, is_repr=True)
     right: Optional["Expression"] = property_(32, is_repr=True)
@@ -145,8 +145,8 @@ class ConditionalType(BuiltinEnum):
     NOT_EXISTS = 31
 
 
-@struct_(StructType.CONDITION, is_frozen=True)
-class Condition(Struct):
+@struct_(StructType.CONDITION, frozen=True)
+class Condition(StructFrozen):
     """Boolean predicate (AND, =, <, etc.)."""
 
     type: ConditionalType = property_(30, is_repr=True)
@@ -191,8 +191,8 @@ class AggregationType(BuiltinEnum):
     HISTOGRAM = 8
 
 
-@struct_(StructType.AGGREGATION)
-class Aggregation(Struct):
+@struct_(StructType.AGGREGATION, frozen=True)
+class Aggregation(StructFrozen):
     """Aggregation."""
 
     type: AggregationType = property_(30, is_repr=True)
@@ -223,8 +223,8 @@ class ExpressionType(BuiltinEnum):
     # SUBQUERY?
 
 
-@struct_(StructType.EXPRESSION, is_frozen=True)
-class Expression(Struct):
+@struct_(StructType.EXPRESSION, frozen=True)
+class Expression(StructFrozen):
     """Wrapper to unify any scalar / boolean / aggregate sub-tree."""
 
     type: ExpressionType = property_(30, is_repr=True)
@@ -280,8 +280,8 @@ class SortMode(BuiltinEnum):
     MEDIAN = 5
 
 
-@struct_(StructType.SORT, is_frozen=True)
-class Sort(Struct):
+@struct_(StructType.SORT, frozen=True)
+class Sort(StructFrozen):
     """ORDER BY specification."""
 
     type: SortType = property_(30, is_repr=True)
@@ -314,8 +314,8 @@ class JoinType(BuiltinEnum):
     CHILD = 11
 
 
-@struct_(StructType.JOIN, is_frozen=True)
-class Join(Struct):
+@struct_(StructType.JOIN, frozen=True)
+class Join(StructFrozen):
     """JOIN clause with ON expression."""
 
     type: JoinType = property_(30, is_repr=True)
@@ -357,7 +357,7 @@ class QueryType(BuiltinEnum):
 
 
 @struct_(StructType.QUERY)
-class Query[RootT: "Node"](Struct):
+class Query[RootT: "Node"](StructMutable):
     """A GraphQL-inspired Query node (with subqueries)."""
 
     # meta
@@ -417,15 +417,15 @@ def to_subqueries(subqueries: dict[str, "Query"]) -> list["Query"]:
 
 
 @struct_(StructType.QUERY_RESULT)
-class QueryResult[RootT: "Node"](Struct):
+class QueryResult[RootT: "Node"](StructMutable):
     """The result of a Query."""
 
     epoch: int = property_(40, is_repr=True)
     query: Query = property_(41, is_repr=True)
 
 
-@struct_(StructType.QUERY_UPDATE)
-class QueryUpdate(Struct):
+@struct_(StructType.QUERY_UPDATE, frozen=True)
+class QueryUpdate(StructFrozen):
     """An update to a QueryResult."""
 
     epoch: int = property_(40, is_repr=True)
@@ -577,8 +577,8 @@ class IntoQuery:
         return aggregation(AggregationType.MEDIAN, operand=self)
 
 
-@struct_(StructType.SELECTION, is_frozen=True)
-class Selection(Struct):
+@struct_(StructType.SELECTION, frozen=True)
+class Selection(StructFrozen):
     """A selection of fields from a Node."""
 
     nodes: list[Node] = property_(40)

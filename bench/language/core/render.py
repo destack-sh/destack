@@ -36,9 +36,9 @@ from .const import (
 from .graph import Supergraph
 from .icon import Icon, reverse_icon
 from .node import Node
-from .object import BuiltinObject
+from .object import BuiltinObjectBase
 from .property import EdgeType, Property
-from .struct import NodeReference, PropertyReference, Struct
+from .struct import NodeReference, PropertyReference
 from .text import Text, TextLine, text_line_to_markdown, text_to_markdown
 from .trait import IsInPackage
 from .type import TypeBase, TypeCardinality, reverse_type_scalar
@@ -275,7 +275,7 @@ class Renderer:
         return ", ".join(a for a in args if a is not None)
 
     def render_builtin_object(
-        self, obj: BuiltinObject, options: RenderOptions | None = None
+        self, obj: BuiltinObjectBase, options: RenderOptions | None = None
     ) -> str:
         """Renders the given object into an expression (incl. inlined children for node)."""
         renderer = _get_renderer(obj.metatype)
@@ -283,12 +283,12 @@ class Renderer:
 
     def render_expression(
         self,
-        value: BuiltinObject | Property,
+        value: BuiltinObjectBase | Property,
         as_ref: bool = False,
         format: bool = False,
     ) -> str:
         """Renders a value into an expression."""
-        if isinstance(value, BuiltinObject):
+        if isinstance(value, BuiltinObjectBase):
             if isinstance(value, Node) and as_ref:
                 rendered = self.render_node_ref(value)
             else:
@@ -339,7 +339,7 @@ class Renderer:
 
 
 def _deconstruct_builtin_object(
-    obj: BuiltinObject, *, include_defaults: bool = False, options: RenderOptions
+    obj: BuiltinObjectBase, *, include_defaults: bool = False, options: RenderOptions
 ) -> dict[Property, Any]:
     """Gets the 'content' values for a BuiltinObject."""
     cls = type(obj)
@@ -372,7 +372,7 @@ def _deconstruct_builtin_object(
 
 
 def _render_builtin_object_kwargs(
-    renderer: Renderer, obj: BuiltinObject, kwargs: dict[Property, Any]
+    renderer: Renderer, obj: BuiltinObjectBase, kwargs: dict[Property, Any]
 ) -> dict[str, str]:
     rendered_kwargs: dict[str, str] = {}
     for prop, value in kwargs.items():
@@ -434,7 +434,7 @@ def _get_renderer(object_type: NodeType | StructType) -> "BuiltinObjectRenderer"
     return renderer
 
 
-class BuiltinObjectRenderer[T: BuiltinObject]:
+class BuiltinObjectRenderer[T: BuiltinObjectBase]:
     """The base renderer for a BuiltinObject."""
 
     def render(self, renderer: "Renderer", obj: T, options: RenderOptions) -> str:
@@ -481,7 +481,7 @@ class IsInPackageRenderer[T: IsInPackage](NodeRenderer[T]):
 
 NODE_RENDERER = NodeRenderer[Node]()
 PACKAGE_NODE_RENDERER = IsInPackageRenderer[IsInPackage]()
-BUILTIN_OBJECT_RENDERER = BuiltinObjectRenderer[BuiltinObject]()
+BUILTIN_OBJECT_RENDERER = BuiltinObjectRenderer[BuiltinObjectBase]()
 
 
 #
@@ -560,7 +560,7 @@ def render_value(value: "SomeValue", typ: TypeBase, options: RenderOptions) -> s
 
 
 def render_expression(
-    value: BuiltinObject | Property, options: RenderOptions, as_ref: bool = False
+    value: BuiltinObjectBase | Property, options: RenderOptions, as_ref: bool = False
 ) -> str:
     """Render the given object to a python expression."""
     renderer = Renderer(options)
@@ -571,7 +571,7 @@ def render_expression(
 
 
 def render_expressions(
-    expressions: Mapping[str, BuiltinObject | Property],
+    expressions: Mapping[str, BuiltinObjectBase | Property],
     options: RenderOptions,
 ) -> str:
     """Render the given expressions to python expressions."""
@@ -594,10 +594,10 @@ def render_statement(*objs: Node, options: RenderOptions) -> str:
 
 
 @overload
-def render(*objs: BuiltinObject, options: RenderOptions) -> str: ...
+def render(*objs: BuiltinObjectBase, options: RenderOptions) -> str: ...
 @overload
 def render(*objs: Property, options: RenderOptions) -> str: ...
-def render(*objs: BuiltinObject | Property, options: RenderOptions) -> str:
+def render(*objs: BuiltinObjectBase | Property, options: RenderOptions) -> str:
     """Renders the given object to either an expression (for values) or statement (for nodes)."""
     if any(isinstance(obj, Node) for obj in objs):
         return render_statement(*cast(list[Node], objs), options=options)

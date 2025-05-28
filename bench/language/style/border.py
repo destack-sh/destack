@@ -2,13 +2,13 @@ from typing import TYPE_CHECKING, Optional
 
 from bench.language.core import (
     BuiltinEnum,
-    BuiltinObject,
+    BuiltinObjectMutable,
     EnumType,
     IsArchivable,
     IsDeletable,
     Node,
     NodeType,
-    Struct,
+    StructMutable,
     StructType,
     enum_,
     node_,
@@ -43,15 +43,17 @@ class BorderType(BuiltinEnum):
 
 
 @object_()
-class BorderBase(BuiltinObject):
+class BorderBase(BuiltinObjectMutable):
     type: BorderType = property_(30, default=BorderType.SOLID, is_repr=True)
     style: Optional["BorderStyle"] = property_(41, is_repr=True)
     color: Optional["Color"] = property_(50, is_repr=True)
     width: Optional[Insets] = property_(51, is_repr=True)
 
 
-@struct_(StructType.BORDER)
-class Border(BorderBase, Struct):
+@struct_(
+    StructType.BORDER,
+)
+class Border(BorderBase, StructMutable):
     """A border value."""
 
     pass

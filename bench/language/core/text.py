@@ -4,19 +4,19 @@ from typing import TYPE_CHECKING, Any, List, Mapping, Optional, Sequence, assert
 import regex
 from fastuuid import UUID
 
-from bench.language.core.code import Code
-
+from .code import Code
 from .const import BuiltinEnum, EnumType, StructType, enum_
 from .node import Node
-from .object import BuiltinObject
+from .object import BuiltinObjectBase, object_
 from .property import property_
-from .struct import NodeReference, Struct, struct_
+from .struct import NodeReference, StructMutable, struct_
 
 if TYPE_CHECKING:
     from bench.language import Aliasing, ColorHue
 
 
-class TextOptionsBase(BuiltinObject):
+@object_()
+class TextOptionsBase(BuiltinObjectBase):
     color: Optional["ColorHue"] = property_(50)
     background_color: Optional["ColorHue"] = property_(51)
     is_bold: Optional[bool] = property_(60)
@@ -72,8 +72,8 @@ class TextSpanType(BuiltinEnum):
     EQUATION = 20, "TeX equation"
 
 
-@struct_(StructType.TEXT_SPAN, is_frozen=True)
-class TextSpan(TextOptionsBase, Struct):
+@struct_(StructType.TEXT_SPAN)
+class TextSpan(TextOptionsBase, StructMutable):
     """A span of text with optional formatting"""
 
     type: TextSpanType = property_(30, default=TextSpanType.TEXT)
@@ -90,8 +90,8 @@ class TextSpan(TextOptionsBase, Struct):
         return TextSpan(type=TextSpanType.HARD_BREAK)
 
 
-@struct_(StructType.TEXT_LINE, is_frozen=True)
-class TextLine(TextOptionsBase, Struct):
+@struct_(StructType.TEXT_LINE)
+class TextLine(TextOptionsBase, StructMutable):
     """
     A single line of text; may contain inline TextSpans, or hold a TextTable or such.
     """
@@ -196,7 +196,7 @@ class TextLine(TextOptionsBase, Struct):
 
 
 @struct_(StructType.TEXT)
-class Text(Struct):
+class Text(StructMutable):
     """
     Rich Text; composed of TextLines with many markdown+ goodies.
     """
@@ -496,7 +496,7 @@ def _merge_spans(spans: list[TextSpan]) -> list[TextSpan]:
             and merged[-1].type == TextSpanType.TEXT
             and _span_format_key(merged[-1]) == _span_format_key(sp)
         ):
-            merged[-1] = merged[-1].replace(content=(merged[-1].content or "") + (sp.content or ""))
+            merged[-1].content = (merged[-1].content or "") + (sp.content or "")
         else:
             merged.append(sp)
     return merged

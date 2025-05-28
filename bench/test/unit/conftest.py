@@ -21,7 +21,7 @@ from bench.language import (
     STRUCT_TYPES,
     Bench,
     BenchStatus,
-    BuiltinObject,
+    BuiltinObjectBase,
     Database,
     NodeMode,
     NodeType,
@@ -128,7 +128,7 @@ with warnings.catch_warnings(action="ignore"):
     ]
     ACTIVE_SESSION.set(None)
 
-BUILTIN_OBJECTS_BY_TYPE: Mapping[StructType | NodeType, BuiltinObject] = {
+BUILTIN_OBJECTS_BY_TYPE: Mapping[StructType | NodeType, BuiltinObjectBase] = {
     obj.metatype: obj for obj in BUILTIN_OBJECTS
 }
 STRUCTS = [BUILTIN_OBJECTS_BY_TYPE[t] for t in STRUCT_TYPES if t in BUILTIN_OBJECTS_BY_TYPE]

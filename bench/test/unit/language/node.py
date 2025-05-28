@@ -4,7 +4,7 @@ from hypothesis import HealthCheck, given, settings
 from bench.language import (
     Action,
     Block,
-    BuiltinObject,
+    BuiltinObjectBase,
     Field,
     Flow,
     Package,
@@ -24,7 +24,7 @@ from bench.test.unit.conftest import BUILTIN_OBJECTS, simulated_runtime
 @given(obj=structs)
 @examples([{"obj": obj} for obj in BUILTIN_OBJECTS])
 @settings(suppress_health_check=[HealthCheck.function_scoped_fixture])
-def test_builtin_object_clone(obj: BuiltinObject, session: Session):
+def test_builtin_object_clone(obj: BuiltinObjectBase, session: Session):
     obj_clone = obj.clone()
     assert obj_clone.equals(obj)
 

@@ -2,13 +2,13 @@ from typing import TYPE_CHECKING, Optional
 
 from bench.language.core import (
     BuiltinEnum,
-    BuiltinObject,
+    BuiltinObjectMutable,
     EnumType,
     IsArchivable,
     IsDeletable,
     Node,
     NodeType,
-    Struct,
+    StructMutable,
     StructType,
     enum_,
     node_,
@@ -89,7 +89,7 @@ class TextTransform(BuiltinEnum):
 
 
 @object_()
-class FontBase(BuiltinObject):
+class FontBase(BuiltinObjectMutable):
     """A text style value."""
 
     type: FontType = property_(30, default=FontType.SANS, is_repr=True)
@@ -105,7 +105,7 @@ class FontBase(BuiltinObject):
 
 
 @struct_(StructType.FONT)
-class Font(FontBase, Struct):
+class Font(FontBase, StructMutable):
     """A font value."""
 
     pass

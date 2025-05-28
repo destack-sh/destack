@@ -2,14 +2,15 @@ from typing import Optional
 
 from bench.language.core import (
     BuiltinEnum,
-    BuiltinObject,
+    BuiltinObjectMutable,
     EnumType,
     IsArchivable,
     IsDeletable,
     Node,
     NodeType,
     NumberFormat,
-    Struct,
+    StructFrozen,
+    StructMutable,
     StructType,
     enum_,
     node_,
@@ -36,8 +37,8 @@ class GradientType(BuiltinEnum):
     CONIC = 12
 
 
-@struct_(StructType.GRADIENT_STOP, is_frozen=True)
-class GradientStop(Struct):
+@struct_(StructType.GRADIENT_STOP, frozen=True)
+class GradientStop(StructFrozen):
     """A gradient stop with color and position."""
 
     color: Optional["Color"] = property_(50, is_repr=True)
@@ -45,7 +46,7 @@ class GradientStop(Struct):
 
 
 @object_()
-class GradientBase(BuiltinObject):
+class GradientBase(BuiltinObjectMutable):
     type: GradientType = property_(30, default=GradientType.LINEAR, is_repr=True)
     style: Optional["GradientStyle"] = property_(40, is_repr=True)
     angle: Optional[float] = property_(50, format=NumberFormat.ANGLE, is_repr=True)
@@ -54,7 +55,7 @@ class GradientBase(BuiltinObject):
 
 
 @struct_(StructType.GRADIENT)
-class Gradient(GradientBase, Struct):
+class Gradient(GradientBase, StructMutable):
     """A gradient value."""
 
     pass

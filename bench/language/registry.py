@@ -20,23 +20,23 @@ from .core.const import (
 )
 
 if TYPE_CHECKING:
-    from bench.language import BuiltinObject, Node, Struct
+    from bench.language import BuiltinObjectBase, Node, StructBase
 
 ENUM_CLASS_BY_TYPE = _ENUM_CLASS_BY_TYPE  # re-exported to avoid circular imports
 ENUM_TYPE_BY_CLASS: dict[type, EnumType] = {}
 NODE_CLASS_BY_TYPE: dict[NodeType, type["Node"]] = {}
-NODE_CLASS_BY_TRAIT: dict[TraitType, type["BuiltinObject"]] = {}
+NODE_CLASS_BY_TRAIT: dict[TraitType, type["BuiltinObjectBase"]] = {}
 NODE_TYPES_BY_TRAIT: dict[TraitType, tuple[NodeType, ...]] = {}
-STRUCT_CLASS_BY_TYPE: dict[StructType, type["Struct"]] = {}
+STRUCT_CLASS_BY_TYPE: dict[StructType, type["StructBase"]] = {}
 
-BUILTIN_OBJECT_CLASS_BY_TYPE: dict[NodeType | StructType, type["BuiltinObject"]] = {}
-BUILTIN_OBJECT_TYPE_BY_CLASS: dict[type["BuiltinObject"], NodeType | StructType] = {}
+BUILTIN_OBJECT_CLASS_BY_TYPE: dict[NodeType | StructType, type["BuiltinObjectBase"]] = {}
+BUILTIN_OBJECT_TYPE_BY_CLASS: dict[type["BuiltinObjectBase"], NodeType | StructType] = {}
 
 BENCH_CLASS_BY_TYPE: dict[
-    EnumType | NodeType | StructType, type["Struct"] | type["Node"] | type[BuiltinEnum]
+    EnumType | NodeType | StructType, type["StructBase"] | type["Node"] | type[BuiltinEnum]
 ] = {}
 BENCH_TYPE_BY_CLASS: dict[
-    type[Union["BuiltinObject", BuiltinEnum]], EnumType | NodeType | StructType
+    type[Union["BuiltinObjectBase", BuiltinEnum]], EnumType | NodeType | StructType
 ] = {}
 
 

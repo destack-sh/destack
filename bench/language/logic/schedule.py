@@ -8,7 +8,7 @@ from bench.language.core import (
     Day,
     EnumType,
     Month,
-    Struct,
+    StructMutable,
     StructType,
     enum_,
     property_,
@@ -32,7 +32,7 @@ class ScheduleFrequency(BuiltinEnum):
 
 
 @struct_(StructType.SCHEDULE)
-class Schedule(Struct):
+class Schedule(StructMutable):
     """The time-based schedule of something (compatible with rrule)."""
 
     frequency: ScheduleFrequency = property_(31)

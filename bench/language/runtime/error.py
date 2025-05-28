@@ -5,7 +5,7 @@ from bench.language.core import (
     BuiltinEnum,
     EnumType,
     Node,
-    Struct,
+    StructFrozen,
     StructType,
     enum_,
     property_,
@@ -43,8 +43,8 @@ class ErrorType(BuiltinEnum):
         return self > 500
 
 
-@struct_(StructType.ERROR)
-class Error(Struct, BenchError):
+@struct_(StructType.ERROR, frozen=True)
+class Error(StructFrozen, BenchError):
     """An error that occurred in the context of a Run."""
 
     type: ErrorType = property_(30, is_repr=True)

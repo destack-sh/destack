@@ -3189,6 +3189,15 @@ message TextLineData {
   TextLineType type = 30;
   repeated TextSpanData spans = 33;
   optional string content = 34;
+  optional ColorHue color = 50;
+  optional ColorHue background_color = 51;
+  optional bool is_bold = 60;
+  optional bool is_italic = 61;
+  optional bool is_strikethrough = 62;
+  optional bool is_underline = 63;
+  optional bool is_code = 64;
+  optional bool is_spoiler = 65;
+  optional string language = 70;
 }
 
 message TextSpanData {
@@ -3197,6 +3206,15 @@ message TextSpanData {
   optional string content = 33;
   optional NodeReferenceData node_ptr = 34;
   optional string url = 35;
+  optional ColorHue color = 50;
+  optional ColorHue background_color = 51;
+  optional bool is_bold = 60;
+  optional bool is_italic = 61;
+  optional bool is_strikethrough = 62;
+  optional bool is_underline = 63;
+  optional bool is_code = 64;
+  optional bool is_spoiler = 65;
+  optional string language = 70;
 }
 
 // A (rich) text view.

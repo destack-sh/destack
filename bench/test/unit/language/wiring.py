@@ -6,7 +6,7 @@ from hypothesis import HealthCheck, given, settings
 from bench.language import (
     Aggregation,
     AggregationType,
-    BuiltinObject,
+    BuiltinObjectBase,
     Cursor,
     JoinType,
     Message,
@@ -108,7 +108,7 @@ def test_roundtrip_user_proto(session: Session):
 @given(obj=builtin_objects())
 @examples([{"obj": obj} for obj in BUILTIN_OBJECTS])
 @settings(suppress_health_check=[HealthCheck.function_scoped_fixture])
-def test_roundtrip_builtin_object(obj: BuiltinObject[AnyObjectData], session: Session):
+def test_roundtrip_builtin_object(obj: BuiltinObjectBase[AnyObjectData], session: Session):
     # proto
     packed_obj_data: AnyObjectData = obj.to_proto()
     packed_bytes = packed_obj_data.SerializeToString()

@@ -2,14 +2,14 @@ import functools
 import inspect
 import re
 import textwrap
-from typing import Any, Callable, Mapping, assert_never, cast
+from typing import Any, Callable, Mapping, assert_never
 
 import pytest
 from fastuuid import UUID
 
 from bench.language import (
     Aliasing,
-    BuiltinObject,
+    BuiltinObjectBase,
     Message,
     Node,
     Package,
@@ -31,7 +31,7 @@ def _render_test(func: Callable[[Any, Any], Mapping[str, Any]]):
     """Decorator to check that the function body is exactly equivalent to its (re)rendered form."""
 
     def _render_and_check(
-        func: Callable[[Any, Any], Mapping[str, BuiltinObject | Property]],
+        func: Callable[[Any, Any], Mapping[str, BuiltinObjectBase | Property]],
         session: Session,
         package: Package,
     ) -> None:
@@ -56,7 +56,7 @@ def _render_test(func: Callable[[Any, Any], Mapping[str, Any]]):
                         statements.append(renderer.render_statement(*current_nodes))
                         current_nodes = []
 
-                    if isinstance(obj, (BuiltinObject, Property)):
+                    if isinstance(obj, (BuiltinObjectBase, Property)):
                         statements.append(f"{name} = {renderer.render_expression(obj)}")
                     else:
                         assert_never(obj)
@@ -106,10 +106,8 @@ def _render_test(func: Callable[[Any, Any], Mapping[str, Any]]):
                     original_obj.component == rendered_obj.component
                     and original_obj.id == rendered_obj.id
                 )
-            elif isinstance(original_obj, BuiltinObject):
-                assert cast(BuiltinObject, original_obj).equals(
-                    rendered_obj, _identity_map=identity_map
-                )
+            elif isinstance(original_obj, BuiltinObjectBase):
+                assert original_obj.equals(rendered_obj, _identity_map=identity_map)
             else:
                 assert_never(original_obj)
 
