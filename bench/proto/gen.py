@@ -134,24 +134,29 @@ def _gen_proto(schema_str: str) -> None:
             # replace service methods Method(Stream) -> None with Method(Request, Metadata) -> Response | AsyncIterator[Response]
             wire_py = regex.sub(
                 r"(?!.*subscribe)(async def )([a-zA-Z0-9_]+)\(self, stream: 'grpclib.server.Stream\[([a-zA-Z0-9_\.]+), ([a-zA-Z0-9_\.]+)\]'\) -> None:",
-                r"\1\2(self, request: '\3', headers: Mapping) -> '\4':",
+                r"\1\2(self, request: '\3', session: 'Session', subject: 'IsSubject | None', client: 'Client | None', metadata: 'RpcMetadata') -> '\4':",
                 wire_py,
                 flags=re.MULTILINE,
             )
             wire_py = regex.sub(
                 r"async (def )(subscribe[a-zA-Z0-9_]*)\(self, stream: 'grpclib.server.Stream\[([a-zA-Z0-9_\.]+), ([a-zA-Z0-9_\.]+)\]'\) -> None:",
-                r"\1\2(self, request: '\3', headers: Mapping) -> AsyncIterator['\4']:",
+                r"\1\2(self, request: '\3', session: 'Session', subject: 'IsSubject | None', client: 'Client | None', metadata: 'RpcMetadata') -> AsyncIterator['\4']:",
                 wire_py,
                 flags=re.MULTILINE,
             )
 
         # rename XyzStub to XyzClient (stub is a bad name)
         wire_py = regex.sub(r"(?<!Service)Stub", "Client", wire_py)
+
+        # prefix with imports
         patch_prefix_code = """
 # type: ignore
 # ruff: noqa
 
 from typing import TYPE_CHECKING, Union, AsyncIterator, Mapping
+
+if TYPE_CHECKING:
+    from bench.language import Session, Session, IsSubject, Client
 
 """
         path.write_text(patch_prefix_code + "\n\n" + wire_py)

@@ -81,16 +81,6 @@ message CreateOrganizationResponse {
   uint64 epoch = 2;
 }
 
-message CreateBenchRequest {
-  NodeReferenceData owner = 1;
-  string slug = 2;
-  Region region = 3;
-  bool is_main = 4;
-}
-message CreateBenchResponse {
-  BenchData bench = 1;
-}
-
 message ResolveHostsRequest {
   message BenchKey {
     oneof bench {
@@ -115,10 +105,6 @@ message ResolveHostsResponse {
 service Supervisor {
   option (kind) = PUBLIC; // :ServiceKind
 
-  //
-  // User management
-  //
-
   // Create User.
   rpc SignupUser(SignupUserRequest) returns (SignupUserResponse);
   // Change User.password.
@@ -128,12 +114,6 @@ service Supervisor {
   // Logout User with the current or other owned Clients.
   rpc LogoutUser(LogoutUserRequest) returns (LogoutUserResponse);
 
-  //
-  // Bench management
-  //
-
-  // Create a Bench. If this is the first Bench for the owner, we activate the User/Organization.
-  rpc CreateBench(CreateBenchRequest) returns (CreateBenchResponse);
   // Gets Bench host information.
   rpc ResolveHosts(ResolveHostsRequest) returns (ResolveHostsResponse);
 }

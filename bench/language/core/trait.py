@@ -148,14 +148,14 @@ class IsLocal(Node if TYPE_CHECKING else BuiltinObject):
 class IsModal(Node if TYPE_CHECKING else BuiltinObject):
     """A Node that can be in different modes."""
 
-    mode: NodeMode = property_(20, is_managed=True, is_eq=False, default=NodeMode.MAIN)
+    mode: NodeMode = property_(20, is_eq=False, default=NodeMode.MAIN)
 
 
 @trait_(TraitType.ORDERED)
 class IsOrdered(Node if TYPE_CHECKING else BuiltinObject):
     """A Node that can be ordered."""
 
-    order_key: str | None = property_(22, is_managed=True, is_eq=False, default=INTEGER_ZERO)
+    order_key: str | None = property_(22, is_eq=False, default=INTEGER_ZERO)
 
 
 @trait_(TraitType.ARCHIVABLE)
@@ -201,9 +201,7 @@ class IsTemplatable(Node if TYPE_CHECKING else BuiltinObject):
     """A Node that can be templated (we can create Nodes that are derived from 'templates')."""
 
     template: Optional["Node"] = property_(
-        16,
-        node_kind=EdgeType.NODE_TEMPLATE,
-        node_exclude=("definition_id",),
+        16, node_kind=EdgeType.NODE_TEMPLATE, node_exclude=("definition_id",)
     )
     if TYPE_CHECKING:
         template_id: Optional[UUID] = None

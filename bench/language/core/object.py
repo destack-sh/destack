@@ -898,6 +898,16 @@ def _process_object_cls[ObjectT: BuiltinObject](
     cls.__stored_properties__ = frozendict(
         {p.name: p for p in props if p.is_stored is True and p.ptr_prop is None}
     )
+    if is_frozen:
+        cls.__tracked_properties__ = frozendict()
+    else:
+        cls.__tracked_properties__ = frozendict(
+            {
+                p.name: p
+                for p in props
+                if not p.is_managed and not p.is_computed and p.ptr_prop is None
+            }
+        )
 
     # assign property ordinals
     cls.__properties_in_order__ = tuple(
@@ -1072,6 +1082,7 @@ class BuiltinObject[ObjectDataT: AnyObjectData](abc.ABC):
     __struct_properties__: ClassVar[dict[str, Property]] = {}
     __wired_properties__: ClassVar[dict[str, Property]] = {}
     __stored_properties__: ClassVar[dict[str, Property]] = {}
+    __tracked_properties__: ClassVar[dict[str, Property]] = {}
 
     __properties_in_order__: ClassVar[tuple[Property, ...]]
     __properties_id_in_order__: ClassVar[tuple[int, ...]]

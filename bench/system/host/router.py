@@ -1,6 +1,6 @@
 import asyncio
 import functools
-from typing import AsyncIterator, Callable, Mapping, override
+from typing import AsyncIterator, Callable, override
 
 import grpclib.server
 import structlog
@@ -10,8 +10,8 @@ from grpclib import GRPCError
 from grpclib import Status as GRPCStatus
 from opentelemetry import trace
 
-from bench.language import Database
-from bench.pb2.system_pb2 import (
+from bench.language import Client, Database, IsSubject, Session
+from bench.pb2 import (
     CommitRequest,
     CommitResponse,
     DownloadFilesRequest,
@@ -159,28 +159,57 @@ class HostRouterService(ServiceBase, HostBase):
             raise NotImplementedError(f"unexpected cardinality in {method_name}: {cardinality}")
 
     @override
-    async def query(self, request: QueryRequest, headers: Mapping) -> QueryResponse:
+    async def query(
+        self,
+        request: QueryRequest,
+        session: Session,
+        subject: IsSubject | None,
+        client: Client | None,
+        metadata: RpcMetadata,
+    ) -> QueryResponse:
         raise NotImplementedError  # implemented in wrap
 
     @override
     async def subscribe(
-        self, request: SubscribeRequest, headers: Mapping
+        self,
+        request: SubscribeRequest,
+        session: Session,
+        subject: IsSubject | None,
+        client: Client | None,
+        metadata: RpcMetadata,
     ) -> AsyncIterator[SubscribeResponse]:
         raise NotImplementedError  # implemented in wrap
         yield ...
 
     @override
-    async def commit(self, request: CommitRequest, headers: Mapping) -> CommitResponse:
+    async def commit(
+        self,
+        request: CommitRequest,
+        session: Session,
+        subject: IsSubject | None,
+        client: Client | None,
+        metadata: RpcMetadata,
+    ) -> CommitResponse:
         raise NotImplementedError  # implemented in wrap
 
     @override
     async def upload_files(
-        self, request: UploadFilesRequest, headers: Mapping
+        self,
+        request: UploadFilesRequest,
+        session: Session,
+        subject: IsSubject | None,
+        client: Client | None,
+        metadata: RpcMetadata,
     ) -> UploadFilesResponse:
         raise NotImplementedError  # implemented in wrap
 
     @override
     async def download_files(
-        self, request: DownloadFilesRequest, headers: Mapping
+        self,
+        request: DownloadFilesRequest,
+        session: Session,
+        subject: IsSubject | None,
+        client: Client | None,
+        metadata: RpcMetadata,
     ) -> DownloadFilesResponse:
         raise NotImplementedError  # implemented in wrap

@@ -20,7 +20,6 @@ import { QueryUpdateData } from "./lang";
 import { QueryResultData } from "./lang";
 import { QueryData } from "./lang";
 import { ScopeData } from "./lang";
-import { BenchData } from "./lang";
 import { OrganizationData } from "./lang";
 import { ClientData } from "./lang";
 import { UserData } from "./lang";
@@ -257,36 +256,6 @@ export interface CreateOrganizationResponse {
      * @generated from protobuf field: uint64 epoch = 2;
      */
     epoch: bigint;
-}
-/**
- * @generated from protobuf message symbol.bench.CreateBenchRequest
- */
-export interface CreateBenchRequest {
-    /**
-     * @generated from protobuf field: symbol.bench.NodeReferenceData owner = 1;
-     */
-    owner?: NodeReferenceData;
-    /**
-     * @generated from protobuf field: string slug = 2;
-     */
-    slug: string;
-    /**
-     * @generated from protobuf field: symbol.bench.Region region = 3;
-     */
-    region: Region;
-    /**
-     * @generated from protobuf field: bool is_main = 4;
-     */
-    isMain: boolean;
-}
-/**
- * @generated from protobuf message symbol.bench.CreateBenchResponse
- */
-export interface CreateBenchResponse {
-    /**
-     * @generated from protobuf field: symbol.bench.BenchData bench = 1;
-     */
-    bench?: BenchData;
 }
 /**
  * @generated from protobuf message symbol.bench.ResolveHostsRequest
@@ -1236,122 +1205,6 @@ class CreateOrganizationResponse$Type extends MessageType<CreateOrganizationResp
  */
 export const CreateOrganizationResponse = new CreateOrganizationResponse$Type();
 // @generated message type with reflection information, may provide speed optimized methods
-class CreateBenchRequest$Type extends MessageType<CreateBenchRequest> {
-    constructor() {
-        super("symbol.bench.CreateBenchRequest", [
-            { no: 1, name: "owner", kind: "message", T: () => NodeReferenceData },
-            { no: 2, name: "slug", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
-            { no: 3, name: "region", kind: "enum", T: () => ["symbol.bench.Region", Region, "REGION_"] },
-            { no: 4, name: "is_main", kind: "scalar", T: 8 /*ScalarType.BOOL*/ }
-        ]);
-    }
-    create(value?: PartialMessage<CreateBenchRequest>): CreateBenchRequest {
-        const message = globalThis.Object.create((this.messagePrototype!));
-        message.slug = "";
-        message.region = 0;
-        message.isMain = false;
-        if (value !== undefined)
-            reflectionMergePartial<CreateBenchRequest>(this, message, value);
-        return message;
-    }
-    internalBinaryRead(reader: IBinaryReader, length: number, options: BinaryReadOptions, target?: CreateBenchRequest): CreateBenchRequest {
-        let message = target ?? this.create(), end = reader.pos + length;
-        while (reader.pos < end) {
-            let [fieldNo, wireType] = reader.tag();
-            switch (fieldNo) {
-                case /* symbol.bench.NodeReferenceData owner */ 1:
-                    message.owner = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.owner);
-                    break;
-                case /* string slug */ 2:
-                    message.slug = reader.string();
-                    break;
-                case /* symbol.bench.Region region */ 3:
-                    message.region = reader.int32();
-                    break;
-                case /* bool is_main */ 4:
-                    message.isMain = reader.bool();
-                    break;
-                default:
-                    let u = options.readUnknownField;
-                    if (u === "throw")
-                        throw new globalThis.Error(`Unknown field ${fieldNo} (wire type ${wireType}) for ${this.typeName}`);
-                    let d = reader.skip(wireType);
-                    if (u !== false)
-                        (u === true ? UnknownFieldHandler.onRead : u)(this.typeName, message, fieldNo, wireType, d);
-            }
-        }
-        return message;
-    }
-    internalBinaryWrite(message: CreateBenchRequest, writer: IBinaryWriter, options: BinaryWriteOptions): IBinaryWriter {
-        /* symbol.bench.NodeReferenceData owner = 1; */
-        if (message.owner)
-            NodeReferenceData.internalBinaryWrite(message.owner, writer.tag(1, WireType.LengthDelimited).fork(), options).join();
-        /* string slug = 2; */
-        if (message.slug !== "")
-            writer.tag(2, WireType.LengthDelimited).string(message.slug);
-        /* symbol.bench.Region region = 3; */
-        if (message.region !== 0)
-            writer.tag(3, WireType.Varint).int32(message.region);
-        /* bool is_main = 4; */
-        if (message.isMain !== false)
-            writer.tag(4, WireType.Varint).bool(message.isMain);
-        let u = options.writeUnknownFields;
-        if (u !== false)
-            (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
-        return writer;
-    }
-}
-/**
- * @generated MessageType for protobuf message symbol.bench.CreateBenchRequest
- */
-export const CreateBenchRequest = new CreateBenchRequest$Type();
-// @generated message type with reflection information, may provide speed optimized methods
-class CreateBenchResponse$Type extends MessageType<CreateBenchResponse> {
-    constructor() {
-        super("symbol.bench.CreateBenchResponse", [
-            { no: 1, name: "bench", kind: "message", T: () => BenchData }
-        ]);
-    }
-    create(value?: PartialMessage<CreateBenchResponse>): CreateBenchResponse {
-        const message = globalThis.Object.create((this.messagePrototype!));
-        if (value !== undefined)
-            reflectionMergePartial<CreateBenchResponse>(this, message, value);
-        return message;
-    }
-    internalBinaryRead(reader: IBinaryReader, length: number, options: BinaryReadOptions, target?: CreateBenchResponse): CreateBenchResponse {
-        let message = target ?? this.create(), end = reader.pos + length;
-        while (reader.pos < end) {
-            let [fieldNo, wireType] = reader.tag();
-            switch (fieldNo) {
-                case /* symbol.bench.BenchData bench */ 1:
-                    message.bench = BenchData.internalBinaryRead(reader, reader.uint32(), options, message.bench);
-                    break;
-                default:
-                    let u = options.readUnknownField;
-                    if (u === "throw")
-                        throw new globalThis.Error(`Unknown field ${fieldNo} (wire type ${wireType}) for ${this.typeName}`);
-                    let d = reader.skip(wireType);
-                    if (u !== false)
-                        (u === true ? UnknownFieldHandler.onRead : u)(this.typeName, message, fieldNo, wireType, d);
-            }
-        }
-        return message;
-    }
-    internalBinaryWrite(message: CreateBenchResponse, writer: IBinaryWriter, options: BinaryWriteOptions): IBinaryWriter {
-        /* symbol.bench.BenchData bench = 1; */
-        if (message.bench)
-            BenchData.internalBinaryWrite(message.bench, writer.tag(1, WireType.LengthDelimited).fork(), options).join();
-        let u = options.writeUnknownFields;
-        if (u !== false)
-            (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
-        return writer;
-    }
-}
-/**
- * @generated MessageType for protobuf message symbol.bench.CreateBenchResponse
- */
-export const CreateBenchResponse = new CreateBenchResponse$Type();
-// @generated message type with reflection information, may provide speed optimized methods
 class ResolveHostsRequest$Type extends MessageType<ResolveHostsRequest> {
     constructor() {
         super("symbol.bench.ResolveHostsRequest", [
@@ -2232,7 +2085,6 @@ export const Supervisor = new ServiceType("symbol.bench.Supervisor", [
     { name: "ChangeUserPassword", options: {}, I: ChangeUserPasswordRequest, O: ChangeUserPasswordResponse },
     { name: "LoginUser", options: {}, I: LoginUserRequest, O: LoginUserResponse },
     { name: "LogoutUser", options: {}, I: LogoutUserRequest, O: LogoutUserResponse },
-    { name: "CreateBench", options: {}, I: CreateBenchRequest, O: CreateBenchResponse },
     { name: "ResolveHosts", options: {}, I: ResolveHostsRequest, O: ResolveHostsResponse }
 ], { "symbol.bench.kind": "PUBLIC" });
 /**

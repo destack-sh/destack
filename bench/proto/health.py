@@ -1,16 +1,12 @@
-from typing import (
-    Callable,
-    Collection,
-    Mapping,
-    override,
-)
+from typing import Callable, Collection, override
 
 import structlog
 from grpclib import GRPCError
 from grpclib import Status as GRPCStatus
 from opentelemetry import trace
 
-from bench.pb2 import HealthBase, HealthCheckRequest, HealthCheckResponse, ServiceKind
+from bench.language import Client, IsSubject, Session
+from bench.pb2 import HealthBase, HealthCheckRequest, HealthCheckResponse, RpcMetadata, ServiceKind
 from bench.utils.oracle import Oracle
 
 from .network import Network
@@ -45,12 +41,26 @@ class HealthService(ServiceBase, HealthBase):
         self._services = services
 
     @override
-    async def check(self, request: HealthCheckRequest, headers: Mapping) -> HealthCheckResponse:
+    async def check(
+        self,
+        request: HealthCheckRequest,
+        session: Session,
+        subject: IsSubject | None,
+        client: Client | None,
+        metadata: RpcMetadata,
+    ) -> HealthCheckResponse:
         # NOTE :Robustness :Monitoring: check health properly
         response = HealthCheckResponse(status=HealthCheckResponse.ServingStatus.SERVING)
         logger.trace("health.check", service=self, span="current")
         return response
 
     @override
-    async def watch(self, request: HealthCheckRequest, headers: Mapping) -> HealthCheckResponse:
+    async def watch(
+        self,
+        request: HealthCheckRequest,
+        session: Session,
+        subject: IsSubject | None,
+        client: Client | None,
+        metadata: RpcMetadata,
+    ) -> HealthCheckResponse:
         raise GRPCError(GRPCStatus.UNIMPLEMENTED)

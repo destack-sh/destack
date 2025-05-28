@@ -245,7 +245,7 @@ class Node[NodeDataT: AnyNodeData](BuiltinObject[NodeDataT]):
 
     def _do_set(self, key: str, value: Any):
         """Set a property on this Node."""
-        prop = self.__properties__.get(key)
+        prop = self.__tracked_properties__.get(key)
         if prop is not None:
             # nocheckin: record update edit
             assert prop.ord is not None

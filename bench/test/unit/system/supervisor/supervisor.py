@@ -28,7 +28,7 @@ from bench.utils.oracle import REAL_ORACLE
 
 @pytest.fixture
 async def supervisor_service(global_database: Database, regional_database: Database):
-    from bench.system import CreateBenchOptions, DatabaseMap, StaticHostMap, SupervisorService
+    from bench.system import DatabaseMap, StaticHostMap, SupervisorService
 
     supervisor_service = SupervisorService(
         id="supervisor",
@@ -37,7 +37,6 @@ async def supervisor_service(global_database: Database, regional_database: Datab
         oracle=REAL_ORACLE,
         host_map=StaticHostMap({}),
         database_map=DatabaseMap({"*": regional_database}),
-        create_bench_options=CreateBenchOptions(),
     )
     await supervisor_service.start()
     yield supervisor_service

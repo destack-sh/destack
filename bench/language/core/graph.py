@@ -140,7 +140,7 @@ class Supergraph:
 
     __slots__ = ("graphs", "name", "nodes_by_id")
 
-    def __init__(self, name: str):
+    def __init__(self, name: str | None = None):
         self.name = name
         self.nodes_by_id: dict[UUID, Node] = {}
         self.graphs: list[Graph] = []
