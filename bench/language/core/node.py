@@ -191,33 +191,16 @@ class Node[NodeDataT: AnyNodeData](BuiltinObject[NodeDataT]):
     # ...
 
     _session: "Session" = property_runtime_()
-    _hash: int = property_runtime_(default=None)
-    _ref: "Optional[NodeReference]" = property_runtime_(default=None)
     _supergraph: "Supergraph" = property_runtime_()
     _graph: "Graph" = property_runtime_(default=None)
-    _is_attached: bool = property_runtime_(default=False)  # :CachedAncestors
+    _hash: int = property_runtime_(default=None)
+    _ref: "Optional[NodeReference]" = property_runtime_(default=None)
     _is_new: bool = property_runtime_(default=False)
     _dirty: bitarray | None = property_runtime_(default=None)
 
     @property
     def ck(self):
         return self.id
-
-    @property
-    def is_attached(self) -> bool:
-        """
-        Whether this Node is attached to a root.
-        TODO: generate & cache Node.is_attached/_is_attached :CachedAncestors
-        """
-        raise NotImplementedError
-        if self.__root_type__ is None:
-            return True  # always attached
-        parent = self
-        while parent is not None:
-            if parent.metatype == self.__root_type__:
-                return True
-            parent = parent.parent
-        return False
 
     @override
     def clone(
@@ -246,12 +229,10 @@ class Node[NodeDataT: AnyNodeData](BuiltinObject[NodeDataT]):
     def _do_set(self, key: str, value: Any):
         """Set a property on this Node."""
         prop = self.__tracked_properties__.get(key)
-        if prop is not None:
-            # nocheckin: record update edit
-            assert prop.ord is not None
+        if prop is not None and not self._is_new:
             if self._dirty is None:
                 self._dirty = bitarray(self.__max_property_ord__)
-            self._dirty[prop.ord] = 1
+            self._dirty[prop.ord] = 1  # type: ignore
             self._session.tx.dirty[self.id] = self
         _object_set(self, key, value)
 

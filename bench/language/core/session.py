@@ -1,6 +1,7 @@
 import dataclasses
 from typing import (
     TYPE_CHECKING,
+    Any,
     Optional,
 )
 
@@ -10,7 +11,7 @@ from opentelemetry import trace
 from bench.pb2 import OriginData
 from bench.utils.oracle import REAL_ORACLE, Oracle
 
-from .const import NodeMode
+from .const import ACTIVE_SESSION, NodeMode
 from .graph import Supergraph
 from .node import IsSubject, Node
 from .transaction import Transaction
@@ -40,6 +41,7 @@ class Session:
     store: "Store" = None
     tx: Transaction = None
     _runtime: Optional["Runtime"] = None
+    _token: Any | None = None
 
     @property
     def has_edits(self) -> bool:
@@ -58,11 +60,13 @@ class Session:
 
     async def open(self):
         """Opens the Session."""
-        pass
+        self._token = ACTIVE_SESSION.set(self)
 
     async def close(self):
         """Closes the Session."""
-        pass
+        if self._token is not None:
+            ACTIVE_SESSION.reset(self._token)
+            self._token = None
 
     #
     # Edits

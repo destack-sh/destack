@@ -110,7 +110,7 @@ class SupervisorService(ServiceBase, SupervisorBase):
     async def resolve_client(
         self, request, metadata: RpcMetadata
     ) -> tuple[IsSubject | None, Client | None]:
-        if metadata.client_access_token is None:
+        if not metadata.client_access_token:
             return None, None
         client = await Client.get(
             where=Client.property("access_token").eq(metadata.client_access_token),
@@ -176,7 +176,6 @@ class SupervisorService(ServiceBase, SupervisorBase):
 
         # create User
         user = User(
-            id=UUID(request.id) or uuid4(),
             slug=request.slug,
             name=request.name or request.slug,
             email=request.email,

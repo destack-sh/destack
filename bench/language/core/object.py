@@ -101,11 +101,15 @@ def _generate_init_impl[ObjectT: BuiltinObject](
 
     extra_glbls: dict[str, Any] = {}
 
-    # sort properties (by id, runtime by alpha)
-    properties_in_order = list(properties.values())
-    properties_in_order.sort(key=lambda p: (p.id is None, p.id, p.name))
-
     # header
+    header_properties = dict(properties)
+    if is_node:
+        header_properties.pop("_dirty")
+        header_properties.pop("_is_new")
+        header_properties.pop("_ref")
+        header_properties.pop("_hash")
+    properties_in_order = list(header_properties.values())
+    properties_in_order.sort(key=lambda p: (p.id is None, p.id, p.name))
     method_header_lines = ["def __init__(self, *"]
     required_properties = [
         p
@@ -155,12 +159,14 @@ def _generate_init_impl[ObjectT: BuiltinObject](
         body_properties.pop("ck", None)
         body_properties.pop("created_at")
         body_properties.pop("updated_at")
-        body_properties.pop("_is_new")
         body_properties.pop("_session")
         body_properties.pop("_graph")
         body_properties.pop("_hash")
+        body_properties.pop("_ref")
+        body_properties.pop("_is_new")
+        body_properties.pop("_dirty")
         method_body_lines.append(f"""\
-# init session
+# session
 if _session is None:
     _session = ACTIVE_SESSION.get()
     if _session is None:
@@ -172,22 +178,20 @@ __setattr__(self, "_supergraph", _supergraph)
 """)
         if "ck" not in properties:
             method_body_lines.append("""\
-# init node (with id only)
+# node identity (with id only)
 if id is None:
     id = uuid4()
     now = self._session.oracle.utc()
     created_at = now
     updated_at = now
     _is_new = True
+else:
+    _is_new = False
 __setattr__(self, "id", id)
-__setattr__(self, "created_at", created_at)
-__setattr__(self, "updated_at", updated_at)
-__setattr__(self, "_is_new", _is_new)
-__setattr__(self, "_hash", id.int)
 """)
         else:
             method_body_lines.append("""\
-# init node (with id and ck)
+# node identity (with id and ck)
 if id is None:
     id = uuid4()
     if ck is None:
@@ -196,23 +200,31 @@ if id is None:
     created_at = now
     updated_at = now
     _is_new = True
+else:
+    _is_new = False
 __setattr__(self, "id", id)
 __setattr__(self, "ck", ck)
+""")
+
+        method_body_lines.append("""\
+# node tracking
 __setattr__(self, "created_at", created_at)
 __setattr__(self, "updated_at", updated_at)
-__setattr__(self, "_is_new", _is_new)
 __setattr__(self, "_hash", id.int)
-""")
+__setattr__(self, "_ref", None)
+__setattr__(self, "_is_new", _is_new)
+__setattr__(self, "_dirty", None)
+""")  # noqa: FURB113
 
         # node graph
         method_body_lines.append("""\
-# init graph
+# graph
 __setattr__(self, "_graph", _graph)
     """)
     else:
         # struct setup
         method_body_lines.append("""\
-# init struct
+# session
 if _supergraph is None:
     if (session := ACTIVE_SESSION.get()) is not None:
         _supergraph = session.supergraph

@@ -1,7 +1,6 @@
 from typing import cast
 
 import pytest
-from fastuuid import uuid4
 from grpclib import Status as GRPCStatus
 
 from bench import pb2
@@ -63,7 +62,6 @@ async def test_user_registration(supervisor: SupervisorClient):
         slug=user_slug, name=user_name, email=user_email, region=pb2.Region.REGION_ZURICH
     )
     client_in = ClientDataIn(
-        id=str(uuid4()),
         type=pb2.ClientType.CLIENT_TYPE_WEB,
         name=client_name,
         device_name=client_device_name,

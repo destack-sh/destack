@@ -35,10 +35,6 @@ import { ClientType } from "./lang";
  */
 export interface ClientDataIn {
     /**
-     * @generated from protobuf field: optional string id = 2;
-     */
-    id?: string;
-    /**
      * @generated from protobuf field: symbol.bench.ClientType type = 30;
      */
     type: ClientType;
@@ -83,10 +79,6 @@ export interface ClientDataIn {
  * @generated from protobuf message symbol.bench.SignupUserRequest
  */
 export interface SignupUserRequest {
-    /**
-     * @generated from protobuf field: optional string id = 1;
-     */
-    id?: string;
     /**
      * @generated from protobuf field: string slug = 2;
      */
@@ -497,7 +489,6 @@ export interface DownloadFilesResponse_DownloadHandle {
 class ClientDataIn$Type extends MessageType<ClientDataIn> {
     constructor() {
         super("symbol.bench.ClientDataIn", [
-            { no: 2, name: "id", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
             { no: 30, name: "type", kind: "enum", T: () => ["symbol.bench.ClientType", ClientType, "CLIENT_TYPE_"] },
             { no: 32, name: "name", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
             { no: 40, name: "device_type", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
@@ -522,9 +513,6 @@ class ClientDataIn$Type extends MessageType<ClientDataIn> {
         while (reader.pos < end) {
             let [fieldNo, wireType] = reader.tag();
             switch (fieldNo) {
-                case /* optional string id */ 2:
-                    message.id = reader.string();
-                    break;
                 case /* symbol.bench.ClientType type */ 30:
                     message.type = reader.int32();
                     break;
@@ -567,9 +555,6 @@ class ClientDataIn$Type extends MessageType<ClientDataIn> {
         return message;
     }
     internalBinaryWrite(message: ClientDataIn, writer: IBinaryWriter, options: BinaryWriteOptions): IBinaryWriter {
-        /* optional string id = 2; */
-        if (message.id !== undefined)
-            writer.tag(2, WireType.LengthDelimited).string(message.id);
         /* symbol.bench.ClientType type = 30; */
         if (message.type !== 0)
             writer.tag(30, WireType.Varint).int32(message.type);
@@ -614,7 +599,6 @@ export const ClientDataIn = new ClientDataIn$Type();
 class SignupUserRequest$Type extends MessageType<SignupUserRequest> {
     constructor() {
         super("symbol.bench.SignupUserRequest", [
-            { no: 1, name: "id", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
             { no: 2, name: "slug", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
             { no: 3, name: "name", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
             { no: 4, name: "email", kind: "scalar", T: 9 /*ScalarType.STRING*/, options: { "symbol.bench.sensitive": true } },
@@ -639,9 +623,6 @@ class SignupUserRequest$Type extends MessageType<SignupUserRequest> {
         while (reader.pos < end) {
             let [fieldNo, wireType] = reader.tag();
             switch (fieldNo) {
-                case /* optional string id */ 1:
-                    message.id = reader.string();
-                    break;
                 case /* string slug */ 2:
                     message.slug = reader.string();
                     break;
@@ -675,9 +656,6 @@ class SignupUserRequest$Type extends MessageType<SignupUserRequest> {
         return message;
     }
     internalBinaryWrite(message: SignupUserRequest, writer: IBinaryWriter, options: BinaryWriteOptions): IBinaryWriter {
-        /* optional string id = 1; */
-        if (message.id !== undefined)
-            writer.tag(1, WireType.LengthDelimited).string(message.id);
         /* string slug = 2; */
         if (message.slug !== "")
             writer.tag(2, WireType.LengthDelimited).string(message.slug);

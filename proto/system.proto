@@ -11,7 +11,6 @@ import "proto/lang.proto";
 //
 
 message ClientDataIn {
-  optional string id = 2;
   ClientType type = 30;
   optional string name = 32;
   optional string device_type = 40;
@@ -25,7 +24,6 @@ message ClientDataIn {
 }
 
 message SignupUserRequest {
-  optional string id = 1;
   string slug = 2;
   optional string name = 3;
   string email = 4 [(sensitive) = true];
