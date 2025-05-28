@@ -8,7 +8,7 @@ from bench.language.core.code import Code
 
 from .const import BuiltinEnum, EnumType, StructType, enum_
 from .node import Node
-from .object import BuiltinObject, object_
+from .object import BuiltinObject
 from .property import property_
 from .struct import NodeReference, Struct, struct_
 
@@ -16,7 +16,6 @@ if TYPE_CHECKING:
     from bench.language import Aliasing, ColorHue
 
 
-@object_()
 class TextOptionsBase(BuiltinObject):
     color: Optional["ColorHue"] = property_(50)
     background_color: Optional["ColorHue"] = property_(51)
@@ -380,13 +379,17 @@ def _parse_inline_raw(
         # mention marker: [@identifier]
         if marker.startswith("[@") and marker.endswith("]"):
             identifier = marker[2:-1]
-            mention_span = TextSpan(type=TextSpanType.MENTION, content=identifier, **base)
+            node: Node | None = None
+            node_ptr: NodeReference | None = None
             if aliasing is not None:
-                node = aliasing.resolve(identifier)
-                if isinstance(node, Node):
-                    mention_span.node = node
+                resolved = aliasing.resolve(identifier)
+                if isinstance(resolved, Node):
+                    node = resolved
                 else:
-                    mention_span.node_ptr = node
+                    node_ptr = resolved
+            mention_span = TextSpan(
+                type=TextSpanType.MENTION, content=identifier, node=node, node_ptr=node_ptr, **base
+            )
             spans.append(mention_span)
             continue
         # opening marker: could be a citation, link, or a color marker
@@ -493,7 +496,7 @@ def _merge_spans(spans: list[TextSpan]) -> list[TextSpan]:
             and merged[-1].type == TextSpanType.TEXT
             and _span_format_key(merged[-1]) == _span_format_key(sp)
         ):
-            merged[-1].content = (merged[-1].content or "") + (sp.content or "")
+            merged[-1] = merged[-1].replace(content=(merged[-1].content or "") + (sp.content or ""))
         else:
             merged.append(sp)
     return merged
@@ -582,11 +585,10 @@ def _parse_code(lines: list[str], start: int) -> tuple[TextLine, int]:
     i = start + 1
 
     # language
-    language = None
     opening_line = lines[start].strip()
     language_match = regex.match(r"^```([a-zA-Z0-9+#.]+)?", opening_line)
     if language_match and language_match.group(1):
-        language = language_match.group(1).strip()
+        _ = language_match.group(1).strip()
 
     # code
     code_lines = []
@@ -596,7 +598,7 @@ def _parse_code(lines: list[str], start: int) -> tuple[TextLine, int]:
     content = "\n".join(code_lines)
     i += 1  # skip closing ```
 
-    return TextLine(type=TextLineType.CODE, content=content, language=language), i
+    return TextLine(type=TextLineType.CODE, content=content), i
 
 
 def markdown_to_text(markdown: str, aliasing: "Aliasing | None" = None) -> Text:

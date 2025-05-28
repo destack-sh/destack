@@ -66,9 +66,7 @@ class UpdateType(BuiltinEnum):
 
 @struct_(StructType.EDIT, is_frozen=True)
 class Edit(Struct):
-    """
-    An Edit to a Node.
-    """
+    """An Edit to a Node."""
 
     # meta
     id: UUID = property_(2, default_factory="uuid")
@@ -77,13 +75,30 @@ class Edit(Struct):
     # key
     type: EditType = property_(30)
     operation: UpdateType | None = property_(31)
-    node: Node = property_(32)
+    node_id: UUID = property_(32)
     path: str | None = property_(33)
     key: "Value | None" = property_(34)  # for map operations
 
     # value
-    value: "Value | None" = property_(40)
-    parent: Node | None = property_(41)  # for move
+    # node_data: "NodeData | None" = property_(40)
+    value: "Value | None" = property_(41)
+    parent: Node | None = property_(42)  # for move
+
+
+@struct_(StructType.CHANGE)
+class Change(Struct):
+    """A Change is a related sequence of Edits."""
+
+    id: UUID = property_(2, default_factory="uuid")
+    edits: list[Edit] = property_(40)
+
+
+@struct_(StructType.TRANSACTION)
+class Transaction(Struct):
+    """An atomic Transaction of related Changes."""
+
+    id: UUID = property_(2, default_factory="uuid")
+    changes: list[Change] = property_(40)
 
 
 def edit_node(node: Node, edit: Edit) -> None:

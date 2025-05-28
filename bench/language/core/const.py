@@ -468,11 +468,13 @@ enum_(EnumType.ENUM_TYPE)(EnumType)
 class StructType(BuiltinEnum):
     # bench [20000-20200]
     SCOPE = 20000
-    EDIT = 20001
-    ORIGIN = 20003
-    NODE_REFERENCE = 20004
-    PROPERTY_REFERENCE = 20005
-    VARIABLE = 20006
+    ORIGIN = 20001
+    TRANSACTION = 20002
+    EDIT = 20003
+    CHANGE = 20004
+    NODE_REFERENCE = 20005
+    PROPERTY_REFERENCE = 20006
+    VARIABLE = 20007
     EXPRESSION = 20100
     FUNCTION = 20101
     JOIN = 20102
@@ -632,7 +634,7 @@ class NodeType(BuiltinEnum):
     BLOCK = 701, "Block", "Rich Block on a Page", "fas fa-cube"
 
     # history [800-1000]
-    # CHANGE, HISTORY, OVERLAY, BRANCH, ...
+    # CHANGE, HISTORY, SNAPSHOT, OVERLAY, BRANCH, ...
 
     # infra [1000-1200]
     DATABASE = 1000, "Store", "Store custom data", "fas fa-database"

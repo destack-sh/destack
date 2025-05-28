@@ -233,7 +233,7 @@ class Node[NodeDataT: AnyNodeData](BuiltinObject[NodeDataT]):
             if self._dirty is None:
                 self._dirty = bitarray(self.__max_property_ord__)
             self._dirty[prop.ord] = 1  # type: ignore
-            self._session.tx.dirty[self.id] = self
+            self._session.dirty[self.id] = self
         _object_set(self, key, value)
 
     if not TYPE_CHECKING:
