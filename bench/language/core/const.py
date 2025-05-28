@@ -469,12 +469,11 @@ class StructType(BuiltinEnum):
     # bench [20000-20200]
     SCOPE = 20000
     ORIGIN = 20001
-    TRANSACTION = 20002
-    EDIT = 20003
-    CHANGE = 20004
-    NODE_REFERENCE = 20005
-    PROPERTY_REFERENCE = 20006
-    VARIABLE = 20007
+    NODE_REFERENCE = 20002
+    PROPERTY_REFERENCE = 20003
+    EDIT = 20010
+    CHANGE = 20011
+    CHANGE_RESULT = 20012
     EXPRESSION = 20100
     FUNCTION = 20101
     JOIN = 20102
@@ -486,6 +485,7 @@ class StructType(BuiltinEnum):
     QUERY = 20110
     QUERY_RESULT = 20111
     QUERY_UPDATE = 20112
+    VARIABLE = 20120
 
     # auth [20200-20600]
     # PROFILE? (for User, or maybe global?)

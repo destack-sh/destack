@@ -2,6 +2,7 @@ from typing import (
     TYPE_CHECKING,
     Any,
     Optional,
+    Sequence,
 )
 
 import structlog
@@ -12,6 +13,7 @@ from bench.pb2 import OriginData
 from bench.utils.oracle import REAL_ORACLE, Oracle
 
 from .const import ACTIVE_SESSION, NodeMode
+from .edit import Change, ChangeResult, Edit, EditType
 from .graph import Supergraph
 from .node import IsSubject, Node
 
@@ -34,14 +36,16 @@ class Session:
         "_runtime",
         "_token",
         "bench",
+        "change",
+        "changes",
         "dirty",
+        "edits",
         "mode",
         "oracle",
         "origin",
         "store",
         "subject",
         "supergraph",
-        "tx",
     )
 
     def __init__(
@@ -55,8 +59,6 @@ class Session:
         store: "Store | None" = None,
         _runtime: Optional["Runtime"] = None,
     ):
-        from .edit import Transaction
-
         self.supergraph = supergraph if supergraph is not None else Supergraph()
         self.mode = mode
         self.oracle = oracle
@@ -64,8 +66,14 @@ class Session:
         self.origin = origin
         self.subject = subject
         self.store = store
-        self.tx = Transaction()
+
+        # transaction
+        self.change: Change = Change()
+        self.changes: list[Change] = []
         self.dirty: dict[UUID, Node] = {}
+        self.edits: list[Edit] = []
+
+        # runtime
         self._runtime = _runtime
         self._token: Any | None = None
 
@@ -84,53 +92,59 @@ class Session:
             ACTIVE_SESSION.reset(self._token)
             self._token = None
 
-    #
-    # Edits
-    #
-
     def create(self, node: Node):
         """Creates a new Node."""
-        raise NotImplementedError
+        edit = Edit(type=EditType.CREATE, node_id=node.id)
+        self.change.edits.append(edit)
+        self.edits.append(edit)
 
     def upsert(self, node: Node):
         """Creates or updates a Node."""
-        raise NotImplementedError
-
-    def update(self, node: Node):
-        """Updates an existing Node."""
-        raise NotImplementedError
+        edit = Edit(type=EditType.UPSERT, node_id=node.id)
+        self.change.edits.append(edit)
+        self.edits.append(edit)
 
     def move(self, node: Node, parent: Node):
         """Moves a Node to a new parent."""
-        raise NotImplementedError
+        edit = Edit(type=EditType.MOVE, node_id=node.id, parent=parent)
+        self.change.edits.append(edit)
+        self.edits.append(edit)
 
     def archive(self, node: Node):
         """Archives a Node."""
-        raise NotImplementedError
+        edit = Edit(type=EditType.ARCHIVE, node_id=node.id)
+        self.change.edits.append(edit)
+        self.edits.append(edit)
 
     def unarchive(self, node: Node):
         """Unarchives a Node."""
-        raise NotImplementedError
+        edit = Edit(type=EditType.UNARCHIVE, node_id=node.id)
+        self.change.edits.append(edit)
+        self.edits.append(edit)
 
     def delete(self, node: Node):
         """Deletes a Node."""
-        raise NotImplementedError
+        edit = Edit(type=EditType.DELETE, node_id=node.id)
+        self.change.edits.append(edit)
+        self.edits.append(edit)
 
     def restore(self, node: Node):
         """Restores a deleted Node."""
-        raise NotImplementedError
+        edit = Edit(type=EditType.RESTORE, node_id=node.id)
+        self.change.edits.append(edit)
+        self.edits.append(edit)
 
     def erase(self, node: Node):
         """Erases a Node."""
-        raise NotImplementedError
+        edit = Edit(type=EditType.ERASE, node_id=node.id)
+        self.change.edits.append(edit)
+        self.edits.append(edit)
 
-    @tracer.start_as_current_span("session.stage")
-    def stage(self):
+    async def stage(self):
         """Stage pending Edits."""
-        raise NotImplementedError
+        pass  # nocheckin
 
-    @tracer.start_as_current_span("session.commit.schedule")
-    async def commit(self) -> tuple[list["Edit"], list["Edit"]]:
+    async def commit(self) -> Sequence[ChangeResult]:
         """
         Commits Edits. Returns applied Edits & their cascaded Edits.
         """

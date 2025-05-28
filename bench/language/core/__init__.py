@@ -59,7 +59,7 @@ from .const import (
     get_active_session,
     repr_enums,
 )
-from .edit import Change, Edit, EditType, Transaction, UpdateType, edit_graph
+from .edit import Change, ChangeResult, Edit, EditType, UpdateType, edit_graph
 from .graph import Graph, GraphConsistencyError, GraphError, Supergraph
 from .icon import Icon, IconIn, IconType, icon, reverse_icon, to_icon
 from .node import IndexIn, Node, node_
@@ -123,7 +123,7 @@ from .render import (
     render_value,
 )
 from .session import Session
-from .store import Store
+from .store import LiveStore, OptimisticStore, Store
 from .struct import (
     EMPTY_SCOPE_DATA,
     NodeReference,
@@ -263,6 +263,7 @@ __all__ = [
     "BuiltinObjectMutable",
     "CascadeAction",
     "Change",
+    "ChangeResult",
     "ClientType",
     "Cloud",
     "Code",
@@ -327,6 +328,7 @@ __all__ = [
     "Join",
     "JoinType",
     "Json",
+    "LiveStore",
     "Month",
     "Node",
     "NodeArea",
@@ -336,6 +338,7 @@ __all__ = [
     "NodeType",
     "NumberConstraint",
     "NumberFormat",
+    "OptimisticStore",
     "PrimitiveType",
     "PrimitiveValue",
     "ProcessStatus",
@@ -376,7 +379,6 @@ __all__ = [
     "TextSpanType",
     "TimeInterval",
     "TraitType",
-    "Transaction",
     "Type",
     "TypeBase",
     "TypeCardinality",

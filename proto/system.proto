@@ -140,20 +140,14 @@ message SubscribeResponse {
 
 message CommitRequest {
   ScopeData scope = 1;
-  string id = 2;
-  // All the Edits in order.
-  repeated EditData edits = 3;
+  repeated ChangeData changes = 3;
 }
 message CommitResponse {
-  // The actual Edits that were applied.
-  repeated EditData edits = 1;
-  // Any cascaded edits.
-  repeated EditData cascaded_edits = 2; 
-  // Current epoch.
   uint64 epoch = 3;
+  repeated ChangeResultData results = 4;
 }
 
-message UploadFilesRequest {
+message UploadFilesRequest { 
   ScopeData scope = 1;
   repeated FileData files = 2;
 }

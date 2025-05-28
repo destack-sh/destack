@@ -267,10 +267,18 @@ if {prop.name} is None:
 if {prop.name} is None:
     {prop.name} = uuid4()""")
             elif prop.default_factory == "now":
-                method_body_lines.append(f"""\
+                if is_node:
+                    method_body_lines.append(f"""\
 if {prop.name} is None:
-    assert self_session is not None, "no session for {cls.__name__}"
+    assert self._session is not None, "no session for {cls.__name__}"
     {prop.name} = self._session.oracle.utc()""")
+                else:
+                    method_body_lines.append(f"""\
+if {prop.name} is None:
+    session = ACTIVE_SESSION.get()
+    if session is None:
+        raise RuntimeError("no active session for {cls.__name__}")
+    {prop.name} = session.oracle.utc()""")
             else:
                 assert_never(prop.default_factory)
 

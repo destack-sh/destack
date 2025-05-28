@@ -196,24 +196,20 @@ class SubscribeResponse(_message.Message):
     def __init__(self, update: _Optional[_Union[_lang_pb2.QueryUpdateData, _Mapping]] = ...) -> None: ...
 
 class CommitRequest(_message.Message):
-    __slots__ = ("scope", "id", "edits")
+    __slots__ = ("scope", "changes")
     SCOPE_FIELD_NUMBER: _ClassVar[int]
-    ID_FIELD_NUMBER: _ClassVar[int]
-    EDITS_FIELD_NUMBER: _ClassVar[int]
+    CHANGES_FIELD_NUMBER: _ClassVar[int]
     scope: _lang_pb2.ScopeData
-    id: str
-    edits: _containers.RepeatedCompositeFieldContainer[_lang_pb2.EditData]
-    def __init__(self, scope: _Optional[_Union[_lang_pb2.ScopeData, _Mapping]] = ..., id: _Optional[str] = ..., edits: _Optional[_Iterable[_Union[_lang_pb2.EditData, _Mapping]]] = ...) -> None: ...
+    changes: _containers.RepeatedCompositeFieldContainer[_lang_pb2.ChangeData]
+    def __init__(self, scope: _Optional[_Union[_lang_pb2.ScopeData, _Mapping]] = ..., changes: _Optional[_Iterable[_Union[_lang_pb2.ChangeData, _Mapping]]] = ...) -> None: ...
 
 class CommitResponse(_message.Message):
-    __slots__ = ("edits", "cascaded_edits", "epoch")
-    EDITS_FIELD_NUMBER: _ClassVar[int]
-    CASCADED_EDITS_FIELD_NUMBER: _ClassVar[int]
+    __slots__ = ("epoch", "results")
     EPOCH_FIELD_NUMBER: _ClassVar[int]
-    edits: _containers.RepeatedCompositeFieldContainer[_lang_pb2.EditData]
-    cascaded_edits: _containers.RepeatedCompositeFieldContainer[_lang_pb2.EditData]
+    RESULTS_FIELD_NUMBER: _ClassVar[int]
     epoch: int
-    def __init__(self, edits: _Optional[_Iterable[_Union[_lang_pb2.EditData, _Mapping]]] = ..., cascaded_edits: _Optional[_Iterable[_Union[_lang_pb2.EditData, _Mapping]]] = ..., epoch: _Optional[int] = ...) -> None: ...
+    results: _containers.RepeatedCompositeFieldContainer[_lang_pb2.ChangeResultData]
+    def __init__(self, epoch: _Optional[int] = ..., results: _Optional[_Iterable[_Union[_lang_pb2.ChangeResultData, _Mapping]]] = ...) -> None: ...
 
 class UploadFilesRequest(_message.Message):
     __slots__ = ("scope", "files")

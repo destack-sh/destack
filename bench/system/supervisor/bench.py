@@ -21,7 +21,7 @@ class CreateBenchOptions(NamedTuple):
     main_package_id: UUID | None = None
 
 
-async def create_default_bench(  # noqa: RUF029
+async def create_default_bench(
     *,
     handle: Handle,
     owned_by: User | Organization,
@@ -41,7 +41,7 @@ async def create_default_bench(  # noqa: RUF029
         region=region,
     )
     session.create(bench)
-    session.stage()
+    await session.stage()
 
     # main Package
     main_package = Package(
@@ -52,14 +52,14 @@ async def create_default_bench(  # noqa: RUF029
         slug="home",
     )
     session.create(main_package)
-    session.stage()
+    await session.stage()
     bench.main_package = main_package
 
     # main Database
     database = Database(mode=NodeMode.BUILTIN, region=bench.region, name="Database")
     main_package.add_child(database)
-    session.stage()
+    await session.stage()
     bench.database = database
-    session.stage()
+    await session.stage()
 
     return bench

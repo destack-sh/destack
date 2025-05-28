@@ -1128,12 +1128,11 @@ enum StructType {
   STRUCT_TYPE_UNSPECIFIED = 0;
   STRUCT_TYPE_SCOPE = 20000;
   STRUCT_TYPE_ORIGIN = 20001;
-  STRUCT_TYPE_TRANSACTION = 20002;
-  STRUCT_TYPE_EDIT = 20003;
-  STRUCT_TYPE_CHANGE = 20004;
-  STRUCT_TYPE_NODE_REFERENCE = 20005;
-  STRUCT_TYPE_PROPERTY_REFERENCE = 20006;
-  STRUCT_TYPE_VARIABLE = 20007;
+  STRUCT_TYPE_NODE_REFERENCE = 20002;
+  STRUCT_TYPE_PROPERTY_REFERENCE = 20003;
+  STRUCT_TYPE_EDIT = 20010;
+  STRUCT_TYPE_CHANGE = 20011;
+  STRUCT_TYPE_CHANGE_RESULT = 20012;
   STRUCT_TYPE_EXPRESSION = 20100;
   STRUCT_TYPE_FUNCTION = 20101;
   STRUCT_TYPE_JOIN = 20102;
@@ -1145,6 +1144,7 @@ enum StructType {
   STRUCT_TYPE_QUERY = 20110;
   STRUCT_TYPE_QUERY_RESULT = 20111;
   STRUCT_TYPE_QUERY_UPDATE = 20112;
+  STRUCT_TYPE_VARIABLE = 20120;
   STRUCT_TYPE_SCHEDULE = 21200;
   STRUCT_TYPE_ERROR = 21600;
   STRUCT_TYPE_TYPE = 22000;
@@ -1562,7 +1562,16 @@ message BorderStyleData {
 message ChangeData {
   StructType metatype = 1;
   string id = 2;
+  google.protobuf.Timestamp created_at = 10;
   repeated EditData edits = 40;
+}
+
+message ChangeResultData {
+  StructType metatype = 1;
+  string id = 2;
+  repeated EditData edits = 40;
+  repeated EditData cascaded_edits = 41;
+  int64 epoch = 42;
 }
 
 // A Client to connect with the system.
@@ -3351,12 +3360,6 @@ message ThreadViewData {
   optional DimensionData max_height = 46;
   optional TextData draft_text = 100;
   optional NodeReferenceData draft_reply_to_ptr = 102;
-}
-
-message TransactionData {
-  StructType metatype = 1;
-  string id = 2;
-  repeated ChangeData changes = 40;
 }
 
 message TransitionData {

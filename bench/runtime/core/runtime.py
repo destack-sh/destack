@@ -432,9 +432,7 @@ class Runtime:
             assert type(span) is Run, f"unexpected non-Run root: {span!r}"
             thread = runner.thread.thread
             thread.update_status_from(span, *thread.get_children(Run))
-            self.session.stage(include_runtime=True)
-        else:
-            self.session.stage()
+        await self.session.stage()
 
         # actually attempt Run
         try:

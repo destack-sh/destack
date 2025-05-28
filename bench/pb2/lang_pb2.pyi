@@ -1105,12 +1105,11 @@ class StructType(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     STRUCT_TYPE_UNSPECIFIED: _ClassVar[StructType]
     STRUCT_TYPE_SCOPE: _ClassVar[StructType]
     STRUCT_TYPE_ORIGIN: _ClassVar[StructType]
-    STRUCT_TYPE_TRANSACTION: _ClassVar[StructType]
-    STRUCT_TYPE_EDIT: _ClassVar[StructType]
-    STRUCT_TYPE_CHANGE: _ClassVar[StructType]
     STRUCT_TYPE_NODE_REFERENCE: _ClassVar[StructType]
     STRUCT_TYPE_PROPERTY_REFERENCE: _ClassVar[StructType]
-    STRUCT_TYPE_VARIABLE: _ClassVar[StructType]
+    STRUCT_TYPE_EDIT: _ClassVar[StructType]
+    STRUCT_TYPE_CHANGE: _ClassVar[StructType]
+    STRUCT_TYPE_CHANGE_RESULT: _ClassVar[StructType]
     STRUCT_TYPE_EXPRESSION: _ClassVar[StructType]
     STRUCT_TYPE_FUNCTION: _ClassVar[StructType]
     STRUCT_TYPE_JOIN: _ClassVar[StructType]
@@ -1122,6 +1121,7 @@ class StructType(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     STRUCT_TYPE_QUERY: _ClassVar[StructType]
     STRUCT_TYPE_QUERY_RESULT: _ClassVar[StructType]
     STRUCT_TYPE_QUERY_UPDATE: _ClassVar[StructType]
+    STRUCT_TYPE_VARIABLE: _ClassVar[StructType]
     STRUCT_TYPE_SCHEDULE: _ClassVar[StructType]
     STRUCT_TYPE_ERROR: _ClassVar[StructType]
     STRUCT_TYPE_TYPE: _ClassVar[StructType]
@@ -2130,12 +2130,11 @@ STRING_FORMAT_BASE64: StringFormat
 STRUCT_TYPE_UNSPECIFIED: StructType
 STRUCT_TYPE_SCOPE: StructType
 STRUCT_TYPE_ORIGIN: StructType
-STRUCT_TYPE_TRANSACTION: StructType
-STRUCT_TYPE_EDIT: StructType
-STRUCT_TYPE_CHANGE: StructType
 STRUCT_TYPE_NODE_REFERENCE: StructType
 STRUCT_TYPE_PROPERTY_REFERENCE: StructType
-STRUCT_TYPE_VARIABLE: StructType
+STRUCT_TYPE_EDIT: StructType
+STRUCT_TYPE_CHANGE: StructType
+STRUCT_TYPE_CHANGE_RESULT: StructType
 STRUCT_TYPE_EXPRESSION: StructType
 STRUCT_TYPE_FUNCTION: StructType
 STRUCT_TYPE_JOIN: StructType
@@ -2147,6 +2146,7 @@ STRUCT_TYPE_ATTRIBUTE_REFERENCE: StructType
 STRUCT_TYPE_QUERY: StructType
 STRUCT_TYPE_QUERY_RESULT: StructType
 STRUCT_TYPE_QUERY_UPDATE: StructType
+STRUCT_TYPE_VARIABLE: StructType
 STRUCT_TYPE_SCHEDULE: StructType
 STRUCT_TYPE_ERROR: StructType
 STRUCT_TYPE_TYPE: StructType
@@ -2683,14 +2683,30 @@ class BorderStyleData(_message.Message):
     def __init__(self, metatype: _Optional[_Union[NodeType, str]] = ..., id: _Optional[str] = ..., parent_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., bench_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., package_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., created_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., created_by_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., updated_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., updated_by_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., archived_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., deleted_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., template_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., mode: _Optional[_Union[NodeMode, str]] = ..., order_key: _Optional[str] = ..., type: _Optional[_Union[BorderType, str]] = ..., name: _Optional[str] = ..., block_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., style_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., color: _Optional[_Union[ColorData, _Mapping]] = ..., width: _Optional[_Union[InsetsData, _Mapping]] = ...) -> None: ...
 
 class ChangeData(_message.Message):
-    __slots__ = ("metatype", "id", "edits")
+    __slots__ = ("metatype", "id", "created_at", "edits")
     METATYPE_FIELD_NUMBER: _ClassVar[int]
     ID_FIELD_NUMBER: _ClassVar[int]
+    CREATED_AT_FIELD_NUMBER: _ClassVar[int]
     EDITS_FIELD_NUMBER: _ClassVar[int]
     metatype: StructType
     id: str
+    created_at: _timestamp_pb2.Timestamp
     edits: _containers.RepeatedCompositeFieldContainer[EditData]
-    def __init__(self, metatype: _Optional[_Union[StructType, str]] = ..., id: _Optional[str] = ..., edits: _Optional[_Iterable[_Union[EditData, _Mapping]]] = ...) -> None: ...
+    def __init__(self, metatype: _Optional[_Union[StructType, str]] = ..., id: _Optional[str] = ..., created_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., edits: _Optional[_Iterable[_Union[EditData, _Mapping]]] = ...) -> None: ...
+
+class ChangeResultData(_message.Message):
+    __slots__ = ("metatype", "id", "edits", "cascaded_edits", "epoch")
+    METATYPE_FIELD_NUMBER: _ClassVar[int]
+    ID_FIELD_NUMBER: _ClassVar[int]
+    EDITS_FIELD_NUMBER: _ClassVar[int]
+    CASCADED_EDITS_FIELD_NUMBER: _ClassVar[int]
+    EPOCH_FIELD_NUMBER: _ClassVar[int]
+    metatype: StructType
+    id: str
+    edits: _containers.RepeatedCompositeFieldContainer[EditData]
+    cascaded_edits: _containers.RepeatedCompositeFieldContainer[EditData]
+    epoch: int
+    def __init__(self, metatype: _Optional[_Union[StructType, str]] = ..., id: _Optional[str] = ..., edits: _Optional[_Iterable[_Union[EditData, _Mapping]]] = ..., cascaded_edits: _Optional[_Iterable[_Union[EditData, _Mapping]]] = ..., epoch: _Optional[int] = ...) -> None: ...
 
 class ClientData(_message.Message):
     __slots__ = ("metatype", "id", "parent_ptr", "bench_ptr", "created_at", "created_by_ptr", "updated_at", "updated_by_ptr", "type", "name", "space_ptr", "machine_ptr", "user_ptr", "device_type", "device_name", "operating_system", "browser_name", "browser_version", "access_token", "seen_at", "logged_in_at", "cursor_ptr")
@@ -5806,16 +5822,6 @@ class ThreadViewData(_message.Message):
     draft_text: TextData
     draft_reply_to_ptr: NodeReferenceData
     def __init__(self, metatype: _Optional[_Union[NodeType, str]] = ..., id: _Optional[str] = ..., ck: _Optional[str] = ..., parent_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., bench_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., package_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., created_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., created_by_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., updated_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., updated_by_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., archived_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., deleted_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., template_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., mode: _Optional[_Union[NodeMode, str]] = ..., order_key: _Optional[str] = ..., name: _Optional[str] = ..., block_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., position: _Optional[_Union[PositionData, _Mapping]] = ..., width: _Optional[_Union[DimensionData, _Mapping]] = ..., height: _Optional[_Union[DimensionData, _Mapping]] = ..., min_width: _Optional[_Union[DimensionData, _Mapping]] = ..., min_height: _Optional[_Union[DimensionData, _Mapping]] = ..., max_width: _Optional[_Union[DimensionData, _Mapping]] = ..., max_height: _Optional[_Union[DimensionData, _Mapping]] = ..., draft_text: _Optional[_Union[TextData, _Mapping]] = ..., draft_reply_to_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ...) -> None: ...
-
-class TransactionData(_message.Message):
-    __slots__ = ("metatype", "id", "changes")
-    METATYPE_FIELD_NUMBER: _ClassVar[int]
-    ID_FIELD_NUMBER: _ClassVar[int]
-    CHANGES_FIELD_NUMBER: _ClassVar[int]
-    metatype: StructType
-    id: str
-    changes: _containers.RepeatedCompositeFieldContainer[ChangeData]
-    def __init__(self, metatype: _Optional[_Union[StructType, str]] = ..., id: _Optional[str] = ..., changes: _Optional[_Iterable[_Union[ChangeData, _Mapping]]] = ...) -> None: ...
 
 class TransitionData(_message.Message):
     __slots__ = ("metatype", "type", "style_ptr", "delay", "duration", "ease", "stiffness", "damping", "mass", "bounce", "spring_type")
