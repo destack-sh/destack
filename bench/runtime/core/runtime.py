@@ -887,7 +887,6 @@ class Runtime:
         async with self.session.active():
             # get runner
             runner, run = await self._load_runner(run)
-            assert runner.tracked.is_attached, f"{runner!r}'s {runner.tracked!r} is not attached"
             assert runner.is_root, f"{runner!r} is not a root runner"
 
             # get thread
