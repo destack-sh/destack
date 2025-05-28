@@ -13,6 +13,7 @@ from typing import (
 )
 
 import structlog
+from bitarray import bitarray
 from fastuuid import UUID
 from opentelemetry import trace
 
@@ -42,8 +43,10 @@ from .trait import IndexIn, IsSubject
 if TYPE_CHECKING:
     from bench.language import (
         Aggregation,
+        AggregationType,
         Condition,
         Expression,
+        ExpressionIn,
         Join,
         NodeReference,
         Query,
@@ -106,6 +109,9 @@ def node_(
         return cls
 
     return decorate
+
+
+_object_set = object.__setattr__
 
 
 @node_(node_type=None, root_type=None)
@@ -191,7 +197,7 @@ class Node[NodeDataT: AnyNodeData](BuiltinObject[NodeDataT]):
     _graph: "Graph" = property_runtime_(default=None)
     _is_attached: bool = property_runtime_(default=False)  # :CachedAncestors
     _is_new: bool = property_runtime_(default=False)
-    _dirty: int | None = property_runtime_(default=None)
+    _dirty: bitarray | None = property_runtime_(default=None)
 
     @property
     def ck(self):
@@ -239,10 +245,15 @@ class Node[NodeDataT: AnyNodeData](BuiltinObject[NodeDataT]):
 
     def _do_set(self, key: str, value: Any):
         """Set a property on this Node."""
-        prop = self.__properties__[key]
-        if prop:
-            pass  # nocheckin: record edit
-        object.__setattr__(self, key, value)
+        prop = self.__properties__.get(key)
+        if prop is not None:
+            # nocheckin: record update edit
+            assert prop.ord is not None
+            if self._dirty is None:
+                self._dirty = bitarray(self.__max_property_ord__)
+            self._dirty[prop.ord] = 1
+            self._session.tx.dirty[self.id] = self
+        _object_set(self, key, value)
 
     if not TYPE_CHECKING:
         __setattr__ = _do_set
@@ -288,10 +299,7 @@ class Node[NodeDataT: AnyNodeData](BuiltinObject[NodeDataT]):
         self, node_type: NodeType | type[N] | None = None
     ) -> Sequence[N]:
         """Gets the children of this Node."""
-        if isinstance(node_type, type):
-            node_type = node_type.metatype
-        children = self._graph.get_descendants(self, node_type=node_type, recursive=False)
-        return cast(Sequence[N], children)
+        raise NotImplementedError
 
     def get_child[N: Node = Node](self, node_type: NodeType | type[N], key: str) -> N | None:
         """Gets a specific child of this Node."""
@@ -350,12 +358,14 @@ class Node[NodeDataT: AnyNodeData](BuiltinObject[NodeDataT]):
     #
     # Querying
     #
+
     @classmethod
     def get(
         cls: type["Self"],
+        where: Optional["Condition"] = None,
+        *,
         name: str | None = None,
         join: Optional["Join"] = None,
-        where: Optional["Condition"] = None,
         **subqueries: "Query",
     ) -> "Query[Self]":
         from .query import Query, QueryType, relation_ref, to_subqueries
@@ -372,9 +382,10 @@ class Node[NodeDataT: AnyNodeData](BuiltinObject[NodeDataT]):
     @classmethod
     def search(
         cls: type["Self"],
+        where: Optional["Condition"] = None,
+        *,
         name: str | None = None,
         join: Optional["Join"] = None,
-        where: Optional["Condition"] = None,
         having: Optional["Condition"] = None,
         sort: Optional[list["Sort"]] = None,
         group_by: Optional[list["Expression"]] = None,
@@ -405,9 +416,10 @@ class Node[NodeDataT: AnyNodeData](BuiltinObject[NodeDataT]):
     @classmethod
     def aggregate(
         cls: type["Self"],
+        where: Optional["Condition"] = None,
+        *,
         name: str | None = None,
         join: Optional["Join"] = None,
-        where: Optional["Condition"] = None,
         group_by: Optional[list["Expression"]] = None,
         aggregation: Optional["Aggregation"] = None,
         sort: Optional[list["Sort"]] = None,
@@ -425,6 +437,67 @@ class Node[NodeDataT: AnyNodeData](BuiltinObject[NodeDataT]):
             where=where,
             group_by=group_by or [],
             aggregation=aggregation,
+            sort=sort or [],
+            limit=limit,
+            offset=offset,
+            count=count,
+        )
+
+    @classmethod
+    def count(
+        cls: type["Self"],
+        where: Optional["Condition"] = None,
+        *,
+        name: str | None = None,
+        join: Optional["Join"] = None,
+        group_by: Optional[list["Expression"]] = None,
+        sort: Optional[list["Sort"]] = None,
+        limit: Optional[int] = None,
+        offset: Optional[int] = None,
+        count: bool = False,
+    ) -> "Query[Self]":
+        from .query import Aggregation, AggregationType, Query, QueryType, relation_ref
+
+        return Query(
+            type=QueryType.AGGREGATE,
+            relation=relation_ref(cls.metatype),
+            name=name or cls.metatype.bench_name,
+            join=join,
+            where=where,
+            group_by=group_by or [],
+            aggregation=Aggregation(type=AggregationType.COUNT),
+            sort=sort or [],
+            limit=limit,
+            offset=offset,
+            count=count,
+        )
+
+    @classmethod
+    def scalar(
+        cls: type["Self"],
+        type: "AggregationType",
+        expression: "ExpressionIn",
+        *,
+        name: str | None = None,
+        join: Optional["Join"] = None,
+        where: Optional["Condition"] = None,
+        group_by: Optional[list["Expression"]] = None,
+        sort: Optional[list["Sort"]] = None,
+        limit: Optional[int] = None,
+        offset: Optional[int] = None,
+        count: bool = False,
+    ) -> "Query[Self]":
+        from .query import Aggregation, Query, QueryType, relation_ref
+        from .query import expression as to_expression
+
+        return Query(
+            type=QueryType.AGGREGATE,
+            relation=relation_ref(cls.metatype),
+            name=name or cls.metatype.bench_name,
+            join=join,
+            where=where,
+            group_by=group_by or [],
+            aggregation=Aggregation(type=type, expression=to_expression(expression)),
             sort=sort or [],
             limit=limit,
             offset=offset,

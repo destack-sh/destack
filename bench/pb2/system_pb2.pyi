@@ -197,18 +197,22 @@ class QueryRequest(_message.Message):
     def __init__(self, scope: _Optional[_Union[_lang_pb2.ScopeData, _Mapping]] = ..., query: _Optional[_Union[_lang_pb2.QueryData, _Mapping]] = ...) -> None: ...
 
 class QueryResponse(_message.Message):
-    __slots__ = ()
-    def __init__(self) -> None: ...
+    __slots__ = ("result",)
+    RESULT_FIELD_NUMBER: _ClassVar[int]
+    result: _lang_pb2.QueryResultData
+    def __init__(self, result: _Optional[_Union[_lang_pb2.QueryResultData, _Mapping]] = ...) -> None: ...
 
 class SubscribeRequest(_message.Message):
-    __slots__ = ("query_id",)
-    QUERY_ID_FIELD_NUMBER: _ClassVar[int]
-    query_id: str
-    def __init__(self, query_id: _Optional[str] = ...) -> None: ...
+    __slots__ = ("query",)
+    QUERY_FIELD_NUMBER: _ClassVar[int]
+    query: _lang_pb2.QueryData
+    def __init__(self, query: _Optional[_Union[_lang_pb2.QueryData, _Mapping]] = ...) -> None: ...
 
 class SubscribeResponse(_message.Message):
-    __slots__ = ()
-    def __init__(self) -> None: ...
+    __slots__ = ("update",)
+    UPDATE_FIELD_NUMBER: _ClassVar[int]
+    update: _lang_pb2.QueryUpdateData
+    def __init__(self, update: _Optional[_Union[_lang_pb2.QueryUpdateData, _Mapping]] = ...) -> None: ...
 
 class CommitRequest(_message.Message):
     __slots__ = ("scope", "id", "edits")

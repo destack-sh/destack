@@ -168,15 +168,15 @@ class IsArchivable(Node if TYPE_CHECKING else BuiltinObject):
     def is_archived(self) -> bool:
         return self.archived_at is not None
 
-    def archive(self, _now: datetime | None = None):
+    def archive(self):
         """Archive this Node."""
         assert not self.archived_at, f"{self!r} is already archived"
-        self._session.archive(self, _now=_now)
+        self._session.archive(self)
 
-    def unarchive(self, _now: datetime | None = None):
+    def unarchive(self):
         """Unarchive this Node."""
         assert self.archived_at, f"{self!r} is not archived"
-        self._session.unarchive(self, _now=_now)
+        self._session.unarchive(self)
 
 
 @trait_(TraitType.DELETABLE)
@@ -185,15 +185,15 @@ class IsDeletable(Node if TYPE_CHECKING else BuiltinObject):
 
     deleted_at: Optional[datetime] = property_(15, is_managed=True, is_eq=False)
 
-    def delete(self, _now: datetime | None = None):
+    def delete(self):
         """Delete this Node."""
         assert not self.deleted_at, f"{self!r} is already deleted"
-        self._session.delete(self, _now=_now)
+        self._session.delete(self)
 
-    def restore(self, _now: datetime | None = None):
+    def restore(self):
         """Restore this deleted Node from the trash."""
         assert self.deleted_at, f"{self!r} is not deleted"
-        self._session.restore(self, _now=_now)
+        self._session.restore(self)
 
 
 @trait_(TraitType.TEMPLATABLE)

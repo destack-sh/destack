@@ -1,13 +1,10 @@
 import dataclasses
-from datetime import datetime
 from typing import (
     TYPE_CHECKING,
     Optional,
-    Sequence,
 )
 
 import structlog
-from fastuuid import UUID
 from opentelemetry import trace
 
 from bench.pb2 import OriginData
@@ -19,7 +16,7 @@ from .node import IsSubject, Node
 from .transaction import Transaction
 
 if TYPE_CHECKING:
-    from bench.language import Bench, Edit
+    from bench.language import Bench, Edit, Store
     from bench.runtime.core import Runtime
 
 # pyright: reportIncompatibleVariableOverride=false
@@ -34,34 +31,15 @@ class Session:
     A managed Session for interacting with a Bench.
     """
 
-    # node
     supergraph: Supergraph
     mode: NodeMode = NodeMode.MAIN
     oracle: Oracle = REAL_ORACLE
     bench: Optional["Bench"] = None
-
-    # context
-    # ...HasRuntimeContext[80-99]
-
-    # context
     origin: OriginData | None = None
     subject: IsSubject | None = None
-
-    # transaction
-    tx: Transaction | None = None
-    pending: dict[UUID, Node] = dataclasses.field(default_factory=dict)
-    dirty: dict[UUID, Node] = dataclasses.field(default_factory=dict)
-
-    # runtime
+    store: "Store" = None
+    tx: Transaction = None
     _runtime: Optional["Runtime"] = None
-
-    @property
-    def edits(self) -> Sequence["Edit"]:
-        return self.tx.edits if self.tx is not None else ()
-
-    @property
-    def cascaded_edits(self) -> Sequence["Edit"]:
-        return self.tx.cascaded_edits if self.tx is not None else ()
 
     @property
     def has_edits(self) -> bool:
@@ -91,50 +69,50 @@ class Session:
     #
 
     def create(self, node: Node):
-        """Creates a new Node. The operation *is not* applied directly."""
+        """Creates a new Node."""
         raise NotImplementedError
 
     def upsert(self, node: Node):
-        """Creates or updates a Node. The operation *is not* applied directly."""
+        """Creates or updates a Node."""
         raise NotImplementedError
 
     def update(self, node: Node):
-        """Updates an existing Node. The operation *is not* applied directly."""
+        """Updates an existing Node."""
         raise NotImplementedError
 
-    def move(self, node: Node, old_parent: Node, new_parent: Node):
-        """Moves a Node to a new parent. The operation *is not* applied directly."""
+    def move(self, node: Node, parent: Node):
+        """Moves a Node to a new parent."""
         raise NotImplementedError
 
-    def archive(self, *nodes: Node, _now: datetime | None = None):
-        """Archives a Node. The operation *is* applied directly."""
+    def archive(self, node: Node):
+        """Archives a Node."""
         raise NotImplementedError
 
-    def unarchive(self, *nodes: Node, _now: datetime | None = None):
-        """Unarchives a Node. The operation *is* applied directly."""
+    def unarchive(self, node: Node):
+        """Unarchives a Node."""
         raise NotImplementedError
 
-    def delete(self, *nodes: Node, _now: datetime | None = None):
-        """Deletes a Node. The operation *is* applied directly."""
+    def delete(self, node: Node):
+        """Deletes a Node."""
         raise NotImplementedError
 
-    def restore(self, *nodes: Node, _now: datetime | None = None):
-        """Restores a deleted Node. The operation *is* applied directly."""
+    def restore(self, node: Node):
+        """Restores a deleted Node."""
         raise NotImplementedError
 
-    def erase(self, *nodes: Node):
-        """Erases a Node. The operation *is* applied directly."""
+    def erase(self, node: Node):
+        """Erases a Node."""
         raise NotImplementedError
 
     @tracer.start_as_current_span("session.stage")
-    def stage(self, *, include_runtime: bool = False):
-        """Stage pending edits without waiting for the next background commit."""
+    def stage(self):
+        """Stage pending Edits."""
         raise NotImplementedError
 
     @tracer.start_as_current_span("session.commit.schedule")
     async def commit(self) -> tuple[list["Edit"], list["Edit"]]:
         """
-        Commits all edits. Returns *all* edits & cascaded edits.
+        Commits Edits. Returns applied Edits & their cascaded Edits.
         """
         raise NotImplementedError
 

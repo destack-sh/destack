@@ -9,7 +9,7 @@ import pytest
     ],
 )
 def test_roundtrip_hostmap(host_map_str: str):
-    from bench.system.core.sharding import get_host_map_from_string, host_map_to_string
+    from bench.system.store.sharding import get_host_map_from_string, host_map_to_string
 
     host_map = get_host_map_from_string(host_map_str)
     rendered = host_map_to_string(host_map)

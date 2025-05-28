@@ -16,6 +16,8 @@ import { MessageType } from "@protobuf-ts/runtime";
 import { Struct } from "../google/protobuf/struct";
 import { FileData } from "./lang";
 import { EditData } from "./lang";
+import { QueryUpdateData } from "./lang";
+import { QueryResultData } from "./lang";
 import { QueryData } from "./lang";
 import { ScopeData } from "./lang";
 import { BenchData } from "./lang";
@@ -372,26 +374,35 @@ export interface QueryRequest {
     query?: QueryData;
 }
 /**
- * The result of the Query.
- * QueryResultData result = 1;
- *
  * @generated from protobuf message symbol.bench.QueryResponse
  */
 export interface QueryResponse {
+    /**
+     * The result of the Query.
+     *
+     * @generated from protobuf field: symbol.bench.QueryResultData result = 1;
+     */
+    result?: QueryResultData;
 }
 /**
  * @generated from protobuf message symbol.bench.SubscribeRequest
  */
 export interface SubscribeRequest {
     /**
-     * @generated from protobuf field: string query_id = 1;
+     * @generated from protobuf field: symbol.bench.QueryData query = 1;
      */
-    queryId: string;
+    query?: QueryData;
 }
 /**
  * @generated from protobuf message symbol.bench.SubscribeResponse
  */
 export interface SubscribeResponse {
+    /**
+     * The result of the Query.
+     *
+     * @generated from protobuf field: symbol.bench.QueryUpdateData update = 1;
+     */
+    update?: QueryUpdateData;
 }
 /**
  * @generated from protobuf message symbol.bench.CommitRequest
@@ -402,8 +413,6 @@ export interface CommitRequest {
      */
     scope?: ScopeData;
     /**
-     * UUID of the transaction.
-     *
      * @generated from protobuf field: string id = 2;
      */
     id: string;
@@ -1630,7 +1639,9 @@ export const QueryRequest = new QueryRequest$Type();
 // @generated message type with reflection information, may provide speed optimized methods
 class QueryResponse$Type extends MessageType<QueryResponse> {
     constructor() {
-        super("symbol.bench.QueryResponse", []);
+        super("symbol.bench.QueryResponse", [
+            { no: 1, name: "result", kind: "message", T: () => QueryResultData }
+        ]);
     }
     create(value?: PartialMessage<QueryResponse>): QueryResponse {
         const message = globalThis.Object.create((this.messagePrototype!));
@@ -1639,9 +1650,28 @@ class QueryResponse$Type extends MessageType<QueryResponse> {
         return message;
     }
     internalBinaryRead(reader: IBinaryReader, length: number, options: BinaryReadOptions, target?: QueryResponse): QueryResponse {
-        return target ?? this.create();
+        let message = target ?? this.create(), end = reader.pos + length;
+        while (reader.pos < end) {
+            let [fieldNo, wireType] = reader.tag();
+            switch (fieldNo) {
+                case /* symbol.bench.QueryResultData result */ 1:
+                    message.result = QueryResultData.internalBinaryRead(reader, reader.uint32(), options, message.result);
+                    break;
+                default:
+                    let u = options.readUnknownField;
+                    if (u === "throw")
+                        throw new globalThis.Error(`Unknown field ${fieldNo} (wire type ${wireType}) for ${this.typeName}`);
+                    let d = reader.skip(wireType);
+                    if (u !== false)
+                        (u === true ? UnknownFieldHandler.onRead : u)(this.typeName, message, fieldNo, wireType, d);
+            }
+        }
+        return message;
     }
     internalBinaryWrite(message: QueryResponse, writer: IBinaryWriter, options: BinaryWriteOptions): IBinaryWriter {
+        /* symbol.bench.QueryResultData result = 1; */
+        if (message.result)
+            QueryResultData.internalBinaryWrite(message.result, writer.tag(1, WireType.LengthDelimited).fork(), options).join();
         let u = options.writeUnknownFields;
         if (u !== false)
             (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
@@ -1656,12 +1686,11 @@ export const QueryResponse = new QueryResponse$Type();
 class SubscribeRequest$Type extends MessageType<SubscribeRequest> {
     constructor() {
         super("symbol.bench.SubscribeRequest", [
-            { no: 1, name: "query_id", kind: "scalar", T: 9 /*ScalarType.STRING*/ }
+            { no: 1, name: "query", kind: "message", T: () => QueryData }
         ]);
     }
     create(value?: PartialMessage<SubscribeRequest>): SubscribeRequest {
         const message = globalThis.Object.create((this.messagePrototype!));
-        message.queryId = "";
         if (value !== undefined)
             reflectionMergePartial<SubscribeRequest>(this, message, value);
         return message;
@@ -1671,8 +1700,8 @@ class SubscribeRequest$Type extends MessageType<SubscribeRequest> {
         while (reader.pos < end) {
             let [fieldNo, wireType] = reader.tag();
             switch (fieldNo) {
-                case /* string query_id */ 1:
-                    message.queryId = reader.string();
+                case /* symbol.bench.QueryData query */ 1:
+                    message.query = QueryData.internalBinaryRead(reader, reader.uint32(), options, message.query);
                     break;
                 default:
                     let u = options.readUnknownField;
@@ -1686,9 +1715,9 @@ class SubscribeRequest$Type extends MessageType<SubscribeRequest> {
         return message;
     }
     internalBinaryWrite(message: SubscribeRequest, writer: IBinaryWriter, options: BinaryWriteOptions): IBinaryWriter {
-        /* string query_id = 1; */
-        if (message.queryId !== "")
-            writer.tag(1, WireType.LengthDelimited).string(message.queryId);
+        /* symbol.bench.QueryData query = 1; */
+        if (message.query)
+            QueryData.internalBinaryWrite(message.query, writer.tag(1, WireType.LengthDelimited).fork(), options).join();
         let u = options.writeUnknownFields;
         if (u !== false)
             (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
@@ -1702,7 +1731,9 @@ export const SubscribeRequest = new SubscribeRequest$Type();
 // @generated message type with reflection information, may provide speed optimized methods
 class SubscribeResponse$Type extends MessageType<SubscribeResponse> {
     constructor() {
-        super("symbol.bench.SubscribeResponse", []);
+        super("symbol.bench.SubscribeResponse", [
+            { no: 1, name: "update", kind: "message", T: () => QueryUpdateData }
+        ]);
     }
     create(value?: PartialMessage<SubscribeResponse>): SubscribeResponse {
         const message = globalThis.Object.create((this.messagePrototype!));
@@ -1711,9 +1742,28 @@ class SubscribeResponse$Type extends MessageType<SubscribeResponse> {
         return message;
     }
     internalBinaryRead(reader: IBinaryReader, length: number, options: BinaryReadOptions, target?: SubscribeResponse): SubscribeResponse {
-        return target ?? this.create();
+        let message = target ?? this.create(), end = reader.pos + length;
+        while (reader.pos < end) {
+            let [fieldNo, wireType] = reader.tag();
+            switch (fieldNo) {
+                case /* symbol.bench.QueryUpdateData update */ 1:
+                    message.update = QueryUpdateData.internalBinaryRead(reader, reader.uint32(), options, message.update);
+                    break;
+                default:
+                    let u = options.readUnknownField;
+                    if (u === "throw")
+                        throw new globalThis.Error(`Unknown field ${fieldNo} (wire type ${wireType}) for ${this.typeName}`);
+                    let d = reader.skip(wireType);
+                    if (u !== false)
+                        (u === true ? UnknownFieldHandler.onRead : u)(this.typeName, message, fieldNo, wireType, d);
+            }
+        }
+        return message;
     }
     internalBinaryWrite(message: SubscribeResponse, writer: IBinaryWriter, options: BinaryWriteOptions): IBinaryWriter {
+        /* symbol.bench.QueryUpdateData update = 1; */
+        if (message.update)
+            QueryUpdateData.internalBinaryWrite(message.update, writer.tag(1, WireType.LengthDelimited).fork(), options).join();
         let u = options.writeUnknownFields;
         if (u !== false)
             (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);

@@ -86,12 +86,9 @@ class SupervisorService(ServiceBase, SupervisorBase):
         self.id = id
         self.network = network
         self.oracle = oracle
-        self._global_database = global_database
-        self._global_pg_engine = pg_engine_from_database(
-            "pg-global", global_database, NodeArea.GLOBAL_POSTGRES
-        )
-        self._database_map = database_map
-        self._host_map = host_map
+        self.global_database = global_database
+        self.database_map = database_map
+        self.host_map = host_map
         self.create_bench_options = create_bench_options
         self._on_error = on_error
 
@@ -160,7 +157,7 @@ class SupervisorService(ServiceBase, SupervisorBase):
 
         # get regional Database
         region = Region(request.region)
-        regional_database = self._database_map.get(region=region)
+        regional_database = self.database_map.get(region=region)
         regional_pg_engine = pg_engine_from_database(
             name=f"pg-regional-{regional_database.region.name.lower()}",
             database=regional_database,
@@ -174,7 +171,7 @@ class SupervisorService(ServiceBase, SupervisorBase):
         ) as session:
             # create User
             user = User(
-                id=to_uuid(request.id) or uuid4(),
+                id=UUID(request.id) or uuid4(),
                 slug=request.slug,
                 name=request.name or request.slug,
                 email=request.email,
@@ -267,14 +264,7 @@ class SupervisorService(ServiceBase, SupervisorBase):
                 raise GRPCError(GRPCStatus.UNAUTHENTICATED, "incorrect password")
 
             user.last_logged_in_at = self.oracle.utc()
-            client_id = self._get_client_id(user, request.client)
-            if client_id and client_id in user._supergraph:  # upsert
-                client = user._supergraph[client_id]
-                if not isinstance(client, Client):
-                    raise GRPCError(GRPCStatus.INVALID_ARGUMENT, "invalid client")
-                self._patch_client(client, request.client)
-            else:
-                client = await self._make_client(user, request.client)
+            client = await self._make_client(user, request.client)
             client.access_token = generate_access_token(ACCESS_TOKEN_LENGTH)
             session._upsert(client)
             await session.commit()
@@ -342,7 +332,7 @@ class SupervisorService(ServiceBase, SupervisorBase):
         region = Region(request.region)
 
         # get regional database
-        regional_database = self._database_map.get(region=region)
+        regional_database = self.database_map.get(region=region)
         regional_pg_engine = pg_engine_from_database(
             name=f"pg-regional-{regional_database.region.name.lower()}",
             database=regional_database,

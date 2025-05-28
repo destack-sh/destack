@@ -1,7 +1,6 @@
 import contextvars
 import enum
 import functools
-import secrets
 import typing
 from datetime import date, datetime, time, timedelta
 from decimal import Decimal
@@ -45,10 +44,11 @@ class _Unset:
 
 
 # forever constants
-VERSION = "2025.05.27.0"
+VERSION = "2025.05.28.0"
 UUID_NAMESPACE = uuid5(UUID(int=0), b"bench")
 CK_LENGTH_B64 = 24  # 1.5 * CK_LENGTH_BYTES (must be integer)
 FLOAT_EPSILON = 1e-6
+BEGINNING_OF_TIME = datetime.fromisoformat("1970-01-01T00:00:00+00:00")
 
 # builtin benches :Builtins
 BENCH_SLUG = "bench"
@@ -64,6 +64,10 @@ UNSET = cast(Any, _Unset())
 EMPTY_LIST: list = []
 EMPTY_SET: frozenset = frozenset()
 EMPTY_DICT: dict[Any, Any] = frozendict()
+IS_IN_USER_CODE = contextvars.ContextVar("is_in_user_code", default=False)
+ACTIVE_SESSION: contextvars.ContextVar[Optional["Session"]] = contextvars.ContextVar(
+    "active_session", default=None
+)
 
 if not IS_TEST:
     DEFAULT_WAIT_TIMEOUT = timedelta(seconds=30)
@@ -73,11 +77,16 @@ else:
     DEFAULT_RESOURCE_TIMEOUT = timedelta(seconds=5)
 
 
-def new_struct_id() -> int:
-    id = secrets.randbits(31)
-    if id < 0:
-        id = -id
-    return id
+def active_session() -> "Session":
+    """Gets the currently active Session (error if none)."""
+    session = ACTIVE_SESSION.get()
+    assert session is not None, "no active session"
+    return session
+
+
+def get_active_session() -> Optional["Session"]:
+    """Gets the currently active Session (if any)."""
+    return ACTIVE_SESSION.get()
 
 
 #
@@ -470,9 +479,11 @@ class StructType(BuiltinEnum):
     AGGREGATION = 20103
     CONDITION = 20104
     SORT = 20105
-    QUERY = 20106
-    RELATION_REFERENCE = 20110
-    ATTRIBUTE_REFERENCE = 20111
+    RELATION_REFERENCE = 20106
+    ATTRIBUTE_REFERENCE = 20107
+    QUERY = 20110
+    QUERY_RESULT = 20111
+    QUERY_UPDATE = 20112
 
     # auth [20200-20600]
     # PROFILE? (for User, or maybe global?)
@@ -1308,10 +1319,6 @@ class ClientType(BuiltinEnum):
     MACHINE = 10
 
 
-#
-# Other global stuff
-#
-
 CLOUD = get_from_env("CLOUD", typ=Cloud, description="Cloud we're running in")
 REGION = get_from_env("REGION", typ=Region, description="Region we're running in")
 TRACING = get_from_env("TRACING", typ=bool, description="Enable tracing")
@@ -1321,24 +1328,6 @@ class BenchError(Exception):
     """Common base class for any regular errors."""
 
     pass
-
-
-IS_IN_USER_CODE = contextvars.ContextVar("is_in_user_code", default=False)
-ACTIVE_SESSION: contextvars.ContextVar[Optional["Session"]] = contextvars.ContextVar(
-    "active_session", default=None
-)
-
-
-def active_session() -> "Session":
-    """Gets the currently active Session (error if none)."""
-    session = ACTIVE_SESSION.get()
-    assert session is not None, "no active session"
-    return session
-
-
-def get_active_session() -> Optional["Session"]:
-    """Gets the currently active Session (if any)."""
-    return ACTIVE_SESSION.get()
 
 
 @_agnosticcontextmanager

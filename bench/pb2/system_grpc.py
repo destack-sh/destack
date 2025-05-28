@@ -148,9 +148,9 @@ class HostBase(abc.ABC):
         pass
 
     @abc.abstractmethod
-    async def subscribe(
+    def subscribe(
         self, request: "system_pb2.SubscribeRequest", headers: Mapping
-    ) -> "system_pb2.SubscribeResponse":
+    ) -> AsyncIterator["system_pb2.SubscribeResponse"]:
         pass
 
     @abc.abstractmethod

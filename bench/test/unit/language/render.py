@@ -23,6 +23,7 @@ from bench.language import (
     text,
     to_type,
 )
+from bench.language.registry import BENCH_CLASS_BY_TYPE
 from bench.utils.code import format_code
 
 
@@ -35,8 +36,6 @@ def _render_test(func: Callable[[Any, Any], Mapping[str, Any]]):
         package: Package,
     ) -> None:
         """Common logic for rendering and checking rendered code matches original."""
-
-        from bench.runtime.code import BUILTIN_GLOBALS, STATIC_CODE_GLOBALS
 
         def _render(defns: Mapping[str, Any]):
             # (line length 96 because it's 100 - 4 for the method indent here)
@@ -84,10 +83,10 @@ def _render_test(func: Callable[[Any, Any], Mapping[str, Any]]):
         assert rendered == source
 
         # eval
-        glbls = {**STATIC_CODE_GLOBALS, **BUILTIN_GLOBALS}
+        glbls = {cls.__name__: cls for cls in BENCH_CLASS_BY_TYPE.values()}
         glbls_tmp = {**glbls}
         exec(rendered, glbls_tmp)
-        rendered_defns = {
+        rendered_defns: dict[str, Any] = {
             name: obj
             for name, obj in glbls_tmp.items()
             if name not in glbls and name not in ("__builtins__", "__doc__", "__file__", "__name__")

@@ -81,7 +81,7 @@ class PackageMembership(
 
     parent: Optional["Package"] = property_parent_()
 
-    role: PackageRoleType = property_(45)
+    role_type: PackageRoleType = property_(45)
 
 
 @node_(NodeType.PACKAGE_INVITE)
@@ -96,4 +96,4 @@ class PackageInvite(
 
     parent: Optional["Package"] = property_parent_()
 
-    role: PackageRoleType = property_(45)
+    role_type: PackageRoleType = property_(45)

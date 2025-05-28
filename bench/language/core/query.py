@@ -193,10 +193,10 @@ class AggregationType(BuiltinEnum):
 
 @struct_(StructType.AGGREGATION)
 class Aggregation(Struct):
-    """Aggregate expression like COUNT(col) DISTINCT OVER ( … ) AS total."""
+    """Aggregation."""
 
     type: AggregationType = property_(30, is_repr=True)
-    operand: Optional["Expression"] = property_(31, is_repr=True)
+    expression: Optional["Expression"] = property_(31, is_repr=True)
     distinct: bool = property_(33, is_repr=True)
     # over, ...
 
@@ -205,7 +205,7 @@ def aggregation(
     type: AggregationType,
     operand: Optional["Expression"] = None,
 ) -> Aggregation:
-    return Aggregation(type=type, operand=operand)
+    return Aggregation(type=type, expression=operand)
 
 
 #
@@ -236,8 +236,13 @@ class Expression(Struct):
     # subquery?
 
 
+ExpressionIn = Union[
+    "Value", "AttributeReference", "Condition", "Function", "Aggregation", "Expression"
+]
+
+
 def expression(
-    thing: "Value | AttributeReference | Condition | Function | Aggregation",
+    thing: ExpressionIn,
 ) -> Expression:
     if isinstance(thing, Value):
         return Expression(type=ExpressionType.LITERAL, literal=thing)
@@ -249,6 +254,8 @@ def expression(
         return Expression(type=ExpressionType.FUNCTION, function=thing)
     elif isinstance(thing, Aggregation):
         return Expression(type=ExpressionType.AGGREGATION, aggregation=thing)
+    elif isinstance(thing, Expression):
+        return thing
     else:
         assert_never(thing)
 
@@ -353,11 +360,12 @@ class QueryType(BuiltinEnum):
 class Query[RootT: "Node"](Struct):
     """A GraphQL-inspired Query node (with subqueries)."""
 
+    # meta
     id: UUID = property_(2, default_factory="uuid")
     type: QueryType = property_(30, is_repr=True)
     name: str = property_(
         31,
-        description="Name for this subquery. Must be unique within the containing Query.",
+        description="Name for this subquery. Must be unique within the parent Query.",
         is_repr=True,
     )
     relation: RelationReference = property_(35, is_repr=True)
@@ -365,22 +373,24 @@ class Query[RootT: "Node"](Struct):
     subqueries: list["Query"] = property_(37)
     # select/attributes, ...
 
+    # content
     where: Optional[Condition] = property_(40, is_repr=True)
     having: Optional[Condition] = property_(41, is_repr=True)
     group_by: list[Expression] = property_(42, is_repr=True)
     aggregation: Optional[Aggregation] = property_(43, is_repr=True)
     sort: list[Sort] = property_(44, is_repr=True)
 
+    # pagination
     limit: Optional[int] = property_(50, is_repr=True)
     offset: Optional[int] = property_(51, is_repr=True)
     count: bool | None = property_(52, is_repr=True)
 
-    async def execute(self) -> "QueryResult":
+    async def execute(self) -> "QueryResult[RootT]":
         """Execute the Query."""
         raise NotImplementedError
 
     async def execute_one_or_none(self) -> Optional[RootT]:
-        """Execute the Query and return the root."""
+        """Execute the Query and return the root (if any)."""
         raise NotImplementedError
 
     async def execute_one(self) -> RootT:
@@ -389,6 +399,10 @@ class Query[RootT: "Node"](Struct):
 
     async def execute_list(self) -> list[RootT]:
         """Execute the Query and return the list of roots."""
+        raise NotImplementedError
+
+    async def execute_count(self) -> int:
+        """Execute the Query and return the count of roots."""
         raise NotImplementedError
 
 
@@ -402,12 +416,20 @@ def to_subqueries(subqueries: dict[str, "Query"]) -> list["Query"]:
     return list(subqueries.values())
 
 
-#
-# Query result
-# nocheckin: QueryResult
-#  GraphData, ..
-#  GetResult/SearchResult/AggregateResult, ...
-#
+@struct_(StructType.QUERY_RESULT)
+class QueryResult[RootT: "Node"](Struct):
+    """The result of a Query."""
+
+    epoch: int = property_(40, is_repr=True)
+    query: Query = property_(41, is_repr=True)
+
+
+@struct_(StructType.QUERY_UPDATE)
+class QueryUpdate(Struct):
+    """An update to a QueryResult."""
+
+    epoch: int = property_(40, is_repr=True)
+
 
 # from bench.language import *
 
@@ -443,10 +465,9 @@ def to_subqueries(subqueries: dict[str, "Query"]) -> list["Query"]:
 #     limit=25,
 #     count=True,
 #     Cursor=Cursor.get(
-#         on=Cursor.property("owned_by").eq(5),
-#         UnreadCount=Message.aggregate(
+#         join=join(JoinType.LEFT, on=Cursor.property("owned_by").eq(5)),
+#         UnreadCount=Message.count(
 #             where=Message.property("read_at").greater_than(attribute_ref("Cursor.last_read_at")),
-#             aggregation=Aggregation(type=AggregationType.COUNT),
 #         ),
 #     ),
 # )
@@ -461,13 +482,6 @@ def to_subqueries(subqueries: dict[str, "Query"]) -> list["Query"]:
 #     ),
 #     Route=Route.search(),
 # )
-
-
-class QueryResult:
-    __slots__ = ("query",)
-
-    def __init__(self, query: Query):
-        self.query = query
 
 
 #
