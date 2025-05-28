@@ -203,7 +203,7 @@ def encode_storage_key(field: "Field") -> str:
     raise NotImplementedError
 
 
-@struct_(StructType.TYPE, is_frozen=True)
+@struct_(StructType.TYPE)
 class Type(Struct, TypeBase):
     """A Type in the type system."""
 

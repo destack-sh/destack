@@ -1127,11 +1127,13 @@ enum StringFormat {
 enum StructType {
   STRUCT_TYPE_UNSPECIFIED = 0;
   STRUCT_TYPE_SCOPE = 20000;
-  STRUCT_TYPE_EDIT = 20001;
-  STRUCT_TYPE_ORIGIN = 20003;
-  STRUCT_TYPE_NODE_REFERENCE = 20004;
-  STRUCT_TYPE_PROPERTY_REFERENCE = 20005;
-  STRUCT_TYPE_VARIABLE = 20006;
+  STRUCT_TYPE_ORIGIN = 20001;
+  STRUCT_TYPE_TRANSACTION = 20002;
+  STRUCT_TYPE_EDIT = 20003;
+  STRUCT_TYPE_CHANGE = 20004;
+  STRUCT_TYPE_NODE_REFERENCE = 20005;
+  STRUCT_TYPE_PROPERTY_REFERENCE = 20006;
+  STRUCT_TYPE_VARIABLE = 20007;
   STRUCT_TYPE_EXPRESSION = 20100;
   STRUCT_TYPE_FUNCTION = 20101;
   STRUCT_TYPE_JOIN = 20102;
@@ -1557,6 +1559,12 @@ message BorderStyleData {
   optional InsetsData width = 51;
 }
 
+message ChangeData {
+  StructType metatype = 1;
+  string id = 2;
+  repeated EditData edits = 40;
+}
+
 // A Client to connect with the system.
 message ClientData {
   NodeType metatype = 1;
@@ -1729,11 +1737,11 @@ message EditData {
   string id = 2;
   EditType type = 30;
   optional UpdateType operation = 31;
-  NodeReferenceData node_ptr = 32;
+  string node_id = 32;
   optional string path = 33;
   optional ValueData key = 34;
-  optional ValueData value = 40;
-  optional NodeReferenceData parent_ptr = 41;
+  optional ValueData value = 41;
+  optional NodeReferenceData parent_ptr = 42;
 }
 
 message EffectData {
@@ -3181,15 +3189,6 @@ message TextLineData {
   TextLineType type = 30;
   repeated TextSpanData spans = 33;
   optional string content = 34;
-  optional ColorHue color = 50;
-  optional ColorHue background_color = 51;
-  optional bool is_bold = 60;
-  optional bool is_italic = 61;
-  optional bool is_strikethrough = 62;
-  optional bool is_underline = 63;
-  optional bool is_code = 64;
-  optional bool is_spoiler = 65;
-  optional string language = 70;
 }
 
 message TextSpanData {
@@ -3198,15 +3197,6 @@ message TextSpanData {
   optional string content = 33;
   optional NodeReferenceData node_ptr = 34;
   optional string url = 35;
-  optional ColorHue color = 50;
-  optional ColorHue background_color = 51;
-  optional bool is_bold = 60;
-  optional bool is_italic = 61;
-  optional bool is_strikethrough = 62;
-  optional bool is_underline = 63;
-  optional bool is_code = 64;
-  optional bool is_spoiler = 65;
-  optional string language = 70;
 }
 
 // A (rich) text view.
@@ -3343,6 +3333,12 @@ message ThreadViewData {
   optional DimensionData max_height = 46;
   optional TextData draft_text = 100;
   optional NodeReferenceData draft_reply_to_ptr = 102;
+}
+
+message TransactionData {
+  StructType metatype = 1;
+  string id = 2;
+  repeated ChangeData changes = 40;
 }
 
 message TransitionData {

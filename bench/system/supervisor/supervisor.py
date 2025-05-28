@@ -1,7 +1,7 @@
 from typing import Callable, override
 
 import structlog
-from fastuuid import UUID, uuid4, uuid5
+from fastuuid import UUID
 from grpclib import GRPCError
 from grpclib import Status as GRPCStatus
 from opentelemetry import trace
@@ -119,20 +119,10 @@ class SupervisorService(ServiceBase, SupervisorBase):
             return None, None
         return client.parent, client
 
-    def _get_client_id(self, user: User, client_data: ClientDataIn) -> UUID | None:
-        if client_data.id:
-            return UUID(client_data.id)
-        elif client_data.place_id:
-            return uuid5(user.id, client_data.place_id)  # type: ignore
-        else:
-            return None
-
     async def _make_client(self, user: User, client_data: ClientDataIn) -> Client:
         """Maps the given client info to a Client instance, trying to preserve a stable identity."""
-        client_id = self._get_client_id(user, client_data)
         name = client_data.name
         client = Client(
-            id=client_id or uuid4(),
             parent=user,
             name=name,
             type=ClientType(client_data.type),

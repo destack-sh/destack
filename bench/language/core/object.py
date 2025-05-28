@@ -1064,17 +1064,6 @@ def object_[_ObjectT: BuiltinObject](
     return decorate
 
 
-@dataclass_transform(kw_only_default=True, field_specifiers=_PROPERTY_SPECIFIERS)
-def struct_[_ObjectT: BuiltinObject](struct_type: StructType, is_frozen: bool = False):
-    """Register a class as a concrete struct for the given struct type."""
-
-    def decorate(cls: type[_ObjectT]) -> type[_ObjectT]:
-        cls = object_(struct_type=struct_type, is_concrete=True, is_frozen=is_frozen)(cls)
-        return cast(type[_ObjectT], cls)
-
-    return decorate
-
-
 _HANDLING_ATTRIBUTE_ERROR = contextvars.ContextVar("handling_attribute_error", default=False)
 
 

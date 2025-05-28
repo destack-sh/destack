@@ -86,6 +86,8 @@ AnyStructData = Union[
     NodeConstraintData,
     TypeData,
     EditData,
+    ChangeData,
+    TransactionData,
     IconData,
     ValueData,
     RelationReferenceData,

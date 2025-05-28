@@ -1,8 +1,10 @@
 import abc
 from typing import (
     TYPE_CHECKING,
+    Any,
     ClassVar,
     Optional,
+    Self,
     cast,
     dataclass_transform,
 )
@@ -14,7 +16,6 @@ from opentelemetry import trace
 from bench import pb2
 from bench.language.registry import BUILTIN_OBJECT_CLASS_BY_TYPE
 from bench.pb2 import AnyStructData, NodeReferenceData, ScopeData
-from bench.utils.env import IS_DEV
 
 from .const import NodeType, Region, StructType
 from .object import BuiltinObject, object_
@@ -35,15 +36,8 @@ def struct_[_ObjectT: BuiltinObject](struct_type: StructType, is_frozen: bool = 
 
     def decorate(cls: type[_ObjectT]) -> type[_ObjectT]:
         cls = object_(
-            struct_type=struct_type,
-            is_concrete=True,
-            is_struct=True,
-            is_frozen=is_frozen,
+            struct_type=struct_type, is_concrete=True, is_struct=True, is_frozen=is_frozen
         )(cls)
-        if IS_DEV and cls.__name__ != "Struct" and cls.__name__ != "Struct":
-            if not issubclass(cls, (Struct, Struct)):
-                raise ValueError(f"{cls} is not a struct")
-
         return cast(type[_ObjectT], cls)
 
     return decorate
@@ -60,20 +54,17 @@ class Struct[StructDataT: AnyStructData](BuiltinObject[StructDataT], abc.ABC):
     _proto: "StructDataT | None" = property_runtime_()  # cached for frozen Structs
     # _value?
 
+    def replace(self, **kwargs: Any) -> Self:
+        """Replace the properties of the Struct with the given values."""
+        raise NotImplementedError
+
 
 @struct_(StructType.SCOPE, is_frozen=True)
 class Scope(Struct[ScopeData]):
-    """The scope for an operation on the Bench graph."""
+    """The scope in the Bench graph."""
 
     region: Optional[Region] = property_(31, is_repr=True)
     bench_id: Optional[UUID] = property_(32, is_repr=True)
-
-
-def repr_scope(scope: Scope | ScopeData) -> str:
-    if scope.bench_id:
-        return f"[bench_id={scope.bench_id}]"
-    else:
-        return "[*]"
 
 
 EMPTY_SCOPE_DATA = pb2.ScopeData(metatype=pb2.StructType.STRUCT_TYPE_SCOPE)

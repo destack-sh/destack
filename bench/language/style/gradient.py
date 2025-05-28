@@ -36,7 +36,7 @@ class GradientType(BuiltinEnum):
     CONIC = 12
 
 
-@struct_(StructType.GRADIENT_STOP)
+@struct_(StructType.GRADIENT_STOP, is_frozen=True)
 class GradientStop(Struct):
     """A gradient stop with color and position."""
 

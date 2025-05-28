@@ -59,7 +59,7 @@ from .const import (
     get_active_session,
     repr_enums,
 )
-from .edit import Edit, EditType, UpdateType, edit_graph
+from .edit import Change, Edit, EditType, Transaction, UpdateType, edit_graph
 from .graph import Graph, GraphConsistencyError, GraphError, Supergraph
 from .icon import Icon, IconIn, IconType, icon, reverse_icon, to_icon
 from .node import IndexIn, Node, node_
@@ -118,15 +118,7 @@ from .render import (
 )
 from .session import Session
 from .store import Store
-from .struct import (
-    EMPTY_SCOPE_DATA,
-    NodeReference,
-    PropertyReference,
-    Scope,
-    Struct,
-    repr_scope,
-    struct_,
-)
+from .struct import EMPTY_SCOPE_DATA, NodeReference, PropertyReference, Scope, Struct, struct_
 from .text import (
     Text,
     TextIn,
@@ -178,7 +170,6 @@ from .trait import (
     expand_node_types,
     trait_,
 )
-from .transaction import Transaction
 from .type import (
     CollectionConstraint,
     Constraint,
@@ -254,6 +245,7 @@ __all__ = [
     "BuiltinEnumOrUnion",
     "BuiltinObject",
     "CascadeAction",
+    "Change",
     "ClientType",
     "Cloud",
     "Code",
@@ -415,7 +407,6 @@ __all__ = [
     "render_statement",
     "render_value",
     "repr_enums",
-    "repr_scope",
     "reverse_icon",
     "reverse_type_scalar",
     "sort",

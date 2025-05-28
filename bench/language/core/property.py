@@ -175,11 +175,11 @@ class IntoType:
             if isinstance(self.format, StringFormat):
                 if not isinstance(self.constraint, StringConstraint):
                     self.constraint = StringConstraint()
-                self.constraint.format = self.format
+                self.constraint = self.constraint.replace(format=self.format)
             elif isinstance(self.format, NumberFormat):
                 if not isinstance(self.constraint, NumberConstraint):
                     self.constraint = NumberConstraint()
-                self.constraint.format = self.format
+                self.constraint = self.constraint.replace(format=self.format)
             else:
                 assert_never(self.format)
 

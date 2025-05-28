@@ -26,7 +26,7 @@ from bench.utils.utils import get_from_env
 
 class DatabaseStore(Store):
     """
-    A Store backed by Databases.
+    A Store backed by real Postgres Databases.
     """
 
     def __init__(self, database_by_area: Mapping[NodeArea, Database]):
@@ -38,6 +38,10 @@ class DatabaseStore(Store):
 
     @override
     async def subscribe(self, query: Query) -> AsyncIterator[QueryUpdate]:
+        raise NotImplementedError
+
+    @override
+    async def stage(self, edits: list[Edit]) -> list[Edit]:
         raise NotImplementedError
 
     @override

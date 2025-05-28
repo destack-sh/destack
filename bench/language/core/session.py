@@ -1,4 +1,3 @@
-import dataclasses
 from typing import (
     TYPE_CHECKING,
     Any,
@@ -6,6 +5,7 @@ from typing import (
 )
 
 import structlog
+from fastuuid import UUID
 from opentelemetry import trace
 
 from bench.pb2 import OriginData
@@ -14,7 +14,6 @@ from bench.utils.oracle import REAL_ORACLE, Oracle
 from .const import ACTIVE_SESSION, NodeMode
 from .graph import Supergraph
 from .node import IsSubject, Node
-from .transaction import Transaction
 
 if TYPE_CHECKING:
     from bench.language import Bench, Edit, Store
@@ -26,32 +25,49 @@ logger = structlog.get_logger(__name__)
 tracer = trace.get_tracer(__name__)
 
 
-@dataclasses.dataclass(slots=True)
 class Session:
     """
     A managed Session for interacting with a Bench.
     """
 
-    supergraph: Supergraph = dataclasses.field(default_factory=Supergraph)
-    mode: NodeMode = NodeMode.MAIN
-    oracle: Oracle = REAL_ORACLE
-    bench: Optional["Bench"] = None
-    origin: OriginData | None = None
-    subject: IsSubject | None = None
-    store: "Store" = None
-    tx: Transaction = None
-    _runtime: Optional["Runtime"] = None
-    _token: Any | None = None
+    __slots__ = (
+        "_runtime",
+        "_token",
+        "bench",
+        "dirty",
+        "mode",
+        "oracle",
+        "origin",
+        "store",
+        "subject",
+        "supergraph",
+        "tx",
+    )
 
-    @property
-    def has_edits(self) -> bool:
-        """Whether this session has any non-session edits."""
-        return self.tx is not None and self.tx.has_edits
+    def __init__(
+        self,
+        supergraph: Supergraph | None = None,
+        mode: NodeMode = NodeMode.MAIN,
+        oracle: Oracle = REAL_ORACLE,
+        bench: Optional["Bench"] = None,
+        origin: OriginData | None = None,
+        subject: IsSubject | None = None,
+        store: "Store | None" = None,
+        _runtime: Optional["Runtime"] = None,
+    ):
+        from .edit import Transaction
 
-    @property
-    def has_pending_edits(self):
-        """Whether this session has any pending (unflushed) edits."""
-        return self.tx is not None and self.tx.has_pending_edits
+        self.supergraph = supergraph if supergraph is not None else Supergraph()
+        self.mode = mode
+        self.oracle = oracle
+        self.bench = bench
+        self.origin = origin
+        self.subject = subject
+        self.store = store
+        self.tx = Transaction()
+        self.dirty: dict[UUID, Node] = {}
+        self._runtime = _runtime
+        self._token: Any | None = None
 
     @property
     def runtime(self) -> "Runtime":
