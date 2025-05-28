@@ -23,11 +23,11 @@ from bench.utils.time import timedelta_from_isoformat, timedelta_to_isoformat
 
 from .const import PrimitiveType, StructType
 from .property import IntoType, Property, property_
-from .struct import Struct, struct_
+from .struct import StructFrozen, struct_
 from .type import Json
 
 if TYPE_CHECKING:
-    from bench.language import BuiltinObject
+    from .object import BuiltinObjectBase
 
 
 # ruff: noqa: FURB113
@@ -41,8 +41,8 @@ JsonPrimitive = Union[str, int, float, bool, None]
 JsonValue = Union[JsonPrimitive, dict[str, "JsonValue"], list["JsonValue"]]
 
 
-@struct_(StructType.VALUE, is_frozen=True)
-class Value(Struct[ValueData]):
+@struct_(StructType.VALUE, frozen=True)
+class Value(StructFrozen[ValueData]):
     """A value of any type."""
 
     value: dict[str, Json] = property_(35)
@@ -53,7 +53,7 @@ def to_value(value: Any) -> Value:
     raise NotImplementedError
 
 
-def generate_pack_value_impl(cls: type["BuiltinObject"]) -> tuple[str, dict[str, Any]]:
+def generate_pack_value_impl(cls: type["BuiltinObjectBase"]) -> tuple[str, dict[str, Any]]:
     """Generate the BuiltinObject.__pack_value__/__unpack_value__ method implementations."""
 
     pack_value = textwrap.indent(_generate_pack_value(cls), "    ")
@@ -91,7 +91,7 @@ from_value = __unpack_value__
     }
 
 
-def _generate_pack_value(cls: type["BuiltinObject"]) -> str:
+def _generate_pack_value(cls: type["BuiltinObjectBase"]) -> str:
     """Generate the BuiltinObject.__pack_value__ method implementation."""
     pack_method_parts: list[str] = []
     pack_method_parts.append("_object_value = {}")
@@ -112,7 +112,7 @@ def _generate_pack_value(cls: type["BuiltinObject"]) -> str:
     return "\n".join(pack_method_parts)
 
 
-def _generate_unpack_value(cls: type["BuiltinObject"]) -> str:
+def _generate_unpack_value(cls: type["BuiltinObjectBase"]) -> str:
     """Generate the BuiltinObject.__unpack_value__ method implementation."""
     unpack_assignments: list[str] = []
     unpack_method_parts: list[str] = []
@@ -336,7 +336,3 @@ def unpack_proto_json(value: ProtoValue) -> JsonValue:
         return MessageToDict(value.struct_value)
     else:
         return None
-
-
-# import later to avoid circular imports (Object is used in node.py)
-from .object import BuiltinObject  # noqa: E402

@@ -28,7 +28,7 @@ from .const import (
     ResourceStatus,
     TraitType,
 )
-from .object import BuiltinObject, _process_object_cls
+from .object import BuiltinObjectBase, _process_object_cls
 from .property import (
     _PROPERTY_SPECIFIERS,
     property_,
@@ -103,63 +103,63 @@ def trait_(
 
 
 @trait_(TraitType.NAMED)
-class HasName(Node if TYPE_CHECKING else BuiltinObject):
+class HasName(Node if TYPE_CHECKING else BuiltinObjectBase):
     """A Node with a plain name."""
 
     name: str = property_(31, format=StringFormat.NAME)
 
 
 @trait_(TraitType.TITLED)
-class HasTitle(Node if TYPE_CHECKING else BuiltinObject):
+class HasTitle(Node if TYPE_CHECKING else BuiltinObjectBase):
     """A Node with a rich title."""
 
     title: Optional["TextLine"] = property_(32)
 
 
 @trait_(TraitType.SLUG)
-class HasSlug(Node if TYPE_CHECKING else BuiltinObject):
+class HasSlug(Node if TYPE_CHECKING else BuiltinObjectBase):
     """A Node with a slug."""
 
     slug: str = property_(33, is_repr=True, format=StringFormat.SLUG)
 
 
 @trait_(TraitType.ICON)
-class HasIcon(Node if TYPE_CHECKING else BuiltinObject):
+class HasIcon(Node if TYPE_CHECKING else BuiltinObjectBase):
     """A Node with an icon."""
 
     icon: Optional["Icon"] = property_(34)
 
 
 @trait_(TraitType.GLOBAL)
-class IsGlobal(Node if TYPE_CHECKING else BuiltinObject):
+class IsGlobal(Node if TYPE_CHECKING else BuiltinObjectBase):
     """A Node that is global."""
 
     pass
 
 
 @trait_(TraitType.LOCAL)
-class IsLocal(Node if TYPE_CHECKING else BuiltinObject):
+class IsLocal(Node if TYPE_CHECKING else BuiltinObjectBase):
     """A Node that is local."""
 
     pass
 
 
 @trait_(TraitType.MODAL)
-class IsModal(Node if TYPE_CHECKING else BuiltinObject):
+class IsModal(Node if TYPE_CHECKING else BuiltinObjectBase):
     """A Node that can be in different modes."""
 
     mode: NodeMode = property_(20, is_eq=False, default=NodeMode.MAIN)
 
 
 @trait_(TraitType.ORDERED)
-class IsOrdered(Node if TYPE_CHECKING else BuiltinObject):
+class IsOrdered(Node if TYPE_CHECKING else BuiltinObjectBase):
     """A Node that can be ordered."""
 
     order_key: str | None = property_(22, is_eq=False, default=INTEGER_ZERO)
 
 
 @trait_(TraitType.ARCHIVABLE)
-class IsArchivable(Node if TYPE_CHECKING else BuiltinObject):
+class IsArchivable(Node if TYPE_CHECKING else BuiltinObjectBase):
     """A Node that can be archived."""
 
     archived_at: Optional[datetime] = property_(14, is_managed=True, is_eq=False)
@@ -180,7 +180,7 @@ class IsArchivable(Node if TYPE_CHECKING else BuiltinObject):
 
 
 @trait_(TraitType.DELETABLE)
-class IsDeletable(Node if TYPE_CHECKING else BuiltinObject):
+class IsDeletable(Node if TYPE_CHECKING else BuiltinObjectBase):
     """A Node that can be deleted."""
 
     deleted_at: Optional[datetime] = property_(15, is_managed=True, is_eq=False)
@@ -197,7 +197,7 @@ class IsDeletable(Node if TYPE_CHECKING else BuiltinObject):
 
 
 @trait_(TraitType.TEMPLATABLE)
-class IsTemplatable(Node if TYPE_CHECKING else BuiltinObject):
+class IsTemplatable(Node if TYPE_CHECKING else BuiltinObjectBase):
     """A Node that can be templated (we can create Nodes that are derived from 'templates')."""
 
     template: Optional["Node"] = property_(
@@ -236,14 +236,14 @@ class IsInstantiable(IsTemplatable):
 
 
 @trait_(TraitType.NODE_TYPE)
-class IsNodeType(Node if TYPE_CHECKING else BuiltinObject):
+class IsNodeType(Node if TYPE_CHECKING else BuiltinObjectBase):
     """A Node that represents a custom NodeType."""
 
     traits: list[TraitType] = property_(40, description="Dynamic traits of the Table.")
 
 
 @trait_(TraitType.NODE_INSTANCE)
-class IsNodeInstance(Node if TYPE_CHECKING else BuiltinObject):
+class IsNodeInstance(Node if TYPE_CHECKING else BuiltinObjectBase):
     """A Node that represents an instance of a custom NodeType."""
 
     definition: "IsNodeType" = property_(
@@ -257,7 +257,7 @@ class IsNodeInstance(Node if TYPE_CHECKING else BuiltinObject):
 
 
 @trait_(TraitType.EXTENSIBLE)
-class IsExtensible(Node if TYPE_CHECKING else BuiltinObject):
+class IsExtensible(Node if TYPE_CHECKING else BuiltinObjectBase):
     """A Node that can be extended with Fields."""
 
     # nocheckin: Value / IsExtensible.value (custom Nodes?)
@@ -265,7 +265,7 @@ class IsExtensible(Node if TYPE_CHECKING else BuiltinObject):
 
 
 @trait_(TraitType.IN_BENCH)
-class IsInBench(Node if TYPE_CHECKING else BuiltinObject):
+class IsInBench(Node if TYPE_CHECKING else BuiltinObjectBase):
     """A Node inside a Bench."""
 
     bench: "Bench | None" = property_ancestor_(6, is_required=True)
@@ -307,7 +307,7 @@ class IsBlockable(IsOrdered, IsInPackage):
 
 
 @trait_(TraitType.COMPUTABLE)
-class IsComputable(Node if TYPE_CHECKING else BuiltinObject):
+class IsComputable(Node if TYPE_CHECKING else BuiltinObjectBase):
     """A Node that can have computation applied to it somehow."""
 
     # model
@@ -340,7 +340,7 @@ class IsRunnable(IsComputable):
 
 
 @trait_(TraitType.PROCESSABLE)
-class IsProcessable(Node if TYPE_CHECKING else BuiltinObject):
+class IsProcessable(Node if TYPE_CHECKING else BuiltinObjectBase):
     """A Node that can be processed somehow."""
 
     status: ProcessStatus = property_(80, default=ProcessStatus.CREATED, is_repr=True)
@@ -412,7 +412,7 @@ class IsProcessable(Node if TYPE_CHECKING else BuiltinObject):
 
 
 @trait_(TraitType.OWNABLE)
-class IsOwnable(Node if TYPE_CHECKING else BuiltinObject):
+class IsOwnable(Node if TYPE_CHECKING else BuiltinObjectBase):
     """A Node that can be owned by another Node."""
 
     owned_by: Optional["IsSubject"] = property_(
@@ -427,42 +427,42 @@ class IsOwnable(Node if TYPE_CHECKING else BuiltinObject):
 
 
 @trait_(TraitType.JOINABLE)
-class IsJoinable(Node if TYPE_CHECKING else BuiltinObject):
+class IsJoinable(Node if TYPE_CHECKING else BuiltinObjectBase):
     """A Node that can be joined by a Subject."""
 
     pass
 
 
 @trait_(TraitType.SUBJECT)
-class IsSubject(Node if TYPE_CHECKING else BuiltinObject):
+class IsSubject(Node if TYPE_CHECKING else BuiltinObjectBase):
     """A Node that can be a Subject."""
 
     pass
 
 
 @trait_(TraitType.MEMBERSHIP)
-class IsMembership(Node if TYPE_CHECKING else BuiltinObject):
+class IsMembership(Node if TYPE_CHECKING else BuiltinObjectBase):
     """A Node that represents a Membership."""
 
     member: "IsSubject" = property_(40)
 
 
 @trait_(TraitType.INVITE)
-class IsInvite(Node if TYPE_CHECKING else BuiltinObject):
+class IsInvite(Node if TYPE_CHECKING else BuiltinObjectBase):
     """A Node that represents an Invite."""
 
     member: "IsSubject" = property_(40)
 
 
 @trait_(TraitType.ROLE)
-class IsRole(Node if TYPE_CHECKING else BuiltinObject):
+class IsRole(Node if TYPE_CHECKING else BuiltinObjectBase):
     """A Node that represents a Role."""
 
     pass
 
 
 @trait_(TraitType.REGIONAL)
-class IsRegional(Node if TYPE_CHECKING else BuiltinObject):
+class IsRegional(Node if TYPE_CHECKING else BuiltinObjectBase):
     """A Node that is regional."""
 
     region: Region = property_(23, default=REGION)

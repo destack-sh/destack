@@ -2,7 +2,7 @@ from typing import TYPE_CHECKING, Optional, Union
 
 from .const import BuiltinEnum, EnumType, StructType, enum_
 from .property import property_
-from .struct import Struct, struct_
+from .struct import StructFrozen, struct_
 
 if TYPE_CHECKING:
     from bench.language import Color, ColorIn, File
@@ -24,8 +24,8 @@ class IconType(BuiltinEnum):
     FILE_URL = 11
 
 
-@struct_(StructType.ICON, is_frozen=True)
-class Icon(Struct):
+@struct_(StructType.ICON, frozen=True)
+class Icon(StructFrozen):
     """An icon to be displayed in some view."""
 
     type: IconType = property_(30, default=False)

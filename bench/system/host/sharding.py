@@ -7,7 +7,7 @@ from bench.language import Region
 from bench.utils.utils import get_from_env
 
 
-@dataclass(slots=True, is_frozen=True)
+@dataclass(slots=True, frozen=True)
 class HostInfo:
     host_domain: str
     grpc_port: int

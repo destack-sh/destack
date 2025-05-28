@@ -14,7 +14,7 @@ from opentelemetry import trace
 
 from bench import pb2
 from bench.language.core import (
-    BuiltinObject,
+    BuiltinObjectBase,
     IntoType,
     NodeType,
     PrimitiveType,
@@ -49,13 +49,15 @@ PROTO_CLASS_BY_TYPE: dict[NodeType | StructType, type[Union[AnyNodeData, AnyStru
 OBJECT_TYPE_BY_PROTO_CLASS: dict[type[Union[AnyNodeData, AnyStructData]], NodeType | StructType] = {
     cls: object_type for object_type, cls in PROTO_CLASS_BY_TYPE.items()
 }
-BENCH_CLASS_BY_PROTO_CLASS: dict[type[Union[AnyNodeData, AnyStructData]], type[BuiltinObject]] = {
+BENCH_CLASS_BY_PROTO_CLASS: dict[
+    type[Union[AnyNodeData, AnyStructData]], type[BuiltinObjectBase]
+] = {
     cls: BUILTIN_OBJECT_CLASS_BY_TYPE[object_type]
     for cls, object_type in OBJECT_TYPE_BY_PROTO_CLASS.items()
 }
 
 
-def generate_pack_proto_impl(cls: type["BuiltinObject"]) -> tuple[str, dict[str, Any]]:
+def generate_pack_proto_impl(cls: type["BuiltinObjectBase"]) -> tuple[str, dict[str, Any]]:
     """
     Generate BuiltinObject.__pack_proto__ and __unpack_proto__ class methods.
     """
@@ -102,7 +104,7 @@ from_proto = __unpack_proto__
     }
 
 
-def _generate_pack_proto(cls: type["BuiltinObject"]) -> str:
+def _generate_pack_proto(cls: type["BuiltinObjectBase"]) -> str:
     """Generate the BuiltinObject.__pack_proto__ method implementation."""
     metatype = BUILTIN_OBJECT_TYPE_BY_CLASS[cls]
     pack_method_parts: list[str] = []
@@ -120,7 +122,7 @@ def _generate_pack_proto(cls: type["BuiltinObject"]) -> str:
     return "\n".join(pack_method_parts)
 
 
-def _generate_unpack_proto(cls: type["BuiltinObject"]) -> str:
+def _generate_unpack_proto(cls: type["BuiltinObjectBase"]) -> str:
     """Generate the BuiltinObject.__unpack_proto__ method implementation."""
     unpack_assignments: list[str] = []
     unpack_method_parts: list[str] = []

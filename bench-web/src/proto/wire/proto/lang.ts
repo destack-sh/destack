@@ -6732,6 +6732,42 @@ export interface TextLineData {
      * @generated from protobuf field: optional string content = 34;
      */
     content?: string;
+    /**
+     * @generated from protobuf field: optional symbol.bench.ColorHue color = 50;
+     */
+    color?: ColorHue;
+    /**
+     * @generated from protobuf field: optional symbol.bench.ColorHue background_color = 51;
+     */
+    backgroundColor?: ColorHue;
+    /**
+     * @generated from protobuf field: optional bool is_bold = 60;
+     */
+    isBold?: boolean;
+    /**
+     * @generated from protobuf field: optional bool is_italic = 61;
+     */
+    isItalic?: boolean;
+    /**
+     * @generated from protobuf field: optional bool is_strikethrough = 62;
+     */
+    isStrikethrough?: boolean;
+    /**
+     * @generated from protobuf field: optional bool is_underline = 63;
+     */
+    isUnderline?: boolean;
+    /**
+     * @generated from protobuf field: optional bool is_code = 64;
+     */
+    isCode?: boolean;
+    /**
+     * @generated from protobuf field: optional bool is_spoiler = 65;
+     */
+    isSpoiler?: boolean;
+    /**
+     * @generated from protobuf field: optional string language = 70;
+     */
+    language?: string;
 }
 /**
  * @generated from protobuf message symbol.bench.TextSpanData
@@ -6757,6 +6793,42 @@ export interface TextSpanData {
      * @generated from protobuf field: optional string url = 35;
      */
     url?: string;
+    /**
+     * @generated from protobuf field: optional symbol.bench.ColorHue color = 50;
+     */
+    color?: ColorHue;
+    /**
+     * @generated from protobuf field: optional symbol.bench.ColorHue background_color = 51;
+     */
+    backgroundColor?: ColorHue;
+    /**
+     * @generated from protobuf field: optional bool is_bold = 60;
+     */
+    isBold?: boolean;
+    /**
+     * @generated from protobuf field: optional bool is_italic = 61;
+     */
+    isItalic?: boolean;
+    /**
+     * @generated from protobuf field: optional bool is_strikethrough = 62;
+     */
+    isStrikethrough?: boolean;
+    /**
+     * @generated from protobuf field: optional bool is_underline = 63;
+     */
+    isUnderline?: boolean;
+    /**
+     * @generated from protobuf field: optional bool is_code = 64;
+     */
+    isCode?: boolean;
+    /**
+     * @generated from protobuf field: optional bool is_spoiler = 65;
+     */
+    isSpoiler?: boolean;
+    /**
+     * @generated from protobuf field: optional string language = 70;
+     */
+    language?: string;
 }
 /**
  * A (rich) text view.
@@ -26928,7 +27000,16 @@ class TextLineData$Type extends MessageType$<TextLineData> {
             { no: 1, name: "metatype", kind: "enum", T: () => ["symbol.bench.StructType", StructType, "STRUCT_TYPE_"] },
             { no: 30, name: "type", kind: "enum", T: () => ["symbol.bench.TextLineType", TextLineType, "TEXT_LINE_TYPE_"] },
             { no: 33, name: "spans", kind: "message", repeat: 1 /*RepeatType.PACKED*/, T: () => TextSpanData },
-            { no: 34, name: "content", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ }
+            { no: 34, name: "content", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
+            { no: 50, name: "color", kind: "enum", opt: true, T: () => ["symbol.bench.ColorHue", ColorHue, "COLOR_HUE_"] },
+            { no: 51, name: "background_color", kind: "enum", opt: true, T: () => ["symbol.bench.ColorHue", ColorHue, "COLOR_HUE_"] },
+            { no: 60, name: "is_bold", kind: "scalar", opt: true, T: 8 /*ScalarType.BOOL*/ },
+            { no: 61, name: "is_italic", kind: "scalar", opt: true, T: 8 /*ScalarType.BOOL*/ },
+            { no: 62, name: "is_strikethrough", kind: "scalar", opt: true, T: 8 /*ScalarType.BOOL*/ },
+            { no: 63, name: "is_underline", kind: "scalar", opt: true, T: 8 /*ScalarType.BOOL*/ },
+            { no: 64, name: "is_code", kind: "scalar", opt: true, T: 8 /*ScalarType.BOOL*/ },
+            { no: 65, name: "is_spoiler", kind: "scalar", opt: true, T: 8 /*ScalarType.BOOL*/ },
+            { no: 70, name: "language", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ }
         ]);
     }
     create(value?: PartialMessage<TextLineData>): TextLineData {
@@ -26957,6 +27038,33 @@ class TextLineData$Type extends MessageType$<TextLineData> {
                 case /* optional string content */ 34:
                     message.content = reader.string();
                     break;
+                case /* optional symbol.bench.ColorHue color */ 50:
+                    message.color = reader.int32();
+                    break;
+                case /* optional symbol.bench.ColorHue background_color */ 51:
+                    message.backgroundColor = reader.int32();
+                    break;
+                case /* optional bool is_bold */ 60:
+                    message.isBold = reader.bool();
+                    break;
+                case /* optional bool is_italic */ 61:
+                    message.isItalic = reader.bool();
+                    break;
+                case /* optional bool is_strikethrough */ 62:
+                    message.isStrikethrough = reader.bool();
+                    break;
+                case /* optional bool is_underline */ 63:
+                    message.isUnderline = reader.bool();
+                    break;
+                case /* optional bool is_code */ 64:
+                    message.isCode = reader.bool();
+                    break;
+                case /* optional bool is_spoiler */ 65:
+                    message.isSpoiler = reader.bool();
+                    break;
+                case /* optional string language */ 70:
+                    message.language = reader.string();
+                    break;
                 default:
                     let u = options.readUnknownField;
                     if (u === "throw")
@@ -26981,6 +27089,33 @@ class TextLineData$Type extends MessageType$<TextLineData> {
         /* optional string content = 34; */
         if (message.content !== undefined)
             writer.tag(34, WireType.LengthDelimited).string(message.content);
+        /* optional symbol.bench.ColorHue color = 50; */
+        if (message.color !== undefined)
+            writer.tag(50, WireType.Varint).int32(message.color);
+        /* optional symbol.bench.ColorHue background_color = 51; */
+        if (message.backgroundColor !== undefined)
+            writer.tag(51, WireType.Varint).int32(message.backgroundColor);
+        /* optional bool is_bold = 60; */
+        if (message.isBold !== undefined)
+            writer.tag(60, WireType.Varint).bool(message.isBold);
+        /* optional bool is_italic = 61; */
+        if (message.isItalic !== undefined)
+            writer.tag(61, WireType.Varint).bool(message.isItalic);
+        /* optional bool is_strikethrough = 62; */
+        if (message.isStrikethrough !== undefined)
+            writer.tag(62, WireType.Varint).bool(message.isStrikethrough);
+        /* optional bool is_underline = 63; */
+        if (message.isUnderline !== undefined)
+            writer.tag(63, WireType.Varint).bool(message.isUnderline);
+        /* optional bool is_code = 64; */
+        if (message.isCode !== undefined)
+            writer.tag(64, WireType.Varint).bool(message.isCode);
+        /* optional bool is_spoiler = 65; */
+        if (message.isSpoiler !== undefined)
+            writer.tag(65, WireType.Varint).bool(message.isSpoiler);
+        /* optional string language = 70; */
+        if (message.language !== undefined)
+            writer.tag(70, WireType.LengthDelimited).string(message.language);
         let u = options.writeUnknownFields;
         if (u !== false)
             (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
@@ -26999,7 +27134,16 @@ class TextSpanData$Type extends MessageType$<TextSpanData> {
             { no: 30, name: "type", kind: "enum", T: () => ["symbol.bench.TextSpanType", TextSpanType, "TEXT_SPAN_TYPE_"] },
             { no: 33, name: "content", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
             { no: 34, name: "node_ptr", kind: "message", T: () => NodeReferenceData },
-            { no: 35, name: "url", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ }
+            { no: 35, name: "url", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
+            { no: 50, name: "color", kind: "enum", opt: true, T: () => ["symbol.bench.ColorHue", ColorHue, "COLOR_HUE_"] },
+            { no: 51, name: "background_color", kind: "enum", opt: true, T: () => ["symbol.bench.ColorHue", ColorHue, "COLOR_HUE_"] },
+            { no: 60, name: "is_bold", kind: "scalar", opt: true, T: 8 /*ScalarType.BOOL*/ },
+            { no: 61, name: "is_italic", kind: "scalar", opt: true, T: 8 /*ScalarType.BOOL*/ },
+            { no: 62, name: "is_strikethrough", kind: "scalar", opt: true, T: 8 /*ScalarType.BOOL*/ },
+            { no: 63, name: "is_underline", kind: "scalar", opt: true, T: 8 /*ScalarType.BOOL*/ },
+            { no: 64, name: "is_code", kind: "scalar", opt: true, T: 8 /*ScalarType.BOOL*/ },
+            { no: 65, name: "is_spoiler", kind: "scalar", opt: true, T: 8 /*ScalarType.BOOL*/ },
+            { no: 70, name: "language", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ }
         ]);
     }
     create(value?: PartialMessage<TextSpanData>): TextSpanData {
@@ -27030,6 +27174,33 @@ class TextSpanData$Type extends MessageType$<TextSpanData> {
                 case /* optional string url */ 35:
                     message.url = reader.string();
                     break;
+                case /* optional symbol.bench.ColorHue color */ 50:
+                    message.color = reader.int32();
+                    break;
+                case /* optional symbol.bench.ColorHue background_color */ 51:
+                    message.backgroundColor = reader.int32();
+                    break;
+                case /* optional bool is_bold */ 60:
+                    message.isBold = reader.bool();
+                    break;
+                case /* optional bool is_italic */ 61:
+                    message.isItalic = reader.bool();
+                    break;
+                case /* optional bool is_strikethrough */ 62:
+                    message.isStrikethrough = reader.bool();
+                    break;
+                case /* optional bool is_underline */ 63:
+                    message.isUnderline = reader.bool();
+                    break;
+                case /* optional bool is_code */ 64:
+                    message.isCode = reader.bool();
+                    break;
+                case /* optional bool is_spoiler */ 65:
+                    message.isSpoiler = reader.bool();
+                    break;
+                case /* optional string language */ 70:
+                    message.language = reader.string();
+                    break;
                 default:
                     let u = options.readUnknownField;
                     if (u === "throw")
@@ -27057,6 +27228,33 @@ class TextSpanData$Type extends MessageType$<TextSpanData> {
         /* optional string url = 35; */
         if (message.url !== undefined)
             writer.tag(35, WireType.LengthDelimited).string(message.url);
+        /* optional symbol.bench.ColorHue color = 50; */
+        if (message.color !== undefined)
+            writer.tag(50, WireType.Varint).int32(message.color);
+        /* optional symbol.bench.ColorHue background_color = 51; */
+        if (message.backgroundColor !== undefined)
+            writer.tag(51, WireType.Varint).int32(message.backgroundColor);
+        /* optional bool is_bold = 60; */
+        if (message.isBold !== undefined)
+            writer.tag(60, WireType.Varint).bool(message.isBold);
+        /* optional bool is_italic = 61; */
+        if (message.isItalic !== undefined)
+            writer.tag(61, WireType.Varint).bool(message.isItalic);
+        /* optional bool is_strikethrough = 62; */
+        if (message.isStrikethrough !== undefined)
+            writer.tag(62, WireType.Varint).bool(message.isStrikethrough);
+        /* optional bool is_underline = 63; */
+        if (message.isUnderline !== undefined)
+            writer.tag(63, WireType.Varint).bool(message.isUnderline);
+        /* optional bool is_code = 64; */
+        if (message.isCode !== undefined)
+            writer.tag(64, WireType.Varint).bool(message.isCode);
+        /* optional bool is_spoiler = 65; */
+        if (message.isSpoiler !== undefined)
+            writer.tag(65, WireType.Varint).bool(message.isSpoiler);
+        /* optional string language = 70; */
+        if (message.language !== undefined)
+            writer.tag(70, WireType.LengthDelimited).string(message.language);
         let u = options.writeUnknownFields;
         if (u !== false)
             (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);

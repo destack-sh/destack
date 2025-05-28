@@ -1,10 +1,8 @@
 import abc
 from typing import (
     TYPE_CHECKING,
-    Any,
     ClassVar,
     Optional,
-    Self,
     cast,
     dataclass_transform,
 )
@@ -15,10 +13,10 @@ from opentelemetry import trace
 
 from bench import pb2
 from bench.language.registry import BUILTIN_OBJECT_CLASS_BY_TYPE
-from bench.pb2 import AnyStructData, NodeReferenceData, ScopeData
+from bench.pb2 import AnyStructData, NodeReferenceData, PropertyReferenceData, ScopeData
 
 from .const import NodeType, Region, StructType
-from .object import BuiltinObject, object_
+from .object import BuiltinObjectBase, BuiltinObjectFrozen, BuiltinObjectMutable, object_
 from .property import _PROPERTY_SPECIFIERS, Property, property_, property_runtime_
 
 if TYPE_CHECKING:
@@ -31,36 +29,46 @@ tracer = trace.get_tracer(__name__)
 
 
 @dataclass_transform(kw_only_default=True, field_specifiers=_PROPERTY_SPECIFIERS)
-def struct_[_ObjectT: BuiltinObject](struct_type: StructType, is_frozen: bool = False):
+def struct_[_ObjectT: BuiltinObjectBase](struct_type: StructType, frozen: bool = False):
     """Register a class as a concrete struct for the given struct type."""
 
     def decorate(cls: type[_ObjectT]) -> type[_ObjectT]:
-        cls = object_(
-            struct_type=struct_type, is_concrete=True, is_struct=True, is_frozen=is_frozen
-        )(cls)
+        cls = object_(struct_type=struct_type, concrete=True, struct=True, frozen=frozen)(cls)
         return cast(type[_ObjectT], cls)
 
     return decorate
 
 
-@object_()
-class Struct[StructDataT: AnyStructData](BuiltinObject[StructDataT], abc.ABC):
+class StructBase[StructDataT: AnyStructData](BuiltinObjectBase[StructDataT], abc.ABC):
     """A Struct is an ordered collection of Properties."""
 
     metatype: ClassVar[StructType]  # type: ignore
 
     __is_struct__: ClassVar[bool] = True
 
-    _proto: "StructDataT | None" = property_runtime_()  # cached for frozen Structs
     # _value?
 
-    def replace(self, **kwargs: Any) -> Self:
-        """Replace the properties of the Struct with the given values."""
-        raise NotImplementedError
+
+@object_()
+class StructMutable[StructDataT: AnyStructData](
+    StructBase[StructDataT], BuiltinObjectMutable[StructDataT]
+):
+    """A mutable Struct."""
+
+    pass
 
 
-@struct_(StructType.SCOPE, is_frozen=True)
-class Scope(Struct[ScopeData]):
+@object_(frozen=True)
+class StructFrozen[StructDataT: AnyStructData](
+    StructBase[StructDataT], BuiltinObjectFrozen[StructDataT]
+):
+    """A frozen Struct."""
+
+    _proto: "StructDataT | None" = property_runtime_()  # cached for frozen Structs
+
+
+@struct_(StructType.SCOPE, frozen=True)
+class Scope(StructFrozen[ScopeData]):
     """The scope in the Bench graph."""
 
     region: Optional[Region] = property_(31, is_repr=True)
@@ -70,8 +78,8 @@ class Scope(Struct[ScopeData]):
 EMPTY_SCOPE_DATA = pb2.ScopeData(metatype=pb2.StructType.STRUCT_TYPE_SCOPE)
 
 
-@struct_(StructType.PROPERTY_REFERENCE, is_frozen=True)
-class PropertyReference(Struct):
+@struct_(StructType.PROPERTY_REFERENCE, frozen=True)
+class PropertyReference(StructFrozen[PropertyReferenceData]):
     """
     A reference to a builtin object's Property.
     If type is unset, this refers to a base property in one of the base BuiltinObject types.
@@ -82,7 +90,7 @@ class PropertyReference(Struct):
     id: int = property_(33, is_repr=True)
 
     @property
-    def object_cls(self) -> type[BuiltinObject] | None:
+    def object_cls(self) -> type[BuiltinObjectBase] | None:
         if self.node_type is not None:
             return BUILTIN_OBJECT_CLASS_BY_TYPE.get(self.node_type)
         elif self.struct_type is not None:
@@ -106,8 +114,8 @@ class PropertyReference(Struct):
         return prop
 
 
-@struct_(StructType.NODE_REFERENCE, is_frozen=True)
-class NodeReference(Struct[NodeReferenceData]):
+@struct_(StructType.NODE_REFERENCE, frozen=True)
+class NodeReference(StructFrozen[NodeReferenceData]):
     """
     A reference to a Node.
     """

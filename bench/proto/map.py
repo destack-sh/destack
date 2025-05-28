@@ -2,7 +2,7 @@ from typing import TYPE_CHECKING, Any, Collection, Sequence, cast
 
 from bench.language import (
     BuiltinEnum,
-    BuiltinObject,
+    BuiltinObjectBase,
     EnumType,
     Node,
     NodeType,
@@ -149,7 +149,7 @@ def _map_bench_property_to_proto_field(
 
 def _map_builtin_object_to_proto_message(
     bench_type: EnumType | NodeType | StructType,
-    cls: type[BuiltinObject],
+    cls: type[BuiltinObjectBase],
     cache: dict[EnumType | NodeType | StructType, ProtoThing],
     alias: str | None = None,
     properties: Sequence["Property"] | None = None,
@@ -201,12 +201,12 @@ def _map_object_type_to_proto(
     alias: str | None = None,
 ) -> ProtoThing:
     """Maps a Bench type to a Proto type. If not yet mapped, adds it to the cache."""
-    from bench.language import BuiltinObject
+    from bench.language import BuiltinObjectBase
 
     bench_cls = BENCH_CLASS_BY_TYPE[bench_type]
     if bench_type in cache:
         return cache[bench_type]
-    if issubclass(bench_cls, BuiltinObject):
+    if issubclass(bench_cls, BuiltinObjectBase):
         ret = _map_builtin_object_to_proto_message(bench_type, bench_cls, cache, alias=alias)
     elif issubclass(bench_cls, BuiltinEnum):
         ret = _map_builtin_enum_to_proto_enum(bench_cls, cache, alias=alias)

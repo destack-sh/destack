@@ -16,7 +16,7 @@ from bench.language import (
     ENUM_CLASS_BY_TYPE,
     NODE_CLASS_BY_TYPE,
     NODE_TYPES,
-    BuiltinObject,
+    BuiltinObjectBase,
     EnumType,
     Field,
     FieldType,
@@ -206,18 +206,19 @@ def from_object_type(
     object_type: NodeType | StructType,
     /,
     **custom_strategies: st.SearchStrategy,
-) -> st.SearchStrategy[BuiltinObject]:
+) -> st.SearchStrategy[BuiltinObjectBase]:
     # special cases
     if object_type == StructType.TYPE:
-        return cast(st.SearchStrategy[BuiltinObject], types(SIMPLE_TYPE_CARDINALITIES))
+        return cast(st.SearchStrategy[BuiltinObjectBase], types(SIMPLE_TYPE_CARDINALITIES))
     elif object_type == StructType.PROPERTY_REFERENCE:
         return cast(
-            st.SearchStrategy[BuiltinObject], properties(object_type=None).map(lambda p: p.to_ref())
+            st.SearchStrategy[BuiltinObjectBase],
+            properties(object_type=None).map(lambda p: p.to_ref()),
         )
     elif object_type == NodeType.FIELD:
-        return cast(st.SearchStrategy[BuiltinObject], fields(SIMPLE_TYPE_CARDINALITIES))
+        return cast(st.SearchStrategy[BuiltinObjectBase], fields(SIMPLE_TYPE_CARDINALITIES))
     elif object_type == StructType.ICON:
-        return cast(st.SearchStrategy[BuiltinObject], icons())
+        return cast(st.SearchStrategy[BuiltinObjectBase], icons())
 
     # naive strategy
     object_cls = BUILTIN_OBJECT_CLASS_BY_TYPE[object_type]

@@ -8,7 +8,7 @@ from .const import BuiltinEnum, EnumType, StructType, bittuple, enum_
 from .graph import Graph
 from .node import Node
 from .property import property_
-from .struct import Struct, struct_
+from .struct import StructFrozen, StructMutable, struct_
 
 if TYPE_CHECKING:
     from bench.language import Value
@@ -64,8 +64,8 @@ class UpdateType(BuiltinEnum):
     # MAP_INCREMENT, MAP_DECREMENT, ...
 
 
-@struct_(StructType.EDIT, is_frozen=True)
-class Edit(Struct):
+@struct_(StructType.EDIT, frozen=True)
+class Edit(StructFrozen):
     """An Edit to a Node."""
 
     # meta
@@ -86,7 +86,7 @@ class Edit(Struct):
 
 
 @struct_(StructType.CHANGE)
-class Change(Struct):
+class Change(StructMutable):
     """A Change is a related sequence of Edits."""
 
     id: UUID = property_(2, default_factory="uuid")
@@ -94,7 +94,7 @@ class Change(Struct):
 
 
 @struct_(StructType.TRANSACTION)
-class Transaction(Struct):
+class Transaction(StructMutable):
     """An atomic Transaction of related Changes."""
 
     id: UUID = property_(2, default_factory="uuid")

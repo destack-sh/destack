@@ -5503,30 +5503,66 @@ class TextData(_message.Message):
     def __init__(self, metatype: _Optional[_Union[StructType, str]] = ..., lines: _Optional[_Iterable[_Union[TextLineData, _Mapping]]] = ...) -> None: ...
 
 class TextLineData(_message.Message):
-    __slots__ = ("metatype", "type", "spans", "content")
+    __slots__ = ("metatype", "type", "spans", "content", "color", "background_color", "is_bold", "is_italic", "is_strikethrough", "is_underline", "is_code", "is_spoiler", "language")
     METATYPE_FIELD_NUMBER: _ClassVar[int]
     TYPE_FIELD_NUMBER: _ClassVar[int]
     SPANS_FIELD_NUMBER: _ClassVar[int]
     CONTENT_FIELD_NUMBER: _ClassVar[int]
+    COLOR_FIELD_NUMBER: _ClassVar[int]
+    BACKGROUND_COLOR_FIELD_NUMBER: _ClassVar[int]
+    IS_BOLD_FIELD_NUMBER: _ClassVar[int]
+    IS_ITALIC_FIELD_NUMBER: _ClassVar[int]
+    IS_STRIKETHROUGH_FIELD_NUMBER: _ClassVar[int]
+    IS_UNDERLINE_FIELD_NUMBER: _ClassVar[int]
+    IS_CODE_FIELD_NUMBER: _ClassVar[int]
+    IS_SPOILER_FIELD_NUMBER: _ClassVar[int]
+    LANGUAGE_FIELD_NUMBER: _ClassVar[int]
     metatype: StructType
     type: TextLineType
     spans: _containers.RepeatedCompositeFieldContainer[TextSpanData]
     content: str
-    def __init__(self, metatype: _Optional[_Union[StructType, str]] = ..., type: _Optional[_Union[TextLineType, str]] = ..., spans: _Optional[_Iterable[_Union[TextSpanData, _Mapping]]] = ..., content: _Optional[str] = ...) -> None: ...
+    color: ColorHue
+    background_color: ColorHue
+    is_bold: bool
+    is_italic: bool
+    is_strikethrough: bool
+    is_underline: bool
+    is_code: bool
+    is_spoiler: bool
+    language: str
+    def __init__(self, metatype: _Optional[_Union[StructType, str]] = ..., type: _Optional[_Union[TextLineType, str]] = ..., spans: _Optional[_Iterable[_Union[TextSpanData, _Mapping]]] = ..., content: _Optional[str] = ..., color: _Optional[_Union[ColorHue, str]] = ..., background_color: _Optional[_Union[ColorHue, str]] = ..., is_bold: bool = ..., is_italic: bool = ..., is_strikethrough: bool = ..., is_underline: bool = ..., is_code: bool = ..., is_spoiler: bool = ..., language: _Optional[str] = ...) -> None: ...
 
 class TextSpanData(_message.Message):
-    __slots__ = ("metatype", "type", "content", "node_ptr", "url")
+    __slots__ = ("metatype", "type", "content", "node_ptr", "url", "color", "background_color", "is_bold", "is_italic", "is_strikethrough", "is_underline", "is_code", "is_spoiler", "language")
     METATYPE_FIELD_NUMBER: _ClassVar[int]
     TYPE_FIELD_NUMBER: _ClassVar[int]
     CONTENT_FIELD_NUMBER: _ClassVar[int]
     NODE_PTR_FIELD_NUMBER: _ClassVar[int]
     URL_FIELD_NUMBER: _ClassVar[int]
+    COLOR_FIELD_NUMBER: _ClassVar[int]
+    BACKGROUND_COLOR_FIELD_NUMBER: _ClassVar[int]
+    IS_BOLD_FIELD_NUMBER: _ClassVar[int]
+    IS_ITALIC_FIELD_NUMBER: _ClassVar[int]
+    IS_STRIKETHROUGH_FIELD_NUMBER: _ClassVar[int]
+    IS_UNDERLINE_FIELD_NUMBER: _ClassVar[int]
+    IS_CODE_FIELD_NUMBER: _ClassVar[int]
+    IS_SPOILER_FIELD_NUMBER: _ClassVar[int]
+    LANGUAGE_FIELD_NUMBER: _ClassVar[int]
     metatype: StructType
     type: TextSpanType
     content: str
     node_ptr: NodeReferenceData
     url: str
-    def __init__(self, metatype: _Optional[_Union[StructType, str]] = ..., type: _Optional[_Union[TextSpanType, str]] = ..., content: _Optional[str] = ..., node_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., url: _Optional[str] = ...) -> None: ...
+    color: ColorHue
+    background_color: ColorHue
+    is_bold: bool
+    is_italic: bool
+    is_strikethrough: bool
+    is_underline: bool
+    is_code: bool
+    is_spoiler: bool
+    language: str
+    def __init__(self, metatype: _Optional[_Union[StructType, str]] = ..., type: _Optional[_Union[TextSpanType, str]] = ..., content: _Optional[str] = ..., node_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., url: _Optional[str] = ..., color: _Optional[_Union[ColorHue, str]] = ..., background_color: _Optional[_Union[ColorHue, str]] = ..., is_bold: bool = ..., is_italic: bool = ..., is_strikethrough: bool = ..., is_underline: bool = ..., is_code: bool = ..., is_spoiler: bool = ..., language: _Optional[str] = ...) -> None: ...
 
 class TextViewData(_message.Message):
     __slots__ = ("metatype", "id", "ck", "parent_ptr", "bench_ptr", "package_ptr", "created_at", "created_by_ptr", "updated_at", "updated_by_ptr", "archived_at", "deleted_at", "template_ptr", "mode", "order_key", "name", "block_ptr", "position", "width", "height", "min_width", "min_height", "max_width", "max_height", "align", "is_visible_value", "is_visible_variable", "opacity_value", "opacity_variable", "user_select", "font", "color_value", "color_variable", "text_value", "text_variable")

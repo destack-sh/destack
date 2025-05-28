@@ -2,13 +2,13 @@ from typing import TYPE_CHECKING, Optional
 
 from bench.language.core import (
     BuiltinEnum,
-    BuiltinObject,
+    BuiltinObjectMutable,
     EnumType,
     IsArchivable,
     IsDeletable,
     Node,
     NodeType,
-    Struct,
+    StructMutable,
     StructType,
     enum_,
     node_,
@@ -47,7 +47,7 @@ class ShadowPosition(BuiltinEnum):
 
 
 @object_()
-class ShadowBase(BuiltinObject):
+class ShadowBase(BuiltinObjectMutable):
     type: ShadowType = property_(30, default=ShadowType.BOX, is_repr=True)
     style: Optional["ShadowStyle"] = property_(41, is_repr=True)
     color: Optional["Color"] = property_(50, is_repr=True)
@@ -59,7 +59,7 @@ class ShadowBase(BuiltinObject):
 
 
 @struct_(StructType.SHADOW)
-class Shadow(ShadowBase, Struct):
+class Shadow(ShadowBase, StructMutable):
     """A shadow value."""
 
     pass

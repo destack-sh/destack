@@ -2,13 +2,13 @@ from typing import TYPE_CHECKING, Optional, assert_never
 
 from bench.language.core import (
     BuiltinEnum,
-    BuiltinObject,
+    BuiltinObjectMutable,
     EnumType,
     IsArchivable,
     IsDeletable,
     Node,
     NodeType,
-    Struct,
+    StructMutable,
     StructType,
     enum_,
     node_,
@@ -82,7 +82,7 @@ class ColorShade(BuiltinEnum):
 
 
 @object_()
-class ColorBase(BuiltinObject):
+class ColorBase(BuiltinObjectMutable):
     """A color value (x, y, z, alpha in 0-1)."""
 
     type: ColorType = property_(30, is_repr=True)
@@ -97,7 +97,7 @@ class ColorBase(BuiltinObject):
 
 
 @struct_(StructType.COLOR)
-class Color(ColorBase, Struct):
+class Color(ColorBase, StructMutable):
     """A color value."""
 
     @staticmethod

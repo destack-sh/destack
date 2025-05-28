@@ -63,7 +63,13 @@ from .edit import Change, Edit, EditType, Transaction, UpdateType, edit_graph
 from .graph import Graph, GraphConsistencyError, GraphError, Supergraph
 from .icon import Icon, IconIn, IconType, icon, reverse_icon, to_icon
 from .node import IndexIn, Node, node_
-from .object import BuiltinObject, _is_setup_complete, object_
+from .object import (
+    BuiltinObjectBase,
+    BuiltinObjectFrozen,
+    BuiltinObjectMutable,
+    _is_setup_complete,
+    object_,
+)
 from .property import (
     IntoType,
     Property,
@@ -118,7 +124,16 @@ from .render import (
 )
 from .session import Session
 from .store import Store
-from .struct import EMPTY_SCOPE_DATA, NodeReference, PropertyReference, Scope, Struct, struct_
+from .struct import (
+    EMPTY_SCOPE_DATA,
+    NodeReference,
+    PropertyReference,
+    Scope,
+    StructBase,
+    StructFrozen,
+    StructMutable,
+    struct_,
+)
 from .text import (
     Text,
     TextIn,
@@ -243,7 +258,9 @@ __all__ = [
     "BenchError",
     "BuiltinEnum",
     "BuiltinEnumOrUnion",
-    "BuiltinObject",
+    "BuiltinObjectBase",
+    "BuiltinObjectFrozen",
+    "BuiltinObjectMutable",
     "CascadeAction",
     "Change",
     "ClientType",
@@ -345,7 +362,9 @@ __all__ = [
     "Store",
     "StringConstraint",
     "StringFormat",
-    "Struct",
+    "StructBase",
+    "StructFrozen",
+    "StructMutable",
     "StructType",
     "Supergraph",
     "Text",

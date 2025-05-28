@@ -1,18 +1,11 @@
 from typing import TYPE_CHECKING, Any, Optional, Union
 
-from bench.language.core import (
-    BuiltinEnum,
-    EnumType,
-    Node,
-    Struct,
-    StructType,
-    enum_,
-    property_,
-    struct_,
-)
+from .const import BuiltinEnum, EnumType, StructType, enum_
+from .property import property_
+from .struct import StructFrozen, struct_
 
 if TYPE_CHECKING:
-    from bench.language import Field
+    from bench.language import Field, Node
 
 
 @enum_(EnumType.VARIABLE_TYPE)
@@ -22,8 +15,8 @@ class VariableType(BuiltinEnum):
     FIELD = 10
 
 
-@struct_(StructType.VARIABLE, is_frozen=True)
-class Variable[T: Any](Struct):
+@struct_(StructType.VARIABLE, frozen=True)
+class Variable[T: Any](StructFrozen):
     """A variable value / reference (to be resolved at runtime)."""
 
     field: Optional["Field"] = property_(40)

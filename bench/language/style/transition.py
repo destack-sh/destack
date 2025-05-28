@@ -2,13 +2,13 @@ from typing import TYPE_CHECKING, Optional
 
 from bench.language.core import (
     BuiltinEnum,
-    BuiltinObject,
+    BuiltinObjectMutable,
     EnumType,
     IsArchivable,
     IsDeletable,
     Node,
     NodeType,
-    Struct,
+    StructMutable,
     StructType,
     enum_,
     node_,
@@ -46,7 +46,7 @@ class SpringType(BuiltinEnum):
 
 
 @object_()
-class TransitionBase(BuiltinObject):
+class TransitionBase(BuiltinObjectMutable):
     type: TransitionType = property_(30, default=TransitionType.TWEEN, is_repr=True)
     style: Optional["TransitionStyle"] = property_(41, is_repr=True)
     delay: float | None = property_(50, is_repr=True)
@@ -60,7 +60,7 @@ class TransitionBase(BuiltinObject):
 
 
 @struct_(StructType.TRANSITION)
-class Transition(TransitionBase, Struct):
+class Transition(TransitionBase, StructMutable):
     """A transition value."""
 
     pass

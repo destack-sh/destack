@@ -12,7 +12,7 @@ from bench.language.core import (
     Node,
     NodeReference,
     NodeType,
-    Struct,
+    StructFrozen,
     StructType,
     node_,
     property_,
@@ -64,8 +64,8 @@ class Client(HasName, IsInBench, IsGlobal, Node[ClientData]):
         return Origin(type=self.type, id=self.id, nonce=nonce or self.id)
 
 
-@struct_(StructType.ORIGIN, is_frozen=True)
-class Origin(Struct[OriginData]):
+@struct_(StructType.ORIGIN, frozen=True)
+class Origin(StructFrozen[OriginData]):
     """Origin of something."""
 
     type: ClientType = property_(30)

@@ -3,7 +3,7 @@ from typing import TYPE_CHECKING
 from bench.language.core import (
     BuiltinEnum,
     EnumType,
-    Struct,
+    StructMutable,
     StructType,
     enum_,
     property_,
@@ -46,7 +46,7 @@ class FillSize(BuiltinEnum):
 
 
 @struct_(StructType.FILL)
-class Fill(Struct):
+class Fill(StructMutable):
     type: FillType = property_(30, is_repr=True)
     color: Color | None = property_(40, is_repr=True)
     gradient: Gradient | None = property_(41, is_repr=True)

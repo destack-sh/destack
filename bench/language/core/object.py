@@ -88,10 +88,10 @@ def get_tk_b64_from_ck(ck: UUID) -> str:
     return base64.b64encode(ck.bytes).decode()
 
 
-_processed_classes: dict[type["BuiltinObject"], type["BuiltinObject"]] = {}
+_processed_classes: dict[type["BuiltinObjectBase"], type["BuiltinObjectBase"]] = {}
 
 
-def _generate_init_impl[ObjectT: BuiltinObject](
+def _generate_init_impl[ObjectT: BuiltinObjectBase](
     cls: type[ObjectT],
     is_node: bool,
     is_frozen: bool,
@@ -298,7 +298,9 @@ if {prop.name} is None:
     return init_str, extra_glbls
 
 
-def _generate_repr_impl[ObjectT: BuiltinObject](cls: type[ObjectT]) -> tuple[str, dict[str, Any]]:
+def _generate_repr_impl[ObjectT: BuiltinObjectBase](
+    cls: type[ObjectT],
+) -> tuple[str, dict[str, Any]]:
     """Generates BuiltinObject.__repr__."""
     repr_properties = [prop for prop in cls.__properties__.values() if prop.is_repr]
     if not repr_properties:
@@ -476,7 +478,9 @@ def __to_ref__(self) -> "NodeReference":
 #
 
 
-def _generate_equals_impl[ObjectT: BuiltinObject](cls: type[ObjectT]) -> tuple[str, dict[str, Any]]:
+def _generate_equals_impl[ObjectT: BuiltinObjectBase](
+    cls: type[ObjectT],
+) -> tuple[str, dict[str, Any]]:
     """Generates BuiltinObject.equals method."""
 
     eq_properties = [
@@ -568,7 +572,7 @@ def _generate_scalar_cmp_impl(prop: Property) -> str:
 #
 
 
-def _generate_validate_impl[ObjectT: BuiltinObject](
+def _generate_validate_impl[ObjectT: BuiltinObjectBase](
     cls: type[ObjectT],
 ) -> tuple[str, dict[str, Any]]:
     """Generates BuiltinObject.validate method."""
@@ -650,7 +654,7 @@ def _generate_property_property_impl(prop: Property) -> str:
         # property scalar
         return f"""\
 @property
-def {prop.name}(self: "BuiltinObject") -> "Property | None":
+def {prop.name}(self: "BuiltinObjectBase") -> "Property | None":
     value_ptr: PropertyReference | None = self.{ptr_prop.name}
     if value_ptr is not None:
         return value_ptr.resolve()
@@ -658,7 +662,7 @@ def {prop.name}(self: "BuiltinObject") -> "Property | None":
         return None
 
 @{prop.name}.setter
-def {prop.name}(self: "BuiltinObject", value: "Property | None"):
+def {prop.name}(self: "BuiltinObjectBase", value: "Property | None"):
     if value is None:
         {ptr_prop.name} = None
     else:
@@ -668,13 +672,13 @@ def {prop.name}(self: "BuiltinObject", value: "Property | None"):
         # property list
         return f"""\
 @property
-def {prop.name}(self: "BuiltinObject") -> tuple["Property", ...]:
+def {prop.name}(self: "BuiltinObjectBase") -> tuple["Property", ...]:
     value_ptrs: list[PropertyReference] = self.{ptr_prop.name}
     assert type(value_ptrs) is list, f"invalid {prop}: {{value_ptrs!r}}"
     return tuple(p.resolve() for p in value_ptrs)
 
 @{prop.name}.setter
-def {prop.name}(self: "BuiltinObject", values: list["Property"]):
+def {prop.name}(self: "BuiltinObjectBase", values: list["Property"]):
     self.{ptr_prop.name} = [p.to_ref() for p in values]
 """
     else:
@@ -692,7 +696,7 @@ def _generate_node_property_impl(prop: Property) -> str:
         if is_node:
             getter = f"""\
 @property
-def {prop.name}(self: "BuiltinObject") -> "Node | None":
+def {prop.name}(self: "BuiltinObjectBase") -> "Node | None":
     node_ptr: NodeReference | None = self.{ptr_prop.name}
     if node_ptr is not None:
         return self._supergraph.get(node_ptr)
@@ -701,7 +705,7 @@ def {prop.name}(self: "BuiltinObject") -> "Node | None":
         else:
             getter = f"""\
 @property
-def {prop.name}(self: "BuiltinObject") -> "Node | None":
+def {prop.name}(self: "BuiltinObjectBase") -> "Node | None":
     node_ptr: NodeReference | None = self.{ptr_prop.name}
     if node_ptr is not None:
         if self._supergraph is None:
@@ -712,7 +716,7 @@ def {prop.name}(self: "BuiltinObject") -> "Node | None":
 
         setter = f"""\
 @{prop.name}.setter
-def {prop.name}(self: "BuiltinObject", value: "Node | None"):
+def {prop.name}(self: "BuiltinObjectBase", value: "Node | None"):
     if value is None:
         self.{ptr_prop.name} = None
     else:
@@ -722,13 +726,13 @@ def {prop.name}(self: "BuiltinObject", value: "Node | None"):
         if is_node:
             getter = f"""\
 @property
-def {prop.name}(self: "BuiltinObject") -> tuple["Node", ...]:
+def {prop.name}(self: "BuiltinObjectBase") -> tuple["Node", ...]:
     node_ptrs: list[NodeReference] = self.{ptr_prop.name}
     return tuple(self._supergraph.get(p) for p in node_ptrs)"""
         else:
             getter = f"""\
 @property
-def {prop.name}(self: "BuiltinObject") -> tuple["Node", ...]:
+def {prop.name}(self: "BuiltinObjectBase") -> tuple["Node", ...]:
     node_ptrs: list[NodeReference] = self.{ptr_prop.name}
     if self._supergraph is None:
         return ()
@@ -736,7 +740,7 @@ def {prop.name}(self: "BuiltinObject") -> tuple["Node", ...]:
 
         setter = f"""\
 @{prop.name}.setter
-def {prop.name}(self: "BuiltinObject", nodes: list["Node"]):
+def {prop.name}(self: "BuiltinObjectBase", nodes: list["Node"]):
     self.{ptr_prop.name} = [n.to_ref() for n in nodes]"""
     else:
         raise RuntimeError(f"unsupported cardinality: {prop.cardinality}")
@@ -753,7 +757,7 @@ def _generate_node_key_property_impl(obj_key: str, ptr_key: str, prop: Property)
     if prop.cardinality == "scalar":
         return f"""\
 @property
-def {prop.name}_{obj_key}(self: "BuiltinObject") -> "Node | None":
+def {prop.name}_{obj_key}(self: "BuiltinObjectBase") -> "Node | None":
     node_ptr: NodeReference | None = self.{ptr_prop.name}
     if node_ptr is not None:
         return node_ptr.{ptr_key}
@@ -763,7 +767,7 @@ def {prop.name}_{obj_key}(self: "BuiltinObject") -> "Node | None":
     else:
         return f"""\
 @property
-def {prop.name}_{obj_key}(self: "BuiltinObject") -> tuple["Node", ...]:
+def {prop.name}_{obj_key}(self: "BuiltinObjectBase") -> tuple["Node", ...]:
     node_ptrs: list[NodeReference] = self.{ptr_prop.name}
     return tuple(node_ptr.{ptr_key} for node_ptr in node_ptrs)
 """
@@ -808,7 +812,7 @@ def {prop.name}_ptr(self: "Node") -> "NodeType":
 """
 
 
-def _process_object_cls[ObjectT: BuiltinObject](
+def _process_object_cls[ObjectT: BuiltinObjectBase](
     cls: type[ObjectT],
     object_type: NodeType | StructType | None,
     is_frozen: bool = False,
@@ -840,7 +844,7 @@ def _process_object_cls[ObjectT: BuiltinObject](
     )
 
     # collect all components from class hierarchy (including self)
-    components: list[type[BuiltinObject]] = []
+    components: list[type[BuiltinObjectBase]] = []
     for base_cls in get_superclasses(cls):
         base_cls = _processed_classes.get(base_cls, base_cls)
         if base_cls.__name__ == "ABC":
@@ -1030,12 +1034,12 @@ def _process_object_cls[ObjectT: BuiltinObject](
 
 
 @dataclass_transform(kw_only_default=True, field_specifiers=_PROPERTY_SPECIFIERS)
-def object_[_ObjectT: BuiltinObject](
+def object_[_ObjectT: BuiltinObjectBase](
     struct_type: StructType | None = None,
-    is_frozen: bool = False,
-    is_concrete: bool = False,
-    is_struct: bool = False,
-    is_node: bool = False,
+    frozen: bool = False,
+    concrete: bool = False,
+    struct: bool = False,
+    node: bool = False,
 ):
     """
     Mark a class as an object component (or concrete struct for a StructType).
@@ -1045,10 +1049,10 @@ def object_[_ObjectT: BuiltinObject](
         cls, _properties = _process_object_cls(
             cls=cast(Any, cls_in),
             object_type=struct_type,
-            is_frozen=is_frozen,
-            is_concrete=is_concrete,
-            is_struct=is_struct,
-            is_node=is_node,
+            is_frozen=frozen,
+            is_concrete=concrete,
+            is_struct=struct,
+            is_node=node,
         )
 
         # register struct
@@ -1067,8 +1071,7 @@ def object_[_ObjectT: BuiltinObject](
 _HANDLING_ATTRIBUTE_ERROR = contextvars.ContextVar("handling_attribute_error", default=False)
 
 
-@object_()
-class BuiltinObject[ObjectDataT: AnyObjectData](abc.ABC):
+class BuiltinObjectBase[ObjectDataT: AnyObjectData](abc.ABC):
     """The base for all intrinsic objects like Structs and Nodes and all their derivatives."""
 
     __is_frozen__: ClassVar[bool] = False
@@ -1090,8 +1093,6 @@ class BuiltinObject[ObjectDataT: AnyObjectData](abc.ABC):
     __max_property_ord__: ClassVar[int] = UNSET
     __properties_mask_set__: ClassVar[bitarray] = UNSET
     __properties_mask_unset__: ClassVar[bitarray] = UNSET
-
-    _supergraph: "Supergraph | None" = property_runtime_()
 
     def equals(
         self,
@@ -1219,3 +1220,17 @@ class BuiltinObject[ObjectDataT: AnyObjectData](abc.ABC):
             assert prop.ord is not None, f"{prop!r} has no ordinal"
             mask[prop.ord] = True
         return mask
+
+
+@object_()
+class BuiltinObjectMutable[ObjectDataT: AnyObjectData](BuiltinObjectBase[ObjectDataT]):
+    """A mutable BuiltinObject."""
+
+    _supergraph: "Supergraph | None" = property_runtime_()
+
+
+@object_(frozen=True)
+class BuiltinObjectFrozen[ObjectDataT: AnyObjectData](BuiltinObjectBase[ObjectDataT]):
+    """A frozen BuiltinObject."""
+
+    _supergraph: "Supergraph | None" = property_runtime_()
