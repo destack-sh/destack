@@ -6,16 +6,21 @@ from fastuuid import UUID
 from opentelemetry import trace
 
 from bench.language import CLOUD, Bench, Database, NodeReference, NodeType, Scope
-from bench.proto import (
+from bench.pb2 import (
+    CommitRequest,
+    CommitResponse,
     DownloadFilesRequest,
     DownloadFilesResponse,
     HostBase,
-    Network,
+    QueryRequest,
+    QueryResponse,
     ServiceKind,
+    SubscribeRequest,
+    SubscribeResponse,
     UploadFilesRequest,
     UploadFilesResponse,
 )
-from bench.proto.service import ServiceBase
+from bench.proto import Network, ServiceBase
 from bench.utils.env import ENV
 from bench.utils.oracle import Oracle
 from bench.utils.utils import get_from_env
@@ -86,15 +91,25 @@ class HostService(ServiceBase, HostBase):
         await super().wait_stopped()
         await asyncio.gather(*(plugin.wait_closed() for plugin in self._plugins))
 
-    #
-    # Files
-    #
+    @override
+    async def query(self, request: QueryRequest, headers: Mapping) -> QueryResponse:
+        raise NotImplementedError
 
+    @override
+    async def subscribe(self, request: SubscribeRequest, headers: Mapping) -> SubscribeResponse:
+        raise NotImplementedError
+
+    @override
+    async def commit(self, request: CommitRequest, headers: Mapping) -> CommitResponse:
+        raise NotImplementedError
+
+    @override
     async def upload_files(
         self, request: UploadFilesRequest, headers: Mapping
     ) -> UploadFilesResponse:
         raise NotImplementedError
 
+    @override
     async def download_files(
         self, request: DownloadFilesRequest, headers: Mapping
     ) -> DownloadFilesResponse:

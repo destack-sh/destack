@@ -3,13 +3,11 @@ import typer
 
 from bench.language import (
     BENCH_BENCH_PACKAGE_ID,
-    BENCH_BENCH_PACKAGE_SLUG,
     BENCH_ID,
     BENCH_SLUG,
     SYSTEM_ID,
     SYSTEM_SLUG,
     SYSTEM_SYSTEM_PACKAGE_ID,
-    SYSTEM_SYSTEM_PACKAGE_SLUG,
     Bench,
     Handle,
     Region,
@@ -63,9 +61,7 @@ async def create_system_benches(
             region=region,
             session=session,
             options=CreateBenchOptions(
-                bench_id=SYSTEM_ID,
-                main_package_slug=SYSTEM_SYSTEM_PACKAGE_SLUG,
-                main_package_id=SYSTEM_SYSTEM_PACKAGE_ID,
+                bench_id=SYSTEM_ID, main_package_id=SYSTEM_SYSTEM_PACKAGE_ID
             ),
         )
         logger.debug("system.bootstrap.create", system_bench=system_bench)
@@ -83,12 +79,7 @@ async def create_system_benches(
             owned_by=system_user,
             region=region,
             session=session,
-            options=CreateBenchOptions(
-                bench_id=BENCH_ID,
-                main_package_slug=BENCH_BENCH_PACKAGE_SLUG,
-                main_package_id=BENCH_BENCH_PACKAGE_ID,
-                main_package_name="Builtin Package",
-            ),
+            options=CreateBenchOptions(bench_id=BENCH_ID, main_package_id=BENCH_BENCH_PACKAGE_ID),
         )
         logger.debug("system.bootstrap.create", bench_bench=bench_bench)
     else:

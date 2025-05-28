@@ -1,6 +1,6 @@
 from typing import NamedTuple
 
-from fastuuid import UUID
+from fastuuid import UUID, uuid4
 
 from bench.language import (
     Bench,
@@ -19,9 +19,6 @@ from bench.language import (
 class CreateBenchOptions(NamedTuple):
     bench_id: UUID | None = None
     main_package_id: UUID | None = None
-    main_package_name: str = "Home"
-    main_package_slug: str = "home"
-    local_database_name: str = "Local"
 
 
 async def create_default_bench(  # noqa: RUF029
@@ -36,13 +33,12 @@ async def create_default_bench(  # noqa: RUF029
 
     # Bench
     bench = Bench(
-        id=options.bench_id or Bench.__id_factory__(),
+        id=options.bench_id or uuid4(),
         handle=handle,
         slug=handle.slug,
         name=handle.slug,
         owned_by=owned_by,
         region=region,
-        _is_new=True,
     )
     session.create(bench)
     session.stage()
@@ -50,22 +46,17 @@ async def create_default_bench(  # noqa: RUF029
     # main Package
     main_package = Package(
         parent=bench,
-        id=options.main_package_id or Package.__id_factory__(),
-        type=PackageType.OPEN,
-        name=options.main_package_name,
-        slug=options.main_package_slug,
-        _is_new=True,
+        id=options.main_package_id or uuid4(),
+        type=PackageType.HOME,
+        name="Home",
+        slug="home",
     )
     session.create(main_package)
     session.stage()
     bench.main_package = main_package
 
     # main Database
-    database = Database(
-        mode=NodeMode.BUILTIN,
-        region=bench.region,
-        name=options.local_database_name,
-    )
+    database = Database(mode=NodeMode.BUILTIN, region=bench.region, name="Database")
     main_package.add_child(database)
     session.stage()
     bench.database = database

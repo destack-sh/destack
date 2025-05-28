@@ -120,7 +120,6 @@ class Node[NodeDataT: AnyNodeData](BuiltinObject[NodeDataT]):
 
     __is_node__: ClassVar[bool] = True
     __traits__: ClassVar[tuple[TraitType, ...]] = ()
-    __id_factory__: ClassVar[Callable[[], UUID]] = UUID
     __area__: ClassVar[NodeArea]
     __indexes__: ClassVar[tuple[IndexIn, ...]] = ()
 

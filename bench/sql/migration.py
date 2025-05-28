@@ -804,20 +804,17 @@ async def read_migrations_from_pg(
     conn: asyncpg.Connection, *, applied: bool | None = None
 ) -> list[Migration]:
     """Reads the 'bench_migration' table (if it exists) and returns the corresponding Migration."""
-    try:
-        query = "SELECT id, version, has_global, has_regional, has_local, applied_at FROM bench_migration"
-        if applied is not None:
-            where_clause = "applied_at IS NOT NULL" if applied else "applied_at IS NULL"
-            query += f" WHERE {where_clause}"
-        query += " ORDER BY id"
+    query = (
+        "SELECT id, version, has_global, has_regional, has_local, applied_at FROM bench_migration"
+    )
+    if applied is not None:
+        where_clause = "applied_at IS NOT NULL" if applied else "applied_at IS NULL"
+        query += f" WHERE {where_clause}"
+    query += " ORDER BY id"
 
-        rows = await conn.fetch(query)
-        migrations = [unpack_migration_row(dict(row)) for row in rows]
-        return migrations
-    except Exception:
-        # Assuming this is a table not found error
-        await conn.rollback()
-        return []
+    rows = await conn.fetch(query)
+    migrations = [unpack_migration_row(dict(row)) for row in rows]
+    return migrations
 
 
 async def upsert_migrations(conn: asyncpg.Connection, migrations: list[Migration]):
@@ -957,10 +954,10 @@ WHERE
 GROUP BY 
     col.table_name, col.column_name, col.data_type, col.udt_name, col.is_nullable, col.column_default;
                """
-        columns_rows = await conn.fetch(columns_query, tables_names)
+        columns_rows: list[dict] = await conn.fetch(columns_query, tables_names)
         columns_by_table: dict[str, list[SqlColumn]] = defaultdict(list)
         for row in columns_rows:
-            udt_name = row["udt_name"]
+            udt_name: str = row["udt_name"]
             if udt_name.startswith("_"):
                 udt_name = udt_name[1:]
                 is_array = True
@@ -976,7 +973,7 @@ GROUP BY
                 else None
             )
             cascade_action = (
-                SqlCascadeAction(row["delete_rules"].split(",")[0])
+                SqlCascadeAction(row["delete_rules"].split(",")[0])  # type: ignore
                 if row.get("delete_rules")
                 else None
             )
@@ -1047,7 +1044,7 @@ GROUP BY
             columns = tuple(row["column_names"].split(", ")) if row["column_names"] else ()
             if not columns:
                 columns = None
-            constraint_name = row["constraint_name"][len(row["table_name"]) + 1 :]
+            constraint_name: str = row["constraint_name"][len(row["table_name"]) + 1 :]  # type: ignore
             condition = row.get("condition")
             if condition:
                 condition = _strip_condition(condition)
@@ -1074,9 +1071,9 @@ FROM
 WHERE 
     idx.schemaname = 'public' AND idx.tablename = ANY($1);
             """
-        indexes_rows = await conn.fetch(indexes_query, tables_names)
+        indexes_rows: list[dict] = await conn.fetch(indexes_query, tables_names)
         for row in indexes_rows:
-            definition = row["index_definition"]
+            definition: str = row["index_definition"]
             columns_str = definition.split("(")[1].split(")")[0]
             columns = [col.strip() for col in columns_str.split(",")]
             # definition like 'CREATE INDEX index_name ON table_name USING index_type (columns) [INCLUDE (cover)] [WHERE condition]'
@@ -1098,8 +1095,8 @@ WHERE
                 if "INCLUDE" in definition
                 else ()
             )
-            table_name = row["table_name"]
-            index_name = row["index_name"][len(table_name) + 1 :]
+            table_name: str = row["table_name"]
+            index_name: str = row["index_name"][len(table_name) + 1 :]  # type: ignore
             index = SqlIndex(
                 inner_name=index_name,
                 _full_name=row["index_name"],
