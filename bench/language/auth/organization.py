@@ -75,7 +75,7 @@ class OrganizationInvite(IsInvite, IsDeletable, Node[OrganizationInviteData]):
 
     parent: Optional["Organization"] = property_parent_()
 
-    role: OrganizationRoleType = property_(45)
+    role_type: OrganizationRoleType = property_(45)
 
 
 @node_(NodeType.ORGANIZATION_MEMBERSHIP)
@@ -86,4 +86,4 @@ class OrganizationMembership(IsMembership, IsDeletable, Node[OrganizationMembers
 
     parent: Optional["Organization"] = property_parent_()
 
-    role: OrganizationRoleType = property_(45)
+    role_type: OrganizationRoleType = property_(45)

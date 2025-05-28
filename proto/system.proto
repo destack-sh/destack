@@ -149,18 +149,19 @@ message QueryRequest {
 }
 message QueryResponse {
   // The result of the Query.
-  // QueryResultData result = 1;
+  QueryResultData result = 1;
 }
 
 message SubscribeRequest {
-  string query_id = 1;
+  QueryData query = 1;
 }
 message SubscribeResponse {
+  // The result of the Query.
+  QueryUpdateData update = 1;
 }
 
 message CommitRequest {
   ScopeData scope = 1;
-  // UUID of the transaction.
   string id = 2;
   // All the Edits in order.
   repeated EditData edits = 3;

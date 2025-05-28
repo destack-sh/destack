@@ -18,6 +18,7 @@ _setup_test_env()
 from opentelemetry import trace
 
 from bench.language import (
+    BEGINNING_OF_TIME,
     SYSTEM_ID,
     SYSTEM_SYSTEM_PACKAGE_ID,
     VERSION,
@@ -50,8 +51,6 @@ tracer = trace.get_tracer(__name__)
 
 def make_global_database(name: str):
     """Creates a global database for testing.."""
-    from bench.system import BEGINNING_OF_TIME
-
     pg = get_from_env("GLOBAL_PG_URL", description="Global Postgres connection string")
     pg_url_parsed = urlparse(pg)
     pg_url = pg_url_parsed._replace(path=f"/{name}").geturl()
@@ -92,8 +91,6 @@ def make_global_database(name: str):
 
 def make_regional_database(name: str):
     """Creates a regional database for testing."""
-    from bench.system import BEGINNING_OF_TIME
-
     assert len(name) < 64, f"name must be less than 64 characters: {name!r}"
     pg = get_from_env("GLOBAL_PG_URL", description="Regional Postgres connection string")
     pg_url_parsed = urlparse(pg)

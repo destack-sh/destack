@@ -95,7 +95,8 @@ class BenchInvite(
     """
 
     parent: Optional["Bench"] = property_parent_()
-    role: BenchRoleType = property_(45, is_repr=True)
+
+    role_type: BenchRoleType = property_(45, is_repr=True)
 
 
 @node_(NodeType.BENCH_MEMBERSHIP)
@@ -111,4 +112,5 @@ class BenchMembership(
     """
 
     parent: Optional["Bench"] = property_parent_()
-    role: BenchRoleType = property_(45, is_repr=True)
+
+    role_type: BenchRoleType = property_(45, is_repr=True)

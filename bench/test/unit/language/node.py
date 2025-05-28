@@ -3,7 +3,6 @@ from hypothesis import HealthCheck, given, settings
 
 from bench.language import (
     Action,
-    ActionCardinality,
     Block,
     BuiltinObject,
     Field,
@@ -64,10 +63,7 @@ async def test_clone_with_cross_references(simulation: Simulation, runtime: Runt
     schema = Schema(name="Letter")
     schema.add_children(Field(name="A"), Field(name="B"))
     flow = Flow(name="Flow")
-    action = Action(
-        type=ActionCardinality.CODE,
-        name="Action",
-    )
+    action = Action(name="Action")
     action.add_children(
         Field(name="Text", type=Text),
         Field(name="Schema", type=schema),
@@ -137,7 +133,7 @@ async def test_instance_with_cross_references(
     schema = Schema(name="Letter")
     schema.add_children(Field(name="A"), Field(name="B"))
     flow = Flow(name="Flow")
-    action = Action(type=ActionCardinality.CODE, name="Action")
+    action = Action(name="Action")
     action.add_children(
         Field(name="Text", type=Text),
         Field(name="Schema", type=schema),

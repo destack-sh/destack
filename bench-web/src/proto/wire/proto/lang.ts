@@ -307,9 +307,9 @@ export interface AggregationData {
      */
     type: AggregationType;
     /**
-     * @generated from protobuf field: optional symbol.bench.ExpressionData operand = 31;
+     * @generated from protobuf field: optional symbol.bench.ExpressionData expression = 31;
      */
-    operand?: ExpressionData;
+    expression?: ExpressionData;
     /**
      * @generated from protobuf field: bool distinct = 33;
      */
@@ -512,9 +512,9 @@ export interface BenchInviteData {
      */
     memberPtr?: NodeReferenceData;
     /**
-     * @generated from protobuf field: symbol.bench.BenchRoleType role = 45;
+     * @generated from protobuf field: symbol.bench.BenchRoleType role_type = 45;
      */
-    role: BenchRoleType;
+    roleType: BenchRoleType;
 }
 /**
  * A BenchMembership is a membership to a Bench.
@@ -563,9 +563,9 @@ export interface BenchMembershipData {
      */
     memberPtr?: NodeReferenceData;
     /**
-     * @generated from protobuf field: symbol.bench.BenchRoleType role = 45;
+     * @generated from protobuf field: symbol.bench.BenchRoleType role_type = 45;
      */
-    role: BenchRoleType;
+    roleType: BenchRoleType;
 }
 /**
  * A Block on a Page.
@@ -4295,9 +4295,9 @@ export interface OrganizationInviteData {
      */
     memberPtr?: NodeReferenceData;
     /**
-     * @generated from protobuf field: symbol.bench.OrganizationRoleType role = 45;
+     * @generated from protobuf field: symbol.bench.OrganizationRoleType role_type = 45;
      */
-    role: OrganizationRoleType;
+    roleType: OrganizationRoleType;
 }
 /**
  * An OrganizationMembership is a membership to an Organization.
@@ -4342,9 +4342,9 @@ export interface OrganizationMembershipData {
      */
     memberPtr?: NodeReferenceData;
     /**
-     * @generated from protobuf field: symbol.bench.OrganizationRoleType role = 45;
+     * @generated from protobuf field: symbol.bench.OrganizationRoleType role_type = 45;
      */
-    role: OrganizationRoleType;
+    roleType: OrganizationRoleType;
 }
 /**
  * @generated from protobuf message symbol.bench.OriginData
@@ -4509,9 +4509,9 @@ export interface PackageInviteData {
      */
     memberPtr?: NodeReferenceData;
     /**
-     * @generated from protobuf field: symbol.bench.PackageRoleType role = 45;
+     * @generated from protobuf field: symbol.bench.PackageRoleType role_type = 45;
      */
-    role: PackageRoleType;
+    roleType: PackageRoleType;
 }
 /**
  * A PackageMembership is a membership to a Package.
@@ -4564,9 +4564,9 @@ export interface PackageMembershipData {
      */
     memberPtr?: NodeReferenceData;
     /**
-     * @generated from protobuf field: symbol.bench.PackageRoleType role = 45;
+     * @generated from protobuf field: symbol.bench.PackageRoleType role_type = 45;
      */
-    role: PackageRoleType;
+    roleType: PackageRoleType;
 }
 /**
  * A Page of Blocks laying out rich Text, data, logic, resources -- anything software needs.
@@ -4765,6 +4765,36 @@ export interface QueryData {
      * @generated from protobuf field: optional bool count = 52;
      */
     count?: boolean;
+}
+/**
+ * @generated from protobuf message symbol.bench.QueryResultData
+ */
+export interface QueryResultData {
+    /**
+     * @generated from protobuf field: symbol.bench.StructType metatype = 1;
+     */
+    metatype: StructType;
+    /**
+     * @generated from protobuf field: int64 epoch = 40;
+     */
+    epoch: bigint;
+    /**
+     * @generated from protobuf field: symbol.bench.QueryData query = 41;
+     */
+    query?: QueryData;
+}
+/**
+ * @generated from protobuf message symbol.bench.QueryUpdateData
+ */
+export interface QueryUpdateData {
+    /**
+     * @generated from protobuf field: symbol.bench.StructType metatype = 1;
+     */
+    metatype: StructType;
+    /**
+     * @generated from protobuf field: int64 epoch = 40;
+     */
+    epoch: bigint;
 }
 /**
  * A Record in a Table, basically an instance of a custom Node.
@@ -8157,13 +8187,9 @@ export enum ActionCardinality {
      */
     UNSPECIFIED = 0,
     /**
-     * @generated from protobuf enum value: ACTION_CARDINALITY_UNARY = 10;
+     * @generated from protobuf enum value: ACTION_CARDINALITY_UNARY = 1;
      */
-    UNARY = 10,
-    /**
-     * @generated from protobuf enum value: ACTION_CARDINALITY_UNARY_STREAM = 11;
-     */
-    UNARY_STREAM = 11
+    UNARY = 1
 }
 /**
  * @generated from protobuf enum symbol.bench.AggregationType
@@ -11969,17 +11995,25 @@ export enum StructType {
      */
     SORT = 20105,
     /**
-     * @generated from protobuf enum value: STRUCT_TYPE_QUERY = 20106;
+     * @generated from protobuf enum value: STRUCT_TYPE_RELATION_REFERENCE = 20106;
      */
-    QUERY = 20106,
+    RELATION_REFERENCE = 20106,
     /**
-     * @generated from protobuf enum value: STRUCT_TYPE_RELATION_REFERENCE = 20110;
+     * @generated from protobuf enum value: STRUCT_TYPE_ATTRIBUTE_REFERENCE = 20107;
      */
-    RELATION_REFERENCE = 20110,
+    ATTRIBUTE_REFERENCE = 20107,
     /**
-     * @generated from protobuf enum value: STRUCT_TYPE_ATTRIBUTE_REFERENCE = 20111;
+     * @generated from protobuf enum value: STRUCT_TYPE_QUERY = 20110;
      */
-    ATTRIBUTE_REFERENCE = 20111,
+    QUERY = 20110,
+    /**
+     * @generated from protobuf enum value: STRUCT_TYPE_QUERY_RESULT = 20111;
+     */
+    QUERY_RESULT = 20111,
+    /**
+     * @generated from protobuf enum value: STRUCT_TYPE_QUERY_UPDATE = 20112;
+     */
+    QUERY_UPDATE = 20112,
     /**
      * @generated from protobuf enum value: STRUCT_TYPE_SCHEDULE = 21200;
      */
@@ -13224,7 +13258,7 @@ class AggregationData$Type extends MessageType$<AggregationData> {
         super("symbol.bench.AggregationData", [
             { no: 1, name: "metatype", kind: "enum", T: () => ["symbol.bench.StructType", StructType, "STRUCT_TYPE_"] },
             { no: 30, name: "type", kind: "enum", T: () => ["symbol.bench.AggregationType", AggregationType, "AGGREGATION_TYPE_"] },
-            { no: 31, name: "operand", kind: "message", T: () => ExpressionData },
+            { no: 31, name: "expression", kind: "message", T: () => ExpressionData },
             { no: 33, name: "distinct", kind: "scalar", T: 8 /*ScalarType.BOOL*/ }
         ]);
     }
@@ -13248,8 +13282,8 @@ class AggregationData$Type extends MessageType$<AggregationData> {
                 case /* symbol.bench.AggregationType type */ 30:
                     message.type = reader.int32();
                     break;
-                case /* optional symbol.bench.ExpressionData operand */ 31:
-                    message.operand = ExpressionData.internalBinaryRead(reader, reader.uint32(), options, message.operand);
+                case /* optional symbol.bench.ExpressionData expression */ 31:
+                    message.expression = ExpressionData.internalBinaryRead(reader, reader.uint32(), options, message.expression);
                     break;
                 case /* bool distinct */ 33:
                     message.distinct = reader.bool();
@@ -13272,9 +13306,9 @@ class AggregationData$Type extends MessageType$<AggregationData> {
         /* symbol.bench.AggregationType type = 30; */
         if (message.type !== 0)
             writer.tag(30, WireType.Varint).int32(message.type);
-        /* optional symbol.bench.ExpressionData operand = 31; */
-        if (message.operand)
-            ExpressionData.internalBinaryWrite(message.operand, writer.tag(31, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbol.bench.ExpressionData expression = 31; */
+        if (message.expression)
+            ExpressionData.internalBinaryWrite(message.expression, writer.tag(31, WireType.LengthDelimited).fork(), options).join();
         /* bool distinct = 33; */
         if (message.distinct !== false)
             writer.tag(33, WireType.Varint).bool(message.distinct);
@@ -13692,14 +13726,14 @@ class BenchInviteData$Type extends MessageType$<BenchInviteData> {
             { no: 13, name: "updated_by_ptr", kind: "message", T: () => NodeReferenceData },
             { no: 15, name: "deleted_at", kind: "message", T: () => Timestamp },
             { no: 40, name: "member_ptr", kind: "message", T: () => NodeReferenceData },
-            { no: 45, name: "role", kind: "enum", T: () => ["symbol.bench.BenchRoleType", BenchRoleType, "BENCH_ROLE_TYPE_"] }
+            { no: 45, name: "role_type", kind: "enum", T: () => ["symbol.bench.BenchRoleType", BenchRoleType, "BENCH_ROLE_TYPE_"] }
         ]);
     }
     create(value?: PartialMessage<BenchInviteData>): BenchInviteData {
         const message = globalThis.Object.create((this.messagePrototype!));
         message.metatype = 0;
         message.id = "";
-        message.role = 0;
+        message.roleType = 0;
         if (value !== undefined)
             reflectionMergePartial<BenchInviteData>(this, message, value);
         return message;
@@ -13739,8 +13773,8 @@ class BenchInviteData$Type extends MessageType$<BenchInviteData> {
                 case /* symbol.bench.NodeReferenceData member_ptr */ 40:
                     message.memberPtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.memberPtr);
                     break;
-                case /* symbol.bench.BenchRoleType role */ 45:
-                    message.role = reader.int32();
+                case /* symbol.bench.BenchRoleType role_type */ 45:
+                    message.roleType = reader.int32();
                     break;
                 default:
                     let u = options.readUnknownField;
@@ -13784,9 +13818,9 @@ class BenchInviteData$Type extends MessageType$<BenchInviteData> {
         /* symbol.bench.NodeReferenceData member_ptr = 40; */
         if (message.memberPtr)
             NodeReferenceData.internalBinaryWrite(message.memberPtr, writer.tag(40, WireType.LengthDelimited).fork(), options).join();
-        /* symbol.bench.BenchRoleType role = 45; */
-        if (message.role !== 0)
-            writer.tag(45, WireType.Varint).int32(message.role);
+        /* symbol.bench.BenchRoleType role_type = 45; */
+        if (message.roleType !== 0)
+            writer.tag(45, WireType.Varint).int32(message.roleType);
         let u = options.writeUnknownFields;
         if (u !== false)
             (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
@@ -13811,14 +13845,14 @@ class BenchMembershipData$Type extends MessageType$<BenchMembershipData> {
             { no: 13, name: "updated_by_ptr", kind: "message", T: () => NodeReferenceData },
             { no: 15, name: "deleted_at", kind: "message", T: () => Timestamp },
             { no: 40, name: "member_ptr", kind: "message", T: () => NodeReferenceData },
-            { no: 45, name: "role", kind: "enum", T: () => ["symbol.bench.BenchRoleType", BenchRoleType, "BENCH_ROLE_TYPE_"] }
+            { no: 45, name: "role_type", kind: "enum", T: () => ["symbol.bench.BenchRoleType", BenchRoleType, "BENCH_ROLE_TYPE_"] }
         ]);
     }
     create(value?: PartialMessage<BenchMembershipData>): BenchMembershipData {
         const message = globalThis.Object.create((this.messagePrototype!));
         message.metatype = 0;
         message.id = "";
-        message.role = 0;
+        message.roleType = 0;
         if (value !== undefined)
             reflectionMergePartial<BenchMembershipData>(this, message, value);
         return message;
@@ -13858,8 +13892,8 @@ class BenchMembershipData$Type extends MessageType$<BenchMembershipData> {
                 case /* symbol.bench.NodeReferenceData member_ptr */ 40:
                     message.memberPtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.memberPtr);
                     break;
-                case /* symbol.bench.BenchRoleType role */ 45:
-                    message.role = reader.int32();
+                case /* symbol.bench.BenchRoleType role_type */ 45:
+                    message.roleType = reader.int32();
                     break;
                 default:
                     let u = options.readUnknownField;
@@ -13903,9 +13937,9 @@ class BenchMembershipData$Type extends MessageType$<BenchMembershipData> {
         /* symbol.bench.NodeReferenceData member_ptr = 40; */
         if (message.memberPtr)
             NodeReferenceData.internalBinaryWrite(message.memberPtr, writer.tag(40, WireType.LengthDelimited).fork(), options).join();
-        /* symbol.bench.BenchRoleType role = 45; */
-        if (message.role !== 0)
-            writer.tag(45, WireType.Varint).int32(message.role);
+        /* symbol.bench.BenchRoleType role_type = 45; */
+        if (message.roleType !== 0)
+            writer.tag(45, WireType.Varint).int32(message.roleType);
         let u = options.writeUnknownFields;
         if (u !== false)
             (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
@@ -21611,14 +21645,14 @@ class OrganizationInviteData$Type extends MessageType$<OrganizationInviteData> {
             { no: 13, name: "updated_by_ptr", kind: "message", T: () => NodeReferenceData },
             { no: 15, name: "deleted_at", kind: "message", T: () => Timestamp },
             { no: 40, name: "member_ptr", kind: "message", T: () => NodeReferenceData },
-            { no: 45, name: "role", kind: "enum", T: () => ["symbol.bench.OrganizationRoleType", OrganizationRoleType, "ORGANIZATION_ROLE_TYPE_"] }
+            { no: 45, name: "role_type", kind: "enum", T: () => ["symbol.bench.OrganizationRoleType", OrganizationRoleType, "ORGANIZATION_ROLE_TYPE_"] }
         ]);
     }
     create(value?: PartialMessage<OrganizationInviteData>): OrganizationInviteData {
         const message = globalThis.Object.create((this.messagePrototype!));
         message.metatype = 0;
         message.id = "";
-        message.role = 0;
+        message.roleType = 0;
         if (value !== undefined)
             reflectionMergePartial<OrganizationInviteData>(this, message, value);
         return message;
@@ -21655,8 +21689,8 @@ class OrganizationInviteData$Type extends MessageType$<OrganizationInviteData> {
                 case /* symbol.bench.NodeReferenceData member_ptr */ 40:
                     message.memberPtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.memberPtr);
                     break;
-                case /* symbol.bench.OrganizationRoleType role */ 45:
-                    message.role = reader.int32();
+                case /* symbol.bench.OrganizationRoleType role_type */ 45:
+                    message.roleType = reader.int32();
                     break;
                 default:
                     let u = options.readUnknownField;
@@ -21697,9 +21731,9 @@ class OrganizationInviteData$Type extends MessageType$<OrganizationInviteData> {
         /* symbol.bench.NodeReferenceData member_ptr = 40; */
         if (message.memberPtr)
             NodeReferenceData.internalBinaryWrite(message.memberPtr, writer.tag(40, WireType.LengthDelimited).fork(), options).join();
-        /* symbol.bench.OrganizationRoleType role = 45; */
-        if (message.role !== 0)
-            writer.tag(45, WireType.Varint).int32(message.role);
+        /* symbol.bench.OrganizationRoleType role_type = 45; */
+        if (message.roleType !== 0)
+            writer.tag(45, WireType.Varint).int32(message.roleType);
         let u = options.writeUnknownFields;
         if (u !== false)
             (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
@@ -21723,14 +21757,14 @@ class OrganizationMembershipData$Type extends MessageType$<OrganizationMembershi
             { no: 13, name: "updated_by_ptr", kind: "message", T: () => NodeReferenceData },
             { no: 15, name: "deleted_at", kind: "message", T: () => Timestamp },
             { no: 40, name: "member_ptr", kind: "message", T: () => NodeReferenceData },
-            { no: 45, name: "role", kind: "enum", T: () => ["symbol.bench.OrganizationRoleType", OrganizationRoleType, "ORGANIZATION_ROLE_TYPE_"] }
+            { no: 45, name: "role_type", kind: "enum", T: () => ["symbol.bench.OrganizationRoleType", OrganizationRoleType, "ORGANIZATION_ROLE_TYPE_"] }
         ]);
     }
     create(value?: PartialMessage<OrganizationMembershipData>): OrganizationMembershipData {
         const message = globalThis.Object.create((this.messagePrototype!));
         message.metatype = 0;
         message.id = "";
-        message.role = 0;
+        message.roleType = 0;
         if (value !== undefined)
             reflectionMergePartial<OrganizationMembershipData>(this, message, value);
         return message;
@@ -21767,8 +21801,8 @@ class OrganizationMembershipData$Type extends MessageType$<OrganizationMembershi
                 case /* symbol.bench.NodeReferenceData member_ptr */ 40:
                     message.memberPtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.memberPtr);
                     break;
-                case /* symbol.bench.OrganizationRoleType role */ 45:
-                    message.role = reader.int32();
+                case /* symbol.bench.OrganizationRoleType role_type */ 45:
+                    message.roleType = reader.int32();
                     break;
                 default:
                     let u = options.readUnknownField;
@@ -21809,9 +21843,9 @@ class OrganizationMembershipData$Type extends MessageType$<OrganizationMembershi
         /* symbol.bench.NodeReferenceData member_ptr = 40; */
         if (message.memberPtr)
             NodeReferenceData.internalBinaryWrite(message.memberPtr, writer.tag(40, WireType.LengthDelimited).fork(), options).join();
-        /* symbol.bench.OrganizationRoleType role = 45; */
-        if (message.role !== 0)
-            writer.tag(45, WireType.Varint).int32(message.role);
+        /* symbol.bench.OrganizationRoleType role_type = 45; */
+        if (message.roleType !== 0)
+            writer.tag(45, WireType.Varint).int32(message.roleType);
         let u = options.writeUnknownFields;
         if (u !== false)
             (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
@@ -22098,14 +22132,14 @@ class PackageInviteData$Type extends MessageType$<PackageInviteData> {
             { no: 13, name: "updated_by_ptr", kind: "message", T: () => NodeReferenceData },
             { no: 15, name: "deleted_at", kind: "message", T: () => Timestamp },
             { no: 40, name: "member_ptr", kind: "message", T: () => NodeReferenceData },
-            { no: 45, name: "role", kind: "enum", T: () => ["symbol.bench.PackageRoleType", PackageRoleType, "PACKAGE_ROLE_TYPE_"] }
+            { no: 45, name: "role_type", kind: "enum", T: () => ["symbol.bench.PackageRoleType", PackageRoleType, "PACKAGE_ROLE_TYPE_"] }
         ]);
     }
     create(value?: PartialMessage<PackageInviteData>): PackageInviteData {
         const message = globalThis.Object.create((this.messagePrototype!));
         message.metatype = 0;
         message.id = "";
-        message.role = 0;
+        message.roleType = 0;
         if (value !== undefined)
             reflectionMergePartial<PackageInviteData>(this, message, value);
         return message;
@@ -22148,8 +22182,8 @@ class PackageInviteData$Type extends MessageType$<PackageInviteData> {
                 case /* symbol.bench.NodeReferenceData member_ptr */ 40:
                     message.memberPtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.memberPtr);
                     break;
-                case /* symbol.bench.PackageRoleType role */ 45:
-                    message.role = reader.int32();
+                case /* symbol.bench.PackageRoleType role_type */ 45:
+                    message.roleType = reader.int32();
                     break;
                 default:
                     let u = options.readUnknownField;
@@ -22196,9 +22230,9 @@ class PackageInviteData$Type extends MessageType$<PackageInviteData> {
         /* symbol.bench.NodeReferenceData member_ptr = 40; */
         if (message.memberPtr)
             NodeReferenceData.internalBinaryWrite(message.memberPtr, writer.tag(40, WireType.LengthDelimited).fork(), options).join();
-        /* symbol.bench.PackageRoleType role = 45; */
-        if (message.role !== 0)
-            writer.tag(45, WireType.Varint).int32(message.role);
+        /* symbol.bench.PackageRoleType role_type = 45; */
+        if (message.roleType !== 0)
+            writer.tag(45, WireType.Varint).int32(message.roleType);
         let u = options.writeUnknownFields;
         if (u !== false)
             (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
@@ -22224,14 +22258,14 @@ class PackageMembershipData$Type extends MessageType$<PackageMembershipData> {
             { no: 13, name: "updated_by_ptr", kind: "message", T: () => NodeReferenceData },
             { no: 15, name: "deleted_at", kind: "message", T: () => Timestamp },
             { no: 40, name: "member_ptr", kind: "message", T: () => NodeReferenceData },
-            { no: 45, name: "role", kind: "enum", T: () => ["symbol.bench.PackageRoleType", PackageRoleType, "PACKAGE_ROLE_TYPE_"] }
+            { no: 45, name: "role_type", kind: "enum", T: () => ["symbol.bench.PackageRoleType", PackageRoleType, "PACKAGE_ROLE_TYPE_"] }
         ]);
     }
     create(value?: PartialMessage<PackageMembershipData>): PackageMembershipData {
         const message = globalThis.Object.create((this.messagePrototype!));
         message.metatype = 0;
         message.id = "";
-        message.role = 0;
+        message.roleType = 0;
         if (value !== undefined)
             reflectionMergePartial<PackageMembershipData>(this, message, value);
         return message;
@@ -22274,8 +22308,8 @@ class PackageMembershipData$Type extends MessageType$<PackageMembershipData> {
                 case /* symbol.bench.NodeReferenceData member_ptr */ 40:
                     message.memberPtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.memberPtr);
                     break;
-                case /* symbol.bench.PackageRoleType role */ 45:
-                    message.role = reader.int32();
+                case /* symbol.bench.PackageRoleType role_type */ 45:
+                    message.roleType = reader.int32();
                     break;
                 default:
                     let u = options.readUnknownField;
@@ -22322,9 +22356,9 @@ class PackageMembershipData$Type extends MessageType$<PackageMembershipData> {
         /* symbol.bench.NodeReferenceData member_ptr = 40; */
         if (message.memberPtr)
             NodeReferenceData.internalBinaryWrite(message.memberPtr, writer.tag(40, WireType.LengthDelimited).fork(), options).join();
-        /* symbol.bench.PackageRoleType role = 45; */
-        if (message.role !== 0)
-            writer.tag(45, WireType.Varint).int32(message.role);
+        /* symbol.bench.PackageRoleType role_type = 45; */
+        if (message.roleType !== 0)
+            writer.tag(45, WireType.Varint).int32(message.roleType);
         let u = options.writeUnknownFields;
         if (u !== false)
             (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
@@ -22814,6 +22848,123 @@ class QueryData$Type extends MessageType$<QueryData> {
  * @generated MessageType for protobuf message symbol.bench.QueryData
  */
 export const QueryData = new QueryData$Type();
+// @generated message type with reflection information, may provide speed optimized methods
+class QueryResultData$Type extends MessageType$<QueryResultData> {
+    constructor() {
+        super("symbol.bench.QueryResultData", [
+            { no: 1, name: "metatype", kind: "enum", T: () => ["symbol.bench.StructType", StructType, "STRUCT_TYPE_"] },
+            { no: 40, name: "epoch", kind: "scalar", T: 3 /*ScalarType.INT64*/, L: 0 /*LongType.BIGINT*/ },
+            { no: 41, name: "query", kind: "message", T: () => QueryData }
+        ]);
+    }
+    create(value?: PartialMessage<QueryResultData>): QueryResultData {
+        const message = globalThis.Object.create((this.messagePrototype!));
+        message.metatype = 0;
+        message.epoch = 0n;
+        if (value !== undefined)
+            reflectionMergePartial<QueryResultData>(this, message, value);
+        return message;
+    }
+    internalBinaryRead(reader: IBinaryReader, length: number, options: BinaryReadOptions, target?: QueryResultData): QueryResultData {
+        let message = target ?? this.create(), end = reader.pos + length;
+        while (reader.pos < end) {
+            let [fieldNo, wireType] = reader.tag();
+            switch (fieldNo) {
+                case /* symbol.bench.StructType metatype */ 1:
+                    message.metatype = reader.int32();
+                    break;
+                case /* int64 epoch */ 40:
+                    message.epoch = reader.int64().toBigInt();
+                    break;
+                case /* symbol.bench.QueryData query */ 41:
+                    message.query = QueryData.internalBinaryRead(reader, reader.uint32(), options, message.query);
+                    break;
+                default:
+                    let u = options.readUnknownField;
+                    if (u === "throw")
+                        throw new globalThis.Error(`Unknown field ${fieldNo} (wire type ${wireType}) for ${this.typeName}`);
+                    let d = reader.skip(wireType);
+                    if (u !== false)
+                        (u === true ? UnknownFieldHandler.onRead : u)(this.typeName, message, fieldNo, wireType, d);
+            }
+        }
+        return message;
+    }
+    internalBinaryWrite(message: QueryResultData, writer: IBinaryWriter, options: BinaryWriteOptions): IBinaryWriter {
+        /* symbol.bench.StructType metatype = 1; */
+        if (message.metatype !== 0)
+            writer.tag(1, WireType.Varint).int32(message.metatype);
+        /* int64 epoch = 40; */
+        if (message.epoch !== 0n)
+            writer.tag(40, WireType.Varint).int64(message.epoch);
+        /* symbol.bench.QueryData query = 41; */
+        if (message.query)
+            QueryData.internalBinaryWrite(message.query, writer.tag(41, WireType.LengthDelimited).fork(), options).join();
+        let u = options.writeUnknownFields;
+        if (u !== false)
+            (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
+        return writer;
+    }
+}
+/**
+ * @generated MessageType for protobuf message symbol.bench.QueryResultData
+ */
+export const QueryResultData = new QueryResultData$Type();
+// @generated message type with reflection information, may provide speed optimized methods
+class QueryUpdateData$Type extends MessageType$<QueryUpdateData> {
+    constructor() {
+        super("symbol.bench.QueryUpdateData", [
+            { no: 1, name: "metatype", kind: "enum", T: () => ["symbol.bench.StructType", StructType, "STRUCT_TYPE_"] },
+            { no: 40, name: "epoch", kind: "scalar", T: 3 /*ScalarType.INT64*/, L: 0 /*LongType.BIGINT*/ }
+        ]);
+    }
+    create(value?: PartialMessage<QueryUpdateData>): QueryUpdateData {
+        const message = globalThis.Object.create((this.messagePrototype!));
+        message.metatype = 0;
+        message.epoch = 0n;
+        if (value !== undefined)
+            reflectionMergePartial<QueryUpdateData>(this, message, value);
+        return message;
+    }
+    internalBinaryRead(reader: IBinaryReader, length: number, options: BinaryReadOptions, target?: QueryUpdateData): QueryUpdateData {
+        let message = target ?? this.create(), end = reader.pos + length;
+        while (reader.pos < end) {
+            let [fieldNo, wireType] = reader.tag();
+            switch (fieldNo) {
+                case /* symbol.bench.StructType metatype */ 1:
+                    message.metatype = reader.int32();
+                    break;
+                case /* int64 epoch */ 40:
+                    message.epoch = reader.int64().toBigInt();
+                    break;
+                default:
+                    let u = options.readUnknownField;
+                    if (u === "throw")
+                        throw new globalThis.Error(`Unknown field ${fieldNo} (wire type ${wireType}) for ${this.typeName}`);
+                    let d = reader.skip(wireType);
+                    if (u !== false)
+                        (u === true ? UnknownFieldHandler.onRead : u)(this.typeName, message, fieldNo, wireType, d);
+            }
+        }
+        return message;
+    }
+    internalBinaryWrite(message: QueryUpdateData, writer: IBinaryWriter, options: BinaryWriteOptions): IBinaryWriter {
+        /* symbol.bench.StructType metatype = 1; */
+        if (message.metatype !== 0)
+            writer.tag(1, WireType.Varint).int32(message.metatype);
+        /* int64 epoch = 40; */
+        if (message.epoch !== 0n)
+            writer.tag(40, WireType.Varint).int64(message.epoch);
+        let u = options.writeUnknownFields;
+        if (u !== false)
+            (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
+        return writer;
+    }
+}
+/**
+ * @generated MessageType for protobuf message symbol.bench.QueryUpdateData
+ */
+export const QueryUpdateData = new QueryUpdateData$Type();
 // @generated message type with reflection information, may provide speed optimized methods
 class RecordData$Type extends MessageType$<RecordData> {
     constructor() {
@@ -29869,6 +30020,6 @@ export const SomeNodeData = new SomeNodeData$Type();
 
 // Any...
 export type AnyNodeData = ClientData | OrganizationData | OrganizationInviteData | OrganizationMembershipData | UserData | BenchData | BenchInviteData | BenchMembershipData | HandleData | PackageData | PackageMembershipData | PackageInviteData | FieldData | FileData | LinkData | RecordData | SchemaData | TableData | DatabaseData | MachineData | ActionData | AgentData | CursorData | FlowData | FlowEdgeData | ServiceData | TaskData | InterruptionData | RunData | SpanData | MessageData | ThreadData | BlockData | PageData | RouteData | SceneData | SpaceData | ColorStyleData | BorderStyleData | TransitionStyleData | EffectStyleData | GradientStyleData | FontStyleData | ShadowStyleData | ThemeData | FrameViewData | LabelViewData | SplitViewData | TextViewData | NumberInputViewData | SliderInputViewData | WizardViewData | ThreadViewData
-export type AnyStructData = ScopeData | PropertyReferenceData | NodeReferenceData | CodeData | StringConstraintData | NumberConstraintData | CollectionConstraintData | NodeConstraintData | TypeData | EditData | IconData | ValueData | RelationReferenceData | AttributeReferenceData | FunctionData | ConditionData | AggregationData | ExpressionData | SortData | JoinData | QueryData | SelectionData | TextSpanData | TextLineData | TextData | VariableData | OriginData | ScheduleData | ErrorData | ColorData | LengthData | PositionData | DimensionData | InsetsData | CornersData | Axis2Data | Axis3Data | Vector2Data | Vector3Data | Vector4Data | GridData | GridSpanData | BorderData | TransitionData | EffectData | GradientStopData | GradientData | FillData | FontData | ShadowData
+export type AnyStructData = ScopeData | PropertyReferenceData | NodeReferenceData | CodeData | StringConstraintData | NumberConstraintData | CollectionConstraintData | NodeConstraintData | TypeData | EditData | IconData | ValueData | RelationReferenceData | AttributeReferenceData | FunctionData | ConditionData | AggregationData | ExpressionData | SortData | JoinData | QueryData | QueryResultData | QueryUpdateData | SelectionData | TextSpanData | TextLineData | TextData | VariableData | OriginData | ScheduleData | ErrorData | ColorData | LengthData | PositionData | DimensionData | InsetsData | CornersData | Axis2Data | Axis3Data | Vector2Data | Vector3Data | Vector4Data | GridData | GridSpanData | BorderData | TransitionData | EffectData | GradientStopData | GradientData | FillData | FontData | ShadowData
 
     

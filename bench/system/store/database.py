@@ -1,24 +1,47 @@
-from datetime import datetime
+from typing import AsyncIterator, override
 
 from fastuuid import UUID
 
 from bench.language import (
+    BEGINNING_OF_TIME,
     REGION,
     VERSION,
     Bench,
     BenchStatus,
     Database,
-    Node,
+    Edit,
     Package,
     PackageType,
+    Query,
+    QueryResult,
+    QueryUpdate,
     Region,
     Session,
+    Store,
     Supergraph,
 )
-from bench.utils.oracle import Oracle
 from bench.utils.utils import get_from_env
 
-BEGINNING_OF_TIME = datetime.fromisoformat("1970-01-01T00:00:00+00:00")
+
+class DatabaseStore(Store):
+    """
+    A Store backed by a Database.
+    """
+
+    def __init__(self, database: Database):
+        self.database = database
+
+    @override
+    async def query(self, query: Query) -> QueryResult:
+        raise NotImplementedError
+
+    @override
+    async def subscribe(self, query: Query) -> AsyncIterator[QueryUpdate]:
+        raise NotImplementedError
+
+    @override
+    async def commit(self, edits: list[Edit]) -> tuple[list[Edit], list[Edit]]:
+        raise NotImplementedError
 
 
 def make_system_database(region: Region, pg_url: str) -> Database:
@@ -64,19 +87,6 @@ def get_global_database_from_env() -> Database:
 
 def get_regional_database_from_env(region: Region = REGION) -> Database:
     """Get the default regional database configured in the environment"""
-    from bench.system.core import DATABASE_MAP
+    from .sharding import DATABASE_MAP
 
     return DATABASE_MAP.get(region)
-
-
-def global_session(
-    node: Node | None,
-    *,
-    oracle: Oracle,
-    supergraph: Supergraph | None = None,
-    epoch: int | None = None,
-    readonly: bool = False,
-    split_read: bool = True,
-):
-    """Create a Session in a global database"""
-    raise NotImplementedError

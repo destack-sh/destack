@@ -1,6 +1,7 @@
 from .code import Code, CodeType, code
 from .const import (
     ACTIVE_SESSION,
+    BEGINNING_OF_TIME,
     BENCH_BENCH_PACKAGE_ID,
     BENCH_ID,
     BENCH_SLUG,
@@ -56,7 +57,6 @@ from .const import (
     capture_span,
     enum_,
     get_active_session,
-    new_struct_id,
     repr_enums,
 )
 from .edit import Edit, EditType, UpdateType, edit_graph
@@ -80,6 +80,7 @@ from .query import (
     Condition,
     ConditionalType,
     Expression,
+    ExpressionIn,
     ExpressionType,
     Function,
     FunctionType,
@@ -87,6 +88,9 @@ from .query import (
     Join,
     JoinType,
     Query,
+    QueryResult,
+    QueryType,
+    QueryUpdate,
     RelationReference,
     Selection,
     Sort,
@@ -113,6 +117,7 @@ from .render import (
     render_value,
 )
 from .session import Session
+from .store import Store
 from .struct import (
     EMPTY_SCOPE_DATA,
     NodeReference,
@@ -212,6 +217,7 @@ from .variable import Variable, VariableProperty, VariableType
 __all__ = [
     "ACTIVE_ALIASING",
     "ACTIVE_SESSION",
+    "BEGINNING_OF_TIME",
     "BENCH_BENCH_PACKAGE_ID",
     "BENCH_ID",
     "BENCH_SLUG",
@@ -263,6 +269,7 @@ __all__ = [
     "EditType",
     "EnumType",
     "Expression",
+    "ExpressionIn",
     "ExpressionType",
     "Format",
     "Function",
@@ -326,6 +333,9 @@ __all__ = [
     "Property",
     "PropertyReference",
     "Query",
+    "QueryResult",
+    "QueryType",
+    "QueryUpdate",
     "Region",
     "RelationReference",
     "RenderOptions",
@@ -340,6 +350,7 @@ __all__ = [
     "SortMode",
     "SortType",
     "SpanType",
+    "Store",
     "StringConstraint",
     "StringFormat",
     "Struct",
@@ -385,7 +396,6 @@ __all__ = [
     "icon",
     "join",
     "markdown_to_text",
-    "new_struct_id",
     "node_",
     "node_",
     "object_",

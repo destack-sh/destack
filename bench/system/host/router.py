@@ -1,6 +1,6 @@
 import asyncio
 import functools
-from typing import Callable, Mapping, override
+from typing import AsyncIterator, Callable, Mapping, override
 
 import grpclib.server
 import structlog
@@ -163,8 +163,11 @@ class HostRouterService(ServiceBase, HostBase):
         raise NotImplementedError  # implemented in wrap
 
     @override
-    async def subscribe(self, request: SubscribeRequest, headers: Mapping) -> SubscribeResponse:
+    async def subscribe(
+        self, request: SubscribeRequest, headers: Mapping
+    ) -> AsyncIterator[SubscribeResponse]:
         raise NotImplementedError  # implemented in wrap
+        yield ...
 
     @override
     async def commit(self, request: CommitRequest, headers: Mapping) -> CommitResponse:

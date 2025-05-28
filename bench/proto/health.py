@@ -1,5 +1,4 @@
 from typing import (
-    AsyncIterator,
     Callable,
     Collection,
     Mapping,
@@ -53,8 +52,5 @@ class HealthService(ServiceBase, HealthBase):
         return response
 
     @override
-    async def watch(
-        self, request: HealthCheckRequest, headers: Mapping
-    ) -> AsyncIterator[HealthCheckResponse]:
+    async def watch(self, request: HealthCheckRequest, headers: Mapping) -> HealthCheckResponse:
         raise GRPCError(GRPCStatus.UNIMPLEMENTED)
-        yield HealthCheckResponse()

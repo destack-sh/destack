@@ -133,13 +133,13 @@ def _gen_proto(schema_str: str) -> None:
                 wire_py = wire_py.replace(f"self.{name}", f"self.{new_name}")
             # replace service methods Method(Stream) -> None with Method(Request, Metadata) -> Response | AsyncIterator[Response]
             wire_py = regex.sub(
-                r"(?!.*watch)(async def )([a-zA-Z0-9_]+)\(self, stream: 'grpclib.server.Stream\[([a-zA-Z0-9_\.]+), ([a-zA-Z0-9_\.]+)\]'\) -> None:",
+                r"(?!.*subscribe)(async def )([a-zA-Z0-9_]+)\(self, stream: 'grpclib.server.Stream\[([a-zA-Z0-9_\.]+), ([a-zA-Z0-9_\.]+)\]'\) -> None:",
                 r"\1\2(self, request: '\3', headers: Mapping) -> '\4':",
                 wire_py,
                 flags=re.MULTILINE,
             )
             wire_py = regex.sub(
-                r"async (def )(watch[a-zA-Z0-9_]*)\(self, stream: 'grpclib.server.Stream\[([a-zA-Z0-9_\.]+), ([a-zA-Z0-9_\.]+)\]'\) -> None:",
+                r"async (def )(subscribe[a-zA-Z0-9_]*)\(self, stream: 'grpclib.server.Stream\[([a-zA-Z0-9_\.]+), ([a-zA-Z0-9_\.]+)\]'\) -> None:",
                 r"\1\2(self, request: '\3', headers: Mapping) -> AsyncIterator['\4']:",
                 wire_py,
                 flags=re.MULTILINE,

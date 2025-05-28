@@ -11,8 +11,7 @@ import "proto/google/type/timeofday.proto";
 
 enum ActionCardinality {
   ACTION_CARDINALITY_UNSPECIFIED = 0;
-  ACTION_CARDINALITY_UNARY = 10;
-  ACTION_CARDINALITY_UNARY_STREAM = 11;
+  ACTION_CARDINALITY_UNARY = 1;
 }
 
 enum AggregationType {
@@ -1139,9 +1138,11 @@ enum StructType {
   STRUCT_TYPE_AGGREGATION = 20103;
   STRUCT_TYPE_CONDITION = 20104;
   STRUCT_TYPE_SORT = 20105;
-  STRUCT_TYPE_QUERY = 20106;
-  STRUCT_TYPE_RELATION_REFERENCE = 20110;
-  STRUCT_TYPE_ATTRIBUTE_REFERENCE = 20111;
+  STRUCT_TYPE_RELATION_REFERENCE = 20106;
+  STRUCT_TYPE_ATTRIBUTE_REFERENCE = 20107;
+  STRUCT_TYPE_QUERY = 20110;
+  STRUCT_TYPE_QUERY_RESULT = 20111;
+  STRUCT_TYPE_QUERY_UPDATE = 20112;
   STRUCT_TYPE_SCHEDULE = 21200;
   STRUCT_TYPE_ERROR = 21600;
   STRUCT_TYPE_TYPE = 22000;
@@ -1422,7 +1423,7 @@ message AgentData {
 message AggregationData {
   StructType metatype = 1;
   AggregationType type = 30;
-  optional ExpressionData operand = 31;
+  optional ExpressionData expression = 31;
   bool distinct = 33;
 }
 
@@ -1483,7 +1484,7 @@ message BenchInviteData {
   optional NodeReferenceData updated_by_ptr = 13;
   optional google.protobuf.Timestamp deleted_at = 15;
   NodeReferenceData member_ptr = 40;
-  BenchRoleType role = 45;
+  BenchRoleType role_type = 45;
 }
 
 // A BenchMembership is a membership to a Bench.
@@ -1498,7 +1499,7 @@ message BenchMembershipData {
   optional NodeReferenceData updated_by_ptr = 13;
   optional google.protobuf.Timestamp deleted_at = 15;
   NodeReferenceData member_ptr = 40;
-  BenchRoleType role = 45;
+  BenchRoleType role_type = 45;
 }
 
 // A Block on a Page.
@@ -2513,7 +2514,7 @@ message OrganizationInviteData {
   optional NodeReferenceData updated_by_ptr = 13;
   optional google.protobuf.Timestamp deleted_at = 15;
   NodeReferenceData member_ptr = 40;
-  OrganizationRoleType role = 45;
+  OrganizationRoleType role_type = 45;
 }
 
 // An OrganizationMembership is a membership to an Organization.
@@ -2527,7 +2528,7 @@ message OrganizationMembershipData {
   optional NodeReferenceData updated_by_ptr = 13;
   optional google.protobuf.Timestamp deleted_at = 15;
   NodeReferenceData member_ptr = 40;
-  OrganizationRoleType role = 45;
+  OrganizationRoleType role_type = 45;
 }
 
 message OriginData {
@@ -2575,7 +2576,7 @@ message PackageInviteData {
   optional NodeReferenceData updated_by_ptr = 13;
   optional google.protobuf.Timestamp deleted_at = 15;
   NodeReferenceData member_ptr = 40;
-  PackageRoleType role = 45;
+  PackageRoleType role_type = 45;
 }
 
 // A PackageMembership is a membership to a Package.
@@ -2591,7 +2592,7 @@ message PackageMembershipData {
   optional NodeReferenceData updated_by_ptr = 13;
   optional google.protobuf.Timestamp deleted_at = 15;
   NodeReferenceData member_ptr = 40;
-  PackageRoleType role = 45;
+  PackageRoleType role_type = 45;
 }
 
 // A Page of Blocks laying out rich Text, data, logic, resources -- anything software needs.
@@ -2649,6 +2650,17 @@ message QueryData {
   optional int64 limit = 50;
   optional int64 offset = 51;
   optional bool count = 52;
+}
+
+message QueryResultData {
+  StructType metatype = 1;
+  int64 epoch = 40;
+  QueryData query = 41;
+}
+
+message QueryUpdateData {
+  StructType metatype = 1;
+  int64 epoch = 40;
 }
 
 // A Record in a Table, basically an instance of a custom Node.

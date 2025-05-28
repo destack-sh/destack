@@ -27,9 +27,9 @@ class HealthBase(abc.ABC):
         pass
 
     @abc.abstractmethod
-    def watch(
+    async def watch(
         self, request: "health_pb2.HealthCheckRequest", headers: Mapping
-    ) -> AsyncIterator["health_pb2.HealthCheckResponse"]:
+    ) -> "health_pb2.HealthCheckResponse":
         pass
 
     def __mapping__(self) -> typing.Dict[str, grpclib.const.Handler]:

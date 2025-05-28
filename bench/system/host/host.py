@@ -1,11 +1,11 @@
 import asyncio
-from typing import TYPE_CHECKING, Any, Callable, Mapping, override
+from typing import TYPE_CHECKING, Any, AsyncIterator, Callable, Mapping, override
 
 import structlog
 from fastuuid import UUID
 from opentelemetry import trace
 
-from bench.language import CLOUD, Bench, Database, NodeReference, NodeType, Scope
+from bench.language import CLOUD, Bench, Database, Edit, NodeReference, NodeType, Query, Scope
 from bench.pb2 import (
     CommitRequest,
     CommitResponse,
@@ -64,8 +64,9 @@ class HostService(ServiceBase, HostBase):
             node_type=NodeType.BENCH, id=bench_id, ck=bench_id, bench_id=bench_id
         )
         self.scope = Scope(bench_id=bench_id).to_proto()
-        self._provisioners: tuple[Provisioner, ...] = ()
-        self._plugins: tuple[HostPlugin, ...] = ()  # incl. provisioners
+        self.provisioners: tuple[Provisioner, ...] = ()
+        self.plugins: tuple[HostPlugin, ...] = ()  # incl. provisioners
+        self.store: Store = None
 
     def __str__(self):
         return f"{self.bench_id}"
@@ -77,31 +78,41 @@ class HostService(ServiceBase, HostBase):
     @property
     def is_idle(self) -> bool:
         """Check if the Host is idle (no pending requests or processing)."""
-        return all(plugin.is_idle for plugin in self._plugins) and super().is_idle
+        return all(plugin.is_idle for plugin in self.plugins) and super().is_idle
 
     async def start(self) -> None:
         raise NotImplementedError
 
     def stop(self) -> None:
         super().stop()
-        for plugin in self._plugins:
+        for plugin in self.plugins:
             plugin.close()
 
     async def wait_stopped(self) -> None:
         await super().wait_stopped()
-        await asyncio.gather(*(plugin.wait_closed() for plugin in self._plugins))
+        await asyncio.gather(*(plugin.wait_closed() for plugin in self.plugins))
 
     @override
     async def query(self, request: QueryRequest, headers: Mapping) -> QueryResponse:
-        raise NotImplementedError
+        query = Query.from_proto(request.query)
+        query.validate()
+        query_result = await self.store.query(query)
+        return QueryResponse(result=query_result.to_proto())
 
     @override
-    async def subscribe(self, request: SubscribeRequest, headers: Mapping) -> SubscribeResponse:
-        raise NotImplementedError
+    async def subscribe(
+        self, request: SubscribeRequest, headers: Mapping
+    ) -> AsyncIterator[SubscribeResponse]:
+        query = Query.from_proto(request.query)
+        query.validate()
+        async for update in await self.store.subscribe(query):
+            yield SubscribeResponse(update=update.to_proto())
 
     @override
     async def commit(self, request: CommitRequest, headers: Mapping) -> CommitResponse:
-        raise NotImplementedError
+        edits = [Edit.from_proto(edit) for edit in request.edits]
+        edits, cascaded_edits = await self.store.commit(edits)
+        return CommitResponse(edits=edits, cascaded_edits=cascaded_edits)
 
     @override
     async def upload_files(
