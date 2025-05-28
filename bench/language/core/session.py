@@ -31,7 +31,7 @@ class Session:
     A managed Session for interacting with a Bench.
     """
 
-    supergraph: Supergraph
+    supergraph: Supergraph = dataclasses.field(default_factory=Supergraph)
     mode: NodeMode = NodeMode.MAIN
     oracle: Oracle = REAL_ORACLE
     bench: Optional["Bench"] = None

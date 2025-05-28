@@ -1,11 +1,24 @@
 import asyncio
-from typing import TYPE_CHECKING, Any, AsyncIterator, Callable, Mapping, override
+from typing import TYPE_CHECKING, Any, AsyncIterator, Callable, override
 
 import structlog
 from fastuuid import UUID
 from opentelemetry import trace
 
-from bench.language import CLOUD, Bench, Database, Edit, NodeReference, NodeType, Query, Scope
+from bench.language import (
+    CLOUD,
+    Bench,
+    Client,
+    Database,
+    Edit,
+    IsSubject,
+    NodeReference,
+    NodeType,
+    Query,
+    Scope,
+    Session,
+    Store,
+)
 from bench.pb2 import (
     CommitRequest,
     CommitResponse,
@@ -14,6 +27,7 @@ from bench.pb2 import (
     HostBase,
     QueryRequest,
     QueryResponse,
+    RpcMetadata,
     ServiceKind,
     SubscribeRequest,
     SubscribeResponse,
@@ -93,7 +107,24 @@ class HostService(ServiceBase, HostBase):
         await asyncio.gather(*(plugin.wait_closed() for plugin in self.plugins))
 
     @override
-    async def query(self, request: QueryRequest, headers: Mapping) -> QueryResponse:
+    async def make_session(self, metadata: RpcMetadata) -> Session:
+        return Session()
+
+    @override
+    async def resolve_client(
+        self, request, metadata: RpcMetadata
+    ) -> tuple[IsSubject | None, Client | None]:
+        raise NotImplementedError
+
+    @override
+    async def query(
+        self,
+        request: QueryRequest,
+        session: Session,
+        subject: IsSubject | None,
+        client: Client | None,
+        metadata: RpcMetadata,
+    ) -> QueryResponse:
         query = Query.from_proto(request.query)
         query.validate()
         query_result = await self.store.query(query)
@@ -101,7 +132,12 @@ class HostService(ServiceBase, HostBase):
 
     @override
     async def subscribe(
-        self, request: SubscribeRequest, headers: Mapping
+        self,
+        request: SubscribeRequest,
+        session: Session,
+        subject: IsSubject | None,
+        client: Client | None,
+        metadata: RpcMetadata,
     ) -> AsyncIterator[SubscribeResponse]:
         query = Query.from_proto(request.query)
         query.validate()
@@ -109,20 +145,40 @@ class HostService(ServiceBase, HostBase):
             yield SubscribeResponse(update=update.to_proto())
 
     @override
-    async def commit(self, request: CommitRequest, headers: Mapping) -> CommitResponse:
+    async def commit(
+        self,
+        request: CommitRequest,
+        session: Session,
+        subject: IsSubject | None,
+        client: Client | None,
+        metadata: RpcMetadata,
+    ) -> CommitResponse:
         edits = [Edit.from_proto(edit) for edit in request.edits]
         edits, cascaded_edits = await self.store.commit(edits)
-        return CommitResponse(edits=edits, cascaded_edits=cascaded_edits)
+        return CommitResponse(
+            edits=[edit.to_proto() for edit in edits],
+            cascaded_edits=[edit.to_proto() for edit in cascaded_edits],
+        )
 
     @override
     async def upload_files(
-        self, request: UploadFilesRequest, headers: Mapping
+        self,
+        request: UploadFilesRequest,
+        session: Session,
+        subject: IsSubject | None,
+        client: Client | None,
+        metadata: RpcMetadata,
     ) -> UploadFilesResponse:
         raise NotImplementedError
 
     @override
     async def download_files(
-        self, request: DownloadFilesRequest, headers: Mapping
+        self,
+        request: DownloadFilesRequest,
+        session: Session,
+        subject: IsSubject | None,
+        client: Client | None,
+        metadata: RpcMetadata,
     ) -> DownloadFilesResponse:
         raise NotImplementedError
 

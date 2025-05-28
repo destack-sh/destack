@@ -24,8 +24,9 @@ from grpclib import Status as GRPCStatus
 from grpclib.client import ServiceMethod
 from opentelemetry import trace
 
-from bench.language.core import BenchError
-from bench.pb2 import ServiceKind
+from bench.language import EMPTY_DICT, BenchError, Client, IsSubject, Session
+from bench.pb2 import RpcMetadata, ServiceKind
+from bench.proto.wiring import unpack_rpc_headers
 from bench.utils.env import IS_DEV, IS_TEST
 from bench.utils.oracle import Oracle
 from bench.utils.string import Casing, to_casing
@@ -42,8 +43,13 @@ if TYPE_CHECKING:
 logger = structlog.get_logger(__name__)
 tracer = trace.get_tracer(__name__)
 
-UnaryRpcCallable = Callable[[ProtoMessage], ProtoMessage]
-StreamRpcCallable = Callable[[ProtoMessage], AsyncIterable[ProtoMessage]]
+UnaryRpcCallable = Callable[
+    [ProtoMessage, Session, IsSubject | None, Client | None, RpcMetadata], ProtoMessage
+]
+StreamRpcCallable = Callable[
+    [ProtoMessage, Session, IsSubject | None, Client | None, RpcMetadata],
+    AsyncIterable[ProtoMessage],
+]
 RpcCallable = Union[UnaryRpcCallable, StreamRpcCallable]
 
 ServiceStubT = TypeVar("ServiceStubT")
@@ -131,20 +137,6 @@ class ServiceBase(abc.ABC):
         assert len(patched_mapping) > 0, f"no RPCs found in {self!r}"
         return patched_mapping
 
-    def _validate_request(self, request: ProtoMessage) -> None:  # noqa: B027
-        """Validate a request message."""
-        pass
-
-    async def get_request[ReqT: ProtoMessage](
-        self, stream: grpclib.server.Stream[ReqT, Any]
-    ) -> ReqT:
-        """Gets the request from the given stream."""
-        request = await stream.recv_message()
-        if request is None:
-            raise GRPCError(GRPCStatus.INVALID_ARGUMENT, "missing request")
-        self._validate_request(request)
-        return request
-
     async def send_unary_response[RespT: ProtoMessage](
         self, stream: grpclib.server.Stream[Any, RespT], response: RespT
     ) -> None:
@@ -161,6 +153,14 @@ class ServiceBase(abc.ABC):
         self, func: RpcCallable, method_name: str, handler: grpclib.const.Handler
     ) -> Callable:
         return func
+
+    async def make_session(self, metadata: RpcMetadata) -> Session:
+        return Session()
+
+    async def resolve_client(
+        self, request: ProtoMessage, metadata: RpcMetadata
+    ) -> tuple[IsSubject | None, Client | None]:
+        return None, None
 
     @final
     def _wrap_rpc(self, method: str, handler: grpclib.const.Handler) -> grpclib.const.Handler:
@@ -184,21 +184,26 @@ class ServiceBase(abc.ABC):
             with tracer.start_as_current_span(rpc_name) as span:
                 try:
                     set_baggage(**self.get_service_baggage())
-                    request = await stream.recv_message()
-                    if request is None:
-                        raise GRPCError(GRPCStatus.INVALID_ARGUMENT, "missing request")
-                    self._validate_request(request)
-                    if handler.cardinality == grpclib.const.Cardinality.UNARY_UNARY:
-                        self.active_unary_requests_count += 1
-                        response = await func(request, stream.metadata)
-                        await stream.send_message(response)
-                    elif handler.cardinality == grpclib.const.Cardinality.UNARY_STREAM:
-                        span.end()  # end early (streaming, span shouldn't continue forever)
-                        async for response in func(request, stream.metadata):
-                            log.trace(f"{rpc_name}.update")
+                    session = Session()
+                    async with session:
+                        request = await stream.recv_message()
+                        if request is None:
+                            raise GRPCError(GRPCStatus.INVALID_ARGUMENT, "missing request")
+                        headers = stream.metadata
+                        metadata = unpack_rpc_headers(headers or EMPTY_DICT)
+                        subject, client = await self.resolve_client(request, metadata)
+
+                        if handler.cardinality == grpclib.const.Cardinality.UNARY_UNARY:
+                            self.active_unary_requests_count += 1
+                            response = await func(request, session, subject, client, metadata)
                             await stream.send_message(response)
-                    else:
-                        raise RuntimeError(f"unsuported cardinality {handler.cardinality}")
+                        elif handler.cardinality == grpclib.const.Cardinality.UNARY_STREAM:
+                            span.end()  # end early (streaming, span shouldn't continue forever?)
+                            async for response in func(request, session, subject, client, metadata):
+                                log.trace(f"{rpc_name}.update")
+                                await stream.send_message(response)
+                        else:
+                            raise RuntimeError(f"unsuported cardinality {handler.cardinality}")
                     log.trace(rpc_name, span="current")
                 except GRPCError as e:
                     # pass through GRPC errors

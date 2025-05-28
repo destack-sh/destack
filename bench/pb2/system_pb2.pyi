@@ -4,6 +4,9 @@
 
 from typing import TYPE_CHECKING, Union, AsyncIterator, Mapping
 
+if TYPE_CHECKING:
+    from bench.language import Session, Session, IsSubject, Client
+
 
 
 from google.protobuf import struct_pb2 as _struct_pb2
@@ -137,24 +140,6 @@ class CreateOrganizationResponse(_message.Message):
     organization: _lang_pb2.OrganizationData
     epoch: int
     def __init__(self, organization: _Optional[_Union[_lang_pb2.OrganizationData, _Mapping]] = ..., epoch: _Optional[int] = ...) -> None: ...
-
-class CreateBenchRequest(_message.Message):
-    __slots__ = ("owner", "slug", "region", "is_main")
-    OWNER_FIELD_NUMBER: _ClassVar[int]
-    SLUG_FIELD_NUMBER: _ClassVar[int]
-    REGION_FIELD_NUMBER: _ClassVar[int]
-    IS_MAIN_FIELD_NUMBER: _ClassVar[int]
-    owner: _lang_pb2.NodeReferenceData
-    slug: str
-    region: _lang_pb2.Region
-    is_main: bool
-    def __init__(self, owner: _Optional[_Union[_lang_pb2.NodeReferenceData, _Mapping]] = ..., slug: _Optional[str] = ..., region: _Optional[_Union[_lang_pb2.Region, str]] = ..., is_main: bool = ...) -> None: ...
-
-class CreateBenchResponse(_message.Message):
-    __slots__ = ("bench",)
-    BENCH_FIELD_NUMBER: _ClassVar[int]
-    bench: _lang_pb2.BenchData
-    def __init__(self, bench: _Optional[_Union[_lang_pb2.BenchData, _Mapping]] = ...) -> None: ...
 
 class ResolveHostsRequest(_message.Message):
     __slots__ = ("benches",)

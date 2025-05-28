@@ -1,4 +1,4 @@
-from typing import AsyncIterator, override
+from typing import AsyncIterator, Mapping, override
 
 from fastuuid import UUID
 
@@ -10,6 +10,7 @@ from bench.language import (
     BenchStatus,
     Database,
     Edit,
+    NodeArea,
     Package,
     PackageType,
     Query,
@@ -25,11 +26,11 @@ from bench.utils.utils import get_from_env
 
 class DatabaseStore(Store):
     """
-    A Store backed by a Database.
+    A Store backed by Databases.
     """
 
-    def __init__(self, database: Database):
-        self.database = database
+    def __init__(self, database_by_area: Mapping[NodeArea, Database]):
+        self.database_by_area = database_by_area
 
     @override
     async def query(self, query: Query) -> QueryResult:

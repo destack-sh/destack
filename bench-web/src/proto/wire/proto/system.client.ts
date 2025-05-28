@@ -20,8 +20,6 @@ import type { ServiceInfo } from "@protobuf-ts/runtime-rpc";
 import { Supervisor } from "./system";
 import type { ResolveHostsResponse } from "./system";
 import type { ResolveHostsRequest } from "./system";
-import type { CreateBenchResponse } from "./system";
-import type { CreateBenchRequest } from "./system";
 import type { LogoutUserResponse } from "./system";
 import type { LogoutUserRequest } from "./system";
 import type { LoginUserResponse } from "./system";
@@ -39,10 +37,6 @@ import type { RpcOptions } from "@protobuf-ts/runtime-rpc";
  * @generated from protobuf service symbol.bench.Supervisor
  */
 export interface ISupervisorClient {
-    // 
-    // User management
-    // 
-
     /**
      * Create User.
      *
@@ -67,16 +61,6 @@ export interface ISupervisorClient {
      * @generated from protobuf rpc: LogoutUser(symbol.bench.LogoutUserRequest) returns (symbol.bench.LogoutUserResponse);
      */
     logoutUser(input: LogoutUserRequest, options?: OperationOptions): UnaryCall<LogoutUserRequest, LogoutUserResponse>;
-    // 
-    // Bench management
-    // 
-
-    /**
-     * Create a Bench. If this is the first Bench for the owner, we activate the User/Organization.
-     *
-     * @generated from protobuf rpc: CreateBench(symbol.bench.CreateBenchRequest) returns (symbol.bench.CreateBenchResponse);
-     */
-    createBench(input: CreateBenchRequest, options?: OperationOptions): UnaryCall<CreateBenchRequest, CreateBenchResponse>;
     /**
      * Gets Bench host information.
      *
@@ -95,10 +79,6 @@ export class SupervisorClient implements ISupervisorClient, ServiceInfo {
     options = Supervisor.options;
     constructor(private readonly _transport: RpcTransport) {
     }
-    // 
-    // User management
-    // 
-
     /**
      * Create User.
      *
@@ -135,26 +115,13 @@ export class SupervisorClient implements ISupervisorClient, ServiceInfo {
         const method = this.methods[3], opt = this._transport.mergeOptions(options);
         return stackIntercept<LogoutUserRequest, LogoutUserResponse>("unary", this._transport, method, opt, input);
     }
-    // 
-    // Bench management
-    // 
-
-    /**
-     * Create a Bench. If this is the first Bench for the owner, we activate the User/Organization.
-     *
-     * @generated from protobuf rpc: CreateBench(symbol.bench.CreateBenchRequest) returns (symbol.bench.CreateBenchResponse);
-     */
-    createBench(input: CreateBenchRequest, options?: OperationOptions): UnaryCall<CreateBenchRequest, CreateBenchResponse> {
-        const method = this.methods[4], opt = this._transport.mergeOptions(options);
-        return stackIntercept<CreateBenchRequest, CreateBenchResponse>("unary", this._transport, method, opt, input);
-    }
     /**
      * Gets Bench host information.
      *
      * @generated from protobuf rpc: ResolveHosts(symbol.bench.ResolveHostsRequest) returns (symbol.bench.ResolveHostsResponse);
      */
     resolveHosts(input: ResolveHostsRequest, options?: OperationOptions): UnaryCall<ResolveHostsRequest, ResolveHostsResponse> {
-        const method = this.methods[5], opt = this._transport.mergeOptions(options);
+        const method = this.methods[4], opt = this._transport.mergeOptions(options);
         return stackIntercept<ResolveHostsRequest, ResolveHostsResponse>("unary", this._transport, method, opt, input);
     }
 }

@@ -4,6 +4,9 @@
 
 from typing import TYPE_CHECKING, Union, AsyncIterator, Mapping
 
+if TYPE_CHECKING:
+    from bench.language import Session, Session, IsSubject, Client
+
 
 
 from google.protobuf import duration_pb2 as _duration_pb2

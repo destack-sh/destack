@@ -8,6 +8,7 @@ from bench.language.core import (
     HasName,
     IsGlobal,
     IsInBench,
+    IsSubject,
     Node,
     NodeReference,
     NodeType,
@@ -15,6 +16,7 @@ from bench.language.core import (
     StructType,
     node_,
     property_,
+    property_parent_,
     struct_,
 )
 from bench.pb2 import ClientData, OriginData
@@ -30,6 +32,7 @@ class Client(HasName, IsInBench, IsGlobal, Node[ClientData]):
     """A Client to connect with the system."""
 
     # meta
+    parent: Optional[IsSubject] = property_parent_()
     type: ClientType = property_(30)
     space: Optional["Space"] = property_(35, can_write="system")
     machine: Optional["Machine"] = property_(36, can_write="system")

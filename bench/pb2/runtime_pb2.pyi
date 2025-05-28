@@ -4,6 +4,9 @@
 
 from typing import TYPE_CHECKING, Union, AsyncIterator, Mapping
 
+if TYPE_CHECKING:
+    from bench.language import Session, Session, IsSubject, Client
+
 
 
 from . import common_pb2 as _common_pb2

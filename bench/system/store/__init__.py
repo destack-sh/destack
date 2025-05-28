@@ -5,12 +5,16 @@ from .database import (
 )
 from .sharding import (
     DATABASE_MAP,
+    DatabaseInfo,
+    DatabaseMap,
     get_database_map_from_env,
     get_database_map_from_string,
 )
 
 __all__ = [
     "DATABASE_MAP",
+    "DatabaseInfo",
+    "DatabaseMap",
     "DatabaseStore",
     "get_database_map_from_env",
     "get_database_map_from_string",
