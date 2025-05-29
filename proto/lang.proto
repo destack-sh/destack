@@ -1139,8 +1139,9 @@ enum StructType {
   STRUCT_TYPE_AGGREGATION = 20103;
   STRUCT_TYPE_CONDITION = 20104;
   STRUCT_TYPE_SORT = 20105;
-  STRUCT_TYPE_RELATION_REFERENCE = 20106;
-  STRUCT_TYPE_ATTRIBUTE_REFERENCE = 20107;
+  STRUCT_TYPE_SELECT = 20106;
+  STRUCT_TYPE_RELATION_REFERENCE = 20107;
+  STRUCT_TYPE_ATTRIBUTE_REFERENCE = 20108;
   STRUCT_TYPE_QUERY = 20110;
   STRUCT_TYPE_QUERY_RESULT = 20111;
   STRUCT_TYPE_QUERY_UPDATE = 20112;
@@ -1432,9 +1433,9 @@ message AggregationData {
 message AttributeReferenceData {
   StructType metatype = 1;
   AttributeType type = 30;
-  optional string name = 31;
+  optional PropertyReferenceData prop_ptr = 31;
   optional NodeReferenceData field_ptr = 32;
-  optional PropertyReferenceData prop_ptr = 33;
+  optional string name = 33;
   optional RelationReferenceData relation = 34;
 }
 
@@ -1746,7 +1747,7 @@ message EditData {
   string id = 2;
   EditType type = 30;
   optional UpdateType operation = 31;
-  string node_id = 32;
+  NodeReferenceData node_ptr = 32;
   optional string path = 33;
   optional ValueData key = 34;
   optional ValueData value = 41;
@@ -2656,9 +2657,11 @@ message QueryData {
   string id = 2;
   QueryType type = 30;
   string name = 31;
-  RelationReferenceData relation = 35;
-  optional JoinData join = 36;
-  repeated QueryData subqueries = 37;
+  RelationReferenceData relation = 32;
+  optional JoinData join = 33;
+  optional SelectData select = 34;
+  repeated QueryData subqueries = 35;
+  bool is_live = 39;
   optional ConditionData where = 40;
   optional ConditionData having = 41;
   repeated ExpressionData group_by = 42;
@@ -2851,6 +2854,11 @@ message ScopeData {
   StructType metatype = 1;
   optional Region region = 31;
   optional string bench_id = 32;
+}
+
+message SelectData {
+  StructType metatype = 1;
+  repeated AttributeReferenceData attributes = 31;
 }
 
 message SelectionData {

@@ -75,7 +75,7 @@ class Edit(StructFrozen):
     # key
     type: EditType = property_(30)
     operation: UpdateType | None = property_(31)
-    node_id: UUID = property_(32)
+    node: Node = property_(32)
     path: str | None = property_(33)
     key: "Value | None" = property_(34)  # for map operations
 

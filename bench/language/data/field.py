@@ -70,7 +70,4 @@ class Field(
     edge_type: Optional[EdgeType] = property_(70)
     cascade: Optional[CascadeAction] = property_(71)
 
-    def __eq__(self, other):  # type: ignore
-        return IntoQuery.__eq__(self, other)  # override to avoid recursion
-
     __hash__ = IsInPackage.__hash__  # type: ignore

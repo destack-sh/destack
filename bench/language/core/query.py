@@ -12,7 +12,7 @@ from .struct import NodeReference, StructFrozen, StructMutable, struct_
 from .value import Value
 
 if TYPE_CHECKING:
-    from bench.language import Field, Table
+    from bench.language import Field, Session, Store, Table
 
 # pyright: reportIncompatibleVariableOverride=false
 
@@ -64,11 +64,11 @@ class AttributeReference(StructFrozen):
     """Reference to a Field or Property."""
 
     type: AttributeType = property_(30, is_repr=True)
-    name: str | None = property_(
-        31, description="Named attribute from another Query.", is_repr=True
-    )
+    prop: Optional["Property"] = property_(31, is_repr=True)
     field: Optional["Field"] = property_(32, is_repr=True)
-    prop: Optional["Property"] = property_(33, is_repr=True)
+    name: str | None = property_(
+        33, description="Named attribute from another Query.", is_repr=True
+    )
     relation: Optional[RelationReference] = property_(34, is_repr=True)
 
 
@@ -302,6 +302,22 @@ def sort(sort: SortIn, type: SortType = SortType.ASCENDING) -> Sort:
 
 
 #
+# Select
+#
+
+
+@struct_(StructType.SELECT, frozen=True)
+class Select(StructFrozen):
+    """Select specific Attributes."""
+
+    attributes: list[AttributeReference] = property_(31, is_repr=True)
+
+
+def select(*attributes: AttributeReference) -> Select:
+    return Select(attributes=list(attributes))
+
+
+#
 # Join
 #
 
@@ -356,8 +372,8 @@ class QueryType(BuiltinEnum):
     AGGREGATE = 3
 
 
-@struct_(StructType.QUERY)
-class Query[RootT: "Node"](StructMutable):
+@struct_(StructType.QUERY, frozen=True)
+class Query[RootT: "Node"](StructFrozen):
     """A GraphQL-inspired Query node (with subqueries)."""
 
     # meta
@@ -368,10 +384,11 @@ class Query[RootT: "Node"](StructMutable):
         description="Name for this subquery. Must be unique within the parent Query.",
         is_repr=True,
     )
-    relation: RelationReference = property_(35, is_repr=True)
-    join: Optional[Join] = property_(36, description="Relative to parent Query.", is_repr=True)
-    subqueries: list["Query"] = property_(37)
-    # select/attributes, ...
+    relation: RelationReference = property_(32, is_repr=True)
+    join: Optional[Join] = property_(33, description="Relative to parent Query.", is_repr=True)
+    select: Optional[Select] = property_(34, is_repr=True)
+    subqueries: list["Query"] = property_(35)
+    is_live: bool = property_(39, default=True)
 
     # content
     where: Optional[Condition] = property_(40, is_repr=True)
@@ -385,7 +402,7 @@ class Query[RootT: "Node"](StructMutable):
     offset: Optional[int] = property_(51, is_repr=True)
     count: bool | None = property_(52, is_repr=True)
 
-    async def execute(self) -> "QueryResult[RootT]":
+    async def execute(self) -> "QueryConnection[RootT]":
         """Execute the Query."""
         raise NotImplementedError
 
@@ -402,7 +419,7 @@ class Query[RootT: "Node"](StructMutable):
         raise NotImplementedError
 
     async def execute_count(self) -> int:
-        """Execute the Query and return the count of roots."""
+        """Execute the Query and return its count."""
         raise NotImplementedError
 
 
@@ -430,6 +447,24 @@ class QueryUpdate(StructFrozen):
     """An update to a QueryResult."""
 
     epoch: int = property_(40, is_repr=True)
+
+
+class QueryConnection[RootT: "Node"]:
+    """A connection to a Query and its result."""
+
+    __slots__ = ("id", "is_live", "query", "result", "session", "store")
+
+    def __init__(self, query: Query, store: "Store", session: "Session"):
+        self.id: UUID = query.id
+        self.query: Query = query
+        self.is_live = query.is_live
+        self.store: Store = store
+        self.session: Session = session
+        self.result: QueryResult | None = None
+
+    async def execute(self) -> QueryResult[RootT]:
+        """Execute the Query."""
+        raise NotImplementedError
 
 
 # from bench.language import *

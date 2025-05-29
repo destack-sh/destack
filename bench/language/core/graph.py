@@ -1,4 +1,3 @@
-from collections import deque
 from typing import (
     TYPE_CHECKING,
     Collection,
@@ -9,10 +8,10 @@ import structlog
 from fastuuid import UUID
 from opentelemetry import trace
 
-from .const import EMPTY_LIST, NodeType
+from .const import NodeType
 
 if TYPE_CHECKING:
-    from bench.language import Node
+    from bench.language import Node, Session
 
 logger = structlog.get_logger(__name__)
 tracer = trace.get_tracer(__name__)
@@ -26,16 +25,11 @@ class GraphConsistencyError(GraphError):
     pass
 
 
-def attach_node(
-    node: "Node", parent: "Node | None", graph: "Graph", move: bool = False, create: bool = True
-):
-    raise NotImplementedError
-
-
 class Graph:
-    __slots__ = ("nodes_by_id", "nodes_by_parent_id")
+    __slots__ = ("nodes_by_id", "nodes_by_parent_id", "supergraph")
 
-    def __init__(self):
+    def __init__(self, supergraph: "Supergraph"):
+        self.supergraph = supergraph
         self.nodes_by_id: dict[UUID, Node] = {}
         self.nodes_by_parent_id: dict[UUID, dict[NodeType, list[Node]]] = {}
 
@@ -71,15 +65,15 @@ class Graph:
         self.nodes_by_parent_id.clear()
 
     def add(self, node: "Node"):
-        """Add a node to the graph (error if node already exists, *no* descendants)"""
+        """Add a new Node to the graph (must not exist, excluding descendants)."""
         raise NotImplementedError
 
     def update(self, node: "Node"):
-        """Updates an existing node in this graph (must exist)"""
+        """Updates an existing Node (must exist)."""
         raise NotImplementedError
 
     def remove(self, node: "Node"):
-        """Remove a node from the graph (incl. all descendants)"""
+        """Remove a Node from the graph (must exist, excluding descendants)."""
         raise NotImplementedError
 
     def get_descendants(
@@ -88,46 +82,8 @@ class Graph:
         node_type: NodeType | None = None,
         recursive: bool = False,
     ) -> list["Node"]:
-        """Collects all descendants as filtered in BFS order"""
-        if node.id not in self.nodes_by_parent_id:
-            return EMPTY_LIST
-        if not recursive:
-            if node_type is not None:
-                return self.nodes_by_parent_id[node.id].get(node_type, [])
-            else:
-                all_children: list[Node] = []
-                for children in self.nodes_by_parent_id[node.id].values():
-                    all_children.extend(children)
-                return all_children
-        else:
-            descendants: list[Node] = []
-            if node_type:
-                queue = deque(self.nodes_by_parent_id[node.id].get(node_type, []))
-            else:
-                queue = deque()
-                for children in self.nodes_by_parent_id[node.id].values():
-                    queue.extend(children)
-            while queue:
-                cur = queue.popleft()
-                descendants.append(cur)
-                if node_type:
-                    queue.extend(self.nodes_by_parent_id.get(cur.id, {}).get(node_type, ()))
-                else:
-                    for children in self.nodes_by_parent_id.get(cur.id, {}).values():
-                        queue.extend(children)
-            return descendants
-
-    def get_ancestors(self, node: "Node") -> list["Node"]:
-        """Collects all ancestors up"""
-        ancestors: list[Node] = []
-        cur = node
-        while (parent_id := cur.parent_id) is not None:
-            cur = self.nodes_by_id[parent_id]
-            ancestors.append(cur)
-        return ancestors
-
-    def __bool__(self):
-        return True  # not empty
+        """Collects descendant Nodes in BFS order"""
+        raise NotImplementedError
 
     def extend(self, nodes: Collection["Node"]):
         """Adds all nodes to the graph"""
@@ -138,10 +94,10 @@ class Graph:
 class Supergraph:
     """ """
 
-    __slots__ = ("graphs", "name", "nodes_by_id")
+    __slots__ = ("graphs", "nodes_by_id", "session")
 
-    def __init__(self, name: str | None = None):
-        self.name = name
+    def __init__(self, session: "Session"):
+        self.session = session
         self.nodes_by_id: dict[UUID, Node] = {}
         self.graphs: list[Graph] = []
 

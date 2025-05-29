@@ -26,7 +26,6 @@ from .const import (
     NodeArea,
     NodeType,
     TraitType,
-    active_session,
 )
 from .graph import Graph
 from .object import BuiltinObjectMutable, _process_object_cls
@@ -333,8 +332,10 @@ class Node[NodeDataT: AnyNodeData](BuiltinObjectMutable[NodeDataT]):
 
     async def wait_until(self, condition: Callable[[Self], bool], timeout: timedelta | None = None):
         """Wait until the given condition is true."""
-        runtime = active_session().runtime
-        await runtime.wait_for(nodes=[self], condition=lambda: condition(self), timeout=timeout)
+        assert self._session.runtime is not None, f"no active Runtime in {self!r}"
+        await self._session.runtime.wait_for(
+            nodes=[self], condition=lambda: condition(self), timeout=timeout
+        )
 
     #
     # Querying

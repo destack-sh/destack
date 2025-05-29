@@ -6,7 +6,7 @@ if TYPE_CHECKING:
 
 
 class Store(abc.ABC):
-    """The backing Store for the Supergraph."""
+    """The read/write Store backing the Supergraph."""
 
     @abc.abstractmethod
     async def query(self, query: "Query") -> "QueryResult":
@@ -20,7 +20,7 @@ class Store(abc.ABC):
 
 
 class LiveStore(Store):
-    """A Store that can live-update."""
+    """A Store that can be subscribed to."""
 
     @abc.abstractmethod
     async def subscribe(self, query: "Query") -> AsyncIterator["QueryUpdate"]:

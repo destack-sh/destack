@@ -228,6 +228,7 @@ class IsInstantiable(IsTemplatable):
     """A Node that can be instanced (we can create Nodes that are 'instances' of this Node)."""
 
     ck: UUID = property_(3, is_managed=True, is_eq=False)  # type: ignore
+    # instance_of/overlay_of?
     # nocheckin: proper templating/instancing (for views/Variants/overrides/branches/...)
 
     @property

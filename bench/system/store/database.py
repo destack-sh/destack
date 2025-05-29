@@ -1,4 +1,4 @@
-from typing import AsyncIterator, Mapping, Sequence, override
+from typing import Mapping, Sequence, override
 
 from fastuuid import UUID
 
@@ -16,11 +16,9 @@ from bench.language import (
     PackageType,
     Query,
     QueryResult,
-    QueryUpdate,
     Region,
     Session,
     Store,
-    Supergraph,
 )
 from bench.utils.utils import get_from_env
 
@@ -38,16 +36,12 @@ class DatabaseStore(Store):
         raise NotImplementedError
 
     @override
-    async def subscribe(self, query: Query) -> AsyncIterator[QueryUpdate]:
-        raise NotImplementedError
-
-    @override
     async def commit(self, changes: Sequence[Change]) -> Sequence[ChangeResult]:
         raise NotImplementedError
 
 
 def make_system_database(region: Region, pg_url: str) -> Database:
-    system_session = Session(supergraph=Supergraph("system"))
+    system_session = Session()
     system_bench_stub = Bench(
         id=UUID(int=0),
         name="System",

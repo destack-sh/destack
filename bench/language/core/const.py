@@ -44,7 +44,7 @@ class _Unset:
 
 
 # forever constants
-VERSION = "2025.05.28.1"
+VERSION = "2025.05.29.0"
 UUID_NAMESPACE = uuid5(UUID(int=0), b"bench")
 CK_LENGTH_B64 = 24  # 1.5 * CK_LENGTH_BYTES (must be integer)
 FLOAT_EPSILON = 1e-6
@@ -480,8 +480,9 @@ class StructType(BuiltinEnum):
     AGGREGATION = 20103
     CONDITION = 20104
     SORT = 20105
-    RELATION_REFERENCE = 20106
-    ATTRIBUTE_REFERENCE = 20107
+    SELECT = 20106
+    RELATION_REFERENCE = 20107
+    ATTRIBUTE_REFERENCE = 20108
     QUERY = 20110
     QUERY_RESULT = 20111
     QUERY_UPDATE = 20112
@@ -676,7 +677,7 @@ class NodeType(BuiltinEnum):
     # POLL, STAR, VOTE, REVIEW, RATING, RANK, REACTION, ...
     # FOLLOW, FEED, FEED_ITEM, ...
     # CHANNEL, NOTIFICATION, ...
-    # ACHIEVEMENT, WISHLIST/WATCHLIST, ...
+    # ACHIEVEMENT, BADGE, WISHLIST/WATCHLIST, ...
 
     # product [2800-3200]
     # PREVIEW, RELEASE, ROLLOUT, ...
@@ -1346,7 +1347,7 @@ def capture_span(
 
     if runner is None:
         session = ACTIVE_SESSION.get()
-        runtime = session._runtime if session is not None else None
+        runtime = session.runtime if session is not None else None
         runner = runtime.active_runner if runtime is not None else None
         run = runner.closest_tracked_run if runner is not None else None
     else:

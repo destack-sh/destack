@@ -6,7 +6,6 @@ import grpclib
 import pytest
 import structlog
 
-from bench.language.core.graph import Supergraph
 from bench.language.core.session import Session
 from bench.sql.client import pg_connection
 from bench.test.conftest import _setup_test_env
@@ -55,7 +54,7 @@ def make_global_database(name: str):
     pg_url_parsed = urlparse(pg)
     pg_url = pg_url_parsed._replace(path=f"/{name}").geturl()
 
-    system_session = Session(supergraph=Supergraph("system"))
+    system_session = Session()
     system_bench_stub = Bench(
         id=SYSTEM_ID,
         name="System",
@@ -96,7 +95,7 @@ def make_regional_database(name: str):
     pg_url_parsed = urlparse(pg)
     pg_url = pg_url_parsed._replace(path=f"/{name}").geturl()
 
-    system_session = Session(supergraph=Supergraph("system"))
+    system_session = Session()
     system_bench_stub = Bench(
         id=SYSTEM_ID,
         name="System",

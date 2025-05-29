@@ -94,10 +94,12 @@ from .query import (
     Join,
     JoinType,
     Query,
+    QueryConnection,
     QueryResult,
     QueryType,
     QueryUpdate,
     RelationReference,
+    Select,
     Selection,
     Sort,
     SortMode,
@@ -108,6 +110,7 @@ from .query import (
     expression,
     join,
     relation_ref,
+    select,
     sort,
 )
 from .render import (
@@ -208,16 +211,7 @@ from .type import (
     to_type_scalar,
 )
 from .validation import ValidationError
-from .value import (
-    Value,
-    pack_proto_date,
-    pack_proto_json,
-    pack_proto_time,
-    unpack_proto_date,
-    unpack_proto_json,
-    unpack_proto_json_struct,
-    unpack_proto_time,
-)
+from .value import Value
 from .variable import Variable, VariableProperty, VariableType
 
 __all__ = [
@@ -345,6 +339,7 @@ __all__ = [
     "Property",
     "PropertyReference",
     "Query",
+    "QueryConnection",
     "QueryResult",
     "QueryType",
     "QueryUpdate",
@@ -356,6 +351,7 @@ __all__ = [
     "RunType",
     "ScalarType",
     "Scope",
+    "Select",
     "Selection",
     "Session",
     "Sort",
@@ -412,9 +408,6 @@ __all__ = [
     "node_",
     "node_",
     "object_",
-    "pack_proto_date",
-    "pack_proto_json",
-    "pack_proto_time",
     "parse_type_annotation",
     "property_",
     "property_ancestor_",
@@ -430,6 +423,7 @@ __all__ = [
     "repr_enums",
     "reverse_icon",
     "reverse_type_scalar",
+    "select",
     "sort",
     "struct_",
     "text",
@@ -443,8 +437,4 @@ __all__ = [
     "to_type",
     "to_type_scalar",
     "trait_",
-    "unpack_proto_date",
-    "unpack_proto_json",
-    "unpack_proto_json_struct",
-    "unpack_proto_time",
 ]

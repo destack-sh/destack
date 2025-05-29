@@ -10,7 +10,7 @@ from .core import (
     SqlTable,
 )
 
-VERSION = "2025.05.28.1"
+VERSION = "2025.05.29.0"
 
 BENCH_TABLE = SqlTable(
     "bench_bench",
