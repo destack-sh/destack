@@ -2,34 +2,33 @@ from typing import (
     TYPE_CHECKING,
     Collection,
     Optional,
+    Sequence,
 )
 
 import structlog
 from fastuuid import UUID
 from opentelemetry import trace
 
-from .const import NodeType
+from .const import UNSET, NodeType
 
 if TYPE_CHECKING:
-    from bench.language import Node, Session
+    from bench.language import Node, QueryConnection, Session
 
 logger = structlog.get_logger(__name__)
 tracer = trace.get_tracer(__name__)
 
 
-class GraphError(ValueError):
-    pass
-
-
-class GraphConsistencyError(GraphError):
-    pass
-
-
 class Graph:
-    __slots__ = ("nodes_by_id", "nodes_by_parent_id", "supergraph")
+    """
+    A Graph is a collection of Nodes in a Session.
+    Graphs may be tied to the result of a Query (via QueryConnection) or just free-floating.
+    """
 
-    def __init__(self, supergraph: "Supergraph"):
+    __slots__ = ("connection", "nodes_by_id", "nodes_by_parent_id", "supergraph")
+
+    def __init__(self, supergraph: "Supergraph", connection: "QueryConnection | None"):
         self.supergraph = supergraph
+        self.connection = connection
         self.nodes_by_id: dict[UUID, Node] = {}
         self.nodes_by_parent_id: dict[UUID, dict[NodeType, list[Node]]] = {}
 
@@ -59,47 +58,82 @@ class Graph:
             raise KeyError(f"node {id!r} not found in {self!r}")
         return node
 
+    def has(self, id: UUID) -> bool:
+        """Check if a Node exists in this Graph."""
+        return id in self.nodes_by_id
+
     def clear(self):
-        """Clear the graph"""
+        """Clear the Graph."""
+        # supergraph
+        for node in self.nodes:
+            if self.supergraph._cached_nodes_by_id.get(node.id) is node:
+                self.supergraph._cached_nodes_by_id.pop(node.id)
+        # nodes
         self.nodes_by_id.clear()
         self.nodes_by_parent_id.clear()
 
     def add(self, node: "Node"):
         """Add a new Node to the graph (must not exist, excluding descendants)."""
-        raise NotImplementedError
-
-    def update(self, node: "Node"):
-        """Updates an existing Node (must exist)."""
-        raise NotImplementedError
+        if (existing := self.nodes_by_id.get(node.id)) is not None:
+            raise ValueError(f"node {node!r} already in {self!r}: {existing!r}")
+        # node
+        self.nodes_by_id[node.id] = node
+        # parent
+        if (parent_ptr := node.parent_ptr) is not None:
+            if parent_ptr.id not in self.nodes_by_parent_id:
+                self.nodes_by_parent_id[parent_ptr.id] = {}
+            if parent_ptr.node_type not in self.nodes_by_parent_id[parent_ptr.id]:
+                self.nodes_by_parent_id[parent_ptr.id][parent_ptr.node_type] = []
+            self.nodes_by_parent_id[parent_ptr.id][parent_ptr.node_type].append(node)
+        # supergraph
+        if (
+            cached := self.supergraph._cached_nodes_by_id.get(node.id)
+        ) is None or cached is _MISSING:
+            self.supergraph._cached_nodes_by_id[node.id] = node
 
     def remove(self, node: "Node"):
         """Remove a Node from the graph (must exist, excluding descendants)."""
-        raise NotImplementedError
+        # supergraph
+        if self.supergraph._cached_nodes_by_id.get(node.id) is node:
+            self.supergraph._cached_nodes_by_id.pop(node.id)
+        # parent
+        if (parent_ptr := node.parent_ptr) is not None:
+            if parent_ptr.id not in self.nodes_by_parent_id:
+                self.nodes_by_parent_id[parent_ptr.id] = {}
+            if parent_ptr.node_type not in self.nodes_by_parent_id[parent_ptr.id]:
+                self.nodes_by_parent_id[parent_ptr.id][parent_ptr.node_type] = []
+            self.nodes_by_parent_id[parent_ptr.id][parent_ptr.node_type].remove(node)
+            if not self.nodes_by_parent_id[parent_ptr.id][parent_ptr.node_type]:
+                self.nodes_by_parent_id[parent_ptr.id].pop(parent_ptr.node_type)
+                if not self.nodes_by_parent_id[parent_ptr.id]:
+                    self.nodes_by_parent_id.pop(parent_ptr.id)
+        # node
+        self.nodes_by_id.pop(node.id)
 
-    def get_descendants(
+    def get_children(
         self,
         node: "Node",
         node_type: NodeType | None = None,
-        recursive: bool = False,
-    ) -> list["Node"]:
-        """Collects descendant Nodes in BFS order"""
+    ) -> Sequence["Node"]:
+        """Collects children Nodes. If the Nodes are IsOrdered, their order is preserved."""
         raise NotImplementedError
 
-    def extend(self, nodes: Collection["Node"]):
-        """Adds all nodes to the graph"""
-        for node in nodes:
-            self.add(node)
+
+_MISSING = object()
 
 
 class Supergraph:
-    """ """
+    """
+    A collection of Graphs in a Session.
+    Instances of a Node may be in multiple Graphs (but any specific Node is only in one Graph).
+    """
 
-    __slots__ = ("graphs", "nodes_by_id", "session")
+    __slots__ = ("_cached_nodes_by_id", "graphs", "session")
 
     def __init__(self, session: "Session"):
         self.session = session
-        self.nodes_by_id: dict[UUID, Node] = {}
         self.graphs: list[Graph] = []
+        self._cached_nodes_by_id: dict[UUID, Node | object] = {}  # cache
 
     def __str__(self):
         return f"{len(self.graphs)} graphs"
@@ -109,18 +143,34 @@ class Supergraph:
 
     def add_graph(self, graph: Graph):
         """Add a Graph to this Supergraph."""
-        raise NotImplementedError
+        self.graphs.append(graph)
+        for node in graph.nodes:
+            if (cached := self._cached_nodes_by_id.get(node.id)) is None or cached is _MISSING:
+                self._cached_nodes_by_id[node.id] = node
 
     def remove_graph(self, graph: Graph):
         """Remove a Graph from this Supergraph."""
-        raise NotImplementedError
+        self.graphs.remove(graph)
 
     def get(self, node_id: "UUID") -> Optional["Node"]:
-        """Get a node by some key."""
-        return self.nodes_by_id.get(node_id)
+        """Get a node by ID."""
+        cached = self._cached_nodes_by_id.get(node_id, UNSET)
+        if cached is UNSET:
+            # look in all graphs
+            for graph in self.graphs:
+                if (node := graph.get(node_id)) is not None:
+                    self._cached_nodes_by_id[node_id] = node
+                    return node
+            else:
+                self._cached_nodes_by_id[node_id] = _MISSING
+                return None
+        elif cached is _MISSING:
+            return None
+        else:
+            return cached  # type: ignore (must be Node)
 
     def get_or_error(self, node_id: "UUID") -> "Node":
-        """Get a node by some key, raising an error if not found."""
+        """Get a node by ID (error if not found)."""
         node = self.get(node_id)
         if node is None:
             raise KeyError(f"node {node_id!r} not found in {self!r}")

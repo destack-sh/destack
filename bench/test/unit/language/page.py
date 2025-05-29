@@ -18,20 +18,20 @@ def test_cast_block_in_page(session: Session):
     assert SchemaBlock1.node == Schema1
 
     # move Text Block
-    Text1.move(to=Page2)
+    Text1.move_to(parent=Page2)
     assert len(Page1.get_children(Block)) == 1
     assert len(Page2.get_children(Block)) == 1
     assert Text1.parent == Page2
 
     # move Schema Block (should sync with definition)
-    SchemaBlock1.move(to=Page2)
+    SchemaBlock1.move_to(parent=Page2)
     assert len(Page1.get_children(Block)) == 0
     assert len(Page2.get_children(Block)) == 2
     assert SchemaBlock1.parent == Page2
     assert Schema1.parent == Page2
 
     # move Schema back (should sync with Block)
-    Schema1.move(to=Page1)
+    Schema1.move_to(parent=Page1)
     assert len(Page1.get_children(Block)) == 1
     assert len(Page2.get_children(Block)) == 1
     assert SchemaBlock1.parent == Page1
