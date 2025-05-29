@@ -111,7 +111,7 @@ class IntoType:
     primitive_type: PrimitiveType | None = None
     enum_type: EnumType | None = None
     struct_type: StructType | None = None
-    node_types: tuple[NodeType | TraitType, ...] = ()  # for node scalar nodes
+    node_types: tuple[NodeType | TraitType, ...] | None = None  # for node scalar nodes
     key_type: "IntoType | None" = None
     is_required: bool = True
     is_variable: bool = False
@@ -192,10 +192,11 @@ def parse_type_annotation(
     """Parses the type information from a given py type. Uses type map to resolve forward refs."""
     is_required = True
     is_variable = False
+    scalar_type = None
     primitive_type = None
     enum_type = None
     struct_type = None
-    scalar_type = None
+    node_types = None
 
     # unwrap VariableProperty[...]
     if (
@@ -250,8 +251,8 @@ def parse_type_annotation(
             node_types = []
             for union_type in non_none_types:
                 union_class_name = get_class_name(union_type)
-                if union_class_name and (new_node_types := _resolve_node_types(union_class_name)):
-                    node_types.extend(new_node_types)
+                if union_class_name and (node_t := _resolve_node_types(union_class_name)):
+                    node_types.extend(node_t)
             assert node_types, f"non-node union: {py_type!r}"
             return IntoType(
                 cardinality="scalar",
@@ -298,9 +299,9 @@ def parse_type_annotation(
     elif class_name and (struct_t := _resolve_struct_type(class_name)):
         scalar_type = "struct"
         struct_type = struct_t
-    elif class_name and (new_node_types := _resolve_node_types(class_name)):
+    elif class_name and (node_t := _resolve_node_types(class_name)):
         scalar_type = "node"
-        node_types = new_node_types
+        node_types = node_t
     elif class_name == "Property":
         scalar_type = "struct"
         struct_type = StructType.PROPERTY_REFERENCE
@@ -314,6 +315,7 @@ def parse_type_annotation(
         primitive_type=primitive_type,
         enum_type=enum_type,
         struct_type=struct_type,
+        node_types=node_types,
         is_required=is_required,
         is_variable=is_variable,
     )
@@ -642,6 +644,7 @@ def property_parent_(id: int = 4) -> Any:
         is_wired=True,
         is_stored=False,
         is_required=False,
+        is_managed=True,
         is_eq=False,
         node_bench_from="self",
         node_exclude=("ck", "definition_id"),

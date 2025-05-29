@@ -889,6 +889,7 @@ class OrganizationRoleType(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
 class OrganizationStatus(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     __slots__ = ()
     ORGANIZATION_STATUS_UNSPECIFIED: _ClassVar[OrganizationStatus]
+    ORGANIZATION_STATUS_CREATING: _ClassVar[OrganizationStatus]
     ORGANIZATION_STATUS_ACTIVE: _ClassVar[OrganizationStatus]
 
 class Overflow(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
@@ -1312,8 +1313,7 @@ class UpdateType(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
 class UserStatus(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     __slots__ = ()
     USER_STATUS_UNSPECIFIED: _ClassVar[UserStatus]
-    USER_STATUS_WAITLIST: _ClassVar[UserStatus]
-    USER_STATUS_REGISTERED: _ClassVar[UserStatus]
+    USER_STATUS_CREATING: _ClassVar[UserStatus]
     USER_STATUS_ACTIVE: _ClassVar[UserStatus]
 
 class VariableType(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
@@ -1986,6 +1986,7 @@ ORGANIZATION_ROLE_TYPE_UNSPECIFIED: OrganizationRoleType
 ORGANIZATION_ROLE_TYPE_ADMIN: OrganizationRoleType
 ORGANIZATION_ROLE_TYPE_MEMBER: OrganizationRoleType
 ORGANIZATION_STATUS_UNSPECIFIED: OrganizationStatus
+ORGANIZATION_STATUS_CREATING: OrganizationStatus
 ORGANIZATION_STATUS_ACTIVE: OrganizationStatus
 OVERFLOW_UNSPECIFIED: Overflow
 OVERFLOW_HIDDEN: Overflow
@@ -2298,8 +2299,7 @@ UPDATE_TYPE_CLEAR: UpdateType
 UPDATE_TYPE_MAP_SET: UpdateType
 UPDATE_TYPE_MAP_REMOVE: UpdateType
 USER_STATUS_UNSPECIFIED: UserStatus
-USER_STATUS_WAITLIST: UserStatus
-USER_STATUS_REGISTERED: UserStatus
+USER_STATUS_CREATING: UserStatus
 USER_STATUS_ACTIVE: UserStatus
 VARIABLE_TYPE_UNSPECIFIED: VariableType
 VARIABLE_TYPE_FIELD: VariableType

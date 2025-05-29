@@ -151,7 +151,7 @@ class SupervisorService(ServiceBase, SupervisorBase):
             slug=request.slug,
             name=request.name or request.slug,
             email=request.email,
-            status=UserStatus.REGISTERED,
+            status=UserStatus.CREATING,
             region=region,
             last_logged_in_at=self.oracle.utc(),
             bench=bench,
@@ -166,11 +166,11 @@ class SupervisorService(ServiceBase, SupervisorBase):
         # create Client
         client = Client.from_proto(request.client)
         client.access_token = generate_access_token(ACCESS_TOKEN_LENGTH)
-        session.create(client)
+        user.add_child(client)
         await session.stage()
         assert user.slug, f"{user!r} has no slug"
         bench.handle = user.handle = Handle(slug=user.slug)
-        user.add_child(user.handle)
+        bench.add_child(user.handle)
         await session.commit()
 
         # immediately create User's main Bench

@@ -4,7 +4,6 @@ import dataclasses
 import json
 from dataclasses import dataclass
 from datetime import date, datetime, time, timedelta
-from enum import Enum
 from typing import (
     TYPE_CHECKING,
     Any,
@@ -40,7 +39,7 @@ from .property import EdgeType, Property
 from .struct import NodeReference, PropertyReference
 from .text import Text, TextLine, text_line_to_markdown, text_to_markdown
 from .trait import IsInPackage
-from .type import TypeBase, TypeCardinality, reverse_type_scalar
+from .type import TypeBase, TypeCardinality
 
 if TYPE_CHECKING:
     pass
@@ -379,27 +378,6 @@ def _render_builtin_object_kwargs(
     return rendered_kwargs
 
 
-def _deconstruct_type_in(
-    renderer: "Renderer", obj: TypeBase, kwargs: dict[str, Any]
-) -> tuple[str | None, dict[str, Any]]:
-    """Remaps a Type to its TypeIn for rendering."""
-    # remap back to type in if possible
-    type_in = reverse_type_scalar(obj)
-    if type_in is None:
-        return None, kwargs
-    if isinstance(type_in, Node):
-        rendered_type = renderer.render_node_ref(type_in)
-    elif isinstance(type_in, Enum):
-        rendered_type = f"{type_in.__class__.__name__}.{type_in.name}"
-    else:
-        assert isinstance(type_in, type), f"unexpected type {type_in!r}"
-        rendered_type = type_in.__name__
-    kwargs = {**kwargs}
-    for key in ("kind", "primitive_type", "bench_type", "base_type"):
-        kwargs.pop(key, None)
-    return rendered_type, kwargs
-
-
 #
 # Base renderers
 #
@@ -486,22 +464,6 @@ BUILTIN_OBJECT_RENDERER = BuiltinObjectRenderer[BuiltinObjectBase]()
 #
 # Struct renderers
 #
-
-
-@_renderer(StructType.TYPE)
-class TypeRenderer(BuiltinObjectRenderer[TypeBase]):
-    @override
-    def render(self, renderer: "Renderer", obj: TypeBase, options: RenderOptions) -> str:
-        kwargs = _deconstruct_builtin_object(obj, options=options)
-        rendered_kwargs = _render_builtin_object_kwargs(renderer, obj, kwargs)
-        type_in, rendered_kwargs = _deconstruct_type_in(renderer, obj, rendered_kwargs)
-        if type_in is not None:
-            type_args = renderer.render_args(
-                type_in, renderer.render_kwargs(**rendered_kwargs) or None
-            )
-        else:
-            type_args = renderer.render_args(renderer.render_kwargs(**rendered_kwargs) or None)
-        return f"to_type({type_args})"
 
 
 @_renderer(StructType.TEXT_LINE)

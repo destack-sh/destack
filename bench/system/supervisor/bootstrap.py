@@ -39,7 +39,7 @@ async def create_system_benches(
             slug="system",
             email="system@bench.com",
             region=Region.ZURICH,
-            status=UserStatus.REGISTERED,
+            status=UserStatus.CREATING,
             is_staff=True,
         )
         session.create(system_user)

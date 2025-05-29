@@ -110,12 +110,24 @@ class Graph:
         # node
         self.nodes_by_id.pop(node.id)
 
-    def get_children(
+    def get_children[N: Node = Node](
         self,
         node: "Node",
-        node_type: NodeType | None = None,
-    ) -> Sequence["Node"]:
+        node_type: NodeType | type[N] | None = None,
+    ) -> Sequence[N]:
         """Collects children Nodes. If the Nodes are IsOrdered, their order is preserved."""
+        if not self.nodes_by_parent_id:
+            return ()
+        raise NotImplementedError
+
+    def get_descendants[N: Node = Node](
+        self,
+        node: "Node",
+        node_type: NodeType | type[N] | None = None,
+    ) -> Sequence[N]:
+        """Collects descendants Nodes. If the Nodes are IsOrdered, their order is preserved."""
+        if not self.nodes_by_parent_id:
+            return ()
         raise NotImplementedError
 
 
