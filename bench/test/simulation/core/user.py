@@ -4,12 +4,7 @@ from more_itertools import first
 
 from bench import pb2
 from bench.language import NodeReference
-from bench.proto import (
-    ClientDataIn,
-    SignupUserRequest,
-    SupervisorClient,
-    UserData,
-)
+from bench.proto import SignupUserRequest, SupervisorClient, UserData
 from bench.utils.oracle import Oracle
 
 from .spec import UserSpec

@@ -466,6 +466,14 @@ class QueryConnection[RootT: "Node"]:
         """Execute the Query."""
         raise NotImplementedError
 
+    def close(self) -> None:
+        """Close the QueryConnection."""
+        raise NotImplementedError
+
+    async def wait_closed(self) -> None:
+        """Wait for the QueryConnection to be closed."""
+        raise NotImplementedError
+
 
 # from bench.language import *
 

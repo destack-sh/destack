@@ -35,7 +35,6 @@ class Session:
     __slots__ = (
         "_token",
         "bench",
-        "change",
         "changes",
         "connections",
         "dirty",
@@ -68,7 +67,6 @@ class Session:
         self.store = store
 
         # transaction
-        self.change: Change = Change()
         self.changes: list[Change] = []
         self.dirty: dict[UUID, Node] = {}
         self.edits: list[Edit] = []
@@ -91,49 +89,41 @@ class Session:
     def create(self, node: Node):
         """Creates a new Node."""
         edit = Edit(type=EditType.CREATE, node=node)
-        self.change.edits.append(edit)
         self.edits.append(edit)
 
     def upsert(self, node: Node):
         """Creates or updates a Node."""
         edit = Edit(type=EditType.UPSERT, node=node)
-        self.change.edits.append(edit)
         self.edits.append(edit)
 
     def move(self, node: Node, parent: Node):
         """Moves a Node to a new parent."""
         edit = Edit(type=EditType.MOVE, node=node, parent=parent)
-        self.change.edits.append(edit)
         self.edits.append(edit)
 
     def archive(self, node: Node):
         """Archives a Node."""
         edit = Edit(type=EditType.ARCHIVE, node=node)
-        self.change.edits.append(edit)
         self.edits.append(edit)
 
     def unarchive(self, node: Node):
         """Unarchives a Node."""
         edit = Edit(type=EditType.UNARCHIVE, node=node)
-        self.change.edits.append(edit)
         self.edits.append(edit)
 
     def delete(self, node: Node):
         """Deletes a Node."""
         edit = Edit(type=EditType.DELETE, node=node)
-        self.change.edits.append(edit)
         self.edits.append(edit)
 
     def restore(self, node: Node):
         """Restores a deleted Node."""
         edit = Edit(type=EditType.RESTORE, node=node)
-        self.change.edits.append(edit)
         self.edits.append(edit)
 
     def erase(self, node: Node):
         """Erases a Node."""
         edit = Edit(type=EditType.ERASE, node=node)
-        self.change.edits.append(edit)
         self.edits.append(edit)
 
     async def stage(self):

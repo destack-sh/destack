@@ -22,60 +22,14 @@ import { QueryResultData } from "./lang";
 import { QueryData } from "./lang";
 import { ScopeData } from "./lang";
 import { OrganizationData } from "./lang";
-import { ClientData } from "./lang";
-import { UserData } from "./lang";
-import { Region } from "./lang";
 import { NodeReferenceData } from "./lang";
-import { ClientType } from "./lang";
+import { UserData } from "./lang";
+import { ClientData } from "./lang";
+import { Region } from "./lang";
 // 
 // Supervisor
 // 
 
-/**
- * @generated from protobuf message symbol.bench.ClientDataIn
- */
-export interface ClientDataIn {
-    /**
-     * @generated from protobuf field: symbol.bench.ClientType type = 30;
-     */
-    type: ClientType;
-    /**
-     * @generated from protobuf field: optional string name = 32;
-     */
-    name?: string;
-    /**
-     * @generated from protobuf field: optional string device_type = 40;
-     */
-    deviceType?: string;
-    /**
-     * @generated from protobuf field: optional string device_name = 41;
-     */
-    deviceName?: string;
-    /**
-     * @generated from protobuf field: optional string operating_system = 42;
-     */
-    operatingSystem?: string;
-    /**
-     * @generated from protobuf field: optional string browser_name = 43;
-     */
-    browserName?: string;
-    /**
-     * @generated from protobuf field: optional string browser_version = 44;
-     */
-    browserVersion?: string;
-    /**
-     * @generated from protobuf field: optional string place_id = 45;
-     */
-    placeId?: string;
-    /**
-     * @generated from protobuf field: optional string access_token = 50;
-     */
-    accessToken?: string;
-    /**
-     * @generated from protobuf field: optional symbol.bench.NodeReferenceData space_ptr = 60;
-     */
-    spacePtr?: NodeReferenceData;
-}
 /**
  * @generated from protobuf message symbol.bench.SignupUserRequest
  */
@@ -101,9 +55,9 @@ export interface SignupUserRequest {
      */
     region: Region;
     /**
-     * @generated from protobuf field: symbol.bench.ClientDataIn client = 9;
+     * @generated from protobuf field: symbol.bench.ClientData client = 9;
      */
-    client?: ClientDataIn;
+    client?: ClientData;
     /**
      * @generated from protobuf field: optional bool activate = 10;
      */
@@ -185,9 +139,9 @@ export interface LoginUserRequest {
      */
     password: string;
     /**
-     * @generated from protobuf field: symbol.bench.ClientDataIn client = 5;
+     * @generated from protobuf field: symbol.bench.ClientData client = 5;
      */
-    client?: ClientDataIn;
+    client?: ClientData;
 }
 /**
  * @generated from protobuf message symbol.bench.LoginUserResponse
@@ -471,116 +425,6 @@ export interface DownloadFilesResponse_DownloadHandle {
     getUrl: string;
 }
 // @generated message type with reflection information, may provide speed optimized methods
-class ClientDataIn$Type extends MessageType<ClientDataIn> {
-    constructor() {
-        super("symbol.bench.ClientDataIn", [
-            { no: 30, name: "type", kind: "enum", T: () => ["symbol.bench.ClientType", ClientType, "CLIENT_TYPE_"] },
-            { no: 32, name: "name", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
-            { no: 40, name: "device_type", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
-            { no: 41, name: "device_name", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
-            { no: 42, name: "operating_system", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
-            { no: 43, name: "browser_name", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
-            { no: 44, name: "browser_version", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
-            { no: 45, name: "place_id", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
-            { no: 50, name: "access_token", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
-            { no: 60, name: "space_ptr", kind: "message", T: () => NodeReferenceData }
-        ]);
-    }
-    create(value?: PartialMessage<ClientDataIn>): ClientDataIn {
-        const message = globalThis.Object.create((this.messagePrototype!));
-        message.type = 0;
-        if (value !== undefined)
-            reflectionMergePartial<ClientDataIn>(this, message, value);
-        return message;
-    }
-    internalBinaryRead(reader: IBinaryReader, length: number, options: BinaryReadOptions, target?: ClientDataIn): ClientDataIn {
-        let message = target ?? this.create(), end = reader.pos + length;
-        while (reader.pos < end) {
-            let [fieldNo, wireType] = reader.tag();
-            switch (fieldNo) {
-                case /* symbol.bench.ClientType type */ 30:
-                    message.type = reader.int32();
-                    break;
-                case /* optional string name */ 32:
-                    message.name = reader.string();
-                    break;
-                case /* optional string device_type */ 40:
-                    message.deviceType = reader.string();
-                    break;
-                case /* optional string device_name */ 41:
-                    message.deviceName = reader.string();
-                    break;
-                case /* optional string operating_system */ 42:
-                    message.operatingSystem = reader.string();
-                    break;
-                case /* optional string browser_name */ 43:
-                    message.browserName = reader.string();
-                    break;
-                case /* optional string browser_version */ 44:
-                    message.browserVersion = reader.string();
-                    break;
-                case /* optional string place_id */ 45:
-                    message.placeId = reader.string();
-                    break;
-                case /* optional string access_token */ 50:
-                    message.accessToken = reader.string();
-                    break;
-                case /* optional symbol.bench.NodeReferenceData space_ptr */ 60:
-                    message.spacePtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.spacePtr);
-                    break;
-                default:
-                    let u = options.readUnknownField;
-                    if (u === "throw")
-                        throw new globalThis.Error(`Unknown field ${fieldNo} (wire type ${wireType}) for ${this.typeName}`);
-                    let d = reader.skip(wireType);
-                    if (u !== false)
-                        (u === true ? UnknownFieldHandler.onRead : u)(this.typeName, message, fieldNo, wireType, d);
-            }
-        }
-        return message;
-    }
-    internalBinaryWrite(message: ClientDataIn, writer: IBinaryWriter, options: BinaryWriteOptions): IBinaryWriter {
-        /* symbol.bench.ClientType type = 30; */
-        if (message.type !== 0)
-            writer.tag(30, WireType.Varint).int32(message.type);
-        /* optional string name = 32; */
-        if (message.name !== undefined)
-            writer.tag(32, WireType.LengthDelimited).string(message.name);
-        /* optional string device_type = 40; */
-        if (message.deviceType !== undefined)
-            writer.tag(40, WireType.LengthDelimited).string(message.deviceType);
-        /* optional string device_name = 41; */
-        if (message.deviceName !== undefined)
-            writer.tag(41, WireType.LengthDelimited).string(message.deviceName);
-        /* optional string operating_system = 42; */
-        if (message.operatingSystem !== undefined)
-            writer.tag(42, WireType.LengthDelimited).string(message.operatingSystem);
-        /* optional string browser_name = 43; */
-        if (message.browserName !== undefined)
-            writer.tag(43, WireType.LengthDelimited).string(message.browserName);
-        /* optional string browser_version = 44; */
-        if (message.browserVersion !== undefined)
-            writer.tag(44, WireType.LengthDelimited).string(message.browserVersion);
-        /* optional string place_id = 45; */
-        if (message.placeId !== undefined)
-            writer.tag(45, WireType.LengthDelimited).string(message.placeId);
-        /* optional string access_token = 50; */
-        if (message.accessToken !== undefined)
-            writer.tag(50, WireType.LengthDelimited).string(message.accessToken);
-        /* optional symbol.bench.NodeReferenceData space_ptr = 60; */
-        if (message.spacePtr)
-            NodeReferenceData.internalBinaryWrite(message.spacePtr, writer.tag(60, WireType.LengthDelimited).fork(), options).join();
-        let u = options.writeUnknownFields;
-        if (u !== false)
-            (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
-        return writer;
-    }
-}
-/**
- * @generated MessageType for protobuf message symbol.bench.ClientDataIn
- */
-export const ClientDataIn = new ClientDataIn$Type();
-// @generated message type with reflection information, may provide speed optimized methods
 class SignupUserRequest$Type extends MessageType<SignupUserRequest> {
     constructor() {
         super("symbol.bench.SignupUserRequest", [
@@ -589,7 +433,7 @@ class SignupUserRequest$Type extends MessageType<SignupUserRequest> {
             { no: 4, name: "email", kind: "scalar", T: 9 /*ScalarType.STRING*/, options: { "symbol.bench.sensitive": true } },
             { no: 5, name: "password", kind: "scalar", T: 9 /*ScalarType.STRING*/, options: { "symbol.bench.sensitive": true } },
             { no: 6, name: "region", kind: "enum", T: () => ["symbol.bench.Region", Region, "REGION_"] },
-            { no: 9, name: "client", kind: "message", T: () => ClientDataIn },
+            { no: 9, name: "client", kind: "message", T: () => ClientData },
             { no: 10, name: "activate", kind: "scalar", opt: true, T: 8 /*ScalarType.BOOL*/ }
         ]);
     }
@@ -623,8 +467,8 @@ class SignupUserRequest$Type extends MessageType<SignupUserRequest> {
                 case /* symbol.bench.Region region */ 6:
                     message.region = reader.int32();
                     break;
-                case /* symbol.bench.ClientDataIn client */ 9:
-                    message.client = ClientDataIn.internalBinaryRead(reader, reader.uint32(), options, message.client);
+                case /* symbol.bench.ClientData client */ 9:
+                    message.client = ClientData.internalBinaryRead(reader, reader.uint32(), options, message.client);
                     break;
                 case /* optional bool activate */ 10:
                     message.activate = reader.bool();
@@ -656,9 +500,9 @@ class SignupUserRequest$Type extends MessageType<SignupUserRequest> {
         /* symbol.bench.Region region = 6; */
         if (message.region !== 0)
             writer.tag(6, WireType.Varint).int32(message.region);
-        /* symbol.bench.ClientDataIn client = 9; */
+        /* symbol.bench.ClientData client = 9; */
         if (message.client)
-            ClientDataIn.internalBinaryWrite(message.client, writer.tag(9, WireType.LengthDelimited).fork(), options).join();
+            ClientData.internalBinaryWrite(message.client, writer.tag(9, WireType.LengthDelimited).fork(), options).join();
         /* optional bool activate = 10; */
         if (message.activate !== undefined)
             writer.tag(10, WireType.Varint).bool(message.activate);
@@ -850,7 +694,7 @@ class LoginUserRequest$Type extends MessageType<LoginUserRequest> {
             { no: 2, name: "slug", kind: "scalar", oneof: "user", T: 9 /*ScalarType.STRING*/ },
             { no: 3, name: "email", kind: "scalar", oneof: "user", T: 9 /*ScalarType.STRING*/, options: { "symbol.bench.sensitive": true } },
             { no: 4, name: "password", kind: "scalar", T: 9 /*ScalarType.STRING*/, options: { "symbol.bench.sensitive": true } },
-            { no: 5, name: "client", kind: "message", T: () => ClientDataIn }
+            { no: 5, name: "client", kind: "message", T: () => ClientData }
         ]);
     }
     create(value?: PartialMessage<LoginUserRequest>): LoginUserRequest {
@@ -887,8 +731,8 @@ class LoginUserRequest$Type extends MessageType<LoginUserRequest> {
                 case /* string password */ 4:
                     message.password = reader.string();
                     break;
-                case /* symbol.bench.ClientDataIn client */ 5:
-                    message.client = ClientDataIn.internalBinaryRead(reader, reader.uint32(), options, message.client);
+                case /* symbol.bench.ClientData client */ 5:
+                    message.client = ClientData.internalBinaryRead(reader, reader.uint32(), options, message.client);
                     break;
                 default:
                     let u = options.readUnknownField;
@@ -914,9 +758,9 @@ class LoginUserRequest$Type extends MessageType<LoginUserRequest> {
         /* string password = 4; */
         if (message.password !== "")
             writer.tag(4, WireType.LengthDelimited).string(message.password);
-        /* symbol.bench.ClientDataIn client = 5; */
+        /* symbol.bench.ClientData client = 5; */
         if (message.client)
-            ClientDataIn.internalBinaryWrite(message.client, writer.tag(5, WireType.LengthDelimited).fork(), options).join();
+            ClientData.internalBinaryWrite(message.client, writer.tag(5, WireType.LengthDelimited).fork(), options).join();
         let u = options.writeUnknownFields;
         if (u !== false)
             (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);

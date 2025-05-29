@@ -10,26 +10,13 @@ import "proto/lang.proto";
 // Supervisor
 //
 
-message ClientDataIn {
-  ClientType type = 30;
-  optional string name = 32;
-  optional string device_type = 40;
-  optional string device_name = 41;
-  optional string operating_system = 42;
-  optional string browser_name = 43;
-  optional string browser_version = 44;
-  optional string place_id = 45;
-  optional string access_token = 50;
-  optional NodeReferenceData space_ptr = 60;
-}
-
 message SignupUserRequest {
   string slug = 2;
   optional string name = 3;
   string email = 4 [(sensitive) = true];
   string password = 5 [(sensitive) = true];
   Region region = 6;
-  ClientDataIn client = 9;
+  ClientData client = 9;
   optional bool activate = 10;
 }
 message SignupUserResponse {
@@ -54,7 +41,7 @@ message LoginUserRequest {
     string email = 3 [(sensitive) = true];
   }
   string password = 4 [(sensitive) = true];
-  ClientDataIn client = 5;
+  ClientData client = 5;
 }
 message LoginUserResponse {
   UserData user = 1;

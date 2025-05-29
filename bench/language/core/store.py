@@ -14,12 +14,12 @@ class Store(abc.ABC):
         ...
 
     @abc.abstractmethod
-    async def commit(self, changes: Sequence["Change"]) -> Sequence["ChangeResult"]:
-        """Commit a Transaction."""
+    async def commit(self, changes: Sequence["Change"] = ()) -> Sequence["ChangeResult"]:
+        """Commit a Transaction (including any staged Changes)."""
         ...
 
 
-class LiveStore(Store):
+class LiveStore(Store, abc.ABC):
     """A Store that can be subscribed to."""
 
     @abc.abstractmethod
@@ -28,7 +28,7 @@ class LiveStore(Store):
         ...
 
 
-class OptimisticStore(LiveStore):
+class OptimisticStore(LiveStore, abc.ABC):
     """A Store that can optimistically apply Changes."""
 
     @abc.abstractmethod

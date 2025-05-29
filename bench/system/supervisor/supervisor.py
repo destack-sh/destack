@@ -8,7 +8,6 @@ from opentelemetry import trace
 
 from bench.language import (
     Client,
-    ClientType,
     Database,
     Handle,
     IsSubject,
@@ -24,7 +23,6 @@ from bench.pb2 import RpcMetadata
 from bench.proto import (
     ChangeUserPasswordRequest,
     ChangeUserPasswordResponse,
-    ClientDataIn,
     LoginUserRequest,
     LoginUserResponse,
     LogoutUserRequest,
@@ -119,28 +117,6 @@ class SupervisorService(ServiceBase, SupervisorBase):
             return None, None
         return client.parent, client
 
-    async def _make_client(self, user: User, client_data: ClientDataIn) -> Client:
-        """Maps the given client info to a Client instance, trying to preserve a stable identity."""
-        name = client_data.name
-        client = Client(
-            parent=user,
-            name=name,
-            type=ClientType(client_data.type),
-            seen_at=self.oracle.utc(),
-        )
-        self._patch_client(client, client_data)
-        return client
-
-    def _patch_client(self, client: Client, client_data: ClientDataIn) -> Client:
-        # copy over Client properties
-        client.type = ClientType(client_data.type)
-        client.device_type = client_data.device_type or None
-        client.device_name = client_data.device_name or None
-        client.operating_system = client_data.operating_system or None
-        client.browser_name = client_data.browser_name or None
-        client.browser_version = client_data.browser_version or None
-        return client
-
     @override
     async def signup_user(
         self,
@@ -180,7 +156,7 @@ class SupervisorService(ServiceBase, SupervisorBase):
         await session.stage()
 
         # create Client
-        client = await self._make_client(user, request.client)
+        client = Client.from_proto(request.client)
         client.access_token = generate_access_token(ACCESS_TOKEN_LENGTH)
         session.create(client)
         await session.stage()
@@ -260,7 +236,7 @@ class SupervisorService(ServiceBase, SupervisorBase):
             raise GRPCError(GRPCStatus.UNAUTHENTICATED, "incorrect password")
 
         user.last_logged_in_at = self.oracle.utc()
-        client = await self._make_client(user, request.client)
+        client = Client.from_proto(request.client)
         client.access_token = generate_access_token(ACCESS_TOKEN_LENGTH)
         session.upsert(client)
         await session.commit()
