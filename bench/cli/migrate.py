@@ -43,7 +43,6 @@ async def make(
         BUILTIN_REGIONAL_SCHEMA,
         Migration,
         SqlSchema,
-        SqlUndefinedObjectError,
         add_migration_to_fs,
         generate_sql_migration_code,
         generate_sql_migration_ops,
@@ -55,21 +54,11 @@ async def make(
     from bench.system import (
         get_global_database_from_env,
         get_regional_database_from_env,
-        global_session,
-        pg_engine_from_database,
     )
 
     start = time.time()
     global_database = get_global_database_from_env()
-    global_pg_engine = pg_engine_from_database(
-        "pg-global", global_database, NodeArea.GLOBAL_POSTGRES
-    )
     regional_database = get_regional_database_from_env(region)
-    regional_pg_engine = pg_engine_from_database(
-        f"pg-regional-{regional_database.region.name.lower()}",
-        regional_database,
-        NodeArea.REGIONAL_POSTGRES,
-    )
 
     # check existing migrations for inconsistencies
     file_migrations = read_migrations_from_fs()

@@ -10,7 +10,6 @@ from typing import (
     Any,
     ClassVar,
     Collection,
-    Literal,
     Mapping,
     Self,
     Union,
@@ -27,7 +26,7 @@ from opentelemetry import trace
 
 from bench.language.registry import STRUCT_CLASS_BY_TYPE
 from bench.pb2 import AnyObjectData
-from bench.utils.code import format_code
+from bench.utils.code import exec_, format_code
 from bench.utils.env import IS_DEV
 from bench.utils.func import dualmethod, get_superclasses
 from bench.utils.utils import frozendict, frozenlist
@@ -45,7 +44,7 @@ from .const import (
     TraitType,
 )
 from .graph import Graph, Supergraph
-from .property import _PROPERTY_SPECIFIERS, Property, property_runtime_
+from .property import _PROPERTY_SPECIFIERS, IntoType, Property, property_runtime_
 
 if TYPE_CHECKING:
     from bench.language import Field, Node
@@ -351,16 +350,17 @@ __str__ = __repr__
 """
         return repr_impl, {}
 
-    def _get_scalar_repr(
-        scalar_type: Literal["enum", "primitive", "struct", "node"], value_expr: str
-    ) -> str:
+    def _get_scalar_repr(prop: IntoType, value_expr: str) -> str:
         """Get repr expression for a scalar value."""
-        if scalar_type == "enum":
+        if prop.scalar_type == "enum":
             return f"{value_expr}.name"
-        elif scalar_type in ("primitive", "struct", "node"):
-            return f"{value_expr}!r"
+        elif prop.scalar_type in ("primitive", "struct", "node"):
+            if prop.primitive_type == PrimitiveType.UUID:
+                return f"repr(str({value_expr}))"
+            else:
+                return f"{value_expr}!r"
         else:
-            assert_never(scalar_type)
+            assert_never(prop.scalar_type)
 
     # property parts
     repr_parts_lines: list[str] = []
@@ -371,11 +371,11 @@ __str__ = __repr__
         prop_name = prop.name
         if prop.cardinality == "scalar":
             if prop.is_required:
-                scalar_expr = _get_scalar_repr(prop.scalar_type, f"self.{prop_name}")
+                scalar_expr = _get_scalar_repr(prop, f"self.{prop_name}")
                 repr_parts_lines.append(f"property_reprs.append(f'{prop_name}={{{scalar_expr}}}')")
                 has_required_repr_props = True
             else:
-                scalar_expr = _get_scalar_repr(prop.scalar_type, f"{prop_name}")
+                scalar_expr = _get_scalar_repr(prop, f"{prop_name}")
                 repr_parts_lines.extend(
                     f"""\
 if ({prop_name} := self.{prop_name}) is not None:
@@ -394,8 +394,8 @@ if self.{prop_name}:
         elif prop.cardinality == "map":
             assert prop.key_type is not None, f"{prop!r} has no key type"
             if prop.key_type.scalar_type == "enum":
-                key_repr = _get_scalar_repr(prop.key_type.scalar_type, "k")
-                value_repr = _get_scalar_repr(prop.scalar_type, "v")
+                key_repr = _get_scalar_repr(prop.key_type, "k")
+                value_repr = _get_scalar_repr(prop, "v")
                 map_expr = f"'{{' + ', '.join(f'{{{key_repr}}}: {{{value_repr}}}' for k, v in self.{prop_name}.items()) + '}}'"
             else:
                 map_expr = f"self.{prop_name}!r"
@@ -730,7 +730,7 @@ def _generate_node_property_impl(prop: Property) -> str:
 def {prop.name}(self: "BuiltinObjectBase") -> "Node | None":
     node_ptr: NodeReference | None = self.{ptr_prop.name}
     if node_ptr is not None:
-        return self._supergraph.get(node_ptr)
+        return self._supergraph.get(node_ptr.id)
     else:
         return None"""
         else:
@@ -741,7 +741,7 @@ def {prop.name}(self: "BuiltinObjectBase") -> "Node | None":
     if node_ptr is not None:
         if self._supergraph is None:
             return None
-        return self._supergraph.get(node_ptr)
+        return self._supergraph.get(node_ptr.id)
     else:
         return None"""
 
@@ -759,7 +759,7 @@ def {prop.name}(self: "BuiltinObjectBase", value: "Node | None"):
 @property
 def {prop.name}(self: "BuiltinObjectBase") -> tuple["Node", ...]:
     node_ptrs: list[NodeReference] = self.{ptr_prop.name}
-    return tuple(self._supergraph.get(p) for p in node_ptrs)"""
+    return tuple(self._supergraph.get(p.id) for p in node_ptrs)"""
         else:
             getter = f"""\
 @property
@@ -767,7 +767,7 @@ def {prop.name}(self: "BuiltinObjectBase") -> tuple["Node", ...]:
     node_ptrs: list[NodeReference] = self.{ptr_prop.name}
     if self._supergraph is None:
         return ()
-    return tuple(self._supergraph.get(p) for p in node_ptrs)"""
+    return tuple(self._supergraph.get(p.id) for p in node_ptrs)"""
 
         setter = f"""\
 @{prop.name}.setter
@@ -809,9 +809,10 @@ def _generate_node_ancestor_property_impl(
 ) -> str:
     """The machine get property for Node ancestors."""
 
-    node_types_str = ", ".join(str(t.value) for t in prop.node_types)
+    node_types_str = ", ".join(str(t.value) for t in prop.node_types or ())
+    assert node_types_str, f"no node types for {prop!r}"
 
-    if prop.edge_type == EdgeType.NODE_ANCESTOR and object_type in prop.node_types:
+    if prop.edge_type == EdgeType.NODE_ANCESTOR and object_type in (prop.node_types or ()):
         return f"""\
 @property
 def {prop.name}(self: "Node") -> "Node":
@@ -827,7 +828,7 @@ def {prop.name}_ptr(self: "Node") -> "NodeType":
 def {prop.name}(self: "Node") -> "Node | None":
     node = self.parent
     while node is not None:
-        if node.metatype in ({node_types_str}):
+        if node.metatype in ({node_types_str},):
             return node
         node = node.parent
     return None
@@ -836,7 +837,7 @@ def {prop.name}(self: "Node") -> "Node | None":
 def {prop.name}_ptr(self: "Node") -> "NodeType":
     node = self
     while node is not None:
-        if node.metatype in ({node_types_str}):
+        if node.metatype in ({node_types_str},):
             return node.to_ref()
         node = node.parent
     return None
@@ -987,29 +988,23 @@ def _process_object_cls[ObjectT: BuiltinObjectBase](
         init_str, init_glbls = _generate_init_impl(
             cls, is_node=is_node, is_frozen=is_frozen, properties=properties
         )
-        # nocheckin
-        print("=" * 100)
-        print(cls.__name__ + ":init")
-        print("=" * 100)
-        print(init_str)
-        print("=" * 100)
-        exec(init_str, {**glbls, **init_glbls}, cls_dict)
+        exec_(init_str, {**glbls, **init_glbls}, cls_dict, f"{cls.__name__}:init")
         # __repr__
         repr_str, repr_glbls = _generate_repr_impl(cls)
-        exec(repr_str, {**glbls, **repr_glbls}, cls_dict)
+        exec_(repr_str, {**glbls, **repr_glbls}, cls_dict, f"{cls.__name__}:repr")
         # equals
         equals_str, equals_glbls = _generate_equals_impl(cls)
-        exec(equals_str, {**glbls, **equals_glbls}, cls_dict)
+        exec_(equals_str, {**glbls, **equals_glbls}, cls_dict, f"{cls.__name__}:equals")
         # validate
         validate_str, validate_glbls = _generate_validate_impl(cls)
-        exec(validate_str, {**glbls, **validate_glbls}, cls_dict)
+        exec_(validate_str, {**glbls, **validate_glbls}, cls_dict, f"{cls.__name__}:validate")
         if is_node:
             # __to_ref__
             ref_str, ref_glbls = _generate_ref_impl(cast(type["Node"], cls), NodeType(object_type))
-            exec(ref_str, {**glbls, **ref_glbls}, cls_dict)
+            exec_(ref_str, {**glbls, **ref_glbls}, cls_dict, f"{cls.__name__}:to_ref")
             # path
             path_str, path_glbls = _generate_path_impl(cast(type["Node"], cls))
-            exec(path_str, {**glbls, **path_glbls}, cls_dict)
+            exec_(path_str, {**glbls, **path_glbls}, cls_dict, f"{cls.__name__}:path")
         # pack/unpack are generated after setup because we need all classes
 
         # add computed properties to concrete classes
@@ -1019,7 +1014,7 @@ def _process_object_cls[ObjectT: BuiltinObjectBase](
             # computed property property
             if prop.is_property:
                 property_property_str = _generate_property_property_impl(prop)
-                exec(property_property_str, {}, cls_dict)
+                exec_(property_property_str, {}, cls_dict, f"{cls.__name__}:property_property")
             # computed node property
             elif prop.edge_type in (
                 EdgeType.NODE_PARENT,
@@ -1027,18 +1022,18 @@ def _process_object_cls[ObjectT: BuiltinObjectBase](
                 EdgeType.NODE_TEMPLATE,
             ):
                 node_property_str = _generate_node_property_impl(prop)
-                exec(node_property_str, {}, cls_dict)
+                exec_(node_property_str, {}, cls_dict, f"{cls.__name__}:node_property")
             # computed node ancestor property
             elif prop.edge_type == EdgeType.NODE_ANCESTOR:
                 ancestor_property_str = _generate_node_ancestor_property_impl(object_type, prop)
-                exec(ancestor_property_str, {}, cls_dict)
+                exec_(ancestor_property_str, {}, cls_dict, f"{cls.__name__}:ancestor_property")
             # computed _x node reference properties (e.g., parent_id, node_ck, node_type, ...)
             if prop.is_node_reference:
                 for obj_key, ptr_key in (("id", "id"), ("ck", "ck"), ("type", "node_type")):
                     if obj_key == "type" and (not prop.node_types or len(prop.node_types) <= 1):
                         continue  # no need for *_type if only one possible node type
                     node_key_property_str = _generate_node_key_property_impl(obj_key, ptr_key, prop)
-                    exec(node_key_property_str, {}, cls_dict)
+                    exec_(node_key_property_str, {}, cls_dict, f"{cls.__name__}:node_key_property")
 
         # freeze
         if is_frozen:

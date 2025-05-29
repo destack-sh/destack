@@ -54,7 +54,7 @@ async def create_default_bench(
         name="Home",
         slug="home",
     )
-    session.create(main_package)
+    bench.add_child(main_package)
     await session.stage()
     bench.main_package = main_package
 

@@ -126,7 +126,7 @@ def _make_example_bench() -> tuple[Bench, Package, Session, User]:
         )
         bench.main_package = package
         user = User(
-            status=UserStatus.REGISTERED,
+            status=UserStatus.CREATING,
             region=Region.ZURICH,
             slug="example",
             email="example@symbolx.com",

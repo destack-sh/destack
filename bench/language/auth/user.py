@@ -29,9 +29,8 @@ if TYPE_CHECKING:
 
 @enum_(EnumType.USER_STATUS)
 class UserStatus(BuiltinEnum):
-    WAITLIST = 30
-    REGISTERED = 40
-    ACTIVE = 50
+    CREATING = 2
+    ACTIVE = 10
 
 
 @node_(NodeType.USER, root_type=None)
@@ -47,11 +46,13 @@ class User(
     """A User is a human using Bench."""
 
     # status
-    status: UserStatus = property_(40, can_write="system", is_repr=True)
+    status: UserStatus = property_(
+        40, can_write="system", is_repr=True, default=UserStatus.CREATING
+    )
     last_logged_in_at: Optional[datetime] = property_(41, can_write="system")
     # last_active_at: Optional[datetime] = ...
     # seen_at: Optional[datetime] = ...
-    is_staff: bool = property_(45, default=False, can_write="system", is_repr=True)
+    is_staff: bool = property_(45, default=False, can_write="system")
 
     bench: "Bench" = property_(50, can_write="system")
     handle: Optional["Handle"] = property_(51, can_write="system")

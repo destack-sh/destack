@@ -42,7 +42,7 @@ async def test_builtin_package(simulation: Simulation, runtime: RuntimeLambdaWor
     from bench.language import BENCH_BENCH_PACKAGE_PTR
 
     # builtin graph in memory and builtin graph loaded from runtime/bench should be equal
-    BuiltinPackageLoaded = runtime.main_package._supergraph.get_or_error(BENCH_BENCH_PACKAGE_PTR)
+    BuiltinPackageLoaded = runtime.main_package._supergraph.get_or_error(BENCH_BENCH_PACKAGE_PTR.id)
     assert isinstance(BuiltinPackageLoaded, Package)
     BuiltinPackageLoadedGraph = BuiltinPackageLoaded._graph.copy()
     loaded_bench_bench = BuiltinPackageLoaded.parent

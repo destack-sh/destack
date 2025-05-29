@@ -11299,9 +11299,13 @@ export enum OrganizationStatus {
      */
     UNSPECIFIED = 0,
     /**
-     * @generated from protobuf enum value: ORGANIZATION_STATUS_ACTIVE = 50;
+     * @generated from protobuf enum value: ORGANIZATION_STATUS_CREATING = 1;
      */
-    ACTIVE = 50
+    CREATING = 1,
+    /**
+     * @generated from protobuf enum value: ORGANIZATION_STATUS_ACTIVE = 10;
+     */
+    ACTIVE = 10
 }
 /**
  * The overflow behavior of a View.
@@ -12760,17 +12764,13 @@ export enum UserStatus {
      */
     UNSPECIFIED = 0,
     /**
-     * @generated from protobuf enum value: USER_STATUS_WAITLIST = 30;
+     * @generated from protobuf enum value: USER_STATUS_CREATING = 2;
      */
-    WAITLIST = 30,
+    CREATING = 2,
     /**
-     * @generated from protobuf enum value: USER_STATUS_REGISTERED = 40;
+     * @generated from protobuf enum value: USER_STATUS_ACTIVE = 10;
      */
-    REGISTERED = 40,
-    /**
-     * @generated from protobuf enum value: USER_STATUS_ACTIVE = 50;
-     */
-    ACTIVE = 50
+    ACTIVE = 10
 }
 /**
  * The type of a variable.

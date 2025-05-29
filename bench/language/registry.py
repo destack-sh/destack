@@ -5,6 +5,7 @@ from typing import TYPE_CHECKING, Any, Callable, Union
 from fastuuid import UUID
 
 from bench import pb2
+from bench.utils.code import exec_
 
 from .core.const import (
     _ENUM_CLASS_BY_TYPE,
@@ -90,7 +91,7 @@ def _complete_bench_setup():
     # index parent types
     for node_cls in NODE_CLASS_BY_TYPE.values():
         assert node_cls.__parent_property__ is not UNSET
-        node_cls.__parent_types__ = expand_node_types(node_cls.__parent_property__.node_types)
+        node_cls.__parent_types__ = expand_node_types(node_cls.__parent_property__.node_types or ())
 
     # index child types
     child_types_by_parent: dict[NodeType, list[NodeType]] = defaultdict(list)
@@ -110,14 +111,24 @@ def _complete_bench_setup():
         cls_dict_copy = cls.__dict__.copy()
         # __pack_proto__/__unpack_proto__/_to_proto
         proto_impl, proto_glbls = generate_pack_proto_impl(cls)
-        exec(proto_impl, {**builtin_class_by_name, **proto_glbls}, cls_dict_copy)
+        exec_(
+            proto_impl,
+            {**builtin_class_by_name, **proto_glbls},
+            cls_dict_copy,
+            f"{cls.__name__}:proto",
+        )
         setattr(cls, "__pack_proto__", cls_dict_copy["__pack_proto__"])
         setattr(cls, "__unpack_proto__", cls_dict_copy["__unpack_proto__"])
         setattr(cls, "to_proto", cls_dict_copy["to_proto"])
         setattr(cls, "from_proto", cls_dict_copy["from_proto"])
         # __pack_value__/__unpack_value__/_to_value
         value_impl, value_glbls = generate_pack_value_impl(cls)
-        exec(value_impl, {**builtin_class_by_name, **value_glbls}, cls_dict_copy)
+        exec_(
+            value_impl,
+            {**builtin_class_by_name, **value_glbls},
+            cls_dict_copy,
+            f"{cls.__name__}:value",
+        )
         setattr(cls, "__pack_value__", cls_dict_copy["__pack_value__"])
         setattr(cls, "__unpack_value__", cls_dict_copy["__unpack_value__"])
         setattr(cls, "to_value", cls_dict_copy["to_value"])

@@ -1,3 +1,4 @@
+from datetime import datetime
 from typing import (
     TYPE_CHECKING,
     Any,
@@ -36,6 +37,7 @@ class Session:
         "_token",
         "bench",
         "changes",
+        "closed_at",
         "connections",
         "dirty",
         "edits",
@@ -66,7 +68,7 @@ class Session:
         self.subject = subject
         self.store = store
 
-        # transaction
+        # transaction (pending)
         self.changes: list[Change] = []
         self.dirty: dict[UUID, Node] = {}
         self.edits: list[Edit] = []
@@ -74,6 +76,7 @@ class Session:
         # runtime
         self.runtime: Runtime | None = _runtime
         self.connections: list[QueryConnection] = []
+        self.closed_at: datetime | None = None
         self._token: Any | None = None
 
     async def open(self):
@@ -88,44 +91,53 @@ class Session:
             except ValueError:
                 pass  # token was created in a different context (during testing usually)
             self._token = None
+        self.closed_at = self.oracle.utc()
 
     def create(self, node: Node):
         """Creates a new Node."""
+        assert self.closed_at is None, f"{self!r} is closed"
         edit = Edit(type=EditType.CREATE, node=node)
         self.edits.append(edit)
 
     def upsert(self, node: Node):
         """Creates or updates a Node."""
+        assert self.closed_at is None, f"{self!r} is closed"
         edit = Edit(type=EditType.UPSERT, node=node)
         self.edits.append(edit)
 
     def move(self, node: Node, parent: Node):
         """Moves a Node to a new parent."""
+        assert self.closed_at is None, f"{self!r} is closed"
         edit = Edit(type=EditType.MOVE, node=node, parent=parent)
         self.edits.append(edit)
 
     def archive(self, node: Node):
         """Archives a Node."""
+        assert self.closed_at is None, f"{self!r} is closed"
         edit = Edit(type=EditType.ARCHIVE, node=node)
         self.edits.append(edit)
 
     def unarchive(self, node: Node):
         """Unarchives a Node."""
+        assert self.closed_at is None, f"{self!r} is closed"
         edit = Edit(type=EditType.UNARCHIVE, node=node)
         self.edits.append(edit)
 
     def delete(self, node: Node):
         """Deletes a Node."""
+        assert self.closed_at is None, f"{self!r} is closed"
         edit = Edit(type=EditType.DELETE, node=node)
         self.edits.append(edit)
 
     def restore(self, node: Node):
         """Restores a deleted Node."""
+        assert self.closed_at is None, f"{self!r} is closed"
         edit = Edit(type=EditType.RESTORE, node=node)
         self.edits.append(edit)
 
     def erase(self, node: Node):
         """Erases a Node."""
+        assert self.closed_at is None, f"{self!r} is closed"
         edit = Edit(type=EditType.ERASE, node=node)
         self.edits.append(edit)
 
@@ -135,7 +147,7 @@ class Session:
 
     async def commit(self) -> Sequence[ChangeResult]:
         """
-        Commits Edits. Returns applied Edits & their cascaded Edits.
+        Commits all Changes/Edits. Returns applied Changes.
         """
         raise NotImplementedError
 

@@ -49,6 +49,7 @@ async def test_user_registration(supervisor: SupervisorClient):
     """Create a User, login and logout. Try some wrong passwords and tokens. Read back data to confirm."""
 
     session = Session()
+
     user_slug = "florian"
     user_name = "Florian Cäsar"
     user_email = "florian@symbolx.com"

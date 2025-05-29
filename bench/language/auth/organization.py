@@ -32,7 +32,8 @@ if TYPE_CHECKING:
 
 @enum_(EnumType.ORGANIZATION_STATUS)
 class OrganizationStatus(BuiltinEnum):
-    ACTIVE = 50
+    CREATING = 1
+    ACTIVE = 10
 
 
 @node_(NodeType.ORGANIZATION, root_type=None)
@@ -50,7 +51,9 @@ class Organization(
     """
 
     # parent: Organization for nesting?
-    status: OrganizationStatus = property_(38, can_write="system", is_repr=True)
+    status: OrganizationStatus = property_(
+        38, can_write="system", is_repr=True, default=OrganizationStatus.CREATING
+    )
 
     bench: "Bench" = property_(40, can_write="system")
     handle: Optional["Handle"] = property_(41, can_write="system")

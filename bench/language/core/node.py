@@ -125,8 +125,8 @@ class Node[NodeDataT: AnyNodeData](BuiltinObjectMutable[NodeDataT]):
     __indexes__: ClassVar[tuple[IndexIn, ...]] = ()
 
     __root_type__: ClassVar[NodeType | None] = None
-    __parent_types__: ClassVar[tuple[NodeType, ...]] = ()
     __parent_property__: ClassVar[Property] = UNSET
+    __parent_types__: ClassVar[tuple[NodeType, ...]] = ()
     __child_types__: ClassVar[tuple[NodeType, ...]] = ()
 
     # 1-9: node identity
@@ -263,25 +263,71 @@ class Node[NodeDataT: AnyNodeData](BuiltinObjectMutable[NodeDataT]):
         """Move this Node to a new parent."""
         raise NotImplementedError
 
-    def add_child(self, child: "Node", move: bool = False) -> Self:
-        """Append a Node as a child of this Node."""
-        raise NotImplementedError
+    def add_child(
+        self,
+        child: "Node",
+        *,
+        after: "Node | None" = None,
+        before: "Node | None" = None,
+    ) -> Self:
+        """
+        Append a Node as a child of this Node (and all its descendants).
+        If the Node is new, it will be created in this Node's session.
+        If the Node IsOrdered, it will be positioned (relative to after/before).
+        (The same applies to all descendants.)
+        """
+        old_graph = child._graph
+        session = self._session
+        nodes: tuple[Node, ...] = (child, *child._graph.get_descendants(child))
 
-    def add_children(self, *children: "Node", move: bool = False) -> Self:
-        """Append multiple Nodes as children of this Node."""
-        for child in children:
-            self.add_child(child, move=move)
+        assert (
+            self.metatype in child.__parent_types__
+        ), f"{self!r} cannot parent {child!r} (allowed: {child.__parent_types__})"
+        assert old_graph is not self._graph, f"{child!r} is already in same graph of {self!r}"
+        assert (
+            old_graph.supergraph is self._supergraph
+        ), f"{child!r} is not in supergraph of {self!r}"
+
+        # create new nodes
+        if child._is_new:
+            for node in nodes:
+                session.create(node)
+
+        # move to new graph
+        for node in nodes:
+            node._graph = self._graph
+        if len(nodes) == len(child._graph):  # all nodes were moved
+            self._supergraph.remove_graph(old_graph)
+
+        # nocheckin: Node.add_child ordering
+
         return self
 
-    def remove_child(self, child: "Node"):
-        """Remove a child from this Node."""
+    def add_children(
+        self,
+        *children: "Node",
+        after: "Node | None" = None,
+        before: "Node | None" = None,
+    ) -> Self:
+        """
+        Append multiple Nodes as children of this Node.
+        """
+        for child in children:
+            self.add_child(child, after=after, before=before)
+        return self
+
+    def remove_child(self, child: "Node") -> Self:
+        """
+        Remove a child from this Node.
+        If the Node IsDeletable, it will be deleted; otherwise, it will be erased.
+        """
         raise NotImplementedError
 
     def get_children[N: Node = Node](
         self, node_type: NodeType | type[N] | None = None
     ) -> Sequence[N]:
         """Gets the children of this Node."""
-        raise NotImplementedError
+        return self._graph.get_children(self, node_type=node_type)
 
     def get_child[N: Node = Node](self, node_type: NodeType | type[N], key: str) -> N | None:
         """Gets a specific child of this Node."""

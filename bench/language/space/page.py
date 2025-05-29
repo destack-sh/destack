@@ -1,4 +1,4 @@
-from typing import TYPE_CHECKING, Optional, Sequence, Union, cast, overload
+from typing import TYPE_CHECKING, Optional, Union
 
 from bench.language.core import (
     HasIcon,
@@ -46,34 +46,6 @@ class Page(
     parent: Union["Package", "Page", None] = property_parent_()
     # NOTE: :Architecture: maybe some IsBlockables should have their own Page? or is that confusing?
     # app? scene? plugin? Page/Record/View/... tying? :NodeTying
-
-    @overload
-    def add_child(self, child: IsBlockable, move: bool = False) -> "Block": ...
-    @overload
-    def add_child[T: Node](self, child: T, move: bool = False) -> T: ...
-    def add_child[T: Node](self, child: T, move: bool = False) -> "T | Block":
-        if not move and isinstance(child, IsBlockable):
-            # wrap IsBlockables into Blocks
-            child_block = child.wrap_in_block()
-            super().add_child(child_block, move)
-            super().add_child(child, move)
-            return child_block
-        else:
-            return super().add_child(child, move)
-
-    @overload
-    def add_children(self, *children: "IsBlockable", move: bool = False) -> "Sequence[Block]": ...
-    @overload
-    def add_children[T: Node](self, *children: T, move: bool = False) -> "Sequence[T | Block]": ...
-    def add_children[T: Node](self, *children: T, move: bool = False) -> "Sequence[T | Block]":
-        if not move and isinstance(children[0], IsBlockable):
-            # wrap IsBlockables into Blocks
-            child_blocks = [cast(IsBlockable, child).wrap_in_block() for child in children]
-            super().add_children(*child_blocks, move=move)
-            super().add_children(*children, move=move)
-            return child_blocks
-        else:
-            return super().add_children(*children, move=move)
 
     def add_text(
         self, text: TextIn, after: Optional["Block"] = None, before: Optional["Block"] = None

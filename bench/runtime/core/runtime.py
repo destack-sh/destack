@@ -39,7 +39,6 @@ from bench.language import (
     ProcessStatus,
     Run,
     Session,
-    SessionStatus,
     Span,
     SpanType,
     Thread,
@@ -192,13 +191,6 @@ class Runtime:
     @tracer.start_as_current_span("runtime.start")
     async def start(self):
         """Start the Runtime."""
-        # open session
-        assert self.session.status == SessionStatus.PENDING, f"{self.session!r} is not pending"
-        self.session.status = SessionStatus.OPEN
-        self.session.opened_at = self.oracle.utc()
-        self.session.create(self.session)
-        await self.session.commit()
-
         # start tasks
         self.tasks.start_queue(self._thread_tick_queue, self._tick_thread, skip_errors=True)
 
@@ -219,9 +211,7 @@ class Runtime:
             await asyncio.gather(
                 *(runner.task for runner in active_runners if runner.task), return_exceptions=True
             )
-        self.session.closed_at = self.oracle.utc()
-        self.session.status = SessionStatus.CLOSED
-        await self.session.commit(_ignore_open=True)
+        await self.session.commit()
         await self.session.close()
 
     @tracer.start_as_current_span("runtime.run.attempt")
@@ -365,7 +355,7 @@ class Runtime:
                     current_attempt = Span(
                         parent=run, type=SpanType.ATTEMPT, status=ProcessStatus.RUNNING
                     )
-                    self.session.create(current_attempt)
+                    run.add_child(current_attempt)
                 last_attempt = current_attempt
                 try:
                     await self._attempt_run(
