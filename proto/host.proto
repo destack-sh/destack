@@ -65,20 +65,15 @@ message DownloadFilesResponse {
 service Host {
   option (kind) = PUBLIC; // :ServiceKind
   
-  //
-  // Graph
-  //
-
+  // Query the Supergraph.
   rpc Query(QueryRequest) returns (QueryResponse);
+  // Subscribe to updates from the Supergraph.
   rpc Subscribe(SubscribeRequest) returns (stream SubscribeResponse);
+  // Commit Changes to the Supergraph.
   rpc Commit(CommitRequest) returns (CommitResponse);
 
-  // 
-  // Files? 
-  //
-
-  // 'Upload' some files (get URLs to upload them to). Handles may be incomplete.
+  // 'Upload' some files (get URLs to upload them to).
   rpc UploadFiles(UploadFilesRequest) returns (UploadFilesResponse);
-  // 'Download' some files (get URLs to download them from). Handles may be incomplete.
+  // 'Download' some files (get URLs to download them from).
   rpc DownloadFiles(DownloadFilesRequest) returns (DownloadFilesResponse);
 }

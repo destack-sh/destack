@@ -59,7 +59,7 @@ from .const import (
     get_active_session,
     repr_enums,
 )
-from .edit import Change, ChangeResult, Edit, EditType, UpdateType, edit_graph
+from .edit import Change, ChangeResult, ChangeStatus, Edit, EditType, UpdateType, edit_graph
 from .graph import Graph, Supergraph
 from .icon import Icon, IconIn, IconType, icon, reverse_icon, to_icon
 from .node import IndexIn, Node, node_
@@ -253,6 +253,7 @@ __all__ = [
     "CascadeAction",
     "Change",
     "ChangeResult",
+    "ChangeStatus",
     "ClientType",
     "Cloud",
     "Code",

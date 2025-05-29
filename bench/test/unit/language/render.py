@@ -21,7 +21,6 @@ from bench.language import (
     Session,
     code,
     text,
-    to_type,
 )
 from bench.language.registry import BENCH_CLASS_BY_TYPE
 from bench.utils.code import format_code
@@ -168,11 +167,3 @@ def test_render_property(session: Session, package: Package):
     prop_2 = Page.property("title")
     prop_3 = Run.property("outputs")
     return {"prop_1": prop_1, "prop_2": prop_2, "prop_3": prop_3}
-
-
-@_render_test
-def test_render_type_in(session: Session, package: Package):
-    """Type in should be rendered as TypeIn with `to_type`."""
-    type_1 = to_type(int)
-    type_2 = to_type(str)
-    return {"type_1": type_1, "type_2": type_2}

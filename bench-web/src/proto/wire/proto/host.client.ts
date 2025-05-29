@@ -26,34 +26,32 @@ import type { RpcOptions } from "@protobuf-ts/runtime-rpc";
  * @generated from protobuf service symbol.bench.Host
  */
 export interface IHostClient {
-    // 
-    // Graph
-    // 
-
     /**
+     * Query the Supergraph.
+     *
      * @generated from protobuf rpc: Query(symbol.bench.QueryRequest) returns (symbol.bench.QueryResponse);
      */
     query(input: QueryRequest, options?: OperationOptions): UnaryCall<QueryRequest, QueryResponse>;
     /**
+     * Subscribe to updates from the Supergraph.
+     *
      * @generated from protobuf rpc: Subscribe(symbol.bench.SubscribeRequest) returns (stream symbol.bench.SubscribeResponse);
      */
     subscribe(input: SubscribeRequest, options?: OperationOptions): ServerStreamingCall<SubscribeRequest, SubscribeResponse>;
     /**
+     * Commit Changes to the Supergraph.
+     *
      * @generated from protobuf rpc: Commit(symbol.bench.CommitRequest) returns (symbol.bench.CommitResponse);
      */
     commit(input: CommitRequest, options?: OperationOptions): UnaryCall<CommitRequest, CommitResponse>;
-    // 
-    // Files? 
-    // 
-
     /**
-     * 'Upload' some files (get URLs to upload them to). Handles may be incomplete.
+     * 'Upload' some files (get URLs to upload them to).
      *
      * @generated from protobuf rpc: UploadFiles(symbol.bench.UploadFilesRequest) returns (symbol.bench.UploadFilesResponse);
      */
     uploadFiles(input: UploadFilesRequest, options?: OperationOptions): UnaryCall<UploadFilesRequest, UploadFilesResponse>;
     /**
-     * 'Download' some files (get URLs to download them from). Handles may be incomplete.
+     * 'Download' some files (get URLs to download them from).
      *
      * @generated from protobuf rpc: DownloadFiles(symbol.bench.DownloadFilesRequest) returns (symbol.bench.DownloadFilesResponse);
      */
@@ -70,11 +68,9 @@ export class HostClient implements IHostClient, ServiceInfo {
     options = Host.options;
     constructor(private readonly _transport: RpcTransport) {
     }
-    // 
-    // Graph
-    // 
-
     /**
+     * Query the Supergraph.
+     *
      * @generated from protobuf rpc: Query(symbol.bench.QueryRequest) returns (symbol.bench.QueryResponse);
      */
     query(input: QueryRequest, options?: OperationOptions): UnaryCall<QueryRequest, QueryResponse> {
@@ -82,6 +78,8 @@ export class HostClient implements IHostClient, ServiceInfo {
         return stackIntercept<QueryRequest, QueryResponse>("unary", this._transport, method, opt, input);
     }
     /**
+     * Subscribe to updates from the Supergraph.
+     *
      * @generated from protobuf rpc: Subscribe(symbol.bench.SubscribeRequest) returns (stream symbol.bench.SubscribeResponse);
      */
     subscribe(input: SubscribeRequest, options?: OperationOptions): ServerStreamingCall<SubscribeRequest, SubscribeResponse> {
@@ -89,18 +87,16 @@ export class HostClient implements IHostClient, ServiceInfo {
         return stackIntercept<SubscribeRequest, SubscribeResponse>("serverStreaming", this._transport, method, opt, input);
     }
     /**
+     * Commit Changes to the Supergraph.
+     *
      * @generated from protobuf rpc: Commit(symbol.bench.CommitRequest) returns (symbol.bench.CommitResponse);
      */
     commit(input: CommitRequest, options?: OperationOptions): UnaryCall<CommitRequest, CommitResponse> {
         const method = this.methods[2], opt = this._transport.mergeOptions(options);
         return stackIntercept<CommitRequest, CommitResponse>("unary", this._transport, method, opt, input);
     }
-    // 
-    // Files? 
-    // 
-
     /**
-     * 'Upload' some files (get URLs to upload them to). Handles may be incomplete.
+     * 'Upload' some files (get URLs to upload them to).
      *
      * @generated from protobuf rpc: UploadFiles(symbol.bench.UploadFilesRequest) returns (symbol.bench.UploadFilesResponse);
      */
@@ -109,7 +105,7 @@ export class HostClient implements IHostClient, ServiceInfo {
         return stackIntercept<UploadFilesRequest, UploadFilesResponse>("unary", this._transport, method, opt, input);
     }
     /**
-     * 'Download' some files (get URLs to download them from). Handles may be incomplete.
+     * 'Download' some files (get URLs to download them from).
      *
      * @generated from protobuf rpc: DownloadFiles(symbol.bench.DownloadFilesRequest) returns (symbol.bench.DownloadFilesResponse);
      */

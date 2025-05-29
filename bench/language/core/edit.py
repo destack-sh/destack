@@ -96,18 +96,34 @@ class Change(StructFrozen):
     """A Change is an atomic sequence of Edits."""
 
     id: UUID = property_(2, is_managed=True, default_factory="uuid")
-    created_at: datetime = property_(10, is_managed=True)
-    edits: list[Edit] = property_(40)
+    created_at: datetime = property_(10, is_managed=True, default_factory="now")
+    edits: list[Edit] = property_(41)
+
+
+@enum_(EnumType.CHANGE_STATUS)
+class ChangeStatus(BuiltinEnum):
+    """The status of a Change."""
+
+    # PENDING?
+    COMPLETED = 2
+    FAILED = 3
 
 
 @struct_(StructType.CHANGE_RESULT, frozen=True)
 class ChangeResult(StructFrozen):
-    """The result of a Change."""
+    """The result of a Change. If rejected, edits/cascaded_edits are empty."""
 
-    id: UUID = property_(2, default_factory="uuid")
-    edits: list[Edit] = property_(40)
-    cascaded_edits: list[Edit] = property_(41)
-    epoch: int = property_(42)
+    id: UUID = property_(2, is_managed=True, description="The id of the Change.")
+    created_at: datetime = property_(
+        10,
+        is_managed=True,
+        description="The time the ChangeResult was created.",
+        default_factory="now",
+    )
+    status: ChangeStatus = property_(40)
+    edits: list[Edit] = property_(41)
+    cascaded_edits: list[Edit] = property_(42)
+    epoch: int = property_(43)
 
 
 def edit_node(node: Node, edit: Edit) -> None:

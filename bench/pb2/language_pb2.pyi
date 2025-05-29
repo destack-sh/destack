@@ -115,6 +115,13 @@ class CascadeAction(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     CASCADE_ACTION_CASCADE: _ClassVar[CascadeAction]
     CASCADE_ACTION_SET_NULL: _ClassVar[CascadeAction]
 
+class ChangeStatus(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
+    __slots__ = ()
+    CHANGE_STATUS_UNSPECIFIED: _ClassVar[ChangeStatus]
+    CHANGE_STATUS_PENDING: _ClassVar[ChangeStatus]
+    CHANGE_STATUS_APPROVED: _ClassVar[ChangeStatus]
+    CHANGE_STATUS_REJECTED: _ClassVar[ChangeStatus]
+
 class ClientType(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     __slots__ = ()
     CLIENT_TYPE_UNSPECIFIED: _ClassVar[ClientType]
@@ -347,6 +354,7 @@ class EnumType(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     ENUM_TYPE_VARIABLE_TYPE: _ClassVar[EnumType]
     ENUM_TYPE_EDIT_TYPE: _ClassVar[EnumType]
     ENUM_TYPE_UPDATE_TYPE: _ClassVar[EnumType]
+    ENUM_TYPE_CHANGE_STATUS: _ClassVar[EnumType]
     ENUM_TYPE_CONDITIONAL_TYPE: _ClassVar[EnumType]
     ENUM_TYPE_AGGREGATION_TYPE: _ClassVar[EnumType]
     ENUM_TYPE_SORT_MODE: _ClassVar[EnumType]
@@ -1382,6 +1390,10 @@ CASCADE_ACTION_UNSPECIFIED: CascadeAction
 CASCADE_ACTION_RESTRICT: CascadeAction
 CASCADE_ACTION_CASCADE: CascadeAction
 CASCADE_ACTION_SET_NULL: CascadeAction
+CHANGE_STATUS_UNSPECIFIED: ChangeStatus
+CHANGE_STATUS_PENDING: ChangeStatus
+CHANGE_STATUS_APPROVED: ChangeStatus
+CHANGE_STATUS_REJECTED: ChangeStatus
 CLIENT_TYPE_UNSPECIFIED: ClientType
 CLIENT_TYPE_WEB: ClientType
 CLIENT_TYPE_BROWSER_PLUGIN: ClientType
@@ -1555,6 +1567,7 @@ ENUM_TYPE_ERROR_TYPE: EnumType
 ENUM_TYPE_VARIABLE_TYPE: EnumType
 ENUM_TYPE_EDIT_TYPE: EnumType
 ENUM_TYPE_UPDATE_TYPE: EnumType
+ENUM_TYPE_CHANGE_STATUS: EnumType
 ENUM_TYPE_CONDITIONAL_TYPE: EnumType
 ENUM_TYPE_AGGREGATION_TYPE: EnumType
 ENUM_TYPE_SORT_MODE: EnumType
@@ -2701,18 +2714,22 @@ class ChangeData(_message.Message):
     def __init__(self, metatype: _Optional[_Union[StructType, str]] = ..., id: _Optional[str] = ..., created_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., edits: _Optional[_Iterable[_Union[EditData, _Mapping]]] = ...) -> None: ...
 
 class ChangeResultData(_message.Message):
-    __slots__ = ("metatype", "id", "edits", "cascaded_edits", "epoch")
+    __slots__ = ("metatype", "id", "created_at", "status", "edits", "cascaded_edits", "epoch")
     METATYPE_FIELD_NUMBER: _ClassVar[int]
     ID_FIELD_NUMBER: _ClassVar[int]
+    CREATED_AT_FIELD_NUMBER: _ClassVar[int]
+    STATUS_FIELD_NUMBER: _ClassVar[int]
     EDITS_FIELD_NUMBER: _ClassVar[int]
     CASCADED_EDITS_FIELD_NUMBER: _ClassVar[int]
     EPOCH_FIELD_NUMBER: _ClassVar[int]
     metatype: StructType
     id: str
+    created_at: _timestamp_pb2.Timestamp
+    status: ChangeStatus
     edits: _containers.RepeatedCompositeFieldContainer[EditData]
     cascaded_edits: _containers.RepeatedCompositeFieldContainer[EditData]
     epoch: int
-    def __init__(self, metatype: _Optional[_Union[StructType, str]] = ..., id: _Optional[str] = ..., edits: _Optional[_Iterable[_Union[EditData, _Mapping]]] = ..., cascaded_edits: _Optional[_Iterable[_Union[EditData, _Mapping]]] = ..., epoch: _Optional[int] = ...) -> None: ...
+    def __init__(self, metatype: _Optional[_Union[StructType, str]] = ..., id: _Optional[str] = ..., created_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., status: _Optional[_Union[ChangeStatus, str]] = ..., edits: _Optional[_Iterable[_Union[EditData, _Mapping]]] = ..., cascaded_edits: _Optional[_Iterable[_Union[EditData, _Mapping]]] = ..., epoch: _Optional[int] = ...) -> None: ...
 
 class ClientData(_message.Message):
     __slots__ = ("metatype", "id", "parent_ptr", "bench_ptr", "created_at", "created_by_ptr", "updated_at", "updated_by_ptr", "type", "name", "space_ptr", "machine_ptr", "user_ptr", "device_type", "device_name", "operating_system", "browser_name", "browser_version", "access_token", "seen_at", "logged_in_at", "cursor_ptr")

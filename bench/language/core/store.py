@@ -14,8 +14,8 @@ class Store(abc.ABC):
         ...
 
     @abc.abstractmethod
-    async def commit(self, changes: Sequence["Change"] = ()) -> Sequence["ChangeResult"]:
-        """Commit a Transaction (including any staged Changes)."""
+    async def commit(self, changes: Sequence["Change"]) -> Sequence["ChangeResult"]:
+        """Commit the Transaction (including any staged Changes)."""
         ...
 
 
