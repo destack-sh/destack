@@ -8,17 +8,19 @@ from opentelemetry import trace
 from bench.language import (
     CLOUD,
     Bench,
+    Change,
     Client,
     Database,
     IsSubject,
     LiveStore,
+    NodeArea,
     NodeReference,
     NodeType,
+    Package,
     Query,
     Scope,
     Session,
 )
-from bench.language.core.edit import Change
 from bench.pb2 import (
     CommitRequest,
     CommitResponse,
@@ -35,6 +37,7 @@ from bench.pb2 import (
     UploadFilesResponse,
 )
 from bench.proto import Network, ServiceBase
+from bench.system.store.database import DatabaseStore
 from bench.utils.env import ENV
 from bench.utils.oracle import Oracle
 from bench.utils.utils import get_from_env
@@ -77,9 +80,15 @@ class HostService(ServiceBase, HostBase):
         self.bench_ptr = NodeReference(
             node_type=NodeType.BENCH, id=bench_id, ck=bench_id, bench_id=bench_id
         )
-        self.scope = Scope(bench_id=bench_id).to_proto()
+        self.scope = Scope(bench_id=bench_id)
         self.provisioners: tuple[Provisioner, ...] = ()
         self.plugins: tuple[HostPlugin, ...] = ()  # incl. provisioners
+        self.database_store = DatabaseStore(
+            {
+                NodeArea.GLOBAL_POSTGRES: global_database,
+                NodeArea.REGIONAL_POSTGRES: regional_database,
+            }
+        )
         self.store: LiveStore = None
 
     def __str__(self):
@@ -95,7 +104,15 @@ class HostService(ServiceBase, HostBase):
         return all(plugin.is_idle for plugin in self.plugins) and super().is_idle
 
     async def start(self) -> None:
-        raise NotImplementedError
+        async with Session(store=self.database_store):
+            bench = await Bench.get(
+                where=Bench.property("id").eq(self.bench_id),
+                Packages=Package.search(
+                    Databases=Database.search(),
+                ),
+            ).execute_one()
+            if (database := bench.database) is not None:
+                self.database_store.add_database(NodeArea.LOCAL_POSTGRES, database)
 
     def stop(self) -> None:
         super().stop()
@@ -154,10 +171,11 @@ class HostService(ServiceBase, HostBase):
         metadata: RpcMetadata,
     ) -> CommitResponse:
         changes = [Change.from_proto(change) for change in request.changes]
-        results = await self.store.commit(changes)
-        return CommitResponse(
-            results=[result.to_proto() for result in results],
-        )
+        approved_changes: list[Change] = []
+        for _ in changes:
+            pass  # nocheckin: validate & approve/reject changes
+        results = await self.store.commit(approved_changes)
+        return CommitResponse(results=[result.to_proto() for result in results])
 
     @override
     async def upload_files(

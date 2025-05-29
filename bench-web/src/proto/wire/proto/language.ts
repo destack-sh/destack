@@ -779,7 +779,7 @@ export interface ChangeData {
      */
     createdAt?: Timestamp;
     /**
-     * @generated from protobuf field: repeated symbol.bench.EditData edits = 40;
+     * @generated from protobuf field: repeated symbol.bench.EditData edits = 41;
      */
     edits: EditData[];
 }
@@ -796,15 +796,23 @@ export interface ChangeResultData {
      */
     id: string;
     /**
-     * @generated from protobuf field: repeated symbol.bench.EditData edits = 40;
+     * @generated from protobuf field: google.protobuf.Timestamp created_at = 10;
+     */
+    createdAt?: Timestamp;
+    /**
+     * @generated from protobuf field: symbol.bench.ChangeStatus status = 40;
+     */
+    status: ChangeStatus;
+    /**
+     * @generated from protobuf field: repeated symbol.bench.EditData edits = 41;
      */
     edits: EditData[];
     /**
-     * @generated from protobuf field: repeated symbol.bench.EditData cascaded_edits = 41;
+     * @generated from protobuf field: repeated symbol.bench.EditData cascaded_edits = 42;
      */
     cascadedEdits: EditData[];
     /**
-     * @generated from protobuf field: int64 epoch = 42;
+     * @generated from protobuf field: int64 epoch = 43;
      */
     epoch: bigint;
 }
@@ -8554,6 +8562,29 @@ export enum CascadeAction {
     SET_NULL = 3
 }
 /**
+ * The status of a Change.
+ *
+ * @generated from protobuf enum symbol.bench.ChangeStatus
+ */
+export enum ChangeStatus {
+    /**
+     * @generated from protobuf enum value: CHANGE_STATUS_UNSPECIFIED = 0;
+     */
+    UNSPECIFIED = 0,
+    /**
+     * @generated from protobuf enum value: CHANGE_STATUS_PENDING = 1;
+     */
+    PENDING = 1,
+    /**
+     * @generated from protobuf enum value: CHANGE_STATUS_APPROVED = 2;
+     */
+    APPROVED = 2,
+    /**
+     * @generated from protobuf enum value: CHANGE_STATUS_REJECTED = 3;
+     */
+    REJECTED = 3
+}
+/**
  * @generated from protobuf enum symbol.bench.ClientType
  */
 export enum ClientType {
@@ -9373,6 +9404,10 @@ export enum EnumType {
      * @generated from protobuf enum value: ENUM_TYPE_UPDATE_TYPE = 40071;
      */
     UPDATE_TYPE = 40071,
+    /**
+     * @generated from protobuf enum value: ENUM_TYPE_CHANGE_STATUS = 40075;
+     */
+    CHANGE_STATUS = 40075,
     /**
      * @generated from protobuf enum value: ENUM_TYPE_CONDITIONAL_TYPE = 40102;
      */
@@ -14481,7 +14516,7 @@ class ChangeData$Type extends MessageType$<ChangeData> {
             { no: 1, name: "metatype", kind: "enum", T: () => ["symbol.bench.StructType", StructType, "STRUCT_TYPE_"] },
             { no: 2, name: "id", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
             { no: 10, name: "created_at", kind: "message", T: () => Timestamp },
-            { no: 40, name: "edits", kind: "message", repeat: 1 /*RepeatType.PACKED*/, T: () => EditData }
+            { no: 41, name: "edits", kind: "message", repeat: 1 /*RepeatType.PACKED*/, T: () => EditData }
         ]);
     }
     create(value?: PartialMessage<ChangeData>): ChangeData {
@@ -14507,7 +14542,7 @@ class ChangeData$Type extends MessageType$<ChangeData> {
                 case /* google.protobuf.Timestamp created_at */ 10:
                     message.createdAt = Timestamp.internalBinaryRead(reader, reader.uint32(), options, message.createdAt);
                     break;
-                case /* repeated symbol.bench.EditData edits */ 40:
+                case /* repeated symbol.bench.EditData edits */ 41:
                     message.edits.push(EditData.internalBinaryRead(reader, reader.uint32(), options));
                     break;
                 default:
@@ -14531,9 +14566,9 @@ class ChangeData$Type extends MessageType$<ChangeData> {
         /* google.protobuf.Timestamp created_at = 10; */
         if (message.createdAt)
             Timestamp.internalBinaryWrite(message.createdAt, writer.tag(10, WireType.LengthDelimited).fork(), options).join();
-        /* repeated symbol.bench.EditData edits = 40; */
+        /* repeated symbol.bench.EditData edits = 41; */
         for (let i = 0; i < message.edits.length; i++)
-            EditData.internalBinaryWrite(message.edits[i], writer.tag(40, WireType.LengthDelimited).fork(), options).join();
+            EditData.internalBinaryWrite(message.edits[i], writer.tag(41, WireType.LengthDelimited).fork(), options).join();
         let u = options.writeUnknownFields;
         if (u !== false)
             (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
@@ -14550,15 +14585,18 @@ class ChangeResultData$Type extends MessageType$<ChangeResultData> {
         super("symbol.bench.ChangeResultData", [
             { no: 1, name: "metatype", kind: "enum", T: () => ["symbol.bench.StructType", StructType, "STRUCT_TYPE_"] },
             { no: 2, name: "id", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
-            { no: 40, name: "edits", kind: "message", repeat: 1 /*RepeatType.PACKED*/, T: () => EditData },
-            { no: 41, name: "cascaded_edits", kind: "message", repeat: 1 /*RepeatType.PACKED*/, T: () => EditData },
-            { no: 42, name: "epoch", kind: "scalar", T: 3 /*ScalarType.INT64*/, L: 0 /*LongType.BIGINT*/ }
+            { no: 10, name: "created_at", kind: "message", T: () => Timestamp },
+            { no: 40, name: "status", kind: "enum", T: () => ["symbol.bench.ChangeStatus", ChangeStatus, "CHANGE_STATUS_"] },
+            { no: 41, name: "edits", kind: "message", repeat: 1 /*RepeatType.PACKED*/, T: () => EditData },
+            { no: 42, name: "cascaded_edits", kind: "message", repeat: 1 /*RepeatType.PACKED*/, T: () => EditData },
+            { no: 43, name: "epoch", kind: "scalar", T: 3 /*ScalarType.INT64*/, L: 0 /*LongType.BIGINT*/ }
         ]);
     }
     create(value?: PartialMessage<ChangeResultData>): ChangeResultData {
         const message = globalThis.Object.create((this.messagePrototype!));
         message.metatype = 0;
         message.id = "";
+        message.status = 0;
         message.edits = [];
         message.cascadedEdits = [];
         message.epoch = 0n;
@@ -14577,13 +14615,19 @@ class ChangeResultData$Type extends MessageType$<ChangeResultData> {
                 case /* string id */ 2:
                     message.id = reader.string();
                     break;
-                case /* repeated symbol.bench.EditData edits */ 40:
+                case /* google.protobuf.Timestamp created_at */ 10:
+                    message.createdAt = Timestamp.internalBinaryRead(reader, reader.uint32(), options, message.createdAt);
+                    break;
+                case /* symbol.bench.ChangeStatus status */ 40:
+                    message.status = reader.int32();
+                    break;
+                case /* repeated symbol.bench.EditData edits */ 41:
                     message.edits.push(EditData.internalBinaryRead(reader, reader.uint32(), options));
                     break;
-                case /* repeated symbol.bench.EditData cascaded_edits */ 41:
+                case /* repeated symbol.bench.EditData cascaded_edits */ 42:
                     message.cascadedEdits.push(EditData.internalBinaryRead(reader, reader.uint32(), options));
                     break;
-                case /* int64 epoch */ 42:
+                case /* int64 epoch */ 43:
                     message.epoch = reader.int64().toBigInt();
                     break;
                 default:
@@ -14604,15 +14648,21 @@ class ChangeResultData$Type extends MessageType$<ChangeResultData> {
         /* string id = 2; */
         if (message.id !== "")
             writer.tag(2, WireType.LengthDelimited).string(message.id);
-        /* repeated symbol.bench.EditData edits = 40; */
+        /* google.protobuf.Timestamp created_at = 10; */
+        if (message.createdAt)
+            Timestamp.internalBinaryWrite(message.createdAt, writer.tag(10, WireType.LengthDelimited).fork(), options).join();
+        /* symbol.bench.ChangeStatus status = 40; */
+        if (message.status !== 0)
+            writer.tag(40, WireType.Varint).int32(message.status);
+        /* repeated symbol.bench.EditData edits = 41; */
         for (let i = 0; i < message.edits.length; i++)
-            EditData.internalBinaryWrite(message.edits[i], writer.tag(40, WireType.LengthDelimited).fork(), options).join();
-        /* repeated symbol.bench.EditData cascaded_edits = 41; */
+            EditData.internalBinaryWrite(message.edits[i], writer.tag(41, WireType.LengthDelimited).fork(), options).join();
+        /* repeated symbol.bench.EditData cascaded_edits = 42; */
         for (let i = 0; i < message.cascadedEdits.length; i++)
-            EditData.internalBinaryWrite(message.cascadedEdits[i], writer.tag(41, WireType.LengthDelimited).fork(), options).join();
-        /* int64 epoch = 42; */
+            EditData.internalBinaryWrite(message.cascadedEdits[i], writer.tag(42, WireType.LengthDelimited).fork(), options).join();
+        /* int64 epoch = 43; */
         if (message.epoch !== 0n)
-            writer.tag(42, WireType.Varint).int64(message.epoch);
+            writer.tag(43, WireType.Varint).int64(message.epoch);
         let u = options.writeUnknownFields;
         if (u !== false)
             (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);

@@ -29,7 +29,10 @@ class DatabaseStore(Store):
     """
 
     def __init__(self, database_by_area: Mapping[NodeArea, Database]):
-        self.database_by_area = database_by_area
+        self.database_by_area: dict[NodeArea, Database] = {**database_by_area}
+
+    def add_database(self, area: NodeArea, database: Database) -> None:
+        self.database_by_area[area] = database
 
     @override
     async def query(self, query: Query) -> QueryResult:
@@ -38,6 +41,11 @@ class DatabaseStore(Store):
     @override
     async def commit(self, changes: Sequence[Change]) -> Sequence[ChangeResult]:
         raise NotImplementedError
+
+
+#
+# System
+#
 
 
 def make_system_database(region: Region, pg_url: str) -> Database:

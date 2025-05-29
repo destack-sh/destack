@@ -106,6 +106,14 @@ enum CascadeAction {
   CASCADE_ACTION_SET_NULL = 3;
 }
 
+// The status of a Change.
+enum ChangeStatus {
+  CHANGE_STATUS_UNSPECIFIED = 0;
+  CHANGE_STATUS_PENDING = 1;
+  CHANGE_STATUS_APPROVED = 2;
+  CHANGE_STATUS_REJECTED = 3;
+}
+
 enum ClientType {
   CLIENT_TYPE_UNSPECIFIED = 0;
   CLIENT_TYPE_WEB = 1;
@@ -352,6 +360,7 @@ enum EnumType {
   ENUM_TYPE_VARIABLE_TYPE = 40063;
   ENUM_TYPE_EDIT_TYPE = 40070;
   ENUM_TYPE_UPDATE_TYPE = 40071;
+  ENUM_TYPE_CHANGE_STATUS = 40075;
   ENUM_TYPE_CONDITIONAL_TYPE = 40102;
   ENUM_TYPE_AGGREGATION_TYPE = 40103;
   ENUM_TYPE_SORT_MODE = 40104;
@@ -1566,15 +1575,17 @@ message ChangeData {
   StructType metatype = 1;
   string id = 2;
   google.protobuf.Timestamp created_at = 10;
-  repeated EditData edits = 40;
+  repeated EditData edits = 41;
 }
 
 message ChangeResultData {
   StructType metatype = 1;
   string id = 2;
-  repeated EditData edits = 40;
-  repeated EditData cascaded_edits = 41;
-  int64 epoch = 42;
+  google.protobuf.Timestamp created_at = 10;
+  ChangeStatus status = 40;
+  repeated EditData edits = 41;
+  repeated EditData cascaded_edits = 42;
+  int64 epoch = 43;
 }
 
 // A Client to connect with the system.
