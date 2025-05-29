@@ -40,14 +40,14 @@ async def shell(
 
     if area == NodeArea.GLOBAL_POSTGRES:
         database = global_database
-    elif area == NodeArea.REGIONAL_POSTGRES:
+    elif area == NodeArea.MAIN_POSTGRES:
         database = regional_database
-    elif area == NodeArea.LOCAL_POSTGRES:
+    elif area == NodeArea.CUSTOM_POSTGRES:
         assert bench is not None, "bench is required for local area"
         store = DatabaseStore(
             {
                 NodeArea.GLOBAL_POSTGRES: global_database,
-                NodeArea.REGIONAL_POSTGRES: regional_database,
+                NodeArea.MAIN_POSTGRES: regional_database,
             }
         )
         async with Session(store=store, oracle=REAL_ORACLE):

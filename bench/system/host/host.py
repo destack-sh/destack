@@ -84,7 +84,7 @@ class HostService(ServiceBase, HostBase):
         self.database_store = DatabaseStore(
             {
                 NodeArea.GLOBAL_POSTGRES: global_database,
-                NodeArea.REGIONAL_POSTGRES: regional_database,
+                NodeArea.MAIN_POSTGRES: regional_database,
             }
         )
         self.store: LiveStore = None
@@ -110,7 +110,7 @@ class HostService(ServiceBase, HostBase):
                 ),
             ).execute_one()
             if (database := bench.database) is not None:
-                self.database_store.add_database(NodeArea.LOCAL_POSTGRES, database)
+                self.database_store.add_database(NodeArea.CUSTOM_POSTGRES, database)
 
     def stop(self) -> None:
         super().stop()

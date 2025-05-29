@@ -8,6 +8,7 @@ from bench.language import (
     Agent,
     Block,
     BlockType,
+    CustomNodeDefinition,
     Field,
     FieldType,
     File,
@@ -19,7 +20,6 @@ from bench.language import (
     Page,
     Run,
     Span,
-    Table,
     Task,
     Thread,
 )
@@ -184,8 +184,8 @@ class PagePiece(NodePiece[Page]):
         yield SeparatorPiece()
 
 
-@piece_(NodeType.TABLE)
-class DatabasePiece(NodePiece[Table]):
+@piece_(NodeType.CUSTOM_NODE_DEFINITION)
+class DatabasePiece(NodePiece[CustomNodeDefinition]):
     pass
 
 

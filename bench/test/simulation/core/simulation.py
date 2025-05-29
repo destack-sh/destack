@@ -81,7 +81,7 @@ class Simulation:
         self.regional_pg_engine = pg_engine_from_database(
             f"pg-regional-{regional_database.region.name.lower()}",
             regional_database,
-            NodeArea.REGIONAL_POSTGRES,
+            NodeArea.MAIN_POSTGRES,
         )
         self.database_map = database_map
 

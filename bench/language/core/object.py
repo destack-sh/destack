@@ -464,7 +464,7 @@ def __to_ref__(self) -> "NodeReference":
         bench_id=self.id,
     )
 """
-    elif TraitType.NODE_INSTANCE in cls.__traits__:
+    elif node_type == NodeType.CUSTOM_NODE_INSTANCE:
         ref_impl = f"""\
 def __to_ref__(self) -> "NodeReference":
     return NodeReference(

@@ -5,13 +5,13 @@ from bench.language import (
     Action,
     Block,
     BuiltinObjectBase,
+    CustomNodeDefinition,
     Field,
     Flow,
     Package,
     Page,
     Schema,
     Session,
-    Table,
     title,
 )
 from bench.language.core.const import NodeType, StructType
@@ -72,7 +72,7 @@ async def test_clone_with_cross_references(simulation: Simulation, runtime: Runt
         ),
     )
     flow.add_child(action)
-    table = Table(name="Table")
+    table = CustomNodeDefinition(name="Table")
     table.add_children(
         Field(name="Text", scalar_type=ScalarType.STRUCT, struct_type=StructType.TEXT)
     )
@@ -101,7 +101,7 @@ async def test_clone_with_cross_references(simulation: Simulation, runtime: Runt
     action_clone = flow_clone.child(Action, "Action")
     assert action_clone is not None
     assert action_clone.child(Field, "Schema").base_type == schema_clone
-    table_clone = page_clone.child(Block, "Table").get_node_as(Table)
+    table_clone = page_clone.child(Block, "Table").get_node_as(CustomNodeDefinition)
     assert table_clone is not None
     await runtime.commit()
 
@@ -146,7 +146,7 @@ async def test_instance_with_cross_references(
         ),
     )
     flow.add_child(action)
-    table = Table(name="Table")
+    table = CustomNodeDefinition(name="Table")
     table.add_children(
         Field(name="Text", scalar_type=ScalarType.STRUCT, struct_type=StructType.TEXT)
     )
@@ -171,7 +171,7 @@ async def test_instance_with_cross_references(
     assert action_instance is not action
     assert action_instance.template is action
     assert action_instance.child(Field, "Schema").base_type == schema_instance
-    table_instance = page_instance.child(Block, "Table").get_node_as(Table)
+    table_instance = page_instance.child(Block, "Table").get_node_as(CustomNodeDefinition)
     assert table_instance is not None
     assert table_instance is not table
     assert table_instance.template is table
@@ -192,7 +192,7 @@ async def test_move_subtree(simulation: Simulation, runtime: RuntimeLambdaWorklo
             name="Schema", scalar_type=ScalarType.NODE, node_type=NodeType.FIELD, base_type=Block1
         ),
     )
-    Block3 = Page1.add_child(Table(name="Block3"))
+    Block3 = Page1.add_child(CustomNodeDefinition(name="Block3"))
     Block3.add_children(
         Field(name="Text", scalar_type=ScalarType.STRUCT, struct_type=StructType.TEXT)
     )

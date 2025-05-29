@@ -90,10 +90,10 @@ def node_(
             # area
             if TraitType.GLOBAL in traits:
                 cls.__area__ = NodeArea.GLOBAL_POSTGRES
-            elif TraitType.LOCAL in traits:
-                cls.__area__ = NodeArea.LOCAL_POSTGRES
+            elif TraitType.CUSTOM in traits:
+                cls.__area__ = NodeArea.CUSTOM_POSTGRES
             else:
-                cls.__area__ = NodeArea.REGIONAL_POSTGRES
+                cls.__area__ = NodeArea.MAIN_POSTGRES
 
         # parent/root
         parent_property = cls.__properties__.get("parent", None)

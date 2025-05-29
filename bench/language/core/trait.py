@@ -136,8 +136,8 @@ class IsGlobal(Node if TYPE_CHECKING else BuiltinObjectBase):
     pass
 
 
-@trait_(TraitType.LOCAL)
-class IsLocal(Node if TYPE_CHECKING else BuiltinObjectBase):
+@trait_(TraitType.CUSTOM)
+class IsCustom(Node if TYPE_CHECKING else BuiltinObjectBase):
     """A Node that is local."""
 
     pass
@@ -219,27 +219,6 @@ class IsTemplatable(Node if TYPE_CHECKING else BuiltinObjectBase):
         """
 
         raise NotImplementedError
-
-
-@trait_(TraitType.NODE_TYPE)
-class IsNodeType(Node if TYPE_CHECKING else BuiltinObjectBase):
-    """A Node that represents a custom NodeType."""
-
-    traits: list[TraitType] = property_(40, description="Dynamic traits of the Table.")
-
-
-@trait_(TraitType.NODE_INSTANCE)
-class IsNodeInstance(Node if TYPE_CHECKING else BuiltinObjectBase):
-    """A Node that represents an instance of a custom NodeType."""
-
-    definition: "IsNodeType" = property_(
-        40,
-        description="The NodeType this NodeInstance is an instance of.",
-        node_bench_from="self",
-    )
-    if TYPE_CHECKING:
-        definition_id: Optional[UUID] = None
-        definition_ptr: Optional[NodeReference] = None
 
 
 @trait_(TraitType.EXTENSIBLE)

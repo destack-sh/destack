@@ -29,14 +29,10 @@ from bench.language import (
     Region,
 )
 from bench.sql import (
-    ALL_EXTENSIONS,
     BENCH_CUSTOM_NODE_PREFIX,
     BENCH_TABLE_PREFIX,
     BUILTIN_GLOBAL_SCHEMA,
-    BUILTIN_GLOBAL_TABLES,
-    BUILTIN_LOCAL_TABLES,
     BUILTIN_REGIONAL_SCHEMA,
-    BUILTIN_REGIONAL_TABLES,
     SqlSchema,
     apply_sql_migration_ops,
     generate_sql_migration_ops,
@@ -194,24 +190,6 @@ async def regional_database(request: pytest.FixtureRequest):
 
     database = make_regional_database(f"test-{_clean_name(request.node.name)[:32]}-regional")
     await create_test_db(database, BUILTIN_REGIONAL_SCHEMA)
-    try:
-        yield database
-    finally:
-        await delete_test_db(database)
-
-
-@pytest.fixture
-async def omni_database(request: pytest.FixtureRequest):
-    """Gets the per test function global database"""
-
-    ALL_TABLES = {}
-    for table in (*BUILTIN_GLOBAL_TABLES, *BUILTIN_REGIONAL_TABLES, *BUILTIN_LOCAL_TABLES):
-        ALL_TABLES[table.name] = table
-    ALL_TABLES = tuple(ALL_TABLES.values())
-    OMNI_SCHEMA = SqlSchema(ALL_EXTENSIONS, ALL_TABLES)
-
-    database = make_global_database(f"test-{_clean_name(request.node.name)[:32]}-omni")
-    await create_test_db(database, OMNI_SCHEMA)
     try:
         yield database
     finally:

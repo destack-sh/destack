@@ -10,7 +10,7 @@ from .core import (
     SqlTable,
 )
 
-VERSION = "2025.05.29.2"
+VERSION = "2025.05.29.3"
 
 BENCH_TABLE = SqlTable(
     "bench_bench",
@@ -1029,8 +1029,8 @@ LINK_TABLE = SqlTable(
     indexes=(SqlIndex("bench_idx_parent_id", SqlIndexType.BTREE, ("parent_id",), cover=("id",)),),
 )
 
-TABLE_TABLE = SqlTable(
-    "bench_table",
+CUSTOM_NODE_DEFINITION_TABLE = SqlTable(
+    "bench_custom_node_definition",
     (
         SqlColumn("id", PrimitiveType.UUID, is_primary_key=True),
         SqlColumn("parent_id", PrimitiveType.UUID, is_nullable=True),
@@ -1041,7 +1041,6 @@ TABLE_TABLE = SqlTable(
         SqlColumn("created_by_id", PrimitiveType.UUID, is_nullable=True),
         SqlColumn("updated_at", PrimitiveType.DATETIME),
         SqlColumn("updated_by_id", PrimitiveType.UUID, is_nullable=True),
-        SqlColumn("archived_at", PrimitiveType.DATETIME, is_nullable=True),
         SqlColumn("deleted_at", PrimitiveType.DATETIME, is_nullable=True),
         SqlColumn("owned_by_id", PrimitiveType.UUID, is_nullable=True),
         SqlColumn("mode", PrimitiveType.INT16),

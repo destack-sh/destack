@@ -813,9 +813,9 @@ enum Month {
 
 enum NodeArea {
   NODE_AREA_UNSPECIFIED = 0;
-  NODE_AREA_GLOBAL_POSTGRES = 100;
-  NODE_AREA_REGIONAL_POSTGRES = 200;
-  NODE_AREA_LOCAL_POSTGRES = 300;
+  NODE_AREA_GLOBAL_POSTGRES = 10;
+  NODE_AREA_MAIN_POSTGRES = 20;
+  NODE_AREA_CUSTOM_POSTGRES = 30;
 }
 
 enum NodeMode {
@@ -864,8 +864,8 @@ enum NodeType {
   NODE_TYPE_FIELD = 2010;
   NODE_TYPE_FILE = 2020;
   NODE_TYPE_LINK = 2050;
-  NODE_TYPE_TABLE = 2200;
-  NODE_TYPE_RECORD = 2210;
+  NODE_TYPE_CUSTOM_NODE_DEFINITION = 2200;
+  NODE_TYPE_CUSTOM_NODE_INSTANCE = 2201;
   NODE_TYPE_THREAD = 2400;
   NODE_TYPE_MESSAGE = 2420;
   NODE_TYPE_FRAME_VIEW = 8100;
@@ -1163,13 +1163,13 @@ enum StructType {
   STRUCT_TYPE_STRING_CONSTRAINT = 22002;
   STRUCT_TYPE_COLLECTION_CONSTRAINT = 22003;
   STRUCT_TYPE_NODE_CONSTRAINT = 22004;
-  STRUCT_TYPE_VALUE = 22010;
   STRUCT_TYPE_TEXT = 22100;
   STRUCT_TYPE_TEXT_LINE = 22101;
   STRUCT_TYPE_TEXT_SPAN = 22102;
   STRUCT_TYPE_CODE = 22110;
   STRUCT_TYPE_ICON = 22130;
   STRUCT_TYPE_SELECTION = 22070;
+  STRUCT_TYPE_VALUE = 22200;
   STRUCT_TYPE_VECTOR2 = 29000;
   STRUCT_TYPE_VECTOR3 = 29002;
   STRUCT_TYPE_VECTOR4 = 29004;
@@ -1281,7 +1281,7 @@ enum TimeInterval {
 enum TraitType {
   TRAIT_TYPE_UNSPECIFIED = 0;
   TRAIT_TYPE_GLOBAL = 1;
-  TRAIT_TYPE_LOCAL = 3;
+  TRAIT_TYPE_CUSTOM = 3;
   TRAIT_TYPE_MODAL = 10;
   TRAIT_TYPE_ARCHIVABLE = 11;
   TRAIT_TYPE_DELETABLE = 12;
@@ -1292,8 +1292,6 @@ enum TraitType {
   TRAIT_TYPE_ORDERED = 24;
   TRAIT_TYPE_TEMPLATABLE = 30;
   TRAIT_TYPE_EXTENSIBLE = 32;
-  TRAIT_TYPE_NODE_TYPE = 33;
-  TRAIT_TYPE_NODE_INSTANCE = 34;
   TRAIT_TYPE_IN_BENCH = 40;
   TRAIT_TYPE_IN_PACKAGE = 41;
   TRAIT_TYPE_REGIONAL = 50;
@@ -1704,6 +1702,43 @@ message CursorData {
   optional ExpressionData filter = 53;
   repeated ExpressionData sort = 54;
   optional string url = 55;
+}
+
+// A definition for a custom Node type (instantiated in CustomNodeInstances).
+message CustomNodeDefinitionData {
+  NodeType metatype = 1;
+  string id = 2;
+  optional NodeReferenceData parent_ptr = 4;
+  optional NodeReferenceData bench_ptr = 6;
+  optional NodeReferenceData package_ptr = 7;
+  google.protobuf.Timestamp created_at = 10;
+  optional NodeReferenceData created_by_ptr = 11;
+  google.protobuf.Timestamp updated_at = 12;
+  optional NodeReferenceData updated_by_ptr = 13;
+  optional google.protobuf.Timestamp deleted_at = 15;
+  optional NodeReferenceData owned_by_ptr = 17;
+  NodeMode mode = 20;
+  optional string order_key = 22;
+  string name = 31;
+  optional NodeReferenceData block_ptr = 35;
+  repeated TraitType traits = 40;
+}
+
+// An instance of a CustomNodeDefinition.
+message CustomNodeInstanceData {
+  NodeType metatype = 1;
+  string id = 2;
+  optional NodeReferenceData parent_ptr = 4;
+  optional NodeReferenceData bench_ptr = 6;
+  optional NodeReferenceData package_ptr = 7;
+  google.protobuf.Timestamp created_at = 10;
+  optional NodeReferenceData created_by_ptr = 11;
+  google.protobuf.Timestamp updated_at = 12;
+  optional NodeReferenceData updated_by_ptr = 13;
+  optional google.protobuf.Timestamp deleted_at = 15;
+  NodeMode mode = 20;
+  map<string, ValueData> value = 21;
+  NodeReferenceData definition_ptr = 40;
 }
 
 // A trusty Postgres-compatible database.
@@ -2678,23 +2713,6 @@ message QueryUpdateData {
   int64 epoch = 40;
 }
 
-// A Record in a Table, basically an instance of a custom Node.
-message RecordData {
-  NodeType metatype = 1;
-  string id = 2;
-  optional NodeReferenceData parent_ptr = 4;
-  optional NodeReferenceData bench_ptr = 6;
-  optional NodeReferenceData package_ptr = 7;
-  google.protobuf.Timestamp created_at = 10;
-  optional NodeReferenceData created_by_ptr = 11;
-  google.protobuf.Timestamp updated_at = 12;
-  optional NodeReferenceData updated_by_ptr = 13;
-  optional google.protobuf.Timestamp deleted_at = 15;
-  NodeMode mode = 20;
-  map<string, ValueData> value = 21;
-  NodeReferenceData definition_ptr = 40;
-}
-
 message RelationReferenceData {
   StructType metatype = 1;
   RelationType type = 30;
@@ -3125,30 +3143,6 @@ message StringConstraintData {
   optional string ends_with = 43;
 }
 
-// A Table of Records, like a custom Node type with Fields as Properties.
-// nocheckin :Architecture: I don't love that we call custom Node definitions "Tables",
-// but Tables / Records is a very natural way to describe the most common use case.
-// Maybe we'll abstract out the IsCustomNode and IsCustomInstance traits or something.
-message TableData {
-  NodeType metatype = 1;
-  string id = 2;
-  optional NodeReferenceData parent_ptr = 4;
-  optional NodeReferenceData bench_ptr = 6;
-  optional NodeReferenceData package_ptr = 7;
-  google.protobuf.Timestamp created_at = 10;
-  optional NodeReferenceData created_by_ptr = 11;
-  google.protobuf.Timestamp updated_at = 12;
-  optional NodeReferenceData updated_by_ptr = 13;
-  optional google.protobuf.Timestamp archived_at = 14;
-  optional google.protobuf.Timestamp deleted_at = 15;
-  optional NodeReferenceData owned_by_ptr = 17;
-  NodeMode mode = 20;
-  optional string order_key = 22;
-  string name = 31;
-  optional NodeReferenceData block_ptr = 35;
-  repeated TraitType traits = 40;
-}
-
 // A Task is like a to do item.
 message TaskData {
   NodeType metatype = 1;
@@ -3536,8 +3530,8 @@ message SomeNodeData {
     FieldData field = 2010;
     FileData file = 2020;
     LinkData link = 2050;
-    TableData table = 2200;
-    RecordData record = 2210;
+    CustomNodeDefinitionData custom_node_definition = 2200;
+    CustomNodeInstanceData custom_node_instance = 2201;
     ThreadData thread = 2400;
     MessageData message = 2420;
     FrameViewData frame_view = 8100;

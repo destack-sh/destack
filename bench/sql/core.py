@@ -10,7 +10,7 @@ from bench.language import ConditionalType, IndexIn, PrimitiveType, SortType
 from bench.utils.func import hash_stable
 
 if TYPE_CHECKING:
-    from bench.language import Field, Table
+    from bench.language import CustomNodeDefinition, Field
 
 
 @dataclass(slots=True)
@@ -480,7 +480,7 @@ class SqlTable(SqlTableObject):
     columns: tuple[SqlColumn, ...]
     indexes: tuple[SqlIndex, ...] = ()
     constraints: tuple[SqlConstraint, ...] = ()
-    _table: Union["Table", None] = None  # type: ignore
+    _table: Union["CustomNodeDefinition", None] = None  # type: ignore
     _columns_by_name: dict[str, SqlColumn] = dataclasses.field(init=False)
     _columns_by_field: dict["Field", SqlColumn] = dataclasses.field(init=False)
     _primary_key: SqlColumn | None = dataclasses.field(init=False)
