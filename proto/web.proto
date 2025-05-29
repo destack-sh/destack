@@ -2,7 +2,7 @@ syntax = "proto3";
 
 package symbol.bench;
 
-import "proto/lang.proto";
+import "proto/language.proto";
 
 // Persistent per client/place.
 // NOTE: PersistentInfo is not cleared across user logouts.

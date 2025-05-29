@@ -268,6 +268,7 @@ class DefaultFactory(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     DEFAULT_FACTORY_UNSPECIFIED: _ClassVar[DefaultFactory]
     DEFAULT_FACTORY_UUID: _ClassVar[DefaultFactory]
     DEFAULT_FACTORY_NOW: _ClassVar[DefaultFactory]
+    DEFAULT_FACTORY_REGION: _ClassVar[DefaultFactory]
 
 class DimensionType(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     __slots__ = ()
@@ -1495,6 +1496,7 @@ DAY_SUNDAY: Day
 DEFAULT_FACTORY_UNSPECIFIED: DefaultFactory
 DEFAULT_FACTORY_UUID: DefaultFactory
 DEFAULT_FACTORY_NOW: DefaultFactory
+DEFAULT_FACTORY_REGION: DefaultFactory
 DIMENSION_TYPE_UNSPECIFIED: DimensionType
 DIMENSION_TYPE_FIXED: DimensionType
 DIMENSION_TYPE_FIT: DimensionType

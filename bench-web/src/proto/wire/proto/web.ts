@@ -12,9 +12,9 @@ import { UnknownFieldHandler } from "@protobuf-ts/runtime";
 import type { PartialMessage } from "@protobuf-ts/runtime";
 import { reflectionMergePartial } from "@protobuf-ts/runtime";
 import { MessageType } from "@protobuf-ts/runtime";
-import { SomeNodeData } from "./lang";
-import { NodeReferenceData } from "./lang";
-import { IconData } from "./lang";
+import { SomeNodeData } from "./language";
+import { NodeReferenceData } from "./language";
+import { IconData } from "./language";
 /**
  * Persistent per client/place.
  * NOTE: PersistentInfo is not cleared across user logouts.

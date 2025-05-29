@@ -2,7 +2,7 @@ syntax = "proto3";
 
 package symbol.bench;
 
-import "proto/lang.proto";
+import "proto/language.proto";
 import "google/protobuf/descriptor.proto";
 
 enum ServiceKind {
