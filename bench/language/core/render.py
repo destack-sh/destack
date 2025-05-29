@@ -34,7 +34,6 @@ from .const import (
     StructType,
 )
 from .graph import Supergraph
-from .icon import Icon, reverse_icon
 from .node import Node
 from .object import BuiltinObjectBase
 from .property import EdgeType, Property
@@ -534,29 +533,6 @@ class CodeRenderer(BuiltinObjectRenderer[Code]):
             return f'code("""\\\n{rendered_string}\n""")'
         else:
             return f"code({rendered_string!r})"
-
-
-@_renderer(StructType.ICON)
-class IconRenderer(BuiltinObjectRenderer[Icon]):
-    @override
-    def render(self, renderer: "Renderer", obj: Icon, options: RenderOptions) -> str:
-        simplified = reverse_icon(obj)
-        if isinstance(simplified, str):
-            return f"icon({simplified!r})"
-        else:
-            return super().render(renderer, obj, options)
-
-
-#
-# Top level helpers
-#
-
-
-def render_value(value: "SomeValue", typ: TypeBase, options: RenderOptions) -> str:
-    """Render the given value to a python expression."""
-    renderer = Renderer(options)
-    rendered = renderer.render_value(value, typ)
-    return rendered
 
 
 def render_expression(

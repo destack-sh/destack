@@ -61,7 +61,7 @@ class Field(
     parent: Union["Agent", "Action", "Schema", "Flow", "Table", "Scene", "IsView", None] = (
         property_parent_()
     )
-    type: FieldType = property_(30)
+    type: FieldType = property_(30, default=FieldType.VARIABLE)
 
     # type identity
     # ...TypeBase[40-69]
@@ -69,5 +69,3 @@ class Field(
     # relationship (to TypeBase.table)
     edge_type: Optional[EdgeType] = property_(70)
     cascade: Optional[CascadeAction] = property_(71)
-
-    __hash__ = IsInPackage.__hash__  # type: ignore

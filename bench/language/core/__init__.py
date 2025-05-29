@@ -123,7 +123,6 @@ from .render import (
     render_expression,
     render_expressions,
     render_statement,
-    render_value,
 )
 from .session import Session
 from .store import LiveStore, OptimisticStore, Store
@@ -202,13 +201,9 @@ from .type import (
     Type,
     TypeBase,
     TypeCardinality,
-    TypeIn,
     decode_type_identity,
     encode_storage_key,
     encode_type_identity,
-    reverse_type_scalar,
-    to_type,
-    to_type_scalar,
 )
 from .validation import ValidationError
 from .value import Value
@@ -376,7 +371,6 @@ __all__ = [
     "Type",
     "TypeBase",
     "TypeCardinality",
-    "TypeIn",
     "UpdateType",
     "ValidationError",
     "Value",
@@ -417,10 +411,8 @@ __all__ = [
     "render_expression",
     "render_expressions",
     "render_statement",
-    "render_value",
     "repr_enums",
     "reverse_icon",
-    "reverse_type_scalar",
     "select",
     "sort",
     "struct_",
@@ -432,7 +424,5 @@ __all__ = [
     "to_icon",
     "to_text",
     "to_text_line",
-    "to_type",
-    "to_type_scalar",
     "trait_",
 ]

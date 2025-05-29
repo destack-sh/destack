@@ -1,5 +1,5 @@
 from datetime import timedelta
-from typing import TYPE_CHECKING, Optional, Sequence, Union, cast
+from typing import TYPE_CHECKING, Optional, Sequence, Union
 
 from fastuuid import UUID
 
@@ -79,48 +79,6 @@ class Run(
             if span.type == SpanType.ATTEMPT:
                 return span
         return None
-
-    def has(self, *nodes: "IsRunnable", recursive: bool = True) -> bool:
-        """Whether the Run has any of the given Nodes."""
-        nodes_id = tuple(n.id for n in nodes)
-        if (runnable_ptr := self.runnable_ptr) is not None and runnable_ptr.id in nodes_id:
-            return True
-        for run in self._graph.get_descendants(self, NodeType.RUN, recursive=recursive):
-            run = cast(Run, run)
-            if (runnable_ptr := run.runnable_ptr) is not None and runnable_ptr.id in nodes_id:
-                return True
-        return False
-
-    def is_in(self, *nodes: "IsRunnable") -> bool:
-        """Whether the Run is a descendant of a Run of any of the given Nodes."""
-        run = self
-        while isinstance(run, Run):
-            if (runnable_ptr := run.runnable_ptr) is not None and any(
-                runnable_ptr.id == n.id for n in nodes
-            ):
-                return True
-            run = run.parent
-        return False
-
-    def get_runs(self, runnable: "IsRunnable", recursive: bool = True) -> list["Run"]:
-        """Find all Runs of a Node in this Run."""
-        matching_runs: list[Run] = []
-        if (runnable_ptr := self.runnable_ptr) is not None and runnable_ptr.id == runnable.id:
-            matching_runs.append(self)
-        for run in self._graph.get_descendants(self, NodeType.RUN, recursive=recursive):
-            run = cast(Run, run)
-            if (runnable_ptr := run.runnable_ptr) is not None and runnable_ptr.id == runnable.id:
-                matching_runs.append(run)
-        matching_runs.sort(
-            key=lambda r: r.terminated_at or r.started_at or r.created_at,
-            reverse=True,
-        )
-        return matching_runs
-
-    def get_latest_run(self, runnable: "IsRunnable") -> "Run | None":
-        """Find the latest Run of a Node in this Run."""
-        matching_runs = self.get_runs(runnable)
-        return matching_runs[0] if matching_runs else None
 
     def pause(self):
         """Mark this Run as paused."""

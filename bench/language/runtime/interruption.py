@@ -120,13 +120,6 @@ class Interruption(
     def is_closed(self) -> bool:
         return self.status == InterruptionStatus.COMPLETED
 
-    def is_in(self, *nodes: IsRunnable) -> bool:
-        """Whether the Interruption is a descendant of a Run of any of the given Nodes."""
-        if (parent := self.parent) is None:
-            return False
-        else:
-            return parent.is_in(*nodes)
-
     def complete(self, _trigger_runtime: bool = True) -> None:
         """Mark this Interrupt as closed."""
         assert not self.is_closed, f"{self!r} is already closed"

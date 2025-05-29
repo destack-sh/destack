@@ -12,9 +12,10 @@ from bench.language import (
     Schema,
     Session,
     Table,
-    Text,
     title,
 )
+from bench.language.core.const import NodeType, StructType
+from bench.language.core.type import ScalarType
 from bench.test.simulation.core import Simulation
 from bench.test.simulation.workload import RuntimeLambdaWorkload
 from bench.test.strategies import examples, structs
@@ -65,12 +66,16 @@ async def test_clone_with_cross_references(simulation: Simulation, runtime: Runt
     flow = Flow(name="Flow")
     action = Action(name="Action")
     action.add_children(
-        Field(name="Text", type=Text),
-        Field(name="Schema", type=schema),
+        Field(name="Text", scalar_type=ScalarType.STRUCT, struct_type=StructType.TEXT),
+        Field(
+            name="Schema", scalar_type=ScalarType.NODE, node_type=NodeType.FIELD, base_type=schema
+        ),
     )
     flow.add_child(action)
     table = Table(name="Table")
-    table.add_children(Field(name="Text", type=Text))
+    table.add_children(
+        Field(name="Text", scalar_type=ScalarType.STRUCT, struct_type=StructType.TEXT)
+    )
     page = runtime.page()
     schema_block = page.add_child(schema)
     flow_block = page.add_child(flow)
@@ -135,12 +140,16 @@ async def test_instance_with_cross_references(
     flow = Flow(name="Flow")
     action = Action(name="Action")
     action.add_children(
-        Field(name="Text", type=Text),
-        Field(name="Schema", type=schema),
+        Field(name="Text", scalar_type=ScalarType.STRUCT, struct_type=StructType.TEXT),
+        Field(
+            name="Schema", scalar_type=ScalarType.NODE, node_type=NodeType.FIELD, base_type=schema
+        ),
     )
     flow.add_child(action)
     table = Table(name="Table")
-    table.add_children(Field(name="Text", type=Text))
+    table.add_children(
+        Field(name="Text", scalar_type=ScalarType.STRUCT, struct_type=StructType.TEXT)
+    )
     page = runtime.page()
     _ = page.add_child(schema)
     _ = page.add_child(flow)
@@ -177,9 +186,16 @@ async def test_move_subtree(simulation: Simulation, runtime: RuntimeLambdaWorklo
     Block1 = Page1.add_child(Schema(name="Block1"))
     Block1.add_children(Field(name="A"), Field(name="B"))
     Block2 = Page1.add_child(Flow(name="Block2"))
-    Block2.add_children(Field(name="Text", type=Text), Field(name="Schema", type=Block1))
+    Block2.add_children(
+        Field(name="Text", scalar_type=ScalarType.STRUCT, struct_type=StructType.TEXT),
+        Field(
+            name="Schema", scalar_type=ScalarType.NODE, node_type=NodeType.FIELD, base_type=Block1
+        ),
+    )
     Block3 = Page1.add_child(Table(name="Block3"))
-    Block3.add_children(Field(name="Text", type=Text))
+    Block3.add_children(
+        Field(name="Text", scalar_type=ScalarType.STRUCT, struct_type=StructType.TEXT)
+    )
     await runtime.commit()
 
     # can't just append directly
