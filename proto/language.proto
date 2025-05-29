@@ -67,7 +67,8 @@ enum BenchRoleType {
 // The status of a Bench
 enum BenchStatus {
   BENCH_STATUS_UNSPECIFIED = 0;
-  BENCH_STATUS_ACTIVE = 50;
+  BENCH_STATUS_CREATING = 1;
+  BENCH_STATUS_ACTIVE = 10;
 }
 
 enum BlockType {
@@ -2518,7 +2519,7 @@ message OrganizationData {
   string slug = 33;
   optional IconData icon = 34;
   OrganizationStatus status = 38;
-  optional NodeReferenceData bench_ptr = 40;
+  NodeReferenceData bench_ptr = 40;
   optional NodeReferenceData handle_ptr = 41;
 }
 
@@ -3453,7 +3454,7 @@ message UserData {
   UserStatus status = 40;
   optional google.protobuf.Timestamp last_logged_in_at = 41;
   bool is_staff = 45;
-  optional NodeReferenceData bench_ptr = 50;
+  NodeReferenceData bench_ptr = 50;
   optional NodeReferenceData handle_ptr = 51;
   optional NodeReferenceData cursor_ptr = 52;
   optional string email = 60;

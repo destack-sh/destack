@@ -7,6 +7,7 @@ from grpclib import Status as GRPCStatus
 from opentelemetry import trace
 
 from bench.language import (
+    Bench,
     Client,
     Database,
     Handle,
@@ -19,6 +20,7 @@ from bench.language import (
     UserStatus,
     bittuple,
 )
+from bench.language.bench.bench import BenchStatus
 from bench.pb2 import RpcMetadata
 from bench.proto import (
     ChangeUserPasswordRequest,
@@ -128,6 +130,8 @@ class SupervisorService(ServiceBase, SupervisorBase):
     ) -> "SignupUserResponse":
         if subject is not None:
             raise GRPCError(GRPCStatus.ALREADY_EXISTS, "already logged in")
+        if not request.password:
+            raise GRPCError(GRPCStatus.INVALID_ARGUMENT, "password required")
 
         # get regional Database
         region = Region(request.region)
@@ -139,7 +143,10 @@ class SupervisorService(ServiceBase, SupervisorBase):
             }
         )
 
-        # create User
+        # create User with Bench
+        bench = Bench(
+            status=BenchStatus.CREATING, slug=request.slug, name=request.slug, region=region
+        )
         user = User(
             slug=request.slug,
             name=request.name or request.slug,
@@ -147,12 +154,13 @@ class SupervisorService(ServiceBase, SupervisorBase):
             status=UserStatus.REGISTERED,
             region=region,
             last_logged_in_at=self.oracle.utc(),
+            bench=bench,
         )
-        if not request.password:
-            raise GRPCError(GRPCStatus.INVALID_ARGUMENT, "password required")
+        bench.owned_by = user
         user.password_salt = generate_salt(SALT_LENGTH)
         user.password_hash = hash_password(request.password, user.password_salt)
         session.create(user)
+        session.create(bench)
         await session.stage()
 
         # create Client
@@ -161,22 +169,22 @@ class SupervisorService(ServiceBase, SupervisorBase):
         session.create(client)
         await session.stage()
         assert user.slug, f"{user!r} has no slug"
-        user.handle = Handle(slug=user.slug)
+        bench.handle = user.handle = Handle(slug=user.slug)
         user.add_child(user.handle)
         await session.commit()
 
         # immediately create User's main Bench
-        if request.activate:
-            bench = await create_default_bench(
-                handle=user.handle,
-                owned_by=user,
-                region=user.region,
-                session=session,
-                options=CreateBenchOptions(),
-            )
-            user.bench = bench
-            user.status = UserStatus.ACTIVE
-            await session.commit()
+        bench = await create_default_bench(
+            bench=bench,
+            handle=user.handle,
+            owned_by=user,
+            region=user.region,
+            session=session,
+            options=CreateBenchOptions(),
+        )
+        user.bench = bench
+        user.status = UserStatus.ACTIVE
+        await session.commit()
 
         logger.info("supervisor.signup_user", user=user, client=client, span="current")
         return SignupUserResponse(

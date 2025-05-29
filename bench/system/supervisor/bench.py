@@ -4,6 +4,7 @@ from fastuuid import UUID, uuid4
 
 from bench.language import (
     Bench,
+    BenchStatus,
     Database,
     Handle,
     NodeMode,
@@ -23,6 +24,7 @@ class CreateBenchOptions(NamedTuple):
 
 async def create_default_bench(
     *,
+    bench: Bench | None = None,
     handle: Handle,
     owned_by: User | Organization,
     region: Region,
@@ -32,14 +34,15 @@ async def create_default_bench(
     """Creates a new Bench with all the default stuff."""
 
     # Bench
-    bench = Bench(
-        id=options.bench_id or uuid4(),
-        handle=handle,
-        slug=handle.slug,
-        name=handle.slug,
-        owned_by=owned_by,
-        region=region,
-    )
+    if bench is None:
+        bench = Bench(
+            id=options.bench_id or uuid4(),
+            handle=handle,
+            slug=handle.slug,
+            name=handle.slug,
+            owned_by=owned_by,
+            region=region,
+        )
     session.create(bench)
     await session.stage()
 
@@ -60,6 +63,7 @@ async def create_default_bench(
     main_package.add_child(database)
     await session.stage()
     bench.database = database
+    bench.status = BenchStatus.ACTIVE
     await session.stage()
 
     return bench

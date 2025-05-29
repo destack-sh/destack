@@ -4290,7 +4290,7 @@ export interface OrganizationData {
      */
     status: OrganizationStatus;
     /**
-     * @generated from protobuf field: optional symbol.bench.NodeReferenceData bench_ptr = 40;
+     * @generated from protobuf field: symbol.bench.NodeReferenceData bench_ptr = 40;
      */
     benchPtr?: NodeReferenceData;
     /**
@@ -7696,7 +7696,7 @@ export interface UserData {
      */
     isStaff: boolean;
     /**
-     * @generated from protobuf field: optional symbol.bench.NodeReferenceData bench_ptr = 50;
+     * @generated from protobuf field: symbol.bench.NodeReferenceData bench_ptr = 50;
      */
     benchPtr?: NodeReferenceData;
     /**
@@ -8428,9 +8428,13 @@ export enum BenchStatus {
      */
     UNSPECIFIED = 0,
     /**
-     * @generated from protobuf enum value: BENCH_STATUS_ACTIVE = 50;
+     * @generated from protobuf enum value: BENCH_STATUS_CREATING = 1;
      */
-    ACTIVE = 50
+    CREATING = 1,
+    /**
+     * @generated from protobuf enum value: BENCH_STATUS_ACTIVE = 10;
+     */
+    ACTIVE = 10
 }
 /**
  * @generated from protobuf enum symbol.bench.BlockType
@@ -21794,7 +21798,7 @@ class OrganizationData$Type extends MessageType$<OrganizationData> {
                 case /* symbol.bench.OrganizationStatus status */ 38:
                     message.status = reader.int32();
                     break;
-                case /* optional symbol.bench.NodeReferenceData bench_ptr */ 40:
+                case /* symbol.bench.NodeReferenceData bench_ptr */ 40:
                     message.benchPtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.benchPtr);
                     break;
                 case /* optional symbol.bench.NodeReferenceData handle_ptr */ 41:
@@ -21848,7 +21852,7 @@ class OrganizationData$Type extends MessageType$<OrganizationData> {
         /* symbol.bench.OrganizationStatus status = 38; */
         if (message.status !== 0)
             writer.tag(38, WireType.Varint).int32(message.status);
-        /* optional symbol.bench.NodeReferenceData bench_ptr = 40; */
+        /* symbol.bench.NodeReferenceData bench_ptr = 40; */
         if (message.benchPtr)
             NodeReferenceData.internalBinaryWrite(message.benchPtr, writer.tag(40, WireType.LengthDelimited).fork(), options).join();
         /* optional symbol.bench.NodeReferenceData handle_ptr = 41; */
@@ -29082,7 +29086,7 @@ class UserData$Type extends MessageType$<UserData> {
                 case /* bool is_staff */ 45:
                     message.isStaff = reader.bool();
                     break;
-                case /* optional symbol.bench.NodeReferenceData bench_ptr */ 50:
+                case /* symbol.bench.NodeReferenceData bench_ptr */ 50:
                     message.benchPtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.benchPtr);
                     break;
                 case /* optional symbol.bench.NodeReferenceData handle_ptr */ 51:
@@ -29154,7 +29158,7 @@ class UserData$Type extends MessageType$<UserData> {
         /* bool is_staff = 45; */
         if (message.isStaff !== false)
             writer.tag(45, WireType.Varint).bool(message.isStaff);
-        /* optional symbol.bench.NodeReferenceData bench_ptr = 50; */
+        /* symbol.bench.NodeReferenceData bench_ptr = 50; */
         if (message.benchPtr)
             NodeReferenceData.internalBinaryWrite(message.benchPtr, writer.tag(50, WireType.LengthDelimited).fork(), options).join();
         /* optional symbol.bench.NodeReferenceData handle_ptr = 51; */

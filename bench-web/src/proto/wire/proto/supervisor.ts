@@ -15,6 +15,7 @@ import { reflectionMergePartial } from "@protobuf-ts/runtime";
 import { MessageType } from "@protobuf-ts/runtime";
 import { OrganizationData } from "./language";
 import { NodeReferenceData } from "./language";
+import { BenchData } from "./language";
 import { UserData } from "./language";
 import { ClientData } from "./language";
 import { Region } from "./language";
@@ -46,10 +47,6 @@ export interface SignupUserRequest {
      * @generated from protobuf field: symbol.bench.ClientData client = 9;
      */
     client?: ClientData;
-    /**
-     * @generated from protobuf field: optional bool activate = 10;
-     */
-    activate?: boolean;
 }
 /**
  * @generated from protobuf message symbol.bench.SignupUserResponse
@@ -64,7 +61,11 @@ export interface SignupUserResponse {
      */
     client?: ClientData;
     /**
-     * @generated from protobuf field: string access_token = 3;
+     * @generated from protobuf field: symbol.bench.BenchData bench = 3;
+     */
+    bench?: BenchData;
+    /**
+     * @generated from protobuf field: string access_token = 4;
      */
     accessToken: string;
 }
@@ -90,7 +91,11 @@ export interface ChangeUserPasswordResponse {
      */
     user?: UserData;
     /**
-     * @generated from protobuf field: uint64 epoch = 2;
+     * @generated from protobuf field: symbol.bench.ClientData client = 2;
+     */
+    client?: ClientData;
+    /**
+     * @generated from protobuf field: uint64 epoch = 3;
      */
     epoch: bigint;
 }
@@ -267,8 +272,7 @@ class SignupUserRequest$Type extends MessageType<SignupUserRequest> {
             { no: 4, name: "email", kind: "scalar", T: 9 /*ScalarType.STRING*/, options: { "symbol.bench.sensitive": true } },
             { no: 5, name: "password", kind: "scalar", T: 9 /*ScalarType.STRING*/, options: { "symbol.bench.sensitive": true } },
             { no: 6, name: "region", kind: "enum", T: () => ["symbol.bench.Region", Region, "REGION_"] },
-            { no: 9, name: "client", kind: "message", T: () => ClientData },
-            { no: 10, name: "activate", kind: "scalar", opt: true, T: 8 /*ScalarType.BOOL*/ }
+            { no: 9, name: "client", kind: "message", T: () => ClientData }
         ]);
     }
     create(value?: PartialMessage<SignupUserRequest>): SignupUserRequest {
@@ -304,9 +308,6 @@ class SignupUserRequest$Type extends MessageType<SignupUserRequest> {
                 case /* symbol.bench.ClientData client */ 9:
                     message.client = ClientData.internalBinaryRead(reader, reader.uint32(), options, message.client);
                     break;
-                case /* optional bool activate */ 10:
-                    message.activate = reader.bool();
-                    break;
                 default:
                     let u = options.readUnknownField;
                     if (u === "throw")
@@ -337,9 +338,6 @@ class SignupUserRequest$Type extends MessageType<SignupUserRequest> {
         /* symbol.bench.ClientData client = 9; */
         if (message.client)
             ClientData.internalBinaryWrite(message.client, writer.tag(9, WireType.LengthDelimited).fork(), options).join();
-        /* optional bool activate = 10; */
-        if (message.activate !== undefined)
-            writer.tag(10, WireType.Varint).bool(message.activate);
         let u = options.writeUnknownFields;
         if (u !== false)
             (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
@@ -356,7 +354,8 @@ class SignupUserResponse$Type extends MessageType<SignupUserResponse> {
         super("symbol.bench.SignupUserResponse", [
             { no: 1, name: "user", kind: "message", T: () => UserData },
             { no: 2, name: "client", kind: "message", T: () => ClientData },
-            { no: 3, name: "access_token", kind: "scalar", T: 9 /*ScalarType.STRING*/, options: { "symbol.bench.sensitive": true } }
+            { no: 3, name: "bench", kind: "message", T: () => BenchData },
+            { no: 4, name: "access_token", kind: "scalar", T: 9 /*ScalarType.STRING*/, options: { "symbol.bench.sensitive": true } }
         ]);
     }
     create(value?: PartialMessage<SignupUserResponse>): SignupUserResponse {
@@ -377,7 +376,10 @@ class SignupUserResponse$Type extends MessageType<SignupUserResponse> {
                 case /* symbol.bench.ClientData client */ 2:
                     message.client = ClientData.internalBinaryRead(reader, reader.uint32(), options, message.client);
                     break;
-                case /* string access_token */ 3:
+                case /* symbol.bench.BenchData bench */ 3:
+                    message.bench = BenchData.internalBinaryRead(reader, reader.uint32(), options, message.bench);
+                    break;
+                case /* string access_token */ 4:
                     message.accessToken = reader.string();
                     break;
                 default:
@@ -398,9 +400,12 @@ class SignupUserResponse$Type extends MessageType<SignupUserResponse> {
         /* symbol.bench.ClientData client = 2; */
         if (message.client)
             ClientData.internalBinaryWrite(message.client, writer.tag(2, WireType.LengthDelimited).fork(), options).join();
-        /* string access_token = 3; */
+        /* symbol.bench.BenchData bench = 3; */
+        if (message.bench)
+            BenchData.internalBinaryWrite(message.bench, writer.tag(3, WireType.LengthDelimited).fork(), options).join();
+        /* string access_token = 4; */
         if (message.accessToken !== "")
-            writer.tag(3, WireType.LengthDelimited).string(message.accessToken);
+            writer.tag(4, WireType.LengthDelimited).string(message.accessToken);
         let u = options.writeUnknownFields;
         if (u !== false)
             (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
@@ -471,7 +476,8 @@ class ChangeUserPasswordResponse$Type extends MessageType<ChangeUserPasswordResp
     constructor() {
         super("symbol.bench.ChangeUserPasswordResponse", [
             { no: 1, name: "user", kind: "message", T: () => UserData },
-            { no: 2, name: "epoch", kind: "scalar", T: 4 /*ScalarType.UINT64*/, L: 0 /*LongType.BIGINT*/ }
+            { no: 2, name: "client", kind: "message", T: () => ClientData },
+            { no: 3, name: "epoch", kind: "scalar", T: 4 /*ScalarType.UINT64*/, L: 0 /*LongType.BIGINT*/ }
         ]);
     }
     create(value?: PartialMessage<ChangeUserPasswordResponse>): ChangeUserPasswordResponse {
@@ -489,7 +495,10 @@ class ChangeUserPasswordResponse$Type extends MessageType<ChangeUserPasswordResp
                 case /* symbol.bench.UserData user */ 1:
                     message.user = UserData.internalBinaryRead(reader, reader.uint32(), options, message.user);
                     break;
-                case /* uint64 epoch */ 2:
+                case /* symbol.bench.ClientData client */ 2:
+                    message.client = ClientData.internalBinaryRead(reader, reader.uint32(), options, message.client);
+                    break;
+                case /* uint64 epoch */ 3:
                     message.epoch = reader.uint64().toBigInt();
                     break;
                 default:
@@ -507,9 +516,12 @@ class ChangeUserPasswordResponse$Type extends MessageType<ChangeUserPasswordResp
         /* symbol.bench.UserData user = 1; */
         if (message.user)
             UserData.internalBinaryWrite(message.user, writer.tag(1, WireType.LengthDelimited).fork(), options).join();
-        /* uint64 epoch = 2; */
+        /* symbol.bench.ClientData client = 2; */
+        if (message.client)
+            ClientData.internalBinaryWrite(message.client, writer.tag(2, WireType.LengthDelimited).fork(), options).join();
+        /* uint64 epoch = 3; */
         if (message.epoch !== 0n)
-            writer.tag(2, WireType.Varint).uint64(message.epoch);
+            writer.tag(3, WireType.Varint).uint64(message.epoch);
         let u = options.writeUnknownFields;
         if (u !== false)
             (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
