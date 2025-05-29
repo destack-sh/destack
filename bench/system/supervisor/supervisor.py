@@ -139,7 +139,7 @@ class SupervisorService(ServiceBase, SupervisorBase):
         session.store = DatabaseStore(
             {
                 NodeArea.GLOBAL_POSTGRES: self.global_database,
-                NodeArea.REGIONAL_POSTGRES: regional_database,
+                NodeArea.MAIN_POSTGRES: regional_database,
             }
         )
 

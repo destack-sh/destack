@@ -24,7 +24,7 @@ from bench.language.core import (
 from bench.pb2 import LinkData
 
 if TYPE_CHECKING:
-    from bench.language import Message, Package, Page, Run, Table, Thread
+    from bench.language import CustomNodeDefinition, Message, Package, Page, Run, Thread
 
 logger = structlog.get_logger(__name__)
 tracer = trace.get_tracer(__name__)
@@ -47,7 +47,7 @@ class Link(HasTitle, IsResource, IsInPackage, Node[LinkData]):
     parent: Union[
         "Package",
         "Page",
-        "Table",
+        "CustomNodeDefinition",
         "Link",
         "Thread",
         "Message",

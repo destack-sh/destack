@@ -44,7 +44,7 @@ class _Unset:
 
 
 # forever constants
-VERSION = "2025.05.29.2"
+VERSION = "2025.05.29.3"
 UUID_NAMESPACE = uuid5(UUID(int=0), b"bench")
 CK_LENGTH_B64 = 24  # 1.5 * CK_LENGTH_BYTES (must be integer)
 FLOAT_EPSILON = 1e-6
@@ -353,7 +353,7 @@ class EnumType(BuiltinEnum):
     INTERRUPTION_RESPONSE = 41633
     # ...
 
-    # data [42000-42400]
+    # data [42000-42200]
     TEXT_LINE_TYPE = 42000
     TEXT_SPAN_TYPE = 42001
     CODE_TYPE = 42010
@@ -376,6 +376,9 @@ class EnumType(BuiltinEnum):
     MONTH = 42131
     TIME_INTERVAL = 42132
     RESOURCE_STATUS = 42200
+    # ...
+
+    # custom [42200-42400]
     # ...
 
     # social [42400-42800]
@@ -509,21 +512,22 @@ class StructType(BuiltinEnum):
     ERROR = 21600
     # EVENT, SIGNAL, ...
 
-    # data [22000-22400]
+    # data [22000-22200]
     TYPE = 22000
     NUMBER_CONSTRAINT = 22001
     STRING_CONSTRAINT = 22002
     COLLECTION_CONSTRAINT = 22003
     NODE_CONSTRAINT = 22004
-
-    VALUE = 22010
-    # SCHEMA, UNION, TAG, ...
     TEXT = 22100, None, None, "fas fa-text"
     TEXT_LINE = 22101, None, None, "fas fa-text"
     TEXT_SPAN = 22102, None, None, "fas fa-text"
     CODE = 22110, None, None, "fas fa-code"
     ICON = 22130
     SELECTION = 22070
+    # SCHEMA, UNION, TAG, ...
+
+    # custom [22200-22400]
+    VALUE = 22200
     # ...
 
     # social [22400-22800]
@@ -662,14 +666,16 @@ class NodeType(BuiltinEnum):
     INTERRUPTION = 1630, "Interruption", "Interruption", "fas fa-hand"
     # EVENT, SIGNAL, TRACE, LOG, ...
 
-    # data [2000-2400]
+    # data [2000-2200]
     SCHEMA = 2000, "Schema", "Schema", "fas fa-shapes"
     FIELD = 2010, "Field", "Field", "fas fa-triangle"
     FILE = 2020, "File", "File", "fas fa-file"
     LINK = 2050, "Link", "Link to something", "fas fa-link"
     # STREAM, SECRET, ...
-    TABLE = 2200, "Table", "Table of Records", "fas fa-table"
-    RECORD = 2210, "Record", "Record in a Database", "fas fa-database"
+
+    # custom [2200-22400]
+    CUSTOM_NODE_DEFINITION = 2200, "Table", "Table of Records", "fas fa-table"
+    CUSTOM_NODE_INSTANCE = 2201, "Record", "Record in a Database", "fas fa-database"
     # INDEX, CONSTRAINT, MIGRATION, ...
 
     # social [2400-2800]
@@ -775,7 +781,7 @@ class NodeType(BuiltinEnum):
 class TraitType(BuiltinEnum):
     # bench [1-200]
     GLOBAL = 1, "Global", "Is global", "fas fa-globe"
-    LOCAL = 3, "Local", "Is local", "fas fa-globe"
+    CUSTOM = 3, "Custom", "Is custom", "fas fa-globe"
     MODAL = 10, "Modal", "Has a mode", "fas fa-window-maximize"
     ARCHIVABLE = 11, "Archivable", "Can be archived", "fas fa-box-archive"
     DELETABLE = 12, "Deletable", "Can be deleted", "fas fa-trash"
@@ -786,8 +792,6 @@ class TraitType(BuiltinEnum):
     ORDERED = 24, "Ordered", "Has an order", "fas fa-sort"
     TEMPLATABLE = 30, "Templatable", "Can be templated", "fas fa-puzzle-piece"
     EXTENSIBLE = 32, "Extensible", "Can be extended", "fas fa-expand"
-    NODE_TYPE = 33, "NodeType", "Is a NodeType", "fas fa-node"
-    NODE_INSTANCE = 34, "NodeInstance", "Is a NodeInstance", "fas fa-node"
     IN_BENCH = 40, "Bench", "In a Bench", "fas fa-bench"
     IN_PACKAGE = 41, "Package", "In a Package", "fas fa-box"
     REGIONAL = 50, "Regional", "Is regional", "fas fa-globe"
@@ -820,7 +824,10 @@ class TraitType(BuiltinEnum):
     # runtime [1600-2000]
     # LOG, ...
 
-    # data [2000-2400]
+    # data [2000-2200]
+    # ...
+
+    # custom [2200-2400]
     # ...
 
     # social [2400-2800]
@@ -855,11 +862,9 @@ class TraitType(BuiltinEnum):
 
 @enum_(EnumType.NODE_AREA)
 class NodeArea(BuiltinEnum):
-    GLOBAL_POSTGRES = 100
-    REGIONAL_POSTGRES = 200
-    # REGIONAL_REDIS, REGIONAL_ELASTICSEARCH, ...
-    LOCAL_POSTGRES = 300
-    # LOCAL_REDIS, LOCAL_ELASTICSEARCH, ...
+    GLOBAL_POSTGRES = 10
+    MAIN_POSTGRES = 20
+    CUSTOM_POSTGRES = 30
 
 
 @enum_(EnumType.NODE_MODE)

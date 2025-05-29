@@ -12,7 +12,7 @@ from .struct import NodeReference, StructFrozen, StructMutable, struct_
 from .value import Value
 
 if TYPE_CHECKING:
-    from bench.language import Field, Session, Store, Table
+    from bench.language import CustomNodeDefinition, Field, Session, Store
 
 # pyright: reportIncompatibleVariableOverride=false
 
@@ -33,12 +33,12 @@ class RelationReference(StructFrozen):
 
     type: RelationType = property_(30, is_repr=True)
     node_type: NodeType = property_(31, is_repr=True)
-    table: Optional["Table"] = property_(32, is_repr=True)
+    table: Optional["CustomNodeDefinition"] = property_(32, is_repr=True)
     if TYPE_CHECKING:
         table_ptr: Optional[NodeReference] = None  # convenience only
 
 
-def relation_ref(base: "NodeType | type[Node] | Table") -> RelationReference:
+def relation_ref(base: "NodeType | type[Node] | CustomNodeDefinition") -> RelationReference:
     from .node import Node
 
     if isinstance(base, NodeType):
@@ -46,7 +46,7 @@ def relation_ref(base: "NodeType | type[Node] | Table") -> RelationReference:
     elif isinstance(base, type):
         assert issubclass(base, Node), f"{base!r} is not a Node"
         return RelationReference(type=RelationType.BUILTIN_NODE, node_type=base.metatype)
-    elif isinstance(base, Table):
+    elif isinstance(base, CustomNodeDefinition):
         return RelationReference(type=RelationType.CUSTOM_NODE, node_type=base.metatype)
     else:
         assert_never(base)
@@ -345,7 +345,7 @@ JoinIn = Union[Join, "JoinType"]
 
 def join(
     join: JoinIn,
-    relation: "NodeType | type[Node] | Table | None" = None,
+    relation: "NodeType | type[Node] | CustomNodeDefinition | None" = None,
     on: Optional[Condition] = None,
     recursive: bool = False,
 ) -> Join:

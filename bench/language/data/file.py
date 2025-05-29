@@ -47,13 +47,13 @@ if TYPE_CHECKING:
     from magika import Magika
 
     from bench.language import (
+        CustomNodeDefinition,
         File,
         Message,
         Package,
         Page,
         Run,
         Session,
-        Table,
         Thread,
     )
 
@@ -476,7 +476,7 @@ class File(IsResource, IsRegional, IsInPackage, Node[FileData]):
     parent: Union[
         "Package",
         "Page",
-        "Table",
+        "CustomNodeDefinition",
         "Thread",
         "Message",
         "Run",
@@ -939,7 +939,7 @@ async def upload_file(
     mime_type: str | None = None,
     type: FileType | None = None,
     format: FileFormat | str | None = None,
-    parent: Union["Package", "Page", "Table", "Thread", "Run", None] = None,
+    parent: Union["Package", "Page", "CustomNodeDefinition", "Thread", "Run", None] = None,
     session: "Session | None" = None,
 ) -> "File":
     """Uploads the given file to the given (or current) session."""

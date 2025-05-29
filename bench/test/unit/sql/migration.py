@@ -35,9 +35,9 @@ async def test_stored_migrations_global(blank_conn: asyncpg.Connection):
 
 async def test_stored_migrations_regional(blank_conn: asyncpg.Connection):
     """Existing regional migrations against a blank table."""
-    await _do_test_stored_migrations(blank_conn, area=NodeArea.REGIONAL_POSTGRES)
+    await _do_test_stored_migrations(blank_conn, area=NodeArea.MAIN_POSTGRES)
 
 
 async def test_stored_migrations_local(blank_conn: asyncpg.Connection):
     """Existing local migrations against a blank table."""
-    await _do_test_stored_migrations(blank_conn, area=NodeArea.LOCAL_POSTGRES)
+    await _do_test_stored_migrations(blank_conn, area=NodeArea.CUSTOM_POSTGRES)

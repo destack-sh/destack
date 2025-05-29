@@ -83,7 +83,7 @@ async def make(
         )
 
     # diff local
-    if area in (None, NodeArea.LOCAL_POSTGRES):
+    if area in (None, NodeArea.CUSTOM_POSTGRES):
         if not from_scratch:
             try:
                 async with global_session(
@@ -113,7 +113,7 @@ async def make(
         local_migration_ops = []
 
     # diff regional
-    if area in (None, NodeArea.REGIONAL_POSTGRES):
+    if area in (None, NodeArea.MAIN_POSTGRES):
         async with pg_connection(regional_database) as conn:
             old_regional_schema = await introspect_sql_schema(
                 conn,
@@ -195,7 +195,7 @@ async def apply(
     regional_database = get_regional_database_from_env(region or REGION)
 
     # resolve databases to migrate
-    if area == NodeArea.REGIONAL_POSTGRES:
+    if area == NodeArea.MAIN_POSTGRES:
         databases = [regional_database]
     elif area == NodeArea.GLOBAL_POSTGRES:
         databases = [global_database]

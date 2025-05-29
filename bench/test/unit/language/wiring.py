@@ -86,7 +86,12 @@ def test_roundtrip_query_proto(session: Session):
 
 def test_roundtrip_user_proto(session: Session):
     """Pack and unpack a User as proto."""
-    user = User(status=UserStatus.ACTIVE, name="Florian", slug="florian")
+    user = User(
+        status=UserStatus.ACTIVE,
+        name="Florian",
+        slug="florian",
+        bench_ptr=NodeReference(id=uuid4(), node_type=NodeType.BENCH),
+    )
 
     # proto
     user_data = user.to_proto()

@@ -23,7 +23,7 @@ from .property import property_
 from .struct import StructMutable, struct_
 
 if TYPE_CHECKING:
-    from bench.language import Field, Node, NodeReference, Table, Value
+    from bench.language import CustomNodeDefinition, Field, Node, NodeReference, Value
 
 # pyright: reportIncompatibleVariableOverride=false, reportIncompatibleMethodOverride=false
 
@@ -150,7 +150,7 @@ class TypeBase(BuiltinObjectMutable):
     primitive_type: Optional[PrimitiveType] = property_(42)
     enum_type: Optional[EnumType] = property_(43)
     node_type: Optional[NodeType] = property_(44)
-    table: Optional["Table"] = property_(45)  # for nodes
+    table: Optional["CustomNodeDefinition"] = property_(45)  # for nodes
     struct_type: Optional[StructType] = property_(46)
     base_type: Optional["Node"] = property_(47)
     key_type: Optional["Type"] = property_(48)  # for maps

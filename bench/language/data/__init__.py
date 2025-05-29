@@ -17,9 +17,7 @@ from .file import (
     upload_file_batch,
 )
 from .link import Link, LinkType
-from .record import Record
 from .schema import Schema
-from .table import Table
 
 __all__ = [
     "FILE_FORMAT_BY_EXTENSION",
@@ -36,10 +34,7 @@ __all__ = [
     "FileType",
     "Link",
     "LinkType",
-    "Record",
     "Schema",
-    "Table",
-    "Table",
     "detect_file_format",
     "download_file_batch",
     "extract_file_info",

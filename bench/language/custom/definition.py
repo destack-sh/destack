@@ -4,47 +4,43 @@ import structlog
 
 from bench.language.core import (
     HasName,
-    IsArchivable,
     IsBlockable,
     IsDeletable,
     IsInPackage,
     IsModal,
-    IsNodeType,
     IsOwnable,
     Node,
     NodeType,
+    TraitType,
     node_,
+    property_,
 )
-from bench.pb2 import TableData
+from bench.pb2 import CustomNodeDefinitionData
 
 if TYPE_CHECKING:
-    pass
+    from bench.language import CustomNodeDefinition
 
 # pyright: reportIncompatibleVariableOverride=false
 
 logger = structlog.get_logger(__name__)
 
 
-@node_(NodeType.TABLE)
-class Table(
+@node_(NodeType.CUSTOM_NODE_DEFINITION)
+class CustomNodeDefinition(
     IsModal,
-    IsNodeType,
     HasName,
     IsOwnable,
     IsBlockable,
-    IsArchivable,
     IsDeletable,
     IsInPackage,
-    Node[TableData],
+    Node[CustomNodeDefinitionData],
 ):
     """
-    A Table of Records, like a custom Node type with Fields as Properties.
-    nocheckin :Architecture: I don't love that we call custom Node definitions "Tables",
-     but Tables / Records is a very natural way to describe the most common use case.
-     Maybe we'll abstract out the IsCustomNode and IsCustomInstance traits or something.
+    A definition for a custom Node type (instantiated in CustomNodeInstances).
     """
 
     # type?
+    traits: list[TraitType] = property_(40, description="Dynamic traits.")
 
     @property
     def records(self) -> Any:

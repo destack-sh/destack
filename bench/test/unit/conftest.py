@@ -63,18 +63,6 @@ def event_loop_policy():
     return SimulatedEventLoopPolicy()
 
 
-@pytest.fixture
-def omni_session(omni_database: Database):
-    """
-    Gets the per test function global real session.
-    Unfortunately we can't set this session as the active session in context because
-     pytest-asyncio does not propagate contextvars across async tests/fixtures.
-    (see https://github.com/pytest-dev/pytest-asyncio/issues/127#issuecomment-1777004844)
-    """
-
-    raise NotImplementedError
-
-
 def make_session(name: str):
     """Make a 'fake' session for context"""
     session = Session(mode=NodeMode.MAIN, oracle=REAL_ORACLE)

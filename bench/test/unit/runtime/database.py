@@ -8,12 +8,11 @@ from grpclib import GRPCError
 
 from bench.language import (
     PRIMITIVE_TYPE_BY_PY_TYPE,
+    CustomNodeDefinition,
     Field,
     NodeType,
     PrimitiveType,
-    Record,
     ScalarType,
-    Table,
     TypeBase,
     TypeCardinality,
     text,
@@ -36,7 +35,7 @@ class SampleGenerator:
 @simulated_runtime()
 async def test_create_record_kwargs(simulation: Simulation, runtime: RuntimeLambdaWorkload):  # noqa: RUF029
     """Create a Record with keyword arguments (into value)."""
-    Table1 = Table(name="Table1")
+    Table1 = CustomNodeDefinition(name="Table1")
     Table1.add_children(
         Field(name="Name", scalar_type=ScalarType.PRIMITIVE, primitive_type=PrimitiveType.STRING),
         Field(name="Age", scalar_type=ScalarType.PRIMITIVE, primitive_type=PrimitiveType.INT64),
@@ -66,7 +65,7 @@ async def test_create_record_kwargs(simulation: Simulation, runtime: RuntimeLamb
 @simulated_runtime()
 async def test_create_empty_table_block(simulation: Simulation, runtime: RuntimeLambdaWorkload):
     """Create a blank table and query it."""
-    Table1 = Table(name="Table1")
+    Table1 = CustomNodeDefinition(name="Table1")
     runtime.page().add_child(Table1)
 
     # cannot access table before committing it
@@ -86,7 +85,7 @@ async def test_create_table_and_records_simultaneously(
     simulation: Simulation, runtime: RuntimeLambdaWorkload
 ):
     """Create a table and records within it in the same transaction/commit."""
-    Table1 = Table(name="Table1")
+    Table1 = CustomNodeDefinition(name="Table1")
     Table1.add_children(
         Field(name="Name", scalar_type=ScalarType.PRIMITIVE, primitive_type=PrimitiveType.STRING),
     )
@@ -104,7 +103,7 @@ async def test_create_table_and_records_simultaneously(
 @simulated_runtime()
 async def test_update_record(simulation: Simulation, runtime: RuntimeLambdaWorkload):
     """Update a record with a simple Field and query it."""
-    Table1 = Table(name="Table1")
+    Table1 = CustomNodeDefinition(name="Table1")
     Table1.add_children(
         Field(name="Name", scalar_type=ScalarType.PRIMITIVE, primitive_type=PrimitiveType.STRING),
     )
@@ -126,7 +125,7 @@ async def test_update_record(simulation: Simulation, runtime: RuntimeLambdaWorkl
 @simulated_runtime()
 async def test_update_table_and_record(simulation: Simulation, runtime: RuntimeLambdaWorkload):
     """Updates a table and records within and across transactions."""
-    Table1 = Table(name="Table1")
+    Table1 = CustomNodeDefinition(name="Table1")
     Table1.add_children(
         Field(name="Id", scalar_type=ScalarType.PRIMITIVE, primitive_type=PrimitiveType.INT64),
     )
@@ -182,7 +181,7 @@ async def test_update_table_and_record(simulation: Simulation, runtime: RuntimeL
 @simulated_runtime()
 async def test_create_record_with_ptrs(simulation: Simulation, runtime: RuntimeLambdaWorkload):
     """Create a Table with pointer fields (scalar and list)."""
-    Table1 = Table(name="Table1").add_children(
+    Table1 = CustomNodeDefinition(name="Table1").add_children(
         Field(name="Block", scalar_type=ScalarType.NODE, node_type=NodeType.BLOCK),
         Field(
             name="Blocks",
@@ -206,7 +205,7 @@ async def test_move_table(simulation: Simulation, runtime: RuntimeLambdaWorkload
     # create table in Page1
     Page1 = runtime.page("Page1")
     Page2 = runtime.page("Page2")
-    Table1 = Table(name="Table1").add_children(
+    Table1 = CustomNodeDefinition(name="Table1").add_children(
         Field(name="Alias", scalar_type=ScalarType.PRIMITIVE, primitive_type=PrimitiveType.STRING),
         Field(name="Image", scalar_type=ScalarType.NODE, node_type=NodeType.FILE),
     )
@@ -237,7 +236,7 @@ async def test_move_table(simulation: Simulation, runtime: RuntimeLambdaWorkload
 @simulated_runtime()
 async def test_delete_restore_table(simulation: Simulation, runtime: RuntimeLambdaWorkload):
     """Delete a table, querying it shouldn't work. Restore, and it should work again."""
-    Table1 = Table(name="Table1").add_children(
+    Table1 = CustomNodeDefinition(name="Table1").add_children(
         Field(name="Name", scalar_type=ScalarType.PRIMITIVE, primitive_type=PrimitiveType.STRING),
     )
     Record1 = Table1.records.create(Name="Record1")
@@ -260,7 +259,7 @@ async def test_delete_restore_table(simulation: Simulation, runtime: RuntimeLamb
 @simulated_runtime()
 async def test_delete_restore_record(simulation: Simulation, runtime: RuntimeLambdaWorkload):
     """Deleting a Record should remove it from default view, restoring should re-add it."""
-    Table1 = Table(name="Table1").add_children(
+    Table1 = CustomNodeDefinition(name="Table1").add_children(
         Field(name="Name", scalar_type=ScalarType.PRIMITIVE, primitive_type=PrimitiveType.STRING),
     )
     runtime.page().add_child(Table1)
@@ -301,7 +300,7 @@ async def test_delete_restore_table_field(simulation: Simulation, runtime: Runti
     Field1 = Field(
         name="Field1", scalar_type=ScalarType.PRIMITIVE, primitive_type=PrimitiveType.STRING
     )
-    Table1 = Table(name="Table1").add_children(Field1)
+    Table1 = CustomNodeDefinition(name="Table1").add_children(Field1)
     runtime.page().add_child(Table1)
     Record1 = Table1.records.create(Field1="Record1")
     await runtime.commit()
@@ -332,9 +331,9 @@ async def test_morph_table_field_type(simulation: Simulation, runtime: RuntimeLa
     Field2 = Field(
         name="Field2", scalar_type=ScalarType.PRIMITIVE, primitive_type=PrimitiveType.BOOLEAN
     )
-    Table1 = Table(name="Table1").add_children(Field1, Field2)
+    Table1 = CustomNodeDefinition(name="Table1").add_children(Field1, Field2)
     runtime.page().add_child(Table1)
-    Record1: Record = Table1.records.create(Field1="Record1", Field2=True)
+    Record1: CustomNode = Table1.records.create(Field1="Record1", Field2=True)
     await runtime.commit()
 
     # morph str is_list=False -> str is_list=True
@@ -372,8 +371,8 @@ async def test_morph_table_field_type(simulation: Simulation, runtime: RuntimeLa
 @simulated_runtime()
 async def test_record_recursive_reference(simulation: Simulation, runtime: RuntimeLambdaWorkload):
     """Create a Record with a recursive reference to itself."""
-    Table1 = Table(name="Table1").add_children(
-        Field(name="Record", scalar_type=ScalarType.NODE, node_type=NodeType.RECORD)
+    Table1 = CustomNodeDefinition(name="Table1").add_children(
+        Field(name="Record", scalar_type=ScalarType.NODE, node_type=NodeType.CUSTOM_NODE_INSTANCE)
     )
     runtime.page().add_child(Table1)
     Record1 = Table1.records.create(name="Record1")
@@ -388,7 +387,7 @@ async def test_record_recursive_reference(simulation: Simulation, runtime: Runti
 @simulated_runtime()
 async def test_search_record(simulation: Simulation, runtime: RuntimeLambdaWorkload):
     """Insert, update and query Records with various filters."""
-    Table1 = Table(name="Table1").add_children(
+    Table1 = CustomNodeDefinition(name="Table1").add_children(
         Field(name="Name", scalar_type=ScalarType.PRIMITIVE, primitive_type=PrimitiveType.STRING),
         Field(name="Name", scalar_type=ScalarType.PRIMITIVE, primitive_type=PrimitiveType.STRING),
         Field(name="Age", scalar_type=ScalarType.PRIMITIVE, primitive_type=PrimitiveType.INT64),
@@ -429,10 +428,10 @@ async def test_search_record(simulation: Simulation, runtime: RuntimeLambdaWorkl
 async def test_table_isolation(simulation: Simulation, runtime: RuntimeLambdaWorkload):
     """Create two tables and ensure they don't interfere with each other."""
 
-    Table1 = Table(name="Table1").add_children(
+    Table1 = CustomNodeDefinition(name="Table1").add_children(
         Field(name="Name", scalar_type=ScalarType.PRIMITIVE, primitive_type=PrimitiveType.STRING)
     )
-    Table2 = Table(name="Table2").add_children(
+    Table2 = CustomNodeDefinition(name="Table2").add_children(
         Field(name="Name", scalar_type=ScalarType.PRIMITIVE, primitive_type=PrimitiveType.STRING)
     )
     runtime.page().add_children(Table1, Table2)

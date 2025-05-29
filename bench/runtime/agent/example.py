@@ -20,6 +20,8 @@ from bench.language import (
     Bench,
     BenchStatus,
     Block,
+    CustomNode,
+    CustomNodeDefinition,
     Field,
     File,
     Graph,
@@ -31,11 +33,9 @@ from bench.language import (
     Package,
     PackageType,
     Page,
-    Record,
     Region,
     Session,
     Supergraph,
-    Table,
     Task,
     Thread,
     User,
@@ -307,7 +307,7 @@ def example_edit_a_text_line_on_a_page(NotesPage1: Page, Block7: Block):
 @example_(ExampleType.SNIPPET, title="Create a simple Table")
 def example_create_simple_table(Page1: Page, Link2: Link):
     # basic Person table (Record.title is builtin)
-    Table1 = Table.new("Person", Field.member("Age", int))
+    Table1 = CustomNodeDefinition.new("Person", Field.member("Age", int))
     Page1.add_child(Table1)
     Record1 = Table1.records.create(name="Florian", Age=27)
     Record2 = Table1.records.create(name="John", Age=30)
