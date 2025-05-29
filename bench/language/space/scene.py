@@ -8,9 +8,9 @@ from bench.language.core import (
     IsBlockable,
     IsDeletable,
     IsInPackage,
-    IsInstantiable,
     IsModal,
     IsOwnable,
+    IsTemplatable,
     Node,
     NodeType,
     node_,
@@ -27,7 +27,7 @@ if TYPE_CHECKING:
 @node_(NodeType.SCENE)
 class Scene(
     IsOwnable,
-    IsInstantiable,
+    IsTemplatable,
     HasName,
     IsModal,
     IsBlockable,

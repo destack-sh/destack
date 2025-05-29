@@ -56,7 +56,7 @@ class Provisioner[PT: IsProvisionable, WT: IsProvisionable](DeferredHostPlugin[W
         """Set the status of the Resource, emitting any Messages."""
         # create message if status changed
         if resource.status != status and isinstance(thread := resource.parent, Thread):
-            message = Message.new(
+            message = Message(
                 parent=thread,
                 type=MessageType.RESOURCE,
                 nodes=[resource],

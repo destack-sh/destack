@@ -470,18 +470,7 @@ def __to_ref__(self) -> "NodeReference":
     return NodeReference(
         node_type=NodeType.{node_type.name},
         id=self.id,
-        ck=self.ck,
         definition_id=self.definition_id,
-        bench_id=self.bench_id,
-    )
-"""
-    elif TraitType.INSTANTIABLE in cls.__traits__:
-        ref_impl = f"""\
-def __to_ref__(self) -> "NodeReference":
-    return NodeReference(
-        node_type=NodeType.{node_type.name},
-        id=self.id,
-        ck=self.ck,
         bench_id=self.bench_id,
     )
 """

@@ -236,15 +236,11 @@ def node_references(draw: st.DrawFn, node_types: st.SearchStrategy[NodeType]):
     node_type = draw(node_types)
     node_id = draw(STRATEGY_BY_PRIMITIVE_TYPE[PrimitiveType.UUID])
     node_cls = NODE_CLASS_BY_TYPE[node_type]
-    if "ck" in node_cls.__properties__:
-        node_ck = draw(STRATEGY_BY_PRIMITIVE_TYPE[PrimitiveType.UUID])
-    else:
-        node_ck = node_id
     if issubclass(node_cls, IsInBench):
         bench_id = draw(STRATEGY_BY_PRIMITIVE_TYPE[PrimitiveType.UUID])
     else:
         bench_id = None
-    return NodeReference(node_type=node_type, id=node_id, ck=node_ck, bench_id=bench_id)
+    return NodeReference(node_type=node_type, id=node_id, bench_id=bench_id)
 
 
 @cacheable

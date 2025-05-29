@@ -1,5 +1,3 @@
-from typing import Optional
-
 from bench.language.core import (
     VERSION,
     BuiltinEnum,
@@ -30,7 +28,8 @@ class Database(IsProvisionable, IsRegional, IsInPackage, Node[DatabaseData]):
     type: DatabaseType = property_(30, default=DatabaseType.POSTGRES)
 
     version: str = property_(60, default=VERSION)
-    external_name: Optional[str] = property_(62, can_read="system", can_write="system")
-    external_id: Optional[str] = property_(63, can_read="system", can_write="system")
-    sql_url: Optional[str] = property_(64, can_read="system", can_write="system")
-    # Database.sql_url should probably be :RealSecrets
+    schema_name: str | None = property_(61, can_read="system", can_write="system")
+    external_name: str | None = property_(62, can_read="system", can_write="system")
+    external_id: str | None = property_(63, can_read="system", can_write="system")
+    sql_url: str | None = property_(64, can_read="system", can_write="system")
+    # Database.sql_url should maybe be :RealSecrets?

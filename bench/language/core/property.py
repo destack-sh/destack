@@ -348,9 +348,9 @@ class Property(IntoType, IntoQuery if TYPE_CHECKING else object):
     # pointers
     ptr_prop: Optional["Property"] = None  # wired representation for pointers
     runtime_prop: Optional["Property"] = None  # for the proto property
-    edge_type: EdgeType | None = None
     node_bench_from: Literal["self"] | None = None
-    node_exclude: tuple[Literal["ck", "definition_id"], ...] = ()
+    node_is_customizable: bool = False
+    edge_type: EdgeType | None = None
     cascade: CascadeAction | None = None
 
     is_wired: bool = False  # serialized onto wire (in proto)
@@ -600,8 +600,8 @@ def property_(
     format: "Format | None" = None,
     constraint: "Constraint | None" = None,
     node_bench_from: Literal["self"] | None = None,
-    node_exclude: tuple[Literal["ck", "definition_id"], ...] = (),
-    node_kind: EdgeType | None = None,
+    node_is_customizable: bool = True,
+    edge_type: EdgeType | None = None,
     cascade: CascadeAction | None = None,
     is_managed: bool = False,
     is_unique: bool = False,
@@ -620,8 +620,8 @@ def property_(
         format=format,
         constraint=constraint,
         node_bench_from=node_bench_from,
-        node_exclude=node_exclude,
-        edge_type=node_kind,
+        node_is_customizable=node_is_customizable,
+        edge_type=edge_type,
         cascade=cascade,
         is_wired=True,
         is_stored=True,
@@ -647,7 +647,7 @@ def property_parent_(id: int = 4) -> Any:
         is_managed=True,
         is_eq=False,
         node_bench_from="self",
-        node_exclude=("ck", "definition_id"),
+        node_is_customizable=True,
     )
 
 
@@ -665,6 +665,7 @@ def property_ancestor_(
         is_stored=True,
         is_eq=False,  # no point since it's derived
         node_bench_from="self",
+        node_is_customizable=True,
     )
 
 

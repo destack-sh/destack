@@ -10,7 +10,12 @@ if TYPE_CHECKING:
 
 
 @node_(NodeType.HANDLE)
-class Handle(IsGlobal, HasSlug, IsInBench, Node[HandleData]):
+class Handle(
+    IsGlobal,
+    HasSlug,
+    IsInBench,
+    Node[HandleData],
+):
     """A Bench @handle."""
 
     pass

@@ -8,7 +8,6 @@ from bench.language.core import (
     IsArchivable,
     IsBlockable,
     IsDeletable,
-    IsInstantiable,
     IsModal,
     Node,
     NodeType,
@@ -39,7 +38,6 @@ class ThemeColor(BuiltinEnum):
 
 @node_(NodeType.THEME)
 class Theme(
-    IsInstantiable,
     IsModal,
     HasName,
     HasIcon,
