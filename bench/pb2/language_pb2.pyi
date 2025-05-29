@@ -78,6 +78,7 @@ class BenchRoleType(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
 class BenchStatus(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     __slots__ = ()
     BENCH_STATUS_UNSPECIFIED: _ClassVar[BenchStatus]
+    BENCH_STATUS_CREATING: _ClassVar[BenchStatus]
     BENCH_STATUS_ACTIVE: _ClassVar[BenchStatus]
 
 class BlockType(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
@@ -1354,6 +1355,7 @@ BENCH_ROLE_TYPE_UNSPECIFIED: BenchRoleType
 BENCH_ROLE_TYPE_ADMIN: BenchRoleType
 BENCH_ROLE_TYPE_MEMBER: BenchRoleType
 BENCH_STATUS_UNSPECIFIED: BenchStatus
+BENCH_STATUS_CREATING: BenchStatus
 BENCH_STATUS_ACTIVE: BenchStatus
 BLOCK_TYPE_UNSPECIFIED: BlockType
 BLOCK_TYPE_PARAGRAPH: BlockType

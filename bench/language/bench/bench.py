@@ -39,7 +39,8 @@ if TYPE_CHECKING:
 class BenchStatus(BuiltinEnum):
     """The status of a Bench"""
 
-    ACTIVE = 50
+    CREATING = 1
+    ACTIVE = 10
 
 
 @node_(NodeType.BENCH)

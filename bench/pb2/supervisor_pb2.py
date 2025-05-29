@@ -26,7 +26,7 @@ from . import language_pb2 as language__pb2
 
 
 DESCRIPTOR = _descriptor_pool.Default().AddSerializedFile(
-    b'\n\x10supervisor.proto\x12\x0csymbol.bench\x1a\x0c\x63ommon.proto\x1a\x0elanguage.proto"\xde\x01\n\x11SignupUserRequest\x12\x0c\n\x04slug\x18\x02 \x01(\t\x12\x11\n\x04name\x18\x03 \x01(\tH\x00\x88\x01\x01\x12\x13\n\x05\x65mail\x18\x04 \x01(\tB\x04\x80\xb5\x18\x01\x12\x16\n\x08password\x18\x05 \x01(\tB\x04\x80\xb5\x18\x01\x12$\n\x06region\x18\x06 \x01(\x0e\x32\x14.symbol.bench.Region\x12(\n\x06\x63lient\x18\t \x01(\x0b\x32\x18.symbol.bench.ClientData\x12\x15\n\x08\x61\x63tivate\x18\n \x01(\x08H\x01\x88\x01\x01\x42\x07\n\x05_nameB\x0b\n\t_activate"\x80\x01\n\x12SignupUserResponse\x12$\n\x04user\x18\x01 \x01(\x0b\x32\x16.symbol.bench.UserData\x12(\n\x06\x63lient\x18\x02 \x01(\x0b\x32\x18.symbol.bench.ClientData\x12\x1a\n\x0c\x61\x63\x63\x65ss_token\x18\x03 \x01(\tB\x04\x80\xb5\x18\x01"S\n\x19\x43hangeUserPasswordRequest\x12\x1a\n\x0cold_password\x18\x01 \x01(\tB\x04\x80\xb5\x18\x01\x12\x1a\n\x0cnew_password\x18\x02 \x01(\tB\x04\x80\xb5\x18\x01"Q\n\x1a\x43hangeUserPasswordResponse\x12$\n\x04user\x18\x01 \x01(\x0b\x32\x16.symbol.bench.UserData\x12\r\n\x05\x65poch\x18\x02 \x01(\x04"\x91\x01\n\x10LoginUserRequest\x12\x0c\n\x02id\x18\x01 \x01(\tH\x00\x12\x0e\n\x04slug\x18\x02 \x01(\tH\x00\x12\x15\n\x05\x65mail\x18\x03 \x01(\tB\x04\x80\xb5\x18\x01H\x00\x12\x16\n\x08password\x18\x04 \x01(\tB\x04\x80\xb5\x18\x01\x12(\n\x06\x63lient\x18\x05 \x01(\x0b\x32\x18.symbol.bench.ClientDataB\x06\n\x04user"\x7f\n\x11LoginUserResponse\x12$\n\x04user\x18\x01 \x01(\x0b\x32\x16.symbol.bench.UserData\x12(\n\x06\x63lient\x18\x02 \x01(\x0b\x32\x18.symbol.bench.ClientData\x12\x1a\n\x0c\x61\x63\x63\x65ss_token\x18\x03 \x01(\tB\x04\x80\xb5\x18\x01"m\n\x11LogoutUserRequest\x12\x30\n\x07\x63lients\x18\x01 \x03(\x0b\x32\x1f.symbol.bench.NodeReferenceData\x12\x17\n\nlogout_all\x18\x02 \x01(\x08H\x00\x88\x01\x01\x42\r\n\x0b_logout_all"\x14\n\x12LogoutUserResponse"Q\n\x19\x43reateOrganizationRequest\x12\x34\n\x0corganization\x18\x01 \x01(\x0b\x32\x1e.symbol.bench.OrganizationData"a\n\x1a\x43reateOrganizationResponse\x12\x34\n\x0corganization\x18\x01 \x01(\x0b\x32\x1e.symbol.bench.OrganizationData\x12\r\n\x05\x65poch\x18\x02 \x01(\x04"\x85\x01\n\x13ResolveHostsRequest\x12;\n\x07\x62\x65nches\x18\x01 \x03(\x0b\x32*.symbol.bench.ResolveHostsRequest.BenchKey\x1a\x31\n\x08\x42\x65nchKey\x12\x0c\n\x02id\x18\x01 \x01(\tH\x00\x12\x0e\n\x04slug\x18\x02 \x01(\tH\x00\x42\x07\n\x05\x62\x65nch"\xd6\x01\n\x14ResolveHostsResponse\x12:\n\x05hosts\x18\x01 \x03(\x0b\x32+.symbol.bench.ResolveHostsResponse.HostInfo\x1a\x81\x01\n\x08HostInfo\x12\x0e\n\x06\x64omain\x18\x01 \x01(\t\x12\x11\n\tgrpc_port\x18\x02 \x01(\x05\x12\x15\n\rgrpc_web_port\x18\x03 \x01(\x05\x12\x0b\n\x03ssl\x18\x04 \x01(\x08\x12.\n\x05\x62\x65nch\x18\x05 \x01(\x0b\x32\x1f.symbol.bench.NodeReferenceData2\xc2\x03\n\nSupervisor\x12O\n\nSignupUser\x12\x1f.symbol.bench.SignupUserRequest\x1a .symbol.bench.SignupUserResponse\x12g\n\x12\x43hangeUserPassword\x12\'.symbol.bench.ChangeUserPasswordRequest\x1a(.symbol.bench.ChangeUserPasswordResponse\x12L\n\tLoginUser\x12\x1e.symbol.bench.LoginUserRequest\x1a\x1f.symbol.bench.LoginUserResponse\x12O\n\nLogoutUser\x12\x1f.symbol.bench.LogoutUserRequest\x1a .symbol.bench.LogoutUserResponse\x12U\n\x0cResolveHosts\x12!.symbol.bench.ResolveHostsRequest\x1a".symbol.bench.ResolveHostsResponse\x1a\x04\x80\xb5\x18\x02\x62\x06proto3'
+    b'\n\x10supervisor.proto\x12\x0csymbol.bench\x1a\x0c\x63ommon.proto\x1a\x0elanguage.proto"\xba\x01\n\x11SignupUserRequest\x12\x0c\n\x04slug\x18\x02 \x01(\t\x12\x11\n\x04name\x18\x03 \x01(\tH\x00\x88\x01\x01\x12\x13\n\x05\x65mail\x18\x04 \x01(\tB\x04\x80\xb5\x18\x01\x12\x16\n\x08password\x18\x05 \x01(\tB\x04\x80\xb5\x18\x01\x12$\n\x06region\x18\x06 \x01(\x0e\x32\x14.symbol.bench.Region\x12(\n\x06\x63lient\x18\t \x01(\x0b\x32\x18.symbol.bench.ClientDataB\x07\n\x05_name"\xa8\x01\n\x12SignupUserResponse\x12$\n\x04user\x18\x01 \x01(\x0b\x32\x16.symbol.bench.UserData\x12(\n\x06\x63lient\x18\x02 \x01(\x0b\x32\x18.symbol.bench.ClientData\x12&\n\x05\x62\x65nch\x18\x03 \x01(\x0b\x32\x17.symbol.bench.BenchData\x12\x1a\n\x0c\x61\x63\x63\x65ss_token\x18\x04 \x01(\tB\x04\x80\xb5\x18\x01"S\n\x19\x43hangeUserPasswordRequest\x12\x1a\n\x0cold_password\x18\x01 \x01(\tB\x04\x80\xb5\x18\x01\x12\x1a\n\x0cnew_password\x18\x02 \x01(\tB\x04\x80\xb5\x18\x01"{\n\x1a\x43hangeUserPasswordResponse\x12$\n\x04user\x18\x01 \x01(\x0b\x32\x16.symbol.bench.UserData\x12(\n\x06\x63lient\x18\x02 \x01(\x0b\x32\x18.symbol.bench.ClientData\x12\r\n\x05\x65poch\x18\x03 \x01(\x04"\x91\x01\n\x10LoginUserRequest\x12\x0c\n\x02id\x18\x01 \x01(\tH\x00\x12\x0e\n\x04slug\x18\x02 \x01(\tH\x00\x12\x15\n\x05\x65mail\x18\x03 \x01(\tB\x04\x80\xb5\x18\x01H\x00\x12\x16\n\x08password\x18\x04 \x01(\tB\x04\x80\xb5\x18\x01\x12(\n\x06\x63lient\x18\x05 \x01(\x0b\x32\x18.symbol.bench.ClientDataB\x06\n\x04user"\x7f\n\x11LoginUserResponse\x12$\n\x04user\x18\x01 \x01(\x0b\x32\x16.symbol.bench.UserData\x12(\n\x06\x63lient\x18\x02 \x01(\x0b\x32\x18.symbol.bench.ClientData\x12\x1a\n\x0c\x61\x63\x63\x65ss_token\x18\x03 \x01(\tB\x04\x80\xb5\x18\x01"m\n\x11LogoutUserRequest\x12\x30\n\x07\x63lients\x18\x01 \x03(\x0b\x32\x1f.symbol.bench.NodeReferenceData\x12\x17\n\nlogout_all\x18\x02 \x01(\x08H\x00\x88\x01\x01\x42\r\n\x0b_logout_all"\x14\n\x12LogoutUserResponse"Q\n\x19\x43reateOrganizationRequest\x12\x34\n\x0corganization\x18\x01 \x01(\x0b\x32\x1e.symbol.bench.OrganizationData"a\n\x1a\x43reateOrganizationResponse\x12\x34\n\x0corganization\x18\x01 \x01(\x0b\x32\x1e.symbol.bench.OrganizationData\x12\r\n\x05\x65poch\x18\x02 \x01(\x04"\x85\x01\n\x13ResolveHostsRequest\x12;\n\x07\x62\x65nches\x18\x01 \x03(\x0b\x32*.symbol.bench.ResolveHostsRequest.BenchKey\x1a\x31\n\x08\x42\x65nchKey\x12\x0c\n\x02id\x18\x01 \x01(\tH\x00\x12\x0e\n\x04slug\x18\x02 \x01(\tH\x00\x42\x07\n\x05\x62\x65nch"\xd6\x01\n\x14ResolveHostsResponse\x12:\n\x05hosts\x18\x01 \x03(\x0b\x32+.symbol.bench.ResolveHostsResponse.HostInfo\x1a\x81\x01\n\x08HostInfo\x12\x0e\n\x06\x64omain\x18\x01 \x01(\t\x12\x11\n\tgrpc_port\x18\x02 \x01(\x05\x12\x15\n\rgrpc_web_port\x18\x03 \x01(\x05\x12\x0b\n\x03ssl\x18\x04 \x01(\x08\x12.\n\x05\x62\x65nch\x18\x05 \x01(\x0b\x32\x1f.symbol.bench.NodeReferenceData2\xc2\x03\n\nSupervisor\x12O\n\nSignupUser\x12\x1f.symbol.bench.SignupUserRequest\x1a .symbol.bench.SignupUserResponse\x12g\n\x12\x43hangeUserPassword\x12\'.symbol.bench.ChangeUserPasswordRequest\x1a(.symbol.bench.ChangeUserPasswordResponse\x12L\n\tLoginUser\x12\x1e.symbol.bench.LoginUserRequest\x1a\x1f.symbol.bench.LoginUserResponse\x12O\n\nLogoutUser\x12\x1f.symbol.bench.LogoutUserRequest\x1a .symbol.bench.LogoutUserResponse\x12U\n\x0cResolveHosts\x12!.symbol.bench.ResolveHostsRequest\x1a".symbol.bench.ResolveHostsResponse\x1a\x04\x80\xb5\x18\x02\x62\x06proto3'
 )
 
 _globals = globals()
@@ -65,33 +65,33 @@ if not _descriptor._USE_C_DESCRIPTORS:
     _globals["_SUPERVISOR"]._loaded_options = None
     _globals["_SUPERVISOR"]._serialized_options = b"\200\265\030\002"
     _globals["_SIGNUPUSERREQUEST"]._serialized_start = 65
-    _globals["_SIGNUPUSERREQUEST"]._serialized_end = 287
-    _globals["_SIGNUPUSERRESPONSE"]._serialized_start = 290
-    _globals["_SIGNUPUSERRESPONSE"]._serialized_end = 418
-    _globals["_CHANGEUSERPASSWORDREQUEST"]._serialized_start = 420
-    _globals["_CHANGEUSERPASSWORDREQUEST"]._serialized_end = 503
-    _globals["_CHANGEUSERPASSWORDRESPONSE"]._serialized_start = 505
-    _globals["_CHANGEUSERPASSWORDRESPONSE"]._serialized_end = 586
-    _globals["_LOGINUSERREQUEST"]._serialized_start = 589
-    _globals["_LOGINUSERREQUEST"]._serialized_end = 734
-    _globals["_LOGINUSERRESPONSE"]._serialized_start = 736
-    _globals["_LOGINUSERRESPONSE"]._serialized_end = 863
-    _globals["_LOGOUTUSERREQUEST"]._serialized_start = 865
-    _globals["_LOGOUTUSERREQUEST"]._serialized_end = 974
-    _globals["_LOGOUTUSERRESPONSE"]._serialized_start = 976
-    _globals["_LOGOUTUSERRESPONSE"]._serialized_end = 996
-    _globals["_CREATEORGANIZATIONREQUEST"]._serialized_start = 998
-    _globals["_CREATEORGANIZATIONREQUEST"]._serialized_end = 1079
-    _globals["_CREATEORGANIZATIONRESPONSE"]._serialized_start = 1081
-    _globals["_CREATEORGANIZATIONRESPONSE"]._serialized_end = 1178
-    _globals["_RESOLVEHOSTSREQUEST"]._serialized_start = 1181
-    _globals["_RESOLVEHOSTSREQUEST"]._serialized_end = 1314
-    _globals["_RESOLVEHOSTSREQUEST_BENCHKEY"]._serialized_start = 1265
-    _globals["_RESOLVEHOSTSREQUEST_BENCHKEY"]._serialized_end = 1314
-    _globals["_RESOLVEHOSTSRESPONSE"]._serialized_start = 1317
-    _globals["_RESOLVEHOSTSRESPONSE"]._serialized_end = 1531
-    _globals["_RESOLVEHOSTSRESPONSE_HOSTINFO"]._serialized_start = 1402
-    _globals["_RESOLVEHOSTSRESPONSE_HOSTINFO"]._serialized_end = 1531
-    _globals["_SUPERVISOR"]._serialized_start = 1534
-    _globals["_SUPERVISOR"]._serialized_end = 1984
+    _globals["_SIGNUPUSERREQUEST"]._serialized_end = 251
+    _globals["_SIGNUPUSERRESPONSE"]._serialized_start = 254
+    _globals["_SIGNUPUSERRESPONSE"]._serialized_end = 422
+    _globals["_CHANGEUSERPASSWORDREQUEST"]._serialized_start = 424
+    _globals["_CHANGEUSERPASSWORDREQUEST"]._serialized_end = 507
+    _globals["_CHANGEUSERPASSWORDRESPONSE"]._serialized_start = 509
+    _globals["_CHANGEUSERPASSWORDRESPONSE"]._serialized_end = 632
+    _globals["_LOGINUSERREQUEST"]._serialized_start = 635
+    _globals["_LOGINUSERREQUEST"]._serialized_end = 780
+    _globals["_LOGINUSERRESPONSE"]._serialized_start = 782
+    _globals["_LOGINUSERRESPONSE"]._serialized_end = 909
+    _globals["_LOGOUTUSERREQUEST"]._serialized_start = 911
+    _globals["_LOGOUTUSERREQUEST"]._serialized_end = 1020
+    _globals["_LOGOUTUSERRESPONSE"]._serialized_start = 1022
+    _globals["_LOGOUTUSERRESPONSE"]._serialized_end = 1042
+    _globals["_CREATEORGANIZATIONREQUEST"]._serialized_start = 1044
+    _globals["_CREATEORGANIZATIONREQUEST"]._serialized_end = 1125
+    _globals["_CREATEORGANIZATIONRESPONSE"]._serialized_start = 1127
+    _globals["_CREATEORGANIZATIONRESPONSE"]._serialized_end = 1224
+    _globals["_RESOLVEHOSTSREQUEST"]._serialized_start = 1227
+    _globals["_RESOLVEHOSTSREQUEST"]._serialized_end = 1360
+    _globals["_RESOLVEHOSTSREQUEST_BENCHKEY"]._serialized_start = 1311
+    _globals["_RESOLVEHOSTSREQUEST_BENCHKEY"]._serialized_end = 1360
+    _globals["_RESOLVEHOSTSRESPONSE"]._serialized_start = 1363
+    _globals["_RESOLVEHOSTSRESPONSE"]._serialized_end = 1577
+    _globals["_RESOLVEHOSTSRESPONSE_HOSTINFO"]._serialized_start = 1448
+    _globals["_RESOLVEHOSTSRESPONSE_HOSTINFO"]._serialized_end = 1577
+    _globals["_SUPERVISOR"]._serialized_start = 1580
+    _globals["_SUPERVISOR"]._serialized_end = 2030
 # @@protoc_insertion_point(module_scope)

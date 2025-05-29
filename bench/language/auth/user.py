@@ -53,12 +53,12 @@ class User(
     # seen_at: Optional[datetime] = ...
     is_staff: bool = property_(45, default=False, can_write="system", is_repr=True)
 
-    bench: Optional["Bench"] = property_(50, can_write="system")
+    bench: "Bench" = property_(50, can_write="system")
     handle: Optional["Handle"] = property_(51, can_write="system")
     cursor: Optional["Cursor"] = property_(52, can_write="system")
     if TYPE_CHECKING:
-        bench_id: Optional[UUID] = None
-        bench_ptr: Optional[NodeReference] = None
+        bench_id: UUID = property_()
+        bench_ptr: NodeReference = property_()
         handle_id: Optional[UUID] = None
         handle_ptr: Optional[NodeReference] = None
         cursor_id: Optional[UUID] = None

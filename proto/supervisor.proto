@@ -12,12 +12,12 @@ message SignupUserRequest {
   string password = 5 [(sensitive) = true];
   Region region = 6;
   ClientData client = 9;
-  optional bool activate = 10;
 }
 message SignupUserResponse {
   UserData user = 1;
   ClientData client = 2;
-  string access_token = 3 [(sensitive) = true];
+  BenchData bench = 3;
+  string access_token = 4 [(sensitive) = true];
 }
 
 message ChangeUserPasswordRequest {
@@ -26,7 +26,8 @@ message ChangeUserPasswordRequest {
 }
 message ChangeUserPasswordResponse {
   UserData user = 1;
-  uint64 epoch = 2;
+  ClientData client = 2;
+  uint64 epoch = 3;
 }
 
 message LoginUserRequest {

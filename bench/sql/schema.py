@@ -10,7 +10,7 @@ from .core import (
     SqlTable,
 )
 
-VERSION = "2025.05.29.0"
+VERSION = "2025.05.29.1"
 
 BENCH_TABLE = SqlTable(
     "bench_bench",
@@ -168,7 +168,7 @@ USER_TABLE = SqlTable(
         SqlColumn("status", PrimitiveType.INT16),
         SqlColumn("last_logged_in_at", PrimitiveType.DATETIME, is_nullable=True),
         SqlColumn("is_staff", PrimitiveType.BOOLEAN),
-        SqlColumn("bench_id", PrimitiveType.UUID, is_nullable=True),
+        SqlColumn("bench_id", PrimitiveType.UUID),
         SqlColumn("handle_id", PrimitiveType.UUID, is_nullable=True),
         SqlColumn("cursor_id", PrimitiveType.UUID, is_nullable=True),
         SqlColumn("email", PrimitiveType.STRING, is_unique=True, is_nullable=True),
@@ -236,7 +236,7 @@ ORGANIZATION_TABLE = SqlTable(
         SqlColumn("slug", PrimitiveType.STRING),
         SqlColumn("icon", PrimitiveType.JSON, is_nullable=True),
         SqlColumn("status", PrimitiveType.INT16),
-        SqlColumn("bench_id", PrimitiveType.UUID, is_nullable=True),
+        SqlColumn("bench_id", PrimitiveType.UUID),
         SqlColumn("handle_id", PrimitiveType.UUID, is_nullable=True),
     ),
 )
