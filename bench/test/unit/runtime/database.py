@@ -231,7 +231,7 @@ async def test_move_table(simulation: Simulation, runtime: RuntimeLambdaWorkload
     assert records == [Record1]
 
     # move table to Page2
-    Table1.move(to=Page2)
+    Table1.move_to(parent=Page2)
     Record2 = Table1.records.create(name="Record2", Alias="2")
     await runtime.commit()
 

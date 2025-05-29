@@ -60,7 +60,7 @@ from .const import (
     repr_enums,
 )
 from .edit import Change, ChangeResult, Edit, EditType, UpdateType, edit_graph
-from .graph import Graph, GraphConsistencyError, GraphError, Supergraph
+from .graph import Graph, Supergraph
 from .icon import Icon, IconIn, IconType, icon, reverse_icon, to_icon
 from .node import IndexIn, Node, node_
 from .object import (
@@ -279,8 +279,6 @@ __all__ = [
     "Function",
     "FunctionType",
     "Graph",
-    "GraphConsistencyError",
-    "GraphError",
     "HasIcon",
     "HasName",
     "HasSlug",

@@ -259,9 +259,9 @@ class Node[NodeDataT: AnyNodeData](BuiltinObjectMutable[NodeDataT]):
         """Wipe this Node from this cosmos forever."""
         self._session.erase(self)
 
-    def move(self, to: "Node"):
+    def move_to(self, parent: "Node"):
         """Move this Node to a new parent."""
-        to.add_child(self, move=True)
+        raise NotImplementedError
 
     def add_child[T: Node](self, child: T, move: bool = False) -> T:
         """Append a Node as a child of this Node."""
@@ -275,8 +275,7 @@ class Node[NodeDataT: AnyNodeData](BuiltinObjectMutable[NodeDataT]):
 
     def remove_child(self, child: "Node"):
         """Remove a child from this Node."""
-        self._graph.remove(child)  # type: ignore
-        child.parent_ptr = None
+        raise NotImplementedError
 
     def get_children[N: Node = Node](
         self, node_type: NodeType | type[N] | None = None
@@ -288,7 +287,7 @@ class Node[NodeDataT: AnyNodeData](BuiltinObjectMutable[NodeDataT]):
         """Gets a specific child of this Node."""
         if isinstance(node_type, type):
             node_type = node_type.metatype
-        for child in self._graph.get_descendants(self, node_type=node_type, recursive=False):
+        for child in self._graph.get_children(self, node_type=node_type):
             if getattr(child, "name", None) == key:
                 return cast(N, child)
         return None
@@ -315,15 +314,6 @@ class Node[NodeDataT: AnyNodeData](BuiltinObjectMutable[NodeDataT]):
             if found_after:
                 nodes.append(node)
         return nodes
-
-    def get_descendants[N: Node = Node](
-        self, node_type: NodeType | type[N] | None = None
-    ) -> Sequence[N]:
-        """Gets the descendants of this Node."""
-        if isinstance(node_type, type):
-            node_type = node_type.metatype
-        descendants = self._graph.get_descendants(self, node_type=node_type, recursive=True)
-        return cast(Sequence[N], descendants)
 
     async def wait_until(self, condition: Callable[[Self], bool], timeout: timedelta | None = None):
         """Wait until the given condition is true."""

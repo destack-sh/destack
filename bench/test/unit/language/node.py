@@ -187,21 +187,21 @@ async def test_move_subtree(simulation: Simulation, runtime: RuntimeLambdaWorklo
         Page2.add_child(Block3)
 
     # move Block1 to Page2
-    Block1.move(to=Page2)
+    Block1.move_to(parent=Page2)
     await runtime.commit()
     assert Page1.get_children(Block) == [Block2, Block3]
     assert Page2.get_children(Block) == [Block1]
 
     # move Block1 back to Page1
-    Block1.move(to=Page1)
+    Block1.move_to(parent=Page1)
     await runtime.commit()
     assert Page1.get_children(Block) == [Block2, Block3, Block1]
     assert Page2.get_children(Block) == []
 
     # move all blocks to Page2
-    Block1.move(to=Page2)
-    Block2.move(to=Page2)
-    Block3.move(to=Page2)
+    Block1.move_to(parent=Page2)
+    Block2.move_to(parent=Page2)
+    Block3.move_to(parent=Page2)
     await runtime.commit()
     assert Page1.get_children(Block) == []
     assert Page2.get_children(Block) == [Block1, Block2, Block3]

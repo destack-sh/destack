@@ -44,7 +44,7 @@ from .const import (
     StructType,
     TraitType,
 )
-from .graph import Supergraph
+from .graph import Graph, Supergraph
 from .property import _PROPERTY_SPECIFIERS, Property, property_runtime_
 
 if TYPE_CHECKING:
@@ -148,6 +148,9 @@ def _generate_init_impl[ObjectT: BuiltinObjectBase](
     extra_glbls["EMPTY_DICT"] = frozendict()
     extra_glbls["uuid4"] = uuid4
     extra_glbls["REGION"] = REGION
+    extra_glbls["Graph"] = Graph
+    extra_glbls["Supergraph"] = Supergraph
+
     method_body_lines = [
         "__setattr__ = object.__setattr__",
     ]
@@ -180,6 +183,7 @@ if _supergraph is None:
 __setattr__(self, "_supergraph", _supergraph)
 """)
         if "ck" not in properties:
+            # id node init
             method_body_lines.append("""\
 # node identity (with id only)
 if id is None:
@@ -193,6 +197,7 @@ else:
 __setattr__(self, "id", id)
 """)
         else:
+            # ck node init
             method_body_lines.append("""\
 # node identity (with id and ck)
 if id is None:
@@ -209,6 +214,7 @@ __setattr__(self, "id", id)
 __setattr__(self, "ck", ck)
 """)
 
+        # general node tracking
         method_body_lines.append("""\
 # node tracking
 __setattr__(self, "created_at", created_at)
@@ -222,8 +228,13 @@ __setattr__(self, "_dirty", None)
         # node graph
         method_body_lines.append("""\
 # graph
+if _graph is None:
+    _graph = Graph(_supergraph, _connection)
+    _supergraph.add_graph(_graph)
 __setattr__(self, "_graph", _graph)
-    """)
+# (we add self to _graph at the end of __init__)
+""")
+
     else:
         # struct setup
         method_body_lines.append("""\
@@ -304,6 +315,12 @@ if {prop.name} is None:
             method_body_lines.append(f"__setattr__(self, '{prop.name}', {prop.name})")
         else:
             method_body_lines.append(f"self.{prop.name} = {prop.name}")
+
+    if is_node:
+        method_body_lines.append("""\
+# add self to _graph
+_graph.add(self)
+""")
 
     method_body = "\n".join(method_body_lines) or "pass"
     method_body = textwrap.indent(method_body, "    ")
@@ -644,13 +661,10 @@ path = _path_key
 def path(self) -> str:
     path_parts: list[str] = []
     node = self
-    is_attached = False
     while node is not None:
-        if node.__root_type__ is None:
-            is_attached = True
         path_parts.append(node._path_key)
         node = node.parent
-    if not is_attached:
+    if not self._is_attached:
         path_parts.append("<detached>")
     return "/".join(reversed(path_parts))
 """
@@ -702,6 +716,7 @@ def {prop.name}(self: "BuiltinObjectBase", values: list["Property"]):
 
 def _generate_node_property_impl(prop: Property) -> str:
     """The computed get/set property for a node reference. Resolved against the active supergraph."""
+    # NOTE :Performance: we could inline Supergraph.get into node property getters
 
     ptr_prop = prop.ptr_prop
     assert ptr_prop is not None, f"no wired prop for {prop!r}"
