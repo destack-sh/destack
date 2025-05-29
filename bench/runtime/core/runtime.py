@@ -143,8 +143,8 @@ class Runtime:
         self.oracle = oracle
         self.process = process
         self.on_error = on_error
-        assert session._runtime is None, f"{session!r} already in runtime {session._runtime!r}"
-        self.session._runtime = self
+        assert session.runtime is None, f"{session!r} already in runtime {session.runtime!r}"
+        self.session.runtime = self
         self.tasks = TaskManager(
             owner=self, logger=logger, oracle=self.oracle, on_error=self.on_error
         )

@@ -4,21 +4,15 @@ from datetime import date, datetime, time, timedelta
 from typing import (
     TYPE_CHECKING,
     Any,
-    Union,
     assert_never,
 )
 
 import structlog
 from fastuuid import UUID
-from google.protobuf.json_format import MessageToDict
-from google.protobuf.struct_pb2 import NULL_VALUE as PROTO_NULL_VALUE
-from google.protobuf.struct_pb2 import ListValue as ProtoList
-from google.protobuf.struct_pb2 import Struct as ProtoStruct
-from google.protobuf.struct_pb2 import Value as ProtoValue
 from opentelemetry import trace
 
 from bench.language.registry import BUILTIN_OBJECT_TYPE_BY_CLASS
-from bench.pb2 import Date, TimeOfDay, ValueData
+from bench.pb2 import ValueData
 from bench.utils.time import timedelta_from_isoformat, timedelta_to_isoformat
 
 from .const import PrimitiveType, StructType
@@ -36,9 +30,6 @@ if TYPE_CHECKING:
 
 logger = structlog.get_logger(__name__)
 tracer = trace.get_tracer(__name__)
-
-JsonPrimitive = Union[str, int, float, bool, None]
-JsonValue = Union[JsonPrimitive, dict[str, "JsonValue"], list["JsonValue"]]
 
 
 @struct_(StructType.VALUE, frozen=True)
@@ -76,12 +67,6 @@ from_value = __unpack_value__
     return value_impl, {
         "timedelta_from_isoformat": timedelta_from_isoformat,
         "timedelta_to_isoformat": timedelta_to_isoformat,
-        "pack_proto_date": pack_proto_date,
-        "unpack_proto_date": unpack_proto_date,
-        "pack_proto_time": pack_proto_time,
-        "unpack_proto_time": unpack_proto_time,
-        "pack_proto_json": pack_proto_json,
-        "unpack_proto_json": unpack_proto_json,
         "datetime": datetime,
         "timedelta": timedelta,
         "date": date,
@@ -253,7 +238,7 @@ def _generate_unpack_value_scalar(prop: "Property | IntoType", value_expr: str) 
         elif prop.primitive_type == PrimitiveType.DURATION:
             return f"timedelta_from_isoformat({value_expr})"
         elif prop.primitive_type in (PrimitiveType.INT16, PrimitiveType.INT32, PrimitiveType.INT64):
-            return f"int({value_expr})"
+            return f"int({value_expr})"  # cast JSON floats to ints
         else:
             return value_expr
     elif prop.scalar_type == "enum":
@@ -268,71 +253,3 @@ def _generate_unpack_value_scalar(prop: "Property | IntoType", value_expr: str) 
         return f"NodeReference.from_value({value_expr})"
     else:
         assert_never(prop.scalar_type)
-
-
-def pack_proto_date(value: date) -> Date:
-    return Date(year=value.year, month=value.month, day=value.day)
-
-
-def unpack_proto_date(value: Date) -> date:
-    return date(year=value.year, month=value.month, day=value.day)
-
-
-def pack_proto_time(value: time) -> TimeOfDay:
-    return TimeOfDay(hours=value.hour, minutes=value.minute, seconds=value.second)
-
-
-def unpack_proto_time(value: TimeOfDay) -> time:
-    return time(hour=value.hours, minute=value.minutes, second=value.seconds)
-
-
-def pack_proto_json_struct(value: dict[str, Any]) -> ProtoValue:
-    struct = ProtoStruct()
-    struct.update(value)
-    proto_value = ProtoValue(struct_value=struct)
-    return proto_value
-
-
-def unpack_proto_json_struct(value: ProtoValue | ProtoStruct) -> dict[str, Any]:
-    json = MessageToDict(value)
-    return json
-
-
-def pack_proto_json(value: JsonValue) -> ProtoValue:
-    t = type(value)
-    if value is None:
-        return ProtoValue(null_value=PROTO_NULL_VALUE)
-    elif t is bool:
-        return ProtoValue(bool_value=value)  # type: ignore
-    elif t is int or t is float:
-        return ProtoValue(number_value=float(value))  # type: ignore
-    elif t is str:
-        return ProtoValue(string_value=value)  # type: ignore
-    elif t is list:
-        list_value = ProtoList(values=[pack_proto_json(item) for item in value])  # type: ignore
-        return ProtoValue(list_value=list_value)
-    elif t is dict:
-        struct_value = ProtoStruct()
-        struct_value.update(value)  # type: ignore
-        return ProtoValue(struct_value=struct_value)
-    elif t is ProtoList:
-        return ProtoValue(list_value=value)  # type: ignore
-    elif t is ProtoStruct:
-        return ProtoValue(struct_value=value)  # type: ignore
-    else:
-        raise ValueError(f"unsupported JSON value {value} ({type(value)!r})")
-
-
-def unpack_proto_json(value: ProtoValue) -> JsonValue:
-    if value.HasField("bool_value"):
-        return value.bool_value
-    elif value.HasField("number_value"):
-        return value.number_value
-    elif value.HasField("string_value"):
-        return value.string_value
-    elif value.HasField("list_value"):
-        return [unpack_proto_json(item) for item in value.list_value.values]
-    elif value.HasField("struct_value"):
-        return MessageToDict(value.struct_value)
-    else:
-        return None

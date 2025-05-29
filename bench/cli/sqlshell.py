@@ -6,6 +6,7 @@ import structlog
 import typer
 
 from bench.language.core.const import REGION, NodeArea, Region
+from bench.language.core.query import JoinType
 from bench.utils.func import sanitize_connection_url
 from bench.utils.oracle import REAL_ORACLE
 
@@ -27,22 +28,15 @@ async def shell(
     bench: Optional[str] = None,
 ):  # type: ignore
     """Open a psql shell to either the global or a Bench-local database."""
-    from bench.language import Bench, Database, NodeArea, Package
+    from bench.language import Bench, Database, NodeArea, Session, join
     from bench.system import (
+        DatabaseStore,
         get_global_database_from_env,
         get_regional_database_from_env,
-        global_session,
-        pg_engine_from_database,
     )
 
     global_database = get_global_database_from_env()
-    global_pg_engine = pg_engine_from_database(
-        "pg-global", global_database, NodeArea.GLOBAL_POSTGRES
-    )
     regional_database = get_regional_database_from_env(region)
-    regional_pg_engine = pg_engine_from_database(
-        f"pg-regional-{region.name.lower()}", regional_database, NodeArea.REGIONAL_POSTGRES
-    )
 
     if area == NodeArea.GLOBAL_POSTGRES:
         database = global_database
@@ -50,13 +44,19 @@ async def shell(
         database = regional_database
     elif area == NodeArea.LOCAL_POSTGRES:
         assert bench is not None, "bench is required for local area"
-        async with global_session(
-            global_database, (global_pg_engine, regional_pg_engine), oracle=REAL_ORACLE
-        ):
+        store = DatabaseStore(
+            {
+                NodeArea.GLOBAL_POSTGRES: global_database,
+                NodeArea.REGIONAL_POSTGRES: regional_database,
+            }
+        )
+        async with Session(store=store, oracle=REAL_ORACLE):
             bench_node = await Bench.get(
                 where=Bench.property("slug").eq(bench),
-                Packages=Package.search(
-                    Databases=Database.search(),
+                Database=Database.get(
+                    join=join(
+                        JoinType.LEFT, on=Database.property("id").eq(Bench.property("database"))
+                    )
                 ),
             ).execute_one()
             assert bench_node.database is not None, f"{bench!r} has no main database"

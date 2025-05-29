@@ -9,6 +9,11 @@ from typing import TYPE_CHECKING, Any, Mapping, Union, assert_never, cast
 import pytz
 import structlog
 from google.protobuf.duration_pb2 import Duration
+from google.protobuf.json_format import MessageToDict
+from google.protobuf.struct_pb2 import NULL_VALUE as PROTO_NULL_VALUE
+from google.protobuf.struct_pb2 import ListValue as ProtoList
+from google.protobuf.struct_pb2 import Struct as ProtoStruct
+from google.protobuf.struct_pb2 import Value as ProtoValue
 from google.protobuf.timestamp_pb2 import Timestamp
 from opentelemetry import trace
 
@@ -21,8 +26,6 @@ from bench.language.core import (
     Property,
     StructType,
     Variable,
-    pack_proto_json,
-    unpack_proto_json,
 )
 from bench.language.registry import (
     BUILTIN_OBJECT_CLASS_BY_TYPE,
@@ -384,6 +387,46 @@ def unwrap_some_node(node: pb2.SomeNodeData) -> AnyNodeData:
     wrapped_node = getattr(node, node_key)
     assert wrapped_node is not None, f"node not set in {node!r}"
     return wrapped_node
+
+
+def pack_proto_json(value: Any) -> ProtoValue:
+    t = type(value)
+    if value is None:
+        return ProtoValue(null_value=PROTO_NULL_VALUE)
+    elif t is bool:
+        return ProtoValue(bool_value=value)  # type: ignore
+    elif t is int or t is float:
+        return ProtoValue(number_value=float(value))  # type: ignore
+    elif t is str:
+        return ProtoValue(string_value=value)  # type: ignore
+    elif t is list:
+        list_value = ProtoList(values=[pack_proto_json(item) for item in value])  # type: ignore
+        return ProtoValue(list_value=list_value)
+    elif t is dict:
+        struct_value = ProtoStruct()
+        struct_value.update(value)  # type: ignore
+        return ProtoValue(struct_value=struct_value)
+    elif t is ProtoList:
+        return ProtoValue(list_value=value)  # type: ignore
+    elif t is ProtoStruct:
+        return ProtoValue(struct_value=value)  # type: ignore
+    else:
+        raise ValueError(f"unsupported JSON value {value} ({type(value)!r})")
+
+
+def unpack_proto_json(value: ProtoValue) -> Any:
+    if value.HasField("bool_value"):
+        return value.bool_value
+    elif value.HasField("number_value"):
+        return value.number_value
+    elif value.HasField("string_value"):
+        return value.string_value
+    elif value.HasField("list_value"):
+        return [unpack_proto_json(item) for item in value.list_value.values]
+    elif value.HasField("struct_value"):
+        return MessageToDict(value.struct_value)
+    else:
+        return None
 
 
 def pack_rpc_headers(metadata: RpcMetadata) -> dict[str, str]:

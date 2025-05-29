@@ -7,7 +7,7 @@ import typer
 from more_itertools import first
 from rich import print
 
-from bench.language.core.const import REGION, Region
+from bench.language import REGION, Region, Session
 from bench.utils.env import ENV
 from bench.utils.func import generate_access_token
 from bench.utils.oracle import REAL_ORACLE
@@ -29,31 +29,20 @@ async def bootstrap(
 ):
     from bench.language import NodeArea
     from bench.system import (
+        DatabaseStore,
         create_system_benches,
         get_global_database_from_env,
         get_regional_database_from_env,
-        pg_engine_from_database,
     )
 
     global_database = get_global_database_from_env()
-    global_pg_engine = pg_engine_from_database(
-        "pg-global", global_database, NodeArea.GLOBAL_POSTGRES
-    )
     regional_database = get_regional_database_from_env(region=region)
-    regional_pg_engine = pg_engine_from_database(
-        f"pg-regional-{regional_database.region.name.lower()}",
-        regional_database,
-        NodeArea.REGIONAL_POSTGRES,
+    store = DatabaseStore(
+        {NodeArea.GLOBAL_POSTGRES: global_database, NodeArea.REGIONAL_POSTGRES: regional_database}
     )
-
-    await create_system_benches(
-        region=region,
-        global_database=global_database,
-        global_pg_engine=global_pg_engine,
-        regional_database=regional_database,
-        regional_pg_engine=regional_pg_engine,
-        upsert=upsert,
-    )
+    async with Session(store=store) as session:
+        await create_system_benches(region=region, session=session, upsert=upsert)
+        await session.commit()
 
 
 @app.command(
@@ -78,25 +67,17 @@ async def make_local_machine_runtime(
     )
     from bench.system import (
         ACCESS_TOKEN_LENGTH,
+        DatabaseStore,
         get_global_database_from_env,
         get_regional_database_from_env,
-        global_session,
-        pg_engine_from_database,
     )
 
     global_database = get_global_database_from_env()
-    global_pg_engine = pg_engine_from_database(
-        "pg-global", global_database, NodeArea.GLOBAL_POSTGRES
-    )
     regional_database = get_regional_database_from_env(region=region)
-    regional_pg_engine = pg_engine_from_database(
-        f"pg-regional-{regional_database.region.name.lower()}",
-        regional_database,
-        NodeArea.REGIONAL_POSTGRES,
+    store = DatabaseStore(
+        {NodeArea.GLOBAL_POSTGRES: global_database, NodeArea.REGIONAL_POSTGRES: regional_database}
     )
-    async with global_session(
-        global_database, (global_pg_engine, regional_pg_engine), REAL_ORACLE, epoch=0
-    ) as session:
+    async with Session(store=store) as session:
         bench = await Bench.search(where=Bench.property("slug").eq(bench_slug)).execute_one()
         machines = await Machine.search(
             where=Machine.property("bench").eq(bench)
@@ -125,6 +106,7 @@ async def make_local_machine_runtime(
         machine.client = client
         machine.update_status(ResourceStatus.AVAILABLE)
         machine.grpc_url = local_machine_url
+        await session.commit()
 
         client_env = {
             "BENCH_ID": str(bench.id),
@@ -139,8 +121,6 @@ async def make_local_machine_runtime(
         print("--- .env.dev.local ---")
         for k, v in client_env.items():
             print(f"{k}={v}")
-
-        await session.commit()
 
 
 @app.command(name="create-image-pull-secret", help="create image pull secret in local cluster")

@@ -97,7 +97,6 @@ async def system(
     from bench.system import (
         DATABASE_MAP,
         HOST_MAP,
-        CreateBenchOptions,
         HostRouterService,
         SupervisorService,
         get_global_database_from_env,
@@ -123,7 +122,6 @@ async def system(
         oracle=REAL_ORACLE,
         host_map=HOST_MAP,
         database_map=DATABASE_MAP,
-        create_bench_options=CreateBenchOptions(),
         on_error=capture_exception,
     )
     services.append(supervisor)
@@ -137,7 +135,6 @@ async def supervisor(host: str, port: int, watch: bool = False, no_check: bool =
     from bench.system import (
         DATABASE_MAP,
         HOST_MAP,
-        CreateBenchOptions,
         SupervisorService,
         get_global_database_from_env,
     )
@@ -151,7 +148,6 @@ async def supervisor(host: str, port: int, watch: bool = False, no_check: bool =
         oracle=REAL_ORACLE,
         host_map=HOST_MAP,
         database_map=DATABASE_MAP,
-        create_bench_options=CreateBenchOptions(),
         on_error=capture_exception,
     )
     await _do_serve(handlers=[supervisor], network=network, host=host, port=port, watch=watch)

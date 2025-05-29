@@ -1116,6 +1116,7 @@ class StructType(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     STRUCT_TYPE_AGGREGATION: _ClassVar[StructType]
     STRUCT_TYPE_CONDITION: _ClassVar[StructType]
     STRUCT_TYPE_SORT: _ClassVar[StructType]
+    STRUCT_TYPE_SELECT: _ClassVar[StructType]
     STRUCT_TYPE_RELATION_REFERENCE: _ClassVar[StructType]
     STRUCT_TYPE_ATTRIBUTE_REFERENCE: _ClassVar[StructType]
     STRUCT_TYPE_QUERY: _ClassVar[StructType]
@@ -2141,6 +2142,7 @@ STRUCT_TYPE_JOIN: StructType
 STRUCT_TYPE_AGGREGATION: StructType
 STRUCT_TYPE_CONDITION: StructType
 STRUCT_TYPE_SORT: StructType
+STRUCT_TYPE_SELECT: StructType
 STRUCT_TYPE_RELATION_REFERENCE: StructType
 STRUCT_TYPE_ATTRIBUTE_REFERENCE: StructType
 STRUCT_TYPE_QUERY: StructType
@@ -2451,20 +2453,20 @@ class AggregationData(_message.Message):
     def __init__(self, metatype: _Optional[_Union[StructType, str]] = ..., type: _Optional[_Union[AggregationType, str]] = ..., expression: _Optional[_Union[ExpressionData, _Mapping]] = ..., distinct: bool = ...) -> None: ...
 
 class AttributeReferenceData(_message.Message):
-    __slots__ = ("metatype", "type", "name", "field_ptr", "prop_ptr", "relation")
+    __slots__ = ("metatype", "type", "prop_ptr", "field_ptr", "name", "relation")
     METATYPE_FIELD_NUMBER: _ClassVar[int]
     TYPE_FIELD_NUMBER: _ClassVar[int]
-    NAME_FIELD_NUMBER: _ClassVar[int]
-    FIELD_PTR_FIELD_NUMBER: _ClassVar[int]
     PROP_PTR_FIELD_NUMBER: _ClassVar[int]
+    FIELD_PTR_FIELD_NUMBER: _ClassVar[int]
+    NAME_FIELD_NUMBER: _ClassVar[int]
     RELATION_FIELD_NUMBER: _ClassVar[int]
     metatype: StructType
     type: AttributeType
-    name: str
-    field_ptr: NodeReferenceData
     prop_ptr: PropertyReferenceData
+    field_ptr: NodeReferenceData
+    name: str
     relation: RelationReferenceData
-    def __init__(self, metatype: _Optional[_Union[StructType, str]] = ..., type: _Optional[_Union[AttributeType, str]] = ..., name: _Optional[str] = ..., field_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., prop_ptr: _Optional[_Union[PropertyReferenceData, _Mapping]] = ..., relation: _Optional[_Union[RelationReferenceData, _Mapping]] = ...) -> None: ...
+    def __init__(self, metatype: _Optional[_Union[StructType, str]] = ..., type: _Optional[_Union[AttributeType, str]] = ..., prop_ptr: _Optional[_Union[PropertyReferenceData, _Mapping]] = ..., field_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., name: _Optional[str] = ..., relation: _Optional[_Union[RelationReferenceData, _Mapping]] = ...) -> None: ...
 
 class Axis2Data(_message.Message):
     __slots__ = ("metatype", "base", "x", "y")
@@ -3013,12 +3015,12 @@ class DimensionData(_message.Message):
     def __init__(self, metatype: _Optional[_Union[StructType, str]] = ..., type: _Optional[_Union[DimensionType, str]] = ..., unit: _Optional[_Union[LengthUnit, str]] = ..., value: _Optional[float] = ...) -> None: ...
 
 class EditData(_message.Message):
-    __slots__ = ("metatype", "id", "type", "operation", "node_id", "path", "key", "value", "parent_ptr")
+    __slots__ = ("metatype", "id", "type", "operation", "node_ptr", "path", "key", "value", "parent_ptr")
     METATYPE_FIELD_NUMBER: _ClassVar[int]
     ID_FIELD_NUMBER: _ClassVar[int]
     TYPE_FIELD_NUMBER: _ClassVar[int]
     OPERATION_FIELD_NUMBER: _ClassVar[int]
-    NODE_ID_FIELD_NUMBER: _ClassVar[int]
+    NODE_PTR_FIELD_NUMBER: _ClassVar[int]
     PATH_FIELD_NUMBER: _ClassVar[int]
     KEY_FIELD_NUMBER: _ClassVar[int]
     VALUE_FIELD_NUMBER: _ClassVar[int]
@@ -3027,12 +3029,12 @@ class EditData(_message.Message):
     id: str
     type: EditType
     operation: UpdateType
-    node_id: str
+    node_ptr: NodeReferenceData
     path: str
     key: ValueData
     value: ValueData
     parent_ptr: NodeReferenceData
-    def __init__(self, metatype: _Optional[_Union[StructType, str]] = ..., id: _Optional[str] = ..., type: _Optional[_Union[EditType, str]] = ..., operation: _Optional[_Union[UpdateType, str]] = ..., node_id: _Optional[str] = ..., path: _Optional[str] = ..., key: _Optional[_Union[ValueData, _Mapping]] = ..., value: _Optional[_Union[ValueData, _Mapping]] = ..., parent_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ...) -> None: ...
+    def __init__(self, metatype: _Optional[_Union[StructType, str]] = ..., id: _Optional[str] = ..., type: _Optional[_Union[EditType, str]] = ..., operation: _Optional[_Union[UpdateType, str]] = ..., node_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., path: _Optional[str] = ..., key: _Optional[_Union[ValueData, _Mapping]] = ..., value: _Optional[_Union[ValueData, _Mapping]] = ..., parent_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ...) -> None: ...
 
 class EffectData(_message.Message):
     __slots__ = ("metatype", "type", "style_ptr", "opacity", "offset", "scale", "rotate", "skew", "perspective", "delay", "duration", "threshold", "once", "repeat", "split", "offscreen", "transition")
@@ -4581,14 +4583,16 @@ class PropertyReferenceData(_message.Message):
     def __init__(self, metatype: _Optional[_Union[StructType, str]] = ..., node_type: _Optional[_Union[NodeType, str]] = ..., struct_type: _Optional[_Union[StructType, str]] = ..., id: _Optional[int] = ...) -> None: ...
 
 class QueryData(_message.Message):
-    __slots__ = ("metatype", "id", "type", "name", "relation", "join", "subqueries", "where", "having", "group_by", "aggregation", "sort", "limit", "offset", "count")
+    __slots__ = ("metatype", "id", "type", "name", "relation", "join", "select", "subqueries", "is_live", "where", "having", "group_by", "aggregation", "sort", "limit", "offset", "count")
     METATYPE_FIELD_NUMBER: _ClassVar[int]
     ID_FIELD_NUMBER: _ClassVar[int]
     TYPE_FIELD_NUMBER: _ClassVar[int]
     NAME_FIELD_NUMBER: _ClassVar[int]
     RELATION_FIELD_NUMBER: _ClassVar[int]
     JOIN_FIELD_NUMBER: _ClassVar[int]
+    SELECT_FIELD_NUMBER: _ClassVar[int]
     SUBQUERIES_FIELD_NUMBER: _ClassVar[int]
+    IS_LIVE_FIELD_NUMBER: _ClassVar[int]
     WHERE_FIELD_NUMBER: _ClassVar[int]
     HAVING_FIELD_NUMBER: _ClassVar[int]
     GROUP_BY_FIELD_NUMBER: _ClassVar[int]
@@ -4603,7 +4607,9 @@ class QueryData(_message.Message):
     name: str
     relation: RelationReferenceData
     join: JoinData
+    select: SelectData
     subqueries: _containers.RepeatedCompositeFieldContainer[QueryData]
+    is_live: bool
     where: ConditionData
     having: ConditionData
     group_by: _containers.RepeatedCompositeFieldContainer[ExpressionData]
@@ -4612,7 +4618,7 @@ class QueryData(_message.Message):
     limit: int
     offset: int
     count: bool
-    def __init__(self, metatype: _Optional[_Union[StructType, str]] = ..., id: _Optional[str] = ..., type: _Optional[_Union[QueryType, str]] = ..., name: _Optional[str] = ..., relation: _Optional[_Union[RelationReferenceData, _Mapping]] = ..., join: _Optional[_Union[JoinData, _Mapping]] = ..., subqueries: _Optional[_Iterable[_Union[QueryData, _Mapping]]] = ..., where: _Optional[_Union[ConditionData, _Mapping]] = ..., having: _Optional[_Union[ConditionData, _Mapping]] = ..., group_by: _Optional[_Iterable[_Union[ExpressionData, _Mapping]]] = ..., aggregation: _Optional[_Union[AggregationData, _Mapping]] = ..., sort: _Optional[_Iterable[_Union[SortData, _Mapping]]] = ..., limit: _Optional[int] = ..., offset: _Optional[int] = ..., count: bool = ...) -> None: ...
+    def __init__(self, metatype: _Optional[_Union[StructType, str]] = ..., id: _Optional[str] = ..., type: _Optional[_Union[QueryType, str]] = ..., name: _Optional[str] = ..., relation: _Optional[_Union[RelationReferenceData, _Mapping]] = ..., join: _Optional[_Union[JoinData, _Mapping]] = ..., select: _Optional[_Union[SelectData, _Mapping]] = ..., subqueries: _Optional[_Iterable[_Union[QueryData, _Mapping]]] = ..., is_live: bool = ..., where: _Optional[_Union[ConditionData, _Mapping]] = ..., having: _Optional[_Union[ConditionData, _Mapping]] = ..., group_by: _Optional[_Iterable[_Union[ExpressionData, _Mapping]]] = ..., aggregation: _Optional[_Union[AggregationData, _Mapping]] = ..., sort: _Optional[_Iterable[_Union[SortData, _Mapping]]] = ..., limit: _Optional[int] = ..., offset: _Optional[int] = ..., count: bool = ...) -> None: ...
 
 class QueryResultData(_message.Message):
     __slots__ = ("metatype", "epoch", "query")
@@ -4951,6 +4957,14 @@ class ScopeData(_message.Message):
     region: Region
     bench_id: str
     def __init__(self, metatype: _Optional[_Union[StructType, str]] = ..., region: _Optional[_Union[Region, str]] = ..., bench_id: _Optional[str] = ...) -> None: ...
+
+class SelectData(_message.Message):
+    __slots__ = ("metatype", "attributes")
+    METATYPE_FIELD_NUMBER: _ClassVar[int]
+    ATTRIBUTES_FIELD_NUMBER: _ClassVar[int]
+    metatype: StructType
+    attributes: _containers.RepeatedCompositeFieldContainer[AttributeReferenceData]
+    def __init__(self, metatype: _Optional[_Union[StructType, str]] = ..., attributes: _Optional[_Iterable[_Union[AttributeReferenceData, _Mapping]]] = ...) -> None: ...
 
 class SelectionData(_message.Message):
     __slots__ = ("metatype", "nodes_ptr")

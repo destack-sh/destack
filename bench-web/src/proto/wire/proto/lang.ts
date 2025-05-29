@@ -328,17 +328,17 @@ export interface AttributeReferenceData {
      */
     type: AttributeType;
     /**
-     * @generated from protobuf field: optional string name = 31;
+     * @generated from protobuf field: optional symbol.bench.PropertyReferenceData prop_ptr = 31;
      */
-    name?: string;
+    propPtr?: PropertyReferenceData;
     /**
      * @generated from protobuf field: optional symbol.bench.NodeReferenceData field_ptr = 32;
      */
     fieldPtr?: NodeReferenceData;
     /**
-     * @generated from protobuf field: optional symbol.bench.PropertyReferenceData prop_ptr = 33;
+     * @generated from protobuf field: optional string name = 33;
      */
-    propPtr?: PropertyReferenceData;
+    name?: string;
     /**
      * @generated from protobuf field: optional symbol.bench.RelationReferenceData relation = 34;
      */
@@ -1416,9 +1416,9 @@ export interface EditData {
      */
     operation?: UpdateType;
     /**
-     * @generated from protobuf field: string node_id = 32;
+     * @generated from protobuf field: symbol.bench.NodeReferenceData node_ptr = 32;
      */
-    nodeId: string;
+    nodePtr?: NodeReferenceData;
     /**
      * @generated from protobuf field: optional string path = 33;
      */
@@ -4768,17 +4768,25 @@ export interface QueryData {
      */
     name: string;
     /**
-     * @generated from protobuf field: symbol.bench.RelationReferenceData relation = 35;
+     * @generated from protobuf field: symbol.bench.RelationReferenceData relation = 32;
      */
     relation?: RelationReferenceData;
     /**
-     * @generated from protobuf field: optional symbol.bench.JoinData join = 36;
+     * @generated from protobuf field: optional symbol.bench.JoinData join = 33;
      */
     join?: JoinData;
     /**
-     * @generated from protobuf field: repeated symbol.bench.QueryData subqueries = 37;
+     * @generated from protobuf field: optional symbol.bench.SelectData select = 34;
+     */
+    select?: SelectData;
+    /**
+     * @generated from protobuf field: repeated symbol.bench.QueryData subqueries = 35;
      */
     subqueries: QueryData[];
+    /**
+     * @generated from protobuf field: bool is_live = 39;
+     */
+    isLive: boolean;
     /**
      * @generated from protobuf field: optional symbol.bench.ConditionData where = 40;
      */
@@ -5467,6 +5475,19 @@ export interface ScopeData {
      * @generated from protobuf field: optional string bench_id = 32;
      */
     benchId?: string;
+}
+/**
+ * @generated from protobuf message symbol.bench.SelectData
+ */
+export interface SelectData {
+    /**
+     * @generated from protobuf field: symbol.bench.StructType metatype = 1;
+     */
+    metatype: StructType;
+    /**
+     * @generated from protobuf field: repeated symbol.bench.AttributeReferenceData attributes = 31;
+     */
+    attributes: AttributeReferenceData[];
 }
 /**
  * @generated from protobuf message symbol.bench.SelectionData
@@ -12045,13 +12066,17 @@ export enum StructType {
      */
     SORT = 20105,
     /**
-     * @generated from protobuf enum value: STRUCT_TYPE_RELATION_REFERENCE = 20106;
+     * @generated from protobuf enum value: STRUCT_TYPE_SELECT = 20106;
      */
-    RELATION_REFERENCE = 20106,
+    SELECT = 20106,
     /**
-     * @generated from protobuf enum value: STRUCT_TYPE_ATTRIBUTE_REFERENCE = 20107;
+     * @generated from protobuf enum value: STRUCT_TYPE_RELATION_REFERENCE = 20107;
      */
-    ATTRIBUTE_REFERENCE = 20107,
+    RELATION_REFERENCE = 20107,
+    /**
+     * @generated from protobuf enum value: STRUCT_TYPE_ATTRIBUTE_REFERENCE = 20108;
+     */
+    ATTRIBUTE_REFERENCE = 20108,
     /**
      * @generated from protobuf enum value: STRUCT_TYPE_QUERY = 20110;
      */
@@ -13382,9 +13407,9 @@ class AttributeReferenceData$Type extends MessageType$<AttributeReferenceData> {
         super("symbol.bench.AttributeReferenceData", [
             { no: 1, name: "metatype", kind: "enum", T: () => ["symbol.bench.StructType", StructType, "STRUCT_TYPE_"] },
             { no: 30, name: "type", kind: "enum", T: () => ["symbol.bench.AttributeType", AttributeType, "ATTRIBUTE_TYPE_"] },
-            { no: 31, name: "name", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
+            { no: 31, name: "prop_ptr", kind: "message", T: () => PropertyReferenceData },
             { no: 32, name: "field_ptr", kind: "message", T: () => NodeReferenceData },
-            { no: 33, name: "prop_ptr", kind: "message", T: () => PropertyReferenceData },
+            { no: 33, name: "name", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
             { no: 34, name: "relation", kind: "message", T: () => RelationReferenceData }
         ]);
     }
@@ -13407,14 +13432,14 @@ class AttributeReferenceData$Type extends MessageType$<AttributeReferenceData> {
                 case /* symbol.bench.AttributeType type */ 30:
                     message.type = reader.int32();
                     break;
-                case /* optional string name */ 31:
-                    message.name = reader.string();
+                case /* optional symbol.bench.PropertyReferenceData prop_ptr */ 31:
+                    message.propPtr = PropertyReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.propPtr);
                     break;
                 case /* optional symbol.bench.NodeReferenceData field_ptr */ 32:
                     message.fieldPtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.fieldPtr);
                     break;
-                case /* optional symbol.bench.PropertyReferenceData prop_ptr */ 33:
-                    message.propPtr = PropertyReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.propPtr);
+                case /* optional string name */ 33:
+                    message.name = reader.string();
                     break;
                 case /* optional symbol.bench.RelationReferenceData relation */ 34:
                     message.relation = RelationReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.relation);
@@ -13437,15 +13462,15 @@ class AttributeReferenceData$Type extends MessageType$<AttributeReferenceData> {
         /* symbol.bench.AttributeType type = 30; */
         if (message.type !== 0)
             writer.tag(30, WireType.Varint).int32(message.type);
-        /* optional string name = 31; */
-        if (message.name !== undefined)
-            writer.tag(31, WireType.LengthDelimited).string(message.name);
+        /* optional symbol.bench.PropertyReferenceData prop_ptr = 31; */
+        if (message.propPtr)
+            PropertyReferenceData.internalBinaryWrite(message.propPtr, writer.tag(31, WireType.LengthDelimited).fork(), options).join();
         /* optional symbol.bench.NodeReferenceData field_ptr = 32; */
         if (message.fieldPtr)
             NodeReferenceData.internalBinaryWrite(message.fieldPtr, writer.tag(32, WireType.LengthDelimited).fork(), options).join();
-        /* optional symbol.bench.PropertyReferenceData prop_ptr = 33; */
-        if (message.propPtr)
-            PropertyReferenceData.internalBinaryWrite(message.propPtr, writer.tag(33, WireType.LengthDelimited).fork(), options).join();
+        /* optional string name = 33; */
+        if (message.name !== undefined)
+            writer.tag(33, WireType.LengthDelimited).string(message.name);
         /* optional symbol.bench.RelationReferenceData relation = 34; */
         if (message.relation)
             RelationReferenceData.internalBinaryWrite(message.relation, writer.tag(34, WireType.LengthDelimited).fork(), options).join();
@@ -15948,7 +15973,7 @@ class EditData$Type extends MessageType$<EditData> {
             { no: 2, name: "id", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
             { no: 30, name: "type", kind: "enum", T: () => ["symbol.bench.EditType", EditType, "EDIT_TYPE_"] },
             { no: 31, name: "operation", kind: "enum", opt: true, T: () => ["symbol.bench.UpdateType", UpdateType, "UPDATE_TYPE_"] },
-            { no: 32, name: "node_id", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
+            { no: 32, name: "node_ptr", kind: "message", T: () => NodeReferenceData },
             { no: 33, name: "path", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
             { no: 34, name: "key", kind: "message", T: () => ValueData },
             { no: 41, name: "value", kind: "message", T: () => ValueData },
@@ -15960,7 +15985,6 @@ class EditData$Type extends MessageType$<EditData> {
         message.metatype = 0;
         message.id = "";
         message.type = 0;
-        message.nodeId = "";
         if (value !== undefined)
             reflectionMergePartial<EditData>(this, message, value);
         return message;
@@ -15982,8 +16006,8 @@ class EditData$Type extends MessageType$<EditData> {
                 case /* optional symbol.bench.UpdateType operation */ 31:
                     message.operation = reader.int32();
                     break;
-                case /* string node_id */ 32:
-                    message.nodeId = reader.string();
+                case /* symbol.bench.NodeReferenceData node_ptr */ 32:
+                    message.nodePtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.nodePtr);
                     break;
                 case /* optional string path */ 33:
                     message.path = reader.string();
@@ -16021,9 +16045,9 @@ class EditData$Type extends MessageType$<EditData> {
         /* optional symbol.bench.UpdateType operation = 31; */
         if (message.operation !== undefined)
             writer.tag(31, WireType.Varint).int32(message.operation);
-        /* string node_id = 32; */
-        if (message.nodeId !== "")
-            writer.tag(32, WireType.LengthDelimited).string(message.nodeId);
+        /* symbol.bench.NodeReferenceData node_ptr = 32; */
+        if (message.nodePtr)
+            NodeReferenceData.internalBinaryWrite(message.nodePtr, writer.tag(32, WireType.LengthDelimited).fork(), options).join();
         /* optional string path = 33; */
         if (message.path !== undefined)
             writer.tag(33, WireType.LengthDelimited).string(message.path);
@@ -22909,9 +22933,11 @@ class QueryData$Type extends MessageType$<QueryData> {
             { no: 2, name: "id", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
             { no: 30, name: "type", kind: "enum", T: () => ["symbol.bench.QueryType", QueryType, "QUERY_TYPE_"] },
             { no: 31, name: "name", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
-            { no: 35, name: "relation", kind: "message", T: () => RelationReferenceData },
-            { no: 36, name: "join", kind: "message", T: () => JoinData },
-            { no: 37, name: "subqueries", kind: "message", repeat: 1 /*RepeatType.PACKED*/, T: () => QueryData },
+            { no: 32, name: "relation", kind: "message", T: () => RelationReferenceData },
+            { no: 33, name: "join", kind: "message", T: () => JoinData },
+            { no: 34, name: "select", kind: "message", T: () => SelectData },
+            { no: 35, name: "subqueries", kind: "message", repeat: 1 /*RepeatType.PACKED*/, T: () => QueryData },
+            { no: 39, name: "is_live", kind: "scalar", T: 8 /*ScalarType.BOOL*/ },
             { no: 40, name: "where", kind: "message", T: () => ConditionData },
             { no: 41, name: "having", kind: "message", T: () => ConditionData },
             { no: 42, name: "group_by", kind: "message", repeat: 1 /*RepeatType.PACKED*/, T: () => ExpressionData },
@@ -22929,6 +22955,7 @@ class QueryData$Type extends MessageType$<QueryData> {
         message.type = 0;
         message.name = "";
         message.subqueries = [];
+        message.isLive = false;
         message.groupBy = [];
         message.sort = [];
         if (value !== undefined)
@@ -22952,14 +22979,20 @@ class QueryData$Type extends MessageType$<QueryData> {
                 case /* string name */ 31:
                     message.name = reader.string();
                     break;
-                case /* symbol.bench.RelationReferenceData relation */ 35:
+                case /* symbol.bench.RelationReferenceData relation */ 32:
                     message.relation = RelationReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.relation);
                     break;
-                case /* optional symbol.bench.JoinData join */ 36:
+                case /* optional symbol.bench.JoinData join */ 33:
                     message.join = JoinData.internalBinaryRead(reader, reader.uint32(), options, message.join);
                     break;
-                case /* repeated symbol.bench.QueryData subqueries */ 37:
+                case /* optional symbol.bench.SelectData select */ 34:
+                    message.select = SelectData.internalBinaryRead(reader, reader.uint32(), options, message.select);
+                    break;
+                case /* repeated symbol.bench.QueryData subqueries */ 35:
                     message.subqueries.push(QueryData.internalBinaryRead(reader, reader.uint32(), options));
+                    break;
+                case /* bool is_live */ 39:
+                    message.isLive = reader.bool();
                     break;
                 case /* optional symbol.bench.ConditionData where */ 40:
                     message.where = ConditionData.internalBinaryRead(reader, reader.uint32(), options, message.where);
@@ -23009,15 +23042,21 @@ class QueryData$Type extends MessageType$<QueryData> {
         /* string name = 31; */
         if (message.name !== "")
             writer.tag(31, WireType.LengthDelimited).string(message.name);
-        /* symbol.bench.RelationReferenceData relation = 35; */
+        /* symbol.bench.RelationReferenceData relation = 32; */
         if (message.relation)
-            RelationReferenceData.internalBinaryWrite(message.relation, writer.tag(35, WireType.LengthDelimited).fork(), options).join();
-        /* optional symbol.bench.JoinData join = 36; */
+            RelationReferenceData.internalBinaryWrite(message.relation, writer.tag(32, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbol.bench.JoinData join = 33; */
         if (message.join)
-            JoinData.internalBinaryWrite(message.join, writer.tag(36, WireType.LengthDelimited).fork(), options).join();
-        /* repeated symbol.bench.QueryData subqueries = 37; */
+            JoinData.internalBinaryWrite(message.join, writer.tag(33, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbol.bench.SelectData select = 34; */
+        if (message.select)
+            SelectData.internalBinaryWrite(message.select, writer.tag(34, WireType.LengthDelimited).fork(), options).join();
+        /* repeated symbol.bench.QueryData subqueries = 35; */
         for (let i = 0; i < message.subqueries.length; i++)
-            QueryData.internalBinaryWrite(message.subqueries[i], writer.tag(37, WireType.LengthDelimited).fork(), options).join();
+            QueryData.internalBinaryWrite(message.subqueries[i], writer.tag(35, WireType.LengthDelimited).fork(), options).join();
+        /* bool is_live = 39; */
+        if (message.isLive !== false)
+            writer.tag(39, WireType.Varint).bool(message.isLive);
         /* optional symbol.bench.ConditionData where = 40; */
         if (message.where)
             ConditionData.internalBinaryWrite(message.where, writer.tag(40, WireType.LengthDelimited).fork(), options).join();
@@ -24615,6 +24654,61 @@ class ScopeData$Type extends MessageType$<ScopeData> {
  * @generated MessageType for protobuf message symbol.bench.ScopeData
  */
 export const ScopeData = new ScopeData$Type();
+// @generated message type with reflection information, may provide speed optimized methods
+class SelectData$Type extends MessageType$<SelectData> {
+    constructor() {
+        super("symbol.bench.SelectData", [
+            { no: 1, name: "metatype", kind: "enum", T: () => ["symbol.bench.StructType", StructType, "STRUCT_TYPE_"] },
+            { no: 31, name: "attributes", kind: "message", repeat: 1 /*RepeatType.PACKED*/, T: () => AttributeReferenceData }
+        ]);
+    }
+    create(value?: PartialMessage<SelectData>): SelectData {
+        const message = globalThis.Object.create((this.messagePrototype!));
+        message.metatype = 0;
+        message.attributes = [];
+        if (value !== undefined)
+            reflectionMergePartial<SelectData>(this, message, value);
+        return message;
+    }
+    internalBinaryRead(reader: IBinaryReader, length: number, options: BinaryReadOptions, target?: SelectData): SelectData {
+        let message = target ?? this.create(), end = reader.pos + length;
+        while (reader.pos < end) {
+            let [fieldNo, wireType] = reader.tag();
+            switch (fieldNo) {
+                case /* symbol.bench.StructType metatype */ 1:
+                    message.metatype = reader.int32();
+                    break;
+                case /* repeated symbol.bench.AttributeReferenceData attributes */ 31:
+                    message.attributes.push(AttributeReferenceData.internalBinaryRead(reader, reader.uint32(), options));
+                    break;
+                default:
+                    let u = options.readUnknownField;
+                    if (u === "throw")
+                        throw new globalThis.Error(`Unknown field ${fieldNo} (wire type ${wireType}) for ${this.typeName}`);
+                    let d = reader.skip(wireType);
+                    if (u !== false)
+                        (u === true ? UnknownFieldHandler.onRead : u)(this.typeName, message, fieldNo, wireType, d);
+            }
+        }
+        return message;
+    }
+    internalBinaryWrite(message: SelectData, writer: IBinaryWriter, options: BinaryWriteOptions): IBinaryWriter {
+        /* symbol.bench.StructType metatype = 1; */
+        if (message.metatype !== 0)
+            writer.tag(1, WireType.Varint).int32(message.metatype);
+        /* repeated symbol.bench.AttributeReferenceData attributes = 31; */
+        for (let i = 0; i < message.attributes.length; i++)
+            AttributeReferenceData.internalBinaryWrite(message.attributes[i], writer.tag(31, WireType.LengthDelimited).fork(), options).join();
+        let u = options.writeUnknownFields;
+        if (u !== false)
+            (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
+        return writer;
+    }
+}
+/**
+ * @generated MessageType for protobuf message symbol.bench.SelectData
+ */
+export const SelectData = new SelectData$Type();
 // @generated message type with reflection information, may provide speed optimized methods
 class SelectionData$Type extends MessageType$<SelectionData> {
     constructor() {
@@ -30224,6 +30318,6 @@ export const SomeNodeData = new SomeNodeData$Type();
 
 // Any...
 export type AnyNodeData = ClientData | OrganizationData | OrganizationInviteData | OrganizationMembershipData | UserData | BenchData | BenchInviteData | BenchMembershipData | HandleData | PackageData | PackageMembershipData | PackageInviteData | FieldData | FileData | LinkData | RecordData | SchemaData | TableData | DatabaseData | MachineData | ActionData | AgentData | CursorData | FlowData | FlowEdgeData | ServiceData | TaskData | InterruptionData | RunData | SpanData | MessageData | ThreadData | BlockData | PageData | RouteData | SceneData | SpaceData | ColorStyleData | BorderStyleData | TransitionStyleData | EffectStyleData | GradientStyleData | FontStyleData | ShadowStyleData | ThemeData | FrameViewData | LabelViewData | SplitViewData | TextViewData | NumberInputViewData | SliderInputViewData | WizardViewData | ThreadViewData
-export type AnyStructData = ScopeData | PropertyReferenceData | NodeReferenceData | CodeData | StringConstraintData | NumberConstraintData | CollectionConstraintData | NodeConstraintData | TypeData | EditData | ChangeData | ChangeResultData | IconData | ValueData | RelationReferenceData | AttributeReferenceData | FunctionData | ConditionData | AggregationData | ExpressionData | SortData | JoinData | QueryData | QueryResultData | QueryUpdateData | SelectionData | TextSpanData | TextLineData | TextData | VariableData | OriginData | ScheduleData | ErrorData | ColorData | LengthData | PositionData | DimensionData | InsetsData | CornersData | Axis2Data | Axis3Data | Vector2Data | Vector3Data | Vector4Data | GridData | GridSpanData | BorderData | TransitionData | EffectData | GradientStopData | GradientData | FillData | FontData | ShadowData
+export type AnyStructData = ScopeData | PropertyReferenceData | NodeReferenceData | CodeData | StringConstraintData | NumberConstraintData | CollectionConstraintData | NodeConstraintData | TypeData | EditData | ChangeData | ChangeResultData | IconData | ValueData | RelationReferenceData | AttributeReferenceData | FunctionData | ConditionData | AggregationData | ExpressionData | SortData | SelectData | JoinData | QueryData | QueryResultData | QueryUpdateData | SelectionData | TextSpanData | TextLineData | TextData | VariableData | OriginData | ScheduleData | ErrorData | ColorData | LengthData | PositionData | DimensionData | InsetsData | CornersData | Axis2Data | Axis3Data | Vector2Data | Vector3Data | Vector4Data | GridData | GridSpanData | BorderData | TransitionData | EffectData | GradientStopData | GradientData | FillData | FontData | ShadowData
 
     

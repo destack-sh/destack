@@ -18,7 +18,7 @@ from .graph import Supergraph
 from .node import IsSubject, Node
 
 if TYPE_CHECKING:
-    from bench.language import Bench, Edit, Store
+    from bench.language import Bench, Edit, QueryConnection, Store
     from bench.runtime.core import Runtime
 
 # pyright: reportIncompatibleVariableOverride=false
@@ -33,16 +33,17 @@ class Session:
     """
 
     __slots__ = (
-        "_runtime",
         "_token",
         "bench",
         "change",
         "changes",
+        "connections",
         "dirty",
         "edits",
         "mode",
         "oracle",
         "origin",
+        "runtime",
         "store",
         "subject",
         "supergraph",
@@ -50,7 +51,6 @@ class Session:
 
     def __init__(
         self,
-        supergraph: Supergraph | None = None,
         mode: NodeMode = NodeMode.MAIN,
         oracle: Oracle = REAL_ORACLE,
         bench: Optional["Bench"] = None,
@@ -59,7 +59,7 @@ class Session:
         store: "Store | None" = None,
         _runtime: Optional["Runtime"] = None,
     ):
-        self.supergraph = supergraph if supergraph is not None else Supergraph()
+        self.supergraph = Supergraph(self)
         self.mode = mode
         self.oracle = oracle
         self.bench = bench
@@ -74,13 +74,9 @@ class Session:
         self.edits: list[Edit] = []
 
         # runtime
-        self._runtime = _runtime
+        self.runtime: Runtime | None = _runtime
+        self.connections: list[QueryConnection] = []
         self._token: Any | None = None
-
-    @property
-    def runtime(self) -> "Runtime":
-        assert self._runtime is not None, f"no active Runtime in {self!r}"
-        return self._runtime
 
     async def open(self):
         """Opens the Session."""
@@ -94,49 +90,49 @@ class Session:
 
     def create(self, node: Node):
         """Creates a new Node."""
-        edit = Edit(type=EditType.CREATE, node_id=node.id)
+        edit = Edit(type=EditType.CREATE, node=node)
         self.change.edits.append(edit)
         self.edits.append(edit)
 
     def upsert(self, node: Node):
         """Creates or updates a Node."""
-        edit = Edit(type=EditType.UPSERT, node_id=node.id)
+        edit = Edit(type=EditType.UPSERT, node=node)
         self.change.edits.append(edit)
         self.edits.append(edit)
 
     def move(self, node: Node, parent: Node):
         """Moves a Node to a new parent."""
-        edit = Edit(type=EditType.MOVE, node_id=node.id, parent=parent)
+        edit = Edit(type=EditType.MOVE, node=node, parent=parent)
         self.change.edits.append(edit)
         self.edits.append(edit)
 
     def archive(self, node: Node):
         """Archives a Node."""
-        edit = Edit(type=EditType.ARCHIVE, node_id=node.id)
+        edit = Edit(type=EditType.ARCHIVE, node=node)
         self.change.edits.append(edit)
         self.edits.append(edit)
 
     def unarchive(self, node: Node):
         """Unarchives a Node."""
-        edit = Edit(type=EditType.UNARCHIVE, node_id=node.id)
+        edit = Edit(type=EditType.UNARCHIVE, node=node)
         self.change.edits.append(edit)
         self.edits.append(edit)
 
     def delete(self, node: Node):
         """Deletes a Node."""
-        edit = Edit(type=EditType.DELETE, node_id=node.id)
+        edit = Edit(type=EditType.DELETE, node=node)
         self.change.edits.append(edit)
         self.edits.append(edit)
 
     def restore(self, node: Node):
         """Restores a deleted Node."""
-        edit = Edit(type=EditType.RESTORE, node_id=node.id)
+        edit = Edit(type=EditType.RESTORE, node=node)
         self.change.edits.append(edit)
         self.edits.append(edit)
 
     def erase(self, node: Node):
         """Erases a Node."""
-        edit = Edit(type=EditType.ERASE, node_id=node.id)
+        edit = Edit(type=EditType.ERASE, node=node)
         self.change.edits.append(edit)
         self.edits.append(edit)
 

@@ -29,7 +29,6 @@ from bench.language import (
     PackageType,
     Session,
     StructType,
-    Supergraph,
 )
 from bench.test.conftest import _setup_test_env
 from bench.test.simulation.core import (
@@ -78,8 +77,7 @@ def omni_session(omni_database: Database):
 
 def make_session(name: str):
     """Make a 'fake' session for context"""
-    supergraph = Supergraph(name=name)
-    session = Session(bench=None, mode=NodeMode.TEST, supergraph=supergraph, oracle=REAL_ORACLE)
+    session = Session(mode=NodeMode.MAIN, oracle=REAL_ORACLE)
     return session
 
 

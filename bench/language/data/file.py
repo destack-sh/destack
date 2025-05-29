@@ -954,7 +954,7 @@ async def upload_file(
         session = active_session()
     if parent is None:
         bench = session.bench
-        if session._runtime is not None and (runner := session._runtime.active_runner) is not None:
+        if session.runtime is not None and (runner := session.runtime.active_runner) is not None:
             parent = runner.thread.thread
         else:
             package = bench.main_package if bench is not None else None
