@@ -19,7 +19,7 @@ from bench.utils.string import Casing, to_casing
 
 from .map import generate_proto_schema
 
-LANG_PROTO = "proto/lang.proto"
+LANGUAGE_PROTO = "proto/language.proto"
 TEMP_PY_DIR = "bench/pb2.tmp"
 TARGET_PY_DIR = "bench/pb2"
 TEMP_TS_DIR = "bench-web/src/proto/wire.tmp"
@@ -27,7 +27,8 @@ TARGET_TS_DIR = "bench-web/src/proto/wire"
 EXTRA_PROTO_PY_FILES = (
     "proto/common.proto",
     "proto/health.proto",
-    "proto/system.proto",
+    "proto/supervisor.proto",
+    "proto/host.proto",
     "proto/runtime.proto",
     "proto/google/type/date.proto",
     "proto/google/type/datetime.proto",
@@ -36,7 +37,8 @@ EXTRA_PROTO_PY_FILES = (
 EXTRA_PROTO_TS_FILES = (
     "proto/common.proto",
     "proto/health.proto",
-    "proto/system.proto",
+    "proto/supervisor.proto",
+    "proto/host.proto",
     "proto/web.proto",
     "proto/google/type/date.proto",
     "proto/google/type/datetime.proto",
@@ -91,7 +93,7 @@ def _gen_proto(schema_str: str) -> None:
     on_apply = []
 
     # regenerate python & TS proto files
-    Path(LANG_PROTO).write_text(schema_str)
+    Path(LANGUAGE_PROTO).write_text(schema_str)
 
     #
     # Python
@@ -100,7 +102,7 @@ def _gen_proto(schema_str: str) -> None:
     # NOTE: we copy the proto files into the temporary wire directory to ensure the import paths
     #  are correct for protobuf's python generator.
     Path(TEMP_PY_DIR).mkdir(parents=True, exist_ok=True)
-    py_proto_files = [LANG_PROTO, *EXTRA_PROTO_PY_FILES]
+    py_proto_files = [LANGUAGE_PROTO, *EXTRA_PROTO_PY_FILES]
     # replace 'import "proto/..." with 'import "..." in all files in wire
     py_proto_files = [p.replace("proto/", "") for p in py_proto_files]
     run_shell_sync("cp -r proto wire")
@@ -173,12 +175,14 @@ from .runtime_pb2 import *
 from .health_pb2 import *
 from .common_pb2 import *
 from .common_grpc import *
-from .lang_grpc import *
+from .language_grpc import *
 from .runtime_grpc import *
-from .system_grpc import *
+from .supervisor_grpc import *
+from .host_grpc import *
 from .health_grpc import *
-from .lang_pb2 import *
-from .system_pb2 import *
+from .language_pb2 import *
+from .supervisor_pb2 import *
+from .host_pb2 import *
 from .google.type.date_pb2 import *
 from .google.type.timeofday_pb2 import *
 from .google.type.datetime_pb2 import *
@@ -199,7 +203,7 @@ AnyObjectData = AnyNodeData | AnyStructData
     shutil.rmtree(TEMP_TS_DIR, ignore_errors=True)
     Path(TEMP_TS_DIR).mkdir(parents=True, exist_ok=True)
     run_shell_sync(
-        f"bun x protoc --ts_out {TEMP_TS_DIR} --proto_path . {LANG_PROTO} {' '.join(EXTRA_PROTO_TS_FILES)}",
+        f"bun x protoc --ts_out {TEMP_TS_DIR} --proto_path . {LANGUAGE_PROTO} {' '.join(EXTRA_PROTO_TS_FILES)}",
     )
 
     # magic replace code so that Value is transparently encoded/decoded :MagicJsValuePacking
@@ -259,18 +263,22 @@ export type AnyNodeData = {' | '.join(cls.__name__ + 'Data' for cls in NODE_CLAS
 export type AnyStructData = {' | '.join(cls.__name__ + 'Data' for cls in STRUCT_CLASS_BY_TYPE.values())}
 
     """
-    lang_ts = Path(TEMP_TS_DIR + "/proto/lang.ts").read_text()
-    Path(TEMP_TS_DIR + "/proto/lang.ts").write_text(lang_ts + "\n\n" + patch_postfix_code)
+    lang_ts = Path(TEMP_TS_DIR + "/proto/language.ts").read_text()
+    Path(TEMP_TS_DIR + "/proto/language.ts").write_text(lang_ts + "\n\n" + patch_postfix_code)
 
     # index.ts
     Path(TEMP_TS_DIR + "/index.ts").write_text(
         """
 // re-export generated wire files
 export * from './proto/common';
-export * from './proto/lang';
+export * from './proto/language';
 export * from './proto/web';
-export * from './proto/system';
-export * from './proto/system.client';
+export * from './proto/supervisor';
+export * from './proto/supervisor.client';
+export * from './proto/host';
+export * from './proto/host.client';
+export * from './proto/health';
+export * from './proto/health.client';
 export * from './google/protobuf/descriptor';
 export * from './google/protobuf/struct';
 export * from './google/protobuf/timestamp';

@@ -12,7 +12,7 @@ import { UnknownFieldHandler } from "@protobuf-ts/runtime";
 import type { PartialMessage } from "@protobuf-ts/runtime";
 import { reflectionMergePartial } from "@protobuf-ts/runtime";
 import { MessageType } from "@protobuf-ts/runtime";
-import { ClientType } from "./lang";
+import { ClientType } from "./language";
 /**
  * Core metadata for all RPC requests.
  * This is passed as specially encoded headers with robust dicts,

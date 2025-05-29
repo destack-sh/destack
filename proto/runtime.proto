@@ -3,7 +3,7 @@ syntax = "proto3";
 package symbol.bench;
 
 import "proto/common.proto";
-import "proto/lang.proto";
+import "proto/language.proto";
 
 message WakeRequest {
 	ScopeData scope = 1;

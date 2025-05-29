@@ -2,7 +2,7 @@
 tokei \
 	-e '*.yaml' \
 	-e '*.json' \
-	-e 'proto/lang.proto' \
+	-e 'proto/language.proto' \
 	-e '**/proto/wire/**/*.ts' \
 	-e '*.css' \
 	-e '*.txt' \
