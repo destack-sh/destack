@@ -105,10 +105,11 @@ def _generate_init_impl[ObjectT: BuiltinObjectBase](
     # header
     header_properties = dict(properties)
     if is_node:
-        header_properties.pop("_dirty")
-        header_properties.pop("_is_new")
-        header_properties.pop("_ref")
         header_properties.pop("_hash")
+        header_properties.pop("_ref")
+        header_properties.pop("_is_new")
+        header_properties.pop("_is_attached")
+        header_properties.pop("_dirty")
     properties_in_order = list(header_properties.values())
     properties_in_order.sort(key=lambda p: (p.id is None, p.id, p.name))
     method_header_lines = ["def __init__(self, *"]
@@ -986,6 +987,12 @@ def _process_object_cls[ObjectT: BuiltinObjectBase](
         init_str, init_glbls = _generate_init_impl(
             cls, is_node=is_node, is_frozen=is_frozen, properties=properties
         )
+        # nocheckin
+        print("=" * 100)
+        print(cls.__name__ + ":init")
+        print("=" * 100)
+        print(init_str)
+        print("=" * 100)
         exec(init_str, {**glbls, **init_glbls}, cls_dict)
         # __repr__
         repr_str, repr_glbls = _generate_repr_impl(cls)

@@ -9,7 +9,7 @@ from more_itertools import first
 from rich import print
 from rich.console import Console
 
-from bench.language.core.const import REGION, NodeArea, Region
+from bench.language import REGION, NodeArea, Region
 from bench.sql.client import pg_tx
 from bench.utils.oracle import REAL_ORACLE
 

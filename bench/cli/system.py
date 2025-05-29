@@ -4,13 +4,9 @@ from typing import TYPE_CHECKING, Annotated
 
 import structlog
 import typer
-from more_itertools import first
-from rich import print
 
 from bench.language import REGION, Region, Session
 from bench.utils.env import ENV
-from bench.utils.func import generate_access_token
-from bench.utils.oracle import REAL_ORACLE
 
 from .utils import async_to_sync, parse_region
 
@@ -56,71 +52,7 @@ async def make_local_machine_runtime(
     region: Annotated[Region, typer.Option(parser=parse_region)] = REGION,
     local_machine_url: str = "http://localhost:60062",
 ):
-    from bench.language import (
-        Bench,
-        Client,
-        ClientType,
-        Machine,
-        MachineType,
-        NodeArea,
-        ResourceStatus,
-    )
-    from bench.system import (
-        ACCESS_TOKEN_LENGTH,
-        DatabaseStore,
-        get_global_database_from_env,
-        get_regional_database_from_env,
-    )
-
-    global_database = get_global_database_from_env()
-    regional_database = get_regional_database_from_env(region=region)
-    store = DatabaseStore(
-        {NodeArea.GLOBAL_POSTGRES: global_database, NodeArea.REGIONAL_POSTGRES: regional_database}
-    )
-    async with Session(store=store) as session:
-        bench = await Bench.search(where=Bench.property("slug").eq(bench_slug)).execute_one()
-        machines = await Machine.search(
-            where=Machine.property("bench").eq(bench)
-            & Machine.property("type").eq(MachineType.RUNTIME)
-            & Machine.property("status").neq(ResourceStatus.OFFLINE)
-        ).execute_list()
-        machine = first(machines, None)
-        if machine is None:
-            raise ValueError(f"{bench!r} has no runtime machines")
-        clients = await Client.search(
-            where=Client.property("parent").eq(bench)
-            & Client.property("machine").eq(machine)
-            & Client.property("type").eq(ClientType.MACHINE)
-        ).execute_list()
-        client = first(clients, None)
-        if client is None:
-            client = Client(
-                parent=bench,
-                type=ClientType.MACHINE,
-                name=title,
-                access_token=generate_access_token(ACCESS_TOKEN_LENGTH),
-                machine=machine,
-                seen_at=REAL_ORACLE.utc(),
-            )
-            session.create(client)
-        machine.client = client
-        machine.update_status(ResourceStatus.AVAILABLE)
-        machine.grpc_url = local_machine_url
-        await session.commit()
-
-        client_env = {
-            "BENCH_ID": str(bench.id),
-            "MACHINE_ID": str(machine.id),
-            "CLIENT_TYPE": str(int(client.type)),
-            "CLIENT_ID": str(client.id),
-            "CLIENT_ACCESS_TOKEN": client.access_token,
-        }
-        print("----------------------")
-        print(f"Machine: {machine!r}")
-        print(f"Client: {client!r}")
-        print("--- .env.dev.local ---")
-        for k, v in client_env.items():
-            print(f"{k}={v}")
+    raise NotImplementedError
 
 
 @app.command(name="create-image-pull-secret", help="create image pull secret in local cluster")

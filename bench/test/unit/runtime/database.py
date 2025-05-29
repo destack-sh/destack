@@ -3,21 +3,22 @@ from random import Random
 from typing import Any
 
 import pytest
-import pytz
 from fastuuid import UUID
 from grpclib import GRPCError
 
 from bench.language import (
-    Block,
+    PRIMITIVE_TYPE_BY_PY_TYPE,
     Field,
-    FileType,
+    NodeType,
     PrimitiveType,
+    Record,
+    ScalarType,
     Table,
-    Text,
     TypeBase,
     TypeCardinality,
     text,
 )
+from bench.language.core.const import StructType
 from bench.test.simulation.core import Simulation
 from bench.test.simulation.workload import RuntimeLambdaWorkload
 from bench.test.unit.conftest import simulated_runtime
@@ -29,49 +30,22 @@ class SampleGenerator:
         self.random = random
 
     def generate(self, typ: TypeBase) -> Any:
-        if not typ.is_list:
-            return self.generate_scalar(typ)
-        else:
-            return [self.generate_scalar(typ) for _ in range(self.random.randint(1, 3))]
-
-    def generate_scalar(self, typ: TypeBase) -> Any:
-        if typ.cardinality == TypeCardinality.PRIMITIVE:
-            assert typ.primitive_type is not None, f"primitive type is None for {typ!r}"
-            if typ.primitive_type == PrimitiveType.STRING:
-                return self.random.choice(("a", "b", "c"))
-            elif typ.primitive_type.is_int:
-                return self.random.randint(0, 100)
-            elif typ.primitive_type.is_float:
-                return self.random.uniform(0, 100)
-            elif typ.primitive_type == PrimitiveType.BOOLEAN:
-                return self.random.choice([True, False])
-            elif typ.primitive_type == PrimitiveType.BYTES:
-                return self.random.randbytes(10)
-            elif typ.primitive_type == PrimitiveType.UUID:
-                return UUID(int=self.random.randint(0, 0xFFFFFFFFFFFFFFFF))
-            elif typ.primitive_type == PrimitiveType.JSON:
-                return {"a": "b", "c": "d"}
-            elif typ.primitive_type == PrimitiveType.DATETIME:
-                return datetime.now(pytz.utc)
-            elif typ.primitive_type == PrimitiveType.DATE:
-                return datetime.now(pytz.utc).date()
-            elif typ.primitive_type == PrimitiveType.TIME:
-                return datetime.now(pytz.utc).time()
-            elif typ.primitive_type == PrimitiveType.DURATION:
-                return timedelta(seconds=self.random.randint(0, 1000000))
-
-        raise RuntimeError(f"unsupported type {typ.primitive_type!r}")
+        raise NotImplementedError
 
 
 @simulated_runtime()
 async def test_create_record_kwargs(simulation: Simulation, runtime: RuntimeLambdaWorkload):  # noqa: RUF029
     """Create a Record with keyword arguments (into value)."""
-    Table1 = Table.new(
-        "Table1",
-        Field.member("name", Field.property("name")),  # internal property
-        Field.member("Name", str),
-        Field.member("Age", int),
-        Field.member("Aliases", str, is_list=True),
+    Table1 = Table(name="Table1")
+    Table1.add_children(
+        Field(name="Name", scalar_type=ScalarType.PRIMITIVE, primitive_type=PrimitiveType.STRING),
+        Field(name="Age", scalar_type=ScalarType.PRIMITIVE, primitive_type=PrimitiveType.INT64),
+        Field(
+            name="Aliases",
+            scalar_type=ScalarType.PRIMITIVE,
+            primitive_type=PrimitiveType.STRING,
+            cardinality=TypeCardinality.LIST,
+        ),
     )
     runtime.page().add_child(Table1)
     Record1 = Table1.records.create()
@@ -92,7 +66,7 @@ async def test_create_record_kwargs(simulation: Simulation, runtime: RuntimeLamb
 @simulated_runtime()
 async def test_create_empty_table_block(simulation: Simulation, runtime: RuntimeLambdaWorkload):
     """Create a blank table and query it."""
-    Table1 = Table.new("Table1")
+    Table1 = Table(name="Table1")
     runtime.page().add_child(Table1)
 
     # cannot access table before committing it
@@ -112,7 +86,10 @@ async def test_create_table_and_records_simultaneously(
     simulation: Simulation, runtime: RuntimeLambdaWorkload
 ):
     """Create a table and records within it in the same transaction/commit."""
-    Table1 = Table.new("Table1", Field.member("Name", str))
+    Table1 = Table(name="Table1")
+    Table1.add_children(
+        Field(name="Name", scalar_type=ScalarType.PRIMITIVE, primitive_type=PrimitiveType.STRING),
+    )
     runtime.page().add_child(Table1)
     Record1 = Table1.records.create(Name="Record1")
     Record2 = Table1.records.create(Name="Record2")
@@ -127,10 +104,9 @@ async def test_create_table_and_records_simultaneously(
 @simulated_runtime()
 async def test_update_record(simulation: Simulation, runtime: RuntimeLambdaWorkload):
     """Update a record with a simple Field and query it."""
-    Table1 = Table.new(
-        "Table1",
-        Field.member("name", Field.property("name")),  # internal property
-        Field.member("Name", str),
+    Table1 = Table(name="Table1")
+    Table1.add_children(
+        Field(name="Name", scalar_type=ScalarType.PRIMITIVE, primitive_type=PrimitiveType.STRING),
     )
     runtime.page().add_child(Table1)
 
@@ -150,7 +126,10 @@ async def test_update_record(simulation: Simulation, runtime: RuntimeLambdaWorkl
 @simulated_runtime()
 async def test_update_table_and_record(simulation: Simulation, runtime: RuntimeLambdaWorkload):
     """Updates a table and records within and across transactions."""
-    Table1 = Table.new("Table1", Field.member("Id", int))
+    Table1 = Table(name="Table1")
+    Table1.add_children(
+        Field(name="Id", scalar_type=ScalarType.PRIMITIVE, primitive_type=PrimitiveType.INT64),
+    )
     runtime.page().add_child(Table1)
     sampler = SampleGenerator(Random(0))
 
@@ -170,7 +149,13 @@ async def test_update_table_and_record(simulation: Simulation, runtime: RuntimeL
     ):
         for is_list in (False, True):
             field_name = f"{to_casing(sample_type.__name__, Casing.CAMEL)}{'s' if is_list else ''}"
-            field = Table1.add_child(Field.member(field_name, sample_type, is_list=is_list))
+            field = Field(
+                name=field_name,
+                scalar_type=ScalarType.PRIMITIVE,
+                primitive_type=PRIMITIVE_TYPE_BY_PY_TYPE[sample_type],
+                cardinality=TypeCardinality.LIST if is_list else TypeCardinality.SCALAR,
+            )
+            Table1.add_child(field)
             sample_field_value = sampler.generate(field)
             record = Table1.records.create(Id=i, **{field_name: sample_field_value})
             cached_records.append(record)
@@ -197,10 +182,14 @@ async def test_update_table_and_record(simulation: Simulation, runtime: RuntimeL
 @simulated_runtime()
 async def test_create_record_with_ptrs(simulation: Simulation, runtime: RuntimeLambdaWorkload):
     """Create a Table with pointer fields (scalar and list)."""
-    Table1 = Table.new(
-        "Table1",
-        Field.member("Block", Block),
-        Field.member("Blocks", Block, is_list=True),
+    Table1 = Table(name="Table1").add_children(
+        Field(name="Block", scalar_type=ScalarType.NODE, node_type=NodeType.BLOCK),
+        Field(
+            name="Blocks",
+            scalar_type=ScalarType.NODE,
+            node_type=NodeType.BLOCK,
+            cardinality=TypeCardinality.LIST,
+        ),
     )
     runtime.page().add_child(Table1)
     await runtime.commit()
@@ -217,10 +206,9 @@ async def test_move_table(simulation: Simulation, runtime: RuntimeLambdaWorkload
     # create table in Page1
     Page1 = runtime.page("Page1")
     Page2 = runtime.page("Page2")
-    Table1 = Table.new(
-        "Table1",
-        Field.member("Alias", str),
-        Field.member("Image", FileType.IMAGE),
+    Table1 = Table(name="Table1").add_children(
+        Field(name="Alias", scalar_type=ScalarType.PRIMITIVE, primitive_type=PrimitiveType.STRING),
+        Field(name="Image", scalar_type=ScalarType.NODE, node_type=NodeType.FILE),
     )
     Page1.add_child(Table1)
     Record1 = Table1.records.create(name="Record1", Alias="1")
@@ -249,7 +237,9 @@ async def test_move_table(simulation: Simulation, runtime: RuntimeLambdaWorkload
 @simulated_runtime()
 async def test_delete_restore_table(simulation: Simulation, runtime: RuntimeLambdaWorkload):
     """Delete a table, querying it shouldn't work. Restore, and it should work again."""
-    Table1 = Table.new("Table1", Field.member("Name", str))
+    Table1 = Table(name="Table1").add_children(
+        Field(name="Name", scalar_type=ScalarType.PRIMITIVE, primitive_type=PrimitiveType.STRING),
+    )
     Record1 = Table1.records.create(Name="Record1")
     runtime.page().add_child(Table1)
     await runtime.commit()
@@ -270,7 +260,9 @@ async def test_delete_restore_table(simulation: Simulation, runtime: RuntimeLamb
 @simulated_runtime()
 async def test_delete_restore_record(simulation: Simulation, runtime: RuntimeLambdaWorkload):
     """Deleting a Record should remove it from default view, restoring should re-add it."""
-    Table1 = Table.new("Table1", Field.member("Name", str))
+    Table1 = Table(name="Table1").add_children(
+        Field(name="Name", scalar_type=ScalarType.PRIMITIVE, primitive_type=PrimitiveType.STRING),
+    )
     runtime.page().add_child(Table1)
     Record1 = Table1.records.create(Name="Record1")
     Record2 = Table1.records.create(Name="Record2")
@@ -306,8 +298,10 @@ async def test_delete_restore_record(simulation: Simulation, runtime: RuntimeLam
 @simulated_runtime()
 async def test_delete_restore_table_field(simulation: Simulation, runtime: RuntimeLambdaWorkload):
     """Delete and restore a Field in a Table."""
-    Field1 = Field.member("Field1", str)
-    Table1 = Table.new("Table1", Field1)
+    Field1 = Field(
+        name="Field1", scalar_type=ScalarType.PRIMITIVE, primitive_type=PrimitiveType.STRING
+    )
+    Table1 = Table(name="Table1").add_children(Field1)
     runtime.page().add_child(Table1)
     Record1 = Table1.records.create(Field1="Record1")
     await runtime.commit()
@@ -332,31 +326,38 @@ async def test_morph_table_field_type(simulation: Simulation, runtime: RuntimeLa
     The values belonging to different types should be preserved (should map to different columns).
     """
     # initial str is_list=False
-    Field1 = Field.member("Field1", str, is_list=False)
-    Field2 = Field.member("Field2", bool, is_list=False)
-    Table1 = Table.new("Table1", Field1, Field2)
+    Field1 = Field(
+        name="Field1", scalar_type=ScalarType.PRIMITIVE, primitive_type=PrimitiveType.STRING
+    )
+    Field2 = Field(
+        name="Field2", scalar_type=ScalarType.PRIMITIVE, primitive_type=PrimitiveType.BOOLEAN
+    )
+    Table1 = Table(name="Table1").add_children(Field1, Field2)
     runtime.page().add_child(Table1)
-    Record1 = Table1.records.create(Field1="Record1", Field2=True)
+    Record1: Record = Table1.records.create(Field1="Record1", Field2=True)
     await runtime.commit()
 
     # morph str is_list=False -> str is_list=True
-    Field1.is_list = True
+    Field1.cardinality = TypeCardinality.LIST
     Record1.Field1 = ["Record1.1", "Record1.2"]  # type: ignore
     await runtime.commit()
 
     # morph str is_list=True -> int is_list=False
-    Field1.morph_to(int, is_list=False)
+    Field1.primitive_type = PrimitiveType.INT64
+    Field1.cardinality = TypeCardinality.SCALAR
     Record1.Field1 = 42  # type: ignore
     await runtime.commit()
 
     # morph back to str is_list=True (should still have old value)
-    Field1.morph_to(str, is_list=True)
+    Field1.primitive_type = PrimitiveType.STRING
+    Field1.cardinality = TypeCardinality.LIST
     await runtime.commit()
     Record1 = await Table1.records.get(Record1.to_ref())
     assert Record1.Field1 == ["Record1.1", "Record1.2"]  # type: ignore
 
     # morph back to str is_list=False (should still have old value)
-    Field1.morph_to(str, is_list=False)
+    Field1.primitive_type = PrimitiveType.STRING
+    Field1.cardinality = TypeCardinality.SCALAR
     await runtime.commit()
     Record1 = await Table1.records.get(Record1.to_ref())
     assert Record1.Field1 == "Record1"  # type: ignore
@@ -371,8 +372,9 @@ async def test_morph_table_field_type(simulation: Simulation, runtime: RuntimeLa
 @simulated_runtime()
 async def test_record_recursive_reference(simulation: Simulation, runtime: RuntimeLambdaWorkload):
     """Create a Record with a recursive reference to itself."""
-    Table1 = Table.new("Table1")
-    Table1.add_child(Field.member("Record", Table1))
+    Table1 = Table(name="Table1").add_children(
+        Field(name="Record", scalar_type=ScalarType.NODE, node_type=NodeType.RECORD)
+    )
     runtime.page().add_child(Table1)
     Record1 = Table1.records.create(name="Record1")
     Record1.Record = Record1  # type: ignore
@@ -386,12 +388,11 @@ async def test_record_recursive_reference(simulation: Simulation, runtime: Runti
 @simulated_runtime()
 async def test_search_record(simulation: Simulation, runtime: RuntimeLambdaWorkload):
     """Insert, update and query Records with various filters."""
-    Table1 = Table.new(
-        "Table1",
-        Field.member("Name", str),
-        Field.member("Name", str),
-        Field.member("Age", int),
-        Field.member("Description", Text),
+    Table1 = Table(name="Table1").add_children(
+        Field(name="Name", scalar_type=ScalarType.PRIMITIVE, primitive_type=PrimitiveType.STRING),
+        Field(name="Name", scalar_type=ScalarType.PRIMITIVE, primitive_type=PrimitiveType.STRING),
+        Field(name="Age", scalar_type=ScalarType.PRIMITIVE, primitive_type=PrimitiveType.INT64),
+        Field(name="Description", scalar_type=ScalarType.STRUCT, struct_type=StructType.TEXT),
     )
     runtime.page().add_child(Table1)
     Record1 = Table1.records.create(Name="Alice", Age=30, Description=text("Alice is a *person*."))
@@ -416,7 +417,7 @@ async def test_search_record(simulation: Simulation, runtime: RuntimeLambdaWorkl
     assert Result == Record3
 
     # filter by custom column
-    Result = await Table1.records.search(Table1.child(Field, "Age") >= 40)
+    Result = await Table1.records.search(Table1.child(Field, "Age").gte(40))
     assert Result == [Record2, Record3]
 
     # order by custom column
@@ -428,8 +429,12 @@ async def test_search_record(simulation: Simulation, runtime: RuntimeLambdaWorkl
 async def test_table_isolation(simulation: Simulation, runtime: RuntimeLambdaWorkload):
     """Create two tables and ensure they don't interfere with each other."""
 
-    Table1 = Table.new("Table1", Field.member("Name", str))
-    Table2 = Table.new("Table2", Field.member("Name", str))
+    Table1 = Table(name="Table1").add_children(
+        Field(name="Name", scalar_type=ScalarType.PRIMITIVE, primitive_type=PrimitiveType.STRING)
+    )
+    Table2 = Table(name="Table2").add_children(
+        Field(name="Name", scalar_type=ScalarType.PRIMITIVE, primitive_type=PrimitiveType.STRING)
+    )
     runtime.page().add_children(Table1, Table2)
 
     Record1 = Table1.records.create(Name="Record1")

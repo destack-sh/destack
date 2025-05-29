@@ -201,7 +201,7 @@ class Node[NodeDataT: AnyNodeData](BuiltinObjectMutable[NodeDataT]):
 
     @property
     def is_attached(self) -> bool:
-        """Whether this Node is attached to a root somehow."""
+        """Whether this Node is attached to a root."""
         return self._is_attached
 
     @override
@@ -263,15 +263,15 @@ class Node[NodeDataT: AnyNodeData](BuiltinObjectMutable[NodeDataT]):
         """Move this Node to a new parent."""
         raise NotImplementedError
 
-    def add_child[T: Node](self, child: T, move: bool = False) -> T:
+    def add_child(self, child: "Node", move: bool = False) -> Self:
         """Append a Node as a child of this Node."""
         raise NotImplementedError
 
-    def add_children[T: Node](self, *children: T, move: bool = False) -> Sequence[T]:
+    def add_children(self, *children: "Node", move: bool = False) -> Self:
         """Append multiple Nodes as children of this Node."""
         for child in children:
             self.add_child(child, move=move)
-        return children
+        return self
 
     def remove_child(self, child: "Node"):
         """Remove a child from this Node."""

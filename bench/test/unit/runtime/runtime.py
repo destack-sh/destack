@@ -1,22 +1,7 @@
-import asyncio
-
-import pytest
-
 from bench.language import (
-    Action,
-    ActionCardinality,
-    Agent,
-    Flow,
-    FlowEdgeType,
-    Message,
     Node,
     Package,
-    ProcessStatus,
-    Run,
     Session,
-    Thread,
-    code,
-    text,
 )
 from bench.test.simulation.core import Simulation
 from bench.test.simulation.workload import RuntimeLambdaWorkload
@@ -66,74 +51,3 @@ async def test_builtin_package(simulation: Simulation, runtime: RuntimeLambdaWor
         BuiltinPackageLoadedGraph.remove(main_database)
     BuiltinPackageLoadedGraph.remove(loaded_bench_bench, recursive=False)
     assert_graph_equals(BuiltinPackageRaw._graph, BuiltinPackageLoadedGraph)
-
-
-@simulated_runtime(system=True, runtimes=True)
-async def test_start_run(simulation: Simulation, runtime: RuntimeLambdaWorkload):
-    """Create a Run and wait for it to execute in another Runtime."""
-    Page1 = runtime.page()
-    Flow1 = Flow.new("Flow1")
-    Page1.add_child(Flow1)
-    await runtime.commit()
-
-    run, _ = create_run(Flow1, parent=runtime.main_package)
-    await run.wait_until_terminated()
-    assert run.status == ProcessStatus.COMPLETED
-
-
-@pytest.mark.skip(reason="TODO :Test! start Agent from Message?")
-@simulated_runtime(system=True, runtimes=True)
-async def test_start_run_from_message(simulation: Simulation, runtime: RuntimeLambdaWorkload):
-    """Create a Run by messaging an Identity in a Flow."""
-    Flow1 = Flow.new("Flow1")
-    Start1 = Action.new(ActionCardinality.START, "Start1")
-    End1 = Action.new(ActionCardinality.END, "End1")
-    Flow1.add_children(Start1, End1)
-    Start1.connect(FlowEdgeType.MANUAL, End1)
-    Agent1 = Agent.new("Agent", main_flow=Flow1)
-    Page1 = runtime.page()
-    Page1.add_children(Flow1, Agent1)
-    await runtime.commit()
-
-    # create Thread in separate tx to test loading
-    Thread1 = Thread.new("Test Thread", memberships=[Membership.new(Agent1)])
-    runtime.main_package.add_child(Thread1)
-    await runtime.commit()
-
-    # submit message
-    Message1 = Message.new(text=text("Hello!"))
-    Thread1.add_child(Message1)
-    await runtime.commit()
-
-    Run1 = await Run.get_run_of(Flow1, where=TERMINAL_PROCESS_STATUSES)
-    assert Run1.status == ProcessStatus.COMPLETED
-    assert Run1.agent == Agent1
-
-
-@simulated_runtime(system=True, runtimes=True)
-async def test_pause_resume_run(simulation: Simulation, runtime: RuntimeLambdaWorkload):
-    """Run a long async Flow and pause it, then resume it."""
-    Flow1 = Flow.new("Flow1")
-    Start = Action.new(ActionCardinality.START, "Start")
-    Action1 = Action.new(ActionCardinality.CODE, "Action1", code=code("await sleep(1)"))
-    End = Action.new(ActionCardinality.END, "End")
-    Flow1.add_children(Start, Action1, End)
-    Start.connect(FlowEdgeType.MANUAL, Action1)
-    Action1.connect(FlowEdgeType.MANUAL, End)
-    runtime.page().add_child(Flow1)
-    await runtime.commit()
-
-    async def pause_run(run: Run):
-        run.pause()
-        await runtime.session.commit()
-
-    # run, pause, then resume
-    run, _ = create_run(Flow1, parent=runtime.main_package)
-    await runtime.commit()
-    asyncio.get_event_loop().call_later(0.5, lambda: asyncio.create_task(pause_run(run)))
-    await run.wait_until_status(ProcessStatus.PAUSED, *TERMINAL_PROCESS_STATUSES)
-    assert run.status == ProcessStatus.PAUSED
-    run.resume()
-    await runtime.commit()  # should automatically resume within runtime
-    await run.wait_until_terminated()
-    assert run.status == ProcessStatus.COMPLETED

@@ -83,7 +83,10 @@ class Session:
     async def close(self):
         """Closes the Session."""
         if self._token is not None:
-            ACTIVE_SESSION.reset(self._token)
+            try:  # noqa: SIM105
+                ACTIVE_SESSION.reset(self._token)
+            except ValueError:
+                pass  # token was created in a different context (during testing usually)
             self._token = None
 
     def create(self, node: Node):
