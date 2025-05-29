@@ -81,7 +81,6 @@ class TextSpan(TextOptionsBase, StructMutable):
     node: Optional[Node] = property_(34)
     if TYPE_CHECKING:
         node_id: Optional[UUID] = None
-        node_ck: Optional[UUID] = None
         node_ptr: Optional[NodeReference] = None
     url: Optional[str] = property_(35)
 
@@ -109,7 +108,7 @@ class TextLine(TextOptionsBase, StructMutable):
                     return True
         elif isinstance(item, Node):
             for span in self.spans:
-                if span.node_ck is not None and span.node_ck == item.ck:
+                if span.node_id is not None and span.node_id == item.id:
                     return True
         else:
             assert_never(item)

@@ -4,8 +4,8 @@ from bench.language.core import (
     HasName,
     IsBlockable,
     IsInPackage,
-    IsInstantiable,
     IsModal,
+    IsTemplatable,
     TraitType,
     property_,
     property_parent_,
@@ -21,7 +21,7 @@ if TYPE_CHECKING:
 
 @trait_(TraitType.VIEW)
 class IsView[NodeDataT: AnyNodeData](
-    IsInstantiable,
+    IsTemplatable,
     IsModal,
     HasName,
     IsBlockable,

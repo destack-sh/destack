@@ -1,6 +1,6 @@
 from typing import TYPE_CHECKING, Optional
 
-from bench.language.core import TraitType, VariableProperty, property_, trait_
+from bench.language.core import IsExtensible, TraitType, VariableProperty, property_, trait_
 
 from ..view import IsView
 
@@ -26,7 +26,7 @@ if TYPE_CHECKING:
 
 
 @trait_(TraitType.CONTAINER_VIEW)
-class IsContainerView(IsView):
+class IsContainerView(IsView, IsExtensible):
     """A container View contains other Views."""
 
     # layout

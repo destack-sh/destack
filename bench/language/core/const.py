@@ -44,7 +44,7 @@ class _Unset:
 
 
 # forever constants
-VERSION = "2025.05.29.1"
+VERSION = "2025.05.29.2"
 UUID_NAMESPACE = uuid5(UUID(int=0), b"bench")
 CK_LENGTH_B64 = 24  # 1.5 * CK_LENGTH_BYTES (must be integer)
 FLOAT_EPSILON = 1e-6
@@ -785,7 +785,6 @@ class TraitType(BuiltinEnum):
     ICON = 23, "Icon", "Has an Icon", "fas fa-icons"
     ORDERED = 24, "Ordered", "Has an order", "fas fa-sort"
     TEMPLATABLE = 30, "Templatable", "Can be templated", "fas fa-puzzle-piece"
-    INSTANTIABLE = 31, "Instantiable", "Can be instantiated", "fas fa-clone"
     EXTENSIBLE = 32, "Extensible", "Can be extended", "fas fa-expand"
     NODE_TYPE = 33, "NodeType", "Is a NodeType", "fas fa-node"
     NODE_INSTANCE = 34, "NodeInstance", "Is a NodeInstance", "fas fa-node"
@@ -893,8 +892,6 @@ class Cloud(BuiltinEnum):
     ALIBABA = 104
     # small general
     HETZNER = 200
-    # small non-general
-    NEON = 300
     # private
     PRIVATE = 900
 

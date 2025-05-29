@@ -88,12 +88,11 @@ class Block(
     # content
     # NOTE: maybe there should be a general mechanism for tying Nodes like Blocks? :NodeTying
     line: Optional["TextLine"] = property_(40)
-    node: Optional["Node"] = property_(41, node_exclude=("definition_id",), is_repr=True)
-    view: Optional["IsView"] = property_(42, node_exclude=("definition_id",))
+    node: Optional["Node"] = property_(41, is_repr=True)
+    view: Optional["IsView"] = property_(42)
     # size?
     if TYPE_CHECKING:
         node_id: Optional[UUID] = None
-        node_ck: Optional[UUID] = None
         node_ptr: Optional[NodeReference] = None
 
     @property

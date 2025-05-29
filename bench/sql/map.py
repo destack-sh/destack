@@ -3,7 +3,6 @@ from bench.language import (
     UNSET,
     Field,
     IsInBench,
-    IsInstantiable,
     IsNodeInstance,
     Node,
     NodeArea,
@@ -46,12 +45,12 @@ def get_node_table_name(node_type: NodeType) -> str:
 
 
 def get_custom_node_table_name(definition: Table) -> str:
-    ck_str = base58_encode(definition.ck.bytes)
+    ck_str = base58_encode(definition.id.bytes)
     return f"{BENCH_CUSTOM_NODE_PREFIX}{ck_str}"
 
 
 def get_custom_field_column_name(field: Field) -> str:
-    ck_str = base58_encode(field.ck.bytes)
+    ck_str = base58_encode(field.id.bytes)
     return f"{BENCH_CUSTOM_FIELD_PREFIX}{ck_str}{field.identity_key}"
 
 
@@ -83,19 +82,8 @@ def map_builtin_node_to_sql_table(
             )
             columns.append(column)
             node_types = expand_node_types(prop.node_types or ())
-            # ck
-            if "ck" not in prop.node_exclude and any(
-                issubclass(NODE_CLASS_BY_TYPE[node_type], IsInstantiable)
-                for node_type in node_types
-            ):
-                ck_column = SqlColumn(
-                    name=f"{prop.name}_ck",
-                    type=PrimitiveType.UUID,
-                    is_nullable=not prop.is_required,
-                )
-                columns.append(ck_column)
             # definition_id
-            if "definition_id" not in prop.node_exclude and any(
+            if prop.node_is_customizable and any(
                 issubclass(NODE_CLASS_BY_TYPE[node_type], IsNodeInstance)
                 for node_type in node_types
             ):

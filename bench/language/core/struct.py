@@ -122,7 +122,6 @@ class NodeReference(StructFrozen[NodeReferenceData]):
 
     node_type: NodeType = property_(31, is_repr=True)
     id: UUID = property_(32, is_repr=True)
-    ck: Optional[UUID] = property_(33, is_repr=True)
     bench_id: Optional[UUID] = property_(34, is_repr=True)
-    table_id: Optional[UUID] = property_(35, is_repr=True)
+    definition_id: Optional[UUID] = property_(35, is_repr=True)
     # area? external_id?

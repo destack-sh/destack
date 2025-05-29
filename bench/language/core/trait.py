@@ -8,7 +8,6 @@ from typing import (
     Self,
     Union,
     assert_never,
-    cast,
     dataclass_transform,
 )
 
@@ -198,14 +197,13 @@ class IsDeletable(Node if TYPE_CHECKING else BuiltinObjectBase):
 
 @trait_(TraitType.TEMPLATABLE)
 class IsTemplatable(Node if TYPE_CHECKING else BuiltinObjectBase):
-    """A Node that can be templated (we can create Nodes that are derived from 'templates')."""
+    """A Node that can become a template (we can create Nodes derived from 'templates')."""
 
-    template: Optional["Node"] = property_(
-        16, node_kind=EdgeType.NODE_TEMPLATE, node_exclude=("definition_id",)
-    )
+    template: Optional["Node"] = property_(16, edge_type=EdgeType.NODE_TEMPLATE)
     if TYPE_CHECKING:
         template_id: Optional[UUID] = None
         template_ptr: Optional["NodeReference"] = None
+    # instance_of/overlay_of?
 
     def instance(
         self,
@@ -221,19 +219,6 @@ class IsTemplatable(Node if TYPE_CHECKING else BuiltinObjectBase):
         """
 
         raise NotImplementedError
-
-
-@trait_(TraitType.INSTANTIABLE)
-class IsInstantiable(IsTemplatable):
-    """A Node that can be instanced (we can create Nodes that are 'instances' of this Node)."""
-
-    ck: UUID = property_(3, is_managed=True, is_eq=False)  # type: ignore
-    # instance_of/overlay_of?
-    # nocheckin: proper templating/instancing (for views/Variants/overrides/branches/...)
-
-    @property
-    def is_instance(self) -> bool:
-        return self.ck != cast("Node", self).id
 
 
 @trait_(TraitType.NODE_TYPE)
@@ -259,10 +244,10 @@ class IsNodeInstance(Node if TYPE_CHECKING else BuiltinObjectBase):
 
 @trait_(TraitType.EXTENSIBLE)
 class IsExtensible(Node if TYPE_CHECKING else BuiltinObjectBase):
-    """A Node that can be extended with Fields."""
+    """A Node that can be extended with custom Values (from Fields)."""
 
     # nocheckin: Value / IsExtensible.value (custom Nodes?)
-    value: "Value | None" = property_(21)
+    value: dict[str, "Value"] = property_(21)
 
 
 @trait_(TraitType.IN_BENCH)
@@ -297,7 +282,6 @@ class IsBlockable(IsOrdered, IsInPackage):
     )
     if TYPE_CHECKING:
         block_id: Optional[UUID] = None
-        block_ck: Optional[UUID] = None
         block_ptr: Optional[NodeReference] = None
 
     def wrap_in_block(self) -> "Block":
@@ -416,11 +400,7 @@ class IsProcessable(Node if TYPE_CHECKING else BuiltinObjectBase):
 class IsOwnable(Node if TYPE_CHECKING else BuiltinObjectBase):
     """A Node that can be owned by another Node."""
 
-    owned_by: Optional["IsSubject"] = property_(
-        17,
-        node_bench_from="self",
-        node_exclude=("ck", "definition_id"),
-    )
+    owned_by: Optional["IsSubject"] = property_(17, node_bench_from="self")
     if TYPE_CHECKING:
         owned_by_id: Optional[UUID] = None
         owned_by_type: Optional[NodeType] = None
@@ -470,7 +450,7 @@ class IsRegional(Node if TYPE_CHECKING else BuiltinObjectBase):
 
 
 @trait_(TraitType.RESOURCE)
-class IsResource(IsModal, IsInstantiable, IsOwnable, HasName, IsBlockable):
+class IsResource(IsModal, IsOwnable, HasName, IsBlockable):
     """
     A Resource in a Bench, typically representing some external object.
     """

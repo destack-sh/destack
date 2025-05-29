@@ -77,9 +77,7 @@ class HostService(ServiceBase, HostBase):
         on_error: Callable[[BaseException], None] | None,
     ):
         self.bench_id = bench_id
-        self.bench_ptr = NodeReference(
-            node_type=NodeType.BENCH, id=bench_id, ck=bench_id, bench_id=bench_id
-        )
+        self.bench_ptr = NodeReference(node_type=NodeType.BENCH, id=bench_id, bench_id=bench_id)
         self.scope = Scope(bench_id=bench_id)
         self.provisioners: tuple[Provisioner, ...] = ()
         self.plugins: tuple[HostPlugin, ...] = ()  # incl. provisioners

@@ -11,9 +11,9 @@ from bench.language.core import (
     IsArchivable,
     IsDeletable,
     IsInPackage,
-    IsInstantiable,
     IsModal,
     IsOrdered,
+    IsTemplatable,
     Node,
     NodeType,
     TypeBase,
@@ -42,7 +42,7 @@ class FieldType(BuiltinEnum):
 
 @node_(NodeType.FIELD)
 class Field(
-    IsInstantiable,
+    IsTemplatable,
     IsModal,
     HasName,
     IsOrdered,

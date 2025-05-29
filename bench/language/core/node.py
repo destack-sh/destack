@@ -151,7 +151,7 @@ class Node[NodeDataT: AnyNodeData](BuiltinObjectMutable[NodeDataT]):
         is_managed=True,
         is_eq=False,
         node_bench_from="self",
-        node_exclude=("ck", "definition_id"),
+        node_is_customizable=False,
         can_write="system",
     )
     updated_at: datetime = property_(12, is_managed=True, is_eq=False, can_write="system")
@@ -161,7 +161,7 @@ class Node[NodeDataT: AnyNodeData](BuiltinObjectMutable[NodeDataT]):
         is_managed=True,
         is_eq=False,
         node_bench_from="self",
-        node_exclude=("ck", "definition_id"),
+        node_is_customizable=False,
         can_write="system",
     )
     if TYPE_CHECKING:
@@ -194,10 +194,6 @@ class Node[NodeDataT: AnyNodeData](BuiltinObjectMutable[NodeDataT]):
     _is_new: bool = property_runtime_(default=False)
     _is_attached: bool = property_runtime_(default=False)
     _dirty: bitarray | None = property_runtime_(default=None)
-
-    @property
-    def ck(self):
-        return self.id
 
     @property
     def is_attached(self) -> bool:

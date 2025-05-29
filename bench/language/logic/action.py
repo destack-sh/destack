@@ -7,10 +7,10 @@ from bench.language.core import (
     IsArchivable,
     IsDeletable,
     IsInPackage,
-    IsInstantiable,
     IsModal,
     IsOrdered,
     IsRunnable,
+    IsTemplatable,
     Node,
     NodeType,
     RunType,
@@ -39,7 +39,7 @@ class ActionCardinality(BuiltinEnum):
 
 @node_(NodeType.ACTION)
 class Action(
-    IsInstantiable,
+    IsTemplatable,
     HasName,
     IsModal,
     IsOrdered,

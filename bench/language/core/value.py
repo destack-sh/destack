@@ -1,11 +1,7 @@
 import base64
 import textwrap
 from datetime import date, datetime, time, timedelta
-from typing import (
-    TYPE_CHECKING,
-    Any,
-    assert_never,
-)
+from typing import TYPE_CHECKING, Any, assert_never
 
 import structlog
 from fastuuid import UUID
@@ -34,9 +30,10 @@ tracer = trace.get_tracer(__name__)
 
 @struct_(StructType.VALUE, frozen=True)
 class Value(StructFrozen[ValueData]):
-    """A value of any type."""
+    """A generic Value of any Type."""
 
-    value: dict[str, Json] = property_(35)
+    key: str = property_(40)
+    value: Json = property_(41)
 
 
 def to_value(value: Any) -> Value:

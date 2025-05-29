@@ -8,8 +8,6 @@ from bench.language.core import (
     IsArchivable,
     IsBlockable,
     IsDeletable,
-    IsExtensible,
-    IsInstantiable,
     IsModal,
     IsOwnable,
     IsProcessable,
@@ -31,7 +29,6 @@ if TYPE_CHECKING:
 
 @node_(NodeType.AGENT)
 class Agent(
-    IsInstantiable,
     IsOwnable,
     IsModal,
     IsRunnable,
@@ -39,7 +36,6 @@ class Agent(
     IsSubject,
     IsDeletable,
     IsArchivable,
-    IsExtensible,
     HasName,
     HasIcon,
     IsBlockable,
