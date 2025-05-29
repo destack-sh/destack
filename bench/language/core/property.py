@@ -117,7 +117,7 @@ class IntoType:
     is_variable: bool = False
 
     default: Any = UNSET
-    default_factory: Literal["uuid", "now"] | None = None
+    default_factory: Literal["uuid", "now", "region"] | None = None
     format: "Format | None" = None
     constraint: "Constraint | None" = None
 

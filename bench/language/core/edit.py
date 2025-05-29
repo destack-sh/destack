@@ -9,7 +9,7 @@ from .const import BuiltinEnum, EnumType, StructType, bittuple, enum_
 from .graph import Graph
 from .node import Node
 from .property import property_
-from .struct import StructFrozen, StructMutable, struct_
+from .struct import NodeReference, StructFrozen, struct_
 
 if TYPE_CHECKING:
     from bench.language import Value
@@ -78,15 +78,21 @@ class Edit(StructFrozen):
     node: Node = property_(32)
     path: str | None = property_(33)
     key: "Value | None" = property_(34)  # for map operations
+    if TYPE_CHECKING:
+        node_id: UUID = property_()
+        node_ptr: NodeReference = property_()
 
     # value
     # node_data: "NodeData | None" = property_(40)
     value: "Value | None" = property_(41)
     parent: Node | None = property_(42)  # for move
+    if TYPE_CHECKING:
+        parent_id: UUID = property_()
+        parent_ptr: NodeReference = property_()
 
 
-@struct_(StructType.CHANGE)
-class Change(StructMutable):
+@struct_(StructType.CHANGE, frozen=True)
+class Change(StructFrozen):
     """A Change is an atomic sequence of Edits."""
 
     id: UUID = property_(2, is_managed=True, default_factory="uuid")

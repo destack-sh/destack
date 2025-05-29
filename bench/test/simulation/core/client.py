@@ -3,7 +3,6 @@ from typing import TYPE_CHECKING, final
 from bench import pb2
 from bench.proto import (
     ClientData,
-    ClientDataIn,
     LoginUserRequest,
     OriginData,
     RpcMetadata,

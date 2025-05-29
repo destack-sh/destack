@@ -11,12 +11,12 @@ from bench.language import (
     Client,
     Database,
     IsSubject,
+    LiveStore,
     NodeReference,
     NodeType,
     Query,
     Scope,
     Session,
-    Store,
 )
 from bench.language.core.edit import Change
 from bench.pb2 import (
@@ -80,7 +80,7 @@ class HostService(ServiceBase, HostBase):
         self.scope = Scope(bench_id=bench_id).to_proto()
         self.provisioners: tuple[Provisioner, ...] = ()
         self.plugins: tuple[HostPlugin, ...] = ()  # incl. provisioners
-        self.store: Store = None
+        self.store: LiveStore = None
 
     def __str__(self):
         return f"{self.bench_id}"

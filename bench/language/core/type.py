@@ -65,6 +65,7 @@ class DefaultFactory(BuiltinEnum):
 
     UUID = 1
     NOW = 2
+    REGION = 3
 
 
 @enum_(EnumType.STRING_FORMAT)

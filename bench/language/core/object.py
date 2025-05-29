@@ -35,6 +35,7 @@ from bench.utils.utils import frozendict, frozenlist
 from .const import (
     ACTIVE_SESSION,
     EMPTY_DICT,
+    REGION,
     UNSET,
     EdgeType,
     EnumType,
@@ -146,6 +147,7 @@ def _generate_init_impl[ObjectT: BuiltinObjectBase](
     extra_glbls["EMPTY_LIST"] = frozenlist()
     extra_glbls["EMPTY_DICT"] = frozendict()
     extra_glbls["uuid4"] = uuid4
+    extra_glbls["REGION"] = REGION
     method_body_lines = [
         "__setattr__ = object.__setattr__",
     ]
@@ -164,6 +166,7 @@ def _generate_init_impl[ObjectT: BuiltinObjectBase](
         body_properties.pop("_hash")
         body_properties.pop("_ref")
         body_properties.pop("_is_new")
+        body_properties.pop("_is_attached")
         body_properties.pop("_dirty")
         method_body_lines.append(f"""\
 # session
@@ -279,6 +282,10 @@ if {prop.name} is None:
     if session is None:
         raise RuntimeError("no active session for {cls.__name__}")
     {prop.name} = session.oracle.utc()""")
+            elif prop.default_factory == "region":
+                method_body_lines.append(f"""\
+if {prop.name} is None:
+    {prop.name} = REGION""")
             else:
                 assert_never(prop.default_factory)
 

@@ -19,30 +19,6 @@ from typing import ClassVar as _ClassVar, Iterable as _Iterable, Mapping as _Map
 
 DESCRIPTOR: _descriptor.FileDescriptor
 
-class ClientDataIn(_message.Message):
-    __slots__ = ("type", "name", "device_type", "device_name", "operating_system", "browser_name", "browser_version", "place_id", "access_token", "space_ptr")
-    TYPE_FIELD_NUMBER: _ClassVar[int]
-    NAME_FIELD_NUMBER: _ClassVar[int]
-    DEVICE_TYPE_FIELD_NUMBER: _ClassVar[int]
-    DEVICE_NAME_FIELD_NUMBER: _ClassVar[int]
-    OPERATING_SYSTEM_FIELD_NUMBER: _ClassVar[int]
-    BROWSER_NAME_FIELD_NUMBER: _ClassVar[int]
-    BROWSER_VERSION_FIELD_NUMBER: _ClassVar[int]
-    PLACE_ID_FIELD_NUMBER: _ClassVar[int]
-    ACCESS_TOKEN_FIELD_NUMBER: _ClassVar[int]
-    SPACE_PTR_FIELD_NUMBER: _ClassVar[int]
-    type: _lang_pb2.ClientType
-    name: str
-    device_type: str
-    device_name: str
-    operating_system: str
-    browser_name: str
-    browser_version: str
-    place_id: str
-    access_token: str
-    space_ptr: _lang_pb2.NodeReferenceData
-    def __init__(self, type: _Optional[_Union[_lang_pb2.ClientType, str]] = ..., name: _Optional[str] = ..., device_type: _Optional[str] = ..., device_name: _Optional[str] = ..., operating_system: _Optional[str] = ..., browser_name: _Optional[str] = ..., browser_version: _Optional[str] = ..., place_id: _Optional[str] = ..., access_token: _Optional[str] = ..., space_ptr: _Optional[_Union[_lang_pb2.NodeReferenceData, _Mapping]] = ...) -> None: ...
-
 class SignupUserRequest(_message.Message):
     __slots__ = ("slug", "name", "email", "password", "region", "client", "activate")
     SLUG_FIELD_NUMBER: _ClassVar[int]
@@ -57,9 +33,9 @@ class SignupUserRequest(_message.Message):
     email: str
     password: str
     region: _lang_pb2.Region
-    client: ClientDataIn
+    client: _lang_pb2.ClientData
     activate: bool
-    def __init__(self, slug: _Optional[str] = ..., name: _Optional[str] = ..., email: _Optional[str] = ..., password: _Optional[str] = ..., region: _Optional[_Union[_lang_pb2.Region, str]] = ..., client: _Optional[_Union[ClientDataIn, _Mapping]] = ..., activate: bool = ...) -> None: ...
+    def __init__(self, slug: _Optional[str] = ..., name: _Optional[str] = ..., email: _Optional[str] = ..., password: _Optional[str] = ..., region: _Optional[_Union[_lang_pb2.Region, str]] = ..., client: _Optional[_Union[_lang_pb2.ClientData, _Mapping]] = ..., activate: bool = ...) -> None: ...
 
 class SignupUserResponse(_message.Message):
     __slots__ = ("user", "client", "access_token")
@@ -98,8 +74,8 @@ class LoginUserRequest(_message.Message):
     slug: str
     email: str
     password: str
-    client: ClientDataIn
-    def __init__(self, id: _Optional[str] = ..., slug: _Optional[str] = ..., email: _Optional[str] = ..., password: _Optional[str] = ..., client: _Optional[_Union[ClientDataIn, _Mapping]] = ...) -> None: ...
+    client: _lang_pb2.ClientData
+    def __init__(self, id: _Optional[str] = ..., slug: _Optional[str] = ..., email: _Optional[str] = ..., password: _Optional[str] = ..., client: _Optional[_Union[_lang_pb2.ClientData, _Mapping]] = ...) -> None: ...
 
 class LoginUserResponse(_message.Message):
     __slots__ = ("user", "client", "access_token")

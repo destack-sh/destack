@@ -1,19 +1,15 @@
-from typing import cast
-
 import pytest
 from grpclib import Status as GRPCStatus
 
 from bench import pb2
-from bench.language import Database
+from bench.language import Client, ClientType, Database, Session
 from bench.proto import (
-    ClientDataIn,
     LoginUserRequest,
     LogoutUserRequest,
     NullNetwork,
     RpcMetadata,
     SignupUserRequest,
     SupervisorClient,
-    UserData,
     pack_rpc_headers,
 )
 from bench.test.fixtures import raises_grpc_error
@@ -52,27 +48,26 @@ async def supervisor(supervisor_service):
 async def test_user_registration(supervisor: SupervisorClient):
     """Create a User, login and logout. Try some wrong passwords and tokens. Read back data to confirm."""
 
+    session = Session()
     user_slug = "florian"
     user_name = "Florian Cäsar"
     user_email = "florian@symbolx.com"
     client_name = "pytest"
     client_device_name = "pytest"
 
-    user_in = UserData(
-        slug=user_slug, name=user_name, email=user_email, region=pb2.Region.REGION_ZURICH
-    )
-    client_in = ClientDataIn(
-        type=pb2.ClientType.CLIENT_TYPE_WEB,
+    client_in = Client(
+        type=ClientType.WEB,
         name=client_name,
         device_name=client_device_name,
-    )
+        _session=session,
+    ).to_proto()
 
     # signup -> success
     signup_req = SignupUserRequest(
-        slug=cast(str, user_in.slug),
-        name=user_in.name,
-        email=cast(str, user_in.email),
-        client=cast(ClientDataIn, client_in),
+        slug=user_slug,
+        name=user_name,
+        email=user_email,
+        client=client_in,
         password="Password123!",
         region=pb2.Region.REGION_ZURICH,
     )

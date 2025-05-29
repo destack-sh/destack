@@ -21,12 +21,7 @@ from bench.language.registry import NODE_CLASS_BY_TYPE
 from bench.pb2 import AnyNodeData
 from bench.utils.func import get_superclasses
 
-from .const import (
-    UNSET,
-    NodeArea,
-    NodeType,
-    TraitType,
-)
+from .const import UNSET, NodeArea, NodeType, TraitType
 from .graph import Graph
 from .object import BuiltinObjectMutable, _process_object_cls
 from .property import (
@@ -49,6 +44,7 @@ if TYPE_CHECKING:
         Join,
         NodeReference,
         Query,
+        QueryConnection,
         Session,
         Sort,
         Supergraph,
@@ -192,14 +188,21 @@ class Node[NodeDataT: AnyNodeData](BuiltinObjectMutable[NodeDataT]):
     _session: "Session" = property_runtime_()
     _supergraph: "Supergraph" = property_runtime_()
     _graph: "Graph" = property_runtime_(default=None)
+    _connection: "QueryConnection | None" = property_runtime_(default=None)
     _hash: int = property_runtime_(default=None)
     _ref: "Optional[NodeReference]" = property_runtime_(default=None)
     _is_new: bool = property_runtime_(default=False)
+    _is_attached: bool = property_runtime_(default=False)
     _dirty: bitarray | None = property_runtime_(default=None)
 
     @property
     def ck(self):
         return self.id
+
+    @property
+    def is_attached(self) -> bool:
+        """Whether this Node is attached to a root somehow."""
+        return self._is_attached
 
     @override
     def clone(
@@ -312,14 +315,6 @@ class Node[NodeDataT: AnyNodeData](BuiltinObjectMutable[NodeDataT]):
             if found_after:
                 nodes.append(node)
         return nodes
-
-    def remove_children_between[N: Node = Node](
-        self, node_type: NodeType | type[N], after: N | None = None, before: N | None = None
-    ):
-        """Removes all nodes between two nodes (exclusive)."""
-        nodes_to_remove = self.get_children_between(node_type, after, before)
-        for node in nodes_to_remove:
-            self.remove_child(node)
 
     def get_descendants[N: Node = Node](
         self, node_type: NodeType | type[N] | None = None
