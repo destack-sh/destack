@@ -39,7 +39,10 @@ class PackageType(BuiltinEnum):
     # TEMPLATE, LIBRARY, ...
 
 
-@node_(NodeType.PACKAGE, index=(IndexIn(columns=("bench_id", "slug"), is_unique=True),))
+@node_(
+    NodeType.PACKAGE,
+    index=(IndexIn(columns=("bench_id", "slug"), is_unique=True),),
+)
 class Package(
     IsGlobal,
     IsOwnable,

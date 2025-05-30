@@ -112,12 +112,12 @@ _object_set = object.__setattr__
 @node_(node_type=None, root_type=None)
 class Node[NodeDataT: AnyNodeData](BuiltinObjectMutable[NodeDataT]):
     """
-    A Node with properties and an identity.
-    Conceptually, all Nodes live together happily in a single giant supergraph.
-    In practice, there are multiple stores and we load smaller subgraphs at runtime.
+    A Node with Properties and a persistent identity.
+    Conceptually, all Nodes live together happily in a single giant Supergraph.
+    In practice, there are multiple areas and we work with partial Graphs.
     """
 
-    metatype: ClassVar[NodeType]  # type: ignore
+    metatype: ClassVar[NodeType]
 
     __is_node__: ClassVar[bool] = True
     __traits__: ClassVar[tuple[TraitType, ...]] = ()
@@ -133,7 +133,7 @@ class Node[NodeDataT: AnyNodeData](BuiltinObjectMutable[NodeDataT]):
     # Node.metatype: 1
     id: UUID = property_(2, is_managed=True, is_eq=False, can_write="system")
     # IsTemplatable.ck: 3
-    parent: Optional["Node"] = property_parent_()  # type: ignore
+    parent: Optional["Node"] = property_parent_()
     if TYPE_CHECKING:
         parent_type: NodeType | None = None
         parent_id: Optional[UUID] = None

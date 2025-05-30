@@ -474,10 +474,12 @@ class StructType(BuiltinEnum):
     SCOPE = 20000
     ORIGIN = 20001
     NODE_REFERENCE = 20002
-    PROPERTY_REFERENCE = 20003
-    EDIT = 20010
-    CHANGE = 20011
-    CHANGE_RESULT = 20012
+    PROPERTY_REFERENCE = 20004
+    # nocheckin: NodeInfo/StructInfo/PropertyInfo/...
+    # PROPERTY_INFO = 20010
+    EDIT = 20020
+    CHANGE = 20021
+    CHANGE_RESULT = 20022
     EXPRESSION = 20100
     FUNCTION = 20101
     JOIN = 20102
@@ -612,20 +614,27 @@ class NodeType(BuiltinEnum):
 
     # auth [200-600]
     USER = 200, "User", "User", "fas fa-user"
-    CLIENT = 210, "Client", "Client to a Bench", "fas fa-desktop"
-    ORGANIZATION = 300, "Organization", "Organization", "fas fa-building"
+    FRIENDSHIP = 210, "Friendship", "Friendship between two Users", "fas fa-user-friends"
+    FRIENDSHIP_INVITE = (
+        211,
+        "Friendship Invite",
+        "Invite to be friends with another User",
+        "fas fa-user-plus",
+    )
+    ORGANIZATION = 250, "Organization", "Organization", "fas fa-building"
     ORGANIZATION_MEMBERSHIP = (
-        301,
+        251,
         "Organization Membership",
         "Membership in an Organization",
         "fas fa-user-group",
     )
     ORGANIZATION_INVITE = (
-        302,
+        252,
         "Organization Invite",
         "Invite to an Organization",
         "fas fa-user-plus",
     )
+    CLIENT = 300, "Client", "Client to a Bench", "fas fa-desktop"
     # TEAM, ...
     # CREDENTIAL, ACCOUNT, PROFILE, ...
     # PERMISSION, PERMISSION_GROUP, ...

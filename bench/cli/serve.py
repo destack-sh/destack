@@ -100,16 +100,16 @@ async def system(
         HostRouterService,
         SupervisorService,
         get_global_database_from_env,
-        get_regional_database_from_env,
+        get_main_database_from_env,
     )
 
     global_database = get_global_database_from_env()
-    regional_database = get_regional_database_from_env()
+    main_database = get_main_database_from_env()
     network = RealNetwork()
     host_router = HostRouterService(
         id="host-router",
         global_database=global_database,
-        regional_database=regional_database,
+        main_database=main_database,
         network=network,
         oracle=REAL_ORACLE,
         on_error=capture_exception,
@@ -160,16 +160,16 @@ async def host(host: str, port: int, watch: bool = False, no_check: bool = False
     from bench.system import (
         HostRouterService,
         get_global_database_from_env,
-        get_regional_database_from_env,
+        get_main_database_from_env,
     )
 
     global_database = get_global_database_from_env()
-    regional_database = get_regional_database_from_env()
+    main_database = get_main_database_from_env()
     network = RealNetwork()
     host_router = HostRouterService(
         id="host-router",
         global_database=global_database,
-        regional_database=regional_database,
+        main_database=main_database,
         network=network,
         oracle=REAL_ORACLE,
         on_error=capture_exception,

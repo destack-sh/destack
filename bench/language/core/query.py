@@ -33,9 +33,9 @@ class RelationReference(StructFrozen):
 
     type: RelationType = property_(30, is_repr=True)
     node_type: NodeType = property_(31, is_repr=True)
-    table: Optional["CustomNodeDefinition"] = property_(32, is_repr=True)
+    definition: Optional["CustomNodeDefinition"] = property_(32, is_repr=True)
     if TYPE_CHECKING:
-        table_ptr: Optional[NodeReference] = None  # convenience only
+        definition_ptr: Optional[NodeReference] = None  # convenience only
 
 
 def relation_ref(base: "NodeType | type[Node] | CustomNodeDefinition") -> RelationReference:

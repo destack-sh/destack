@@ -24,6 +24,8 @@ from .google.type.datetime_pb2 import *
 # extra utility types
 AnyNodeData = Union[
     ClientData,
+    FriendshipData,
+    FriendshipInviteData,
     OrganizationData,
     OrganizationInviteData,
     OrganizationMembershipData,

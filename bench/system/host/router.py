@@ -60,7 +60,7 @@ class HostRouterService(ServiceBase, HostBase):
         self,
         id: str,
         global_database: Database,
-        regional_database: Database,
+        main_database: Database,
         network: Network,
         oracle: Oracle,
         on_error: Callable[[BaseException], None] | None,
@@ -76,7 +76,7 @@ class HostRouterService(ServiceBase, HostBase):
         self.hosts: dict[UUID, HostService] = {}
         self.hosts_lock = asyncio.Lock()
         self.global_database = global_database
-        self.regional_database = regional_database
+        self.main_database = main_database
 
     def __str__(self):
         return "shards=[*]"
@@ -99,7 +99,7 @@ class HostRouterService(ServiceBase, HostBase):
             id=f"host-{bench_id}",
             bench_id=bench_id,
             global_database=self.global_database,
-            regional_database=self.regional_database,
+            main_database=self.main_database,
             network=self.network,
             oracle=self.oracle,
             on_error=self.on_error,

@@ -28,13 +28,13 @@ async def bootstrap(
         DatabaseStore,
         create_system_benches,
         get_global_database_from_env,
-        get_regional_database_from_env,
+        get_main_database_from_env,
     )
 
     global_database = get_global_database_from_env()
-    regional_database = get_regional_database_from_env(region=region)
+    main_database = get_main_database_from_env(region=region)
     store = DatabaseStore(
-        {NodeArea.GLOBAL_POSTGRES: global_database, NodeArea.MAIN_POSTGRES: regional_database}
+        {NodeArea.GLOBAL_POSTGRES: global_database, NodeArea.MAIN_POSTGRES: main_database}
     )
     async with Session(store=store) as session:
         await create_system_benches(region=region, session=session, upsert=upsert)

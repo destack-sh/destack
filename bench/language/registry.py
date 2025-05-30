@@ -91,7 +91,14 @@ def _complete_bench_setup():
     # index parent types
     for node_cls in NODE_CLASS_BY_TYPE.values():
         assert node_cls.__parent_property__ is not UNSET
-        node_cls.__parent_types__ = expand_node_types(node_cls.__parent_property__.node_types or ())
+        if node_cls.__root_type__ is None:
+            node_cls.__parent_types__ = ()
+            if node_cls.__parent_property__.ptr_prop is not None:
+                node_cls.__parent_property__.ptr_prop.node_types = ()
+        else:
+            node_cls.__parent_types__ = expand_node_types(
+                node_cls.__parent_property__.node_types or ()
+            )
 
     # index child types
     child_types_by_parent: dict[NodeType, list[NodeType]] = defaultdict(list)

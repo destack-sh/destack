@@ -20,7 +20,7 @@ from bench.language import (
     NodeArea,
 )
 from bench.proto import SupervisorClient
-from bench.sql.map import BUILTIN_GLOBAL_SCHEMA, BUILTIN_REGIONAL_SCHEMA
+from bench.sql.map import BUILTIN_GLOBAL_SCHEMA, BUILTIN_MAIN_SCHEMA
 from bench.utils.oracle import REAL_ORACLE
 from bench.utils.task import TaskManager
 
@@ -66,7 +66,7 @@ class Simulation:
         id: str,
         spec: SimulationSpec,
         global_database: Database,
-        regional_database: Database,
+        main_database: Database,
         database_map: "DatabaseMap",
     ):
         from bench.system import pg_engine_from_database
@@ -74,13 +74,13 @@ class Simulation:
         self.id = id
         self.spec = spec
         self.global_database = global_database
-        self.regional_database = regional_database
+        self.main_database = main_database
         self.global_pg_engine = pg_engine_from_database(
             "pg-global", global_database, NodeArea.GLOBAL_POSTGRES
         )
-        self.regional_pg_engine = pg_engine_from_database(
-            f"pg-regional-{regional_database.region.name.lower()}",
-            regional_database,
+        self.main_pg_engine = pg_engine_from_database(
+            f"pg-main-{main_database.region.name.lower()}",
+            main_database,
             NodeArea.MAIN_POSTGRES,
         )
         self.database_map = database_map
@@ -375,8 +375,8 @@ class Simulation:
                 region=REGION,
                 global_database=self.global_database,
                 global_pg_engine=self.global_pg_engine,
-                regional_database=self.regional_database,
-                regional_pg_engine=self.regional_pg_engine,
+                main_database=self.main_database,
+                main_pg_engine=self.main_pg_engine,
             )
         await self.supervisor.start()
         async with SimulatedChannel(
@@ -446,7 +446,7 @@ async def run_simulation(spec: SimulationSpec):
     from bench.test.fixtures import (
         create_test_db,
         make_global_database,
-        make_regional_database,
+        make_main_database,
     )
 
     simulation_id = get_simulation_id(spec)
@@ -457,13 +457,13 @@ async def run_simulation(spec: SimulationSpec):
 
     # config
     global_database = make_global_database(f"test-{simulation_id}-global")
-    regional_database = make_regional_database(f"test-{simulation_id}-regional")
-    database_map = DatabaseMap({"*": regional_database})
+    main_database = make_main_database(f"test-{simulation_id}-main")
+    database_map = DatabaseMap({"*": main_database})
     simulation = Simulation(
         id=simulation_id,
         spec=spec,
         global_database=global_database,
-        regional_database=regional_database,
+        main_database=main_database,
         database_map=database_map,
     )
 
@@ -472,7 +472,7 @@ async def run_simulation(spec: SimulationSpec):
         with tracer.start_as_current_span("simulation.prepare"):
             await simulation.prepare()
             await create_test_db(global_database, BUILTIN_GLOBAL_SCHEMA)
-            await create_test_db(regional_database, BUILTIN_REGIONAL_SCHEMA)
+            await create_test_db(main_database, BUILTIN_MAIN_SCHEMA)
             log.info("simulation.prepare", span="current")
         # run
         with tracer.start_as_current_span("simulation.run"):
@@ -482,7 +482,7 @@ async def run_simulation(spec: SimulationSpec):
         # teardown
         for database_name in (
             global_database.external_name,
-            regional_database.external_name,
+            main_database.external_name,
             f"test-{BENCH_ID}",
             f"test-{SYSTEM_ID}",
         ):
@@ -499,7 +499,7 @@ async def run_simulation(spec: SimulationSpec):
         # cleanup
         del spec
         del global_database
-        del regional_database
+        del main_database
         del database_map
         del simulation
         gc.collect()

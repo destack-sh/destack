@@ -31,7 +31,7 @@ class HostHandle(ServiceHandle[HostSpec, "HostService", HostClient]):
             id=self.id,
             bench_id=self.simulation.get_bench_id(self.spec.bench),
             global_database=self.simulation.global_database,
-            regional_database=self.simulation.regional_database,
+            main_database=self.simulation.main_database,
             network=self.simulation.network.network,
             oracle=self.oracle,
             on_error=self.simulation.on_error,

@@ -38,9 +38,9 @@ async def make(
     from bench.sql import (
         BENCH_CUSTOM_NODE_PREFIX,
         BENCH_TABLE_PREFIX,
+        BUILTIN_CUSTOM_SCHEMA,
         BUILTIN_GLOBAL_SCHEMA,
-        BUILTIN_LOCAL_SCHEMA,
-        BUILTIN_REGIONAL_SCHEMA,
+        BUILTIN_MAIN_SCHEMA,
         Migration,
         SqlSchema,
         add_migration_to_fs,
@@ -53,12 +53,12 @@ async def make(
     )
     from bench.system import (
         get_global_database_from_env,
-        get_regional_database_from_env,
+        get_main_database_from_env,
     )
 
     start = time.time()
     global_database = get_global_database_from_env()
-    regional_database = get_regional_database_from_env(region)
+    main_database = get_main_database_from_env(region)
 
     # check existing migrations for inconsistencies
     file_migrations = read_migrations_from_fs()
@@ -87,7 +87,7 @@ async def make(
         if not from_scratch:
             try:
                 async with global_session(
-                    global_database, (global_pg_engine, regional_pg_engine), oracle=REAL_ORACLE
+                    global_database, (global_pg_engine, main_pg_engine), oracle=REAL_ORACLE
                 ):
                     bench_node = await Bench.get(
                         where=Bench.property("slug").eq(bench),
@@ -95,7 +95,7 @@ async def make(
                     ).execute_one()
                     assert bench_node.database, f"{bench!r} has no main database"
                     async with pg_connection(bench_node.database) as conn:
-                        old_local_schema = await introspect_sql_schema(
+                        old_custom_schema = await introspect_sql_schema(
                             conn,
                             include_table_prefixes=(BENCH_TABLE_PREFIX,),
                             exclude_table_prefixes=(BENCH_CUSTOM_NODE_PREFIX,),
@@ -105,26 +105,26 @@ async def make(
                 console.print(f"[red]couldn't make migrations (missing --from-scratch?): {e}[/red]")
                 sys.exit(-1)
         else:
-            old_local_schema = SqlSchema.blank()
-        local_migration_ops = generate_sql_migration_ops(
-            old_schema=old_local_schema, new_schema=BUILTIN_LOCAL_SCHEMA
+            old_custom_schema = SqlSchema.blank()
+        custom_migration_ops = generate_sql_migration_ops(
+            old_schema=old_custom_schema, new_schema=BUILTIN_CUSTOM_SCHEMA
         )
     else:
-        local_migration_ops = []
+        custom_migration_ops = []
 
-    # diff regional
+    # diff main
     if area in (None, NodeArea.MAIN_POSTGRES):
-        async with pg_connection(regional_database) as conn:
-            old_regional_schema = await introspect_sql_schema(
+        async with pg_connection(main_database) as conn:
+            old_main_schema = await introspect_sql_schema(
                 conn,
                 include_table_prefixes=(BENCH_TABLE_PREFIX,),
                 exclude_table_prefixes=(BENCH_CUSTOM_NODE_PREFIX,),
             )
-        regional_migration_ops = generate_sql_migration_ops(
-            old_schema=old_regional_schema, new_schema=BUILTIN_REGIONAL_SCHEMA
+        main_migration_ops = generate_sql_migration_ops(
+            old_schema=old_main_schema, new_schema=BUILTIN_MAIN_SCHEMA
         )
     else:
-        regional_migration_ops = []
+        main_migration_ops = []
 
     # diff global
     if area in (None, NodeArea.GLOBAL_POSTGRES):
@@ -141,7 +141,7 @@ async def make(
         global_migration_ops = []
 
     # generate migration
-    if not global_migration_ops and not local_migration_ops and not regional_migration_ops:
+    if not global_migration_ops and not custom_migration_ops and not main_migration_ops:
         logger.info("migrate.make.noop")
         return
     latest_migration = max(file_migrations, key=lambda m: m.id)
@@ -149,15 +149,15 @@ async def make(
         id=latest_migration.id + 1 if latest_migration is not None else 1,
         version=VERSION,
         has_global=bool(global_migration_ops),
-        has_local=bool(local_migration_ops),
-        has_regional=bool(regional_migration_ops),
+        has_custom=bool(custom_migration_ops),
+        has_main=bool(main_migration_ops),
         applied_at=None,
     )
     migration_code = generate_sql_migration_code(
         new_migration,
         global_ops=global_migration_ops,
-        local_ops=local_migration_ops,
-        regional_ops=regional_migration_ops,
+        custom_ops=custom_migration_ops,
+        main_ops=main_migration_ops,
         exclude_inverse=no_downgrade,
         oracle=REAL_ORACLE,
     )
@@ -188,15 +188,15 @@ async def apply(
 ):
     from bench.language import REGION, NodeArea
     from bench.sql import sql_migrate
-    from bench.system import get_global_database_from_env, get_regional_database_from_env
+    from bench.system import get_global_database_from_env, get_main_database_from_env
 
     start = time.time()
     global_database = get_global_database_from_env()
-    regional_database = get_regional_database_from_env(region or REGION)
+    main_database = get_main_database_from_env(region or REGION)
 
     # resolve databases to migrate
     if area == NodeArea.MAIN_POSTGRES:
-        databases = [regional_database]
+        databases = [main_database]
     elif area == NodeArea.GLOBAL_POSTGRES:
         databases = [global_database]
     else:

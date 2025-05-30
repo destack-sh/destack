@@ -9,6 +9,7 @@ from bench.language.core import (
     HasIcon,
     HasName,
     HasSlug,
+    IndexIn,
     IsGlobal,
     IsRegional,
     IsSubject,
@@ -33,7 +34,11 @@ class UserStatus(BuiltinEnum):
     ACTIVE = 10
 
 
-@node_(NodeType.USER, root_type=None)
+@node_(
+    NodeType.USER,
+    root_type=None,
+    index=(IndexIn(columns=("email",), is_unique=True),),
+)
 class User(
     IsGlobal,
     IsSubject,
@@ -50,13 +55,12 @@ class User(
         40, can_write="system", is_repr=True, default=UserStatus.CREATING
     )
     last_logged_in_at: Optional[datetime] = property_(41, can_write="system")
-    # last_active_at: Optional[datetime] = ...
-    # seen_at: Optional[datetime] = ...
+    # last_active_at, seen_at, ...
     is_staff: bool = property_(45, default=False, can_write="system")
 
     bench: "Bench" = property_(50, can_write="system")
     handle: Optional["Handle"] = property_(51, can_write="system")
-    cursor: Optional["Cursor"] = property_(52, can_write="system")
+    cursor: Optional["Cursor"] = property_(52, can_write="system", node_bench_from="self")
     if TYPE_CHECKING:
         bench_id: UUID = property_()
         bench_ptr: NodeReference = property_()
@@ -66,9 +70,9 @@ class User(
         cursor_ptr: Optional[NodeReference] = None
 
     # auth
-    # NOTE :Incomplete: factor out authentication, Credentials & Challenges for Users/Client
+    # NOTE: Incomplete: factor out authentication, Credentials & Challenges for Users/Client
     email: str | None = property_(
-        60, is_unique=True, format=StringFormat.EMAIL, can_read="owner", can_write="system"
+        60, format=StringFormat.EMAIL, can_read="owner", can_write="system"
     )
     password_salt: Optional[bytes] = property_(61, can_read="system", can_write="system")
     password_hash: Optional[bytes] = property_(62, can_read="system", can_write="system")
