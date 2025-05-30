@@ -608,9 +608,10 @@ class StructType(BuiltinEnum):
 @enum_(EnumType.NODE_TYPE)
 class NodeType(BuiltinEnum):
     # bench [1-200]
-    BENCH = 1, "Bench", "Universal workbench", "https://heybench.com/favicon.ico"
+    BENCH = 1, "Bench", "Universal Bench", "https://heybench.com/favicon.ico"
     BENCH_MEMBERSHIP = 2, "Bench Membership", "Membership in a Bench", "fas fa-user-group"
     BENCH_INVITE = 3, "Bench Invite", "Invite to a Bench", "fas fa-user-plus"
+    # BENCH_MIGRATION?
     PACKAGE = 20, "Package", "Isolated sub-Bench", "fas fa-box-open"
     PACKAGE_MEMBERSHIP = 21, "Package Membership", "Membership in a Package", "fas fa-user-group"
     PACKAGE_INVITE = 22, "Package Invite", "Invite to a Package", "fas fa-user-plus"
@@ -657,9 +658,9 @@ class NodeType(BuiltinEnum):
     # CHANGE, HISTORY, SNAPSHOT, OVERLAY, BRANCH, ...
 
     # infra [1000-1200]
-    DATABASE = 1000, "Store", "Store custom data", "fas fa-database"
-    MACHINE = 1010, "Machine", "Machine for computing", "fas fa-machine-classic"
-    # VAULT, CACHE, ENDPOINT, DEPLOYMENT, NETWORK, AUTOSCALER, ...
+    MACHINE = 1000, "Machine", "Machine for ephemeral computing", "fas fa-machine-classic"
+    DATABASE = 1010, "Database", "Database for Postgres data", "fas fa-database"
+    # DATABASE?, SEARCH/INDEX, OLAP, VAULT, CACHE, ENDPOINT, DEPLOYMENT, NETWORK, AUTOSCALER, ...
 
     # logic [1200-1600]
     SERVICE = 1200, "Service", "Service", "fas fa-screwdriver-wrench"

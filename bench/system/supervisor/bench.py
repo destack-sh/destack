@@ -41,7 +41,6 @@ async def create_default_bench(
             slug=handle.slug,
             name=handle.slug,
             owned_by=owned_by,
-            region=region,
         )
     session.create(bench)
     await session.stage()
@@ -63,7 +62,7 @@ async def create_default_bench(
     main_package.add_child(database)
     await session.stage()
     bench.database = database
-    bench.status = BenchStatus.ACTIVE
+    bench.status = BenchStatus.RUNNING
     await session.stage()
 
     return bench

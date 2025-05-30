@@ -30,7 +30,7 @@ async def shell(
     """Open a psql shell to either the global or a Bench-local database."""
     from bench.language import Bench, Database, NodeArea, Session, join
     from bench.system import (
-        DatabaseStore,
+        PostgresStore,
         get_global_database_from_env,
         get_main_database_from_env,
     )
@@ -44,7 +44,7 @@ async def shell(
         database = main_database
     elif area == NodeArea.CUSTOM_POSTGRES:
         assert bench is not None, "bench is required for local area"
-        store = DatabaseStore(
+        store = PostgresStore(
             {
                 NodeArea.GLOBAL_POSTGRES: global_database,
                 NodeArea.MAIN_POSTGRES: main_database,

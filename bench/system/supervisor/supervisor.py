@@ -40,7 +40,7 @@ from bench.proto import (
 )
 from bench.system.host import HostMap
 from bench.system.store import DatabaseMap
-from bench.system.store.database import DatabaseStore
+from bench.system.store.postgres import PostgresStore
 from bench.utils.func import generate_access_token, generate_salt
 from bench.utils.oracle import Oracle
 
@@ -103,7 +103,7 @@ class SupervisorService(ServiceBase, SupervisorBase):
 
     @override
     async def make_session(self, metadata: RpcMetadata) -> "Session":
-        database_store = DatabaseStore({NodeArea.GLOBAL_POSTGRES: self.global_database})
+        database_store = PostgresStore({NodeArea.GLOBAL_POSTGRES: self.global_database})
         return Session(store=database_store)
 
     @override
@@ -136,7 +136,7 @@ class SupervisorService(ServiceBase, SupervisorBase):
         # get regional Database
         region = Region(request.region)
         main_database = self.database_map.get(region=region)
-        session.store = DatabaseStore(
+        session.store = PostgresStore(
             {
                 NodeArea.GLOBAL_POSTGRES: self.global_database,
                 NodeArea.MAIN_POSTGRES: main_database,
@@ -144,15 +144,12 @@ class SupervisorService(ServiceBase, SupervisorBase):
         )
 
         # create User with Bench
-        bench = Bench(
-            status=BenchStatus.CREATING, slug=request.slug, name=request.slug, region=region
-        )
+        bench = Bench(status=BenchStatus.CREATING, slug=request.slug, name=request.slug)
         user = User(
             slug=request.slug,
             name=request.name or request.slug,
             email=request.email,
             status=UserStatus.CREATING,
-            region=region,
             last_logged_in_at=self.oracle.utc(),
             bench=bench,
         )
@@ -178,7 +175,7 @@ class SupervisorService(ServiceBase, SupervisorBase):
             bench=bench,
             handle=user.handle,
             owned_by=user,
-            region=user.region,
+            region=region,
             session=session,
             options=CreateBenchOptions(),
         )

@@ -25,7 +25,7 @@ async def bootstrap(
 ):
     from bench.language import NodeArea
     from bench.system import (
-        DatabaseStore,
+        PostgresStore,
         create_system_benches,
         get_global_database_from_env,
         get_main_database_from_env,
@@ -33,7 +33,7 @@ async def bootstrap(
 
     global_database = get_global_database_from_env()
     main_database = get_main_database_from_env(region=region)
-    store = DatabaseStore(
+    store = PostgresStore(
         {NodeArea.GLOBAL_POSTGRES: global_database, NodeArea.MAIN_POSTGRES: main_database}
     )
     async with Session(store=store) as session:

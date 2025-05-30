@@ -69,7 +69,7 @@ async def test_create_empty_table_block(simulation: Simulation, runtime: Runtime
     runtime.page().add_child(Table1)
 
     # cannot access table before committing it
-    with simulation.raises(NodeNotFoundError, GRPCError):
+    with simulation.raises(GRPCError):
         _ = await Table1.records.search()
 
     # commit to create table
@@ -246,7 +246,7 @@ async def test_delete_restore_table(simulation: Simulation, runtime: RuntimeLamb
     # delete
     Table1.delete()
     await runtime.commit()
-    with simulation.raises(NodeNotFoundError, GRPCError):
+    with simulation.raises(GRPCError):
         _ = await Table1.records.search()
 
     # restore
@@ -333,7 +333,7 @@ async def test_morph_table_field_type(simulation: Simulation, runtime: RuntimeLa
     )
     Table1 = CustomNodeDefinition(name="Table1").add_children(Field1, Field2)
     runtime.page().add_child(Table1)
-    Record1: CustomNode = Table1.records.create(Field1="Record1", Field2=True)
+    Record1 = Table1.records.create(Field1="Record1", Field2=True)
     await runtime.commit()
 
     # morph str is_list=False -> str is_list=True

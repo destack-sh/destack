@@ -16,13 +16,13 @@ logger = structlog.get_logger(__name__)
 async def set_password(user_slug: str, new_password: str):
     from bench.system import (
         SALT_LENGTH,
-        DatabaseStore,
+        PostgresStore,
         get_global_database_from_env,
         hash_password,
     )
 
     global_database = get_global_database_from_env()
-    store = DatabaseStore({NodeArea.GLOBAL_POSTGRES: global_database})
+    store = PostgresStore({NodeArea.GLOBAL_POSTGRES: global_database})
     async with Session(store=store) as session:
         user = await User.get(where=User.property("slug").eq(user_slug)).execute_one()
         user.password_salt = generate_salt(SALT_LENGTH)
