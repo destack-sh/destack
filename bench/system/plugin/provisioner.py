@@ -9,12 +9,9 @@ from bench.language import (
     NODE_CLASS_BY_TYPE,
     Bench,
     IsProvisionable,
-    Message,
-    MessageType,
     NodeMode,
     NodeType,
     ResourceStatus,
-    Thread,
 )
 from bench.system.host import Commit, DeferredHostPlugin, HostService
 
@@ -55,15 +52,15 @@ class Provisioner[PT: IsProvisionable, WT: IsProvisionable](DeferredHostPlugin[W
     def _set_resource_status(self, resource: PT, status: ResourceStatus) -> None:
         """Set the status of the Resource, emitting any Messages."""
         # create message if status changed
-        if resource.status != status and isinstance(thread := resource.parent, Thread):
-            message = Message(
-                parent=thread,
-                type=MessageType.RESOURCE,
-                nodes=[resource],
-                resource_status=status,
-                _supergraph=thread._supergraph,
-            )
-            thread.add_child(message)
+        # if resource.status != status and isinstance(thread := resource.parent, Thread):
+        #     message = Message(
+        #         parent=thread,
+        #         type=MessageType.RESOURCE,
+        #         nodes=[resource],
+        #         resource_status=status,
+        #         _supergraph=thread._supergraph,
+        #     )
+        #     thread.add_child(message)
 
         resource.update_status(status)
 

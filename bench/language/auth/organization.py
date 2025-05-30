@@ -12,7 +12,6 @@ from bench.language.core import (
     IsGlobal,
     IsInvite,
     IsMembership,
-    IsRegional,
     IsSubject,
     Node,
     NodeReference,
@@ -43,7 +42,6 @@ class Organization(
     HasSlug,
     HasIcon,
     HasName,
-    IsRegional,
     Node[OrganizationData],
 ):
     """

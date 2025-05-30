@@ -82,7 +82,7 @@ async def session_async(request):
 
 
 def make_package(session: Session):
-    bench = Bench(name="test", slug="test", status=BenchStatus.ACTIVE)
+    bench = Bench(name="test", slug="test", status=BenchStatus.RUNNING)
     package = Package(type=PackageType.HOME, name="Home", slug="home")
     bench.add_child(package)
     database = Database(name="Database")

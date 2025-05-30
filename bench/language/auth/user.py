@@ -11,7 +11,6 @@ from bench.language.core import (
     HasSlug,
     IndexIn,
     IsGlobal,
-    IsRegional,
     IsSubject,
     Node,
     NodeType,
@@ -45,7 +44,6 @@ class User(
     HasName,
     HasIcon,
     HasSlug,
-    IsRegional,
     Node[UserData],
 ):
     """A User is a human using Bench."""

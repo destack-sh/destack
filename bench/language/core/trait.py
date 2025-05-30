@@ -51,7 +51,6 @@ if TYPE_CHECKING:
         Package,
         Page,
         TextLine,
-        Thread,
         Value,
     )
 
@@ -434,7 +433,7 @@ class IsResource(IsModal, IsOwnable, HasName, IsBlockable):
     A Resource in a Bench, typically representing some external object.
     """
 
-    parent: Union["Package", "Page", "Thread", None] = property_parent_()
+    pass
 
 
 @trait_(TraitType.PROVISIONABLE)

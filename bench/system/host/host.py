@@ -37,7 +37,7 @@ from bench.pb2 import (
     UploadFilesResponse,
 )
 from bench.proto import Network, ServiceBase
-from bench.system.store.database import DatabaseStore
+from bench.system.store.postgres import PostgresStore
 from bench.utils.env import ENV
 from bench.utils.oracle import Oracle
 from bench.utils.utils import get_from_env
@@ -81,7 +81,7 @@ class HostService(ServiceBase, HostBase):
         self.scope = Scope(bench_id=bench_id)
         self.provisioners: tuple[Provisioner, ...] = ()
         self.plugins: tuple[HostPlugin, ...] = ()  # incl. provisioners
-        self.database_store = DatabaseStore(
+        self.database_store = PostgresStore(
             {
                 NodeArea.GLOBAL_POSTGRES: global_database,
                 NodeArea.MAIN_POSTGRES: main_database,

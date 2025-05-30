@@ -1,8 +1,19 @@
 from typing import TYPE_CHECKING, Literal
 
 from attr import dataclass
+from fastuuid import UUID
 
-from bench.language import Region
+from bench.language import (
+    BEGINNING_OF_TIME,
+    REGION,
+    VERSION,
+    Bench,
+    BenchStatus,
+    Package,
+    PackageType,
+    Region,
+    Session,
+)
 from bench.utils.utils import get_from_env
 
 if TYPE_CHECKING:
@@ -61,8 +72,6 @@ class DatabaseMap:
         if database is None:
             database = self._database_by_region.get("*")
         if database is None:
-            from .database import make_system_database
-
             database_info = self.get_info(region)
             database = make_system_database(region, database_info.pg_url)
             self._database_by_region[region] = database
@@ -99,3 +108,50 @@ def get_database_map_from_env() -> "DatabaseMap":
 
 
 DATABASE_MAP = get_database_map_from_env()
+
+
+def make_system_database(region: Region, pg_url: str) -> Database:
+    system_session = Session()
+    system_bench_stub = Bench(
+        id=UUID(int=0),
+        name="System",
+        slug="system",
+        status=BenchStatus.RUNNING,
+        created_at=BEGINNING_OF_TIME,
+        updated_at=BEGINNING_OF_TIME,
+        _session=system_session,
+    )
+    system_package_stub = Package(
+        parent=system_bench_stub,
+        type=PackageType.HOME,
+        id=UUID(int=1),
+        name="Home",
+        slug="home",
+        created_at=BEGINNING_OF_TIME,
+        updated_at=BEGINNING_OF_TIME,
+        _session=system_session,
+    )
+    database = Database(
+        parent=system_package_stub,
+        name="Database",
+        version=VERSION,
+        sql_url=pg_url,
+        created_at=BEGINNING_OF_TIME,
+        updated_at=BEGINNING_OF_TIME,
+        _session=system_session,
+    )
+    return database
+
+
+def get_global_database_from_env() -> Database:
+    """Get the default global database configured in the environment"""
+    pg = get_from_env("GLOBAL_PG_URL", description="Global Postgres connection string")
+    pg_url = pg.split("|", maxsplit=1)[0]
+    return make_system_database(REGION, pg_url)
+
+
+def get_main_database_from_env(region: Region = REGION) -> Database:
+    """Get the default regional database configured in the environment"""
+    from .sharding import DATABASE_MAP
+
+    return DATABASE_MAP.get(region)

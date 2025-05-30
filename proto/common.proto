@@ -31,12 +31,4 @@ message RpcMetadata {
   optional string client_id = 3;
   optional string client_nonce = 4;
   optional string client_access_token = 5;
-
-  // Badges
-  message BadgeInfo {
-    optional string id = 2;
-    optional string key = 3;
-    optional string password = 4;
-  }
-  repeated BadgeInfo badges = 6;
 }

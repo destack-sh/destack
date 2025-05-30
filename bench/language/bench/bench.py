@@ -4,6 +4,7 @@ from fastuuid import UUID
 
 from bench.language.core import (
     BuiltinEnum,
+    Database,
     EnumType,
     HasIcon,
     HasName,
@@ -14,9 +15,9 @@ from bench.language.core import (
     IsInvite,
     IsMembership,
     IsOwnable,
-    IsRegional,
     Node,
     NodeType,
+    Region,
     enum_,
     node_,
     property_,
@@ -25,12 +26,7 @@ from bench.language.core import (
 from bench.pb2 import BenchData, BenchInviteData, BenchMembershipData
 
 if TYPE_CHECKING:
-    from bench.language import (
-        Database,
-        Handle,
-        NodeReference,
-        Package,
-    )
+    from bench.language import Handle, NodeReference, Package
 
 # pyright: reportIncompatibleVariableOverride=false
 
@@ -40,7 +36,9 @@ class BenchStatus(BuiltinEnum):
     """The status of a Bench"""
 
     CREATING = 1
-    ACTIVE = 10
+    QUEUED = 3
+    RUNNING = 10
+    PAUSED = 20
 
 
 @node_(NodeType.BENCH)
@@ -51,28 +49,28 @@ class Bench(
     HasName,
     HasSlug,
     HasIcon,
-    IsRegional,
     Node[BenchData],
 ):
     """
     A Bench is the OS for personal software.
     """
 
-    status: BenchStatus = property_(41, is_repr=True)
-    handle: Optional["Handle"] = property_(42, can_write="system")
-
-    # content
-    database: Optional["Database"] = property_(
-        50, node_bench_from="self", can_write="system", description="The Database."
-    )
+    # meta
+    status: BenchStatus = property_(40, is_repr=True, can_write="system")
+    handle: Optional["Handle"] = property_(41, can_write="system")
     main_package: Optional["Package"] = property_(
-        51, node_bench_from="self", can_write="system", description="The Main Package."
+        42, node_bench_from="self", can_write="system", description="The Main Package."
     )
     if TYPE_CHECKING:
-        database_ptr: Optional[NodeReference] = None
-        database_id: Optional[UUID] = None
-        package_ptr: Optional[NodeReference] = None
-        package_id: Optional[UUID] = None
+        handle_ptr: Optional[NodeReference] = None
+        handle_id: Optional[UUID] = None
+        main_package_ptr: Optional[NodeReference] = None
+        main_package_id: Optional[UUID] = None
+
+    # infra
+    region: Region = property_(50, can_write="system")
+    cell_name: str = property_(51, can_write="system")
+    database: Optional["Database"] = property_(55, node_bench_from="self", can_write="system")
 
 
 @enum_(EnumType.BENCH_ROLE_TYPE)
