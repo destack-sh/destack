@@ -42,6 +42,7 @@ if TYPE_CHECKING:
         Expression,
         ExpressionIn,
         Join,
+        NodeInfo,
         NodeReference,
         Query,
         QueryConnection,
@@ -118,6 +119,7 @@ class Node[NodeDataT: AnyNodeData](BuiltinObjectMutable[NodeDataT]):
     """
 
     metatype: ClassVar[NodeType]
+    info: ClassVar["NodeInfo"]
 
     __is_node__: ClassVar[bool] = True
     __traits__: ClassVar[tuple[TraitType, ...]] = ()

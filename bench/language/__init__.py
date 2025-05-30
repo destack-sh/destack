@@ -15,9 +15,12 @@ from .registry import (
     BUILTIN_OBJECT_CLASS_BY_TYPE,  # noqa: F401
     BUILTIN_OBJECT_TYPE_BY_CLASS,  # noqa: F401
     ENUM_CLASS_BY_TYPE,  # noqa: F401
+    ENUM_INFO_BY_TYPE,  # noqa: F401
     ENUM_TYPE_BY_CLASS,  # noqa: F401
     NODE_CLASS_BY_TYPE,  # noqa: F401
+    NODE_INFO_BY_TYPE,  # noqa: F401
     STRUCT_CLASS_BY_TYPE,  # noqa: F401
+    STRUCT_INFO_BY_TYPE,  # noqa: F401
     _complete_bench_setup,
 )
 from .runtime import *  # noqa: F403

@@ -1118,6 +1118,12 @@ class StructType(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     STRUCT_TYPE_ORIGIN: _ClassVar[StructType]
     STRUCT_TYPE_NODE_REFERENCE: _ClassVar[StructType]
     STRUCT_TYPE_PROPERTY_REFERENCE: _ClassVar[StructType]
+    STRUCT_TYPE_PROPERTY_INFO: _ClassVar[StructType]
+    STRUCT_TYPE_TRAIT_INFO: _ClassVar[StructType]
+    STRUCT_TYPE_NODE_INFO: _ClassVar[StructType]
+    STRUCT_TYPE_STRUCT_INFO: _ClassVar[StructType]
+    STRUCT_TYPE_ENUM_INFO: _ClassVar[StructType]
+    STRUCT_TYPE_ENUM_OPTION_INFO: _ClassVar[StructType]
     STRUCT_TYPE_EDIT: _ClassVar[StructType]
     STRUCT_TYPE_CHANGE: _ClassVar[StructType]
     STRUCT_TYPE_CHANGE_RESULT: _ClassVar[StructType]
@@ -2148,6 +2154,12 @@ STRUCT_TYPE_SCOPE: StructType
 STRUCT_TYPE_ORIGIN: StructType
 STRUCT_TYPE_NODE_REFERENCE: StructType
 STRUCT_TYPE_PROPERTY_REFERENCE: StructType
+STRUCT_TYPE_PROPERTY_INFO: StructType
+STRUCT_TYPE_TRAIT_INFO: StructType
+STRUCT_TYPE_NODE_INFO: StructType
+STRUCT_TYPE_STRUCT_INFO: StructType
+STRUCT_TYPE_ENUM_INFO: StructType
+STRUCT_TYPE_ENUM_OPTION_INFO: StructType
 STRUCT_TYPE_EDIT: StructType
 STRUCT_TYPE_CHANGE: StructType
 STRUCT_TYPE_CHANGE_RESULT: StructType
@@ -3219,6 +3231,40 @@ class EffectStyleData(_message.Message):
     offscreen: OffscreenBehavior
     transition: TransitionData
     def __init__(self, metatype: _Optional[_Union[NodeType, str]] = ..., id: _Optional[str] = ..., parent_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., bench_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., package_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., created_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., created_by_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., updated_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., updated_by_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., archived_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., deleted_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., template_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., mode: _Optional[_Union[NodeMode, str]] = ..., order_key: _Optional[str] = ..., type: _Optional[_Union[EffectType, str]] = ..., name: _Optional[str] = ..., block_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., style_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., opacity: _Optional[float] = ..., offset: _Optional[_Union[Vector2Data, _Mapping]] = ..., scale: _Optional[float] = ..., rotate: _Optional[_Union[Axis3Data, _Mapping]] = ..., skew: _Optional[_Union[Vector2Data, _Mapping]] = ..., perspective: _Optional[float] = ..., delay: _Optional[_Union[_duration_pb2.Duration, _Mapping]] = ..., duration: _Optional[float] = ..., threshold: _Optional[float] = ..., once: bool = ..., repeat: _Optional[_Union[RepeatType, str]] = ..., split: _Optional[_Union[TextSplitType, str]] = ..., offscreen: _Optional[_Union[OffscreenBehavior, str]] = ..., transition: _Optional[_Union[TransitionData, _Mapping]] = ...) -> None: ...
+
+class EnumInfoData(_message.Message):
+    __slots__ = ("metatype", "id", "type", "name", "icon", "description", "options")
+    METATYPE_FIELD_NUMBER: _ClassVar[int]
+    ID_FIELD_NUMBER: _ClassVar[int]
+    TYPE_FIELD_NUMBER: _ClassVar[int]
+    NAME_FIELD_NUMBER: _ClassVar[int]
+    ICON_FIELD_NUMBER: _ClassVar[int]
+    DESCRIPTION_FIELD_NUMBER: _ClassVar[int]
+    OPTIONS_FIELD_NUMBER: _ClassVar[int]
+    metatype: StructType
+    id: int
+    type: EnumType
+    name: str
+    icon: IconData
+    description: str
+    options: _containers.RepeatedCompositeFieldContainer[EnumOptionInfoData]
+    def __init__(self, metatype: _Optional[_Union[StructType, str]] = ..., id: _Optional[int] = ..., type: _Optional[_Union[EnumType, str]] = ..., name: _Optional[str] = ..., icon: _Optional[_Union[IconData, _Mapping]] = ..., description: _Optional[str] = ..., options: _Optional[_Iterable[_Union[EnumOptionInfoData, _Mapping]]] = ...) -> None: ...
+
+class EnumOptionInfoData(_message.Message):
+    __slots__ = ("metatype", "id", "type", "name", "icon", "description")
+    METATYPE_FIELD_NUMBER: _ClassVar[int]
+    ID_FIELD_NUMBER: _ClassVar[int]
+    TYPE_FIELD_NUMBER: _ClassVar[int]
+    NAME_FIELD_NUMBER: _ClassVar[int]
+    ICON_FIELD_NUMBER: _ClassVar[int]
+    DESCRIPTION_FIELD_NUMBER: _ClassVar[int]
+    metatype: StructType
+    id: int
+    type: EnumType
+    name: str
+    icon: IconData
+    description: str
+    def __init__(self, metatype: _Optional[_Union[StructType, str]] = ..., id: _Optional[int] = ..., type: _Optional[_Union[EnumType, str]] = ..., name: _Optional[str] = ..., icon: _Optional[_Union[IconData, _Mapping]] = ..., description: _Optional[str] = ...) -> None: ...
 
 class ErrorData(_message.Message):
     __slots__ = ("metatype", "type", "title", "text", "nodes_ptr")
@@ -4347,6 +4393,26 @@ class NodeConstraintData(_message.Message):
     node_traits: _containers.RepeatedScalarFieldContainer[TraitType]
     def __init__(self, metatype: _Optional[_Union[StructType, str]] = ..., node_types: _Optional[_Iterable[_Union[NodeType, str]]] = ..., node_traits: _Optional[_Iterable[_Union[TraitType, str]]] = ...) -> None: ...
 
+class NodeInfoData(_message.Message):
+    __slots__ = ("metatype", "id", "type", "name", "icon", "description", "properties", "traits")
+    METATYPE_FIELD_NUMBER: _ClassVar[int]
+    ID_FIELD_NUMBER: _ClassVar[int]
+    TYPE_FIELD_NUMBER: _ClassVar[int]
+    NAME_FIELD_NUMBER: _ClassVar[int]
+    ICON_FIELD_NUMBER: _ClassVar[int]
+    DESCRIPTION_FIELD_NUMBER: _ClassVar[int]
+    PROPERTIES_FIELD_NUMBER: _ClassVar[int]
+    TRAITS_FIELD_NUMBER: _ClassVar[int]
+    metatype: StructType
+    id: int
+    type: NodeType
+    name: str
+    icon: IconData
+    description: str
+    properties: _containers.RepeatedCompositeFieldContainer[PropertyInfoData]
+    traits: _containers.RepeatedScalarFieldContainer[TraitType]
+    def __init__(self, metatype: _Optional[_Union[StructType, str]] = ..., id: _Optional[int] = ..., type: _Optional[_Union[NodeType, str]] = ..., name: _Optional[str] = ..., icon: _Optional[_Union[IconData, _Mapping]] = ..., description: _Optional[str] = ..., properties: _Optional[_Iterable[_Union[PropertyInfoData, _Mapping]]] = ..., traits: _Optional[_Iterable[_Union[TraitType, str]]] = ...) -> None: ...
+
 class NodeReferenceData(_message.Message):
     __slots__ = ("metatype", "node_type", "id", "bench_id", "definition_id")
     METATYPE_FIELD_NUMBER: _ClassVar[int]
@@ -4692,6 +4758,74 @@ class PositionData(_message.Message):
     width: LengthData
     height: LengthData
     def __init__(self, metatype: _Optional[_Union[StructType, str]] = ..., type: _Optional[_Union[PositionType, str]] = ..., top: _Optional[_Union[LengthData, _Mapping]] = ..., left: _Optional[_Union[LengthData, _Mapping]] = ..., width: _Optional[_Union[LengthData, _Mapping]] = ..., height: _Optional[_Union[LengthData, _Mapping]] = ...) -> None: ...
+
+class PropertyInfoData(_message.Message):
+    __slots__ = ("metatype", "id", "name", "icon", "description", "cardinality", "scalar_type", "primitive_type", "enum_type", "node_type", "struct_type", "base_type_ptr", "key_type", "is_required", "is_variable", "is_external", "default", "default_factory", "collection_constraint", "string_constraint", "number_constraint", "node_constraint", "node_is_customizable", "edge_type", "cascade", "is_wired", "is_stored", "is_repr", "is_hash", "is_eq", "is_managed", "is_computed")
+    METATYPE_FIELD_NUMBER: _ClassVar[int]
+    ID_FIELD_NUMBER: _ClassVar[int]
+    NAME_FIELD_NUMBER: _ClassVar[int]
+    ICON_FIELD_NUMBER: _ClassVar[int]
+    DESCRIPTION_FIELD_NUMBER: _ClassVar[int]
+    CARDINALITY_FIELD_NUMBER: _ClassVar[int]
+    SCALAR_TYPE_FIELD_NUMBER: _ClassVar[int]
+    PRIMITIVE_TYPE_FIELD_NUMBER: _ClassVar[int]
+    ENUM_TYPE_FIELD_NUMBER: _ClassVar[int]
+    NODE_TYPE_FIELD_NUMBER: _ClassVar[int]
+    STRUCT_TYPE_FIELD_NUMBER: _ClassVar[int]
+    BASE_TYPE_PTR_FIELD_NUMBER: _ClassVar[int]
+    KEY_TYPE_FIELD_NUMBER: _ClassVar[int]
+    IS_REQUIRED_FIELD_NUMBER: _ClassVar[int]
+    IS_VARIABLE_FIELD_NUMBER: _ClassVar[int]
+    IS_EXTERNAL_FIELD_NUMBER: _ClassVar[int]
+    DEFAULT_FIELD_NUMBER: _ClassVar[int]
+    DEFAULT_FACTORY_FIELD_NUMBER: _ClassVar[int]
+    COLLECTION_CONSTRAINT_FIELD_NUMBER: _ClassVar[int]
+    STRING_CONSTRAINT_FIELD_NUMBER: _ClassVar[int]
+    NUMBER_CONSTRAINT_FIELD_NUMBER: _ClassVar[int]
+    NODE_CONSTRAINT_FIELD_NUMBER: _ClassVar[int]
+    NODE_IS_CUSTOMIZABLE_FIELD_NUMBER: _ClassVar[int]
+    EDGE_TYPE_FIELD_NUMBER: _ClassVar[int]
+    CASCADE_FIELD_NUMBER: _ClassVar[int]
+    IS_WIRED_FIELD_NUMBER: _ClassVar[int]
+    IS_STORED_FIELD_NUMBER: _ClassVar[int]
+    IS_REPR_FIELD_NUMBER: _ClassVar[int]
+    IS_HASH_FIELD_NUMBER: _ClassVar[int]
+    IS_EQ_FIELD_NUMBER: _ClassVar[int]
+    IS_MANAGED_FIELD_NUMBER: _ClassVar[int]
+    IS_COMPUTED_FIELD_NUMBER: _ClassVar[int]
+    metatype: StructType
+    id: int
+    name: str
+    icon: IconData
+    description: str
+    cardinality: TypeCardinality
+    scalar_type: ScalarType
+    primitive_type: PrimitiveType
+    enum_type: EnumType
+    node_type: NodeType
+    struct_type: StructType
+    base_type_ptr: NodeReferenceData
+    key_type: TypeData
+    is_required: bool
+    is_variable: bool
+    is_external: bool
+    default: ValueData
+    default_factory: DefaultFactory
+    collection_constraint: CollectionConstraintData
+    string_constraint: StringConstraintData
+    number_constraint: NumberConstraintData
+    node_constraint: NodeConstraintData
+    node_is_customizable: bool
+    edge_type: EdgeType
+    cascade: CascadeAction
+    is_wired: bool
+    is_stored: bool
+    is_repr: bool
+    is_hash: bool
+    is_eq: bool
+    is_managed: bool
+    is_computed: bool
+    def __init__(self, metatype: _Optional[_Union[StructType, str]] = ..., id: _Optional[int] = ..., name: _Optional[str] = ..., icon: _Optional[_Union[IconData, _Mapping]] = ..., description: _Optional[str] = ..., cardinality: _Optional[_Union[TypeCardinality, str]] = ..., scalar_type: _Optional[_Union[ScalarType, str]] = ..., primitive_type: _Optional[_Union[PrimitiveType, str]] = ..., enum_type: _Optional[_Union[EnumType, str]] = ..., node_type: _Optional[_Union[NodeType, str]] = ..., struct_type: _Optional[_Union[StructType, str]] = ..., base_type_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., key_type: _Optional[_Union[TypeData, _Mapping]] = ..., is_required: bool = ..., is_variable: bool = ..., is_external: bool = ..., default: _Optional[_Union[ValueData, _Mapping]] = ..., default_factory: _Optional[_Union[DefaultFactory, str]] = ..., collection_constraint: _Optional[_Union[CollectionConstraintData, _Mapping]] = ..., string_constraint: _Optional[_Union[StringConstraintData, _Mapping]] = ..., number_constraint: _Optional[_Union[NumberConstraintData, _Mapping]] = ..., node_constraint: _Optional[_Union[NodeConstraintData, _Mapping]] = ..., node_is_customizable: bool = ..., edge_type: _Optional[_Union[EdgeType, str]] = ..., cascade: _Optional[_Union[CascadeAction, str]] = ..., is_wired: bool = ..., is_stored: bool = ..., is_repr: bool = ..., is_hash: bool = ..., is_eq: bool = ..., is_managed: bool = ..., is_computed: bool = ...) -> None: ...
 
 class PropertyReferenceData(_message.Message):
     __slots__ = ("metatype", "node_type", "struct_type", "id")
@@ -5511,6 +5645,24 @@ class StringConstraintData(_message.Message):
     ends_with: str
     def __init__(self, metatype: _Optional[_Union[StructType, str]] = ..., format: _Optional[_Union[StringFormat, str]] = ..., regex: _Optional[str] = ..., starts_with: _Optional[str] = ..., ends_with: _Optional[str] = ...) -> None: ...
 
+class StructInfoData(_message.Message):
+    __slots__ = ("metatype", "id", "type", "name", "icon", "description", "properties")
+    METATYPE_FIELD_NUMBER: _ClassVar[int]
+    ID_FIELD_NUMBER: _ClassVar[int]
+    TYPE_FIELD_NUMBER: _ClassVar[int]
+    NAME_FIELD_NUMBER: _ClassVar[int]
+    ICON_FIELD_NUMBER: _ClassVar[int]
+    DESCRIPTION_FIELD_NUMBER: _ClassVar[int]
+    PROPERTIES_FIELD_NUMBER: _ClassVar[int]
+    metatype: StructType
+    id: int
+    type: StructType
+    name: str
+    icon: IconData
+    description: str
+    properties: _containers.RepeatedCompositeFieldContainer[PropertyInfoData]
+    def __init__(self, metatype: _Optional[_Union[StructType, str]] = ..., id: _Optional[int] = ..., type: _Optional[_Union[StructType, str]] = ..., name: _Optional[str] = ..., icon: _Optional[_Union[IconData, _Mapping]] = ..., description: _Optional[str] = ..., properties: _Optional[_Iterable[_Union[PropertyInfoData, _Mapping]]] = ...) -> None: ...
+
 class TaskData(_message.Message):
     __slots__ = ("metatype", "id", "parent_ptr", "bench_ptr", "package_ptr", "created_at", "created_by_ptr", "updated_at", "updated_by_ptr", "archived_at", "deleted_at", "template_ptr", "owned_by_ptr", "mode", "order_key", "title", "block_ptr", "due_at", "assigned_to_ptr", "status", "duration", "error", "interruption_ptr", "scheduled_at", "started_at", "active_at", "interrupted_at", "terminated_at", "requested_stop_at", "requested_pause_at", "requested_resume_at")
     METATYPE_FIELD_NUMBER: _ClassVar[int]
@@ -5877,6 +6029,26 @@ class ThreadViewData(_message.Message):
     draft_text: TextData
     draft_reply_to_ptr: NodeReferenceData
     def __init__(self, metatype: _Optional[_Union[NodeType, str]] = ..., id: _Optional[str] = ..., parent_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., bench_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., package_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., created_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., created_by_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., updated_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., updated_by_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., archived_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., deleted_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., template_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., mode: _Optional[_Union[NodeMode, str]] = ..., order_key: _Optional[str] = ..., name: _Optional[str] = ..., block_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., position: _Optional[_Union[PositionData, _Mapping]] = ..., width: _Optional[_Union[DimensionData, _Mapping]] = ..., height: _Optional[_Union[DimensionData, _Mapping]] = ..., min_width: _Optional[_Union[DimensionData, _Mapping]] = ..., min_height: _Optional[_Union[DimensionData, _Mapping]] = ..., max_width: _Optional[_Union[DimensionData, _Mapping]] = ..., max_height: _Optional[_Union[DimensionData, _Mapping]] = ..., draft_text: _Optional[_Union[TextData, _Mapping]] = ..., draft_reply_to_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ...) -> None: ...
+
+class TraitInfoData(_message.Message):
+    __slots__ = ("metatype", "id", "type", "name", "icon", "description", "properties", "nodes")
+    METATYPE_FIELD_NUMBER: _ClassVar[int]
+    ID_FIELD_NUMBER: _ClassVar[int]
+    TYPE_FIELD_NUMBER: _ClassVar[int]
+    NAME_FIELD_NUMBER: _ClassVar[int]
+    ICON_FIELD_NUMBER: _ClassVar[int]
+    DESCRIPTION_FIELD_NUMBER: _ClassVar[int]
+    PROPERTIES_FIELD_NUMBER: _ClassVar[int]
+    NODES_FIELD_NUMBER: _ClassVar[int]
+    metatype: StructType
+    id: int
+    type: TraitType
+    name: str
+    icon: IconData
+    description: str
+    properties: _containers.RepeatedCompositeFieldContainer[PropertyInfoData]
+    nodes: _containers.RepeatedScalarFieldContainer[NodeType]
+    def __init__(self, metatype: _Optional[_Union[StructType, str]] = ..., id: _Optional[int] = ..., type: _Optional[_Union[TraitType, str]] = ..., name: _Optional[str] = ..., icon: _Optional[_Union[IconData, _Mapping]] = ..., description: _Optional[str] = ..., properties: _Optional[_Iterable[_Union[PropertyInfoData, _Mapping]]] = ..., nodes: _Optional[_Iterable[_Union[NodeType, str]]] = ...) -> None: ...
 
 class TransitionData(_message.Message):
     __slots__ = ("metatype", "type", "style_ptr", "delay", "duration", "ease", "stiffness", "damping", "mass", "bounce", "spring_type")

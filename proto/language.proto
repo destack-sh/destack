@@ -1142,6 +1142,12 @@ enum StructType {
   STRUCT_TYPE_ORIGIN = 20001;
   STRUCT_TYPE_NODE_REFERENCE = 20002;
   STRUCT_TYPE_PROPERTY_REFERENCE = 20004;
+  STRUCT_TYPE_PROPERTY_INFO = 20010;
+  STRUCT_TYPE_TRAIT_INFO = 20011;
+  STRUCT_TYPE_NODE_INFO = 20012;
+  STRUCT_TYPE_STRUCT_INFO = 20013;
+  STRUCT_TYPE_ENUM_INFO = 20014;
+  STRUCT_TYPE_ENUM_OPTION_INFO = 20015;
   STRUCT_TYPE_EDIT = 20020;
   STRUCT_TYPE_CHANGE = 20021;
   STRUCT_TYPE_CHANGE_RESULT = 20022;
@@ -1852,6 +1858,25 @@ message EffectStyleData {
   optional TransitionData transition = 70;
 }
 
+message EnumInfoData {
+  StructType metatype = 1;
+  int64 id = 2;
+  EnumType type = 30;
+  string name = 31;
+  optional IconData icon = 34;
+  optional string description = 36;
+  repeated EnumOptionInfoData options = 50;
+}
+
+message EnumOptionInfoData {
+  StructType metatype = 1;
+  int64 id = 2;
+  EnumType type = 30;
+  string name = 31;
+  optional IconData icon = 34;
+  optional string description = 36;
+}
+
 message ErrorData {
   StructType metatype = 1;
   ErrorType type = 30;
@@ -2506,6 +2531,17 @@ message NodeConstraintData {
   repeated TraitType node_traits = 42;
 }
 
+message NodeInfoData {
+  StructType metatype = 1;
+  int64 id = 2;
+  NodeType type = 30;
+  string name = 31;
+  optional IconData icon = 34;
+  optional string description = 36;
+  repeated PropertyInfoData properties = 50;
+  repeated TraitType traits = 51;
+}
+
 message NodeReferenceData {
   StructType metatype = 1;
   NodeType node_type = 31;
@@ -2701,6 +2737,41 @@ message PositionData {
   optional LengthData left = 51;
   optional LengthData width = 52;
   optional LengthData height = 53;
+}
+
+message PropertyInfoData {
+  StructType metatype = 1;
+  int64 id = 2;
+  string name = 31;
+  optional IconData icon = 34;
+  optional string description = 36;
+  TypeCardinality cardinality = 40;
+  ScalarType scalar_type = 41;
+  optional PrimitiveType primitive_type = 42;
+  optional EnumType enum_type = 43;
+  optional NodeType node_type = 44;
+  optional StructType struct_type = 46;
+  optional NodeReferenceData base_type_ptr = 47;
+  optional TypeData key_type = 48;
+  bool is_required = 50;
+  bool is_variable = 51;
+  bool is_external = 52;
+  optional ValueData default = 55;
+  optional DefaultFactory default_factory = 56;
+  optional CollectionConstraintData collection_constraint = 60;
+  optional StringConstraintData string_constraint = 61;
+  optional NumberConstraintData number_constraint = 62;
+  optional NodeConstraintData node_constraint = 63;
+  bool node_is_customizable = 73;
+  optional EdgeType edge_type = 74;
+  optional CascadeAction cascade = 75;
+  bool is_wired = 80;
+  bool is_stored = 81;
+  bool is_repr = 82;
+  bool is_hash = 83;
+  bool is_eq = 84;
+  bool is_managed = 85;
+  bool is_computed = 86;
 }
 
 message PropertyReferenceData {
@@ -3170,6 +3241,16 @@ message StringConstraintData {
   optional string ends_with = 43;
 }
 
+message StructInfoData {
+  StructType metatype = 1;
+  int64 id = 2;
+  StructType type = 30;
+  string name = 31;
+  optional IconData icon = 34;
+  optional string description = 36;
+  repeated PropertyInfoData properties = 50;
+}
+
 // A Task is like a to do item.
 message TaskData {
   NodeType metatype = 1;
@@ -3371,6 +3452,17 @@ message ThreadViewData {
   optional DimensionData max_height = 46;
   optional TextData draft_text = 100;
   optional NodeReferenceData draft_reply_to_ptr = 102;
+}
+
+message TraitInfoData {
+  StructType metatype = 1;
+  int64 id = 2;
+  TraitType type = 30;
+  string name = 31;
+  optional IconData icon = 34;
+  optional string description = 36;
+  repeated PropertyInfoData properties = 50;
+  repeated NodeType nodes = 51;
 }
 
 message TransitionData {

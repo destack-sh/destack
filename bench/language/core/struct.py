@@ -20,7 +20,7 @@ from .object import BuiltinObjectBase, BuiltinObjectFrozen, BuiltinObjectMutable
 from .property import _PROPERTY_SPECIFIERS, Property, property_, property_runtime_
 
 if TYPE_CHECKING:
-    pass
+    from .meta import StructInfo
 
 # pyright: reportIncompatibleVariableOverride=false
 
@@ -42,7 +42,8 @@ def struct_[_ObjectT: BuiltinObjectBase](struct_type: StructType, frozen: bool =
 class StructBase[StructDataT: AnyStructData](BuiltinObjectBase[StructDataT], abc.ABC):
     """A Struct is an ordered collection of Properties."""
 
-    metatype: ClassVar[StructType]  # type: ignore
+    metatype: ClassVar[StructType]
+    info: ClassVar["StructInfo"]
 
     __is_struct__: ClassVar[bool] = True
 

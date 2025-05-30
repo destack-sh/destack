@@ -475,8 +475,13 @@ class StructType(BuiltinEnum):
     ORIGIN = 20001
     NODE_REFERENCE = 20002
     PROPERTY_REFERENCE = 20004
-    # nocheckin: NodeInfo/StructInfo/PropertyInfo/...
-    # PROPERTY_INFO = 20010
+    PROPERTY_INFO = 20010
+    TRAIT_INFO = 20011
+    NODE_INFO = 20012
+    STRUCT_INFO = 20013
+    ENUM_INFO = 20014
+    ENUM_OPTION_INFO = 20015
+    # METHOD_INFO, ...?
     EDIT = 20020
     CHANGE = 20021
     CHANGE_RESULT = 20022

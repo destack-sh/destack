@@ -12,7 +12,6 @@ from typing import (
     assert_never,
 )
 
-from bench.language.registry import _on_completing_setup
 from bench.utils.func import hash_stable
 from bench.utils.string import Casing, to_casing
 
@@ -35,6 +34,7 @@ if TYPE_CHECKING:
         BuiltinObjectBase,
         Constraint,
         Format,
+        PropertyInfo,
         PropertyReference,
         Type,
     )
@@ -355,17 +355,18 @@ class Property(IntoType, IntoQuery if TYPE_CHECKING else object):
 
     is_wired: bool = False  # serialized onto wire (in proto)
     is_stored: bool = False  # stored in DB
-
     is_repr: bool = False  # printed BuiltinObject.__repr__
     is_hash: bool = True  # included BuiltinObject.__hash__
     is_eq: bool = True  # included BuiltinObject.equals check
     is_managed: bool = False  # set automatically by the system
     is_computed: bool = False  # set automatically at runtime
+
     can_read: Literal["any", "owner", "system"] = "any"
     can_write: Literal["any", "owner", "system"] = "any"
 
     _ref: Optional["PropertyReference"] = None
     _type: Optional["Type"] = None
+    _info: Optional["PropertyInfo"] = None
 
     def __str__(self):
         if self.component is None:
@@ -441,6 +442,14 @@ class Property(IntoType, IntoQuery if TYPE_CHECKING else object):
             self._type = self._to_type()
             assert self._type is not None, f"{self!r} has no type"
         return self._type
+
+    @property
+    def info(self) -> "PropertyInfo":
+        if self._info is None:
+            from .meta import PropertyInfo
+
+            self._info = PropertyInfo.from_property(self)
+        return self._info
 
     def _to_ptr_prop(self) -> Optional["Property"]:
         """
@@ -578,15 +587,6 @@ class Property(IntoType, IntoQuery if TYPE_CHECKING else object):
         assert (
             self.primitive_type is not None
         ), f"undetermined type {self.py_type!r} for {self!r} ({annotation!r})"
-
-
-@_on_completing_setup
-def _add_property_into_query():
-    from .query import IntoQuery
-
-    for name, attr in IntoQuery.__dict__.items():
-        if name not in Property.__dict__ and name not in ("__annotations__", "__dict__"):
-            setattr(Property, name, attr)
 
 
 def property_(
