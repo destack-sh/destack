@@ -10,7 +10,7 @@ from grpclib import GRPCError
 from grpclib import Status as GRPCStatus
 from opentelemetry import trace
 
-from bench.language import Client, Database, IsSubject, Session
+from bench.language import CellRegistry, Client, DatabaseInfo, DatabaseRegistry, IsSubject, Session
 from bench.pb2 import (
     CommitRequest,
     CommitResponse,
@@ -59,10 +59,11 @@ class HostRouterService(ServiceBase, HostBase):
     def __init__(
         self,
         id: str,
-        global_database: Database,
-        main_database: Database,
         network: Network,
         oracle: Oracle,
+        global_database: DatabaseInfo,
+        cell_registry: CellRegistry,
+        database_registry: DatabaseRegistry,
         on_error: Callable[[BaseException], None] | None,
     ):
         super().__init__(
@@ -76,7 +77,8 @@ class HostRouterService(ServiceBase, HostBase):
         self.hosts: dict[UUID, HostService] = {}
         self.hosts_lock = asyncio.Lock()
         self.global_database = global_database
-        self.main_database = main_database
+        self.cell_registry = cell_registry
+        self.database_registry = database_registry
 
     def __str__(self):
         return "shards=[*]"
@@ -98,10 +100,11 @@ class HostRouterService(ServiceBase, HostBase):
         host = HostService(
             id=f"host-{bench_id}",
             bench_id=bench_id,
-            global_database=self.global_database,
-            main_database=self.main_database,
             network=self.network,
             oracle=self.oracle,
+            global_database=self.global_database,
+            cell_registry=self.cell_registry,
+            database_registry=self.database_registry,
             on_error=self.on_error,
         )
         await host.start()

@@ -21,7 +21,8 @@ services:
         docker-entrypoint.sh postgres &
         until pg_isready -U bench; do sleep 1; done
         psql -U bench -c "CREATE DATABASE \"bench-global\";"
-        psql -U bench -c "CREATE DATABASE \"bench-regional\";"
+        psql -U bench -c "CREATE DATABASE \"bench-db-0\";"
+        psql -U bench -c "CREATE DATABASE \"bench-db-1\";"
         wait
       '
 

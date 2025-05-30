@@ -182,7 +182,7 @@ class RunPlugin(RuntimePlugin[Run, RunOp]):
         for run in commit.updated:
             # resume active runs (at root)
             if run.status.is_interrupted and run.should_resume:
-                self._queue_run(run.root or run)
+                self._queue_run(run)
 
     @override
     async def _send_in_runtime(self, op: RunOp, machine: Machine, runtime: RuntimeClient) -> None:
@@ -200,7 +200,7 @@ class RunPlugin(RuntimePlugin[Run, RunOp]):
     async def _on_failed(self, op: RunOp, error: Error) -> None:
         # mark run as failed
         run = op.run
-        async with self.host.session(commit=True):  # :StaleNodes
+        async with Session(store=self.host.database_store):  # :StaleNodes
             run.status = ProcessStatus.ABORTED if run.started_at else ProcessStatus.CANCELLED
             run.terminated_at = self.host.oracle.utc()
             if run.started_at is not None:

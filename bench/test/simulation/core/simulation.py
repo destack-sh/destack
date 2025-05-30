@@ -46,7 +46,7 @@ from .transport import SimulatedChannel
 from .user import UserHandle
 
 if TYPE_CHECKING:
-    from bench.system import DatabaseMap
+    from bench.system import DatabaseRegistry
     from bench.test.simulation.workload import Workload, WorkloadSpec
 
 logger = structlog.get_logger(__name__)
@@ -67,7 +67,7 @@ class Simulation:
         spec: SimulationSpec,
         global_database: Database,
         main_database: Database,
-        database_map: "DatabaseMap",
+        database_registry: "DatabaseRegistry",
     ):
         from bench.system import pg_engine_from_database
 
@@ -76,14 +76,14 @@ class Simulation:
         self.global_database = global_database
         self.main_database = main_database
         self.global_pg_engine = pg_engine_from_database(
-            "pg-global", global_database, NodeArea.GLOBAL_POSTGRES
+            "pg-global", global_database, NodeArea.GLOBAL_RELATIONAL
         )
         self.main_pg_engine = pg_engine_from_database(
             f"pg-main-{main_database.region.name.lower()}",
             main_database,
-            NodeArea.MAIN_POSTGRES,
+            NodeArea.MAIN_RELATIONAL,
         )
-        self.database_map = database_map
+        self.database_registry = database_registry
 
         # system
         self.random = Random(spec.seed)
@@ -445,8 +445,8 @@ async def run_simulation(spec: SimulationSpec):
     """Run a Simulation"""
     from bench.test.fixtures import (
         create_test_db,
+        make_bench_database,
         make_global_database,
-        make_main_database,
     )
 
     simulation_id = get_simulation_id(spec)
@@ -457,14 +457,14 @@ async def run_simulation(spec: SimulationSpec):
 
     # config
     global_database = make_global_database(f"test-{simulation_id}-global")
-    main_database = make_main_database(f"test-{simulation_id}-main")
-    database_map = DatabaseMap({"*": main_database})
+    main_database = make_bench_database(f"test-{simulation_id}-main")
+    database_registry = DatabaseRegistry({"*": main_database})
     simulation = Simulation(
         id=simulation_id,
         spec=spec,
         global_database=global_database,
         main_database=main_database,
-        database_map=database_map,
+        database_registry=database_registry,
     )
 
     try:
@@ -500,7 +500,7 @@ async def run_simulation(spec: SimulationSpec):
         del spec
         del global_database
         del main_database
-        del database_map
+        del database_registry
         del simulation
         gc.collect()
         log.info("simulation.terminate", span="current")

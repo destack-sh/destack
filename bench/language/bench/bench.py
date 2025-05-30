@@ -4,7 +4,6 @@ from fastuuid import UUID
 
 from bench.language.core import (
     BuiltinEnum,
-    Database,
     EnumType,
     HasIcon,
     HasName,
@@ -26,7 +25,7 @@ from bench.language.core import (
 from bench.pb2 import BenchData, BenchInviteData, BenchMembershipData
 
 if TYPE_CHECKING:
-    from bench.language import Handle, NodeReference, Package
+    from bench.language import Database, Handle, NodeReference, Package
 
 # pyright: reportIncompatibleVariableOverride=false
 
@@ -69,8 +68,12 @@ class Bench(
 
     # infra
     region: Region = property_(50, can_write="system")
-    cell_name: str = property_(51, can_write="system")
+    cell_name: str = property_(51, can_write="system")  # -> Cell?
     database: Optional["Database"] = property_(55, node_bench_from="self", can_write="system")
+    # search, analytics, vault, cache, ...
+    if TYPE_CHECKING:
+        database_ptr: Optional[NodeReference] = None
+        database_id: Optional[UUID] = None
 
 
 @enum_(EnumType.BENCH_ROLE_TYPE)

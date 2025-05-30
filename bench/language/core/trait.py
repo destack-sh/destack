@@ -18,12 +18,10 @@ from bench.utils.fractional import INTEGER_ZERO
 from bench.utils.tenacity import RetryOptions
 
 from .const import (
-    REGION,
     EdgeType,
     NodeMode,
     NodeType,
     ProcessStatus,
-    Region,
     ResourceStatus,
     TraitType,
 )
@@ -420,15 +418,8 @@ class IsRole(Node if TYPE_CHECKING else BuiltinObjectBase):
     pass
 
 
-@trait_(TraitType.REGIONAL)
-class IsRegional(Node if TYPE_CHECKING else BuiltinObjectBase):
-    """A Node that is regional."""
-
-    region: Region = property_(23, default=REGION)
-
-
 @trait_(TraitType.RESOURCE)
-class IsResource(IsModal, IsOwnable, HasName, IsBlockable):
+class IsResource(IsModal, IsOwnable, HasName):
     """
     A Resource in a Bench, typically representing some external object.
     """

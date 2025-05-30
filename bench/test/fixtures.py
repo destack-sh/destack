@@ -5,8 +5,8 @@ from urllib.parse import urlparse
 import grpclib
 import pytest
 import structlog
+from opentelemetry import trace
 
-from bench.language.core.session import Session
 from bench.sql.client import pg_connection
 from bench.test.conftest import _setup_test_env
 
@@ -14,20 +14,8 @@ from bench.test.conftest import _setup_test_env
 # NOTE: must run setup before importing from bench
 _setup_test_env()
 
-from opentelemetry import trace
 
-from bench.language import (
-    BEGINNING_OF_TIME,
-    SYSTEM_ID,
-    SYSTEM_SYSTEM_PACKAGE_ID,
-    VERSION,
-    Bench,
-    BenchStatus,
-    Database,
-    Package,
-    PackageType,
-    Region,
-)
+from bench.language import REGION, DatabaseInfo, DatabaseType
 from bench.sql import (
     BENCH_CUSTOM_NODE_PREFIX,
     BENCH_TABLE_PREFIX,
@@ -38,103 +26,54 @@ from bench.sql import (
     generate_sql_migration_ops,
     introspect_sql_schema,
 )
+from bench.system import get_global_database_from_env
 from bench.utils.utils import get_from_env
 
 logger = structlog.get_logger(__name__)
 tracer = trace.get_tracer(__name__)
 
 
-def make_global_database(name: str):
+def make_global_database(name: str) -> DatabaseInfo:
     """Creates a global database for testing.."""
-    pg = get_from_env("GLOBAL_PG_URL", description="Global Postgres connection string")
+    pg = get_from_env("GLOBAL_DATABASE_URL", description="Global Postgres connection string")
     pg_url_parsed = urlparse(pg)
-    pg_url = pg_url_parsed._replace(path=f"/{name}").geturl()
+    sql_url = pg_url_parsed._replace(path=f"/{name}").geturl()
 
-    system_session = Session()
-    system_bench_stub = Bench(
-        id=SYSTEM_ID,
-        name="System",
-        slug="system",
-        region=Region.ZURICH,
-        status=BenchStatus.RUNNING,
-        created_at=BEGINNING_OF_TIME,
-        updated_at=BEGINNING_OF_TIME,
-        _session=system_session,
-    )
-    system_package_stub = Package(
-        parent=system_bench_stub,
-        type=PackageType.HOME,
-        id=SYSTEM_SYSTEM_PACKAGE_ID,
-        name="Home",
-        slug="home",
-        created_at=BEGINNING_OF_TIME,
-        updated_at=BEGINNING_OF_TIME,
-        _session=system_session,
-    )
-    database = Database(
-        parent=system_package_stub,
-        name=name,
-        version=VERSION,
-        external_name=name,
-        sql_url=pg_url,
-        created_at=BEGINNING_OF_TIME,
-        updated_at=BEGINNING_OF_TIME,
-        _session=system_session,
+    database = DatabaseInfo(
+        type=DatabaseType.DEDICATED,
+        region=REGION,
+        cell_name=name,
+        external_id=name,
+        sql_url=sql_url,
     )
     return database
 
 
-def make_main_database(name: str):
+def make_bench_database(name: str) -> DatabaseInfo:
     """Creates a regional database for testing."""
     assert len(name) < 64, f"name must be less than 64 characters: {name!r}"
-    pg = get_from_env("GLOBAL_PG_URL", description="Regional Postgres connection string")
+    pg = get_from_env("GLOBAL_DATABASE_URL", description="Regional Postgres connection string")
     pg_url_parsed = urlparse(pg)
     pg_url = pg_url_parsed._replace(path=f"/{name}").geturl()
-
-    system_session = Session()
-    system_bench_stub = Bench(
-        id=SYSTEM_ID,
-        name="System",
-        slug="system",
-        region=Region.ZURICH,
-        status=BenchStatus.RUNNING,
-        created_at=BEGINNING_OF_TIME,
-        updated_at=BEGINNING_OF_TIME,
-        _session=system_session,
-    )
-    system_package_stub = Package(
-        id=SYSTEM_SYSTEM_PACKAGE_ID,
-        parent=system_bench_stub,
-        type=PackageType.HOME,
-        name="Home",
-        slug="home",
-        created_at=BEGINNING_OF_TIME,
-        updated_at=BEGINNING_OF_TIME,
-        _session=system_session,
-    )
-    database = Database(
-        parent=system_package_stub,
-        name=name,
-        version=VERSION,
-        external_name=name,
+    database = DatabaseInfo(
+        type=DatabaseType.DEDICATED,
+        region=REGION,
+        cell_name="test-0",
+        external_id=name,
         sql_url=pg_url,
-        created_at=BEGINNING_OF_TIME,
-        updated_at=BEGINNING_OF_TIME,
-        _session=system_session,
     )
     return database
 
 
-async def create_blank_test_db(database: Database):
+async def create_blank_test_db(database: DatabaseInfo):
     """Creates a blank postgres database"""
-    from bench.system import get_global_database_from_env
-
     async with pg_connection(get_global_database_from_env()) as conn:
-        await conn.execute(f'DROP DATABASE IF EXISTS "{database.external_name}"')
-        await conn.execute(f'CREATE DATABASE "{database.external_name}"')
+        print(f"Creating blank test db: {database.external_id}")
+        await conn.execute(f'DROP DATABASE IF EXISTS "{database.external_id}"')
+        await conn.execute(f'CREATE DATABASE "{database.external_id}"')
 
 
-async def create_test_db(database: Database, schema: SqlSchema):
+async def create_test_db(database: DatabaseInfo, schema: SqlSchema):
     """Creates a postgres DB with one of our schemas"""
     await create_blank_test_db(database)
     async with pg_connection(database) as conn:
@@ -147,12 +86,10 @@ async def create_test_db(database: Database, schema: SqlSchema):
         await apply_sql_migration_ops(conn, migration_ops)
 
 
-async def delete_test_db(database: Database):
+async def delete_test_db(database: DatabaseInfo):
     """Deletes a postgres DB with one of our schemas"""
-    from bench.system import get_global_database_from_env
-
     async with pg_connection(get_global_database_from_env()) as conn:
-        await conn.execute(f'DROP DATABASE IF EXISTS "{database.external_name}"')
+        await conn.execute(f'DROP DATABASE IF EXISTS "{database.external_id}"')
 
 
 def _clean_name(name: str) -> str:
@@ -188,7 +125,7 @@ async def global_database(request: pytest.FixtureRequest):
 async def main_database(request: pytest.FixtureRequest):
     """Gets the per test function regional database"""
 
-    database = make_main_database(f"test-{_clean_name(request.node.name)[:32]}-main")
+    database = make_bench_database(f"test-{_clean_name(request.node.name)[:32]}-main")
     await create_test_db(database, BUILTIN_MAIN_SCHEMA)
     try:
         yield database

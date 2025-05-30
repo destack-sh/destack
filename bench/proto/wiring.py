@@ -1,7 +1,5 @@
 import calendar
-import json
 import textwrap
-from base64 import b64decode, b64encode
 from datetime import datetime, timedelta
 from itertools import chain
 from typing import TYPE_CHECKING, Any, Mapping, Union, assert_never, cast
@@ -437,16 +435,6 @@ def pack_rpc_headers(metadata: RpcMetadata) -> dict[str, str]:
         "4": metadata.client_nonce or None,
         "5": metadata.client_access_token or None,
     }
-    packed_badges = [
-        {
-            "2": badge.id,
-            "3": badge.key or None,
-            "4": badge.password or None,
-        }
-        for badge in metadata.badges
-    ]
-    if packed_badges:
-        packed["6"] = b64encode(json.dumps(packed_badges).encode("utf-8")).decode("utf-8")
     return {"x-bench-" + k: v for k, v in packed.items() if v is not None}
 
 
@@ -461,11 +449,4 @@ def unpack_rpc_headers(headers: Mapping) -> RpcMetadata:
         metadata.client_nonce = headers.get("x-bench-4")  # type: ignore
     if headers.get("x-bench-5"):
         metadata.client_access_token = headers.get("x-bench-5")  # type: ignore
-    if headers.get("6"):
-        unpacked_badges = json.loads(b64decode(headers.get("x-bench-6")).decode("utf-8"))  # type: ignore
-        for unpacked_badge in unpacked_badges:
-            metadata_badge = metadata.badges.add()
-            metadata_badge.id = unpacked_badge.get("2")
-            metadata_badge.key = unpacked_badge.get("3")
-            metadata_badge.password = unpacked_badge.get("4")
     return metadata
