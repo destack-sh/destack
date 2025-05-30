@@ -71,7 +71,7 @@ class HostService(ServiceBase, HostBase):
         id: str,
         bench_id: UUID,
         global_database: Database,
-        regional_database: Database,
+        main_database: Database,
         network: Network,
         oracle: Oracle,
         on_error: Callable[[BaseException], None] | None,
@@ -84,7 +84,7 @@ class HostService(ServiceBase, HostBase):
         self.database_store = DatabaseStore(
             {
                 NodeArea.GLOBAL_POSTGRES: global_database,
-                NodeArea.MAIN_POSTGRES: regional_database,
+                NodeArea.MAIN_POSTGRES: main_database,
             }
         )
         self.store: LiveStore = None

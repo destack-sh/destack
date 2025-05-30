@@ -135,11 +135,11 @@ class SupervisorService(ServiceBase, SupervisorBase):
 
         # get regional Database
         region = Region(request.region)
-        regional_database = self.database_map.get(region=region)
+        main_database = self.database_map.get(region=region)
         session.store = DatabaseStore(
             {
                 NodeArea.GLOBAL_POSTGRES: self.global_database,
-                NodeArea.MAIN_POSTGRES: regional_database,
+                NodeArea.MAIN_POSTGRES: main_database,
             }
         )
 

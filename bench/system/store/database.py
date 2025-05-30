@@ -89,7 +89,7 @@ def get_global_database_from_env() -> Database:
     return make_system_database(REGION, pg_url)
 
 
-def get_regional_database_from_env(region: Region = REGION) -> Database:
+def get_main_database_from_env(region: Region = REGION) -> Database:
     """Get the default regional database configured in the environment"""
     from .sharding import DATABASE_MAP
 

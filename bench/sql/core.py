@@ -542,15 +542,6 @@ class SqlTable(SqlTableObject):
                 )
             return column
 
-    def columns_include(self, other: "SqlTable") -> bool:
-        """Returns True if the columns are equal, ignoring order."""
-        for column in self._columns_by_name:
-            if column not in other._columns_by_name:
-                return False
-            if self._columns_by_name[column].type != other._columns_by_name[column].type:
-                return False
-        return True
-
     def columns_by_name(self, *names: str) -> tuple[SqlColumn, ...]:
         return tuple(self._columns_by_name[name] for name in names)
 
@@ -737,14 +728,9 @@ BASE_EXTENSIONS = (
     SqlExtension("pgcrypto"),
     SqlExtension("bloom"),
 )
-LOCAL_EXTENSIONS = (*BASE_EXTENSIONS,)
-REGIONAL_EXTENSIONS = (*BASE_EXTENSIONS,)
 GLOBAL_EXTENSIONS = (*BASE_EXTENSIONS,)
-ALL_EXTENSIONS = (
-    *LOCAL_EXTENSIONS,
-    *(ex for ex in GLOBAL_EXTENSIONS if not any(ex.name == e.name for e in LOCAL_EXTENSIONS)),
-)
-
+MAIN_EXTENSIONS = (*BASE_EXTENSIONS,)
+CUSTOM_EXTENSIONS = (*BASE_EXTENSIONS,)
 
 MIGRATION_TABLE = SqlTable(  # see bench/sql/migration.py
     "bench_migration",
@@ -752,12 +738,12 @@ MIGRATION_TABLE = SqlTable(  # see bench/sql/migration.py
         SqlColumn("id", PrimitiveType.INT32, is_primary_key=True),
         SqlColumn("version", PrimitiveType.STRING, is_unique=True),
         SqlColumn("has_global", PrimitiveType.BOOLEAN),
-        SqlColumn("has_regional", PrimitiveType.BOOLEAN),
-        SqlColumn("has_local", PrimitiveType.BOOLEAN),
+        SqlColumn("has_main", PrimitiveType.BOOLEAN),
+        SqlColumn("has_custom", PrimitiveType.BOOLEAN),
         SqlColumn("applied_at", PrimitiveType.DATETIME, is_nullable=True),
     ),
 )
 
-DEFAULT_LOCAL_TABLES: tuple[SqlTable, ...] = (MIGRATION_TABLE,)
-DEFAULT_REGIONAL_TABLES: tuple[SqlTable, ...] = (MIGRATION_TABLE,)
+DEFAULT_CUSTOM_TABLES: tuple[SqlTable, ...] = (MIGRATION_TABLE,)
+DEFAULT_MAIN_TABLES: tuple[SqlTable, ...] = (MIGRATION_TABLE,)
 DEFAULT_GLOBAL_TABLES: tuple[SqlTable, ...] = (MIGRATION_TABLE,)

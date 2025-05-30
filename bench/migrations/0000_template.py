@@ -4,8 +4,7 @@ import asyncpg
 ID = "<ID>"
 VERSION = "<VERSION>"
 HAS_GLOBAL = "<HAS_GLOBAL>"
-HAS_REGIONAL = "<HAS_REGIONAL>"
-HAS_LOCAL = "<HAS_LOCAL>"
+HAS_MAIN = "<HAS_MAIN>"
 
 
 #
@@ -22,26 +21,13 @@ async def downgrade_global(conn: asyncpg.Connection):
 
 
 #
-# Regional DB
+# Main DB
 #
 
 
-async def upgrade_regional(conn: asyncpg.Connection):
-    pass  # <upgrade_regional>
+async def upgrade_main(conn: asyncpg.Connection):
+    pass  # <upgrade_main>
 
 
-async def downgrade_regional(conn: asyncpg.Connection):
-    pass  # <downgrade_regional>
-
-
-#
-# Local DB
-#
-
-
-async def upgrade_local(conn: asyncpg.Connection):
-    pass  # <upgrade_local>
-
-
-async def downgrade_local(conn: asyncpg.Connection):
-    pass  # <downgrade_local>
+async def downgrade_main(conn: asyncpg.Connection):
+    pass  # <downgrade_main>

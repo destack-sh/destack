@@ -63,14 +63,14 @@ class Migration:
     id: int
     version: str
     has_global: bool
-    has_regional: bool
-    has_local: bool
+    has_main: bool
+    has_custom: bool
     applied_at: Optional[datetime]
     path: Optional[Path] = None  # not databased
     file: Optional["MigrationFile"] = None  # not databased
 
     def __str__(self) -> str:
-        return f"{self.id} {self.version} (has_global={self.has_global}, has_regional={self.has_regional}, has_local={self.has_local})"
+        return f"{self.id} {self.version} (has_global={self.has_global}, has_main={self.has_main}, has_custom={self.has_custom})"
 
     def __repr__(self) -> str:
         return f"<Migration {self}>"
@@ -78,8 +78,8 @@ class Migration:
     def has_area(self, area: NodeArea) -> bool:
         return (
             (area == NodeArea.GLOBAL_POSTGRES and self.has_global)
-            or (area == NodeArea.MAIN_POSTGRES and self.has_regional)
-            or (area == NodeArea.CUSTOM_POSTGRES and self.has_local)
+            or (area == NodeArea.MAIN_POSTGRES and self.has_main)
+            or (area == NodeArea.CUSTOM_POSTGRES and self.has_custom)
         )
 
 
@@ -111,8 +111,8 @@ def read_migrations_from_fs() -> list[Migration]:
             id=int(migration_metadata["ID"]),
             version=migration_metadata["VERSION"][1:-1],
             has_global=migration_metadata["HAS_GLOBAL"] == "True",
-            has_regional=migration_metadata["HAS_REGIONAL"] == "True",
-            has_local=migration_metadata["HAS_LOCAL"] == "True",
+            has_main=migration_metadata["HAS_MAIN"] == "True",
+            has_custom=migration_metadata["HAS_CUSTOM"] == "True",
             applied_at=None,
             path=migration_path,
         )
@@ -141,7 +141,7 @@ MIGRATIONS = read_migrations_from_fs()
 def has_migration_after(version_a: str, *, is_global: bool) -> bool:
     """Returns whether there is a migration between the two versions."""
     for migration in MIGRATIONS:
-        if (is_global and not migration.has_global) or (not is_global and not migration.has_local):
+        if (is_global and not migration.has_global) or (not is_global and not migration.has_custom):
             continue
         if version_a < migration.version:
             return True
@@ -360,8 +360,7 @@ def generate_sql_migration_code(
     oracle: Oracle,
     *,
     global_ops: list[MigrationOp],
-    regional_ops: list[MigrationOp],
-    local_ops: list[MigrationOp],
+    main_ops: list[MigrationOp],
     exclude_inverse: bool = False,
 ) -> str:
     """Generates the Python migration file."""
@@ -374,25 +373,19 @@ def generate_sql_migration_code(
         '"<ID>"': str(migration.id),
         '"<VERSION>"': f'"{migration.version}"',
         '"<HAS_GLOBAL>"': "True" if migration.has_global else "False",
-        '"<HAS_REGIONAL>"': "True" if migration.has_regional else "False",
-        '"<HAS_LOCAL>"': "True" if migration.has_local else "False",
+        '"<HAS_MAIN>"': "True" if migration.has_main else "False",
     }
     for key, value in metadata_substitutions.items():
         migration_code = migration_code.replace(key, value)
 
     # impute upgrade/downgrade functions
     global_ops_inverse = [op.invert() for op in global_ops[::-1]] if not exclude_inverse else None
-    regional_ops_inverse = (
-        [op.invert() for op in regional_ops[::-1]] if not exclude_inverse else None
-    )
-    local_ops_inverse = [op.invert() for op in local_ops[::-1]] if not exclude_inverse else None
+    main_ops_inverse = [op.invert() for op in main_ops[::-1]] if not exclude_inverse else None
     for method_name, ops in [
         ("upgrade_global", global_ops),
         ("downgrade_global", global_ops_inverse),
-        ("upgrade_regional", regional_ops),
-        ("downgrade_regional", regional_ops_inverse),
-        ("upgrade_local", local_ops),
-        ("downgrade_local", local_ops_inverse),
+        ("upgrade_main", main_ops),
+        ("downgrade_main", main_ops_inverse),
     ]:
         method_body = _render_migration_body(ops)
         method_placeholder = f"    pass  # <{method_name}>"
@@ -630,13 +623,6 @@ async def apply_sql_migration_ops(conn: asyncpg.Connection, ops: list[MigrationO
         raise
 
 
-async def force_create_schema(conn: asyncpg.Connection, schema: SqlSchema) -> None:
-    """Creates and applies the migrations to create the given objects in the database."""
-    # ignore existing tables
-    ops = generate_sql_migration_ops(old_schema=SqlSchema.blank(), new_schema=schema)
-    await apply_sql_migration_ops(conn, ops)
-
-
 def add_migration_to_fs(migration: Migration, code: str, *, overwrite: bool = False):
     """Writes the Python migration file."""
     migration_path = (
@@ -783,8 +769,8 @@ def pack_migration_row(migration: Migration) -> dict[str, Any]:
         "id": migration.id,
         "version": migration.version,
         "has_global": migration.has_global,
-        "has_regional": migration.has_regional,
-        "has_local": migration.has_local,
+        "has_main": migration.has_main,
+        "has_custom": migration.has_custom,
         "applied_at": migration.applied_at,
     }
 
@@ -794,8 +780,8 @@ def unpack_migration_row(row: Mapping[str, Any]) -> Migration:
         id=row["id"],
         version=row["version"],
         has_global=row["has_global"],
-        has_regional=row["has_regional"],
-        has_local=row["has_local"],
+        has_main=row["has_main"],
+        has_custom=row["has_custom"],
         applied_at=row["applied_at"],
     )
 
@@ -804,9 +790,7 @@ async def read_migrations_from_pg(
     conn: asyncpg.Connection, *, applied: bool | None = None
 ) -> list[Migration]:
     """Reads the 'bench_migration' table (if it exists) and returns the corresponding Migration."""
-    query = (
-        "SELECT id, version, has_global, has_regional, has_local, applied_at FROM bench_migration"
-    )
+    query = "SELECT id, version, has_global, has_main, has_custom, applied_at FROM bench_migration"
     if applied is not None:
         where_clause = "applied_at IS NOT NULL" if applied else "applied_at IS NULL"
         query += f" WHERE {where_clause}"
@@ -825,20 +809,20 @@ async def upsert_migrations(conn: asyncpg.Connection, migrations: list[Migration
     for migration in migrations:
         await conn.execute(
             """
-            INSERT INTO bench_migration (id, version, has_global, has_regional, has_local, applied_at)
+            INSERT INTO bench_migration (id, version, has_global, has_main, has_custom, applied_at)
             VALUES ($1, $2, $3, $4, $5, $6)
             ON CONFLICT (id) DO UPDATE SET
                 version = EXCLUDED.version,
                 has_global = EXCLUDED.has_global,
-                has_regional = EXCLUDED.has_regional,
-                has_local = EXCLUDED.has_local,
+                has_main = EXCLUDED.has_main,
+                has_custom = EXCLUDED.has_custom,
                 applied_at = EXCLUDED.applied_at
             """,
             migration.id,
             migration.version,
             migration.has_global,
-            migration.has_regional,
-            migration.has_local,
+            migration.has_main,
+            migration.has_custom,
             migration.applied_at,
         )
 
@@ -847,7 +831,7 @@ async def delete_migrations(conn: asyncpg.Connection, from_id: int, to_id: int) 
     """Deletes migrations from the database."""
     # First read the migrations that will be deleted for logging
     rows = await conn.fetch(
-        "SELECT id, version, has_global, has_regional, has_local, applied_at FROM bench_migration WHERE id >= $1 AND id <= $2",
+        "SELECT id, version, has_global, has_main, has_custom, applied_at FROM bench_migration WHERE id >= $1 AND id <= $2",
         from_id,
         to_id,
     )

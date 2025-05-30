@@ -839,10 +839,12 @@ enum NodeType {
   NODE_TYPE_PACKAGE_INVITE = 22;
   NODE_TYPE_HANDLE = 50;
   NODE_TYPE_USER = 200;
-  NODE_TYPE_CLIENT = 210;
-  NODE_TYPE_ORGANIZATION = 300;
-  NODE_TYPE_ORGANIZATION_MEMBERSHIP = 301;
-  NODE_TYPE_ORGANIZATION_INVITE = 302;
+  NODE_TYPE_FRIENDSHIP = 210;
+  NODE_TYPE_FRIENDSHIP_INVITE = 211;
+  NODE_TYPE_ORGANIZATION = 250;
+  NODE_TYPE_ORGANIZATION_MEMBERSHIP = 251;
+  NODE_TYPE_ORGANIZATION_INVITE = 252;
+  NODE_TYPE_CLIENT = 300;
   NODE_TYPE_SPACE = 600;
   NODE_TYPE_SCENE = 610;
   NODE_TYPE_ROUTE = 620;
@@ -1139,10 +1141,10 @@ enum StructType {
   STRUCT_TYPE_SCOPE = 20000;
   STRUCT_TYPE_ORIGIN = 20001;
   STRUCT_TYPE_NODE_REFERENCE = 20002;
-  STRUCT_TYPE_PROPERTY_REFERENCE = 20003;
-  STRUCT_TYPE_EDIT = 20010;
-  STRUCT_TYPE_CHANGE = 20011;
-  STRUCT_TYPE_CHANGE_RESULT = 20012;
+  STRUCT_TYPE_PROPERTY_REFERENCE = 20004;
+  STRUCT_TYPE_EDIT = 20020;
+  STRUCT_TYPE_CHANGE = 20021;
+  STRUCT_TYPE_CHANGE_RESULT = 20022;
   STRUCT_TYPE_EXPRESSION = 20100;
   STRUCT_TYPE_FUNCTION = 20101;
   STRUCT_TYPE_JOIN = 20102;
@@ -1892,7 +1894,6 @@ message FieldData {
   optional PrimitiveType primitive_type = 42;
   optional EnumType enum_type = 43;
   optional NodeType node_type = 44;
-  optional NodeReferenceData table_ptr = 45;
   optional StructType struct_type = 46;
   optional NodeReferenceData base_type_ptr = 47;
   optional TypeData key_type = 48;
@@ -2145,6 +2146,33 @@ message FrameViewData {
     CornersData radius_value = 68;
     VariableData radius_variable = 17068;
   };
+}
+
+// A Friendship between two Users.
+message FriendshipData {
+  NodeType metatype = 1;
+  string id = 2;
+  optional NodeReferenceData parent_ptr = 4;
+  google.protobuf.Timestamp created_at = 10;
+  optional NodeReferenceData created_by_ptr = 11;
+  google.protobuf.Timestamp updated_at = 12;
+  optional NodeReferenceData updated_by_ptr = 13;
+  NodeReferenceData user_a_ptr = 40;
+  NodeReferenceData user_b_ptr = 41;
+}
+
+// An invite to be friends with another User.
+message FriendshipInviteData {
+  NodeType metatype = 1;
+  string id = 2;
+  optional NodeReferenceData parent_ptr = 4;
+  google.protobuf.Timestamp created_at = 10;
+  optional NodeReferenceData created_by_ptr = 11;
+  google.protobuf.Timestamp updated_at = 12;
+  optional NodeReferenceData updated_by_ptr = 13;
+  optional google.protobuf.Timestamp deleted_at = 15;
+  NodeReferenceData member_ptr = 40;
+  NodeReferenceData inviter_ptr = 41;
 }
 
 message FunctionData {
@@ -2717,7 +2745,7 @@ message RelationReferenceData {
   StructType metatype = 1;
   RelationType type = 30;
   NodeType node_type = 31;
-  optional NodeReferenceData table_ptr = 32;
+  optional NodeReferenceData definition_ptr = 32;
 }
 
 // A Route is a path to a Scene.
@@ -2845,7 +2873,6 @@ message SchemaData {
   optional PrimitiveType primitive_type = 42;
   optional EnumType enum_type = 43;
   optional NodeType node_type = 44;
-  optional NodeReferenceData table_ptr = 45;
   optional StructType struct_type = 46;
   optional NodeReferenceData base_type_ptr = 47;
   optional TypeData key_type = 48;
@@ -3397,7 +3424,6 @@ message TypeData {
   optional PrimitiveType primitive_type = 42;
   optional EnumType enum_type = 43;
   optional NodeType node_type = 44;
-  optional NodeReferenceData table_ptr = 45;
   optional StructType struct_type = 46;
   optional NodeReferenceData base_type_ptr = 47;
   optional TypeData key_type = 48;
@@ -3505,10 +3531,12 @@ message SomeNodeData {
     PackageInviteData package_invite = 22;
     HandleData handle = 50;
     UserData user = 200;
-    ClientData client = 210;
-    OrganizationData organization = 300;
-    OrganizationMembershipData organization_membership = 301;
-    OrganizationInviteData organization_invite = 302;
+    FriendshipData friendship = 210;
+    FriendshipInviteData friendship_invite = 211;
+    OrganizationData organization = 250;
+    OrganizationMembershipData organization_membership = 251;
+    OrganizationInviteData organization_invite = 252;
+    ClientData client = 300;
     SpaceData space = 600;
     SceneData scene = 610;
     RouteData route = 620;

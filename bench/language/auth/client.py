@@ -19,6 +19,7 @@ from bench.language.core import (
     property_parent_,
     struct_,
 )
+from bench.language.core.trait import IndexIn
 from bench.pb2 import ClientData, OriginData
 
 if TYPE_CHECKING:
@@ -27,7 +28,10 @@ if TYPE_CHECKING:
 # pyright: reportIncompatibleVariableOverride=false
 
 
-@node_(NodeType.CLIENT)
+@node_(
+    NodeType.CLIENT,
+    index=(IndexIn(columns=("access_token",), is_unique=True),),
+)
 class Client(HasName, IsInBench, IsGlobal, Node[ClientData]):
     """A Client to connect with the system."""
 
@@ -46,9 +50,7 @@ class Client(HasName, IsInBench, IsGlobal, Node[ClientData]):
         user_ptr: Optional[NodeReference] = None
 
     # status
-    access_token: Optional[str] = property_(
-        50, is_unique=True, can_read="system", can_write="system"
-    )
+    access_token: Optional[str] = property_(50, can_read="system", can_write="system")
     seen_at: Optional[datetime] = property_(51, can_write="system")
     logged_in_at: Optional[datetime] = property_(52, can_write="system")
     cursor: Optional["Cursor"] = property_(55)

@@ -3,8 +3,6 @@
 from .core import (
     PrimitiveType,
     SqlColumn,
-    SqlConstraint,
-    SqlConstraintType,
     SqlIndex,
     SqlIndexType,
     SqlTable,
@@ -165,8 +163,6 @@ USER_TABLE = SqlTable(
     "bench_user",
     (
         SqlColumn("id", PrimitiveType.UUID, is_primary_key=True),
-        SqlColumn("parent_id", PrimitiveType.UUID, is_nullable=True),
-        SqlColumn("parent_definition_id", PrimitiveType.UUID, is_nullable=True),
         SqlColumn("created_at", PrimitiveType.DATETIME),
         SqlColumn("created_by_id", PrimitiveType.UUID, is_nullable=True),
         SqlColumn("updated_at", PrimitiveType.DATETIME),
@@ -183,58 +179,38 @@ USER_TABLE = SqlTable(
         SqlColumn("handle_id", PrimitiveType.UUID, is_nullable=True),
         SqlColumn("handle_bench_id", PrimitiveType.UUID, is_nullable=True),
         SqlColumn("cursor_id", PrimitiveType.UUID, is_nullable=True),
-        SqlColumn("cursor_bench_id", PrimitiveType.UUID, is_nullable=True),
-        SqlColumn("email", PrimitiveType.STRING, is_unique=True, is_nullable=True),
+        SqlColumn("email", PrimitiveType.STRING, is_nullable=True),
         SqlColumn("password_salt", PrimitiveType.BYTES, is_nullable=True),
         SqlColumn("password_hash", PrimitiveType.BYTES, is_nullable=True),
     ),
     indexes=(SqlIndex("bench_idx_email", SqlIndexType.BTREE, ("email",), is_unique=True),),
-    constraints=(
-        SqlConstraint(
-            "bench_idx_email", SqlConstraintType.UNIQUE, columns=("email",), index="bench_idx_email"
-        ),
-    ),
 )
 
-CLIENT_TABLE = SqlTable(
-    "bench_client",
+FRIENDSHIP_TABLE = SqlTable(
+    "bench_friendship",
     (
         SqlColumn("id", PrimitiveType.UUID, is_primary_key=True),
-        SqlColumn("parent_id", PrimitiveType.UUID, is_nullable=True),
-        SqlColumn("bench_id", PrimitiveType.UUID, is_nullable=True),
         SqlColumn("created_at", PrimitiveType.DATETIME),
         SqlColumn("created_by_id", PrimitiveType.UUID, is_nullable=True),
         SqlColumn("updated_at", PrimitiveType.DATETIME),
         SqlColumn("updated_by_id", PrimitiveType.UUID, is_nullable=True),
-        SqlColumn("type", PrimitiveType.INT16),
-        SqlColumn("name", PrimitiveType.STRING),
-        SqlColumn("space_id", PrimitiveType.UUID, is_nullable=True),
-        SqlColumn("space_bench_id", PrimitiveType.UUID, is_nullable=True),
-        SqlColumn("machine_id", PrimitiveType.UUID, is_nullable=True),
-        SqlColumn("machine_bench_id", PrimitiveType.UUID, is_nullable=True),
-        SqlColumn("user_id", PrimitiveType.UUID, is_nullable=True),
-        SqlColumn("device_type", PrimitiveType.STRING, is_nullable=True),
-        SqlColumn("device_name", PrimitiveType.STRING, is_nullable=True),
-        SqlColumn("operating_system", PrimitiveType.STRING, is_nullable=True),
-        SqlColumn("browser_name", PrimitiveType.STRING, is_nullable=True),
-        SqlColumn("browser_version", PrimitiveType.STRING, is_nullable=True),
-        SqlColumn("access_token", PrimitiveType.STRING, is_unique=True, is_nullable=True),
-        SqlColumn("seen_at", PrimitiveType.DATETIME, is_nullable=True),
-        SqlColumn("logged_in_at", PrimitiveType.DATETIME, is_nullable=True),
-        SqlColumn("cursor_id", PrimitiveType.UUID, is_nullable=True),
-        SqlColumn("cursor_bench_id", PrimitiveType.UUID, is_nullable=True),
+        SqlColumn("user_a_id", PrimitiveType.UUID),
+        SqlColumn("user_b_id", PrimitiveType.UUID),
     ),
-    indexes=(
-        SqlIndex("bench_idx_access_token", SqlIndexType.BTREE, ("access_token",), is_unique=True),
-        SqlIndex("bench_idx_parent_id", SqlIndexType.BTREE, ("parent_id",), cover=("id",)),
-    ),
-    constraints=(
-        SqlConstraint(
-            "bench_idx_access_token",
-            SqlConstraintType.UNIQUE,
-            columns=("access_token",),
-            index="bench_idx_access_token",
-        ),
+)
+
+FRIENDSHIP_INVITE_TABLE = SqlTable(
+    "bench_friendship_invite",
+    (
+        SqlColumn("id", PrimitiveType.UUID, is_primary_key=True),
+        SqlColumn("created_at", PrimitiveType.DATETIME),
+        SqlColumn("created_by_id", PrimitiveType.UUID, is_nullable=True),
+        SqlColumn("updated_at", PrimitiveType.DATETIME),
+        SqlColumn("updated_by_id", PrimitiveType.UUID, is_nullable=True),
+        SqlColumn("deleted_at", PrimitiveType.DATETIME, is_nullable=True),
+        SqlColumn("member_id", PrimitiveType.UUID),
+        SqlColumn("member_bench_id", PrimitiveType.UUID),
+        SqlColumn("inviter_id", PrimitiveType.UUID),
     ),
 )
 
@@ -242,8 +218,6 @@ ORGANIZATION_TABLE = SqlTable(
     "bench_organization",
     (
         SqlColumn("id", PrimitiveType.UUID, is_primary_key=True),
-        SqlColumn("parent_id", PrimitiveType.UUID, is_nullable=True),
-        SqlColumn("parent_definition_id", PrimitiveType.UUID, is_nullable=True),
         SqlColumn("created_at", PrimitiveType.DATETIME),
         SqlColumn("created_by_id", PrimitiveType.UUID, is_nullable=True),
         SqlColumn("updated_at", PrimitiveType.DATETIME),
@@ -292,6 +266,40 @@ ORGANIZATION_INVITE_TABLE = SqlTable(
         SqlColumn("role_type", PrimitiveType.INT16),
     ),
     indexes=(SqlIndex("bench_idx_parent_id", SqlIndexType.BTREE, ("parent_id",), cover=("id",)),),
+)
+
+CLIENT_TABLE = SqlTable(
+    "bench_client",
+    (
+        SqlColumn("id", PrimitiveType.UUID, is_primary_key=True),
+        SqlColumn("parent_id", PrimitiveType.UUID, is_nullable=True),
+        SqlColumn("bench_id", PrimitiveType.UUID, is_nullable=True),
+        SqlColumn("created_at", PrimitiveType.DATETIME),
+        SqlColumn("created_by_id", PrimitiveType.UUID, is_nullable=True),
+        SqlColumn("updated_at", PrimitiveType.DATETIME),
+        SqlColumn("updated_by_id", PrimitiveType.UUID, is_nullable=True),
+        SqlColumn("type", PrimitiveType.INT16),
+        SqlColumn("name", PrimitiveType.STRING),
+        SqlColumn("space_id", PrimitiveType.UUID, is_nullable=True),
+        SqlColumn("space_bench_id", PrimitiveType.UUID, is_nullable=True),
+        SqlColumn("machine_id", PrimitiveType.UUID, is_nullable=True),
+        SqlColumn("machine_bench_id", PrimitiveType.UUID, is_nullable=True),
+        SqlColumn("user_id", PrimitiveType.UUID, is_nullable=True),
+        SqlColumn("device_type", PrimitiveType.STRING, is_nullable=True),
+        SqlColumn("device_name", PrimitiveType.STRING, is_nullable=True),
+        SqlColumn("operating_system", PrimitiveType.STRING, is_nullable=True),
+        SqlColumn("browser_name", PrimitiveType.STRING, is_nullable=True),
+        SqlColumn("browser_version", PrimitiveType.STRING, is_nullable=True),
+        SqlColumn("access_token", PrimitiveType.STRING, is_nullable=True),
+        SqlColumn("seen_at", PrimitiveType.DATETIME, is_nullable=True),
+        SqlColumn("logged_in_at", PrimitiveType.DATETIME, is_nullable=True),
+        SqlColumn("cursor_id", PrimitiveType.UUID, is_nullable=True),
+        SqlColumn("cursor_bench_id", PrimitiveType.UUID, is_nullable=True),
+    ),
+    indexes=(
+        SqlIndex("bench_idx_access_token", SqlIndexType.BTREE, ("access_token",), is_unique=True),
+        SqlIndex("bench_idx_parent_id", SqlIndexType.BTREE, ("parent_id",), cover=("id",)),
+    ),
 )
 
 SPACE_TABLE = SqlTable(
@@ -886,8 +894,6 @@ SCHEMA_TABLE = SqlTable(
         SqlColumn("primitive_type", PrimitiveType.INT16, is_nullable=True),
         SqlColumn("enum_type", PrimitiveType.INT16, is_nullable=True),
         SqlColumn("node_type", PrimitiveType.INT16, is_nullable=True),
-        SqlColumn("table_id", PrimitiveType.UUID, is_nullable=True),
-        SqlColumn("table_bench_id", PrimitiveType.UUID, is_nullable=True),
         SqlColumn("struct_type", PrimitiveType.INT16, is_nullable=True),
         SqlColumn("base_type_id", PrimitiveType.UUID, is_nullable=True),
         SqlColumn("base_type_definition_id", PrimitiveType.UUID, is_nullable=True),
@@ -931,8 +937,6 @@ FIELD_TABLE = SqlTable(
         SqlColumn("primitive_type", PrimitiveType.INT16, is_nullable=True),
         SqlColumn("enum_type", PrimitiveType.INT16, is_nullable=True),
         SqlColumn("node_type", PrimitiveType.INT16, is_nullable=True),
-        SqlColumn("table_id", PrimitiveType.UUID, is_nullable=True),
-        SqlColumn("table_bench_id", PrimitiveType.UUID, is_nullable=True),
         SqlColumn("struct_type", PrimitiveType.INT16, is_nullable=True),
         SqlColumn("base_type_id", PrimitiveType.UUID, is_nullable=True),
         SqlColumn("base_type_definition_id", PrimitiveType.UUID, is_nullable=True),

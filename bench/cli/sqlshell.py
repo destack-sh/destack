@@ -32,22 +32,22 @@ async def shell(
     from bench.system import (
         DatabaseStore,
         get_global_database_from_env,
-        get_regional_database_from_env,
+        get_main_database_from_env,
     )
 
     global_database = get_global_database_from_env()
-    regional_database = get_regional_database_from_env(region)
+    main_database = get_main_database_from_env(region)
 
     if area == NodeArea.GLOBAL_POSTGRES:
         database = global_database
     elif area == NodeArea.MAIN_POSTGRES:
-        database = regional_database
+        database = main_database
     elif area == NodeArea.CUSTOM_POSTGRES:
         assert bench is not None, "bench is required for local area"
         store = DatabaseStore(
             {
                 NodeArea.GLOBAL_POSTGRES: global_database,
-                NodeArea.MAIN_POSTGRES: regional_database,
+                NodeArea.MAIN_POSTGRES: main_database,
             }
         )
         async with Session(store=store, oracle=REAL_ORACLE):

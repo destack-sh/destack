@@ -355,7 +355,6 @@ class Property(IntoType, IntoQuery if TYPE_CHECKING else object):
 
     is_wired: bool = False  # serialized onto wire (in proto)
     is_stored: bool = False  # stored in DB
-    is_unique: bool = False  # unique index in DB
 
     is_repr: bool = False  # printed BuiltinObject.__repr__
     is_hash: bool = True  # included BuiltinObject.__hash__
@@ -604,7 +603,6 @@ def property_(
     edge_type: EdgeType | None = None,
     cascade: CascadeAction | None = None,
     is_managed: bool = False,
-    is_unique: bool = False,
     is_repr: bool = False,
     is_hash: bool = True,
     is_eq: bool = True,
@@ -625,7 +623,6 @@ def property_(
         cascade=cascade,
         is_wired=True,
         is_stored=True,
-        is_unique=is_unique,
         is_managed=is_managed,
         is_repr=is_repr,
         is_hash=is_hash,
