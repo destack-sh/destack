@@ -95,23 +95,22 @@ async def system(
 ):
     """Serve both the HostRouter and the Supervisor."""
     from bench.system import (
-        DATABASE_MAP,
-        HOST_MAP,
+        CELL_REGISTRY,
+        DATABASE_REGISTRY,
         HostRouterService,
         SupervisorService,
         get_global_database_from_env,
-        get_main_database_from_env,
     )
 
     global_database = get_global_database_from_env()
-    main_database = get_main_database_from_env()
     network = RealNetwork()
     host_router = HostRouterService(
         id="host-router",
-        global_database=global_database,
-        main_database=main_database,
         network=network,
         oracle=REAL_ORACLE,
+        global_database=global_database,
+        cell_registry=CELL_REGISTRY,
+        database_registry=DATABASE_REGISTRY,
         on_error=capture_exception,
     )
     services: list[ServiceBase] = [host_router]
@@ -120,8 +119,8 @@ async def system(
         global_database=global_database,
         network=network,
         oracle=REAL_ORACLE,
-        host_map=HOST_MAP,
-        database_map=DATABASE_MAP,
+        cell_registry=CELL_REGISTRY,
+        database_registry=DATABASE_REGISTRY,
         on_error=capture_exception,
     )
     services.append(supervisor)
@@ -133,8 +132,8 @@ async def system(
 async def supervisor(host: str, port: int, watch: bool = False, no_check: bool = False):
     """Serve the Supervisor."""
     from bench.system import (
-        DATABASE_MAP,
-        HOST_MAP,
+        CELL_REGISTRY,
+        DATABASE_REGISTRY,
         SupervisorService,
         get_global_database_from_env,
     )
@@ -146,8 +145,8 @@ async def supervisor(host: str, port: int, watch: bool = False, no_check: bool =
         global_database=global_database,
         network=network,
         oracle=REAL_ORACLE,
-        host_map=HOST_MAP,
-        database_map=DATABASE_MAP,
+        cell_registry=CELL_REGISTRY,
+        database_registry=DATABASE_REGISTRY,
         on_error=capture_exception,
     )
     await _do_serve(handlers=[supervisor], network=network, host=host, port=port, watch=watch)
@@ -158,18 +157,19 @@ async def supervisor(host: str, port: int, watch: bool = False, no_check: bool =
 async def host(host: str, port: int, watch: bool = False, no_check: bool = False):
     """Serve the HostRouter."""
     from bench.system import (
+        CELL_REGISTRY,
+        DATABASE_REGISTRY,
         HostRouterService,
         get_global_database_from_env,
-        get_main_database_from_env,
     )
 
     global_database = get_global_database_from_env()
-    main_database = get_main_database_from_env()
     network = RealNetwork()
     host_router = HostRouterService(
         id="host-router",
         global_database=global_database,
-        main_database=main_database,
+        cell_registry=CELL_REGISTRY,
+        database_registry=DATABASE_REGISTRY,
         network=network,
         oracle=REAL_ORACLE,
         on_error=capture_exception,

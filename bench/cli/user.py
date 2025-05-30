@@ -1,7 +1,7 @@
 import structlog
 import typer
 
-from bench.language import NodeArea, Session, User
+from bench.language import Session, User
 from bench.utils.func import generate_salt
 
 from .utils import async_to_sync
@@ -22,7 +22,7 @@ async def set_password(user_slug: str, new_password: str):
     )
 
     global_database = get_global_database_from_env()
-    store = PostgresStore({NodeArea.GLOBAL_POSTGRES: global_database})
+    store = PostgresStore(global_database=global_database)
     async with Session(store=store) as session:
         user = await User.get(where=User.property("slug").eq(user_slug)).execute_one()
         user.password_salt = generate_salt(SALT_LENGTH)

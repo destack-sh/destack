@@ -25,7 +25,7 @@ locals {
   global_region = "eu-zurich" # global state
   main_website  = "heybench.com"
 
-  host_map = {
+  cell_registry = {
     "eu-zurich"    = "aws-eu-zurich.host.${local.main_website}:60061/443s"
     "eu-frankfurt" = "aws-eu-frankfurt.host.${local.main_website}:60061/443s"
     "na-virginia"  = "aws-na-virginia.host.${local.main_website}:60061/443s"
@@ -148,7 +148,7 @@ module "region_aws_eu_frankfurt" {
   region                 = "eu-frankfurt"
   is_primary             = true
   aws_availability_zones = ["eu-central-1a", "eu-central-1b"]
-  host_map               = local.host_map
+  cell_registry               = local.cell_registry
 
   # aws
   vpc_network_cidr            = "10.1.0.0/16"

@@ -6,11 +6,9 @@ import structlog
 import typer
 
 from bench.language.core.const import REGION, NodeArea, Region
-from bench.language.core.query import JoinType
 from bench.utils.func import sanitize_connection_url
-from bench.utils.oracle import REAL_ORACLE
 
-from .utils import async_to_sync, parse_node_area, parse_region
+from .utils import parse_node_area, parse_region
 
 if TYPE_CHECKING:
     from bench.language import NodeArea, Region
@@ -21,46 +19,23 @@ logger = structlog.get_logger(__name__)
 
 @app.callback(invoke_without_command=True)
 @app.command()
-@async_to_sync
-async def shell(
+def shell(
     area: Annotated[NodeArea, typer.Option(parser=parse_node_area)],
     region: Annotated[Region, typer.Option(parser=parse_region)] = REGION,
+    cell_name: Optional[str] = None,
+    external_id: Optional[str] = None,
     bench: Optional[str] = None,
 ):  # type: ignore
     """Open a psql shell to either the global or a Bench-local database."""
-    from bench.language import Bench, Database, NodeArea, Session, join
-    from bench.system import (
-        PostgresStore,
-        get_global_database_from_env,
-        get_main_database_from_env,
-    )
+    from bench.language import NodeArea
+    from bench.system import DATABASE_REGISTRY, get_global_database_from_env
 
-    global_database = get_global_database_from_env()
-    main_database = get_main_database_from_env(region)
-
-    if area == NodeArea.GLOBAL_POSTGRES:
-        database = global_database
-    elif area == NodeArea.MAIN_POSTGRES:
-        database = main_database
-    elif area == NodeArea.CUSTOM_POSTGRES:
-        assert bench is not None, "bench is required for local area"
-        store = PostgresStore(
-            {
-                NodeArea.GLOBAL_POSTGRES: global_database,
-                NodeArea.MAIN_POSTGRES: main_database,
-            }
-        )
-        async with Session(store=store, oracle=REAL_ORACLE):
-            bench_node = await Bench.get(
-                where=Bench.property("slug").eq(bench),
-                Database=Database.get(
-                    join=join(
-                        JoinType.LEFT, on=Database.property("id").eq(Bench.property("database"))
-                    )
-                ),
-            ).execute_one()
-            assert bench_node.database is not None, f"{bench!r} has no main database"
-            database = bench_node.database
+    if area == NodeArea.GLOBAL_RELATIONAL:
+        database = get_global_database_from_env()
+    elif area == NodeArea.MAIN_RELATIONAL:
+        assert cell_name is not None, "cell_name is required for main area"
+        assert external_id is not None, "external_id is required for main area"
+        database = DATABASE_REGISTRY.get_or_error(region, cell_name, external_id)
     else:
         raise ValueError(f"invalid area: {area!r}")
 
@@ -76,6 +51,6 @@ async def shell(
     try:
         # allow SIGINT to pass to psql to abort queries
         signal.signal(signal.SIGINT, signal.SIG_IGN)
-        subprocess.run(["psql", database.sql_url], check=True)  # noqa: ASYNC221
+        subprocess.run(["psql", database.sql_url], check=True)
     finally:
         signal.signal(signal.SIGINT, sigint_handler)

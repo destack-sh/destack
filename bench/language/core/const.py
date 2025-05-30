@@ -509,7 +509,8 @@ class StructType(BuiltinEnum):
     # ...
 
     # infra [21000-21200]
-    # VAULT, CACHE, ENDPOINT, DEPLOYMENT, NETWORK, ...
+    DATABASE_INFO = 21000
+    CELL_INFO = 21100
 
     # logic [21200-21600]
     SCHEDULE = 21200
@@ -658,9 +659,11 @@ class NodeType(BuiltinEnum):
     # CHANGE, HISTORY, SNAPSHOT, OVERLAY, BRANCH, ...
 
     # infra [1000-1200]
-    MACHINE = 1000, "Machine", "Machine for ephemeral computing", "fas fa-machine-classic"
-    DATABASE = 1010, "Database", "Database for Postgres data", "fas fa-database"
-    # DATABASE?, SEARCH/INDEX, OLAP, VAULT, CACHE, ENDPOINT, DEPLOYMENT, NETWORK, AUTOSCALER, ...
+    DATABASE = 1000, "Database", "Database for Postgres data", "fas fa-database"
+    # DATABASE?, SEARCH/INDEX, WAREHOUSE/OLAP, VAULT, CACHE, S3, ...
+    CELL = 1100, "Cell", "Cell of Bench services", "fas fa-cell"
+    MACHINE = 1150, "Machine", "Machine for ephemeral computing", "fas fa-machine-classic"
+    # HOST, ENDPOINT, DEPLOYMENT, NETWORK, AUTOSCALER, ...
 
     # logic [1200-1600]
     SERVICE = 1200, "Service", "Service", "fas fa-screwdriver-wrench"
@@ -809,7 +812,6 @@ class TraitType(BuiltinEnum):
     EXTENSIBLE = 32, "Extensible", "Can be extended", "fas fa-expand"
     IN_BENCH = 40, "Bench", "In a Bench", "fas fa-bench"
     IN_PACKAGE = 41, "Package", "In a Package", "fas fa-box"
-    REGIONAL = 50, "Regional", "Is regional", "fas fa-globe"
     RESOURCE = 51, "Resource", "Is a Resource"
     PROVISIONABLE = 52, "Provisionable", "Can be provisioned", "fas fa-server"
     # TAG, TAGGABLE, ...
@@ -877,9 +879,11 @@ class TraitType(BuiltinEnum):
 
 @enum_(EnumType.NODE_AREA)
 class NodeArea(BuiltinEnum):
-    GLOBAL_POSTGRES = 10
-    MAIN_POSTGRES = 20
-    CUSTOM_POSTGRES = 30
+    GLOBAL_RELATIONAL = 10
+    # GLOBAL_SEARCH?
+    MAIN_RELATIONAL = 20
+    # MAIN_SEARCH, MAIN_ANALYTICS, ...
+    CUSTOM_RELATIONAL = 30
 
 
 @enum_(EnumType.NODE_MODE)

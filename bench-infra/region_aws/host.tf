@@ -20,7 +20,7 @@ locals {
 
     SUPERVISOR_URL = local.supervisor_url
     HOST_MAP = join(",", flatten([
-      for k, v in var.host_map : [
+      for k, v in var.cell_registry : [
         format("%s=%s", k, v)
       ]
     ]))
@@ -33,7 +33,7 @@ locals {
   }
   host_secret_env_vars = {
     "${kubernetes_secret.db_secret.metadata[0].name}" = [
-      "GLOBAL_PG_URL",
+      "GLOBAL_DATABASE_URL",
       "REGIONAL_PG_MAP"
     ]
     "${kubernetes_secret.external_secret.metadata[0].name}" = [

@@ -7,7 +7,7 @@ resource "kubernetes_secret" "db_secret" {
 
   data = {
     # Database URLs
-    GLOBAL_PG_URL = var.global_pg_url
+    GLOBAL_DATABASE_URL = var.global_pg_url
     REGIONAL_PG_MAP = join(",", flatten([
       for k, v in {
         "${var.region}" = "postgresql://${var.regional_pg_username}:${random_password.regional_pg_password.result}@${aws_rds_cluster.regional_pg_primary.endpoint}/${var.regional_pg_name}"

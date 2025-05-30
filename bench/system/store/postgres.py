@@ -1,10 +1,9 @@
-from typing import Mapping, Sequence, override
+from typing import Sequence, override
 
 from bench.language import (
     Change,
     ChangeResult,
-    Database,
-    NodeArea,
+    DatabaseInfo,
     Query,
     QueryResult,
     Store,
@@ -16,11 +15,14 @@ class PostgresStore(Store):
     A Store backed by real Postgres Databases.
     """
 
-    def __init__(self, database_by_area: Mapping[NodeArea, Database]):
-        self.database_by_area: dict[NodeArea, Database] = {**database_by_area}
-
-    def add_database(self, area: NodeArea, database: Database) -> None:
-        self.database_by_area[area] = database
+    def __init__(
+        self,
+        *,
+        global_database: DatabaseInfo,
+        bench_database: DatabaseInfo | None = None,
+    ):
+        self.global_database = global_database
+        self.bench_database = bench_database
 
     @override
     async def query(self, query: Query) -> QueryResult:

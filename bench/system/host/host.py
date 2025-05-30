@@ -8,15 +8,16 @@ from opentelemetry import trace
 from bench.language import (
     CLOUD,
     Bench,
+    CellRegistry,
     Change,
     Client,
     Database,
+    DatabaseInfo,
+    DatabaseRegistry,
     IsSubject,
     LiveStore,
-    NodeArea,
     NodeReference,
     NodeType,
-    Package,
     Query,
     Scope,
     Session,
@@ -70,24 +71,30 @@ class HostService(ServiceBase, HostBase):
         self,
         id: str,
         bench_id: UUID,
-        global_database: Database,
-        main_database: Database,
         network: Network,
         oracle: Oracle,
+        global_database: DatabaseInfo,
+        cell_registry: CellRegistry,
+        database_registry: DatabaseRegistry,
         on_error: Callable[[BaseException], None] | None,
     ):
+        super().__init__(
+            id=id,
+            logger=logger,
+            tracer=tracer,
+            network=network,
+            oracle=oracle,
+            on_error=on_error,
+        )
         self.bench_id = bench_id
         self.bench_ptr = NodeReference(node_type=NodeType.BENCH, id=bench_id, bench_id=bench_id)
         self.scope = Scope(bench_id=bench_id)
         self.provisioners: tuple[Provisioner, ...] = ()
         self.plugins: tuple[HostPlugin, ...] = ()  # incl. provisioners
-        self.database_store = PostgresStore(
-            {
-                NodeArea.GLOBAL_POSTGRES: global_database,
-                NodeArea.MAIN_POSTGRES: main_database,
-            }
-        )
-        self.store: LiveStore = None
+        self.database_store = PostgresStore(global_database=global_database)
+        self.store: LiveStore = ...  # type: ignore nocheckin
+        self.cell_registry = cell_registry
+        self.database_registry = database_registry
 
     def __str__(self):
         return f"{self.bench_id}"
@@ -105,12 +112,10 @@ class HostService(ServiceBase, HostBase):
         async with Session(store=self.database_store):
             bench = await Bench.get(
                 where=Bench.property("id").eq(self.bench_id),
-                Packages=Package.search(
-                    Databases=Database.search(),
-                ),
+                Databases=Database.search(),
             ).execute_one()
             if (database := bench.database) is not None:
-                self.database_store.add_database(NodeArea.CUSTOM_POSTGRES, database)
+                self.database_store.bench_database = database.to_info()
 
     def stop(self) -> None:
         super().stop()

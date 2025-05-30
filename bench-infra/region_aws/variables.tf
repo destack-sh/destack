@@ -32,7 +32,7 @@ variable "is_primary" {
   description = "Whether this is the primary region (with the supervisor)"
 }
 
-variable "host_map" {
+variable "cell_registry" {
   type        = map(string)
   description = "Host map"
 }

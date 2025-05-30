@@ -41,10 +41,10 @@ class SupervisorHandle(ServiceHandle[SupervisorSpec, "SupervisorService", Superv
         self._service = SupervisorService(
             id=self.id,
             global_database=self.simulation.global_database,
-            database_map=self.simulation.database_map,
+            database_registry=self.simulation.database_registry,
             network=self.simulation.network.network,
             oracle=self.oracle,
-            host_map=SimulatedHostMap(self.simulation),
+            cell_registry=SimulatedHostMap(self.simulation),
             on_error=self.simulation.on_error,
             # we create Machines manually (via MachineHandle) in simulation
             create_bench_options=CreateBenchOptions(create_machine_scaler=False),

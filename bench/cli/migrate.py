@@ -1,4 +1,3 @@
-import sys
 import time
 from pathlib import Path
 from typing import TYPE_CHECKING, Annotated, Optional
@@ -34,15 +33,13 @@ async def make(
     overwrite: bool = typer.Option(default=False, help="overwrite existing migration for version"),
     from_scratch: bool = typer.Option(default=False, help="generate migration from scratch"),
 ):
-    from bench.language import VERSION, Bench, Database, NodeArea, Package
+    from bench.language import VERSION, NodeArea
     from bench.sql import (
         BENCH_CUSTOM_NODE_PREFIX,
         BENCH_TABLE_PREFIX,
-        BUILTIN_CUSTOM_SCHEMA,
         BUILTIN_GLOBAL_SCHEMA,
         BUILTIN_MAIN_SCHEMA,
         Migration,
-        SqlSchema,
         add_migration_to_fs,
         generate_sql_migration_code,
         generate_sql_migration_ops,
@@ -51,14 +48,10 @@ async def make(
         read_migrations_from_fs,
         read_migrations_from_pg,
     )
-    from bench.system import (
-        get_global_database_from_env,
-        get_main_database_from_env,
-    )
+    from bench.system import get_global_database_from_env
 
     start = time.time()
     global_database = get_global_database_from_env()
-    main_database = get_main_database_from_env(region)
 
     # check existing migrations for inconsistencies
     file_migrations = read_migrations_from_fs()
@@ -82,38 +75,8 @@ async def make(
             f"databased migrations are ahead of file migrations:\ndatabased={databased_migrations!r}\nfile={file_migrations!r}"
         )
 
-    # diff local
-    if area in (None, NodeArea.CUSTOM_POSTGRES):
-        if not from_scratch:
-            try:
-                async with global_session(
-                    global_database, (global_pg_engine, main_pg_engine), oracle=REAL_ORACLE
-                ):
-                    bench_node = await Bench.get(
-                        where=Bench.property("slug").eq(bench),
-                        Packages=Package.search(Databases=Database.search()),
-                    ).execute_one()
-                    assert bench_node.database, f"{bench!r} has no main database"
-                    async with pg_connection(bench_node.database) as conn:
-                        old_custom_schema = await introspect_sql_schema(
-                            conn,
-                            include_table_prefixes=(BENCH_TABLE_PREFIX,),
-                            exclude_table_prefixes=(BENCH_CUSTOM_NODE_PREFIX,),
-                        )
-            except SqlUndefinedObjectError as e:
-                # missing from_scratch flag?
-                console.print(f"[red]couldn't make migrations (missing --from-scratch?): {e}[/red]")
-                sys.exit(-1)
-        else:
-            old_custom_schema = SqlSchema.blank()
-        custom_migration_ops = generate_sql_migration_ops(
-            old_schema=old_custom_schema, new_schema=BUILTIN_CUSTOM_SCHEMA
-        )
-    else:
-        custom_migration_ops = []
-
     # diff main
-    if area in (None, NodeArea.MAIN_POSTGRES):
+    if area in (None, NodeArea.MAIN_RELATIONAL):
         async with pg_connection(main_database) as conn:
             old_main_schema = await introspect_sql_schema(
                 conn,
@@ -127,7 +90,7 @@ async def make(
         main_migration_ops = []
 
     # diff global
-    if area in (None, NodeArea.GLOBAL_POSTGRES):
+    if area in (None, NodeArea.GLOBAL_RELATIONAL):
         async with pg_connection(global_database) as conn:
             old_global_schema = await introspect_sql_schema(
                 conn,
@@ -195,9 +158,9 @@ async def apply(
     main_database = get_main_database_from_env(region or REGION)
 
     # resolve databases to migrate
-    if area == NodeArea.MAIN_POSTGRES:
+    if area == NodeArea.MAIN_RELATIONAL:
         databases = [main_database]
-    elif area == NodeArea.GLOBAL_POSTGRES:
+    elif area == NodeArea.GLOBAL_RELATIONAL:
         databases = [global_database]
     else:
         raise RuntimeError(f"cannot migrate area: {area!r}")

@@ -41,29 +41,6 @@ export interface RpcMetadata {
      * @generated from protobuf field: optional string client_access_token = 5;
      */
     clientAccessToken?: string;
-    /**
-     * @generated from protobuf field: repeated symbol.bench.RpcMetadata.BadgeInfo badges = 6;
-     */
-    badges: RpcMetadata_BadgeInfo[];
-}
-/**
- * Badges
- *
- * @generated from protobuf message symbol.bench.RpcMetadata.BadgeInfo
- */
-export interface RpcMetadata_BadgeInfo {
-    /**
-     * @generated from protobuf field: optional string id = 2;
-     */
-    id?: string;
-    /**
-     * @generated from protobuf field: optional string key = 3;
-     */
-    key?: string;
-    /**
-     * @generated from protobuf field: optional string password = 4;
-     */
-    password?: string;
 }
 /**
  * @generated from protobuf enum symbol.bench.ServiceKind
@@ -89,13 +66,11 @@ class RpcMetadata$Type extends MessageType<RpcMetadata> {
             { no: 2, name: "client_type", kind: "enum", opt: true, T: () => ["symbol.bench.ClientType", ClientType, "CLIENT_TYPE_"] },
             { no: 3, name: "client_id", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
             { no: 4, name: "client_nonce", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
-            { no: 5, name: "client_access_token", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
-            { no: 6, name: "badges", kind: "message", repeat: 1 /*RepeatType.PACKED*/, T: () => RpcMetadata_BadgeInfo }
+            { no: 5, name: "client_access_token", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ }
         ]);
     }
     create(value?: PartialMessage<RpcMetadata>): RpcMetadata {
         const message = globalThis.Object.create((this.messagePrototype!));
-        message.badges = [];
         if (value !== undefined)
             reflectionMergePartial<RpcMetadata>(this, message, value);
         return message;
@@ -116,9 +91,6 @@ class RpcMetadata$Type extends MessageType<RpcMetadata> {
                     break;
                 case /* optional string client_access_token */ 5:
                     message.clientAccessToken = reader.string();
-                    break;
-                case /* repeated symbol.bench.RpcMetadata.BadgeInfo badges */ 6:
-                    message.badges.push(RpcMetadata_BadgeInfo.internalBinaryRead(reader, reader.uint32(), options));
                     break;
                 default:
                     let u = options.readUnknownField;
@@ -144,9 +116,6 @@ class RpcMetadata$Type extends MessageType<RpcMetadata> {
         /* optional string client_access_token = 5; */
         if (message.clientAccessToken !== undefined)
             writer.tag(5, WireType.LengthDelimited).string(message.clientAccessToken);
-        /* repeated symbol.bench.RpcMetadata.BadgeInfo badges = 6; */
-        for (let i = 0; i < message.badges.length; i++)
-            RpcMetadata_BadgeInfo.internalBinaryWrite(message.badges[i], writer.tag(6, WireType.LengthDelimited).fork(), options).join();
         let u = options.writeUnknownFields;
         if (u !== false)
             (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
@@ -157,63 +126,3 @@ class RpcMetadata$Type extends MessageType<RpcMetadata> {
  * @generated MessageType for protobuf message symbol.bench.RpcMetadata
  */
 export const RpcMetadata = new RpcMetadata$Type();
-// @generated message type with reflection information, may provide speed optimized methods
-class RpcMetadata_BadgeInfo$Type extends MessageType<RpcMetadata_BadgeInfo> {
-    constructor() {
-        super("symbol.bench.RpcMetadata.BadgeInfo", [
-            { no: 2, name: "id", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
-            { no: 3, name: "key", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
-            { no: 4, name: "password", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ }
-        ]);
-    }
-    create(value?: PartialMessage<RpcMetadata_BadgeInfo>): RpcMetadata_BadgeInfo {
-        const message = globalThis.Object.create((this.messagePrototype!));
-        if (value !== undefined)
-            reflectionMergePartial<RpcMetadata_BadgeInfo>(this, message, value);
-        return message;
-    }
-    internalBinaryRead(reader: IBinaryReader, length: number, options: BinaryReadOptions, target?: RpcMetadata_BadgeInfo): RpcMetadata_BadgeInfo {
-        let message = target ?? this.create(), end = reader.pos + length;
-        while (reader.pos < end) {
-            let [fieldNo, wireType] = reader.tag();
-            switch (fieldNo) {
-                case /* optional string id */ 2:
-                    message.id = reader.string();
-                    break;
-                case /* optional string key */ 3:
-                    message.key = reader.string();
-                    break;
-                case /* optional string password */ 4:
-                    message.password = reader.string();
-                    break;
-                default:
-                    let u = options.readUnknownField;
-                    if (u === "throw")
-                        throw new globalThis.Error(`Unknown field ${fieldNo} (wire type ${wireType}) for ${this.typeName}`);
-                    let d = reader.skip(wireType);
-                    if (u !== false)
-                        (u === true ? UnknownFieldHandler.onRead : u)(this.typeName, message, fieldNo, wireType, d);
-            }
-        }
-        return message;
-    }
-    internalBinaryWrite(message: RpcMetadata_BadgeInfo, writer: IBinaryWriter, options: BinaryWriteOptions): IBinaryWriter {
-        /* optional string id = 2; */
-        if (message.id !== undefined)
-            writer.tag(2, WireType.LengthDelimited).string(message.id);
-        /* optional string key = 3; */
-        if (message.key !== undefined)
-            writer.tag(3, WireType.LengthDelimited).string(message.key);
-        /* optional string password = 4; */
-        if (message.password !== undefined)
-            writer.tag(4, WireType.LengthDelimited).string(message.password);
-        let u = options.writeUnknownFields;
-        if (u !== false)
-            (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
-        return writer;
-    }
-}
-/**
- * @generated MessageType for protobuf message symbol.bench.RpcMetadata.BadgeInfo
- */
-export const RpcMetadata_BadgeInfo = new RpcMetadata_BadgeInfo$Type();

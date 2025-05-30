@@ -4,11 +4,11 @@ from typing import AsyncGenerator
 import asyncpg
 import asyncpg.transaction
 
-from bench.language import Database
+from bench.language import DatabaseInfo
 
 
 @asynccontextmanager
-async def pg_connection(database: Database) -> AsyncGenerator[asyncpg.Connection, None]:
+async def pg_connection(database: DatabaseInfo) -> AsyncGenerator[asyncpg.Connection, None]:
     """
     Context manager for an asyncpg.Connection.
     """
@@ -25,7 +25,7 @@ async def pg_connection(database: Database) -> AsyncGenerator[asyncpg.Connection
 
 @asynccontextmanager
 async def pg_tx(
-    database: Database,
+    database: DatabaseInfo,
 ) -> AsyncGenerator[tuple[asyncpg.Connection, asyncpg.transaction.Transaction], None]:
     """
     Context manager for an asyncpg.Transaction.

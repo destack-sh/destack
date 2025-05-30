@@ -8,11 +8,13 @@ from opentelemetry import trace
 
 from bench.language import (
     Bench,
+    BenchStatus,
+    CellRegistry,
     Client,
-    Database,
+    DatabaseInfo,
+    DatabaseRegistry,
     Handle,
     IsSubject,
-    NodeArea,
     NodeType,
     Region,
     Session,
@@ -20,7 +22,6 @@ from bench.language import (
     UserStatus,
     bittuple,
 )
-from bench.language.bench.bench import BenchStatus
 from bench.pb2 import RpcMetadata
 from bench.proto import (
     ChangeUserPasswordRequest,
@@ -38,9 +39,7 @@ from bench.proto import (
     SignupUserResponse,
     SupervisorBase,
 )
-from bench.system.host import HostMap
-from bench.system.store import DatabaseMap
-from bench.system.store.postgres import PostgresStore
+from bench.system.store import PostgresStore
 from bench.utils.func import generate_access_token, generate_salt
 from bench.utils.oracle import Oracle
 
@@ -66,11 +65,11 @@ class SupervisorService(ServiceBase, SupervisorBase):
     def __init__(
         self,
         id: str,
-        global_database: Database,
-        database_map: DatabaseMap,
         network: Network,
         oracle: Oracle,
-        host_map: HostMap,
+        global_database: DatabaseInfo,
+        cell_registry: CellRegistry,
+        database_registry: DatabaseRegistry,
         on_error: Callable[[BaseException], None] | None = None,
     ):
         super().__init__(
@@ -82,8 +81,8 @@ class SupervisorService(ServiceBase, SupervisorBase):
             on_error=on_error,
         )
         self.global_database = global_database
-        self.database_map = database_map
-        self.host_map = host_map
+        self.cell_registry = cell_registry
+        self.database_registry = database_registry
 
     def __str__(self):
         return ""
@@ -103,7 +102,7 @@ class SupervisorService(ServiceBase, SupervisorBase):
 
     @override
     async def make_session(self, metadata: RpcMetadata) -> "Session":
-        database_store = PostgresStore({NodeArea.GLOBAL_POSTGRES: self.global_database})
+        database_store = PostgresStore(global_database=self.global_database)
         return Session(store=database_store)
 
     @override
@@ -135,12 +134,9 @@ class SupervisorService(ServiceBase, SupervisorBase):
 
         # get regional Database
         region = Region(request.region)
-        main_database = self.database_map.get(region=region)
+        main_database = self.database_registry.get(region=region, cell_name=None, external_id=None)
         session.store = PostgresStore(
-            {
-                NodeArea.GLOBAL_POSTGRES: self.global_database,
-                NodeArea.MAIN_POSTGRES: main_database,
-            }
+            global_database=self.global_database, bench_database=main_database
         )
 
         # create User with Bench

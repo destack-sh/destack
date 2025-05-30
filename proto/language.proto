@@ -68,7 +68,9 @@ enum BenchRoleType {
 enum BenchStatus {
   BENCH_STATUS_UNSPECIFIED = 0;
   BENCH_STATUS_CREATING = 1;
-  BENCH_STATUS_ACTIVE = 10;
+  BENCH_STATUS_QUEUED = 3;
+  BENCH_STATUS_RUNNING = 10;
+  BENCH_STATUS_PAUSED = 20;
 }
 
 enum BlockType {
@@ -256,7 +258,8 @@ enum CursorType {
 
 enum DatabaseType {
   DATABASE_TYPE_UNSPECIFIED = 0;
-  DATABASE_TYPE_POSTGRES = 1;
+  DATABASE_TYPE_DEDICATED = 1;
+  DATABASE_TYPE_SHARED = 2;
 }
 
 // The day of the week.
@@ -478,10 +481,9 @@ enum ExpressionType {
   EXPRESSION_TYPE_AGGREGATION = 5;
 }
 
-// The type of a Field within its Block. Overlaps with ObjectKind.
 enum FieldType {
   FIELD_TYPE_UNSPECIFIED = 0;
-  FIELD_TYPE_VARIABLE = 1;
+  FIELD_TYPE_MEMBER = 1;
   FIELD_TYPE_INPUT = 2;
   FIELD_TYPE_OUTPUT = 3;
 }
@@ -813,9 +815,9 @@ enum Month {
 
 enum NodeArea {
   NODE_AREA_UNSPECIFIED = 0;
-  NODE_AREA_GLOBAL_POSTGRES = 10;
-  NODE_AREA_MAIN_POSTGRES = 20;
-  NODE_AREA_CUSTOM_POSTGRES = 30;
+  NODE_AREA_GLOBAL_RELATIONAL = 10;
+  NODE_AREA_MAIN_RELATIONAL = 20;
+  NODE_AREA_CUSTOM_RELATIONAL = 30;
 }
 
 enum NodeMode {
@@ -851,7 +853,8 @@ enum NodeType {
   NODE_TYPE_PAGE = 700;
   NODE_TYPE_BLOCK = 701;
   NODE_TYPE_DATABASE = 1000;
-  NODE_TYPE_MACHINE = 1010;
+  NODE_TYPE_CELL = 1100;
+  NODE_TYPE_MACHINE = 1150;
   NODE_TYPE_SERVICE = 1200;
   NODE_TYPE_ACTION = 1220;
   NODE_TYPE_FLOW = 1240;
@@ -1164,6 +1167,8 @@ enum StructType {
   STRUCT_TYPE_QUERY_RESULT = 20111;
   STRUCT_TYPE_QUERY_UPDATE = 20112;
   STRUCT_TYPE_VARIABLE = 20120;
+  STRUCT_TYPE_DATABASE_INFO = 21000;
+  STRUCT_TYPE_CELL_INFO = 21100;
   STRUCT_TYPE_SCHEDULE = 21200;
   STRUCT_TYPE_ERROR = 21600;
   STRUCT_TYPE_TYPE = 22000;
@@ -1302,7 +1307,6 @@ enum TraitType {
   TRAIT_TYPE_EXTENSIBLE = 32;
   TRAIT_TYPE_IN_BENCH = 40;
   TRAIT_TYPE_IN_PACKAGE = 41;
-  TRAIT_TYPE_REGIONAL = 50;
   TRAIT_TYPE_RESOURCE = 51;
   TRAIT_TYPE_PROVISIONABLE = 52;
   TRAIT_TYPE_OWNABLE = 200;
@@ -1475,14 +1479,15 @@ message BenchData {
   google.protobuf.Timestamp updated_at = 12;
   optional NodeReferenceData updated_by_ptr = 13;
   optional NodeReferenceData owned_by_ptr = 17;
-  Region region = 23;
   string name = 31;
   string slug = 33;
   optional IconData icon = 34;
-  BenchStatus status = 41;
-  optional NodeReferenceData handle_ptr = 42;
-  optional NodeReferenceData database_ptr = 50;
-  optional NodeReferenceData main_package_ptr = 51;
+  BenchStatus status = 40;
+  optional NodeReferenceData handle_ptr = 41;
+  optional NodeReferenceData main_package_ptr = 42;
+  Region region = 50;
+  string cell_name = 51;
+  optional NodeReferenceData database_ptr = 55;
 }
 
 // A BenchInvite is an invite to a Bench.
@@ -1568,6 +1573,28 @@ message BorderStyleData {
   optional NodeReferenceData style_ptr = 41;
   optional ColorData color = 50;
   optional InsetsData width = 51;
+}
+
+message CellData {
+  NodeType metatype = 1;
+  string id = 2;
+  optional NodeReferenceData parent_ptr = 4;
+  optional NodeReferenceData bench_ptr = 6;
+  google.protobuf.Timestamp created_at = 10;
+  optional NodeReferenceData created_by_ptr = 11;
+  google.protobuf.Timestamp updated_at = 12;
+  optional NodeReferenceData updated_by_ptr = 13;
+  optional NodeReferenceData owned_by_ptr = 17;
+  NodeMode mode = 20;
+  string name = 31;
+  Region region = 50;
+  string cell_name = 51;
+}
+
+message CellInfoData {
+  StructType metatype = 1;
+  Region region = 50;
+  string cell_name = 51;
 }
 
 message ChangeData {
@@ -1749,38 +1776,36 @@ message CustomNodeInstanceData {
   NodeReferenceData definition_ptr = 40;
 }
 
-// A trusty Postgres-compatible database.
+// A Postgres-compatible Database.
 message DatabaseData {
   NodeType metatype = 1;
   string id = 2;
   optional NodeReferenceData parent_ptr = 4;
   optional NodeReferenceData bench_ptr = 6;
-  optional NodeReferenceData package_ptr = 7;
   google.protobuf.Timestamp created_at = 10;
   optional NodeReferenceData created_by_ptr = 11;
   google.protobuf.Timestamp updated_at = 12;
   optional NodeReferenceData updated_by_ptr = 13;
   optional NodeReferenceData owned_by_ptr = 17;
   NodeMode mode = 20;
-  optional string order_key = 22;
-  Region region = 23;
   DatabaseType type = 30;
   string name = 31;
-  optional NodeReferenceData block_ptr = 35;
-  ResourceStatus status = 40;
-  optional google.protobuf.Timestamp requested_activate_at = 41;
-  optional google.protobuf.Timestamp requested_deactivate_at = 42;
-  optional google.protobuf.Timestamp requested_reset_at = 43;
-  optional google.protobuf.Timestamp requested_suspend_at = 44;
-  optional google.protobuf.Timestamp requested_decommission_at = 45;
-  optional google.protobuf.Timestamp active_at = 46;
-  optional google.protobuf.Timestamp failed_at = 47;
-  int64 failed_attempts = 48;
-  string version = 60;
-  optional string schema_name = 61;
-  optional string external_name = 62;
-  optional string external_id = 63;
-  optional string sql_url = 64;
+  string version = 35;
+  Region region = 50;
+  optional string cell_name = 51;
+  string external_id = 52;
+  optional string custom_schema_name = 53;
+  optional string sql_url = 58;
+}
+
+message DatabaseInfoData {
+  StructType metatype = 1;
+  DatabaseType type = 30;
+  Region region = 50;
+  optional string cell_name = 51;
+  string external_id = 52;
+  optional string custom_schema_name = 53;
+  optional string sql_url = 58;
 }
 
 message DimensionData {
@@ -1948,11 +1973,8 @@ message FileData {
   optional NodeReferenceData updated_by_ptr = 13;
   optional NodeReferenceData owned_by_ptr = 17;
   NodeMode mode = 20;
-  optional string order_key = 22;
-  Region region = 23;
   FileType type = 30;
   string name = 31;
-  optional NodeReferenceData block_ptr = 35;
   FileSource source = 60;
   optional string mime_type = 61;
   optional FileFormat format = 62;
@@ -2436,11 +2458,9 @@ message LinkData {
   optional NodeReferenceData updated_by_ptr = 13;
   optional NodeReferenceData owned_by_ptr = 17;
   NodeMode mode = 20;
-  optional string order_key = 22;
   LinkType type = 30;
   string name = 31;
   optional TextLineData title = 32;
-  optional NodeReferenceData block_ptr = 35;
   optional string url = 50;
   optional string domain = 51;
   optional string content_url = 52;
@@ -2463,17 +2483,14 @@ message MachineData {
   string id = 2;
   optional NodeReferenceData parent_ptr = 4;
   optional NodeReferenceData bench_ptr = 6;
-  optional NodeReferenceData package_ptr = 7;
   google.protobuf.Timestamp created_at = 10;
   optional NodeReferenceData created_by_ptr = 11;
   google.protobuf.Timestamp updated_at = 12;
   optional NodeReferenceData updated_by_ptr = 13;
   optional NodeReferenceData owned_by_ptr = 17;
   NodeMode mode = 20;
-  optional string order_key = 22;
   MachineType type = 30;
   string name = 31;
-  optional NodeReferenceData block_ptr = 35;
   ResourceStatus status = 40;
   optional google.protobuf.Timestamp requested_activate_at = 41;
   optional google.protobuf.Timestamp requested_deactivate_at = 42;
@@ -2606,7 +2623,6 @@ message OrganizationData {
   optional NodeReferenceData created_by_ptr = 11;
   google.protobuf.Timestamp updated_at = 12;
   optional NodeReferenceData updated_by_ptr = 13;
-  Region region = 23;
   string name = 31;
   string slug = 33;
   optional IconData icon = 34;
@@ -3539,7 +3555,6 @@ message UserData {
   optional NodeReferenceData created_by_ptr = 11;
   google.protobuf.Timestamp updated_at = 12;
   optional NodeReferenceData updated_by_ptr = 13;
-  Region region = 23;
   string name = 31;
   string slug = 33;
   optional IconData icon = 34;
@@ -3635,7 +3650,8 @@ message SomeNodeData {
     PageData page = 700;
     BlockData block = 701;
     DatabaseData database = 1000;
-    MachineData machine = 1010;
+    CellData cell = 1100;
+    MachineData machine = 1150;
     ServiceData service = 1200;
     ActionData action = 1220;
     FlowData flow = 1240;

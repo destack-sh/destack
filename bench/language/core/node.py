@@ -90,11 +90,11 @@ def node_(
             cls.__traits__ = tuple(traits)
             # area
             if TraitType.GLOBAL in traits:
-                cls.__area__ = NodeArea.GLOBAL_POSTGRES
+                cls.__area__ = NodeArea.GLOBAL_RELATIONAL
             elif TraitType.CUSTOM in traits:
-                cls.__area__ = NodeArea.CUSTOM_POSTGRES
+                cls.__area__ = NodeArea.CUSTOM_RELATIONAL
             else:
-                cls.__area__ = NodeArea.MAIN_POSTGRES
+                cls.__area__ = NodeArea.MAIN_RELATIONAL
 
         # parent/root
         parent_property = cls.__properties__.get("parent", None)

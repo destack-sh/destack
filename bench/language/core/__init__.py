@@ -126,6 +126,7 @@ from .render import (
     render_statement,
 )
 from .session import Session
+from .sharding import CellRegistry, DatabaseRegistry, StaticCellRegistry, StaticDatabaseRegistry
 from .store import LiveStore, OptimisticStore, Store
 from .struct import (
     EMPTY_SCOPE_DATA,
@@ -176,7 +177,6 @@ from .trait import (
     IsOwnable,
     IsProcessable,
     IsProvisionable,
-    IsRegional,
     IsResource,
     IsRole,
     IsRunnable,
@@ -249,6 +249,7 @@ __all__ = [
     "BuiltinObjectFrozen",
     "BuiltinObjectMutable",
     "CascadeAction",
+    "CellRegistry",
     "Change",
     "ChangeResult",
     "ChangeStatus",
@@ -261,6 +262,7 @@ __all__ = [
     "ConditionalType",
     "Constraint",
     "Continent",
+    "DatabaseRegistry",
     "Day",
     "EdgeType",
     "Edit",
@@ -304,7 +306,6 @@ __all__ = [
     "IsProcessable",
     "IsProcessable",
     "IsProvisionable",
-    "IsRegional",
     "IsResource",
     "IsRole",
     "IsRunnable",
@@ -351,6 +352,8 @@ __all__ = [
     "SortMode",
     "SortType",
     "SpanType",
+    "StaticCellRegistry",
+    "StaticDatabaseRegistry",
     "Store",
     "StringConstraint",
     "StringFormat",
@@ -399,7 +402,6 @@ __all__ = [
     "icon",
     "join",
     "markdown_to_text",
-    "node_",
     "node_",
     "object_",
     "parse_type_annotation",
