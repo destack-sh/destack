@@ -176,6 +176,13 @@ class TypeBase(BuiltinObjectMutable):
     node_constraint: Optional["NodeConstraint"] = property_(63)
 
 
+@struct_(StructType.TYPE)
+class Type(StructMutable, TypeBase):  # NOTE: it would be nice to have Type be frozen..
+    """A Type in the type system."""
+
+    pass
+
+
 def encode_type_identity(typ: "TypeBase") -> str:
     """
     Encodes the type identity into a key for storage & implicit typing.
@@ -194,10 +201,3 @@ def decode_type_identity(key: str) -> "TypeBase":
 def encode_storage_key(field: "Field") -> str:
     """Gets the key used to identify values of this field in storage. :FieldStorageKey"""
     raise NotImplementedError
-
-
-@struct_(StructType.TYPE)
-class Type(StructMutable, TypeBase):
-    """A Type in the type system."""
-
-    pass

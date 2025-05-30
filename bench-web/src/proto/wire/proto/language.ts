@@ -1765,6 +1765,68 @@ export interface EffectStyleData {
     transition?: TransitionData;
 }
 /**
+ * @generated from protobuf message symbol.bench.EnumInfoData
+ */
+export interface EnumInfoData {
+    /**
+     * @generated from protobuf field: symbol.bench.StructType metatype = 1;
+     */
+    metatype: StructType;
+    /**
+     * @generated from protobuf field: int64 id = 2;
+     */
+    id: bigint;
+    /**
+     * @generated from protobuf field: symbol.bench.EnumType type = 30;
+     */
+    type: EnumType;
+    /**
+     * @generated from protobuf field: string name = 31;
+     */
+    name: string;
+    /**
+     * @generated from protobuf field: optional symbol.bench.IconData icon = 34;
+     */
+    icon?: IconData;
+    /**
+     * @generated from protobuf field: optional string description = 36;
+     */
+    description?: string;
+    /**
+     * @generated from protobuf field: repeated symbol.bench.EnumOptionInfoData options = 50;
+     */
+    options: EnumOptionInfoData[];
+}
+/**
+ * @generated from protobuf message symbol.bench.EnumOptionInfoData
+ */
+export interface EnumOptionInfoData {
+    /**
+     * @generated from protobuf field: symbol.bench.StructType metatype = 1;
+     */
+    metatype: StructType;
+    /**
+     * @generated from protobuf field: int64 id = 2;
+     */
+    id: bigint;
+    /**
+     * @generated from protobuf field: symbol.bench.EnumType type = 30;
+     */
+    type: EnumType;
+    /**
+     * @generated from protobuf field: string name = 31;
+     */
+    name: string;
+    /**
+     * @generated from protobuf field: optional symbol.bench.IconData icon = 34;
+     */
+    icon?: IconData;
+    /**
+     * @generated from protobuf field: optional string description = 36;
+     */
+    description?: string;
+}
+/**
  * @generated from protobuf message symbol.bench.ErrorData
  */
 export interface ErrorData {
@@ -4207,6 +4269,43 @@ export interface NodeConstraintData {
     nodeTraits: TraitType[];
 }
 /**
+ * @generated from protobuf message symbol.bench.NodeInfoData
+ */
+export interface NodeInfoData {
+    /**
+     * @generated from protobuf field: symbol.bench.StructType metatype = 1;
+     */
+    metatype: StructType;
+    /**
+     * @generated from protobuf field: int64 id = 2;
+     */
+    id: bigint;
+    /**
+     * @generated from protobuf field: symbol.bench.NodeType type = 30;
+     */
+    type: NodeType;
+    /**
+     * @generated from protobuf field: string name = 31;
+     */
+    name: string;
+    /**
+     * @generated from protobuf field: optional symbol.bench.IconData icon = 34;
+     */
+    icon?: IconData;
+    /**
+     * @generated from protobuf field: optional string description = 36;
+     */
+    description?: string;
+    /**
+     * @generated from protobuf field: repeated symbol.bench.PropertyInfoData properties = 50;
+     */
+    properties: PropertyInfoData[];
+    /**
+     * @generated from protobuf field: repeated symbol.bench.TraitType traits = 51;
+     */
+    traits: TraitType[];
+}
+/**
  * @generated from protobuf message symbol.bench.NodeReferenceData
  */
 export interface NodeReferenceData {
@@ -4897,6 +4996,139 @@ export interface PositionData {
      * @generated from protobuf field: optional symbol.bench.LengthData height = 53;
      */
     height?: LengthData;
+}
+/**
+ * @generated from protobuf message symbol.bench.PropertyInfoData
+ */
+export interface PropertyInfoData {
+    /**
+     * @generated from protobuf field: symbol.bench.StructType metatype = 1;
+     */
+    metatype: StructType;
+    /**
+     * @generated from protobuf field: int64 id = 2;
+     */
+    id: bigint;
+    /**
+     * @generated from protobuf field: string name = 31;
+     */
+    name: string;
+    /**
+     * @generated from protobuf field: optional symbol.bench.IconData icon = 34;
+     */
+    icon?: IconData;
+    /**
+     * @generated from protobuf field: optional string description = 36;
+     */
+    description?: string;
+    /**
+     * @generated from protobuf field: symbol.bench.TypeCardinality cardinality = 40;
+     */
+    cardinality: TypeCardinality;
+    /**
+     * @generated from protobuf field: symbol.bench.ScalarType scalar_type = 41;
+     */
+    scalarType: ScalarType;
+    /**
+     * @generated from protobuf field: optional symbol.bench.PrimitiveType primitive_type = 42;
+     */
+    primitiveType?: PrimitiveType;
+    /**
+     * @generated from protobuf field: optional symbol.bench.EnumType enum_type = 43;
+     */
+    enumType?: EnumType;
+    /**
+     * @generated from protobuf field: optional symbol.bench.NodeType node_type = 44;
+     */
+    nodeType?: NodeType;
+    /**
+     * @generated from protobuf field: optional symbol.bench.StructType struct_type = 46;
+     */
+    structType?: StructType;
+    /**
+     * @generated from protobuf field: optional symbol.bench.NodeReferenceData base_type_ptr = 47;
+     */
+    baseTypePtr?: NodeReferenceData;
+    /**
+     * @generated from protobuf field: optional symbol.bench.TypeData key_type = 48;
+     */
+    keyType?: TypeData;
+    /**
+     * @generated from protobuf field: bool is_required = 50;
+     */
+    isRequired: boolean;
+    /**
+     * @generated from protobuf field: bool is_variable = 51;
+     */
+    isVariable: boolean;
+    /**
+     * @generated from protobuf field: bool is_external = 52;
+     */
+    isExternal: boolean;
+    /**
+     * @generated from protobuf field: optional symbol.bench.ValueData default = 55;
+     */
+    default?: ValueData;
+    /**
+     * @generated from protobuf field: optional symbol.bench.DefaultFactory default_factory = 56;
+     */
+    defaultFactory?: DefaultFactory;
+    /**
+     * @generated from protobuf field: optional symbol.bench.CollectionConstraintData collection_constraint = 60;
+     */
+    collectionConstraint?: CollectionConstraintData;
+    /**
+     * @generated from protobuf field: optional symbol.bench.StringConstraintData string_constraint = 61;
+     */
+    stringConstraint?: StringConstraintData;
+    /**
+     * @generated from protobuf field: optional symbol.bench.NumberConstraintData number_constraint = 62;
+     */
+    numberConstraint?: NumberConstraintData;
+    /**
+     * @generated from protobuf field: optional symbol.bench.NodeConstraintData node_constraint = 63;
+     */
+    nodeConstraint?: NodeConstraintData;
+    /**
+     * @generated from protobuf field: bool node_is_customizable = 73;
+     */
+    nodeIsCustomizable: boolean;
+    /**
+     * @generated from protobuf field: optional symbol.bench.EdgeType edge_type = 74;
+     */
+    edgeType?: EdgeType;
+    /**
+     * @generated from protobuf field: optional symbol.bench.CascadeAction cascade = 75;
+     */
+    cascade?: CascadeAction;
+    /**
+     * @generated from protobuf field: bool is_wired = 80;
+     */
+    isWired: boolean;
+    /**
+     * @generated from protobuf field: bool is_stored = 81;
+     */
+    isStored: boolean;
+    /**
+     * @generated from protobuf field: bool is_repr = 82;
+     */
+    isRepr: boolean;
+    /**
+     * @generated from protobuf field: bool is_hash = 83;
+     */
+    isHash: boolean;
+    /**
+     * @generated from protobuf field: bool is_eq = 84;
+     */
+    isEq: boolean;
+    /**
+     * @generated from protobuf field: bool is_managed = 85;
+     */
+    isManaged: boolean;
+    /**
+     * @generated from protobuf field: bool is_computed = 86;
+     */
+    isComputed: boolean;
 }
 /**
  * @generated from protobuf message symbol.bench.PropertyReferenceData
@@ -6626,6 +6858,39 @@ export interface StringConstraintData {
     endsWith?: string;
 }
 /**
+ * @generated from protobuf message symbol.bench.StructInfoData
+ */
+export interface StructInfoData {
+    /**
+     * @generated from protobuf field: symbol.bench.StructType metatype = 1;
+     */
+    metatype: StructType;
+    /**
+     * @generated from protobuf field: int64 id = 2;
+     */
+    id: bigint;
+    /**
+     * @generated from protobuf field: symbol.bench.StructType type = 30;
+     */
+    type: StructType;
+    /**
+     * @generated from protobuf field: string name = 31;
+     */
+    name: string;
+    /**
+     * @generated from protobuf field: optional symbol.bench.IconData icon = 34;
+     */
+    icon?: IconData;
+    /**
+     * @generated from protobuf field: optional string description = 36;
+     */
+    description?: string;
+    /**
+     * @generated from protobuf field: repeated symbol.bench.PropertyInfoData properties = 50;
+     */
+    properties: PropertyInfoData[];
+}
+/**
  * A Task is like a to do item.
  *
  * @generated from protobuf message symbol.bench.TaskData
@@ -7374,6 +7639,43 @@ export interface ThreadViewData {
      * @generated from protobuf field: optional symbol.bench.NodeReferenceData draft_reply_to_ptr = 102;
      */
     draftReplyToPtr?: NodeReferenceData;
+}
+/**
+ * @generated from protobuf message symbol.bench.TraitInfoData
+ */
+export interface TraitInfoData {
+    /**
+     * @generated from protobuf field: symbol.bench.StructType metatype = 1;
+     */
+    metatype: StructType;
+    /**
+     * @generated from protobuf field: int64 id = 2;
+     */
+    id: bigint;
+    /**
+     * @generated from protobuf field: symbol.bench.TraitType type = 30;
+     */
+    type: TraitType;
+    /**
+     * @generated from protobuf field: string name = 31;
+     */
+    name: string;
+    /**
+     * @generated from protobuf field: optional symbol.bench.IconData icon = 34;
+     */
+    icon?: IconData;
+    /**
+     * @generated from protobuf field: optional string description = 36;
+     */
+    description?: string;
+    /**
+     * @generated from protobuf field: repeated symbol.bench.PropertyInfoData properties = 50;
+     */
+    properties: PropertyInfoData[];
+    /**
+     * @generated from protobuf field: repeated symbol.bench.NodeType nodes = 51;
+     */
+    nodes: NodeType[];
 }
 /**
  * @generated from protobuf message symbol.bench.TransitionData
@@ -12057,6 +12359,30 @@ export enum StructType {
      * @generated from protobuf enum value: STRUCT_TYPE_PROPERTY_REFERENCE = 20004;
      */
     PROPERTY_REFERENCE = 20004,
+    /**
+     * @generated from protobuf enum value: STRUCT_TYPE_PROPERTY_INFO = 20010;
+     */
+    PROPERTY_INFO = 20010,
+    /**
+     * @generated from protobuf enum value: STRUCT_TYPE_TRAIT_INFO = 20011;
+     */
+    TRAIT_INFO = 20011,
+    /**
+     * @generated from protobuf enum value: STRUCT_TYPE_NODE_INFO = 20012;
+     */
+    NODE_INFO = 20012,
+    /**
+     * @generated from protobuf enum value: STRUCT_TYPE_STRUCT_INFO = 20013;
+     */
+    STRUCT_INFO = 20013,
+    /**
+     * @generated from protobuf enum value: STRUCT_TYPE_ENUM_INFO = 20014;
+     */
+    ENUM_INFO = 20014,
+    /**
+     * @generated from protobuf enum value: STRUCT_TYPE_ENUM_OPTION_INFO = 20015;
+     */
+    ENUM_OPTION_INFO = 20015,
     /**
      * @generated from protobuf enum value: STRUCT_TYPE_EDIT = 20020;
      */
@@ -16805,6 +17131,184 @@ class EffectStyleData$Type extends MessageType$<EffectStyleData> {
  * @generated MessageType for protobuf message symbol.bench.EffectStyleData
  */
 export const EffectStyleData = new EffectStyleData$Type();
+// @generated message type with reflection information, may provide speed optimized methods
+class EnumInfoData$Type extends MessageType$<EnumInfoData> {
+    constructor() {
+        super("symbol.bench.EnumInfoData", [
+            { no: 1, name: "metatype", kind: "enum", T: () => ["symbol.bench.StructType", StructType, "STRUCT_TYPE_"] },
+            { no: 2, name: "id", kind: "scalar", T: 3 /*ScalarType.INT64*/, L: 0 /*LongType.BIGINT*/ },
+            { no: 30, name: "type", kind: "enum", T: () => ["symbol.bench.EnumType", EnumType, "ENUM_TYPE_"] },
+            { no: 31, name: "name", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
+            { no: 34, name: "icon", kind: "message", T: () => IconData },
+            { no: 36, name: "description", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
+            { no: 50, name: "options", kind: "message", repeat: 1 /*RepeatType.PACKED*/, T: () => EnumOptionInfoData }
+        ]);
+    }
+    create(value?: PartialMessage<EnumInfoData>): EnumInfoData {
+        const message = globalThis.Object.create((this.messagePrototype!));
+        message.metatype = 0;
+        message.id = 0n;
+        message.type = 0;
+        message.name = "";
+        message.options = [];
+        if (value !== undefined)
+            reflectionMergePartial<EnumInfoData>(this, message, value);
+        return message;
+    }
+    internalBinaryRead(reader: IBinaryReader, length: number, options: BinaryReadOptions, target?: EnumInfoData): EnumInfoData {
+        let message = target ?? this.create(), end = reader.pos + length;
+        while (reader.pos < end) {
+            let [fieldNo, wireType] = reader.tag();
+            switch (fieldNo) {
+                case /* symbol.bench.StructType metatype */ 1:
+                    message.metatype = reader.int32();
+                    break;
+                case /* int64 id */ 2:
+                    message.id = reader.int64().toBigInt();
+                    break;
+                case /* symbol.bench.EnumType type */ 30:
+                    message.type = reader.int32();
+                    break;
+                case /* string name */ 31:
+                    message.name = reader.string();
+                    break;
+                case /* optional symbol.bench.IconData icon */ 34:
+                    message.icon = IconData.internalBinaryRead(reader, reader.uint32(), options, message.icon);
+                    break;
+                case /* optional string description */ 36:
+                    message.description = reader.string();
+                    break;
+                case /* repeated symbol.bench.EnumOptionInfoData options */ 50:
+                    message.options.push(EnumOptionInfoData.internalBinaryRead(reader, reader.uint32(), options));
+                    break;
+                default:
+                    let u = options.readUnknownField;
+                    if (u === "throw")
+                        throw new globalThis.Error(`Unknown field ${fieldNo} (wire type ${wireType}) for ${this.typeName}`);
+                    let d = reader.skip(wireType);
+                    if (u !== false)
+                        (u === true ? UnknownFieldHandler.onRead : u)(this.typeName, message, fieldNo, wireType, d);
+            }
+        }
+        return message;
+    }
+    internalBinaryWrite(message: EnumInfoData, writer: IBinaryWriter, options: BinaryWriteOptions): IBinaryWriter {
+        /* symbol.bench.StructType metatype = 1; */
+        if (message.metatype !== 0)
+            writer.tag(1, WireType.Varint).int32(message.metatype);
+        /* int64 id = 2; */
+        if (message.id !== 0n)
+            writer.tag(2, WireType.Varint).int64(message.id);
+        /* symbol.bench.EnumType type = 30; */
+        if (message.type !== 0)
+            writer.tag(30, WireType.Varint).int32(message.type);
+        /* string name = 31; */
+        if (message.name !== "")
+            writer.tag(31, WireType.LengthDelimited).string(message.name);
+        /* optional symbol.bench.IconData icon = 34; */
+        if (message.icon)
+            IconData.internalBinaryWrite(message.icon, writer.tag(34, WireType.LengthDelimited).fork(), options).join();
+        /* optional string description = 36; */
+        if (message.description !== undefined)
+            writer.tag(36, WireType.LengthDelimited).string(message.description);
+        /* repeated symbol.bench.EnumOptionInfoData options = 50; */
+        for (let i = 0; i < message.options.length; i++)
+            EnumOptionInfoData.internalBinaryWrite(message.options[i], writer.tag(50, WireType.LengthDelimited).fork(), options).join();
+        let u = options.writeUnknownFields;
+        if (u !== false)
+            (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
+        return writer;
+    }
+}
+/**
+ * @generated MessageType for protobuf message symbol.bench.EnumInfoData
+ */
+export const EnumInfoData = new EnumInfoData$Type();
+// @generated message type with reflection information, may provide speed optimized methods
+class EnumOptionInfoData$Type extends MessageType$<EnumOptionInfoData> {
+    constructor() {
+        super("symbol.bench.EnumOptionInfoData", [
+            { no: 1, name: "metatype", kind: "enum", T: () => ["symbol.bench.StructType", StructType, "STRUCT_TYPE_"] },
+            { no: 2, name: "id", kind: "scalar", T: 3 /*ScalarType.INT64*/, L: 0 /*LongType.BIGINT*/ },
+            { no: 30, name: "type", kind: "enum", T: () => ["symbol.bench.EnumType", EnumType, "ENUM_TYPE_"] },
+            { no: 31, name: "name", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
+            { no: 34, name: "icon", kind: "message", T: () => IconData },
+            { no: 36, name: "description", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ }
+        ]);
+    }
+    create(value?: PartialMessage<EnumOptionInfoData>): EnumOptionInfoData {
+        const message = globalThis.Object.create((this.messagePrototype!));
+        message.metatype = 0;
+        message.id = 0n;
+        message.type = 0;
+        message.name = "";
+        if (value !== undefined)
+            reflectionMergePartial<EnumOptionInfoData>(this, message, value);
+        return message;
+    }
+    internalBinaryRead(reader: IBinaryReader, length: number, options: BinaryReadOptions, target?: EnumOptionInfoData): EnumOptionInfoData {
+        let message = target ?? this.create(), end = reader.pos + length;
+        while (reader.pos < end) {
+            let [fieldNo, wireType] = reader.tag();
+            switch (fieldNo) {
+                case /* symbol.bench.StructType metatype */ 1:
+                    message.metatype = reader.int32();
+                    break;
+                case /* int64 id */ 2:
+                    message.id = reader.int64().toBigInt();
+                    break;
+                case /* symbol.bench.EnumType type */ 30:
+                    message.type = reader.int32();
+                    break;
+                case /* string name */ 31:
+                    message.name = reader.string();
+                    break;
+                case /* optional symbol.bench.IconData icon */ 34:
+                    message.icon = IconData.internalBinaryRead(reader, reader.uint32(), options, message.icon);
+                    break;
+                case /* optional string description */ 36:
+                    message.description = reader.string();
+                    break;
+                default:
+                    let u = options.readUnknownField;
+                    if (u === "throw")
+                        throw new globalThis.Error(`Unknown field ${fieldNo} (wire type ${wireType}) for ${this.typeName}`);
+                    let d = reader.skip(wireType);
+                    if (u !== false)
+                        (u === true ? UnknownFieldHandler.onRead : u)(this.typeName, message, fieldNo, wireType, d);
+            }
+        }
+        return message;
+    }
+    internalBinaryWrite(message: EnumOptionInfoData, writer: IBinaryWriter, options: BinaryWriteOptions): IBinaryWriter {
+        /* symbol.bench.StructType metatype = 1; */
+        if (message.metatype !== 0)
+            writer.tag(1, WireType.Varint).int32(message.metatype);
+        /* int64 id = 2; */
+        if (message.id !== 0n)
+            writer.tag(2, WireType.Varint).int64(message.id);
+        /* symbol.bench.EnumType type = 30; */
+        if (message.type !== 0)
+            writer.tag(30, WireType.Varint).int32(message.type);
+        /* string name = 31; */
+        if (message.name !== "")
+            writer.tag(31, WireType.LengthDelimited).string(message.name);
+        /* optional symbol.bench.IconData icon = 34; */
+        if (message.icon)
+            IconData.internalBinaryWrite(message.icon, writer.tag(34, WireType.LengthDelimited).fork(), options).join();
+        /* optional string description = 36; */
+        if (message.description !== undefined)
+            writer.tag(36, WireType.LengthDelimited).string(message.description);
+        let u = options.writeUnknownFields;
+        if (u !== false)
+            (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
+        return writer;
+    }
+}
+/**
+ * @generated MessageType for protobuf message symbol.bench.EnumOptionInfoData
+ */
+export const EnumOptionInfoData = new EnumOptionInfoData$Type();
 // @generated message type with reflection information, may provide speed optimized methods
 class ErrorData$Type extends MessageType$<ErrorData> {
     constructor() {
@@ -21793,6 +22297,115 @@ class NodeConstraintData$Type extends MessageType$<NodeConstraintData> {
  */
 export const NodeConstraintData = new NodeConstraintData$Type();
 // @generated message type with reflection information, may provide speed optimized methods
+class NodeInfoData$Type extends MessageType$<NodeInfoData> {
+    constructor() {
+        super("symbol.bench.NodeInfoData", [
+            { no: 1, name: "metatype", kind: "enum", T: () => ["symbol.bench.StructType", StructType, "STRUCT_TYPE_"] },
+            { no: 2, name: "id", kind: "scalar", T: 3 /*ScalarType.INT64*/, L: 0 /*LongType.BIGINT*/ },
+            { no: 30, name: "type", kind: "enum", T: () => ["symbol.bench.NodeType", NodeType, "NODE_TYPE_"] },
+            { no: 31, name: "name", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
+            { no: 34, name: "icon", kind: "message", T: () => IconData },
+            { no: 36, name: "description", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
+            { no: 50, name: "properties", kind: "message", repeat: 1 /*RepeatType.PACKED*/, T: () => PropertyInfoData },
+            { no: 51, name: "traits", kind: "enum", repeat: 1 /*RepeatType.PACKED*/, T: () => ["symbol.bench.TraitType", TraitType, "TRAIT_TYPE_"] }
+        ]);
+    }
+    create(value?: PartialMessage<NodeInfoData>): NodeInfoData {
+        const message = globalThis.Object.create((this.messagePrototype!));
+        message.metatype = 0;
+        message.id = 0n;
+        message.type = 0;
+        message.name = "";
+        message.properties = [];
+        message.traits = [];
+        if (value !== undefined)
+            reflectionMergePartial<NodeInfoData>(this, message, value);
+        return message;
+    }
+    internalBinaryRead(reader: IBinaryReader, length: number, options: BinaryReadOptions, target?: NodeInfoData): NodeInfoData {
+        let message = target ?? this.create(), end = reader.pos + length;
+        while (reader.pos < end) {
+            let [fieldNo, wireType] = reader.tag();
+            switch (fieldNo) {
+                case /* symbol.bench.StructType metatype */ 1:
+                    message.metatype = reader.int32();
+                    break;
+                case /* int64 id */ 2:
+                    message.id = reader.int64().toBigInt();
+                    break;
+                case /* symbol.bench.NodeType type */ 30:
+                    message.type = reader.int32();
+                    break;
+                case /* string name */ 31:
+                    message.name = reader.string();
+                    break;
+                case /* optional symbol.bench.IconData icon */ 34:
+                    message.icon = IconData.internalBinaryRead(reader, reader.uint32(), options, message.icon);
+                    break;
+                case /* optional string description */ 36:
+                    message.description = reader.string();
+                    break;
+                case /* repeated symbol.bench.PropertyInfoData properties */ 50:
+                    message.properties.push(PropertyInfoData.internalBinaryRead(reader, reader.uint32(), options));
+                    break;
+                case /* repeated symbol.bench.TraitType traits */ 51:
+                    if (wireType === WireType.LengthDelimited)
+                        for (let e = reader.int32() + reader.pos; reader.pos < e;)
+                            message.traits.push(reader.int32());
+                    else
+                        message.traits.push(reader.int32());
+                    break;
+                default:
+                    let u = options.readUnknownField;
+                    if (u === "throw")
+                        throw new globalThis.Error(`Unknown field ${fieldNo} (wire type ${wireType}) for ${this.typeName}`);
+                    let d = reader.skip(wireType);
+                    if (u !== false)
+                        (u === true ? UnknownFieldHandler.onRead : u)(this.typeName, message, fieldNo, wireType, d);
+            }
+        }
+        return message;
+    }
+    internalBinaryWrite(message: NodeInfoData, writer: IBinaryWriter, options: BinaryWriteOptions): IBinaryWriter {
+        /* symbol.bench.StructType metatype = 1; */
+        if (message.metatype !== 0)
+            writer.tag(1, WireType.Varint).int32(message.metatype);
+        /* int64 id = 2; */
+        if (message.id !== 0n)
+            writer.tag(2, WireType.Varint).int64(message.id);
+        /* symbol.bench.NodeType type = 30; */
+        if (message.type !== 0)
+            writer.tag(30, WireType.Varint).int32(message.type);
+        /* string name = 31; */
+        if (message.name !== "")
+            writer.tag(31, WireType.LengthDelimited).string(message.name);
+        /* optional symbol.bench.IconData icon = 34; */
+        if (message.icon)
+            IconData.internalBinaryWrite(message.icon, writer.tag(34, WireType.LengthDelimited).fork(), options).join();
+        /* optional string description = 36; */
+        if (message.description !== undefined)
+            writer.tag(36, WireType.LengthDelimited).string(message.description);
+        /* repeated symbol.bench.PropertyInfoData properties = 50; */
+        for (let i = 0; i < message.properties.length; i++)
+            PropertyInfoData.internalBinaryWrite(message.properties[i], writer.tag(50, WireType.LengthDelimited).fork(), options).join();
+        /* repeated symbol.bench.TraitType traits = 51; */
+        if (message.traits.length) {
+            writer.tag(51, WireType.LengthDelimited).fork();
+            for (let i = 0; i < message.traits.length; i++)
+                writer.int32(message.traits[i]);
+            writer.join();
+        }
+        let u = options.writeUnknownFields;
+        if (u !== false)
+            (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
+        return writer;
+    }
+}
+/**
+ * @generated MessageType for protobuf message symbol.bench.NodeInfoData
+ */
+export const NodeInfoData = new NodeInfoData$Type();
+// @generated message type with reflection information, may provide speed optimized methods
 class NodeReferenceData$Type extends MessageType$<NodeReferenceData> {
     constructor() {
         super("symbol.bench.NodeReferenceData", [
@@ -23357,6 +23970,285 @@ class PositionData$Type extends MessageType$<PositionData> {
  * @generated MessageType for protobuf message symbol.bench.PositionData
  */
 export const PositionData = new PositionData$Type();
+// @generated message type with reflection information, may provide speed optimized methods
+class PropertyInfoData$Type extends MessageType$<PropertyInfoData> {
+    constructor() {
+        super("symbol.bench.PropertyInfoData", [
+            { no: 1, name: "metatype", kind: "enum", T: () => ["symbol.bench.StructType", StructType, "STRUCT_TYPE_"] },
+            { no: 2, name: "id", kind: "scalar", T: 3 /*ScalarType.INT64*/, L: 0 /*LongType.BIGINT*/ },
+            { no: 31, name: "name", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
+            { no: 34, name: "icon", kind: "message", T: () => IconData },
+            { no: 36, name: "description", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
+            { no: 40, name: "cardinality", kind: "enum", T: () => ["symbol.bench.TypeCardinality", TypeCardinality, "TYPE_CARDINALITY_"] },
+            { no: 41, name: "scalar_type", kind: "enum", T: () => ["symbol.bench.ScalarType", ScalarType, "SCALAR_TYPE_"] },
+            { no: 42, name: "primitive_type", kind: "enum", opt: true, T: () => ["symbol.bench.PrimitiveType", PrimitiveType, "PRIMITIVE_TYPE_"] },
+            { no: 43, name: "enum_type", kind: "enum", opt: true, T: () => ["symbol.bench.EnumType", EnumType, "ENUM_TYPE_"] },
+            { no: 44, name: "node_type", kind: "enum", opt: true, T: () => ["symbol.bench.NodeType", NodeType, "NODE_TYPE_"] },
+            { no: 46, name: "struct_type", kind: "enum", opt: true, T: () => ["symbol.bench.StructType", StructType, "STRUCT_TYPE_"] },
+            { no: 47, name: "base_type_ptr", kind: "message", T: () => NodeReferenceData },
+            { no: 48, name: "key_type", kind: "message", T: () => TypeData },
+            { no: 50, name: "is_required", kind: "scalar", T: 8 /*ScalarType.BOOL*/ },
+            { no: 51, name: "is_variable", kind: "scalar", T: 8 /*ScalarType.BOOL*/ },
+            { no: 52, name: "is_external", kind: "scalar", T: 8 /*ScalarType.BOOL*/ },
+            { no: 55, name: "default", kind: "message", T: () => ValueData },
+            { no: 56, name: "default_factory", kind: "enum", opt: true, T: () => ["symbol.bench.DefaultFactory", DefaultFactory, "DEFAULT_FACTORY_"] },
+            { no: 60, name: "collection_constraint", kind: "message", T: () => CollectionConstraintData },
+            { no: 61, name: "string_constraint", kind: "message", T: () => StringConstraintData },
+            { no: 62, name: "number_constraint", kind: "message", T: () => NumberConstraintData },
+            { no: 63, name: "node_constraint", kind: "message", T: () => NodeConstraintData },
+            { no: 73, name: "node_is_customizable", kind: "scalar", T: 8 /*ScalarType.BOOL*/ },
+            { no: 74, name: "edge_type", kind: "enum", opt: true, T: () => ["symbol.bench.EdgeType", EdgeType, "EDGE_TYPE_"] },
+            { no: 75, name: "cascade", kind: "enum", opt: true, T: () => ["symbol.bench.CascadeAction", CascadeAction, "CASCADE_ACTION_"] },
+            { no: 80, name: "is_wired", kind: "scalar", T: 8 /*ScalarType.BOOL*/ },
+            { no: 81, name: "is_stored", kind: "scalar", T: 8 /*ScalarType.BOOL*/ },
+            { no: 82, name: "is_repr", kind: "scalar", T: 8 /*ScalarType.BOOL*/ },
+            { no: 83, name: "is_hash", kind: "scalar", T: 8 /*ScalarType.BOOL*/ },
+            { no: 84, name: "is_eq", kind: "scalar", T: 8 /*ScalarType.BOOL*/ },
+            { no: 85, name: "is_managed", kind: "scalar", T: 8 /*ScalarType.BOOL*/ },
+            { no: 86, name: "is_computed", kind: "scalar", T: 8 /*ScalarType.BOOL*/ }
+        ]);
+    }
+    create(value?: PartialMessage<PropertyInfoData>): PropertyInfoData {
+        const message = globalThis.Object.create((this.messagePrototype!));
+        message.metatype = 0;
+        message.id = 0n;
+        message.name = "";
+        message.cardinality = 0;
+        message.scalarType = 0;
+        message.isRequired = false;
+        message.isVariable = false;
+        message.isExternal = false;
+        message.nodeIsCustomizable = false;
+        message.isWired = false;
+        message.isStored = false;
+        message.isRepr = false;
+        message.isHash = false;
+        message.isEq = false;
+        message.isManaged = false;
+        message.isComputed = false;
+        if (value !== undefined)
+            reflectionMergePartial<PropertyInfoData>(this, message, value);
+        return message;
+    }
+    internalBinaryRead(reader: IBinaryReader, length: number, options: BinaryReadOptions, target?: PropertyInfoData): PropertyInfoData {
+        let message = target ?? this.create(), end = reader.pos + length;
+        while (reader.pos < end) {
+            let [fieldNo, wireType] = reader.tag();
+            switch (fieldNo) {
+                case /* symbol.bench.StructType metatype */ 1:
+                    message.metatype = reader.int32();
+                    break;
+                case /* int64 id */ 2:
+                    message.id = reader.int64().toBigInt();
+                    break;
+                case /* string name */ 31:
+                    message.name = reader.string();
+                    break;
+                case /* optional symbol.bench.IconData icon */ 34:
+                    message.icon = IconData.internalBinaryRead(reader, reader.uint32(), options, message.icon);
+                    break;
+                case /* optional string description */ 36:
+                    message.description = reader.string();
+                    break;
+                case /* symbol.bench.TypeCardinality cardinality */ 40:
+                    message.cardinality = reader.int32();
+                    break;
+                case /* symbol.bench.ScalarType scalar_type */ 41:
+                    message.scalarType = reader.int32();
+                    break;
+                case /* optional symbol.bench.PrimitiveType primitive_type */ 42:
+                    message.primitiveType = reader.int32();
+                    break;
+                case /* optional symbol.bench.EnumType enum_type */ 43:
+                    message.enumType = reader.int32();
+                    break;
+                case /* optional symbol.bench.NodeType node_type */ 44:
+                    message.nodeType = reader.int32();
+                    break;
+                case /* optional symbol.bench.StructType struct_type */ 46:
+                    message.structType = reader.int32();
+                    break;
+                case /* optional symbol.bench.NodeReferenceData base_type_ptr */ 47:
+                    message.baseTypePtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.baseTypePtr);
+                    break;
+                case /* optional symbol.bench.TypeData key_type */ 48:
+                    message.keyType = TypeData.internalBinaryRead(reader, reader.uint32(), options, message.keyType);
+                    break;
+                case /* bool is_required */ 50:
+                    message.isRequired = reader.bool();
+                    break;
+                case /* bool is_variable */ 51:
+                    message.isVariable = reader.bool();
+                    break;
+                case /* bool is_external */ 52:
+                    message.isExternal = reader.bool();
+                    break;
+                case /* optional symbol.bench.ValueData default */ 55:
+                    message.default = ValueData.internalBinaryRead(reader, reader.uint32(), options, message.default);
+                    break;
+                case /* optional symbol.bench.DefaultFactory default_factory */ 56:
+                    message.defaultFactory = reader.int32();
+                    break;
+                case /* optional symbol.bench.CollectionConstraintData collection_constraint */ 60:
+                    message.collectionConstraint = CollectionConstraintData.internalBinaryRead(reader, reader.uint32(), options, message.collectionConstraint);
+                    break;
+                case /* optional symbol.bench.StringConstraintData string_constraint */ 61:
+                    message.stringConstraint = StringConstraintData.internalBinaryRead(reader, reader.uint32(), options, message.stringConstraint);
+                    break;
+                case /* optional symbol.bench.NumberConstraintData number_constraint */ 62:
+                    message.numberConstraint = NumberConstraintData.internalBinaryRead(reader, reader.uint32(), options, message.numberConstraint);
+                    break;
+                case /* optional symbol.bench.NodeConstraintData node_constraint */ 63:
+                    message.nodeConstraint = NodeConstraintData.internalBinaryRead(reader, reader.uint32(), options, message.nodeConstraint);
+                    break;
+                case /* bool node_is_customizable */ 73:
+                    message.nodeIsCustomizable = reader.bool();
+                    break;
+                case /* optional symbol.bench.EdgeType edge_type */ 74:
+                    message.edgeType = reader.int32();
+                    break;
+                case /* optional symbol.bench.CascadeAction cascade */ 75:
+                    message.cascade = reader.int32();
+                    break;
+                case /* bool is_wired */ 80:
+                    message.isWired = reader.bool();
+                    break;
+                case /* bool is_stored */ 81:
+                    message.isStored = reader.bool();
+                    break;
+                case /* bool is_repr */ 82:
+                    message.isRepr = reader.bool();
+                    break;
+                case /* bool is_hash */ 83:
+                    message.isHash = reader.bool();
+                    break;
+                case /* bool is_eq */ 84:
+                    message.isEq = reader.bool();
+                    break;
+                case /* bool is_managed */ 85:
+                    message.isManaged = reader.bool();
+                    break;
+                case /* bool is_computed */ 86:
+                    message.isComputed = reader.bool();
+                    break;
+                default:
+                    let u = options.readUnknownField;
+                    if (u === "throw")
+                        throw new globalThis.Error(`Unknown field ${fieldNo} (wire type ${wireType}) for ${this.typeName}`);
+                    let d = reader.skip(wireType);
+                    if (u !== false)
+                        (u === true ? UnknownFieldHandler.onRead : u)(this.typeName, message, fieldNo, wireType, d);
+            }
+        }
+        return message;
+    }
+    internalBinaryWrite(message: PropertyInfoData, writer: IBinaryWriter, options: BinaryWriteOptions): IBinaryWriter {
+        /* symbol.bench.StructType metatype = 1; */
+        if (message.metatype !== 0)
+            writer.tag(1, WireType.Varint).int32(message.metatype);
+        /* int64 id = 2; */
+        if (message.id !== 0n)
+            writer.tag(2, WireType.Varint).int64(message.id);
+        /* string name = 31; */
+        if (message.name !== "")
+            writer.tag(31, WireType.LengthDelimited).string(message.name);
+        /* optional symbol.bench.IconData icon = 34; */
+        if (message.icon)
+            IconData.internalBinaryWrite(message.icon, writer.tag(34, WireType.LengthDelimited).fork(), options).join();
+        /* optional string description = 36; */
+        if (message.description !== undefined)
+            writer.tag(36, WireType.LengthDelimited).string(message.description);
+        /* symbol.bench.TypeCardinality cardinality = 40; */
+        if (message.cardinality !== 0)
+            writer.tag(40, WireType.Varint).int32(message.cardinality);
+        /* symbol.bench.ScalarType scalar_type = 41; */
+        if (message.scalarType !== 0)
+            writer.tag(41, WireType.Varint).int32(message.scalarType);
+        /* optional symbol.bench.PrimitiveType primitive_type = 42; */
+        if (message.primitiveType !== undefined)
+            writer.tag(42, WireType.Varint).int32(message.primitiveType);
+        /* optional symbol.bench.EnumType enum_type = 43; */
+        if (message.enumType !== undefined)
+            writer.tag(43, WireType.Varint).int32(message.enumType);
+        /* optional symbol.bench.NodeType node_type = 44; */
+        if (message.nodeType !== undefined)
+            writer.tag(44, WireType.Varint).int32(message.nodeType);
+        /* optional symbol.bench.StructType struct_type = 46; */
+        if (message.structType !== undefined)
+            writer.tag(46, WireType.Varint).int32(message.structType);
+        /* optional symbol.bench.NodeReferenceData base_type_ptr = 47; */
+        if (message.baseTypePtr)
+            NodeReferenceData.internalBinaryWrite(message.baseTypePtr, writer.tag(47, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbol.bench.TypeData key_type = 48; */
+        if (message.keyType)
+            TypeData.internalBinaryWrite(message.keyType, writer.tag(48, WireType.LengthDelimited).fork(), options).join();
+        /* bool is_required = 50; */
+        if (message.isRequired !== false)
+            writer.tag(50, WireType.Varint).bool(message.isRequired);
+        /* bool is_variable = 51; */
+        if (message.isVariable !== false)
+            writer.tag(51, WireType.Varint).bool(message.isVariable);
+        /* bool is_external = 52; */
+        if (message.isExternal !== false)
+            writer.tag(52, WireType.Varint).bool(message.isExternal);
+        /* optional symbol.bench.ValueData default = 55; */
+        if (message.default)
+            ValueData.internalBinaryWrite(message.default, writer.tag(55, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbol.bench.DefaultFactory default_factory = 56; */
+        if (message.defaultFactory !== undefined)
+            writer.tag(56, WireType.Varint).int32(message.defaultFactory);
+        /* optional symbol.bench.CollectionConstraintData collection_constraint = 60; */
+        if (message.collectionConstraint)
+            CollectionConstraintData.internalBinaryWrite(message.collectionConstraint, writer.tag(60, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbol.bench.StringConstraintData string_constraint = 61; */
+        if (message.stringConstraint)
+            StringConstraintData.internalBinaryWrite(message.stringConstraint, writer.tag(61, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbol.bench.NumberConstraintData number_constraint = 62; */
+        if (message.numberConstraint)
+            NumberConstraintData.internalBinaryWrite(message.numberConstraint, writer.tag(62, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbol.bench.NodeConstraintData node_constraint = 63; */
+        if (message.nodeConstraint)
+            NodeConstraintData.internalBinaryWrite(message.nodeConstraint, writer.tag(63, WireType.LengthDelimited).fork(), options).join();
+        /* bool node_is_customizable = 73; */
+        if (message.nodeIsCustomizable !== false)
+            writer.tag(73, WireType.Varint).bool(message.nodeIsCustomizable);
+        /* optional symbol.bench.EdgeType edge_type = 74; */
+        if (message.edgeType !== undefined)
+            writer.tag(74, WireType.Varint).int32(message.edgeType);
+        /* optional symbol.bench.CascadeAction cascade = 75; */
+        if (message.cascade !== undefined)
+            writer.tag(75, WireType.Varint).int32(message.cascade);
+        /* bool is_wired = 80; */
+        if (message.isWired !== false)
+            writer.tag(80, WireType.Varint).bool(message.isWired);
+        /* bool is_stored = 81; */
+        if (message.isStored !== false)
+            writer.tag(81, WireType.Varint).bool(message.isStored);
+        /* bool is_repr = 82; */
+        if (message.isRepr !== false)
+            writer.tag(82, WireType.Varint).bool(message.isRepr);
+        /* bool is_hash = 83; */
+        if (message.isHash !== false)
+            writer.tag(83, WireType.Varint).bool(message.isHash);
+        /* bool is_eq = 84; */
+        if (message.isEq !== false)
+            writer.tag(84, WireType.Varint).bool(message.isEq);
+        /* bool is_managed = 85; */
+        if (message.isManaged !== false)
+            writer.tag(85, WireType.Varint).bool(message.isManaged);
+        /* bool is_computed = 86; */
+        if (message.isComputed !== false)
+            writer.tag(86, WireType.Varint).bool(message.isComputed);
+        let u = options.writeUnknownFields;
+        if (u !== false)
+            (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
+        return writer;
+    }
+}
+/**
+ * @generated MessageType for protobuf message symbol.bench.PropertyInfoData
+ */
+export const PropertyInfoData = new PropertyInfoData$Type();
 // @generated message type with reflection information, may provide speed optimized methods
 class PropertyReferenceData$Type extends MessageType$<PropertyReferenceData> {
     constructor() {
@@ -27048,6 +27940,99 @@ class StringConstraintData$Type extends MessageType$<StringConstraintData> {
  */
 export const StringConstraintData = new StringConstraintData$Type();
 // @generated message type with reflection information, may provide speed optimized methods
+class StructInfoData$Type extends MessageType$<StructInfoData> {
+    constructor() {
+        super("symbol.bench.StructInfoData", [
+            { no: 1, name: "metatype", kind: "enum", T: () => ["symbol.bench.StructType", StructType, "STRUCT_TYPE_"] },
+            { no: 2, name: "id", kind: "scalar", T: 3 /*ScalarType.INT64*/, L: 0 /*LongType.BIGINT*/ },
+            { no: 30, name: "type", kind: "enum", T: () => ["symbol.bench.StructType", StructType, "STRUCT_TYPE_"] },
+            { no: 31, name: "name", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
+            { no: 34, name: "icon", kind: "message", T: () => IconData },
+            { no: 36, name: "description", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
+            { no: 50, name: "properties", kind: "message", repeat: 1 /*RepeatType.PACKED*/, T: () => PropertyInfoData }
+        ]);
+    }
+    create(value?: PartialMessage<StructInfoData>): StructInfoData {
+        const message = globalThis.Object.create((this.messagePrototype!));
+        message.metatype = 0;
+        message.id = 0n;
+        message.type = 0;
+        message.name = "";
+        message.properties = [];
+        if (value !== undefined)
+            reflectionMergePartial<StructInfoData>(this, message, value);
+        return message;
+    }
+    internalBinaryRead(reader: IBinaryReader, length: number, options: BinaryReadOptions, target?: StructInfoData): StructInfoData {
+        let message = target ?? this.create(), end = reader.pos + length;
+        while (reader.pos < end) {
+            let [fieldNo, wireType] = reader.tag();
+            switch (fieldNo) {
+                case /* symbol.bench.StructType metatype */ 1:
+                    message.metatype = reader.int32();
+                    break;
+                case /* int64 id */ 2:
+                    message.id = reader.int64().toBigInt();
+                    break;
+                case /* symbol.bench.StructType type */ 30:
+                    message.type = reader.int32();
+                    break;
+                case /* string name */ 31:
+                    message.name = reader.string();
+                    break;
+                case /* optional symbol.bench.IconData icon */ 34:
+                    message.icon = IconData.internalBinaryRead(reader, reader.uint32(), options, message.icon);
+                    break;
+                case /* optional string description */ 36:
+                    message.description = reader.string();
+                    break;
+                case /* repeated symbol.bench.PropertyInfoData properties */ 50:
+                    message.properties.push(PropertyInfoData.internalBinaryRead(reader, reader.uint32(), options));
+                    break;
+                default:
+                    let u = options.readUnknownField;
+                    if (u === "throw")
+                        throw new globalThis.Error(`Unknown field ${fieldNo} (wire type ${wireType}) for ${this.typeName}`);
+                    let d = reader.skip(wireType);
+                    if (u !== false)
+                        (u === true ? UnknownFieldHandler.onRead : u)(this.typeName, message, fieldNo, wireType, d);
+            }
+        }
+        return message;
+    }
+    internalBinaryWrite(message: StructInfoData, writer: IBinaryWriter, options: BinaryWriteOptions): IBinaryWriter {
+        /* symbol.bench.StructType metatype = 1; */
+        if (message.metatype !== 0)
+            writer.tag(1, WireType.Varint).int32(message.metatype);
+        /* int64 id = 2; */
+        if (message.id !== 0n)
+            writer.tag(2, WireType.Varint).int64(message.id);
+        /* symbol.bench.StructType type = 30; */
+        if (message.type !== 0)
+            writer.tag(30, WireType.Varint).int32(message.type);
+        /* string name = 31; */
+        if (message.name !== "")
+            writer.tag(31, WireType.LengthDelimited).string(message.name);
+        /* optional symbol.bench.IconData icon = 34; */
+        if (message.icon)
+            IconData.internalBinaryWrite(message.icon, writer.tag(34, WireType.LengthDelimited).fork(), options).join();
+        /* optional string description = 36; */
+        if (message.description !== undefined)
+            writer.tag(36, WireType.LengthDelimited).string(message.description);
+        /* repeated symbol.bench.PropertyInfoData properties = 50; */
+        for (let i = 0; i < message.properties.length; i++)
+            PropertyInfoData.internalBinaryWrite(message.properties[i], writer.tag(50, WireType.LengthDelimited).fork(), options).join();
+        let u = options.writeUnknownFields;
+        if (u !== false)
+            (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
+        return writer;
+    }
+}
+/**
+ * @generated MessageType for protobuf message symbol.bench.StructInfoData
+ */
+export const StructInfoData = new StructInfoData$Type();
+// @generated message type with reflection information, may provide speed optimized methods
 class TaskData$Type extends MessageType$<TaskData> {
     constructor() {
         super("symbol.bench.TaskData", [
@@ -28583,6 +29568,115 @@ class ThreadViewData$Type extends MessageType$<ThreadViewData> {
  * @generated MessageType for protobuf message symbol.bench.ThreadViewData
  */
 export const ThreadViewData = new ThreadViewData$Type();
+// @generated message type with reflection information, may provide speed optimized methods
+class TraitInfoData$Type extends MessageType$<TraitInfoData> {
+    constructor() {
+        super("symbol.bench.TraitInfoData", [
+            { no: 1, name: "metatype", kind: "enum", T: () => ["symbol.bench.StructType", StructType, "STRUCT_TYPE_"] },
+            { no: 2, name: "id", kind: "scalar", T: 3 /*ScalarType.INT64*/, L: 0 /*LongType.BIGINT*/ },
+            { no: 30, name: "type", kind: "enum", T: () => ["symbol.bench.TraitType", TraitType, "TRAIT_TYPE_"] },
+            { no: 31, name: "name", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
+            { no: 34, name: "icon", kind: "message", T: () => IconData },
+            { no: 36, name: "description", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
+            { no: 50, name: "properties", kind: "message", repeat: 1 /*RepeatType.PACKED*/, T: () => PropertyInfoData },
+            { no: 51, name: "nodes", kind: "enum", repeat: 1 /*RepeatType.PACKED*/, T: () => ["symbol.bench.NodeType", NodeType, "NODE_TYPE_"] }
+        ]);
+    }
+    create(value?: PartialMessage<TraitInfoData>): TraitInfoData {
+        const message = globalThis.Object.create((this.messagePrototype!));
+        message.metatype = 0;
+        message.id = 0n;
+        message.type = 0;
+        message.name = "";
+        message.properties = [];
+        message.nodes = [];
+        if (value !== undefined)
+            reflectionMergePartial<TraitInfoData>(this, message, value);
+        return message;
+    }
+    internalBinaryRead(reader: IBinaryReader, length: number, options: BinaryReadOptions, target?: TraitInfoData): TraitInfoData {
+        let message = target ?? this.create(), end = reader.pos + length;
+        while (reader.pos < end) {
+            let [fieldNo, wireType] = reader.tag();
+            switch (fieldNo) {
+                case /* symbol.bench.StructType metatype */ 1:
+                    message.metatype = reader.int32();
+                    break;
+                case /* int64 id */ 2:
+                    message.id = reader.int64().toBigInt();
+                    break;
+                case /* symbol.bench.TraitType type */ 30:
+                    message.type = reader.int32();
+                    break;
+                case /* string name */ 31:
+                    message.name = reader.string();
+                    break;
+                case /* optional symbol.bench.IconData icon */ 34:
+                    message.icon = IconData.internalBinaryRead(reader, reader.uint32(), options, message.icon);
+                    break;
+                case /* optional string description */ 36:
+                    message.description = reader.string();
+                    break;
+                case /* repeated symbol.bench.PropertyInfoData properties */ 50:
+                    message.properties.push(PropertyInfoData.internalBinaryRead(reader, reader.uint32(), options));
+                    break;
+                case /* repeated symbol.bench.NodeType nodes */ 51:
+                    if (wireType === WireType.LengthDelimited)
+                        for (let e = reader.int32() + reader.pos; reader.pos < e;)
+                            message.nodes.push(reader.int32());
+                    else
+                        message.nodes.push(reader.int32());
+                    break;
+                default:
+                    let u = options.readUnknownField;
+                    if (u === "throw")
+                        throw new globalThis.Error(`Unknown field ${fieldNo} (wire type ${wireType}) for ${this.typeName}`);
+                    let d = reader.skip(wireType);
+                    if (u !== false)
+                        (u === true ? UnknownFieldHandler.onRead : u)(this.typeName, message, fieldNo, wireType, d);
+            }
+        }
+        return message;
+    }
+    internalBinaryWrite(message: TraitInfoData, writer: IBinaryWriter, options: BinaryWriteOptions): IBinaryWriter {
+        /* symbol.bench.StructType metatype = 1; */
+        if (message.metatype !== 0)
+            writer.tag(1, WireType.Varint).int32(message.metatype);
+        /* int64 id = 2; */
+        if (message.id !== 0n)
+            writer.tag(2, WireType.Varint).int64(message.id);
+        /* symbol.bench.TraitType type = 30; */
+        if (message.type !== 0)
+            writer.tag(30, WireType.Varint).int32(message.type);
+        /* string name = 31; */
+        if (message.name !== "")
+            writer.tag(31, WireType.LengthDelimited).string(message.name);
+        /* optional symbol.bench.IconData icon = 34; */
+        if (message.icon)
+            IconData.internalBinaryWrite(message.icon, writer.tag(34, WireType.LengthDelimited).fork(), options).join();
+        /* optional string description = 36; */
+        if (message.description !== undefined)
+            writer.tag(36, WireType.LengthDelimited).string(message.description);
+        /* repeated symbol.bench.PropertyInfoData properties = 50; */
+        for (let i = 0; i < message.properties.length; i++)
+            PropertyInfoData.internalBinaryWrite(message.properties[i], writer.tag(50, WireType.LengthDelimited).fork(), options).join();
+        /* repeated symbol.bench.NodeType nodes = 51; */
+        if (message.nodes.length) {
+            writer.tag(51, WireType.LengthDelimited).fork();
+            for (let i = 0; i < message.nodes.length; i++)
+                writer.int32(message.nodes[i]);
+            writer.join();
+        }
+        let u = options.writeUnknownFields;
+        if (u !== false)
+            (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
+        return writer;
+    }
+}
+/**
+ * @generated MessageType for protobuf message symbol.bench.TraitInfoData
+ */
+export const TraitInfoData = new TraitInfoData$Type();
 // @generated message type with reflection information, may provide speed optimized methods
 class TransitionData$Type extends MessageType$<TransitionData> {
     constructor() {
@@ -30441,6 +31535,6 @@ export const SomeNodeData = new SomeNodeData$Type();
 
 // Any...
 export type AnyNodeData = ClientData | FriendshipData | FriendshipInviteData | OrganizationData | OrganizationInviteData | OrganizationMembershipData | UserData | BenchData | BenchInviteData | BenchMembershipData | HandleData | PackageData | PackageMembershipData | PackageInviteData | CustomNodeDefinitionData | CustomNodeInstanceData | FieldData | FileData | LinkData | SchemaData | DatabaseData | MachineData | ActionData | AgentData | CursorData | FlowData | FlowEdgeData | ServiceData | TaskData | InterruptionData | RunData | SpanData | MessageData | ThreadData | BlockData | PageData | RouteData | SceneData | SpaceData | ColorStyleData | BorderStyleData | TransitionStyleData | EffectStyleData | GradientStyleData | FontStyleData | ShadowStyleData | ThemeData | FrameViewData | LabelViewData | SplitViewData | TextViewData | NumberInputViewData | SliderInputViewData | WizardViewData | ThreadViewData
-export type AnyStructData = ScopeData | PropertyReferenceData | NodeReferenceData | CodeData | StringConstraintData | NumberConstraintData | CollectionConstraintData | NodeConstraintData | TypeData | EditData | ChangeData | ChangeResultData | IconData | ValueData | RelationReferenceData | AttributeReferenceData | FunctionData | ConditionData | AggregationData | ExpressionData | SortData | SelectData | JoinData | QueryData | QueryResultData | QueryUpdateData | SelectionData | TextSpanData | TextLineData | TextData | VariableData | OriginData | ScheduleData | ErrorData | ColorData | LengthData | PositionData | DimensionData | InsetsData | CornersData | Axis2Data | Axis3Data | Vector2Data | Vector3Data | Vector4Data | GridData | GridSpanData | BorderData | TransitionData | EffectData | GradientStopData | GradientData | FillData | FontData | ShadowData
+export type AnyStructData = ScopeData | PropertyReferenceData | NodeReferenceData | CodeData | StringConstraintData | NumberConstraintData | CollectionConstraintData | NodeConstraintData | TypeData | EditData | ChangeData | ChangeResultData | IconData | PropertyInfoData | TraitInfoData | NodeInfoData | StructInfoData | EnumInfoData | EnumOptionInfoData | ValueData | RelationReferenceData | AttributeReferenceData | FunctionData | ConditionData | AggregationData | ExpressionData | SortData | SelectData | JoinData | QueryData | QueryResultData | QueryUpdateData | SelectionData | TextSpanData | TextLineData | TextData | VariableData | OriginData | ScheduleData | ErrorData | ColorData | LengthData | PositionData | DimensionData | InsetsData | CornersData | Axis2Data | Axis3Data | Vector2Data | Vector3Data | Vector4Data | GridData | GridSpanData | BorderData | TransitionData | EffectData | GradientStopData | GradientData | FillData | FontData | ShadowData
 
     

@@ -62,6 +62,7 @@ from .const import (
 from .edit import Change, ChangeResult, ChangeStatus, Edit, EditType, UpdateType, edit_graph
 from .graph import Graph, Supergraph
 from .icon import Icon, IconIn, IconType, icon, reverse_icon, to_icon
+from .meta import EnumInfo, EnumOptionInfo, NodeInfo, PropertyInfo, StructInfo, TraitInfo
 from .node import IndexIn, Node, node_
 from .object import (
     BuiltinObjectBase,
@@ -264,6 +265,8 @@ __all__ = [
     "EdgeType",
     "Edit",
     "EditType",
+    "EnumInfo",
+    "EnumOptionInfo",
     "EnumType",
     "Expression",
     "ExpressionIn",
@@ -315,6 +318,7 @@ __all__ = [
     "Node",
     "NodeArea",
     "NodeConstraint",
+    "NodeInfo",
     "NodeMode",
     "NodeReference",
     "NodeType",
@@ -325,6 +329,7 @@ __all__ = [
     "PrimitiveValue",
     "ProcessStatus",
     "Property",
+    "PropertyInfo",
     "PropertyReference",
     "Query",
     "QueryConnection",
@@ -351,6 +356,7 @@ __all__ = [
     "StringFormat",
     "StructBase",
     "StructFrozen",
+    "StructInfo",
     "StructMutable",
     "StructType",
     "Supergraph",
@@ -362,6 +368,7 @@ __all__ = [
     "TextSpan",
     "TextSpanType",
     "TimeInterval",
+    "TraitInfo",
     "TraitType",
     "Type",
     "TypeBase",

@@ -1,6 +1,5 @@
-import functools
 from collections import defaultdict
-from typing import TYPE_CHECKING, Any, Callable, Union
+from typing import TYPE_CHECKING, Any, Union
 
 from fastuuid import UUID
 
@@ -21,7 +20,7 @@ from .core.const import (
 )
 
 if TYPE_CHECKING:
-    from bench.language import BuiltinObjectBase, Node, StructBase
+    from bench.language import BuiltinObjectBase, EnumInfo, Node, NodeInfo, StructBase, StructInfo
 
 ENUM_CLASS_BY_TYPE = _ENUM_CLASS_BY_TYPE  # re-exported to avoid circular imports
 ENUM_TYPE_BY_CLASS: dict[type, EnumType] = {}
@@ -29,7 +28,6 @@ NODE_CLASS_BY_TYPE: dict[NodeType, type["Node"]] = {}
 NODE_CLASS_BY_TRAIT: dict[TraitType, type["BuiltinObjectBase"]] = {}
 NODE_TYPES_BY_TRAIT: dict[TraitType, tuple[NodeType, ...]] = {}
 STRUCT_CLASS_BY_TYPE: dict[StructType, type["StructBase"]] = {}
-
 BUILTIN_OBJECT_CLASS_BY_TYPE: dict[NodeType | StructType, type["BuiltinObjectBase"]] = {}
 BUILTIN_OBJECT_TYPE_BY_CLASS: dict[type["BuiltinObjectBase"], NodeType | StructType] = {}
 
@@ -40,16 +38,9 @@ BENCH_TYPE_BY_CLASS: dict[
     type[Union["BuiltinObjectBase", BuiltinEnum]], EnumType | NodeType | StructType
 ] = {}
 
-
-_setup_hooks: list[Callable] = []
-
-
-def _on_completing_setup(func: Callable | None = None):
-    """Register a finalization function."""
-    if func is None:
-        return functools.partial(_on_completing_setup)
-    _setup_hooks.append(func)
-    return func
+STRUCT_INFO_BY_TYPE: dict[StructType, "StructInfo"] = {}
+ENUM_INFO_BY_TYPE: dict[EnumType, "EnumInfo"] = {}
+NODE_INFO_BY_TYPE: dict[NodeType, "NodeInfo"] = {}
 
 
 def _complete_bench_setup():
@@ -141,8 +132,26 @@ def _complete_bench_setup():
         setattr(cls, "to_value", cls_dict_copy["to_value"])
         setattr(cls, "from_value", cls_dict_copy["from_value"])
 
-    _set_setup_complete()
+    # hook IntoQuery methods into Property
+    from bench.language.core import IntoQuery, Property
 
-    # run completion hooks
-    for hook in _setup_hooks:
-        hook()
+    for name, attr in IntoQuery.__dict__.items():
+        if name not in Property.__dict__ and name not in ("__annotations__", "__dict__"):
+            setattr(Property, name, attr)
+
+    # generate info
+    from bench.language.core import EnumInfo, NodeInfo, StructInfo
+
+    for node_cls in NODE_CLASS_BY_TYPE.values():
+        node_info = NodeInfo.from_node(node_cls)
+        NODE_INFO_BY_TYPE[node_cls.metatype] = node_info
+        node_cls.info = node_info
+    for struct_cls in STRUCT_CLASS_BY_TYPE.values():
+        struct_info = StructInfo.from_struct(struct_cls)
+        STRUCT_INFO_BY_TYPE[struct_cls.metatype] = struct_info
+        struct_cls.info = struct_info
+    for enum_type in ENUM_TYPES:
+        enum_info = EnumInfo.from_enum(enum_type, ENUM_CLASS_BY_TYPE[enum_type])
+        ENUM_INFO_BY_TYPE[enum_type] = enum_info
+
+    _set_setup_complete()
