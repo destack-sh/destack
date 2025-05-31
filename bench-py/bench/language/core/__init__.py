@@ -129,7 +129,6 @@ from .session import Session
 from .sharding import CellRegistry, DatabaseRegistry, StaticCellRegistry, StaticDatabaseRegistry
 from .store import LiveStore, OptimisticStore, Store
 from .struct import (
-    EMPTY_SCOPE_DATA,
     NodeReference,
     PropertyReference,
     Scope,
@@ -220,7 +219,6 @@ __all__ = [
     "DEFAULT_WAIT_TIMEOUT",
     "EMPTY_DICT",
     "EMPTY_LIST",
-    "EMPTY_SCOPE_DATA",
     "EMPTY_SET",
     "ENUM_TYPES",
     "IS_IN_USER_CODE",

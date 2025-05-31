@@ -3,8 +3,8 @@ syntax = "proto3";
 package symbol.bench;
 
 import "google/protobuf/struct.proto";
-import "proto/common.proto";
-import "proto/language.proto";
+import "bench-proto/common.proto";
+import "bench-proto/language.proto";
 
 message QueryRequest {
   ScopeData scope = 1;

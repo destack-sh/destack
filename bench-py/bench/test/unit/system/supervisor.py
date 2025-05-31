@@ -21,8 +21,6 @@ from bench.test.simulation.core import SimulatedChannel
 from bench.utils.oracle import REAL_ORACLE
 from grpclib import Status as GRPCStatus
 
-from bench import pb2
-
 #
 # Simulated but unit-test-like supervisor-only tests
 #
@@ -55,6 +53,8 @@ async def supervisor(supervisor_service):
 async def test_user_registration(supervisor: SupervisorClient):
     """Create a User, login and logout. Try some wrong passwords and tokens. Read back data to confirm."""
 
+    from bench.pb2 import Region as RegionData
+
     session = Session()
 
     user_slug = "florian"
@@ -77,7 +77,7 @@ async def test_user_registration(supervisor: SupervisorClient):
         email=user_email,
         client=client_in,
         password="Password123!",
-        region=pb2.Region.REGION_ZURICH,
+        region=RegionData.REGION_ZURICH,
     )
     signup_rep = await supervisor.signup_user(signup_req)
     assert signup_rep.user.slug == user_slug

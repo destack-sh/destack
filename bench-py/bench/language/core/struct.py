@@ -11,7 +11,6 @@ import structlog
 from fastuuid import UUID
 from opentelemetry import trace
 
-from bench import pb2
 from bench.language.registry import BUILTIN_OBJECT_CLASS_BY_TYPE
 from bench.pb2 import AnyStructData, NodeReferenceData, PropertyReferenceData, ScopeData
 
@@ -74,9 +73,6 @@ class Scope(StructFrozen[ScopeData]):
 
     region: Optional[Region] = property_(31, is_repr=True)
     bench_id: Optional[UUID] = property_(32, is_repr=True)
-
-
-EMPTY_SCOPE_DATA = pb2.ScopeData(metatype=pb2.StructType.STRUCT_TYPE_SCOPE)
 
 
 @struct_(StructType.PROPERTY_REFERENCE, frozen=True)

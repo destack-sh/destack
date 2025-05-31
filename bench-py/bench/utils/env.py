@@ -57,6 +57,4 @@ IS_TEST: bool = (
     or get_from_env("TEST", default=False, typ=bool, description="Whether to run in test mode")
     or ENV == Env.TEST
 )
-IS_PROD = ENV == Env.PROD
-IS_STAGE = ENV == Env.STAGE
 REPOSITORY_PATH = Path(__file__).parent.parent.parent.resolve()

@@ -2,8 +2,8 @@ syntax = "proto3";
 
 package symbol.bench;
 
-import "proto/common.proto";
-import "proto/language.proto";
+import "bench-proto/common.proto";
+import "bench-proto/language.proto";
 
 message SignupUserRequest {
   string slug = 2;

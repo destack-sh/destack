@@ -255,12 +255,6 @@ class CursorType(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     CURSOR_TYPE_WEB: _ClassVar[CursorType]
     CURSOR_TYPE_CUSTOM: _ClassVar[CursorType]
 
-class DatabaseType(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
-    __slots__ = ()
-    DATABASE_TYPE_UNSPECIFIED: _ClassVar[DatabaseType]
-    DATABASE_TYPE_DEDICATED: _ClassVar[DatabaseType]
-    DATABASE_TYPE_SHARED: _ClassVar[DatabaseType]
-
 class Day(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     __slots__ = ()
     DAY_UNSPECIFIED: _ClassVar[Day]
@@ -310,6 +304,14 @@ class EdgeType(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     EDGE_TYPE_NODE_REGULAR: _ClassVar[EdgeType]
     EDGE_TYPE_NODE_TEMPLATE: _ClassVar[EdgeType]
 
+class EditOperation(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
+    __slots__ = ()
+    EDIT_OPERATION_UNSPECIFIED: _ClassVar[EditOperation]
+    EDIT_OPERATION_SET: _ClassVar[EditOperation]
+    EDIT_OPERATION_CLEAR: _ClassVar[EditOperation]
+    EDIT_OPERATION_MAP_SET: _ClassVar[EditOperation]
+    EDIT_OPERATION_MAP_REMOVE: _ClassVar[EditOperation]
+
 class EditType(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     __slots__ = ()
     EDIT_TYPE_UNSPECIFIED: _ClassVar[EditType]
@@ -354,7 +356,7 @@ class EnumType(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     ENUM_TYPE_ERROR_TYPE: _ClassVar[EnumType]
     ENUM_TYPE_VARIABLE_TYPE: _ClassVar[EnumType]
     ENUM_TYPE_EDIT_TYPE: _ClassVar[EnumType]
-    ENUM_TYPE_UPDATE_TYPE: _ClassVar[EnumType]
+    ENUM_TYPE_EDIT_OPERATION: _ClassVar[EnumType]
     ENUM_TYPE_CHANGE_STATUS: _ClassVar[EnumType]
     ENUM_TYPE_CONDITIONAL_TYPE: _ClassVar[EnumType]
     ENUM_TYPE_AGGREGATION_TYPE: _ClassVar[EnumType]
@@ -376,7 +378,7 @@ class EnumType(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     ENUM_TYPE_AREA: _ClassVar[EnumType]
     ENUM_TYPE_CONTINENT: _ClassVar[EnumType]
     ENUM_TYPE_MACHINE_TYPE: _ClassVar[EnumType]
-    ENUM_TYPE_DATABASE_TYPE: _ClassVar[EnumType]
+    ENUM_TYPE_TENANCY: _ClassVar[EnumType]
     ENUM_TYPE_CLIENT_TYPE: _ClassVar[EnumType]
     ENUM_TYPE_ACTION_CARDINALITY: _ClassVar[EnumType]
     ENUM_TYPE_FLOW_TYPE: _ClassVar[EnumType]
@@ -1182,6 +1184,12 @@ class StructType(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     STRUCT_TYPE_INSETS: _ClassVar[StructType]
     STRUCT_TYPE_CORNERS: _ClassVar[StructType]
 
+class Tenancy(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
+    __slots__ = ()
+    TENANCY_UNSPECIFIED: _ClassVar[Tenancy]
+    TENANCY_DEDICATED: _ClassVar[Tenancy]
+    TENANCY_SHARED: _ClassVar[Tenancy]
+
 class TextAlign(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     __slots__ = ()
     TEXT_ALIGN_UNSPECIFIED: _ClassVar[TextAlign]
@@ -1317,14 +1325,6 @@ class TypeCardinality(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     TYPE_CARDINALITY_SCALAR: _ClassVar[TypeCardinality]
     TYPE_CARDINALITY_LIST: _ClassVar[TypeCardinality]
     TYPE_CARDINALITY_MAP: _ClassVar[TypeCardinality]
-
-class UpdateType(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
-    __slots__ = ()
-    UPDATE_TYPE_UNSPECIFIED: _ClassVar[UpdateType]
-    UPDATE_TYPE_SET: _ClassVar[UpdateType]
-    UPDATE_TYPE_CLEAR: _ClassVar[UpdateType]
-    UPDATE_TYPE_MAP_SET: _ClassVar[UpdateType]
-    UPDATE_TYPE_MAP_REMOVE: _ClassVar[UpdateType]
 
 class UserStatus(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     __slots__ = ()
@@ -1505,9 +1505,6 @@ CURSOR_TYPE_TABLE: CursorType
 CURSOR_TYPE_ACTION: CursorType
 CURSOR_TYPE_WEB: CursorType
 CURSOR_TYPE_CUSTOM: CursorType
-DATABASE_TYPE_UNSPECIFIED: DatabaseType
-DATABASE_TYPE_DEDICATED: DatabaseType
-DATABASE_TYPE_SHARED: DatabaseType
 DAY_UNSPECIFIED: Day
 DAY_MONDAY: Day
 DAY_TUESDAY: Day
@@ -1539,6 +1536,11 @@ EDGE_TYPE_NODE_PARENT: EdgeType
 EDGE_TYPE_NODE_ANCESTOR: EdgeType
 EDGE_TYPE_NODE_REGULAR: EdgeType
 EDGE_TYPE_NODE_TEMPLATE: EdgeType
+EDIT_OPERATION_UNSPECIFIED: EditOperation
+EDIT_OPERATION_SET: EditOperation
+EDIT_OPERATION_CLEAR: EditOperation
+EDIT_OPERATION_MAP_SET: EditOperation
+EDIT_OPERATION_MAP_REMOVE: EditOperation
 EDIT_TYPE_UNSPECIFIED: EditType
 EDIT_TYPE_CREATE: EditType
 EDIT_TYPE_UPSERT: EditType
@@ -1575,7 +1577,7 @@ ENUM_TYPE_PACKAGE_TYPE: EnumType
 ENUM_TYPE_ERROR_TYPE: EnumType
 ENUM_TYPE_VARIABLE_TYPE: EnumType
 ENUM_TYPE_EDIT_TYPE: EnumType
-ENUM_TYPE_UPDATE_TYPE: EnumType
+ENUM_TYPE_EDIT_OPERATION: EnumType
 ENUM_TYPE_CHANGE_STATUS: EnumType
 ENUM_TYPE_CONDITIONAL_TYPE: EnumType
 ENUM_TYPE_AGGREGATION_TYPE: EnumType
@@ -1597,7 +1599,7 @@ ENUM_TYPE_REGION: EnumType
 ENUM_TYPE_AREA: EnumType
 ENUM_TYPE_CONTINENT: EnumType
 ENUM_TYPE_MACHINE_TYPE: EnumType
-ENUM_TYPE_DATABASE_TYPE: EnumType
+ENUM_TYPE_TENANCY: EnumType
 ENUM_TYPE_CLIENT_TYPE: EnumType
 ENUM_TYPE_ACTION_CARDINALITY: EnumType
 ENUM_TYPE_FLOW_TYPE: EnumType
@@ -2222,6 +2224,9 @@ STRUCT_TYPE_GRID: StructType
 STRUCT_TYPE_GRID_SPAN: StructType
 STRUCT_TYPE_INSETS: StructType
 STRUCT_TYPE_CORNERS: StructType
+TENANCY_UNSPECIFIED: Tenancy
+TENANCY_DEDICATED: Tenancy
+TENANCY_SHARED: Tenancy
 TEXT_ALIGN_UNSPECIFIED: TextAlign
 TEXT_ALIGN_LEFT: TextAlign
 TEXT_ALIGN_CENTER: TextAlign
@@ -2322,11 +2327,6 @@ TYPE_CARDINALITY_UNSPECIFIED: TypeCardinality
 TYPE_CARDINALITY_SCALAR: TypeCardinality
 TYPE_CARDINALITY_LIST: TypeCardinality
 TYPE_CARDINALITY_MAP: TypeCardinality
-UPDATE_TYPE_UNSPECIFIED: UpdateType
-UPDATE_TYPE_SET: UpdateType
-UPDATE_TYPE_CLEAR: UpdateType
-UPDATE_TYPE_MAP_SET: UpdateType
-UPDATE_TYPE_MAP_REMOVE: UpdateType
 USER_STATUS_UNSPECIFIED: UserStatus
 USER_STATUS_CREATING: UserStatus
 USER_STATUS_ACTIVE: UserStatus
@@ -2712,7 +2712,7 @@ class BorderStyleData(_message.Message):
     def __init__(self, metatype: _Optional[_Union[NodeType, str]] = ..., id: _Optional[str] = ..., parent_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., bench_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., package_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., created_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., created_by_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., updated_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., updated_by_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., archived_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., deleted_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., template_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., mode: _Optional[_Union[NodeMode, str]] = ..., order_key: _Optional[str] = ..., type: _Optional[_Union[BorderType, str]] = ..., name: _Optional[str] = ..., block_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., style_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., color: _Optional[_Union[ColorData, _Mapping]] = ..., width: _Optional[_Union[InsetsData, _Mapping]] = ...) -> None: ...
 
 class CellData(_message.Message):
-    __slots__ = ("metatype", "id", "parent_ptr", "bench_ptr", "created_at", "created_by_ptr", "updated_at", "updated_by_ptr", "owned_by_ptr", "mode", "name", "region", "cell_name")
+    __slots__ = ("metatype", "id", "parent_ptr", "bench_ptr", "created_at", "created_by_ptr", "updated_at", "updated_by_ptr", "owned_by_ptr", "mode", "name", "region", "cell_name", "host")
     METATYPE_FIELD_NUMBER: _ClassVar[int]
     ID_FIELD_NUMBER: _ClassVar[int]
     PARENT_PTR_FIELD_NUMBER: _ClassVar[int]
@@ -2726,6 +2726,7 @@ class CellData(_message.Message):
     NAME_FIELD_NUMBER: _ClassVar[int]
     REGION_FIELD_NUMBER: _ClassVar[int]
     CELL_NAME_FIELD_NUMBER: _ClassVar[int]
+    HOST_FIELD_NUMBER: _ClassVar[int]
     metatype: NodeType
     id: str
     parent_ptr: NodeReferenceData
@@ -2739,17 +2740,20 @@ class CellData(_message.Message):
     name: str
     region: Region
     cell_name: str
-    def __init__(self, metatype: _Optional[_Union[NodeType, str]] = ..., id: _Optional[str] = ..., parent_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., bench_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., created_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., created_by_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., updated_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., updated_by_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., owned_by_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., mode: _Optional[_Union[NodeMode, str]] = ..., name: _Optional[str] = ..., region: _Optional[_Union[Region, str]] = ..., cell_name: _Optional[str] = ...) -> None: ...
+    host: str
+    def __init__(self, metatype: _Optional[_Union[NodeType, str]] = ..., id: _Optional[str] = ..., parent_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., bench_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., created_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., created_by_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., updated_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., updated_by_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., owned_by_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., mode: _Optional[_Union[NodeMode, str]] = ..., name: _Optional[str] = ..., region: _Optional[_Union[Region, str]] = ..., cell_name: _Optional[str] = ..., host: _Optional[str] = ...) -> None: ...
 
 class CellInfoData(_message.Message):
-    __slots__ = ("metatype", "region", "cell_name")
+    __slots__ = ("metatype", "region", "cell_name", "host")
     METATYPE_FIELD_NUMBER: _ClassVar[int]
     REGION_FIELD_NUMBER: _ClassVar[int]
     CELL_NAME_FIELD_NUMBER: _ClassVar[int]
+    HOST_FIELD_NUMBER: _ClassVar[int]
     metatype: StructType
     region: Region
     cell_name: str
-    def __init__(self, metatype: _Optional[_Union[StructType, str]] = ..., region: _Optional[_Union[Region, str]] = ..., cell_name: _Optional[str] = ...) -> None: ...
+    host: str
+    def __init__(self, metatype: _Optional[_Union[StructType, str]] = ..., region: _Optional[_Union[Region, str]] = ..., cell_name: _Optional[str] = ..., host: _Optional[str] = ...) -> None: ...
 
 class ChangeData(_message.Message):
     __slots__ = ("metatype", "id", "created_at", "edits")
@@ -3081,7 +3085,7 @@ class CustomNodeInstanceData(_message.Message):
     def __init__(self, metatype: _Optional[_Union[NodeType, str]] = ..., id: _Optional[str] = ..., parent_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., bench_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., package_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., created_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., created_by_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., updated_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., updated_by_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., deleted_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., mode: _Optional[_Union[NodeMode, str]] = ..., value: _Optional[_Mapping[str, ValueData]] = ..., definition_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ...) -> None: ...
 
 class DatabaseData(_message.Message):
-    __slots__ = ("metatype", "id", "parent_ptr", "bench_ptr", "created_at", "created_by_ptr", "updated_at", "updated_by_ptr", "owned_by_ptr", "mode", "type", "name", "version", "region", "cell_name", "external_id", "custom_schema_name", "sql_url")
+    __slots__ = ("metatype", "id", "parent_ptr", "bench_ptr", "created_at", "created_by_ptr", "updated_at", "updated_by_ptr", "owned_by_ptr", "mode", "name", "version", "region", "cell_name", "external_id", "custom_schema_name", "tenancy", "sql_url")
     METATYPE_FIELD_NUMBER: _ClassVar[int]
     ID_FIELD_NUMBER: _ClassVar[int]
     PARENT_PTR_FIELD_NUMBER: _ClassVar[int]
@@ -3092,13 +3096,13 @@ class DatabaseData(_message.Message):
     UPDATED_BY_PTR_FIELD_NUMBER: _ClassVar[int]
     OWNED_BY_PTR_FIELD_NUMBER: _ClassVar[int]
     MODE_FIELD_NUMBER: _ClassVar[int]
-    TYPE_FIELD_NUMBER: _ClassVar[int]
     NAME_FIELD_NUMBER: _ClassVar[int]
     VERSION_FIELD_NUMBER: _ClassVar[int]
     REGION_FIELD_NUMBER: _ClassVar[int]
     CELL_NAME_FIELD_NUMBER: _ClassVar[int]
     EXTERNAL_ID_FIELD_NUMBER: _ClassVar[int]
     CUSTOM_SCHEMA_NAME_FIELD_NUMBER: _ClassVar[int]
+    TENANCY_FIELD_NUMBER: _ClassVar[int]
     SQL_URL_FIELD_NUMBER: _ClassVar[int]
     metatype: NodeType
     id: str
@@ -3110,33 +3114,33 @@ class DatabaseData(_message.Message):
     updated_by_ptr: NodeReferenceData
     owned_by_ptr: NodeReferenceData
     mode: NodeMode
-    type: DatabaseType
     name: str
     version: str
     region: Region
     cell_name: str
     external_id: str
     custom_schema_name: str
+    tenancy: Tenancy
     sql_url: str
-    def __init__(self, metatype: _Optional[_Union[NodeType, str]] = ..., id: _Optional[str] = ..., parent_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., bench_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., created_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., created_by_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., updated_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., updated_by_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., owned_by_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., mode: _Optional[_Union[NodeMode, str]] = ..., type: _Optional[_Union[DatabaseType, str]] = ..., name: _Optional[str] = ..., version: _Optional[str] = ..., region: _Optional[_Union[Region, str]] = ..., cell_name: _Optional[str] = ..., external_id: _Optional[str] = ..., custom_schema_name: _Optional[str] = ..., sql_url: _Optional[str] = ...) -> None: ...
+    def __init__(self, metatype: _Optional[_Union[NodeType, str]] = ..., id: _Optional[str] = ..., parent_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., bench_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., created_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., created_by_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., updated_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., updated_by_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., owned_by_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., mode: _Optional[_Union[NodeMode, str]] = ..., name: _Optional[str] = ..., version: _Optional[str] = ..., region: _Optional[_Union[Region, str]] = ..., cell_name: _Optional[str] = ..., external_id: _Optional[str] = ..., custom_schema_name: _Optional[str] = ..., tenancy: _Optional[_Union[Tenancy, str]] = ..., sql_url: _Optional[str] = ...) -> None: ...
 
 class DatabaseInfoData(_message.Message):
-    __slots__ = ("metatype", "type", "region", "cell_name", "external_id", "custom_schema_name", "sql_url")
+    __slots__ = ("metatype", "region", "cell_name", "external_id", "custom_schema_name", "tenancy", "sql_url")
     METATYPE_FIELD_NUMBER: _ClassVar[int]
-    TYPE_FIELD_NUMBER: _ClassVar[int]
     REGION_FIELD_NUMBER: _ClassVar[int]
     CELL_NAME_FIELD_NUMBER: _ClassVar[int]
     EXTERNAL_ID_FIELD_NUMBER: _ClassVar[int]
     CUSTOM_SCHEMA_NAME_FIELD_NUMBER: _ClassVar[int]
+    TENANCY_FIELD_NUMBER: _ClassVar[int]
     SQL_URL_FIELD_NUMBER: _ClassVar[int]
     metatype: StructType
-    type: DatabaseType
     region: Region
     cell_name: str
     external_id: str
     custom_schema_name: str
+    tenancy: Tenancy
     sql_url: str
-    def __init__(self, metatype: _Optional[_Union[StructType, str]] = ..., type: _Optional[_Union[DatabaseType, str]] = ..., region: _Optional[_Union[Region, str]] = ..., cell_name: _Optional[str] = ..., external_id: _Optional[str] = ..., custom_schema_name: _Optional[str] = ..., sql_url: _Optional[str] = ...) -> None: ...
+    def __init__(self, metatype: _Optional[_Union[StructType, str]] = ..., region: _Optional[_Union[Region, str]] = ..., cell_name: _Optional[str] = ..., external_id: _Optional[str] = ..., custom_schema_name: _Optional[str] = ..., tenancy: _Optional[_Union[Tenancy, str]] = ..., sql_url: _Optional[str] = ...) -> None: ...
 
 class DimensionData(_message.Message):
     __slots__ = ("metatype", "type", "unit", "value")
@@ -3164,13 +3168,13 @@ class EditData(_message.Message):
     metatype: StructType
     id: str
     type: EditType
-    operation: UpdateType
+    operation: EditOperation
     node_ptr: NodeReferenceData
     path: str
     key: ValueData
     value: ValueData
     parent_ptr: NodeReferenceData
-    def __init__(self, metatype: _Optional[_Union[StructType, str]] = ..., id: _Optional[str] = ..., type: _Optional[_Union[EditType, str]] = ..., operation: _Optional[_Union[UpdateType, str]] = ..., node_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., path: _Optional[str] = ..., key: _Optional[_Union[ValueData, _Mapping]] = ..., value: _Optional[_Union[ValueData, _Mapping]] = ..., parent_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ...) -> None: ...
+    def __init__(self, metatype: _Optional[_Union[StructType, str]] = ..., id: _Optional[str] = ..., type: _Optional[_Union[EditType, str]] = ..., operation: _Optional[_Union[EditOperation, str]] = ..., node_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., path: _Optional[str] = ..., key: _Optional[_Union[ValueData, _Mapping]] = ..., value: _Optional[_Union[ValueData, _Mapping]] = ..., parent_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ...) -> None: ...
 
 class EffectData(_message.Message):
     __slots__ = ("metatype", "type", "style_ptr", "opacity", "offset", "scale", "rotate", "skew", "perspective", "delay", "duration", "threshold", "once", "repeat", "split", "offscreen", "transition")

@@ -1,4 +1,3 @@
-import os
 import re
 import shutil
 import subprocess
@@ -48,8 +47,7 @@ app = typer.Typer(short_help="proto management")
 
 def run_shell_sync(cmd: str, check=True, **kwargs):
     """Executes a shell command in a subprocess."""
-    cwd = os.getcwd()
-    logger.trace("shell", cmd=cmd, cwd=cwd, check=check, **kwargs)
+    print(f"{cmd} {' '.join(f'{k}={v}' for k, v in kwargs.items())}")  # noqa: T201
     subprocess.run(cmd, shell=True, check=check, **kwargs)
 
 
@@ -100,15 +98,20 @@ def _gen_proto(schema_str: str) -> None:
     #  are correct for protobuf's python generator.
     Path(TEMP_PY_DIR).mkdir(parents=True, exist_ok=True)
     py_proto_files = [LANGUAGE_PROTO, *EXTRA_PROTO_PY_FILES]
-    # replace 'import "proto/..." with 'import "..." in all files in wire
-    py_proto_files = [p.replace("proto/", "") for p in py_proto_files]
-    run_shell_sync("cp -r bench-proto bench-py/bench/proto.tmp")
-    for path in Path("bench-py/bench/proto.tmp").rglob("*.proto"):
-        path.write_text(regex.sub(r"import \"proto/", 'import "', path.read_text()))
+    # replace 'import "bench-proto/..." with 'import "..." in all files in wire
+    py_proto_files = [p.replace("bench-proto/", "") for p in py_proto_files]
+    run_shell_sync("cp -r bench-proto wire")
+    for path in Path("wire").rglob("*.proto"):
+        path.write_text(regex.sub(r"import \"bench-proto/", 'import "', path.read_text()))
     run_shell_sync(
-        f"protoc -I wire --python_out={TEMP_PY_DIR} --pyi_out={TEMP_PY_DIR} --grpclib_python_out={TEMP_PY_DIR} {' '.join(py_proto_files)}"
+        "source bench-py/venv/bin/activate && "
+        f"protoc -I wire "
+        f"--python_out={TEMP_PY_DIR} "
+        f"--pyi_out={TEMP_PY_DIR} "
+        f"--grpclib_python_out={TEMP_PY_DIR} "
+        f"{' '.join(py_proto_files)}"
     )
-    run_shell_sync("rm -r bench-py/bench/proto.tmp")
+    run_shell_sync("rm -r wire")
 
     # patch in our extra stuff into every file
     generated_py_files = list(Path(TEMP_PY_DIR).rglob("*.py")) + list(
@@ -200,7 +203,8 @@ AnyObjectData = AnyNodeData | AnyStructData
     shutil.rmtree(TEMP_TS_DIR, ignore_errors=True)
     Path(TEMP_TS_DIR).mkdir(parents=True, exist_ok=True)
     run_shell_sync(
-        f"bun x protoc --ts_out {TEMP_TS_DIR} --proto_path . {LANGUAGE_PROTO} {' '.join(EXTRA_PROTO_TS_FILES)}",
+        f"bun x protoc --ts_out {TEMP_TS_DIR} --proto_path . {LANGUAGE_PROTO} "
+        f"{' '.join(EXTRA_PROTO_TS_FILES)}",
     )
 
     # magic replace code so that Value is transparently encoded/decoded :MagicJsValuePacking
@@ -260,28 +264,28 @@ export type AnyNodeData = {" | ".join(cls.__name__ + "Data" for cls in NODE_CLAS
 export type AnyStructData = {" | ".join(cls.__name__ + "Data" for cls in STRUCT_CLASS_BY_TYPE.values())}
 
     """
-    lang_ts = Path(TEMP_TS_DIR + "/proto/language.ts").read_text()
-    Path(TEMP_TS_DIR + "/proto/language.ts").write_text(lang_ts + "\n\n" + patch_postfix_code)
+    lang_ts = Path(TEMP_TS_DIR + "/bench-proto/language.ts").read_text()
+    Path(TEMP_TS_DIR + "/bench-proto/language.ts").write_text(lang_ts + "\n\n" + patch_postfix_code)
 
     # index.ts
     Path(TEMP_TS_DIR + "/index.ts").write_text(
         """
 // re-export generated wire files
-export * from './proto/common';
-export * from './proto/language';
-export * from './proto/web';
-export * from './proto/supervisor';
-export * from './proto/supervisor.client';
-export * from './proto/host';
-export * from './proto/host.client';
-export * from './proto/health';
-export * from './proto/health.client';
+export * from './bench-proto/common';
+export * from './bench-proto/language';
+export * from './bench-proto/web';
+export * from './bench-proto/supervisor';
+export * from './bench-proto/supervisor.client';
+export * from './bench-proto/host';
+export * from './bench-proto/host.client';
+export * from './bench-proto/health';
+export * from './bench-proto/health.client';
+export * from './bench-proto/google/type/date';
+export * from './bench-proto/google/type/timeofday';
+export * from './bench-proto/google/type/datetime';
 export * from './google/protobuf/descriptor';
 export * from './google/protobuf/struct';
 export * from './google/protobuf/timestamp';
-export * from './proto/google/type/date';
-export * from './proto/google/type/timeofday';
-export * from './proto/google/type/datetime';
         """
     )
 
