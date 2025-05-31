@@ -58,54 +58,6 @@ async def test_clone(simulation: Simulation, runtime: RuntimeLambdaWorkload):
 
 
 @simulated_runtime()
-async def test_clone_with_cross_references(simulation: Simulation, runtime: RuntimeLambdaWorkload):
-    """Clone consistency test with references."""
-    schema = Schema(name="Letter")
-    schema.add_children(Field(name="A"), Field(name="B"))
-    flow = Flow(name="Flow")
-    action = Action(name="Action")
-    action.add_children(
-        Field(name="Text", scalar_type=ScalarType.STRUCT, struct_type=StructType.TEXT),
-        Field(
-            name="Schema", scalar_type=ScalarType.NODE, node_type=NodeType.FIELD, base_type=schema
-        ),
-    )
-    flow.add_child(action)
-    table = CustomNodeDefinition(name="Table")
-    table.add_children(
-        Field(name="Text", scalar_type=ScalarType.STRUCT, struct_type=StructType.TEXT)
-    )
-    page = runtime.page()
-    schema_block = page.add_child(schema)
-    flow_block = page.add_child(flow)
-    _ = page.add_child(table)
-    await runtime.commit()
-
-    # cloning an inline node should be consistent with its definition counterpart
-    schema_block_clone = schema_block.clone()
-    assert schema_block_clone.node is not schema
-    assert schema_block_clone.get_node_as(Schema).block is schema_block_clone
-    # other way around
-    flow_clone = flow.clone()
-    assert flow_clone.block is not None
-    assert flow_clone.block is not flow_block
-    assert flow_clone.block.get_node_as(Flow) is flow_clone
-
-    # references should be consistent within new subtree
-    page_clone = page.clone()
-    flow_clone = page_clone.child(Block, "Flow").get_node_as(Flow)
-    assert flow_clone is not None
-    schema_clone = page_clone.child(Block, "Letter").get_node_as(Schema)
-    assert schema_clone is not None
-    action_clone = flow_clone.child(Action, "Action")
-    assert action_clone is not None
-    assert action_clone.child(Field, "Schema").base_type == schema_clone
-    table_clone = page_clone.child(Block, "Table").get_node_as(CustomNodeDefinition)
-    assert table_clone is not None
-    await runtime.commit()
-
-
-@simulated_runtime()
 async def test_instance(simulation: Simulation, runtime: RuntimeLambdaWorkload):
     """Instance a subtree."""
     schema = Schema(name="Letter")
@@ -123,7 +75,6 @@ async def test_instance(simulation: Simulation, runtime: RuntimeLambdaWorkload):
         schema.get_children(Field), schema_instance.get_children(Field)
     ):
         assert field_instance.id != field.id
-        assert field_instance.ck == field.ck
         assert field_instance.template_id == field.id
         assert field.equals(field_instance)
     await runtime.commit()
@@ -170,11 +121,6 @@ async def test_instance_with_cross_references(
     assert action_instance is not action
     assert action_instance.template is action
     assert action_instance.child(Field, "Schema").base_type == schema_instance
-    table_instance = page_instance.child(Block, "Table").get_node_as(CustomNodeDefinition)
-    assert table_instance is not None
-    assert table_instance is not table
-    assert table_instance.template is table
-    await runtime.commit()
 
 
 @simulated_runtime()

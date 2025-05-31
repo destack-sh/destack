@@ -2,8 +2,8 @@ syntax = "proto3";
 
 package symbol.bench;
 
-import "proto/language.proto";
-import "google/protobuf/descriptor.proto";
+import "bench-proto/language.proto";
+import "google/protobuf/descriptor.proto"; 
 
 enum ServiceKind {
   UNSPECIFIED = 0;

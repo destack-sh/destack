@@ -188,7 +188,7 @@ grpcio==1.71.0
     #   opentelemetry-exporter-otlp-proto-grpc
 grpcio-status==1.71.0
     # via google-api-core
-grpclib==0.4.7
+grpclib==0.4.8
     # via -r bench-py/bench/requirements/base.in
 h11==0.14.0
     # via httpcore
@@ -409,6 +409,7 @@ protobuf==5.28.3
     #   google-generativeai
     #   googleapis-common-protos
     #   grpcio-status
+    #   grpclib
     #   livekit
     #   livekit-agents
     #   livekit-api

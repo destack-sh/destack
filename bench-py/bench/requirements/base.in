@@ -17,7 +17,7 @@ fastuuid==0.12.0
 googleapis-common-protos==1.66.0
 google-genai==0.5.0
 google-generativeai==0.8.3
-grpclib==0.4.7
+grpclib[protobuf]==0.4.8
 httpx[http2,brotli]>=0.28.0
 livekit-agents==0.12.8
 livekit==0.19.1

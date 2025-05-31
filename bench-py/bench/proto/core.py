@@ -40,9 +40,9 @@ class ProtoSchema(ProtoThing):
             "google/protobuf/timestamp.proto",
             "google/protobuf/duration.proto",
             "google/protobuf/struct.proto",
-            "proto/google/type/datetime.proto",
-            "proto/google/type/date.proto",
-            "proto/google/type/timeofday.proto",
+            "bench-proto/google/type/datetime.proto",
+            "bench-proto/google/type/date.proto",
+            "bench-proto/google/type/timeofday.proto",
         ]
         return ProtoSchema(name=name, imports=imports, types=types)
 
