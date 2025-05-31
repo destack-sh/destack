@@ -1,0 +1,136 @@
+from datetime import datetime
+from typing import TYPE_CHECKING, Collection
+
+import structlog
+from fastuuid import UUID
+from opentelemetry import trace
+
+from .const import BuiltinEnum, EnumType, StructType, bittuple, enum_
+from .graph import Graph
+from .node import Node
+from .property import property_
+from .struct import NodeReference, StructFrozen, struct_
+
+if TYPE_CHECKING:
+    from bench.language import Value
+
+logger = structlog.get_logger(__name__)
+tracer = trace.get_tracer(__name__)
+
+
+@enum_(EnumType.EDIT_TYPE)
+class EditType(BuiltinEnum):
+    """Ways to edit nodes."""
+
+    CREATE = 1
+    UPSERT = 2
+    UPDATE = 3
+    MOVE = 4
+    ARCHIVE = 5
+    UNARCHIVE = 6
+    DELETE = 7
+    RESTORE = 8
+    ERASE = 9
+
+
+CASCADING_EDIT_TYPES: bittuple[EditType] = bittuple(
+    EditType.ARCHIVE,
+    EditType.UNARCHIVE,
+    EditType.DELETE,
+    EditType.RESTORE,
+    EditType.ERASE,
+)
+
+
+@enum_(EnumType.EDIT_OPERATION)
+class EditOperation(BuiltinEnum):
+    """The type of update operation."""
+
+    # direct
+    SET = 1
+    CLEAR = 2
+
+    # number
+    # NUMBER_INCREMENT, NUMBER_DECREMENT, ...
+
+    # string
+    # STRING_INSERT, STRING_DELETE, STRING_FORMAT, ...
+
+    # list
+    # LIST_APPEND_IF_MISSING, LIST_REMOVE, ...
+
+    # map
+    MAP_SET = 110
+    MAP_REMOVE = 111
+    # MAP_INCREMENT, MAP_DECREMENT, ...
+
+
+@struct_(StructType.EDIT, frozen=True)
+class Edit(StructFrozen):
+    """An Edit to a Node."""
+
+    # meta
+    id: UUID = property_(2, default_factory="uuid")
+
+    # key
+    type: EditType = property_(30)
+    operation: EditOperation | None = property_(31)
+    node: Node = property_(32)
+    path: str | None = property_(33)
+    key: "Value | None" = property_(34)  # for map operations
+    if TYPE_CHECKING:
+        node_id: UUID = property_()
+        node_ptr: NodeReference = property_()
+
+    # value
+    # node_data: "NodeData | None" = property_(40)
+    value: "Value | None" = property_(41)
+    parent: Node | None = property_(42)  # for move
+    if TYPE_CHECKING:
+        parent_id: UUID = property_()
+        parent_ptr: NodeReference = property_()
+
+
+@struct_(StructType.CHANGE, frozen=True)
+class Change(StructFrozen):
+    """A Change is an atomic sequence of Edits."""
+
+    id: UUID = property_(2, is_managed=True, default_factory="uuid")
+    created_at: datetime = property_(10, is_managed=True, default_factory="now")
+    edits: list[Edit] = property_(41)
+
+
+@enum_(EnumType.CHANGE_STATUS)
+class ChangeStatus(BuiltinEnum):
+    """The status of a Change."""
+
+    # PENDING?
+    COMPLETED = 2
+    FAILED = 3
+
+
+@struct_(StructType.CHANGE_RESULT, frozen=True)
+class ChangeResult(StructFrozen):
+    """The result of a Change. If rejected, edits/cascaded_edits are empty."""
+
+    id: UUID = property_(2, is_managed=True, description="The id of the Change.")
+    created_at: datetime = property_(
+        10,
+        is_managed=True,
+        description="The time the ChangeResult was created.",
+        default_factory="now",
+    )
+    status: ChangeStatus = property_(40)
+    edits: list[Edit] = property_(41)
+    cascaded_edits: list[Edit] = property_(42)
+    epoch: int = property_(43)
+
+
+def edit_node(node: Node, edit: Edit) -> None:
+    """Applies the Edit to the Node."""
+    raise NotImplementedError
+
+
+def edit_graph(graph: Graph, edits: Collection[Edit]) -> None:
+    """Applies the Edits to the graph."""
+    raise NotImplementedError

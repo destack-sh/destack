@@ -52,9 +52,9 @@ ignore = [
 ]
 
 [tool.pyright]
-include = ["bench"]
-exclude = ["^bench/migrations", "^venv*"]
-ignore = ["^bench/migrations", "^venv*"]
+include = ["bench-py/bench"]
+exclude = ["^bench-py/bench/migrations", "^venv*"]
+ignore = ["^bench-py/bench/migrations", "^venv*"]
 venv = "venv"
 strictDictionaryInference = true
 strictListInference = true
@@ -79,7 +79,7 @@ reportUnnecessaryCast = false
 reportConstantRedefinition = false
 
 [tool.coverage.run]
-omit = ["bench/migrations/*", "bench/test/*"]
+omit = ["bench-py/bench/migrations/*", "bench-py/bench/test/*"]
 
 [tool.pytest_env]
 ENVIRONMENT = "test"

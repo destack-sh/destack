@@ -12,17 +12,17 @@ GIT_COMMIT=$(git rev-parse --short HEAD)
 # get version from 'version' file
 VERSION=$(cat version)
 
-# build bench-web with :BenchWebEnv placeholders (to be substituted in deploy)
+# build bench-ts with :BenchWebEnv placeholders (to be substituted in deploy)
 # (we need to 'set' them explicitly or they will be removed by vite during the build)
 VITE_COMMIT="VITE_COMMIT" \
   VITE_ENVIRONMENT="VITE_ENVIRONMENT" \
   VITE_SUPERVISOR_URL="VITE_SUPERVISOR_URL" \
   VITE_IP_API_KEY="VITE_IP_API_KEY" \
-  bun run --cwd bench-web build
+  bun run --cwd bench-ts build
 # posthog sourcemaps
-posthog-cli --host https://eu.posthog.com sourcemap inject --directory bench-web/dist/assets
-posthog-cli --host https://eu.posthog.com sourcemap upload --directory bench-web/dist/assets
-rm bench-web/dist/assets/*.map
+posthog-cli --host https://eu.posthog.com sourcemap inject --directory bench-ts/dist/assets
+posthog-cli --host https://eu.posthog.com sourcemap upload --directory bench-ts/dist/assets
+rm bench-ts/dist/assets/*.map
 
 # push Docker image with retries
 push_with_retry() {
