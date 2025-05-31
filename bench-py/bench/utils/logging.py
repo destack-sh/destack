@@ -235,8 +235,7 @@ LOGGING = {
 def trim_logger(_, __, event_dict: Any):
     """Removes the logger name from the event dict."""
     if "logger" in event_dict:
-        if event_dict["logger"].startswith("bench."):
-            event_dict["logger"] = event_dict["logger"][6:]
+        event_dict["logger"] = event_dict["logger"].removeprefix("bench.")
     return event_dict
 
 
@@ -410,7 +409,7 @@ def _add_logging_level(
         items_found += 1
         items_conflict += check_conflict(
             registered_num != level_num,
-            f"Level {level_name!r} already registered " "in logging module",
+            f"Level {level_name!r} already registered in logging module",
         )
 
     current_level = getattr(logging, level_name, _UNSET)
@@ -418,7 +417,7 @@ def _add_logging_level(
         items_found += 1
         items_conflict += check_conflict(
             current_level != level_num,
-            f"Level {level_name!r} already defined " "in logging module",
+            f"Level {level_name!r} already defined in logging module",
         )
 
     logging_func = getattr(logging, method_name, _UNSET)

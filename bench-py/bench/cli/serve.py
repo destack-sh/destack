@@ -1,8 +1,8 @@
 import asyncio
 import signal
+from collections.abc import Collection, Iterator
 from contextlib import contextmanager
 from time import time_ns
-from typing import Collection, Iterator
 
 import structlog
 import typer

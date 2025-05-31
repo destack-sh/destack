@@ -1,5 +1,6 @@
+from collections.abc import Collection
 from datetime import datetime
-from typing import TYPE_CHECKING, Collection
+from typing import TYPE_CHECKING
 
 import structlog
 from fastuuid import UUID

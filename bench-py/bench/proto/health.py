@@ -1,4 +1,5 @@
-from typing import Callable, Collection, override
+from collections.abc import Collection
+from typing import Callable, override
 
 import structlog
 from grpclib import GRPCError

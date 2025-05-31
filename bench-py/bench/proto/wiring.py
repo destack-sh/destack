@@ -1,8 +1,9 @@
 import calendar
 import textwrap
+from collections.abc import Mapping
 from datetime import datetime, timedelta
 from itertools import chain
-from typing import TYPE_CHECKING, Any, Mapping, Union, assert_never, cast
+from typing import TYPE_CHECKING, Any, Union, assert_never, cast
 
 import pytz
 import structlog

@@ -1,4 +1,5 @@
-from typing import TYPE_CHECKING, Any, Collection, Sequence, cast
+from collections.abc import Collection, Sequence
+from typing import TYPE_CHECKING, Any, cast
 
 from bench.language import (
     BuiltinEnum,

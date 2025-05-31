@@ -359,9 +359,9 @@ class SqlConstraint(SqlTableObject):
             self.columns = tuple(sorted(self.columns))  # ensure consistent sorting
         if self.condition is not None:
             # must be wrapped in parentheses
-            assert self.condition.startswith("(") and self.condition.endswith(
-                ")"
-            ), f"invalid condition: {self.condition}"
+            assert self.condition.startswith("(") and self.condition.endswith(")"), (
+                f"invalid condition: {self.condition}"
+            )
 
     def __str__(self):
         table_name = self._table.name if self._table else None
@@ -426,9 +426,9 @@ class SqlIndex(SqlTableObject):
     def __post_init__(self):
         if self.condition is not None:
             # wrap condition in parentheses
-            assert self.condition.startswith("(") and self.condition.endswith(
-                ")"
-            ), f"invalid condition: {self!r}"
+            assert self.condition.startswith("(") and self.condition.endswith(")"), (
+                f"invalid condition: {self!r}"
+            )
 
     def __str__(self):
         table_name = self._table.name if self._table else None

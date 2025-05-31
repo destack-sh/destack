@@ -1,6 +1,7 @@
 import dataclasses
 from abc import ABC, abstractmethod
-from typing import TYPE_CHECKING, Generator, Literal, Sequence, Union, dataclass_transform, override
+from collections.abc import Generator, Sequence
+from typing import TYPE_CHECKING, Literal, Union, dataclass_transform, override
 
 import structlog
 from opentelemetry import trace

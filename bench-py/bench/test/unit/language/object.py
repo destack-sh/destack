@@ -1,9 +1,8 @@
-from hypothesis import HealthCheck, given, settings
-
 from bench.language import BuiltinObjectBase, Session, Thread
 from bench.pb2 import AnyObjectData
 from bench.test.strategies import builtin_objects, examples
 from bench.test.unit.conftest import BUILTIN_OBJECTS
+from hypothesis import HealthCheck, given, settings
 
 
 def test_repr_query():

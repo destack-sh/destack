@@ -1,4 +1,5 @@
-from typing import TYPE_CHECKING, Generator, Sequence, Union, override
+from collections.abc import Generator, Sequence
+from typing import TYPE_CHECKING, Union, override
 
 import structlog
 from opentelemetry import trace

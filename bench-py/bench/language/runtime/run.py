@@ -1,5 +1,6 @@
+from collections.abc import Sequence
 from datetime import timedelta
-from typing import TYPE_CHECKING, Optional, Sequence, Union
+from typing import TYPE_CHECKING, Optional, Union
 
 from fastuuid import UUID
 

@@ -116,9 +116,9 @@ def class_to_service(
             if isinstance(metadata, dict):
                 for output_name, output_type in metadata.items():
                     type_info = parse_type_annotation(output_type, BENCH_CLASS_BY_NAME)
-                    assert isinstance(
-                        type_info.py_type, type
-                    ), f"{type_info.py_type!r} is not a type"
+                    assert isinstance(type_info.py_type, type), (
+                        f"{type_info.py_type!r} is not a type"
+                    )
                     field = Field.output(
                         name=output_name.replace("_", " ").title(),
                         typ=type_info.py_type,

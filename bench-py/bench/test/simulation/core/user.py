@@ -1,10 +1,9 @@
-from typing import TYPE_CHECKING, cast, final
+from typing import TYPE_CHECKING, final
 
 from more_itertools import first
 
-from bench import pb2
 from bench.language import NodeReference
-from bench.proto import SignupUserRequest, SupervisorClient, UserData
+from bench.proto import SupervisorClient, UserData
 from bench.utils.oracle import Oracle
 
 from .spec import UserSpec
@@ -54,22 +53,4 @@ class UserHandle:
 
     async def prepare(self, supervisor_client: SupervisorClient):
         """Creates the User"""
-        client_in = ClientDataIn(
-            type=pb2.ClientType.CLIENT_TYPE_MACHINE,
-            name=f"{self.name}-signup",
-            device_name="test",
-        )
-        signup_req = SignupUserRequest(
-            slug=self.name,
-            name=self.name,
-            email=f"{self.name}@test.com",
-            password=self.name,
-            client=client_in,
-            region=cast(pb2.Region, self.spec.region),
-            activate=False,
-        )
-        signup_rep = await supervisor_client.signup_user(signup_req)
-        self._user_data = signup_rep.user
-        self._user_ptr = NodeReference.__unpack_proto__(
-            NodeReference._ref_data_from_node_data(self._user_data)
-        )
+        raise NotImplementedError

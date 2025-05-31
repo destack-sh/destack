@@ -1,5 +1,4 @@
 from typing import TYPE_CHECKING
-from typing import Type as PyType
 
 from .const import BuiltinEnum, CascadeAction, EdgeType, EnumType, NodeType, TraitType
 from .property import Property, property_
@@ -8,6 +7,9 @@ from .type import TypeBase
 
 if TYPE_CHECKING:
     from bench.language import Icon, Node
+
+
+_type = type
 
 
 @struct_(StructType.PROPERTY_INFO)
@@ -100,7 +102,7 @@ class NodeInfo(StructFrozen):
     traits: list[TraitType] = property_(51)
 
     @classmethod
-    def from_node(cls, node_cls: PyType["Node"]) -> "NodeInfo":
+    def from_node(cls, node_cls: _type["Node"]) -> "NodeInfo":
         """Create NodeInfo from a Node class."""
         from .icon import to_icon
 
@@ -127,7 +129,7 @@ class StructInfo(StructFrozen):
     properties: list["PropertyInfo"] = property_(50)
 
     @classmethod
-    def from_struct(cls, struct_cls: PyType[StructBase]) -> "StructInfo":
+    def from_struct(cls, struct_cls: _type[StructBase]) -> "StructInfo":
         """Create StructInfo from a Struct class."""
         from .icon import to_icon
 
@@ -153,7 +155,7 @@ class EnumInfo(StructFrozen):
     options: list["EnumOptionInfo"] = property_(50)
 
     @classmethod
-    def from_enum(cls, enum_type: EnumType, enum_cls: PyType[BuiltinEnum]) -> "EnumInfo":
+    def from_enum(cls, enum_type: EnumType, enum_cls: _type[BuiltinEnum]) -> "EnumInfo":
         """Create EnumInfo from an Enum class."""
         from .icon import to_icon
 

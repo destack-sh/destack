@@ -29,12 +29,12 @@ tracer = trace.get_tracer(__name__)
 
 
 @dataclass_transform(kw_only_default=True, field_specifiers=_PROPERTY_SPECIFIERS)
-def struct_[_ObjectT: BuiltinObjectBase](struct_type: StructType, frozen: bool = False):
+def struct_[ObjectT: BuiltinObjectBase](struct_type: StructType, frozen: bool = False):
     """Register a class as a concrete struct for the given struct type."""
 
-    def decorate(cls: type[_ObjectT]) -> type[_ObjectT]:
+    def decorate(cls: type[ObjectT]) -> type[ObjectT]:
         cls = object_(struct_type=struct_type, concrete=True, struct=True, frozen=frozen)(cls)
-        return cast(type[_ObjectT], cls)
+        return cast(type[ObjectT], cls)
 
     return decorate
 

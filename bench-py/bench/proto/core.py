@@ -1,8 +1,9 @@
 import dataclasses
 import enum
 import textwrap
+from collections.abc import Sequence
 from dataclasses import dataclass
-from typing import Literal, Sequence, Union
+from typing import Literal, Union
 
 
 class ProtoThing:

@@ -1,5 +1,6 @@
 import textwrap
-from typing import TYPE_CHECKING, Any, List, Mapping, Optional, Sequence, assert_never
+from collections.abc import Mapping, Sequence
+from typing import TYPE_CHECKING, Any, Optional, assert_never
 
 import regex
 from fastuuid import UUID
@@ -96,7 +97,7 @@ class TextLine(TextOptionsBase, StructMutable):
     """
 
     type: TextLineType = property_(30, default=TextLineType.PARAGRAPH, is_repr=True)
-    spans: List[TextSpan] = property_(33)
+    spans: list[TextSpan] = property_(33)
     content: Optional[str] = property_(34)
 
     def __contains__(self, item: str | Node) -> bool:
@@ -200,7 +201,7 @@ class Text(StructMutable):
     Rich Text; composed of TextLines with many markdown+ goodies.
     """
 
-    lines: List[TextLine] = property_(32)
+    lines: list[TextLine] = property_(32)
 
     def __contains__(self, item: str | Node) -> bool:
         return any(item in line for line in self.lines)

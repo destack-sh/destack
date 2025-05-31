@@ -1,5 +1,6 @@
 import abc
-from typing import TYPE_CHECKING, Sequence, override
+from collections.abc import Sequence
+from typing import TYPE_CHECKING, override
 
 from .const import REGION_BY_SLUG, Region
 

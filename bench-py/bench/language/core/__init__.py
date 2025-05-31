@@ -59,7 +59,7 @@ from .const import (
     get_active_session,
     repr_enums,
 )
-from .edit import Change, ChangeResult, ChangeStatus, Edit, EditType, EditOperation, edit_graph
+from .edit import Change, ChangeResult, ChangeStatus, Edit, EditOperation, EditType, edit_graph
 from .graph import Graph, Supergraph
 from .icon import Icon, IconIn, IconType, icon, reverse_icon, to_icon
 from .meta import EnumInfo, EnumOptionInfo, NodeInfo, PropertyInfo, StructInfo, TraitInfo
@@ -266,6 +266,7 @@ __all__ = [
     "Day",
     "EdgeType",
     "Edit",
+    "EditOperation",
     "EditType",
     "EnumInfo",
     "EnumOptionInfo",
@@ -376,7 +377,6 @@ __all__ = [
     "Type",
     "TypeBase",
     "TypeCardinality",
-    "EditOperation",
     "ValidationError",
     "Value",
     "Variable",

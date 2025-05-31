@@ -1,5 +1,6 @@
 import asyncio
-from typing import Collection, cast
+from collections.abc import Collection
+from typing import cast
 
 import grpclib.client
 import grpclib.server
@@ -21,9 +22,9 @@ class GrpcServer(grpclib.server.Server):
     """gRPC server with extra bells and whistles."""
 
     def __init__(self, handlers: Collection["IServable"], network: Network, oracle: Oracle):
-        assert all(
-            isinstance(h, ServiceBase) for h in handlers
-        ), f"unexpected handlers: {handlers!r}"
+        assert all(isinstance(h, ServiceBase) for h in handlers), (
+            f"unexpected handlers: {handlers!r}"
+        )
         self._services: tuple[ServiceBase, ...] = cast(tuple[ServiceBase, ...], tuple(handlers))
         self._health_service = HealthService(
             id="health",

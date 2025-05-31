@@ -1,7 +1,8 @@
 import asyncio
+from collections.abc import Sequence
 from dataclasses import dataclass
 from datetime import date
-from typing import Sequence, Union, assert_never, cast
+from typing import Union, assert_never, cast
 
 import structlog
 from opentelemetry import trace

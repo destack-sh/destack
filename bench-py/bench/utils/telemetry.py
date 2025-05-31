@@ -1,6 +1,7 @@
+from collections.abc import Mapping
 from pathlib import Path
 from time import time_ns
-from typing import Any, Mapping, Optional, cast
+from typing import Any, Optional, cast
 
 import structlog
 from fastuuid import UUID, uuid4

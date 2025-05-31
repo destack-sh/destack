@@ -1,6 +1,6 @@
 import asyncio
 import contextvars
-from typing import Collection
+from collections.abc import Collection
 
 import structlog
 from grpclib._typing import IServable

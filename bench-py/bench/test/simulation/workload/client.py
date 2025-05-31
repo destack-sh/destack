@@ -1,6 +1,7 @@
 import abc
+from collections.abc import Awaitable
 from dataclasses import dataclass
-from typing import Awaitable, Callable, final, override
+from typing import Callable, final, override
 
 import structlog
 from fastuuid import UUID

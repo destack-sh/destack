@@ -1,6 +1,4 @@
 import pytest
-from hypothesis import HealthCheck, given, settings
-
 from bench.language import (
     Action,
     Block,
@@ -20,6 +18,7 @@ from bench.test.simulation.core import Simulation
 from bench.test.simulation.workload import RuntimeLambdaWorkload
 from bench.test.strategies import examples, structs
 from bench.test.unit.conftest import BUILTIN_OBJECTS, simulated_runtime
+from hypothesis import HealthCheck, given, settings
 
 
 @given(obj=structs)

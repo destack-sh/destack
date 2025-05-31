@@ -1,6 +1,7 @@
 import asyncio
 import contextlib
-from typing import Any, Awaitable, Callable, Coroutine
+from collections.abc import Awaitable, Coroutine
+from typing import Any, Callable
 
 from bench.utils.oracle import Oracle
 
@@ -58,8 +59,7 @@ class TaskManager:
     def _make_task_id(self, task_id: str | None, default: str) -> str:
         task_id = task_id or default
         if self._task_id_prefix:
-            if task_id.startswith("_"):
-                task_id = task_id[1:]
+            task_id = task_id.removeprefix("_")
             task_id = f"{self._task_id_prefix}_{task_id}"
         return task_id
 

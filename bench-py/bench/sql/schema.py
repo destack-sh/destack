@@ -2,13 +2,10 @@
 
 from .core import (
     PrimitiveType,
-    SqlTable,
-    SqlCascadeAction,
     SqlColumn,
-    SqlConstraint,
-    SqlConstraintType,
     SqlIndex,
     SqlIndexType,
+    SqlTable,
 )
 
 VERSION = "2025.05.29.3"

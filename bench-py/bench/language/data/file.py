@@ -2,22 +2,18 @@ import base64
 import hashlib
 import io
 import tempfile
+from collections.abc import Collection, Sequence
 from datetime import datetime, timedelta
 from typing import (
     TYPE_CHECKING,
-    Collection,
     Literal,
     Optional,
-    Sequence,
     Union,
     assert_never,
-    cast,
     overload,
 )
 
-import aiohttp
 import structlog
-from fastuuid import UUID
 from opentelemetry import trace
 from PIL import Image
 
@@ -38,7 +34,7 @@ from bench.language.core import (
     property_parent_,
     property_runtime_,
 )
-from bench.pb2 import DownloadFilesRequest, FileData, UploadFilesRequest
+from bench.pb2 import FileData
 from bench.utils.func import group_by
 from bench.utils.utils import get_from_env
 
@@ -693,50 +689,7 @@ async def upload_file_batch(
     files: list[File], file_contents: list[bytes], session: "Session | None" = None
 ):
     """Uploads the given Files to their Host."""
-    assert len(files) == len(
-        file_contents
-    ), f"unexpected files: {len(files)} != {len(file_contents)}"
-    if not files:
-        return
-    if session is None:
-        session = active_session()
-
-    # get upload URLs
-    with capture_span(tracer, "file.prepare_upload", SpanType.FILE_PREPARE_UPLOAD):
-        upload_req = UploadFilesRequest(
-            scope=session.get_scope(files[0]), files=[f.to_proto() for f in files]
-        )
-        upload_rep = await session.self_host.upload_files(upload_req, metadata=session._rpc_headers)
-        assert len(upload_rep.handles) == len(
-            files
-        ), f"unexpected handles: {len(upload_rep.handles)} != {len(files)}"
-        handles_by_id = {h.file.id: h for h in upload_rep.handles}
-        del upload_rep
-        logger.trace("file.upload_batch.prepare", files=files, span="current")
-
-    # upload files
-    async with aiohttp.ClientSession() as http_session:
-        for file, file_content in zip(files, file_contents):
-            handle = handles_by_id[str(file.id)]
-            with tracer.start_as_current_span("file.upload", attributes={"file": repr(file)}):
-                assert file.source in (
-                    FileSource.BENCH,
-                    FileSource.INLINE,
-                ), f"unexpected file: {file!r}"
-
-                # POST file to url
-                form_data = aiohttp.FormData()
-                for key, value in handle.fields.items():
-                    form_data.add_field(key, value)
-                form_data.add_field(
-                    "file", file_content, filename=file.name, content_type=file.mime_type
-                )
-                async with http_session.post(handle.post_url, data=form_data) as resp:
-                    resp.raise_for_status()
-                file._cached_content = file_content
-                file._cached_get_url = handle.get_url
-                logger.debug("file.upload", file=file, url=file._cached_get_url, span="current")
-    logger.debug("file.upload_batch", files=files, span="current")
+    raise NotImplementedError
 
 
 @capture_span(tracer, "file.download_batch", SpanType.FILE_DOWNLOAD)
@@ -747,54 +700,7 @@ async def download_file_batch(
     session: "Session | None" = None,
 ) -> list[File]:
     """Downloads the given Files from their Host."""
-    if not file_refs:
-        return []
-    if session is None:
-        session = active_session()
-
-    # get download URLs
-    with capture_span(tracer, "file.prepare_download", SpanType.FILE_PREPARE_DOWNLOAD):
-        download_req = DownloadFilesRequest(
-            scope=session.get_scope(file_refs[0]),
-            files=[(f.to_ref() if isinstance(f, File) else f).to_proto() for f in file_refs],
-        )
-        download_rep = await session.self_host.download_files(
-            download_req, metadata=session._rpc_headers
-        )
-        handles_by_id = {h.file.id: h for h in download_rep.handles}
-        del download_rep
-        file_refs_by_id = {f.id: f for f in file_refs}
-        files_by_id: dict[UUID, File] = {}
-        for file_ref in file_refs:
-            handle = handles_by_id.get(str(file_ref.id))
-            if handle is None:
-                raise RuntimeError(f"missing download handle for {file_ref!r}")
-            file = file_ref if isinstance(file_ref, File) else File.from_proto(handle.file)
-            files_by_id[file.id] = file
-            file._cached_get_url = handle.get_url
-
-    # download files
-    if include_content is True:
-        files_to_download = files_by_id.values()
-    elif include_content is False:
-        files_to_download = []
-    else:
-        files_to_download = [files_by_id[cast(UUID, f.id)] for f in include_content]
-    if files_to_download:
-        file_contents: list[bytes] = []
-        async with aiohttp.ClientSession() as http_session:
-            for file in files_to_download:
-                handle = handles_by_id[str(file.id)]
-                # GET file from url
-                with tracer.start_as_current_span("file.download", attributes={"file": repr(file)}):
-                    async with http_session.get(handle.get_url) as resp:
-                        resp.raise_for_status()
-                        file_content = await resp.read()
-                    file_contents.append(file_content)
-                    file._cached_content = file_content
-                    file_ref = file_refs_by_id[file.id]
-
-    return list(files_by_id.values())
+    raise NotImplementedError
 
 
 FileIn = Union[bytes, Image.Image]

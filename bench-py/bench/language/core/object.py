@@ -3,14 +3,13 @@ import base64
 import contextvars
 import inspect
 import textwrap
+from collections.abc import Collection, Mapping
 from enum import Enum, IntEnum
 from sys import intern
 from typing import (
     TYPE_CHECKING,
     Any,
     ClassVar,
-    Collection,
-    Mapping,
     Self,
     Union,
     assert_never,
@@ -304,11 +303,11 @@ if {prop.name} is None:
         if prop.cardinality == "list":
             method_body_lines.append(f"""\
 if {prop.name} is None:
-    {prop.name} = {'[]' if not is_frozen else 'EMPTY_LIST'}""")
+    {prop.name} = {"[]" if not is_frozen else "EMPTY_LIST"}""")
         elif prop.cardinality == "map":
             method_body_lines.append(f"""\
 if {prop.name} is None:
-    {prop.name} = {'{}' if not is_frozen else 'EMPTY_DICT'}""")
+    {prop.name} = {"{}" if not is_frozen else "EMPTY_DICT"}""")
 
         # regular assignment
         if is_node:
@@ -1055,7 +1054,7 @@ def _process_object_cls[ObjectT: BuiltinObjectBase](
 
 
 @dataclass_transform(kw_only_default=True, field_specifiers=_PROPERTY_SPECIFIERS)
-def object_[_ObjectT: BuiltinObjectBase](
+def object_[ObjectT: BuiltinObjectBase](
     struct_type: StructType | None = None,
     frozen: bool = False,
     concrete: bool = False,
@@ -1066,7 +1065,7 @@ def object_[_ObjectT: BuiltinObjectBase](
     Mark a class as an object component (or concrete struct for a StructType).
     """
 
-    def decorate(cls_in: type[_ObjectT]) -> type[_ObjectT]:
+    def decorate(cls_in: type[ObjectT]) -> type[ObjectT]:
         cls, _properties = _process_object_cls(
             cls=cast(Any, cls_in),
             object_type=struct_type,
@@ -1084,7 +1083,7 @@ def object_[_ObjectT: BuiltinObjectBase](
                     f"struct class conflict for {struct_type}: {cls}, {STRUCT_CLASS_BY_TYPE[struct_type]}"
                 )
             STRUCT_CLASS_BY_TYPE[struct_type] = cls
-        return cast(type[_ObjectT], cls)
+        return cast(type[ObjectT], cls)
 
     return decorate
 

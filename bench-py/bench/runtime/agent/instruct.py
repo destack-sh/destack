@@ -1,5 +1,6 @@
+from collections.abc import Sequence
 from itertools import chain
-from typing import TYPE_CHECKING, Sequence
+from typing import TYPE_CHECKING
 
 import structlog
 from opentelemetry import trace

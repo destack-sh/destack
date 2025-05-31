@@ -1,5 +1,6 @@
 from abc import ABC, abstractmethod
-from typing import TYPE_CHECKING, Annotated, Any, Mapping
+from collections.abc import Mapping
+from typing import TYPE_CHECKING, Annotated, Any
 
 from bench.builtin.core import class_to_service
 from bench.language import File, Link, Page, title, to_icon

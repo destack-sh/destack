@@ -1,6 +1,7 @@
 import abc
+from collections.abc import Awaitable
 from dataclasses import dataclass
-from typing import Any, Awaitable, Callable, override
+from typing import Any, Callable, override
 
 from bench.language import IsRunnable, NodeMode, ProcessStatus, Run
 from bench.test.simulation.core import Simulation

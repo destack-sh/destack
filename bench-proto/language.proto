@@ -256,12 +256,6 @@ enum CursorType {
   CURSOR_TYPE_CUSTOM = 9000;
 }
 
-enum DatabaseType {
-  DATABASE_TYPE_UNSPECIFIED = 0;
-  DATABASE_TYPE_DEDICATED = 1;
-  DATABASE_TYPE_SHARED = 2;
-}
-
 // The day of the week.
 enum Day {
   DAY_UNSPECIFIED = 0;
@@ -315,6 +309,15 @@ enum EdgeType {
   EDGE_TYPE_NODE_TEMPLATE = 6;
 }
 
+// The type of update operation.
+enum EditOperation {
+  EDIT_OPERATION_UNSPECIFIED = 0;
+  EDIT_OPERATION_SET = 1;
+  EDIT_OPERATION_CLEAR = 2;
+  EDIT_OPERATION_MAP_SET = 110;
+  EDIT_OPERATION_MAP_REMOVE = 111;
+}
+
 // Ways to edit nodes.
 enum EditType {
   EDIT_TYPE_UNSPECIFIED = 0;
@@ -360,7 +363,7 @@ enum EnumType {
   ENUM_TYPE_ERROR_TYPE = 40061;
   ENUM_TYPE_VARIABLE_TYPE = 40063;
   ENUM_TYPE_EDIT_TYPE = 40070;
-  ENUM_TYPE_UPDATE_TYPE = 40071;
+  ENUM_TYPE_EDIT_OPERATION = 40071;
   ENUM_TYPE_CHANGE_STATUS = 40075;
   ENUM_TYPE_CONDITIONAL_TYPE = 40102;
   ENUM_TYPE_AGGREGATION_TYPE = 40103;
@@ -382,7 +385,7 @@ enum EnumType {
   ENUM_TYPE_AREA = 40054;
   ENUM_TYPE_CONTINENT = 40055;
   ENUM_TYPE_MACHINE_TYPE = 41010;
-  ENUM_TYPE_DATABASE_TYPE = 41020;
+  ENUM_TYPE_TENANCY = 41020;
   ENUM_TYPE_CLIENT_TYPE = 41021;
   ENUM_TYPE_ACTION_CARDINALITY = 41220;
   ENUM_TYPE_FLOW_TYPE = 41240;
@@ -836,10 +839,10 @@ enum NodeType {
   NODE_TYPE_BENCH = 1;
   NODE_TYPE_BENCH_MEMBERSHIP = 2;
   NODE_TYPE_BENCH_INVITE = 3;
-  NODE_TYPE_PACKAGE = 20;
-  NODE_TYPE_PACKAGE_MEMBERSHIP = 21;
-  NODE_TYPE_PACKAGE_INVITE = 22;
-  NODE_TYPE_HANDLE = 50;
+  NODE_TYPE_PACKAGE = 50;
+  NODE_TYPE_PACKAGE_MEMBERSHIP = 51;
+  NODE_TYPE_PACKAGE_INVITE = 52;
+  NODE_TYPE_HANDLE = 100;
   NODE_TYPE_USER = 200;
   NODE_TYPE_FRIENDSHIP = 210;
   NODE_TYPE_FRIENDSHIP_INVITE = 211;
@@ -1206,6 +1209,12 @@ enum StructType {
   STRUCT_TYPE_CORNERS = 29031;
 }
 
+enum Tenancy {
+  TENANCY_UNSPECIFIED = 0;
+  TENANCY_DEDICATED = 1;
+  TENANCY_SHARED = 2;
+}
+
 enum TextAlign {
   TEXT_ALIGN_UNSPECIFIED = 0;
   TEXT_ALIGN_LEFT = 1;
@@ -1343,15 +1352,6 @@ enum TypeCardinality {
   TYPE_CARDINALITY_SCALAR = 1;
   TYPE_CARDINALITY_LIST = 2;
   TYPE_CARDINALITY_MAP = 4;
-}
-
-// The type of update operation.
-enum EditOperation {
-  UPDATE_TYPE_UNSPECIFIED = 0;
-  UPDATE_TYPE_SET = 1;
-  UPDATE_TYPE_CLEAR = 2;
-  UPDATE_TYPE_MAP_SET = 110;
-  UPDATE_TYPE_MAP_REMOVE = 111;
 }
 
 enum UserStatus {
@@ -1589,12 +1589,14 @@ message CellData {
   string name = 31;
   Region region = 50;
   string cell_name = 51;
+  string host = 52;
 }
 
 message CellInfoData {
   StructType metatype = 1;
   Region region = 50;
   string cell_name = 51;
+  string host = 52;
 }
 
 message ChangeData {
@@ -1788,23 +1790,23 @@ message DatabaseData {
   optional NodeReferenceData updated_by_ptr = 13;
   optional NodeReferenceData owned_by_ptr = 17;
   NodeMode mode = 20;
-  DatabaseType type = 30;
   string name = 31;
   string version = 35;
   Region region = 50;
   optional string cell_name = 51;
   string external_id = 52;
   optional string custom_schema_name = 53;
+  Tenancy tenancy = 55;
   optional string sql_url = 58;
 }
 
 message DatabaseInfoData {
   StructType metatype = 1;
-  DatabaseType type = 30;
   Region region = 50;
   optional string cell_name = 51;
   string external_id = 52;
   optional string custom_schema_name = 53;
+  Tenancy tenancy = 55;
   optional string sql_url = 58;
 }
 
@@ -3633,10 +3635,10 @@ message SomeNodeData {
     BenchData bench = 1;
     BenchMembershipData bench_membership = 2;
     BenchInviteData bench_invite = 3;
-    PackageData package = 20;
-    PackageMembershipData package_membership = 21;
-    PackageInviteData package_invite = 22;
-    HandleData handle = 50;
+    PackageData package = 50;
+    PackageMembershipData package_membership = 51;
+    PackageInviteData package_invite = 52;
+    HandleData handle = 100;
     UserData user = 200;
     FriendshipData friendship = 210;
     FriendshipInviteData friendship_invite = 211;
