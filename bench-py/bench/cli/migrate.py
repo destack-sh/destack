@@ -75,7 +75,7 @@ async def make(
         )
 
     # diff main
-    if area in (None, NodeArea.MAIN_RELATIONAL):
+    if area in (None, NodeArea.MAIN_DATABASE):
         async with pg_connection(main_database) as conn:
             old_main_schema = await introspect_sql_schema(
                 conn,
@@ -89,7 +89,7 @@ async def make(
         main_migration_ops = []
 
     # diff global
-    if area in (None, NodeArea.GLOBAL_RELATIONAL):
+    if area in (None, NodeArea.GLOBAL_DATABASE):
         async with pg_connection(global_database) as conn:
             old_global_schema = await introspect_sql_schema(
                 conn,
@@ -157,9 +157,9 @@ async def apply(
     main_database = get_main_database_from_env(region or REGION)
 
     # resolve databases to migrate
-    if area == NodeArea.MAIN_RELATIONAL:
+    if area == NodeArea.MAIN_DATABASE:
         databases = [main_database]
-    elif area == NodeArea.GLOBAL_RELATIONAL:
+    elif area == NodeArea.GLOBAL_DATABASE:
         databases = [global_database]
     else:
         raise RuntimeError(f"cannot migrate area: {area!r}")

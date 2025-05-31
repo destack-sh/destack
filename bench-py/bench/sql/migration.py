@@ -74,10 +74,8 @@ class Migration:
         return f"<Migration {self}>"
 
     def has_area(self, area: NodeArea) -> bool:
-        return (
-            (area == NodeArea.GLOBAL_RELATIONAL and self.has_global)
-            or (area == NodeArea.MAIN_RELATIONAL and self.has_main)
-            or (area == NodeArea.CUSTOM_RELATIONAL and self.has_custom)
+        return (area == NodeArea.GLOBAL_DATABASE and self.has_global) or (
+            area == NodeArea.MAIN_DATABASE and self.has_main
         )
 
 

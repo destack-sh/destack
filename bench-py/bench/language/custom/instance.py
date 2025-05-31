@@ -4,7 +4,6 @@ import structlog
 from fastuuid import UUID
 
 from bench.language.core import (
-    IsCustom,
     IsDeletable,
     IsExtensible,
     IsInPackage,
@@ -28,7 +27,6 @@ logger = structlog.get_logger(__name__)
 
 @node_(NodeType.CUSTOM_NODE_INSTANCE)
 class CustomNodeInstance(
-    IsCustom,
     IsModal,
     IsExtensible,
     IsInPackage,

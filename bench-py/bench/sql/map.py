@@ -5,9 +5,9 @@ from bench.language import (
     EdgeType,
     IsInBench,
     Node,
-    NodeArea,
     NodeType,
     PrimitiveType,
+    TraitType,
     expand_node_types,
 )
 from bench.language.registry import NODE_CLASS_BY_TYPE
@@ -15,12 +15,9 @@ from bench.utils.string import Casing, to_casing
 
 from . import schema
 from .core import (
-    CUSTOM_EXTENSIONS,
-    DEFAULT_CUSTOM_TABLES,
-    DEFAULT_GLOBAL_TABLES,
-    DEFAULT_MAIN_TABLES,
     GLOBAL_EXTENSIONS,
     MAIN_EXTENSIONS,
+    MIGRATION_TABLE,
     SqlColumn,
     SqlConstraint,
     SqlIndex,
@@ -130,10 +127,6 @@ def map_custom_node_to_sql_table(
     raise NotImplementedError
 
 
-#
-# Builtin SqlTables
-#
-
 BUILTIN_TABLE_BY_NODE_TYPE: dict[NodeType, SqlTable] = {
     # read previously generated tables in schema.py
     node_type: getattr(schema, f"{to_casing(node_type.name, Casing.ALL_CAPS)}_TABLE")
@@ -145,32 +138,22 @@ BUILTIN_NODE_BY_TABLE_NAME: dict[str, NodeType] = {
 }
 BUILTIN_NODE_TABLES: tuple[SqlTable, ...] = tuple(BUILTIN_TABLE_BY_NODE_TYPE.values())
 
-BUILTIN_GLOBAL_TABLES: tuple[SqlTable, ...] = DEFAULT_GLOBAL_TABLES + tuple(
-    BUILTIN_TABLE_BY_NODE_TYPE[node.metatype]
-    for node in NODE_CLASS_BY_TYPE.values()
-    if node.__area__ == NodeArea.GLOBAL_RELATIONAL and node.metatype in BUILTIN_TABLE_BY_NODE_TYPE
+BUILTIN_GLOBAL_TABLES: tuple[SqlTable, ...] = (
+    MIGRATION_TABLE,
+    *tuple(
+        BUILTIN_TABLE_BY_NODE_TYPE[node.metatype]
+        for node in NODE_CLASS_BY_TYPE.values()
+        if TraitType.GLOBAL in node.__traits__
+    ),
 )
-BUILTIN_MAIN_TABLES: tuple[SqlTable, ...] = DEFAULT_MAIN_TABLES + tuple(
-    BUILTIN_TABLE_BY_NODE_TYPE[node.metatype]
-    for node in NODE_CLASS_BY_TYPE.values()
-    if node.__area__ == NodeArea.MAIN_RELATIONAL and node.metatype in BUILTIN_TABLE_BY_NODE_TYPE
+BUILTIN_MAIN_TABLES: tuple[SqlTable, ...] = (
+    MIGRATION_TABLE,
+    *tuple(
+        BUILTIN_TABLE_BY_NODE_TYPE[node.metatype]
+        for node in NODE_CLASS_BY_TYPE.values()
+        if TraitType.GLOBAL not in node.__traits__
+        and node.metatype != NodeType.CUSTOM_NODE_INSTANCE
+    ),
 )
-BUILTIN_CUSTOM_TABLES: tuple[SqlTable, ...] = DEFAULT_CUSTOM_TABLES + tuple(
-    BUILTIN_TABLE_BY_NODE_TYPE[node.metatype]
-    for node in NODE_CLASS_BY_TYPE.values()
-    if node.__area__ == NodeArea.CUSTOM_RELATIONAL and node.metatype in BUILTIN_TABLE_BY_NODE_TYPE
-)
-BUILTIN_TABLES_BY_AREA: dict[NodeArea, tuple[SqlTable, ...]] = {
-    NodeArea.GLOBAL_RELATIONAL: BUILTIN_GLOBAL_TABLES,
-    NodeArea.MAIN_RELATIONAL: BUILTIN_MAIN_TABLES,
-    NodeArea.CUSTOM_RELATIONAL: BUILTIN_CUSTOM_TABLES,
-}
-
 BUILTIN_GLOBAL_SCHEMA = SqlSchema(GLOBAL_EXTENSIONS, BUILTIN_GLOBAL_TABLES)
 BUILTIN_MAIN_SCHEMA = SqlSchema(MAIN_EXTENSIONS, BUILTIN_MAIN_TABLES)
-BUILTIN_CUSTOM_SCHEMA = SqlSchema(CUSTOM_EXTENSIONS, BUILTIN_CUSTOM_TABLES)
-BUILTIN_SCHEMA_BY_AREA: dict[NodeArea, SqlSchema] = {
-    NodeArea.GLOBAL_RELATIONAL: BUILTIN_GLOBAL_SCHEMA,
-    NodeArea.MAIN_RELATIONAL: BUILTIN_MAIN_SCHEMA,
-    NodeArea.CUSTOM_RELATIONAL: BUILTIN_CUSTOM_SCHEMA,
-}

@@ -133,13 +133,6 @@ class IsGlobal(Node if TYPE_CHECKING else BuiltinObjectBase):
     pass
 
 
-@trait_(TraitType.CUSTOM)
-class IsCustom(Node if TYPE_CHECKING else BuiltinObjectBase):
-    """A Node that is local."""
-
-    pass
-
-
 @trait_(TraitType.MODAL)
 class IsModal(Node if TYPE_CHECKING else BuiltinObjectBase):
     """A Node that can be in different modes."""

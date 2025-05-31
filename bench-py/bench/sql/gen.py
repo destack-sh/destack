@@ -1,5 +1,4 @@
 from bench.language import NODE_CLASS_BY_TYPE, VERSION, NodeType
-from bench.language.core.const import TraitType
 from bench.utils.utils import format_python
 
 from .map import map_builtin_node_to_sql_table
@@ -13,12 +12,13 @@ def _gen_sql_schema():
         f'VERSION = "{VERSION}"',
     ]
     for node_t in NodeType:
+        if node_t == NodeType.CUSTOM_NODE_INSTANCE:
+            continue
         node_cls = NODE_CLASS_BY_TYPE[node_t]
-        if TraitType.CUSTOM not in node_cls.__traits__:
-            table = map_builtin_node_to_sql_table(node_cls)
-            const_name = f"{node_cls.metatype.name}_TABLE"
-            table_def = f"{const_name} = {table.source_repr()}"
-            chunks.append(table_def)
+        table = map_builtin_node_to_sql_table(node_cls)
+        const_name = f"{node_cls.metatype.name}_TABLE"
+        table_def = f"{const_name} = {table.source_repr()}"
+        chunks.append(table_def)
     source = "\n\n".join(chunks)
     source = format_python(source)
     return source
