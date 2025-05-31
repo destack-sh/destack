@@ -1,9 +1,8 @@
-from .cell import Cell, CellInfo
+from .cell import CellInfo
 from .database import Database, DatabaseInfo, Tenancy
 from .machine import Machine, MachineType
 
 __all__ = [
-    "Cell",
     "CellInfo",
     "Database",
     "DatabaseInfo",

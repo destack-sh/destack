@@ -13,7 +13,7 @@ from bench.utils.env import setup_env
 
 setup_env()
 
-from bench.utils.logging import setup_logging  # noqa: E402
+from bench.utils.log import setup_logging  # noqa: E402
 from bench.utils.telemetry import setup_telemetry  # noqa: E402
 
 setup_logging()

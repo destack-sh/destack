@@ -11,13 +11,17 @@ from bench.language import (
     BenchStatus,
     CellRegistry,
     Client,
+    Database,
     DatabaseInfo,
     DatabaseRegistry,
     Handle,
     IsSubject,
     NodeType,
+    Package,
+    PackageType,
     Region,
     Session,
+    Tenancy,
     User,
     UserStatus,
     bittuple,
@@ -44,7 +48,6 @@ from bench.utils.func import generate_access_token, generate_salt
 from bench.utils.oracle import Oracle
 
 from .access import ACCESS_TOKEN_LENGTH, SALT_LENGTH, check_password, hash_password
-from .bench import CreateBenchOptions, create_default_bench
 
 logger = structlog.get_logger(__name__)
 tracer = trace.get_tracer(__name__)
@@ -132,19 +135,15 @@ class SupervisorService(ServiceBase, SupervisorBase):
         if not request.password:
             raise GRPCError(GRPCStatus.INVALID_ARGUMENT, "password required")
 
-        # assign cell, database, ...
         region = Region(request.region)
-        cell_name = ...  # nocheckin
-        external_id = ...
-        main_database = self.database_registry.get(
-            region=region, cell_name=cell_name, external_id=external_id
-        )
-        session.store = DatabaseStore(
-            global_database=self.global_database, bench_database=main_database
+        bench = Bench(
+            status=BenchStatus.CREATING,
+            slug=request.slug,
+            name=request.slug,
+            region=region,
         )
 
         # create User with Bench
-        bench = Bench(status=BenchStatus.CREATING, slug=request.slug, name=request.slug)
         user = User(
             slug=request.slug,
             name=request.name or request.slug,
@@ -170,15 +169,34 @@ class SupervisorService(ServiceBase, SupervisorBase):
         bench.add_child(user.handle)
         await session.commit()
 
-        # immediately create User's main Bench
-        bench = await create_default_bench(
-            bench=bench,
-            handle=user.handle,
-            owned_by=user,
-            region=region,
-            session=session,
-            options=CreateBenchOptions(),
+        # provision Bench
+        cell_name: str = "test-0"  # nocheckin
+        database_name: str = "bench-db-0"
+        bench_database = self.database_registry.get_or_error(
+            region=region, cell_name=cell_name, external_name=database_name
         )
+        database = Database(
+            tenancy=Tenancy.SHARED,
+            region=region,
+            cell_name=cell_name,
+            external_name=database_name,
+            custom_schema_name=f"bench-{bench.id}",
+        )
+        bench.database = database
+        session.store = DatabaseStore(
+            global_database=self.global_database, bench_database=bench_database
+        )
+        await session.stage()
+
+        # create main Package
+        main_package = Package(parent=bench, type=PackageType.HOME, name="Home", slug="home")
+        bench.add_child(main_package)
+        bench.main_package = main_package
+        await session.stage()
+
+        bench.status = BenchStatus.RUNNING
+
+        # done
         user.bench = bench
         user.status = UserStatus.ACTIVE
         await session.commit()

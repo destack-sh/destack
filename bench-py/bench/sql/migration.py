@@ -612,9 +612,9 @@ async def apply_sql_migration_ops(conn: asyncpg.Connection, ops: list[MigrationO
     method = f"async def _apply_inline(conn):\n{indent(method_body, '    ')}"
     method_locals: dict[str, Any] = {}
     exec(method, method_locals)
-    _apply_inline = method_locals["_apply_inline"]
+    apply_inline = method_locals["_apply_inline"]
     try:
-        await _apply_inline(conn)
+        await apply_inline(conn)
         logger.debug("sql.apply_migration_ops", ops=ops, conn=conn, span="current")
     except Exception as e:
         logger.error("sql.apply_migration_ops.error", ops=ops, conn=conn, span="current", error=e)

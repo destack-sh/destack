@@ -14,6 +14,8 @@ if TYPE_CHECKING:
 
 
 class CellRegistry(abc.ABC):
+    """A registry of known Cells."""
+
     @abc.abstractmethod
     def get(self, region: Region, cell_name: str) -> "CellInfo | None":
         """Gets the cell info for the given region and cell name (error if none)."""
@@ -23,7 +25,7 @@ class CellRegistry(abc.ABC):
         """Gets the cell info for the given region and cell name (error if none)."""
         cell_info = self.get(region, cell_name)
         if cell_info is None:
-            raise LookupError(f"no cell info for {region.bench_name} in {self!r}")
+            raise LookupError(f"no Cell {region.slug}/{cell_name} in {self!r}")
         return cell_info
 
 
@@ -36,7 +38,10 @@ class StaticCellRegistry(CellRegistry):
 
     @override
     def get(self, region: Region, cell_name: str) -> "CellInfo | None":
-        raise NotImplementedError
+        for cell in self._cells:
+            if cell.region == region and cell.cell_name == cell_name:
+                return cell
+        return None
 
     @classmethod
     def parse(cls, cell_str: str) -> "StaticCellRegistry":
@@ -72,16 +77,20 @@ class StaticCellRegistry(CellRegistry):
 
 
 class DatabaseRegistry(abc.ABC):
+    """A registry of known Bench-level Databases (excluding the global database)."""
+
     @abc.abstractmethod
-    def get(self, region: Region, cell_name: str, external_id: str) -> "DatabaseInfo | None":
+    def get(self, region: Region, cell_name: str, external_name: str) -> "DatabaseInfo | None":
         """Gets the Database for the given region (error if none)."""
         ...
 
-    def get_or_error(self, region: Region, cell_name: str, external_id: str) -> "DatabaseInfo":
+    def get_or_error(self, region: Region, cell_name: str, external_name: str) -> "DatabaseInfo":
         """Gets the Database for the given region (error if none)."""
-        database_info = self.get(region, cell_name, external_id)
+        database_info = self.get(region, cell_name, external_name)
         if database_info is None:
-            raise LookupError(f"no database info for {region.bench_name} in {self!r}")
+            raise LookupError(
+                f"no Database for {region.slug}/{cell_name}/{external_name} in {self!r}"
+            )
         return database_info
 
 
@@ -95,15 +104,22 @@ class StaticDatabaseRegistry(DatabaseRegistry):
         return f"<{self.__class__.__name__} {len(self.databases)} databases>"
 
     @override
-    def get(self, region: Region, cell_name: str, external_id: str) -> "DatabaseInfo | None":
-        raise NotImplementedError
+    def get(self, region: Region, cell_name: str, external_name: str) -> "DatabaseInfo | None":
+        for database in self.databases:
+            if (
+                database.region == region
+                and database.cell_name == cell_name
+                and database.external_name == external_name
+            ):
+                return database
+        return None
 
     @classmethod
     def parse(cls, registry_str: str) -> "StaticDatabaseRegistry":
         """
         Parse a map string like:
-        'eu-zurich/cell_1/external_id_a=postgresql://user:pass@host/db'
-        'eu-zurich/cell_1/external_id_a=postgresql://user:pass@host/db;eu-zurich/cell_2/external_id_b=postgresql://user:pass@host/db'
+        'eu-zurich/cell_1/external_name_a=postgresql://user:pass@host/db'
+        'eu-zurich/cell_1/external_name_a=postgresql://user:pass@host/db;eu-zurich/cell_2/external_name_b=postgresql://user:pass@host/db'
         """
         from bench.language import DatabaseInfo
 
@@ -117,12 +133,12 @@ class StaticDatabaseRegistry(DatabaseRegistry):
             location_part, database_url = database_entry.split("=", 1)
             if location_part.count("/") != 2:
                 raise ValueError(f"invalid location format: {location_part}")
-            region_name, cell_name, external_id = location_part.split("/")
+            region_name, cell_name, external_name = location_part.split("/")
             region = REGION_BY_SLUG[region_name]
             database_info = DatabaseInfo(
                 region=region,
                 cell_name=cell_name,
-                external_id=external_id,
+                external_name=external_name,
                 sql_url=database_url,
             )
             databases.append(database_info)

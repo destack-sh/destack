@@ -751,67 +751,6 @@ export interface BorderStyleData {
     width?: InsetsData;
 }
 /**
- * @generated from protobuf message symbol.bench.CellData
- */
-export interface CellData {
-    /**
-     * @generated from protobuf field: symbol.bench.NodeType metatype = 1;
-     */
-    metatype: NodeType;
-    /**
-     * @generated from protobuf field: string id = 2;
-     */
-    id: string;
-    /**
-     * @generated from protobuf field: optional symbol.bench.NodeReferenceData parent_ptr = 4;
-     */
-    parentPtr?: NodeReferenceData;
-    /**
-     * @generated from protobuf field: optional symbol.bench.NodeReferenceData bench_ptr = 6;
-     */
-    benchPtr?: NodeReferenceData;
-    /**
-     * @generated from protobuf field: google.protobuf.Timestamp created_at = 10;
-     */
-    createdAt?: Timestamp;
-    /**
-     * @generated from protobuf field: optional symbol.bench.NodeReferenceData created_by_ptr = 11;
-     */
-    createdByPtr?: NodeReferenceData;
-    /**
-     * @generated from protobuf field: google.protobuf.Timestamp updated_at = 12;
-     */
-    updatedAt?: Timestamp;
-    /**
-     * @generated from protobuf field: optional symbol.bench.NodeReferenceData updated_by_ptr = 13;
-     */
-    updatedByPtr?: NodeReferenceData;
-    /**
-     * @generated from protobuf field: optional symbol.bench.NodeReferenceData owned_by_ptr = 17;
-     */
-    ownedByPtr?: NodeReferenceData;
-    /**
-     * @generated from protobuf field: symbol.bench.NodeMode mode = 20;
-     */
-    mode: NodeMode;
-    /**
-     * @generated from protobuf field: string name = 31;
-     */
-    name: string;
-    /**
-     * @generated from protobuf field: symbol.bench.Region region = 50;
-     */
-    region: Region;
-    /**
-     * @generated from protobuf field: string cell_name = 51;
-     */
-    cellName: string;
-    /**
-     * @generated from protobuf field: string host = 52;
-     */
-    host: string;
-}
-/**
  * @generated from protobuf message symbol.bench.CellInfoData
  */
 export interface CellInfoData {
@@ -8354,12 +8293,6 @@ export interface SomeNodeData {
          */
         database: DatabaseData;
     } | {
-        oneofKind: "cell";
-        /**
-         * @generated from protobuf field: symbol.bench.CellData cell = 1100;
-         */
-        cell: CellData;
-    } | {
         oneofKind: "machine";
         /**
          * @generated from protobuf field: symbol.bench.MachineData machine = 1150;
@@ -11465,10 +11398,6 @@ export enum NodeType {
      * @generated from protobuf enum value: NODE_TYPE_DATABASE = 1000;
      */
     DATABASE = 1000,
-    /**
-     * @generated from protobuf enum value: NODE_TYPE_CELL = 1100;
-     */
-    CELL = 1100,
     /**
      * @generated from protobuf enum value: NODE_TYPE_MACHINE = 1150;
      */
@@ -14837,150 +14766,6 @@ class BorderStyleData$Type extends MessageType$<BorderStyleData> {
  * @generated MessageType for protobuf message symbol.bench.BorderStyleData
  */
 export const BorderStyleData = new BorderStyleData$Type();
-// @generated message type with reflection information, may provide speed optimized methods
-class CellData$Type extends MessageType$<CellData> {
-    constructor() {
-        super("symbol.bench.CellData", [
-            { no: 1, name: "metatype", kind: "enum", T: () => ["symbol.bench.NodeType", NodeType, "NODE_TYPE_"] },
-            { no: 2, name: "id", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
-            { no: 4, name: "parent_ptr", kind: "message", T: () => NodeReferenceData },
-            { no: 6, name: "bench_ptr", kind: "message", T: () => NodeReferenceData },
-            { no: 10, name: "created_at", kind: "message", T: () => Timestamp },
-            { no: 11, name: "created_by_ptr", kind: "message", T: () => NodeReferenceData },
-            { no: 12, name: "updated_at", kind: "message", T: () => Timestamp },
-            { no: 13, name: "updated_by_ptr", kind: "message", T: () => NodeReferenceData },
-            { no: 17, name: "owned_by_ptr", kind: "message", T: () => NodeReferenceData },
-            { no: 20, name: "mode", kind: "enum", T: () => ["symbol.bench.NodeMode", NodeMode, "NODE_MODE_"] },
-            { no: 31, name: "name", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
-            { no: 50, name: "region", kind: "enum", T: () => ["symbol.bench.Region", Region, "REGION_"] },
-            { no: 51, name: "cell_name", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
-            { no: 52, name: "host", kind: "scalar", T: 9 /*ScalarType.STRING*/ }
-        ]);
-    }
-    create(value?: PartialMessage<CellData>): CellData {
-        const message = globalThis.Object.create((this.messagePrototype!));
-        message.metatype = 0;
-        message.id = "";
-        message.mode = 0;
-        message.name = "";
-        message.region = 0;
-        message.cellName = "";
-        message.host = "";
-        if (value !== undefined)
-            reflectionMergePartial<CellData>(this, message, value);
-        return message;
-    }
-    internalBinaryRead(reader: IBinaryReader, length: number, options: BinaryReadOptions, target?: CellData): CellData {
-        let message = target ?? this.create(), end = reader.pos + length;
-        while (reader.pos < end) {
-            let [fieldNo, wireType] = reader.tag();
-            switch (fieldNo) {
-                case /* symbol.bench.NodeType metatype */ 1:
-                    message.metatype = reader.int32();
-                    break;
-                case /* string id */ 2:
-                    message.id = reader.string();
-                    break;
-                case /* optional symbol.bench.NodeReferenceData parent_ptr */ 4:
-                    message.parentPtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.parentPtr);
-                    break;
-                case /* optional symbol.bench.NodeReferenceData bench_ptr */ 6:
-                    message.benchPtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.benchPtr);
-                    break;
-                case /* google.protobuf.Timestamp created_at */ 10:
-                    message.createdAt = Timestamp.internalBinaryRead(reader, reader.uint32(), options, message.createdAt);
-                    break;
-                case /* optional symbol.bench.NodeReferenceData created_by_ptr */ 11:
-                    message.createdByPtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.createdByPtr);
-                    break;
-                case /* google.protobuf.Timestamp updated_at */ 12:
-                    message.updatedAt = Timestamp.internalBinaryRead(reader, reader.uint32(), options, message.updatedAt);
-                    break;
-                case /* optional symbol.bench.NodeReferenceData updated_by_ptr */ 13:
-                    message.updatedByPtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.updatedByPtr);
-                    break;
-                case /* optional symbol.bench.NodeReferenceData owned_by_ptr */ 17:
-                    message.ownedByPtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.ownedByPtr);
-                    break;
-                case /* symbol.bench.NodeMode mode */ 20:
-                    message.mode = reader.int32();
-                    break;
-                case /* string name */ 31:
-                    message.name = reader.string();
-                    break;
-                case /* symbol.bench.Region region */ 50:
-                    message.region = reader.int32();
-                    break;
-                case /* string cell_name */ 51:
-                    message.cellName = reader.string();
-                    break;
-                case /* string host */ 52:
-                    message.host = reader.string();
-                    break;
-                default:
-                    let u = options.readUnknownField;
-                    if (u === "throw")
-                        throw new globalThis.Error(`Unknown field ${fieldNo} (wire type ${wireType}) for ${this.typeName}`);
-                    let d = reader.skip(wireType);
-                    if (u !== false)
-                        (u === true ? UnknownFieldHandler.onRead : u)(this.typeName, message, fieldNo, wireType, d);
-            }
-        }
-        return message;
-    }
-    internalBinaryWrite(message: CellData, writer: IBinaryWriter, options: BinaryWriteOptions): IBinaryWriter {
-        /* symbol.bench.NodeType metatype = 1; */
-        if (message.metatype !== 0)
-            writer.tag(1, WireType.Varint).int32(message.metatype);
-        /* string id = 2; */
-        if (message.id !== "")
-            writer.tag(2, WireType.LengthDelimited).string(message.id);
-        /* optional symbol.bench.NodeReferenceData parent_ptr = 4; */
-        if (message.parentPtr)
-            NodeReferenceData.internalBinaryWrite(message.parentPtr, writer.tag(4, WireType.LengthDelimited).fork(), options).join();
-        /* optional symbol.bench.NodeReferenceData bench_ptr = 6; */
-        if (message.benchPtr)
-            NodeReferenceData.internalBinaryWrite(message.benchPtr, writer.tag(6, WireType.LengthDelimited).fork(), options).join();
-        /* google.protobuf.Timestamp created_at = 10; */
-        if (message.createdAt)
-            Timestamp.internalBinaryWrite(message.createdAt, writer.tag(10, WireType.LengthDelimited).fork(), options).join();
-        /* optional symbol.bench.NodeReferenceData created_by_ptr = 11; */
-        if (message.createdByPtr)
-            NodeReferenceData.internalBinaryWrite(message.createdByPtr, writer.tag(11, WireType.LengthDelimited).fork(), options).join();
-        /* google.protobuf.Timestamp updated_at = 12; */
-        if (message.updatedAt)
-            Timestamp.internalBinaryWrite(message.updatedAt, writer.tag(12, WireType.LengthDelimited).fork(), options).join();
-        /* optional symbol.bench.NodeReferenceData updated_by_ptr = 13; */
-        if (message.updatedByPtr)
-            NodeReferenceData.internalBinaryWrite(message.updatedByPtr, writer.tag(13, WireType.LengthDelimited).fork(), options).join();
-        /* optional symbol.bench.NodeReferenceData owned_by_ptr = 17; */
-        if (message.ownedByPtr)
-            NodeReferenceData.internalBinaryWrite(message.ownedByPtr, writer.tag(17, WireType.LengthDelimited).fork(), options).join();
-        /* symbol.bench.NodeMode mode = 20; */
-        if (message.mode !== 0)
-            writer.tag(20, WireType.Varint).int32(message.mode);
-        /* string name = 31; */
-        if (message.name !== "")
-            writer.tag(31, WireType.LengthDelimited).string(message.name);
-        /* symbol.bench.Region region = 50; */
-        if (message.region !== 0)
-            writer.tag(50, WireType.Varint).int32(message.region);
-        /* string cell_name = 51; */
-        if (message.cellName !== "")
-            writer.tag(51, WireType.LengthDelimited).string(message.cellName);
-        /* string host = 52; */
-        if (message.host !== "")
-            writer.tag(52, WireType.LengthDelimited).string(message.host);
-        let u = options.writeUnknownFields;
-        if (u !== false)
-            (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
-        return writer;
-    }
-}
-/**
- * @generated MessageType for protobuf message symbol.bench.CellData
- */
-export const CellData = new CellData$Type();
 // @generated message type with reflection information, may provide speed optimized methods
 class CellInfoData$Type extends MessageType$<CellInfoData> {
     constructor() {
@@ -31172,7 +30957,6 @@ class SomeNodeData$Type extends MessageType$<SomeNodeData> {
             { no: 700, name: "page", kind: "message", oneof: "node", T: () => PageData },
             { no: 701, name: "block", kind: "message", oneof: "node", T: () => BlockData },
             { no: 1000, name: "database", kind: "message", oneof: "node", T: () => DatabaseData },
-            { no: 1100, name: "cell", kind: "message", oneof: "node", T: () => CellData },
             { no: 1150, name: "machine", kind: "message", oneof: "node", T: () => MachineData },
             { no: 1200, name: "service", kind: "message", oneof: "node", T: () => ServiceData },
             { no: 1220, name: "action", kind: "message", oneof: "node", T: () => ActionData },
@@ -31340,12 +31124,6 @@ class SomeNodeData$Type extends MessageType$<SomeNodeData> {
                     message.node = {
                         oneofKind: "database",
                         database: DatabaseData.internalBinaryRead(reader, reader.uint32(), options, (message.node as any).database)
-                    };
-                    break;
-                case /* symbol.bench.CellData cell */ 1100:
-                    message.node = {
-                        oneofKind: "cell",
-                        cell: CellData.internalBinaryRead(reader, reader.uint32(), options, (message.node as any).cell)
                     };
                     break;
                 case /* symbol.bench.MachineData machine */ 1150:
@@ -31630,9 +31408,6 @@ class SomeNodeData$Type extends MessageType$<SomeNodeData> {
         /* symbol.bench.DatabaseData database = 1000; */
         if (message.node.oneofKind === "database")
             DatabaseData.internalBinaryWrite(message.node.database, writer.tag(1000, WireType.LengthDelimited).fork(), options).join();
-        /* symbol.bench.CellData cell = 1100; */
-        if (message.node.oneofKind === "cell")
-            CellData.internalBinaryWrite(message.node.cell, writer.tag(1100, WireType.LengthDelimited).fork(), options).join();
         /* symbol.bench.MachineData machine = 1150; */
         if (message.node.oneofKind === "machine")
             MachineData.internalBinaryWrite(message.node.machine, writer.tag(1150, WireType.LengthDelimited).fork(), options).join();
@@ -31756,7 +31531,7 @@ export const SomeNodeData = new SomeNodeData$Type();
 //
 
 // Any...
-export type AnyNodeData = ClientData | FriendshipData | FriendshipInviteData | OrganizationData | OrganizationInviteData | OrganizationMembershipData | UserData | CustomNodeDefinitionData | CustomNodeInstanceData | FieldData | FileData | LinkData | SchemaData | CellData | DatabaseData | MachineData | ActionData | AgentData | CursorData | FlowData | FlowEdgeData | ServiceData | TaskData | BenchData | BenchInviteData | BenchMembershipData | HandleData | PackageData | PackageMembershipData | PackageInviteData | InterruptionData | RunData | SpanData | MessageData | ThreadData | BlockData | PageData | RouteData | SceneData | SpaceData | ColorStyleData | BorderStyleData | TransitionStyleData | EffectStyleData | GradientStyleData | FontStyleData | ShadowStyleData | ThemeData | FrameViewData | LabelViewData | SplitViewData | TextViewData | NumberInputViewData | SliderInputViewData | WizardViewData | ThreadViewData
+export type AnyNodeData = ClientData | FriendshipData | FriendshipInviteData | OrganizationData | OrganizationInviteData | OrganizationMembershipData | UserData | CustomNodeDefinitionData | CustomNodeInstanceData | FieldData | FileData | LinkData | SchemaData | DatabaseData | MachineData | ActionData | AgentData | CursorData | FlowData | FlowEdgeData | ServiceData | TaskData | BenchData | BenchInviteData | BenchMembershipData | HandleData | PackageData | PackageMembershipData | PackageInviteData | InterruptionData | RunData | SpanData | MessageData | ThreadData | BlockData | PageData | RouteData | SceneData | SpaceData | ColorStyleData | BorderStyleData | TransitionStyleData | EffectStyleData | GradientStyleData | FontStyleData | ShadowStyleData | ThemeData | FrameViewData | LabelViewData | SplitViewData | TextViewData | NumberInputViewData | SliderInputViewData | WizardViewData | ThreadViewData
 export type AnyStructData = ScopeData | PropertyReferenceData | NodeReferenceData | CodeData | StringConstraintData | NumberConstraintData | CollectionConstraintData | NodeConstraintData | TypeData | EditData | ChangeData | ChangeResultData | IconData | PropertyInfoData | TraitInfoData | NodeInfoData | StructInfoData | EnumInfoData | EnumOptionInfoData | ValueData | RelationReferenceData | AttributeReferenceData | FunctionData | ConditionData | AggregationData | ExpressionData | SortData | SelectData | JoinData | QueryData | QueryResultData | QueryUpdateData | SelectionData | TextSpanData | TextLineData | TextData | VariableData | OriginData | CellInfoData | DatabaseInfoData | ScheduleData | ErrorData | ColorData | LengthData | PositionData | DimensionData | InsetsData | CornersData | Axis2Data | Axis3Data | Vector2Data | Vector3Data | Vector4Data | GridData | GridSpanData | BorderData | TransitionData | EffectData | GradientStopData | GradientData | FillData | FontData | ShadowData
 
     

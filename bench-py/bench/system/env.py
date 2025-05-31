@@ -5,7 +5,7 @@ from bench.utils.utils import get_from_env
 def get_global_database_from_env() -> DatabaseInfo:
     """Get the default global database configured in the environment"""
     sql_url = get_from_env("GLOBAL_DATABASE_URL", description="Global database URL")
-    return DatabaseInfo(sql_url=sql_url, region=Region.ZURICH, external_id="bench-global")
+    return DatabaseInfo(sql_url=sql_url, region=Region.ZURICH, external_name="bench-global")
 
 
 def get_database_registry_from_env() -> StaticDatabaseRegistry:

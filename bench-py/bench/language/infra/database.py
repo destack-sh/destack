@@ -1,7 +1,6 @@
 from typing import TYPE_CHECKING, Optional
 
 from bench.language.core import (
-    VERSION,
     BuiltinEnum,
     BuiltinObjectMutable,
     EnumType,
@@ -38,7 +37,7 @@ class Tenancy(BuiltinEnum):
 class DatabaseBase(BuiltinObjectMutable):
     region: Region = property_(50, can_write="system", is_repr=True)
     cell_name: str | None = property_(51, can_write="system", is_repr=True)
-    external_id: str = property_(52, can_read="system", can_write="system", is_repr=True)
+    external_name: str = property_(52, can_read="system", can_write="system", is_repr=True)
     custom_schema_name: str | None = property_(
         53, can_read="system", can_write="system", is_repr=True
     )
@@ -56,13 +55,12 @@ class Database(IsResource, IsInBench, DatabaseBase, Node[DatabaseData]):
     """A Postgres-compatible Database."""
 
     parent: Optional["Bench"] = property_parent_()
-    version: str = property_(35, default=VERSION, can_write="system")
 
     def to_info(self) -> DatabaseInfo:
         return DatabaseInfo(
             region=self.region,
             cell_name=self.cell_name,
-            external_id=self.external_id,
+            external_name=self.external_name,
             custom_schema_name=self.custom_schema_name,
             tenancy=self.tenancy,
             sql_url=self.sql_url,

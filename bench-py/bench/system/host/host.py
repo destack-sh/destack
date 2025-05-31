@@ -39,7 +39,7 @@ from bench.pb2 import (
     UploadFilesResponse,
 )
 from bench.proto import Network, ServiceBase
-from bench.system.store.postgres import DatabaseStore
+from bench.system.store import DatabaseStore
 from bench.utils.env import ENV
 from bench.utils.oracle import Oracle
 from bench.utils.utils import get_from_env

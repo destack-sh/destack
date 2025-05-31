@@ -42,7 +42,7 @@ def make_global_database(name: str) -> DatabaseInfo:
     database = DatabaseInfo(
         region=REGION,
         cell_name=name,
-        external_id=name,
+        external_name=name,
         tenancy=Tenancy.DEDICATED,
         sql_url=sql_url,
     )
@@ -58,7 +58,7 @@ def make_bench_database(name: str) -> DatabaseInfo:
     database = DatabaseInfo(
         region=REGION,
         cell_name="test-0",
-        external_id=name,
+        external_name=name,
         tenancy=Tenancy.DEDICATED,
         sql_url=pg_url,
     )
@@ -68,8 +68,8 @@ def make_bench_database(name: str) -> DatabaseInfo:
 async def create_blank_test_db(database: DatabaseInfo):
     """Creates a blank postgres database"""
     async with pg_connection(get_global_database_from_env()) as conn:
-        await conn.execute(f'DROP DATABASE IF EXISTS "{database.external_id}"')
-        await conn.execute(f'CREATE DATABASE "{database.external_id}"')
+        await conn.execute(f'DROP DATABASE IF EXISTS "{database.external_name}"')
+        await conn.execute(f'CREATE DATABASE "{database.external_name}"')
 
 
 async def create_test_db(database: DatabaseInfo, schema: SqlSchema):
@@ -88,7 +88,7 @@ async def create_test_db(database: DatabaseInfo, schema: SqlSchema):
 async def delete_test_db(database: DatabaseInfo):
     """Deletes a postgres DB with one of our schemas"""
     async with pg_connection(get_global_database_from_env()) as conn:
-        await conn.execute(f'DROP DATABASE IF EXISTS "{database.external_id}"')
+        await conn.execute(f'DROP DATABASE IF EXISTS "{database.external_name}"')
 
 
 def _clean_name(name: str) -> str:
