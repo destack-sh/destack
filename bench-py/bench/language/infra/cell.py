@@ -1,18 +1,12 @@
 from bench.language.core import (
     BuiltinObjectMutable,
-    IsInBench,
-    IsResource,
-    Node,
-    NodeType,
     Region,
     StructMutable,
     StructType,
-    node_,
     object_,
     property_,
     struct_,
 )
-from bench.pb2 import CellData
 
 # pyright: reportIncompatibleVariableOverride=false
 
@@ -32,6 +26,4 @@ class CellInfo(CellBase, StructMutable):
     pass
 
 
-@node_(NodeType.CELL)
-class Cell(IsResource, IsInBench, CellBase, Node[CellData]):
-    pass
+# TODO :Infra: map Cells into actual Cell Nodes?

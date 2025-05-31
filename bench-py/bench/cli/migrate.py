@@ -8,7 +8,7 @@ from more_itertools import first
 from rich import print
 from rich.console import Console
 
-from bench.language import REGION, NodeArea, Region
+from bench.language import REGION, VERSION, NodeArea, Region
 from bench.sql.client import pg_tx
 from bench.utils.oracle import REAL_ORACLE
 
@@ -33,7 +33,6 @@ async def make(
     overwrite: bool = typer.Option(default=False, help="overwrite existing migration for version"),
     from_scratch: bool = typer.Option(default=False, help="generate migration from scratch"),
 ):
-    from bench.language import VERSION, NodeArea
     from bench.sql import (
         BENCH_CUSTOM_NODE_PREFIX,
         BENCH_TABLE_PREFIX,

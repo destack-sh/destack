@@ -2,9 +2,9 @@
 tokei \
 	-e '*.yaml' \
 	-e '*.json' \
-	-e 'proto/language.proto' \
-	-e '**/proto/wire/**/*.ts' \
+	-e 'bench-proto/language.proto' \
+	-e '**/bench-proto/wire/**/*.ts' \
 	-e '*.css' \
 	-e '*.txt' \
-	-e 'bench/migrations' \
-	-e 'bench/pb2/*.py'
+	-e 'bench-py/bench/migrations' \
+	-e 'bench-py/bench/pb2/*.py'

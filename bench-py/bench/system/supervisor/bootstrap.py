@@ -16,8 +16,6 @@ from bench.language import (
     UserStatus,
 )
 
-from .bench import CreateBenchOptions, create_default_bench
-
 app = typer.Typer(short_help="some language-level utilities")
 
 logger = structlog.get_logger(__name__)

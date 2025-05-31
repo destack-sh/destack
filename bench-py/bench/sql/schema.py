@@ -8,7 +8,7 @@ from .core import (
     SqlTable,
 )
 
-VERSION = "2025.05.29.3"
+VERSION = "2025.05.31.0"
 
 BENCH_TABLE = SqlTable(
     "bench_bench",
@@ -469,27 +469,6 @@ DATABASE_TABLE = SqlTable(
         SqlColumn("custom_schema_name", PrimitiveType.STRING, is_nullable=True),
         SqlColumn("tenancy", PrimitiveType.INT16),
         SqlColumn("sql_url", PrimitiveType.STRING, is_nullable=True),
-    ),
-    indexes=(SqlIndex("bench_idx_parent_id", SqlIndexType.BTREE, ("parent_id",), cover=("id",)),),
-)
-
-CELL_TABLE = SqlTable(
-    "bench_cell",
-    (
-        SqlColumn("id", PrimitiveType.UUID, is_primary_key=True),
-        SqlColumn("parent_id", PrimitiveType.UUID, is_nullable=True),
-        SqlColumn("parent_definition_id", PrimitiveType.UUID, is_nullable=True),
-        SqlColumn("bench_id", PrimitiveType.UUID, is_nullable=True),
-        SqlColumn("created_at", PrimitiveType.DATETIME),
-        SqlColumn("created_by_id", PrimitiveType.UUID, is_nullable=True),
-        SqlColumn("updated_at", PrimitiveType.DATETIME),
-        SqlColumn("updated_by_id", PrimitiveType.UUID, is_nullable=True),
-        SqlColumn("owned_by_id", PrimitiveType.UUID, is_nullable=True),
-        SqlColumn("mode", PrimitiveType.INT16),
-        SqlColumn("name", PrimitiveType.STRING),
-        SqlColumn("region", PrimitiveType.INT16),
-        SqlColumn("cell_name", PrimitiveType.STRING),
-        SqlColumn("host", PrimitiveType.STRING),
     ),
     indexes=(SqlIndex("bench_idx_parent_id", SqlIndexType.BTREE, ("parent_id",), cover=("id",)),),
 )

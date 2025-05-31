@@ -22,7 +22,7 @@ from opentelemetry.trace.propagation.tracecontext import TraceContextTextMapProp
 from posthog import Posthog
 
 from .env import ENV, IS_DEBUG, IS_DEV, IS_TEST
-from .logging import setup_logging
+from .log import setup_logging
 from .utils import get_from_env, get_from_env_maybe
 
 setup_logging()  # ensure logging is setup first

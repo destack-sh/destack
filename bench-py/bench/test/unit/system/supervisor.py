@@ -1,4 +1,5 @@
 import pytest
+from bench import pb2
 from bench.language import (
     Client,
     ClientType,
@@ -53,8 +54,6 @@ async def supervisor(supervisor_service):
 async def test_user_registration(supervisor: SupervisorClient):
     """Create a User, login and logout. Try some wrong passwords and tokens. Read back data to confirm."""
 
-    from bench.pb2 import Region as RegionData
-
     session = Session()
 
     user_slug = "florian"
@@ -77,7 +76,7 @@ async def test_user_registration(supervisor: SupervisorClient):
         email=user_email,
         client=client_in,
         password="Password123!",
-        region=RegionData.REGION_ZURICH,
+        region=pb2.Region.REGION_ZURICH,
     )
     signup_rep = await supervisor.signup_user(signup_req)
     assert signup_rep.user.slug == user_slug

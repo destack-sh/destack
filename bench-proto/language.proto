@@ -5,6 +5,9 @@ package symbol.bench;
 import "google/protobuf/timestamp.proto";
 import "google/protobuf/duration.proto";
 import "google/protobuf/struct.proto";
+import "bench-proto/google/type/datetime.proto";
+import "bench-proto/google/type/date.proto";
+import "bench-proto/google/type/timeofday.proto";
 
 enum ActionCardinality {
   ACTION_CARDINALITY_UNSPECIFIED = 0;
@@ -853,7 +856,6 @@ enum NodeType {
   NODE_TYPE_PAGE = 700;
   NODE_TYPE_BLOCK = 701;
   NODE_TYPE_DATABASE = 1000;
-  NODE_TYPE_CELL = 1100;
   NODE_TYPE_MACHINE = 1150;
   NODE_TYPE_SERVICE = 1200;
   NODE_TYPE_ACTION = 1220;
@@ -1570,23 +1572,6 @@ message BorderStyleData {
   optional NodeReferenceData style_ptr = 41;
   optional ColorData color = 50;
   optional InsetsData width = 51;
-}
-
-message CellData {
-  NodeType metatype = 1;
-  string id = 2;
-  optional NodeReferenceData parent_ptr = 4;
-  optional NodeReferenceData bench_ptr = 6;
-  google.protobuf.Timestamp created_at = 10;
-  optional NodeReferenceData created_by_ptr = 11;
-  google.protobuf.Timestamp updated_at = 12;
-  optional NodeReferenceData updated_by_ptr = 13;
-  optional NodeReferenceData owned_by_ptr = 17;
-  NodeMode mode = 20;
-  string name = 31;
-  Region region = 50;
-  string cell_name = 51;
-  string host = 52;
 }
 
 message CellInfoData {
@@ -3649,7 +3634,6 @@ message SomeNodeData {
     PageData page = 700;
     BlockData block = 701;
     DatabaseData database = 1000;
-    CellData cell = 1100;
     MachineData machine = 1150;
     ServiceData service = 1200;
     ActionData action = 1220;

@@ -68,7 +68,7 @@ class Bench(
 
     # infra
     region: Region = property_(50, can_write="system")
-    cell_name: str = property_(51, can_write="system")  # -> Cell?
+    cell_name: str | None = property_(51, can_write="system")  # -> Cell?
     database: Optional["Database"] = property_(55, node_bench_from="self", can_write="system")
     # search, analytics, vault, cache, ...
     if TYPE_CHECKING:

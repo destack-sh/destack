@@ -42,7 +42,7 @@ class _Unset:
 
 
 # forever constants
-VERSION = "2025.05.29.3"
+VERSION = "2025.05.31.0"
 UUID_NAMESPACE = uuid5(UUID(int=0), b"bench")
 CK_LENGTH_B64 = 24  # 1.5 * CK_LENGTH_BYTES (must be integer)
 FLOAT_EPSILON = 1e-6
@@ -659,7 +659,7 @@ class NodeType(BuiltinEnum):
     # infra [1000-1200]
     DATABASE = 1000, "Database", "Database for Postgres data", "fas fa-database"
     # DATABASE?, SEARCH/INDEX, WAREHOUSE/OLAP, VAULT, CACHE, S3, ...
-    CELL = 1100, "Cell", "Cell of Bench services", "fas fa-cell"
+    # CELL = 1100, "Cell", "Cell of Bench services", "fas fa-cell"
     MACHINE = 1150, "Machine", "Machine for ephemeral computing", "fas fa-machine-classic"
     # HOST, ENDPOINT, DEPLOYMENT, NETWORK, AUTOSCALER, ...
 
