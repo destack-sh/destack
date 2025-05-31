@@ -17,7 +17,7 @@ locals {
 
     SUPERVISOR_URL = local.supervisor_url
     HOST_MAP = join(",", flatten([
-      for k, v in var.cell_registry : [
+      for k, v in var.cell_provider : [
         format("%s=%s", k, v)
       ]
     ]))

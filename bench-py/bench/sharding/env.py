@@ -1,5 +1,8 @@
-from bench.language import DatabaseInfo, Region, StaticCellRegistry, StaticDatabaseRegistry
+from bench.language import DatabaseInfo, Region
 from bench.utils.utils import get_from_env
+
+from .cell import StaticCellProvider
+from .database import StaticDatabaseProvider
 
 
 def get_global_database_from_env() -> DatabaseInfo:
@@ -8,19 +11,19 @@ def get_global_database_from_env() -> DatabaseInfo:
     return DatabaseInfo(sql_url=sql_url, region=Region.ZURICH, external_name="bench-global")
 
 
-def get_database_registry_from_env() -> StaticDatabaseRegistry:
-    """Get the default database registry configured in the environment"""
+def get_database_provider_from_env() -> StaticDatabaseProvider:
+    """Get the default database provider configured in the environment"""
     db_map_str = get_from_env("DATABASE_MAP", description="Database map for sharding")
-    return StaticDatabaseRegistry.parse(db_map_str)
+    return StaticDatabaseProvider.parse(db_map_str)
 
 
-DATABASE_REGISTRY = get_database_registry_from_env()
+DATABASE_PROVIDER = get_database_provider_from_env()
 
 
-def get_cell_registry_from_env() -> StaticCellRegistry:
+def get_cell_provider_from_env() -> StaticCellProvider:
     """Parses the CELL_MAP from the environment."""
     cell_map_str = get_from_env("CELL_MAP", description="Cell map for sharding")
-    return StaticCellRegistry.parse(cell_map_str)
+    return StaticCellProvider.parse(cell_map_str)
 
 
-CELL_REGISTRY = get_cell_registry_from_env()
+CELL_PROVIDER = get_cell_provider_from_env()

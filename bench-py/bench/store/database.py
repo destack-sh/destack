@@ -18,7 +18,7 @@ class DatabaseStore(Store):
     A Store backed by real Postgres Databases.
     """
 
-    __supported_edit_types__ = (
+    __supports_edit_types__ = (
         EditType.CREATE,
         EditType.UPSERT,
         EditType.UPDATE,
@@ -29,7 +29,7 @@ class DatabaseStore(Store):
         EditType.ERASE,
         EditType.RESTORE,
     )
-    __supported_operations__ = (
+    __supports_operations__ = (
         EditOperation.SET,
         EditOperation.CLEAR,
     )

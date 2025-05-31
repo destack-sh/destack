@@ -33,6 +33,7 @@ async def make(
     overwrite: bool = typer.Option(default=False, help="overwrite existing migration for version"),
     from_scratch: bool = typer.Option(default=False, help="generate migration from scratch"),
 ):
+    from bench.sharding import get_global_database_from_env
     from bench.sql import (
         BENCH_CUSTOM_NODE_PREFIX,
         BENCH_TABLE_PREFIX,
@@ -47,7 +48,6 @@ async def make(
         read_migrations_from_fs,
         read_migrations_from_pg,
     )
-    from bench.system import get_global_database_from_env
 
     start = time.time()
     global_database = get_global_database_from_env()

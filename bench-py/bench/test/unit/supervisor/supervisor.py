@@ -1,13 +1,6 @@
 import pytest
 from bench import pb2
-from bench.language import (
-    Client,
-    ClientType,
-    DatabaseInfo,
-    Session,
-    StaticCellRegistry,
-    StaticDatabaseRegistry,
-)
+from bench.language import Client, ClientType, DatabaseInfo, Session
 from bench.proto import (
     LoginUserRequest,
     LogoutUserRequest,
@@ -17,6 +10,7 @@ from bench.proto import (
     SupervisorClient,
     pack_rpc_headers,
 )
+from bench.sharding import StaticCellProvider, StaticDatabaseProvider
 from bench.test.fixtures import raises_grpc_error
 from bench.test.simulation.core import SimulatedChannel
 from bench.utils.oracle import REAL_ORACLE
@@ -29,15 +23,15 @@ from grpclib import Status as GRPCStatus
 
 @pytest.fixture
 async def supervisor_service(global_database: DatabaseInfo, main_database: DatabaseInfo):
-    from bench.system import SupervisorService
+    from bench.supervisor import SupervisorService
 
     supervisor_service = SupervisorService(
         id="supervisor",
         global_database=global_database,
         network=NullNetwork(),
         oracle=REAL_ORACLE,
-        cell_registry=StaticCellRegistry(()),
-        database_registry=StaticDatabaseRegistry(()),
+        cell_provider=StaticCellProvider(()),
+        database_provider=StaticDatabaseProvider(()),
     )
     await supervisor_service.start()
     yield supervisor_service

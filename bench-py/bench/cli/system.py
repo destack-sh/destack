@@ -20,7 +20,9 @@ logger = structlog.get_logger(__name__)
 async def bootstrap(
     region: Annotated[Region, typer.Option(parser=parse_region)], upsert: bool = False
 ):
-    from bench.system import DatabaseStore, create_system_benches, get_global_database_from_env
+    from bench.sharding import get_global_database_from_env
+    from bench.store import DatabaseStore
+    from bench.supervisor import create_system_benches
 
     global_database = get_global_database_from_env()
     store = DatabaseStore(global_database=global_database)

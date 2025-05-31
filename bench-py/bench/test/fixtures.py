@@ -16,6 +16,7 @@ _setup_test_env()
 
 
 from bench.language import REGION, DatabaseInfo, Tenancy
+from bench.sharding import get_global_database_from_env
 from bench.sql import (
     BENCH_CUSTOM_NODE_PREFIX,
     BENCH_TABLE_PREFIX,
@@ -26,7 +27,6 @@ from bench.sql import (
     generate_sql_migration_ops,
     introspect_sql_schema,
 )
-from bench.system import get_global_database_from_env
 from bench.utils.utils import get_from_env
 
 logger = structlog.get_logger(__name__)

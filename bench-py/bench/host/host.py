@@ -9,12 +9,10 @@ from opentelemetry import trace
 from bench.language import (
     CLOUD,
     Bench,
-    CellRegistry,
     Change,
     Client,
     Database,
     DatabaseInfo,
-    DatabaseRegistry,
     IsSubject,
     LiveStore,
     NodeReference,
@@ -39,6 +37,7 @@ from bench.pb2 import (
     UploadFilesResponse,
 )
 from bench.proto import Network, ServiceBase
+from bench.system.sharding import CellProvider, DatabaseProvider
 from bench.system.store import DatabaseStore
 from bench.utils.env import ENV
 from bench.utils.oracle import Oracle
@@ -75,8 +74,8 @@ class HostService(ServiceBase, HostBase):
         network: Network,
         oracle: Oracle,
         global_database: DatabaseInfo,
-        cell_registry: CellRegistry,
-        database_registry: DatabaseRegistry,
+        cell_provider: CellProvider,
+        database_provider: DatabaseProvider,
         on_error: Callable[[BaseException], None] | None,
     ):
         super().__init__(
@@ -94,8 +93,8 @@ class HostService(ServiceBase, HostBase):
         self.plugins: tuple[HostPlugin, ...] = ()  # incl. provisioners
         self.database_store = DatabaseStore(global_database=global_database)
         self.store: LiveStore = ...  # type: ignore nocheckin
-        self.cell_registry = cell_registry
-        self.database_registry = database_registry
+        self.cell_provider = cell_provider
+        self.database_provider = database_provider
 
     def __str__(self):
         return f"{self.bench_id}"

@@ -11,7 +11,7 @@ from grpclib import GRPCError
 from grpclib import Status as GRPCStatus
 from opentelemetry import trace
 
-from bench.language import CellRegistry, Client, DatabaseInfo, DatabaseRegistry, IsSubject, Session
+from bench.language import Client, DatabaseInfo, IsSubject, Session
 from bench.pb2 import (
     CommitRequest,
     CommitResponse,
@@ -32,6 +32,7 @@ from bench.proto import (
     ServiceBase,
     ServiceKind,
 )
+from bench.system.sharding import CellProvider, DatabaseProvider
 from bench.utils.oracle import Oracle
 from bench.utils.telemetry import set_baggage
 from bench.utils.utils import get_from_env
@@ -63,8 +64,8 @@ class HostRouterService(ServiceBase, HostBase):
         network: Network,
         oracle: Oracle,
         global_database: DatabaseInfo,
-        cell_registry: CellRegistry,
-        database_registry: DatabaseRegistry,
+        cell_provider: CellProvider,
+        database_provider: DatabaseProvider,
         on_error: Callable[[BaseException], None] | None,
     ):
         super().__init__(
@@ -78,8 +79,8 @@ class HostRouterService(ServiceBase, HostBase):
         self.hosts: dict[UUID, HostService] = {}
         self.hosts_lock = asyncio.Lock()
         self.global_database = global_database
-        self.cell_registry = cell_registry
-        self.database_registry = database_registry
+        self.cell_provider = cell_provider
+        self.database_provider = database_provider
 
     def __str__(self):
         return "shards=[*]"
@@ -104,8 +105,8 @@ class HostRouterService(ServiceBase, HostBase):
             network=self.network,
             oracle=self.oracle,
             global_database=self.global_database,
-            cell_registry=self.cell_registry,
-            database_registry=self.database_registry,
+            cell_provider=self.cell_provider,
+            database_provider=self.database_provider,
             on_error=self.on_error,
         )
         await host.start()

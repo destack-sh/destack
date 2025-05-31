@@ -9,11 +9,9 @@ from opentelemetry import trace
 from bench.language import (
     Bench,
     BenchStatus,
-    CellRegistry,
     Client,
     Database,
     DatabaseInfo,
-    DatabaseRegistry,
     Handle,
     IsSubject,
     NodeType,
@@ -43,7 +41,8 @@ from bench.proto import (
     SignupUserResponse,
     SupervisorBase,
 )
-from bench.system.store import DatabaseStore
+from bench.sharding import CellProvider, DatabaseProvider
+from bench.store import DatabaseStore
 from bench.utils.func import generate_access_token, generate_salt
 from bench.utils.oracle import Oracle
 
@@ -71,8 +70,8 @@ class SupervisorService(ServiceBase, SupervisorBase):
         network: Network,
         oracle: Oracle,
         global_database: DatabaseInfo,
-        cell_registry: CellRegistry,
-        database_registry: DatabaseRegistry,
+        cell_provider: CellProvider,
+        database_provider: DatabaseProvider,
         on_error: Callable[[BaseException], None] | None = None,
     ):
         super().__init__(
@@ -84,8 +83,8 @@ class SupervisorService(ServiceBase, SupervisorBase):
             on_error=on_error,
         )
         self.global_database = global_database
-        self.cell_registry = cell_registry
-        self.database_registry = database_registry
+        self.cell_provider = cell_provider
+        self.database_provider = database_provider
 
     def __str__(self):
         return ""
@@ -172,7 +171,7 @@ class SupervisorService(ServiceBase, SupervisorBase):
         # provision Bench
         cell_name: str = "test-0"  # nocheckin
         database_name: str = "bench-db-0"
-        bench_database = self.database_registry.get_or_error(
+        bench_database = self.database_provider.resolve_or_error(
             region=region, cell_name=cell_name, external_name=database_name
         )
         database = Database(
