@@ -28,21 +28,21 @@ if TYPE_CHECKING:
 # pyright: reportIncompatibleVariableOverride=false
 
 
-@enum_(EnumType.DATABASE_TYPE)
-class DatabaseType(BuiltinEnum):
+@enum_(EnumType.TENANCY)
+class Tenancy(BuiltinEnum):
     DEDICATED = 1
     SHARED = 2
 
 
 @object_()
 class DatabaseBase(BuiltinObjectMutable):
-    type: DatabaseType = property_(30, default=DatabaseType.DEDICATED, is_repr=True)
     region: Region = property_(50, can_write="system", is_repr=True)
     cell_name: str | None = property_(51, can_write="system", is_repr=True)
     external_id: str = property_(52, can_read="system", can_write="system", is_repr=True)
     custom_schema_name: str | None = property_(
         53, can_read="system", can_write="system", is_repr=True
     )
+    tenancy: Tenancy = property_(55, default=Tenancy.DEDICATED, is_repr=True)
     sql_url: str | None = property_(58, can_read="system", can_write="system")
 
 
@@ -60,10 +60,10 @@ class Database(IsResource, IsInBench, DatabaseBase, Node[DatabaseData]):
 
     def to_info(self) -> DatabaseInfo:
         return DatabaseInfo(
-            type=self.type,
             region=self.region,
             cell_name=self.cell_name,
             external_id=self.external_id,
             custom_schema_name=self.custom_schema_name,
+            tenancy=self.tenancy,
             sql_url=self.sql_url,
         )
