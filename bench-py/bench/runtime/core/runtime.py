@@ -1,9 +1,10 @@
 import asyncio
 from collections import defaultdict
+from collections.abc import Sequence
 from contextvars import ContextVar
 from dataclasses import dataclass
 from datetime import datetime, timedelta
-from typing import TYPE_CHECKING, Any, Callable, Sequence, cast
+from typing import TYPE_CHECKING, Any, Callable, cast
 
 import structlog
 from fastuuid import UUID

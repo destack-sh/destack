@@ -1,8 +1,7 @@
+from collections.abc import Collection, Sequence
 from typing import (
     TYPE_CHECKING,
-    Collection,
     Optional,
-    Sequence,
 )
 
 import structlog

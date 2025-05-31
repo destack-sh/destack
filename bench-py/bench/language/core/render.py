@@ -1,14 +1,11 @@
-import base64
 import contextvars
 import dataclasses
 import json
+from collections.abc import Collection, Mapping
 from dataclasses import dataclass
-from datetime import date, datetime, time, timedelta
 from typing import (
     TYPE_CHECKING,
     Any,
-    Collection,
-    Mapping,
     assert_never,
     cast,
     overload,
@@ -20,16 +17,12 @@ import structlog
 from fastuuid import UUID
 from opentelemetry import trace
 
-from bench.language.registry import ENUM_CLASS_BY_TYPE
 from bench.utils.code import format_code
-from bench.utils.time import timedelta_to_isoformat
 
 from .code import Code
 from .const import (
     NODE_TYPES,
-    EnumType,
     NodeType,
-    PrimitiveType,
     StructType,
 )
 from .graph import Supergraph
@@ -39,7 +32,7 @@ from .property import EdgeType, Property
 from .struct import NodeReference, PropertyReference
 from .text import Text, TextLine, text_line_to_markdown, text_to_markdown
 from .trait import IsInPackage
-from .type import TypeBase, TypeCardinality
+from .type import TypeBase
 
 if TYPE_CHECKING:
     pass
@@ -88,8 +81,6 @@ class Aliasing:
 
     def add(self, obj: Node | NodeReference, alias: str | None = None) -> str:
         """Adds the given nodes to the context of this renderer."""
-        from bench.runtime.code import PYTHON_KEYWORDS, STATIC_CODE_GLOBALS
-
         # bail if already assigned
         if obj.id in self._alias_by_node_id:
             if alias is not None:
@@ -105,11 +96,7 @@ class Aliasing:
         # make new unique alias if needed
         if alias is None:
             alias = obj.metatype.bench_name if isinstance(obj, Node) else obj.node_type.bench_name
-            if (
-                alias in self._node_by_alias
-                or alias in STATIC_CODE_GLOBALS
-                or alias in PYTHON_KEYWORDS
-            ):
+            if alias in self._node_by_alias:
                 # bump digit at end to make alias unique
                 count = regex.search(r"\d+$", alias)
                 if count is None:
@@ -117,11 +104,7 @@ class Aliasing:
                     count = 1
                 else:
                     count = int(count.group())
-                while (
-                    alias in self._node_by_alias
-                    or alias in STATIC_CODE_GLOBALS
-                    or alias in PYTHON_KEYWORDS
-                ):
+                while alias in self._node_by_alias:
                     count += 1
                     alias = regex.sub(r"\d+$", str(count), alias)
 
@@ -213,56 +196,13 @@ class Renderer:
             prop = prop.resolve_or_error()
         return f'{prop.component.__name__}.get_property("{prop.name}")'
 
-    def render_value_scalar(self, value: "ScalarValue", typ: "TypeBase") -> str:
+    def render_value_scalar(self, value: Any, typ: "TypeBase") -> str:
         """Renders single scalar value into an expression."""
-        if typ.cardinality == TypeCardinality.PRIMITIVE:
-            if typ.primitive_type == PrimitiveType.BYTES:
-                value_b64 = base64.b64encode(cast(bytes, value)).decode("utf-8")
-                return f"base64.b64decode({value_b64!r})"
-            elif typ.primitive_type == PrimitiveType.DATETIME:
-                value_iso = cast(datetime, value).isoformat()
-                return f"datetime.fromisoformat({value_iso!r})"
-            elif typ.primitive_type == PrimitiveType.DATE:
-                value_iso = cast(date, value).isoformat()
-                return f"date.fromisoformat({value_iso!r})"
-            elif typ.primitive_type == PrimitiveType.TIME:
-                value_iso = cast(time, value).isoformat()
-                return f"time.fromisoformat({value_iso!r})"
-            elif typ.primitive_type == PrimitiveType.DURATION:
-                value_iso = timedelta_to_isoformat(cast(timedelta, value))
-                return f"timedelta_from_isoformat({value_iso!r})"
-            elif typ.primitive_type == PrimitiveType.STRING:
-                return repr(value)  # auto-escape
-            elif typ.primitive_type == PrimitiveType.UUID:
-                return f"UUID({value!r})"
-            else:
-                return str(value)
-        elif typ.cardinality == TypeCardinality.NODE:
-            assert isinstance(
-                value, (Node, NodeReference)
-            ), f"{value!r} is not a node or node reference, expected {typ!r}"
-            return self.render_node_ref(value)
-        elif typ.cardinality == TypeCardinality.ENUM:
-            enum_cls = ENUM_CLASS_BY_TYPE[cast(EnumType, typ.enum_type)]
-            value = enum_cls(cast(int, value))
-            return f"{enum_cls.__name__}.{value.name}"
-        elif typ.cardinality == TypeCardinality.STRUCT:
-            if isinstance(value, Property):
-                return f"{value.component.__name__}.get_property({value.name!r})"
-            else:
-                return self.render_builtin_object(cast(Struct, value))
-        else:
-            raise RuntimeError(f"unexpected type {typ!r}")
+        raise NotImplementedError
 
-    def render_value(self, value: "SomeValue | None", typ: "TypeBase") -> str:
+    def render_value(self, value: Any, typ: "TypeBase") -> str:
         """Renders a value into an expression."""
-        if value is None:
-            return "None"
-        # scalar
-        if not typ.is_list:
-            return self.render_value_scalar(cast("ScalarValue", value), typ)
-        else:
-            return f"[{', '.join(self.render_value_scalar(v, typ) for v in cast(list, value))}]"
+        raise NotImplementedError
 
     def render_kwargs(self, **kwargs: Any) -> str:
         """Renders kwargs into a string."""
@@ -276,8 +216,7 @@ class Renderer:
         self, obj: BuiltinObjectBase, options: RenderOptions | None = None
     ) -> str:
         """Renders the given object into an expression (incl. inlined children for node)."""
-        renderer = _get_renderer(obj.metatype)
-        return renderer.render(self, obj, options if options is not None else self.options)
+        raise NotImplementedError
 
     def render_expression(
         self,
@@ -341,14 +280,16 @@ def _deconstruct_builtin_object(
 ) -> dict[Property, Any]:
     """Gets the 'content' values for a BuiltinObject."""
     cls = type(obj)
+    metatype = getattr(obj, "metatype", None)
+    assert metatype, f"no metatype for {obj!r}"
     kwargs: dict[Property, Any] = {}
     # properties
     if options.include_properties is not None:
-        include_properties = options.include_properties.get(cls.metatype, None)
+        include_properties = options.include_properties.get(metatype, None)
     else:
         include_properties = None
     if options.exclude_properties is not None:
-        exclude_properties = options.exclude_properties.get(cls.metatype, None)
+        exclude_properties = options.exclude_properties.get(metatype, None)
     else:
         exclude_properties = None
     for prop in cls.__properties__.values():
@@ -395,20 +336,6 @@ def _renderer(object_type: NodeType | StructType):
         _renderers[object_type] = cls()
 
     return decorator
-
-
-def _get_renderer(object_type: NodeType | StructType) -> "BuiltinObjectRenderer":
-    renderer = _renderers.get(object_type)
-    if renderer is None:
-        if is_node_type(object_type):
-            node_type = NodeType(object_type)
-            if node_type in PACKAGE_NODE_TYPES:  # noqa: SIM108
-                renderer = PACKAGE_NODE_RENDERER
-            else:
-                renderer = NODE_RENDERER
-        else:
-            renderer = BUILTIN_OBJECT_RENDERER
-    return renderer
 
 
 class BuiltinObjectRenderer[T: BuiltinObjectBase]:

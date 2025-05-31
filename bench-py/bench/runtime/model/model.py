@@ -1,6 +1,7 @@
 from abc import ABC
+from collections.abc import Sequence
 from datetime import date
-from typing import TYPE_CHECKING, ClassVar, NamedTuple, Sequence
+from typing import TYPE_CHECKING, ClassVar, NamedTuple
 
 from bench.language import (
     Agent,

@@ -3,7 +3,6 @@ from typing import TYPE_CHECKING, Any, Union
 
 from fastuuid import UUID
 
-from bench import pb2
 from bench.utils.code import exec_
 
 from .core.const import (
@@ -100,6 +99,7 @@ def _complete_bench_setup():
         node_cls.__child_types__ = tuple(child_types_by_parent[node_cls.metatype])
 
     # generate pack/unpack methods
+    from bench import pb2
     from bench.language.core.value import generate_pack_value_impl
     from bench.proto.wiring import generate_pack_proto_impl
 

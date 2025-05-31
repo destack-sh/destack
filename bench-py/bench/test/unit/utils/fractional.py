@@ -1,5 +1,4 @@
 import pytest
-
 from bench.utils.fractional import BASE_62_DIGITS, get_order_key
 
 

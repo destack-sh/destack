@@ -1,7 +1,4 @@
 import pytest
-from grpclib import Status as GRPCStatus
-
-from bench import pb2
 from bench.language import (
     Client,
     ClientType,
@@ -22,6 +19,9 @@ from bench.proto import (
 from bench.test.fixtures import raises_grpc_error
 from bench.test.simulation.core import SimulatedChannel
 from bench.utils.oracle import REAL_ORACLE
+from grpclib import Status as GRPCStatus
+
+from bench import pb2
 
 #
 # Simulated but unit-test-like supervisor-only tests

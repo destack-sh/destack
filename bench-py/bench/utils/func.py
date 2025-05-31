@@ -10,16 +10,12 @@ import sys
 import types
 import typing
 from collections import OrderedDict
+from collections.abc import Awaitable, Collection, Iterable, Iterator, Mapping
 from itertools import cycle, filterfalse, islice, product, tee
 from os import urandom
 from typing import (
     Any,
-    Awaitable,
     Callable,
-    Collection,
-    Iterable,
-    Iterator,
-    Mapping,
 )
 
 import regex

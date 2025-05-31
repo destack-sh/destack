@@ -1,5 +1,6 @@
 import asyncio
-from typing import TYPE_CHECKING, Any, Callable, Mapping, override
+from collections.abc import Mapping
+from typing import TYPE_CHECKING, Any, Callable, override
 
 import structlog
 from fastuuid import UUID

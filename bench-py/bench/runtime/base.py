@@ -187,9 +187,9 @@ class RuntimeServiceBase(ServiceBase, abc.ABC):
             assert self._client, f"{self._bench!r} has no client {self._client_id}"
             if self._machine_id:
                 machine = self._bench._graph.get(self._machine_id)
-                assert isinstance(
-                    machine, Machine
-                ), f"{self._bench!r} has no machine {self._machine_id}"
+                assert isinstance(machine, Machine), (
+                    f"{self._bench!r} has no machine {self._machine_id}"
+                )
                 self._machine = machine
 
         # NOTE :Architecture: set builtin Bench supergraph/refs to self._bench_bench?

@@ -1,6 +1,5 @@
 from typing import TYPE_CHECKING, final
 
-from bench import pb2
 from bench.proto import (
     ClientData,
     LoginUserRequest,
@@ -50,12 +49,7 @@ class ClientHandle:
         return self._client_data
 
     def to_origin(self, *, nonce: str | None) -> OriginData:
-        return OriginData(
-            metatype=pb2.ObjectType.OBJECT_TYPE_CLIENT_ORIGIN,
-            type=self.client_data.type,
-            id=self.client_data.id,
-            nonce=nonce or self.client_data.id,
-        )
+        raise NotImplementedError
 
     @property
     def rpc_metadata(self) -> RpcMetadata:

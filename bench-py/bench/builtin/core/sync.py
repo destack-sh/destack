@@ -1,5 +1,6 @@
+from collections.abc import Collection
 from itertools import chain
-from typing import Collection, cast
+from typing import cast
 
 from fastuuid import UUID, uuid5
 
@@ -145,9 +146,9 @@ def sync_node(
 
         # NOTE: we set the synced Node's template_ptr to themself so we know we synced them
         for target_child in chain((target,), target.iter_descendants(recursive=True)):
-            assert isinstance(
-                target_child, IsTemplatable
-            ), f"unexpected non-templatable node: {target_child!r}"
+            assert isinstance(target_child, IsTemplatable), (
+                f"unexpected non-templatable node: {target_child!r}"
+            )
             target_child.template_ptr = target_child.to_ref()
         target_parent.add_child(target)
     else:

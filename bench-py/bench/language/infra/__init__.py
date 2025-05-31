@@ -7,7 +7,7 @@ __all__ = [
     "CellInfo",
     "Database",
     "DatabaseInfo",
-    "Tenancy",
     "Machine",
     "MachineType",
+    "Tenancy",
 ]

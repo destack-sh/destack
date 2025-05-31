@@ -2,14 +2,12 @@ import contextvars
 import enum
 import functools
 import typing
+from collections.abc import Collection, Generator, Iterable
 from datetime import date, datetime, time, timedelta
 from decimal import Decimal
 from typing import (
     TYPE_CHECKING,
     Any,
-    Collection,
-    Generator,
-    Iterable,
     Optional,
     TypeVar,
     Union,
@@ -206,9 +204,9 @@ class bittuple(typing.Generic[EnumT], Collection[EnumT]):  # noqa: N801
         if enum_cls is None:
             assert len(items) > 0, "enum_cls or args is required"
             enum_cls = items[0].__class__
-        assert isinstance(enum_cls, type) and issubclass(
-            enum_cls, BuiltinEnum
-        ), f"invalid bittuple {enum_cls}: {items}"
+        assert isinstance(enum_cls, type) and issubclass(enum_cls, BuiltinEnum), (
+            f"invalid bittuple {enum_cls}: {items}"
+        )
         self.enum_cls = enum_cls
         self.bits = bitarray(enum_cls.get_max_ord() + 1)
         for arg in items:
@@ -230,9 +228,9 @@ class bittuple(typing.Generic[EnumT], Collection[EnumT]):  # noqa: N801
 
     def __and__(self, other: "bittuple[EnumT]") -> "bittuple[EnumT]":
         assert type(other) is bittuple, f"invalid type: {type(other)}"
-        assert (
-            self.enum_cls == other.enum_cls
-        ), f"invalid enum_cls: {self.enum_cls} != {other.enum_cls}"
+        assert self.enum_cls == other.enum_cls, (
+            f"invalid enum_cls: {self.enum_cls} != {other.enum_cls}"
+        )
         combined = self.bits & other.bits
         ordered_members = _get_enum_members_by_ord(self.enum_cls)
         items = tuple(ordered_members[o] for o in combined.search(True))
@@ -240,9 +238,9 @@ class bittuple(typing.Generic[EnumT], Collection[EnumT]):  # noqa: N801
 
     def __or__(self, other: "bittuple[EnumT]") -> "bittuple[EnumT]":
         assert type(other) is bittuple, f"invalid type: {type(other)}"
-        assert (
-            self.enum_cls == other.enum_cls
-        ), f"invalid enum_cls: {self.enum_cls} != {other.enum_cls}"
+        assert self.enum_cls == other.enum_cls, (
+            f"invalid enum_cls: {self.enum_cls} != {other.enum_cls}"
+        )
         combined = self.bits | other.bits
         ordered_members = _get_enum_members_by_ord(self.enum_cls)
         items = tuple(ordered_members[o] for o in combined.search(True))
@@ -250,9 +248,9 @@ class bittuple(typing.Generic[EnumT], Collection[EnumT]):  # noqa: N801
 
     def __sub__(self, other: "bittuple[EnumT]") -> "bittuple[EnumT]":
         assert type(other) is bittuple, f"invalid type: {type(other)}"
-        assert (
-            self.enum_cls == other.enum_cls
-        ), f"invalid enum_cls: {self.enum_cls} != {other.enum_cls}"
+        assert self.enum_cls == other.enum_cls, (
+            f"invalid enum_cls: {self.enum_cls} != {other.enum_cls}"
+        )
         combined = self.bits & ~other.bits
         ordered_members = _get_enum_members_by_ord(self.enum_cls)
         items = tuple(ordered_members[o] for o in combined.search(True))

@@ -1,5 +1,3 @@
-# ruff: noqa: RUF012
-
 from typing import TYPE_CHECKING, Any, Optional, Union, assert_never
 
 from fastuuid import UUID

@@ -1,6 +1,7 @@
 import asyncio
 import functools
-from typing import AsyncIterator, Callable, override
+from collections.abc import AsyncIterator
+from typing import Callable, override
 
 import grpclib.server
 import structlog

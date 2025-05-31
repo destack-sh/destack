@@ -1,8 +1,8 @@
+from collections.abc import Collection
 from dataclasses import dataclass
 from typing import (
     TYPE_CHECKING,
     Callable,
-    Collection,
 )
 
 import structlog

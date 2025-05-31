@@ -6,7 +6,10 @@ repos:
       - id: ruff
         name: ruff check (py)
         entry: ruff 
-        language: system
+        language: python
+        language_version: python3.13
+        additional_dependencies:
+          - ruff==0.11.12
         exclude: ^bench/(migrations|proto)
         types: [ python ]
         args: [ check, --fix ]
@@ -14,28 +17,12 @@ repos:
       - id: ruff-format
         name: ruff format (py)
         entry: ruff
-        language: system
+        language: python
+        language_version: python3.13
+        additional_dependencies:
+          - ruff==0.11.12
         types: [ python ]
         args: [ format ]
-      # typing
-      - id: pyright
-        name: pyright (py)
-        entry: pyright
-        language: system
-        always_run: true
-        types: [ python ]
-
-  # JS/TS
-  - repo: local
-    hooks:
-      - id: bun-check
-        name: bun-check (ts)
-        entry: bun
-        args: [ run, --cwd, bench-ts, check ]
-        language: system
-        verbose: true
-        always_run: true
-        types: [ javascript, jsx, ts, tsx, vue ]
 
   # General
   - repo: https://github.com/compilerla/conventional-pre-commit

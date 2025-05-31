@@ -1,8 +1,5 @@
 import json
 
-from fastuuid import uuid4
-from hypothesis import HealthCheck, given, settings
-
 from bench.language import (
     Aggregation,
     AggregationType,
@@ -23,6 +20,8 @@ from bench.language import (
 from bench.proto import AnyObjectData
 from bench.test.strategies import builtin_objects, examples
 from bench.test.unit.conftest import BUILTIN_OBJECTS
+from fastuuid import uuid4
+from hypothesis import HealthCheck, given, settings
 
 
 def test_roundtrip_node_reference():

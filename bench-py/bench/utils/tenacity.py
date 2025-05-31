@@ -1,7 +1,8 @@
 from asyncio import CancelledError
+from collections.abc import Awaitable, Coroutine
 from dataclasses import dataclass
 from functools import wraps
-from typing import Any, Awaitable, Callable, Coroutine, TypeVar, Union
+from typing import Any, Callable, TypeVar, Union
 
 from grpclib import GRPCError
 from grpclib import Status as GRPCStatus

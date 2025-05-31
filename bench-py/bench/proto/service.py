@@ -1,13 +1,11 @@
 import abc
 import functools
+from collections.abc import AsyncIterable, Collection, Mapping
 from typing import (
     TYPE_CHECKING,
     Any,
-    AsyncIterable,
     Callable,
     ClassVar,
-    Collection,
-    Mapping,
     Optional,
     TypeVar,
     Union,

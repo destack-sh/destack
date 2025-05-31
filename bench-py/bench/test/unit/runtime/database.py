@@ -3,9 +3,6 @@ from random import Random
 from typing import Any
 
 import pytest
-from fastuuid import UUID
-from grpclib import GRPCError
-
 from bench.language import (
     PRIMITIVE_TYPE_BY_PY_TYPE,
     CustomNodeDefinition,
@@ -22,6 +19,8 @@ from bench.test.simulation.core import Simulation
 from bench.test.simulation.workload import RuntimeLambdaWorkload
 from bench.test.unit.conftest import simulated_runtime
 from bench.utils.string import Casing, to_casing
+from fastuuid import UUID
+from grpclib import GRPCError
 
 
 class SampleGenerator:

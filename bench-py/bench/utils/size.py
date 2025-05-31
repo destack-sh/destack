@@ -1,8 +1,8 @@
 import sys
-from typing import Any, Optional, Set
+from typing import Any, Optional
 
 
-def get_total_size(obj: Any, seen: Optional[Set[int]] = None) -> int:
+def get_total_size(obj: Any, seen: Optional[set[int]] = None) -> int:
     """Recursively compute the total memory size of an object including its contents."""
     if seen is None:
         seen = set()

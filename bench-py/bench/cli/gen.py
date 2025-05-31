@@ -22,8 +22,8 @@ def gen():
     start = REAL_ORACLE.time_ns()
     source = _gen_sql_schema()
     Path("bench-py/bench/sql/schema.py").write_text(source)
-    run_shell_sync("ruff check --fix bench/sql/schema.py")
-    run_shell_sync("ruff format bench/sql/schema.py")
+    run_shell_sync("ruff check --fix bench-py/bench/sql/schema.py")
+    run_shell_sync("ruff format bench-py/bench/sql/schema.py")
     logger.info("sql.gen", duration=REAL_ORACLE.time_ns() - start)
 
     # proto

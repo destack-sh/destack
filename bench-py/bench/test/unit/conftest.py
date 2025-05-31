@@ -3,13 +3,13 @@
 import functools
 import inspect
 import warnings
-from typing import Awaitable, Callable, Literal, Mapping
+from collections.abc import Awaitable, Mapping
+from typing import Callable, Literal
 
 import pytest
 import structlog
-from opentelemetry import trace
-
 from bench.test.conftest import _setup_test_env
+from opentelemetry import trace
 
 # NOTE: must run setup before importing from bench
 _setup_test_env()

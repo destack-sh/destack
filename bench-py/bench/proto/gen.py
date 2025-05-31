@@ -10,18 +10,15 @@ import regex
 import structlog
 import typer
 
-from bench.language import (
-    NODE_TYPES,
-    VERSION,
-)
+from bench.language import NODE_TYPES, VERSION
 from bench.language.registry import NODE_CLASS_BY_TYPE, STRUCT_CLASS_BY_TYPE
 from bench.utils.string import Casing, to_casing
 
 from .map import generate_proto_schema
 
 LANGUAGE_PROTO = "bench-proto/language.proto"
-TEMP_PY_DIR = "bench/pb2.tmp"
-TARGET_PY_DIR = "bench/pb2"
+TEMP_PY_DIR = "bench-py/bench/pb2.tmp"
+TARGET_PY_DIR = "bench-py/bench/pb2"
 TEMP_TS_DIR = "bench-ts/src/proto/wire.tmp"
 TARGET_TS_DIR = "bench-ts/src/proto/wire"
 EXTRA_PROTO_PY_FILES = (
@@ -105,13 +102,13 @@ def _gen_proto(schema_str: str) -> None:
     py_proto_files = [LANGUAGE_PROTO, *EXTRA_PROTO_PY_FILES]
     # replace 'import "proto/..." with 'import "..." in all files in wire
     py_proto_files = [p.replace("proto/", "") for p in py_proto_files]
-    run_shell_sync("cp -r proto wire")
-    for path in Path("wire").rglob("*.proto"):
+    run_shell_sync("cp -r bench-proto bench-py/bench/proto.tmp")
+    for path in Path("bench-py/bench/proto.tmp").rglob("*.proto"):
         path.write_text(regex.sub(r"import \"proto/", 'import "', path.read_text()))
     run_shell_sync(
         f"protoc -I wire --python_out={TEMP_PY_DIR} --pyi_out={TEMP_PY_DIR} --grpclib_python_out={TEMP_PY_DIR} {' '.join(py_proto_files)}"
     )
-    run_shell_sync("rm -r wire")
+    run_shell_sync("rm -r bench-py/bench/proto.tmp")
 
     # patch in our extra stuff into every file
     generated_py_files = list(Path(TEMP_PY_DIR).rglob("*.py")) + list(
@@ -188,8 +185,8 @@ from .google.type.timeofday_pb2 import *
 from .google.type.datetime_pb2 import *
 
 # extra utility types
-AnyNodeData = Union[{', '.join([cls.__name__ + 'Data' for cls in NODE_CLASS_BY_TYPE.values()])}]
-AnyStructData = Union[{', '.join([cls.__name__ + 'Data' for cls in STRUCT_CLASS_BY_TYPE.values()])}]
+AnyNodeData = Union[{", ".join([cls.__name__ + "Data" for cls in NODE_CLASS_BY_TYPE.values()])}]
+AnyStructData = Union[{", ".join([cls.__name__ + "Data" for cls in STRUCT_CLASS_BY_TYPE.values()])}]
 AnyObjectData = AnyNodeData | AnyStructData
 """)
     on_apply.append(lambda: shutil.rmtree(TARGET_PY_DIR, ignore_errors=True))  # noqa: FURB113
@@ -259,8 +256,8 @@ export type JsonValue = JsonPrimitive | { [key: string]: JsonValue } | JsonValue
 //
 
 // Any...
-export type AnyNodeData = {' | '.join(cls.__name__ + 'Data' for cls in NODE_CLASS_BY_TYPE.values())}
-export type AnyStructData = {' | '.join(cls.__name__ + 'Data' for cls in STRUCT_CLASS_BY_TYPE.values())}
+export type AnyNodeData = {" | ".join(cls.__name__ + "Data" for cls in NODE_CLASS_BY_TYPE.values())}
+export type AnyStructData = {" | ".join(cls.__name__ + "Data" for cls in STRUCT_CLASS_BY_TYPE.values())}
 
     """
     lang_ts = Path(TEMP_TS_DIR + "/proto/language.ts").read_text()

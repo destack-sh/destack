@@ -1,13 +1,13 @@
 import dataclasses
 import types
 import typing
+from collections.abc import Mapping
 from dataclasses import dataclass
 from typing import (
     TYPE_CHECKING,
     Any,
     Callable,
     Literal,
-    Mapping,
     Optional,
     assert_never,
 )
@@ -565,9 +565,9 @@ class Property(IntoType, IntoQuery if TYPE_CHECKING else object):
         # references get a _ptr property (which is wired/stored)
         if self.edge_type is not None or self.is_property:
             # (don't want lists of Node references or Property references in Nodes, it's a mess)
-            assert (
-                self.cardinality == "scalar" or not self.component.__is_node__
-            ), f"invalid list: {self!r}"
+            assert self.cardinality == "scalar" or not self.component.__is_node__, (
+                f"invalid list: {self!r}"
+            )
             self.ptr_prop = self._to_ptr_prop()
             return  # bail, no need to determine primitive type
 
@@ -584,9 +584,9 @@ class Property(IntoType, IntoQuery if TYPE_CHECKING else object):
             elif self.scalar_type == "struct":
                 assert self.struct_type is not None
                 self.primitive_type = PrimitiveType.JSON
-        assert (
-            self.primitive_type is not None
-        ), f"undetermined type {self.py_type!r} for {self!r} ({annotation!r})"
+        assert self.primitive_type is not None, (
+            f"undetermined type {self.py_type!r} for {self!r} ({annotation!r})"
+        )
 
 
 def property_(

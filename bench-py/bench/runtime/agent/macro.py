@@ -1,8 +1,9 @@
 import abc
 import functools
+from collections.abc import Generator, Sequence
 from datetime import date, datetime
 from enum import StrEnum
-from typing import TYPE_CHECKING, Any, Callable, Generator, Sequence, cast, final, override
+from typing import TYPE_CHECKING, Any, Callable, cast, final, override
 
 from bench.language import (
     Action,
@@ -34,7 +35,7 @@ from bench.runtime.model import CodePiece, CompoundPiece, Piece, Prompt, Tokeniz
 if TYPE_CHECKING:
     from bench.runtime import AgentRunner
 
-# ruff: noqa: F401,B018,N802,N803,F841
+# ruff: noqa: N802
 
 MACROS: list["Macro"] = []
 MACROS_BY_NAME: dict[str, "Macro"] = {}

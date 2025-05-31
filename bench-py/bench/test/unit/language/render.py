@@ -2,11 +2,10 @@ import functools
 import inspect
 import re
 import textwrap
-from typing import Any, Callable, Mapping, assert_never
+from collections.abc import Mapping
+from typing import Any, Callable, assert_never
 
 import pytest
-from fastuuid import UUID
-
 from bench.language import (
     Aliasing,
     BuiltinObjectBase,
@@ -24,6 +23,7 @@ from bench.language import (
 )
 from bench.language.registry import BENCH_CLASS_BY_TYPE
 from bench.utils.code import format_code
+from fastuuid import UUID
 
 
 def _render_test(func: Callable[[Any, Any], Mapping[str, Any]]):

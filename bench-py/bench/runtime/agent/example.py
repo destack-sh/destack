@@ -1,9 +1,10 @@
 import ast
 import inspect
 import textwrap
+from collections.abc import Generator
 from datetime import datetime
 from enum import StrEnum
-from typing import Generator, cast, override
+from typing import cast, override
 
 import pytz
 import structlog
@@ -60,7 +61,7 @@ from bench.utils.oracle import REAL_ORACLE
 
 from .macro import ADD_CONTEXT, ADD_PAGE_TEXT, CALL, SEND
 
-# ruff: noqa: F401,B018,N803,F841
+# ruff: noqa: F401, N803, F841
 # pyright: reportUnusedExpression=false
 
 logger = structlog.get_logger(__name__)

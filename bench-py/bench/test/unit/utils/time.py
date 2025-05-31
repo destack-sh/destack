@@ -1,5 +1,4 @@
 import pytest
-
 from bench.utils.time import timedelta_from_isoformat, timedelta_to_isoformat
 
 

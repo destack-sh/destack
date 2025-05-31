@@ -1,14 +1,13 @@
 import abc
 import asyncio
+from collections.abc import Iterable, Sequence
 from dataclasses import dataclass
 from typing import (
     TYPE_CHECKING,
     Any,
     Callable,
     ClassVar,
-    Iterable,
     Literal,
-    Sequence,
     assert_never,
     cast,
     final,
@@ -236,9 +235,9 @@ class Runner[N: Runnable = Runnable](abc.ABC):
             self.tracked_run = tracked_run
             self.tracked_span = None
             self.tracked = tracked_run
-            assert (
-                tracked_run.inputs is self.inputs
-            ), f"{tracked_run!r} has other inputs than {self!r}"
+            assert tracked_run.inputs is self.inputs, (
+                f"{tracked_run!r} has other inputs than {self!r}"
+            )
         else:
             # Runner = Span
             if type(run) is SpanType:

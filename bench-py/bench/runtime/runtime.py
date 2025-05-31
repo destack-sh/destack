@@ -4,8 +4,9 @@ import os
 import random
 import sys
 from asyncio.subprocess import Process
+from collections.abc import Awaitable, Mapping
 from datetime import datetime
-from typing import Any, Awaitable, Callable, Mapping, assert_never, override
+from typing import Any, Callable, assert_never, override
 
 import grpclib
 import structlog
@@ -280,9 +281,9 @@ class RuntimeService(RuntimeServiceBase, RuntimeBase):
             #  (we ignore errors because either setsid is unavailable or we're already the leader)
             os.setsid()
         assert self._max_processs > 0, f"no processs for {self!r}"
-        assert (
-            self._max_processs == 1
-        ), f"multi-processs not supported for {self!r}"  # :RuntimeRouting
+        assert self._max_processs == 1, (
+            f"multi-processs not supported for {self!r}"
+        )  # :RuntimeRouting
         self._processs = [
             RuntimeProcessHandle(self, id=f"{self.id}-process-{i}", process_id=i, mode=self._mode)
             for i in range(self._max_processs)

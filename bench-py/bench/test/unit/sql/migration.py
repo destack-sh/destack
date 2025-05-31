@@ -1,5 +1,4 @@
 import asyncpg
-
 from bench.language import NodeArea
 from bench.sql import (
     BENCH_TABLE_PREFIX,

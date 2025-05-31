@@ -1,5 +1,6 @@
 import abc
-from typing import TYPE_CHECKING, AsyncIterator, ClassVar, Sequence
+from collections.abc import AsyncIterator, Sequence
+from typing import TYPE_CHECKING, ClassVar
 
 if TYPE_CHECKING:
     from bench.language import (
@@ -19,8 +20,8 @@ class Store(abc.ABC):
     Some Stores only support a subset of Edits.
     """
 
-    __supports_edit_types__: ClassVar[tuple[EditType, ...]]
-    __supports_operations__: ClassVar[tuple[EditOperation, ...]]
+    __supports_edit_types__: ClassVar[tuple["EditType", ...]]
+    __supports_operations__: ClassVar[tuple["EditOperation", ...]]
     __supports_cascade__: ClassVar[bool]
 
     @abc.abstractmethod

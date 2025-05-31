@@ -1,3 +1,4 @@
+from collections.abc import Sequence
 from datetime import datetime, timedelta
 from typing import (
     TYPE_CHECKING,
@@ -6,7 +7,6 @@ from typing import (
     ClassVar,
     Optional,
     Self,
-    Sequence,
     cast,
     dataclass_transform,
     override,
@@ -278,13 +278,13 @@ class Node[NodeDataT: AnyNodeData](BuiltinObjectMutable[NodeDataT]):
         session = self._session
         nodes: tuple[Node, ...] = (child, *child._graph.get_descendants(child))
 
-        assert (
-            self.metatype in child.__parent_types__
-        ), f"{self!r} cannot parent {child!r} (allowed: {child.__parent_types__})"
+        assert self.metatype in child.__parent_types__, (
+            f"{self!r} cannot parent {child!r} (allowed: {child.__parent_types__})"
+        )
         assert old_graph is not self._graph, f"{child!r} is already in same graph of {self!r}"
-        assert (
-            old_graph.supergraph is self._supergraph
-        ), f"{child!r} is not in supergraph of {self!r}"
+        assert old_graph.supergraph is self._supergraph, (
+            f"{child!r} is not in supergraph of {self!r}"
+        )
 
         # create new nodes
         if child._is_new:

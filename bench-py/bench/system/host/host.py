@@ -1,5 +1,6 @@
 import asyncio
-from typing import TYPE_CHECKING, Any, AsyncIterator, Callable, override
+from collections.abc import AsyncIterator
+from typing import TYPE_CHECKING, Any, Callable, override
 
 import structlog
 from fastuuid import UUID

@@ -2,6 +2,7 @@ import enum
 import os
 import types
 from collections import defaultdict
+from collections.abc import Awaitable, Collection, Mapping
 from dataclasses import dataclass, replace
 from datetime import datetime
 from itertools import chain
@@ -10,10 +11,7 @@ from textwrap import indent
 from typing import (
     TYPE_CHECKING,
     Any,
-    Awaitable,
     Callable,
-    Collection,
-    Mapping,
     Optional,
     cast,
 )
@@ -679,8 +677,7 @@ def _render_migration_op(op: MigrationOp) -> str | None:
             if any(k in diff_keys for k in ("type", "is_array", "length")):
                 # change type
                 updates.append(
-                    f'ALTER COLUMN "{op.old_object.name}"'
-                    f" SET DATA TYPE {op.new_object.type_sql()}"
+                    f'ALTER COLUMN "{op.old_object.name}" SET DATA TYPE {op.new_object.type_sql()}'
                 )
             if "is_nullable" in diff_keys:
                 # change nullability

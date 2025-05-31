@@ -1,6 +1,3 @@
-# ruff: noqa: E402
-
-
 import pytest
 
 from bench.test.simulation.core.oracle import SimulatedEventLoopPolicy
