@@ -331,7 +331,7 @@ class EnumType(BuiltinEnum):
     AREA = 40054
     CONTINENT = 40055
     MACHINE_TYPE = 41010
-    DATABASE_TYPE = 41020
+    TENANCY = 41020
     CLIENT_TYPE = 41021
     # ...
 
@@ -613,10 +613,10 @@ class NodeType(BuiltinEnum):
     BENCH_MEMBERSHIP = 2, "Bench Membership", "Membership in a Bench", "fas fa-user-group"
     BENCH_INVITE = 3, "Bench Invite", "Invite to a Bench", "fas fa-user-plus"
     # BENCH_MIGRATION?
-    PACKAGE = 20, "Package", "Isolated sub-Bench", "fas fa-box-open"
-    PACKAGE_MEMBERSHIP = 21, "Package Membership", "Membership in a Package", "fas fa-user-group"
-    PACKAGE_INVITE = 22, "Package Invite", "Invite to a Package", "fas fa-user-plus"
-    HANDLE = 50, "Handle", "Unique @handle", "fas fa-at"
+    PACKAGE = 50, "Package", "Isolated sub-Bench", "fas fa-box-open"
+    PACKAGE_MEMBERSHIP = 51, "Package Membership", "Membership in a Package", "fas fa-user-group"
+    PACKAGE_INVITE = 52, "Package Invite", "Invite to a Package", "fas fa-user-plus"
+    HANDLE = 100, "Handle", "Unique @handle", "fas fa-at"
     # DEPENDENCY, PLUGIN, ...
 
     # auth [200-600]

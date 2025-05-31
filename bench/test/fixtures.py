@@ -15,7 +15,7 @@ from bench.test.conftest import _setup_test_env
 _setup_test_env()
 
 
-from bench.language import REGION, DatabaseInfo, DatabaseType
+from bench.language import REGION, DatabaseInfo, Tenancy
 from bench.sql import (
     BENCH_CUSTOM_NODE_PREFIX,
     BENCH_TABLE_PREFIX,
@@ -40,10 +40,10 @@ def make_global_database(name: str) -> DatabaseInfo:
     sql_url = pg_url_parsed._replace(path=f"/{name}").geturl()
 
     database = DatabaseInfo(
-        type=DatabaseType.DEDICATED,
         region=REGION,
         cell_name=name,
         external_id=name,
+        tenancy=Tenancy.DEDICATED,
         sql_url=sql_url,
     )
     return database
@@ -56,10 +56,10 @@ def make_bench_database(name: str) -> DatabaseInfo:
     pg_url_parsed = urlparse(pg)
     pg_url = pg_url_parsed._replace(path=f"/{name}").geturl()
     database = DatabaseInfo(
-        type=DatabaseType.DEDICATED,
         region=REGION,
         cell_name="test-0",
         external_id=name,
+        tenancy=Tenancy.DEDICATED,
         sql_url=pg_url,
     )
     return database
@@ -68,7 +68,6 @@ def make_bench_database(name: str) -> DatabaseInfo:
 async def create_blank_test_db(database: DatabaseInfo):
     """Creates a blank postgres database"""
     async with pg_connection(get_global_database_from_env()) as conn:
-        print(f"Creating blank test db: {database.external_id}")
         await conn.execute(f'DROP DATABASE IF EXISTS "{database.external_id}"')
         await conn.execute(f'CREATE DATABASE "{database.external_id}"')
 
