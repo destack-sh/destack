@@ -30,9 +30,9 @@ def shell(
     from bench.language import NodeArea
     from bench.sharding import DATABASE_PROVIDER, get_global_database_from_env
 
-    if area == NodeArea.GLOBAL_RELATIONAL:
+    if area == NodeArea.GLOBAL_DATABASE:
         database = get_global_database_from_env()
-    elif area == NodeArea.MAIN_RELATIONAL:
+    elif area == NodeArea.MAIN_DATABASE:
         assert cell_name is not None, "cell_name is required for main area"
         assert external_id is not None, "external_id is required for main area"
         database = DATABASE_PROVIDER.resolve_or_error(region, cell_name, external_id)

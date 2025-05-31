@@ -76,12 +76,12 @@ class Simulation:
         self.global_database = global_database
         self.main_database = main_database
         self.global_pg_engine = pg_engine_from_database(
-            "pg-global", global_database, NodeArea.GLOBAL_RELATIONAL
+            "pg-global", global_database, NodeArea.GLOBAL_DATABASE
         )
         self.main_pg_engine = pg_engine_from_database(
             f"pg-main-{main_database.region.name.lower()}",
             main_database,
-            NodeArea.MAIN_RELATIONAL,
+            NodeArea.MAIN_DATABASE,
         )
         self.database_provider = database_provider
 

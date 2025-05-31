@@ -122,7 +122,7 @@ async def global_database(request: pytest.FixtureRequest):
 
 @pytest.fixture
 async def main_database(request: pytest.FixtureRequest):
-    """Gets the per test function regional database"""
+    """Gets the per test function main database"""
 
     database = make_bench_database(f"test-{_clean_name(request.node.name)[:32]}-main")
     await create_test_db(database, BUILTIN_MAIN_SCHEMA)

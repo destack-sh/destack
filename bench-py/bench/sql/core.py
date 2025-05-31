@@ -743,7 +743,3 @@ MIGRATION_TABLE = SqlTable(  # see bench-py/bench/sql/migration.py
         SqlColumn("applied_at", PrimitiveType.DATETIME, is_nullable=True),
     ),
 )
-
-DEFAULT_CUSTOM_TABLES: tuple[SqlTable, ...] = (MIGRATION_TABLE,)
-DEFAULT_MAIN_TABLES: tuple[SqlTable, ...] = (MIGRATION_TABLE,)
-DEFAULT_GLOBAL_TABLES: tuple[SqlTable, ...] = (MIGRATION_TABLE,)

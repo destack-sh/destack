@@ -21,7 +21,7 @@ from bench.language.registry import NODE_CLASS_BY_TYPE
 from bench.pb2 import AnyNodeData
 from bench.utils.func import get_superclasses
 
-from .const import UNSET, NodeArea, NodeType, TraitType
+from .const import UNSET, NodeType, TraitType
 from .graph import Graph
 from .object import BuiltinObjectMutable, _process_object_cls
 from .property import (
@@ -88,13 +88,6 @@ def node_(
                 if trait := _resolve_trait_type(superclass.__name__):
                     traits.add(trait)
             cls.__traits__ = tuple(traits)
-            # area
-            if TraitType.GLOBAL in traits:
-                cls.__area__ = NodeArea.GLOBAL_RELATIONAL
-            elif TraitType.CUSTOM in traits:
-                cls.__area__ = NodeArea.CUSTOM_RELATIONAL
-            else:
-                cls.__area__ = NodeArea.MAIN_RELATIONAL
 
         # parent/root
         parent_property = cls.__properties__.get("parent", None)
@@ -123,7 +116,6 @@ class Node[NodeDataT: AnyNodeData](BuiltinObjectMutable[NodeDataT]):
 
     __is_node__: ClassVar[bool] = True
     __traits__: ClassVar[tuple[TraitType, ...]] = ()
-    __area__: ClassVar[NodeArea]
     __indexes__: ClassVar[tuple[IndexIn, ...]] = ()
 
     __root_type__: ClassVar[NodeType | None] = None

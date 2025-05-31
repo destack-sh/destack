@@ -877,11 +877,10 @@ class TraitType(BuiltinEnum):
 
 @enum_(EnumType.NODE_AREA)
 class NodeArea(BuiltinEnum):
-    GLOBAL_RELATIONAL = 10
+    GLOBAL_DATABASE = 1
     # GLOBAL_SEARCH?
-    MAIN_RELATIONAL = 20
-    # MAIN_SEARCH, MAIN_ANALYTICS, ...
-    CUSTOM_RELATIONAL = 30
+    MAIN_DATABASE = 2
+    # MAIN_SEARCH, MAIN_WAREHOUSE, ...
 
 
 @enum_(EnumType.NODE_MODE)
