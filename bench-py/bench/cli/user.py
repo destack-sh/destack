@@ -14,12 +14,9 @@ logger = structlog.get_logger(__name__)
 @app.command("setpassword", help="(re)set a User's password")
 @async_to_sync
 async def set_password(user_slug: str, new_password: str):
-    from bench.system import (
-        SALT_LENGTH,
-        DatabaseStore,
-        get_global_database_from_env,
-        hash_password,
-    )
+    from bench.sharding import get_global_database_from_env
+    from bench.store import DatabaseStore
+    from bench.supervisor import SALT_LENGTH, hash_password
 
     global_database = get_global_database_from_env()
     store = DatabaseStore(global_database=global_database)

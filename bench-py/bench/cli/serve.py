@@ -94,13 +94,13 @@ async def system(
     watch: bool = False,
 ):
     """Serve both the HostRouter and the Supervisor."""
-    from bench.system import (
-        CELL_REGISTRY,
-        DATABASE_REGISTRY,
-        HostRouterService,
-        SupervisorService,
+    from bench.host import HostRouterService
+    from bench.sharding import (
+        CELL_PROVIDER,
+        DATABASE_PROVIDER,
         get_global_database_from_env,
     )
+    from bench.supervisor import SupervisorService
 
     global_database = get_global_database_from_env()
     network = RealNetwork()
@@ -109,8 +109,8 @@ async def system(
         network=network,
         oracle=REAL_ORACLE,
         global_database=global_database,
-        cell_registry=CELL_REGISTRY,
-        database_registry=DATABASE_REGISTRY,
+        cell_provider=CELL_PROVIDER,
+        database_provider=DATABASE_PROVIDER,
         on_error=capture_exception,
     )
     services: list[ServiceBase] = [host_router]
@@ -119,8 +119,8 @@ async def system(
         global_database=global_database,
         network=network,
         oracle=REAL_ORACLE,
-        cell_registry=CELL_REGISTRY,
-        database_registry=DATABASE_REGISTRY,
+        cell_provider=CELL_PROVIDER,
+        database_provider=DATABASE_PROVIDER,
         on_error=capture_exception,
     )
     services.append(supervisor)
@@ -131,12 +131,8 @@ async def system(
 @async_to_sync
 async def supervisor(host: str, port: int, watch: bool = False, no_check: bool = False):
     """Serve the Supervisor."""
-    from bench.system import (
-        CELL_REGISTRY,
-        DATABASE_REGISTRY,
-        SupervisorService,
-        get_global_database_from_env,
-    )
+    from bench.sharding import CELL_PROVIDER, DATABASE_PROVIDER, get_global_database_from_env
+    from bench.supervisor import SupervisorService
 
     global_database = get_global_database_from_env()
     network = RealNetwork()
@@ -145,8 +141,8 @@ async def supervisor(host: str, port: int, watch: bool = False, no_check: bool =
         global_database=global_database,
         network=network,
         oracle=REAL_ORACLE,
-        cell_registry=CELL_REGISTRY,
-        database_registry=DATABASE_REGISTRY,
+        cell_provider=CELL_PROVIDER,
+        database_provider=DATABASE_PROVIDER,
         on_error=capture_exception,
     )
     await _do_serve(handlers=[supervisor], network=network, host=host, port=port, watch=watch)
@@ -156,20 +152,16 @@ async def supervisor(host: str, port: int, watch: bool = False, no_check: bool =
 @async_to_sync
 async def host(host: str, port: int, watch: bool = False, no_check: bool = False):
     """Serve the HostRouter."""
-    from bench.system import (
-        CELL_REGISTRY,
-        DATABASE_REGISTRY,
-        HostRouterService,
-        get_global_database_from_env,
-    )
+    from bench.host import HostRouterService
+    from bench.sharding import CELL_PROVIDER, DATABASE_PROVIDER, get_global_database_from_env
 
     global_database = get_global_database_from_env()
     network = RealNetwork()
     host_router = HostRouterService(
         id="host-router",
         global_database=global_database,
-        cell_registry=CELL_REGISTRY,
-        database_registry=DATABASE_REGISTRY,
+        cell_provider=CELL_PROVIDER,
+        database_provider=DATABASE_PROVIDER,
         network=network,
         oracle=REAL_ORACLE,
         on_error=capture_exception,

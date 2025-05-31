@@ -126,7 +126,6 @@ from .render import (
     render_statement,
 )
 from .session import Session
-from .sharding import CellRegistry, DatabaseRegistry, StaticCellRegistry, StaticDatabaseRegistry
 from .store import LiveStore, OptimisticStore, Store
 from .struct import (
     NodeReference,
@@ -247,7 +246,6 @@ __all__ = [
     "BuiltinObjectFrozen",
     "BuiltinObjectMutable",
     "CascadeAction",
-    "CellRegistry",
     "Change",
     "ChangeResult",
     "ChangeStatus",
@@ -260,7 +258,6 @@ __all__ = [
     "ConditionalType",
     "Constraint",
     "Continent",
-    "DatabaseRegistry",
     "Day",
     "EdgeType",
     "Edit",
@@ -351,8 +348,6 @@ __all__ = [
     "SortMode",
     "SortType",
     "SpanType",
-    "StaticCellRegistry",
-    "StaticDatabaseRegistry",
     "Store",
     "StringConstraint",
     "StringFormat",

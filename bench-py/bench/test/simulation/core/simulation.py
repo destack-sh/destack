@@ -46,7 +46,7 @@ from .transport import SimulatedChannel
 from .user import UserHandle
 
 if TYPE_CHECKING:
-    from bench.system import DatabaseRegistry
+    from bench.system import DatabaseProvider
     from bench.test.simulation.workload import Workload, WorkloadSpec
 
 logger = structlog.get_logger(__name__)
@@ -67,7 +67,7 @@ class Simulation:
         spec: SimulationSpec,
         global_database: Database,
         main_database: Database,
-        database_registry: "DatabaseRegistry",
+        database_provider: "DatabaseProvider",
     ):
         from bench.system import pg_engine_from_database
 
@@ -83,7 +83,7 @@ class Simulation:
             main_database,
             NodeArea.MAIN_RELATIONAL,
         )
-        self.database_registry = database_registry
+        self.database_provider = database_provider
 
         # system
         self.random = Random(spec.seed)
@@ -458,13 +458,13 @@ async def run_simulation(spec: SimulationSpec):
     # config
     global_database = make_global_database(f"test-{simulation_id}-global")
     main_database = make_bench_database(f"test-{simulation_id}-main")
-    database_registry = DatabaseRegistry({"*": main_database})
+    database_provider = DatabaseProvider({"*": main_database})
     simulation = Simulation(
         id=simulation_id,
         spec=spec,
         global_database=global_database,
         main_database=main_database,
-        database_registry=database_registry,
+        database_provider=database_provider,
     )
 
     try:
@@ -500,7 +500,7 @@ async def run_simulation(spec: SimulationSpec):
         del spec
         del global_database
         del main_database
-        del database_registry
+        del database_provider
         del simulation
         gc.collect()
         log.info("simulation.terminate", span="current")
