@@ -1,5 +1,5 @@
 #
-# S3 bucket for bench-web
+# S3 bucket for bench-ts
 #
 
 resource "aws_s3_bucket" "bench_web" {
@@ -46,7 +46,7 @@ resource "aws_s3_bucket_policy" "bench_web_allow_public" {
   depends_on = [aws_s3_bucket_public_access_block.bench_web]
 }
 
-# upload the bench-web/dist build to the S3 bucket
+# upload the bench-ts/dist build to the S3 bucket
 locals {
   # :BenchWebEnv
   web_variables = {
@@ -57,7 +57,7 @@ locals {
   }
   web_variables_subs   = [for k, v in local.web_variables : { regex = "\"${k}\"", sub = "\"${v}\"" }]
   web_exclude_files    = [".DS_Store"]
-  web_files_unfiltered = fileset("../bench-web/dist", "**")
+  web_files_unfiltered = fileset("../bench-ts/dist", "**")
   web_files            = setsubtract(local.web_files_unfiltered, local.web_exclude_files)
 }
 resource "aws_s3_object" "bench_web_files" {
@@ -81,7 +81,7 @@ resource "aws_s3_object" "bench_web_files" {
       replace(
         replace(
           replace(
-            file("../bench-web/dist/${each.key}"),
+            file("../bench-ts/dist/${each.key}"),
             local.web_variables_subs[0].regex,
             local.web_variables_subs[0].sub
           ),
@@ -94,7 +94,7 @@ resource "aws_s3_object" "bench_web_files" {
       local.web_variables_subs[3].regex,
       local.web_variables_subs[3].sub
     ),
-  ) : filebase64("../bench-web/dist/${each.key}")
+  ) : filebase64("../bench-ts/dist/${each.key}")
 
   tags = {
     Name        = "bench-${var.env}-web"

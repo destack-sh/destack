@@ -186,7 +186,7 @@ module "region_aws_eu_frankfurt" {
 
 # TODO :Infra!: handle multiple supervisor regions/urls? (especially for write access) :MultiRegion
 #  (Supervisor only has DB access to global + its own region, so it can't create Benches in other regions!;
-#   therefore we have to select supervisor somewhere in the bench-web client?)
+#   therefore we have to select supervisor somewhere in the bench-ts client?)
 
 # point 'supervisor.<domain>' to the supervisor ingress
 resource "cloudflare_record" "supervisor" {

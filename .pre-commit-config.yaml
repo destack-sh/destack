@@ -31,7 +31,7 @@ repos:
       - id: bun-check
         name: bun-check (ts)
         entry: bun
-        args: [ run, --cwd, bench-web, check ]
+        args: [ run, --cwd, bench-ts, check ]
         language: system
         verbose: true
         always_run: true
