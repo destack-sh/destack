@@ -1157,13 +1157,13 @@ PRIMITIVE_TYPE_BY_PY_TYPE: dict[type, PrimitiveType] = {
     float: PrimitiveType.FLOAT64,
     str: PrimitiveType.STRING,
     UUID: PrimitiveType.UUID,
-    dict: PrimitiveType.JSON,
     bytes: PrimitiveType.BYTES,
     datetime: PrimitiveType.DATETIME,
     date: PrimitiveType.DATE,
     time: PrimitiveType.TIME,
     timedelta: PrimitiveType.DURATION,
 }
+PRIMITIVE_PY_TYPES = tuple(PRIMITIVE_TYPE_BY_PY_TYPE.keys())
 
 
 @enum_(EnumType.TIME_INTERVAL)

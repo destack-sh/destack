@@ -14,7 +14,7 @@ from bench.utils.time import timedelta_from_isoformat, timedelta_to_isoformat
 from .const import PrimitiveType, StructType
 from .property import IntoType, Property, property_
 from .struct import StructFrozen, struct_
-from .type import Json
+from .type import Json, Type
 
 if TYPE_CHECKING:
     from .object import BuiltinObjectBase
@@ -32,12 +32,15 @@ tracer = trace.get_tracer(__name__)
 class Value(StructFrozen[ValueData]):
     """A generic Value of any Type."""
 
-    key: str = property_(40)
-    value: Json = property_(41)
+    type: Type = property_(30)
+    value: Json = property_(40)
 
 
-def to_value(value: Any) -> Value:
-    """Convert an arbitrary value to a Value."""
+def to_value(value: Any, type: "Type | None" = None) -> Value:
+    """
+    Convert an arbitrary value to a Value.
+    If Type isn't provided, it will be inferred from the value.
+    """
     raise NotImplementedError
 
 

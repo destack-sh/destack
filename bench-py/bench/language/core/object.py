@@ -501,6 +501,7 @@ def __to_ref__(self) -> "NodeReference":
 
 def _generate_equals_impl[ObjectT: BuiltinObjectBase](
     cls: type[ObjectT],
+    is_node: bool,
 ) -> tuple[str, dict[str, Any]]:
     """Generates BuiltinObject.equals method."""
 
@@ -522,6 +523,12 @@ def equals(self, other, _identity_map: dict["UUID", "UUID"] = EMPTY_DICT) -> boo
 {body_str}
     return True
 """
+
+    if not is_node:
+        equals_impl += """\
+__eq__ = equals
+"""
+
     return equals_impl, {}
 
 
@@ -981,7 +988,7 @@ def _process_object_cls[ObjectT: BuiltinObjectBase](
         repr_str, repr_glbls = _generate_repr_impl(cls)
         exec_(repr_str, {**glbls, **repr_glbls}, cls_dict, f"{cls.__name__}:repr")
         # equals
-        equals_str, equals_glbls = _generate_equals_impl(cls)
+        equals_str, equals_glbls = _generate_equals_impl(cls, is_node=is_node)
         exec_(equals_str, {**glbls, **equals_glbls}, cls_dict, f"{cls.__name__}:equals")
         # validate
         validate_str, validate_glbls = _generate_validate_impl(cls)
@@ -1041,10 +1048,10 @@ def _process_object_cls[ObjectT: BuiltinObjectBase](
         cls_dict["__slots__"] = ()
 
     # create the new class
-    _original_cls = cls
+    original_cls = cls
     cls = cast(type[ObjectT], type(cls.__name__, cls.__bases__, cls_dict))
-    _processed_classes[_original_cls] = cls
-    del _original_cls
+    _processed_classes[original_cls] = cls
+    del original_cls
 
     # update cls references in props
     for prop in properties.values():

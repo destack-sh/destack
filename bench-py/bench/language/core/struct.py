@@ -1,6 +1,7 @@
 import abc
 from typing import (
     TYPE_CHECKING,
+    Any,
     ClassVar,
     Optional,
     cast,
@@ -47,6 +48,10 @@ class StructBase[StructDataT: AnyStructData](BuiltinObjectBase[StructDataT], abc
     __is_struct__: ClassVar[bool] = True
 
     # _value?
+
+    def __eq__(self, other: Any):
+        """Equals the Struct contents."""
+        raise NotImplementedError  # generated
 
 
 @object_()
