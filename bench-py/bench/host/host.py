@@ -37,8 +37,8 @@ from bench.pb2 import (
     UploadFilesResponse,
 )
 from bench.proto import Network, ServiceBase
-from bench.system.sharding import CellProvider, DatabaseProvider
-from bench.system.store import DatabaseStore
+from bench.sharding import CellProvider, DatabaseProvider
+from bench.store import DatabaseStore
 from bench.utils.env import ENV
 from bench.utils.oracle import Oracle
 from bench.utils.utils import get_from_env
@@ -46,7 +46,7 @@ from bench.utils.utils import get_from_env
 from .plugin import HostPlugin
 
 if TYPE_CHECKING:
-    from bench.system.plugin import Provisioner
+    from .plugin import Provisioner
 
 logger = structlog.get_logger(__name__)
 tracer = trace.get_tracer(__name__)
@@ -115,7 +115,7 @@ class HostService(ServiceBase, HostBase):
                 Databases=Database.search(),
             ).execute_one()
             if (database := bench.database) is not None:
-                self.database_store.bench_database = database.to_info()
+                self.database_store.main_database = database.to_info()
 
     def stop(self) -> None:
         super().stop()

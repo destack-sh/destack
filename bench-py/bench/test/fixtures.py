@@ -1,4 +1,5 @@
 import re
+from collections.abc import AsyncGenerator
 from contextlib import contextmanager
 from urllib.parse import urlparse
 
@@ -7,7 +8,6 @@ import pytest
 import structlog
 from opentelemetry import trace
 
-from bench.sql.client import pg_connection
 from bench.test.conftest import _setup_test_env
 
 # ruff: noqa: E402
@@ -17,7 +17,7 @@ _setup_test_env()
 
 from bench.language import REGION, DatabaseInfo, Tenancy
 from bench.sharding import get_global_database_from_env
-from bench.sql import (
+from bench.store.postgres import (
     BENCH_CUSTOM_NODE_PREFIX,
     BENCH_TABLE_PREFIX,
     BUILTIN_GLOBAL_SCHEMA,
@@ -26,6 +26,7 @@ from bench.sql import (
     apply_sql_migration_ops,
     generate_sql_migration_ops,
     introspect_sql_schema,
+    pg_connection,
 )
 from bench.utils.utils import get_from_env
 
@@ -33,12 +34,11 @@ logger = structlog.get_logger(__name__)
 tracer = trace.get_tracer(__name__)
 
 
-def make_global_database(name: str) -> DatabaseInfo:
+def get_global_database(name: str) -> DatabaseInfo:
     """Creates a global database for testing.."""
     pg = get_from_env("GLOBAL_DATABASE_URL", description="Global Postgres connection string")
     pg_url_parsed = urlparse(pg)
     sql_url = pg_url_parsed._replace(path=f"/{name}").geturl()
-
     database = DatabaseInfo(
         region=REGION,
         cell_name=name,
@@ -49,8 +49,8 @@ def make_global_database(name: str) -> DatabaseInfo:
     return database
 
 
-def make_bench_database(name: str) -> DatabaseInfo:
-    """Creates a regional database for testing."""
+def get_main_database(name: str) -> DatabaseInfo:
+    """Creates a main database for testing."""
     assert len(name) < 64, f"name must be less than 64 characters: {name!r}"
     pg = get_from_env("GLOBAL_DATABASE_URL", description="Regional Postgres connection string")
     pg_url_parsed = urlparse(pg)
@@ -97,22 +97,10 @@ def _clean_name(name: str) -> str:
 
 
 @pytest.fixture
-async def blank_database(request: pytest.FixtureRequest):
-    """Gets the per test function blank database"""
-
-    database = make_global_database(f"test-{_clean_name(request.node.name)[:32]}-blank")
-    await create_blank_test_db(database)
-    try:
-        yield database
-    finally:
-        await delete_test_db(database)
-
-
-@pytest.fixture
-async def global_database(request: pytest.FixtureRequest):
+async def global_database(request: pytest.FixtureRequest) -> AsyncGenerator[DatabaseInfo, None]:
     """Gets the per test function global database"""
 
-    database = make_global_database(f"test-{_clean_name(request.node.name)[:32]}-global")
+    database = get_global_database(f"test-{_clean_name(request.node.name)[:32]}-global")
     await create_test_db(database, BUILTIN_GLOBAL_SCHEMA)
     try:
         yield database
@@ -121,10 +109,10 @@ async def global_database(request: pytest.FixtureRequest):
 
 
 @pytest.fixture
-async def main_database(request: pytest.FixtureRequest):
+async def main_database(request: pytest.FixtureRequest) -> AsyncGenerator[DatabaseInfo, None]:
     """Gets the per test function main database"""
 
-    database = make_bench_database(f"test-{_clean_name(request.node.name)[:32]}-main")
+    database = get_main_database(f"test-{_clean_name(request.node.name)[:32]}-main")
     await create_test_db(database, BUILTIN_MAIN_SCHEMA)
     try:
         yield database

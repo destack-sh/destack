@@ -6,14 +6,14 @@ import structlog
 from fastuuid import UUID
 from opentelemetry import trace
 
-from .const import BuiltinEnum, EnumType, StructType, bittuple, enum_
+from .const import UNSET, BuiltinEnum, EnumType, StructType, bittuple, enum_
 from .graph import Graph
 from .node import Node
-from .property import property_
-from .struct import NodeReference, StructFrozen, struct_
+from .property import Property, property_
+from .struct import NodeReference, PropertyReference, StructFrozen, struct_
 
 if TYPE_CHECKING:
-    from bench.language import Value
+    from bench.language import Field, IsSubject, Value
 
 logger = structlog.get_logger(__name__)
 tracer = trace.get_tracer(__name__)
@@ -71,17 +71,21 @@ class Edit(StructFrozen):
     """An Edit to a Node."""
 
     # meta
-    id: UUID = property_(2, default_factory="uuid")
+    id: UUID = property_(2, is_managed=True, default_factory="uuid")
 
     # key
-    type: EditType = property_(30)
-    operation: EditOperation | None = property_(31)
-    node: Node = property_(32)
-    path: str | None = property_(33)
-    key: "Value | None" = property_(34)  # for map operations
+    type: EditType = property_(30, is_repr=True)
+    operation: EditOperation | None = property_(31, is_repr=True)
+    node: Node = property_(32, is_repr=True)
+    prop: Property | None = property_(33, is_repr=True)
+    field: "Field | None" = property_(34, is_repr=True)  # for IsExtensible.value
+    key: "Value | None" = property_(35)  # for map operations
     if TYPE_CHECKING:
-        node_id: UUID = property_()
-        node_ptr: NodeReference = property_()
+        node_id: UUID = UNSET
+        node_ptr: NodeReference = UNSET
+        field_id: UUID | None = None
+        field_ptr: NodeReference | None = None
+        property_ptr: PropertyReference | None = None
 
     # value
     # node_data: "NodeData | None" = property_(40)
@@ -98,6 +102,8 @@ class Change(StructFrozen):
 
     id: UUID = property_(2, is_managed=True, default_factory="uuid")
     created_at: datetime = property_(10, is_managed=True, default_factory="now")
+    created_by: "IsSubject | None" = property_(11, is_managed=True)
+
     edits: list[Edit] = property_(41)
 
 
@@ -124,7 +130,6 @@ class ChangeResult(StructFrozen):
     status: ChangeStatus = property_(40)
     edits: list[Edit] = property_(41)
     cascaded_edits: list[Edit] = property_(42)
-    epoch: int = property_(43)
 
 
 def edit_node(node: Node, edit: Edit) -> None:

@@ -50,12 +50,15 @@ ignore = [
 	# non lowercase variable in function
 	"N806",
 ]
+[tool.ruff.lint.isort]
+known-first-party = ["bench", "bench-py"]
 
 [tool.pyright]
 include = ["bench-py/bench"]
-exclude = ["^bench-py/bench/migrations", "^venv*"]
-ignore = ["^bench-py/bench/migrations", "^venv*"]
-venv = "venv"
+exclude = ["^bench-py/bench/migrations", "^bench-py/venv*"]
+ignore = ["^bench-py/bench/migrations", "^bench-py/venv*"]
+venv = "bench-py/venv"
+extraPaths = ["bench-py"]
 strictDictionaryInference = true
 strictListInference = true
 strictTupleInference = true

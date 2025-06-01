@@ -732,7 +732,7 @@ GLOBAL_EXTENSIONS = (*BASE_EXTENSIONS,)
 MAIN_EXTENSIONS = (*BASE_EXTENSIONS,)
 CUSTOM_EXTENSIONS = (*BASE_EXTENSIONS,)
 
-MIGRATION_TABLE = SqlTable(  # see bench-py/bench/sql/migration.py
+MIGRATION_TABLE = SqlTable(  # see bench-py/bench/store/postgres/migration.py
     "bench_migration",
     columns=(
         SqlColumn("id", PrimitiveType.INT32, is_primary_key=True),

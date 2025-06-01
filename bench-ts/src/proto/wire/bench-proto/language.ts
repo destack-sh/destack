@@ -445,9 +445,9 @@ export interface BenchData {
      */
     region: Region;
     /**
-     * @generated from protobuf field: string cell_name = 51;
+     * @generated from protobuf field: optional string cell_name = 51;
      */
-    cellName: string;
+    cellName?: string;
     /**
      * @generated from protobuf field: optional symbol.bench.NodeReferenceData database_ptr = 55;
      */
@@ -820,10 +820,6 @@ export interface ChangeResultData {
      * @generated from protobuf field: repeated symbol.bench.EditData cascaded_edits = 42;
      */
     cascadedEdits: EditData[];
-    /**
-     * @generated from protobuf field: int64 epoch = 43;
-     */
-    epoch: bigint;
 }
 /**
  * A Client to connect with the system.
@@ -1443,10 +1439,6 @@ export interface DatabaseData {
      */
     name: string;
     /**
-     * @generated from protobuf field: string version = 35;
-     */
-    version: string;
-    /**
      * @generated from protobuf field: symbol.bench.Region region = 50;
      */
     region: Region;
@@ -1455,9 +1447,9 @@ export interface DatabaseData {
      */
     cellName?: string;
     /**
-     * @generated from protobuf field: string external_id = 52;
+     * @generated from protobuf field: string external_name = 52;
      */
-    externalId: string;
+    externalName: string;
     /**
      * @generated from protobuf field: optional string custom_schema_name = 53;
      */
@@ -1488,9 +1480,9 @@ export interface DatabaseInfoData {
      */
     cellName?: string;
     /**
-     * @generated from protobuf field: string external_id = 52;
+     * @generated from protobuf field: string external_name = 52;
      */
-    externalId: string;
+    externalName: string;
     /**
      * @generated from protobuf field: optional string custom_schema_name = 53;
      */
@@ -1550,11 +1542,15 @@ export interface EditData {
      */
     nodePtr?: NodeReferenceData;
     /**
-     * @generated from protobuf field: optional string path = 33;
+     * @generated from protobuf field: optional symbol.bench.PropertyReferenceData prop_ptr = 33;
      */
-    path?: string;
+    propPtr?: PropertyReferenceData;
     /**
-     * @generated from protobuf field: optional symbol.bench.ValueData key = 34;
+     * @generated from protobuf field: optional symbol.bench.NodeReferenceData field_ptr = 34;
+     */
+    fieldPtr?: NodeReferenceData;
+    /**
+     * @generated from protobuf field: optional symbol.bench.ValueData key = 35;
      */
     key?: ValueData;
     /**
@@ -11261,17 +11257,13 @@ export enum NodeArea {
      */
     UNSPECIFIED = 0,
     /**
-     * @generated from protobuf enum value: NODE_AREA_GLOBAL_RELATIONAL = 10;
+     * @generated from protobuf enum value: NODE_AREA_GLOBAL_DATABASE = 1;
      */
-    GLOBAL_RELATIONAL = 10,
+    GLOBAL_DATABASE = 1,
     /**
-     * @generated from protobuf enum value: NODE_AREA_MAIN_RELATIONAL = 20;
+     * @generated from protobuf enum value: NODE_AREA_MAIN_DATABASE = 2;
      */
-    MAIN_RELATIONAL = 20,
-    /**
-     * @generated from protobuf enum value: NODE_AREA_CUSTOM_RELATIONAL = 30;
-     */
-    CUSTOM_RELATIONAL = 30
+    MAIN_DATABASE = 2
 }
 /**
  * @generated from protobuf enum symbol.bench.NodeMode
@@ -13939,7 +13931,7 @@ class BenchData$Type extends MessageType$<BenchData> {
             { no: 41, name: "handle_ptr", kind: "message", T: () => NodeReferenceData },
             { no: 42, name: "main_package_ptr", kind: "message", T: () => NodeReferenceData },
             { no: 50, name: "region", kind: "enum", T: () => ["symbol.bench.Region", Region, "REGION_"] },
-            { no: 51, name: "cell_name", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
+            { no: 51, name: "cell_name", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
             { no: 55, name: "database_ptr", kind: "message", T: () => NodeReferenceData }
         ]);
     }
@@ -13951,7 +13943,6 @@ class BenchData$Type extends MessageType$<BenchData> {
         message.slug = "";
         message.status = 0;
         message.region = 0;
-        message.cellName = "";
         if (value !== undefined)
             reflectionMergePartial<BenchData>(this, message, value);
         return message;
@@ -14009,7 +14000,7 @@ class BenchData$Type extends MessageType$<BenchData> {
                 case /* symbol.bench.Region region */ 50:
                     message.region = reader.int32();
                     break;
-                case /* string cell_name */ 51:
+                case /* optional string cell_name */ 51:
                     message.cellName = reader.string();
                     break;
                 case /* optional symbol.bench.NodeReferenceData database_ptr */ 55:
@@ -14075,8 +14066,8 @@ class BenchData$Type extends MessageType$<BenchData> {
         /* symbol.bench.Region region = 50; */
         if (message.region !== 0)
             writer.tag(50, WireType.Varint).int32(message.region);
-        /* string cell_name = 51; */
-        if (message.cellName !== "")
+        /* optional string cell_name = 51; */
+        if (message.cellName !== undefined)
             writer.tag(51, WireType.LengthDelimited).string(message.cellName);
         /* optional symbol.bench.NodeReferenceData database_ptr = 55; */
         if (message.databasePtr)
@@ -14916,8 +14907,7 @@ class ChangeResultData$Type extends MessageType$<ChangeResultData> {
             { no: 10, name: "created_at", kind: "message", T: () => Timestamp },
             { no: 40, name: "status", kind: "enum", T: () => ["symbol.bench.ChangeStatus", ChangeStatus, "CHANGE_STATUS_"] },
             { no: 41, name: "edits", kind: "message", repeat: 1 /*RepeatType.PACKED*/, T: () => EditData },
-            { no: 42, name: "cascaded_edits", kind: "message", repeat: 1 /*RepeatType.PACKED*/, T: () => EditData },
-            { no: 43, name: "epoch", kind: "scalar", T: 3 /*ScalarType.INT64*/, L: 0 /*LongType.BIGINT*/ }
+            { no: 42, name: "cascaded_edits", kind: "message", repeat: 1 /*RepeatType.PACKED*/, T: () => EditData }
         ]);
     }
     create(value?: PartialMessage<ChangeResultData>): ChangeResultData {
@@ -14927,7 +14917,6 @@ class ChangeResultData$Type extends MessageType$<ChangeResultData> {
         message.status = 0;
         message.edits = [];
         message.cascadedEdits = [];
-        message.epoch = 0n;
         if (value !== undefined)
             reflectionMergePartial<ChangeResultData>(this, message, value);
         return message;
@@ -14954,9 +14943,6 @@ class ChangeResultData$Type extends MessageType$<ChangeResultData> {
                     break;
                 case /* repeated symbol.bench.EditData cascaded_edits */ 42:
                     message.cascadedEdits.push(EditData.internalBinaryRead(reader, reader.uint32(), options));
-                    break;
-                case /* int64 epoch */ 43:
-                    message.epoch = reader.int64().toBigInt();
                     break;
                 default:
                     let u = options.readUnknownField;
@@ -14988,9 +14974,6 @@ class ChangeResultData$Type extends MessageType$<ChangeResultData> {
         /* repeated symbol.bench.EditData cascaded_edits = 42; */
         for (let i = 0; i < message.cascadedEdits.length; i++)
             EditData.internalBinaryWrite(message.cascadedEdits[i], writer.tag(42, WireType.LengthDelimited).fork(), options).join();
-        /* int64 epoch = 43; */
-        if (message.epoch !== 0n)
-            writer.tag(43, WireType.Varint).int64(message.epoch);
         let u = options.writeUnknownFields;
         if (u !== false)
             (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
@@ -16347,10 +16330,9 @@ class DatabaseData$Type extends MessageType$<DatabaseData> {
             { no: 17, name: "owned_by_ptr", kind: "message", T: () => NodeReferenceData },
             { no: 20, name: "mode", kind: "enum", T: () => ["symbol.bench.NodeMode", NodeMode, "NODE_MODE_"] },
             { no: 31, name: "name", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
-            { no: 35, name: "version", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
             { no: 50, name: "region", kind: "enum", T: () => ["symbol.bench.Region", Region, "REGION_"] },
             { no: 51, name: "cell_name", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
-            { no: 52, name: "external_id", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
+            { no: 52, name: "external_name", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
             { no: 53, name: "custom_schema_name", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
             { no: 55, name: "tenancy", kind: "enum", T: () => ["symbol.bench.Tenancy", Tenancy, "TENANCY_"] },
             { no: 58, name: "sql_url", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ }
@@ -16362,9 +16344,8 @@ class DatabaseData$Type extends MessageType$<DatabaseData> {
         message.id = "";
         message.mode = 0;
         message.name = "";
-        message.version = "";
         message.region = 0;
-        message.externalId = "";
+        message.externalName = "";
         message.tenancy = 0;
         if (value !== undefined)
             reflectionMergePartial<DatabaseData>(this, message, value);
@@ -16408,17 +16389,14 @@ class DatabaseData$Type extends MessageType$<DatabaseData> {
                 case /* string name */ 31:
                     message.name = reader.string();
                     break;
-                case /* string version */ 35:
-                    message.version = reader.string();
-                    break;
                 case /* symbol.bench.Region region */ 50:
                     message.region = reader.int32();
                     break;
                 case /* optional string cell_name */ 51:
                     message.cellName = reader.string();
                     break;
-                case /* string external_id */ 52:
-                    message.externalId = reader.string();
+                case /* string external_name */ 52:
+                    message.externalName = reader.string();
                     break;
                 case /* optional string custom_schema_name */ 53:
                     message.customSchemaName = reader.string();
@@ -16474,18 +16452,15 @@ class DatabaseData$Type extends MessageType$<DatabaseData> {
         /* string name = 31; */
         if (message.name !== "")
             writer.tag(31, WireType.LengthDelimited).string(message.name);
-        /* string version = 35; */
-        if (message.version !== "")
-            writer.tag(35, WireType.LengthDelimited).string(message.version);
         /* symbol.bench.Region region = 50; */
         if (message.region !== 0)
             writer.tag(50, WireType.Varint).int32(message.region);
         /* optional string cell_name = 51; */
         if (message.cellName !== undefined)
             writer.tag(51, WireType.LengthDelimited).string(message.cellName);
-        /* string external_id = 52; */
-        if (message.externalId !== "")
-            writer.tag(52, WireType.LengthDelimited).string(message.externalId);
+        /* string external_name = 52; */
+        if (message.externalName !== "")
+            writer.tag(52, WireType.LengthDelimited).string(message.externalName);
         /* optional string custom_schema_name = 53; */
         if (message.customSchemaName !== undefined)
             writer.tag(53, WireType.LengthDelimited).string(message.customSchemaName);
@@ -16512,7 +16487,7 @@ class DatabaseInfoData$Type extends MessageType$<DatabaseInfoData> {
             { no: 1, name: "metatype", kind: "enum", T: () => ["symbol.bench.StructType", StructType, "STRUCT_TYPE_"] },
             { no: 50, name: "region", kind: "enum", T: () => ["symbol.bench.Region", Region, "REGION_"] },
             { no: 51, name: "cell_name", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
-            { no: 52, name: "external_id", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
+            { no: 52, name: "external_name", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
             { no: 53, name: "custom_schema_name", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
             { no: 55, name: "tenancy", kind: "enum", T: () => ["symbol.bench.Tenancy", Tenancy, "TENANCY_"] },
             { no: 58, name: "sql_url", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ }
@@ -16522,7 +16497,7 @@ class DatabaseInfoData$Type extends MessageType$<DatabaseInfoData> {
         const message = globalThis.Object.create((this.messagePrototype!));
         message.metatype = 0;
         message.region = 0;
-        message.externalId = "";
+        message.externalName = "";
         message.tenancy = 0;
         if (value !== undefined)
             reflectionMergePartial<DatabaseInfoData>(this, message, value);
@@ -16542,8 +16517,8 @@ class DatabaseInfoData$Type extends MessageType$<DatabaseInfoData> {
                 case /* optional string cell_name */ 51:
                     message.cellName = reader.string();
                     break;
-                case /* string external_id */ 52:
-                    message.externalId = reader.string();
+                case /* string external_name */ 52:
+                    message.externalName = reader.string();
                     break;
                 case /* optional string custom_schema_name */ 53:
                     message.customSchemaName = reader.string();
@@ -16575,9 +16550,9 @@ class DatabaseInfoData$Type extends MessageType$<DatabaseInfoData> {
         /* optional string cell_name = 51; */
         if (message.cellName !== undefined)
             writer.tag(51, WireType.LengthDelimited).string(message.cellName);
-        /* string external_id = 52; */
-        if (message.externalId !== "")
-            writer.tag(52, WireType.LengthDelimited).string(message.externalId);
+        /* string external_name = 52; */
+        if (message.externalName !== "")
+            writer.tag(52, WireType.LengthDelimited).string(message.externalName);
         /* optional string custom_schema_name = 53; */
         if (message.customSchemaName !== undefined)
             writer.tag(53, WireType.LengthDelimited).string(message.customSchemaName);
@@ -16677,8 +16652,9 @@ class EditData$Type extends MessageType$<EditData> {
             { no: 30, name: "type", kind: "enum", T: () => ["symbol.bench.EditType", EditType, "EDIT_TYPE_"] },
             { no: 31, name: "operation", kind: "enum", opt: true, T: () => ["symbol.bench.EditOperation", EditOperation, "EDIT_OPERATION_"] },
             { no: 32, name: "node_ptr", kind: "message", T: () => NodeReferenceData },
-            { no: 33, name: "path", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
-            { no: 34, name: "key", kind: "message", T: () => ValueData },
+            { no: 33, name: "prop_ptr", kind: "message", T: () => PropertyReferenceData },
+            { no: 34, name: "field_ptr", kind: "message", T: () => NodeReferenceData },
+            { no: 35, name: "key", kind: "message", T: () => ValueData },
             { no: 41, name: "value", kind: "message", T: () => ValueData },
             { no: 42, name: "parent_ptr", kind: "message", T: () => NodeReferenceData }
         ]);
@@ -16712,10 +16688,13 @@ class EditData$Type extends MessageType$<EditData> {
                 case /* symbol.bench.NodeReferenceData node_ptr */ 32:
                     message.nodePtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.nodePtr);
                     break;
-                case /* optional string path */ 33:
-                    message.path = reader.string();
+                case /* optional symbol.bench.PropertyReferenceData prop_ptr */ 33:
+                    message.propPtr = PropertyReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.propPtr);
                     break;
-                case /* optional symbol.bench.ValueData key */ 34:
+                case /* optional symbol.bench.NodeReferenceData field_ptr */ 34:
+                    message.fieldPtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.fieldPtr);
+                    break;
+                case /* optional symbol.bench.ValueData key */ 35:
                     message.key = ValueData.internalBinaryRead(reader, reader.uint32(), options, message.key);
                     break;
                 case /* optional symbol.bench.ValueData value */ 41:
@@ -16751,12 +16730,15 @@ class EditData$Type extends MessageType$<EditData> {
         /* symbol.bench.NodeReferenceData node_ptr = 32; */
         if (message.nodePtr)
             NodeReferenceData.internalBinaryWrite(message.nodePtr, writer.tag(32, WireType.LengthDelimited).fork(), options).join();
-        /* optional string path = 33; */
-        if (message.path !== undefined)
-            writer.tag(33, WireType.LengthDelimited).string(message.path);
-        /* optional symbol.bench.ValueData key = 34; */
+        /* optional symbol.bench.PropertyReferenceData prop_ptr = 33; */
+        if (message.propPtr)
+            PropertyReferenceData.internalBinaryWrite(message.propPtr, writer.tag(33, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbol.bench.NodeReferenceData field_ptr = 34; */
+        if (message.fieldPtr)
+            NodeReferenceData.internalBinaryWrite(message.fieldPtr, writer.tag(34, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbol.bench.ValueData key = 35; */
         if (message.key)
-            ValueData.internalBinaryWrite(message.key, writer.tag(34, WireType.LengthDelimited).fork(), options).join();
+            ValueData.internalBinaryWrite(message.key, writer.tag(35, WireType.LengthDelimited).fork(), options).join();
         /* optional symbol.bench.ValueData value = 41; */
         if (message.value)
             ValueData.internalBinaryWrite(message.value, writer.tag(41, WireType.LengthDelimited).fork(), options).join();

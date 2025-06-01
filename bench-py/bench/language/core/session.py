@@ -10,16 +10,16 @@ import structlog
 from fastuuid import UUID
 from opentelemetry import trace
 
-from bench.pb2 import OriginData
 from bench.utils.oracle import REAL_ORACLE, Oracle
 
 from .const import ACTIVE_SESSION, NodeMode
 from .edit import Change, ChangeResult, Edit, EditType
 from .graph import Supergraph
 from .node import IsSubject, Node
+from .store import OptimisticStore
 
 if TYPE_CHECKING:
-    from bench.language import Bench, Edit, QueryConnection, Store
+    from bench.language import Bench, Edit, Origin, QueryConnection, Store
     from bench.runtime.core import Runtime
 
 # pyright: reportIncompatibleVariableOverride=false
@@ -55,23 +55,23 @@ class Session:
         mode: NodeMode = NodeMode.MAIN,
         oracle: Oracle = REAL_ORACLE,
         bench: Optional["Bench"] = None,
-        origin: OriginData | None = None,
+        origin: "Origin | None" = None,
         subject: IsSubject | None = None,
         store: "Store | None" = None,
         _runtime: Optional["Runtime"] = None,
     ):
         self.supergraph = Supergraph(self)
-        self.mode = mode
-        self.oracle = oracle
-        self.bench = bench
+        self.mode: NodeMode = mode
+        self.oracle: Oracle = oracle
+        self.bench: Bench | None = bench
         self.origin = origin
         self.subject = subject
         self.store = store
 
         # transaction (pending)
-        self.changes: list[Change] = []
         self.dirty: dict[UUID, Node] = {}
         self.edits: list[Edit] = []
+        self.changes: list[Change] = []
 
         # runtime
         self.runtime: Runtime | None = _runtime
@@ -81,6 +81,7 @@ class Session:
 
     async def open(self):
         """Opens the Session."""
+        assert self._token is None, f"{self!r} is already open"
         self._token = ACTIVE_SESSION.set(self)
 
     async def close(self):
@@ -141,15 +142,25 @@ class Session:
         edit = Edit(type=EditType.ERASE, node=node)
         self.edits.append(edit)
 
+    def _flush(self):
+        """Turn pending updates into Edits, and Edits into Changes."""
+        pass
+
     async def stage(self):
         """Stage pending Edits."""
-        pass  # nocheckin
+        assert self.store is not None, f"{self!r} has no Store"
+        self._flush()
+        if isinstance(self.store, OptimisticStore):
+            await self.store.stage(self.changes)
 
     async def commit(self) -> Sequence[ChangeResult]:
         """
         Commits all Changes/Edits. Returns applied Changes.
         """
-        raise NotImplementedError
+        assert self.store is not None, f"{self!r} has no Store"
+        self._flush()
+        results = await self.store.commit(self.changes)
+        return results
 
     async def __aenter__(self):
         await self.open()

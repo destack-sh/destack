@@ -13,7 +13,7 @@ from bench.utils.string import Casing, to_casing
 from bench.utils.task import TaskManager
 
 if TYPE_CHECKING:
-    from bench.system.host import HostService
+    from .host import HostService
 
 from .commit import Commit
 

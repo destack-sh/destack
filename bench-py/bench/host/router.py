@@ -32,7 +32,7 @@ from bench.proto import (
     ServiceBase,
     ServiceKind,
 )
-from bench.system.sharding import CellProvider, DatabaseProvider
+from bench.sharding import CellProvider, DatabaseProvider
 from bench.utils.oracle import Oracle
 from bench.utils.telemetry import set_baggage
 from bench.utils.utils import get_from_env

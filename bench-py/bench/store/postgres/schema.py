@@ -8,7 +8,7 @@ from .core import (
     SqlTable,
 )
 
-VERSION = "2025.05.31.0"
+VERSION = "2025.06.01.0"
 
 BENCH_TABLE = SqlTable(
     "bench_bench",
@@ -30,7 +30,7 @@ BENCH_TABLE = SqlTable(
         SqlColumn("handle_bench_id", PrimitiveType.UUID, is_nullable=True),
         SqlColumn("main_package_id", PrimitiveType.UUID, is_nullable=True),
         SqlColumn("region", PrimitiveType.INT16),
-        SqlColumn("cell_name", PrimitiveType.STRING),
+        SqlColumn("cell_name", PrimitiveType.STRING, is_nullable=True),
         SqlColumn("database_id", PrimitiveType.UUID, is_nullable=True),
     ),
     indexes=(SqlIndex("bench_idx_parent_id", SqlIndexType.BTREE, ("parent_id",), cover=("id",)),),
@@ -462,10 +462,9 @@ DATABASE_TABLE = SqlTable(
         SqlColumn("owned_by_id", PrimitiveType.UUID, is_nullable=True),
         SqlColumn("mode", PrimitiveType.INT16),
         SqlColumn("name", PrimitiveType.STRING),
-        SqlColumn("version", PrimitiveType.STRING),
         SqlColumn("region", PrimitiveType.INT16),
         SqlColumn("cell_name", PrimitiveType.STRING, is_nullable=True),
-        SqlColumn("external_id", PrimitiveType.STRING),
+        SqlColumn("external_name", PrimitiveType.STRING),
         SqlColumn("custom_schema_name", PrimitiveType.STRING, is_nullable=True),
         SqlColumn("tenancy", PrimitiveType.INT16),
         SqlColumn("sql_url", PrimitiveType.STRING, is_nullable=True),

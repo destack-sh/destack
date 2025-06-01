@@ -41,7 +41,7 @@ def bump(revision: int | None = typer.Option(None)):
     Path("version").write_text(new_version)
     for path in (
         "bench-py/bench/language/core/const.py",
-        "bench-py/bench/sql/schema.py",
+        "bench-py/bench/store/postgres/schema.py",
         "bench-py/bench/pb2/__init__.py",
         "bench-ts/package.json",
         "bench-ts/src/utils/globals.ts",

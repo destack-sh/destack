@@ -473,59 +473,6 @@ class QueryConnection[RootT: "Node"]:
         raise NotImplementedError
 
 
-# from bench.language import *
-
-# q = User.get(
-#     where=User.property("id").eq(5),
-#     Clients=Client.search(),
-#     BenchMemberships=BenchMembership.search(
-#         sort=[BenchMembership.property("created_at").desc()],
-#     ),
-# )
-
-# q = Bench.get(
-#     "Bench",
-#     where=Bench.property("id").eq(5),
-#     Packages=Package.search(
-#         Pages=Page.search(limit=10, count=True),
-#     ),
-#     Pages=Page.search(count=True),
-# )
-
-
-# q = Thread.get(
-#     where=Thread.property("id").eq(5),
-#     Messages=Message.search(
-#         sort=[Message.property("created_at").asc()],
-#         limit=100,
-#         count=True,
-#     ),
-# )
-
-# q = Thread.search(
-#     sort=[Thread.property("last_active_at").asc()],
-#     limit=25,
-#     count=True,
-#     Cursor=Cursor.get(
-#         join=join(JoinType.LEFT, on=Cursor.property("owned_by").eq(5)),
-#         UnreadCount=Message.count(
-#             where=Message.property("read_at").greater_than(attribute_ref("Cursor.last_read_at")),
-#         ),
-#     ),
-# )
-
-# q = Space.get(
-#     where=Space.property("id").eq(5),
-#     Scenes=Scene.search(
-#         Fields=Field.search(),
-#         Themes=Theme.search(),
-#         Views=IsView.search(join=join(JoinType.PARENT, recursive=True)),
-#         Styles=IsStyle.search(join=join(JoinType.PARENT, recursive=True)),
-#     ),
-#     Route=Route.search(),
-# )
-
-
 #
 # Queryable
 #

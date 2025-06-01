@@ -818,9 +818,8 @@ enum Month {
 
 enum NodeArea {
   NODE_AREA_UNSPECIFIED = 0;
-  NODE_AREA_GLOBAL_RELATIONAL = 10;
-  NODE_AREA_MAIN_RELATIONAL = 20;
-  NODE_AREA_CUSTOM_RELATIONAL = 30;
+  NODE_AREA_GLOBAL_DATABASE = 1;
+  NODE_AREA_MAIN_DATABASE = 2;
 }
 
 enum NodeMode {
@@ -1485,7 +1484,7 @@ message BenchData {
   optional NodeReferenceData handle_ptr = 41;
   optional NodeReferenceData main_package_ptr = 42;
   Region region = 50;
-  string cell_name = 51;
+  optional string cell_name = 51;
   optional NodeReferenceData database_ptr = 55;
 }
 
@@ -1595,7 +1594,6 @@ message ChangeResultData {
   ChangeStatus status = 40;
   repeated EditData edits = 41;
   repeated EditData cascaded_edits = 42;
-  int64 epoch = 43;
 }
 
 // A Client to connect with the system.
@@ -1773,10 +1771,9 @@ message DatabaseData {
   optional NodeReferenceData owned_by_ptr = 17;
   NodeMode mode = 20;
   string name = 31;
-  string version = 35;
   Region region = 50;
   optional string cell_name = 51;
-  string external_id = 52;
+  string external_name = 52;
   optional string custom_schema_name = 53;
   Tenancy tenancy = 55;
   optional string sql_url = 58;
@@ -1786,7 +1783,7 @@ message DatabaseInfoData {
   StructType metatype = 1;
   Region region = 50;
   optional string cell_name = 51;
-  string external_id = 52;
+  string external_name = 52;
   optional string custom_schema_name = 53;
   Tenancy tenancy = 55;
   optional string sql_url = 58;
@@ -1805,8 +1802,9 @@ message EditData {
   EditType type = 30;
   optional EditOperation operation = 31;
   NodeReferenceData node_ptr = 32;
-  optional string path = 33;
-  optional ValueData key = 34;
+  optional PropertyReferenceData prop_ptr = 33;
+  optional NodeReferenceData field_ptr = 34;
+  optional ValueData key = 35;
   optional ValueData value = 41;
   optional NodeReferenceData parent_ptr = 42;
 }
