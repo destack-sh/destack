@@ -17,6 +17,7 @@ from .edit import Change, ChangeResult, Edit, EditType
 from .graph import Supergraph
 from .node import IsSubject, Node
 from .store import OptimisticStore
+from .value import to_value
 
 if TYPE_CHECKING:
     from bench.language import Bench, Edit, Origin, QueryConnection, Store
@@ -97,7 +98,8 @@ class Session:
     def create(self, node: Node):
         """Creates a new Node."""
         assert self.closed_at is None, f"{self!r} is closed"
-        edit = Edit(type=EditType.CREATE, node=node)
+        # nocheckin: to_value for Nodes should sometimes be a "full" Node value (not a NodeReference)
+        edit = Edit(type=EditType.CREATE, node=node, value=to_value(node))
         self.edits.append(edit)
 
     def upsert(self, node: Node):
