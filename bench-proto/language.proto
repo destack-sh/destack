@@ -1584,6 +1584,7 @@ message ChangeData {
   StructType metatype = 1;
   string id = 2;
   google.protobuf.Timestamp created_at = 10;
+  optional NodeReferenceData created_by_ptr = 11;
   repeated EditData edits = 41;
 }
 
@@ -1754,7 +1755,6 @@ message CustomNodeInstanceData {
   optional NodeReferenceData updated_by_ptr = 13;
   optional google.protobuf.Timestamp deleted_at = 15;
   NodeMode mode = 20;
-  map<string, ValueData> value = 21;
   NodeReferenceData definition_ptr = 40;
 }
 
@@ -1805,8 +1805,8 @@ message EditData {
   optional PropertyReferenceData prop_ptr = 33;
   optional NodeReferenceData field_ptr = 34;
   optional ValueData key = 35;
-  optional ValueData value = 41;
-  optional NodeReferenceData parent_ptr = 42;
+  optional ValueData value = 40;
+  optional NodeReferenceData parent_ptr = 41;
 }
 
 message EffectData {
@@ -1926,12 +1926,12 @@ message FieldData {
   optional PrimitiveType primitive_type = 42;
   optional EnumType enum_type = 43;
   optional NodeType node_type = 44;
+  optional NodeReferenceData node_definition_ptr = 45;
   optional StructType struct_type = 46;
   optional NodeReferenceData base_type_ptr = 47;
   optional TypeData key_type = 48;
   bool is_required = 50;
   bool is_variable = 51;
-  bool is_external = 52;
   optional ValueData default = 55;
   optional DefaultFactory default_factory = 56;
   optional CollectionConstraintData collection_constraint = 60;
@@ -2103,7 +2103,6 @@ message FrameViewData {
   optional google.protobuf.Timestamp deleted_at = 15;
   optional NodeReferenceData template_ptr = 16;
   NodeMode mode = 20;
-  map<string, ValueData> value = 21;
   optional string order_key = 22;
   string name = 31;
   optional NodeReferenceData block_ptr = 35;
@@ -2312,7 +2311,6 @@ message InterruptionData {
   google.protobuf.Timestamp updated_at = 12;
   optional NodeReferenceData updated_by_ptr = 13;
   NodeMode mode = 20;
-  map<string, ValueData> value = 21;
   InterruptionType type = 30;
   optional NodeReferenceData runnable_ptr = 32;
   optional NodeReferenceData span_ptr = 37;
@@ -2347,7 +2345,6 @@ message LabelViewData {
   optional google.protobuf.Timestamp deleted_at = 15;
   optional NodeReferenceData template_ptr = 16;
   NodeMode mode = 20;
-  map<string, ValueData> value = 21;
   optional string order_key = 22;
   string name = 31;
   optional NodeReferenceData block_ptr = 35;
@@ -2748,12 +2745,12 @@ message PropertyInfoData {
   optional PrimitiveType primitive_type = 42;
   optional EnumType enum_type = 43;
   optional NodeType node_type = 44;
+  optional NodeReferenceData node_definition_ptr = 45;
   optional StructType struct_type = 46;
   optional NodeReferenceData base_type_ptr = 47;
   optional TypeData key_type = 48;
   bool is_required = 50;
   bool is_variable = 51;
-  bool is_external = 52;
   optional ValueData default = 55;
   optional DefaultFactory default_factory = 56;
   optional CollectionConstraintData collection_constraint = 60;
@@ -2803,11 +2800,13 @@ message QueryResultData {
   StructType metatype = 1;
   int64 epoch = 40;
   QueryData query = 41;
+  repeated ValueData nodes = 50;
 }
 
 message QueryUpdateData {
   StructType metatype = 1;
   int64 epoch = 40;
+  repeated ValueData nodes = 50;
 }
 
 message RelationReferenceData {
@@ -2852,7 +2851,6 @@ message RunData {
   google.protobuf.Timestamp updated_at = 12;
   optional NodeReferenceData updated_by_ptr = 13;
   NodeMode mode = 20;
-  map<string, ValueData> value = 21;
   RunType type = 30;
   optional NodeReferenceData thread_ptr = 38;
   optional CodeData code = 66;
@@ -2942,12 +2940,12 @@ message SchemaData {
   optional PrimitiveType primitive_type = 42;
   optional EnumType enum_type = 43;
   optional NodeType node_type = 44;
+  optional NodeReferenceData node_definition_ptr = 45;
   optional StructType struct_type = 46;
   optional NodeReferenceData base_type_ptr = 47;
   optional TypeData key_type = 48;
   bool is_required = 50;
   bool is_variable = 51;
-  bool is_external = 52;
   optional ValueData default = 55;
   optional DefaultFactory default_factory = 56;
   optional CollectionConstraintData collection_constraint = 60;
@@ -3157,7 +3155,6 @@ message SplitViewData {
   optional google.protobuf.Timestamp deleted_at = 15;
   optional NodeReferenceData template_ptr = 16;
   NodeMode mode = 20;
-  map<string, ValueData> value = 21;
   optional string order_key = 22;
   string name = 31;
   optional NodeReferenceData block_ptr = 35;
@@ -3514,12 +3511,12 @@ message TypeData {
   optional PrimitiveType primitive_type = 42;
   optional EnumType enum_type = 43;
   optional NodeType node_type = 44;
+  optional NodeReferenceData node_definition_ptr = 45;
   optional StructType struct_type = 46;
   optional NodeReferenceData base_type_ptr = 47;
   optional TypeData key_type = 48;
   bool is_required = 50;
   bool is_variable = 51;
-  bool is_external = 52;
   optional ValueData default = 55;
   optional DefaultFactory default_factory = 56;
   optional CollectionConstraintData collection_constraint = 60;
@@ -3553,8 +3550,8 @@ message UserData {
 
 message ValueData {
   StructType metatype = 1;
-  string key = 40;
-  google.protobuf.Value value = 41;
+  TypeData type = 30;
+  google.protobuf.Value value = 40;
 }
 
 message VariableData {

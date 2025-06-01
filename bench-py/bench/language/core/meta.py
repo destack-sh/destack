@@ -54,7 +54,6 @@ class PropertyInfo(TypeBase, StructMutable):
             key_type=type.key_type,
             is_required=type.is_required,
             is_variable=type.is_variable,
-            is_external=type.is_external,
             default=type.default,
             default_factory=type.default_factory,
             collection_constraint=type.collection_constraint,

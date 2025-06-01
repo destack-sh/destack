@@ -437,7 +437,7 @@ class QueryResult[RootT: "Node"](StructMutable):
 
     epoch: int = property_(40, is_repr=True)
     query: Query = property_(41, is_repr=True)
-    # nodes_data: list[NodeData] = property_(50, is_repr=True)
+    nodes: list[Value] = property_(50, is_repr=True)
 
 
 @struct_(StructType.QUERY_UPDATE, frozen=True)
@@ -445,6 +445,7 @@ class QueryUpdate(StructFrozen):
     """An update to a QueryResult."""
 
     epoch: int = property_(40, is_repr=True)
+    nodes: list[Value] = property_(50, is_repr=True)
 
 
 class QueryConnection[RootT: "Node"]:
@@ -458,7 +459,7 @@ class QueryConnection[RootT: "Node"]:
         self.is_live = query.is_live
         self.store: Store = store
         self.session: Session = session
-        self.result: QueryResult | None = None
+        self.result: QueryResult[RootT] | None = None
 
     async def execute(self) -> QueryResult[RootT]:
         """Execute the Query."""

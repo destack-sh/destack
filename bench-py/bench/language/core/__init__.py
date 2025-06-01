@@ -16,6 +16,7 @@ from .const import (
     IS_IN_USER_CODE,
     NODE_TYPES,
     NONCE,
+    PRIMITIVE_PY_TYPES,
     PRIMITIVE_TYPE_BY_PY_TYPE,
     PY_TYPE_BY_PRIMITIVE_TYPE,
     REGION,
@@ -196,12 +197,10 @@ from .type import (
     Type,
     TypeBase,
     TypeCardinality,
-    decode_type_identity,
-    encode_storage_key,
-    encode_type_identity,
+    to_type,
 )
 from .validation import ValidationError
-from .value import Value
+from .value import Value, to_value
 from .variable import Variable, VariableProperty, VariableType
 
 __all__ = [
@@ -222,6 +221,7 @@ __all__ = [
     "IS_IN_USER_CODE",
     "NODE_TYPES",
     "NONCE",
+    "PRIMITIVE_PY_TYPES",
     "PRIMITIVE_TYPE_BY_PY_TYPE",
     "PY_TYPE_BY_PRIMITIVE_TYPE",
     "REGION",
@@ -381,10 +381,7 @@ __all__ = [
     "capture_span",
     "code",
     "condition",
-    "decode_type_identity",
     "edit_graph",
-    "encode_storage_key",
-    "encode_type_identity",
     "enum_",
     "expand_node_types",
     "expression",
@@ -419,5 +416,7 @@ __all__ = [
     "to_icon",
     "to_text",
     "to_text_line",
+    "to_type",
+    "to_value",
     "trait_",
 ]
