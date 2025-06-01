@@ -200,7 +200,7 @@ from .type import (
     to_type,
 )
 from .validation import ValidationError
-from .value import Value, to_value
+from .value import Value, pack_value, to_value, unpack_value
 from .variable import Variable, VariableProperty, VariableType
 
 __all__ = [
@@ -392,6 +392,7 @@ __all__ = [
     "markdown_to_text",
     "node_",
     "object_",
+    "pack_value",
     "parse_type_annotation",
     "property_",
     "property_ancestor_",
@@ -419,4 +420,5 @@ __all__ = [
     "to_type",
     "to_value",
     "trait_",
+    "unpack_value",
 ]
