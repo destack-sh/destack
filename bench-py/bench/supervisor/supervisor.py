@@ -169,9 +169,10 @@ class SupervisorService(ServiceBase, SupervisorBase):
         await session.commit()
 
         # provision Bench
-        cell_name: str = "test-0"  # nocheckin
+        # nocheckin: assign Bench cell/DB/.. (CellProvider/DatabaseProvider/...)
+        cell_name: str = "test-0"
         database_name: str = "bench-db-0"
-        bench_database = self.database_provider.resolve_or_error(
+        main_database = self.database_provider.resolve_or_error(
             region=region, cell_name=cell_name, external_name=database_name
         )
         database = Database(
@@ -183,7 +184,7 @@ class SupervisorService(ServiceBase, SupervisorBase):
         )
         bench.database = database
         session.store = DatabaseStore(
-            global_database=self.global_database, bench_database=bench_database
+            global_database=self.global_database, main_database=main_database
         )
         await session.stage()
 

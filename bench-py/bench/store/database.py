@@ -38,11 +38,21 @@ class DatabaseStore(Store):
     def __init__(
         self,
         *,
+        # nocheckin: split DatabaseStore for just one DatabaseInfo
         global_database: DatabaseInfo,
-        bench_database: DatabaseInfo | None = None,
+        main_database: DatabaseInfo | None = None,
     ):
         self.global_database = global_database
-        self.bench_database = bench_database
+        self.main_database = main_database
+
+    def __str__(self) -> str:
+        if self.main_database is None:
+            return f"global_database={self.global_database!r}"
+        else:
+            return f"global_database={self.global_database!r}, main_database={self.main_database!r}"
+
+    def __repr__(self) -> str:
+        return f"<{self.__class__.__name__} {self!s}>"
 
     @override
     async def query(self, query: Query) -> QueryResult:

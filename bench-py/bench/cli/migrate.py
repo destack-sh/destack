@@ -9,7 +9,6 @@ from rich import print
 from rich.console import Console
 
 from bench.language import REGION, VERSION, NodeArea, Region
-from bench.sql.client import pg_tx
 from bench.utils.oracle import REAL_ORACLE
 
 from .utils import async_to_sync, parse_node_area, parse_region
@@ -34,7 +33,7 @@ async def make(
     from_scratch: bool = typer.Option(default=False, help="generate migration from scratch"),
 ):
     from bench.sharding import get_global_database_from_env
-    from bench.sql import (
+    from bench.store.postgres import (
         BENCH_CUSTOM_NODE_PREFIX,
         BENCH_TABLE_PREFIX,
         BUILTIN_GLOBAL_SCHEMA,
@@ -149,8 +148,8 @@ async def apply(
     dry_run: bool = typer.Option(default=False, help="only try, don't commit"),
 ):
     from bench.language import REGION, NodeArea
-    from bench.sql import sql_migrate
-    from bench.system import get_global_database_from_env, get_main_database_from_env
+    from bench.sharding import get_global_database_from_env, get_main_database_from_env
+    from bench.store.postgres import pg_tx, sql_migrate
 
     start = time.time()
     global_database = get_global_database_from_env()

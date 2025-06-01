@@ -16,11 +16,11 @@ from bench.language import (
     REGION,
     SYSTEM_ID,
     SYSTEM_SLUG,
-    Database,
+    DatabaseInfo,
     NodeArea,
 )
 from bench.proto import SupervisorClient
-from bench.sql.map import BUILTIN_GLOBAL_SCHEMA, BUILTIN_MAIN_SCHEMA
+from bench.store.postgres.map import BUILTIN_GLOBAL_SCHEMA, BUILTIN_MAIN_SCHEMA
 from bench.utils.oracle import REAL_ORACLE
 from bench.utils.task import TaskManager
 
@@ -46,7 +46,7 @@ from .transport import SimulatedChannel
 from .user import UserHandle
 
 if TYPE_CHECKING:
-    from bench.system import DatabaseProvider
+    from bench.sharding import DatabaseProvider
     from bench.test.simulation.workload import Workload, WorkloadSpec
 
 logger = structlog.get_logger(__name__)
@@ -65,8 +65,8 @@ class Simulation:
         self,
         id: str,
         spec: SimulationSpec,
-        global_database: Database,
-        main_database: Database,
+        global_database: DatabaseInfo,
+        main_database: DatabaseInfo,
         database_provider: "DatabaseProvider",
     ):
         from bench.system import pg_engine_from_database
@@ -445,8 +445,8 @@ async def run_simulation(spec: SimulationSpec):
     """Run a Simulation"""
     from bench.test.fixtures import (
         create_test_db,
-        make_bench_database,
-        make_global_database,
+        get_global_database,
+        get_main_database,
     )
 
     simulation_id = get_simulation_id(spec)
@@ -456,9 +456,11 @@ async def run_simulation(spec: SimulationSpec):
     log = logger.bind(simulation=spec.name)
 
     # config
-    global_database = make_global_database(f"test-{simulation_id}-global")
-    main_database = make_bench_database(f"test-{simulation_id}-main")
-    database_provider = DatabaseProvider({"*": main_database})
+    global_database = get_global_database(f"test-{simulation_id}-global")
+    main_database = get_main_database(f"test-{simulation_id}-main")
+    database_provider = DatabaseProvider(
+        global_database=global_database, main_database=main_database
+    )
     simulation = Simulation(
         id=simulation_id,
         spec=spec,

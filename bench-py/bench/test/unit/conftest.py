@@ -8,8 +8,9 @@ from typing import Callable, Literal
 
 import pytest
 import structlog
-from bench.test.conftest import _setup_test_env
 from opentelemetry import trace
+
+from bench.test.conftest import _setup_test_env
 
 # NOTE: must run setup before importing from bench
 _setup_test_env()
@@ -94,9 +95,9 @@ def make_package(session: Session):
 
 @pytest.fixture
 def session(session_async: Session):
-    ACTIVE_SESSION.set(session_async)
+    token = ACTIVE_SESSION.set(session_async)
     yield session_async
-    ACTIVE_SESSION.set(None)
+    ACTIVE_SESSION.reset(token)
 
 
 @pytest.fixture
