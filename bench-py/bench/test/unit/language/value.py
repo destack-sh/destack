@@ -57,7 +57,7 @@ def test_to_type():
     )
     assert to_type(dict[str, Node]) == Type(
         cardinality=TypeCardinality.MAP,
-        scalar_type=ScalarType.NODE,
+        scalar_type=ScalarType.NODE_REFERENCE,
         key_type=Type(
             cardinality=TypeCardinality.SCALAR,
             scalar_type=ScalarType.PRIMITIVE,
@@ -66,7 +66,7 @@ def test_to_type():
     )
     assert to_type(User | Organization) == Type(
         cardinality=TypeCardinality.SCALAR,
-        scalar_type=ScalarType.NODE,
+        scalar_type=ScalarType.NODE_REFERENCE,
         node_constraint=NodeConstraint(
             node_types=[NodeType.USER, NodeType.ORGANIZATION],
         ),

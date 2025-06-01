@@ -56,8 +56,9 @@ class ScalarType(BuiltinEnum):
 
     PRIMITIVE = 1
     ENUM = 2
-    NODE = 3
-    STRUCT = 4
+    NODE_REFERENCE = 3
+    NODE_VALUE = 4
+    STRUCT = 5
 
 
 @enum_(EnumType.DEFAULT_FACTORY)
@@ -185,7 +186,7 @@ class Type(StructMutable, TypeBase):  # NOTE: it would be nice to have Type be f
     pass
 
 
-def to_type(value_or_type: Any) -> "Type":
+def to_type(value_or_type: Any, node_as_value: bool = False) -> "Type":
     """
     Guess the Type of a value or class.
     For values, we infer the most specific Type that can represent the value.
@@ -199,13 +200,13 @@ def to_type(value_or_type: Any) -> "Type":
     if isinstance(value_or_type, NodeReference):
         return Type(
             cardinality=TypeCardinality.SCALAR,
-            scalar_type=ScalarType.NODE,
+            scalar_type=ScalarType.NODE_REFERENCE,
             node_type=value_or_type.node_type,
         )
     elif isinstance(value_or_type, Node):
         return Type(
             cardinality=TypeCardinality.SCALAR,
-            scalar_type=ScalarType.NODE,
+            scalar_type=ScalarType.NODE_VALUE if node_as_value else ScalarType.NODE_REFERENCE,
             node_type=value_or_type.metatype,
         )
     elif isinstance(value_or_type, StructBase):
@@ -314,7 +315,7 @@ def to_type(value_or_type: Any) -> "Type":
         if node_types:
             return Type(
                 cardinality=TypeCardinality.SCALAR,
-                scalar_type=ScalarType.NODE,
+                scalar_type=ScalarType.NODE_REFERENCE,
                 node_constraint=NodeConstraint(node_types=node_types),
             )
 
@@ -329,7 +330,7 @@ def to_type(value_or_type: Any) -> "Type":
         elif issubclass(value_or_type, Node):
             return Type(
                 cardinality=TypeCardinality.SCALAR,
-                scalar_type=ScalarType.NODE,
+                scalar_type=ScalarType.NODE_REFERENCE,
                 node_type=getattr(value_or_type, "metatype", None),
             )
         elif issubclass(value_or_type, StructBase):

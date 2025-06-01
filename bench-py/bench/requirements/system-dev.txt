@@ -72,6 +72,8 @@ cachetools==5.2.0
 certifi==2024.7.4
     # via
     #   -r bench-py/bench/requirements/base.in
+    #   clickhouse-connect
+    #   elastic-transport
     #   httpcore
     #   httpx
     #   kubernetes
@@ -91,6 +93,8 @@ click==8.1.8
     #   pip-tools
     #   typer
     #   uvicorn
+clickhouse-connect==0.8.17
+    # via -r bench-py/bench/requirements/system.in
 coloredlogs==15.0.1
     # via onnxruntime
 coverage==7.8.0
@@ -118,6 +122,10 @@ docker==7.1.0
     # via -r bench-py/bench/requirements/system.in
 duckdb==1.1.1
     # via -r bench-py/bench/requirements/base.in
+elastic-transport==8.17.1
+    # via elasticsearch
+elasticsearch==9.0.1
+    # via -r bench-py/bench/requirements/system.in
 exa-py==1.12.0
     # via -r bench-py/bench/requirements/base.in
 execnet==2.1.1
@@ -238,6 +246,8 @@ jsonschema==4.23.0
     # via -r bench-py/bench/requirements/base.in
 jsonschema-specifications==2024.10.1
     # via jsonschema
+kafka-python==2.2.10
+    # via -r bench-py/bench/requirements/system.in
 kubernetes==30.1.0
     # via -r bench-py/bench/requirements/system.in
 kubernetes-asyncio==30.3.0
@@ -258,6 +268,8 @@ lxml==5.3.2
     # via
     #   python-docx
     #   python-pptx
+lz4==4.4.4
+    # via clickhouse-connect
 magika==0.6.1
     # via -r bench-py/bench/requirements/base.in
 markdown-it-py==3.0.0
@@ -461,6 +473,7 @@ python-dateutil==2.9.0.post0
     #   -r bench-py/bench/requirements/base.in
     #   botocore
     #   croniter
+    #   elasticsearch
     #   kubernetes
     #   kubernetes-asyncio
     #   posthog
@@ -473,7 +486,9 @@ python-dotenv==1.1.0
 python-pptx==1.0.2
     # via -r bench-py/bench/requirements/dev.in
 pytz==2024.1
-    # via -r bench-py/bench/requirements/base.in
+    # via
+    #   -r bench-py/bench/requirements/base.in
+    #   clickhouse-connect
 pyyaml==6.0.2
     # via
     #   kubernetes
@@ -581,6 +596,7 @@ typing-extensions==4.13.2
     # via
     #   anthropic
     #   browserbase
+    #   elasticsearch
     #   exa-py
     #   google-generativeai
     #   livekit-agents
@@ -601,7 +617,9 @@ uritemplate==4.1.1
 urllib3==2.4.0
     # via
     #   botocore
+    #   clickhouse-connect
     #   docker
+    #   elastic-transport
     #   kubernetes
     #   kubernetes-asyncio
     #   requests
@@ -631,3 +649,5 @@ yarl==1.19.0
     # via aiohttp
 zipp==3.21.0
     # via importlib-metadata
+zstandard==0.23.0
+    # via clickhouse-connect

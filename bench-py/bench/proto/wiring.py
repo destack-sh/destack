@@ -153,19 +153,22 @@ def _generate_unpack_proto(cls: type["BuiltinObjectBase"]) -> str:
     return "\n".join(unpack_method_parts)
 
 
+_PROTO_PRIMITIVE_MESSAGE_TYPES = (
+    PrimitiveType.DATE,
+    PrimitiveType.TIME,
+    PrimitiveType.DATETIME,
+    PrimitiveType.DURATION,
+    PrimitiveType.JSON,
+)
+
+
 def _is_proto_primitive(prop: "Property | IntoType") -> bool:
     """Check if a property is a proto primitive type."""
     return prop.cardinality == "scalar" and (
         prop.scalar_type == "enum"
         or (
             prop.scalar_type == "primitive"
-            and prop.primitive_type
-            not in (
-                PrimitiveType.DATE,
-                PrimitiveType.TIME,
-                PrimitiveType.DATETIME,
-                PrimitiveType.DURATION,
-            )
+            and prop.primitive_type not in _PROTO_PRIMITIVE_MESSAGE_TYPES
         )
     )
 
@@ -306,6 +309,10 @@ def _generate_pack_scalar(prop: "Property | IntoType", value_expr: str) -> str:
             return value_expr
     elif prop.scalar_type == "enum":
         return f"{value_expr}.value"
+    elif prop.scalar_type == "node_reference":
+        return f"{value_expr}.to_proto()"
+    elif prop.scalar_type == "node_value":
+        raise RuntimeError(f"node_value cannot be wired directly: {prop!r}")
     elif prop.scalar_type == "struct":
         assert prop.struct_type is not None
         struct_cls = STRUCT_CLASS_BY_TYPE[prop.struct_type]
@@ -313,8 +320,6 @@ def _generate_pack_scalar(prop: "Property | IntoType", value_expr: str) -> str:
             return f"{value_expr}.to_proto()"  # use cached method
         else:
             return f"{struct_cls.__name__}.__pack_proto__({value_expr})"
-    elif prop.scalar_type == "node":
-        return f"{value_expr}.to_proto()"
     else:
         assert_never(prop.scalar_type)
 
@@ -337,12 +342,14 @@ def _generate_unpack_scalar(prop: "Property | IntoType", value_expr: str) -> str
         assert prop.enum_type is not None
         enum_type_name = prop.enum_type.bench_name
         return f"{enum_type_name}({value_expr})"
+    elif prop.scalar_type == "node_reference":
+        return f"NodeReference.__unpack_proto__({value_expr})"
+    elif prop.scalar_type == "node_value":
+        raise RuntimeError(f"node_value cannot be wired directly: {prop!r}")
     elif prop.scalar_type == "struct":
         assert prop.struct_type is not None
         struct_cls_name = prop.struct_type.bench_name
         return f"{struct_cls_name}.__unpack_proto__({value_expr})"
-    elif prop.scalar_type == "node":
-        return f"NodeReference.__unpack_proto__({value_expr})"
     else:
         assert_never(prop.scalar_type)
 

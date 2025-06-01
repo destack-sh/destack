@@ -57,7 +57,7 @@ def _map_bench_property_to_proto_field(
     assert isinstance(prop.id, int), f"invalid id: {prop!r}"
 
     # base field
-    if prop.scalar_type == "node":
+    if prop.scalar_type == "node_reference":
         field = ProtoField(
             id=prop.id,
             name=prop.name,

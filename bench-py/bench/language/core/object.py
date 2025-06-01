@@ -119,7 +119,7 @@ def _generate_init_impl[ObjectT: BuiltinObjectBase](
         and p.default_factory is None
         and not p.is_managed
         and p.cardinality == "scalar"
-        and p.scalar_type != "node"  # passed either as node or node_ptr, defer check
+        and p.scalar_type != "node_reference"  # passed either as node or node_ptr, defer check
     ]
     # first add properties without defaults that are not managed
     for prop in required_properties:
@@ -268,7 +268,11 @@ if {prop.name}:
             continue
 
         # check if node is passed if required and scalar
-        if prop.is_required and prop.cardinality == "scalar" and prop.scalar_type == "node":
+        if (
+            prop.is_required
+            and prop.cardinality == "scalar"
+            and prop.scalar_type == "node_reference"
+        ):
             method_body_lines.append(f"""\
 if {prop.name} is None:
     raise AttributeError(f"{cls.__name__}.{prop.name} is required")""")
@@ -353,7 +357,7 @@ __str__ = __repr__
         """Get repr expression for a scalar value."""
         if prop.scalar_type == "enum":
             return f"{value_expr}.name"
-        elif prop.scalar_type in ("primitive", "struct", "node"):
+        elif prop.scalar_type in ("primitive", "struct", "node_reference", "node_value"):
             if prop.primitive_type == PrimitiveType.UUID:
                 return f"repr(str({value_expr}))"
             else:
@@ -559,7 +563,7 @@ for i in range(len(self.{prop_name})):
         return False"""
     elif prop.cardinality == "map":
         # map (always required)
-        if prop.scalar_type in ("struct", "node"):
+        if prop.scalar_type in ("struct", "node_reference", "node_value"):
             # maps with complex values need key-by-key comparison
             return f"""\
 if len(self.{prop_name}) != len(other.{prop_name}):
@@ -587,7 +591,7 @@ def _generate_scalar_cmp_impl(prop: Property) -> str:
             return "{self_val} == {other_val}"
     elif prop.scalar_type == "enum":
         return "{self_val} == {other_val}"
-    elif prop.scalar_type == "node":
+    elif prop.scalar_type == "node_reference" or prop.scalar_type == "node_value":
         return "{self_val}.id == {other_val}.id or _identity_map.get({self_val}.id, {self_val}.id) == _identity_map.get({other_val}.id, {other_val}.id)"
     elif prop.scalar_type == "struct":
         return "{self_val}.equals({other_val}, _identity_map=_identity_map)"

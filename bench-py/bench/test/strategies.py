@@ -116,8 +116,10 @@ def get_scalar_type_strategy(
     elif typ.scalar_type == ScalarType.STRUCT:
         assert typ.struct_type is not None, "struct_type required for STRUCT scalar_type"
         return from_object_type(typ.struct_type)
-    elif typ.scalar_type == ScalarType.NODE:
+    elif typ.scalar_type == ScalarType.NODE_REFERENCE:
         return node_references(st.sampled_from(NODE_TYPES.tuple))
+    elif typ.scalar_type == ScalarType.NODE_VALUE:
+        return from_object_type(typ.node_type or NodeType.BENCH)
     else:
         assert_never(typ.scalar_type)
 
@@ -323,7 +325,7 @@ def draw_type_base_dict(
         enum_type = draw(st.sampled_from(EnumType))
     elif scalar_type == ScalarType.STRUCT:
         struct_type = draw(st.sampled_from(StructType))
-    elif scalar_type == ScalarType.NODE:
+    elif scalar_type == ScalarType.NODE_REFERENCE or scalar_type == ScalarType.NODE_VALUE:
         node_type = draw(st.sampled_from(NODE_TYPES.tuple))
     else:
         assert_never(scalar_type)

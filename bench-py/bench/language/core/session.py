@@ -98,14 +98,13 @@ class Session:
     def create(self, node: Node):
         """Creates a new Node."""
         assert self.closed_at is None, f"{self!r} is closed"
-        # nocheckin: to_value for Nodes should sometimes be a "full" Node value (not a NodeReference)
-        edit = Edit(type=EditType.CREATE, node=node, value=to_value(node))
+        edit = Edit(type=EditType.CREATE, node=node, value=to_value(node, node_as_value=True))
         self.edits.append(edit)
 
     def upsert(self, node: Node):
         """Creates or updates a Node."""
         assert self.closed_at is None, f"{self!r} is closed"
-        edit = Edit(type=EditType.UPSERT, node=node)
+        edit = Edit(type=EditType.UPSERT, node=node, value=to_value(node, node_as_value=True))
         self.edits.append(edit)
 
     def move(self, node: Node, parent: Node):
