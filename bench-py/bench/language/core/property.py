@@ -107,7 +107,7 @@ class IntoType:
 
     py_type: Any = None
     cardinality: Literal["scalar", "list", "map"] = UNSET
-    scalar_type: Literal["primitive", "enum", "struct", "node"] = UNSET
+    scalar_type: Literal["primitive", "enum", "struct", "node_reference", "node_value"] = UNSET
     primitive_type: PrimitiveType | None = None
     enum_type: EnumType | None = None
     struct_type: StructType | None = None
@@ -257,7 +257,7 @@ def parse_type_annotation(
             return IntoType(
                 cardinality="scalar",
                 py_type=py_type,
-                scalar_type="node",
+                scalar_type="node_reference",
                 node_types=tuple(node_types),
                 is_required=is_required,
                 is_variable=is_variable,
@@ -300,7 +300,7 @@ def parse_type_annotation(
         scalar_type = "struct"
         struct_type = struct_t
     elif class_name and (node_t := _resolve_node_types(class_name)):
-        scalar_type = "node"
+        scalar_type = "node_reference"
         node_types = node_t
     elif class_name == "Property":
         scalar_type = "struct"
@@ -417,7 +417,7 @@ class Property(IntoType, IntoQuery if TYPE_CHECKING else object):
 
     @property
     def is_node_reference(self):
-        return self.scalar_type == "node"
+        return self.scalar_type == "node_reference"
 
     @property
     def is_struct(self) -> bool:
@@ -498,7 +498,7 @@ class Property(IntoType, IntoQuery if TYPE_CHECKING else object):
                 edge_type=self.edge_type,
                 node_types=self.node_types,
                 runtime_prop=self,
-                scalar_type="node",
+                scalar_type="node_reference",
                 struct_type=StructType.NODE_REFERENCE,
                 primitive_type=PrimitiveType.JSON,
                 is_wired=True,
@@ -556,7 +556,7 @@ class Property(IntoType, IntoQuery if TYPE_CHECKING else object):
         if not self.is_required and self.default is UNSET:
             self.default = None
         # default to regular node references
-        if self.scalar_type == "node" and self.edge_type is None:
+        if self.scalar_type == "node_reference" and self.edge_type is None:
             self.edge_type = EdgeType.NODE_REGULAR
 
         # node templates always point to their own type

@@ -16,6 +16,7 @@ from bench.pb2 import ValueData
 from bench.utils.time import timedelta_from_isoformat, timedelta_to_isoformat
 
 from .const import PrimitiveType, StructType
+from .node import Node
 from .property import IntoType, Property, property_, property_runtime_
 from .struct import NodeReference, StructFrozen, struct_
 from .type import Json, ScalarType, Type, TypeCardinality, to_type
@@ -39,16 +40,23 @@ class Value(StructFrozen[ValueData]):
     type: Type = property_(30)
     value: Json = property_(40)
 
-    _unpacked: Any = property_runtime_()
+    _unpacked: Any | None = property_runtime_()
+
+    def unpack(self) -> Any:
+        """Get the unpacked value of this generic Value."""
+        if self._unpacked is None:
+            value_unpacked = unpack_value(self.value, self.type)
+            object.__setattr__(self, "_unpacked", value_unpacked)
+        return self._unpacked
 
 
-def to_value(value_unpacked: Any, type: "Type | None" = None) -> Value:
+def to_value(value_unpacked: Any, type: "Type | None" = None, node_as_value: bool = False) -> Value:
     """
     Convert an arbitrary (legal) value to a Value.
     If Type isn't provided, it will be inferred from the value.
     """
     if type is None:
-        type = to_type(value_unpacked)
+        type = to_type(value_unpacked, node_as_value=node_as_value)
     value_packed = pack_value(value_unpacked, type)
     value = Value(type=type, value=value_packed, _unpacked=value_unpacked)
     return value
@@ -124,7 +132,7 @@ def _pack_scalar_value(value: Any, type: Type) -> Json:
             return value
     elif type.scalar_type == ScalarType.ENUM:
         return value.value
-    elif type.scalar_type == ScalarType.STRUCT or type.scalar_type == ScalarType.NODE:
+    elif type.scalar_type in (ScalarType.NODE_REFERENCE, ScalarType.NODE_VALUE, ScalarType.STRUCT):
         return value.to_value()
     else:
         assert_never(type.scalar_type)
@@ -155,12 +163,14 @@ def _unpack_scalar_value(value: Json, type: Type) -> Any:
         assert type.enum_type is not None, f"no enum type for {type!r}"
         enum_cls = ENUM_CLASS_BY_TYPE[type.enum_type]
         return enum_cls(int(value))
+    elif type.scalar_type == ScalarType.NODE_REFERENCE:
+        return NodeReference.from_value(value)
+    elif type.scalar_type == ScalarType.NODE_VALUE:
+        return Node.from_value(value)
     elif type.scalar_type == ScalarType.STRUCT:
         assert type.struct_type is not None, f"no struct type for {type!r}"
         struct_cls = STRUCT_CLASS_BY_TYPE[type.struct_type]
         return struct_cls.from_value(value)
-    elif type.scalar_type == ScalarType.NODE:
-        return NodeReference.from_value(value)
     else:
         assert_never(type.scalar_type)
 
@@ -334,7 +344,7 @@ def _generate_pack_value_scalar(prop: "Property | IntoType", value_expr: str) ->
             return value_expr
     elif prop.scalar_type == "enum":
         return f"{value_expr}.value"
-    elif prop.scalar_type == "struct" or prop.scalar_type == "node":
+    elif prop.scalar_type in ("struct", "node_reference", "node_value"):
         return f"{value_expr}.to_value()"
     else:
         assert_never(prop.scalar_type)
@@ -370,7 +380,9 @@ def _generate_unpack_value_scalar(prop: "Property | IntoType", value_expr: str) 
         assert prop.struct_type is not None, f"no struct type for {prop!r}"
         struct_cls_name = prop.struct_type.bench_name
         return f"{struct_cls_name}.from_value({value_expr})"
-    elif prop.scalar_type == "node":
+    elif prop.scalar_type == "node_reference":
         return f"NodeReference.from_value({value_expr})"
+    elif prop.scalar_type == "node_value":
+        return f"Node.from_value({value_expr})"
     else:
         assert_never(prop.scalar_type)

@@ -1,4 +1,6 @@
 import pytest
+from hypothesis import HealthCheck, given, settings
+
 from bench.language import (
     Action,
     Block,
@@ -18,7 +20,6 @@ from bench.test.simulation.core import Simulation
 from bench.test.simulation.workload import RuntimeLambdaWorkload
 from bench.test.strategies import examples, structs
 from bench.test.unit.conftest import BUILTIN_OBJECTS, simulated_runtime
-from hypothesis import HealthCheck, given, settings
 
 
 @given(obj=structs)
@@ -92,7 +93,10 @@ async def test_instance_with_cross_references(
     action.add_children(
         Field(name="Text", scalar_type=ScalarType.STRUCT, struct_type=StructType.TEXT),
         Field(
-            name="Schema", scalar_type=ScalarType.NODE, node_type=NodeType.FIELD, base_type=schema
+            name="Schema",
+            scalar_type=ScalarType.NODE_REFERENCE,
+            node_type=NodeType.FIELD,
+            base_type=schema,
         ),
     )
     flow.add_child(action)
@@ -134,7 +138,10 @@ async def test_move_subtree(simulation: Simulation, runtime: RuntimeLambdaWorklo
     Block2.add_children(
         Field(name="Text", scalar_type=ScalarType.STRUCT, struct_type=StructType.TEXT),
         Field(
-            name="Schema", scalar_type=ScalarType.NODE, node_type=NodeType.FIELD, base_type=Block1
+            name="Schema",
+            scalar_type=ScalarType.NODE_REFERENCE,
+            node_type=NodeType.FIELD,
+            base_type=Block1,
         ),
     )
     Block3 = Page1.add_child(CustomNodeDefinition(name="Block3"))

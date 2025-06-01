@@ -3,6 +3,9 @@ from random import Random
 from typing import Any
 
 import pytest
+from fastuuid import UUID
+from grpclib import GRPCError
+
 from bench.language import (
     PRIMITIVE_TYPE_BY_PY_TYPE,
     CustomNodeDefinition,
@@ -19,8 +22,6 @@ from bench.test.simulation.core import Simulation
 from bench.test.simulation.workload import RuntimeLambdaWorkload
 from bench.test.unit.conftest import simulated_runtime
 from bench.utils.string import Casing, to_casing
-from fastuuid import UUID
-from grpclib import GRPCError
 
 
 class SampleGenerator:
@@ -181,10 +182,10 @@ async def test_update_table_and_record(simulation: Simulation, runtime: RuntimeL
 async def test_create_record_with_ptrs(simulation: Simulation, runtime: RuntimeLambdaWorkload):
     """Create a Table with pointer fields (scalar and list)."""
     Table1 = CustomNodeDefinition(name="Table1").add_children(
-        Field(name="Block", scalar_type=ScalarType.NODE, node_type=NodeType.BLOCK),
+        Field(name="Block", scalar_type=ScalarType.NODE_REFERENCE, node_type=NodeType.BLOCK),
         Field(
             name="Blocks",
-            scalar_type=ScalarType.NODE,
+            scalar_type=ScalarType.NODE_REFERENCE,
             node_type=NodeType.BLOCK,
             cardinality=TypeCardinality.LIST,
         ),
@@ -206,7 +207,7 @@ async def test_move_table(simulation: Simulation, runtime: RuntimeLambdaWorkload
     Page2 = runtime.page("Page2")
     Table1 = CustomNodeDefinition(name="Table1").add_children(
         Field(name="Alias", scalar_type=ScalarType.PRIMITIVE, primitive_type=PrimitiveType.STRING),
-        Field(name="Image", scalar_type=ScalarType.NODE, node_type=NodeType.FILE),
+        Field(name="Image", scalar_type=ScalarType.NODE_REFERENCE, node_type=NodeType.FILE),
     )
     Page1.add_child(Table1)
     Record1 = Table1.records.create(name="Record1", Alias="1")
@@ -371,7 +372,11 @@ async def test_morph_table_field_type(simulation: Simulation, runtime: RuntimeLa
 async def test_record_recursive_reference(simulation: Simulation, runtime: RuntimeLambdaWorkload):
     """Create a Record with a recursive reference to itself."""
     Table1 = CustomNodeDefinition(name="Table1").add_children(
-        Field(name="Record", scalar_type=ScalarType.NODE, node_type=NodeType.CUSTOM_NODE_INSTANCE)
+        Field(
+            name="Record",
+            scalar_type=ScalarType.NODE_REFERENCE,
+            node_type=NodeType.CUSTOM_NODE_INSTANCE,
+        )
     )
     runtime.page().add_child(Table1)
     Record1 = Table1.records.create(name="Record1")

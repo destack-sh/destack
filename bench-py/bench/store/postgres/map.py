@@ -48,7 +48,7 @@ def map_builtin_node_to_sql_table(node: type[Node]) -> SqlTable:
         if prop.edge_type == EdgeType.NODE_PARENT and node.__root_type__ is None:
             continue  # no parent for root nodes
 
-        if prop.scalar_type == "node":
+        if prop.scalar_type == "node_reference":
             # node ptr property
             assert prop.runtime_prop is not None, f"no runtime prop for {prop!r}"
             prop = prop.runtime_prop
