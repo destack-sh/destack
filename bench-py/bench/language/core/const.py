@@ -313,6 +313,7 @@ class EnumType(BuiltinEnum):
     BENCH_ROLE_TYPE = 40200
     ORGANIZATION_ROLE_TYPE = 40210
     PACKAGE_ROLE_TYPE = 40220
+    CLIENT_TYPE = 40230
     # ...
 
     # space [40600-40800]
@@ -329,8 +330,8 @@ class EnumType(BuiltinEnum):
     AREA = 40054
     CONTINENT = 40055
     MACHINE_TYPE = 41010
-    TENANCY = 41020
-    CLIENT_TYPE = 41021
+    TENANCY = 41011
+    STORE_TYPE = 41012
     # ...
 
     # logic [41200-41600]
@@ -680,7 +681,7 @@ class NodeType(BuiltinEnum):
     RUN = 1610, "Run", "Run", "fas fa-play"
     SPAN = 1620, "Span", "Span", "fas fa-ruler-horizontal"
     INTERRUPTION = 1630, "Interruption", "Interruption", "fas fa-hand"
-    # EVENT, SIGNAL, TRACE, LOG, ...
+    # EVENT, SIGNAL, TRACE, LOG/EDIT_LOG/CHANGE_LOG/QUERY_LOG/..., ...
 
     # data [2000-2200]
     SCHEMA = 2000, "Schema", "Schema", "fas fa-shapes"
@@ -1091,23 +1092,20 @@ class PrimitiveType(BuiltinEnum):
     """
 
     BOOLEAN = 1, "Boolean", "Yes or no", "fas fa-toggle-large-on"
-    # ...
     # INT8? UINTs?
     # range: -32768 to 32767
     INT16 = 4, "Integer", "Very small integer", "fas fa-tally"
     # range: -2147483648 to 2147483647
-    INT32 = 6, "Integer", "Small integer", "fas fa-tally"
+    INT32 = 5, "Integer", "Small integer", "fas fa-tally"
     # range: -9223372036854775808 to 9223372036854775807
-    INT64 = 8, "Integer", "Integer number", "fas fa-tally"
+    INT64 = 6, "Integer", "Integer number", "fas fa-tally"
     # numeric(precision, scale)
     DECIMAL = 10, "Decimal", "Decimal number", "fas fa-tally"
-    # ...
     # FLOAT16?
     # range: 1.175494351e-38 to 3.402823466e+38
     FLOAT32 = 16, "Float", "Small float", "fas fa-hashtag"
     # range: 2.2250738585072014e-308 to 1.7976931348623157e+308
     FLOAT64 = 17, "Float", "Floating point number", "fas fa-hashtag"
-    # ...
     STRING = 20, "String", "Plain text", "fas fa-font-case"
     UUID = 21, "UUID", "UUID", "fas fa-fingerprint"
     JSON = 22, "JSON", "JSON", "fas fa-brackets-curly"
@@ -1336,9 +1334,23 @@ class ClientType(BuiltinEnum):
     BROWSER_PLUGIN = 2
     DESKTOP = 3
     MOBILE = 4
-
     # system
     MACHINE = 10
+
+
+@enum_(EnumType.TENANCY)
+class Tenancy(BuiltinEnum):
+    DEDICATED = 1
+    SHARED = 2
+
+
+@enum_(EnumType.STORE_TYPE)
+class StoreType(BuiltinEnum):
+    POSTGRES = 1
+    ELASTICSEARCH = 2
+    CLICKHOUSE = 3
+    LOCAL = 4
+    REMOTE = 5
 
 
 CLOUD = get_from_env("CLOUD", typ=Cloud, description="Cloud we're running in")

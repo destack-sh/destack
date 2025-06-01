@@ -182,13 +182,12 @@ class ServiceBase(abc.ABC):
             with tracer.start_as_current_span(rpc_name) as span:
                 try:
                     set_baggage(**self.get_service_baggage())
-                    session = Session()
+                    metadata = unpack_rpc_headers(stream.metadata or EMPTY_DICT)
+                    session = await self.make_session(metadata)
                     async with session:
                         request = await stream.recv_message()
                         if request is None:
                             raise GRPCError(GRPCStatus.INVALID_ARGUMENT, "missing request")
-                        headers = stream.metadata
-                        metadata = unpack_rpc_headers(headers or EMPTY_DICT)
                         subject, client = await self.resolve_client(request, metadata)
 
                         if handler.cardinality == grpclib.const.Cardinality.UNARY_UNARY:

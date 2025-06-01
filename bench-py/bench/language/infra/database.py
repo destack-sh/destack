@@ -1,9 +1,7 @@
 from typing import TYPE_CHECKING, Optional
 
 from bench.language.core import (
-    BuiltinEnum,
     BuiltinObjectMutable,
-    EnumType,
     IsInBench,
     IsResource,
     Node,
@@ -11,7 +9,7 @@ from bench.language.core import (
     Region,
     StructMutable,
     StructType,
-    enum_,
+    Tenancy,
     node_,
     object_,
     property_,
@@ -25,12 +23,6 @@ if TYPE_CHECKING:
 
 
 # pyright: reportIncompatibleVariableOverride=false
-
-
-@enum_(EnumType.TENANCY)
-class Tenancy(BuiltinEnum):
-    DEDICATED = 1
-    SHARED = 2
 
 
 @object_()

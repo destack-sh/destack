@@ -1,5 +1,5 @@
 from .cell import CellInfo
-from .database import Database, DatabaseInfo, Tenancy
+from .database import Database, DatabaseInfo
 from .machine import Machine, MachineType
 
 __all__ = [
@@ -8,5 +8,4 @@ __all__ = [
     "DatabaseInfo",
     "Machine",
     "MachineType",
-    "Tenancy",
 ]

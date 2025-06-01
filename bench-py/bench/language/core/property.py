@@ -645,6 +645,7 @@ def property_parent_(id: int = 4) -> Any:
         is_eq=False,
         node_bench_from="self",
         node_is_customizable=True,
+        cascade=CascadeAction.CASCADE,
     )
 
 
