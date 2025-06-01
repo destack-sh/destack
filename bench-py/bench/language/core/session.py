@@ -80,6 +80,21 @@ class Session:
         self.closed_at: datetime | None = None
         self._token: Any | None = None
 
+    def __str__(self) -> str:
+        content_parts: list[str] = [f"mode={self.mode.name}"]
+        if self.bench:
+            content_parts.append(f"bench={self.bench.slug}")
+        if self.subject is not None:
+            content_parts.append(f"subject={self.subject!r}")
+        if self.store is not None:
+            content_parts.append(f"store={self.store!r}")
+        if self.closed_at is not None:
+            content_parts.append(f"closed_at={self.closed_at.isoformat()}")
+        return ", ".join(content_parts)
+
+    def __repr__(self) -> str:
+        return f"<Session {self!s}>"
+
     async def open(self):
         """Opens the Session."""
         assert self._token is None, f"{self!r} is already open"

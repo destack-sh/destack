@@ -45,8 +45,6 @@ async def supervisor(supervisor_service):
 async def test_user_registration(supervisor: SupervisorClient):
     """Create a User, login and logout. Try some wrong passwords and tokens. Read back data to confirm."""
 
-    session = Session()
-
     user_slug = "florian"
     user_name = "Florian Cäsar"
     user_email = "florian@symbolx.com"
@@ -57,7 +55,7 @@ async def test_user_registration(supervisor: SupervisorClient):
         type=ClientType.WEB,
         name=client_name,
         device_name=client_device_name,
-        _session=session,
+        _session=Session(),
     ).to_proto()
 
     # signup -> success

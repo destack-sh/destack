@@ -50,6 +50,7 @@ from .migration import (
     read_migrations_from_pg,
     sql_migrate,
 )
+from .store import DatabaseStore
 
 __all__ = [
     "BASE_EXTENSIONS",
@@ -70,6 +71,7 @@ __all__ = [
     "MIGRATIONS_PATH",
     "MIGRATIONS_TEMPLATE_PATH",
     "MIGRATION_TABLE",
+    "DatabaseStore",
     "Migration",
     "MigrationFile",
     "MigrationOp",
