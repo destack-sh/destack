@@ -144,8 +144,8 @@ BUILTIN_TABLE_BY_NODE_TYPE: dict[NodeType, DatabaseTable] = {
     node_type: map_builtin_node_to_database_table(NODE_CLASS_BY_TYPE[node_type])
     for node_type in NODE_TYPES
 }
-BUILTIN_NODE_BY_TABLE_NAME: dict[str, NodeType] = {
-    table.name: node_type for node_type, table in BUILTIN_TABLE_BY_NODE_TYPE.items()
+BUILTIN_TABLE_BY_NAME: dict[str, DatabaseTable] = {
+    table.name: table for table in BUILTIN_TABLE_BY_NODE_TYPE.values()
 }
 BUILTIN_NODE_TABLES: tuple[DatabaseTable, ...] = tuple(BUILTIN_TABLE_BY_NODE_TYPE.values())
 

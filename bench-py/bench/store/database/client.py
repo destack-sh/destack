@@ -6,6 +6,7 @@ import asyncpg.transaction
 
 from bench.language import DatabaseInfo
 
+# NOTE: we never expire/remove Pools since we assume only a few connections
 _pool_by_url: dict[str, asyncpg.Pool] = {}
 
 

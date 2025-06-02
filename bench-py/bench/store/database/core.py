@@ -1,5 +1,7 @@
+import abc
 import dataclasses
 import enum
+from collections.abc import Sequence
 from dataclasses import dataclass
 from itertools import chain
 from typing import TYPE_CHECKING, Any, ClassVar, Self, Union, cast
@@ -9,13 +11,15 @@ from more_itertools import first
 from bench.language import (
     ConditionalType,
     CustomNodeDefinition,
+    Edit,
     Field,
     IndexIn,
+    NodeReference,
+    NodeType,
     PrimitiveType,
     Property,
     SortType,
 )
-from bench.language.core.const import NodeType
 from bench.utils.func import hash_stable
 
 if TYPE_CHECKING:
@@ -79,59 +83,6 @@ class DatabaseObject:
     def sql(self) -> str:
         """Turns this object into a SQL block."""
         raise NotImplementedError
-
-    def source_repr(self) -> str:
-        """Turns this object into Python code that defines it."""
-
-        def _source_repr(value: Any) -> str | None:
-            if hasattr(value, "source_repr"):
-                return value.source_repr()
-            elif isinstance(value, tuple):
-                if not value:
-                    return None
-                if len(value) > 1:
-                    return f"({', '.join(cast(str, _source_repr(v)) for v in value)})"
-                else:
-                    assert len(value) > 0, f"empty tuple: {value!r}"
-                    return f"({_source_repr(value[0])},)"
-            elif isinstance(value, list):
-                if not value:
-                    return None
-                return f"[{', '.join(cast(str, _source_repr(v)) for v in value)}]"
-            elif isinstance(value, enum.Enum):
-                return f"{value.__class__.__name__}.{value.name}"
-            elif isinstance(value, Property):
-                node_type = getattr(value.component, "metatype", None)
-                assert isinstance(node_type, NodeType), f"no node type for: {value!r}"
-                return f"{node_type.bench_name}.property({value.name!r})"
-            else:
-                return repr(value)
-
-        fields = dataclasses.fields(self)
-        args = []
-        arg_idx = 0
-        for field_idx, field in enumerate(fields):
-            if field.name.startswith("_"):
-                continue
-            if self.kind == DatabaseObjectKind.COLUMN and field.name == "type":
-                # we want to reproduce the original type, not the encrypted type
-                #  (we sneakily change the type in __post_init__)
-                assert isinstance(self, DatabaseColumn)
-                value = self.type
-            else:
-                value = getattr(self, field.name)
-            if value == field.default:
-                continue
-            value = _source_repr(value)
-            if value is None:
-                continue
-            if arg_idx == field_idx and field.default:
-                args.append(value)
-            else:
-                args.append(f"{field.name}={value}")
-            arg_idx += 1
-        args_str = ", ".join(args)
-        return f"{self.__class__.__name__}({args_str})"
 
     def walk(self) -> tuple["DatabaseObject", ...]:
         return (self,)
@@ -534,18 +485,12 @@ class DatabaseTable(DatabaseTableObject):
         return self, *self.columns, *self.indexes, *self.constraints
 
 
-@dataclass(slots=True)
-class DatabaseContext:
-    tables_by_name: dict[str, DatabaseTable]
+class DatabaseContext(abc.ABC):
+    @abc.abstractmethod
+    def apply(self, edits: Sequence[Edit]): ...
 
-    @staticmethod
-    def from_builtin():
-        from .map import BUILTIN_NODE_TABLES
-
-        tables_by_name: dict[str, DatabaseTable] = {}
-        for table in BUILTIN_NODE_TABLES:
-            tables_by_name[table.name] = table
-        return DatabaseContext(tables_by_name=tables_by_name)
+    @abc.abstractmethod
+    def get_table(self, key: str | NodeReference) -> DatabaseTable: ...
 
 
 class PostgresColumnType(enum.StrEnum):
