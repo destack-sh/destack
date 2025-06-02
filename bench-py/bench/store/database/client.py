@@ -24,7 +24,7 @@ async def pg_connection(database: DatabaseInfo) -> AsyncGenerator[asyncpg.Connec
 
 
 @asynccontextmanager
-async def pg_tx(
+async def pg_transaction(
     database: DatabaseInfo,
 ) -> AsyncGenerator[tuple[asyncpg.Connection, asyncpg.transaction.Transaction], None]:
     """
@@ -33,10 +33,12 @@ async def pg_tx(
 
     assert database.sql_url, f"no sql_url for {database!r}"
     conn = await asyncpg.connect(database.sql_url)
-    tx = await conn.transaction()
+    tx = conn.transaction()
+    await tx.start()
     try:
-        await tx.start()
         yield conn, tx
-    finally:
+    except Exception:
         await tx.rollback()
+        raise
+    finally:
         await conn.close()

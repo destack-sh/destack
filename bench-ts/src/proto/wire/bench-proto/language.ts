@@ -1556,7 +1556,7 @@ export interface EditData {
      */
     value?: ValueData;
     /**
-     * @generated from protobuf field: optional symbol.bench.NodeReferenceData parent_ptr = 41;
+     * @generated from protobuf field: optional symbol.bench.NodeReferenceData parent_ptr = 42;
      */
     parentPtr?: NodeReferenceData;
 }
@@ -9700,6 +9700,10 @@ export enum EnumType {
      */
     PACKAGE_ROLE_TYPE = 40220,
     /**
+     * @generated from protobuf enum value: ENUM_TYPE_CLIENT_TYPE = 40230;
+     */
+    CLIENT_TYPE = 40230,
+    /**
      * @generated from protobuf enum value: ENUM_TYPE_SPACE_TYPE = 40600;
      */
     SPACE_TYPE = 40600,
@@ -9728,13 +9732,13 @@ export enum EnumType {
      */
     MACHINE_TYPE = 41010,
     /**
-     * @generated from protobuf enum value: ENUM_TYPE_TENANCY = 41020;
+     * @generated from protobuf enum value: ENUM_TYPE_TENANCY = 41011;
      */
-    TENANCY = 41020,
+    TENANCY = 41011,
     /**
-     * @generated from protobuf enum value: ENUM_TYPE_CLIENT_TYPE = 41021;
+     * @generated from protobuf enum value: ENUM_TYPE_STORE_TYPE = 41012;
      */
-    CLIENT_TYPE = 41021,
+    STORE_TYPE = 41012,
     /**
      * @generated from protobuf enum value: ENUM_TYPE_ACTION_CARDINALITY = 41220;
      */
@@ -11237,9 +11241,9 @@ export enum NodeArea {
      */
     GLOBAL_DATABASE = 1,
     /**
-     * @generated from protobuf enum value: NODE_AREA_MAIN_DATABASE = 2;
+     * @generated from protobuf enum value: NODE_AREA_MAIN_DATABASE = 100;
      */
-    MAIN_DATABASE = 2
+    MAIN_DATABASE = 100
 }
 /**
  * @generated from protobuf enum symbol.bench.NodeMode
@@ -11686,13 +11690,13 @@ export enum PrimitiveType {
      */
     INT16 = 4,
     /**
-     * @generated from protobuf enum value: PRIMITIVE_TYPE_INT32 = 6;
+     * @generated from protobuf enum value: PRIMITIVE_TYPE_INT32 = 5;
      */
-    INT32 = 6,
+    INT32 = 5,
     /**
-     * @generated from protobuf enum value: PRIMITIVE_TYPE_INT64 = 8;
+     * @generated from protobuf enum value: PRIMITIVE_TYPE_INT64 = 6;
      */
-    INT64 = 8,
+    INT64 = 6,
     /**
      * @generated from protobuf enum value: PRIMITIVE_TYPE_DECIMAL = 10;
      */
@@ -12020,13 +12024,17 @@ export enum ScalarType {
      */
     ENUM = 2,
     /**
-     * @generated from protobuf enum value: SCALAR_TYPE_NODE = 3;
+     * @generated from protobuf enum value: SCALAR_TYPE_NODE_REFERENCE = 3;
      */
-    NODE = 3,
+    NODE_REFERENCE = 3,
     /**
-     * @generated from protobuf enum value: SCALAR_TYPE_STRUCT = 4;
+     * @generated from protobuf enum value: SCALAR_TYPE_NODE_VALUE = 4;
      */
-    STRUCT = 4
+    NODE_VALUE = 4,
+    /**
+     * @generated from protobuf enum value: SCALAR_TYPE_STRUCT = 5;
+     */
+    STRUCT = 5
 }
 /**
  * @generated from protobuf enum symbol.bench.ScheduleFrequency
@@ -12249,6 +12257,27 @@ export enum SpringType {
      * @generated from protobuf enum value: SPRING_TYPE_PHYSICS = 2;
      */
     PHYSICS = 2
+}
+/**
+ * @generated from protobuf enum symbol.bench.StoreType
+ */
+export enum StoreType {
+    /**
+     * @generated from protobuf enum value: STORE_TYPE_UNSPECIFIED = 0;
+     */
+    UNSPECIFIED = 0,
+    /**
+     * @generated from protobuf enum value: STORE_TYPE_LOCAL = 1;
+     */
+    LOCAL = 1,
+    /**
+     * @generated from protobuf enum value: STORE_TYPE_REMOTE = 2;
+     */
+    REMOTE = 2,
+    /**
+     * @generated from protobuf enum value: STORE_TYPE_DATABASE = 10;
+     */
+    DATABASE = 10
 }
 /**
  * The format of a string.
@@ -16611,7 +16640,7 @@ class EditData$Type extends MessageType$<EditData> {
             { no: 34, name: "field_ptr", kind: "message", T: () => NodeReferenceData },
             { no: 35, name: "key", kind: "message", T: () => ValueData },
             { no: 40, name: "value", kind: "message", T: () => ValueData },
-            { no: 41, name: "parent_ptr", kind: "message", T: () => NodeReferenceData }
+            { no: 42, name: "parent_ptr", kind: "message", T: () => NodeReferenceData }
         ]);
     }
     create(value?: PartialMessage<EditData>): EditData {
@@ -16655,7 +16684,7 @@ class EditData$Type extends MessageType$<EditData> {
                 case /* optional symbol.bench.ValueData value */ 40:
                     message.value = ValueData.internalBinaryRead(reader, reader.uint32(), options, message.value);
                     break;
-                case /* optional symbol.bench.NodeReferenceData parent_ptr */ 41:
+                case /* optional symbol.bench.NodeReferenceData parent_ptr */ 42:
                     message.parentPtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.parentPtr);
                     break;
                 default:
@@ -16697,9 +16726,9 @@ class EditData$Type extends MessageType$<EditData> {
         /* optional symbol.bench.ValueData value = 40; */
         if (message.value)
             ValueData.internalBinaryWrite(message.value, writer.tag(40, WireType.LengthDelimited).fork(), options).join();
-        /* optional symbol.bench.NodeReferenceData parent_ptr = 41; */
+        /* optional symbol.bench.NodeReferenceData parent_ptr = 42; */
         if (message.parentPtr)
-            NodeReferenceData.internalBinaryWrite(message.parentPtr, writer.tag(41, WireType.LengthDelimited).fork(), options).join();
+            NodeReferenceData.internalBinaryWrite(message.parentPtr, writer.tag(42, WireType.LengthDelimited).fork(), options).join();
         let u = options.writeUnknownFields;
         if (u !== false)
             (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);

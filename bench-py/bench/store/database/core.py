@@ -14,10 +14,10 @@ if TYPE_CHECKING:
 
 
 @dataclass(slots=True)
-class SqlSchema:
-    extensions: tuple["SqlExtension", ...]
-    tables: tuple["SqlTable", ...]
-    _tables_by_name: dict[str, "SqlTable"] = dataclasses.field(init=False)
+class DatabaseSchema:
+    extensions: tuple["DatabaseExtension", ...]
+    tables: tuple["DatabaseTable", ...]
+    _tables_by_name: dict[str, "DatabaseTable"] = dataclasses.field(init=False)
 
     def __post_init__(self):
         self._tables_by_name = {table.name: table for table in self.tables}
@@ -28,7 +28,7 @@ class SqlSchema:
     def __repr__(self):
         return f"<Schema {self}>"
 
-    def get_table(self, name: str) -> "SqlTable":
+    def get_table(self, name: str) -> "DatabaseTable":
         table = self._tables_by_name.get(name)
         if table is None:
             raise KeyError(f"no table {name!r} in {self!r}")
@@ -41,10 +41,10 @@ class SqlSchema:
 
     @staticmethod
     def blank():
-        return SqlSchema(extensions=(), tables=())
+        return DatabaseSchema(extensions=(), tables=())
 
 
-class SqlObjectKind(enum.StrEnum):
+class DatabaseObjectKind(enum.StrEnum):
     EXTENSION = "EXTENSION"
     TABLE = "TABLE"
     COLUMN = "COLUMN"
@@ -53,9 +53,9 @@ class SqlObjectKind(enum.StrEnum):
 
 
 @dataclass(slots=True)
-class SqlObject:
+class DatabaseObject:
     FLAT_DATA_FIELDS: ClassVar[tuple[str, ...]]
-    kind: ClassVar[SqlObjectKind]
+    kind: ClassVar[DatabaseObjectKind]
 
     if TYPE_CHECKING:
 
@@ -100,10 +100,10 @@ class SqlObject:
         for field_idx, field in enumerate(fields):
             if field.name.startswith("_"):
                 continue
-            if self.kind == SqlObjectKind.COLUMN and field.name == "type":
+            if self.kind == DatabaseObjectKind.COLUMN and field.name == "type":
                 # we want to reproduce the original type, not the encrypted type
                 #  (we sneakily change the type in __post_init__)
-                assert isinstance(self, SqlColumn)
+                assert isinstance(self, DatabaseColumn)
                 value = self.type
             else:
                 value = getattr(self, field.name)
@@ -120,7 +120,7 @@ class SqlObject:
         args_str = ", ".join(args)
         return f"{self.__class__.__name__}({args_str})"
 
-    def walk(self) -> tuple["SqlObject", ...]:
+    def walk(self) -> tuple["DatabaseObject", ...]:
         return (self,)
 
     def hash_flat(self) -> int:
@@ -132,7 +132,7 @@ class SqlObject:
         )
         return hash_stable(*values)
 
-    def diff_flat(self, other: "SqlTableObject") -> dict[str, Any]:
+    def diff_flat(self, other: "DatabaseTableObject") -> dict[str, Any]:
         """Get a diff of this object's data attributes, ignoring nested objects."""
         assert type(self) is type(other), f"cannot diff {self!r} with {other!r}"
         return {
@@ -141,7 +141,7 @@ class SqlObject:
             if getattr(self, field_name) != getattr(other, field_name)
         }
 
-    def diff_keys(self, other: "SqlTableObject") -> tuple[str, ...]:
+    def diff_keys(self, other: "DatabaseTableObject") -> tuple[str, ...]:
         """Get the keys (field names) where this object differs from another."""
         assert type(self) is type(other), f"cannot diff {self!r} with {other!r}"
         return tuple(
@@ -152,13 +152,13 @@ class SqlObject:
 
 
 @dataclass(slots=True)
-class SqlExtension(SqlObject):
+class DatabaseExtension(DatabaseObject):
     """
     A SQL extension.
     """
 
     FLAT_DATA_FIELDS: ClassVar[tuple[str, ...]] = ("name",)
-    kind: ClassVar[SqlObjectKind] = SqlObjectKind.EXTENSION
+    kind: ClassVar[DatabaseObjectKind] = DatabaseObjectKind.EXTENSION
 
     name: str  # type: ignore
 
@@ -172,7 +172,7 @@ class SqlExtension(SqlObject):
         return hash_stable(self.kind, self.name)
 
     def __eq__(self, other):
-        return isinstance(other, SqlExtension) and self.name == other.name
+        return isinstance(other, DatabaseExtension) and self.name == other.name
 
     @property
     def qualified_name(self) -> str:
@@ -183,9 +183,9 @@ class SqlExtension(SqlObject):
 
 
 @dataclass(slots=True)
-class SqlTableObject(SqlObject):
+class DatabaseTableObject(DatabaseObject):
     @property
-    def table(self) -> "SqlTable":
+    def table(self) -> "DatabaseTable":
         assert self._table is not None, f"{self} is not attached to a table"
         return self._table
 
@@ -195,15 +195,15 @@ class SqlTableObject(SqlObject):
 
     @property
     def qualified_name(self) -> str:
-        if self.kind == SqlObjectKind.TABLE:
-            return cast("SqlTable", self).name
-        elif self.kind == SqlObjectKind.INDEX:
-            return cast("SqlIndex", self).name
+        if self.kind == DatabaseObjectKind.TABLE:
+            return cast("DatabaseTable", self).name
+        elif self.kind == DatabaseObjectKind.INDEX:
+            return cast("DatabaseIndex", self).name
         else:
             return f"{self.table_name}.{getattr(self, 'name')}"
 
     @property
-    def _table(self) -> Union["SqlTable", None]:
+    def _table(self) -> Union["DatabaseTable", None]:
         raise NotImplementedError
 
     def clone(self) -> "Self":
@@ -224,7 +224,7 @@ class SqlCascadeAction(enum.StrEnum):
 
 
 @dataclass(slots=True)
-class SqlColumn(SqlTableObject):
+class DatabaseColumn(DatabaseTableObject):
     """
     A SQL column definition.
     """
@@ -241,7 +241,7 @@ class SqlColumn(SqlTableObject):
         "length",
         "default",
     )
-    kind: ClassVar[SqlObjectKind] = SqlObjectKind.COLUMN
+    kind: ClassVar[DatabaseObjectKind] = DatabaseObjectKind.COLUMN
 
     name: str  # type: ignore
     type: PrimitiveType
@@ -256,7 +256,7 @@ class SqlColumn(SqlTableObject):
     scale: int | None = None
     default: str | None = None
     _field: Union["Field", None] = None
-    _table: Union["SqlTable", None] = None  # type: ignore
+    _table: Union["DatabaseTable", None] = None  # type: ignore
 
     def clone(self) -> "Self":
         """Deep copy this Column without the Table / Field reference."""
@@ -325,7 +325,7 @@ class SqlColumn(SqlTableObject):
         return " ".join(parts)
 
 
-class SqlConstraintType(enum.StrEnum):
+class DatabaseConstraintType(enum.StrEnum):
     """
     A SQL constraint type.
     """
@@ -337,22 +337,22 @@ class SqlConstraintType(enum.StrEnum):
 
 
 @dataclass(slots=True)
-class SqlConstraint(SqlTableObject):
+class DatabaseConstraint(DatabaseTableObject):
     """
     A SQL constraint.
     """
 
     FLAT_DATA_FIELDS: ClassVar[tuple[str, ...]] = ("inner_name", "type", "columns", "condition")
-    kind: ClassVar[SqlObjectKind] = SqlObjectKind.CONSTRAINT
+    kind: ClassVar[DatabaseObjectKind] = DatabaseObjectKind.CONSTRAINT
 
     inner_name: str
-    type: SqlConstraintType
+    type: DatabaseConstraintType
     columns: tuple[str, ...] | None = None
     condition: str | None = None
     index: str | None = None  # existing index to use (name must be relative to same table)
     _full_name: str | None = None  # as introspected from pg (naming can change)
     _source: str | int | None = None
-    _table: Union["SqlTable", None] = None  # type: ignore
+    _table: Union["DatabaseTable", None] = None  # type: ignore
 
     def __post_init__(self):
         if self.columns is not None:
@@ -376,9 +376,9 @@ class SqlConstraint(SqlTableObject):
 
     def sql(self) -> str:
         parts = [f'"{self.name}"', self.type]
-        if self.type == SqlConstraintType.CHECK:
+        if self.type == DatabaseConstraintType.CHECK:
             parts.append(f"({self.condition})")
-        elif self.type == SqlConstraintType.UNIQUE:
+        elif self.type == DatabaseConstraintType.UNIQUE:
             if self.index is not None:
                 parts.append(f"USING INDEX {self.table_name}_{self.index}")
             else:
@@ -386,7 +386,7 @@ class SqlConstraint(SqlTableObject):
         return " ".join(parts)
 
 
-class SqlIndexType(enum.StrEnum):
+class DatabaseIndexType(enum.StrEnum):
     """
     A SQL index type.
     """
@@ -399,7 +399,7 @@ class SqlIndexType(enum.StrEnum):
 
 
 @dataclass(slots=True)
-class SqlIndex(SqlTableObject):
+class DatabaseIndex(DatabaseTableObject):
     """
     A SQL index.
     """
@@ -411,17 +411,17 @@ class SqlIndex(SqlTableObject):
         "is_unique",
         "condition",
     )
-    kind: ClassVar[SqlObjectKind] = SqlObjectKind.INDEX
+    kind: ClassVar[DatabaseObjectKind] = DatabaseObjectKind.INDEX
 
     inner_name: str
-    type: SqlIndexType
+    type: DatabaseIndexType
     columns: tuple[str, ...]
     cover: tuple[str, ...] = ()
     is_unique: bool = False
     condition: str | None = None
     _full_name: str | None = None  # as introspected from pg (naming may change)
     _source: str | int | None = None
-    _table: Union["SqlTable", None] = None  # type: ignore
+    _table: Union["DatabaseTable", None] = None  # type: ignore
 
     def __post_init__(self):
         if self.condition is not None:
@@ -442,7 +442,7 @@ class SqlIndex(SqlTableObject):
         return self._full_name or f"{self.table_name}_{self.inner_name}"
 
     def sql(self) -> str:
-        assert isinstance(self._table, SqlTable), f"{self} is not attached to a table"
+        assert isinstance(self._table, DatabaseTable), f"{self} is not attached to a table"
         parts = [
             f'"{self.name}"',
             f'ON "{self._table.name}"',
@@ -456,10 +456,10 @@ class SqlIndex(SqlTableObject):
         return " ".join(parts)
 
     @staticmethod
-    def from_index_in(name: str, index_in: IndexIn) -> "SqlIndex":
-        return SqlIndex(
+    def from_index_in(name: str, index_in: IndexIn) -> "DatabaseIndex":
+        return DatabaseIndex(
             inner_name=name,
-            type=SqlIndexType.BTREE,
+            type=DatabaseIndexType.BTREE,
             columns=index_in.columns,
             cover=index_in.cover,
             is_unique=index_in.is_unique,
@@ -468,22 +468,22 @@ class SqlIndex(SqlTableObject):
 
 
 @dataclass(slots=True)
-class SqlTable(SqlTableObject):
+class DatabaseTable(DatabaseTableObject):
     """
     A SQL table.
     """
 
     FLAT_DATA_FIELDS: ClassVar[tuple[str, ...]] = ("name",)
-    kind: ClassVar[SqlObjectKind] = SqlObjectKind.TABLE
+    kind: ClassVar[DatabaseObjectKind] = DatabaseObjectKind.TABLE
 
     name: str  # type: ignore
-    columns: tuple[SqlColumn, ...]
-    indexes: tuple[SqlIndex, ...] = ()
-    constraints: tuple[SqlConstraint, ...] = ()
+    columns: tuple[DatabaseColumn, ...]
+    indexes: tuple[DatabaseIndex, ...] = ()
+    constraints: tuple[DatabaseConstraint, ...] = ()
     _table: Union["CustomNodeDefinition", None] = None  # type: ignore
-    _columns_by_name: dict[str, SqlColumn] = dataclasses.field(init=False)
-    _columns_by_field: dict["Field", SqlColumn] = dataclasses.field(init=False)
-    _primary_key: SqlColumn | None = dataclasses.field(init=False)
+    _columns_by_name: dict[str, DatabaseColumn] = dataclasses.field(init=False)
+    _columns_by_field: dict["Field", DatabaseColumn] = dataclasses.field(init=False)
+    _primary_key: DatabaseColumn | None = dataclasses.field(init=False)
 
     def __post_init__(self):
         for object in chain(self.columns, self.indexes, self.constraints):
@@ -515,18 +515,18 @@ class SqlTable(SqlTableObject):
         return hash_stable(self.kind, self.name, self.columns, self.indexes, self.constraints)
 
     @property
-    def table(self) -> "SqlTable":
+    def table(self) -> "DatabaseTable":
         return self
 
     @property
-    def _table(self) -> "SqlTable":
+    def _table(self) -> "DatabaseTable":
         return self
 
-    def walk(self) -> tuple[SqlTableObject, ...]:
+    def walk(self) -> tuple[DatabaseTableObject, ...]:
         # NOTE: the order here matters and is assumed in the diff logic
         return self, *self.columns, *self.indexes, *self.constraints
 
-    def get_column(self, key: "str | Field") -> SqlColumn:
+    def get_column(self, key: "str | Field") -> DatabaseColumn:
         if isinstance(key, str):
             column = self._columns_by_name.get(key)
             if column is None:
@@ -542,8 +542,22 @@ class SqlTable(SqlTableObject):
                 )
             return column
 
-    def columns_by_name(self, *names: str) -> tuple[SqlColumn, ...]:
+    def columns_by_name(self, *names: str) -> tuple[DatabaseColumn, ...]:
         return tuple(self._columns_by_name[name] for name in names)
+
+
+@dataclass(slots=True)
+class DatabaseContext:
+    tables_by_name: dict[str, DatabaseTable]
+
+    @staticmethod
+    def from_builtin():
+        from .map import BUILTIN_NODE_TABLES
+
+        tables_by_name: dict[str, DatabaseTable] = {}
+        for table in BUILTIN_NODE_TABLES:
+            tables_by_name[table.name] = table
+        return DatabaseContext(tables_by_name=tables_by_name)
 
 
 class PostgresColumnType(enum.StrEnum):
@@ -723,19 +737,19 @@ POSTGRES_SORT_OP_BY_BENCH: dict[SortType, PostgresSortOp] = {
 #
 
 EXTENSIONS = (
-    SqlExtension("plpgsql"),
-    SqlExtension("uuid-ossp"),
-    SqlExtension("pgcrypto"),
-    SqlExtension("bloom"),
+    DatabaseExtension("plpgsql"),
+    DatabaseExtension("uuid-ossp"),
+    DatabaseExtension("pgcrypto"),
+    DatabaseExtension("bloom"),
 )
 
-MIGRATION_TABLE = SqlTable(  # see bench-py/bench/store/database/migration.py
+MIGRATION_TABLE = DatabaseTable(  # see bench-py/bench/store/database/migration.py
     "bench_migration",
     columns=(
-        SqlColumn("id", PrimitiveType.INT32, is_primary_key=True),
-        SqlColumn("version", PrimitiveType.STRING, is_unique=True),
-        SqlColumn("has_global", PrimitiveType.BOOLEAN),
-        SqlColumn("has_main", PrimitiveType.BOOLEAN),
-        SqlColumn("applied_at", PrimitiveType.DATETIME, is_nullable=True),
+        DatabaseColumn("id", PrimitiveType.INT32, is_primary_key=True),
+        DatabaseColumn("version", PrimitiveType.STRING, is_unique=True),
+        DatabaseColumn("has_global", PrimitiveType.BOOLEAN),
+        DatabaseColumn("has_main", PrimitiveType.BOOLEAN),
+        DatabaseColumn("applied_at", PrimitiveType.DATETIME, is_nullable=True),
     ),
 )

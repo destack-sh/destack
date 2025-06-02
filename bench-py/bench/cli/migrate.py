@@ -34,15 +34,15 @@ async def make(
 ):
     from bench.sharding import get_global_database_from_env
     from bench.store.database import (
-        BENCH_CUSTOM_NODE_PREFIX,
+        BENCH_CUSTOM_TABLE_PREFIX,
         BENCH_TABLE_PREFIX,
         BUILTIN_GLOBAL_SCHEMA,
         BUILTIN_MAIN_SCHEMA,
         Migration,
         add_migration_to_fs,
-        generate_sql_migration_code,
-        generate_sql_migration_ops,
-        introspect_sql_schema,
+        generate_migration_code,
+        generate_migration_ops,
+        introspect_schema,
         pg_connection,
         read_migrations_from_fs,
         read_migrations_from_pg,
@@ -76,12 +76,12 @@ async def make(
     # diff main
     if area in (None, NodeArea.MAIN_DATABASE):
         async with pg_connection(main_database) as conn:
-            old_main_schema = await introspect_sql_schema(
+            old_main_schema = await introspect_schema(
                 conn,
                 include_table_prefixes=(BENCH_TABLE_PREFIX,),
-                exclude_table_prefixes=(BENCH_CUSTOM_NODE_PREFIX,),
+                exclude_table_prefixes=(BENCH_CUSTOM_TABLE_PREFIX,),
             )
-        main_migration_ops = generate_sql_migration_ops(
+        main_migration_ops = generate_migration_ops(
             old_schema=old_main_schema, new_schema=BUILTIN_MAIN_SCHEMA
         )
     else:
@@ -90,12 +90,12 @@ async def make(
     # diff global
     if area in (None, NodeArea.GLOBAL_DATABASE):
         async with pg_connection(global_database) as conn:
-            old_global_schema = await introspect_sql_schema(
+            old_global_schema = await introspect_schema(
                 conn,
                 include_table_prefixes=(BENCH_TABLE_PREFIX,),
-                exclude_table_prefixes=(BENCH_CUSTOM_NODE_PREFIX,),
+                exclude_table_prefixes=(BENCH_CUSTOM_TABLE_PREFIX,),
             )
-        global_migration_ops = generate_sql_migration_ops(
+        global_migration_ops = generate_migration_ops(
             old_schema=old_global_schema, new_schema=BUILTIN_GLOBAL_SCHEMA
         )
     else:
@@ -113,7 +113,7 @@ async def make(
         has_main=bool(main_migration_ops),
         applied_at=None,
     )
-    migration_code = generate_sql_migration_code(
+    migration_code = generate_migration_code(
         new_migration,
         global_ops=global_migration_ops,
         main_ops=main_migration_ops,
@@ -147,7 +147,7 @@ async def apply(
 ):
     from bench.language import REGION, NodeArea
     from bench.sharding import get_global_database_from_env, get_main_database_from_env
-    from bench.store.database import pg_tx, sql_migrate
+    from bench.store.database import pg_transaction, sql_migrate
 
     start = time.time()
     global_database = get_global_database_from_env()
@@ -162,7 +162,7 @@ async def apply(
         raise RuntimeError(f"cannot migrate area: {area!r}")
 
     for database in databases:
-        async with pg_tx(database) as (conn, tx):
+        async with pg_transaction(database) as (conn, tx):
             await sql_migrate(conn=conn, target=target, area=area, oracle=REAL_ORACLE)
             if not dry_run:
                 await tx.commit()

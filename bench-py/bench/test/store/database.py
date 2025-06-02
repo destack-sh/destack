@@ -88,7 +88,7 @@ def session(session_async: Session):
 # )
 
 
-async def test_create_node(session: Session):
+async def test_create_user(session: Session):
     user = User(
         status=UserStatus.ACTIVE,
         name="Floof",
@@ -97,5 +97,5 @@ async def test_create_node(session: Session):
     )
     session.create(user)
     await session.commit()
-    await session.commit()
+    await session.commit()  # idempotent
     user = await User.get(where=User.property("id").eq(user.id)).execute_one()

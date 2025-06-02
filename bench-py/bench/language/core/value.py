@@ -37,7 +37,7 @@ tracer = trace.get_tracer(__name__)
 class Value(StructFrozen[ValueData]):
     """A generic Value of any Type."""
 
-    type: Type = property_(30)
+    type: Type = property_(30, is_repr=True)
     value: Json = property_(40)
 
     _unpacked: Any | None = property_runtime_()

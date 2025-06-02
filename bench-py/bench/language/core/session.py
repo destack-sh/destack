@@ -13,7 +13,7 @@ from opentelemetry import trace
 from bench.utils.oracle import REAL_ORACLE, Oracle
 
 from .const import ACTIVE_SESSION, NodeMode
-from .edit import Change, ChangeResult, Edit, EditType
+from .edit import Change, ChangeResult, ChangeStatus, Edit, EditType
 from .graph import Supergraph
 from .node import IsSubject, Node
 from .store import OptimisticStore
@@ -160,10 +160,15 @@ class Session:
 
     def _flush(self):
         """Turn pending updates into Edits, and Edits into Changes."""
-        pass
+        if self.dirty:
+            raise NotImplementedError("nocheckin: handle Session.update")
+        if self.edits:
+            change = Change(edits=self.edits, created_by=self.subject, origin=self.origin)
+            self.edits = []
+            self.changes.append(change)
 
     async def stage(self):
-        """Stage pending Edits."""
+        """Stage pending Edits. Also stages pending Changes in the Store if possible."""
         assert self.store is not None, f"{self!r} has no Store"
         self._flush()
         if isinstance(self.store, OptimisticStore):
@@ -176,6 +181,17 @@ class Session:
         assert self.store is not None, f"{self!r} has no Store"
         self._flush()
         results = await self.store.commit(self.changes)
+        if any(result.status != ChangeStatus.COMPLETED for result in results):
+            changes_by_id: dict[UUID, Change] = {change.id: change for change in self.changes}
+            failed_changes = [
+                changes_by_id[result.id]
+                for result in results
+                if result.status != ChangeStatus.COMPLETED
+            ]
+            raise RuntimeError(
+                f"failed to commit {len(failed_changes)} changes: {failed_changes!r}"
+            )
+        self.changes = []
         return results
 
     async def __aenter__(self):

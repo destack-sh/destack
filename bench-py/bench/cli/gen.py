@@ -14,17 +14,17 @@ logger = structlog.get_logger(__name__)
 def gen():
     """Generate all the derived things."""
     from bench.proto.gen import _gen_proto, _gen_proto_schema
-    from bench.store.database import _gen_sql_schema
+    from bench.store.database import gen_schema
 
     from .utils import run_shell_sync
 
     # sql
     start = REAL_ORACLE.time_ns()
-    source = _gen_sql_schema()
+    source = gen_schema()
     Path("bench-py/bench/store/database/schema.py").write_text(source)
     run_shell_sync("ruff check --fix bench-py/bench/store/database/schema.py")
     run_shell_sync("ruff format bench-py/bench/store/database/schema.py")
-    logger.info("sql.gen", duration=REAL_ORACLE.time_ns() - start)
+    logger.info("database.gen", duration=REAL_ORACLE.time_ns() - start)
 
     # proto
     start = REAL_ORACLE.time_ns()
