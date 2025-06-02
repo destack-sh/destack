@@ -784,15 +784,19 @@ export interface ChangeData {
      */
     id: string;
     /**
-     * @generated from protobuf field: google.protobuf.Timestamp created_at = 10;
+     * @generated from protobuf field: google.protobuf.Timestamp created_at = 31;
      */
     createdAt?: Timestamp;
     /**
-     * @generated from protobuf field: optional symbol.bench.NodeReferenceData created_by_ptr = 11;
+     * @generated from protobuf field: optional symbol.bench.NodeReferenceData created_by_ptr = 32;
      */
     createdByPtr?: NodeReferenceData;
     /**
-     * @generated from protobuf field: repeated symbol.bench.EditData edits = 41;
+     * @generated from protobuf field: optional symbol.bench.OriginData origin = 33;
+     */
+    origin?: OriginData;
+    /**
+     * @generated from protobuf field: repeated symbol.bench.EditData edits = 40;
      */
     edits: EditData[];
 }
@@ -14839,9 +14843,10 @@ class ChangeData$Type extends MessageType$<ChangeData> {
         super("symbol.bench.ChangeData", [
             { no: 1, name: "metatype", kind: "enum", T: () => ["symbol.bench.StructType", StructType, "STRUCT_TYPE_"] },
             { no: 2, name: "id", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
-            { no: 10, name: "created_at", kind: "message", T: () => Timestamp },
-            { no: 11, name: "created_by_ptr", kind: "message", T: () => NodeReferenceData },
-            { no: 41, name: "edits", kind: "message", repeat: 1 /*RepeatType.PACKED*/, T: () => EditData }
+            { no: 31, name: "created_at", kind: "message", T: () => Timestamp },
+            { no: 32, name: "created_by_ptr", kind: "message", T: () => NodeReferenceData },
+            { no: 33, name: "origin", kind: "message", T: () => OriginData },
+            { no: 40, name: "edits", kind: "message", repeat: 1 /*RepeatType.PACKED*/, T: () => EditData }
         ]);
     }
     create(value?: PartialMessage<ChangeData>): ChangeData {
@@ -14864,13 +14869,16 @@ class ChangeData$Type extends MessageType$<ChangeData> {
                 case /* string id */ 2:
                     message.id = reader.string();
                     break;
-                case /* google.protobuf.Timestamp created_at */ 10:
+                case /* google.protobuf.Timestamp created_at */ 31:
                     message.createdAt = Timestamp.internalBinaryRead(reader, reader.uint32(), options, message.createdAt);
                     break;
-                case /* optional symbol.bench.NodeReferenceData created_by_ptr */ 11:
+                case /* optional symbol.bench.NodeReferenceData created_by_ptr */ 32:
                     message.createdByPtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.createdByPtr);
                     break;
-                case /* repeated symbol.bench.EditData edits */ 41:
+                case /* optional symbol.bench.OriginData origin */ 33:
+                    message.origin = OriginData.internalBinaryRead(reader, reader.uint32(), options, message.origin);
+                    break;
+                case /* repeated symbol.bench.EditData edits */ 40:
                     message.edits.push(EditData.internalBinaryRead(reader, reader.uint32(), options));
                     break;
                 default:
@@ -14891,15 +14899,18 @@ class ChangeData$Type extends MessageType$<ChangeData> {
         /* string id = 2; */
         if (message.id !== "")
             writer.tag(2, WireType.LengthDelimited).string(message.id);
-        /* google.protobuf.Timestamp created_at = 10; */
+        /* google.protobuf.Timestamp created_at = 31; */
         if (message.createdAt)
-            Timestamp.internalBinaryWrite(message.createdAt, writer.tag(10, WireType.LengthDelimited).fork(), options).join();
-        /* optional symbol.bench.NodeReferenceData created_by_ptr = 11; */
+            Timestamp.internalBinaryWrite(message.createdAt, writer.tag(31, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbol.bench.NodeReferenceData created_by_ptr = 32; */
         if (message.createdByPtr)
-            NodeReferenceData.internalBinaryWrite(message.createdByPtr, writer.tag(11, WireType.LengthDelimited).fork(), options).join();
-        /* repeated symbol.bench.EditData edits = 41; */
+            NodeReferenceData.internalBinaryWrite(message.createdByPtr, writer.tag(32, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbol.bench.OriginData origin = 33; */
+        if (message.origin)
+            OriginData.internalBinaryWrite(message.origin, writer.tag(33, WireType.LengthDelimited).fork(), options).join();
+        /* repeated symbol.bench.EditData edits = 40; */
         for (let i = 0; i < message.edits.length; i++)
-            EditData.internalBinaryWrite(message.edits[i], writer.tag(41, WireType.LengthDelimited).fork(), options).join();
+            EditData.internalBinaryWrite(message.edits[i], writer.tag(40, WireType.LengthDelimited).fork(), options).join();
         let u = options.writeUnknownFields;
         if (u !== false)
             (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);

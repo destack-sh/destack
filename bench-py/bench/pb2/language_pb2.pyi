@@ -2735,18 +2735,20 @@ class CellInfoData(_message.Message):
     def __init__(self, metatype: _Optional[_Union[StructType, str]] = ..., region: _Optional[_Union[Region, str]] = ..., cell_name: _Optional[str] = ..., host: _Optional[str] = ...) -> None: ...
 
 class ChangeData(_message.Message):
-    __slots__ = ("metatype", "id", "created_at", "created_by_ptr", "edits")
+    __slots__ = ("metatype", "id", "created_at", "created_by_ptr", "origin", "edits")
     METATYPE_FIELD_NUMBER: _ClassVar[int]
     ID_FIELD_NUMBER: _ClassVar[int]
     CREATED_AT_FIELD_NUMBER: _ClassVar[int]
     CREATED_BY_PTR_FIELD_NUMBER: _ClassVar[int]
+    ORIGIN_FIELD_NUMBER: _ClassVar[int]
     EDITS_FIELD_NUMBER: _ClassVar[int]
     metatype: StructType
     id: str
     created_at: _timestamp_pb2.Timestamp
     created_by_ptr: NodeReferenceData
+    origin: OriginData
     edits: _containers.RepeatedCompositeFieldContainer[EditData]
-    def __init__(self, metatype: _Optional[_Union[StructType, str]] = ..., id: _Optional[str] = ..., created_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., created_by_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., edits: _Optional[_Iterable[_Union[EditData, _Mapping]]] = ...) -> None: ...
+    def __init__(self, metatype: _Optional[_Union[StructType, str]] = ..., id: _Optional[str] = ..., created_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., created_by_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., origin: _Optional[_Union[OriginData, _Mapping]] = ..., edits: _Optional[_Iterable[_Union[EditData, _Mapping]]] = ...) -> None: ...
 
 class ChangeResultData(_message.Message):
     __slots__ = ("metatype", "id", "created_at", "status", "edits", "cascaded_edits")

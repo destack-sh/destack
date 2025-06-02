@@ -1,4 +1,5 @@
 from collections.abc import Sequence
+from typing import Any
 
 import asyncpg
 import structlog
@@ -37,7 +38,6 @@ async def execute_change(
     current_table = await _get_table(ctx, change.edits[0].node_ptr)
     current_edit_type = change.edits[0].type
     current_batch: list[Edit] = []
-
     for edit in change.edits:
         edit_table = await _get_table(ctx, edit.node_ptr)
         if edit_table is not current_table or edit.type != current_edit_type:
@@ -70,16 +70,21 @@ async def execute_edits(
     Execute the Edits for a table.
     Returns the Edits and any cascaded Edits.
     """
-    if edit_type == EditType.CREATE:
-        stmt_parts = [
-            f"INSERT INTO {table.name} ({', '.join(col.name for col in table.columns)})",
-            f"VALUES ({', '.join(f'${i}' for i in range(len(edits)))});",
-        ]
-        stmt = " ".join(stmt_parts)
-        values_packed = []
+    if edit_type == EditType.CREATE or edit_type == EditType.UPSERT:
+        stmt = f"""
+            INSERT INTO {table.name} ({", ".join(col.name for col in table.columns)})
+            VALUES ({", ".join(f"${i}" for i in range(len(edits)))})
+        """
+        if edit_type == EditType.UPSERT:
+            stmt += f"""
+            ON CONFLICT DO UPDATE
+            SET {", ".join(f"{col.name} = EXCLUDED.{col.name}" for col in table.columns if not col.is_primary_key)}
+            """
+        stmt += ";"
+        values_packed: list[Sequence[Any]] = []
         for edit in edits:
             assert edit.value is not None, f"no value for {edit!r}"
-            values_packed.append(pack_node_value_to_row(edit.value))
+            values_packed.append(pack_node_value_to_row(table, edit.value))
         logger.debug("database.execute_edits", stmt=stmt, span="current")
         await conn.execute(stmt, *values_packed)
         return edits, ()

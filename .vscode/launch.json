@@ -24,7 +24,7 @@
       "program": "${workspaceFolder}/venv/bin/pytest",
       "args": ["--collect-only"],
       "console": "integratedTerminal",
-      "cwd": "${workspaceFolder}/bench-py",
+      "cwd": "${workspaceFolder}",
       "env": {
         "PYTEST_ADDOPTS": "--no-cov",
       },
@@ -34,7 +34,7 @@
       "name": "bench.user.setpassword",
       "type": "debugpy",
       "request": "launch",
-      "cwd": "${workspaceFolder}/bench-py",
+      "cwd": "${workspaceFolder}",
       "program": "${workspaceFolder}/bench-py/main.py",
       "args": ["user", "setpassword", "florian", "florian"],
       "justMyCode": true
@@ -43,7 +43,7 @@
       "name": "bench.gen",
       "type": "debugpy",
       "request": "launch",
-      "cwd": "${workspaceFolder}/bench-py",
+      "cwd": "${workspaceFolder}",
       "program": "${workspaceFolder}/bench-py/main.py",
       "args": ["gen"],
       "justMyCode": true
@@ -52,7 +52,7 @@
       "name": "bench.migrate.make",
       "type": "debugpy",
       "request": "launch",
-      "cwd": "${workspaceFolder}/bench-py",
+      "cwd": "${workspaceFolder}",
       "program": "${workspaceFolder}/bench-py/main.py",
       "args": ["migrate", "make", "--no-downgrade"],
       "justMyCode": true
@@ -61,7 +61,7 @@
       "name": "bench.schema",
       "type": "debugpy",
       "request": "launch",
-      "cwd": "${workspaceFolder}/bench-py",
+      "cwd": "${workspaceFolder}",
       "program": "${workspaceFolder}/bench-py/main.py",
       "args": ["instruct", "schema"],
       "justMyCode": true
@@ -70,7 +70,7 @@
       "name": "bench.bootstrap",
       "type": "debugpy",
       "request": "launch",
-      "cwd": "${workspaceFolder}/bench-py",
+      "cwd": "${workspaceFolder}y",
       "program": "${workspaceFolder}/bench-py/main.py",
       "args": ["system", "bootstrap", "--region", "eu-zurich", "--upsert"],
       "env": {
@@ -85,7 +85,7 @@
       "name": "bench.system",
       "type": "debugpy",
       "request": "launch",
-      "cwd": "${workspaceFolder}/bench-py",
+      "cwd": "${workspaceFolder}",
       "program": "${workspaceFolder}/bench-py/main.py",
       "args": ["serve", "system", "--watch", "0.0.0.0", "60061"],
       "env": {
@@ -100,7 +100,7 @@
       "name": "bench.runtime",
       "type": "debugpy",
       "request": "launch",
-      "cwd": "${workspaceFolder}/bench-py",
+      "cwd": "${workspaceFolder}",
       "program": "${workspaceFolder}/bench-py/main.py",
       "args": ["serve", "runtime", "--watch", "0.0.0.0", "60062"],
       "env": {
@@ -117,7 +117,7 @@
       "name": "bench.machine",
       "type": "debugpy",
       "request": "launch",
-      "cwd": "${workspaceFolder}/bench-py",
+      "cwd": "${workspaceFolder}",
       "program": "${workspaceFolder}/bench-py/main.py",
       "args": ["serve", "machine", "--watch", "0.0.0.0", "60063"],
       "env": {

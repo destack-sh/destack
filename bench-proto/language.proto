@@ -1592,9 +1592,10 @@ message CellInfoData {
 message ChangeData {
   StructType metatype = 1;
   string id = 2;
-  google.protobuf.Timestamp created_at = 10;
-  optional NodeReferenceData created_by_ptr = 11;
-  repeated EditData edits = 41;
+  google.protobuf.Timestamp created_at = 31;
+  optional NodeReferenceData created_by_ptr = 32;
+  optional OriginData origin = 33;
+  repeated EditData edits = 40;
 }
 
 message ChangeResultData {

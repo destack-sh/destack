@@ -15,7 +15,6 @@ from .core import (
     PostgresColumnType,
 )
 from .edit import execute_change
-from .gen import gen_schema
 from .map import (
     BENCH_CUSTOM_FIELD_PREFIX,
     BENCH_CUSTOM_TABLE_PREFIX,
@@ -88,7 +87,6 @@ __all__ = [
     "apply_migration_ops",
     "execute_change",
     "execute_query",
-    "gen_schema",
     "generate_migration_code",
     "generate_migration_ops",
     "introspect_schema",
