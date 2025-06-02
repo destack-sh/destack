@@ -10,7 +10,6 @@ import orjson
 from bench.language import (
     IsInBench,
     Json,
-    Node,
     NodeType,
     PrimitiveType,
     ScalarType,
@@ -81,7 +80,7 @@ def pack_node_value_to_row(table: DatabaseTable, value: Value) -> Sequence[Any]:
                     values_packed.append(None)
         else:
             if prop_value is not None:
-                prop_value_packed = pack_node_value_property(node_cls, prop.type, prop_value)
+                prop_value_packed = pack_node_value(prop.type, prop_value)
                 values_packed.append(prop_value_packed)
             else:
                 values_packed.append(None)
@@ -128,7 +127,7 @@ def _pack_node_value_scalar(type: Type, value: Json) -> Any:
         assert_never(type.scalar_type)
 
 
-def pack_node_value_property(node_cls: type[Node], type: Type, value_packed: Json) -> Any:
+def pack_node_value(type: Type, value_packed: Json) -> Any:
     if type.cardinality == TypeCardinality.SCALAR:
         return _pack_node_value_scalar(type, value_packed)
     elif type.cardinality == TypeCardinality.LIST:
@@ -164,7 +163,7 @@ def _unpack_node_value_scalar(type: Type, value: Any) -> Json:
         assert_never(type.scalar_type)
 
 
-def unpack_node_value_property(node_cls: type[Node], type: Type, value: Any) -> Json:
+def unpack_node_value(type: Type, value: Any) -> Json:
     if type.cardinality == TypeCardinality.SCALAR:
         return _unpack_node_value_scalar(type, value)
     elif type.cardinality == TypeCardinality.LIST:

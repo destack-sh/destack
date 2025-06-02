@@ -932,7 +932,7 @@ WHERE
 GROUP BY 
     col.table_name, col.column_name, col.data_type, col.udt_name, col.is_nullable, col.column_default;
                """
-        columns_rows: list[dict] = await conn.fetch(columns_query, tables_names)
+        columns_rows: list[asyncpg.Record] = await conn.fetch(columns_query, tables_names)
         columns_by_table: dict[str, list[DatabaseColumn]] = defaultdict(list)
         for row in columns_rows:
             udt_name: str = row["udt_name"]
@@ -1049,7 +1049,7 @@ FROM
 WHERE 
     idx.schemaname = 'public' AND idx.tablename = ANY($1);
             """
-        indexes_rows: list[dict] = await conn.fetch(indexes_query, tables_names)
+        indexes_rows: list[asyncpg.Record] = await conn.fetch(indexes_query, tables_names)
         for row in indexes_rows:
             definition: str = row["index_definition"]
             columns_str = definition.split("(")[1].split(")")[0]

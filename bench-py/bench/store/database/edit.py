@@ -17,28 +17,28 @@ logger = structlog.get_logger(__name__)
 
 
 async def execute_change(
-    conn: asyncpg.Connection, ctx: DatabaseContext, change: Change
+    conn: asyncpg.Connection, context: DatabaseContext, change: Change
 ) -> tuple[Sequence[Edit], Sequence[Edit]]:
     """Execute the Change."""
     assert change.edits, f"no Edits in {change!r}"
 
     cascaded_edits: list[Edit] = []
 
-    current_table = ctx.get_table(change.edits[0].node_ptr)
+    current_table = context.get_table(change.edits[0].node_ptr)
     current_edit_type = change.edits[0].type
     current_batch: list[Edit] = []
     for edit in change.edits:
-        edit_table = ctx.get_table(edit.node_ptr)
+        edit_table = context.get_table(edit.node_ptr)
         if edit_table is not current_table or edit.type != current_edit_type:
             _, batch_cascaded_edits = await _execute_edit(
                 conn=conn,
-                ctx=ctx,
+                context=context,
                 change=change,
                 table=current_table,
                 edit_type=current_edit_type,
                 edits=current_batch,
             )
-            ctx.apply(batch_cascaded_edits)
+            context.apply(batch_cascaded_edits)
             cascaded_edits.extend(batch_cascaded_edits)
             current_table = edit_table
             current_edit_type = edit.type
@@ -48,13 +48,14 @@ async def execute_change(
     if current_batch:
         _, batch_cascaded_edits = await _execute_edit(
             conn=conn,
-            ctx=ctx,
+            context=context,
             change=change,
             table=current_table,
             edit_type=current_edit_type,
             edits=current_batch,
         )
-        ctx.apply(batch_cascaded_edits)
+        context.apply(batch_cascaded_edits)
+
         cascaded_edits.extend(batch_cascaded_edits)
 
     return change.edits, cascaded_edits
@@ -62,18 +63,18 @@ async def execute_change(
 
 async def _cascade_nodes(
     conn: asyncpg.Connection,
-    ctx: DatabaseContext,
+    context: DatabaseContext,
     change: Change,
     table: DatabaseTable,
     node_ptrs: Sequence[NodeReference],
 ) -> Sequence[NodeReference]:
-    """Get the cascaded Nodes for an edit."""
-    return ()
+    """Get the cascaded Nodes for an Edit."""
+    raise NotImplementedError
 
 
 async def _execute_edit(
     conn: asyncpg.Connection,
-    ctx: DatabaseContext,
+    context: DatabaseContext,
     change: Change,
     table: DatabaseTable,
     edit_type: EditType,
@@ -132,7 +133,7 @@ SET {", ".join(f"{col.name} = EXCLUDED.{col.name}" for col in override_columns)}
         # cascade
         cascaded_node_ptrs = await _cascade_nodes(
             conn=conn,
-            ctx=ctx,
+            context=context,
             change=change,
             table=table,
             node_ptrs=tuple(edit.node_ptr for edit in edits),
@@ -154,7 +155,7 @@ SET {", ".join(f"{col.name} = EXCLUDED.{col.name}" for col in override_columns)}
             assert_never(edit_type)
         edited_node_ptrs_by_table: dict[str, list[uuid.UUID]] = defaultdict(list)
         for node_ptr in cascaded_node_ptrs:
-            table_name = ctx.get_table(node_ptr).name
+            table_name = context.get_table(node_ptr).name
             node_id_packed = uuid.UUID(str(node_ptr.id))
             edited_node_ptrs_by_table.setdefault(table_name, []).append(node_id_packed)
         at_packed = uuid.UUID(str(change.created_at))
@@ -173,7 +174,7 @@ WHERE id = $1
         # cascade
         cascaded_node_ptrs = await _cascade_nodes(
             conn=conn,
-            ctx=ctx,
+            context=context,
             change=change,
             table=table,
             node_ptrs=tuple(edit.node_ptr for edit in edits),
@@ -185,7 +186,7 @@ WHERE id = $1
         # delete
         edited_node_ptrs_by_table: dict[str, list[uuid.UUID]] = defaultdict(list)
         for node_ptr in cascaded_node_ptrs:
-            table_name = ctx.get_table(node_ptr).name
+            table_name = context.get_table(node_ptr).name
             node_id_packed = uuid.UUID(str(node_ptr.id))
             edited_node_ptrs_by_table.setdefault(table_name, []).append(node_id_packed)
         for table_name, table_node_ids in edited_node_ptrs_by_table.items():

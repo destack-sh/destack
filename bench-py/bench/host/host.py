@@ -15,6 +15,7 @@ from bench.language import (
     DatabaseInfo,
     IsSubject,
     LiveStore,
+    NodeArea,
     NodeReference,
     NodeType,
     Query,
@@ -90,7 +91,9 @@ class HostService(ServiceBase, HostBase):
         self.bench_ptr = NodeReference(node_type=NodeType.BENCH, id=bench_id, bench_id=bench_id)
         self.scope = Scope(bench_id=bench_id)
         self.plugins: tuple[HostPlugin, ...] = ()  # incl. provisioners
-        self.global_database_store = DatabaseStore(global_database)
+        self.global_database_store = DatabaseStore(
+            database=global_database, area=NodeArea.GLOBAL_DATABASE
+        )
         self.main_database_store: DatabaseStore | None = None
         self.store: LiveStore = ...  # type: ignore nocheckin
         self.cell_provider = cell_provider
@@ -115,7 +118,9 @@ class HostService(ServiceBase, HostBase):
                 Databases=Database.search(),
             ).execute_one()
             if (database := bench.database) is not None:
-                self.main_database_store = DatabaseStore(database=database.to_info())
+                self.main_database_store = DatabaseStore(
+                    database=database.to_info(), area=NodeArea.MAIN_DATABASE
+                )
 
     def stop(self) -> None:
         super().stop()

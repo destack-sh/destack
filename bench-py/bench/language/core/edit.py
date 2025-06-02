@@ -21,8 +21,6 @@ tracer = trace.get_tracer(__name__)
 
 @enum_(EnumType.EDIT_TYPE)
 class EditType(BuiltinEnum):
-    """Ways to edit nodes."""
-
     CREATE = 1
     UPSERT = 2
     UPDATE = 3
@@ -45,8 +43,6 @@ CASCADING_EDIT_TYPES: bittuple[EditType] = bittuple(
 
 @enum_(EnumType.EDIT_OPERATION)
 class EditOperation(BuiltinEnum):
-    """The type of update operation."""
-
     # direct
     SET = 1
     CLEAR = 2

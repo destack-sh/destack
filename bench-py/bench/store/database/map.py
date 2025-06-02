@@ -1,9 +1,12 @@
+from collections.abc import Mapping
+
 from bench.language import (
     NODE_TYPES,
     CustomNodeDefinition,
     EdgeType,
     IsInBench,
     Node,
+    NodeArea,
     NodeReference,
     NodeType,
     PrimitiveType,
@@ -140,11 +143,11 @@ def map_custom_node_to_database_table(definition: CustomNodeDefinition) -> Datab
     raise NotImplementedError
 
 
-BUILTIN_TABLE_BY_NODE_TYPE: dict[NodeType, DatabaseTable] = {
+BUILTIN_TABLE_BY_NODE_TYPE: Mapping[NodeType, DatabaseTable] = {
     node_type: map_builtin_node_to_database_table(NODE_CLASS_BY_TYPE[node_type])
     for node_type in NODE_TYPES
 }
-BUILTIN_TABLE_BY_NAME: dict[str, DatabaseTable] = {
+BUILTIN_TABLE_BY_NAME: Mapping[str, DatabaseTable] = {
     table.name: table for table in BUILTIN_TABLE_BY_NODE_TYPE.values()
 }
 BUILTIN_NODE_TABLES: tuple[DatabaseTable, ...] = tuple(BUILTIN_TABLE_BY_NODE_TYPE.values())
@@ -166,5 +169,9 @@ BUILTIN_MAIN_TABLES: tuple[DatabaseTable, ...] = (
         and node.metatype != NodeType.CUSTOM_NODE_INSTANCE
     ),
 )
+BUILTIN_TABLE_BY_AREA: Mapping[NodeArea, tuple[DatabaseTable, ...]] = {
+    NodeArea.GLOBAL_DATABASE: BUILTIN_GLOBAL_TABLES,
+    NodeArea.MAIN_DATABASE: BUILTIN_MAIN_TABLES,
+}
 BUILTIN_GLOBAL_SCHEMA = DatabaseSchema(EXTENSIONS, BUILTIN_GLOBAL_TABLES)
 BUILTIN_MAIN_SCHEMA = DatabaseSchema(EXTENSIONS, BUILTIN_MAIN_TABLES)

@@ -1,4 +1,5 @@
 from .code import Code, CodeType, code
+from .connection import QueryConnection
 from .const import (
     ACTIVE_SESSION,
     BEGINNING_OF_TIME,
@@ -87,6 +88,7 @@ from .query import (
     Aggregation,
     AggregationType,
     AttributeReference,
+    AttributeType,
     Condition,
     ConditionalType,
     Expression,
@@ -98,7 +100,6 @@ from .query import (
     Join,
     JoinType,
     Query,
-    QueryConnection,
     QueryResult,
     QueryType,
     QueryUpdate,
@@ -240,6 +241,7 @@ __all__ = [
     "Aliasing",
     "Area",
     "AttributeReference",
+    "AttributeType",
     "BenchError",
     "BuiltinEnum",
     "BuiltinEnumOrUnion",

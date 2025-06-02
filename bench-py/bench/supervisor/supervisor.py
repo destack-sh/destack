@@ -105,7 +105,7 @@ class SupervisorService(ServiceBase, SupervisorBase):
 
     @override
     async def make_session(self, metadata: RpcMetadata) -> "Session":
-        database_store = DatabaseStore(database=self.global_database)
+        database_store = DatabaseStore(database=self.global_database, area=NodeArea.GLOBAL_DATABASE)
         return Session(store=database_store)
 
     @override
@@ -182,8 +182,12 @@ class SupervisorService(ServiceBase, SupervisorBase):
         bench.database = database
         session.store = SplitStore(
             store_by_area={
-                NodeArea.GLOBAL_DATABASE: DatabaseStore(database=self.global_database),
-                NodeArea.MAIN_DATABASE: DatabaseStore(database=main_database),
+                NodeArea.GLOBAL_DATABASE: DatabaseStore(
+                    database=self.global_database, area=NodeArea.GLOBAL_DATABASE
+                ),
+                NodeArea.MAIN_DATABASE: DatabaseStore(
+                    database=main_database, area=NodeArea.MAIN_DATABASE
+                ),
             },
         )
         await session.stage()

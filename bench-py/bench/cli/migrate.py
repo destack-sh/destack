@@ -140,24 +140,31 @@ async def apply(
     region: Optional["Region"] = typer.Option(  # noqa: B008
         default=REGION, help="the region to migrate [default=current]", parser=parse_region
     ),
-    bench: Optional[str] = typer.Option(
-        default=None, help="the local bench to migrate, global otherwise"
+    cell_name: Optional[str] = typer.Option(
+        default=None, help="the cell to migrate, global otherwise"
+    ),
+    external_name: Optional[str] = typer.Option(
+        default=None, help="the external name to migrate, global otherwise"
     ),
     dry_run: bool = typer.Option(default=False, help="only try, don't commit"),
 ):
     from bench.language import REGION, NodeArea
-    from bench.sharding import get_global_database_from_env, get_main_database_from_env
+    from bench.sharding import DATABASE_PROVIDER, get_global_database_from_env
     from bench.store.database import pg_transaction, sql_migrate
 
     start = time.time()
-    global_database = get_global_database_from_env()
-    main_database = get_main_database_from_env(region or REGION)
 
     # resolve databases to migrate
-    if area == NodeArea.MAIN_DATABASE:
-        databases = [main_database]
-    elif area == NodeArea.GLOBAL_DATABASE:
+    if area == NodeArea.GLOBAL_DATABASE:
+        global_database = get_global_database_from_env()
         databases = [global_database]
+    elif area == NodeArea.MAIN_DATABASE:
+        assert cell_name, "cell_name is required for main area"
+        assert external_name, "external_name is required for main area"
+        main_database = await DATABASE_PROVIDER.resolve_or_error(
+            region or REGION, cell_name, external_name
+        )
+        databases = [main_database]
     else:
         raise RuntimeError(f"cannot migrate area: {area!r}")
 

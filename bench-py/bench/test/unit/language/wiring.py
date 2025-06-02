@@ -4,7 +4,6 @@ from fastuuid import uuid4
 from hypothesis import HealthCheck, given, settings
 
 from bench.language import (
-    Aggregation,
     AggregationType,
     BuiltinObjectBase,
     Cursor,
@@ -58,11 +57,11 @@ def test_roundtrip_query_proto(session: Session):
         count=True,
         Cursor=Cursor.get(
             join=join(JoinType.LEFT, on=Cursor.property("owned_by").eq(5)),
-            UnreadCount=Message.aggregate(
+            UnreadCount=Message.scalar(
+                type=AggregationType.COUNT,
                 where=Message.property("read_at").greater_than(
                     attribute_ref("Cursor.last_read_at")
                 ),
-                aggregation=Aggregation(type=AggregationType.COUNT),
             ),
         ),
     )

@@ -15,17 +15,24 @@ from bench.language import (
     Edit,
     EditOperation,
     EditType,
+    NodeArea,
     NodeReference,
     NodeType,
     Query,
     QueryResult,
+    RelationReference,
     Store,
 )
 
 from .client import pg_connection, pg_transaction
 from .core import DatabaseContext, DatabaseTable
 from .edit import execute_change
-from .map import BENCH_CUSTOM_TABLE_PREFIX, BENCH_TABLE_PREFIX, BUILTIN_TABLE_BY_NAME
+from .map import (
+    BENCH_CUSTOM_TABLE_PREFIX,
+    BENCH_TABLE_PREFIX,
+    BUILTIN_TABLE_BY_AREA,
+    BUILTIN_TABLE_BY_NAME,
+)
 from .query import execute_query
 
 tracer = trace.get_tracer(__name__)
@@ -54,11 +61,12 @@ class DatabaseStore(Store):
     )
     __supports_cascade__ = True
 
-    __slots__ = ("ctx", "database")
+    __slots__ = ("context", "database")
 
-    def __init__(self, database: DatabaseInfo):
+    def __init__(self, database: DatabaseInfo, area: NodeArea | None):
         self.database = database
-        self.ctx: DatabaseStoreContext | None = None
+        self.context: DatabaseStoreContext | None = None
+        self.area = area
 
     def __str__(self) -> str:
         return f"database={self.database!r}"
@@ -66,16 +74,16 @@ class DatabaseStore(Store):
     def __repr__(self) -> str:
         return f"<{self.__class__.__name__} {self!s}>"
 
-    async def _load_ctx(self, conn: asyncpg.Connection) -> "DatabaseStoreContext":
-        ctx = DatabaseStoreContext(self)
-        return ctx
+    async def _load_context(self, conn: asyncpg.Connection) -> "DatabaseStoreContext":
+        context = DatabaseStoreContext(self)
+        return context
 
     @override
     async def query(self, query: Query) -> QueryResult:
         async with pg_connection(self.database) as conn:
-            if self.ctx is None:
-                self.ctx = await self._load_ctx(conn)
-            result = await execute_query(conn, self.ctx, query)
+            if self.context is None:
+                self.context = await self._load_context(conn)
+            result = await execute_query(conn, self.context, query)
             logger.debug("database.query", query=query, result=result, span="current")
             return result
 
@@ -83,28 +91,27 @@ class DatabaseStore(Store):
     async def commit(self, changes: Sequence[Change]) -> Sequence[ChangeResult]:
         results: list[ChangeResult] = []
         async with pg_transaction(self.database) as (conn, tx):
-            if self.ctx is None:
-                self.ctx = await self._load_ctx(conn)
+            if self.context is None:
+                self.context = await self._load_context(conn)
 
             # each change is its own atomic operation
             for change in changes:
                 # duplicate context if we're mutating custom node definitions
-                if any(
+                has_custom_edits = any(
                     edit.node_type in (NodeType.CUSTOM_NODE_DEFINITION, NodeType.FIELD)
                     for edit in change.edits
-                ):
-                    local_ctx = self.ctx.copy()
-                else:
-                    local_ctx = self.ctx
+                )
+                local_context = self.context.copy() if has_custom_edits else self.context
 
                 # apply
                 try:
-                    edits, cascaded_edits = await execute_change(conn, local_ctx, change)
+                    edits, cascaded_edits = await execute_change(conn, local_context, change)
                     logger.debug(
                         "database.commit",
                         change=change,
                         edits=edits,
                         cascaded_edits=cascaded_edits,
+                        context=local_context,
                         span="current",
                     )
                     result = ChangeResult(
@@ -114,7 +121,11 @@ class DatabaseStore(Store):
                         cascaded_edits=list(cascaded_edits),
                     )
                     await tx.commit()
-                    self.ctx.apply(edits)
+
+                    # update context if we're mutating custom node definitions
+                    if has_custom_edits:
+                        self.context.apply(edits)
+
                 except Exception as e:
                     logger.error("database.commit.error", change=change, exc_info=e, span="current")
                     result = ChangeResult(id=change.id, status=ChangeStatus.FAILED)
@@ -127,29 +138,48 @@ class DatabaseStoreContext(DatabaseContext):
 
     def __init__(self, store: DatabaseStore):
         self.store = store
-        self.tables_by_name: dict[str, DatabaseTable] = {**BUILTIN_TABLE_BY_NAME}
+        self.tables_by_name: dict[str, DatabaseTable] = {}
+        if store.area is None:
+            self.tables_by_name.update(BUILTIN_TABLE_BY_NAME)
+        else:
+            for table in BUILTIN_TABLE_BY_AREA[store.area]:
+                self.tables_by_name[table.name] = table
         self.custom_node_definitions: dict[UUID, CustomNodeDefinition] = {}
+
+    def __str__(self) -> str:
+        return f"store={self.store!r}, tables={list(self.tables_by_name.keys())}"
+
+    def __repr__(self) -> str:
+        return f"<{self.__class__.__name__} {self!s}>"
 
     def copy(self) -> Self:
         raise NotImplementedError
 
     @override
-    def get_table(self, key: str | NodeReference) -> DatabaseTable:
-        # convert ptrs to table names
-        if isinstance(key, NodeReference):
-            if key.node_type != NodeType.CUSTOM_NODE_INSTANCE:
-                key = f"{BENCH_TABLE_PREFIX}{key.node_type.name.lower()}"
+    def get_table(self, relation: RelationReference | NodeReference) -> DatabaseTable:
+        # map relations to table names
+        if isinstance(relation, NodeReference):
+            if relation.node_type != NodeType.CUSTOM_NODE_INSTANCE:
+                table_name = f"{BENCH_TABLE_PREFIX}{relation.node_type.name.lower()}"
             else:
-                assert key.definition_id is not None, f"no definition_id for {key!r}"
-                key = f"{BENCH_CUSTOM_TABLE_PREFIX}{key.definition_id}"
+                assert relation.definition_id is not None, f"no definition_id for {relation!r}"
+                table_name = f"{BENCH_CUSTOM_TABLE_PREFIX}{relation.definition_id}"
+        else:
+            if relation.node_type != NodeType.CUSTOM_NODE_INSTANCE:
+                table_name = f"{BENCH_TABLE_PREFIX}{relation.node_type.name.lower()}"
+            else:
+                assert relation.definition_id is not None, f"no definition_id for {relation!r}"
+                table_name = f"{BENCH_CUSTOM_TABLE_PREFIX}{relation.definition_id}"
+
         # lookup
-        table = self.tables_by_name.get(key)
+        table = self.tables_by_name.get(table_name)
         if table is None:
-            raise LookupError(f"no table for {key!r} in {self.store!r}")
+            raise LookupError(f"no table for {table_name!r} in {self.store!r}")
         return table
 
     @override
     def apply(self, edits: Sequence[Edit]):
         for edit in edits:
             if edit.node_type in (NodeType.CUSTOM_NODE_DEFINITION, NodeType.FIELD):
-                pass  # optimistically update context copy
+                return True  # nocheckin: optimistically update context copy
+        return False

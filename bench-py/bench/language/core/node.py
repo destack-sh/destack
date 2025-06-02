@@ -373,7 +373,7 @@ class Node[NodeDataT: AnyNodeData](BuiltinObjectMutable[NodeDataT]):
         from .query import Query, QueryType, relation_ref, to_subqueries
 
         return Query(
-            type=QueryType.GET,
+            type=QueryType.NODE,
             relation=relation_ref(cls.metatype),
             name=name or cls.metatype.bench_name,
             join=join,
@@ -400,7 +400,7 @@ class Node[NodeDataT: AnyNodeData](BuiltinObjectMutable[NodeDataT]):
         from .query import Query, QueryType, relation_ref, to_subqueries
 
         return Query(
-            type=QueryType.SEARCH,
+            type=QueryType.NODE,
             relation=relation_ref(cls.metatype),
             name=name or cls.metatype.bench_name,
             join=join,
@@ -416,70 +416,11 @@ class Node[NodeDataT: AnyNodeData](BuiltinObjectMutable[NodeDataT]):
         )
 
     @classmethod
-    def aggregate(
-        cls: type["Self"],
-        where: Optional["Condition"] = None,
-        *,
-        name: str | None = None,
-        join: Optional["Join"] = None,
-        group_by: Optional[list["Expression"]] = None,
-        aggregation: Optional["Aggregation"] = None,
-        sort: Optional[list["Sort"]] = None,
-        limit: Optional[int] = None,
-        offset: Optional[int] = None,
-        count: bool = False,
-    ) -> "Query[Self]":
-        from .query import Query, QueryType, relation_ref
-
-        return Query(
-            type=QueryType.AGGREGATE,
-            relation=relation_ref(cls.metatype),
-            name=name or cls.metatype.bench_name,
-            join=join,
-            where=where,
-            group_by=group_by or [],
-            aggregation=aggregation,
-            sort=sort or [],
-            limit=limit,
-            offset=offset,
-            count=count,
-        )
-
-    @classmethod
-    def count(
-        cls: type["Self"],
-        where: Optional["Condition"] = None,
-        *,
-        name: str | None = None,
-        join: Optional["Join"] = None,
-        group_by: Optional[list["Expression"]] = None,
-        sort: Optional[list["Sort"]] = None,
-        limit: Optional[int] = None,
-        offset: Optional[int] = None,
-        count: bool = False,
-    ) -> "Query[Self]":
-        from .query import Aggregation, AggregationType, Query, QueryType, relation_ref
-
-        return Query(
-            type=QueryType.AGGREGATE,
-            relation=relation_ref(cls.metatype),
-            name=name or cls.metatype.bench_name,
-            join=join,
-            where=where,
-            group_by=group_by or [],
-            aggregation=Aggregation(type=AggregationType.COUNT),
-            sort=sort or [],
-            limit=limit,
-            offset=offset,
-            count=count,
-        )
-
-    @classmethod
     def scalar(
         cls: type["Self"],
         type: "AggregationType",
-        expression: "ExpressionIn",
         *,
+        expression: "ExpressionIn | None" = None,
         name: str | None = None,
         join: Optional["Join"] = None,
         where: Optional["Condition"] = None,
@@ -493,13 +434,15 @@ class Node[NodeDataT: AnyNodeData](BuiltinObjectMutable[NodeDataT]):
         from .query import expression as to_expression
 
         return Query(
-            type=QueryType.AGGREGATE,
+            type=QueryType.SCALAR,
             relation=relation_ref(cls.metatype),
             name=name or cls.metatype.bench_name,
             join=join,
             where=where,
             group_by=group_by or [],
-            aggregation=Aggregation(type=type, expression=to_expression(expression)),
+            aggregation=Aggregation(
+                type=type, expression=to_expression(expression) if expression else None
+            ),
             sort=sort or [],
             limit=limit,
             offset=offset,

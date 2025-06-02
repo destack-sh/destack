@@ -378,11 +378,11 @@ class Property(IntoType, IntoQuery if TYPE_CHECKING else object):
 
     # see IntoQuery.__eq__ for Property==Property equality
 
-    def _stable_hash(self):
+    def hash(self):
         """Hash the Property identity."""
         return hash_stable((self.component.__name__, self.id))
 
-    __hash__ = _stable_hash  # type: ignore
+    __hash__ = hash  # type: ignore
 
     def clone(self):
         return dataclasses.replace(self, component=None, runtime_prop=None, ptr_prop=None)
