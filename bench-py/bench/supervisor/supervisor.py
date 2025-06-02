@@ -170,17 +170,13 @@ class SupervisorService(ServiceBase, SupervisorBase):
         await session.commit()
 
         # provision Bench
-        # nocheckin: assign Bench cell/DB/.. (CellProvider/DatabaseProvider/...)
-        cell_name: str = "test-0"
-        database_name: str = "bench-db-0"
-        main_database = self.database_provider.resolve_or_error(
-            region=region, cell_name=cell_name, external_name=database_name
-        )
+        cell = await self.cell_provider.acquire(region)
+        main_database = await self.database_provider.acquire(region)
         database = Database(
             tenancy=Tenancy.SHARED,
             region=region,
-            cell_name=cell_name,
-            external_name=database_name,
+            cell_name=cell.name,
+            external_name=main_database.external_name,
             custom_schema_name=f"bench-{bench.id}",
         )
         bench.database = database

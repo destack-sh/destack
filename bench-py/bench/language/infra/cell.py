@@ -17,7 +17,7 @@ class CellBase(BuiltinObjectMutable):
 
     # infra
     region: Region = property_(50, can_write="system", is_repr=True)
-    cell_name: str = property_(51, can_write="system", is_repr=True)
+    name: str = property_(51, can_write="system", is_repr=True)
     host: str = property_(52, can_write="system", is_repr=True)
 
 

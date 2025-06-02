@@ -89,7 +89,6 @@ class DatabaseStore(Store):
                     await tx.commit()
                 except Exception as e:
                     logger.error("database.commit.error", change=change, exc_info=e, span="current")
-                    await tx.rollback()
                     result = ChangeResult(id=change.id, status=ChangeStatus.FAILED)
                 results.append(result)
         return results

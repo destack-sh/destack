@@ -12,13 +12,18 @@ class CellProvider(abc.ABC):
     """A provider of known Cells."""
 
     @abc.abstractmethod
-    def resolve(self, region: Region, cell_name: str) -> "CellInfo | None":
+    async def acquire(self, region: Region) -> "CellInfo":
+        """Acquires a Cell for the given region."""
+        ...
+
+    @abc.abstractmethod
+    async def resolve(self, region: Region, cell_name: str) -> "CellInfo | None":
         """Gets the cell info for the given region and cell name (error if none)."""
         ...
 
-    def resolve_or_error(self, region: Region, cell_name: str) -> "CellInfo":
+    async def resolve_or_error(self, region: Region, cell_name: str) -> "CellInfo":
         """Gets the cell info for the given region and cell name (error if none)."""
-        cell_info = self.resolve(region, cell_name)
+        cell_info = await self.resolve(region, cell_name)
         if cell_info is None:
             raise LookupError(f"no Cell {region.slug}/{cell_name} in {self!r}")
         return cell_info
@@ -34,9 +39,16 @@ class StaticCellProvider(CellProvider):
         return f"<{self.__class__.__name__} {len(self._cells)} cells>"
 
     @override
-    def resolve(self, region: Region, cell_name: str) -> "CellInfo | None":
+    async def acquire(self, region: Region) -> "CellInfo":
         for cell in self._cells:
-            if cell.region == region and cell.cell_name == cell_name:
+            if cell.region == region:
+                return cell
+        raise LookupError(f"no Cell {region.slug} in {self!r}")
+
+    @override
+    async def resolve(self, region: Region, cell_name: str) -> "CellInfo | None":
+        for cell in self._cells:
+            if cell.region == region and cell.name == cell_name:
                 return cell
         return None
 
@@ -62,7 +74,7 @@ class StaticCellProvider(CellProvider):
                 raise ValueError(f"invalid location format: {location_part}")
             region_name, cell_name = location_part.split("/", 1)
             region = REGION_BY_SLUG[region_name]
-            cell_info = CellInfo(region=region, cell_name=cell_name, host=host_part)
+            cell_info = CellInfo(region=region, name=cell_name, host=host_part)
             cells.append(cell_info)
 
         return cls(cells)
