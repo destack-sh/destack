@@ -16,8 +16,8 @@ from bench.store import DatabaseStore
 
 
 @pytest.fixture
-def database_store(global_database: DatabaseInfo, main_database: DatabaseInfo) -> DatabaseStore:
-    return DatabaseStore(global_database=global_database, main_database=main_database)
+def database_store(omni_database: DatabaseInfo) -> DatabaseStore:
+    return DatabaseStore(database=omni_database)
 
 
 @pytest.fixture  # :PytestAsyncContext

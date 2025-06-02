@@ -20,7 +20,7 @@ from bench.language import (
     NodeArea,
 )
 from bench.proto import SupervisorClient
-from bench.store.postgres.map import BUILTIN_GLOBAL_SCHEMA, BUILTIN_MAIN_SCHEMA
+from bench.store.database.map import BUILTIN_GLOBAL_SCHEMA, BUILTIN_MAIN_SCHEMA
 from bench.utils.oracle import REAL_ORACLE
 from bench.utils.task import TaskManager
 
@@ -445,7 +445,7 @@ async def run_simulation(spec: SimulationSpec):
     """Run a Simulation"""
     from bench.test.fixtures import (
         create_test_db,
-        get_global_database,
+        get_database,
         get_main_database,
     )
 
@@ -456,7 +456,7 @@ async def run_simulation(spec: SimulationSpec):
     log = logger.bind(simulation=spec.name)
 
     # config
-    global_database = get_global_database(f"test-{simulation_id}-global")
+    global_database = get_database(f"test-{simulation_id}-global")
     main_database = get_main_database(f"test-{simulation_id}-main")
     database_provider = DatabaseProvider(
         global_database=global_database, main_database=main_database

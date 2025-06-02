@@ -722,24 +722,20 @@ POSTGRES_SORT_OP_BY_BENCH: dict[SortType, PostgresSortOp] = {
 # Default tables
 #
 
-BASE_EXTENSIONS = (
+EXTENSIONS = (
     SqlExtension("plpgsql"),
     SqlExtension("uuid-ossp"),
     SqlExtension("pgcrypto"),
     SqlExtension("bloom"),
 )
-GLOBAL_EXTENSIONS = (*BASE_EXTENSIONS,)
-MAIN_EXTENSIONS = (*BASE_EXTENSIONS,)
-CUSTOM_EXTENSIONS = (*BASE_EXTENSIONS,)
 
-MIGRATION_TABLE = SqlTable(  # see bench-py/bench/store/postgres/migration.py
+MIGRATION_TABLE = SqlTable(  # see bench-py/bench/store/database/migration.py
     "bench_migration",
     columns=(
         SqlColumn("id", PrimitiveType.INT32, is_primary_key=True),
         SqlColumn("version", PrimitiveType.STRING, is_unique=True),
         SqlColumn("has_global", PrimitiveType.BOOLEAN),
         SqlColumn("has_main", PrimitiveType.BOOLEAN),
-        SqlColumn("has_custom", PrimitiveType.BOOLEAN),
         SqlColumn("applied_at", PrimitiveType.DATETIME, is_nullable=True),
     ),
 )

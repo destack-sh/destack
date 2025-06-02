@@ -62,13 +62,12 @@ class Migration:
     version: str
     has_global: bool
     has_main: bool
-    has_custom: bool
     applied_at: Optional[datetime]
     path: Optional[Path] = None  # not databased
     file: Optional["MigrationFile"] = None  # not databased
 
     def __str__(self) -> str:
-        return f"{self.id} {self.version} (has_global={self.has_global}, has_main={self.has_main}, has_custom={self.has_custom})"
+        return f"{self.id} {self.version} (has_global={self.has_global}, has_main={self.has_main})"
 
     def __repr__(self) -> str:
         return f"<Migration {self}>"
@@ -108,7 +107,6 @@ def read_migrations_from_fs() -> list[Migration]:
             version=migration_metadata["VERSION"][1:-1],
             has_global=migration_metadata["HAS_GLOBAL"] == "True",
             has_main=migration_metadata["HAS_MAIN"] == "True",
-            has_custom=migration_metadata["HAS_CUSTOM"] == "True",
             applied_at=None,
             path=migration_path,
         )
@@ -137,7 +135,7 @@ MIGRATIONS = read_migrations_from_fs()
 def has_migration_after(version_a: str, *, is_global: bool) -> bool:
     """Returns whether there is a migration between the two versions."""
     for migration in MIGRATIONS:
-        if (is_global and not migration.has_global) or (not is_global and not migration.has_custom):
+        if is_global and not migration.has_global:
             continue
         if version_a < migration.version:
             return True
@@ -765,7 +763,6 @@ def pack_migration_row(migration: Migration) -> dict[str, Any]:
         "version": migration.version,
         "has_global": migration.has_global,
         "has_main": migration.has_main,
-        "has_custom": migration.has_custom,
         "applied_at": migration.applied_at,
     }
 
@@ -776,7 +773,6 @@ def unpack_migration_row(row: Mapping[str, Any]) -> Migration:
         version=row["version"],
         has_global=row["has_global"],
         has_main=row["has_main"],
-        has_custom=row["has_custom"],
         applied_at=row["applied_at"],
     )
 
@@ -785,7 +781,7 @@ async def read_migrations_from_pg(
     conn: asyncpg.Connection, *, applied: bool | None = None
 ) -> list[Migration]:
     """Reads the 'bench_migration' table (if it exists) and returns the corresponding Migration."""
-    query = "SELECT id, version, has_global, has_main, has_custom, applied_at FROM bench_migration"
+    query = "SELECT id, version, has_global, has_main, applied_at FROM bench_migration"
     if applied is not None:
         where_clause = "applied_at IS NOT NULL" if applied else "applied_at IS NULL"
         query += f" WHERE {where_clause}"
@@ -804,20 +800,18 @@ async def upsert_migrations(conn: asyncpg.Connection, migrations: list[Migration
     for migration in migrations:
         await conn.execute(
             """
-            INSERT INTO bench_migration (id, version, has_global, has_main, has_custom, applied_at)
-            VALUES ($1, $2, $3, $4, $5, $6)
+            INSERT INTO bench_migration (id, version, has_global, has_main, applied_at)
+            VALUES ($1, $2, $3, $4, $5)
             ON CONFLICT (id) DO UPDATE SET
                 version = EXCLUDED.version,
                 has_global = EXCLUDED.has_global,
                 has_main = EXCLUDED.has_main,
-                has_custom = EXCLUDED.has_custom,
                 applied_at = EXCLUDED.applied_at
             """,
             migration.id,
             migration.version,
             migration.has_global,
             migration.has_main,
-            migration.has_custom,
             migration.applied_at,
         )
 
@@ -826,7 +820,7 @@ async def delete_migrations(conn: asyncpg.Connection, from_id: int, to_id: int) 
     """Deletes migrations from the database."""
     # First read the migrations that will be deleted for logging
     rows = await conn.fetch(
-        "SELECT id, version, has_global, has_main, has_custom, applied_at FROM bench_migration WHERE id >= $1 AND id <= $2",
+        "SELECT id, version, has_global, has_main, applied_at FROM bench_migration WHERE id >= $1 AND id <= $2",
         from_id,
         to_id,
     )
