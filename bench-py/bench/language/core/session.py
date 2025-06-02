@@ -240,7 +240,7 @@ class Session:
                 if result.status != ChangeStatus.COMPLETED
             ]
             raise RuntimeError(
-                f"failed to commit {len(failed_changes)} changes: {failed_changes!r}"
+                f"failed to commit {len(failed_changes)} Changes: {failed_changes!r}"
             )
         self.changes = []
         return results

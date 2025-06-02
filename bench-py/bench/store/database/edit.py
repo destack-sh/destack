@@ -106,7 +106,9 @@ SET {", ".join(f"{col.name} = EXCLUDED.{col.name}" for col in override_columns)}
         for edit in edits:
             assert edit.value is not None, f"no value for {edit!r}"
             values_packed.append(pack_node_value_to_row(table, edit.value))
-        logger.debug("database.execute_edits", stmt=stmt, span="current")
+        logger.debug("database.edit", change=change, stmt=stmt, span="current")
+        print(stmt)
+        print(values_packed)
         await conn.executemany(stmt, values_packed)
         return edits, ()
 
@@ -165,6 +167,7 @@ UPDATE {table_name}
 SET {update_stmt}
 WHERE id = $1
 """
+            logger.debug("database.edit", change=change, stmt=stmt, span="current")
             await conn.executemany(stmt, [(node_id, at_packed) for node_id in table_node_ids])
 
         return edits, cascaded_edits
@@ -194,6 +197,7 @@ WHERE id = $1
 DELETE FROM {table_name}
 WHERE id = $1
 """
+            logger.debug("database.edit", change=change, stmt=stmt, span="current")
             await conn.executemany(stmt, table_node_ids)
 
         return edits, cascaded_edits

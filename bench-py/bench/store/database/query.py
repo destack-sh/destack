@@ -2,6 +2,8 @@ from collections.abc import Sequence
 from typing import Any, assert_never
 
 import asyncpg
+import structlog
+from opentelemetry import trace
 
 from bench.language import (
     Aggregation,
@@ -23,6 +25,9 @@ from bench.language import (
 
 from .core import DatabaseContext
 from .wiring import pack_node_value, unpack_row_to_node_value
+
+logger = structlog.get_logger(__name__)
+tracer = trace.get_tracer(__name__)
 
 
 def _compile_value(context: DatabaseContext, arguments: list[Any], value: Value) -> str:
@@ -180,6 +185,7 @@ async def _execute_select(
     print(arguments)
 
     # execute
+    logger.debug("database.select", stmt=stmt)
     node_rows: list[asyncpg.Record] = await conn.fetch(stmt, *arguments)
     node_values = [unpack_row_to_node_value(table, row) for row in node_rows]
 
