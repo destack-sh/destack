@@ -9,7 +9,6 @@ from typing import TYPE_CHECKING, Any, ClassVar, Self, Union, cast
 from more_itertools import first
 
 from bench.language import (
-    ConditionalType,
     CustomNodeDefinition,
     Edit,
     Field,
@@ -18,7 +17,7 @@ from bench.language import (
     NodeType,
     PrimitiveType,
     Property,
-    SortType,
+    RelationReference,
 )
 from bench.utils.func import hash_stable
 
@@ -40,12 +39,6 @@ class DatabaseSchema:
 
     def __repr__(self):
         return f"<Schema {self}>"
-
-    def get_table(self, name: str) -> "DatabaseTable":
-        table = self._tables_by_name.get(name)
-        if table is None:
-            raise KeyError(f"no table {name!r} in {self!r}")
-        return table
 
     def walk(self):
         yield from self.extensions
@@ -210,6 +203,7 @@ class DatabaseColumn(DatabaseTableObject):
     name: str  # type: ignore
     type: PrimitiveType
     prop: "Property | None" = None
+    field: Union["Field", None] = None
     is_array: bool = False
     is_primary_key: bool = False
     is_foreign_key_to: str | None = None
@@ -220,12 +214,11 @@ class DatabaseColumn(DatabaseTableObject):
     precision: int | None = None
     scale: int | None = None
     default: str | None = None
-    _field: Union["Field", None] = None
     _table: Union["DatabaseTable", None] = None  # type: ignore
 
     def clone(self) -> "Self":
         """Deep copy this Column without the Table / Field reference."""
-        return dataclasses.replace(self, _table=None, _field=None)
+        return dataclasses.replace(self, _table=None)
 
     def __flags_str__(self):
         parts = []
@@ -486,11 +479,17 @@ class DatabaseTable(DatabaseTableObject):
 
 
 class DatabaseContext(abc.ABC):
-    @abc.abstractmethod
-    def apply(self, edits: Sequence[Edit]): ...
+    """Progressive context for Database operations."""
 
     @abc.abstractmethod
-    def get_table(self, key: str | NodeReference) -> DatabaseTable: ...
+    def apply(self, edits: Sequence[Edit]) -> bool:
+        """Apply the Edits to the context. Returns True if the context was mutated."""
+        ...
+
+    @abc.abstractmethod
+    def get_table(self, relation: RelationReference | NodeReference) -> DatabaseTable:
+        """Get the Table for a node."""
+        ...
 
 
 class PostgresColumnType(enum.StrEnum):
@@ -634,35 +633,6 @@ class PostgresJoinOp(enum.StrEnum):
 class PostgresSortOp(enum.StrEnum):
     ASC = "ASC"
     DESC = "DESC"
-
-
-PG_CONDITIONAL_OP_BY_BENCH: dict[ConditionalType, PostgresConditionalOp] = {
-    # logical
-    ConditionalType.AND: PostgresConditionalOp.AND,
-    ConditionalType.OR: PostgresConditionalOp.OR,
-    ConditionalType.NOT: PostgresConditionalOp.NOT,
-    # standard
-    ConditionalType.EXISTS: PostgresConditionalOp.IS_NOT_NULL,
-    ConditionalType.NOT_EXISTS: PostgresConditionalOp.IS_NULL,
-    ConditionalType.EQUALS: PostgresConditionalOp.EQ,
-    ConditionalType.NOT_EQUALS: PostgresConditionalOp.NEQ,
-    ConditionalType.LESS_THAN: PostgresConditionalOp.LT,
-    ConditionalType.LESS_THAN_OR_EQUALS: PostgresConditionalOp.LTE,
-    ConditionalType.GREATER_THAN: PostgresConditionalOp.GT,
-    ConditionalType.GREATER_THAN_OR_EQUALS: PostgresConditionalOp.GTE,
-    # string
-    ConditionalType.MATCHES: PostgresConditionalOp.ILIKE,
-    ConditionalType.STARTS_WITH: PostgresConditionalOp.ILIKE,
-    ConditionalType.ENDS_WITH: PostgresConditionalOp.ILIKE,
-    # containment
-    ConditionalType.CONTAINS: PostgresConditionalOp.CONTAINS,
-    ConditionalType.IN: PostgresConditionalOp.IN,
-    ConditionalType.NOT_IN: PostgresConditionalOp.NOT_IN,
-}
-POSTGRES_SORT_OP_BY_BENCH: dict[SortType, PostgresSortOp] = {
-    SortType.ASCENDING: PostgresSortOp.ASC,
-    SortType.DESCENDING: PostgresSortOp.DESC,
-}
 
 
 #

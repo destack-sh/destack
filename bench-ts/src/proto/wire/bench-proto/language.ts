@@ -763,9 +763,9 @@ export interface CellInfoData {
      */
     region: Region;
     /**
-     * @generated from protobuf field: string cell_name = 51;
+     * @generated from protobuf field: string name = 51;
      */
-    cellName: string;
+    name: string;
     /**
      * @generated from protobuf field: string host = 52;
      */
@@ -1385,6 +1385,12 @@ export interface CustomNodeInstanceData {
      * @generated from protobuf field: symbol.bench.NodeMode mode = 20;
      */
     mode: NodeMode;
+    /**
+     * @generated from protobuf field: map<string, symbol.bench.ValueData> value = 21;
+     */
+    value: {
+        [key: string]: ValueData;
+    };
     /**
      * @generated from protobuf field: symbol.bench.NodeReferenceData definition_ptr = 40;
      */
@@ -2636,6 +2642,12 @@ export interface FrameViewData {
      */
     mode: NodeMode;
     /**
+     * @generated from protobuf field: map<string, symbol.bench.ValueData> value = 21;
+     */
+    value: {
+        [key: string]: ValueData;
+    };
+    /**
      * @generated from protobuf field: optional string order_key = 22;
      */
     orderKey?: string;
@@ -3402,6 +3414,12 @@ export interface InterruptionData {
      */
     mode: NodeMode;
     /**
+     * @generated from protobuf field: map<string, symbol.bench.ValueData> value = 21;
+     */
+    value: {
+        [key: string]: ValueData;
+    };
+    /**
      * @generated from protobuf field: symbol.bench.InterruptionType type = 30;
      */
     type: InterruptionType;
@@ -3521,6 +3539,12 @@ export interface LabelViewData {
      * @generated from protobuf field: symbol.bench.NodeMode mode = 20;
      */
     mode: NodeMode;
+    /**
+     * @generated from protobuf field: map<string, symbol.bench.ValueData> value = 21;
+     */
+    value: {
+        [key: string]: ValueData;
+    };
     /**
      * @generated from protobuf field: optional string order_key = 22;
      */
@@ -5187,10 +5211,6 @@ export interface QueryResultData {
      */
     metatype: StructType;
     /**
-     * @generated from protobuf field: int64 epoch = 40;
-     */
-    epoch: bigint;
-    /**
      * @generated from protobuf field: symbol.bench.QueryData query = 41;
      */
     query?: QueryData;
@@ -5207,10 +5227,6 @@ export interface QueryUpdateData {
      * @generated from protobuf field: symbol.bench.StructType metatype = 1;
      */
     metatype: StructType;
-    /**
-     * @generated from protobuf field: int64 epoch = 40;
-     */
-    epoch: bigint;
     /**
      * @generated from protobuf field: repeated symbol.bench.ValueData nodes = 50;
      */
@@ -5366,6 +5382,12 @@ export interface RunData {
      * @generated from protobuf field: symbol.bench.NodeMode mode = 20;
      */
     mode: NodeMode;
+    /**
+     * @generated from protobuf field: map<string, symbol.bench.ValueData> value = 21;
+     */
+    value: {
+        [key: string]: ValueData;
+    };
     /**
      * @generated from protobuf field: symbol.bench.RunType type = 30;
      */
@@ -5772,9 +5794,13 @@ export interface SelectData {
      */
     metatype: StructType;
     /**
-     * @generated from protobuf field: repeated symbol.bench.AttributeReferenceData attributes = 31;
+     * @generated from protobuf field: repeated symbol.bench.PropertyReferenceData properties_ptr = 31;
      */
-    attributes: AttributeReferenceData[];
+    propertiesPtr: PropertyReferenceData[];
+    /**
+     * @generated from protobuf field: repeated symbol.bench.NodeReferenceData fields_ptr = 32;
+     */
+    fieldsPtr: NodeReferenceData[];
 }
 /**
  * @generated from protobuf message symbol.bench.SelectionData
@@ -6469,6 +6495,12 @@ export interface SplitViewData {
      * @generated from protobuf field: symbol.bench.NodeMode mode = 20;
      */
     mode: NodeMode;
+    /**
+     * @generated from protobuf field: map<string, symbol.bench.ValueData> value = 21;
+     */
+    value: {
+        [key: string]: ValueData;
+    };
     /**
      * @generated from protobuf field: optional string order_key = 22;
      */
@@ -9455,8 +9487,6 @@ export enum EdgeType {
     NODE_TEMPLATE = 6
 }
 /**
- * The type of update operation.
- *
  * @generated from protobuf enum symbol.bench.EditOperation
  */
 export enum EditOperation {
@@ -9482,8 +9512,6 @@ export enum EditOperation {
     MAP_REMOVE = 111
 }
 /**
- * Ways to edit nodes.
- *
  * @generated from protobuf enum symbol.bench.EditType
  */
 export enum EditType {
@@ -11832,17 +11860,13 @@ export enum QueryType {
      */
     UNSPECIFIED = 0,
     /**
-     * @generated from protobuf enum value: QUERY_TYPE_GET = 1;
+     * @generated from protobuf enum value: QUERY_TYPE_NODE = 1;
      */
-    GET = 1,
+    NODE = 1,
     /**
-     * @generated from protobuf enum value: QUERY_TYPE_SEARCH = 2;
+     * @generated from protobuf enum value: QUERY_TYPE_SCALAR = 2;
      */
-    SEARCH = 2,
-    /**
-     * @generated from protobuf enum value: QUERY_TYPE_AGGREGATE = 3;
-     */
-    AGGREGATE = 3
+    SCALAR = 2
 }
 /**
  * Regions in an Area on a Continent.
@@ -14772,7 +14796,7 @@ class CellInfoData$Type extends MessageType$<CellInfoData> {
         super("symbol.bench.CellInfoData", [
             { no: 1, name: "metatype", kind: "enum", T: () => ["symbol.bench.StructType", StructType, "STRUCT_TYPE_"] },
             { no: 50, name: "region", kind: "enum", T: () => ["symbol.bench.Region", Region, "REGION_"] },
-            { no: 51, name: "cell_name", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
+            { no: 51, name: "name", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
             { no: 52, name: "host", kind: "scalar", T: 9 /*ScalarType.STRING*/ }
         ]);
     }
@@ -14780,7 +14804,7 @@ class CellInfoData$Type extends MessageType$<CellInfoData> {
         const message = globalThis.Object.create((this.messagePrototype!));
         message.metatype = 0;
         message.region = 0;
-        message.cellName = "";
+        message.name = "";
         message.host = "";
         if (value !== undefined)
             reflectionMergePartial<CellInfoData>(this, message, value);
@@ -14797,8 +14821,8 @@ class CellInfoData$Type extends MessageType$<CellInfoData> {
                 case /* symbol.bench.Region region */ 50:
                     message.region = reader.int32();
                     break;
-                case /* string cell_name */ 51:
-                    message.cellName = reader.string();
+                case /* string name */ 51:
+                    message.name = reader.string();
                     break;
                 case /* string host */ 52:
                     message.host = reader.string();
@@ -14821,9 +14845,9 @@ class CellInfoData$Type extends MessageType$<CellInfoData> {
         /* symbol.bench.Region region = 50; */
         if (message.region !== 0)
             writer.tag(50, WireType.Varint).int32(message.region);
-        /* string cell_name = 51; */
-        if (message.cellName !== "")
-            writer.tag(51, WireType.LengthDelimited).string(message.cellName);
+        /* string name = 51; */
+        if (message.name !== "")
+            writer.tag(51, WireType.LengthDelimited).string(message.name);
         /* string host = 52; */
         if (message.host !== "")
             writer.tag(52, WireType.LengthDelimited).string(message.host);
@@ -16199,6 +16223,7 @@ class CustomNodeInstanceData$Type extends MessageType$<CustomNodeInstanceData> {
             { no: 13, name: "updated_by_ptr", kind: "message", T: () => NodeReferenceData },
             { no: 15, name: "deleted_at", kind: "message", T: () => Timestamp },
             { no: 20, name: "mode", kind: "enum", T: () => ["symbol.bench.NodeMode", NodeMode, "NODE_MODE_"] },
+            { no: 21, name: "value", kind: "map", K: 9 /*ScalarType.STRING*/, V: { kind: "message", T: () => ValueData } },
             { no: 40, name: "definition_ptr", kind: "message", T: () => NodeReferenceData }
         ]);
     }
@@ -16207,6 +16232,7 @@ class CustomNodeInstanceData$Type extends MessageType$<CustomNodeInstanceData> {
         message.metatype = 0;
         message.id = "";
         message.mode = 0;
+        message.value = {};
         if (value !== undefined)
             reflectionMergePartial<CustomNodeInstanceData>(this, message, value);
         return message;
@@ -16249,6 +16275,9 @@ class CustomNodeInstanceData$Type extends MessageType$<CustomNodeInstanceData> {
                 case /* symbol.bench.NodeMode mode */ 20:
                     message.mode = reader.int32();
                     break;
+                case /* map<string, symbol.bench.ValueData> value */ 21:
+                    this.binaryReadMap21(message.value, reader, options);
+                    break;
                 case /* symbol.bench.NodeReferenceData definition_ptr */ 40:
                     message.definitionPtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.definitionPtr);
                     break;
@@ -16262,6 +16291,22 @@ class CustomNodeInstanceData$Type extends MessageType$<CustomNodeInstanceData> {
             }
         }
         return message;
+    }
+    private binaryReadMap21(map: CustomNodeInstanceData["value"], reader: IBinaryReader, options: BinaryReadOptions): void {
+        let len = reader.uint32(), end = reader.pos + len, key: keyof CustomNodeInstanceData["value"] | undefined, val: CustomNodeInstanceData["value"][any] | undefined;
+        while (reader.pos < end) {
+            let [fieldNo, wireType] = reader.tag();
+            switch (fieldNo) {
+                case 1:
+                    key = reader.string();
+                    break;
+                case 2:
+                    val = ValueData.internalBinaryRead(reader, reader.uint32(), options);
+                    break;
+                default: throw new globalThis.Error("unknown map entry field for field symbol.bench.CustomNodeInstanceData.value");
+            }
+        }
+        map[key ?? ""] = val ?? ValueData.create();
     }
     internalBinaryWrite(message: CustomNodeInstanceData, writer: IBinaryWriter, options: BinaryWriteOptions): IBinaryWriter {
         /* symbol.bench.NodeType metatype = 1; */
@@ -16297,6 +16342,13 @@ class CustomNodeInstanceData$Type extends MessageType$<CustomNodeInstanceData> {
         /* symbol.bench.NodeMode mode = 20; */
         if (message.mode !== 0)
             writer.tag(20, WireType.Varint).int32(message.mode);
+        /* map<string, symbol.bench.ValueData> value = 21; */
+        for (let k of globalThis.Object.keys(message.value)) {
+            writer.tag(21, WireType.LengthDelimited).fork().tag(1, WireType.LengthDelimited).string(k);
+            writer.tag(2, WireType.LengthDelimited).fork();
+            ValueData.internalBinaryWrite(message.value[k], writer, options);
+            writer.join().join();
+        }
         /* symbol.bench.NodeReferenceData definition_ptr = 40; */
         if (message.definitionPtr)
             NodeReferenceData.internalBinaryWrite(message.definitionPtr, writer.tag(40, WireType.LengthDelimited).fork(), options).join();
@@ -18968,6 +19020,7 @@ class FrameViewData$Type extends MessageType$<FrameViewData> {
             { no: 15, name: "deleted_at", kind: "message", T: () => Timestamp },
             { no: 16, name: "template_ptr", kind: "message", T: () => NodeReferenceData },
             { no: 20, name: "mode", kind: "enum", T: () => ["symbol.bench.NodeMode", NodeMode, "NODE_MODE_"] },
+            { no: 21, name: "value", kind: "map", K: 9 /*ScalarType.STRING*/, V: { kind: "message", T: () => ValueData } },
             { no: 22, name: "order_key", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
             { no: 31, name: "name", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
             { no: 35, name: "block_ptr", kind: "message", T: () => NodeReferenceData },
@@ -19018,6 +19071,7 @@ class FrameViewData$Type extends MessageType$<FrameViewData> {
         message.metatype = 0;
         message.id = "";
         message.mode = 0;
+        message.value = {};
         message.name = "";
         message.direction = { oneofKind: undefined };
         message.distribute = { oneofKind: undefined };
@@ -19080,6 +19134,9 @@ class FrameViewData$Type extends MessageType$<FrameViewData> {
                     break;
                 case /* symbol.bench.NodeMode mode */ 20:
                     message.mode = reader.int32();
+                    break;
+                case /* map<string, symbol.bench.ValueData> value */ 21:
+                    this.binaryReadMap21(message.value, reader, options);
                     break;
                 case /* optional string order_key */ 22:
                     message.orderKey = reader.string();
@@ -19305,6 +19362,22 @@ class FrameViewData$Type extends MessageType$<FrameViewData> {
         }
         return message;
     }
+    private binaryReadMap21(map: FrameViewData["value"], reader: IBinaryReader, options: BinaryReadOptions): void {
+        let len = reader.uint32(), end = reader.pos + len, key: keyof FrameViewData["value"] | undefined, val: FrameViewData["value"][any] | undefined;
+        while (reader.pos < end) {
+            let [fieldNo, wireType] = reader.tag();
+            switch (fieldNo) {
+                case 1:
+                    key = reader.string();
+                    break;
+                case 2:
+                    val = ValueData.internalBinaryRead(reader, reader.uint32(), options);
+                    break;
+                default: throw new globalThis.Error("unknown map entry field for field symbol.bench.FrameViewData.value");
+            }
+        }
+        map[key ?? ""] = val ?? ValueData.create();
+    }
     internalBinaryWrite(message: FrameViewData, writer: IBinaryWriter, options: BinaryWriteOptions): IBinaryWriter {
         /* symbol.bench.NodeType metatype = 1; */
         if (message.metatype !== 0)
@@ -19345,6 +19418,13 @@ class FrameViewData$Type extends MessageType$<FrameViewData> {
         /* symbol.bench.NodeMode mode = 20; */
         if (message.mode !== 0)
             writer.tag(20, WireType.Varint).int32(message.mode);
+        /* map<string, symbol.bench.ValueData> value = 21; */
+        for (let k of globalThis.Object.keys(message.value)) {
+            writer.tag(21, WireType.LengthDelimited).fork().tag(1, WireType.LengthDelimited).string(k);
+            writer.tag(2, WireType.LengthDelimited).fork();
+            ValueData.internalBinaryWrite(message.value[k], writer, options);
+            writer.join().join();
+        }
         /* optional string order_key = 22; */
         if (message.orderKey !== undefined)
             writer.tag(22, WireType.LengthDelimited).string(message.orderKey);
@@ -20558,6 +20638,7 @@ class InterruptionData$Type extends MessageType$<InterruptionData> {
             { no: 12, name: "updated_at", kind: "message", T: () => Timestamp },
             { no: 13, name: "updated_by_ptr", kind: "message", T: () => NodeReferenceData },
             { no: 20, name: "mode", kind: "enum", T: () => ["symbol.bench.NodeMode", NodeMode, "NODE_MODE_"] },
+            { no: 21, name: "value", kind: "map", K: 9 /*ScalarType.STRING*/, V: { kind: "message", T: () => ValueData } },
             { no: 30, name: "type", kind: "enum", T: () => ["symbol.bench.InterruptionType", InterruptionType, "INTERRUPTION_TYPE_"] },
             { no: 32, name: "runnable_ptr", kind: "message", T: () => NodeReferenceData },
             { no: 37, name: "span_ptr", kind: "message", T: () => NodeReferenceData },
@@ -20574,6 +20655,7 @@ class InterruptionData$Type extends MessageType$<InterruptionData> {
         message.metatype = 0;
         message.id = "";
         message.mode = 0;
+        message.value = {};
         message.type = 0;
         message.status = 0;
         if (value !== undefined)
@@ -20615,6 +20697,9 @@ class InterruptionData$Type extends MessageType$<InterruptionData> {
                 case /* symbol.bench.NodeMode mode */ 20:
                     message.mode = reader.int32();
                     break;
+                case /* map<string, symbol.bench.ValueData> value */ 21:
+                    this.binaryReadMap21(message.value, reader, options);
+                    break;
                 case /* symbol.bench.InterruptionType type */ 30:
                     message.type = reader.int32();
                     break;
@@ -20653,6 +20738,22 @@ class InterruptionData$Type extends MessageType$<InterruptionData> {
         }
         return message;
     }
+    private binaryReadMap21(map: InterruptionData["value"], reader: IBinaryReader, options: BinaryReadOptions): void {
+        let len = reader.uint32(), end = reader.pos + len, key: keyof InterruptionData["value"] | undefined, val: InterruptionData["value"][any] | undefined;
+        while (reader.pos < end) {
+            let [fieldNo, wireType] = reader.tag();
+            switch (fieldNo) {
+                case 1:
+                    key = reader.string();
+                    break;
+                case 2:
+                    val = ValueData.internalBinaryRead(reader, reader.uint32(), options);
+                    break;
+                default: throw new globalThis.Error("unknown map entry field for field symbol.bench.InterruptionData.value");
+            }
+        }
+        map[key ?? ""] = val ?? ValueData.create();
+    }
     internalBinaryWrite(message: InterruptionData, writer: IBinaryWriter, options: BinaryWriteOptions): IBinaryWriter {
         /* symbol.bench.NodeType metatype = 1; */
         if (message.metatype !== 0)
@@ -20684,6 +20785,13 @@ class InterruptionData$Type extends MessageType$<InterruptionData> {
         /* symbol.bench.NodeMode mode = 20; */
         if (message.mode !== 0)
             writer.tag(20, WireType.Varint).int32(message.mode);
+        /* map<string, symbol.bench.ValueData> value = 21; */
+        for (let k of globalThis.Object.keys(message.value)) {
+            writer.tag(21, WireType.LengthDelimited).fork().tag(1, WireType.LengthDelimited).string(k);
+            writer.tag(2, WireType.LengthDelimited).fork();
+            ValueData.internalBinaryWrite(message.value[k], writer, options);
+            writer.join().join();
+        }
         /* symbol.bench.InterruptionType type = 30; */
         if (message.type !== 0)
             writer.tag(30, WireType.Varint).int32(message.type);
@@ -20815,6 +20923,7 @@ class LabelViewData$Type extends MessageType$<LabelViewData> {
             { no: 15, name: "deleted_at", kind: "message", T: () => Timestamp },
             { no: 16, name: "template_ptr", kind: "message", T: () => NodeReferenceData },
             { no: 20, name: "mode", kind: "enum", T: () => ["symbol.bench.NodeMode", NodeMode, "NODE_MODE_"] },
+            { no: 21, name: "value", kind: "map", K: 9 /*ScalarType.STRING*/, V: { kind: "message", T: () => ValueData } },
             { no: 22, name: "order_key", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
             { no: 31, name: "name", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
             { no: 35, name: "block_ptr", kind: "message", T: () => NodeReferenceData },
@@ -20865,6 +20974,7 @@ class LabelViewData$Type extends MessageType$<LabelViewData> {
         message.metatype = 0;
         message.id = "";
         message.mode = 0;
+        message.value = {};
         message.name = "";
         message.direction = { oneofKind: undefined };
         message.distribute = { oneofKind: undefined };
@@ -20927,6 +21037,9 @@ class LabelViewData$Type extends MessageType$<LabelViewData> {
                     break;
                 case /* symbol.bench.NodeMode mode */ 20:
                     message.mode = reader.int32();
+                    break;
+                case /* map<string, symbol.bench.ValueData> value */ 21:
+                    this.binaryReadMap21(message.value, reader, options);
                     break;
                 case /* optional string order_key */ 22:
                     message.orderKey = reader.string();
@@ -21152,6 +21265,22 @@ class LabelViewData$Type extends MessageType$<LabelViewData> {
         }
         return message;
     }
+    private binaryReadMap21(map: LabelViewData["value"], reader: IBinaryReader, options: BinaryReadOptions): void {
+        let len = reader.uint32(), end = reader.pos + len, key: keyof LabelViewData["value"] | undefined, val: LabelViewData["value"][any] | undefined;
+        while (reader.pos < end) {
+            let [fieldNo, wireType] = reader.tag();
+            switch (fieldNo) {
+                case 1:
+                    key = reader.string();
+                    break;
+                case 2:
+                    val = ValueData.internalBinaryRead(reader, reader.uint32(), options);
+                    break;
+                default: throw new globalThis.Error("unknown map entry field for field symbol.bench.LabelViewData.value");
+            }
+        }
+        map[key ?? ""] = val ?? ValueData.create();
+    }
     internalBinaryWrite(message: LabelViewData, writer: IBinaryWriter, options: BinaryWriteOptions): IBinaryWriter {
         /* symbol.bench.NodeType metatype = 1; */
         if (message.metatype !== 0)
@@ -21192,6 +21321,13 @@ class LabelViewData$Type extends MessageType$<LabelViewData> {
         /* symbol.bench.NodeMode mode = 20; */
         if (message.mode !== 0)
             writer.tag(20, WireType.Varint).int32(message.mode);
+        /* map<string, symbol.bench.ValueData> value = 21; */
+        for (let k of globalThis.Object.keys(message.value)) {
+            writer.tag(21, WireType.LengthDelimited).fork().tag(1, WireType.LengthDelimited).string(k);
+            writer.tag(2, WireType.LengthDelimited).fork();
+            ValueData.internalBinaryWrite(message.value[k], writer, options);
+            writer.join().join();
+        }
         /* optional string order_key = 22; */
         if (message.orderKey !== undefined)
             writer.tag(22, WireType.LengthDelimited).string(message.orderKey);
@@ -24385,7 +24521,6 @@ class QueryResultData$Type extends MessageType$<QueryResultData> {
     constructor() {
         super("symbol.bench.QueryResultData", [
             { no: 1, name: "metatype", kind: "enum", T: () => ["symbol.bench.StructType", StructType, "STRUCT_TYPE_"] },
-            { no: 40, name: "epoch", kind: "scalar", T: 3 /*ScalarType.INT64*/, L: 0 /*LongType.BIGINT*/ },
             { no: 41, name: "query", kind: "message", T: () => QueryData },
             { no: 50, name: "nodes", kind: "message", repeat: 1 /*RepeatType.PACKED*/, T: () => ValueData }
         ]);
@@ -24393,7 +24528,6 @@ class QueryResultData$Type extends MessageType$<QueryResultData> {
     create(value?: PartialMessage<QueryResultData>): QueryResultData {
         const message = globalThis.Object.create((this.messagePrototype!));
         message.metatype = 0;
-        message.epoch = 0n;
         message.nodes = [];
         if (value !== undefined)
             reflectionMergePartial<QueryResultData>(this, message, value);
@@ -24406,9 +24540,6 @@ class QueryResultData$Type extends MessageType$<QueryResultData> {
             switch (fieldNo) {
                 case /* symbol.bench.StructType metatype */ 1:
                     message.metatype = reader.int32();
-                    break;
-                case /* int64 epoch */ 40:
-                    message.epoch = reader.int64().toBigInt();
                     break;
                 case /* symbol.bench.QueryData query */ 41:
                     message.query = QueryData.internalBinaryRead(reader, reader.uint32(), options, message.query);
@@ -24431,9 +24562,6 @@ class QueryResultData$Type extends MessageType$<QueryResultData> {
         /* symbol.bench.StructType metatype = 1; */
         if (message.metatype !== 0)
             writer.tag(1, WireType.Varint).int32(message.metatype);
-        /* int64 epoch = 40; */
-        if (message.epoch !== 0n)
-            writer.tag(40, WireType.Varint).int64(message.epoch);
         /* symbol.bench.QueryData query = 41; */
         if (message.query)
             QueryData.internalBinaryWrite(message.query, writer.tag(41, WireType.LengthDelimited).fork(), options).join();
@@ -24455,14 +24583,12 @@ class QueryUpdateData$Type extends MessageType$<QueryUpdateData> {
     constructor() {
         super("symbol.bench.QueryUpdateData", [
             { no: 1, name: "metatype", kind: "enum", T: () => ["symbol.bench.StructType", StructType, "STRUCT_TYPE_"] },
-            { no: 40, name: "epoch", kind: "scalar", T: 3 /*ScalarType.INT64*/, L: 0 /*LongType.BIGINT*/ },
             { no: 50, name: "nodes", kind: "message", repeat: 1 /*RepeatType.PACKED*/, T: () => ValueData }
         ]);
     }
     create(value?: PartialMessage<QueryUpdateData>): QueryUpdateData {
         const message = globalThis.Object.create((this.messagePrototype!));
         message.metatype = 0;
-        message.epoch = 0n;
         message.nodes = [];
         if (value !== undefined)
             reflectionMergePartial<QueryUpdateData>(this, message, value);
@@ -24475,9 +24601,6 @@ class QueryUpdateData$Type extends MessageType$<QueryUpdateData> {
             switch (fieldNo) {
                 case /* symbol.bench.StructType metatype */ 1:
                     message.metatype = reader.int32();
-                    break;
-                case /* int64 epoch */ 40:
-                    message.epoch = reader.int64().toBigInt();
                     break;
                 case /* repeated symbol.bench.ValueData nodes */ 50:
                     message.nodes.push(ValueData.internalBinaryRead(reader, reader.uint32(), options));
@@ -24497,9 +24620,6 @@ class QueryUpdateData$Type extends MessageType$<QueryUpdateData> {
         /* symbol.bench.StructType metatype = 1; */
         if (message.metatype !== 0)
             writer.tag(1, WireType.Varint).int32(message.metatype);
-        /* int64 epoch = 40; */
-        if (message.epoch !== 0n)
-            writer.tag(40, WireType.Varint).int64(message.epoch);
         /* repeated symbol.bench.ValueData nodes = 50; */
         for (let i = 0; i < message.nodes.length; i++)
             ValueData.internalBinaryWrite(message.nodes[i], writer.tag(50, WireType.LengthDelimited).fork(), options).join();
@@ -24774,6 +24894,7 @@ class RunData$Type extends MessageType$<RunData> {
             { no: 12, name: "updated_at", kind: "message", T: () => Timestamp },
             { no: 13, name: "updated_by_ptr", kind: "message", T: () => NodeReferenceData },
             { no: 20, name: "mode", kind: "enum", T: () => ["symbol.bench.NodeMode", NodeMode, "NODE_MODE_"] },
+            { no: 21, name: "value", kind: "map", K: 9 /*ScalarType.STRING*/, V: { kind: "message", T: () => ValueData } },
             { no: 30, name: "type", kind: "enum", T: () => ["symbol.bench.RunType", RunType, "RUN_TYPE_"] },
             { no: 38, name: "thread_ptr", kind: "message", T: () => NodeReferenceData },
             { no: 66, name: "code", kind: "message", T: () => CodeData },
@@ -24801,6 +24922,7 @@ class RunData$Type extends MessageType$<RunData> {
         message.metatype = 0;
         message.id = "";
         message.mode = 0;
+        message.value = {};
         message.type = 0;
         message.status = 0;
         if (value !== undefined)
@@ -24841,6 +24963,9 @@ class RunData$Type extends MessageType$<RunData> {
                     break;
                 case /* symbol.bench.NodeMode mode */ 20:
                     message.mode = reader.int32();
+                    break;
+                case /* map<string, symbol.bench.ValueData> value */ 21:
+                    this.binaryReadMap21(message.value, reader, options);
                     break;
                 case /* symbol.bench.RunType type */ 30:
                     message.type = reader.int32();
@@ -24913,6 +25038,22 @@ class RunData$Type extends MessageType$<RunData> {
         }
         return message;
     }
+    private binaryReadMap21(map: RunData["value"], reader: IBinaryReader, options: BinaryReadOptions): void {
+        let len = reader.uint32(), end = reader.pos + len, key: keyof RunData["value"] | undefined, val: RunData["value"][any] | undefined;
+        while (reader.pos < end) {
+            let [fieldNo, wireType] = reader.tag();
+            switch (fieldNo) {
+                case 1:
+                    key = reader.string();
+                    break;
+                case 2:
+                    val = ValueData.internalBinaryRead(reader, reader.uint32(), options);
+                    break;
+                default: throw new globalThis.Error("unknown map entry field for field symbol.bench.RunData.value");
+            }
+        }
+        map[key ?? ""] = val ?? ValueData.create();
+    }
     internalBinaryWrite(message: RunData, writer: IBinaryWriter, options: BinaryWriteOptions): IBinaryWriter {
         /* symbol.bench.NodeType metatype = 1; */
         if (message.metatype !== 0)
@@ -24944,6 +25085,13 @@ class RunData$Type extends MessageType$<RunData> {
         /* symbol.bench.NodeMode mode = 20; */
         if (message.mode !== 0)
             writer.tag(20, WireType.Varint).int32(message.mode);
+        /* map<string, symbol.bench.ValueData> value = 21; */
+        for (let k of globalThis.Object.keys(message.value)) {
+            writer.tag(21, WireType.LengthDelimited).fork().tag(1, WireType.LengthDelimited).string(k);
+            writer.tag(2, WireType.LengthDelimited).fork();
+            ValueData.internalBinaryWrite(message.value[k], writer, options);
+            writer.join().join();
+        }
         /* symbol.bench.RunType type = 30; */
         if (message.type !== 0)
             writer.tag(30, WireType.Varint).int32(message.type);
@@ -25793,13 +25941,15 @@ class SelectData$Type extends MessageType$<SelectData> {
     constructor() {
         super("symbol.bench.SelectData", [
             { no: 1, name: "metatype", kind: "enum", T: () => ["symbol.bench.StructType", StructType, "STRUCT_TYPE_"] },
-            { no: 31, name: "attributes", kind: "message", repeat: 1 /*RepeatType.PACKED*/, T: () => AttributeReferenceData }
+            { no: 31, name: "properties_ptr", kind: "message", repeat: 1 /*RepeatType.PACKED*/, T: () => PropertyReferenceData },
+            { no: 32, name: "fields_ptr", kind: "message", repeat: 1 /*RepeatType.PACKED*/, T: () => NodeReferenceData }
         ]);
     }
     create(value?: PartialMessage<SelectData>): SelectData {
         const message = globalThis.Object.create((this.messagePrototype!));
         message.metatype = 0;
-        message.attributes = [];
+        message.propertiesPtr = [];
+        message.fieldsPtr = [];
         if (value !== undefined)
             reflectionMergePartial<SelectData>(this, message, value);
         return message;
@@ -25812,8 +25962,11 @@ class SelectData$Type extends MessageType$<SelectData> {
                 case /* symbol.bench.StructType metatype */ 1:
                     message.metatype = reader.int32();
                     break;
-                case /* repeated symbol.bench.AttributeReferenceData attributes */ 31:
-                    message.attributes.push(AttributeReferenceData.internalBinaryRead(reader, reader.uint32(), options));
+                case /* repeated symbol.bench.PropertyReferenceData properties_ptr */ 31:
+                    message.propertiesPtr.push(PropertyReferenceData.internalBinaryRead(reader, reader.uint32(), options));
+                    break;
+                case /* repeated symbol.bench.NodeReferenceData fields_ptr */ 32:
+                    message.fieldsPtr.push(NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options));
                     break;
                 default:
                     let u = options.readUnknownField;
@@ -25830,9 +25983,12 @@ class SelectData$Type extends MessageType$<SelectData> {
         /* symbol.bench.StructType metatype = 1; */
         if (message.metatype !== 0)
             writer.tag(1, WireType.Varint).int32(message.metatype);
-        /* repeated symbol.bench.AttributeReferenceData attributes = 31; */
-        for (let i = 0; i < message.attributes.length; i++)
-            AttributeReferenceData.internalBinaryWrite(message.attributes[i], writer.tag(31, WireType.LengthDelimited).fork(), options).join();
+        /* repeated symbol.bench.PropertyReferenceData properties_ptr = 31; */
+        for (let i = 0; i < message.propertiesPtr.length; i++)
+            PropertyReferenceData.internalBinaryWrite(message.propertiesPtr[i], writer.tag(31, WireType.LengthDelimited).fork(), options).join();
+        /* repeated symbol.bench.NodeReferenceData fields_ptr = 32; */
+        for (let i = 0; i < message.fieldsPtr.length; i++)
+            NodeReferenceData.internalBinaryWrite(message.fieldsPtr[i], writer.tag(32, WireType.LengthDelimited).fork(), options).join();
         let u = options.writeUnknownFields;
         if (u !== false)
             (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
@@ -27203,6 +27359,7 @@ class SplitViewData$Type extends MessageType$<SplitViewData> {
             { no: 15, name: "deleted_at", kind: "message", T: () => Timestamp },
             { no: 16, name: "template_ptr", kind: "message", T: () => NodeReferenceData },
             { no: 20, name: "mode", kind: "enum", T: () => ["symbol.bench.NodeMode", NodeMode, "NODE_MODE_"] },
+            { no: 21, name: "value", kind: "map", K: 9 /*ScalarType.STRING*/, V: { kind: "message", T: () => ValueData } },
             { no: 22, name: "order_key", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
             { no: 31, name: "name", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
             { no: 35, name: "block_ptr", kind: "message", T: () => NodeReferenceData },
@@ -27253,6 +27410,7 @@ class SplitViewData$Type extends MessageType$<SplitViewData> {
         message.metatype = 0;
         message.id = "";
         message.mode = 0;
+        message.value = {};
         message.name = "";
         message.direction = { oneofKind: undefined };
         message.distribute = { oneofKind: undefined };
@@ -27315,6 +27473,9 @@ class SplitViewData$Type extends MessageType$<SplitViewData> {
                     break;
                 case /* symbol.bench.NodeMode mode */ 20:
                     message.mode = reader.int32();
+                    break;
+                case /* map<string, symbol.bench.ValueData> value */ 21:
+                    this.binaryReadMap21(message.value, reader, options);
                     break;
                 case /* optional string order_key */ 22:
                     message.orderKey = reader.string();
@@ -27540,6 +27701,22 @@ class SplitViewData$Type extends MessageType$<SplitViewData> {
         }
         return message;
     }
+    private binaryReadMap21(map: SplitViewData["value"], reader: IBinaryReader, options: BinaryReadOptions): void {
+        let len = reader.uint32(), end = reader.pos + len, key: keyof SplitViewData["value"] | undefined, val: SplitViewData["value"][any] | undefined;
+        while (reader.pos < end) {
+            let [fieldNo, wireType] = reader.tag();
+            switch (fieldNo) {
+                case 1:
+                    key = reader.string();
+                    break;
+                case 2:
+                    val = ValueData.internalBinaryRead(reader, reader.uint32(), options);
+                    break;
+                default: throw new globalThis.Error("unknown map entry field for field symbol.bench.SplitViewData.value");
+            }
+        }
+        map[key ?? ""] = val ?? ValueData.create();
+    }
     internalBinaryWrite(message: SplitViewData, writer: IBinaryWriter, options: BinaryWriteOptions): IBinaryWriter {
         /* symbol.bench.NodeType metatype = 1; */
         if (message.metatype !== 0)
@@ -27580,6 +27757,13 @@ class SplitViewData$Type extends MessageType$<SplitViewData> {
         /* symbol.bench.NodeMode mode = 20; */
         if (message.mode !== 0)
             writer.tag(20, WireType.Varint).int32(message.mode);
+        /* map<string, symbol.bench.ValueData> value = 21; */
+        for (let k of globalThis.Object.keys(message.value)) {
+            writer.tag(21, WireType.LengthDelimited).fork().tag(1, WireType.LengthDelimited).string(k);
+            writer.tag(2, WireType.LengthDelimited).fork();
+            ValueData.internalBinaryWrite(message.value[k], writer, options);
+            writer.join().join();
+        }
         /* optional string order_key = 22; */
         if (message.orderKey !== undefined)
             writer.tag(22, WireType.LengthDelimited).string(message.orderKey);
@@ -31380,6 +31564,6 @@ export const SomeNodeData = new SomeNodeData$Type();
 
 // Any...
 export type AnyNodeData = ClientData | FriendshipData | FriendshipInviteData | OrganizationData | OrganizationInviteData | OrganizationMembershipData | UserData | CustomNodeDefinitionData | CustomNodeInstanceData | FieldData | FileData | LinkData | SchemaData | DatabaseData | MachineData | ActionData | AgentData | CursorData | FlowData | FlowEdgeData | ServiceData | TaskData | BenchData | BenchInviteData | BenchMembershipData | HandleData | PackageData | PackageMembershipData | PackageInviteData | InterruptionData | RunData | SpanData | MessageData | ThreadData | BlockData | PageData | RouteData | SceneData | SpaceData | ColorStyleData | BorderStyleData | TransitionStyleData | EffectStyleData | GradientStyleData | FontStyleData | ShadowStyleData | ThemeData | FrameViewData | LabelViewData | SplitViewData | TextViewData | NumberInputViewData | SliderInputViewData | WizardViewData | ThreadViewData
-export type AnyStructData = ScopeData | PropertyReferenceData | NodeReferenceData | CodeData | StringConstraintData | NumberConstraintData | CollectionConstraintData | NodeConstraintData | TypeData | EditData | ChangeData | ChangeResultData | IconData | PropertyInfoData | TraitInfoData | NodeInfoData | StructInfoData | EnumInfoData | EnumOptionInfoData | ValueData | RelationReferenceData | AttributeReferenceData | FunctionData | ConditionData | AggregationData | ExpressionData | SortData | SelectData | JoinData | QueryData | QueryResultData | QueryUpdateData | SelectionData | TextSpanData | TextLineData | TextData | VariableData | OriginData | CellInfoData | DatabaseInfoData | ScheduleData | ErrorData | ColorData | LengthData | PositionData | DimensionData | InsetsData | CornersData | Axis2Data | Axis3Data | Vector2Data | Vector3Data | Vector4Data | GridData | GridSpanData | BorderData | TransitionData | EffectData | GradientStopData | GradientData | FillData | FontData | ShadowData
+export type AnyStructData = ScopeData | PropertyReferenceData | NodeReferenceData | CodeData | StringConstraintData | NumberConstraintData | CollectionConstraintData | NodeConstraintData | TypeData | ValueData | RelationReferenceData | AttributeReferenceData | FunctionData | ConditionData | AggregationData | ExpressionData | SortData | SelectData | JoinData | QueryData | QueryResultData | QueryUpdateData | SelectionData | EditData | ChangeData | ChangeResultData | IconData | PropertyInfoData | TraitInfoData | NodeInfoData | StructInfoData | EnumInfoData | EnumOptionInfoData | TextSpanData | TextLineData | TextData | VariableData | OriginData | CellInfoData | DatabaseInfoData | ScheduleData | ErrorData | ColorData | LengthData | PositionData | DimensionData | InsetsData | CornersData | Axis2Data | Axis3Data | Vector2Data | Vector3Data | Vector4Data | GridData | GridSpanData | BorderData | TransitionData | EffectData | GradientStopData | GradientData | FillData | FontData | ShadowData
 
     

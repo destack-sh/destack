@@ -309,7 +309,6 @@ enum EdgeType {
   EDGE_TYPE_NODE_TEMPLATE = 6;
 }
 
-// The type of update operation.
 enum EditOperation {
   EDIT_OPERATION_UNSPECIFIED = 0;
   EDIT_OPERATION_SET = 1;
@@ -318,7 +317,6 @@ enum EditOperation {
   EDIT_OPERATION_MAP_REMOVE = 111;
 }
 
-// Ways to edit nodes.
 enum EditType {
   EDIT_TYPE_UNSPECIFIED = 0;
   EDIT_TYPE_CREATE = 1;
@@ -992,9 +990,8 @@ enum ProcessStatus {
 
 enum QueryType {
   QUERY_TYPE_UNSPECIFIED = 0;
-  QUERY_TYPE_GET = 1;
-  QUERY_TYPE_SEARCH = 2;
-  QUERY_TYPE_AGGREGATE = 3;
+  QUERY_TYPE_NODE = 1;
+  QUERY_TYPE_SCALAR = 2;
 }
 
 // Regions in an Area on a Continent.
@@ -1585,7 +1582,7 @@ message BorderStyleData {
 message CellInfoData {
   StructType metatype = 1;
   Region region = 50;
-  string cell_name = 51;
+  string name = 51;
   string host = 52;
 }
 
@@ -1765,6 +1762,7 @@ message CustomNodeInstanceData {
   optional NodeReferenceData updated_by_ptr = 13;
   optional google.protobuf.Timestamp deleted_at = 15;
   NodeMode mode = 20;
+  map<string, ValueData> value = 21;
   NodeReferenceData definition_ptr = 40;
 }
 
@@ -2113,6 +2111,7 @@ message FrameViewData {
   optional google.protobuf.Timestamp deleted_at = 15;
   optional NodeReferenceData template_ptr = 16;
   NodeMode mode = 20;
+  map<string, ValueData> value = 21;
   optional string order_key = 22;
   string name = 31;
   optional NodeReferenceData block_ptr = 35;
@@ -2321,6 +2320,7 @@ message InterruptionData {
   google.protobuf.Timestamp updated_at = 12;
   optional NodeReferenceData updated_by_ptr = 13;
   NodeMode mode = 20;
+  map<string, ValueData> value = 21;
   InterruptionType type = 30;
   optional NodeReferenceData runnable_ptr = 32;
   optional NodeReferenceData span_ptr = 37;
@@ -2355,6 +2355,7 @@ message LabelViewData {
   optional google.protobuf.Timestamp deleted_at = 15;
   optional NodeReferenceData template_ptr = 16;
   NodeMode mode = 20;
+  map<string, ValueData> value = 21;
   optional string order_key = 22;
   string name = 31;
   optional NodeReferenceData block_ptr = 35;
@@ -2808,14 +2809,12 @@ message QueryData {
 
 message QueryResultData {
   StructType metatype = 1;
-  int64 epoch = 40;
   QueryData query = 41;
   repeated ValueData nodes = 50;
 }
 
 message QueryUpdateData {
   StructType metatype = 1;
-  int64 epoch = 40;
   repeated ValueData nodes = 50;
 }
 
@@ -2861,6 +2860,7 @@ message RunData {
   google.protobuf.Timestamp updated_at = 12;
   optional NodeReferenceData updated_by_ptr = 13;
   NodeMode mode = 20;
+  map<string, ValueData> value = 21;
   RunType type = 30;
   optional NodeReferenceData thread_ptr = 38;
   optional CodeData code = 66;
@@ -2972,7 +2972,8 @@ message ScopeData {
 
 message SelectData {
   StructType metatype = 1;
-  repeated AttributeReferenceData attributes = 31;
+  repeated PropertyReferenceData properties_ptr = 31;
+  repeated NodeReferenceData fields_ptr = 32;
 }
 
 message SelectionData {
@@ -3165,6 +3166,7 @@ message SplitViewData {
   optional google.protobuf.Timestamp deleted_at = 15;
   optional NodeReferenceData template_ptr = 16;
   NodeMode mode = 20;
+  map<string, ValueData> value = 21;
   optional string order_key = 22;
   string name = 31;
   optional NodeReferenceData block_ptr = 35;

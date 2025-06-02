@@ -2,15 +2,22 @@ from typing import TYPE_CHECKING, Any, Optional, Union, assert_never
 
 from fastuuid import UUID
 
-from .const import BuiltinEnum, EnumType, NodeType, StructType, enum_
+from .const import (
+    BuiltinEnum,
+    EnumType,
+    NodeType,
+    StructType,
+    active_session,
+    enum_,
+)
 from .node import Node
 from .object import Property
 from .property import property_
-from .struct import NodeReference, StructFrozen, StructMutable, struct_
+from .struct import NodeReference, PropertyReference, StructFrozen, StructMutable, struct_
 from .value import Value
 
 if TYPE_CHECKING:
-    from bench.language import CustomNodeDefinition, Field, Session, Store
+    from bench.language import CustomNodeDefinition, Field, QueryConnection
 
 # pyright: reportIncompatibleVariableOverride=false
 
@@ -33,7 +40,8 @@ class RelationReference(StructFrozen):
     node_type: NodeType = property_(31, is_repr=True)
     definition: Optional["CustomNodeDefinition"] = property_(32, is_repr=True)
     if TYPE_CHECKING:
-        definition_ptr: Optional[NodeReference] = None  # convenience only
+        definition_id: Optional[UUID] = None
+        definition_ptr: Optional[NodeReference] = None
 
 
 def relation_ref(base: "NodeType | type[Node] | CustomNodeDefinition") -> RelationReference:
@@ -68,6 +76,10 @@ class AttributeReference(StructFrozen):
         33, description="Named attribute from another Query.", is_repr=True
     )
     relation: Optional[RelationReference] = property_(34, is_repr=True)
+    if TYPE_CHECKING:
+        prop_ptr: Optional[PropertyReference] = None
+        field_id: Optional[UUID] = None
+        field_ptr: Optional[NodeReference] = None
 
 
 def attribute_ref(field: "str | Field | Property") -> AttributeReference:
@@ -134,13 +146,11 @@ class ConditionalType(BuiltinEnum):
     STARTS_WITH = 21
     ENDS_WITH = 22
     # collections
-    CONTAINS = 23
-    NOT_CONTAINS = 24
-    IN = 25
-    NOT_IN = 26
+    IN = 30
+    NOT_IN = 31
     # existence
-    EXISTS = 30
-    NOT_EXISTS = 31
+    EXISTS = 40
+    NOT_EXISTS = 41
 
 
 @struct_(StructType.CONDITION, frozen=True)
@@ -308,11 +318,19 @@ def sort(sort: SortIn, type: SortType = SortType.ASCENDING) -> Sort:
 class Select(StructFrozen):
     """Select specific Attributes."""
 
-    attributes: list[AttributeReference] = property_(31, is_repr=True)
+    properties: list["Property"] = property_(31, is_repr=True)
+    fields: list["Field"] = property_(32, is_repr=True)
 
 
-def select(*attributes: AttributeReference) -> Select:
-    return Select(attributes=list(attributes))
+def select(*attributes: "Property | Field") -> Select:
+    properties: list[Property] = []
+    fields: list[Field] = []
+    for attribute in attributes:
+        if isinstance(attribute, Property):
+            properties.append(attribute)
+        elif isinstance(attribute, Field):
+            fields.append(attribute)
+    return Select(properties=properties, fields=fields)
 
 
 #
@@ -365,9 +383,8 @@ def join(
 
 @enum_(EnumType.QUERY_TYPE)
 class QueryType(BuiltinEnum):
-    GET = 1
-    SEARCH = 2
-    AGGREGATE = 3
+    NODE = 1
+    SCALAR = 2
 
 
 @struct_(StructType.QUERY, frozen=True)
@@ -402,23 +419,29 @@ class Query[RootT: "Node"](StructFrozen):
 
     async def execute(self) -> "QueryConnection[RootT]":
         """Execute the Query."""
-        raise NotImplementedError
+        from .connection import QueryConnection
+
+        session = active_session()
+        store = session.store
+        assert store is not None, f"no store in {session!r}"
+        connection = QueryConnection(self, store, session)
+        await connection.execute()
+        return connection
 
     async def execute_one_or_none(self) -> Optional[RootT]:
         """Execute the Query and return the root (if any)."""
-        raise NotImplementedError
+        connection = await self.execute()
+        return connection.to_one_or_none()
 
     async def execute_one(self) -> RootT:
         """Execute the Query and return the root (error if none)."""
-        raise NotImplementedError
+        connection = await self.execute()
+        return connection.to_one()
 
     async def execute_list(self) -> list[RootT]:
         """Execute the Query and return the list of roots."""
-        raise NotImplementedError
-
-    async def execute_count(self) -> int:
-        """Execute the Query and return its count."""
-        raise NotImplementedError
+        connection = await self.execute()
+        return connection.to_list()
 
 
 def to_subqueries(subqueries: dict[str, "Query"]) -> list["Query"]:
@@ -435,7 +458,6 @@ def to_subqueries(subqueries: dict[str, "Query"]) -> list["Query"]:
 class QueryResult(StructMutable):
     """The result of a Query."""
 
-    epoch: int = property_(40, is_repr=True)
     query: Query = property_(41, is_repr=True)
     nodes: list[Value] = property_(50, is_repr=True)
 
@@ -444,34 +466,7 @@ class QueryResult(StructMutable):
 class QueryUpdate(StructFrozen):
     """An update to a QueryResult."""
 
-    epoch: int = property_(40, is_repr=True)
     nodes: list[Value] = property_(50, is_repr=True)
-
-
-class QueryConnection[RootT: "Node"]:
-    """A connection to a Query and its result."""
-
-    __slots__ = ("id", "is_live", "query", "result", "session", "store")
-
-    def __init__(self, query: Query, store: "Store", session: "Session"):
-        self.id: UUID = query.id
-        self.query: Query = query
-        self.is_live = query.is_live
-        self.store: Store = store
-        self.session: Session = session
-        self.result: QueryResult | None = None
-
-    async def execute(self) -> None:
-        """Execute the Query."""
-        raise NotImplementedError
-
-    def close(self) -> None:
-        """Close the QueryConnection."""
-        raise NotImplementedError
-
-    async def wait_closed(self) -> None:
-        """Wait for the QueryConnection to be closed."""
-        raise NotImplementedError
 
 
 #
@@ -522,12 +517,6 @@ class IntoQuery:
 
     def not_in(self: Any, *values: list[Any]) -> "Condition":
         return condition(self, ConditionalType.NOT_IN, value=values)
-
-    def contains(self: Any, value: Any) -> "Condition":
-        return condition(self, ConditionalType.CONTAINS, value=value)
-
-    def not_contains(self: Any, value: Any) -> "Condition":
-        return condition(self, ConditionalType.NOT_CONTAINS, value=value)
 
     def exists(self: Any) -> "Condition":
         return condition(self, ConditionalType.EXISTS)
