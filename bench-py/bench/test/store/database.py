@@ -5,6 +5,7 @@ from fastuuid import uuid4
 
 from bench.language import (
     ACTIVE_SESSION,
+    CustomNodeDefinition,
     DatabaseInfo,
     NodeReference,
     NodeType,
@@ -12,6 +13,7 @@ from bench.language import (
     User,
     UserStatus,
 )
+from bench.language.core.const import TraitType
 from bench.store import DatabaseStore
 
 
@@ -89,6 +91,7 @@ def session(session_async: Session):
 
 
 async def test_create_user(session: Session):
+    """Create and update a User, querying along the way."""
     user = User(
         status=UserStatus.ACTIVE,
         name="Floof",
@@ -97,7 +100,32 @@ async def test_create_user(session: Session):
     )
     session.create(user)
     await session.commit()
+
     user.name = "Fluff"
+    user.slug = "flotothemoon"
     await session.commit()
+
     user_unpacked = await User.get(where=User.property("id").eq(user.id)).execute_one()
     assert user.equals(user_unpacked)
+
+    user_unpacked = await User.get(where=User.property("slug").eq("flotothemoon")).execute_one()
+    assert user_unpacked.name == "Fluff"
+    assert user_unpacked.slug == "flotothemoon"
+    assert user_unpacked.status == UserStatus.ACTIVE
+
+
+async def test_create_custom_node(session: Session):
+    """Create a custom Node, mutate it, querying along the way."""
+    # nocheckin: custom nodes
+    custom_node_definition = CustomNodeDefinition(
+        name="Event",
+        traits=[
+            TraitType.NAMED,
+            TraitType.SLUG,
+            TraitType.DELETABLE,
+            TraitType.ARCHIVABLE,
+            TraitType.OWNABLE,
+        ],
+    )
+    session.create(custom_node_definition)
+    await session.commit()

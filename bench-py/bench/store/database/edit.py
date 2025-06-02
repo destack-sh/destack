@@ -7,25 +7,13 @@ import asyncpg
 import structlog
 from opentelemetry import trace
 
-from bench.language import Change, Edit, EditType, NodeReference, NodeType
+from bench.language import Change, Edit, EditType, NodeReference
 
 from .core import DatabaseContext, DatabaseTable
-from .map import get_table_name
 from .wiring import pack_node_value_to_row
 
 tracer = trace.get_tracer(__name__)
 logger = structlog.get_logger(__name__)
-
-
-async def _get_table(ctx: DatabaseContext, node_ptr: NodeReference) -> DatabaseTable:
-    table_name = get_table_name(node_ptr)
-    table = ctx.tables_by_name.get(table_name)
-    if table is None:
-        if node_ptr.node_type == NodeType.CUSTOM_NODE_INSTANCE:
-            raise NotImplementedError(f"no table for {node_ptr!r} in {ctx!r}")
-        else:
-            raise RuntimeError(f"no table for {node_ptr!r} in {ctx!r}")
-    return table
 
 
 async def execute_change(
@@ -36,13 +24,13 @@ async def execute_change(
 
     cascaded_edits: list[Edit] = []
 
-    current_table = await _get_table(ctx, change.edits[0].node_ptr)
+    current_table = ctx.get_table(change.edits[0].node_ptr)
     current_edit_type = change.edits[0].type
     current_batch: list[Edit] = []
     for edit in change.edits:
-        edit_table = await _get_table(ctx, edit.node_ptr)
+        edit_table = ctx.get_table(edit.node_ptr)
         if edit_table is not current_table or edit.type != current_edit_type:
-            _, batch_cascaded_edits = await _execute_edits(
+            _, batch_cascaded_edits = await _execute_edit(
                 conn=conn,
                 ctx=ctx,
                 change=change,
@@ -50,6 +38,7 @@ async def execute_change(
                 edit_type=current_edit_type,
                 edits=current_batch,
             )
+            ctx.apply(batch_cascaded_edits)
             cascaded_edits.extend(batch_cascaded_edits)
             current_table = edit_table
             current_edit_type = edit.type
@@ -57,7 +46,7 @@ async def execute_change(
         current_batch.append(edit)
 
     if current_batch:
-        _, batch_cascaded_edits = await _execute_edits(
+        _, batch_cascaded_edits = await _execute_edit(
             conn=conn,
             ctx=ctx,
             change=change,
@@ -65,22 +54,24 @@ async def execute_change(
             edit_type=current_edit_type,
             edits=current_batch,
         )
+        ctx.apply(batch_cascaded_edits)
         cascaded_edits.extend(batch_cascaded_edits)
 
     return change.edits, cascaded_edits
 
 
-async def _get_cascaded_node_ptrs(
+async def _cascade_nodes(
     conn: asyncpg.Connection,
     ctx: DatabaseContext,
     change: Change,
     table: DatabaseTable,
-    edit_type: EditType,
+    node_ptrs: Sequence[NodeReference],
 ) -> Sequence[NodeReference]:
+    """Get the cascaded Nodes for an edit."""
     return ()
 
 
-async def _execute_edits(
+async def _execute_edit(
     conn: asyncpg.Connection,
     ctx: DatabaseContext,
     change: Change,
@@ -124,7 +115,7 @@ SET {", ".join(f"{col.name} = EXCLUDED.{col.name}" for col in override_columns)}
         for edit in edits:
             prop = edit.prop
             assert prop is not None, f"no prop for {edit!r}"
-            raise NotImplementedError(f"no implementation for {edit_type!r}")
+
         return edits, ()
 
     # move
@@ -139,12 +130,12 @@ SET {", ".join(f"{col.name} = EXCLUDED.{col.name}" for col in override_columns)}
         EditType.RESTORE,
     ):
         # cascade
-        cascaded_node_ptrs = await _get_cascaded_node_ptrs(
+        cascaded_node_ptrs = await _cascade_nodes(
             conn=conn,
             ctx=ctx,
             change=change,
             table=table,
-            edit_type=edit_type,
+            node_ptrs=tuple(edit.node_ptr for edit in edits),
         )
         cascaded_edits = tuple(
             Edit(type=edit_type, node_ptr=node_ptr) for node_ptr in cascaded_node_ptrs
@@ -163,7 +154,7 @@ SET {", ".join(f"{col.name} = EXCLUDED.{col.name}" for col in override_columns)}
             assert_never(edit_type)
         edited_node_ptrs_by_table: dict[str, list[uuid.UUID]] = defaultdict(list)
         for node_ptr in cascaded_node_ptrs:
-            table_name = get_table_name(node_ptr)
+            table_name = ctx.get_table(node_ptr).name
             node_id_packed = uuid.UUID(str(node_ptr.id))
             edited_node_ptrs_by_table.setdefault(table_name, []).append(node_id_packed)
         at_packed = uuid.UUID(str(change.created_at))
@@ -180,12 +171,12 @@ WHERE id = $1
     # erase
     elif edit_type == EditType.ERASE:
         # cascade
-        cascaded_node_ptrs = await _get_cascaded_node_ptrs(
+        cascaded_node_ptrs = await _cascade_nodes(
             conn=conn,
             ctx=ctx,
             change=change,
             table=table,
-            edit_type=edit_type,
+            node_ptrs=tuple(edit.node_ptr for edit in edits),
         )
         cascaded_edits = tuple(
             Edit(type=edit_type, node_ptr=node_ptr) for node_ptr in cascaded_node_ptrs
@@ -194,7 +185,7 @@ WHERE id = $1
         # delete
         edited_node_ptrs_by_table: dict[str, list[uuid.UUID]] = defaultdict(list)
         for node_ptr in cascaded_node_ptrs:
-            table_name = get_table_name(node_ptr)
+            table_name = ctx.get_table(node_ptr).name
             node_id_packed = uuid.UUID(str(node_ptr.id))
             edited_node_ptrs_by_table.setdefault(table_name, []).append(node_id_packed)
         for table_name, table_node_ids in edited_node_ptrs_by_table.items():
