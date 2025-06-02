@@ -174,7 +174,6 @@ class Node[NodeDataT: AnyNodeData](BuiltinObjectMutable[NodeDataT]):
     # IsModal.mode: 20
     # IsExtensible.value: 21
     # IsOrdered.order_key: 22
-    # IsRegional.region: 23
 
     # 30+ for general properties
     # ...

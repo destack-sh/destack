@@ -97,5 +97,7 @@ async def test_create_user(session: Session):
     )
     session.create(user)
     await session.commit()
+    user.name = "Fluff"
+    await session.commit()
     user_unpacked = await User.get(where=User.property("id").eq(user.id)).execute_one()
     assert user.equals(user_unpacked)
