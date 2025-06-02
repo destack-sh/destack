@@ -86,7 +86,7 @@ def pack_node_value_to_row(table: DatabaseTable, value: Value) -> Sequence[Any]:
             else:
                 values_packed.append(None)
     assert len(values_packed) == len(table._columns_by_name), (
-        f"unexpected values: {len(values_packed)} != {len(table._columns_by_name)}"
+        f"unexpected values: {len(values_packed)} != {len(table._columns_by_name)} in {table!r} ({values_packed!r} for {list(table._columns_by_name.keys())!r})"
     )
 
     return values_packed

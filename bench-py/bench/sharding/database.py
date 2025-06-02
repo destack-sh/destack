@@ -12,15 +12,22 @@ class DatabaseProvider(abc.ABC):
     """A provider of known Bench-level Databases (excluding the global database)."""
 
     @abc.abstractmethod
-    def resolve(self, region: Region, cell_name: str, external_name: str) -> "DatabaseInfo | None":
+    async def acquire(self, region: Region) -> "DatabaseInfo":
+        """Acquires a Database for the given region."""
+        ...
+
+    @abc.abstractmethod
+    async def resolve(
+        self, region: Region, cell_name: str, external_name: str
+    ) -> "DatabaseInfo | None":
         """Gets the Database for the given region (error if none)."""
         ...
 
-    def resolve_or_error(
+    async def resolve_or_error(
         self, region: Region, cell_name: str, external_name: str
     ) -> "DatabaseInfo":
         """Gets the Database for the given region (error if none)."""
-        database_info = self.resolve(region, cell_name, external_name)
+        database_info = await self.resolve(region, cell_name, external_name)
         if database_info is None:
             raise LookupError(
                 f"no Database for {region.slug}/{cell_name}/{external_name} in {self!r}"
@@ -38,7 +45,16 @@ class StaticDatabaseProvider(DatabaseProvider):
         return f"<{self.__class__.__name__} {len(self.databases)} databases>"
 
     @override
-    def resolve(self, region: Region, cell_name: str, external_name: str) -> "DatabaseInfo | None":
+    async def acquire(self, region: Region) -> "DatabaseInfo":
+        for database in self.databases:
+            if database.region == region:
+                return database
+        raise LookupError(f"no Database {region.slug} in {self!r}")
+
+    @override
+    async def resolve(
+        self, region: Region, cell_name: str, external_name: str
+    ) -> "DatabaseInfo | None":
         for database in self.databases:
             if (
                 database.region == region

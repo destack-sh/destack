@@ -121,6 +121,7 @@ SET {", ".join(f"{col.name} = EXCLUDED.{col.name}" for col in override_columns)}
 
     # update
     elif edit_type == EditType.UPDATE:
+        # TODO :Performance: batch database update edits somehow
         for edit in edits:
             prop = edit.prop
             assert prop is not None, f"no prop for {edit!r}"

@@ -38,7 +38,6 @@ async def pg_transaction(
     try:
         yield conn, tx
     except Exception:
-        await tx.rollback()
         raise
     finally:
         await conn.close()
