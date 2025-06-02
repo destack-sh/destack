@@ -11,9 +11,7 @@ from bench.language import (
     expand_node_types,
 )
 from bench.language.registry import NODE_CLASS_BY_TYPE
-from bench.utils.string import Casing, to_casing
 
-from . import schema
 from .core import (
     EXTENSIONS,
     MIGRATION_TABLE,
@@ -58,16 +56,29 @@ def map_builtin_node_to_database_table(node: type[Node]) -> DatabaseTable:
             assert prop.cardinality == "scalar", f"non-scalar {prop!r}"
             # id
             column = DatabaseColumn(
-                name=f"{prop.name}_id", type=PrimitiveType.UUID, is_nullable=not prop.is_required
+                name=f"{prop.name}_id",
+                type=PrimitiveType.UUID,
+                is_nullable=not prop.is_required,
+                prop=prop,
             )
             columns.append(column)
             node_types = expand_node_types(prop.node_types or ())
+            # node_type
+            if len(node_types) > 1:
+                node_type_column = DatabaseColumn(
+                    name=f"{prop.name}_node_type",
+                    type=PrimitiveType.UUID,
+                    is_nullable=prop.is_optional,
+                    prop=prop,
+                )
+                columns.append(node_type_column)
             # definition_id
             if prop.node_is_customizable and NodeType.CUSTOM_NODE_INSTANCE in node_types:
                 table_id_column = DatabaseColumn(
                     name=f"{prop.name}_definition_id",
                     type=PrimitiveType.UUID,
                     is_nullable=prop.is_optional,
+                    prop=prop,
                 )
                 columns.append(table_id_column)
             # bench_id
@@ -78,6 +89,7 @@ def map_builtin_node_to_database_table(node: type[Node]) -> DatabaseTable:
                     name=f"{prop.name}_bench_id",
                     type=PrimitiveType.UUID,
                     is_nullable=prop.is_optional,
+                    prop=prop,
                 )
                 columns.append(bench_id_column)
         else:
@@ -90,6 +102,7 @@ def map_builtin_node_to_database_table(node: type[Node]) -> DatabaseTable:
                 is_array=prop.cardinality == "list",
                 is_nullable=prop.is_optional,
                 is_primary_key=prop.name == "id",
+                prop=prop,
             )
             columns.append(column)
 
@@ -97,7 +110,10 @@ def map_builtin_node_to_database_table(node: type[Node]) -> DatabaseTable:
         if prop.is_variable:
             column.is_nullable = True
             variable_column = DatabaseColumn(
-                name=f"{prop.name}_variable", type=PrimitiveType.JSON, is_nullable=True
+                name=f"{prop.name}_variable",
+                type=PrimitiveType.JSON,
+                is_nullable=True,
+                prop=prop,
             )
             columns.append(variable_column)
 
@@ -111,6 +127,7 @@ def map_builtin_node_to_database_table(node: type[Node]) -> DatabaseTable:
 
     table = DatabaseTable(
         name=table_name,
+        node_type=node.metatype,
         columns=tuple(columns),
         constraints=tuple(constraints),
         indexes=tuple(indexes),
@@ -124,10 +141,8 @@ def map_custom_node_to_database_table(definition: CustomNodeDefinition) -> Datab
 
 
 BUILTIN_TABLE_BY_NODE_TYPE: dict[NodeType, DatabaseTable] = {
-    # read previously generated tables in schema.py
-    node_type: getattr(schema, f"{to_casing(node_type.name, Casing.ALL_CAPS)}_TABLE")
+    node_type: map_builtin_node_to_database_table(NODE_CLASS_BY_TYPE[node_type])
     for node_type in NODE_TYPES
-    if hasattr(schema, f"{to_casing(node_type.name, Casing.ALL_CAPS)}_TABLE")
 }
 BUILTIN_NODE_BY_TABLE_NAME: dict[str, NodeType] = {
     table.name: node_type for node_type, table in BUILTIN_TABLE_BY_NODE_TYPE.items()

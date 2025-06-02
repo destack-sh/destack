@@ -30,6 +30,7 @@ openai==1.76.0
 opentelemetry-api==1.28.1
 opentelemetry-sdk==1.28.1
 opentelemetry-exporter-otlp-proto-grpc==1.28.1
+orjson==3.10.18
 uvloop==0.21.0
 pillow==11.0.0
 posthog==4.0.1

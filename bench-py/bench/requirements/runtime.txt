@@ -298,6 +298,8 @@ opentelemetry-sdk==1.28.1
     #   opentelemetry-exporter-otlp-proto-grpc
 opentelemetry-semantic-conventions==0.49b1
     # via opentelemetry-sdk
+orjson==3.10.18
+    # via -r bench-py/bench/requirements/base.in
 packaging==24.2
     # via
     #   black

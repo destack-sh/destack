@@ -6,11 +6,20 @@ from typing import TYPE_CHECKING, Any, ClassVar, Self, Union, cast
 
 from more_itertools import first
 
-from bench.language import ConditionalType, IndexIn, PrimitiveType, SortType
+from bench.language import (
+    ConditionalType,
+    CustomNodeDefinition,
+    Field,
+    IndexIn,
+    PrimitiveType,
+    Property,
+    SortType,
+)
+from bench.language.core.const import NodeType
 from bench.utils.func import hash_stable
 
 if TYPE_CHECKING:
-    from bench.language import CustomNodeDefinition, Field
+    pass
 
 
 @dataclass(slots=True)
@@ -91,6 +100,10 @@ class DatabaseObject:
                 return f"[{', '.join(cast(str, _source_repr(v)) for v in value)}]"
             elif isinstance(value, enum.Enum):
                 return f"{value.__class__.__name__}.{value.name}"
+            elif isinstance(value, Property):
+                node_type = getattr(value.component, "metatype", None)
+                assert isinstance(node_type, NodeType), f"no node type for: {value!r}"
+                return f"{node_type.bench_name}.property({value.name!r})"
             else:
                 return repr(value)
 
@@ -245,6 +258,7 @@ class DatabaseColumn(DatabaseTableObject):
 
     name: str  # type: ignore
     type: PrimitiveType
+    prop: "Property | None" = None
     is_array: bool = False
     is_primary_key: bool = False
     is_foreign_key_to: str | None = None
@@ -478,12 +492,12 @@ class DatabaseTable(DatabaseTableObject):
 
     name: str  # type: ignore
     columns: tuple[DatabaseColumn, ...]
+    node_type: NodeType | None = None
     indexes: tuple[DatabaseIndex, ...] = ()
     constraints: tuple[DatabaseConstraint, ...] = ()
-    _table: Union["CustomNodeDefinition", None] = None  # type: ignore
     _columns_by_name: dict[str, DatabaseColumn] = dataclasses.field(init=False)
-    _columns_by_field: dict["Field", DatabaseColumn] = dataclasses.field(init=False)
     _primary_key: DatabaseColumn | None = dataclasses.field(init=False)
+    _table: Union["CustomNodeDefinition", None] = None  # type: ignore
 
     def __post_init__(self):
         for object in chain(self.columns, self.indexes, self.constraints):
@@ -491,18 +505,11 @@ class DatabaseTable(DatabaseTableObject):
                 raise ValueError(f"{object} is already attached to {object._table}")
             object._table = self
         self._columns_by_name = {}
-        self._columns_by_field = {}
         for column in self.columns:
             existing = self._columns_by_name.get(column.name)
             if existing is not None:
                 raise ValueError(f"column {column!r} is already defined in {self!r}: {existing!r}")
             self._columns_by_name[column.name] = column
-            if column._field is not None:
-                if column._field in self._columns_by_field:
-                    raise ValueError(
-                        f"field {column._field!r} is already bound to {self._columns_by_field[column._field]!r}"
-                    )
-                self._columns_by_field[column._field] = column
         self._primary_key = first((c for c in self.columns if c.is_primary_key), None)
 
     def __str__(self):
@@ -525,25 +532,6 @@ class DatabaseTable(DatabaseTableObject):
     def walk(self) -> tuple[DatabaseTableObject, ...]:
         # NOTE: the order here matters and is assumed in the diff logic
         return self, *self.columns, *self.indexes, *self.constraints
-
-    def get_column(self, key: "str | Field") -> DatabaseColumn:
-        if isinstance(key, str):
-            column = self._columns_by_name.get(key)
-            if column is None:
-                raise KeyError(f"no column {key!r} in {self!r}")
-            return column
-        else:
-            column = self._columns_by_field.get(key)
-            if column is None:
-                context_fields = [*self._columns_by_field.keys()]
-                source_fields = key.parent.get_children(Field) if key.parent else ()
-                raise KeyError(
-                    f"no column for field {key!r} in {self!r} (context={context_fields}, tracked={source_fields})"
-                )
-            return column
-
-    def columns_by_name(self, *names: str) -> tuple[DatabaseColumn, ...]:
-        return tuple(self._columns_by_name[name] for name in names)
 
 
 @dataclass(slots=True)
@@ -740,16 +728,16 @@ EXTENSIONS = (
     DatabaseExtension("plpgsql"),
     DatabaseExtension("uuid-ossp"),
     DatabaseExtension("pgcrypto"),
-    DatabaseExtension("bloom"),
 )
 
 MIGRATION_TABLE = DatabaseTable(  # see bench-py/bench/store/database/migration.py
     "bench_migration",
+    node_type=None,
     columns=(
-        DatabaseColumn("id", PrimitiveType.INT32, is_primary_key=True),
-        DatabaseColumn("version", PrimitiveType.STRING, is_unique=True),
-        DatabaseColumn("has_global", PrimitiveType.BOOLEAN),
-        DatabaseColumn("has_main", PrimitiveType.BOOLEAN),
-        DatabaseColumn("applied_at", PrimitiveType.DATETIME, is_nullable=True),
+        DatabaseColumn("id", PrimitiveType.INT32, is_primary_key=True, prop=None),
+        DatabaseColumn("version", PrimitiveType.STRING, is_unique=True, prop=None),
+        DatabaseColumn("has_global", PrimitiveType.BOOLEAN, prop=None),
+        DatabaseColumn("has_main", PrimitiveType.BOOLEAN, prop=None),
+        DatabaseColumn("applied_at", PrimitiveType.DATETIME, is_nullable=True, prop=None),
     ),
 )
