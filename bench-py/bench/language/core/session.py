@@ -13,10 +13,11 @@ from opentelemetry import trace
 from bench.utils.oracle import REAL_ORACLE, Oracle
 
 from .const import ACTIVE_SESSION, NodeMode
-from .edit import Change, ChangeResult, ChangeStatus, Edit, EditType
+from .edit import Change, ChangeResult, ChangeStatus, Edit, EditOperation, EditType
 from .graph import Supergraph
 from .node import IsSubject, Node
 from .store import OptimisticStore
+from .type import TypeCardinality
 from .value import to_value
 
 if TYPE_CHECKING:
@@ -115,53 +116,103 @@ class Session:
         assert self.closed_at is None, f"{self!r} is closed"
         edit = Edit(type=EditType.CREATE, node=node, value=to_value(node, node_as_value=True))
         self.edits.append(edit)
+        self.dirty[node.id] = node
 
     def upsert(self, node: Node):
         """Creates or updates a Node."""
         assert self.closed_at is None, f"{self!r} is closed"
         edit = Edit(type=EditType.UPSERT, node=node, value=to_value(node, node_as_value=True))
         self.edits.append(edit)
+        self.dirty[node.id] = node
+
+    def update(self, node: Node, edit: Edit):
+        """Updates a Node."""
+        self._flush_node(node)
+        self.edits.append(edit)
+        self.dirty[node.id] = node
 
     def move(self, node: Node, parent: Node):
         """Moves a Node to a new parent."""
         assert self.closed_at is None, f"{self!r} is closed"
+        self._flush_node(node)
         edit = Edit(type=EditType.MOVE, node=node, parent=parent)
         self.edits.append(edit)
+        self.dirty[node.id] = node
 
     def archive(self, node: Node):
         """Archives a Node."""
         assert self.closed_at is None, f"{self!r} is closed"
+        self._flush_node(node)
         edit = Edit(type=EditType.ARCHIVE, node=node)
         self.edits.append(edit)
+        self.dirty[node.id] = node
 
     def unarchive(self, node: Node):
         """Unarchives a Node."""
         assert self.closed_at is None, f"{self!r} is closed"
+        self._flush_node(node)
         edit = Edit(type=EditType.UNARCHIVE, node=node)
         self.edits.append(edit)
+        self.dirty[node.id] = node
 
     def delete(self, node: Node):
         """Deletes a Node."""
         assert self.closed_at is None, f"{self!r} is closed"
+        self._flush_node(node)
         edit = Edit(type=EditType.DELETE, node=node)
         self.edits.append(edit)
+        self.dirty[node.id] = node
 
     def restore(self, node: Node):
         """Restores a deleted Node."""
         assert self.closed_at is None, f"{self!r} is closed"
+        self._flush_node(node)
         edit = Edit(type=EditType.RESTORE, node=node)
         self.edits.append(edit)
+        self.dirty[node.id] = node
 
     def erase(self, node: Node):
         """Erases a Node."""
         assert self.closed_at is None, f"{self!r} is closed"
+        self._flush_node(node)
         edit = Edit(type=EditType.ERASE, node=node)
         self.edits.append(edit)
+        self.dirty[node.id] = node
+
+    def _flush_node(self, node: Node):
+        """Turn a dirty Node into Edits."""
+        if node._is_new:
+            node._is_new = False
+        elif node._dirty is not None:
+            # turn dirty properties into Edits (basic SET/CLEAR operations)
+            for prop_ord in node._dirty.itersearch(True):
+                prop = node.__properties_in_order__[prop_ord]
+                prop_value = getattr(node, prop.name)
+                if prop_value is None or (
+                    prop.cardinality != TypeCardinality.SCALAR and not prop_value
+                ):
+                    operation = EditOperation.CLEAR
+                    value = None
+                else:
+                    operation = EditOperation.SET
+                    value = to_value(prop_value, prop.type)
+                edit = Edit(
+                    type=EditType.UPDATE,
+                    node=node,
+                    prop=prop,
+                    operation=operation,
+                    value=value,
+                )
+                self.edits.append(edit)
 
     def _flush(self):
         """Turn pending updates into Edits, and Edits into Changes."""
+        # flush dirty Nodes
         if self.dirty:
-            raise NotImplementedError("nocheckin: handle Session.update")
+            for node in self.dirty.values():
+                self._flush_node(node)
+            self.dirty.clear()
+        # turn unassigned Edits into a Change
         if self.edits:
             change = Change(edits=self.edits, created_by=self.subject, origin=self.origin)
             self.edits = []
