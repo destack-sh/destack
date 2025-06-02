@@ -31,19 +31,19 @@ from bench.utils.utils import format_python
 from .core import (
     POSTGRES_TYPE_BY_UDT,
     PRIMITIVE_TYPE_BY_POSTGRES_TYPE,
+    DatabaseColumn,
+    DatabaseConstraint,
+    DatabaseConstraintType,
+    DatabaseExtension,
+    DatabaseIndex,
+    DatabaseIndexType,
+    DatabaseObject,
+    DatabaseObjectKind,
+    DatabaseSchema,
+    DatabaseTable,
+    DatabaseTableObject,
     PostgresColumnType,
     SqlCascadeAction,
-    SqlColumn,
-    SqlConstraint,
-    SqlConstraintType,
-    SqlExtension,
-    SqlIndex,
-    SqlIndexType,
-    SqlObject,
-    SqlObjectKind,
-    SqlSchema,
-    SqlTable,
-    SqlTableObject,
 )
 
 if TYPE_CHECKING:
@@ -151,7 +151,7 @@ def _load_migration_from_path(migration: Migration) -> MigrationFile:
     return file
 
 
-@tracer.start_as_current_span("sql.migrate")
+@tracer.start_as_current_span("database.migrate")
 async def sql_migrate(
     conn: asyncpg.Connection,
     target: str | int | None,
@@ -203,7 +203,7 @@ async def sql_migrate(
         log.trace("migrations.apply.skip", database=database)
         return []
     else:
-        await _do_sql_migrate(
+        await _do_migrate(
             conn,
             migrations_to_apply,
             oracle=oracle,
@@ -227,7 +227,7 @@ async def sql_migrate(
     return migrations_to_apply
 
 
-async def _do_sql_migrate(
+async def _do_migrate(
     conn: asyncpg.Connection,
     migrations: Collection[Migration],
     oracle: Oracle,
@@ -238,7 +238,7 @@ async def _do_sql_migrate(
 ):
     """Applies the given migrations in the given order."""
     for migration in migrations:
-        with tracer.start_as_current_span("sql.apply_migration"):
+        with tracer.start_as_current_span("database.apply_migration"):
             func_name = (
                 f"{(is_upgrade and 'upgrade') or 'downgrade'}_{(area.name.lower()) or 'local'}"
             )
@@ -280,8 +280,8 @@ class MigrationOpType(enum.Enum):
 @dataclass
 class MigrationOp:
     type: MigrationOpType
-    new_object: Optional[SqlObject]
-    old_object: Optional[SqlObject]
+    new_object: Optional[DatabaseObject]
+    old_object: Optional[DatabaseObject]
     diff_keys: Optional[tuple[str, ...]] = None
 
     def __str__(self) -> str:
@@ -311,7 +311,7 @@ class MigrationOp:
         return f"<MigrationOp {self}>"
 
     @property
-    def object_kind(self) -> SqlObjectKind:
+    def object_kind(self) -> DatabaseObjectKind:
         if self.new_object is not None:
             return self.new_object.kind
         elif self.old_object is not None:
@@ -320,11 +320,11 @@ class MigrationOp:
             raise RuntimeError(f"no object set for {self!r}")
 
     @property
-    def table(self) -> "SqlTable":
+    def table(self) -> "DatabaseTable":
         if self.new_object is not None:
-            return cast("SqlTableObject", self.new_object).table
+            return cast("DatabaseTableObject", self.new_object).table
         elif self.old_object is not None:
-            return cast("SqlTableObject", self.old_object).table
+            return cast("DatabaseTableObject", self.old_object).table
         else:
             raise RuntimeError(f"no object set for {self!r}")
 
@@ -348,8 +348,8 @@ class MigrationOp:
 #
 
 
-@tracer.start_as_current_span("sql.generate_migration_code")
-def generate_sql_migration_code(
+@tracer.start_as_current_span("database.generate_migration_code")
+def generate_migration_code(
     migration: Migration,
     oracle: Oracle,
     *,
@@ -390,11 +390,11 @@ def generate_sql_migration_code(
     return migration_code
 
 
-@tracer.start_as_current_span("sql.generate_migration_ops")
-def generate_sql_migration_ops(
+@tracer.start_as_current_span("database.generate_migration_ops")
+def generate_migration_ops(
     *,
-    old_schema: SqlSchema,
-    new_schema: SqlSchema,
+    old_schema: DatabaseSchema,
+    new_schema: DatabaseSchema,
     include_types: tuple[MigrationOpType, ...] = tuple(MigrationOpType),
 ) -> list[MigrationOp]:
     """Generates the migration operations to go from the old tables to the new tables."""
@@ -404,10 +404,10 @@ def generate_sql_migration_ops(
     old_extensions = {ext.name for ext in old_schema.extensions}
     new_extensions = {ext.name for ext in new_schema.extensions}
     for ext_name in new_extensions - old_extensions:
-        extension_ops.append(MigrationOp(MigrationOpType.CREATE, SqlExtension(ext_name), None))
+        extension_ops.append(MigrationOp(MigrationOpType.CREATE, DatabaseExtension(ext_name), None))
     # NOTE: we don't remove extensions for now
 
-    def _to_id(obj: SqlTableObject) -> str:
+    def _to_id(obj: DatabaseTableObject) -> str:
         return obj.qualified_name
 
     # order of walk is table -> column -> index -> constraint
@@ -428,10 +428,11 @@ def generate_sql_migration_ops(
         if new_object is None:
             if _to_id(old_object.table) in deleted_ids:
                 continue  # skip, table deleted
-            if old_object.kind == SqlObjectKind.INDEX:
+            if old_object.kind == DatabaseObjectKind.INDEX:
                 # skip if owning constraint is also deleted
                 if any(
-                    obj.kind == SqlObjectKind.CONSTRAINT and obj.name == old_object.qualified_name
+                    obj.kind == DatabaseObjectKind.CONSTRAINT
+                    and obj.name == old_object.qualified_name
                     for obj in deleted_table_objects
                 ):
                     continue
@@ -445,7 +446,7 @@ def generate_sql_migration_ops(
         if old_object is None:
             # create columns only if parent table isn't new
             if (
-                new_object.kind == SqlObjectKind.COLUMN
+                new_object.kind == DatabaseObjectKind.COLUMN
                 and _to_id(new_object.table) in new_table_objects_by_id
                 and _to_id(new_object.table) not in old_table_objects_by_id
             ):
@@ -469,8 +470,8 @@ def generate_sql_migration_ops(
             patch_table_cru_ops.append(op)
             continue
 
-        if op.object_kind == SqlObjectKind.TABLE:
-            assert isinstance(op.new_object, SqlTable)
+        if op.object_kind == DatabaseObjectKind.TABLE:
+            assert isinstance(op.new_object, DatabaseTable)
             # only columns are created implicitly in migration ops
             first_columns, deferred_columns = partition(
                 lambda col: bool(col.is_foreign_key_to),
@@ -481,8 +482,8 @@ def generate_sql_migration_ops(
             for col in deferred_columns:
                 col._table = first_table
                 patch_table_cru_ops.append(MigrationOp(MigrationOpType.CREATE, col, None))
-        elif op.object_kind == SqlObjectKind.COLUMN:
-            assert isinstance(op.new_object, SqlColumn)
+        elif op.object_kind == DatabaseObjectKind.COLUMN:
+            assert isinstance(op.new_object, DatabaseColumn)
             if op.new_object.is_foreign_key_to:
                 patch_table_cru_ops.append(op)
             else:
@@ -505,14 +506,14 @@ def _render_migration_body(ops: list[MigrationOp] | None) -> str:
         return "raise NotImplementedError"
 
     lines: list[str] = []
-    current_table: Optional[SqlTable] = None
+    current_table: Optional[DatabaseTable] = None
     current_table_stmts: list[str] = []
 
-    def _emit_alter(table: SqlTable, statements: list[str]) -> None:
+    def _emit_alter(table: DatabaseTable, statements: list[str]) -> None:
         alter_content = ",\n    ".join(statements)
         lines.append(f'"""\n    ALTER TABLE "{table.name}"    \n    {alter_content}\n"""')
 
-    def _emit(table: SqlTable, statements: list[str]) -> None:
+    def _emit(table: DatabaseTable, statements: list[str]) -> None:
         # batch successive ALTER TABLE statements, otherwise leave them as-is
         lines.append(f"\n# {table.name}")
         current_alter_statements: list[str] = []
@@ -552,7 +553,7 @@ def _render_migration_body(ops: list[MigrationOp] | None) -> str:
         stmt = _wrap_statement(stmt)
 
         # extensions are not table objects
-        if op.object_kind == SqlObjectKind.EXTENSION:
+        if op.object_kind == DatabaseObjectKind.EXTENSION:
             lines.append(stmt)
         else:
             if current_table is None or op.table.table_name != current_table.table_name:
@@ -598,8 +599,8 @@ def _render_migration_body(ops: list[MigrationOp] | None) -> str:
     return method_body
 
 
-@tracer.start_as_current_span("sql.apply_migration_ops")
-async def apply_sql_migration_ops(conn: asyncpg.Connection, ops: list[MigrationOp]) -> None:
+@tracer.start_as_current_span("database.apply_migration_ops")
+async def apply_migration_ops(conn: asyncpg.Connection, ops: list[MigrationOp]) -> None:
     """Directly apply the given migration ops."""
     method_body = _render_migration_body(ops)
     method_body = format_python(method_body)
@@ -611,9 +612,11 @@ async def apply_sql_migration_ops(conn: asyncpg.Connection, ops: list[MigrationO
     apply_inline = method_locals["_apply_inline"]
     try:
         await apply_inline(conn)
-        logger.debug("sql.apply_migration_ops", ops=ops, conn=conn, span="current")
+        logger.debug("database.apply_migration_ops", ops=ops, conn=conn, span="current")
     except Exception as e:
-        logger.error("sql.apply_migration_ops.error", ops=ops, conn=conn, span="current", error=e)
+        logger.error(
+            "database.apply_migration_ops.error", ops=ops, conn=conn, span="current", error=e
+        )
         raise
 
 
@@ -634,38 +637,40 @@ def _render_migration_op(op: MigrationOp) -> str | None:
     Generally 'flat' - ops do not include nested objects - except for CREATE TABLE.
     """
     if op.type == MigrationOpType.CREATE:
-        if isinstance(op.new_object, SqlExtension):
+        if isinstance(op.new_object, DatabaseExtension):
             return f'CREATE EXTENSION IF NOT EXISTS "{op.new_object.name}"'
-        elif isinstance(op.new_object, SqlTable):
+        elif isinstance(op.new_object, DatabaseTable):
             table_contents = ",\n".join(f"    {col.sql()}" for col in op.new_object.columns)
             return f'CREATE TABLE "{op.new_object.name}" (\n{table_contents}\n)'
-        elif isinstance(op.new_object, SqlColumn):
+        elif isinstance(op.new_object, DatabaseColumn):
             return f'ALTER TABLE "{op.new_object.table.name}" ADD COLUMN {op.new_object.sql()}'
-        elif isinstance(op.new_object, SqlIndex):
+        elif isinstance(op.new_object, DatabaseIndex):
             if op.new_object.is_unique:
                 return f"CREATE UNIQUE INDEX {op.new_object.sql()}"
             else:
                 return f"CREATE INDEX {op.new_object.sql()}"
-        elif isinstance(op.new_object, SqlConstraint):
+        elif isinstance(op.new_object, DatabaseConstraint):
             return f'ALTER TABLE "{op.new_object.table.name}" ADD CONSTRAINT {op.new_object.sql()}'
 
     elif op.type == MigrationOpType.RENAME:
         assert op.new_object is not None, f"expected a new object: {op!r}"
-        if isinstance(op.old_object, SqlTable):
+        if isinstance(op.old_object, DatabaseTable):
             return f'ALTER TABLE "{op.old_object.name}" RENAME TO "{op.new_object.name}"'
-        elif isinstance(op.old_object, SqlColumn):
+        elif isinstance(op.old_object, DatabaseColumn):
             return f'ALTER TABLE "{op.old_object.table.name}" RENAME COLUMN "{op.old_object.name}" TO "{op.new_object.name}"'
-        elif isinstance(op.old_object, SqlIndex):
+        elif isinstance(op.old_object, DatabaseIndex):
             return f'ALTER INDEX "{op.old_object.name}" RENAME TO "{op.new_object.name}"'
-        elif isinstance(op.old_object, SqlConstraint):
+        elif isinstance(op.old_object, DatabaseConstraint):
             return f'ALTER TABLE "{op.old_object.table.name}" RENAME CONSTRAINT "{op.old_object.name}" TO "{op.new_object.name}"'
 
     elif op.type == MigrationOpType.UPDATE:
-        if isinstance(op.old_object, SqlTable):
+        if isinstance(op.old_object, DatabaseTable):
             # there are no table properties we can update (outside name, which is handled by rename)
             raise NotImplementedError(f"cannot render {op!r}")
-        elif isinstance(op.old_object, SqlColumn):
-            assert isinstance(op.new_object, SqlColumn), f"expected a column: {op.new_object!r}"
+        elif isinstance(op.old_object, DatabaseColumn):
+            assert isinstance(op.new_object, DatabaseColumn), (
+                f"expected a column: {op.new_object!r}"
+            )
             updates: list[str] = []
             diff_keys = op.diff_keys or ()
             if "is_unique" in diff_keys:
@@ -722,16 +727,16 @@ def _render_migration_op(op: MigrationOp) -> str | None:
             if not updates:
                 return None
             return f'ALTER TABLE "{op.old_object.table.name}" ' + ",\n".join(updates)
-        elif isinstance(op.old_object, SqlIndex):
+        elif isinstance(op.old_object, DatabaseIndex):
             # drop and recreate
-            assert isinstance(op.new_object, SqlIndex), f"expected an index: {op.new_object!r}"
+            assert isinstance(op.new_object, DatabaseIndex), f"expected an index: {op.new_object!r}"
             drop = f'DROP INDEX "{op.old_object.name}"'
             if op.new_object.is_unique:
                 create = f"CREATE UNIQUE INDEX {op.new_object.sql()}"
             else:
                 create = f"CREATE INDEX {op.new_object.sql()}"
             return "\n".join([drop, create])
-        elif isinstance(op.old_object, SqlConstraint):
+        elif isinstance(op.old_object, DatabaseConstraint):
             # drop and recreate
             assert op.new_object is not None, f"expected a new object: {op!r}"
             return (
@@ -741,15 +746,15 @@ def _render_migration_op(op: MigrationOp) -> str | None:
             )
 
     elif op.type == MigrationOpType.DELETE:
-        if isinstance(op.old_object, SqlExtension):
+        if isinstance(op.old_object, DatabaseExtension):
             return f'DROP EXTENSION IF EXISTS "{op.old_object.name}"'
-        elif isinstance(op.old_object, SqlTable):
+        elif isinstance(op.old_object, DatabaseTable):
             return f'DROP TABLE "{op.old_object.name}"'
-        elif isinstance(op.old_object, SqlColumn):
+        elif isinstance(op.old_object, DatabaseColumn):
             return f'ALTER TABLE "{op.old_object.table.name}" DROP COLUMN "{op.old_object.name}"'
-        elif isinstance(op.old_object, SqlIndex):
+        elif isinstance(op.old_object, DatabaseIndex):
             return f'DROP INDEX "{op.old_object.name}"'
-        elif isinstance(op.old_object, SqlConstraint):
+        elif isinstance(op.old_object, DatabaseConstraint):
             return (
                 f'ALTER TABLE "{op.old_object.table.name}" DROP CONSTRAINT "{op.old_object.name}"'
             )
@@ -842,8 +847,8 @@ async def delete_migrations(conn: asyncpg.Connection, from_id: int, to_id: int) 
 #
 
 
-@tracer.start_as_current_span("sql.introspect_sql_schema")
-async def introspect_sql_schema(
+@tracer.start_as_current_span("database.introspect_schema")
+async def introspect_schema(
     conn: asyncpg.Connection,
     *,
     include_columns: bool = True,
@@ -852,7 +857,7 @@ async def introspect_sql_schema(
     include_extensions: bool = True,
     include_table_prefixes: tuple[str, ...],
     exclude_table_prefixes: tuple[str, ...],
-) -> SqlSchema:
+) -> DatabaseSchema:
     # extensions
     extensions_query = """
     SELECT
@@ -862,7 +867,7 @@ async def introspect_sql_schema(
     """
     if include_extensions:
         extensions_rows = await conn.fetch(extensions_query)
-        extensions = tuple(SqlExtension(name=row["extname"]) for row in extensions_rows)
+        extensions = tuple(DatabaseExtension(name=row["extname"]) for row in extensions_rows)
     else:
         extensions = ()
 
@@ -928,7 +933,7 @@ GROUP BY
     col.table_name, col.column_name, col.data_type, col.udt_name, col.is_nullable, col.column_default;
                """
         columns_rows: list[dict] = await conn.fetch(columns_query, tables_names)
-        columns_by_table: dict[str, list[SqlColumn]] = defaultdict(list)
+        columns_by_table: dict[str, list[DatabaseColumn]] = defaultdict(list)
         for row in columns_rows:
             udt_name: str = row["udt_name"]
             if udt_name.startswith("_"):
@@ -970,7 +975,7 @@ GROUP BY
                 is_foreign_key_to = None
                 scalar_constraint_types = ()
 
-            column = SqlColumn(
+            column = DatabaseColumn(
                 name=row["column_name"],
                 type=primitive_type,
                 is_primary_key="PRIMARY KEY" in constraint_types,
@@ -1012,7 +1017,7 @@ GROUP BY
     tc.table_name, tc.constraint_name, tc.constraint_type, chk.check_clause;
         """
         constraints_rows = await conn.fetch(constraints_query, tables_names)
-        constraints_by_table: dict[str, list[SqlConstraint]] = defaultdict(list)
+        constraints_by_table: dict[str, list[DatabaseConstraint]] = defaultdict(list)
         for row in constraints_rows:
             columns = tuple(row["column_names"].split(", ")) if row["column_names"] else ()
             if not columns:
@@ -1021,9 +1026,9 @@ GROUP BY
             condition = row.get("condition")
             if condition:
                 condition = _strip_condition(condition)
-            constraint = SqlConstraint(
+            constraint = DatabaseConstraint(
                 inner_name=constraint_name,
-                type=SqlConstraintType(row["constraint_type"]),
+                type=DatabaseConstraintType(row["constraint_type"]),
                 columns=columns,
                 condition=condition,
             )
@@ -1033,7 +1038,7 @@ GROUP BY
 
     # indexes
     if include_indexes:
-        indexes_by_table: dict[str, list[SqlIndex]] = defaultdict(list)
+        indexes_by_table: dict[str, list[DatabaseIndex]] = defaultdict(list)
         indexes_query = """\
 SELECT 
     idx.tablename AS table_name,
@@ -1070,10 +1075,10 @@ WHERE
             )
             table_name: str = row["table_name"]
             index_name: str = row["index_name"][len(table_name) + 1 :]  # type: ignore
-            index = SqlIndex(
+            index = DatabaseIndex(
                 inner_name=index_name,
                 _full_name=row["index_name"],
-                type=SqlIndexType(index_type.upper()),
+                type=DatabaseIndexType(index_type.upper()),
                 columns=tuple(columns),
                 cover=cover,
                 is_unique="UNIQUE" in definition,
@@ -1081,7 +1086,7 @@ WHERE
             )
             # ignore simple primary/foreign key index
             if (
-                index.type == SqlIndexType.BTREE
+                index.type == DatabaseIndexType.BTREE
                 and len(index.columns) == 1
                 and (index.columns[0].endswith("_id") or index.columns[0] == "id")
                 and (index.name.endswith("_pkey") or index.name.endswith("_fkey"))
@@ -1097,9 +1102,9 @@ WHERE
         indexes_by_table = {}
 
     # assemble the tables
-    tables: list[SqlTable] = []
+    tables: list[DatabaseTable] = []
     for table_name in tables_names:
-        table = SqlTable(
+        table = DatabaseTable(
             name=table_name,
             columns=tuple(columns_by_table.get(table_name, [])),
             indexes=tuple(indexes_by_table.get(table_name, [])),
@@ -1107,6 +1112,6 @@ WHERE
         )
         tables.append(table)
 
-    logger.trace("sql.introspect", conn=conn, tables=tables, span="current")
+    logger.trace("database.introspect", conn=conn, tables=tables, span="current")
 
-    return SqlSchema(extensions=extensions, tables=tuple(tables))
+    return DatabaseSchema(extensions=extensions, tables=tuple(tables))

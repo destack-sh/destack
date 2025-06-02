@@ -18,17 +18,17 @@ _setup_test_env()
 from bench.language import REGION, DatabaseInfo, Tenancy
 from bench.sharding import get_global_database_from_env
 from bench.store.database import (
-    BENCH_CUSTOM_NODE_PREFIX,
+    BENCH_CUSTOM_TABLE_PREFIX,
     BENCH_TABLE_PREFIX,
     BUILTIN_GLOBAL_SCHEMA,
     BUILTIN_GLOBAL_TABLES,
     BUILTIN_MAIN_SCHEMA,
     BUILTIN_MAIN_TABLES,
     EXTENSIONS,
-    SqlSchema,
-    apply_sql_migration_ops,
-    generate_sql_migration_ops,
-    introspect_sql_schema,
+    DatabaseSchema,
+    apply_migration_ops,
+    generate_migration_ops,
+    introspect_schema,
     pg_connection,
 )
 from bench.utils.utils import get_from_env
@@ -59,22 +59,28 @@ async def create_blank_test_db(database: DatabaseInfo):
         await conn.execute(f'CREATE DATABASE "{database.external_name}"')
 
 
-async def create_test_db(database: DatabaseInfo, schema: SqlSchema):
+async def create_test_db(database: DatabaseInfo, schema: DatabaseSchema):
     """Creates a postgres DB with one of our schemas"""
     await create_blank_test_db(database)
     async with pg_connection(database) as conn:
-        old_schema = await introspect_sql_schema(
+        old_schema = await introspect_schema(
             conn,
             include_table_prefixes=(BENCH_TABLE_PREFIX,),
-            exclude_table_prefixes=(BENCH_CUSTOM_NODE_PREFIX,),
+            exclude_table_prefixes=(BENCH_CUSTOM_TABLE_PREFIX,),
         )
-        migration_ops = generate_sql_migration_ops(old_schema=old_schema, new_schema=schema)
-        await apply_sql_migration_ops(conn, migration_ops)
+        migration_ops = generate_migration_ops(old_schema=old_schema, new_schema=schema)
+        await apply_migration_ops(conn, migration_ops)
 
 
 async def delete_test_db(database: DatabaseInfo):
     """Deletes a postgres DB with one of our schemas"""
     async with pg_connection(get_global_database_from_env()) as conn:
+        # terminate all connections to the database before dropping it
+        await conn.execute(f"""
+            SELECT pg_terminate_backend(pid)
+            FROM pg_stat_activity
+            WHERE datname = '{database.external_name}' AND pid <> pg_backend_pid()
+        """)
         await conn.execute(f'DROP DATABASE IF EXISTS "{database.external_name}"')
 
 
@@ -113,7 +119,7 @@ async def omni_database(request: pytest.FixtureRequest) -> AsyncGenerator[Databa
     omni_tables_by_name = {
         table.name: table for table in BUILTIN_GLOBAL_TABLES + BUILTIN_MAIN_TABLES
     }
-    omni_schema = SqlSchema(EXTENSIONS, tuple(omni_tables_by_name.values()))
+    omni_schema = DatabaseSchema(EXTENSIONS, tuple(omni_tables_by_name.values()))
     database = get_database(f"test-{_clean_name(request.node.name)[:32]}-omni")
     await create_test_db(database, omni_schema)
     try:

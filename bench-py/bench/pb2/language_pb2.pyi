@@ -371,6 +371,7 @@ class EnumType(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     ENUM_TYPE_BENCH_ROLE_TYPE: _ClassVar[EnumType]
     ENUM_TYPE_ORGANIZATION_ROLE_TYPE: _ClassVar[EnumType]
     ENUM_TYPE_PACKAGE_ROLE_TYPE: _ClassVar[EnumType]
+    ENUM_TYPE_CLIENT_TYPE: _ClassVar[EnumType]
     ENUM_TYPE_SPACE_TYPE: _ClassVar[EnumType]
     ENUM_TYPE_BLOCK_TYPE: _ClassVar[EnumType]
     ENUM_TYPE_CLOUD: _ClassVar[EnumType]
@@ -379,7 +380,7 @@ class EnumType(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     ENUM_TYPE_CONTINENT: _ClassVar[EnumType]
     ENUM_TYPE_MACHINE_TYPE: _ClassVar[EnumType]
     ENUM_TYPE_TENANCY: _ClassVar[EnumType]
-    ENUM_TYPE_CLIENT_TYPE: _ClassVar[EnumType]
+    ENUM_TYPE_STORE_TYPE: _ClassVar[EnumType]
     ENUM_TYPE_ACTION_CARDINALITY: _ClassVar[EnumType]
     ENUM_TYPE_FLOW_TYPE: _ClassVar[EnumType]
     ENUM_TYPE_FLOW_EDGE_TYPE: _ClassVar[EnumType]
@@ -1032,7 +1033,8 @@ class ScalarType(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     SCALAR_TYPE_UNSPECIFIED: _ClassVar[ScalarType]
     SCALAR_TYPE_PRIMITIVE: _ClassVar[ScalarType]
     SCALAR_TYPE_ENUM: _ClassVar[ScalarType]
-    SCALAR_TYPE_NODE: _ClassVar[ScalarType]
+    SCALAR_TYPE_NODE_REFERENCE: _ClassVar[ScalarType]
+    SCALAR_TYPE_NODE_VALUE: _ClassVar[ScalarType]
     SCALAR_TYPE_STRUCT: _ClassVar[ScalarType]
 
 class ScheduleFrequency(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
@@ -1102,6 +1104,13 @@ class SpringType(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     SPRING_TYPE_UNSPECIFIED: _ClassVar[SpringType]
     SPRING_TYPE_TIME: _ClassVar[SpringType]
     SPRING_TYPE_PHYSICS: _ClassVar[SpringType]
+
+class StoreType(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
+    __slots__ = ()
+    STORE_TYPE_UNSPECIFIED: _ClassVar[StoreType]
+    STORE_TYPE_LOCAL: _ClassVar[StoreType]
+    STORE_TYPE_REMOTE: _ClassVar[StoreType]
+    STORE_TYPE_DATABASE: _ClassVar[StoreType]
 
 class StringFormat(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     __slots__ = ()
@@ -1590,6 +1599,7 @@ ENUM_TYPE_QUERY_TYPE: EnumType
 ENUM_TYPE_BENCH_ROLE_TYPE: EnumType
 ENUM_TYPE_ORGANIZATION_ROLE_TYPE: EnumType
 ENUM_TYPE_PACKAGE_ROLE_TYPE: EnumType
+ENUM_TYPE_CLIENT_TYPE: EnumType
 ENUM_TYPE_SPACE_TYPE: EnumType
 ENUM_TYPE_BLOCK_TYPE: EnumType
 ENUM_TYPE_CLOUD: EnumType
@@ -1598,7 +1608,7 @@ ENUM_TYPE_AREA: EnumType
 ENUM_TYPE_CONTINENT: EnumType
 ENUM_TYPE_MACHINE_TYPE: EnumType
 ENUM_TYPE_TENANCY: EnumType
-ENUM_TYPE_CLIENT_TYPE: EnumType
+ENUM_TYPE_STORE_TYPE: EnumType
 ENUM_TYPE_ACTION_CARDINALITY: EnumType
 ENUM_TYPE_FLOW_TYPE: EnumType
 ENUM_TYPE_FLOW_EDGE_TYPE: EnumType
@@ -2101,7 +2111,8 @@ RUN_TYPE_AGENT: RunType
 SCALAR_TYPE_UNSPECIFIED: ScalarType
 SCALAR_TYPE_PRIMITIVE: ScalarType
 SCALAR_TYPE_ENUM: ScalarType
-SCALAR_TYPE_NODE: ScalarType
+SCALAR_TYPE_NODE_REFERENCE: ScalarType
+SCALAR_TYPE_NODE_VALUE: ScalarType
 SCALAR_TYPE_STRUCT: ScalarType
 SCHEDULE_FREQUENCY_UNSPECIFIED: ScheduleFrequency
 SCHEDULE_FREQUENCY_YEAR: ScheduleFrequency
@@ -2147,6 +2158,10 @@ SPAN_TYPE_FILE_PREPARE_DOWNLOAD: SpanType
 SPRING_TYPE_UNSPECIFIED: SpringType
 SPRING_TYPE_TIME: SpringType
 SPRING_TYPE_PHYSICS: SpringType
+STORE_TYPE_UNSPECIFIED: StoreType
+STORE_TYPE_LOCAL: StoreType
+STORE_TYPE_REMOTE: StoreType
+STORE_TYPE_DATABASE: StoreType
 STRING_FORMAT_UNSPECIFIED: StringFormat
 STRING_FORMAT_NAME: StringFormat
 STRING_FORMAT_SLUG: StringFormat

@@ -359,7 +359,13 @@ __str__ = __repr__
             return f"{value_expr}.name"
         elif prop.scalar_type in ("primitive", "struct", "node_reference", "node_value"):
             if prop.primitive_type == PrimitiveType.UUID:
-                return f"repr(str({value_expr}))"
+                return f"str({value_expr})"
+            elif prop.primitive_type in (
+                PrimitiveType.DATETIME,
+                PrimitiveType.DATE,
+                PrimitiveType.TIME,
+            ):
+                return f"{value_expr}.isoformat()"
             else:
                 return f"{value_expr}!r"
         else:

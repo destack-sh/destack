@@ -6,14 +6,14 @@ import structlog
 from fastuuid import UUID
 from opentelemetry import trace
 
-from .const import UNSET, BuiltinEnum, EnumType, StructType, bittuple, enum_
+from .const import UNSET, BuiltinEnum, EnumType, NodeType, StructType, bittuple, enum_
 from .graph import Graph
 from .node import Node
 from .property import Property, property_
 from .struct import NodeReference, PropertyReference, StructFrozen, struct_
 
 if TYPE_CHECKING:
-    from bench.language import Field, IsSubject, Value
+    from bench.language import Field, IsSubject, Origin, Value
 
 logger = structlog.get_logger(__name__)
 tracer = trace.get_tracer(__name__)
@@ -71,7 +71,7 @@ class Edit(StructFrozen):
     """An Edit to a Node."""
 
     # meta
-    id: UUID = property_(2, is_managed=True, default_factory="uuid")
+    id: UUID = property_(2, is_managed=True, is_repr=True, default_factory="uuid")
 
     # key
     type: EditType = property_(30, is_repr=True)
@@ -79,17 +79,17 @@ class Edit(StructFrozen):
     node: Node = property_(32, is_repr=True)
     prop: Property | None = property_(33, is_repr=True)
     field: "Field | None" = property_(34, is_repr=True)  # for IsExtensible.value
-    key: "Value | None" = property_(35)  # for map operations
+    key: "Value | None" = property_(35, is_repr=True)  # for map operations
     if TYPE_CHECKING:
         node_id: UUID = UNSET
         node_ptr: NodeReference = UNSET
+        node_type: NodeType = UNSET
         field_id: UUID | None = None
         field_ptr: NodeReference | None = None
         property_ptr: PropertyReference | None = None
 
     # value
     value: "Value | None" = property_(40)
-    # NOTE :Performance: encoding Nodes as Values seems inefficient? :NodesAsValues
     parent: Node | None = property_(42)  # for move
     if TYPE_CHECKING:
         parent_id: UUID = property_()
@@ -100,11 +100,13 @@ class Edit(StructFrozen):
 class Change(StructFrozen):
     """A Change is an atomic sequence of Edits."""
 
-    id: UUID = property_(2, is_managed=True, default_factory="uuid")
-    created_at: datetime = property_(10, is_managed=True, default_factory="now")
-    created_by: "IsSubject | None" = property_(11, is_managed=True)
+    # meta
+    id: UUID = property_(2, is_managed=True, is_repr=True, default_factory="uuid")
+    created_at: datetime = property_(31, is_managed=True, is_repr=True, default_factory="now")
+    created_by: "IsSubject | None" = property_(32, is_managed=True, is_repr=True)
+    origin: "Origin | None" = property_(33, is_managed=True, is_repr=True)
 
-    edits: list[Edit] = property_(41)
+    edits: list[Edit] = property_(40)
 
 
 @enum_(EnumType.CHANGE_STATUS)

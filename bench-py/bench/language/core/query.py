@@ -432,12 +432,12 @@ def to_subqueries(subqueries: dict[str, "Query"]) -> list["Query"]:
 
 
 @struct_(StructType.QUERY_RESULT)
-class QueryResult[RootT: "Node"](StructMutable):
+class QueryResult(StructMutable):
     """The result of a Query."""
 
     epoch: int = property_(40, is_repr=True)
     query: Query = property_(41, is_repr=True)
-    nodes: list[Value] = property_(50, is_repr=True)  # :NodesAsValues
+    nodes: list[Value] = property_(50, is_repr=True)
 
 
 @struct_(StructType.QUERY_UPDATE, frozen=True)
@@ -445,7 +445,7 @@ class QueryUpdate(StructFrozen):
     """An update to a QueryResult."""
 
     epoch: int = property_(40, is_repr=True)
-    nodes: list[Value] = property_(50, is_repr=True)  # :NodesAsValues
+    nodes: list[Value] = property_(50, is_repr=True)
 
 
 class QueryConnection[RootT: "Node"]:
@@ -459,9 +459,9 @@ class QueryConnection[RootT: "Node"]:
         self.is_live = query.is_live
         self.store: Store = store
         self.session: Session = session
-        self.result: QueryResult[RootT] | None = None
+        self.result: QueryResult | None = None
 
-    async def execute(self) -> QueryResult[RootT]:
+    async def execute(self) -> None:
         """Execute the Query."""
         raise NotImplementedError
 
