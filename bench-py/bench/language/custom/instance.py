@@ -37,10 +37,7 @@ class CustomNodeInstance(
     An instance of a CustomNodeDefinition.
     """
 
-    # meta
     parent: Union["CustomNodeDefinition", "CustomNodeInstance", None] = property_parent_()
-    # type: RecordType?
-
     definition: "CustomNodeDefinition" = property_(
         40,
         description="The CustomNodeDefinition this CustomNode is an instance of.",
@@ -49,4 +46,6 @@ class CustomNodeInstance(
     if TYPE_CHECKING:
         definition_id: Optional[UUID] = None
         definition_ptr: Optional[NodeReference] = None
-    # ... general Record/Page/Block 'tying'? :NodeTying
+
+
+BASE_CUSTOM_NODE_TRAITS = CustomNodeInstance.__traits__

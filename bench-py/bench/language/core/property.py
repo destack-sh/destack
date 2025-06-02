@@ -350,6 +350,9 @@ class Property(IntoType, IntoQuery if TYPE_CHECKING else object):
     runtime_prop: Optional["Property"] = None  # for the proto property
     node_bench_from: Literal["self"] | None = None
     node_is_customizable: bool = False
+    node_has_node_type: bool = False
+    node_has_definition_id: bool = False
+    node_has_bench_id: bool = False
     edge_type: EdgeType | None = None
     cascade: CascadeAction | None = None
 

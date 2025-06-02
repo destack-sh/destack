@@ -1,3 +1,4 @@
+import base64
 import uuid
 from collections.abc import Sequence
 from datetime import date, datetime, time
@@ -63,7 +64,7 @@ def pack_node_value_to_row(table: DatabaseTable, value: Value) -> Sequence[Any]:
             # node_type
             if has_node_type:
                 if prop_value is not None and "31" in prop_value:
-                    values_packed.append(uuid.UUID(prop_value["31"]))
+                    values_packed.append(int(prop_value["31"]))
                 else:
                     values_packed.append(None)
             # bench_id
@@ -84,6 +85,8 @@ def pack_node_value_to_row(table: DatabaseTable, value: Value) -> Sequence[Any]:
                 values_packed.append(prop_value_packed)
             else:
                 values_packed.append(None)
+            if prop.is_variable:
+                ...
     assert len(values_packed) == len(table._columns_by_name), (
         f"unexpected values: {len(values_packed)} != {len(table._columns_by_name)} in {table!r} ({values_packed!r} for {list(table._columns_by_name.keys())!r})"
     )
@@ -105,7 +108,9 @@ def unpack_row_to_node_value(table: DatabaseTable, row: asyncpg.Record) -> Value
 def _pack_node_value_scalar(type: Type, value: Json) -> Any:
     assert type.scalar_type != ScalarType.NODE_REFERENCE, f"unhandled node ref: {type!r}"
     if type.scalar_type == ScalarType.PRIMITIVE:
-        if type.primitive_type == PrimitiveType.UUID:
+        if type.primitive_type == PrimitiveType.BYTES:
+            return base64.b64decode(value)
+        elif type.primitive_type == PrimitiveType.UUID:
             return uuid.UUID(value)
         elif type.primitive_type == PrimitiveType.DATETIME:
             return datetime.fromisoformat(value).replace(tzinfo=None)
@@ -141,7 +146,9 @@ def pack_node_value(type: Type, value_packed: Json) -> Any:
 def _unpack_node_value_scalar(type: Type, value: Any) -> Json:
     assert type.scalar_type != ScalarType.NODE_REFERENCE, f"unhandled node ref: {type!r}"
     if type.scalar_type == ScalarType.PRIMITIVE:
-        if type.primitive_type == PrimitiveType.UUID:
+        if type.primitive_type == PrimitiveType.BYTES:
+            return base64.b64encode(value).decode()
+        elif type.primitive_type == PrimitiveType.UUID:
             return str(value)
         elif (
             type.primitive_type == PrimitiveType.DATETIME

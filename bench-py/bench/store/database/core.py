@@ -24,6 +24,8 @@ from bench.utils.func import hash_stable
 if TYPE_CHECKING:
     pass
 
+# pyright: reportIncompatibleVariableOverride=false
+
 
 @dataclass(slots=True)
 class DatabaseSchema:
@@ -202,7 +204,7 @@ class DatabaseColumn(DatabaseTableObject):
 
     name: str  # type: ignore
     type: PrimitiveType
-    prop: "Property | None" = None
+    prop: "Property"
     field: Union["Field", None] = None
     is_array: bool = False
     is_primary_key: bool = False
@@ -223,16 +225,16 @@ class DatabaseColumn(DatabaseTableObject):
     def __flags_str__(self):
         parts = []
         if self.is_primary_key:
-            parts.append("P")
+            parts.append("is_primary_key")
         if self.is_foreign_key_to is not None:
-            parts.append("F")
+            parts.append(f"is_foreign_key_to={self.is_foreign_key_to}")
         if self.is_unique:
-            parts.append("U")
-        if not self.is_nullable:
-            parts.append("!")
+            parts.append("is_unique")
+        if self.is_nullable:
+            parts.append("is_nullable")
         if self.is_array:
-            parts.append("[]")
-        return "".join(parts)
+            parts.append("is_array")
+        return ", ".join(parts)
 
     def __str__(self):
         args_str = ", ".join(
@@ -428,15 +430,15 @@ class DatabaseIndex(DatabaseTableObject):
 @dataclass(slots=True)
 class DatabaseTable(DatabaseTableObject):
     """
-    A SQL table.
+    A SQL table for a Node (builtin or custom).
     """
 
     FLAT_DATA_FIELDS: ClassVar[tuple[str, ...]] = ("name",)
     kind: ClassVar[DatabaseObjectKind] = DatabaseObjectKind.TABLE
 
     name: str  # type: ignore
+    node_type: NodeType
     columns: tuple[DatabaseColumn, ...]
-    node_type: NodeType | None = None
     indexes: tuple[DatabaseIndex, ...] = ()
     constraints: tuple[DatabaseConstraint, ...] = ()
     _columns_by_name: dict[str, DatabaseColumn] = dataclasses.field(init=False)
@@ -492,7 +494,7 @@ class DatabaseContext(abc.ABC):
         ...
 
 
-class PostgresColumnType(enum.StrEnum):
+class DatabaseColumnType(enum.StrEnum):
     """
     A PostgreSQL column type.
     """
@@ -535,43 +537,43 @@ class PostgresColumnType(enum.StrEnum):
 
 
 # internal postgres "udt"s (user-defined types) that we use
-POSTGRES_TYPE_BY_UDT: dict[str, PostgresColumnType] = {
-    "uuid": PostgresColumnType.UUID,
-    "varchar": PostgresColumnType.CHARACTER_VARYING,
-    "bool": PostgresColumnType.BOOLEAN,
-    "int2": PostgresColumnType.SMALLINT,
-    "int4": PostgresColumnType.INTEGER,
-    "int8": PostgresColumnType.BIGINT,
-    "float4": PostgresColumnType.REAL,
-    "float8": PostgresColumnType.DOUBLE_PRECISION,
-    "timestamptz": PostgresColumnType.TIMESTAMP,
-    "timestamp": PostgresColumnType.TIMESTAMP,
-    "date": PostgresColumnType.DATE,
-    "time": PostgresColumnType.TIME,
-    "interval": PostgresColumnType.INTERVAL,
-    "jsonb": PostgresColumnType.JSONB,
-    "bytea": PostgresColumnType.BYTEA,
-    "text": PostgresColumnType.TEXT,
-    "numeric": PostgresColumnType.NUMERIC,
+POSTGRES_TYPE_BY_UDT: dict[str, DatabaseColumnType] = {
+    "uuid": DatabaseColumnType.UUID,
+    "varchar": DatabaseColumnType.CHARACTER_VARYING,
+    "bool": DatabaseColumnType.BOOLEAN,
+    "int2": DatabaseColumnType.SMALLINT,
+    "int4": DatabaseColumnType.INTEGER,
+    "int8": DatabaseColumnType.BIGINT,
+    "float4": DatabaseColumnType.REAL,
+    "float8": DatabaseColumnType.DOUBLE_PRECISION,
+    "timestamptz": DatabaseColumnType.TIMESTAMP,
+    "timestamp": DatabaseColumnType.TIMESTAMP,
+    "date": DatabaseColumnType.DATE,
+    "time": DatabaseColumnType.TIME,
+    "interval": DatabaseColumnType.INTERVAL,
+    "jsonb": DatabaseColumnType.JSONB,
+    "bytea": DatabaseColumnType.BYTEA,
+    "text": DatabaseColumnType.TEXT,
+    "numeric": DatabaseColumnType.NUMERIC,
 }
 
 # our column types
-POSTGRES_TYPE_BY_PRIMITIVE_TYPE: dict[PrimitiveType, PostgresColumnType] = {
-    PrimitiveType.STRING: PostgresColumnType.CHARACTER_VARYING,
-    PrimitiveType.BOOLEAN: PostgresColumnType.BOOLEAN,
-    PrimitiveType.INT16: PostgresColumnType.SMALLINT,
-    PrimitiveType.INT32: PostgresColumnType.INTEGER,
-    PrimitiveType.INT64: PostgresColumnType.BIGINT,
-    PrimitiveType.FLOAT32: PostgresColumnType.REAL,
-    PrimitiveType.FLOAT64: PostgresColumnType.DOUBLE_PRECISION,
-    PrimitiveType.DATETIME: PostgresColumnType.TIMESTAMP,
-    PrimitiveType.DATE: PostgresColumnType.DATE,
-    PrimitiveType.TIME: PostgresColumnType.TIME,
-    PrimitiveType.DURATION: PostgresColumnType.INTERVAL,
-    PrimitiveType.JSON: PostgresColumnType.JSONB,
-    PrimitiveType.VECTOR: PostgresColumnType.BYTEA,
-    PrimitiveType.UUID: PostgresColumnType.UUID,
-    PrimitiveType.BYTES: PostgresColumnType.BYTEA,
+POSTGRES_TYPE_BY_PRIMITIVE_TYPE: dict[PrimitiveType, DatabaseColumnType] = {
+    PrimitiveType.STRING: DatabaseColumnType.CHARACTER_VARYING,
+    PrimitiveType.BOOLEAN: DatabaseColumnType.BOOLEAN,
+    PrimitiveType.INT16: DatabaseColumnType.SMALLINT,
+    PrimitiveType.INT32: DatabaseColumnType.INTEGER,
+    PrimitiveType.INT64: DatabaseColumnType.BIGINT,
+    PrimitiveType.FLOAT32: DatabaseColumnType.REAL,
+    PrimitiveType.FLOAT64: DatabaseColumnType.DOUBLE_PRECISION,
+    PrimitiveType.DATETIME: DatabaseColumnType.TIMESTAMP,
+    PrimitiveType.DATE: DatabaseColumnType.DATE,
+    PrimitiveType.TIME: DatabaseColumnType.TIME,
+    PrimitiveType.DURATION: DatabaseColumnType.INTERVAL,
+    PrimitiveType.JSON: DatabaseColumnType.JSONB,
+    PrimitiveType.VECTOR: DatabaseColumnType.BYTEA,
+    PrimitiveType.UUID: DatabaseColumnType.UUID,
+    PrimitiveType.BYTES: DatabaseColumnType.BYTEA,
 }
 PRIMITIVE_TYPE_BY_POSTGRES_TYPE = {v: k for k, v in POSTGRES_TYPE_BY_PRIMITIVE_TYPE.items()}
 
@@ -643,16 +645,4 @@ EXTENSIONS = (
     DatabaseExtension("plpgsql"),
     DatabaseExtension("uuid-ossp"),
     DatabaseExtension("pgcrypto"),
-)
-
-MIGRATION_TABLE = DatabaseTable(  # see bench-py/bench/store/database/migration.py
-    "bench_migration",
-    node_type=None,
-    columns=(
-        DatabaseColumn("id", PrimitiveType.INT32, is_primary_key=True, prop=None),
-        DatabaseColumn("version", PrimitiveType.STRING, is_unique=True, prop=None),
-        DatabaseColumn("has_global", PrimitiveType.BOOLEAN, prop=None),
-        DatabaseColumn("has_main", PrimitiveType.BOOLEAN, prop=None),
-        DatabaseColumn("applied_at", PrimitiveType.DATETIME, is_nullable=True, prop=None),
-    ),
 )

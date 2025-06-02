@@ -17,7 +17,6 @@ from bench.language.registry import NODE_CLASS_BY_TYPE
 
 from .core import (
     EXTENSIONS,
-    MIGRATION_TABLE,
     DatabaseColumn,
     DatabaseConstraint,
     DatabaseIndex,
@@ -40,6 +39,7 @@ def get_table_name(node_ptr: NodeReference) -> str:
 
 def map_builtin_node_to_database_table(node: type[Node]) -> DatabaseTable:
     """Maps a node type into its builtin Table schema."""
+
     table_name = f"{BENCH_TABLE_PREFIX}{node.metatype.name.lower()}"
     columns: list[DatabaseColumn] = []
     constraints: list[DatabaseConstraint] = []
@@ -70,7 +70,7 @@ def map_builtin_node_to_database_table(node: type[Node]) -> DatabaseTable:
             if len(node_types) > 1:
                 node_type_column = DatabaseColumn(
                     name=f"{prop.name}_node_type",
-                    type=PrimitiveType.UUID,
+                    type=PrimitiveType.INT16,
                     is_nullable=prop.is_optional,
                     prop=prop,
                 )
@@ -140,7 +140,8 @@ def map_builtin_node_to_database_table(node: type[Node]) -> DatabaseTable:
 
 def map_custom_node_to_database_table(definition: CustomNodeDefinition) -> DatabaseTable:
     """Maps a CustomNodeDefinition to its corresponding CustomNodeTable."""
-    raise NotImplementedError
+
+    raise NotImplementedError(definition)
 
 
 BUILTIN_TABLE_BY_NODE_TYPE: Mapping[NodeType, DatabaseTable] = {
@@ -152,22 +153,15 @@ BUILTIN_TABLE_BY_NAME: Mapping[str, DatabaseTable] = {
 }
 BUILTIN_NODE_TABLES: tuple[DatabaseTable, ...] = tuple(BUILTIN_TABLE_BY_NODE_TYPE.values())
 
-BUILTIN_GLOBAL_TABLES: tuple[DatabaseTable, ...] = (
-    MIGRATION_TABLE,
-    *tuple(
-        BUILTIN_TABLE_BY_NODE_TYPE[node.metatype]
-        for node in NODE_CLASS_BY_TYPE.values()
-        if TraitType.GLOBAL in node.__traits__
-    ),
+BUILTIN_GLOBAL_TABLES: tuple[DatabaseTable, ...] = tuple(
+    BUILTIN_TABLE_BY_NODE_TYPE[node.metatype]
+    for node in NODE_CLASS_BY_TYPE.values()
+    if TraitType.GLOBAL in node.__traits__ and node.metatype != NodeType.CUSTOM_NODE_INSTANCE
 )
-BUILTIN_MAIN_TABLES: tuple[DatabaseTable, ...] = (
-    MIGRATION_TABLE,
-    *tuple(
-        BUILTIN_TABLE_BY_NODE_TYPE[node.metatype]
-        for node in NODE_CLASS_BY_TYPE.values()
-        if TraitType.GLOBAL not in node.__traits__
-        and node.metatype != NodeType.CUSTOM_NODE_INSTANCE
-    ),
+BUILTIN_MAIN_TABLES: tuple[DatabaseTable, ...] = tuple(
+    BUILTIN_TABLE_BY_NODE_TYPE[node.metatype]
+    for node in NODE_CLASS_BY_TYPE.values()
+    if TraitType.GLOBAL not in node.__traits__ and node.metatype != NodeType.CUSTOM_NODE_INSTANCE
 )
 BUILTIN_TABLE_BY_AREA: Mapping[NodeArea, tuple[DatabaseTable, ...]] = {
     NodeArea.GLOBAL_DATABASE: BUILTIN_GLOBAL_TABLES,

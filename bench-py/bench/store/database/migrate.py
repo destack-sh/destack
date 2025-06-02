@@ -32,6 +32,7 @@ from .core import (
     POSTGRES_TYPE_BY_UDT,
     PRIMITIVE_TYPE_BY_POSTGRES_TYPE,
     DatabaseColumn,
+    DatabaseColumnType,
     DatabaseConstraint,
     DatabaseConstraintType,
     DatabaseExtension,
@@ -42,7 +43,6 @@ from .core import (
     DatabaseSchema,
     DatabaseTable,
     DatabaseTableObject,
-    PostgresColumnType,
     SqlCascadeAction,
 )
 
@@ -270,7 +270,7 @@ async def _do_migrate(
 #
 
 
-class MigrationOpType(enum.Enum):
+class DatabaseMigrationOpType(enum.Enum):
     CREATE = "CREATE"
     RENAME = "RENAME"
     UPDATE = "UPDATE"
@@ -278,22 +278,22 @@ class MigrationOpType(enum.Enum):
 
 
 @dataclass
-class MigrationOp:
-    type: MigrationOpType
+class DatabaseMigrationOp:
+    type: DatabaseMigrationOpType
     new_object: Optional[DatabaseObject]
     old_object: Optional[DatabaseObject]
     diff_keys: Optional[tuple[str, ...]] = None
 
     def __str__(self) -> str:
         op_str = f"{self.type.value} {self.object_kind.name}"
-        if self.type == MigrationOpType.CREATE:
+        if self.type == DatabaseMigrationOpType.CREATE:
             assert self.new_object is not None, f"new_object not set for {self!r}"
             return f"{op_str} {self.new_object.qualified_name}"
-        elif self.type == MigrationOpType.RENAME:
+        elif self.type == DatabaseMigrationOpType.RENAME:
             assert self.old_object is not None, f"old_object not set for {self!r}"
             assert self.new_object is not None, f"new_object not set for {self!r}"
             return f"{op_str} {self.old_object.qualified_name} -> {self.new_object.qualified_name}"
-        elif self.type == MigrationOpType.UPDATE:
+        elif self.type == DatabaseMigrationOpType.UPDATE:
             assert self.diff_keys is not None, f"diff_keys not set for {self!r}"
             assert self.new_object is not None, f"new_object not set for {self!r}"
             diff_str = ", ".join(
@@ -301,7 +301,7 @@ class MigrationOp:
                 for k in self.diff_keys
             )
             return f"{op_str} {self.new_object.qualified_name} ({diff_str})"
-        elif self.type == MigrationOpType.DELETE:
+        elif self.type == DatabaseMigrationOpType.DELETE:
             assert self.old_object is not None, f"old_object not set for {self!r}"
             return f"{op_str} {self.old_object.qualified_name}"
         else:
@@ -328,18 +328,20 @@ class MigrationOp:
         else:
             raise RuntimeError(f"no object set for {self!r}")
 
-    def invert(self) -> "MigrationOp":
+    def invert(self) -> "DatabaseMigrationOp":
         """Returns the inverse of this operation for undoing migrations."""
-        if self.type == MigrationOpType.CREATE:
-            return MigrationOp(MigrationOpType.DELETE, None, self.new_object)
-        elif self.type == MigrationOpType.RENAME:
-            return MigrationOp(MigrationOpType.RENAME, self.old_object, self.new_object)
-        elif self.type == MigrationOpType.UPDATE:
-            return MigrationOp(
-                MigrationOpType.UPDATE, self.old_object, self.new_object, self.diff_keys
+        if self.type == DatabaseMigrationOpType.CREATE:
+            return DatabaseMigrationOp(DatabaseMigrationOpType.DELETE, None, self.new_object)
+        elif self.type == DatabaseMigrationOpType.RENAME:
+            return DatabaseMigrationOp(
+                DatabaseMigrationOpType.RENAME, self.old_object, self.new_object
             )
-        elif self.type == MigrationOpType.DELETE:
-            return MigrationOp(MigrationOpType.CREATE, self.old_object, None)
+        elif self.type == DatabaseMigrationOpType.UPDATE:
+            return DatabaseMigrationOp(
+                DatabaseMigrationOpType.UPDATE, self.old_object, self.new_object, self.diff_keys
+            )
+        elif self.type == DatabaseMigrationOpType.DELETE:
+            return DatabaseMigrationOp(DatabaseMigrationOpType.CREATE, self.old_object, None)
         raise RuntimeError(f"unexpected migration op type: {self.type}")
 
 
@@ -353,8 +355,8 @@ def generate_migration_code(
     migration: Migration,
     oracle: Oracle,
     *,
-    global_ops: list[MigrationOp],
-    main_ops: list[MigrationOp],
+    global_ops: list[DatabaseMigrationOp],
+    main_ops: list[DatabaseMigrationOp],
     exclude_inverse: bool = False,
 ) -> str:
     """Generates the Python migration file."""
@@ -395,16 +397,18 @@ def generate_migration_ops(
     *,
     old_schema: DatabaseSchema,
     new_schema: DatabaseSchema,
-    include_types: tuple[MigrationOpType, ...] = tuple(MigrationOpType),
-) -> list[MigrationOp]:
+    include_types: tuple[DatabaseMigrationOpType, ...] = tuple(DatabaseMigrationOpType),
+) -> list[DatabaseMigrationOp]:
     """Generates the migration operations to go from the old tables to the new tables."""
 
     # extensions
-    extension_ops: list[MigrationOp] = []
+    extension_ops: list[DatabaseMigrationOp] = []
     old_extensions = {ext.name for ext in old_schema.extensions}
     new_extensions = {ext.name for ext in new_schema.extensions}
     for ext_name in new_extensions - old_extensions:
-        extension_ops.append(MigrationOp(MigrationOpType.CREATE, DatabaseExtension(ext_name), None))
+        extension_ops.append(
+            DatabaseMigrationOp(DatabaseMigrationOpType.CREATE, DatabaseExtension(ext_name), None)
+        )
     # NOTE: we don't remove extensions for now
 
     def _to_id(obj: DatabaseTableObject) -> str:
@@ -421,7 +425,7 @@ def generate_migration_ops(
 
     # diff objects
     deleted_ids: set[str] = set()
-    deleted_table_ops: list[MigrationOp] = []
+    deleted_table_ops: list[DatabaseMigrationOp] = []
     for old_object in old_table_objects:
         old_id = _to_id(old_object)
         new_object = new_table_objects_by_id.get(old_id)
@@ -436,10 +440,12 @@ def generate_migration_ops(
                     for obj in deleted_table_objects
                 ):
                     continue
-            deleted_table_ops.append(MigrationOp(MigrationOpType.DELETE, None, old_object))
+            deleted_table_ops.append(
+                DatabaseMigrationOp(DatabaseMigrationOpType.DELETE, None, old_object)
+            )
             deleted_ids.add(old_id)
     # regular order: table -> column -> index -> constraint
-    cru_ops: list[MigrationOp] = []
+    cru_ops: list[DatabaseMigrationOp] = []
     for new_object in new_table_objects:
         new_id = _to_id(new_object)
         old_object = old_table_objects_by_id.get(new_id)
@@ -451,22 +457,26 @@ def generate_migration_ops(
                 and _to_id(new_object.table) not in old_table_objects_by_id
             ):
                 continue
-            cru_ops.append(MigrationOp(MigrationOpType.CREATE, new_object, None))
+            cru_ops.append(DatabaseMigrationOp(DatabaseMigrationOpType.CREATE, new_object, None))
         elif new_object.name != old_object.name:
-            cru_ops.append(MigrationOp(MigrationOpType.RENAME, new_object, old_object))
+            cru_ops.append(
+                DatabaseMigrationOp(DatabaseMigrationOpType.RENAME, new_object, old_object)
+            )
         elif old_object.hash_flat() != new_object.hash_flat():
             diff = new_object.diff_keys(old_object)
             if not diff:
                 continue  # hashing changed
-            cru_ops.append(MigrationOp(MigrationOpType.UPDATE, new_object, old_object, diff))
+            cru_ops.append(
+                DatabaseMigrationOp(DatabaseMigrationOpType.UPDATE, new_object, old_object, diff)
+            )
 
     # fix cyclic dependencies between creates & FKs -> split into two passes:
     #  1. create tables without FK columns
     #  2. patch in all the FK columns, create indexes, and constraints
-    first_table_cru_ops: list[MigrationOp] = []
-    patch_table_cru_ops: list[MigrationOp] = []
+    first_table_cru_ops: list[DatabaseMigrationOp] = []
+    patch_table_cru_ops: list[DatabaseMigrationOp] = []
     for op in cru_ops:
-        if op.type != MigrationOpType.CREATE:
+        if op.type != DatabaseMigrationOpType.CREATE:
             patch_table_cru_ops.append(op)
             continue
 
@@ -478,10 +488,14 @@ def generate_migration_ops(
                 (c.clone() for c in op.new_object.columns),
             )
             first_table = replace(op.new_object, columns=first_columns, constraints=(), indexes=())
-            first_table_cru_ops.append(MigrationOp(MigrationOpType.CREATE, first_table, None))
+            first_table_cru_ops.append(
+                DatabaseMigrationOp(DatabaseMigrationOpType.CREATE, first_table, None)
+            )
             for col in deferred_columns:
                 col._table = first_table
-                patch_table_cru_ops.append(MigrationOp(MigrationOpType.CREATE, col, None))
+                patch_table_cru_ops.append(
+                    DatabaseMigrationOp(DatabaseMigrationOpType.CREATE, col, None)
+                )
         elif op.object_kind == DatabaseObjectKind.COLUMN:
             assert isinstance(op.new_object, DatabaseColumn)
             if op.new_object.is_foreign_key_to:
@@ -492,14 +506,14 @@ def generate_migration_ops(
             patch_table_cru_ops.append(op)
 
     # combine and filter ops
-    ops: list[MigrationOp] = []
+    ops: list[DatabaseMigrationOp] = []
     for op in chain(extension_ops, deleted_table_ops, first_table_cru_ops, patch_table_cru_ops):
         if op.type in include_types:
             ops.append(op)
     return ops
 
 
-def _render_migration_body(ops: list[MigrationOp] | None) -> str:
+def _render_migration_body(ops: list[DatabaseMigrationOp] | None) -> str:
     """Renders migration operations into an executable method body."""
 
     if ops is None:
@@ -600,7 +614,7 @@ def _render_migration_body(ops: list[MigrationOp] | None) -> str:
 
 
 @tracer.start_as_current_span("database.apply_migration_ops")
-async def apply_migration_ops(conn: asyncpg.Connection, ops: list[MigrationOp]) -> None:
+async def apply_migration_ops(conn: asyncpg.Connection, ops: list[DatabaseMigrationOp]) -> None:
     """Directly apply the given migration ops."""
     method_body = _render_migration_body(ops)
     method_body = format_python(method_body)
@@ -631,12 +645,12 @@ def add_migration_to_fs(migration: Migration, code: str, *, overwrite: bool = Fa
     return migration_path
 
 
-def _render_migration_op(op: MigrationOp) -> str | None:
+def _render_migration_op(op: DatabaseMigrationOp) -> str | None:
     """
     Renders the given operation into a SQL string.
     Generally 'flat' - ops do not include nested objects - except for CREATE TABLE.
     """
-    if op.type == MigrationOpType.CREATE:
+    if op.type == DatabaseMigrationOpType.CREATE:
         if isinstance(op.new_object, DatabaseExtension):
             return f'CREATE EXTENSION IF NOT EXISTS "{op.new_object.name}"'
         elif isinstance(op.new_object, DatabaseTable):
@@ -652,7 +666,7 @@ def _render_migration_op(op: MigrationOp) -> str | None:
         elif isinstance(op.new_object, DatabaseConstraint):
             return f'ALTER TABLE "{op.new_object.table.name}" ADD CONSTRAINT {op.new_object.sql()}'
 
-    elif op.type == MigrationOpType.RENAME:
+    elif op.type == DatabaseMigrationOpType.RENAME:
         assert op.new_object is not None, f"expected a new object: {op!r}"
         if isinstance(op.old_object, DatabaseTable):
             return f'ALTER TABLE "{op.old_object.name}" RENAME TO "{op.new_object.name}"'
@@ -663,7 +677,7 @@ def _render_migration_op(op: MigrationOp) -> str | None:
         elif isinstance(op.old_object, DatabaseConstraint):
             return f'ALTER TABLE "{op.old_object.table.name}" RENAME CONSTRAINT "{op.old_object.name}" TO "{op.new_object.name}"'
 
-    elif op.type == MigrationOpType.UPDATE:
+    elif op.type == DatabaseMigrationOpType.UPDATE:
         if isinstance(op.old_object, DatabaseTable):
             # there are no table properties we can update (outside name, which is handled by rename)
             raise NotImplementedError(f"cannot render {op!r}")
@@ -745,7 +759,7 @@ def _render_migration_op(op: MigrationOp) -> str | None:
                 f" ADD CONSTRAINT {op.new_object.sql()}"
             )
 
-    elif op.type == MigrationOpType.DELETE:
+    elif op.type == DatabaseMigrationOpType.DELETE:
         if isinstance(op.old_object, DatabaseExtension):
             return f'DROP EXTENSION IF EXISTS "{op.old_object.name}"'
         elif isinstance(op.old_object, DatabaseTable):
@@ -942,8 +956,8 @@ GROUP BY
             else:
                 is_array = False
             postgres_type = POSTGRES_TYPE_BY_UDT[udt_name]
-            if postgres_type == PostgresColumnType.TEXT:
-                postgres_type = PostgresColumnType.CHARACTER_VARYING  # we don't do TEXT
+            if postgres_type == DatabaseColumnType.TEXT:
+                postgres_type = DatabaseColumnType.CHARACTER_VARYING  # we don't do TEXT
             primitive_type = PRIMITIVE_TYPE_BY_POSTGRES_TYPE[postgres_type]
             is_foreign_key_to = (
                 row["target_table_names"]
