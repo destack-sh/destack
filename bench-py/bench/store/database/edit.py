@@ -22,7 +22,6 @@ async def _get_table(ctx: DatabaseContext, node_ptr: NodeReference) -> DatabaseT
     table = ctx.tables_by_name.get(table_name)
     if table is None:
         if node_ptr.node_type == NodeType.CUSTOM_NODE_INSTANCE:
-            # nocheckin: create custom Tables/Columns just in time
             raise NotImplementedError(f"no table for {node_ptr!r} in {ctx!r}")
         else:
             raise RuntimeError(f"no table for {node_ptr!r} in {ctx!r}")
