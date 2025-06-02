@@ -1,5 +1,6 @@
 import uuid
 from collections.abc import Sequence
+from datetime import date, datetime, time
 from types import NoneType
 from typing import Any, assert_never
 
@@ -19,6 +20,7 @@ from bench.language import (
     expand_node_types,
 )
 from bench.language.registry import NODE_CLASS_BY_TYPE
+from bench.utils.time import timedelta_from_isoformat, timedelta_to_isoformat
 
 from .core import DatabaseTable
 
@@ -78,16 +80,15 @@ def pack_node_value_to_row(table: DatabaseTable, value: Value) -> Sequence[Any]:
                 else:
                     values_packed.append(None)
         else:
-            prop_value_packed = pack_node_value_property(node_cls, prop.type, prop_value)
-            values_packed.append(prop_value_packed)
+            if prop_value is not None:
+                prop_value_packed = pack_node_value_property(node_cls, prop.type, prop_value)
+                values_packed.append(prop_value_packed)
+            else:
+                values_packed.append(None)
     assert len(values_packed) == len(table._columns_by_name), (
         f"unexpected values: {len(values_packed)} != {len(table._columns_by_name)}"
     )
 
-    print(table.name)
-    print(value.value)
-    print(list(table._columns_by_name.keys()))
-    print(values_packed)
     return values_packed
 
 
@@ -107,6 +108,14 @@ def _pack_node_value_scalar(type: Type, value: Json) -> Any:
     if type.scalar_type == ScalarType.PRIMITIVE:
         if type.primitive_type == PrimitiveType.UUID:
             return uuid.UUID(value)
+        elif type.primitive_type == PrimitiveType.DATETIME:
+            return datetime.fromisoformat(value).replace(tzinfo=None)
+        elif type.primitive_type == PrimitiveType.DATE:
+            return date.fromisoformat(value)
+        elif type.primitive_type == PrimitiveType.TIME:
+            return time.fromisoformat(value).replace(tzinfo=None)
+        elif type.primitive_type == PrimitiveType.DURATION:
+            return timedelta_from_isoformat(value)
         else:
             return value
     elif type.scalar_type == ScalarType.ENUM:
@@ -119,9 +128,7 @@ def _pack_node_value_scalar(type: Type, value: Json) -> Any:
         assert_never(type.scalar_type)
 
 
-def pack_node_value_property(
-    node_cls: type[Node], type: Type, value_packed: Json
-) -> Any | dict[str, Any]:
+def pack_node_value_property(node_cls: type[Node], type: Type, value_packed: Json) -> Any:
     if type.cardinality == TypeCardinality.SCALAR:
         return _pack_node_value_scalar(type, value_packed)
     elif type.cardinality == TypeCardinality.LIST:
@@ -137,6 +144,14 @@ def _unpack_node_value_scalar(type: Type, value: Any) -> Json:
     if type.scalar_type == ScalarType.PRIMITIVE:
         if type.primitive_type == PrimitiveType.UUID:
             return str(value)
+        elif (
+            type.primitive_type == PrimitiveType.DATETIME
+            or type.primitive_type == PrimitiveType.DATE
+            or type.primitive_type == PrimitiveType.TIME
+        ):
+            return value.isoformat()
+        elif type.primitive_type == PrimitiveType.DURATION:
+            return timedelta_to_isoformat(value)
         else:
             return value
     elif type.scalar_type == ScalarType.ENUM:

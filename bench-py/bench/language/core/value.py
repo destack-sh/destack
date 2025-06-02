@@ -147,12 +147,12 @@ def _unpack_scalar_value(value: Json, type: Type) -> Any:
             return UUID(value)
         elif type.primitive_type == PrimitiveType.JSON:
             return value
+        elif type.primitive_type == PrimitiveType.DATETIME:
+            return datetime.fromisoformat(value).replace(tzinfo=None)
         elif type.primitive_type == PrimitiveType.DATE:
             return date.fromisoformat(value)
         elif type.primitive_type == PrimitiveType.TIME:
-            return time.fromisoformat(value)
-        elif type.primitive_type == PrimitiveType.DATETIME:
-            return datetime.fromisoformat(value)
+            return time.fromisoformat(value).replace(tzinfo=None)
         elif type.primitive_type == PrimitiveType.DURATION:
             return timedelta_from_isoformat(value)
         elif type.primitive_type in (PrimitiveType.INT16, PrimitiveType.INT32, PrimitiveType.INT64):
