@@ -6,6 +6,8 @@ import asyncpg.transaction
 
 from bench.language import DatabaseInfo
 
+_pool_by_url: dict[str, asyncpg.Pool] = {}
+
 
 @asynccontextmanager
 async def pg_connection(database: DatabaseInfo) -> AsyncGenerator[asyncpg.Connection, None]:
@@ -13,14 +15,15 @@ async def pg_connection(database: DatabaseInfo) -> AsyncGenerator[asyncpg.Connec
     Context manager for an asyncpg.Connection.
     """
 
-    # nocheckin: use asyncpg pool
-
     assert database.sql_url, f"no sql_url for {database!r}"
-    conn = await asyncpg.connect(database.sql_url)
-    try:
+
+    pool = _pool_by_url.get(database.sql_url)
+    if pool is None:
+        pool = await asyncpg.create_pool(database.sql_url)
+        _pool_by_url[database.sql_url] = pool
+
+    async with pool.acquire() as conn:
         yield conn
-    finally:
-        await conn.close()
 
 
 @asynccontextmanager
@@ -31,13 +34,7 @@ async def pg_transaction(
     Context manager for an asyncpg.Transaction.
     """
 
-    assert database.sql_url, f"no sql_url for {database!r}"
-    conn = await asyncpg.connect(database.sql_url)
-    tx = conn.transaction()
-    await tx.start()
-    try:
+    async with pg_connection(database) as conn:
+        tx = conn.transaction()
+        await tx.start()
         yield conn, tx
-    except Exception:
-        raise
-    finally:
-        await conn.close()
