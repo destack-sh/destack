@@ -880,8 +880,17 @@ class TraitType(BuiltinEnum):
 class NodeArea(BuiltinEnum):
     GLOBAL_DATABASE = 1
     # GLOBAL_SEARCH?
-    MAIN_DATABASE = 2
+    MAIN_DATABASE = 100
     # MAIN_SEARCH, MAIN_WAREHOUSE, ...
+
+
+@enum_(EnumType.STORE_TYPE)
+class StoreType(BuiltinEnum):
+    LOCAL = 1
+    REMOTE = 2
+    DATABASE = 10
+    # SEARCH = 21
+    # WAREHOUSE = 22
 
 
 @enum_(EnumType.NODE_MODE)
@@ -1342,15 +1351,6 @@ class ClientType(BuiltinEnum):
 class Tenancy(BuiltinEnum):
     DEDICATED = 1
     SHARED = 2
-
-
-@enum_(EnumType.STORE_TYPE)
-class StoreType(BuiltinEnum):
-    POSTGRES = 1
-    ELASTICSEARCH = 2
-    CLICKHOUSE = 3
-    LOCAL = 4
-    REMOTE = 5
 
 
 CLOUD = get_from_env("CLOUD", typ=Cloud, description="Cloud we're running in")

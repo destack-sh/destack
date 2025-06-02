@@ -46,7 +46,7 @@ from bench.utils.utils import get_from_env
 from .plugin import HostPlugin
 
 if TYPE_CHECKING:
-    from .plugin import Provisioner
+    pass
 
 logger = structlog.get_logger(__name__)
 tracer = trace.get_tracer(__name__)
@@ -89,9 +89,9 @@ class HostService(ServiceBase, HostBase):
         self.bench_id = bench_id
         self.bench_ptr = NodeReference(node_type=NodeType.BENCH, id=bench_id, bench_id=bench_id)
         self.scope = Scope(bench_id=bench_id)
-        self.provisioners: tuple[Provisioner, ...] = ()
         self.plugins: tuple[HostPlugin, ...] = ()  # incl. provisioners
-        self.database_store = DatabaseStore(global_database=global_database)
+        self.global_database_store = DatabaseStore(global_database)
+        self.main_database_store: DatabaseStore | None = None
         self.store: LiveStore = ...  # type: ignore nocheckin
         self.cell_provider = cell_provider
         self.database_provider = database_provider
@@ -109,13 +109,13 @@ class HostService(ServiceBase, HostBase):
         return all(plugin.is_idle for plugin in self.plugins) and super().is_idle
 
     async def start(self) -> None:
-        async with Session(store=self.database_store):
+        async with Session(store=self.global_database_store):
             bench = await Bench.get(
                 where=Bench.property("id").eq(self.bench_id),
                 Databases=Database.search(),
             ).execute_one()
             if (database := bench.database) is not None:
-                self.database_store.main_database = database.to_info()
+                self.main_database_store = DatabaseStore(database=database.to_info())
 
     def stop(self) -> None:
         super().stop()

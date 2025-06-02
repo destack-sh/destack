@@ -17,11 +17,14 @@ _setup_test_env()
 
 from bench.language import REGION, DatabaseInfo, Tenancy
 from bench.sharding import get_global_database_from_env
-from bench.store.postgres import (
+from bench.store.database import (
     BENCH_CUSTOM_NODE_PREFIX,
     BENCH_TABLE_PREFIX,
     BUILTIN_GLOBAL_SCHEMA,
+    BUILTIN_GLOBAL_TABLES,
     BUILTIN_MAIN_SCHEMA,
+    BUILTIN_MAIN_TABLES,
+    EXTENSIONS,
     SqlSchema,
     apply_sql_migration_ops,
     generate_sql_migration_ops,
@@ -34,33 +37,17 @@ logger = structlog.get_logger(__name__)
 tracer = trace.get_tracer(__name__)
 
 
-def get_global_database(name: str) -> DatabaseInfo:
+def get_database(name: str) -> DatabaseInfo:
     """Creates a global database for testing.."""
     pg = get_from_env("GLOBAL_DATABASE_URL", description="Global Postgres connection string")
     pg_url_parsed = urlparse(pg)
     sql_url = pg_url_parsed._replace(path=f"/{name}").geturl()
     database = DatabaseInfo(
         region=REGION,
-        cell_name=name,
-        external_name=name,
-        tenancy=Tenancy.DEDICATED,
-        sql_url=sql_url,
-    )
-    return database
-
-
-def get_main_database(name: str) -> DatabaseInfo:
-    """Creates a main database for testing."""
-    assert len(name) < 64, f"name must be less than 64 characters: {name!r}"
-    pg = get_from_env("GLOBAL_DATABASE_URL", description="Regional Postgres connection string")
-    pg_url_parsed = urlparse(pg)
-    pg_url = pg_url_parsed._replace(path=f"/{name}").geturl()
-    database = DatabaseInfo(
-        region=REGION,
         cell_name="test-0",
         external_name=name,
         tenancy=Tenancy.DEDICATED,
-        sql_url=pg_url,
+        sql_url=sql_url,
     )
     return database
 
@@ -100,7 +87,7 @@ def _clean_name(name: str) -> str:
 async def global_database(request: pytest.FixtureRequest) -> AsyncGenerator[DatabaseInfo, None]:
     """Gets the per test function global database"""
 
-    database = get_global_database(f"test-{_clean_name(request.node.name)[:32]}-global")
+    database = get_database(f"test-{_clean_name(request.node.name)[:32]}-global")
     await create_test_db(database, BUILTIN_GLOBAL_SCHEMA)
     try:
         yield database
@@ -112,8 +99,23 @@ async def global_database(request: pytest.FixtureRequest) -> AsyncGenerator[Data
 async def main_database(request: pytest.FixtureRequest) -> AsyncGenerator[DatabaseInfo, None]:
     """Gets the per test function main database"""
 
-    database = get_main_database(f"test-{_clean_name(request.node.name)[:32]}-main")
+    database = get_database(f"test-{_clean_name(request.node.name)[:32]}-main")
     await create_test_db(database, BUILTIN_MAIN_SCHEMA)
+    try:
+        yield database
+    finally:
+        await delete_test_db(database)
+
+
+@pytest.fixture
+async def omni_database(request: pytest.FixtureRequest) -> AsyncGenerator[DatabaseInfo, None]:
+    """Gets the per test function omni database"""
+    omni_tables_by_name = {
+        table.name: table for table in BUILTIN_GLOBAL_TABLES + BUILTIN_MAIN_TABLES
+    }
+    omni_schema = SqlSchema(EXTENSIONS, tuple(omni_tables_by_name.values()))
+    database = get_database(f"test-{_clean_name(request.node.name)[:32]}-omni")
+    await create_test_db(database, omni_schema)
     try:
         yield database
     finally:

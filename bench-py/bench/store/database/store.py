@@ -35,21 +35,11 @@ class DatabaseStore(Store):
     )
     __supports_cascade__ = True
 
-    def __init__(
-        self,
-        *,
-        # nocheckin: split DatabaseStore for just one DatabaseInfo
-        global_database: DatabaseInfo,
-        main_database: DatabaseInfo | None = None,
-    ):
-        self.global_database = global_database
-        self.main_database = main_database
+    def __init__(self, database: DatabaseInfo):
+        self.database = database
 
     def __str__(self) -> str:
-        if self.main_database is None:
-            return f"global_database={self.global_database!r}"
-        else:
-            return f"global_database={self.global_database!r}, main_database={self.main_database!r}"
+        return f"database={self.database!r}"
 
     def __repr__(self) -> str:
         return f"<{self.__class__.__name__} {self!s}>"

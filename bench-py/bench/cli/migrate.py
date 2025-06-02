@@ -33,7 +33,7 @@ async def make(
     from_scratch: bool = typer.Option(default=False, help="generate migration from scratch"),
 ):
     from bench.sharding import get_global_database_from_env
-    from bench.store.postgres import (
+    from bench.store.database import (
         BENCH_CUSTOM_NODE_PREFIX,
         BENCH_TABLE_PREFIX,
         BUILTIN_GLOBAL_SCHEMA,
@@ -102,7 +102,7 @@ async def make(
         global_migration_ops = []
 
     # generate migration
-    if not global_migration_ops and not custom_migration_ops and not main_migration_ops:
+    if not global_migration_ops and not main_migration_ops:
         logger.info("migrate.make.noop")
         return
     latest_migration = max(file_migrations, key=lambda m: m.id)
@@ -110,14 +110,12 @@ async def make(
         id=latest_migration.id + 1 if latest_migration is not None else 1,
         version=VERSION,
         has_global=bool(global_migration_ops),
-        has_custom=bool(custom_migration_ops),
         has_main=bool(main_migration_ops),
         applied_at=None,
     )
     migration_code = generate_sql_migration_code(
         new_migration,
         global_ops=global_migration_ops,
-        custom_ops=custom_migration_ops,
         main_ops=main_migration_ops,
         exclude_inverse=no_downgrade,
         oracle=REAL_ORACLE,
@@ -149,7 +147,7 @@ async def apply(
 ):
     from bench.language import REGION, NodeArea
     from bench.sharding import get_global_database_from_env, get_main_database_from_env
-    from bench.store.postgres import pg_tx, sql_migrate
+    from bench.store.database import pg_tx, sql_migrate
 
     start = time.time()
     global_database = get_global_database_from_env()

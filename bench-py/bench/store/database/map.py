@@ -14,15 +14,7 @@ from bench.language.registry import NODE_CLASS_BY_TYPE
 from bench.utils.string import Casing, to_casing
 
 from . import schema
-from .core import (
-    GLOBAL_EXTENSIONS,
-    MAIN_EXTENSIONS,
-    MIGRATION_TABLE,
-    SqlColumn,
-    SqlConstraint,
-    SqlIndex,
-    SqlSchema,
-)
+from .core import EXTENSIONS, MIGRATION_TABLE, SqlColumn, SqlConstraint, SqlIndex, SqlSchema
 from .core import SqlTable as SqlTable
 
 BENCH_TABLE_PREFIX = "bench_"
@@ -155,5 +147,5 @@ BUILTIN_MAIN_TABLES: tuple[SqlTable, ...] = (
         and node.metatype != NodeType.CUSTOM_NODE_INSTANCE
     ),
 )
-BUILTIN_GLOBAL_SCHEMA = SqlSchema(GLOBAL_EXTENSIONS, BUILTIN_GLOBAL_TABLES)
-BUILTIN_MAIN_SCHEMA = SqlSchema(MAIN_EXTENSIONS, BUILTIN_MAIN_TABLES)
+BUILTIN_GLOBAL_SCHEMA = SqlSchema(EXTENSIONS, BUILTIN_GLOBAL_TABLES)
+BUILTIN_MAIN_SCHEMA = SqlSchema(EXTENSIONS, BUILTIN_MAIN_TABLES)

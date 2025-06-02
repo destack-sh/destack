@@ -14,6 +14,7 @@ from bench.language import (
     DatabaseInfo,
     Handle,
     IsSubject,
+    NodeArea,
     NodeType,
     Package,
     PackageType,
@@ -42,7 +43,7 @@ from bench.proto import (
     SupervisorBase,
 )
 from bench.sharding import CellProvider, DatabaseProvider
-from bench.store import DatabaseStore
+from bench.store import DatabaseStore, SplitStore
 from bench.utils.func import generate_access_token, generate_salt
 from bench.utils.oracle import Oracle
 
@@ -104,7 +105,7 @@ class SupervisorService(ServiceBase, SupervisorBase):
 
     @override
     async def make_session(self, metadata: RpcMetadata) -> "Session":
-        database_store = DatabaseStore(global_database=self.global_database)
+        database_store = DatabaseStore(database=self.global_database)
         return Session(store=database_store)
 
     @override
@@ -183,8 +184,11 @@ class SupervisorService(ServiceBase, SupervisorBase):
             custom_schema_name=f"bench-{bench.id}",
         )
         bench.database = database
-        session.store = DatabaseStore(
-            global_database=self.global_database, main_database=main_database
+        session.store = SplitStore(
+            store_by_area={
+                NodeArea.GLOBAL_DATABASE: DatabaseStore(database=self.global_database),
+                NodeArea.MAIN_DATABASE: DatabaseStore(database=main_database),
+            },
         )
         await session.stage()
 

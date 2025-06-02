@@ -1,9 +1,5 @@
 from .client import pg_connection
 from .core import (
-    BASE_EXTENSIONS,
-    CUSTOM_EXTENSIONS,
-    GLOBAL_EXTENSIONS,
-    MAIN_EXTENSIONS,
     MIGRATION_TABLE,
     PostgresColumnType,
     SqlColumn,
@@ -29,6 +25,7 @@ from .map import (
     BUILTIN_NODE_BY_TABLE_NAME,
     BUILTIN_NODE_TABLES,
     BUILTIN_TABLE_BY_NODE_TYPE,
+    EXTENSIONS,
     get_node_table_name,
     map_builtin_node_to_sql_table,
     map_custom_node_to_sql_table,
@@ -53,7 +50,6 @@ from .migration import (
 from .store import DatabaseStore
 
 __all__ = [
-    "BASE_EXTENSIONS",
     "BENCH_CUSTOM_FIELD_PREFIX",
     "BENCH_CUSTOM_NODE_PREFIX",
     "BENCH_TABLE_PREFIX",
@@ -64,9 +60,7 @@ __all__ = [
     "BUILTIN_NODE_BY_TABLE_NAME",
     "BUILTIN_NODE_TABLES",
     "BUILTIN_TABLE_BY_NODE_TYPE",
-    "CUSTOM_EXTENSIONS",
-    "GLOBAL_EXTENSIONS",
-    "MAIN_EXTENSIONS",
+    "EXTENSIONS",
     "MIGRATIONS",
     "MIGRATIONS_PATH",
     "MIGRATIONS_TEMPLATE_PATH",

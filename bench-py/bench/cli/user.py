@@ -19,7 +19,7 @@ async def set_password(user_slug: str, new_password: str):
     from bench.supervisor import SALT_LENGTH, hash_password
 
     global_database = get_global_database_from_env()
-    store = DatabaseStore(global_database=global_database)
+    store = DatabaseStore(database=global_database)
     async with Session(store=store) as session:
         user = await User.get(where=User.property("slug").eq(user_slug)).execute_one()
         user.password_salt = generate_salt(SALT_LENGTH)

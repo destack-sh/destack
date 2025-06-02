@@ -25,7 +25,7 @@ async def bootstrap(
     from bench.supervisor import create_system_benches
 
     global_database = get_global_database_from_env()
-    store = DatabaseStore(global_database=global_database)
+    store = DatabaseStore(database=global_database)
     async with Session(store=store) as session:
         await create_system_benches(region=region, session=session, upsert=upsert)
         await session.commit()
