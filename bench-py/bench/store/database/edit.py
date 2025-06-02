@@ -71,22 +71,24 @@ async def execute_edits(
     Returns the Edits and any cascaded Edits.
     """
     if edit_type == EditType.CREATE or edit_type == EditType.UPSERT:
-        stmt = f"""
-            INSERT INTO {table.name} ({", ".join(col.name for col in table.columns)})
-            VALUES ({", ".join(f"${i}" for i in range(len(edits)))})
-        """
+        stmt = f"""\
+INSERT INTO {table.name} ({", ".join(col.name for col in table.columns)})
+VALUES ({", ".join(f"${i + 1}" for i in range(len(table.columns)))})
+"""
         if edit_type == EditType.UPSERT:
-            stmt += f"""
-            ON CONFLICT DO UPDATE
-            SET {", ".join(f"{col.name} = EXCLUDED.{col.name}" for col in table.columns if not col.is_primary_key)}
-            """
+            stmt += f"""\
+ON CONFLICT DO UPDATE
+SET {", ".join(f"{col.name} = EXCLUDED.{col.name}" for col in table.columns if not col.is_primary_key)}
+"""
         stmt += ";"
         values_packed: list[Sequence[Any]] = []
         for edit in edits:
             assert edit.value is not None, f"no value for {edit!r}"
             values_packed.append(pack_node_value_to_row(table, edit.value))
         logger.debug("database.execute_edits", stmt=stmt, span="current")
-        await conn.execute(stmt, *values_packed)
+        print(stmt)
+        print(values_packed)
+        await conn.executemany(stmt, values_packed)
         return edits, ()
     else:
         raise NotImplementedError(f"no implementation for {edit_type!r}")

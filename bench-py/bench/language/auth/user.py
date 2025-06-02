@@ -56,8 +56,8 @@ class User(
     # last_active_at, seen_at, ...
     is_staff: bool = property_(45, default=False, can_write="system")
 
-    bench: "Bench" = property_(50, can_write="system")
-    handle: Optional["Handle"] = property_(51, can_write="system")
+    bench: "Bench" = property_(50, can_write="system", node_bench_from="self")
+    handle: Optional["Handle"] = property_(51, can_write="system", node_bench_from="self")
     cursor: Optional["Cursor"] = property_(52, can_write="system", node_bench_from="self")
     if TYPE_CHECKING:
         bench_id: UUID = property_()
