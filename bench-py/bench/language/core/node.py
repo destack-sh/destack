@@ -357,9 +357,25 @@ class Node[NodeDataT: AnyNodeData](BuiltinObjectMutable[NodeDataT]):
             nodes=[self], condition=lambda: condition(self), timeout=timeout
         )
 
-    #
-    # Querying
-    #
+    @classmethod
+    def from_value(
+        cls,
+        _object_value: dict,
+        _session: "Session | None" = None,
+        _supergraph: "Supergraph | None" = None,
+        _graph: "Graph | None" = None,
+        _connection: "QueryConnection | None" = None,
+    ) -> Self:
+        node_type = NodeType(_object_value["1"])
+        node_cls = NODE_CLASS_BY_TYPE[node_type]
+        node = node_cls.from_value(
+            _object_value,
+            _session=_session,
+            _supergraph=_supergraph,
+            _graph=_graph,
+            _connection=_connection,
+        )
+        return cast(Self, node)
 
     @classmethod
     def get(

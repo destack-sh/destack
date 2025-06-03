@@ -1,4 +1,4 @@
-from typing import TYPE_CHECKING, Optional
+from typing import TYPE_CHECKING, Optional, cast
 
 from fastuuid import UUID
 
@@ -13,31 +13,81 @@ if TYPE_CHECKING:
 class QueryConnection[RootT: "Node"]:
     """A connection to a Query and its result."""
 
-    __slots__ = ("id", "is_live", "query", "result", "session", "store")
+    __slots__ = (
+        "graph",
+        "id",
+        "is_live",
+        "queries_by_id",
+        "query",
+        "result",
+        "results_by_id",
+        "roots",
+        "session",
+        "store",
+    )
 
     def __init__(self, query: Query, store: "Store", session: "Session"):
+        from .graph import Graph
+
+        # meta
         self.id: UUID = query.id
         self.query: Query = query
         self.is_live = query.is_live
         self.store: Store = store
         self.session: Session = session
+
+        # result
         self.result: QueryResult | None = None
+        self.queries_by_id: dict[UUID, Query] = {}
+        self.results_by_id: dict[UUID, QueryResult] = {}
+        self.graph: Graph = Graph(supergraph=session.supergraph, connection=self)
+        self.roots: list[RootT] = []
+
+    def __str__(self) -> str:
+        content_parts: list[str] = [
+            f"id={self.id}",
+            f"query={self.query!r}",
+            f"is_live={self.is_live}",
+        ]
+        if self.result:
+            content_parts.append(f"result={self.result!r}")
+        return ", ".join(content_parts)
+
+    def __repr__(self) -> str:
+        return f"<QueryConnection {self!s}>"
 
     async def execute(self) -> None:
         """Execute the Query."""
+        from .value import unpack_value
+
         self.result = await self.store.query(self.query)
+        for node_value in self.result.nodes:
+            node = unpack_value(node_value.value, node_value.type)
+            assert isinstance(node, Node), f"expected Node, got {node!r} in {self!r}"
+            self.graph.add(node)
+            self.roots.append(cast(RootT, node))
 
     def to_one_or_none(self) -> Optional[RootT]:
-        """Get the root (if any)."""
-        raise NotImplementedError
+        """Get the root Node (if any)."""
+        assert self.result is not None, f"no result for {self!r}"
+        assert len(self.roots) == 1, (
+            f"expected 1 root, got {len(self.roots)} in {self!r}: {self.roots!r}"
+        )
+        return self.roots[0]
 
     def to_one(self) -> RootT:
-        """Get the root (error if none)."""
-        raise NotImplementedError
+        """Get the root Node (error if none)."""
+        assert self.result is not None, f"no result for {self!r}"
+        assert len(self.roots) == 1, (
+            f"expected 1 root, got {len(self.roots)} in {self!r}: {self.roots!r}"
+        )
+        return self.roots[0]
 
     def to_list(self) -> list[RootT]:
         """Get the list of roots."""
-        raise NotImplementedError
+        assert self.result is not None, f"no result for {self!r}"
+        assert len(self.roots) > 0, f"no roots in {self!r}"
+        return self.roots
 
     def close(self) -> None:
         """Close the QueryConnection."""

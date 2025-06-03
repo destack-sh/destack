@@ -46,7 +46,7 @@ from .graph import Graph, Supergraph
 from .property import _PROPERTY_SPECIFIERS, IntoType, Property, property_runtime_
 
 if TYPE_CHECKING:
-    from bench.language import Field, Graph, Node, Session
+    from bench.language import Field, Graph, Node, QueryConnection, Session
 
 # pyright: reportIncompatibleVariableOverride=false
 
@@ -1197,6 +1197,7 @@ class BuiltinObjectBase[ObjectDataT: AnyObjectData](abc.ABC):
         _session: "Session | None" = None,
         _supergraph: "Supergraph | None" = None,
         _graph: "Graph | None" = None,
+        _connection: "QueryConnection | None" = None,
     ) -> Self:
         """Convert from wire format"""
         raise NotImplementedError  # generated
@@ -1213,6 +1214,7 @@ class BuiltinObjectBase[ObjectDataT: AnyObjectData](abc.ABC):
         _session: "Session | None" = None,
         _supergraph: "Supergraph | None" = None,
         _graph: "Graph | None" = None,
+        _connection: "QueryConnection | None" = None,
     ) -> Self:
         """Convert from wire format"""
         raise NotImplementedError  # generated
@@ -1229,6 +1231,7 @@ class BuiltinObjectBase[ObjectDataT: AnyObjectData](abc.ABC):
         _session: "Session | None" = None,
         _supergraph: "Supergraph | None" = None,
         _graph: "Graph | None" = None,
+        _connection: "QueryConnection | None" = None,
     ) -> Self:
         """Convert from value format"""
         raise NotImplementedError  # generated
@@ -1245,6 +1248,7 @@ class BuiltinObjectBase[ObjectDataT: AnyObjectData](abc.ABC):
         _session: "Session | None" = None,
         _supergraph: "Supergraph | None" = None,
         _graph: "Graph | None" = None,
+        _connection: "QueryConnection | None" = None,
     ) -> Self:
         """Convert from value format"""
         raise NotImplementedError  # generated

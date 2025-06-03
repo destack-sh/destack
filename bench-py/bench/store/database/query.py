@@ -230,7 +230,7 @@ async def execute_query(
             limit=query.limit,
             offset=query.offset,
         )
-        return QueryResult(query=query, nodes=nodes)
+        return QueryResult(id=query.id, nodes=nodes)
     elif query.type == QueryType.SCALAR:
         raise NotImplementedError
     else:

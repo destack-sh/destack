@@ -39,6 +39,7 @@ def session(session_async: Session):
 
 async def test_create_user(session: Session):
     """Create and update a User, querying along the way."""
+    # create
     user = User(
         status=UserStatus.ACTIVE,
         name="Floof",
@@ -47,15 +48,15 @@ async def test_create_user(session: Session):
     )
     session.create(user)
     await session.commit()
-
+    # update
     user.name = "Fluff"
     user.slug = "flotothemoon"
     await session.commit()
-
+    # query
     user_unpacked = await User.get(where=User.property("id").eq(user.id)).execute_one()
     assert user.equals(user_unpacked)
-
-    user_unpacked = await User.get(where=User.property("slug").eq("flotothemoon")).execute_one()
+    # query
+    user_unpacked = await User.search(where=User.property("slug").eq("flotothemoon")).execute_one()
     assert user_unpacked.name == "Fluff"
     assert user_unpacked.slug == "flotothemoon"
     assert user_unpacked.status == UserStatus.ACTIVE

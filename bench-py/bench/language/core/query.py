@@ -451,8 +451,9 @@ def to_subqueries(subqueries: dict[str, "Query"]) -> list["Query"]:
 class QueryResult(StructMutable):
     """The result of a Query."""
 
-    query: Query = property_(41, is_repr=True)
-    nodes: list[Value] = property_(50, is_repr=True)
+    id: UUID = property_(2, is_repr=True)
+    nodes: list[Value] = property_(41, is_repr=True)
+    subresults: list["QueryResult"] = property_(42, is_repr=True)
 
 
 @struct_(StructType.QUERY_UPDATE, frozen=True)

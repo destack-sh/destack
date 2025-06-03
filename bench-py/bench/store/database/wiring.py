@@ -267,7 +267,7 @@ def _generate_node_row_pack(node_cls: type[Node]) -> str:
 
 def _generate_node_row_unpack(node_cls: type[Node]) -> str:
     """Generate a function to unpack a row tuple into a Node Value."""
-    lines = ["node_value = {}"]
+    lines = [f'node_value = {{"1": {node_cls.metatype.value}}}']
 
     for prop in node_cls.__properties_in_order__:
         if not prop.is_stored or (
