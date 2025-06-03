@@ -40,7 +40,7 @@ class BenchStatus(BuiltinEnum):
     PAUSED = 20
 
 
-@node_(NodeType.BENCH)
+@node_(NodeType.BENCH, root_type=None)
 class Bench(
     IsGlobal,
     IsOwnable,
@@ -56,7 +56,7 @@ class Bench(
 
     # meta
     status: BenchStatus = property_(40, is_repr=True, can_write="system")
-    handle: Optional["Handle"] = property_(41, can_write="system")
+    handle: Optional["Handle"] = property_(41, node_bench_from="self", can_write="system")
     main_package: Optional["Package"] = property_(
         42, node_bench_from="self", can_write="system", description="The Main Package."
     )

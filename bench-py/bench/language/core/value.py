@@ -278,8 +278,18 @@ def to_value(value_unpacked: Any, type: "Type | None" = None, node_as_value: boo
     Convert an arbitrary (legal) value to a Value.
     If Type isn't provided, it will be inferred from the value.
     """
+    # infer type
     if type is None:
         type = to_type(value_unpacked, node_as_value=node_as_value)
+    # coerce nodes into node references
+    if type.scalar_type == ScalarType.NODE_REFERENCE:
+        if type.cardinality == TypeCardinality.SCALAR and isinstance(value_unpacked, Node):
+            value_unpacked = value_unpacked.to_ref()
+        elif type.cardinality == TypeCardinality.LIST and value_unpacked:
+            value_unpacked = [
+                item.to_ref() if isinstance(item, Node) else item for item in value_unpacked
+            ]
+    # pack value
     value_packed = pack_value(value_unpacked, type)
     value = Value(type=type, value=value_packed, _unpacked=value_unpacked)
     return value

@@ -598,14 +598,13 @@ class Property(IntoType, IntoQuery if TYPE_CHECKING else object):
             from .trait import IsInBench, expand_node_types
 
             node_types = expand_node_types(self.node_types or ())
-            if len(node_types) > 1:
-                self.node_has_type = True
-            if self.node_is_customizable and NodeType.CUSTOM_NODE_INSTANCE in node_types:
-                self.node_has_definition = True
-            if self.node_bench_from is None and any(
+            self.node_has_type = len(node_types) > 1
+            self.node_has_definition = (
+                self.node_is_customizable and NodeType.CUSTOM_NODE_INSTANCE in node_types
+            )
+            self.node_has_bench = self.node_bench_from is None and any(
                 issubclass(NODE_CLASS_BY_TYPE[node_type], IsInBench) for node_type in node_types
-            ):
-                self.node_has_bench = True
+            )
 
 
 def property_(
@@ -658,7 +657,7 @@ def property_parent_(id: int = 4) -> Any:
         edge_type=EdgeType.NODE_PARENT,
         default=None,
         is_wired=True,
-        is_stored=False,
+        is_stored=True,
         is_required=False,
         is_managed=True,
         is_eq=False,

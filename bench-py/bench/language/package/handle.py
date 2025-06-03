@@ -1,10 +1,18 @@
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Optional
 
-from bench.language.core import HasSlug, IsGlobal, IsInBench, Node, NodeType, node_
+from bench.language.core import (
+    HasSlug,
+    IsGlobal,
+    IsInBench,
+    Node,
+    NodeType,
+    node_,
+    property_parent_,
+)
 from bench.pb2 import HandleData
 
 if TYPE_CHECKING:
-    pass
+    from bench.language import Bench
 
 # pyright: reportIncompatibleVariableOverride=false
 
@@ -18,4 +26,4 @@ class Handle(
 ):
     """A Bench @handle."""
 
-    pass
+    parent: Optional["Bench"] = property_parent_()

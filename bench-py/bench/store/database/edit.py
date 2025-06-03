@@ -124,7 +124,8 @@ SET {", ".join(f"{col.name} = EXCLUDED.{col.name}" for col in override_columns)}
         values_packed: list[Sequence[Any]] = []
         for edit in edits:
             assert edit.value is not None, f"no value for {edit!r}"
-            values_packed.append(pack_node_value_to_row(table, edit.value))
+            row_values_packed = pack_node_value_to_row(table, edit.value)
+            values_packed.append(row_values_packed)
         logger.debug(f"database.{edit_type.name.lower()}", change=change, stmt=stmt, span="current")
         await conn.executemany(stmt, values_packed)
         return edits, ()
@@ -136,7 +137,7 @@ SET {", ".join(f"{col.name} = EXCLUDED.{col.name}" for col in override_columns)}
             assert prop is not None, f"no prop for {edit!r}"
             assert edit.value is not None, f"no value for {edit!r}"
             update: dict[str, Any] = {}
-            pack_column_wide(prop.type, edit.value.value, prop.name, update)
+            pack_column_wide(prop.type, edit.value.value, table, prop.name, update)
             stmt = f"""\
 UPDATE {table.name}
 SET {", ".join(f"{key} = ${i + 1}" for i, key in enumerate(update.keys()))}
@@ -156,7 +157,7 @@ WHERE id = ${len(update) + 1}
                 f"unexpected value: {edit!r}"
             )
             update: dict[str, Any] = {}
-            pack_column_wide(parent_prop.type, edit.value.value, parent_prop.name, update)
+            pack_column_wide(parent_prop.type, edit.value.value, table, parent_prop.name, update)
             stmt = f"""\
 UPDATE {table.name}
 SET {", ".join(f"{key} = ${i + 1}" for i, key in enumerate(update.keys()))}

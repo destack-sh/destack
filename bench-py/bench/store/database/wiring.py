@@ -10,6 +10,7 @@ import orjson
 import pytz
 
 from bench.language import (
+    EdgeType,
     IsInBench,
     Json,
     Node,
@@ -19,11 +20,11 @@ from bench.language import (
     ScalarType,
     StructType,
     Type,
+    TypeBase,
     TypeCardinality,
     Value,
     expand_node_types,
 )
-from bench.language.core.type import TypeBase
 from bench.language.registry import NODE_CLASS_BY_TYPE
 from bench.utils.code import exec_
 from bench.utils.time import timedelta_from_isoformat, timedelta_to_isoformat
@@ -252,8 +253,11 @@ def _generate_node_row_pack(node_cls: type[Node]) -> str:
     lines = ["row_values = []"]
 
     for prop in node_cls.__properties_in_order__:
-        if not prop.is_stored:
+        if not prop.is_stored or (
+            prop.edge_type == EdgeType.NODE_PARENT and node_cls.__root_type__ is None
+        ):
             continue
+
         pack_code = _generate_column_pack(prop)
         lines.append(pack_code)
 
@@ -266,7 +270,9 @@ def _generate_node_row_unpack(node_cls: type[Node]) -> str:
     lines = ["node_value = {}"]
 
     for prop in node_cls.__properties_in_order__:
-        if not prop.is_stored:
+        if not prop.is_stored or (
+            prop.edge_type == EdgeType.NODE_PARENT and node_cls.__root_type__ is None
+        ):
             continue
         unpack_code = _generate_column_unpack(prop)
         lines.append(unpack_code)
@@ -356,20 +362,24 @@ def pack_column_flat(type: TypeBase, value: Json) -> Any:
 
 
 def pack_column_wide(
-    type: TypeBase, value: Json, column_name: str, column_out: dict[str, Any]
+    type: TypeBase, value: Json, table: DatabaseTable, column_name: str, column_out: dict[str, Any]
 ) -> None:
     """Pack a dynamic column value into all of its columns."""
     if type.cardinality == TypeCardinality.SCALAR:
         if type.scalar_type == ScalarType.NODE_REFERENCE:
             # node references fan out to multiple columns
             column_out[f"{column_name}_id"] = uuid.UUID(value["32"])
-            column_out[f"{column_name}_type"] = int(value["31"])
-            column_out[f"{column_name}_bench_id"] = (
-                uuid.UUID(value["34"]) if value.get("34") else None
-            )
-            column_out[f"{column_name}_definition_id"] = (
-                uuid.UUID(value["35"]) if value.get("35") else None
-            )
+            column_type = f"{column_name}_type"
+            if column_type in table._columns_by_name:
+                column_out[f"{column_name}_type"] = int(value["31"])
+            column_bench_id = f"{column_name}_bench_id"
+            if column_bench_id in table._columns_by_name:
+                column_out[column_bench_id] = uuid.UUID(value["34"]) if value.get("34") else None
+            column_definition_id = f"{column_name}_definition_id"
+            if column_definition_id in table._columns_by_name:
+                column_out[column_definition_id] = (
+                    uuid.UUID(value["35"]) if value.get("35") else None
+                )
         else:
             value_packed = pack_column_scalar(type, value)
             column_out[column_name] = value_packed
