@@ -1177,7 +1177,8 @@ enum StructType {
   STRUCT_TYPE_ATTRIBUTE_REFERENCE = 20108;
   STRUCT_TYPE_QUERY = 20110;
   STRUCT_TYPE_QUERY_RESULT = 20111;
-  STRUCT_TYPE_QUERY_UPDATE = 20112;
+  STRUCT_TYPE_QUERY_RESULT_GROUP = 20112;
+  STRUCT_TYPE_QUERY_UPDATE = 20115;
   STRUCT_TYPE_HISTOGRAM = 20113;
   STRUCT_TYPE_VARIABLE = 20120;
   STRUCT_TYPE_DATABASE_INFO = 21000;
@@ -2820,11 +2821,21 @@ message QueryResultData {
   StructType metatype = 1;
   string id = 2;
   QueryType type = 30;
-  repeated QueryResultData groups = 35;
+  repeated QueryResultGroupData groups = 35;
   repeated QueryResultData subresults = 36;
   repeated ValueData nodes = 40;
   optional int64 count = 41;
-  optional ValueData discriminator = 42;
+  optional bool exists = 42;
+  optional ValueData scalar = 43;
+}
+
+message QueryResultGroupData {
+  StructType metatype = 1;
+  QueryType type = 30;
+  optional ValueData discriminator = 31;
+  repeated ValueData nodes = 40;
+  optional int64 count = 41;
+  optional bool exists = 42;
   optional ValueData scalar = 43;
 }
 

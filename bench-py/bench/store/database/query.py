@@ -8,6 +8,7 @@ from opentelemetry import trace
 
 from bench.language import (
     Aggregation,
+    AggregationType,
     AttributeReference,
     AttributeType,
     Condition,
@@ -17,12 +18,14 @@ from bench.language import (
     Function,
     Query,
     QueryResult,
+    QueryResultGroup,
     QueryType,
     RelationReference,
     ScalarType,
     Select,
     Sort,
     Value,
+    to_value,
 )
 
 from .core import DatabaseContext
@@ -135,21 +138,89 @@ def _compile_condition(
 
 def _compile_sort(context: DatabaseContext, arguments_out: list[Any], sort: Sequence[Sort]) -> str:
     """Compile a Sort into a SQL ORDER BY clause."""
-    raise NotImplementedError(sort)
+    from bench.language import SortType
+
+    sort_parts = []
+    for s in sort:
+        expr_sql = _compile_expression(context, arguments_out, s.by)
+        if s.type == SortType.ASCENDING:
+            sort_parts.append(f"{expr_sql} ASC")
+        elif s.type == SortType.DESCENDING:
+            sort_parts.append(f"{expr_sql} DESC")
+        else:
+            assert_never(s.type)
+
+    return ", ".join(sort_parts)
 
 
 def _compile_function(
     context: DatabaseContext, arguments_out: list[Any], function: Function
 ) -> str:
     """Compile a Function into a SQL expression."""
-    raise NotImplementedError(function)
+    from bench.language import FunctionType
+
+    left_sql = _compile_expression(context, arguments_out, function.left)
+
+    if function.type == FunctionType.ADD:
+        assert function.right is not None, f"no right operand for {function!r}"
+        right_sql = _compile_expression(context, arguments_out, function.right)
+        return f"({left_sql} + {right_sql})"
+    elif function.type == FunctionType.SUBTRACT:
+        assert function.right is not None, f"no right operand for {function!r}"
+        right_sql = _compile_expression(context, arguments_out, function.right)
+        return f"({left_sql} - {right_sql})"
+    elif function.type == FunctionType.MULTIPLY:
+        assert function.right is not None, f"no right operand for {function!r}"
+        right_sql = _compile_expression(context, arguments_out, function.right)
+        return f"({left_sql} * {right_sql})"
+    elif function.type == FunctionType.DIVIDE:
+        assert function.right is not None, f"no right operand for {function!r}"
+        right_sql = _compile_expression(context, arguments_out, function.right)
+        return f"({left_sql} / {right_sql})"
+    elif function.type == FunctionType.MODULO:
+        assert function.right is not None, f"no right operand for {function!r}"
+        right_sql = _compile_expression(context, arguments_out, function.right)
+        return f"({left_sql} % {right_sql})"
+    elif function.type == FunctionType.POWER:
+        assert function.right is not None, f"no right operand for {function!r}"
+        right_sql = _compile_expression(context, arguments_out, function.right)
+        return f"POWER({left_sql}, {right_sql})"
+    else:
+        assert_never(function.type)
 
 
 def _compile_aggregation(
     context: DatabaseContext, arguments_out: list[Any], aggregation: Aggregation
 ) -> str:
     """Compile an Aggregation into a SQL expression."""
-    raise NotImplementedError(aggregation)
+    from bench.language import AggregationType
+
+    if aggregation.type == AggregationType.EXISTS:
+        return "1"
+    elif aggregation.type == AggregationType.COUNT:
+        if aggregation.expression is not None:
+            expr_sql = _compile_expression(context, arguments_out, aggregation.expression)
+            return f"COUNT({expr_sql})"
+        else:
+            return "COUNT(*)"
+    elif aggregation.type == AggregationType.SUM:
+        assert aggregation.expression is not None, f"no expression for {aggregation!r}"
+        expr_sql = _compile_expression(context, arguments_out, aggregation.expression)
+        return f"SUM({expr_sql})"
+    elif aggregation.type == AggregationType.MIN:
+        assert aggregation.expression is not None, f"no expression for {aggregation!r}"
+        expr_sql = _compile_expression(context, arguments_out, aggregation.expression)
+        return f"MIN({expr_sql})"
+    elif aggregation.type == AggregationType.MAX:
+        assert aggregation.expression is not None, f"no expression for {aggregation!r}"
+        expr_sql = _compile_expression(context, arguments_out, aggregation.expression)
+        return f"MAX({expr_sql})"
+    elif aggregation.type == AggregationType.AVERAGE:
+        assert aggregation.expression is not None, f"no expression for {aggregation!r}"
+        expr_sql = _compile_expression(context, arguments_out, aggregation.expression)
+        return f"AVG({expr_sql})"
+    else:
+        assert_never(aggregation.type)
 
 
 def _compile_expression(
@@ -175,7 +246,8 @@ def _compile_expression(
         assert_never(expr.type)
 
 
-async def _execute_select(
+@tracer.start_as_current_span("database.execute_node_query")
+async def _execute_node_query(
     conn: asyncpg.Connection,
     context: DatabaseContext,
     relation: RelationReference,
@@ -185,7 +257,8 @@ async def _execute_select(
     limit: int | None,
     offset: int | None,
 ) -> list[Value]:
-    """Execute a SELECT statement."""
+    """Execute a node Query."""
+
     # build statement
     table = context.get_table(relation)
     arguments: list[Any] = []
@@ -206,13 +279,81 @@ async def _execute_select(
     stmt = "\n".join(stmt_parts)
 
     # execute
-    logger.debug("database.select", stmt=stmt)
     node_rows: list[asyncpg.Record] = await conn.fetch(stmt, *arguments)
     node_values = [unpack_row_to_node_value(table, row) for row in node_rows]
+    logger.debug("database.select", stmt=stmt, nodes=len(node_values), span="current")
 
     return node_values
 
 
+@tracer.start_as_current_span("database.execute_scalar_query")
+async def _execute_scalar_query(
+    conn: asyncpg.Connection,
+    context: DatabaseContext,
+    relation: RelationReference,
+    aggregation: Aggregation,
+    where: Condition | None,
+) -> Value:
+    """Execute a scalar Query."""
+
+    # build statement
+    table = context.get_table(relation)
+    arguments: list[Any] = []
+    stmt_parts: list[str] = [
+        "SELECT",
+        _compile_aggregation(context, arguments, aggregation),
+        f"FROM {table.name}",
+    ]
+    if where is not None:
+        stmt_parts.append(f"WHERE {_compile_condition(context, arguments, where)}")
+    if aggregation.type == AggregationType.EXISTS:
+        stmt_parts.append("LIMIT 1")
+    stmt = "\n".join(stmt_parts)
+
+    # execute
+    scalar_row: asyncpg.Record | None = await conn.fetchrow(stmt, *arguments)
+    logger.debug("database.scalar", stmt=stmt, scalar_row=scalar_row, span="current")
+    if aggregation.type == AggregationType.EXISTS:
+        return to_value(scalar_row is not None)
+    elif scalar_row is None:
+        return to_value(0)
+    else:
+        return to_value(scalar_row[0])
+
+
+@tracer.start_as_current_span("database.execute_grouped_node_query")
+async def _execute_grouped_node_query(
+    conn: asyncpg.Connection,
+    context: DatabaseContext,
+    relation: RelationReference,
+    select: Select | None,
+    where: Condition | None,
+    having: Condition | None,
+    sort: Sequence[Sort] | None,
+    group_by: Sequence[Expression],
+    limit: int | None,
+    offset: int | None,
+    count: bool,
+) -> list[QueryResultGroup]:
+    """Execute a grouped node Query."""
+    raise NotImplementedError
+
+
+@tracer.start_as_current_span("database.execute_grouped_scalar_query")
+async def _execute_grouped_scalar_query(
+    conn: asyncpg.Connection,
+    context: DatabaseContext,
+    relation: RelationReference,
+    aggregation: Aggregation,
+    where: Condition | None,
+    having: Condition | None,
+    group_by: Sequence[Expression],
+) -> list[QueryResultGroup]:
+    """Execute a grouped scalar Query."""
+    raise NotImplementedError
+
+
+@tracer.start_as_current_span("database.execute_query")
 async def execute_query(
     conn: asyncpg.Connection, context: DatabaseContext, query: Query
 ) -> QueryResult:
@@ -220,7 +361,7 @@ async def execute_query(
 
     if query.type == QueryType.NODE:
         assert query.join is None, f"root-level join: {query!r}"
-        nodes = await _execute_select(
+        nodes = await _execute_node_query(
             conn=conn,
             context=context,
             relation=query.relation,
@@ -230,12 +371,29 @@ async def execute_query(
             limit=query.limit,
             offset=query.offset,
         )
-        return QueryResult(id=query.id, type=query.type, nodes=nodes)
-    elif (
-        query.type == QueryType.SCALAR
-        or query.type == QueryType.GROUPED_NODE
-        or query.type == QueryType.GROUPED_SCALAR
-    ):
+        result = QueryResult(id=query.id, type=query.type, nodes=nodes)
+        return result
+    elif query.type == QueryType.SCALAR:
+        assert query.aggregation is not None, f"no aggregation for {query!r}"
+        scalar = await _execute_scalar_query(
+            conn=conn,
+            context=context,
+            relation=query.relation,
+            aggregation=query.aggregation,
+            where=query.where,
+        )
+        result = QueryResult(id=query.id, type=query.type, scalar=scalar)
+        if query.aggregation.type == AggregationType.EXISTS:
+            result.exists = scalar.unpack(bool)
+        elif query.aggregation.type == AggregationType.COUNT:
+            result.count = scalar.unpack(int)
+        return result
+    elif query.type == QueryType.GROUPED_NODE:
+        assert query.group_by is not None, f"no group_by for {query!r}"
+        raise NotImplementedError(query)
+    elif query.type == QueryType.GROUPED_SCALAR:
+        assert query.group_by is not None, f"no group_by for {query!r}"
+        assert query.aggregation is not None, f"no aggregation for {query!r}"
         raise NotImplementedError(query)
     else:
         assert_never(query.type)
