@@ -4,14 +4,12 @@ from bench.language import (
     NODE_TYPES,
     CustomNodeDefinition,
     EdgeType,
-    IsInBench,
     Node,
     NodeArea,
     NodeReference,
     NodeType,
     PrimitiveType,
     TraitType,
-    expand_node_types,
 )
 from bench.language.registry import NODE_CLASS_BY_TYPE
 
@@ -56,8 +54,7 @@ def map_builtin_node_to_database_table(node: type[Node]) -> DatabaseTable:
             # node ptr property
             assert prop.runtime_prop is not None, f"no runtime prop for {prop!r}"
             prop = prop.runtime_prop
-            assert prop.cardinality == "scalar", f"non-scalar {prop!r}"
-            # id
+            assert prop.cardinality == "scalar", f"non-scalar node reference: {prop!r}"
             column = DatabaseColumn(
                 name=f"{prop.name}_id",
                 type=PrimitiveType.UUID,
@@ -65,18 +62,7 @@ def map_builtin_node_to_database_table(node: type[Node]) -> DatabaseTable:
                 prop=prop,
             )
             columns.append(column)
-            node_types = expand_node_types(prop.node_types or ())
-            # node_type
-            if len(node_types) > 1:
-                node_type_column = DatabaseColumn(
-                    name=f"{prop.name}_node_type",
-                    type=PrimitiveType.INT16,
-                    is_nullable=prop.is_optional,
-                    prop=prop,
-                )
-                columns.append(node_type_column)
-            # definition_id
-            if prop.node_is_customizable and NodeType.CUSTOM_NODE_INSTANCE in node_types:
+            if prop.node_has_definition:
                 table_id_column = DatabaseColumn(
                     name=f"{prop.name}_definition_id",
                     type=PrimitiveType.UUID,
@@ -84,10 +70,15 @@ def map_builtin_node_to_database_table(node: type[Node]) -> DatabaseTable:
                     prop=prop,
                 )
                 columns.append(table_id_column)
-            # bench_id
-            if prop.node_bench_from is None and any(
-                issubclass(NODE_CLASS_BY_TYPE[node_type], IsInBench) for node_type in node_types
-            ):
+            if prop.node_has_type:
+                node_type_column = DatabaseColumn(
+                    name=f"{prop.name}_type",
+                    type=PrimitiveType.INT16,
+                    is_nullable=prop.is_optional,
+                    prop=prop,
+                )
+                columns.append(node_type_column)
+            if prop.node_has_bench:
                 bench_id_column = DatabaseColumn(
                     name=f"{prop.name}_bench_id",
                     type=PrimitiveType.UUID,

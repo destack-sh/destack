@@ -213,8 +213,6 @@ class ConditionalType(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     CONDITIONAL_TYPE_MATCHES: _ClassVar[ConditionalType]
     CONDITIONAL_TYPE_STARTS_WITH: _ClassVar[ConditionalType]
     CONDITIONAL_TYPE_ENDS_WITH: _ClassVar[ConditionalType]
-    CONDITIONAL_TYPE_CONTAINS: _ClassVar[ConditionalType]
-    CONDITIONAL_TYPE_NOT_CONTAINS: _ClassVar[ConditionalType]
     CONDITIONAL_TYPE_IN: _ClassVar[ConditionalType]
     CONDITIONAL_TYPE_NOT_IN: _ClassVar[ConditionalType]
     CONDITIONAL_TYPE_EXISTS: _ClassVar[ConditionalType]
@@ -1479,8 +1477,6 @@ CONDITIONAL_TYPE_LESS_THAN_OR_EQUALS: ConditionalType
 CONDITIONAL_TYPE_MATCHES: ConditionalType
 CONDITIONAL_TYPE_STARTS_WITH: ConditionalType
 CONDITIONAL_TYPE_ENDS_WITH: ConditionalType
-CONDITIONAL_TYPE_CONTAINS: ConditionalType
-CONDITIONAL_TYPE_NOT_CONTAINS: ConditionalType
 CONDITIONAL_TYPE_IN: ConditionalType
 CONDITIONAL_TYPE_NOT_IN: ConditionalType
 CONDITIONAL_TYPE_EXISTS: ConditionalType

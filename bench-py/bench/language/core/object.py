@@ -922,9 +922,9 @@ def _process_object_cls[ObjectT: BuiltinObjectBase](
             prop.component = cls
             properties[name] = prop
 
-    # finalize properties
+    # determine property types
     for prop in tuple(properties.values()):
-        prop.finalize(object_type)
+        prop.determine(object_type)
         if prop.ptr_prop is not None:
             properties[prop.ptr_prop.name] = prop.ptr_prop
 

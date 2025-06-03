@@ -21,7 +21,7 @@
       "name": "test.collect",
       "type": "debugpy",
       "request": "launch",
-      "program": "${workspaceFolder}/venv/bin/pytest",
+      "program": "${workspaceFolder}/bench-py/venv/bin/pytest",
       "args": ["--collect-only"],
       "console": "integratedTerminal",
       "cwd": "${workspaceFolder}",

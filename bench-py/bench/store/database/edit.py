@@ -30,7 +30,7 @@ async def execute_change(
     for edit in change.edits:
         edit_table = context.get_table(edit.node_ptr)
         if edit_table is not current_table or edit.type != current_edit_type:
-            _, batch_cascaded_edits = await _execute_edit(
+            _, batch_cascaded_edits = await _execute_data_edit(
                 conn=conn,
                 context=context,
                 change=change,
@@ -38,15 +38,19 @@ async def execute_change(
                 edit_type=current_edit_type,
                 edits=current_batch,
             )
-            context.apply(batch_cascaded_edits)
             cascaded_edits.extend(batch_cascaded_edits)
+            schema_edits = context.apply(tuple(current_batch) + tuple(batch_cascaded_edits))
+            if schema_edits:
+                await _execute_schema_edits(conn=conn, context=context, edits=schema_edits)
+
             current_table = edit_table
             current_edit_type = edit.type
             current_batch = []
+
         current_batch.append(edit)
 
     if current_batch:
-        _, batch_cascaded_edits = await _execute_edit(
+        _, batch_cascaded_edits = await _execute_data_edit(
             conn=conn,
             context=context,
             change=change,
@@ -54,9 +58,10 @@ async def execute_change(
             edit_type=current_edit_type,
             edits=current_batch,
         )
-        context.apply(batch_cascaded_edits)
-
         cascaded_edits.extend(batch_cascaded_edits)
+        schema_edits = context.apply(tuple(current_batch) + tuple(batch_cascaded_edits))
+        if schema_edits:
+            await _execute_schema_edits(conn=conn, context=context, edits=schema_edits)
 
     return change.edits, cascaded_edits
 
@@ -72,7 +77,16 @@ async def _cascade_nodes(
     raise NotImplementedError
 
 
-async def _execute_edit(
+async def _execute_schema_edits(
+    conn: asyncpg.Connection,
+    context: DatabaseContext,
+    edits: Sequence[Edit],
+) -> None:
+    """Execute the Edits against the schema (schema only, no data)."""
+    raise NotImplementedError
+
+
+async def _execute_data_edit(
     conn: asyncpg.Connection,
     context: DatabaseContext,
     change: Change,
@@ -81,7 +95,7 @@ async def _execute_edit(
     edits: list[Edit],
 ) -> tuple[Sequence[Edit], Sequence[Edit]]:
     """
-    Execute the Edits for a table.
+    Execute the Edits to the data (data only, no schema).
     Returns the Edits and any cascaded Edits.
     """
 
