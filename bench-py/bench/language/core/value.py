@@ -50,129 +50,9 @@ class Value(StructFrozen[ValueData]):
         return self._unpacked
 
 
-def to_value(value_unpacked: Any, type: "Type | None" = None, node_as_value: bool = False) -> Value:
-    """
-    Convert an arbitrary (legal) value to a Value.
-    If Type isn't provided, it will be inferred from the value.
-    """
-    if type is None:
-        type = to_type(value_unpacked, node_as_value=node_as_value)
-    value_packed = pack_value(value_unpacked, type)
-    value = Value(type=type, value=value_packed, _unpacked=value_unpacked)
-    return value
-
-
-def pack_value(value: Any, type: Type) -> Json:
-    """Pack a generic typed value to a JSON object."""
-    if type.cardinality == TypeCardinality.SCALAR:
-        return _pack_scalar_value(value, type)
-    elif type.cardinality == TypeCardinality.LIST:
-        if not value:
-            return []
-        packed_list: list[Json] = []
-        for item in value:
-            packed_list.append(_pack_scalar_value(item, type))
-        return packed_list
-    elif type.cardinality == TypeCardinality.MAP:
-        if not value:
-            return {}
-        assert type.key_type is not None, f"no key type for {type!r}"
-        packed_map: dict[str, Json] = {}
-        for key, val in value.items():
-            packed_key = _pack_scalar_value(key, type.key_type)
-            packed_val = _pack_scalar_value(val, type)
-            packed_map[str(packed_key)] = packed_val
-        return packed_map
-    else:
-        assert_never(type.cardinality)
-
-
-def unpack_value(value: Json, type: Type) -> Any:
-    """Unpack a JSON object to a generic typed value."""
-    if type.cardinality == TypeCardinality.SCALAR:
-        return _unpack_scalar_value(value, type)
-    elif type.cardinality == TypeCardinality.LIST:
-        if value is None:
-            return []
-        unpacked_list = []
-        for item in value:
-            unpacked_list.append(_unpack_scalar_value(item, type))
-        return unpacked_list
-    elif type.cardinality == TypeCardinality.MAP:
-        if value is None:
-            return {}
-        unpacked_map = {}
-        for key, val in value.items():
-            unpacked_key = _unpack_scalar_value(key, type.key_type) if type.key_type else key
-            unpacked_val = _unpack_scalar_value(val, type)
-            unpacked_map[unpacked_key] = unpacked_val
-        return unpacked_map
-    else:
-        assert_never(type.cardinality)
-
-
-def _pack_scalar_value(value: Any, type: Type) -> Json:
-    """Pack a scalar value to JSON."""
-    if type.scalar_type == ScalarType.PRIMITIVE:
-        if type.primitive_type == PrimitiveType.BYTES:
-            return base64.b64encode(value).decode()
-        elif type.primitive_type == PrimitiveType.UUID:
-            return str(value)
-        elif type.primitive_type == PrimitiveType.JSON:
-            return value
-        elif type.primitive_type in (
-            PrimitiveType.DATE,
-            PrimitiveType.TIME,
-            PrimitiveType.DATETIME,
-        ):
-            return value.isoformat()
-        elif type.primitive_type == PrimitiveType.DURATION:
-            return timedelta_to_isoformat(value)
-        else:
-            return value
-    elif type.scalar_type == ScalarType.ENUM:
-        return value.value
-    elif type.scalar_type in (ScalarType.NODE_REFERENCE, ScalarType.NODE_VALUE, ScalarType.STRUCT):
-        return value.to_value()
-    else:
-        assert_never(type.scalar_type)
-
-
-def _unpack_scalar_value(value: Json, type: Type) -> Any:
-    """Unpack a scalar value from JSON."""
-    if type.scalar_type == ScalarType.PRIMITIVE:
-        if type.primitive_type == PrimitiveType.BYTES:
-            return base64.b64decode(value)
-        elif type.primitive_type == PrimitiveType.UUID:
-            return UUID(value)
-        elif type.primitive_type == PrimitiveType.JSON:
-            return value
-        elif type.primitive_type == PrimitiveType.DATETIME:
-            return datetime.fromisoformat(value).replace(tzinfo=None)
-        elif type.primitive_type == PrimitiveType.DATE:
-            return date.fromisoformat(value)
-        elif type.primitive_type == PrimitiveType.TIME:
-            return time.fromisoformat(value).replace(tzinfo=None)
-        elif type.primitive_type == PrimitiveType.DURATION:
-            return timedelta_from_isoformat(value)
-        elif type.primitive_type in (PrimitiveType.INT16, PrimitiveType.INT32, PrimitiveType.INT64):
-            return int(value)  # cast JSON floats to ints
-        else:
-            return value
-    elif type.scalar_type == ScalarType.ENUM:
-        assert type.enum_type is not None, f"no enum type for {type!r}"
-        enum_cls = ENUM_CLASS_BY_TYPE[type.enum_type]
-        return enum_cls(int(value))
-    elif type.scalar_type == ScalarType.NODE_REFERENCE:
-        return NodeReference.from_value(value)
-    elif type.scalar_type == ScalarType.NODE_VALUE:
-        return Node.from_value(value)
-    elif type.scalar_type == ScalarType.STRUCT:
-        assert type.struct_type is not None, f"no struct type for {type!r}"
-        struct_cls = STRUCT_CLASS_BY_TYPE[type.struct_type]
-        return struct_cls.from_value(value)
-    else:
-        assert_never(type.scalar_type)
+#
+# Static values
+#
 
 
 def generate_pack_value_impl(cls: type["BuiltinObjectBase"]) -> tuple[str, dict[str, Any]]:
@@ -386,3 +266,133 @@ def _generate_unpack_value_scalar(prop: "Property | IntoType", value_expr: str) 
         return f"Node.from_value({value_expr})"
     else:
         assert_never(prop.scalar_type)
+
+
+#
+# Dynamic values
+#
+
+
+def to_value(value_unpacked: Any, type: "Type | None" = None, node_as_value: bool = False) -> Value:
+    """
+    Convert an arbitrary (legal) value to a Value.
+    If Type isn't provided, it will be inferred from the value.
+    """
+    if type is None:
+        type = to_type(value_unpacked, node_as_value=node_as_value)
+    value_packed = pack_value(value_unpacked, type)
+    value = Value(type=type, value=value_packed, _unpacked=value_unpacked)
+    return value
+
+
+def pack_value(value: Any, type: Type) -> Json:
+    """Pack a generic typed value to a JSON object."""
+    if type.cardinality == TypeCardinality.SCALAR:
+        return _pack_scalar_value(value, type)
+    elif type.cardinality == TypeCardinality.LIST:
+        if not value:
+            return []
+        packed_list: list[Json] = []
+        for item in value:
+            packed_list.append(_pack_scalar_value(item, type))
+        return packed_list
+    elif type.cardinality == TypeCardinality.MAP:
+        if not value:
+            return {}
+        assert type.key_type is not None, f"no key type for {type!r}"
+        packed_map: dict[str, Json] = {}
+        for key, val in value.items():
+            packed_key = _pack_scalar_value(key, type.key_type)
+            packed_val = _pack_scalar_value(val, type)
+            packed_map[str(packed_key)] = packed_val
+        return packed_map
+    else:
+        assert_never(type.cardinality)
+
+
+def unpack_value(value: Json, type: Type) -> Any:
+    """Unpack a JSON object to a generic typed value."""
+    if type.cardinality == TypeCardinality.SCALAR:
+        return _unpack_scalar_value(value, type)
+    elif type.cardinality == TypeCardinality.LIST:
+        if value is None:
+            return []
+        unpacked_list = []
+        for item in value:
+            unpacked_list.append(_unpack_scalar_value(item, type))
+        return unpacked_list
+    elif type.cardinality == TypeCardinality.MAP:
+        if value is None:
+            return {}
+        unpacked_map = {}
+        for key, val in value.items():
+            unpacked_key = _unpack_scalar_value(key, type.key_type) if type.key_type else key
+            unpacked_val = _unpack_scalar_value(val, type)
+            unpacked_map[unpacked_key] = unpacked_val
+        return unpacked_map
+    else:
+        assert_never(type.cardinality)
+
+
+def _pack_scalar_value(value: Any, type: Type) -> Json:
+    """Pack a scalar value to JSON."""
+    if type.scalar_type == ScalarType.PRIMITIVE:
+        if type.primitive_type == PrimitiveType.BYTES:
+            return base64.b64encode(value).decode()
+        elif type.primitive_type == PrimitiveType.UUID:
+            return str(value)
+        elif type.primitive_type == PrimitiveType.JSON:
+            return value
+        elif type.primitive_type in (
+            PrimitiveType.DATE,
+            PrimitiveType.TIME,
+            PrimitiveType.DATETIME,
+        ):
+            return value.isoformat()
+        elif type.primitive_type == PrimitiveType.DURATION:
+            return timedelta_to_isoformat(value)
+        else:
+            return value
+    elif type.scalar_type == ScalarType.ENUM:
+        return value.value
+    elif type.scalar_type in (ScalarType.NODE_REFERENCE, ScalarType.NODE_VALUE, ScalarType.STRUCT):
+        return value.to_value()
+    else:
+        assert_never(type.scalar_type)
+
+
+def _unpack_scalar_value(value: Json, type: Type) -> Any:
+    """Unpack a scalar value from JSON."""
+    if type.scalar_type == ScalarType.PRIMITIVE:
+        if type.primitive_type == PrimitiveType.BYTES:
+            return base64.b64decode(value)
+        elif type.primitive_type == PrimitiveType.UUID:
+            return UUID(value)
+        elif type.primitive_type == PrimitiveType.JSON:
+            return value
+        elif type.primitive_type == PrimitiveType.DATETIME:
+            return datetime.fromisoformat(value).replace(tzinfo=None)
+        elif type.primitive_type == PrimitiveType.DATE:
+            return date.fromisoformat(value)
+        elif type.primitive_type == PrimitiveType.TIME:
+            return time.fromisoformat(value).replace(tzinfo=None)
+        elif type.primitive_type == PrimitiveType.DURATION:
+            return timedelta_from_isoformat(value)
+        elif type.primitive_type in (PrimitiveType.INT16, PrimitiveType.INT32, PrimitiveType.INT64):
+            return int(value)  # cast JSON floats to ints
+        else:
+            return value
+    elif type.scalar_type == ScalarType.ENUM:
+        assert type.enum_type is not None, f"no enum type for {type!r}"
+        enum_cls = ENUM_CLASS_BY_TYPE[type.enum_type]
+        return enum_cls(int(value))
+    elif type.scalar_type == ScalarType.NODE_REFERENCE:
+        return NodeReference.from_value(value)
+    elif type.scalar_type == ScalarType.NODE_VALUE:
+        return Node.from_value(value)
+    elif type.scalar_type == ScalarType.STRUCT:
+        assert type.struct_type is not None, f"no struct type for {type!r}"
+        struct_cls = STRUCT_CLASS_BY_TYPE[type.struct_type]
+        return struct_cls.from_value(value)
+    else:
+        assert_never(type.scalar_type)

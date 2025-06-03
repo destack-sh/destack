@@ -86,10 +86,6 @@ class Edit(StructFrozen):
 
     # value
     value: "Value | None" = property_(40)
-    parent: Node | None = property_(42)  # for move
-    if TYPE_CHECKING:
-        parent_id: UUID = property_()
-        parent_ptr: NodeReference = property_()
 
 
 @struct_(StructType.CHANGE, frozen=True)

@@ -62,7 +62,6 @@ def relation_ref(base: "NodeType | type[Node] | CustomNodeDefinition") -> Relati
 class AttributeType(BuiltinEnum):
     PROPERTY = 1
     FIELD = 2
-    QUERY = 3
 
 
 @struct_(StructType.ATTRIBUTE_REFERENCE, frozen=True)
@@ -72,20 +71,15 @@ class AttributeReference(StructFrozen):
     type: AttributeType = property_(30, is_repr=True)
     prop: Optional["Property"] = property_(31, is_repr=True)
     field: Optional["Field"] = property_(32, is_repr=True)
-    name: str | None = property_(
-        33, description="Named attribute from another Query.", is_repr=True
-    )
-    relation: Optional[RelationReference] = property_(34, is_repr=True)
+    relation: Optional[RelationReference] = property_(33, is_repr=True)
     if TYPE_CHECKING:
         prop_ptr: Optional[PropertyReference] = None
         field_id: Optional[UUID] = None
         field_ptr: Optional[NodeReference] = None
 
 
-def attribute_ref(field: "str | Field | Property") -> AttributeReference:
-    if isinstance(field, str):
-        return AttributeReference(type=AttributeType.QUERY, name=field)
-    elif isinstance(field, Property):
+def attribute_ref(field: "Field | Property") -> AttributeReference:
+    if isinstance(field, Property):
         return AttributeReference(type=AttributeType.PROPERTY, prop=field)
     elif isinstance(field, Node):
         return AttributeReference(type=AttributeType.FIELD, field=field)

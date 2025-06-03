@@ -7,10 +7,11 @@ import asyncpg
 import structlog
 from opentelemetry import trace
 
-from bench.language import Change, Edit, EditType, NodeReference
+from bench.language import Change, Edit, EditType, NodeReference, ScalarType
+from bench.language.registry import NODE_CLASS_BY_TYPE
 
 from .core import DatabaseContext, DatabaseTable
-from .wiring import pack_node_value_to_row
+from .wiring import pack_column_wide, pack_node_value_to_row
 
 tracer = trace.get_tracer(__name__)
 logger = structlog.get_logger(__name__)
@@ -97,7 +98,11 @@ async def _execute_data_edit(
     """
     Execute the Edits to the data (data only, no schema).
     Returns the Edits and any cascaded Edits.
+    TODO :Performance: batch database update & move edits
     """
+
+    node_type = table.node_type
+    node_cls = NODE_CLASS_BY_TYPE[node_type]
 
     # create/upsert
     if edit_type == EditType.CREATE or edit_type == EditType.UPSERT:
@@ -120,24 +125,47 @@ SET {", ".join(f"{col.name} = EXCLUDED.{col.name}" for col in override_columns)}
         for edit in edits:
             assert edit.value is not None, f"no value for {edit!r}"
             values_packed.append(pack_node_value_to_row(table, edit.value))
-        logger.debug("database.edit", change=change, stmt=stmt, span="current")
-        print(stmt)
-        print(values_packed)
+        logger.debug(f"database.{edit_type.name.lower()}", change=change, stmt=stmt, span="current")
         await conn.executemany(stmt, values_packed)
         return edits, ()
 
     # update
     elif edit_type == EditType.UPDATE:
-        # TODO :Performance: batch database update edits somehow
         for edit in edits:
             prop = edit.prop
             assert prop is not None, f"no prop for {edit!r}"
+            assert edit.value is not None, f"no value for {edit!r}"
+            update: dict[str, Any] = {}
+            pack_column_wide(prop.type, edit.value.value, prop.name, update)
+            stmt = f"""\
+UPDATE {table.name}
+SET {", ".join(f"{key} = ${i + 1}" for i, key in enumerate(update.keys()))}
+WHERE id = ${len(update) + 1}
+"""
+            logger.debug("database.update", change=change, stmt=stmt, span="current")
+            await conn.execute(stmt, *update.values(), edit.node_ptr.id)
 
         return edits, ()
 
     # move
     elif edit_type == EditType.MOVE:
-        raise NotImplementedError(f"no implementation for {edit_type!r}")
+        parent_prop = node_cls.__parent_property__
+        for edit in edits:
+            assert edit.value is not None, f"no value for {edit!r}"
+            assert edit.value.type.scalar_type == ScalarType.NODE_REFERENCE, (
+                f"unexpected value: {edit!r}"
+            )
+            update: dict[str, Any] = {}
+            pack_column_wide(parent_prop.type, edit.value.value, parent_prop.name, update)
+            stmt = f"""\
+UPDATE {table.name}
+SET {", ".join(f"{key} = ${i + 1}" for i, key in enumerate(update.keys()))}
+WHERE id = ${len(update) + 1}
+"""
+            logger.debug("database.move", change=change, stmt=stmt, span="current")
+            await conn.execute(stmt, *update.values(), edit.node_ptr.id)
+
+        return edits, ()
 
     # archive/unarchive/delete/restore
     elif edit_type in (
@@ -181,7 +209,13 @@ UPDATE {table_name}
 SET {update_stmt}
 WHERE id = $1
 """
-            logger.debug("database.edit", change=change, stmt=stmt, span="current")
+            logger.debug(
+                f"database.{edit_type.name.lower()}",
+                change=change,
+                cascaded_edits=len(cascaded_edits),
+                stmt=stmt,
+                span="current",
+            )
             await conn.executemany(stmt, [(node_id, at_packed) for node_id in table_node_ids])
 
         return edits, cascaded_edits
@@ -211,7 +245,13 @@ WHERE id = $1
 DELETE FROM {table_name}
 WHERE id = $1
 """
-            logger.debug("database.edit", change=change, stmt=stmt, span="current")
+            logger.debug(
+                "database.erase",
+                change=change,
+                cascaded_edits=len(cascaded_edits),
+                stmt=stmt,
+                span="current",
+            )
             await conn.executemany(stmt, table_node_ids)
 
         return edits, cascaded_edits

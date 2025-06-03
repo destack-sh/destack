@@ -135,7 +135,7 @@ class Session:
         """Moves a Node to a new parent."""
         assert self.closed_at is None, f"{self!r} is closed"
         self._flush_node(node)
-        edit = Edit(type=EditType.MOVE, node=node, parent=parent)
+        edit = Edit(type=EditType.MOVE, node=node, value=to_value(parent.to_ref()))
         self.edits.append(edit)
         self.dirty[node.id] = node
 
