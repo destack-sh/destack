@@ -190,7 +190,6 @@ class AggregationType(BuiltinEnum):
     MAX = 5
     AVERAGE = 6
     MEDIAN = 7
-    HISTOGRAM = 8
 
 
 @struct_(StructType.AGGREGATION, frozen=True)
@@ -199,8 +198,7 @@ class Aggregation(StructFrozen):
 
     type: AggregationType = property_(30, is_repr=True)
     expression: Optional["Expression"] = property_(31, is_repr=True)
-    distinct: bool = property_(33, is_repr=True)
-    # over, ...
+    # distinct, over, ...
 
 
 def aggregation(
@@ -379,6 +377,8 @@ def join(
 class QueryType(BuiltinEnum):
     NODE = 1
     SCALAR = 2
+    GROUPED_NODE = 10
+    GROUPED_SCALAR = 11
 
 
 @struct_(StructType.QUERY, frozen=True)
@@ -437,6 +437,16 @@ class Query[RootT: "Node"](StructFrozen):
         connection = await self.execute()
         return connection.to_list()
 
+    async def execute_count(self) -> int:
+        """Execute the Query and return the count."""
+        connection = await self.execute()
+        return connection.to_count()
+
+    async def execute_scalar(self) -> Value:
+        """Execute the Query and return the scalar value."""
+        connection = await self.execute()
+        return connection.to_scalar()
+
 
 def to_subqueries(subqueries: dict[str, "Query"]) -> list["Query"]:
     """Turn Queries into subqueries with default names & parent joins."""
@@ -447,20 +457,45 @@ def to_subqueries(subqueries: dict[str, "Query"]) -> list["Query"]:
     return list(subqueries.values())
 
 
+@struct_(StructType.HISTOGRAM, frozen=True)
+class Histogram(StructFrozen):
+    """A histogram."""
+
+    buckets: list[Value] = property_(40, is_repr=True)
+    counts: list[int] = property_(41, is_repr=True)
+
+
 @struct_(StructType.QUERY_RESULT)
 class QueryResult(StructMutable):
-    """The result of a Query."""
+    """
+    The result of a Query.
+    The subresults correspond to Query.subqueries.
+    """
 
     id: UUID = property_(2, is_repr=True)
-    nodes: list[Value] = property_(41, is_repr=True)
-    subresults: list["QueryResult"] = property_(42, is_repr=True)
+    type: QueryType = property_(30, is_repr=True)
+    groups: list["QueryResult"] = property_(35, is_repr=True)
+    subresults: list["QueryResult"] = property_(36, is_repr=True)
+
+    nodes: list[Value] = property_(40, is_repr=True)
+    count: Optional[int] = property_(41, is_repr=True)
+    discriminator: Optional[Value] = property_(42, is_repr=True)
+    scalar: Optional[Value] = property_(43, is_repr=True)
+
+
+@enum_(EnumType.QUERY_UPDATE_TYPE)
+class QueryUpdateType(BuiltinEnum):
+    FULL_RESULT = 1, "Full Result", "Full result tree"
+    PARTIAL_RESULT = 2, "Partial Result", "Just this result"
+    ...
 
 
 @struct_(StructType.QUERY_UPDATE, frozen=True)
 class QueryUpdate(StructFrozen):
     """An update to a QueryResult."""
 
-    nodes: list[Value] = property_(50, is_repr=True)
+    type: QueryUpdateType = property_(30, is_repr=True)
+    result: Optional["QueryResult"] = property_(31, is_repr=True)
 
 
 #

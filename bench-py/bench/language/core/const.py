@@ -42,7 +42,7 @@ class _Unset:
 
 
 # forever constants
-VERSION = "2025.06.03.6"
+VERSION = "2025.06.03.7"
 UUID_NAMESPACE = uuid5(UUID(int=0), b"bench")
 CK_LENGTH_B64 = 24  # 1.5 * CK_LENGTH_BYTES (must be integer)
 FLOAT_EPSILON = 1e-6
@@ -308,7 +308,7 @@ class EnumType(BuiltinEnum):
     RELATION_TYPE = 40109
     ATTRIBUTE_TYPE = 40110
     QUERY_TYPE = 40811
-
+    QUERY_UPDATE_TYPE = 40812
     # auth [40200-40600]
     BENCH_ROLE_TYPE = 40200
     ORGANIZATION_ROLE_TYPE = 40210
@@ -496,6 +496,7 @@ class StructType(BuiltinEnum):
     QUERY = 20110
     QUERY_RESULT = 20111
     QUERY_UPDATE = 20112
+    HISTOGRAM = 20113
     VARIABLE = 20120
 
     # auth [20200-20600]

@@ -1,7 +1,7 @@
 import base64
 import textwrap
 from datetime import date, datetime, time, timedelta
-from typing import TYPE_CHECKING, Any, assert_never
+from typing import TYPE_CHECKING, Any, assert_never, cast
 
 import structlog
 from fastuuid import UUID
@@ -31,6 +31,7 @@ if TYPE_CHECKING:
 
 logger = structlog.get_logger(__name__)
 tracer = trace.get_tracer(__name__)
+type_ = type
 
 
 @struct_(StructType.VALUE, frozen=True)
@@ -42,12 +43,15 @@ class Value(StructFrozen[ValueData]):
 
     _unpacked: Any | None = property_runtime_()
 
-    def unpack(self) -> Any:
+    def unpack[T = Any](self, type: type_[T] | None = None) -> T:
         """Get the unpacked value of this generic Value."""
         if self._unpacked is None:
             value_unpacked = unpack_value(self.value, self.type)
             object.__setattr__(self, "_unpacked", value_unpacked)
-        return self._unpacked
+        if type is not None:
+            if not isinstance(self._unpacked, type):
+                raise TypeError(f"expected {type!r}, got {self._unpacked!r}")
+        return cast(T, self._unpacked)
 
 
 #

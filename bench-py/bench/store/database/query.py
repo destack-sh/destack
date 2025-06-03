@@ -230,8 +230,12 @@ async def execute_query(
             limit=query.limit,
             offset=query.offset,
         )
-        return QueryResult(id=query.id, nodes=nodes)
-    elif query.type == QueryType.SCALAR:
-        raise NotImplementedError
+        return QueryResult(id=query.id, type=query.type, nodes=nodes)
+    elif (
+        query.type == QueryType.SCALAR
+        or query.type == QueryType.GROUPED_NODE
+        or query.type == QueryType.GROUPED_SCALAR
+    ):
+        raise NotImplementedError(query)
     else:
         assert_never(query.type)

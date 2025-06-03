@@ -1,3 +1,4 @@
+import asyncio
 from typing import TYPE_CHECKING, Optional, cast
 
 from fastuuid import UUID
@@ -7,7 +8,7 @@ from .query import Query, QueryResult
 from .session import Session
 
 if TYPE_CHECKING:
-    from bench.language import Store
+    from bench.language import Store, Value
 
 
 class QueryConnection[RootT: "Node"]:
@@ -17,6 +18,7 @@ class QueryConnection[RootT: "Node"]:
         "graph",
         "id",
         "is_live",
+        "lock",
         "queries_by_id",
         "query",
         "result",
@@ -35,6 +37,7 @@ class QueryConnection[RootT: "Node"]:
         self.is_live = query.is_live
         self.store: Store = store
         self.session: Session = session
+        self.lock = asyncio.Lock()
 
         # result
         self.result: QueryResult | None = None
@@ -60,12 +63,13 @@ class QueryConnection[RootT: "Node"]:
         """Execute the Query."""
         from .value import unpack_value
 
-        self.result = await self.store.query(self.query)
-        for node_value in self.result.nodes:
-            node = unpack_value(node_value.value, node_value.type)
-            assert isinstance(node, Node), f"expected Node, got {node!r} in {self!r}"
-            self.graph.add(node)
-            self.roots.append(cast(RootT, node))
+        async with self.lock:
+            self.result = await self.store.query(self.query)
+            for node_value in self.result.nodes:
+                node = unpack_value(node_value.value, node_value.type)
+                assert isinstance(node, Node), f"expected Node, got {node!r} in {self!r}"
+                self.graph.add(node)
+                self.roots.append(cast(RootT, node))
 
     def to_one_or_none(self) -> Optional[RootT]:
         """Get the root Node (if any)."""
@@ -88,6 +92,18 @@ class QueryConnection[RootT: "Node"]:
         assert self.result is not None, f"no result for {self!r}"
         assert len(self.roots) > 0, f"no roots in {self!r}"
         return self.roots
+
+    def to_count(self) -> int:
+        """Get the count."""
+        assert self.result is not None, f"no result for {self!r}"
+        assert self.result.count is not None, f"no count in {self!r}"
+        return self.result.count
+
+    def to_scalar(self) -> "Value":
+        """Get the scalar value."""
+        assert self.result is not None, f"no result for {self!r}"
+        assert self.result.scalar is not None, f"no scalar in {self!r}"
+        return self.result.scalar
 
     def close(self) -> None:
         """Close the QueryConnection."""
