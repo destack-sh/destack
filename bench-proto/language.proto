@@ -23,7 +23,6 @@ enum AggregationType {
   AGGREGATION_TYPE_MAX = 5;
   AGGREGATION_TYPE_AVERAGE = 6;
   AGGREGATION_TYPE_MEDIAN = 7;
-  AGGREGATION_TYPE_HISTOGRAM = 8;
 }
 
 // The alignment of a View.
@@ -370,6 +369,7 @@ enum EnumType {
   ENUM_TYPE_RELATION_TYPE = 40109;
   ENUM_TYPE_ATTRIBUTE_TYPE = 40110;
   ENUM_TYPE_QUERY_TYPE = 40811;
+  ENUM_TYPE_QUERY_UPDATE_TYPE = 40812;
   ENUM_TYPE_BENCH_ROLE_TYPE = 40200;
   ENUM_TYPE_ORGANIZATION_ROLE_TYPE = 40210;
   ENUM_TYPE_PACKAGE_ROLE_TYPE = 40220;
@@ -989,6 +989,14 @@ enum QueryType {
   QUERY_TYPE_UNSPECIFIED = 0;
   QUERY_TYPE_NODE = 1;
   QUERY_TYPE_SCALAR = 2;
+  QUERY_TYPE_GROUPED_NODE = 10;
+  QUERY_TYPE_GROUPED_SCALAR = 11;
+}
+
+enum QueryUpdateType {
+  QUERY_UPDATE_TYPE_UNSPECIFIED = 0;
+  QUERY_UPDATE_TYPE_FULL_RESULT = 1;
+  QUERY_UPDATE_TYPE_PARTIAL_RESULT = 2;
 }
 
 // Regions in an Area on a Continent.
@@ -1170,6 +1178,7 @@ enum StructType {
   STRUCT_TYPE_QUERY = 20110;
   STRUCT_TYPE_QUERY_RESULT = 20111;
   STRUCT_TYPE_QUERY_UPDATE = 20112;
+  STRUCT_TYPE_HISTOGRAM = 20113;
   STRUCT_TYPE_VARIABLE = 20120;
   STRUCT_TYPE_DATABASE_INFO = 21000;
   STRUCT_TYPE_CELL_INFO = 21100;
@@ -1442,7 +1451,6 @@ message AggregationData {
   StructType metatype = 1;
   AggregationType type = 30;
   optional ExpressionData expression = 31;
-  bool distinct = 33;
 }
 
 message AttributeReferenceData {
@@ -2283,6 +2291,12 @@ message HandleData {
   string slug = 33;
 }
 
+message HistogramData {
+  StructType metatype = 1;
+  repeated ValueData buckets = 40;
+  repeated int64 counts = 41;
+}
+
 message IconData {
   StructType metatype = 1;
   IconType type = 30;
@@ -2805,13 +2819,19 @@ message QueryData {
 message QueryResultData {
   StructType metatype = 1;
   string id = 2;
-  repeated ValueData nodes = 41;
-  repeated QueryResultData subresults = 42;
+  QueryType type = 30;
+  repeated QueryResultData groups = 35;
+  repeated QueryResultData subresults = 36;
+  repeated ValueData nodes = 40;
+  optional int64 count = 41;
+  optional ValueData discriminator = 42;
+  optional ValueData scalar = 43;
 }
 
 message QueryUpdateData {
   StructType metatype = 1;
-  repeated ValueData nodes = 50;
+  QueryUpdateType type = 30;
+  optional QueryResultData result = 31;
 }
 
 message RelationReferenceData {

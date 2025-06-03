@@ -52,14 +52,17 @@ async def test_create_user(session: Session):
     user.name = "Fluff"
     user.slug = "flotothemoon"
     await session.commit()
-    # query
+    # query by id
     user_unpacked = await User.get(where=User.property("id").eq(user.id)).execute_one()
     assert user.equals(user_unpacked)
-    # query
+    # query by slug
     user_unpacked = await User.search(where=User.property("slug").eq("flotothemoon")).execute_one()
     assert user_unpacked.name == "Fluff"
     assert user_unpacked.slug == "flotothemoon"
     assert user_unpacked.status == UserStatus.ACTIVE
+    # aggregate
+    user_count = await User.count().execute_count()
+    assert user_count == 1
 
 
 async def test_create_custom_node(session: Session):

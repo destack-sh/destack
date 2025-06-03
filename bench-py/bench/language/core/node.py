@@ -36,7 +36,6 @@ from .trait import IndexIn, IsSubject
 
 if TYPE_CHECKING:
     from bench.language import (
-        Aggregation,
         AggregationType,
         Condition,
         Expression,
@@ -407,7 +406,6 @@ class Node[NodeDataT: AnyNodeData](BuiltinObjectMutable[NodeDataT]):
         having: Optional["Condition"] = None,
         sort: Optional[list["Sort"]] = None,
         group_by: Optional[list["Expression"]] = None,
-        aggregation: Optional["Aggregation"] = None,
         limit: Optional[int] = None,
         offset: Optional[int] = None,
         count: bool = False,
@@ -416,14 +414,13 @@ class Node[NodeDataT: AnyNodeData](BuiltinObjectMutable[NodeDataT]):
         from .query import Query, QueryType, relation_ref, to_subqueries
 
         return Query(
-            type=QueryType.NODE,
+            type=QueryType.NODE if group_by is None else QueryType.GROUPED_NODE,
             relation=relation_ref(cls.metatype),
             name=name or cls.metatype.bench_name,
             join=join,
             where=where,
             having=having,
             group_by=group_by or [],
-            aggregation=aggregation,
             sort=sort or [],
             limit=limit,
             offset=offset,
@@ -442,15 +439,12 @@ class Node[NodeDataT: AnyNodeData](BuiltinObjectMutable[NodeDataT]):
         where: Optional["Condition"] = None,
         group_by: Optional[list["Expression"]] = None,
         sort: Optional[list["Sort"]] = None,
-        limit: Optional[int] = None,
-        offset: Optional[int] = None,
-        count: bool = False,
     ) -> "Query[Self]":
         from .query import Aggregation, Query, QueryType, relation_ref
         from .query import expression as to_expression
 
         return Query(
-            type=QueryType.SCALAR,
+            type=QueryType.SCALAR if group_by is None else QueryType.GROUPED_SCALAR,
             relation=relation_ref(cls.metatype),
             name=name or cls.metatype.bench_name,
             join=join,
@@ -460,7 +454,140 @@ class Node[NodeDataT: AnyNodeData](BuiltinObjectMutable[NodeDataT]):
                 type=type, expression=to_expression(expression) if expression else None
             ),
             sort=sort or [],
-            limit=limit,
-            offset=offset,
-            count=count,
+        )
+
+    @classmethod
+    def exists(
+        cls: type["Self"],
+        where: Optional["Condition"] = None,
+        *,
+        name: str | None = None,
+        join: Optional["Join"] = None,
+    ) -> "Query[Self]":
+        from .query import Aggregation, AggregationType, Query, QueryType, relation_ref
+
+        return Query(
+            type=QueryType.SCALAR,
+            relation=relation_ref(cls.metatype),
+            name=name or cls.metatype.bench_name,
+            join=join,
+            where=where,
+            aggregation=Aggregation(type=AggregationType.EXISTS),
+        )
+
+    @classmethod
+    def count(
+        cls: type["Self"],
+        where: Optional["Condition"] = None,
+        *,
+        name: str | None = None,
+        join: Optional["Join"] = None,
+        group_by: Optional[list["Expression"]] = None,
+    ) -> "Query[Self]":
+        from .query import Aggregation, AggregationType, Query, QueryType, relation_ref
+
+        return Query(
+            type=QueryType.SCALAR if group_by is None else QueryType.GROUPED_SCALAR,
+            relation=relation_ref(cls.metatype),
+            name=name or cls.metatype.bench_name,
+            join=join,
+            where=where,
+            aggregation=Aggregation(type=AggregationType.COUNT),
+            group_by=group_by or [],
+        )
+
+    @classmethod
+    def min(
+        cls: type["Self"],
+        expression: "ExpressionIn",
+        *,
+        name: str | None = None,
+        join: Optional["Join"] = None,
+        where: Optional["Condition"] = None,
+        group_by: Optional[list["Expression"]] = None,
+    ) -> "Query[Self]":
+        from .query import Aggregation, AggregationType, Query, QueryType, relation_ref
+        from .query import expression as to_expression
+
+        return Query(
+            type=QueryType.SCALAR if group_by is None else QueryType.GROUPED_SCALAR,
+            relation=relation_ref(cls.metatype),
+            name=name or cls.metatype.bench_name,
+            join=join,
+            where=where,
+            group_by=group_by or [],
+            aggregation=Aggregation(type=AggregationType.MIN, expression=to_expression(expression)),
+        )
+
+    @classmethod
+    def max(
+        cls: type["Self"],
+        expression: "ExpressionIn",
+        *,
+        name: str | None = None,
+        join: Optional["Join"] = None,
+        where: Optional["Condition"] = None,
+        group_by: Optional[list["Expression"]] = None,
+    ) -> "Query[Self]":
+        from .query import Aggregation, AggregationType, Query, QueryType, relation_ref
+        from .query import expression as to_expression
+
+        return Query(
+            type=QueryType.SCALAR if group_by is None else QueryType.GROUPED_SCALAR,
+            relation=relation_ref(cls.metatype),
+            name=name or cls.metatype.bench_name,
+            join=join,
+            where=where,
+            group_by=group_by or [],
+            aggregation=Aggregation(type=AggregationType.MAX, expression=to_expression(expression)),
+        )
+
+    @classmethod
+    def average(
+        cls: type["Self"],
+        expression: "ExpressionIn",
+        *,
+        name: str | None = None,
+        join: Optional["Join"] = None,
+        where: Optional["Condition"] = None,
+        group_by: Optional[list["Expression"]] = None,
+    ) -> "Query[Self]":
+        from .query import Aggregation, AggregationType, Query, QueryType, relation_ref
+        from .query import expression as to_expression
+
+        return Query(
+            type=QueryType.SCALAR if group_by is None else QueryType.GROUPED_SCALAR,
+            relation=relation_ref(cls.metatype),
+            name=name or cls.metatype.bench_name,
+            join=join,
+            where=where,
+            group_by=group_by or [],
+            aggregation=Aggregation(
+                type=AggregationType.AVERAGE, expression=to_expression(expression)
+            ),
+        )
+
+    @classmethod
+    def median(
+        cls: type["Self"],
+        expression: "ExpressionIn",
+        *,
+        name: str | None = None,
+        join: Optional["Join"] = None,
+        where: Optional["Condition"] = None,
+        group_by: Optional[list["Expression"]] = None,
+    ) -> "Query[Self]":
+        from .query import Aggregation, AggregationType, Query, QueryType, relation_ref
+        from .query import expression as to_expression
+
+        return Query(
+            type=QueryType.SCALAR if group_by is None else QueryType.GROUPED_SCALAR,
+            relation=relation_ref(cls.metatype),
+            name=name or cls.metatype.bench_name,
+            join=join,
+            where=where,
+            group_by=group_by or [],
+            aggregation=Aggregation(
+                type=AggregationType.MEDIAN, expression=to_expression(expression)
+            ),
         )
