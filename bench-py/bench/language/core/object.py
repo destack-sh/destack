@@ -348,7 +348,7 @@ __str__ = __repr__
         else:
             repr_impl = f"""\
 def __repr__(self) -> str:
-    return f"<{cls.__name__}>"
+    return "<{cls.__name__}>"
 __str__ = __repr__
 """
         return repr_impl, {}
@@ -417,43 +417,56 @@ if self.{prop_name}:
             assert_never(prop.cardinality)
 
     # wrap in repr
-    repr_parts_str = "\n    ".join(repr_parts_lines)
+    repr_parts_str = "\n".join(repr_parts_lines)
     if cls.__is_node__:
         if has_required_repr_props:
-            repr_impl = f"""\
-def __repr__(self) -> str:
-    {repr_parts_str}
-    return f"<{cls.__name__} {{self.path}} {{' '.join(property_reprs)}}>"
-__str__ = __repr__
+            inner_repr_impl = f"""\
+{repr_parts_str}
+return f"<{cls.__name__} {{self.path}} {{' '.join(property_reprs)}}>"
 """
         else:
-            repr_impl = f"""\
-def __repr__(self) -> str:
-    {repr_parts_str}
-    if property_reprs:
-        return f"<{cls.__name__} {{self.path}} {{' '.join(property_reprs)}}>"
-    else:
-        return f"<{cls.__name__} {{self.path}}>"
-__str__ = __repr__
+            inner_repr_impl = f"""\
+{repr_parts_str}
+if property_reprs:
+    return f"<{cls.__name__} {{self.path}} {{' '.join(property_reprs)}}>"
+else:
+    return f"<{cls.__name__} {{self.path}}>"
 """
     else:
         if has_required_repr_props:
-            repr_impl = f"""\
-def __repr__(self) -> str:
-    {repr_parts_str}
-    return f"<{cls.__name__} {{' '.join(property_reprs)}}>"
-__str__ = __repr__
+            inner_repr_impl = f"""\
+{repr_parts_str}
+return f"<{cls.__name__} {{' '.join(property_reprs)}}>"
 """
         else:
-            repr_impl = f"""\
+            inner_repr_impl = f"""\
+{repr_parts_str}
+if property_reprs:
+    return f"<{cls.__name__} {{' '.join(property_reprs)}}>"
+else:
+    return f"<{cls.__name__}>"
+"""
+
+    if cls.__is_frozen__:
+        # cache _repr in __repr__ (frozen Struct)
+        inner_repr_impl = inner_repr_impl.replace("return ", "self._repr = ")
+        inner_repr_impl = textwrap.indent(inner_repr_impl, "    ")
+        inner_repr_impl = f"if self._repr is None:\n{inner_repr_impl}\nreturn self._repr"
+        inner_repr_impl = textwrap.indent(inner_repr_impl, "    ")
+        repr_impl = f"""\
 def __repr__(self) -> str:
-    {repr_parts_str}
-    if property_reprs:
-        return f"<{cls.__name__} {{' '.join(property_reprs)}}>"
-    else:
-        return f"<{cls.__name__}>"
+{inner_repr_impl}
 __str__ = __repr__
 """
+    else:
+        # no cache
+        inner_repr_impl = textwrap.indent(inner_repr_impl, "    ")
+        repr_impl = f"""\
+def __repr__(self) -> str:
+{inner_repr_impl}
+__str__ = __repr__
+"""
+
     return repr_impl, {}
 
 

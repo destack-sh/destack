@@ -70,8 +70,10 @@ class StructFrozen[StructDataT: AnyStructData](
 ):
     """A frozen Struct."""
 
-    _proto: "StructDataT | None" = property_runtime_()  # cached for frozen Structs
-    _value: "Json | None" = property_runtime_()  # cached for frozen Structs
+    # cached for frozen Structs
+    _proto: "StructDataT | None" = property_runtime_()
+    _value: "Json | None" = property_runtime_()
+    _repr: "str | None" = property_runtime_()
 
 
 @struct_(StructType.SCOPE, frozen=True)
