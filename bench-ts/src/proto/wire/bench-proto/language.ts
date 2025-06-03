@@ -5224,9 +5224,9 @@ export interface QueryResultData {
      */
     type: QueryType;
     /**
-     * @generated from protobuf field: repeated symbol.bench.QueryResultData groups = 35;
+     * @generated from protobuf field: repeated symbol.bench.QueryResultGroupData groups = 35;
      */
-    groups: QueryResultData[];
+    groups: QueryResultGroupData[];
     /**
      * @generated from protobuf field: repeated symbol.bench.QueryResultData subresults = 36;
      */
@@ -5240,9 +5240,42 @@ export interface QueryResultData {
      */
     count?: bigint;
     /**
-     * @generated from protobuf field: optional symbol.bench.ValueData discriminator = 42;
+     * @generated from protobuf field: optional bool exists = 42;
+     */
+    exists?: boolean;
+    /**
+     * @generated from protobuf field: optional symbol.bench.ValueData scalar = 43;
+     */
+    scalar?: ValueData;
+}
+/**
+ * @generated from protobuf message symbol.bench.QueryResultGroupData
+ */
+export interface QueryResultGroupData {
+    /**
+     * @generated from protobuf field: symbol.bench.StructType metatype = 1;
+     */
+    metatype: StructType;
+    /**
+     * @generated from protobuf field: symbol.bench.QueryType type = 30;
+     */
+    type: QueryType;
+    /**
+     * @generated from protobuf field: optional symbol.bench.ValueData discriminator = 31;
      */
     discriminator?: ValueData;
+    /**
+     * @generated from protobuf field: repeated symbol.bench.ValueData nodes = 40;
+     */
+    nodes: ValueData[];
+    /**
+     * @generated from protobuf field: optional int64 count = 41;
+     */
+    count?: bigint;
+    /**
+     * @generated from protobuf field: optional bool exists = 42;
+     */
+    exists?: boolean;
     /**
      * @generated from protobuf field: optional symbol.bench.ValueData scalar = 43;
      */
@@ -12501,9 +12534,13 @@ export enum StructType {
      */
     QUERY_RESULT = 20111,
     /**
-     * @generated from protobuf enum value: STRUCT_TYPE_QUERY_UPDATE = 20112;
+     * @generated from protobuf enum value: STRUCT_TYPE_QUERY_RESULT_GROUP = 20112;
      */
-    QUERY_UPDATE = 20112,
+    QUERY_RESULT_GROUP = 20112,
+    /**
+     * @generated from protobuf enum value: STRUCT_TYPE_QUERY_UPDATE = 20115;
+     */
+    QUERY_UPDATE = 20115,
     /**
      * @generated from protobuf enum value: STRUCT_TYPE_HISTOGRAM = 20113;
      */
@@ -24622,11 +24659,11 @@ class QueryResultData$Type extends MessageType$<QueryResultData> {
             { no: 1, name: "metatype", kind: "enum", T: () => ["symbol.bench.StructType", StructType, "STRUCT_TYPE_"] },
             { no: 2, name: "id", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
             { no: 30, name: "type", kind: "enum", T: () => ["symbol.bench.QueryType", QueryType, "QUERY_TYPE_"] },
-            { no: 35, name: "groups", kind: "message", repeat: 1 /*RepeatType.PACKED*/, T: () => QueryResultData },
+            { no: 35, name: "groups", kind: "message", repeat: 1 /*RepeatType.PACKED*/, T: () => QueryResultGroupData },
             { no: 36, name: "subresults", kind: "message", repeat: 1 /*RepeatType.PACKED*/, T: () => QueryResultData },
             { no: 40, name: "nodes", kind: "message", repeat: 1 /*RepeatType.PACKED*/, T: () => ValueData },
             { no: 41, name: "count", kind: "scalar", opt: true, T: 3 /*ScalarType.INT64*/, L: 0 /*LongType.BIGINT*/ },
-            { no: 42, name: "discriminator", kind: "message", T: () => ValueData },
+            { no: 42, name: "exists", kind: "scalar", opt: true, T: 8 /*ScalarType.BOOL*/ },
             { no: 43, name: "scalar", kind: "message", T: () => ValueData }
         ]);
     }
@@ -24656,8 +24693,8 @@ class QueryResultData$Type extends MessageType$<QueryResultData> {
                 case /* symbol.bench.QueryType type */ 30:
                     message.type = reader.int32();
                     break;
-                case /* repeated symbol.bench.QueryResultData groups */ 35:
-                    message.groups.push(QueryResultData.internalBinaryRead(reader, reader.uint32(), options));
+                case /* repeated symbol.bench.QueryResultGroupData groups */ 35:
+                    message.groups.push(QueryResultGroupData.internalBinaryRead(reader, reader.uint32(), options));
                     break;
                 case /* repeated symbol.bench.QueryResultData subresults */ 36:
                     message.subresults.push(QueryResultData.internalBinaryRead(reader, reader.uint32(), options));
@@ -24668,8 +24705,8 @@ class QueryResultData$Type extends MessageType$<QueryResultData> {
                 case /* optional int64 count */ 41:
                     message.count = reader.int64().toBigInt();
                     break;
-                case /* optional symbol.bench.ValueData discriminator */ 42:
-                    message.discriminator = ValueData.internalBinaryRead(reader, reader.uint32(), options, message.discriminator);
+                case /* optional bool exists */ 42:
+                    message.exists = reader.bool();
                     break;
                 case /* optional symbol.bench.ValueData scalar */ 43:
                     message.scalar = ValueData.internalBinaryRead(reader, reader.uint32(), options, message.scalar);
@@ -24695,9 +24732,9 @@ class QueryResultData$Type extends MessageType$<QueryResultData> {
         /* symbol.bench.QueryType type = 30; */
         if (message.type !== 0)
             writer.tag(30, WireType.Varint).int32(message.type);
-        /* repeated symbol.bench.QueryResultData groups = 35; */
+        /* repeated symbol.bench.QueryResultGroupData groups = 35; */
         for (let i = 0; i < message.groups.length; i++)
-            QueryResultData.internalBinaryWrite(message.groups[i], writer.tag(35, WireType.LengthDelimited).fork(), options).join();
+            QueryResultGroupData.internalBinaryWrite(message.groups[i], writer.tag(35, WireType.LengthDelimited).fork(), options).join();
         /* repeated symbol.bench.QueryResultData subresults = 36; */
         for (let i = 0; i < message.subresults.length; i++)
             QueryResultData.internalBinaryWrite(message.subresults[i], writer.tag(36, WireType.LengthDelimited).fork(), options).join();
@@ -24707,9 +24744,9 @@ class QueryResultData$Type extends MessageType$<QueryResultData> {
         /* optional int64 count = 41; */
         if (message.count !== undefined)
             writer.tag(41, WireType.Varint).int64(message.count);
-        /* optional symbol.bench.ValueData discriminator = 42; */
-        if (message.discriminator)
-            ValueData.internalBinaryWrite(message.discriminator, writer.tag(42, WireType.LengthDelimited).fork(), options).join();
+        /* optional bool exists = 42; */
+        if (message.exists !== undefined)
+            writer.tag(42, WireType.Varint).bool(message.exists);
         /* optional symbol.bench.ValueData scalar = 43; */
         if (message.scalar)
             ValueData.internalBinaryWrite(message.scalar, writer.tag(43, WireType.LengthDelimited).fork(), options).join();
@@ -24723,6 +24760,97 @@ class QueryResultData$Type extends MessageType$<QueryResultData> {
  * @generated MessageType for protobuf message symbol.bench.QueryResultData
  */
 export const QueryResultData = new QueryResultData$Type();
+// @generated message type with reflection information, may provide speed optimized methods
+class QueryResultGroupData$Type extends MessageType$<QueryResultGroupData> {
+    constructor() {
+        super("symbol.bench.QueryResultGroupData", [
+            { no: 1, name: "metatype", kind: "enum", T: () => ["symbol.bench.StructType", StructType, "STRUCT_TYPE_"] },
+            { no: 30, name: "type", kind: "enum", T: () => ["symbol.bench.QueryType", QueryType, "QUERY_TYPE_"] },
+            { no: 31, name: "discriminator", kind: "message", T: () => ValueData },
+            { no: 40, name: "nodes", kind: "message", repeat: 1 /*RepeatType.PACKED*/, T: () => ValueData },
+            { no: 41, name: "count", kind: "scalar", opt: true, T: 3 /*ScalarType.INT64*/, L: 0 /*LongType.BIGINT*/ },
+            { no: 42, name: "exists", kind: "scalar", opt: true, T: 8 /*ScalarType.BOOL*/ },
+            { no: 43, name: "scalar", kind: "message", T: () => ValueData }
+        ]);
+    }
+    create(value?: PartialMessage<QueryResultGroupData>): QueryResultGroupData {
+        const message = globalThis.Object.create((this.messagePrototype!));
+        message.metatype = 0;
+        message.type = 0;
+        message.nodes = [];
+        if (value !== undefined)
+            reflectionMergePartial<QueryResultGroupData>(this, message, value);
+        return message;
+    }
+    internalBinaryRead(reader: IBinaryReader, length: number, options: BinaryReadOptions, target?: QueryResultGroupData): QueryResultGroupData {
+        let message = target ?? this.create(), end = reader.pos + length;
+        while (reader.pos < end) {
+            let [fieldNo, wireType] = reader.tag();
+            switch (fieldNo) {
+                case /* symbol.bench.StructType metatype */ 1:
+                    message.metatype = reader.int32();
+                    break;
+                case /* symbol.bench.QueryType type */ 30:
+                    message.type = reader.int32();
+                    break;
+                case /* optional symbol.bench.ValueData discriminator */ 31:
+                    message.discriminator = ValueData.internalBinaryRead(reader, reader.uint32(), options, message.discriminator);
+                    break;
+                case /* repeated symbol.bench.ValueData nodes */ 40:
+                    message.nodes.push(ValueData.internalBinaryRead(reader, reader.uint32(), options));
+                    break;
+                case /* optional int64 count */ 41:
+                    message.count = reader.int64().toBigInt();
+                    break;
+                case /* optional bool exists */ 42:
+                    message.exists = reader.bool();
+                    break;
+                case /* optional symbol.bench.ValueData scalar */ 43:
+                    message.scalar = ValueData.internalBinaryRead(reader, reader.uint32(), options, message.scalar);
+                    break;
+                default:
+                    let u = options.readUnknownField;
+                    if (u === "throw")
+                        throw new globalThis.Error(`Unknown field ${fieldNo} (wire type ${wireType}) for ${this.typeName}`);
+                    let d = reader.skip(wireType);
+                    if (u !== false)
+                        (u === true ? UnknownFieldHandler.onRead : u)(this.typeName, message, fieldNo, wireType, d);
+            }
+        }
+        return message;
+    }
+    internalBinaryWrite(message: QueryResultGroupData, writer: IBinaryWriter, options: BinaryWriteOptions): IBinaryWriter {
+        /* symbol.bench.StructType metatype = 1; */
+        if (message.metatype !== 0)
+            writer.tag(1, WireType.Varint).int32(message.metatype);
+        /* symbol.bench.QueryType type = 30; */
+        if (message.type !== 0)
+            writer.tag(30, WireType.Varint).int32(message.type);
+        /* optional symbol.bench.ValueData discriminator = 31; */
+        if (message.discriminator)
+            ValueData.internalBinaryWrite(message.discriminator, writer.tag(31, WireType.LengthDelimited).fork(), options).join();
+        /* repeated symbol.bench.ValueData nodes = 40; */
+        for (let i = 0; i < message.nodes.length; i++)
+            ValueData.internalBinaryWrite(message.nodes[i], writer.tag(40, WireType.LengthDelimited).fork(), options).join();
+        /* optional int64 count = 41; */
+        if (message.count !== undefined)
+            writer.tag(41, WireType.Varint).int64(message.count);
+        /* optional bool exists = 42; */
+        if (message.exists !== undefined)
+            writer.tag(42, WireType.Varint).bool(message.exists);
+        /* optional symbol.bench.ValueData scalar = 43; */
+        if (message.scalar)
+            ValueData.internalBinaryWrite(message.scalar, writer.tag(43, WireType.LengthDelimited).fork(), options).join();
+        let u = options.writeUnknownFields;
+        if (u !== false)
+            (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
+        return writer;
+    }
+}
+/**
+ * @generated MessageType for protobuf message symbol.bench.QueryResultGroupData
+ */
+export const QueryResultGroupData = new QueryResultGroupData$Type();
 // @generated message type with reflection information, may provide speed optimized methods
 class QueryUpdateData$Type extends MessageType$<QueryUpdateData> {
     constructor() {
@@ -31716,6 +31844,6 @@ export const SomeNodeData = new SomeNodeData$Type();
 
 // Any...
 export type AnyNodeData = ClientData | FriendshipData | FriendshipInviteData | OrganizationData | OrganizationInviteData | OrganizationMembershipData | UserData | CustomNodeDefinitionData | CustomNodeInstanceData | FieldData | FileData | LinkData | SchemaData | DatabaseData | MachineData | ActionData | AgentData | CursorData | FlowData | FlowEdgeData | ServiceData | TaskData | BenchData | BenchInviteData | BenchMembershipData | HandleData | PackageData | PackageMembershipData | PackageInviteData | InterruptionData | RunData | SpanData | MessageData | ThreadData | BlockData | PageData | RouteData | SceneData | SpaceData | ColorStyleData | BorderStyleData | TransitionStyleData | EffectStyleData | GradientStyleData | FontStyleData | ShadowStyleData | ThemeData | FrameViewData | LabelViewData | SplitViewData | TextViewData | NumberInputViewData | SliderInputViewData | WizardViewData | ThreadViewData
-export type AnyStructData = ScopeData | PropertyReferenceData | NodeReferenceData | CodeData | StringConstraintData | NumberConstraintData | CollectionConstraintData | NodeConstraintData | TypeData | ValueData | RelationReferenceData | AttributeReferenceData | FunctionData | ConditionData | AggregationData | ExpressionData | SortData | SelectData | JoinData | QueryData | HistogramData | QueryResultData | QueryUpdateData | SelectionData | EditData | ChangeData | ChangeResultData | IconData | PropertyInfoData | TraitInfoData | NodeInfoData | StructInfoData | EnumInfoData | EnumOptionInfoData | TextSpanData | TextLineData | TextData | VariableData | OriginData | CellInfoData | DatabaseInfoData | ScheduleData | ErrorData | ColorData | LengthData | PositionData | DimensionData | InsetsData | CornersData | Axis2Data | Axis3Data | Vector2Data | Vector3Data | Vector4Data | GridData | GridSpanData | BorderData | TransitionData | EffectData | GradientStopData | GradientData | FillData | FontData | ShadowData
+export type AnyStructData = ScopeData | PropertyReferenceData | NodeReferenceData | CodeData | StringConstraintData | NumberConstraintData | CollectionConstraintData | NodeConstraintData | TypeData | ValueData | RelationReferenceData | AttributeReferenceData | FunctionData | ConditionData | AggregationData | ExpressionData | SortData | SelectData | JoinData | QueryData | HistogramData | QueryResultData | QueryResultGroupData | QueryUpdateData | SelectionData | EditData | ChangeData | ChangeResultData | IconData | PropertyInfoData | TraitInfoData | NodeInfoData | StructInfoData | EnumInfoData | EnumOptionInfoData | TextSpanData | TextLineData | TextData | VariableData | OriginData | CellInfoData | DatabaseInfoData | ScheduleData | ErrorData | ColorData | LengthData | PositionData | DimensionData | InsetsData | CornersData | Axis2Data | Axis3Data | Vector2Data | Vector3Data | Vector4Data | GridData | GridSpanData | BorderData | TransitionData | EffectData | GradientStopData | GradientData | FillData | FontData | ShadowData
 
     

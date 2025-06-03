@@ -1155,6 +1155,7 @@ class StructType(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     STRUCT_TYPE_ATTRIBUTE_REFERENCE: _ClassVar[StructType]
     STRUCT_TYPE_QUERY: _ClassVar[StructType]
     STRUCT_TYPE_QUERY_RESULT: _ClassVar[StructType]
+    STRUCT_TYPE_QUERY_RESULT_GROUP: _ClassVar[StructType]
     STRUCT_TYPE_QUERY_UPDATE: _ClassVar[StructType]
     STRUCT_TYPE_HISTOGRAM: _ClassVar[StructType]
     STRUCT_TYPE_VARIABLE: _ClassVar[StructType]
@@ -2202,6 +2203,7 @@ STRUCT_TYPE_RELATION_REFERENCE: StructType
 STRUCT_TYPE_ATTRIBUTE_REFERENCE: StructType
 STRUCT_TYPE_QUERY: StructType
 STRUCT_TYPE_QUERY_RESULT: StructType
+STRUCT_TYPE_QUERY_RESULT_GROUP: StructType
 STRUCT_TYPE_QUERY_UPDATE: StructType
 STRUCT_TYPE_HISTOGRAM: StructType
 STRUCT_TYPE_VARIABLE: StructType
@@ -4902,7 +4904,7 @@ class QueryData(_message.Message):
     def __init__(self, metatype: _Optional[_Union[StructType, str]] = ..., id: _Optional[str] = ..., type: _Optional[_Union[QueryType, str]] = ..., name: _Optional[str] = ..., relation: _Optional[_Union[RelationReferenceData, _Mapping]] = ..., join: _Optional[_Union[JoinData, _Mapping]] = ..., select: _Optional[_Union[SelectData, _Mapping]] = ..., subqueries: _Optional[_Iterable[_Union[QueryData, _Mapping]]] = ..., is_live: bool = ..., where: _Optional[_Union[ConditionData, _Mapping]] = ..., having: _Optional[_Union[ConditionData, _Mapping]] = ..., group_by: _Optional[_Iterable[_Union[ExpressionData, _Mapping]]] = ..., aggregation: _Optional[_Union[AggregationData, _Mapping]] = ..., sort: _Optional[_Iterable[_Union[SortData, _Mapping]]] = ..., limit: _Optional[int] = ..., offset: _Optional[int] = ..., count: bool = ...) -> None: ...
 
 class QueryResultData(_message.Message):
-    __slots__ = ("metatype", "id", "type", "groups", "subresults", "nodes", "count", "discriminator", "scalar")
+    __slots__ = ("metatype", "id", "type", "groups", "subresults", "nodes", "count", "exists", "scalar")
     METATYPE_FIELD_NUMBER: _ClassVar[int]
     ID_FIELD_NUMBER: _ClassVar[int]
     TYPE_FIELD_NUMBER: _ClassVar[int]
@@ -4910,18 +4912,36 @@ class QueryResultData(_message.Message):
     SUBRESULTS_FIELD_NUMBER: _ClassVar[int]
     NODES_FIELD_NUMBER: _ClassVar[int]
     COUNT_FIELD_NUMBER: _ClassVar[int]
-    DISCRIMINATOR_FIELD_NUMBER: _ClassVar[int]
+    EXISTS_FIELD_NUMBER: _ClassVar[int]
     SCALAR_FIELD_NUMBER: _ClassVar[int]
     metatype: StructType
     id: str
     type: QueryType
-    groups: _containers.RepeatedCompositeFieldContainer[QueryResultData]
+    groups: _containers.RepeatedCompositeFieldContainer[QueryResultGroupData]
     subresults: _containers.RepeatedCompositeFieldContainer[QueryResultData]
     nodes: _containers.RepeatedCompositeFieldContainer[ValueData]
     count: int
-    discriminator: ValueData
+    exists: bool
     scalar: ValueData
-    def __init__(self, metatype: _Optional[_Union[StructType, str]] = ..., id: _Optional[str] = ..., type: _Optional[_Union[QueryType, str]] = ..., groups: _Optional[_Iterable[_Union[QueryResultData, _Mapping]]] = ..., subresults: _Optional[_Iterable[_Union[QueryResultData, _Mapping]]] = ..., nodes: _Optional[_Iterable[_Union[ValueData, _Mapping]]] = ..., count: _Optional[int] = ..., discriminator: _Optional[_Union[ValueData, _Mapping]] = ..., scalar: _Optional[_Union[ValueData, _Mapping]] = ...) -> None: ...
+    def __init__(self, metatype: _Optional[_Union[StructType, str]] = ..., id: _Optional[str] = ..., type: _Optional[_Union[QueryType, str]] = ..., groups: _Optional[_Iterable[_Union[QueryResultGroupData, _Mapping]]] = ..., subresults: _Optional[_Iterable[_Union[QueryResultData, _Mapping]]] = ..., nodes: _Optional[_Iterable[_Union[ValueData, _Mapping]]] = ..., count: _Optional[int] = ..., exists: bool = ..., scalar: _Optional[_Union[ValueData, _Mapping]] = ...) -> None: ...
+
+class QueryResultGroupData(_message.Message):
+    __slots__ = ("metatype", "type", "discriminator", "nodes", "count", "exists", "scalar")
+    METATYPE_FIELD_NUMBER: _ClassVar[int]
+    TYPE_FIELD_NUMBER: _ClassVar[int]
+    DISCRIMINATOR_FIELD_NUMBER: _ClassVar[int]
+    NODES_FIELD_NUMBER: _ClassVar[int]
+    COUNT_FIELD_NUMBER: _ClassVar[int]
+    EXISTS_FIELD_NUMBER: _ClassVar[int]
+    SCALAR_FIELD_NUMBER: _ClassVar[int]
+    metatype: StructType
+    type: QueryType
+    discriminator: ValueData
+    nodes: _containers.RepeatedCompositeFieldContainer[ValueData]
+    count: int
+    exists: bool
+    scalar: ValueData
+    def __init__(self, metatype: _Optional[_Union[StructType, str]] = ..., type: _Optional[_Union[QueryType, str]] = ..., discriminator: _Optional[_Union[ValueData, _Mapping]] = ..., nodes: _Optional[_Iterable[_Union[ValueData, _Mapping]]] = ..., count: _Optional[int] = ..., exists: bool = ..., scalar: _Optional[_Union[ValueData, _Mapping]] = ...) -> None: ...
 
 class QueryUpdateData(_message.Message):
     __slots__ = ("metatype", "type", "result")

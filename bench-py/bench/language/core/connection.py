@@ -99,6 +99,12 @@ class QueryConnection[RootT: "Node"]:
         assert self.result.count is not None, f"no count in {self!r}"
         return self.result.count
 
+    def to_exists(self) -> bool:
+        """Get whether any results exist."""
+        assert self.result is not None, f"no result for {self!r}"
+        assert self.result.exists is not None, f"no exists in {self!r}"
+        return self.result.exists
+
     def to_scalar(self) -> "Value":
         """Get the scalar value."""
         assert self.result is not None, f"no result for {self!r}"

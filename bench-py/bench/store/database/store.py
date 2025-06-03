@@ -79,15 +79,17 @@ class DatabaseStore(Store):
         return context
 
     @override
+    @tracer.start_as_current_span("database.query")
     async def query(self, query: Query) -> QueryResult:
         async with pg_connection(self.database) as conn:
             if self.context is None:
                 self.context = await self._load_context(conn)
             result = await execute_query(conn, self.context, query)
-            logger.debug("database.query", query=query, result=result, span="current")
-            return result
+        logger.debug("database.query", query=query, result=result, span="current")
+        return result
 
     @override
+    @tracer.start_as_current_span("database.commit")
     async def commit(self, changes: Sequence[Change]) -> Sequence[ChangeResult]:
         results: list[ChangeResult] = []
         async with pg_connection(self.database) as conn:
@@ -107,7 +109,7 @@ class DatabaseStore(Store):
                     async with conn.transaction():
                         edits, cascaded_edits = await execute_change(conn, local_context, change)
                         logger.debug(
-                            "database.commit",
+                            "database.commit.change",
                             change=change,
                             edits=edits,
                             cascaded_edits=cascaded_edits,
@@ -124,9 +126,12 @@ class DatabaseStore(Store):
                     if has_custom_edits:
                         self.context.apply(edits)
                 except Exception as e:
-                    logger.error("database.commit.error", change=change, exc_info=e, span="current")
+                    logger.error(
+                        "database.commit.change.error", change=change, exc_info=e, span="current"
+                    )
                     result = ChangeResult(id=change.id, status=ChangeStatus.FAILED)
                 results.append(result)
+        logger.debug("database.commit", changes=changes, results=results, span="current")
         return results
 
 

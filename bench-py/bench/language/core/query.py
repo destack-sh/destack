@@ -11,7 +11,7 @@ from .const import (
     enum_,
 )
 from .node import Node
-from .object import Property
+from .object import BuiltinObjectMutable, Property, object_
 from .property import property_
 from .struct import NodeReference, PropertyReference, StructFrozen, StructMutable, struct_
 from .value import Value
@@ -189,7 +189,6 @@ class AggregationType(BuiltinEnum):
     MIN = 4
     MAX = 5
     AVERAGE = 6
-    MEDIAN = 7
 
 
 @struct_(StructType.AGGREGATION, frozen=True)
@@ -437,6 +436,11 @@ class Query[RootT: "Node"](StructFrozen):
         connection = await self.execute()
         return connection.to_list()
 
+    async def execute_exists(self) -> bool:
+        """Execute the Query and return whether any results exist."""
+        connection = await self.execute()
+        return connection.to_exists()
+
     async def execute_count(self) -> int:
         """Execute the Query and return the count."""
         connection = await self.execute()
@@ -465,22 +469,36 @@ class Histogram(StructFrozen):
     counts: list[int] = property_(41, is_repr=True)
 
 
+@object_()
+class QueryResultBase(BuiltinObjectMutable):
+    """Common base for QueryResult and QueryResultGroup."""
+
+    type: QueryType = property_(30, is_repr=True)
+
+    nodes: list[Value] = property_(40, is_repr=True)
+    count: Optional[int] = property_(41, is_repr=True)
+    exists: Optional[bool] = property_(42, is_repr=True)
+    scalar: Optional[Value] = property_(43, is_repr=True)
+
+
 @struct_(StructType.QUERY_RESULT)
-class QueryResult(StructMutable):
+class QueryResult(QueryResultBase, StructMutable):
     """
     The result of a Query.
+    For grouped queries, group results are in Query.groups.
     The subresults correspond to Query.subqueries.
     """
 
     id: UUID = property_(2, is_repr=True)
-    type: QueryType = property_(30, is_repr=True)
-    groups: list["QueryResult"] = property_(35, is_repr=True)
+    groups: list["QueryResultGroup"] = property_(35, is_repr=True)
     subresults: list["QueryResult"] = property_(36, is_repr=True)
 
-    nodes: list[Value] = property_(40, is_repr=True)
-    count: Optional[int] = property_(41, is_repr=True)
-    discriminator: Optional[Value] = property_(42, is_repr=True)
-    scalar: Optional[Value] = property_(43, is_repr=True)
+
+@struct_(StructType.QUERY_RESULT_GROUP)
+class QueryResultGroup(QueryResultBase, StructMutable):
+    """A group in a QueryResult."""
+
+    discriminator: Optional[Value] = property_(31, is_repr=True)
 
 
 @enum_(EnumType.QUERY_UPDATE_TYPE)
@@ -568,21 +586,6 @@ class IntoQuery:
         return sort(self, SortType.DESCENDING)
 
     descending = desc
-
-    def sum(self: Any) -> "Aggregation":
-        return aggregation(AggregationType.SUM, operand=self)
-
-    def min(self: Any) -> "Aggregation":
-        return aggregation(AggregationType.MIN, operand=self)
-
-    def max(self: Any) -> "Aggregation":
-        return aggregation(AggregationType.MAX, operand=self)
-
-    def average(self: Any) -> "Aggregation":
-        return aggregation(AggregationType.AVERAGE, operand=self)
-
-    def median(self: Any) -> "Aggregation":
-        return aggregation(AggregationType.MEDIAN, operand=self)
 
 
 @struct_(StructType.SELECTION, frozen=True)

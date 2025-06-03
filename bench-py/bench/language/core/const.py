@@ -42,7 +42,7 @@ class _Unset:
 
 
 # forever constants
-VERSION = "2025.06.03.7"
+VERSION = "2025.06.03.8"
 UUID_NAMESPACE = uuid5(UUID(int=0), b"bench")
 CK_LENGTH_B64 = 24  # 1.5 * CK_LENGTH_BYTES (must be integer)
 FLOAT_EPSILON = 1e-6
@@ -495,7 +495,8 @@ class StructType(BuiltinEnum):
     ATTRIBUTE_REFERENCE = 20108
     QUERY = 20110
     QUERY_RESULT = 20111
-    QUERY_UPDATE = 20112
+    QUERY_RESULT_GROUP = 20112
+    QUERY_UPDATE = 20115
     HISTOGRAM = 20113
     VARIABLE = 20120
 

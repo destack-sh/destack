@@ -115,15 +115,20 @@ class ChangeResult(StructFrozen):
     """The result of a Change. If rejected, edits/cascaded_edits are empty."""
 
     id: UUID = property_(
-        2, is_managed=True, default_factory="uuid", description="The id of the Change."
+        2,
+        is_managed=True,
+        is_repr=True,
+        default_factory="uuid",
+        description="The id of the Change.",
     )
     created_at: datetime = property_(
         10,
         is_managed=True,
+        is_repr=True,
         description="The time the ChangeResult was created.",
         default_factory="now",
     )
-    status: ChangeStatus = property_(40)
+    status: ChangeStatus = property_(40, is_repr=True)
     edits: list[Edit] = property_(41)
     cascaded_edits: list[Edit] = property_(42)
 

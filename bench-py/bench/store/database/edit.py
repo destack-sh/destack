@@ -17,6 +17,7 @@ tracer = trace.get_tracer(__name__)
 logger = structlog.get_logger(__name__)
 
 
+@tracer.start_as_current_span("database.execute_change")
 async def execute_change(
     conn: asyncpg.Connection, context: DatabaseContext, change: Change
 ) -> tuple[Sequence[Edit], Sequence[Edit]]:
@@ -64,9 +65,11 @@ async def execute_change(
         if schema_edits:
             await _execute_schema_edits(conn=conn, context=context, edits=schema_edits)
 
+    logger.debug("database.execute_change", change=change, span="current")
     return change.edits, cascaded_edits
 
 
+@tracer.start_as_current_span("database.cascade_nodes")
 async def _cascade_nodes(
     conn: asyncpg.Connection,
     context: DatabaseContext,
@@ -78,6 +81,7 @@ async def _cascade_nodes(
     raise NotImplementedError
 
 
+@tracer.start_as_current_span("database.execute_schema_edits")
 async def _execute_schema_edits(
     conn: asyncpg.Connection,
     context: DatabaseContext,
@@ -87,6 +91,7 @@ async def _execute_schema_edits(
     raise NotImplementedError
 
 
+@tracer.start_as_current_span("database.execute_data_edit")
 async def _execute_data_edit(
     conn: asyncpg.Connection,
     context: DatabaseContext,
@@ -126,8 +131,8 @@ SET {", ".join(f"{col.name} = EXCLUDED.{col.name}" for col in override_columns)}
             assert edit.value is not None, f"no value for {edit!r}"
             row_values_packed = pack_node_value_to_row(table, edit.value)
             values_packed.append(row_values_packed)
-        logger.debug(f"database.{edit_type.name.lower()}", change=change, stmt=stmt, span="current")
         await conn.executemany(stmt, values_packed)
+        logger.debug(f"database.{edit_type.name.lower()}", change=change, stmt=stmt, span="current")
         return edits, ()
 
     # update
@@ -143,8 +148,8 @@ UPDATE {table.name}
 SET {", ".join(f"{key} = ${i + 1}" for i, key in enumerate(update.keys()))}
 WHERE id = ${len(update) + 1}
 """
-            logger.debug("database.update", change=change, stmt=stmt, span="current")
             await conn.execute(stmt, *update.values(), edit.node_ptr.id)
+            logger.debug("database.update", change=change, stmt=stmt, span="current")
 
         return edits, ()
 
@@ -163,8 +168,8 @@ UPDATE {table.name}
 SET {", ".join(f"{key} = ${i + 1}" for i, key in enumerate(update.keys()))}
 WHERE id = ${len(update) + 1}
 """
-            logger.debug("database.move", change=change, stmt=stmt, span="current")
             await conn.execute(stmt, *update.values(), edit.node_ptr.id)
+            logger.debug("database.move", change=change, stmt=stmt, span="current")
 
         return edits, ()
 
@@ -210,6 +215,7 @@ UPDATE {table_name}
 SET {update_stmt}
 WHERE id = $1
 """
+            await conn.executemany(stmt, [(node_id, at_packed) for node_id in table_node_ids])
             logger.debug(
                 f"database.{edit_type.name.lower()}",
                 change=change,
@@ -217,7 +223,6 @@ WHERE id = $1
                 stmt=stmt,
                 span="current",
             )
-            await conn.executemany(stmt, [(node_id, at_packed) for node_id in table_node_ids])
 
         return edits, cascaded_edits
 
@@ -246,6 +251,7 @@ WHERE id = $1
 DELETE FROM {table_name}
 WHERE id = $1
 """
+            await conn.executemany(stmt, table_node_ids)
             logger.debug(
                 "database.erase",
                 change=change,
@@ -253,7 +259,6 @@ WHERE id = $1
                 stmt=stmt,
                 span="current",
             )
-            await conn.executemany(stmt, table_node_ids)
 
         return edits, cascaded_edits
 

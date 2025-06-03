@@ -39,6 +39,8 @@ def session(session_async: Session):
 
 async def test_create_user(session: Session):
     """Create and update a User, querying along the way."""
+    # not exists
+    assert not await User.exists().execute_exists()
     # create
     user = User(
         status=UserStatus.ACTIVE,
@@ -60,7 +62,9 @@ async def test_create_user(session: Session):
     assert user_unpacked.name == "Fluff"
     assert user_unpacked.slug == "flotothemoon"
     assert user_unpacked.status == UserStatus.ACTIVE
-    # aggregate
+    # exists
+    assert await User.exists().execute_exists()
+    # count
     user_count = await User.count().execute_count()
     assert user_count == 1
 
