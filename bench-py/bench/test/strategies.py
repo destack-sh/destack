@@ -190,7 +190,13 @@ def get_naive_object_strategy(object_type: NodeType | StructType):
     object_cls = BUILTIN_OBJECT_CLASS_BY_TYPE[object_type]
     object_kwargs: dict[str, st.SearchStrategy] = {}
     for prop in object_cls.__wired_properties__.values():
-        if prop.id is None or (prop.id < 30) or (prop.ptr_prop is not None) or prop.is_managed:
+        if (
+            prop.id is None
+            or prop.id == 1
+            or prop.default_factory is not None
+            or prop.is_managed
+            or prop.is_computed
+        ):
             continue  # ignore internal properties
         if (object_type, prop.name) in STRATEGY_BY_OBJECT_PROPERTY:
             object_kwargs[prop.name] = STRATEGY_BY_OBJECT_PROPERTY[object_type, prop.name]

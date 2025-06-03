@@ -85,7 +85,7 @@ def __pack_proto__(cls, _object: "Self") -> "{cls.__name__}Data":
 {pack_proto}
 
 @classmethod
-def __unpack_proto__(cls, _object_data: "{cls.__name__}Data") -> "Self":
+def __unpack_proto__(cls, _object_data: "{cls.__name__}Data", _session: "Session | None" = None, _graph: "Graph | None" = None, _supergraph: "Supergraph | None" = None) -> "Self":
 {unpack_proto}
 
 {to_proto}
@@ -145,9 +145,14 @@ def _generate_unpack_proto(cls: type["BuiltinObjectBase"]) -> str:
         unpack_assignments.append("_proto=_object_data")
 
     unpack_method_parts.append("return cls(")
-    for i, assignment in enumerate(unpack_assignments):
-        comma = "," if i < len(unpack_assignments) - 1 else ""
-        unpack_method_parts.append(f"    {assignment}{comma}")
+    for assignment in unpack_assignments:
+        unpack_method_parts.append(f"    {assignment},")
+    if cls.__is_node__:
+        unpack_method_parts.append("    _session=_session,")
+        unpack_method_parts.append("    _supergraph=_supergraph,")
+        unpack_method_parts.append("    _graph=_graph,")
+    else:
+        unpack_method_parts.append("    _supergraph=_supergraph,")
     unpack_method_parts.append(")")
 
     return "\n".join(unpack_method_parts)
@@ -343,13 +348,13 @@ def _generate_unpack_scalar(prop: "Property | IntoType", value_expr: str) -> str
         enum_type_name = prop.enum_type.bench_name
         return f"{enum_type_name}({value_expr})"
     elif prop.scalar_type == "node_reference":
-        return f"NodeReference.__unpack_proto__({value_expr})"
+        return f"NodeReference.__unpack_proto__({value_expr}, _supergraph=_supergraph)"
     elif prop.scalar_type == "node_value":
         raise RuntimeError(f"node_value cannot be wired directly: {prop!r}")
     elif prop.scalar_type == "struct":
         assert prop.struct_type is not None
         struct_cls_name = prop.struct_type.bench_name
-        return f"{struct_cls_name}.__unpack_proto__({value_expr})"
+        return f"{struct_cls_name}.__unpack_proto__({value_expr}, _supergraph=_supergraph)"
     else:
         assert_never(prop.scalar_type)
 

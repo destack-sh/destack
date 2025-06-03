@@ -441,7 +441,6 @@ class Query[RootT: "Node"](StructFrozen):
 def to_subqueries(subqueries: dict[str, "Query"]) -> list["Query"]:
     """Turn Queries into subqueries with default names & parent joins."""
     for name, subquery in subqueries.items():
-        assert subquery.name is None, f"subquery {subquery!r} already has a name"
         if subquery.join is None:
             subquery.join = join(JoinType.PARENT)
         subquery.name = name
