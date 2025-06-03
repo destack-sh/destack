@@ -1,3 +1,4 @@
+import uuid
 from collections.abc import Sequence
 from typing import Any, assert_never
 
@@ -18,13 +19,15 @@ from bench.language import (
     QueryResult,
     QueryType,
     RelationReference,
+    ScalarType,
     Select,
     Sort,
     Value,
 )
 
 from .core import DatabaseContext
-from .wiring import pack_column, unpack_row_to_node_value
+from .map import BENCH_CUSTOM_FIELD_PREFIX
+from .wiring import pack_column_flat, unpack_row_to_node_value
 
 logger = structlog.get_logger(__name__)
 tracer = trace.get_tracer(__name__)
@@ -32,9 +35,15 @@ tracer = trace.get_tracer(__name__)
 
 def _compile_value(context: DatabaseContext, arguments_out: list[Any], value: Value) -> str:
     """Compile a Value into a SQL expression."""
-    value_packed = pack_column(value.type, value.value)
-    arguments_out.append(value_packed)
-    return f"${len(arguments_out)}"
+    if value.type.scalar_type == ScalarType.NODE_REFERENCE:
+        # unravel reference column into id
+        value_id = uuid.UUID(value.value["31"])
+        arguments_out.append(value_id)
+        return f"${len(arguments_out)}"
+    else:
+        value_packed = pack_column_flat(value.type, value.value)
+        arguments_out.append(value_packed)
+        return f"${len(arguments_out)}"
 
 
 def _compile_select(context: DatabaseContext, arguments_out: list[Any], select: Select) -> str:
@@ -47,13 +56,21 @@ def _compile_attribute(
 ) -> str:
     """Compile an Attribute into a SQL expression."""
     if attribute.type == AttributeType.PROPERTY:
-        assert attribute.prop is not None, f"no property for {attribute!r}"
-        return attribute.prop.name
+        prop = attribute.prop
+        assert prop is not None, f"no property for {attribute!r}"
+        if prop.scalar_type == "node_reference":
+            # unravel reference column into id
+            return f"{prop.name}_id"
+        else:
+            return prop.name
     elif attribute.type == AttributeType.FIELD:
-        raise NotImplementedError(attribute)
-    elif attribute.type == AttributeType.QUERY:
-        assert attribute.name is not None, f"no name for {attribute!r}"
-        return attribute.name
+        field = attribute.field
+        assert field is not None, f"no field for {attribute!r}"
+        field_name = f"{BENCH_CUSTOM_FIELD_PREFIX}{str(field.id).replace('-', '')}"
+        if field.scalar_type == ScalarType.NODE_REFERENCE:
+            return f"{field_name}_id"
+        else:
+            return field_name
     else:
         assert_never(attribute.type)
 
@@ -187,8 +204,6 @@ async def _execute_select(
     if offset is not None:
         stmt_parts.append(f"OFFSET {offset}")
     stmt = "\n".join(stmt_parts)
-    print(stmt)
-    print(arguments)
 
     # execute
     logger.debug("database.select", stmt=stmt)

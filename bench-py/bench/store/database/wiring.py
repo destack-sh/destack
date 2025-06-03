@@ -23,14 +23,16 @@ from bench.language import (
     Value,
     expand_node_types,
 )
+from bench.language.core.type import TypeBase
 from bench.language.registry import NODE_CLASS_BY_TYPE
 from bench.utils.code import exec_
 from bench.utils.time import timedelta_from_isoformat, timedelta_to_isoformat
 
 from .core import DatabaseTable
 
-# nocheckin :Performance: pregenerate Node row pack/unpack
-
+#
+# Builtin Node values
+#
 
 NODE_ROW_PACK: dict[NodeType, Callable[[Json], Sequence[Any]]] = {}
 NODE_ROW_UNPACK: dict[NodeType, Callable[[asyncpg.Record], Json]] = {}
@@ -212,12 +214,12 @@ def _generate_column_unpack(prop: "Property") -> str:
             unpack_lines.append(f"    _node_ref['31'] = {node_type.value}")
         # bench_id
         if prop.node_has_bench:
-            unpack_lines.append(f"    _node_ref['34'] = row['{prop.name}_bench_id']")
+            unpack_lines.append(f"    _node_ref['34'] = str(row['{prop.name}_bench_id'])")
         elif any(issubclass(NODE_CLASS_BY_TYPE[node_type], IsInBench) for node_type in node_types):
-            unpack_lines.append("    _node_ref['34'] = row.get('bench_id')")
+            unpack_lines.append("    _node_ref['34'] = str(row['bench_id'])")
         # definition_id
         if prop.node_has_definition:
-            unpack_lines.append(f"    _node_ref['35'] = row['{prop.name}_definition_id']")
+            unpack_lines.append(f"    _node_ref['35'] = str(row['{prop.name}_definition_id'])")
 
         unpack_lines.append(f"    node_value['{prop.id}'] = _node_ref")
         return "\n".join(unpack_lines)
@@ -279,11 +281,6 @@ for node_type in NodeType:
     # row pack/unpack
     node_pack_str, extra_glbls = generate_pack_row(node_cls)
     locals: dict[str, Any] = {}
-    print("=" * 80)
-    print(node_cls.__name__ + ":pack")
-    print("=" * 80)
-    print(node_pack_str)
-    print("=" * 80)
     exec_(node_pack_str, extra_glbls, locals, f"{node_cls.__name__}:row_pack")
     NODE_ROW_PACK[node_type] = locals[f"_pack_{node_cls.__name__}_row"]
     NODE_ROW_UNPACK[node_type] = locals[f"_unpack_{node_cls.__name__}_row"]
@@ -314,7 +311,12 @@ def unpack_row_to_node_value(table: DatabaseTable, row: asyncpg.Record) -> Value
     return value
 
 
-def _pack_column_scalar(type: Type, value: Json) -> Any:
+#
+# Dynamic values
+#
+
+
+def pack_column_scalar(type: TypeBase, value: Json) -> Any:
     assert type.scalar_type != ScalarType.NODE_REFERENCE, f"unhandled node ref: {type!r}"
     if type.scalar_type == ScalarType.PRIMITIVE:
         if type.primitive_type == PrimitiveType.BYTES:
@@ -341,18 +343,45 @@ def _pack_column_scalar(type: Type, value: Json) -> Any:
         assert_never(type.scalar_type)
 
 
-def pack_column(type: Type, value_packed: Json) -> Any:
+def pack_column_flat(type: TypeBase, value: Json) -> Any:
+    """Pack a dynamic column value into a single column value."""
     if type.cardinality == TypeCardinality.SCALAR:
-        return _pack_column_scalar(type, value_packed)
+        return pack_column_scalar(type, value)
     elif type.cardinality == TypeCardinality.LIST:
-        return [_pack_column_scalar(type, v) for v in value_packed]
+        return [pack_column_scalar(type, v) for v in value]
     elif type.cardinality == TypeCardinality.MAP:
-        return orjson.dumps(value_packed)  # keep json
+        return orjson.dumps(value)  # keep json
     else:
         assert_never(type.cardinality)
 
 
-def _unpack_column_scalar(type: Type, value: Any) -> Json:
+def pack_column_wide(
+    type: TypeBase, value: Json, column_name: str, column_out: dict[str, Any]
+) -> None:
+    """Pack a dynamic column value into all of its columns."""
+    if type.cardinality == TypeCardinality.SCALAR:
+        if type.scalar_type == ScalarType.NODE_REFERENCE:
+            # node references fan out to multiple columns
+            column_out[f"{column_name}_id"] = uuid.UUID(value["32"])
+            column_out[f"{column_name}_type"] = int(value["31"])
+            column_out[f"{column_name}_bench_id"] = (
+                uuid.UUID(value["34"]) if value.get("34") else None
+            )
+            column_out[f"{column_name}_definition_id"] = (
+                uuid.UUID(value["35"]) if value.get("35") else None
+            )
+        else:
+            value_packed = pack_column_scalar(type, value)
+            column_out[column_name] = value_packed
+    elif type.cardinality == TypeCardinality.LIST:
+        column_out[column_name] = [pack_column_scalar(type, v) for v in value]
+    elif type.cardinality == TypeCardinality.MAP:
+        column_out[column_name] = orjson.dumps(value)  # keep json
+    else:
+        assert_never(type.cardinality)
+
+
+def unpack_column_scalar(type: TypeBase, value: Any) -> Json:
     assert type.scalar_type != ScalarType.NODE_REFERENCE, f"unhandled node ref: {type!r}"
     if type.scalar_type == ScalarType.PRIMITIVE:
         if type.primitive_type == PrimitiveType.BYTES:
@@ -379,11 +408,11 @@ def _unpack_column_scalar(type: Type, value: Any) -> Json:
         assert_never(type.scalar_type)
 
 
-def unpack_column(type: Type, value: Any) -> Json:
+def unpack_column(type: TypeBase, value: Any) -> Json:
     if type.cardinality == TypeCardinality.SCALAR:
-        return _unpack_column_scalar(type, value)
+        return unpack_column_scalar(type, value)
     elif type.cardinality == TypeCardinality.LIST:
-        return [_unpack_column_scalar(type, v) for v in value]
+        return [unpack_column_scalar(type, v) for v in value]
     elif type.cardinality == TypeCardinality.MAP:
         return orjson.loads(value)  # keep json
     else:
