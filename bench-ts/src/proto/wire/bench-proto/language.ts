@@ -320,11 +320,7 @@ export interface AttributeReferenceData {
      */
     fieldPtr?: NodeReferenceData;
     /**
-     * @generated from protobuf field: optional string name = 33;
-     */
-    name?: string;
-    /**
-     * @generated from protobuf field: optional symbol.bench.RelationReferenceData relation = 34;
+     * @generated from protobuf field: optional symbol.bench.RelationReferenceData relation = 33;
      */
     relation?: RelationReferenceData;
 }
@@ -1565,10 +1561,6 @@ export interface EditData {
      * @generated from protobuf field: optional symbol.bench.ValueData value = 40;
      */
     value?: ValueData;
-    /**
-     * @generated from protobuf field: optional symbol.bench.NodeReferenceData parent_ptr = 42;
-     */
-    parentPtr?: NodeReferenceData;
 }
 /**
  * @generated from protobuf message symbol.bench.EffectData
@@ -5211,13 +5203,17 @@ export interface QueryResultData {
      */
     metatype: StructType;
     /**
-     * @generated from protobuf field: symbol.bench.QueryData query = 41;
+     * @generated from protobuf field: string id = 2;
      */
-    query?: QueryData;
+    id: string;
     /**
-     * @generated from protobuf field: repeated symbol.bench.ValueData nodes = 50;
+     * @generated from protobuf field: repeated symbol.bench.ValueData nodes = 41;
      */
     nodes: ValueData[];
+    /**
+     * @generated from protobuf field: repeated symbol.bench.QueryResultData subresults = 42;
+     */
+    subresults: QueryResultData[];
 }
 /**
  * @generated from protobuf message symbol.bench.QueryUpdateData
@@ -8661,11 +8657,7 @@ export enum AttributeType {
     /**
      * @generated from protobuf enum value: ATTRIBUTE_TYPE_FIELD = 2;
      */
-    FIELD = 2,
-    /**
-     * @generated from protobuf enum value: ATTRIBUTE_TYPE_QUERY = 3;
-     */
-    QUERY = 3
+    FIELD = 2
 }
 /**
  * The role of a Bench
@@ -13718,8 +13710,7 @@ class AttributeReferenceData$Type extends MessageType$<AttributeReferenceData> {
             { no: 30, name: "type", kind: "enum", T: () => ["symbol.bench.AttributeType", AttributeType, "ATTRIBUTE_TYPE_"] },
             { no: 31, name: "prop_ptr", kind: "message", T: () => PropertyReferenceData },
             { no: 32, name: "field_ptr", kind: "message", T: () => NodeReferenceData },
-            { no: 33, name: "name", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
-            { no: 34, name: "relation", kind: "message", T: () => RelationReferenceData }
+            { no: 33, name: "relation", kind: "message", T: () => RelationReferenceData }
         ]);
     }
     create(value?: PartialMessage<AttributeReferenceData>): AttributeReferenceData {
@@ -13747,10 +13738,7 @@ class AttributeReferenceData$Type extends MessageType$<AttributeReferenceData> {
                 case /* optional symbol.bench.NodeReferenceData field_ptr */ 32:
                     message.fieldPtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.fieldPtr);
                     break;
-                case /* optional string name */ 33:
-                    message.name = reader.string();
-                    break;
-                case /* optional symbol.bench.RelationReferenceData relation */ 34:
+                case /* optional symbol.bench.RelationReferenceData relation */ 33:
                     message.relation = RelationReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.relation);
                     break;
                 default:
@@ -13777,12 +13765,9 @@ class AttributeReferenceData$Type extends MessageType$<AttributeReferenceData> {
         /* optional symbol.bench.NodeReferenceData field_ptr = 32; */
         if (message.fieldPtr)
             NodeReferenceData.internalBinaryWrite(message.fieldPtr, writer.tag(32, WireType.LengthDelimited).fork(), options).join();
-        /* optional string name = 33; */
-        if (message.name !== undefined)
-            writer.tag(33, WireType.LengthDelimited).string(message.name);
-        /* optional symbol.bench.RelationReferenceData relation = 34; */
+        /* optional symbol.bench.RelationReferenceData relation = 33; */
         if (message.relation)
-            RelationReferenceData.internalBinaryWrite(message.relation, writer.tag(34, WireType.LengthDelimited).fork(), options).join();
+            RelationReferenceData.internalBinaryWrite(message.relation, writer.tag(33, WireType.LengthDelimited).fork(), options).join();
         let u = options.writeUnknownFields;
         if (u !== false)
             (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
@@ -16694,8 +16679,7 @@ class EditData$Type extends MessageType$<EditData> {
             { no: 33, name: "prop_ptr", kind: "message", T: () => PropertyReferenceData },
             { no: 34, name: "field_ptr", kind: "message", T: () => NodeReferenceData },
             { no: 35, name: "key", kind: "message", T: () => ValueData },
-            { no: 40, name: "value", kind: "message", T: () => ValueData },
-            { no: 42, name: "parent_ptr", kind: "message", T: () => NodeReferenceData }
+            { no: 40, name: "value", kind: "message", T: () => ValueData }
         ]);
     }
     create(value?: PartialMessage<EditData>): EditData {
@@ -16739,9 +16723,6 @@ class EditData$Type extends MessageType$<EditData> {
                 case /* optional symbol.bench.ValueData value */ 40:
                     message.value = ValueData.internalBinaryRead(reader, reader.uint32(), options, message.value);
                     break;
-                case /* optional symbol.bench.NodeReferenceData parent_ptr */ 42:
-                    message.parentPtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.parentPtr);
-                    break;
                 default:
                     let u = options.readUnknownField;
                     if (u === "throw")
@@ -16781,9 +16762,6 @@ class EditData$Type extends MessageType$<EditData> {
         /* optional symbol.bench.ValueData value = 40; */
         if (message.value)
             ValueData.internalBinaryWrite(message.value, writer.tag(40, WireType.LengthDelimited).fork(), options).join();
-        /* optional symbol.bench.NodeReferenceData parent_ptr = 42; */
-        if (message.parentPtr)
-            NodeReferenceData.internalBinaryWrite(message.parentPtr, writer.tag(42, WireType.LengthDelimited).fork(), options).join();
         let u = options.writeUnknownFields;
         if (u !== false)
             (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
@@ -24513,14 +24491,17 @@ class QueryResultData$Type extends MessageType$<QueryResultData> {
     constructor() {
         super("symbol.bench.QueryResultData", [
             { no: 1, name: "metatype", kind: "enum", T: () => ["symbol.bench.StructType", StructType, "STRUCT_TYPE_"] },
-            { no: 41, name: "query", kind: "message", T: () => QueryData },
-            { no: 50, name: "nodes", kind: "message", repeat: 1 /*RepeatType.PACKED*/, T: () => ValueData }
+            { no: 2, name: "id", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
+            { no: 41, name: "nodes", kind: "message", repeat: 1 /*RepeatType.PACKED*/, T: () => ValueData },
+            { no: 42, name: "subresults", kind: "message", repeat: 1 /*RepeatType.PACKED*/, T: () => QueryResultData }
         ]);
     }
     create(value?: PartialMessage<QueryResultData>): QueryResultData {
         const message = globalThis.Object.create((this.messagePrototype!));
         message.metatype = 0;
+        message.id = "";
         message.nodes = [];
+        message.subresults = [];
         if (value !== undefined)
             reflectionMergePartial<QueryResultData>(this, message, value);
         return message;
@@ -24533,11 +24514,14 @@ class QueryResultData$Type extends MessageType$<QueryResultData> {
                 case /* symbol.bench.StructType metatype */ 1:
                     message.metatype = reader.int32();
                     break;
-                case /* symbol.bench.QueryData query */ 41:
-                    message.query = QueryData.internalBinaryRead(reader, reader.uint32(), options, message.query);
+                case /* string id */ 2:
+                    message.id = reader.string();
                     break;
-                case /* repeated symbol.bench.ValueData nodes */ 50:
+                case /* repeated symbol.bench.ValueData nodes */ 41:
                     message.nodes.push(ValueData.internalBinaryRead(reader, reader.uint32(), options));
+                    break;
+                case /* repeated symbol.bench.QueryResultData subresults */ 42:
+                    message.subresults.push(QueryResultData.internalBinaryRead(reader, reader.uint32(), options));
                     break;
                 default:
                     let u = options.readUnknownField;
@@ -24554,12 +24538,15 @@ class QueryResultData$Type extends MessageType$<QueryResultData> {
         /* symbol.bench.StructType metatype = 1; */
         if (message.metatype !== 0)
             writer.tag(1, WireType.Varint).int32(message.metatype);
-        /* symbol.bench.QueryData query = 41; */
-        if (message.query)
-            QueryData.internalBinaryWrite(message.query, writer.tag(41, WireType.LengthDelimited).fork(), options).join();
-        /* repeated symbol.bench.ValueData nodes = 50; */
+        /* string id = 2; */
+        if (message.id !== "")
+            writer.tag(2, WireType.LengthDelimited).string(message.id);
+        /* repeated symbol.bench.ValueData nodes = 41; */
         for (let i = 0; i < message.nodes.length; i++)
-            ValueData.internalBinaryWrite(message.nodes[i], writer.tag(50, WireType.LengthDelimited).fork(), options).join();
+            ValueData.internalBinaryWrite(message.nodes[i], writer.tag(41, WireType.LengthDelimited).fork(), options).join();
+        /* repeated symbol.bench.QueryResultData subresults = 42; */
+        for (let i = 0; i < message.subresults.length; i++)
+            QueryResultData.internalBinaryWrite(message.subresults[i], writer.tag(42, WireType.LengthDelimited).fork(), options).join();
         let u = options.writeUnknownFields;
         if (u !== false)
             (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
