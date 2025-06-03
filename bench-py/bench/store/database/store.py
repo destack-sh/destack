@@ -24,7 +24,7 @@ from bench.language import (
     Store,
 )
 
-from .client import pg_connection, pg_transaction
+from .client import pg_connection
 from .core import DatabaseContext, DatabaseTable
 from .edit import execute_change
 from .map import (
@@ -90,7 +90,7 @@ class DatabaseStore(Store):
     @override
     async def commit(self, changes: Sequence[Change]) -> Sequence[ChangeResult]:
         results: list[ChangeResult] = []
-        async with pg_transaction(self.database) as (conn, tx):
+        async with pg_connection(self.database) as conn:
             if self.context is None:
                 self.context = await self._load_context(conn)
 
@@ -103,29 +103,26 @@ class DatabaseStore(Store):
                 )
                 local_context = self.context.copy() if has_custom_edits else self.context
 
-                # apply
                 try:
-                    edits, cascaded_edits = await execute_change(conn, local_context, change)
-                    logger.debug(
-                        "database.commit",
-                        change=change,
-                        edits=edits,
-                        cascaded_edits=cascaded_edits,
-                        context=local_context,
-                        span="current",
-                    )
+                    async with conn.transaction():
+                        edits, cascaded_edits = await execute_change(conn, local_context, change)
+                        logger.debug(
+                            "database.commit",
+                            change=change,
+                            edits=edits,
+                            cascaded_edits=cascaded_edits,
+                            context=local_context,
+                            span="current",
+                        )
+                    # update context if we're mutating custom node definitions
                     result = ChangeResult(
                         id=change.id,
                         status=ChangeStatus.COMPLETED,
                         edits=list(edits),
                         cascaded_edits=list(cascaded_edits),
                     )
-                    await tx.commit()
-
-                    # update context if we're mutating custom node definitions
                     if has_custom_edits:
                         self.context.apply(edits)
-
                 except Exception as e:
                     logger.error("database.commit.error", change=change, exc_info=e, span="current")
                     result = ChangeResult(id=change.id, status=ChangeStatus.FAILED)
