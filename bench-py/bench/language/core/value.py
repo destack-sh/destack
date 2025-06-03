@@ -80,7 +80,13 @@ def __pack_value__(cls, _object: "Self") -> dict[str, "JsonValue"]:
 {pack_value}
 
 @classmethod
-def __unpack_value__(cls, _object_value: dict[str, "JsonValue"], _session: "Session | None" = None, _graph: "Graph | None" = None, _supergraph: "Supergraph | None" = None) -> "Self":
+def __unpack_value__(cls, 
+    _object_value: dict[str, "JsonValue"],
+    _session: "Session | None" = None,
+    _graph: "Graph | None" = None,
+    _supergraph: "Supergraph | None" = None,
+    _connection: "QueryConnection | None" = None,
+) -> "Self":
 {unpack_value}
 
 {to_value}
@@ -141,9 +147,10 @@ def _generate_unpack_value(cls: type["BuiltinObjectBase"]) -> str:
     for assignment in unpack_assignments:
         unpack_method_parts.append(f"    {assignment},")
     if cls.__is_node__:
-        unpack_method_parts.append("    _graph=_graph,")
         unpack_method_parts.append("    _session=_session,")
         unpack_method_parts.append("    _supergraph=_supergraph,")
+        unpack_method_parts.append("    _graph=_graph,")
+        unpack_method_parts.append("    _connection=_connection,")
     else:
         unpack_method_parts.append("    _supergraph=_supergraph,")
     unpack_method_parts.append(")")

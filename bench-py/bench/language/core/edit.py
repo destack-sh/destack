@@ -114,7 +114,9 @@ class ChangeStatus(BuiltinEnum):
 class ChangeResult(StructFrozen):
     """The result of a Change. If rejected, edits/cascaded_edits are empty."""
 
-    id: UUID = property_(2, is_managed=True, description="The id of the Change.")
+    id: UUID = property_(
+        2, is_managed=True, default_factory="uuid", description="The id of the Change."
+    )
     created_at: datetime = property_(
         10,
         is_managed=True,

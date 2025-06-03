@@ -85,7 +85,13 @@ def __pack_proto__(cls, _object: "Self") -> "{cls.__name__}Data":
 {pack_proto}
 
 @classmethod
-def __unpack_proto__(cls, _object_data: "{cls.__name__}Data", _session: "Session | None" = None, _graph: "Graph | None" = None, _supergraph: "Supergraph | None" = None) -> "Self":
+def __unpack_proto__(cls, 
+    _object_data: "{cls.__name__}Data",
+    _session: "Session | None" = None,
+    _graph: "Graph | None" = None,
+    _supergraph: "Supergraph | None" = None,
+    _connection: "QueryConnection | None" = None,
+) -> "Self":
 {unpack_proto}
 
 {to_proto}
@@ -151,6 +157,7 @@ def _generate_unpack_proto(cls: type["BuiltinObjectBase"]) -> str:
         unpack_method_parts.append("    _session=_session,")
         unpack_method_parts.append("    _supergraph=_supergraph,")
         unpack_method_parts.append("    _graph=_graph,")
+        unpack_method_parts.append("    _connection=_connection,")
     else:
         unpack_method_parts.append("    _supergraph=_supergraph,")
     unpack_method_parts.append(")")
