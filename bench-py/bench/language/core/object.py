@@ -46,7 +46,7 @@ from .graph import Graph, Supergraph
 from .property import _PROPERTY_SPECIFIERS, IntoType, Property, property_runtime_
 
 if TYPE_CHECKING:
-    from bench.language import Field, Node
+    from bench.language import Field, Graph, Node, Session
 
 # pyright: reportIncompatibleVariableOverride=false
 
@@ -1191,7 +1191,13 @@ class BuiltinObjectBase[ObjectDataT: AnyObjectData](abc.ABC):
         raise NotImplementedError  # generated
 
     @classmethod
-    def __unpack_proto__(cls, _object_data: ObjectDataT) -> Self:
+    def __unpack_proto__(
+        cls,
+        _object_data: ObjectDataT,
+        _session: "Session | None" = None,
+        _supergraph: "Supergraph | None" = None,
+        _graph: "Graph | None" = None,
+    ) -> Self:
         """Convert from wire format"""
         raise NotImplementedError  # generated
 
@@ -1201,7 +1207,13 @@ class BuiltinObjectBase[ObjectDataT: AnyObjectData](abc.ABC):
         raise NotImplementedError  # generated (usually = __pack_proto__)
 
     @classmethod
-    def from_proto(cls, _object_data: ObjectDataT) -> Self:
+    def from_proto(
+        cls,
+        _object_data: ObjectDataT,
+        _session: "Session | None" = None,
+        _supergraph: "Supergraph | None" = None,
+        _graph: "Graph | None" = None,
+    ) -> Self:
         """Convert from wire format"""
         raise NotImplementedError  # generated
 
@@ -1211,7 +1223,13 @@ class BuiltinObjectBase[ObjectDataT: AnyObjectData](abc.ABC):
         raise NotImplementedError  # generated
 
     @classmethod
-    def __unpack_value__(cls, _object_value: dict) -> Self:
+    def __unpack_value__(
+        cls,
+        _object_value: dict,
+        _session: "Session | None" = None,
+        _supergraph: "Supergraph | None" = None,
+        _graph: "Graph | None" = None,
+    ) -> Self:
         """Convert from value format"""
         raise NotImplementedError  # generated
 
@@ -1221,7 +1239,13 @@ class BuiltinObjectBase[ObjectDataT: AnyObjectData](abc.ABC):
         raise NotImplementedError  # generated (usually = __pack_value__)
 
     @classmethod
-    def from_value(cls, _object_value: dict) -> Self:
+    def from_value(
+        cls,
+        _object_value: dict,
+        _session: "Session | None" = None,
+        _supergraph: "Supergraph | None" = None,
+        _graph: "Graph | None" = None,
+    ) -> Self:
         """Convert from value format"""
         raise NotImplementedError  # generated
 

@@ -61,17 +61,29 @@ def generate_pack_value_impl(cls: type["BuiltinObjectBase"]) -> tuple[str, dict[
     pack_value = textwrap.indent(_generate_pack_value(cls), "    ")
     unpack_value = textwrap.indent(_generate_unpack_value(cls), "    ")
 
+    if cls.__is_frozen__:
+        to_value = """\
+def to_value(self: "Self") -> dict[str, "JsonValue"]:
+    if self._value is None:
+        self._value = self.__pack_value__(self)
+    return self._value
+"""
+    else:
+        to_value = """\
+def to_value(self: "Self") -> dict[str, "JsonValue"]:
+    return self.__pack_value__(self)
+"""
+
     value_impl = f"""
 @classmethod
 def __pack_value__(cls, _object: "Self") -> dict[str, "JsonValue"]:
 {pack_value}
 
 @classmethod
-def __unpack_value__(cls, _object_value: dict[str, "JsonValue"]) -> "Self":
+def __unpack_value__(cls, _object_value: dict[str, "JsonValue"], _session: "Session | None" = None, _graph: "Graph | None" = None, _supergraph: "Supergraph | None" = None) -> "Self":
 {unpack_value}
 
-def to_value(self: "Self") -> dict[str, "JsonValue"]:
-    return self.__pack_value__(self)
+{to_value}
 
 from_value = __unpack_value__
 """
@@ -122,12 +134,18 @@ def _generate_unpack_value(cls: type["BuiltinObjectBase"]) -> str:
         else:
             unpack_method_parts.extend(unpack_code)
             unpack_assignments.append(f"{prop.name}=_unpacked_{prop.name}")
+    if cls.__is_frozen__:
+        unpack_assignments.append("_value = _object_value")
 
     unpack_method_parts.append("return cls(")
-    for i, assignment in enumerate(unpack_assignments):
-        comma = "," if i < len(unpack_assignments) - 1 else ""
-        unpack_method_parts.append(f"    {assignment}{comma}")
-
+    for assignment in unpack_assignments:
+        unpack_method_parts.append(f"    {assignment},")
+    if cls.__is_node__:
+        unpack_method_parts.append("    _graph=_graph,")
+        unpack_method_parts.append("    _session=_session,")
+        unpack_method_parts.append("    _supergraph=_supergraph,")
+    else:
+        unpack_method_parts.append("    _supergraph=_supergraph,")
     unpack_method_parts.append(")")
 
     return "\n".join(unpack_method_parts)

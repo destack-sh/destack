@@ -21,6 +21,7 @@ from .property import _PROPERTY_SPECIFIERS, Property, property_, property_runtim
 
 if TYPE_CHECKING:
     from .meta import StructInfo
+    from .type import Json
 
 # pyright: reportIncompatibleVariableOverride=false
 
@@ -70,6 +71,7 @@ class StructFrozen[StructDataT: AnyStructData](
     """A frozen Struct."""
 
     _proto: "StructDataT | None" = property_runtime_()  # cached for frozen Structs
+    _value: "Json | None" = property_runtime_()  # cached for frozen Structs
 
 
 @struct_(StructType.SCOPE, frozen=True)
