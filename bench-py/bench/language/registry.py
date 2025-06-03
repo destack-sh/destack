@@ -99,6 +99,11 @@ def _complete_bench_setup():
     for node_cls in NODE_CLASS_BY_TYPE.values():
         node_cls.__child_types__ = tuple(child_types_by_parent[node_cls.metatype])
 
+    # finalize properties
+    for metatype, object_cls in BUILTIN_OBJECT_CLASS_BY_TYPE.items():
+        for prop in object_cls.__properties__.values():
+            prop.finalize(metatype)
+
     # generate pack/unpack methods
     from bench.language.core.value import generate_pack_value_impl
     from bench.proto.wiring import generate_pack_proto_impl
@@ -139,7 +144,7 @@ def _complete_bench_setup():
         if name not in Property.__dict__ and name not in ("__annotations__", "__dict__"):
             setattr(Property, name, attr)
 
-    # generate info
+    # generate meta info
     from bench.language.core import EnumInfo, NodeInfo, StructInfo
 
     for node_cls in NODE_CLASS_BY_TYPE.values():

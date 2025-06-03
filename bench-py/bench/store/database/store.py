@@ -178,8 +178,9 @@ class DatabaseStoreContext(DatabaseContext):
         return table
 
     @override
-    def apply(self, edits: Sequence[Edit]):
+    def apply(self, edits: Sequence[Edit]) -> Sequence[Edit]:
+        applied_edits: list[Edit] = []
         for edit in edits:
             if edit.node_type in (NodeType.CUSTOM_NODE_DEFINITION, NodeType.FIELD):
-                return True  # nocheckin: optimistically update context copy
-        return False
+                applied_edits.append(edit)  # nocheckin: optimistically update context copy
+        return applied_edits

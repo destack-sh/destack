@@ -12,6 +12,7 @@ from typing import (
     assert_never,
 )
 
+from bench.language.registry import NODE_CLASS_BY_TYPE
 from bench.utils.func import hash_stable
 from bench.utils.string import Casing, to_casing
 
@@ -350,9 +351,9 @@ class Property(IntoType, IntoQuery if TYPE_CHECKING else object):
     runtime_prop: Optional["Property"] = None  # for the proto property
     node_bench_from: Literal["self"] | None = None
     node_is_customizable: bool = False
-    node_has_node_type: bool = False
-    node_has_definition_id: bool = False
-    node_has_bench_id: bool = False
+    node_has_type: bool = False
+    node_has_bench: bool = False
+    node_has_definition: bool = False
     edge_type: EdgeType | None = None
     cascade: CascadeAction | None = None
 
@@ -520,7 +521,7 @@ class Property(IntoType, IntoQuery if TYPE_CHECKING else object):
 
             return ptr_prop
 
-    def finalize(self, object_type: NodeType | StructType | None) -> None:
+    def determine(self, object_type: NodeType | StructType | None) -> None:
         """Determine type information from annotation, add _ptr property if needed."""
         if not self.is_wired:
             return  # runtime only, nothing to do
@@ -590,6 +591,21 @@ class Property(IntoType, IntoQuery if TYPE_CHECKING else object):
         assert self.primitive_type is not None, (
             f"undetermined type {self.py_type!r} for {self!r} ({annotation!r})"
         )
+
+    def finalize(self, object_type: NodeType | StructType | None) -> None:
+        """Finalize the Property after all BuiltinObjects are defined."""
+        if self.is_node_reference:
+            from .trait import IsInBench, expand_node_types
+
+            node_types = expand_node_types(self.node_types or ())
+            if len(node_types) > 1:
+                self.node_has_type = True
+            if self.node_is_customizable and NodeType.CUSTOM_NODE_INSTANCE in node_types:
+                self.node_has_definition = True
+            if self.node_bench_from is None and any(
+                issubclass(NODE_CLASS_BY_TYPE[node_type], IsInBench) for node_type in node_types
+            ):
+                self.node_has_bench = True
 
 
 def property_(

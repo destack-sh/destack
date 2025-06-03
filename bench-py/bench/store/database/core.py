@@ -484,8 +484,8 @@ class DatabaseContext(abc.ABC):
     """Progressive context for Database operations."""
 
     @abc.abstractmethod
-    def apply(self, edits: Sequence[Edit]) -> bool:
-        """Apply the Edits to the context. Returns True if the context was mutated."""
+    def apply(self, edits: Sequence[Edit]) -> Sequence[Edit]:
+        """Apply the Edits to the context. Returns the Edits that were applied."""
         ...
 
     @abc.abstractmethod
