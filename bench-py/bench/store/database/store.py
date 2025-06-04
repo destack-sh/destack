@@ -112,8 +112,8 @@ class DatabaseStore(Store):
                         logger.debug(
                             "database.commit.change",
                             change=change,
-                            edits=edits,
-                            cascaded_edits=cascaded_edits,
+                            edits=len(edits),
+                            cascaded_edits=len(cascaded_edits),
                             context=local_context,
                             span="current",
                         )

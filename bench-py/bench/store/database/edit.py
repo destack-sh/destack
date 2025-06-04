@@ -220,6 +220,7 @@ WHERE id = $1
             logger.debug(
                 f"database.{edit_type.name.lower()}",
                 change=change,
+                edits=len(edits),
                 cascaded_edits=len(cascaded_edits),
                 stmt=stmt,
                 span="current",
@@ -255,6 +256,7 @@ WHERE id = $1
             logger.debug(
                 "database.erase",
                 change=change,
+                edits=len(edits),
                 cascaded_edits=len(cascaded_edits),
                 stmt=stmt,
                 span="current",
