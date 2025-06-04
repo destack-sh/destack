@@ -12,7 +12,7 @@ from bench.proto import (
     SupervisorClient,
     pack_rpc_headers,
 )
-from bench.sharding import StaticCellProvider, StaticDatabaseProvider
+from bench.sharding import CELL_PROVIDER, DATABASE_PROVIDER
 from bench.test.fixtures import raises_grpc_error
 from bench.test.simulation.core import SimulatedChannel
 from bench.utils.oracle import REAL_ORACLE
@@ -27,8 +27,8 @@ async def supervisor_service(global_database: DatabaseInfo, main_database: Datab
         global_database=global_database,
         network=NullNetwork(),
         oracle=REAL_ORACLE,
-        cell_provider=StaticCellProvider(()),
-        database_provider=StaticDatabaseProvider(()),
+        cell_provider=CELL_PROVIDER,
+        database_provider=DATABASE_PROVIDER,
     )
     await supervisor_service.start()
     yield supervisor_service

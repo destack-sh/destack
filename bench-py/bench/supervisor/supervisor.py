@@ -174,6 +174,7 @@ class SupervisorService(ServiceBase, SupervisorBase):
         main_database = await self.database_provider.acquire(region)
         database = Database(
             tenancy=Tenancy.SHARED,
+            name="Main Database",
             region=region,
             cell_name=cell.name,
             external_name=main_database.external_name,
