@@ -89,7 +89,7 @@ def _generate_pack_scalar_value(prop: "Property", value_expr: str) -> str:
     elif prop.scalar_type == "enum":
         return value_expr
     elif prop.scalar_type == "node_value" or prop.scalar_type == "struct":
-        return f"orjson.dumps({value_expr})"
+        return f"orjson.dumps({value_expr}).decode()"
     else:
         assert_never(prop.scalar_type)
 
@@ -301,7 +301,8 @@ def pack_node_value_to_row(table: DatabaseTable, value: Value) -> Sequence[Any]:
     assert node_type == type.node_type, f"node type mismatch: {node_type!r} != {type.node_type!r}"
 
     node_pack = NODE_ROW_PACK[node_type]
-    return node_pack(value.value)
+    node_packed = node_pack(value.value)
+    return node_packed
 
 
 def unpack_row_to_node_value(table: DatabaseTable, row: asyncpg.Record) -> Value:
