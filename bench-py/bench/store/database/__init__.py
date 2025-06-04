@@ -15,9 +15,9 @@ from .core import (
 )
 from .edit import execute_change
 from .map import (
+    BENCH_BUILTIN_TABLE_PREFIX,
     BENCH_CUSTOM_FIELD_PREFIX,
     BENCH_CUSTOM_TABLE_PREFIX,
-    BENCH_TABLE_PREFIX,
     BUILTIN_GLOBAL_SCHEMA,
     BUILTIN_GLOBAL_TABLES,
     BUILTIN_MAIN_SCHEMA,
@@ -50,9 +50,9 @@ from .query import execute_query
 from .store import DatabaseStore
 
 __all__ = [
+    "BENCH_BUILTIN_TABLE_PREFIX",
     "BENCH_CUSTOM_FIELD_PREFIX",
     "BENCH_CUSTOM_TABLE_PREFIX",
-    "BENCH_TABLE_PREFIX",
     "BUILTIN_GLOBAL_SCHEMA",
     "BUILTIN_GLOBAL_TABLES",
     "BUILTIN_MAIN_SCHEMA",

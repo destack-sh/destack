@@ -216,12 +216,18 @@ def _generate_column_unpack(prop: "Property") -> str:
             unpack_lines.append(f"    _node_ref['31'] = {node_type.value}")
         # bench_id
         if prop.node_has_bench:
-            unpack_lines.append(f"    _node_ref['34'] = str(row['{prop.name}_bench_id'])")
+            unpack_lines.append(
+                f"    _node_ref['34'] = str(row['{prop.name}_bench_id']) if row.get('{prop.name}_bench_id') else None"
+            )
         elif any(issubclass(NODE_CLASS_BY_TYPE[node_type], IsInBench) for node_type in node_types):
-            unpack_lines.append("    _node_ref['34'] = str(row['bench_id'])")
+            unpack_lines.append(
+                "    _node_ref['34'] = str(row['bench_id']) if row.get('bench_id') else None"
+            )
         # definition_id
         if prop.node_has_definition:
-            unpack_lines.append(f"    _node_ref['35'] = str(row['{prop.name}_definition_id'])")
+            unpack_lines.append(
+                f"    _node_ref['35'] = str(row['{prop.name}_definition_id']) if row.get('{prop.name}_definition_id') else None"
+            )
 
         unpack_lines.append(f"    node_value['{prop.id}'] = _node_ref")
         return "\n".join(unpack_lines)

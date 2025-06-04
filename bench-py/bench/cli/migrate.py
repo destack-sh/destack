@@ -34,8 +34,8 @@ async def make(
 ):
     from bench.sharding import get_global_database_from_env
     from bench.store.database import (
+        BENCH_BUILTIN_TABLE_PREFIX,
         BENCH_CUSTOM_TABLE_PREFIX,
-        BENCH_TABLE_PREFIX,
         BUILTIN_GLOBAL_SCHEMA,
         BUILTIN_MAIN_SCHEMA,
         Migration,
@@ -78,7 +78,7 @@ async def make(
         async with pg_connection(main_database) as conn:
             old_main_schema = await introspect_schema(
                 conn,
-                include_table_prefixes=(BENCH_TABLE_PREFIX,),
+                include_table_prefixes=(BENCH_BUILTIN_TABLE_PREFIX,),
                 exclude_table_prefixes=(BENCH_CUSTOM_TABLE_PREFIX,),
             )
         main_migration_ops = generate_migration_ops(
@@ -92,7 +92,7 @@ async def make(
         async with pg_connection(global_database) as conn:
             old_global_schema = await introspect_schema(
                 conn,
-                include_table_prefixes=(BENCH_TABLE_PREFIX,),
+                include_table_prefixes=(BENCH_BUILTIN_TABLE_PREFIX,),
                 exclude_table_prefixes=(BENCH_CUSTOM_TABLE_PREFIX,),
             )
         global_migration_ops = generate_migration_ops(

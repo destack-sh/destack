@@ -24,14 +24,14 @@ from bench.language import (
     RelationType,
     Store,
 )
-from bench.language.registry import NODE_TYPES_BY_TRAIT
+from bench.language.registry import NODE_CLASS_BY_TYPE, NODE_TYPES_BY_TRAIT, RELATION_REF_BY_CLASS
 
 from .client import pg_connection
 from .core import DatabaseContext, DatabaseTable
 from .edit import execute_change
 from .map import (
+    BENCH_BUILTIN_TABLE_PREFIX,
     BENCH_CUSTOM_TABLE_PREFIX,
-    BENCH_TABLE_PREFIX,
     BUILTIN_TABLE_BY_AREA,
     BUILTIN_TABLE_BY_NAME,
 )
@@ -177,8 +177,7 @@ class DatabaseStoreContext(DatabaseContext):
             assert relation.trait_type is not None, f"no trait_type for {relation!r}"
             node_types = NODE_TYPES_BY_TRAIT.get(relation.trait_type, ())
             return tuple(
-                RelationReference(type=RelationType.BUILTIN_NODE, node_type=node_type)
-                for node_type in node_types
+                RELATION_REF_BY_CLASS[NODE_CLASS_BY_TYPE[node_type]] for node_type in node_types
             )
         else:
             assert_never(relation.type)
@@ -188,14 +187,14 @@ class DatabaseStoreContext(DatabaseContext):
         # map relations to table names
         if isinstance(relation, NodeReference):
             if relation.node_type != NodeType.CUSTOM_NODE_INSTANCE:
-                table_name = f"{BENCH_TABLE_PREFIX}{relation.node_type.name.lower()}"
+                table_name = f"{BENCH_BUILTIN_TABLE_PREFIX}{relation.node_type.name.lower()}"
             else:
                 assert relation.definition_id is not None, f"no definition_id for {relation!r}"
                 table_name = f"{BENCH_CUSTOM_TABLE_PREFIX}{relation.definition_id}"
         elif isinstance(relation, RelationReference):
             if relation.type == RelationType.BUILTIN_NODE:
                 assert relation.node_type is not None, f"no node_type for {relation!r}"
-                table_name = f"{BENCH_TABLE_PREFIX}{relation.node_type.name.lower()}"
+                table_name = f"{BENCH_BUILTIN_TABLE_PREFIX}{relation.node_type.name.lower()}"
             elif relation.type == RelationType.CUSTOM_NODE:
                 assert relation.definition_id is not None, f"no definition_id for {relation!r}"
                 table_name = f"{BENCH_CUSTOM_TABLE_PREFIX}{relation.definition_id}"

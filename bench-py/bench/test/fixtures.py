@@ -18,8 +18,8 @@ _setup_test_env()
 from bench.language import REGION, DatabaseInfo, Tenancy
 from bench.sharding import get_global_database_from_env
 from bench.store.database import (
+    BENCH_BUILTIN_TABLE_PREFIX,
     BENCH_CUSTOM_TABLE_PREFIX,
-    BENCH_TABLE_PREFIX,
     BUILTIN_GLOBAL_SCHEMA,
     BUILTIN_GLOBAL_TABLES,
     BUILTIN_MAIN_SCHEMA,
@@ -65,7 +65,7 @@ async def create_test_db(database: DatabaseInfo, schema: DatabaseSchema):
     async with pg_connection(database) as conn:
         old_schema = await introspect_schema(
             conn,
-            include_table_prefixes=(BENCH_TABLE_PREFIX,),
+            include_table_prefixes=(BENCH_BUILTIN_TABLE_PREFIX,),
             exclude_table_prefixes=(BENCH_CUSTOM_TABLE_PREFIX,),
         )
         migration_ops = generate_migration_ops(old_schema=old_schema, new_schema=schema)

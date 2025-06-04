@@ -22,14 +22,14 @@ from .core import (
 )
 from .core import DatabaseTable as DatabaseTable
 
-BENCH_TABLE_PREFIX = "bench_"
+BENCH_BUILTIN_TABLE_PREFIX = "bench_"
 BENCH_CUSTOM_TABLE_PREFIX = "bench_custom_"
 BENCH_CUSTOM_FIELD_PREFIX = "field_"
 
 
 def get_table_name(node_ptr: NodeReference) -> str:
     if node_ptr.node_type != NodeType.CUSTOM_NODE_INSTANCE:
-        return f"{BENCH_TABLE_PREFIX}{node_ptr.node_type.name.lower()}"
+        return f"{BENCH_BUILTIN_TABLE_PREFIX}{node_ptr.node_type.name.lower()}"
     else:
         assert node_ptr.definition_id is not None, f"no definition_id for {node_ptr!r}"
         return f"{BENCH_CUSTOM_TABLE_PREFIX}{node_ptr.definition_id}"
@@ -38,7 +38,7 @@ def get_table_name(node_ptr: NodeReference) -> str:
 def map_builtin_node_to_database_table(node: type[Node]) -> DatabaseTable:
     """Maps a node type into its builtin Table schema."""
 
-    table_name = f"{BENCH_TABLE_PREFIX}{node.metatype.name.lower()}"
+    table_name = f"{BENCH_BUILTIN_TABLE_PREFIX}{node.metatype.name.lower()}"
     columns: list[DatabaseColumn] = []
     constraints: list[DatabaseConstraint] = []
     indexes: list[DatabaseIndex] = []

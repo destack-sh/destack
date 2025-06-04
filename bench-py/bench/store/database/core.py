@@ -495,7 +495,7 @@ class DatabaseContext(abc.ABC):
 
     @abc.abstractmethod
     def get_relation(self, relation: RelationReference | NodeReference) -> DatabaseTable:
-        """Get the Table for a node / relation."""
+        """Get the (single) Table for a node / relation. Doesn't work for multi-relations."""
         ...
 
 
