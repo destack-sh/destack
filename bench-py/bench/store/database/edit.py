@@ -122,7 +122,7 @@ VALUES ({", ".join(f"${i + 1}" for i in range(len(table.columns)))})
                 if not col.is_primary_key and not col.name.startswith("created_")
             )
             stmt += f"""\
-ON CONFLICT DO UPDATE
+ON CONFLICT (id) DO UPDATE
 SET {", ".join(f"{col.name} = EXCLUDED.{col.name}" for col in override_columns)}
 """
         stmt += ";"

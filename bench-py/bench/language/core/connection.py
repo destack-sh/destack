@@ -74,10 +74,10 @@ class QueryConnection[RootT: "Node"]:
     def to_one_or_none(self) -> Optional[RootT]:
         """Get the root Node (if any)."""
         assert self.result is not None, f"no result for {self!r}"
-        assert len(self.roots) == 1, (
-            f"expected 1 root, got {len(self.roots)} in {self!r}: {self.roots!r}"
+        assert len(self.roots) <= 1, (
+            f"expected 0-1 root, got {len(self.roots)} in {self!r}: {self.roots!r}"
         )
-        return self.roots[0]
+        return self.roots[0] if self.roots else None
 
     def to_one(self) -> RootT:
         """Get the root Node (error if none)."""
