@@ -275,9 +275,7 @@ class SupervisorService(ServiceBase, SupervisorBase):
 
         logger.info("supervisor.login_user", user=user, client=client, span="current")
         return LoginUserResponse(
-            user=user.to_proto(),
-            client=client.to_proto(),
-            access_token=client.access_token,
+            user=user.to_proto(), client=client.to_proto(), access_token=client.access_token
         )
 
     @override
@@ -292,7 +290,7 @@ class SupervisorService(ServiceBase, SupervisorBase):
         if client is None:
             raise GRPCError(GRPCStatus.UNAUTHENTICATED, "not logged in")
         if not isinstance(subject, User):
-            raise GRPCError(GRPCStatus.FAILED_PRECONDITION, "not a user")
+            raise GRPCError(GRPCStatus.FAILED_PRECONDITION, f"{subject!r} is not a User")
 
         # log out the current or the specified clients
         if request.clients:

@@ -166,8 +166,8 @@ class TypeBase(BuiltinObjectMutable):
         base_ptr: Optional["NodeReference"] = None
 
     # meta
-    is_required: bool = property_(50, default=False)
-    is_variable: bool = property_(51, default=False)
+    is_required: bool | None = property_(50)
+    is_variable: bool | None = property_(51)
     # is_external
     default: Optional["Value"] = property_(55)
     default_factory: Optional[DefaultFactory] = property_(56)

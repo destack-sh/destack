@@ -5,7 +5,6 @@ from fastuuid import UUID
 from bench.language.core import (
     BuiltinEnum,
     EnumType,
-    HasName,
     IsArchivable,
     IsBlockable,
     IsDeletable,
@@ -69,7 +68,6 @@ BLOCK_TYPES: tuple[BlockType, ...] = tuple(BlockType)
 class Block(
     IsTemplatable,
     IsModal,
-    HasName,
     IsOrdered,
     IsInPackage,
     IsArchivable,

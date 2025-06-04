@@ -170,7 +170,7 @@ ACTIVE_ALIASING: contextvars.ContextVar[Aliasing | None] = contextvars.ContextVa
 
 
 def get_active_aliasing() -> Aliasing | None:
-    return ACTIVE_ALIASING.get()
+    return ACTIVE_ALIASING.get(None)
 
 
 class Renderer:

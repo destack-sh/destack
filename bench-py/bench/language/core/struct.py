@@ -71,12 +71,14 @@ class StructFrozen[StructDataT: AnyStructData](
     """A frozen Struct."""
 
     # cached for frozen Structs
+    _hash: "int | None" = property_runtime_()
+    _repr: "str | None" = property_runtime_()
     _proto: "StructDataT | None" = property_runtime_()
     _value: "Json | None" = property_runtime_()
-    _repr: "str | None" = property_runtime_()
 
     def _invalidate_frozen_cache(self) -> None:
         # frozen Structs should be immutable, but sometimes we need to break out of that
+        object.__setattr__(self, "_hash", None)
         object.__setattr__(self, "_proto", None)
         object.__setattr__(self, "_value", None)
         object.__setattr__(self, "_repr", None)

@@ -370,7 +370,8 @@ class EnumType(BuiltinEnum):
     NUMBER_FORMAT = 42111
     FIELD_TYPE = 42120
     EDGE_TYPE = 42121
-    CASCADE_ACTION = 42122
+    EDGE_DIRECTION = 42122
+    CASCADE_ACTION = 42123
     DAY = 42130
     MONTH = 42131
     TIME_INTERVAL = 42132
@@ -1094,6 +1095,13 @@ class CascadeAction(BuiltinEnum):
     CASCADE = 2
     SET_NULL = 3
     # SET_DEFAULT, NONE, ...
+
+
+@enum_(EnumType.EDGE_DIRECTION)
+class EdgeDirection(BuiltinEnum):
+    PARENT = 1
+    CHILD = 2
+    SIDE = 3
 
 
 @enum_(EnumType.PRIMITIVE_TYPE)

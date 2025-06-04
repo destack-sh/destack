@@ -16,6 +16,7 @@ from bench.language import (
     Expression,
     ExpressionType,
     Function,
+    NodeReference,
     Query,
     QueryResult,
     QueryResultGroup,
@@ -27,6 +28,7 @@ from bench.language import (
     Value,
     to_value,
 )
+from bench.language.core.const import EdgeDirection
 
 from .core import DatabaseContext
 from .map import BENCH_CUSTOM_FIELD_PREFIX
@@ -246,8 +248,21 @@ def _compile_expression(
         assert_never(expr.type)
 
 
-@tracer.start_as_current_span("database.execute_node_query")
-async def _execute_node_query(
+@tracer.start_as_current_span("database.walk_node")
+async def _walk_node(
+    conn: asyncpg.Connection,
+    context: DatabaseContext,
+    relation: RelationReference,
+    roots: Sequence[NodeReference],
+    direction: EdgeDirection,
+    recursive: bool,
+) -> Sequence[NodeReference]:
+    """Get the cascaded Nodes for a query."""
+    raise NotImplementedError
+
+
+@tracer.start_as_current_span("database.query_node")
+async def _query_node(
     conn: asyncpg.Connection,
     context: DatabaseContext,
     relation: RelationReference,
@@ -286,8 +301,8 @@ async def _execute_node_query(
     return node_values
 
 
-@tracer.start_as_current_span("database.execute_scalar_query")
-async def _execute_scalar_query(
+@tracer.start_as_current_span("database.query_scalar")
+async def _query_scalar(
     conn: asyncpg.Connection,
     context: DatabaseContext,
     relation: RelationReference,
@@ -321,8 +336,8 @@ async def _execute_scalar_query(
         return to_value(scalar_row[0])
 
 
-@tracer.start_as_current_span("database.execute_grouped_node_query")
-async def _execute_grouped_node_query(
+@tracer.start_as_current_span("database.query_grouped_node")
+async def _query_grouped_node(
     conn: asyncpg.Connection,
     context: DatabaseContext,
     relation: RelationReference,
@@ -339,8 +354,8 @@ async def _execute_grouped_node_query(
     raise NotImplementedError
 
 
-@tracer.start_as_current_span("database.execute_grouped_scalar_query")
-async def _execute_grouped_scalar_query(
+@tracer.start_as_current_span("database.query_grouped_scalar")
+async def _query_grouped_scalar(
     conn: asyncpg.Connection,
     context: DatabaseContext,
     relation: RelationReference,
@@ -353,15 +368,15 @@ async def _execute_grouped_scalar_query(
     raise NotImplementedError
 
 
-@tracer.start_as_current_span("database.execute_query")
-async def execute_query(
+@tracer.start_as_current_span("database.query_clause")
+async def _query_clause(
     conn: asyncpg.Connection, context: DatabaseContext, query: Query
 ) -> QueryResult:
-    """Execute the Query."""
+    """Execute the specific Query "clause" (ignoring subqueries)."""
 
     if query.type == QueryType.NODE:
         assert query.join is None, f"root-level join: {query!r}"
-        nodes = await _execute_node_query(
+        nodes = await _query_node(
             conn=conn,
             context=context,
             relation=query.relation,
@@ -372,10 +387,9 @@ async def execute_query(
             offset=query.offset,
         )
         result = QueryResult(id=query.id, type=query.type, nodes=nodes)
-        return result
     elif query.type == QueryType.SCALAR:
         assert query.aggregation is not None, f"no aggregation for {query!r}"
-        scalar = await _execute_scalar_query(
+        scalar = await _query_scalar(
             conn=conn,
             context=context,
             relation=query.relation,
@@ -387,7 +401,6 @@ async def execute_query(
             result.exists = scalar.unpack(bool)
         elif query.aggregation.type == AggregationType.COUNT:
             result.count = scalar.unpack(int)
-        return result
     elif query.type == QueryType.GROUPED_NODE:
         assert query.group_by is not None, f"no group_by for {query!r}"
         raise NotImplementedError(query)
@@ -397,3 +410,18 @@ async def execute_query(
         raise NotImplementedError(query)
     else:
         assert_never(query.type)
+
+    logger.debug("database.query_clause", query=query, result=result, span="current")
+    return result
+
+
+@tracer.start_as_current_span("database.query")
+async def execute_query(
+    conn: asyncpg.Connection, context: DatabaseContext, query: Query
+) -> QueryResult:
+    """Execute the Query."""
+
+    result = await _query_clause(conn=conn, context=context, query=query)
+
+    logger.debug("database.query", query=query, result=result, span="current")
+    return result

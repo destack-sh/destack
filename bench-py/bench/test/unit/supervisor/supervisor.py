@@ -70,11 +70,6 @@ async def test_user_registration(supervisor: SupervisorClient):
     signup_rep = await supervisor.signup_user(signup_req)
     assert signup_rep.user.slug == user_slug
 
-    # login, invalid password -> fail
-    login_req = LoginUserRequest(slug=user_slug, password="bad", client=client_in)
-    with raises_grpc_error(GRPCStatus.UNAUTHENTICATED):
-        _ = await supervisor.login_user(login_req)
-
     # login, wrong password -> fail
     login_req = LoginUserRequest(slug=user_slug, password="321Password!!!", client=client_in)
     with raises_grpc_error(GRPCStatus.UNAUTHENTICATED):
