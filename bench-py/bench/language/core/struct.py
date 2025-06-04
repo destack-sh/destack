@@ -75,6 +75,12 @@ class StructFrozen[StructDataT: AnyStructData](
     _value: "Json | None" = property_runtime_()
     _repr: "str | None" = property_runtime_()
 
+    def _invalidate_frozen_cache(self) -> None:
+        # frozen Structs should be immutable, but sometimes we need to break out of that
+        object.__setattr__(self, "_proto", None)
+        object.__setattr__(self, "_value", None)
+        object.__setattr__(self, "_repr", None)
+
 
 @struct_(StructType.SCOPE, frozen=True)
 class Scope(StructFrozen[ScopeData]):
