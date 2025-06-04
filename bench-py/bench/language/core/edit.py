@@ -94,9 +94,10 @@ class Change(StructFrozen):
 
     # meta
     id: UUID = property_(2, is_managed=True, is_repr=True, default_factory="uuid")
-    created_at: datetime = property_(31, is_managed=True, is_repr=True, default_factory="now")
-    created_by: "IsSubject | None" = property_(32, is_managed=True, is_repr=True)
-    origin: "Origin | None" = property_(33, is_managed=True, is_repr=True)
+    name: str | None = property_(31, is_repr=True)
+    created_at: datetime = property_(32, is_managed=True, is_repr=True, default_factory="now")
+    created_by: "IsSubject | None" = property_(33, is_managed=True, is_repr=True)
+    origin: "Origin | None" = property_(34, is_managed=True, is_repr=True)
 
     edits: list[Edit] = property_(40)
 

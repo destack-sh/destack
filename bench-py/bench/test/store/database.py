@@ -9,11 +9,14 @@ from bench.language import (
     DatabaseInfo,
     NodeReference,
     NodeType,
+    Page,
     Session,
+    TraitType,
     User,
     UserStatus,
 )
-from bench.language.core.const import TraitType
+from bench.language.core.text import text_line
+from bench.language.space.block import Block, BlockType
 from bench.store import DatabaseStore
 
 
@@ -67,6 +70,31 @@ async def test_create_user(session: Session):
     # count
     user_count = await User.count().execute_count()
     assert user_count == 1
+
+
+async def test_create_page(session: Session):
+    """Create a Page, mutate it, querying along the way."""
+    # not exists
+    assert not await Page.exists().execute_exists()
+    # create
+    page = Page(title=text_line("*Test Page*"), slug="test")
+    session.create(page)
+    await session.commit()
+    # blocks (nested)
+    blocks: list[Block] = []
+    for i in range(10):
+        parent_block = Block(type=BlockType.PARAGRAPH, line=text_line(f"Test Block {i}"))
+        blocks.append(parent_block)
+        for j in range(10):
+            inner_block = Block(type=BlockType.PARAGRAPH, line=text_line(f"Inner Block {i}/{j}"))
+            parent_block.add_child(inner_block)
+            for k in range(10):
+                inner_inner_block = Block(
+                    type=BlockType.PARAGRAPH, line=text_line(f"Inner Inner Block {i}/{j}/{k}")
+                )
+                inner_block.add_child(inner_inner_block)
+    page.add_children(*blocks)
+    await session.commit()
 
 
 async def test_create_custom_node(session: Session):

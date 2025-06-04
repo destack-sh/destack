@@ -69,11 +69,10 @@ async def execute_change(
     return change.edits, cascaded_edits
 
 
-@tracer.start_as_current_span("database.cascade_nodes")
-async def _cascade_nodes(
+@tracer.start_as_current_span("database.execute_cascade")
+async def _execute_cascade(
     conn: asyncpg.Connection,
     context: DatabaseContext,
-    change: Change,
     table: DatabaseTable,
     node_ptrs: Sequence[NodeReference],
 ) -> Sequence[NodeReference]:
@@ -184,10 +183,9 @@ WHERE id = ${len(update) + 1}
         EditType.RESTORE,
     ):
         # cascade
-        cascaded_node_ptrs = await _cascade_nodes(
+        cascaded_node_ptrs = await _execute_cascade(
             conn=conn,
             context=context,
-            change=change,
             table=table,
             node_ptrs=tuple(edit.node_ptr for edit in edits),
         )
@@ -232,10 +230,9 @@ WHERE id = $1
     # erase
     elif edit_type == EditType.ERASE:
         # cascade
-        cascaded_node_ptrs = await _cascade_nodes(
+        cascaded_node_ptrs = await _execute_cascade(
             conn=conn,
             context=context,
-            change=change,
             table=table,
             node_ptrs=tuple(edit.node_ptr for edit in edits),
         )
