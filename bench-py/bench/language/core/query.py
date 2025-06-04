@@ -344,7 +344,7 @@ class Join(StructFrozen):
     type: JoinType = property_(30, is_repr=True)
     relation: Optional[RelationReference] = property_(31, is_repr=True)
     on: Optional[Condition] = property_(32, is_repr=True)
-    recursive: bool = property_(33, is_repr=True)  # for parent/child joins
+    recursive: bool = property_(33, default=False, is_repr=True)  # for parent/child joins
 
 
 JoinIn = Union[Join, "JoinType"]
@@ -393,7 +393,12 @@ class Query[RootT: "Node"](StructFrozen):
         is_repr=True,
     )
     relation: RelationReference = property_(32, is_repr=True)
-    join: Optional[Join] = property_(33, description="Relative to parent Query.", is_repr=True)
+    join: Optional[Join] = property_(
+        33,
+        description="Relative to parent Query.",
+        default=Join(type=JoinType.CHILD),
+        is_repr=True,
+    )
     select: Optional[Select] = property_(34, is_repr=True)
     subqueries: list["Query"] = property_(35)
     is_live: bool = property_(39, default=True)
@@ -457,7 +462,7 @@ def to_subqueries(subqueries: dict[str, "Query"]) -> list["Query"]:
     """Turn Queries into subqueries with default names & parent joins."""
     for name, subquery in subqueries.items():
         if subquery.join is None:
-            subquery.join = join(JoinType.PARENT)
+            subquery.join = join(JoinType.CHILD)
         subquery.name = name
     return list(subqueries.values())
 

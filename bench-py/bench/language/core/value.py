@@ -309,6 +309,8 @@ def to_value(value_unpacked: Any, type: "Type | None" = None, node_as_value: boo
     """
     # infer type
     if type is None:
+        if value_unpacked is None:
+            raise ValueError("cannot infer type for None")
         type = to_type(value_unpacked, node_as_value=node_as_value)
     # coerce nodes into node references
     if type.scalar_type == ScalarType.NODE_REFERENCE:

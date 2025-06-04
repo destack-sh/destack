@@ -133,8 +133,12 @@ def _generate_init_impl[ObjectT: BuiltinObjectBase](
         elif isinstance(prop.default, Enum):
             default_str = f"{prop.default.__class__.__name__}.{prop.default.name}"
             extra_glbls[prop.default.__class__.__name__] = prop.default.__class__
-        else:
+        elif prop.default is None or isinstance(prop.default, (bool, int, float, str, bytes, UUID)):
             default_str = repr(prop.default)
+        else:
+            default_name = f"_default_{prop.name}"
+            extra_glbls[default_name] = prop.default
+            default_str = default_name
         method_header_lines.append(f"{prop.name}={default_str}")
 
     method_header_lines.append(")")

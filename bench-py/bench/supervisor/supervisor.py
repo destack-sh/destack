@@ -14,6 +14,7 @@ from bench.language import (
     DatabaseInfo,
     Handle,
     IsSubject,
+    JoinType,
     NodeArea,
     NodeType,
     Package,
@@ -23,6 +24,7 @@ from bench.language import (
     User,
     UserStatus,
     bittuple,
+    join,
 )
 from bench.pb2 import RpcMetadata
 from bench.proto import (
@@ -42,7 +44,7 @@ from bench.proto import (
     SupervisorBase,
 )
 from bench.sharding import CellProvider, DatabaseProvider
-from bench.store import DatabaseStore, SplitStore
+from bench.store import DatabaseStore
 from bench.utils.func import generate_access_token, generate_salt
 from bench.utils.oracle import Oracle
 
@@ -115,6 +117,7 @@ class SupervisorService(ServiceBase, SupervisorBase):
             return None, None
         client = await Client.get(
             where=Client.property("access_token").eq(metadata.client_access_token),
+            ParentUser=User.search(join=join(JoinType.PARENT)),
         ).execute_one_or_none()
         if client is None:
             return None, None
@@ -180,16 +183,17 @@ class SupervisorService(ServiceBase, SupervisorBase):
             custom_schema_name=main_database.custom_schema_name,
         )
         bench.database = database
-        session.store = SplitStore(
-            store_by_area={
-                NodeArea.GLOBAL_DATABASE: DatabaseStore(
-                    database=self.global_database, area=NodeArea.GLOBAL_DATABASE
-                ),
-                NodeArea.MAIN_DATABASE: DatabaseStore(
-                    database=main_database, area=NodeArea.MAIN_DATABASE
-                ),
-            },
-        )
+        # nocheckin: SplitStore
+        # session.store = SplitStore(
+        #     store_by_area={
+        #         NodeArea.GLOBAL_DATABASE: DatabaseStore(
+        #             database=self.global_database, area=NodeArea.GLOBAL_DATABASE
+        #         ),
+        #         NodeArea.MAIN_DATABASE: DatabaseStore(
+        #             database=main_database, area=NodeArea.MAIN_DATABASE
+        #         ),
+        #     },
+        # )
         await session.stage()
 
         # create main Package
@@ -198,16 +202,17 @@ class SupervisorService(ServiceBase, SupervisorBase):
         bench.main_package = main_package
         await session.stage()
 
-        bench.status = BenchStatus.RUNNING
-
         # done
+        bench.status = BenchStatus.RUNNING
         user.bench = bench
         user.status = UserStatus.ACTIVE
         await session.commit()
 
         logger.info("supervisor.signup_user", user=user, client=client, span="current")
         return SignupUserResponse(
-            user=user.to_proto(), client=client.to_proto(), access_token=client.access_token
+            user=user.to_proto(),
+            client=client.to_proto(),
+            access_token=client.access_token,
         )
 
     @override

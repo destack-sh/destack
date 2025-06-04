@@ -14,7 +14,7 @@ from bench.language import (
 class SplitStore(Store):
     """
     Split and route Queries and Changes to the appropriate Stores.
-    Does not (yet) support atomic Changes across Stores.
+    Does not support atomic Changes across Stores (yet).
     """
 
     def __init__(self, store_by_area: Mapping[NodeArea, Store]):

@@ -136,11 +136,16 @@ class IntoType:
             Type,
             TypeCardinality,
         )
+        from .value import to_value
 
         # type
         type_cardinality = TypeCardinality[self.cardinality.upper()]
         scalar_type = ScalarType[self.scalar_type.upper()]
-        default = self.default if self.default is not UNSET else None
+        default = (
+            to_value(self.default)
+            if self.default is not UNSET and self.default is not None
+            else None
+        )
         default_factory = (
             DefaultFactory[self.default_factory.upper()] if self.default_factory else None
         )
