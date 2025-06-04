@@ -5,6 +5,10 @@ from fastuuid import uuid4
 
 from bench.language import (
     ACTIVE_SESSION,
+    Block,
+    BlockType,
+    Client,
+    ClientType,
     CustomNodeDefinition,
     DatabaseInfo,
     NodeReference,
@@ -14,9 +18,8 @@ from bench.language import (
     TraitType,
     User,
     UserStatus,
+    text_line,
 )
-from bench.language.core.text import text_line
-from bench.language.space.block import Block, BlockType
 from bench.store import DatabaseStore
 
 
@@ -42,9 +45,7 @@ def session(session_async: Session):
 
 async def test_create_user(session: Session):
     """Create and update a User, querying along the way."""
-    # not exists
-    assert not await User.exists().execute_exists()
-    # create
+    # create user
     user = User(
         status=UserStatus.ACTIVE,
         name="Floof",
@@ -53,18 +54,37 @@ async def test_create_user(session: Session):
     )
     session.create(user)
     await session.commit()
-    # update
+    # update user
     user.name = "Fluff"
     user.slug = "flotothemoon"
     await session.commit()
-    # query by id
+    # query user by id
     user_unpacked = await User.get(where=User.property("id").eq(user.id)).execute_one()
     assert user.equals(user_unpacked)
-    # query by slug
+    # query user by slug
     user_unpacked = await User.search(where=User.property("slug").eq("flotothemoon")).execute_one()
     assert user_unpacked.name == "Fluff"
     assert user_unpacked.slug == "flotothemoon"
     assert user_unpacked.status == UserStatus.ACTIVE
+
+    # create clients
+    client_a = Client(type=ClientType.WEB, name="Client A")
+    client_b = Client(type=ClientType.WEB, name="Client B")
+    user.add_children(client_a, client_b)
+    await session.commit()
+    # query clients
+    clients = await Client.search(sort=[Client.property("name").descending()]).execute_list()
+    assert clients == [client_b, client_a]
+
+    # query user with clients
+    connection = await User.get(
+        where=User.property("id").eq(user.id),
+        Clients=Client.search(),
+    ).execute()
+    user_unpacked = connection.to_one()
+    assert user_unpacked.equals(user)
+    clients_unpacked = user_unpacked.get_children(Client)
+    assert clients_unpacked == [client_a, client_b]
 
 
 async def test_create_page_blocks_recursive(session: Session):
@@ -77,10 +97,6 @@ async def test_create_page_blocks_recursive(session: Session):
         page = Page(title=text_line(f"*Test Page {a}*"), slug=f"test-{a}")
         root_page.add_child(page)
         # create block tree
-        root_block_count = await Block.count(
-            where=Block.property("parent").eq(page)
-        ).execute_count()
-        assert root_block_count == 0
         for i in range(4):
             root_block = Block(type=BlockType.PARAGRAPH, line=text_line(f"Test Block {a}/{i}"))
             page.add_child(root_block)

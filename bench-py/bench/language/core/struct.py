@@ -103,7 +103,7 @@ class RelationType(BuiltinEnum):
 
 @struct_(StructType.RELATION_REFERENCE, frozen=True)
 class RelationReference(StructFrozen):
-    """Reference to a Node (builtin or custom)."""
+    """Reference to a Node "type" (builtin or custom, i.e. a "relation")."""
 
     type: RelationType = property_(30, is_repr=True)
     node_type: Optional[NodeType] = property_(31, is_repr=True)
