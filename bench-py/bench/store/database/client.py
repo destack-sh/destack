@@ -4,14 +4,14 @@ from contextlib import asynccontextmanager
 import asyncpg
 import asyncpg.transaction
 
-from bench.language import DatabaseInfo
+from bench.language import DatabaseBase
 
 # NOTE: we never expire/remove Pools since we assume only a few connections
 _pool_by_url: dict[str, asyncpg.Pool] = {}
 
 
 @asynccontextmanager
-async def pg_connection(database: DatabaseInfo) -> AsyncGenerator[asyncpg.Connection, None]:
+async def pg_connection(database: DatabaseBase) -> AsyncGenerator[asyncpg.Connection, None]:
     """
     Context manager for an asyncpg.Connection.
     """
@@ -29,7 +29,7 @@ async def pg_connection(database: DatabaseInfo) -> AsyncGenerator[asyncpg.Connec
 
 @asynccontextmanager
 async def pg_transaction(
-    database: DatabaseInfo,
+    database: DatabaseBase,
 ) -> AsyncGenerator[tuple[asyncpg.Connection, asyncpg.transaction.Transaction], None]:
     """
     Context manager for an asyncpg.Transaction.

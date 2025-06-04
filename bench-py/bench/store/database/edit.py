@@ -7,7 +7,7 @@ import asyncpg
 import structlog
 from opentelemetry import trace
 
-from bench.language import Change, Edit, EditType, NodeReference, ScalarType
+from bench.language import Change, Edit, EditOperation, EditType, NodeReference, ScalarType
 from bench.language.registry import NODE_CLASS_BY_TYPE
 
 from .core import DatabaseContext, DatabaseTable
@@ -141,6 +141,9 @@ SET {", ".join(f"{col.name} = EXCLUDED.{col.name}" for col in override_columns)}
             prop = edit.prop
             assert prop is not None, f"no prop for {edit!r}"
             assert edit.value is not None, f"no value for {edit!r}"
+            assert edit.operation in (EditOperation.SET, EditOperation.CLEAR), (
+                f"unsupported operation: {edit!r}"
+            )
             update: dict[str, Any] = {}
             pack_column_wide(prop.type, edit.value.value, table, prop.name, update)
             stmt = f"""\

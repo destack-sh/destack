@@ -418,6 +418,7 @@ class Query[RootT: "Node"](StructFrozen):
         store = session.store
         assert store is not None, f"no store in {session!r}"
         connection = QueryConnection(self, store, session)
+        session.connections.append(connection)
         await connection.execute()
         return connection
 

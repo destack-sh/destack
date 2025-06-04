@@ -2,18 +2,18 @@ import abc
 from collections.abc import Sequence
 from typing import TYPE_CHECKING, override
 
-from bench.language.core.const import REGION_BY_SLUG, Region
+from bench.language import REGION_BY_SLUG, Bench, DatabaseInfo, Region, Tenancy
 
 if TYPE_CHECKING:
-    from bench.language import DatabaseInfo
+    pass
 
 
 class DatabaseProvider(abc.ABC):
     """A provider of known Bench-level Databases (excluding the global database)."""
 
     @abc.abstractmethod
-    async def acquire(self, region: Region) -> "DatabaseInfo":
-        """Acquires a Database for the given region."""
+    async def acquire(self, region: Region, bench: Bench) -> "DatabaseInfo":
+        """Acquires a new unique (shared) Database for the Bench."""
         ...
 
     @abc.abstractmethod
@@ -36,7 +36,7 @@ class DatabaseProvider(abc.ABC):
 
 
 class StaticDatabaseProvider(DatabaseProvider):
-    """A static DatabaseProvider with a fixed list."""
+    """A static DatabaseProvider with a fixed list of main Databases."""
 
     def __init__(self, databases: Sequence["DatabaseInfo"]):
         self.databases: tuple[DatabaseInfo, ...] = tuple(databases)
@@ -45,11 +45,30 @@ class StaticDatabaseProvider(DatabaseProvider):
         return f"<{self.__class__.__name__} {len(self.databases)} databases>"
 
     @override
-    async def acquire(self, region: Region) -> "DatabaseInfo":
+    async def acquire(self, region: Region, bench: Bench) -> "DatabaseInfo":
+        from bench.store.database import pg_connection
+
+        # find main database
+        base_database: DatabaseInfo | None = None
         for database in self.databases:
             if database.region == region:
-                return database
-        raise LookupError(f'no Database for "{region.slug}" in {self!r}')
+                base_database = database
+                break
+        if base_database is None:
+            raise LookupError(f'no Database for "{region.slug}" in {self!r}')
+
+        # create schema
+        bench_schema_name = f"bench_{str(bench.id).replace('-', '_')}"
+        async with pg_connection(base_database) as conn:
+            await conn.execute(f"CREATE SCHEMA IF NOT EXISTS {bench_schema_name}")
+        main_database = DatabaseInfo(
+            tenancy=Tenancy.SHARED,
+            region=base_database.region,
+            cell_name=base_database.cell_name,
+            external_name=base_database.external_name,
+            custom_schema_name=bench_schema_name,
+        )
+        return main_database
 
     @override
     async def resolve(
