@@ -8,7 +8,15 @@ import structlog
 from fastuuid import UUID
 from opentelemetry import trace
 
-from .const import UNSET, NodeType
+from bench.language.registry import (
+    NODE_CLASS_BY_TRAIT,
+    NODE_CLASS_BY_TYPE,
+    NODE_TRAIT_BY_CLASS,
+    NODE_TYPES_BY_TRAIT,
+)
+from bench.utils.fractional import INTEGER_MAX
+
+from .const import EMPTY_LIST, UNSET, NodeType, TraitType
 
 if TYPE_CHECKING:
     from bench.language import Node, QueryConnection, Session
@@ -112,22 +120,116 @@ class Graph:
     def get_children[N: Node = Node](
         self,
         node: "Node",
-        node_type: NodeType | type[N] | None = None,
+        node_type: NodeType | TraitType | type[N] | None = None,
     ) -> Sequence[N]:
-        """Collects children Nodes. If the Nodes are IsOrdered, their order is preserved."""
+        """
+        Collect child Nodes (one level down).
+        If the Nodes are IsOrdered, their order is preserved.
+        """
+        # bail if no children
         if not self.nodes_by_parent_id:
             return ()
-        raise NotImplementedError
+        children_by_type = self.nodes_by_parent_id.get(node.id)
+        if not children_by_type:
+            return ()
+
+        if node_type is None:
+            # collect children across all types
+            children: list = []
+            is_ordered = False
+            for children_of_type in children_by_type.values():
+                node_cls = type(children_of_type[0])
+                if TraitType.ORDERED in node_cls.__traits__:
+                    is_ordered = True
+                children.extend(children_of_type)
+            if is_ordered:
+                children.sort(key=lambda n: getattr(n, "order_key", INTEGER_MAX))
+            return children
+        else:
+            # turn into type
+            node_cls: type[Node]
+            node_types: tuple[NodeType, ...]
+            if isinstance(node_type, type):
+                if issubclass(node_type, Node):
+                    node_cls = node_type
+                    node_types = (node_type.metatype,)
+                else:
+                    node_cls = node_type
+                    node_types = NODE_TYPES_BY_TRAIT[NODE_TRAIT_BY_CLASS[node_type]]
+            else:
+                if isinstance(node_type, NodeType):
+                    node_cls = NODE_CLASS_BY_TYPE[node_type]
+                    node_types = (node_type,)
+                else:
+                    node_cls = NODE_CLASS_BY_TRAIT[node_type]  # type: ignore
+                    node_types = NODE_TYPES_BY_TRAIT[node_type]
+
+            # collect
+            if len(node_types) == 1:
+                # collect for single node type
+                children: list = children_by_type.get(node_types[0], EMPTY_LIST)
+                if children and TraitType.ORDERED in node_cls.__traits__:
+                    children.sort(key=lambda n: getattr(n, "order_key", INTEGER_MAX))
+                return children
+            else:
+                # collect for trait (multiple node types)
+                children: list = []
+                for node_type in node_types:
+                    children.extend(children_by_type.get(node_type, EMPTY_LIST))
+                if children and TraitType.ORDERED in node_cls.__traits__:
+                    children.sort(key=lambda n: getattr(n, "order_key", INTEGER_MAX))
+                return children
 
     def get_descendants[N: Node = Node](
         self,
         node: "Node",
-        node_type: NodeType | type[N] | None = None,
+        node_type: NodeType | TraitType | type[N] | None = None,
     ) -> Sequence[N]:
-        """Collects descendants Nodes. If the Nodes are IsOrdered, their order is preserved."""
+        """
+        Collect descendant Nodes (recursively down).
+        If a type is specified, only Nodes of that type are collected.
+        (Descendants are not collected unless all their ancestors are included).
+        Nodes are BFS but IsOrdered is ignored.
+        """
         if not self.nodes_by_parent_id:
             return ()
-        raise NotImplementedError
+
+        queue: list[Node] = [node]
+        descendants: list[Node] = []
+
+        # turn into type
+        node_types: tuple[NodeType, ...] | None = None
+        if node_type is not None:
+            if isinstance(node_type, type):
+                if issubclass(node_type, Node):
+                    node_types = (node_type.metatype,)
+                else:
+                    trait_type = NODE_TRAIT_BY_CLASS[node_type]
+                    node_types = NODE_TYPES_BY_TRAIT[trait_type]
+            else:
+                if isinstance(node_type, NodeType):
+                    node_types = (node_type,)
+                else:
+                    node_types = NODE_TYPES_BY_TRAIT[node_type]
+
+        # collect
+        while queue:
+            current = queue.pop(0)
+            children_by_type = self.nodes_by_parent_id.get(current.id)
+            if not children_by_type:
+                continue
+            for children_of_type in children_by_type.values():
+                queue.extend(children_of_type)
+
+            # collect level
+            if node_types is None:
+                for children_of_type in children_by_type.values():
+                    descendants.extend(children_of_type)
+            else:
+                for node_t in node_types:
+                    descendants.extend(children_by_type.get(node_t, ()))
+
+        return descendants  # type: ignore (must be right type@)
 
 
 _MISSING = object()
