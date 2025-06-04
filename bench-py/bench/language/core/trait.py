@@ -216,7 +216,6 @@ class IsTemplatable(Node if TYPE_CHECKING else BuiltinObjectBase):
 class IsExtensible(Node if TYPE_CHECKING else BuiltinObjectBase):
     """A Node that can be extended with custom Values (from Fields)."""
 
-    # nocheckin: Value / IsExtensible.value (custom Nodes?)
     value: dict[UUID, "Value"] = property_(21)
 
 

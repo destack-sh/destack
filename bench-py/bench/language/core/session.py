@@ -117,6 +117,7 @@ class Session:
         edit = Edit(type=EditType.CREATE, node=node, value=to_value(node, node_as_value=True))
         self.edits.append(edit)
         self.dirty[node.id] = node
+        node._is_new = False
         node._is_attached = True
 
     def upsert(self, node: Node):
@@ -125,6 +126,7 @@ class Session:
         edit = Edit(type=EditType.UPSERT, node=node, value=to_value(node, node_as_value=True))
         self.edits.append(edit)
         self.dirty[node.id] = node
+        node._is_new = False
         node._is_attached = True
 
     def update(self, node: Node, edit: Edit):

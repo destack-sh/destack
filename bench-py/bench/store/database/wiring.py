@@ -10,6 +10,7 @@ import orjson
 import pytz
 
 from bench.language import (
+    EMPTY_DICT,
     EdgeType,
     IsInBench,
     Json,
@@ -363,31 +364,37 @@ def pack_column_flat(type: TypeBase, value: Json) -> Any:
 
 
 def pack_column_wide(
-    type: TypeBase, value: Json, table: DatabaseTable, column_name: str, column_out: dict[str, Any]
+    type: TypeBase,
+    value: Json | None,
+    table: DatabaseTable,
+    column_name: str,
+    column_out: dict[str, Any],
 ) -> None:
     """Pack a dynamic column value into all of its columns."""
     if type.cardinality == TypeCardinality.SCALAR:
         if type.scalar_type == ScalarType.NODE_REFERENCE:
             # node references fan out to multiple columns
-            column_out[f"{column_name}_id"] = uuid.UUID(value["32"])
+            column_out[f"{column_name}_id"] = uuid.UUID(value["32"]) if value is not None else None
             column_type = f"{column_name}_type"
             if column_type in table._columns_by_name:
-                column_out[f"{column_name}_type"] = int(value["31"])
+                column_out[f"{column_name}_type"] = int(value["31"]) if value is not None else None
             column_bench_id = f"{column_name}_bench_id"
             if column_bench_id in table._columns_by_name:
-                column_out[column_bench_id] = uuid.UUID(value["34"]) if value.get("34") else None
+                column_out[column_bench_id] = (
+                    uuid.UUID(value["34"]) if value is not None and value.get("34") else None
+                )
             column_definition_id = f"{column_name}_definition_id"
             if column_definition_id in table._columns_by_name:
                 column_out[column_definition_id] = (
-                    uuid.UUID(value["35"]) if value.get("35") else None
+                    uuid.UUID(value["35"]) if value is not None and value.get("35") else None
                 )
         else:
-            value_packed = pack_column_scalar(type, value)
+            value_packed = pack_column_scalar(type, value) if value is not None else None
             column_out[column_name] = value_packed
     elif type.cardinality == TypeCardinality.LIST:
-        column_out[column_name] = [pack_column_scalar(type, v) for v in value]
+        column_out[column_name] = [pack_column_scalar(type, v) for v in value or ()]
     elif type.cardinality == TypeCardinality.MAP:
-        column_out[column_name] = orjson.dumps(value)  # keep json
+        column_out[column_name] = orjson.dumps(value or EMPTY_DICT)  # keep json
     else:
         assert_never(type.cardinality)
 

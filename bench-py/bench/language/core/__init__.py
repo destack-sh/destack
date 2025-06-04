@@ -65,7 +65,16 @@ from .const import (
     get_active_session,
     repr_enums,
 )
-from .edit import Change, ChangeResult, ChangeStatus, Edit, EditOperation, EditType, edit_graph
+from .edit import (
+    CASCADING_EDIT_TYPES,
+    Change,
+    ChangeResult,
+    ChangeStatus,
+    Edit,
+    EditOperation,
+    EditType,
+    edit_graph,
+)
 from .graph import Graph, Supergraph
 from .icon import Icon, IconIn, IconType, icon, reverse_icon, to_icon
 from .meta import EnumInfo, EnumOptionInfo, NodeInfo, PropertyInfo, StructInfo, TraitInfo
@@ -218,6 +227,7 @@ __all__ = [
     "BENCH_BENCH_PACKAGE_ID",
     "BENCH_ID",
     "BENCH_SLUG",
+    "CASCADING_EDIT_TYPES",
     "CK_LENGTH_B64",
     "CLOUD",
     "DEFAULT_RESOURCE_TIMEOUT",
