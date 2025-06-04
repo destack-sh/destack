@@ -462,8 +462,9 @@ def to_subqueries(subqueries: dict[str, "Query"]) -> list["Query"]:
     """Turn Queries into subqueries with default names & parent joins."""
     for name, subquery in subqueries.items():
         if subquery.join is None:
-            subquery.join = join(JoinType.CHILD)
-        subquery.name = name
+            object.__setattr__(subquery, "join", join(JoinType.CHILD))
+        object.__setattr__(subquery, "name", name)
+        subquery._invalidate_frozen_cache()
     return list(subqueries.values())
 
 
