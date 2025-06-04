@@ -273,8 +273,8 @@ class Node[NodeDataT: AnyNodeData](BuiltinObjectMutable[NodeDataT]):
         )
 
         # move to new graph
+        child.parent_ptr = self.to_ref()
         for node in nodes:
-            node.parent_ptr = self.to_ref()
             node._graph = self._graph
             self._graph.add(node)
         if len(nodes) == len(old_graph):  # all nodes were moved
@@ -288,6 +288,7 @@ class Node[NodeDataT: AnyNodeData](BuiltinObjectMutable[NodeDataT]):
         # create new nodes
         if child._is_new and self._is_attached:
             for node in nodes:
+                node._ref = None  # invalidate cached ref
                 session.create(node)
 
         return self

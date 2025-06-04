@@ -1,5 +1,5 @@
 import uuid
-from collections import defaultdict
+from collections import OrderedDict, defaultdict
 from collections.abc import Sequence
 from typing import Any, assert_never
 
@@ -7,7 +7,15 @@ import asyncpg
 import structlog
 from opentelemetry import trace
 
-from bench.language import Change, Edit, EditOperation, EditType, NodeReference, ScalarType
+from bench.language import (
+    CASCADING_EDIT_TYPES,
+    Change,
+    Edit,
+    EditOperation,
+    EditType,
+    NodeReference,
+    ScalarType,
+)
 from bench.language.registry import NODE_CLASS_BY_TYPE
 
 from .core import DatabaseContext, DatabaseTable
@@ -25,9 +33,7 @@ async def execute_change(
     assert change.edits, f"no Edits in {change!r}"
 
     cascaded_edits: list[Edit] = []
-    edits = change.edits
-    # nocheckin: reorder edits to minimize database roundtrips
-    # (but ensure correctness)
+    edits = _optimize_change(context, change.edits)
 
     current_table = context.get_table(edits[0].node_ptr)
     current_edit_type = edits[0].type
@@ -72,6 +78,41 @@ async def execute_change(
     return change.edits, cascaded_edits
 
 
+@tracer.start_as_current_span("database.optimize_change")
+def _optimize_change(context: DatabaseContext, edits: Sequence[Edit]) -> list[Edit]:
+    """
+    Optimize the Change/Edits *while retaining semantic equivalence*.
+    Reorder and batch non-interfering Edits to minimize roundtrips.
+    """
+
+    optimized_edits: list[Edit] = []
+    buffer: list[Edit] = []
+
+    def flush():
+        if not buffer:
+            return
+        grouped: OrderedDict[tuple[str, EditType], list[Edit]] = OrderedDict()
+        for e in buffer:
+            table = context.get_table(e.node_ptr)
+            key = (table.name, e.type)
+            if key not in grouped:
+                grouped[key] = []
+            grouped[key].append(e)
+        for batch in grouped.values():
+            optimized_edits.extend(batch)  # contiguously batched
+        buffer.clear()
+
+    for edit in edits:
+        if edit.type in CASCADING_EDIT_TYPES:
+            flush()  # close current segment
+            optimized_edits.append(edit)  # keep position
+        else:
+            buffer.append(edit)  # postpone
+
+    flush()  # trailing segment
+    return optimized_edits
+
+
 @tracer.start_as_current_span("database.execute_cascade")
 async def _execute_cascade(
     conn: asyncpg.Connection,
@@ -105,7 +146,6 @@ async def _execute_data_edit(
     """
     Execute the Edits to the data (data only, no schema).
     Returns the Edits and any cascaded Edits.
-    TODO :Performance: batch database update & move edits
     """
 
     node_type = table.node_type
@@ -134,33 +174,86 @@ SET {", ".join(f"{col.name} = EXCLUDED.{col.name}" for col in override_columns)}
             row_values_packed = pack_node_value_to_row(table, edit.value)
             values_packed.append(row_values_packed)
         await conn.executemany(stmt, values_packed)
-        logger.debug(f"database.{edit_type.name.lower()}", change=change, stmt=stmt, span="current")
+        logger.debug(
+            f"database.{edit_type.name.lower()}",
+            change=change,
+            edits=len(edits),
+            stmt=stmt,
+            span="current",
+        )
         return edits, ()
 
     # update
     elif edit_type == EditType.UPDATE:
+        # gather all db-columns possibly touched in this batch
+        all_updated_columns: set[str] = set()
+        for edit in edits:
+            if not edit.prop:
+                raise ValueError(f"no prop for {edit!r}")
+            update: dict[str, Any] = {}
+            pack_column_wide(edit.prop.type, None, table, edit.prop.name, update)
+            all_updated_columns.update(update.keys())
+
+        updated_column_names = list(all_updated_columns)
+        updated_column_names.sort()
+        updated_column_idx = {column: i for i, column in enumerate(updated_column_names)}
+
+        # build "CASE WHEN changed THEN value ELSE col END" for every column
+        set_clauses: list[str] = []
+        param_i = 1
+        for column in updated_column_names:
+            value_param = f"${param_i}"  # new value (may be NULL)
+            changed_param = f"${param_i + 1}"  # bool
+            set_clauses.append(
+                f"{column} = CASE WHEN {changed_param} THEN {value_param} ELSE {column} END"
+            )
+            param_i += 2
+        stmt = f"""\
+UPDATE {table.name}
+SET {", ".join(set_clauses)}
+WHERE id = ${param_i}
+"""
+
+        # prepare parameters row-by-row
+        values_packed: list[Sequence[Any]] = []
         for edit in edits:
             prop = edit.prop
             assert prop is not None, f"no prop for {edit!r}"
             assert edit.value is not None, f"no value for {edit!r}"
-            assert edit.operation in (EditOperation.SET, EditOperation.CLEAR), (
-                f"unsupported operation: {edit!r}"
-            )
+            row: list[Any] = [None, False] * len(updated_column_names)  # default: keep
             update: dict[str, Any] = {}
-            pack_column_wide(prop.type, edit.value.value, table, prop.name, update)
-            stmt = f"""\
-UPDATE {table.name}
-SET {", ".join(f"{key} = ${i + 1}" for i, key in enumerate(update.keys()))}
-WHERE id = ${len(update) + 1}
-"""
-            await conn.execute(stmt, *update.values(), edit.node_ptr.id)
-            logger.debug("database.update", change=change, stmt=stmt, span="current")
+            raw = None if edit.operation == EditOperation.CLEAR else edit.value.value
+            pack_column_wide(prop.type, raw, table, prop.name, update)
+            for column, value in update.items():  # mark touched cols
+                i = updated_column_idx[column] * 2
+                row[i] = value
+                row[i + 1] = True
+            row.append(edit.node_ptr.id)  # WHERE id = …
+            values_packed.append(tuple(row))
 
+        await conn.executemany(stmt, values_packed)
+        logger.debug(
+            "database.update",
+            change=change,
+            edits=len(edits),
+            stmt=stmt,
+            span="current",
+        )
         return edits, ()
 
     # move
     elif edit_type == EditType.MOVE:
+        # prepare statement
         parent_prop = node_cls.__parent_property__
+        update_template: dict[str, Any] = {}
+        pack_column_wide(parent_prop.type, None, table, parent_prop.name, update_template)
+        stmt = f"""\
+UPDATE {table.name}
+SET {", ".join(f"{key} = ${i + 1}" for i, key in enumerate(update_template.keys()))}
+WHERE id = ${len(update_template) + 1}
+"""
+        # prepare values
+        values_packed: list[Sequence[Any]] = []
         for edit in edits:
             assert edit.value is not None, f"no value for {edit!r}"
             assert edit.value.type.scalar_type == ScalarType.NODE_REFERENCE, (
@@ -168,13 +261,16 @@ WHERE id = ${len(update) + 1}
             )
             update: dict[str, Any] = {}
             pack_column_wide(parent_prop.type, edit.value.value, table, parent_prop.name, update)
-            stmt = f"""\
-UPDATE {table.name}
-SET {", ".join(f"{key} = ${i + 1}" for i, key in enumerate(update.keys()))}
-WHERE id = ${len(update) + 1}
-"""
-            await conn.execute(stmt, *update.values(), edit.node_ptr.id)
-            logger.debug("database.move", change=change, stmt=stmt, span="current")
+            row_values = (*update.values(), edit.node_ptr.id)
+            values_packed.append(row_values)
+        await conn.executemany(stmt, values_packed)
+        logger.debug(
+            "database.move",
+            change=change,
+            edits=len(edits),
+            stmt=stmt,
+            span="current",
+        )
 
         return edits, ()
 

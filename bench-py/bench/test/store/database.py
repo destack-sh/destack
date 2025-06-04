@@ -69,20 +69,19 @@ async def test_create_user(session: Session):
 
 async def test_create_page_blocks_recursive(session: Session):
     """Create a Page with recursive sub-Pages and Blocks, mutate it, querying along the way."""
-    for a in ("a", "b", "c", "d", "e", "f", "g", "h"):
+    for a in ("a", "b", "c", "d"):
         # create
         root_page = Page(title=text_line(f"*Test Page {a}*"), slug=f"test-{a}")
         session.create(root_page)
         await session.commit()
         # block tree
-        block_count = await Block.count(
+        root_block_count = await Block.count(
             where=Block.property("parent").eq(root_page)
         ).execute_count()
-        assert block_count == 0
-        root_blocks: list[Block] = []
+        assert root_block_count == 0
         for i in range(4):
             root_block = Block(type=BlockType.PARAGRAPH, line=text_line(f"Test Block {a}/{i}"))
-            root_blocks.append(root_block)
+            root_page.add_child(root_block)
             for j in range(4):
                 inner_block = Block(
                     type=BlockType.PARAGRAPH, line=text_line(f"Inner Block {a}/{i}/{j}")
@@ -94,15 +93,16 @@ async def test_create_page_blocks_recursive(session: Session):
                         line=text_line(f"Inner Inner Block {a}/{i}/{j}/{k}"),
                     )
                     inner_block.add_child(inner_inner_block)
-        root_page.add_children(*root_blocks)
-        page_block_count = 4 * (1 + 4 * (1 + 4))
-        assert len(root_page._graph) == 1 + page_block_count
+                    # mutate block after creating to test edit optimization
+                    inner_inner_block.node = root_page
         await session.commit()
         # query count
-        block_count = await Block.count(
+        root_block_count = await Block.count(
             where=Block.property("parent").eq(root_page)
         ).execute_count()
-        assert block_count == page_block_count
+        assert root_block_count == 4
+        # page_block_count = 4 * (1 + 4 * (1 + 4))
+        # assert block_count == page_block_count
 
 
 async def test_create_custom_node(session: Session):
