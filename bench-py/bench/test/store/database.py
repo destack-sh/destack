@@ -69,19 +69,21 @@ async def test_create_user(session: Session):
 
 async def test_create_page_blocks_recursive(session: Session):
     """Create a Page with recursive sub-Pages and Blocks, mutate it, querying along the way."""
+    # create
+    root_page = Page(title=text_line("*Test Root Page*"), slug="test-root")
+    session.create(root_page)
     for a in ("a", "b", "c", "d"):
-        # create
-        root_page = Page(title=text_line(f"*Test Page {a}*"), slug=f"test-{a}")
-        session.create(root_page)
-        await session.commit()
-        # block tree
+        # create page
+        page = Page(title=text_line(f"*Test Page {a}*"), slug=f"test-{a}")
+        root_page.add_child(page)
+        # create block tree
         root_block_count = await Block.count(
-            where=Block.property("parent").eq(root_page)
+            where=Block.property("parent").eq(page)
         ).execute_count()
         assert root_block_count == 0
         for i in range(4):
             root_block = Block(type=BlockType.PARAGRAPH, line=text_line(f"Test Block {a}/{i}"))
-            root_page.add_child(root_block)
+            page.add_child(root_block)
             for j in range(4):
                 inner_block = Block(
                     type=BlockType.PARAGRAPH, line=text_line(f"Inner Block {a}/{i}/{j}")
@@ -94,11 +96,14 @@ async def test_create_page_blocks_recursive(session: Session):
                     )
                     inner_block.add_child(inner_inner_block)
                     # mutate block after creating to test edit optimization
-                    inner_inner_block.node = root_page
+                    inner_inner_block.node = page
         await session.commit()
+
+    # query
+    for page in root_page.get_children(Page):
         # query count
         root_block_count = await Block.count(
-            where=Block.property("parent").eq(root_page)
+            where=Block.property("parent").eq(page)
         ).execute_count()
         assert root_block_count == 4
         # page_block_count = 4 * (1 + 4 * (1 + 4))

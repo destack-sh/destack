@@ -1,5 +1,5 @@
 from collections.abc import Sequence
-from typing import Self, override
+from typing import Self, assert_never, override
 
 import asyncpg
 import structlog
@@ -21,8 +21,10 @@ from bench.language import (
     Query,
     QueryResult,
     RelationReference,
+    RelationType,
     Store,
 )
+from bench.language.registry import NODE_TYPES_BY_TRAIT
 
 from .client import pg_connection
 from .core import DatabaseContext, DatabaseTable
@@ -159,28 +161,6 @@ class DatabaseStoreContext(DatabaseContext):
         raise NotImplementedError
 
     @override
-    def get_table(self, relation: RelationReference | NodeReference) -> DatabaseTable:
-        # map relations to table names
-        if isinstance(relation, NodeReference):
-            if relation.node_type != NodeType.CUSTOM_NODE_INSTANCE:
-                table_name = f"{BENCH_TABLE_PREFIX}{relation.node_type.name.lower()}"
-            else:
-                assert relation.definition_id is not None, f"no definition_id for {relation!r}"
-                table_name = f"{BENCH_CUSTOM_TABLE_PREFIX}{relation.definition_id}"
-        else:
-            if relation.node_type != NodeType.CUSTOM_NODE_INSTANCE:
-                table_name = f"{BENCH_TABLE_PREFIX}{relation.node_type.name.lower()}"
-            else:
-                assert relation.definition_id is not None, f"no definition_id for {relation!r}"
-                table_name = f"{BENCH_CUSTOM_TABLE_PREFIX}{relation.definition_id}"
-
-        # lookup
-        table = self.tables_by_name.get(table_name)
-        if table is None:
-            raise LookupError(f"no table for {table_name!r} in {self.store!r}")
-        return table
-
-    @override
     def apply(self, edits: Sequence[Edit]) -> Sequence[Edit]:
         applied_edits: list[Edit] = []
         for edit in edits:
@@ -188,3 +168,46 @@ class DatabaseStoreContext(DatabaseContext):
                 applied_edits.append(edit)
                 # nocheckin: optimistically update context copy
         return applied_edits
+
+    @override
+    def resolve_relation(self, relation: RelationReference) -> Sequence[RelationReference]:
+        if relation.type in (RelationType.BUILTIN_NODE, RelationType.CUSTOM_NODE):
+            return (relation,)
+        elif relation.type == RelationType.TRAIT:
+            assert relation.trait_type is not None, f"no trait_type for {relation!r}"
+            node_types = NODE_TYPES_BY_TRAIT.get(relation.trait_type, ())
+            return tuple(
+                RelationReference(type=RelationType.BUILTIN_NODE, node_type=node_type)
+                for node_type in node_types
+            )
+        else:
+            assert_never(relation.type)
+
+    @override
+    def get_relation(self, relation: RelationReference | NodeReference) -> DatabaseTable:
+        # map relations to table names
+        if isinstance(relation, NodeReference):
+            if relation.node_type != NodeType.CUSTOM_NODE_INSTANCE:
+                table_name = f"{BENCH_TABLE_PREFIX}{relation.node_type.name.lower()}"
+            else:
+                assert relation.definition_id is not None, f"no definition_id for {relation!r}"
+                table_name = f"{BENCH_CUSTOM_TABLE_PREFIX}{relation.definition_id}"
+        elif isinstance(relation, RelationReference):
+            if relation.type == RelationType.BUILTIN_NODE:
+                assert relation.node_type is not None, f"no node_type for {relation!r}"
+                table_name = f"{BENCH_TABLE_PREFIX}{relation.node_type.name.lower()}"
+            elif relation.type == RelationType.CUSTOM_NODE:
+                assert relation.definition_id is not None, f"no definition_id for {relation!r}"
+                table_name = f"{BENCH_CUSTOM_TABLE_PREFIX}{relation.definition_id}"
+            elif relation.type == RelationType.TRAIT:
+                raise RuntimeError(f"cannot get single table for {relation!r}")
+            else:
+                assert_never(relation.type)
+        else:
+            assert_never(relation)
+
+        # lookup
+        table = self.tables_by_name.get(table_name)
+        if table is None:
+            raise LookupError(f"no table for {table_name!r} in {self.store!r}")
+        return table

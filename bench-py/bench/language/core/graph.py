@@ -12,6 +12,7 @@ from bench.language.registry import (
     NODE_CLASS_BY_TRAIT,
     NODE_CLASS_BY_TYPE,
     NODE_TRAIT_BY_CLASS,
+    NODE_TYPE_BY_CLASS,
     NODE_TYPES_BY_TRAIT,
 )
 from bench.utils.fractional import INTEGER_MAX
@@ -150,12 +151,12 @@ class Graph:
             node_cls: type[Node]
             node_types: tuple[NodeType, ...]
             if isinstance(node_type, type):
-                if issubclass(node_type, Node):
+                if node_t := NODE_TYPE_BY_CLASS.get(node_type):
                     node_cls = node_type
-                    node_types = (node_type.metatype,)
+                    node_types = (node_t,)
                 else:
                     node_cls = node_type
-                    node_types = NODE_TYPES_BY_TRAIT[NODE_TRAIT_BY_CLASS[node_type]]
+                    node_types = NODE_TYPES_BY_TRAIT[NODE_TRAIT_BY_CLASS[node_type]]  # type: ignore
             else:
                 if isinstance(node_type, NodeType):
                     node_cls = NODE_CLASS_BY_TYPE[node_type]

@@ -275,7 +275,7 @@ async def _query_node(
     """Execute a node Query."""
 
     # build statement
-    table = context.get_table(relation)
+    table = context.get_relation(relation)
     arguments: list[Any] = []
     stmt_parts: list[str] = ["SELECT"]
     if select:
@@ -312,7 +312,7 @@ async def _query_scalar(
     """Execute a scalar Query."""
 
     # build statement
-    table = context.get_table(relation)
+    table = context.get_relation(relation)
     arguments: list[Any] = []
     stmt_parts: list[str] = [
         "SELECT",

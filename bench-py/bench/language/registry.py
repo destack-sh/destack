@@ -20,15 +20,29 @@ from .core.const import (
 )
 
 if TYPE_CHECKING:
-    from bench.language import BuiltinObjectBase, EnumInfo, Node, NodeInfo, StructBase, StructInfo
+    from bench.language import (
+        BuiltinObjectBase,
+        EnumInfo,
+        Node,
+        NodeBase,
+        NodeInfo,
+        RelationReference,
+        StructBase,
+        StructInfo,
+        Trait,
+    )
 
 ENUM_CLASS_BY_TYPE = _ENUM_CLASS_BY_TYPE  # re-exported to avoid circular imports
 ENUM_TYPE_BY_CLASS: dict[type, EnumType] = {}
 NODE_CLASS_BY_TYPE: dict[NodeType, type["Node"]] = {}
+NODE_TYPE_BY_CLASS: dict[type["Node"], NodeType] = {}
 NODE_CLASS_BY_TRAIT: dict[TraitType, type["BuiltinObjectBase"]] = {}
-NODE_TRAIT_BY_CLASS: dict[type["BuiltinObjectBase"], TraitType] = {}
+NODE_TRAIT_BY_CLASS: dict[type["Trait"], TraitType] = {}
 NODE_TYPES_BY_TRAIT: dict[TraitType, tuple[NodeType, ...]] = {}
+RELATION_REF_BY_CLASS: dict[type["NodeBase"], "RelationReference"] = {}
+
 STRUCT_CLASS_BY_TYPE: dict[StructType, type["StructBase"]] = {}
+
 BUILTIN_OBJECT_CLASS_BY_TYPE: dict[NodeType | StructType, type["BuiltinObjectBase"]] = {}
 BUILTIN_OBJECT_TYPE_BY_CLASS: dict[type["BuiltinObjectBase"], NodeType | StructType] = {}
 
@@ -58,6 +72,7 @@ def _complete_bench_setup():
     # populate known types
     for node_t in NODE_TYPES:
         node_cls = NODE_CLASS_BY_TYPE[node_t]
+        NODE_TYPE_BY_CLASS[node_cls] = node_t
         BUILTIN_OBJECT_CLASS_BY_TYPE[node_t] = node_cls
         BUILTIN_OBJECT_TYPE_BY_CLASS[node_cls] = node_t
         BENCH_CLASS_BY_TYPE[node_t] = node_cls
@@ -144,6 +159,14 @@ def _complete_bench_setup():
     for name, attr in IntoQuery.__dict__.items():
         if name not in Property.__dict__ and name not in ("__annotations__", "__dict__"):
             setattr(Property, name, attr)
+
+    # generate relation refs
+    from bench.language.core import relation_ref
+
+    for cls in NODE_CLASS_BY_TYPE.values():
+        RELATION_REF_BY_CLASS[cls] = relation_ref(cls)
+    for cls in NODE_TRAIT_BY_CLASS:
+        RELATION_REF_BY_CLASS[cls] = relation_ref(cls)
 
     # generate meta info
     from bench.language.core import EnumInfo, NodeInfo, StructInfo

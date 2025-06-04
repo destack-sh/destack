@@ -6,12 +6,13 @@ from fastuuid import UUID
 from .node import Node
 from .query import Query, QueryResult
 from .session import Session
+from .trait import Trait
 
 if TYPE_CHECKING:
     from bench.language import Store, Value
 
 
-class QueryConnection[RootT: "Node"]:
+class QueryConnection[RootT: "Trait | Node"]:
     """A connection to a Query and its result."""
 
     __slots__ = (

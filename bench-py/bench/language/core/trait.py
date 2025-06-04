@@ -4,16 +4,24 @@ from datetime import datetime, timedelta
 from typing import (
     TYPE_CHECKING,
     Any,
+    ClassVar,
     Optional,
     Self,
     Union,
     assert_never,
+    cast,
     dataclass_transform,
 )
 
 from fastuuid import UUID
 
-from bench.language.registry import NODE_CLASS_BY_TRAIT, NODE_TRAIT_BY_CLASS, NODE_TYPES_BY_TRAIT
+from bench.language.registry import (
+    NODE_CLASS_BY_TRAIT,
+    NODE_TRAIT_BY_CLASS,
+    NODE_TYPES_BY_TRAIT,
+    RELATION_REF_BY_CLASS,
+)
+from bench.pb2 import AnyObjectData
 from bench.utils.fractional import INTEGER_ZERO
 from bench.utils.tenacity import RetryOptions
 
@@ -25,7 +33,7 @@ from .const import (
     ResourceStatus,
     TraitType,
 )
-from .object import BuiltinObjectBase, _process_object_cls
+from .object import BuiltinObjectMutable, _process_object_cls
 from .property import (
     _PROPERTY_SPECIFIERS,
     property_,
@@ -37,22 +45,34 @@ from .type import StringFormat
 
 if TYPE_CHECKING:
     from bench.language import (
+        AggregationType,
         Bench,
         Block,
+        Condition,
         Error,
+        Expression,
+        ExpressionIn,
         Icon,
         Interruption,
+        Join,
         ModelDeveloper,
         ModelProvider,
         Node,
         NodeReference,
         Package,
         Page,
+        Query,
+        Sort,
         TextLine,
+        TraitInfo,
         Value,
     )
 
 # pyright: reportIncompatibleVariableOverride=false
+
+#
+# Trait/Node base
+#
 
 
 @dataclass(slots=True, frozen=True)
@@ -81,75 +101,312 @@ def expand_node_types(types: Collection[NodeType | TraitType]) -> tuple[NodeType
 
 @dataclass_transform(kw_only_default=True, field_specifiers=_PROPERTY_SPECIFIERS)
 def trait_(
-    node_trait: TraitType,
+    node_trait: TraitType | None,
 ):
     """Register a class as a node trait."""
 
-    def decorate(cls: type["Node"]) -> type["Node"]:
+    def decorate(cls: type["NodeBase"]) -> type["NodeBase"]:
         cls, _ = _process_object_cls(
             cls=cls,
             object_type=None,
             is_concrete=False,
             is_node=True,
         )
-        NODE_CLASS_BY_TRAIT[node_trait] = cls
-        NODE_TRAIT_BY_CLASS[cls] = node_trait
+        if node_trait is not None:
+            cls.metatype = node_trait
+        if node_trait is not None:
+            NODE_CLASS_BY_TRAIT[node_trait] = cls
+            NODE_TRAIT_BY_CLASS[cast(type["Trait"], cls)] = node_trait
         return cls
 
     return decorate
 
 
+@trait_(node_trait=None)  # type: ignore
+class NodeBase[NodeDataT: AnyObjectData](BuiltinObjectMutable[NodeDataT]):
+    """A base class for all Nodes."""
+
+    metatype: ClassVar[TraitType | NodeType]
+    __is_node__: ClassVar[bool] = True
+
+    @classmethod
+    def get(
+        cls: type["Self"],
+        where: Optional["Condition"] = None,
+        *,
+        name: str | None = None,
+        join: Optional["Join"] = None,
+        **subqueries: "Query",
+    ) -> "Query[Self]":  # type: ignore
+        from .query import Query, QueryType, to_subqueries
+
+        query = Query(
+            type=QueryType.NODE,
+            relation=RELATION_REF_BY_CLASS[cls],
+            name=name or cls.metatype.bench_name,
+            join=join,
+            where=where,
+            subqueries=to_subqueries(subqueries),
+        )
+        return query  # type: ignore
+
+    @classmethod
+    def search(
+        cls: type["Self"],
+        where: Optional["Condition"] = None,
+        *,
+        name: str | None = None,
+        join: Optional["Join"] = None,
+        having: Optional["Condition"] = None,
+        sort: Optional[list["Sort"]] = None,
+        group_by: Optional[list["Expression"]] = None,
+        limit: Optional[int] = None,
+        offset: Optional[int] = None,
+        count: bool = False,
+        **subqueries: "Query",
+    ) -> "Query[Self]":  # type: ignore
+        from .query import Query, QueryType, to_subqueries
+
+        query = Query(
+            type=QueryType.NODE if group_by is None else QueryType.GROUPED_NODE,
+            relation=RELATION_REF_BY_CLASS[cls],
+            name=name or cls.metatype.bench_name,
+            join=join,
+            where=where,
+            having=having,
+            group_by=group_by or [],
+            sort=sort or [],
+            limit=limit,
+            offset=offset,
+            count=count,
+            subqueries=to_subqueries(subqueries),
+        )
+        return query  # type: ignore
+
+    @classmethod
+    def scalar(
+        cls: type["Self"],
+        type: "AggregationType",
+        *,
+        expression: "ExpressionIn | None" = None,
+        name: str | None = None,
+        join: Optional["Join"] = None,
+        where: Optional["Condition"] = None,
+        group_by: Optional[list["Expression"]] = None,
+        sort: Optional[list["Sort"]] = None,
+    ) -> "Query[Self]":  # type: ignore
+        from .query import Aggregation, Query, QueryType
+        from .query import expression as to_expression
+
+        query = Query(
+            type=QueryType.SCALAR if group_by is None else QueryType.GROUPED_SCALAR,
+            relation=RELATION_REF_BY_CLASS[cls],
+            name=name or cls.metatype.bench_name,
+            join=join,
+            where=where,
+            group_by=group_by or [],
+            aggregation=Aggregation(
+                type=type, expression=to_expression(expression) if expression else None
+            ),
+            sort=sort or [],
+        )
+        return query  # type: ignore
+
+    @classmethod
+    def exists(
+        cls: type["Self"],
+        where: Optional["Condition"] = None,
+        *,
+        name: str | None = None,
+        join: Optional["Join"] = None,
+    ) -> "Query[Self]":  # type: ignore
+        from .query import Aggregation, AggregationType, Query, QueryType
+
+        query = Query(
+            type=QueryType.SCALAR,
+            relation=RELATION_REF_BY_CLASS[cls],
+            name=name or cls.metatype.bench_name,
+            join=join,
+            where=where,
+            aggregation=Aggregation(type=AggregationType.EXISTS),
+        )
+        return query  # type: ignore
+
+    @classmethod
+    def count(
+        cls: type["Self"],
+        where: Optional["Condition"] = None,
+        *,
+        name: str | None = None,
+        join: Optional["Join"] = None,
+        group_by: Optional[list["ExpressionIn"]] = None,
+        having: Optional["Condition"] = None,
+    ) -> "Query[Self]":  # type: ignore
+        from .query import Aggregation, AggregationType, Query, QueryType
+        from .query import expression as to_expression
+
+        query = Query(
+            type=QueryType.SCALAR if group_by is None else QueryType.GROUPED_SCALAR,
+            relation=RELATION_REF_BY_CLASS[cls],
+            name=name or cls.metatype.bench_name,
+            join=join,
+            where=where,
+            having=having,
+            aggregation=Aggregation(type=AggregationType.COUNT),
+            group_by=[to_expression(expr) for expr in group_by or ()],
+        )
+        return query  # type: ignore
+
+    @classmethod
+    def min(
+        cls: type["Self"],
+        expression: "ExpressionIn",
+        *,
+        name: str | None = None,
+        join: Optional["Join"] = None,
+        where: Optional["Condition"] = None,
+        having: Optional["Condition"] = None,
+        group_by: Optional[list["ExpressionIn"]] = None,
+    ) -> "Query[Self]":  # type: ignore
+        from .query import Aggregation, AggregationType, Query, QueryType
+        from .query import expression as to_expression
+
+        query = Query(
+            type=QueryType.SCALAR if group_by is None else QueryType.GROUPED_SCALAR,
+            relation=RELATION_REF_BY_CLASS[cls],
+            name=name or cls.metatype.bench_name,
+            join=join,
+            where=where,
+            having=having,
+            group_by=[to_expression(expr) for expr in group_by or ()],
+            aggregation=Aggregation(type=AggregationType.MIN, expression=to_expression(expression)),
+        )
+        return query  # type: ignore
+
+    @classmethod
+    def max(
+        cls: type["Self"],
+        expression: "ExpressionIn",
+        *,
+        name: str | None = None,
+        join: Optional["Join"] = None,
+        where: Optional["Condition"] = None,
+        having: Optional["Condition"] = None,
+        group_by: Optional[list["ExpressionIn"]] = None,
+    ) -> "Query[Self]":  # type: ignore
+        from .query import Aggregation, AggregationType, Query, QueryType
+        from .query import expression as to_expression
+
+        query = Query(
+            type=QueryType.SCALAR if group_by is None else QueryType.GROUPED_SCALAR,
+            relation=RELATION_REF_BY_CLASS[cls],
+            name=name or cls.metatype.bench_name,
+            join=join,
+            where=where,
+            having=having,
+            group_by=[to_expression(expr) for expr in group_by or ()],
+            aggregation=Aggregation(type=AggregationType.MAX, expression=to_expression(expression)),
+        )
+        return query  # type: ignore
+
+    @classmethod
+    def average(
+        cls: type["Self"],
+        expression: "ExpressionIn",
+        *,
+        name: str | None = None,
+        join: Optional["Join"] = None,
+        where: Optional["Condition"] = None,
+        having: Optional["Condition"] = None,
+        group_by: Optional[list["ExpressionIn"]] = None,
+    ) -> "Query[Self]":  # type: ignore
+        from .query import Aggregation, AggregationType, Query, QueryType
+        from .query import expression as to_expression
+
+        query = Query(
+            type=QueryType.SCALAR if group_by is None else QueryType.GROUPED_SCALAR,
+            relation=RELATION_REF_BY_CLASS[cls],
+            name=name or cls.metatype.bench_name,
+            join=join,
+            where=where,
+            having=having,
+            group_by=[to_expression(expr) for expr in group_by or ()],
+            aggregation=Aggregation(
+                type=AggregationType.AVERAGE, expression=to_expression(expression)
+            ),
+        )
+        return query  # type: ignore
+
+
+@trait_(None)
+class Trait(Node if TYPE_CHECKING else NodeBase):
+    """A Node trait."""
+
+    metatype: ClassVar[TraitType]
+    info: ClassVar["TraitInfo"]
+
+    __is_node__: ClassVar[bool] = True
+    __is_trait__: ClassVar[bool] = True
+    __traits__: ClassVar[tuple[TraitType, ...]] = ()
+    __indexes__: ClassVar[tuple[IndexIn, ...]] = ()
+
+
+#
+# Traits
+#
+
+
 @trait_(TraitType.NAMED)
-class HasName(Node if TYPE_CHECKING else BuiltinObjectBase):
+class HasName(Trait):
     """A Node with a plain name."""
 
     name: str = property_(31, format=StringFormat.NAME)
 
 
 @trait_(TraitType.TITLED)
-class HasTitle(Node if TYPE_CHECKING else BuiltinObjectBase):
+class HasTitle(Trait):
     """A Node with a rich title."""
 
     title: Optional["TextLine"] = property_(32)
 
 
 @trait_(TraitType.SLUG)
-class HasSlug(Node if TYPE_CHECKING else BuiltinObjectBase):
+class HasSlug(Trait):
     """A Node with a slug."""
 
     slug: str = property_(33, is_repr=True, format=StringFormat.SLUG)
 
 
 @trait_(TraitType.ICON)
-class HasIcon(Node if TYPE_CHECKING else BuiltinObjectBase):
+class HasIcon(Trait):
     """A Node with an icon."""
 
     icon: Optional["Icon"] = property_(34)
 
 
 @trait_(TraitType.GLOBAL)
-class IsGlobal(Node if TYPE_CHECKING else BuiltinObjectBase):
+class IsGlobal(Trait):
     """A Node that is global."""
 
     pass
 
 
 @trait_(TraitType.MODAL)
-class IsModal(Node if TYPE_CHECKING else BuiltinObjectBase):
+class IsModal(Trait):
     """A Node that can be in different modes."""
 
     mode: NodeMode = property_(20, is_eq=False, default=NodeMode.MAIN)
 
 
 @trait_(TraitType.ORDERED)
-class IsOrdered(Node if TYPE_CHECKING else BuiltinObjectBase):
+class IsOrdered(Trait):
     """A Node that can be ordered."""
 
     order_key: str | None = property_(22, is_eq=False, default=INTEGER_ZERO)
 
 
 @trait_(TraitType.ARCHIVABLE)
-class IsArchivable(Node if TYPE_CHECKING else BuiltinObjectBase):
+class IsArchivable(Trait):
     """A Node that can be archived."""
 
     archived_at: Optional[datetime] = property_(14, is_managed=True, is_eq=False)
@@ -170,7 +427,7 @@ class IsArchivable(Node if TYPE_CHECKING else BuiltinObjectBase):
 
 
 @trait_(TraitType.DELETABLE)
-class IsDeletable(Node if TYPE_CHECKING else BuiltinObjectBase):
+class IsDeletable(Trait):
     """A Node that can be deleted."""
 
     deleted_at: Optional[datetime] = property_(15, is_managed=True, is_eq=False)
@@ -187,7 +444,7 @@ class IsDeletable(Node if TYPE_CHECKING else BuiltinObjectBase):
 
 
 @trait_(TraitType.TEMPLATABLE)
-class IsTemplatable(Node if TYPE_CHECKING else BuiltinObjectBase):
+class IsTemplatable(Trait):
     """A Node that can become a template (we can create Nodes derived from 'templates')."""
 
     template: Optional["Node"] = property_(16, edge_type=EdgeType.NODE_TEMPLATE)
@@ -213,14 +470,14 @@ class IsTemplatable(Node if TYPE_CHECKING else BuiltinObjectBase):
 
 
 @trait_(TraitType.EXTENSIBLE)
-class IsExtensible(Node if TYPE_CHECKING else BuiltinObjectBase):
+class IsExtensible(Trait):
     """A Node that can be extended with custom Values (from Fields)."""
 
     value: dict[UUID, "Value"] = property_(21)
 
 
 @trait_(TraitType.IN_BENCH)
-class IsInBench(Node if TYPE_CHECKING else BuiltinObjectBase):
+class IsInBench(Trait):
     """A Node inside a Bench."""
 
     bench: "Bench | None" = property_ancestor_(6, is_required=True)
@@ -261,7 +518,7 @@ class IsBlockable(IsOrdered, IsInPackage):
 
 
 @trait_(TraitType.COMPUTABLE)
-class IsComputable(Node if TYPE_CHECKING else BuiltinObjectBase):
+class IsComputable(Trait):
     """A Node that can have computation applied to it somehow."""
 
     # model
@@ -294,7 +551,7 @@ class IsRunnable(IsComputable):
 
 
 @trait_(TraitType.PROCESSABLE)
-class IsProcessable(Node if TYPE_CHECKING else BuiltinObjectBase):
+class IsProcessable(Trait):
     """A Node that can be processed somehow."""
 
     status: ProcessStatus = property_(80, default=ProcessStatus.CREATED, is_repr=True)
@@ -366,7 +623,7 @@ class IsProcessable(Node if TYPE_CHECKING else BuiltinObjectBase):
 
 
 @trait_(TraitType.OWNABLE)
-class IsOwnable(Node if TYPE_CHECKING else BuiltinObjectBase):
+class IsOwnable(Trait):
     """A Node that can be owned by another Node."""
 
     owned_by: Optional["IsSubject"] = property_(17, node_bench_from="self")
@@ -377,35 +634,35 @@ class IsOwnable(Node if TYPE_CHECKING else BuiltinObjectBase):
 
 
 @trait_(TraitType.JOINABLE)
-class IsJoinable(Node if TYPE_CHECKING else BuiltinObjectBase):
+class IsJoinable(Trait):
     """A Node that can be joined by a Subject."""
 
     pass
 
 
 @trait_(TraitType.SUBJECT)
-class IsSubject(Node if TYPE_CHECKING else BuiltinObjectBase):
+class IsSubject(Trait):
     """A Node that can be a Subject."""
 
     pass
 
 
 @trait_(TraitType.MEMBERSHIP)
-class IsMembership(Node if TYPE_CHECKING else BuiltinObjectBase):
+class IsMembership(Trait):
     """A Node that represents a Membership."""
 
     member: "IsSubject" = property_(40)
 
 
 @trait_(TraitType.INVITE)
-class IsInvite(Node if TYPE_CHECKING else BuiltinObjectBase):
+class IsInvite(Trait):
     """A Node that represents an Invite."""
 
     member: "IsSubject" = property_(40)
 
 
 @trait_(TraitType.ROLE)
-class IsRole(Node if TYPE_CHECKING else BuiltinObjectBase):
+class IsRole(Trait):
     """A Node that represents a Role."""
 
     pass
