@@ -23,7 +23,7 @@ from bench.utils.func import get_superclasses
 
 from .const import UNSET, NodeType, TraitType
 from .graph import Graph
-from .object import BuiltinObjectMutable, _process_object_cls
+from .object import _process_object_cls
 from .property import (
     _PROPERTY_SPECIFIERS,
     Property,
@@ -32,23 +32,10 @@ from .property import (
     property_parent_,
     property_runtime_,
 )
-from .trait import IndexIn, IsSubject
+from .trait import IndexIn, IsSubject, NodeBase
 
 if TYPE_CHECKING:
-    from bench.language import (
-        AggregationType,
-        Condition,
-        Expression,
-        ExpressionIn,
-        Join,
-        NodeInfo,
-        NodeReference,
-        Query,
-        QueryConnection,
-        Session,
-        Sort,
-        Supergraph,
-    )
+    from bench.language import NodeInfo, NodeReference, QueryConnection, Session, Supergraph
 
 # pyright: reportIncompatibleVariableOverride=false
 
@@ -70,6 +57,7 @@ def node_(
 
     def decorate(cls: type["Node"]) -> type["Node"]:
         assert cls.__name__ == "Node" or issubclass(cls, Node), f"{cls.__name__} is not a Node"
+        cls.__is_trait__ = False  # override Trait.__is_trait__
         cls, _ = _process_object_cls(
             cls=cls,
             object_type=node_type,
@@ -104,7 +92,7 @@ _object_set = object.__setattr__
 
 
 @node_(node_type=None, root_type=None)
-class Node[NodeDataT: AnyNodeData](BuiltinObjectMutable[NodeDataT]):
+class Node[NodeDataT: AnyNodeData](NodeBase[NodeDataT]):
     """
     A Node with Properties and a persistent identity.
     Conceptually, all Nodes live together happily in a single giant Supergraph.
@@ -115,6 +103,7 @@ class Node[NodeDataT: AnyNodeData](BuiltinObjectMutable[NodeDataT]):
     info: ClassVar["NodeInfo"]
 
     __is_node__: ClassVar[bool] = True
+    __is_trait__: ClassVar[bool] = False
     __traits__: ClassVar[tuple[TraitType, ...]] = ()
     __indexes__: ClassVar[tuple[IndexIn, ...]] = ()
 
@@ -335,22 +324,6 @@ class Node[NodeDataT: AnyNodeData](BuiltinObjectMutable[NodeDataT]):
             raise LookupError(f"no child {key} of {self!r}")
         return cast(N, child)
 
-    def get_children_between[N: Node = Node](
-        self, node_type: NodeType | type[N], after: N | None = None, before: N | None = None
-    ) -> list[N]:
-        """Get all nodes between two nodes (exclusive)."""
-        found_after = after is None
-        nodes = []
-        for node in self.get_children(node_type):
-            if after is not None and after == node:
-                found_after = True
-                continue
-            if before is not None and before == node:
-                break
-            if found_after:
-                nodes.append(node)
-        return nodes
-
     async def wait_until(self, condition: Callable[[Self], bool], timeout: timedelta | None = None):
         """Wait until the given condition is true."""
         assert self._session.runtime is not None, f"no active Runtime in {self!r}"
@@ -377,203 +350,3 @@ class Node[NodeDataT: AnyNodeData](BuiltinObjectMutable[NodeDataT]):
             _connection=_connection,
         )
         return cast(Self, node)
-
-    @classmethod
-    def get(
-        cls: type["Self"],
-        where: Optional["Condition"] = None,
-        *,
-        name: str | None = None,
-        join: Optional["Join"] = None,
-        **subqueries: "Query",
-    ) -> "Query[Self]":
-        from .query import Query, QueryType, relation_ref, to_subqueries
-
-        return Query(
-            type=QueryType.NODE,
-            relation=relation_ref(cls.metatype),
-            name=name or cls.metatype.bench_name,
-            join=join,
-            where=where,
-            subqueries=to_subqueries(subqueries),
-        )
-
-    @classmethod
-    def search(
-        cls: type["Self"],
-        where: Optional["Condition"] = None,
-        *,
-        name: str | None = None,
-        join: Optional["Join"] = None,
-        having: Optional["Condition"] = None,
-        sort: Optional[list["Sort"]] = None,
-        group_by: Optional[list["Expression"]] = None,
-        limit: Optional[int] = None,
-        offset: Optional[int] = None,
-        count: bool = False,
-        **subqueries: "Query",
-    ) -> "Query[Self]":
-        from .query import Query, QueryType, relation_ref, to_subqueries
-
-        return Query(
-            type=QueryType.NODE if group_by is None else QueryType.GROUPED_NODE,
-            relation=relation_ref(cls.metatype),
-            name=name or cls.metatype.bench_name,
-            join=join,
-            where=where,
-            having=having,
-            group_by=group_by or [],
-            sort=sort or [],
-            limit=limit,
-            offset=offset,
-            count=count,
-            subqueries=to_subqueries(subqueries),
-        )
-
-    @classmethod
-    def scalar(
-        cls: type["Self"],
-        type: "AggregationType",
-        *,
-        expression: "ExpressionIn | None" = None,
-        name: str | None = None,
-        join: Optional["Join"] = None,
-        where: Optional["Condition"] = None,
-        group_by: Optional[list["Expression"]] = None,
-        sort: Optional[list["Sort"]] = None,
-    ) -> "Query[Self]":
-        from .query import Aggregation, Query, QueryType, relation_ref
-        from .query import expression as to_expression
-
-        return Query(
-            type=QueryType.SCALAR if group_by is None else QueryType.GROUPED_SCALAR,
-            relation=relation_ref(cls.metatype),
-            name=name or cls.metatype.bench_name,
-            join=join,
-            where=where,
-            group_by=group_by or [],
-            aggregation=Aggregation(
-                type=type, expression=to_expression(expression) if expression else None
-            ),
-            sort=sort or [],
-        )
-
-    @classmethod
-    def exists(
-        cls: type["Self"],
-        where: Optional["Condition"] = None,
-        *,
-        name: str | None = None,
-        join: Optional["Join"] = None,
-    ) -> "Query[Self]":
-        from .query import Aggregation, AggregationType, Query, QueryType, relation_ref
-
-        return Query(
-            type=QueryType.SCALAR,
-            relation=relation_ref(cls.metatype),
-            name=name or cls.metatype.bench_name,
-            join=join,
-            where=where,
-            aggregation=Aggregation(type=AggregationType.EXISTS),
-        )
-
-    @classmethod
-    def count(
-        cls: type["Self"],
-        where: Optional["Condition"] = None,
-        *,
-        name: str | None = None,
-        join: Optional["Join"] = None,
-        group_by: Optional[list["ExpressionIn"]] = None,
-        having: Optional["Condition"] = None,
-    ) -> "Query[Self]":
-        from .query import Aggregation, AggregationType, Query, QueryType, relation_ref
-        from .query import expression as to_expression
-
-        return Query(
-            type=QueryType.SCALAR if group_by is None else QueryType.GROUPED_SCALAR,
-            relation=relation_ref(cls.metatype),
-            name=name or cls.metatype.bench_name,
-            join=join,
-            where=where,
-            having=having,
-            aggregation=Aggregation(type=AggregationType.COUNT),
-            group_by=[to_expression(expr) for expr in group_by or ()],
-        )
-
-    @classmethod
-    def min(
-        cls: type["Self"],
-        expression: "ExpressionIn",
-        *,
-        name: str | None = None,
-        join: Optional["Join"] = None,
-        where: Optional["Condition"] = None,
-        having: Optional["Condition"] = None,
-        group_by: Optional[list["ExpressionIn"]] = None,
-    ) -> "Query[Self]":
-        from .query import Aggregation, AggregationType, Query, QueryType, relation_ref
-        from .query import expression as to_expression
-
-        return Query(
-            type=QueryType.SCALAR if group_by is None else QueryType.GROUPED_SCALAR,
-            relation=relation_ref(cls.metatype),
-            name=name or cls.metatype.bench_name,
-            join=join,
-            where=where,
-            having=having,
-            group_by=[to_expression(expr) for expr in group_by or ()],
-            aggregation=Aggregation(type=AggregationType.MIN, expression=to_expression(expression)),
-        )
-
-    @classmethod
-    def max(
-        cls: type["Self"],
-        expression: "ExpressionIn",
-        *,
-        name: str | None = None,
-        join: Optional["Join"] = None,
-        where: Optional["Condition"] = None,
-        having: Optional["Condition"] = None,
-        group_by: Optional[list["ExpressionIn"]] = None,
-    ) -> "Query[Self]":
-        from .query import Aggregation, AggregationType, Query, QueryType, relation_ref
-        from .query import expression as to_expression
-
-        return Query(
-            type=QueryType.SCALAR if group_by is None else QueryType.GROUPED_SCALAR,
-            relation=relation_ref(cls.metatype),
-            name=name or cls.metatype.bench_name,
-            join=join,
-            where=where,
-            having=having,
-            group_by=[to_expression(expr) for expr in group_by or ()],
-            aggregation=Aggregation(type=AggregationType.MAX, expression=to_expression(expression)),
-        )
-
-    @classmethod
-    def average(
-        cls: type["Self"],
-        expression: "ExpressionIn",
-        *,
-        name: str | None = None,
-        join: Optional["Join"] = None,
-        where: Optional["Condition"] = None,
-        having: Optional["Condition"] = None,
-        group_by: Optional[list["ExpressionIn"]] = None,
-    ) -> "Query[Self]":
-        from .query import Aggregation, AggregationType, Query, QueryType, relation_ref
-        from .query import expression as to_expression
-
-        return Query(
-            type=QueryType.SCALAR if group_by is None else QueryType.GROUPED_SCALAR,
-            relation=relation_ref(cls.metatype),
-            name=name or cls.metatype.bench_name,
-            join=join,
-            where=where,
-            having=having,
-            group_by=[to_expression(expr) for expr in group_by or ()],
-            aggregation=Aggregation(
-                type=AggregationType.AVERAGE, expression=to_expression(expression)
-            ),
-        )

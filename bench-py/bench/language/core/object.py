@@ -1155,6 +1155,7 @@ class BuiltinObjectBase[ObjectDataT: AnyObjectData](abc.ABC):
     __is_frozen__: ClassVar[bool] = False
     __is_struct__: ClassVar[bool] = False
     __is_node__: ClassVar[bool] = False
+    __is_trait__: ClassVar[bool] = False
 
     __properties__: ClassVar[dict[str, Property]] = {}
     __properties_by_id__: ClassVar[dict[int, Property]] = {}

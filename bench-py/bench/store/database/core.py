@@ -489,8 +489,13 @@ class DatabaseContext(abc.ABC):
         ...
 
     @abc.abstractmethod
-    def get_table(self, relation: RelationReference | NodeReference) -> DatabaseTable:
-        """Get the Table for a node."""
+    def resolve_relation(self, relation: RelationReference) -> Sequence[RelationReference]:
+        """Expand the Tables for a node."""
+        ...
+
+    @abc.abstractmethod
+    def get_relation(self, relation: RelationReference | NodeReference) -> DatabaseTable:
+        """Get the Table for a node / relation."""
         ...
 
 

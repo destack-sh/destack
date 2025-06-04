@@ -400,18 +400,23 @@ class Property(IntoType, IntoQuery if TYPE_CHECKING else object):
         """A pointer to this property. `to_ref()` for consistency with `Node.to_ref()`."""
 
         if self._ref is None:
-            from .struct import PropertyReference
+            from .struct import PropertyReference, PropertyReferenceType
 
             assert self.component is not None, f"{self!r} has no component"
             assert self.id is not None, f"{self!r} has no id"
+            metatype = getattr(self.component, "metatype", None)
 
-            if self.component.__is_node__:
+            if self.component.__is_trait__:
                 ref = PropertyReference(
-                    node_type=getattr(self.component, "metatype", None), id=self.id
+                    type=PropertyReferenceType.TRAIT, trait_type=metatype, id=self.id
+                )
+            elif self.component.__is_node__:
+                ref = PropertyReference(
+                    type=PropertyReferenceType.NODE, node_type=metatype, id=self.id
                 )
             else:
                 ref = PropertyReference(
-                    struct_type=getattr(self.component, "metatype", None), id=self.id
+                    type=PropertyReferenceType.STRUCT, struct_type=metatype, id=self.id
                 )
             self._ref = ref
         return self._ref

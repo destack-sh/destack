@@ -5,7 +5,6 @@ from fastuuid import UUID
 from .const import (
     BuiltinEnum,
     EnumType,
-    NodeType,
     StructType,
     active_session,
     enum_,
@@ -13,78 +12,21 @@ from .const import (
 from .node import Node
 from .object import BuiltinObjectMutable, Property, object_
 from .property import property_
-from .struct import NodeReference, PropertyReference, StructFrozen, StructMutable, struct_
+from .struct import (
+    AttributeReference,
+    RelationReference,
+    StructFrozen,
+    StructMutable,
+    attribute_ref,
+    struct_,
+)
+from .trait import Trait
 from .value import Value
 
 if TYPE_CHECKING:
-    from bench.language import CustomNodeDefinition, Field, QueryConnection
+    from bench.language import Field, QueryConnection
 
 # pyright: reportIncompatibleVariableOverride=false
-
-#
-# Relations/Attributes
-#
-
-
-@enum_(EnumType.RELATION_TYPE)
-class RelationType(BuiltinEnum):
-    BUILTIN_NODE = 1
-    CUSTOM_NODE = 2
-
-
-@struct_(StructType.RELATION_REFERENCE, frozen=True)
-class RelationReference(StructFrozen):
-    """Reference to a Node (builtin or custom)."""
-
-    type: RelationType = property_(30, is_repr=True)
-    node_type: NodeType = property_(31, is_repr=True)
-    definition: Optional["CustomNodeDefinition"] = property_(32, is_repr=True)
-    if TYPE_CHECKING:
-        definition_id: Optional[UUID] = None
-        definition_ptr: Optional[NodeReference] = None
-
-
-def relation_ref(base: "NodeType | type[Node] | CustomNodeDefinition") -> RelationReference:
-    from .node import Node
-
-    if isinstance(base, NodeType):
-        return RelationReference(type=RelationType.BUILTIN_NODE, node_type=base)
-    elif isinstance(base, type):
-        assert issubclass(base, Node), f"{base!r} is not a Node"
-        return RelationReference(type=RelationType.BUILTIN_NODE, node_type=base.metatype)
-    elif isinstance(base, CustomNodeDefinition):
-        return RelationReference(type=RelationType.CUSTOM_NODE, node_type=base.metatype)
-    else:
-        assert_never(base)
-
-
-@enum_(EnumType.ATTRIBUTE_TYPE)
-class AttributeType(BuiltinEnum):
-    PROPERTY = 1
-    FIELD = 2
-
-
-@struct_(StructType.ATTRIBUTE_REFERENCE, frozen=True)
-class AttributeReference(StructFrozen):
-    """Reference to a Field or Property."""
-
-    type: AttributeType = property_(30, is_repr=True)
-    prop: Optional["Property"] = property_(31, is_repr=True)
-    field: Optional["Field"] = property_(32, is_repr=True)
-    relation: Optional[RelationReference] = property_(33, is_repr=True)
-    if TYPE_CHECKING:
-        prop_ptr: Optional[PropertyReference] = None
-        field_id: Optional[UUID] = None
-        field_ptr: Optional[NodeReference] = None
-
-
-def attribute_ref(field: "Field | Property") -> AttributeReference:
-    if isinstance(field, Property):
-        return AttributeReference(type=AttributeType.PROPERTY, prop=field)
-    elif isinstance(field, Node):
-        return AttributeReference(type=AttributeType.FIELD, field=field)
-    else:
-        assert_never(field)
 
 
 #
@@ -340,7 +282,6 @@ class Join(StructFrozen):
     """JOIN clause with ON expression."""
 
     type: JoinType = property_(30, is_repr=True)
-    relation: Optional[RelationReference] = property_(31, is_repr=True)
     on: Optional[Condition] = property_(32, is_repr=True)
     recursive: bool = property_(33, default=False, is_repr=True)  # for parent/child joins
 
@@ -348,21 +289,11 @@ class Join(StructFrozen):
 JoinIn = Union[Join, "JoinType"]
 
 
-def join(
-    join: JoinIn,
-    relation: "NodeType | type[Node] | CustomNodeDefinition | None" = None,
-    on: Optional[Condition] = None,
-    recursive: bool = False,
-) -> Join:
+def join(join: JoinIn, on: Optional[Condition] = None, recursive: bool = False) -> Join:
     if isinstance(join, Join):
         return join
     else:
-        return Join(
-            type=join,
-            relation=relation_ref(relation) if relation is not None else None,
-            on=on,
-            recursive=recursive,
-        )
+        return Join(type=join, on=on, recursive=recursive)
 
 
 #
@@ -379,7 +310,7 @@ class QueryType(BuiltinEnum):
 
 
 @struct_(StructType.QUERY, frozen=True)
-class Query[RootT: "Node"](StructFrozen):
+class Query[RootT: "Trait | Node"](StructFrozen):
     """A GraphQL-inspired Query node (with subqueries)."""
 
     # meta
@@ -398,7 +329,7 @@ class Query[RootT: "Node"](StructFrozen):
         is_repr=True,
     )
     select: Optional[Select] = property_(34, is_repr=True)
-    subqueries: list["Query"] = property_(35)
+    subqueries: list["Query"] = property_(35, is_repr=True)
     is_live: bool = property_(39, default=True)
 
     # content

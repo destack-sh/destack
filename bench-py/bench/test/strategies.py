@@ -176,7 +176,7 @@ def get_type_strategy(typ: Type) -> st.SearchStrategy[Any]:
     scalar_strategy = get_scalar_type_strategy(typ)
     return _wrap_value_scalar_strategy(
         scalar_strategy,
-        is_required=typ.is_required,
+        is_required=typ.is_required or False,
         cardinality=typ.cardinality,
         min_length=0,
         max_length=None,
