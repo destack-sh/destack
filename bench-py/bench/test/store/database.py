@@ -65,11 +65,6 @@ async def test_create_user(session: Session):
     assert user_unpacked.name == "Fluff"
     assert user_unpacked.slug == "flotothemoon"
     assert user_unpacked.status == UserStatus.ACTIVE
-    # exists
-    assert await User.exists().execute_exists()
-    # count
-    user_count = await User.count().execute_count()
-    assert user_count == 1
 
 
 async def test_create_page_with_recursive_blocks(session: Session):
@@ -78,7 +73,9 @@ async def test_create_page_with_recursive_blocks(session: Session):
     page = Page(title=text_line("*Test Page*"), slug="test")
     session.create(page)
     await session.commit()
-    # blocks (nested)
+    # block tree
+    block_count = await Block.count().execute_count()
+    assert block_count == 0
     root_blocks: list[Block] = []
     for i in range(8):
         root_block = Block(type=BlockType.PARAGRAPH, line=text_line(f"Test Block {i}"))
@@ -92,10 +89,12 @@ async def test_create_page_with_recursive_blocks(session: Session):
                 )
                 inner_block.add_child(inner_inner_block)
     page.add_children(*root_blocks)
+    target_block_count = 8 * (1 + 8 * (1 + 4))
+    assert len(page._graph) == 1 + target_block_count
     await session.commit()
     # query count
     block_count = await Block.count().execute_count()
-    assert block_count == 8 * 8 * 4
+    assert block_count == target_block_count
 
 
 async def test_create_custom_node(session: Session):

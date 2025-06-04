@@ -75,6 +75,7 @@ def node_(
             object_type=node_type,
             is_concrete=node_type is not None,
             is_node=True,
+            is_root_node=root_type is None,
         )
         cls.__indexes__ = index
 
@@ -187,11 +188,6 @@ class Node[NodeDataT: AnyNodeData](BuiltinObjectMutable[NodeDataT]):
     _is_attached: bool = property_runtime_(default=False)
     _dirty: bitarray | None = property_runtime_(default=None)
 
-    @property
-    def is_attached(self) -> bool:
-        """Whether this Node is attached to a root."""
-        return self._is_attached
-
     @override
     def clone(
         self,
@@ -276,14 +272,11 @@ class Node[NodeDataT: AnyNodeData](BuiltinObjectMutable[NodeDataT]):
             f"{child!r} is not in supergraph of {self!r}"
         )
 
-        # create new nodes
-        if child._is_new:
-            for node in nodes:
-                session.create(node)
-
         # move to new graph
         for node in nodes:
+            node.parent_ptr = self.to_ref()
             node._graph = self._graph
+            self._graph.add(node)
         if len(nodes) == len(old_graph):  # all nodes were moved
             self._supergraph.remove_graph(old_graph)
         else:
@@ -291,6 +284,11 @@ class Node[NodeDataT: AnyNodeData](BuiltinObjectMutable[NodeDataT]):
                 old_graph.remove(node)
 
         # nocheckin: Node.add_child ordering
+
+        # create new nodes
+        if child._is_new and self._is_attached:
+            for node in nodes:
+                session.create(node)
 
         return self
 

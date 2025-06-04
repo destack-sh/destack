@@ -25,11 +25,14 @@ async def execute_change(
     assert change.edits, f"no Edits in {change!r}"
 
     cascaded_edits: list[Edit] = []
+    edits = change.edits
+    # nocheckin: reorder edits to minimize database roundtrips
+    # (but ensure correctness)
 
-    current_table = context.get_table(change.edits[0].node_ptr)
-    current_edit_type = change.edits[0].type
+    current_table = context.get_table(edits[0].node_ptr)
+    current_edit_type = edits[0].type
     current_batch: list[Edit] = []
-    for edit in change.edits:
+    for edit in edits:
         edit_table = context.get_table(edit.node_ptr)
         if edit_table is not current_table or edit.type != current_edit_type:
             _, batch_cascaded_edits = await _execute_data_edit(

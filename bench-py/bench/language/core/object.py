@@ -93,6 +93,7 @@ _processed_classes: dict[type["BuiltinObjectBase"], type["BuiltinObjectBase"]] =
 def _generate_init_impl[ObjectT: BuiltinObjectBase](
     cls: type[ObjectT],
     is_node: bool,
+    is_root_node: bool,
     is_frozen: bool,
     properties: dict[str, Property],
 ) -> tuple[str, dict[str, Any]]:
@@ -185,52 +186,29 @@ __setattr__(self, "_session", _session)
 if _supergraph is None:
     _supergraph = _session.supergraph
 __setattr__(self, "_supergraph", _supergraph)
-""")
-        if "ck" not in properties:
-            # id node init
-            method_body_lines.append("""\
-# node identity (with id only)
-if id is None:
-    id = uuid4()
-    now = self._session.oracle.utc()
-    created_at = now
-    updated_at = now
-    _is_new = True
-else:
-    _is_new = False
-__setattr__(self, "id", id)
-""")
-        else:
-            # ck node init
-            method_body_lines.append("""\
-# node identity (with id and ck)
-if id is None:
-    id = uuid4()
-    if ck is None:
-        ck = id
-    now = self._session.oracle.utc()
-    created_at = now
-    updated_at = now
-    _is_new = True
-else:
-    _is_new = False
-__setattr__(self, "id", id)
-__setattr__(self, "ck", ck)
-""")
 
-        # general node tracking
-        method_body_lines.append("""\
+# node identity
+if id is None:
+    id = uuid4()
+    now = self._session.oracle.utc()
+    created_at = now
+    updated_at = now
+    _is_new = True
+    _is_attached = {"True" if is_root_node else "_graph is not None"}
+else:
+    _is_new = False
+    _is_attached = True # if we already have an id, assume we're attached
+__setattr__(self, "id", id)
+
 # node tracking
 __setattr__(self, "created_at", created_at)
 __setattr__(self, "updated_at", updated_at)
 __setattr__(self, "_hash", id.int)
 __setattr__(self, "_ref", None)
 __setattr__(self, "_is_new", _is_new)
+__setattr__(self, "_is_attached", _is_attached)
 __setattr__(self, "_dirty", None)
-""")  # noqa: FURB113
 
-        # node graph
-        method_body_lines.append("""\
 # graph
 if _graph is None:
     _graph = Graph(_supergraph, _connection)
@@ -239,6 +217,7 @@ __setattr__(self, "_graph", _graph)
 __setattr__(self, "_connection", _connection)
 # (we add self to _graph at the end of __init__)
 """)
+        # nocheckin :Performance: don't create (and dispose) single-node Graphs for every Node
 
     else:
         # struct setup
@@ -898,6 +877,7 @@ def _process_object_cls[ObjectT: BuiltinObjectBase](
     is_concrete: bool = False,
     is_struct: bool = False,
     is_node: bool = False,
+    is_root_node: bool = False,
 ) -> tuple[type[ObjectT], dict[str, "Property"]]:
     """Process a BuiltinObject base class and return the processed class and its properties."""
     assert isinstance(cls, type), f"expected type, got {cls} ({type(cls)})"
@@ -1033,7 +1013,11 @@ def _process_object_cls[ObjectT: BuiltinObjectBase](
             "uuid4": uuid4,
         }
         init_str, init_glbls = _generate_init_impl(
-            cls, is_node=is_node, is_frozen=is_frozen, properties=properties
+            cls,
+            is_node=is_node,
+            is_frozen=is_frozen,
+            is_root_node=is_root_node,
+            properties=properties,
         )
         exec_(init_str, {**glbls, **init_glbls}, cls_dict, f"{cls.__name__}:init")
         # __repr__
