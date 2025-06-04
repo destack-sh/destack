@@ -284,8 +284,11 @@ class Node[NodeDataT: AnyNodeData](BuiltinObjectMutable[NodeDataT]):
         # move to new graph
         for node in nodes:
             node._graph = self._graph
-        if len(nodes) == len(child._graph):  # all nodes were moved
+        if len(nodes) == len(old_graph):  # all nodes were moved
             self._supergraph.remove_graph(old_graph)
+        else:
+            for node in nodes:
+                old_graph.remove(node)
 
         # nocheckin: Node.add_child ordering
 

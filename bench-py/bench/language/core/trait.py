@@ -13,7 +13,7 @@ from typing import (
 
 from fastuuid import UUID
 
-from bench.language.registry import NODE_CLASS_BY_TRAIT, NODE_TYPES_BY_TRAIT
+from bench.language.registry import NODE_CLASS_BY_TRAIT, NODE_TRAIT_BY_CLASS, NODE_TYPES_BY_TRAIT
 from bench.utils.fractional import INTEGER_ZERO
 from bench.utils.tenacity import RetryOptions
 
@@ -93,6 +93,7 @@ def trait_(
             is_node=True,
         )
         NODE_CLASS_BY_TRAIT[node_trait] = cls
+        NODE_TRAIT_BY_CLASS[cls] = node_trait
         return cls
 
     return decorate

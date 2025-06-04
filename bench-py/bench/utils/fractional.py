@@ -15,8 +15,8 @@ BASE_95_DIGITS = (
 )
 
 INTEGER_ZERO = "a0"
-SMALLEST_INTEGER = "A00000000000000000000000000"
-BIGGEST_INTEGER = "aZZZZZZZZZZZZZZZZZZZZZZZZZ"
+INTEGER_MIN = "A00000000000000000000000000"
+INTEGER_MAX = "aZZZZZZZZZZZZZZZZZZZZZZZZZ"
 
 
 def get_integer_length(head: str) -> int:
@@ -146,7 +146,7 @@ def get_integer_part(key: str) -> str:
 
 
 def is_valid_order_key(key: str) -> bool:
-    if key == SMALLEST_INTEGER:
+    if key == INTEGER_MIN:
         return False
     #   getIntegerPart will throw if the first character is bad,
     #   or the key is too short.  we'd call it to check these things
@@ -179,7 +179,7 @@ def get_order_key(a: Optional[str], b: Optional[str], digits: str = BASE_95_DIGI
             return INTEGER_ZERO
         ib = get_integer_part(b)
         fb = b[len(ib) :]
-        if ib == SMALLEST_INTEGER:
+        if ib == INTEGER_MIN:
             return ib + midpoint("", fb, digits)
         return ib if ib < b else cast(str, decrement_integer(ib, digits))
     if b is None:

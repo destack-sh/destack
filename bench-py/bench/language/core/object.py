@@ -165,6 +165,7 @@ def _generate_init_impl[ObjectT: BuiltinObjectBase](
         body_properties.pop("updated_at")
         body_properties.pop("_session")
         body_properties.pop("_graph")
+        body_properties.pop("_connection")
         body_properties.pop("_hash")
         body_properties.pop("_ref")
         body_properties.pop("_is_new")
@@ -231,6 +232,7 @@ if _graph is None:
     _graph = Graph(_supergraph, _connection)
     _supergraph.add_graph(_graph)
 __setattr__(self, "_graph", _graph)
+__setattr__(self, "_connection", _connection)
 # (we add self to _graph at the end of __init__)
 """)
 

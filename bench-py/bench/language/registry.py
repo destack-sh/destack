@@ -26,6 +26,7 @@ ENUM_CLASS_BY_TYPE = _ENUM_CLASS_BY_TYPE  # re-exported to avoid circular import
 ENUM_TYPE_BY_CLASS: dict[type, EnumType] = {}
 NODE_CLASS_BY_TYPE: dict[NodeType, type["Node"]] = {}
 NODE_CLASS_BY_TRAIT: dict[TraitType, type["BuiltinObjectBase"]] = {}
+NODE_TRAIT_BY_CLASS: dict[type["BuiltinObjectBase"], TraitType] = {}
 NODE_TYPES_BY_TRAIT: dict[TraitType, tuple[NodeType, ...]] = {}
 STRUCT_CLASS_BY_TYPE: dict[StructType, type["StructBase"]] = {}
 BUILTIN_OBJECT_CLASS_BY_TYPE: dict[NodeType | StructType, type["BuiltinObjectBase"]] = {}
