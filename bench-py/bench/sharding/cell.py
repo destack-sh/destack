@@ -2,7 +2,7 @@ import abc
 from collections.abc import Sequence
 from typing import TYPE_CHECKING, override
 
-from bench.language.core.const import REGION_BY_SLUG, Region
+from bench.language import REGION_BY_SLUG, Bench, Region
 
 if TYPE_CHECKING:
     from bench.language import CellInfo
@@ -12,8 +12,8 @@ class CellProvider(abc.ABC):
     """A provider of known Cells."""
 
     @abc.abstractmethod
-    async def acquire(self, region: Region) -> "CellInfo":
-        """Acquires a Cell for the given region."""
+    async def acquire(self, region: Region, bench: Bench) -> "CellInfo":
+        """Acquires a new (shared) Cell for the Bench."""
         ...
 
     @abc.abstractmethod
@@ -39,7 +39,7 @@ class StaticCellProvider(CellProvider):
         return f"<{self.__class__.__name__} {len(self._cells)} cells>"
 
     @override
-    async def acquire(self, region: Region) -> "CellInfo":
+    async def acquire(self, region: Region, bench: Bench) -> "CellInfo":
         for cell in self._cells:
             if cell.region == region:
                 return cell

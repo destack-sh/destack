@@ -66,9 +66,9 @@ class Session:
         self.mode: NodeMode = mode
         self.oracle: Oracle = oracle
         self.bench: Bench | None = bench
-        self.origin = origin
-        self.subject = subject
-        self.store = store
+        self.origin: Origin | None = origin
+        self.subject: IsSubject | None = subject
+        self.store: Store | None = store
 
         # transaction (pending)
         self.dirty: dict[UUID, Node] = {}

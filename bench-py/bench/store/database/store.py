@@ -74,6 +74,7 @@ class DatabaseStore(Store):
     def __repr__(self) -> str:
         return f"<{self.__class__.__name__} {self!s}>"
 
+    @tracer.start_as_current_span("database.load")
     async def _load_context(self, conn: asyncpg.Connection) -> "DatabaseStoreContext":
         context = DatabaseStoreContext(self)
         return context
@@ -184,5 +185,6 @@ class DatabaseStoreContext(DatabaseContext):
         applied_edits: list[Edit] = []
         for edit in edits:
             if edit.node_type in (NodeType.CUSTOM_NODE_DEFINITION, NodeType.FIELD):
-                applied_edits.append(edit)  # nocheckin: optimistically update context copy
+                applied_edits.append(edit)
+                # nocheckin: optimistically update context copy
         return applied_edits

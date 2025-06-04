@@ -20,7 +20,6 @@ from bench.language import (
     PackageType,
     Region,
     Session,
-    Tenancy,
     User,
     UserStatus,
     bittuple,
@@ -170,15 +169,15 @@ class SupervisorService(ServiceBase, SupervisorBase):
         await session.commit()
 
         # provision Bench
-        cell = await self.cell_provider.acquire(region)
-        main_database = await self.database_provider.acquire(region)
+        cell = await self.cell_provider.acquire(region, bench)
+        main_database = await self.database_provider.acquire(region, bench)
         database = Database(
-            tenancy=Tenancy.SHARED,
+            tenancy=main_database.tenancy,
             name="Main Database",
             region=region,
             cell_name=cell.name,
             external_name=main_database.external_name,
-            custom_schema_name=f"bench-{bench.id}",
+            custom_schema_name=main_database.custom_schema_name,
         )
         bench.database = database
         session.store = SplitStore(
