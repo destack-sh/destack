@@ -67,34 +67,42 @@ async def test_create_user(session: Session):
     assert user_unpacked.status == UserStatus.ACTIVE
 
 
-async def test_create_page_with_recursive_blocks(session: Session):
-    """Create a Page, mutate it, querying along the way."""
-    # create
-    page = Page(title=text_line("*Test Page*"), slug="test")
-    session.create(page)
-    await session.commit()
-    # block tree
-    block_count = await Block.count().execute_count()
-    assert block_count == 0
-    root_blocks: list[Block] = []
-    for i in range(8):
-        root_block = Block(type=BlockType.PARAGRAPH, line=text_line(f"Test Block {i}"))
-        root_blocks.append(root_block)
-        for j in range(8):
-            inner_block = Block(type=BlockType.PARAGRAPH, line=text_line(f"Inner Block {i}/{j}"))
-            root_block.add_child(inner_block)
-            for k in range(4):
-                inner_inner_block = Block(
-                    type=BlockType.PARAGRAPH, line=text_line(f"Inner Inner Block {i}/{j}/{k}")
+async def test_create_page_blocks_recursive(session: Session):
+    """Create a Page with recursive sub-Pages and Blocks, mutate it, querying along the way."""
+    for a in ("a", "b", "c", "d", "e", "f", "g", "h"):
+        # create
+        root_page = Page(title=text_line(f"*Test Page {a}*"), slug=f"test-{a}")
+        session.create(root_page)
+        await session.commit()
+        # block tree
+        block_count = await Block.count(
+            where=Block.property("parent").eq(root_page)
+        ).execute_count()
+        assert block_count == 0
+        root_blocks: list[Block] = []
+        for i in range(4):
+            root_block = Block(type=BlockType.PARAGRAPH, line=text_line(f"Test Block {a}/{i}"))
+            root_blocks.append(root_block)
+            for j in range(4):
+                inner_block = Block(
+                    type=BlockType.PARAGRAPH, line=text_line(f"Inner Block {a}/{i}/{j}")
                 )
-                inner_block.add_child(inner_inner_block)
-    page.add_children(*root_blocks)
-    target_block_count = 8 * (1 + 8 * (1 + 4))
-    assert len(page._graph) == 1 + target_block_count
-    await session.commit()
-    # query count
-    block_count = await Block.count().execute_count()
-    assert block_count == target_block_count
+                root_block.add_child(inner_block)
+                for k in range(4):
+                    inner_inner_block = Block(
+                        type=BlockType.PARAGRAPH,
+                        line=text_line(f"Inner Inner Block {a}/{i}/{j}/{k}"),
+                    )
+                    inner_block.add_child(inner_inner_block)
+        root_page.add_children(*root_blocks)
+        page_block_count = 4 * (1 + 4 * (1 + 4))
+        assert len(root_page._graph) == 1 + page_block_count
+        await session.commit()
+        # query count
+        block_count = await Block.count(
+            where=Block.property("parent").eq(root_page)
+        ).execute_count()
+        assert block_count == page_block_count
 
 
 async def test_create_custom_node(session: Session):
