@@ -25,7 +25,7 @@ class CellProvider(abc.ABC):
         """Gets the cell info for the given region and cell name (error if none)."""
         cell_info = await self.resolve(region, cell_name)
         if cell_info is None:
-            raise LookupError(f'no Cell "{region.slug}/{cell_name}" in {self!r}')
+            raise LookupError(f'no Cell for "{region.slug}/{cell_name}" in {self!r}')
         return cell_info
 
 
@@ -43,7 +43,7 @@ class StaticCellProvider(CellProvider):
         for cell in self._cells:
             if cell.region == region:
                 return cell
-        raise LookupError(f'no Cell "{region.slug}" in {self!r}')
+        raise LookupError(f'no Cell for "{region.slug}" in {self!r}')
 
     @override
     async def resolve(self, region: Region, cell_name: str) -> "CellInfo | None":

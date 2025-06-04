@@ -8,6 +8,7 @@ def exec_(code: str, globals: dict, locals: dict, filename: str) -> None:
     Executes the code, but with a name and in the cache.
     """
     code_co = compile(code, filename, "exec")
+    assert filename not in linecache.cache, f"filename {filename} already in cache"
     linecache.cache[filename] = (
         len(code),  # size (ignored)
         None,  # mtime  (ignored)

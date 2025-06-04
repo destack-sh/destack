@@ -221,7 +221,7 @@ class Node[NodeDataT: AnyNodeData](BuiltinObjectMutable[NodeDataT]):
         prop = self.__tracked_properties__.get(key)
         if prop is not None and not self._is_new:
             if self._dirty is None:
-                self._dirty = bitarray(self.__max_property_ord__)
+                self._dirty = bitarray(self.__max_property_ord__ + 1)
             self._dirty[prop.ord] = 1  # type: ignore
             self._session.dirty[self.id] = self
         _object_set(self, key, value)

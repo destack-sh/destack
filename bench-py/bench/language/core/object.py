@@ -750,7 +750,8 @@ def {prop.name}(self: "BuiltinObjectBase") -> "Node | None":
     if node_ptr is not None:
         return self._supergraph.get(node_ptr.id)
     else:
-        return None"""
+        return None
+"""
         else:
             getter = f"""\
 @property
@@ -761,15 +762,27 @@ def {prop.name}(self: "BuiltinObjectBase") -> "Node | None":
             return None
         return self._supergraph.get(node_ptr.id)
     else:
-        return None"""
+        return None
+"""
 
-        setter = f"""\
+        if is_node:
+            setter = f"""\
+@{prop.name}.setter
+def {prop.name}(self: "BuiltinObjectBase", value: "Node | None"):
+    if value is None:
+        self._do_set("{ptr_prop.name}", None)
+    else:
+        self._do_set("{ptr_prop.name}", value.to_ref())
+"""
+        else:
+            setter = f"""\
 @{prop.name}.setter
 def {prop.name}(self: "BuiltinObjectBase", value: "Node | None"):
     if value is None:
         self.{ptr_prop.name} = None
     else:
-        self.{ptr_prop.name} = value.to_ref()"""
+        self.{ptr_prop.name} = value.to_ref()
+"""
 
     elif prop.cardinality == "list":
         if is_node:
@@ -777,7 +790,8 @@ def {prop.name}(self: "BuiltinObjectBase", value: "Node | None"):
 @property
 def {prop.name}(self: "BuiltinObjectBase") -> tuple["Node", ...]:
     node_ptrs: list[NodeReference] = self.{ptr_prop.name}
-    return tuple(self._supergraph.get(p.id) for p in node_ptrs)"""
+    return tuple(self._supergraph.get(p.id) for p in node_ptrs)
+"""
         else:
             getter = f"""\
 @property
@@ -785,12 +799,21 @@ def {prop.name}(self: "BuiltinObjectBase") -> tuple["Node", ...]:
     node_ptrs: list[NodeReference] = self.{ptr_prop.name}
     if self._supergraph is None:
         return ()
-    return tuple(self._supergraph.get(p.id) for p in node_ptrs)"""
+    return tuple(self._supergraph.get(p.id) for p in node_ptrs)
+"""
 
-        setter = f"""\
+        if is_node:
+            setter = f"""\
 @{prop.name}.setter
 def {prop.name}(self: "BuiltinObjectBase", nodes: list["Node"]):
-    self.{ptr_prop.name} = [n.to_ref() for n in nodes]"""
+    self._do_set("{ptr_prop.name}", [n.to_ref() for n in nodes])
+"""
+        else:
+            setter = f"""\
+@{prop.name}.setter
+def {prop.name}(self: "BuiltinObjectBase", nodes: list["Node"]):
+    self.{ptr_prop.name} = [n.to_ref() for n in nodes]
+"""
     else:
         raise RuntimeError(f"unsupported cardinality: {prop.cardinality}")
 
@@ -1032,7 +1055,12 @@ def _process_object_cls[ObjectT: BuiltinObjectBase](
             # computed property property
             if prop.is_property:
                 property_property_str = _generate_property_property_impl(prop)
-                exec_(property_property_str, {}, cls_dict, f"{cls.__name__}:property_property")
+                exec_(
+                    property_property_str,
+                    {},
+                    cls_dict,
+                    f"{cls.__name__}:property_property:{prop.name}",
+                )
             # computed node property
             elif prop.edge_type in (
                 EdgeType.NODE_PARENT,
@@ -1040,18 +1068,28 @@ def _process_object_cls[ObjectT: BuiltinObjectBase](
                 EdgeType.NODE_TEMPLATE,
             ):
                 node_property_str = _generate_node_property_impl(prop)
-                exec_(node_property_str, {}, cls_dict, f"{cls.__name__}:node_property")
+                exec_(node_property_str, {}, cls_dict, f"{cls.__name__}:node_property:{prop.name}")
             # computed node ancestor property
             elif prop.edge_type == EdgeType.NODE_ANCESTOR:
                 ancestor_property_str = _generate_node_ancestor_property_impl(object_type, prop)
-                exec_(ancestor_property_str, {}, cls_dict, f"{cls.__name__}:ancestor_property")
+                exec_(
+                    ancestor_property_str,
+                    {},
+                    cls_dict,
+                    f"{cls.__name__}:ancestor_property:{prop.name}",
+                )
             # computed _x node reference properties (e.g., parent_id, node_ck, node_type, ...)
             if prop.is_node_reference:
                 for obj_key, ptr_key in (("id", "id"), ("ck", "ck"), ("type", "node_type")):
                     if obj_key == "type" and (not prop.node_types or len(prop.node_types) <= 1):
                         continue  # no need for *_type if only one possible node type
                     node_key_property_str = _generate_node_key_property_impl(obj_key, ptr_key, prop)
-                    exec_(node_key_property_str, {}, cls_dict, f"{cls.__name__}:node_key_property")
+                    exec_(
+                        node_key_property_str,
+                        {},
+                        cls_dict,
+                        f"{cls.__name__}:node_key_property:{prop.name}:{obj_key}",
+                    )
 
         # freeze
         if is_frozen:
