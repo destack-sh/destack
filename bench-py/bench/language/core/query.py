@@ -169,11 +169,9 @@ def condition(
 ) -> Condition:
     from .value import to_value
 
-    return Condition(
-        type=type,
-        left=expression(attribute_ref(attribute)),
-        right=expression(to_value(value)),
-    )
+    left = expression(attribute_ref(attribute))
+    right = expression(to_value(value))
+    return Condition(type=type, left=left, right=right)
 
 
 #

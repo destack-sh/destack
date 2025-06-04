@@ -42,7 +42,7 @@ def _compile_value(context: DatabaseContext, arguments_out: list[Any], value: Va
     """Compile a Value into a SQL expression."""
     if value.type.scalar_type == ScalarType.NODE_REFERENCE:
         # unravel reference column into id
-        value_id = uuid.UUID(value.value["31"])
+        value_id = uuid.UUID(value.value["32"])
         arguments_out.append(value_id)
         return f"${len(arguments_out)}"
     else:
