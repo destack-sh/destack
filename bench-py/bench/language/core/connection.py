@@ -21,7 +21,6 @@ class QueryConnection[RootT: "Trait | Node"]:
     __slots__ = (
         "graph",
         "id",
-        "is_live",
         "lock",
         "queries_by_id",
         "query",
@@ -38,7 +37,6 @@ class QueryConnection[RootT: "Trait | Node"]:
         # meta
         self.id: UUID = query.id
         self.query: Query = query
-        self.is_live = query.is_live
         self.store: Store = store
         self.session: Session = session
         self.lock = asyncio.Lock()
@@ -54,7 +52,6 @@ class QueryConnection[RootT: "Trait | Node"]:
         content_parts: list[str] = [
             f"id={self.id}",
             f"query={self.query!r}",
-            f"is_live={self.is_live}",
         ]
         if self.result:
             content_parts.append(f"result={self.result!r}")

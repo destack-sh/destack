@@ -334,7 +334,7 @@ class Query[RootT: "Trait | Node"](StructFrozen):
     join: Optional[Join] = property_(33, description="Relative to parent Query.", is_repr=True)
     select: Optional[Select] = property_(34, is_repr=True)
     subqueries: list["Query"] = property_(35, is_repr=True)
-    is_live: bool = property_(39, default=True)
+    # is_live/refreshing/routing/area/...
 
     # content
     where: Optional[Condition] = property_(40, is_repr=True)

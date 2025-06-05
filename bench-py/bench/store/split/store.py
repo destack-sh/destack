@@ -1,20 +1,29 @@
+import asyncio
+from collections import defaultdict
 from collections.abc import Mapping, Sequence
 from typing import override
+
+from more_itertools import flatten
 
 from bench.language import (
     Change,
     ChangeResult,
+    CustomNodeInstance,
+    IsGlobal,
     NodeArea,
     Query,
     QueryResult,
+    RelationType,
     Store,
 )
+from bench.language.registry import NODE_CLASS_BY_TYPE
 
 
 class SplitStore(Store):
     """
     Split and route Queries and Changes to the appropriate Stores.
     Does not support atomic Changes across Stores (yet).
+    NOTE: obviously SplitStore sharding/routing is very crude for now
     """
 
     def __init__(self, store_by_area: Mapping[NodeArea, Store]):
@@ -31,8 +40,45 @@ class SplitStore(Store):
 
     @override
     async def query(self, query: Query) -> QueryResult:
-        raise NotImplementedError
+        area = _get_query_node_area(query)
+        if area is None:
+            raise ValueError(f"no area for {query!r}")
+        store = self.store_by_area[area]
+        return await store.query(query)
 
     @override
     async def commit(self, changes: Sequence[Change]) -> Sequence[ChangeResult]:
-        raise NotImplementedError
+        changes_by_area: dict[NodeArea, list[Change]] = defaultdict(list)
+        for change in changes:
+            area = _get_change_node_area(change)
+            if area is None:
+                raise ValueError(f"no area for {change!r}")
+            changes_by_area[area].append(change)
+        commit = await asyncio.gather(
+            *[self.store_by_area[area].commit(changes) for area, changes in changes_by_area.items()]
+        )
+        return tuple(flatten(commit))
+
+
+def _get_query_node_area(query: Query) -> NodeArea | None:
+    if query.relation.type == RelationType.BUILTIN_NODE:
+        assert query.relation.node_type is not None, f"no node_type for {query.relation!r}"
+        node_cls = NODE_CLASS_BY_TYPE[query.relation.node_type]
+    elif query.relation.type == RelationType.CUSTOM_NODE:
+        node_cls = CustomNodeInstance
+    else:
+        return None
+    if issubclass(node_cls, IsGlobal):
+        return NodeArea.GLOBAL_DATABASE
+    else:
+        return NodeArea.MAIN_DATABASE
+
+
+def _get_change_node_area(change: Change) -> NodeArea | None:
+    if not change.edits:
+        return None
+    node_cls = NODE_CLASS_BY_TYPE[change.edits[0].node_type]
+    if issubclass(node_cls, IsGlobal):
+        return NodeArea.GLOBAL_DATABASE
+    else:
+        return NodeArea.MAIN_DATABASE
