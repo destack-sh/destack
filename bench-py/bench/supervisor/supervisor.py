@@ -24,7 +24,6 @@ from bench.language import (
     User,
     UserStatus,
     bittuple,
-    join,
 )
 from bench.pb2 import RpcMetadata
 from bench.proto import (
@@ -117,7 +116,7 @@ class SupervisorService(ServiceBase, SupervisorBase):
             return None, None
         client = await Client.get(
             where=Client.property("access_token").eq(metadata.client_access_token),
-            ParentUser=User.search(join=join(JoinType.PARENT)),
+            ParentUser=User.get(join=JoinType.PARENT),
         ).execute_one_or_none()
         if client is None:
             return None, None
@@ -163,6 +162,7 @@ class SupervisorService(ServiceBase, SupervisorBase):
 
         # create Client
         client = Client.from_proto(request.client)
+        client._is_new = True
         client.access_token = generate_access_token(ACCESS_TOKEN_LENGTH)
         user.add_child(client)
         await session.stage()
@@ -269,13 +269,17 @@ class SupervisorService(ServiceBase, SupervisorBase):
 
         user.last_logged_in_at = self.oracle.utc()
         client = Client.from_proto(request.client)
+        client._is_new = True
         client.access_token = generate_access_token(ACCESS_TOKEN_LENGTH)
         session.upsert(client)
+
         await session.commit()
 
         logger.info("supervisor.login_user", user=user, client=client, span="current")
         return LoginUserResponse(
-            user=user.to_proto(), client=client.to_proto(), access_token=client.access_token
+            user=user.to_proto(),
+            client=client.to_proto(),
+            access_token=client.access_token,
         )
 
     @override

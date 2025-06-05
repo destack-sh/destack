@@ -188,10 +188,10 @@ SET {", ".join(f"{col.name} = EXCLUDED.{col.name}" for col in override_columns)}
         # gather all db-columns possibly touched in this batch
         all_updated_columns: set[str] = set()
         for edit in edits:
-            if not edit.prop:
-                raise ValueError(f"no prop for {edit!r}")
+            prop = edit.prop
+            assert prop is not None, f"no prop for {edit!r}"
             update: dict[str, Any] = {}
-            pack_column_wide(edit.prop.type, None, table, edit.prop.name, update)
+            pack_column_wide(prop.type, None, table, prop.name, update)
             all_updated_columns.update(update.keys())
 
         updated_column_names = list(all_updated_columns)
