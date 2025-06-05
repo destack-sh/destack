@@ -601,8 +601,8 @@ async def _execute_subquery(
                 *(n.id for n in expanded_nodes_ptr),
             )
         else:
-            subquery_where = subquery.relation.resolve_property_or_error("parent").in_(
-                *(n.id for n in nodes_ptr),
+            subquery_where = subquery.relation.resolve_property_or_error("id").in_(
+                *parents_ptr,
             )
         # subquery
         subresult = await execute_query(

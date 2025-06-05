@@ -126,12 +126,17 @@ class Graph:
         """Find root Nodes in the graph."""
         node_types = _resolve_node_types(node_type)
         if node_types is None:
-            roots = tuple(node for node in self.nodes if not self.nodes_by_parent_id.get(node.id))
+            roots = tuple(
+                node
+                for node in self.nodes
+                if node.parent_ptr is None or node.parent_ptr.id not in self.nodes_by_id
+            )
         else:
             roots = tuple(
                 node
                 for node in self.nodes
-                if not self.nodes_by_parent_id.get(node.id) and node.metatype in node_types
+                if (node.parent_ptr is None or node.parent_ptr.id not in self.nodes_by_id)
+                and node.metatype in node_types
             )
         return roots  # type: ignore (must be right type)
 
