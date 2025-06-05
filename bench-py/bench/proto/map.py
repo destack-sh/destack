@@ -8,7 +8,9 @@ from bench.language import (
     Node,
     NodeType,
     PrimitiveType,
+    ScalarType,
     StructType,
+    TypeCardinality,
 )
 from bench.language.registry import BENCH_CLASS_BY_TYPE
 from bench.utils.string import Casing, to_casing
@@ -57,15 +59,15 @@ def _map_bench_property_to_proto_field(
     assert isinstance(prop.id, int), f"invalid id: {prop!r}"
 
     # base field
-    if prop.scalar_type == "node_reference":
+    if prop.scalar_type == ScalarType.NODE_REFERENCE:
         field = ProtoField(
             id=prop.id,
             name=prop.name,
             type="NodeReferenceData",
             optional=prop.is_optional,
-            repeated=prop.cardinality == "list",
+            repeated=prop.cardinality == TypeCardinality.LIST,
         )
-    elif prop.scalar_type == "struct":
+    elif prop.scalar_type == ScalarType.STRUCT:
         assert prop.struct_type is not None, f"invalid struct: {prop!r}"
         proto_t = _map_object_type_to_proto(prop.struct_type, cache)
         assert isinstance(proto_t, ProtoMessage), f"unexpected property type: {proto_t!r}"
@@ -74,9 +76,9 @@ def _map_bench_property_to_proto_field(
             name=prop.name,
             type=proto_t,
             optional=prop.is_optional,
-            repeated=prop.cardinality == "list",
+            repeated=prop.cardinality == TypeCardinality.LIST,
         )
-    elif prop.scalar_type == "enum":
+    elif prop.scalar_type == ScalarType.ENUM:
         assert prop.enum_type is not None, f"invalid enum: {prop!r}"
         proto_t = _map_object_type_to_proto(prop.enum_type, cache)
         assert isinstance(proto_t, ProtoEnum), f"unexpected property type: {proto_t!r}"
@@ -85,9 +87,9 @@ def _map_bench_property_to_proto_field(
             name=prop.name,
             type=proto_t,
             optional=prop.is_optional,
-            repeated=prop.cardinality == "list",
+            repeated=prop.cardinality == TypeCardinality.LIST,
         )
-    elif prop.scalar_type == "primitive":
+    elif prop.scalar_type == ScalarType.PRIMITIVE:
         assert prop.primitive_type is not None, f"invalid primitive: {prop!r}"
         field_type = PROTO_FIELD_TYPE_BY_PRIMITIVE_TYPE.get(prop.primitive_type)
         assert field_type is not None, f"invalid primitive type: {prop.primitive_type!r}"
@@ -96,19 +98,21 @@ def _map_bench_property_to_proto_field(
             name=prop.name,
             type=field_type,
             optional=prop.is_optional,
-            repeated=prop.cardinality == "list",
+            repeated=prop.cardinality == TypeCardinality.LIST,
         )
     else:
         raise TypeError(f"cannot map to proto type: {prop!r}")
 
     # map
-    if prop.cardinality == "map":
+    if prop.cardinality == TypeCardinality.MAP:
         assert prop.key_type is not None, f"invalid map: {prop!r}"
-        assert prop.key_type.cardinality == "scalar", f"invalid key: {prop.key_type!r}"
+        assert prop.key_type.cardinality == TypeCardinality.SCALAR, (
+            f"invalid key: {prop.key_type!r}"
+        )
         value_field = field
-        if prop.key_type.scalar_type == "enum":
+        if prop.key_type.scalar_type == ScalarType.ENUM:
             key_field = ProtoFieldType.INT32
-        elif prop.key_type.scalar_type == "primitive":
+        elif prop.key_type.scalar_type == ScalarType.PRIMITIVE:
             assert prop.key_type.primitive_type is not None, f"invalid key type: {prop.key_type!r}"
             key_field = PROTO_FIELD_TYPE_BY_PRIMITIVE_TYPE.get(prop.key_type.primitive_type)
             assert key_field in (
@@ -134,7 +138,7 @@ def _map_bench_property_to_proto_field(
             id=prop.id + VARIABLE_PROPERTY_OFFSET,
             name=f"{prop.name}_variable",
             type="VariableData",
-            repeated=prop.cardinality == "list",
+            repeated=prop.cardinality == TypeCardinality.LIST,
         )
         wrapper_field = ProtoField(
             id=prop.id,

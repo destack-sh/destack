@@ -6,7 +6,16 @@ import structlog
 from fastuuid import UUID
 from opentelemetry import trace
 
-from .const import UNSET, BuiltinEnum, EnumType, NodeType, StructType, bittuple, enum_
+from .const import (
+    UNSET,
+    BuiltinEnum,
+    DefaultFactory,
+    EnumType,
+    NodeType,
+    StructType,
+    bittuple,
+    enum_,
+)
 from .graph import Graph
 from .node import Node
 from .property import Property, property_
@@ -67,7 +76,7 @@ class Edit(StructFrozen):
     """An Edit to a Node."""
 
     # meta
-    id: UUID = property_(2, is_managed=True, is_repr=True, default_factory="uuid")
+    id: UUID = property_(2, is_managed=True, is_repr=True, default_factory=DefaultFactory.UUID)
 
     # key
     type: EditType = property_(30, is_repr=True)
@@ -93,9 +102,11 @@ class Change(StructFrozen):
     """A Change is an atomic sequence of Edits."""
 
     # meta
-    id: UUID = property_(2, is_managed=True, is_repr=True, default_factory="uuid")
+    id: UUID = property_(2, is_managed=True, is_repr=True, default_factory=DefaultFactory.UUID)
     name: str | None = property_(31, is_repr=True)
-    created_at: datetime = property_(32, is_managed=True, is_repr=True, default_factory="now")
+    created_at: datetime = property_(
+        32, is_managed=True, is_repr=True, default_factory=DefaultFactory.NOW
+    )
     created_by: "IsSubject | None" = property_(33, is_managed=True, is_repr=True)
     origin: "Origin | None" = property_(34, is_managed=True, is_repr=True)
 
@@ -119,7 +130,7 @@ class ChangeResult(StructFrozen):
         2,
         is_managed=True,
         is_repr=True,
-        default_factory="uuid",
+        default_factory=DefaultFactory.UUID,
         description="The id of the Change.",
     )
     created_at: datetime = property_(
@@ -127,7 +138,7 @@ class ChangeResult(StructFrozen):
         is_managed=True,
         is_repr=True,
         description="The time the ChangeResult was created.",
-        default_factory="now",
+        default_factory=DefaultFactory.NOW,
     )
     status: ChangeStatus = property_(40, is_repr=True)
     edits: list[Edit] = property_(41)
