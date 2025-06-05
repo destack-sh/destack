@@ -303,7 +303,7 @@ class Node[NodeDataT: AnyNodeData](NodeBase[NodeDataT]):
         raise NotImplementedError
 
     def get_children[N: Node = Node](
-        self, node_type: NodeType | type[N] | None = None
+        self, node_type: NodeType | TraitType | type[N] | None = None
     ) -> Sequence[N]:
         """Gets the children of this Node."""
         return self._graph.get_children(self, node_type=node_type)

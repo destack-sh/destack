@@ -490,7 +490,7 @@ class DatabaseContext(abc.ABC):
 
     @abc.abstractmethod
     def resolve_relation(self, relation: RelationReference) -> Sequence[RelationReference]:
-        """Expand the Tables for a node."""
+        """Expand the specific Relations for a RelationReference."""
         ...
 
     @abc.abstractmethod

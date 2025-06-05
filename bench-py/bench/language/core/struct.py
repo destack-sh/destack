@@ -117,6 +117,34 @@ class RelationReference(StructFrozen):
     def is_single(self) -> bool:
         return self.type in (RelationType.BUILTIN_NODE, RelationType.CUSTOM_NODE)
 
+    @property
+    def object_cls(self) -> type_[BuiltinObjectBase] | None:
+        if self.type == RelationType.BUILTIN_NODE:
+            assert self.node_type is not None, f"no node_type for {self!r}"
+            return BUILTIN_OBJECT_CLASS_BY_TYPE.get(self.node_type)
+        elif self.type == RelationType.CUSTOM_NODE:
+            assert self.definition is not None, f"no definition for {self!r}"
+            return BUILTIN_OBJECT_CLASS_BY_TYPE.get(NodeType.CUSTOM_NODE_INSTANCE)
+        elif self.type == RelationType.TRAIT:
+            assert self.trait_type is not None, f"no trait_type for {self!r}"
+            return NODE_CLASS_BY_TRAIT.get(self.trait_type)
+        else:
+            assert_never(self.type)
+
+    def resolve_property(self, name: str) -> "Property | None":
+        """Resolve a Property in this relation."""
+        object_cls = self.object_cls
+        if object_cls is None:
+            raise ValueError(f"could not resolve {self!r}")
+        return object_cls.__properties__.get(name)
+
+    def resolve_property_or_error(self, name: str) -> "Property":
+        """Resolve a Property in this relation (error if not found)."""
+        resolved = self.resolve_property(name)
+        if resolved is None:
+            raise LookupError(f"could not find property {name!r} in {self!r}")
+        return resolved
+
 
 def relation_ref(base: "NodeType | type[NodeBase] | CustomNodeDefinition") -> RelationReference:
     from .node import Node

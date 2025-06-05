@@ -76,7 +76,7 @@ async def test_create_user(session: Session):
     clients = await Client.search(sort=[Client.property("name").descending()]).execute_list()
     assert clients == [client_b, client_a]
 
-    # query user with clients
+    # query user with clients as children
     connection = await User.get(
         where=User.property("id").eq(user.id),
         Clients=Client.search(),

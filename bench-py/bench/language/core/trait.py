@@ -162,7 +162,6 @@ class NodeBase[NodeDataT: AnyObjectData](BuiltinObjectMutable[NodeDataT]):
         group_by: Optional[list["Expression"]] = None,
         limit: Optional[int] = None,
         offset: Optional[int] = None,
-        count: bool = False,
         **subqueries: "Query",
     ) -> "Query[Self]":  # type: ignore
         from .query import Query, QueryType, to_subqueries
@@ -178,7 +177,6 @@ class NodeBase[NodeDataT: AnyObjectData](BuiltinObjectMutable[NodeDataT]):
             sort=sort or [],
             limit=limit,
             offset=offset,
-            count=count,
             subqueries=to_subqueries(subqueries),
         )
         return query  # type: ignore

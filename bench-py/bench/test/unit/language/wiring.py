@@ -52,7 +52,6 @@ def test_roundtrip_query_proto(session: Session):
     query = Thread.search(
         sort=[Thread.property("created_at").asc()],
         limit=25,
-        count=True,
         Cursor=Cursor.get(
             join=join(JoinType.LEFT, on=Cursor.property("owned_by").eq(5)),
             # UnreadCount=Message.scalar(

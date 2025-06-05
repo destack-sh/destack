@@ -10,19 +10,23 @@ from opentelemetry import trace
 from bench.language.registry import (
     BUILTIN_OBJECT_TYPE_BY_CLASS,
     ENUM_CLASS_BY_TYPE,
+    NODE_CLASS_BY_TYPE,
     STRUCT_CLASS_BY_TYPE,
 )
 from bench.pb2 import ValueData
 from bench.utils.time import timedelta_from_isoformat, timedelta_to_isoformat
 
-from .const import PrimitiveType, StructType
+from .const import NodeType, PrimitiveType, StructType
 from .node import Node
 from .property import IntoType, Property, property_, property_runtime_
 from .struct import NodeReference, StructFrozen, struct_
 from .type import Json, ScalarType, Type, TypeCardinality, to_type
 
 if TYPE_CHECKING:
+    from .connection import QueryConnection
+    from .graph import Graph, Supergraph
     from .object import BuiltinObjectBase
+    from .session import Session
 
 
 # ruff: noqa: FURB113
@@ -351,16 +355,39 @@ def pack_value(value: Any, type: Type) -> Json:
         assert_never(type.cardinality)
 
 
-def unpack_value(value: Json, type: Type) -> Any:
+def unpack_value(
+    value: Json,
+    type: Type,
+    _session: "Session | None" = None,
+    _graph: "Graph | None" = None,
+    _supergraph: "Supergraph | None" = None,
+    _connection: "QueryConnection | None" = None,
+) -> Any:
     """Unpack a JSON object to a generic typed value."""
     if type.cardinality == TypeCardinality.SCALAR:
-        return _unpack_scalar_value(value, type)
+        return _unpack_scalar_value(
+            value,
+            type,
+            _session=_session,
+            _graph=_graph,
+            _supergraph=_supergraph,
+            _connection=_connection,
+        )
     elif type.cardinality == TypeCardinality.LIST:
         if value is None:
             return []
         unpacked_list = []
         for item in value:
-            unpacked_list.append(_unpack_scalar_value(item, type))
+            unpacked_list.append(
+                _unpack_scalar_value(
+                    item,
+                    type,
+                    _session=_session,
+                    _graph=_graph,
+                    _supergraph=_supergraph,
+                    _connection=_connection,
+                )
+            )
         return unpacked_list
     elif type.cardinality == TypeCardinality.MAP:
         if value is None:
@@ -368,7 +395,14 @@ def unpack_value(value: Json, type: Type) -> Any:
         unpacked_map = {}
         for key, val in value.items():
             unpacked_key = _unpack_scalar_value(key, type.key_type) if type.key_type else key
-            unpacked_val = _unpack_scalar_value(val, type)
+            unpacked_val = _unpack_scalar_value(
+                val,
+                type,
+                _session=_session,
+                _graph=_graph,
+                _supergraph=_supergraph,
+                _connection=_connection,
+            )
             unpacked_map[unpacked_key] = unpacked_val
         return unpacked_map
     else:
@@ -402,7 +436,14 @@ def _pack_scalar_value(value: Any, type: Type) -> Json:
         assert_never(type.scalar_type)
 
 
-def _unpack_scalar_value(value: Json, type: Type) -> Any:
+def _unpack_scalar_value(
+    value: Json,
+    type: Type,
+    _session: "Session | None" = None,
+    _graph: "Graph | None" = None,
+    _supergraph: "Supergraph | None" = None,
+    _connection: "QueryConnection | None" = None,
+) -> Any:
     """Unpack a scalar value from JSON."""
     if type.scalar_type == ScalarType.PRIMITIVE:
         if type.primitive_type == PrimitiveType.BYTES:
@@ -428,12 +469,20 @@ def _unpack_scalar_value(value: Json, type: Type) -> Any:
         enum_cls = ENUM_CLASS_BY_TYPE[type.enum_type]
         return enum_cls(int(value))
     elif type.scalar_type == ScalarType.NODE_REFERENCE:
-        return NodeReference.from_value(value)
+        return NodeReference.from_value(value, _session=_session, _supergraph=_supergraph)
     elif type.scalar_type == ScalarType.NODE_VALUE:
-        return Node.from_value(value)
+        node_type = NodeType(value["1"])
+        node_cls = NODE_CLASS_BY_TYPE[node_type]
+        return node_cls.from_value(
+            value,
+            _session=_session,
+            _graph=_graph,
+            _supergraph=_supergraph,
+            _connection=_connection,
+        )
     elif type.scalar_type == ScalarType.STRUCT:
         assert type.struct_type is not None, f"no struct type for {type!r}"
         struct_cls = STRUCT_CLASS_BY_TYPE[type.struct_type]
-        return struct_cls.from_value(value)
+        return struct_cls.from_value(value, _session=_session, _supergraph=_supergraph)
     else:
         assert_never(type.scalar_type)

@@ -90,9 +90,10 @@ class Graph:
         if (parent_ptr := node.parent_ptr) is not None:
             if parent_ptr.id not in self.nodes_by_parent_id:
                 self.nodes_by_parent_id[parent_ptr.id] = {}
-            if parent_ptr.node_type not in self.nodes_by_parent_id[parent_ptr.id]:
-                self.nodes_by_parent_id[parent_ptr.id][parent_ptr.node_type] = []
-            self.nodes_by_parent_id[parent_ptr.id][parent_ptr.node_type].append(node)
+            child_node_type = node.metatype
+            if child_node_type not in self.nodes_by_parent_id[parent_ptr.id]:
+                self.nodes_by_parent_id[parent_ptr.id][child_node_type] = []
+            self.nodes_by_parent_id[parent_ptr.id][child_node_type].append(node)
         # supergraph
         if (
             cached := self.supergraph._cached_nodes_by_id.get(node.id)
@@ -108,11 +109,12 @@ class Graph:
         if (parent_ptr := node.parent_ptr) is not None:
             if parent_ptr.id not in self.nodes_by_parent_id:
                 self.nodes_by_parent_id[parent_ptr.id] = {}
-            if parent_ptr.node_type not in self.nodes_by_parent_id[parent_ptr.id]:
-                self.nodes_by_parent_id[parent_ptr.id][parent_ptr.node_type] = []
-            self.nodes_by_parent_id[parent_ptr.id][parent_ptr.node_type].remove(node)
-            if not self.nodes_by_parent_id[parent_ptr.id][parent_ptr.node_type]:
-                self.nodes_by_parent_id[parent_ptr.id].pop(parent_ptr.node_type)
+            child_node_type = node.metatype
+            if child_node_type not in self.nodes_by_parent_id[parent_ptr.id]:
+                self.nodes_by_parent_id[parent_ptr.id][child_node_type] = []
+            self.nodes_by_parent_id[parent_ptr.id][child_node_type].remove(node)
+            if not self.nodes_by_parent_id[parent_ptr.id][child_node_type]:
+                self.nodes_by_parent_id[parent_ptr.id].pop(child_node_type)
                 if not self.nodes_by_parent_id[parent_ptr.id]:
                     self.nodes_by_parent_id.pop(parent_ptr.id)
         # node
