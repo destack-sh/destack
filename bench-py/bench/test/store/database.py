@@ -11,6 +11,7 @@ from bench.language import (
     ClientType,
     CustomNodeDefinition,
     DatabaseInfo,
+    JoinType,
     NodeReference,
     NodeType,
     Page,
@@ -84,6 +85,14 @@ async def test_create_user(session: Session):
     user_unpacked = connection.to_one()
     assert user_unpacked.equals(user)
     clients_unpacked = user_unpacked.get_children(Client)
+    assert clients_unpacked == [client_a, client_b]
+
+    # query clients with user as parent
+    connection = await Client.search(
+        where=Client.property("parent").eq(user),
+        Parent=User.get(join=JoinType.PARENT),
+    ).execute()
+    clients_unpacked = connection.to_list()
     assert clients_unpacked == [client_a, client_b]
 
 

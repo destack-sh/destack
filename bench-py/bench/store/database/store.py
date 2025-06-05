@@ -166,7 +166,7 @@ class DatabaseStoreContext(DatabaseContext):
         for edit in edits:
             if edit.node_type in (NodeType.CUSTOM_NODE_DEFINITION, NodeType.FIELD):
                 applied_edits.append(edit)
-                # nocheckin: optimistically update context copy
+                raise NotImplementedError(f"apply database context edit: {edit!r}")
         return applied_edits
 
     @override

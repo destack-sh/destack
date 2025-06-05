@@ -3,6 +3,7 @@ from collections.abc import Sequence
 from typing import Any, assert_never
 
 import asyncpg
+import fastuuid
 import structlog
 from fastuuid import UUID
 from opentelemetry import trace
@@ -492,7 +493,6 @@ async def execute_query(
 
     # main query clause
     result, nodes_ptr = await _query_clause(conn=conn, context=context, query=query, where=where)
-    nodes_id: list[UUID] = [n.id for n in nodes_ptr]
     subresults: list[QueryResult] = []
 
     # subqueries
@@ -500,8 +500,30 @@ async def execute_query(
         subresult: QueryResult
         assert subquery.join is not None, f"no join for subquery {subquery!r}"
         if subquery.join.type == JoinType.PARENT:
-            raise NotImplementedError(subquery)
+            if subquery.join.recursive:
+                raise NotImplementedError(subquery)
+            parents_ptr: dict[UUID, NodeReference] = {}
+            for node_value in result.nodes:
+                if (parent_ptr_value := node_value.value.get("4")) is not None:
+                    parent_id = fastuuid.UUID(parent_ptr_value["32"])
+                    if parent_id in parents_ptr:
+                        continue
+                    parent_ptr = NodeReference.from_value(parent_ptr_value)
+                    parents_ptr[parent_ptr.id] = parent_ptr
+            subquery_where = subquery.relation.resolve_property_or_error("id").in_(
+                *parents_ptr.keys()
+            )
+            subresult = await execute_query(
+                conn=conn,
+                context=context,
+                query=subquery,
+                where=subquery_where,
+            )
+            subresults.append(subresult)
         elif subquery.join.type == JoinType.CHILD:
+            if subquery.join.recursive:
+                raise NotImplementedError(subquery)
+            nodes_id: list[UUID] = [n.id for n in nodes_ptr]
             subquery_where = subquery.relation.resolve_property_or_error("parent").in_(*nodes_id)
             subresult = await execute_query(
                 conn=conn,
