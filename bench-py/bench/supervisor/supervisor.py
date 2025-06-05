@@ -16,14 +16,12 @@ from bench.language import (
     IsSubject,
     JoinType,
     NodeArea,
-    NodeType,
     Package,
     PackageType,
     Region,
     Session,
     User,
     UserStatus,
-    bittuple,
 )
 from bench.pb2 import RpcMetadata
 from bench.proto import (
@@ -43,7 +41,7 @@ from bench.proto import (
     SupervisorBase,
 )
 from bench.sharding import CellProvider, DatabaseProvider
-from bench.store import DatabaseStore
+from bench.store import DatabaseStore, SplitStore
 from bench.utils.func import generate_access_token, generate_salt
 from bench.utils.oracle import Oracle
 
@@ -51,14 +49,6 @@ from .access import ACCESS_TOKEN_LENGTH, SALT_LENGTH, check_password, hash_passw
 
 logger = structlog.get_logger(__name__)
 tracer = trace.get_tracer(__name__)
-
-SUPERVISOR_NODE_TYPES = bittuple(
-    NodeType.USER,
-    NodeType.ORGANIZATION,
-    NodeType.CLIENT,
-    NodeType.HANDLE,
-    NodeType.BENCH,
-)
 
 
 class SupervisorService(ServiceBase, SupervisorBase):
@@ -183,17 +173,16 @@ class SupervisorService(ServiceBase, SupervisorBase):
             custom_schema_name=main_database.custom_schema_name,
         )
         bench.database = database
-        # nocheckin: SplitStore
-        # session.store = SplitStore(
-        #     store_by_area={
-        #         NodeArea.GLOBAL_DATABASE: DatabaseStore(
-        #             database=self.global_database, area=NodeArea.GLOBAL_DATABASE
-        #         ),
-        #         NodeArea.MAIN_DATABASE: DatabaseStore(
-        #             database=main_database, area=NodeArea.MAIN_DATABASE
-        #         ),
-        #     },
-        # )
+        session.store = SplitStore(
+            store_by_area={
+                NodeArea.GLOBAL_DATABASE: DatabaseStore(
+                    database=self.global_database, area=NodeArea.GLOBAL_DATABASE
+                ),
+                NodeArea.MAIN_DATABASE: DatabaseStore(
+                    database=main_database, area=NodeArea.MAIN_DATABASE
+                ),
+            },
+        )
         await session.stage()
 
         # create main Package
