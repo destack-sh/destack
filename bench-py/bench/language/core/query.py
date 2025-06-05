@@ -338,7 +338,7 @@ class Query[RootT: "Trait | Node"](StructFrozen):
     # pagination
     limit: Optional[int] = property_(50, is_repr=True)
     offset: Optional[int] = property_(51, is_repr=True)
-    count: bool | None = property_(52, is_repr=True)
+    # count?
 
     async def execute(self) -> "QueryConnection[RootT]":
         """Execute the Query."""
@@ -445,7 +445,7 @@ class QueryUpdate(StructFrozen):
     """An update to a QueryResult."""
 
     type: QueryUpdateType = property_(30, is_repr=True)
-    result: Optional["QueryResult"] = property_(31, is_repr=True)
+    result: Optional["QueryResult"] = property_(40, is_repr=True)
 
 
 #
@@ -491,10 +491,10 @@ class IntoQuery:
 
     endswith = ends_with
 
-    def in_(self: Any, *values: list[Any]) -> "Condition":
+    def in_(self: Any, *values: Any) -> "Condition":
         return condition(self, ConditionalType.IN, value=values)
 
-    def not_in(self: Any, *values: list[Any]) -> "Condition":
+    def not_in(self: Any, *values: Any) -> "Condition":
         return condition(self, ConditionalType.NOT_IN, value=values)
 
     def exists(self: Any) -> "Condition":

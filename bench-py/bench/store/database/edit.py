@@ -19,7 +19,7 @@ from bench.language import (
 from bench.language.registry import NODE_CLASS_BY_TYPE
 
 from .core import DatabaseContext, DatabaseTable
-from .wiring import pack_column_wide, pack_node_value_to_row
+from .wiring import pack_column_wide, pack_node_row
 
 tracer = trace.get_tracer(__name__)
 logger = structlog.get_logger(__name__)
@@ -171,7 +171,7 @@ SET {", ".join(f"{col.name} = EXCLUDED.{col.name}" for col in override_columns)}
         values_packed: list[Sequence[Any]] = []
         for edit in edits:
             assert edit.value is not None, f"no value for {edit!r}"
-            row_values_packed = pack_node_value_to_row(table, edit.value)
+            row_values_packed = pack_node_row(table, edit.value)
             values_packed.append(row_values_packed)
         await conn.executemany(stmt, values_packed)
         logger.debug(

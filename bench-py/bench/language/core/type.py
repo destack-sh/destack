@@ -210,6 +210,9 @@ def to_type(value_or_type: Any, node_as_value: bool = False) -> "Type":
     if isinstance(value_or_type, (list, tuple)):
         assert value_or_type, f"cannot infer type of empty sequence: {value_or_type!r}"
         element_type = to_type(value_or_type[0])
+        assert element_type.cardinality == TypeCardinality.SCALAR, (
+            f"expected scalar inside list, got {element_type!r} for {value_or_type!r}"
+        )
         return Type(
             cardinality=TypeCardinality.LIST,
             scalar_type=element_type.scalar_type,
@@ -224,7 +227,13 @@ def to_type(value_or_type: Any, node_as_value: bool = False) -> "Type":
         sample_key = next(iter(value_or_type))
         sample_value = value_or_type[sample_key]
         key_type = to_type(sample_key)
+        assert key_type.cardinality == TypeCardinality.SCALAR, (
+            f"expected scalar inside dict, got {key_type!r} for {value_or_type!r}"
+        )
         value_type = to_type(sample_value)
+        assert value_type.cardinality in (TypeCardinality.SCALAR, TypeCardinality.LIST), (
+            f"expected scalar or list inside dict, got {value_type!r} for {value_or_type!r}"
+        )
         return Type(
             cardinality=TypeCardinality.MAP,
             scalar_type=value_type.scalar_type,

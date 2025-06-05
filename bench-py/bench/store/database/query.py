@@ -4,6 +4,7 @@ from typing import Any, assert_never
 
 import asyncpg
 import structlog
+from fastuuid import UUID
 from opentelemetry import trace
 
 from bench.language import (
@@ -13,9 +14,11 @@ from bench.language import (
     AttributeType,
     Condition,
     ConditionalType,
+    EdgeDirection,
     Expression,
     ExpressionType,
     Function,
+    JoinType,
     NodeReference,
     Query,
     QueryResult,
@@ -28,11 +31,10 @@ from bench.language import (
     Value,
     to_value,
 )
-from bench.language.core.const import EdgeDirection
 
 from .core import DatabaseContext
 from .map import BENCH_CUSTOM_FIELD_PREFIX
-from .wiring import pack_column_flat, unpack_row_to_node_value
+from .wiring import pack_column_flat, unpack_node_row
 
 logger = structlog.get_logger(__name__)
 tracer = trace.get_tracer(__name__)
@@ -125,10 +127,10 @@ def _compile_condition(
     # collections
     elif condition.type == ConditionalType.IN:
         assert condition.right is not None, f"no right for {condition!r}"
-        return f"{_compile_expression(context, arguments_out, condition.left)} IN ({_compile_expression(context, arguments_out, condition.right)})"
+        return f"{_compile_expression(context, arguments_out, condition.left)} = ANY({_compile_expression(context, arguments_out, condition.right)})"
     elif condition.type == ConditionalType.NOT_IN:
         assert condition.right is not None, f"no right for {condition!r}"
-        return f"{_compile_expression(context, arguments_out, condition.left)} NOT IN ({_compile_expression(context, arguments_out, condition.right)})"
+        return f"{_compile_expression(context, arguments_out, condition.left)} != ANY({_compile_expression(context, arguments_out, condition.right)})"
     # existence
     elif condition.type == ConditionalType.EXISTS:
         return f"EXISTS ({_compile_expression(context, arguments_out, condition.left)})"
@@ -256,7 +258,7 @@ async def _walk_node(
     roots: Sequence[NodeReference],
     direction: EdgeDirection,
     recursive: bool,
-) -> Sequence[NodeReference]:
+) -> list[NodeReference]:
     """Get the cascaded Nodes for a query."""
     raise NotImplementedError
 
@@ -271,7 +273,7 @@ async def _query_node(
     sort: Sequence[Sort] | None,
     limit: int | None,
     offset: int | None,
-) -> list[Value]:
+) -> tuple[list[Value], list[NodeReference]]:
     """Execute a node Query."""
 
     # build statement
@@ -295,10 +297,15 @@ async def _query_node(
 
     # execute
     node_rows: list[asyncpg.Record] = await conn.fetch(stmt, *arguments)
-    node_values = [unpack_row_to_node_value(table, row) for row in node_rows]
+    node_values: list[Value] = []
+    nodes_ptr: list[NodeReference] = []
+    for row in node_rows:
+        value, ptr = unpack_node_row(table, row)
+        node_values.append(value)
+        nodes_ptr.append(ptr)
     logger.debug("database.select", stmt=stmt, nodes=len(node_values), span="current")
 
-    return node_values
+    return node_values, nodes_ptr
 
 
 @tracer.start_as_current_span("database.query_scalar")
@@ -331,7 +338,7 @@ async def _query_scalar(
     if aggregation.type == AggregationType.EXISTS:
         return to_value(scalar_row is not None)
     elif scalar_row is None:
-        return to_value(0)
+        return to_value(0 if aggregation.type == AggregationType.COUNT else 0.0)
     else:
         return to_value(scalar_row[0])
 
@@ -348,8 +355,7 @@ async def _query_grouped_node(
     group_by: Sequence[Expression],
     limit: int | None,
     offset: int | None,
-    count: bool,
-) -> list[QueryResultGroup]:
+) -> list[tuple[Value, list[Value], list[NodeReference]]]:
     """Execute a grouped node Query."""
     raise NotImplementedError
 
@@ -363,30 +369,41 @@ async def _query_grouped_scalar(
     where: Condition | None,
     having: Condition | None,
     group_by: Sequence[Expression],
-) -> list[QueryResultGroup]:
+) -> list[tuple[Value, Value]]:
     """Execute a grouped scalar Query."""
     raise NotImplementedError
 
 
 @tracer.start_as_current_span("database.query_clause")
 async def _query_clause(
-    conn: asyncpg.Connection, context: DatabaseContext, query: Query
-) -> QueryResult:
+    conn: asyncpg.Connection, context: DatabaseContext, query: Query, where: Condition | None
+) -> tuple[QueryResult, Sequence[NodeReference]]:
     """Execute the specific Query "clause" (ignoring subqueries)."""
 
+    # combine wheres
+    if where is not None:
+        combined_where = where if query.where is None else query.where & where
+    else:
+        combined_where = query.where
+
+    result: QueryResult
+    nodes_ptr: list[NodeReference]
+
+    # node
     if query.type == QueryType.NODE:
-        assert query.join is None, f"root-level join: {query!r}"
-        nodes = await _query_node(
+        nodes, nodes_ptr = await _query_node(
             conn=conn,
             context=context,
             relation=query.relation,
             select=query.select,
-            where=query.where,
+            where=combined_where,
             sort=query.sort,
             limit=query.limit,
             offset=query.offset,
         )
         result = QueryResult(id=query.id, type=query.type, nodes=nodes)
+
+    # scalar
     elif query.type == QueryType.SCALAR:
         assert query.aggregation is not None, f"no aggregation for {query!r}"
         scalar = await _query_scalar(
@@ -394,34 +411,116 @@ async def _query_clause(
             context=context,
             relation=query.relation,
             aggregation=query.aggregation,
-            where=query.where,
+            where=combined_where,
         )
+        nodes_ptr = []
         result = QueryResult(id=query.id, type=query.type, scalar=scalar)
         if query.aggregation.type == AggregationType.EXISTS:
             result.exists = scalar.unpack(bool)
         elif query.aggregation.type == AggregationType.COUNT:
             result.count = scalar.unpack(int)
+
+    # grouped node
     elif query.type == QueryType.GROUPED_NODE:
         assert query.group_by is not None, f"no group_by for {query!r}"
-        raise NotImplementedError(query)
+        groups_value = await _query_grouped_node(
+            conn=conn,
+            context=context,
+            relation=query.relation,
+            select=query.select,
+            where=combined_where,
+            having=query.having,
+            sort=query.sort,
+            group_by=query.group_by,
+            limit=query.limit,
+            offset=query.offset,
+        )
+        nodes_ptr = []
+        groups: list[QueryResultGroup] = []
+        for group_discriminator, group_nodes, group_nodes_ptr in groups_value:
+            group = QueryResultGroup(
+                type=query.type,
+                discriminator=group_discriminator,
+                nodes=group_nodes,
+            )
+            groups.append(group)
+            nodes_ptr.extend(group_nodes_ptr)
+        result = QueryResult(id=query.id, type=query.type, groups=groups)
+
+    # grouped scalar
     elif query.type == QueryType.GROUPED_SCALAR:
         assert query.group_by is not None, f"no group_by for {query!r}"
         assert query.aggregation is not None, f"no aggregation for {query!r}"
-        raise NotImplementedError(query)
+        groups_value = await _query_grouped_scalar(
+            conn=conn,
+            context=context,
+            relation=query.relation,
+            aggregation=query.aggregation,
+            where=combined_where,
+            having=query.having,
+            group_by=query.group_by,
+        )
+        nodes_ptr = []
+        groups: list[QueryResultGroup] = []
+        for group_discriminator, group_scalar in groups_value:
+            group = QueryResultGroup(
+                type=query.type,
+                discriminator=group_discriminator,
+                scalar=group_scalar,
+            )
+            groups.append(group)
+        result = QueryResult(id=query.id, type=query.type, groups=groups)
+
     else:
         assert_never(query.type)
 
-    logger.debug("database.query_clause", query=query, result=result, span="current")
-    return result
+    logger.debug(
+        "database.query_clause",
+        query=query,
+        result=result,
+        nodes=len(nodes_ptr),
+        span="current",
+    )
+    return result, nodes_ptr
 
 
 @tracer.start_as_current_span("database.query")
 async def execute_query(
-    conn: asyncpg.Connection, context: DatabaseContext, query: Query
+    conn: asyncpg.Connection, context: DatabaseContext, query: Query, where: Condition | None = None
 ) -> QueryResult:
-    """Execute the Query."""
+    """Execute the Query (and any subqueries)."""
 
-    result = await _query_clause(conn=conn, context=context, query=query)
+    # main query clause
+    result, nodes_ptr = await _query_clause(conn=conn, context=context, query=query, where=where)
+    nodes_id: list[UUID] = [n.id for n in nodes_ptr]
+    subresults: list[QueryResult] = []
 
-    logger.debug("database.query", query=query, result=result, span="current")
+    # subqueries
+    for subquery in query.subqueries:
+        subresult: QueryResult
+        assert subquery.join is not None, f"no join for subquery {subquery!r}"
+        if subquery.join.type == JoinType.PARENT:
+            raise NotImplementedError(subquery)
+        elif subquery.join.type == JoinType.CHILD:
+            subquery_where = subquery.relation.resolve_property_or_error("parent").in_(*nodes_id)
+            subresult = await execute_query(
+                conn=conn,
+                context=context,
+                query=subquery,
+                where=subquery_where,
+            )
+            subresults.append(subresult)
+        elif subquery.join.type == JoinType.LEFT:
+            raise NotImplementedError(subquery)
+        else:
+            assert_never(subquery.join.type)
+
+    result.subresults = subresults
+    logger.debug(
+        "database.query",
+        query=query,
+        result=result,
+        subresults=len(subresults),
+        span="current",
+    )
     return result

@@ -62,15 +62,28 @@ class QueryConnection[RootT: "Trait | Node"]:
 
     async def execute(self) -> None:
         """Execute the Query."""
-        from .value import unpack_value
-
         async with self.lock:
             self.result = await self.store.query(self.query)
-            for node_value in self.result.nodes:
-                node = unpack_value(node_value.value, node_value.type)
-                assert isinstance(node, Node), f"expected Node, got {node!r} in {self!r}"
-                self.graph.add(node)
+            self._add_result(self.result, is_root=True)
+
+    def _add_result(self, result: QueryResult, is_root: bool) -> None:
+        """Add a QueryResult to the connection (recursively)."""
+        from .value import unpack_value
+
+        for node_value in result.nodes:
+            node = unpack_value(
+                node_value.value,
+                node_value.type,
+                _session=self.session,
+                _supergraph=self.session.supergraph,
+                _graph=self.graph,
+                _connection=self,
+            )
+            assert isinstance(node, Node), f"expected Node, got {node!r} in {self!r}"
+            if is_root:
                 self.roots.append(cast(RootT, node))
+            for subresult in result.subresults:
+                self._add_result(subresult, is_root=False)
 
     def to_one_or_none(self) -> Optional[RootT]:
         """Get the root Node (if any)."""

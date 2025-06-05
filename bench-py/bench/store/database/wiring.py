@@ -6,6 +6,7 @@ from datetime import date, datetime, time, timedelta
 from typing import Any, Callable, assert_never
 
 import asyncpg
+import fastuuid
 import orjson
 import pytz
 
@@ -15,6 +16,7 @@ from bench.language import (
     IsInBench,
     Json,
     Node,
+    NodeReference,
     NodeType,
     PrimitiveType,
     Property,
@@ -299,7 +301,7 @@ for node_type in NodeType:
     NODE_ROW_UNPACK[node_type] = locals[f"_unpack_{node_cls.__name__}_row"]
 
 
-def pack_node_value_to_row(table: DatabaseTable, value: Value) -> Sequence[Any]:
+def pack_node_row(table: DatabaseTable, value: Value) -> Sequence[Any]:
     """Pack a Node Value into an asyncpg row (tuple)."""
     type = value.type
     assert type.scalar_type == ScalarType.NODE_VALUE, f"unexpected node value: {value!r}"
@@ -312,7 +314,7 @@ def pack_node_value_to_row(table: DatabaseTable, value: Value) -> Sequence[Any]:
     return node_packed
 
 
-def unpack_row_to_node_value(table: DatabaseTable, row: asyncpg.Record) -> Value:
+def unpack_node_row(table: DatabaseTable, row: asyncpg.Record) -> tuple[Value, NodeReference]:
     """Unpack an asyncpg row into a Node Value."""
     node_type = table.node_type
     assert node_type is not None, f"no node type for {table!r}"
@@ -322,7 +324,8 @@ def unpack_row_to_node_value(table: DatabaseTable, row: asyncpg.Record) -> Value
         cardinality=TypeCardinality.SCALAR, scalar_type=ScalarType.NODE_VALUE, node_type=node_type
     )
     value = Value(type=type, value=node_value)
-    return value
+    node_ptr = NodeReference(node_type=node_type, id=fastuuid.UUID(node_value["2"]))
+    return value, node_ptr
 
 
 #
