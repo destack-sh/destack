@@ -23,7 +23,9 @@ from bench.language.core import (
     NodeType,
     PrimitiveType,
     Property,
+    ScalarType,
     StructType,
+    TypeCardinality,
     Variable,
 )
 from bench.language.registry import (
@@ -176,10 +178,10 @@ _PROTO_PRIMITIVE_MESSAGE_TYPES = (
 
 def _is_proto_primitive(prop: "Property | IntoType") -> bool:
     """Check if a property is a proto primitive type."""
-    return prop.cardinality == "scalar" and (
-        prop.scalar_type == "enum"
+    return prop.cardinality == TypeCardinality.SCALAR and (
+        prop.scalar_type == ScalarType.ENUM
         or (
-            prop.scalar_type == "primitive"
+            prop.scalar_type == ScalarType.PRIMITIVE
             and prop.primitive_type not in _PROTO_PRIMITIVE_MESSAGE_TYPES
         )
     )
@@ -190,7 +192,7 @@ def _generate_pack_property(prop: "Property") -> list[str] | None:
     lines: list[str] = []
     obj_value = f"_object.{prop.name}"
 
-    if prop.cardinality == "scalar":
+    if prop.cardinality == TypeCardinality.SCALAR:
         if prop.is_variable:
             # write to _variable if it's a Variable, else write to _value
             lines.append(f"if isinstance({obj_value}, Variable):")
@@ -214,7 +216,7 @@ def _generate_pack_property(prop: "Property") -> list[str] | None:
                 lines.append(f"_object_data.{prop.name} = {scalar_expr}")
             else:
                 lines.append(f"_object_data.{prop.name}.CopyFrom({scalar_expr})")
-    elif prop.cardinality == "list":
+    elif prop.cardinality == TypeCardinality.LIST:
         item_expr = _generate_pack_scalar(prop, "_item")
         if _is_proto_primitive(prop):
             lines.extend(
@@ -232,7 +234,7 @@ if {obj_value}:
     for _item in {obj_value}:
         _object_data.{prop.name}.append({item_expr})""".splitlines()
             )
-    elif prop.cardinality == "map":
+    elif prop.cardinality == TypeCardinality.MAP:
         lines.extend(
             f"""\
 if {obj_value}:
@@ -264,7 +266,7 @@ def _generate_unpack_property(prop: "Property") -> list[str] | None:
     lines: list[str] = []
     data_value = f"_object_data.{prop.name}"
 
-    if prop.cardinality == "scalar":
+    if prop.cardinality == TypeCardinality.SCALAR:
         if prop.is_variable:
             # read from _variable if it's a Variable, else read from _value
             lines.append(f"if _object_data.HasField('{prop.name}_variable'):")
@@ -281,7 +283,7 @@ def _generate_unpack_property(prop: "Property") -> list[str] | None:
         else:
             scalar_expr = _generate_unpack_scalar(prop, data_value)
             lines.append(f"_unpacked_{prop.name} = {scalar_expr}")
-    elif prop.cardinality == "list":
+    elif prop.cardinality == TypeCardinality.LIST:
         lines.extend(
             f"""\
 _unpacked_{prop.name} = []
@@ -289,7 +291,7 @@ for _item in {data_value}:""".splitlines()
         )
         item_expr = _generate_unpack_scalar(prop, "_item")
         lines.append(f"    _unpacked_{prop.name}.append({item_expr})")
-    elif prop.cardinality == "map":
+    elif prop.cardinality == TypeCardinality.MAP:
         lines.extend(
             f"""\
 _unpacked_{prop.name} = {{}}
@@ -308,7 +310,7 @@ for _key, _value in {data_value}.items():""".splitlines()
 def _generate_pack_scalar(prop: "Property | IntoType", value_expr: str) -> str:
     """Generate the packing code for a scalar value."""
 
-    if prop.scalar_type == "primitive":
+    if prop.scalar_type == ScalarType.PRIMITIVE:
         if prop.primitive_type == PrimitiveType.UUID:
             return f"str({value_expr})"
         elif prop.primitive_type == PrimitiveType.JSON:
@@ -319,13 +321,13 @@ def _generate_pack_scalar(prop: "Property | IntoType", value_expr: str) -> str:
             return f"pack_proto_duration({value_expr})"
         else:
             return value_expr
-    elif prop.scalar_type == "enum":
+    elif prop.scalar_type == ScalarType.ENUM:
         return f"{value_expr}.value"
-    elif prop.scalar_type == "node_reference":
+    elif prop.scalar_type == ScalarType.NODE_REFERENCE:
         return f"{value_expr}.to_proto()"
-    elif prop.scalar_type == "node_value":
+    elif prop.scalar_type == ScalarType.NODE_VALUE:
         raise RuntimeError(f"node_value cannot be wired directly: {prop!r}")
-    elif prop.scalar_type == "struct":
+    elif prop.scalar_type == ScalarType.STRUCT:
         assert prop.struct_type is not None
         struct_cls = STRUCT_CLASS_BY_TYPE[prop.struct_type]
         if struct_cls.__is_frozen__:
@@ -339,7 +341,7 @@ def _generate_pack_scalar(prop: "Property | IntoType", value_expr: str) -> str:
 def _generate_unpack_scalar(prop: "Property | IntoType", value_expr: str) -> str:
     """Generate the unpacking code for a scalar value."""
 
-    if prop.scalar_type == "primitive":
+    if prop.scalar_type == ScalarType.PRIMITIVE:
         if prop.primitive_type == PrimitiveType.UUID:
             return f"UUID({value_expr})"
         elif prop.primitive_type == PrimitiveType.JSON:
@@ -350,15 +352,15 @@ def _generate_unpack_scalar(prop: "Property | IntoType", value_expr: str) -> str
             return f"unpack_proto_duration({value_expr})"
         else:
             return f"{value_expr}"
-    elif prop.scalar_type == "enum":
+    elif prop.scalar_type == ScalarType.ENUM:
         assert prop.enum_type is not None
         enum_type_name = prop.enum_type.bench_name
         return f"{enum_type_name}({value_expr})"
-    elif prop.scalar_type == "node_reference":
+    elif prop.scalar_type == ScalarType.NODE_REFERENCE:
         return f"NodeReference.__unpack_proto__({value_expr}, _supergraph=_supergraph)"
-    elif prop.scalar_type == "node_value":
+    elif prop.scalar_type == ScalarType.NODE_VALUE:
         raise RuntimeError(f"node_value cannot be wired directly: {prop!r}")
-    elif prop.scalar_type == "struct":
+    elif prop.scalar_type == ScalarType.STRUCT:
         assert prop.struct_type is not None
         struct_cls_name = prop.struct_type.bench_name
         return f"{struct_cls_name}.__unpack_proto__({value_expr}, _supergraph=_supergraph)"

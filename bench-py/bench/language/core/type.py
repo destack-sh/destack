@@ -17,11 +17,14 @@ from .const import (
     PRIMITIVE_PY_TYPES,
     PRIMITIVE_TYPE_BY_PY_TYPE,
     BuiltinEnum,
+    DefaultFactory,
     EnumType,
     NodeType,
     PrimitiveType,
+    ScalarType,
     StructType,
     TraitType,
+    TypeCardinality,
     enum_,
 )
 from .object import BuiltinObjectMutable, object_
@@ -35,39 +38,6 @@ if TYPE_CHECKING:
 
 logger = structlog.get_logger(__name__)
 tracer = trace.get_tracer(__name__)
-
-
-@enum_(EnumType.TYPE_CARDINALITY)
-class TypeCardinality(BuiltinEnum):
-    """The 'kind' of a Type."""
-
-    SCALAR = 1
-    LIST = 2
-    # SET?
-    MAP = 4
-    # OPTION = 5
-    # LITERAL = 6
-    # UNION = 7
-
-
-@enum_(EnumType.SCALAR_TYPE)
-class ScalarType(BuiltinEnum):
-    """The type of a scalar."""
-
-    PRIMITIVE = 1
-    ENUM = 2
-    NODE_REFERENCE = 3
-    NODE_VALUE = 4
-    STRUCT = 5
-
-
-@enum_(EnumType.DEFAULT_FACTORY)
-class DefaultFactory(BuiltinEnum):
-    """The factory to use for default values."""
-
-    UUID = 1
-    NOW = 2
-    REGION = 3
 
 
 @enum_(EnumType.STRING_FORMAT)

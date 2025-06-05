@@ -63,7 +63,7 @@ def _compile_attribute(
     if attribute.type == AttributeType.PROPERTY:
         prop = attribute.prop
         assert prop is not None, f"no property for {attribute!r}"
-        if prop.scalar_type == "node_reference":
+        if prop.scalar_type == ScalarType.NODE_REFERENCE:
             # unravel reference column into id
             return f"{prop.name}_id"
         else:

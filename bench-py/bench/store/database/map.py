@@ -9,7 +9,9 @@ from bench.language import (
     NodeReference,
     NodeType,
     PrimitiveType,
+    ScalarType,
     TraitType,
+    TypeCardinality,
 )
 from bench.language.registry import NODE_CLASS_BY_TYPE
 
@@ -50,11 +52,13 @@ def map_builtin_node_to_database_table(node: type[Node]) -> DatabaseTable:
         if prop.edge_type == EdgeType.NODE_PARENT and node.__root_type__ is None:
             continue  # no parent for root nodes
 
-        if prop.scalar_type == "node_reference":
+        if prop.scalar_type == ScalarType.NODE_REFERENCE:
             # node ptr property
             assert prop.runtime_prop is not None, f"no runtime prop for {prop!r}"
             prop = prop.runtime_prop
-            assert prop.cardinality == "scalar", f"non-scalar node reference: {prop!r}"
+            assert prop.cardinality == TypeCardinality.SCALAR, (
+                f"non-scalar node reference: {prop!r}"
+            )
             column = DatabaseColumn(
                 name=f"{prop.name}_id",
                 type=PrimitiveType.UUID,
@@ -93,7 +97,7 @@ def map_builtin_node_to_database_table(node: type[Node]) -> DatabaseTable:
             column = DatabaseColumn(
                 name=prop.name,
                 type=prop.primitive_type,
-                is_array=prop.cardinality == "list",
+                is_array=prop.cardinality == TypeCardinality.LIST,
                 is_nullable=prop.is_optional,
                 is_primary_key=prop.name == "id",
                 prop=prop,

@@ -71,8 +71,8 @@ def _unpack_{node_cls.__name__}_row(row: "asyncpg.Record") -> "Json":
 
 def _generate_pack_scalar_value(prop: "Property", value_expr: str) -> str:
     """Generate code to pack a scalar value for a property."""
-    assert prop.scalar_type != "node_reference", f"unhandled node ref: {prop!r}"
-    if prop.scalar_type == "primitive":
+    assert prop.scalar_type != ScalarType.NODE_REFERENCE, f"unhandled node ref: {prop!r}"
+    if prop.scalar_type == ScalarType.PRIMITIVE:
         if prop.primitive_type == PrimitiveType.BYTES:
             return f"base64.b64decode({value_expr})"
         elif prop.primitive_type == PrimitiveType.UUID:
@@ -87,9 +87,9 @@ def _generate_pack_scalar_value(prop: "Property", value_expr: str) -> str:
             return f"timedelta_from_isoformat({value_expr})"
         else:
             return value_expr
-    elif prop.scalar_type == "enum":
+    elif prop.scalar_type == ScalarType.ENUM:
         return value_expr
-    elif prop.scalar_type == "node_value" or prop.scalar_type == "struct":
+    elif prop.scalar_type == ScalarType.NODE_VALUE or prop.scalar_type == ScalarType.STRUCT:
         return f"orjson.dumps({value_expr}).decode()"
     else:
         assert_never(prop.scalar_type)
@@ -97,8 +97,8 @@ def _generate_pack_scalar_value(prop: "Property", value_expr: str) -> str:
 
 def _generate_unpack_scalar_value(prop: "Property", value_expr: str) -> str:
     """Generate code to unpack a scalar value for a property."""
-    assert prop.scalar_type != "node_reference", f"unhandled node ref: {prop!r}"
-    if prop.scalar_type == "primitive":
+    assert prop.scalar_type != ScalarType.NODE_REFERENCE, f"unhandled node ref: {prop!r}"
+    if prop.scalar_type == ScalarType.PRIMITIVE:
         if prop.primitive_type == PrimitiveType.BYTES:
             return f"base64.b64encode({value_expr}).decode()"
         elif prop.primitive_type == PrimitiveType.UUID:
@@ -113,9 +113,9 @@ def _generate_unpack_scalar_value(prop: "Property", value_expr: str) -> str:
             return f"timedelta_to_isoformat({value_expr})"
         else:
             return value_expr
-    elif prop.scalar_type == "enum":
+    elif prop.scalar_type == ScalarType.ENUM:
         return value_expr
-    elif prop.scalar_type == "node_value" or prop.scalar_type == "struct":
+    elif prop.scalar_type == ScalarType.NODE_VALUE or prop.scalar_type == ScalarType.STRUCT:
         return f"orjson.loads({value_expr})"
     else:
         assert_never(prop.scalar_type)
@@ -125,9 +125,9 @@ def _generate_column_pack(prop: "Property") -> str:
     """Generate code to pack a property value into row columns."""
     assert prop.id is not None, f"no id for {prop!r}"
 
-    if prop.scalar_type == "node_reference":
+    if prop.scalar_type == ScalarType.NODE_REFERENCE:
         # node references fan out to multiple columns
-        assert prop.cardinality == "scalar", f"non-scalar node ref: {prop!r}"
+        assert prop.cardinality == TypeCardinality.SCALAR, f"non-scalar node ref: {prop!r}"
         if prop.is_required:
             pack_lines = [f"_node_ref = node_value['{prop.id}']"]
             pack_lines.append("row_values.append(uuid.UUID(_node_ref['32']))  # id")
@@ -166,7 +166,7 @@ def _generate_column_pack(prop: "Property") -> str:
             return "\n".join(pack_lines)
     else:
         # regular properties
-        if prop.cardinality == "scalar":
+        if prop.cardinality == TypeCardinality.SCALAR:
             pack_expr = _generate_pack_scalar_value(prop, f"node_value['{prop.id}']")
             if prop.is_required:
                 return f"row_values.append({pack_expr})"
@@ -176,14 +176,14 @@ def _generate_column_pack(prop: "Property") -> str:
     row_values.append({pack_expr_opt})
 else:
     row_values.append(None)"""
-        elif prop.cardinality == "list":
+        elif prop.cardinality == TypeCardinality.LIST:
             pack_expr = _generate_pack_scalar_value(prop, "v")
             return f"""_value = node_value.get('{prop.id}')
 if _value is not None:
     row_values.append([{pack_expr} for v in _value])
 else:
     row_values.append(None)"""
-        elif prop.cardinality == "map":
+        elif prop.cardinality == TypeCardinality.MAP:
             # Maps are stored as JSON
             return f"""_value = node_value.get('{prop.id}')
 row_values.append(orjson.dumps(_value) if _value else None)"""
@@ -195,9 +195,9 @@ def _generate_column_unpack(prop: "Property") -> str:
     """Generate code to unpack row columns into a property value."""
     assert prop.id is not None, f"no id for {prop!r}"
 
-    if prop.scalar_type == "node_reference":
+    if prop.scalar_type == ScalarType.NODE_REFERENCE:
         # node references fan out from multiple columns
-        assert prop.cardinality == "scalar", f"non-scalar node ref: {prop!r}"
+        assert prop.cardinality == TypeCardinality.SCALAR, f"non-scalar node ref: {prop!r}"
         node_types = expand_node_types(prop.node_types or ())
         unpack_lines = [
             f"if (_node_id := row['{prop.name}_id']) is not None:",
@@ -233,7 +233,7 @@ def _generate_column_unpack(prop: "Property") -> str:
         return "\n".join(unpack_lines)
     else:
         # regular properties
-        if prop.cardinality == "scalar":
+        if prop.cardinality == TypeCardinality.SCALAR:
             unpack_expr = _generate_unpack_scalar_value(prop, f"row['{prop.name}']")
             if prop.is_required:
                 return f"node_value['{prop.id}'] = {unpack_expr}"
@@ -242,12 +242,12 @@ def _generate_column_unpack(prop: "Property") -> str:
                 return f"""\
 if (_value := row['{prop.name}']) is not None:
     node_value['{prop.id}'] = {unpack_expr_opt}"""
-        elif prop.cardinality == "list":
+        elif prop.cardinality == TypeCardinality.LIST:
             unpack_expr = _generate_unpack_scalar_value(prop, "v")
             return f"""\
 if (_value := row['{prop.name}']) and _value:
     node_value['{prop.id}'] = [{unpack_expr} for v in _value]"""
-        elif prop.cardinality == "map":
+        elif prop.cardinality == TypeCardinality.MAP:
             return f"""\
 if (_value := row['{prop.name}']) and _value and (_unpacked_value := orjson.loads(_value)):
     node_value['{prop.id}'] = _unpacked_value"""

@@ -32,7 +32,7 @@ async def make(
     overwrite: bool = typer.Option(default=False, help="overwrite existing migration for version"),
     from_scratch: bool = typer.Option(default=False, help="generate migration from scratch"),
 ):
-    from bench.sharding import get_global_database_from_env
+    from bench.sharding import DATABASE_PROVIDER, get_global_database_from_env
     from bench.store.database import (
         BENCH_BUILTIN_TABLE_PREFIX,
         BENCH_CUSTOM_TABLE_PREFIX,
@@ -75,6 +75,9 @@ async def make(
 
     # diff main
     if area in (None, NodeArea.MAIN_DATABASE):
+        main_database = await DATABASE_PROVIDER.resolve_or_error(
+            region or REGION, cell_name, external_name
+        )
         async with pg_connection(main_database) as conn:
             old_main_schema = await introspect_schema(
                 conn,

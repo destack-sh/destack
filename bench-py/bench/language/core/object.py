@@ -35,12 +35,15 @@ from .const import (
     EMPTY_DICT,
     REGION,
     UNSET,
+    DefaultFactory,
     EdgeType,
     EnumType,
     NodeType,
     PrimitiveType,
+    ScalarType,
     StructType,
     TraitType,
+    TypeCardinality,
 )
 from .graph import Graph, Supergraph
 from .property import _PROPERTY_SPECIFIERS, IntoType, Property, property_runtime_
@@ -119,8 +122,9 @@ def _generate_init_impl[ObjectT: BuiltinObjectBase](
         and p.default is UNSET
         and p.default_factory is None
         and not p.is_managed
-        and p.cardinality == "scalar"
-        and p.scalar_type != "node_reference"  # passed either as node or node_ptr, defer check
+        and p.cardinality == TypeCardinality.SCALAR
+        and p.scalar_type
+        != ScalarType.NODE_REFERENCE  # passed either as node or node_ptr, defer check
     ]
     # first add properties without defaults that are not managed
     for prop in required_properties:
@@ -239,11 +243,11 @@ self._supergraph = _supergraph
             continue
         elif (ptr_prop := prop.ptr_prop) is not None:
             # derive ptr_prop from prop if prop is set
-            if prop.cardinality == "scalar":
+            if prop.cardinality == TypeCardinality.SCALAR:
                 method_body_lines.append(f"""\
 if {prop.name} is not None:
     {ptr_prop.name} = {prop.name}.to_ref()""")
-            elif prop.cardinality == "list":
+            elif prop.cardinality == TypeCardinality.LIST:
                 method_body_lines.append(f"""\
 if {prop.name}:
     {ptr_prop.name} = tuple(x.to_ref() for x in {prop.name})""")
@@ -255,8 +259,8 @@ if {prop.name}:
         # check if node is passed if required and scalar
         if (
             prop.is_required
-            and prop.cardinality == "scalar"
-            and prop.scalar_type == "node_reference"
+            and prop.cardinality == TypeCardinality.SCALAR
+            and prop.scalar_type == ScalarType.NODE_REFERENCE
         ):
             method_body_lines.append(f"""\
 if {prop.name} is None:
@@ -264,11 +268,11 @@ if {prop.name} is None:
 
         # init default factory
         if prop.default_factory is not None:
-            if prop.default_factory == "uuid":
+            if prop.default_factory == DefaultFactory.UUID:
                 method_body_lines.append(f"""\
 if {prop.name} is None:
     {prop.name} = uuid4()""")
-            elif prop.default_factory == "now":
+            elif prop.default_factory == DefaultFactory.NOW:
                 if is_node:
                     method_body_lines.append(f"""\
 if {prop.name} is None:
@@ -281,7 +285,7 @@ if {prop.name} is None:
     if session is None:
         raise RuntimeError("no active session for {cls.__name__}")
     {prop.name} = session.oracle.utc()""")
-            elif prop.default_factory == "region":
+            elif prop.default_factory == DefaultFactory.REGION:
                 method_body_lines.append(f"""\
 if {prop.name} is None:
     {prop.name} = REGION""")
@@ -289,11 +293,11 @@ if {prop.name} is None:
                 assert_never(prop.default_factory)
 
         # init list/map if unset
-        if prop.cardinality == "list":
+        if prop.cardinality == TypeCardinality.LIST:
             method_body_lines.append(f"""\
 if {prop.name} is None:
     {prop.name} = {"[]" if not is_frozen else "EMPTY_LIST"}""")
-        elif prop.cardinality == "map":
+        elif prop.cardinality == TypeCardinality.MAP:
             method_body_lines.append(f"""\
 if {prop.name} is None:
     {prop.name} = {"{}" if not is_frozen else "EMPTY_DICT"}""")
@@ -340,9 +344,14 @@ __str__ = __repr__
 
     def _get_scalar_repr(prop: IntoType, value_expr: str) -> str:
         """Get repr expression for a scalar value."""
-        if prop.scalar_type == "enum":
+        if prop.scalar_type == ScalarType.ENUM:
             return f"{value_expr}.name"
-        elif prop.scalar_type in ("primitive", "struct", "node_reference", "node_value"):
+        elif prop.scalar_type in (
+            ScalarType.PRIMITIVE,
+            ScalarType.STRUCT,
+            ScalarType.NODE_REFERENCE,
+            ScalarType.NODE_VALUE,
+        ):
             if prop.primitive_type == PrimitiveType.UUID:
                 return f"str({value_expr})"
             elif prop.primitive_type in (
@@ -363,7 +372,7 @@ __str__ = __repr__
 
     for prop in repr_properties:
         prop_name = prop.name
-        if prop.cardinality == "scalar":
+        if prop.cardinality == TypeCardinality.SCALAR:
             if prop.is_required:
                 scalar_expr = _get_scalar_repr(prop, f"self.{prop_name}")
                 repr_parts_lines.append(f"property_reprs.append(f'{prop_name}={{{scalar_expr}}}')")
@@ -375,8 +384,8 @@ __str__ = __repr__
 if ({prop_name} := self.{prop_name}) is not None:
     property_reprs.append(f'{prop_name}={{{scalar_expr}}}')""".splitlines()
                 )
-        elif prop.cardinality == "list":
-            if prop.scalar_type == "enum":
+        elif prop.cardinality == TypeCardinality.LIST:
+            if prop.scalar_type == ScalarType.ENUM:
                 list_expr = f"'[' + ', '.join(x.name for x in self.{prop_name}) + ']'"
             else:
                 list_expr = f"self.{prop_name}!r"
@@ -385,9 +394,9 @@ if ({prop_name} := self.{prop_name}) is not None:
 if self.{prop_name}:
     property_reprs.append(f'{prop_name}={{{list_expr}}}')""".splitlines()
             )
-        elif prop.cardinality == "map":
+        elif prop.cardinality == TypeCardinality.MAP:
             assert prop.key_type is not None, f"{prop!r} has no key type"
-            if prop.key_type.scalar_type == "enum":
+            if prop.key_type.scalar_type == ScalarType.ENUM:
                 key_repr = _get_scalar_repr(prop.key_type, "k")
                 value_repr = _get_scalar_repr(prop, "v")
                 map_expr = f"'{{' + ', '.join(f'{{{key_repr}}}: {{{value_repr}}}' for k, v in self.{prop_name}.items()) + '}}'"
@@ -545,7 +554,7 @@ def _generate_property_cmp_impl(prop: Property) -> str:
     prop_name = prop.name
 
     scalar_cmps_str = _generate_scalar_cmp_impl(prop)
-    if prop.cardinality == "scalar":
+    if prop.cardinality == TypeCardinality.SCALAR:
         # scalar
         if prop.is_required:
             # required scalar
@@ -557,7 +566,7 @@ if not ({scalar_cmps_str.format(self_val=f"self.{prop_name}", other_val=f"other.
             return f"""\
 if (self.{prop_name} is None) != (other.{prop_name} is None) or (self.{prop_name} is not None and not ({scalar_cmps_str.format(self_val=f"self.{prop_name}", other_val=f"other.{prop_name}")})):
     return False"""
-    elif prop.cardinality == "list":
+    elif prop.cardinality == TypeCardinality.LIST:
         # list (always required)
         return f"""\
 if len(self.{prop_name}) != len(other.{prop_name}):
@@ -565,9 +574,13 @@ if len(self.{prop_name}) != len(other.{prop_name}):
 for i in range(len(self.{prop_name})):
     if not ({scalar_cmps_str.format(self_val=f"self.{prop_name}[i]", other_val=f"other.{prop_name}[i]")}):
         return False"""
-    elif prop.cardinality == "map":
+    elif prop.cardinality == TypeCardinality.MAP:
         # map (always required)
-        if prop.scalar_type in ("struct", "node_reference", "node_value"):
+        if prop.scalar_type in (
+            ScalarType.STRUCT,
+            ScalarType.NODE_REFERENCE,
+            ScalarType.NODE_VALUE,
+        ):
             # maps with complex values need key-by-key comparison
             return f"""\
 if len(self.{prop_name}) != len(other.{prop_name}):
@@ -588,16 +601,16 @@ if self.{prop_name} != other.{prop_name}:
 
 def _generate_scalar_cmp_impl(prop: Property) -> str:
     """Generate the core scalar comparison logic. Returns a format string with {self_val} and {other_val} placeholders."""
-    if prop.scalar_type == "primitive":
+    if prop.scalar_type == ScalarType.PRIMITIVE:
         if prop.primitive_type and prop.primitive_type.is_float:
             return "{self_val} == {other_val} or abs({self_val} - {other_val}) < 1e-10"
         else:
             return "{self_val} == {other_val}"
-    elif prop.scalar_type == "enum":
+    elif prop.scalar_type == ScalarType.ENUM:
         return "{self_val} == {other_val}"
-    elif prop.scalar_type == "node_reference" or prop.scalar_type == "node_value":
+    elif prop.scalar_type == ScalarType.NODE_REFERENCE or prop.scalar_type == ScalarType.NODE_VALUE:
         return "{self_val}.id == {other_val}.id or _identity_map.get({self_val}.id, {self_val}.id) == _identity_map.get({other_val}.id, {other_val}.id)"
-    elif prop.scalar_type == "struct":
+    elif prop.scalar_type == ScalarType.STRUCT:
         return "{self_val}.equals({other_val}, _identity_map=_identity_map)"
     else:
         assert_never(prop.scalar_type)
@@ -683,7 +696,7 @@ def _generate_property_property_impl(prop: Property) -> str:
     ptr_prop = prop.ptr_prop
     assert ptr_prop is not None, f"no wired prop for {prop!r}"
 
-    if prop.cardinality == "scalar":
+    if prop.cardinality == TypeCardinality.SCALAR:
         # property scalar
         return f"""\
 @property
@@ -701,7 +714,7 @@ def {prop.name}(self: "BuiltinObjectBase", value: "Property | None"):
     else:
         {ptr_prop.name} = value.to_ref()
 """
-    elif prop.cardinality == "list":
+    elif prop.cardinality == TypeCardinality.LIST:
         # property list
         return f"""\
 @property
@@ -726,7 +739,7 @@ def _generate_node_property_impl(prop: Property) -> str:
     assert ptr_prop is not None, f"no wired prop for {prop!r}"
     is_node = prop.component.__is_node__
 
-    if prop.cardinality == "scalar":
+    if prop.cardinality == TypeCardinality.SCALAR:
         if is_node:
             getter = f"""\
 @property
@@ -769,7 +782,7 @@ def {prop.name}(self: "BuiltinObjectBase", value: "Node | None"):
         self.{ptr_prop.name} = value.to_ref()
 """
 
-    elif prop.cardinality == "list":
+    elif prop.cardinality == TypeCardinality.LIST:
         if is_node:
             getter = f"""\
 @property
@@ -811,7 +824,7 @@ def _generate_node_key_property_impl(obj_key: str, ptr_key: str, prop: Property)
     ptr_prop = prop.ptr_prop
     assert ptr_prop is not None, f"no wired prop for {prop!r}"
 
-    if prop.cardinality == "scalar":
+    if prop.cardinality == TypeCardinality.SCALAR:
         return f"""\
 @property
 def {prop.name}_{obj_key}(self: "BuiltinObjectBase") -> "Node | None":
@@ -892,7 +905,7 @@ def _process_object_cls[ObjectT: BuiltinObjectBase](
         name="metatype",
         default=None,
         py_type=NodeType if is_node else StructType,
-        cardinality="scalar",
+        cardinality=TypeCardinality.SCALAR,
         is_required=True,
         is_computed=True,  # is set statically by class decorator
         is_wired=True,
@@ -964,9 +977,12 @@ def _process_object_cls[ObjectT: BuiltinObjectBase](
     props = properties.values()
     cls.__properties_by_id__ = frozendict(properties_by_id)
     cls.__node_properties__ = frozendict(
-        {p.name: p for p in props if p.is_node_reference and not p.runtime_prop}
+        {
+            p.name: p
+            for p in props
+            if p.scalar_type == ScalarType.NODE_REFERENCE and not p.runtime_prop
+        }
     )
-    cls.__struct_properties__ = frozendict({p.name: p for p in props if p.is_struct is True})
     cls.__wired_properties__ = frozendict(
         {p.name: p for p in props if p.is_wired is True and p.ptr_prop is None}
     )
@@ -1043,7 +1059,7 @@ def _process_object_cls[ObjectT: BuiltinObjectBase](
             if prop.runtime_prop is not None:
                 continue  # not a contributed property
             # computed property property
-            if prop.is_property:
+            if prop.struct_type == StructType.PROPERTY_REFERENCE:
                 property_property_str = _generate_property_property_impl(prop)
                 exec_(
                     property_property_str,
@@ -1069,7 +1085,7 @@ def _process_object_cls[ObjectT: BuiltinObjectBase](
                     f"{cls.__name__}:ancestor_property:{prop.name}",
                 )
             # computed _x node reference properties (e.g., parent_id, node_ck, node_type, ...)
-            if prop.is_node_reference:
+            if prop.scalar_type == ScalarType.NODE_REFERENCE:
                 for obj_key, ptr_key in (("id", "id"), ("ck", "ck"), ("type", "node_type")):
                     if obj_key == "type" and (not prop.node_types or len(prop.node_types) <= 1):
                         continue  # no need for *_type if only one possible node type
@@ -1162,7 +1178,6 @@ class BuiltinObjectBase[ObjectDataT: AnyObjectData](abc.ABC):
 
     __declared_properties__: ClassVar[dict[str, Property]] = {}
     __node_properties__: ClassVar[dict[str, Property]] = {}
-    __struct_properties__: ClassVar[dict[str, Property]] = {}
     __wired_properties__: ClassVar[dict[str, Property]] = {}
     __stored_properties__: ClassVar[dict[str, Property]] = {}
     __tracked_properties__: ClassVar[dict[str, Property]] = {}
@@ -1208,21 +1223,7 @@ class BuiltinObjectBase[ObjectDataT: AnyObjectData](abc.ABC):
         exclude: Collection[EdgeType],
     ):
         """Replaces Node references with new Nodes. Missing Nodes are kept as is."""
-        for prop in self.__node_properties__.values():
-            if prop.edge_type in exclude:
-                continue
-            prop_value = getattr(self, prop.name)
-            if prop.cardinality == "scalar":
-                if prop_value is None:
-                    continue
-                new_node = new_node_by_id.get(prop_value.id)
-                if new_node is not None:
-                    setattr(self, prop.name, new_node)
-            elif prop.cardinality == "list":
-                new_nodes = [new_node_by_id.get(node.id) for node in prop_value]
-                prop_value.set(new_nodes)
-            else:
-                raise RuntimeError(f"unsupported property: {prop.cardinality}")
+        raise NotImplementedError  # generated
 
     def __bool__(self):
         return True  # support truthy checks for objects

@@ -4,6 +4,7 @@ from fastuuid import UUID
 
 from .const import (
     BuiltinEnum,
+    DefaultFactory,
     EnumType,
     StructType,
     active_session,
@@ -314,7 +315,7 @@ class Query[RootT: "Trait | Node"](StructFrozen):
     """A GraphQL-inspired Query node (with subqueries)."""
 
     # meta
-    id: UUID = property_(2, default_factory="uuid")
+    id: UUID = property_(2, default_factory=DefaultFactory.UUID)
     type: QueryType = property_(30, is_repr=True)
     name: str = property_(
         31,
@@ -322,12 +323,7 @@ class Query[RootT: "Trait | Node"](StructFrozen):
         is_repr=True,
     )
     relation: RelationReference = property_(32, is_repr=True)
-    join: Optional[Join] = property_(
-        33,
-        description="Relative to parent Query.",
-        default=Join(type=JoinType.CHILD),
-        is_repr=True,
-    )
+    join: Optional[Join] = property_(33, description="Relative to parent Query.", is_repr=True)
     select: Optional[Select] = property_(34, is_repr=True)
     subqueries: list["Query"] = property_(35, is_repr=True)
     is_live: bool = property_(39, default=True)

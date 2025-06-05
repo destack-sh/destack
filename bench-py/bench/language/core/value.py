@@ -167,7 +167,7 @@ def _generate_pack_value_property(prop: "Property") -> list[str]:
     lines: list[str] = []
     obj_value = f"_object.{prop.name}"
 
-    if prop.cardinality == "scalar":
+    if prop.cardinality == TypeCardinality.SCALAR:
         if prop.is_required:
             value_expr = _generate_pack_value_scalar(prop, obj_value)
             lines.append(f'_object_value["{prop.id}"] = {value_expr}')
@@ -175,14 +175,14 @@ def _generate_pack_value_property(prop: "Property") -> list[str]:
             lines.append(f"if ({prop.name} := {obj_value}) is not None:")
             value_expr = _generate_pack_value_scalar(prop, prop.name)
             lines.append(f'    _object_value["{prop.id}"] = {value_expr}')
-    elif prop.cardinality == "list":
+    elif prop.cardinality == TypeCardinality.LIST:
         lines.append(f"if {obj_value}:")
         lines.append(f"    _packed_{prop.name} = []")
         lines.append(f"    for _item in {obj_value}:")
         item_expr = _generate_pack_value_scalar(prop, "_item")
         lines.append(f"        _packed_{prop.name}.append({item_expr})")
         lines.append(f'    _object_value["{prop.id}"] = _packed_{prop.name}')
-    elif prop.cardinality == "map":
+    elif prop.cardinality == TypeCardinality.MAP:
         assert prop.key_type is not None, f"no key type for {prop!r}"
         lines.append(f"if {obj_value}:")
         lines.append(f"    _packed_{prop.name} = {{}}")
@@ -202,7 +202,7 @@ def _generate_unpack_value_property(prop: "Property") -> list[str]:
     lines: list[str] = []
     data_value = f'_object_value.get("{prop.id}")'
 
-    if prop.cardinality == "scalar":
+    if prop.cardinality == TypeCardinality.SCALAR:
         if prop.is_required:
             value_expr = _generate_unpack_value_scalar(prop, data_value)
             lines.append(f"_unpacked_{prop.name} = {value_expr}")
@@ -211,13 +211,13 @@ def _generate_unpack_value_property(prop: "Property") -> list[str]:
             lines.append(
                 f"_unpacked_{prop.name} = {value_expr} if ({prop.name} := {data_value}) is not None else None"
             )
-    elif prop.cardinality == "list":
+    elif prop.cardinality == TypeCardinality.LIST:
         lines.append(f"_unpacked_{prop.name} = []")
         lines.append(f"if {data_value} is not None:")
         lines.append(f"    for _item in {data_value}:")
         item_expr = _generate_unpack_value_scalar(prop, "_item")
         lines.append(f"        _unpacked_{prop.name}.append({item_expr})")
-    elif prop.cardinality == "map":
+    elif prop.cardinality == TypeCardinality.MAP:
         assert prop.key_type is not None, f"no key type for {prop!r}"
         lines.append(f"_unpacked_{prop.name} = {{}}")
         lines.append(f"if {data_value} is not None:")
@@ -234,7 +234,7 @@ def _generate_unpack_value_property(prop: "Property") -> list[str]:
 def _generate_pack_value_scalar(prop: "Property | IntoType", value_expr: str) -> str:
     """Generate the packing code for a scalar value."""
 
-    if prop.scalar_type == "primitive":
+    if prop.scalar_type == ScalarType.PRIMITIVE:
         if prop.primitive_type == PrimitiveType.BYTES:
             return f"base64.b64encode({value_expr}).decode()"
         elif prop.primitive_type == PrimitiveType.UUID:
@@ -251,9 +251,9 @@ def _generate_pack_value_scalar(prop: "Property | IntoType", value_expr: str) ->
             return f"timedelta_to_isoformat({value_expr})"
         else:
             return value_expr
-    elif prop.scalar_type == "enum":
+    elif prop.scalar_type == ScalarType.ENUM:
         return f"{value_expr}.value"
-    elif prop.scalar_type in ("struct", "node_reference", "node_value"):
+    elif prop.scalar_type in (ScalarType.STRUCT, ScalarType.NODE_REFERENCE, ScalarType.NODE_VALUE):
         return f"{value_expr}.to_value()"
     else:
         assert_never(prop.scalar_type)
@@ -262,7 +262,7 @@ def _generate_pack_value_scalar(prop: "Property | IntoType", value_expr: str) ->
 def _generate_unpack_value_scalar(prop: "Property | IntoType", value_expr: str) -> str:
     """Generate the unpacking code for a scalar value."""
 
-    if prop.scalar_type == "primitive":
+    if prop.scalar_type == ScalarType.PRIMITIVE:
         if prop.primitive_type == PrimitiveType.BYTES:
             return f"base64.b64decode({value_expr})"
         elif prop.primitive_type == PrimitiveType.UUID:
@@ -281,17 +281,17 @@ def _generate_unpack_value_scalar(prop: "Property | IntoType", value_expr: str) 
             return f"int({value_expr})"  # cast JSON floats to ints
         else:
             return value_expr
-    elif prop.scalar_type == "enum":
+    elif prop.scalar_type == ScalarType.ENUM:
         assert prop.enum_type is not None, f"no enum type for {prop!r}"
         enum_type_name = prop.enum_type.bench_name
         return f"{enum_type_name}(int({value_expr}))"
-    elif prop.scalar_type == "struct":
+    elif prop.scalar_type == ScalarType.STRUCT:
         assert prop.struct_type is not None, f"no struct type for {prop!r}"
         struct_cls_name = prop.struct_type.bench_name
         return f"{struct_cls_name}.from_value({value_expr})"
-    elif prop.scalar_type == "node_reference":
+    elif prop.scalar_type == ScalarType.NODE_REFERENCE:
         return f"NodeReference.from_value({value_expr})"
-    elif prop.scalar_type == "node_value":
+    elif prop.scalar_type == ScalarType.NODE_VALUE:
         return f"Node.from_value({value_expr})"
     else:
         assert_never(prop.scalar_type)
