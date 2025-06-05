@@ -19,6 +19,7 @@ from bench.language import (
     TraitType,
     User,
     UserStatus,
+    join,
     text_line,
 )
 from bench.store import DatabaseStore
@@ -99,40 +100,50 @@ async def test_create_user(session: Session):
 async def test_create_page_blocks_recursive(session: Session):
     """Create a Page with recursive sub-Pages and Blocks, mutate it, querying along the way."""
     # create
-    root_page = Page(title=text_line("*Test Root Page*"), slug="test-root")
+    root_page = Page(title=text_line("Page"))
     session.create(root_page)
+    target_page_count = 4
+    target_block_count = 4 * (1 + 4 * (1 + 4))
     for a in ("a", "b", "c", "d"):
         # create page
-        page = Page(title=text_line(f"*Test Page {a}*"), slug=f"test-{a}")
+        page = Page(title=text_line(f"Page {a}"))
         root_page.add_child(page)
         # create block tree
         for i in range(4):
-            root_block = Block(type=BlockType.PARAGRAPH, line=text_line(f"Test Block {a}/{i}"))
+            root_block = Block(type=BlockType.PARAGRAPH, line=text_line(f"Block {a}/{i}"))
             page.add_child(root_block)
             for j in range(4):
-                inner_block = Block(
-                    type=BlockType.PARAGRAPH, line=text_line(f"Inner Block {a}/{i}/{j}")
-                )
+                inner_block = Block(type=BlockType.PARAGRAPH, line=text_line(f"Block {a}/{i}/{j}"))
                 root_block.add_child(inner_block)
                 for k in range(4):
                     inner_inner_block = Block(
                         type=BlockType.PARAGRAPH,
-                        line=text_line(f"Inner Inner Block {a}/{i}/{j}/{k}"),
+                        line=text_line(f"Block {a}/{i}/{j}/{k}"),
                     )
                     inner_block.add_child(inner_inner_block)
                     # mutate block after creating to test edit optimization
                     inner_inner_block.node = page
         await session.commit()
+    assert (
+        await Page.count(where=Page.property("parent").eq(root_page)).execute_count()
+        == target_page_count
+    )
 
     # query
     for page in root_page.get_children(Page):
-        # query count
+        # query block root count
         root_block_count = await Block.count(
             where=Block.property("parent").eq(page)
         ).execute_count()
         assert root_block_count == 4
-        # page_block_count = 4 * (1 + 4 * (1 + 4))
-        # assert block_count == page_block_count
+        # query block tree count
+        tree_connection = await Page.get(
+            where=Page.property("id").eq(page.id),
+            Blocks=Block.search(join=join(JoinType.CHILD, recursive=True)),
+        ).execute()
+        page_unpacked = tree_connection.to_one()
+        block_tree_unpacked = page_unpacked.get_descendants(Block)
+        assert len(block_tree_unpacked) == target_block_count
 
 
 async def test_create_custom_node(session: Session):

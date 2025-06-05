@@ -41,6 +41,8 @@ from .wiring import pack_column_flat, unpack_node_row
 logger = structlog.get_logger(__name__)
 tracer = trace.get_tracer(__name__)
 
+MAX_RECURSION_DEPTH = 1_000
+
 
 def _compile_value(context: DatabaseContext, arguments_out: list[Any], value: Value) -> str:
     """Compile a Value into a SQL expression."""
@@ -257,12 +259,61 @@ async def _walk_node(
     conn: asyncpg.Connection,
     context: DatabaseContext,
     relation: RelationReference,
-    roots: Sequence[NodeReference],
+    roots_ptr: Sequence[NodeReference],
+    roots_parents_ptr: Sequence[NodeReference],
     direction: EdgeDirection,
-    recursive: bool,
+    depth: int,
+    where: Condition | None,
 ) -> list[NodeReference]:
     """Get the cascaded Nodes for a query."""
-    raise NotImplementedError
+
+    table = context.get_relation(relation)
+    roots_ids: list[UUID] = [n.id for n in roots_ptr]
+    roots_parents_ids: list[UUID] = [n.id for n in roots_parents_ptr]
+    arguments: list[Any] = [roots_ids, roots_parents_ids, depth]
+    where_sql = _compile_condition(context, arguments, where) if where is not None else "TRUE"
+
+    # parent walk
+    if direction == EdgeDirection.PARENT:
+        raise NotImplementedError(direction)
+
+    # child walk
+    elif direction == EdgeDirection.CHILD:
+        stmt = f"""
+WITH RECURSIVE tree AS (
+    SELECT  id,
+            parent_id,
+            1 AS depth
+    FROM    {table.name}
+    WHERE   (id = ANY($1) OR parent_id = ANY($2)) AND {where_sql}
+
+    UNION ALL
+
+    SELECT  c.id,
+            c.parent_id,
+            t.depth + 1
+    FROM    {table.name}  AS c
+    JOIN    tree      AS t ON c.parent_id = t.id
+    WHERE   t.depth < $3 AND {where_sql}
+)
+SELECT  id,
+        parent_id,
+        depth
+FROM    tree;
+"""
+        result_rows = await conn.fetch(stmt, *arguments)
+        result_nodes_ptr: list[NodeReference] = []
+        for row in result_rows:
+            node_ptr = NodeReference(node_type=table.node_type, id=fastuuid.UUID(str(row["id"])))
+            result_nodes_ptr.append(node_ptr)
+        return result_nodes_ptr
+
+    # side walk
+    elif direction == EdgeDirection.SIDE:
+        raise NotImplementedError(direction)
+
+    else:
+        assert_never(direction)
 
 
 @tracer.start_as_current_span("database.query_node")
@@ -277,7 +328,6 @@ async def _query_node(
     offset: int | None,
 ) -> tuple[list[Value], list[NodeReference]]:
     """Execute a node Query."""
-
     # build statement
     table = context.get_relation(relation)
     arguments: list[Any] = []
@@ -319,7 +369,6 @@ async def _query_scalar(
     where: Condition | None,
 ) -> Value:
     """Execute a scalar Query."""
-
     # build statement
     table = context.get_relation(relation)
     arguments: list[Any] = []
@@ -496,9 +545,10 @@ async def _execute_subquery(
     """Execute a subquery to a main Query."""
 
     assert subquery.join is not None, f"no join for subquery {subquery!r}"
+
+    # parent join
     if subquery.join.type == JoinType.PARENT:
-        if subquery.join.recursive:
-            raise NotImplementedError(subquery)
+        # collect/walk
         parents_ptr: dict[UUID, NodeReference] = {}
         for node_value in result.nodes:
             if (parent_ptr_value := node_value.value.get("4")) is not None:
@@ -509,7 +559,23 @@ async def _execute_subquery(
                 parents_ptr[parent_ptr.id] = parent_ptr
         if not parents_ptr:
             return None  # nothing to query here
-        subquery_where = subquery.relation.resolve_property_or_error("id").in_(*parents_ptr.keys())
+        if subquery.join.recursive:
+            expanded_parents_ptr = await _walk_node(
+                conn=conn,
+                context=context,
+                relation=subquery.relation,
+                roots_ptr=list(parents_ptr.values()),
+                roots_parents_ptr=(),
+                direction=EdgeDirection.PARENT,
+                depth=subquery.join.depth or MAX_RECURSION_DEPTH,
+                where=subquery.where,
+            )
+        else:
+            expanded_parents_ptr = nodes_ptr
+        # subquery
+        subquery_where = subquery.relation.resolve_property_or_error("id").in_(
+            *(n.id for n in expanded_parents_ptr),
+        )
         subresult = await execute_query(
             conn=conn,
             context=context,
@@ -517,13 +583,29 @@ async def _execute_subquery(
             where=subquery_where,
         )
         return subresult
+
+    # child join
     elif subquery.join.type == JoinType.CHILD:
-        if subquery.join.recursive:
-            raise NotImplementedError(subquery)
+        # collect/walk
         if not nodes_ptr:
             return None  # nothing to query here
-        nodes_id: list[UUID] = [n.id for n in nodes_ptr]
-        subquery_where = subquery.relation.resolve_property_or_error("parent").in_(*nodes_id)
+        if subquery.join.recursive:
+            expanded_parents_ptr = await _walk_node(
+                conn=conn,
+                context=context,
+                relation=subquery.relation,
+                roots_ptr=(),
+                roots_parents_ptr=nodes_ptr,
+                direction=EdgeDirection.CHILD,
+                depth=subquery.join.depth or MAX_RECURSION_DEPTH,
+                where=subquery.where,
+            )
+        else:
+            expanded_parents_ptr = nodes_ptr
+        # subquery
+        subquery_where = subquery.relation.resolve_property_or_error("parent").in_(
+            *(n.id for n in expanded_parents_ptr),
+        )
         subresult = await execute_query(
             conn=conn,
             context=context,
@@ -531,8 +613,11 @@ async def _execute_subquery(
             where=subquery_where,
         )
         return subresult
+
+    # left join
     elif subquery.join.type == JoinType.LEFT:
         raise NotImplementedError(subquery)
+
     else:
         assert_never(subquery.join.type)
 

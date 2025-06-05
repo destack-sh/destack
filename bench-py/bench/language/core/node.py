@@ -1,9 +1,8 @@
 from collections.abc import Sequence
-from datetime import datetime, timedelta
+from datetime import datetime
 from typing import (
     TYPE_CHECKING,
     Any,
-    Callable,
     ClassVar,
     Optional,
     Self,
@@ -324,12 +323,11 @@ class Node[NodeDataT: AnyNodeData](NodeBase[NodeDataT]):
             raise LookupError(f"no child {key} of {self!r}")
         return cast(N, child)
 
-    async def wait_until(self, condition: Callable[[Self], bool], timeout: timedelta | None = None):
-        """Wait until the given condition is true."""
-        assert self._session.runtime is not None, f"no active Runtime in {self!r}"
-        await self._session.runtime.wait_for(
-            nodes=[self], condition=lambda: condition(self), timeout=timeout
-        )
+    def get_descendants[N: Node = Node](
+        self, node_type: NodeType | TraitType | type[N] | None = None
+    ) -> Sequence[N]:
+        """Gets the descendants of this Node."""
+        return self._graph.get_descendants(self, node_type=node_type)
 
     @classmethod
     def from_value(

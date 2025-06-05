@@ -644,10 +644,17 @@ def _generate_path_impl[NodeT: Node](cls: type[NodeT]) -> tuple[str, dict[str, A
 
     # Node._path_key
     if "slug" in cls.__properties__:
-        path_key_str = """\
+        if "name" in cls.__properties__:
+            path_key_str = """\
 @property
 def _path_key(self) -> str:
-    return self.slug
+    return self.slug or self.name
+"""
+        else:
+            path_key_str = """\
+@property
+def _path_key(self) -> str:
+    return self.slug or f"{self.metatype.bench_name}[id={self.id}]"
 """
     elif "name" in cls.__properties__:
         path_key_str = """\
