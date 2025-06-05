@@ -203,7 +203,7 @@ SET {", ".join(f"{col.name} = EXCLUDED.{col.name}" for col in override_columns)}
         param_i = 1
         for column in updated_column_names:
             value_param = f"${param_i}"  # new value (may be NULL)
-            changed_param = f"${param_i + 1}"  # bool
+            changed_param = f"${param_i + 1}"  # whether the value changed (bool)
             set_clauses.append(
                 f"{column} = CASE WHEN {changed_param} THEN {value_param} ELSE {column} END"
             )
@@ -219,17 +219,23 @@ WHERE id = ${param_i}
         for edit in edits:
             prop = edit.prop
             assert prop is not None, f"no prop for {edit!r}"
-            assert edit.value is not None, f"no value for {edit!r}"
-            row: list[Any] = [None, False] * len(updated_column_names)  # default: keep
+            if edit.operation == EditOperation.SET:
+                assert edit.value is not None, f"no value for {edit!r}"
+                value_packed = edit.value.value
+            elif edit.operation == EditOperation.CLEAR:
+                value_packed = None
+            else:
+                raise RuntimeError(f"unsupported operation: {edit!r}")
+
+            update_row: list[Any] = [None, False] * len(updated_column_names)  # default: keep
             update: dict[str, Any] = {}
-            raw = None if edit.operation == EditOperation.CLEAR else edit.value.value
-            pack_column_wide(prop.type, raw, table, prop.name, update)
+            pack_column_wide(prop.type, value_packed, table, prop.name, update)
             for column, value in update.items():  # mark touched cols
                 i = updated_column_idx[column] * 2
-                row[i] = value
-                row[i + 1] = True
-            row.append(edit.node_ptr.id)  # WHERE id = …
-            values_packed.append(tuple(row))
+                update_row[i] = value
+                update_row[i + 1] = True
+            update_row.append(edit.node_ptr.id)  # WHERE id = …
+            values_packed.append(tuple(update_row))
 
         await conn.executemany(stmt, values_packed)
         logger.debug(
