@@ -647,7 +647,7 @@ def property_(
     )
 
 
-def property_parent_(id: int = 4) -> Any:
+def property_parent_(id: int = 4) -> Any:  # NOTE: never change this id!
     """The parent of a node, must be of one of the given types."""
     return Property(
         id=id,

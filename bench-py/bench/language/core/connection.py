@@ -82,8 +82,8 @@ class QueryConnection[RootT: "Trait | Node"]:
             assert isinstance(node, Node), f"expected Node, got {node!r} in {self!r}"
             if is_root:
                 self.roots.append(cast(RootT, node))
-            for subresult in result.subresults:
-                self._add_result(subresult, is_root=False)
+        for subresult in result.subresults:
+            self._add_result(subresult, is_root=False)
 
     def to_one_or_none(self) -> Optional[RootT]:
         """Get the root Node (if any)."""

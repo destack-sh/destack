@@ -54,7 +54,6 @@ if TYPE_CHECKING:
         ExpressionIn,
         Icon,
         Interruption,
-        Join,
         ModelDeveloper,
         ModelProvider,
         Node,
@@ -67,6 +66,8 @@ if TYPE_CHECKING:
         TraitInfo,
         Value,
     )
+
+    from .query import JoinIn
 
 # pyright: reportIncompatibleVariableOverride=false
 
@@ -135,18 +136,20 @@ class NodeBase[NodeDataT: AnyObjectData](BuiltinObjectMutable[NodeDataT]):
         where: Optional["Condition"] = None,
         *,
         name: str | None = None,
-        join: Optional["Join"] = None,
+        join: Optional["JoinIn"] = None,
         **subqueries: "Query",
     ) -> "Query[Self]":  # type: ignore
         from .query import Query, QueryType, to_subqueries
+        from .query import join as to_join
 
         query = Query(
             type=QueryType.NODE,
             relation=RELATION_REF_BY_CLASS[cls],
             name=name or cls.metatype.bench_name,
-            join=join,
+            join=to_join(join) if join is not None else None,
             where=where,
             subqueries=to_subqueries(subqueries),
+            # limit=1?
         )
         return query  # type: ignore
 
@@ -156,7 +159,7 @@ class NodeBase[NodeDataT: AnyObjectData](BuiltinObjectMutable[NodeDataT]):
         where: Optional["Condition"] = None,
         *,
         name: str | None = None,
-        join: Optional["Join"] = None,
+        join: Optional["JoinIn"] = None,
         having: Optional["Condition"] = None,
         sort: Optional[list["Sort"]] = None,
         group_by: Optional[list["Expression"]] = None,
@@ -165,12 +168,13 @@ class NodeBase[NodeDataT: AnyObjectData](BuiltinObjectMutable[NodeDataT]):
         **subqueries: "Query",
     ) -> "Query[Self]":  # type: ignore
         from .query import Query, QueryType, to_subqueries
+        from .query import join as to_join
 
         query = Query(
             type=QueryType.NODE if group_by is None else QueryType.GROUPED_NODE,
             relation=RELATION_REF_BY_CLASS[cls],
             name=name or cls.metatype.bench_name,
-            join=join,
+            join=to_join(join) if join is not None else None,
             where=where,
             having=having,
             group_by=group_by or [],
@@ -186,21 +190,22 @@ class NodeBase[NodeDataT: AnyObjectData](BuiltinObjectMutable[NodeDataT]):
         cls: type["Self"],
         type: "AggregationType",
         *,
-        expression: "ExpressionIn | None" = None,
         name: str | None = None,
-        join: Optional["Join"] = None,
+        join: Optional["JoinIn"] = None,
+        expression: "ExpressionIn | None" = None,
         where: Optional["Condition"] = None,
         group_by: Optional[list["Expression"]] = None,
         sort: Optional[list["Sort"]] = None,
     ) -> "Query[Self]":  # type: ignore
         from .query import Aggregation, Query, QueryType
         from .query import expression as to_expression
+        from .query import join as to_join
 
         query = Query(
             type=QueryType.SCALAR if group_by is None else QueryType.GROUPED_SCALAR,
             relation=RELATION_REF_BY_CLASS[cls],
             name=name or cls.metatype.bench_name,
-            join=join,
+            join=to_join(join) if join is not None else None,
             where=where,
             group_by=group_by or [],
             aggregation=Aggregation(
@@ -216,15 +221,16 @@ class NodeBase[NodeDataT: AnyObjectData](BuiltinObjectMutable[NodeDataT]):
         where: Optional["Condition"] = None,
         *,
         name: str | None = None,
-        join: Optional["Join"] = None,
+        join: Optional["JoinIn"] = None,
     ) -> "Query[Self]":  # type: ignore
         from .query import Aggregation, AggregationType, Query, QueryType
+        from .query import join as to_join
 
         query = Query(
             type=QueryType.SCALAR,
             relation=RELATION_REF_BY_CLASS[cls],
             name=name or cls.metatype.bench_name,
-            join=join,
+            join=to_join(join) if join is not None else None,
             where=where,
             aggregation=Aggregation(type=AggregationType.EXISTS),
         )
@@ -236,18 +242,19 @@ class NodeBase[NodeDataT: AnyObjectData](BuiltinObjectMutable[NodeDataT]):
         where: Optional["Condition"] = None,
         *,
         name: str | None = None,
-        join: Optional["Join"] = None,
+        join: Optional["JoinIn"] = None,
         group_by: Optional[list["ExpressionIn"]] = None,
         having: Optional["Condition"] = None,
     ) -> "Query[Self]":  # type: ignore
         from .query import Aggregation, AggregationType, Query, QueryType
         from .query import expression as to_expression
+        from .query import join as to_join
 
         query = Query(
             type=QueryType.SCALAR if group_by is None else QueryType.GROUPED_SCALAR,
             relation=RELATION_REF_BY_CLASS[cls],
             name=name or cls.metatype.bench_name,
-            join=join,
+            join=to_join(join) if join is not None else None,
             where=where,
             having=having,
             aggregation=Aggregation(type=AggregationType.COUNT),
@@ -261,19 +268,20 @@ class NodeBase[NodeDataT: AnyObjectData](BuiltinObjectMutable[NodeDataT]):
         expression: "ExpressionIn",
         *,
         name: str | None = None,
-        join: Optional["Join"] = None,
+        join: Optional["JoinIn"] = None,
         where: Optional["Condition"] = None,
         having: Optional["Condition"] = None,
         group_by: Optional[list["ExpressionIn"]] = None,
     ) -> "Query[Self]":  # type: ignore
         from .query import Aggregation, AggregationType, Query, QueryType
         from .query import expression as to_expression
+        from .query import join as to_join
 
         query = Query(
             type=QueryType.SCALAR if group_by is None else QueryType.GROUPED_SCALAR,
             relation=RELATION_REF_BY_CLASS[cls],
             name=name or cls.metatype.bench_name,
-            join=join,
+            join=to_join(join) if join is not None else None,
             where=where,
             having=having,
             group_by=[to_expression(expr) for expr in group_by or ()],
@@ -287,19 +295,20 @@ class NodeBase[NodeDataT: AnyObjectData](BuiltinObjectMutable[NodeDataT]):
         expression: "ExpressionIn",
         *,
         name: str | None = None,
-        join: Optional["Join"] = None,
+        join: Optional["JoinIn"] = None,
         where: Optional["Condition"] = None,
         having: Optional["Condition"] = None,
         group_by: Optional[list["ExpressionIn"]] = None,
     ) -> "Query[Self]":  # type: ignore
         from .query import Aggregation, AggregationType, Query, QueryType
         from .query import expression as to_expression
+        from .query import join as to_join
 
         query = Query(
             type=QueryType.SCALAR if group_by is None else QueryType.GROUPED_SCALAR,
             relation=RELATION_REF_BY_CLASS[cls],
             name=name or cls.metatype.bench_name,
-            join=join,
+            join=to_join(join) if join is not None else None,
             where=where,
             having=having,
             group_by=[to_expression(expr) for expr in group_by or ()],
@@ -313,19 +322,20 @@ class NodeBase[NodeDataT: AnyObjectData](BuiltinObjectMutable[NodeDataT]):
         expression: "ExpressionIn",
         *,
         name: str | None = None,
-        join: Optional["Join"] = None,
+        join: Optional["JoinIn"] = None,
         where: Optional["Condition"] = None,
         having: Optional["Condition"] = None,
         group_by: Optional[list["ExpressionIn"]] = None,
     ) -> "Query[Self]":  # type: ignore
         from .query import Aggregation, AggregationType, Query, QueryType
         from .query import expression as to_expression
+        from .query import join as to_join
 
         query = Query(
             type=QueryType.SCALAR if group_by is None else QueryType.GROUPED_SCALAR,
             relation=RELATION_REF_BY_CLASS[cls],
             name=name or cls.metatype.bench_name,
-            join=join,
+            join=to_join(join) if join is not None else None,
             where=where,
             having=having,
             group_by=[to_expression(expr) for expr in group_by or ()],
