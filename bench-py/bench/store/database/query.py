@@ -560,7 +560,7 @@ async def _execute_subquery(
         if not parents_ptr:
             return None  # nothing to query here
         if subquery.join.recursive:
-            expanded_parents_ptr = await _walk_node(
+            expanded_nodes_ptr = await _walk_node(
                 conn=conn,
                 context=context,
                 relation=subquery.relation,
@@ -570,12 +570,14 @@ async def _execute_subquery(
                 depth=subquery.join.depth or MAX_RECURSION_DEPTH,
                 where=subquery.where,
             )
+            subquery_where = subquery.relation.resolve_property_or_error("id").in_(
+                *(n.id for n in expanded_nodes_ptr),
+            )
         else:
-            expanded_parents_ptr = nodes_ptr
+            subquery_where = subquery.relation.resolve_property_or_error("parent").in_(
+                *(n.id for n in nodes_ptr),
+            )
         # subquery
-        subquery_where = subquery.relation.resolve_property_or_error("id").in_(
-            *(n.id for n in expanded_parents_ptr),
-        )
         subresult = await execute_query(
             conn=conn,
             context=context,
@@ -590,7 +592,7 @@ async def _execute_subquery(
         if not nodes_ptr:
             return None  # nothing to query here
         if subquery.join.recursive:
-            expanded_parents_ptr = await _walk_node(
+            expanded_nodes_ptr = await _walk_node(
                 conn=conn,
                 context=context,
                 relation=subquery.relation,
@@ -600,12 +602,14 @@ async def _execute_subquery(
                 depth=subquery.join.depth or MAX_RECURSION_DEPTH,
                 where=subquery.where,
             )
+            subquery_where = subquery.relation.resolve_property_or_error("id").in_(
+                *(n.id for n in expanded_nodes_ptr),
+            )
         else:
-            expanded_parents_ptr = nodes_ptr
+            subquery_where = subquery.relation.resolve_property_or_error("parent").in_(
+                *(n.id for n in nodes_ptr),
+            )
         # subquery
-        subquery_where = subquery.relation.resolve_property_or_error("parent").in_(
-            *(n.id for n in expanded_parents_ptr),
-        )
         subresult = await execute_query(
             conn=conn,
             context=context,
