@@ -419,6 +419,7 @@ class QueryResult(QueryResultBase, StructMutable):
     The result of a Query.
     For grouped queries, group results are in Query.groups.
     The subresults correspond to Query.subqueries.
+    If subresults for a Query clause may be missing if the subquery was deemed empty.
     """
 
     id: UUID = property_(2, is_repr=True)

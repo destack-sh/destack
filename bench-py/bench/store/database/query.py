@@ -1,3 +1,4 @@
+import asyncio
 import uuid
 from collections.abc import Sequence
 from typing import Any, assert_never
@@ -485,6 +486,57 @@ async def _query_clause(
     return result, nodes_ptr
 
 
+async def _execute_subquery(
+    conn: asyncpg.Connection,
+    context: DatabaseContext,
+    result: QueryResult,
+    nodes_ptr: Sequence[NodeReference],
+    subquery: Query,
+) -> QueryResult | None:
+    """Execute a subquery to a main Query."""
+
+    assert subquery.join is not None, f"no join for subquery {subquery!r}"
+    if subquery.join.type == JoinType.PARENT:
+        if subquery.join.recursive:
+            raise NotImplementedError(subquery)
+        parents_ptr: dict[UUID, NodeReference] = {}
+        for node_value in result.nodes:
+            if (parent_ptr_value := node_value.value.get("4")) is not None:
+                parent_id = fastuuid.UUID(parent_ptr_value["32"])
+                if parent_id in parents_ptr:
+                    continue
+                parent_ptr = NodeReference.from_value(parent_ptr_value)
+                parents_ptr[parent_ptr.id] = parent_ptr
+        if not parents_ptr:
+            return None  # nothing to query here
+        subquery_where = subquery.relation.resolve_property_or_error("id").in_(*parents_ptr.keys())
+        subresult = await execute_query(
+            conn=conn,
+            context=context,
+            query=subquery,
+            where=subquery_where,
+        )
+        return subresult
+    elif subquery.join.type == JoinType.CHILD:
+        if subquery.join.recursive:
+            raise NotImplementedError(subquery)
+        if not nodes_ptr:
+            return None  # nothing to query here
+        nodes_id: list[UUID] = [n.id for n in nodes_ptr]
+        subquery_where = subquery.relation.resolve_property_or_error("parent").in_(*nodes_id)
+        subresult = await execute_query(
+            conn=conn,
+            context=context,
+            query=subquery,
+            where=subquery_where,
+        )
+        return subresult
+    elif subquery.join.type == JoinType.LEFT:
+        raise NotImplementedError(subquery)
+    else:
+        assert_never(subquery.join.type)
+
+
 @tracer.start_as_current_span("database.query")
 async def execute_query(
     conn: asyncpg.Connection, context: DatabaseContext, query: Query, where: Condition | None = None
@@ -493,51 +545,21 @@ async def execute_query(
 
     # main query clause
     result, nodes_ptr = await _query_clause(conn=conn, context=context, query=query, where=where)
-    subresults: list[QueryResult] = []
 
-    # subqueries
-    for subquery in query.subqueries:
-        subresult: QueryResult
-        assert subquery.join is not None, f"no join for subquery {subquery!r}"
-        if subquery.join.type == JoinType.PARENT:
-            if subquery.join.recursive:
-                raise NotImplementedError(subquery)
-            parents_ptr: dict[UUID, NodeReference] = {}
-            for node_value in result.nodes:
-                if (parent_ptr_value := node_value.value.get("4")) is not None:
-                    parent_id = fastuuid.UUID(parent_ptr_value["32"])
-                    if parent_id in parents_ptr:
-                        continue
-                    parent_ptr = NodeReference.from_value(parent_ptr_value)
-                    parents_ptr[parent_ptr.id] = parent_ptr
-            subquery_where = subquery.relation.resolve_property_or_error("id").in_(
-                *parents_ptr.keys()
-            )
-            subresult = await execute_query(
-                conn=conn,
-                context=context,
-                query=subquery,
-                where=subquery_where,
-            )
-            subresults.append(subresult)
-        elif subquery.join.type == JoinType.CHILD:
-            if subquery.join.recursive:
-                raise NotImplementedError(subquery)
-            nodes_id: list[UUID] = [n.id for n in nodes_ptr]
-            subquery_where = subquery.relation.resolve_property_or_error("parent").in_(*nodes_id)
-            subresult = await execute_query(
-                conn=conn,
-                context=context,
-                query=subquery,
-                where=subquery_where,
-            )
-            subresults.append(subresult)
-        elif subquery.join.type == JoinType.LEFT:
-            raise NotImplementedError(subquery)
-        else:
-            assert_never(subquery.join.type)
+    # subqueries (in parallel)
+    subqueries = tuple(
+        _execute_subquery(
+            conn=conn,
+            context=context,
+            result=result,
+            nodes_ptr=nodes_ptr,
+            subquery=subquery,
+        )
+        for subquery in query.subqueries
+    )
+    subresults = await asyncio.gather(*subqueries)
+    result.subresults = [subresult for subresult in subresults if subresult is not None]
 
-    result.subresults = subresults
     logger.debug(
         "database.query",
         query=query,
