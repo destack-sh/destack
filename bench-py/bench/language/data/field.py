@@ -5,13 +5,13 @@ from bench.language.core import (
     CascadeAction,
     EdgeType,
     EnumType,
+    HasEnvironment,
     HasIcon,
     HasName,
     IntoQuery,
     IsArchivable,
     IsDeletable,
     IsInPackage,
-    IsModal,
     IsOrdered,
     IsTemplatable,
     Node,
@@ -41,7 +41,7 @@ class FieldType(BuiltinEnum):
 @node_(NodeType.FIELD)
 class Field(
     IsTemplatable,
-    IsModal,
+    HasEnvironment,
     HasName,
     IsOrdered,
     IsDeletable,

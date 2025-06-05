@@ -3,12 +3,12 @@ from typing import TYPE_CHECKING, Optional
 from fastuuid import UUID
 
 from bench.language.core import (
+    HasEnvironment,
     HasIcon,
     HasName,
     IsArchivable,
     IsBlockable,
     IsDeletable,
-    IsModal,
     IsOwnable,
     IsProcessable,
     IsRunnable,
@@ -30,7 +30,7 @@ if TYPE_CHECKING:
 @node_(NodeType.AGENT)
 class Agent(
     IsOwnable,
-    IsModal,
+    HasEnvironment,
     IsRunnable,
     IsProcessable,
     IsSubject,

@@ -1,11 +1,11 @@
 from typing import TYPE_CHECKING
 
 from bench.language.core import (
+    HasEnvironment,
     HasName,
     IsArchivable,
     IsBlockable,
     IsDeletable,
-    IsModal,
     IsOwnable,
     IsRunnable,
     IsTemplatable,
@@ -28,7 +28,7 @@ class Service(
     IsOwnable,
     IsDeletable,
     IsArchivable,
-    IsModal,
+    HasEnvironment,
     HasName,
     IsRunnable,
     IsBlockable,

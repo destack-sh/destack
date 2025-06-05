@@ -1,12 +1,12 @@
 from typing import TYPE_CHECKING, Union
 
 from bench.language.core import (
+    HasEnvironment,
     HasName,
     IsArchivable,
     IsBlockable,
     IsDeletable,
     IsInPackage,
-    IsModal,
     IsTemplatable,
     Node,
     NodeType,
@@ -25,7 +25,7 @@ if TYPE_CHECKING:
 @node_(NodeType.SCHEMA)
 class Schema(
     IsTemplatable,
-    IsModal,
+    HasEnvironment,
     HasName,
     IsBlockable,
     IsDeletable,

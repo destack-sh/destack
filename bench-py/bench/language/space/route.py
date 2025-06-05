@@ -1,6 +1,7 @@
 from typing import TYPE_CHECKING, Optional
 
 from bench.language.core import (
+    HasEnvironment,
     HasIcon,
     HasName,
     HasSlug,
@@ -8,7 +9,6 @@ from bench.language.core import (
     IsBlockable,
     IsDeletable,
     IsInPackage,
-    IsModal,
     IsOwnable,
     Node,
     NodeType,
@@ -31,7 +31,7 @@ class Route(
     IsDeletable,
     IsOwnable,
     HasName,
-    IsModal,
+    HasEnvironment,
     IsBlockable,
     IsInPackage,
     Node[RouteData],

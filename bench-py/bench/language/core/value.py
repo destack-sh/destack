@@ -8,10 +8,10 @@ from fastuuid import UUID
 from opentelemetry import trace
 
 from bench.language.registry import (
-    BUILTIN_OBJECT_TYPE_BY_CLASS,
     ENUM_CLASS_BY_TYPE,
     NODE_CLASS_BY_TYPE,
     STRUCT_CLASS_BY_TYPE,
+    get_builtin_type,
 )
 from bench.pb2 import ValueData
 from bench.utils.time import timedelta_from_isoformat, timedelta_to_isoformat
@@ -122,7 +122,7 @@ def _generate_pack_value(cls: type["BuiltinObjectBase"]) -> str:
     wired_properties_in_order.sort(key=lambda p: p.id or 0)
     for prop in wired_properties_in_order:
         if prop.name == "metatype":
-            metatype = BUILTIN_OBJECT_TYPE_BY_CLASS[cls]
+            metatype = get_builtin_type(cls)
             pack_method_parts.append(f'_object_value["{prop.id}"] = {metatype.value}')
             continue
 

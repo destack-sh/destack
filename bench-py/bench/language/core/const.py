@@ -42,7 +42,7 @@ class _Unset:
 
 
 # forever constants
-VERSION = "2025.06.03.8"
+VERSION = "2025.06.05.1"
 UUID_NAMESPACE = uuid5(UUID(int=0), b"bench")
 CK_LENGTH_B64 = 24  # 1.5 * CK_LENGTH_BYTES (must be integer)
 FLOAT_EPSILON = 1e-6
@@ -173,6 +173,7 @@ def _get_enum_members_by_ord(enum_cls: type[BuiltinEnum]) -> list[BuiltinEnum]:
 
 # NOTE: we have the enum registry here to avoid circular imports
 _ENUM_CLASS_BY_TYPE: dict["EnumType", type[BuiltinEnum]] = {}
+_ENUM_TYPE_BY_CLASS: dict[type[BuiltinEnum], "EnumType"] = {}
 
 BuiltinEnumT = typing.TypeVar("BuiltinEnumT", bound=BuiltinEnum)
 
@@ -184,6 +185,7 @@ def enum_(enum_type: "EnumType"):
         if enum_type in _ENUM_CLASS_BY_TYPE:
             raise ValueError(f"enum {enum_type} duplicate: {_ENUM_CLASS_BY_TYPE[enum_type]}")
         _ENUM_CLASS_BY_TYPE[enum_type] = cls
+        _ENUM_TYPE_BY_CLASS[cls] = enum_type
         enum_name = to_casing(cls.__name__, Casing.ALL_CAPS)
         assert enum_type.name == enum_name, f"enum name mismatch: {enum_type.name} != {enum_name}"
         return cls
@@ -281,183 +283,182 @@ class bittuple(typing.Generic[EnumT], Collection[EnumT]):  # noqa: N801
 
 
 class EnumType(BuiltinEnum):
-    # bench [40000-40200]
-    ENUM_TYPE = 40000
-    NODE_TYPE = 40001
-    STRUCT_TYPE = 40002
-    TRAIT_TYPE = 40004
-    NODE_MODE = 40005
-    NODE_AREA = 40006
-    PROPERTY_REFERENCE_TYPE = 40007
-    USER_STATUS = 40010
-    ORGANIZATION_STATUS = 40011
-    BENCH_STATUS = 40056
-    PACKAGE_TYPE = 40050
-    ERROR_TYPE = 40061
-    VARIABLE_TYPE = 40063
-    EDIT_TYPE = 40070
-    EDIT_OPERATION = 40071
-    CHANGE_STATUS = 40075
+    # bench [1-200]
+    ENUM_TYPE = 1
+    NODE_TYPE = 2
+    STRUCT_TYPE = 3
+    TRAIT_TYPE = 5
+    ENVIRONMENT_TYPE = 6
+    AREA = 7
+    PROPERTY_REFERENCE_TYPE = 8
+    USER_STATUS = 11
+    ORGANIZATION_STATUS = 12
+    BENCH_STATUS = 57
+    PACKAGE_TYPE = 51
+    ERROR_TYPE = 62
+    VARIABLE_TYPE = 64
+    EDIT_TYPE = 71
+    EDIT_OPERATION = 72
+    CHANGE_STATUS = 76
     # query
-    CONDITIONAL_TYPE = 40102
-    AGGREGATION_TYPE = 40103
-    SORT_MODE = 40104
-    SORT_TYPE = 40105
-    JOIN_TYPE = 40106
-    FUNCTION_TYPE = 40107
-    EXPRESSION_TYPE = 40108
-    RELATION_TYPE = 40109
-    ATTRIBUTE_TYPE = 40110
-    QUERY_TYPE = 40811
-    QUERY_UPDATE_TYPE = 40812
-    # auth [40200-40600]
-    BENCH_ROLE_TYPE = 40200
-    ORGANIZATION_ROLE_TYPE = 40210
-    PACKAGE_ROLE_TYPE = 40220
-    CLIENT_TYPE = 40230
+    CONDITIONAL_TYPE = 103
+    AGGREGATION_TYPE = 104
+    SORT_MODE = 105
+    SORT_TYPE = 106
+    JOIN_TYPE = 107
+    FUNCTION_TYPE = 108
+    EXPRESSION_TYPE = 109
+    RELATION_TYPE = 110
+    ATTRIBUTE_TYPE = 111
+    QUERY_TYPE = 812
+    QUERY_UPDATE_TYPE = 813
+    # auth [200-600]
+    BENCH_ROLE_TYPE = 201
+    ORGANIZATION_ROLE_TYPE = 211
+    PACKAGE_ROLE_TYPE = 221
+    CLIENT_TYPE = 231
     # ...
 
-    # space [40600-40800]
-    SPACE_TYPE = 40600
-    BLOCK_TYPE = 40610
+    # space [600-800]
+    SPACE_TYPE = 601
+    BLOCK_TYPE = 611
     # ...
 
-    # history [40800-41000]
+    # history [800-1000]
     # ...
 
-    # infra [41000-41200]
-    CLOUD = 40051
-    REGION = 40052
-    AREA = 40054
-    CONTINENT = 40055
-    MACHINE_TYPE = 41010
-    TENANCY = 41011
-    STORE_TYPE = 41012
+    # infra [1000-1200]
+    CLOUD = 52
+    REGION = 53
+    REGION_AREA = 55
+    CONTINENT = 56
+    MACHINE_TYPE = 1011
+    TENANCY = 1012
     # ...
 
-    # logic [41200-41600]
-    ACTION_CARDINALITY = 41220
-    FLOW_TYPE = 41240
-    FLOW_EDGE_TYPE = 41241
-    CURSOR_TYPE = 41320
-    CURSOR_STATUS = 41321
+    # logic [1200-1600]
+    ACTION_CARDINALITY = 1221
+    FLOW_TYPE = 1241
+    FLOW_EDGE_TYPE = 1242
+    CURSOR_TYPE = 1321
+    CURSOR_STATUS = 1322
     # ...
 
-    # runtime [41600-42000]
-    PROCESS_STATUS = 41610
-    RUN_TYPE = 41611
-    SPAN_TYPE = 41620
-    SCHEDULE_FREQUENCY = 41630
-    INTERRUPTION_TYPE = 41631
-    INTERRUPTION_STATUS = 41632
-    INTERRUPTION_RESPONSE = 41633
+    # runtime [1600-2000]
+    PROCESS_STATUS = 1611
+    RUN_TYPE = 1612
+    SPAN_TYPE = 1621
+    SCHEDULE_FREQUENCY = 1631
+    INTERRUPTION_TYPE = 1632
+    INTERRUPTION_STATUS = 1633
+    INTERRUPTION_RESPONSE = 1634
     # ...
 
-    # data [42000-42200]
-    TEXT_LINE_TYPE = 42000
-    TEXT_SPAN_TYPE = 42001
-    CODE_TYPE = 42010
-    FILE_RETENTION_MODE = 42020
-    FILE_SOURCE = 42021
-    FILE_TYPE = 42022
-    FILE_FORMAT = 42023
-    ICON_TYPE = 42030
-    LINK_TYPE = 42050
-    PRIMITIVE_TYPE = 42100
-    TYPE_CARDINALITY = 42101
-    SCALAR_TYPE = 42102
-    DEFAULT_FACTORY = 42103
-    STRING_FORMAT = 42110
-    NUMBER_FORMAT = 42111
-    FIELD_TYPE = 42120
-    EDGE_TYPE = 42121
-    EDGE_DIRECTION = 42122
-    CASCADE_ACTION = 42123
-    DAY = 42130
-    MONTH = 42131
-    TIME_INTERVAL = 42132
-    RESOURCE_STATUS = 42200
+    # data [2000-2200]
+    TEXT_LINE_TYPE = 2001
+    TEXT_SPAN_TYPE = 2002
+    CODE_TYPE = 2011
+    FILE_RETENTION_MODE = 2021
+    FILE_SOURCE = 2022
+    FILE_TYPE = 2023
+    FILE_FORMAT = 2024
+    ICON_TYPE = 2031
+    LINK_TYPE = 2051
+    PRIMITIVE_TYPE = 2101
+    TYPE_CARDINALITY = 2102
+    SCALAR_TYPE = 2103
+    DEFAULT_FACTORY = 2104
+    STRING_FORMAT = 2111
+    NUMBER_FORMAT = 2112
+    FIELD_TYPE = 2121
+    EDGE_TYPE = 2122
+    EDGE_DIRECTION = 2123
+    CASCADE_ACTION = 2124
+    DAY = 2131
+    MONTH = 2132
+    TIME_INTERVAL = 2133
+    RESOURCE_STATUS = 2201
     # ...
 
-    # custom [42200-42400]
+    # custom [2200-2400]
     # ...
 
-    # social [42400-42800]
-    THREAD_STATUS = 42401
-    MESSAGE_TYPE = 42420
+    # social [2400-2800]
+    THREAD_STATUS = 2402
+    MESSAGE_TYPE = 2421
     # ...
 
-    # product [42800-43200]
+    # product [2800-3200]
     # ...
 
-    # finance [43200-43600]
+    # finance [3200-3600]
     # ...
 
-    # locale [43600-44000]
+    # locale [3600-4000]
     # ...
 
-    # web [44000-44200]
+    # web [4000-4200]
     # ...
 
-    # world [44200-44400]
+    # world [4200-4400]
     # ...
 
-    # model [44400-44600]
-    MODEL_DEVELOPER = 44400
-    MODEL_PROVIDER = 44401
+    # model [4400-4600]
+    MODEL_DEVELOPER = 4401
+    MODEL_PROVIDER = 4402
 
-    # ui [48000-50000]
+    # ui [8000-10000]
 
-    # space [48000-48100]
+    # space [8000-8100]
     # ...
 
-    # container views [48100-48200]
+    # container views [8100-8200]
     # ...
 
-    # content views [48200-48300]
+    # content views [8200-8300]
     # ...
 
-    # input views [48300-48400]
+    # input views [8300-8400]
     # ...
 
-    # node views [48400-48500]
+    # node views [8400-8500]
     # ...
 
-    # internal views [48500-48600]
+    # internal views [8500-8600]
     # ...
 
-    # style [49000-49100]
-    POSITION_TYPE = 49000
-    COLOR_TYPE = 49010
-    COLOR_SHADE = 49011
-    COLOR_HUE = 49012
-    FONT_WEIGHT = 49021
-    FONT_SIZE = 49022
-    FONT_TYPE = 49023
-    TEXT_ALIGN = 49024
-    TEXT_DECORATION = 49025
-    TEXT_TRANSFORM = 49026
-    SHADOW_TYPE = 49030
-    SHADOW_POSITION = 49031
-    BORDER_TYPE = 49040
-    GRADIENT_TYPE = 49050
-    FILL_TYPE = 49060
-    FILL_POSITION = 49061
-    FILL_SIZE = 49062
-    LENGTH_UNIT = 49070
-    LAYOUT = 49071
-    DISTRIBUTE = 49072
-    ALIGN = 49073
-    DIRECTION = 49074
-    OVERFLOW = 49075
-    TRANSITION_TYPE = 49076
-    SPRING_TYPE = 49077
-    DIMENSION_TYPE = 49078
-    THEME_COLOR = 49079
-    EFFECT_TYPE = 49080
-    REPEAT_TYPE = 49081
-    TEXT_SPLIT_TYPE = 49083
-    OFFSCREEN_BEHAVIOR = 49084
+    # style [9000-9100]
+    POSITION_TYPE = 9001
+    COLOR_TYPE = 9011
+    COLOR_SHADE = 9012
+    COLOR_HUE = 9013
+    FONT_WEIGHT = 9022
+    FONT_SIZE = 9023
+    FONT_TYPE = 9024
+    TEXT_ALIGN = 9025
+    TEXT_DECORATION = 9026
+    TEXT_TRANSFORM = 9027
+    SHADOW_TYPE = 9031
+    SHADOW_POSITION = 9032
+    BORDER_TYPE = 9041
+    GRADIENT_TYPE = 9051
+    FILL_TYPE = 9061
+    FILL_POSITION = 9062
+    FILL_SIZE = 9063
+    LENGTH_UNIT = 9071
+    LAYOUT = 9072
+    DISTRIBUTE = 9073
+    ALIGN = 9074
+    DIRECTION = 9075
+    OVERFLOW = 9076
+    TRANSITION_TYPE = 9077
+    SPRING_TYPE = 9078
+    DIMENSION_TYPE = 9079
+    THEME_COLOR = 9080
+    EFFECT_TYPE = 9081
+    REPEAT_TYPE = 9082
+    TEXT_SPLIT_TYPE = 9084
+    OFFSCREEN_BEHAVIOR = 9085
 
     # drawing
     # ...
@@ -471,136 +472,136 @@ enum_(EnumType.ENUM_TYPE)(EnumType)
 
 @enum_(EnumType.STRUCT_TYPE)
 class StructType(BuiltinEnum):
-    # bench [20000-20200]
-    SCOPE = 20000
-    ORIGIN = 20001
-    NODE_REFERENCE = 20002
-    PROPERTY_REFERENCE = 20004
-    PROPERTY_INFO = 20010
-    TRAIT_INFO = 20011
-    NODE_INFO = 20012
-    STRUCT_INFO = 20013
-    ENUM_INFO = 20014
-    ENUM_OPTION_INFO = 20015
+    # bench [1-200]
+    SCOPE = 1
+    ORIGIN = 2
+    NODE_REFERENCE = 3
+    PROPERTY_REFERENCE = 5
+    PROPERTY_INFO = 11
+    TRAIT_INFO = 12
+    NODE_INFO = 13
+    STRUCT_INFO = 14
+    ENUM_INFO = 15
+    ENUM_OPTION_INFO = 16
     # METHOD_INFO, ...?
-    EDIT = 20020
-    CHANGE = 20021
-    CHANGE_RESULT = 20022
-    EXPRESSION = 20100
-    FUNCTION = 20101
-    JOIN = 20102
-    AGGREGATION = 20103
-    CONDITION = 20104
-    SORT = 20105
-    SELECT = 20106
-    RELATION_REFERENCE = 20107
-    ATTRIBUTE_REFERENCE = 20108
-    QUERY = 20110
-    QUERY_RESULT = 20111
-    QUERY_RESULT_GROUP = 20112
-    QUERY_UPDATE = 20115
-    HISTOGRAM = 20113
-    VARIABLE = 20120
+    EDIT = 21
+    CHANGE = 22
+    CHANGE_RESULT = 23
+    EXPRESSION = 101
+    FUNCTION = 102
+    JOIN = 103
+    AGGREGATION = 104
+    CONDITION = 105
+    SORT = 106
+    SELECT = 107
+    RELATION_REFERENCE = 108
+    ATTRIBUTE_REFERENCE = 109
+    QUERY = 111
+    QUERY_RESULT = 112
+    QUERY_RESULT_GROUP = 113
+    QUERY_UPDATE = 116
+    HISTOGRAM = 114
+    VARIABLE = 121
 
-    # auth [20200-20600]
+    # auth [200-600]
     # PROFILE? (for User, or maybe global?)
 
-    # space [20600-20800]
+    # space [600-800]
     # ...
 
-    # history [20800-21000]
+    # history [800-1000]
     # ...
 
-    # infra [21000-21200]
-    DATABASE_INFO = 21000
-    CELL_INFO = 21100
+    # infra [1000-1200]
+    DATABASE_INFO = 1001
+    CELL_INFO = 1101
 
-    # logic [21200-21600]
-    SCHEDULE = 21200
+    # logic [1200-1600]
+    SCHEDULE = 1201
     # ...
 
-    # runtime [21600-22000]
-    ERROR = 21600
+    # runtime [1600-2000]
+    ERROR = 1601
     # EVENT, SIGNAL, ...
 
-    # data [22000-22200]
-    TYPE = 22000
-    NUMBER_CONSTRAINT = 22001
-    STRING_CONSTRAINT = 22002
-    COLLECTION_CONSTRAINT = 22003
-    NODE_CONSTRAINT = 22004
-    TEXT = 22100, None, None, "fas fa-text"
-    TEXT_LINE = 22101, None, None, "fas fa-text"
-    TEXT_SPAN = 22102, None, None, "fas fa-text"
-    CODE = 22110, None, None, "fas fa-code"
-    ICON = 22130
-    SELECTION = 22070
+    # data [2000-2200]
+    TYPE = 2001
+    NUMBER_CONSTRAINT = 2002
+    STRING_CONSTRAINT = 2003
+    COLLECTION_CONSTRAINT = 2004
+    NODE_CONSTRAINT = 2005
+    TEXT = 2101, None, None, "fas fa-text"
+    TEXT_LINE = 2102, None, None, "fas fa-text"
+    TEXT_SPAN = 2103, None, None, "fas fa-text"
+    CODE = 2111, None, None, "fas fa-code"
+    ICON = 2131
+    SELECTION = 2071
     # SCHEMA, UNION, TAG, ...
 
-    # custom [22200-22400]
-    VALUE = 22200
+    # custom [2200-2400]
+    VALUE = 2201
     # ...
 
-    # social [22400-22800]
+    # social [2400-2800]
     # ...
 
-    # product [22800-23200]
+    # product [2800-3200]
     # ...
 
-    # finance [23200-23600]
+    # finance [3200-3600]
     # ...
 
-    # locale [23600-24000]
+    # locale [3600-4000]
     # ...
 
-    # web [24000-24200]
+    # web [4000-4200]
     # ...
 
-    # world [24200-24400]
+    # world [4200-4400]
     # ...
 
-    # ui [28000-30000]
+    # ui [8000-10000]
 
-    # space [28000-28100]
+    # space [8000-8100]
     # ...
 
-    # container views [28100-28200]
+    # container views [8100-8200]
     # ...
 
-    # content views [28200-28300]
+    # content views [8200-8300]
     # ...
 
-    # input views [28300-28400]
+    # input views [8300-8400]
     # ...
 
-    # node views [28400-28500]
+    # node views [8400-8500]
     # ...
 
-    # internal views [28500-28600]
+    # internal views [8500-8600]
     # ...
 
-    # style [29000-29100]
-    VECTOR2 = 29000, None, None, "fas fa-vector-square"
-    VECTOR3 = 29002, None, None, "fas fa-vector-square"
-    VECTOR4 = 29004, None, None, "fas fa-vector-square"
-    AXIS2 = 29006, None, None, "fas fa-vector-square"
-    AXIS3 = 29008, None, None, "fas fa-vector-square"
-    COLOR = 29010, None, None, "fas fa-palette"
-    SHADOW = 29011, None, None, "fas fa-eclipse"
-    BORDER = 29012, None, None, "fas fa-border-outer"
-    FONT = 29013, None, None, "fas fa-text"
-    GRADIENT_STOP = 29014, None, None, "fas fa-gradient"
-    GRADIENT = 29015, None, None, "fas fa-gradient"
-    FILL = 29016, None, None, "fas fa-fill"
-    LENGTH = 29017, None, None, "fas fa-ruler"
-    POSITION = 29019, None, None, "fas fa-location-crosshair"
-    DIMENSION = 29021, None, None, "fas fa-ruler"
-    TRANSITION = 29023, None, None, "fas fa-bezier-curve"
-    EFFECT = 29024, None, None, "fas fa-sparkle"
-    GRID = 29025, None, None, "fas fa-grid-2"
-    GRID_SPAN = 29027, None, None, "fas fa-grid-2"
-    INSETS = 29029, None, None, "fas fa-corner"
-    CORNERS = 29031, None, None, "fas fa-corner"
+    # style [9000-9100]
+    VECTOR2 = 9001, None, None, "fas fa-vector-square"
+    VECTOR3 = 9003, None, None, "fas fa-vector-square"
+    VECTOR4 = 9005, None, None, "fas fa-vector-square"
+    AXIS2 = 9007, None, None, "fas fa-vector-square"
+    AXIS3 = 9009, None, None, "fas fa-vector-square"
+    COLOR = 9011, None, None, "fas fa-palette"
+    SHADOW = 9012, None, None, "fas fa-eclipse"
+    BORDER = 9013, None, None, "fas fa-border-outer"
+    FONT = 9014, None, None, "fas fa-text"
+    GRADIENT_STOP = 9015, None, None, "fas fa-gradient"
+    GRADIENT = 9016, None, None, "fas fa-gradient"
+    FILL = 9017, None, None, "fas fa-fill"
+    LENGTH = 9018, None, None, "fas fa-ruler"
+    POSITION = 9020, None, None, "fas fa-location-crosshair"
+    DIMENSION = 9022, None, None, "fas fa-ruler"
+    TRANSITION = 9024, None, None, "fas fa-bezier-curve"
+    EFFECT = 9025, None, None, "fas fa-sparkle"
+    GRID = 9026, None, None, "fas fa-grid-2"
+    GRID_SPAN = 9028, None, None, "fas fa-grid-2"
+    INSETS = 9030, None, None, "fas fa-corner"
+    CORNERS = 9032, None, None, "fas fa-corner"
 
     # canvas/drawing?
     # CANVAS, BRUSH, SHAPE, ...
@@ -803,14 +804,14 @@ class TraitType(BuiltinEnum):
     # bench [1-200]
     GLOBAL = 1, "Global", "Is global", "fas fa-globe"
     CUSTOM = 3, "Custom", "Is custom", "fas fa-globe"
-    MODAL = 10, "Modal", "Has a mode", "fas fa-window-maximize"
     ARCHIVABLE = 11, "Archivable", "Can be archived", "fas fa-box-archive"
     DELETABLE = 12, "Deletable", "Can be deleted", "fas fa-trash"
-    NAMED = 20, "Named", "Has a name", "fas fa-font-case"
-    TITLED = 21, "Titled", "Has a title", "fas fa-font-case"
-    SLUG = 22, "Slug", "Has a slug", "fas fa-hashtag"
-    ICON = 23, "Icon", "Has an Icon", "fas fa-icons"
-    ORDERED = 24, "Ordered", "Has an order", "fas fa-sort"
+    HAS_ENVIRONMENT = 20, "Modal", "Has a mode", "fas fa-window-maximize"
+    HAS_NAME = 21, "Named", "Has a name", "fas fa-font-case"
+    HAS_TITLE = 22, "Titled", "Has a title", "fas fa-font-case"
+    HAS_SLUG = 23, "Slug", "Has a slug", "fas fa-hashtag"
+    HAS_ICON = 24, "Icon", "Has an Icon", "fas fa-icons"
+    ORDERED = 25, "Ordered", "Has an order", "fas fa-sort"
     TEMPLATABLE = 30, "Templatable", "Can be templated", "fas fa-puzzle-piece"
     EXTENSIBLE = 32, "Extensible", "Can be extended", "fas fa-expand"
     IN_BENCH = 40, "Bench", "In a Bench", "fas fa-bench"
@@ -880,32 +881,21 @@ class TraitType(BuiltinEnum):
     STYLE = 9000, "Style", "Is a Style", "fas fa-palette"
 
 
-@enum_(EnumType.NODE_AREA)
-class NodeArea(BuiltinEnum):
+@enum_(EnumType.AREA)
+class Area(BuiltinEnum):
     GLOBAL_DATABASE = 1
     # GLOBAL_SEARCH?
     MAIN_DATABASE = 100
     # MAIN_SEARCH, MAIN_WAREHOUSE, ...
 
 
-@enum_(EnumType.STORE_TYPE)
-class StoreType(BuiltinEnum):
-    LOCAL = 1
-    REMOTE = 2
-    DATABASE = 10
-    # SEARCH = 21
-    # WAREHOUSE = 22
-
-
-@enum_(EnumType.NODE_MODE)
-class NodeMode(BuiltinEnum):
-    KERNEL = 3, "Kernel", "Managed by Bench (hidden)", "fas fa-cog"
-    SYSTEM = 6, "System", "Managed by Bench", "fas fa-cog"
-    BUILTIN = 10, "Builtin", "Provided by Bench", "fas fa-cog"
-    MAIN = 20, "Main", "Active and available", "fas fa-globe"
-    TEST = 30, "Test", "Active in test", "fas fa-flask"
-    TEMPLATE = 40, "Template", "Template to use", "fas fa-puzzle-piece"
-    ARCHIVE = 50, "Archive", "Inactive and hidden", "fas fa-box-archive"
+@enum_(EnumType.ENVIRONMENT_TYPE)
+class EnvironmentType(BuiltinEnum):
+    SYSTEM = 1, "System", "Managed by Bench", "fas fa-cog"
+    DEVELOPMENT = 3, "Development", "Active in development", "fas fa-flask"
+    TEST = 5, "Test", "Active in test", "fas fa-flask"
+    STAGING = 7, "Staging", "Active in staging", "fas fa-globe"
+    PRODUCTION = 10, "Production", "Active in production", "fas fa-globe"
 
 
 ENUM_TYPES: bittuple[EnumType] = bittuple(*EnumType)
@@ -971,8 +961,8 @@ REGION_CONTINENT_SLUGS: dict[Continent, str] = {
 REGION_CONTINENT_BY_SLUG = {v: k for k, v in REGION_CONTINENT_SLUGS.items()}
 
 
-@enum_(EnumType.AREA)
-class Area(BuiltinEnum):
+@enum_(EnumType.REGION_AREA)
+class RegionArea(BuiltinEnum):
     """
     A larger Area of Regions within a Continent.
     """
@@ -998,22 +988,22 @@ class Area(BuiltinEnum):
         return REGION_AREA_SLUGS[self]
 
     @staticmethod
-    def get_by_slug(slug: str) -> "Area":
+    def get_by_slug(slug: str) -> "RegionArea":
         return REGION_AREA_BY_SLUG[slug]
 
 
-REGION_AREA_SLUGS: dict[Area, str] = {
-    Area.EUROPE_CENTRAL: "eu-central",
-    Area.NORTH_AMERICA_EAST: "na-east",
-    Area.NORTH_AMERICA_WEST: "na-west",
-    Area.SOUTH_AMERICA_EAST: "sa-east",
-    Area.MIDDLE_EAST_CENTRAL: "me-central",
-    Area.MIDDLE_EAST_WEST: "me-west",
-    Area.AFRICA_SOUTH: "af-south",
-    Area.ASIA_WEST: "as-west",
-    Area.ASIA_SOUTH: "as-south",
-    Area.ASIA_EAST: "as-east",
-    Area.AUSTRALIA_SOUTH: "au-south",
+REGION_AREA_SLUGS: dict[RegionArea, str] = {
+    RegionArea.EUROPE_CENTRAL: "eu-central",
+    RegionArea.NORTH_AMERICA_EAST: "na-east",
+    RegionArea.NORTH_AMERICA_WEST: "na-west",
+    RegionArea.SOUTH_AMERICA_EAST: "sa-east",
+    RegionArea.MIDDLE_EAST_CENTRAL: "me-central",
+    RegionArea.MIDDLE_EAST_WEST: "me-west",
+    RegionArea.AFRICA_SOUTH: "af-south",
+    RegionArea.ASIA_WEST: "as-west",
+    RegionArea.ASIA_SOUTH: "as-south",
+    RegionArea.ASIA_EAST: "as-east",
+    RegionArea.AUSTRALIA_SOUTH: "au-south",
 }
 REGION_AREA_BY_SLUG = {v: k for k, v in REGION_AREA_SLUGS.items()}
 
@@ -1058,8 +1048,8 @@ class Region(BuiltinEnum):
         return Continent((self.id // 1000) * 1000)
 
     @property
-    def area(self) -> Area:
-        return Area((self.id // 200) * 200)
+    def area(self) -> RegionArea:
+        return RegionArea((self.id // 200) * 200)
 
     @property
     def slug(self) -> str:

@@ -13,7 +13,7 @@ import uvloop
 from opentelemetry import trace
 
 if TYPE_CHECKING:
-    from bench.language import NodeArea, Region
+    from bench.language import Area, Region
 
 logger = structlog.get_logger(__name__)
 tracer = trace.get_tracer(__name__)
@@ -79,24 +79,24 @@ def parse_region(region: "str | Region") -> "Region":
         ) from e
 
 
-def parse_node_area(area: "str | NodeArea") -> "NodeArea":
+def parse_node_area(area: "str | Area") -> "Area":
     """Parse a NodeArea from a string."""
-    from bench.language.core.const import NodeArea
+    from bench.language.core.const import Area
 
-    if isinstance(area, NodeArea):
+    if isinstance(area, Area):
         return area
 
     area = area.upper()
     try:
-        if area in NodeArea.__members__:
+        if area in Area.__members__:
             # try by name
-            return NodeArea[area]
+            return Area[area]
         else:
             # try by value
-            return NodeArea(int(area))
+            return Area(int(area))
     except (TypeError, ValueError) as e:
         raise typer.BadParameter(
-            f"invalid area: '{area}' (expected: {'|'.join(a.name.lower() for a in NodeArea)})"
+            f"invalid area: '{area}' (expected: {'|'.join(a.name.lower() for a in Area)})"
         ) from e
 
 

@@ -6,9 +6,9 @@ from fastuuid import UUID
 from bench.language.core import (
     BuiltinEnum,
     EnumType,
+    HasEnvironment,
     IsExtensible,
     IsInPackage,
-    IsModal,
     IsRunnable,
     Node,
     NodeReference,
@@ -73,7 +73,7 @@ class InterruptionResponse(BuiltinEnum):
 
 @node_(NodeType.INTERRUPTION)
 class Interruption(
-    IsModal,
+    HasEnvironment,
     IsExtensible,
     IsInPackage,
     Node[InterruptionData],
@@ -155,5 +155,5 @@ class Interruption(
             parent=run,
             runnable=run.runnable,
             span=span,
-            mode=run.mode,
+            environment_type=run.environment_type,
         )

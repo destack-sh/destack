@@ -13,7 +13,12 @@ import structlog
 from fastuuid import UUID
 from opentelemetry import trace
 
-from bench.language.registry import BUILTIN_OBJECT_CLASS_BY_TYPE, NODE_CLASS_BY_TRAIT
+from bench.language.registry import (
+    NODE_CLASS_BY_TRAIT,
+    NODE_CLASS_BY_TYPE,
+    STRUCT_CLASS_BY_TYPE,
+    STRUCT_TYPE_BY_CLASS,
+)
 from bench.pb2 import AnyStructData, NodeReferenceData, PropertyReferenceData, ScopeData
 
 from .const import BuiltinEnum, EnumType, NodeType, Region, StructType, TraitType, enum_
@@ -35,7 +40,19 @@ def struct_[ObjectT: BuiltinObjectBase](struct_type: StructType, frozen: bool = 
     """Register a class as a concrete struct for the given struct type."""
 
     def decorate(cls: type[ObjectT]) -> type[ObjectT]:
-        cls = object_(struct_type=struct_type, concrete=True, struct=True, frozen=frozen)(cls)
+        cls = object_(object_type=struct_type, concrete=True, struct=True, frozen=frozen)(cls)
+
+        # register struct
+        if struct_type:
+            assert issubclass(cls, StructBase), f"struct class {cls} is not a StructBase"
+            cls.metatype = struct_type
+            if struct_type in STRUCT_CLASS_BY_TYPE:
+                raise ValueError(
+                    f"struct class conflict for {struct_type}: {cls}, {STRUCT_CLASS_BY_TYPE[struct_type]}"
+                )
+            STRUCT_CLASS_BY_TYPE[struct_type] = cls
+            STRUCT_TYPE_BY_CLASS[cls] = struct_type
+
         return cast(type[ObjectT], cls)
 
     return decorate
@@ -45,7 +62,7 @@ class StructBase[StructDataT: AnyStructData](BuiltinObjectBase[StructDataT], abc
     """A Struct is an ordered collection of Properties."""
 
     metatype: ClassVar[StructType]
-    info: ClassVar["StructInfo"]
+    __info__: ClassVar["StructInfo"]
 
     __is_struct__: ClassVar[bool] = True
 
@@ -121,10 +138,10 @@ class RelationReference(StructFrozen):
     def object_cls(self) -> type_[BuiltinObjectBase] | None:
         if self.type == RelationType.BUILTIN_NODE:
             assert self.node_type is not None, f"no node_type for {self!r}"
-            return BUILTIN_OBJECT_CLASS_BY_TYPE.get(self.node_type)
+            return NODE_CLASS_BY_TYPE.get(self.node_type)
         elif self.type == RelationType.CUSTOM_NODE:
             assert self.definition is not None, f"no definition for {self!r}"
-            return BUILTIN_OBJECT_CLASS_BY_TYPE.get(NodeType.CUSTOM_NODE_INSTANCE)
+            return NODE_CLASS_BY_TYPE.get(NodeType.CUSTOM_NODE_INSTANCE)
         elif self.type == RelationType.TRAIT:
             assert self.trait_type is not None, f"no trait_type for {self!r}"
             return NODE_CLASS_BY_TRAIT.get(self.trait_type)
@@ -223,13 +240,13 @@ class PropertyReference(StructFrozen[PropertyReferenceData]):
     def object_cls(self) -> type_[BuiltinObjectBase] | None:
         if self.type == PropertyReferenceType.NODE:
             assert self.node_type is not None, f"no node_type for {self!r}"
-            return BUILTIN_OBJECT_CLASS_BY_TYPE.get(self.node_type)
+            return NODE_CLASS_BY_TYPE.get(self.node_type)
         elif self.type == PropertyReferenceType.TRAIT:
             assert self.trait_type is not None, f"no trait_type for {self!r}"
             return NODE_CLASS_BY_TRAIT.get(self.trait_type)
         elif self.struct_type is not None:
             assert self.struct_type is not None, f"no struct_type for {self!r}"
-            return BUILTIN_OBJECT_CLASS_BY_TYPE.get(self.struct_type)
+            return STRUCT_CLASS_BY_TYPE.get(self.struct_type)
         else:
             return None
 

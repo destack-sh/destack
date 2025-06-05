@@ -1,5 +1,6 @@
 from collections import defaultdict
-from typing import TYPE_CHECKING, Any, Union
+from itertools import chain
+from typing import TYPE_CHECKING, Any, assert_never
 
 from fastuuid import UUID
 
@@ -8,11 +9,9 @@ from bench.utils.code import exec_
 
 from .core.const import (
     _ENUM_CLASS_BY_TYPE,
+    _ENUM_TYPE_BY_CLASS,
     ENUM_TYPES,
-    NODE_TYPES,
-    STRUCT_TYPES,
     UNSET,
-    BuiltinEnum,
     EnumType,
     NodeType,
     StructType,
@@ -21,6 +20,7 @@ from .core.const import (
 
 if TYPE_CHECKING:
     from bench.language import (
+        BuiltinEnum,
         BuiltinObjectBase,
         EnumInfo,
         Node,
@@ -33,29 +33,57 @@ if TYPE_CHECKING:
     )
 
 ENUM_CLASS_BY_TYPE = _ENUM_CLASS_BY_TYPE  # re-exported to avoid circular imports
-ENUM_TYPE_BY_CLASS: dict[type, EnumType] = {}
+ENUM_TYPE_BY_CLASS = _ENUM_TYPE_BY_CLASS  # re-exported to avoid circular imports
+
 NODE_CLASS_BY_TYPE: dict[NodeType, type["Node"]] = {}
 NODE_TYPE_BY_CLASS: dict[type["Node"], NodeType] = {}
 NODE_CLASS_BY_TRAIT: dict[TraitType, type["BuiltinObjectBase"]] = {}
 NODE_TRAIT_BY_CLASS: dict[type["Trait"], TraitType] = {}
 NODE_TYPES_BY_TRAIT: dict[TraitType, tuple[NodeType, ...]] = {}
-RELATION_REF_BY_CLASS: dict[type["NodeBase"], "RelationReference"] = {}
 
 STRUCT_CLASS_BY_TYPE: dict[StructType, type["StructBase"]] = {}
+STRUCT_TYPE_BY_CLASS: dict[type["StructBase"], StructType] = {}
 
-BUILTIN_OBJECT_CLASS_BY_TYPE: dict[NodeType | StructType, type["BuiltinObjectBase"]] = {}
-BUILTIN_OBJECT_TYPE_BY_CLASS: dict[type["BuiltinObjectBase"], NodeType | StructType] = {}
-
-BENCH_CLASS_BY_TYPE: dict[
-    EnumType | NodeType | StructType, type["StructBase"] | type["Node"] | type[BuiltinEnum]
-] = {}
-BENCH_TYPE_BY_CLASS: dict[
-    type[Union["BuiltinObjectBase", BuiltinEnum]], EnumType | NodeType | StructType
-] = {}
-
+# meta
+RELATION_REF_BY_CLASS: dict[type["NodeBase"], "RelationReference"] = {}
 STRUCT_INFO_BY_TYPE: dict[StructType, "StructInfo"] = {}
 ENUM_INFO_BY_TYPE: dict[EnumType, "EnumInfo"] = {}
 NODE_INFO_BY_TYPE: dict[NodeType, "NodeInfo"] = {}
+
+
+def get_builtin_object_cls(object_type: NodeType | StructType) -> type["BuiltinObjectBase"]:
+    if isinstance(object_type, NodeType):
+        return NODE_CLASS_BY_TYPE[object_type]
+    elif isinstance(object_type, StructType):
+        return STRUCT_CLASS_BY_TYPE[object_type]
+    else:
+        assert_never(object_type)
+
+
+def get_builtin_class(
+    bench_tgype: NodeType | StructType | EnumType,
+) -> type["BuiltinObjectBase"] | type["BuiltinEnum"]:
+    if isinstance(bench_tgype, NodeType):
+        return NODE_CLASS_BY_TYPE[bench_tgype]
+    elif isinstance(bench_tgype, StructType):
+        return STRUCT_CLASS_BY_TYPE[bench_tgype]
+    elif isinstance(bench_tgype, EnumType):
+        return ENUM_CLASS_BY_TYPE[bench_tgype]
+    else:
+        assert_never(bench_tgype)
+
+
+def get_builtin_type(
+    cls: type["BuiltinObjectBase"] | type["BuiltinEnum"],
+) -> NodeType | StructType | EnumType:
+    from .core import BuiltinEnum, Node, StructBase
+
+    if issubclass(cls, (Node, StructBase)):
+        return cls.metatype
+    elif issubclass(cls, BuiltinEnum):
+        return ENUM_TYPE_BY_CLASS[cls]
+    else:
+        raise ValueError(f"invalid bench type: {cls!r}")
 
 
 def _complete_bench_setup():
@@ -68,24 +96,6 @@ def _complete_bench_setup():
 
     if _is_setup_complete():
         return
-
-    # populate known types
-    for node_t in NODE_TYPES:
-        node_cls = NODE_CLASS_BY_TYPE[node_t]
-        NODE_TYPE_BY_CLASS[node_cls] = node_t
-        BUILTIN_OBJECT_CLASS_BY_TYPE[node_t] = node_cls
-        BUILTIN_OBJECT_TYPE_BY_CLASS[node_cls] = node_t
-        BENCH_CLASS_BY_TYPE[node_t] = node_cls
-        BENCH_TYPE_BY_CLASS[node_cls] = node_t
-    for struct_t in STRUCT_TYPES:
-        BUILTIN_OBJECT_CLASS_BY_TYPE[struct_t] = STRUCT_CLASS_BY_TYPE[struct_t]
-        BUILTIN_OBJECT_TYPE_BY_CLASS[STRUCT_CLASS_BY_TYPE[struct_t]] = struct_t
-        BENCH_CLASS_BY_TYPE[struct_t] = STRUCT_CLASS_BY_TYPE[struct_t]
-        BENCH_TYPE_BY_CLASS[STRUCT_CLASS_BY_TYPE[struct_t]] = struct_t
-    for enum_type in ENUM_TYPES:
-        BENCH_CLASS_BY_TYPE[enum_type] = ENUM_CLASS_BY_TYPE[enum_type]
-        BENCH_TYPE_BY_CLASS[ENUM_CLASS_BY_TYPE[enum_type]] = enum_type
-        ENUM_TYPE_BY_CLASS[ENUM_CLASS_BY_TYPE[enum_type]] = enum_type
 
     # index node types by trait
     node_types_by_trait: dict[TraitType, list[NodeType]] = defaultdict(list)
@@ -116,7 +126,7 @@ def _complete_bench_setup():
         node_cls.__child_types__ = tuple(child_types_by_parent[node_cls.metatype])
 
     # finalize properties
-    for metatype, object_cls in BUILTIN_OBJECT_CLASS_BY_TYPE.items():
+    for metatype, object_cls in chain(NODE_CLASS_BY_TYPE.items(), STRUCT_CLASS_BY_TYPE.items()):
         for prop in object_cls.__properties__.values():
             prop.finalize(metatype)
 
@@ -125,8 +135,17 @@ def _complete_bench_setup():
     from bench.proto.wiring import generate_pack_proto_impl
 
     builtin_class_by_name: dict[str, Any] = {**pb2.__dict__, "UUID": UUID}
-    builtin_class_by_name.update({cls.__name__: cls for cls in BENCH_CLASS_BY_TYPE.values()})
-    for cls in BUILTIN_OBJECT_CLASS_BY_TYPE.values():
+    builtin_class_by_name.update(
+        {
+            cls.__name__: cls
+            for cls in chain(
+                NODE_CLASS_BY_TYPE.values(),
+                STRUCT_CLASS_BY_TYPE.values(),
+                ENUM_CLASS_BY_TYPE.values(),
+            )
+        }
+    )
+    for cls in chain(NODE_CLASS_BY_TYPE.values(), STRUCT_CLASS_BY_TYPE.values()):
         cls_dict_copy = cls.__dict__.copy()
         # __pack_proto__/__unpack_proto__/_to_proto
         proto_impl, proto_glbls = generate_pack_proto_impl(cls)
@@ -174,11 +193,11 @@ def _complete_bench_setup():
     for node_cls in NODE_CLASS_BY_TYPE.values():
         node_info = NodeInfo.from_node(node_cls)
         NODE_INFO_BY_TYPE[node_cls.metatype] = node_info
-        node_cls.info = node_info
+        node_cls.__info__ = node_info
     for struct_cls in STRUCT_CLASS_BY_TYPE.values():
         struct_info = StructInfo.from_struct(struct_cls)
         STRUCT_INFO_BY_TYPE[struct_cls.metatype] = struct_info
-        struct_cls.info = struct_info
+        struct_cls.__info__ = struct_info
     for enum_type in ENUM_TYPES:
         enum_info = EnumInfo.from_enum(enum_type, ENUM_CLASS_BY_TYPE[enum_type])
         ENUM_INFO_BY_TYPE[enum_type] = enum_info

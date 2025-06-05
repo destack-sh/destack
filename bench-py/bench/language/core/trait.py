@@ -27,7 +27,7 @@ from bench.utils.tenacity import RetryOptions
 
 from .const import (
     EdgeType,
-    NodeMode,
+    EnvironmentType,
     NodeType,
     ProcessStatus,
     ResourceStatus,
@@ -364,32 +364,42 @@ class Trait(Node if TYPE_CHECKING else NodeBase):
 #
 
 
-@trait_(TraitType.NAMED)
+@trait_(TraitType.HAS_NAME)
 class HasName(Trait):
     """A Node with a plain name."""
 
     name: str = property_(31, format=StringFormat.NAME)
 
 
-@trait_(TraitType.TITLED)
+@trait_(TraitType.HAS_TITLE)
 class HasTitle(Trait):
     """A Node with a rich title."""
 
     title: Optional["TextLine"] = property_(32)
 
 
-@trait_(TraitType.SLUG)
+@trait_(TraitType.HAS_SLUG)
 class HasSlug(Trait):
     """A Node with a slug."""
 
     slug: str | None = property_(33, is_repr=True, format=StringFormat.SLUG)
 
 
-@trait_(TraitType.ICON)
+@trait_(TraitType.HAS_ICON)
 class HasIcon(Trait):
     """A Node with an icon."""
 
     icon: Optional["Icon"] = property_(34)
+
+
+@trait_(TraitType.HAS_ENVIRONMENT)
+class HasEnvironment(Trait):
+    """A Node that can be in different environments."""
+
+    environment_type: EnvironmentType = property_(
+        17, is_eq=False, default=EnvironmentType.PRODUCTION
+    )
+    # environment: "Environment | None", ...
 
 
 @trait_(TraitType.GLOBAL)
@@ -399,18 +409,11 @@ class IsGlobal(Trait):
     pass
 
 
-@trait_(TraitType.MODAL)
-class IsModal(Trait):
-    """A Node that can be in different modes."""
-
-    mode: NodeMode = property_(20, is_eq=False, default=NodeMode.MAIN)
-
-
 @trait_(TraitType.ORDERED)
 class IsOrdered(Trait):
     """A Node that can be ordered."""
 
-    order_key: str | None = property_(22, is_eq=False, default=INTEGER_ZERO)
+    order_key: str | None = property_(23, is_eq=False, default=INTEGER_ZERO)
 
 
 @trait_(TraitType.ARCHIVABLE)
@@ -479,9 +482,9 @@ class IsTemplatable(Trait):
 
 @trait_(TraitType.EXTENSIBLE)
 class IsExtensible(Trait):
-    """A Node that can be extended with custom Values (from Fields)."""
+    """A Node that can be extended with custom Values (one Value per Field)."""
 
-    value: dict[UUID, "Value"] = property_(21)
+    value: dict[UUID, "Value"] = property_(24)
 
 
 @trait_(TraitType.IN_BENCH)
@@ -634,7 +637,7 @@ class IsProcessable(Trait):
 class IsOwnable(Trait):
     """A Node that can be owned by another Node."""
 
-    owned_by: Optional["IsSubject"] = property_(17, node_bench_from="self")
+    owned_by: Optional["IsSubject"] = property_(19, node_bench_from="self")
     if TYPE_CHECKING:
         owned_by_id: Optional[UUID] = None
         owned_by_type: Optional[NodeType] = None
@@ -677,7 +680,7 @@ class IsRole(Trait):
 
 
 @trait_(TraitType.RESOURCE)
-class IsResource(IsModal, IsOwnable, HasName):
+class IsResource(HasEnvironment, IsOwnable, HasName):
     """
     A Resource in a Bench, typically representing some external object.
     """

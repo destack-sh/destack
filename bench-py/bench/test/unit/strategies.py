@@ -1,6 +1,7 @@
+from hypothesis import HealthCheck, Phase, given, settings
+
 from bench.language import BuiltinObjectBase, Session
 from bench.test.strategies import builtin_objects
-from hypothesis import HealthCheck, Phase, given, settings
 
 
 @given(obj=builtin_objects())

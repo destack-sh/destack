@@ -7,6 +7,7 @@ from grpclib import Status as GRPCStatus
 from opentelemetry import trace
 
 from bench.language import (
+    Area,
     Bench,
     BenchStatus,
     Client,
@@ -15,7 +16,6 @@ from bench.language import (
     Handle,
     IsSubject,
     JoinType,
-    NodeArea,
     Package,
     PackageType,
     Region,
@@ -95,7 +95,7 @@ class SupervisorService(ServiceBase, SupervisorBase):
 
     @override
     async def make_session(self, metadata: RpcMetadata) -> "Session":
-        database_store = DatabaseStore(database=self.global_database, area=NodeArea.GLOBAL_DATABASE)
+        database_store = DatabaseStore(database=self.global_database, area=Area.GLOBAL_DATABASE)
         return Session(store=database_store)
 
     @override
@@ -175,12 +175,10 @@ class SupervisorService(ServiceBase, SupervisorBase):
         bench.database = database
         session.store = SplitStore(
             store_by_area={
-                NodeArea.GLOBAL_DATABASE: DatabaseStore(
-                    database=self.global_database, area=NodeArea.GLOBAL_DATABASE
+                Area.GLOBAL_DATABASE: DatabaseStore(
+                    database=self.global_database, area=Area.GLOBAL_DATABASE
                 ),
-                NodeArea.MAIN_DATABASE: DatabaseStore(
-                    database=main_database, area=NodeArea.MAIN_DATABASE
-                ),
+                Area.MAIN_DATABASE: DatabaseStore(database=main_database, area=Area.MAIN_DATABASE),
             },
         )
         await session.stage()

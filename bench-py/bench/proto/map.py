@@ -1,4 +1,5 @@
 from collections.abc import Collection, Sequence
+from itertools import chain
 from typing import TYPE_CHECKING, Any, cast
 
 from bench.language import (
@@ -12,7 +13,12 @@ from bench.language import (
     StructType,
     TypeCardinality,
 )
-from bench.language.registry import BENCH_CLASS_BY_TYPE
+from bench.language.registry import (
+    ENUM_CLASS_BY_TYPE,
+    NODE_CLASS_BY_TYPE,
+    STRUCT_CLASS_BY_TYPE,
+    get_builtin_class,
+)
 from bench.utils.string import Casing, to_casing
 
 from .core import (
@@ -53,7 +59,7 @@ PROTO_FIELD_TYPE_BY_PRIMITIVE_TYPE: dict[PrimitiveType, ProtoFieldType] = {
 
 
 def _map_bench_property_to_proto_field(
-    prop: "Property", cache: dict[EnumType | NodeType | StructType, ProtoThing]
+    prop: "Property", cache: dict[type[BuiltinObjectBase] | type[BuiltinEnum], ProtoThing]
 ) -> ProtoField:
     assert prop.id == 1 or prop.is_wired, f"not a wired property: {prop!r}"
     assert isinstance(prop.id, int), f"invalid id: {prop!r}"
@@ -69,7 +75,8 @@ def _map_bench_property_to_proto_field(
         )
     elif prop.scalar_type == ScalarType.STRUCT:
         assert prop.struct_type is not None, f"invalid struct: {prop!r}"
-        proto_t = _map_object_type_to_proto(prop.struct_type, cache)
+        struct_cls = STRUCT_CLASS_BY_TYPE[prop.struct_type]
+        proto_t = _map_object_type_to_proto(struct_cls, cache)
         assert isinstance(proto_t, ProtoMessage), f"unexpected property type: {proto_t!r}"
         field = ProtoField(
             id=prop.id,
@@ -80,7 +87,8 @@ def _map_bench_property_to_proto_field(
         )
     elif prop.scalar_type == ScalarType.ENUM:
         assert prop.enum_type is not None, f"invalid enum: {prop!r}"
-        proto_t = _map_object_type_to_proto(prop.enum_type, cache)
+        enum_cls = ENUM_CLASS_BY_TYPE[prop.enum_type]
+        proto_t = _map_object_type_to_proto(enum_cls, cache)
         assert isinstance(proto_t, ProtoEnum), f"unexpected property type: {proto_t!r}"
         field = ProtoField(
             id=prop.id,
@@ -153,14 +161,13 @@ def _map_bench_property_to_proto_field(
 
 
 def _map_builtin_object_to_proto_message(
-    bench_type: EnumType | NodeType | StructType,
     cls: type[BuiltinObjectBase],
-    cache: dict[EnumType | NodeType | StructType, ProtoThing],
+    cache: dict[type[BuiltinObjectBase] | type[BuiltinEnum], ProtoThing],
     alias: str | None = None,
     properties: Sequence["Property"] | None = None,
 ) -> ProtoMessage:
-    if bench_type in cache:
-        message = cache[bench_type]
+    if cls in cache:
+        message = cache[cls]
         assert isinstance(message, ProtoMessage), f"unexpected cached {message!r} for {cls!r}"
         return message
     message = ProtoMessage(
@@ -168,7 +175,7 @@ def _map_builtin_object_to_proto_message(
     )
     doc = cls.__doc__ if issubclass(cls, Node) else None
     message.comment = (doc or "").strip()
-    cache[bench_type] = message  # to solve recursive references
+    cache[cls] = message  # to solve recursive references
     for prop in properties if properties is not None else cls.__properties__.values():
         if not prop.is_wired or prop.ptr_prop is not None:
             continue
@@ -180,7 +187,6 @@ def _map_builtin_object_to_proto_message(
 
 def _map_builtin_enum_to_proto_enum(
     bench_t: type[BuiltinEnum],
-    cache: dict[EnumType | NodeType | StructType, ProtoThing],
     alias: str | None = None,
 ) -> ProtoEnum:
     assert issubclass(bench_t, BuiltinEnum), f"invalid enum: {bench_t!r}"
@@ -201,23 +207,22 @@ def _map_builtin_enum_to_proto_enum(
 
 
 def _map_object_type_to_proto(
-    bench_type: EnumType | NodeType | StructType,
-    cache: dict[EnumType | NodeType | StructType, ProtoThing],
+    bench_cls: type[BuiltinObjectBase] | type[BuiltinEnum],
+    cache: dict[type[BuiltinObjectBase] | type[BuiltinEnum], ProtoThing],
     alias: str | None = None,
 ) -> ProtoThing:
     """Maps a Bench type to a Proto type. If not yet mapped, adds it to the cache."""
     from bench.language import BuiltinObjectBase
 
-    bench_cls = BENCH_CLASS_BY_TYPE[bench_type]
-    if bench_type in cache:
-        return cache[bench_type]
+    if bench_cls in cache:
+        return cache[bench_cls]
     if issubclass(bench_cls, BuiltinObjectBase):
-        ret = _map_builtin_object_to_proto_message(bench_type, bench_cls, cache, alias=alias)
+        ret = _map_builtin_object_to_proto_message(bench_cls, cache, alias=alias)
     elif issubclass(bench_cls, BuiltinEnum):
-        ret = _map_builtin_enum_to_proto_enum(bench_cls, cache, alias=alias)
+        ret = _map_builtin_enum_to_proto_enum(bench_cls, alias=alias)
     else:
         raise TypeError(f"invalid bench type: {bench_cls!r}")
-    cache[bench_type] = ret
+    cache[bench_cls] = ret
     return ret
 
 
@@ -228,10 +233,11 @@ def generate_proto_schema(
     message_postfix: str,
 ) -> ProtoSchema:
     # walk all bench types to populate the cache
-    cache: dict[EnumType | NodeType | StructType, ProtoThing] = {}
-    for bench_type in BENCH_CLASS_BY_TYPE:
-        cache[bench_type] = _map_object_type_to_proto(bench_type, cache)
-    assert len(cache) == len(BENCH_CLASS_BY_TYPE)
+    cache: dict[type[BuiltinObjectBase] | type[BuiltinEnum], ProtoThing] = {}
+    for bench_cls in chain(
+        NODE_CLASS_BY_TYPE.values(), STRUCT_CLASS_BY_TYPE.values(), ENUM_CLASS_BY_TYPE.values()
+    ):
+        cache[bench_cls] = _map_object_type_to_proto(bench_cls, cache)
 
     # collect all proto types
     proto_types: list[ProtoEnum | ProtoMessage] = []
@@ -247,7 +253,7 @@ def generate_proto_schema(
             ProtoField(
                 id=t.value,
                 name=to_casing(t.name, Casing.SNAKE),
-                type=cast(Any, _map_object_type_to_proto(t, cache)),
+                type=cast(Any, _map_object_type_to_proto(get_builtin_class(t), cache)),
             )
             for t in unioned_types
         ]

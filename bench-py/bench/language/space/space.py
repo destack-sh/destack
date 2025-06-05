@@ -3,10 +3,10 @@ from typing import TYPE_CHECKING, Optional
 from bench.language.core import (
     BuiltinEnum,
     EnumType,
+    HasEnvironment,
     IsArchivable,
     IsDeletable,
     IsInPackage,
-    IsModal,
     IsOrdered,
     IsOwnable,
     IsTemplatable,
@@ -38,7 +38,7 @@ class SpaceType(BuiltinEnum):
 class Space(
     IsOwnable,
     IsTemplatable,
-    IsModal,
+    HasEnvironment,
     IsOrdered,
     IsInPackage,
     IsDeletable,

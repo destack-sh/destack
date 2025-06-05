@@ -24,6 +24,7 @@ from bench.language import (
     Aliasing,
     Code,
     CustomObject,
+    EnvironmentType,
     Error,
     Flow,
     FlowEdge,
@@ -33,7 +34,6 @@ from bench.language import (
     InterruptionStatus,
     InterruptionType,
     Node,
-    NodeMode,
     NodeType,
     Package,
     ProcessStatus,
@@ -206,9 +206,9 @@ class Runner[N: Runnable = Runnable](abc.ABC):
         if self.parent is not None:
             self.mode = self.parent.mode
         elif isinstance(run, Node):
-            self.mode = run.mode
+            self.mode = run.environment_type
         else:
-            self.mode = NodeMode.MAIN
+            self.mode = EnvironmentType.STAGING
 
         # track in Run/Span
         self.tracked_run: Run | None
@@ -243,7 +243,11 @@ class Runner[N: Runnable = Runnable](abc.ABC):
             if type(run) is SpanType:
                 assert parent_run is not None, f"{self!r} has no parent Run"
                 tracked_span = Span(
-                    parent=parent_run, type=run, status=self.status, mode=self.mode, agent=agent
+                    parent=parent_run,
+                    type=run,
+                    status=self.status,
+                    environment_type=self.mode,
+                    agent=agent,
                 )
                 parent_run._copy_context_to(tracked_span)
                 self.session.create(tracked_span)
@@ -523,7 +527,7 @@ def create_run(
     *,
     parent: "Package | Thread | Run | Agent",
     inputs: Any | None = None,
-    mode: NodeMode | None = None,
+    mode: EnvironmentType | None = None,
     status: ProcessStatus | None = None,
     thread: "Thread | None" = None,
     agent: "Agent | None" = None,
@@ -579,7 +583,7 @@ def create_run(
         now = session.oracle.utc()
         thread = Thread(
             parent=parent,
-            mode=mode,
+            environment_type=mode,
             _graph=graph,
             started_at=now,
             active_at=now,
@@ -590,18 +594,18 @@ def create_run(
     elif isinstance(parent, Thread):
         thread = parent
         if mode is None:
-            mode = parent.mode
+            mode = parent.environment_type
         graph = parent._graph
     elif isinstance(parent, Run):
         thread = parent.thread
         if mode is None:
-            mode = parent.mode
+            mode = parent.environment_type
         graph = parent._graph
     elif isinstance(parent, Agent):
         if isinstance((grandparent := parent.parent), Thread):
             thread = grandparent
         if mode is None:
-            mode = parent.mode
+            mode = parent.environment_type
         graph = parent._graph
     else:
         assert_never(parent)
@@ -615,8 +619,8 @@ def create_run(
         agent = BenchAgent
 
     # build run
-    if mode == NodeMode.BUILTIN:
-        mode = NodeMode.MAIN  # Runs cannot be 'builtin'
+    if mode == EnvironmentType.BUILTIN:
+        mode = EnvironmentType.STAGING  # Runs cannot be 'builtin'
     run = Run(
         parent=parent,
         type=typ,
@@ -625,7 +629,7 @@ def create_run(
         service=service,
         action=action,
         transition=link,
-        mode=mode,
+        environment_type=mode,
         thread=thread,
         agent=agent,
         status=status or ProcessStatus.CREATED,

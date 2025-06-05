@@ -6,11 +6,11 @@ from typing import override
 from more_itertools import flatten
 
 from bench.language import (
+    Area,
     Change,
     ChangeResult,
     CustomNodeInstance,
     IsGlobal,
-    NodeArea,
     Query,
     QueryResult,
     RelationType,
@@ -26,7 +26,7 @@ class SplitStore(Store):
     NOTE: obviously SplitStore sharding/routing is very crude for now
     """
 
-    def __init__(self, store_by_area: Mapping[NodeArea, Store]):
+    def __init__(self, store_by_area: Mapping[Area, Store]):
         self.store_by_area = store_by_area
 
     def __str__(self):
@@ -48,7 +48,7 @@ class SplitStore(Store):
 
     @override
     async def commit(self, changes: Sequence[Change]) -> Sequence[ChangeResult]:
-        changes_by_area: dict[NodeArea, list[Change]] = defaultdict(list)
+        changes_by_area: dict[Area, list[Change]] = defaultdict(list)
         for change in changes:
             area = _get_change_node_area(change)
             if area is None:
@@ -60,7 +60,7 @@ class SplitStore(Store):
         return tuple(flatten(commit))
 
 
-def _get_query_node_area(query: Query) -> NodeArea | None:
+def _get_query_node_area(query: Query) -> Area | None:
     if query.relation.type == RelationType.BUILTIN_NODE:
         assert query.relation.node_type is not None, f"no node_type for {query.relation!r}"
         node_cls = NODE_CLASS_BY_TYPE[query.relation.node_type]
@@ -69,16 +69,16 @@ def _get_query_node_area(query: Query) -> NodeArea | None:
     else:
         return None
     if issubclass(node_cls, IsGlobal):
-        return NodeArea.GLOBAL_DATABASE
+        return Area.GLOBAL_DATABASE
     else:
-        return NodeArea.MAIN_DATABASE
+        return Area.MAIN_DATABASE
 
 
-def _get_change_node_area(change: Change) -> NodeArea | None:
+def _get_change_node_area(change: Change) -> Area | None:
     if not change.edits:
         return None
     node_cls = NODE_CLASS_BY_TYPE[change.edits[0].node_type]
     if issubclass(node_cls, IsGlobal):
-        return NodeArea.GLOBAL_DATABASE
+        return Area.GLOBAL_DATABASE
     else:
-        return NodeArea.MAIN_DATABASE
+        return Area.MAIN_DATABASE

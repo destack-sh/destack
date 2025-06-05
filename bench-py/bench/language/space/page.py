@@ -1,6 +1,7 @@
 from typing import TYPE_CHECKING, Optional, Union
 
 from bench.language.core import (
+    HasEnvironment,
     HasIcon,
     HasSlug,
     HasTitle,
@@ -8,7 +9,6 @@ from bench.language.core import (
     IsBlockable,
     IsDeletable,
     IsInPackage,
-    IsModal,
     IsOwnable,
     IsTemplatable,
     Node,
@@ -29,7 +29,7 @@ if TYPE_CHECKING:
 @node_(NodeType.PAGE)
 class Page(
     IsTemplatable,
-    IsModal,
+    HasEnvironment,
     HasTitle,
     HasIcon,
     IsOwnable,

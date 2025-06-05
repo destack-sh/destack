@@ -1,11 +1,12 @@
 import base64
 import io
 
+from PIL import Image
+
 from bench.language import File, FileFormat, FileIn, FileType, extract_file_info, upload_file
 from bench.test.simulation.core import Simulation
 from bench.test.simulation.workload import RuntimeLambdaWorkload
 from bench.test.unit.conftest import simulated_runtime
-from PIL import Image
 
 # some random image
 image = Image.new("RGB", (32, 24), color="yellow")

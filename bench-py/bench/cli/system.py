@@ -3,7 +3,7 @@ from typing import TYPE_CHECKING, Annotated
 import structlog
 import typer
 
-from bench.language import REGION, NodeArea, Region, Session
+from bench.language import REGION, Area, Region, Session
 
 from .utils import async_to_sync, parse_region
 
@@ -25,7 +25,7 @@ async def bootstrap(
     from bench.supervisor import create_system_benches
 
     global_database = get_global_database_from_env()
-    store = DatabaseStore(database=global_database, area=NodeArea.GLOBAL_DATABASE)
+    store = DatabaseStore(database=global_database, area=Area.GLOBAL_DATABASE)
     async with Session(store=store) as session:
         await create_system_benches(region=region, session=session, upsert=upsert)
         await session.commit()

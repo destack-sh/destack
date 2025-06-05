@@ -3,11 +3,11 @@ from typing import TYPE_CHECKING, Optional, Union
 from bench.language.core import (
     BuiltinEnum,
     EnumType,
+    HasEnvironment,
     HasName,
     IsArchivable,
     IsDeletable,
     IsInPackage,
-    IsModal,
     IsOrdered,
     IsRunnable,
     IsTemplatable,
@@ -41,7 +41,7 @@ class ActionCardinality(BuiltinEnum):
 class Action(
     IsTemplatable,
     HasName,
-    IsModal,
+    HasEnvironment,
     IsOrdered,
     IsArchivable,
     IsDeletable,

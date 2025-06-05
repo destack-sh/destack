@@ -16,7 +16,7 @@ from bitarray import bitarray
 from fastuuid import UUID
 from opentelemetry import trace
 
-from bench.language.registry import NODE_CLASS_BY_TYPE
+from bench.language.registry import NODE_CLASS_BY_TYPE, NODE_TYPE_BY_CLASS
 from bench.pb2 import AnyNodeData
 from bench.utils.func import get_superclasses
 
@@ -76,6 +76,9 @@ def node_(
                     traits.add(trait)
             cls.__traits__ = tuple(traits)
 
+            NODE_TYPE_BY_CLASS[cls] = node_type
+            NODE_CLASS_BY_TYPE[node_type] = cls
+
         # parent/root
         parent_property = cls.__properties__.get("parent", None)
         assert parent_property is not None, f"missing parent property for {node_type}"
@@ -99,10 +102,10 @@ class Node[NodeDataT: AnyNodeData](NodeBase[NodeDataT]):
     """
 
     metatype: ClassVar[NodeType]
-    info: ClassVar["NodeInfo"]
+    __info__: ClassVar["NodeInfo"]
 
     __is_node__: ClassVar[bool] = True
-    __is_trait__: ClassVar[bool] = False
+    __is_trait__: ClassVar[bool] = False  # override Trait.__is_trait__
     __traits__: ClassVar[tuple[TraitType, ...]] = ()
     __indexes__: ClassVar[tuple[IndexIn, ...]] = ()
 
@@ -127,7 +130,7 @@ class Node[NodeDataT: AnyNodeData](NodeBase[NodeDataT]):
 
     # 10-29: node tracking
     created_at: datetime = property_(10, is_managed=True, is_eq=False, can_write="system")
-    created_by: Optional[IsSubject] = property_(  # type: ignore (pyright is wrong, Subject is a type)
+    created_by: Optional[IsSubject] = property_(
         11,
         default=None,
         is_managed=True,
@@ -137,7 +140,7 @@ class Node[NodeDataT: AnyNodeData](NodeBase[NodeDataT]):
         can_write="system",
     )
     updated_at: datetime = property_(12, is_managed=True, is_eq=False, can_write="system")
-    updated_by: Optional[IsSubject] = property_(  # type: ignore (see above)
+    updated_by: Optional[IsSubject] = property_(
         13,
         default=None,
         is_managed=True,
@@ -156,12 +159,12 @@ class Node[NodeDataT: AnyNodeData](NodeBase[NodeDataT]):
     # IsArchivable.archived_at: 14
     # IsDeletable.deleted_at: 15
     # IsTemplatable.template: 16
-    # IsOwnable.owned_by: 17
-    # IsClaimable.claimed_by: 18
+    # IsModal.mode: 17/18
+    # IsOwnable.owned_by: 19
+    # IsClaimable.claimed_by: 20
     # ...managed_by/controlled_by?
-    # IsModal.mode: 20
-    # IsExtensible.value: 21
-    # IsOrdered.order_key: 22
+    # IsOrdered.order_key: 23
+    # IsExtensible.value: 24
 
     # 30+ for general properties
     # ...

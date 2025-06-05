@@ -12,7 +12,7 @@ from opentelemetry import trace
 
 from bench.utils.oracle import REAL_ORACLE, Oracle
 
-from .const import ACTIVE_SESSION, NodeMode
+from .const import ACTIVE_SESSION, EnvironmentType
 from .edit import Change, ChangeResult, ChangeStatus, Edit, EditOperation, EditType
 from .graph import Supergraph
 from .node import IsSubject, Node
@@ -54,7 +54,7 @@ class Session:
 
     def __init__(
         self,
-        mode: NodeMode = NodeMode.MAIN,
+        mode: EnvironmentType = EnvironmentType.STAGING,
         oracle: Oracle = REAL_ORACLE,
         bench: Optional["Bench"] = None,
         origin: "Origin | None" = None,
@@ -63,7 +63,7 @@ class Session:
         _runtime: Optional["Runtime"] = None,
     ):
         self.supergraph = Supergraph(self)
-        self.mode: NodeMode = mode
+        self.mode: EnvironmentType = mode
         self.oracle: Oracle = oracle
         self.bench: Bench | None = bench
         self.origin: Origin | None = origin

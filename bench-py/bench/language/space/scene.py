@@ -1,6 +1,7 @@
 from typing import TYPE_CHECKING, Optional
 
 from bench.language.core import (
+    HasEnvironment,
     HasIcon,
     HasName,
     HasSlug,
@@ -8,7 +9,6 @@ from bench.language.core import (
     IsBlockable,
     IsDeletable,
     IsInPackage,
-    IsModal,
     IsOwnable,
     IsTemplatable,
     Node,
@@ -29,7 +29,7 @@ class Scene(
     IsOwnable,
     IsTemplatable,
     HasName,
-    IsModal,
+    HasEnvironment,
     IsBlockable,
     IsArchivable,
     IsDeletable,

@@ -3,11 +3,11 @@ from typing import TYPE_CHECKING, Any
 import structlog
 
 from bench.language.core import (
+    HasEnvironment,
     HasName,
     IsBlockable,
     IsDeletable,
     IsInPackage,
-    IsModal,
     IsOwnable,
     Node,
     NodeType,
@@ -27,7 +27,7 @@ logger = structlog.get_logger(__name__)
 
 @node_(NodeType.CUSTOM_NODE_DEFINITION)
 class CustomNodeDefinition(
-    IsModal,
+    HasEnvironment,
     HasName,
     IsOwnable,
     IsBlockable,

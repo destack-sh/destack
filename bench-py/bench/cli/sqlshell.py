@@ -5,13 +5,13 @@ from typing import TYPE_CHECKING, Annotated, Optional
 import structlog
 import typer
 
-from bench.language.core.const import REGION, NodeArea, Region
+from bench.language.core.const import REGION, Area, Region
 from bench.utils.func import sanitize_connection_url
 
 from .utils import async_to_sync, parse_node_area, parse_region
 
 if TYPE_CHECKING:
-    from bench.language import NodeArea, Region
+    from bench.language import Area, Region
 
 app = typer.Typer(short_help="postgres management")
 logger = structlog.get_logger(__name__)
@@ -21,19 +21,19 @@ logger = structlog.get_logger(__name__)
 @app.command()
 @async_to_sync
 async def shell(
-    area: Annotated[NodeArea, typer.Option(parser=parse_node_area)],
+    area: Annotated[Area, typer.Option(parser=parse_node_area)],
     region: Annotated[Region, typer.Option(parser=parse_region)] = REGION,
     cell_name: Optional[str] = None,
     external_id: Optional[str] = None,
     bench: Optional[str] = None,
 ):  # type: ignore
     """Open a psql shell to either the global or a Bench-local database."""
-    from bench.language import NodeArea
+    from bench.language import Area
     from bench.sharding import DATABASE_PROVIDER, get_global_database_from_env
 
-    if area == NodeArea.GLOBAL_DATABASE:
+    if area == Area.GLOBAL_DATABASE:
         database = get_global_database_from_env()
-    elif area == NodeArea.MAIN_DATABASE:
+    elif area == Area.MAIN_DATABASE:
         assert cell_name is not None, "cell_name is required for main area"
         assert external_id is not None, "external_id is required for main area"
         database = await DATABASE_PROVIDER.resolve_or_error(region, cell_name, external_id)

@@ -23,7 +23,6 @@ from bitarray import bitarray
 from fastuuid import UUID, uuid4
 from opentelemetry import trace
 
-from bench.language.registry import STRUCT_CLASS_BY_TYPE
 from bench.pb2 import AnyObjectData
 from bench.utils.code import exec_, format_code
 from bench.utils.env import IS_DEV
@@ -1137,7 +1136,7 @@ def _process_object_cls[ObjectT: BuiltinObjectBase](
 
 @dataclass_transform(kw_only_default=True, field_specifiers=_PROPERTY_SPECIFIERS)
 def object_[ObjectT: BuiltinObjectBase](
-    struct_type: StructType | None = None,
+    object_type: NodeType | StructType | None = None,
     frozen: bool = False,
     concrete: bool = False,
     struct: bool = False,
@@ -1150,21 +1149,12 @@ def object_[ObjectT: BuiltinObjectBase](
     def decorate(cls_in: type[ObjectT]) -> type[ObjectT]:
         cls, _properties = _process_object_cls(
             cls=cast(Any, cls_in),
-            object_type=struct_type,
+            object_type=object_type,
             is_frozen=frozen,
             is_concrete=concrete,
             is_struct=struct,
             is_node=node,
         )
-
-        # register struct
-        if struct_type:
-            cls.metatype = struct_type
-            if struct_type in STRUCT_CLASS_BY_TYPE:
-                raise ValueError(
-                    f"struct class conflict for {struct_type}: {cls}, {STRUCT_CLASS_BY_TYPE[struct_type]}"
-                )
-            STRUCT_CLASS_BY_TYPE[struct_type] = cls
         return cast(type[ObjectT], cls)
 
     return decorate
