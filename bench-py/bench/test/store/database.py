@@ -136,14 +136,28 @@ async def test_create_page_blocks_recursive(session: Session):
             where=Block.property("parent").eq(page)
         ).execute_count()
         assert root_block_count == 4
-        # query block tree count
-        tree_connection = await Page.get(
+
+        # query block tree down
+        connection = await Page.get(
             where=Page.property("id").eq(page.id),
             Blocks=Block.search(join=join(JoinType.CHILD, recursive=True)),
         ).execute()
-        page_unpacked = tree_connection.to_one()
+        page_unpacked = connection.to_one()
         block_tree_unpacked = page_unpacked.get_descendants(Block)
         assert len(block_tree_unpacked) == target_block_count
+
+        # query block tree up
+        page_block_leaves = page._graph.get_leaves(Block, of=page)
+        connection = await Block.get(
+            where=Block.property("id").eq(page_block_leaves[0].id),
+            Blocks=Block.search(
+                join=join(JoinType.PARENT, recursive=True),
+                Page=Page.get(join=JoinType.PARENT),
+            ),
+        ).execute()
+        pages_unpacked = connection.graph.get_roots(Page)
+        assert len(pages_unpacked) == 1
+        assert pages_unpacked[0].equals(page)
 
 
 async def test_create_custom_node(session: Session):

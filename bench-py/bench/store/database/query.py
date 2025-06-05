@@ -275,7 +275,34 @@ async def _walk_node(
 
     # parent walk
     if direction == EdgeDirection.PARENT:
-        raise NotImplementedError(direction)
+        stmt = f"""
+WITH RECURSIVE tree AS (
+    SELECT  id,
+            parent_id,
+            1 AS depth
+    FROM    {table.name}
+    WHERE   (id = ANY($1) OR parent_id = ANY($2)) AND {where_sql}
+
+    UNION ALL
+
+    SELECT  p.id,
+            p.parent_id,
+            t.depth + 1
+    FROM    {table.name}  AS p
+    JOIN    tree      AS t ON p.id = t.parent_id
+    WHERE   t.depth < $3 AND {where_sql}
+)
+SELECT  id,
+        parent_id,
+        depth
+FROM    tree;
+"""
+        result_rows = await conn.fetch(stmt, *arguments)
+        result_nodes_ptr: list[NodeReference] = []
+        for row in result_rows:
+            node_ptr = NodeReference(node_type=table.node_type, id=fastuuid.UUID(str(row["id"])))
+            result_nodes_ptr.append(node_ptr)
+        return result_nodes_ptr
 
     # child walk
     elif direction == EdgeDirection.CHILD:
