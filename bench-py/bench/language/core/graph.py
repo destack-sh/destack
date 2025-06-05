@@ -120,6 +120,42 @@ class Graph:
         # node
         self.nodes_by_id.pop(node.id)
 
+    def get_roots[N: Node = Node](
+        self, node_type: NodeType | TraitType | type[N] | None = None
+    ) -> Sequence[N]:
+        """Find root Nodes in the graph."""
+        node_types = _resolve_node_types(node_type)
+        if node_types is None:
+            roots = tuple(node for node in self.nodes if not self.nodes_by_parent_id.get(node.id))
+        else:
+            roots = tuple(
+                node
+                for node in self.nodes
+                if not self.nodes_by_parent_id.get(node.id) and node.metatype in node_types
+            )
+        return roots  # type: ignore (must be right type)
+
+    def get_leaves[N: Node = Node](
+        self, node_type: NodeType | TraitType | type[N] | None = None, of: "Node | None" = None
+    ) -> Sequence[N]:
+        """Find leaf Nodes in the graph."""
+        if of is None:
+            node_types = _resolve_node_types(node_type)
+            if node_types is None:
+                leaves = tuple(
+                    node for node in self.nodes if not self.nodes_by_parent_id.get(node.id)
+                )
+            else:
+                leaves = tuple(
+                    node
+                    for node in self.nodes
+                    if not self.nodes_by_parent_id.get(node.id) and node.metatype in node_types
+                )
+        else:
+            descendants = self.get_descendants(of, node_type)
+            leaves = tuple(node for node in descendants if not self.nodes_by_parent_id.get(node.id))
+        return leaves  # type: ignore (must be right type)
+
     def get_children[N: Node = Node](
         self,
         node: "Node",
@@ -200,21 +236,8 @@ class Graph:
         queue: list[Node] = [node]
         descendants: list[Node] = []
 
-        # turn into type
-        node_types: tuple[NodeType, ...] | None = None
-        if node_type is not None:
-            if isinstance(node_type, type):
-                if node_t := NODE_TYPE_BY_CLASS.get(node_type):
-                    node_types = (node_t,)
-                else:
-                    node_types = NODE_TYPES_BY_TRAIT[NODE_TRAIT_BY_CLASS[node_type]]  # type: ignore
-            else:
-                if isinstance(node_type, NodeType):
-                    node_types = (node_type,)
-                else:
-                    node_types = NODE_TYPES_BY_TRAIT[node_type]
-
         # collect
+        node_types = _resolve_node_types(node_type)
         while queue:
             current = queue.pop(0)
             children_by_type = self.nodes_by_parent_id.get(current.id)
@@ -290,3 +313,22 @@ class Supergraph:
         if node is None:
             raise KeyError(f"node {node_id!r} not found in {self!r}")
         return node
+
+
+def _resolve_node_types(
+    node_type: "NodeType | TraitType | type[Node] | None",
+) -> tuple["NodeType", ...] | None:
+    """Resolve the NodeTypes for a NodeType, TraitType, or Node class."""
+    node_types: tuple[NodeType, ...] | None = None
+    if node_type is not None:
+        if isinstance(node_type, type):
+            if node_t := NODE_TYPE_BY_CLASS.get(node_type):
+                node_types = (node_t,)
+            else:
+                node_types = NODE_TYPES_BY_TRAIT[NODE_TRAIT_BY_CLASS[node_type]]  # type: ignore
+        else:
+            if isinstance(node_type, NodeType):
+                node_types = (node_type,)
+            else:
+                node_types = NODE_TYPES_BY_TRAIT[node_type]
+    return node_types
