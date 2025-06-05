@@ -270,6 +270,7 @@ class SupervisorService(ServiceBase, SupervisorBase):
         user.last_logged_in_at = self.oracle.utc()
         client = Client.from_proto(request.client)
         client._is_new = True
+        client.parent_ptr = user.to_ref()
         client.access_token = generate_access_token(ACCESS_TOKEN_LENGTH)
         session.upsert(client)
 
