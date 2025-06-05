@@ -280,21 +280,29 @@ class JoinType(BuiltinEnum):
 
 @struct_(StructType.JOIN, frozen=True)
 class Join(StructFrozen):
-    """JOIN clause with ON expression."""
+    """Join a Query with another Query."""
 
     type: JoinType = property_(30, is_repr=True)
-    on: Optional[Condition] = property_(32, is_repr=True)
-    recursive: bool = property_(33, default=False, is_repr=True)  # for parent/child joins
+    relation: Optional[RelationReference] = property_(31, is_repr=True)
+    # query_name?
+    recursive: bool = property_(33, default=False, is_repr=True)  # for tree joins
+    depth: int | None = property_(34, default=None, is_repr=True)  # for tree joins
+    on: Optional[Condition] = property_(35, is_repr=True)
 
 
 JoinIn = Union[Join, "JoinType"]
 
 
-def join(join: JoinIn, on: Optional[Condition] = None, recursive: bool = False) -> Join:
+def join(
+    join: JoinIn,
+    on: Optional[Condition] = None,
+    recursive: bool = False,
+    depth: int | None = None,
+) -> Join:
     if isinstance(join, Join):
         return join
     else:
-        return Join(type=join, on=on, recursive=recursive)
+        return Join(type=join, on=on, recursive=recursive, depth=depth)
 
 
 #
@@ -407,7 +415,7 @@ class QueryResultBase(BuiltinObjectMutable):
 
     type: QueryType = property_(30, is_repr=True)
 
-    nodes: list[Value] = property_(40, is_repr=True)
+    nodes: list[Value] = property_(40)
     count: Optional[int] = property_(41, is_repr=True)
     exists: Optional[bool] = property_(42, is_repr=True)
     scalar: Optional[Value] = property_(43, is_repr=True)

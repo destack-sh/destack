@@ -204,11 +204,10 @@ class Graph:
         node_types: tuple[NodeType, ...] | None = None
         if node_type is not None:
             if isinstance(node_type, type):
-                if issubclass(node_type, Node):
-                    node_types = (node_type.metatype,)
+                if node_t := NODE_TYPE_BY_CLASS.get(node_type):
+                    node_types = (node_t,)
                 else:
-                    trait_type = NODE_TRAIT_BY_CLASS[node_type]
-                    node_types = NODE_TYPES_BY_TRAIT[trait_type]
+                    node_types = NODE_TYPES_BY_TRAIT[NODE_TRAIT_BY_CLASS[node_type]]  # type: ignore
             else:
                 if isinstance(node_type, NodeType):
                     node_types = (node_type,)

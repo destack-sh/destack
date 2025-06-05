@@ -13,7 +13,10 @@ if TYPE_CHECKING:
 
 
 class QueryConnection[RootT: "Trait | Node"]:
-    """A connection to a Query and its result."""
+    """
+    A connection to a Query and its result.
+    NOTE: 'root' refers to the root Query, not necessarily the root of the result Graph.
+    """
 
     __slots__ = (
         "graph",

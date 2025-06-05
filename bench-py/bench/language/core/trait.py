@@ -382,7 +382,7 @@ class HasTitle(Trait):
 class HasSlug(Trait):
     """A Node with a slug."""
 
-    slug: str = property_(33, is_repr=True, format=StringFormat.SLUG)
+    slug: str | None = property_(33, is_repr=True, format=StringFormat.SLUG)
 
 
 @trait_(TraitType.ICON)
@@ -757,13 +757,3 @@ class IsProvisionable(IsResource):
         elif status.is_extant:
             self.active_at = self._session.oracle.utc()
             self.failed_attempts = 0
-
-    async def wait_until_status(
-        self, status: ResourceStatus, timeout: timedelta | None = None
-    ) -> None:
-        """Wait until this Resource reaches the given status."""
-        await self.wait_until(lambda r: r.status == status, timeout=timeout)
-
-    async def wait_until_ready(self, timeout: timedelta | None = None) -> None:
-        """Wait until this Resource is ready."""
-        await self.wait_until(lambda r: r.status == ResourceStatus.AVAILABLE, timeout=timeout)
