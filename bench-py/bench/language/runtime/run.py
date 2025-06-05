@@ -1,14 +1,13 @@
 from collections.abc import Sequence
-from datetime import timedelta
 from typing import TYPE_CHECKING, Optional, Union
 
 from fastuuid import UUID
 
 from bench.language.core import (
+    HasEnvironment,
     IsComputable,
     IsExtensible,
     IsInPackage,
-    IsModal,
     IsProcessable,
     IsRunnable,
     Node,
@@ -33,7 +32,7 @@ if TYPE_CHECKING:
 class Run(
     IsComputable,
     IsProcessable,
-    IsModal,
+    HasEnvironment,
     IsExtensible,
     IsInPackage,
     Node[RunData],
@@ -118,11 +117,3 @@ class Run(
             )
 
     cancel = abort = stop
-
-    async def wait_until_status(self, *status: ProcessStatus, timeout: timedelta | None = None):
-        """Wait until this Run reaches the given status."""
-        await self.wait_until(lambda self: self.status in status, timeout=timeout)
-
-    async def wait_until_terminated(self, timeout: timedelta | None = None):
-        """Wait until this Run is terminated."""
-        await self.wait_until(lambda self: self.status.is_terminal, timeout=timeout)

@@ -2,10 +2,10 @@ from collections.abc import Mapping
 
 from bench.language import (
     NODE_TYPES,
+    Area,
     CustomNodeDefinition,
     EdgeType,
     Node,
-    NodeArea,
     NodeReference,
     NodeType,
     PrimitiveType,
@@ -158,9 +158,9 @@ BUILTIN_MAIN_TABLES: tuple[DatabaseTable, ...] = tuple(
     for node in NODE_CLASS_BY_TYPE.values()
     if TraitType.GLOBAL not in node.__traits__ and node.metatype != NodeType.CUSTOM_NODE_INSTANCE
 )
-BUILTIN_TABLE_BY_AREA: Mapping[NodeArea, tuple[DatabaseTable, ...]] = {
-    NodeArea.GLOBAL_DATABASE: BUILTIN_GLOBAL_TABLES,
-    NodeArea.MAIN_DATABASE: BUILTIN_MAIN_TABLES,
+BUILTIN_TABLE_BY_AREA: Mapping[Area, tuple[DatabaseTable, ...]] = {
+    Area.GLOBAL_DATABASE: BUILTIN_GLOBAL_TABLES,
+    Area.MAIN_DATABASE: BUILTIN_MAIN_TABLES,
 }
 BUILTIN_GLOBAL_SCHEMA = DatabaseSchema(EXTENSIONS, BUILTIN_GLOBAL_TABLES)
 BUILTIN_MAIN_SCHEMA = DatabaseSchema(EXTENSIONS, BUILTIN_MAIN_TABLES)

@@ -22,6 +22,7 @@ from bench.language import (
     CheckOptions,
     CursorType,
     CustomObject,
+    EnvironmentType,
     Error,
     ErrorKind,
     GetConnection,
@@ -33,7 +34,6 @@ from bench.language import (
     Membership,
     Message,
     Node,
-    NodeMode,
     NodeReference,
     NodeType,
     Package,
@@ -185,7 +185,7 @@ class Runtime:
         return None
 
     @property
-    def active_mode(self) -> NodeMode:
+    def active_mode(self) -> EnvironmentType:
         runner = self._active_runner.get(None)
         return runner.mode if runner else self.session.mode
 

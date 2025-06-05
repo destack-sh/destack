@@ -10,11 +10,11 @@ from bench.language import (
     Agent,
     BuiltinObject,
     Claim,
+    EnvironmentType,
     File,
     Link,
     Membership,
     Node,
-    NodeMode,
     Page,
     Run,
     RunType,
@@ -408,7 +408,7 @@ Reflect on the instructions, the context and any errors as you try again.
     # agent
     agent_page = agent.parent
     assert agent_page is not None, f"{agent!r} has no parent Page"
-    agent_role = "developer" if agent.mode == NodeMode.BUILTIN else "user"
+    agent_role = "developer" if agent.environment_type == EnvironmentType.BUILTIN else "user"
     prompt.region(
         f"Agent (YOU = {agent_alias})",
         "This is the Agent YOU're representing",

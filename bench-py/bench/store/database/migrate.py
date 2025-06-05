@@ -22,7 +22,7 @@ import structlog
 from more_itertools import first
 from opentelemetry import trace
 
-from bench.language import NodeArea
+from bench.language import Area
 from bench.utils.env import REPOSITORY_PATH
 from bench.utils.func import partition, re_search_or_error
 from bench.utils.oracle import Oracle
@@ -72,9 +72,9 @@ class Migration:
     def __repr__(self) -> str:
         return f"<Migration {self}>"
 
-    def has_area(self, area: NodeArea) -> bool:
-        return (area == NodeArea.GLOBAL_DATABASE and self.has_global) or (
-            area == NodeArea.MAIN_DATABASE and self.has_main
+    def has_area(self, area: Area) -> bool:
+        return (area == Area.GLOBAL_DATABASE and self.has_global) or (
+            area == Area.MAIN_DATABASE and self.has_main
         )
 
 
@@ -157,7 +157,7 @@ async def sql_migrate(
     target: str | int | None,
     oracle: Oracle,
     *,
-    area: NodeArea,
+    area: Area,
     database: "Database | None" = None,
 ) -> list[Migration]:
     """
@@ -233,7 +233,7 @@ async def _do_migrate(
     oracle: Oracle,
     *,
     is_upgrade: bool,
-    area: NodeArea,
+    area: Area,
     database: Optional["Database"] = None,
 ):
     """Applies the given migrations in the given order."""

@@ -11,9 +11,6 @@ from .infra import *  # noqa: F403
 from .logic import *  # noqa: F403
 from .package import *  # noqa: F403
 from .registry import (
-    BENCH_CLASS_BY_TYPE,  # noqa: F401
-    BUILTIN_OBJECT_CLASS_BY_TYPE,  # noqa: F401
-    BUILTIN_OBJECT_TYPE_BY_CLASS,  # noqa: F401
     ENUM_CLASS_BY_TYPE,  # noqa: F401
     ENUM_INFO_BY_TYPE,  # noqa: F401
     ENUM_TYPE_BY_CLASS,  # noqa: F401

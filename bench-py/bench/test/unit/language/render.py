@@ -3,9 +3,12 @@ import inspect
 import re
 import textwrap
 from collections.abc import Mapping
+from itertools import chain
 from typing import Any, Callable, assert_never
 
 import pytest
+from fastuuid import UUID
+
 from bench.language import (
     Aliasing,
     BuiltinObjectBase,
@@ -21,9 +24,12 @@ from bench.language import (
     code,
     text,
 )
-from bench.language.registry import BENCH_CLASS_BY_TYPE
+from bench.language.registry import (
+    ENUM_CLASS_BY_TYPE,
+    NODE_CLASS_BY_TYPE,
+    STRUCT_CLASS_BY_TYPE,
+)
 from bench.utils.code import format_code
-from fastuuid import UUID
 
 
 def _render_test(func: Callable[[Any, Any], Mapping[str, Any]]):
@@ -82,7 +88,14 @@ def _render_test(func: Callable[[Any, Any], Mapping[str, Any]]):
         assert rendered == source
 
         # eval
-        glbls = {cls.__name__: cls for cls in BENCH_CLASS_BY_TYPE.values()}
+        glbls = {
+            cls.__name__: cls
+            for cls in chain(
+                NODE_CLASS_BY_TYPE.values(),
+                STRUCT_CLASS_BY_TYPE.values(),
+                ENUM_CLASS_BY_TYPE.values(),
+            )
+        }
         glbls_tmp = {**glbls}
         exec(rendered, glbls_tmp)
         rendered_defns: dict[str, Any] = {

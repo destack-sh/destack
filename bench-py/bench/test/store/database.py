@@ -166,8 +166,8 @@ async def test_create_custom_node(session: Session):
     custom_node_definition = CustomNodeDefinition(
         name="Event",
         traits=[
-            TraitType.NAMED,
-            TraitType.SLUG,
+            TraitType.HAS_NAME,
+            TraitType.HAS_SLUG,
             TraitType.DELETABLE,
             TraitType.ARCHIVABLE,
             TraitType.OWNABLE,

@@ -5,10 +5,10 @@ from bench.language.core import (
     BuiltinEnum,
     EnumType,
     Expression,
+    HasEnvironment,
     HasTitle,
     IsDeletable,
     IsInPackage,
-    IsModal,
     IsOwnable,
     Node,
     NodeType,
@@ -65,7 +65,7 @@ class CursorStatus(BuiltinEnum):
 @node_(NodeType.CURSOR)
 class Cursor(
     IsOwnable,
-    IsModal,
+    HasEnvironment,
     HasTitle,
     IsInPackage,
     IsDeletable,

@@ -1,10 +1,10 @@
 from typing import TYPE_CHECKING, Union
 
 from bench.language.core import (
+    HasEnvironment,
     HasName,
     IsBlockable,
     IsInPackage,
-    IsModal,
     IsTemplatable,
     TraitType,
     property_parent_,
@@ -20,7 +20,7 @@ if TYPE_CHECKING:
 @trait_(TraitType.STYLE)
 class IsStyle(
     IsTemplatable,
-    IsModal,
+    HasEnvironment,
     HasName,
     IsBlockable,
     IsInPackage,

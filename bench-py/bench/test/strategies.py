@@ -1,3 +1,4 @@
+from itertools import chain
 from string import ascii_lowercase
 from typing import Any, assert_never, cast
 
@@ -12,7 +13,6 @@ from hypothesis import strategies as st
 from hypothesis.strategies._internal.utils import cacheable, defines_strategy
 
 from bench.language import (
-    BUILTIN_OBJECT_CLASS_BY_TYPE,
     ENUM_CLASS_BY_TYPE,
     NODE_CLASS_BY_TYPE,
     NODE_TYPES,
@@ -32,6 +32,7 @@ from bench.language import (
     TypeCardinality,
     icon,
 )
+from bench.language.registry import STRUCT_CLASS_BY_TYPE, get_builtin_object_cls
 from bench.utils.oracle import MAX_SCHEDULE_DURATION
 
 logger = structlog.get_logger(__name__)
@@ -39,7 +40,7 @@ logger = structlog.get_logger(__name__)
 ALL_DECLARED_PROPERTIES = tuple(
     more_itertools.flatten(
         (p for p in object_cls.__declared_properties__.values() if p.id is not None)
-        for object_cls in BUILTIN_OBJECT_CLASS_BY_TYPE.values()
+        for object_cls in chain(NODE_CLASS_BY_TYPE.values(), STRUCT_CLASS_BY_TYPE.values())
     )
 )
 
@@ -94,7 +95,7 @@ def properties(object_type: NodeType | StructType | None = None):
     if object_type is None:
         return st.sampled_from(ALL_DECLARED_PROPERTIES)
     else:
-        object_cls = BUILTIN_OBJECT_CLASS_BY_TYPE[object_type]
+        object_cls = get_builtin_object_cls(object_type)
         return st.sampled_from(
             tuple(p for p in object_cls.__declared_properties__.values() if p.id is not None)
         )
@@ -187,7 +188,7 @@ def get_type_strategy(typ: Type) -> st.SearchStrategy[Any]:
 @cached({})
 def get_naive_object_strategy(object_type: NodeType | StructType):
     """Gets the default uncorrelated strategies for every (init) property of an object type."""
-    object_cls = BUILTIN_OBJECT_CLASS_BY_TYPE[object_type]
+    object_cls = get_builtin_object_cls(object_type)
     object_kwargs: dict[str, st.SearchStrategy] = {}
     for prop in object_cls.__wired_properties__.values():
         if (
@@ -229,7 +230,7 @@ def from_object_type(
         return cast(st.SearchStrategy[BuiltinObjectBase], icons())
 
     # naive strategy
-    object_cls = BUILTIN_OBJECT_CLASS_BY_TYPE[object_type]
+    object_cls = get_builtin_object_cls(object_type)
     object_dict = get_naive_object_strategy(object_type)
     if custom_strategies:
         object_dict = {**object_dict}

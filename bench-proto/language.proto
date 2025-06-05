@@ -22,7 +22,6 @@ enum AggregationType {
   AGGREGATION_TYPE_MIN = 4;
   AGGREGATION_TYPE_MAX = 5;
   AGGREGATION_TYPE_AVERAGE = 6;
-  AGGREGATION_TYPE_MEDIAN = 7;
 }
 
 // The alignment of a View.
@@ -33,20 +32,10 @@ enum Align {
   ALIGN_END = 3;
 }
 
-// A larger Area of Regions within a Continent.
 enum Area {
   AREA_UNSPECIFIED = 0;
-  AREA_EUROPE_CENTRAL = 1000;
-  AREA_NORTH_AMERICA_EAST = 2000;
-  AREA_NORTH_AMERICA_WEST = 2200;
-  AREA_SOUTH_AMERICA_EAST = 3000;
-  AREA_MIDDLE_EAST_CENTRAL = 4000;
-  AREA_MIDDLE_EAST_WEST = 4200;
-  AREA_AFRICA_SOUTH = 5000;
-  AREA_ASIA_WEST = 6000;
-  AREA_ASIA_SOUTH = 6200;
-  AREA_ASIA_EAST = 6400;
-  AREA_AUSTRALIA_SOUTH = 7000;
+  AREA_GLOBAL_DATABASE = 1;
+  AREA_MAIN_DATABASE = 100;
 }
 
 enum AttributeType {
@@ -297,6 +286,13 @@ enum Distribute {
   DISTRIBUTE_SPACE_EVENLY = 6;
 }
 
+enum EdgeDirection {
+  EDGE_DIRECTION_UNSPECIFIED = 0;
+  EDGE_DIRECTION_PARENT = 1;
+  EDGE_DIRECTION_CHILD = 2;
+  EDGE_DIRECTION_SIDE = 3;
+}
+
 enum EdgeType {
   EDGE_TYPE_UNSPECIFIED = 0;
   EDGE_TYPE_NODE_PARENT = 1;
@@ -344,114 +340,124 @@ enum EffectType {
 
 enum EnumType {
   ENUM_TYPE_UNSPECIFIED = 0;
-  ENUM_TYPE_ENUM_TYPE = 40000;
-  ENUM_TYPE_NODE_TYPE = 40001;
-  ENUM_TYPE_STRUCT_TYPE = 40002;
-  ENUM_TYPE_TRAIT_TYPE = 40004;
-  ENUM_TYPE_NODE_MODE = 40005;
-  ENUM_TYPE_NODE_AREA = 40006;
-  ENUM_TYPE_USER_STATUS = 40010;
-  ENUM_TYPE_ORGANIZATION_STATUS = 40011;
-  ENUM_TYPE_BENCH_STATUS = 40056;
-  ENUM_TYPE_PACKAGE_TYPE = 40050;
-  ENUM_TYPE_ERROR_TYPE = 40061;
-  ENUM_TYPE_VARIABLE_TYPE = 40063;
-  ENUM_TYPE_EDIT_TYPE = 40070;
-  ENUM_TYPE_EDIT_OPERATION = 40071;
-  ENUM_TYPE_CHANGE_STATUS = 40075;
-  ENUM_TYPE_CONDITIONAL_TYPE = 40102;
-  ENUM_TYPE_AGGREGATION_TYPE = 40103;
-  ENUM_TYPE_SORT_MODE = 40104;
-  ENUM_TYPE_SORT_TYPE = 40105;
-  ENUM_TYPE_JOIN_TYPE = 40106;
-  ENUM_TYPE_FUNCTION_TYPE = 40107;
-  ENUM_TYPE_EXPRESSION_TYPE = 40108;
-  ENUM_TYPE_RELATION_TYPE = 40109;
-  ENUM_TYPE_ATTRIBUTE_TYPE = 40110;
-  ENUM_TYPE_QUERY_TYPE = 40811;
-  ENUM_TYPE_QUERY_UPDATE_TYPE = 40812;
-  ENUM_TYPE_BENCH_ROLE_TYPE = 40200;
-  ENUM_TYPE_ORGANIZATION_ROLE_TYPE = 40210;
-  ENUM_TYPE_PACKAGE_ROLE_TYPE = 40220;
-  ENUM_TYPE_CLIENT_TYPE = 40230;
-  ENUM_TYPE_SPACE_TYPE = 40600;
-  ENUM_TYPE_BLOCK_TYPE = 40610;
-  ENUM_TYPE_CLOUD = 40051;
-  ENUM_TYPE_REGION = 40052;
-  ENUM_TYPE_AREA = 40054;
-  ENUM_TYPE_CONTINENT = 40055;
-  ENUM_TYPE_MACHINE_TYPE = 41010;
-  ENUM_TYPE_TENANCY = 41011;
-  ENUM_TYPE_STORE_TYPE = 41012;
-  ENUM_TYPE_ACTION_CARDINALITY = 41220;
-  ENUM_TYPE_FLOW_TYPE = 41240;
-  ENUM_TYPE_FLOW_EDGE_TYPE = 41241;
-  ENUM_TYPE_CURSOR_TYPE = 41320;
-  ENUM_TYPE_CURSOR_STATUS = 41321;
-  ENUM_TYPE_PROCESS_STATUS = 41610;
-  ENUM_TYPE_RUN_TYPE = 41611;
-  ENUM_TYPE_SPAN_TYPE = 41620;
-  ENUM_TYPE_SCHEDULE_FREQUENCY = 41630;
-  ENUM_TYPE_INTERRUPTION_TYPE = 41631;
-  ENUM_TYPE_INTERRUPTION_STATUS = 41632;
-  ENUM_TYPE_INTERRUPTION_RESPONSE = 41633;
-  ENUM_TYPE_TEXT_LINE_TYPE = 42000;
-  ENUM_TYPE_TEXT_SPAN_TYPE = 42001;
-  ENUM_TYPE_CODE_TYPE = 42010;
-  ENUM_TYPE_FILE_RETENTION_MODE = 42020;
-  ENUM_TYPE_FILE_SOURCE = 42021;
-  ENUM_TYPE_FILE_TYPE = 42022;
-  ENUM_TYPE_FILE_FORMAT = 42023;
-  ENUM_TYPE_ICON_TYPE = 42030;
-  ENUM_TYPE_LINK_TYPE = 42050;
-  ENUM_TYPE_PRIMITIVE_TYPE = 42100;
-  ENUM_TYPE_TYPE_CARDINALITY = 42101;
-  ENUM_TYPE_SCALAR_TYPE = 42102;
-  ENUM_TYPE_DEFAULT_FACTORY = 42103;
-  ENUM_TYPE_STRING_FORMAT = 42110;
-  ENUM_TYPE_NUMBER_FORMAT = 42111;
-  ENUM_TYPE_FIELD_TYPE = 42120;
-  ENUM_TYPE_EDGE_TYPE = 42121;
-  ENUM_TYPE_CASCADE_ACTION = 42122;
-  ENUM_TYPE_DAY = 42130;
-  ENUM_TYPE_MONTH = 42131;
-  ENUM_TYPE_TIME_INTERVAL = 42132;
-  ENUM_TYPE_RESOURCE_STATUS = 42200;
-  ENUM_TYPE_THREAD_STATUS = 42401;
-  ENUM_TYPE_MESSAGE_TYPE = 42420;
-  ENUM_TYPE_MODEL_DEVELOPER = 44400;
-  ENUM_TYPE_MODEL_PROVIDER = 44401;
-  ENUM_TYPE_POSITION_TYPE = 49000;
-  ENUM_TYPE_COLOR_TYPE = 49010;
-  ENUM_TYPE_COLOR_SHADE = 49011;
-  ENUM_TYPE_COLOR_HUE = 49012;
-  ENUM_TYPE_FONT_WEIGHT = 49021;
-  ENUM_TYPE_FONT_SIZE = 49022;
-  ENUM_TYPE_FONT_TYPE = 49023;
-  ENUM_TYPE_TEXT_ALIGN = 49024;
-  ENUM_TYPE_TEXT_DECORATION = 49025;
-  ENUM_TYPE_TEXT_TRANSFORM = 49026;
-  ENUM_TYPE_SHADOW_TYPE = 49030;
-  ENUM_TYPE_SHADOW_POSITION = 49031;
-  ENUM_TYPE_BORDER_TYPE = 49040;
-  ENUM_TYPE_GRADIENT_TYPE = 49050;
-  ENUM_TYPE_FILL_TYPE = 49060;
-  ENUM_TYPE_FILL_POSITION = 49061;
-  ENUM_TYPE_FILL_SIZE = 49062;
-  ENUM_TYPE_LENGTH_UNIT = 49070;
-  ENUM_TYPE_LAYOUT = 49071;
-  ENUM_TYPE_DISTRIBUTE = 49072;
-  ENUM_TYPE_ALIGN = 49073;
-  ENUM_TYPE_DIRECTION = 49074;
-  ENUM_TYPE_OVERFLOW = 49075;
-  ENUM_TYPE_TRANSITION_TYPE = 49076;
-  ENUM_TYPE_SPRING_TYPE = 49077;
-  ENUM_TYPE_DIMENSION_TYPE = 49078;
-  ENUM_TYPE_THEME_COLOR = 49079;
-  ENUM_TYPE_EFFECT_TYPE = 49080;
-  ENUM_TYPE_REPEAT_TYPE = 49081;
-  ENUM_TYPE_TEXT_SPLIT_TYPE = 49083;
-  ENUM_TYPE_OFFSCREEN_BEHAVIOR = 49084;
+  ENUM_TYPE_ENUM_TYPE = 1;
+  ENUM_TYPE_NODE_TYPE = 2;
+  ENUM_TYPE_STRUCT_TYPE = 3;
+  ENUM_TYPE_TRAIT_TYPE = 5;
+  ENUM_TYPE_ENVIRONMENT_TYPE = 6;
+  ENUM_TYPE_AREA = 7;
+  ENUM_TYPE_PROPERTY_REFERENCE_TYPE = 8;
+  ENUM_TYPE_USER_STATUS = 11;
+  ENUM_TYPE_ORGANIZATION_STATUS = 12;
+  ENUM_TYPE_BENCH_STATUS = 57;
+  ENUM_TYPE_PACKAGE_TYPE = 51;
+  ENUM_TYPE_ERROR_TYPE = 62;
+  ENUM_TYPE_VARIABLE_TYPE = 64;
+  ENUM_TYPE_EDIT_TYPE = 71;
+  ENUM_TYPE_EDIT_OPERATION = 72;
+  ENUM_TYPE_CHANGE_STATUS = 76;
+  ENUM_TYPE_CONDITIONAL_TYPE = 103;
+  ENUM_TYPE_AGGREGATION_TYPE = 104;
+  ENUM_TYPE_SORT_MODE = 105;
+  ENUM_TYPE_SORT_TYPE = 106;
+  ENUM_TYPE_JOIN_TYPE = 107;
+  ENUM_TYPE_FUNCTION_TYPE = 108;
+  ENUM_TYPE_EXPRESSION_TYPE = 109;
+  ENUM_TYPE_RELATION_TYPE = 110;
+  ENUM_TYPE_ATTRIBUTE_TYPE = 111;
+  ENUM_TYPE_QUERY_TYPE = 812;
+  ENUM_TYPE_QUERY_UPDATE_TYPE = 813;
+  ENUM_TYPE_BENCH_ROLE_TYPE = 201;
+  ENUM_TYPE_ORGANIZATION_ROLE_TYPE = 211;
+  ENUM_TYPE_PACKAGE_ROLE_TYPE = 221;
+  ENUM_TYPE_CLIENT_TYPE = 231;
+  ENUM_TYPE_SPACE_TYPE = 601;
+  ENUM_TYPE_BLOCK_TYPE = 611;
+  ENUM_TYPE_CLOUD = 52;
+  ENUM_TYPE_REGION = 53;
+  ENUM_TYPE_REGION_AREA = 55;
+  ENUM_TYPE_CONTINENT = 56;
+  ENUM_TYPE_MACHINE_TYPE = 1011;
+  ENUM_TYPE_TENANCY = 1012;
+  ENUM_TYPE_ACTION_CARDINALITY = 1221;
+  ENUM_TYPE_FLOW_TYPE = 1241;
+  ENUM_TYPE_FLOW_EDGE_TYPE = 1242;
+  ENUM_TYPE_CURSOR_TYPE = 1321;
+  ENUM_TYPE_CURSOR_STATUS = 1322;
+  ENUM_TYPE_PROCESS_STATUS = 1611;
+  ENUM_TYPE_RUN_TYPE = 1612;
+  ENUM_TYPE_SPAN_TYPE = 1621;
+  ENUM_TYPE_SCHEDULE_FREQUENCY = 1631;
+  ENUM_TYPE_INTERRUPTION_TYPE = 1632;
+  ENUM_TYPE_INTERRUPTION_STATUS = 1633;
+  ENUM_TYPE_INTERRUPTION_RESPONSE = 1634;
+  ENUM_TYPE_TEXT_LINE_TYPE = 2001;
+  ENUM_TYPE_TEXT_SPAN_TYPE = 2002;
+  ENUM_TYPE_CODE_TYPE = 2011;
+  ENUM_TYPE_FILE_RETENTION_MODE = 2021;
+  ENUM_TYPE_FILE_SOURCE = 2022;
+  ENUM_TYPE_FILE_TYPE = 2023;
+  ENUM_TYPE_FILE_FORMAT = 2024;
+  ENUM_TYPE_ICON_TYPE = 2031;
+  ENUM_TYPE_LINK_TYPE = 2051;
+  ENUM_TYPE_PRIMITIVE_TYPE = 2101;
+  ENUM_TYPE_TYPE_CARDINALITY = 2102;
+  ENUM_TYPE_SCALAR_TYPE = 2103;
+  ENUM_TYPE_DEFAULT_FACTORY = 2104;
+  ENUM_TYPE_STRING_FORMAT = 2111;
+  ENUM_TYPE_NUMBER_FORMAT = 2112;
+  ENUM_TYPE_FIELD_TYPE = 2121;
+  ENUM_TYPE_EDGE_TYPE = 2122;
+  ENUM_TYPE_EDGE_DIRECTION = 2123;
+  ENUM_TYPE_CASCADE_ACTION = 2124;
+  ENUM_TYPE_DAY = 2131;
+  ENUM_TYPE_MONTH = 2132;
+  ENUM_TYPE_TIME_INTERVAL = 2133;
+  ENUM_TYPE_RESOURCE_STATUS = 2201;
+  ENUM_TYPE_THREAD_STATUS = 2402;
+  ENUM_TYPE_MESSAGE_TYPE = 2421;
+  ENUM_TYPE_MODEL_DEVELOPER = 4401;
+  ENUM_TYPE_MODEL_PROVIDER = 4402;
+  ENUM_TYPE_POSITION_TYPE = 9001;
+  ENUM_TYPE_COLOR_TYPE = 9011;
+  ENUM_TYPE_COLOR_SHADE = 9012;
+  ENUM_TYPE_COLOR_HUE = 9013;
+  ENUM_TYPE_FONT_WEIGHT = 9022;
+  ENUM_TYPE_FONT_SIZE = 9023;
+  ENUM_TYPE_FONT_TYPE = 9024;
+  ENUM_TYPE_TEXT_ALIGN = 9025;
+  ENUM_TYPE_TEXT_DECORATION = 9026;
+  ENUM_TYPE_TEXT_TRANSFORM = 9027;
+  ENUM_TYPE_SHADOW_TYPE = 9031;
+  ENUM_TYPE_SHADOW_POSITION = 9032;
+  ENUM_TYPE_BORDER_TYPE = 9041;
+  ENUM_TYPE_GRADIENT_TYPE = 9051;
+  ENUM_TYPE_FILL_TYPE = 9061;
+  ENUM_TYPE_FILL_POSITION = 9062;
+  ENUM_TYPE_FILL_SIZE = 9063;
+  ENUM_TYPE_LENGTH_UNIT = 9071;
+  ENUM_TYPE_LAYOUT = 9072;
+  ENUM_TYPE_DISTRIBUTE = 9073;
+  ENUM_TYPE_ALIGN = 9074;
+  ENUM_TYPE_DIRECTION = 9075;
+  ENUM_TYPE_OVERFLOW = 9076;
+  ENUM_TYPE_TRANSITION_TYPE = 9077;
+  ENUM_TYPE_SPRING_TYPE = 9078;
+  ENUM_TYPE_DIMENSION_TYPE = 9079;
+  ENUM_TYPE_THEME_COLOR = 9080;
+  ENUM_TYPE_EFFECT_TYPE = 9081;
+  ENUM_TYPE_REPEAT_TYPE = 9082;
+  ENUM_TYPE_TEXT_SPLIT_TYPE = 9084;
+  ENUM_TYPE_OFFSCREEN_BEHAVIOR = 9085;
+}
+
+enum EnvironmentType {
+  ENVIRONMENT_TYPE_UNSPECIFIED = 0;
+  ENVIRONMENT_TYPE_SYSTEM = 1;
+  ENVIRONMENT_TYPE_DEVELOPMENT = 3;
+  ENVIRONMENT_TYPE_TEST = 5;
+  ENVIRONMENT_TYPE_STAGING = 7;
+  ENVIRONMENT_TYPE_PRODUCTION = 10;
 }
 
 enum ErrorType {
@@ -812,23 +818,6 @@ enum Month {
   MONTH_DECEMBER = 12;
 }
 
-enum NodeArea {
-  NODE_AREA_UNSPECIFIED = 0;
-  NODE_AREA_GLOBAL_DATABASE = 1;
-  NODE_AREA_MAIN_DATABASE = 100;
-}
-
-enum NodeMode {
-  NODE_MODE_UNSPECIFIED = 0;
-  NODE_MODE_KERNEL = 3;
-  NODE_MODE_SYSTEM = 6;
-  NODE_MODE_BUILTIN = 10;
-  NODE_MODE_MAIN = 20;
-  NODE_MODE_TEST = 30;
-  NODE_MODE_TEMPLATE = 40;
-  NODE_MODE_ARCHIVE = 50;
-}
-
 enum NodeType {
   NODE_TYPE_UNSPECIFIED = 0;
   NODE_TYPE_BENCH = 1;
@@ -985,6 +974,14 @@ enum ProcessStatus {
   PROCESS_STATUS_SKIPPED = 55;
 }
 
+// The type of a property reference.
+enum PropertyReferenceType {
+  PROPERTY_REFERENCE_TYPE_UNSPECIFIED = 0;
+  PROPERTY_REFERENCE_TYPE_NODE = 1;
+  PROPERTY_REFERENCE_TYPE_TRAIT = 2;
+  PROPERTY_REFERENCE_TYPE_STRUCT = 3;
+}
+
 enum QueryType {
   QUERY_TYPE_UNSPECIFIED = 0;
   QUERY_TYPE_NODE = 1;
@@ -1015,10 +1012,27 @@ enum Region {
   REGION_SYDNEY = 7000;
 }
 
+// A larger Area of Regions within a Continent.
+enum RegionArea {
+  REGION_AREA_UNSPECIFIED = 0;
+  REGION_AREA_EUROPE_CENTRAL = 1000;
+  REGION_AREA_NORTH_AMERICA_EAST = 2000;
+  REGION_AREA_NORTH_AMERICA_WEST = 2200;
+  REGION_AREA_SOUTH_AMERICA_EAST = 3000;
+  REGION_AREA_MIDDLE_EAST_CENTRAL = 4000;
+  REGION_AREA_MIDDLE_EAST_WEST = 4200;
+  REGION_AREA_AFRICA_SOUTH = 5000;
+  REGION_AREA_ASIA_WEST = 6000;
+  REGION_AREA_ASIA_SOUTH = 6200;
+  REGION_AREA_ASIA_EAST = 6400;
+  REGION_AREA_AUSTRALIA_SOUTH = 7000;
+}
+
 enum RelationType {
   RELATION_TYPE_UNSPECIFIED = 0;
   RELATION_TYPE_BUILTIN_NODE = 1;
   RELATION_TYPE_CUSTOM_NODE = 2;
+  RELATION_TYPE_TRAIT = 3;
 }
 
 enum RepeatType {
@@ -1131,13 +1145,6 @@ enum SpringType {
   SPRING_TYPE_PHYSICS = 2;
 }
 
-enum StoreType {
-  STORE_TYPE_UNSPECIFIED = 0;
-  STORE_TYPE_LOCAL = 1;
-  STORE_TYPE_REMOTE = 2;
-  STORE_TYPE_DATABASE = 10;
-}
-
 // The format of a string.
 enum StringFormat {
   STRING_FORMAT_UNSPECIFIED = 0;
@@ -1153,71 +1160,71 @@ enum StringFormat {
 
 enum StructType {
   STRUCT_TYPE_UNSPECIFIED = 0;
-  STRUCT_TYPE_SCOPE = 20000;
-  STRUCT_TYPE_ORIGIN = 20001;
-  STRUCT_TYPE_NODE_REFERENCE = 20002;
-  STRUCT_TYPE_PROPERTY_REFERENCE = 20004;
-  STRUCT_TYPE_PROPERTY_INFO = 20010;
-  STRUCT_TYPE_TRAIT_INFO = 20011;
-  STRUCT_TYPE_NODE_INFO = 20012;
-  STRUCT_TYPE_STRUCT_INFO = 20013;
-  STRUCT_TYPE_ENUM_INFO = 20014;
-  STRUCT_TYPE_ENUM_OPTION_INFO = 20015;
-  STRUCT_TYPE_EDIT = 20020;
-  STRUCT_TYPE_CHANGE = 20021;
-  STRUCT_TYPE_CHANGE_RESULT = 20022;
-  STRUCT_TYPE_EXPRESSION = 20100;
-  STRUCT_TYPE_FUNCTION = 20101;
-  STRUCT_TYPE_JOIN = 20102;
-  STRUCT_TYPE_AGGREGATION = 20103;
-  STRUCT_TYPE_CONDITION = 20104;
-  STRUCT_TYPE_SORT = 20105;
-  STRUCT_TYPE_SELECT = 20106;
-  STRUCT_TYPE_RELATION_REFERENCE = 20107;
-  STRUCT_TYPE_ATTRIBUTE_REFERENCE = 20108;
-  STRUCT_TYPE_QUERY = 20110;
-  STRUCT_TYPE_QUERY_RESULT = 20111;
-  STRUCT_TYPE_QUERY_RESULT_GROUP = 20112;
-  STRUCT_TYPE_QUERY_UPDATE = 20115;
-  STRUCT_TYPE_HISTOGRAM = 20113;
-  STRUCT_TYPE_VARIABLE = 20120;
-  STRUCT_TYPE_DATABASE_INFO = 21000;
-  STRUCT_TYPE_CELL_INFO = 21100;
-  STRUCT_TYPE_SCHEDULE = 21200;
-  STRUCT_TYPE_ERROR = 21600;
-  STRUCT_TYPE_TYPE = 22000;
-  STRUCT_TYPE_NUMBER_CONSTRAINT = 22001;
-  STRUCT_TYPE_STRING_CONSTRAINT = 22002;
-  STRUCT_TYPE_COLLECTION_CONSTRAINT = 22003;
-  STRUCT_TYPE_NODE_CONSTRAINT = 22004;
-  STRUCT_TYPE_TEXT = 22100;
-  STRUCT_TYPE_TEXT_LINE = 22101;
-  STRUCT_TYPE_TEXT_SPAN = 22102;
-  STRUCT_TYPE_CODE = 22110;
-  STRUCT_TYPE_ICON = 22130;
-  STRUCT_TYPE_SELECTION = 22070;
-  STRUCT_TYPE_VALUE = 22200;
-  STRUCT_TYPE_VECTOR2 = 29000;
-  STRUCT_TYPE_VECTOR3 = 29002;
-  STRUCT_TYPE_VECTOR4 = 29004;
-  STRUCT_TYPE_AXIS2 = 29006;
-  STRUCT_TYPE_AXIS3 = 29008;
-  STRUCT_TYPE_COLOR = 29010;
-  STRUCT_TYPE_SHADOW = 29011;
-  STRUCT_TYPE_BORDER = 29012;
-  STRUCT_TYPE_FONT = 29013;
-  STRUCT_TYPE_GRADIENT_STOP = 29014;
-  STRUCT_TYPE_GRADIENT = 29015;
-  STRUCT_TYPE_FILL = 29016;
-  STRUCT_TYPE_LENGTH = 29017;
-  STRUCT_TYPE_POSITION = 29019;
-  STRUCT_TYPE_DIMENSION = 29021;
-  STRUCT_TYPE_TRANSITION = 29023;
-  STRUCT_TYPE_EFFECT = 29024;
-  STRUCT_TYPE_GRID = 29025;
-  STRUCT_TYPE_GRID_SPAN = 29027;
-  STRUCT_TYPE_INSETS = 29029;
-  STRUCT_TYPE_CORNERS = 29031;
+  STRUCT_TYPE_SCOPE = 1;
+  STRUCT_TYPE_ORIGIN = 2;
+  STRUCT_TYPE_NODE_REFERENCE = 3;
+  STRUCT_TYPE_PROPERTY_REFERENCE = 5;
+  STRUCT_TYPE_PROPERTY_INFO = 11;
+  STRUCT_TYPE_TRAIT_INFO = 12;
+  STRUCT_TYPE_NODE_INFO = 13;
+  STRUCT_TYPE_STRUCT_INFO = 14;
+  STRUCT_TYPE_ENUM_INFO = 15;
+  STRUCT_TYPE_ENUM_OPTION_INFO = 16;
+  STRUCT_TYPE_EDIT = 21;
+  STRUCT_TYPE_CHANGE = 22;
+  STRUCT_TYPE_CHANGE_RESULT = 23;
+  STRUCT_TYPE_EXPRESSION = 101;
+  STRUCT_TYPE_FUNCTION = 102;
+  STRUCT_TYPE_JOIN = 103;
+  STRUCT_TYPE_AGGREGATION = 104;
+  STRUCT_TYPE_CONDITION = 105;
+  STRUCT_TYPE_SORT = 106;
+  STRUCT_TYPE_SELECT = 107;
+  STRUCT_TYPE_RELATION_REFERENCE = 108;
+  STRUCT_TYPE_ATTRIBUTE_REFERENCE = 109;
+  STRUCT_TYPE_QUERY = 111;
+  STRUCT_TYPE_QUERY_RESULT = 112;
+  STRUCT_TYPE_QUERY_RESULT_GROUP = 113;
+  STRUCT_TYPE_QUERY_UPDATE = 116;
+  STRUCT_TYPE_HISTOGRAM = 114;
+  STRUCT_TYPE_VARIABLE = 121;
+  STRUCT_TYPE_DATABASE_INFO = 1001;
+  STRUCT_TYPE_CELL_INFO = 1101;
+  STRUCT_TYPE_SCHEDULE = 1201;
+  STRUCT_TYPE_ERROR = 1601;
+  STRUCT_TYPE_TYPE = 2001;
+  STRUCT_TYPE_NUMBER_CONSTRAINT = 2002;
+  STRUCT_TYPE_STRING_CONSTRAINT = 2003;
+  STRUCT_TYPE_COLLECTION_CONSTRAINT = 2004;
+  STRUCT_TYPE_NODE_CONSTRAINT = 2005;
+  STRUCT_TYPE_TEXT = 2101;
+  STRUCT_TYPE_TEXT_LINE = 2102;
+  STRUCT_TYPE_TEXT_SPAN = 2103;
+  STRUCT_TYPE_CODE = 2111;
+  STRUCT_TYPE_ICON = 2131;
+  STRUCT_TYPE_SELECTION = 2071;
+  STRUCT_TYPE_VALUE = 2201;
+  STRUCT_TYPE_VECTOR2 = 9001;
+  STRUCT_TYPE_VECTOR3 = 9003;
+  STRUCT_TYPE_VECTOR4 = 9005;
+  STRUCT_TYPE_AXIS2 = 9007;
+  STRUCT_TYPE_AXIS3 = 9009;
+  STRUCT_TYPE_COLOR = 9011;
+  STRUCT_TYPE_SHADOW = 9012;
+  STRUCT_TYPE_BORDER = 9013;
+  STRUCT_TYPE_FONT = 9014;
+  STRUCT_TYPE_GRADIENT_STOP = 9015;
+  STRUCT_TYPE_GRADIENT = 9016;
+  STRUCT_TYPE_FILL = 9017;
+  STRUCT_TYPE_LENGTH = 9018;
+  STRUCT_TYPE_POSITION = 9020;
+  STRUCT_TYPE_DIMENSION = 9022;
+  STRUCT_TYPE_TRANSITION = 9024;
+  STRUCT_TYPE_EFFECT = 9025;
+  STRUCT_TYPE_GRID = 9026;
+  STRUCT_TYPE_GRID_SPAN = 9028;
+  STRUCT_TYPE_INSETS = 9030;
+  STRUCT_TYPE_CORNERS = 9032;
 }
 
 enum Tenancy {
@@ -1315,14 +1322,14 @@ enum TraitType {
   TRAIT_TYPE_UNSPECIFIED = 0;
   TRAIT_TYPE_GLOBAL = 1;
   TRAIT_TYPE_CUSTOM = 3;
-  TRAIT_TYPE_MODAL = 10;
   TRAIT_TYPE_ARCHIVABLE = 11;
   TRAIT_TYPE_DELETABLE = 12;
-  TRAIT_TYPE_NAMED = 20;
-  TRAIT_TYPE_TITLED = 21;
-  TRAIT_TYPE_SLUG = 22;
-  TRAIT_TYPE_ICON = 23;
-  TRAIT_TYPE_ORDERED = 24;
+  TRAIT_TYPE_HAS_ENVIRONMENT = 20;
+  TRAIT_TYPE_HAS_NAME = 21;
+  TRAIT_TYPE_HAS_TITLE = 22;
+  TRAIT_TYPE_HAS_SLUG = 23;
+  TRAIT_TYPE_HAS_ICON = 24;
+  TRAIT_TYPE_ORDERED = 25;
   TRAIT_TYPE_TEMPLATABLE = 30;
   TRAIT_TYPE_EXTENSIBLE = 32;
   TRAIT_TYPE_IN_BENCH = 40;
@@ -1392,8 +1399,8 @@ message ActionData {
   optional google.protobuf.Timestamp archived_at = 14;
   optional google.protobuf.Timestamp deleted_at = 15;
   optional NodeReferenceData template_ptr = 16;
-  NodeMode mode = 20;
-  optional string order_key = 22;
+  EnvironmentType environment_type = 17;
+  optional string order_key = 23;
   string name = 31;
   ActionCardinality cardinality = 40;
   optional TextData text = 41;
@@ -1419,9 +1426,9 @@ message AgentData {
   optional NodeReferenceData updated_by_ptr = 13;
   optional google.protobuf.Timestamp archived_at = 14;
   optional google.protobuf.Timestamp deleted_at = 15;
-  optional NodeReferenceData owned_by_ptr = 17;
-  NodeMode mode = 20;
-  optional string order_key = 22;
+  EnvironmentType environment_type = 17;
+  optional NodeReferenceData owned_by_ptr = 19;
+  optional string order_key = 23;
   string name = 31;
   optional IconData icon = 34;
   optional NodeReferenceData block_ptr = 35;
@@ -1459,7 +1466,6 @@ message AttributeReferenceData {
   AttributeType type = 30;
   optional PropertyReferenceData prop_ptr = 31;
   optional NodeReferenceData field_ptr = 32;
-  optional RelationReferenceData relation = 33;
 }
 
 message Axis2Data {
@@ -1487,9 +1493,9 @@ message BenchData {
   optional NodeReferenceData created_by_ptr = 11;
   google.protobuf.Timestamp updated_at = 12;
   optional NodeReferenceData updated_by_ptr = 13;
-  optional NodeReferenceData owned_by_ptr = 17;
+  optional NodeReferenceData owned_by_ptr = 19;
   string name = 31;
-  string slug = 33;
+  optional string slug = 33;
   optional IconData icon = 34;
   BenchStatus status = 40;
   optional NodeReferenceData handle_ptr = 41;
@@ -1543,10 +1549,9 @@ message BlockData {
   optional google.protobuf.Timestamp archived_at = 14;
   optional google.protobuf.Timestamp deleted_at = 15;
   optional NodeReferenceData template_ptr = 16;
-  NodeMode mode = 20;
-  optional string order_key = 22;
+  EnvironmentType environment_type = 17;
+  optional string order_key = 23;
   BlockType type = 30;
-  string name = 31;
   optional TextLineData line = 40;
   optional NodeReferenceData node_ptr = 41;
   optional NodeReferenceData view_ptr = 42;
@@ -1574,8 +1579,8 @@ message BorderStyleData {
   optional google.protobuf.Timestamp archived_at = 14;
   optional google.protobuf.Timestamp deleted_at = 15;
   optional NodeReferenceData template_ptr = 16;
-  NodeMode mode = 20;
-  optional string order_key = 22;
+  EnvironmentType environment_type = 17;
+  optional string order_key = 23;
   BorderType type = 30;
   string name = 31;
   optional NodeReferenceData block_ptr = 35;
@@ -1594,9 +1599,10 @@ message CellInfoData {
 message ChangeData {
   StructType metatype = 1;
   string id = 2;
-  google.protobuf.Timestamp created_at = 31;
-  optional NodeReferenceData created_by_ptr = 32;
-  optional OriginData origin = 33;
+  optional string name = 31;
+  google.protobuf.Timestamp created_at = 32;
+  optional NodeReferenceData created_by_ptr = 33;
+  optional OriginData origin = 34;
   repeated EditData edits = 40;
 }
 
@@ -1673,8 +1679,8 @@ message ColorStyleData {
   optional google.protobuf.Timestamp archived_at = 14;
   optional google.protobuf.Timestamp deleted_at = 15;
   optional NodeReferenceData template_ptr = 16;
-  NodeMode mode = 20;
-  optional string order_key = 22;
+  EnvironmentType environment_type = 17;
+  optional string order_key = 23;
   ColorType type = 30;
   string name = 31;
   optional NodeReferenceData block_ptr = 35;
@@ -1717,8 +1723,8 @@ message CursorData {
   google.protobuf.Timestamp updated_at = 12;
   optional NodeReferenceData updated_by_ptr = 13;
   optional google.protobuf.Timestamp deleted_at = 15;
-  optional NodeReferenceData owned_by_ptr = 17;
-  NodeMode mode = 20;
+  EnvironmentType environment_type = 17;
+  optional NodeReferenceData owned_by_ptr = 19;
   CursorType type = 30;
   optional TextLineData title = 32;
   CursorStatus status = 40;
@@ -1746,9 +1752,9 @@ message CustomNodeDefinitionData {
   google.protobuf.Timestamp updated_at = 12;
   optional NodeReferenceData updated_by_ptr = 13;
   optional google.protobuf.Timestamp deleted_at = 15;
-  optional NodeReferenceData owned_by_ptr = 17;
-  NodeMode mode = 20;
-  optional string order_key = 22;
+  EnvironmentType environment_type = 17;
+  optional NodeReferenceData owned_by_ptr = 19;
+  optional string order_key = 23;
   string name = 31;
   optional NodeReferenceData block_ptr = 35;
   repeated TraitType traits = 40;
@@ -1766,8 +1772,8 @@ message CustomNodeInstanceData {
   google.protobuf.Timestamp updated_at = 12;
   optional NodeReferenceData updated_by_ptr = 13;
   optional google.protobuf.Timestamp deleted_at = 15;
-  NodeMode mode = 20;
-  map<string, ValueData> value = 21;
+  EnvironmentType environment_type = 17;
+  map<string, ValueData> value = 24;
   NodeReferenceData definition_ptr = 40;
 }
 
@@ -1781,8 +1787,8 @@ message DatabaseData {
   optional NodeReferenceData created_by_ptr = 11;
   google.protobuf.Timestamp updated_at = 12;
   optional NodeReferenceData updated_by_ptr = 13;
-  optional NodeReferenceData owned_by_ptr = 17;
-  NodeMode mode = 20;
+  EnvironmentType environment_type = 17;
+  optional NodeReferenceData owned_by_ptr = 19;
   string name = 31;
   Region region = 50;
   optional string cell_name = 51;
@@ -1855,8 +1861,8 @@ message EffectStyleData {
   optional google.protobuf.Timestamp archived_at = 14;
   optional google.protobuf.Timestamp deleted_at = 15;
   optional NodeReferenceData template_ptr = 16;
-  NodeMode mode = 20;
-  optional string order_key = 22;
+  EnvironmentType environment_type = 17;
+  optional string order_key = 23;
   EffectType type = 30;
   string name = 31;
   optional NodeReferenceData block_ptr = 35;
@@ -1928,8 +1934,8 @@ message FieldData {
   optional google.protobuf.Timestamp archived_at = 14;
   optional google.protobuf.Timestamp deleted_at = 15;
   optional NodeReferenceData template_ptr = 16;
-  NodeMode mode = 20;
-  optional string order_key = 22;
+  EnvironmentType environment_type = 17;
+  optional string order_key = 23;
   FieldType type = 30;
   string name = 31;
   optional IconData icon = 34;
@@ -1942,8 +1948,8 @@ message FieldData {
   optional StructType struct_type = 46;
   optional NodeReferenceData base_type_ptr = 47;
   optional TypeData key_type = 48;
-  bool is_required = 50;
-  bool is_variable = 51;
+  optional bool is_required = 50;
+  optional bool is_variable = 51;
   optional ValueData default = 55;
   optional DefaultFactory default_factory = 56;
   optional CollectionConstraintData collection_constraint = 60;
@@ -1965,8 +1971,8 @@ message FileData {
   optional NodeReferenceData created_by_ptr = 11;
   google.protobuf.Timestamp updated_at = 12;
   optional NodeReferenceData updated_by_ptr = 13;
-  optional NodeReferenceData owned_by_ptr = 17;
-  NodeMode mode = 20;
+  EnvironmentType environment_type = 17;
+  optional NodeReferenceData owned_by_ptr = 19;
   FileType type = 30;
   string name = 31;
   FileSource source = 60;
@@ -2014,9 +2020,9 @@ message FlowData {
   optional google.protobuf.Timestamp archived_at = 14;
   optional google.protobuf.Timestamp deleted_at = 15;
   optional NodeReferenceData template_ptr = 16;
-  optional NodeReferenceData owned_by_ptr = 17;
-  NodeMode mode = 20;
-  optional string order_key = 22;
+  EnvironmentType environment_type = 17;
+  optional NodeReferenceData owned_by_ptr = 19;
+  optional string order_key = 23;
   FlowType type = 30;
   string name = 31;
   optional NodeReferenceData block_ptr = 35;
@@ -2041,8 +2047,8 @@ message FlowEdgeData {
   google.protobuf.Timestamp updated_at = 12;
   optional NodeReferenceData updated_by_ptr = 13;
   optional NodeReferenceData template_ptr = 16;
-  NodeMode mode = 20;
-  optional string order_key = 22;
+  EnvironmentType environment_type = 17;
+  optional string order_key = 23;
   FlowEdgeType type = 30;
   string name = 31;
   NodeReferenceData source_ptr = 35;
@@ -2084,8 +2090,8 @@ message FontStyleData {
   optional google.protobuf.Timestamp archived_at = 14;
   optional google.protobuf.Timestamp deleted_at = 15;
   optional NodeReferenceData template_ptr = 16;
-  NodeMode mode = 20;
-  optional string order_key = 22;
+  EnvironmentType environment_type = 17;
+  optional string order_key = 23;
   FontType type = 30;
   string name = 31;
   optional NodeReferenceData block_ptr = 35;
@@ -2114,9 +2120,9 @@ message FrameViewData {
   optional google.protobuf.Timestamp archived_at = 14;
   optional google.protobuf.Timestamp deleted_at = 15;
   optional NodeReferenceData template_ptr = 16;
-  NodeMode mode = 20;
-  map<string, ValueData> value = 21;
-  optional string order_key = 22;
+  EnvironmentType environment_type = 17;
+  optional string order_key = 23;
+  map<string, ValueData> value = 24;
   string name = 31;
   optional NodeReferenceData block_ptr = 35;
   optional PositionData position = 40;
@@ -2252,8 +2258,8 @@ message GradientStyleData {
   optional google.protobuf.Timestamp archived_at = 14;
   optional google.protobuf.Timestamp deleted_at = 15;
   optional NodeReferenceData template_ptr = 16;
-  NodeMode mode = 20;
-  optional string order_key = 22;
+  EnvironmentType environment_type = 17;
+  optional string order_key = 23;
   GradientType type = 30;
   string name = 31;
   optional NodeReferenceData block_ptr = 35;
@@ -2289,7 +2295,7 @@ message HandleData {
   optional NodeReferenceData created_by_ptr = 11;
   google.protobuf.Timestamp updated_at = 12;
   optional NodeReferenceData updated_by_ptr = 13;
-  string slug = 33;
+  optional string slug = 33;
 }
 
 message HistogramData {
@@ -2329,8 +2335,8 @@ message InterruptionData {
   optional NodeReferenceData created_by_ptr = 11;
   google.protobuf.Timestamp updated_at = 12;
   optional NodeReferenceData updated_by_ptr = 13;
-  NodeMode mode = 20;
-  map<string, ValueData> value = 21;
+  EnvironmentType environment_type = 17;
+  map<string, ValueData> value = 24;
   InterruptionType type = 30;
   optional NodeReferenceData runnable_ptr = 32;
   optional NodeReferenceData span_ptr = 37;
@@ -2346,8 +2352,9 @@ message JoinData {
   StructType metatype = 1;
   JoinType type = 30;
   optional RelationReferenceData relation = 31;
-  optional ConditionData on = 32;
   bool recursive = 33;
+  optional int64 depth = 34;
+  optional ConditionData on = 35;
 }
 
 // A label container View for form-like input views.
@@ -2364,9 +2371,9 @@ message LabelViewData {
   optional google.protobuf.Timestamp archived_at = 14;
   optional google.protobuf.Timestamp deleted_at = 15;
   optional NodeReferenceData template_ptr = 16;
-  NodeMode mode = 20;
-  map<string, ValueData> value = 21;
-  optional string order_key = 22;
+  EnvironmentType environment_type = 17;
+  optional string order_key = 23;
+  map<string, ValueData> value = 24;
   string name = 31;
   optional NodeReferenceData block_ptr = 35;
   optional PositionData position = 40;
@@ -2456,8 +2463,8 @@ message LinkData {
   optional NodeReferenceData created_by_ptr = 11;
   google.protobuf.Timestamp updated_at = 12;
   optional NodeReferenceData updated_by_ptr = 13;
-  optional NodeReferenceData owned_by_ptr = 17;
-  NodeMode mode = 20;
+  EnvironmentType environment_type = 17;
+  optional NodeReferenceData owned_by_ptr = 19;
   LinkType type = 30;
   string name = 31;
   optional TextLineData title = 32;
@@ -2487,8 +2494,8 @@ message MachineData {
   optional NodeReferenceData created_by_ptr = 11;
   google.protobuf.Timestamp updated_at = 12;
   optional NodeReferenceData updated_by_ptr = 13;
-  optional NodeReferenceData owned_by_ptr = 17;
-  NodeMode mode = 20;
+  EnvironmentType environment_type = 17;
+  optional NodeReferenceData owned_by_ptr = 19;
   MachineType type = 30;
   string name = 31;
   ResourceStatus status = 40;
@@ -2526,8 +2533,8 @@ message MessageData {
   google.protobuf.Timestamp updated_at = 12;
   optional NodeReferenceData updated_by_ptr = 13;
   optional google.protobuf.Timestamp deleted_at = 15;
-  optional NodeReferenceData owned_by_ptr = 17;
-  NodeMode mode = 20;
+  EnvironmentType environment_type = 17;
+  optional NodeReferenceData owned_by_ptr = 19;
   MessageType type = 30;
   optional TextLineData title = 32;
   optional NodeReferenceData thread_ptr = 35;
@@ -2591,8 +2598,8 @@ message NumberInputViewData {
   optional google.protobuf.Timestamp archived_at = 14;
   optional google.protobuf.Timestamp deleted_at = 15;
   optional NodeReferenceData template_ptr = 16;
-  NodeMode mode = 20;
-  optional string order_key = 22;
+  EnvironmentType environment_type = 17;
+  optional string order_key = 23;
   string name = 31;
   optional NodeReferenceData block_ptr = 35;
   optional PositionData position = 40;
@@ -2624,7 +2631,7 @@ message OrganizationData {
   google.protobuf.Timestamp updated_at = 12;
   optional NodeReferenceData updated_by_ptr = 13;
   string name = 31;
-  string slug = 33;
+  optional string slug = 33;
   optional IconData icon = 34;
   OrganizationStatus status = 38;
   NodeReferenceData bench_ptr = 40;
@@ -2681,11 +2688,11 @@ message PackageData {
   optional google.protobuf.Timestamp archived_at = 14;
   optional google.protobuf.Timestamp deleted_at = 15;
   optional NodeReferenceData template_ptr = 16;
-  optional NodeReferenceData owned_by_ptr = 17;
-  NodeMode mode = 20;
+  EnvironmentType environment_type = 17;
+  optional NodeReferenceData owned_by_ptr = 19;
   PackageType type = 30;
   string name = 31;
-  string slug = 33;
+  optional string slug = 33;
   optional IconData icon = 34;
   optional NodeReferenceData main_page_ptr = 40;
   optional NodeReferenceData main_scene_ptr = 41;
@@ -2737,11 +2744,11 @@ message PageData {
   optional google.protobuf.Timestamp archived_at = 14;
   optional google.protobuf.Timestamp deleted_at = 15;
   optional NodeReferenceData template_ptr = 16;
-  optional NodeReferenceData owned_by_ptr = 17;
-  NodeMode mode = 20;
-  optional string order_key = 22;
+  EnvironmentType environment_type = 17;
+  optional NodeReferenceData owned_by_ptr = 19;
+  optional string order_key = 23;
   optional TextLineData title = 32;
-  string slug = 33;
+  optional string slug = 33;
   optional IconData icon = 34;
   optional NodeReferenceData block_ptr = 35;
 }
@@ -2770,8 +2777,8 @@ message PropertyInfoData {
   optional StructType struct_type = 46;
   optional NodeReferenceData base_type_ptr = 47;
   optional TypeData key_type = 48;
-  bool is_required = 50;
-  bool is_variable = 51;
+  optional bool is_required = 50;
+  optional bool is_variable = 51;
   optional ValueData default = 55;
   optional DefaultFactory default_factory = 56;
   optional CollectionConstraintData collection_constraint = 60;
@@ -2792,9 +2799,11 @@ message PropertyInfoData {
 
 message PropertyReferenceData {
   StructType metatype = 1;
+  PropertyReferenceType type = 30;
   optional NodeType node_type = 31;
-  optional StructType struct_type = 32;
-  int64 id = 33;
+  optional TraitType trait_type = 32;
+  optional StructType struct_type = 33;
+  int64 id = 35;
 }
 
 message QueryData {
@@ -2806,7 +2815,6 @@ message QueryData {
   optional JoinData join = 33;
   optional SelectData select = 34;
   repeated QueryData subqueries = 35;
-  bool is_live = 39;
   optional ConditionData where = 40;
   optional ConditionData having = 41;
   repeated ExpressionData group_by = 42;
@@ -2814,7 +2822,6 @@ message QueryData {
   repeated SortData sort = 44;
   optional int64 limit = 50;
   optional int64 offset = 51;
-  optional bool count = 52;
 }
 
 message QueryResultData {
@@ -2842,14 +2849,15 @@ message QueryResultGroupData {
 message QueryUpdateData {
   StructType metatype = 1;
   QueryUpdateType type = 30;
-  optional QueryResultData result = 31;
+  optional QueryResultData result = 40;
 }
 
 message RelationReferenceData {
   StructType metatype = 1;
   RelationType type = 30;
-  NodeType node_type = 31;
+  optional NodeType node_type = 31;
   optional NodeReferenceData definition_ptr = 32;
+  optional TraitType trait_type = 33;
 }
 
 // A Route is a path to a Scene.
@@ -2865,11 +2873,11 @@ message RouteData {
   optional NodeReferenceData updated_by_ptr = 13;
   optional google.protobuf.Timestamp archived_at = 14;
   optional google.protobuf.Timestamp deleted_at = 15;
-  optional NodeReferenceData owned_by_ptr = 17;
-  NodeMode mode = 20;
-  optional string order_key = 22;
+  EnvironmentType environment_type = 17;
+  optional NodeReferenceData owned_by_ptr = 19;
+  optional string order_key = 23;
   string name = 31;
-  string slug = 33;
+  optional string slug = 33;
   optional IconData icon = 34;
   optional NodeReferenceData block_ptr = 35;
   optional NodeReferenceData scene_ptr = 40;
@@ -2886,8 +2894,8 @@ message RunData {
   optional NodeReferenceData created_by_ptr = 11;
   google.protobuf.Timestamp updated_at = 12;
   optional NodeReferenceData updated_by_ptr = 13;
-  NodeMode mode = 20;
-  map<string, ValueData> value = 21;
+  EnvironmentType environment_type = 17;
+  map<string, ValueData> value = 24;
   RunType type = 30;
   optional NodeReferenceData thread_ptr = 38;
   optional CodeData code = 66;
@@ -2924,11 +2932,11 @@ message SceneData {
   optional google.protobuf.Timestamp archived_at = 14;
   optional google.protobuf.Timestamp deleted_at = 15;
   optional NodeReferenceData template_ptr = 16;
-  optional NodeReferenceData owned_by_ptr = 17;
-  NodeMode mode = 20;
-  optional string order_key = 22;
+  EnvironmentType environment_type = 17;
+  optional NodeReferenceData owned_by_ptr = 19;
+  optional string order_key = 23;
   string name = 31;
-  string slug = 33;
+  optional string slug = 33;
   optional IconData icon = 34;
   optional NodeReferenceData block_ptr = 35;
   optional NodeReferenceData root_view_ptr = 40;
@@ -2968,8 +2976,8 @@ message SchemaData {
   optional google.protobuf.Timestamp archived_at = 14;
   optional google.protobuf.Timestamp deleted_at = 15;
   optional NodeReferenceData template_ptr = 16;
-  NodeMode mode = 20;
-  optional string order_key = 22;
+  EnvironmentType environment_type = 17;
+  optional string order_key = 23;
   string name = 31;
   optional NodeReferenceData block_ptr = 35;
   TypeCardinality cardinality = 40;
@@ -2981,8 +2989,8 @@ message SchemaData {
   optional StructType struct_type = 46;
   optional NodeReferenceData base_type_ptr = 47;
   optional TypeData key_type = 48;
-  bool is_required = 50;
-  bool is_variable = 51;
+  optional bool is_required = 50;
+  optional bool is_variable = 51;
   optional ValueData default = 55;
   optional DefaultFactory default_factory = 56;
   optional CollectionConstraintData collection_constraint = 60;
@@ -3022,9 +3030,9 @@ message ServiceData {
   optional google.protobuf.Timestamp archived_at = 14;
   optional google.protobuf.Timestamp deleted_at = 15;
   optional NodeReferenceData template_ptr = 16;
-  optional NodeReferenceData owned_by_ptr = 17;
-  NodeMode mode = 20;
-  optional string order_key = 22;
+  EnvironmentType environment_type = 17;
+  optional NodeReferenceData owned_by_ptr = 19;
+  optional string order_key = 23;
   string name = 31;
   optional NodeReferenceData block_ptr = 35;
   optional ModelDeveloper model_developer = 100;
@@ -3062,8 +3070,8 @@ message ShadowStyleData {
   optional google.protobuf.Timestamp archived_at = 14;
   optional google.protobuf.Timestamp deleted_at = 15;
   optional NodeReferenceData template_ptr = 16;
-  NodeMode mode = 20;
-  optional string order_key = 22;
+  EnvironmentType environment_type = 17;
+  optional string order_key = 23;
   ShadowType type = 30;
   string name = 31;
   optional NodeReferenceData block_ptr = 35;
@@ -3090,8 +3098,8 @@ message SliderInputViewData {
   optional google.protobuf.Timestamp archived_at = 14;
   optional google.protobuf.Timestamp deleted_at = 15;
   optional NodeReferenceData template_ptr = 16;
-  NodeMode mode = 20;
-  optional string order_key = 22;
+  EnvironmentType environment_type = 17;
+  optional string order_key = 23;
   string name = 31;
   optional NodeReferenceData block_ptr = 35;
   optional PositionData position = 40;
@@ -3137,9 +3145,9 @@ message SpaceData {
   optional google.protobuf.Timestamp archived_at = 14;
   optional google.protobuf.Timestamp deleted_at = 15;
   optional NodeReferenceData template_ptr = 16;
-  optional NodeReferenceData owned_by_ptr = 17;
-  NodeMode mode = 20;
-  optional string order_key = 22;
+  EnvironmentType environment_type = 17;
+  optional NodeReferenceData owned_by_ptr = 19;
+  optional string order_key = 23;
   SpaceType type = 30;
   optional string name = 31;
   optional SelectionData selection = 70;
@@ -3161,7 +3169,7 @@ message SpanData {
   optional NodeReferenceData created_by_ptr = 11;
   google.protobuf.Timestamp updated_at = 12;
   optional NodeReferenceData updated_by_ptr = 13;
-  NodeMode mode = 20;
+  EnvironmentType environment_type = 17;
   SpanType type = 30;
   optional string title = 60;
   ProcessStatus status = 80;
@@ -3192,9 +3200,9 @@ message SplitViewData {
   optional google.protobuf.Timestamp archived_at = 14;
   optional google.protobuf.Timestamp deleted_at = 15;
   optional NodeReferenceData template_ptr = 16;
-  NodeMode mode = 20;
-  map<string, ValueData> value = 21;
-  optional string order_key = 22;
+  EnvironmentType environment_type = 17;
+  optional string order_key = 23;
+  map<string, ValueData> value = 24;
   string name = 31;
   optional NodeReferenceData block_ptr = 35;
   optional PositionData position = 40;
@@ -3299,9 +3307,9 @@ message TaskData {
   optional google.protobuf.Timestamp archived_at = 14;
   optional google.protobuf.Timestamp deleted_at = 15;
   optional NodeReferenceData template_ptr = 16;
-  optional NodeReferenceData owned_by_ptr = 17;
-  NodeMode mode = 20;
-  optional string order_key = 22;
+  EnvironmentType environment_type = 17;
+  optional NodeReferenceData owned_by_ptr = 19;
+  optional string order_key = 23;
   optional TextLineData title = 32;
   optional NodeReferenceData block_ptr = 35;
   optional google.protobuf.Timestamp due_at = 50;
@@ -3372,8 +3380,8 @@ message TextViewData {
   optional google.protobuf.Timestamp archived_at = 14;
   optional google.protobuf.Timestamp deleted_at = 15;
   optional NodeReferenceData template_ptr = 16;
-  NodeMode mode = 20;
-  optional string order_key = 22;
+  EnvironmentType environment_type = 17;
+  optional string order_key = 23;
   string name = 31;
   optional NodeReferenceData block_ptr = 35;
   optional PositionData position = 40;
@@ -3417,8 +3425,8 @@ message ThemeData {
   optional NodeReferenceData updated_by_ptr = 13;
   optional google.protobuf.Timestamp archived_at = 14;
   optional google.protobuf.Timestamp deleted_at = 15;
-  NodeMode mode = 20;
-  optional string order_key = 22;
+  EnvironmentType environment_type = 17;
+  optional string order_key = 23;
   string name = 31;
   optional IconData icon = 34;
   optional NodeReferenceData block_ptr = 35;
@@ -3438,8 +3446,8 @@ message ThreadData {
   optional NodeReferenceData updated_by_ptr = 13;
   optional google.protobuf.Timestamp archived_at = 14;
   optional google.protobuf.Timestamp deleted_at = 15;
-  optional NodeReferenceData owned_by_ptr = 17;
-  NodeMode mode = 20;
+  EnvironmentType environment_type = 17;
+  optional NodeReferenceData owned_by_ptr = 19;
   optional TextLineData title = 32;
   ProcessStatus status = 80;
   optional google.protobuf.Duration duration = 81;
@@ -3473,8 +3481,8 @@ message ThreadViewData {
   optional google.protobuf.Timestamp archived_at = 14;
   optional google.protobuf.Timestamp deleted_at = 15;
   optional NodeReferenceData template_ptr = 16;
-  NodeMode mode = 20;
-  optional string order_key = 22;
+  EnvironmentType environment_type = 17;
+  optional string order_key = 23;
   string name = 31;
   optional NodeReferenceData block_ptr = 35;
   optional PositionData position = 40;
@@ -3527,8 +3535,8 @@ message TransitionStyleData {
   optional google.protobuf.Timestamp archived_at = 14;
   optional google.protobuf.Timestamp deleted_at = 15;
   optional NodeReferenceData template_ptr = 16;
-  NodeMode mode = 20;
-  optional string order_key = 22;
+  EnvironmentType environment_type = 17;
+  optional string order_key = 23;
   TransitionType type = 30;
   string name = 31;
   optional NodeReferenceData block_ptr = 35;
@@ -3554,8 +3562,8 @@ message TypeData {
   optional StructType struct_type = 46;
   optional NodeReferenceData base_type_ptr = 47;
   optional TypeData key_type = 48;
-  bool is_required = 50;
-  bool is_variable = 51;
+  optional bool is_required = 50;
+  optional bool is_variable = 51;
   optional ValueData default = 55;
   optional DefaultFactory default_factory = 56;
   optional CollectionConstraintData collection_constraint = 60;
@@ -3574,7 +3582,7 @@ message UserData {
   google.protobuf.Timestamp updated_at = 12;
   optional NodeReferenceData updated_by_ptr = 13;
   string name = 31;
-  string slug = 33;
+  optional string slug = 33;
   optional IconData icon = 34;
   UserStatus status = 40;
   optional google.protobuf.Timestamp last_logged_in_at = 41;
@@ -3633,8 +3641,8 @@ message WizardViewData {
   optional google.protobuf.Timestamp archived_at = 14;
   optional google.protobuf.Timestamp deleted_at = 15;
   optional NodeReferenceData template_ptr = 16;
-  NodeMode mode = 20;
-  optional string order_key = 22;
+  EnvironmentType environment_type = 17;
+  optional string order_key = 23;
   string name = 31;
   optional NodeReferenceData block_ptr = 35;
   optional PositionData position = 40;

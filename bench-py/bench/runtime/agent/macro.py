@@ -12,11 +12,11 @@ from bench.language import (
     Claim,
     ClaimType,
     CursorType,
+    EnvironmentType,
     File,
     Interruption,
     Message,
     Node,
-    NodeMode,
     Package,
     Page,
     ProcessStatus,
@@ -258,7 +258,9 @@ def CALL(
 
     # title
     object_title = text_line(object_title) if object_title is not None else None
-    if action.mode == NodeMode.BUILTIN:  # use known good title for builtin actions
+    if (
+        action.environment_type == EnvironmentType.BUILTIN
+    ):  # use known good title for builtin actions
         if action.id == InternetService.child(Action, "Search").id and "Query" in inputs:
             object_title = text_line(inputs["Query"])
         elif action.id == InternetService.child(Action, "Read").id and "URL" in inputs:

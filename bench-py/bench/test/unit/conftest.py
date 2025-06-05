@@ -24,7 +24,7 @@ from bench.language import (
     BenchStatus,
     BuiltinObjectBase,
     Database,
-    NodeMode,
+    EnvironmentType,
     NodeType,
     Package,
     PackageType,
@@ -66,7 +66,7 @@ def event_loop_policy():
 
 def make_session(name: str):
     """Make a 'fake' session for context"""
-    session = Session(mode=NodeMode.MAIN, oracle=REAL_ORACLE)
+    session = Session(mode=EnvironmentType.STAGING, oracle=REAL_ORACLE)
     return session
 
 

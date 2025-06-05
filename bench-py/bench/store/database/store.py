@@ -7,6 +7,7 @@ from fastuuid import UUID
 from opentelemetry import trace
 
 from bench.language import (
+    Area,
     Change,
     ChangeResult,
     ChangeStatus,
@@ -15,7 +16,6 @@ from bench.language import (
     Edit,
     EditOperation,
     EditType,
-    NodeArea,
     NodeReference,
     NodeType,
     Query,
@@ -65,7 +65,7 @@ class DatabaseStore(Store):
 
     __slots__ = ("context", "database")
 
-    def __init__(self, database: DatabaseInfo, area: NodeArea | None):
+    def __init__(self, database: DatabaseInfo, area: Area | None):
         self.database = database
         self.context: DatabaseStoreContext | None = None
         self.area = area

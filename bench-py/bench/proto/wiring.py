@@ -2,8 +2,7 @@ import calendar
 import textwrap
 from collections.abc import Mapping
 from datetime import datetime, timedelta
-from itertools import chain
-from typing import TYPE_CHECKING, Any, Union, assert_never, cast
+from typing import TYPE_CHECKING, Any, assert_never, cast
 
 import pytz
 import structlog
@@ -24,16 +23,11 @@ from bench.language.core import (
     PrimitiveType,
     Property,
     ScalarType,
-    StructType,
     TypeCardinality,
     Variable,
 )
-from bench.language.registry import (
-    BUILTIN_OBJECT_CLASS_BY_TYPE,
-    BUILTIN_OBJECT_TYPE_BY_CLASS,
-    STRUCT_CLASS_BY_TYPE,
-)
-from bench.pb2 import AnyNodeData, AnyStructData, RpcMetadata
+from bench.language.registry import STRUCT_CLASS_BY_TYPE, get_builtin_type
+from bench.pb2 import AnyNodeData, RpcMetadata
 from bench.utils.string import Casing, to_casing
 
 if TYPE_CHECKING:
@@ -43,22 +37,6 @@ if TYPE_CHECKING:
 
 logger = structlog.get_logger(__name__)
 tracer = trace.get_tracer(__name__)
-
-
-PROTO_CLASS_BY_TYPE: dict[NodeType | StructType, type[Union[AnyNodeData, AnyStructData]]] = {
-    object_type: getattr(pb2, object_type.bench_name + "Data")
-    for object_type in chain(NodeType, StructType)
-    if hasattr(pb2, object_type.bench_name + "Data")  # may just be creating a new class
-}
-OBJECT_TYPE_BY_PROTO_CLASS: dict[type[Union[AnyNodeData, AnyStructData]], NodeType | StructType] = {
-    cls: object_type for object_type, cls in PROTO_CLASS_BY_TYPE.items()
-}
-BENCH_CLASS_BY_PROTO_CLASS: dict[
-    type[Union[AnyNodeData, AnyStructData]], type[BuiltinObjectBase]
-] = {
-    cls: BUILTIN_OBJECT_CLASS_BY_TYPE[object_type]
-    for cls, object_type in OBJECT_TYPE_BY_PROTO_CLASS.items()
-}
 
 
 def generate_pack_proto_impl(cls: type["BuiltinObjectBase"]) -> tuple[str, dict[str, Any]]:
@@ -116,7 +94,7 @@ from_proto = __unpack_proto__
 
 def _generate_pack_proto(cls: type["BuiltinObjectBase"]) -> str:
     """Generate the BuiltinObject.__pack_proto__ method implementation."""
-    metatype = BUILTIN_OBJECT_TYPE_BY_CLASS[cls]
+    metatype = get_builtin_type(cls)
     pack_method_parts: list[str] = []
     pack_method_parts.append(f"_object_data = {cls.__name__}Data(metatype={metatype.value})")
 

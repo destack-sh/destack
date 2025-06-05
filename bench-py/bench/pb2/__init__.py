@@ -2,7 +2,7 @@
 
 from typing import TYPE_CHECKING, Union
 
-VERSION = "2025.06.03.8"
+VERSION = "2025.06.05.1"
 
 # import from all generated files
 from .runtime_pb2 import *
@@ -81,6 +81,8 @@ AnyNodeData = Union[
 ]
 AnyStructData = Union[
     ScopeData,
+    RelationReferenceData,
+    AttributeReferenceData,
     PropertyReferenceData,
     NodeReferenceData,
     CodeData,
@@ -90,8 +92,6 @@ AnyStructData = Union[
     NodeConstraintData,
     TypeData,
     ValueData,
-    RelationReferenceData,
-    AttributeReferenceData,
     FunctionData,
     ConditionData,
     AggregationData,

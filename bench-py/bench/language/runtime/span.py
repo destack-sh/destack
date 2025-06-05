@@ -1,8 +1,8 @@
 from typing import TYPE_CHECKING, Union
 
 from bench.language.core import (
+    HasEnvironment,
     IsInPackage,
-    IsModal,
     IsProcessable,
     Node,
     NodeType,
@@ -22,7 +22,7 @@ if TYPE_CHECKING:
 
 @node_(NodeType.SPAN)
 class Span(
-    IsModal,
+    HasEnvironment,
     IsProcessable,
     IsInPackage,
     Node[SpanData],

@@ -8,13 +8,13 @@ from more_itertools import first
 from rich import print
 from rich.console import Console
 
-from bench.language import REGION, VERSION, NodeArea, Region
+from bench.language import REGION, VERSION, Area, Region
 from bench.utils.oracle import REAL_ORACLE
 
 from .utils import async_to_sync, parse_node_area, parse_region
 
 if TYPE_CHECKING:
-    from bench.language import NodeArea, Region
+    from bench.language import Area, Region
 
 logger = structlog.get_logger(__name__)
 app = typer.Typer(short_help="migration management")
@@ -24,7 +24,7 @@ console = Console()
 @app.command(help="generate SQL migrations")
 @async_to_sync
 async def make(
-    area: Annotated[NodeArea | None, typer.Option(parser=parse_node_area)] = None,
+    area: Annotated[Area | None, typer.Option(parser=parse_node_area)] = None,
     region: Annotated[Region, typer.Option(parser=parse_region)] = REGION,
     bench: str = typer.Option(default="bench", help="the bench to use as local reference"),
     no_downgrade: bool = typer.Option(default=False, help="exclude downgrade operations"),
@@ -74,7 +74,7 @@ async def make(
         )
 
     # diff main
-    if area in (None, NodeArea.MAIN_DATABASE):
+    if area in (None, Area.MAIN_DATABASE):
         main_database = await DATABASE_PROVIDER.resolve_or_error(
             region or REGION, cell_name, external_name
         )
@@ -91,7 +91,7 @@ async def make(
         main_migration_ops = []
 
     # diff global
-    if area in (None, NodeArea.GLOBAL_DATABASE):
+    if area in (None, Area.GLOBAL_DATABASE):
         async with pg_connection(global_database) as conn:
             old_global_schema = await introspect_schema(
                 conn,
@@ -134,7 +134,7 @@ async def make(
 @app.command(help="apply SQL migrations")
 @async_to_sync
 async def apply(
-    area: "NodeArea" = typer.Option(  # noqa: B008
+    area: "Area" = typer.Option(  # noqa: B008
         parser=parse_node_area, help="the area to migrate"
     ),
     target: Optional[str] = typer.Option(
@@ -151,17 +151,17 @@ async def apply(
     ),
     dry_run: bool = typer.Option(default=False, help="only try, don't commit"),
 ):
-    from bench.language import REGION, NodeArea
+    from bench.language import REGION, Area
     from bench.sharding import DATABASE_PROVIDER, get_global_database_from_env
     from bench.store.database import pg_transaction, sql_migrate
 
     start = time.time()
 
     # resolve databases to migrate
-    if area == NodeArea.GLOBAL_DATABASE:
+    if area == Area.GLOBAL_DATABASE:
         global_database = get_global_database_from_env()
         databases = [global_database]
-    elif area == NodeArea.MAIN_DATABASE:
+    elif area == Area.MAIN_DATABASE:
         assert cell_name, "cell_name is required for main area"
         assert external_name, "external_name is required for main area"
         main_database = await DATABASE_PROVIDER.resolve_or_error(

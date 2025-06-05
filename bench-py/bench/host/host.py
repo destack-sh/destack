@@ -8,6 +8,7 @@ from opentelemetry import trace
 
 from bench.language import (
     CLOUD,
+    Area,
     Bench,
     Change,
     Client,
@@ -15,7 +16,6 @@ from bench.language import (
     DatabaseInfo,
     IsSubject,
     LiveStore,
-    NodeArea,
     NodeReference,
     NodeType,
     Query,
@@ -92,7 +92,7 @@ class HostService(ServiceBase, HostBase):
         self.scope = Scope(bench_id=bench_id)
         self.plugins: tuple[HostPlugin, ...] = ()  # incl. provisioners
         self.global_database_store = DatabaseStore(
-            database=global_database, area=NodeArea.GLOBAL_DATABASE
+            database=global_database, area=Area.GLOBAL_DATABASE
         )
         self.main_database_store: DatabaseStore | None = None
         self.store: LiveStore = ...  # type: ignore nocheckin
@@ -119,7 +119,7 @@ class HostService(ServiceBase, HostBase):
             ).execute_one()
             if (database := bench.database) is not None:
                 self.main_database_store = DatabaseStore(
-                    database=database.to_info(), area=NodeArea.MAIN_DATABASE
+                    database=database.to_info(), area=Area.MAIN_DATABASE
                 )
 
     def stop(self) -> None:

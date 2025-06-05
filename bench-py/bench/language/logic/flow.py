@@ -5,12 +5,12 @@ from fastuuid import UUID
 from bench.language.core import (
     BuiltinEnum,
     EnumType,
+    HasEnvironment,
     HasName,
     IsArchivable,
     IsBlockable,
     IsDeletable,
     IsInPackage,
-    IsModal,
     IsOrdered,
     IsOwnable,
     IsRunnable,
@@ -47,7 +47,7 @@ class FlowType(BuiltinEnum):
 class Flow(
     IsTemplatable,
     IsOwnable,
-    IsModal,
+    HasEnvironment,
     HasName,
     IsRunnable,
     IsBlockable,
@@ -72,7 +72,7 @@ class FlowEdgeType(BuiltinEnum):
 @node_(NodeType.FLOW_EDGE)
 class FlowEdge(
     IsTemplatable,
-    IsModal,
+    HasEnvironment,
     IsRunnable,
     HasName,
     IsOrdered,

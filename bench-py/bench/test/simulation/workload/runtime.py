@@ -3,7 +3,7 @@ from collections.abc import Awaitable
 from dataclasses import dataclass
 from typing import Any, Callable, override
 
-from bench.language import IsRunnable, NodeMode, ProcessStatus, Run
+from bench.language import EnvironmentType, IsRunnable, ProcessStatus, Run
 from bench.test.simulation.core import Simulation
 
 from .client import ClientWorkload, ClientWorkloadSpec
@@ -31,7 +31,7 @@ class RuntimeWorkload[SpecT: RuntimeWorkloadSpec](ClientWorkload[SpecT], abc.ABC
         run: Run | IsRunnable,
         *,
         inputs: Any | None = None,
-        mode: NodeMode | None = None,
+        mode: EnvironmentType | None = None,
         return_error: bool = False,
     ) -> "Runner":
         """Run something in the Runtime."""

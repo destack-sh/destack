@@ -16,8 +16,8 @@ from bench.language import (
     REGION,
     SYSTEM_ID,
     SYSTEM_SLUG,
+    Area,
     DatabaseInfo,
-    NodeArea,
 )
 from bench.proto import SupervisorClient
 from bench.store.database.map import BUILTIN_GLOBAL_SCHEMA, BUILTIN_MAIN_SCHEMA
@@ -76,12 +76,12 @@ class Simulation:
         self.global_database = global_database
         self.main_database = main_database
         self.global_pg_engine = pg_engine_from_database(
-            "pg-global", global_database, NodeArea.GLOBAL_DATABASE
+            "pg-global", global_database, Area.GLOBAL_DATABASE
         )
         self.main_pg_engine = pg_engine_from_database(
             f"pg-main-{main_database.region.name.lower()}",
             main_database,
-            NodeArea.MAIN_DATABASE,
+            Area.MAIN_DATABASE,
         )
         self.database_provider = database_provider
 

@@ -3,12 +3,12 @@ from typing import TYPE_CHECKING
 from bench.language.core import (
     BuiltinEnum,
     EnumType,
+    HasEnvironment,
     HasIcon,
     HasName,
     IsArchivable,
     IsBlockable,
     IsDeletable,
-    IsModal,
     Node,
     NodeType,
     enum_,
@@ -38,7 +38,7 @@ class ThemeColor(BuiltinEnum):
 
 @node_(NodeType.THEME)
 class Theme(
-    IsModal,
+    HasEnvironment,
     HasName,
     HasIcon,
     IsBlockable,

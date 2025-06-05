@@ -1,6 +1,5 @@
 import contextvars
 import dataclasses
-import json
 from collections.abc import Collection, Mapping
 from dataclasses import dataclass
 from typing import (
@@ -19,7 +18,6 @@ from opentelemetry import trace
 
 from bench.utils.code import format_code
 
-from .code import Code
 from .const import (
     NODE_TYPES,
     NodeType,
@@ -30,7 +28,6 @@ from .node import Node
 from .object import BuiltinObjectBase
 from .property import EdgeType, Property
 from .struct import NodeReference, PropertyReference
-from .text import Text, TextLine, text_line_to_markdown, text_to_markdown
 from .trait import IsInPackage
 from .type import TypeBase
 
@@ -391,37 +388,6 @@ BUILTIN_OBJECT_RENDERER = BuiltinObjectRenderer[BuiltinObjectBase]()
 #
 # Struct renderers
 #
-
-
-@_renderer(StructType.TEXT_LINE)
-class TextLineRenderer(BuiltinObjectRenderer[TextLine]):
-    @override
-    def render(self, renderer: "Renderer", obj: TextLine, options: RenderOptions) -> str:
-        return f"text_line({text_line_to_markdown(obj, renderer.aliasing)!r})"
-
-
-@_renderer(StructType.TEXT)
-class TextRenderer(BuiltinObjectRenderer[Text]):
-    @override
-    def render(self, renderer: "Renderer", obj: Text, options: RenderOptions) -> str:
-        rendered_string = text_to_markdown(obj, renderer.aliasing)
-        escaped_string = json.dumps(rendered_string)[1:-1]
-        escaped_string = escaped_string.replace('"""', '\\"\\"\\"')
-        if "\n" in rendered_string:
-            return f'text("""\\\n{escaped_string}\n""")'
-        else:
-            return f'text("""\\\n{escaped_string}\n""")'
-
-
-@_renderer(StructType.CODE)
-class CodeRenderer(BuiltinObjectRenderer[Code]):
-    @override
-    def render(self, renderer: "Renderer", obj: Code, options: RenderOptions) -> str:
-        rendered_string = obj.to_string()
-        if "\n" in rendered_string:
-            return f'code("""\\\n{rendered_string}\n""")'
-        else:
-            return f"code({rendered_string!r})"
 
 
 def render_expression(
