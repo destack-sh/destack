@@ -32,7 +32,7 @@ class QueryConnection[RootT: "Trait | Node"]:
     )
 
     def __init__(self, query: Query, store: "Store", session: "Session"):
-        from .graph import Graph
+        from .graph import Graph, PolyGraph
 
         # meta
         self.id: UUID = query.id
@@ -45,7 +45,7 @@ class QueryConnection[RootT: "Trait | Node"]:
         self.result: QueryResult | None = None
         self.queries_by_id: dict[UUID, Query] = {}
         self.results_by_id: dict[UUID, QueryResult] = {}
-        self.graph: Graph = Graph(session.supergraph)
+        self.graph: Graph = PolyGraph(session.supergraph)
         self.roots: list[RootT] = []
 
     def __str__(self) -> str:

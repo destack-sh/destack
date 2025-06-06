@@ -1,7 +1,10 @@
+import abc
 from collections.abc import Collection, Sequence
 from typing import (
     TYPE_CHECKING,
     Optional,
+    final,
+    override,
 )
 
 import structlog
@@ -26,10 +29,185 @@ logger = structlog.get_logger(__name__)
 tracer = trace.get_tracer(__name__)
 
 
-class Graph:
+class Graph(abc.ABC):
     """
     A Graph is a collection of Nodes in a Session.
-    Graphs may be tied to the result of a Query (via QueryConnection) or just free-floating.
+    """
+
+    __slots__ = ("supergraph",)
+
+    def __init__(self, supergraph: "Supergraph"):
+        self.supergraph = supergraph
+
+    @final
+    def __str__(self):
+        return f"{len(self.nodes)} nodes"
+
+    @final
+    def __repr__(self):
+        return f"<Graph {self}>"
+
+    @property
+    @abc.abstractmethod
+    def nodes(self) -> Collection["Node"]:
+        """All nodes in the graph"""
+        raise NotImplementedError
+
+    def __len__(self):
+        """Number of nodes in the graph"""
+        raise NotImplementedError
+
+    @abc.abstractmethod
+    def get(self, id: UUID) -> Optional["Node"]:
+        """Gets a node by id"""
+        raise NotImplementedError
+
+    @final
+    def get_or_error(self, id: UUID) -> "Node":
+        """Gets a node by id, raising an error if not found"""
+        node = self.get(id)
+        if node is None:
+            raise KeyError(f"node {id!r} not found in {self!r}")
+        return node
+
+    @abc.abstractmethod
+    def has(self, id: UUID) -> bool:
+        """Check if a Node exists in this Graph."""
+        raise NotImplementedError
+
+    @abc.abstractmethod
+    def clear(self):
+        """Clear the Graph."""
+        raise NotImplementedError
+
+    @abc.abstractmethod
+    def add(self, node: "Node"):
+        """Add a new Node to the graph (must not exist, excluding descendants)."""
+        raise NotImplementedError
+
+    @abc.abstractmethod
+    def remove(self, node: "Node"):
+        """Remove a Node from the graph (must exist, excluding descendants)."""
+        raise NotImplementedError
+
+    @abc.abstractmethod
+    def get_roots[N: Node = Node](
+        self, node_type: NodeType | TraitType | type[N] | None = None
+    ) -> Sequence[N]:
+        """Find root Nodes in the graph."""
+        raise NotImplementedError
+
+    @abc.abstractmethod
+    def get_leaves[N: Node = Node](
+        self, node_type: NodeType | TraitType | type[N] | None = None, of: "Node | None" = None
+    ) -> Sequence[N]:
+        """Find leaf Nodes in the graph."""
+        raise NotImplementedError
+
+    @abc.abstractmethod
+    def get_children[N: Node = Node](
+        self,
+        node: "Node",
+        node_type: NodeType | TraitType | type[N] | None = None,
+    ) -> Sequence[N]:
+        """
+        Collect child Nodes (one level down).
+        If the Nodes are IsOrdered, their order is preserved.
+        """
+        raise NotImplementedError
+
+    @abc.abstractmethod
+    def get_descendants[N: Node = Node](
+        self,
+        node: "Node",
+        node_type: NodeType | TraitType | type[N] | None = None,
+    ) -> Sequence[N]:
+        """
+        Collect descendant Nodes (recursively down).
+        If a type is specified, only Nodes of that type are collected.
+        (Descendants are not collected unless all their ancestors are included).
+        Nodes are BFS but IsOrdered is ignored.
+        """
+        raise NotImplementedError
+
+
+class SingletonGraph(Graph):
+    """
+    A Graph that contains only a single Node.
+    """
+
+    __slots__ = ("node", "supergraph")
+
+    def __init__(self, supergraph: "Supergraph", node: "Node"):
+        self.supergraph = supergraph
+        self.node = node
+
+    def to_polygraph(self) -> "PolyGraph":
+        graph = PolyGraph(self.supergraph)
+        graph.add(self.node)
+        return graph
+
+    @property
+    @override
+    def nodes(self) -> Collection["Node"]:
+        return (self.node,)
+
+    @override
+    def __len__(self):
+        return 1
+
+    @override
+    def get(self, id: UUID) -> Optional["Node"]:
+        return self.node if self.node.id == id else None
+
+    @override
+    def has(self, id: UUID) -> bool:
+        return self.node.id == id
+
+    @override
+    def clear(self):
+        raise ValueError(f"cannot clear {self!r}")
+
+    @override
+    def add(self, node: "Node"):
+        raise ValueError(f"cannot add {node!r} to {self!r}")
+
+    @override
+    def remove(self, node: "Node"):
+        raise ValueError(f"cannot remove {node!r} from {self!r}")
+
+    @override
+    def get_roots[N: Node = Node](
+        self, node_type: NodeType | TraitType | type[N] | None = None
+    ) -> Sequence[N]:
+        return ()
+
+    @override
+    def get_leaves[N: Node = Node](
+        self, node_type: NodeType | TraitType | type[N] | None = None, of: "Node | None" = None
+    ) -> Sequence[N]:
+        return ()
+
+    @override
+    def get_children[N: Node = Node](
+        self,
+        node: "Node",
+        node_type: NodeType | TraitType | type[N] | None = None,
+    ) -> Sequence[N]:
+        return ()
+
+    @override
+    def get_descendants[N: Node = Node](
+        self,
+        node: "Node",
+        node_type: NodeType | TraitType | type[N] | None = None,
+    ) -> Sequence[N]:
+        return ()
+
+
+class PolyGraph(Graph):
+    """
+    A Graph with an arbitrary set of Nodes.
     """
 
     __slots__ = ("nodes_by_id", "nodes_by_parent_id", "supergraph")
@@ -39,38 +217,23 @@ class Graph:
         self.nodes_by_id: dict[UUID, Node] = {}
         self.nodes_by_parent_id: dict[UUID, dict[NodeType, list[Node]]] = {}
 
-    def __str__(self):
-        return f"{len(self.nodes)} nodes"
-
-    def __repr__(self):
-        return f"<{self.__class__.__name__} {self}>"
-
     @property
     def nodes(self) -> Collection["Node"]:
-        """All nodes in the graph"""
         return self.nodes_by_id.values()
 
     def __len__(self):
-        """Number of nodes in the graph"""
         return len(self.nodes_by_id)
 
+    @override
     def get(self, id: UUID) -> Optional["Node"]:
-        """Gets a node by id"""
         return self.nodes_by_id.get(id)
 
-    def get_or_error(self, id: UUID) -> "Node":
-        """Gets a node by id, raising an error if not found"""
-        node = self.get(id)
-        if node is None:
-            raise KeyError(f"node {id!r} not found in {self!r}")
-        return node
-
+    @override
     def has(self, id: UUID) -> bool:
-        """Check if a Node exists in this Graph."""
         return id in self.nodes_by_id
 
+    @override
     def clear(self):
-        """Clear the Graph."""
         # supergraph
         for node in self.nodes:
             if self.supergraph._cached_nodes_by_id.get(node.id) is node:
@@ -79,8 +242,8 @@ class Graph:
         self.nodes_by_id.clear()
         self.nodes_by_parent_id.clear()
 
+    @override
     def add(self, node: "Node"):
-        """Add a new Node to the graph (must not exist, excluding descendants)."""
         if (existing := self.nodes_by_id.get(node.id)) is not None:
             raise ValueError(f"node {node!r} already in {self!r}: {existing!r}")
         # node
@@ -99,8 +262,8 @@ class Graph:
         ) is None or cached is _MISSING:
             self.supergraph._cached_nodes_by_id[node.id] = node
 
+    @override
     def remove(self, node: "Node"):
-        """Remove a Node from the graph (must exist, excluding descendants)."""
         # supergraph
         if self.supergraph._cached_nodes_by_id.get(node.id) is node:
             self.supergraph._cached_nodes_by_id.pop(node.id)
@@ -119,10 +282,10 @@ class Graph:
         # node
         self.nodes_by_id.pop(node.id)
 
+    @override
     def get_roots[N: Node = Node](
         self, node_type: NodeType | TraitType | type[N] | None = None
     ) -> Sequence[N]:
-        """Find root Nodes in the graph."""
         node_types = _resolve_node_types(node_type)
         if node_types is None:
             roots = tuple(
@@ -139,10 +302,10 @@ class Graph:
             )
         return roots  # type: ignore (must be right type)
 
+    @override
     def get_leaves[N: Node = Node](
         self, node_type: NodeType | TraitType | type[N] | None = None, of: "Node | None" = None
     ) -> Sequence[N]:
-        """Find leaf Nodes in the graph."""
         if of is None:
             node_types = _resolve_node_types(node_type)
             if node_types is None:
@@ -160,15 +323,12 @@ class Graph:
             leaves = tuple(node for node in descendants if not self.nodes_by_parent_id.get(node.id))
         return leaves  # type: ignore (must be right type)
 
+    @override
     def get_children[N: Node = Node](
         self,
         node: "Node",
         node_type: NodeType | TraitType | type[N] | None = None,
     ) -> Sequence[N]:
-        """
-        Collect child Nodes (one level down).
-        If the Nodes are IsOrdered, their order is preserved.
-        """
         # bail if no children
         if not self.nodes_by_parent_id:
             return ()
@@ -223,17 +383,12 @@ class Graph:
                     children.sort(key=lambda n: getattr(n, "order_key", INTEGER_MAX))
                 return children
 
+    @override
     def get_descendants[N: Node = Node](
         self,
         node: "Node",
         node_type: NodeType | TraitType | type[N] | None = None,
     ) -> Sequence[N]:
-        """
-        Collect descendant Nodes (recursively down).
-        If a type is specified, only Nodes of that type are collected.
-        (Descendants are not collected unless all their ancestors are included).
-        Nodes are BFS but IsOrdered is ignored.
-        """
         if not self.nodes_by_parent_id:
             return ()
 
@@ -293,6 +448,16 @@ class Supergraph:
     def remove_graph(self, graph: Graph):
         """Remove a Graph from this Supergraph."""
         self.graphs.remove(graph)
+        for node in graph.nodes:
+            if self._cached_nodes_by_id.get(node.id) is node:
+                self._cached_nodes_by_id.pop(node.id)
+
+    def promote_to_polygraph(self, graph: SingletonGraph) -> PolyGraph:
+        """Promote a SingletonGraph to a PolyGraph in one operation."""
+        new_graph = graph.to_polygraph()
+        self.graphs.remove(graph)
+        self.graphs.append(new_graph)
+        return new_graph
 
     def get(self, node_id: "UUID") -> Optional["Node"]:
         """Get a node by ID."""

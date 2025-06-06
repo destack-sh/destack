@@ -76,7 +76,7 @@ from .edit import (
     EditType,
     edit_graph,
 )
-from .graph import Graph, Supergraph
+from .graph import Graph, PolyGraph, SingletonGraph, Supergraph
 from .icon import Icon, IconIn, IconType, icon, reverse_icon, to_icon
 from .meta import EnumInfo, EnumOptionInfo, NodeInfo, PropertyInfo, StructInfo, TraitInfo
 from .node import IndexIn, Node, node_
@@ -344,6 +344,7 @@ __all__ = [
     "NumberConstraint",
     "NumberFormat",
     "OptimisticStore",
+    "PolyGraph",
     "PrimitiveType",
     "PrimitiveValue",
     "ProcessStatus",
@@ -371,6 +372,7 @@ __all__ = [
     "Select",
     "Selection",
     "Session",
+    "SingletonGraph",
     "Sort",
     "SortMode",
     "SortType",
