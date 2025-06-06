@@ -45,8 +45,8 @@ def session(session_async: Session):
     ACTIVE_SESSION.reset(token)
 
 
-async def test_create_user(session: Session):
-    """Create and update a User, querying along the way."""
+async def test_create_user_with_clients(session: Session):
+    """Create and update a User with Clients, querying along the way."""
     # create user
     user = User(
         status=UserStatus.ACTIVE,

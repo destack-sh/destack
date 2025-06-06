@@ -20,7 +20,7 @@ from bench.language import (
     DatabaseInfo,
 )
 from bench.proto import SupervisorClient
-from bench.store.database.map import BUILTIN_GLOBAL_SCHEMA, BUILTIN_MAIN_SCHEMA
+from bench.store.postgres.map import BUILTIN_GLOBAL_SCHEMA, BUILTIN_MAIN_SCHEMA
 from bench.utils.oracle import REAL_ORACLE
 from bench.utils.task import TaskManager
 
