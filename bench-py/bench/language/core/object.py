@@ -221,7 +221,8 @@ __setattr__(self, "_connection", _connection)
 # (we add self to _graph at the end of __init__)
 """)
         # nocheckin :Performance: don't create (and dispose) single-node Graphs for every Node
-        #  (related to having high frequency (readonly?) nodes - Logs, Spans, Metrics, etc.?)
+        #  (related to having high frequency (readonly?) nodes - Logs, Spans, Metrics, etc.?
+        #    .. NodeMutable and NodeFrozen?)
 
     else:
         # struct setup

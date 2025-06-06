@@ -6,14 +6,11 @@ from time import time_ns
 
 import structlog
 import typer
-from fastuuid import UUID
 
-from bench.pb2 import SupervisorClient
 from bench.proto import GrpcServer, Network, RealNetwork, ServiceBase
 from bench.utils.env import ENV, IS_DEV
 from bench.utils.oracle import REAL_ORACLE
 from bench.utils.telemetry import capture_exception
-from bench.utils.utils import get_from_env, get_from_env_maybe
 from bench.utils.watch import restart_on_file_changes
 
 from .utils import async_to_sync
@@ -173,61 +170,4 @@ async def host(host: str, port: int, watch: bool = False, no_check: bool = False
 @async_to_sync
 async def runtime(host: str, port: int, *, process_id: int = -1, watch: bool = False):
     """Serve the Runtime."""
-    from bench.language import ClientType
-    from bench.runtime import RuntimeProcess, RuntimeProcessMode, RuntimeService
-
-    logger.info("serve.runtime", host=host, port=port, env=ENV)
-
-    supervisor_url = get_from_env("SUPERVISOR_URL", description="Supervisor URL")
-    bench_id = get_from_env("BENCH_ID", typ=UUID, description="Node of current Bench")
-    client_type = get_from_env("CLIENT_TYPE", typ=ClientType, description="Type of client")
-    client_id = get_from_env("CLIENT_ID", typ=UUID, description="Node id of current client")
-    client_access_token = get_from_env("CLIENT_ACCESS_TOKEN", description="Access token for client")
-    machine_id = get_from_env_maybe(
-        "MACHINE_ID", typ=UUID, description="Node id of current machine"
-    )
-    max_processs = get_from_env(
-        "RUNTIME_PROCESSS", typ=int, default=1, description="Maximum number of runtime processs"
-    )
-    mode = get_from_env(
-        "RUNTIME_PROCESS_MODE",
-        typ=RuntimeProcessMode,
-        default=RuntimeProcessMode.PROCESS,
-        description="How to run runtime processs",
-    )
-    network = RealNetwork()
-    supervisor_client = SupervisorClient(
-        await network.get_channel(supervisor_url, source_id="runtime")
-    )
-
-    if process_id < 0:
-        runtime = RuntimeService(
-            id="runtime",
-            supervisor=supervisor_client,
-            network=network,
-            oracle=REAL_ORACLE,
-            bench_id=bench_id,
-            client_type=client_type,
-            client_id=client_id,
-            client_access_token=client_access_token,
-            machine_id=machine_id,
-            max_processs=max_processs,
-            mode=mode,
-            on_error=capture_exception,
-        )
-        await _do_serve(handlers=[runtime], network=network, host=host, port=port, watch=watch)
-    else:
-        process = RuntimeProcess(
-            id=f"runtime-process-{process_id}",
-            supervisor=supervisor_client,
-            network=network,
-            oracle=REAL_ORACLE,
-            bench_id=bench_id,
-            client_type=client_type,
-            client_id=client_id,
-            client_access_token=client_access_token,
-            machine_id=machine_id,
-            mode=mode,
-            on_error=capture_exception,
-        )
-        await _do_serve(handlers=[process], network=network, host=host, port=port, watch=watch)
+    raise NotImplementedError
