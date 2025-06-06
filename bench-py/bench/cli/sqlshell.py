@@ -5,7 +5,7 @@ from typing import TYPE_CHECKING, Annotated, Optional
 import structlog
 import typer
 
-from bench.language.core.const import REGION, Area, Region
+from bench.language.core import REGION, Area, Region
 from bench.utils.func import sanitize_connection_url
 
 from .utils import async_to_sync, parse_node_area, parse_region

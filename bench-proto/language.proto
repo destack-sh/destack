@@ -114,22 +114,11 @@ enum ClientType {
 // The cloud provider.
 enum Cloud {
   CLOUD_UNSPECIFIED = 0;
-  CLOUD_AWS = 100;
-  CLOUD_AZURE = 101;
-  CLOUD_GCP = 102;
-  CLOUD_OCI = 103;
-  CLOUD_ALIBABA = 104;
-  CLOUD_HETZNER = 200;
+  CLOUD_AWS = 10;
+  CLOUD_AZURE = 20;
+  CLOUD_GCP = 30;
+  CLOUD_HETZNER = 40;
   CLOUD_PRIVATE = 900;
-}
-
-// The (implicit) 'type' of Code.
-// We don't set this explicitly in Code because it depends on where the Code is used.
-enum CodeType {
-  CODE_TYPE_UNSPECIFIED = 0;
-  CODE_TYPE_SNIPPET = 1;
-  CODE_TYPE_SCRIPT = 2;
-  CODE_TYPE_FUNCTION = 3;
 }
 
 // Built-in colors a la SwiftUI or Tailwind.
@@ -310,8 +299,6 @@ enum EditOperation {
   EDIT_OPERATION_UNSPECIFIED = 0;
   EDIT_OPERATION_SET = 1;
   EDIT_OPERATION_CLEAR = 2;
-  EDIT_OPERATION_MAP_SET = 110;
-  EDIT_OPERATION_MAP_REMOVE = 111;
 }
 
 enum EditType {
@@ -386,8 +373,6 @@ enum EnumType {
   ENUM_TYPE_DATABASE_TYPE = 1010;
   ENUM_TYPE_MACHINE_TYPE = 1011;
   ENUM_TYPE_ACTION_CARDINALITY = 1221;
-  ENUM_TYPE_FLOW_TYPE = 1241;
-  ENUM_TYPE_FLOW_EDGE_TYPE = 1242;
   ENUM_TYPE_CURSOR_TYPE = 1321;
   ENUM_TYPE_CURSOR_STATUS = 1322;
   ENUM_TYPE_PROCESS_STATUS = 1611;
@@ -399,7 +384,6 @@ enum EnumType {
   ENUM_TYPE_INTERRUPTION_RESPONSE = 1634;
   ENUM_TYPE_TEXT_LINE_TYPE = 2001;
   ENUM_TYPE_TEXT_SPAN_TYPE = 2002;
-  ENUM_TYPE_CODE_TYPE = 2011;
   ENUM_TYPE_FILE_RETENTION_MODE = 2021;
   ENUM_TYPE_FILE_SOURCE = 2022;
   ENUM_TYPE_FILE_TYPE = 2023;
@@ -646,18 +630,6 @@ enum FillType {
   FILL_TYPE_IMAGE = 12;
 }
 
-enum FlowEdgeType {
-  FLOW_EDGE_TYPE_UNSPECIFIED = 0;
-  FLOW_EDGE_TYPE_MANUAL = 10;
-  FLOW_EDGE_TYPE_DECIDE = 20;
-  FLOW_EDGE_TYPE_REQUIRE = 30;
-}
-
-enum FlowType {
-  FLOW_TYPE_UNSPECIFIED = 0;
-  FLOW_TYPE_ACTION = 10;
-}
-
 enum FontSize {
   FONT_SIZE_UNSPECIFIED = 0;
   FONT_SIZE_XS = 12;
@@ -847,10 +819,9 @@ enum NodeType {
   NODE_TYPE_BLOCK = 701;
   NODE_TYPE_DATABASE = 1000;
   NODE_TYPE_MACHINE = 1150;
-  NODE_TYPE_SERVICE = 1200;
+  NODE_TYPE_SCRIPT = 1200;
+  NODE_TYPE_SERVICE = 1210;
   NODE_TYPE_ACTION = 1220;
-  NODE_TYPE_FLOW = 1240;
-  NODE_TYPE_FLOW_EDGE = 1241;
   NODE_TYPE_AGENT = 1300;
   NODE_TYPE_TASK = 1310;
   NODE_TYPE_CURSOR = 1320;
@@ -1206,7 +1177,6 @@ enum StructType {
   STRUCT_TYPE_TEXT = 2101;
   STRUCT_TYPE_TEXT_LINE = 2102;
   STRUCT_TYPE_TEXT_SPAN = 2103;
-  STRUCT_TYPE_CODE = 2111;
   STRUCT_TYPE_ICON = 2131;
   STRUCT_TYPE_SELECTION = 2071;
   STRUCT_TYPE_VALUE = 2201;
@@ -1328,6 +1298,7 @@ enum TraitType {
   TRAIT_TYPE_UNSPECIFIED = 0;
   TRAIT_TYPE_GLOBAL = 1;
   TRAIT_TYPE_CUSTOM = 3;
+  TRAIT_TYPE_FROZEN = 4;
   TRAIT_TYPE_ARCHIVABLE = 11;
   TRAIT_TYPE_DELETABLE = 12;
   TRAIT_TYPE_HAS_ENVIRONMENT = 20;
@@ -1352,6 +1323,10 @@ enum TraitType {
   TRAIT_TYPE_RUNNABLE = 1200;
   TRAIT_TYPE_PROCESSABLE = 1201;
   TRAIT_TYPE_COMPUTABLE = 1202;
+  TRAIT_TYPE_SCRIPTABLE = 1203;
+  TRAIT_TYPE_INSTRUMENT = 1210;
+  TRAIT_TYPE_MEASUREMENT = 1211;
+  TRAIT_TYPE_LOG = 1212;
   TRAIT_TYPE_VIEW = 8001;
   TRAIT_TYPE_CONTAINER_VIEW = 8100;
   TRAIT_TYPE_CONTENT_VIEW = 8200;
@@ -1647,12 +1622,6 @@ message ClientData {
   optional NodeReferenceData cursor_ptr = 55;
 }
 
-message CodeData {
-  StructType metatype = 1;
-  optional string language = 32;
-  optional string content = 40;
-}
-
 message CollectionConstraintData {
   StructType metatype = 1;
   optional int64 min_length = 41;
@@ -1764,6 +1733,7 @@ message CustomNodeDefinitionData {
   string name = 31;
   optional NodeReferenceData block_ptr = 35;
   repeated TraitType traits = 40;
+  optional NodeReferenceData script_ptr = 104;
 }
 
 // An instance of a CustomNodeDefinition.
@@ -2014,62 +1984,6 @@ message FillData {
   optional FillSize size = 70;
 }
 
-// A Flow orchestrates a sequence of steps (like Actions).
-message FlowData {
-  NodeType metatype = 1;
-  string id = 2;
-  optional NodeReferenceData parent_ptr = 4;
-  optional NodeReferenceData bench_ptr = 6;
-  optional NodeReferenceData package_ptr = 7;
-  google.protobuf.Timestamp created_at = 10;
-  optional NodeReferenceData created_by_ptr = 11;
-  google.protobuf.Timestamp updated_at = 12;
-  optional NodeReferenceData updated_by_ptr = 13;
-  optional google.protobuf.Timestamp archived_at = 14;
-  optional google.protobuf.Timestamp deleted_at = 15;
-  optional NodeReferenceData template_ptr = 16;
-  EnvironmentType environment_type = 17;
-  optional NodeReferenceData owned_by_ptr = 19;
-  optional string order_key = 23;
-  FlowType type = 30;
-  string name = 31;
-  optional NodeReferenceData block_ptr = 35;
-  optional ModelDeveloper model_developer = 100;
-  optional ModelProvider model_provider = 101;
-  optional string model_id = 102;
-  optional string model_name = 103;
-  optional int64 max_attempts = 110;
-  optional google.protobuf.Duration retry_interval = 111;
-  optional double backoff = 112;
-}
-
-// A Transition between nodes in a Flow (source = outgoing, target = incoming).
-message FlowEdgeData {
-  NodeType metatype = 1;
-  string id = 2;
-  optional NodeReferenceData parent_ptr = 4;
-  optional NodeReferenceData bench_ptr = 6;
-  optional NodeReferenceData package_ptr = 7;
-  google.protobuf.Timestamp created_at = 10;
-  optional NodeReferenceData created_by_ptr = 11;
-  google.protobuf.Timestamp updated_at = 12;
-  optional NodeReferenceData updated_by_ptr = 13;
-  optional NodeReferenceData template_ptr = 16;
-  EnvironmentType environment_type = 17;
-  optional string order_key = 23;
-  FlowEdgeType type = 30;
-  string name = 31;
-  NodeReferenceData source_ptr = 35;
-  NodeReferenceData target_ptr = 36;
-  optional ModelDeveloper model_developer = 100;
-  optional ModelProvider model_provider = 101;
-  optional string model_id = 102;
-  optional string model_name = 103;
-  optional int64 max_attempts = 110;
-  optional google.protobuf.Duration retry_interval = 111;
-  optional double backoff = 112;
-}
-
 message FontData {
   StructType metatype = 1;
   FontType type = 30;
@@ -2201,6 +2115,7 @@ message FrameViewData {
     CornersData radius_value = 68;
     VariableData radius_variable = 17068;
   };
+  optional NodeReferenceData script_ptr = 104;
 }
 
 // A Friendship between two Users.
@@ -2452,6 +2367,7 @@ message LabelViewData {
     CornersData radius_value = 68;
     VariableData radius_variable = 17068;
   };
+  optional NodeReferenceData script_ptr = 104;
 }
 
 message LengthData {
@@ -2627,6 +2543,7 @@ message NumberInputViewData {
   };
   optional string value = 100;
   optional string placeholder = 101;
+  optional NodeReferenceData script_ptr = 104;
 }
 
 // An Organization with Users and Teams.
@@ -2906,7 +2823,6 @@ message RunData {
   map<string, ValueData> value = 24;
   RunType type = 30;
   optional NodeReferenceData thread_ptr = 38;
-  optional CodeData code = 66;
   optional NodeReferenceData runnable_ptr = 67;
   ProcessStatus status = 80;
   optional google.protobuf.Duration duration = 81;
@@ -2948,6 +2864,7 @@ message SceneData {
   optional IconData icon = 34;
   optional NodeReferenceData block_ptr = 35;
   optional NodeReferenceData root_view_ptr = 40;
+  optional NodeReferenceData script_ptr = 104;
 }
 
 message ScheduleData {
@@ -3013,6 +2930,21 @@ message ScopeData {
   optional string bench_id = 32;
 }
 
+// A Script.
+message ScriptData {
+  NodeType metatype = 1;
+  string id = 2;
+  optional NodeReferenceData parent_ptr = 4;
+  google.protobuf.Timestamp created_at = 10;
+  optional NodeReferenceData created_by_ptr = 11;
+  google.protobuf.Timestamp updated_at = 12;
+  optional NodeReferenceData updated_by_ptr = 13;
+  optional google.protobuf.Timestamp archived_at = 14;
+  optional google.protobuf.Timestamp deleted_at = 15;
+  string name = 31;
+  optional string code = 100;
+}
+
 message SelectData {
   StructType metatype = 1;
   repeated PropertyReferenceData properties_ptr = 31;
@@ -3047,6 +2979,7 @@ message ServiceData {
   optional ModelProvider model_provider = 101;
   optional string model_id = 102;
   optional string model_name = 103;
+  optional NodeReferenceData script_ptr = 104;
   optional int64 max_attempts = 110;
   optional google.protobuf.Duration retry_interval = 111;
   optional double backoff = 112;
@@ -3129,6 +3062,7 @@ message SliderInputViewData {
   optional double min_value = 101;
   optional double max_value = 102;
   optional double step = 103;
+  optional NodeReferenceData script_ptr = 104;
 }
 
 message SortData {
@@ -3281,6 +3215,7 @@ message SplitViewData {
     CornersData radius_value = 68;
     VariableData radius_variable = 17068;
   };
+  optional NodeReferenceData script_ptr = 104;
 }
 
 message StringConstraintData {
@@ -3418,6 +3353,7 @@ message TextViewData {
     string text_value = 100;
     VariableData text_variable = 17100;
   };
+  optional NodeReferenceData script_ptr = 104;
 }
 
 // A Theme with common styles.
@@ -3502,6 +3438,7 @@ message ThreadViewData {
   optional DimensionData max_height = 46;
   optional TextData draft_text = 100;
   optional NodeReferenceData draft_reply_to_ptr = 102;
+  optional NodeReferenceData script_ptr = 104;
 }
 
 message TraitInfoData {
@@ -3660,6 +3597,7 @@ message WizardViewData {
   optional DimensionData min_height = 44;
   optional DimensionData max_width = 45;
   optional DimensionData max_height = 46;
+  optional NodeReferenceData script_ptr = 104;
 }
 
 message SomeNodeData {
@@ -3685,10 +3623,9 @@ message SomeNodeData {
     BlockData block = 701;
     DatabaseData database = 1000;
     MachineData machine = 1150;
-    ServiceData service = 1200;
+    ScriptData script = 1200;
+    ServiceData service = 1210;
     ActionData action = 1220;
-    FlowData flow = 1240;
-    FlowEdgeData flow_edge = 1241;
     AgentData agent = 1300;
     TaskData task = 1310;
     CursorData cursor = 1320;

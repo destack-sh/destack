@@ -665,6 +665,7 @@ class NodeType(BuiltinEnum):
 
     # logic [1200-1600]
     SCRIPT = 1200, "Script", "Script", "fas fa-code"
+    # SCRIPT_FILE, ...
     SERVICE = 1210, "Service", "Service", "fas fa-screwdriver-wrench"
     ACTION = 1220, "Action", "Action", "fas fa-step-forward"
     AGENT = 1300, "Agent", "Identity for an AI", "fas fa-robot"
@@ -680,17 +681,14 @@ class NodeType(BuiltinEnum):
     # ROOM, JOB, PLAN, LOCK, ...
     # EVENT, SIGNAL, ...
     # TRIGGER, TIMER, BREAKPOINT, ...
-
     # INSTRUMENT, MEASUREMENT, LOG/EDIT_LOG/CHANGE_LOG/QUERY_LOG/..., ...
 
-    # data [2000-2200]
+    # data [2000-2400]
     SCHEMA = 2000, "Schema", "Schema", "fas fa-shapes"
     FIELD = 2010, "Field", "Field", "fas fa-triangle"
     FILE = 2020, "File", "File", "fas fa-file"
     LINK = 2050, "Link", "Link to something", "fas fa-link"
     # STREAM, SECRET, ...
-
-    # custom [2200-2400]
     CUSTOM_NODE_DEFINITION = (
         2200,
         "Custom Node Definition",

@@ -17,7 +17,7 @@ from bench.language import (
     TypeCardinality,
     text,
 )
-from bench.language.core.const import StructType
+from bench.language.core import StructType
 from bench.test.simulation.core import Simulation
 from bench.test.simulation.workload import RuntimeLambdaWorkload
 from bench.test.unit.conftest import simulated_runtime

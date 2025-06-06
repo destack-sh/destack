@@ -1,28 +1,22 @@
 from typing import TYPE_CHECKING, Optional, Union
 
-from bench.language.core import (
-    BuiltinEnum,
-    CascadeAction,
-    EdgeType,
-    EnumType,
+from bench.pb2 import FieldData
+
+from .const import BuiltinEnum, CascadeAction, EdgeType, EnumType, enum_
+from .node import Node, NodeType, node_
+from .property import property_, property_parent_
+from .query import IntoQuery
+from .trait import (
     HasEnvironment,
     HasIcon,
     HasName,
-    IntoQuery,
     IsArchivable,
     IsDeletable,
     IsInPackage,
     IsOrdered,
     IsTemplatable,
-    Node,
-    NodeType,
-    TypeBase,
-    enum_,
-    node_,
-    property_,
-    property_parent_,
 )
-from bench.pb2 import FieldData
+from .type import TypeBase
 
 if TYPE_CHECKING:
     from bench.language import Action, Agent, CustomNodeDefinition, IsView, Scene, Schema
