@@ -10,7 +10,6 @@ from ..builtin import (
     BuiltinObjectBase,
     EnumType,
     Node,
-    NodeReference,
     StructMutable,
     StructType,
     enum_,
@@ -20,7 +19,7 @@ from ..builtin import (
 )
 
 if TYPE_CHECKING:
-    from bench.language import Aliasing, ColorHue
+    from bench.language import Aliasing, ColorHue, NodeReference
 
 
 @object_()

@@ -3,25 +3,23 @@ from typing import TYPE_CHECKING, Any, Optional, Union, assert_never
 from fastuuid import UUID
 
 from ..builtin import (
-    AttributeReference,
     BuiltinEnum,
     BuiltinObjectMutable,
     DefaultFactory,
     EnumType,
     Node,
     Property,
-    RelationReference,
     StructFrozen,
     StructMutable,
     StructType,
     Trait,
     active_session,
-    attribute_ref,
     enum_,
     object_,
     property_,
     struct_,
 )
+from .relation import AttributeReference, RelationReference, attribute_ref
 from .value import Value
 
 if TYPE_CHECKING:

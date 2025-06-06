@@ -160,6 +160,9 @@ async def test_create_page_blocks_recursive(session: Session):
         assert pages_unpacked[0].equals(page)
 
 
+# nocheckin: Space/IsView/trait relation queries
+
+
 async def test_create_custom_node(session: Session):
     """Create a custom Node, mutate it, querying along the way."""
     # nocheckin: custom nodes

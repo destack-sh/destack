@@ -19,7 +19,6 @@ from bench.utils.time import timedelta_from_isoformat, timedelta_to_isoformat
 from ..builtin import (
     IntoType,
     Node,
-    NodeReference,
     NodeType,
     PrimitiveType,
     Property,
@@ -29,13 +28,12 @@ from ..builtin import (
     property_runtime_,
     struct_,
 )
+from .relation import NodeReference
 from .type import Json, ScalarType, Type, TypeCardinality, to_type
 
 if TYPE_CHECKING:
     from ..builtin import BuiltinObjectBase
-    from ..helper import Session
-    from ..helper.connection import QueryConnection
-    from ..helper.graph import Graph, Supergraph
+    from ..helper import Graph, QueryConnection, Session, Supergraph
 
 
 # ruff: noqa: FURB113
