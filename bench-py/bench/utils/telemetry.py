@@ -1,3 +1,4 @@
+import sys
 from collections.abc import Mapping
 from pathlib import Path
 from time import time_ns
@@ -21,13 +22,13 @@ from opentelemetry.sdk.trace.export import BatchSpanProcessor
 from opentelemetry.trace.propagation.tracecontext import TraceContextTextMapPropagator
 from posthog import Posthog
 
-from .env import ENV, IS_DEBUG, IS_DEV, IS_TEST
+from .env import ENV, IS_DEV, IS_TEST, get_from_env, get_from_env_maybe
 from .log import setup_logging
-from .utils import get_from_env, get_from_env_maybe
 
 setup_logging()  # ensure logging is setup first
 logger = structlog.get_logger(__name__)
 
+IS_DEBUG: bool = hasattr(sys, "gettrace") and sys.gettrace() is not None
 VERSION = Path("version").read_text().strip()
 POSTHOG_TOKEN = get_from_env("POSTHOG_TOKEN", description="PostHog public API key")
 POSTHOG_HOST = get_from_env_maybe("POSTHOG_HOST", description="Full URL to send PostHog events to")

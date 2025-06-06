@@ -647,10 +647,10 @@ def property_(
     )
 
 
-def property_parent_(id: int = 4) -> Any:  # NOTE: never change this id!
+def property_parent_() -> Any:
     """The parent of a node, must be of one of the given types."""
     return Property(
-        id=id,
+        id=4,  # NOTE: never change this id!
         edge_type=EdgeType.NODE_PARENT,
         default=None,
         is_wired=True,

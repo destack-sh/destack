@@ -9,6 +9,7 @@ from bench.language.core import (
     IsDeletable,
     IsInPackage,
     IsOwnable,
+    IsScriptable,
     Node,
     NodeType,
     TraitType,
@@ -32,6 +33,7 @@ class CustomNodeDefinition(
     IsOwnable,
     IsBlockable,
     IsDeletable,
+    IsScriptable,
     IsInPackage,
     Node[CustomNodeDefinitionData],
 ):

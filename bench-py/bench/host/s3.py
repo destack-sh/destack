@@ -3,7 +3,7 @@ from typing import TYPE_CHECKING, Any, Literal
 import boto3
 import botocore.config
 
-from bench.utils.utils import get_from_env
+from bench.utils.env import get_from_env
 
 if TYPE_CHECKING:
     from mypy_boto3_s3 import S3Client

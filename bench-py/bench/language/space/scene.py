@@ -10,6 +10,7 @@ from bench.language.core import (
     IsDeletable,
     IsInPackage,
     IsOwnable,
+    IsScriptable,
     IsTemplatable,
     Node,
     NodeType,
@@ -26,15 +27,16 @@ if TYPE_CHECKING:
 
 @node_(NodeType.SCENE)
 class Scene(
-    IsOwnable,
-    IsTemplatable,
     HasName,
     HasEnvironment,
+    HasSlug,
+    HasIcon,
+    IsScriptable,
+    IsOwnable,
+    IsTemplatable,
     IsBlockable,
     IsArchivable,
     IsDeletable,
-    HasSlug,
-    HasIcon,
     IsInPackage,
     Node[SceneData],
 ):

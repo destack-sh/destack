@@ -54,7 +54,7 @@ def _setup_test_env():
 
 _setup_test_env()
 
-from bench.utils.utils import get_from_env  # noqa: E402
+from bench.utils.env import get_from_env  # noqa: E402
 
 TEST_PROFILE = get_from_env("TEST_PROFILE", typ=TestProfile, description="Test profile")
 hypothesis.settings.load_profile(TEST_PROFILE.value)

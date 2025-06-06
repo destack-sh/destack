@@ -31,7 +31,7 @@ from bench.store.postgres import (
     introspect_schema,
     pg_connection,
 )
-from bench.utils.utils import get_from_env
+from bench.utils.env import get_from_env
 
 logger = structlog.get_logger(__name__)
 tracer = trace.get_tracer(__name__)

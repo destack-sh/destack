@@ -18,9 +18,9 @@ from bitarray import bitarray
 from fastuuid import UUID, uuid4, uuid5
 from more_itertools import first
 
-from bench.utils.env import IS_TEST
+from bench.utils.env import IS_TEST, get_from_env
+from bench.utils.frozen import frozendict
 from bench.utils.string import Casing, to_casing
-from bench.utils.utils import frozendict, get_from_env
 
 if TYPE_CHECKING:
     from bench.language import (

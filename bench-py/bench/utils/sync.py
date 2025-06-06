@@ -7,8 +7,7 @@ from typing import Literal, assert_never
 import structlog
 from opentelemetry import trace
 
-from bench.utils.env import IS_DEV, IS_TEST
-from bench.utils.utils import get_from_env
+from bench.utils.env import IS_DEV, IS_TEST, get_from_env
 
 TRACE_LOCKS = get_from_env(
     "TRACE_LOCKS",
