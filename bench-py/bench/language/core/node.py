@@ -21,7 +21,7 @@ from bench.pb2 import AnyNodeData
 from bench.utils.func import get_superclasses
 
 from .const import UNSET, NodeType, TraitType
-from .graph import Graph
+from .graph import Graph, SingletonGraph
 from .object import _process_object_cls
 from .property import (
     _PROPERTY_SPECIFIERS,
@@ -252,27 +252,33 @@ class Node[NodeDataT: AnyNodeData](NodeBase[NodeDataT]):
         (The same applies to all descendants.)
         """
         old_graph = child._graph
+        new_graph = self._graph
         session = self._session
         nodes: tuple[Node, ...] = (child, *child._graph.get_descendants(child))
 
         assert self.metatype in child.__parent_types__, (
             f"{self!r} cannot parent {child!r} (allowed: {child.__parent_types__})"
         )
-        assert old_graph is not self._graph, f"{child!r} is already in same graph of {self!r}"
+        assert old_graph is not new_graph, f"{child!r} is already in same graph of {self!r}"
         assert old_graph.supergraph is self._supergraph, (
             f"{child!r} is not in supergraph of {self!r}"
         )
 
+        # promote self to polygraph if needed
+        if isinstance(new_graph, SingletonGraph):
+            new_graph = self._supergraph.promote_to_polygraph(new_graph)
+            self._graph = new_graph
+
         # move to new graph
-        child.parent_ptr = self.to_ref()
-        for node in nodes:
-            node._graph = self._graph
-            self._graph.add(node)
         if len(nodes) == len(old_graph):  # all nodes were moved
             self._supergraph.remove_graph(old_graph)
         else:
             for node in nodes:
                 old_graph.remove(node)
+        child.parent_ptr = self.to_ref()
+        for node in nodes:
+            node._graph = new_graph
+            new_graph.add(node)
 
         # nocheckin: Node.add_child ordering
 

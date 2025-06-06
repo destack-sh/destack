@@ -44,7 +44,7 @@ from .const import (
     TraitType,
     TypeCardinality,
 )
-from .graph import Graph, Supergraph
+from .graph import Graph, PolyGraph, SingletonGraph, Supergraph
 from .property import _PROPERTY_SPECIFIERS, IntoType, Property, property_runtime_
 
 if TYPE_CHECKING:
@@ -156,6 +156,8 @@ def _generate_init_impl[ObjectT: BuiltinObjectBase](
     extra_glbls["uuid4"] = uuid4
     extra_glbls["REGION"] = REGION
     extra_glbls["Graph"] = Graph
+    extra_glbls["SingletonGraph"] = SingletonGraph
+    extra_glbls["PolyGraph"] = PolyGraph
     extra_glbls["Supergraph"] = Supergraph
 
     method_body_lines = [
@@ -211,18 +213,8 @@ __setattr__(self, "_ref", None)
 __setattr__(self, "_is_new", _is_new)
 __setattr__(self, "_is_attached", _is_attached)
 __setattr__(self, "_dirty", None)
-
-# graph
-if _graph is None:
-    _graph = Graph(_supergraph)
-    _supergraph.add_graph(_graph)
-__setattr__(self, "_graph", _graph)
-__setattr__(self, "_connection", _connection)
-# (we add self to _graph at the end of __init__)
 """)
-        # nocheckin :Performance: don't create (and dispose) single-node Graphs for every Node
-        #  (related to having high frequency (readonly?) nodes - Logs, Spans, Metrics, etc.?
-        #    .. NodeMutable and NodeFrozen?)
+        # nocheckin: NodeMutable/NodeFrozen for high frequency (readonly?) nodes - Logs, Spans, Metrics, etc.?
 
     else:
         # struct setup
@@ -311,8 +303,14 @@ if {prop.name} is None:
 
     if is_node:
         method_body_lines.append("""\
-# add self to _graph
-_graph.add(self)
+# graph
+if _graph is None:
+    _graph = SingletonGraph(_supergraph, self)
+    _supergraph.add_graph(_graph)
+else:
+    _graph.add(self)
+__setattr__(self, "_graph", _graph)
+__setattr__(self, "_connection", _connection)
 """)
 
     method_body = "\n".join(method_body_lines) or "pass"
