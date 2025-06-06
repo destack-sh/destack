@@ -62,6 +62,7 @@ class StaticDatabaseProvider(DatabaseProvider):
         async with pg_connection(base_database) as conn:
             await conn.execute(f"CREATE SCHEMA IF NOT EXISTS {bench_schema_name}")
         main_database = DatabaseInfo(
+            type=base_database.type,
             tenancy=Tenancy.SHARED,
             region=base_database.region,
             cell_name=base_database.cell_name,

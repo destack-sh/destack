@@ -165,6 +165,7 @@ class SupervisorService(ServiceBase, SupervisorBase):
         cell = await self.cell_provider.acquire(region, bench)
         main_database = await self.database_provider.acquire(region, bench)
         database = Database(
+            type=main_database.type,
             tenancy=main_database.tenancy,
             name="Main Database",
             region=region,
