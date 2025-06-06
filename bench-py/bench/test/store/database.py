@@ -22,16 +22,16 @@ from bench.language import (
     join,
     text_line,
 )
-from bench.store import DatabaseStore
+from bench.store import PostgresStore
 
 
 @pytest.fixture
-def database_store(omni_database: DatabaseInfo) -> DatabaseStore:
-    return DatabaseStore(database=omni_database, area=None)
+def database_store(omni_database: DatabaseInfo) -> PostgresStore:
+    return PostgresStore(database=omni_database, area=None)
 
 
 @pytest.fixture  # :PytestAsyncContext
-async def session_async(database_store: DatabaseStore) -> AsyncGenerator[Session, None]:
+async def session_async(database_store: PostgresStore) -> AsyncGenerator[Session, None]:
     session = Session(store=database_store)
     await session.open()
     yield session

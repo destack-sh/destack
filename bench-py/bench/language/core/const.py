@@ -328,12 +328,14 @@ class EnumType(BuiltinEnum):
     # ...
 
     # infra [1000-1200]
-    CLOUD = 52
-    REGION = 53
-    REGION_AREA = 55
-    CONTINENT = 56
+    CLOUD = 1000
+    REGION = 1001
+    REGION_AREA = 1002
+    CONTINENT = 1003
+    TENANCY = 1004
+    DATABASE_TYPE = 1010
     MACHINE_TYPE = 1011
-    TENANCY = 1012
+    # SEARCH_TYPE, WAREHOUSE_TYPE, ...
     # ...
 
     # logic [1200-1600]

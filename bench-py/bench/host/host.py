@@ -39,7 +39,7 @@ from bench.pb2 import (
 )
 from bench.proto import Network, ServiceBase
 from bench.sharding import CellProvider, DatabaseProvider
-from bench.store import DatabaseStore
+from bench.store import PostgresStore
 from bench.utils.env import ENV
 from bench.utils.oracle import Oracle
 from bench.utils.utils import get_from_env
@@ -91,10 +91,10 @@ class HostService(ServiceBase, HostBase):
         self.bench_ptr = NodeReference(node_type=NodeType.BENCH, id=bench_id, bench_id=bench_id)
         self.scope = Scope(bench_id=bench_id)
         self.plugins: tuple[HostPlugin, ...] = ()  # incl. provisioners
-        self.global_database_store = DatabaseStore(
+        self.global_database_store = PostgresStore(
             database=global_database, area=Area.GLOBAL_DATABASE
         )
-        self.main_database_store: DatabaseStore | None = None
+        self.main_database_store: PostgresStore | None = None
         self.store: LiveStore = ...  # type: ignore nocheckin
         self.cell_provider = cell_provider
         self.database_provider = database_provider
@@ -118,7 +118,7 @@ class HostService(ServiceBase, HostBase):
                 Databases=Database.search(),
             ).execute_one()
             if (database := bench.database) is not None:
-                self.main_database_store = DatabaseStore(
+                self.main_database_store = PostgresStore(
                     database=database.to_info(), area=Area.MAIN_DATABASE
                 )
 

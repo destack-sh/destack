@@ -41,7 +41,7 @@ from bench.proto import (
     SupervisorBase,
 )
 from bench.sharding import CellProvider, DatabaseProvider
-from bench.store import DatabaseStore, SplitStore
+from bench.store import PostgresStore, SplitStore
 from bench.utils.func import generate_access_token, generate_salt
 from bench.utils.oracle import Oracle
 
@@ -95,7 +95,7 @@ class SupervisorService(ServiceBase, SupervisorBase):
 
     @override
     async def make_session(self, metadata: RpcMetadata) -> "Session":
-        database_store = DatabaseStore(database=self.global_database, area=Area.GLOBAL_DATABASE)
+        database_store = PostgresStore(database=self.global_database, area=Area.GLOBAL_DATABASE)
         return Session(store=database_store)
 
     @override
@@ -175,10 +175,10 @@ class SupervisorService(ServiceBase, SupervisorBase):
         bench.database = database
         session.store = SplitStore(
             store_by_area={
-                Area.GLOBAL_DATABASE: DatabaseStore(
+                Area.GLOBAL_DATABASE: PostgresStore(
                     database=self.global_database, area=Area.GLOBAL_DATABASE
                 ),
-                Area.MAIN_DATABASE: DatabaseStore(database=main_database, area=Area.MAIN_DATABASE),
+                Area.MAIN_DATABASE: PostgresStore(database=main_database, area=Area.MAIN_DATABASE),
             },
         )
         await session.stage()

@@ -1385,7 +1385,7 @@ export interface CustomNodeInstanceData {
     definitionPtr?: NodeReferenceData;
 }
 /**
- * A Postgres-compatible Database.
+ * A relational Database.
  *
  * @generated from protobuf message symbol.bench.DatabaseData
  */
@@ -1431,6 +1431,10 @@ export interface DatabaseData {
      */
     ownedByPtr?: NodeReferenceData;
     /**
+     * @generated from protobuf field: symbol.bench.DatabaseType type = 30;
+     */
+    type: DatabaseType;
+    /**
      * @generated from protobuf field: string name = 31;
      */
     name: string;
@@ -1467,6 +1471,10 @@ export interface DatabaseInfoData {
      * @generated from protobuf field: symbol.bench.StructType metatype = 1;
      */
     metatype: StructType;
+    /**
+     * @generated from protobuf field: symbol.bench.DatabaseType type = 30;
+     */
+    type: DatabaseType;
     /**
      * @generated from protobuf field: symbol.bench.Region region = 50;
      */
@@ -9337,6 +9345,19 @@ export enum CursorType {
     CUSTOM = 9000
 }
 /**
+ * @generated from protobuf enum symbol.bench.DatabaseType
+ */
+export enum DatabaseType {
+    /**
+     * @generated from protobuf enum value: DATABASE_TYPE_UNSPECIFIED = 0;
+     */
+    UNSPECIFIED = 0,
+    /**
+     * @generated from protobuf enum value: DATABASE_TYPE_POSTGRES = 1;
+     */
+    POSTGRES = 1
+}
+/**
  * The day of the week.
  *
  * @generated from protobuf enum symbol.bench.Day
@@ -9785,29 +9806,33 @@ export enum EnumType {
      */
     BLOCK_TYPE = 611,
     /**
-     * @generated from protobuf enum value: ENUM_TYPE_CLOUD = 52;
+     * @generated from protobuf enum value: ENUM_TYPE_CLOUD = 1000;
      */
-    CLOUD = 52,
+    CLOUD = 1000,
     /**
-     * @generated from protobuf enum value: ENUM_TYPE_REGION = 53;
+     * @generated from protobuf enum value: ENUM_TYPE_REGION = 1001;
      */
-    REGION = 53,
+    REGION = 1001,
     /**
-     * @generated from protobuf enum value: ENUM_TYPE_REGION_AREA = 55;
+     * @generated from protobuf enum value: ENUM_TYPE_REGION_AREA = 1002;
      */
-    REGION_AREA = 55,
+    REGION_AREA = 1002,
     /**
-     * @generated from protobuf enum value: ENUM_TYPE_CONTINENT = 56;
+     * @generated from protobuf enum value: ENUM_TYPE_CONTINENT = 1003;
      */
-    CONTINENT = 56,
+    CONTINENT = 1003,
+    /**
+     * @generated from protobuf enum value: ENUM_TYPE_TENANCY = 1004;
+     */
+    TENANCY = 1004,
+    /**
+     * @generated from protobuf enum value: ENUM_TYPE_DATABASE_TYPE = 1010;
+     */
+    DATABASE_TYPE = 1010,
     /**
      * @generated from protobuf enum value: ENUM_TYPE_MACHINE_TYPE = 1011;
      */
     MACHINE_TYPE = 1011,
-    /**
-     * @generated from protobuf enum value: ENUM_TYPE_TENANCY = 1012;
-     */
-    TENANCY = 1012,
     /**
      * @generated from protobuf enum value: ENUM_TYPE_ACTION_CARDINALITY = 1221;
      */
@@ -16462,6 +16487,7 @@ class DatabaseData$Type extends MessageType$<DatabaseData> {
             { no: 13, name: "updated_by_ptr", kind: "message", T: () => NodeReferenceData },
             { no: 17, name: "environment_type", kind: "enum", T: () => ["symbol.bench.EnvironmentType", EnvironmentType, "ENVIRONMENT_TYPE_"] },
             { no: 19, name: "owned_by_ptr", kind: "message", T: () => NodeReferenceData },
+            { no: 30, name: "type", kind: "enum", T: () => ["symbol.bench.DatabaseType", DatabaseType, "DATABASE_TYPE_"] },
             { no: 31, name: "name", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
             { no: 50, name: "region", kind: "enum", T: () => ["symbol.bench.Region", Region, "REGION_"] },
             { no: 51, name: "cell_name", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
@@ -16476,6 +16502,7 @@ class DatabaseData$Type extends MessageType$<DatabaseData> {
         message.metatype = 0;
         message.id = "";
         message.environmentType = 0;
+        message.type = 0;
         message.name = "";
         message.region = 0;
         message.externalName = "";
@@ -16518,6 +16545,9 @@ class DatabaseData$Type extends MessageType$<DatabaseData> {
                     break;
                 case /* optional symbol.bench.NodeReferenceData owned_by_ptr */ 19:
                     message.ownedByPtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.ownedByPtr);
+                    break;
+                case /* symbol.bench.DatabaseType type */ 30:
+                    message.type = reader.int32();
                     break;
                 case /* string name */ 31:
                     message.name = reader.string();
@@ -16582,6 +16612,9 @@ class DatabaseData$Type extends MessageType$<DatabaseData> {
         /* optional symbol.bench.NodeReferenceData owned_by_ptr = 19; */
         if (message.ownedByPtr)
             NodeReferenceData.internalBinaryWrite(message.ownedByPtr, writer.tag(19, WireType.LengthDelimited).fork(), options).join();
+        /* symbol.bench.DatabaseType type = 30; */
+        if (message.type !== 0)
+            writer.tag(30, WireType.Varint).int32(message.type);
         /* string name = 31; */
         if (message.name !== "")
             writer.tag(31, WireType.LengthDelimited).string(message.name);
@@ -16618,6 +16651,7 @@ class DatabaseInfoData$Type extends MessageType$<DatabaseInfoData> {
     constructor() {
         super("symbol.bench.DatabaseInfoData", [
             { no: 1, name: "metatype", kind: "enum", T: () => ["symbol.bench.StructType", StructType, "STRUCT_TYPE_"] },
+            { no: 30, name: "type", kind: "enum", T: () => ["symbol.bench.DatabaseType", DatabaseType, "DATABASE_TYPE_"] },
             { no: 50, name: "region", kind: "enum", T: () => ["symbol.bench.Region", Region, "REGION_"] },
             { no: 51, name: "cell_name", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
             { no: 52, name: "external_name", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
@@ -16629,6 +16663,7 @@ class DatabaseInfoData$Type extends MessageType$<DatabaseInfoData> {
     create(value?: PartialMessage<DatabaseInfoData>): DatabaseInfoData {
         const message = globalThis.Object.create((this.messagePrototype!));
         message.metatype = 0;
+        message.type = 0;
         message.region = 0;
         message.externalName = "";
         message.tenancy = 0;
@@ -16643,6 +16678,9 @@ class DatabaseInfoData$Type extends MessageType$<DatabaseInfoData> {
             switch (fieldNo) {
                 case /* symbol.bench.StructType metatype */ 1:
                     message.metatype = reader.int32();
+                    break;
+                case /* symbol.bench.DatabaseType type */ 30:
+                    message.type = reader.int32();
                     break;
                 case /* symbol.bench.Region region */ 50:
                     message.region = reader.int32();
@@ -16677,6 +16715,9 @@ class DatabaseInfoData$Type extends MessageType$<DatabaseInfoData> {
         /* symbol.bench.StructType metatype = 1; */
         if (message.metatype !== 0)
             writer.tag(1, WireType.Varint).int32(message.metatype);
+        /* symbol.bench.DatabaseType type = 30; */
+        if (message.type !== 0)
+            writer.tag(30, WireType.Varint).int32(message.type);
         /* symbol.bench.Region region = 50; */
         if (message.region !== 0)
             writer.tag(50, WireType.Varint).int32(message.region);

@@ -241,6 +241,11 @@ class CursorType(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     CURSOR_TYPE_WEB: _ClassVar[CursorType]
     CURSOR_TYPE_CUSTOM: _ClassVar[CursorType]
 
+class DatabaseType(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
+    __slots__ = ()
+    DATABASE_TYPE_UNSPECIFIED: _ClassVar[DatabaseType]
+    DATABASE_TYPE_POSTGRES: _ClassVar[DatabaseType]
+
 class Day(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     __slots__ = ()
     DAY_UNSPECIFIED: _ClassVar[Day]
@@ -373,8 +378,9 @@ class EnumType(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     ENUM_TYPE_REGION: _ClassVar[EnumType]
     ENUM_TYPE_REGION_AREA: _ClassVar[EnumType]
     ENUM_TYPE_CONTINENT: _ClassVar[EnumType]
-    ENUM_TYPE_MACHINE_TYPE: _ClassVar[EnumType]
     ENUM_TYPE_TENANCY: _ClassVar[EnumType]
+    ENUM_TYPE_DATABASE_TYPE: _ClassVar[EnumType]
+    ENUM_TYPE_MACHINE_TYPE: _ClassVar[EnumType]
     ENUM_TYPE_ACTION_CARDINALITY: _ClassVar[EnumType]
     ENUM_TYPE_FLOW_TYPE: _ClassVar[EnumType]
     ENUM_TYPE_FLOW_EDGE_TYPE: _ClassVar[EnumType]
@@ -1510,6 +1516,8 @@ CURSOR_TYPE_TABLE: CursorType
 CURSOR_TYPE_ACTION: CursorType
 CURSOR_TYPE_WEB: CursorType
 CURSOR_TYPE_CUSTOM: CursorType
+DATABASE_TYPE_UNSPECIFIED: DatabaseType
+DATABASE_TYPE_POSTGRES: DatabaseType
 DAY_UNSPECIFIED: Day
 DAY_MONDAY: Day
 DAY_TUESDAY: Day
@@ -1610,8 +1618,9 @@ ENUM_TYPE_CLOUD: EnumType
 ENUM_TYPE_REGION: EnumType
 ENUM_TYPE_REGION_AREA: EnumType
 ENUM_TYPE_CONTINENT: EnumType
-ENUM_TYPE_MACHINE_TYPE: EnumType
 ENUM_TYPE_TENANCY: EnumType
+ENUM_TYPE_DATABASE_TYPE: EnumType
+ENUM_TYPE_MACHINE_TYPE: EnumType
 ENUM_TYPE_ACTION_CARDINALITY: EnumType
 ENUM_TYPE_FLOW_TYPE: EnumType
 ENUM_TYPE_FLOW_EDGE_TYPE: EnumType
@@ -3078,7 +3087,7 @@ class CustomNodeInstanceData(_message.Message):
     def __init__(self, metatype: _Optional[_Union[NodeType, str]] = ..., id: _Optional[str] = ..., parent_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., bench_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., package_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., created_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., created_by_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., updated_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., updated_by_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., deleted_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., environment_type: _Optional[_Union[EnvironmentType, str]] = ..., value: _Optional[_Mapping[str, ValueData]] = ..., definition_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ...) -> None: ...
 
 class DatabaseData(_message.Message):
-    __slots__ = ("metatype", "id", "parent_ptr", "bench_ptr", "created_at", "created_by_ptr", "updated_at", "updated_by_ptr", "environment_type", "owned_by_ptr", "name", "region", "cell_name", "external_name", "custom_schema_name", "tenancy", "sql_url")
+    __slots__ = ("metatype", "id", "parent_ptr", "bench_ptr", "created_at", "created_by_ptr", "updated_at", "updated_by_ptr", "environment_type", "owned_by_ptr", "type", "name", "region", "cell_name", "external_name", "custom_schema_name", "tenancy", "sql_url")
     METATYPE_FIELD_NUMBER: _ClassVar[int]
     ID_FIELD_NUMBER: _ClassVar[int]
     PARENT_PTR_FIELD_NUMBER: _ClassVar[int]
@@ -3089,6 +3098,7 @@ class DatabaseData(_message.Message):
     UPDATED_BY_PTR_FIELD_NUMBER: _ClassVar[int]
     ENVIRONMENT_TYPE_FIELD_NUMBER: _ClassVar[int]
     OWNED_BY_PTR_FIELD_NUMBER: _ClassVar[int]
+    TYPE_FIELD_NUMBER: _ClassVar[int]
     NAME_FIELD_NUMBER: _ClassVar[int]
     REGION_FIELD_NUMBER: _ClassVar[int]
     CELL_NAME_FIELD_NUMBER: _ClassVar[int]
@@ -3106,6 +3116,7 @@ class DatabaseData(_message.Message):
     updated_by_ptr: NodeReferenceData
     environment_type: EnvironmentType
     owned_by_ptr: NodeReferenceData
+    type: DatabaseType
     name: str
     region: Region
     cell_name: str
@@ -3113,11 +3124,12 @@ class DatabaseData(_message.Message):
     custom_schema_name: str
     tenancy: Tenancy
     sql_url: str
-    def __init__(self, metatype: _Optional[_Union[NodeType, str]] = ..., id: _Optional[str] = ..., parent_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., bench_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., created_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., created_by_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., updated_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., updated_by_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., environment_type: _Optional[_Union[EnvironmentType, str]] = ..., owned_by_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., name: _Optional[str] = ..., region: _Optional[_Union[Region, str]] = ..., cell_name: _Optional[str] = ..., external_name: _Optional[str] = ..., custom_schema_name: _Optional[str] = ..., tenancy: _Optional[_Union[Tenancy, str]] = ..., sql_url: _Optional[str] = ...) -> None: ...
+    def __init__(self, metatype: _Optional[_Union[NodeType, str]] = ..., id: _Optional[str] = ..., parent_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., bench_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., created_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., created_by_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., updated_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., updated_by_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., environment_type: _Optional[_Union[EnvironmentType, str]] = ..., owned_by_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., type: _Optional[_Union[DatabaseType, str]] = ..., name: _Optional[str] = ..., region: _Optional[_Union[Region, str]] = ..., cell_name: _Optional[str] = ..., external_name: _Optional[str] = ..., custom_schema_name: _Optional[str] = ..., tenancy: _Optional[_Union[Tenancy, str]] = ..., sql_url: _Optional[str] = ...) -> None: ...
 
 class DatabaseInfoData(_message.Message):
-    __slots__ = ("metatype", "region", "cell_name", "external_name", "custom_schema_name", "tenancy", "sql_url")
+    __slots__ = ("metatype", "type", "region", "cell_name", "external_name", "custom_schema_name", "tenancy", "sql_url")
     METATYPE_FIELD_NUMBER: _ClassVar[int]
+    TYPE_FIELD_NUMBER: _ClassVar[int]
     REGION_FIELD_NUMBER: _ClassVar[int]
     CELL_NAME_FIELD_NUMBER: _ClassVar[int]
     EXTERNAL_NAME_FIELD_NUMBER: _ClassVar[int]
@@ -3125,13 +3137,14 @@ class DatabaseInfoData(_message.Message):
     TENANCY_FIELD_NUMBER: _ClassVar[int]
     SQL_URL_FIELD_NUMBER: _ClassVar[int]
     metatype: StructType
+    type: DatabaseType
     region: Region
     cell_name: str
     external_name: str
     custom_schema_name: str
     tenancy: Tenancy
     sql_url: str
-    def __init__(self, metatype: _Optional[_Union[StructType, str]] = ..., region: _Optional[_Union[Region, str]] = ..., cell_name: _Optional[str] = ..., external_name: _Optional[str] = ..., custom_schema_name: _Optional[str] = ..., tenancy: _Optional[_Union[Tenancy, str]] = ..., sql_url: _Optional[str] = ...) -> None: ...
+    def __init__(self, metatype: _Optional[_Union[StructType, str]] = ..., type: _Optional[_Union[DatabaseType, str]] = ..., region: _Optional[_Union[Region, str]] = ..., cell_name: _Optional[str] = ..., external_name: _Optional[str] = ..., custom_schema_name: _Optional[str] = ..., tenancy: _Optional[_Union[Tenancy, str]] = ..., sql_url: _Optional[str] = ...) -> None: ...
 
 class DimensionData(_message.Message):
     __slots__ = ("metatype", "type", "unit", "value")

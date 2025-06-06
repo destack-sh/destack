@@ -2,7 +2,7 @@ import abc
 from collections.abc import Sequence
 from typing import TYPE_CHECKING, override
 
-from bench.language import REGION_BY_SLUG, Bench, DatabaseInfo, Region, Tenancy
+from bench.language import REGION_BY_SLUG, Bench, DatabaseInfo, DatabaseType, Region, Tenancy
 
 if TYPE_CHECKING:
     pass
@@ -98,13 +98,18 @@ class StaticDatabaseProvider(DatabaseProvider):
             if not database_entry:
                 continue
             if "=" not in database_entry:
-                raise ValueError(f"invalid database entry format: {database_entry}")
+                raise ValueError(f"invalid database: {database_entry}")
             location_part, database_url = database_entry.split("=", 1)
             if location_part.count("/") != 2:
-                raise ValueError(f"invalid location format: {location_part}")
+                raise ValueError(f"invalid location: {location_part}")
+            if "postgresql://" in database_url:
+                type = DatabaseType.POSTGRES
+            else:
+                raise ValueError(f"unknown database: {database_url}")
             region_name, cell_name, external_name = location_part.split("/")
             region = REGION_BY_SLUG[region_name]
             database_info = DatabaseInfo(
+                type=type,
                 region=region,
                 cell_name=cell_name,
                 external_name=external_name,

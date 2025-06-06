@@ -13,6 +13,7 @@ from bench.language import (
     ChangeStatus,
     CustomNodeDefinition,
     DatabaseInfo,
+    DatabaseType,
     Edit,
     EditOperation,
     EditType,
@@ -41,7 +42,7 @@ tracer = trace.get_tracer(__name__)
 logger = structlog.get_logger(__name__)
 
 
-class DatabaseStore(Store):
+class PostgresStore(Store):
     """
     A Store backed by a Postgres Databases.
     """
@@ -66,6 +67,8 @@ class DatabaseStore(Store):
     __slots__ = ("context", "database")
 
     def __init__(self, database: DatabaseInfo, area: Area | None):
+        if database.type != DatabaseType.POSTGRES:
+            raise ValueError(f"unexpected {database!r}")
         self.database = database
         self.context: DatabaseStoreContext | None = None
         self.area = area
@@ -141,7 +144,7 @@ class DatabaseStore(Store):
 class DatabaseStoreContext(DatabaseContext):
     __slots__ = ("store", "tables_by_name")
 
-    def __init__(self, store: DatabaseStore):
+    def __init__(self, store: PostgresStore):
         self.store = store
         self.tables_by_name: dict[str, DatabaseTable] = {}
         if store.area is None:

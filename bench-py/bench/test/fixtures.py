@@ -15,7 +15,7 @@ from bench.test.conftest import _setup_test_env
 _setup_test_env()
 
 
-from bench.language import REGION, DatabaseInfo, Tenancy
+from bench.language import REGION, DatabaseInfo, DatabaseType, Tenancy
 from bench.sharding import get_global_database_from_env
 from bench.store.postgres import (
     BENCH_BUILTIN_TABLE_PREFIX,
@@ -43,6 +43,7 @@ def get_database(name: str) -> DatabaseInfo:
     pg_url_parsed = urlparse(pg)
     sql_url = pg_url_parsed._replace(path=f"/{name}").geturl()
     database = DatabaseInfo(
+        type=DatabaseType.POSTGRES,
         region=REGION,
         cell_name="test-0",
         external_name=name,

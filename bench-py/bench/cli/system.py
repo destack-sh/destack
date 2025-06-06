@@ -21,11 +21,11 @@ async def bootstrap(
     region: Annotated[Region, typer.Option(parser=parse_region)], upsert: bool = False
 ):
     from bench.sharding import get_global_database_from_env
-    from bench.store import DatabaseStore
+    from bench.store import PostgresStore
     from bench.supervisor import create_system_benches
 
     global_database = get_global_database_from_env()
-    store = DatabaseStore(database=global_database, area=Area.GLOBAL_DATABASE)
+    store = PostgresStore(database=global_database, area=Area.GLOBAL_DATABASE)
     async with Session(store=store) as session:
         await create_system_benches(region=region, session=session, upsert=upsert)
         await session.commit()
