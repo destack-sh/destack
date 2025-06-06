@@ -49,7 +49,7 @@ def map_builtin_node_to_database_table(node: type[Node]) -> DatabaseTable:
 
     # map properties to columns, add per-column indices
     for prop in properties:
-        if prop.edge_type == EdgeType.NODE_PARENT and node.__root_type__ is None:
+        if prop.edge_type == EdgeType.PARENT and node.__root_type__ is None:
             continue  # no parent for root nodes
 
         if prop.scalar_type == ScalarType.NODE_REFERENCE:

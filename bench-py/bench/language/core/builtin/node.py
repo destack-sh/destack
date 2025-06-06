@@ -21,7 +21,6 @@ from bench.pb2 import AnyNodeData
 from bench.utils.func import get_superclasses
 
 from .const import UNSET, NodeType, TraitType
-from .graph import Graph, SingletonGraph
 from .object import _process_object_cls
 from .property import (
     _PROPERTY_SPECIFIERS,
@@ -34,7 +33,14 @@ from .property import (
 from .trait import IndexIn, IsSubject, NodeBase
 
 if TYPE_CHECKING:
-    from bench.language import NodeInfo, NodeReference, QueryConnection, Session, Supergraph
+    from bench.language import (
+        Graph,
+        NodeInfo,
+        NodeReference,
+        QueryConnection,
+        Session,
+        Supergraph,
+    )
 
 # pyright: reportIncompatibleVariableOverride=false
 
@@ -251,6 +257,8 @@ class Node[NodeDataT: AnyNodeData](NodeBase[NodeDataT]):
         If the Node IsOrdered, it will be positioned (relative to after/before).
         (The same applies to all descendants.)
         """
+        from ..helper import SingletonGraph
+
         old_graph = child._graph
         new_graph = self._graph
         session = self._session

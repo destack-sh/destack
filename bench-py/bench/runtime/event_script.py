@@ -3,9 +3,16 @@
 from contextlib import contextmanager
 from typing import Any
 
-from bench import Client, CustomNodeInstance, IsSubject, Node, Session
+from bench import Client, CustomNodeInstance, EdgeType, EditType, IsSubject, Node, Session
+
+# pyright: reportIncompatibleVariableOverride=false, reportIncompatibleMethodOverride=false
 
 # nocheckin: Scripts, custom Signals/Schemas/fields, ..
+
+# ===============================================
+#  MOCK STUFF FOR PROTOTYPING
+# ===============================================
+
 Signal: Any = ...
 session: Any = ...
 script: Any = ...
@@ -18,17 +25,23 @@ def span(func):
     return func
 
 
-def action(func):
+def action(func, *args, **kwargs):
     return func
 
 
-def node(cls):
+def node(cls, *args, **kwargs):
     return cls
 
 
-def signal(cls):
+def signal(cls, *args, **kwargs):
     return cls
 
+
+def on(cls, *args, **kwargs):
+    return cls
+
+
+# ===============================================
 
 SECRET = script.member("secret_key", 1, str)
 
@@ -40,6 +53,11 @@ class Event(Node):
     @signal
     class EventFull(Signal):
         pass
+
+
+@node
+class EventRSVP(Node):
+    parent: Event = field(2, edge_type=EdgeType.PARENT)
 
 
 # action inputs (all optional)
@@ -61,4 +79,16 @@ async def do_something(
 
 @action
 def do_something_else(event: Event):
+    pass
+
+
+@on(Event.EventFull)
+@action
+def on_event_full(event: Event):
+    pass
+
+
+@on(EditType.CREATE, EventRSVP)
+@action
+def on_event_create(event: Event):
     pass

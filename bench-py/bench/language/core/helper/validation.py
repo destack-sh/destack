@@ -1,6 +1,6 @@
 from typing import TYPE_CHECKING, Any, Optional, Union
 
-from .const import BenchError
+from ..builtin import BenchError
 
 if TYPE_CHECKING:
     from bench.language import Property, TypeBase

@@ -1,8 +1,20 @@
 from typing import TYPE_CHECKING
 
-from .const import BuiltinEnum, CascadeAction, EdgeType, EnumType, NodeType, TraitType
-from .property import Property, property_
-from .struct import StructBase, StructFrozen, StructMutable, StructType, struct_
+from ..builtin import (
+    BuiltinEnum,
+    CascadeAction,
+    EdgeType,
+    EnumType,
+    NodeType,
+    Property,
+    StructBase,
+    StructFrozen,
+    StructMutable,
+    StructType,
+    TraitType,
+    property_,
+    struct_,
+)
 from .type import TypeBase
 
 if TYPE_CHECKING:

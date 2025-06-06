@@ -20,7 +20,7 @@ from bench.language.registry import (
 )
 from bench.utils.fractional import INTEGER_MAX
 
-from .const import EMPTY_LIST, UNSET, NodeType, TraitType
+from ..builtin import EMPTY_LIST, UNSET, NodeType, TraitType
 
 if TYPE_CHECKING:
     from bench.language import Node, Session

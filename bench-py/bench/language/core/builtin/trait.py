@@ -41,7 +41,6 @@ from .property import (
     property_parent_,
     property_runtime_,
 )
-from .type import StringFormat
 
 if TYPE_CHECKING:
     from bench.language import (
@@ -68,7 +67,7 @@ if TYPE_CHECKING:
         Value,
     )
 
-    from .query import JoinIn
+    from ..definition.query import JoinIn
 
 # pyright: reportIncompatibleVariableOverride=false
 
@@ -140,8 +139,8 @@ class NodeBase[NodeDataT: AnyObjectData](BuiltinObjectMutable[NodeDataT]):
         join: Optional["JoinIn"] = None,
         **subqueries: "Query",
     ) -> "Query[Self]":  # type: ignore
-        from .query import Query, QueryType, to_subqueries
-        from .query import join as to_join
+        from ..definition.query import Query, QueryType, to_subqueries
+        from ..definition.query import join as to_join
 
         query = Query(
             type=QueryType.NODE,
@@ -168,8 +167,8 @@ class NodeBase[NodeDataT: AnyObjectData](BuiltinObjectMutable[NodeDataT]):
         offset: Optional[int] = None,
         **subqueries: "Query",
     ) -> "Query[Self]":  # type: ignore
-        from .query import Query, QueryType, to_subqueries
-        from .query import join as to_join
+        from ..definition.query import Query, QueryType, to_subqueries
+        from ..definition.query import join as to_join
 
         query = Query(
             type=QueryType.NODE if group_by is None else QueryType.GROUPED_NODE,
@@ -198,9 +197,9 @@ class NodeBase[NodeDataT: AnyObjectData](BuiltinObjectMutable[NodeDataT]):
         group_by: Optional[list["Expression"]] = None,
         sort: Optional[list["Sort"]] = None,
     ) -> "Query[Self]":  # type: ignore
-        from .query import Aggregation, Query, QueryType
-        from .query import expression as to_expression
-        from .query import join as to_join
+        from ..definition.query import Aggregation, Query, QueryType
+        from ..definition.query import expression as to_expression
+        from ..definition.query import join as to_join
 
         query = Query(
             type=QueryType.SCALAR if group_by is None else QueryType.GROUPED_SCALAR,
@@ -224,8 +223,8 @@ class NodeBase[NodeDataT: AnyObjectData](BuiltinObjectMutable[NodeDataT]):
         name: str | None = None,
         join: Optional["JoinIn"] = None,
     ) -> "Query[Self]":  # type: ignore
-        from .query import Aggregation, AggregationType, Query, QueryType
-        from .query import join as to_join
+        from ..definition.query import Aggregation, AggregationType, Query, QueryType
+        from ..definition.query import join as to_join
 
         query = Query(
             type=QueryType.SCALAR,
@@ -247,9 +246,9 @@ class NodeBase[NodeDataT: AnyObjectData](BuiltinObjectMutable[NodeDataT]):
         group_by: Optional[list["ExpressionIn"]] = None,
         having: Optional["Condition"] = None,
     ) -> "Query[Self]":  # type: ignore
-        from .query import Aggregation, AggregationType, Query, QueryType
-        from .query import expression as to_expression
-        from .query import join as to_join
+        from ..definition.query import Aggregation, AggregationType, Query, QueryType
+        from ..definition.query import expression as to_expression
+        from ..definition.query import join as to_join
 
         query = Query(
             type=QueryType.SCALAR if group_by is None else QueryType.GROUPED_SCALAR,
@@ -274,9 +273,9 @@ class NodeBase[NodeDataT: AnyObjectData](BuiltinObjectMutable[NodeDataT]):
         having: Optional["Condition"] = None,
         group_by: Optional[list["ExpressionIn"]] = None,
     ) -> "Query[Self]":  # type: ignore
-        from .query import Aggregation, AggregationType, Query, QueryType
-        from .query import expression as to_expression
-        from .query import join as to_join
+        from ..definition.query import Aggregation, AggregationType, Query, QueryType
+        from ..definition.query import expression as to_expression
+        from ..definition.query import join as to_join
 
         query = Query(
             type=QueryType.SCALAR if group_by is None else QueryType.GROUPED_SCALAR,
@@ -301,9 +300,9 @@ class NodeBase[NodeDataT: AnyObjectData](BuiltinObjectMutable[NodeDataT]):
         having: Optional["Condition"] = None,
         group_by: Optional[list["ExpressionIn"]] = None,
     ) -> "Query[Self]":  # type: ignore
-        from .query import Aggregation, AggregationType, Query, QueryType
-        from .query import expression as to_expression
-        from .query import join as to_join
+        from ..definition.query import Aggregation, AggregationType, Query, QueryType
+        from ..definition.query import expression as to_expression
+        from ..definition.query import join as to_join
 
         query = Query(
             type=QueryType.SCALAR if group_by is None else QueryType.GROUPED_SCALAR,
@@ -328,9 +327,9 @@ class NodeBase[NodeDataT: AnyObjectData](BuiltinObjectMutable[NodeDataT]):
         having: Optional["Condition"] = None,
         group_by: Optional[list["ExpressionIn"]] = None,
     ) -> "Query[Self]":  # type: ignore
-        from .query import Aggregation, AggregationType, Query, QueryType
-        from .query import expression as to_expression
-        from .query import join as to_join
+        from ..definition.query import Aggregation, AggregationType, Query, QueryType
+        from ..definition.query import expression as to_expression
+        from ..definition.query import join as to_join
 
         query = Query(
             type=QueryType.SCALAR if group_by is None else QueryType.GROUPED_SCALAR,
@@ -369,7 +368,7 @@ class Trait(Node if TYPE_CHECKING else NodeBase):
 class HasName(Trait):
     """A Node with a plain name."""
 
-    name: str = property_(31, format=StringFormat.NAME)
+    name: str = property_(31)
 
 
 @trait_(TraitType.HAS_TITLE)
@@ -383,7 +382,7 @@ class HasTitle(Trait):
 class HasSlug(Trait):
     """A Node with a slug."""
 
-    slug: str | None = property_(33, is_repr=True, format=StringFormat.SLUG)
+    slug: str | None = property_(33, is_repr=True)
 
 
 @trait_(TraitType.HAS_ICON)
@@ -466,7 +465,7 @@ class IsDeletable(Trait):
 class IsTemplatable(Trait):
     """A Node that can become a template (we can create Nodes derived from 'templates')."""
 
-    template: Optional["Node"] = property_(16, edge_type=EdgeType.NODE_TEMPLATE)
+    template: Optional["Node"] = property_(16, edge_type=EdgeType.TEMPLATE)
     if TYPE_CHECKING:
         template_id: Optional[UUID] = None
         template_ptr: Optional["NodeReference"] = None

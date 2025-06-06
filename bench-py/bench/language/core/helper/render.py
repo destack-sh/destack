@@ -18,18 +18,20 @@ from opentelemetry import trace
 
 from bench.utils.code import format_code
 
-from .const import (
+from ..builtin import (
     NODE_TYPES,
+    BuiltinObjectBase,
+    EdgeType,
+    IsInPackage,
+    Node,
+    NodeReference,
     NodeType,
+    Property,
+    PropertyReference,
     StructType,
 )
+from ..definition import TypeBase
 from .graph import Supergraph
-from .node import Node
-from .object import BuiltinObjectBase
-from .property import EdgeType, Property
-from .struct import NodeReference, PropertyReference
-from .trait import IsInPackage
-from .type import TypeBase
 
 if TYPE_CHECKING:
     pass
@@ -294,7 +296,7 @@ def _deconstruct_builtin_object(
             continue  # exclude
         elif include_properties is not None and prop not in include_properties:
             pass  # include
-        elif prop.id is None or prop.runtime_prop or prop.edge_type == EdgeType.NODE_ANCESTOR:
+        elif prop.id is None or prop.runtime_prop or prop.edge_type == EdgeType.ANCESTOR:
             continue  # ignore internal properties
         prop_value = getattr(obj, prop.name)
         if (

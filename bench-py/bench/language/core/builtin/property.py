@@ -43,7 +43,7 @@ if TYPE_CHECKING:
         Type,
     )
 
-    from .query import IntoQuery
+    from ..definition.query import IntoQuery
 
 
 def _resolve_enum_type(class_name: str) -> EnumType | None:
@@ -127,7 +127,7 @@ class IntoType:
 
     def _to_type(self) -> "Type":
         """Create the Type for this Property."""
-        from .type import (
+        from ..definition.type import (
             CollectionConstraint,
             NodeConstraint,
             NumberConstraint,
@@ -136,7 +136,7 @@ class IntoType:
             StringFormat,
             Type,
         )
-        from .value import to_value
+        from ..definition.value import to_value
 
         # type
         default = (
@@ -443,7 +443,7 @@ class Property(IntoType, IntoQuery if TYPE_CHECKING else object):
     @property
     def info(self) -> "PropertyInfo":
         if self._info is None:
-            from .meta import PropertyInfo
+            from ..definition.meta import PropertyInfo
 
             self._info = PropertyInfo.from_property(self)
         return self._info
@@ -479,13 +479,13 @@ class Property(IntoType, IntoQuery if TYPE_CHECKING else object):
 
         # node reference
         elif self.edge_type:
-            if self.edge_type == EdgeType.NODE_PARENT:
+            if self.edge_type == EdgeType.PARENT:
                 is_computed = False
-            elif self.edge_type == EdgeType.NODE_ANCESTOR:
+            elif self.edge_type == EdgeType.ANCESTOR:
                 is_computed = True
             elif self.edge_type in (
-                EdgeType.NODE_REGULAR,
-                EdgeType.NODE_TEMPLATE,
+                EdgeType.REGULAR,
+                EdgeType.TEMPLATE,
             ):
                 is_computed = False
             else:
@@ -510,7 +510,7 @@ class Property(IntoType, IntoQuery if TYPE_CHECKING else object):
                 default=None,
                 constraint=self.constraint,
             )
-            if self.edge_type == EdgeType.NODE_ANCESTOR:
+            if self.edge_type == EdgeType.ANCESTOR:
                 # wired ancestors are not required (even though stored ancestors are)
                 ptr_prop.is_required = False
 
@@ -558,10 +558,10 @@ class Property(IntoType, IntoQuery if TYPE_CHECKING else object):
             self.default = None
         # default to regular node references
         if self.scalar_type == ScalarType.NODE_REFERENCE and self.edge_type is None:
-            self.edge_type = EdgeType.NODE_REGULAR
+            self.edge_type = EdgeType.REGULAR
 
         # node templates always point to their own type
-        if self.edge_type == EdgeType.NODE_TEMPLATE and object_type is not None:
+        if self.edge_type == EdgeType.TEMPLATE and object_type is not None:
             self.node_types = (NodeType(object_type),)
         # references get a _ptr property (which is wired/stored)
         if self.edge_type is not None or self.struct_type == StructType.PROPERTY_REFERENCE:
@@ -651,7 +651,7 @@ def property_parent_() -> Any:
     """The parent of a node, must be of one of the given types."""
     return Property(
         id=4,  # NOTE: never change this id!
-        edge_type=EdgeType.NODE_PARENT,
+        edge_type=EdgeType.PARENT,
         default=None,
         is_wired=True,
         is_stored=True,
@@ -671,7 +671,7 @@ def property_ancestor_(
     """Computed nearest or farthest ancestor of the given type."""
     return Property(
         id=id,
-        edge_type=EdgeType.NODE_ANCESTOR,
+        edge_type=EdgeType.ANCESTOR,
         is_computed=True,
         is_required=is_required,
         is_wired=True,

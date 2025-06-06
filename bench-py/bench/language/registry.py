@@ -7,7 +7,7 @@ from fastuuid import UUID
 from bench import pb2
 from bench.utils.code import exec_
 
-from .core.const import (
+from .core.builtin.const import (
     _ENUM_CLASS_BY_TYPE,
     _ENUM_TYPE_BY_CLASS,
     ENUM_TYPES,
@@ -88,11 +88,11 @@ def get_builtin_type(
 
 def _complete_bench_setup():
     """Finalize setup of all language constructs after everything is imported."""
-    from bench.language.core.object import (
+    from bench.language.core.builtin.object import (
         _is_setup_complete,
         _set_setup_complete,
     )
-    from bench.language.core.trait import expand_node_types
+    from bench.language.core.builtin.trait import expand_node_types
 
     if _is_setup_complete():
         return
@@ -131,7 +131,7 @@ def _complete_bench_setup():
             prop.finalize(metatype)
 
     # generate pack/unpack methods
-    from bench.language.core.value import generate_pack_value_impl
+    from bench.language.core.definition.value import generate_pack_value_impl
     from bench.proto.wiring import generate_pack_proto_impl
 
     builtin_class_by_name: dict[str, Any] = {**pb2.__dict__, "UUID": UUID}

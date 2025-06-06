@@ -19,7 +19,7 @@ from bench.language.core import (
     property_parent_,
     struct_,
 )
-from bench.language.core.trait import IndexIn
+from bench.language.core.builtin.trait import IndexIn
 from bench.pb2 import ClientData, OriginData
 
 if TYPE_CHECKING:

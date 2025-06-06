@@ -2,26 +2,26 @@ from typing import TYPE_CHECKING, Any, Optional, Union, assert_never
 
 from fastuuid import UUID
 
-from .const import (
+from ..builtin import (
+    AttributeReference,
     BuiltinEnum,
+    BuiltinObjectMutable,
     DefaultFactory,
     EnumType,
-    StructType,
-    active_session,
-    enum_,
-)
-from .node import Node
-from .object import BuiltinObjectMutable, Property, object_
-from .property import property_
-from .struct import (
-    AttributeReference,
+    Node,
+    Property,
     RelationReference,
     StructFrozen,
     StructMutable,
+    StructType,
+    Trait,
+    active_session,
     attribute_ref,
+    enum_,
+    object_,
+    property_,
     struct_,
 )
-from .trait import Trait
 from .value import Value
 
 if TYPE_CHECKING:
@@ -350,7 +350,7 @@ class Query[RootT: "Trait | Node"](StructFrozen):
 
     async def execute(self) -> "QueryConnection[RootT]":
         """Execute the Query."""
-        from .connection import QueryConnection
+        from ..helper.connection import QueryConnection
 
         session = active_session()
         store = session.store

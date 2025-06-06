@@ -12,13 +12,18 @@ from opentelemetry import trace
 
 from bench.utils.oracle import REAL_ORACLE, Oracle
 
-from .const import ACTIVE_SESSION, EnvironmentType
-from .edit import Change, ChangeResult, ChangeStatus, Edit, EditOperation, EditType
+from ..builtin import ACTIVE_SESSION, EnvironmentType, IsSubject, Node, TypeCardinality
+from ..definition import (
+    Change,
+    ChangeResult,
+    ChangeStatus,
+    Edit,
+    EditOperation,
+    EditType,
+    to_value,
+)
 from .graph import Supergraph
-from .node import IsSubject, Node
 from .store import OptimisticStore
-from .type import TypeCardinality
-from .value import to_value
 
 if TYPE_CHECKING:
     from bench.language import Bench, Edit, Origin, QueryConnection, Store
