@@ -353,7 +353,6 @@ class EnumType(BuiltinEnum):
     # data [2000-2200]
     TEXT_LINE_TYPE = 2001
     TEXT_SPAN_TYPE = 2002
-    CODE_TYPE = 2011
     FILE_RETENTION_MODE = 2021
     FILE_SOURCE = 2022
     FILE_TYPE = 2023
@@ -518,7 +517,7 @@ class StructType(BuiltinEnum):
 
     # runtime [1600-2000]
     ERROR = 1601
-    # EVENT, SIGNAL, ...
+    # ...
 
     # data [2000-2200]
     TYPE = 2001
@@ -529,7 +528,6 @@ class StructType(BuiltinEnum):
     TEXT = 2101, None, None, "fas fa-text"
     TEXT_LINE = 2102, None, None, "fas fa-text"
     TEXT_SPAN = 2103, None, None, "fas fa-text"
-    CODE = 2111, None, None, "fas fa-code"
     ICON = 2131
     SELECTION = 2071
     # SCHEMA, UNION, TAG, ...
@@ -663,25 +661,26 @@ class NodeType(BuiltinEnum):
     # DATABASE?, SEARCH/INDEX, WAREHOUSE/OLAP, VAULT, CACHE, S3, ...
     # CELL = 1100, "Cell", "Cell of Bench services", "fas fa-cell"
     MACHINE = 1150, "Machine", "Machine for ephemeral computing", "fas fa-machine-classic"
-    # HOST, ENDPOINT, DEPLOYMENT, REPLICA?, NETWORK, AUTOSCALER, ...
+    # HOST, ENDPOINT, DEPLOYMENT, NETWORK, AUTOSCALER, ...
 
     # logic [1200-1600]
-    SERVICE = 1200, "Service", "Service", "fas fa-screwdriver-wrench"
+    SCRIPT = 1200, "Script", "Script", "fas fa-code"
+    SERVICE = 1210, "Service", "Service", "fas fa-screwdriver-wrench"
     ACTION = 1220, "Action", "Action", "fas fa-step-forward"
     AGENT = 1300, "Agent", "Identity for an AI", "fas fa-robot"
     TASK = 1310, "Task", "To-do item", "far fa-square-check"
     CURSOR = 1320, "Cursor", "Position in something", "fas fa-mouse"
-    # SCRIPT, ...?
-    # ROOM, JOB, PLAN, LOCK, ...
     # TRAIT/INTERFACE, ...
-    # TRIGGER, TIMER, BREAKPOINT, ...
     # TEST, TEST_SUITE, TEST_CASE, TEST_RESULT, ...
 
     # runtime [1600-2000]
     RUN = 1610, "Run", "Run", "fas fa-play"
     SPAN = 1620, "Span", "Span", "fas fa-ruler-horizontal"
     INTERRUPTION = 1630, "Interruption", "Interruption", "fas fa-hand"
-    # EVENT, SIGNAL, SPAN/TRACE,
+    # ROOM, JOB, PLAN, LOCK, ...
+    # EVENT, SIGNAL, ...
+    # TRIGGER, TIMER, BREAKPOINT, ...
+
     # INSTRUMENT, MEASUREMENT, LOG/EDIT_LOG/CHANGE_LOG/QUERY_LOG/..., ...
 
     # data [2000-2200]
@@ -691,9 +690,14 @@ class NodeType(BuiltinEnum):
     LINK = 2050, "Link", "Link to something", "fas fa-link"
     # STREAM, SECRET, ...
 
-    # custom [2200-22400]
-    CUSTOM_NODE_DEFINITION = 2200, "Table", "Table of Records", "fas fa-table"
-    CUSTOM_NODE_INSTANCE = 2201, "Record", "Record in a Database", "fas fa-database"
+    # custom [2200-2400]
+    CUSTOM_NODE_DEFINITION = (
+        2200,
+        "Custom Node Definition",
+        "Custom Node Definition",
+        "fas fa-table",
+    )
+    CUSTOM_NODE_INSTANCE = 2201, "Custom Node Instance", "Custom Node Instance", "fas fa-database"
     # INDEX, CONSTRAINT, MIGRATION, ...
 
     # social [2400-2800]
@@ -840,6 +844,10 @@ class TraitType(BuiltinEnum):
     RUNNABLE = 1200, "Runnable", "Can be run", "fas fa-play"
     PROCESSABLE = 1201, "Processable", "Can be processed", "fas fa-cogs"
     COMPUTABLE = 1202, "Computable", "Can be computed", "fas fa-calculator"
+    SCRIPTABLE = 1203, "Scriptable", "Can be scripted", "fas fa-code"
+    INSTRUMENT = 1210, "Instrument", "Is an instrument", "fas fa-microscope"
+    MEASUREMENT = 1211, "Measurement", "Is a measurement", "fas fa-microscope"
+    LOG = 1212, "Log", "Is a log", "fas fa-file-lines"
 
     # runtime [1600-2000]
     # LOG, ...

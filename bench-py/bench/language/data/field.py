@@ -40,15 +40,15 @@ class FieldType(BuiltinEnum):
 
 @node_(NodeType.FIELD)
 class Field(
-    IsTemplatable,
     HasEnvironment,
     HasName,
+    HasIcon,
+    IsTemplatable,
     IsOrdered,
     IsDeletable,
     IsArchivable,
     IsInPackage,
     IntoQuery,
-    HasIcon,
     TypeBase,
     Node[FieldData],
 ):

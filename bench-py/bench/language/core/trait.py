@@ -61,6 +61,7 @@ if TYPE_CHECKING:
         Package,
         Page,
         Query,
+        Script,
         Sort,
         TextLine,
         TraitInfo,
@@ -548,6 +549,13 @@ class IsComputable(Trait):
     # compute/cost/effort/budget/'juice'...?
 
 
+@trait_(TraitType.SCRIPTABLE)
+class IsScriptable(Trait):
+    """A Node that can be scripted."""
+
+    script: Optional["Script"] = property_(104)
+
+
 @trait_(TraitType.RUNNABLE)
 class IsRunnable(IsComputable):
     """A Node that can be run (at runtime in a Run)."""
@@ -638,6 +646,27 @@ class IsProcessable(Trait):
             )
             and (self.interrupted_at is None or self.interrupted_at < self.requested_resume_at)
         )
+
+
+@trait_(TraitType.INSTRUMENT)
+class IsInstrument(Trait):
+    """A Node that represents an Instrument."""
+
+    pass
+
+
+@trait_(TraitType.MEASUREMENT)
+class IsMeasurement(Trait):
+    """A Node that represents a Measurement."""
+
+    pass
+
+
+@trait_(TraitType.LOG)
+class IsLog(Trait):
+    """A Node that represents a Log."""
+
+    pass
 
 
 @trait_(TraitType.OWNABLE)
