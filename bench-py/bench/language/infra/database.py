@@ -47,6 +47,7 @@ class Database(IsResource, IsInBench, DatabaseBase, Node[DatabaseData]):
     """A Postgres-compatible Database."""
 
     parent: Optional["Bench"] = property_parent_()
+    # type?
 
     def to_info(self) -> DatabaseInfo:
         return DatabaseInfo(

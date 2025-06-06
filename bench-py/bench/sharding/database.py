@@ -46,7 +46,7 @@ class StaticDatabaseProvider(DatabaseProvider):
 
     @override
     async def acquire(self, region: Region, bench: Bench) -> "DatabaseInfo":
-        from bench.store.database import pg_connection
+        from bench.store.postgres import pg_connection
 
         # find main database
         base_database: DatabaseInfo | None = None

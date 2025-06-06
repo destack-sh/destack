@@ -33,7 +33,7 @@ async def make(
     from_scratch: bool = typer.Option(default=False, help="generate migration from scratch"),
 ):
     from bench.sharding import DATABASE_PROVIDER, get_global_database_from_env
-    from bench.store.database import (
+    from bench.store.postgres import (
         BENCH_BUILTIN_TABLE_PREFIX,
         BENCH_CUSTOM_TABLE_PREFIX,
         BUILTIN_GLOBAL_SCHEMA,
@@ -153,7 +153,7 @@ async def apply(
 ):
     from bench.language import REGION, Area
     from bench.sharding import DATABASE_PROVIDER, get_global_database_from_env
-    from bench.store.database import pg_transaction, sql_migrate
+    from bench.store.postgres import pg_transaction, sql_migrate
 
     start = time.time()
 

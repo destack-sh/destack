@@ -17,7 +17,7 @@ _setup_test_env()
 
 from bench.language import REGION, DatabaseInfo, Tenancy
 from bench.sharding import get_global_database_from_env
-from bench.store.database import (
+from bench.store.postgres import (
     BENCH_BUILTIN_TABLE_PREFIX,
     BENCH_CUSTOM_TABLE_PREFIX,
     BUILTIN_GLOBAL_SCHEMA,
