@@ -1,6 +1,10 @@
 from typing import TYPE_CHECKING, Union
 
-from bench.language.core import (
+from bench.pb2 import SchemaData
+
+from .node import Node, NodeType, node_
+from .property import property_parent_
+from .trait import (
     HasEnvironment,
     HasName,
     IsArchivable,
@@ -8,13 +12,8 @@ from bench.language.core import (
     IsDeletable,
     IsInPackage,
     IsTemplatable,
-    Node,
-    NodeType,
-    TypeBase,
-    node_,
-    property_parent_,
 )
-from bench.pb2 import SchemaData
+from .type import TypeBase
 
 if TYPE_CHECKING:
     from bench.language import Page

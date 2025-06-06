@@ -57,7 +57,7 @@ def run_shell_sync(cmd: str, check=True, **kwargs):
 
 def parse_region(region: "str | Region") -> "Region":
     """Parse a Region from a string."""
-    from bench.language.core.const import REGION_BY_SLUG, Region
+    from bench.language.core import REGION_BY_SLUG, Region
 
     if isinstance(region, Region):
         return region
@@ -81,7 +81,7 @@ def parse_region(region: "str | Region") -> "Region":
 
 def parse_node_area(area: "str | Area") -> "Area":
     """Parse a NodeArea from a string."""
-    from bench.language.core.const import Area
+    from bench.language.core import Area
 
     if isinstance(area, Area):
         return area

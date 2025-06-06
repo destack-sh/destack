@@ -65,6 +65,7 @@ from .const import (
     get_active_session,
     repr_enums,
 )
+from .custom import CustomNodeDefinition, CustomNodeInstance
 from .edit import (
     CASCADING_EDIT_TYPES,
     Change,
@@ -75,6 +76,7 @@ from .edit import (
     EditType,
     edit_graph,
 )
+from .field import Field, FieldType
 from .graph import Graph, PolyGraph, SingletonGraph, Supergraph
 from .icon import Icon, IconIn, IconType, icon, reverse_icon, to_icon
 from .meta import EnumInfo, EnumOptionInfo, NodeInfo, PropertyInfo, StructInfo, TraitInfo
@@ -138,6 +140,7 @@ from .render import (
     render_expressions,
     render_statement,
 )
+from .schema import Schema
 from .session import Session
 from .store import LiveStore, OptimisticStore, Store
 from .struct import (
@@ -281,6 +284,8 @@ __all__ = [
     "ConditionalType",
     "Constraint",
     "Continent",
+    "CustomNodeDefinition",
+    "CustomNodeInstance",
     "Day",
     "DefaultFactory",
     "EdgeDirection",
@@ -295,6 +300,8 @@ __all__ = [
     "Expression",
     "ExpressionIn",
     "ExpressionType",
+    "Field",
+    "FieldType",
     "Format",
     "Function",
     "FunctionType",
@@ -375,6 +382,7 @@ __all__ = [
     "ResourceStatus",
     "RunType",
     "ScalarType",
+    "Schema",
     "Scope",
     "Select",
     "Selection",

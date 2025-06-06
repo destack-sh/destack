@@ -4,7 +4,6 @@ from bench.utils.oracle import REAL_ORACLE as REAL_ORACLE
 
 from .auth import *  # noqa: F403
 from .core import *  # noqa: F403
-from .custom import *  # noqa: F403
 from .data import *  # noqa: F403
 from .finance import *  # noqa: F403
 from .infra import *  # noqa: F403

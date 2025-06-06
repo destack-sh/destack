@@ -37,10 +37,9 @@ SECRET = script.member("secret_key", 1, str)
 class Event(Node):
     name: str | None = field(1)
 
-
-@signal
-class EventFull(Signal):
-    pass
+    @signal
+    class EventFull(Signal):
+        pass
 
 
 # action inputs (all optional)
