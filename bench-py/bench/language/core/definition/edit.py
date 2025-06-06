@@ -6,23 +6,26 @@ import structlog
 from fastuuid import UUID
 from opentelemetry import trace
 
-from .const import (
+from ..builtin import (
     UNSET,
     BuiltinEnum,
     DefaultFactory,
     EnumType,
+    Node,
+    NodeReference,
     NodeType,
+    Property,
+    PropertyReference,
+    StructFrozen,
     StructType,
     bittuple,
     enum_,
+    property_,
+    struct_,
 )
-from .graph import Graph
-from .node import Node
-from .property import Property, property_
-from .struct import NodeReference, PropertyReference, StructFrozen, struct_
 
 if TYPE_CHECKING:
-    from bench.language import Field, IsSubject, Origin, Value
+    from bench.language import Field, Graph, IsSubject, Origin, Value
 
 logger = structlog.get_logger(__name__)
 tracer = trace.get_tracer(__name__)
@@ -151,6 +154,6 @@ def edit_node(node: Node, edit: Edit) -> None:
     raise NotImplementedError
 
 
-def edit_graph(graph: Graph, edits: Collection[Edit]) -> None:
+def edit_graph(graph: "Graph", edits: Collection[Edit]) -> None:
     """Applies the Edits to the graph."""
     raise NotImplementedError

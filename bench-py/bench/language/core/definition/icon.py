@@ -1,8 +1,6 @@
 from typing import TYPE_CHECKING, Optional, Union
 
-from .const import BuiltinEnum, EnumType, StructType, enum_
-from .property import property_
-from .struct import StructFrozen, struct_
+from ..builtin import BuiltinEnum, EnumType, StructFrozen, StructType, enum_, property_, struct_
 
 if TYPE_CHECKING:
     from bench.language import Color, ColorIn, File

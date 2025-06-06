@@ -13,23 +13,26 @@ from opentelemetry import trace
 
 from bench.language.registry import ENUM_TYPE_BY_CLASS
 
-from .const import (
+from ..builtin import (
     PRIMITIVE_PY_TYPES,
     PRIMITIVE_TYPE_BY_PY_TYPE,
     BuiltinEnum,
+    BuiltinObjectMutable,
     DefaultFactory,
     EnumType,
     NodeType,
     PrimitiveType,
     ScalarType,
+    StructBase,
+    StructMutable,
     StructType,
     TraitType,
     TypeCardinality,
     enum_,
+    object_,
+    property_,
+    struct_,
 )
-from .object import BuiltinObjectMutable, object_
-from .property import property_
-from .struct import StructBase, StructMutable, struct_
 
 if TYPE_CHECKING:
     from bench.language import CustomNodeDefinition, Node, NodeReference, Value

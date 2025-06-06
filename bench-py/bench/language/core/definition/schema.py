@@ -2,9 +2,7 @@ from typing import TYPE_CHECKING, Union
 
 from bench.pb2 import SchemaData
 
-from .node import Node, NodeType, node_
-from .property import property_parent_
-from .trait import (
+from ..builtin import (
     HasEnvironment,
     HasName,
     IsArchivable,
@@ -12,6 +10,10 @@ from .trait import (
     IsDeletable,
     IsInPackage,
     IsTemplatable,
+    Node,
+    NodeType,
+    node_,
+    property_parent_,
 )
 from .type import TypeBase
 

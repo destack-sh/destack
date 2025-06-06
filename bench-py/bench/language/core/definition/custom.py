@@ -5,10 +5,7 @@ from fastuuid import UUID
 
 from bench.pb2 import CustomNodeDefinitionData, CustomNodeInstanceData
 
-from .node import Node, NodeType, node_
-from .property import property_, property_parent_
-from .struct import NodeReference
-from .trait import (
+from ..builtin import (
     HasEnvironment,
     HasName,
     IsBlockable,
@@ -17,7 +14,13 @@ from .trait import (
     IsInPackage,
     IsOwnable,
     IsScriptable,
+    Node,
+    NodeReference,
+    NodeType,
     TraitType,
+    node_,
+    property_,
+    property_parent_,
 )
 
 if TYPE_CHECKING:

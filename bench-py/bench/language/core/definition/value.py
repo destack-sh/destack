@@ -16,17 +16,26 @@ from bench.language.registry import (
 from bench.pb2 import ValueData
 from bench.utils.time import timedelta_from_isoformat, timedelta_to_isoformat
 
-from .const import NodeType, PrimitiveType, StructType
-from .node import Node
-from .property import IntoType, Property, property_, property_runtime_
-from .struct import NodeReference, StructFrozen, struct_
+from ..builtin import (
+    IntoType,
+    Node,
+    NodeReference,
+    NodeType,
+    PrimitiveType,
+    Property,
+    StructFrozen,
+    StructType,
+    property_,
+    property_runtime_,
+    struct_,
+)
 from .type import Json, ScalarType, Type, TypeCardinality, to_type
 
 if TYPE_CHECKING:
-    from .connection import QueryConnection
-    from .graph import Graph, Supergraph
-    from .object import BuiltinObjectBase
-    from .session import Session
+    from ..builtin import BuiltinObjectBase
+    from ..helper import Session
+    from ..helper.connection import QueryConnection
+    from ..helper.graph import Graph, Supergraph
 
 
 # ruff: noqa: FURB113

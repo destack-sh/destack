@@ -2,11 +2,11 @@ from typing import TYPE_CHECKING, Optional, Union
 
 from bench.pb2 import FieldData
 
-from .const import BuiltinEnum, CascadeAction, EdgeType, EnumType, enum_
-from .node import Node, NodeType, node_
-from .property import property_, property_parent_
-from .query import IntoQuery
-from .trait import (
+from ..builtin import (
+    BuiltinEnum,
+    CascadeAction,
+    EdgeType,
+    EnumType,
     HasEnvironment,
     HasIcon,
     HasName,
@@ -15,7 +15,14 @@ from .trait import (
     IsInPackage,
     IsOrdered,
     IsTemplatable,
+    Node,
+    NodeType,
+    enum_,
+    node_,
+    property_,
+    property_parent_,
 )
+from .query import IntoQuery
 from .type import TypeBase
 
 if TYPE_CHECKING:

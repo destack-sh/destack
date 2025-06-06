@@ -263,7 +263,7 @@ def _generate_node_row_pack(node_cls: type[Node]) -> str:
 
     for prop in node_cls.__properties_in_order__:
         if not prop.is_stored or (
-            prop.edge_type == EdgeType.NODE_PARENT and node_cls.__root_type__ is None
+            prop.edge_type == EdgeType.PARENT and node_cls.__root_type__ is None
         ):
             continue
 
@@ -280,7 +280,7 @@ def _generate_node_row_unpack(node_cls: type[Node]) -> str:
 
     for prop in node_cls.__properties_in_order__:
         if not prop.is_stored or (
-            prop.edge_type == EdgeType.NODE_PARENT and node_cls.__root_type__ is None
+            prop.edge_type == EdgeType.PARENT and node_cls.__root_type__ is None
         ):
             continue
         unpack_code = _generate_column_unpack(prop)

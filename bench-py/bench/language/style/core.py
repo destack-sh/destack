@@ -8,7 +8,7 @@ from bench.language.core import (
     property_,
     struct_,
 )
-from bench.language.core.struct import StructFrozen
+from bench.language.core.builtin.struct import StructFrozen
 
 if TYPE_CHECKING:
     pass

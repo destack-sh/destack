@@ -44,11 +44,17 @@ from .const import (
     TraitType,
     TypeCardinality,
 )
-from .graph import Graph, PolyGraph, SingletonGraph, Supergraph
 from .property import _PROPERTY_SPECIFIERS, IntoType, Property, property_runtime_
 
 if TYPE_CHECKING:
-    from bench.language import Field, Graph, Node, QueryConnection, Session
+    from bench.language import (
+        Field,
+        Graph,
+        Node,
+        QueryConnection,
+        Session,
+        Supergraph,
+    )
 
 # pyright: reportIncompatibleVariableOverride=false
 
@@ -155,10 +161,6 @@ def _generate_init_impl[ObjectT: BuiltinObjectBase](
     extra_glbls["EMPTY_DICT"] = frozendict()
     extra_glbls["uuid4"] = uuid4
     extra_glbls["REGION"] = REGION
-    extra_glbls["Graph"] = Graph
-    extra_glbls["SingletonGraph"] = SingletonGraph
-    extra_glbls["PolyGraph"] = PolyGraph
-    extra_glbls["Supergraph"] = Supergraph
 
     method_body_lines = [
         "__setattr__ = object.__setattr__",
@@ -305,6 +307,8 @@ if {prop.name} is None:
         method_body_lines.append("""\
 # graph
 if _graph is None:
+    from bench.language.core import SingletonGraph
+                                 
     _graph = SingletonGraph(_supergraph, self)
     _supergraph.add_graph(_graph)
 else:
@@ -857,7 +861,7 @@ def _generate_node_ancestor_property_impl(
     node_types_str = ", ".join(str(t.value) for t in prop.node_types or ())
     assert node_types_str, f"no node types for {prop!r}"
 
-    if prop.edge_type == EdgeType.NODE_ANCESTOR and object_type in (prop.node_types or ()):
+    if prop.edge_type == EdgeType.ANCESTOR and object_type in (prop.node_types or ()):
         return f"""\
 @property
 def {prop.name}(self: "Node") -> "Node":
@@ -1075,14 +1079,14 @@ def _process_object_cls[ObjectT: BuiltinObjectBase](
                 )
             # computed node property
             elif prop.edge_type in (
-                EdgeType.NODE_PARENT,
-                EdgeType.NODE_REGULAR,
-                EdgeType.NODE_TEMPLATE,
+                EdgeType.PARENT,
+                EdgeType.REGULAR,
+                EdgeType.TEMPLATE,
             ):
                 node_property_str = _generate_node_property_impl(prop)
                 exec_(node_property_str, {}, cls_dict, f"{cls.__name__}:node_property:{prop.name}")
             # computed node ancestor property
-            elif prop.edge_type == EdgeType.NODE_ANCESTOR:
+            elif prop.edge_type == EdgeType.ANCESTOR:
                 ancestor_property_str = _generate_node_ancestor_property_impl(object_type, prop)
                 exec_(
                     ancestor_property_str,

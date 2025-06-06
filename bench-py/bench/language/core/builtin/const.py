@@ -671,6 +671,7 @@ class NodeType(BuiltinEnum):
     AGENT = 1300, "Agent", "Identity for an AI", "fas fa-robot"
     TASK = 1310, "Task", "To-do item", "far fa-square-check"
     CURSOR = 1320, "Cursor", "Position in something", "fas fa-mouse"
+    # TRIGGER, ...
     # TRAIT/INTERFACE, ...
     # TEST, TEST_SUITE, TEST_CASE, TEST_RESULT, ...
 
@@ -680,7 +681,7 @@ class NodeType(BuiltinEnum):
     INTERRUPTION = 1630, "Interruption", "Interruption", "fas fa-hand"
     # ROOM, JOB, PLAN, LOCK, ...
     # EVENT, SIGNAL, ...
-    # TRIGGER, TIMER, BREAKPOINT, ...
+    # TIMER, BREAKPOINT, ...
     # INSTRUMENT, MEASUREMENT, LOG/EDIT_LOG/CHANGE_LOG/QUERY_LOG/..., ...
 
     # data [2000-2400]
@@ -1067,10 +1068,10 @@ REGION_BY_SLUG = {r.slug: r for r in Region}
 
 @enum_(EnumType.EDGE_TYPE)
 class EdgeType(BuiltinEnum):
-    NODE_PARENT = 1
-    NODE_ANCESTOR = 2
-    NODE_REGULAR = 5
-    NODE_TEMPLATE = 6
+    PARENT = 1
+    ANCESTOR = 2
+    REGULAR = 5
+    TEMPLATE = 6
 
     @property
     def is_node_tree(self):
