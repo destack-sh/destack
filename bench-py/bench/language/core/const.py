@@ -2,7 +2,7 @@ import contextvars
 import enum
 import functools
 import typing
-from collections.abc import Collection, Generator, Iterable
+from collections.abc import Collection, Iterable
 from datetime import date, datetime, time, timedelta
 from decimal import Decimal
 from typing import (
@@ -17,8 +17,6 @@ from typing import (
 from bitarray import bitarray
 from fastuuid import UUID, uuid4, uuid5
 from more_itertools import first
-from opentelemetry.trace import Tracer
-from opentelemetry.util._decorator import _agnosticcontextmanager
 
 from bench.utils.env import IS_TEST
 from bench.utils.string import Casing, to_casing
@@ -27,10 +25,8 @@ from bench.utils.utils import frozendict, get_from_env
 if TYPE_CHECKING:
     from bench.language import (
         Session,
-        Span,
         SpanType,
     )
-    from bench.runtime import Runner
 
 
 class _Unset:
@@ -1399,45 +1395,6 @@ class BenchError(Exception):
     """Common base class for any regular errors."""
 
     pass
-
-
-@_agnosticcontextmanager
-def capture_span(
-    tracer: Tracer,
-    key: str,
-    type: "SpanType",
-    *,
-    title: str | None = None,
-    runner: "Runner[Any] | None" = None,
-) -> Generator["Span | None", None, None]:
-    """Decorate or annotate a Span in the current Run (noop if not inside a Run)."""
-    from bench.language import Span
-
-    if runner is None:
-        session = ACTIVE_SESSION.get()
-        runtime = session.runtime if session is not None else None
-        runner = runtime.active_runner if runtime is not None else None
-        run = runner.closest_tracked_run if runner is not None else None
-    else:
-        runtime = runner.runtime
-        session = runner.session
-        run = runner.closest_tracked_run
-
-    if runner is None or runtime is None or run is None:
-        # not inside a Run
-        with tracer.start_as_current_span(key):
-            yield
-    else:
-        span = Span(type=type, title=title, started_at=runtime.oracle.utc())
-        # run._copy_context_to(span)
-        run.add_child(span)
-        try:
-            with tracer.start_as_current_span(key):
-                yield span
-        finally:
-            assert span.started_at is not None, f"no started_at for {span!r}"
-            span.terminated_at = runtime.oracle.utc()
-            span.duration = span.terminated_at - span.started_at
 
 
 def repr_enums(enums: Iterable[BuiltinEnum]) -> str:

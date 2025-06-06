@@ -25,9 +25,7 @@ from bench.language.core import (
     Node,
     NodeType,
     PrimitiveType,
-    SpanType,
     active_session,
-    capture_span,
     enum_,
     node_,
     property_,
@@ -692,7 +690,7 @@ async def upload_file_batch(
     raise NotImplementedError
 
 
-@capture_span(tracer, "file.download_batch", SpanType.FILE_DOWNLOAD)
+@tracer.start_as_current_span("file.download_batch")
 async def download_file_batch(
     file_refs: Sequence[File],
     *,
@@ -836,7 +834,7 @@ def guess_file_info(
     return file
 
 
-@capture_span(tracer, "file.upload", SpanType.FILE_UPLOAD)
+@tracer.start_as_current_span("file.upload")
 async def upload_file(
     file_in: FileIn,
     name: str,

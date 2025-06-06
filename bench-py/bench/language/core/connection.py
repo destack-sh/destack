@@ -45,7 +45,7 @@ class QueryConnection[RootT: "Trait | Node"]:
         self.result: QueryResult | None = None
         self.queries_by_id: dict[UUID, Query] = {}
         self.results_by_id: dict[UUID, QueryResult] = {}
-        self.graph: Graph = Graph(supergraph=session.supergraph, connection=self)
+        self.graph: Graph = Graph(session.supergraph)
         self.roots: list[RootT] = []
 
     def __str__(self) -> str:

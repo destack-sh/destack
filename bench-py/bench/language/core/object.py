@@ -214,7 +214,7 @@ __setattr__(self, "_dirty", None)
 
 # graph
 if _graph is None:
-    _graph = Graph(_supergraph, _connection)
+    _graph = Graph(_supergraph)
     _supergraph.add_graph(_graph)
 __setattr__(self, "_graph", _graph)
 __setattr__(self, "_connection", _connection)
