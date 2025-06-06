@@ -241,6 +241,11 @@ enum CursorType {
   CURSOR_TYPE_CUSTOM = 9000;
 }
 
+enum DatabaseType {
+  DATABASE_TYPE_UNSPECIFIED = 0;
+  DATABASE_TYPE_POSTGRES = 1;
+}
+
 // The day of the week.
 enum Day {
   DAY_UNSPECIFIED = 0;
@@ -373,12 +378,13 @@ enum EnumType {
   ENUM_TYPE_CLIENT_TYPE = 231;
   ENUM_TYPE_SPACE_TYPE = 601;
   ENUM_TYPE_BLOCK_TYPE = 611;
-  ENUM_TYPE_CLOUD = 52;
-  ENUM_TYPE_REGION = 53;
-  ENUM_TYPE_REGION_AREA = 55;
-  ENUM_TYPE_CONTINENT = 56;
+  ENUM_TYPE_CLOUD = 1000;
+  ENUM_TYPE_REGION = 1001;
+  ENUM_TYPE_REGION_AREA = 1002;
+  ENUM_TYPE_CONTINENT = 1003;
+  ENUM_TYPE_TENANCY = 1004;
+  ENUM_TYPE_DATABASE_TYPE = 1010;
   ENUM_TYPE_MACHINE_TYPE = 1011;
-  ENUM_TYPE_TENANCY = 1012;
   ENUM_TYPE_ACTION_CARDINALITY = 1221;
   ENUM_TYPE_FLOW_TYPE = 1241;
   ENUM_TYPE_FLOW_EDGE_TYPE = 1242;
@@ -1777,7 +1783,7 @@ message CustomNodeInstanceData {
   NodeReferenceData definition_ptr = 40;
 }
 
-// A Postgres-compatible Database.
+// A relational Database.
 message DatabaseData {
   NodeType metatype = 1;
   string id = 2;
@@ -1789,6 +1795,7 @@ message DatabaseData {
   optional NodeReferenceData updated_by_ptr = 13;
   EnvironmentType environment_type = 17;
   optional NodeReferenceData owned_by_ptr = 19;
+  DatabaseType type = 30;
   string name = 31;
   Region region = 50;
   optional string cell_name = 51;
@@ -1800,6 +1807,7 @@ message DatabaseData {
 
 message DatabaseInfoData {
   StructType metatype = 1;
+  DatabaseType type = 30;
   Region region = 50;
   optional string cell_name = 51;
   string external_name = 52;

@@ -47,7 +47,7 @@ from .migrate import (
     sql_migrate,
 )
 from .query import execute_query
-from .store import DatabaseStore
+from .store import PostgresStore
 
 __all__ = [
     "BENCH_BUILTIN_TABLE_PREFIX",
@@ -77,10 +77,10 @@ __all__ = [
     "DatabaseObject",
     "DatabaseObjectKind",
     "DatabaseSchema",
-    "DatabaseStore",
     "DatabaseTable",
     "Migration",
     "MigrationFile",
+    "PostgresStore",
     "add_migration_to_fs",
     "apply_migration_ops",
     "execute_change",
