@@ -399,7 +399,7 @@ class Property(IntoType, IntoQuery if TYPE_CHECKING else object):
         """A pointer to this property. `to_ref()` for consistency with `Node.to_ref()`."""
 
         if self._ref is None:
-            from .struct import PropertyReference, PropertyReferenceType
+            from ..definition import PropertyReference, PropertyReferenceType
 
             assert self.component is not None, f"{self!r} has no component"
             assert self.id is not None, f"{self!r} has no id"

@@ -15,13 +15,13 @@ from ..builtin import (
     IsOwnable,
     IsScriptable,
     Node,
-    NodeReference,
     NodeType,
     TraitType,
     node_,
     property_,
     property_parent_,
 )
+from .relation import NodeReference
 
 if TYPE_CHECKING:
     pass

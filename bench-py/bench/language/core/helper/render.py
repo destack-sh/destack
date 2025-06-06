@@ -24,13 +24,11 @@ from ..builtin import (
     EdgeType,
     IsInPackage,
     Node,
-    NodeReference,
     NodeType,
     Property,
-    PropertyReference,
     StructType,
 )
-from ..definition import TypeBase
+from ..definition import NodeReference, PropertyReference, TypeBase
 from .graph import Supergraph
 
 if TYPE_CHECKING:

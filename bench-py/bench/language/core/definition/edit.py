@@ -12,10 +12,8 @@ from ..builtin import (
     DefaultFactory,
     EnumType,
     Node,
-    NodeReference,
     NodeType,
     Property,
-    PropertyReference,
     StructFrozen,
     StructType,
     bittuple,
@@ -23,6 +21,7 @@ from ..builtin import (
     property_,
     struct_,
 )
+from .relation import NodeReference, PropertyReference
 
 if TYPE_CHECKING:
     from bench.language import Field, Graph, IsSubject, Origin, Value

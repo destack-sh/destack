@@ -33,14 +33,7 @@ from .property import (
 from .trait import IndexIn, IsSubject, NodeBase
 
 if TYPE_CHECKING:
-    from bench.language import (
-        Graph,
-        NodeInfo,
-        NodeReference,
-        QueryConnection,
-        Session,
-        Supergraph,
-    )
+    from bench.language import Graph, NodeInfo, NodeReference, QueryConnection, Session, Supergraph
 
 # pyright: reportIncompatibleVariableOverride=false
 
