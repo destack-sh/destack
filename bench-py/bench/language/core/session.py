@@ -22,7 +22,6 @@ from .value import to_value
 
 if TYPE_CHECKING:
     from bench.language import Bench, Edit, Origin, QueryConnection, Store
-    from bench.runtime.core import Runtime
 
 # pyright: reportIncompatibleVariableOverride=false
 
@@ -60,7 +59,6 @@ class Session:
         origin: "Origin | None" = None,
         subject: IsSubject | None = None,
         store: "Store | None" = None,
-        _runtime: Optional["Runtime"] = None,
     ):
         self.supergraph = Supergraph(self)
         self.mode: EnvironmentType = mode
@@ -76,7 +74,6 @@ class Session:
         self.changes: list[Change] = []
 
         # runtime
-        self.runtime: Runtime | None = _runtime
         self.connections: list[QueryConnection] = []
         self.closed_at: datetime | None = None
         self._token: Any | None = None

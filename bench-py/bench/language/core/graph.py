@@ -20,7 +20,7 @@ from bench.utils.fractional import INTEGER_MAX
 from .const import EMPTY_LIST, UNSET, NodeType, TraitType
 
 if TYPE_CHECKING:
-    from bench.language import Node, QueryConnection, Session
+    from bench.language import Node, Session
 
 logger = structlog.get_logger(__name__)
 tracer = trace.get_tracer(__name__)
@@ -32,11 +32,10 @@ class Graph:
     Graphs may be tied to the result of a Query (via QueryConnection) or just free-floating.
     """
 
-    __slots__ = ("connection", "nodes_by_id", "nodes_by_parent_id", "supergraph")
+    __slots__ = ("nodes_by_id", "nodes_by_parent_id", "supergraph")
 
-    def __init__(self, supergraph: "Supergraph", connection: "QueryConnection | None"):
+    def __init__(self, supergraph: "Supergraph"):
         self.supergraph = supergraph
-        self.connection = connection
         self.nodes_by_id: dict[UUID, Node] = {}
         self.nodes_by_parent_id: dict[UUID, dict[NodeType, list[Node]]] = {}
 
