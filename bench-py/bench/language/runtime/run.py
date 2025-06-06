@@ -22,7 +22,7 @@ from bench.language.core import (
 from bench.pb2 import RunData
 
 if TYPE_CHECKING:
-    from bench.language import Agent, Code, NodeReference, Span, Thread
+    from bench.language import Agent, NodeReference, Span, Thread
 
 
 # pyright: reportIncompatibleVariableOverride=false
@@ -54,7 +54,6 @@ class Run(
         thread_id: Optional[UUID] = None
 
     # content
-    code: Optional["Code"] = property_(66)
     runnable: Optional[IsRunnable] = property_(67)
     if TYPE_CHECKING:
         runnable_ptr: Optional[NodeReference] = None

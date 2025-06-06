@@ -20,7 +20,7 @@ logger = structlog.get_logger(__name__)
 @app.callback(invoke_without_command=True)
 @app.command()
 @async_to_sync
-async def shell(
+async def sqlshell(
     area: Annotated[Area, typer.Option(parser=parse_node_area)],
     region: Annotated[Region, typer.Option(parser=parse_region)] = REGION,
     cell_name: Optional[str] = None,

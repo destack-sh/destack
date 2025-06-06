@@ -25,7 +25,7 @@ from bench.language.core import (
 from bench.pb2 import FieldData
 
 if TYPE_CHECKING:
-    from bench.language import Action, Agent, CustomNodeDefinition, Flow, IsView, Scene, Schema
+    from bench.language import Action, Agent, CustomNodeDefinition, IsView, Scene, Schema
 
 
 # pyright: reportIncompatibleVariableOverride=false, reportIncompatibleMethodOverride=false
@@ -56,9 +56,9 @@ class Field(
     A Field is a user-defined attribute.
     """
 
-    parent: Union[
-        "Agent", "Action", "Schema", "Flow", "CustomNodeDefinition", "Scene", "IsView", None
-    ] = property_parent_()
+    parent: Union["Agent", "Action", "Schema", "CustomNodeDefinition", "Scene", "IsView", None] = (
+        property_parent_()
+    )
     type: FieldType = property_(30, default=FieldType.MEMBER)
 
     # type identity
