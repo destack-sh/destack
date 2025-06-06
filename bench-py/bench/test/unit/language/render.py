@@ -21,7 +21,6 @@ from bench.language import (
     RenderOptions,
     Run,
     Session,
-    code,
     text,
 )
 from bench.language.registry import (
@@ -159,18 +158,6 @@ Yeah, this is a long answer.
 """)
     )
     return {"Text1": Text1, "Text2": Text2, "Text3": Text3, "Message1": Message1}
-
-
-@pytest.mark.skip(reason=":BadCodeFormatting")
-@_render_test
-def test_render_code(session: Session, package: Package):
-    """Code should be rendered inline :BadCodeFormatting."""
-    Code1 = code("print('Hello, world!')")
-    Code2 = code("""\
-def hello_world():
-    print("Hello, world!")
-""")
-    return {"Code1": Code1, "Code2": Code2}
 
 
 @_render_test

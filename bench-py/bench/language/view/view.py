@@ -5,13 +5,13 @@ from bench.language.core import (
     HasName,
     IsBlockable,
     IsInPackage,
+    IsScriptable,
     IsTemplatable,
     TraitType,
     property_,
     property_parent_,
     trait_,
 )
-from bench.pb2 import AnyNodeData
 
 if TYPE_CHECKING:
     from bench.language import Dimension, Page, Position, Space
@@ -20,10 +20,11 @@ if TYPE_CHECKING:
 
 
 @trait_(TraitType.VIEW)
-class IsView[NodeDataT: AnyNodeData](
-    IsTemplatable,
+class IsView(
     HasEnvironment,
     HasName,
+    IsScriptable,
+    IsTemplatable,
     IsBlockable,
     IsInPackage,
 ):

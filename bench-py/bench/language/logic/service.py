@@ -8,6 +8,7 @@ from bench.language.core import (
     IsDeletable,
     IsOwnable,
     IsRunnable,
+    IsScriptable,
     IsTemplatable,
     Node,
     NodeType,
@@ -28,10 +29,11 @@ class Service(
     IsOwnable,
     IsDeletable,
     IsArchivable,
-    HasEnvironment,
-    HasName,
     IsRunnable,
     IsBlockable,
+    IsScriptable,
+    HasEnvironment,
+    HasName,
     Node[ServiceData],
 ):
     """
