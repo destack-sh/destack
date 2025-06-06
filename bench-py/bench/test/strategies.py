@@ -301,7 +301,6 @@ STRATEGY_BY_OBJECT_PROPERTY: dict[tuple[NodeType | StructType, str], st.SearchSt
         keys=st.sampled_from(ThemeColor), values=from_object_type(StructType.COLOR)
     ),
     (NodeType.FILE, "inline_content"): BYTES_STRATEGY,
-    (StructType.CODE, "content"): st.text(min_size=1, max_size=64, alphabet=ascii_lowercase),
     # Text is pretty limited right now :CrummyMarkdown
     (StructType.TEXT, "lines"): st.lists(from_object_type(StructType.TEXT_LINE), max_size=0),
     (StructType.TEXT_LINE, "spans"): st.lists(

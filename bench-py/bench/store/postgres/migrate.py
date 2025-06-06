@@ -23,10 +23,10 @@ from more_itertools import first
 from opentelemetry import trace
 
 from bench.language import Area
+from bench.utils.code import format_code
 from bench.utils.env import REPOSITORY_PATH
 from bench.utils.func import partition, re_search_or_error
 from bench.utils.oracle import Oracle
-from bench.utils.utils import format_python
 
 from .core import (
     POSTGRES_TYPE_BY_UDT,
@@ -388,7 +388,7 @@ def generate_migration_code(
         assert method_placeholder in migration_code, f"method placeholder not found: {method_name}"
         migration_code = migration_code.replace(method_placeholder, indent(method_body, "    "))
 
-    migration_code = format_python(migration_code)
+    migration_code = format_code(migration_code)
     return migration_code
 
 
@@ -617,7 +617,7 @@ def _render_migration_body(ops: list[DatabaseMigrationOp] | None) -> str:
 async def apply_migration_ops(conn: asyncpg.Connection, ops: list[DatabaseMigrationOp]) -> None:
     """Directly apply the given migration ops."""
     method_body = _render_migration_body(ops)
-    method_body = format_python(method_body)
+    method_body = format_code(method_body)
 
     # turn it into an async callable
     method = f"async def _apply_inline(conn):\n{indent(method_body, '    ')}"

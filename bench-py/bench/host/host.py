@@ -40,9 +40,8 @@ from bench.pb2 import (
 from bench.proto import Network, ServiceBase
 from bench.sharding import CellProvider, DatabaseProvider
 from bench.store import PostgresStore
-from bench.utils.env import ENV
+from bench.utils.env import ENV, get_from_env
 from bench.utils.oracle import Oracle
-from bench.utils.utils import get_from_env
 
 from .plugin import HostPlugin
 

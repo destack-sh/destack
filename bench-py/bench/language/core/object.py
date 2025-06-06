@@ -26,8 +26,8 @@ from opentelemetry import trace
 from bench.pb2 import AnyObjectData
 from bench.utils.code import exec_, format_code
 from bench.utils.env import IS_DEV
+from bench.utils.frozen import frozendict, frozenlist
 from bench.utils.func import dualmethod, get_superclasses
-from bench.utils.utils import frozendict, frozenlist
 
 from .const import (
     ACTIVE_SESSION,

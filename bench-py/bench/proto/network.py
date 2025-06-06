@@ -12,8 +12,8 @@ from grpclib.client import Channel
 from bench import pb2
 from bench.pb2 import RpcMetadata
 from bench.proto.wiring import pack_rpc_headers
+from bench.utils.env import get_from_env
 from bench.utils.telemetry import collect_propagation_context
-from bench.utils.utils import get_from_env
 
 if TYPE_CHECKING:
     from bench.language import ClientType

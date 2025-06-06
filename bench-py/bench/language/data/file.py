@@ -33,8 +33,8 @@ from bench.language.core import (
     property_runtime_,
 )
 from bench.pb2 import FileData
+from bench.utils.env import get_from_env
 from bench.utils.func import group_by
-from bench.utils.utils import get_from_env
 
 if TYPE_CHECKING:
     from magika import Magika

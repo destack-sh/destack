@@ -1,5 +1,5 @@
 from bench.language import DatabaseInfo, DatabaseType, Region
-from bench.utils.utils import get_from_env
+from bench.utils.env import get_from_env
 
 from .cell import StaticCellProvider
 from .database import StaticDatabaseProvider

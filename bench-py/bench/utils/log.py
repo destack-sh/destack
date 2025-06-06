@@ -9,7 +9,7 @@ from typing import Any, Callable
 import structlog
 from opentelemetry import trace
 
-from bench.utils.utils import get_from_env
+from bench.utils.env import get_from_env
 
 
 class LogMode(enum.StrEnum):
