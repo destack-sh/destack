@@ -5,7 +5,6 @@ from typing import TYPE_CHECKING, Any, Optional, assert_never
 import regex
 from fastuuid import UUID
 
-from .code import Code
 from .const import BuiltinEnum, EnumType, StructType, enum_
 from .node import Node
 from .object import BuiltinObjectBase, object_
@@ -239,9 +238,7 @@ class Text(StructMutable):
     from_string = plain
 
     @staticmethod
-    def code(code: str | Code) -> "Text":
-        if not isinstance(code, str):
-            code = code.to_string()
+    def code(code: str) -> "Text":
         return Text(lines=[TextLine.code(code)])
 
     @staticmethod

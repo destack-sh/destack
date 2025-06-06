@@ -336,8 +336,6 @@ class EnumType(BuiltinEnum):
 
     # logic [1200-1600]
     ACTION_CARDINALITY = 1221
-    FLOW_TYPE = 1241
-    FLOW_EDGE_TYPE = 1242
     CURSOR_TYPE = 1321
     CURSOR_STATUS = 1322
     # ...
@@ -670,8 +668,6 @@ class NodeType(BuiltinEnum):
     # logic [1200-1600]
     SERVICE = 1200, "Service", "Service", "fas fa-screwdriver-wrench"
     ACTION = 1220, "Action", "Action", "fas fa-step-forward"
-    FLOW = 1240, "Flow", "Sequence Actions", "fas fa-diagram-project"
-    FLOW_EDGE = 1241, "Flow Edge", "Edge between Actions", "fas fa-link"
     AGENT = 1300, "Agent", "Identity for an AI", "fas fa-robot"
     TASK = 1310, "Task", "To-do item", "far fa-square-check"
     CURSOR = 1320, "Cursor", "Position in something", "fas fa-mouse"
@@ -685,7 +681,8 @@ class NodeType(BuiltinEnum):
     RUN = 1610, "Run", "Run", "fas fa-play"
     SPAN = 1620, "Span", "Span", "fas fa-ruler-horizontal"
     INTERRUPTION = 1630, "Interruption", "Interruption", "fas fa-hand"
-    # EVENT, SIGNAL, TRACE, LOG/EDIT_LOG/CHANGE_LOG/QUERY_LOG/..., ...
+    # EVENT, SIGNAL, SPAN/TRACE,
+    # INSTRUMENT, MEASUREMENT, LOG/EDIT_LOG/CHANGE_LOG/QUERY_LOG/..., ...
 
     # data [2000-2200]
     SCHEMA = 2000, "Schema", "Schema", "fas fa-shapes"
@@ -709,7 +706,7 @@ class NodeType(BuiltinEnum):
 
     # product [2800-3200]
     # PREVIEW, RELEASE, ROLLOUT, ...
-    # METER, METRIC, RECORDING/REPLAY, SURVEY, ...
+    # METER/METRIC, RECORDING/REPLAY, SURVEY, ...
     # TOUR, FUNNEL, COHORT, JOURNEY, ..
     # SEGMENT, EXPERIMENT, FEATURE, FEATURE_FLAG, FEATURE_GATE, ...
 
@@ -763,6 +760,8 @@ class NodeType(BuiltinEnum):
     # DATETIME_INPUT_VIEW = 8320, "Datetime Input View", "Datetime", "fas fa-calendar-days"
     # DURATION_INPUT_VIEW = 8321, "Duration Input View", "Duration", "fas fa-stopwatch"
 
+    # NOTE :Architecture: node and internal views should probably be defined in user space?
+
     # node views [8400-8500]
     # NODE_VIEW = 8400, "Node View", "Node", "fas fa-hexagon"
     # NODE_CHIP_VIEW = 8401, "Node Chip View", "Node Chip", "fas fa-hexagon"
@@ -803,25 +802,26 @@ class TraitType(BuiltinEnum):
     # bench [1-200]
     GLOBAL = 1, "Global", "Is global", "fas fa-globe"
     CUSTOM = 3, "Custom", "Is custom", "fas fa-globe"
+    FROZEN = 4, "Frozen", "Is frozen", "fas fa-snowflake"
     ARCHIVABLE = 11, "Archivable", "Can be archived", "fas fa-box-archive"
     DELETABLE = 12, "Deletable", "Can be deleted", "fas fa-trash"
-    HAS_ENVIRONMENT = 20, "Modal", "Has a mode", "fas fa-window-maximize"
-    HAS_NAME = 21, "Named", "Has a name", "fas fa-font-case"
-    HAS_TITLE = 22, "Titled", "Has a title", "fas fa-font-case"
+    HAS_ENVIRONMENT = 20, "Environment", "Has an environment", "fas fa-window-maximize"
+    HAS_NAME = 21, "Name", "Has a name", "fas fa-font-case"
+    HAS_TITLE = 22, "Title", "Has a title", "fas fa-font-case"
     HAS_SLUG = 23, "Slug", "Has a slug", "fas fa-hashtag"
-    HAS_ICON = 24, "Icon", "Has an Icon", "fas fa-icons"
-    ORDERED = 25, "Ordered", "Has an order", "fas fa-sort"
-    TEMPLATABLE = 30, "Templatable", "Can be templated", "fas fa-puzzle-piece"
-    EXTENSIBLE = 32, "Extensible", "Can be extended", "fas fa-expand"
-    IN_BENCH = 40, "Bench", "In a Bench", "fas fa-bench"
-    IN_PACKAGE = 41, "Package", "In a Package", "fas fa-box"
-    RESOURCE = 51, "Resource", "Is a Resource"
-    PROVISIONABLE = 52, "Provisionable", "Can be provisioned", "fas fa-server"
+    HAS_ICON = 24, "Icon", "Has an icon", "fas fa-icons"
+    ORDERED = 25, "Ordered", "Is ordered", "fas fa-sort"
+    TEMPLATABLE = 30, "Templatable", "Is templatable", "fas fa-puzzle-piece"
+    EXTENSIBLE = 32, "Extensible", "Is extensible", "fas fa-expand"
+    IN_BENCH = 40, "Bench", "Is in a Bench", "fas fa-bench"
+    IN_PACKAGE = 41, "Package", "Is in a Package", "fas fa-box"
+    RESOURCE = 51, "Resource", "Is a Resource", "fas fa-server"
+    PROVISIONABLE = 52, "Provisionable", "Is provisionable", "fas fa-server"
     # TAG, TAGGABLE, ...
 
     # auth [200-600]
-    OWNABLE = 200, "Ownable", "Can be owned", "fas fa-user"
-    JOINABLE = 202, "Joinable", "Can be joined", "fas fa-users"
+    OWNABLE = 200, "Ownable", "Is ownable", "fas fa-user"
+    JOINABLE = 202, "Joinable", "Is joinable", "fas fa-users"
     SUBJECT = 205, "Subject", "Is a Subject", "fas fa-user"
     MEMBERSHIP = 210, "Membership", "Is a Membership", "fas fa-users"
     INVITE = 211, "Invite", "Is an Invite", "fas fa-envelope"
@@ -909,14 +909,10 @@ class Cloud(BuiltinEnum):
     # own
     ...
     # big general
-    AWS = 100
-    AZURE = 101
-    GCP = 102
-    OCI = 103
-    ALIBABA = 104
-    # small general
-    HETZNER = 200
-    # private
+    AWS = 10
+    AZURE = 20
+    GCP = 30
+    HETZNER = 40
     PRIVATE = 900
 
     @property

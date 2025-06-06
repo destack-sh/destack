@@ -92,7 +92,7 @@ def _clean_name(name: str) -> str:
 
 @pytest.fixture
 async def global_database(request: pytest.FixtureRequest) -> AsyncGenerator[DatabaseInfo, None]:
-    """Gets the per test function global database"""
+    """Gets the per test function global Database"""
 
     database = get_database(f"test-{_clean_name(request.node.name)[:32]}-global")
     await create_test_db(database, BUILTIN_GLOBAL_SCHEMA)
@@ -104,7 +104,7 @@ async def global_database(request: pytest.FixtureRequest) -> AsyncGenerator[Data
 
 @pytest.fixture
 async def main_database(request: pytest.FixtureRequest) -> AsyncGenerator[DatabaseInfo, None]:
-    """Gets the per test function main database"""
+    """Gets the per test function main Database"""
 
     database = get_database(f"test-{_clean_name(request.node.name)[:32]}-main")
     await create_test_db(database, BUILTIN_MAIN_SCHEMA)
@@ -116,7 +116,7 @@ async def main_database(request: pytest.FixtureRequest) -> AsyncGenerator[Databa
 
 @pytest.fixture
 async def omni_database(request: pytest.FixtureRequest) -> AsyncGenerator[DatabaseInfo, None]:
-    """Gets the per test function omni database"""
+    """Gets the per test function omni Database"""
     omni_tables_by_name = {
         table.name: table for table in BUILTIN_GLOBAL_TABLES + BUILTIN_MAIN_TABLES
     }

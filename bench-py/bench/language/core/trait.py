@@ -416,6 +416,13 @@ class IsOrdered(Trait):
     order_key: str | None = property_(23, is_eq=False, default=INTEGER_ZERO)
 
 
+@trait_(TraitType.FROZEN)
+class IsFrozen(Trait):
+    """A Node that is frozen."""
+
+    pass
+
+
 @trait_(TraitType.ARCHIVABLE)
 class IsArchivable(Trait):
     """A Node that can be archived."""
